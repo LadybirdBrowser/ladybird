@@ -705,6 +705,9 @@ WebIDL::ExceptionOr<void> Document::close()
     // FIXME: 6. Run the tokenizer, processing resulting tokens as they are emitted, and stopping when the tokenizer reaches the explicit "EOF" character or spins the event loop.
     m_parser->run();
 
+    // AD-HOC: This ensures that a load event is fired if the node navigable's container is an iframe.
+    completely_finish_loading();
+
     return {};
 }
 
