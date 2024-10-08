@@ -152,7 +152,7 @@ interface Document : Node {
 
     // special event handler IDL attributes that only apply to Document objects
     [LegacyLenientThis] attribute EventHandler onreadystatechange;
-    [FIXME] attribute EventHandler onvisibilitychange;
+    attribute EventHandler onvisibilitychange;
 };
 
 dictionary ElementCreationOptions {

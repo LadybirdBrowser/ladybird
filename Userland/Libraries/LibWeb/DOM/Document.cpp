@@ -5676,4 +5676,14 @@ void Document::set_onreadystatechange(WebIDL::CallbackType* value)
     set_event_handler_attribute(HTML::EventNames::readystatechange, value);
 }
 
+WebIDL::CallbackType* Document::onvisibilitychange()
+{
+    return event_handler_attribute(HTML::EventNames::visibilitychange);
+}
+
+void Document::set_onvisibilitychange(WebIDL::CallbackType* value)
+{
+    set_event_handler_attribute(HTML::EventNames::visibilitychange, value);
+}
+
 }
