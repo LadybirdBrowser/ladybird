@@ -1072,20 +1072,20 @@ ALWAYS_INLINE ExecutionResult OpCode_ResetRepeat::execute(MatchInput const&, Mat
     return ExecutionResult::Continue;
 }
 
-ALWAYS_INLINE ExecutionResult OpCode_Checkpoint::execute(MatchInput const& input, MatchState& state) const
+ALWAYS_INLINE ExecutionResult OpCode_Checkpoint::execute(MatchInput const&, MatchState& state) const
 {
     auto id = this->id();
-    if (id >= input.checkpoints.size())
-        input.checkpoints.resize(id + 1);
+    if (id >= state.checkpoints.size())
+        state.checkpoints.resize(id + 1);
 
-    input.checkpoints[id] = state.string_position + 1;
+    state.checkpoints[id] = state.string_position + 1;
     return ExecutionResult::Continue;
 }
 
 ALWAYS_INLINE ExecutionResult OpCode_JumpNonEmpty::execute(MatchInput const& input, MatchState& state) const
 {
     u64 current_position = state.string_position;
-    auto checkpoint_position = input.checkpoints[checkpoint()];
+    auto checkpoint_position = state.checkpoints[checkpoint()];
 
     if (checkpoint_position != 0 && checkpoint_position != current_position + 1) {
         auto form = this->form();
