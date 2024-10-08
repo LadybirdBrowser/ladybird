@@ -45,6 +45,7 @@ textarea {
 
 input::placeholder, textarea::placeholder {
     color: GrayText;
+    line-height: initial;
 }
 
 button, input[type=submit], input[type=button], input[type=reset], select {
