@@ -38,10 +38,23 @@ macro(add_swift_link_options)
   add_link_options($<$<LINK_LANGUAGE:Swift>:${args}>) 
 endmacro()
 
+# FIXME: Rework these flags to remove the suspicious ones.
+if (WIN32)
+  add_compile_options(-Wno-unknown-attributes) # [[no_unique_address]] is broken in MSVC ABI until next ABI break
+  add_compile_options(-Wno-reinterpret-base-class)
+  add_compile_options(-Wno-microsoft-unqualified-friend) # MSVC doesn't support unqualified friends
+  add_compile_definitions(_CRT_SECURE_NO_WARNINGS) # _s replacements not desired (or implemented on any other platform other than VxWorks)
+  add_compile_definitions(_CRT_NONSTDC_NO_WARNINGS) # POSIX names are just fine, thanks
+  add_compile_definitions(_USE_MATH_DEFINES)
+  add_compile_definitions(NOMINMAX)
+  add_compile_definitions(WIN32_LEAN_AND_MEAN)
+  add_compile_definitions(NAME_MAX=255)
+  set(CMAKE_WINDOWS_EXPORT_ALL_SYMBOLS ON)
+  add_compile_options(-Wno-deprecated-declarations)
+endif()
+
 if (MSVC)
     add_cxx_compile_options(/W4)
-    # do not warn about unused function
-    add_cxx_compile_options(/wd4505)
     # disable exceptions
     add_cxx_compile_options(/EHsc)
     # disable floating-point expression contraction
@@ -110,4 +123,6 @@ if (NOT WIN32)
     add_cxx_link_options(-fstack-protector-strong)
 endif()
 
-add_cxx_compile_options(-fstrict-flex-arrays=2)
+if (NOT MSVC)
+    add_cxx_compile_options(-fstrict-flex-arrays=2)
+endif()
