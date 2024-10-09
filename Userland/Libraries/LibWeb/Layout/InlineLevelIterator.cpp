@@ -239,7 +239,30 @@ Optional<InlineLevelIterator::Item> InlineLevelIterator::next_without_lookahead(
             };
         }
 
-        auto glyph_run = Gfx::shape_text({ 0, 0 }, chunk.view, chunk.font, text_type);
+        auto boxes = m_containing_block_used_values.line_boxes;
+        CSSPixels accumulated_width = 0;
+        for (auto& box : boxes) {
+            accumulated_width += box.width();
+        }
+
+        auto tab_size = text_node.computed_values().tab_size();
+        CSSPixels tab_width;
+        tab_width = tab_size.visit(
+            [&](CSS::LengthOrCalculated const& t) -> CSSPixels {
+                auto resolution_context = CSS::Length::ResolutionContext::for_layout_node(text_node);
+                auto value = t.resolved(resolution_context);
+
+                return value.to_px(text_node);
+            },
+            [&](CSS::NumberOrCalculated const& n) -> CSSPixels {
+                auto number = n.resolved(text_node);
+
+                return CSSPixels::nearest_value_for(number * chunk.font->glyph_width(' '));
+            });
+
+        auto glyph_run
+            = Gfx::shape_text({ 0, 0 }, accumulated_width.to_float(), tab_width.to_float(), chunk.view, chunk.font, text_type);
+
         CSSPixels chunk_width = CSSPixels::nearest_value_for(glyph_run->width());
 
         // NOTE: We never consider `content: ""` to be collapsible whitespace.
