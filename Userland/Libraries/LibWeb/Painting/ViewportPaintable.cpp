@@ -43,7 +43,7 @@ void ViewportPaintable::build_stacking_context_tree()
         auto* parent_context = const_cast<Paintable&>(paintable).enclosing_stacking_context();
         auto establishes_stacking_context = paintable.layout_node().establishes_stacking_context();
         if ((paintable.is_positioned() || establishes_stacking_context) && paintable.computed_values().z_index().value_or(0) == 0)
-            parent_context->m_positioned_descendants_with_stack_level_0_and_stacking_contexts.append(paintable);
+            parent_context->m_positioned_descendants_and_stacking_contexts_with_stack_level_0.append(paintable);
         if (!paintable.is_positioned() && paintable.is_floating())
             parent_context->m_non_positioned_floating_descendants.append(paintable);
         if (!establishes_stacking_context) {

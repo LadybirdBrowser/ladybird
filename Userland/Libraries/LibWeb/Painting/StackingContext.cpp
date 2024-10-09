@@ -133,19 +133,10 @@ void StackingContext::paint_descendants(PaintContext& context, Paintable const& 
             return IterationDecision::Continue;
         }
 
-        if (stacking_context && z_index.value_or(0) != 0)
+        if (stacking_context)
             return IterationDecision::Continue;
         if (child.is_positioned() && z_index.value_or(0) == 0)
             return IterationDecision::Continue;
-
-        if (stacking_context) {
-            // FIXME: This may not be fully correct with respect to the paint phases.
-            if (phase == StackingContextPaintPhase::Foreground) {
-                paint_child(context, *stacking_context);
-            }
-            // Note: Don't further recurse into descendants as paint_child() will do that.
-            return IterationDecision::Continue;
-        }
 
         bool child_is_inline_or_replaced = child.is_inline() || is<Layout::ReplacedBox>(child.layout_node());
         switch (phase) {
@@ -223,7 +214,9 @@ void StackingContext::paint_internal(PaintContext& context) const
 
     // Stacking contexts formed by positioned descendants with negative z-indices (excluding 0) in z-index order
     // (most negative first) then tree order. (step 3)
-    // NOTE: This doesn't check if a descendant is positioned as modern CSS allows for alternative methods to establish stacking contexts.
+    // Here, we treat non-positioned stacking contexts as if they were positioned, because CSS 2.0 spec does not
+    // account for new properties like `transform` and `opacity` that can create stacking contexts.
+    // https://github.com/w3c/csswg-drafts/issues/2717
     for (auto* child : m_children) {
         if (child->paintable().computed_values().z_index().has_value() && child->paintable().computed_values().z_index().value() < 0)
             paint_child(context, *child);
@@ -239,11 +232,10 @@ void StackingContext::paint_internal(PaintContext& context) const
     paint_descendants(context, paintable(), StackingContextPaintPhase::Foreground);
 
     // Draw positioned descendants with z-index `0` or `auto` in tree order. (step 8)
-    // FIXME: There's more to this step that we have yet to understand and implement.
-    for (auto const& paintable : m_positioned_descendants_with_stack_level_0_and_stacking_contexts) {
-        if (!paintable->is_positioned())
-            continue;
-
+    // Here, we treat non-positioned stacking contexts as if they were positioned, because CSS 2.0 spec does not
+    // account for new properties like `transform` and `opacity` that can create stacking contexts.
+    // https://github.com/w3c/csswg-drafts/issues/2717
+    for (auto const& paintable : m_positioned_descendants_and_stacking_contexts_with_stack_level_0) {
         // At this point, `paintable_box` is a positioned descendant with z-index: auto.
         // FIXME: This is basically duplicating logic found elsewhere in this same function. Find a way to make this more elegant.
         auto* parent_paintable = paintable->parent();
@@ -260,7 +252,9 @@ void StackingContext::paint_internal(PaintContext& context) const
 
     // Stacking contexts formed by positioned descendants with z-indices greater than or equal to 1 in z-index order
     // (smallest first) then tree order. (Step 9)
-    // NOTE: This doesn't check if a descendant is positioned as modern CSS allows for alternative methods to establish stacking contexts.
+    // Here, we treat non-positioned stacking contexts as if they were positioned, because CSS 2.0 spec does not
+    // account for new properties like `transform` and `opacity` that can create stacking contexts.
+    // https://github.com/w3c/csswg-drafts/issues/2717
     for (auto* child : m_children) {
         if (child->paintable().computed_values().z_index().has_value() && child->paintable().computed_values().z_index().value() >= 1)
             paint_child(context, *child);
@@ -393,7 +387,7 @@ TraversalDecision StackingContext::hit_test(CSSPixelPoint position, HitTestType 
     }
 
     // 6. the child stacking contexts with stack level 0 and the positioned descendants with stack level 0.
-    for (auto const& paintable : m_positioned_descendants_with_stack_level_0_and_stacking_contexts.in_reverse()) {
+    for (auto const& paintable : m_positioned_descendants_and_stacking_contexts_with_stack_level_0.in_reverse()) {
         if (paintable->stacking_context()) {
             if (paintable->stacking_context()->hit_test(transformed_position, type, callback) == TraversalDecision::Break)
                 return TraversalDecision::Break;
