@@ -113,7 +113,7 @@ public:
     CSSPixels absolute_y() const { return absolute_rect().y(); }
     CSSPixelPoint absolute_position() const { return absolute_rect().location(); }
 
-    [[nodiscard]] bool has_scrollable_overflow() const { return m_overflow_data->has_scrollable_overflow; }
+    [[nodiscard]] bool has_scrollable_overflow() const { return m_overflow_data.has_value() && m_overflow_data->has_scrollable_overflow; }
 
     bool has_css_transform() const { return computed_values().transformations().size() > 0; }
 
