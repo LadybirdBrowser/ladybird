@@ -304,6 +304,7 @@ static ErrorOr<String> apply_text_transform(String const& string, CSS::TextTrans
 void TextNode::invalidate_text_for_rendering()
 {
     m_text_for_rendering = {};
+    m_grapheme_segmenter.clear();
 }
 
 String const& TextNode::text_for_rendering() const
