@@ -4,12 +4,13 @@ set -e
 
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
-LADYBIRD_SOURCE_DIR="$(realpath "${DIR}"/..)"
-WPT_SOURCE_DIR=${WPT_SOURCE_DIR:-"${LADYBIRD_SOURCE_DIR}/Tests/LibWeb/WPT/wpt"}
-WPT_REPOSITORY_URL=${WPT_REPOSITORY_URL:-"https://github.com/web-platform-tests/wpt.git"}
-
 # shellcheck source=/dev/null
 . "${DIR}/shell_include.sh"
+
+ensure_ladybird_source_dir
+
+WPT_SOURCE_DIR=${WPT_SOURCE_DIR:-"${LADYBIRD_SOURCE_DIR}/Tests/LibWeb/WPT/wpt"}
+WPT_REPOSITORY_URL=${WPT_REPOSITORY_URL:-"https://github.com/web-platform-tests/wpt.git"}
 
 default_binary_path() {
     if [ "$(uname -s)" = "Darwin" ]; then
