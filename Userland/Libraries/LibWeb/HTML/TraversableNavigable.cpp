@@ -1175,21 +1175,27 @@ TraversableNavigable::HistoryStepResult TraversableNavigable::apply_the_traverse
 // https://html.spec.whatwg.org/multipage/document-sequences.html#close-a-top-level-traversable
 void TraversableNavigable::close_top_level_traversable()
 {
+    // 1. If traversable's is closing is true, then return.
+    if (is_closing())
+        return;
+
+    // 2. Definitely close traversable.
+    definitely_close_top_level_traversable();
+}
+
+// https://html.spec.whatwg.org/multipage/document-sequences.html#definitely-close-a-top-level-traversable
+void TraversableNavigable::definitely_close_top_level_traversable()
+{
     VERIFY(is_top_level_traversable());
 
-    // 1. If traversable's is closing is true, then return.
-    // FIXME: Spec-issue: The only place in the spec that sets the `is closing` flag to true is `window.close`, and it
-    //        does so immediately before invoking this method. So it does not make sense to return early here.
-    //        https://github.com/whatwg/html/issues/10678
-
-    // 2. Let toUnload be traversable's active document's inclusive descendant navigables.
+    // 1. Let toUnload be traversable's active document's inclusive descendant navigables.
     auto to_unload = active_document()->inclusive_descendant_navigables();
 
-    // If the result of checking if unloading is canceled for toUnload is true, then return.
+    // 2. If the result of checking if unloading is canceled for toUnload is true, then return.
     if (check_if_unloading_is_canceled(to_unload) != CheckIfUnloadingIsCanceledResult::Continue)
         return;
 
-    // 4. Append the following session history traversal steps to traversable:
+    // 3. Append the following session history traversal steps to traversable:
     append_session_history_traversal_steps(JS::create_heap_function(heap(), [this] {
         // 1. Let afterAllUnloads be an algorithm step which destroys traversable.
         auto after_all_unloads = JS::create_heap_function(heap(), [this] {

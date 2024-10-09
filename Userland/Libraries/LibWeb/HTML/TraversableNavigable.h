@@ -78,6 +78,7 @@ public:
     void traverse_the_history_by_delta(int delta, Optional<DOM::Document&> source_document = {});
 
     void close_top_level_traversable();
+    void definitely_close_top_level_traversable();
     void destroy_top_level_traversable();
 
     void append_session_history_traversal_steps(JS::NonnullGCPtr<JS::HeapFunction<void()>> steps)
