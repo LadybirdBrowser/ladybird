@@ -86,6 +86,21 @@
         "ENABLE_FUZZERS_LIBFUZZER": "ON",
         "ENABLE_ADDRESS_SANITIZER": "ON"
       }
+    },
+    {
+        "name": "VisualStudio",
+        "displayName": "Visual Studio 2022 Config",
+        "description": "Build using Visual Studio 2022 generator",
+        "generator": "Visual Studio 17 2022",
+        "binaryDir": "${fileDir}/Build/ladybird-vs",
+        "cacheVariables": {
+            "CMAKE_BUILD_TYPE": "",
+            "SERENITY_CACHE_DIR": "${fileDir}/Build/caches",
+            "ENABLE_QT": "OFF",
+            "CMAKE_TOOLCHAIN_FILE": "${fileDir}/Toolchain/Tarballs/vcpkg/scripts/buildsystems/vcpkg.cmake",
+            "VCPKG_INSTALL_OPTIONS": "--no-print-usage",
+            "VCPKG_OVERLAY_TRIPLETS": "${fileDir}/Meta/CMake/vcpkg/release-triplets"
+        }
     }
   ],
   "buildPresets": [
@@ -106,6 +121,15 @@
       "targets": [
         "all"
       ]
+    },
+    {
+        "name": "VisualStudio",
+        "configurePreset": "VisualStudio",
+        "displayName": "Build with Visual Studio",
+        "description": "Build the project using Visual Studio",
+        "targets": [
+            "all"
+        ]
     }
   ],
   "testPresets": [
