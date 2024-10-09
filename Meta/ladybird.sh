@@ -83,10 +83,6 @@ EOF
 
 fi
 
-get_top_dir() {
-    git rev-parse --show-toplevel
-}
-
 create_build_dir() {
     check_program_version_at_least CMake cmake 3.25 || exit 1
     cmake --preset "$BUILD_PRESET" "${CMAKE_ARGS[@]}" -S "$LADYBIRD_SOURCE_DIR" -B "$BUILD_DIR"
@@ -97,10 +93,7 @@ cmd_with_target() {
     CMAKE_ARGS+=("-DCMAKE_C_COMPILER=${CC}")
     CMAKE_ARGS+=("-DCMAKE_CXX_COMPILER=${CXX}")
 
-    if [ ! -d "$LADYBIRD_SOURCE_DIR" ]; then
-        LADYBIRD_SOURCE_DIR="$(get_top_dir)"
-        export LADYBIRD_SOURCE_DIR
-    fi
+    ensure_ladybird_source_dir
 
     # Note: Keep in sync with buildDir defaults in CMakePresets.json
     case "${BUILD_PRESET}" in

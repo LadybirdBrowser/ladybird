@@ -49,3 +49,14 @@ get_number_of_processing_units() {
 
   ($number_of_processing_units)
 }
+
+get_top_dir() {
+    git rev-parse --show-toplevel
+}
+
+ensure_ladybird_source_dir() {
+    if [ -z "$LADYBIRD_SOURCE_DIR" ] || [ ! -d "$LADYBIRD_SOURCE_DIR" ]; then
+        LADYBIRD_SOURCE_DIR="$(get_top_dir)"
+        export LADYBIRD_SOURCE_DIR
+    fi
+}
