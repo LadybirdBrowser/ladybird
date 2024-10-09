@@ -72,6 +72,19 @@ public:
 private:
     IsGBK m_is_gbk { IsGBK::No };
 };
+template<Integral ArrayType = u32>
+class SingleByteEncoder final : public Encoder {
+public:
+    SingleByteEncoder(Array<ArrayType, 128> translation_table)
+        : m_translation_table(translation_table)
+    {
+    }
+
+    virtual ErrorOr<void> process(Utf8View, Function<ErrorOr<void>(u8)> on_byte, Function<ErrorOr<void>(u32)> on_error) override;
+
+private:
+    Array<ArrayType, 128> m_translation_table;
+};
 
 Optional<Encoder&> encoder_for_exact_name(StringView encoding);
 Optional<Encoder&> encoder_for(StringView label);
