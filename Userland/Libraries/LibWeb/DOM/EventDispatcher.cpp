@@ -6,6 +6,8 @@
 
 #include <AK/Assertions.h>
 #include <AK/TypeCasts.h>
+#include <AK/Vector.h>
+#include <LibJS/Heap/MarkedVector.h>
 #include <LibJS/Runtime/AbstractOperations.h>
 #include <LibJS/Runtime/FunctionObject.h>
 #include <LibWeb/DOM/AbortSignal.h>
@@ -196,7 +198,8 @@ bool EventDispatcher::dispatch(JS::NonnullGCPtr<EventTarget> target, Event& even
     }
 
     // 3. Let activationTarget be null.
-    JS::GCPtr<EventTarget> activation_target;
+    // AD-HOC: Most browsers propagate events to all activable parents. To do the same we need to keep track of several activation_targets.
+    JS::MarkedVector<JS::GCPtr<EventTarget>> activation_targets { event.heap() };
 
     // 4. Let relatedTarget be the result of retargeting event’s relatedTarget against target.
     JS::GCPtr<EventTarget> related_target = retarget(event.related_target(), target);
@@ -220,7 +223,7 @@ bool EventDispatcher::dispatch(JS::NonnullGCPtr<EventTarget> target, Event& even
 
         // 5. If isActivationEvent is true and target has activation behavior, then set activationTarget to target.
         if (is_activation_event && target->has_activation_behavior())
-            activation_target = target;
+            activation_targets.append(target);
 
         // 6. Let slottable be target, if target is a slottable and is assigned, and null otherwise.
         JS::GCPtr<EventTarget> slottable;
@@ -270,8 +273,9 @@ bool EventDispatcher::dispatch(JS::NonnullGCPtr<EventTarget> target, Event& even
             if (is<HTML::Window>(parent)
                 || (is<Node>(parent) && verify_cast<Node>(*target).root().is_shadow_including_inclusive_ancestor_of(verify_cast<Node>(*parent)))) {
                 // 1. If isActivationEvent is true, event’s bubbles attribute is true, activationTarget is null, and parent has activation behavior, then set activationTarget to parent.
-                if (is_activation_event && event.bubbles() && !activation_target && parent->has_activation_behavior())
-                    activation_target = parent;
+                // AD-HOC add all parents with activation behavior to list to match other browser's behavior.
+                if (is_activation_event && event.bubbles() && parent->has_activation_behavior())
+                    activation_targets.append(parent);
 
                 // 2. Append to an event path with event, parent, null, relatedTarget, touchTargets, and slot-in-closed-tree.
                 event.append_to_path(*parent, nullptr, related_target, touch_targets, slot_in_closed_tree);
@@ -286,8 +290,9 @@ bool EventDispatcher::dispatch(JS::NonnullGCPtr<EventTarget> target, Event& even
                 target = *parent;
 
                 // 1. If isActivationEvent is true, activationTarget is null, and target has activation behavior, then set activationTarget to target.
-                if (is_activation_event && !activation_target && target->has_activation_behavior())
-                    activation_target = target;
+                // AD-HOC add all parents with activation behavior to list to match other browser's behavior.
+                if (is_activation_event && target->has_activation_behavior())
+                    activation_targets.append(target);
 
                 // 2. Append to an event path with event, parent, target, relatedTarget, touchTargets, and slot-in-closed-tree.
                 event.append_to_path(*parent, target, related_target, touch_targets, slot_in_closed_tree);
@@ -336,8 +341,11 @@ bool EventDispatcher::dispatch(JS::NonnullGCPtr<EventTarget> target, Event& even
         }
 
         // 12. If activationTarget is non-null and activationTarget has legacy-pre-activation behavior, then run activationTarget’s legacy-pre-activation behavior.
-        if (activation_target)
-            activation_target->legacy_pre_activation_behavior();
+        if (activation_targets.size() != 0) {
+            for (auto& activation_target : activation_targets) {
+                activation_target->legacy_pre_activation_behavior();
+            }
+        }
 
         // 13. For each struct in event’s path, in reverse order:
         for (auto& entry : event.path().in_reverse()) {
@@ -400,15 +408,19 @@ bool EventDispatcher::dispatch(JS::NonnullGCPtr<EventTarget> target, Event& even
     }
 
     // 11. If activationTarget is non-null, then:
-    if (activation_target) {
+    if (activation_targets.size() != 0) {
         // 1. If event’s canceled flag is unset, then run activationTarget’s activation behavior with event.
         if (!event.cancelled()) {
-            activation_target->activation_behavior(event);
-            activation_target->legacy_cancelled_activation_behavior_was_not_called();
+            for (auto& activation_target : activation_targets) {
+                activation_target->activation_behavior(event);
+                activation_target->legacy_cancelled_activation_behavior_was_not_called();
+            }
         }
         // 2. Otherwise, if activationTarget has legacy-canceled-activation behavior, then run activationTarget’s legacy-canceled-activation behavior.
         else {
-            activation_target->legacy_cancelled_activation_behavior();
+            for (auto& activation_target : activation_targets) {
+                activation_target->legacy_cancelled_activation_behavior();
+            }
         }
     }
 
