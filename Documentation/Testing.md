@@ -123,16 +123,19 @@ That is, you give `./Meta/WPT.sh import` the path part of any `http://wpt.live/`
 
 ## Writing tests
 
-Running `Tests/LibWeb/add_libweb_test.py your-new-test-name` will create a new test HTML file in
-`Tests/LibWeb/Text/input/your-new-test-name.html` with the correct boilerplate code for a Text test — along with
-a corresponding expectations file in `Tests/LibWeb/Text/expected/your-new-test-name.txt`.
+Running `Tests/LibWeb/add_libweb_test.py your-new-test-name test_type` will create a new test HTML file in 
+`Tests/LibWeb/test_type(/input)` (`/input` is appended for Text and Layout tests) with the correct boilerplate
+code for a `test_type` test — along with a corresponding expectations file in the appropriate directory, e.g.,
+`Tests/LibWeb/Text/expected/your-new-test-name.txt`, for a Text test, or
+`Tests/LibWeb/Ref/reference/your-new-test-name.txt` for a Ref test. The accepted `test_types` are "Text",
+"Ref", "Screenshot", and "Layout".
 
-After you update/replace the generated boilerplate in your `your-new-test-name.html` test file with your actual test,
-running `./Meta/ladybird.sh run headless-browser --run-tests "${LADYBIRD_SOURCE_DIR}/Tests/LibWeb" --rebaseline -f Text/input/foobar.html` will
-regenerate the corresponding expectations file — to match the actual output from your updated test (where
-`/opt/ladybird` should be replaced with the absolute path your ladybird clone in your local environment).
+If you make a new Text or Layout test, after you update/replace the generated boilerplate in your 
+`your-new-test-name.html` test file with your actual test, running 
+`./Meta/ladybird.sh run headless-browser --run-tests "./Tests/LibWeb" --rebaseline -f Text/input/foobar.html` 
+will regenerate the corresponding expectations file to match the actual output from your updated test.
 
-Future versions of the `add_libweb_test.py` script will support other test types.
+If you add a new Ref or Screenshot test, you'll need to supply the equivalently rendering HTML manually.
 
 ### Text tests
 
