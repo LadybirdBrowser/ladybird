@@ -9,6 +9,7 @@
 #include <LibWeb/Bindings/PlatformObject.h>
 #include <LibWeb/Internals/InternalAnimationTimeline.h>
 #include <LibWeb/UIEvents/MouseButton.h>
+#include <LibWeb/WebIDL/Types.h>
 
 namespace Web::Internals {
 
@@ -24,8 +25,8 @@ public:
     void gc();
     JS::Object* hit_test(double x, double y);
 
-    void send_text(HTML::HTMLElement&, String const&);
-    void send_key(HTML::HTMLElement&, String const&);
+    void send_text(HTML::HTMLElement&, String const&, WebIDL::UnsignedShort modifiers);
+    void send_key(HTML::HTMLElement&, String const&, WebIDL::UnsignedShort modifiers);
     void commit_text();
 
     void click(double x, double y);

@@ -9,8 +9,15 @@ interface Internals {
     undefined gc();
     object hitTest(double x, double y);
 
-    undefined sendText(HTMLElement target, DOMString text);
-    undefined sendKey(HTMLElement target, DOMString keyName);
+    const unsigned short MOD_NONE = 0;
+    const unsigned short MOD_ALT = 1;
+    const unsigned short MOD_CTRL = 2;
+    const unsigned short MOD_SHIFT = 4;
+    const unsigned short MOD_SUPER = 8;
+    const unsigned short MOD_KEYPAD = 16;
+
+    undefined sendText(HTMLElement target, DOMString text, optional unsigned short modifiers = 0);
+    undefined sendKey(HTMLElement target, DOMString keyName, optional unsigned short modifiers = 0);
     undefined commitText();
 
     undefined click(double x, double y);

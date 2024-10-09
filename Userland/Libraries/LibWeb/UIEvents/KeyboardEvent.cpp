@@ -326,6 +326,8 @@ static ErrorOr<String> get_event_code(KeyCode platform_key, unsigned modifiers)
             return "Numpad9"_string;
         case KeyCode::Key_Plus:
             return "NumpadAdd"_string;
+        case KeyCode::Key_Comma:
+            return "NumpadComma"_string;
         case KeyCode::Key_Period:
         case KeyCode::Key_Delete:
             return "NumpadDecimal"_string;
@@ -334,9 +336,17 @@ static ErrorOr<String> get_event_code(KeyCode platform_key, unsigned modifiers)
         case KeyCode::Key_Return:
             return "NumpadEnter"_string;
         case KeyCode::Key_Asterisk:
-            return "NumpadAsterisk"_string;
+            return "NumpadMultiply"_string;
         case KeyCode::Key_Minus:
             return "NumpadSubtract"_string;
+        case KeyCode::Key_Equal:
+            return "NumpadEqual"_string;
+        case KeyCode::Key_Hashtag:
+            return "NumpadHash"_string;
+        case KeyCode::Key_LeftParen:
+            return "NumpadParenLeft"_string;
+        case KeyCode::Key_RightParen:
+            return "NumpadParenRight"_string;
         default:
             break;
         }
