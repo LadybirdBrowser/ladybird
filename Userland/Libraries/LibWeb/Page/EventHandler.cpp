@@ -763,20 +763,31 @@ bool EventHandler::focus_next_element()
     if (!m_navigable->active_document()->is_fully_active())
         return false;
 
-    auto* element = m_navigable->active_document()->focused_element();
-    if (!element) {
-        element = m_navigable->active_document()->first_child_of_type<DOM::Element>();
-        if (element && element->is_focusable()) {
-            m_navigable->active_document()->set_focused_element(element);
-            return true;
+    auto set_focus_to_first_focusable_element = [&]() {
+        auto* element = m_navigable->active_document()->first_child_of_type<DOM::Element>();
+
+        for (; element; element = element->next_element_in_pre_order()) {
+            if (element->is_focusable()) {
+                m_navigable->active_document()->set_focused_element(element);
+                return true;
+            }
         }
-    }
+
+        return false;
+    };
+
+    auto* element = m_navigable->active_document()->focused_element();
+    if (!element)
+        return set_focus_to_first_focusable_element();
 
     for (element = element->next_element_in_pre_order(); element && !element->is_focusable(); element = element->next_element_in_pre_order())
         ;
 
+    if (!element)
+        return set_focus_to_first_focusable_element();
+
     m_navigable->active_document()->set_focused_element(element);
-    return element;
+    return true;
 }
 
 bool EventHandler::focus_previous_element()
@@ -786,20 +797,32 @@ bool EventHandler::focus_previous_element()
     if (!m_navigable->active_document()->is_fully_active())
         return false;
 
-    auto* element = m_navigable->active_document()->focused_element();
-    if (!element) {
-        element = m_navigable->active_document()->last_child_of_type<DOM::Element>();
-        if (element && element->is_focusable()) {
-            m_navigable->active_document()->set_focused_element(element);
-            return true;
+    auto set_focus_to_last_focusable_element = [&]() {
+        // FIXME: This often returns the HTML element itself, which has no previous sibling.
+        auto* element = m_navigable->active_document()->last_child_of_type<DOM::Element>();
+
+        for (; element; element = element->previous_element_in_pre_order()) {
+            if (element->is_focusable()) {
+                m_navigable->active_document()->set_focused_element(element);
+                return true;
+            }
         }
-    }
+
+        return false;
+    };
+
+    auto* element = m_navigable->active_document()->focused_element();
+    if (!element)
+        return set_focus_to_last_focusable_element();
 
     for (element = element->previous_element_in_pre_order(); element && !element->is_focusable(); element = element->previous_element_in_pre_order())
         ;
 
+    if (!element)
+        return set_focus_to_last_focusable_element();
+
     m_navigable->active_document()->set_focused_element(element);
-    return element;
+    return true;
 }
 
 constexpr bool should_ignore_keydown_event(u32 code_point, u32 modifiers)
