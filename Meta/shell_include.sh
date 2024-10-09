@@ -60,3 +60,26 @@ ensure_ladybird_source_dir() {
         export LADYBIRD_SOURCE_DIR
     fi
 }
+
+get_build_dir() {
+    ensure_ladybird_source_dir
+
+    # Note: Keep in sync with buildDir defaults in CMakePresets.json
+    case "$1" in
+        "default")
+            BUILD_DIR="${LADYBIRD_SOURCE_DIR}/Build/ladybird"
+            ;;
+        "Debug")
+            BUILD_DIR="${LADYBIRD_SOURCE_DIR}/Build/ladybird-debug"
+            ;;
+        "Sanitizer")
+            BUILD_DIR="${LADYBIRD_SOURCE_DIR}/Build/ladybird-sanitizers"
+            ;;
+        *)
+            echo "Unknown BUILD_PRESET: '$1'" >&2
+            exit 1
+            ;;
+    esac
+
+    echo "${BUILD_DIR}"
+}

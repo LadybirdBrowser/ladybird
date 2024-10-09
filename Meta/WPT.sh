@@ -12,13 +12,18 @@ ensure_ladybird_source_dir
 WPT_SOURCE_DIR=${WPT_SOURCE_DIR:-"${LADYBIRD_SOURCE_DIR}/Tests/LibWeb/WPT/wpt"}
 WPT_REPOSITORY_URL=${WPT_REPOSITORY_URL:-"https://github.com/web-platform-tests/wpt.git"}
 
+BUILD_PRESET=${BUILD_PRESET:-default}
+
+BUILD_DIR=$(get_build_dir "$BUILD_PRESET")
+
 default_binary_path() {
     if [ "$(uname -s)" = "Darwin" ]; then
-        echo "${LADYBIRD_SOURCE_DIR}/Build/ladybird/bin/Ladybird.app/Contents/MacOS/"
+        echo "${BUILD_DIR}/bin/Ladybird.app/Contents/MacOS/"
     else
-        echo "${LADYBIRD_SOURCE_DIR}/Build/ladybird/bin/"
+        echo "${BUILD_DIR}/bin/"
     fi
 }
+
 LADYBIRD_BINARY=${LADYBIRD_BINARY:-"$(default_binary_path)/Ladybird"}
 WEBDRIVER_BINARY=${WEBDRIVER_BINARY:-"$(default_binary_path)/WebDriver"}
 WPT_PROCESSES=${WPT_PROCESSES:-$(get_number_of_processing_units)}
