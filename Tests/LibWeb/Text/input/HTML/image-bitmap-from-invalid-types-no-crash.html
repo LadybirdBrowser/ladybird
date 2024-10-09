@@ -1,0 +1,49 @@
+<script src="../include.js"></script>
+<script>
+    let canvas = document.createElement("canvas");
+
+    canvas.width = 20;
+    canvas.height = 20;
+
+    let ctx = canvas.getContext("2d");
+    ctx.fillStyle = "rgb(255, 0, 0)";
+    ctx.fillRect(0, 0, 10, 10);
+
+    let imageData = ctx.getImageData(0, 0, 20, 20);
+
+    let img = document.createElement("img");
+
+    let svgImg = document.createElement("img");
+    svgImg = document.createElementNS("http://www.w3.org/2000/svg", "image");
+
+    let video = document.createElement("video");
+    let file = new Blob([
+        new Uint8Array([
+            255, 10, 8, 16, 0, 9, 8, 6, 1, 0, 40, 0, 75, 56, 73, 152, 108, 128, 253, 145, 96, 0,
+        ]),
+    ]);
+    let imageBitmap = createImageBitmap(file, 0, 0, 0, 0);
+
+    const types = [
+        [file, "Blob"],
+        [imageData, "ImageData"],
+        [img, "HTMLImageElement"],
+        [svgImg, "SVGImageElement"],
+        [canvas, "HTMLCanvasElement"],
+        [imageBitmap, "ImageBitmap"],
+        [video, "HTMLVideoElement"],
+    ];
+
+    asyncTest(async done => {
+        for (const [type, name] of types) {
+            try {
+                const result = await createImageBitmap(type, 0, 0, 20, 20);
+                println(`${name.padEnd(17, " ")} [Success]: ${result}`);
+            } catch (err) {
+                println(`${name.padEnd(17, " ")} [ Error ]: ${err}`);
+            }
+        }
+
+        done();
+    });
+</script>

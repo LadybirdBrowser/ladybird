@@ -1,0 +1,7 @@
+Blob              [Success]: [object ImageBitmap]
+ImageData         [ Error ]: Error: Not Implemented: createImageBitmap() for non-blob types
+HTMLImageElement  [ Error ]: TypeError: No union types matched
+SVGImageElement   [ Error ]: TypeError: No union types matched
+HTMLCanvasElement [ Error ]: TypeError: No union types matched
+ImageBitmap       [ Error ]: TypeError: No union types matched
+HTMLVideoElement  [ Error ]: TypeError: No union types matched
