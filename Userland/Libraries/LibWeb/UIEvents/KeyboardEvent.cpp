@@ -272,18 +272,22 @@ static ErrorOr<String> get_event_key(KeyCode platform_key, u32 code_point)
 {
     // 1. Let key be a DOMString initially set to "Unidentified".
     // NOTE: We return "Unidentified" at the end to avoid needlessly allocating it here.
-    Optional<String> key;
 
     // 2. If there exists an appropriate named key attribute value for this key event, then
-    if (auto named_key = TRY(get_event_named_key(platform_key)); named_key.has_value()) {
-        // 1. Set key to that named key attribute value.
-        key = named_key.release_value();
+    // AD-HOC: Key_Invalid would be interpreted as "Unidentified" here. But we also use Key_Invalid for key presses that
+    //         are not on a standard US keyboard. If such a key would generate a valid key string below, let's allow that
+    //         to happen; otherwise, we will still return "Unidentified" at the end.
+    if (platform_key != KeyCode::Key_Invalid) {
+        if (auto named_key = TRY(get_event_named_key(platform_key)); named_key.has_value()) {
+            // 1. Set key to that named key attribute value.
+            return named_key.release_value();
+        }
     }
 
     // 3. Else, if the key event generates a valid key string, then
-    else if (auto key_string = TRY(get_event_key_string(code_point)); key_string.has_value()) {
+    if (auto key_string = TRY(get_event_key_string(code_point)); key_string.has_value()) {
         // 1. Set key to that key string value.
-        key = key_string.release_value();
+        return key_string.release_value();
     }
 
     // FIXME: 4. Else, if the key event has any modifier keys other than glyph modifier keys, then
@@ -291,8 +295,6 @@ static ErrorOr<String> get_event_key(KeyCode platform_key, u32 code_point)
     //               modifer keys removed except for glyph modifier keys.
 
     // 5. Return key as the key attribute value for this key event.
-    if (key.has_value())
-        return key.release_value();
     return "Unidentified"_string;
 }
 
