@@ -98,8 +98,8 @@ public:
     Optional<CSS::TextAlign> text_align() const;
     Optional<CSS::TextJustify> text_justify() const;
     Optional<CSS::TextOverflow> text_overflow() const;
-    CSS::Length border_spacing_horizontal() const;
-    CSS::Length border_spacing_vertical() const;
+    CSS::Length border_spacing_horizontal(Layout::Node const&) const;
+    CSS::Length border_spacing_vertical(Layout::Node const&) const;
     Optional<CSS::CaptionSide> caption_side() const;
     CSS::Clip clip() const;
     CSS::Display display() const;

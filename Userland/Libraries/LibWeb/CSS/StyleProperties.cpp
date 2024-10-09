@@ -402,20 +402,24 @@ Optional<CSS::ImageRendering> StyleProperties::image_rendering() const
     return keyword_to_image_rendering(value->to_keyword());
 }
 
-CSS::Length StyleProperties::border_spacing_horizontal() const
+CSS::Length StyleProperties::border_spacing_horizontal(Layout::Node const& layout_node) const
 {
     auto value = property(CSS::PropertyID::BorderSpacing);
     if (value->is_length())
         return value->as_length().length();
+    if (value->is_math())
+        return value->as_math().resolve_length(layout_node).value_or(CSS::Length(0, CSS::Length::Type::Px));
     auto const& list = value->as_value_list();
     return list.value_at(0, false)->as_length().length();
 }
 
-CSS::Length StyleProperties::border_spacing_vertical() const
+CSS::Length StyleProperties::border_spacing_vertical(Layout::Node const& layout_node) const
 {
     auto value = property(CSS::PropertyID::BorderSpacing);
     if (value->is_length())
         return value->as_length().length();
+    if (value->is_math())
+        return value->as_math().resolve_length(layout_node).value_or(CSS::Length(0, CSS::Length::Type::Px));
     auto const& list = value->as_value_list();
     return list.value_at(1, false)->as_length().length();
 }
