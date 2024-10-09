@@ -1,0 +1,13 @@
+key=CapsLock code=CapsLock
+key=Escape code=Escape
+key=Enter code=Enter
+key=  code=Space
+key=Tab code=Tab
+key=Alt code=AltLeft
+key=Alt code=AltRight
+key=Control code=ControlLeft
+key=Control code=ControlRight
+key=Shift code=ShiftLeft
+key=Shift code=ShiftRight
+key=Meta code=MetaLeft
+key=Meta code=MetaRight
