@@ -122,7 +122,6 @@ public:
         bool is_fixed_position;
         Gfx::IntRect source_paintable_rect;
         StackingContextTransform transform;
-        Optional<StackingContextMask> mask = {};
         Optional<Gfx::Path> clip_path = {};
     };
     void push_stacking_context(PushStackingContextParams params);
@@ -146,6 +145,10 @@ public:
     void draw_triangle_wave(Gfx::IntPoint a_p1, Gfx::IntPoint a_p2, Color color, int amplitude, int thickness);
 
     void paint_scrollbar(int scroll_frame_id, Gfx::IntRect, CSSPixelFraction scroll_size, bool vertical);
+
+    void apply_opacity(float opacity);
+    void apply_transform(Gfx::FloatPoint origin, Gfx::FloatMatrix4x4);
+    void apply_mask_bitmap(Gfx::IntPoint origin, Gfx::Bitmap const&, Gfx::Bitmap::MaskKind);
 
     DisplayListRecorder(DisplayList&);
     ~DisplayListRecorder();

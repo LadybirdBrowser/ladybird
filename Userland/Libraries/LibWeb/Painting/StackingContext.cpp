@@ -5,19 +5,16 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <AK/Debug.h>
 #include <AK/QuickSort.h>
-#include <AK/StringBuilder.h>
 #include <LibGfx/AffineTransform.h>
 #include <LibGfx/Matrix4x4.h>
 #include <LibGfx/Rect.h>
-#include <LibWeb/CSS/ComputedValues.h>
 #include <LibWeb/CSS/StyleValues/TransformationStyleValue.h>
 #include <LibWeb/Layout/Box.h>
 #include <LibWeb/Layout/ReplacedBox.h>
 #include <LibWeb/Layout/Viewport.h>
 #include <LibWeb/Painting/PaintableBox.h>
-#include <LibWeb/Painting/SVGPaintable.h>
+#include <LibWeb/Painting/SVGSVGPaintable.h>
 #include <LibWeb/Painting/StackingContext.h>
 #include <LibWeb/SVG/SVGMaskElement.h>
 
@@ -81,6 +78,11 @@ static PaintPhase to_paint_phase(StackingContext::StackingContextPaintPhase phas
 
 void StackingContext::paint_node_as_stacking_context(Paintable const& paintable, PaintContext& context)
 {
+    if (paintable.layout_node().is_svg_svg_box()) {
+        paint_svg(context, static_cast<PaintableBox const&>(paintable), PaintPhase::Foreground);
+        return;
+    }
+    VERIFY(!paintable.layout_node().is_svg_svg_box());
     paint_node(paintable, context, PaintPhase::Background);
     paint_node(paintable, context, PaintPhase::Border);
     paint_descendants(context, paintable, StackingContextPaintPhase::BackgroundAndBorders);
@@ -93,6 +95,18 @@ void StackingContext::paint_node_as_stacking_context(Paintable const& paintable,
     paint_descendants(context, paintable, StackingContextPaintPhase::FocusAndOverlay);
 }
 
+void StackingContext::paint_svg(PaintContext& context, PaintableBox const& paintable, PaintPhase phase)
+{
+    if (phase != PaintPhase::Foreground)
+        return;
+
+    paintable.apply_clip_overflow_rect(context, PaintPhase::Foreground);
+    paint_node(paintable, context, PaintPhase::Background);
+    paint_node(paintable, context, PaintPhase::Border);
+    SVGSVGPaintable::paint_descendants(context, paintable, phase);
+    paintable.clear_clip_overflow_rect(context, PaintPhase::Foreground);
+}
+
 void StackingContext::paint_descendants(PaintContext& context, Paintable const& paintable, StackingContextPaintPhase phase)
 {
     paintable.before_children_paint(context, to_paint_phase(phase));
@@ -100,6 +114,11 @@ void StackingContext::paint_descendants(PaintContext& context, Paintable const& 
     paintable.for_each_child([&context, phase](auto& child) {
         auto* stacking_context = child.stacking_context();
         auto const& z_index = child.computed_values().z_index();
+
+        if (child.layout_node().is_svg_svg_box()) {
+            paint_svg(context, static_cast<PaintableBox const&>(child), to_paint_phase(phase));
+            return IterationDecision::Continue;
+        }
 
         // NOTE: Grid specification https://www.w3.org/TR/css-grid-2/#z-order says that grid items should be treated
         //       the same way as CSS2 defines for inline-blocks:
@@ -174,6 +193,9 @@ void StackingContext::paint_descendants(PaintContext& context, Paintable const& 
 
 void StackingContext::paint_child(PaintContext& context, StackingContext const& child)
 {
+    VERIFY(!child.paintable().layout_node().is_svg_box());
+    VERIFY(!child.paintable().layout_node().is_svg_svg_box());
+
     const_cast<StackingContext&>(child).set_last_paint_generation_id(context.paint_generation_id());
 
     auto parent_paintable = child.paintable().parent();
@@ -188,6 +210,12 @@ void StackingContext::paint_child(PaintContext& context, StackingContext const& 
 
 void StackingContext::paint_internal(PaintContext& context) const
 {
+    VERIFY(!paintable().layout_node().is_svg_box());
+    if (paintable().layout_node().is_svg_svg_box()) {
+        paint_svg(context, paintable_box(), PaintPhase::Foreground);
+        return;
+    }
+
     // For a more elaborate description of the algorithm, see CSS 2.1 Appendix E
     // Draw the background and borders for the context root (steps 1, 2)
     paint_node(paintable(), context, PaintPhase::Background);
@@ -299,22 +327,6 @@ void StackingContext::paint(PaintContext& context) const
         },
     };
 
-    if (paintable().is_paintable_box()) {
-        if (auto masking_area = paintable_box().get_masking_area(); masking_area.has_value()) {
-            if (masking_area->is_empty())
-                return;
-            auto mask_bitmap = paintable_box().calculate_mask(context, *masking_area);
-            if (mask_bitmap) {
-                auto source_paintable_rect = context.enclosing_device_rect(*masking_area).to_type<int>();
-                push_stacking_context_params.source_paintable_rect = source_paintable_rect;
-                push_stacking_context_params.mask = StackingContextMask {
-                    .mask_bitmap = mask_bitmap.release_nonnull(),
-                    .mask_kind = *paintable_box().get_mask_type()
-                };
-            }
-        }
-    }
-
     auto const& computed_values = paintable().computed_values();
     if (auto clip_path = computed_values.clip_path(); clip_path.has_value() && clip_path->is_basic_shape()) {
         auto const& masking_area = paintable_box().get_masking_area();
@@ -332,6 +344,19 @@ void StackingContext::paint(PaintContext& context) const
     if (paintable().is_paintable_box() && paintable_box().scroll_frame_id().has_value())
         context.display_list_recorder().set_scroll_frame_id(*paintable_box().scroll_frame_id());
     context.display_list_recorder().push_stacking_context(push_stacking_context_params);
+
+    if (paintable().is_paintable_box()) {
+        if (auto masking_area = paintable_box().get_masking_area(); masking_area.has_value()) {
+            if (masking_area->is_empty())
+                return;
+            auto mask_bitmap = paintable_box().calculate_mask(context, *masking_area);
+            if (mask_bitmap) {
+                auto masking_area_rect = context.enclosing_device_rect(*masking_area).to_type<int>();
+                context.display_list_recorder().apply_mask_bitmap(masking_area_rect.location(), mask_bitmap.release_nonnull(), *paintable_box().get_mask_type());
+            }
+        }
+    }
+
     paint_internal(context);
     context.display_list_recorder().pop_stacking_context();
     if (has_css_transform)

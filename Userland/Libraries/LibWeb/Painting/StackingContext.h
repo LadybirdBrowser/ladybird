@@ -36,6 +36,7 @@ public:
 
     static void paint_node_as_stacking_context(Paintable const&, PaintContext&);
     static void paint_descendants(PaintContext&, Paintable const&, StackingContextPaintPhase);
+    static void paint_svg(PaintContext&, PaintableBox const&, PaintPhase);
     void paint(PaintContext&) const;
 
     [[nodiscard]] TraversalDecision hit_test(CSSPixelPoint, HitTestType, Function<TraversalDecision(HitTestResult)> const& callback) const;

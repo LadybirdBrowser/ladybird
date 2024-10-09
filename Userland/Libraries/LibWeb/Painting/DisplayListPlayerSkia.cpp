@@ -452,47 +452,6 @@ void DisplayListPlayerSkia::push_stacking_context(PushStackingContext const& com
         canvas.clipPath(to_skia_path(command.clip_path.value()), true);
     }
 
-    if (command.mask.has_value()) {
-        auto sk_bitmap = to_skia_bitmap(*command.mask.value().mask_bitmap);
-        auto mask_image = SkImages::RasterFromBitmap(sk_bitmap);
-
-        char const* sksl_shader = nullptr;
-        if (command.mask->mask_kind == Gfx::Bitmap::MaskKind::Luminance) {
-            sksl_shader = R"(
-                uniform shader mask_image;
-                half4 main(float2 coord) {
-                    half4 color = mask_image.eval(coord);
-                    half luminance = 0.2126 * color.b + 0.7152 * color.g + 0.0722 * color.r;
-                    return half4(0.0, 0.0, 0.0, color.a * luminance);
-                }
-            )";
-        } else if (command.mask->mask_kind == Gfx::Bitmap::MaskKind::Alpha) {
-            sksl_shader = R"(
-                uniform shader mask_image;
-                half4 main(float2 coord) {
-                    half4 color = mask_image.eval(coord);
-                    return half4(0.0, 0.0, 0.0, color.a);
-                }
-            )";
-        } else {
-            VERIFY_NOT_REACHED();
-        }
-
-        auto [effect, error] = SkRuntimeEffect::MakeForShader(SkString(sksl_shader));
-        if (!effect) {
-            dbgln("SkSL error: {}", error.c_str());
-            VERIFY_NOT_REACHED();
-        }
-
-        SkMatrix mask_matrix;
-        auto mask_position = command.source_paintable_rect.location();
-        mask_matrix.setTranslate(mask_position.x(), mask_position.y());
-
-        SkRuntimeShaderBuilder builder(effect);
-        builder.child("mask_image") = mask_image->makeShader(SkSamplingOptions(), mask_matrix);
-        canvas.clipShader(builder.makeShader());
-    }
-
     canvas.concat(matrix);
 }
 
@@ -1281,6 +1240,70 @@ void DisplayListPlayerSkia::paint_scrollbar(PaintScrollBar const& command)
     stroke_paint.setStrokeWidth(1);
     stroke_paint.setColor(to_skia_color(stroke_color));
     canvas.drawRRect(rrect, stroke_paint);
+}
+
+void DisplayListPlayerSkia::apply_opacity(ApplyOpacity const& command)
+{
+    auto& canvas = surface().canvas();
+    SkPaint paint;
+    paint.setAlphaf(command.opacity);
+    canvas.saveLayer(nullptr, &paint);
+}
+
+void DisplayListPlayerSkia::apply_transform(ApplyTransform const& command)
+{
+    auto affine_transform = Gfx::extract_2d_affine_transform(command.matrix);
+    auto new_transform = Gfx::AffineTransform {}
+                             .set_translation(command.post_transform_translation.to_type<float>())
+                             .translate(command.origin)
+                             .multiply(affine_transform)
+                             .translate(-command.origin);
+    auto matrix = to_skia_matrix(new_transform);
+    surface().canvas().concat(matrix);
+}
+
+void DisplayListPlayerSkia::apply_mask_bitmap(ApplyMaskBitmap const& command)
+{
+    auto& canvas = surface().canvas();
+
+    auto sk_bitmap = to_skia_bitmap(*command.bitmap);
+    auto mask_image = SkImages::RasterFromBitmap(sk_bitmap);
+
+    char const* sksl_shader = nullptr;
+    if (command.kind == Gfx::Bitmap::MaskKind::Luminance) {
+        sksl_shader = R"(
+                uniform shader mask_image;
+                half4 main(float2 coord) {
+                    half4 color = mask_image.eval(coord);
+                    half luminance = 0.2126 * color.b + 0.7152 * color.g + 0.0722 * color.r;
+                    return half4(0.0, 0.0, 0.0, color.a * luminance);
+                }
+            )";
+    } else if (command.kind == Gfx::Bitmap::MaskKind::Alpha) {
+        sksl_shader = R"(
+                uniform shader mask_image;
+                half4 main(float2 coord) {
+                    half4 color = mask_image.eval(coord);
+                    return half4(0.0, 0.0, 0.0, color.a);
+                }
+            )";
+    } else {
+        VERIFY_NOT_REACHED();
+    }
+
+    auto [effect, error] = SkRuntimeEffect::MakeForShader(SkString(sksl_shader));
+    if (!effect) {
+        dbgln("SkSL error: {}", error.c_str());
+        VERIFY_NOT_REACHED();
+    }
+
+    SkMatrix mask_matrix;
+    auto mask_position = command.origin;
+    mask_matrix.setTranslate(mask_position.x(), mask_position.y());
+
+    SkRuntimeShaderBuilder builder(effect);
+    builder.child("mask_image") = mask_image->makeShader(SkSamplingOptions(), mask_matrix);
+    canvas.clipShader(builder.makeShader());
 }
 
 bool DisplayListPlayerSkia::would_be_fully_clipped_by_painter(Gfx::IntRect rect) const

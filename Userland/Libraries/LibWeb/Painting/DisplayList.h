@@ -73,6 +73,9 @@ private:
     virtual void add_mask(AddMask const&) = 0;
     virtual void paint_nested_display_list(PaintNestedDisplayList const&) = 0;
     virtual void paint_scrollbar(PaintScrollBar const&) = 0;
+    virtual void apply_opacity(ApplyOpacity const&) = 0;
+    virtual void apply_transform(ApplyTransform const&) = 0;
+    virtual void apply_mask_bitmap(ApplyMaskBitmap const&) = 0;
     virtual bool would_be_fully_clipped_by_painter(Gfx::IntRect) const = 0;
 };
 
