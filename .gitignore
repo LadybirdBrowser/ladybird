@@ -15,6 +15,7 @@ Toolchain/Tarballs
 Toolchain/Build
 Toolchain/Local
 .vscode
+.vs
 .ccls-cache
 compile_commands.json
 .cache
