@@ -2710,7 +2710,10 @@ RefPtr<CSSStyleValue> Parser::parse_rect_value(TokenStream<ComponentValue>& toke
             auto maybe_length = parse_length(argument_tokens);
             if (!maybe_length.has_value())
                 return nullptr;
-            // FIXME: Support calculated lengths
+            if (maybe_length.value().is_calculated()) {
+                dbgln("FIXME: Support calculated lengths in rect(): {}", maybe_length.value().calculated()->to_string());
+                return nullptr;
+            }
             params.append(maybe_length.value().value());
         }
         argument_tokens.skip_whitespace();
