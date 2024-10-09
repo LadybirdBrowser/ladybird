@@ -58,6 +58,11 @@ struct HideCursor {
     Optional<String> m_context_menu_search_text;
 
     Optional<HideCursor> m_hidden_cursor;
+
+    // We have to send key events for modifer keys, but AppKit does not generate key down/up events when only a modifier
+    // key is pressed. Instead, we only receive an event that the modifier flags have changed, and we must determine for
+    // ourselves whether the modifier key was pressed or released.
+    NSEventModifierFlags m_modifier_flags;
 }
 
 @property (nonatomic, weak) id<LadybirdWebViewObserver> observer;
@@ -135,6 +140,8 @@ struct HideCursor {
         [self addTrackingArea:area];
 
         [self registerForDraggedTypes:[NSArray arrayWithObjects:NSPasteboardTypeFileURL, nil]];
+
+        m_modifier_flags = 0;
     }
 
     return self;
@@ -1674,6 +1681,36 @@ static void copy_data_to_clipboard(StringView data, NSPasteboardType pasteboard_
 
     auto key_event = Ladybird::ns_event_to_key_event(Web::KeyEvent::Type::KeyUp, event);
     m_web_view_bridge->enqueue_input_event(move(key_event));
+}
+
+- (void)flagsChanged:(NSEvent*)event
+{
+    if (self.event_being_redispatched == event) {
+        return;
+    }
+
+    auto enqueue_event_if_needed = [&](auto flag) {
+        auto is_flag_set = [&](auto flags) { return (flags & flag) != 0; };
+        Web::KeyEvent::Type type;
+
+        if (is_flag_set(event.modifierFlags) && !is_flag_set(m_modifier_flags)) {
+            type = Web::KeyEvent::Type::KeyDown;
+        } else if (!is_flag_set(event.modifierFlags) && is_flag_set(m_modifier_flags)) {
+            type = Web::KeyEvent::Type::KeyUp;
+        } else {
+            return;
+        }
+
+        auto key_event = Ladybird::ns_event_to_key_event(type, event);
+        m_web_view_bridge->enqueue_input_event(move(key_event));
+    };
+
+    enqueue_event_if_needed(NSEventModifierFlagShift);
+    enqueue_event_if_needed(NSEventModifierFlagControl);
+    enqueue_event_if_needed(NSEventModifierFlagOption);
+    enqueue_event_if_needed(NSEventModifierFlagCommand);
+
+    m_modifier_flags = event.modifierFlags;
 }
 
 #pragma mark - NSDraggingDestination
