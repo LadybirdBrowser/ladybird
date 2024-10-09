@@ -178,6 +178,30 @@ static void log_filtered_request(LoadRequest const& request)
     dbgln("ResourceLoader: Filtered request to: \"{}\"", url_for_logging);
 }
 
+static StringView network_error_to_string_view(Requests::NetworkError const& network_error)
+{
+    switch (network_error) {
+    case Requests::NetworkError::UnableToResolveProxy:
+        return "Unable to resolve proxy"sv;
+    case Requests::NetworkError::UnableToResolveHost:
+        return "Unable to resolve host"sv;
+    case Requests::NetworkError::UnableToConnect:
+        return "Unable to connect"sv;
+    case Requests::NetworkError::TimeoutReached:
+        return "Timeout reached"sv;
+    case Requests::NetworkError::TooManyRedirects:
+        return "Too many redirects"sv;
+    case Requests::NetworkError::SSLHandshakeFailed:
+        return "SSL handshake failed"sv;
+    case Requests::NetworkError::SSLVerificationFailed:
+        return "SSL verification failed"sv;
+    case Requests::NetworkError::MalformedUrl:
+        return "The URL is not formatted properly"sv;
+    default:
+        return "An unexpected network error occurred"sv;
+    }
+}
+
 static bool should_block_request(LoadRequest const& request)
 {
     auto const& url = request.url();
@@ -397,16 +421,20 @@ void ResourceLoader::load(LoadRequest& request, SuccessCallback success_callback
             timer->start();
         }
 
-        auto on_buffered_request_finished = [this, success_callback = move(success_callback), error_callback = move(error_callback), request, &protocol_request = *protocol_request](bool success, auto, auto& response_headers, auto status_code, ReadonlyBytes payload) mutable {
+        auto on_buffered_request_finished = [this, success_callback = move(success_callback), error_callback = move(error_callback), request, &protocol_request = *protocol_request](auto, auto const& network_error, auto& response_headers, auto status_code, ReadonlyBytes payload) mutable {
             handle_network_response_headers(request, response_headers);
             finish_network_request(protocol_request);
 
-            if (!success || (status_code.has_value() && *status_code >= 400 && *status_code <= 599 && (payload.is_empty() || !request.is_main_resource()))) {
+            if (network_error.has_value() || (status_code.has_value() && *status_code >= 400 && *status_code <= 599 && (payload.is_empty() || !request.is_main_resource()))) {
                 StringBuilder error_builder;
-                if (status_code.has_value())
-                    error_builder.appendff("Load failed: {}", *status_code);
+                if (network_error.has_value())
+                    error_builder.appendff("{}", network_error_to_string_view(*network_error));
                 else
                     error_builder.append("Load failed"sv);
+
+                if (status_code.has_value())
+                    error_builder.appendff(" (status code: {})", *status_code);
+
                 log_failure(request, error_builder.string_view());
                 if (error_callback)
                     error_callback(error_builder.to_byte_string(), status_code, payload, response_headers);
@@ -460,10 +488,10 @@ void ResourceLoader::load_unbuffered(LoadRequest& request, OnHeadersReceived on_
         on_data_received(data);
     };
 
-    auto protocol_complete = [this, on_complete = move(on_complete), request, &protocol_request = *protocol_request](bool success, u64) {
+    auto protocol_complete = [this, on_complete = move(on_complete), request, &protocol_request = *protocol_request](u64, Optional<Requests::NetworkError> const& network_error) {
         finish_network_request(protocol_request);
 
-        if (success) {
+        if (!network_error.has_value()) {
             log_success(request);
             on_complete(true, {});
         } else {

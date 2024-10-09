@@ -40,7 +40,7 @@ private:
     virtual void die() override;
 
     virtual void request_started(i32, IPC::File const&) override;
-    virtual void request_finished(i32, bool, u64) override;
+    virtual void request_finished(i32, u64, Optional<NetworkError> const&) override;
     virtual void certificate_requested(i32) override;
     virtual void headers_became_available(i32, HTTP::HeaderMap const&, Optional<u32> const&) override;
 
