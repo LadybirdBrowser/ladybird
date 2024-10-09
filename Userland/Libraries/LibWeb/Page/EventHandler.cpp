@@ -843,6 +843,15 @@ EventResult EventHandler::handle_keydown(UIEvents::KeyCode key, u32 modifiers, u
     if (!m_navigable->active_document()->is_fully_active())
         return EventResult::Dropped;
 
+    auto dispatch_result = fire_keyboard_event(UIEvents::EventNames::keydown, m_navigable, key, modifiers, code_point);
+    if (dispatch_result != EventResult::Accepted)
+        return dispatch_result;
+
+    // FIXME: Work out and implement the difference between this and keydown.
+    dispatch_result = fire_keyboard_event(UIEvents::EventNames::keypress, m_navigable, key, modifiers, code_point);
+    if (dispatch_result != EventResult::Accepted)
+        return dispatch_result;
+
     JS::NonnullGCPtr<DOM::Document> document = *m_navigable->active_document();
 
     if (key == UIEvents::KeyCode::Key_Tab) {
@@ -904,10 +913,6 @@ EventResult EventHandler::handle_keydown(UIEvents::KeyCode key, u32 modifiers, u
         if (media_element.handle_keydown({}, key, modifiers).release_value_but_fixme_should_propagate_errors())
             return EventResult::Handled;
     }
-
-    auto dispatch_result = fire_keyboard_event(UIEvents::EventNames::keydown, m_navigable, key, modifiers, code_point);
-    if (dispatch_result != EventResult::Accepted)
-        return dispatch_result;
 
     if (document->cursor_position()) {
         auto& node = *document->cursor_position()->node();
@@ -1073,8 +1078,7 @@ EventResult EventHandler::handle_keydown(UIEvents::KeyCode key, u32 modifiers, u
         break;
     }
 
-    // FIXME: Work out and implement the difference between this and keydown.
-    return fire_keyboard_event(UIEvents::EventNames::keypress, m_navigable, key, modifiers, code_point);
+    return EventResult::Accepted;
 }
 
 EventResult EventHandler::handle_keyup(UIEvents::KeyCode key, u32 modifiers, u32 code_point)

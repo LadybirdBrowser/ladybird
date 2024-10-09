@@ -1,0 +1,10 @@
+keydown A
+cancel keydown
+You can't change me!
+keydown B
+keypress B
+cancel keypress
+You can't change me!
+keydown C
+keypress C
+C
