@@ -74,21 +74,21 @@ JS::Object* Internals::hit_test(double x, double y)
     return nullptr;
 }
 
-void Internals::send_text(HTML::HTMLElement& target, String const& text)
+void Internals::send_text(HTML::HTMLElement& target, String const& text, WebIDL::UnsignedShort modifiers)
 {
     auto& page = internals_page();
     target.focus();
 
     for (auto code_point : text.code_points())
-        page.handle_keydown(UIEvents::code_point_to_key_code(code_point), 0, code_point);
+        page.handle_keydown(UIEvents::code_point_to_key_code(code_point), modifiers, code_point);
 }
 
-void Internals::send_key(HTML::HTMLElement& target, String const& key_name)
+void Internals::send_key(HTML::HTMLElement& target, String const& key_name, WebIDL::UnsignedShort modifiers)
 {
     auto key_code = UIEvents::key_code_from_string(key_name);
     target.focus();
 
-    internals_page().handle_keydown(key_code, 0, 0);
+    internals_page().handle_keydown(key_code, modifiers, 0);
 }
 
 void Internals::commit_text()
