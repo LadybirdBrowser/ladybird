@@ -1,5 +1,7 @@
-include(ffmpeg)
-include(pulseaudio)
+if (NOT ANDROID AND NOT WIN32)
+    include(ffmpeg)
+    include(pulseaudio)
+endif()
 
 set(SOURCES
     Audio/Loader.cpp
@@ -17,14 +19,14 @@ set(SOURCES
 serenity_lib(LibMedia media)
 target_link_libraries(LibMedia PRIVATE LibCore LibCrypto LibRIFF LibIPC LibGfx LibThreading LibUnicode)
 
-if (NOT ANDROID)
+if (NOT ANDROID AND NOT WIN32)
     target_sources(LibMedia PRIVATE
             Audio/FFmpegLoader.cpp
             FFmpeg/FFmpegVideoDecoder.cpp
     )
     target_link_libraries(LibMedia PRIVATE PkgConfig::AVCODEC PkgConfig::AVFORMAT PkgConfig::AVUTIL)
 else()
-    # FIXME: Need to figure out how to build or replace ffmpeg libs on Android
+    # FIXME: Need to figure out how to build or replace ffmpeg libs on Android and Windows
     target_sources(LibMedia PRIVATE FFmpeg/FFmpegVideoDecoderStub.cpp)
 endif()
 
