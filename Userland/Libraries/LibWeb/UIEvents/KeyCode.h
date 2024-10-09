@@ -21,10 +21,11 @@ namespace Web::UIEvents {
     __ENUMERATE_KEY_CODE(Return, "Return", 0x0D)                     \
     __ENUMERATE_KEY_CODE(LeftShift, "LeftShift", 0x10)               \
     __ENUMERATE_KEY_CODE(RightShift, "RightShift", 0xB0)             \
-    __ENUMERATE_KEY_CODE(Control, "Ctrl", 0x11)                      \
-    __ENUMERATE_KEY_CODE(RightControl, "RightCtrl", 0xB1)            \
-    __ENUMERATE_KEY_CODE(Alt, "Alt", 0x12)                           \
-    __ENUMERATE_KEY_CODE(RightAlt, "Alt", 0xB2)                      \
+    __ENUMERATE_KEY_CODE(LeftControl, "LeftControl", 0x11)           \
+    __ENUMERATE_KEY_CODE(RightControl, "RightControl", 0xB1)         \
+    __ENUMERATE_KEY_CODE(LeftAlt, "LeftAlt", 0x12)                   \
+    __ENUMERATE_KEY_CODE(RightAlt, "RightAlt", 0xB2)                 \
+    __ENUMERATE_KEY_CODE(AltGr, "AltGr", 0xE1)                       \
     __ENUMERATE_KEY_CODE(PauseBreak, "PauseBreak", 0x13)             \
     __ENUMERATE_KEY_CODE(CapsLock, "CapsLock", 0x14)                 \
     __ENUMERATE_KEY_CODE(Escape, "Escape", 0x1B)                     \
@@ -123,7 +124,8 @@ namespace Web::UIEvents {
     __ENUMERATE_KEY_CODE(Backtick, "`", 0x8C)                        \
     __ENUMERATE_KEY_CODE(NumLock, "NumLock", 0x90)                   \
     __ENUMERATE_KEY_CODE(ScrollLock, "ScrollLock", 0x91)             \
-    __ENUMERATE_KEY_CODE(Super, "Super", 0x92)                       \
+    __ENUMERATE_KEY_CODE(LeftSuper, "LeftSuper", 0x92)               \
+    __ENUMERATE_KEY_CODE(RightSuper, "RightSuper", 0xAC)             \
     __ENUMERATE_KEY_CODE(BrowserSearch, "BrowserSearch", 0x93)       \
     __ENUMERATE_KEY_CODE(BrowserFavorites, "BrowserFavorites", 0x94) \
     __ENUMERATE_KEY_CODE(BrowserHome, "BrowserHome", 0x95)           \
@@ -154,11 +156,7 @@ enum KeyCode : u8 {
 #define __ENUMERATE_KEY_CODE(name, ui_name, code) Key_##name = code,
     ENUMERATE_KEY_CODES
 #undef __ENUMERATE_KEY_CODE
-
-        Key_Shift
-    = Key_LeftShift,
 };
-size_t const key_code_count = Key_Menu + 1;
 
 constexpr KeyCode key_code_from_string(StringView key_name)
 {
@@ -177,9 +175,8 @@ enum KeyModifier {
     Mod_Ctrl = (1 << 1),
     Mod_Shift = (1 << 2),
     Mod_Super = (1 << 3),
-    Mod_AltGr = (1 << 4),
-    Mod_Keypad = (1 << 5),
-    Mod_Mask = Mod_Alt | Mod_Ctrl | Mod_Shift | Mod_Super | Mod_AltGr | Mod_Keypad,
+    Mod_Keypad = (1 << 4),
+    Mod_Mask = Mod_Alt | Mod_Ctrl | Mod_Shift | Mod_Super | Mod_Keypad,
 
     Is_Press = 0x80,
 

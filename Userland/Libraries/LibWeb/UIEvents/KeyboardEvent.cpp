@@ -59,11 +59,14 @@ static unsigned long determine_key_code(KeyCode platform_key, u32 code_point)
         return 9;
     case KeyCode::Key_Return:
         return 13;
-    case KeyCode::Key_Shift:
+    case KeyCode::Key_LeftShift:
+    case KeyCode::Key_RightShift:
         return 16;
-    case KeyCode::Key_Control:
+    case KeyCode::Key_LeftControl:
+    case KeyCode::Key_RightControl:
         return 17;
-    case KeyCode::Key_Alt:
+    case KeyCode::Key_LeftAlt:
+    case KeyCode::Key_RightAlt:
         return 18;
     case KeyCode::Key_CapsLock:
         return 20;
@@ -143,15 +146,20 @@ static ErrorOr<Optional<String>> get_event_named_key(KeyCode platform_key)
         return "Unidentified"_string;
 
     // 3.2. Modifier Keys, https://www.w3.org/TR/uievents-key/#keys-modifier
-    case KeyCode::Key_Alt:
-        return "AltLeft"_string;
+    case KeyCode::Key_LeftAlt:
     case KeyCode::Key_RightAlt:
-        return "AltRight"_string;
+        return "Alt"_string;
+    case KeyCode::Key_AltGr:
+        return "AltGraph"_string;
     case KeyCode::Key_CapsLock:
         return "CapsLock"_string;
-    case KeyCode::Key_Control:
+    case KeyCode::Key_LeftControl:
+    case KeyCode::Key_RightControl:
         return "Control"_string;
-    case KeyCode::Key_Super:
+    // FIXME: Fn
+    // FIXME: FnLock
+    case KeyCode::Key_LeftSuper:
+    case KeyCode::Key_RightSuper:
         return "Meta"_string;
     case KeyCode::Key_NumLock:
         return "NumLock"_string;
@@ -454,24 +462,28 @@ static ErrorOr<String> get_event_code(KeyCode platform_key, unsigned modifiers)
         return "Slash"_string;
 
     // 3.1.2. Functional Keys, https://www.w3.org/TR/uievents-code/#key-alphanumeric-functional
-    case KeyCode::Key_Alt:
+    case KeyCode::Key_LeftAlt:
         return "AltLeft"_string;
     case KeyCode::Key_RightAlt:
         return "AltRight"_string;
+    case KeyCode::Key_AltGr:
+        return "AltGraph"_string;
     case KeyCode::Key_Backspace:
         return "Backspace"_string;
     case KeyCode::Key_CapsLock:
         return "CapsLock"_string;
     case KeyCode::Key_Menu:
         return "ContextMenu"_string;
-    case KeyCode::Key_Control:
+    case KeyCode::Key_LeftControl:
         return "ControlLeft"_string;
     case KeyCode::Key_RightControl:
         return "ControlRight"_string;
     case KeyCode::Key_Return:
         return "Enter"_string;
-    case KeyCode::Key_Super:
-        return "Meta"_string; // FIXME: Detect left vs. right key.
+    case KeyCode::Key_LeftSuper:
+        return "MetaLeft"_string;
+    case KeyCode::Key_RightSuper:
+        return "MetaRight"_string;
     case KeyCode::Key_LeftShift:
         return "ShiftLeft"_string;
     case KeyCode::Key_RightShift:
@@ -611,11 +623,16 @@ static DOMKeyLocation get_event_location(KeyCode platform_key, unsigned modifier
     if ((modifiers & Mod_Keypad) != 0)
         return DOMKeyLocation::Numpad;
 
-    // FIXME: Detect left vs. right for Control and Alt keys.
     switch (platform_key) {
+    case KeyCode::Key_LeftAlt:
+    case KeyCode::Key_LeftControl:
     case KeyCode::Key_LeftShift:
+    case KeyCode::Key_LeftSuper:
         return DOMKeyLocation::Left;
+    case KeyCode::Key_RightAlt:
+    case KeyCode::Key_RightControl:
     case KeyCode::Key_RightShift:
+    case KeyCode::Key_RightSuper:
         return DOMKeyLocation::Right;
     default:
         break;
