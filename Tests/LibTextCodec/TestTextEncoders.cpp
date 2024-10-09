@@ -153,3 +153,22 @@ TEST_CASE(test_gb18030_encoder)
     EXPECT(processed_bytes[2] == 0xFE);
     EXPECT(processed_bytes[3] == 0xFE);
 }
+
+TEST_CASE(test_windows1252_encoder)
+{
+    auto encoder = TextCodec::encoder_for_exact_name("windows-1252"sv);
+    auto test_string = "ÀÁÂÃÄÅÆÇÈÉÊËÌÍÎÏfoo€"sv;
+    Vector<u8> processed_bytes;
+    MUST(encoder.value().process(
+        Utf8View(test_string),
+        [&](u8 byte) { dbgln("{}", processed_bytes.size()); return processed_bytes.try_append(byte); },
+        [&](u32) -> ErrorOr<void> { EXPECT(false); return {}; }));
+    EXPECT(processed_bytes.size() == 20);
+    for (u8 i = 0; i < 15; i++) {
+        EXPECT(processed_bytes[i] == (0xC0 + i));
+    }
+    EXPECT(processed_bytes[16] == 0x66);
+    EXPECT(processed_bytes[17] == 0x6F);
+    EXPECT(processed_bytes[18] == 0x6F);
+    EXPECT(processed_bytes[19] == 0x80);
+}
