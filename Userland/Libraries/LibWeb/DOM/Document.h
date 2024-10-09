@@ -568,6 +568,10 @@ public:
     bool query_command_supported(String const& command);
     String query_command_value(String const& command);
 
+    // https://w3c.github.io/selection-api/#dfn-has-scheduled-selectionchange-event
+    bool has_scheduled_selectionchange_event() const { return m_has_scheduled_selectionchange_event; }
+    void set_scheduled_selectionchange_event(bool value) { m_has_scheduled_selectionchange_event = value; }
+
     bool is_allowed_to_use_feature(PolicyControlledFeature) const;
 
     void did_stop_being_active_document_in_navigable();
@@ -999,6 +1003,9 @@ private:
 
     // https://dom.spec.whatwg.org/#document-allow-declarative-shadow-roots
     bool m_allow_declarative_shadow_roots { false };
+
+    // https://w3c.github.io/selection-api/#dfn-has-scheduled-selectionchange-event
+    bool m_has_scheduled_selectionchange_event { false };
 
     JS::GCPtr<JS::ConsoleClient> m_console_client;
 

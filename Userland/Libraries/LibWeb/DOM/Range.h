@@ -23,6 +23,13 @@ enum class RelativeBoundaryPointPosition {
 // https://dom.spec.whatwg.org/#concept-range-bp-position
 RelativeBoundaryPointPosition position_of_boundary_point_relative_to_other_boundary_point(Node const& node_a, u32 offset_a, Node const& node_b, u32 offset_b);
 
+// https://w3c.github.io/selection-api/#dfn-has-scheduled-selectionchange-event
+template<typename T>
+concept SelectionChangeTarget = DerivedFrom<T, EventTarget> && requires(T t) {
+    { t.has_scheduled_selectionchange_event() } -> SameAs<bool>;
+    { t.set_scheduled_selectionchange_event(bool()) } -> SameAs<void>;
+};
+
 class Range final : public AbstractRange {
     WEB_PLATFORM_OBJECT(Range, AbstractRange);
     JS_DECLARE_ALLOCATOR(Range);
@@ -108,6 +115,10 @@ private:
     Node const& root() const;
 
     void update_associated_selection();
+    template<SelectionChangeTarget T>
+    void schedule_a_selectionchange_event(T&);
+    template<SelectionChangeTarget T>
+    void fire_a_selectionchange_event(T&);
 
     enum class StartOrEnd {
         Start,
