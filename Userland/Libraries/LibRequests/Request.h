@@ -16,6 +16,7 @@
 #include <LibCore/Notifier.h>
 #include <LibHTTP/HeaderMap.h>
 #include <LibIPC/Forward.h>
+#include <LibRequests/NetworkErrorEnum.h>
 
 namespace Requests {
 
@@ -37,7 +38,7 @@ public:
     int fd() const { return m_fd; }
     bool stop();
 
-    using BufferedRequestFinished = Function<void(bool success, u64 total_size, HTTP::HeaderMap const& response_headers, Optional<u32> response_code, ReadonlyBytes payload)>;
+    using BufferedRequestFinished = Function<void(u64 total_size, Optional<NetworkError> const& network_error, HTTP::HeaderMap const& response_headers, Optional<u32> response_code, ReadonlyBytes payload)>;
 
     // Configure the request such that the entirety of the response data is buffered. The callback receives that data and
     // the response headers all at once. Using this method is mutually exclusive with `set_unbuffered_data_received_callback`.
@@ -45,7 +46,7 @@ public:
 
     using HeadersReceived = Function<void(HTTP::HeaderMap const& response_headers, Optional<u32> response_code)>;
     using DataReceived = Function<void(ReadonlyBytes data)>;
-    using RequestFinished = Function<void(bool success, u64 total_size)>;
+    using RequestFinished = Function<void(u64 total_size, Optional<NetworkError> network_error)>;
 
     // Configure the request such that the response data is provided unbuffered as it is received. Using this method is
     // mutually exclusive with `set_buffered_request_finished_callback`.
@@ -53,7 +54,7 @@ public:
 
     Function<CertificateAndKey()> on_certificate_requested;
 
-    void did_finish(Badge<RequestClient>, bool success, u64 total_size);
+    void did_finish(Badge<RequestClient>, u64 total_size, Optional<NetworkError> const& network_error);
     void did_receive_headers(Badge<RequestClient>, HTTP::HeaderMap const& response_headers, Optional<u32> response_code);
     void did_request_certificates(Badge<RequestClient>);
 
@@ -91,8 +92,8 @@ private:
 
         OwnPtr<Stream> read_stream;
         RefPtr<Core::Notifier> read_notifier;
-        bool success;
         u32 total_size { 0 };
+        Optional<NetworkError> network_error;
         bool request_done { false };
         Function<void()> on_finish {};
         bool user_finish_called { false };

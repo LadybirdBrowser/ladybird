@@ -68,11 +68,11 @@ bool RequestClient::set_certificate(Badge<Request>, Request& request, ByteString
     return IPCProxy::set_certificate(request.id(), move(certificate), move(key));
 }
 
-void RequestClient::request_finished(i32 request_id, bool success, u64 total_size)
+void RequestClient::request_finished(i32 request_id, u64 total_size, Optional<NetworkError> const& network_error)
 {
     RefPtr<Request> request;
     if ((request = m_requests.get(request_id).value_or(nullptr))) {
-        request->did_finish({}, success, total_size);
+        request->did_finish({}, total_size, network_error);
     }
     m_requests.remove(request_id);
 }

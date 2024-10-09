@@ -12,6 +12,7 @@
 #include <LibCore/EventLoop.h>
 #include <LibCore/Proxy.h>
 #include <LibCore/Socket.h>
+#include <LibRequests/NetworkErrorEnum.h>
 #include <LibWebSocket/ConnectionInfo.h>
 #include <LibWebSocket/Message.h>
 #include <RequestServer/ConnectionFromClient.h>
@@ -243,7 +244,7 @@ void ConnectionFromClient::start_request(i32 request_id, ByteString const& metho
 {
     if (!url.is_valid()) {
         dbgln("StartRequest: Invalid URL requested: '{}'", url);
-        async_request_finished(request_id, false, 0);
+        async_request_finished(request_id, 0, Requests::NetworkError::MalformedUrl);
         return;
     }
 
@@ -320,6 +321,30 @@ void ConnectionFromClient::start_request(i32 request_id, ByteString const& metho
     m_active_requests.set(request_id, move(request));
 }
 
+static Requests::NetworkError map_curl_code_to_network_error(CURLcode const& code)
+{
+    switch (code) {
+    case CURLE_COULDNT_RESOLVE_HOST:
+        return Requests::NetworkError::UnableToResolveHost;
+    case CURLE_COULDNT_RESOLVE_PROXY:
+        return Requests::NetworkError::UnableToResolveProxy;
+    case CURLE_COULDNT_CONNECT:
+        return Requests::NetworkError::UnableToConnect;
+    case CURLE_OPERATION_TIMEDOUT:
+        return Requests::NetworkError::TimeoutReached;
+    case CURLE_TOO_MANY_REDIRECTS:
+        return Requests::NetworkError::TooManyRedirects;
+    case CURLE_SSL_CONNECT_ERROR:
+        return Requests::NetworkError::SSLHandshakeFailed;
+    case CURLE_PEER_FAILED_VERIFICATION:
+        return Requests::NetworkError::SSLVerificationFailed;
+    case CURLE_URL_MALFORMAT:
+        return Requests::NetworkError::MalformedUrl;
+    default:
+        return Requests::NetworkError::Unknown;
+    }
+}
+
 void ConnectionFromClient::check_active_requests()
 {
     int msgs_in_queue = 0;
@@ -332,7 +357,20 @@ void ConnectionFromClient::check_active_requests()
         VERIFY(result == CURLE_OK);
         request->flush_headers_if_needed();
 
-        async_request_finished(request->request_id, msg->data.result == CURLE_OK, request->downloaded_so_far);
+        auto result_code = msg->data.result;
+
+        Optional<Requests::NetworkError> network_error;
+        bool const request_was_successful = result_code == CURLE_OK;
+        if (!request_was_successful) {
+            network_error = map_curl_code_to_network_error(result_code);
+
+            if (network_error.has_value() && network_error.value() == Requests::NetworkError::Unknown) {
+                char const* curl_error_message = curl_easy_strerror(result_code);
+                dbgln("ConnectionFromClient: Unable to map error ({}), message: \"\033[31;1m{}\033[0m\"", static_cast<int>(result_code), curl_error_message);
+            }
+        }
+
+        async_request_finished(request->request_id, request->downloaded_so_far, network_error);
 
         m_active_requests.remove(request->request_id);
     }

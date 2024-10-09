@@ -1,10 +1,11 @@
 #include <LibHTTP/HeaderMap.h>
+#include <LibRequests/NetworkErrorEnum.h>
 #include <LibURL/URL.h>
 
 endpoint RequestClient
 {
     request_started(i32 request_id, IPC::File fd) =|
-    request_finished(i32 request_id, bool success, u64 total_size) =|
+    request_finished(i32 request_id, u64 total_size, Optional<Requests::NetworkError> network_error) =|
     headers_became_available(i32 request_id, HTTP::HeaderMap response_headers, Optional<u32> status_code) =|
 
     // Websocket API
