@@ -7,10 +7,9 @@
   },
   "configurePresets": [
     {
-      "name": "default",
+      "hidden": true,
+      "name": "default_base",
       "displayName": "Default Config",
-      "description": "Default build using Ninja generator",
-      "generator": "Ninja",
       "binaryDir": "${fileDir}/Build/ladybird",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "RelWithDebInfo",
@@ -29,6 +28,64 @@
           "toolchain": "Default"
         }
       }
+    },
+    {
+      "hidden": true,
+      "name": "windows",
+      "description": "Visual Studio IDE config (experimental)",
+      "architecture": {
+        "value": "x64",
+        "strategy": "external"
+      },
+      "cacheVariables": {
+        "ENABLE_QT": "OFF"
+      },
+      "vendor": {
+        "microsoft.com/VisualStudioSettings/CMake/1.0": {
+            "intelliSenseMode": "windows-clang-x64"
+        }
+      },
+      "condition": {
+        "type": "equals",
+        "lhs": "${hostSystemName}",
+        "rhs": "Windows"
+      }
+    },
+    {
+      "name": "default",
+      "description": "Default build using Ninja generator",
+      "generator": "Ninja",
+      "inherits": "default_base",
+      "condition": {
+        "type": "notEquals",
+        "lhs": "${hostSystemName}",
+        "rhs": "Windows"
+      }
+    },
+    {
+      "name": "windows_ninja",
+      "displayName": "Default with ClangCL and Ninja",
+      "description": "Windows build using Ninja generator (experimental)",
+      "inherits": [
+        "default_base",
+        "windows"
+      ],
+      "generator": "Ninja",
+      "cacheVariables": {
+        "CMAKE_C_COMPILER": "clang-cl",
+        "CMAKE_CXX_COMPILER": "clang-cl"
+      }
+    },
+    {
+      "name": "windows_msbuild",
+      "displayName": "Default with ClangCL and MSBuild",
+      "description": "Default build using Visual Studio generator (experimental)",
+      "inherits": [
+        "default_base",
+        "windows"
+      ],
+      "generator": "Visual Studio 17 2022",
+      "toolset": "ClangCL"
     },
     {
       "name": "Debug",
@@ -63,12 +120,18 @@
     },
     {
       "name": "CI",
-      "inherits": ["vcpkg_ci", "default" ],
+      "inherits": [
+        "vcpkg_ci",
+        "default"
+      ],
       "displayName": "Non-Sanitizer CI Config"
     },
     {
       "name": "Sanitizer_CI",
-      "inherits": ["vcpkg_ci", "Sanitizer" ],
+      "inherits": [
+        "vcpkg_ci",
+        "Sanitizer"
+      ],
       "displayName": "Sanitizer CI Config",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": ""
@@ -76,7 +139,10 @@
     },
     {
       "name": "Fuzzers_CI",
-      "inherits": ["vcpkg_ci", "default" ],
+      "inherits": [
+        "vcpkg_ci",
+        "default"
+      ],
       "displayName": "Fuzzers Config",
       "description": "Fuzzers build with GitHub Actions cache",
       "binaryDir": "${fileDir}/Build/ladybird-fuzzers",
@@ -92,6 +158,24 @@
     {
       "name": "default",
       "configurePreset": "default",
+      "displayName": "Build",
+      "description": "Build the project",
+      "targets": [
+        "all"
+      ]
+    },
+    {
+      "name": "windows_msbuild",
+      "configurePreset": "windows_msbuild",
+      "displayName": "Build",
+      "description": "Build the project",
+      "targets": [
+        "ALL_BUILD"
+      ]
+    },
+    {
+      "name": "windows_ninja",
+      "configurePreset": "windows_ninja",
       "displayName": "Build",
       "description": "Build the project",
       "targets": [
