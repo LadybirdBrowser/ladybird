@@ -276,7 +276,10 @@ Messages::WebDriverClient::NavigateToResponse WebDriverConnection::navigate_to(J
     current_top_level_browsing_context()->page().load(url);
 
     // 8. If url is special except for file and current URL and URL do not have the same absolute URL:
-    if (url.is_special() && url.scheme() != "file"sv && current_url != url) {
+    // AD-HOC: We wait for the navigation to complete regardless of whether the current URL differs from the provided
+    //         URL. Even if they're the same, the navigation queues a tasks that we must await, otherwise subsequent
+    //         endpoint invocations will attempt to operate on the wrong page.
+    if (url.is_special() && url.scheme() != "file"sv) {
         // a. Try to wait for navigation to complete.
         TRY(wait_for_navigation_to_complete());
 
