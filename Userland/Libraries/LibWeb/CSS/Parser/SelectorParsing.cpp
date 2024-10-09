@@ -115,11 +115,11 @@ Parser::ParseErrorOr<NonnullRefPtr<Selector>> Parser::parse_complex_selector(Tok
 
 Parser::ParseErrorOr<Optional<Selector::CompoundSelector>> Parser::parse_compound_selector(TokenStream<ComponentValue>& tokens)
 {
-    tokens.skip_whitespace();
+    tokens.discard_whitespace();
 
     auto combinator = parse_selector_combinator(tokens).value_or(Selector::Combinator::Descendant);
 
-    tokens.skip_whitespace();
+    tokens.discard_whitespace();
 
     Vector<Selector::SimpleSelector> simple_selectors;
 
@@ -138,7 +138,7 @@ Parser::ParseErrorOr<Optional<Selector::CompoundSelector>> Parser::parse_compoun
 
 Optional<Selector::Combinator> Parser::parse_selector_combinator(TokenStream<ComponentValue>& tokens)
 {
-    auto const& current_value = tokens.next_token();
+    auto const& current_value = tokens.consume_a_token();
     if (current_value.is(Token::Type::Delim)) {
         switch (current_value.token().delim()) {
         case '>':
@@ -148,12 +148,12 @@ Optional<Selector::Combinator> Parser::parse_selector_combinator(TokenStream<Com
         case '~':
             return Selector::Combinator::SubsequentSibling;
         case '|': {
-            auto const& next = tokens.peek_token();
+            auto const& next = tokens.next_token();
             if (next.is(Token::Type::EndOfFile))
                 return {};
 
             if (next.is_delim('|')) {
-                tokens.next_token();
+                tokens.discard_a_token();
                 return Selector::Combinator::Column;
             }
         }
@@ -184,11 +184,11 @@ Optional<Selector::SimpleSelector::QualifiedName> Parser::parse_selector_qualifi
 
     auto transaction = tokens.begin_transaction();
 
-    auto first_token = tokens.next_token();
+    auto first_token = tokens.consume_a_token();
     if (first_token.is_delim('|')) {
         // Case 1: `|<name>`
-        if (is_name(tokens.peek_token())) {
-            auto name_token = tokens.next_token();
+        if (is_name(tokens.next_token())) {
+            auto name_token = tokens.consume_a_token();
 
             if (allow_wildcard_name == AllowWildcardName::No && name_token.is_delim('*'))
                 return {};
@@ -205,11 +205,11 @@ Optional<Selector::SimpleSelector::QualifiedName> Parser::parse_selector_qualifi
     if (!is_name(first_token))
         return {};
 
-    if (tokens.peek_token().is_delim('|') && is_name(tokens.peek_token(1))) {
+    if (tokens.next_token().is_delim('|') && is_name(tokens.peek_token(1))) {
         // Case 2: `<namespace>|<name>`
-        (void)tokens.next_token(); // `|`
+        tokens.discard_a_token(); // `|`
         auto namespace_ = get_name(first_token);
-        auto name = get_name(tokens.next_token());
+        auto name = get_name(tokens.consume_a_token());
 
         if (allow_wildcard_name == AllowWildcardName::No && name == "*"sv)
             return {};
@@ -242,7 +242,7 @@ Parser::ParseErrorOr<Selector::SimpleSelector> Parser::parse_attribute_simple_se
 {
     auto attribute_tokens = TokenStream { first_value.block().values() };
 
-    attribute_tokens.skip_whitespace();
+    attribute_tokens.discard_whitespace();
 
     if (!attribute_tokens.has_next_token()) {
         dbgln_if(CSS_PARSER_DEBUG, "CSS attribute selector is empty!");
@@ -251,7 +251,7 @@ Parser::ParseErrorOr<Selector::SimpleSelector> Parser::parse_attribute_simple_se
 
     auto maybe_qualified_name = parse_selector_qualified_name(attribute_tokens, AllowWildcardName::No);
     if (!maybe_qualified_name.has_value()) {
-        dbgln_if(CSS_PARSER_DEBUG, "Expected qualified-name for attribute name, got: '{}'", attribute_tokens.peek_token().to_debug_string());
+        dbgln_if(CSS_PARSER_DEBUG, "Expected qualified-name for attribute name, got: '{}'", attribute_tokens.next_token().to_debug_string());
         return ParseError::SyntaxError;
     }
     auto qualified_name = maybe_qualified_name.release_value();
@@ -265,11 +265,11 @@ Parser::ParseErrorOr<Selector::SimpleSelector> Parser::parse_attribute_simple_se
         }
     };
 
-    attribute_tokens.skip_whitespace();
+    attribute_tokens.discard_whitespace();
     if (!attribute_tokens.has_next_token())
         return simple_selector;
 
-    auto const& delim_part = attribute_tokens.next_token();
+    auto const& delim_part = attribute_tokens.consume_a_token();
     if (!delim_part.is(Token::Type::Delim)) {
         dbgln_if(CSS_PARSER_DEBUG, "Expected a delim for attribute comparison, got: '{}'", delim_part.to_debug_string());
         return ParseError::SyntaxError;
@@ -283,7 +283,7 @@ Parser::ParseErrorOr<Selector::SimpleSelector> Parser::parse_attribute_simple_se
             return ParseError::SyntaxError;
         }
 
-        auto const& delim_second_part = attribute_tokens.next_token();
+        auto const& delim_second_part = attribute_tokens.consume_a_token();
         if (!delim_second_part.is_delim('=')) {
             dbgln_if(CSS_PARSER_DEBUG, "Expected a double delim for attribute comparison, got: '{}{}'", delim_part.to_debug_string(), delim_second_part.to_debug_string());
             return ParseError::SyntaxError;
@@ -309,13 +309,13 @@ Parser::ParseErrorOr<Selector::SimpleSelector> Parser::parse_attribute_simple_se
         }
     }
 
-    attribute_tokens.skip_whitespace();
+    attribute_tokens.discard_whitespace();
     if (!attribute_tokens.has_next_token()) {
         dbgln_if(CSS_PARSER_DEBUG, "Attribute selector ended without a value to match.");
         return ParseError::SyntaxError;
     }
 
-    auto const& value_part = attribute_tokens.next_token();
+    auto const& value_part = attribute_tokens.consume_a_token();
     if (!value_part.is(Token::Type::Ident) && !value_part.is(Token::Type::String)) {
         dbgln_if(CSS_PARSER_DEBUG, "Expected a string or ident for the value to match attribute against, got: '{}'", value_part.to_debug_string());
         return ParseError::SyntaxError;
@@ -323,10 +323,10 @@ Parser::ParseErrorOr<Selector::SimpleSelector> Parser::parse_attribute_simple_se
     auto const& value_string = value_part.token().is(Token::Type::Ident) ? value_part.token().ident() : value_part.token().string();
     simple_selector.attribute().value = value_string.to_string();
 
-    attribute_tokens.skip_whitespace();
+    attribute_tokens.discard_whitespace();
     // Handle case-sensitivity suffixes. https://www.w3.org/TR/selectors-4/#attribute-case
     if (attribute_tokens.has_next_token()) {
-        auto const& case_sensitivity_part = attribute_tokens.next_token();
+        auto const& case_sensitivity_part = attribute_tokens.consume_a_token();
         if (case_sensitivity_part.is(Token::Type::Ident)) {
             auto case_sensitivity = case_sensitivity_part.token().ident();
             if (case_sensitivity.equals_ignoring_ascii_case("i"sv)) {
@@ -354,7 +354,7 @@ Parser::ParseErrorOr<Selector::SimpleSelector> Parser::parse_attribute_simple_se
 Parser::ParseErrorOr<Selector::SimpleSelector> Parser::parse_pseudo_simple_selector(TokenStream<ComponentValue>& tokens)
 {
     auto peek_token_ends_selector = [&]() -> bool {
-        auto const& value = tokens.peek_token();
+        auto const& value = tokens.next_token();
         return (value.is(Token::Type::EndOfFile) || value.is(Token::Type::Whitespace) || value.is(Token::Type::Comma));
     };
 
@@ -362,15 +362,15 @@ Parser::ParseErrorOr<Selector::SimpleSelector> Parser::parse_pseudo_simple_selec
         return ParseError::SyntaxError;
 
     bool is_pseudo = false;
-    if (tokens.peek_token().is(Token::Type::Colon)) {
+    if (tokens.next_token().is(Token::Type::Colon)) {
         is_pseudo = true;
-        tokens.next_token();
+        tokens.discard_a_token();
         if (peek_token_ends_selector())
             return ParseError::SyntaxError;
     }
 
     if (is_pseudo) {
-        auto const& name_token = tokens.next_token();
+        auto const& name_token = tokens.consume_a_token();
         if (!name_token.is(Token::Type::Ident)) {
             dbgln_if(CSS_PARSER_DEBUG, "Expected an ident for pseudo-element, got: '{}'", name_token.to_debug_string());
             return ParseError::SyntaxError;
@@ -409,7 +409,7 @@ Parser::ParseErrorOr<Selector::SimpleSelector> Parser::parse_pseudo_simple_selec
     if (peek_token_ends_selector())
         return ParseError::SyntaxError;
 
-    auto const& pseudo_class_token = tokens.next_token();
+    auto const& pseudo_class_token = tokens.consume_a_token();
 
     if (pseudo_class_token.is(Token::Type::Ident)) {
         auto pseudo_name = pseudo_class_token.token().ident();
@@ -461,7 +461,7 @@ Parser::ParseErrorOr<Selector::SimpleSelector> Parser::parse_pseudo_simple_selec
                 return ParseError::SyntaxError;
             }
 
-            tokens.skip_whitespace();
+            tokens.discard_whitespace();
             if (!tokens.has_next_token()) {
                 return Selector::SimpleSelector {
                     .type = Selector::SimpleSelector::Type::PseudoClass,
@@ -475,14 +475,14 @@ Parser::ParseErrorOr<Selector::SimpleSelector> Parser::parse_pseudo_simple_selec
                 return ParseError::SyntaxError;
 
             // Parse the `of <selector-list>` syntax
-            auto const& maybe_of = tokens.next_token();
+            auto const& maybe_of = tokens.consume_a_token();
             if (!maybe_of.is_ident("of"sv))
                 return ParseError::SyntaxError;
 
-            tokens.skip_whitespace();
+            tokens.discard_whitespace();
             auto selector_list = TRY(parse_a_selector_list(tokens, SelectorType::Standalone));
 
-            tokens.skip_whitespace();
+            tokens.discard_whitespace();
             if (tokens.has_next_token())
                 return ParseError::SyntaxError;
 
@@ -558,9 +558,9 @@ Parser::ParseErrorOr<Selector::SimpleSelector> Parser::parse_pseudo_simple_selec
         }
         case PseudoClassMetadata::ParameterType::Ident: {
             auto function_token_stream = TokenStream(pseudo_function.values());
-            function_token_stream.skip_whitespace();
-            auto maybe_keyword_token = function_token_stream.next_token();
-            function_token_stream.skip_whitespace();
+            function_token_stream.discard_whitespace();
+            auto maybe_keyword_token = function_token_stream.consume_a_token();
+            function_token_stream.discard_whitespace();
             if (!maybe_keyword_token.is(Token::Type::Ident) || function_token_stream.has_next_token()) {
                 dbgln_if(CSS_PARSER_DEBUG, "Failed to parse :{}() parameter as a keyword: not an ident", pseudo_function.name());
                 return ParseError::SyntaxError;
@@ -586,8 +586,8 @@ Parser::ParseErrorOr<Selector::SimpleSelector> Parser::parse_pseudo_simple_selec
 
             for (auto language_token_list : language_token_lists) {
                 auto language_token_stream = TokenStream(language_token_list);
-                language_token_stream.skip_whitespace();
-                auto language_token = language_token_stream.next_token();
+                language_token_stream.discard_whitespace();
+                auto language_token = language_token_stream.consume_a_token();
                 if (!(language_token.is(Token::Type::Ident) || language_token.is(Token::Type::String))) {
                     dbgln_if(CSS_PARSER_DEBUG, "Invalid language range in :{}() - not a string/ident", pseudo_function.name());
                     return ParseError::SyntaxError;
@@ -596,7 +596,7 @@ Parser::ParseErrorOr<Selector::SimpleSelector> Parser::parse_pseudo_simple_selec
                 auto language_string = language_token.is(Token::Type::String) ? language_token.token().string() : language_token.token().ident();
                 languages.append(language_string);
 
-                language_token_stream.skip_whitespace();
+                language_token_stream.discard_whitespace();
                 if (language_token_stream.has_next_token()) {
                     dbgln_if(CSS_PARSER_DEBUG, "Invalid language range in :{}() - trailing tokens", pseudo_function.name());
                     return ParseError::SyntaxError;
@@ -633,7 +633,7 @@ Parser::ParseErrorOr<Selector::SimpleSelector> Parser::parse_pseudo_simple_selec
 Parser::ParseErrorOr<Optional<Selector::SimpleSelector>> Parser::parse_simple_selector(TokenStream<ComponentValue>& tokens)
 {
     auto peek_token_ends_selector = [&]() -> bool {
-        auto const& value = tokens.peek_token();
+        auto const& value = tokens.next_token();
         return (value.is(Token::Type::EndOfFile) || value.is(Token::Type::Whitespace) || value.is(Token::Type::Comma));
     };
 
@@ -654,7 +654,7 @@ Parser::ParseErrorOr<Optional<Selector::SimpleSelector>> Parser::parse_simple_se
         };
     }
 
-    auto const& first_value = tokens.next_token();
+    auto const& first_value = tokens.consume_a_token();
 
     if (first_value.is(Token::Type::Delim)) {
         u32 delim = first_value.token().delim();
@@ -666,7 +666,7 @@ Parser::ParseErrorOr<Optional<Selector::SimpleSelector>> Parser::parse_simple_se
             if (peek_token_ends_selector())
                 return ParseError::SyntaxError;
 
-            auto const& class_name_value = tokens.next_token();
+            auto const& class_name_value = tokens.consume_a_token();
             if (!class_name_value.is(Token::Type::Ident)) {
                 dbgln_if(CSS_PARSER_DEBUG, "Expected an ident after '.', got: {}", class_name_value.to_debug_string());
                 return ParseError::SyntaxError;
@@ -796,8 +796,8 @@ Optional<Selector::SimpleSelector::ANPlusBPattern> Parser::parse_a_n_plus_b_patt
     // https://www.w3.org/TR/css-syntax-3/#the-anb-type
     // Unfortunately these can't be in the same order as in the spec.
 
-    values.skip_whitespace();
-    auto const& first_value = values.next_token();
+    values.discard_whitespace();
+    auto const& first_value = values.consume_a_token();
 
     // odd | even
     if (first_value.is(Token::Type::Ident)) {
@@ -822,11 +822,11 @@ Optional<Selector::SimpleSelector::ANPlusBPattern> Parser::parse_a_n_plus_b_patt
     // <n-dimension> ['+' | '-'] <signless-integer>
     if (is_n_dimension(first_value)) {
         int a = first_value.token().dimension_value_int();
-        values.skip_whitespace();
+        values.discard_whitespace();
 
         // <n-dimension> <signed-integer>
-        if (is_signed_integer(values.peek_token())) {
-            int b = values.next_token().token().to_integer();
+        if (is_signed_integer(values.next_token())) {
+            int b = values.consume_a_token().token().to_integer();
             transaction.commit();
             return Selector::SimpleSelector::ANPlusBPattern { a, b };
         }
@@ -834,9 +834,9 @@ Optional<Selector::SimpleSelector::ANPlusBPattern> Parser::parse_a_n_plus_b_patt
         // <n-dimension> ['+' | '-'] <signless-integer>
         {
             auto child_transaction = transaction.create_child();
-            auto const& second_value = values.next_token();
-            values.skip_whitespace();
-            auto const& third_value = values.next_token();
+            auto const& second_value = values.consume_a_token();
+            values.discard_whitespace();
+            auto const& third_value = values.consume_a_token();
 
             if (is_sign(second_value) && is_signless_integer(third_value)) {
                 int b = third_value.token().to_integer() * (second_value.is_delim('+') ? 1 : -1);
@@ -851,8 +851,8 @@ Optional<Selector::SimpleSelector::ANPlusBPattern> Parser::parse_a_n_plus_b_patt
     }
     // <ndash-dimension> <signless-integer>
     if (is_ndash_dimension(first_value)) {
-        values.skip_whitespace();
-        auto const& second_value = values.next_token();
+        values.discard_whitespace();
+        auto const& second_value = values.consume_a_token();
         if (is_signless_integer(second_value)) {
             int a = first_value.token().dimension_value_int();
             int b = -second_value.token().to_integer();
@@ -888,11 +888,11 @@ Optional<Selector::SimpleSelector::ANPlusBPattern> Parser::parse_a_n_plus_b_patt
     // -n <signed-integer>
     // -n ['+' | '-'] <signless-integer>
     if (first_value.is_ident("-n"sv)) {
-        values.skip_whitespace();
+        values.discard_whitespace();
 
         // -n <signed-integer>
-        if (is_signed_integer(values.peek_token())) {
-            int b = values.next_token().token().to_integer();
+        if (is_signed_integer(values.next_token())) {
+            int b = values.consume_a_token().token().to_integer();
             transaction.commit();
             return Selector::SimpleSelector::ANPlusBPattern { -1, b };
         }
@@ -900,9 +900,9 @@ Optional<Selector::SimpleSelector::ANPlusBPattern> Parser::parse_a_n_plus_b_patt
         // -n ['+' | '-'] <signless-integer>
         {
             auto child_transaction = transaction.create_child();
-            auto const& second_value = values.next_token();
-            values.skip_whitespace();
-            auto const& third_value = values.next_token();
+            auto const& second_value = values.consume_a_token();
+            values.discard_whitespace();
+            auto const& third_value = values.consume_a_token();
 
             if (is_sign(second_value) && is_signless_integer(third_value)) {
                 int b = third_value.token().to_integer() * (second_value.is_delim('+') ? 1 : -1);
@@ -917,8 +917,8 @@ Optional<Selector::SimpleSelector::ANPlusBPattern> Parser::parse_a_n_plus_b_patt
     }
     // -n- <signless-integer>
     if (first_value.is_ident("-n-"sv)) {
-        values.skip_whitespace();
-        auto const& second_value = values.next_token();
+        values.discard_whitespace();
+        auto const& second_value = values.consume_a_token();
         if (is_signless_integer(second_value)) {
             int b = -second_value.token().to_integer();
             transaction.commit();
@@ -941,16 +941,16 @@ Optional<Selector::SimpleSelector::ANPlusBPattern> Parser::parse_a_n_plus_b_patt
         // We do *not* skip whitespace here.
     }
 
-    auto const& first_after_plus = values.next_token();
+    auto const& first_after_plus = values.consume_a_token();
     // '+'?† n
     // '+'?† n <signed-integer>
     // '+'?† n ['+' | '-'] <signless-integer>
     if (first_after_plus.is_ident("n"sv)) {
-        values.skip_whitespace();
+        values.discard_whitespace();
 
         // '+'?† n <signed-integer>
-        if (is_signed_integer(values.peek_token())) {
-            int b = values.next_token().token().to_integer();
+        if (is_signed_integer(values.next_token())) {
+            int b = values.consume_a_token().token().to_integer();
             transaction.commit();
             return Selector::SimpleSelector::ANPlusBPattern { 1, b };
         }
@@ -958,9 +958,9 @@ Optional<Selector::SimpleSelector::ANPlusBPattern> Parser::parse_a_n_plus_b_patt
         // '+'?† n ['+' | '-'] <signless-integer>
         {
             auto child_transaction = transaction.create_child();
-            auto const& second_value = values.next_token();
-            values.skip_whitespace();
-            auto const& third_value = values.next_token();
+            auto const& second_value = values.consume_a_token();
+            values.discard_whitespace();
+            auto const& third_value = values.consume_a_token();
 
             if (is_sign(second_value) && is_signless_integer(third_value)) {
                 int b = third_value.token().to_integer() * (second_value.is_delim('+') ? 1 : -1);
@@ -976,8 +976,8 @@ Optional<Selector::SimpleSelector::ANPlusBPattern> Parser::parse_a_n_plus_b_patt
 
     // '+'?† n- <signless-integer>
     if (first_after_plus.is_ident("n-"sv)) {
-        values.skip_whitespace();
-        auto const& second_value = values.next_token();
+        values.discard_whitespace();
+        auto const& second_value = values.consume_a_token();
         if (is_signless_integer(second_value)) {
             int b = -second_value.token().to_integer();
             transaction.commit();

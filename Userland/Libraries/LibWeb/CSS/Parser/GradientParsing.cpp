@@ -27,20 +27,20 @@ Optional<Vector<TElement>> Parser::parse_color_stop_list(TokenStream<ComponentVa
     };
 
     auto parse_color_stop_list_element = [&](TElement& element) -> ElementType {
-        tokens.skip_whitespace();
+        tokens.discard_whitespace();
         if (!tokens.has_next_token())
             return ElementType::Garbage;
 
         RefPtr<CSSStyleValue> color;
         Optional<typename TElement::PositionType> position;
         Optional<typename TElement::PositionType> second_position;
-        if (auto dimension = parse_dimension(tokens.peek_token()); dimension.has_value() && is_position(*dimension)) {
+        if (auto dimension = parse_dimension(tokens.next_token()); dimension.has_value() && is_position(*dimension)) {
             // [<T-percentage> <color>] or [<T-percentage>]
             position = get_position(*dimension);
-            (void)tokens.next_token(); // dimension
-            tokens.skip_whitespace();
+            tokens.discard_a_token(); // dimension
+            tokens.discard_whitespace();
             // <T-percentage>
-            if (!tokens.has_next_token() || tokens.peek_token().is(Token::Type::Comma)) {
+            if (!tokens.has_next_token() || tokens.next_token().is(Token::Type::Comma)) {
                 element.transition_hint = typename TElement::ColorHint { *position };
                 return ElementType::ColorHint;
             }
@@ -55,16 +55,16 @@ Optional<Vector<TElement>> Parser::parse_color_stop_list(TokenStream<ComponentVa
             if (!maybe_color)
                 return ElementType::Garbage;
             color = maybe_color.release_nonnull();
-            tokens.skip_whitespace();
+            tokens.discard_whitespace();
             // Allow up to [<color> <T-percentage> <T-percentage>] (double-position color stops)
             // Note: Double-position color stops only appear to be valid in this order.
             for (auto stop_position : Array { &position, &second_position }) {
-                if (tokens.has_next_token() && !tokens.peek_token().is(Token::Type::Comma)) {
-                    auto dimension = parse_dimension(tokens.next_token());
+                if (tokens.has_next_token() && !tokens.next_token().is(Token::Type::Comma)) {
+                    auto dimension = parse_dimension(tokens.consume_a_token());
                     if (!dimension.has_value() || !is_position(*dimension))
                         return ElementType::Garbage;
                     *stop_position = get_position(*dimension);
-                    tokens.skip_whitespace();
+                    tokens.discard_whitespace();
                 }
             }
         }
@@ -83,14 +83,14 @@ Optional<Vector<TElement>> Parser::parse_color_stop_list(TokenStream<ComponentVa
     Vector<TElement> color_stops { first_element };
     while (tokens.has_next_token()) {
         TElement list_element {};
-        tokens.skip_whitespace();
-        if (!tokens.next_token().is(Token::Type::Comma))
+        tokens.discard_whitespace();
+        if (!tokens.consume_a_token().is(Token::Type::Comma))
             return {};
         auto element_type = parse_color_stop_list_element(list_element);
         if (element_type == ElementType::ColorHint) {
             // <color-hint>, <color-stop>
-            tokens.skip_whitespace();
-            if (!tokens.next_token().is(Token::Type::Comma))
+            tokens.discard_whitespace();
+            if (!tokens.consume_a_token().is(Token::Type::Comma))
                 return {};
             // Note: This fills in the color stop on the same list_element as the color hint (it does not overwrite it).
             if (parse_color_stop_list_element(list_element) != ElementType::ColorStop)
@@ -140,7 +140,7 @@ RefPtr<CSSStyleValue> Parser::parse_linear_gradient_function(TokenStream<Compone
     using GradientType = LinearGradientStyleValue::GradientType;
 
     auto transaction = outer_tokens.begin_transaction();
-    auto& component_value = outer_tokens.next_token();
+    auto& component_value = outer_tokens.consume_a_token();
 
     if (!component_value.is_function())
         return nullptr;
@@ -164,7 +164,7 @@ RefPtr<CSSStyleValue> Parser::parse_linear_gradient_function(TokenStream<Compone
     // linear-gradient() = linear-gradient([ <angle> | to <side-or-corner> ]?, <color-stop-list>)
 
     TokenStream tokens { component_value.function().values() };
-    tokens.skip_whitespace();
+    tokens.discard_whitespace();
 
     if (!tokens.has_next_token())
         return nullptr;
@@ -194,10 +194,10 @@ RefPtr<CSSStyleValue> Parser::parse_linear_gradient_function(TokenStream<Compone
         return token.token().ident().equals_ignoring_ascii_case("to"sv);
     };
 
-    auto const& first_param = tokens.peek_token();
+    auto const& first_param = tokens.next_token();
     if (first_param.is(Token::Type::Dimension)) {
         // <angle>
-        tokens.next_token();
+        tokens.discard_a_token();
         auto angle_value = first_param.token().dimension_value();
         auto unit_string = first_param.token().dimension_unit();
         auto angle_type = Angle::unit_from_name(unit_string);
@@ -211,23 +211,23 @@ RefPtr<CSSStyleValue> Parser::parse_linear_gradient_function(TokenStream<Compone
 
         // Note: -webkit-linear-gradient does not include to the "to" prefix on the side or corner
         if (gradient_type == GradientType::Standard) {
-            tokens.next_token();
-            tokens.skip_whitespace();
+            tokens.discard_a_token();
+            tokens.discard_whitespace();
 
             if (!tokens.has_next_token())
                 return nullptr;
         }
 
         // [left | right] || [top | bottom]
-        auto const& first_side = tokens.next_token();
+        auto const& first_side = tokens.consume_a_token();
         if (!first_side.is(Token::Type::Ident))
             return nullptr;
 
         auto side_a = to_side(first_side.token().ident());
-        tokens.skip_whitespace();
+        tokens.discard_whitespace();
         Optional<SideOrCorner> side_b;
-        if (tokens.has_next_token() && tokens.peek_token().is(Token::Type::Ident))
-            side_b = to_side(tokens.next_token().token().ident());
+        if (tokens.has_next_token() && tokens.next_token().is(Token::Type::Ident))
+            side_b = to_side(tokens.consume_a_token().token().ident());
 
         if (side_a.has_value() && !side_b.has_value()) {
             gradient_direction = *side_a;
@@ -252,11 +252,11 @@ RefPtr<CSSStyleValue> Parser::parse_linear_gradient_function(TokenStream<Compone
         has_direction_param = false;
     }
 
-    tokens.skip_whitespace();
+    tokens.discard_whitespace();
     if (!tokens.has_next_token())
         return nullptr;
 
-    if (has_direction_param && !tokens.next_token().is(Token::Type::Comma))
+    if (has_direction_param && !tokens.consume_a_token().is(Token::Type::Comma))
         return nullptr;
 
     auto color_stops = parse_linear_color_stop_list(tokens);
@@ -270,7 +270,7 @@ RefPtr<CSSStyleValue> Parser::parse_linear_gradient_function(TokenStream<Compone
 RefPtr<CSSStyleValue> Parser::parse_conic_gradient_function(TokenStream<ComponentValue>& outer_tokens)
 {
     auto transaction = outer_tokens.begin_transaction();
-    auto& component_value = outer_tokens.next_token();
+    auto& component_value = outer_tokens.consume_a_token();
 
     if (!component_value.is_function())
         return nullptr;
@@ -287,7 +287,7 @@ RefPtr<CSSStyleValue> Parser::parse_conic_gradient_function(TokenStream<Componen
         return nullptr;
 
     TokenStream tokens { component_value.function().values() };
-    tokens.skip_whitespace();
+    tokens.discard_whitespace();
 
     if (!tokens.has_next_token())
         return nullptr;
@@ -297,7 +297,7 @@ RefPtr<CSSStyleValue> Parser::parse_conic_gradient_function(TokenStream<Componen
 
     // conic-gradient( [ [ from <angle> ]? [ at <position> ]? ]  ||
     // <color-interpolation-method> , <angular-color-stop-list> )
-    auto token = tokens.peek_token();
+    auto token = tokens.next_token();
     bool got_from_angle = false;
     bool got_color_interpolation_method = false;
     bool got_at_position = false;
@@ -305,8 +305,8 @@ RefPtr<CSSStyleValue> Parser::parse_conic_gradient_function(TokenStream<Componen
         auto consume_identifier = [&](auto identifier) {
             auto token_string = token.token().ident();
             if (token_string.equals_ignoring_ascii_case(identifier)) {
-                (void)tokens.next_token();
-                tokens.skip_whitespace();
+                tokens.discard_a_token();
+                tokens.discard_whitespace();
                 return true;
             }
             return false;
@@ -319,7 +319,7 @@ RefPtr<CSSStyleValue> Parser::parse_conic_gradient_function(TokenStream<Componen
             if (!tokens.has_next_token())
                 return nullptr;
 
-            auto angle_token = tokens.next_token();
+            auto angle_token = tokens.consume_a_token();
             if (!angle_token.is(Token::Type::Dimension))
                 return nullptr;
             auto angle = angle_token.token().dimension_value();
@@ -348,16 +348,16 @@ RefPtr<CSSStyleValue> Parser::parse_conic_gradient_function(TokenStream<Componen
         } else {
             break;
         }
-        tokens.skip_whitespace();
+        tokens.discard_whitespace();
         if (!tokens.has_next_token())
             return nullptr;
-        token = tokens.peek_token();
+        token = tokens.next_token();
     }
 
-    tokens.skip_whitespace();
+    tokens.discard_whitespace();
     if (!tokens.has_next_token())
         return nullptr;
-    if ((got_from_angle || got_at_position || got_color_interpolation_method) && !tokens.next_token().is(Token::Type::Comma))
+    if ((got_from_angle || got_at_position || got_color_interpolation_method) && !tokens.consume_a_token().is(Token::Type::Comma))
         return nullptr;
 
     auto color_stops = parse_angular_color_stop_list(tokens);
@@ -380,7 +380,7 @@ RefPtr<CSSStyleValue> Parser::parse_radial_gradient_function(TokenStream<Compone
     using Size = RadialGradientStyleValue::Size;
 
     auto transaction = outer_tokens.begin_transaction();
-    auto& component_value = outer_tokens.next_token();
+    auto& component_value = outer_tokens.consume_a_token();
 
     if (!component_value.is_function())
         return nullptr;
@@ -397,7 +397,7 @@ RefPtr<CSSStyleValue> Parser::parse_radial_gradient_function(TokenStream<Compone
         return nullptr;
 
     TokenStream tokens { component_value.function().values() };
-    tokens.skip_whitespace();
+    tokens.discard_whitespace();
     if (!tokens.has_next_token())
         return nullptr;
 
@@ -416,8 +416,8 @@ RefPtr<CSSStyleValue> Parser::parse_radial_gradient_function(TokenStream<Compone
 
     auto parse_ending_shape = [&]() -> Optional<EndingShape> {
         auto transaction = tokens.begin_transaction();
-        tokens.skip_whitespace();
-        auto& token = tokens.next_token();
+        tokens.discard_whitespace();
+        auto& token = tokens.consume_a_token();
         if (!token.is(Token::Type::Ident))
             return {};
         auto ident = token.token().ident();
@@ -446,11 +446,11 @@ RefPtr<CSSStyleValue> Parser::parse_radial_gradient_function(TokenStream<Compone
         //      <length [0,∞]>                |
         //      <length-percentage [0,∞]>{2}
         auto transaction_size = tokens.begin_transaction();
-        tokens.skip_whitespace();
+        tokens.discard_whitespace();
         if (!tokens.has_next_token())
             return {};
-        if (tokens.peek_token().is(Token::Type::Ident)) {
-            auto extent = parse_extent_keyword(tokens.next_token().token().ident());
+        if (tokens.next_token().is(Token::Type::Ident)) {
+            auto extent = parse_extent_keyword(tokens.consume_a_token().token().ident());
             if (!extent.has_value())
                 return {};
             return commit_value(*extent, transaction_size);
@@ -459,7 +459,7 @@ RefPtr<CSSStyleValue> Parser::parse_radial_gradient_function(TokenStream<Compone
         if (!first_radius.has_value())
             return {};
         auto transaction_second_dimension = tokens.begin_transaction();
-        tokens.skip_whitespace();
+        tokens.discard_whitespace();
         if (tokens.has_next_token()) {
             auto second_radius = parse_length_percentage(tokens);
             if (second_radius.has_value())
@@ -494,13 +494,13 @@ RefPtr<CSSStyleValue> Parser::parse_radial_gradient_function(TokenStream<Compone
         }
     }
 
-    tokens.skip_whitespace();
+    tokens.discard_whitespace();
     if (!tokens.has_next_token())
         return nullptr;
 
-    auto& token = tokens.peek_token();
+    auto& token = tokens.next_token();
     if (token.is_ident("at"sv)) {
-        (void)tokens.next_token();
+        tokens.discard_a_token();
         auto position = parse_position_value(tokens);
         if (!position)
             return nullptr;
@@ -508,10 +508,10 @@ RefPtr<CSSStyleValue> Parser::parse_radial_gradient_function(TokenStream<Compone
         expect_comma = true;
     }
 
-    tokens.skip_whitespace();
+    tokens.discard_whitespace();
     if (!tokens.has_next_token())
         return nullptr;
-    if (expect_comma && !tokens.next_token().is(Token::Type::Comma))
+    if (expect_comma && !tokens.consume_a_token().is(Token::Type::Comma))
         return nullptr;
 
     // <color-stop-list>
