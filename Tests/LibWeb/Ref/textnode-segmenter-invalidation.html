@@ -1,0 +1,9 @@
+<!DOCTYPE html>
+<head><link rel="match" href="reference/textnode-segmenter-invalidation.html" /></head>
+<textarea id="output"></textarea>
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        document.body.offsetWidth  // Force layout
+        document.getElementById('output').value = 'a\nb';
+    });
+</script>
