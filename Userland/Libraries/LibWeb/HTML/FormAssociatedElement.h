@@ -162,6 +162,10 @@ public:
     // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#dom-textarea/input-setselectionrange
     WebIDL::ExceptionOr<void> set_selection_range(Optional<WebIDL::UnsignedLong> start, Optional<WebIDL::UnsignedLong> end, Optional<String> direction);
 
+    // https://w3c.github.io/selection-api/#dfn-has-scheduled-selectionchange-event
+    bool has_scheduled_selectionchange_event() const { return m_has_scheduled_selectionchange_event; }
+    void set_scheduled_selectionchange_event(bool value) { m_has_scheduled_selectionchange_event = value; }
+
 protected:
     // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#concept-textarea/input-relevant-value
     void relevant_value_was_changed(JS::GCPtr<DOM::Text>);
@@ -173,6 +177,9 @@ private:
     WebIDL::UnsignedLong m_selection_start { 0 };
     WebIDL::UnsignedLong m_selection_end { 0 };
     SelectionDirection m_selection_direction { SelectionDirection::None };
+
+    // https://w3c.github.io/selection-api/#dfn-has-scheduled-selectionchange-event
+    bool m_has_scheduled_selectionchange_event { false };
 };
 
 }
