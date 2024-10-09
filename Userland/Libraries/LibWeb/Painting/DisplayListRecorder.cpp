@@ -306,7 +306,6 @@ void DisplayListRecorder::push_stacking_context(PushStackingContextParams params
             .origin = params.transform.origin,
             .matrix = params.transform.matrix,
         },
-        .mask = params.mask,
         .clip_path = params.clip_path });
     m_state_stack.append(State());
 }
@@ -408,6 +407,29 @@ void DisplayListRecorder::paint_scrollbar(int scroll_frame_id, Gfx::IntRect rect
         .rect = rect,
         .scroll_size = scroll_size,
         .vertical = vertical });
+}
+
+void DisplayListRecorder::apply_opacity(float opacity)
+{
+    append(ApplyOpacity { .opacity = opacity });
+}
+
+void DisplayListRecorder::apply_transform(Gfx::FloatPoint origin, Gfx::FloatMatrix4x4 matrix)
+{
+    append(ApplyTransform {
+        .origin = origin,
+        .matrix = matrix,
+        .post_transform_translation = state().translation.translation().to_rounded<int>(),
+    });
+}
+
+void DisplayListRecorder::apply_mask_bitmap(Gfx::IntPoint origin, Gfx::Bitmap const& bitmap, Gfx::Bitmap::MaskKind kind)
+{
+    append(ApplyMaskBitmap {
+        .origin = origin,
+        .bitmap = bitmap,
+        .kind = kind,
+    });
 }
 
 }

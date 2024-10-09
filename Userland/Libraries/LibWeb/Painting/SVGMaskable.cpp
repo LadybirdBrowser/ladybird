@@ -18,6 +18,8 @@ namespace Web::Painting {
 template<typename T>
 static T const* first_child_layout_node_of_type(SVG::SVGGraphicsElement const& graphics_element)
 {
+    if (!graphics_element.layout_node())
+        return nullptr;
     return graphics_element.layout_node()->first_child_of_type<T>();
 }
 
@@ -87,7 +89,7 @@ RefPtr<Gfx::Bitmap> SVGMaskable::calculate_mask_of_svg(PaintContext& context, CS
         auto paint_context = context.clone(display_list_recorder);
         paint_context.set_svg_transform(graphics_element.get_transform());
         paint_context.set_draw_svg_geometry_for_clip_path(is<SVGClipPaintable>(paintable));
-        StackingContext::paint_node_as_stacking_context(paintable, paint_context);
+        StackingContext::paint_svg(paint_context, paintable, PaintPhase::Foreground);
         DisplayListPlayerSkia display_list_player { *mask_bitmap };
         display_list_player.execute(display_list);
         return mask_bitmap;

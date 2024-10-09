@@ -152,6 +152,9 @@ bool Node::establishes_stacking_context() const
     if (!has_style())
         return false;
 
+    if (is_svg_box() || is_svg_svg_box())
+        return false;
+
     // We make a stacking context for the viewport. Painting and hit testing starts from here.
     if (is_viewport())
         return true;

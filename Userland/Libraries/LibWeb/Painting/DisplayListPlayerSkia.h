@@ -79,6 +79,9 @@ private:
     void add_mask(AddMask const&) override;
     void paint_scrollbar(PaintScrollBar const&) override;
     void paint_nested_display_list(PaintNestedDisplayList const&) override;
+    void apply_opacity(ApplyOpacity const&) override;
+    void apply_transform(ApplyTransform const&) override;
+    void apply_mask_bitmap(ApplyMaskBitmap const&) override;
 
     bool would_be_fully_clipped_by_painter(Gfx::IntRect) const override;
 

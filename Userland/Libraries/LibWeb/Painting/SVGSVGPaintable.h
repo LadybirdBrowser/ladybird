@@ -23,6 +23,8 @@ public:
 
     Layout::SVGSVGBox const& layout_box() const;
 
+    static void paint_descendants(PaintContext& context, PaintableBox const& paintable, PaintPhase phase);
+
 protected:
     SVGSVGPaintable(Layout::SVGSVGBox const&);
 };
