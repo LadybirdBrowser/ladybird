@@ -348,15 +348,17 @@ static void run_dump_test(HeadlessWebContentView& view, Test& test, URL::URL con
         };
 
         ByteBuffer expectation;
-        {
-            auto expectation_file = TRY(open_expectation_file(Core::File::OpenMode::Read));
-            expectation = TRY(expectation_file->read_until_eof());
+
+        if (auto expectation_file = open_expectation_file(Core::File::OpenMode::Read); !expectation_file.is_error()) {
+            expectation = TRY(expectation_file.value()->read_until_eof());
 
             auto result_trimmed = StringView { test.text }.trim("\n"sv, TrimMode::Right);
             auto expectation_trimmed = StringView { expectation }.trim("\n"sv, TrimMode::Right);
 
             if (result_trimmed == expectation_trimmed)
                 return TestResult::Pass;
+        } else if (!Application::the().rebaseline) {
+            return expectation_file.release_error();
         }
 
         if (Application::the().rebaseline) {
