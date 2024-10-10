@@ -90,7 +90,8 @@ else()
     set(LADYBIRD_TARGET ladybird PRIVATE)
 endif()
 
-target_link_libraries(${LADYBIRD_TARGET} AK LibCore LibFileSystem LibGfx LibImageDecoderClient LibIPC LibJS LibMain LibWeb LibWebView LibRequests LibURL)
+set(LADYBIRD_LIBS AK LibCore LibFileSystem LibGfx LibImageDecoderClient LibIPC LibJS LibMain LibWeb LibWebView LibRequests LibURL)
+target_link_libraries(${LADYBIRD_TARGET} PRIVATE ${LADYBIRD_LIBS})
 
 target_include_directories(${LADYBIRD_TARGET} ${CMAKE_CURRENT_BINARY_DIR})
 target_include_directories(${LADYBIRD_TARGET} ${LADYBIRD_SOURCE_DIR}/Userland/)
@@ -112,14 +113,6 @@ function(set_helper_process_properties)
     endif()
 endfunction()
 
-add_executable(headless-browser
-    ${LADYBIRD_SOURCE_DIR}/Userland/Utilities/headless-browser.cpp
-    ${LADYBIRD_SOURCES})
-
-target_include_directories(headless-browser PRIVATE ${CMAKE_CURRENT_BINARY_DIR})
-target_include_directories(headless-browser PRIVATE ${LADYBIRD_SOURCE_DIR}/Userland/)
-target_link_libraries(headless-browser PRIVATE AK LibCore LibWeb LibWebView LibWebSocket LibCrypto LibFileSystem LibHTTP LibImageDecoderClient LibJS LibGfx LibMain LibTLS LibIPC LibDiff LibRequests LibURL)
-
 add_custom_target(run
     COMMAND "${CMAKE_COMMAND}" -E env "LADYBIRD_SOURCE_DIR=${LADYBIRD_SOURCE_DIR}" "$<TARGET_FILE:ladybird>" $ENV{LAGOM_ARGS}
     USES_TERMINAL
@@ -138,6 +131,7 @@ else()
     )
 endif()
 
+add_subdirectory(Headless)
 add_subdirectory(ImageDecoder)
 add_subdirectory(RequestServer)
 add_subdirectory(WebContent)
@@ -157,11 +151,4 @@ endif()
 
 if(NOT CMAKE_SKIP_INSTALL_RULES)
     include(cmake/InstallRules.cmake)
-endif()
-
-if (BUILD_TESTING)
-    add_test(
-        NAME LibWeb
-        COMMAND $<TARGET_FILE:headless-browser> --run-tests ${LADYBIRD_SOURCE_DIR}/Tests/LibWeb --dump-failed-ref-tests --force-fontconfig
-    )
 endif()
