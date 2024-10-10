@@ -336,42 +336,80 @@ Optional<ByteString> run_prescan_byte_stream_algorithm(DOM::Document& document, 
     return {};
 }
 
-// https://html.spec.whatwg.org/multipage/parsing.html#determining-the-character-encoding
-ByteString run_encoding_sniffing_algorithm(DOM::Document& document, ByteBuffer const& input)
+// https://encoding.spec.whatwg.org/#bom-sniff
+Optional<ByteString> run_bom_sniff(ByteBuffer const& input)
 {
-    if (input.size() >= 2) {
-        if (input[0] == 0xFE && input[1] == 0xFF) {
-            return "UTF-16BE";
-        } else if (input[0] == 0xFF && input[1] == 0xFE) {
-            return "UTF-16LE";
-        } else if (input.size() >= 3 && input[0] == 0xEF && input[1] == 0xBB && input[2] == 0xBF) {
+    if (input.size() >= 3) {
+        // 1. Let BOM be the result of peeking 3 bytes from ioQueue, converted to a byte sequence.
+        // 2. For each of the rows in the table below, starting with the first one and going down, if BOM starts with the bytes given in the first column, then return the encoding given in the cell in the second column of that row. Otherwise, return null.
+        // Byte order mark  Encoding
+        // 0xEF 0xBB 0xBF   UTF-8
+        // 0xFE 0xFF        UTF-16BE
+        // 0xFF 0xFE 	    UTF-16LE
+        if (input[0] == 0xEF && input[1] == 0xBB && input[2] == 0xBF) {
             return "UTF-8";
         }
+        if (input[0] == 0xFE && input[1] == 0xFF) {
+            return "UTF-16BE";
+        }
+        if (input[0] == 0xFF && input[1] == 0xFE) {
+            return "UTF-16LE";
+        }
+    }
+    return {};
+}
+
+// https://html.spec.whatwg.org/multipage/parsing.html#determining-the-character-encoding
+ByteString run_encoding_sniffing_algorithm(DOM::Document& document, ByteBuffer const& input, Optional<MimeSniff::MimeType> maybe_mime_type)
+{
+    // 1. If the result of BOM sniffing is an encoding, return that encoding with confidence certain.
+    // FIXME: There is no concept of decoding certainty yet.
+    auto bom = run_bom_sniff(input);
+    if (bom.has_value())
+        return bom.value();
+    // 2. FIXME: If the user has explicitly instructed the user agent to override the document's character encoding with a specific encoding,
+    //    optionally return that encoding with the confidence certain.
+
+    // 3. FIXME: The user agent may wait for more bytes of the resource to be available, either in this step or at any later step in this algorithm.
+    //    For instance, a user agent might wait 500ms or 1024 bytes, whichever came first. In general preparsing the source to find the encoding improves performance,
+    //    as it reduces the need to throw away the data structures used when parsing upon finding the encoding information. However, if the user agent delays too long
+    //    to obtain data to determine the encoding, then the cost of the delay could outweigh any performance improvements from the preparse.
+
+    // 4. If the transport layer specifies a character encoding, and it is supported, return that encoding with the confidence certain.
+    if (maybe_mime_type.has_value()) {
+        // FIXME: This is awkward because lecacy_extract_an_encoding can not fail
+        auto maybe_transport_encoding = Fetch::Infrastructure::legacy_extract_an_encoding(maybe_mime_type, "invalid"sv);
+        if (maybe_transport_encoding != "invalid"sv)
+            return maybe_transport_encoding;
     }
 
-    // FIXME: If the user has explicitly instructed the user agent to override the document's character
-    //        encoding with a specific encoding.
-    // FIXME: The user agent may wait for more bytes of the resource to be available, either in this step or
-    //        at any later step in this algorithm.
-    // FIXME: If the transport layer specifies a character encoding, and it is supported.
+    // 5. Optionally prescan the byte stream to determine its encoding, with the end condition being when the user agent decides that scanning further bytes would not
+    //    be efficient. User agents are encouraged to only prescan the first 1024 bytes. User agents may decide that scanning any bytes is not efficient, in which case
+    //    these substeps are entirely skipped.
+    //    The aforementioned algorithm returns either a character encoding or failure. If it returns a character encoding, then return the same encoding, with confidence tentative.
+    auto prescan = run_prescan_byte_stream_algorithm(document, input);
+    if (prescan.has_value())
+        return prescan.value();
 
-    auto optional_encoding = run_prescan_byte_stream_algorithm(document, input);
-    if (optional_encoding.has_value()) {
-        return optional_encoding.value();
-    }
+    // 6. FIXME: If the HTML parser for which this algorithm is being run is associated with a Document d whose container document is non-null, then:
+    // 1. Let parentDocument be d's container document.
+    // 2. If parentDocument's origin is same origin with d's origin and parentDocument's character encoding is not UTF-16BE/LE, then return parentDocument's character
+    //    encoding, with the confidence tentative.
 
-    // FIXME: If the HTML parser for which this algorithm is being run is associated with a Document whose browsing context
-    //        is non-null and a child browsing context.
-    // FIXME: If the user agent has information on the likely encoding for this page, e.g. based on the encoding of the page
-    //        when it was last visited.
+    // 7. Otherwise, if the user agent has information on the likely encoding for this page, e.g. based on the encoding of the page when it was last visited, then return
+    //    that encoding, with the confidence tentative.
 
+    // 8. FIXME: The user agent may attempt to autodetect the character encoding from applying frequency analysis or other algorithms to the data stream. Such algorithms
+    //    may use information about the resource other than the resource's contents, including the address of the resource. If autodetection succeeds in determining a
+    //    character encoding, and that encoding is a supported encoding, then return that encoding, with the confidence tentative. [UNIVCHARDET]
     if (!Utf8View(StringView(input)).validate()) {
         // FIXME: As soon as Locale is supported, this should sometimes return a different encoding based on the locale.
         return "windows-1252";
     }
 
-    // NOTE: This is the authoritative place to actually decide on using the default encoding as per the HTML specification.
-    //       "Otherwise, return an implementation-defined or user-specified default character encoding, [...]."
+    // 9. Otherwise, return an implementation-defined or user-specified default character encoding, with the confidence tentative.
+    //    In controlled environments or in environments where the encoding of documents can be prescribed (for example, for user agents intended for dedicated use in new
+    //    networks), the comprehensive UTF-8 encoding is suggested.
     return "UTF-8";
 }
 
