@@ -3,7 +3,7 @@
 # This script builds the vcpkg dependency management system
 set -e
 
-DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+DIR="$( CDPATH='' cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
 # shellcheck source=/dev/null
 . "${DIR}/../Meta/shell_include.sh"
@@ -38,7 +38,7 @@ pushd "$DIR/Tarballs"
 
     echo "Building vcpkg"
 
-    cd vcpkg
+    CDPATH='' cd vcpkg
     git fetch origin
     git checkout $GIT_REV
 

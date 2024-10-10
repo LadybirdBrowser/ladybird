@@ -2,8 +2,8 @@
 
 set -e
 
-script_path=$(cd -P -- "$(dirname -- "$0")" && pwd -P)
-cd "${script_path}/.." || exit 1
+script_path=$(CDPATH='' cd -P -- "$(dirname -- "$0")" && pwd -P)
+CDPATH='' cd "${script_path}/.." || exit 1
 
 RED='\033[0;31m'
 GREEN='\033[0;32m'

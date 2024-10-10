@@ -53,7 +53,7 @@ if [ "$CMD" = "help" ]; then
     exit 0
 fi
 
-DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+DIR="$( CDPATH='' cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
 # shellcheck source=/dev/null
 . "${DIR}/shell_include.sh"
@@ -137,7 +137,7 @@ delete_target() {
 }
 
 build_vcpkg() {
-    ( cd "$LADYBIRD_SOURCE_DIR/Toolchain" && ./BuildVcpkg.sh )
+    ( CDPATH='' cd "$LADYBIRD_SOURCE_DIR/Toolchain" && ./BuildVcpkg.sh )
 }
 
 ensure_toolchain() {
