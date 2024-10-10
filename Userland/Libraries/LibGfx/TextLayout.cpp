@@ -12,7 +12,7 @@
 
 namespace Gfx {
 
-RefPtr<GlyphRun> shape_text(FloatPoint baseline_start, Utf8View string, Gfx::Font const& font, GlyphRun::TextType text_type)
+RefPtr<GlyphRun> shape_text(FloatPoint baseline_start, float x_offset, float tab_width, Utf8View string, Gfx::Font const& font, GlyphRun::TextType text_type)
 {
     hb_buffer_t* buffer = hb_buffer_create();
     ScopeGuard destroy_buffer = [&]() { hb_buffer_destroy(buffer); };
@@ -32,6 +32,18 @@ RefPtr<GlyphRun> shape_text(FloatPoint baseline_start, Utf8View string, Gfx::Fon
     Vector<Gfx::DrawGlyph> glyph_run;
     FloatPoint point = baseline_start;
     for (size_t i = 0; i < glyph_count; ++i) {
+        if (input_glyph_info[i].codepoint == '\t') {
+            auto ch_width = font.glyph_width('0');
+
+            auto tab_stop_dist = (ceil((x_offset / tab_width)) * tab_width) - x_offset;
+            if (tab_stop_dist < ch_width / 2) {
+                tab_stop_dist += tab_width;
+            }
+
+            point.translate_by(tab_stop_dist, 0);
+            continue;
+        }
+
         auto position = point
             - FloatPoint { 0, font.pixel_metrics().ascent }
             + FloatPoint { positions[i].x_offset, positions[i].y_offset } / text_shaping_resolution;
@@ -42,9 +54,9 @@ RefPtr<GlyphRun> shape_text(FloatPoint baseline_start, Utf8View string, Gfx::Fon
     return adopt_ref(*new Gfx::GlyphRun(move(glyph_run), font, text_type, point.x()));
 }
 
-float measure_text_width(Utf8View const& string, Gfx::Font const& font)
+float measure_text_width(Utf8View const& string, float x_offset, Gfx::Font const& font)
 {
-    auto glyph_run = shape_text({}, string, font, GlyphRun::TextType::Common);
+    auto glyph_run = shape_text({}, x_offset, 0, string, font, GlyphRun::TextType::Common);
     return glyph_run->width();
 }
 
