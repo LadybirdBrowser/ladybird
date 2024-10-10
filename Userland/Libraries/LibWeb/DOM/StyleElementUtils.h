@@ -12,6 +12,19 @@
 
 namespace Web::DOM {
 
+// https://w3c.github.io/webappsec-csp/#should-block-inline
+enum class InlineType {
+    Script,
+    ScriptAttribute,
+    Style,
+    StyleAttribute
+};
+
+enum class ShouldBeBlockedByContentSecurityPolicy {
+    Allowed,
+    Blocked
+};
+
 class StyleElementUtils {
 public:
     void update_a_style_block(DOM::Element& style_element);
