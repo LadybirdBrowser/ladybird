@@ -54,21 +54,23 @@ String CSSMediaRule::serialized() const
     builder.append(condition_text());
     // 3. A single SPACE (U+0020), followed by the string "{", i.e., LEFT CURLY BRACKET (U+007B), followed by a newline.
     builder.append(" {\n"sv);
-    // AD-HOC: All modern browsers omit the ending newline if there are no CSS rules, so let's do the same.
-    if (css_rules().length() == 0) {
-        builder.append('}');
-        return MUST(builder.to_string());
-    }
-    // 4. The result of performing serialize a CSS rule on each rule in the rule’s cssRules list, separated by a newline and indented by two spaces.
+    // 4. The result of performing serialize a CSS rule on each rule in the rule’s cssRules list,
+    //    filtering out empty strings, indenting each item with two spaces, all joined with newline.
     for (size_t i = 0; i < css_rules().length(); i++) {
         auto rule = css_rules().item(i);
-        if (i != 0)
-            builder.append("\n"sv);
+        auto result = rule->css_text();
+
+        if (result.is_empty())
+            continue;
+
         builder.append("  "sv);
-        builder.append(rule->css_text());
+        builder.append(result);
+        builder.append('\n');
     }
     // 5. A newline, followed by the string "}", i.e., RIGHT CURLY BRACKET (U+007D)
-    builder.append("\n}"sv);
+    // AD-HOC: All modern browsers omit the ending newline if there are no CSS rules, so let's do the same.
+    //         If there are rules, the required newline will be appended in the for-loop above.
+    builder.append('}');
 
     return MUST(builder.to_string());
 }
