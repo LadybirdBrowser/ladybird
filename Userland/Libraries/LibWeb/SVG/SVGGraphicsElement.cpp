@@ -234,6 +234,13 @@ Optional<float> SVGGraphicsElement::fill_opacity() const
     return layout_node()->computed_values().fill_opacity();
 }
 
+Optional<CSS::StrokeLinecap> SVGGraphicsElement::stroke_linecap() const
+{
+    if (!layout_node())
+        return {};
+    return layout_node()->computed_values().stroke_linecap();
+}
+
 Optional<float> SVGGraphicsElement::stroke_opacity() const
 {
     if (!layout_node())

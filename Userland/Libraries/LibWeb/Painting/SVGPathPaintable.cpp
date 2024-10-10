@@ -132,6 +132,9 @@ void SVGPathPaintable::paint(PaintContext& context, PaintPhase phase) const
         });
     }
 
+    auto stroke_linecap = graphics_element.stroke_linecap().value_or(CSS::StrokeLinecap::Butt);
+    (void)stroke_linecap; // FIXME: Use
+
     auto stroke_opacity = graphics_element.stroke_opacity().value_or(1);
 
     // Note: This is assuming .x_scale() == .y_scale() (which it does currently).
