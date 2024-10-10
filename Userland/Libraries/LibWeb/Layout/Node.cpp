@@ -840,6 +840,8 @@ void NodeWithStyle::apply_style(const CSS::StyleProperties& computed_style)
         computed_values.set_fill_rule(*fill_rule);
 
     computed_values.set_fill_opacity(computed_style.fill_opacity());
+    if (auto stroke_linecap = computed_style.stroke_linecap(); stroke_linecap.has_value())
+        computed_values.set_stroke_linecap(stroke_linecap.value());
     computed_values.set_stroke_opacity(computed_style.stroke_opacity());
     computed_values.set_stop_opacity(computed_style.stop_opacity());
 
