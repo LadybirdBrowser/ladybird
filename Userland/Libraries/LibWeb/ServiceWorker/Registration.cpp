@@ -13,7 +13,7 @@ struct RegistrationKey {
     StorageAPI::StorageKey key;
     ByteString serialized_scope_url;
 
-    constexpr bool operator==(RegistrationKey const&) const = default;
+    bool operator==(RegistrationKey const&) const = default;
 };
 
 // FIXME: Surely this needs hooks to be cleared and manipulated at the UA level
