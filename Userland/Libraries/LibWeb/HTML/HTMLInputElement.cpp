@@ -5,6 +5,7 @@
  * Copyright (c) 2023-2024, Shannon Booth <shannon@serenityos.org>
  * Copyright (c) 2023, Bastiaan van der Plaat <bastiaan.v.d.plaat@gmail.com>
  * Copyright (c) 2024, Jelle Raaijmakers <jelle@gmta.nl>
+ * Copyright (c) 2024, Fernando Kiotheka <fer@k6a.dev>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -405,6 +406,20 @@ WebIDL::ExceptionOr<void> HTMLInputElement::run_input_activation_behavior(DOM::E
 
         // 4. Submit the element's form owner from the element with userInvolvement set to event's user navigation involvement.
         TRY(form->submit_form(*this, { .user_involvement = user_navigation_involvement(event) }));
+    }
+    // https://html.spec.whatwg.org/multipage/input.html#reset-button-state-(type=reset)
+    else if (type_state() == TypeAttributeState::ResetButton) {
+        // 1. If the element does not have a form owner, then return.
+        auto* form = this->form();
+        if (!form)
+            return {};
+
+        // 2. If the element's node document is not fully active, then return.
+        if (!document().is_fully_active())
+            return {};
+
+        // 3. Reset the form owner from the element.
+        form->reset_form();
     }
 
     return {};
