@@ -175,27 +175,32 @@ ErrorOr<T> GenericLexer::consume_decimal_integer()
 
 LineTrackingLexer::Position LineTrackingLexer::position_for(size_t index) const
 {
-    auto& [cached_index, cached_line, cached_column] = m_cached_position;
-
-    if (cached_index <= index) {
-        for (size_t i = cached_index; i < index; ++i) {
-            if (m_input[i] == '\n')
-                ++cached_line, cached_column = 0;
-            else
-                ++cached_column;
+    // Sad case: we have no idea where the nearest newline is, so we have to
+    //           scan ahead a bit.
+    while (index > m_largest_known_line_start_position) {
+        auto next_newline = m_input.find('\n', m_largest_known_line_start_position);
+        if (!next_newline.has_value()) {
+            // No more newlines, add the end of the input as a line start to avoid searching again.
+            m_line_start_positions->insert(m_input.length(), m_line_start_positions->size());
+            m_largest_known_line_start_position = m_input.length();
+            break;
         }
-    } else {
-        auto lines_backtracked = m_input.substring_view(index, cached_index - index).count('\n');
-        cached_line -= lines_backtracked;
-        if (lines_backtracked == 0) {
-            cached_column -= cached_index - index;
-        } else {
-            auto current_line_start = m_input.substring_view(0, index).find_last('\n').value_or(0);
-            cached_column = index - current_line_start;
-        }
+        m_line_start_positions->insert(next_newline.value() + 1, m_line_start_positions->size());
+        m_largest_known_line_start_position = next_newline.value() + 1;
     }
-    cached_index = index;
-    return m_cached_position;
+    // We should always have at least the first line start position.
+    auto previous_line_it = m_line_start_positions->find_largest_not_above_iterator(index);
+    auto previous_line_index = previous_line_it.key();
+
+    auto line = *previous_line_it;
+    auto column = index - previous_line_index;
+    if (line == 0) {
+        // First line, take into account the start position.
+        column += m_first_line_start_position.column;
+    }
+
+    line += m_first_line_start_position.line;
+    return { index, line, column };
 }
 
 template ErrorOr<u8> GenericLexer::consume_decimal_integer<u8>();

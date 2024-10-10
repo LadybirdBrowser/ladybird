@@ -15,11 +15,11 @@ class TemporaryChange {
 public:
     TemporaryChange(T& variable, T value)
         : m_variable(variable)
-        , m_old_value(variable)
+        , m_old_value(move(variable))
     {
-        m_variable = value;
+        m_variable = move(value);
     }
-    ~TemporaryChange() { m_variable = m_old_value; }
+    ~TemporaryChange() { m_variable = move(m_old_value); }
 
 private:
     T& m_variable;

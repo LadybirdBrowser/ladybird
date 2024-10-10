@@ -21,9 +21,13 @@
 
 namespace XML {
 
+struct Expectation {
+    StringView expected;
+};
+
 struct ParseError {
     LineTrackingLexer::Position position {};
-    ByteString error;
+    Variant<ByteString, Expectation> error;
 };
 
 struct Listener {
@@ -147,9 +151,8 @@ private:
     [[nodiscard]] auto rollback_point(SourceLocation location = SourceLocation::current())
     {
         return ArmedScopeGuard {
-            [this, position = m_lexer.tell(), cached_position = m_lexer.cached_position(), location] {
+            [this, position = m_lexer.tell(), location] {
                 m_lexer.retreat(m_lexer.tell() - position);
-                m_lexer.restore_cached_offset(cached_position);
                 (void)location;
                 dbgln_if(XML_PARSER_DEBUG, "{:->{}}FAIL @ {} -- \x1b[31m{}\x1b[0m", " ", s_debug_indent_level * 2, location, m_lexer.remaining().substring_view(0, min(16, m_lexer.tell_remaining())).replace("\n"sv, "\\n"sv, ReplaceMode::All));
             }
@@ -184,9 +187,13 @@ private:
             auto rule_name = m_current_rule.rule.value_or("<?>");
             if (rule_name.starts_with("parse_"sv))
                 rule_name = rule_name.substring_view(6);
+
+            auto error_string = error.error.visit(
+                [](ByteString const& error) -> ByteString { return error; },
+                [](XML::Expectation const& expectation) -> ByteString { return ByteString::formatted("Expected {}", expectation.expected); });
             m_parse_errors.append({
                 error.position,
-                ByteString::formatted("{}: {}", rule_name, error.error),
+                ByteString::formatted("{}: {}", rule_name, error_string),
             });
         }
         return error;
@@ -219,6 +226,9 @@ template<>
 struct AK::Formatter<XML::ParseError> : public AK::Formatter<FormatString> {
     ErrorOr<void> format(FormatBuilder& builder, XML::ParseError const& error)
     {
-        return Formatter<FormatString>::format(builder, "{} at line: {}, col: {} (offset {})"sv, error.error, error.position.line, error.position.column, error.position.offset);
+        auto error_string = error.error.visit(
+            [](ByteString const& error) -> ByteString { return error; },
+            [](XML::Expectation const& expectation) -> ByteString { return ByteString::formatted("Expected {}", expectation.expected); });
+        return Formatter<FormatString>::format(builder, "{} at line: {}, col: {} (offset {})"sv, error_string, error.position.line, error.position.column, error.position.offset);
     }
 };
