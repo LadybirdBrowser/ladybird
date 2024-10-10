@@ -10,7 +10,7 @@
     },
     {
       "name": "fontconfig",
-      "platform": "linux | freebsd | openbsd | osx"
+      "platform": "linux | freebsd | openbsd | osx | windows"
     },
     "harfbuzz",
     "icu",
@@ -47,7 +47,7 @@
     },
     {
       "name": "skia",
-      "platform": "linux | freebsd | openbsd",
+      "platform": "linux | freebsd | openbsd | windows",
       "features": [
         "vulkan"
       ]
