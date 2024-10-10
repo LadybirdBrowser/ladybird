@@ -37,19 +37,20 @@ struct GridPosition {
 struct GridItem {
     JS::NonnullGCPtr<Box const> box;
 
-    int row;
-    size_t row_span;
-    int column;
-    size_t column_span;
+    // Position and span are empty if the item is auto-placed which could only be the case for abspos items
+    Optional<int> row;
+    Optional<size_t> row_span;
+    Optional<int> column;
+    Optional<size_t> column_span;
 
     [[nodiscard]] size_t span(GridDimension const dimension) const
     {
-        return dimension == GridDimension::Column ? column_span : row_span;
+        return dimension == GridDimension::Column ? column_span.value() : row_span.value();
     }
 
     [[nodiscard]] int raw_position(GridDimension const dimension) const
     {
-        return dimension == GridDimension::Column ? column : row;
+        return dimension == GridDimension::Column ? column.value() : row.value();
     }
 
     [[nodiscard]] CSSPixels add_margin_box_sizes(CSSPixels content_size, GridDimension dimension, LayoutState const& state) const
@@ -58,6 +59,11 @@ struct GridItem {
         if (dimension == GridDimension::Column)
             return box_state.margin_box_left() + content_size + box_state.margin_box_right();
         return box_state.margin_box_top() + content_size + box_state.margin_box_bottom();
+    }
+
+    [[nodiscard]] int gap_adjusted_position(GridDimension const dimension) const
+    {
+        return dimension == GridDimension::Column ? gap_adjusted_column() : gap_adjusted_row();
     }
 
     [[nodiscard]] int gap_adjusted_row() const;
