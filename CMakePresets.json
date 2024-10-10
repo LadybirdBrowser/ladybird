@@ -7,11 +7,11 @@
   },
   "configurePresets": [
     {
-      "name": "default",
+      "hidden": true,
+      "name": "default_base",
       "displayName": "Default Config",
-      "description": "Default build using Ninja generator",
-      "generator": "Ninja",
       "binaryDir": "${fileDir}/Build/ladybird",
+      "architecture": "x64",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "RelWithDebInfo",
         "SERENITY_CACHE_DIR": "${fileDir}/Build/caches",
@@ -31,8 +31,50 @@
       }
     },
     {
+      "name": "default_posix",
+      "description": "Default build using Ninja generator",
+      "generator": "Ninja",
+      "inherits": "default_base",
+      "condition": {
+        "type": "anyOf",
+        "conditions": [
+          {
+            "type": "equals",
+            "lhs": "${hostSystemName}",
+            "rhs": "Linux"
+          },
+          {
+            "type": "equals",
+            "lhs": "${hostSystemName}",
+            "rhs": "Darwin"
+          }
+        ]
+      }
+    },
+    {
+      "name": "default_windows",
+      "description": "Default build using Visual Studio generator",
+      "generator": "Visual Studio 17 2022",
+      "toolset": "ClangCL",
+      "inherits": "default_base",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "",
+        "ENABLE_QT": "OFF",
+        "CMAKE_EXPORT_COMPILE_COMMANDS": "ON"
+      },
+      "condition": {
+        "type": "equals",
+        "lhs": "${hostSystemName}",
+        "rhs": "Windows"
+      },
+      "architecture": {
+        "value": "x64",
+        "strategy": "external"
+      }
+    },
+    {
       "name": "Debug",
-      "inherits": "default",
+      "inherits": "default_posix",
       "displayName": "Debug Config",
       "description": "Debug build using Ninja generator",
       "binaryDir": "${fileDir}/Build/ladybird-debug",
@@ -63,12 +105,18 @@
     },
     {
       "name": "CI",
-      "inherits": ["vcpkg_ci", "default" ],
+      "inherits": [
+        "vcpkg_ci",
+        "default_posix"
+      ],
       "displayName": "Non-Sanitizer CI Config"
     },
     {
       "name": "Sanitizer_CI",
-      "inherits": ["vcpkg_ci", "Sanitizer" ],
+      "inherits": [
+        "vcpkg_ci",
+        "Sanitizer"
+      ],
       "displayName": "Sanitizer CI Config",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": ""
@@ -76,7 +124,10 @@
     },
     {
       "name": "Fuzzers_CI",
-      "inherits": ["vcpkg_ci", "default" ],
+      "inherits": [
+        "vcpkg_ci",
+        "default_posix"
+      ],
       "displayName": "Fuzzers Config",
       "description": "Fuzzers build with GitHub Actions cache",
       "binaryDir": "${fileDir}/Build/ladybird-fuzzers",
@@ -90,12 +141,21 @@
   ],
   "buildPresets": [
     {
-      "name": "default",
-      "configurePreset": "default",
+      "name": "default_unix",
+      "configurePreset": "default_posix",
       "displayName": "Build",
       "description": "Build the project",
       "targets": [
         "all"
+      ]
+    },
+    {
+      "name": "default_win32",
+      "configurePreset": "default_windows",
+      "displayName": "Build",
+      "description": "Build the project",
+      "targets": [
+        "ALL_BUILD"
       ]
     },
     {
@@ -111,7 +171,7 @@
   "testPresets": [
     {
       "name": "default",
-      "configurePreset": "default",
+      "configurePreset": "default_posix",
       "output": {
         "outputOnFailure": true
       },

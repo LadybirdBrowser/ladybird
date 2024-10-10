@@ -137,7 +137,7 @@ delete_target() {
 }
 
 build_vcpkg() {
-    ( cd "$LADYBIRD_SOURCE_DIR/Toolchain" && ./BuildVcpkg.sh )
+    ( cd "$LADYBIRD_SOURCE_DIR/Toolchain" && python3 ./BuildVcpkg.py )
 }
 
 ensure_toolchain() {

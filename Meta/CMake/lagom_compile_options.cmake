@@ -1,12 +1,17 @@
 include(${CMAKE_CURRENT_LIST_DIR}/common_compile_options.cmake)
 
-add_cxx_compile_options(-Wno-maybe-uninitialized)
-add_cxx_compile_options(-Wno-shorten-64-to-32)
-
 if(NOT MSVC)
+    add_cxx_compile_options(-Wno-maybe-uninitialized)
+    add_cxx_compile_options(-Wno-shorten-64-to-32)
     add_cxx_compile_options(-fsigned-char)
     add_cxx_compile_options(-ggnu-pubnames)
 else()
+    #/wd4701 for potentially uninitialized local variable
+    add_cxx_compile_options(/wd4701)
+    #/wd4703 for potentially uninitialized local pointer variable
+    add_cxx_compile_options(/wd4703)
+    #conversion from 'type1' to 'type2', possible loss of data
+    add_cxx_compile_options(/wd4244)
     # char is signed
     add_cxx_compile_options(/J)
     # full symbolic debugginng information
@@ -31,8 +36,10 @@ if (CMAKE_BUILD_TYPE STREQUAL "Debug")
     endif()
     add_cxx_compile_options(-Og)
 else()
-    add_cxx_compile_options(-O2)
-    add_cxx_compile_options(-g1)
+    if (NOT MSVC)
+        add_cxx_compile_options(-O2)
+        add_cxx_compile_options(-g1)
+    endif()
 endif()
 
 function(add_cxx_linker_flag_if_supported flag)
