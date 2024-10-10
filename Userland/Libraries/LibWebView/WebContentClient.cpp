@@ -689,6 +689,14 @@ void WebContentClient::inspector_did_export_inspector_html(u64 page_id, String c
     }
 }
 
+void WebContentClient::inspector_did_close(u64 page_id)
+{
+    if (auto view = view_for_page_id(page_id); view.has_value()) {
+        if (view->on_inspector_closed)
+            view->on_inspector_closed();
+    }
+}
+
 Messages::WebContentClient::RequestWorkerAgentResponse WebContentClient::request_worker_agent(u64 page_id)
 {
     if (auto view = view_for_page_id(page_id); view.has_value()) {

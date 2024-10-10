@@ -20,8 +20,10 @@
                     <button id="style-sheets-button" onclick="selectTopTab(this, 'style-sheets')">Style Sheets</button>
                 </div>
 
-                <div class="global-controls">
-                    <button id="export-inspector-button" title="Export the Inspector to an HTML file" onclick="inspector.exportInspector()"></button>
+                <div id="global-controls-right" class="global-controls">
+                    <button id="export-inspector-button" title="Export the Inspector to an HTML file" onclick="inspector.exportInspector(event)"></button>
+
+                    @CLOSE_INSPECTOR_BUTTON@
                 </div>
             </div>
 

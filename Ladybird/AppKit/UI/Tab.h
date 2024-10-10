@@ -9,6 +9,7 @@
 #include <AK/Types.h>
 
 #import <Cocoa/Cocoa.h>
+#import <UI/Inspector.h>
 
 @class LadybirdWebView;
 
@@ -24,5 +25,7 @@
 - (void)onInspectorClosed;
 
 @property (nonatomic, strong) LadybirdWebView* web_view;
+
+@property (nonatomic, strong) Inspector* inspector;
 
 @end
