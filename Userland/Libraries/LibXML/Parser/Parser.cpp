@@ -617,6 +617,7 @@ ErrorOr<void, ParseError> Parser::parse_element()
         return {};
     }
 
+    auto accept = accept_rule();
     auto start_tag = TRY(parse_start_tag());
     auto& node = *start_tag;
     auto& tag = node.content.get<Node::Element>();
@@ -649,7 +650,6 @@ ErrorOr<NonnullOwnPtr<Node>, ParseError> Parser::parse_empty_element_tag()
     // EmptyElemTag ::= '<' Name (S Attribute)* S? '/>'
     auto tag_start = m_lexer.tell();
     TRY(expect("<"sv));
-    auto accept = accept_rule();
 
     auto name = TRY(parse_name());
     HashMap<Name, ByteString> attributes;
@@ -668,6 +668,8 @@ ErrorOr<NonnullOwnPtr<Node>, ParseError> Parser::parse_empty_element_tag()
 
     TRY(skip_whitespace());
     TRY(expect("/>"sv));
+
+    auto accept = accept_rule();
 
     rollback.disarm();
     return make<Node>(m_lexer.position_for(tag_start), Node::Element { move(name), move(attributes), {} });
@@ -848,6 +850,7 @@ ErrorOr<void, ParseError> Parser::parse_content()
 {
     auto rollback = rollback_point();
     auto rule = enter_rule();
+    auto accept = accept_rule();
 
     // content ::= CharData? ((element | Reference | CDSect | PI | Comment) CharData?)*
     auto content_start = m_lexer.tell();
