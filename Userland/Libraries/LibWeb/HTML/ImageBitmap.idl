@@ -1,5 +1,8 @@
 #import <FileAPI/Blob.idl>
 #import <HTML/ImageData.idl>
+#import <HTML/CanvasRenderingContext2D.idl>
+#import <HTML/Canvas/CanvasDrawImage.idl>
+
 
 // https://html.spec.whatwg.org/multipage/imagebitmap-and-animations.html#images-2
 [Exposed=(Window,Worker), Serializable, Transferable]
@@ -9,8 +12,9 @@ interface ImageBitmap {
     undefined close();
 };
 
-// FIXME: This should also includes CanvasImageSource
-typedef (Blob or
+// https://html.spec.whatwg.org/multipage/imagebitmap-and-animations.html#imagebitmapsource
+typedef (CanvasImageSource or
+         Blob or
          ImageData) ImageBitmapSource;
 
 enum ImageOrientation { "from-image", "flipY" };

@@ -302,3 +302,19 @@ TEST_CASE(variant_equality)
         EXPECT_EQ(variant1, variant2);
     }
 }
+
+TEST_CASE(flatten_variant)
+{
+
+    using InnerVariant = Variant<Empty, int>;
+    using OuterVariant = FlattenVariant<InnerVariant, Variant<float>>;
+    using MyVariant = Variant<Empty, int, float>;
+
+    EXPECT_EQ((TypeList<MyVariant>::size), 3u);
+    EXPECT_EQ((TypeList<OuterVariant>::size), 3u);
+
+    using OuterList = TypeList<OuterVariant>;
+    EXPECT((IsSame<typename OuterList::template Type<0>, Empty>));
+    EXPECT((IsSame<typename OuterList::template Type<1>, int>));
+    EXPECT((IsSame<typename OuterList::template Type<2>, float>));
+}

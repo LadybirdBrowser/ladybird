@@ -189,17 +189,31 @@ JS::NonnullGCPtr<JS::Promise> WindowOrWorkerGlobalScopeMixin::create_image_bitma
     (void)options;
 
     // 3. Check the usability of the image argument. If this throws an exception or returns bad, then return a promise rejected with an "InvalidStateError" DOMException.
-    // FIXME: "Check the usability of the image argument" is only defined for CanvasImageSource, let's skip it for other types
-    if (image.has<CanvasImageSource>()) {
-        if (auto usability = check_usability_of_image(image.get<CanvasImageSource>()); usability.is_error() or usability.value() == CanvasImageSourceUsability::Bad) {
-            auto promise = JS::Promise::create(this_impl().realm());
-            promise->reject(WebIDL::InvalidStateError::create(this_impl().realm(), "image argument is not usable"_string));
-            return promise;
-        }
+    auto errorPromise = image.visit(
+        [](JS::Handle<FileAPI::Blob>&) -> Optional<JS::NonnullGCPtr<JS::Promise>> {
+            return {};
+        },
+        [](JS::Handle<ImageData>&) -> Optional<JS::NonnullGCPtr<JS::Promise>> {
+            return {};
+        },
+        [&](auto& canvas_image_source) -> Optional<JS::NonnullGCPtr<JS::Promise>> {
+            // Note: "Check the usability of the image argument" is only defined for CanvasImageSource
+            if (auto usability = check_usability_of_image(canvas_image_source); usability.is_error() or usability.value() == CanvasImageSourceUsability::Bad) {
+                auto promise = JS::Promise::create(this_impl().realm());
+                promise->reject(WebIDL::InvalidStateError::create(this_impl().realm(), "image argument is not usable"_string));
+                return promise;
+            }
+
+            return {};
+        });
+
+    if (errorPromise.has_value()) {
+        return errorPromise.release_value();
     }
 
     // 4. Let p be a new promise.
-    auto p = JS::Promise::create(this_impl().realm());
+    auto p
+        = JS::Promise::create(this_impl().realm());
 
     // 5. Let imageBitmap be a new ImageBitmap object.
     auto image_bitmap = ImageBitmap::create(this_impl().realm());

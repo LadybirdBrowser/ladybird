@@ -1,9 +1,11 @@
 #import <CSS/ElementCSSInlineStyle.idl>
 #import <DOM/Element.idl>
-#import <HTML/HTMLElement.idl>
+#import <DOM/EventHandler.idl>
 #import <HTML/DOMStringMap.idl>
 #import <SVG/SVGAnimatedString.idl>
+#import <HTML/HTMLOrSVGElement.idl>
 #import <SVG/SVGSVGElement.idl>
+#import <HTML/HTMLElement.idl>
 
 // https://svgwg.org/svg2-draft/types.html#InterfaceSVGElement
 [Exposed=Window]
