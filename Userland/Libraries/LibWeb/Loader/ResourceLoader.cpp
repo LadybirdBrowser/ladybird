@@ -10,6 +10,7 @@
 #include <LibCore/Directory.h>
 #include <LibCore/MimeData.h>
 #include <LibCore/Resource.h>
+#include <LibHTTP/HttpResponse.h>
 #include <LibRequests/Request.h>
 #include <LibRequests/RequestClient.h>
 #include <LibWeb/Cookie/Cookie.h>
@@ -432,8 +433,8 @@ void ResourceLoader::load(LoadRequest& request, SuccessCallback success_callback
                 else
                     error_builder.append("Load failed"sv);
 
-                if (status_code.has_value())
-                    error_builder.appendff(" (status code: {})", *status_code);
+                if (status_code.has_value() && *status_code > 0)
+                    error_builder.appendff(" (status: {} {})", *status_code, HTTP::HttpResponse::reason_phrase_for_code(*status_code));
 
                 log_failure(request, error_builder.string_view());
                 if (error_callback)
