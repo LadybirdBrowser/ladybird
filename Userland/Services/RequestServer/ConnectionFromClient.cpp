@@ -285,7 +285,7 @@ void ConnectionFromClient::start_request(i32 request_id, ByteString const& metho
     set_option(CURLOPT_ACCEPT_ENCODING, "gzip, deflate, br");
     set_option(CURLOPT_URL, url.to_string().value().to_byte_string().characters());
     set_option(CURLOPT_PORT, url.port_or_default());
-    set_option(CURLOPT_TIMEOUT, 90L);
+    set_option(CURLOPT_CONNECTTIMEOUT, 90L);
 
     if (method == "GET"sv) {
         set_option(CURLOPT_HTTPGET, 1L);
