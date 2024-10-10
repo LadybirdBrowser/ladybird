@@ -1,1 +1,3 @@
+video loaded
+message from test iframe (1)
 PASS (didn't crash)

@@ -1,11 +1,13 @@
-<iframe id=iframe></iframe>
+<iframe id="iframe"></iframe>
 <script src="include.js"></script>
 <script>
     function navigateIframe(src) {
         return new Promise(resolve => {
-            iframe.addEventListener("load", () => {
+            window.onmessage = e => {
+                println(e.data);
                 resolve();
-            });
+            };
+
             iframe.src = src;
         });
     }
