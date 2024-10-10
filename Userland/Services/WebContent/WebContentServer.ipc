@@ -60,6 +60,8 @@ endpoint WebContentServer
     remove_dom_node(u64 page_id, i32 node_id) =|
     get_dom_node_html(u64 page_id, i32 node_id) =|
 
+    set_dom_node_as_global_variable(u64 page_id, i32 node_id, String variable_name) =|
+
     take_document_screenshot(u64 page_id) =|
     take_dom_node_screenshot(u64 page_id, i32 node_id) =|
 

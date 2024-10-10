@@ -117,6 +117,7 @@ private:
     virtual void did_allocate_backing_stores(u64 page_id, i32 front_bitmap_id, Gfx::ShareableBitmap const&, i32 back_bitmap_id, Gfx::ShareableBitmap const&) override;
     virtual void inspector_did_load(u64 page_id) override;
     virtual void inspector_did_select_dom_node(u64 page_id, i32 node_id, Optional<Web::CSS::Selector::PseudoElement::Type> const& pseudo_element) override;
+    virtual void inspector_did_set_dom_node_as_global_variable(u64 page_id, i32 node_id, String const& variable_name) override;
     virtual void inspector_did_set_dom_node_text(u64 page_id, i32 node_id, String const& text) override;
     virtual void inspector_did_set_dom_node_tag(u64 page_id, i32 node_id, String const& tag) override;
     virtual void inspector_did_add_dom_node_attributes(u64 page_id, i32 node_id, Vector<Attribute> const& attributes) override;

@@ -374,6 +374,7 @@ public:
     virtual void inspector_did_load() { }
     virtual void inspector_did_select_dom_node([[maybe_unused]] i32 node_id, [[maybe_unused]] Optional<CSS::Selector::PseudoElement::Type> const& pseudo_element) { }
     virtual void inspector_did_set_dom_node_text([[maybe_unused]] i32 node_id, [[maybe_unused]] String const& text) { }
+    virtual void inspector_did_set_dom_node_as_global_variable([[maybe_unused]] i32 node_id, [[maybe_unused]] String const& variable_name) { }
     virtual void inspector_did_set_dom_node_tag([[maybe_unused]] i32 node_id, [[maybe_unused]] String const& tag) { }
     virtual void inspector_did_add_dom_node_attributes([[maybe_unused]] i32 node_id, [[maybe_unused]] JS::NonnullGCPtr<DOM::NamedNodeMap> attributes) { }
     virtual void inspector_did_replace_dom_node_attribute([[maybe_unused]] i32 node_id, [[maybe_unused]] size_t attribute_index, [[maybe_unused]] JS::NonnullGCPtr<DOM::NamedNodeMap> replacement_attributes) { }

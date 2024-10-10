@@ -190,6 +190,11 @@ static constexpr NSInteger CONTEXT_MENU_DELETE_COOKIE_TAG = 4;
     m_inspector_client->context_menu_copy_dom_node();
 }
 
+- (void)storeDOMNodeAsGlobalVariable:(id)sender
+{
+    m_inspector_client->context_menu_store_dom_node_as_global_variable();
+}
+
 - (void)screenshotDOMNode:(id)sender
 {
     m_inspector_client->context_menu_screenshot_dom_node();
@@ -314,6 +319,12 @@ static constexpr NSInteger CONTEXT_MENU_DELETE_COOKIE_TAG = 4;
         [_dom_node_tag_context_menu addItem:[[NSMenuItem alloc] initWithTitle:@"Take node screenshot"
                                                                        action:@selector(screenshotDOMNode:)
                                                                 keyEquivalent:@""]];
+
+        [_dom_node_tag_context_menu addItem:[NSMenuItem separatorItem]];
+
+        [_dom_node_tag_context_menu addItem:[[NSMenuItem alloc] initWithTitle:@"Store as global variable"
+                                                                       action:@selector(storeDOMNodeAsGlobalVariable:)
+                                                                keyEquivalent:@""]];
     }
 
     return _dom_node_tag_context_menu;
@@ -362,6 +373,12 @@ static constexpr NSInteger CONTEXT_MENU_DELETE_COOKIE_TAG = 4;
                                                                       keyEquivalent:@""]];
         [_dom_node_attribute_context_menu addItem:[[NSMenuItem alloc] initWithTitle:@"Take node screenshot"
                                                                              action:@selector(screenshotDOMNode:)
+                                                                      keyEquivalent:@""]];
+
+        [_dom_node_attribute_context_menu addItem:[NSMenuItem separatorItem]];
+
+        [_dom_node_attribute_context_menu addItem:[[NSMenuItem alloc] initWithTitle:@"Store as global variable"
+                                                                             action:@selector(storeDOMNodeAsGlobalVariable:)
                                                                       keyEquivalent:@""]];
     }
 

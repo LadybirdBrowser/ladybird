@@ -91,6 +91,8 @@ private:
     virtual void remove_dom_node(u64 page_id, i32 node_id) override;
     virtual void get_dom_node_html(u64 page_id, i32 node_id) override;
 
+    virtual void set_dom_node_as_global_variable(u64 page_id, i32 node_id, String const& variable_name) override;
+
     virtual void set_content_filters(u64 page_id, Vector<String> const&) override;
     virtual void set_autoplay_allowed_on_all_websites(u64 page_id) override;
     virtual void set_autoplay_allowlist(u64 page_id, Vector<String> const& allowlist) override;
