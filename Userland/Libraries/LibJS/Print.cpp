@@ -165,6 +165,7 @@ ErrorOr<void> print_array(JS::PrintContext& print_context, JS::Array const& arra
 {
     TRY(js_out(print_context, "["));
     bool first = true;
+    size_t printed_count = 0;
     for (auto it = array.indexed_properties().begin(false); it != array.indexed_properties().end(); ++it) {
         TRY(print_separator(print_context, first));
         auto value_or_error = array.get(it.index());
@@ -175,6 +176,10 @@ ErrorOr<void> print_array(JS::PrintContext& print_context, JS::Array const& arra
             return {};
         auto value = value_or_error.release_value();
         TRY(print_value(print_context, value, seen_objects));
+        if (++printed_count > 100 && it != array.indexed_properties().end()) {
+            TRY(js_out(print_context, ", ..."));
+            break;
+        }
     }
     if (!first)
         TRY(js_out(print_context, " "));
@@ -472,10 +477,15 @@ ErrorOr<void> print_typed_array(JS::PrintContext& print_context, JS::TypedArrayB
         TRY(js_out(print_context, "[ "));                                                \
         auto& typed_array = static_cast<JS::ClassName const&>(typed_array_base);         \
         auto data = typed_array.data();                                                  \
+        size_t printed_count = 0;                                                        \
         for (size_t i = 0; i < length; ++i) {                                            \
             if (i > 0)                                                                   \
                 TRY(js_out(print_context, ", "));                                        \
             TRY(print_number(print_context, data[i]));                                   \
+            if (++printed_count > 100 && i < length) {                                   \
+                TRY(js_out(print_context, ", ..."));                                     \
+                break;                                                                   \
+            }                                                                            \
         }                                                                                \
         TRY(js_out(print_context, " ]"));                                                \
         return {};                                                                       \
