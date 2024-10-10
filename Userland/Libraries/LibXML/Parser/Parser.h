@@ -147,9 +147,8 @@ private:
     [[nodiscard]] auto rollback_point(SourceLocation location = SourceLocation::current())
     {
         return ArmedScopeGuard {
-            [this, position = m_lexer.tell(), cached_position = m_lexer.cached_position(), location] {
+            [this, position = m_lexer.tell(), location] {
                 m_lexer.retreat(m_lexer.tell() - position);
-                m_lexer.restore_cached_offset(cached_position);
                 (void)location;
                 dbgln_if(XML_PARSER_DEBUG, "{:->{}}FAIL @ {} -- \x1b[31m{}\x1b[0m", " ", s_debug_indent_level * 2, location, m_lexer.remaining().substring_view(0, min(16, m_lexer.tell_remaining())).replace("\n"sv, "\\n"sv, ReplaceMode::All));
             }
