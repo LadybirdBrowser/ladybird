@@ -12,6 +12,62 @@
 
 namespace Web::Layout {
 
+static Alignment to_alignment(CSS::JustifyContent value)
+{
+    switch (value) {
+    case CSS::JustifyContent::Left:
+        return Alignment::Start;
+    case CSS::JustifyContent::Right:
+        return Alignment::End;
+    case CSS::JustifyContent::Start:
+        return Alignment::Start;
+    case CSS::JustifyContent::End:
+        return Alignment::End;
+    case CSS::JustifyContent::Center:
+        return Alignment::Center;
+    case CSS::JustifyContent::SpaceBetween:
+        return Alignment::SpaceBetween;
+    case CSS::JustifyContent::SpaceAround:
+        return Alignment::SpaceAround;
+    case CSS::JustifyContent::SpaceEvenly:
+        return Alignment::SpaceEvenly;
+    case CSS::JustifyContent::Stretch:
+        return Alignment::Stretch;
+    case CSS::JustifyContent::Normal:
+        return Alignment::Normal;
+    default:
+        VERIFY_NOT_REACHED();
+    }
+}
+
+static Alignment to_alignment(CSS::AlignContent value)
+{
+    switch (value) {
+    case CSS::AlignContent::Start:
+        return Alignment::Start;
+    case CSS::AlignContent::End:
+        return Alignment::End;
+    case CSS::AlignContent::Center:
+        return Alignment::Center;
+    case CSS::AlignContent::SpaceBetween:
+        return Alignment::SpaceBetween;
+    case CSS::AlignContent::SpaceAround:
+        return Alignment::SpaceAround;
+    case CSS::AlignContent::SpaceEvenly:
+        return Alignment::SpaceEvenly;
+    case CSS::AlignContent::Stretch:
+        return Alignment::Stretch;
+    case CSS::AlignContent::Normal:
+        return Alignment::Normal;
+    case CSS::AlignContent::FlexStart:
+        return Alignment::Start;
+    case CSS::AlignContent::FlexEnd:
+        return Alignment::End;
+    default:
+        VERIFY_NOT_REACHED();
+    }
+}
+
 GridFormattingContext::GridTrack GridFormattingContext::GridTrack::create_from_definition(CSS::ExplicitGridTrack const& definition)
 {
     // NOTE: repeat() is expected to be expanded beforehand.
@@ -1689,45 +1745,30 @@ void GridFormattingContext::resolve_track_spacing(GridDimension const dimension)
         return;
 
     CSSPixels space_between_tracks = 0;
+    Alignment alignment;
     if (is_column_dimension) {
-        switch (grid_container().computed_values().justify_content()) {
-        case CSS::JustifyContent::SpaceBetween:
-            space_between_tracks = CSSPixels(total_gap_space / gap_track_count);
-            break;
-        case CSS::JustifyContent::SpaceAround:
-            space_between_tracks = CSSPixels(total_gap_space / (gap_track_count + 1));
-            break;
-        case CSS::JustifyContent::SpaceEvenly:
-            space_between_tracks = CSSPixels(total_gap_space / (gap_track_count + 2));
-            break;
-        case CSS::JustifyContent::Start:
-        case CSS::JustifyContent::End:
-        case CSS::JustifyContent::Center:
-        case CSS::JustifyContent::Stretch:
-        default:
-            break;
-        }
+        alignment = to_alignment(grid_container().computed_values().justify_content());
     } else {
-        switch (grid_container().computed_values().align_content()) {
-        case CSS::AlignContent::SpaceBetween:
-            space_between_tracks = CSSPixels(total_gap_space / gap_track_count);
-            break;
-        case CSS::AlignContent::SpaceAround:
-            space_between_tracks = CSSPixels(total_gap_space / (gap_track_count + 1));
-            break;
-        case CSS::AlignContent::SpaceEvenly:
-            space_between_tracks = CSSPixels(total_gap_space / (gap_track_count + 2));
-            break;
-        case CSS::AlignContent::Normal:
-        case CSS::AlignContent::Stretch:
-        case CSS::AlignContent::Start:
-        case CSS::AlignContent::FlexStart:
-        case CSS::AlignContent::End:
-        case CSS::AlignContent::FlexEnd:
-        case CSS::AlignContent::Center:
-        default:
-            break;
-        }
+        alignment = to_alignment(grid_container().computed_values().align_content());
+    }
+
+    switch (alignment) {
+    case Alignment::SpaceBetween:
+        space_between_tracks = CSSPixels(total_gap_space / gap_track_count);
+        break;
+    case Alignment::SpaceAround:
+        space_between_tracks = CSSPixels(total_gap_space / (gap_track_count + 1));
+        break;
+    case Alignment::SpaceEvenly:
+        space_between_tracks = CSSPixels(total_gap_space / (gap_track_count + 2));
+        break;
+    case Alignment::Normal:
+    case Alignment::Stretch:
+    case Alignment::Start:
+    case Alignment::End:
+    case Alignment::Center:
+    default:
+        break;
     }
 
     auto const& computed_gap = is_column_dimension ? grid_container().computed_values().column_gap() : grid_container().computed_values().row_gap();
@@ -2539,7 +2580,6 @@ StaticPositionRect GridFormattingContext::calculate_static_position_rect(Box con
     static_position.rect = { offset_to_static_parent.location().translated(0, 0), { box_state.content_width(), box_state.content_height() } };
     return static_position;
 }
-
 }
 
 namespace AK {

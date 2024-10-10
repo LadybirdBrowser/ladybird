@@ -17,6 +17,17 @@ enum class GridDimension {
     Column
 };
 
+enum class Alignment {
+    Normal,
+    SpaceBetween,
+    SpaceAround,
+    SpaceEvenly,
+    Center,
+    Start,
+    End,
+    Stretch,
+};
+
 struct GridPosition {
     int row;
     int column;
