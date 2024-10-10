@@ -1817,31 +1817,15 @@ CSSPixelRect GridFormattingContext::get_grid_area_rect(GridItem const& grid_item
 
     CSSPixels x_start = 0;
     CSSPixels x_end = 0;
-    if (justify_content == CSS::JustifyContent::Center) {
+    if (justify_content == CSS::JustifyContent::Center || justify_content == CSS::JustifyContent::SpaceAround || justify_content == CSS::JustifyContent::SpaceEvenly) {
         auto free_space = grid_container_width - sum_base_size_of_columns_and_gaps;
+        free_space = max(free_space, 0);
         x_start = free_space / 2;
         x_end = free_space / 2;
     } else if (justify_content == CSS::JustifyContent::End || justify_content == CSS::JustifyContent::Right) {
         auto free_space = grid_container_width - sum_base_size_of_columns_and_gaps;
         x_start = free_space;
         x_end = free_space;
-    } else if (justify_content == CSS::JustifyContent::SpaceAround) {
-        auto free_space = grid_container_width - sum_base_size_of_columns;
-        free_space = max(free_space, 0);
-
-        auto gap_space = free_space / (m_column_gap_tracks.size() + 1);
-        auto gap_half_space = gap_space / 2;
-
-        x_start = CSSPixels(gap_half_space);
-        x_end = CSSPixels(gap_half_space);
-    } else if (justify_content == CSS::JustifyContent::SpaceEvenly) {
-        auto free_space = grid_container_width - sum_base_size_of_columns;
-        free_space = max(free_space, 0);
-
-        auto gap_space = free_space / (m_grid_columns.size() + 1);
-
-        x_start = gap_space;
-        x_end = gap_space;
     }
 
     auto grid_container_height = m_available_space->height.to_px_or_zero();
