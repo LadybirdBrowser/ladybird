@@ -5,7 +5,6 @@
  */
 
 #include <LibJS/Runtime/GeneratorPrototype.h>
-#include <LibJS/Runtime/GlobalObject.h>
 
 namespace JS {
 

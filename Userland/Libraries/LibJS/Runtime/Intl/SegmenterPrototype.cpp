@@ -4,7 +4,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibJS/Runtime/GlobalObject.h>
 #include <LibJS/Runtime/Intl/Segmenter.h>
 #include <LibJS/Runtime/Intl/SegmenterPrototype.h>
 #include <LibJS/Runtime/Intl/Segments.h>

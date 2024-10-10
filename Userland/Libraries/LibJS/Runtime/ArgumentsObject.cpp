@@ -6,7 +6,7 @@
 
 #include <LibJS/Runtime/ArgumentsObject.h>
 #include <LibJS/Runtime/Completion.h>
-#include <LibJS/Runtime/GlobalObject.h>
+#include <LibJS/Runtime/Realm.h>
 
 namespace JS {
 

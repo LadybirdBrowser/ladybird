@@ -10,8 +10,8 @@
 #include <AK/BuiltinWrappers.h>
 #include <AK/Function.h>
 #include <AK/Random.h>
-#include <LibJS/Runtime/GlobalObject.h>
 #include <LibJS/Runtime/MathObject.h>
+#include <LibJS/Runtime/VM.h>
 #include <LibJS/Runtime/ValueInlines.h>
 #include <math.h>
 
