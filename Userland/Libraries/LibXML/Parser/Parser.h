@@ -21,9 +21,13 @@
 
 namespace XML {
 
+struct Expectation {
+    StringView expected;
+};
+
 struct ParseError {
     LineTrackingLexer::Position position {};
-    ByteString error;
+    Variant<ByteString, Expectation> error;
 };
 
 struct Listener {
@@ -183,9 +187,13 @@ private:
             auto rule_name = m_current_rule.rule.value_or("<?>");
             if (rule_name.starts_with("parse_"sv))
                 rule_name = rule_name.substring_view(6);
+
+            auto error_string = error.error.visit(
+                [](ByteString const& error) -> ByteString { return error; },
+                [](XML::Expectation const& expectation) -> ByteString { return ByteString::formatted("Expected {}", expectation.expected); });
             m_parse_errors.append({
                 error.position,
-                ByteString::formatted("{}: {}", rule_name, error.error),
+                ByteString::formatted("{}: {}", rule_name, error_string),
             });
         }
         return error;
@@ -218,6 +226,9 @@ template<>
 struct AK::Formatter<XML::ParseError> : public AK::Formatter<FormatString> {
     ErrorOr<void> format(FormatBuilder& builder, XML::ParseError const& error)
     {
-        return Formatter<FormatString>::format(builder, "{} at line: {}, col: {} (offset {})"sv, error.error, error.position.line, error.position.column, error.position.offset);
+        auto error_string = error.error.visit(
+            [](ByteString const& error) -> ByteString { return error; },
+            [](XML::Expectation const& expectation) -> ByteString { return ByteString::formatted("Expected {}", expectation.expected); });
+        return Formatter<FormatString>::format(builder, "{} at line: {}, col: {} (offset {})"sv, error_string, error.position.line, error.position.column, error.position.offset);
     }
 };
