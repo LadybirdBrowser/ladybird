@@ -16,6 +16,8 @@ struct PerformanceObserverInit {
     Optional<Vector<String>> entry_types;
     Optional<String> type;
     Optional<bool> buffered;
+    // https://www.w3.org/TR/event-timing/#sec-modifications-perf-timeline
+    Optional<HighResolutionTime::DOMHighResTimeStamp> duration_threshold;
 };
 
 // https://w3c.github.io/performance-timeline/#dom-performanceobserver
