@@ -417,6 +417,11 @@
     "thin",
     "none"
   ],
+  "stroke-linecap": [
+    "butt",
+    "square",
+    "round"
+  ],
   "text-align": [
     "center",
     "justify",

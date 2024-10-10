@@ -177,6 +177,7 @@ public:
     Color stop_color() const;
     float stop_opacity() const;
     float fill_opacity() const;
+    Optional<CSS::StrokeLinecap> stroke_linecap() const;
     float stroke_opacity() const;
     Optional<CSS::FillRule> fill_rule() const;
     Optional<CSS::ClipRule> clip_rule() const;

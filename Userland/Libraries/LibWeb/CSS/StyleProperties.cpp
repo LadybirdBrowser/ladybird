@@ -326,6 +326,12 @@ float StyleProperties::fill_opacity() const
     return resolve_opacity_value(*value);
 }
 
+Optional<CSS::StrokeLinecap> StyleProperties::stroke_linecap() const
+{
+    auto value = property(CSS::PropertyID::StrokeLinecap);
+    return keyword_to_stroke_linecap(value->to_keyword());
+}
+
 float StyleProperties::stroke_opacity() const
 {
     auto value = property(CSS::PropertyID::StrokeOpacity);

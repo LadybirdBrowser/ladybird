@@ -38,6 +38,7 @@ public:
     Optional<Gfx::Color> stroke_color() const;
     Optional<float> stroke_width() const;
     Optional<float> fill_opacity() const;
+    Optional<CSS::StrokeLinecap> stroke_linecap() const;
     Optional<float> stroke_opacity() const;
     Optional<FillRule> fill_rule() const;
     Optional<ClipRule> clip_rule() const;

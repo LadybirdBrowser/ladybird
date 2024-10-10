@@ -31,6 +31,7 @@ math-style: normal
 pointer-events: auto
 quotes: auto
 stroke: none
+stroke-linecap: butt
 stroke-opacity: 1
 stroke-width: 1px
 tab-size: 8
@@ -120,7 +121,7 @@ grid-row-start: auto
 grid-template-areas: 
 grid-template-columns: 
 grid-template-rows: 
-height: 2074px
+height: 2091px
 inline-size: auto
 inset-block-end: auto
 inset-block-start: auto

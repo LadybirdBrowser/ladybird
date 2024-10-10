@@ -2418,6 +2418,15 @@
       "paint"
     ]
   },
+  "stroke-linecap": {
+    "affects-layout": false,
+    "animation-type": "discrete",
+    "inherited": true,
+    "initial": "butt",
+    "valid-types": [
+      "stroke-linecap"
+    ]
+  },
   "stroke-opacity": {
     "affects-layout": false,
     "animation-type": "by-computed-value",
