@@ -60,13 +60,13 @@ Viewport <#document> at (0,0) content-size 800x600 children: not-inline
       Box <div.grid.justify-space-around> at (8,168) content-size 784x20 [GFC] children: not-inline
         BlockContainer <(anonymous)> (not painted) [BFC] children: inline
           TextNode <#text>
-        BlockContainer <div> at (108.65625,168) content-size 60x20 [BFC] children: not-inline
+        BlockContainer <div> at (108.671875,168) content-size 60x20 [BFC] children: not-inline
         BlockContainer <(anonymous)> (not painted) [BFC] children: inline
           TextNode <#text>
-        BlockContainer <div> at (369.984375,168) content-size 60x20 [BFC] children: not-inline
+        BlockContainer <div> at (370,168) content-size 60x20 [BFC] children: not-inline
         BlockContainer <(anonymous)> (not painted) [BFC] children: inline
           TextNode <#text>
-        BlockContainer <div> at (631.3125,168) content-size 60x20 [BFC] children: not-inline
+        BlockContainer <div> at (631.328125,168) content-size 60x20 [BFC] children: not-inline
         BlockContainer <(anonymous)> (not painted) [BFC] children: inline
           TextNode <#text>
       BlockContainer <(anonymous)> at (8,208) content-size 784x0 children: inline
@@ -124,9 +124,9 @@ ViewportPaintable (Viewport<#document>) [0,0 800x600]
         PaintableWithLines (BlockContainer<DIV>) [160,128 60x20]
       PaintableWithLines (BlockContainer(anonymous)) [8,168 784x0]
       PaintableBox (Box<DIV>.grid.justify-space-around) [8,168 784x20]
-        PaintableWithLines (BlockContainer<DIV>) [108.65625,168 60x20]
-        PaintableWithLines (BlockContainer<DIV>) [369.984375,168 60x20]
-        PaintableWithLines (BlockContainer<DIV>) [631.3125,168 60x20]
+        PaintableWithLines (BlockContainer<DIV>) [108.671875,168 60x20]
+        PaintableWithLines (BlockContainer<DIV>) [370,168 60x20]
+        PaintableWithLines (BlockContainer<DIV>) [631.328125,168 60x20]
       PaintableWithLines (BlockContainer(anonymous)) [8,208 784x0]
       PaintableBox (Box<DIV>.grid.justify-space-between) [8,208 784x20]
         PaintableWithLines (BlockContainer<DIV>) [8,208 60x20]
