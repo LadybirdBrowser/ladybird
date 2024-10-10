@@ -108,8 +108,16 @@ void XMLDocumentBuilder::element_start(const XML::Name& name, HashMap<XML::Name,
         // https://www.w3.org/TR/2006/REC-xml-names11-20060816/#ns-decl
         if (attribute.key == "xmlns" || attribute.key.starts_with("xmlns:"sv)) {
             auto name = attribute.key;
-            // The prefix xmlns is used only to declare namespace bindings and is by definition bound to the namespace name http://www.w3.org/2000/xmlns/.
-            MUST(node->set_attribute_ns(Namespace::XMLNS, MUST(FlyString::from_deprecated_fly_string(name)), MUST(String::from_byte_string(attribute.value))));
+            if (!name.is_one_of("xmlns:"sv, "xmlns:xmlns"sv)) {
+                // The prefix xmlns is used only to declare namespace bindings and is by definition bound to the namespace name http://www.w3.org/2000/xmlns/.
+                MUST(node->set_attribute_ns(Namespace::XMLNS, MUST(FlyString::from_deprecated_fly_string(name)), MUST(String::from_byte_string(attribute.value))));
+            } else {
+                m_has_error = true;
+            }
+        } else if (attribute.key.contains(":"sv)) {
+            if (!attribute.key.starts_with("xml:"sv)) {
+                m_has_error = true;
+            }
         }
         MUST(node->set_attribute(MUST(FlyString::from_deprecated_fly_string(attribute.key)), MUST(String::from_byte_string(attribute.value))));
     }
