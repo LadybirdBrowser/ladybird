@@ -3,12 +3,12 @@ Viewport <#document> at (0,0) content-size 800x600 children: not-inline
     BlockContainer <body> at (8,8) content-size 784x12 children: not-inline
       TableWrapper <(anonymous)> at (8,8) content-size 12x12 [BFC] children: not-inline
         Box <table> at (8,8) content-size 12x12 table-box [TFC] children: not-inline
-          Box <tbody> at (8,8) content-size 8x8 table-row-group children: not-inline
+          Box <tbody> at (10,10) content-size 8x8 table-row-group children: not-inline
             Box <tr> at (10,10) content-size 8x8 table-row children: not-inline
               BlockContainer <td> at (11,11) content-size 6x6 table-cell [BFC] children: not-inline
                 TableWrapper <(anonymous)> at (11,11) content-size 6x6 [BFC] children: not-inline
                   Box <table> at (11,11) content-size 6x6 table-box [TFC] children: not-inline
-                    Box <tbody> at (11,11) content-size 2x2 table-row-group children: not-inline
+                    Box <tbody> at (13,13) content-size 2x2 table-row-group children: not-inline
                       Box <tr> at (13,13) content-size 2x2 table-row children: not-inline
                         BlockContainer <td> at (14,14) content-size 0x0 table-cell [BFC] children: inline
                           TextNode <#text>
@@ -18,11 +18,11 @@ ViewportPaintable (Viewport<#document>) [0,0 800x600]
     PaintableWithLines (BlockContainer<BODY>) [8,8 784x12]
       PaintableWithLines (TableWrapper(anonymous)) [8,8 12x12]
         PaintableBox (Box<TABLE>) [8,8 12x12]
-          PaintableBox (Box<TBODY>) [8,8 8x8] overflow: [8,8 10x10]
+          PaintableBox (Box<TBODY>) [10,10 8x8]
             PaintableBox (Box<TR>) [10,10 8x8]
               PaintableWithLines (BlockContainer<TD>) [10,10 8x8]
                 PaintableWithLines (TableWrapper(anonymous)) [11,11 6x6]
                   PaintableBox (Box<TABLE>) [11,11 6x6]
-                    PaintableBox (Box<TBODY>) [11,11 2x2] overflow: [11,11 4x4]
+                    PaintableBox (Box<TBODY>) [13,13 2x2]
                       PaintableBox (Box<TR>) [13,13 2x2]
                         PaintableWithLines (BlockContainer<TD>) [13,13 2x2]

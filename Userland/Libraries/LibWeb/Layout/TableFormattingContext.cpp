@@ -1030,7 +1030,7 @@ void TableFormattingContext::position_row_boxes()
 {
     auto const& table_state = m_state.get(table_box());
 
-    CSSPixels row_top_offset = table_state.offset.y() + table_state.padding_top + border_spacing_vertical();
+    CSSPixels row_top_offset = table_state.offset.y() + border_spacing_vertical();
     CSSPixels row_left_offset = table_state.border_left + table_state.padding_left + border_spacing_horizontal();
     for (size_t y = 0; y < m_rows.size(); y++) {
         auto& row = m_rows[y];
@@ -1039,6 +1039,8 @@ void TableFormattingContext::position_row_boxes()
         for (auto& column : m_columns) {
             row_width += column.used_width;
         }
+        if (m_columns.size() >= 2)
+            row_width += (m_columns.size() - 1) * border_spacing_horizontal();
 
         row_state.set_content_height(row.final_height);
         row_state.set_content_width(row_width);
@@ -1047,8 +1049,8 @@ void TableFormattingContext::position_row_boxes()
         row_top_offset += row_state.content_height() + border_spacing_vertical();
     }
 
-    CSSPixels row_group_top_offset = table_state.border_top + table_state.padding_top;
-    CSSPixels row_group_left_offset = table_state.border_left + table_state.padding_left;
+    CSSPixels row_group_top_offset = table_state.offset.y() + border_spacing_vertical();
+    CSSPixels row_group_left_offset = table_state.border_left + table_state.padding_left + border_spacing_horizontal();
     TableGrid::for_each_child_box_matching(table_box(), TableGrid::is_table_row_group, [&](auto& row_group_box) {
         CSSPixels row_group_height = 0;
         CSSPixels row_group_width = 0;
@@ -1057,16 +1059,20 @@ void TableFormattingContext::position_row_boxes()
         row_group_box_state.set_content_x(row_group_left_offset);
         row_group_box_state.set_content_y(row_group_top_offset);
 
+        int num_rows = 0;
         TableGrid::for_each_child_box_matching(row_group_box, TableGrid::is_table_row, [&](auto& row) {
             auto const& row_state = m_state.get(row);
             row_group_height += row_state.border_box_height();
             row_group_width = max(row_group_width, row_state.border_box_width());
+            num_rows += 1;
         });
+        if (num_rows >= 2)
+            row_group_height += (num_rows - 1) * border_spacing_vertical();
 
         row_group_box_state.set_content_height(row_group_height);
         row_group_box_state.set_content_width(row_group_width);
 
-        row_group_top_offset += row_group_height;
+        row_group_top_offset += row_group_height + (num_rows > 0 ? border_spacing_vertical() : 0);
     });
 
     auto total_content_height = max(row_top_offset, row_group_top_offset) - table_state.offset.y() - table_state.padding_top;
