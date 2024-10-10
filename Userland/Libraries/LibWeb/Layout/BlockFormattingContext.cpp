@@ -462,25 +462,32 @@ void BlockFormattingContext::resolve_used_height_if_treated_as_auto(Box const& b
         height = max(height, calculate_inner_height(box, available_space.height, computed_values.min_height()));
     }
 
+    auto writing_mode = computed_values.writing_mode();
+    bool has_horizontal_writing_mode = (writing_mode == CSS::WritingMode::HorizontalTb);
+
     if (box.document().in_quirks_mode()
         && box.dom_node()
         && box.dom_node()->is_html_html_element()
-        && box.computed_values().height().is_auto()) {
+        && ((computed_values.width().is_auto() && !has_horizontal_writing_mode)
+            || (computed_values.height().is_auto() && has_horizontal_writing_mode))) {
         // 3.6. The html element fills the viewport quirk
         // https://quirks.spec.whatwg.org/#the-html-element-fills-the-viewport-quirk
-        // FIXME: Handle vertical writing mode.
 
         // 1. Let margins be sum of the used values of the margin-left and margin-right properties of element
         //    if element has a vertical writing mode, otherwise let margins be the sum of the used values of
         //    the margin-top and margin-bottom properties of element.
-        auto margins = box_state.margin_top + box_state.margin_bottom;
+        auto margins = box_state.get_block_margin_start(writing_mode) + box_state.get_inline_margin_end(writing_mode);
 
         // 2. Let size be the size of the initial containing block in the block flow direction minus margins.
-        auto size = box_state.containing_block_used_values()->content_height() - margins;
+        auto size = box_state.size_in_block_flow_direction(writing_mode) - margins;
 
         // 3. Return the bigger value of size and the normal border box size the element would have
         //    according to the CSS specification.
-        height = max(size, height);
+        if (has_horizontal_writing_mode)
+            height = max(size, height);
+        else {
+            box_state.set_content_width(max(size, box_state.border_box_width()));
+        }
 
         // NOTE: The height of the root element when affected by this quirk is considered to be definite.
         box_state.set_has_definite_height(true);
