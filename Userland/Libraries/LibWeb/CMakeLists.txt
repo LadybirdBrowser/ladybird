@@ -606,6 +606,7 @@ set(SOURCES
     Painting/SVGClipPaintable.cpp
     Painting/SVGPaintable.cpp
     Painting/SVGSVGPaintable.cpp
+    Painting/ScrollFrame.cpp
     Painting/ShadowPainting.cpp
     Painting/StackingContext.cpp
     Painting/TableBordersPainting.cpp

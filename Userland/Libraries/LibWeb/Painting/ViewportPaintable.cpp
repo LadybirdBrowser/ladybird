@@ -66,7 +66,6 @@ void ViewportPaintable::paint_all_phases(PaintContext& context)
 
 void ViewportPaintable::assign_scroll_frames()
 {
-    int next_id = 0;
     for_each_in_inclusive_subtree_of_type<PaintableBox>([&](auto& paintable_box) {
         RefPtr<ScrollFrame> sticky_scroll_frame;
         if (paintable_box.is_sticky_position()) {
@@ -75,11 +74,10 @@ void ViewportPaintable::assign_scroll_frames()
             if (nearest_scrollable_ancestor) {
                 parent_scroll_frame = nearest_scrollable_ancestor->nearest_scroll_frame();
             }
-            sticky_scroll_frame = adopt_ref(*new ScrollFrame(next_id++, parent_scroll_frame));
+            sticky_scroll_frame = m_scroll_state.create_sticky_frame_for(paintable_box, parent_scroll_frame);
 
             const_cast<PaintableBox&>(paintable_box).set_enclosing_scroll_frame(sticky_scroll_frame);
             const_cast<PaintableBox&>(paintable_box).set_own_scroll_frame(sticky_scroll_frame);
-            sticky_state.set(paintable_box, sticky_scroll_frame);
         }
 
         if (paintable_box.has_scrollable_overflow() || is<ViewportPaintable>(paintable_box)) {
@@ -89,9 +87,8 @@ void ViewportPaintable::assign_scroll_frames()
             } else {
                 parent_scroll_frame = paintable_box.nearest_scroll_frame();
             }
-            auto scroll_frame = adopt_ref(*new ScrollFrame(next_id++, parent_scroll_frame));
+            auto scroll_frame = m_scroll_state.create_scroll_frame_for(paintable_box, parent_scroll_frame);
             paintable_box.set_own_scroll_frame(scroll_frame);
-            scroll_state.set(paintable_box, move(scroll_frame));
         }
 
         return TraversalDecision::Continue;
@@ -182,9 +179,8 @@ void ViewportPaintable::refresh_scroll_state()
         return;
     m_needs_to_refresh_scroll_state = false;
 
-    for (auto& it : sticky_state) {
-        auto const& sticky_box = *it.key;
-        auto& scroll_frame = *it.value;
+    for (auto const& scroll_frame : m_scroll_state.sticky_frames()) {
+        auto const& sticky_box = scroll_frame->paintable_box();
         auto const& sticky_insets = sticky_box.sticky_insets();
 
         auto const* nearest_scrollable_ancestor = sticky_box.nearest_scrollable_ancestor();
@@ -253,13 +249,11 @@ void ViewportPaintable::refresh_scroll_state()
             }
         }
 
-        scroll_frame.set_own_offset(sticky_offset);
+        scroll_frame->set_own_offset(sticky_offset);
     }
 
-    for (auto& it : scroll_state) {
-        auto const& paintable_box = *it.key;
-        auto& scroll_frame = *it.value;
-        scroll_frame.set_own_offset(-paintable_box.scroll_offset());
+    for (auto const& scroll_frame : m_scroll_state.scroll_frames()) {
+        scroll_frame->set_own_offset(-scroll_frame->paintable_box().scroll_offset());
     }
 }
 
@@ -368,8 +362,6 @@ bool ViewportPaintable::handle_mousewheel(Badge<EventHandler>, CSSPixelPoint, un
 void ViewportPaintable::visit_edges(Visitor& visitor)
 {
     Base::visit_edges(visitor);
-    visitor.visit(scroll_state);
-    visitor.visit(sticky_state);
     visitor.visit(clip_state);
 }
 
