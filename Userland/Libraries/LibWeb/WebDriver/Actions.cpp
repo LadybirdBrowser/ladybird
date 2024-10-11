@@ -841,6 +841,14 @@ static KeyCodeData key_code_data(u32 code_point)
     return *it;
 }
 
+// https://w3c.github.io/webdriver/#dfn-shifted-character
+static bool is_shifted_character(u32 code_point)
+{
+    // A shifted character is one that appears in the second column of the following table.
+    auto code = key_code_data(code_point);
+    return code.alternate_key == code_point;
+}
+
 struct KeyEvent {
     u32 code_point { 0 };
     UIEvents::KeyModifier modifiers { UIEvents::KeyModifier::Mod_None };
@@ -1404,4 +1412,131 @@ JS::NonnullGCPtr<JS::Cell> dispatch_list_of_actions(InputState& input_state, Vec
     // 3. Return the result of dispatch actions with input state, actions by tick, browsing context, and actions options.
     return dispatch_actions(input_state, move(actions_by_tick), browsing_context, move(actions_options), on_complete);
 }
+
+// https://w3c.github.io/webdriver/#dfn-dispatch-the-events-for-a-typeable-string
+static JS::NonnullGCPtr<JS::Cell> dispatch_the_events_for_a_typeable_string(Web::WebDriver::InputState& input_state, String const& input_id, Web::WebDriver::InputSource& source, StringView text, Web::HTML::BrowsingContext& browsing_context, Web::WebDriver::OnActionsComplete on_complete)
+{
+    auto& input_source = source.get<Web::WebDriver::KeyInputSource>();
+
+    // NOTE: Rather than dispatching each action list individually below, we collect a list of "actions by tick" to
+    //       dispatch, to make handling the asynchronous nature of actions simpler.
+    Vector<Vector<Web::WebDriver::ActionObject>> actions_by_tick;
+
+    // 1. Let actions options be a new actions options with the is element origin steps set to represents a web element,
+    //    and the get element origin steps set to get a WebElement origin.
+    Web::WebDriver::ActionsOptions actions_options {
+        .is_element_origin = &Web::WebDriver::represents_a_web_element,
+        .get_element_origin = &Web::WebDriver::get_web_element_origin,
+    };
+
+    // 2. For each char of text:
+    for (auto code_point : Utf8View { text }) {
+        auto char_is_shifted = Web::WebDriver::is_shifted_character(code_point);
+
+        // 1. Let global key state be the result of get the global key state with input state.
+        auto global_key_state = Web::WebDriver::get_global_key_state(input_state);
+
+        // 2. If char is a shifted character, and the shifted state of source is false:
+        if (char_is_shifted && !input_source.shift) {
+            // 1. Let action be an action object constructed with input id, "key", and "keyDown", and set its value
+            //    property to U+E008 ("left shift").
+            Web::WebDriver::ActionObject action { input_id, Web::WebDriver::InputSourceType::Key, Web::WebDriver::ActionObject::Subtype::KeyDown };
+            action.key_fields().value = 0xE008;
+
+            // 2. Let actions be the list «action».
+            Vector actions { move(action) };
+
+            // 3. Dispatch a list of actions with input state, actions, and browsing context.
+            actions_by_tick.append(move(actions));
+            input_source.shift = true;
+        }
+
+        // 3. If char is not a shifted character and the shifted state of source is true:
+        if (!char_is_shifted && input_source.shift) {
+            // 1. Let action be an action object constructed with input id, "key", and "keyUp", and set its value
+            //    property to U+E008 ("left shift").
+            Web::WebDriver::ActionObject action { input_id, Web::WebDriver::InputSourceType::Key, Web::WebDriver::ActionObject::Subtype::KeyUp };
+            action.key_fields().value = 0xE008;
+
+            // 2. Let tick actions be the list «action».
+            Vector actions { move(action) };
+
+            // 3. Dispatch a list of actions with input state, actions, browsing context, and actions options.
+            actions_by_tick.append(move(actions));
+            input_source.shift = false;
+        }
+
+        // 4. Let keydown action be an action object constructed with arguments input id, "key", and "keyDown".
+        Web::WebDriver::ActionObject keydown_action { input_id, Web::WebDriver::InputSourceType::Key, Web::WebDriver::ActionObject::Subtype::KeyDown };
+
+        // 5. Set the value property of keydown action to char.
+        keydown_action.key_fields().value = code_point;
+
+        // 6. Let keyup action be a copy of keydown action with the subtype property changed to "keyUp".
+        auto keyup_action = keydown_action;
+        keyup_action.subtype = Web::WebDriver::ActionObject::Subtype::KeyUp;
+
+        // 7. Let actions be the list «keydown action, keyup action».
+        Vector actions { move(keydown_action), move(keyup_action) };
+
+        // 8. Dispatch a list of actions with input state, actions, browsing context, and actions options.
+        actions_by_tick.append(move(actions));
+    }
+
+    return dispatch_actions(input_state, move(actions_by_tick), browsing_context, move(actions_options), on_complete);
+}
+
+// https://w3c.github.io/webdriver/#dfn-dispatch-actions-for-a-string
+JS::NonnullGCPtr<JS::Cell> dispatch_actions_for_a_string(Web::WebDriver::InputState& input_state, String const& input_id, Web::WebDriver::InputSource& source, StringView text, Web::HTML::BrowsingContext& browsing_context, Web::WebDriver::OnActionsComplete on_complete)
+{
+    // FIXME: 1. Let clusters be an array created by breaking text into extended grapheme clusters.
+    // FIXME: 2. Let undo actions be an empty map.
+    // FIXME: 3. Let current typeable text be an empty list.
+    // FIXME: 4. For each cluster corresponding to an indexed property in clusters run the substeps of the first matching statement:
+    {
+        // -> cluster is the null key
+        {
+            // FIXME: 1. Dispatch the events for a typeable string with input state, input id, source, current typeable text, and browsing context. Empty current typeable text.
+            // FIXME: 2. Try to clear the modifier key state with input state, input id, source, undo actions and browsing context.
+            // FIXME: 3. Clear undo actions.
+        }
+        // -> cluster is a modifier key
+        {
+
+            // FIXME: 1. Dispatch the events for a typeable string with input state, input id, source, current typeable text, and browsing context.
+            // FIXME: 2. Empty current typeable text.
+            // FIXME: 3. Let keydown action be an action object constructed with arguments input id, "key", and "keyDown".
+            // FIXME: 4. Set the value property of keydown action to cluster.
+            // FIXME: 5. Let actions be the list «keydown action»
+            // FIXME: 6. Dispatch a list of actions with input state, actions, browsing context, and actions options.
+            // FIXME: 7. Add an entry to undo actions with key cluster and value being a copy of keydown action with the subtype property modified to "keyUp".
+        }
+        // -> cluster is typeable
+        {
+            // FIXME: Append cluster to current typeable text.
+        }
+        // -> Otherwise
+        {
+            // FIXME: 1. Dispatch the events for a typeable string with input state, input id, source, current typeable text, and browsing context.
+            // FIXME: 2. Empty current typeable text.
+            // FIXME: 3. Dispatch a composition event with arguments "compositionstart", undefined, and browsing context.
+            // FIXME: 4. Dispatch a composition event with arguments "compositionupdate", cluster, and browsing context.
+            // FIXME: 5. Dispatch a composition event with arguments "compositionend", cluster, and browsing context.
+        }
+    }
+
+    // FIXME: We currently only support sending single code points to Page. Much of the above loop would break the the
+    //        text into segments, broken by graphemes / modifier keys / null keys. Until we need such support, we take
+    //        the easy road here and dispatch the string as a single list of actions. When we do implement the above
+    //        steps, we will likely need to implement a completely asynchronous driver (like ActionExecutor above).
+
+    // 5. Dispatch the events for a typeable string with input state, input id and source, current typeable text, and
+    //    browsing context.
+    return dispatch_the_events_for_a_typeable_string(input_state, input_id, source, text, browsing_context, JS::create_heap_function(browsing_context.heap(), [on_complete](Web::WebDriver::Response result) {
+        // FIXME: 6. Try to clear the modifier key state with input state, input id, source, undo actions, and browsing context.
+
+        on_complete->function()(move(result));
+    }));
+}
+
 }

@@ -606,7 +606,7 @@ Web::WebDriver::Response Client::element_send_keys(Web::WebDriver::Parameters pa
 {
     dbgln_if(WEBDRIVER_DEBUG, "Handling POST /session/<session_id>/element/<element_id>/value");
     auto session = TRY(find_session_with_id(parameters[0]));
-    return session->web_content_connection().element_send_keys(move(parameters[1]), move(payload));
+    return session->element_send_keys(move(parameters[1]), move(payload));
 }
 
 // 13.1 Get Page Source, https://w3c.github.io/webdriver/#dfn-get-page-source
