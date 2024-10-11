@@ -1475,40 +1475,75 @@ Messages::WebDriverClient::ElementClickResponse WebDriverConnection::element_cli
 // 12.5.2 Element Clear, https://w3c.github.io/webdriver/#dfn-element-clear
 Messages::WebDriverClient::ElementClearResponse WebDriverConnection::element_clear(String const& element_id)
 {
-    dbgln("FIXME: WebDriverConnection::element_clear({})", element_id);
+    // https://w3c.github.io/webdriver/#dfn-clear-a-content-editable-element
+    auto clear_content_editable_element = [&](Web::DOM::Element& element) {
+        // 1. If element's innerHTML IDL attribute is an empty string do nothing and return.
+        if (auto result = element.inner_html(); result.is_error() || result.value().is_empty())
+            return;
 
-    // To clear a content editable element:
-    {
-        // FIXME: 1. If element's innerHTML IDL attribute is an empty string do nothing and return.
-        // FIXME: 2. Run the focusing steps for element.
-        // FIXME: 3. Set element's innerHTML IDL attribute to an empty string.
-        // FIXME: 4. Run the unfocusing steps for the element.
-    }
+        // 2. Run the focusing steps for element.
+        Web::HTML::run_focusing_steps(&element);
 
-    // To clear a resettable element:
-    {
-        // FIXME: 1. Let empty be the result of the first matching condition:
-        {
+        // 3. Set element's innerHTML IDL attribute to an empty string.
+        (void)element.set_inner_html({});
+
+        // 4. Run the unfocusing steps for the element.
+        Web::HTML::run_unfocusing_steps(&element);
+    };
+
+    // https://w3c.github.io/webdriver/#dfn-clear-a-resettable-element
+    auto clear_resettable_element = [&](Web::DOM::Element& element) {
+        VERIFY(is<Web::HTML::FormAssociatedElement>(element));
+        auto& form_associated_element = dynamic_cast<Web::HTML::FormAssociatedElement&>(element);
+
+        // 1. Let empty be the result of the first matching condition:
+        auto empty = [&]() {
             // -> element is an input element whose type attribute is in the File Upload state
-            {
-                // True if the list of selected files has a length of 0, and false otherwise.
-            }
-            // -> otherwise
-            {
-                // True if its value IDL attribute is an empty string, and false otherwise.
-            }
-        }
-        // FIXME: 2. If element is a candidate for constraint validation it satisfies its constraints, and empty is true, abort these substeps.
-        // FIXME: 3. Invoke the focusing steps for element.
-        // FIXME: 4. Invoke the clear algorithm for element.
-        // FIXME: 5. Invoke the unfocusing steps for the element.
-    }
+            //    True if the list of selected files has a length of 0, and false otherwise
+            if (is<Web::HTML::HTMLInputElement>(element)) {
+                auto& input_element = static_cast<Web::HTML::HTMLInputElement&>(element);
 
-    // FIXME: 1. If session's current browsing context is no longer open, return error with error code no such window.
-    // FIXME: 2. Try to handle any user prompts with session.
-    // FIXME: 3. Let element be the result of trying to get a known element with session and element id.
-    // FIXME: 4. If element is not editable, return an error with error code invalid element state.
-    // FIXME: 5. Scroll into view the element.
+                if (input_element.type_state() == Web::HTML::HTMLInputElement::TypeAttributeState::FileUpload)
+                    return input_element.files()->length() == 0;
+            }
+
+            // -> otherwise
+            //    True if its value IDL attribute is an empty string, and false otherwise.
+            return form_associated_element.value().is_empty();
+        }();
+
+        // 2. If element is a candidate for constraint validation it satisfies its constraints, and empty is true,
+        //    abort these substeps.
+        // FIXME: Implement constraint validation.
+        if (empty)
+            return;
+
+        // 3. Invoke the focusing steps for element.
+        Web::HTML::run_focusing_steps(&element);
+
+        // 4. Invoke the clear algorithm for element.
+        form_associated_element.clear_algorithm();
+
+        // 5. Invoke the unfocusing steps for the element.
+        Web::HTML::run_unfocusing_steps(&element);
+    };
+
+    // 1. If session's current browsing context is no longer open, return error with error code no such window.
+    TRY(ensure_current_browsing_context_is_open());
+
+    // 2. Try to handle any user prompts with session.
+    TRY(handle_any_user_prompts());
+
+    // 3. Let element be the result of trying to get a known element with session and element id.
+    auto* element = TRY(Web::WebDriver::get_known_connected_element(element_id));
+
+    // 4. If element is not editable, return an error with error code invalid element state.
+    if (!Web::WebDriver::is_element_editable(*element))
+        return Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::InvalidElementState, "Element is not editable"sv);
+
+    // 5. Scroll into view the element.
+    TRY(scroll_element_into_view(*element));
+
     // FIXME: 6. Let timeout be session's session timeouts' implicit wait timeout.
     // FIXME: 7. Let timer be a new timer.
     // FIXME: 8. If timeout is not null:
@@ -1516,25 +1551,30 @@ Messages::WebDriverClient::ElementClearResponse WebDriverConnection::element_cle
         // FIXME: 1. Start the timer with timer and timeout.
     }
     // FIXME: 9. Wait for element to become interactable, or timer's timeout fired flag to be set, whichever occurs first.
-    // FIXME: 10. If element is not interactable, return error with error code element not interactable.
-    // FIXME: 11. Run the substeps of the first matching statement:
-    {
-        // -> element is a mutable form control element
-        {
-            // Invoke the steps to clear a resettable element.
-        }
-        // -> element is a mutable element
-        {
-            // Invoke the steps to clear a content editable element.
-        }
-        // -> otherwise
-        {
-            // Return error with error code invalid element state.
-        }
-    }
-    // FIXME: 12. Return success with data null.
 
-    return Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::UnsupportedOperation, "element clear not implemented"sv);
+    // 10. If element is not interactable, return error with error code element not interactable.
+    if (!Web::WebDriver::is_element_interactable(current_browsing_context(), *element))
+        return Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::ElementNotInteractable, "Element is not interactable"sv);
+
+    // 11. Run the substeps of the first matching statement:
+    // -> element is a mutable form control element
+    if (Web::WebDriver::is_element_mutable_form_control(*element)) {
+        // Invoke the steps to clear a resettable element.
+        clear_resettable_element(*element);
+    }
+    // -> element is a mutable element
+    else if (Web::WebDriver::is_element_mutable(*element)) {
+        // Invoke the steps to clear a content editable element.
+        clear_content_editable_element(*element);
+    }
+    // -> otherwise
+    else {
+        // Return error with error code invalid element state.
+        return Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::InvalidElementState, "Element is not editable"sv);
+    }
+
+    // 12. Return success with data null.
+    return JsonValue {};
 }
 
 // 12.5.3 Element Send Keys, https://w3c.github.io/webdriver/#dfn-element-send-keys

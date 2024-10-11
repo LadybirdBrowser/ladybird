@@ -10,8 +10,13 @@
 #include <LibWeb/DOM/ShadowRoot.h>
 #include <LibWeb/Geometry/DOMRect.h>
 #include <LibWeb/Geometry/DOMRectList.h>
+#include <LibWeb/HTML/BrowsingContext.h>
 #include <LibWeb/HTML/HTMLBodyElement.h>
 #include <LibWeb/HTML/HTMLInputElement.h>
+#include <LibWeb/HTML/HTMLTextAreaElement.h>
+#include <LibWeb/HTML/TraversableNavigable.h>
+#include <LibWeb/Page/Page.h>
+#include <LibWeb/Painting/PaintableBox.h>
 #include <LibWeb/WebDriver/ElementReference.h>
 
 namespace Web::WebDriver {
@@ -125,11 +130,103 @@ bool is_element_stale(Web::DOM::Node const& element)
     return !element.document().is_active() || !element.is_connected();
 }
 
+// https://w3c.github.io/webdriver/#dfn-interactable
+bool is_element_interactable(Web::HTML::BrowsingContext const& browsing_context, Web::DOM::Element const& element)
+{
+    // An interactable element is an element which is either pointer-interactable or keyboard-interactable.
+    return is_element_keyboard_interactable(element) || is_element_pointer_interactable(browsing_context, element);
+}
+
+// https://w3c.github.io/webdriver/#dfn-pointer-interactable
+bool is_element_pointer_interactable(Web::HTML::BrowsingContext const& browsing_context, Web::DOM::Element const& element)
+{
+    // A pointer-interactable element is defined to be the first element, defined by the paint order found at the center
+    // point of its rectangle that is inside the viewport, excluding the size of any rendered scrollbars.
+    auto const* document = browsing_context.active_document();
+    if (!document)
+        return false;
+
+    auto const* paint_root = document->paintable_box();
+    if (!paint_root)
+        return false;
+
+    auto viewport = browsing_context.page().top_level_traversable()->viewport_rect();
+    auto center_point = in_view_center_point(element, viewport);
+
+    auto result = paint_root->hit_test(center_point, Painting::HitTestType::TextCursor);
+    if (!result.has_value())
+        return false;
+
+    return result->dom_node() == &element;
+}
+
 // https://w3c.github.io/webdriver/#dfn-keyboard-interactable
 bool is_element_keyboard_interactable(Web::DOM::Element const& element)
 {
     // A keyboard-interactable element is any element that has a focusable area, is a body element, or is the document element.
     return element.is_focusable() || is<HTML::HTMLBodyElement>(element) || element.is_document_element();
+}
+
+// https://w3c.github.io/webdriver/#dfn-editable
+bool is_element_editable(Web::DOM::Element const& element)
+{
+    // Editable elements are those that can be used for typing and clearing, and they fall into two subcategories:
+    // "Mutable form control elements" and "Mutable elements".
+    return is_element_mutable_form_control(element) || is_element_mutable(element);
+}
+
+// https://w3c.github.io/webdriver/#dfn-mutable-element
+bool is_element_mutable(Web::DOM::Element const& element)
+{
+    // Denotes elements that are editing hosts or content editable.
+    if (!is<HTML::HTMLElement>(element))
+        return false;
+
+    auto const& html_element = static_cast<HTML::HTMLElement const&>(element);
+    return html_element.is_editable();
+}
+
+// https://w3c.github.io/webdriver/#dfn-mutable-form-control-element
+bool is_element_mutable_form_control(Web::DOM::Element const& element)
+{
+    // Denotes input elements that are mutable (e.g. that are not read only or disabled) and whose type attribute is
+    // in one of the following states:
+    if (is<HTML::HTMLInputElement>(element)) {
+        auto const& input_element = static_cast<HTML::HTMLInputElement const&>(element);
+        if (!input_element.is_mutable() || !input_element.enabled())
+            return false;
+
+        // Text and Search, URL, Telephone, Email, Password, Date, Month, Week, Time, Local Date and Time, Number,
+        // Range, Color, File Upload
+        switch (input_element.type_state()) {
+        case HTML::HTMLInputElement::TypeAttributeState::Text:
+        case HTML::HTMLInputElement::TypeAttributeState::Search:
+        case HTML::HTMLInputElement::TypeAttributeState::URL:
+        case HTML::HTMLInputElement::TypeAttributeState::Telephone:
+        case HTML::HTMLInputElement::TypeAttributeState::Email:
+        case HTML::HTMLInputElement::TypeAttributeState::Password:
+        case HTML::HTMLInputElement::TypeAttributeState::Date:
+        case HTML::HTMLInputElement::TypeAttributeState::Month:
+        case HTML::HTMLInputElement::TypeAttributeState::Week:
+        case HTML::HTMLInputElement::TypeAttributeState::Time:
+        case HTML::HTMLInputElement::TypeAttributeState::LocalDateAndTime:
+        case HTML::HTMLInputElement::TypeAttributeState::Number:
+        case HTML::HTMLInputElement::TypeAttributeState::Range:
+        case HTML::HTMLInputElement::TypeAttributeState::Color:
+        case HTML::HTMLInputElement::TypeAttributeState::FileUpload:
+            return true;
+        default:
+            return false;
+        }
+    }
+
+    // And the textarea element.
+    if (is<HTML::HTMLTextAreaElement>(element)) {
+        auto const& text_area = static_cast<HTML::HTMLTextAreaElement const&>(element);
+        return text_area.enabled();
+    }
+
+    return false;
 }
 
 // https://w3c.github.io/webdriver/#dfn-non-typeable-form-control
