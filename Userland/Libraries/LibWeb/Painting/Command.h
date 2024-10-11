@@ -110,7 +110,6 @@ struct PushStackingContext {
     // The bounding box of the source paintable (pre-transform).
     Gfx::IntRect source_paintable_rect;
     // A translation to be applied after the stacking context has been transformed.
-    Gfx::IntPoint post_transform_translation;
     StackingContextTransform transform;
     Optional<Gfx::Path> clip_path = {};
 
@@ -388,7 +387,6 @@ struct ApplyOpacity {
 struct ApplyTransform {
     Gfx::FloatPoint origin;
     Gfx::FloatMatrix4x4 matrix;
-    Gfx::IntPoint post_transform_translation;
 
     void translate_by(Gfx::IntPoint const& offset)
     {
