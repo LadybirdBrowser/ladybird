@@ -13,11 +13,13 @@ namespace Web::Painting {
 
 class ScrollFrame : public RefCounted<ScrollFrame> {
 public:
-    ScrollFrame(PaintableBox const& paintable_box, size_t id, RefPtr<ScrollFrame const> parent);
+    ScrollFrame(PaintableBox const& paintable_box, size_t id, bool sticky, RefPtr<ScrollFrame const> parent);
 
     PaintableBox const& paintable_box() const { return *m_paintable_box; }
 
     size_t id() const { return m_id; }
+
+    bool is_sticky() const { return m_sticky; }
 
     CSSPixelPoint cumulative_offset() const
     {
@@ -40,6 +42,7 @@ public:
 private:
     WeakPtr<PaintableBox> m_paintable_box;
     size_t m_id { 0 };
+    bool m_sticky { false };
     RefPtr<ScrollFrame const> m_parent;
     CSSPixelPoint m_own_offset;
 

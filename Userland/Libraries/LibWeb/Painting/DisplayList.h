@@ -30,6 +30,7 @@
 #include <LibWeb/Painting/GradientData.h>
 #include <LibWeb/Painting/PaintBoxShadowParams.h>
 #include <LibWeb/Painting/ScrollFrame.h>
+#include <LibWeb/Painting/ScrollState.h>
 
 namespace Web::Painting {
 
@@ -96,9 +97,8 @@ public:
 
     AK::SegmentedVector<CommandListItem, 512> const& commands() const { return m_commands; }
 
-    void set_scroll_state(Vector<RefPtr<ScrollFrame>> scroll_state) { m_scroll_state = move(scroll_state); }
-
-    Vector<RefPtr<ScrollFrame>> const& scroll_state() const { return m_scroll_state; }
+    void set_scroll_state(ScrollState scroll_state) { m_scroll_state = move(scroll_state); }
+    ScrollState const& scroll_state() const { return m_scroll_state; }
 
     void set_device_pixels_per_css_pixel(double device_pixels_per_css_pixel) { m_device_pixels_per_css_pixel = device_pixels_per_css_pixel; }
     double device_pixels_per_css_pixel() const { return m_device_pixels_per_css_pixel; }
@@ -107,7 +107,7 @@ private:
     DisplayList() = default;
 
     AK::SegmentedVector<CommandListItem, 512> m_commands;
-    Vector<RefPtr<ScrollFrame>> m_scroll_state;
+    ScrollState m_scroll_state;
     double m_device_pixels_per_css_pixel;
 };
 
