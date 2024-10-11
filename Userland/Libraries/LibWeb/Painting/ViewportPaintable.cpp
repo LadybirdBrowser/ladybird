@@ -179,13 +179,13 @@ void ViewportPaintable::refresh_scroll_state()
         return;
     m_needs_to_refresh_scroll_state = false;
 
-    for (auto const& scroll_frame : m_scroll_state.sticky_frames()) {
+    m_scroll_state.for_each_sticky_frame([&](auto& scroll_frame) {
         auto const& sticky_box = scroll_frame->paintable_box();
         auto const& sticky_insets = sticky_box.sticky_insets();
 
         auto const* nearest_scrollable_ancestor = sticky_box.nearest_scrollable_ancestor();
         if (!nearest_scrollable_ancestor) {
-            continue;
+            return;
         }
 
         // Min and max offsets are needed to clamp the sticky box's position to stay within bounds of containing block.
@@ -250,11 +250,11 @@ void ViewportPaintable::refresh_scroll_state()
         }
 
         scroll_frame->set_own_offset(sticky_offset);
-    }
+    });
 
-    for (auto const& scroll_frame : m_scroll_state.scroll_frames()) {
+    m_scroll_state.for_each_scroll_frame([&](auto& scroll_frame) {
         scroll_frame->set_own_offset(-scroll_frame->paintable_box().scroll_offset());
-    }
+    });
 }
 
 void ViewportPaintable::resolve_paint_only_properties()

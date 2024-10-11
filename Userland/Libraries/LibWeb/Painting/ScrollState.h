@@ -12,32 +12,52 @@ namespace Web::Painting {
 
 class ScrollState {
 public:
-    NonnullRefPtr<ScrollFrame> create_scroll_frame_for(PaintableBox const& paintable, RefPtr<ScrollFrame const> parent)
+    NonnullRefPtr<ScrollFrame> create_scroll_frame_for(PaintableBox const& paintable_box, RefPtr<ScrollFrame const> parent)
     {
-        auto scroll_frame = adopt_ref(*new ScrollFrame(paintable, m_next_id++, parent));
+        auto scroll_frame = adopt_ref(*new ScrollFrame(paintable_box, m_scroll_frames.size(), false, move(parent)));
         m_scroll_frames.append(scroll_frame);
         return scroll_frame;
     }
 
-    NonnullRefPtr<ScrollFrame> create_sticky_frame_for(PaintableBox const& paintable, RefPtr<ScrollFrame const> parent)
+    NonnullRefPtr<ScrollFrame> create_sticky_frame_for(PaintableBox const& paintable_box, RefPtr<ScrollFrame const> parent)
     {
-        auto scroll_frame = adopt_ref(*new ScrollFrame(paintable, m_next_id++, parent));
-        m_sticky_frames.append(scroll_frame);
+        auto scroll_frame = adopt_ref(*new ScrollFrame(paintable_box, m_scroll_frames.size(), true, move(parent)));
+        m_scroll_frames.append(scroll_frame);
         return scroll_frame;
     }
 
-    void clear()
+    CSSPixelPoint cumulative_offset_for_frame_with_id(size_t id) const
     {
-        m_scroll_frames.clear();
+        return m_scroll_frames[id]->cumulative_offset();
     }
 
-    Vector<NonnullRefPtr<ScrollFrame>> const& scroll_frames() const { return m_scroll_frames; }
-    Vector<NonnullRefPtr<ScrollFrame>> const& sticky_frames() const { return m_sticky_frames; }
+    CSSPixelPoint own_offset_for_frame_with_id(size_t id) const
+    {
+        return m_scroll_frames[id]->own_offset();
+    }
+
+    template<typename Callback>
+    void for_each_scroll_frame(Callback callback) const
+    {
+        for (auto const& scroll_frame : m_scroll_frames) {
+            if (scroll_frame->is_sticky())
+                continue;
+            callback(scroll_frame);
+        }
+    }
+
+    template<typename Callback>
+    void for_each_sticky_frame(Callback callback) const
+    {
+        for (auto const& scroll_frame : m_scroll_frames) {
+            if (!scroll_frame->is_sticky())
+                continue;
+            callback(scroll_frame);
+        }
+    }
 
 private:
-    size_t m_next_id { 0 };
     Vector<NonnullRefPtr<ScrollFrame>> m_scroll_frames;
-    Vector<NonnullRefPtr<ScrollFrame>> m_sticky_frames;
 };
 
 }
