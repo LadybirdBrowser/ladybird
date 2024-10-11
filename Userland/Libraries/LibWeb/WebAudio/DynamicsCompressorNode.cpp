@@ -23,6 +23,12 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<DynamicsCompressorNode>> DynamicsCompressor
 // https://webaudio.github.io/web-audio-api/#dom-dynamicscompressornode-dynamicscompressornode
 WebIDL::ExceptionOr<JS::NonnullGCPtr<DynamicsCompressorNode>> DynamicsCompressorNode::construct_impl(JS::Realm& realm, JS::NonnullGCPtr<BaseAudioContext> context, DynamicsCompressorOptions const& options)
 {
+    // Validate the channel_count_mode before creating the node
+    if (options.channel_count_mode == Bindings::ChannelCountMode::Max) {
+        // Return a NotSupportedError if 'max' is used
+        return WebIDL::NotSupportedError::create(realm, "DynamicsCompressorNode does not support 'max' as channelCountMode."_fly_string);
+    }
+
     // FIXME: Invoke "Initialize the AudioNode" steps.
     return realm.vm().heap().allocate<DynamicsCompressorNode>(realm, realm, context, options);
 }
@@ -35,6 +41,12 @@ DynamicsCompressorNode::DynamicsCompressorNode(JS::Realm& realm, JS::NonnullGCPt
     , m_attack(AudioParam::create(realm, options.attack, 0, 1, Bindings::AutomationRate::KRate))
     , m_release(AudioParam::create(realm, options.release, 0, 1, Bindings::AutomationRate::KRate))
 {
+    // Set the channel count mode, using the provided one if valid or defaulting to 'clamped-max'
+    auto channel_count_mode_to_set = (options.channel_count_mode != Bindings::ChannelCountMode::Max)
+                                        ? options.channel_count_mode
+                                        : Bindings::ChannelCountMode::ClampedMax;
+    auto result = set_channel_count_mode(channel_count_mode_to_set);
+    VERIFY(!result.is_error());
 }
 
 void DynamicsCompressorNode::initialize(JS::Realm& realm)
@@ -51,6 +63,17 @@ void DynamicsCompressorNode::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_ratio);
     visitor.visit(m_attack);
     visitor.visit(m_release);
+}
+
+WebIDL::ExceptionOr<void> DynamicsCompressorNode::set_channel_count_mode(Bindings::ChannelCountMode mode)
+{
+    if (mode == Bindings::ChannelCountMode::Max) {
+        // Return a NotSupportedError if 'max' is used
+        return WebIDL::NotSupportedError::create(realm(), "DynamicsCompressorNode does not support 'max' as channelCountMode."_fly_string);
+    }
+
+    // If the mode is valid, call the base class implementation
+    return AudioNode::set_channel_count_mode(mode);
 }
 
 }

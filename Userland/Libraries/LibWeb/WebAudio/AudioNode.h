@@ -57,7 +57,7 @@ public:
     virtual WebIDL::ExceptionOr<void> set_channel_count(WebIDL::UnsignedLong);
     virtual WebIDL::UnsignedLong channel_count() const { return m_channel_count; }
 
-    WebIDL::ExceptionOr<void> set_channel_count_mode(Bindings::ChannelCountMode);
+    virtual WebIDL::ExceptionOr<void> set_channel_count_mode(Bindings::ChannelCountMode);
     Bindings::ChannelCountMode channel_count_mode();
     WebIDL::ExceptionOr<void> set_channel_interpretation(Bindings::ChannelInterpretation);
     Bindings::ChannelInterpretation channel_interpretation();
