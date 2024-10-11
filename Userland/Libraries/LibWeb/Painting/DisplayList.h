@@ -49,6 +49,7 @@ private:
     virtual void draw_repeated_immutable_bitmap(DrawRepeatedImmutableBitmap const&) = 0;
     virtual void save(Save const&) = 0;
     virtual void restore(Restore const&) = 0;
+    virtual void translate(Translate const&) = 0;
     virtual void add_clip_rect(AddClipRect const&) = 0;
     virtual void push_stacking_context(PushStackingContext const&) = 0;
     virtual void pop_stacking_context(PopStackingContext const&) = 0;

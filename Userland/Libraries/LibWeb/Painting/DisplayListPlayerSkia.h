@@ -56,6 +56,7 @@ private:
     void add_clip_rect(AddClipRect const&) override;
     void save(Save const&) override;
     void restore(Restore const&) override;
+    void translate(Translate const&) override;
     void push_stacking_context(PushStackingContext const&) override;
     void pop_stacking_context(PopStackingContext const&) override;
     void paint_linear_gradient(PaintLinearGradient const&) override;

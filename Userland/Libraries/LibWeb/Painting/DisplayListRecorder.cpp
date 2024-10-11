@@ -24,39 +24,29 @@ void DisplayListRecorder::append(Command&& command)
 
 void DisplayListRecorder::paint_nested_display_list(RefPtr<DisplayList> display_list, Gfx::IntRect rect)
 {
-    append(PaintNestedDisplayList {
-        .display_list = move(display_list),
-        .rect = state().translation.map(rect) });
+    append(PaintNestedDisplayList { move(display_list), rect });
 }
 
 void DisplayListRecorder::add_rounded_rect_clip(CornerRadii corner_radii, Gfx::IntRect border_rect, CornerClip corner_clip)
 {
-    append(AddRoundedRectClip {
-        corner_radii,
-        border_rect = state().translation.map(border_rect),
-        corner_clip });
+    append(AddRoundedRectClip { corner_radii, border_rect, corner_clip });
 }
 
 void DisplayListRecorder::add_mask(RefPtr<DisplayList> display_list, Gfx::IntRect rect)
 {
-    append(AddMask {
-        .display_list = move(display_list),
-        .rect = state().translation.map(rect) });
+    append(AddMask { move(display_list), rect });
 }
 
 void DisplayListRecorder::fill_rect(Gfx::IntRect const& rect, Color color)
 {
     if (rect.is_empty())
         return;
-    append(FillRect {
-        .rect = state().translation.map(rect),
-        .color = color,
-    });
+    append(FillRect { rect, color });
 }
 
 void DisplayListRecorder::fill_path(FillPathUsingColorParams params)
 {
-    auto aa_translation = state().translation.map(params.translation.value_or(Gfx::FloatPoint {}));
+    auto aa_translation = params.translation.value_or(Gfx::FloatPoint {});
     auto path_bounding_rect = params.path.bounding_box().translated(aa_translation).to_type<int>();
     if (path_bounding_rect.is_empty())
         return;
@@ -71,7 +61,7 @@ void DisplayListRecorder::fill_path(FillPathUsingColorParams params)
 
 void DisplayListRecorder::fill_path(FillPathUsingPaintStyleParams params)
 {
-    auto aa_translation = state().translation.map(params.translation.value_or(Gfx::FloatPoint {}));
+    auto aa_translation = params.translation.value_or(Gfx::FloatPoint {});
     auto path_bounding_rect = params.path.bounding_box().translated(aa_translation).to_type<int>();
     if (path_bounding_rect.is_empty())
         return;
@@ -87,7 +77,7 @@ void DisplayListRecorder::fill_path(FillPathUsingPaintStyleParams params)
 
 void DisplayListRecorder::stroke_path(StrokePathUsingColorParams params)
 {
-    auto aa_translation = state().translation.map(params.translation.value_or(Gfx::FloatPoint {}));
+    auto aa_translation = params.translation.value_or(Gfx::FloatPoint {});
     auto path_bounding_rect = params.path.bounding_box().translated(aa_translation).to_type<int>();
     // Increase path bounding box by `thickness` to account for stroke.
     path_bounding_rect.inflate(params.thickness, params.thickness);
@@ -104,7 +94,7 @@ void DisplayListRecorder::stroke_path(StrokePathUsingColorParams params)
 
 void DisplayListRecorder::stroke_path(StrokePathUsingPaintStyleParams params)
 {
-    auto aa_translation = state().translation.map(params.translation.value_or(Gfx::FloatPoint {}));
+    auto aa_translation = params.translation.value_or(Gfx::FloatPoint {});
     auto path_bounding_rect = params.path.bounding_box().translated(aa_translation).to_type<int>();
     // Increase path bounding box by `thickness` to account for stroke.
     path_bounding_rect.inflate(params.thickness, params.thickness);
@@ -125,7 +115,7 @@ void DisplayListRecorder::draw_ellipse(Gfx::IntRect const& a_rect, Color color, 
     if (a_rect.is_empty())
         return;
     append(DrawEllipse {
-        .rect = state().translation.map(a_rect),
+        .rect = a_rect,
         .color = color,
         .thickness = thickness,
     });
@@ -135,19 +125,14 @@ void DisplayListRecorder::fill_ellipse(Gfx::IntRect const& a_rect, Color color)
 {
     if (a_rect.is_empty())
         return;
-    append(FillEllipse {
-        .rect = state().translation.map(a_rect),
-        .color = color,
-    });
+    append(FillEllipse { a_rect, color });
 }
 
 void DisplayListRecorder::fill_rect_with_linear_gradient(Gfx::IntRect const& gradient_rect, LinearGradientData const& data)
 {
     if (gradient_rect.is_empty())
         return;
-    append(PaintLinearGradient {
-        .gradient_rect = state().translation.map(gradient_rect),
-        .linear_gradient_data = data });
+    append(PaintLinearGradient { gradient_rect, data });
 }
 
 void DisplayListRecorder::fill_rect_with_conic_gradient(Gfx::IntRect const& rect, ConicGradientData const& data, Gfx::IntPoint const& position)
@@ -155,7 +140,7 @@ void DisplayListRecorder::fill_rect_with_conic_gradient(Gfx::IntRect const& rect
     if (rect.is_empty())
         return;
     append(PaintConicGradient {
-        .rect = state().translation.map(rect),
+        .rect = rect,
         .conic_gradient_data = data,
         .position = position });
 }
@@ -165,7 +150,7 @@ void DisplayListRecorder::fill_rect_with_radial_gradient(Gfx::IntRect const& rec
     if (rect.is_empty())
         return;
     append(PaintRadialGradient {
-        .rect = state().translation.map(rect),
+        .rect = rect,
         .radial_gradient_data = data,
         .center = center,
         .size = size });
@@ -176,7 +161,7 @@ void DisplayListRecorder::draw_rect(Gfx::IntRect const& rect, Color color, bool 
     if (rect.is_empty())
         return;
     append(DrawRect {
-        .rect = state().translation.map(rect),
+        .rect = rect,
         .color = color,
         .rough = rough });
 }
@@ -186,7 +171,7 @@ void DisplayListRecorder::draw_scaled_bitmap(Gfx::IntRect const& dst_rect, Gfx::
     if (dst_rect.is_empty())
         return;
     append(DrawScaledBitmap {
-        .dst_rect = state().translation.map(dst_rect),
+        .dst_rect = dst_rect,
         .bitmap = bitmap,
         .src_rect = src_rect,
         .scaling_mode = scaling_mode,
@@ -198,7 +183,7 @@ void DisplayListRecorder::draw_scaled_immutable_bitmap(Gfx::IntRect const& dst_r
     if (dst_rect.is_empty())
         return;
     append(DrawScaledImmutableBitmap {
-        .dst_rect = state().translation.map(dst_rect),
+        .dst_rect = dst_rect,
         .bitmap = bitmap,
         .src_rect = src_rect,
         .scaling_mode = scaling_mode,
@@ -220,8 +205,8 @@ void DisplayListRecorder::draw_line(Gfx::IntPoint from, Gfx::IntPoint to, Color 
 {
     append(DrawLine {
         .color = color,
-        .from = state().translation.map(from),
-        .to = state().translation.map(to),
+        .from = from,
+        .to = to,
         .thickness = thickness,
         .style = style,
         .alternate_color = alternate_color,
@@ -254,29 +239,23 @@ void DisplayListRecorder::draw_text_run(Gfx::IntPoint baseline_start, Gfx::Glyph
 {
     if (rect.is_empty())
         return;
-    auto transformed_baseline_start = state().translation.map(baseline_start).to_type<float>();
     append(DrawGlyphRun {
         .glyph_run = glyph_run,
         .color = color,
-        .rect = state().translation.map(rect),
-        .translation = transformed_baseline_start,
+        .rect = rect,
+        .translation = baseline_start.to_type<float>(),
         .scale = scale,
     });
 }
 
 void DisplayListRecorder::add_clip_rect(Gfx::IntRect const& rect)
 {
-    append(AddClipRect { .rect = state().translation.map(rect) });
-}
-
-void DisplayListRecorder::translate(int dx, int dy)
-{
-    m_state_stack.last().translation.translate(dx, dy);
+    append(AddClipRect { rect });
 }
 
 void DisplayListRecorder::translate(Gfx::IntPoint delta)
 {
-    m_state_stack.last().translation.translate(delta.to_type<float>());
+    append(Translate { delta });
 }
 
 void DisplayListRecorder::save()
@@ -317,7 +296,7 @@ void DisplayListRecorder::apply_backdrop_filter(Gfx::IntRect const& backdrop_reg
     if (backdrop_region.is_empty())
         return;
     append(ApplyBackdropFilter {
-        .backdrop_region = state().translation.map(backdrop_region),
+        .backdrop_region = backdrop_region,
         .border_radii_data = border_radii_data,
         .backdrop_filter = backdrop_filter,
     });
@@ -325,7 +304,7 @@ void DisplayListRecorder::apply_backdrop_filter(Gfx::IntRect const& backdrop_reg
 
 void DisplayListRecorder::paint_outer_box_shadow_params(PaintBoxShadowParams params)
 {
-    params.device_content_rect = state().translation.map(params.device_content_rect);
+    params.device_content_rect = params.device_content_rect;
     append(PaintOuterBoxShadow { .box_shadow_params = params });
 }
 
@@ -343,7 +322,7 @@ void DisplayListRecorder::paint_text_shadow(int blur_radius, Gfx::IntRect boundi
         .glyph_run = glyph_run,
         .glyph_run_scale = glyph_run_scale,
         .color = color,
-        .draw_location = state().translation.map(draw_location) });
+        .draw_location = draw_location });
 }
 
 void DisplayListRecorder::fill_rect_with_rounded_corners(Gfx::IntRect const& rect, Color color, Gfx::CornerRadius top_left_radius, Gfx::CornerRadius top_right_radius, Gfx::CornerRadius bottom_right_radius, Gfx::CornerRadius bottom_left_radius)
@@ -357,7 +336,7 @@ void DisplayListRecorder::fill_rect_with_rounded_corners(Gfx::IntRect const& rec
     }
 
     append(FillRectWithRoundedCorners {
-        .rect = state().translation.map(rect),
+        .rect = rect,
         .color = color,
         .corner_radii = {
             .top_left = top_left_radius,
@@ -389,8 +368,8 @@ void DisplayListRecorder::fill_rect_with_rounded_corners(Gfx::IntRect const& a_r
 void DisplayListRecorder::draw_triangle_wave(Gfx::IntPoint a_p1, Gfx::IntPoint a_p2, Color color, int amplitude, int thickness = 1)
 {
     append(DrawTriangleWave {
-        .p1 = state().translation.map(a_p1),
-        .p2 = state().translation.map(a_p2),
+        .p1 = a_p1,
+        .p2 = a_p2,
         .color = color,
         .amplitude = amplitude,
         .thickness = thickness });

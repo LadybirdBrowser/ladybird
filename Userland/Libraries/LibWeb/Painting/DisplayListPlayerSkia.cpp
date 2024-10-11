@@ -427,6 +427,12 @@ void DisplayListPlayerSkia::restore(Restore const&)
     canvas.restore();
 }
 
+void DisplayListPlayerSkia::translate(Translate const& command)
+{
+    auto& canvas = surface().canvas();
+    canvas.translate(command.delta.x(), command.delta.y());
+}
+
 void DisplayListPlayerSkia::push_stacking_context(PushStackingContext const& command)
 {
     auto& canvas = surface().canvas();
