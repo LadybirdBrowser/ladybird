@@ -31,8 +31,7 @@ void SVGSVGPaintable::before_children_paint(PaintContext& context, PaintPhase ph
     PaintableBox::before_children_paint(context, phase);
     if (phase != PaintPhase::Foreground)
         return;
-    context.display_list_recorder().save();
-    context.display_list_recorder().set_scroll_frame_id(scroll_frame_id());
+    context.display_list_recorder().push_scroll_frame_id(scroll_frame_id());
 }
 
 void SVGSVGPaintable::after_children_paint(PaintContext& context, PaintPhase phase) const
@@ -40,7 +39,7 @@ void SVGSVGPaintable::after_children_paint(PaintContext& context, PaintPhase pha
     PaintableBox::after_children_paint(context, phase);
     if (phase != PaintPhase::Foreground)
         return;
-    context.display_list_recorder().restore();
+    context.display_list_recorder().pop_scroll_frame_id();
 }
 
 static Gfx::FloatMatrix4x4 matrix_with_scaled_translation(Gfx::FloatMatrix4x4 matrix, float scale)

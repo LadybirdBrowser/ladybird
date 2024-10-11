@@ -37,15 +37,15 @@ void InlinePaintable::before_paint(PaintContext& context, PaintPhase) const
     apply_clip(context);
 
     if (scroll_frame_id().has_value()) {
-        context.display_list_recorder().save();
-        context.display_list_recorder().set_scroll_frame_id(scroll_frame_id().value());
+        context.display_list_recorder().push_scroll_frame_id(scroll_frame_id().value());
     }
 }
 
 void InlinePaintable::after_paint(PaintContext& context, PaintPhase) const
 {
-    if (scroll_frame_id().has_value())
-        context.display_list_recorder().restore();
+    if (scroll_frame_id().has_value()) {
+        context.display_list_recorder().pop_scroll_frame_id();
+    }
 
     restore_clip(context);
 }

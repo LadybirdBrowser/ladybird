@@ -335,8 +335,9 @@ void StackingContext::paint(PaintContext& context) const
     if (has_css_transform) {
         paintable_box().apply_clip_overflow_rect(context, PaintPhase::Foreground);
     }
-    if (paintable().is_paintable_box() && paintable_box().scroll_frame_id().has_value())
-        context.display_list_recorder().set_scroll_frame_id(*paintable_box().scroll_frame_id());
+    if (paintable().is_paintable_box() && paintable_box().scroll_frame_id().has_value()) {
+        context.display_list_recorder().push_scroll_frame_id(*paintable_box().scroll_frame_id());
+    }
     context.display_list_recorder().push_stacking_context(push_stacking_context_params);
 
     if (paintable().is_paintable_box()) {
@@ -353,6 +354,9 @@ void StackingContext::paint(PaintContext& context) const
 
     paint_internal(context);
     context.display_list_recorder().pop_stacking_context();
+    if (paintable().is_paintable_box() && paintable_box().scroll_frame_id().has_value()) {
+        context.display_list_recorder().pop_scroll_frame_id();
+    }
     if (has_css_transform)
         paintable_box().clear_clip_overflow_rect(context, PaintPhase::Foreground);
     context.display_list_recorder().restore();

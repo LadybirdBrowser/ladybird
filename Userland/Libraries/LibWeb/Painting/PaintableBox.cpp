@@ -477,15 +477,15 @@ BorderRadiiData PaintableBox::normalized_border_radii_data(ShrinkRadiiForBorders
 void PaintableBox::apply_scroll_offset(PaintContext& context, PaintPhase) const
 {
     if (scroll_frame_id().has_value()) {
-        context.display_list_recorder().save();
-        context.display_list_recorder().set_scroll_frame_id(scroll_frame_id().value());
+        context.display_list_recorder().push_scroll_frame_id(scroll_frame_id().value());
     }
 }
 
 void PaintableBox::reset_scroll_offset(PaintContext& context, PaintPhase) const
 {
-    if (scroll_frame_id().has_value())
-        context.display_list_recorder().restore();
+    if (scroll_frame_id().has_value()) {
+        context.display_list_recorder().pop_scroll_frame_id();
+    }
 }
 
 void PaintableBox::apply_clip_overflow_rect(PaintContext& context, PaintPhase phase) const
@@ -687,7 +687,7 @@ void PaintableWithLines::paint(PaintContext& context, PaintPhase phase) const
         }
 
         if (own_scroll_frame_id().has_value()) {
-            context.display_list_recorder().set_scroll_frame_id(own_scroll_frame_id().value());
+            context.display_list_recorder().push_scroll_frame_id(own_scroll_frame_id().value());
         }
     }
 
@@ -716,6 +716,10 @@ void PaintableWithLines::paint(PaintContext& context, PaintPhase phase) const
 
     if (should_clip_overflow) {
         context.display_list_recorder().restore();
+
+        if (own_scroll_frame_id().has_value()) {
+            context.display_list_recorder().pop_scroll_frame_id();
+        }
     }
 }
 
