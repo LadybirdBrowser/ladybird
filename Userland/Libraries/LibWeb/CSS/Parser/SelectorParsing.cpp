@@ -240,7 +240,7 @@ Optional<Selector::SimpleSelector::QualifiedName> Parser::parse_selector_qualifi
 
 Parser::ParseErrorOr<Selector::SimpleSelector> Parser::parse_attribute_simple_selector(ComponentValue const& first_value)
 {
-    auto attribute_tokens = TokenStream { first_value.block().values() };
+    auto attribute_tokens = TokenStream { first_value.block().value };
 
     attribute_tokens.discard_whitespace();
 
@@ -496,34 +496,34 @@ Parser::ParseErrorOr<Selector::SimpleSelector> Parser::parse_pseudo_simple_selec
         };
 
         auto const& pseudo_function = pseudo_class_token.function();
-        auto maybe_pseudo_class = pseudo_class_from_string(pseudo_function.name());
+        auto maybe_pseudo_class = pseudo_class_from_string(pseudo_function.name);
         if (!maybe_pseudo_class.has_value()) {
-            dbgln_if(CSS_PARSER_DEBUG, "Unrecognized pseudo-class function: ':{}'()", pseudo_function.name());
+            dbgln_if(CSS_PARSER_DEBUG, "Unrecognized pseudo-class function: ':{}'()", pseudo_function.name);
             return ParseError::SyntaxError;
         }
         auto pseudo_class = maybe_pseudo_class.value();
         auto metadata = pseudo_class_metadata(pseudo_class);
 
         if (!metadata.is_valid_as_function) {
-            dbgln_if(CSS_PARSER_DEBUG, "Pseudo-class ':{}' is not valid as a function", pseudo_function.name());
+            dbgln_if(CSS_PARSER_DEBUG, "Pseudo-class ':{}' is not valid as a function", pseudo_function.name);
             return ParseError::SyntaxError;
         }
 
-        if (pseudo_function.values().is_empty()) {
-            dbgln_if(CSS_PARSER_DEBUG, "Empty :{}() selector", pseudo_function.name());
+        if (pseudo_function.value.is_empty()) {
+            dbgln_if(CSS_PARSER_DEBUG, "Empty :{}() selector", pseudo_function.name);
             return ParseError::SyntaxError;
         }
 
         switch (metadata.parameter_type) {
         case PseudoClassMetadata::ParameterType::ANPlusB:
-            return parse_nth_child_selector(pseudo_class, pseudo_function.values(), false);
+            return parse_nth_child_selector(pseudo_class, pseudo_function.value, false);
         case PseudoClassMetadata::ParameterType::ANPlusBOf:
-            return parse_nth_child_selector(pseudo_class, pseudo_function.values(), true);
+            return parse_nth_child_selector(pseudo_class, pseudo_function.value, true);
         case PseudoClassMetadata::ParameterType::CompoundSelector: {
-            auto function_token_stream = TokenStream(pseudo_function.values());
+            auto function_token_stream = TokenStream(pseudo_function.value);
             auto compound_selector_or_error = parse_compound_selector(function_token_stream);
             if (compound_selector_or_error.is_error() || !compound_selector_or_error.value().has_value()) {
-                dbgln_if(CSS_PARSER_DEBUG, "Failed to parse :{}() parameter as a compound selector", pseudo_function.name());
+                dbgln_if(CSS_PARSER_DEBUG, "Failed to parse :{}() parameter as a compound selector", pseudo_function.name);
                 return ParseError::SyntaxError;
             }
 
@@ -542,7 +542,7 @@ Parser::ParseErrorOr<Selector::SimpleSelector> Parser::parse_pseudo_simple_selec
         }
         case PseudoClassMetadata::ParameterType::ForgivingRelativeSelectorList:
         case PseudoClassMetadata::ParameterType::ForgivingSelectorList: {
-            auto function_token_stream = TokenStream(pseudo_function.values());
+            auto function_token_stream = TokenStream(pseudo_function.value);
             auto selector_type = metadata.parameter_type == PseudoClassMetadata::ParameterType::ForgivingSelectorList
                 ? SelectorType::Standalone
                 : SelectorType::Relative;
@@ -557,18 +557,18 @@ Parser::ParseErrorOr<Selector::SimpleSelector> Parser::parse_pseudo_simple_selec
             };
         }
         case PseudoClassMetadata::ParameterType::Ident: {
-            auto function_token_stream = TokenStream(pseudo_function.values());
+            auto function_token_stream = TokenStream(pseudo_function.value);
             function_token_stream.discard_whitespace();
             auto maybe_keyword_token = function_token_stream.consume_a_token();
             function_token_stream.discard_whitespace();
             if (!maybe_keyword_token.is(Token::Type::Ident) || function_token_stream.has_next_token()) {
-                dbgln_if(CSS_PARSER_DEBUG, "Failed to parse :{}() parameter as a keyword: not an ident", pseudo_function.name());
+                dbgln_if(CSS_PARSER_DEBUG, "Failed to parse :{}() parameter as a keyword: not an ident", pseudo_function.name);
                 return ParseError::SyntaxError;
             }
 
             auto maybe_keyword = keyword_from_string(maybe_keyword_token.token().ident());
             if (!maybe_keyword.has_value()) {
-                dbgln_if(CSS_PARSER_DEBUG, "Failed to parse :{}() parameter as a keyword: unrecognized keyword", pseudo_function.name());
+                dbgln_if(CSS_PARSER_DEBUG, "Failed to parse :{}() parameter as a keyword: unrecognized keyword", pseudo_function.name);
                 return ParseError::SyntaxError;
             }
 
@@ -581,7 +581,7 @@ Parser::ParseErrorOr<Selector::SimpleSelector> Parser::parse_pseudo_simple_selec
         }
         case PseudoClassMetadata::ParameterType::LanguageRanges: {
             Vector<FlyString> languages;
-            auto function_token_stream = TokenStream(pseudo_function.values());
+            auto function_token_stream = TokenStream(pseudo_function.value);
             auto language_token_lists = parse_a_comma_separated_list_of_component_values(function_token_stream);
 
             for (auto language_token_list : language_token_lists) {
@@ -589,7 +589,7 @@ Parser::ParseErrorOr<Selector::SimpleSelector> Parser::parse_pseudo_simple_selec
                 language_token_stream.discard_whitespace();
                 auto language_token = language_token_stream.consume_a_token();
                 if (!(language_token.is(Token::Type::Ident) || language_token.is(Token::Type::String))) {
-                    dbgln_if(CSS_PARSER_DEBUG, "Invalid language range in :{}() - not a string/ident", pseudo_function.name());
+                    dbgln_if(CSS_PARSER_DEBUG, "Invalid language range in :{}() - not a string/ident", pseudo_function.name);
                     return ParseError::SyntaxError;
                 }
 
@@ -598,7 +598,7 @@ Parser::ParseErrorOr<Selector::SimpleSelector> Parser::parse_pseudo_simple_selec
 
                 language_token_stream.discard_whitespace();
                 if (language_token_stream.has_next_token()) {
-                    dbgln_if(CSS_PARSER_DEBUG, "Invalid language range in :{}() - trailing tokens", pseudo_function.name());
+                    dbgln_if(CSS_PARSER_DEBUG, "Invalid language range in :{}() - trailing tokens", pseudo_function.name);
                     return ParseError::SyntaxError;
                 }
             }
@@ -611,7 +611,7 @@ Parser::ParseErrorOr<Selector::SimpleSelector> Parser::parse_pseudo_simple_selec
             };
         }
         case PseudoClassMetadata::ParameterType::SelectorList: {
-            auto function_token_stream = TokenStream(pseudo_function.values());
+            auto function_token_stream = TokenStream(pseudo_function.value);
             auto not_selector = TRY(parse_a_selector_list(function_token_stream, SelectorType::Standalone));
 
             return Selector::SimpleSelector {

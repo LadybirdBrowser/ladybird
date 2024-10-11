@@ -148,7 +148,7 @@ RefPtr<CSSStyleValue> Parser::parse_linear_gradient_function(TokenStream<Compone
     GradientRepeating repeating_gradient = GradientRepeating::No;
     GradientType gradient_type { GradientType::Standard };
 
-    auto function_name = component_value.function().name().bytes_as_string_view();
+    auto function_name = component_value.function().name.bytes_as_string_view();
 
     function_name = consume_if_starts_with(function_name, "-webkit-"sv, [&] {
         gradient_type = GradientType::WebKit;
@@ -163,7 +163,7 @@ RefPtr<CSSStyleValue> Parser::parse_linear_gradient_function(TokenStream<Compone
 
     // linear-gradient() = linear-gradient([ <angle> | to <side-or-corner> ]?, <color-stop-list>)
 
-    TokenStream tokens { component_value.function().values() };
+    TokenStream tokens { component_value.function().value };
     tokens.discard_whitespace();
 
     if (!tokens.has_next_token())
@@ -277,7 +277,7 @@ RefPtr<CSSStyleValue> Parser::parse_conic_gradient_function(TokenStream<Componen
 
     GradientRepeating repeating_gradient = GradientRepeating::No;
 
-    auto function_name = component_value.function().name().bytes_as_string_view();
+    auto function_name = component_value.function().name.bytes_as_string_view();
 
     function_name = consume_if_starts_with(function_name, "repeating-"sv, [&] {
         repeating_gradient = GradientRepeating::Yes;
@@ -286,7 +286,7 @@ RefPtr<CSSStyleValue> Parser::parse_conic_gradient_function(TokenStream<Componen
     if (!function_name.equals_ignoring_ascii_case("conic-gradient"sv))
         return nullptr;
 
-    TokenStream tokens { component_value.function().values() };
+    TokenStream tokens { component_value.function().value };
     tokens.discard_whitespace();
 
     if (!tokens.has_next_token())
@@ -387,7 +387,7 @@ RefPtr<CSSStyleValue> Parser::parse_radial_gradient_function(TokenStream<Compone
 
     auto repeating_gradient = GradientRepeating::No;
 
-    auto function_name = component_value.function().name().bytes_as_string_view();
+    auto function_name = component_value.function().name.bytes_as_string_view();
 
     function_name = consume_if_starts_with(function_name, "repeating-"sv, [&] {
         repeating_gradient = GradientRepeating::Yes;
@@ -396,7 +396,7 @@ RefPtr<CSSStyleValue> Parser::parse_radial_gradient_function(TokenStream<Compone
     if (!function_name.equals_ignoring_ascii_case("radial-gradient"sv))
         return nullptr;
 
-    TokenStream tokens { component_value.function().values() };
+    TokenStream tokens { component_value.function().value };
     tokens.discard_whitespace();
     if (!tokens.has_next_token())
         return nullptr;

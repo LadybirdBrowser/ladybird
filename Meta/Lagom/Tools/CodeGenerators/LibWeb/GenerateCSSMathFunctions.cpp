@@ -118,7 +118,7 @@ static Optional<RoundingStrategy> parse_rounding_strategy(Vector<ComponentValue>
 
 OwnPtr<CalculationNode> Parser::parse_math_function(PropertyID property_id, Function const& function)
 {
-    TokenStream stream { function.values() };
+    TokenStream stream { function.value };
     auto arguments = parse_a_comma_separated_list_of_component_values(stream);
 )~~~");
 
@@ -129,7 +129,7 @@ OwnPtr<CalculationNode> Parser::parse_math_function(PropertyID property_id, Func
         auto function_generator = generator.fork();
         function_generator.set("name:lowercase", name);
         function_generator.set("name:titlecase", title_casify(name));
-        function_generator.appendln("    if (function.name().equals_ignoring_ascii_case(\"@name:lowercase@\"sv)) {");
+        function_generator.appendln("    if (function.name.equals_ignoring_ascii_case(\"@name:lowercase@\"sv)) {");
         if (function_data.get_bool("is-variadic"sv).value_or(false)) {
             // Variadic function
             function_generator.append(R"~~~(

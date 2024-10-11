@@ -16,16 +16,12 @@
 #include <LibWeb/CSS/GeneralEnclosed.h>
 #include <LibWeb/CSS/MediaQuery.h>
 #include <LibWeb/CSS/ParsedFontFace.h>
-#include <LibWeb/CSS/Parser/Block.h>
 #include <LibWeb/CSS/Parser/ComponentValue.h>
-#include <LibWeb/CSS/Parser/Declaration.h>
-#include <LibWeb/CSS/Parser/DeclarationOrAtRule.h>
 #include <LibWeb/CSS/Parser/Dimension.h>
-#include <LibWeb/CSS/Parser/Function.h>
 #include <LibWeb/CSS/Parser/ParsingContext.h>
-#include <LibWeb/CSS/Parser/Rule.h>
 #include <LibWeb/CSS/Parser/TokenStream.h>
 #include <LibWeb/CSS/Parser/Tokenizer.h>
+#include <LibWeb/CSS/Parser/Types.h>
 #include <LibWeb/CSS/PropertyID.h>
 #include <LibWeb/CSS/Ratio.h>
 #include <LibWeb/CSS/Selector.h>
@@ -91,35 +87,34 @@ private:
     // "Parse a stylesheet" is intended to be the normal parser entry point, for parsing stylesheets.
     struct ParsedStyleSheet {
         Optional<URL::URL> location;
-        Vector<NonnullRefPtr<Rule>> rules;
+        Vector<Rule> rules;
     };
     template<typename T>
     ParsedStyleSheet parse_a_stylesheet(TokenStream<T>&, Optional<URL::URL> location);
 
-    // "Parse a list of rules" is intended for the content of at-rules such as @media. It differs from "Parse a stylesheet" in the handling of <CDO-token> and <CDC-token>.
+    // "Parse a stylesheet’s contents" is intended for use by the CSSStyleSheet replace() method, and similar, which parse text into the contents of an existing stylesheet.
     template<typename T>
-    Vector<NonnullRefPtr<Rule>> parse_a_list_of_rules(TokenStream<T>&);
+    Vector<Rule> parse_a_stylesheets_contents(TokenStream<T>&);
+
+    // "Parse a block’s contents" is intended for parsing the contents of any block in CSS (including things like the style attribute),
+    // and APIs such as the CSSStyleDeclaration cssText attribute.
+    template<typename T>
+    Vector<RuleOrListOfDeclarations> parse_a_blocks_contents(TokenStream<T>&);
 
     // "Parse a rule" is intended for use by the CSSStyleSheet#insertRule method, and similar functions which might exist, which parse text into a single rule.
     template<typename T>
-    RefPtr<Rule> parse_a_rule(TokenStream<T>&);
+    Optional<Rule> parse_a_rule(TokenStream<T>&);
 
     // "Parse a declaration" is used in @supports conditions. [CSS3-CONDITIONAL]
     template<typename T>
     Optional<Declaration> parse_a_declaration(TokenStream<T>&);
 
-    template<typename T>
-    Vector<DeclarationOrAtRule> parse_a_style_blocks_contents(TokenStream<T>&);
-
-    // "Parse a list of declarations" is for the contents of a style attribute, which parses text into the contents of a single style rule.
-    template<typename T>
-    Vector<DeclarationOrAtRule> parse_a_list_of_declarations(TokenStream<T>&);
-
     // "Parse a component value" is for things that need to consume a single value, like the parsing rules for attr().
     template<typename T>
     Optional<ComponentValue> parse_a_component_value(TokenStream<T>&);
 
-    // "Parse a list of component values" is for the contents of presentational attributes, which parse text into a single declaration’s value, or for parsing a stand-alone selector [SELECT] or list of Media Queries [MEDIAQ], as in Selectors API or the media HTML attribute.
+    // "Parse a list of component values" is for the contents of presentational attributes, which parse text into a single declaration’s value,
+    // or for parsing a stand-alone selector [SELECT] or list of Media Queries [MEDIAQ], as in Selectors API or the media HTML attribute.
     template<typename T>
     Vector<ComponentValue> parse_a_list_of_component_values(TokenStream<T>&);
 
@@ -140,32 +135,36 @@ private:
 
     Optional<Selector::SimpleSelector::ANPlusBPattern> parse_a_n_plus_b_pattern(TokenStream<ComponentValue>&);
 
-    enum class TopLevel {
+    template<typename T>
+    [[nodiscard]] Vector<Rule> consume_a_stylesheets_contents(TokenStream<T>&);
+    enum class Nested {
         No,
-        Yes
+        Yes,
     };
     template<typename T>
-    [[nodiscard]] Vector<NonnullRefPtr<Rule>> consume_a_list_of_rules(TokenStream<T>&, TopLevel);
+    Optional<AtRule> consume_an_at_rule(TokenStream<T>&, Nested nested = Nested::No);
+    struct InvalidRuleError { };
     template<typename T>
-    [[nodiscard]] NonnullRefPtr<Rule> consume_an_at_rule(TokenStream<T>&);
+    Variant<Empty, QualifiedRule, InvalidRuleError> consume_a_qualified_rule(TokenStream<T>&, Optional<Token::Type> stop_token = {}, Nested = Nested::No);
     template<typename T>
-    RefPtr<Rule> consume_a_qualified_rule(TokenStream<T>&);
+    Vector<RuleOrListOfDeclarations> consume_a_block(TokenStream<T>&);
     template<typename T>
-    [[nodiscard]] Vector<DeclarationOrAtRule> consume_a_style_blocks_contents(TokenStream<T>&);
+    Vector<RuleOrListOfDeclarations> consume_a_blocks_contents(TokenStream<T>&);
     template<typename T>
-    [[nodiscard]] Vector<DeclarationOrAtRule> consume_a_list_of_declarations(TokenStream<T>&);
+    Optional<Declaration> consume_a_declaration(TokenStream<T>&, Nested = Nested::No);
     template<typename T>
-    Optional<Declaration> consume_a_declaration(TokenStream<T>&);
+    void consume_the_remnants_of_a_bad_declaration(TokenStream<T>&, Nested);
+    template<typename T>
+    [[nodiscard]] Vector<ComponentValue> consume_a_list_of_component_values(TokenStream<T>&, Optional<Token::Type> stop_token = {}, Nested = Nested::No);
     template<typename T>
     [[nodiscard]] ComponentValue consume_a_component_value(TokenStream<T>&);
     template<typename T>
-    NonnullRefPtr<Block> consume_a_simple_block(TokenStream<T>&);
+    SimpleBlock consume_a_simple_block(TokenStream<T>&);
     template<typename T>
-    NonnullRefPtr<Function> consume_a_function(TokenStream<T>&);
+    Function consume_a_function(TokenStream<T>&);
+    // TODO: consume_a_unicode_range_value()
 
     Optional<GeneralEnclosed> parse_general_enclosed(TokenStream<ComponentValue>&);
-
-    JS::GCPtr<CSSFontFaceRule> parse_font_face_rule(TokenStream<ComponentValue>&);
 
     template<typename T>
     Vector<ParsedFontFace::Source> parse_font_face_src(TokenStream<T>&);
@@ -176,15 +175,19 @@ private:
     };
     Optional<FlyString> parse_layer_name(TokenStream<ComponentValue>&, AllowBlankLayerName);
 
-    JS::GCPtr<CSSRule> convert_to_rule(NonnullRefPtr<Rule>);
-    JS::GCPtr<CSSKeyframesRule> convert_to_keyframes_rule(Rule&);
-    JS::GCPtr<CSSImportRule> convert_to_import_rule(Rule&);
-    JS::GCPtr<CSSRule> convert_to_layer_rule(Rule&);
-    JS::GCPtr<CSSMediaRule> convert_to_media_rule(Rule&);
-    JS::GCPtr<CSSNamespaceRule> convert_to_namespace_rule(Rule&);
-    JS::GCPtr<CSSSupportsRule> convert_to_supports_rule(Rule&);
+    bool is_valid_in_the_current_context(Declaration&);
+    bool is_valid_in_the_current_context(AtRule&);
+    bool is_valid_in_the_current_context(QualifiedRule&);
+    JS::GCPtr<CSSRule> convert_to_rule(Rule const&);
+    JS::GCPtr<CSSFontFaceRule> convert_to_font_face_rule(AtRule const&);
+    JS::GCPtr<CSSKeyframesRule> convert_to_keyframes_rule(AtRule const&);
+    JS::GCPtr<CSSImportRule> convert_to_import_rule(AtRule const&);
+    JS::GCPtr<CSSRule> convert_to_layer_rule(AtRule const&);
+    JS::GCPtr<CSSMediaRule> convert_to_media_rule(AtRule const&);
+    JS::GCPtr<CSSNamespaceRule> convert_to_namespace_rule(AtRule const&);
+    JS::GCPtr<CSSSupportsRule> convert_to_supports_rule(AtRule const&);
 
-    PropertyOwningCSSStyleDeclaration* convert_to_style_declaration(Vector<DeclarationOrAtRule> const& declarations);
+    PropertyOwningCSSStyleDeclaration* convert_to_style_declaration(Vector<Declaration> const&);
     Optional<StyleProperty> convert_to_style_property(Declaration const&);
 
     Optional<Dimension> parse_dimension(ComponentValue const&);
@@ -376,7 +379,8 @@ private:
         HashMap<FlyString, StyleProperty> custom_properties;
     };
 
-    PropertiesAndCustomProperties extract_properties(Vector<DeclarationOrAtRule> const&);
+    PropertiesAndCustomProperties extract_properties(Vector<RuleOrListOfDeclarations> const&);
+    void extract_property(Declaration const&, Parser::PropertiesAndCustomProperties&);
 
     ParsingContext m_context;
 
