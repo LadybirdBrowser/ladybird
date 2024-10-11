@@ -243,11 +243,15 @@ Messages::WebDriverClient::GetTimeoutsResponse WebDriverConnection::get_timeouts
 // 9.2 Set Timeouts, https://w3c.github.io/webdriver/#dfn-set-timeouts
 Messages::WebDriverClient::SetTimeoutsResponse WebDriverConnection::set_timeouts(JsonValue const& payload)
 {
+    // FIXME: Spec issue: As written, the spec replaces the timeouts configuration with the newly provided values. But
+    //        all other implementations update the existing configuration with any new values instead. WPT relies on
+    //        this behavior, and sends us one timeout value at time.
+    //        https://github.com/w3c/webdriver/issues/1596
+
     // 1. Let timeouts be the result of trying to JSON deserialize as a timeouts configuration the request’s parameters.
-    auto timeouts = TRY(Web::WebDriver::json_deserialize_as_a_timeouts_configuration(payload));
+    TRY(Web::WebDriver::json_deserialize_as_a_timeouts_configuration_into(payload, m_timeouts_configuration));
 
     // 2. Make the session timeouts the new timeouts.
-    m_timeouts_configuration = move(timeouts);
 
     // 3. Return success with data null.
     return JsonValue {};

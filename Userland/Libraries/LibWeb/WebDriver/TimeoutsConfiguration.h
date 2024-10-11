@@ -21,5 +21,6 @@ struct TimeoutsConfiguration {
 
 JsonObject timeouts_object(TimeoutsConfiguration const&);
 ErrorOr<TimeoutsConfiguration, Error> json_deserialize_as_a_timeouts_configuration(JsonValue const&);
+ErrorOr<void, Error> json_deserialize_as_a_timeouts_configuration_into(JsonValue const&, TimeoutsConfiguration&);
 
 }

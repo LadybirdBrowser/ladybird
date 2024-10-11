@@ -32,12 +32,21 @@ JsonObject timeouts_object(TimeoutsConfiguration const& timeouts)
 // https://w3c.github.io/webdriver/#dfn-deserialize-as-timeouts-configuration
 ErrorOr<TimeoutsConfiguration, Error> json_deserialize_as_a_timeouts_configuration(JsonValue const& timeouts)
 {
+    // 2. Let configuration be a new timeouts configuration.
+    TimeoutsConfiguration configuration {};
+
+    TRY(json_deserialize_as_a_timeouts_configuration_into(timeouts, configuration));
+
+    // 4. Return success with data configuration.
+    return configuration;
+}
+
+// https://w3c.github.io/webdriver/#dfn-deserialize-as-timeouts-configuration
+ErrorOr<void, Error> json_deserialize_as_a_timeouts_configuration_into(JsonValue const& timeouts, TimeoutsConfiguration& configuration)
+{
     // 1. Set timeouts to the result of converting a JSON-derived JavaScript value to an Infra value with timeouts.
     if (!timeouts.is_object())
         return Error::from_code(ErrorCode::InvalidArgument, "Payload is not a JSON object");
-
-    // 2. Let configuration be a new timeouts configuration.
-    TimeoutsConfiguration configuration {};
 
     // 3. For each key → value in timeouts:
     TRY(timeouts.as_object().try_for_each_member([&](auto const& key, JsonValue const& value) -> ErrorOr<void, Error> {
@@ -78,8 +87,7 @@ ErrorOr<TimeoutsConfiguration, Error> json_deserialize_as_a_timeouts_configurati
         return {};
     }));
 
-    // 4. Return success with data configuration.
-    return configuration;
+    return {};
 }
 
 }
