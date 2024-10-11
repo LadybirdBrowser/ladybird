@@ -469,7 +469,7 @@ void HTMLInputElement::did_pick_color(Optional<Color> picked_color, ColorPickerU
     }
 }
 
-void HTMLInputElement::did_select_files(Span<SelectedFile> selected_files)
+void HTMLInputElement::did_select_files(Span<SelectedFile> selected_files, MultipleHandling multiple_handling)
 {
     // https://html.spec.whatwg.org/multipage/input.html#show-the-picker,-if-applicable
     // 4. If the user dismissed the prompt without changing their selection, then queue an element task on the user
@@ -504,9 +504,17 @@ void HTMLInputElement::did_select_files(Span<SelectedFile> selected_files)
 
     // https://html.spec.whatwg.org/multipage/input.html#update-the-file-selection
     // 1. Queue an element task on the user interaction task source given element and the following steps:
-    queue_an_element_task(HTML::Task::Source::UserInteraction, [this, files]() mutable {
+    queue_an_element_task(HTML::Task::Source::UserInteraction, [this, files, multiple_handling]() mutable {
+        auto multiple = has_attribute(HTML::AttributeNames::multiple);
+
         // 1. Update element's selected files so that it represents the user's selection.
-        m_selected_files = files;
+        if (m_selected_files && multiple && multiple_handling == MultipleHandling::Append) {
+            for (size_t i = 0; i < files->length(); ++i)
+                m_selected_files->add_file(*files->item(i));
+        } else {
+            m_selected_files = files;
+        }
+
         update_file_input_shadow_tree();
 
         // 2. Fire an event named input at the input element, with the bubbles and composed attributes initialized to true.
