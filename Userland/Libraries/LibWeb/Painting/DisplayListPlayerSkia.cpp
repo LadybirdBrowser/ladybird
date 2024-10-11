@@ -433,7 +433,6 @@ void DisplayListPlayerSkia::push_stacking_context(PushStackingContext const& com
 
     auto affine_transform = Gfx::extract_2d_affine_transform(command.transform.matrix);
     auto new_transform = Gfx::AffineTransform {}
-                             .set_translation(command.post_transform_translation.to_type<float>())
                              .translate(command.transform.origin)
                              .multiply(affine_transform)
                              .translate(-command.transform.origin);
@@ -1254,7 +1253,6 @@ void DisplayListPlayerSkia::apply_transform(ApplyTransform const& command)
 {
     auto affine_transform = Gfx::extract_2d_affine_transform(command.matrix);
     auto new_transform = Gfx::AffineTransform {}
-                             .set_translation(command.post_transform_translation.to_type<float>())
                              .translate(command.origin)
                              .multiply(affine_transform)
                              .translate(-command.origin);

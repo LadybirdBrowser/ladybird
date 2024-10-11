@@ -298,10 +298,6 @@ void DisplayListRecorder::push_stacking_context(PushStackingContextParams params
     append(PushStackingContext {
         .opacity = params.opacity,
         .source_paintable_rect = params.source_paintable_rect,
-        // No translations apply to fixed-position stacking contexts.
-        .post_transform_translation = params.is_fixed_position
-            ? Gfx::IntPoint {}
-            : state().translation.translation().to_rounded<int>(),
         .transform = {
             .origin = params.transform.origin,
             .matrix = params.transform.matrix,
@@ -419,7 +415,6 @@ void DisplayListRecorder::apply_transform(Gfx::FloatPoint origin, Gfx::FloatMatr
     append(ApplyTransform {
         .origin = origin,
         .matrix = matrix,
-        .post_transform_translation = state().translation.translation().to_rounded<int>(),
     });
 }
 
