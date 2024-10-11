@@ -15,8 +15,8 @@ namespace Web::WebDriver {
 // https://w3c.github.io/webdriver/#dfn-timeouts-configuration
 struct TimeoutsConfiguration {
     Optional<u64> script_timeout { 30'000 };
-    u64 page_load_timeout { 300'000 };
-    u64 implicit_wait_timeout { 0 };
+    Optional<u64> page_load_timeout { 300'000 };
+    Optional<u64> implicit_wait_timeout { 0 };
 };
 
 JsonObject timeouts_object(TimeoutsConfiguration const&);
