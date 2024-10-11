@@ -12,14 +12,16 @@ namespace Web::Painting {
 DisplayListRecorder::DisplayListRecorder(DisplayList& command_list)
     : m_command_list(command_list)
 {
-    m_state_stack.append(State());
 }
 
 DisplayListRecorder::~DisplayListRecorder() = default;
 
 void DisplayListRecorder::append(Command&& command)
 {
-    m_command_list.append(move(command), state().scroll_frame_id);
+    Optional<i32> scroll_frame_id;
+    if (!m_scroll_frame_id_stack.is_empty())
+        scroll_frame_id = m_scroll_frame_id_stack.last();
+    m_command_list.append(move(command), scroll_frame_id);
 }
 
 void DisplayListRecorder::paint_nested_display_list(RefPtr<DisplayList> display_list, Gfx::IntRect rect)
@@ -261,15 +263,21 @@ void DisplayListRecorder::translate(Gfx::IntPoint delta)
 void DisplayListRecorder::save()
 {
     append(Save {});
-    m_state_stack.append(m_state_stack.last());
 }
 
 void DisplayListRecorder::restore()
 {
     append(Restore {});
+}
 
-    VERIFY(m_state_stack.size() > 1);
-    m_state_stack.take_last();
+void DisplayListRecorder::push_scroll_frame_id(Optional<i32> id)
+{
+    m_scroll_frame_id_stack.append(id);
+}
+
+void DisplayListRecorder::pop_scroll_frame_id()
+{
+    (void)m_scroll_frame_id_stack.take_last();
 }
 
 void DisplayListRecorder::push_stacking_context(PushStackingContextParams params)
@@ -282,12 +290,12 @@ void DisplayListRecorder::push_stacking_context(PushStackingContextParams params
             .matrix = params.transform.matrix,
         },
         .clip_path = params.clip_path });
-    m_state_stack.append(State());
+    m_scroll_frame_id_stack.append({});
 }
 
 void DisplayListRecorder::pop_stacking_context()
 {
-    m_state_stack.take_last();
+    (void)m_scroll_frame_id_stack.take_last();
     append(PopStackingContext {});
 }
 

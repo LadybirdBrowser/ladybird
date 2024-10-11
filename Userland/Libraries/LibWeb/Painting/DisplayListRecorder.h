@@ -103,15 +103,8 @@ public:
 
     void translate(Gfx::IntPoint delta);
 
-    void set_scroll_frame_id(Optional<i32> id)
-    {
-        state().scroll_frame_id = id;
-    }
-
-    Optional<i32> scroll_frame_id() const
-    {
-        return state().scroll_frame_id;
-    }
+    void push_scroll_frame_id(Optional<i32> id);
+    void pop_scroll_frame_id();
 
     void save();
     void restore();
@@ -157,13 +150,7 @@ public:
     void append(Command&& command);
 
 private:
-    struct State {
-        Optional<i32> scroll_frame_id;
-    };
-    State& state() { return m_state_stack.last(); }
-    State const& state() const { return m_state_stack.last(); }
-
-    Vector<State> m_state_stack;
+    Vector<Optional<i32>> m_scroll_frame_id_stack;
     DisplayList& m_command_list;
 };
 
