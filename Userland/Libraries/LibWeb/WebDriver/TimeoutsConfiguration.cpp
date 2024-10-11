@@ -5,6 +5,7 @@
  */
 
 #include <AK/JsonObject.h>
+#include <LibJS/Runtime/Value.h>
 #include <LibWeb/WebDriver/TimeoutsConfiguration.h>
 
 namespace Web::WebDriver {
@@ -12,95 +13,73 @@ namespace Web::WebDriver {
 // https://w3c.github.io/webdriver/#dfn-timeouts-object
 JsonObject timeouts_object(TimeoutsConfiguration const& timeouts)
 {
-    //  The timeouts object for a timeouts configuration timeouts is an object initialized with the following properties:
-    auto timeouts_object = JsonObject {};
+    // 1. Let serialized be an empty map.
+    JsonObject serialized;
 
-    // "script"
-    //     timeouts' script timeout value, if set, or its default value.
-    if (timeouts.script_timeout.has_value())
-        timeouts_object.set("script", *timeouts.script_timeout);
-    else
-        timeouts_object.set("script", JsonValue {});
+    // 2. Set serialized["script"] to timeouts' script timeout.
+    serialized.set("script"sv, timeouts.script_timeout.has_value() ? *timeouts.script_timeout : JsonValue {});
 
-    // "pageLoad"
-    //     timeouts' page load timeout’s value, if set, or its default value.
-    timeouts_object.set("pageLoad", timeouts.page_load_timeout);
+    // 3. Set serialized["pageLoad"] to timeouts' page load timeout.
+    serialized.set("pageLoad"sv, timeouts.page_load_timeout.has_value() ? *timeouts.page_load_timeout : JsonValue {});
 
-    // "implicit"
-    //     timeouts' implicit wait timeout’s value, if set, or its default value.
-    timeouts_object.set("implicit", timeouts.implicit_wait_timeout);
+    // 4. Set serialized["implicit"] to timeouts' implicit wait timeout.
+    serialized.set("implicit"sv, timeouts.implicit_wait_timeout.has_value() ? *timeouts.implicit_wait_timeout : JsonValue {});
 
-    return timeouts_object;
+    // 5. Return convert an Infra value to a JSON-compatible JavaScript value with serialized.
+    return serialized;
 }
 
-// FIXME: Update this to match the newest spec: https://www.w3.org/TR/webdriver2/#dfn-deserialize-as-timeouts-configuration
-// https://w3c.github.io/webdriver/#ref-for-dfn-json-deserialize-3
-ErrorOr<TimeoutsConfiguration, Error> json_deserialize_as_a_timeouts_configuration(JsonValue const& value)
+// https://w3c.github.io/webdriver/#dfn-deserialize-as-timeouts-configuration
+ErrorOr<TimeoutsConfiguration, Error> json_deserialize_as_a_timeouts_configuration(JsonValue const& timeouts)
 {
-    constexpr i64 max_safe_integer = 9007199254740991;
-
-    // 1. Let timeouts be a new timeouts configuration.
-    auto timeouts = TimeoutsConfiguration {};
-
-    // 2. If value is not a JSON Object, return error with error code invalid argument.
-    if (!value.is_object())
+    // 1. Set timeouts to the result of converting a JSON-derived JavaScript value to an Infra value with timeouts.
+    if (!timeouts.is_object())
         return Error::from_code(ErrorCode::InvalidArgument, "Payload is not a JSON object");
 
-    // 3. If value has a property with the key "script":
-    if (value.as_object().has("script"sv)) {
-        // 1. Let script duration be the value of property "script".
-        auto script_duration = value.as_object().get("script"sv);
+    // 2. Let configuration be a new timeouts configuration.
+    TimeoutsConfiguration configuration {};
 
-        // 2. If script duration is a number and less than 0 or greater than maximum safe integer, or it is not null, return error with error code invalid argument.
-        Optional<u64> script_timeout;
-        if (script_duration.has_value()) {
-            bool is_valid;
-            if (auto duration = script_duration->get_double_with_precision_loss(); duration.has_value()) {
-                is_valid = *duration >= 0 && *duration <= max_safe_integer;
-                // FIXME: script_timeout should be double.
-                script_timeout = static_cast<u64>(*duration);
-            } else if (script_duration->is_null()) {
-                is_valid = true;
-            } else {
-                is_valid = false;
-            }
-            if (!is_valid)
-                return Error::from_code(ErrorCode::InvalidArgument, "Invalid script duration");
+    // 3. For each key → value in timeouts:
+    TRY(timeouts.as_object().try_for_each_member([&](auto const& key, JsonValue const& value) -> ErrorOr<void, Error> {
+        Optional<u64> parsed_value;
+
+        // 1. If «"script", "pageLoad", "implicit"» does not contain key, then continue.
+        if (!key.is_one_of("script"sv, "pageLoad"sv, "implicit"sv))
+            return {};
+
+        // 2. If value is neither null nor a number greater than or equal to 0 and less than or equal to the maximum
+        //    safe integer return error with error code invalid argument.
+        if (!value.is_null()) {
+            auto duration = value.get_integer<u64>();
+
+            if (!duration.has_value() || *duration > JS::MAX_ARRAY_LIKE_INDEX)
+                return Error::from_code(ErrorCode::InvalidArgument, "Invalid timeout value");
+
+            parsed_value = static_cast<u64>(*duration);
         }
 
-        // 3. Set timeouts’s script timeout to script duration.
-        timeouts.script_timeout = script_timeout;
-    }
+        // 3. Run the substeps matching key:
+        // -> "script"
+        if (key == "script"sv) {
+            // Set configuration's script timeout to value.
+            configuration.script_timeout = parsed_value;
+        }
+        // -> "pageLoad"
+        else if (key == "pageLoad"sv) {
+            // Set configuration's page load timeout to value.
+            configuration.page_load_timeout = parsed_value;
+        }
+        // -> "implicit"
+        else if (key == "implicit"sv) {
+            // Set configuration's implicit wait timeout to value.
+            configuration.implicit_wait_timeout = parsed_value;
+        }
 
-    // 4. If value has a property with the key "pageLoad":
-    if (value.as_object().has("pageLoad"sv)) {
-        // 1. Let page load duration be the value of property "pageLoad".
-        // NOTE: We parse this as a double due to WPT sending values such as `{"pageLoad": 300.00000000000006}`
-        auto page_load_duration = value.as_object().get_double_with_precision_loss("pageLoad"sv);
+        return {};
+    }));
 
-        // 2. If page load duration is less than 0 or greater than maximum safe integer, return error with error code invalid argument.
-        if (!page_load_duration.has_value() || *page_load_duration < 0 || *page_load_duration > max_safe_integer)
-            return Error::from_code(ErrorCode::InvalidArgument, "Invalid page load duration");
-
-        // 3. Set timeouts’s page load timeout to page load duration.
-        timeouts.page_load_timeout = static_cast<u64>(*page_load_duration);
-    }
-
-    // 5. If value has a property with the key "implicit":
-    if (value.as_object().has("implicit"sv)) {
-        // 1. Let implicit duration be the value of property "implicit".
-        auto implicit_duration = value.as_object().get_i64("implicit"sv);
-
-        // 2. If implicit duration is less than 0 or greater than maximum safe integer, return error with error code invalid argument.
-        if (!implicit_duration.has_value() || *implicit_duration < 0 || *implicit_duration > max_safe_integer)
-            return Error::from_code(ErrorCode::InvalidArgument, "Invalid implicit duration");
-
-        // 3. Set timeouts’s implicit wait timeout to implicit duration.
-        timeouts.implicit_wait_timeout = static_cast<u64>(*implicit_duration);
-    }
-
-    // 6. Return success with data timeouts.
-    return timeouts;
+    // 4. Return success with data configuration.
+    return configuration;
 }
 
 }

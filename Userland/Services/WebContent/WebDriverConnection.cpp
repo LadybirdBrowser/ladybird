@@ -2356,6 +2356,7 @@ ErrorOr<void, Web::WebDriver::Error> WebDriverConnection::handle_any_user_prompt
 }
 
 // https://w3c.github.io/webdriver/#dfn-waiting-for-the-navigation-to-complete
+// FIXME: Update this AO to the latest spec steps.
 ErrorOr<void, Web::WebDriver::Error> WebDriverConnection::wait_for_navigation_to_complete()
 {
     // 1. If the current session has a page loading strategy of none, return success with data null.
@@ -2372,11 +2373,10 @@ ErrorOr<void, Web::WebDriver::Error> WebDriverConnection::wait_for_navigation_to
 
     // 3. Start a timer. If this algorithm has not completed before timer reaches the session’s session page load timeout in milliseconds, return an error with error code timeout.
     auto page_load_timeout_fired = false;
-    auto timer = Core::Timer::create_single_shot(m_timeouts_configuration.page_load_timeout, [&] {
+    auto timer = Core::Timer::create_single_shot(m_timeouts_configuration.page_load_timeout.value_or(300'000), [&] {
         page_load_timeout_fired = true;
     });
     timer->start();
-
     // 4. If there is an ongoing attempt to navigate the current browsing context that has not yet matured, wait for navigation to mature.
     Web::Platform::EventLoopPlugin::the().spin_until([&] {
         return page_load_timeout_fired || navigable->ongoing_navigation().has<Empty>();
@@ -2417,7 +2417,7 @@ void WebDriverConnection::restore_the_window()
     // Do not return from this operation until the visibility state of the top-level browsing context’s active document has reached the visible state, or until the operation times out.
     // FIXME: It isn't clear which timeout should be used here.
     auto page_load_timeout_fired = false;
-    auto timer = Core::Timer::create_single_shot(m_timeouts_configuration.page_load_timeout, [&] {
+    auto timer = Core::Timer::create_single_shot(m_timeouts_configuration.page_load_timeout.value_or(300'000), [&] {
         page_load_timeout_fired = true;
     });
     timer->start();
@@ -2447,7 +2447,7 @@ Gfx::IntRect WebDriverConnection::iconify_the_window()
     // Do not return from this operation until the visibility state of the top-level browsing context’s active document has reached the hidden state, or until the operation times out.
     // FIXME: It isn't clear which timeout should be used here.
     auto page_load_timeout_fired = false;
-    auto timer = Core::Timer::create_single_shot(m_timeouts_configuration.page_load_timeout, [&] {
+    auto timer = Core::Timer::create_single_shot(m_timeouts_configuration.page_load_timeout.value_or(300'000), [&] {
         page_load_timeout_fired = true;
     });
     timer->start();
@@ -2461,10 +2461,11 @@ Gfx::IntRect WebDriverConnection::iconify_the_window()
 }
 
 // https://w3c.github.io/webdriver/#dfn-find
+// FIXME: Update this AO to the latest spec steps.
 ErrorOr<JsonArray, Web::WebDriver::Error> WebDriverConnection::find(StartNodeGetter&& start_node_getter, Web::WebDriver::LocationStrategy using_, StringView value)
 {
     // 1. Let end time be the current time plus the session implicit wait timeout.
-    auto end_time = MonotonicTime::now() + AK::Duration::from_milliseconds(static_cast<i64>(m_timeouts_configuration.implicit_wait_timeout));
+    auto end_time = MonotonicTime::now() + AK::Duration::from_milliseconds(static_cast<i64>(m_timeouts_configuration.implicit_wait_timeout.value_or(0)));
 
     // 2. Let location strategy be equal to using.
     auto location_strategy = using_;
