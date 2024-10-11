@@ -160,7 +160,6 @@ public:
 private:
     struct State {
         Gfx::AffineTransform translation;
-        Optional<Gfx::IntRect> clip_rect;
         Optional<i32> scroll_frame_id;
     };
     State& state() { return m_state_stack.last(); }
