@@ -1204,6 +1204,11 @@ void vdbg(StringView fmtstr, TypeErasedFormatParams& params, bool newline)
             }
 #    endif
         }
+#else
+        auto process_name = process_name_for_logging();
+        if (!process_name.is_empty()) {
+            builder.appendff("{}: ", process_name);
+        }
 #endif
     }
 
