@@ -10,8 +10,10 @@
 
 #include <AK/JsonObject.h>
 #include <AK/JsonValue.h>
+#include <AK/LexicalPath.h>
 #include <AK/Time.h>
 #include <AK/Vector.h>
+#include <LibCore/File.h>
 #include <LibJS/Runtime/JSONObject.h>
 #include <LibJS/Runtime/Value.h>
 #include <LibWeb/CSS/CSSStyleValue.h>
@@ -25,6 +27,7 @@
 #include <LibWeb/DOM/Event.h>
 #include <LibWeb/DOM/NodeFilter.h>
 #include <LibWeb/DOM/NodeIterator.h>
+#include <LibWeb/DOM/Position.h>
 #include <LibWeb/DOM/ShadowRoot.h>
 #include <LibWeb/Geometry/DOMRect.h>
 #include <LibWeb/HTML/AttributeNames.h>
@@ -38,7 +41,9 @@
 #include <LibWeb/HTML/HTMLOptGroupElement.h>
 #include <LibWeb/HTML/HTMLOptionElement.h>
 #include <LibWeb/HTML/HTMLSelectElement.h>
+#include <LibWeb/HTML/HTMLTextAreaElement.h>
 #include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
+#include <LibWeb/HTML/SelectedFile.h>
 #include <LibWeb/HTML/TraversableNavigable.h>
 #include <LibWeb/Page/Page.h>
 #include <LibWeb/Platform/EventLoopPlugin.h>
@@ -1535,92 +1540,27 @@ Messages::WebDriverClient::ElementClearResponse WebDriverConnection::element_cle
 // 12.5.3 Element Send Keys, https://w3c.github.io/webdriver/#dfn-element-send-keys
 Messages::WebDriverClient::ElementSendKeysResponse WebDriverConnection::element_send_keys(String const& element_id, JsonValue const& payload)
 {
-    dbgln("FIXME: WebDriverConnection::element_send_keys({}, {})", element_id, payload);
+    // 1. Let text be the result of getting a property named "text" from parameters.
+    // 2. If text is not a String, return an error with error code invalid argument.
+    auto text = TRY(Web::WebDriver::get_property(payload, "text"sv));
 
-    // To clear the modifier key state given input state, input id, source, undo actions, and browsing context:
-    {
-        // FIXME: 1. If source is not a key input source return error with error code invalid argument.
-        // FIXME: 2. Let actions options be a new actions options with the is element origin steps set to represents a web element, and the get element origin steps set to get a WebElement origin.
-        // FIXME: 3. For each entry key in the lexically sorted keys of undo actions:
-        {
-            // FIXME: 1. Let action be the value of undo actions equal to the key entry key.
-            // FIXME: 2. If action is not an action object with type "key" and subtype "keyUp", return error with error code invalid argument.
-            // FIXME: 3. Let actions be the list «action»
-            // FIXME: 4. Dispatch a list of actions with input state, actions, browsing context, and actions options.
-        }
-    }
+    // 3. If session's current browsing context is no longer open, return error with error code no such window.
+    TRY(ensure_current_browsing_context_is_open());
 
-    // To dispatch the events for a typeable string given input state, input id, source, text, and browsing context:
-    {
-        // FIXME: 1. Let actions options be a new actions options with the is element origin steps set to represents a web element, and the get element origin steps set to get a WebElement origin.
-        // FIXME: 2. For each char of text:
-        {
-            // FIXME: 1. Let global key state be the result of get the global key state with input state.
-            // FIXME: 2. Let actions be the list «action».
-            // FIXME: 3. Dispatch a list of actions with input state, actions, and browsing context.
-        }
-        // FIXME: 3. If char is not a shifted character and the shifted state of source is true:
-        {
-            // FIXME: 1. Let action be an action object constructed with input id, "key", and "keyUp", and set its value property to U+E008 ("left shift").
-            // FIXME: 2. Let tick actions be the list «action».
-            // FIXME: 3. Dispatch a list of actions with input state, actions, browsing context, and actions options.
-        }
-        // FIXME: 4. Let keydown action be an action object constructed with arguments input id, "key", and "keyDown".
-        // FIXME: 5. Set the value property of keydown action to char.
-        // FIXME: 6. Let keyup action be a copy of keydown action with the subtype property changed to "keyUp".
-        // FIXME: 7. Let actions be the list «keydown action, keyup action».
-        // FIXME: 8. Dispatch a list of actions with input state, actions, browsing context, and actions options.
-    }
+    // 4. Try to handle any user prompts with session.
+    TRY(handle_any_user_prompts());
 
-    // To dispatch actions for a string given input state, input id, source, text, browsing context, and actions options:
-    {
-        // FIXME: 1. Let clusters be an array created by breaking text into extended grapheme clusters.
-        // FIXME: 2. Let undo actions be an empty map.
-        // FIXME: 3. Let current typeable text be an empty list.
-        // FIXME: 4. For each cluster corresponding to an indexed property in clusters run the substeps of the first matching statement:
-        {
-            // -> cluster is the null key
-            {
-                // FIXME: 1. Dispatch the events for a typeable string with input state, input id, source, current typeable text, and browsing context. Empty current typeable text.
-                // FIXME: 2. Try to clear the modifier key state with input state, input id, source, undo actions and browsing context.
-                // FIXME: 3. Clear undo actions.
-            }
-            // -> cluster is a modifier key
-            {
-                // FIXME: 1. Dispatch the events for a typeable string with input state, input id, source, current typeable text, and browsing context.
-                // FIXME: 2. Emptycurrent typeable text.
-                // FIXME: 3. Let keydown action be an action object constructed with arguments input id, "key", and "keyDown".
-                // FIXME: 4. Set the value property of keydown action to cluster.
-                // FIXME: 5. Let actions be the list «keydown action»
-                // FIXME: 6. Dispatch a list of actions with input state, actions, browsing context, and actions options.
-                // FIXME: 7. Add an entry to undo actions with key cluster and value being a copy of keydown action with the subtype property modified to "keyUp".
-            }
-            // -> cluster is typeable
-            {
-                // Append cluster to current typeable text.
-            }
-            // -> otherwise
-            {
-                // FIXME: 1. Dispatch the events for a typeable string with input state, input id, source, current typeable text, and browsing context.
-                // FIXME: 2. Empty current typeable text.
-                // FIXME: 3. Dispatch a composition event with arguments "compositionstart", undefined, and browsing context.
-                // FIXME: 4. Dispatch a composition event with arguments "compositionupdate", cluster, and browsing context.
-                // FIXME: 5. Dispatch a composition event with arguments "compositionend", cluster, and browsing context.
-            }
-        }
-        // FIXME: 5. Dispatch the events for a typeable string with input state, input id and source, current typeable text, and browsing context.
-        // FIXME: 6. Try to clear the modifier key state with input state, input id, source, undo actions, and browsing context.
-    }
+    // 5. Let element be the result of trying to get a known element with session and URL variables[element id].
+    auto* element = TRY(Web::WebDriver::get_known_connected_element(element_id));
 
-    // FIXME: 1. Let text be the result of getting a property named "text" from parameters.
-    // FIXME: 2. If text is not a String, return an error with error code invalid argument.
-    // FIXME: 3. If session's current browsing context is no longer open, return error with error code no such window.
-    // FIXME: 4. Try to handle any user prompts with session.
-    // FIXME: 5. Let element be the result of trying to get a known element with session and URL variables[element id].
-    // FIXME: 6. Let file be true if element is input element in the file upload state, or false otherwise.
-    // FIXME: 7. If file is false or the session's strict file interactability, is true run the following substeps:
-    {
-        // FIXME: 1. Scroll into view the element.
+    // 6. Let file be true if element is input element in the file upload state, or false otherwise.
+    auto file = is<Web::HTML::HTMLInputElement>(*element) && static_cast<Web::HTML::HTMLInputElement&>(*element).type_state() == Web::HTML::HTMLInputElement::TypeAttributeState::FileUpload;
+
+    // 7. If file is false or the session's strict file interactability, is true run the following substeps:
+    if (!file || m_strict_file_interactability) {
+        // 1. Scroll into view the element.
+        TRY(scroll_element_into_view(*element));
+
         // FIXME: 2. Let timeout be session's session timeouts' implicit wait timeout.
         // FIXME: 3. Let timer be a new timer.
         // FIXME: 4. If timeout is not null:
@@ -1628,51 +1568,150 @@ Messages::WebDriverClient::ElementSendKeysResponse WebDriverConnection::element_
             // FIXME: 1. Start the timer with timer and timeout.
         }
         // FIXME: 5. Wait for element to become keyboard-interactable, or timer's timeout fired flag to be set, whichever occurs first.
-        // FIXME: 6. If element is not keyboard-interactable, return error with error code element not interactable.
-        // FIXME: 7. If element is not the active element run the focusing steps for the element.
-    }
-    // FIXME: 8. Run the substeps of the first matching condition:
-    {
-        // -> file is true
-        {
-            // FIXME: 1. Let files be the result of splitting text on the newline (\n) character.
-            // FIXME: 2. If files is of 0 length, return an error with error code invalid argument.
-            // FIXME: 3. Let multiple equal the result of calling hasAttribute() with "multiple" on element.
-            // FIXME: 4. if multiple is false and the length of files is not equal to 1, return an error with error code invalid argument.
-            // FIXME: 5. Verify that each file given by the user exists. If any do not, return error with error code invalid argument.
-            // FIXME: 6. Complete implementation specific steps equivalent to setting the selected files on the input element. If multiple is true files are be appended to element's selected files.
-            // FIXME: 7. Fire these events in order on element:
-            //     FIXME: 1. input
-            //     FIXME: 2. change
-            // FIXME: 8. Return success with data null.
-        }
-        // -> element is a non-typeable form control
-        {
-            // FIXME: 1. If element does not have an own property named value return an error with error code element not interactable
-            // FIXME: 2. If element is not mutable return an error with error code element not interactable.
-            // FIXME: 3. Set a property value to text on element.
-            // FIXME: 4. If element is suffering from bad input return an error with error code invalid argument.
-            // FIXME: 5. Return success with data null.
-        }
-        // -> elementis content editable
-        {
-            // If element does not currently have focus, set the text insertion caret after any child content.
-        }
-        // -> otherwise
-        {
-            // FIXME: 1. If element does not currently have focus, let current text length be the length of element's API value.
-            // FIXME: 2. Set the text insertion caret using set selection range using current text length for both the start and end parameters.
-        }
-    }
-    // FIXME: 9. Let input state be the result of get the input state with session and session's current top-level browsing context.
-    // FIXME: 10. Let input id be a the result of generating a UUID.
-    // FIXME: 11. Let source be the result of create an input source with input state, and "key".
-    // FIXME: 12. Add an input source with input state, input id and source.
-    // FIXME: 13. Dispatch actions for a string with arguments input state, input id, and source, text, and session's current browsing context.
-    // FIXME: 14. Remove an input source with input state and input id.
-    // FIXME: 15. Return success with data null.
 
-    return Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::UnsupportedOperation, "send keys not implemented"sv);
+        // 6. If element is not keyboard-interactable, return error with error code element not interactable.
+        if (!Web::WebDriver::is_element_keyboard_interactable(*element))
+            return Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::ElementNotInteractable, "Element is not keyboard-interactable"sv);
+
+        // 7. If element is not the active element run the focusing steps for the element.
+        if (!element->is_active())
+            Web::HTML::run_focusing_steps(element);
+    }
+
+    // 8. Run the substeps of the first matching condition:
+
+    // -> file is true
+    if (file) {
+        auto& input_element = static_cast<Web::HTML::HTMLInputElement&>(*element);
+
+        // 1. Let files be the result of splitting text on the newline (\n) character.
+        auto files = text.split('\n');
+
+        // 2. If files is of 0 length, return an error with error code invalid argument.
+        if (files.is_empty())
+            return Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::InvalidArgument, "File list is empty"sv);
+
+        // 3. Let multiple equal the result of calling hasAttribute() with "multiple" on element.
+        auto multiple = input_element.has_attribute(Web::HTML::AttributeNames::multiple);
+
+        // 4. if multiple is false and the length of files is not equal to 1, return an error with error code invalid argument.
+        if (!multiple && files.size() != 1)
+            return Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::InvalidArgument, "Element does not accept multiple files"sv);
+
+        // 5. Verify that each file given by the user exists. If any do not, return error with error code invalid argument.
+        // 6. Complete implementation specific steps equivalent to setting the selected files on the input element. If
+        //    multiple is true files are be appended to element's selected files.
+        auto create_selected_file = [](auto const& path) -> ErrorOr<Web::HTML::SelectedFile> {
+            auto file = TRY(Core::File::open(path, Core::File::OpenMode::Read));
+            auto contents = TRY(file->read_until_eof());
+
+            return Web::HTML::SelectedFile { LexicalPath::basename(path), move(contents) };
+        };
+
+        Vector<Web::HTML::SelectedFile> selected_files;
+        selected_files.ensure_capacity(files.size());
+
+        for (auto const& path : files) {
+            auto selected_file = create_selected_file(path);
+            if (selected_file.is_error())
+                return Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::InvalidArgument, ByteString::formatted("'{}' does not exist", path));
+
+            selected_files.unchecked_append(selected_file.release_value());
+        }
+
+        input_element.did_select_files(selected_files, Web::HTML::HTMLInputElement::MultipleHandling::Append);
+
+        // 7. Fire these events in order on element:
+        //     1. input
+        //     2. change
+        // NOTE: These events are fired by `did_select_files` as an element task. So instead of firing them here, we spin
+        //       the event loop once before informing the client that the action is complete.
+        Web::HTML::queue_a_task(Web::HTML::Task::Source::Unspecified, nullptr, nullptr, JS::create_heap_function(current_browsing_context().heap(), [this]() {
+            async_actions_performed(JsonValue {});
+        }));
+
+        // 8. Return success with data null.
+        return JsonValue {};
+    }
+    // -> element is a non-typeable form control
+    else if (Web::WebDriver::is_element_non_typeable_form_control(*element)) {
+        // 1. If element does not have an own property named value return an error with error code element not interactable
+        if (!is<Web::HTML::HTMLInputElement>(*element))
+            return Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::ElementNotInteractable, "Element does not have a property named 'value'"sv);
+
+        auto& input_element = static_cast<Web::HTML::HTMLInputElement&>(*element);
+
+        // 2. If element is not mutable return an error with error code element not interactable.
+        if (input_element.is_mutable())
+            return Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::ElementNotInteractable, "Element is immutable"sv);
+
+        // 3. Set a property value to text on element.
+        MUST(input_element.set_value(MUST(String::from_byte_string(text))));
+
+        // FIXME: 4. If element is suffering from bad input return an error with error code invalid argument.
+
+        // 5. Return success with data null.
+        async_actions_performed(JsonValue {});
+        return JsonValue {};
+    }
+    // -> element is content editable
+    else if (is<Web::HTML::HTMLElement>(*element) && static_cast<Web::HTML::HTMLElement&>(*element).is_content_editable()) {
+        // If element does not currently have focus, set the text insertion caret after any child content.
+        if (!element->is_focused())
+            element->document().set_cursor_position(Web::DOM::Position::create(element->realm(), *element, element->length()));
+    }
+    // -> otherwise
+    else if (is<Web::HTML::FormAssociatedTextControlElement>(*element)) {
+        Optional<Web::HTML::FormAssociatedTextControlElement&> target;
+
+        if (is<Web::HTML::HTMLInputElement>(*element))
+            target = static_cast<Web::HTML::HTMLInputElement&>(*element);
+        else if (is<Web::HTML::HTMLTextAreaElement>(*element))
+            target = static_cast<Web::HTML::HTMLTextAreaElement&>(*element);
+
+        // NOTE: The spec doesn't dictate this, but these steps only make sense for form-associated text elements.
+        if (target.has_value()) {
+            // 1. If element does not currently have focus, let current text length be the length of element's API value.
+            Optional<Web::WebIDL::UnsignedLong> current_text_length;
+
+            if (element->is_focused()) {
+                auto api_value = target->relevant_value();
+
+                // FIXME: This should be a UTF-16 code unit length, but `set_the_selection_range` is also currently
+                //        implemented in terms of code point length.
+                current_text_length = api_value.code_points().length();
+            }
+
+            // 2. Set the text insertion caret using set selection range using current text length for both the start
+            //    and end parameters.
+            (void)target->set_selection_range(current_text_length, current_text_length, {});
+        }
+    }
+
+    // 9. Let input state be the result of get the input state with session and session's current top-level browsing context.
+    auto& input_state = Web::WebDriver::get_input_state(*current_top_level_browsing_context());
+
+    // 10. Let input id be a the result of generating a UUID.
+    auto input_id = MUST(Web::Crypto::generate_random_uuid());
+
+    // 11. Let source be the result of create an input source with input state, and "key".
+    auto source = Web::WebDriver::create_input_source(input_state, Web::WebDriver::InputSourceType::Key, {});
+
+    // 12. Add an input source with input state, input id and source.
+    Web::WebDriver::add_input_source(input_state, input_id, move(source));
+
+    // 13. Dispatch actions for a string with arguments input state, input id, and source, text, and session's current browsing context.
+    m_action_executor = Web::WebDriver::dispatch_actions_for_a_string(input_state, input_id, source, text, current_browsing_context(), JS::create_heap_function(current_browsing_context().heap(), [this, &input_state, input_id](Web::WebDriver::Response result) {
+        m_action_executor = nullptr;
+
+        // 14. Remove an input source with input state and input id.
+        Web::WebDriver::remove_input_source(input_state, input_id);
+
+        async_actions_performed(move(result));
+    }));
+
+    // 15. Return success with data null.
+    return JsonValue {};
 }
 
 // 13.1 Get Page Source, https://w3c.github.io/webdriver/#dfn-get-page-source

@@ -10,6 +10,8 @@
 #include <LibWeb/DOM/ShadowRoot.h>
 #include <LibWeb/Geometry/DOMRect.h>
 #include <LibWeb/Geometry/DOMRectList.h>
+#include <LibWeb/HTML/HTMLBodyElement.h>
+#include <LibWeb/HTML/HTMLInputElement.h>
 #include <LibWeb/WebDriver/ElementReference.h>
 
 namespace Web::WebDriver {
@@ -121,6 +123,40 @@ bool is_element_stale(Web::DOM::Node const& element)
 {
     // An element is stale if its node document is not the active document or if it is not connected.
     return !element.document().is_active() || !element.is_connected();
+}
+
+// https://w3c.github.io/webdriver/#dfn-keyboard-interactable
+bool is_element_keyboard_interactable(Web::DOM::Element const& element)
+{
+    // A keyboard-interactable element is any element that has a focusable area, is a body element, or is the document element.
+    return element.is_focusable() || is<HTML::HTMLBodyElement>(element) || element.is_document_element();
+}
+
+// https://w3c.github.io/webdriver/#dfn-non-typeable-form-control
+bool is_element_non_typeable_form_control(Web::DOM::Element const& element)
+{
+    // A non-typeable form control is an input element whose type attribute state causes the primary input mechanism not
+    // to be through means of a keyboard, whether virtual or physical.
+    if (!is<HTML::HTMLInputElement>(element))
+        return false;
+
+    auto const& input_element = static_cast<HTML::HTMLInputElement const&>(element);
+
+    switch (input_element.type_state()) {
+    case HTML::HTMLInputElement::TypeAttributeState::Hidden:
+    case HTML::HTMLInputElement::TypeAttributeState::Range:
+    case HTML::HTMLInputElement::TypeAttributeState::Color:
+    case HTML::HTMLInputElement::TypeAttributeState::Checkbox:
+    case HTML::HTMLInputElement::TypeAttributeState::RadioButton:
+    case HTML::HTMLInputElement::TypeAttributeState::FileUpload:
+    case HTML::HTMLInputElement::TypeAttributeState::SubmitButton:
+    case HTML::HTMLInputElement::TypeAttributeState::ImageButton:
+    case HTML::HTMLInputElement::TypeAttributeState::ResetButton:
+    case HTML::HTMLInputElement::TypeAttributeState::Button:
+        return true;
+    default:
+        return false;
+    }
 }
 
 // https://w3c.github.io/webdriver/#dfn-get-or-create-a-shadow-root-reference

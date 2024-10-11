@@ -220,6 +220,13 @@ Web::WebDriver::Response Session::element_click(String element_id) const
     });
 }
 
+Web::WebDriver::Response Session::element_send_keys(String element_id, JsonValue payload) const
+{
+    return perform_async_action(web_content_connection().on_actions_performed, [&]() {
+        return web_content_connection().element_send_keys(move(element_id), move(payload));
+    });
+}
+
 Web::WebDriver::Response Session::perform_actions(JsonValue payload) const
 {
     return perform_async_action(web_content_connection().on_actions_performed, [&]() {
