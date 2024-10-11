@@ -522,7 +522,7 @@ OwnPtr<MediaCondition> Parser::parse_media_in_parens(TokenStream<ComponentValue>
     // `( <media-condition> ) | ( <media-feature> )`
     auto const& first_token = tokens.next_token();
     if (first_token.is_block() && first_token.block().is_paren()) {
-        TokenStream inner_token_stream { first_token.block().values() };
+        TokenStream inner_token_stream { first_token.block().value };
         if (auto maybe_media_condition = parse_media_condition(inner_token_stream, MediaCondition::AllowOr::Yes)) {
             tokens.discard_a_token();
             transaction.commit();
@@ -620,24 +620,17 @@ Optional<MediaFeatureValue> Parser::parse_media_feature_value(MediaFeatureID med
     return {};
 }
 
-JS::GCPtr<CSSMediaRule> Parser::convert_to_media_rule(Rule& rule)
+JS::GCPtr<CSSMediaRule> Parser::convert_to_media_rule(AtRule const& rule)
 {
-    if (!rule.block()) {
-        dbgln_if(CSS_PARSER_DEBUG, "Failed to parse @media rule: No block.");
-        return {};
-    }
-
-    auto media_query_tokens = TokenStream { rule.prelude() };
+    auto media_query_tokens = TokenStream { rule.prelude };
     auto media_query_list = parse_a_media_query_list(media_query_tokens);
-
-    auto child_tokens = TokenStream { rule.block()->values() };
-    auto parser_rules = parse_a_list_of_rules(child_tokens);
-    JS::MarkedVector<CSSRule*> child_rules(m_context.realm().heap());
-    for (auto& raw_rule : parser_rules) {
-        if (auto child_rule = convert_to_rule(raw_rule))
-            child_rules.append(child_rule);
-    }
     auto media_list = MediaList::create(m_context.realm(), move(media_query_list));
+
+    JS::MarkedVector<CSSRule*> child_rules { m_context.realm().heap() };
+    rule.for_each_as_rule_list([&](auto& rule) {
+        if (auto child_rule = convert_to_rule(rule))
+            child_rules.append(child_rule);
+    });
     auto rule_list = CSSRuleList::create(m_context.realm(), child_rules);
     return CSSMediaRule::create(m_context.realm(), media_list, rule_list);
 }

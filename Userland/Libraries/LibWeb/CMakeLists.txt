@@ -72,20 +72,16 @@ set(SOURCES
     CSS/MediaQuery.cpp
     CSS/MediaQueryList.cpp
     CSS/MediaQueryListEvent.cpp
-    CSS/Parser/Block.cpp
     CSS/Parser/ComponentValue.cpp
-    CSS/Parser/Declaration.cpp
-    CSS/Parser/DeclarationOrAtRule.cpp
-    CSS/Parser/Function.cpp
     CSS/Parser/GradientParsing.cpp
     CSS/Parser/Helpers.cpp
     CSS/Parser/MediaParsing.cpp
     CSS/Parser/Parser.cpp
     CSS/Parser/ParsingContext.cpp
-    CSS/Parser/Rule.cpp
     CSS/Parser/SelectorParsing.cpp
     CSS/Parser/Token.cpp
     CSS/Parser/Tokenizer.cpp
+    CSS/Parser/Types.cpp
     CSS/ParsedFontFace.cpp
     CSS/PercentageOr.cpp
     CSS/PreferredColorScheme.cpp
