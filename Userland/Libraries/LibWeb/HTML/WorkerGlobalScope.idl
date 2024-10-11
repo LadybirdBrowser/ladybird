@@ -1,6 +1,7 @@
 #import <CSS/FontFaceSet.idl>
 #import <DOM/EventTarget.idl>
 #import <DOM/EventHandler.idl>
+#import <HTML/Window.idl>
 #import <HTML/WindowOrWorkerGlobalScope.idl>
 #import <HTML/WorkerLocation.idl>
 #import <HTML/WorkerNavigator.idl>
