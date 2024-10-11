@@ -94,6 +94,12 @@ struct DrawRepeatedImmutableBitmap {
 struct Save { };
 struct Restore { };
 
+struct Translate {
+    Gfx::IntPoint delta;
+
+    void translate_by(Gfx::IntPoint const& offset) { delta.translate_by(offset); }
+};
+
 struct AddClipRect {
     Gfx::IntRect rect;
 
@@ -413,6 +419,7 @@ using Command = Variant<
     DrawRepeatedImmutableBitmap,
     Save,
     Restore,
+    Translate,
     AddClipRect,
     PushStackingContext,
     PopStackingContext,

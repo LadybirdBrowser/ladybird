@@ -101,7 +101,6 @@ public:
 
     void add_clip_rect(Gfx::IntRect const& rect);
 
-    void translate(int dx, int dy);
     void translate(Gfx::IntPoint delta);
 
     void set_scroll_frame_id(Optional<i32> id)
@@ -159,7 +158,6 @@ public:
 
 private:
     struct State {
-        Gfx::AffineTransform translation;
         Optional<i32> scroll_frame_id;
     };
     State& state() { return m_state_stack.last(); }
