@@ -119,6 +119,20 @@ void HTMLTextAreaElement::reset_algorithm()
     }
 }
 
+// https://w3c.github.io/webdriver/#dfn-clear-algorithm
+void HTMLTextAreaElement::clear_algorithm()
+{
+    // The clear algorithm for textarea elements is to set the dirty value flag back to false,
+    m_dirty_value = false;
+
+    // and set the raw value of element to an empty string.
+    set_raw_value(child_text_content());
+
+    // Unlike their associated reset algorithms, changes made to form controls as part of these algorithms do count as
+    // changes caused by the user (and thus, e.g. do cause input events to fire).
+    queue_firing_input_event();
+}
+
 // https://html.spec.whatwg.org/multipage/forms.html#the-textarea-element:concept-node-clone-ext
 WebIDL::ExceptionOr<void> HTMLTextAreaElement::cloned(DOM::Node& copy, bool)
 {

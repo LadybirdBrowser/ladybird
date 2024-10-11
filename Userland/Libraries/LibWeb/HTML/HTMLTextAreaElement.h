@@ -63,6 +63,7 @@ public:
     virtual bool is_labelable() const override { return true; }
 
     virtual void reset_algorithm() override;
+    virtual void clear_algorithm() override;
 
     virtual WebIDL::ExceptionOr<void> cloned(Node&, bool) override;
 
