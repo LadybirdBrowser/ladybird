@@ -1,11 +1,11 @@
 {
     "name": "Ladybird",
-    "image": "mcr.microsoft.com/devcontainers/base:jammy",
+    "image": "mcr.microsoft.com/devcontainers/base:noble",
 
     // Features to add to the dev container. More info: https://containers.dev/implementors/features.
     "features": {
         "ghcr.io/devcontainers/features/github-cli:1": {},
-        "ghcr.io/devcontainers-contrib/features/pre-commit:1": {},
+        "ghcr.io/devcontainers-contrib/features/pre-commit:2": {},
         "./features/ladybird": {
             "llvm_version": 18,
         },
