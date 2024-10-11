@@ -1528,10 +1528,47 @@ void HTMLInputElement::reset_algorithm()
     m_checked = has_attribute(AttributeNames::checked);
 
     // empty the list of selected files,
-    m_selected_files = FileAPI::FileList::create(realm());
+    if (m_selected_files)
+        m_selected_files = FileAPI::FileList::create(realm());
 
     // and then invoke the value sanitization algorithm, if the type attribute's current state defines one.
     m_value = value_sanitization_algorithm(m_value);
+
+    if (m_value != old_value)
+        relevant_value_was_changed(m_text_node);
+
+    if (m_text_node) {
+        m_text_node->set_data(m_value);
+        update_placeholder_visibility();
+    }
+
+    update_shadow_tree();
+}
+
+// https://w3c.github.io/webdriver/#dfn-clear-algorithm
+void HTMLInputElement::clear_algorithm()
+{
+    // The clear algorithm for input elements is to set the dirty value flag and dirty checkedness flag back to false,
+    m_dirty_value = false;
+    m_dirty_checkedness = false;
+
+    // set the value of the element to an empty string,
+    auto old_value = move(m_value);
+    m_value = String {};
+
+    // set the checkedness of the element to true if the element has a checked content attribute and false if it does not,
+    m_checked = has_attribute(AttributeNames::checked);
+
+    // empty the list of selected files,
+    if (m_selected_files)
+        m_selected_files = FileAPI::FileList::create(realm());
+
+    // and then invoke the value sanitization algorithm iff the type attribute's current state defines one.
+    m_value = value_sanitization_algorithm(m_value);
+
+    // Unlike their associated reset algorithms, changes made to form controls as part of these algorithms do count as
+    // changes caused by the user (and thus, e.g. do cause input events to fire).
+    user_interaction_did_change_input_value();
 
     if (m_value != old_value)
         relevant_value_was_changed(m_text_node);

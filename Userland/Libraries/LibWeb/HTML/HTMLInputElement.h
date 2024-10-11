@@ -179,6 +179,7 @@ public:
     bool is_single_line() const;
 
     virtual void reset_algorithm() override;
+    virtual void clear_algorithm() override;
 
     virtual void form_associated_element_was_inserted() override;
     virtual void form_associated_element_was_removed(DOM::Node*) override;

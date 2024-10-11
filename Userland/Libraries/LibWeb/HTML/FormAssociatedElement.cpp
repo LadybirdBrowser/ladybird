@@ -166,6 +166,14 @@ void FormAssociatedElement::reset_form_owner()
     }
 }
 
+// https://w3c.github.io/webdriver/#dfn-clear-algorithm
+void FormAssociatedElement::clear_algorithm()
+{
+    // When the clear algorithm is invoked for an element that does not define its own clear algorithm, its reset
+    // algorithm must be invoked instead.
+    reset_algorithm();
+}
+
 // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#dom-fs-formaction
 String FormAssociatedElement::form_action() const
 {
