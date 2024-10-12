@@ -573,15 +573,21 @@ ErrorOr<void, ParseError> Parser::parse_doctype_decl()
             if (m_options.resolve_external_resource) {
                 auto resource_result = m_options.resolve_external_resource(doctype.external_id->system_id, doctype.external_id->public_id);
                 if (!resource_result.is_error()) {
-                    StringView resolved_source = resource_result.value();
-                    TemporaryChange source { m_source, resolved_source };
-                    TemporaryChange lexer { m_lexer, LineTrackingLexer(m_source) };
-                    auto declarations = TRY(parse_external_subset());
-                    if (!m_lexer.is_eof()) {
-                        return parse_error(
-                            m_lexer.current_position(),
-                            ByteString::formatted("Failed to resolve external subset '{}': garbage after declarations", doctype.external_id->system_id.system_literal));
-                    }
+                    auto declarations = TRY(resource_result.release_value().visit(
+                        [&](ByteString resolved_source) -> ErrorOr<Vector<MarkupDeclaration>, ParseError> {
+                            TemporaryChange source { m_source, resolved_source.view() };
+                            TemporaryChange lexer { m_lexer, LineTrackingLexer(m_source) };
+                            auto declarations = TRY(parse_external_subset());
+                            if (!m_lexer.is_eof()) {
+                                return parse_error(
+                                    m_lexer.current_position(),
+                                    ByteString::formatted("Failed to resolve external subset '{}': garbage after declarations", doctype.external_id->system_id.system_literal));
+                            }
+                            return declarations;
+                        },
+                        [&](Vector<MarkupDeclaration> declarations) -> ErrorOr<Vector<MarkupDeclaration>, ParseError> {
+                            return declarations;
+                        }));
                     doctype.markup_declarations.extend(move(declarations));
                 }
             }
@@ -1755,7 +1761,10 @@ ErrorOr<ByteString, ParseError> Parser::resolve_reference(EntityReference const&
                     if (result.is_error())
                         return parse_error(m_lexer.position_for(0), ByteString::formatted("Failed to resolve external entity '{}': {}", reference.name, result.error()));
 
-                    resolved = result.release_value();
+                    if (!result.value().has<ByteString>())
+                        return parse_error(m_lexer.position_for(0), ByteString::formatted("Failed to resolve external entity '{}': Resource is of the wrong type", reference.name));
+
+                    resolved = result.release_value().get<ByteString>();
                     return {};
                 }));
             break;
