@@ -3189,7 +3189,7 @@ void @class_name@::initialize(JS::Realm& realm)
     set_prototype(realm.intrinsics().object_prototype());
 
 )~~~");
-    } else if (is_global_interface && interface.supports_named_properties()) {
+    } else if (is_global_interface) {
         generator.append(R"~~~(
     set_prototype(&ensure_web_prototype<@prototype_name@>(realm, "@name@"_fly_string));
 )~~~");
@@ -4766,6 +4766,10 @@ void @prototype_class@::initialize(JS::Realm& realm)
             generator.append(R"~~~(
     define_direct_property(vm().well_known_symbol_to_string_tag(), JS::PrimitiveString::create(vm(), "@namespaced_name@"_string), JS::Attribute::Configurable);
     set_prototype(&ensure_web_prototype<@prototype_class@>(realm, "@named_properties_class@"_fly_string));
+)~~~");
+        } else {
+            generator.append(R"~~~(
+    set_prototype(&ensure_web_prototype<@prototype_base_class@>(realm, "@parent_name@"_fly_string));
 )~~~");
         }
         generator.append(R"~~~(
