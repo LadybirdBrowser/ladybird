@@ -4,10 +4,21 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibGfx/Font/FontDatabase.h>
+#include <LibGfx/Font/PathFontProvider.h>
 #include <LibGfx/Font/WOFF2/Loader.h>
 #include <LibTest/TestCase.h>
 
 #define TEST_INPUT(x) ("test-inputs/" x)
+
+namespace {
+struct Global {
+    Global()
+    {
+        Gfx::FontDatabase::the().install_system_font_provider(make<Gfx::PathFontProvider>());
+    }
+} global;
+}
 
 TEST_CASE(tolerate_incorrect_sfnt_size)
 {
