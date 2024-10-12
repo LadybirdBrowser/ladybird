@@ -90,18 +90,29 @@ ErrorOr<void> JPEGLoadingContext::decode()
     }
 
     jpeg_start_decompress(&cinfo);
+    bool could_read_all_scanlines = true;
 
     if (cinfo.out_color_space == JCS_EXT_BGRX) {
         rgb_bitmap = TRY(Gfx::Bitmap::create(Gfx::BitmapFormat::BGRx8888, { static_cast<int>(cinfo.output_width), static_cast<int>(cinfo.output_height) }));
         while (cinfo.output_scanline < cinfo.output_height) {
             auto* row_ptr = (u8*)rgb_bitmap->scanline(cinfo.output_scanline);
-            jpeg_read_scanlines(&cinfo, &row_ptr, 1);
+            auto out_size = jpeg_read_scanlines(&cinfo, &row_ptr, 1);
+            if (cinfo.output_scanline < cinfo.output_height && out_size == 0) {
+                dbgln("JPEG Warning: Decoding produced no more scanlines in scanline {}/{}.", cinfo.output_scanline, cinfo.output_height);
+                could_read_all_scanlines = false;
+                break;
+            }
         }
     } else {
         cmyk_bitmap = TRY(CMYKBitmap::create_with_size({ static_cast<int>(cinfo.output_width), static_cast<int>(cinfo.output_height) }));
         while (cinfo.output_scanline < cinfo.output_height) {
             auto* row_ptr = (u8*)cmyk_bitmap->scanline(cinfo.output_scanline);
-            jpeg_read_scanlines(&cinfo, &row_ptr, 1);
+            auto out_size = jpeg_read_scanlines(&cinfo, &row_ptr, 1);
+            if (cinfo.output_scanline < cinfo.output_height && out_size == 0) {
+                dbgln("JPEG Warning: Decoding produced no more scanlines in scanline {}/{}.", cinfo.output_scanline, cinfo.output_height);
+                could_read_all_scanlines = false;
+                break;
+            }
         }
     }
 
@@ -113,7 +124,10 @@ ErrorOr<void> JPEGLoadingContext::decode()
         free(icc_data_ptr);
     }
 
-    jpeg_finish_decompress(&cinfo);
+    if (could_read_all_scanlines)
+        jpeg_finish_decompress(&cinfo);
+    else
+        jpeg_abort_decompress(&cinfo);
     jpeg_destroy_decompress(&cinfo);
 
     if (cmyk_bitmap && !rgb_bitmap)
