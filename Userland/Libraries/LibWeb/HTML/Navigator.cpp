@@ -11,6 +11,7 @@
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Bindings/NavigatorPrototype.h>
 #include <LibWeb/Clipboard/Clipboard.h>
+#include <LibWeb/Keyboard/Keyboard.h>
 #include <LibWeb/HTML/Navigator.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/ServiceWorkerContainer.h>
@@ -31,8 +32,6 @@ Navigator::Navigator(JS::Realm& realm)
     : PlatformObject(realm)
 {
 }
-
-Navigator::~Navigator() = default;
 
 void Navigator::initialize(JS::Realm& realm)
 {

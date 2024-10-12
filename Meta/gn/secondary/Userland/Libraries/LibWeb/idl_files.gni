@@ -28,6 +28,7 @@ standard_idl_files = [
   "//Userland/Libraries/LibWeb/Animations/AnimationTimeline.idl",
   "//Userland/Libraries/LibWeb/Animations/DocumentTimeline.idl",
   "//Userland/Libraries/LibWeb/Animations/KeyframeEffect.idl",
+  "//Userland/Libraries/LibWeb/Keyboard/Keyboard.idl",
   "//Userland/Libraries/LibWeb/Clipboard/Clipboard.idl",
   "//Userland/Libraries/LibWeb/Clipboard/ClipboardEvent.idl",
   "//Userland/Libraries/LibWeb/Crypto/Crypto.idl",

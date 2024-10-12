@@ -65,7 +65,7 @@ public:
 
     static WebIDL::Long max_touch_points();
 
-    virtual ~Navigator() override;
+    virtual ~Navigator() override = default;
 
 protected:
     virtual void visit_edges(Cell::Visitor&) override;
@@ -80,6 +80,8 @@ private:
 
     JS::GCPtr<PluginArray> m_plugin_array;
     JS::GCPtr<MimeTypeArray> m_mime_type_array;
+
+    JS::GCPtr<Keyboard::Keyboard> m_keyboard;
 
     // https://w3c.github.io/clipboard-apis/#dom-navigator-clipboard
     JS::GCPtr<Clipboard::Clipboard> m_clipboard;
