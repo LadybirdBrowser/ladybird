@@ -21,7 +21,7 @@ public:
 
     // JS::NonnullGCPtr<JS::Promise>
     // https://wicg.github.io/keyboard-lock/#keyboard-lock
-    WebIDL::ExceptionOr<JS::Promise> lock(const AK::Vector<AK::String>& key_codes);
+    auto lock(const AK::Vector<AK::String>& key_codes);
 
     void unlock() { }
 

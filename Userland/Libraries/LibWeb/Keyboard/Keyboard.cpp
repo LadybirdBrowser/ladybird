@@ -1,4 +1,5 @@
 #include <LibJS/Runtime/Realm.h>
+#include <LibJS/Runtime/Value.h>
 #include <LibTextCodec/Decoder.h>
 #include <LibWeb/Bindings/HostDefined.h>
 #include <LibWeb/Bindings/KeyboardPrototype.h>
@@ -30,7 +31,7 @@ void Keyboard::initialize(JS::Realm& realm)
     WEB_SET_PROTOTYPE_FOR_INTERFACE(Keyboard);
 }
 // https://wicg.github.io/keyboard-lock/#keyboard-lock
-WebIDL::ExceptionOr<JS::Promise> Keyboard::lock(const AK::Vector<AK::String>& key_codes = {})
+auto Keyboard::lock(const AK::Vector<AK::String>& key_codes = {})
 {
     // TODO FIXME: This entire section is not correct. I just did the basic logic but this needs to be parallel
 
@@ -43,7 +44,7 @@ WebIDL::ExceptionOr<JS::Promise> Keyboard::lock(const AK::Vector<AK::String>& ke
     // 2. If not currently executing in the currently active top-level browsing context, then
     // if (!HTML::BrowsingContext::top_level_browsing_context()) {
     //     // 2.1
-    //     return JS::throw_completion(WebIDL::InvalidStateError::create(realm, "not currently executing in the currently active top-level browsing context"_fly_string));
+    //     return WebIDL::reject_promise(realm, promise, "not currently executing in the currently active top-level browsing context"));
     // }
 
     // 3. Run the following steps in parallel:
@@ -59,7 +60,7 @@ WebIDL::ExceptionOr<JS::Promise> Keyboard::lock(const AK::Vector<AK::String>& ke
                 // 3.2.1.1.1
                 m_enable_keyboard_lock = false;
                 // 3.2.1.1.2
-                return JS::throw_completion(WebIDL::InvalidAccessError::create(realm, "Invalid Key Code"_fly_string));
+                WebIDL::reject_promise(realm, promise, "Invalid Key Code"));
             }
             // 3.2.1.2
             m_reserved_key_codes.append(code);
@@ -79,7 +80,7 @@ WebIDL::ExceptionOr<JS::Promise> Keyboard::lock(const AK::Vector<AK::String>& ke
     WebIDL::resolve_promise(realm, promise, JS::js_undefined());
 
     // 4. Return p.
-    return JS::GCPtr { verify_cast<JS::Promise>(*promise->promise()) };
+    return promise->promise();
 }
 
 }
