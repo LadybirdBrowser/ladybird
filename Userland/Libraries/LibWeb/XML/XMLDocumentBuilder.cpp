@@ -39,10 +39,11 @@ ErrorOr<ByteString> resolve_xml_resource(XML::SystemID const&, Optional<XML::Pub
     return s_xhtml_unified_dtd;
 }
 
-XMLDocumentBuilder::XMLDocumentBuilder(DOM::Document& document, XMLScriptingSupport scripting_support)
+XMLDocumentBuilder::XMLDocumentBuilder(DOM::Document& document, XMLScriptingSupport scripting_support, Optional<FlyString> const& default_namespace)
     : m_document(document)
     , m_current_node(m_document)
     , m_scripting_support(scripting_support)
+    , m_default_namespace(default_namespace)
 {
     m_namespace_stack.append({ m_namespace, 1 });
 }
@@ -64,7 +65,7 @@ void XMLDocumentBuilder::element_start(const XML::Name& name, HashMap<XML::Name,
         m_namespace_stack.last().depth += 1;
     }
 
-    if (name == HTML::TagNames::html.to_deprecated_fly_string() && m_namespace != Namespace::HTML) {
+    if (name == HTML::TagNames::html.to_deprecated_fly_string() && !(m_namespace == Namespace::HTML || m_default_namespace == Namespace::HTML)) {
         m_has_error = true;
         return;
     }

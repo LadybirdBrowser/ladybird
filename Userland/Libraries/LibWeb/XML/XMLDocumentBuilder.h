@@ -25,7 +25,7 @@ ErrorOr<ByteString> resolve_xml_resource(XML::SystemID const&, Optional<XML::Pub
 
 class XMLDocumentBuilder final : public XML::Listener {
 public:
-    XMLDocumentBuilder(DOM::Document& document, XMLScriptingSupport = XMLScriptingSupport::Enabled);
+    XMLDocumentBuilder(DOM::Document& document, XMLScriptingSupport = XMLScriptingSupport::Enabled, Optional<FlyString> const& default_namespace = OptionalNone());
 
     bool has_error() const { return m_has_error; }
 
@@ -43,6 +43,7 @@ private:
     bool m_has_error { false };
     StringBuilder text_builder;
     Optional<FlyString> m_namespace;
+    Optional<FlyString> m_default_namespace;
 
     struct NamespaceStackEntry {
         Optional<FlyString> ns;

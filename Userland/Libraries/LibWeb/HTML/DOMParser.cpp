@@ -60,7 +60,9 @@ JS::NonnullGCPtr<DOM::Document> DOMParser::parse_from_string(StringView string, 
 
         // 1. Create an XML parser parse, associated with document, and with XML scripting support disabled.
         XML::Parser parser(string, { .resolve_external_resource = resolve_xml_resource });
-        XMLDocumentBuilder builder { *document, XMLScriptingSupport::Disabled };
+        // FIXME: Find a more correct way to determine the default namespace during parsing.
+        XMLDocumentBuilder builder { *document, XMLScriptingSupport::Disabled, Namespace::HTML };
+
         // 2. Parse compliantString using parser. FIXME: Use compliantString.
         auto result = parser.parse_with_listener(builder);
         // 3. If the previous step resulted in an XML well-formedness or XML namespace well-formedness error, then:
