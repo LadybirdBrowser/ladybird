@@ -549,6 +549,7 @@ class Performance;
 
 namespace Web::IndexedDB {
 class IDBFactory;
+class IDBKeyRange;
 class IDBOpenDBRequest;
 class IDBRequest;
 }

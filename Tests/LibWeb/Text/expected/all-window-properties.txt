@@ -192,6 +192,7 @@ HashChangeEvent
 Headers
 History
 IDBFactory
+IDBKeyRange
 IDBOpenDBRequest
 IDBRequest
 IdleDeadline

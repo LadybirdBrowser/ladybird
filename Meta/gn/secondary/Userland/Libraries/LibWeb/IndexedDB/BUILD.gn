@@ -6,6 +6,8 @@ source_set("IndexedDB") {
   sources = [
     "IDBFactory.cpp",
     "IDBFactory.h",
+    "IDBKeyRange.cpp",
+    "IDBKeyRange.h",
     "IDBOpenDBRequest.cpp",
     "IDBOpenDBRequest.h",
     "IDBRequest.cpp",
