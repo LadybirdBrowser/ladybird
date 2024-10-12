@@ -91,6 +91,13 @@ JS::NonnullGCPtr<Clipboard::Clipboard> Navigator::clipboard()
     return *m_clipboard;
 }
 
+JS::NonnullGCPtr<Keyboard::Keyboard> Navigator::keyboard()
+{
+    if (!m_keyboard)
+        m_keyboard = heap().allocate<Keyboard::Keyboard>(realm(), realm());
+    return *m_keyboard;
+}
+
 JS::NonnullGCPtr<UserActivation> Navigator::user_activation()
 {
     if (!m_user_activation)
