@@ -29,8 +29,6 @@ void DedicatedWorkerGlobalScope::initialize_web_interfaces_impl()
     auto& realm = this->realm();
     add_dedicated_worker_exposed_interfaces(*this);
 
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(DedicatedWorkerGlobalScope);
-
     DedicatedWorkerGlobalScopeGlobalMixin::initialize(realm, *this);
 
     Base::initialize_web_interfaces_impl();
