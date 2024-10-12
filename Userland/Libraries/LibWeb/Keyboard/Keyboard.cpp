@@ -44,7 +44,7 @@ auto Keyboard::lock(const AK::Vector<AK::String>& key_codes = {})
     // 2. If not currently executing in the currently active top-level browsing context, then
     // if (!HTML::BrowsingContext::top_level_browsing_context()) {
     //     // 2.1
-    //     return WebIDL::reject_promise(realm, promise, "not currently executing in the currently active top-level browsing context"));
+    //     return WebIDL::reject_promise(realm, promise, WebIDL::InvalidStateError::create(realm, "not currently executing in the currently active top-level browsing context"_fly_string)));
     // }
 
     // 3. Run the following steps in parallel:
@@ -60,7 +60,7 @@ auto Keyboard::lock(const AK::Vector<AK::String>& key_codes = {})
                 // 3.2.1.1.1
                 m_enable_keyboard_lock = false;
                 // 3.2.1.1.2
-                WebIDL::reject_promise(realm, promise, "Invalid Key Code"));
+                WebIDL::reject_promise(realm, promise, WebIDL::InvalidAccessError::create(realm, "Invalid Key Code"_fly_string));
             }
             // 3.2.1.2
             m_reserved_key_codes.append(code);
