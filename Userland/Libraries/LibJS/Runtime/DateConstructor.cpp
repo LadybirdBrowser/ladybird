@@ -152,6 +152,9 @@ static double parse_simplified_iso8601(ByteString const& iso_8601)
 
 static double parse_date_string(VM& vm, ByteString const& date_string)
 {
+    if (date_string.is_empty())
+        return NAN;
+
     auto value = parse_simplified_iso8601(date_string);
     if (isfinite(value))
         return value;
