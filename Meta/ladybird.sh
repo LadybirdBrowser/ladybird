@@ -134,6 +134,10 @@ build_target() {
 
 delete_target() {
     [ ! -d "$BUILD_DIR" ] || rm -rf "$BUILD_DIR"
+
+    # Delete the vcpkg user variables created by this script if they exist
+    VCPKG_USER_VARS="$LADYBIRD_SOURCE_DIR/Meta/CMake/vcpkg/user-variables.cmake"
+    [ ! -f "$VCPKG_USER_VARS" ] || rm "$VCPKG_USER_VARS"
 }
 
 build_vcpkg() {
