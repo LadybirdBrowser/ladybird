@@ -22,7 +22,7 @@ sudo add-apt-repository ppa:canonical-server/server-backports
 wget -O - https://apt.llvm.org/llvm-snapshot.gpg.key | sudo apt-key add -
 sudo add-apt-repository 'deb http://apt.llvm.org/jammy/ llvm-toolchain-jammy-16 main'
 apt update
-apt install git build-essential make cmake clang-format-16 gcc-13 g++-13 libstdc++-13-dev libgmp-dev ccache libmpfr-dev libmpc-dev ninja-build e2fsprogs qemu-utils qemu-system-i386 wabt
+apt install git build-essential make cmake clang-format-18 gcc-13 g++-13 libstdc++-13-dev libgmp-dev ccache libmpfr-dev libmpc-dev ninja-build e2fsprogs qemu-utils qemu-system-i386 wabt
 ```
 ### Force usage of GCC 13
 ```shell
