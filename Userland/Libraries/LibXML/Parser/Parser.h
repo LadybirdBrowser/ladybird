@@ -184,7 +184,7 @@ private:
     {
         auto error = ParseError { forward<Ts>(args)... };
         if (m_current_rule.accept) {
-            auto rule_name = m_current_rule.rule.value_or("<?>");
+            auto rule_name = m_current_rule.rule.value_or("<?>"sv);
             if (rule_name.starts_with("parse_"sv))
                 rule_name = rule_name.substring_view(6);
 
@@ -212,7 +212,7 @@ private:
     bool m_standalone { false };
     HashMap<Name, ByteString> m_processing_instructions;
     struct AcceptedRule {
-        Optional<ByteString> rule {};
+        Optional<StringView> rule {};
         bool accept { false };
     } m_current_rule {};
 
