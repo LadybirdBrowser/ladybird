@@ -1,7 +1,6 @@
 {
     "name": "Ladybird",
     "image": "mcr.microsoft.com/devcontainers/base:noble",
-
     // Features to add to the dev container. More info: https://containers.dev/implementors/features.
     "features": {
         "ghcr.io/devcontainers/features/github-cli:1": {},
@@ -15,9 +14,11 @@
             "vncPort": "5901"
         }
     },
-
     // Use 'forwardPorts' to make a list of ports inside the container available locally.
-    "forwardPorts": [6080, 5901],
+    "forwardPorts": [
+        6080,
+        5901
+    ],
     "portsAttributes": {
         "5901": {
             "label": "VNC"
@@ -26,13 +27,52 @@
             "label": "Web VNC"
         }
     },
-
     // Use 'postCreateCommand' to run commands after the container is created.
-    "postCreateCommand": "pre-commit install; pre-commit install --hook-type commit-msg"
-
+    "postCreateCommand": "pre-commit install; pre-commit install --hook-type commit-msg",
     // Configure tool-specific properties.
-    // "customizations": {},
-
+    "customizations": {
+        "vscode": {
+            "extensions": [
+                "ms-vscode.cmake-tools",
+                "llvm-vs-code-extensions.vscode-clangd",
+                "eamodio.gitlens"
+            ],
+            "settings": {
+                // Excluding the generated directories keeps your file view clean and speeds up search.
+                "files.exclude": {
+                    "**/.git": true,
+                    "Toolchain/Local/**": true,
+                    "Toolchain/Tarballs/**": true,
+                    "Toolchain/Build/**": true,
+                    "Build/**": true,
+                },
+                "search.exclude": {
+                    "**/.git": true,
+                    "Toolchain/Local/**": true,
+                    "Toolchain/Tarballs/**": true,
+                    "Toolchain/Build/**": true,
+                    "Build/**": true,
+                },
+                // Force clang-format to respect Ladybird's .clang-format style file. This is not necessary if you're not using the Microsoft C++ extension.
+                "C_Cpp.clang_format_style": "file",
+                // Tab settings
+                "editor.tabSize": 4,
+                "editor.useTabStops": false,
+                // format trailing new lines
+                "files.trimFinalNewlines": true,
+                "files.insertFinalNewline": true,
+                // git commit message length
+                "git.inputValidationLength": 72,
+                "git.inputValidationSubjectLength": 72,
+                // If clangd was obtained from a package manager, its path can be set here.
+                // Note: This has to be adjusted manually, to the "llvm_version" from above
+                "clangd.path": "clangd-18",
+                "clangd.arguments": [
+                    "--header-insertion=never" // See https://github.com/clangd/clangd/issues/1247
+                ]
+            }
+        }
+    }
     // Uncomment to connect as root instead. More info: https://aka.ms/dev-containers-non-root.
     // "remoteUser": "root",
 }
