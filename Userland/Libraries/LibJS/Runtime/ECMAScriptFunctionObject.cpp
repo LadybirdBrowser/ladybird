@@ -131,9 +131,9 @@ NonnullGCPtr<ECMAScriptFunctionObject> ECMAScriptFunctionObject::instantiate_gen
     // 5. Let prototype be OrdinaryObjectCreate(%AsyncGeneratorFunction.prototype.prototype%).
     GCPtr<Object> prototype;
     if (declaration.kind() == FunctionKind::Generator)
-        prototype = Object::create_prototype(realm, realm.intrinsics().generator_function_prototype_prototype());
+        prototype = Object::create_with_premade_shape(realm.intrinsics().generator_function_prototype_shape());
     else
-        prototype = Object::create_prototype(realm, realm.intrinsics().async_generator_function_prototype_prototype());
+        prototype = Object::create_with_premade_shape(realm.intrinsics().async_generator_function_prototype_shape());
 
     // 6. Perform ! DefinePropertyOrThrow(F, "prototype", PropertyDescriptor { [[Value]]: prototype, [[Writable]]: true, [[Enumerable]]: false, [[Configurable]]: false }).
     MUST(function->define_property_or_throw(realm.vm().names.prototype, PropertyDescriptor { .value = prototype, .writable = true, .enumerable = false, .configurable = false }));
@@ -471,17 +471,17 @@ void ECMAScriptFunctionObject::initialize(Realm& realm)
         Object* prototype = nullptr;
         switch (m_kind) {
         case FunctionKind::Normal:
-            prototype = Object::create_prototype(realm, realm.intrinsics().object_prototype());
+            prototype = Object::create_with_premade_shape(realm.intrinsics().object_prototype_shape());
             MUST(prototype->define_property_or_throw(vm.names.constructor, { .value = this, .writable = true, .enumerable = false, .configurable = true }));
             break;
         case FunctionKind::Generator:
             // prototype is "g1.prototype" in figure-2 (https://tc39.es/ecma262/img/figure-2.png)
-            prototype = Object::create_prototype(realm, realm.intrinsics().generator_function_prototype_prototype());
+            prototype = Object::create_with_premade_shape(realm.intrinsics().generator_function_prototype_shape());
             break;
         case FunctionKind::Async:
             break;
         case FunctionKind::AsyncGenerator:
-            prototype = Object::create_prototype(realm, realm.intrinsics().async_generator_function_prototype_prototype());
+            prototype = Object::create_with_premade_shape(realm.intrinsics().async_generator_function_prototype_shape());
             break;
         }
         // 27.7.4 AsyncFunction Instances, https://tc39.es/ecma262/#sec-async-function-instances

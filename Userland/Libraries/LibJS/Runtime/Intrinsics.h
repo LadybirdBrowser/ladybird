@@ -18,8 +18,11 @@ class Intrinsics final : public Cell {
 public:
     static ThrowCompletionOr<NonnullGCPtr<Intrinsics>> create(Realm&);
 
+    // Precomputed shapes for prototypes
+    NonnullGCPtr<Shape> object_prototype_shape() { return *m_object_prototype_shape; }
+    NonnullGCPtr<Shape> async_generator_function_prototype_shape() { return *m_async_generator_function_prototype_shape; }
+    NonnullGCPtr<Shape> generator_function_prototype_shape() { return *m_generator_function_prototype_shape; }
     NonnullGCPtr<Shape> empty_object_shape() { return *m_empty_object_shape; }
-
     NonnullGCPtr<Shape> new_object_shape() { return *m_new_object_shape; }
 
     [[nodiscard]] NonnullGCPtr<Shape> iterator_result_object_shape() { return *m_iterator_result_object_shape; }
@@ -121,6 +124,11 @@ private:
 #undef __JS_ENUMERATE
 
     NonnullGCPtr<Realm> m_realm;
+
+    // Precomputed shapes for prototypes
+    GCPtr<Shape> m_object_prototype_shape;
+    GCPtr<Shape> m_generator_function_prototype_shape;
+    GCPtr<Shape> m_async_generator_function_prototype_shape;
 
     GCPtr<Shape> m_empty_object_shape;
     GCPtr<Shape> m_new_object_shape;

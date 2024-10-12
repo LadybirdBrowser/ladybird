@@ -211,7 +211,16 @@ ThrowCompletionOr<void> Intrinsics::initialize_intrinsics(Realm& realm)
     // These must be initialized separately as they have no companion constructor
     m_async_from_sync_iterator_prototype = heap().allocate<AsyncFromSyncIteratorPrototype>(realm, realm);
     m_async_generator_prototype = heap().allocate<AsyncGeneratorPrototype>(realm, realm);
+    m_async_generator_function_prototype_shape = heap().allocate_without_realm<Shape>(realm);
+    m_async_generator_function_prototype_shape->set_prototype_without_transition(m_async_generator_prototype);
+
     m_generator_prototype = heap().allocate<GeneratorPrototype>(realm, realm);
+    m_generator_function_prototype_shape = heap().allocate_without_realm<Shape>(realm);
+    m_generator_function_prototype_shape->set_prototype_without_transition(m_generator_prototype);
+
+    m_object_prototype_shape = heap().allocate_without_realm<Shape>(realm);
+    m_object_prototype_shape->set_prototype_without_transition(object_prototype());
+
     m_intl_segments_prototype = heap().allocate<Intl::SegmentsPrototype>(realm, realm);
     m_wrap_for_valid_iterator_prototype = heap().allocate<WrapForValidIteratorPrototype>(realm, realm);
 
@@ -364,7 +373,11 @@ JS_ENUMERATE_BUILTIN_NAMESPACE_OBJECTS
 void Intrinsics::visit_edges(Visitor& visitor)
 {
     Base::visit_edges(visitor);
+
     visitor.visit(m_realm);
+    visitor.visit(m_object_prototype_shape);
+    visitor.visit(m_generator_function_prototype_shape);
+    visitor.visit(m_async_generator_function_prototype_shape);
     visitor.visit(m_empty_object_shape);
     visitor.visit(m_new_object_shape);
     visitor.visit(m_iterator_result_object_shape);
