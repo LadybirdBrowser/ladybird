@@ -20,6 +20,7 @@ static constexpr auto builtin_search_engines = Array {
     SearchEngine { "GoogleScholar"sv, "https://scholar.google.com/scholar?q={}"sv },
     SearchEngine { "Kagi"sv, "https://kagi.com/search?q={}"sv },
     SearchEngine { "Mojeek"sv, "https://www.mojeek.com/search?q={}"sv },
+    SearchEngine { "Startpage"sv, "https://startpage.com/search?q={}"sv },
     SearchEngine { "Wikipedia"sv, "https://en.wikipedia.org/w/index.php?title=Special:Search&search={}"sv },
     SearchEngine { "Yahoo"sv, "https://search.yahoo.com/search?p={}"sv },
     SearchEngine { "Yandex"sv, "https://yandex.com/search/?text={}"sv },
