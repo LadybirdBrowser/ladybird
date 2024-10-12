@@ -1,3 +1,4 @@
+#import <DOM/EventTarget.idl>
 [SecureContext, Exposed=Window]
 interface Keyboard : EventTarget {
   Promise<undefined> lock(optional sequence<DOMString> keyCodes = []);
