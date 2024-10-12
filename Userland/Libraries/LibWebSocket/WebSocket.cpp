@@ -483,11 +483,24 @@ void WebSocket::read_frame()
     }
 
     if (op_code == WebSocket::OpCode::ConnectionClose) {
+        dbgln("Close connection with status: {}", to_underlying(m_state));
+
+        if (m_state == InternalState::Closing) {
+            dbgln("Close connection lmao");
+            set_state(WebSocket::InternalState::Closed);
+            notify_close(m_last_close_code, m_last_close_message, true);
+            discard_connection();
+            return;
+        }
+        send_frame(WebSocket::OpCode::ConnectionClose, {}, true);
+        set_state(WebSocket::InternalState::Closing);
         if (payload.size() > 1) {
             m_last_close_code = (((u16)(payload[0] & 0xff) << 8) | ((u16)(payload[1] & 0xff)));
             m_last_close_message = ByteString(ReadonlyBytes(payload.offset_pointer(2), payload.size() - 2));
+        } else {
+            m_last_close_code = 1000;
+            m_last_close_message = {};
         }
-        set_state(WebSocket::InternalState::Closing);
         return;
     }
     if (op_code == WebSocket::OpCode::Ping) {
