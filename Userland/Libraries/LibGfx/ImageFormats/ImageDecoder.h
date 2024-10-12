@@ -14,6 +14,7 @@
 #include <AK/String.h>
 #include <LibGfx/Bitmap.h>
 #include <LibGfx/CMYKBitmap.h>
+#include <LibGfx/ColorSpace.h>
 #include <LibGfx/Size.h>
 #include <LibGfx/VectorGraphic.h>
 
@@ -112,6 +113,7 @@ public:
     ErrorOr<ImageFrameDescriptor> frame(size_t index, Optional<IntSize> ideal_size = {}) const { return m_plugin->frame(index, ideal_size); }
 
     Optional<Metadata const&> metadata() const { return m_plugin->metadata(); }
+    ErrorOr<ColorSpace> color_space();
     ErrorOr<Optional<ReadonlyBytes>> icc_data() const { return m_plugin->icc_data(); }
 
     NaturalFrameFormat natural_frame_format() { return m_plugin->natural_frame_format(); }

@@ -278,11 +278,11 @@ static SkColorType to_skia_color_type(Gfx::BitmapFormat format)
     }
 }
 
-static SkBitmap to_skia_bitmap(Gfx::Bitmap const& bitmap)
+static SkBitmap to_skia_bitmap(Gfx::Bitmap const& bitmap, Gfx::ColorSpace profile = {})
 {
     SkColorType color_type = to_skia_color_type(bitmap.format());
     SkAlphaType alpha_type = bitmap.alpha_type() == Gfx::AlphaType::Premultiplied ? kPremul_SkAlphaType : kUnpremul_SkAlphaType;
-    SkImageInfo image_info = SkImageInfo::Make(bitmap.width(), bitmap.height(), color_type, alpha_type);
+    SkImageInfo image_info = SkImageInfo::Make(bitmap.width(), bitmap.height(), color_type, alpha_type, profile.color_space());
     SkBitmap sk_bitmap;
     sk_bitmap.setInfo(image_info);
 
@@ -379,7 +379,7 @@ void DisplayListPlayerSkia::draw_scaled_immutable_bitmap(DrawScaledImmutableBitm
 {
     auto src_rect = to_skia_rect(command.src_rect);
     auto dst_rect = to_skia_rect(command.dst_rect);
-    auto bitmap = to_skia_bitmap(command.bitmap->bitmap());
+    auto bitmap = to_skia_bitmap(command.bitmap->bitmap(), command.bitmap->color_space());
     auto image = SkImages::RasterFromBitmap(bitmap);
     auto& canvas = surface().canvas();
     SkPaint paint;
@@ -388,7 +388,7 @@ void DisplayListPlayerSkia::draw_scaled_immutable_bitmap(DrawScaledImmutableBitm
 
 void DisplayListPlayerSkia::draw_repeated_immutable_bitmap(DrawRepeatedImmutableBitmap const& command)
 {
-    auto bitmap = to_skia_bitmap(command.bitmap->bitmap());
+    auto bitmap = to_skia_bitmap(command.bitmap->bitmap(), command.bitmap->color_space());
     auto image = SkImages::RasterFromBitmap(bitmap);
 
     SkMatrix matrix;
