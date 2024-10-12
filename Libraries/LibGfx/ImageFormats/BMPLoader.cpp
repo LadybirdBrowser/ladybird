@@ -91,6 +91,8 @@ struct Formatter<Gfx::Endpoint<T>> : Formatter<StringView> {
 
 namespace Gfx {
 
+namespace BMP {
+
 // CALIBRATED_RGB, sRGB, WINDOWS_COLOR_SPACE values are from
 // https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-wmf/eb4bbd50-b3ce-4917-895c-be31f214797f
 // PROFILE_LINKED, PROFILE_EMBEDDED values are from
@@ -116,6 +118,8 @@ struct ColorSpace {
         EMBEDDED = 0x4D424544, // 'MBED'
     };
 };
+
+}
 
 // https://learn.microsoft.com/en-us/windows/win32/api/wingdi/ns-wingdi-bitmapv4header
 struct DIBV4 {
@@ -1528,7 +1532,7 @@ ErrorOr<Optional<ReadonlyBytes>> BMPImageDecoderPlugin::icc_data()
     // FIXME: For LINKED, return data from the linked file?
     // FIXME: For sRGB and WINDOWS_COLOR_SPACE, return an sRGB profile somehow.
     // FIXME: For CALIBRATED_RGB, do something with v4.{red_endpoint,green_endpoint,blue_endpoint,gamma_endpoint}
-    if (m_context->dib.v4.color_space != ColorSpace::EMBEDDED)
+    if (m_context->dib.v4.color_space != BMP::ColorSpace::EMBEDDED)
         return OptionalNone {};
 
     auto const& v5 = m_context->dib.v5;
