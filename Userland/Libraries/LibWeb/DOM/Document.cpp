@@ -842,17 +842,18 @@ void Document::set_dir(String const& dir)
         html->set_dir(dir);
 }
 
+// https://html.spec.whatwg.org/multipage/dom.html#the-body-element-2
 HTML::HTMLElement* Document::body()
 {
+    // The body element of a document is the first of the html element's children that is either
+    // a body element or a frameset element, or null if there is no such element.
     auto* html = html_element();
     if (!html)
         return nullptr;
-    auto* first_body = html->first_child_of_type<HTML::HTMLBodyElement>();
-    if (first_body)
-        return first_body;
-    auto* first_frameset = html->first_child_of_type<HTML::HTMLFrameSetElement>();
-    if (first_frameset)
-        return first_frameset;
+    for (auto* child = html->first_child(); child; child = child->next_sibling()) {
+        if (is<HTML::HTMLBodyElement>(*child) || is<HTML::HTMLFrameSetElement>(*child))
+            return static_cast<HTML::HTMLElement*>(child);
+    }
     return nullptr;
 }
 
