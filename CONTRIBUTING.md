@@ -63,7 +63,7 @@ Nobody is perfect, and sometimes we mess things up. That said, here are some goo
 **Do:**
 
 * Write in idiomatic project-style C++23, using the `AK` containers in all code.
-* Conform to the project coding style found in [CodingStyle.md](https://github.com/LadybirdBrowser/ladybird/blob/master/Documentation/CodingStyle.md). Use `clang-format` (version 18 or later) to automatically format C++ files. See [AdvancedBuildInstructions.md](https://github.com/LadybirdBrowser/ladybird/blob/master/Documentation/AdvancedBuildInstructions.md#clang-format-updates) for instructions on how to get an up-to-date version if your OS distribution does not ship clang-format-18.
+* Conform to the project coding style found in [CodingStyle.md](https://github.com/LadybirdBrowser/ladybird/blob/master/Documentation/CodingStyle.md). Use `clang-format` (version 18) to automatically format C++ files. See [AdvancedBuildInstructions.md](https://github.com/LadybirdBrowser/ladybird/blob/master/Documentation/AdvancedBuildInstructions.md#clang-format-updates) for instructions on how to get an up-to-date version if your OS distribution does not ship clang-format-18.
 * Choose expressive variable, function and class names. Make it as obvious as possible what the code is doing.
 * Split your changes into separate, atomic commits (i.e. A commit per feature or fix, where the build, tests and the system are all functioning).
 * Make sure your commits are rebased on the master branch.

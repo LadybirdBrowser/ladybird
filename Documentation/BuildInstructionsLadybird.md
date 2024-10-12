@@ -126,7 +126,7 @@ brew install autoconf autoconf-archive automake ccache cmake ffmpeg nasm ninja p
 
 If you wish to use clang from homebrew instead:
 ```
-brew install llvm
+brew install llvm@18
 ```
 
 If you also plan to use the Qt chrome on macOS:
