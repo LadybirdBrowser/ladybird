@@ -8,6 +8,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include "AK/Math.h"
 #include <AK/Time.h>
 #include <LibWeb/HTML/Dates.h>
 
@@ -225,7 +226,7 @@ bool is_valid_time_string(StringView value)
 }
 
 // https://html.spec.whatwg.org/multipage/common-microsyntaxes.html#parse-a-time-string
-WebIDL::ExceptionOr<JS::NonnullGCPtr<JS::Date>> parse_time_string(JS::Realm& realm, StringView value)
+WebIDL::ExceptionOr<JS::NonnullGCPtr<JS::Date>> parse_time_string_to_date(JS::Realm& realm, StringView value)
 {
     // FIXME: Implement spec compliant time string parsing
     auto parts = value.split_view(':', SplitBehavior::KeepEmpty);
@@ -241,6 +242,129 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<JS::Date>> parse_time_string(JS::Realm& rea
         }
     }
     return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Can't parse time string"sv };
+}
+
+// https://html.spec.whatwg.org/multipage/common-microsyntaxes.html#parse-a-time-string
+Optional<Time> parse_time_string(StringView value)
+{
+    // 1. Let input be the string being parsed.
+    // 2. Let position be a pointer into input, initially pointing at the start of the string.
+    u32 position = 0;
+    // 3. Parse a time component to obtain hour, minute, and second. If this returns nothing, then fail.
+    // a. Collect a sequence of code points that are ASCII digits from input given position. If the collected sequence is not exactly 
+    // two characters long, then fail. Otherwise, interpret the resulting sequence as a base-ten integer. Let that number be the hour.
+    if (position + 2 > value.length() || !is_ascii_digit(value[position]) || !is_ascii_digit(value[position + 1]))
+        return {};
+    auto hours = parse_ascii_digit(value[position]) * 10 + parse_ascii_digit(value[position + 1]);
+    position += 2;
+
+    // b. If hour is not a number in the range 0 ≤ hour ≤ 23, then fail.
+    if (hours < 0 || hours > 23)
+        return {};
+
+    // c. If position is beyond the end of input or if the character at position is not a U+003A COLON character, then fail. Otherwise, 
+    // move position forwards one character.
+    if (position + 1 > value.length() || value[position] != ':')
+        return {};
+    ++position;
+
+    // d. Collect a sequence of code points that are ASCII digits from input given position. If the collected sequence is not exactly two
+    // characters long, then fail. Otherwise, interpret the resulting sequence as a base-ten integer. Let that number be the minute.
+    if (position + 2 > value.length() || !is_ascii_digit(value[position]) || !is_ascii_digit(value[position + 1]))
+        return {};
+    auto minutes = parse_ascii_digit(value[position]) * 10 + parse_ascii_digit(value[position + 1]);
+    position += 2;
+
+    // e. If minute is not a number in the range 0 ≤ minute ≤ 59, then fail.
+    if (minutes < 0 || minutes > 59)
+        return {};
+
+    // f. Let second be 0.
+    auto seconds = 0.0;
+
+    // g. If position is not beyond the end of input and the character at position is a U+003A COLON character, then:
+    // h. Advance position to the next character in input.
+    if (position + 1 > value.length() || value[position] != ':')
+        return Time { hours, minutes, seconds };
+    ++position;
+
+    // i. If position is beyond the end of input, or at the last character in input, or if the next two characters in input starting at position 
+    // are not both ASCII digits, then fail.
+    if (position + 2 > value.length() || !is_ascii_digit(value[position]) || !is_ascii_digit(value[position + 1]))
+        return {};
+
+    // j. Collect a sequence of code points that are either ASCII digits or U+002E FULL STOP characters from input given position. 
+    // If the collected sequence is three characters long, or if it is longer than three characters long and the third character
+    // is not a U+002E FULL STOP character, or if it has more than one U+002E FULL STOP character, then fail. Otherwise, interpret the
+    // resulting sequence as a base-ten number (possibly with a fractional part). Set second to that number.
+    seconds = parse_ascii_digit(value[position]) * 10 + parse_ascii_digit(value[position + 1]);
+    position += 2;
+    if (position < value.length())
+    {
+        if (value[position] != '.')
+            return {};
+        ++position;
+    }
+
+    if (position < value.length())
+    {    
+        // max 3 digits after the dot from valid time string spec
+        StringView seconds_sub_view;
+        if (position + 2 < value.length())
+            seconds_sub_view = value.substring_view(position, 3);
+        else
+            seconds_sub_view = value.substring_view(position, value.length() - position);
+
+        auto count = 1;
+        for (auto code_point : seconds_sub_view)
+        {
+            if (!is_ascii_digit(code_point))
+                return {};
+            seconds += parse_ascii_digit(code_point) / pow(10, count);
+            ++count;
+        }
+        position += count;
+    }
+
+    // k. If second is not a number in the range 0 ≤ second < 60, then fail.
+    if (seconds < 0 || seconds >= 60)
+        return {};
+
+    // 4. If position is not beyond the end of input, then fail.
+    if (position < value.length())
+        return {};
+    // 5. Let time be the time with hour hour, minute minute, and second second.
+    // 6. Return time.
+    return Time { hours, minutes, seconds };
+}
+
+// https://html.spec.whatwg.org/multipage/input.html#time-state-(type=time):concept-input-value-string-number
+Optional<double> parse_time_string_to_number(StringView value) 
+{
+    auto maybe_time = parse_time_string(value);
+    if (!maybe_time.has_value())
+        return {};
+
+    auto floored_seconds = AK::floor(maybe_time.value().seconds);
+    auto milliseconds = (maybe_time.value().seconds - floored_seconds) * 1000;
+
+    return JS::make_time(maybe_time.value().hours, maybe_time.value().minutes, maybe_time.value().seconds, milliseconds);
+}
+
+// https://html.spec.whatwg.org/multipage/input.html#time-state-(type=time):concept-input-value-number-string
+String time_as_number_to_string(double time)
+{
+    auto hours = JS::hour_from_time(time);
+    auto minutes = JS::min_from_time(time);
+    auto seconds = JS::sec_from_time(time);
+    auto milliseconds = JS::ms_from_time(time);
+
+    if (milliseconds > 0)
+        return MUST(String::formatted("{:02}:{:02}:{:02}.{:03}", hours, minutes, seconds, milliseconds));
+    if (seconds > 0)
+        return MUST(String::formatted("{:02}:{:02}:{:02}", hours, minutes, seconds));
+
+    return MUST(String::formatted("{:02}:{:02}", hours, minutes));
 }
 
 }
