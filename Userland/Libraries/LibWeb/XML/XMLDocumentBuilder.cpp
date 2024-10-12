@@ -57,7 +57,9 @@ void XMLDocumentBuilder::element_start(const XML::Name& name, HashMap<XML::Name,
     if (m_has_error)
         return;
 
+    auto found_explicit_namespace = false;
     if (auto it = attributes.find("xmlns"); it != attributes.end()) {
+        found_explicit_namespace = true;
         m_namespace_stack.append({ m_namespace, 1 });
         m_namespace = MUST(FlyString::from_deprecated_fly_string(it->value));
     } else {
@@ -65,8 +67,15 @@ void XMLDocumentBuilder::element_start(const XML::Name& name, HashMap<XML::Name,
     }
 
     if (name == HTML::TagNames::html.to_deprecated_fly_string() && m_namespace != Namespace::HTML) {
-        m_has_error = true;
-        return;
+        // HTML / 2.1.3 XML compatibility: https://html.spec.whatwg.org/#xml
+        //     To ease migration from HTML to XML, user agents conforming to this specification will place elements in HTML
+        //     in the http://www.w3.org/1999/xhtml namespace, at least for the purposes of the DOM and CSS.
+        //     The term "HTML elements" refers to any element in that namespace, even in XML documents.
+        if (found_explicit_namespace || m_namespace_stack.size() != 1 || m_namespace_stack.last().depth != 2) {
+            m_has_error = true;
+            return;
+        }
+        m_namespace = Namespace::HTML;
     }
 
     auto node = DOM::create_element(m_document, MUST(FlyString::from_deprecated_fly_string(name)), m_namespace).release_value_but_fixme_should_propagate_errors();
