@@ -91,7 +91,7 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<AudioParam>> AudioParam::linear_ramp_to_val
 {
     (void)value;
     (void)end_time;
-    return WebIDL::NotSupportedError::create(realm(), "FIXME: Implement AudioParam::linear_ramp_to_value_at_time"_fly_string);
+    return WebIDL::NotSupportedError::create(realm(), "FIXME: Implement AudioParam::linear_ramp_to_value_at_time"_string);
 }
 
 // https://webaudio.github.io/web-audio-api/#dom-audioparam-exponentialramptovalueattime
@@ -99,7 +99,7 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<AudioParam>> AudioParam::exponential_ramp_t
 {
     (void)value;
     (void)end_time;
-    return WebIDL::NotSupportedError::create(realm(), "FIXME: Implement AudioParam::exponential_ramp_to_value_at_time"_fly_string);
+    return WebIDL::NotSupportedError::create(realm(), "FIXME: Implement AudioParam::exponential_ramp_to_value_at_time"_string);
 }
 
 // https://webaudio.github.io/web-audio-api/#dom-audioparam-settargetattime
@@ -108,7 +108,7 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<AudioParam>> AudioParam::set_target_at_time
     (void)target;
     (void)start_time;
     (void)time_constant;
-    return WebIDL::NotSupportedError::create(realm(), "FIXME: Implement AudioParam::set_target_at_time"_fly_string);
+    return WebIDL::NotSupportedError::create(realm(), "FIXME: Implement AudioParam::set_target_at_time"_string);
 }
 
 // https://webaudio.github.io/web-audio-api/#dom-audioparam-setvaluecurveattime
@@ -117,21 +117,21 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<AudioParam>> AudioParam::set_value_curve_at
     (void)values;
     (void)start_time;
     (void)duration;
-    return WebIDL::NotSupportedError::create(realm(), "FIXME: Implement AudioParam::set_value_curve_at_time"_fly_string);
+    return WebIDL::NotSupportedError::create(realm(), "FIXME: Implement AudioParam::set_value_curve_at_time"_string);
 }
 
 // https://webaudio.github.io/web-audio-api/#dom-audioparam-cancelscheduledvalues
 WebIDL::ExceptionOr<JS::NonnullGCPtr<AudioParam>> AudioParam::cancel_scheduled_values(double cancel_time)
 {
     (void)cancel_time;
-    return WebIDL::NotSupportedError::create(realm(), "FIXME: Implement AudioParam::cancel_scheduled_values"_fly_string);
+    return WebIDL::NotSupportedError::create(realm(), "FIXME: Implement AudioParam::cancel_scheduled_values"_string);
 }
 
 // https://webaudio.github.io/web-audio-api/#dom-audioparam-cancelandholdattime
 WebIDL::ExceptionOr<JS::NonnullGCPtr<AudioParam>> AudioParam::cancel_and_hold_at_time(double cancel_time)
 {
     (void)cancel_time;
-    return WebIDL::NotSupportedError::create(realm(), "FIXME: Implement AudioParam::cancel_and_hold_at_time"_fly_string);
+    return WebIDL::NotSupportedError::create(realm(), "FIXME: Implement AudioParam::cancel_and_hold_at_time"_string);
 }
 
 void AudioParam::initialize(JS::Realm& realm)

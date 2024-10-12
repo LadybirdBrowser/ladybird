@@ -295,7 +295,7 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<JS::Promise>> HTMLImageElement::decode() co
             if (this->document().is_fully_active())
                 return false;
 
-            auto exception = WebIDL::EncodingError::create(realm, "Node document not fully active"_fly_string);
+            auto exception = WebIDL::EncodingError::create(realm, "Node document not fully active"_string);
             HTML::TemporaryExecutionContext context(HTML::relevant_settings_object(*this));
             WebIDL::reject_promise(realm, promise, exception);
             return true;
@@ -305,7 +305,7 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<JS::Promise>> HTMLImageElement::decode() co
             if (this->current_request().state() != ImageRequest::State::Broken)
                 return false;
 
-            auto exception = WebIDL::EncodingError::create(realm, "Current request state is broken"_fly_string);
+            auto exception = WebIDL::EncodingError::create(realm, "Current request state is broken"_string);
             HTML::TemporaryExecutionContext context(HTML::relevant_settings_object(*this));
             WebIDL::reject_promise(realm, promise, exception);
             return true;

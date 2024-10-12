@@ -139,7 +139,7 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<HTMLTableCellElement>> HTMLTableRowElement:
 
     // 1. If index is less than −1 or greater than the number of elements in the cells collection, then throw an "IndexSizeError" DOMException.
     if (index < -1 || index > cells_collection_size)
-        return WebIDL::IndexSizeError::create(realm(), "Index is negative or greater than the number of cells"_fly_string);
+        return WebIDL::IndexSizeError::create(realm(), "Index is negative or greater than the number of cells"_string);
 
     // 2. Let table cell be the result of creating an element given this tr element's node document, td, and the HTML namespace.
     auto& table_cell = static_cast<HTMLTableCellElement&>(*TRY(DOM::create_element(document(), HTML::TagNames::td, Namespace::HTML)));
@@ -164,7 +164,7 @@ WebIDL::ExceptionOr<void> HTMLTableRowElement::delete_cell(i32 index)
 
     // 1. If index is less than −1 or greater than or equal to the number of elements in the cells collection, then throw an "IndexSizeError" DOMException.
     if (index < -1 || index >= cells_collection_size)
-        return WebIDL::IndexSizeError::create(realm(), "Index is negative or greater than or equal to the number of cells"_fly_string);
+        return WebIDL::IndexSizeError::create(realm(), "Index is negative or greater than or equal to the number of cells"_string);
 
     // 2. If index is −1, then remove the last element in the cells collection from its parent, or do nothing if the cells collection is empty.
     if (index == -1) {

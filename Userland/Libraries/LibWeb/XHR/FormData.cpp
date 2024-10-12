@@ -27,7 +27,7 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<FormData>> FormData::construct_impl(JS::Rea
         auto entry_list = TRY(construct_entry_list(realm, *form));
         // 2. If list is null, then throw an "InvalidStateError" DOMException.
         if (!entry_list.has_value())
-            return WebIDL::InvalidStateError::create(realm, "Form element does not contain any entries."_fly_string);
+            return WebIDL::InvalidStateError::create(realm, "Form element does not contain any entries."_string);
         // 3. Set this’s entry list to list.
         list = entry_list.release_value();
     }

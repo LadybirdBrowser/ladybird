@@ -200,11 +200,11 @@ private:
 
     // https://html.spec.whatwg.org/multipage/media.html#reject-pending-play-promises
     template<typename ErrorType>
-    void reject_pending_play_promises(ReadonlySpan<JS::NonnullGCPtr<WebIDL::Promise>> promises, FlyString const& message)
+    void reject_pending_play_promises(ReadonlySpan<JS::NonnullGCPtr<WebIDL::Promise>> promises, String message)
     {
         auto& realm = this->realm();
 
-        auto error = ErrorType::create(realm, message);
+        auto error = ErrorType::create(realm, move(message));
         reject_pending_play_promises(promises, error);
     }
 

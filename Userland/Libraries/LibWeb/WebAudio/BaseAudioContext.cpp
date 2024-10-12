@@ -99,16 +99,16 @@ WebIDL::ExceptionOr<void> BaseAudioContext::verify_audio_options_inside_nominal_
     // A NotSupportedError exception MUST be thrown if any of the arguments is negative, zero, or outside its nominal range.
 
     if (number_of_channels == 0)
-        return WebIDL::NotSupportedError::create(realm, "Number of channels must not be '0'"_fly_string);
+        return WebIDL::NotSupportedError::create(realm, "Number of channels must not be '0'"_string);
 
     if (number_of_channels > MAX_NUMBER_OF_CHANNELS)
-        return WebIDL::NotSupportedError::create(realm, "Number of channels is greater than allowed range"_fly_string);
+        return WebIDL::NotSupportedError::create(realm, "Number of channels is greater than allowed range"_string);
 
     if (length == 0)
-        return WebIDL::NotSupportedError::create(realm, "Length of buffer must be at least 1"_fly_string);
+        return WebIDL::NotSupportedError::create(realm, "Length of buffer must be at least 1"_string);
 
     if (sample_rate < MIN_SAMPLE_RATE || sample_rate > MAX_SAMPLE_RATE)
-        return WebIDL::NotSupportedError::create(realm, "Sample rate is outside of allowed range"_fly_string);
+        return WebIDL::NotSupportedError::create(realm, "Sample rate is outside of allowed range"_string);
 
     return {};
 }

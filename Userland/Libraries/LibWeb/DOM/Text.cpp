@@ -66,7 +66,7 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<Text>> Text::split_text(size_t offset)
 
     // 2. If offset is greater than length, then throw an "IndexSizeError" DOMException.
     if (offset > length)
-        return WebIDL::IndexSizeError::create(realm(), "Split offset is greater than length"_fly_string);
+        return WebIDL::IndexSizeError::create(realm(), "Split offset is greater than length"_string);
 
     // 3. Let count be length minus offset.
     auto count = length - offset;

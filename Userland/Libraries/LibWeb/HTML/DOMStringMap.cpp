@@ -147,7 +147,7 @@ WebIDL::ExceptionOr<void> DOMStringMap::set_value_of_new_named_property(String c
         if (current_character == '-' && character_index + 1 < name_view.length()) {
             auto next_character = name_view[character_index + 1];
             if (is_ascii_lower_alpha(next_character))
-                return WebIDL::SyntaxError::create(realm(), "Name cannot contain a '-' followed by a lowercase character."_fly_string);
+                return WebIDL::SyntaxError::create(realm(), "Name cannot contain a '-' followed by a lowercase character."_string);
         }
 
         // 2. For each ASCII upper alpha in name, insert a U+002D HYPHEN-MINUS character (-) before the character and replace the character with the same character converted to ASCII lowercase.

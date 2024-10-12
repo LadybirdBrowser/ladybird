@@ -36,7 +36,7 @@ WebIDL::ExceptionOr<JS::GCPtr<Element>> ParentNode::query_selector(StringView se
 
     // 2. If s is failure, then throw a "SyntaxError" DOMException.
     if (!maybe_selectors.has_value())
-        return WebIDL::SyntaxError::create(realm(), "Failed to parse selector"_fly_string);
+        return WebIDL::SyntaxError::create(realm(), "Failed to parse selector"_string);
 
     auto selectors = maybe_selectors.value();
 
@@ -68,7 +68,7 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<NodeList>> ParentNode::query_selector_all(S
 
     // 2. If s is failure, then throw a "SyntaxError" DOMException.
     if (!maybe_selectors.has_value())
-        return WebIDL::SyntaxError::create(realm(), "Failed to parse selector"_fly_string);
+        return WebIDL::SyntaxError::create(realm(), "Failed to parse selector"_string);
 
     auto selectors = maybe_selectors.value();
 

@@ -50,7 +50,7 @@ WebIDL::ExceptionOr<void> OscillatorNode::verify_valid_type(JS::Realm& realm, Bi
     // be used to set a custom waveform, which results in this attribute being set to "custom". The default
     // value is "sine". When this attribute is set, the phase of the oscillator MUST be conserved.
     if (type == Bindings::OscillatorType::Custom)
-        return WebIDL::InvalidStateError::create(realm, "Oscillator node type cannot be set to 'custom'"_fly_string);
+        return WebIDL::InvalidStateError::create(realm, "Oscillator node type cannot be set to 'custom'"_string);
 
     return {};
 }

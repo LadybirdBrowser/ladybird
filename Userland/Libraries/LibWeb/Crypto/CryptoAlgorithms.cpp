@@ -163,7 +163,7 @@ static WebIDL::ExceptionOr<Structure> parse_an_ASN1_structure(JS::Realm& realm, 
 
     // 5. If exactData was specified, and all of the bytes of data were not consumed during the parsing phase, then throw a DataError.
     if (exact_data && !decoder.eof())
-        return WebIDL::DataError::create(realm, "Not all bytes were consumed during the parsing phase"_fly_string);
+        return WebIDL::DataError::create(realm, "Not all bytes were consumed during the parsing phase"_string);
 
     // 6. Return the parsed ASN.1 structure.
     return structure;
@@ -397,7 +397,7 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<JS::ArrayBuffer>> RSAOAEP::encrypt(Algorith
 
     // 1. If the [[type]] internal slot of key is not "public", then throw an InvalidAccessError.
     if (key->type() != Bindings::KeyType::Public)
-        return WebIDL::InvalidAccessError::create(realm, "Key is not a public key"_fly_string);
+        return WebIDL::InvalidAccessError::create(realm, "Key is not a public key"_string);
 
     // 2. Let label be the contents of the label member of normalizedAlgorithm or the empty octet string if the label member of normalizedAlgorithm is not present.
     [[maybe_unused]] auto const& label = normalized_algorithm.label;
@@ -425,7 +425,7 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<JS::ArrayBuffer>> RSAOAEP::decrypt(Algorith
 
     // 1. If the [[type]] internal slot of key is not "private", then throw an InvalidAccessError.
     if (key->type() != Bindings::KeyType::Private)
-        return WebIDL::InvalidAccessError::create(realm, "Key is not a private key"_fly_string);
+        return WebIDL::InvalidAccessError::create(realm, "Key is not a private key"_string);
 
     // 2. Let label be the contents of the label member of normalizedAlgorithm or the empty octet string if the label member of normalizedAlgorithm is not present.
     [[maybe_unused]] auto const& label = normalized_algorithm.label;
@@ -540,7 +540,7 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<CryptoKey>> RSAOAEP::import_key(Web::Crypto
         // 4. If the algorithm object identifier field of the algorithm AlgorithmIdentifier field of spki
         //    is not equal to the rsaEncryption object identifier defined in [RFC3447], then throw a DataError.
         if (spki.algorithm.identifier != TLS::rsa_encryption_oid)
-            return WebIDL::DataError::create(m_realm, "Algorithm object identifier is not the rsaEncryption object identifier"_fly_string);
+            return WebIDL::DataError::create(m_realm, "Algorithm object identifier is not the rsaEncryption object identifier"_string);
 
         // 5. Let publicKey be the result of performing the parse an ASN.1 structure algorithm,
         //    with data as the subjectPublicKeyInfo field of spki, structure as the RSAPublicKey structure
@@ -577,7 +577,7 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<CryptoKey>> RSAOAEP::import_key(Web::Crypto
         // 4. If the algorithm object identifier field of the privateKeyAlgorithm PrivateKeyAlgorithm field of privateKeyInfo
         //    is not equal to the rsaEncryption object identifier defined in [RFC3447], then throw a DataError.
         if (private_key_info.algorithm.identifier != TLS::rsa_encryption_oid)
-            return WebIDL::DataError::create(m_realm, "Algorithm object identifier is not the rsaEncryption object identifier"_fly_string);
+            return WebIDL::DataError::create(m_realm, "Algorithm object identifier is not the rsaEncryption object identifier"_string);
 
         // 5. Let rsaPrivateKey be the result of performing the parse an ASN.1 structure algorithm,
         //    with data as the privateKey field of privateKeyInfo, structure as the RSAPrivateKey structure
@@ -603,7 +603,7 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<CryptoKey>> RSAOAEP::import_key(Web::Crypto
         //    -> Otherwise:
         //         Throw a DataError.
         if (!key_data.has<Bindings::JsonWebKey>())
-            return WebIDL::DataError::create(m_realm, "keyData is not a JsonWebKey dictionary"_fly_string);
+            return WebIDL::DataError::create(m_realm, "keyData is not a JsonWebKey dictionary"_string);
         auto& jwk = key_data.get<Bindings::JsonWebKey>();
 
         // 2. If the d field of jwk is present and usages contains an entry which is not "decrypt" or "unwrapKey", then throw a SyntaxError.
@@ -626,11 +626,11 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<CryptoKey>> RSAOAEP::import_key(Web::Crypto
 
         // 4. If the kty field of jwk is not a case-sensitive string match to "RSA", then throw a DataError.
         if (jwk.kty != "RSA"_string)
-            return WebIDL::DataError::create(m_realm, "Invalid key type"_fly_string);
+            return WebIDL::DataError::create(m_realm, "Invalid key type"_string);
 
         // 5. If usages is non-empty and the use field of jwk is present and is not a case-sensitive string match to "enc", then throw a DataError.
         if (!usages.is_empty() && jwk.use.has_value() && *jwk.use != "enc"_string)
-            return WebIDL::DataError::create(m_realm, "Invalid use field"_fly_string);
+            return WebIDL::DataError::create(m_realm, "Invalid use field"_string);
 
         // 6. If the key_ops field of jwk is present, and is invalid according to the requirements of JSON Web Key [JWK]
         //    or does not contain all of the specified usages values, then throw a DataError.
@@ -642,7 +642,7 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<CryptoKey>> RSAOAEP::import_key(Web::Crypto
 
         // 7. If the ext field of jwk is present and has the value false and extractable is true, then throw a DataError.
         if (jwk.ext.has_value() && !*jwk.ext && extractable)
-            return WebIDL::DataError::create(m_realm, "Invalid ext field"_fly_string);
+            return WebIDL::DataError::create(m_realm, "Invalid ext field"_string);
 
         Optional<String> hash = {};
         // 8. -> If the alg field of jwk is not present:
@@ -674,7 +674,7 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<CryptoKey>> RSAOAEP::import_key(Web::Crypto
             // FIXME: Support 'other applicable specifications'
             // 1. Perform any key import steps defined by other applicable specifications, passing format, jwk and obtaining hash.
             // 2. If an error occurred or there are no applicable specifications, throw a DataError.
-            return WebIDL::DataError::create(m_realm, "Invalid alg field"_fly_string);
+            return WebIDL::DataError::create(m_realm, "Invalid alg field"_string);
         }
 
         // 9.  If hash is not undefined:
@@ -686,7 +686,7 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<CryptoKey>> RSAOAEP::import_key(Web::Crypto
             if (normalized_hash.parameter->name != TRY(normalized_algorithm.hash.visit([](String const& name) -> JS::ThrowCompletionOr<String> { return name; }, [&](JS::Handle<JS::Object> const& obj) -> JS::ThrowCompletionOr<String> {
                         auto name_property = TRY(obj->get("name"));
                         return name_property.to_string(m_realm->vm()); })))
-                return WebIDL::DataError::create(m_realm, "Invalid hash"_fly_string);
+                return WebIDL::DataError::create(m_realm, "Invalid hash"_string);
         }
 
         // 10. -> If the d field of jwk is present:
@@ -702,7 +702,7 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<CryptoKey>> RSAOAEP::import_key(Web::Crypto
             }
 
             if (!meets_requirements)
-                return WebIDL::DataError::create(m_realm, "Invalid JWK private key"_fly_string);
+                return WebIDL::DataError::create(m_realm, "Invalid JWK private key"_string);
 
             // FIXME: Spec error, it should say 'the RSA private key identified by interpreting jwk according to section 6.3.2'
             // 2. Let privateKey represent the RSA public key identified by interpreting jwk according to Section 6.3.1 of JSON Web Algorithms [JWA].
@@ -723,7 +723,7 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<CryptoKey>> RSAOAEP::import_key(Web::Crypto
         else {
             // 1. If jwk does not meet the requirements of Section 6.3.1 of JSON Web Algorithms [JWA], then throw a DataError.
             if (!jwk.e.has_value() || !jwk.n.has_value())
-                return WebIDL::DataError::create(m_realm, "Invalid JWK public key"_fly_string);
+                return WebIDL::DataError::create(m_realm, "Invalid JWK public key"_string);
 
             // 2. Let publicKey represent the RSA public key identified by interpreting jwk according to Section 6.3.1 of JSON Web Algorithms [JWA].
             auto public_key = TRY(parse_jwk_rsa_public_key(realm, jwk));
@@ -741,7 +741,7 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<CryptoKey>> RSAOAEP::import_key(Web::Crypto
 
     // -> Otherwise: throw a NotSupportedError.
     else {
-        return WebIDL::NotSupportedError::create(m_realm, "Unsupported key format"_fly_string);
+        return WebIDL::NotSupportedError::create(m_realm, "Unsupported key format"_string);
     }
 
     // 3. Let algorithm be a new RsaHashedKeyAlgorithm.
@@ -793,7 +793,7 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<JS::Object>> RSAOAEP::export_key(Bindings::
     if (format == Bindings::KeyFormat::Spki) {
         // 1. If the [[type]] internal slot of key is not "public", then throw an InvalidAccessError.
         if (key->type() != Bindings::KeyType::Public)
-            return WebIDL::InvalidAccessError::create(realm, "Key is not public"_fly_string);
+            return WebIDL::InvalidAccessError::create(realm, "Key is not public"_string);
 
         // 2. Let data be an instance of the subjectPublicKeyInfo ASN.1 structure defined in [RFC5280] with the following properties:
         // - Set the algorithm field to an AlgorithmIdentifier ASN.1 type with the following properties:
@@ -820,7 +820,7 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<JS::Object>> RSAOAEP::export_key(Bindings::
     else if (format == Bindings::KeyFormat::Pkcs8) {
         // 1. If the [[type]] internal slot of key is not "private", then throw an InvalidAccessError.
         if (key->type() != Bindings::KeyType::Private)
-            return WebIDL::InvalidAccessError::create(realm, "Key is not private"_fly_string);
+            return WebIDL::InvalidAccessError::create(realm, "Key is not private"_string);
 
         // 2. Let data be the result of encoding a privateKeyInfo structure with the following properties:
         // - Set the version field to 0.
@@ -943,7 +943,7 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<CryptoKey>> PBKDF2::import_key(AlgorithmPar
 {
     // 1. If format is not "raw", throw a NotSupportedError
     if (format != Bindings::KeyFormat::Raw) {
-        return WebIDL::NotSupportedError::create(m_realm, "Only raw format is supported"_fly_string);
+        return WebIDL::NotSupportedError::create(m_realm, "Only raw format is supported"_string);
     }
 
     // 2. If usages contains a value that is not "deriveKey" or "deriveBits", then throw a SyntaxError.
@@ -955,7 +955,7 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<CryptoKey>> PBKDF2::import_key(AlgorithmPar
 
     // 3. If extractable is not false, then throw a SyntaxError.
     if (extractable)
-        return WebIDL::SyntaxError::create(m_realm, "extractable must be false"_fly_string);
+        return WebIDL::SyntaxError::create(m_realm, "extractable must be false"_string);
 
     // 4. Let key be a new CryptoKey representing keyData.
     auto key = CryptoKey::create(m_realm, move(key_data));
@@ -1002,7 +1002,7 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<JS::ArrayBuffer>> SHA::digest(AlgorithmPara
     auto digest = hash.digest();
     auto result_buffer = ByteBuffer::copy(digest.immutable_data(), hash.digest_size());
     if (result_buffer.is_error())
-        return WebIDL::OperationError::create(m_realm, "Failed to create result buffer"_fly_string);
+        return WebIDL::OperationError::create(m_realm, "Failed to create result buffer"_string);
 
     return JS::ArrayBuffer::create(m_realm, result_buffer.release_value());
 }
@@ -1032,14 +1032,14 @@ WebIDL::ExceptionOr<Variant<JS::NonnullGCPtr<CryptoKey>, JS::NonnullGCPtr<Crypto
 
         // FIXME: Support P-521
         if (normalized_algorithm.named_curve.equals_ignoring_ascii_case("P-521"sv))
-            return WebIDL::NotSupportedError::create(m_realm, "'P-521' is not supported yet"_fly_string);
+            return WebIDL::NotSupportedError::create(m_realm, "'P-521' is not supported yet"_string);
     } else {
         // If the namedCurve member of normalizedAlgorithm is a value specified in an applicable specification:
         // Perform the ECDSA generation steps specified in that specification,
         // passing in normalizedAlgorithm and resulting in an elliptic curve key pair.
 
         // Otherwise: throw a NotSupportedError
-        return WebIDL::NotSupportedError::create(m_realm, "Only 'P-256', 'P-384' and 'P-521' is supported"_fly_string);
+        return WebIDL::NotSupportedError::create(m_realm, "Only 'P-256', 'P-384' and 'P-521' is supported"_string);
     }
 
     // NOTE: Spec jumps to 6 here for some reason
@@ -1049,7 +1049,7 @@ WebIDL::ExceptionOr<Variant<JS::NonnullGCPtr<CryptoKey>, JS::NonnullGCPtr<Crypto
         [](auto instance) { return instance.generate_private_key(); });
 
     if (maybe_private_key_data.is_error())
-        return WebIDL::OperationError::create(m_realm, "Failed to create valid crypto instance"_fly_string);
+        return WebIDL::OperationError::create(m_realm, "Failed to create valid crypto instance"_string);
 
     auto private_key_data = maybe_private_key_data.release_value();
 
@@ -1058,7 +1058,7 @@ WebIDL::ExceptionOr<Variant<JS::NonnullGCPtr<CryptoKey>, JS::NonnullGCPtr<Crypto
         [&](auto instance) { return instance.generate_public_key(private_key_data); });
 
     if (maybe_public_key_data.is_error())
-        return WebIDL::OperationError::create(m_realm, "Failed to create valid crypto instance"_fly_string);
+        return WebIDL::OperationError::create(m_realm, "Failed to create valid crypto instance"_string);
 
     auto public_key_data = maybe_public_key_data.release_value();
 
@@ -1120,7 +1120,7 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<JS::ArrayBuffer>> ECDSA::sign(AlgorithmPara
 
     // 1. If the [[type]] internal slot of key is not "private", then throw an InvalidAccessError.
     if (key->type() != Bindings::KeyType::Private)
-        return WebIDL::InvalidAccessError::create(realm, "Key is not a private key"_fly_string);
+        return WebIDL::InvalidAccessError::create(realm, "Key is not a private key"_string);
 
     // 2. Let hashAlgorithm be the hash member of normalizedAlgorithm.
     [[maybe_unused]] auto const& hash_algorithm = normalized_algorithm.hash;
@@ -1143,7 +1143,7 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<JS::ArrayBuffer>> ECDSA::sign(AlgorithmPara
 
     // NOTE: The spec jumps to 9 here for some reason
     // FIXME: 9. Return the result of creating an ArrayBuffer containing result.
-    return WebIDL::NotSupportedError::create(realm, "ECDSA signing is not supported yet"_fly_string);
+    return WebIDL::NotSupportedError::create(realm, "ECDSA signing is not supported yet"_string);
 }
 
 // https://w3c.github.io/webcrypto/#ecdsa-operations
@@ -1154,7 +1154,7 @@ WebIDL::ExceptionOr<JS::Value> ECDSA::verify(AlgorithmParams const& params, JS::
 
     // 1. If the [[type]] internal slot of key is not "public", then throw an InvalidAccessError.
     if (key->type() != Bindings::KeyType::Public)
-        return WebIDL::InvalidAccessError::create(realm, "Key is not a public key"_fly_string);
+        return WebIDL::InvalidAccessError::create(realm, "Key is not a public key"_string);
 
     // 2. Let hashAlgorithm be the hash member of normalizedAlgorithm.
     [[maybe_unused]] auto const& hash_algorithm = TRY(normalized_algorithm.hash.visit(
@@ -1182,7 +1182,7 @@ WebIDL::ExceptionOr<JS::Value> ECDSA::verify(AlgorithmParams const& params, JS::
 
     auto result_buffer = ByteBuffer::copy(digest.immutable_data(), hash.digest_size());
     if (result_buffer.is_error())
-        return WebIDL::OperationError::create(m_realm, "Failed to create result buffer"_fly_string);
+        return WebIDL::OperationError::create(m_realm, "Failed to create result buffer"_string);
 
     auto M = result_buffer.release_value();
 
@@ -1211,7 +1211,7 @@ WebIDL::ExceptionOr<JS::Value> ECDSA::verify(AlgorithmParams const& params, JS::
 
         // FIXME: Support P-521
         if (named_curve.equals_ignoring_ascii_case("P-521"sv))
-            return WebIDL::NotSupportedError::create(m_realm, "'P-521' is not supported yet"_fly_string);
+            return WebIDL::NotSupportedError::create(m_realm, "'P-521' is not supported yet"_string);
 
         // Perform the ECDSA verifying process, as specified in [RFC6090], Section 5.3,
         // with M as the received message,
@@ -1237,7 +1237,7 @@ WebIDL::ExceptionOr<JS::Value> ECDSA::verify(AlgorithmParams const& params, JS::
             [&](auto instance) { return instance.verify(M, Q, encoded_signature); });
 
         if (maybe_result.is_error()) {
-            auto error_message = MUST(FlyString::from_utf8(maybe_result.error().string_literal()));
+            auto error_message = MUST(String::from_utf8(maybe_result.error().string_literal()));
             return WebIDL::OperationError::create(m_realm, error_message);
         }
 
@@ -1266,12 +1266,12 @@ WebIDL::ExceptionOr<Variant<JS::NonnullGCPtr<CryptoKey>, JS::NonnullGCPtr<Crypto
     ::Crypto::Curves::Ed25519 curve;
     auto maybe_private_key = curve.generate_private_key();
     if (maybe_private_key.is_error())
-        return WebIDL::OperationError::create(m_realm, "Failed to generate private key"_fly_string);
+        return WebIDL::OperationError::create(m_realm, "Failed to generate private key"_string);
     auto private_key_data = maybe_private_key.release_value();
 
     auto maybe_public_key = curve.generate_public_key(private_key_data);
     if (maybe_public_key.is_error())
-        return WebIDL::OperationError::create(m_realm, "Failed to generate public key"_fly_string);
+        return WebIDL::OperationError::create(m_realm, "Failed to generate public key"_string);
     auto public_key_data = maybe_public_key.release_value();
 
     // 3. Let algorithm be a new KeyAlgorithm object.
@@ -1326,7 +1326,7 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<JS::ArrayBuffer>> ED25519::sign([[maybe_unu
 
     // 1. If the [[type]] internal slot of key is not "private", then throw an InvalidAccessError.
     if (key->type() != Bindings::KeyType::Private)
-        return WebIDL::InvalidAccessError::create(realm, "Key is not a private key"_fly_string);
+        return WebIDL::InvalidAccessError::create(realm, "Key is not a private key"_string);
 
     // 2. Perform the Ed25519 signing process, as specified in [RFC8032], Section 5.1.6,
     // with message as M, using the Ed25519 private key associated with key.
@@ -1339,12 +1339,12 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<JS::ArrayBuffer>> ED25519::sign([[maybe_unu
     ::Crypto::Curves::Ed25519 curve;
     auto maybe_public_key = curve.generate_public_key(private_key);
     if (maybe_public_key.is_error())
-        return WebIDL::OperationError::create(realm, "Failed to generate public key"_fly_string);
+        return WebIDL::OperationError::create(realm, "Failed to generate public key"_string);
     auto public_key = maybe_public_key.release_value();
 
     auto maybe_signature = curve.sign(public_key, private_key, message);
     if (maybe_signature.is_error())
-        return WebIDL::OperationError::create(realm, "Failed to sign message"_fly_string);
+        return WebIDL::OperationError::create(realm, "Failed to sign message"_string);
     auto signature = maybe_signature.release_value();
 
     // 3. Return a new ArrayBuffer associated with the relevant global object of this [HTML],
@@ -1359,7 +1359,7 @@ WebIDL::ExceptionOr<JS::Value> ED25519::verify([[maybe_unused]] AlgorithmParams 
 
     // 1. If the [[type]] internal slot of key is not "public", then throw an InvalidAccessError.
     if (key->type() != Bindings::KeyType::Public)
-        return WebIDL::InvalidAccessError::create(realm, "Key is not a public key"_fly_string);
+        return WebIDL::InvalidAccessError::create(realm, "Key is not a public key"_string);
 
     // NOTE: this is checked by ED25519::verify()
     // 2. If the key data of key represents an invalid point or a small-order element on the Elliptic Curve of Ed25519, return false.
@@ -1392,11 +1392,11 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<JS::ArrayBuffer>> PBKDF2::derive_bits(Algor
     auto length = length_optional.value_or(0);
 
     if (length == 0 || length % 8 != 0)
-        return WebIDL::OperationError::create(realm, "Length must be greater than 0 and divisible by 8"_fly_string);
+        return WebIDL::OperationError::create(realm, "Length must be greater than 0 and divisible by 8"_string);
 
     // 2. If the iterations member of normalizedAlgorithm is zero, then throw an OperationError.
     if (normalized_algorithm.iterations == 0)
-        return WebIDL::OperationError::create(realm, "Iterations must be greater than 0"_fly_string);
+        return WebIDL::OperationError::create(realm, "Iterations must be greater than 0"_string);
 
     // 3. Let prf be the MAC Generation function described in Section 4 of [FIPS-198-1] using the hash function described by the hash member of normalizedAlgorithm.
     auto const& hash_algorithm = TRY(normalized_algorithm.hash.visit(
@@ -1437,7 +1437,7 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<JS::ArrayBuffer>> PBKDF2::derive_bits(Algor
 
     // 5. If the key derivation operation fails, then throw an OperationError.
     if (result.is_error())
-        return WebIDL::OperationError::create(realm, "Failed to derive key"_fly_string);
+        return WebIDL::OperationError::create(realm, "Failed to derive key"_string);
 
     // 6. Return result
     return JS::ArrayBuffer::create(realm, result.release_value());

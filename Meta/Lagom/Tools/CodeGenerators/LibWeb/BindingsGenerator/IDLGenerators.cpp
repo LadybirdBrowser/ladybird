@@ -2509,7 +2509,7 @@ static void generate_html_constructor(SourceGenerator& generator, IDL::Construct
 
     // 11. If element is an already constructed marker, then throw an "InvalidStateError" DOMException.
     if (element.has<HTML::AlreadyConstructedCustomElementMarker>())
-        return JS::throw_completion(WebIDL::InvalidStateError::create(realm, "Custom element has already been constructed"_fly_string));
+        return JS::throw_completion(WebIDL::InvalidStateError::create(realm, "Custom element has already been constructed"_string));
 
     // 12. Perform ? element.[[SetPrototypeOf]](prototype).
     auto actual_element = element.get<JS::Handle<DOM::Element>>();

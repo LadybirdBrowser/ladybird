@@ -1261,7 +1261,7 @@ WebIDL::ExceptionOr<void> Navigable::navigate(NavigateParams params)
     if (!source_document->navigable()->allowed_by_sandboxing_to_navigate(*this, source_snapshot_params)) {
         // 1. If exceptionsEnabled is true, then throw a "SecurityError" DOMException.
         if (exceptions_enabled) {
-            return WebIDL::SecurityError::create(realm, "Source document's node navigable is not allowed to navigate"_fly_string);
+            return WebIDL::SecurityError::create(realm, "Source document's node navigable is not allowed to navigate"_string);
         }
 
         // 2 Return.

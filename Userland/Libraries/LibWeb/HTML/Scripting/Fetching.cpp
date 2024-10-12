@@ -520,7 +520,7 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<ClassicScript>> fetch_a_classic_worker_impo
     if (body_bytes.template has<Empty>() || body_bytes.template has<Fetch::Infrastructure::FetchAlgorithms::ConsumeBodyFailureTag>()
         || !Fetch::Infrastructure::is_ok_status(response->status())
         || !response->header_list()->extract_mime_type().has_value() || !response->header_list()->extract_mime_type()->is_javascript()) {
-        return WebIDL::NetworkError::create(realm, "Network error"_fly_string);
+        return WebIDL::NetworkError::create(realm, "Network error"_string);
     }
 
     // 8. Let sourceText be the result of UTF-8 decoding bodyBytes.

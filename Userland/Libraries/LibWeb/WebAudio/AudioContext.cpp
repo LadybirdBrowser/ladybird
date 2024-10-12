@@ -112,14 +112,14 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<JS::Promise>> AudioContext::resume()
     // 1. If this's relevant global object's associated Document is not fully active then return a promise rejected with "InvalidStateError" DOMException.
     auto const& associated_document = verify_cast<HTML::Window>(HTML::relevant_global_object(*this)).associated_document();
     if (!associated_document.is_fully_active())
-        return WebIDL::InvalidStateError::create(realm, "Document is not fully active"_fly_string);
+        return WebIDL::InvalidStateError::create(realm, "Document is not fully active"_string);
 
     // 2. Let promise be a new Promise.
     auto promise = WebIDL::create_promise(realm);
 
     // 3. If the [[control thread state]] on the AudioContext is closed reject the promise with InvalidStateError, abort these steps, returning promise.
     if (state() == Bindings::AudioContextState::Closed) {
-        WebIDL::reject_promise(realm, promise, WebIDL::InvalidStateError::create(realm, "Audio context is already closed."_fly_string));
+        WebIDL::reject_promise(realm, promise, WebIDL::InvalidStateError::create(realm, "Audio context is already closed."_string));
         return JS::NonnullGCPtr { verify_cast<JS::Promise>(*promise->promise()) };
     }
 
@@ -197,14 +197,14 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<JS::Promise>> AudioContext::suspend()
     // 1. If this's relevant global object's associated Document is not fully active then return a promise rejected with "InvalidStateError" DOMException.
     auto const& associated_document = verify_cast<HTML::Window>(HTML::relevant_global_object(*this)).associated_document();
     if (!associated_document.is_fully_active())
-        return WebIDL::InvalidStateError::create(realm, "Document is not fully active"_fly_string);
+        return WebIDL::InvalidStateError::create(realm, "Document is not fully active"_string);
 
     // 2. Let promise be a new Promise.
     auto promise = WebIDL::create_promise(realm);
 
     // 3. If the [[control thread state]] on the AudioContext is closed reject the promise with InvalidStateError, abort these steps, returning promise.
     if (state() == Bindings::AudioContextState::Closed) {
-        WebIDL::reject_promise(realm, promise, WebIDL::InvalidStateError::create(realm, "Audio context is already closed."_fly_string));
+        WebIDL::reject_promise(realm, promise, WebIDL::InvalidStateError::create(realm, "Audio context is already closed."_string));
         return JS::NonnullGCPtr { verify_cast<JS::Promise>(*promise->promise()) };
     }
 
@@ -254,14 +254,14 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<JS::Promise>> AudioContext::close()
     // 1. If this's relevant global object's associated Document is not fully active then return a promise rejected with "InvalidStateError" DOMException.
     auto const& associated_document = verify_cast<HTML::Window>(HTML::relevant_global_object(*this)).associated_document();
     if (!associated_document.is_fully_active())
-        return WebIDL::InvalidStateError::create(realm, "Document is not fully active"_fly_string);
+        return WebIDL::InvalidStateError::create(realm, "Document is not fully active"_string);
 
     // 2. Let promise be a new Promise.
     auto promise = WebIDL::create_promise(realm);
 
     // 3. If the [[control thread state]] flag on the AudioContext is closed reject the promise with InvalidStateError, abort these steps, returning promise.
     if (state() == Bindings::AudioContextState::Closed) {
-        WebIDL::reject_promise(realm, promise, WebIDL::InvalidStateError::create(realm, "Audio context is already closed."_fly_string));
+        WebIDL::reject_promise(realm, promise, WebIDL::InvalidStateError::create(realm, "Audio context is already closed."_string));
         return JS::NonnullGCPtr { verify_cast<JS::Promise>(*promise->promise()) };
     }
 
