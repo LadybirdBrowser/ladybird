@@ -76,6 +76,10 @@ enum class TextTrackKind;
 enum class XMLHttpRequestResponseType;
 }
 
+namespace Web::Keyboard {
+class Keyboard;
+}
+
 namespace Web::Clipboard {
 class Clipboard;
 }
