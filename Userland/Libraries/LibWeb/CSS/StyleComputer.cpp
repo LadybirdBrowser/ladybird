@@ -19,6 +19,7 @@
 #include <LibGfx/Font/Font.h>
 #include <LibGfx/Font/FontDatabase.h>
 #include <LibGfx/Font/FontStyleMapping.h>
+#include <LibGfx/Font/FontWeight.h>
 #include <LibGfx/Font/ScaledFont.h>
 #include <LibGfx/Font/Typeface.h>
 #include <LibGfx/Font/WOFF/Loader.h>

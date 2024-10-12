@@ -8,9 +8,11 @@
 #include "FontPlugin.h"
 #include <AK/ByteString.h>
 #include <AK/String.h>
+#include <AK/TypeCasts.h>
 #include <LibCore/Resource.h>
 #include <LibCore/StandardPaths.h>
 #include <LibGfx/Font/FontDatabase.h>
+#include <LibGfx/Font/PathFontProvider.h>
 
 #ifdef USE_FONTCONFIG
 #    include <fontconfig/fontconfig.h>
@@ -18,7 +20,7 @@
 
 namespace Ladybird {
 
-FontPlugin::FontPlugin(bool is_layout_test_mode)
+FontPlugin::FontPlugin(bool is_layout_test_mode, Gfx::SystemFontProvider* font_provider)
     : m_is_layout_test_mode(is_layout_test_mode)
 {
 #ifdef USE_FONTCONFIG
@@ -28,9 +30,14 @@ FontPlugin::FontPlugin(bool is_layout_test_mode)
     }
 #endif
 
-    // Load anything we can find in the system's font directories
-    for (auto const& path : Core::StandardPaths::font_directories().release_value_but_fixme_should_propagate_errors())
-        Gfx::FontDatabase::the().load_all_fonts_from_uri(MUST(String::formatted("file://{}", path)));
+    if (!font_provider)
+        font_provider = &static_cast<Gfx::PathFontProvider&>(Gfx::FontDatabase::the().install_system_font_provider(make<Gfx::PathFontProvider>()));
+    if (is<Gfx::PathFontProvider>(*font_provider)) {
+        auto& path_font_provider = static_cast<Gfx::PathFontProvider&>(*font_provider);
+        // Load anything we can find in the system's font directories
+        for (auto const& path : Core::StandardPaths::font_directories().release_value_but_fixme_should_propagate_errors())
+            path_font_provider.load_all_fonts_from_uri(MUST(String::formatted("file://{}", path)));
+    }
 
     update_generic_fonts();
 
