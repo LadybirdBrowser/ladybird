@@ -154,52 +154,52 @@ public:
 
     virtual WebIDL::ExceptionOr<JS::NonnullGCPtr<JS::ArrayBuffer>> encrypt(AlgorithmParams const&, JS::NonnullGCPtr<CryptoKey>, ByteBuffer const&)
     {
-        return WebIDL::NotSupportedError::create(m_realm, "encrypt is not supported"_fly_string);
+        return WebIDL::NotSupportedError::create(m_realm, "encrypt is not supported"_string);
     }
 
     virtual WebIDL::ExceptionOr<JS::NonnullGCPtr<JS::ArrayBuffer>> decrypt(AlgorithmParams const&, JS::NonnullGCPtr<CryptoKey>, ByteBuffer const&)
     {
-        return WebIDL::NotSupportedError::create(m_realm, "decrypt is not supported"_fly_string);
+        return WebIDL::NotSupportedError::create(m_realm, "decrypt is not supported"_string);
     }
 
     virtual WebIDL::ExceptionOr<JS::NonnullGCPtr<JS::ArrayBuffer>> sign(AlgorithmParams const&, JS::NonnullGCPtr<CryptoKey>, ByteBuffer const&)
     {
-        return WebIDL::NotSupportedError::create(m_realm, "sign is not supported"_fly_string);
+        return WebIDL::NotSupportedError::create(m_realm, "sign is not supported"_string);
     }
 
     virtual WebIDL::ExceptionOr<JS::Value> verify(AlgorithmParams const&, JS::NonnullGCPtr<CryptoKey>, ByteBuffer const&, ByteBuffer const&)
     {
-        return WebIDL::NotSupportedError::create(m_realm, "verify is not supported"_fly_string);
+        return WebIDL::NotSupportedError::create(m_realm, "verify is not supported"_string);
     }
 
     virtual WebIDL::ExceptionOr<JS::NonnullGCPtr<JS::ArrayBuffer>> digest(AlgorithmParams const&, ByteBuffer const&)
     {
-        return WebIDL::NotSupportedError::create(m_realm, "digest is not supported"_fly_string);
+        return WebIDL::NotSupportedError::create(m_realm, "digest is not supported"_string);
     }
 
     virtual WebIDL::ExceptionOr<JS::NonnullGCPtr<JS::ArrayBuffer>> derive_bits(AlgorithmParams const&, JS::NonnullGCPtr<CryptoKey>, Optional<u32>)
     {
-        return WebIDL::NotSupportedError::create(m_realm, "deriveBits is not supported"_fly_string);
+        return WebIDL::NotSupportedError::create(m_realm, "deriveBits is not supported"_string);
     }
 
     virtual WebIDL::ExceptionOr<JS::NonnullGCPtr<CryptoKey>> import_key(AlgorithmParams const&, Bindings::KeyFormat, CryptoKey::InternalKeyData, bool, Vector<Bindings::KeyUsage> const&)
     {
-        return WebIDL::NotSupportedError::create(m_realm, "importKey is not supported"_fly_string);
+        return WebIDL::NotSupportedError::create(m_realm, "importKey is not supported"_string);
     }
 
     virtual WebIDL::ExceptionOr<Variant<JS::NonnullGCPtr<CryptoKey>, JS::NonnullGCPtr<CryptoKeyPair>>> generate_key(AlgorithmParams const&, bool, Vector<Bindings::KeyUsage> const&)
     {
-        return WebIDL::NotSupportedError::create(m_realm, "generateKey is not supported"_fly_string);
+        return WebIDL::NotSupportedError::create(m_realm, "generateKey is not supported"_string);
     }
 
     virtual WebIDL::ExceptionOr<JS::NonnullGCPtr<JS::Object>> export_key(Bindings::KeyFormat, JS::NonnullGCPtr<CryptoKey>)
     {
-        return WebIDL::NotSupportedError::create(m_realm, "exportKey is not supported"_fly_string);
+        return WebIDL::NotSupportedError::create(m_realm, "exportKey is not supported"_string);
     }
 
     virtual WebIDL::ExceptionOr<JS::Value> get_key_length(AlgorithmParams const&)
     {
-        return WebIDL::NotSupportedError::create(m_realm, "getKeyLength is not supported"_fly_string);
+        return WebIDL::NotSupportedError::create(m_realm, "getKeyLength is not supported"_string);
     }
 
     static NonnullOwnPtr<AlgorithmMethods> create(JS::Realm& realm) { return adopt_own(*new AlgorithmMethods(realm)); }

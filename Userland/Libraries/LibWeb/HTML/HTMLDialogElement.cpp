@@ -87,11 +87,11 @@ WebIDL::ExceptionOr<void> HTMLDialogElement::show_modal()
 
     // 2. If this has an open attribute, then throw an "InvalidStateError" DOMException.
     if (has_attribute(AttributeNames::open))
-        return WebIDL::InvalidStateError::create(realm(), "Dialog already open"_fly_string);
+        return WebIDL::InvalidStateError::create(realm(), "Dialog already open"_string);
 
     // 3. If this is not connected, then throw an "InvalidStateError" DOMException.
     if (!is_connected())
-        return WebIDL::InvalidStateError::create(realm(), "Dialog not connected"_fly_string);
+        return WebIDL::InvalidStateError::create(realm(), "Dialog not connected"_string);
 
     // FIXME: 4. If this is in the popover showing state, then throw an "InvalidStateError" DOMException.
 

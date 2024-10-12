@@ -100,7 +100,7 @@ WebIDL::ExceptionOr<String> Location::href() const
     // 1. If this's relevant Document is non-null and its origin is not same origin-domain with the entry settings object's origin, then throw a "SecurityError" DOMException.
     auto const relevant_document = this->relevant_document();
     if (relevant_document && !relevant_document->origin().is_same_origin_domain(entry_settings_object().origin()))
-        return WebIDL::SecurityError::create(realm(), "Location's relevant document is not same origin-domain with the entry settings object's origin"_fly_string);
+        return WebIDL::SecurityError::create(realm(), "Location's relevant document is not same origin-domain with the entry settings object's origin"_string);
 
     // 2. Return this's url, serialized.
     return TRY_OR_THROW_OOM(vm, String::from_byte_string(url().serialize()));
@@ -138,7 +138,7 @@ WebIDL::ExceptionOr<String> Location::origin() const
     // 1. If this's relevant Document is non-null and its origin is not same origin-domain with the entry settings object's origin, then throw a "SecurityError" DOMException.
     auto const relevant_document = this->relevant_document();
     if (relevant_document && !relevant_document->origin().is_same_origin_domain(entry_settings_object().origin()))
-        return WebIDL::SecurityError::create(realm(), "Location's relevant document is not same origin-domain with the entry settings object's origin"_fly_string);
+        return WebIDL::SecurityError::create(realm(), "Location's relevant document is not same origin-domain with the entry settings object's origin"_string);
 
     // 2. Return the serialization of this's url's origin.
     return TRY_OR_THROW_OOM(vm, String::from_byte_string(url().origin().serialize()));
@@ -152,7 +152,7 @@ WebIDL::ExceptionOr<String> Location::protocol() const
     // 1. If this's relevant Document is non-null and its origin is not same origin-domain with the entry settings object's origin, then throw a "SecurityError" DOMException.
     auto const relevant_document = this->relevant_document();
     if (relevant_document && !relevant_document->origin().is_same_origin_domain(entry_settings_object().origin()))
-        return WebIDL::SecurityError::create(realm(), "Location's relevant document is not same origin-domain with the entry settings object's origin"_fly_string);
+        return WebIDL::SecurityError::create(realm(), "Location's relevant document is not same origin-domain with the entry settings object's origin"_string);
 
     // 2. Return this's url's scheme, followed by ":".
     return TRY_OR_THROW_OOM(vm, String::formatted("{}:", url().scheme()));
@@ -169,7 +169,7 @@ WebIDL::ExceptionOr<void> Location::set_protocol(String const& value)
 
     // 2. If this's relevant Document's origin is not same origin-domain with the entry settings object's origin, then throw a "SecurityError" DOMException.
     if (!relevant_document->origin().is_same_origin_domain(entry_settings_object().origin()))
-        return WebIDL::SecurityError::create(realm(), "Location's relevant document is not same origin-domain with the entry settings object's origin"_fly_string);
+        return WebIDL::SecurityError::create(realm(), "Location's relevant document is not same origin-domain with the entry settings object's origin"_string);
 
     // 3. Let copyURL be a copy of this's url.
     auto copy_url = this->url();
@@ -199,7 +199,7 @@ WebIDL::ExceptionOr<String> Location::host() const
     // 1. If this's relevant Document is non-null and its origin is not same origin-domain with the entry settings object's origin, then throw a "SecurityError" DOMException.
     auto const relevant_document = this->relevant_document();
     if (relevant_document && !relevant_document->origin().is_same_origin_domain(entry_settings_object().origin()))
-        return WebIDL::SecurityError::create(realm(), "Location's relevant document is not same origin-domain with the entry settings object's origin"_fly_string);
+        return WebIDL::SecurityError::create(realm(), "Location's relevant document is not same origin-domain with the entry settings object's origin"_string);
 
     // 2. Let url be this's url.
     auto url = this->url();
@@ -230,7 +230,7 @@ WebIDL::ExceptionOr<String> Location::hostname() const
     // 1. If this's relevant Document is non-null and its origin is not same origin-domain with the entry settings object's origin, then throw a "SecurityError" DOMException.
     auto const relevant_document = this->relevant_document();
     if (relevant_document && !relevant_document->origin().is_same_origin_domain(entry_settings_object().origin()))
-        return WebIDL::SecurityError::create(realm(), "Location's relevant document is not same origin-domain with the entry settings object's origin"_fly_string);
+        return WebIDL::SecurityError::create(realm(), "Location's relevant document is not same origin-domain with the entry settings object's origin"_string);
 
     auto url = this->url();
 
@@ -256,7 +256,7 @@ WebIDL::ExceptionOr<String> Location::port() const
     // 1. If this's relevant Document is non-null and its origin is not same origin-domain with the entry settings object's origin, then throw a "SecurityError" DOMException.
     auto const relevant_document = this->relevant_document();
     if (relevant_document && !relevant_document->origin().is_same_origin_domain(entry_settings_object().origin()))
-        return WebIDL::SecurityError::create(realm(), "Location's relevant document is not same origin-domain with the entry settings object's origin"_fly_string);
+        return WebIDL::SecurityError::create(realm(), "Location's relevant document is not same origin-domain with the entry settings object's origin"_string);
 
     auto url = this->url();
 
@@ -280,7 +280,7 @@ WebIDL::ExceptionOr<String> Location::pathname() const
     // 1. If this's relevant Document is non-null and its origin is not same origin-domain with the entry settings object's origin, then throw a "SecurityError" DOMException.
     auto const relevant_document = this->relevant_document();
     if (relevant_document && !relevant_document->origin().is_same_origin_domain(entry_settings_object().origin()))
-        return WebIDL::SecurityError::create(realm(), "Location's relevant document is not same origin-domain with the entry settings object's origin"_fly_string);
+        return WebIDL::SecurityError::create(realm(), "Location's relevant document is not same origin-domain with the entry settings object's origin"_string);
 
     // 2. Return the result of URL path serializing this Location object's url.
     return url().serialize_path();
@@ -300,7 +300,7 @@ WebIDL::ExceptionOr<String> Location::search() const
     // 1. If this's relevant Document is non-null and its origin is not same origin-domain with the entry settings object's origin, then throw a "SecurityError" DOMException.
     auto const relevant_document = this->relevant_document();
     if (relevant_document && !relevant_document->origin().is_same_origin_domain(entry_settings_object().origin()))
-        return WebIDL::SecurityError::create(realm(), "Location's relevant document is not same origin-domain with the entry settings object's origin"_fly_string);
+        return WebIDL::SecurityError::create(realm(), "Location's relevant document is not same origin-domain with the entry settings object's origin"_string);
 
     auto url = this->url();
 
@@ -324,7 +324,7 @@ WebIDL::ExceptionOr<void> Location::set_search(String const& value)
 
     // 2. If this's relevant Document's origin is not same origin-domain with the entry settings object's origin, then throw a "SecurityError" DOMException.
     if (!relevant_document->origin().is_same_origin_domain(entry_settings_object().origin()))
-        return WebIDL::SecurityError::create(realm(), "Location's relevant document is not same origin-domain with the entry settings object's origin"_fly_string);
+        return WebIDL::SecurityError::create(realm(), "Location's relevant document is not same origin-domain with the entry settings object's origin"_string);
 
     // 3. Let copyURL be a copy of this's url.
     auto copy_url = this->url();
@@ -360,7 +360,7 @@ WebIDL::ExceptionOr<String> Location::hash() const
     // 1. If this's relevant Document is non-null and its origin is not same origin-domain with the entry settings object's origin, then throw a "SecurityError" DOMException.
     auto const relevant_document = this->relevant_document();
     if (relevant_document && !relevant_document->origin().is_same_origin_domain(entry_settings_object().origin()))
-        return WebIDL::SecurityError::create(realm(), "Location's relevant document is not same origin-domain with the entry settings object's origin"_fly_string);
+        return WebIDL::SecurityError::create(realm(), "Location's relevant document is not same origin-domain with the entry settings object's origin"_string);
 
     auto url = this->url();
 
@@ -384,7 +384,7 @@ WebIDL::ExceptionOr<void> Location::set_hash(String const& value)
 
     // 2. If this's relevant Document's origin is not same origin-domain with the entry settings object's origin, then throw a "SecurityError" DOMException.
     if (!relevant_document->origin().is_same_origin_domain(entry_settings_object().origin()))
-        return WebIDL::SecurityError::create(realm(), "Location's relevant document is not same origin-domain with the entry settings object's origin"_fly_string);
+        return WebIDL::SecurityError::create(realm(), "Location's relevant document is not same origin-domain with the entry settings object's origin"_string);
 
     // 3. Let copyURL be a copy of this's url.
     auto copy_url = this->url();
@@ -452,7 +452,7 @@ WebIDL::ExceptionOr<void> Location::assign(String const& url)
 
     // 2. If this's relevant Document's origin is not same origin-domain with the entry settings object's origin, then throw a "SecurityError" DOMException.
     if (!relevant_document->origin().is_same_origin_domain(entry_settings_object().origin()))
-        return WebIDL::SecurityError::create(realm(), "Location's relevant document is not same origin-domain with the entry settings object's origin"_fly_string);
+        return WebIDL::SecurityError::create(realm(), "Location's relevant document is not same origin-domain with the entry settings object's origin"_string);
 
     // 3. Parse url relative to the entry settings object. If that failed, throw a "SyntaxError" DOMException.
     auto assign_url = entry_settings_object().parse_url(url);

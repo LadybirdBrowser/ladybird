@@ -48,7 +48,7 @@ CanvasRenderingContext2D::~CanvasRenderingContext2D() = default;
 void CanvasRenderingContext2D::initialize(JS::Realm& realm)
 {
     Base::initialize(realm);
-    set_prototype(&Bindings::ensure_web_prototype<Bindings::CanvasRenderingContext2DPrototype>(realm, "CanvasRenderingContext2D"_fly_string));
+    set_prototype(&Bindings::ensure_web_prototype<Bindings::CanvasRenderingContext2DPrototype>(realm, "CanvasRenderingContext2D"_string));
 }
 
 void CanvasRenderingContext2D::visit_edges(Cell::Visitor& visitor)
@@ -331,11 +331,11 @@ WebIDL::ExceptionOr<JS::GCPtr<ImageData>> CanvasRenderingContext2D::get_image_da
 {
     // 1. If either the sw or sh arguments are zero, then throw an "IndexSizeError" DOMException.
     if (width == 0 || height == 0)
-        return WebIDL::IndexSizeError::create(realm(), "Width and height must not be zero"_fly_string);
+        return WebIDL::IndexSizeError::create(realm(), "Width and height must not be zero"_string);
 
     // 2. If the CanvasRenderingContext2D's origin-clean flag is set to false, then throw a "SecurityError" DOMException.
     if (!m_origin_clean)
-        return WebIDL::SecurityError::create(realm(), "CanvasRenderingContext2D is not origin-clean"_fly_string);
+        return WebIDL::SecurityError::create(realm(), "CanvasRenderingContext2D is not origin-clean"_string);
 
     // 3. Let imageData be a new ImageData object.
     // 4. Initialize imageData given sw, sh, settings set to settings, and defaultColorSpace set to this's color space.
@@ -600,7 +600,7 @@ WebIDL::ExceptionOr<CanvasImageSourceUsability> check_usability_of_image(CanvasI
         [](JS::Handle<HTMLCanvasElement> const& canvas_element) -> WebIDL::ExceptionOr<Optional<CanvasImageSourceUsability>> {
             // If image has either a horizontal dimension or a vertical dimension equal to zero, then throw an "InvalidStateError" DOMException.
             if (canvas_element->width() == 0 || canvas_element->height() == 0)
-                return WebIDL::InvalidStateError::create(canvas_element->realm(), "Canvas width or height is zero"_fly_string);
+                return WebIDL::InvalidStateError::create(canvas_element->realm(), "Canvas width or height is zero"_string);
             return Optional<CanvasImageSourceUsability> {};
         },
 
@@ -608,7 +608,7 @@ WebIDL::ExceptionOr<CanvasImageSourceUsability> check_usability_of_image(CanvasI
         // FIXME: VideoFrame
         [](JS::Handle<ImageBitmap> const& image_bitmap) -> WebIDL::ExceptionOr<Optional<CanvasImageSourceUsability>> {
             if (image_bitmap->is_detached())
-                return WebIDL::InvalidStateError::create(image_bitmap->realm(), "Image bitmap is detached"_fly_string);
+                return WebIDL::InvalidStateError::create(image_bitmap->realm(), "Image bitmap is detached"_string);
             return Optional<CanvasImageSourceUsability> {};
         }));
     if (usability.has_value())

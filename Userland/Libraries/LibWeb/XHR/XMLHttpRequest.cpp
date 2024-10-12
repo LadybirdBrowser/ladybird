@@ -117,7 +117,7 @@ WebIDL::ExceptionOr<String> XMLHttpRequest::response_text() const
 {
     // 1. If this’s response type is not the empty string or "text", then throw an "InvalidStateError" DOMException.
     if (m_response_type != Bindings::XMLHttpRequestResponseType::Empty && m_response_type != Bindings::XMLHttpRequestResponseType::Text)
-        return WebIDL::InvalidStateError::create(realm(), "XHR responseText can only be used for responseType \"\" or \"text\""_fly_string);
+        return WebIDL::InvalidStateError::create(realm(), "XHR responseText can only be used for responseType \"\" or \"text\""_string);
 
     // 2. If this’s state is not loading or done, then return the empty string.
     if (m_state != State::Loading && m_state != State::Done)
@@ -132,7 +132,7 @@ WebIDL::ExceptionOr<JS::GCPtr<DOM::Document>> XMLHttpRequest::response_xml()
 {
     // 1. If this’s response type is not the empty string or "document", then throw an "InvalidStateError" DOMException.
     if (m_response_type != Bindings::XMLHttpRequestResponseType::Empty && m_response_type != Bindings::XMLHttpRequestResponseType::Document)
-        return WebIDL::InvalidStateError::create(realm(), "XHR responseXML can only be used for responseXML \"\" or \"document\""_fly_string);
+        return WebIDL::InvalidStateError::create(realm(), "XHR responseXML can only be used for responseXML \"\" or \"document\""_string);
 
     // 2. If this’s state is not done, then return null.
     if (m_state != State::Done)
@@ -163,11 +163,11 @@ WebIDL::ExceptionOr<void> XMLHttpRequest::set_response_type(Bindings::XMLHttpReq
 
     // 2. If this’s state is loading or done, then throw an "InvalidStateError" DOMException.
     if (m_state == State::Loading || m_state == State::Done)
-        return WebIDL::InvalidStateError::create(realm(), "Can't readyState when XHR is loading or done"_fly_string);
+        return WebIDL::InvalidStateError::create(realm(), "Can't readyState when XHR is loading or done"_string);
 
     // 3. If the current global object is a Window object and this’s synchronous flag is set, then throw an "InvalidAccessError" DOMException.
     if (is<HTML::Window>(HTML::current_global_object()) && m_synchronous)
-        return WebIDL::InvalidAccessError::create(realm(), "Can't set readyState on synchronous XHR in Window environment"_fly_string);
+        return WebIDL::InvalidAccessError::create(realm(), "Can't set readyState on synchronous XHR in Window environment"_string);
 
     // 4. Set this’s response type to the given value.
     m_response_type = response_type;
@@ -421,20 +421,20 @@ WebIDL::ExceptionOr<void> XMLHttpRequest::set_request_header(String const& name_
 
     // 1. If this’s state is not opened, then throw an "InvalidStateError" DOMException.
     if (m_state != State::Opened)
-        return WebIDL::InvalidStateError::create(realm, "XHR readyState is not OPENED"_fly_string);
+        return WebIDL::InvalidStateError::create(realm, "XHR readyState is not OPENED"_string);
 
     // 2. If this’s send() flag is set, then throw an "InvalidStateError" DOMException.
     if (m_send)
-        return WebIDL::InvalidStateError::create(realm, "XHR send() flag is already set"_fly_string);
+        return WebIDL::InvalidStateError::create(realm, "XHR send() flag is already set"_string);
 
     // 3. Normalize value.
     auto normalized_value = Fetch::Infrastructure::normalize_header_value(value);
 
     // 4. If name is not a header name or value is not a header value, then throw a "SyntaxError" DOMException.
     if (!Fetch::Infrastructure::is_header_name(name))
-        return WebIDL::SyntaxError::create(realm, "Header name contains invalid characters."_fly_string);
+        return WebIDL::SyntaxError::create(realm, "Header name contains invalid characters."_string);
     if (!Fetch::Infrastructure::is_header_value(value))
-        return WebIDL::SyntaxError::create(realm, "Header value contains invalid characters."_fly_string);
+        return WebIDL::SyntaxError::create(realm, "Header value contains invalid characters."_string);
 
     auto header = Fetch::Infrastructure::Header {
         .name = TRY_OR_THROW_OOM(vm, ByteBuffer::copy(name)),
@@ -466,16 +466,16 @@ WebIDL::ExceptionOr<void> XMLHttpRequest::open(String const& method_string, Stri
     if (is<HTML::Window>(HTML::relevant_global_object(*this))) {
         auto const& window = static_cast<HTML::Window const&>(HTML::relevant_global_object(*this));
         if (!window.associated_document().is_fully_active())
-            return WebIDL::InvalidStateError::create(realm(), "Invalid state: Window's associated document is not fully active."_fly_string);
+            return WebIDL::InvalidStateError::create(realm(), "Invalid state: Window's associated document is not fully active."_string);
     }
 
     // 2. If method is not a method, then throw a "SyntaxError" DOMException.
     if (!Fetch::Infrastructure::is_method(method))
-        return WebIDL::SyntaxError::create(realm(), "An invalid or illegal string was specified."_fly_string);
+        return WebIDL::SyntaxError::create(realm(), "An invalid or illegal string was specified."_string);
 
     // 3. If method is a forbidden method, then throw a "SecurityError" DOMException.
     if (Fetch::Infrastructure::is_forbidden_method(method))
-        return WebIDL::SecurityError::create(realm(), "Forbidden method, must not be 'CONNECT', 'TRACE', or 'TRACK'"_fly_string);
+        return WebIDL::SecurityError::create(realm(), "Forbidden method, must not be 'CONNECT', 'TRACE', or 'TRACK'"_string);
 
     // 4. Normalize method.
     auto normalized_method = Fetch::Infrastructure::normalize_method(method);
@@ -486,7 +486,7 @@ WebIDL::ExceptionOr<void> XMLHttpRequest::open(String const& method_string, Stri
 
     // 6. If parsedURL is failure, then throw a "SyntaxError" DOMException.
     if (!parsed_url.is_valid())
-        return WebIDL::SyntaxError::create(realm(), "Invalid URL"_fly_string);
+        return WebIDL::SyntaxError::create(realm(), "Invalid URL"_string);
 
     // 7. If the async argument is omitted, set async to true, and set username and password to null.
     // NOTE: This is handled in the overload lacking the async argument.
@@ -506,7 +506,7 @@ WebIDL::ExceptionOr<void> XMLHttpRequest::open(String const& method_string, Stri
     if (!async
         && is<HTML::Window>(HTML::current_global_object())
         && (m_timeout != 0 || m_response_type != Bindings::XMLHttpRequestResponseType::Empty)) {
-        return WebIDL::InvalidAccessError::create(realm(), "Synchronous XMLHttpRequests in a Window context do not support timeout or a non-empty responseType"_fly_string);
+        return WebIDL::InvalidAccessError::create(realm(), "Synchronous XMLHttpRequests in a Window context do not support timeout or a non-empty responseType"_string);
     }
 
     // 10. Terminate this’s fetch controller.
@@ -554,11 +554,11 @@ WebIDL::ExceptionOr<void> XMLHttpRequest::send(Optional<DocumentOrXMLHttpRequest
 
     // 1. If this’s state is not opened, then throw an "InvalidStateError" DOMException.
     if (m_state != State::Opened)
-        return WebIDL::InvalidStateError::create(realm, "XHR readyState is not OPENED"_fly_string);
+        return WebIDL::InvalidStateError::create(realm, "XHR readyState is not OPENED"_string);
 
     // 2. If this’s send() flag is set, then throw an "InvalidStateError" DOMException.
     if (m_send)
-        return WebIDL::InvalidStateError::create(realm, "XHR send() flag is already set"_fly_string);
+        return WebIDL::InvalidStateError::create(realm, "XHR send() flag is already set"_string);
 
     // 3. If this’s request method is `GET` or `HEAD`, then set body to null.
     if (m_request_method.is_one_of("GET"sv, "HEAD"sv))
@@ -1032,7 +1032,7 @@ WebIDL::ExceptionOr<void> XMLHttpRequest::override_mime_type(String const& mime)
 
     // 1. If this’s state is loading or done, then throw an "InvalidStateError" DOMException.
     if (m_state == State::Loading || m_state == State::Done)
-        return WebIDL::InvalidStateError::create(realm(), "Cannot override MIME type when state is Loading or Done."_fly_string);
+        return WebIDL::InvalidStateError::create(realm(), "Cannot override MIME type when state is Loading or Done."_string);
 
     // 2. Set this’s override MIME type to the result of parsing mime.
     m_override_mime_type = TRY_OR_THROW_OOM(vm, MimeSniff::MimeType::parse(mime));
@@ -1050,7 +1050,7 @@ WebIDL::ExceptionOr<void> XMLHttpRequest::set_timeout(u32 timeout)
     // 1. If the current global object is a Window object and this’s synchronous flag is set,
     //    then throw an "InvalidAccessError" DOMException.
     if (is<HTML::Window>(HTML::current_global_object()) && m_synchronous)
-        return WebIDL::InvalidAccessError::create(realm(), "Use of XMLHttpRequest's timeout attribute is not supported in the synchronous mode in window context."_fly_string);
+        return WebIDL::InvalidAccessError::create(realm(), "Use of XMLHttpRequest's timeout attribute is not supported in the synchronous mode in window context."_string);
 
     // 2. Set this’s timeout to the given value.
     m_timeout = timeout;
@@ -1075,11 +1075,11 @@ WebIDL::ExceptionOr<void> XMLHttpRequest::set_with_credentials(bool with_credent
 
     // 1. If this’s state is not unsent or opened, then throw an "InvalidStateError" DOMException.
     if (m_state != State::Unsent && m_state != State::Opened)
-        return WebIDL::InvalidStateError::create(realm, "XHR readyState is not UNSENT or OPENED"_fly_string);
+        return WebIDL::InvalidStateError::create(realm, "XHR readyState is not UNSENT or OPENED"_string);
 
     // 2. If this’s send() flag is set, then throw an "InvalidStateError" DOMException.
     if (m_send)
-        return WebIDL::InvalidStateError::create(realm, "XHR send() flag is already set"_fly_string);
+        return WebIDL::InvalidStateError::create(realm, "XHR send() flag is already set"_string);
 
     // 3. Set this’s cross-origin credentials to the given value.
     m_cross_origin_credentials = with_credentials;
@@ -1221,15 +1221,15 @@ WebIDL::ExceptionOr<void> XMLHttpRequest::handle_errors()
 
     // 2. If xhr’s timed out flag is set, then run the request error steps for xhr, timeout, and "TimeoutError" DOMException.
     if (m_timed_out)
-        return TRY(request_error_steps(EventNames::timeout, WebIDL::TimeoutError::create(realm(), "Timed out"_fly_string)));
+        return TRY(request_error_steps(EventNames::timeout, WebIDL::TimeoutError::create(realm(), "Timed out"_string)));
 
     // 3. Otherwise, if xhr’s response’s aborted flag is set, run the request error steps for xhr, abort, and "AbortError" DOMException.
     if (m_response->aborted())
-        return TRY(request_error_steps(EventNames::abort, WebIDL::AbortError::create(realm(), "Aborted"_fly_string)));
+        return TRY(request_error_steps(EventNames::abort, WebIDL::AbortError::create(realm(), "Aborted"_string)));
 
     // 4. Otherwise, if xhr’s response is a network error, then run the request error steps for xhr, error, and "NetworkError" DOMException.
     if (m_response->is_network_error())
-        return TRY(request_error_steps(EventNames::error, WebIDL::NetworkError::create(realm(), "Network error"_fly_string)));
+        return TRY(request_error_steps(EventNames::error, WebIDL::NetworkError::create(realm(), "Network error"_string)));
 
     return {};
 }

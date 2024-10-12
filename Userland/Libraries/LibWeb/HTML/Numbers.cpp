@@ -128,7 +128,7 @@ bool is_valid_floating_point_number(StringView string)
 WebIDL::ExceptionOr<String> convert_non_negative_integer_to_string(JS::Realm& realm, WebIDL::Long value)
 {
     if (value < 0)
-        return WebIDL::IndexSizeError::create(realm, "The attribute is limited to only non-negative numbers"_fly_string);
+        return WebIDL::IndexSizeError::create(realm, "The attribute is limited to only non-negative numbers"_string);
     return MUST(String::number(value));
 }
 

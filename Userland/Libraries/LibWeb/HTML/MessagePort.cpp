@@ -207,7 +207,7 @@ WebIDL::ExceptionOr<void> MessagePort::message_port_post_message_steps(JS::GCPtr
     // 2. If transfer contains this MessagePort, then throw a "DataCloneError" DOMException.
     for (auto const& handle : transfer) {
         if (handle == this)
-            return WebIDL::DataCloneError::create(realm, "Cannot transfer a MessagePort to itself"_fly_string);
+            return WebIDL::DataCloneError::create(realm, "Cannot transfer a MessagePort to itself"_string);
     }
 
     // 3. Let doomed be false.

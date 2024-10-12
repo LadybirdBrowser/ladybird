@@ -91,7 +91,7 @@ JS::NonnullGCPtr<FontFace> FontFace::construct_impl(JS::Realm& realm, String fam
         auto parser = CSS::Parser::Parser::create(CSS::Parser::ParsingContext(realm, base_url), *string);
         sources = parser.parse_as_font_face_src();
         if (sources.is_empty())
-            WebIDL::reject_promise(realm, promise, WebIDL::SyntaxError::create(realm, "FontFace constructor: Invalid source string"_fly_string));
+            WebIDL::reject_promise(realm, promise, WebIDL::SyntaxError::create(realm, "FontFace constructor: Invalid source string"_string));
     } else {
         auto buffer_source = source.get<JS::Handle<WebIDL::BufferSource>>();
         auto maybe_buffer = WebIDL::get_buffer_source_copy(buffer_source->raw_object());
@@ -105,7 +105,7 @@ JS::NonnullGCPtr<FontFace> FontFace::construct_impl(JS::Realm& realm, String fam
     }
 
     if (buffer.is_empty() && sources.is_empty())
-        WebIDL::reject_promise(realm, promise, WebIDL::SyntaxError::create(realm, "FontFace constructor: Invalid font source"_fly_string));
+        WebIDL::reject_promise(realm, promise, WebIDL::SyntaxError::create(realm, "FontFace constructor: Invalid font source"_string));
 
     auto font = realm.heap().allocate<FontFace>(realm, realm, promise, move(sources), move(buffer), move(family), descriptors);
 
@@ -215,7 +215,7 @@ WebIDL::ExceptionOr<void> FontFace::set_family(String const& string)
 {
     auto property = parse_property_string<CSS::PropertyID::FontFamily>(realm(), string);
     if (!property)
-        return WebIDL::SyntaxError::create(realm(), "FontFace.family setter: Invalid font descriptor"_fly_string);
+        return WebIDL::SyntaxError::create(realm(), "FontFace.family setter: Invalid font descriptor"_string);
 
     if (m_is_css_connected) {
         // FIXME: Propagate to the CSSFontFaceRule and update the font-family property
@@ -231,7 +231,7 @@ WebIDL::ExceptionOr<void> FontFace::set_style(String const& string)
 {
     auto property = parse_property_string<CSS::PropertyID::FontStyle>(realm(), string);
     if (!property)
-        return WebIDL::SyntaxError::create(realm(), "FontFace.style setter: Invalid font descriptor"_fly_string);
+        return WebIDL::SyntaxError::create(realm(), "FontFace.style setter: Invalid font descriptor"_string);
 
     if (m_is_css_connected) {
         // FIXME: Propagate to the CSSFontFaceRule and update the font-style property
@@ -247,7 +247,7 @@ WebIDL::ExceptionOr<void> FontFace::set_weight(String const& string)
 {
     auto property = parse_property_string<CSS::PropertyID::FontWeight>(realm(), string);
     if (!property)
-        return WebIDL::SyntaxError::create(realm(), "FontFace.weight setter: Invalid font descriptor"_fly_string);
+        return WebIDL::SyntaxError::create(realm(), "FontFace.weight setter: Invalid font descriptor"_string);
 
     if (m_is_css_connected) {
         // FIXME: Propagate to the CSSFontFaceRule and update the font-weight property
@@ -264,7 +264,7 @@ WebIDL::ExceptionOr<void> FontFace::set_stretch(String const& string)
     // NOTE: font-stretch is now an alias for font-width
     auto property = parse_property_string<CSS::PropertyID::FontWidth>(realm(), string);
     if (!property)
-        return WebIDL::SyntaxError::create(realm(), "FontFace.stretch setter: Invalid font descriptor"_fly_string);
+        return WebIDL::SyntaxError::create(realm(), "FontFace.stretch setter: Invalid font descriptor"_string);
 
     if (m_is_css_connected) {
         // FIXME: Propagate to the CSSFontFaceRule and update the font-width property
@@ -280,43 +280,43 @@ WebIDL::ExceptionOr<void> FontFace::set_unicode_range(String const&)
 {
     // FIXME: This *should* work, but the <urange> production is hard to parse
     //        from just a value string in our implementation
-    return WebIDL::NotSupportedError::create(realm(), "unicode range is not yet implemented"_fly_string);
+    return WebIDL::NotSupportedError::create(realm(), "unicode range is not yet implemented"_string);
 }
 
 // https://drafts.csswg.org/css-font-loading/#dom-fontface-featuresettings
 WebIDL::ExceptionOr<void> FontFace::set_feature_settings(String const&)
 {
-    return WebIDL::NotSupportedError::create(realm(), "feature settings is not yet implemented"_fly_string);
+    return WebIDL::NotSupportedError::create(realm(), "feature settings is not yet implemented"_string);
 }
 
 // https://drafts.csswg.org/css-font-loading/#dom-fontface-variationsettings
 WebIDL::ExceptionOr<void> FontFace::set_variation_settings(String const&)
 {
-    return WebIDL::NotSupportedError::create(realm(), "variation settings is not yet implemented"_fly_string);
+    return WebIDL::NotSupportedError::create(realm(), "variation settings is not yet implemented"_string);
 }
 
 // https://drafts.csswg.org/css-font-loading/#dom-fontface-display
 WebIDL::ExceptionOr<void> FontFace::set_display(String const&)
 {
-    return WebIDL::NotSupportedError::create(realm(), "display is not yet implemented"_fly_string);
+    return WebIDL::NotSupportedError::create(realm(), "display is not yet implemented"_string);
 }
 
 // https://drafts.csswg.org/css-font-loading/#dom-fontface-ascentoverride
 WebIDL::ExceptionOr<void> FontFace::set_ascent_override(String const&)
 {
-    return WebIDL::NotSupportedError::create(realm(), "ascent override is not yet implemented"_fly_string);
+    return WebIDL::NotSupportedError::create(realm(), "ascent override is not yet implemented"_string);
 }
 
 // https://drafts.csswg.org/css-font-loading/#dom-fontface-descentoverride
 WebIDL::ExceptionOr<void> FontFace::set_descent_override(String const&)
 {
-    return WebIDL::NotSupportedError::create(realm(), "descent override is not yet implemented"_fly_string);
+    return WebIDL::NotSupportedError::create(realm(), "descent override is not yet implemented"_string);
 }
 
 // https://drafts.csswg.org/css-font-loading/#dom-fontface-linegapoverride
 WebIDL::ExceptionOr<void> FontFace::set_line_gap_override(String const&)
 {
-    return WebIDL::NotSupportedError::create(realm(), "line gap override is not yet implemented"_fly_string);
+    return WebIDL::NotSupportedError::create(realm(), "line gap override is not yet implemented"_string);
 }
 
 // https://drafts.csswg.org/css-font-loading/#dom-fontface-load
@@ -361,7 +361,7 @@ void FontFace::load_font_source()
                 //     1. If the attempt to load fails, reject font face’s [[FontStatusPromise]] with a DOMException whose name
                 //        is "NetworkError" and set font face’s status attribute to "error".
                 font->m_status = Bindings::FontFaceLoadStatus::Error;
-                WebIDL::reject_promise(font->realm(), font->m_font_status_promise, WebIDL::NetworkError::create(font->realm(), "Failed to load font"_fly_string));
+                WebIDL::reject_promise(font->realm(), font->m_font_status_promise, WebIDL::NetworkError::create(font->realm(), "Failed to load font"_string));
 
                 // FIXME: For each FontFaceSet font face is in:
             }));

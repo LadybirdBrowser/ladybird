@@ -577,23 +577,23 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<Element>> create_element(Document& document
 
                 // 5. If result’s attribute list is not empty, then throw a "NotSupportedError" DOMException.
                 if (element->has_attributes())
-                    return JS::throw_completion(WebIDL::NotSupportedError::create(realm, "Synchronously created custom element cannot have attributes"_fly_string));
+                    return JS::throw_completion(WebIDL::NotSupportedError::create(realm, "Synchronously created custom element cannot have attributes"_string));
 
                 // 6. If result has children, then throw a "NotSupportedError" DOMException.
                 if (element->has_children())
-                    return JS::throw_completion(WebIDL::NotSupportedError::create(realm, "Synchronously created custom element cannot have children"_fly_string));
+                    return JS::throw_completion(WebIDL::NotSupportedError::create(realm, "Synchronously created custom element cannot have children"_string));
 
                 // 7. If result’s parent is not null, then throw a "NotSupportedError" DOMException.
                 if (element->parent())
-                    return JS::throw_completion(WebIDL::NotSupportedError::create(realm, "Synchronously created custom element cannot have a parent"_fly_string));
+                    return JS::throw_completion(WebIDL::NotSupportedError::create(realm, "Synchronously created custom element cannot have a parent"_string));
 
                 // 8. If result’s node document is not document, then throw a "NotSupportedError" DOMException.
                 if (&element->document() != &document)
-                    return JS::throw_completion(WebIDL::NotSupportedError::create(realm, "Synchronously created custom element must be in the same document that element creation was invoked in"_fly_string));
+                    return JS::throw_completion(WebIDL::NotSupportedError::create(realm, "Synchronously created custom element must be in the same document that element creation was invoked in"_string));
 
                 // 9. If result’s local name is not equal to localName, then throw a "NotSupportedError" DOMException.
                 if (element->local_name() != local_name)
-                    return JS::throw_completion(WebIDL::NotSupportedError::create(realm, "Synchronously created custom element must have the same local name that element creation was invoked with"_fly_string));
+                    return JS::throw_completion(WebIDL::NotSupportedError::create(realm, "Synchronously created custom element must have the same local name that element creation was invoked with"_string));
 
                 // 10. Set result’s namespace prefix to prefix.
                 element->set_prefix(prefix);

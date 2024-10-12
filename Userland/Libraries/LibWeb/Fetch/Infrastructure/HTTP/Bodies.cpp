@@ -93,14 +93,14 @@ void Body::fully_read(JS::Realm& realm, Web::Fetch::Infrastructure::Body::Proces
     m_source.visit(
         [&](ByteBuffer const& byte_buffer) {
             if (auto result = success_steps(byte_buffer); result.is_error())
-                error_steps(WebIDL::UnknownError::create(realm, "Out-of-memory"_fly_string));
+                error_steps(WebIDL::UnknownError::create(realm, "Out-of-memory"_string));
         },
         [&](JS::Handle<FileAPI::Blob> const& blob) {
             if (auto result = success_steps(blob->raw_bytes()); result.is_error())
-                error_steps(WebIDL::UnknownError::create(realm, "Out-of-memory"_fly_string));
+                error_steps(WebIDL::UnknownError::create(realm, "Out-of-memory"_string));
         },
         [&](Empty) {
-            error_steps(WebIDL::DOMException::create(realm, "DOMException"_fly_string, "Reading from Blob, FormData or null source is not yet implemented"_fly_string));
+            error_steps(WebIDL::DOMException::create(realm, "DOMException"_fly_string, "Reading from Blob, FormData or null source is not yet implemented"_string));
         });
 }
 

@@ -25,7 +25,7 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<ImageData>> ImageData::create(JS::Realm& re
 
     // 1. If one or both of sw and sh are zero, then throw an "IndexSizeError" DOMException.
     if (sw == 0 || sh == 0)
-        return WebIDL::IndexSizeError::create(realm, "The source width and height must be greater than zero."_fly_string);
+        return WebIDL::IndexSizeError::create(realm, "The source width and height must be greater than zero."_string);
 
     // 2. Initialize this given sw, sh, and settings set to settings.
     // 3. Initialize the image data of this to transparent black.
@@ -55,7 +55,7 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<ImageData>> ImageData::create(JS::Realm& re
 
     // 2. If length is not a nonzero integral multiple of four, then throw an "InvalidStateError" DOMException.
     if (length == 0 || length % 4 != 0)
-        return WebIDL::InvalidStateError::create(realm, "Source data must have a non-sero length that is a multiple of four."_fly_string);
+        return WebIDL::InvalidStateError::create(realm, "Source data must have a non-sero length that is a multiple of four."_string);
 
     // 3. Let length be length divided by four.
     length = length / 4;
@@ -64,14 +64,14 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<ImageData>> ImageData::create(JS::Realm& re
     // NOTE: At this step, the length is guaranteed to be greater than zero (otherwise the second step above would have aborted the steps),
     //       so if sw is zero, this step will throw the exception and return.
     if (sw == 0 || length % sw != 0)
-        return WebIDL::IndexSizeError::create(realm, "Source width must be a multiple of source data's length."_fly_string);
+        return WebIDL::IndexSizeError::create(realm, "Source width must be a multiple of source data's length."_string);
 
     // 5. Let height be length divided by sw.
     auto height = length / sw;
 
     // 6. If sh was given and its value is not equal to height, then throw an "IndexSizeError" DOMException.
     if (sh.has_value() && sh.value() != height)
-        return WebIDL::IndexSizeError::create(realm, "Source height must be equal to the calculated height of the data."_fly_string);
+        return WebIDL::IndexSizeError::create(realm, "Source height must be equal to the calculated height of the data."_string);
 
     // 7. Initialize this given sw, sh, settings set to settings, and source set to data.
     auto bitmap = TRY_OR_THROW_OOM(vm, Gfx::Bitmap::create_wrapper(Gfx::BitmapFormat::RGBA8888, Gfx::AlphaType::Unpremultiplied, Gfx::IntSize(sw, height), sw * sizeof(u32), uint8_clamped_array_data.data().data()));

@@ -72,7 +72,7 @@ FontFaceSet::add(JS::Handle<FontFace> face)
 
     // 2. If font is CSS-connected, throw an InvalidModificationError exception and exit this algorithm immediately.
     if (face->is_css_connected()) {
-        return WebIDL::InvalidModificationError::create(realm(), "Cannot add a CSS-connected FontFace to a FontFaceSet"_fly_string);
+        return WebIDL::InvalidModificationError::create(realm(), "Cannot add a CSS-connected FontFace to a FontFaceSet"_string);
     }
 
     // 3. Add the font argument to the FontFaceSet’s set entries.
@@ -166,7 +166,7 @@ WebIDL::CallbackType* FontFaceSet::onloadingerror()
 JS::ThrowCompletionOr<JS::NonnullGCPtr<JS::Promise>> FontFaceSet::load(String const&, String const&)
 {
     // FIXME: Do the steps
-    auto promise = WebIDL::create_rejected_promise(realm(), WebIDL::NotSupportedError::create(realm(), "FontFaceSet::load is not yet implemented"_fly_string));
+    auto promise = WebIDL::create_rejected_promise(realm(), WebIDL::NotSupportedError::create(realm(), "FontFaceSet::load is not yet implemented"_string));
     return verify_cast<JS::Promise>(*promise->promise());
 }
 

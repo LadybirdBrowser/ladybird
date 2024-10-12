@@ -603,7 +603,7 @@ Optional<StyleProperty> ResolvedCSSStyleDeclaration::property(PropertyID propert
 
 static WebIDL::ExceptionOr<void> cannot_modify_computed_property_error(JS::Realm& realm)
 {
-    return WebIDL::NoModificationAllowedError::create(realm, "Cannot modify properties in result of getComputedStyle()"_fly_string);
+    return WebIDL::NoModificationAllowedError::create(realm, "Cannot modify properties in result of getComputedStyle()"_string);
 }
 
 // https://drafts.csswg.org/cssom/#dom-cssstyledeclaration-setproperty
@@ -622,7 +622,7 @@ WebIDL::ExceptionOr<void> ResolvedCSSStyleDeclaration::set_property(StringView, 
 
 static WebIDL::ExceptionOr<String> cannot_remove_computed_property_error(JS::Realm& realm)
 {
-    return WebIDL::NoModificationAllowedError::create(realm, "Cannot remove properties from result of getComputedStyle()"_fly_string);
+    return WebIDL::NoModificationAllowedError::create(realm, "Cannot remove properties from result of getComputedStyle()"_string);
 }
 
 // https://drafts.csswg.org/cssom/#dom-cssstyledeclaration-removeproperty
@@ -653,7 +653,7 @@ String ResolvedCSSStyleDeclaration::serialized() const
 WebIDL::ExceptionOr<void> ResolvedCSSStyleDeclaration::set_css_text(StringView)
 {
     // 1. If the computed flag is set, then throw a NoModificationAllowedError exception.
-    return WebIDL::NoModificationAllowedError::create(realm(), "Cannot modify properties in result of getComputedStyle()"_fly_string);
+    return WebIDL::NoModificationAllowedError::create(realm(), "Cannot modify properties in result of getComputedStyle()"_string);
 }
 
 }

@@ -133,7 +133,7 @@ WebIDL::ExceptionOr<void> Navigation::update_current_entry(NavigationUpdateCurre
 
     // 2. If current is null, then throw an "InvalidStateError" DOMException.
     if (current == nullptr)
-        return WebIDL::InvalidStateError::create(realm(), "Cannot update current NavigationHistoryEntry when there is no current entry"_fly_string);
+        return WebIDL::InvalidStateError::create(realm(), "Cannot update current NavigationHistoryEntry when there is no current entry"_string);
 
     // 3. Let serializedState be StructuredSerializeForStorage(options["state"]), rethrowing any exceptions.
     auto serialized_state = TRY(structured_serialize_for_storage(vm(), options.state));
@@ -230,7 +230,7 @@ WebIDL::ExceptionOr<NavigationResult> Navigation::navigate(String url, Navigatio
     //    Otherwise, let urlRecord be the resulting URL record.
     auto url_record = relevant_settings_object(*this).parse_url(url);
     if (!url_record.is_valid())
-        return early_error_result(WebIDL::SyntaxError::create(realm, "Cannot navigate to Invalid URL"_fly_string));
+        return early_error_result(WebIDL::SyntaxError::create(realm, "Cannot navigate to Invalid URL"_string));
 
     // 2. Let document be this's relevant global object's associated Document.
     auto& document = verify_cast<HTML::Window>(relevant_global_object(*this)).associated_document();
@@ -238,7 +238,7 @@ WebIDL::ExceptionOr<NavigationResult> Navigation::navigate(String url, Navigatio
     // 3. If options["history"] is "push", and the navigation must be a replace given urlRecord and document,
     //    then return an early error result for a "NotSupportedError" DOMException.
     if (options.history == Bindings::NavigationHistoryBehavior::Push && navigation_must_be_a_replace(url_record, document))
-        return early_error_result(WebIDL::NotSupportedError::create(realm, "Navigation must be a replace, but push was requested"_fly_string));
+        return early_error_result(WebIDL::NotSupportedError::create(realm, "Navigation must be a replace, but push was requested"_string));
 
     // 4. Let state be options["state"], if it exists; otherwise, undefined.
     auto state = options.state.value_or(JS::js_undefined());
@@ -257,11 +257,11 @@ WebIDL::ExceptionOr<NavigationResult> Navigation::navigate(String url, Navigatio
 
     // 6. If document is not fully active, then return an early error result for an "InvalidStateError" DOMException.
     if (!document.is_fully_active())
-        return early_error_result(WebIDL::InvalidStateError::create(realm, "Document is not fully active"_fly_string));
+        return early_error_result(WebIDL::InvalidStateError::create(realm, "Document is not fully active"_string));
 
     // 7. If document's unload counter is greater than 0, then return an early error result for an "InvalidStateError" DOMException.
     if (document.unload_counter() > 0)
-        return early_error_result(WebIDL::InvalidStateError::create(realm, "Document already unloaded"_fly_string));
+        return early_error_result(WebIDL::InvalidStateError::create(realm, "Document already unloaded"_string));
 
     // 8. Let info be options["info"], if it exists; otherwise, undefined.
     auto info = options.info.value_or(JS::js_undefined());
@@ -287,7 +287,7 @@ WebIDL::ExceptionOr<NavigationResult> Navigation::navigate(String url, Navigatio
     //       that upcoming API method tracker to ongoing.
     if (m_upcoming_non_traverse_api_method_tracker == api_method_tracker) {
         m_upcoming_non_traverse_api_method_tracker = nullptr;
-        return early_error_result(WebIDL::AbortError::create(realm, "Navigation aborted"_fly_string));
+        return early_error_result(WebIDL::AbortError::create(realm, "Navigation aborted"_string));
     }
 
     // 12. Return a navigation API method tracker-derived result for apiMethodTracker.
@@ -330,11 +330,11 @@ WebIDL::ExceptionOr<NavigationResult> Navigation::reload(NavigationReloadOptions
 
     // 5. If document is not fully active, then return an early error result for an "InvalidStateError" DOMException.
     if (!document.is_fully_active())
-        return early_error_result(WebIDL::InvalidStateError::create(realm, "Document is not fully active"_fly_string));
+        return early_error_result(WebIDL::InvalidStateError::create(realm, "Document is not fully active"_string));
 
     // 6. If document's unload counter is greater than 0, then return an early error result for an "InvalidStateError" DOMException.
     if (document.unload_counter() > 0)
-        return early_error_result(WebIDL::InvalidStateError::create(realm, "Document already unloaded"_fly_string));
+        return early_error_result(WebIDL::InvalidStateError::create(realm, "Document already unloaded"_string));
 
     // 7. Let info be options["info"], if it exists; otherwise, undefined.
     auto info = options.info.value_or(JS::js_undefined());
@@ -357,7 +357,7 @@ WebIDL::ExceptionOr<NavigationResult> Navigation::traverse_to(String key, Naviga
 
     // 1. If this's current entry index is −1, then return an early error result for an "InvalidStateError" DOMException.
     if (m_current_entry_index == -1)
-        return early_error_result(WebIDL::InvalidStateError::create(realm, "Cannot traverseTo: no current session history entry"_fly_string));
+        return early_error_result(WebIDL::InvalidStateError::create(realm, "Cannot traverseTo: no current session history entry"_string));
 
     // 2. If this's entry list does not contain a NavigationHistoryEntry whose session history entry's navigation API key equals key,
     //    then return an early error result for an "InvalidStateError" DOMException.
@@ -365,7 +365,7 @@ WebIDL::ExceptionOr<NavigationResult> Navigation::traverse_to(String key, Naviga
         return entry->session_history_entry().navigation_api_key() == key;
     });
     if (it == m_entry_list.end())
-        return early_error_result(WebIDL::InvalidStateError::create(realm, "Cannot traverseTo: key not found in session history list"_fly_string));
+        return early_error_result(WebIDL::InvalidStateError::create(realm, "Cannot traverseTo: key not found in session history list"_string));
 
     // 3. Return the result of performing a navigation API traversal given this, key, and options.
     return perform_a_navigation_api_traversal(key, options);
@@ -379,7 +379,7 @@ WebIDL::ExceptionOr<NavigationResult> Navigation::back(NavigationOptions const& 
 
     // 1. If this's current entry index is −1 or 0, then return an early error result for an "InvalidStateError" DOMException.
     if (m_current_entry_index == -1 || m_current_entry_index == 0)
-        return early_error_result(WebIDL::InvalidStateError::create(realm, "Cannot navigate back: no previous session history entry"_fly_string));
+        return early_error_result(WebIDL::InvalidStateError::create(realm, "Cannot navigate back: no previous session history entry"_string));
 
     // 2. Let key be this's entry list[this's current entry index − 1]'s session history entry's navigation API key.
     auto key = m_entry_list[m_current_entry_index - 1]->session_history_entry().navigation_api_key();
@@ -397,7 +397,7 @@ WebIDL::ExceptionOr<NavigationResult> Navigation::forward(NavigationOptions cons
     // 1. If this's current entry index is −1 or is equal to this's entry list's size − 1,
     //    then return an early error result for an "InvalidStateError" DOMException.
     if (m_current_entry_index == -1 || m_current_entry_index == static_cast<i64>(m_entry_list.size() - 1))
-        return early_error_result(WebIDL::InvalidStateError::create(realm, "Cannot navigate forward: no next session history entry"_fly_string));
+        return early_error_result(WebIDL::InvalidStateError::create(realm, "Cannot navigate forward: no next session history entry"_string));
 
     // 2. Let key be this's entry list[this's current entry index + 1]'s session history entry's navigation API key.
     auto key = m_entry_list[m_current_entry_index + 1]->session_history_entry().navigation_api_key();
@@ -626,11 +626,11 @@ WebIDL::ExceptionOr<NavigationResult> Navigation::perform_a_navigation_api_trave
 
     // 2. If document is not fully active, then return an early error result for an "InvalidStateError" DOMException.
     if (!document.is_fully_active())
-        return early_error_result(WebIDL::InvalidStateError::create(realm, "Document is not fully active"_fly_string));
+        return early_error_result(WebIDL::InvalidStateError::create(realm, "Document is not fully active"_string));
 
     // 3. If document's unload counter is greater than 0, then return an early error result for an "InvalidStateError" DOMException.
     if (document.unload_counter() > 0)
-        return early_error_result(WebIDL::InvalidStateError::create(realm, "Document already unloaded"_fly_string));
+        return early_error_result(WebIDL::InvalidStateError::create(realm, "Document already unloaded"_string));
 
     // 4. Let current be the current entry of navigation.
     auto current = current_entry();
@@ -683,7 +683,7 @@ WebIDL::ExceptionOr<NavigationResult> Navigation::perform_a_navigation_api_trave
                 auto& reject_realm = relevant_realm(*this);
                 TemporaryExecutionContext execution_context { relevant_settings_object(*this) };
                 WebIDL::reject_promise(reject_realm, api_method_tracker->finished_promise,
-                    WebIDL::InvalidStateError::create(reject_realm, "Cannot traverse with stale session history entry"_fly_string));
+                    WebIDL::InvalidStateError::create(reject_realm, "Cannot traverse with stale session history entry"_string));
             }));
 
             // 2. Abort these steps.
@@ -714,7 +714,7 @@ WebIDL::ExceptionOr<NavigationResult> Navigation::perform_a_navigation_api_trave
         if (result == TraversableNavigable::HistoryStepResult::CanceledByBeforeUnload) {
             queue_global_task(Task::Source::NavigationAndTraversal, global, JS::create_heap_function(heap(), [this, api_method_tracker, &realm] {
                 TemporaryExecutionContext execution_context { relevant_settings_object(*this) };
-                reject_the_finished_promise(api_method_tracker, WebIDL::AbortError::create(realm, "Navigation cancelled by beforeunload"_fly_string));
+                reject_the_finished_promise(api_method_tracker, WebIDL::AbortError::create(realm, "Navigation cancelled by beforeunload"_string));
             }));
         }
 
@@ -724,7 +724,7 @@ WebIDL::ExceptionOr<NavigationResult> Navigation::perform_a_navigation_api_trave
         if (result == TraversableNavigable::HistoryStepResult::InitiatorDisallowed) {
             queue_global_task(Task::Source::NavigationAndTraversal, global, JS::create_heap_function(heap(), [this, api_method_tracker, &realm] {
                 TemporaryExecutionContext execution_context { relevant_settings_object(*this) };
-                reject_the_finished_promise(api_method_tracker, WebIDL::SecurityError::create(realm, "Navigation disallowed from this origin"_fly_string));
+                reject_the_finished_promise(api_method_tracker, WebIDL::SecurityError::create(realm, "Navigation disallowed from this origin"_string));
             }));
         }
     }));
@@ -754,7 +754,7 @@ void Navigation::abort_the_ongoing_navigation(JS::GCPtr<WebIDL::DOMException> er
 
     // 5. If error was not given, then let error be a new "AbortError" DOMException created in navigation's relevant realm.
     if (!error)
-        error = WebIDL::AbortError::create(realm, "Navigation aborted"_fly_string);
+        error = WebIDL::AbortError::create(realm, "Navigation aborted"_string);
 
     VERIFY(error);
 
