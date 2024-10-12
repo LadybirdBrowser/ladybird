@@ -1631,14 +1631,17 @@ ErrorOr<ByteString, ParseError> Parser::parse_entity_value()
             break;
         if (m_lexer.next_is('%')) {
             auto start = m_lexer.tell();
+            // FIXME: Resolve this PEReference.
             TRY(parse_parameter_entity_reference());
             builder.append(m_source.substring_view(start, m_lexer.tell() - start));
             continue;
         }
         if (m_lexer.next_is('&')) {
-            auto start = m_lexer.tell();
-            TRY(parse_reference());
-            builder.append(m_source.substring_view(start, m_lexer.tell() - start));
+            auto reference = TRY(parse_reference());
+            if (auto char_reference = reference.get_pointer<ByteString>())
+                builder.append(*char_reference);
+            else
+                builder.append(TRY(resolve_reference(reference.get<EntityReference>(), ReferencePlacement::AttributeValue)));
             continue;
         }
         builder.append(m_lexer.consume());
