@@ -347,6 +347,7 @@ public:
     Element const* target_element() const { return m_target_element.ptr(); }
     void set_target_element(Element*);
 
+    void try_to_scroll_to_the_fragment();
     void scroll_to_the_fragment();
     void scroll_to_the_beginning_of_the_document();
 
