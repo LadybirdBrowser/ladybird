@@ -1,0 +1,27 @@
+{
+    "name": "Caches Ladybird's vcpkg dependencies",
+    "id": "vcpkg-cache",
+    "version": "1.0.0",
+    "description": "Create a prebuilt vcpkg binary cache for Ladybird developer use",
+    "installsAfter": [ "./features/ladybird" ],
+    "containerEnv": {
+        "VCPKG_BINARY_SOURCES": ";files,/usr/local/share/vcpkg-binary-cache,read"
+    },
+    "options": {
+        "release_triplet": {
+            "type": "boolean",
+            "default": true,
+            "description": "Build vcpkg dependencies with release configuration"
+        },
+        "debug_triplet": {
+            "type": "boolean",
+            "default": false,
+            "description": "Build vcpkg dependencies with debug configuration"
+        },
+        "sanitizer_triplet": {
+            "type": "boolean",
+            "default": false,
+            "description": "Build vcpkg dependencies with sanitizer configuration"
+        }
+    }
+}

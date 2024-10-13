@@ -6,7 +6,13 @@
         "ghcr.io/devcontainers/features/github-cli:1": {},
         "ghcr.io/devcontainers-contrib/features/pre-commit:2": {},
         "./features/ladybird": {
-            "llvm_version": 18,
+            "llvm_version": 18
+        },
+        "./features/vcpkg-cache": {
+            "release_triplet": true,
+            // FIXME: Figure out how to have the CI prebuilt version set both of these true
+            "debug_triplet": false,
+            "sanitizer_triplet": false
         },
         "ghcr.io/devcontainers/features/desktop-lite": {
             "password": "vscode",
@@ -44,17 +50,15 @@
                     "Toolchain/Local/**": true,
                     "Toolchain/Tarballs/**": true,
                     "Toolchain/Build/**": true,
-                    "Build/**": true,
+                    "Build/**": true
                 },
                 "search.exclude": {
                     "**/.git": true,
                     "Toolchain/Local/**": true,
                     "Toolchain/Tarballs/**": true,
                     "Toolchain/Build/**": true,
-                    "Build/**": true,
+                    "Build/**": true
                 },
-                // Force clang-format to respect Ladybird's .clang-format style file. This is not necessary if you're not using the Microsoft C++ extension.
-                "C_Cpp.clang_format_style": "file",
                 // Tab settings
                 "editor.tabSize": 4,
                 "editor.useTabStops": false,
