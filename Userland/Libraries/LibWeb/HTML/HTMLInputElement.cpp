@@ -85,17 +85,7 @@ void HTMLInputElement::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_slider_progress_element);
     visitor.visit(m_slider_thumb);
     visitor.visit(m_resource_request);
-}
-
-// https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#dom-cva-validity
-JS::NonnullGCPtr<ValidityState const> HTMLInputElement::validity() const
-{
-    auto& vm = this->vm();
-    auto& realm = this->realm();
-
-    dbgln("FIXME: Implement validity attribute getter");
-
-    return vm.heap().allocate<ValidityState>(realm, realm);
+    visitor.visit(m_validity);
 }
 
 JS::GCPtr<Layout::Node> HTMLInputElement::create_layout_node(NonnullRefPtr<CSS::StyleProperties> style)
@@ -2161,6 +2151,63 @@ WebIDL::ExceptionOr<void> HTMLInputElement::step_down(WebIDL::Long n)
     return step_up_or_down(true, n);
 }
 
+// https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#barred-from-constraint-validation
+bool HTMLInputElement::is_barred_from_constraint_validation() const
+{
+    // https://html.spec.whatwg.org/multipage/input.html#hidden-state-(type=hidden):barred-from-constraint-validation
+    if (type_state() == HTMLInputElement::TypeAttributeState::Hidden) {
+        return true;
+    }
+
+    // https://html.spec.whatwg.org/multipage/form-elements.html#the-button-element:barred-from-constraint-validation
+    if (type_state() == HTMLInputElement::TypeAttributeState::ResetButton || type_state() == HTMLInputElement::TypeAttributeState::Button) {
+        return true;
+    }
+
+    // https://html.spec.whatwg.org/multipage/input.html#the-readonly-attribute:barred-from-constraint-validation
+    if (has_attribute(HTML::AttributeNames::readonly)) {
+        return true;
+    }
+
+    return false;
+}
+
+// https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#suffering-from-being-missing
+bool HTMLInputElement::is_value_missing() const
+{
+    if (type_state() == TypeAttributeState::RadioButton) {
+        // https://html.spec.whatwg.org/multipage/input.html#radio-button-group
+        bool any_checked = false;
+        bool any_required = false;
+        root().for_each_in_inclusive_subtree_of_type<HTML::HTMLInputElement>([&](auto& element) {
+            if (is_in_same_radio_button_group(*this, element)) {
+                any_required |= element.has_attribute(HTML::AttributeNames::required);
+
+                if (element.checked()) {
+                    any_checked = true;
+                    return TraversalDecision::Break;
+                }
+            }
+            return TraversalDecision::Continue;
+        });
+        if (any_required && !any_checked) {
+            return true;
+        }
+    } else if (type_state() == TypeAttributeState::Checkbox) {
+        // https://html.spec.whatwg.org/multipage/input.html#checkbox-state-(type=checkbox)
+        if (has_attribute(HTML::AttributeNames::required)) {
+            return !checked();
+        }
+    } else if (type_state() == TypeAttributeState::FileUpload) {
+        // if (has_attribute(HTML::AttributeNames::required)) {
+        //     return files()->length() == 0;
+        // }
+        dbgln("FIXME: Implement HTMLInputElement::is_value_missing() for input type=file");
+    }
+
+    return has_attribute(HTML::AttributeNames::required) && value().is_empty() && is_candidate_for_constraint_validation(*this);
+}
+
 // https://html.spec.whatwg.org/multipage/input.html#dom-input-stepup
 WebIDL::ExceptionOr<void> HTMLInputElement::step_up_or_down(bool is_down, WebIDL::Long n)
 {
@@ -2241,27 +2288,6 @@ WebIDL::ExceptionOr<void> HTMLInputElement::step_up_or_down(bool is_down, WebIDL
     // 12. Set the value of the element to value as string.
     TRY(set_value(value_as_string));
     return {};
-}
-
-// https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#dom-cva-checkvalidity
-WebIDL::ExceptionOr<bool> HTMLInputElement::check_validity()
-{
-    dbgln("(STUBBED) HTMLInputElement::check_validity(). Called on: {}", debug_description());
-    return true;
-}
-
-// https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#dom-cva-reportvalidity
-WebIDL::ExceptionOr<bool> HTMLInputElement::report_validity()
-{
-    dbgln("(STUBBED) HTMLInputElement::report_validity(). Called on: {}", debug_description());
-    return true;
-}
-
-// https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#dom-cva-setcustomvalidity
-void HTMLInputElement::set_custom_validity(String const& error)
-{
-    dbgln("(STUBBED) HTMLInputElement::set_custom_validity(error={}). Called on: {}", error, debug_description());
-    return;
 }
 
 Optional<ARIA::Role> HTMLInputElement::default_role() const

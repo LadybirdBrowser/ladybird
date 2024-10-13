@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<div id="container">
+    <input id="textRequired" type="text" required>
+    <input id="textOptional" type="text">
+    <input id="checkboxRequired" type="checkbox" required>
+    <input id="radioRequired" type="radio" name="radioGroup" required>
+    <input id="numberRequired" type="number" required>
+    <input id="dateRequired" type="date" required>
+</div>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const elements = [
+            { id: 'textRequired', type: 'text (required)' },
+            { id: 'textOptional', type: 'text (optional)' },
+            { id: 'checkboxRequired', type: 'checkbox (required)' },
+            { id: 'radioRequired', type: 'radio (required)' },
+            { id: 'numberRequired', type: 'number (required)' },
+            { id: 'dateRequired', type: 'date (required)' },
+        ];
+
+        function testElement(el, elementType) {
+            println(`${elementType} - Initial valueMissing: ${el.validity.valueMissing}`);
+
+            if (el.type === 'checkbox' || el.type === 'radio') {
+                el.checked = true;
+            } else {
+                el.value = 'test';
+            }
+
+            println(`${elementType} - After setting value - valueMissing: ${el.validity.valueMissing}`);
+
+            if (el.type === 'checkbox' || el.type === 'radio') {
+                el.checked = false;
+            } else {
+                el.value = '';
+            }
+
+            println(`${elementType} - After clearing value - valueMissing: ${el.validity.valueMissing}`);
+        }
+
+        // Test all elements in normal state
+        for (let element of elements) {
+            const el = document.getElementById(element.id);
+            testElement(el, element.type);
+        }
+
+        // Test non-required elements
+        const nonRequiredElements = ['textOptional'];
+        for (let id of nonRequiredElements) {
+            const el = document.getElementById(id);
+            println(`${id} - valueMissing when empty: ${el.validity.valueMissing}`);
+        }
+
+        // Test with disabled state
+        for (let element of elements) {
+            const el = document.getElementById(element.id);
+            el.disabled = true;
+            println(`${element.type} - Disabled - valueMissing: ${el.validity.valueMissing}`);
+            el.disabled = false;
+        }
+
+        document.getElementById("container").remove();
+    });
+</script>
