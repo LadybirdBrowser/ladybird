@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<body>
+  <input type="number" id="testInput" />
+</body>
+
+<script src="../include.js"></script>
+<script type="text/javascript">
+  let testInput = document.getElementById('testInput');
+  
+  const stepUpStepDownTest = (element, value, step, min) => {
+    element.value = value;
+    element.step = step;
+    element.min = min;
+    element.stepUp();
+    println(element.value);
+    element.value = value;
+    element.stepDown();
+    println(element.value);
+  }
+  
+  test(() => {
+    stepUpStepDownTest(testInput, 5, 2, -10);
+    stepUpStepDownTest(testInput, -5, 2, -10);
+    stepUpStepDownTest(testInput, 0, 2, -10);
+    stepUpStepDownTest(testInput, 0.2, 1, -10);
+    stepUpStepDownTest(testInput, -0.2, 1, -10);
+    stepUpStepDownTest(testInput, 4, 2, -10);
+    stepUpStepDownTest(testInput, -4, 2, -10);
+    stepUpStepDownTest(testInput, 1.5, 0.5, -10);
+    stepUpStepDownTest(testInput, -1.5, 0.5, -10);
+  });
+</script>
