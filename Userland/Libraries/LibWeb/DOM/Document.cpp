@@ -2310,6 +2310,25 @@ void Document::scroll_to_the_fragment()
     }
 }
 
+// https://html.spec.whatwg.org/multipage/browsing-the-web.html#try-to-scroll-to-the-fragment
+void Document::try_to_scroll_to_the_fragment()
+{
+    // FIXME: According to the spec we should only scroll here if document has no parser or parsing has stopped.
+    //        It should be ok to remove this after we implement navigation events and scrolling will happen in
+    //        "process scroll behavior".
+    //  To try to scroll to the fragment for a Document document, perform the following steps in parallel:
+    //  1. Wait for an implementation-defined amount of time. (This is intended to allow the user agent to
+    //     optimize the user experience in the face of performance concerns.)
+    //  2. Queue a global task on the navigation and traversal task source given document's relevant global
+    //     object to run these steps:
+    //      1. If document has no parser, or its parser has stopped parsing, or the user agent has reason to
+    //         believe the user is no longer interested in scrolling to the fragment, then abort these steps.
+    //      2. Scroll to the fragment given document.
+    //      3. If document's indicated part is still null, then try to scroll to the fragment for document.
+
+    scroll_to_the_fragment();
+}
+
 // https://drafts.csswg.org/cssom-view-1/#scroll-to-the-beginning-of-the-document
 void Document::scroll_to_the_beginning_of_the_document()
 {
@@ -4378,11 +4397,8 @@ void Document::update_for_history_step_application(JS::NonnullGCPtr<HTML::Sessio
 
     // 8. If documentIsNew is true, then:
     if (document_is_new) {
-        // FIXME: 1. Try to scroll to the fragment for document.
-        // FIXME: According to the spec we should only scroll here if document has no parser or parsing has stopped.
-        //        It should be ok to remove this after we implement navigation events and scrolling will happen in
-        //        "process scroll behavior".
-        scroll_to_the_fragment();
+        // 1. Try to scroll to the fragment for document.
+        try_to_scroll_to_the_fragment();
 
         // 2. At this point scripts may run for the newly-created document document.
         m_ready_to_run_scripts = true;
