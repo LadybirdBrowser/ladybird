@@ -18,7 +18,7 @@ public:
     InlineNode(DOM::Document&, DOM::Element*, NonnullRefPtr<CSS::StyleProperties>);
     virtual ~InlineNode() override;
 
-    virtual JS::GCPtr<Painting::Paintable> create_paintable() const override;
+    JS::GCPtr<Painting::PaintableWithLines> create_paintable_for_line_with_index(size_t line_index) const;
 };
 
 }

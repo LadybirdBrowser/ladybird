@@ -1364,7 +1364,7 @@ void Element::set_scroll_left(double x)
     if (!paintable_box())
         return;
 
-    if (!paintable_box()->layout_box().is_scroll_container())
+    if (!paintable_box()->layout_node_with_style_and_box_metrics().is_scroll_container())
         return;
 
     // FIXME: or the element has no overflow.
@@ -1421,7 +1421,7 @@ void Element::set_scroll_top(double y)
     if (!paintable_box())
         return;
 
-    if (!paintable_box()->layout_box().is_scroll_container())
+    if (!paintable_box()->layout_node_with_style_and_box_metrics().is_scroll_container())
         return;
 
     // FIXME: or the element has no overflow.

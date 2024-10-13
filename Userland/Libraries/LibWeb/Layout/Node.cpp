@@ -1017,6 +1017,35 @@ void NodeWithStyle::transfer_table_box_computed_values_to_wrapper_computed_value
     reset_table_box_computed_values_used_by_wrapper_to_init_values();
 }
 
+bool NodeWithStyle::is_body() const
+{
+    return dom_node() && dom_node() == document().body();
+}
+
+static bool overflow_value_makes_box_a_scroll_container(CSS::Overflow overflow)
+{
+    switch (overflow) {
+    case CSS::Overflow::Clip:
+    case CSS::Overflow::Visible:
+        return false;
+    case CSS::Overflow::Auto:
+    case CSS::Overflow::Hidden:
+    case CSS::Overflow::Scroll:
+        return true;
+    }
+    VERIFY_NOT_REACHED();
+}
+
+bool NodeWithStyle::is_scroll_container() const
+{
+    // NOTE: This isn't in the spec, but we want the viewport to behave like a scroll container.
+    if (is_viewport())
+        return true;
+
+    return overflow_value_makes_box_a_scroll_container(computed_values().overflow_x())
+        || overflow_value_makes_box_a_scroll_container(computed_values().overflow_y());
+}
+
 void Node::add_paintable(JS::GCPtr<Painting::Paintable> paintable)
 {
     if (!paintable)

@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2022, Andreas Kling <andreas@ladybird.org>
+ * Copyright (c) 2024, Aliaksandr Kalenik <kalenik.aliaksandr@gmail.com>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -26,6 +27,7 @@ class PaintableBox : public Paintable
 
 public:
     static JS::NonnullGCPtr<PaintableBox> create(Layout::Box const&);
+    static JS::NonnullGCPtr<PaintableBox> create(Layout::InlineNode const&);
     virtual ~PaintableBox();
 
     virtual void before_paint(PaintContext&, PaintPhase) const override;
@@ -37,10 +39,10 @@ public:
     virtual Optional<Gfx::Bitmap::MaskKind> get_mask_type() const { return {}; }
     virtual RefPtr<Gfx::Bitmap> calculate_mask(PaintContext&, CSSPixelRect const&) const { return {}; }
 
-    Layout::Box& layout_box() { return static_cast<Layout::Box&>(Paintable::layout_node()); }
-    Layout::Box const& layout_box() const { return static_cast<Layout::Box const&>(Paintable::layout_node()); }
+    Layout::NodeWithStyleAndBoxModelMetrics& layout_node_with_style_and_box_metrics() { return static_cast<Layout::NodeWithStyleAndBoxModelMetrics&>(Paintable::layout_node()); }
+    Layout::NodeWithStyleAndBoxModelMetrics const& layout_node_with_style_and_box_metrics() const { return static_cast<Layout::NodeWithStyleAndBoxModelMetrics const&>(Paintable::layout_node()); }
 
-    auto const& box_model() const { return layout_box().box_model(); }
+    auto const& box_model() const { return layout_node_with_style_and_box_metrics().box_model(); }
 
     struct OverflowData {
         CSSPixelRect scrollable_overflow_rect;
@@ -115,7 +117,12 @@ public:
     CSSPixels absolute_y() const { return absolute_rect().y(); }
     CSSPixelPoint absolute_position() const { return absolute_rect().location(); }
 
-    [[nodiscard]] bool has_scrollable_overflow() const { return m_overflow_data->has_scrollable_overflow; }
+    [[nodiscard]] bool has_scrollable_overflow() const
+    {
+        if (!m_overflow_data.has_value())
+            return false;
+        return m_overflow_data->has_scrollable_overflow;
+    }
 
     bool has_css_transform() const { return computed_values().transformations().size() > 0; }
 
@@ -128,8 +135,8 @@ public:
 
     void set_overflow_data(OverflowData data) { m_overflow_data = move(data); }
 
-    DOM::Node const* dom_node() const { return layout_box().dom_node(); }
-    DOM::Node* dom_node() { return layout_box().dom_node(); }
+    DOM::Node const* dom_node() const { return layout_node_with_style_and_box_metrics().dom_node(); }
+    DOM::Node* dom_node() { return layout_node_with_style_and_box_metrics().dom_node(); }
 
     virtual void set_needs_display(InvalidateDisplayList = InvalidateDisplayList::Yes) override;
 
@@ -207,7 +214,7 @@ public:
 
     Optional<CSSPixelRect> get_clip_rect() const;
 
-    bool is_viewport() const { return layout_box().is_viewport(); }
+    bool is_viewport() const { return layout_node_with_style_and_box_metrics().is_viewport(); }
 
     virtual bool wants_mouse_events() const override;
 
@@ -238,6 +245,7 @@ public:
 
 protected:
     explicit PaintableBox(Layout::Box const&);
+    explicit PaintableBox(Layout::InlineNode const&);
 
     virtual void paint_border(PaintContext&) const;
     virtual void paint_backdrop_filter(PaintContext&) const;
@@ -306,10 +314,11 @@ class PaintableWithLines : public PaintableBox {
 
 public:
     static JS::NonnullGCPtr<PaintableWithLines> create(Layout::BlockContainer const&);
+    static JS::NonnullGCPtr<PaintableWithLines> create(Layout::InlineNode const&, size_t line_index);
     virtual ~PaintableWithLines() override;
 
-    Layout::BlockContainer const& layout_box() const;
-    Layout::BlockContainer& layout_box();
+    Layout::NodeWithStyleAndBoxModelMetrics const& layout_node_with_style_and_box_metrics() const;
+    Layout::NodeWithStyleAndBoxModelMetrics& layout_node_with_style_and_box_metrics();
 
     Vector<PaintableFragment> const& fragments() const { return m_fragments; }
     Vector<PaintableFragment>& fragments() { return m_fragments; }
@@ -343,13 +352,18 @@ public:
 
     virtual void resolve_paint_properties() override;
 
+    size_t line_index() const { return m_line_index; }
+
 protected:
     PaintableWithLines(Layout::BlockContainer const&);
+    PaintableWithLines(Layout::InlineNode const&, size_t line_index);
 
 private:
     [[nodiscard]] virtual bool is_paintable_with_lines() const final { return true; }
 
     Vector<PaintableFragment> m_fragments;
+
+    size_t m_line_index { 0 };
 };
 
 void paint_text_decoration(PaintContext&, TextPaintable const&, PaintableFragment const&);

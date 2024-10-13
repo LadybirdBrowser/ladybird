@@ -69,6 +69,8 @@ public:
 
     Painting::Paintable* first_paintable() { return m_paintable.first(); }
     Painting::Paintable const* first_paintable() const { return m_paintable.first(); }
+    PaintableList& paintables() { return m_paintable; }
+    PaintableList const& paintables() const { return m_paintable; }
     void add_paintable(JS::GCPtr<Painting::Paintable>);
     void clear_paintables();
 
@@ -219,6 +221,9 @@ public:
     JS::NonnullGCPtr<NodeWithStyle> create_anonymous_wrapper() const;
 
     void transfer_table_box_computed_values_to_wrapper_computed_values(CSS::ComputedValues& wrapper_computed_values);
+
+    bool is_body() const;
+    bool is_scroll_container() const;
 
     virtual void visit_edges(Cell::Visitor& visitor) override;
 

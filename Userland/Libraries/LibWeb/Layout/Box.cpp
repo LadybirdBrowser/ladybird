@@ -34,37 +34,6 @@ void Box::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_contained_abspos_children);
 }
 
-// https://www.w37.org/TR/css-overflow-3/#overflow-control
-static bool overflow_value_makes_box_a_scroll_container(CSS::Overflow overflow)
-{
-    switch (overflow) {
-    case CSS::Overflow::Clip:
-    case CSS::Overflow::Visible:
-        return false;
-    case CSS::Overflow::Auto:
-    case CSS::Overflow::Hidden:
-    case CSS::Overflow::Scroll:
-        return true;
-    }
-    VERIFY_NOT_REACHED();
-}
-
-// https://www.w3.org/TR/css-overflow-3/#scroll-container
-bool Box::is_scroll_container() const
-{
-    // NOTE: This isn't in the spec, but we want the viewport to behave like a scroll container.
-    if (is_viewport())
-        return true;
-
-    return overflow_value_makes_box_a_scroll_container(computed_values().overflow_x())
-        || overflow_value_makes_box_a_scroll_container(computed_values().overflow_y());
-}
-
-bool Box::is_body() const
-{
-    return dom_node() && dom_node() == document().body();
-}
-
 JS::GCPtr<Painting::Paintable> Box::create_paintable() const
 {
     return Painting::PaintableBox::create(*this);
