@@ -10,7 +10,7 @@
 
 namespace Web::HTML {
 
-// https://html.spec.whatwg.org/multipage/canvas.html#canvasdrawpath
+// https://html.spec.whatwg.org/multipage/canvas.html#canvasimagedata
 class CanvasImageData {
 public:
     virtual ~CanvasImageData() = default;
