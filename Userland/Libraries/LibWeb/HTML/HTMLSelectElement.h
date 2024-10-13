@@ -9,6 +9,7 @@
 
 #pragma once
 
+#include <LibWeb/HTML/ConstraintValidation.h>
 #include <LibWeb/HTML/FormAssociatedElement.h>
 #include <LibWeb/HTML/HTMLElement.h>
 #include <LibWeb/HTML/HTMLOptionsCollection.h>
@@ -19,7 +20,8 @@ namespace Web::HTML {
 
 class HTMLSelectElement final
     : public HTMLElement
-    , public FormAssociatedElement {
+    , public FormAssociatedElement
+    , public ConstraintValidation {
     WEB_PLATFORM_OBJECT(HTMLSelectElement, HTMLElement);
     JS_DECLARE_ALLOCATOR(HTMLSelectElement);
     FORM_ASSOCIATED_ELEMENT(HTMLElement, HTMLSelectElement)
@@ -93,6 +95,10 @@ public:
     void did_select_item(Optional<u32> const& id);
 
     void update_selectedness();
+
+    CONSTRAINT_VALIDATION_IMPL();
+
+    virtual bool is_value_missing() const override;
 
 private:
     HTMLSelectElement(DOM::Document&, DOM::QualifiedName);
