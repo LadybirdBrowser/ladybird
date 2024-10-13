@@ -48,7 +48,7 @@ protected:
     virtual bool is_range_overflow() const { return false; }
     virtual bool is_step_mismatch() const { return false; }
     virtual bool is_bad_input() const { return false; }
-    bool has_custom_validity_error_message() const { return !m_custom_validity_error_message.is_empty(); }
+    bool has_custom_error() const { return !m_custom_validity_error_message.is_empty(); }
     bool is_valid() const
     {
         return !is_value_missing()
@@ -60,7 +60,7 @@ protected:
             && !is_range_underflow()
             && !is_step_mismatch()
             && !is_bad_input()
-            && !has_custom_validity_error_message();
+            && !has_custom_error();
     }
 
     String custom_validity_error_message() const { return m_custom_validity_error_message; }
