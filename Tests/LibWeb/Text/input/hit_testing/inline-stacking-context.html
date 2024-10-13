@@ -18,6 +18,6 @@ div {
 <script src="../include.js"></script>
 <script>
     test(() => {
-        println(internals.hitTest(50, 50).node.parentNode === document.getElementById("inline-stacking-context"));
+        println(internals.hitTest(50, 50).node === document.getElementById("inline-stacking-context"));
     });
 </script>

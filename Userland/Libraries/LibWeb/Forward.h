@@ -574,6 +574,7 @@ class CheckBox;
 class FlexFormattingContext;
 class FormattingContext;
 class ImageBox;
+class InlineNode;
 class InlineFormattingContext;
 class Label;
 class LabelableNode;

@@ -30,11 +30,10 @@ ViewportPaintable (Viewport<#document>) [0,0 800x600]
   PaintableWithLines (BlockContainer<HTML>) [0,0 800x148]
     PaintableWithLines (BlockContainer<BODY>) [8,8 784x132]
       PaintableWithLines (BlockContainer<DIV>.string) [8,8 102x22]
-        InlinePaintable (InlineNode(anonymous))
+        PaintableWithLines (InlineNode(anonymous))
           TextPaintable (TextNode<#text>)
       PaintableWithLines (BlockContainer(anonymous)) [8,30 784x0]
       PaintableWithLines (BlockContainer<DIV>.string-no-fallback) [8,30 102x22]
-        InlinePaintable (InlineNode(anonymous))
       PaintableWithLines (BlockContainer(anonymous)) [8,52 784x0]
       PaintableWithLines (BlockContainer<DIV>.length) [8,52 202x22]
       PaintableWithLines (BlockContainer(anonymous)) [8,74 784x0]

@@ -1,6 +1,7 @@
 /*
  * Copyright (c) 2018-2022, Andreas Kling <andreas@ladybird.org>
  * Copyright (c) 2021, Sam Atkins <atkinssj@serenityos.org>
+ * Copyright (c) 2024, Aliaksandr Kalenik <kalenik.aliaksandr@gmail.com>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -23,9 +24,17 @@ InlineNode::InlineNode(DOM::Document& document, DOM::Element* element, NonnullRe
 
 InlineNode::~InlineNode() = default;
 
-JS::GCPtr<Painting::Paintable> InlineNode::create_paintable() const
+JS::GCPtr<Painting::PaintableWithLines> InlineNode::create_paintable_for_line_with_index(size_t line_index) const
 {
-    return Painting::InlinePaintable::create(*this);
+    for (auto const& paintable : paintables()) {
+        if (is<Painting::PaintableWithLines>(paintable)) {
+            auto const& paintable_with_lines = static_cast<Painting::PaintableWithLines const&>(paintable);
+            if (paintable_with_lines.line_index() == line_index) {
+                return const_cast<Painting::PaintableWithLines&>(paintable_with_lines);
+            }
+        }
+    }
+    return Painting::PaintableWithLines::create(*this, line_index);
 }
 
 }

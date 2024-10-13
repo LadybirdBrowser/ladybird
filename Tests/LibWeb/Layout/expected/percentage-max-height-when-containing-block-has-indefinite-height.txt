@@ -48,7 +48,7 @@ ViewportPaintable (Viewport<#document>) [0,0 800x600]
           TextPaintable (TextNode<#text>)
       PaintableWithLines (BlockContainer(anonymous)) [10,31 780x0]
       PaintableWithLines (BlockContainer<DIV>.inline.formatting-context) [10,31 780x19]
-        InlinePaintable (InlineNode<DIV>)
+        PaintableWithLines (InlineNode<DIV>)
           TextPaintable (TextNode<#text>)
       PaintableWithLines (BlockContainer(anonymous)) [10,50 780x0]
       PaintableBox (Box<DIV>.flex.formatting-context) [10,50 780x21]

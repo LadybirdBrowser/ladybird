@@ -383,11 +383,13 @@ void dump_tree(StringBuilder& builder, Layout::Node const& layout_node, bool sho
 
     if (is<Layout::InlineNode>(layout_node) && layout_node.first_paintable()) {
         auto const& inline_node = static_cast<Layout::InlineNode const&>(layout_node);
-        auto const& inline_paintable = static_cast<Painting::InlinePaintable const&>(*inline_node.first_paintable());
-        auto const& fragments = inline_paintable.fragments();
-        for (size_t fragment_index = 0; fragment_index < fragments.size(); ++fragment_index) {
-            auto const& fragment = fragments[fragment_index];
-            dump_fragment(fragment, fragment_index);
+        for (auto const& paintable : inline_node.paintables()) {
+            auto const& paintable_with_lines = static_cast<Painting::PaintableWithLines const&>(paintable);
+            auto const& fragments = paintable_with_lines.fragments();
+            for (size_t fragment_index = 0; fragment_index < fragments.size(); ++fragment_index) {
+                auto const& fragment = fragments[fragment_index];
+                dump_fragment(fragment, fragment_index);
+            }
         }
     }
 

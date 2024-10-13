@@ -20,10 +20,10 @@ Viewport <#document> at (0,0) content-size 800x600 children: not-inline
 ViewportPaintable (Viewport<#document>) [0,0 800x600]
   PaintableWithLines (BlockContainer<HTML>) [0,0 800x600]
     PaintableWithLines (BlockContainer<BODY>) [8,8 784x19]
-      PaintableWithLines (BlockContainer<DIV>.fixed_width) [8,8 52x19] overflow: [9,9 78.921875x17]
-        InlinePaintable (InlineNode<SPAN>.nowrap)
+      PaintableWithLines (BlockContainer<DIV>.fixed_width) [8,8 52x19]
+        PaintableWithLines (InlineNode<SPAN>.nowrap)
           TextPaintable (TextNode<#text>)
-        InlinePaintable (InlineNode<SPAN>)
+        PaintableWithLines (InlineNode<SPAN>)
           TextPaintable (TextNode<#text>)
-        InlinePaintable (InlineNode<SPAN>.nowrap)
+        PaintableWithLines (InlineNode<SPAN>.nowrap)
           TextPaintable (TextNode<#text>)
