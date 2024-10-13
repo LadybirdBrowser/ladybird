@@ -1178,7 +1178,7 @@ WebIDL::ExceptionOr<void> Navigable::populate_session_history_entry_document(
         //            header specifying the attachment disposition type, then:
         // 6. Otherwise, if navigationParams's response's status is not 204 and is not 205, then set entry's document state's document to the result of
         //    loading a document given navigationParams, sourceSnapshotParams, and entry's document state's initiator origin.
-        else if (navigation_params.get<JS::NonnullGCPtr<NavigationParams>>()->response->status() != 204 && navigation_params.get<JS::NonnullGCPtr<NavigationParams>>()->response->status() != 205) {
+        else if (auto const& response = navigation_params.get<JS::NonnullGCPtr<NavigationParams>>()->response; response->status() != 204 && response->status() != 205) {
             auto document = load_document(navigation_params.get<JS::NonnullGCPtr<NavigationParams>>());
             entry->document_state()->set_document(document);
         }
