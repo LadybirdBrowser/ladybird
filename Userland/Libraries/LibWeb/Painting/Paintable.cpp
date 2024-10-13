@@ -14,7 +14,6 @@ namespace Web::Painting {
 
 Paintable::Paintable(Layout::Node const& layout_node)
     : m_layout_node(layout_node)
-    , m_browsing_context(const_cast<HTML::BrowsingContext&>(layout_node.browsing_context()))
 {
     auto& computed_values = layout_node.computed_values();
     if (layout_node.is_grid_item() && computed_values.z_index().has_value()) {
@@ -42,7 +41,6 @@ void Paintable::visit_edges(Cell::Visitor& visitor)
     TreeNode::visit_edges(visitor);
     visitor.visit(m_dom_node);
     visitor.visit(m_layout_node);
-    visitor.visit(m_browsing_context);
     if (m_containing_block.has_value())
         visitor.visit(m_containing_block.value());
 }
@@ -66,16 +64,6 @@ JS::GCPtr<DOM::Node> Paintable::dom_node()
 JS::GCPtr<DOM::Node const> Paintable::dom_node() const
 {
     return m_dom_node;
-}
-
-HTML::BrowsingContext const& Paintable::browsing_context() const
-{
-    return m_browsing_context;
-}
-
-HTML::BrowsingContext& Paintable::browsing_context()
-{
-    return m_browsing_context;
 }
 
 JS::GCPtr<HTML::Navigable> Paintable::navigable() const
