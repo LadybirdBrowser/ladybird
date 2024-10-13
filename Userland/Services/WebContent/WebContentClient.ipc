@@ -71,6 +71,7 @@ endpoint WebContentClient
     did_request_cookie(URL::URL url, Web::Cookie::Source source) => (String cookie)
     did_set_cookie(URL::URL url, Web::Cookie::ParsedCookie cookie, Web::Cookie::Source source) => ()
     did_update_cookie(Web::Cookie::Cookie cookie) =|
+    did_expire_cookies_with_time_offset(AK::Duration offset) =|
     did_update_resource_count(u64 page_id, i32 count_waiting) =|
     did_request_new_web_view(u64 page_id, Web::HTML::ActivateTab activate_tab, Web::HTML::WebViewHints hints, Optional<u64> page_index) => (String handle)
     did_request_activate_tab(u64 page_id) =|
