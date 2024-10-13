@@ -1,10 +1,11 @@
+minimum_pre_commit_version: 3.2.0
 repos:
   - repo: local
     hooks:
       - id: meta-lint-ci
         name: Running Meta/lint-ci.sh to ensure changes will pass linting on CI
         entry: bash Meta/lint-ci.sh
-        stages: [ commit ]
+        stages: [ pre-commit ]
         language: system
 
       - id: meta-lint-commit
