@@ -93,6 +93,7 @@ private:
     virtual Messages::WebContentClient::DidRequestCookieResponse did_request_cookie(URL::URL const&, Web::Cookie::Source) override;
     virtual void did_set_cookie(URL::URL const&, Web::Cookie::ParsedCookie const&, Web::Cookie::Source) override;
     virtual void did_update_cookie(Web::Cookie::Cookie const&) override;
+    virtual void did_expire_cookies_with_time_offset(AK::Duration) override;
     virtual Messages::WebContentClient::DidRequestNewWebViewResponse did_request_new_web_view(u64 page_id, Web::HTML::ActivateTab const&, Web::HTML::WebViewHints const&, Optional<u64> const& page_index) override;
     virtual void did_request_activate_tab(u64 page_id) override;
     virtual void did_close_browsing_context(u64 page_id) override;

@@ -213,6 +213,11 @@ Optional<Web::Cookie::Cookie> CookieJar::get_named_cookie(URL::URL const& url, S
     return {};
 }
 
+void CookieJar::expire_cookies_with_time_offset(AK::Duration offset)
+{
+    m_transient_storage.purge_expired_cookies(offset);
+}
+
 // https://www.ietf.org/archive/id/draft-ietf-httpbis-rfc6265bis-15.html#section-5.1.2
 Optional<String> CookieJar::canonicalize_domain(const URL::URL& url)
 {
@@ -643,12 +648,19 @@ Optional<Web::Cookie::Cookie> CookieJar::TransientStorage::get_cookie(CookieStor
     return m_cookies.get(key);
 }
 
-UnixDateTime CookieJar::TransientStorage::purge_expired_cookies()
+UnixDateTime CookieJar::TransientStorage::purge_expired_cookies(Optional<AK::Duration> offset)
 {
     auto now = UnixDateTime::now();
-    auto is_expired = [&](auto const&, auto const& cookie) { return cookie.expiry_time < now; };
+    if (offset.has_value()) {
+        now += *offset;
 
+        for (auto& cookie : m_dirty_cookies)
+            cookie.value.expiry_time -= *offset;
+    }
+
+    auto is_expired = [&](auto const&, auto const& cookie) { return cookie.expiry_time < now; };
     m_cookies.remove_all_matching(is_expired);
+
     return now;
 }
 

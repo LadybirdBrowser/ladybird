@@ -47,7 +47,7 @@ class CookieJar {
 
         size_t size() const { return m_cookies.size(); }
 
-        UnixDateTime purge_expired_cookies();
+        UnixDateTime purge_expired_cookies(Optional<AK::Duration> offset = {});
 
         auto take_dirty_cookies() { return move(m_dirty_cookies); }
 
@@ -94,6 +94,7 @@ public:
     Vector<Web::Cookie::Cookie> get_all_cookies();
     Vector<Web::Cookie::Cookie> get_all_cookies(URL::URL const& url);
     Optional<Web::Cookie::Cookie> get_named_cookie(URL::URL const& url, StringView name);
+    void expire_cookies_with_time_offset(AK::Duration);
 
 private:
     explicit CookieJar(Optional<PersistedStorage>);

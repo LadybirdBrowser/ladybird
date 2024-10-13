@@ -122,13 +122,12 @@
         deleteCookie("cookie");
     };
 
-    const maxAgeTest1 = () => {
+    const maxAgeTest = () => {
         document.cookie = "cookie-max-age1=value; max-age=1";
         document.cookie = `cookie-max-age2=value; max-age=${"1".repeat(1024)}`;
         printCookies("Max-Age (before expiration)");
-    };
 
-    const maxAgeTest2 = () => {
+        internals.expireCookiesWithTimeOffset(2);
         printCookies("Max-Age (after expiration)");
         deleteCookie("cookie-max-age2");
     };
@@ -139,15 +138,14 @@
         printCookies("Max-Age in past");
     };
 
-    const expiresTest1 = () => {
+    const expiresTest = () => {
         let expiry = new Date(Date.now() + 1000);
         expiry = expiry.toUTCString();
 
         document.cookie = `cookie-expires=value; expires=${expiry}`;
         printCookies("Expires (before expiration)");
-    };
 
-    const expiresTest2 = () => {
+        internals.expireCookiesWithTimeOffset(2);
         printCookies("Expires (after expiration)");
     };
 
@@ -179,7 +177,7 @@
         deleteCookie("cookie");
     };
 
-    asyncTest(done => {
+    test(() => {
         basicTest();
         multipleCookiesTest();
 
@@ -200,18 +198,11 @@
         publicSuffixTest();
         sameSiteTest();
 
-        maxAgeTest1();
-        expiresTest1();
+        maxAgeTest();
+        maxAgeInPastTest();
 
-        setTimeout(() => {
-            maxAgeTest2();
-            expiresTest2();
-
-            maxAgeInPastTest();
-            expiresInPastTest();
-            invalidExpiryTest();
-
-            done();
-        }, 1200);
+        expiresTest();
+        expiresInPastTest();
+        invalidExpiryTest();
     });
 </script>

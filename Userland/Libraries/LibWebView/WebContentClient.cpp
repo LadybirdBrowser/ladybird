@@ -445,6 +445,11 @@ void WebContentClient::did_update_cookie(Web::Cookie::Cookie const& cookie)
     Application::cookie_jar().update_cookie(cookie);
 }
 
+void WebContentClient::did_expire_cookies_with_time_offset(AK::Duration offset)
+{
+    Application::cookie_jar().expire_cookies_with_time_offset(offset);
+}
+
 Messages::WebContentClient::DidRequestNewWebViewResponse WebContentClient::did_request_new_web_view(u64 page_id, Web::HTML::ActivateTab const& activate_tab, Web::HTML::WebViewHints const& hints, Optional<u64> const& page_index)
 {
     if (auto view = view_for_page_id(page_id); view.has_value()) {

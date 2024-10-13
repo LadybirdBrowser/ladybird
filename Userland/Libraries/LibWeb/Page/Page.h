@@ -343,6 +343,7 @@ public:
     virtual String page_did_request_cookie(URL::URL const&, Cookie::Source) { return {}; }
     virtual void page_did_set_cookie(URL::URL const&, Cookie::ParsedCookie const&, Cookie::Source) { }
     virtual void page_did_update_cookie(Web::Cookie::Cookie) { }
+    virtual void page_did_expire_cookies_with_time_offset(AK::Duration) { }
     virtual void page_did_update_resource_count(i32) { }
     struct NewWebViewResult {
         JS::GCPtr<Page> page;
