@@ -56,7 +56,7 @@ public:
 
     void read_into_bitmap(Gfx::Bitmap& bitmap)
     {
-        auto image_info = SkImageInfo::Make(bitmap.width(), bitmap.height(), kBGRA_8888_SkColorType, kPremul_SkAlphaType);
+        auto image_info = SkImageInfo::Make(bitmap.width(), bitmap.height(), kBGRA_8888_SkColorType, kPremul_SkAlphaType, SkColorSpace::MakeSRGB());
         SkPixmap pixmap(image_info, bitmap.begin(), bitmap.pitch());
         m_surface->readPixels(pixmap, 0, 0);
     }
@@ -92,7 +92,7 @@ public:
 
     sk_sp<SkSurface> create_surface(int width, int height)
     {
-        auto image_info = SkImageInfo::Make(width, height, kBGRA_8888_SkColorType, kPremul_SkAlphaType);
+        auto image_info = SkImageInfo::Make(width, height, kBGRA_8888_SkColorType, kPremul_SkAlphaType, SkColorSpace::MakeSRGB());
         return SkSurfaces::RenderTarget(m_context.get(), skgpu::Budgeted::kYes, image_info);
     }
 
@@ -181,7 +181,7 @@ OwnPtr<SkiaBackendContext> DisplayListPlayerSkia::create_metal_context(Core::Met
 
 DisplayListPlayerSkia::DisplayListPlayerSkia(SkiaBackendContext& context, Core::MetalTexture& metal_texture)
 {
-    auto image_info = SkImageInfo::Make(metal_texture.width(), metal_texture.height(), kBGRA_8888_SkColorType, kPremul_SkAlphaType);
+    auto image_info = SkImageInfo::Make(metal_texture.width(), metal_texture.height(), kBGRA_8888_SkColorType, kPremul_SkAlphaType, SkColorSpace::MakeSRGB());
     VERIFY(is<SkiaMetalBackendContext>(context));
     auto surface = static_cast<SkiaMetalBackendContext&>(context).wrap_metal_texture(metal_texture);
     if (!surface) {
@@ -198,7 +198,7 @@ DisplayListPlayerSkia::DisplayListPlayerSkia(SkiaBackendContext& context, Core::
 DisplayListPlayerSkia::DisplayListPlayerSkia(Gfx::Bitmap& bitmap)
 {
     VERIFY(bitmap.format() == Gfx::BitmapFormat::BGRA8888);
-    auto image_info = SkImageInfo::Make(bitmap.width(), bitmap.height(), kBGRA_8888_SkColorType, kPremul_SkAlphaType);
+    auto image_info = SkImageInfo::Make(bitmap.width(), bitmap.height(), kBGRA_8888_SkColorType, kPremul_SkAlphaType, SkColorSpace::MakeSRGB());
     auto surface = SkSurfaces::WrapPixels(image_info, bitmap.begin(), bitmap.pitch());
     VERIFY(surface);
     m_surface = make<SkiaSurface>(surface);
