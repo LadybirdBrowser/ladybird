@@ -321,9 +321,25 @@ void CanvasRenderingContext2D::fill(Path2D& path, StringView fill_rule)
     fill_internal(path.path(), parse_fill_rule(fill_rule));
 }
 
+// https://html.spec.whatwg.org/multipage/canvas.html#dom-context-2d-createimagedata
 WebIDL::ExceptionOr<JS::NonnullGCPtr<ImageData>> CanvasRenderingContext2D::create_image_data(int width, int height, Optional<ImageDataSettings> const& settings) const
 {
-    return ImageData::create(realm(), width, height, settings);
+    // 1. If one or both of sw and sh are zero, then throw an "IndexSizeError" DOMException.
+    if (width == 0 || height == 0)
+        return WebIDL::IndexSizeError::create(realm(), "Width and height must not be zero"_string);
+
+    int abs_width = abs(width);
+    int abs_height = abs(height);
+
+    // 2. Let newImageData be a new ImageData object.
+    // 3. Initialize newImageData given the absolute magnitude of sw, the absolute magnitude of sh, settings set to settings, and defaultColorSpace set to this's color space.
+    auto image_data = TRY(ImageData::create(realm(), abs_width, abs_height, settings));
+
+    // 4. Initialize the image data of newImageData to transparent black.
+    // ... this is handled by ImageData::create()
+
+    // 5. Return newImageData.
+    return image_data;
 }
 
 // https://html.spec.whatwg.org/multipage/canvas.html#dom-context-2d-getimagedata
