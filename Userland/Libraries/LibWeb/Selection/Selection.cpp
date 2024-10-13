@@ -131,8 +131,8 @@ String Selection::direction() const
 // https://w3c.github.io/selection-api/#dom-selection-getrangeat
 WebIDL::ExceptionOr<JS::GCPtr<DOM::Range>> Selection::get_range_at(unsigned index)
 {
-    // The method must throw an IndexSizeError exception if index is not 0, or if this is empty.
-    if (index != 0 || is_empty())
+    // The method must throw an IndexSizeError exception if index is not 0, or if this is empty or either focus or anchor is not in the document tree.
+    if (index != 0 || is_empty() || (!focus_node()->in_a_document_tree() || !anchor_node()->in_a_document_tree()))
         return WebIDL::IndexSizeError::create(realm(), "Selection.getRangeAt() on empty Selection or with invalid argument"_string);
 
     // Otherwise, it must return a reference to (not a copy of) this's range.
