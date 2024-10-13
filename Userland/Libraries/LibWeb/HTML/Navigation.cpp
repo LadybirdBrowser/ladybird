@@ -983,11 +983,10 @@ bool Navigation::inner_navigate_event_firing_algorithm(
         && destination->same_document()
         && (user_involvement != UserNavigationInvolvement::BrowserUI || relevant_global_object.has_history_action_activation());
 
-    // FIXME: Fix spec grammaro, extra 'the -> set'
     // 11. If either:
     //      - navigationType is not "traverse"; or
     //      - traverseCanBeCanceled is true
-    //     the initialize event's cancelable to true. Otherwise, initialize it to false.
+    //     then initialize event's cancelable to true. Otherwise, initialize it to false.
     event_init.cancelable = (navigation_type != Bindings::NavigationType::Traverse) || traverse_can_be_canceled;
 
     // 12. Initialize event's type to "navigate".
