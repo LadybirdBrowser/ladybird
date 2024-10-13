@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2024, Shannon Booth <shannon@serenityos.org>
+ * Copyright (c) 2024, Benjamin Bjerken <beuss-git@gmail.com>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -17,6 +18,18 @@ class ValidityState final : public Bindings::PlatformObject {
 
 public:
     virtual ~ValidityState() override = default;
+
+    bool value_missing() const;
+    bool type_mismatch() const;
+    bool pattern_mismatch() const;
+    bool too_long() const;
+    bool too_short() const;
+    bool range_underflow() const;
+    bool range_overflow() const;
+    bool step_mismatch() const;
+    bool bad_input() const;
+    bool custom_error() const;
+    bool valid() const;
 
 private:
     ValidityState(JS::Realm&, ConstraintValidation const& associated_element);
