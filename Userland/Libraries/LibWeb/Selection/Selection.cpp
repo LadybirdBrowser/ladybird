@@ -290,7 +290,7 @@ WebIDL::ExceptionOr<void> Selection::extend(JS::NonnullGCPtr<DOM::Node> node, un
         TRY(new_range->set_end(new_focus_node, new_focus_offset));
     }
     // 6. Otherwise, if oldAnchor is before or equal to newFocus, set the start newRange's start to oldAnchor, then set its end to newFocus.
-    else if (old_anchor_node.is_before(new_focus_node) || &old_anchor_node == new_focus_node.ptr()) {
+    else if (position_of_boundary_point_relative_to_other_boundary_point(old_anchor_node, old_anchor_offset, new_focus_node, new_focus_offset) != DOM::RelativeBoundaryPointPosition::After) {
         TRY(new_range->set_start(old_anchor_node, old_anchor_offset));
         TRY(new_range->set_end(new_focus_node, new_focus_offset));
     }
@@ -304,7 +304,7 @@ WebIDL::ExceptionOr<void> Selection::extend(JS::NonnullGCPtr<DOM::Node> node, un
     set_range(new_range);
 
     // 9. If newFocus is before oldAnchor, set this's direction to backwards. Otherwise, set it to forwards.
-    if (new_focus_node->is_before(old_anchor_node)) {
+    if (position_of_boundary_point_relative_to_other_boundary_point(new_focus_node, new_focus_offset, old_anchor_node, old_anchor_offset) == DOM::RelativeBoundaryPointPosition::Before) {
         m_direction = Direction::Backwards;
     } else {
         m_direction = Direction::Forwards;
