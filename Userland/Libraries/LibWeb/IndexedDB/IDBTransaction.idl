@@ -1,0 +1,30 @@
+#import <DOM/EventHandler.idl>
+#import <DOM/EventTarget.idl>
+#import <IndexedDB/IDBDatabase.idl>
+#import <IndexedDB/IDBObjectStore.idl>
+#import <WebIDL/DOMException.idl>
+
+// https://w3c.github.io/IndexedDB/#idbtransaction
+[Exposed=(Window,Worker)]
+interface IDBTransaction : EventTarget {
+    [FIXME] readonly attribute DOMStringList objectStoreNames;
+    [FIXME] readonly attribute IDBTransactionMode mode;
+    [FIXME] readonly attribute IDBTransactionDurability durability;
+    [FIXME, SameObject] readonly attribute IDBDatabase db;
+    [FIXME] readonly attribute DOMException? error;
+
+    [FIXME] IDBObjectStore objectStore(DOMString name);
+    [FIXME] undefined commit();
+    [FIXME] undefined abort();
+
+    // Event handlers:
+    [FIXME] attribute EventHandler onabort;
+    [FIXME] attribute EventHandler oncomplete;
+    [FIXME] attribute EventHandler onerror;
+};
+
+enum IDBTransactionMode {
+    "readonly",
+    "readwrite",
+    "versionchange"
+};

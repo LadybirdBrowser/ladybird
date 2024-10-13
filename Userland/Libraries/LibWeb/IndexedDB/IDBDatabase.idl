@@ -1,0 +1,38 @@
+#import <DOM/EventTarget.idl>
+#import <IndexedDB/IDBTransaction.idl>
+#import <IndexedDB/IDBObjectStore.idl>
+
+// https://w3c.github.io/IndexedDB/#idbdatabase
+[Exposed=(Window,Worker)]
+interface IDBDatabase : EventTarget {
+    [FIXME] readonly attribute DOMString name;
+    [FIXME] readonly attribute unsigned long long version;
+    [FIXME] readonly attribute DOMStringList objectStoreNames;
+
+    [FIXME, NewObject] IDBTransaction transaction((DOMString or sequence<DOMString>) storeNames,
+                                            optional IDBTransactionMode mode = "readonly",
+                                            optional IDBTransactionOptions options = {});
+    [FIXME] undefined close();
+
+    [FIXME, NewObject] IDBObjectStore createObjectStore(
+        DOMString name,
+        optional IDBObjectStoreParameters options = {});
+    [FIXME] undefined deleteObjectStore(DOMString name);
+
+    // Event handlers:
+    [FIXME] attribute EventHandler onabort;
+    [FIXME] attribute EventHandler onclose;
+    [FIXME] attribute EventHandler onerror;
+    [FIXME] attribute EventHandler onversionchange;
+};
+
+enum IDBTransactionDurability { "default", "strict", "relaxed" };
+
+dictionary IDBTransactionOptions {
+    IDBTransactionDurability durability = "default";
+};
+
+dictionary IDBObjectStoreParameters {
+    (DOMString or sequence<DOMString>)? keyPath = null;
+    boolean autoIncrement = false;
+};

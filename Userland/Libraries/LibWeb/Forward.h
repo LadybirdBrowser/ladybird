@@ -548,9 +548,17 @@ class Performance;
 }
 
 namespace Web::IndexedDB {
+class IDBCursor;
+enum class IDBCursorDirection;
+class IDBDatabase;
+enum class IDBTransactionDurability;
 class IDBFactory;
+class IDBIndex;
 class IDBKeyRange;
+class IDBObjectStore;
 class IDBOpenDBRequest;
+class IDBTransaction;
+enum class IDBTransactionMode;
 class IDBRequest;
 }
 
