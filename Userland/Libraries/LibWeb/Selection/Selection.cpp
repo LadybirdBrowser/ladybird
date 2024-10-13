@@ -152,6 +152,9 @@ void Selection::add_range(JS::NonnullGCPtr<DOM::Range> range)
 
     // 3. Set this's range to range by a strong reference (not by making a copy).
     set_range(range);
+
+    // AD-HOC: WPT selection/removeAllRanges.html and selection/addRange.htm expect this
+    m_direction = Direction::Forwards;
 }
 
 // https://w3c.github.io/selection-api/#dom-selection-removerange
