@@ -265,8 +265,8 @@ WebIDL::ExceptionOr<void> Selection::collapse_to_end()
 // https://w3c.github.io/selection-api/#dom-selection-extend
 WebIDL::ExceptionOr<void> Selection::extend(JS::NonnullGCPtr<DOM::Node> node, unsigned offset)
 {
-    // 1. If node's root is not the document associated with this, abort these steps.
-    if (&node->root() != m_document.ptr())
+    // 1. If the document associated with this is not a shadow-including inclusive ancestor of node, abort these steps.
+    if (!m_document->is_shadow_including_inclusive_ancestor_of(node))
         return {};
 
     // 2. If this is empty, throw an InvalidStateError exception and abort these steps.
@@ -287,9 +287,11 @@ WebIDL::ExceptionOr<void> Selection::extend(JS::NonnullGCPtr<DOM::Node> node, un
     // 5. If node's root is not the same as the this's range's root, set the start newRange's start and end to newFocus.
     if (&node->root() != &m_range->start_container()->root()) {
         TRY(new_range->set_start(new_focus_node, new_focus_offset));
+        TRY(new_range->set_end(new_focus_node, new_focus_offset));
     }
     // 6. Otherwise, if oldAnchor is before or equal to newFocus, set the start newRange's start to oldAnchor, then set its end to newFocus.
     else if (old_anchor_node.is_before(new_focus_node) || &old_anchor_node == new_focus_node.ptr()) {
+        TRY(new_range->set_start(old_anchor_node, old_anchor_offset));
         TRY(new_range->set_end(new_focus_node, new_focus_offset));
     }
     // 7. Otherwise, set the start newRange's start to newFocus, then set its end to oldAnchor.
