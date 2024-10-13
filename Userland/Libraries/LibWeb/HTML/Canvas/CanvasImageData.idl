@@ -3,7 +3,7 @@
 // https://html.spec.whatwg.org/multipage/canvas.html#canvasimagedata
 interface mixin CanvasImageData {
     ImageData createImageData([EnforceRange] long sw, [EnforceRange] long sh, optional ImageDataSettings settings = {});
-    [FIXME] ImageData createImageData(ImageData imagedata);
+    ImageData createImageData(ImageData imagedata);
 
     ImageData getImageData([EnforceRange] long sx, [EnforceRange] long sy, [EnforceRange] long sw, [EnforceRange] long sh, optional ImageDataSettings settings = {});
 
