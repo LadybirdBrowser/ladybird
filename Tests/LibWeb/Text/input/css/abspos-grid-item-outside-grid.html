@@ -1,0 +1,22 @@
+<!-- http://wpt.live/css/css-grid/abspos/grid-positioned-items-gaps-001.html -->
+<style>
+    .grid {
+        display: grid;
+        position: relative;
+        grid-template-columns: auto auto;
+        grid-template-rows: auto auto;
+    }
+
+    .grid > div {
+        position: absolute;
+        grid-column: 4 / auto;
+        grid-row: 4 / auto;
+    }
+</style>
+<div class="grid"><div></div></div>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        println("PASS! (Didn't crash)");
+    });
+</script>
