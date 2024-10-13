@@ -19,9 +19,11 @@ public:
     virtual ~ValidityState() override = default;
 
 private:
-    ValidityState(JS::Realm&);
+    ValidityState(JS::Realm&, ConstraintValidation const& associated_element);
 
     virtual void initialize(JS::Realm&) override;
+
+    ConstraintValidation const& m_associated_element;
 };
 
 }
