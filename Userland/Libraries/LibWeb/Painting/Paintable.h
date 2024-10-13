@@ -198,9 +198,6 @@ public:
 
     bool visible_for_hit_testing() const { return computed_values().pointer_events() != CSS::PointerEvents::None; }
 
-    [[nodiscard]] HTML::BrowsingContext const& browsing_context() const;
-    [[nodiscard]] HTML::BrowsingContext& browsing_context();
-
     JS::GCPtr<HTML::Navigable> navigable() const;
 
     virtual void set_needs_display(InvalidateDisplayList = InvalidateDisplayList::Yes);
@@ -255,7 +252,6 @@ protected:
 private:
     JS::GCPtr<DOM::Node> m_dom_node;
     JS::NonnullGCPtr<Layout::Node const> m_layout_node;
-    JS::NonnullGCPtr<HTML::BrowsingContext> m_browsing_context;
     Optional<JS::GCPtr<PaintableBox>> mutable m_containing_block;
 
     OwnPtr<StackingContext> m_stacking_context;
