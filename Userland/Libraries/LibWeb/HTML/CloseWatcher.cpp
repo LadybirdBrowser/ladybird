@@ -45,7 +45,7 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<CloseWatcher>> CloseWatcher::construct_impl
     // FIXME: Not in spec explicitly, but this should account for detached iframes too. See /close-watcher/frame-removal.html WPT.
     auto& window = verify_cast<HTML::Window>(realm.global_object());
     if (!window.associated_document().is_fully_active())
-        return WebIDL::InvalidStateError::create(realm, "The document is not fully active."_fly_string);
+        return WebIDL::InvalidStateError::create(realm, "The document is not fully active."_string);
 
     // 2. Let close_watcher be the result of establishing a close watcher
     auto close_watcher = establish(window);

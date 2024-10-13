@@ -1261,7 +1261,7 @@ WebIDL::ExceptionOr<void> Navigable::navigate(NavigateParams params)
     if (!source_document->navigable()->allowed_by_sandboxing_to_navigate(*this, source_snapshot_params)) {
         // 1. If exceptionsEnabled is true, then throw a "SecurityError" DOMException.
         if (exceptions_enabled) {
-            return WebIDL::SecurityError::create(realm, "Source document's node navigable is not allowed to navigate"_fly_string);
+            return WebIDL::SecurityError::create(realm, "Source document's node navigable is not allowed to navigate"_string);
         }
 
         // 2 Return.
@@ -1289,7 +1289,7 @@ WebIDL::ExceptionOr<void> Navigable::navigate(NavigateParams params)
         // 1. If url equals navigable's active document's URL,
         //     and initiatorOriginSnapshot is same origin with targetNavigable's active document's origin,
         //     then set historyHandling to "replace".
-        if (url.equals(active_document.url(), URL::ExcludeFragment::Yes) && initiator_origin_snapshot.is_same_origin(active_document.origin()))
+        if (url == active_document.url() && initiator_origin_snapshot.is_same_origin(active_document.origin()))
             history_handling = Bindings::NavigationHistoryBehavior::Replace;
 
         // 2. Otherwise, set historyHandling to "push".

@@ -2509,7 +2509,7 @@ static void generate_html_constructor(SourceGenerator& generator, IDL::Construct
 
     // 11. If element is an already constructed marker, then throw an "InvalidStateError" DOMException.
     if (element.has<HTML::AlreadyConstructedCustomElementMarker>())
-        return JS::throw_completion(WebIDL::InvalidStateError::create(realm, "Custom element has already been constructed"_fly_string));
+        return JS::throw_completion(WebIDL::InvalidStateError::create(realm, "Custom element has already been constructed"_string));
 
     // 12. Perform ? element.[[SetPrototypeOf]](prototype).
     auto actual_element = element.get<JS::Handle<DOM::Element>>();
@@ -3189,7 +3189,7 @@ void @class_name@::initialize(JS::Realm& realm)
     set_prototype(realm.intrinsics().object_prototype());
 
 )~~~");
-    } else if (is_global_interface && interface.supports_named_properties()) {
+    } else if (is_global_interface) {
         generator.append(R"~~~(
     set_prototype(&ensure_web_prototype<@prototype_name@>(realm, "@name@"_fly_string));
 )~~~");
@@ -4766,6 +4766,10 @@ void @prototype_class@::initialize(JS::Realm& realm)
             generator.append(R"~~~(
     define_direct_property(vm().well_known_symbol_to_string_tag(), JS::PrimitiveString::create(vm(), "@namespaced_name@"_string), JS::Attribute::Configurable);
     set_prototype(&ensure_web_prototype<@prototype_class@>(realm, "@named_properties_class@"_fly_string));
+)~~~");
+        } else {
+            generator.append(R"~~~(
+    set_prototype(&ensure_web_prototype<@prototype_base_class@>(realm, "@parent_name@"_fly_string));
 )~~~");
         }
         generator.append(R"~~~(

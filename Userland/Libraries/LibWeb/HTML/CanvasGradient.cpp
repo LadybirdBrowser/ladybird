@@ -20,9 +20,9 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<CanvasGradient>> CanvasGradient::create_rad
 {
     // If either of r0 or r1 are negative, then an "IndexSizeError" DOMException must be thrown.
     if (r0 < 0)
-        return WebIDL::IndexSizeError::create(realm, "The r0 passed is less than 0"_fly_string);
+        return WebIDL::IndexSizeError::create(realm, "The r0 passed is less than 0"_string);
     if (r1 < 0)
-        return WebIDL::IndexSizeError::create(realm, "The r1 passed is less than 0"_fly_string);
+        return WebIDL::IndexSizeError::create(realm, "The r1 passed is less than 0"_string);
 
     auto radial_gradient = TRY_OR_THROW_OOM(realm.vm(), Gfx::CanvasRadialGradientPaintStyle::create(Gfx::FloatPoint { x0, y0 }, r0, Gfx::FloatPoint { x1, y1 }, r1));
     return realm.heap().allocate<CanvasGradient>(realm, realm, *radial_gradient);
@@ -61,14 +61,14 @@ WebIDL::ExceptionOr<void> CanvasGradient::add_color_stop(double offset, StringVi
 {
     // 1. If the offset is less than 0 or greater than 1, then throw an "IndexSizeError" DOMException.
     if (offset < 0 || offset > 1)
-        return WebIDL::IndexSizeError::create(realm(), "CanvasGradient color stop offset out of bounds"_fly_string);
+        return WebIDL::IndexSizeError::create(realm(), "CanvasGradient color stop offset out of bounds"_string);
 
     // 2. Let parsed color be the result of parsing color.
     auto parsed_color = Color::from_string(color);
 
     // 3. If parsed color is failure, throw a "SyntaxError" DOMException.
     if (!parsed_color.has_value())
-        return WebIDL::SyntaxError::create(realm(), "Could not parse color for CanvasGradient"_fly_string);
+        return WebIDL::SyntaxError::create(realm(), "Could not parse color for CanvasGradient"_string);
 
     // 4. Place a new stop on the gradient, at offset offset relative to the whole gradient, and with the color parsed color.
     TRY_OR_THROW_OOM(realm().vm(), m_gradient->add_color_stop(offset, parsed_color.value()));

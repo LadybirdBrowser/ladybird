@@ -75,7 +75,7 @@ WebIDL::ExceptionOr<JS::GCPtr<JavaScriptModuleScript>> JavaScriptModuleScript::c
         for (auto const& attribute : requested.attributes) {
             if (attribute.key != "type"sv) {
                 // 1. Let error be a new SyntaxError exception.
-                auto error = JS::SyntaxError::create(settings_object.realm(), "Module request attributes must only contain a type attribute"_fly_string);
+                auto error = JS::SyntaxError::create(settings_object.realm(), "Module request attributes must only contain a type attribute"_string);
 
                 // 2. Set script's parse error to error.
                 script->set_parse_error(error);
@@ -161,7 +161,7 @@ JS::Promise* JavaScriptModuleScript::run(PreventErrorReporting)
         // then set evaluationPromise to a promise rejected with a new "QuotaExceededError" DOMException.
         if (elevation_promise_or_error.is_error()) {
             auto promise = JS::Promise::create(settings_object().realm());
-            promise->reject(WebIDL::QuotaExceededError::create(settings_object().realm(), "Failed to evaluate module script"_fly_string).ptr());
+            promise->reject(WebIDL::QuotaExceededError::create(settings_object().realm(), "Failed to evaluate module script"_string).ptr());
 
             evaluation_promise = promise;
         } else {

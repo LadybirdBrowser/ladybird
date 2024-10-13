@@ -270,14 +270,14 @@ WebIDL::ExceptionOr<void> DOMTokenList::validate_token(StringView token) const
 WebIDL::ExceptionOr<void> DOMTokenList::validate_token_not_empty(StringView token) const
 {
     if (token.is_empty())
-        return WebIDL::SyntaxError::create(realm(), "Non-empty DOM tokens are not allowed"_fly_string);
+        return WebIDL::SyntaxError::create(realm(), "Non-empty DOM tokens are not allowed"_string);
     return {};
 }
 
 WebIDL::ExceptionOr<void> DOMTokenList::validate_token_not_whitespace(StringView token) const
 {
     if (any_of(token, Infra::is_ascii_whitespace))
-        return WebIDL::InvalidCharacterError::create(realm(), "DOM tokens containing ASCII whitespace are not allowed"_fly_string);
+        return WebIDL::InvalidCharacterError::create(realm(), "DOM tokens containing ASCII whitespace are not allowed"_string);
     return {};
 }
 

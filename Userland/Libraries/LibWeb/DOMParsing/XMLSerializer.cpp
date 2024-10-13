@@ -353,7 +353,7 @@ static WebIDL::ExceptionOr<String> serialize_element_attributes(DOM::Element con
             });
 
             if (local_name_set_iterator != local_name_set.end())
-                return WebIDL::InvalidStateError::create(realm, "Element contains two attributes with identical namespaces and local names"_fly_string);
+                return WebIDL::InvalidStateError::create(realm, "Element contains two attributes with identical namespaces and local names"_string);
         }
 
         // 2. Create a new tuple consisting of attr's namespaceURI attribute and localName attribute, and add it to the localname set.
@@ -406,12 +406,12 @@ static WebIDL::ExceptionOr<String> serialize_element_attributes(DOM::Element con
                 // 2. If the require well-formed flag is set (its value is true), and the value of attr's value attribute matches the XMLNS namespace,
                 //    then throw an exception; the serialization of this attribute would produce invalid XML because the XMLNS namespace is reserved and cannot be applied as an element's namespace via XML parsing.
                 if (require_well_formed == RequireWellFormed::Yes && attribute->value() == Namespace::XMLNS)
-                    return WebIDL::InvalidStateError::create(realm, "The XMLNS namespace cannot be used as an element's namespace"_fly_string);
+                    return WebIDL::InvalidStateError::create(realm, "The XMLNS namespace cannot be used as an element's namespace"_string);
 
                 // 3. If the require well-formed flag is set (its value is true), and the value of attr's value attribute is the empty string,
                 //    then throw an exception; namespace prefix declarations cannot be used to undeclare a namespace (use a default namespace declaration instead).
                 if (require_well_formed == RequireWellFormed::Yes && attribute->value().is_empty())
-                    return WebIDL::InvalidStateError::create(realm, "Attribute's value is empty"_fly_string);
+                    return WebIDL::InvalidStateError::create(realm, "Attribute's value is empty"_string);
 
                 // 4. [If] the attr's prefix matches the string "xmlns", then let candidate prefix be the string "xmlns".
                 if (attribute->prefix() == "xmlns"sv)
@@ -454,12 +454,12 @@ static WebIDL::ExceptionOr<String> serialize_element_attributes(DOM::Element con
         //    or does not match the XML Name production or equals "xmlns" and attribute namespace is null, then throw an exception; the serialization of this attr would not be a well-formed attribute.
         if (require_well_formed == RequireWellFormed::Yes) {
             if (attribute->local_name().bytes_as_string_view().contains(':'))
-                return WebIDL::InvalidStateError::create(realm, "Attribute's local name contains a colon"_fly_string);
+                return WebIDL::InvalidStateError::create(realm, "Attribute's local name contains a colon"_string);
 
             // FIXME: Check attribute's local name against the XML Name production.
 
             if (attribute->local_name() == "xmlns"sv && !attribute->namespace_uri().has_value())
-                return WebIDL::InvalidStateError::create(realm, "Attribute's local name is 'xmlns' and the attribute has no namespace"_fly_string);
+                return WebIDL::InvalidStateError::create(realm, "Attribute's local name is 'xmlns' and the attribute has no namespace"_string);
         }
 
         // 9. Append the following strings to result, in the order listed:
@@ -489,7 +489,7 @@ static WebIDL::ExceptionOr<String> serialize_element(DOM::Element const& element
     //    then throw an exception; the serialization of this node would not be a well-formed element.
     if (require_well_formed == RequireWellFormed::Yes) {
         if (element.local_name().bytes_as_string_view().contains(':'))
-            return WebIDL::InvalidStateError::create(realm, "Element's local name contains a colon"_fly_string);
+            return WebIDL::InvalidStateError::create(realm, "Element's local name contains a colon"_string);
 
         // FIXME: Check element's local name against the XML Char production.
     }
@@ -561,7 +561,7 @@ static WebIDL::ExceptionOr<String> serialize_element(DOM::Element const& element
         if (prefix == "xmlns"sv) {
             // 1. If the require well-formed flag is set, then throw an error. An Element with prefix "xmlns" will not legally round-trip in a conforming XML parser.
             if (require_well_formed == RequireWellFormed::Yes)
-                return WebIDL::InvalidStateError::create(realm, "Elements prefix is 'xmlns'"_fly_string);
+                return WebIDL::InvalidStateError::create(realm, "Elements prefix is 'xmlns'"_string);
 
             // 2. Let candidate prefix be the value of prefix.
             candidate_prefix = prefix;
@@ -728,7 +728,7 @@ static WebIDL::ExceptionOr<String> serialize_document(DOM::Document const& docum
     // If the require well-formed flag is set (its value is true), and this node has no documentElement (the documentElement attribute's value is null),
     // then throw an exception; the serialization of this node would not be a well-formed document.
     if (require_well_formed == RequireWellFormed::Yes && !document.document_element())
-        return WebIDL::InvalidStateError::create(document.realm(), "Document has no document element"_fly_string);
+        return WebIDL::InvalidStateError::create(document.realm(), "Document has no document element"_string);
 
     // Otherwise, run the following steps:
     // 1. Let serialized document be an empty string.
@@ -752,10 +752,10 @@ static WebIDL::ExceptionOr<String> serialize_comment(DOM::Comment const& comment
         // FIXME: Check comment's data against the XML Char production.
 
         if (comment.data().contains("--"sv))
-            return WebIDL::InvalidStateError::create(comment.realm(), "Comment data contains two adjacent hyphens"_fly_string);
+            return WebIDL::InvalidStateError::create(comment.realm(), "Comment data contains two adjacent hyphens"_string);
 
         if (comment.data().ends_with('-'))
-            return WebIDL::InvalidStateError::create(comment.realm(), "Comment data ends with a hyphen"_fly_string);
+            return WebIDL::InvalidStateError::create(comment.realm(), "Comment data ends with a hyphen"_string);
     }
 
     // Otherwise, return the concatenation of "<!--", node's data, and "-->".
@@ -810,7 +810,7 @@ static WebIDL::ExceptionOr<String> serialize_document_type(DOM::DocumentType con
         //    both a """ (U+0022 QUOTATION MARK) and a "'" (U+0027 APOSTROPHE), then throw an exception; the serialization of this node would not be a well-formed document type declaration.
         // FIXME: Check systemId against the XML Char production.
         if (document_type.system_id().contains('"') && document_type.system_id().contains('\''))
-            return WebIDL::InvalidStateError::create(document_type.realm(), "Document type system ID contains both a quotation mark and an apostrophe"_fly_string);
+            return WebIDL::InvalidStateError::create(document_type.realm(), "Document type system ID contains both a quotation mark and an apostrophe"_string);
     }
 
     // 3. Let markup be an empty string.
@@ -872,16 +872,16 @@ static WebIDL::ExceptionOr<String> serialize_processing_instruction(DOM::Process
         // 1. If the require well-formed flag is set (its value is true), and node's target contains a ":" (U+003A COLON) character
         //    or is an ASCII case-insensitive match for the string "xml", then throw an exception; the serialization of this node's target would not be well-formed.
         if (processing_instruction.target().contains(':'))
-            return WebIDL::InvalidStateError::create(processing_instruction.realm(), "Processing instruction target contains a colon"_fly_string);
+            return WebIDL::InvalidStateError::create(processing_instruction.realm(), "Processing instruction target contains a colon"_string);
 
         if (Infra::is_ascii_case_insensitive_match(processing_instruction.target(), "xml"sv))
-            return WebIDL::InvalidStateError::create(processing_instruction.realm(), "Processing instruction target is equal to 'xml'"_fly_string);
+            return WebIDL::InvalidStateError::create(processing_instruction.realm(), "Processing instruction target is equal to 'xml'"_string);
 
         // 2. If the require well-formed flag is set (its value is true), and node's data contains characters that are not matched by the XML Char production or contains
         //    the string "?>" (U+003F QUESTION MARK, U+003E GREATER-THAN SIGN), then throw an exception; the serialization of this node's data would not be well-formed.
         // FIXME: Check data against the XML Char production.
         if (processing_instruction.data().contains("?>"sv))
-            return WebIDL::InvalidStateError::create(processing_instruction.realm(), "Processing instruction data contains a terminator"_fly_string);
+            return WebIDL::InvalidStateError::create(processing_instruction.realm(), "Processing instruction data contains a terminator"_string);
     }
 
     // 3. Let markup be the concatenation of the following, in the order listed:
@@ -910,7 +910,7 @@ static WebIDL::ExceptionOr<String> serialize_processing_instruction(DOM::Process
 static WebIDL::ExceptionOr<String> serialize_cdata_section(DOM::CDATASection const& cdata_section, RequireWellFormed require_well_formed)
 {
     if (require_well_formed == RequireWellFormed::Yes && cdata_section.data().contains("]]>"sv))
-        return WebIDL::InvalidStateError::create(cdata_section.realm(), "CDATA section data contains a CDATA section end delimiter"_fly_string);
+        return WebIDL::InvalidStateError::create(cdata_section.realm(), "CDATA section data contains a CDATA section end delimiter"_string);
 
     StringBuilder markup;
     markup.append("<![CDATA["sv);

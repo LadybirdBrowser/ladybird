@@ -62,7 +62,7 @@ WebIDL::ExceptionOr<void> VTTRegion::set_width(double width)
 {
     // On setting, if the new value is negative or greater than 100, then an IndexSizeError exception must be thrown.
     if (width < 0 || width > 100)
-        return WebIDL::IndexSizeError::create(realm(), "Value is negative or greater than 100"_fly_string);
+        return WebIDL::IndexSizeError::create(realm(), "Value is negative or greater than 100"_string);
 
     // Otherwise, the WebVTT region width must be set to the new value.
     m_width = width;
@@ -74,7 +74,7 @@ WebIDL::ExceptionOr<void> VTTRegion::set_region_anchor_x(double region_anchor_x)
 {
     // On setting, if the new value is negative or greater than 100, then an IndexSizeError exception must be thrown.
     if (region_anchor_x < 0 || region_anchor_x > 100)
-        return WebIDL::IndexSizeError::create(realm(), "Value is negative or greater than 100"_fly_string);
+        return WebIDL::IndexSizeError::create(realm(), "Value is negative or greater than 100"_string);
 
     // Otherwise, the WebVTT region anchor X distance must be set to the new value.
     m_anchor_x = region_anchor_x;
@@ -86,7 +86,7 @@ WebIDL::ExceptionOr<void> VTTRegion::set_region_anchor_y(double region_anchor_y)
 {
     // On setting, if the new value is negative or greater than 100, then an IndexSizeError exception must be thrown.
     if (region_anchor_y < 0 || region_anchor_y > 100)
-        return WebIDL::IndexSizeError::create(realm(), "Value is negative or greater than 100"_fly_string);
+        return WebIDL::IndexSizeError::create(realm(), "Value is negative or greater than 100"_string);
 
     // Otherwise, the WebVTT region anchor Y distance must be set to the new value.
     m_anchor_y = region_anchor_y;
@@ -98,7 +98,7 @@ WebIDL::ExceptionOr<void> VTTRegion::set_viewport_anchor_x(double viewport_ancho
 {
     // On setting, if the new value is negative or greater than 100, then an IndexSizeError exception must be thrown.
     if (viewport_anchor_x < 0 || viewport_anchor_x > 100)
-        return WebIDL::IndexSizeError::create(realm(), "Value is negative or greater than 100"_fly_string);
+        return WebIDL::IndexSizeError::create(realm(), "Value is negative or greater than 100"_string);
 
     // Otherwise, the WebVTT region viewport anchor X distance must be set to the new value.
     m_viewport_anchor_x = viewport_anchor_x;
@@ -110,7 +110,7 @@ WebIDL::ExceptionOr<void> VTTRegion::set_viewport_anchor_y(double viewport_ancho
 {
     // On setting, if the new value is negative or greater than 100, then an IndexSizeError exception must be thrown.
     if (viewport_anchor_y < 0 || viewport_anchor_y > 100)
-        return WebIDL::IndexSizeError::create(realm(), "Value is negative or greater than 100"_fly_string);
+        return WebIDL::IndexSizeError::create(realm(), "Value is negative or greater than 100"_string);
 
     // Otherwise, the WebVTT region viewport anchor Y distance must be set to the new value.
     m_viewport_anchor_y = viewport_anchor_y;

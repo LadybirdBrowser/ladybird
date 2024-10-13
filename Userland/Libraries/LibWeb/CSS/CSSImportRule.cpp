@@ -1,12 +1,13 @@
 /*
  * Copyright (c) 2021, the SerenityOS developers.
  * Copyright (c) 2021, Sam Atkins <atkinssj@serenityos.org>
- * Copyright (c) 2022, Andreas Kling <andreas@ladybird.org>
+ * Copyright (c) 2022-2024, Andreas Kling <andreas@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
 #include <AK/Debug.h>
+#include <LibTextCodec/Decoder.h>
 #include <LibURL/URL.h>
 #include <LibWeb/Bindings/CSSImportRulePrototype.h>
 #include <LibWeb/Bindings/Intrinsics.h>
@@ -97,7 +98,23 @@ void CSSImportRule::resource_did_load()
         dbgln_if(CSS_LOADER_DEBUG, "CSSImportRule: Resource did load, has encoded data. URL: {}", resource()->url());
     }
 
-    auto* sheet = parse_css_stylesheet(CSS::Parser::ParsingContext(*m_document, resource()->url()), resource()->encoded_data(), resource()->url());
+    // FIXME: The fallback here should be the `environment encoding` of the importing style sheet.
+    auto encoding = resource()->encoding().value_or("utf-8");
+    auto maybe_decoder = TextCodec::decoder_for(encoding);
+    if (!maybe_decoder.has_value()) {
+        dbgln("CSSImportRule: Failed to decode CSS file: {} Unsupported encoding: {}", resource()->url(), encoding);
+        return;
+    }
+    auto& decoder = maybe_decoder.release_value();
+
+    auto decoded_or_error = TextCodec::convert_input_to_utf8_using_given_decoder_unless_there_is_a_byte_order_mark(decoder, resource()->encoded_data());
+    if (decoded_or_error.is_error()) {
+        dbgln("CSSImportRule: Failed to decode CSS file: {} Encoding was: {}", resource()->url(), encoding);
+        return;
+    }
+    auto decoded = decoded_or_error.release_value();
+
+    auto* sheet = parse_css_stylesheet(CSS::Parser::ParsingContext(*m_document, resource()->url()), decoded, resource()->url());
     if (!sheet) {
         dbgln_if(CSS_LOADER_DEBUG, "CSSImportRule: Failed to parse stylesheet: {}", resource()->url());
         return;

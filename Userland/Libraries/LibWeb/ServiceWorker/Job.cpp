@@ -20,7 +20,7 @@ static void run_job(JS::VM&, JobQueue&);
 static void finish_job(JS::VM&, JS::NonnullGCPtr<Job>);
 static void resolve_job_promise(JS::NonnullGCPtr<Job>, Optional<Registration const&>, JS::Value = JS::js_null());
 template<typename Error>
-static void reject_job_promise(JS::NonnullGCPtr<Job>, FlyString message);
+static void reject_job_promise(JS::NonnullGCPtr<Job>, String message);
 static void register_(JS::VM&, JS::NonnullGCPtr<Job>);
 static void update(JS::VM&, JS::NonnullGCPtr<Job>);
 static void unregister(JS::VM&, JS::NonnullGCPtr<Job>);
@@ -76,7 +76,7 @@ static void register_(JS::VM& vm, JS::NonnullGCPtr<Job> job)
     // 1. If the result of running potentially trustworthy origin with the origin of job’s script url as the argument is Not Trusted, then:
     if (SecureContexts::Trustworthiness::NotTrustworthy == SecureContexts::is_origin_potentially_trustworthy(script_origin)) {
         // 1. Invoke Reject Job Promise with job and "SecurityError" DOMException.
-        reject_job_promise<WebIDL::SecurityError>(job, "Service Worker registration has untrustworthy script origin"_fly_string);
+        reject_job_promise<WebIDL::SecurityError>(job, "Service Worker registration has untrustworthy script origin"_string);
 
         // 2. Invoke Finish Job with job and abort these steps.
         finish_job(vm, job);
@@ -86,7 +86,7 @@ static void register_(JS::VM& vm, JS::NonnullGCPtr<Job> job)
     // 2. If job’s script url's origin and job’s referrer's origin are not same origin, then:
     if (!script_origin.is_same_origin(referrer_origin)) {
         // 1. Invoke Reject Job Promise with job and "SecurityError" DOMException.
-        reject_job_promise<WebIDL::SecurityError>(job, "Service Worker registration has incompatible script and referrer origins"_fly_string);
+        reject_job_promise<WebIDL::SecurityError>(job, "Service Worker registration has incompatible script and referrer origins"_string);
 
         // 2. Invoke Finish Job with job and abort these steps.
         finish_job(vm, job);
@@ -96,7 +96,7 @@ static void register_(JS::VM& vm, JS::NonnullGCPtr<Job> job)
     // 3. If job’s scope url's origin and job’s referrer's origin are not same origin, then:
     if (!scope_origin.is_same_origin(referrer_origin)) {
         // 1. Invoke Reject Job Promise with job and "SecurityError" DOMException.
-        reject_job_promise<WebIDL::SecurityError>(job, "Service Worker registration has incompatible scope and referrer origins"_fly_string);
+        reject_job_promise<WebIDL::SecurityError>(job, "Service Worker registration has incompatible scope and referrer origins"_string);
 
         // 2. Invoke Finish Job with job and abort these steps.
         finish_job(vm, job);
@@ -252,7 +252,7 @@ static void resolve_job_promise(JS::NonnullGCPtr<Job> job, Optional<Registration
 
 // https://w3c.github.io/ServiceWorker/#reject-job-promise-algorithm
 template<typename Error>
-static void reject_job_promise(JS::NonnullGCPtr<Job> job, FlyString message)
+static void reject_job_promise(JS::NonnullGCPtr<Job> job, String message)
 {
     // 1. If job’s client is not null, queue a task, on job’s client's responsible event loop using the DOM manipulation task source,
     //    to reject job’s job promise with a new exception with errorData and a user agent-defined message, in job’s client's Realm.

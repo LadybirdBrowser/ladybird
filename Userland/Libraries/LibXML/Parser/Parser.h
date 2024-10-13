@@ -49,7 +49,7 @@ public:
         bool preserve_cdata { true };
         bool preserve_comments { false };
         bool treat_errors_as_fatal { true };
-        Function<ErrorOr<ByteString>(SystemID const&, Optional<PublicID> const&)> resolve_external_resource {};
+        Function<ErrorOr<Variant<ByteString, Vector<MarkupDeclaration>>>(SystemID const&, Optional<PublicID> const&)> resolve_external_resource {};
     };
 
     Parser(StringView source, Options options)
@@ -69,6 +69,8 @@ public:
     ErrorOr<void, ParseError> parse_with_listener(Listener&);
 
     Vector<ParseError> const& parse_error_causes() const { return m_parse_errors; }
+
+    ErrorOr<Vector<MarkupDeclaration>, ParseError> parse_external_subset();
 
 private:
     struct EntityReference {
@@ -138,7 +140,6 @@ private:
     ErrorOr<StringView, ParseError> parse_system_id_literal();
     ErrorOr<StringView, ParseError> parse_cdata_section();
     ErrorOr<ByteString, ParseError> parse_attribute_value_inner(StringView disallow);
-    ErrorOr<Vector<MarkupDeclaration>, ParseError> parse_external_subset();
     ErrorOr<void, ParseError> parse_text_declaration();
 
     ErrorOr<void, ParseError> expect(StringView);
@@ -184,7 +185,7 @@ private:
     {
         auto error = ParseError { forward<Ts>(args)... };
         if (m_current_rule.accept) {
-            auto rule_name = m_current_rule.rule.value_or("<?>");
+            auto rule_name = m_current_rule.rule.value_or("<?>"sv);
             if (rule_name.starts_with("parse_"sv))
                 rule_name = rule_name.substring_view(6);
 
@@ -212,7 +213,7 @@ private:
     bool m_standalone { false };
     HashMap<Name, ByteString> m_processing_instructions;
     struct AcceptedRule {
-        Optional<ByteString> rule {};
+        Optional<StringView> rule {};
         bool accept { false };
     } m_current_rule {};
 

@@ -214,7 +214,7 @@ WebIDL::ExceptionOr<JS::GCPtr<Attr>> NamedNodeMap::set_attribute(Attr& attribute
 {
     // 1. If attr’s element is neither null nor element, throw an "InUseAttributeError" DOMException.
     if ((attribute.owner_element() != nullptr) && (attribute.owner_element() != &associated_element()))
-        return WebIDL::InUseAttributeError::create(realm(), "Attribute must not already be in use"_fly_string);
+        return WebIDL::InUseAttributeError::create(realm(), "Attribute must not already be in use"_string);
 
     // 2. Let oldAttr be the result of getting an attribute given attr’s namespace, attr’s local name, and element.
     size_t old_attribute_index = 0;
@@ -342,7 +342,7 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<Attr>> NamedNodeMap::remove_attribute_node(
     // 1. If this’s attribute list does not contain attr, then throw a "NotFoundError" DOMException.
     auto index = m_attributes.find_first_index(attr);
     if (!index.has_value())
-        return WebIDL::NotFoundError::create(realm(), "Attribute not found"_fly_string);
+        return WebIDL::NotFoundError::create(realm(), "Attribute not found"_string);
 
     // 2. Remove attr.
     remove_attribute_at_index(index.value());

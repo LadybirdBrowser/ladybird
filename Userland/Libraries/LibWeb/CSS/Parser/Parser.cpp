@@ -7,6 +7,7 @@
  * Copyright (c) 2024, Shannon Booth <shannon@serenityos.org>
  * Copyright (c) 2024, Tommy van der Vorst <tommy@pixelspark.nl>
  * Copyright (c) 2024, Matthew Olsson <mattco@serenityos.org>
+ * Copyright (c) 2024, Glenn Skrzypczak <glenn.skrzypczak@gmail.com>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -8437,7 +8438,8 @@ OwnPtr<CalculationNode> Parser::parse_a_calculation(Vector<ComponentValue> const
                 values.append({ NumericCalculationNode::create(dimension->length()) });
             else if (dimension->is_percentage())
                 values.append({ NumericCalculationNode::create(dimension->percentage()) });
-            // FIXME: Resolutions, once calc() supports them.
+            else if (dimension->is_resolution())
+                values.append({ NumericCalculationNode::create(dimension->resolution()) });
             else if (dimension->is_time())
                 values.append({ NumericCalculationNode::create(dimension->time()) });
             else if (dimension->is_flex()) {

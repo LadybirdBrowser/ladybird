@@ -76,11 +76,11 @@ WebIDL::ExceptionOr<void> NavigateEvent::intercept(NavigationInterceptOptions co
 
     // 2. If this's canIntercept attribute was initialized to false, then throw a "SecurityError" DOMException.
     if (!m_can_intercept)
-        return WebIDL::SecurityError::create(realm, "NavigateEvent cannot be intercepted"_fly_string);
+        return WebIDL::SecurityError::create(realm, "NavigateEvent cannot be intercepted"_string);
 
     // 3. If this's dispatch flag is unset, then throw an "InvalidStateError" DOMException.
     if (!this->dispatched())
-        return WebIDL::InvalidStateError::create(realm, "NavigationEvent is not dispatched yet"_fly_string);
+        return WebIDL::InvalidStateError::create(realm, "NavigationEvent is not dispatched yet"_string);
 
     // 4. Assert: this's interception state is either "none" or "intercepted".
     VERIFY(m_interception_state == InterceptionState::None || m_interception_state == InterceptionState::Intercepted);
@@ -134,7 +134,7 @@ WebIDL::ExceptionOr<void> NavigateEvent::scroll()
 
     // 2. If this's interception state is not "committed", then throw an "InvalidStateError" DOMException.
     if (m_interception_state != InterceptionState::Committed)
-        return WebIDL::InvalidStateError::create(realm(), "Cannot scroll NavigationEvent that is not committed"_fly_string);
+        return WebIDL::InvalidStateError::create(realm(), "Cannot scroll NavigationEvent that is not committed"_string);
 
     // 3. Process scroll behavior given this.
     process_scroll_behavior();
@@ -151,15 +151,15 @@ WebIDL::ExceptionOr<void> NavigateEvent::perform_shared_checks()
     //    then throw an "InvalidStateError" DOMException.
     auto& associated_document = verify_cast<HTML::Window>(relevant_global_object(*this)).associated_document();
     if (!associated_document.is_fully_active())
-        return WebIDL::InvalidStateError::create(realm(), "Document is not fully active"_fly_string);
+        return WebIDL::InvalidStateError::create(realm(), "Document is not fully active"_string);
 
     // 2. If event's isTrusted attribute was initialized to false, then throw a "SecurityError" DOMException.
     if (!this->is_trusted())
-        return WebIDL::SecurityError::create(realm(), "NavigateEvent is not trusted"_fly_string);
+        return WebIDL::SecurityError::create(realm(), "NavigateEvent is not trusted"_string);
 
     // 3. If event's canceled flag is set, then throw an "InvalidStateError" DOMException.
     if (this->cancelled())
-        return WebIDL::InvalidStateError::create(realm(), "NavigateEvent already cancelled"_fly_string);
+        return WebIDL::InvalidStateError::create(realm(), "NavigateEvent already cancelled"_string);
 
     return {};
 }
