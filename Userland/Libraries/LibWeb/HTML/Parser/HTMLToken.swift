@@ -141,6 +141,28 @@ public class HTMLToken {
             }
         }
     }
+    public var selfClosing: Bool {
+        get {
+            switch self.type {
+            case .StartTag(_, let selfClosing, _, _):
+                return selfClosing
+            case .EndTag(_, let selfClosing, _, _):
+                return selfClosing
+            default:
+                preconditionFailure("selfClosing called on non-tag token")
+            }
+        }
+        set {
+            switch self.type {
+            case .StartTag(let tagName, _, let selfClosingAcknowledged, let attributes):
+                self.type = .StartTag(tagName: tagName, selfClosing: newValue, selfClosingAcknowledged: selfClosingAcknowledged, attributes: attributes)
+            case .EndTag(let tagName, _, let selfClosingAcknowledged, let attributes):
+                self.type = .EndTag(tagName: tagName, selfClosing: newValue, selfClosingAcknowledged: selfClosingAcknowledged, attributes: attributes)
+            default:
+                preconditionFailure("selfClosing= called on non-tag token")
+            }
+        }
+    }
 
     public init() {}
     public init(type: TokenType) {
