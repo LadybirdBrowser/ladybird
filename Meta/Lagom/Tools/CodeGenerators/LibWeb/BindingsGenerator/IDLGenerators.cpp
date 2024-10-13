@@ -1414,19 +1414,23 @@ static void generate_to_cpp(SourceGenerator& generator, ParameterType& parameter
 )~~~");
         }
 
-        bool includes_string = false;
+        RefPtr<IDL::Type const> string_type;
         for (auto& type : types) {
             if (type->is_string()) {
-                includes_string = true;
+                string_type = type;
                 break;
             }
         }
 
-        if (includes_string) {
+        if (string_type) {
             // 14. If types includes a string type, then return the result of converting V to that type.
             // NOTE: Currently all string types are converted to String.
+
+            IDL::Parameter parameter { .type = *string_type, .name = ByteString::empty(), .optional_default_value = {}, .extended_attributes = {} };
+            generate_to_cpp(union_generator, parameter, js_name, js_suffix, ByteString::formatted("{}{}_string", js_name, js_suffix), interface, false, false, {}, false, recursion_depth + 1);
+
             union_generator.append(R"~~~(
-        return TRY(@js_name@@js_suffix@.to_string(vm));
+        return { @js_name@@js_suffix@_string };
 )~~~");
         } else if (numeric_type && includes_bigint) {
             // 15. If types includes a numeric type and bigint, then return the result of converting V to either that numeric type or bigint.
