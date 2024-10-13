@@ -923,7 +923,7 @@ WebIDL::ExceptionOr<void> Document::set_title(String const& title)
             element = TRY(DOM::create_element(*this, HTML::TagNames::title, Namespace::SVG));
 
             // 2. Insert element as the first child of the document element.
-            document_element->insert_before(*element, nullptr);
+            document_element->insert_before(*element, document_element->first_child());
         }
 
         // 3. String replace all with the given value within element.
