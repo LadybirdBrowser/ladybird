@@ -342,6 +342,18 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<ImageData>> CanvasRenderingContext2D::creat
     return image_data;
 }
 
+// https://html.spec.whatwg.org/multipage/canvas.html#dom-context-2d-createimagedata-imagedata
+WebIDL::ExceptionOr<JS::NonnullGCPtr<ImageData>> CanvasRenderingContext2D::create_image_data(ImageData const& image_data) const
+{
+    // 1. Let newImageData be a new ImageData object.
+    // 2. Initialize newImageData given the value of imagedata's width attribute, the value of imagedata's height attribute, and defaultColorSpace set to the value of imagedata's colorSpace attribute.
+    // FIXME: Set defaultColorSpace to the value of image_data's colorSpace attribute
+    // 3. Initialize the image data of newImageData to transparent black.
+    // NOTE: No-op, already done during creation.
+    // 4. Return newImageData.
+    return TRY(ImageData::create(realm(), image_data.width(), image_data.height()));
+}
+
 // https://html.spec.whatwg.org/multipage/canvas.html#dom-context-2d-getimagedata
 WebIDL::ExceptionOr<JS::GCPtr<ImageData>> CanvasRenderingContext2D::get_image_data(int x, int y, int width, int height, Optional<ImageDataSettings> const& settings) const
 {
