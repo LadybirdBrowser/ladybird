@@ -173,6 +173,13 @@ public class HTMLTokenizer {
         return self.input[index]
     }
 
+    func peekNext(count: Int) -> Swift.Substring? {
+        guard let endIndex = self.input.index(self.cursor, offsetBy: count, limitedBy: self.input.index(before: self.input.endIndex)) else {
+            return nil
+        }
+        return self.input[self.cursor..<endIndex]
+    }
+
     func nextCodePoint() -> Character? {
         guard self.cursor < self.input.endIndex else {
             return nil
@@ -1030,6 +1037,193 @@ public class HTMLTokenizer {
                 // FIXME: log_parse_error()
                 self.finalizeCurrentAttribute(.SetValue)
                 return reconsume(currentInputCharacter!, in: .BeforeAttributeName)
+            }
+        // 13.2.5.40 Self-closing start tag state, https://html.spec.whatwg.org/multipage/parsing.html#self-closing-start-tag-state
+        case .SelfClosingStartTag:
+            switch currentInputCharacter {
+            case ">":
+                self.currentToken.selfClosing = true
+                return switchToAndEmitCurrentToken(.Data)
+            case nil:
+                // FIXME: log_parse_error()
+                return emitEOF()
+            default:
+                // FIXME: log_parse_error()
+                return reconsume(currentInputCharacter!, in: .BeforeAttributeName)
+            }
+        // 13.2.5.41 Bogus comment state, https://html.spec.whatwg.org/multipage/parsing.html#bogus-comment-state
+        case .BogusComment:
+            switch currentInputCharacter {
+            case ">":
+                currentToken = HTMLToken(type: .Comment(data: currentBuilder.takeString()))
+                return switchToAndEmitCurrentToken(.Data)
+            case nil:
+                currentToken = HTMLToken(type: .Comment(data: currentBuilder.takeString()))
+                return emitCurrentTokenFollowedByEOF()
+            case "\0":
+                // FIXME: log_parse_error()
+                currentBuilder.append("\u{FFFD}")
+                return continueInCurrentState()
+            default:
+                self.currentBuilder.append(currentInputCharacter!)
+                return continueInCurrentState()
+            }
+        // 13.2.5.42 Markup declaration open state, https://html.spec.whatwg.org/multipage/parsing.html#markup-declaration-open-state
+        case .MarkupDeclarationOpen:
+            dontConsumeNextInputCharacter()
+            if let nextTwo = peekNext(count: 2), nextTwo == "--" {
+                skip(2)
+                return switchTo(.CommentStart)
+            } else if let nextSeven = peekNext(count: 7), nextSeven.uppercased() == "DOCTYPE" {
+                skip(7)
+                return switchTo(.DOCTYPE)
+            } else if let nextSeven = peekNext(count: 7), nextSeven.uppercased() == "[CDATA[" {
+                skip(7)
+                // FIXME: If there is an adjusted current node and it is not an element in the HTML namespace,
+                // then switch to the CDATA section state.
+                // FIXME: log_parse_error()
+                self.currentBuilder = "[CDATA["
+                self.currentToken = HTMLToken(type: .Comment(data: ""))
+                return switchTo(.BogusComment)
+            } else {
+                // FIXME: log_parse_error()
+                self.currentToken = HTMLToken(type: .Comment(data: ""))
+                return switchTo(.BogusComment)
+            }
+        // 13.2.5.43 Comment start state, https://html.spec.whatwg.org/multipage/parsing.html#comment-start-state
+        case .CommentStart:
+            switch currentInputCharacter {
+            case "-":
+                return switchTo(.CommentStartDash)
+            case ">":
+                // FIXME: log_parse_error()
+                return switchToAndEmitCurrentToken(.Data)
+            default:
+                return reconsume(currentInputCharacter, in: .Comment)
+            }
+        // 13.2.5.44 Comment start dash state, https://html.spec.whatwg.org/multipage/parsing.html#comment-start-dash-state
+        case .CommentStartDash:
+            switch currentInputCharacter {
+            case "-":
+                return switchTo(.CommentEnd)
+            case ">":
+                // FIXME: log_parse_error()
+                currentToken = HTMLToken(type: .Comment(data: currentBuilder.takeString()))
+                return switchToAndEmitCurrentToken(.Data)
+            case nil:
+                // FIXME: log_parse_error()
+                currentToken = HTMLToken(type: .Comment(data: currentBuilder.takeString()))
+                return emitCurrentTokenFollowedByEOF()
+            default:
+                currentBuilder.append("-")
+                return reconsume(currentInputCharacter, in: .Comment)
+            }
+        // 13.2.5.45 Comment state, https://html.spec.whatwg.org/multipage/parsing.html#comment-state
+        case .Comment:
+            switch currentInputCharacter {
+            case "<":
+                currentBuilder.append("<")
+                return switchTo(.CommentLessThanSign)
+            case "-":
+                return switchTo(.CommentEndDash)
+            case "\0":
+                // FIXME: log_parse_error()
+                currentBuilder.append("\u{FFFD}")
+                return continueInCurrentState()
+            case nil:
+                // FIXME: log_parse_error()
+                currentToken = HTMLToken(type: .Comment(data: currentBuilder.takeString()))
+                return emitCurrentTokenFollowedByEOF()
+            default:
+                currentBuilder.append(currentInputCharacter!)
+                return continueInCurrentState()
+            }
+        // 13.2.5.46 Comment less-than sign state, https://html.spec.whatwg.org/multipage/parsing.html#comment-less-than-sign-state
+        case .CommentLessThanSign:
+            switch currentInputCharacter {
+            case "!":
+                currentBuilder.append(currentInputCharacter!)
+                return switchTo(.CommentLessThanSignBang)
+            case "<":
+                currentBuilder.append(currentInputCharacter!)
+                return continueInCurrentState()
+            default:
+                return reconsume(currentInputCharacter, in: .Comment)
+            }
+        // 13.2.5.47 Comment less-than sign bang state, https://html.spec.whatwg.org/multipage/parsing.html#comment-less-than-sign-bang-state
+        case .CommentLessThanSignBang:
+            switch currentInputCharacter {
+            case "-":
+                return switchTo(.CommentLessThanSignBangDash)
+            default:
+                return reconsume(currentInputCharacter, in: .Comment)
+            }
+        // 13.2.5.48 Comment less-than sign bang dash state, https://html.spec.whatwg.org/multipage/parsing.html#comment-less-than-sign-bang-dash-state
+        case .CommentLessThanSignBangDash:
+            switch currentInputCharacter {
+            case "-":
+                return switchTo(.CommentLessThanSignBangDashDash)
+            default:
+                return reconsume(currentInputCharacter, in: .CommentEndDash)
+            }
+        // 13.2.5.49 Comment less-than sign bang dash dash state, https://html.spec.whatwg.org/multipage/parsing.html#comment-less-than-sign-bang-dash-dash-state
+        case .CommentLessThanSignBangDashDash:
+            switch currentInputCharacter {
+            case ">", nil:
+                return reconsume(currentInputCharacter, in: .CommentEnd)
+            default:
+                // FIXME: log_parse_error()
+                return reconsume(currentInputCharacter, in: .CommentEnd)
+            }
+        // 13.2.5.50 Comment end dash state, https://html.spec.whatwg.org/multipage/parsing.html#comment-end-dash-state
+        case .CommentEndDash:
+            switch currentInputCharacter {
+            case "-":
+                return switchTo(.CommentEnd)
+            case nil:
+                // FIXME: log_parse_error()
+                currentToken = HTMLToken(type: .Comment(data: currentBuilder.takeString()))
+                return emitCurrentTokenFollowedByEOF()
+            default:
+                currentBuilder.append("-")
+                return reconsume(currentInputCharacter, in: .Comment)
+            }
+        // 13.2.5.51 Comment end state, https://html.spec.whatwg.org/multipage/parsing.html#comment-end-state
+        case .CommentEnd:
+            switch currentInputCharacter {
+            case ">":
+                currentToken = HTMLToken(type: .Comment(data: currentBuilder.takeString()))
+                return switchToAndEmitCurrentToken(.Data)
+            case "!":
+                return switchTo(.CommentEndBang)
+            case "-":
+                currentBuilder.append("-")
+                return continueInCurrentState()
+            case nil:
+                // FIXME: log_parse_error()
+                currentToken = HTMLToken(type: .Comment(data: currentBuilder.takeString()))
+                return emitCurrentTokenFollowedByEOF()
+            default:
+                currentBuilder.append("--")
+                return reconsume(currentInputCharacter, in: .Comment)
+            }
+        // 13.2.5.52 Comment end bang state, https://html.spec.whatwg.org/multipage/parsing.html#comment-end-bang-state
+        case .CommentEndBang:
+            switch currentInputCharacter {
+            case "-":
+                currentBuilder.append("--!")
+                return switchTo(.CommentEndDash)
+            case ">":
+                // FIXME: log_parse_error()
+                currentToken = HTMLToken(type: .Comment(data: currentBuilder.takeString()))
+                return switchToAndEmitCurrentToken(.Data)
+            case nil:
+                // FIXME: log_parse_error()
+                currentToken = HTMLToken(type: .Comment(data: currentBuilder.takeString()))
+                return emitCurrentTokenFollowedByEOF()
+            default:
+                currentBuilder.append("--!")
+                return reconsume(currentInputCharacter, in: .Comment)
             }
         default:
             print("TODO: In state \(self.state) with input \(Swift.String(describing: currentInputCharacter))")

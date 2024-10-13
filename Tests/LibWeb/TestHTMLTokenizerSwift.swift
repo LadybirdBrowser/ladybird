@@ -252,4 +252,61 @@ struct TestHTMLTokenizerSwift {
         let token3 = tokenizer.nextToken()
         #expect(token3?.type == .EndOfFile)
     }
+
+    @Test func xmlDeclaration() {
+        guard let tokenizer = HTMLTokenizer(input: "<?xml version=\"1.0\" encoding=\"UTF-8\"?>") else {
+            Issue.record("Failed to create tokenizer for '<?xml version=\"1.0\" encoding=\"UTF-8\"?>'")
+            return
+        }
+
+        let token = tokenizer.nextToken()
+        #expect(token?.type == .Comment(data: "?xml version=\"1.0\" encoding=\"UTF-8\"?"))
+
+        let token2 = tokenizer.nextToken()
+        #expect(token2?.type == .EndOfFile)
+    }
+
+    @Test func simpleComment() {
+        guard let tokenizer = HTMLTokenizer(input: "<!-- comment -->") else {
+            Issue.record("Failed to create tokenizer for '<!-- comment -->'")
+            return
+        }
+
+        let token = tokenizer.nextToken()
+        #expect(token?.type == .Comment(data: " comment "))
+
+        let token2 = tokenizer.nextToken()
+        #expect(token2?.type == .EndOfFile)
+    }
+
+    @Test func nestedComment() {
+        guard let tokenizer = HTMLTokenizer(input: "<!-- <!-- nested --> -->") else {
+            Issue.record("Failed to create tokenizer for '<!-- <!-- nested --> -->'")
+            return
+        }
+
+        let token = tokenizer.nextToken()
+        #expect(token?.type == .Comment(data: " <!-- nested "))
+
+        for codePoint in " -->" {
+            let token = tokenizer.nextToken()
+            #expect(token?.type == .Character(codePoint: codePoint))
+        }
+
+        let token2 = tokenizer.nextToken()
+        #expect(token2?.type == .EndOfFile)
+    }
+
+    @Test func commentWithScriptTagInside() {
+        guard let tokenizer = HTMLTokenizer(input: "<!-- <script>var x = 1;</script> -->") else {
+            Issue.record("Failed to create tokenizer for '<!-- <script>var x = 1;</script> -->'")
+            return
+        }
+
+        let token = tokenizer.nextToken()
+        #expect(token?.type == .Comment(data: " <script>var x = 1;</script> "))
+
+        let token2 = tokenizer.nextToken()
+        #expect(token2?.type == .EndOfFile)
+    }
 }
