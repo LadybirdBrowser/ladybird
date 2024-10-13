@@ -337,9 +337,14 @@ WebIDL::ExceptionOr<JS::GCPtr<ImageData>> CanvasRenderingContext2D::get_image_da
     if (!m_origin_clean)
         return WebIDL::SecurityError::create(realm(), "CanvasRenderingContext2D is not origin-clean"_string);
 
+    // ImageData initialization requires positive width and height
+    // https://html.spec.whatwg.org/multipage/canvas.html#initialize-an-imagedata-object
+    int abs_width = abs(width);
+    int abs_height = abs(height);
+
     // 3. Let imageData be a new ImageData object.
     // 4. Initialize imageData given sw, sh, settings set to settings, and defaultColorSpace set to this's color space.
-    auto image_data = TRY(ImageData::create(realm(), width, height, settings));
+    auto image_data = TRY(ImageData::create(realm(), abs_width, abs_height, settings));
 
     // NOTE: We don't attempt to create the underlying bitmap here; if it doesn't exist, it's like copying only transparent black pixels (which is a no-op).
     if (!canvas_element().bitmap())
@@ -347,7 +352,7 @@ WebIDL::ExceptionOr<JS::GCPtr<ImageData>> CanvasRenderingContext2D::get_image_da
     auto const& bitmap = *canvas_element().bitmap();
 
     // 5. Let the source rectangle be the rectangle whose corners are the four points (sx, sy), (sx+sw, sy), (sx+sw, sy+sh), (sx, sy+sh).
-    auto source_rect = Gfx::Rect { x, y, width, height };
+    auto source_rect = Gfx::Rect { x, y, abs_width, abs_height };
     auto source_rect_intersected = source_rect.intersected(bitmap.rect());
 
     // 6. Set the pixel values of imageData to be the pixels of this's output bitmap in the area specified by the source rectangle in the bitmap's coordinate space units, converted from this's color space to imageData's colorSpace using 'relative-colorimetric' rendering intent.
