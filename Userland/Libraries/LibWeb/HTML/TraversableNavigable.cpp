@@ -560,9 +560,24 @@ TraversableNavigable::HistoryStepResult TraversableNavigable::apply_the_history_
             // 6. Let oldOrigin be targetEntry's document state's origin.
             auto old_origin = target_entry->document_state()->origin();
 
-            // FIXME: 7. If navigable is not traversable, and targetEntry is not navigable's current session history entry,
-            //    and oldOrigin is the same as navigable's current session history entry's document state's origin,
-            //    then fire a traverse navigate event given targetEntry and userInvolvementForNavigateEvents.
+            // 7. If all of the following are true:
+            //   * navigable is not traversable;
+            //   * targetEntry is not navigable's current session history entry; and
+            //   * oldOrigin is the same as navigable's current session history entry's document state's origin,
+            // then:
+            if (!navigable->is_traversable()
+                && target_entry != navigable->current_session_history_entry()
+                && old_origin == navigable->current_session_history_entry()->document_state()->origin()) {
+
+                // 1. Assert: userInvolvementForNavigateEvents is not null.
+                VERIFY(user_involvement_for_navigate_events.has_value());
+
+                // 2. Let navigation be navigable's active window's navigation API.
+                auto navigation = active_window()->navigation();
+
+                // 3. Fire a traverse navigate event at navigation given targetEntry and userInvolvementForNavigateEvents.
+                navigation->fire_a_traverse_navigate_event(*target_entry, *user_involvement_for_navigate_events);
+            }
 
             auto after_document_populated = [old_origin, changing_navigable_continuation, &changing_navigable_continuations, &vm, &navigable](bool populated_cloned_target_she, JS::NonnullGCPtr<SessionHistoryEntry> target_entry) mutable {
                 changing_navigable_continuation->populated_target_entry = target_entry;
