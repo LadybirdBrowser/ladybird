@@ -8,6 +8,7 @@
 #include <AK/ByteString.h>
 #include <AK/Enumerate.h>
 #include <AK/LexicalPath.h>
+#include <AK/QuickSort.h>
 #include <AK/Vector.h>
 #include <Ladybird/Headless/Application.h>
 #include <Ladybird/Headless/HeadlessWebView.h>
@@ -426,7 +427,9 @@ ErrorOr<void> run_tests(Core::AnonymousBuffer const& theme, Gfx::IntSize window_
             auto index = current_test++;
             if (index >= tests.size())
                 return;
+
             auto& test = tests[index];
+            test.start_time = UnixDateTime::now();
 
             if (is_tty) {
                 // Keep clearing and reusing the same line if stdout is a TTY.
@@ -449,6 +452,8 @@ ErrorOr<void> run_tests(Core::AnonymousBuffer const& theme, Gfx::IntSize window_
         };
 
         view.test_promise().when_resolved([&, run_next_test](auto result) {
+            result.test.end_time = UnixDateTime::now();
+
             switch (result.result) {
             case TestResult::Pass:
                 ++pass_count;
@@ -489,6 +494,24 @@ ErrorOr<void> run_tests(Core::AnonymousBuffer const& theme, Gfx::IntSize window_
 
     for (auto const& non_passing_test : non_passing_tests)
         outln("{}: {}", test_result_to_string(non_passing_test.result), non_passing_test.test.input_path);
+
+    if (app.log_slowest_tests) {
+        auto tests_to_print = min(10uz, tests.size());
+        outln("\nSlowest {} tests:", tests_to_print);
+
+        quick_sort(tests, [&](auto const& lhs, auto const& rhs) {
+            auto lhs_duration = lhs.end_time - lhs.start_time;
+            auto rhs_duration = rhs.end_time - rhs.start_time;
+            return lhs_duration > rhs_duration;
+        });
+
+        for (auto const& test : tests.span().trim(tests_to_print)) {
+            auto name = LexicalPath::relative_path(test.input_path, app.test_root_path);
+            auto duration = test.end_time - test.start_time;
+
+            outln("{}: {}ms", name, duration.to_milliseconds());
+        }
+    }
 
     if (app.dump_gc_graph) {
         app.for_each_web_view([&](auto& view) {
