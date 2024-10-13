@@ -119,6 +119,15 @@ String Selection::type() const
     return "Range"_string;
 }
 
+String Selection::direction() const
+{
+    if (!m_range || m_direction == Direction::Directionless)
+        return "none"_string;
+    if (m_direction == Direction::Forwards)
+        return "forward"_string;
+    return "backward"_string;
+}
+
 // https://w3c.github.io/selection-api/#dom-selection-getrangeat
 WebIDL::ExceptionOr<JS::GCPtr<DOM::Range>> Selection::get_range_at(unsigned index)
 {

@@ -12,6 +12,7 @@ interface Selection {
     readonly attribute boolean isCollapsed;
     readonly attribute unsigned long rangeCount;
     readonly attribute DOMString type;
+    readonly attribute DOMString direction;
     Range getRangeAt(unsigned long index);
     undefined addRange(Range range);
     undefined removeRange(Range range);
