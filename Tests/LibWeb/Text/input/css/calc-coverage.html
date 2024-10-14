@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<style>
+    :root {
+        --n: 2;
+    }
+</style>
+<script src="../include.js"></script>
+<div id="target">Well, hello friends</div>
+<script>
+    test(() => {
+        let properties = {
+        "animation-delay": [
+            "calc(2s)",
+            "calc(2s * var(--n))",
+        ],
+        "animation-duration": [
+            "calc(2s)",
+            "calc(2s * var(--n))",
+        ],
+        "animation-iteration-count": [
+            "calc(2)",
+            "calc(2 * var(--n))",
+        ],
+        "background-position-x": [
+            "calc(2px)",
+            "calc(2px * var(--n))",
+        ],
+        "background-position-y": [
+            "calc(2%)",
+            "calc(2% * var(--n))",
+        ],
+        "background-size": [
+            "calc(2px * var(--n)) calc(2%)",
+            "calc(2px * var(--n)) calc(2% * var(--n))",
+        ],
+        "border-bottom-left-radius": [
+            "calc(2px)",
+            "calc(2px * var(--n))",
+        ],
+        "border-bottom-right-radius": [
+            "calc(2%)",
+            "calc(2% * var(--n))",
+        ],
+        "border-bottom-width": [
+            "calc(2px)",
+            "calc(2px * var(--n))",
+        ],
+        "border-left-width": [
+            "calc(2px)",
+            "calc(2px * var(--n))",
+        ],
+        "border-right-width": [
+            "calc(2px)",
+            "calc(2px * var(--n))",
+        ],
+        "border-spacing": [
+            "calc(2px)",
+            "calc(2px * var(--n))",
+        ],
+        "border-top-left-radius": [
+            "calc(2px)",
+            "calc(2px * var(--n))",
+        ],
+        "border-top-right-radius": [
+            "calc(2%)",
+            "calc(2% * var(--n))",
+        ],
+        "border-top-width": [
+            "calc(2px)",
+            "calc(2px * var(--n))",
+        ],
+        "bottom": [
+            "calc(2px)",
+            "calc(2px * var(--n))",
+        ],
+        "column-count": [
+            "calc(2)",
+            "calc(2 * var(--n))",
+        ],
+        "column-gap": [
+            "calc(2px)",
+            "calc(2px * var(--n))",
+        ],
+        "column-width": [
+            "calc(2px)",
+            "calc(2px * var(--n))",
+        ],
+        "counter-increment": [
+            "foo calc(2)",
+            "foo calc(2 * var(--n))",
+        ],
+        "counter-reset": [
+            "foo calc(2)",
+            "foo calc(2 * var(--n))",
+        ],
+        "counter-set": [
+            "foo calc(2)",
+            "foo calc(2 * var(--n))",
+        ],
+        "cx": [
+            "calc(2px)",
+            "calc(2px * var(--n))",
+        ],
+        "cy": [
+            "calc(2%)",
+            "calc(2% * var(--n))",
+        ],
+        "fill-opacity": [
+            "calc(2)",
+            "calc(2 * var(--n))",
+        ],
+        "flex-basis": [
+            "calc(2px)",
+            "calc(2px * var(--n))",
+        ],
+        "flex-grow": [
+            "calc(2)",
+            "calc(2 * var(--n))",
+        ],
+        "flex-shrink": [
+            "calc(2)",
+            "calc(2 * var(--n))",
+        ],
+        "font-feature-settings": [
+            "'test' calc(2)",
+            "'test' calc(2 * var(--n))",
+        ],
+        "font-size": [
+            "calc(2px)",
+            "calc(2px * var(--n))",
+        ],
+        "font-variation-settings": [
+            "'test' calc(2)",
+            "'test' calc(2 * var(--n))",
+        ],
+        "font-weight": [
+            "calc(2)",
+            "calc(2 * var(--n))",
+        ],
+        "font-width": [
+            "calc(2%)",
+            "calc(2% * var(--n))",
+        ],
+        "grid-auto-columns": [
+            "calc(2fr)",
+            "calc(2fr * var(--n))",
+        ],
+        "grid-auto-rows": [
+            "calc(2fr)",
+            "calc(2fr * var(--n))",
+        ],
+        "grid-template-columns": [
+            "calc(2fr)",
+            "calc(2fr * var(--n))",
+        ],
+        "grid-template-rows": [
+            "calc(2fr)",
+            "calc(2fr * var(--n))",
+        ],
+        "height": [
+            "calc(2px)",
+            "calc(2px * var(--n))",
+        ],
+        "left": [
+            "calc(2px)",
+            "calc(2px * var(--n))",
+        ],
+        "letter-spacing": [
+            "calc(2px)",
+            "calc(2px * var(--n))",
+        ],
+        "line-height": [
+            "calc(2)",
+            "calc(2 * var(--n))",
+        ],
+        "margin-bottom": [
+            "calc(2px)",
+            "calc(2px * var(--n))",
+        ],
+        "margin-left": [
+            "calc(2%)",
+            "calc(2% * var(--n))",
+        ],
+        "margin-right": [
+            "calc(2px)",
+            "calc(2px * var(--n))",
+        ],
+        "margin-top": [
+            "calc(2%)",
+            "calc(2% * var(--n))",
+        ],
+        "math-depth": [
+            "calc(2)",
+            "calc(2 * var(--n))",
+        ],
+        "max-height": [
+            "calc(2px)",
+            "calc(2px * var(--n))",
+        ],
+        "max-width": [
+            "calc(2%)",
+            "calc(2% * var(--n))",
+        ],
+        "min-height": [
+            "calc(2px)",
+            "calc(2px * var(--n))",
+        ],
+        "min-width": [
+            "calc(2%)",
+            "calc(2% * var(--n))",
+        ],
+        "opacity": [
+            "calc(2)",
+            "calc(2 * var(--n))",
+        ],
+        "order": [
+            "calc(2)",
+            "calc(2 * var(--n))",
+        ],
+        "outline-offset": [
+            "calc(2px)",
+            "calc(2px * var(--n))",
+        ],
+        "outline-width": [
+            "calc(2px)",
+            "calc(2px * var(--n))",
+        ],
+        "padding-bottom": [
+            "calc(2px)",
+            "calc(2px * var(--n))",
+        ],
+        "padding-left": [
+            "calc(2%)",
+            "calc(2% * var(--n))",
+        ],
+        "padding-right": [
+            "calc(2px)",
+            "calc(2px * var(--n))",
+        ],
+        "padding-top": [
+            "calc(2%)",
+            "calc(2% * var(--n))",
+        ],
+        "r": [
+            "calc(2px)",
+            "calc(2px * var(--n))",
+        ],
+        "right": [
+            "calc(2%)",
+            "calc(2% * var(--n))",
+        ],
+        "row-gap": [
+            "calc(2%)",
+            "calc(2% * var(--n))",
+        ],
+        "rx": [
+            "calc(2px)",
+            "calc(2px * var(--n))",
+        ],
+        "ry": [
+            "calc(2%)",
+            "calc(2% * var(--n))",
+        ],
+        "stop-opacity": [
+            "calc(2)",
+            "calc(2 * var(--n))",
+        ],
+        "stroke-opacity": [
+            "calc(2%)",
+            "calc(2% * var(--n))",
+        ],
+        "stroke-width": [
+            "calc(2px)",
+            "calc(2px * var(--n))",
+        ],
+        "tab-size": [
+            "calc(2px)",
+            "calc(2px * var(--n))",
+        ],
+        "text-decoration-thickness": [
+            "calc(2px)",
+            "calc(2px * var(--n))",
+        ],
+        "text-indent": [
+            "calc(2%)",
+            "calc(2% * var(--n))",
+        ],
+        "top": [
+            "calc(2%)",
+            "calc(2% * var(--n))",
+        ],
+        "transform-origin": [
+            "calc(2px) calc(2%)",
+            "calc(2px * var(--n)) calc(2% * var(--n))",
+        ],
+        "transition-delay": [
+            "calc(2s)",
+            "calc(2s * var(--n))",
+        ],
+        "transition-duration": [
+            "calc(2s)",
+            "calc(2s * var(--n))",
+        ],
+        "vertical-align": [
+            "calc(2px)",
+            "calc(2px * var(--n))",
+        ],
+        "width": [
+            "calc(2%)",
+            "calc(2% * var(--n))",
+        ],
+        "word-spacing": [
+            "calc(2px)",
+            "calc(2px * var(--n))",
+        ],
+        "x": [
+            "calc(2px)",
+            "calc(2px * var(--n))",
+        ],
+        "y": [
+            "calc(2%)",
+            "calc(2% * var(--n))",
+        ],
+        "z-index": [
+            "calc(2)",
+            "calc(2 * var(--n))",
+        ],
+        };
+        let target = document.getElementById("target");
+        for (let [property, values] of Object.entries(properties)) {
+            for (let value of values) {
+                target.setAttribute("style", `${property}: ${value}`);
+                println(`${property}: '${value}' -> '${getComputedStyle(target)[property]}'`);
+            }
+        }
+    });
+</script>
