@@ -31,14 +31,12 @@ void Keyboard::initialize(JS::Realm& realm)
     WEB_SET_PROTOTYPE_FOR_INTERFACE(Keyboard);
 }
 // https://wicg.github.io/keyboard-lock/#keyboard-lock
-auto Keyboard::lock(const AK::Vector<AK::String>& key_codes = {})
+JS::NonnullGCPtr<JS::Promise> Keyboard::lock(const AK::Vector<AK::String>& key_codes = {})
 {
     // TODO FIXME: This entire section is not correct. I just did the basic logic but this needs to be parallel
 
-    // 1.1. Let realm be this's relevant realm.
-    auto& realm = HTML::relevant_realm(*this);
-
-    // 1.2. Let p be a new promise in realm.
+    // 1. Let p be a new promise in realm.
+    auto& realm = this->realm();
     auto promise = WebIDL::create_promise(realm);
 
     // 2. If not currently executing in the currently active top-level browsing context, then
@@ -80,7 +78,25 @@ auto Keyboard::lock(const AK::Vector<AK::String>& key_codes = {})
     WebIDL::resolve_promise(realm, promise, JS::js_undefined());
 
     // 4. Return p.
-    return promise->promise();
+    return verify_cast<JS::Promise>(*promise->promise());
 }
+
+void Keyboard::unlock()
+{
+    // TODO FIXME 1.
+
+    // 1.1
+    if (m_enable_keyboard_lock) {
+        // TODO FIXME 1.1.1
+        // 1.1.2
+        m_enable_keyboard_lock = false;
+        // 1.1.2
+        m_reserved_key_codes = {};
+    }
+}
+
+Keyboard::~Keyboard() {unlock();};
+
+JS::NonnullGCPtr<KeyboardLayoutMap> Keyboard::getLayoutMap() {}
 
 }

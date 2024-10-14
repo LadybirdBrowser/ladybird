@@ -17,13 +17,16 @@ class Keyboard final : public DOM::EventTarget {
     JS_DECLARE_ALLOCATOR(Keyboard);
 
 public:
-    virtual ~Keyboard() override = default;
+    virtual ~Keyboard() override;
 
     // JS::NonnullGCPtr<JS::Promise>
     // https://wicg.github.io/keyboard-lock/#keyboard-lock
-    auto lock(const AK::Vector<AK::String>& key_codes);
+    JS::NonnullGCPtr<JS::Object> lock(const AK::Vector<AK::String>& key_codes);
 
-    void unlock() { }
+    void unlock();
+
+    // https://wicg.github.io/keyboard-map/#h-keyboard-getlayoutmap
+    JS::NonnullGCPtr<KeyboardLayoutMap> getLayoutMap();
 
 private:
     Keyboard(JS::Realm& realm);

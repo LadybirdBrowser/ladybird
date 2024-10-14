@@ -78,6 +78,7 @@ enum class XMLHttpRequestResponseType;
 
 namespace Web::Keyboard {
 class Keyboard;
+class KeyboardLayoutMap;
 }
 
 namespace Web::Clipboard {

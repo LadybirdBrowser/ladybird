@@ -62,6 +62,7 @@ static bool is_platform_object(Type const& type)
         "ImageData"sv,
         "Instance"sv,
         "IntersectionObserverEntry"sv,
+        "KeyboardLayoutMap"sv,
         "KeyframeEffect"sv,
         "MediaList"sv,
         "Memory"sv,
@@ -2769,6 +2770,35 @@ static void generate_prototype_or_global_mixin_declarations(IDL::Interface const
         }
     }
 
+    if (interface.map_entry_type.has_value()) {
+        auto maplike_generator = generator.fork();
+
+        maplike_generator.append(R"~~~(
+    JS_DECLARE_NATIVE_FUNCTION(entries);
+    JS_DECLARE_NATIVE_FUNCTION(for_each);
+    JS_DECLARE_NATIVE_FUNCTION(get);
+    JS_DECLARE_NATIVE_FUNCTION(has);
+    JS_DECLARE_NATIVE_FUNCTION(keys);
+    JS_DECLARE_NATIVE_FUNCTION(get_size);
+    JS_DECLARE_NATIVE_FUNCTION(values);
+)~~~");
+        if (!interface.overload_sets.contains("set"sv) && !interface.is_set_readonly) {
+            maplike_generator.append(R"~~~(
+    JS_DECLARE_NATIVE_FUNCTION(set);
+)~~~");
+        }
+        if (!interface.overload_sets.contains("delete"sv) && !interface.is_set_readonly) {
+            maplike_generator.append(R"~~~(
+    JS_DECLARE_NATIVE_FUNCTION(delete_);
+)~~~");
+        }
+        if (!interface.overload_sets.contains("clear"sv) && !interface.is_set_readonly) {
+            maplike_generator.append(R"~~~(
+    JS_DECLARE_NATIVE_FUNCTION(clear);
+)~~~");
+        }
+    }
+
     for (auto& attribute : interface.attributes) {
         if (attribute.extended_attributes.contains("FIXME"))
             continue;
@@ -3350,6 +3380,39 @@ void @class_name@::initialize(JS::Realm& realm)
         }
         if (!interface.overload_sets.contains("clear"sv) && !interface.is_set_readonly) {
             setlike_generator.append(R"~~~(
+    define_native_function(realm, vm.names.clear, clear, 0, default_attributes);
+)~~~");
+        }
+    }
+
+    // https://webidl.spec.whatwg.org/#js-maplike
+    if (interface.map_entry_type.has_value()) {
+
+        auto maplike_generator = generator.fork();
+
+        maplike_generator.append(R"~~~(
+    define_native_accessor(realm, vm.names.size, get_size, nullptr, JS::Attribute::Enumerable | JS::Attribute::Configurable);
+    define_native_function(realm, vm.names.entries, entries, 0, default_attributes);
+    // NOTE: Keys intentionally returns values for setlike // FIXME same for maplike?
+    define_native_function(realm, vm.names.keys, keys, 0, default_attributes);
+    define_native_function(realm, vm.names.values, values, 0, default_attributes);
+    define_direct_property(vm.well_known_symbol_iterator(), get_without_side_effects(vm.names.values), JS::Attribute::Configurable | JS::Attribute::Writable);
+    define_native_function(realm, vm.names.forEach, for_each, 1, default_attributes);
+    define_native_function(realm, vm.names.has, has, 1, default_attributes);
+)~~~");
+
+        if (!interface.overload_sets.contains("set"sv) && !interface.is_set_readonly) {
+            maplike_generator.append(R"~~~(
+    define_native_function(realm, vm.names.set, set, 1, default_attributes);
+)~~~");
+        }
+        if (!interface.overload_sets.contains("delete"sv) && !interface.is_set_readonly) {
+            maplike_generator.append(R"~~~(
+    define_native_function(realm, vm.names.delete_, delete_, 1, default_attributes);
+)~~~");
+        }
+        if (!interface.overload_sets.contains("clear"sv) && !interface.is_set_readonly) {
+            maplike_generator.append(R"~~~(
     define_native_function(realm, vm.names.clear, clear, 0, default_attributes);
 )~~~");
         }
@@ -4116,6 +4179,153 @@ JS_DEFINE_NATIVE_FUNCTION(@class_name@::clear)
 )~~~");
         }
     }
+
+        // ------- maplike -------------------
+        if (interface.map_entry_type.has_value()) {
+        auto maplike_generator = generator.fork();
+        maplike_generator.set("value_type", interface.map_entry_type.value()->name());
+        maplike_generator.append(R"~~~(
+// https://webidl.spec.whatwg.org/#js-map-size
+JS_DEFINE_NATIVE_FUNCTION(@class_name@::get_size)
+{
+    WebIDL::log_trace(vm, "@class_name@::size");
+    auto* impl = TRY(impl_from(vm));
+
+    JS::NonnullGCPtr<JS::Map> map = impl->map_entries();
+
+    return map->set_size();
+}
+
+// https://webidl.spec.whatwg.org/#js-map-entries
+JS_DEFINE_NATIVE_FUNCTION(@class_name@::entries)
+{
+    WebIDL::log_trace(vm, "@class_name@::entries");
+    auto& realm = *vm.current_realm();
+    auto* impl = TRY(impl_from(vm));
+
+    JS::NonnullGCPtr<JS::Map> map = impl->map_entries();
+
+    return TRY(throw_dom_exception_if_needed(vm, [&] { return JS::MapIterator::create(realm, *map, Object::PropertyKind::KeyAndValue); }));
+}
+
+// https://webidl.spec.whatwg.org/#js-map-values
+JS_DEFINE_NATIVE_FUNCTION(@class_name@::values)
+{
+    WebIDL::log_trace(vm, "@class_name@::values");
+    auto& realm = *vm.current_realm();
+    auto* impl = TRY(impl_from(vm));
+
+    JS::NonnullGCPtr<JS::Map> map = impl->map_entries();
+
+    return TRY(throw_dom_exception_if_needed(vm, [&] { return JS::MetIterator::create(realm, *map, Object::PropertyKind::Value); }));
+}
+
+// https://webidl.spec.whatwg.org/#js-map-forEach
+JS_DEFINE_NATIVE_FUNCTION(@class_name@::for_each)
+{
+    WebIDL::log_trace(vm, "@class_name@::for_each");
+    auto* impl = TRY(impl_from(vm));
+
+    JS::NonnullGCPtr<JS::Map> map = impl->map_entries();
+
+    auto callback = vm.argument(0);
+    if (!callback.is_function())
+        return vm.throw_completion<JS::TypeError>(JS::ErrorType::NotAFunction, callback.to_string_without_side_effects());
+
+    for (auto& entry : *map) {
+        auto value = entry.key;
+        TRY(call(vm, callback.as_function(), vm.argument(1), value, value, impl));
+    }
+
+    return JS::js_undefined();
+}
+
+// https://webidl.spec.whatwg.org/#js-map-has
+JS_DEFINE_NATIVE_FUNCTION(@class_name@::has)
+{
+    WebIDL::log_trace(vm, "@class_name@::has");
+    auto* impl = TRY(impl_from(vm));
+
+    JS::NonnullGCPtr<JS::Map> map = impl->map_entries();
+
+    auto value_arg = vm.argument(0);
+    if (!value_arg.is_object() && !is<@value_type@>(value_arg.as_object())) {
+        return vm.throw_completion<JS::TypeError>(JS::ErrorType::NotAnObjectOfType, "@value_type@");
+    }
+
+    // FIXME: If value is -0, set value to +0.
+    // What? Which interfaces have a number as their set type?
+
+    return map->map_has(value_arg);
+}
+)~~~");
+
+        if (!interface.overload_sets.contains("add"sv) && !interface.is_map_readonly) {
+            maplike_generator.append(R"~~~(
+// https://webidl.spec.whatwg.org/#js-set-add
+JS_DEFINE_NATIVE_FUNCTION(@class_name@::add)
+{
+    WebIDL::log_trace(vm, "@class_name@::add");
+    auto* impl = TRY(impl_from(vm));
+
+    JS::NonnullGCPtr<JS::Set> set = impl->set_entries();
+
+    auto value_arg = vm.argument(0);
+    if (!value_arg.is_object() && !is<@value_type@>(value_arg.as_object())) {
+        return vm.throw_completion<JS::TypeError>(JS::ErrorType::NotAnObjectOfType, "@value_type@");
+    }
+
+    // FIXME: If value is -0, set value to +0.
+    // What? Which interfaces have a number as their set type?
+
+    set->set_add(value_arg);
+
+    return impl;
+}
+)~~~");
+        }
+        if (!interface.overload_sets.contains("delete"sv) && !interface.is_set_readonly) {
+            maplike_generator.append(R"~~~(
+// https://webidl.spec.whatwg.org/#js-set-delete
+JS_DEFINE_NATIVE_FUNCTION(@class_name@::delete_)
+{
+    WebIDL::log_trace(vm, "@class_name@::delete_");
+    auto* impl = TRY(impl_from(vm));
+
+    JS::NonnullGCPtr<JS::Set> set = impl->set_entries();
+
+    auto value_arg = vm.argument(0);
+    if (!value_arg.is_object() && !is<@value_type@>(value_arg.as_object())) {
+        return vm.throw_completion<JS::TypeError>(JS::ErrorType::NotAnObjectOfType, "@value_type@");
+    }
+
+    // FIXME: If value is -0, set value to +0.
+    // What? Which interfaces have a number as their set type?
+
+    return set->set_remove(value_arg);
+}
+)~~~");
+        }
+        if (!interface.overload_sets.contains("clear"sv) && !interface.is_set_readonly) {
+            maplike_generator.append(R"~~~(
+// https://webidl.spec.whatwg.org/#js-set-clear
+JS_DEFINE_NATIVE_FUNCTION(@class_name@::clear)
+{
+    WebIDL::log_trace(vm, "@class_name@::clear");
+    auto* impl = TRY(impl_from(vm));
+
+    JS::NonnullGCPtr<JS::Set> set = impl->set_entries();
+
+    set->set_clear();
+
+    return JS::js_undefined();
+}
+)~~~");
+        }
+    }
+
+
+
 }
 
 void generate_namespace_header(IDL::Interface const& interface, StringBuilder& builder)
