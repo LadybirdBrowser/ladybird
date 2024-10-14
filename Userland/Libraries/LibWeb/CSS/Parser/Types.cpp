@@ -40,6 +40,17 @@ String SimpleBlock::to_string() const
     return builder.to_string_without_validation();
 }
 
+String SimpleBlock::original_source_text() const
+{
+    StringBuilder builder;
+    builder.append(token.original_source_text());
+    for (auto const& component_value : value) {
+        builder.append(component_value.original_source_text());
+    }
+    builder.append(end_token.original_source_text());
+    return builder.to_string_without_validation();
+}
+
 String Function::to_string() const
 {
     StringBuilder builder;
@@ -50,6 +61,17 @@ String Function::to_string() const
         builder.append(item.to_string());
     builder.append(')');
 
+    return builder.to_string_without_validation();
+}
+
+String Function::original_source_text() const
+{
+    StringBuilder builder;
+    builder.append(name_token.original_source_text());
+    for (auto const& component_value : value) {
+        builder.append(component_value.original_source_text());
+    }
+    builder.append(end_token.original_source_text());
     return builder.to_string_without_validation();
 }
 

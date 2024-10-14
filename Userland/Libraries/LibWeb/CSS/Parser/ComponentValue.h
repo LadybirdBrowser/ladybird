@@ -41,6 +41,7 @@ public:
 
     String to_string() const;
     String to_debug_string() const;
+    String original_source_text() const;
 
 private:
     Variant<Token, Function, SimpleBlock> m_value;
