@@ -113,15 +113,13 @@ grid-auto-columns: auto
 grid-auto-flow: row
 grid-auto-rows: auto
 grid-column-end: auto
-grid-column-gap: auto
 grid-column-start: auto
 grid-row-end: auto
-grid-row-gap: auto
 grid-row-start: auto
 grid-template-areas: 
 grid-template-columns: 
 grid-template-rows: 
-height: 2091px
+height: 2057px
 inline-size: auto
 inset-block-end: auto
 inset-block-start: auto
