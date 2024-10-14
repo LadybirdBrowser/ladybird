@@ -1,9 +1,9 @@
 #import <DOM/EventTarget.idl>
+#import <HighResolutionTime/DOMHighResTimeStamp.idl>
 
 // https://dom.spec.whatwg.org/#event
 [Exposed=*]
 interface Event {
-
     constructor(DOMString type, optional EventInit eventInitDict = {});
 
     readonly attribute DOMString type;
@@ -19,21 +19,20 @@ interface Event {
     readonly attribute unsigned short eventPhase;
 
     undefined stopPropagation();
-    attribute boolean cancelBubble;
+    attribute boolean cancelBubble; // legacy alias of .stopPropagation()
     undefined stopImmediatePropagation();
 
     readonly attribute boolean bubbles;
     readonly attribute boolean cancelable;
-    attribute boolean returnValue;
+    attribute boolean returnValue;  // legacy
     undefined preventDefault();
     readonly attribute boolean defaultPrevented;
     readonly attribute boolean composed;
 
-    readonly attribute boolean isTrusted;
-    readonly attribute double timeStamp;
+    [LegacyUnforgeable] readonly attribute boolean isTrusted;
+    readonly attribute DOMHighResTimeStamp timeStamp;
 
-    undefined initEvent(DOMString type, optional boolean bubbles = false, optional boolean cancelable = false);
-
+    undefined initEvent(DOMString type, optional boolean bubbles = false, optional boolean cancelable = false); // legacy
 };
 
 dictionary EventInit {

@@ -145,12 +145,6 @@ void Event::init_event(String const& type, bool bubbles, bool cancelable)
     initialize_event(type, bubbles, cancelable);
 }
 
-// https://dom.spec.whatwg.org/#dom-event-timestamp
-double Event::time_stamp() const
-{
-    return m_time_stamp;
-}
-
 // https://dom.spec.whatwg.org/#dom-event-composedpath
 Vector<JS::Handle<EventTarget>> Event::composed_path() const
 {
