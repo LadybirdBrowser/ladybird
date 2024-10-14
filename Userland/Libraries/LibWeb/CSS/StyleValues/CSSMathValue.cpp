@@ -667,6 +667,10 @@ MinCalculationNode::~MinCalculationNode() = default;
 
 String MinCalculationNode::to_string() const
 {
+    if (m_values.size() == 1) {
+        return m_values[0]->to_string();
+    }
+
     StringBuilder builder;
     builder.append("min("sv);
     for (size_t i = 0; i < m_values.size(); ++i) {
@@ -764,6 +768,10 @@ MaxCalculationNode::~MaxCalculationNode() = default;
 
 String MaxCalculationNode::to_string() const
 {
+    if (m_values.size() == 1) {
+        return m_values[0]->to_string();
+    }
+
     StringBuilder builder;
     builder.append("max("sv);
     for (size_t i = 0; i < m_values.size(); ++i) {
