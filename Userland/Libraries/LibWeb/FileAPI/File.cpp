@@ -65,7 +65,7 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<File>> File::create(JS::Realm& realm, Vecto
         auto maybe_parsed_type = MUST(Web::MimeSniff::MimeType::parse(options->type));
 
         if (maybe_parsed_type.has_value())
-            type = MUST(maybe_parsed_type->serialized());
+            type = maybe_parsed_type->serialized();
 
         // 3. If the lastModified member is provided, let d be set to the lastModified dictionary member. If it is not provided, set d to the current date and time represented as the number of milliseconds since the Unix Epoch (which is the equivalent of Date.now() [ECMA-262]).
         //    Note: Since ECMA-262 Date objects convert to long long values representing the number of milliseconds since the Unix Epoch, the lastModified member could be a Date object [ECMA-262].

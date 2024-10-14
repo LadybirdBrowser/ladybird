@@ -505,7 +505,7 @@ ErrorOr<void> Resource::supplied_mime_type_detection_algorithm(StringView scheme
                 "text/plain;charset=UTF-8"sv
             };
 
-            auto serialized_supplied_type = TRY(supplied_type->serialized());
+            auto serialized_supplied_type = supplied_type->serialized();
             for (auto apache_bug_mime_type : apache_bug_mime_types) {
                 if (serialized_supplied_type == apache_bug_mime_type) {
                     m_check_for_apache_bug_flag = true;

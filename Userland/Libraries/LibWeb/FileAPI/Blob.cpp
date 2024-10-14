@@ -207,7 +207,7 @@ JS::NonnullGCPtr<Blob> Blob::create(JS::Realm& realm, Optional<Vector<BlobPart>>
             auto maybe_parsed_type = MUST(Web::MimeSniff::MimeType::parse(options->type));
 
             if (maybe_parsed_type.has_value())
-                type = MUST(maybe_parsed_type->serialized());
+                type = maybe_parsed_type->serialized();
         }
     }
 
