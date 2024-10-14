@@ -704,6 +704,10 @@ TraversableNavigable::HistoryStepResult TraversableNavigable::apply_the_history_
         if (navigable->has_been_destroyed())
             continue;
 
+        // AD-HOC: We re-compute targetStep here, since it might have changed since the last time we computed it.
+        //         This can happen if navigables are destroyed while we wait for tasks to complete.
+        target_step = get_the_used_step(step);
+
         // 7. Let (scriptHistoryLength, scriptHistoryIndex) be the result of getting the history object length and index given traversable and targetStep.
         auto history_object_length_and_index = get_the_history_object_length_and_index(target_step);
         auto script_history_length = history_object_length_and_index.script_history_length;
