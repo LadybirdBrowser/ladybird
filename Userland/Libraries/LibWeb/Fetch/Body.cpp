@@ -126,7 +126,7 @@ WebIDL::ExceptionOr<JS::Value> package_data(JS::Realm& realm, ByteBuffer bytes, 
     case PackageDataType::Blob: {
         // Return a Blob whose contents are bytes and type attribute is mimeType.
         // NOTE: If extracting the mime type returns failure, other browsers set it to an empty string - not sure if that's spec'd.
-        auto mime_type_string = mime_type.has_value() ? MUST(mime_type->serialized()) : String {};
+        auto mime_type_string = mime_type.has_value() ? mime_type->serialized() : String {};
         return FileAPI::Blob::create(realm, move(bytes), move(mime_type_string));
     }
     case PackageDataType::Uint8Array: {

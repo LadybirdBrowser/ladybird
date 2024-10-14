@@ -43,10 +43,10 @@ public:
     bool is_javascript() const;
     bool is_json() const;
 
-    ErrorOr<void> set_parameter(String name, String value);
+    void set_parameter(String name, String value);
 
     String const& essence() const;
-    ErrorOr<String> serialized() const;
+    [[nodiscard]] String serialized() const;
 
 private:
     MimeType(String type, String subtype);

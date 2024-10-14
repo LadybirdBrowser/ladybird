@@ -199,52 +199,51 @@ String const& MimeType::essence() const
 }
 
 // https://mimesniff.spec.whatwg.org/#serialize-a-mime-type
-ErrorOr<String> MimeType::serialized() const
+String MimeType::serialized() const
 {
     // 1. Let serialization be the concatenation of mimeType’s type, U+002F (/), and mimeType’s subtype.
     StringBuilder serialization;
-    TRY(serialization.try_append(m_type));
-    TRY(serialization.try_append('/'));
-    TRY(serialization.try_append(m_subtype));
+    serialization.append(m_type);
+    serialization.append('/');
+    serialization.append(m_subtype);
 
     // 2. For each name → value of mimeType’s parameters:
     for (auto [name, value] : m_parameters) {
         // 1. Append U+003B (;) to serialization.
-        TRY(serialization.try_append(';'));
+        serialization.append(';');
 
         // 2. Append name to serialization.
-        TRY(serialization.try_append(name));
+        serialization.append(name);
 
         // 3. Append U+003D (=) to serialization.
-        TRY(serialization.try_append('='));
+        serialization.append('=');
 
         // 4. If value does not solely contain HTTP token code points or value is the empty string, then:
         if (!contains_only_http_token_code_points(value) || value.is_empty()) {
             // 1. Precede each occurrence of U+0022 (") or U+005C (\) in value with U+005C (\).
-            value = TRY(value.replace("\\"sv, "\\\\"sv, ReplaceMode::All));
-            value = TRY(value.replace("\""sv, "\\\""sv, ReplaceMode::All));
+            value = MUST(value.replace("\\"sv, "\\\\"sv, ReplaceMode::All));
+            value = MUST(value.replace("\""sv, "\\\""sv, ReplaceMode::All));
 
             // 2. Prepend U+0022 (") to value.
             // 3. Append U+0022 (") to value.
-            value = TRY(String::formatted("\"{}\"", value));
+            value = MUST(String::formatted("\"{}\"", value));
         }
 
         // 5. Append value to serialization.
-        TRY(serialization.try_append(value));
+        serialization.append(value);
     }
 
     // 3. Return serialization.
-    return serialization.to_string();
+    return serialization.to_string_without_validation();
 }
 
-ErrorOr<void> MimeType::set_parameter(String name, String value)
+void MimeType::set_parameter(String name, String value)
 {
     // https://mimesniff.spec.whatwg.org/#parameters
     // A MIME type’s parameters is an ordered map whose keys are ASCII strings and values are strings limited to HTTP quoted-string token code points.
     VERIFY(contains_only_http_quoted_string_token_code_points(name));
     VERIFY(contains_only_http_quoted_string_token_code_points(value));
-    TRY(m_parameters.try_set(move(name), move(value)));
-    return {};
+    m_parameters.set(move(name), move(value));
 }
 
 // https://mimesniff.spec.whatwg.org/#image-mime-type

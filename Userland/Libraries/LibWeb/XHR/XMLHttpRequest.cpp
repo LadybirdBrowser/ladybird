@@ -215,7 +215,7 @@ WebIDL::ExceptionOr<JS::Value> XMLHttpRequest::response()
     }
     // 6. Otherwise, if this’s response type is "blob", set this’s response object to a new Blob object representing this’s received bytes with type set to the result of get a final MIME type for this.
     else if (m_response_type == Bindings::XMLHttpRequestResponseType::Blob) {
-        auto mime_type_as_string = TRY_OR_THROW_OOM(vm, TRY_OR_THROW_OOM(vm, get_final_mime_type()).serialized());
+        auto mime_type_as_string = TRY_OR_THROW_OOM(vm, get_final_mime_type()).serialized();
         auto blob_part = FileAPI::Blob::create(realm(), m_received_bytes, move(mime_type_as_string));
         auto blob = FileAPI::Blob::create(realm(), Vector<FileAPI::BlobPart> { JS::make_handle(*blob_part) });
         m_response_object = JS::NonnullGCPtr<JS::Object> { blob };
@@ -287,20 +287,20 @@ void XMLHttpRequest::set_document_response()
         return;
 
     // 2. Let finalMIME be the result of get a final MIME type for xhr.
-    auto final_mine = MUST(get_final_mime_type());
+    auto final_mime = MUST(get_final_mime_type());
 
     // 3. If finalMIME is not an HTML MIME type or an XML MIME type, then return.
-    if (!final_mine.is_html() && !final_mine.is_xml())
+    if (!final_mime.is_html() && !final_mime.is_xml())
         return;
 
     // 4. If xhr’s response type is the empty string and finalMIME is an HTML MIME type, then return.
-    if (m_response_type == Bindings::XMLHttpRequestResponseType::Empty && final_mine.is_html())
+    if (m_response_type == Bindings::XMLHttpRequestResponseType::Empty && final_mime.is_html())
         return;
 
     // 5. If finalMIME is an HTML MIME type, then:
     Optional<String> charset;
     JS::GCPtr<DOM::Document> document;
-    if (final_mine.is_html()) {
+    if (final_mime.is_html()) {
         // 5.1. Let charset be the result of get a final encoding for xhr.
         if (auto final_encoding = MUST(get_final_encoding()); final_encoding.has_value())
             charset = MUST(String::from_utf8(*final_encoding));
@@ -340,7 +340,7 @@ void XMLHttpRequest::set_document_response()
     document->set_encoding(move(charset));
 
     // 9. Set document’s content type to finalMIME.
-    document->set_content_type(MUST(final_mine.serialized()));
+    document->set_content_type(final_mime.serialized());
 
     // 10. Set document’s URL to xhr’s response’s URL.
     document->set_url(m_response->url().value_or({}));
@@ -601,10 +601,10 @@ WebIDL::ExceptionOr<void> XMLHttpRequest::send(Optional<DocumentOrXMLHttpRequest
                     auto charset_parameter_iterator = content_type_record->parameters().find("charset"sv);
                     if (charset_parameter_iterator != content_type_record->parameters().end() && !Infra::is_ascii_case_insensitive_match(charset_parameter_iterator->value, "UTF-8"sv)) {
                         // 1. Set contentTypeRecord’s parameters["charset"] to "UTF-8".
-                        TRY_OR_THROW_OOM(vm, content_type_record->set_parameter("charset"_string, "UTF-8"_string));
+                        content_type_record->set_parameter("charset"_string, "UTF-8"_string);
 
                         // 2. Let newContentTypeSerialized be the result of serializing contentTypeRecord.
-                        auto new_content_type_serialized = TRY_OR_THROW_OOM(vm, content_type_record->serialized());
+                        auto new_content_type_serialized = content_type_record->serialized();
 
                         // 3. Set (`Content-Type`, newContentTypeSerialized) in this’s author request headers.
                         auto header = Fetch::Infrastructure::Header::from_string_pair("Content-Type"sv, new_content_type_serialized);
