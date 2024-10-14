@@ -8,7 +8,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <AK/DeprecatedString.h>
+#include <AK/ByteString.h>
 #include <AK/FixedArray.h>
 #include <AK/String.h>
 #include <AK/Vector.h>
@@ -53,7 +53,7 @@ ErrorOr<void> munmap(void* address, [[maybe_unused]] size_t size)
 
 ErrorOr<int> open(StringView path, int options, mode_t mode)
 {
-    DeprecatedString string_path = path;
+    ByteString string_path = path;
     auto rc = _open(string_path.characters(), options, mode);
     if (rc < 0)
         return Error::from_syscall("open"sv, -errno);
@@ -82,35 +82,35 @@ ErrorOr<AddressInfoVector> getaddrinfo(char const* nodename, char const* servnam
     return AddressInfoVector { move(addresses), results };
 }
 
-ErrorOr<DeprecatedString> getcwd()
+ErrorOr<ByteString> getcwd()
 {
     auto* cwd = ::getcwd(nullptr, 0);
     if (!cwd)
         return Error::from_syscall("getcwd"sv, -errno);
 
-    DeprecatedString string_cwd(cwd);
+    ByteString string_cwd(cwd);
     free(cwd);
     return string_cwd;
 }
 
 ErrorOr<void> exec(StringView filename, ReadonlySpan<StringView> arguments, SearchInPath search_in_path, Optional<ReadonlySpan<StringView>> environment)
 {
-    DeprecatedString filename_string { filename };
+    ByteString filename_string { filename };
 
-    auto argument_strings = TRY(FixedArray<DeprecatedString>::create(arguments.size()));
+    auto argument_strings = TRY(FixedArray<ByteString>::create(arguments.size()));
     auto argv = TRY(FixedArray<char*>::create(arguments.size() + 1));
     for (size_t i = 0; i < arguments.size(); ++i) {
-        argument_strings[i] = arguments[i].to_deprecated_string();
+        argument_strings[i] = arguments[i].to_byte_string();
         argv[i] = const_cast<char*>(argument_strings[i].characters());
     }
     argv[arguments.size()] = nullptr;
 
     int rc = 0;
     if (environment.has_value()) {
-        auto environment_strings = TRY(FixedArray<DeprecatedString>::create(environment->size()));
+        auto environment_strings = TRY(FixedArray<ByteString>::create(environment->size()));
         auto envp = TRY(FixedArray<char*>::create(environment->size() + 1));
         for (size_t i = 0; i < environment->size(); ++i) {
-            environment_strings[i] = environment->at(i).to_deprecated_string();
+            environment_strings[i] = environment->at(i).to_byte_string();
             envp[i] = const_cast<char*>(environment_strings[i].characters());
         }
         envp[environment->size()] = nullptr;
@@ -135,8 +135,8 @@ ErrorOr<void> exec(StringView filename, ReadonlySpan<StringView> arguments, Sear
 
 ErrorOr<void> link(StringView old_path, StringView new_path)
 {
-    DeprecatedString old_path_string = old_path;
-    DeprecatedString new_path_string = new_path;
+    ByteString old_path_string = old_path;
+    ByteString new_path_string = new_path;
 
     auto rc = CreateSymbolicLink(new_path_string.characters(), old_path_string.characters(), 0);
 
@@ -153,7 +153,7 @@ ErrorOr<void> rmdir(StringView path)
     if (path.is_null())
         return Error::from_errno(EFAULT);
 
-    DeprecatedString path_string = path;
+    ByteString path_string = path;
     if (::rmdir(path_string.characters()) < 0)
         return Error::from_syscall("rmdir"sv, -errno);
     return {};
@@ -170,7 +170,7 @@ ErrorOr<void> access(StringView pathname, int mode, int flags)
     if (pathname.is_null())
         return Error::from_syscall("access"sv, -EFAULT);
 
-    DeprecatedString path_string = pathname;
+    ByteString path_string = pathname;
     (void)flags;
     if (::access(path_string.characters(), mode) < 0)
         return Error::from_syscall("access"sv, -errno);
@@ -182,7 +182,7 @@ ErrorOr<void> chmod(StringView pathname, mode_t mode)
     if (!pathname.characters_without_null_termination())
         return Error::from_syscall("chmod"sv, -EFAULT);
 
-    DeprecatedString path = pathname;
+    ByteString path = pathname;
     if (::chmod(path.characters(), mode) < 0)
         return Error::from_syscall("chmod"sv, -errno);
     return {};
@@ -204,7 +204,7 @@ ErrorOr<int> openat(int fd, StringView path, int options, mode_t mode)
     if (!path.characters_without_null_termination())
         return Error::from_syscall("open"sv, -EFAULT);
 
-    DeprecatedString path_string = path;
+    ByteString path_string = path;
 
     HANDLE file_handle = CreateFileA(
         path_string.characters(),
@@ -251,7 +251,7 @@ ErrorOr<struct stat> stat(StringView path)
         return Error::from_syscall("stat"sv, -EFAULT);
 
     struct stat st = {};
-    DeprecatedString path_string = path;
+    ByteString path_string = path;
     if (::stat(path_string.characters(), &st) < 0)
         return Error::from_syscall("stat"sv, -errno);
     return st;
@@ -293,7 +293,7 @@ ErrorOr<void> mkdir(StringView path, mode_t)
 {
     if (path.is_null())
         return Error::from_errno(EFAULT);
-    DeprecatedString path_string = path;
+    ByteString path_string = path;
     if (::mkdir(path_string.characters()) < 0)
         return Error::from_syscall("mkdir"sv, -errno);
     return {};
@@ -312,7 +312,7 @@ ErrorOr<void> unlink(StringView path)
     if (path.is_null())
         return Error::from_errno(EFAULT);
 
-    DeprecatedString path_string = path;
+    ByteString path_string = path;
     if (::unlink(path_string.characters()) < 0)
         return Error::from_syscall("unlink"sv, -errno);
     return {};
@@ -337,7 +337,7 @@ ErrorOr<void> chdir(StringView path)
     if (path.is_null())
         return Error::from_errno(EFAULT);
 
-    DeprecatedString path_string = path;
+    ByteString path_string = path;
     if (::chdir(path_string.characters()) < 0)
         return Error::from_syscall("chdir"sv, -errno);
     return {};
@@ -382,7 +382,7 @@ ErrorOr<void> connect(int sockfd, struct sockaddr const* address, socklen_t addr
 
 ErrorOr<ssize_t> send(int sockfd, void const* buffer, size_t buffer_length, int flags)
 {
-    auto sent = ::send(sockfd, (char*)buffer, (int)buffer_length, flags);
+    auto sent = ::send(sockfd, (char const*)buffer, (int)buffer_length, flags);
     if (sent < 0)
         return Error::from_syscall("send"sv, -errno);
     return sent;
@@ -405,7 +405,7 @@ ErrorOr<void> getsockopt(int sockfd, int level, int option, void* value, socklen
 
 ErrorOr<void> setsockopt(int sockfd, int level, int option, void const* value, socklen_t value_size)
 {
-    if (::setsockopt(sockfd, level, option, (char*)value, value_size) < 0)
+    if (::setsockopt(sockfd, level, option, (char const*)value, value_size) < 0)
         return Error::from_syscall("setsockopt"sv, -errno);
     return {};
 }
@@ -430,7 +430,7 @@ ErrorOr<void> setenv(StringView name, StringView value, bool overwrite)
     return {};
 }
 
-ErrorOr<DeprecatedString> readlink(StringView pathname)
+ErrorOr<ByteString> readlink(StringView pathname)
 {
     dbgln("Core::System::readlink({}) is not implemented", pathname);
     VERIFY_NOT_REACHED();
@@ -474,8 +474,8 @@ ErrorOr<void> rename(StringView old_path, StringView new_path)
     if (old_path.is_null() || new_path.is_null())
         return Error::from_errno(EFAULT);
 
-    DeprecatedString old_path_string = old_path;
-    DeprecatedString new_path_string = new_path;
+    ByteString old_path_string = old_path;
+    ByteString new_path_string = new_path;
     if (::rename(old_path_string.characters(), new_path_string.characters()) < 0)
         return Error::from_syscall("rename"sv, -errno);
     return {};
