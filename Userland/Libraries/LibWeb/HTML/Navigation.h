@@ -138,6 +138,8 @@ public:
     bool focus_changed_during_ongoing_navigation() const { return m_focus_changed_during_ongoing_navigation; }
     void set_focus_changed_during_ongoing_navigation(bool b) { m_focus_changed_during_ongoing_navigation = b; }
 
+    JS::NonnullGCPtr<NavigationHistoryEntry> entry_at_index(size_t index) const { return m_entry_list[index]; }
+
 private:
     explicit Navigation(JS::Realm&);
 
