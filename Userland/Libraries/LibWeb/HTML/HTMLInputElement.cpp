@@ -488,7 +488,7 @@ void HTMLInputElement::did_select_files(Span<SelectedFile> selected_files, Multi
     for (auto& selected_file : selected_files) {
         auto contents = selected_file.take_contents();
 
-        auto mime_type = MUST(MimeSniff::Resource::sniff(contents));
+        auto mime_type = MimeSniff::Resource::sniff(contents);
         auto blob = FileAPI::Blob::create(realm(), move(contents), mime_type.essence());
 
         // FIXME: The FileAPI should use ByteString for file names.
