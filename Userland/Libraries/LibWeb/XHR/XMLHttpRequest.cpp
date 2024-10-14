@@ -414,7 +414,6 @@ Optional<StringView> XMLHttpRequest::get_final_encoding() const
 WebIDL::ExceptionOr<void> XMLHttpRequest::set_request_header(String const& name_string, String const& value_string)
 {
     auto& realm = this->realm();
-    auto& vm = realm.vm();
 
     auto name = name_string.bytes();
     auto value = value_string.bytes();
@@ -437,7 +436,7 @@ WebIDL::ExceptionOr<void> XMLHttpRequest::set_request_header(String const& name_
         return WebIDL::SyntaxError::create(realm, "Header value contains invalid characters."_string);
 
     auto header = Fetch::Infrastructure::Header {
-        .name = TRY_OR_THROW_OOM(vm, ByteBuffer::copy(name)),
+        .name = MUST(ByteBuffer::copy(name)),
         .value = move(normalized_value),
     };
 
@@ -648,7 +647,7 @@ WebIDL::ExceptionOr<void> XMLHttpRequest::send(Optional<DocumentOrXMLHttpRequest
 
     // method
     //    This’s request method.
-    request->set_method(TRY_OR_THROW_OOM(vm, ByteBuffer::copy(m_request_method.bytes())));
+    request->set_method(MUST(ByteBuffer::copy(m_request_method.bytes())));
 
     // URL
     //    This’s request URL.
@@ -1013,12 +1012,12 @@ WebIDL::ExceptionOr<String> XMLHttpRequest::get_all_response_headers() const
 
     // 4. For each header in headers, append header’s name, followed by a 0x3A 0x20 byte pair, followed by header’s value, followed by a 0x0D 0x0A byte pair, to output.
     for (auto const& header : initial_headers) {
-        TRY_OR_THROW_OOM(vm, output.try_append(header.name));
-        TRY_OR_THROW_OOM(vm, output.try_append(0x3A)); // ':'
-        TRY_OR_THROW_OOM(vm, output.try_append(0x20)); // ' '
-        TRY_OR_THROW_OOM(vm, output.try_append(header.value));
-        TRY_OR_THROW_OOM(vm, output.try_append(0x0D)); // '\r'
-        TRY_OR_THROW_OOM(vm, output.try_append(0x0A)); // '\n'
+        output.append(header.name);
+        output.append(0x3A); // ':'
+        output.append(0x20); // ' '
+        output.append(header.value);
+        output.append(0x0D); // '\r'
+        output.append(0x0A); // '\n'
     }
 
     // 5. Return output.
