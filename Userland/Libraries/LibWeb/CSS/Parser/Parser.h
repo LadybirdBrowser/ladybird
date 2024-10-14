@@ -229,7 +229,7 @@ private:
     RefPtr<CSSStyleValue> parse_conic_gradient_function(TokenStream<ComponentValue>&);
     RefPtr<CSSStyleValue> parse_radial_gradient_function(TokenStream<ComponentValue>&);
 
-    ParseErrorOr<NonnullRefPtr<CSSStyleValue>> parse_css_value(PropertyID, TokenStream<ComponentValue>&);
+    ParseErrorOr<NonnullRefPtr<CSSStyleValue>> parse_css_value(PropertyID, TokenStream<ComponentValue>&, Optional<String> original_source_text = {});
     RefPtr<CSSStyleValue> parse_css_value_for_property(PropertyID, TokenStream<ComponentValue>&);
     struct PropertyAndValue {
         PropertyID property;

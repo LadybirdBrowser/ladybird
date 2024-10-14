@@ -953,7 +953,13 @@ Optional<Declaration> Parser::consume_a_declaration(TokenStream<T>& input, Neste
     // 8. If decl’s name is a custom property name string, then set decl’s original text to the segment
     //    of the original source text string corresponding to the tokens of decl’s value.
     if (is_a_custom_property_name_string(declaration.name)) {
-        // FIXME: Set the original source text
+        // TODO: If we could reach inside the source string that the TokenStream uses, we could grab this as
+        //       a single substring instead of having to reconstruct it.
+        StringBuilder original_text;
+        for (auto const& value : declaration.value) {
+            original_text.append(value.original_source_text());
+        }
+        declaration.original_text = original_text.to_string_without_validation();
     }
     //    Otherwise, if decl’s value contains a top-level simple block with an associated token of <{-token>,
     //    and also contains any other non-<whitespace-token> value, return nothing.
@@ -1738,7 +1744,7 @@ Optional<StyleProperty> Parser::convert_to_style_property(Declaration const& dec
     }
 
     auto value_token_stream = TokenStream(declaration.value);
-    auto value = parse_css_value(property_id.value(), value_token_stream);
+    auto value = parse_css_value(property_id.value(), value_token_stream, declaration.original_text);
     if (value.is_error()) {
         if (value.error() == ParseError::SyntaxError) {
             dbgln_if(CSS_PARSER_DEBUG, "Unable to parse value for CSS property '{}'.", property_name);
@@ -7636,7 +7642,7 @@ bool block_contains_var_or_attr(SimpleBlock const& block)
     return false;
 }
 
-Parser::ParseErrorOr<NonnullRefPtr<CSSStyleValue>> Parser::parse_css_value(PropertyID property_id, TokenStream<ComponentValue>& unprocessed_tokens)
+Parser::ParseErrorOr<NonnullRefPtr<CSSStyleValue>> Parser::parse_css_value(PropertyID property_id, TokenStream<ComponentValue>& unprocessed_tokens, Optional<String> original_source_text)
 {
     m_context.set_current_property_id(property_id);
     Vector<ComponentValue> component_values;
@@ -7670,7 +7676,7 @@ Parser::ParseErrorOr<NonnullRefPtr<CSSStyleValue>> Parser::parse_css_value(Prope
     }
 
     if (property_id == PropertyID::Custom || contains_var_or_attr)
-        return UnresolvedStyleValue::create(move(component_values), contains_var_or_attr);
+        return UnresolvedStyleValue::create(move(component_values), contains_var_or_attr, original_source_text);
 
     if (component_values.is_empty())
         return ParseError::SyntaxError;
