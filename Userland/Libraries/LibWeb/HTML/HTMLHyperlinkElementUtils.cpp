@@ -244,7 +244,7 @@ String HTMLHyperlinkElementUtils::port() const
         return String {};
 
     // 4. Return url's port, serialized.
-    return MUST(String::number(url->port().value()));
+    return String::number(url->port().value());
 }
 
 // https://html.spec.whatwg.org/multipage/links.html#dom-hyperlink-port

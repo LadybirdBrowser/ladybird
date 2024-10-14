@@ -1866,7 +1866,7 @@ unsigned HTMLInputElement::size() const
 
 WebIDL::ExceptionOr<void> HTMLInputElement::set_size(unsigned value)
 {
-    return set_attribute(HTML::AttributeNames::size, MUST(String::number(value)));
+    return set_attribute(HTML::AttributeNames::size, String::number(value));
 }
 
 // https://html.spec.whatwg.org/multipage/input.html#concept-input-value-string-number
@@ -1889,11 +1889,11 @@ String HTMLInputElement::convert_number_to_string(double input) const
 {
     // https://html.spec.whatwg.org/multipage/input.html#number-state-(type=number):concept-input-value-number-string
     if (type_state() == TypeAttributeState::Number)
-        return MUST(String::number(input));
+        return String::number(input);
 
     // https://html.spec.whatwg.org/multipage/input.html#range-state-(type=range):concept-input-value-number-string
     if (type_state() == TypeAttributeState::Range)
-        return MUST(String::number(input));
+        return String::number(input);
 
     dbgln("HTMLInputElement::convert_number_to_string() not implemented for input type {}", type());
     return {};

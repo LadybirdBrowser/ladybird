@@ -43,7 +43,7 @@ String Token::to_string() const
     case Type::Delim:
         return String { m_value };
     case Type::Number:
-        return MUST(String::number(m_number_value.value()));
+        return String::number(m_number_value.value());
     case Type::Percentage:
         return MUST(String::formatted("{}%", m_number_value.value()));
     case Type::Dimension:

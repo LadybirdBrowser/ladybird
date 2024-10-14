@@ -1208,7 +1208,7 @@ i32 Element::tab_index() const
 // https://html.spec.whatwg.org/multipage/interaction.html#dom-tabindex
 void Element::set_tab_index(i32 tab_index)
 {
-    MUST(set_attribute(HTML::AttributeNames::tabindex, MUST(String::number(tab_index))));
+    MUST(set_attribute(HTML::AttributeNames::tabindex, String::number(tab_index)));
 }
 
 // https://drafts.csswg.org/cssom-view/#potentially-scrollable

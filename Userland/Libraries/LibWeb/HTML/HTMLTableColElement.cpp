@@ -41,7 +41,7 @@ unsigned int HTMLTableColElement::span() const
 
 WebIDL::ExceptionOr<void> HTMLTableColElement::set_span(unsigned int value)
 {
-    return set_attribute(HTML::AttributeNames::span, MUST(String::number(value)));
+    return set_attribute(HTML::AttributeNames::span, String::number(value));
 }
 
 void HTMLTableColElement::apply_presentational_hints(CSS::StyleProperties& style) const

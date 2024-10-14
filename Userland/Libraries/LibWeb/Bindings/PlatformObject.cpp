@@ -405,7 +405,7 @@ JS::ThrowCompletionOr<JS::MarkedVector<JS::Value>> PlatformObject::internal_own_
     if (m_legacy_platform_object_flags->supports_indexed_properties) {
         for (u64 index = 0; index <= NumericLimits<u32>::max(); ++index) {
             if (is_supported_property_index(index))
-                keys.append(JS::PrimitiveString::create(vm, MUST(String::number(index))));
+                keys.append(JS::PrimitiveString::create(vm, String::number(index)));
             else
                 break;
         }

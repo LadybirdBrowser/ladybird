@@ -92,7 +92,7 @@ WebIDL::UnsignedLong HTMLSelectElement::size() const
 
 WebIDL::ExceptionOr<void> HTMLSelectElement::set_size(WebIDL::UnsignedLong size)
 {
-    return set_attribute(HTML::AttributeNames::size, MUST(String::number(size)));
+    return set_attribute(HTML::AttributeNames::size, String::number(size));
 }
 
 // https://html.spec.whatwg.org/multipage/form-elements.html#dom-select-options
