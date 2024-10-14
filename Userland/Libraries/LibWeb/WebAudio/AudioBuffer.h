@@ -22,7 +22,7 @@ struct AudioBufferOptions {
     float sample_rate {};
 };
 
-// https://webaudio.github.io/web-audio-api/#AudioContext
+// https://webaudio.github.io/web-audio-api/#AudioBuffer
 class AudioBuffer final : public Bindings::PlatformObject {
     WEB_PLATFORM_OBJECT(AudioBuffer, Bindings::PlatformObject);
     JS_DECLARE_ALLOCATOR(AudioBuffer);
