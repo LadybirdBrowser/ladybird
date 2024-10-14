@@ -38,7 +38,7 @@ TEST_CASE(determine_computed_mime_type_given_no_sniff_is_unset)
 TEST_CASE(determine_computed_mime_type_given_xml_mime_type_as_supplied_type)
 {
     auto xml_mime_type = "application/rss+xml"sv;
-    auto supplied_type = MUST(Web::MimeSniff::MimeType::parse(xml_mime_type)).release_value();
+    auto supplied_type = Web::MimeSniff::MimeType::parse(xml_mime_type).release_value();
     auto computed_mime_type = MUST(Web::MimeSniff::Resource::sniff("\x00"sv.bytes(), Web::MimeSniff::SniffingConfiguration { .supplied_type = supplied_type }));
 
     EXPECT_EQ(xml_mime_type, computed_mime_type.serialized());
@@ -85,7 +85,7 @@ TEST_CASE(determine_computed_mime_type_given_supplied_type_that_is_an_apache_bug
 
     // Cover all Apache bug MIME types.
     for (auto const& apache_bug_mime_type : apache_bug_mime_types) {
-        auto supplied_type = MUST(Web::MimeSniff::MimeType::parse(apache_bug_mime_type)).release_value();
+        auto supplied_type = Web::MimeSniff::MimeType::parse(apache_bug_mime_type).release_value();
         auto computed_mime_type = MUST(Web::MimeSniff::Resource::sniff("Hello world!"sv.bytes(),
             Web::MimeSniff::SniffingConfiguration { .scheme = "http"sv, .supplied_type = supplied_type }));
 
@@ -195,7 +195,7 @@ TEST_CASE(determine_computed_mime_type_in_image_sniffing_context)
 {
     // Cover case where supplied type is an XML MIME type.
     auto mime_type = "application/rss+xml"sv;
-    auto supplied_type = MUST(Web::MimeSniff::MimeType::parse(mime_type)).release_value();
+    auto supplied_type = Web::MimeSniff::MimeType::parse(mime_type).release_value();
     auto computed_mime_type = MUST(Web::MimeSniff::Resource::sniff(""sv.bytes(), Web::MimeSniff::SniffingConfiguration { .sniffing_context = Web::MimeSniff::SniffingContext::Image, .supplied_type = supplied_type }));
 
     EXPECT_EQ(mime_type, computed_mime_type.serialized());
@@ -218,7 +218,7 @@ TEST_CASE(determine_computed_mime_type_in_image_sniffing_context)
 
     // Cover case where we aren't dealing with an image MIME type.
     mime_type = "text/html"sv;
-    supplied_type = MUST(Web::MimeSniff::MimeType::parse("text/html"sv)).release_value();
+    supplied_type = Web::MimeSniff::MimeType::parse("text/html"sv).release_value();
     computed_mime_type = MUST(Web::MimeSniff::Resource::sniff(""sv.bytes(), Web::MimeSniff::SniffingConfiguration { .sniffing_context = Web::MimeSniff::SniffingContext::Image, .supplied_type = supplied_type }));
 
     EXPECT_EQ(mime_type, computed_mime_type.essence());
@@ -228,7 +228,7 @@ TEST_CASE(determine_computed_mime_type_in_audio_or_video_sniffing_context)
 {
     // Cover case where supplied type is an XML MIME type.
     auto mime_type = "application/rss+xml"sv;
-    auto supplied_type = MUST(Web::MimeSniff::MimeType::parse(mime_type)).release_value();
+    auto supplied_type = Web::MimeSniff::MimeType::parse(mime_type).release_value();
     auto computed_mime_type = MUST(Web::MimeSniff::Resource::sniff(""sv.bytes(), Web::MimeSniff::SniffingConfiguration {
                                                                                      .sniffing_context = Web::MimeSniff::SniffingContext::AudioOrVideo,
                                                                                      .supplied_type = supplied_type,
@@ -253,7 +253,7 @@ TEST_CASE(determine_computed_mime_type_in_audio_or_video_sniffing_context)
 
     // Cover case where we aren't dealing with an audio or video MIME type.
     mime_type = "text/html"sv;
-    supplied_type = MUST(Web::MimeSniff::MimeType::parse("text/html"sv)).release_value();
+    supplied_type = Web::MimeSniff::MimeType::parse("text/html"sv).release_value();
     computed_mime_type = MUST(Web::MimeSniff::Resource::sniff(""sv.bytes(), Web::MimeSniff::SniffingConfiguration {
                                                                                 .sniffing_context = Web::MimeSniff::SniffingContext::AudioOrVideo,
                                                                                 .supplied_type = supplied_type,
@@ -299,7 +299,7 @@ TEST_CASE(determine_computed_mime_type_in_a_font_context)
 {
     // Cover case where supplied type is an XML MIME type.
     auto mime_type = "application/rss+xml"sv;
-    auto supplied_type = MUST(Web::MimeSniff::MimeType::parse(mime_type)).release_value();
+    auto supplied_type = Web::MimeSniff::MimeType::parse(mime_type).release_value();
     auto computed_mime_type = MUST(Web::MimeSniff::Resource::sniff(""sv.bytes(), Web::MimeSniff::SniffingConfiguration {
                                                                                      .sniffing_context = Web::MimeSniff::SniffingContext::Font,
                                                                                      .supplied_type = supplied_type,
@@ -327,7 +327,7 @@ TEST_CASE(determine_computed_mime_type_in_a_font_context)
 
     // Cover case where we aren't dealing with a font MIME type.
     mime_type = "text/html"sv;
-    supplied_type = MUST(Web::MimeSniff::MimeType::parse("text/html"sv)).release_value();
+    supplied_type = Web::MimeSniff::MimeType::parse("text/html"sv).release_value();
     computed_mime_type = MUST(Web::MimeSniff::Resource::sniff(""sv.bytes(), Web::MimeSniff::SniffingConfiguration {
                                                                                 .sniffing_context = Web::MimeSniff::SniffingContext::Font,
                                                                                 .supplied_type = supplied_type,
@@ -374,7 +374,7 @@ TEST_CASE(determine_minimised_mime_type)
     mime_type_to_minimised_mime_type_map.set("application/zip"sv, ""sv);
 
     for (auto const& mime_type_to_minimised_mime_type : mime_type_to_minimised_mime_type_map) {
-        auto mime_type = MUST(Web::MimeSniff::MimeType::parse(mime_type_to_minimised_mime_type.key)).release_value();
+        auto mime_type = Web::MimeSniff::MimeType::parse(mime_type_to_minimised_mime_type.key).release_value();
         EXPECT_EQ(mime_type_to_minimised_mime_type.value, Web::MimeSniff::minimise_a_supported_mime_type(mime_type));
     }
 }

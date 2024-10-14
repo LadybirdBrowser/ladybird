@@ -186,7 +186,7 @@ Bindings::CanPlayTypeResult HTMLMediaElement::can_play_type(StringView type) con
     if (type == "application/octet-stream"sv)
         return Bindings::CanPlayTypeResult::Empty;
 
-    auto mime_type = MUST(MimeSniff::MimeType::parse(type));
+    auto mime_type = MimeSniff::MimeType::parse(type);
 
     if (mime_type.has_value() && mime_type->type() == "video"sv) {
         if (mime_type->subtype() == "webm"sv)

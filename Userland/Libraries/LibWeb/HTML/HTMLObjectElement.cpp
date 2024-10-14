@@ -246,7 +246,7 @@ void HTMLObjectElement::resource_did_load()
 
         // 2. If the type specified in the resource's Content-Type metadata is "text/plain", and the result of applying the rules for distinguishing if a resource is text or binary to the resource is that the resource is not text/plain, then set binary to true.
         if (content_type == "text/plain"sv) {
-            auto supplied_type = MimeSniff::MimeType::parse(content_type).release_value_but_fixme_should_propagate_errors();
+            auto supplied_type = MimeSniff::MimeType::parse(content_type);
             auto computed_type = MimeSniff::Resource::sniff(resource()->encoded_data(), MimeSniff::SniffingConfiguration {
                                                                                             .sniffing_context = MimeSniff::SniffingContext::TextOrBinary,
                                                                                             .supplied_type = move(supplied_type),
@@ -311,7 +311,7 @@ void HTMLObjectElement::run_object_representation_handler_steps(Optional<ByteStr
         run_object_representation_fallback_steps();
         return;
     }
-    auto mime_type = MimeSniff::MimeType::parse(*resource_type).release_value_but_fixme_should_propagate_errors();
+    auto mime_type = MimeSniff::MimeType::parse(*resource_type);
 
     // * If the resource type is an XML MIME type, or if the resource type does not start with "image/"
     if (mime_type.has_value() && can_load_document_with_type(*mime_type) && (mime_type->is_xml() || !mime_type->is_image())) {

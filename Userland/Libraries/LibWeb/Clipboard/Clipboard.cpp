@@ -44,7 +44,7 @@ void Clipboard::initialize(JS::Realm& realm)
 static String os_specific_well_known_format(StringView mime_type_string)
 {
     // NOTE: Here we always takes the Linux case, and defer to the chrome layer to handle OS specific implementations.
-    auto mime_type = MUST(MimeSniff::MimeType::parse(mime_type_string));
+    auto mime_type = MimeSniff::MimeType::parse(mime_type_string);
 
     // 1. Let wellKnownFormat be an empty string.
     String well_known_format {};

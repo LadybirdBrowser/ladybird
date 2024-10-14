@@ -23,7 +23,7 @@ bool is_javascript_mime_type_essence_match(StringView string)
 {
     // A string is a JavaScript MIME type essence match if it is an ASCII case-insensitive match for one of the JavaScript MIME type essence strings.
     // NOTE: The mime type parser automatically lowercases the essence.
-    auto type = MimeType::parse(string).release_value_but_fixme_should_propagate_errors();
+    auto type = MimeType::parse(string);
     if (!type.has_value())
         return false;
     return type->is_javascript();
@@ -81,8 +81,12 @@ MimeType MimeType::create(String type, String subtype)
 }
 
 // https://mimesniff.spec.whatwg.org/#parse-a-mime-type
-ErrorOr<Optional<MimeType>> MimeType::parse(StringView string)
+Optional<MimeType> MimeType::parse(StringView string)
 {
+    // Verify that the input string is valid UTF-8 first, so we don't have to think about it anymore.
+    if (!Utf8View(string).validate())
+        return OptionalNone {};
+
     // 1. Remove any leading and trailing HTTP whitespace from input.
     auto trimmed_string = string.trim(Fetch::Infrastructure::HTTP_WHITESPACE, TrimMode::Both);
 
@@ -114,7 +118,7 @@ ErrorOr<Optional<MimeType>> MimeType::parse(StringView string)
         return OptionalNone {};
 
     // 10. Let mimeType be a new MIME type record whose type is type, in ASCII lowercase, and subtype is subtype, in ASCII lowercase.
-    auto mime_type = MimeType::create(TRY(Infra::to_ascii_lowercase(type)), TRY(Infra::to_ascii_lowercase(subtype)));
+    auto mime_type = MimeType::create(MUST(Infra::to_ascii_lowercase(type)), MUST(Infra::to_ascii_lowercase(subtype)));
 
     // 11. While position is not past the end of input:
     while (!lexer.is_eof()) {
@@ -130,7 +134,7 @@ ErrorOr<Optional<MimeType>> MimeType::parse(StringView string)
         });
 
         // 4. Set parameterName to parameterName, in ASCII lowercase.
-        auto parameter_name = TRY(Infra::to_ascii_lowercase(parameter_name_view));
+        auto parameter_name = MUST(Infra::to_ascii_lowercase(parameter_name_view));
 
         // 5. If position is not past the end of input, then:
         if (!lexer.is_eof()) {
@@ -162,10 +166,10 @@ ErrorOr<Optional<MimeType>> MimeType::parse(StringView string)
         // 9. Otherwise:
         else {
             // 1. Set parameterValue to the result of collecting a sequence of code points that are not U+003B (;) from input, given position.
-            parameter_value = TRY(String::from_utf8(lexer.consume_until(';')));
+            parameter_value = String::from_utf8_without_validation(lexer.consume_until(';').bytes());
 
             // 2. Remove any trailing HTTP whitespace from parameterValue.
-            parameter_value = TRY(parameter_value.trim(Fetch::Infrastructure::HTTP_WHITESPACE, TrimMode::Right));
+            parameter_value = MUST(parameter_value.trim(Fetch::Infrastructure::HTTP_WHITESPACE, TrimMode::Right));
 
             // 3. If parameterValue is the empty string, then continue.
             if (parameter_value.is_empty())
@@ -183,7 +187,7 @@ ErrorOr<Optional<MimeType>> MimeType::parse(StringView string)
             // - mimeType’s parameters[parameterName] does not exist
             && !mime_type.m_parameters.contains(parameter_name)) {
             // then set mimeType’s parameters[parameterName] to parameterValue.
-            TRY(mime_type.m_parameters.try_set(move(parameter_name), move(parameter_value)));
+            mime_type.m_parameters.set(move(parameter_name), move(parameter_value));
         }
     }
 
