@@ -215,7 +215,7 @@ WebIDL::ExceptionOr<JS::Value> XMLHttpRequest::response()
     }
     // 6. Otherwise, if this’s response type is "blob", set this’s response object to a new Blob object representing this’s received bytes with type set to the result of get a final MIME type for this.
     else if (m_response_type == Bindings::XMLHttpRequestResponseType::Blob) {
-        auto mime_type_as_string = TRY_OR_THROW_OOM(vm, get_final_mime_type()).serialized();
+        auto mime_type_as_string = get_final_mime_type().serialized();
         auto blob_part = FileAPI::Blob::create(realm(), m_received_bytes, move(mime_type_as_string));
         auto blob = FileAPI::Blob::create(realm(), Vector<FileAPI::BlobPart> { JS::make_handle(*blob_part) });
         m_response_object = JS::NonnullGCPtr<JS::Object> { blob };
@@ -259,10 +259,10 @@ String XMLHttpRequest::get_text_response() const
         return String {};
 
     // 2. Let charset be the result of get a final encoding for xhr.
-    auto charset = get_final_encoding().release_value_but_fixme_should_propagate_errors();
+    auto charset = get_final_encoding();
 
     // 3. If xhr’s response type is the empty string, charset is null, and the result of get a final MIME type for xhr is an XML MIME type,
-    if (m_response_type == Bindings::XMLHttpRequestResponseType::Empty && !charset.has_value() && get_final_mime_type().release_value_but_fixme_should_propagate_errors().is_xml()) {
+    if (m_response_type == Bindings::XMLHttpRequestResponseType::Empty && !charset.has_value() && get_final_mime_type().is_xml()) {
         // FIXME: then use the rules set forth in the XML specifications to determine the encoding. Let charset be the determined encoding. [XML] [XML-NAMES]
     }
 
@@ -287,7 +287,7 @@ void XMLHttpRequest::set_document_response()
         return;
 
     // 2. Let finalMIME be the result of get a final MIME type for xhr.
-    auto final_mime = MUST(get_final_mime_type());
+    auto final_mime = get_final_mime_type();
 
     // 3. If finalMIME is not an HTML MIME type or an XML MIME type, then return.
     if (!final_mime.is_html() && !final_mime.is_xml())
@@ -302,7 +302,7 @@ void XMLHttpRequest::set_document_response()
     JS::GCPtr<DOM::Document> document;
     if (final_mime.is_html()) {
         // 5.1. Let charset be the result of get a final encoding for xhr.
-        if (auto final_encoding = MUST(get_final_encoding()); final_encoding.has_value())
+        if (auto final_encoding = get_final_encoding(); final_encoding.has_value())
             charset = MUST(String::from_utf8(*final_encoding));
 
         // 5.2. If charset is null, prescan the first 1024 bytes of xhr’s received bytes and if that does not terminate unsuccessfully then let charset be the return value.
@@ -353,7 +353,7 @@ void XMLHttpRequest::set_document_response()
 }
 
 // https://xhr.spec.whatwg.org/#final-mime-type
-ErrorOr<MimeSniff::MimeType> XMLHttpRequest::get_final_mime_type() const
+MimeSniff::MimeType XMLHttpRequest::get_final_mime_type() const
 {
     // 1. If xhr’s override MIME type is null, return the result of get a response MIME type for xhr.
     if (!m_override_mime_type.has_value())
@@ -364,7 +364,7 @@ ErrorOr<MimeSniff::MimeType> XMLHttpRequest::get_final_mime_type() const
 }
 
 // https://xhr.spec.whatwg.org/#response-mime-type
-ErrorOr<MimeSniff::MimeType> XMLHttpRequest::get_response_mime_type() const
+MimeSniff::MimeType XMLHttpRequest::get_response_mime_type() const
 {
     // 1. Let mimeType be the result of extracting a MIME type from xhr’s response’s header list.
     auto mime_type = m_response->header_list()->extract_mime_type();
@@ -378,13 +378,13 @@ ErrorOr<MimeSniff::MimeType> XMLHttpRequest::get_response_mime_type() const
 }
 
 // https://xhr.spec.whatwg.org/#final-charset
-ErrorOr<Optional<StringView>> XMLHttpRequest::get_final_encoding() const
+Optional<StringView> XMLHttpRequest::get_final_encoding() const
 {
     // 1. Let label be null.
     Optional<String> label;
 
     // 2. Let responseMIME be the result of get a response MIME type for xhr.
-    auto response_mime = TRY(get_response_mime_type());
+    auto response_mime = get_response_mime_type();
 
     // 3. If responseMIME’s parameters["charset"] exists, then set label to it.
     auto response_mime_charset_it = response_mime.parameters().find("charset"sv);
