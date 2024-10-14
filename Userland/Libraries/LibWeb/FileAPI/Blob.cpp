@@ -292,7 +292,7 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<Blob>> Blob::slice_blob(Optional<i64> start
         }
         // 2. Convert every character in relativeContentType to ASCII lowercase.
         else {
-            relative_content_type = TRY_OR_THROW_OOM(vm, Infra::to_ascii_lowercase(content_type.value()));
+            relative_content_type = content_type.value().to_ascii_lowercase();
         }
     }
 

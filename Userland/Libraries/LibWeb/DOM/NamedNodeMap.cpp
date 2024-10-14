@@ -65,7 +65,7 @@ Vector<FlyString> NamedNodeMap::supported_property_names() const
     if (associated_element().namespace_uri() == Namespace::HTML) {
         // 1. Let lowercaseName be name, in ASCII lowercase.
         // 2. If lowercaseName is not equal to name, remove name from names.
-        names.remove_all_matching([](auto const& name) { return name != MUST(Infra::to_ascii_lowercase(name)); });
+        names.remove_all_matching([](auto const& name) { return name != name.to_ascii_lowercase(); });
     }
 
     // 3. Return names.

@@ -381,6 +381,59 @@ ErrorOr<String> String::from_byte_string(ByteString const& byte_string)
     return String::from_utf8(byte_string.view());
 }
 
+String String::to_ascii_lowercase() const
+{
+    bool const has_ascii_uppercase = [&] {
+        for (u8 const byte : bytes()) {
+            if (AK::is_ascii_upper_alpha(byte))
+                return true;
+        }
+        return false;
+    }();
+
+    if (!has_ascii_uppercase)
+        return *this;
+
+    Vector<u8> lowercase_bytes;
+    lowercase_bytes.ensure_capacity(bytes().size());
+    for (u8 const byte : bytes()) {
+        if (AK::is_ascii_upper_alpha(byte))
+            lowercase_bytes.unchecked_append(AK::to_ascii_lowercase(byte));
+        else
+            lowercase_bytes.unchecked_append(byte);
+    }
+    return String::from_utf8_without_validation(lowercase_bytes);
+}
+
+String String::to_ascii_uppercase() const
+{
+    bool const has_ascii_lowercase = [&] {
+        for (u8 const byte : bytes()) {
+            if (AK::is_ascii_lower_alpha(byte))
+                return true;
+        }
+        return false;
+    }();
+
+    if (!has_ascii_lowercase)
+        return *this;
+
+    Vector<u8> uppercase_bytes;
+    uppercase_bytes.ensure_capacity(bytes().size());
+    for (u8 const byte : bytes()) {
+        if (AK::is_ascii_lower_alpha(byte))
+            uppercase_bytes.unchecked_append(AK::to_ascii_uppercase(byte));
+        else
+            uppercase_bytes.unchecked_append(byte);
+    }
+    return String::from_utf8_without_validation(uppercase_bytes);
+}
+
+bool String::equals_ignoring_ascii_case(String const& other) const
+{
+    return StringUtils::equals_ignoring_ascii_case(bytes_as_string_view(), other.bytes_as_string_view());
+}
+
 bool String::equals_ignoring_ascii_case(StringView other) const
 {
     return StringUtils::equals_ignoring_ascii_case(bytes_as_string_view(), other);
