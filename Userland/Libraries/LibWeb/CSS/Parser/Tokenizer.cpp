@@ -1064,11 +1064,20 @@ Token Tokenizer::consume_a_token()
     // This section describes how to consume a token from a stream of code points.
     // It will return a single token of any type.
 
+    auto start_byte_offset = current_byte_offset();
+
     // Consume comments.
     consume_comments();
 
+    // AD-HOC: Preserve comments as whitespace tokens, for serializing custom properties.
+    auto after_comments_byte_offset = current_byte_offset();
+    if (after_comments_byte_offset != start_byte_offset) {
+        auto token = create_new_token(Token::Type::Whitespace);
+        token.m_original_source_text = input_since(start_byte_offset);
+        return token;
+    }
+
     // Consume the next input code point.
-    auto start_byte_offset = current_byte_offset();
     auto input = next_code_point();
 
     // whitespace
