@@ -788,7 +788,8 @@ SimpleBlock Parser::consume_a_simple_block(TokenStream<T>& input)
         // ending token
         if (token.is(Token::Type::EndOfFile) || token.is(ending_token)) {
             // Discard a token from input. Return block.
-            input.discard_a_token();
+            // AD-HOC: Store the token instead as the "end token"
+            block.end_token = input.consume_a_token();
             return block;
         }
 
@@ -811,9 +812,11 @@ Function Parser::consume_a_function(TokenStream<T>& input)
 
     // Consume a token from input, and let function be a new function with its name equal the returned token’s value,
     // and a value set to an empty list.
+    auto name_token = ((Token)input.consume_a_token());
     Function function {
-        .name = ((Token)input.consume_a_token()).function(),
+        .name = name_token.function(),
         .value = {},
+        .name_token = name_token,
     };
 
     // Process input:
@@ -824,7 +827,8 @@ Function Parser::consume_a_function(TokenStream<T>& input)
         // <)-token>
         if (token.is(Token::Type::EndOfFile) || token.is(Token::Type::CloseParen)) {
             // Discard a token from input. Return function.
-            input.discard_a_token();
+            // AD-HOC: Store the token instead as the "end token"
+            function.end_token = input.consume_a_token();
             return function;
         }
 

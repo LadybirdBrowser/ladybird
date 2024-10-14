@@ -63,20 +63,25 @@ struct Declaration {
 struct SimpleBlock {
     Token token;
     Vector<ComponentValue> value;
+    Token end_token = {};
 
     bool is_curly() const { return token.is(Token::Type::OpenCurly); }
     bool is_paren() const { return token.is(Token::Type::OpenParen); }
     bool is_square() const { return token.is(Token::Type::OpenSquare); }
 
     String to_string() const;
+    String original_source_text() const;
 };
 
 // https://drafts.csswg.org/css-syntax/#function
 struct Function {
     FlyString name;
     Vector<ComponentValue> value;
+    Token name_token = {};
+    Token end_token = {};
 
     String to_string() const;
+    String original_source_text() const;
 };
 
 }

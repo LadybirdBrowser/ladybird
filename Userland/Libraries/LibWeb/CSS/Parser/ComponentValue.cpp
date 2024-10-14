@@ -36,10 +36,7 @@ bool ComponentValue::is_ident(StringView ident) const
 
 String ComponentValue::to_string() const
 {
-    return m_value.visit(
-        [](Token const& token) { return token.to_string(); },
-        [](SimpleBlock const& block) { return block.to_string(); },
-        [](Function const& function) { return function.to_string(); });
+    return m_value.visit([](auto const& it) { return it.to_string(); });
 }
 
 String ComponentValue::to_debug_string() const
@@ -54,6 +51,11 @@ String ComponentValue::to_debug_string() const
         [](Function const& function) {
             return MUST(String::formatted("Function: {}", function.to_string()));
         });
+}
+
+String ComponentValue::original_source_text() const
+{
+    return m_value.visit([](auto const& it) { return it.original_source_text(); });
 }
 
 }
