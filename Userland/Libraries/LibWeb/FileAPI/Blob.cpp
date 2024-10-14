@@ -204,7 +204,7 @@ JS::NonnullGCPtr<Blob> Blob::create(JS::Realm& realm, Optional<Vector<BlobPart>>
 
         // NOTE: The spec is out of date, and we are supposed to call into the MimeType parser here.
         if (!options->type.is_empty()) {
-            auto maybe_parsed_type = MUST(Web::MimeSniff::MimeType::parse(options->type));
+            auto maybe_parsed_type = Web::MimeSniff::MimeType::parse(options->type);
 
             if (maybe_parsed_type.has_value())
                 type = maybe_parsed_type->serialized();

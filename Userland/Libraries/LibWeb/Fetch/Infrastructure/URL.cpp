@@ -97,7 +97,7 @@ ErrorOr<DataURL> process_data_url(URL::URL const& data_url)
     }
 
     // 13. Let mimeTypeRecord be the result of parsing mimeType.
-    auto mime_type_record = TRY(MimeSniff::MimeType::parse(mime_type));
+    auto mime_type_record = MimeSniff::MimeType::parse(mime_type);
 
     // 14. If mimeTypeRecord is failure, then set mimeTypeRecord to text/plain;charset=US-ASCII.
     if (!mime_type_record.has_value()) {

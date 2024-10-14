@@ -235,7 +235,7 @@ FileFilter HTMLInputElement::parse_accept_attribute() const
 
         // A valid MIME type string with no parameters
         //     Indicates that files of the specified type are accepted.
-        else if (auto mime_type = MUST(MimeSniff::MimeType::parse(value)); mime_type.has_value() && mime_type->parameters().is_empty())
+        else if (auto mime_type = MimeSniff::MimeType::parse(value); mime_type.has_value() && mime_type->parameters().is_empty())
             filter.add_filter(FileFilter::MimeType { mime_type->essence() });
 
         // A string whose first character is a U+002E FULL STOP character (.)

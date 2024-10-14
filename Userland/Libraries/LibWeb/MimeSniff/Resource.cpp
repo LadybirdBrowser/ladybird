@@ -388,7 +388,7 @@ ErrorOr<MimeType> rules_for_identifying_an_unknown_mime_type(Resource const& res
 
             // 2. If patternMatched is true, return the value in the fourth column of row.
             if (pattern_matched) {
-                if (auto maybe_type = TRY(MimeType::parse(row.mime_type)); maybe_type.has_value())
+                if (auto maybe_type = MimeType::parse(row.mime_type); maybe_type.has_value())
                     return maybe_type.release_value();
             }
         }
@@ -419,7 +419,7 @@ ErrorOr<MimeType> rules_for_identifying_an_unknown_mime_type(Resource const& res
 
         // 2. If patternMatched is true, return the value in the fourth column of row.
         if (pattern_matched) {
-            if (auto maybe_type = TRY(MimeType::parse(row.mime_type)); maybe_type.has_value())
+            if (auto maybe_type = MimeType::parse(row.mime_type); maybe_type.has_value())
                 return maybe_type.release_value();
         }
     }

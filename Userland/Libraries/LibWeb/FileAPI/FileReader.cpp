@@ -86,8 +86,8 @@ WebIDL::ExceptionOr<FileReader::Result> FileReader::blob_package_data(JS::Realm&
             auto maybe_type = MimeSniff::MimeType::parse(mime_type.value());
 
             // 2. If type is not failure, set encoding to the result of getting an encoding from type’s parameters["charset"].
-            if (!maybe_type.is_error() && maybe_type.value().has_value()) {
-                auto type = maybe_type.release_value().value();
+            if (maybe_type.has_value()) {
+                auto const& type = maybe_type.value();
                 auto it = type.parameters().find("charset"sv);
                 if (it != type.parameters().end())
                     encoding = TextCodec::get_standardized_encoding(it->value);

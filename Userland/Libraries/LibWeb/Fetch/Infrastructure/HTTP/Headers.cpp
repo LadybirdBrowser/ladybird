@@ -365,7 +365,7 @@ Optional<MimeSniff::MimeType> HeaderList::extract_mime_type() const
     // 6. For each value of values:
     for (auto const& value : *values) {
         // 1. Let temporaryMimeType be the result of parsing value.
-        auto temporary_mime_type = MUST(MimeSniff::MimeType::parse(value));
+        auto temporary_mime_type = MimeSniff::MimeType::parse(value);
 
         // 2. If temporaryMimeType is failure or its essence is "*/*", then continue.
         if (!temporary_mime_type.has_value() || temporary_mime_type->essence() == "*/*"sv)
@@ -523,7 +523,7 @@ bool is_cors_safelisted_request_header(Header const& header)
             return false;
 
         // 2. Let mimeType be the result of parsing the result of isomorphic decoding value.
-        auto mime_type = MimeSniff::MimeType::parse(StringView { value }).release_value_but_fixme_should_propagate_errors();
+        auto mime_type = MimeSniff::MimeType::parse(StringView { value });
 
         // 3. If mimeType is failure, then return false.
         if (!mime_type.has_value())

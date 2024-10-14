@@ -181,7 +181,7 @@ void FontLoader::start_loading_next_url()
 ErrorOr<NonnullRefPtr<Gfx::Typeface>> FontLoader::try_load_font()
 {
     // FIXME: This could maybe use the format() provided in @font-face as well, since often the mime type is just application/octet-stream and we have to try every format
-    auto mime_type = MUST(MimeSniff::MimeType::parse(resource()->mime_type()));
+    auto mime_type = MimeSniff::MimeType::parse(resource()->mime_type());
     if (!mime_type.has_value() || !mime_type->is_font()) {
         mime_type = MUST(MimeSniff::Resource::sniff(resource()->encoded_data(), Web::MimeSniff::SniffingConfiguration { .sniffing_context = Web::MimeSniff::SniffingContext::Font }));
     }

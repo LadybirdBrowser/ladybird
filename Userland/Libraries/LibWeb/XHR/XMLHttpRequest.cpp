@@ -594,7 +594,7 @@ WebIDL::ExceptionOr<void> XMLHttpRequest::send(Optional<DocumentOrXMLHttpRequest
             // 1. If body is a Document or a USVString, then:
             if (body->has<JS::Handle<DOM::Document>>() || body->has<String>()) {
                 // 1. Let contentTypeRecord be the result of parsing originalAuthorContentType.
-                auto content_type_record = TRY_OR_THROW_OOM(vm, MimeSniff::MimeType::parse(original_author_content_type.value()));
+                auto content_type_record = MimeSniff::MimeType::parse(original_author_content_type.value());
 
                 // 2. If contentTypeRecord is not failure, contentTypeRecord’s parameters["charset"] exists, and parameters["charset"] is not an ASCII case-insensitive match for "UTF-8", then:
                 if (content_type_record.has_value()) {
@@ -1028,14 +1028,12 @@ WebIDL::ExceptionOr<String> XMLHttpRequest::get_all_response_headers() const
 // https://xhr.spec.whatwg.org/#dom-xmlhttprequest-overridemimetype
 WebIDL::ExceptionOr<void> XMLHttpRequest::override_mime_type(String const& mime)
 {
-    auto& vm = this->vm();
-
     // 1. If this’s state is loading or done, then throw an "InvalidStateError" DOMException.
     if (m_state == State::Loading || m_state == State::Done)
         return WebIDL::InvalidStateError::create(realm(), "Cannot override MIME type when state is Loading or Done."_string);
 
     // 2. Set this’s override MIME type to the result of parsing mime.
-    m_override_mime_type = TRY_OR_THROW_OOM(vm, MimeSniff::MimeType::parse(mime));
+    m_override_mime_type = MimeSniff::MimeType::parse(mime);
 
     // 3. If this’s override MIME type is failure, then set this’s override MIME type to application/octet-stream.
     if (!m_override_mime_type.has_value())
