@@ -139,6 +139,13 @@ CSS::Size StyleProperties::size_value(CSS::PropertyID id) const
         switch (value->to_keyword()) {
         case Keyword::Auto:
             return CSS::Size::make_auto();
+        case Keyword::Normal:
+            if (id == CSS::PropertyID::Gap || id == CSS::PropertyID::ColumnGap || id == CSS::PropertyID::RowGap) {
+                // FIXME: Context based value, assign `1em` if container has multiple columns:
+                // https://drafts.csswg.org/css-align/#valdef-row-gap-normal
+                return CSS::Size::make_px(0);
+            }
+            VERIFY_NOT_REACHED();
         case Keyword::MinContent:
             return CSS::Size::make_min_content();
         case Keyword::MaxContent:
