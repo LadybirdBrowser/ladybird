@@ -4,7 +4,6 @@
 // https://dom.spec.whatwg.org/#interface-treewalker
 [Exposed=Window]
 interface TreeWalker {
-
     [SameObject] readonly attribute Node root;
     readonly attribute unsigned long whatToShow;
     readonly attribute NodeFilter? filter;
@@ -17,5 +16,4 @@ interface TreeWalker {
     Node? nextSibling();
     Node? previousNode();
     Node? nextNode();
-
 };

@@ -43,7 +43,7 @@ interface Node : EventTarget {
 
     [ImplementedAs=clone_node_binding, CEReactions] Node cloneNode(optional boolean deep = false);
     boolean isEqualNode(Node? otherNode);
-    boolean isSameNode(Node? otherNode);
+    boolean isSameNode(Node? otherNode); // legacy alias of ===
 
     const unsigned short DOCUMENT_POSITION_DISCONNECTED = 0x01;
     const unsigned short DOCUMENT_POSITION_PRECEDING = 0x02;
