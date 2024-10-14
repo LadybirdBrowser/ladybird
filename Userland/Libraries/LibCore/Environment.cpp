@@ -12,7 +12,7 @@
 
 #if defined(AK_OS_MACOS) || defined(AK_OS_IOS)
 #    include <crt_externs.h>
-#else
+#elif !defined(AK_OS_WINDOWS)
 extern "C" char** environ;
 #endif
 
@@ -93,8 +93,8 @@ Optional<StringView> get(StringView name, [[maybe_unused]] SecureOnly secure)
     builder.append('\0');
     // Note the explicit null terminators above.
 
-    // FreeBSD < 14, Android, and generic BSDs do not support secure_getenv.
-#if (defined(__FreeBSD__) && __FreeBSD__ >= 14) || (!defined(AK_OS_BSD_GENERIC) && !defined(AK_OS_ANDROID))
+    // FreeBSD < 14, Android, generic BSDs, and Windows do not support secure_getenv.
+#if (defined(__FreeBSD__) && __FreeBSD__ >= 14) || (!defined(AK_OS_BSD_GENERIC) && !defined(AK_OS_ANDROID) && !defined(AK_OS_WINDOWS))
     char* result;
     if (secure == SecureOnly::Yes) {
         result = ::secure_getenv(builder.string_view().characters_without_null_termination());
@@ -119,7 +119,13 @@ ErrorOr<void> set(StringView name, StringView value, Overwrite overwrite)
     // Note the explicit null terminators above.
     auto c_name = builder.string_view().characters_without_null_termination();
     auto c_value = c_name + name.length() + 1;
+#ifndef AK_OS_WINDOWS
     auto rc = ::setenv(c_name, c_value, overwrite == Overwrite::Yes ? 1 : 0);
+#else
+    if (overwrite == Overwrite::No && getenv(c_name))
+        return {};
+    auto rc = _putenv_s(c_name, c_value);
+#endif
     if (rc < 0)
         return Error::from_errno(errno);
     return {};
@@ -130,13 +136,39 @@ ErrorOr<void> unset(StringView name)
     auto builder = TRY(StringBuilder::create());
     TRY(builder.try_append(name));
     TRY(builder.try_append('\0'));
-
     // Note the explicit null terminator above.
-    auto rc = ::unsetenv(builder.string_view().characters_without_null_termination());
+    auto c_name = builder.string_view().characters_without_null_termination();
+
+#ifndef AK_OS_WINDOWS
+    auto rc = ::unsetenv(c_name);
+#else
+    auto rc = _putenv_s(c_name, "");
+#endif
     if (rc < 0)
         return Error::from_errno(errno);
     return {};
 }
+
+#ifdef AK_OS_WINDOWS
+char* strndup(char const* str, size_t len)
+{
+    if (!str)
+        return 0;
+
+    auto p = str;
+    while (len > 0 && *p != 0)
+        p++, len--;
+
+    len = p - str;
+    char* ret = (char*)malloc(len + 1);
+    if (!ret)
+        return 0;
+
+    memcpy(ret, str, len);
+    ret[len] = 0;
+    return ret;
+}
+#endif
 
 ErrorOr<void> put(StringView env)
 {
@@ -160,6 +192,16 @@ ErrorOr<void> clear()
     auto environment = raw_environ();
     for (size_t environ_size = 0; environment[environ_size]; ++environ_size) {
         environment[environ_size] = NULL;
+    }
+#elif defined(AK_OS_WINDOWS)
+    // environ = 0 doesn't work on Windows
+    while (auto str = environ[0]) {
+        auto eq = strchr(str, '=');
+        VERIFY(eq);
+        auto name_len = eq - str;
+        auto name = strndup(str, name_len);
+        _putenv_s(name, "");
+        free(name);
     }
 #else
     auto rc = ::clearenv();
