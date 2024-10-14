@@ -726,7 +726,7 @@ void StyleComputer::for_each_property_expanding_shorthands(PropertyID property_i
         return;
     }
 
-    if (property_id == CSS::PropertyID::Gap || property_id == CSS::PropertyID::GridGap) {
+    if (property_id == CSS::PropertyID::Gap) {
         if (value.is_value_list()) {
             auto const& values_list = value.as_value_list();
             set_longhand_property(CSS::PropertyID::RowGap, values_list.values()[0]);
@@ -734,16 +734,6 @@ void StyleComputer::for_each_property_expanding_shorthands(PropertyID property_i
             return;
         }
         set_longhand_property(CSS::PropertyID::RowGap, value);
-        set_longhand_property(CSS::PropertyID::ColumnGap, value);
-        return;
-    }
-
-    if (property_id == CSS::PropertyID::RowGap || property_id == CSS::PropertyID::GridRowGap) {
-        set_longhand_property(CSS::PropertyID::RowGap, value);
-        return;
-    }
-
-    if (property_id == CSS::PropertyID::ColumnGap || property_id == CSS::PropertyID::GridColumnGap) {
         set_longhand_property(CSS::PropertyID::ColumnGap, value);
         return;
     }
