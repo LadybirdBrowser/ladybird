@@ -584,8 +584,8 @@ TraversableNavigable::HistoryStepResult TraversableNavigable::apply_the_history_
                     //     - targetEntry's document's browsing context is not an auxiliary browsing context whose opener browsing context is non-null; and
                     //     - targetEntry's document's origin is not oldOrigin,
                     //    then set targetEntry's document state's navigable target name to the empty string.
-                    if (navigable->parent() != nullptr
-                        && target_entry->document()->browsing_context()->opener_browsing_context() == nullptr
+                    if (navigable->parent() == nullptr
+                        && !(target_entry->document()->browsing_context()->is_auxiliary() && target_entry->document()->browsing_context()->opener_browsing_context() != nullptr)
                         && target_entry->document_state()->origin() != old_origin) {
                         target_entry->document_state()->set_navigable_target_name(String {});
                     }
