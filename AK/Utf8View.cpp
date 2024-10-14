@@ -30,14 +30,6 @@ Utf8CodePointIterator Utf8View::iterator_at_byte_offset_without_validation(size_
     return Utf8CodePointIterator { reinterpret_cast<u8 const*>(m_string.characters_without_null_termination()) + byte_offset, m_string.length() - byte_offset };
 }
 
-size_t Utf8View::byte_offset_of(Utf8CodePointIterator const& it) const
-{
-    VERIFY(it.m_ptr >= begin_ptr());
-    VERIFY(it.m_ptr <= end_ptr());
-
-    return it.m_ptr - begin_ptr();
-}
-
 size_t Utf8View::byte_offset_of(size_t code_point_offset) const
 {
     size_t byte_offset = 0;
@@ -167,97 +159,6 @@ bool Utf8View::validate(size_t& valid_bytes, AllowSurrogates allow_surrogates) c
     }
 
     return result.error == simdutf::SUCCESS;
-}
-
-Utf8CodePointIterator& Utf8CodePointIterator::operator++()
-{
-    VERIFY(m_length > 0);
-
-    // OPTIMIZATION: Fast path for ASCII characters.
-    if (*m_ptr <= 0x7F) {
-        m_ptr += 1;
-        m_length -= 1;
-        return *this;
-    }
-
-    size_t code_point_length_in_bytes = underlying_code_point_length_in_bytes();
-    if (code_point_length_in_bytes > m_length) {
-        // We don't have enough data for the next code point. Skip one character and try again.
-        // The rest of the code will output replacement characters as needed for any eventual extension bytes we might encounter afterwards.
-        dbgln_if(UTF8_DEBUG, "Expected code point size {} is too big for the remaining length {}. Moving forward one byte.", code_point_length_in_bytes, m_length);
-        m_ptr += 1;
-        m_length -= 1;
-        return *this;
-    }
-
-    m_ptr += code_point_length_in_bytes;
-    m_length -= code_point_length_in_bytes;
-    return *this;
-}
-
-size_t Utf8CodePointIterator::underlying_code_point_length_in_bytes() const
-{
-    VERIFY(m_length > 0);
-    auto [code_point_length_in_bytes, value, first_byte_makes_sense] = Utf8View::decode_leading_byte(*m_ptr);
-
-    // If any of these tests fail, we will output a replacement character for this byte and treat it as a code point of size 1.
-    if (!first_byte_makes_sense)
-        return 1;
-
-    if (code_point_length_in_bytes > m_length)
-        return 1;
-
-    for (size_t offset = 1; offset < code_point_length_in_bytes; offset++) {
-        if (m_ptr[offset] >> 6 != 2)
-            return 1;
-    }
-
-    return code_point_length_in_bytes;
-}
-
-ReadonlyBytes Utf8CodePointIterator::underlying_code_point_bytes() const
-{
-    return { m_ptr, underlying_code_point_length_in_bytes() };
-}
-
-u32 Utf8CodePointIterator::operator*() const
-{
-    VERIFY(m_length > 0);
-
-    // OPTIMIZATION: Fast path for ASCII characters.
-    if (*m_ptr <= 0x7F)
-        return *m_ptr;
-
-    auto [code_point_length_in_bytes, code_point_value_so_far, first_byte_makes_sense] = Utf8View::decode_leading_byte(*m_ptr);
-
-    if (!first_byte_makes_sense) {
-        // The first byte of the code point doesn't make sense: output a replacement character
-        dbgln_if(UTF8_DEBUG, "First byte doesn't make sense: {:#02x}.", m_ptr[0]);
-        return 0xFFFD;
-    }
-
-    if (code_point_length_in_bytes > m_length) {
-        // There is not enough data left for the full code point: output a replacement character
-        dbgln_if(UTF8_DEBUG, "Not enough bytes (need {}, have {}), first byte is: {:#02x}.", code_point_length_in_bytes, m_length, m_ptr[0]);
-        return 0xFFFD;
-    }
-
-    for (size_t offset = 1; offset < code_point_length_in_bytes; offset++) {
-        if (m_ptr[offset] >> 6 != 2) {
-            // One of the extension bytes of the code point doesn't make sense: output a replacement character
-            dbgln_if(UTF8_DEBUG, "Extension byte {:#02x} in {} position after first byte {:#02x} doesn't make sense.", m_ptr[offset], offset, m_ptr[0]);
-            return 0xFFFD;
-        }
-
-        code_point_value_so_far <<= 6;
-        code_point_value_so_far |= m_ptr[offset] & 63;
-    }
-
-    if (code_point_value_so_far > 0x10FFFF) {
-        dbgln_if(UTF8_DEBUG, "Multi-byte sequence is otherwise valid, but code point {:#x} is not permissible.", code_point_value_so_far);
-        return 0xFFFD;
-    }
-    return code_point_value_so_far;
 }
 
 Optional<u32> Utf8CodePointIterator::peek(size_t offset) const
