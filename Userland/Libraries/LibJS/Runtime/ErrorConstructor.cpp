@@ -7,7 +7,6 @@
 #include <LibJS/Runtime/AbstractOperations.h>
 #include <LibJS/Runtime/Error.h>
 #include <LibJS/Runtime/ErrorConstructor.h>
-#include <LibJS/Runtime/GlobalObject.h>
 
 namespace JS {
 

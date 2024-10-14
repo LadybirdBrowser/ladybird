@@ -4,7 +4,9 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibJS/Heap/Heap.h>
 #include <LibJS/Runtime/DataView.h>
+#include <LibJS/Runtime/Realm.h>
 
 namespace JS {
 

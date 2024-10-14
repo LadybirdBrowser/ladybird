@@ -6,7 +6,6 @@
 
 #include <AK/StringBuilder.h>
 #include <LibJS/Runtime/Array.h>
-#include <LibJS/Runtime/GlobalObject.h>
 #include <LibJS/Runtime/Intl/ListFormat.h>
 #include <LibJS/Runtime/Iterator.h>
 #include <LibUnicode/ListFormat.h>

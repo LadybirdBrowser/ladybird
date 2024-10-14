@@ -6,8 +6,8 @@
  */
 
 #include <LibJS/Runtime/Error.h>
-#include <LibJS/Runtime/GlobalObject.h>
 #include <LibJS/Runtime/SymbolConstructor.h>
+#include <LibJS/Runtime/VM.h>
 
 namespace JS {
 
