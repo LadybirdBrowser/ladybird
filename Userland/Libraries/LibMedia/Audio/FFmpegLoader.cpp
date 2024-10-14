@@ -260,8 +260,12 @@ ErrorOr<Vector<FixedArray<Sample>>, LoaderError> FFmpegLoaderPlugin::load_chunks
 
     do {
         // Obtain a packet
-        if (av_read_frame(m_format_context, m_packet) < 0)
+        auto read_frame_error = av_read_frame(m_format_context, m_packet);
+        if (read_frame_error < 0) {
+            if (read_frame_error == AVERROR_EOF)
+                break;
             return LoaderError { LoaderError::Category::IO, "Failed to read frame" };
+        }
         if (m_packet->stream_index != m_audio_stream->index) {
             av_packet_unref(m_packet);
             continue;
@@ -278,7 +282,7 @@ ErrorOr<Vector<FixedArray<Sample>>, LoaderError> FFmpegLoaderPlugin::load_chunks
             if (receive_frame_error == AVERROR(EAGAIN))
                 continue;
             if (receive_frame_error == AVERROR_EOF)
-                return Error::from_errno(EOF);
+                break;
             return LoaderError { LoaderError::Category::IO, "Failed to receive frame" };
         }
 
