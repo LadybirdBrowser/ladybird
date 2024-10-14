@@ -94,6 +94,11 @@ String CSSStyleRule::serialized() const
 
         // 2. For each rule in rules:
         for (auto& rule : rules) {
+            // * If rule is the empty string, do nothing.
+            if (rule.is_empty())
+                continue;
+
+            // * Otherwise:
             // 1. Append a newline followed by two spaces to s.
             // 2. Append rule to s.
             builder.appendff("\n  {}", rule);
