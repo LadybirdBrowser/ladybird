@@ -14,6 +14,7 @@
 #include <LibWeb/Layout/SVGFormattingContext.h>
 #include <LibWeb/Layout/SVGSVGBox.h>
 #include <LibWeb/Layout/TableFormattingContext.h>
+#include <LibWeb/Layout/TextNode.h>
 #include <LibWeb/Layout/Viewport.h>
 
 namespace Web::Layout {

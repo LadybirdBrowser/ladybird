@@ -309,7 +309,7 @@ void TreeBuilder::create_layout_tree(DOM::Node& dom_node, TreeBuilder::Context& 
         if (!layout_node) {
             dom_node.for_each_in_inclusive_subtree([&](auto& node) {
                 node.detach_layout_node({});
-                node.set_paintable(nullptr);
+                node.clear_paintable();
                 if (is<DOM::Element>(node))
                     static_cast<DOM::Element&>(node).clear_pseudo_element_nodes({});
                 return TraversalDecision::Continue;

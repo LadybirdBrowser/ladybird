@@ -8,6 +8,7 @@
 
 #include <LibWeb/CSS/Sizing.h>
 #include <LibWeb/Layout/Node.h>
+#include <LibWeb/Layout/TextNode.h>
 #include <LibWeb/Layout/Viewport.h>
 #include <LibWeb/Painting/BackgroundPainting.h>
 #include <LibWeb/Painting/InlinePaintable.h>

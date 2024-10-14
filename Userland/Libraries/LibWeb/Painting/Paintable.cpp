@@ -51,6 +51,38 @@ bool Paintable::is_visible() const
     return computed_values.visibility() == CSS::Visibility::Visible && computed_values.opacity() != 0;
 }
 
+DOM::Document const& Paintable::document() const
+{
+    return layout_node().document();
+}
+
+DOM::Document& Paintable::document()
+{
+    return layout_node().document();
+}
+
+CSS::Display Paintable::display() const
+{
+    return layout_node().display();
+}
+
+PaintableBox* Paintable::containing_block() const
+{
+    if (!m_containing_block.has_value()) {
+        auto containing_layout_box = m_layout_node->containing_block();
+        if (containing_layout_box)
+            m_containing_block = const_cast<PaintableBox*>(containing_layout_box->paintable_box());
+        else
+            m_containing_block = nullptr;
+    }
+    return *m_containing_block;
+}
+
+CSS::ImmutableComputedValues const& Paintable::computed_values() const
+{
+    return m_layout_node->computed_values();
+}
+
 void Paintable::set_dom_node(JS::GCPtr<DOM::Node> dom_node)
 {
     m_dom_node = dom_node;
