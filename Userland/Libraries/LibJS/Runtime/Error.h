@@ -19,7 +19,7 @@ struct TracebackFrame {
     DeprecatedFlyString function_name;
     [[nodiscard]] SourceRange const& source_range() const;
 
-    mutable Variant<SourceRange, UnrealizedSourceRange> source_range_storage;
+    RefPtr<CachedSourceRange> cached_source_range;
 };
 
 enum CompactTraceback {

@@ -156,6 +156,7 @@ class Accessor;
 struct AsyncGeneratorRequest;
 class BigInt;
 class BoundFunction;
+struct CachedSourceRange;
 class Cell;
 class CellAllocator;
 class ClassExpression;
