@@ -48,7 +48,9 @@ void Node::visit_edges(Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_dom_node);
-    visitor.visit(m_paintable);
+    for (auto const& paintable : m_paintable) {
+        visitor.visit(JS::GCPtr { &paintable });
+    }
     visitor.visit(m_pseudo_element_generator);
     TreeNode::visit_edges(visitor);
 }
@@ -1015,9 +1017,16 @@ void NodeWithStyle::transfer_table_box_computed_values_to_wrapper_computed_value
     reset_table_box_computed_values_used_by_wrapper_to_init_values();
 }
 
-void Node::set_paintable(JS::GCPtr<Painting::Paintable> paintable)
+void Node::add_paintable(JS::GCPtr<Painting::Paintable> paintable)
 {
-    m_paintable = move(paintable);
+    if (!paintable)
+        return;
+    m_paintable.append(*paintable);
+}
+
+void Node::clear_paintables()
+{
+    m_paintable.clear();
 }
 
 JS::GCPtr<Painting::Paintable> Node::create_paintable() const

@@ -1924,6 +1924,11 @@ void Node::set_paintable(JS::GCPtr<Painting::Paintable> paintable)
     m_paintable = paintable;
 }
 
+void Node::clear_paintable()
+{
+    m_paintable = nullptr;
+}
+
 Painting::Paintable const* Node::paintable() const
 {
     return m_paintable;

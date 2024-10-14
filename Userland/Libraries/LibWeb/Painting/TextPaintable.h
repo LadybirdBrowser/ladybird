@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <LibWeb/Layout/TextNode.h>
 #include <LibWeb/Painting/PaintableBox.h>
 
 namespace Web::Painting {

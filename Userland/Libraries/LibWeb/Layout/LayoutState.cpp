@@ -221,11 +221,11 @@ void LayoutState::commit(Box& root)
     //       from the layout tree. This is done to ensure that we don't end up with any old-tree pointers
     //       when text paintables shift around in the tree.
     root.for_each_in_inclusive_subtree([&](Layout::Node& node) {
-        node.set_paintable(nullptr);
+        node.clear_paintables();
         return TraversalDecision::Continue;
     });
     root.document().for_each_shadow_including_inclusive_descendant([&](DOM::Node& node) {
-        node.set_paintable(nullptr);
+        node.clear_paintable();
         return TraversalDecision::Continue;
     });
 
@@ -248,7 +248,7 @@ void LayoutState::commit(Box& root)
 
         auto paintable = node.create_paintable();
 
-        node.set_paintable(paintable);
+        node.add_paintable(paintable);
 
         // For boxes, transfer all the state needed for painting.
         if (paintable && is<Painting::PaintableBox>(*paintable)) {
@@ -351,7 +351,7 @@ void LayoutState::commit(Box& root)
     }
 
     for (auto* text_node : text_nodes) {
-        text_node->set_paintable(text_node->create_paintable());
+        text_node->add_paintable(text_node->create_paintable());
         auto* paintable = text_node->paintable();
         auto const& font = text_node->first_available_font();
         auto const glyph_height = CSSPixels::nearest_value_for(font.pixel_size());

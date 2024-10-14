@@ -248,6 +248,7 @@ public:
     Painting::Paintable* paintable();
 
     void set_paintable(JS::GCPtr<Painting::Paintable>);
+    void clear_paintable();
 
     void set_layout_node(Badge<Layout::Node>, JS::NonnullGCPtr<Layout::Node>);
     void detach_layout_node(Badge<Layout::TreeBuilder>);

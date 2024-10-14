@@ -11,6 +11,7 @@
 #include <LibWeb/DOM/DocumentLoading.h>
 #include <LibWeb/DOM/Event.h>
 #include <LibWeb/DOM/Range.h>
+#include <LibWeb/DOM/Text.h>
 #include <LibWeb/Fetch/Fetching/Fetching.h>
 #include <LibWeb/Fetch/Infrastructure/FetchAlgorithms.h>
 #include <LibWeb/Fetch/Infrastructure/FetchController.h>
