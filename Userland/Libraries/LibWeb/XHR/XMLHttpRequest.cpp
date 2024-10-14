@@ -1039,7 +1039,7 @@ WebIDL::ExceptionOr<void> XMLHttpRequest::override_mime_type(String const& mime)
 
     // 3. If this’s override MIME type is failure, then set this’s override MIME type to application/octet-stream.
     if (!m_override_mime_type.has_value())
-        m_override_mime_type = TRY_OR_THROW_OOM(vm, MimeSniff::MimeType::create("application"_string, "octet-stream"_string));
+        m_override_mime_type = MimeSniff::MimeType::create("application"_string, "octet-stream"_string);
 
     return {};
 }

@@ -17,7 +17,7 @@ bool is_javascript_mime_type_essence_match(StringView);
 // https://mimesniff.spec.whatwg.org/#mime-type
 class MimeType {
 public:
-    static ErrorOr<MimeType> create(String type, String subtype);
+    static MimeType create(String type, String subtype);
     static ErrorOr<Optional<MimeType>> parse(StringView);
 
     MimeType(MimeType const&);
