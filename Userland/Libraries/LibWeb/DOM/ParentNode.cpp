@@ -139,7 +139,7 @@ JS::NonnullGCPtr<HTMLCollection> ParentNode::get_elements_by_tag_name(FlyString 
 
     // 2. Otherwise, if root’s node document is an HTML document, return a HTMLCollection rooted at root, whose filter matches the following descendant elements:
     if (root().document().document_type() == Document::Type::HTML) {
-        FlyString qualified_name_in_ascii_lowercase = MUST(Infra::to_ascii_lowercase(qualified_name));
+        FlyString qualified_name_in_ascii_lowercase = qualified_name.to_ascii_lowercase();
         return HTMLCollection::create(*this, HTMLCollection::Scope::Descendants, [qualified_name, qualified_name_in_ascii_lowercase](Element const& element) {
             // - Whose namespace is the HTML namespace and whose qualified name is qualifiedName, in ASCII lowercase.
             if (element.namespace_uri() == Namespace::HTML)

@@ -395,7 +395,7 @@ Parser::ParseErrorOr<Selector::SimpleSelector> Parser::parse_pseudo_simple_selec
             return Selector::SimpleSelector {
                 .type = Selector::SimpleSelector::Type::PseudoElement,
                 // Unknown -webkit- pseudo-elements must be serialized in ASCII lowercase.
-                .value = Selector::PseudoElement { Selector::PseudoElement::Type::UnknownWebKit, MUST(Infra::to_ascii_lowercase(pseudo_name.to_string())) },
+                .value = Selector::PseudoElement { Selector::PseudoElement::Type::UnknownWebKit, pseudo_name.to_string().to_ascii_lowercase() },
             };
         }
 

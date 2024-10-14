@@ -1506,7 +1506,7 @@ String HTMLInputElement::value_sanitization_algorithm(String const& value) const
         // https://html.spec.whatwg.org/multipage/input.html#color-state-(type=color):value-sanitization-algorithm
         // If the value of the element is a valid simple color, then set it to the value of the element converted to ASCII lowercase;
         if (is_valid_simple_color(value))
-            return MUST(Infra::to_ascii_lowercase(value));
+            return value.to_ascii_lowercase();
         // otherwise, set it to the string "#000000".
         return "#000000"_string;
     }

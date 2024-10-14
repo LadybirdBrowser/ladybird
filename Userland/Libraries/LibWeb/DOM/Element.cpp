@@ -184,7 +184,7 @@ WebIDL::ExceptionOr<void> Element::set_attribute(FlyString const& name, String c
     // 4. If attribute is null, create an attribute whose local name is qualifiedName, value is value, and node document
     //    is this’s node document, then append this attribute to this, and then return.
     if (!attribute) {
-        auto new_attribute = Attr::create(document(), insert_as_lowercase ? MUST(Infra::to_ascii_lowercase(name)) : name, value);
+        auto new_attribute = Attr::create(document(), insert_as_lowercase ? name.to_ascii_lowercase() : name, value);
         m_attributes->append_attribute(new_attribute);
 
         return {};
@@ -354,7 +354,7 @@ WebIDL::ExceptionOr<bool> Element::toggle_attribute(FlyString const& name, Optio
         // 1. If force is not given or is true, create an attribute whose local name is qualifiedName, value is the empty
         //    string, and node document is this’s node document, then append this attribute to this, and then return true.
         if (!force.has_value() || force.value()) {
-            auto new_attribute = Attr::create(document(), insert_as_lowercase ? MUST(Infra::to_ascii_lowercase(name)) : name.to_string(), String {});
+            auto new_attribute = Attr::create(document(), insert_as_lowercase ? name.to_ascii_lowercase() : name.to_string(), String {});
             m_attributes->append_attribute(new_attribute);
 
             return true;
@@ -891,7 +891,7 @@ void Element::make_html_uppercased_qualified_name()
 {
     // This is allowed by the spec: "User agents could optimize qualified name and HTML-uppercased qualified name by storing them in internal slots."
     if (namespace_uri() == Namespace::HTML && document().document_type() == Document::Type::HTML)
-        m_html_uppercased_qualified_name = MUST(Infra::to_ascii_uppercase(qualified_name()));
+        m_html_uppercased_qualified_name = qualified_name().to_ascii_uppercase();
     else
         m_html_uppercased_qualified_name = qualified_name();
 }

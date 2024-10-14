@@ -102,9 +102,13 @@ public:
     ErrorOr<String> to_titlecase(Optional<StringView> const& locale = {}, TrailingCodePointTransformation trailing_code_point_transformation = TrailingCodePointTransformation::Lowercase) const;
     ErrorOr<String> to_casefold() const;
 
+    [[nodiscard]] String to_ascii_lowercase() const;
+    [[nodiscard]] String to_ascii_uppercase() const;
+
     // Compare this String against another string with caseless matching. Using this method requires linking LibUnicode into your application.
     [[nodiscard]] bool equals_ignoring_case(String const&) const;
 
+    [[nodiscard]] bool equals_ignoring_ascii_case(String const&) const;
     [[nodiscard]] bool equals_ignoring_ascii_case(StringView) const;
 
     [[nodiscard]] bool starts_with(u32 code_point) const;

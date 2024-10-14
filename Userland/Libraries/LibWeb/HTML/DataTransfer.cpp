@@ -142,7 +142,7 @@ String DataTransfer::get_data(String const& format_argument) const
         return {};
 
     // 3. Let format be the first argument, converted to ASCII lowercase.
-    auto format = MUST(Infra::to_ascii_lowercase(format_argument));
+    auto format = format_argument.to_ascii_lowercase();
 
     // 4. Let convert-to-URL be false.
     [[maybe_unused]] bool convert_to_url = false;
