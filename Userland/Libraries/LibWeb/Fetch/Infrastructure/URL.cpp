@@ -101,7 +101,7 @@ ErrorOr<DataURL> process_data_url(URL::URL const& data_url)
 
     // 14. If mimeTypeRecord is failure, then set mimeTypeRecord to text/plain;charset=US-ASCII.
     if (!mime_type_record.has_value()) {
-        mime_type_record = TRY(MimeSniff::MimeType::create("text"_string, "plain"_string));
+        mime_type_record = MimeSniff::MimeType::create("text"_string, "plain"_string);
         TRY(mime_type_record->set_parameter("charset"_string, "US-ASCII"_string));
     }
 

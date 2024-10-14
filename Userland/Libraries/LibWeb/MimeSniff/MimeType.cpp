@@ -73,10 +73,10 @@ MimeType& MimeType::operator=(MimeType&& other) = default;
 
 MimeType::~MimeType() = default;
 
-ErrorOr<MimeType> MimeType::create(String type, String subtype)
+MimeType MimeType::create(String type, String subtype)
 {
     auto mime_type = MimeType { move(type), move(subtype) };
-    mime_type.m_cached_essence = TRY(String::formatted("{}/{}", mime_type.m_type, mime_type.m_subtype));
+    mime_type.m_cached_essence = MUST(String::formatted("{}/{}", mime_type.m_type, mime_type.m_subtype));
     return mime_type;
 }
 
@@ -114,7 +114,7 @@ ErrorOr<Optional<MimeType>> MimeType::parse(StringView string)
         return OptionalNone {};
 
     // 10. Let mimeType be a new MIME type record whose type is type, in ASCII lowercase, and subtype is subtype, in ASCII lowercase.
-    auto mime_type = TRY(MimeType::create(TRY(Infra::to_ascii_lowercase(type)), TRY(Infra::to_ascii_lowercase(subtype))));
+    auto mime_type = MimeType::create(TRY(Infra::to_ascii_lowercase(type)), TRY(Infra::to_ascii_lowercase(subtype)));
 
     // 11. While position is not past the end of input:
     while (!lexer.is_eof()) {

@@ -460,7 +460,7 @@ namespace Web::MimeSniff {
 ErrorOr<Resource> Resource::create(ReadonlyBytes data, SniffingConfiguration configuration)
 {
     // NOTE: Non-standard but for cases where pattern matching fails, let's fall back to the safest MIME type.
-    auto default_computed_mime_type = TRY(MimeType::create("application"_string, "octet-stream"_string));
+    auto default_computed_mime_type = MimeType::create("application"_string, "octet-stream"_string);
     auto resource = Resource { data, configuration.no_sniff, move(default_computed_mime_type) };
 
     TRY(resource.supplied_mime_type_detection_algorithm(configuration.scheme, move(configuration.supplied_type)));
@@ -624,7 +624,7 @@ ErrorOr<void> Resource::rules_for_distinguishing_if_a_resource_is_text_or_binary
     if (length >= 2
         && (resource_header_span.starts_with(utf_16_be_bom)
             || resource_header_span.starts_with(utf_16_le_bom))) {
-        m_computed_mime_type = TRY(MimeType::create("text"_string, "plain"_string));
+        m_computed_mime_type = MimeType::create("text"_string, "plain"_string);
         return {};
     }
 
@@ -633,14 +633,14 @@ ErrorOr<void> Resource::rules_for_distinguishing_if_a_resource_is_text_or_binary
     //    Abort these steps.
     auto utf_8_bom = "\xEF\xBB\xBF"sv.bytes();
     if (length >= 3 && resource_header_span.starts_with(utf_8_bom)) {
-        m_computed_mime_type = TRY(MimeType::create("text"_string, "plain"_string));
+        m_computed_mime_type = MimeType::create("text"_string, "plain"_string);
         return {};
     }
 
     // 4. If the resource header contains no binary data bytes, the computed MIME type is "text/plain".
     //    Abort these steps.
     if (!any_of(resource_header(), is_binary_data_byte)) {
-        m_computed_mime_type = TRY(MimeType::create("text"_string, "plain"_string));
+        m_computed_mime_type = MimeType::create("text"_string, "plain"_string);
         return {};
     }
 

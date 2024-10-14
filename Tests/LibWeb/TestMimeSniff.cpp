@@ -12,7 +12,7 @@
 
 TEST_CASE(determine_computed_mime_type_given_no_sniff_is_set)
 {
-    auto mime_type = MUST(Web::MimeSniff::MimeType::create("text"_string, "html"_string));
+    auto mime_type = Web::MimeSniff::MimeType::create("text"_string, "html"_string);
     auto computed_mime_type = MUST(Web::MimeSniff::Resource::sniff("\x00"sv.bytes(), Web::MimeSniff::SniffingConfiguration { .supplied_type = mime_type, .no_sniff = true }));
 
     EXPECT_EQ("text/html"sv, MUST(computed_mime_type.serialized()));
@@ -29,7 +29,7 @@ TEST_CASE(determine_computed_mime_type_given_no_sniff_is_set)
 
 TEST_CASE(determine_computed_mime_type_given_no_sniff_is_unset)
 {
-    auto supplied_type = MUST(Web::MimeSniff::MimeType::create("application"_string, "x-this-is-a-test"_string));
+    auto supplied_type = Web::MimeSniff::MimeType::create("application"_string, "x-this-is-a-test"_string);
     auto computed_mime_type = MUST(Web::MimeSniff::Resource::sniff("\x00"sv.bytes(), Web::MimeSniff::SniffingConfiguration { .supplied_type = supplied_type }));
 
     EXPECT_EQ("application/x-this-is-a-test"sv, MUST(computed_mime_type.serialized()));
@@ -98,7 +98,7 @@ TEST_CASE(determine_computed_mime_type_given_supplied_type_that_is_an_apache_bug
 
     set_text_plain_type_mappings(mime_type_to_headers_map);
 
-    auto supplied_type = MUST(Web::MimeSniff::MimeType::create("text"_string, "plain"_string));
+    auto supplied_type = Web::MimeSniff::MimeType::create("text"_string, "plain"_string);
     for (auto const& mime_type_to_headers : mime_type_to_headers_map) {
         auto mime_type = mime_type_to_headers.key;
 
@@ -114,12 +114,12 @@ TEST_CASE(determine_computed_mime_type_given_supplied_type_that_is_an_apache_bug
 TEST_CASE(determine_computed_mime_type_given_xml_or_html_supplied_type)
 {
     // With HTML supplied type.
-    auto config = Web::MimeSniff::SniffingConfiguration { .supplied_type = MUST(Web::MimeSniff::MimeType::create("text"_string, "html"_string)) };
+    auto config = Web::MimeSniff::SniffingConfiguration { .supplied_type = Web::MimeSniff::MimeType::create("text"_string, "html"_string) };
     auto computed_mime_type = MUST(Web::MimeSniff::Resource::sniff(""sv.bytes(), config));
     EXPECT_EQ("text/html"sv, MUST(computed_mime_type.serialized()));
 
     // With XML supplied type.
-    config = Web::MimeSniff::SniffingConfiguration { .supplied_type = MUST(Web::MimeSniff::MimeType::create("text"_string, "xml"_string)) };
+    config = Web::MimeSniff::SniffingConfiguration { .supplied_type = Web::MimeSniff::MimeType::create("text"_string, "xml"_string) };
     computed_mime_type = MUST(Web::MimeSniff::Resource::sniff(""sv.bytes(), config));
     EXPECT_EQ("text/xml"sv, MUST(computed_mime_type.serialized()));
 }
@@ -179,9 +179,9 @@ TEST_CASE(determine_computed_mime_type_in_both_none_and_browsing_sniffing_contex
 TEST_CASE(compute_mime_type_given_unknown_supplied_type)
 {
     Array<Web::MimeSniff::MimeType, 3> unknown_supplied_types = {
-        MUST(Web::MimeSniff::MimeType::create("unknown"_string, "unknown"_string)),
-        MUST(Web::MimeSniff::MimeType::create("application"_string, "unknown"_string)),
-        MUST(Web::MimeSniff::MimeType::create("*"_string, "*"_string))
+        Web::MimeSniff::MimeType::create("unknown"_string, "unknown"_string),
+        Web::MimeSniff::MimeType::create("application"_string, "unknown"_string),
+        Web::MimeSniff::MimeType::create("*"_string, "*"_string)
     };
     auto header_bytes = "<HTML>"sv.bytes();
 
@@ -338,7 +338,7 @@ TEST_CASE(determine_computed_mime_type_in_a_font_context)
 
 TEST_CASE(determine_computed_mime_type_given_text_or_binary_context)
 {
-    auto supplied_type = MUST(Web::MimeSniff::MimeType::create("text"_string, "plain"_string));
+    auto supplied_type = Web::MimeSniff::MimeType::create("text"_string, "plain"_string);
     auto computed_mime_type = MUST(Web::MimeSniff::Resource::sniff("\x00"sv.bytes(), Web::MimeSniff::SniffingConfiguration {
                                                                                          .sniffing_context = Web::MimeSniff::SniffingContext::TextOrBinary,
                                                                                          .supplied_type = supplied_type,
