@@ -158,11 +158,11 @@ public:
         return token;
     }
 
-    static Token create_number(double value)
+    static Token create_number(double value, Number::Type number_type)
     {
         Token token;
         token.m_type = Type::Number;
-        token.m_number_value = Number(Number::Type::Number, value);
+        token.m_number_value = Number(number_type, value);
         return token;
     }
 
