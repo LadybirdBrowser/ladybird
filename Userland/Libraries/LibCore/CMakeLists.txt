@@ -27,6 +27,10 @@ endif()
 
 serenity_lib(LibCoreMinimal coreminimal)
 
+if (WIN32)
+    target_link_libraries(LibCoreMinimal PUBLIC ws2_32.lib)
+endif()
+
 if (LAGOM_TOOLS_ONLY)
     return()
 endif()
@@ -114,8 +118,6 @@ if (APPLE)
     target_link_libraries(LibCore PUBLIC "-framework Foundation")
     target_link_libraries(LibCore PUBLIC "-framework IOSurface")
     target_link_libraries(LibCore PUBLIC "-framework Metal")
-elseif (WIN32)
-    target_link_libraries(LibCore PUBLIC ws2_32.lib)
 endif()
 
 if (ANDROID)
