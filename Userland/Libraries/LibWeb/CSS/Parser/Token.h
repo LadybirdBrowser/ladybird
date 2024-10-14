@@ -146,7 +146,7 @@ public:
     String to_string() const;
     String to_debug_string() const;
 
-    String const& representation() const { return m_representation; }
+    String const& original_source_text() const { return m_original_source_text; }
     Position const& start_position() const { return m_start_position; }
     Position const& end_position() const { return m_end_position; }
 
@@ -206,7 +206,7 @@ private:
     Number m_number_value;
     HashType m_hash_type { HashType::Unrestricted };
 
-    String m_representation;
+    String m_original_source_text;
     Position m_start_position;
     Position m_end_position;
 };

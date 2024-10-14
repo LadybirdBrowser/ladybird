@@ -2238,13 +2238,13 @@ Optional<Gfx::UnicodeRange> Parser::parse_unicode_range(TokenStream<ComponentVal
     if (second_token.is_delim('+')) {
         auto local_transaction = tokens.begin_transaction();
         StringBuilder string_builder;
-        string_builder.append(second_token.token().representation());
+        string_builder.append(second_token.token().original_source_text());
 
         auto const& third_token = tokens.consume_a_token();
         if (third_token.is(Token::Type::Ident) || third_token.is_delim('?')) {
-            string_builder.append(third_token.token().representation());
+            string_builder.append(third_token.token().original_source_text());
             while (tokens.next_token().is_delim('?'))
-                string_builder.append(tokens.consume_a_token().token().representation());
+                string_builder.append(tokens.consume_a_token().token().original_source_text());
             if (is_ending_token(tokens.next_token()))
                 return create_unicode_range(string_builder.string_view(), local_transaction);
         }
@@ -2254,9 +2254,9 @@ Optional<Gfx::UnicodeRange> Parser::parse_unicode_range(TokenStream<ComponentVal
     if (second_token.is(Token::Type::Dimension)) {
         auto local_transaction = tokens.begin_transaction();
         StringBuilder string_builder;
-        string_builder.append(second_token.token().representation());
+        string_builder.append(second_token.token().original_source_text());
         while (tokens.next_token().is_delim('?'))
-            string_builder.append(tokens.consume_a_token().token().representation());
+            string_builder.append(tokens.consume_a_token().token().original_source_text());
         if (is_ending_token(tokens.next_token()))
             return create_unicode_range(string_builder.string_view(), local_transaction);
     }
@@ -2267,24 +2267,24 @@ Optional<Gfx::UnicodeRange> Parser::parse_unicode_range(TokenStream<ComponentVal
     if (second_token.is(Token::Type::Number)) {
         auto local_transaction = tokens.begin_transaction();
         StringBuilder string_builder;
-        string_builder.append(second_token.token().representation());
+        string_builder.append(second_token.token().original_source_text());
 
         if (is_ending_token(tokens.next_token()))
             return create_unicode_range(string_builder.string_view(), local_transaction);
 
         auto const& third_token = tokens.consume_a_token();
         if (third_token.is_delim('?')) {
-            string_builder.append(third_token.token().representation());
+            string_builder.append(third_token.token().original_source_text());
             while (tokens.next_token().is_delim('?'))
-                string_builder.append(tokens.consume_a_token().token().representation());
+                string_builder.append(tokens.consume_a_token().token().original_source_text());
             if (is_ending_token(tokens.next_token()))
                 return create_unicode_range(string_builder.string_view(), local_transaction);
         } else if (third_token.is(Token::Type::Dimension)) {
-            string_builder.append(third_token.token().representation());
+            string_builder.append(third_token.token().original_source_text());
             if (is_ending_token(tokens.next_token()))
                 return create_unicode_range(string_builder.string_view(), local_transaction);
         } else if (third_token.is(Token::Type::Number)) {
-            string_builder.append(third_token.token().representation());
+            string_builder.append(third_token.token().original_source_text());
             if (is_ending_token(tokens.next_token()))
                 return create_unicode_range(string_builder.string_view(), local_transaction);
         }
