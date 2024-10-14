@@ -1,7 +1,7 @@
 /*
  * Copyright (c) 2018-2020, Andreas Kling <andreas@ladybird.org>
  * Copyright (c) 2021, Tobias Christiansen <tobyase@serenityos.org>
- * Copyright (c) 2021-2023, Sam Atkins <atkinssj@serenityos.org>
+ * Copyright (c) 2021-2024, Sam Atkins <sam@ladybird.org>
  * Copyright (c) 2022-2023, MacDue <macdue@dueutil.tech>
  *
  * SPDX-License-Identifier: BSD-2-Clause
@@ -18,6 +18,9 @@ ValueComparingNonnullRefPtr<GridTemplateAreaStyleValue> GridTemplateAreaStyleVal
 
 String GridTemplateAreaStyleValue::to_string() const
 {
+    if (m_grid_template_area.is_empty())
+        return "none"_string;
+
     StringBuilder builder;
     for (size_t y = 0; y < m_grid_template_area.size(); ++y) {
         for (size_t x = 0; x < m_grid_template_area[y].size(); ++x) {
