@@ -8,7 +8,6 @@
 
 #include <AK/Vector.h>
 #include <LibJS/Forward.h>
-#include <LibJS/Runtime/ArrayBuffer.h>
 #include <LibWeb/Bindings/PlatformObject.h>
 #include <LibWeb/WebIDL/Buffers.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
