@@ -8,6 +8,7 @@
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/HTML/HTMLHyperlinkElementUtils.h>
 #include <LibWeb/HTML/Navigable.h>
+#include <LibWeb/Infra/CharacterTypes.h>
 
 namespace Web::HTML {
 
@@ -501,7 +502,9 @@ void HTMLHyperlinkElementUtils::follow_the_hyperlink(Optional<String> hyperlink_
     // 11. Let referrerPolicy be the current state of subject's referrerpolicy content attribute.
     auto referrer_policy = ReferrerPolicy::from_string(hyperlink_element_utils_referrerpolicy().value_or({})).value_or(ReferrerPolicy::ReferrerPolicy::EmptyString);
 
-    // FIXME: 12. If subject's link types includes the noreferrer keyword, then set referrerPolicy to "no-referrer".
+    // 12. If subject's link types includes the noreferrer keyword, then set referrerPolicy to "no-referrer".
+    if (hyperlink_element_utils_subject_link_types().contains_slow("noreferrer"sv))
+        referrer_policy = ReferrerPolicy::ReferrerPolicy::NoReferrer;
 
     // 13. Navigate targetNavigable to urlString using subject's node document, with referrerPolicy set to referrerPolicy and userInvolvement set to userInvolvement.
     MUST(target_navigable->navigate({ .url = url_string, .source_document = hyperlink_element_utils_document(), .referrer_policy = referrer_policy, .user_involvement = user_involvement }));
