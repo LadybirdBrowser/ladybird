@@ -1,5 +1,6 @@
 #import <DOM/EventHandler.idl>
 #import <DOM/EventTarget.idl>
+#import <HTML/NavigationActivation.idl>
 #import <HTML/NavigationHistoryEntry.idl>
 #import <HTML/NavigationTransition.idl>
 
@@ -10,6 +11,7 @@ interface Navigation : EventTarget {
     readonly attribute NavigationHistoryEntry? currentEntry;
     undefined updateCurrentEntry(NavigationUpdateCurrentEntryOptions options);
     readonly attribute NavigationTransition? transition;
+    readonly attribute NavigationActivation? activation;
 
     readonly attribute boolean canGoBack;
     readonly attribute boolean canGoForward;

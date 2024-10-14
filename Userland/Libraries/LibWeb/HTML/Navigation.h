@@ -84,6 +84,11 @@ public:
     // https://html.spec.whatwg.org/multipage/nav-history-apis.html#dom-navigation-transition
     JS::GCPtr<NavigationTransition> transition() const { return m_transition; }
 
+    // https://html.spec.whatwg.org/multipage/nav-history-apis.html#dom-navigation-activation
+    // The activation getter steps are to return this's activation.
+    JS::GCPtr<NavigationActivation> activation() const { return m_activation; }
+    void set_activation(JS::GCPtr<NavigationActivation> activation) { m_activation = activation; }
+
     bool can_go_back() const;
     bool can_go_forward() const;
 
@@ -170,6 +175,10 @@ private:
     // https://html.spec.whatwg.org/multipage/nav-history-apis.html#concept-navigation-transition
     // Each Navigation has a transition, which is a NavigationTransition or null, initially null.
     JS::GCPtr<NavigationTransition> m_transition { nullptr };
+
+    // https://html.spec.whatwg.org/multipage/nav-history-apis.html#navigation-activation
+    // Each Navigation has an associated activation, which is null or a NavigationActivation object, initially null.
+    JS::GCPtr<NavigationActivation> m_activation;
 
     // https://html.spec.whatwg.org/multipage/nav-history-apis.html#ongoing-navigate-event
     JS::GCPtr<NavigateEvent> m_ongoing_navigate_event { nullptr };
