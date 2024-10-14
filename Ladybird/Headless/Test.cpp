@@ -392,6 +392,12 @@ ErrorOr<void> run_tests(Core::AnonymousBuffer const& theme, Gfx::IntSize window_
         return {};
     }
 
+    if (tests.is_empty()) {
+        if (app.test_glob.is_empty())
+            return Error::from_string_literal("No tests found");
+        return Error::from_string_literal("No tests found matching filter");
+    }
+
     auto concurrency = min(app.test_concurrency, tests.size());
     size_t loaded_web_views = 0;
 
