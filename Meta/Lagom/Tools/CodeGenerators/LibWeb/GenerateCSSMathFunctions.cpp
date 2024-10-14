@@ -188,8 +188,8 @@ OwnPtr<CalculationNode> Parser::parse_math_function(PropertyID property_id, Func
                 if (parameter.get_bool("required"sv) == true)
                     min_argument_count++;
             });
-            function_generator.set("min_argument_count", MUST(String::number(min_argument_count)));
-            function_generator.set("max_argument_count", MUST(String::number(max_argument_count)));
+            function_generator.set("min_argument_count", String::number(min_argument_count));
+            function_generator.set("max_argument_count", String::number(max_argument_count));
 
             function_generator.append(R"~~~(
         if (arguments.size() < @min_argument_count@ || arguments.size() > @max_argument_count@) {
@@ -209,7 +209,7 @@ OwnPtr<CalculationNode> Parser::parse_math_function(PropertyID property_id, Func
 
                 auto parameter_generator = function_generator.fork();
                 parameter_generator.set("parameter_name", parameter.get_byte_string("name"sv).value());
-                parameter_generator.set("parameter_index", MUST(String::number(parameter_index)));
+                parameter_generator.set("parameter_index", String::number(parameter_index));
 
                 bool parameter_is_calculation;
                 if (parameter_type_string == "<rounding-strategy>") {
@@ -319,7 +319,7 @@ OwnPtr<CalculationNode> Parser::parse_math_function(PropertyID property_id, Func
                 auto parameter_type_string = parameter.get_byte_string("type"sv).value();
 
                 auto parameter_generator = function_generator.fork();
-                parameter_generator.set("parameter_index"sv, MUST(String::number(parameter_index)));
+                parameter_generator.set("parameter_index"sv, String::number(parameter_index));
 
                 if (parameter_type_string == "<rounding-strategy>"sv) {
                     parameter_generator.set("release_value"sv, ""_string);

@@ -251,8 +251,6 @@ WebIDL::ExceptionOr<void> Location::set_hostname(String const&)
 // https://html.spec.whatwg.org/multipage/history.html#dom-location-port
 WebIDL::ExceptionOr<String> Location::port() const
 {
-    auto& vm = this->vm();
-
     // 1. If this's relevant Document is non-null and its origin is not same origin-domain with the entry settings object's origin, then throw a "SecurityError" DOMException.
     auto const relevant_document = this->relevant_document();
     if (relevant_document && !relevant_document->origin().is_same_origin_domain(entry_settings_object().origin()))
@@ -265,7 +263,7 @@ WebIDL::ExceptionOr<String> Location::port() const
         return String {};
 
     // 3. Return this's url's port, serialized.
-    return TRY_OR_THROW_OOM(vm, String::number(*url.port()));
+    return String::number(*url.port());
 }
 
 WebIDL::ExceptionOr<void> Location::set_port(String const&)

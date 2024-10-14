@@ -102,7 +102,7 @@ public:
             {
                 // 1. If A is zero, return the serialization of B.
                 if (step_size == 0) {
-                    return MUST(String::number(offset));
+                    return String::number(offset);
                 }
 
                 // 2. Otherwise, let result initially be an empty string.

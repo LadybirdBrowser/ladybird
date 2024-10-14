@@ -167,7 +167,7 @@ JS::GCPtr<Navigable> Navigable::navigable_with_active_document(JS::NonnullGCPtr<
 ErrorOr<void> Navigable::initialize_navigable(JS::NonnullGCPtr<DocumentState> document_state, JS::GCPtr<Navigable> parent)
 {
     static int next_id = 0;
-    m_id = TRY(String::number(next_id++));
+    m_id = String::number(next_id++);
 
     // 1. Assert: documentState's document is non-null.
     VERIFY(document_state->document());

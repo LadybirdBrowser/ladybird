@@ -425,7 +425,7 @@ public:
             // b. For each integer i such that 0 ≤ i < length, in ascending order, do
             for (size_t i = 0; i < length; ++i) {
                 // i. Append ! ToString(𝔽(i)) to keys.
-                keys.append(PrimitiveString::create(vm, MUST(String::number(i))));
+                keys.append(PrimitiveString::create(vm, String::number(i)));
             }
         }
 

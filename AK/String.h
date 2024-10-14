@@ -170,9 +170,9 @@ public:
     [[nodiscard]] u32 ascii_case_insensitive_hash() const;
 
     template<Arithmetic T>
-    static ErrorOr<String> number(T value)
+    [[nodiscard]] static String number(T value)
     {
-        return formatted("{}", value);
+        return MUST(formatted("{}", value));
     }
 
     template<Arithmetic T>

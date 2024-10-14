@@ -30,7 +30,7 @@ String TransformationStyleValue::to_string() const
                 || m_properties.transform_function == CSS::TransformFunction::ScaleY
                 || m_properties.transform_function == CSS::TransformFunction::ScaleZ)
             && value->is_percentage()) {
-            builder.append(MUST(String::number(value->as_percentage().percentage().as_fraction())));
+            builder.append(String::number(value->as_percentage().percentage().as_fraction()));
         } else {
             builder.append(value->to_string());
         }

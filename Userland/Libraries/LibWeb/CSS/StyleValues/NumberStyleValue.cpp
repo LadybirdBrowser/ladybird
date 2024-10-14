@@ -13,7 +13,7 @@ namespace Web::CSS {
 
 String NumberStyleValue::to_string() const
 {
-    return MUST(String::number(m_value));
+    return String::number(m_value);
 }
 
 }

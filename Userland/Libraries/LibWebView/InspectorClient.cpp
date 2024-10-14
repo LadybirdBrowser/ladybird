@@ -40,7 +40,7 @@ static String style_sheet_identifier_to_json(Web::CSS::StyleSheetIdentifier cons
 {
     return MUST(String::formatted("{{ type: '{}', domNodeId: {}, url: '{}' }}"sv,
         Web::CSS::style_sheet_identifier_type_to_string(identifier.type),
-        identifier.dom_element_unique_id.map([](auto& it) { return MUST(String::number(it)); }).value_or("undefined"_string),
+        identifier.dom_element_unique_id.map([](auto& it) { return String::number(it); }).value_or("undefined"_string),
         identifier.url.value_or("undefined"_string)));
 }
 

@@ -1720,7 +1720,7 @@ inline ThrowCompletionOr<Object*> get_object_property_iterator(VM& vm, Value val
                 result_object->define_direct_property(vm.names.done, JS::Value(false), default_attributes);
 
                 if (key.is_number())
-                    result_object->define_direct_property(vm.names.value, PrimitiveString::create(vm, TRY_OR_THROW_OOM(vm, String::number(key.as_number()))), default_attributes);
+                    result_object->define_direct_property(vm.names.value, PrimitiveString::create(vm, String::number(key.as_number())), default_attributes);
                 else if (key.is_string())
                     result_object->define_direct_property(vm.names.value, PrimitiveString::create(vm, key.as_string()), default_attributes);
                 else

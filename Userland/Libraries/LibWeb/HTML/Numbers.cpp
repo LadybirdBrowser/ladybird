@@ -129,7 +129,7 @@ WebIDL::ExceptionOr<String> convert_non_negative_integer_to_string(JS::Realm& re
 {
     if (value < 0)
         return WebIDL::IndexSizeError::create(realm, "The attribute is limited to only non-negative numbers"_string);
-    return MUST(String::number(value));
+    return String::number(value);
 }
 
 }

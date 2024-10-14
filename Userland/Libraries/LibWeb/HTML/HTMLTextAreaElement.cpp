@@ -299,7 +299,7 @@ unsigned HTMLTextAreaElement::cols() const
 
 WebIDL::ExceptionOr<void> HTMLTextAreaElement::set_cols(unsigned cols)
 {
-    return set_attribute(HTML::AttributeNames::cols, MUST(String::number(cols)));
+    return set_attribute(HTML::AttributeNames::cols, String::number(cols));
 }
 
 // https://html.spec.whatwg.org/multipage/form-elements.html#dom-textarea-rows
@@ -315,7 +315,7 @@ unsigned HTMLTextAreaElement::rows() const
 
 WebIDL::ExceptionOr<void> HTMLTextAreaElement::set_rows(unsigned rows)
 {
-    return set_attribute(HTML::AttributeNames::rows, MUST(String::number(rows)));
+    return set_attribute(HTML::AttributeNames::rows, String::number(rows));
 }
 
 WebIDL::UnsignedLong HTMLTextAreaElement::selection_start_binding() const

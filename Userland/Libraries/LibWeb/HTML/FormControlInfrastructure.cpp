@@ -121,10 +121,10 @@ WebIDL::ExceptionOr<Optional<Vector<XHR::FormDataEntry>>> construct_entry_list(J
             auto [x, y] = input_element->selected_coordinate();
 
             // 6. Create an entry with namex and x, and append it to entry list.
-            entry_list.append(XHR::FormDataEntry { .name = move(name_x), .value = MUST(String::number(x)) });
+            entry_list.append(XHR::FormDataEntry { .name = move(name_x), .value = String::number(x) });
 
             // 7. Create an entry with namey and y, and append it to entry list.
-            entry_list.append(XHR::FormDataEntry { .name = move(name_y), .value = MUST(String::number(y)) });
+            entry_list.append(XHR::FormDataEntry { .name = move(name_y), .value = String::number(y) });
 
             // 8. Continue.
             continue;

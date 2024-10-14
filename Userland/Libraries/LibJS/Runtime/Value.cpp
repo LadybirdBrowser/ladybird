@@ -367,7 +367,7 @@ String Value::to_string_without_side_effects() const
     case BOOLEAN_TAG:
         return as_bool() ? "true"_string : "false"_string;
     case INT32_TAG:
-        return String::number(as_i32()).release_value();
+        return String::number(as_i32());
     case STRING_TAG:
         return as_string().utf8_string();
     case SYMBOL_TAG:
@@ -418,7 +418,7 @@ ThrowCompletionOr<String> Value::to_string(VM& vm) const
         return as_bool() ? "true"_string : "false"_string;
     // 7. If argument is a Number, return Number::toString(argument, 10).
     case INT32_TAG:
-        return TRY_OR_THROW_OOM(vm, String::number(as_i32()));
+        return String::number(as_i32());
     // 8. If argument is a BigInt, return BigInt::toString(argument, 10).
     case BIGINT_TAG:
         return TRY_OR_THROW_OOM(vm, as_bigint().big_integer().to_base(10));
