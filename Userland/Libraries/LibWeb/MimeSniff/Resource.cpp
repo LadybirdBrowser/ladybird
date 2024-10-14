@@ -91,7 +91,7 @@ bool pattern_matching_algorithm(ReadonlyBytes input, ReadonlyBytes pattern, Read
 ReadonlyBytes constexpr no_ignored_bytes;
 
 // https://mimesniff.spec.whatwg.org/#matching-an-image-type-pattern
-ErrorOr<Optional<MimeType>> match_an_image_type_pattern(ReadonlyBytes input)
+Optional<MimeType> match_an_image_type_pattern(ReadonlyBytes input)
 {
     // 1. Execute the following steps for each row row in the following table:
     static Array<BytePatternTableRow, 8> constexpr pattern_table {
@@ -184,7 +184,7 @@ bool matches_mp4_signature(ReadonlyBytes sequence)
 }
 
 // https://mimesniff.spec.whatwg.org/#matching-an-audio-or-video-type-pattern
-ErrorOr<Optional<MimeType>> match_an_audio_or_video_type_pattern(ReadonlyBytes input)
+Optional<MimeType> match_an_audio_or_video_type_pattern(ReadonlyBytes input)
 {
     // 1. Execute the following steps for each row row in the following table:
     static Array<BytePatternTableRow, 6> constexpr pattern_table {
@@ -233,7 +233,7 @@ ErrorOr<Optional<MimeType>> match_an_audio_or_video_type_pattern(ReadonlyBytes i
 }
 
 // https://mimesniff.spec.whatwg.org/#matching-a-font-type-pattern
-ErrorOr<Optional<MimeType>> match_a_font_type_pattern(ReadonlyBytes input)
+Optional<MimeType> match_a_font_type_pattern(ReadonlyBytes input)
 {
     // 1. Execute the following steps for each row row in the following table:
     static Array<BytePatternTableRow, 6> constexpr pattern_table {
@@ -277,7 +277,7 @@ ErrorOr<Optional<MimeType>> match_a_font_type_pattern(ReadonlyBytes input)
 }
 
 // https://mimesniff.spec.whatwg.org/#matching-an-archive-type-pattern
-ErrorOr<Optional<MimeType>> match_an_archive_type_pattern(ReadonlyBytes input)
+Optional<MimeType> match_an_archive_type_pattern(ReadonlyBytes input)
 {
     // 1. Execute the following steps for each row row in the following table:
     static Array<BytePatternTableRow, 3> constexpr pattern_table {
@@ -307,7 +307,7 @@ ErrorOr<Optional<MimeType>> match_an_archive_type_pattern(ReadonlyBytes input)
 }
 
 // https://mimesniff.spec.whatwg.org/#rules-for-identifying-an-unknown-mime-type
-ErrorOr<MimeType> rules_for_identifying_an_unknown_mime_type(Resource const& resource, bool sniff_scriptable = false)
+MimeType rules_for_identifying_an_unknown_mime_type(Resource const& resource, bool sniff_scriptable = false)
 {
     // 1. If the sniff-scriptable flag is set, execute the following steps for each row row in the following table:
     if (sniff_scriptable) {
@@ -425,21 +425,21 @@ ErrorOr<MimeType> rules_for_identifying_an_unknown_mime_type(Resource const& res
     }
 
     // 3. Let matchedType be the result of executing the image type pattern matching algorithm given resource’s resource header.
-    auto matched_type = TRY(match_an_image_type_pattern(resource.resource_header()));
+    auto matched_type = match_an_image_type_pattern(resource.resource_header());
 
     // 4. If matchedType is not undefined, return matchedType.
     if (matched_type.has_value())
         return matched_type.release_value();
 
     // 5. Set matchedType to the result of executing the audio or video type pattern matching algorithm given resource’s resource header.
-    matched_type = TRY(match_an_audio_or_video_type_pattern(resource.resource_header()));
+    matched_type = match_an_audio_or_video_type_pattern(resource.resource_header());
 
     // 6. If matchedType is not undefined, return matchedType.
     if (matched_type.has_value())
         return matched_type.release_value();
 
     // 7. Set matchedType to the result of executing the archive type pattern matching algorithm given resource’s resource header.
-    matched_type = TRY(match_an_archive_type_pattern(resource.resource_header()));
+    matched_type = match_an_archive_type_pattern(resource.resource_header());
 
     // 8. If matchedType is not undefined, return matchedType.
     if (matched_type.has_value())
@@ -457,21 +457,21 @@ ErrorOr<MimeType> rules_for_identifying_an_unknown_mime_type(Resource const& res
 
 namespace Web::MimeSniff {
 
-ErrorOr<Resource> Resource::create(ReadonlyBytes data, SniffingConfiguration configuration)
+Resource Resource::create(ReadonlyBytes data, SniffingConfiguration configuration)
 {
     // NOTE: Non-standard but for cases where pattern matching fails, let's fall back to the safest MIME type.
     auto default_computed_mime_type = MimeType::create("application"_string, "octet-stream"_string);
     auto resource = Resource { data, configuration.no_sniff, move(default_computed_mime_type) };
 
-    TRY(resource.supplied_mime_type_detection_algorithm(configuration.scheme, move(configuration.supplied_type)));
-    TRY(resource.context_specific_sniffing_algorithm(configuration.sniffing_context));
+    resource.supplied_mime_type_detection_algorithm(configuration.scheme, move(configuration.supplied_type));
+    resource.context_specific_sniffing_algorithm(configuration.sniffing_context);
 
     return resource;
 }
 
-ErrorOr<MimeType> Resource::sniff(ReadonlyBytes data, SniffingConfiguration configuration)
+MimeType Resource::sniff(ReadonlyBytes data, SniffingConfiguration configuration)
 {
-    auto resource = TRY(create(data, move(configuration)));
+    auto resource = create(data, move(configuration));
     return move(resource.m_computed_mime_type);
 }
 
@@ -486,7 +486,7 @@ Resource::~Resource() = default;
 
 // https://mimesniff.spec.whatwg.org/#supplied-mime-type-detection-algorithm
 // NOTE: Parameters are non-standard.
-ErrorOr<void> Resource::supplied_mime_type_detection_algorithm(StringView scheme, Optional<MimeType> supplied_type)
+void Resource::supplied_mime_type_detection_algorithm(StringView scheme, Optional<MimeType> supplied_type)
 {
     // 1. Let supplied-type be null.
     // 2. If the resource is retrieved via HTTP, execute the following steps:
@@ -524,8 +524,6 @@ ErrorOr<void> Resource::supplied_mime_type_detection_algorithm(StringView scheme
     // 6. The supplied MIME type is supplied-type.
     // NOTE: The expectation is for the caller to handle these spec steps.
     m_supplied_mime_type = supplied_type;
-
-    return {};
 }
 
 // https://mimesniff.spec.whatwg.org/#read-the-resource-header
@@ -548,13 +546,13 @@ void Resource::read_the_resource_header(ReadonlyBytes data)
 }
 
 // https://mimesniff.spec.whatwg.org/#mime-type-sniffing-algorithm
-ErrorOr<void> Resource::mime_type_sniffing_algorithm()
+void Resource::mime_type_sniffing_algorithm()
 {
     // 1. If the supplied MIME type is an XML MIME type or HTML MIME type, the computed MIME type is the supplied MIME type.
     //    Abort these steps.
     if (m_supplied_mime_type.has_value() && (m_supplied_mime_type->is_xml() || m_supplied_mime_type->is_html())) {
         m_computed_mime_type = m_supplied_mime_type.value();
-        return {};
+        return;
     }
 
     // 2. If the supplied MIME type is undefined or if the supplied MIME type’s essence
@@ -562,22 +560,22 @@ ErrorOr<void> Resource::mime_type_sniffing_algorithm()
     //    identifying an unknown MIME type with the sniff-scriptable flag equal to the
     //    inverse of the no-sniff flag and abort these steps.
     if (!m_supplied_mime_type.has_value() || m_supplied_mime_type->essence().is_one_of("unknown/unknown", "application/unknown", "*/*")) {
-        m_computed_mime_type = TRY(rules_for_identifying_an_unknown_mime_type(*this, !m_no_sniff));
-        return {};
+        m_computed_mime_type = rules_for_identifying_an_unknown_mime_type(*this, !m_no_sniff);
+        return;
     }
 
     // 3. If the no-sniff flag is set, the computed MIME type is the supplied MIME type.
     //    Abort these steps.
     if (m_no_sniff) {
         m_computed_mime_type = m_supplied_mime_type.value();
-        return {};
+        return;
     }
 
     // 4. If the check-for-apache-bug flag is set, execute the rules for distinguishing
     //    if a resource is text or binary and abort these steps.
     if (m_check_for_apache_bug_flag) {
-        TRY(rules_for_distinguishing_if_a_resource_is_text_or_binary());
-        return {};
+        rules_for_distinguishing_if_a_resource_is_text_or_binary();
+        return;
     }
 
     // FIXME: 5. If the supplied MIME type is an image MIME type supported by the user agent, let matched-type be
@@ -589,7 +587,7 @@ ErrorOr<void> Resource::mime_type_sniffing_algorithm()
     //    Abort these steps.
     if (matched_type.has_value()) {
         m_computed_mime_type = matched_type.release_value();
-        return {};
+        return;
     }
 
     // FIXME: 7. If the supplied MIME type is an audio or video MIME type supported by the user agent, let matched-type be
@@ -600,17 +598,17 @@ ErrorOr<void> Resource::mime_type_sniffing_algorithm()
     //    Abort these steps.
     if (matched_type.has_value()) {
         m_computed_mime_type = matched_type.release_value();
-        return {};
+        return;
     }
 
     // 9. The computed MIME type is the supplied MIME type.
     m_computed_mime_type = m_supplied_mime_type.value();
 
-    return {};
+    return;
 }
 
 // https://mimesniff.spec.whatwg.org/#sniffing-a-mislabeled-binary-resource
-ErrorOr<void> Resource::rules_for_distinguishing_if_a_resource_is_text_or_binary()
+void Resource::rules_for_distinguishing_if_a_resource_is_text_or_binary()
 {
     // 1. Let length be the number of bytes in the resource header.
     auto length = m_resource_header.size();
@@ -625,7 +623,7 @@ ErrorOr<void> Resource::rules_for_distinguishing_if_a_resource_is_text_or_binary
         && (resource_header_span.starts_with(utf_16_be_bom)
             || resource_header_span.starts_with(utf_16_le_bom))) {
         m_computed_mime_type = MimeType::create("text"_string, "plain"_string);
-        return {};
+        return;
     }
 
     // 3. If length is greater than or equal to 3 and the first 3 bytes of the resource header are equal to 0xEF 0xBB 0xBF (UTF-8 BOM),
@@ -634,23 +632,23 @@ ErrorOr<void> Resource::rules_for_distinguishing_if_a_resource_is_text_or_binary
     auto utf_8_bom = "\xEF\xBB\xBF"sv.bytes();
     if (length >= 3 && resource_header_span.starts_with(utf_8_bom)) {
         m_computed_mime_type = MimeType::create("text"_string, "plain"_string);
-        return {};
+        return;
     }
 
     // 4. If the resource header contains no binary data bytes, the computed MIME type is "text/plain".
     //    Abort these steps.
     if (!any_of(resource_header(), is_binary_data_byte)) {
         m_computed_mime_type = MimeType::create("text"_string, "plain"_string);
-        return {};
+        return;
     }
 
     // 5. The computed MIME type is "application/octet-stream".
     // NOTE: This is the default MIME type of the computed MIME type.
-    return {};
+    return;
 }
 
 // https://mimesniff.spec.whatwg.org/#context-specific-sniffing-algorithm
-ErrorOr<void> Resource::context_specific_sniffing_algorithm(SniffingContext sniffing_context)
+void Resource::context_specific_sniffing_algorithm(SniffingContext sniffing_context)
 {
     // A context-specific sniffing algorithm determines the computed MIME type of a resource only if
     // the resource is a MIME type relevant to a particular context.
@@ -664,7 +662,7 @@ ErrorOr<void> Resource::context_specific_sniffing_algorithm(SniffingContext snif
     //       context-specific sniffing if we don't have to.
     if (m_no_sniff && m_supplied_mime_type.has_value()) {
         m_computed_mime_type = m_supplied_mime_type.value();
-        return {};
+        return;
     }
 
     if (sniffing_context == SniffingContext::Image)
@@ -676,29 +674,29 @@ ErrorOr<void> Resource::context_specific_sniffing_algorithm(SniffingContext snif
     if (sniffing_context == SniffingContext::TextOrBinary)
         return rules_for_distinguishing_if_a_resource_is_text_or_binary();
 
-    return {};
+    return;
 }
 
 // https://mimesniff.spec.whatwg.org/#sniffing-in-an-image-context
-ErrorOr<void> Resource::rules_for_sniffing_images_specifically()
+void Resource::rules_for_sniffing_images_specifically()
 {
     // 1. If the supplied MIME type is an XML MIME type, the computed MIME type is the supplied MIME type.
     //    Abort these steps.
     // NOTE: Non-standard but due to the mime type detection algorithm we need this sanity check.
     if (m_supplied_mime_type.has_value() && m_supplied_mime_type->is_xml()) {
         m_computed_mime_type = m_supplied_mime_type.value();
-        return {};
+        return;
     }
 
     // 2. Let image-type-matched be the result of executing the image type pattern matching algorithm with
     //    the resource header as the byte sequence to be matched.
-    auto image_type_matched = TRY(match_an_image_type_pattern(resource_header()));
+    auto image_type_matched = match_an_image_type_pattern(resource_header());
 
     // 3. If image-type-matched is not undefined, the computed MIME type is image-type-matched.
     //    Abort these steps.
     if (image_type_matched.has_value()) {
         m_computed_mime_type = image_type_matched.release_value();
-        return {};
+        return;
     }
 
     // 4. The computed MIME type is the supplied MIME type.
@@ -708,29 +706,29 @@ ErrorOr<void> Resource::rules_for_sniffing_images_specifically()
     }
 
     // NOTE: Non-standard but if the supplied mime type is undefined, we use computed mime type's default value.
-    return {};
+    return;
 }
 
 // https://mimesniff.spec.whatwg.org/#sniffing-in-an-audio-or-video-context
-ErrorOr<void> Resource::rules_for_sniffing_audio_or_video_specifically()
+void Resource::rules_for_sniffing_audio_or_video_specifically()
 {
     // 1. If the supplied MIME type is an XML MIME type, the computed MIME type is the supplied MIME type.
     //    Abort these steps.
     // NOTE: Non-standard but due to the mime type detection algorithm we need this sanity check.
     if (m_supplied_mime_type.has_value() && m_supplied_mime_type->is_xml()) {
         m_computed_mime_type = m_supplied_mime_type.value();
-        return {};
+        return;
     }
 
     // 2. Let audio-or-video-type-matched be the result of executing the audio or video type pattern matching
     //    algorithm with the resource header as the byte sequence to be matched.
-    auto audio_or_video_type_matched = TRY(match_an_audio_or_video_type_pattern(resource_header()));
+    auto audio_or_video_type_matched = match_an_audio_or_video_type_pattern(resource_header());
 
     // 3. If audio-or-video-type-matched is not undefined, the computed MIME type is audio-or-video-type-matched.
     //    Abort these steps.
     if (audio_or_video_type_matched.has_value()) {
         m_computed_mime_type = audio_or_video_type_matched.release_value();
-        return {};
+        return;
     }
 
     // 4. The computed MIME type is the supplied MIME type.
@@ -740,29 +738,29 @@ ErrorOr<void> Resource::rules_for_sniffing_audio_or_video_specifically()
     }
 
     // NOTE: Non-standard but if the supplied mime type is undefined, we use computed mime type's default value.
-    return {};
+    return;
 }
 
 // https://mimesniff.spec.whatwg.org/#sniffing-in-a-font-context
-ErrorOr<void> Resource::rules_for_sniffing_fonts_specifically()
+void Resource::rules_for_sniffing_fonts_specifically()
 {
     // 1. If the supplied MIME type is an XML MIME type, the computed MIME type is the supplied MIME type.
     //    Abort these steps.
     // NOTE: Non-standard but due to the mime type detection algorithm we need this sanity check.
     if (m_supplied_mime_type.has_value() && m_supplied_mime_type->is_xml()) {
         m_computed_mime_type = m_supplied_mime_type.value();
-        return {};
+        return;
     }
 
     // 2. Let font-type-matched be the result of executing the font type pattern matching algorithm with the
     //    resource header as the byte sequence to be matched.
-    auto font_type_matched = TRY(match_a_font_type_pattern(resource_header()));
+    auto font_type_matched = match_a_font_type_pattern(resource_header());
 
     // 3. If font-type-matched is not undefined, the computed MIME type is font-type-matched.
     //    Abort these steps.
     if (font_type_matched.has_value()) {
         m_computed_mime_type = font_type_matched.release_value();
-        return {};
+        return;
     }
 
     // 4. The computed MIME type is the supplied MIME type.
@@ -772,7 +770,7 @@ ErrorOr<void> Resource::rules_for_sniffing_fonts_specifically()
     }
 
     // NOTE: Non-standard but if the supplied mime type is undefined, we use computed mime type's default value.
-    return {};
+    return;
 }
 
 }

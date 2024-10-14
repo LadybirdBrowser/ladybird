@@ -250,8 +250,7 @@ void HTMLObjectElement::resource_did_load()
             auto computed_type = MimeSniff::Resource::sniff(resource()->encoded_data(), MimeSniff::SniffingConfiguration {
                                                                                             .sniffing_context = MimeSniff::SniffingContext::TextOrBinary,
                                                                                             .supplied_type = move(supplied_type),
-                                                                                        })
-                                     .release_value_but_fixme_should_propagate_errors();
+                                                                                        });
             if (computed_type.essence() != "text/plain"sv)
                 binary = true;
         }
