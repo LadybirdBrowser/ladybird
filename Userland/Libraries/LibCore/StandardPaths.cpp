@@ -13,12 +13,15 @@
 #include <AK/StringBuilder.h>
 #include <AK/StringUtils.h>
 #include <LibCore/Environment.h>
-#include <LibCore/SessionManagement.h>
 #include <LibCore/StandardPaths.h>
 #include <LibCore/System.h>
-#include <pwd.h>
 #include <stdlib.h>
-#include <unistd.h>
+
+#if !defined(AK_OS_WINDOWS)
+#    include <LibCore/SessionManagement.h>
+#    include <pwd.h>
+#    include <unistd.h>
+#endif
 
 #if defined(AK_OS_HAIKU)
 #    include <FindDirectory.h>
@@ -36,19 +39,25 @@ static Optional<StringView> get_environment_if_not_empty(StringView name)
 
 ByteString StandardPaths::home_directory()
 {
+#if defined(AK_OS_WINDOWS)
+    ByteString path = getenv("USERPROFILE");
+#else
     if (auto* home_env = getenv("HOME"))
         return LexicalPath::canonicalized_path(home_env);
 
     auto* pwd = getpwuid(getuid());
     ByteString path = pwd ? pwd->pw_dir : "/";
     endpwent();
+#endif
     return LexicalPath::canonicalized_path(path);
 }
 
 ByteString StandardPaths::desktop_directory()
 {
+#if !defined(AK_OS_WINDOWS)
     if (auto desktop_directory = get_environment_if_not_empty("XDG_DESKTOP_DIR"sv); desktop_directory.has_value())
         return LexicalPath::canonicalized_path(*desktop_directory);
+#endif
 
     StringBuilder builder;
     builder.append(home_directory());
@@ -58,8 +67,10 @@ ByteString StandardPaths::desktop_directory()
 
 ByteString StandardPaths::documents_directory()
 {
+#if !defined(AK_OS_WINDOWS)
     if (auto documents_directory = get_environment_if_not_empty("XDG_DOCUMENTS_DIR"sv); documents_directory.has_value())
         return LexicalPath::canonicalized_path(*documents_directory);
+#endif
 
     StringBuilder builder;
     builder.append(home_directory());
@@ -69,8 +80,10 @@ ByteString StandardPaths::documents_directory()
 
 ByteString StandardPaths::downloads_directory()
 {
+#if !defined(AK_OS_WINDOWS)
     if (auto downloads_directory = get_environment_if_not_empty("XDG_DOWNLOAD_DIR"sv); downloads_directory.has_value())
         return LexicalPath::canonicalized_path(*downloads_directory);
+#endif
 
     StringBuilder builder;
     builder.append(home_directory());
@@ -80,8 +93,10 @@ ByteString StandardPaths::downloads_directory()
 
 ByteString StandardPaths::music_directory()
 {
+#if !defined(AK_OS_WINDOWS)
     if (auto music_directory = get_environment_if_not_empty("XDG_MUSIC_DIR"sv); music_directory.has_value())
         return LexicalPath::canonicalized_path(*music_directory);
+#endif
 
     StringBuilder builder;
     builder.append(home_directory());
@@ -91,8 +106,10 @@ ByteString StandardPaths::music_directory()
 
 ByteString StandardPaths::pictures_directory()
 {
+#if !defined(AK_OS_WINDOWS)
     if (auto pictures_directory = get_environment_if_not_empty("XDG_PICTURES_DIR"sv); pictures_directory.has_value())
         return LexicalPath::canonicalized_path(*pictures_directory);
+#endif
 
     StringBuilder builder;
     builder.append(home_directory());
@@ -102,8 +119,10 @@ ByteString StandardPaths::pictures_directory()
 
 ByteString StandardPaths::videos_directory()
 {
+#if !defined(AK_OS_WINDOWS)
     if (auto videos_directory = get_environment_if_not_empty("XDG_VIDEOS_DIR"sv); videos_directory.has_value())
         return LexicalPath::canonicalized_path(*videos_directory);
+#endif
 
     StringBuilder builder;
     builder.append(home_directory());
@@ -117,6 +136,10 @@ ByteString StandardPaths::videos_directory()
 
 ByteString StandardPaths::config_directory()
 {
+#ifdef AK_OS_WINDOWS
+    dbgln("Core::StandardPaths::config_directory() is not implemented");
+    VERIFY_NOT_REACHED();
+#endif
     if (auto config_directory = get_environment_if_not_empty("XDG_CONFIG_HOME"sv); config_directory.has_value())
         return LexicalPath::canonicalized_path(*config_directory);
 
@@ -134,6 +157,10 @@ ByteString StandardPaths::config_directory()
 
 ByteString StandardPaths::user_data_directory()
 {
+#ifdef AK_OS_WINDOWS
+    dbgln("Core::StandardPaths::user_data_directory() is not implemented");
+    VERIFY_NOT_REACHED();
+#endif
     if (auto data_directory = get_environment_if_not_empty("XDG_DATA_HOME"sv); data_directory.has_value())
         return LexicalPath::canonicalized_path(*data_directory);
 
@@ -154,6 +181,10 @@ ByteString StandardPaths::user_data_directory()
 
 Vector<ByteString> StandardPaths::system_data_directories()
 {
+#ifdef AK_OS_WINDOWS
+    dbgln("Core::StandardPaths::system_data_directories() is not implemented");
+    VERIFY_NOT_REACHED();
+#endif
     auto data_directories = get_environment_if_not_empty("XDG_DATA_DIRS"sv).value_or("/usr/local/share:/usr/share"sv);
     Vector<ByteString> paths;
     data_directories.for_each_split_view(':', SplitBehavior::Nothing, [&paths](auto data_directory) {
@@ -164,8 +195,10 @@ Vector<ByteString> StandardPaths::system_data_directories()
 
 ErrorOr<ByteString> StandardPaths::runtime_directory()
 {
+#if !defined(AK_OS_WINDOWS)
     if (auto data_directory = get_environment_if_not_empty("XDG_RUNTIME_DIR"sv); data_directory.has_value())
         return LexicalPath::canonicalized_path(*data_directory);
+#endif
 
     StringBuilder builder;
 
@@ -180,6 +213,8 @@ ErrorOr<ByteString> StandardPaths::runtime_directory()
 #elif defined(AK_OS_LINUX)
     auto uid = getuid();
     builder.appendff("/run/user/{}", uid);
+#elif defined(AK_OS_WINDOWS)
+    builder.appendff("{}", getenv("TEMP"));
 #else
     // Just create a directory in /tmp that's owned by us with 0700
     auto uid = getuid();
@@ -200,7 +235,11 @@ ErrorOr<ByteString> StandardPaths::runtime_directory()
 
 ByteString StandardPaths::tempfile_directory()
 {
+#if defined(AK_OS_WINDOWS)
+    return getenv("TEMP");
+#else
     return "/tmp";
+#endif
 }
 
 ErrorOr<Vector<String>> StandardPaths::font_directories()
@@ -229,6 +268,9 @@ ErrorOr<Vector<String>> StandardPaths::font_directories()
         // FIXME: We should be using the ASystemFontIterator NDK API here.
         // There is no guarantee that this will continue to exist on future versions of Android.
         "/system/fonts"_string,
+#    elif defined(AK_OS_WINDOWS)
+        TRY(String::formatted(R"({}\Fonts)"sv, getenv("WINDIR"))),
+        TRY(String::formatted(R"({}\Microsoft\Windows\Fonts)"sv, getenv("LOCALAPPDATA"))),
 #    else
         TRY(String::formatted("{}/fonts"sv, user_data_directory())),
         TRY(String::formatted("{}/X11/fonts"sv, user_data_directory())),
