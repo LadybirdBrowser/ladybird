@@ -103,12 +103,12 @@ set_logging_flags()
     WPT_ARGS+=( "${log_type}=${log_name}" )
 }
 
+headless=1
 ARG=$1
-while [[ "$ARG" =~ ^(--headless|(--log(-(raw|unittest|xunit|html|mach|tbpl|grouped|chromium|wptreport|wptscreenshot))?))$ ]]; do
+while [[ "$ARG" =~ ^(--show-window|(--log(-(raw|unittest|xunit|html|mach|tbpl|grouped|chromium|wptreport|wptscreenshot))?))$ ]]; do
     case "$ARG" in
-        --headless)
-            LADYBIRD_BINARY="$(default_binary_path)/headless-browser"
-            WPT_ARGS+=( "--webdriver-arg=--headless" )
+        --show-window)
+            headless=0
             ;;
         --log)
             set_logging_flags "--log-raw" "${2}"
@@ -124,7 +124,13 @@ while [[ "$ARG" =~ ^(--headless|(--log(-(raw|unittest|xunit|html|mach|tbpl|group
     ARG=$1
 done
 
-WPT_ARGS+=( "--binary=${LADYBIRD_BINARY}" )
+if [ $headless -eq 1 ]; then
+    WPT_ARGS+=( "--binary=${HEADLESS_BROWSER_BINARY}" )
+    WPT_ARGS+=( "--webdriver-arg=--headless" )
+else
+    WPT_ARGS+=( "--binary=${LADYBIRD_BINARY}" )
+fi
+
 TEST_LIST=( "$@" )
 
 for i in "${!TEST_LIST[@]}"; do
@@ -173,8 +179,8 @@ execute_wpt() {
             fi
             WPT_ARGS+=( "--webdriver-arg=--certificate=${certificate_path}" )
         done
-        echo QT_QPA_PLATFORM="offscreen" LADYBIRD_GIT_VERSION="$(ladybird_git_hash)" ./wpt run "${WPT_ARGS[@]}" ladybird "${TEST_LIST[@]}"
-        QT_QPA_PLATFORM="offscreen" LADYBIRD_GIT_VERSION="$(ladybird_git_hash)" ./wpt run "${WPT_ARGS[@]}" ladybird "${TEST_LIST[@]}"
+        echo LADYBIRD_GIT_VERSION="$(ladybird_git_hash)" ./wpt run "${WPT_ARGS[@]}" ladybird "${TEST_LIST[@]}"
+        LADYBIRD_GIT_VERSION="$(ladybird_git_hash)" ./wpt run "${WPT_ARGS[@]}" ladybird "${TEST_LIST[@]}"
     popd > /dev/null
 }
 
