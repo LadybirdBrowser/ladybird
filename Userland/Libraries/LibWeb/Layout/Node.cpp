@@ -11,7 +11,6 @@
 #include <LibWeb/CSS/StyleValues/BackgroundSizeStyleValue.h>
 #include <LibWeb/CSS/StyleValues/BorderRadiusStyleValue.h>
 #include <LibWeb/CSS/StyleValues/CSSKeywordValue.h>
-#include <LibWeb/CSS/StyleValues/EdgeStyleValue.h>
 #include <LibWeb/CSS/StyleValues/IntegerStyleValue.h>
 #include <LibWeb/CSS/StyleValues/LengthStyleValue.h>
 #include <LibWeb/CSS/StyleValues/MathDepthStyleValue.h>
@@ -23,7 +22,6 @@
 #include <LibWeb/CSS/StyleValues/URLStyleValue.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/Dump.h>
-#include <LibWeb/HTML/BrowsingContext.h>
 #include <LibWeb/HTML/HTMLHtmlElement.h>
 #include <LibWeb/Layout/BlockContainer.h>
 #include <LibWeb/Layout/FormattingContext.h>
@@ -31,7 +29,6 @@
 #include <LibWeb/Layout/TableWrapper.h>
 #include <LibWeb/Layout/TextNode.h>
 #include <LibWeb/Layout/Viewport.h>
-#include <LibWeb/Page/Page.h>
 #include <LibWeb/Painting/InlinePaintable.h>
 #include <LibWeb/Platform/FontPlugin.h>
 
@@ -39,7 +36,6 @@ namespace Web::Layout {
 
 Node::Node(DOM::Document& document, DOM::Node* node)
     : m_dom_node(node ? *node : document)
-    , m_browsing_context(*document.browsing_context())
     , m_anonymous(node == nullptr)
 {
     if (node)
@@ -54,7 +50,6 @@ void Node::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_dom_node);
     visitor.visit(m_paintable);
     visitor.visit(m_pseudo_element_generator);
-    visitor.visit(m_browsing_context);
     TreeNode::visit_edges(visitor);
 }
 
@@ -205,16 +200,6 @@ bool Node::establishes_stacking_context() const
         return true;
 
     return computed_values().opacity() < 1.0f;
-}
-
-HTML::BrowsingContext const& Node::browsing_context() const
-{
-    return *m_browsing_context;
-}
-
-HTML::BrowsingContext& Node::browsing_context()
-{
-    return *m_browsing_context;
 }
 
 JS::GCPtr<HTML::Navigable> Node::navigable() const

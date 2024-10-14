@@ -73,9 +73,6 @@ public:
     DOM::Document& document();
     DOM::Document const& document() const;
 
-    HTML::BrowsingContext const& browsing_context() const;
-    HTML::BrowsingContext& browsing_context();
-
     JS::GCPtr<HTML::Navigable> navigable() const;
 
     Viewport const& root() const;
@@ -185,8 +182,6 @@ private:
 
     JS::NonnullGCPtr<DOM::Node> m_dom_node;
     JS::GCPtr<Painting::Paintable> m_paintable;
-
-    JS::NonnullGCPtr<HTML::BrowsingContext> m_browsing_context;
 
     JS::GCPtr<DOM::Element> m_pseudo_element_generator;
 
