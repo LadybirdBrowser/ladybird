@@ -376,7 +376,7 @@ Token Tokenizer::create_value_token(Token::Type type, FlyString&& value, String&
 {
     auto token = create_new_token(type);
     token.m_value = move(value);
-    token.m_representation = move(representation);
+    token.m_original_source_text = move(representation);
     return token;
 }
 
@@ -384,7 +384,7 @@ Token Tokenizer::create_value_token(Token::Type type, u32 value, String&& repres
 {
     auto token = create_new_token(type);
     token.m_value = String::from_code_point(value);
-    token.m_representation = move(representation);
+    token.m_original_source_text = move(representation);
     return token;
 }
 
@@ -661,7 +661,7 @@ Token Tokenizer::consume_a_url_token()
 
     auto make_token = [&]() -> Token {
         token.m_value = builder.to_fly_string_without_validation();
-        token.m_representation = input_since(start_byte_offset);
+        token.m_original_source_text = input_since(start_byte_offset);
         return token;
     };
 
@@ -705,7 +705,7 @@ Token Tokenizer::consume_a_url_token()
             // otherwise, consume the remnants of a bad url, create a <bad-url-token>, and return it.
             consume_the_remnants_of_a_bad_url();
             auto bad_url_token = create_new_token(Token::Type::BadUrl);
-            bad_url_token.m_representation = input_since(start_byte_offset);
+            bad_url_token.m_original_source_text = input_since(start_byte_offset);
             return bad_url_token;
         }
 
@@ -718,7 +718,7 @@ Token Tokenizer::consume_a_url_token()
             log_parse_error();
             consume_the_remnants_of_a_bad_url();
             auto bad_url_token = create_new_token(Token::Type::BadUrl);
-            bad_url_token.m_representation = input_since(start_byte_offset);
+            bad_url_token.m_original_source_text = input_since(start_byte_offset);
             return bad_url_token;
         }
 
@@ -735,7 +735,7 @@ Token Tokenizer::consume_a_url_token()
                 // Consume the remnants of a bad url, create a <bad-url-token>, and return it.
                 consume_the_remnants_of_a_bad_url();
                 auto bad_url_token = create_new_token(Token::Type::BadUrl);
-                bad_url_token.m_representation = input_since(start_byte_offset);
+                bad_url_token.m_original_source_text = input_since(start_byte_offset);
                 return bad_url_token;
             }
         }
@@ -816,7 +816,7 @@ Token Tokenizer::consume_a_numeric_token()
         token.m_value = move(unit);
 
         // 3. Return the <dimension-token>.
-        token.m_representation = input_since(start_byte_offset);
+        token.m_original_source_text = input_since(start_byte_offset);
         return token;
     }
 
@@ -827,14 +827,14 @@ Token Tokenizer::consume_a_numeric_token()
         // Create a <percentage-token> with the same value as number, and return it.
         auto token = create_new_token(Token::Type::Percentage);
         token.m_number_value = number;
-        token.m_representation = input_since(start_byte_offset);
+        token.m_original_source_text = input_since(start_byte_offset);
         return token;
     }
 
     // Otherwise, create a <number-token> with the same value and type flag as number, and return it.
     auto token = create_new_token(Token::Type::Number);
     token.m_number_value = number;
-    token.m_representation = input_since(start_byte_offset);
+    token.m_original_source_text = input_since(start_byte_offset);
     return token;
 }
 
@@ -965,7 +965,7 @@ Token Tokenizer::consume_string_token(u32 ending_code_point)
 
     auto make_token = [&]() -> Token {
         token.m_value = builder.to_fly_string_without_validation();
-        token.m_representation = input_since(start_byte_offset);
+        token.m_original_source_text = input_since(start_byte_offset);
         return token;
     };
 
@@ -990,7 +990,7 @@ Token Tokenizer::consume_string_token(u32 ending_code_point)
             // <bad-string-token>, and return it.
             reconsume_current_input_code_point();
             auto bad_string_token = create_new_token(Token::Type::BadString);
-            bad_string_token.m_representation = input_since(start_byte_offset);
+            bad_string_token.m_original_source_text = input_since(start_byte_offset);
             return bad_string_token;
         }
 
@@ -1077,7 +1077,7 @@ Token Tokenizer::consume_a_token()
         // Consume as much whitespace as possible. Return a <whitespace-token>.
         consume_as_much_whitespace_as_possible();
         auto token = create_new_token(Token::Type::Whitespace);
-        token.m_representation = input_since(start_byte_offset);
+        token.m_original_source_text = input_since(start_byte_offset);
         return token;
     }
 
@@ -1111,7 +1111,7 @@ Token Tokenizer::consume_a_token()
             token.m_value = move(name);
 
             // 4. Return the <hash-token>.
-            token.m_representation = input_since(start_byte_offset);
+            token.m_original_source_text = input_since(start_byte_offset);
             return token;
         }
 
@@ -1131,7 +1131,7 @@ Token Tokenizer::consume_a_token()
         dbgln_if(CSS_TOKENIZER_DEBUG, "is left paren");
         // Return a <(-token>.
         Token token = create_new_token(Token::Type::OpenParen);
-        token.m_representation = input_since(start_byte_offset);
+        token.m_original_source_text = input_since(start_byte_offset);
         return token;
     }
 
@@ -1140,7 +1140,7 @@ Token Tokenizer::consume_a_token()
         dbgln_if(CSS_TOKENIZER_DEBUG, "is right paren");
         // Return a <)-token>.
         Token token = create_new_token(Token::Type::CloseParen);
-        token.m_representation = input_since(start_byte_offset);
+        token.m_original_source_text = input_since(start_byte_offset);
         return token;
     }
 
@@ -1163,7 +1163,7 @@ Token Tokenizer::consume_a_token()
         dbgln_if(CSS_TOKENIZER_DEBUG, "is comma");
         // Return a <comma-token>.
         Token token = create_new_token(Token::Type::Comma);
-        token.m_representation = input_since(start_byte_offset);
+        token.m_original_source_text = input_since(start_byte_offset);
         return token;
     }
 
@@ -1185,7 +1185,7 @@ Token Tokenizer::consume_a_token()
             (void)next_code_point();
 
             Token token = create_new_token(Token::Type::CDC);
-            token.m_representation = input_since(start_byte_offset);
+            token.m_original_source_text = input_since(start_byte_offset);
             return token;
         }
 
@@ -1219,7 +1219,7 @@ Token Tokenizer::consume_a_token()
         dbgln_if(CSS_TOKENIZER_DEBUG, "is colon");
         // Return a <colon-token>.
         Token token = create_new_token(Token::Type::Colon);
-        token.m_representation = input_since(start_byte_offset);
+        token.m_original_source_text = input_since(start_byte_offset);
         return token;
     }
 
@@ -1228,7 +1228,7 @@ Token Tokenizer::consume_a_token()
         dbgln_if(CSS_TOKENIZER_DEBUG, "is semicolon");
         // Return a <semicolon-token>.
         Token token = create_new_token(Token::Type::Semicolon);
-        token.m_representation = input_since(start_byte_offset);
+        token.m_original_source_text = input_since(start_byte_offset);
         return token;
     }
 
@@ -1244,7 +1244,7 @@ Token Tokenizer::consume_a_token()
             (void)next_code_point();
 
             Token token = create_new_token(Token::Type::CDO);
-            token.m_representation = input_since(start_byte_offset);
+            token.m_original_source_text = input_since(start_byte_offset);
             return token;
         }
 
@@ -1271,7 +1271,7 @@ Token Tokenizer::consume_a_token()
         dbgln_if(CSS_TOKENIZER_DEBUG, "is open square");
         // Return a <[-token>.
         Token token = create_new_token(Token::Type::OpenSquare);
-        token.m_representation = input_since(start_byte_offset);
+        token.m_original_source_text = input_since(start_byte_offset);
         return token;
     }
 
@@ -1296,7 +1296,7 @@ Token Tokenizer::consume_a_token()
         dbgln_if(CSS_TOKENIZER_DEBUG, "is closed square");
         // Return a <]-token>.
         Token token = create_new_token(Token::Type::CloseSquare);
-        token.m_representation = input_since(start_byte_offset);
+        token.m_original_source_text = input_since(start_byte_offset);
         return token;
     }
 
@@ -1305,7 +1305,7 @@ Token Tokenizer::consume_a_token()
         dbgln_if(CSS_TOKENIZER_DEBUG, "is open curly");
         // Return a <{-token>.
         Token token = create_new_token(Token::Type::OpenCurly);
-        token.m_representation = input_since(start_byte_offset);
+        token.m_original_source_text = input_since(start_byte_offset);
         return token;
     }
 
@@ -1314,7 +1314,7 @@ Token Tokenizer::consume_a_token()
         dbgln_if(CSS_TOKENIZER_DEBUG, "is closed curly");
         // Return a <}-token>.
         Token token = create_new_token(Token::Type::CloseCurly);
-        token.m_representation = input_since(start_byte_offset);
+        token.m_original_source_text = input_since(start_byte_offset);
         return token;
     }
 
