@@ -1,6 +1,7 @@
 /*
  * Copyright (c) 2023, Luke Wilde <lukew@serenityos.org>
  * Copyright (c) 2024, Shannon Booth <shannon@serenityos.org>
+ * Copyright (c) 2024, Jelle Raaijmakers <jelle@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -61,10 +62,12 @@ public:
 protected:
     explicit BaseAudioContext(JS::Realm&, float m_sample_rate = 0);
 
-    JS::NonnullGCPtr<AudioDestinationNode> m_destination;
+    void queue_a_media_element_task(Function<void()> steps);
 
     virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Cell::Visitor&) override;
+
+    JS::NonnullGCPtr<AudioDestinationNode> m_destination;
 
 private:
     float m_sample_rate { 0 };
@@ -72,6 +75,8 @@ private:
 
     Bindings::AudioContextState m_control_thread_state = Bindings::AudioContextState::Suspended;
     Bindings::AudioContextState m_rendering_thread_state = Bindings::AudioContextState::Suspended;
+
+    HTML::UniqueTaskSource m_media_element_event_task_source {};
 };
 
 }

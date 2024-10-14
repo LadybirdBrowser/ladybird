@@ -1,6 +1,7 @@
 /*
  * Copyright (c) 2023, Luke Wilde <lukew@serenityos.org>
  * Copyright (c) 2024, Shannon Booth <shannon@serenityos.org>
+ * Copyright (c) 2024, Jelle Raaijmakers <jelle@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -111,6 +112,12 @@ WebIDL::ExceptionOr<void> BaseAudioContext::verify_audio_options_inside_nominal_
         return WebIDL::NotSupportedError::create(realm, "Sample rate is outside of allowed range"_string);
 
     return {};
+}
+
+void BaseAudioContext::queue_a_media_element_task(Function<void()> steps)
+{
+    auto task = HTML::Task::create(vm(), m_media_element_event_task_source.source, HTML::current_settings_object().responsible_document(), JS::create_heap_function(heap(), move(steps)));
+    HTML::main_thread_event_loop().task_queue().add(move(task));
 }
 
 }
