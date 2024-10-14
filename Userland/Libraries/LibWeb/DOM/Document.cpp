@@ -1488,12 +1488,13 @@ void Document::set_hovered_node(Node* node)
     }
 }
 
+// https://html.spec.whatwg.org/multipage/dom.html#dom-document-getelementsbyname
 JS::NonnullGCPtr<NodeList> Document::get_elements_by_name(FlyString const& name)
 {
     return LiveNodeList::create(realm(), *this, LiveNodeList::Scope::Descendants, [name](auto const& node) {
-        if (!is<Element>(node))
+        if (!is<HTML::HTMLElement>(node))
             return false;
-        return verify_cast<Element>(node).name() == name;
+        return verify_cast<HTML::HTMLElement>(node).name() == name;
     });
 }
 
