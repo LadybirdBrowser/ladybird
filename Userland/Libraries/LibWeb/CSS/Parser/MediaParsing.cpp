@@ -620,7 +620,7 @@ Optional<MediaFeatureValue> Parser::parse_media_feature_value(MediaFeatureID med
     return {};
 }
 
-JS::GCPtr<CSSMediaRule> Parser::convert_to_media_rule(AtRule const& rule)
+JS::GCPtr<CSSMediaRule> Parser::convert_to_media_rule(AtRule const& rule, Nested nested)
 {
     auto media_query_tokens = TokenStream { rule.prelude };
     auto media_query_list = parse_a_media_query_list(media_query_tokens);
@@ -628,7 +628,7 @@ JS::GCPtr<CSSMediaRule> Parser::convert_to_media_rule(AtRule const& rule)
 
     JS::MarkedVector<CSSRule*> child_rules { m_context.realm().heap() };
     rule.for_each_as_rule_list([&](auto& rule) {
-        if (auto child_rule = convert_to_rule(rule))
+        if (auto child_rule = convert_to_rule(rule, nested))
             child_rules.append(child_rule);
     });
     auto rule_list = CSSRuleList::create(m_context.realm(), child_rules);

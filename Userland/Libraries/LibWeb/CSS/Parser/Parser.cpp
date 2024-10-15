@@ -25,6 +25,7 @@
 #include <LibWeb/CSS/CSSLayerStatementRule.h>
 #include <LibWeb/CSS/CSSMediaRule.h>
 #include <LibWeb/CSS/CSSNamespaceRule.h>
+#include <LibWeb/CSS/CSSNestedDeclarations.h>
 #include <LibWeb/CSS/CSSStyleDeclaration.h>
 #include <LibWeb/CSS/CSSStyleRule.h>
 #include <LibWeb/CSS/CSSStyleSheet.h>
@@ -164,7 +165,7 @@ CSSStyleSheet* Parser::parse_as_css_stylesheet(Optional<URL::URL> location)
     // Interpret all of the resulting top-level qualified rules as style rules, defined below.
     JS::MarkedVector<CSSRule*> rules(m_context.realm().heap());
     for (auto const& raw_rule : style_sheet.rules) {
-        auto rule = convert_to_rule(raw_rule);
+        auto rule = convert_to_rule(raw_rule, Nested::No);
         // If any style rule is invalid, or any at-rule is not recognized or is invalid according to its grammar or context, it’s a parse error.
         // Discard that rule.
         if (!rule) {
@@ -1019,7 +1020,7 @@ void Parser::consume_the_remnants_of_a_bad_declaration(TokenStream<T>& input, Ne
 CSSRule* Parser::parse_as_css_rule()
 {
     if (auto maybe_rule = parse_a_rule(m_token_stream); maybe_rule.has_value())
-        return convert_to_rule(maybe_rule.value());
+        return convert_to_rule(maybe_rule.value(), Nested::No);
     return {};
 }
 
@@ -1333,10 +1334,10 @@ bool Parser::is_valid_in_the_current_context(QualifiedRule&)
     return true;
 }
 
-JS::GCPtr<CSSRule> Parser::convert_to_rule(Rule const& rule)
+JS::GCPtr<CSSRule> Parser::convert_to_rule(Rule const& rule, Nested nested)
 {
     return rule.visit(
-        [this](AtRule const& at_rule) -> JS::GCPtr<CSSRule> {
+        [this, nested](AtRule const& at_rule) -> JS::GCPtr<CSSRule> {
             if (has_ignored_vendor_prefix(at_rule.name))
                 return {};
 
@@ -1350,51 +1351,79 @@ JS::GCPtr<CSSRule> Parser::convert_to_rule(Rule const& rule)
                 return convert_to_keyframes_rule(at_rule);
 
             if (at_rule.name.equals_ignoring_ascii_case("layer"sv))
-                return convert_to_layer_rule(at_rule);
+                return convert_to_layer_rule(at_rule, nested);
 
             if (at_rule.name.equals_ignoring_ascii_case("media"sv))
-                return convert_to_media_rule(at_rule);
+                return convert_to_media_rule(at_rule, nested);
 
             if (at_rule.name.equals_ignoring_ascii_case("namespace"sv))
                 return convert_to_namespace_rule(at_rule);
 
             if (at_rule.name.equals_ignoring_ascii_case("supports"sv))
-                return convert_to_supports_rule(at_rule);
+                return convert_to_supports_rule(at_rule, nested);
 
             // FIXME: More at rules!
             dbgln_if(CSS_PARSER_DEBUG, "Unrecognized CSS at-rule: @{}", at_rule.name);
             return {};
         },
-        [this](QualifiedRule const& qualified_rule) -> JS::GCPtr<CSSRule> {
-            TokenStream prelude_stream { qualified_rule.prelude };
-            auto selectors = parse_a_selector_list(prelude_stream, SelectorType::Standalone);
+        [this, nested](QualifiedRule const& qualified_rule) -> JS::GCPtr<CSSRule> {
+            return convert_to_style_rule(qualified_rule, nested);
+        });
+}
 
-            if (selectors.is_error()) {
-                if (selectors.error() == ParseError::SyntaxError) {
-                    dbgln_if(CSS_PARSER_DEBUG, "CSSParser: style rule selectors invalid; discarding.");
-                    if constexpr (CSS_PARSER_DEBUG) {
-                        prelude_stream.dump_all_tokens();
+JS::GCPtr<CSSStyleRule> Parser::convert_to_style_rule(QualifiedRule const& qualified_rule, Nested nested)
+{
+    TokenStream prelude_stream { qualified_rule.prelude };
+    auto selectors = parse_a_selector_list(prelude_stream,
+        nested == Nested::Yes ? SelectorType::Relative : SelectorType::Standalone);
+
+    if (selectors.is_error()) {
+        if (selectors.error() == ParseError::SyntaxError) {
+            dbgln_if(CSS_PARSER_DEBUG, "CSSParser: style rule selectors invalid; discarding.");
+            if constexpr (CSS_PARSER_DEBUG) {
+                prelude_stream.dump_all_tokens();
+            }
+        }
+        return {};
+    }
+
+    if (selectors.value().is_empty()) {
+        dbgln_if(CSS_PARSER_DEBUG, "CSSParser: empty selector; discarding.");
+        return {};
+    }
+
+    auto* declaration = convert_to_style_declaration(qualified_rule.declarations);
+    if (!declaration) {
+        dbgln_if(CSS_PARSER_DEBUG, "CSSParser: style rule declaration invalid; discarding.");
+        return {};
+    }
+
+    JS::MarkedVector<CSSRule*> child_rules { m_context.realm().heap() };
+    for (auto& child : qualified_rule.child_rules) {
+        child.visit(
+            [&](Rule const& rule) {
+                // "In addition to nested style rules, this specification allows nested group rules inside of style rules:
+                // any at-rule whose body contains style rules can be nested inside of a style rule as well."
+                // https://drafts.csswg.org/css-nesting-1/#nested-group-rules
+                if (auto converted_rule = convert_to_rule(rule, Nested::Yes)) {
+                    if (is<CSSGroupingRule>(*converted_rule)) {
+                        child_rules.append(converted_rule);
+                    } else {
+                        dbgln_if(CSS_PARSER_DEBUG, "CSSParser: nested {} is not allowed inside style rule; discarding.", converted_rule->class_name());
                     }
                 }
-                return {};
-            }
-
-            if (selectors.value().is_empty()) {
-                dbgln_if(CSS_PARSER_DEBUG, "CSSParser: empty selector; discarding.");
-                return {};
-            }
-
-            auto* declaration = convert_to_style_declaration(qualified_rule.declarations);
-            if (!declaration) {
-                dbgln_if(CSS_PARSER_DEBUG, "CSSParser: style rule declaration invalid; discarding.");
-                return {};
-            }
-
-            // TODO: Implement this properly
-            JS::MarkedVector<CSSRule*> child_rules { m_context.realm().heap() };
-            auto nested_rules = CSSRuleList::create(m_context.realm(), move(child_rules));
-            return CSSStyleRule::create(m_context.realm(), move(selectors.value()), *declaration, *nested_rules);
-        });
+            },
+            [&](Vector<Declaration> const& declarations) {
+                auto* declaration = convert_to_style_declaration(declarations);
+                if (!declaration) {
+                    dbgln_if(CSS_PARSER_DEBUG, "CSSParser: nested declarations invalid; discarding.");
+                    return;
+                }
+                child_rules.append(CSSNestedDeclarations::create(m_context.realm(), *declaration));
+            });
+    }
+    auto nested_rules = CSSRuleList::create(m_context.realm(), move(child_rules));
+    return CSSStyleRule::create(m_context.realm(), move(selectors.value()), *declaration, *nested_rules);
 }
 
 JS::GCPtr<CSSImportRule> Parser::convert_to_import_rule(AtRule const& rule)
@@ -1442,7 +1471,7 @@ JS::GCPtr<CSSImportRule> Parser::convert_to_import_rule(AtRule const& rule)
     return CSSImportRule::create(url.value(), const_cast<DOM::Document&>(*m_context.document()));
 }
 
-JS::GCPtr<CSSRule> Parser::convert_to_layer_rule(AtRule const& rule)
+JS::GCPtr<CSSRule> Parser::convert_to_layer_rule(AtRule const& rule, Nested nested)
 {
     // https://drafts.csswg.org/css-cascade-5/#at-layer
     if (!rule.child_rules_and_lists_of_declarations.is_empty()) {
@@ -1470,7 +1499,7 @@ JS::GCPtr<CSSRule> Parser::convert_to_layer_rule(AtRule const& rule)
         // Then the rules
         JS::MarkedVector<CSSRule*> child_rules { m_context.realm().heap() };
         rule.for_each_as_rule_list([&](auto& rule) {
-            if (auto child_rule = convert_to_rule(rule))
+            if (auto child_rule = convert_to_rule(rule, nested))
                 child_rules.append(child_rule);
         });
         auto rule_list = CSSRuleList::create(m_context.realm(), child_rules);
@@ -1657,7 +1686,7 @@ JS::GCPtr<CSSNamespaceRule> Parser::convert_to_namespace_rule(AtRule const& rule
     return CSSNamespaceRule::create(m_context.realm(), prefix, namespace_uri);
 }
 
-JS::GCPtr<CSSSupportsRule> Parser::convert_to_supports_rule(AtRule const& rule)
+JS::GCPtr<CSSSupportsRule> Parser::convert_to_supports_rule(AtRule const& rule, Nested nested)
 {
     // https://drafts.csswg.org/css-conditional-3/#at-supports
     // @supports <supports-condition> {
@@ -1681,7 +1710,7 @@ JS::GCPtr<CSSSupportsRule> Parser::convert_to_supports_rule(AtRule const& rule)
 
     JS::MarkedVector<CSSRule*> child_rules { m_context.realm().heap() };
     rule.for_each_as_rule_list([&](auto& rule) {
-        if (auto child_rule = convert_to_rule(rule))
+        if (auto child_rule = convert_to_rule(rule, nested))
             child_rules.append(child_rule);
     });
 

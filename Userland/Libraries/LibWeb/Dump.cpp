@@ -810,6 +810,11 @@ void dump_style_rule(StringBuilder& builder, CSS::CSSStyleRule const& rule, int 
         dump_selector(builder, selector, indent_levels + 1);
     }
     dump_declaration(builder, rule.declaration(), indent_levels + 1);
+
+    indent(builder, indent_levels);
+    builder.appendff("  Child rules ({}):\n", rule.css_rules().length());
+    for (auto& child_rule : rule.css_rules())
+        dump_rule(builder, child_rule, indent_levels + 2);
 }
 
 void dump_sheet(CSS::StyleSheet const& sheet)
