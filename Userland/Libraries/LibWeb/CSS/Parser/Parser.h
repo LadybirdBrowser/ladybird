@@ -178,14 +178,15 @@ private:
     bool is_valid_in_the_current_context(Declaration&);
     bool is_valid_in_the_current_context(AtRule&);
     bool is_valid_in_the_current_context(QualifiedRule&);
-    JS::GCPtr<CSSRule> convert_to_rule(Rule const&);
+    JS::GCPtr<CSSRule> convert_to_rule(Rule const&, Nested);
+    JS::GCPtr<CSSStyleRule> convert_to_style_rule(QualifiedRule const&, Nested);
     JS::GCPtr<CSSFontFaceRule> convert_to_font_face_rule(AtRule const&);
     JS::GCPtr<CSSKeyframesRule> convert_to_keyframes_rule(AtRule const&);
     JS::GCPtr<CSSImportRule> convert_to_import_rule(AtRule const&);
-    JS::GCPtr<CSSRule> convert_to_layer_rule(AtRule const&);
-    JS::GCPtr<CSSMediaRule> convert_to_media_rule(AtRule const&);
+    JS::GCPtr<CSSRule> convert_to_layer_rule(AtRule const&, Nested);
+    JS::GCPtr<CSSMediaRule> convert_to_media_rule(AtRule const&, Nested);
     JS::GCPtr<CSSNamespaceRule> convert_to_namespace_rule(AtRule const&);
-    JS::GCPtr<CSSSupportsRule> convert_to_supports_rule(AtRule const&);
+    JS::GCPtr<CSSSupportsRule> convert_to_supports_rule(AtRule const&, Nested);
 
     PropertyOwningCSSStyleDeclaration* convert_to_style_declaration(Vector<Declaration> const&);
     Optional<StyleProperty> convert_to_style_property(Declaration const&);

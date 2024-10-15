@@ -135,6 +135,7 @@ void CSSRuleList::for_each_effective_rule(TraversalOrder order, Function<void(We
 
         case CSSRule::Type::LayerBlock:
         case CSSRule::Type::Media:
+        case CSSRule::Type::Style:
         case CSSRule::Type::Supports:
             static_cast<CSSGroupingRule const&>(*rule).for_each_effective_rule(order, callback);
             break;
@@ -145,7 +146,6 @@ void CSSRuleList::for_each_effective_rule(TraversalOrder order, Function<void(We
         case CSSRule::Type::LayerStatement:
         case CSSRule::Type::Namespace:
         case CSSRule::Type::NestedDeclarations:
-        case CSSRule::Type::Style:
             break;
         }
 
