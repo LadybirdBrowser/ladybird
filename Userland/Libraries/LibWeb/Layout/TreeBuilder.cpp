@@ -211,6 +211,22 @@ void TreeBuilder::create_pseudo_element_if_needed(DOM::Element& element, CSS::Se
     if (!pseudo_element_node)
         return;
 
+    auto& style_computer = document.style_computer();
+
+    // FIXME: This code actually computes style for element::marker, and shouldn't for element::pseudo::marker
+    if (is<ListItemBox>(*pseudo_element_node)) {
+        auto marker_style = style_computer.compute_style(element, CSS::Selector::PseudoElement::Type::Marker);
+        auto list_item_marker = document.heap().allocate_without_realm<ListItemMarkerBox>(
+            document,
+            pseudo_element_node->computed_values().list_style_type(),
+            pseudo_element_node->computed_values().list_style_position(),
+            0,
+            *marker_style);
+        static_cast<ListItemBox&>(*pseudo_element_node).set_marker(list_item_marker);
+        element.set_pseudo_element_node({}, CSS::Selector::PseudoElement::Type::Marker, list_item_marker);
+        pseudo_element_node->append_child(*list_item_marker);
+    }
+
     auto generated_for = Node::GeneratedFor::NotGenerated;
     if (pseudo_element == CSS::Selector::PseudoElement::Type::Before) {
         generated_for = Node::GeneratedFor::PseudoBefore;
