@@ -444,12 +444,13 @@ static void dump_qualified_name(StringBuilder& builder, CSS::Selector::SimpleSel
     builder.appendff("NamespaceType={}, Namespace='{}', Name='{}'", namespace_type, qualified_name.namespace_, qualified_name.name.name);
 }
 
-void dump_selector(StringBuilder& builder, CSS::Selector const& selector)
+void dump_selector(StringBuilder& builder, CSS::Selector const& selector, int indent_levels)
 {
-    builder.append("  CSS::Selector:\n"sv);
+    indent(builder, indent_levels);
+    builder.append("CSS::Selector:\n"sv);
 
     for (auto& relative_selector : selector.compound_selectors()) {
-        builder.append("    "sv);
+        indent(builder, indent_levels + 1);
 
         char const* relation_description = "";
         switch (relative_selector.combinator) {
@@ -525,9 +526,10 @@ void dump_selector(StringBuilder& builder, CSS::Selector const& selector)
                 case CSS::PseudoClassMetadata::ParameterType::ANPlusBOf: {
                     builder.appendff("(step={}, offset={}", pseudo_class.nth_child_pattern.step_size, pseudo_class.nth_child_pattern.offset);
                     if (!pseudo_class.argument_selector_list.is_empty()) {
-                        builder.append(", selectors=["sv);
+                        builder.append(", selectors=[\n"sv);
                         for (auto const& child_selector : pseudo_class.argument_selector_list)
-                            dump_selector(builder, child_selector);
+                            dump_selector(builder, child_selector, indent_levels + 2);
+                        indent(builder, indent_levels + 1);
                         builder.append("]"sv);
                     }
                     builder.append(")"sv);
@@ -537,9 +539,10 @@ void dump_selector(StringBuilder& builder, CSS::Selector const& selector)
                 case CSS::PseudoClassMetadata::ParameterType::ForgivingSelectorList:
                 case CSS::PseudoClassMetadata::ParameterType::ForgivingRelativeSelectorList:
                 case CSS::PseudoClassMetadata::ParameterType::SelectorList: {
-                    builder.append("(["sv);
-                    for (auto& selector : pseudo_class.argument_selector_list)
-                        dump_selector(builder, selector);
+                    builder.append("([\n"sv);
+                    for (auto& child_selector : pseudo_class.argument_selector_list)
+                        dump_selector(builder, child_selector, indent_levels + 2);
+                    indent(builder, indent_levels + 1);
                     builder.append("])"sv);
                     break;
                 }
@@ -737,9 +740,11 @@ void dump_import_rule(StringBuilder& builder, CSS::CSSImportRule const& rule, in
 void dump_layer_block_rule(StringBuilder& builder, CSS::CSSLayerBlockRule const& layer_block, int indent_levels)
 {
     indent(builder, indent_levels);
-    builder.appendff("  Layer Block: `{}`\n  Rules ({}):\n", layer_block.internal_name(), layer_block.css_rules().length());
+    builder.appendff("  Layer Block: `{}`\n", layer_block.internal_name());
+    indent(builder, indent_levels);
+    builder.appendff("  Rules ({}):\n", layer_block.css_rules().length());
     for (auto& rule : layer_block.css_rules())
-        dump_rule(builder, rule, indent_levels + 1);
+        dump_rule(builder, rule, indent_levels + 2);
 }
 
 void dump_layer_statement_rule(StringBuilder& builder, CSS::CSSLayerStatementRule const& layer_statement, int indent_levels)
@@ -752,25 +757,29 @@ void dump_layer_statement_rule(StringBuilder& builder, CSS::CSSLayerStatementRul
 void dump_media_rule(StringBuilder& builder, CSS::CSSMediaRule const& media, int indent_levels)
 {
     indent(builder, indent_levels);
-    builder.appendff("  Media: {}\n  Rules ({}):\n", media.condition_text(), media.css_rules().length());
+    builder.appendff("  Media: {}\n", media.condition_text());
+    indent(builder, indent_levels);
+    builder.appendff("  Rules ({}):\n", media.css_rules().length());
 
     for (auto& rule : media.css_rules())
-        dump_rule(builder, rule, indent_levels + 1);
+        dump_rule(builder, rule, indent_levels + 2);
 }
 
 void dump_supports_rule(StringBuilder& builder, CSS::CSSSupportsRule const& supports, int indent_levels)
 {
     indent(builder, indent_levels);
-    builder.appendff("  Supports: {}\n  Rules ({}):\n", supports.condition_text(), supports.css_rules().length());
+    builder.appendff("  Supports: {}\n", supports.condition_text());
+    indent(builder, indent_levels);
+    builder.appendff("  Rules ({}):\n", supports.css_rules().length());
 
     for (auto& rule : supports.css_rules())
-        dump_rule(builder, rule, indent_levels + 1);
+        dump_rule(builder, rule, indent_levels + 2);
 }
 
 void dump_style_rule(StringBuilder& builder, CSS::CSSStyleRule const& rule, int indent_levels)
 {
     for (auto& selector : rule.selectors()) {
-        dump_selector(builder, selector);
+        dump_selector(builder, selector, indent_levels + 1);
     }
     indent(builder, indent_levels);
     builder.appendff("  Declarations ({}):\n", rule.declaration().length());

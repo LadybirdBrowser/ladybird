@@ -32,7 +32,7 @@ void dump_supports_rule(StringBuilder&, CSS::CSSSupportsRule const&, int indent_
 void dump_namespace_rule(StringBuilder&, CSS::CSSNamespaceRule const&, int indent_levels = 0);
 void dump_layer_block_rule(StringBuilder&, CSS::CSSLayerBlockRule const&, int indent_levels = 0);
 void dump_layer_statement_rule(StringBuilder&, CSS::CSSLayerStatementRule const&, int indent_levels = 0);
-void dump_selector(StringBuilder&, CSS::Selector const&);
+void dump_selector(StringBuilder&, CSS::Selector const&, int indent_levels = 0);
 void dump_selector(CSS::Selector const&);
 
 }
