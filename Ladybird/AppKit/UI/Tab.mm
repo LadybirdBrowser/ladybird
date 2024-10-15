@@ -195,6 +195,11 @@ static constexpr CGFloat const WINDOW_HEIGHT = 800;
 
 - (void)updateTabTitleAndFavicon
 {
+    static constexpr CGFloat TITLE_FONT_SIZE = 12;
+    static constexpr CGFloat FAVICON_SIZE = 16;
+
+    NSFont* title_font = [NSFont systemFontOfSize:TITLE_FONT_SIZE];
+
     auto* favicon_attachment = [[NSTextAttachment alloc] init];
     favicon_attachment.image = self.favicon;
 
@@ -206,20 +211,20 @@ static constexpr CGFloat const WINDOW_HEIGHT = 800;
                               value:[NSColor clearColor]
                               range:NSMakeRange(0, [favicon_attribute length])];
 
-    // By default, the text attachment will be aligned to the bottom of the string. We have to manually
-    // try to center it vertically.
-    // FIXME: Figure out a way to programmatically arrive at a good NSBaselineOffsetAttributeName. Using
-    //        half the distance between the font's line height and the height of the favicon produces a
-    //        value that results in the title being aligned too low still.
+    // adjust the favicon image to middle center the title text
+    CGFloat offset_y = (title_font.capHeight - FAVICON_SIZE) / 2.f;
+    [favicon_attachment setBounds:CGRectMake(0, offset_y, FAVICON_SIZE, FAVICON_SIZE)];
+
     auto* title_attributes = @{
         NSForegroundColorAttributeName : [NSColor textColor],
-        NSBaselineOffsetAttributeName : @3
+        NSFontAttributeName : title_font
     };
 
     auto* title_attribute = [[NSAttributedString alloc] initWithString:self.title
                                                             attributes:title_attributes];
 
-    auto* spacing_attribute = [[NSAttributedString alloc] initWithString:@"  "];
+    auto* spacing_attribute = [[NSAttributedString alloc] initWithString:@"  "
+                                                              attributes:title_attributes];
 
     auto* title_and_favicon = [[NSMutableAttributedString alloc] init];
     [title_and_favicon appendAttributedString:favicon_attribute];
@@ -373,8 +378,6 @@ static constexpr CGFloat const WINDOW_HEIGHT = 800;
 
 - (void)onFaviconChange:(Gfx::Bitmap const&)bitmap
 {
-    static constexpr size_t FAVICON_SIZE = 16;
-
     auto png = Gfx::PNGWriter::encode(bitmap);
     if (png.is_error()) {
         return;
@@ -385,7 +388,6 @@ static constexpr CGFloat const WINDOW_HEIGHT = 800;
 
     auto* favicon = [[NSImage alloc] initWithData:data];
     [favicon setResizingMode:NSImageResizingModeStretch];
-    [favicon setSize:NSMakeSize(FAVICON_SIZE, FAVICON_SIZE)];
 
     self.favicon = favicon;
     [self updateTabTitleAndFavicon];
