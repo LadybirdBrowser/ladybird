@@ -4,6 +4,6 @@ Viewport <#document> at (0,0) content-size 800x600 children: not-inline
       BlockContainer <div#foo> at (0,0) content-size 123x456 positioned [BFC] children: not-inline
 
 ViewportPaintable (Viewport<#document>) [0,0 800x600]
-  PaintableWithLines (BlockContainer<HTML>) [0,0 800x16] overflow: [0,0 800x456]
-    PaintableWithLines (BlockContainer<BODY>) [8,8 784x0] overflow: [0,0 123x456]
+  PaintableWithLines (BlockContainer<HTML>) [0,0 800x16]
+    PaintableWithLines (BlockContainer<BODY>) [8,8 784x0]
       PaintableWithLines (BlockContainer<DIV>#foo) [0,0 123x456]
