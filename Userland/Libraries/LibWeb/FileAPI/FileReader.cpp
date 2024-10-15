@@ -7,6 +7,7 @@
 #include <AK/Assertions.h>
 #include <AK/Base64.h>
 #include <AK/ByteBuffer.h>
+#include <AK/Time.h>
 #include <LibJS/Heap/Heap.h>
 #include <LibJS/Runtime/Promise.h>
 #include <LibJS/Runtime/Realm.h>
@@ -147,6 +148,8 @@ WebIDL::ExceptionOr<void> FileReader::read_operation(Blob& blob, Type type, Opti
     // 10. In parallel, while true:
     Platform::EventLoopPlugin::the().deferred_invoke([this, chunk_promise, reader, bytes, is_first_chunk, &realm, type, encoding_name, blobs_type]() mutable {
         HTML::TemporaryExecutionContext execution_context { Bindings::host_defined_environment_settings_object(realm) };
+        Optional<MonotonicTime> progress_timer;
+
         while (true) {
             auto& vm = realm.vm();
 
@@ -180,7 +183,18 @@ WebIDL::ExceptionOr<void> FileReader::read_operation(Blob& blob, Type type, Opti
                 // 2. Append bs to bytes.
                 bytes.append(byte_sequence.data());
 
-                // FIXME: 3. If roughly 50ms have passed since these steps were last invoked, queue a task to fire a progress event called progress at fr.
+                // 3. If roughly 50ms have passed since these steps were last invoked, queue a task to fire a progress event called progress at fr.
+                auto now = MonotonicTime::now();
+                bool enough_time_passed = !progress_timer.has_value() || (now - progress_timer.value() >= AK::Duration::from_milliseconds(50));
+                // WPT tests for this and expects no progress event to fire when there isn't any data.
+                // See http://wpt.live/FileAPI/reading-data-section/filereader_events.any.html
+                bool contained_data = byte_sequence.array_length().length() > 0;
+                if (enough_time_passed && contained_data) {
+                    HTML::queue_global_task(HTML::Task::Source::FileReading, realm.global_object(), JS::create_heap_function(heap(), [this, &realm]() {
+                        dispatch_event(DOM::Event::create(realm, HTML::EventNames::progress));
+                    }));
+                    progress_timer = now;
+                }
 
                 // 4. Set chunkPromise to the result of reading a chunk from stream with reader.
                 chunk_promise = reader->read();
