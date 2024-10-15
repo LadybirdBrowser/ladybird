@@ -788,6 +788,23 @@ void dump_supports_rule(StringBuilder& builder, CSS::CSSSupportsRule const& supp
         dump_rule(builder, rule, indent_levels + 2);
 }
 
+void dump_property_rule(StringBuilder& builder, CSS::CSSPropertyRule const& property, int indent_levels)
+{
+    indent(builder, indent_levels + 1);
+    builder.appendff("name: {}\n", property.name());
+
+    indent(builder, indent_levels + 1);
+    builder.appendff("syntax: {}\n", property.syntax());
+
+    indent(builder, indent_levels + 1);
+    builder.appendff("inherits: {}\n", property.inherits());
+
+    if (property.initial_value().has_value()) {
+        indent(builder, indent_levels + 1);
+        builder.appendff("initial-value: {}\n", property.initial_value().value());
+    }
+}
+
 void dump_declaration(StringBuilder& builder, CSS::PropertyOwningCSSStyleDeclaration const& declaration, int indent_levels)
 {
     indent(builder, indent_levels);
@@ -806,13 +823,6 @@ void dump_declaration(StringBuilder& builder, CSS::PropertyOwningCSSStyleDeclara
             builder.append(" \033[31;1m!important\033[0m"sv);
         builder.append('\n');
     }
-}
-
-void dump_property_rule(StringBuilder& builder, CSS::CSSPropertyRule const& property, int indent_levels)
-{
-    (void)builder;
-    (void)property;
-    (void)indent_levels;
 }
 
 void dump_style_rule(StringBuilder& builder, CSS::CSSStyleRule const& rule, int indent_levels)
