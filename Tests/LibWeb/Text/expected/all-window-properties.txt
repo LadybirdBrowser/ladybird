@@ -408,6 +408,7 @@ __finishTest
 __preventMultipleTestFunctions
 animationFrame
 asyncTest
+httpTestServer
 printElement
 println
 promiseTest

@@ -98,3 +98,31 @@ function promiseTest(f) {
         });
     });
 }
+
+class HTTPTestServer {
+    constructor(baseURL) {
+        this.baseURL = baseURL;
+    }
+    async createEcho(method, path, options) {
+        const result = await fetch(`${this.baseURL}/create`, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ ...options, method, path }),
+        });
+        if (!result.ok) {
+            throw new Error("Error creating echo: " + result.statusText);
+        }
+        return `${this.baseURL}${path}`;
+    }
+    getStaticURL(path) {
+        return `${this.baseURL}/static/${path}`;
+    }
+}
+
+// FIXME: Get the port from internals
+const __httpTestServer = new HTTPTestServer("http://localhost:8123");
+function httpTestServer() {
+    return __httpTestServer;
+}
