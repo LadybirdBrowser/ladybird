@@ -53,24 +53,23 @@ static void indent(StringBuilder& builder, int levels)
         builder.append("  "sv);
 }
 
-static ErrorOr<void> dump_session_history_entry(StringBuilder& builder, HTML::SessionHistoryEntry const& session_history_entry, int indent_levels)
+static void dump_session_history_entry(StringBuilder& builder, HTML::SessionHistoryEntry const& session_history_entry, int indent_levels)
 {
     indent(builder, indent_levels);
     auto const& document = session_history_entry.document();
-    TRY(builder.try_appendff("step=({}) url=({}) is-active=({})\n", session_history_entry.step().get<int>(), session_history_entry.url(), document && document->is_active()));
+    builder.appendff("step=({}) url=({}) is-active=({})\n", session_history_entry.step().get<int>(), session_history_entry.url(), document && document->is_active());
     for (auto const& nested_history : session_history_entry.document_state()->nested_histories()) {
         for (auto const& nested_she : nested_history.entries) {
-            TRY(dump_session_history_entry(builder, *nested_she, indent_levels + 1));
+            dump_session_history_entry(builder, *nested_she, indent_levels + 1);
         }
     }
-    return {};
 }
 
 void dump_tree(HTML::TraversableNavigable& traversable)
 {
     StringBuilder builder;
     for (auto const& she : traversable.session_history_entries()) {
-        dump_session_history_entry(builder, *she, 0).release_value_but_fixme_should_propagate_errors();
+        dump_session_history_entry(builder, *she, 0);
     }
     dbgln("{}", builder.string_view());
 }
@@ -600,15 +599,14 @@ void dump_selector(StringBuilder& builder, CSS::Selector const& selector)
     }
 }
 
-ErrorOr<void> dump_rule(CSS::CSSRule const& rule)
+void dump_rule(CSS::CSSRule const& rule)
 {
     StringBuilder builder;
-    TRY(dump_rule(builder, rule));
+    dump_rule(builder, rule);
     dbgln("{}", builder.string_view());
-    return {};
 }
 
-ErrorOr<void> dump_rule(StringBuilder& builder, CSS::CSSRule const& rule, int indent_levels)
+void dump_rule(StringBuilder& builder, CSS::CSSRule const& rule, int indent_levels)
 {
     indent(builder, indent_levels);
     builder.appendff("{}:\n", rule.class_name());
@@ -631,19 +629,18 @@ ErrorOr<void> dump_rule(StringBuilder& builder, CSS::CSSRule const& rule, int in
         dump_layer_statement_rule(builder, verify_cast<CSS::CSSLayerStatementRule const>(rule), indent_levels);
         break;
     case CSS::CSSRule::Type::Media:
-        TRY(dump_media_rule(builder, verify_cast<CSS::CSSMediaRule const>(rule), indent_levels));
+        dump_media_rule(builder, verify_cast<CSS::CSSMediaRule const>(rule), indent_levels);
         break;
     case CSS::CSSRule::Type::Namespace:
-        TRY(dump_namespace_rule(builder, verify_cast<CSS::CSSNamespaceRule const>(rule), indent_levels));
+        dump_namespace_rule(builder, verify_cast<CSS::CSSNamespaceRule const>(rule), indent_levels);
         break;
     case CSS::CSSRule::Type::Style:
-        TRY(dump_style_rule(builder, verify_cast<CSS::CSSStyleRule const>(rule), indent_levels));
+        dump_style_rule(builder, verify_cast<CSS::CSSStyleRule const>(rule), indent_levels);
         break;
     case CSS::CSSRule::Type::Supports:
-        TRY(dump_supports_rule(builder, verify_cast<CSS::CSSSupportsRule const>(rule), indent_levels));
+        dump_supports_rule(builder, verify_cast<CSS::CSSSupportsRule const>(rule), indent_levels);
         break;
     }
-    return {};
 }
 
 void dump_font_face_rule(StringBuilder& builder, CSS::CSSFontFaceRule const& rule, int indent_levels)
@@ -742,7 +739,7 @@ void dump_layer_block_rule(StringBuilder& builder, CSS::CSSLayerBlockRule const&
     indent(builder, indent_levels);
     builder.appendff("  Layer Block: `{}`\n  Rules ({}):\n", layer_block.internal_name(), layer_block.css_rules().length());
     for (auto& rule : layer_block.css_rules())
-        MUST(dump_rule(builder, rule, indent_levels + 1));
+        dump_rule(builder, rule, indent_levels + 1);
 }
 
 void dump_layer_statement_rule(StringBuilder& builder, CSS::CSSLayerStatementRule const& layer_statement, int indent_levels)
@@ -752,33 +749,31 @@ void dump_layer_statement_rule(StringBuilder& builder, CSS::CSSLayerStatementRul
     builder.join(", "sv, layer_statement.name_list());
 }
 
-ErrorOr<void> dump_media_rule(StringBuilder& builder, CSS::CSSMediaRule const& media, int indent_levels)
+void dump_media_rule(StringBuilder& builder, CSS::CSSMediaRule const& media, int indent_levels)
 {
     indent(builder, indent_levels);
     builder.appendff("  Media: {}\n  Rules ({}):\n", media.condition_text(), media.css_rules().length());
 
     for (auto& rule : media.css_rules())
-        TRY(dump_rule(builder, rule, indent_levels + 1));
-    return {};
+        dump_rule(builder, rule, indent_levels + 1);
 }
 
-ErrorOr<void> dump_supports_rule(StringBuilder& builder, CSS::CSSSupportsRule const& supports, int indent_levels)
+void dump_supports_rule(StringBuilder& builder, CSS::CSSSupportsRule const& supports, int indent_levels)
 {
     indent(builder, indent_levels);
     builder.appendff("  Supports: {}\n  Rules ({}):\n", supports.condition_text(), supports.css_rules().length());
 
     for (auto& rule : supports.css_rules())
-        TRY(dump_rule(builder, rule, indent_levels + 1));
-    return {};
+        dump_rule(builder, rule, indent_levels + 1);
 }
 
-ErrorOr<void> dump_style_rule(StringBuilder& builder, CSS::CSSStyleRule const& rule, int indent_levels)
+void dump_style_rule(StringBuilder& builder, CSS::CSSStyleRule const& rule, int indent_levels)
 {
     for (auto& selector : rule.selectors()) {
         dump_selector(builder, selector);
     }
     indent(builder, indent_levels);
-    builder.append("  Declarations:\n"sv);
+    builder.appendff("  Declarations ({}):\n", rule.declaration().length());
     for (auto& property : rule.declaration().properties()) {
         indent(builder, indent_levels);
         builder.appendff("    {}: '{}'", CSS::string_from_property_id(property.property_id), property.value->to_string());
@@ -793,26 +788,23 @@ ErrorOr<void> dump_style_rule(StringBuilder& builder, CSS::CSSStyleRule const& r
             builder.append(" \033[31;1m!important\033[0m"sv);
         builder.append('\n');
     }
-    return {};
 }
 
-ErrorOr<void> dump_sheet(CSS::StyleSheet const& sheet)
+void dump_sheet(CSS::StyleSheet const& sheet)
 {
     StringBuilder builder;
-    TRY(dump_sheet(builder, sheet));
+    dump_sheet(builder, sheet);
     dbgln("{}", builder.string_view());
-    return {};
 }
 
-ErrorOr<void> dump_sheet(StringBuilder& builder, CSS::StyleSheet const& sheet)
+void dump_sheet(StringBuilder& builder, CSS::StyleSheet const& sheet)
 {
     auto& css_stylesheet = verify_cast<CSS::CSSStyleSheet>(sheet);
 
     builder.appendff("CSSStyleSheet{{{}}}: {} rule(s)\n", &sheet, css_stylesheet.rules().length());
 
     for (auto& rule : css_stylesheet.rules())
-        TRY(dump_rule(builder, rule));
-    return {};
+        dump_rule(builder, rule);
 }
 
 void dump_tree(Painting::Paintable const& paintable)
@@ -870,14 +862,12 @@ void dump_tree(StringBuilder& builder, Painting::Paintable const& paintable, boo
     }
 }
 
-ErrorOr<void> dump_namespace_rule(StringBuilder& builder, CSS::CSSNamespaceRule const& namespace_, int indent_levels)
+void dump_namespace_rule(StringBuilder& builder, CSS::CSSNamespaceRule const& namespace_, int indent_levels)
 {
     indent(builder, indent_levels);
-    TRY(builder.try_appendff("  Namespace: {}\n", namespace_.namespace_uri()));
+    builder.appendff("  Namespace: {}\n", namespace_.namespace_uri());
     if (!namespace_.prefix().is_empty())
-        TRY(builder.try_appendff("  Prefix: {}\n", namespace_.prefix()));
-
-    return {};
+        builder.appendff("  Prefix: {}\n", namespace_.prefix());
 }
 
 }

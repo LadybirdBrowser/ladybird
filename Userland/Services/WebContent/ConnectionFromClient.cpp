@@ -324,8 +324,7 @@ void ConnectionFromClient::debug_request(u64 page_id, ByteString const& request,
     if (request == "dump-style-sheets") {
         if (auto* doc = page->page().top_level_browsing_context().active_document()) {
             for (auto& sheet : doc->style_sheets().sheets()) {
-                if (auto result = Web::dump_sheet(sheet); result.is_error())
-                    dbgln("Failed to dump style sheets: {}", result.error());
+                Web::dump_sheet(sheet);
             }
         }
         return;
