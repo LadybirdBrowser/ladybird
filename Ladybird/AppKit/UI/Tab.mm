@@ -205,15 +205,19 @@ static constexpr CGFloat const WINDOW_HEIGHT = 800;
     [favicon_attribute addAttribute:NSForegroundColorAttributeName
                               value:[NSColor clearColor]
                               range:NSMakeRange(0, [favicon_attribute length])];
+    // Add a offset to make the icon vertical center, maybe have better solution
+    [favicon_attribute addAttribute:NSBaselineOffsetAttributeName
+                              value:@-2
+                              range:NSMakeRange(0, [favicon_attribute length])];
 
     // By default, the text attachment will be aligned to the bottom of the string. We have to manually
     // try to center it vertically.
-    // FIXME: Figure out a way to programmatically arrive at a good NSBaselineOffsetAttributeName. Using
-    //        half the distance between the font's line height and the height of the favicon produces a
-    //        value that results in the title being aligned too low still.
+    CGFloat titleFontSize = 12;
+    CGFloat baselineOffset = (self.favicon.size.height - titleFontSize) / 2;
     auto* title_attributes = @{
         NSForegroundColorAttributeName : [NSColor textColor],
-        NSBaselineOffsetAttributeName : @3
+        NSBaselineOffsetAttributeName : @(baselineOffset),
+        NSFontAttributeName : [NSFont systemFontOfSize:titleFontSize]
     };
 
     auto* title_attribute = [[NSAttributedString alloc] initWithString:self.title
