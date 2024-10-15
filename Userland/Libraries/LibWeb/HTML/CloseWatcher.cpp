@@ -13,6 +13,7 @@
 #include <LibWeb/HTML/CloseWatcher.h>
 #include <LibWeb/HTML/CloseWatcherManager.h>
 #include <LibWeb/HTML/EventHandler.h>
+#include <LibWeb/HTML/HTMLIFrameElement.h>
 #include <LibWeb/HTML/Window.h>
 
 namespace Web::HTML {
@@ -41,9 +42,14 @@ JS::NonnullGCPtr<CloseWatcher> CloseWatcher::establish(HTML::Window& window)
 // https://html.spec.whatwg.org/multipage/interaction.html#dom-closewatcher
 WebIDL::ExceptionOr<JS::NonnullGCPtr<CloseWatcher>> CloseWatcher::construct_impl(JS::Realm& realm, CloseWatcherOptions const& options)
 {
-    // 1. If this's relevant global object's associated Document is not fully active, then return an "InvalidStateError" DOMException.
-    // FIXME: Not in spec explicitly, but this should account for detached iframes too. See /close-watcher/frame-removal.html WPT.
     auto& window = verify_cast<HTML::Window>(realm.global_object());
+
+    // NOTE: Not in spec explicitly, but this should account for detached iframes too. See /close-watcher/frame-removal.html WPT.
+    auto navigable = window.navigable();
+    if (navigable && navigable->has_been_destroyed())
+        return WebIDL::InvalidStateError::create(realm, "The iframe has been detached"_string);
+
+    // 1. If this's relevant global object's associated Document is not fully active, then return an "InvalidStateError" DOMException.
     if (!window.associated_document().is_fully_active())
         return WebIDL::InvalidStateError::create(realm, "The document is not fully active."_string);
 
