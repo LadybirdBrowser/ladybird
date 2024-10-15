@@ -14,6 +14,7 @@
 #include <LibWeb/CSS/CSSLayerBlockRule.h>
 #include <LibWeb/CSS/CSSLayerStatementRule.h>
 #include <LibWeb/CSS/CSSMediaRule.h>
+#include <LibWeb/CSS/CSSNestedDeclarations.h>
 #include <LibWeb/CSS/CSSRule.h>
 #include <LibWeb/CSS/CSSStyleRule.h>
 #include <LibWeb/CSS/CSSStyleSheet.h>
@@ -641,6 +642,9 @@ void dump_rule(StringBuilder& builder, CSS::CSSRule const& rule, int indent_leve
     case CSS::CSSRule::Type::Namespace:
         dump_namespace_rule(builder, verify_cast<CSS::CSSNamespaceRule const>(rule), indent_levels);
         break;
+    case CSS::CSSRule::Type::NestedDeclarations:
+        dump_nested_declarations(builder, verify_cast<CSS::CSSNestedDeclarations const>(rule), indent_levels);
+        break;
     case CSS::CSSRule::Type::Style:
         dump_style_rule(builder, verify_cast<CSS::CSSStyleRule const>(rule), indent_levels);
         break;
@@ -780,27 +784,32 @@ void dump_supports_rule(StringBuilder& builder, CSS::CSSSupportsRule const& supp
         dump_rule(builder, rule, indent_levels + 2);
 }
 
+void dump_declaration(StringBuilder& builder, CSS::PropertyOwningCSSStyleDeclaration const& declaration, int indent_levels)
+{
+    indent(builder, indent_levels);
+    builder.appendff("Declarations ({}):\n", declaration.length());
+    for (auto& property : declaration.properties()) {
+        indent(builder, indent_levels);
+        builder.appendff("  {}: '{}'", CSS::string_from_property_id(property.property_id), property.value->to_string());
+        if (property.important == CSS::Important::Yes)
+            builder.append(" \033[31;1m!important\033[0m"sv);
+        builder.append('\n');
+    }
+    for (auto& property : declaration.custom_properties()) {
+        indent(builder, indent_levels);
+        builder.appendff("  {}: '{}'", property.key, property.value.value->to_string());
+        if (property.value.important == CSS::Important::Yes)
+            builder.append(" \033[31;1m!important\033[0m"sv);
+        builder.append('\n');
+    }
+}
+
 void dump_style_rule(StringBuilder& builder, CSS::CSSStyleRule const& rule, int indent_levels)
 {
     for (auto& selector : rule.selectors()) {
         dump_selector(builder, selector, indent_levels + 1);
     }
-    indent(builder, indent_levels);
-    builder.appendff("  Declarations ({}):\n", rule.declaration().length());
-    for (auto& property : rule.declaration().properties()) {
-        indent(builder, indent_levels);
-        builder.appendff("    {}: '{}'", CSS::string_from_property_id(property.property_id), property.value->to_string());
-        if (property.important == CSS::Important::Yes)
-            builder.append(" \033[31;1m!important\033[0m"sv);
-        builder.append('\n');
-    }
-    for (auto& property : rule.declaration().custom_properties()) {
-        indent(builder, indent_levels);
-        builder.appendff("    {}: '{}'", property.key, property.value.value->to_string());
-        if (property.value.important == CSS::Important::Yes)
-            builder.append(" \033[31;1m!important\033[0m"sv);
-        builder.append('\n');
-    }
+    dump_declaration(builder, rule.declaration(), indent_levels + 1);
 }
 
 void dump_sheet(CSS::StyleSheet const& sheet)
@@ -881,6 +890,13 @@ void dump_namespace_rule(StringBuilder& builder, CSS::CSSNamespaceRule const& na
     builder.appendff("  Namespace: {}\n", namespace_.namespace_uri());
     if (!namespace_.prefix().is_empty())
         builder.appendff("  Prefix: {}\n", namespace_.prefix());
+}
+
+void dump_nested_declarations(StringBuilder& builder, CSS::CSSNestedDeclarations const& declarations, int indent_levels)
+{
+    indent(builder, indent_levels);
+    builder.append("  Nested declarations:\n"sv);
+    dump_declaration(builder, declarations.declaration(), indent_levels + 1);
 }
 
 }

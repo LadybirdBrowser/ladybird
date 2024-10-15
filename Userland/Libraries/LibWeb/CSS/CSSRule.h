@@ -34,6 +34,7 @@ public:
         // AD-HOC: These are not included in the spec, but we need them internally. So, their numbers are arbitrary.
         LayerBlock = 100,
         LayerStatement = 101,
+        NestedDeclarations = 102,
     };
 
     virtual Type type() const = 0;
