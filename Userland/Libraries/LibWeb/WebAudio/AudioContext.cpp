@@ -71,13 +71,13 @@ AudioContext::AudioContext(JS::Realm& realm, AudioContextOptions const& context_
         BaseAudioContext::set_rendering_state(Bindings::AudioContextState::Running);
 
         // 5.3: queue a media element task to execute the following steps:
-        queue_a_media_element_task([&realm, this]() {
+        queue_a_media_element_task(JS::create_heap_function(heap(), [&realm, this]() {
             // 5.3.1: Set the state attribute of the AudioContext to "running".
             BaseAudioContext::set_control_state(Bindings::AudioContextState::Running);
 
             // 5.3.2: queue a media element task to fire an event named statechange at the AudioContext.
             this->dispatch_event(DOM::Event::create(realm, HTML::EventNames::statechange));
-        });
+        }));
     }
 }
 
@@ -146,7 +146,7 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<JS::Promise>> AudioContext::resume()
     // 7.3: Start rendering the audio graph.
     if (!start_rendering_audio_graph()) {
         // 7.4: In case of failure, queue a media element task to execute the following steps:
-        queue_a_media_element_task([&realm, this]() {
+        queue_a_media_element_task(JS::create_heap_function(heap(), [&realm, this]() {
             // 7.4.1: Reject all promises from [[pending resume promises]] in order, then clear [[pending resume promises]].
             for (auto const& promise : m_pending_resume_promises) {
                 WebIDL::reject_promise(realm, promise, JS::js_null());
@@ -154,11 +154,11 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<JS::Promise>> AudioContext::resume()
             m_pending_resume_promises.clear();
 
             // FIXME: 7.4.2: Additionally, remove those promises from [[pending promises]].
-        });
+        }));
     }
 
     // 7.5: queue a media element task to execute the following steps:
-    queue_a_media_element_task([&realm, promise, this]() {
+    queue_a_media_element_task(JS::create_heap_function(heap(), [&realm, promise, this]() {
         // 7.5.1: Resolve all promises from [[pending resume promises]] in order.
         for (auto const& pending_resume_promise : m_pending_resume_promises) {
             *pending_resume_promise->resolve();
@@ -178,11 +178,11 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<JS::Promise>> AudioContext::resume()
             set_control_state(Bindings::AudioContextState::Running);
 
             // 7.5.4.2: queue a media element task to fire an event named statechange at the AudioContext.
-            queue_a_media_element_task([&realm, this]() {
+            queue_a_media_element_task(JS::create_heap_function(heap(), [&realm, this]() {
                 this->dispatch_event(DOM::Event::create(realm, HTML::EventNames::statechange));
-            });
+            }));
         }
-    });
+    }));
 
     // 8. Return promise.
     return JS::NonnullGCPtr { verify_cast<JS::Promise>(*promise->promise()) };
@@ -226,7 +226,7 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<JS::Promise>> AudioContext::suspend()
     set_rendering_state(Bindings::AudioContextState::Suspended);
 
     // 7.3: queue a media element task to execute the following steps:
-    queue_a_media_element_task([&realm, promise, this]() {
+    queue_a_media_element_task(JS::create_heap_function(heap(), [&realm, promise, this]() {
         // 7.3.1: Resolve promise.
         *promise->resolve();
 
@@ -236,11 +236,11 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<JS::Promise>> AudioContext::suspend()
             set_control_state(Bindings::AudioContextState::Suspended);
 
             // 7.3.2.2: queue a media element task to fire an event named statechange at the AudioContext.
-            queue_a_media_element_task([&realm, this]() {
+            queue_a_media_element_task(JS::create_heap_function(heap(), [&realm, this]() {
                 this->dispatch_event(DOM::Event::create(realm, HTML::EventNames::statechange));
-            });
+            }));
         }
-    });
+    }));
 
     // 8. Return promise.
     return JS::NonnullGCPtr { verify_cast<JS::Promise>(*promise->promise()) };
@@ -279,7 +279,7 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<JS::Promise>> AudioContext::close()
     // FIXME: 5.3: If this control message is being run in a reaction to the document being unloaded, abort this algorithm.
 
     // 5.4: queue a media element task to execute the following steps:
-    queue_a_media_element_task([&realm, promise, this]() {
+    queue_a_media_element_task(JS::create_heap_function(heap(), [&realm, promise, this]() {
         // 5.4.1: Resolve promise.
         *promise->resolve();
 
@@ -292,7 +292,7 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<JS::Promise>> AudioContext::close()
         // 5.4.2.2: queue a media element task to fire an event named statechange at the AudioContext.
         // FIXME: Attempting to queue another task in here causes an assertion fail at Vector.h:148
         this->dispatch_event(DOM::Event::create(realm, HTML::EventNames::statechange));
-    });
+    }));
 
     // 6. Return promise
     return JS::NonnullGCPtr { verify_cast<JS::Promise>(*promise->promise()) };

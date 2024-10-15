@@ -62,7 +62,7 @@ public:
 protected:
     explicit BaseAudioContext(JS::Realm&, float m_sample_rate = 0);
 
-    void queue_a_media_element_task(Function<void()> steps);
+    void queue_a_media_element_task(JS::NonnullGCPtr<JS::HeapFunction<void()>>);
 
     virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Cell::Visitor&) override;
