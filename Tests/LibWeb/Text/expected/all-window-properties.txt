@@ -42,6 +42,7 @@ CSSLayerBlockRule
 CSSLayerStatementRule
 CSSMediaRule
 CSSNamespaceRule
+CSSNestedDeclarations
 CSSRule
 CSSRuleList
 CSSStyleDeclaration

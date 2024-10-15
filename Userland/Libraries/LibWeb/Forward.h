@@ -117,6 +117,7 @@ class CSSLayerBlockRule;
 class CSSLayerStatementRule;
 class CSSMathValue;
 class CSSMediaRule;
+class CSSNestedDeclarations;
 class CSSOKLab;
 class CSSOKLCH;
 class CSSRGB;

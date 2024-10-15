@@ -144,6 +144,7 @@ void CSSRuleList::for_each_effective_rule(TraversalOrder order, Function<void(We
         case CSSRule::Type::Keyframes:
         case CSSRule::Type::LayerStatement:
         case CSSRule::Type::Namespace:
+        case CSSRule::Type::NestedDeclarations:
         case CSSRule::Type::Style:
             break;
         }
@@ -192,6 +193,7 @@ bool CSSRuleList::evaluate_media_queries(HTML::Window const& window)
         case CSSRule::Type::Keyframes:
         case CSSRule::Type::LayerStatement:
         case CSSRule::Type::Namespace:
+        case CSSRule::Type::NestedDeclarations:
         case CSSRule::Type::Style:
             break;
         }
