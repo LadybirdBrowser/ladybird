@@ -181,11 +181,12 @@ static double parse_date_string(VM& vm, ByteString const& date_string)
         "%Y-%m-%e%t%T"sv,                      // "2024-01-15 00:00:01"
         "%a%t%b%t%e%t%Y%t%T%t%Z"sv,            // "Tue Nov 07 2023 10:05:55  UTC"
         "%a%t%b%t%e%t%T%t%Y"sv,                // "Wed Apr 17 23:08:53 2019"
+        "%a%t%b%t%e%t%Y%t%T"sv,                // "Wed Apr 17 2019 23:08:53"
         "%Y-%m-%eT%T%X%z"sv,                   // "2024-01-26T22:10:11.306+0000"
         "%m/%e/%Y,%t%T%t%p"sv,                 // "1/27/2024, 9:28:30 AM"
         "%Y-%m-%e"sv,                          // "2024-1-15"
         "%Y-%m-%e%t%T%tGMT%z"sv,               // "2024-07-05 00:00:00 GMT-0800"
-        "%d%t%B%t%Y"sv                         // "01 February 2013"
+        "%d%t%B%t%Y"sv,                        // "01 February 2013"
     };
 
     for (auto const& format : extra_formats) {
