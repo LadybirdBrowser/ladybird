@@ -33,6 +33,7 @@ public:
         size_t start { 0 };
         size_t length { 0 };
         bool has_breaking_newline { false };
+        bool has_breaking_tab { false };
         bool is_all_whitespace { false };
         Gfx::GlyphRun::TextType text_type;
     };
@@ -46,7 +47,7 @@ public:
 
     private:
         Optional<Chunk> next_without_peek();
-        Optional<Chunk> try_commit_chunk(size_t start, size_t end, bool has_breaking_newline, Gfx::Font const&, Gfx::GlyphRun::TextType) const;
+        Optional<Chunk> try_commit_chunk(size_t start, size_t end, bool has_breaking_newline, bool has_breaking_tab, Gfx::Font const&, Gfx::GlyphRun::TextType) const;
 
         bool const m_wrap_lines;
         bool const m_respect_linebreaks;

@@ -489,30 +489,43 @@ Optional<TextNode::Chunk> TextNode::ChunkIterator::next_without_peek()
     Gfx::Font const& font = m_font_cascade_list.font_for_code_point(code_point);
     auto text_type = text_type_for_code_point(code_point);
 
+    auto broken_on_tab = false;
+
     while (m_current_index < m_utf8_view.byte_length()) {
         code_point = current_code_point();
 
+        if (code_point == '\t') {
+            if (auto result = try_commit_chunk(start_of_chunk, m_current_index, false, broken_on_tab, font, text_type); result.has_value())
+                return result.release_value();
+
+            broken_on_tab = true;
+            // consume any consecutive tabs
+            while (m_current_index < m_utf8_view.byte_length() && current_code_point() == '\t') {
+                m_current_index = next_grapheme_boundary();
+            }
+        }
+
         if (&font != &m_font_cascade_list.font_for_code_point(code_point)) {
-            if (auto result = try_commit_chunk(start_of_chunk, m_current_index, false, font, text_type); result.has_value())
+            if (auto result = try_commit_chunk(start_of_chunk, m_current_index, false, broken_on_tab, font, text_type); result.has_value())
                 return result.release_value();
         }
 
         if (m_respect_linebreaks && code_point == '\n') {
             // Newline encountered, and we're supposed to preserve them.
             // If we have accumulated some code points in the current chunk, commit them now and continue with the newline next time.
-            if (auto result = try_commit_chunk(start_of_chunk, m_current_index, false, font, text_type); result.has_value())
+            if (auto result = try_commit_chunk(start_of_chunk, m_current_index, false, broken_on_tab, font, text_type); result.has_value())
                 return result.release_value();
 
             // Otherwise, commit the newline!
             m_current_index = next_grapheme_boundary();
-            auto result = try_commit_chunk(start_of_chunk, m_current_index, true, font, text_type);
+            auto result = try_commit_chunk(start_of_chunk, m_current_index, true, broken_on_tab, font, text_type);
             VERIFY(result.has_value());
             return result.release_value();
         }
 
         if (m_wrap_lines) {
             if (text_type != text_type_for_code_point(code_point)) {
-                if (auto result = try_commit_chunk(start_of_chunk, m_current_index, false, font, text_type); result.has_value()) {
+                if (auto result = try_commit_chunk(start_of_chunk, m_current_index, false, broken_on_tab, font, text_type); result.has_value()) {
                     return result.release_value();
                 }
             }
@@ -520,31 +533,32 @@ Optional<TextNode::Chunk> TextNode::ChunkIterator::next_without_peek()
             if (is_ascii_space(code_point)) {
                 // Whitespace encountered, and we're allowed to break on whitespace.
                 // If we have accumulated some code points in the current chunk, commit them now and continue with the whitespace next time.
-                if (auto result = try_commit_chunk(start_of_chunk, m_current_index, false, font, text_type); result.has_value()) {
+                if (auto result = try_commit_chunk(start_of_chunk, m_current_index, false, broken_on_tab, font, text_type); result.has_value()) {
                     return result.release_value();
                 }
 
                 // Otherwise, commit the whitespace!
                 m_current_index = next_grapheme_boundary();
-                if (auto result = try_commit_chunk(start_of_chunk, m_current_index, false, font, text_type); result.has_value())
+                if (auto result = try_commit_chunk(start_of_chunk, m_current_index, false, broken_on_tab, font, text_type); result.has_value())
                     return result.release_value();
                 continue;
             }
         }
 
-        m_current_index = next_grapheme_boundary();
+        m_current_index
+            = next_grapheme_boundary();
     }
 
     if (start_of_chunk != m_utf8_view.byte_length()) {
         // Try to output whatever's left at the end of the text node.
-        if (auto result = try_commit_chunk(start_of_chunk, m_utf8_view.byte_length(), false, font, text_type); result.has_value())
+        if (auto result = try_commit_chunk(start_of_chunk, m_utf8_view.byte_length(), false, broken_on_tab, font, text_type); result.has_value())
             return result.release_value();
     }
 
     return {};
 }
 
-Optional<TextNode::Chunk> TextNode::ChunkIterator::try_commit_chunk(size_t start, size_t end, bool has_breaking_newline, Gfx::Font const& font, Gfx::GlyphRun::TextType text_type) const
+Optional<TextNode::Chunk> TextNode::ChunkIterator::try_commit_chunk(size_t start, size_t end, bool has_breaking_newline, bool has_breaking_tab, Gfx::Font const& font, Gfx::GlyphRun::TextType text_type) const
 {
     if (auto byte_length = end - start; byte_length > 0) {
         auto chunk_view = m_utf8_view.substring_view(start, byte_length);
@@ -554,6 +568,7 @@ Optional<TextNode::Chunk> TextNode::ChunkIterator::try_commit_chunk(size_t start
             .start = start,
             .length = byte_length,
             .has_breaking_newline = has_breaking_newline,
+            .has_breaking_tab = has_breaking_tab,
             .is_all_whitespace = is_all_whitespace(chunk_view.as_string()),
             .text_type = text_type,
         };
