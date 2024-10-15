@@ -62,7 +62,11 @@ SettingsDialog::SettingsDialog(QMainWindow* window)
 
     m_enable_do_not_track = new QCheckBox(this);
     m_enable_do_not_track->setChecked(Settings::the()->enable_do_not_track());
+#if (QT_VERSION > QT_VERSION_CHECK(6, 7, 0))
+    QObject::connect(m_enable_do_not_track, &QCheckBox::checkStateChanged, this, [&](int state) {
+#else
     QObject::connect(m_enable_do_not_track, &QCheckBox::stateChanged, this, [&](int state) {
+#endif
         Settings::the()->set_enable_do_not_track(state == Qt::Checked);
     });
 
@@ -73,7 +77,11 @@ SettingsDialog::SettingsDialog(QMainWindow* window)
         m_enable_autoplay->setChecked(Settings::the()->enable_autoplay());
     }
 
+#if (QT_VERSION > QT_VERSION_CHECK(6, 7, 0))
+    QObject::connect(m_enable_autoplay, &QCheckBox::checkStateChanged, this, [&](int state) {
+#else
     QObject::connect(m_enable_autoplay, &QCheckBox::stateChanged, this, [&](int state) {
+#endif
         Settings::the()->set_enable_autoplay(state == Qt::Checked);
     });
 
@@ -129,12 +137,20 @@ void SettingsDialog::setup_search_engines()
     m_autocomplete_engine_dropdown->setMenu(autocomplete_engine_menu);
     m_autocomplete_engine_dropdown->setEnabled(Settings::the()->enable_autocomplete());
 
+#if (QT_VERSION > QT_VERSION_CHECK(6, 7, 0))
+    connect(m_enable_search, &QCheckBox::checkStateChanged, this, [&](int state) {
+#else
     connect(m_enable_search, &QCheckBox::stateChanged, this, [&](int state) {
+#endif
         Settings::the()->set_enable_search(state == Qt::Checked);
         m_search_engine_dropdown->setEnabled(state == Qt::Checked);
     });
 
+#if (QT_VERSION > QT_VERSION_CHECK(6, 7, 0))
+    connect(m_enable_autocomplete, &QCheckBox::checkStateChanged, this, [&](int state) {
+#else
     connect(m_enable_autocomplete, &QCheckBox::stateChanged, this, [&](int state) {
+#endif
         Settings::the()->set_enable_autocomplete(state == Qt::Checked);
         m_autocomplete_engine_dropdown->setEnabled(state == Qt::Checked);
     });
