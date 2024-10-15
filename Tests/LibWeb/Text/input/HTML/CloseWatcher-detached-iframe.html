@@ -1,0 +1,25 @@
+<script src="../include.js"></script>
+<script>
+    promiseTest(async () => {
+        const iframe = document.createElement('iframe');
+        document.body.appendChild(iframe);
+
+        await new Promise(resolve => iframe.onload = resolve);
+
+        const iframeCloseWatcher = iframe.contentWindow.CloseWatcher;
+        const iframeDOMException = iframe.contentWindow.DOMException;
+
+        iframe.remove();
+
+        try {
+            new iframeCloseWatcher();
+            println("FAIL");
+        } catch (error) {
+            if (error instanceof iframeDOMException && error.name === "InvalidStateError") {
+                println("PASS");
+            } else {
+                println(`FAIL: CloseWatcher construction threw unexpected error: ${error.name}`);
+            }
+        }
+    });
+</script>
