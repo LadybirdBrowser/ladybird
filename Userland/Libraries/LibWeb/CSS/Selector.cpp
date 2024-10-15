@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2018-2020, Andreas Kling <andreas@ladybird.org>
- * Copyright (c) 2021-2023, Sam Atkins <atkinssj@serenityos.org>
+ * Copyright (c) 2021-2024, Sam Atkins <sam@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -153,6 +153,9 @@ u32 Selector::specificity() const
             case SimpleSelector::Type::Universal:
                 // ignore the universal selector
                 break;
+            case SimpleSelector::Type::Nesting:
+                // We should have replaced this already
+                VERIFY_NOT_REACHED();
             }
         }
     }
@@ -325,8 +328,9 @@ String Selector::SimpleSelector::serialize() const
     case Selector::SimpleSelector::Type::PseudoElement:
         // Note: Pseudo-elements are dealt with in Selector::serialize()
         break;
-    default:
-        dbgln("FIXME: Unsupported simple selector serialization for type {}", to_underlying(type));
+    case Type::Nesting:
+        // AD-HOC: Not in spec yet.
+        s.append('&');
         break;
     }
     return MUST(s.to_string());

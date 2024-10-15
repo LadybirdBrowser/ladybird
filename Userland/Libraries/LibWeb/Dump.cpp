@@ -503,6 +503,9 @@ void dump_selector(StringBuilder& builder, CSS::Selector const& selector, int in
             case CSS::Selector::SimpleSelector::Type::PseudoElement:
                 type_description = "PseudoElement";
                 break;
+            case CSS::Selector::SimpleSelector::Type::Nesting:
+                type_description = "Nesting";
+                break;
             }
 
             builder.appendff("{}:", type_description);

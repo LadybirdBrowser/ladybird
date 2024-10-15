@@ -1,7 +1,7 @@
 /*
  * Copyright (c) 2018-2022, Andreas Kling <andreas@ladybird.org>
  * Copyright (c) 2020-2021, the SerenityOS developers.
- * Copyright (c) 2021-2023, Sam Atkins <atkinssj@serenityos.org>
+ * Copyright (c) 2021-2024, Sam Atkins <sam@ladybird.org>
  * Copyright (c) 2021, Tobias Christiansen <tobyase@serenityos.org>
  * Copyright (c) 2022, MacDue <macdue@dueutil.tech>
  *
@@ -662,6 +662,10 @@ Parser::ParseErrorOr<Optional<Selector::SimpleSelector>> Parser::parse_simple_se
         case '*':
             // Handled already
             VERIFY_NOT_REACHED();
+        case '&':
+            return Selector::SimpleSelector {
+                .type = Selector::SimpleSelector::Type::Nesting,
+            };
         case '.': {
             if (peek_token_ends_selector())
                 return ParseError::SyntaxError;
