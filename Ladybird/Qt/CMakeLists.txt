@@ -22,3 +22,8 @@ target_sources(ladybird PRIVATE
 )
 target_link_libraries(ladybird PRIVATE Qt::Core Qt::Gui Qt::Network Qt::Widgets)
 create_ladybird_bundle(ladybird)
+
+# Note: Since Qt 6.8 QCheckbox::stateChanged is deprecated
+if (Qt6_VERSION VERSION_GREATER_EQUAL 6.8)
+    set_source_files_properties(FindInPageWidget.cpp SettingsDialog.cpp PROPERTIES COMPILE_OPTIONS "-Wno-deprecated-declarations")
+endif()
