@@ -223,11 +223,24 @@ void WebSocket::send_client_handshake()
     VERIFY(success);
 }
 
+void WebSocket::fail_connection(u16 close_status_code, WebSocket::Error error_code, ByteString const& reason)
+{
+    dbgln("WebSocket: {}", reason);
+    set_state(WebSocket::InternalState::Closed);
+    fatal_error(error_code);
+    notify_close(close_status_code, reason, false);
+}
+
 // The server handshake message is defined in the third list of section 4.1
 void WebSocket::read_server_handshake()
 {
     VERIFY(m_impl);
     VERIFY(m_state == WebSocket::InternalState::WaitingForServerHandshake);
+
+    auto fail_opening_handshake = [&](ByteString const& reason, CloseStatusCode close_status_code = CloseStatusCode::AbnormalClosure) {
+        fail_connection(to_underlying(close_status_code), WebSocket::Error::ConnectionUpgradeFailed, reason);
+    };
+
     // Read the server handshake
     if (!m_impl->can_read_line())
         return;
@@ -236,22 +249,17 @@ void WebSocket::read_server_handshake()
         auto header = m_impl->read_line(PAGE_SIZE).release_value_but_fixme_should_propagate_errors();
         auto parts = header.split(' ');
         if (parts.size() < 2) {
-            dbgln("WebSocket: Server HTTP Handshake contained HTTP header was malformed");
-            fatal_error(WebSocket::Error::ConnectionUpgradeFailed);
-            discard_connection();
+            fail_opening_handshake("Server HTTP Handshake contained HTTP header was malformed");
             return;
         }
         if (parts[0] != "HTTP/1.1") {
-            dbgln("WebSocket: Server HTTP Handshake contained HTTP header {} which isn't supported", parts[0]);
-            fatal_error(WebSocket::Error::ConnectionUpgradeFailed);
-            discard_connection();
+            fail_opening_handshake(ByteString::formatted("Server HTTP Handshake contained HTTP header {} which isn't supported", parts[0]));
             return;
         }
         if (parts[1] != "101") {
             // 1. If the status code is not 101, handle as per HTTP procedures.
             // FIXME : This could be a redirect or a 401 authentication request, which we do not handle.
-            dbgln("WebSocket: Server HTTP Handshake return status {} which isn't supported", parts[1]);
-            fatal_error(WebSocket::Error::ConnectionUpgradeFailed);
+            fail_opening_handshake(ByteString::formatted("Server HTTP Handshake return status {} which isn't supported", parts[1]));
             return;
         }
         m_has_read_server_handshake_first_line = true;
@@ -265,20 +273,17 @@ void WebSocket::read_server_handshake()
             // Fail the connection if we're missing any of the following:
             if (!m_has_read_server_handshake_upgrade) {
                 // 2. |Upgrade| should be present
-                dbgln("WebSocket: Server HTTP Handshake didn't contain an |Upgrade| header");
-                fatal_error(WebSocket::Error::ConnectionUpgradeFailed);
+                fail_opening_handshake("Server HTTP Handshake didn't contain an |Upgrade| header");
                 return;
             }
             if (!m_has_read_server_handshake_connection) {
                 // 2. |Connection| should be present
-                dbgln("WebSocket: Server HTTP Handshake didn't contain a |Connection| header");
-                fatal_error(WebSocket::Error::ConnectionUpgradeFailed);
+                fail_opening_handshake("Server HTTP Handshake didn't contain a |Connection| header");
                 return;
             }
             if (!m_has_read_server_handshake_accept) {
                 // 2. |Sec-WebSocket-Accept| should be present
-                dbgln("WebSocket: Server HTTP Handshake didn't contain a |Sec-WebSocket-Accept| header");
-                fatal_error(WebSocket::Error::ConnectionUpgradeFailed);
+                fail_opening_handshake("Server HTTP Handshake didn't contain a |Sec-WebSocket-Accept| header");
                 return;
             }
 
@@ -290,8 +295,7 @@ void WebSocket::read_server_handshake()
         auto parts = line.split(':');
         if (parts.size() < 2) {
             // The header field is not valid
-            dbgln("WebSocket: Got invalid header line {} in the Server HTTP handshake", line);
-            fatal_error(WebSocket::Error::ConnectionUpgradeFailed);
+            fail_opening_handshake(ByteString::formatted("Got invalid header line {} in the Server HTTP handshake", line));
             return;
         }
 
@@ -300,8 +304,7 @@ void WebSocket::read_server_handshake()
         if (header_name.equals_ignoring_ascii_case("Upgrade"sv)) {
             // 2. |Upgrade| should be case-insensitive "websocket"
             if (!parts[1].trim_whitespace().equals_ignoring_ascii_case("websocket"sv)) {
-                dbgln("WebSocket: Server HTTP Handshake Header |Upgrade| should be 'websocket', got '{}'. Failing connection.", parts[1]);
-                fatal_error(WebSocket::Error::ConnectionUpgradeFailed);
+                fail_opening_handshake(ByteString::formatted("Server HTTP Handshake Header |Upgrade| should be 'websocket', got '{}'. Failing connection.", parts[1]));
                 return;
             }
 
@@ -312,7 +315,7 @@ void WebSocket::read_server_handshake()
         if (header_name.equals_ignoring_ascii_case("Connection"sv)) {
             // 3. |Connection| should be case-insensitive "Upgrade"
             if (!parts[1].trim_whitespace().equals_ignoring_ascii_case("Upgrade"sv)) {
-                dbgln("WebSocket: Server HTTP Handshake Header |Connection| should be 'Upgrade', got '{}'. Failing connection.", parts[1]);
+                fail_opening_handshake(ByteString::formatted("Server HTTP Handshake Header |Connection| should be 'Upgrade', got '{}'. Failing connection.", parts[1]));
                 return;
             }
 
@@ -331,8 +334,7 @@ void WebSocket::read_server_handshake()
             // FIXME: change to TRY() and make method fallible
             auto expected_sha1_string = MUST(encode_base64({ expected_sha1.immutable_data(), expected_sha1.data_length() }));
             if (!parts[1].trim_whitespace().equals_ignoring_ascii_case(expected_sha1_string)) {
-                dbgln("WebSocket: Server HTTP Handshake Header |Sec-Websocket-Accept| should be '{}', got '{}'. Failing connection.", expected_sha1_string, parts[1]);
-                fatal_error(WebSocket::Error::ConnectionUpgradeFailed);
+                fail_opening_handshake(ByteString::formatted("Server HTTP Handshake Header |Sec-Websocket-Accept| should be '{}', got '{}'. Failing connection.", expected_sha1_string, parts[1]));
                 return;
             }
 
@@ -352,8 +354,7 @@ void WebSocket::read_server_handshake()
                     }
                 }
                 if (!found_extension) {
-                    dbgln("WebSocket: Server HTTP Handshake Header |Sec-WebSocket-Extensions| contains '{}', which is not supported by the client. Failing connection.", trimmed_extension);
-                    fatal_error(WebSocket::Error::ConnectionUpgradeFailed);
+                    fail_opening_handshake(ByteString::formatted("Server HTTP Handshake Header |Sec-WebSocket-Extensions| contains '{}', which is not supported by the client. Failing connection.", trimmed_extension));
                     return;
                 }
             }
@@ -371,8 +372,7 @@ void WebSocket::read_server_handshake()
                 }
             }
             if (!found_protocol) {
-                dbgln("WebSocket: Server HTTP Handshake Header |Sec-WebSocket-Protocol| contains '{}', which is not supported by the client. Failing connection.", server_protocol);
-                fatal_error(WebSocket::Error::ConnectionUpgradeFailed);
+                fail_opening_handshake(ByteString::formatted("Server HTTP Handshake Header |Sec-WebSocket-Protocol| contains '{}', which is not supported by the client. Failing connection.", server_protocol));
                 return;
             }
             m_subprotocol_in_use = server_protocol;
