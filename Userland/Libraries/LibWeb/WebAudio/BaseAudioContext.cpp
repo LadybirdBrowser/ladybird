@@ -114,10 +114,10 @@ WebIDL::ExceptionOr<void> BaseAudioContext::verify_audio_options_inside_nominal_
     return {};
 }
 
-void BaseAudioContext::queue_a_media_element_task(Function<void()> steps)
+void BaseAudioContext::queue_a_media_element_task(JS::NonnullGCPtr<JS::HeapFunction<void()>> steps)
 {
-    auto task = HTML::Task::create(vm(), m_media_element_event_task_source.source, HTML::current_settings_object().responsible_document(), JS::create_heap_function(heap(), move(steps)));
-    HTML::main_thread_event_loop().task_queue().add(move(task));
+    auto task = HTML::Task::create(vm(), m_media_element_event_task_source.source, HTML::current_settings_object().responsible_document(), steps);
+    HTML::main_thread_event_loop().task_queue().add(task);
 }
 
 }
