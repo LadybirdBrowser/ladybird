@@ -17,10 +17,7 @@ String UnresolvedStyleValue::to_string() const
     if (m_original_source_text.has_value())
         return *m_original_source_text;
 
-    StringBuilder builder;
-    for (auto& value : m_values)
-        builder.append(value.to_string());
-    return MUST(builder.to_string());
+    return MUST(String::join(' ', m_values));
 }
 
 bool UnresolvedStyleValue::equals(CSSStyleValue const& other) const
