@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2018-2020, Andreas Kling <andreas@ladybird.org>
- * Copyright (c) 2021-2023, Sam Atkins <atkinssj@serenityos.org>
+ * Copyright (c) 2021-2024, Sam Atkins <sam@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -23,7 +23,7 @@ class Selector : public RefCounted<Selector> {
 public:
     class PseudoElement {
     public:
-        enum class Type {
+        enum class Type : u8 {
             Before,
             After,
             FirstLine,
@@ -83,7 +83,7 @@ public:
     };
 
     struct SimpleSelector {
-        enum class Type {
+        enum class Type : u8 {
             Universal,
             TagName,
             Id,
@@ -91,6 +91,7 @@ public:
             Attribute,
             PseudoClass,
             PseudoElement,
+            Nesting,
         };
 
         struct ANPlusBPattern {
