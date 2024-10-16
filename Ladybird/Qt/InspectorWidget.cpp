@@ -36,6 +36,9 @@ InspectorWidget::InspectorWidget(QWidget* tab, WebContentView& content_view)
     m_copy_node_action = new QAction("&Copy HTML", this);
     connect(m_copy_node_action, &QAction::triggered, [this]() { m_inspector_client->context_menu_copy_dom_node(); });
 
+    m_store_node_global_variable = new QAction("&Store as global variable", this);
+    connect(m_store_node_global_variable, &QAction::triggered, [this]() { m_inspector_client->context_menu_store_dom_node_as_global_variable(); });
+
     m_screenshot_node_action = new QAction("Take node &screenshot", this);
     connect(m_screenshot_node_action, &QAction::triggered, [this]() { m_inspector_client->context_menu_screenshot_dom_node(); });
 
@@ -86,6 +89,8 @@ InspectorWidget::InspectorWidget(QWidget* tab, WebContentView& content_view)
     m_dom_node_tag_context_menu->addSeparator();
     m_dom_node_tag_context_menu->addAction(m_copy_node_action);
     m_dom_node_tag_context_menu->addAction(m_screenshot_node_action);
+    m_dom_node_tag_context_menu->addSeparator();
+    m_dom_node_tag_context_menu->addAction(m_store_node_global_variable);
 
     m_dom_node_attribute_context_menu = new QMenu("DOM attribute context menu", this);
     m_dom_node_attribute_context_menu->addAction(m_edit_node_action);
@@ -99,6 +104,8 @@ InspectorWidget::InspectorWidget(QWidget* tab, WebContentView& content_view)
     m_dom_node_attribute_context_menu->addSeparator();
     m_dom_node_attribute_context_menu->addAction(m_copy_node_action);
     m_dom_node_attribute_context_menu->addAction(m_screenshot_node_action);
+    m_dom_node_attribute_context_menu->addSeparator();
+    m_dom_node_attribute_context_menu->addAction(m_store_node_global_variable);
 
     m_cookie_context_menu = new QMenu("Cookie context menu", this);
     m_cookie_context_menu->addAction(m_delete_cookie_action);

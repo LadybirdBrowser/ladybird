@@ -822,6 +822,35 @@ void ConnectionFromClient::get_dom_node_html(u64 page_id, i32 node_id)
     async_did_get_dom_node_html(page_id, move(html));
 }
 
+void ConnectionFromClient::set_dom_node_as_global_variable(u64 page_id, i32 node_id, String const& variable_name)
+{
+    auto* dom_node = Web::DOM::Node::from_unique_id(node_id);
+    if (!dom_node)
+        return;
+
+    auto page = this->page(page_id);
+    if (!page.has_value())
+        return;
+
+    // TODO: Implement Setting global variable
+    auto& realm = dom_node->realm();
+    auto& global_object = realm.global_object();
+
+    auto exception = global_object.set(JS::PropertyKey(variable_name), JS::Value(dom_node), JS::Object::ShouldThrowExceptions::No);
+
+    if (exception.is_error())
+        return;
+
+    StringBuilder builder;
+    builder.append("'Stored in "sv);
+    builder.append(variable_name);
+    builder.append("'\n"sv);
+
+    js_console_input(page_id, builder.to_byte_string());
+
+    async_inspector_did_set_dom_node_as_global_variable(page_id, node_id, variable_name);
+}
+
 void ConnectionFromClient::take_document_screenshot(u64 page_id)
 {
     auto page = this->page(page_id);
