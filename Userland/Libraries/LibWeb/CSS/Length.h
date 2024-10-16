@@ -178,11 +178,14 @@ public:
     {
         if (is_auto())
             return 0;
+        if (is_absolute())
+            return absolute_length_to_px();
         if (is_font_relative())
             return font_relative_length_to_px(font_metrics, root_font_metrics);
         if (is_viewport_relative())
             return viewport_relative_length_to_px(viewport_rect);
-        return absolute_length_to_px();
+
+        VERIFY_NOT_REACHED();
     }
 
     ALWAYS_INLINE CSSPixels absolute_length_to_px() const
