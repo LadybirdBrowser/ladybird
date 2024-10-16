@@ -7,6 +7,7 @@
 
 #include <AK/Vector.h>
 #include <LibGfx/DeprecatedPainter.h>
+#include <LibGfx/ImageFormats/ExifOrientedBitmap.h>
 #include <LibGfx/ImageFormats/PNGLoader.h>
 #include <LibGfx/ImageFormats/TIFFLoader.h>
 #include <LibGfx/ImageFormats/TIFFMetadata.h>
@@ -67,6 +68,7 @@ struct PNGLoadingContext {
     RefPtr<Gfx::Bitmap> decoded_frame_bitmap;
 
     ErrorOr<size_t> read_frames(png_structp, png_infop);
+    ErrorOr<void> apply_exif_orientation();
 };
 
 ErrorOr<NonnullOwnPtr<ImageDecoderPlugin>> PNGImageDecoderPlugin::create(ReadonlyBytes bytes)
@@ -196,8 +198,38 @@ ErrorOr<bool> PNGImageDecoderPlugin::initialize()
         m_context->exif_metadata = TRY(TIFFImageDecoderPlugin::read_exif_metadata({ exif_data, exif_length }));
     }
 
+    if (m_context->exif_metadata) {
+        if (auto result = m_context->apply_exif_orientation(); result.is_error())
+            dbgln("Could not apply eXIf chunk orientation for PNG: {}", result.error());
+    }
+
     png_destroy_read_struct(&png_ptr, &info_ptr, nullptr);
     return true;
+}
+
+ErrorOr<void> PNGLoadingContext::apply_exif_orientation()
+{
+    auto orientation = exif_metadata->orientation().value_or(TIFF::Orientation::Default);
+    if (orientation == TIFF::Orientation::Default)
+        return {};
+
+    for (auto& img_frame_descriptor : frame_descriptors) {
+        auto& img = img_frame_descriptor.image;
+        auto oriented_bmp = TRY(ExifOrientedBitmap::create(orientation, img->size(), img->format()));
+
+        for (int y = 0; y < img->size().height(); ++y) {
+            for (int x = 0; x < img->size().width(); ++x) {
+                auto pixel = img->get_pixel(x, y);
+                oriented_bmp.set_pixel(x, y, pixel.value());
+            }
+        }
+
+        img_frame_descriptor.image = oriented_bmp.bitmap();
+    }
+
+    size = ExifOrientedBitmap::oriented_size(size, orientation);
+
+    return {};
 }
 
 static ErrorOr<NonnullRefPtr<Bitmap>> render_animation_frame(AnimationFrame const& prev_animation_frame, AnimationFrame const& animation_frame, Bitmap const& decoded_frame_bitmap)
