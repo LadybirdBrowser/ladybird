@@ -55,7 +55,7 @@ void Viewport::update_text_blocks()
     Vector<TextPosition> text_positions;
     Vector<TextBlock> text_blocks;
     for_each_in_inclusive_subtree([&](auto const& layout_node) {
-        if (layout_node.display().is_none() || !layout_node.paintable() || !layout_node.paintable()->is_visible())
+        if (layout_node.display().is_none() || !layout_node.first_paintable() || !layout_node.first_paintable()->is_visible())
             return TraversalDecision::Continue;
 
         if (layout_node.is_box() || layout_node.is_generated()) {

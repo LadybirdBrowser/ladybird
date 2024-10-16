@@ -22,7 +22,7 @@ public:
     explicit PaintableFragment(Layout::LineBoxFragment const&);
 
     Layout::Node const& layout_node() const { return m_layout_node; }
-    Paintable const& paintable() const { return *m_layout_node->paintable(); }
+    Paintable const& paintable() const { return *m_layout_node->first_paintable(); }
 
     int start() const { return m_start; }
     int length() const { return m_length; }

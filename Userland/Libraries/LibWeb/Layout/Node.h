@@ -67,8 +67,8 @@ public:
 
     using PaintableList = IntrusiveList<&Painting::Paintable::m_list_node>;
 
-    Painting::Paintable* paintable() { return m_paintable.first(); }
-    Painting::Paintable const* paintable() const { return m_paintable.first(); }
+    Painting::Paintable* first_paintable() { return m_paintable.first(); }
+    Painting::Paintable const* first_paintable() const { return m_paintable.first(); }
     void add_paintable(JS::GCPtr<Painting::Paintable>);
     void clear_paintables();
 

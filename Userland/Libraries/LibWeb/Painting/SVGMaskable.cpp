@@ -96,11 +96,11 @@ RefPtr<Gfx::Bitmap> SVGMaskable::calculate_mask_of_svg(PaintContext& context, CS
     };
     RefPtr<Gfx::Bitmap> mask_bitmap = {};
     if (auto* mask_box = get_mask_box(graphics_element)) {
-        auto& mask_paintable = static_cast<PaintableBox const&>(*mask_box->paintable());
+        auto& mask_paintable = static_cast<PaintableBox const&>(*mask_box->first_paintable());
         mask_bitmap = paint_mask_or_clip(mask_paintable);
     }
     if (auto* clip_box = get_clip_box(graphics_element)) {
-        auto& clip_paintable = static_cast<PaintableBox const&>(*clip_box->paintable());
+        auto& clip_paintable = static_cast<PaintableBox const&>(*clip_box->first_paintable());
         auto clip_bitmap = paint_mask_or_clip(clip_paintable);
         // Combine the clip-path with the mask (if present).
         if (mask_bitmap && clip_bitmap)

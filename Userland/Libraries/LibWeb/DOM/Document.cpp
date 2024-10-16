@@ -1389,14 +1389,14 @@ void Document::set_inspected_node(Node* node, Optional<CSS::Selector::PseudoElem
     if (m_inspected_node.ptr() == node && m_inspected_pseudo_element == pseudo_element)
         return;
 
-    if (auto layout_node = inspected_layout_node(); layout_node && layout_node->paintable())
-        layout_node->paintable()->set_needs_display();
+    if (auto layout_node = inspected_layout_node(); layout_node && layout_node->first_paintable())
+        layout_node->first_paintable()->set_needs_display();
 
     m_inspected_node = node;
     m_inspected_pseudo_element = pseudo_element;
 
-    if (auto layout_node = inspected_layout_node(); layout_node && layout_node->paintable())
-        layout_node->paintable()->set_needs_display();
+    if (auto layout_node = inspected_layout_node(); layout_node && layout_node->first_paintable())
+        layout_node->first_paintable()->set_needs_display();
 }
 
 Layout::Node* Document::inspected_layout_node()
