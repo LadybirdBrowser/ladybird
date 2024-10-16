@@ -16,6 +16,7 @@
 #include <LibWeb/HTML/HTMLHtmlElement.h>
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/Layout/BlockContainer.h>
+#include <LibWeb/Layout/InlineNode.h>
 #include <LibWeb/Layout/Viewport.h>
 #include <LibWeb/Painting/BackgroundPainting.h>
 #include <LibWeb/Painting/PaintableBox.h>

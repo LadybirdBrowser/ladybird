@@ -298,8 +298,6 @@ void StackingContext::paint(PaintContext& context) const
     Gfx::IntRect source_paintable_rect;
     if (paintable().is_paintable_box()) {
         source_paintable_rect = context.enclosing_device_rect(paintable_box().absolute_paint_rect()).to_type<int>();
-    } else if (paintable().is_inline()) {
-        source_paintable_rect = context.enclosing_device_rect(inline_paintable().bounding_rect()).to_type<int>();
     } else {
         VERIFY_NOT_REACHED();
     }
@@ -445,9 +443,6 @@ TraversalDecision StackingContext::hit_test(CSSPixelPoint position, HitTestType 
     if (is<PaintableBox>(paintable())) {
         auto const& paintable_box = static_cast<PaintableBox const&>(paintable());
         enclosing_scroll_offset = paintable_box.cumulative_offset_of_enclosing_scroll_frame();
-    } else if (is<InlinePaintable>(paintable())) {
-        auto const& inline_paintable = static_cast<InlinePaintable const&>(paintable());
-        enclosing_scroll_offset = inline_paintable.cumulative_offset_of_enclosing_scroll_frame();
     }
 
     auto position_adjusted_by_scroll_offset = transformed_position;
@@ -473,8 +468,6 @@ void StackingContext::dump(int indent) const
     CSSPixelRect rect;
     if (paintable().is_paintable_box()) {
         rect = paintable_box().absolute_rect();
-    } else if (paintable().is_inline_paintable()) {
-        rect = inline_paintable().bounding_rect();
     } else {
         VERIFY_NOT_REACHED();
     }

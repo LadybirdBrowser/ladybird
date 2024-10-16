@@ -108,9 +108,6 @@ void ViewportPaintable::assign_scroll_frames()
                 if (paintable.is_paintable_box()) {
                     auto const& paintable_box = static_cast<PaintableBox const&>(paintable);
                     const_cast<PaintableBox&>(paintable_box).set_enclosing_scroll_frame(*scroll_frame);
-                } else if (paintable.is_inline_paintable()) {
-                    auto const& inline_paintable = static_cast<InlinePaintable const&>(paintable);
-                    const_cast<InlinePaintable&>(inline_paintable).set_enclosing_scroll_frame(*scroll_frame);
                 }
                 return TraversalDecision::Continue;
             }
@@ -141,9 +138,6 @@ void ViewportPaintable::assign_clip_frames()
                 if (paintable.is_paintable_box()) {
                     auto const& paintable_box = static_cast<PaintableBox const&>(paintable);
                     const_cast<PaintableBox&>(paintable_box).set_enclosing_clip_frame(clip_frame.value());
-                } else if (paintable.is_inline_paintable()) {
-                    auto const& inline_paintable = static_cast<InlinePaintable const&>(paintable);
-                    const_cast<InlinePaintable&>(inline_paintable).set_enclosing_clip_frame(clip_frame.value());
                 }
                 break;
             }
