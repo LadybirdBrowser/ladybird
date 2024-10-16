@@ -8,7 +8,12 @@
 #include <LibCore/File.h>
 #include <LibCore/System.h>
 #include <fcntl.h>
-#include <unistd.h>
+
+#if !defined(AK_OS_WINDOWS)
+#    include <unistd.h>
+#else
+#    include <io.h>
+#endif
 
 namespace Core {
 
@@ -37,15 +42,27 @@ ErrorOr<NonnullOwnPtr<File>> File::adopt_fd(int fd, OpenMode mode, ShouldCloseFi
 
 ErrorOr<NonnullOwnPtr<File>> File::standard_input()
 {
+#if !defined(AK_OS_WINDOWS)
     return File::adopt_fd(STDIN_FILENO, OpenMode::Read, ShouldCloseFileDescriptor::No);
+#else
+    return File::adopt_fd(_fileno(stdin), OpenMode::Read, ShouldCloseFileDescriptor::No);
+#endif
 }
 ErrorOr<NonnullOwnPtr<File>> File::standard_output()
 {
+#if !defined(AK_OS_WINDOWS)
     return File::adopt_fd(STDOUT_FILENO, OpenMode::Write, ShouldCloseFileDescriptor::No);
+#else
+    return File::adopt_fd(_fileno(stdout), OpenMode::Write, ShouldCloseFileDescriptor::No);
+#endif
 }
 ErrorOr<NonnullOwnPtr<File>> File::standard_error()
 {
+#if !defined(AK_OS_WINDOWS)
     return File::adopt_fd(STDERR_FILENO, OpenMode::Write, ShouldCloseFileDescriptor::No);
+#else
+    return File::adopt_fd(_fileno(stderr), OpenMode::Write, ShouldCloseFileDescriptor::No);
+#endif
 }
 
 ErrorOr<NonnullOwnPtr<File>> File::open_file_or_standard_stream(StringView filename, OpenMode mode)
@@ -83,10 +100,12 @@ int File::open_mode_to_options(OpenMode mode)
         flags |= O_TRUNC;
     if (has_flag(mode, OpenMode::MustBeNew))
         flags |= O_EXCL;
+#if !defined(AK_OS_WINDOWS)
     if (!has_flag(mode, OpenMode::KeepOnExec))
         flags |= O_CLOEXEC;
     if (has_flag(mode, OpenMode::Nonblocking))
         flags |= O_NONBLOCK;
+#endif
 
     // Some open modes, like `ReadWrite` imply the ability to create the file if it doesn't exist.
     // Certain applications may not want this privledge, and for compability reasons, this is

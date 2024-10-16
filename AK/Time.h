@@ -12,7 +12,11 @@
 #include <AK/Checked.h>
 #include <AK/Platform.h>
 #include <AK/Types.h>
-#include <sys/time.h>
+#if defined(AK_OS_WINDOWS)
+#    include <winsock2.h>
+#else
+#    include <sys/time.h>
+#endif
 #include <time.h>
 
 namespace AK {
@@ -55,6 +59,30 @@ constexpr int day_of_year(int year, unsigned month, int day)
 
     return day_of_year;
 }
+
+#if !defined(AK_OS_WINDOWS)
+ALWAYS_INLINE int get_time_of_day(timeval* tv)
+{
+    return gettimeofday(tv, nullptr);
+}
+#else
+static uint64_t const EPOCH = ((uint64_t)116444736000000000ULL);
+ALWAYS_INLINE int get_time_of_day(timeval* tv)
+{
+    SYSTEMTIME system_time;
+    FILETIME file_time;
+    uint64_t time;
+
+    GetSystemTime(&system_time);
+    SystemTimeToFileTime(&system_time, &file_time);
+    time = ((uint64_t)file_time.dwLowDateTime);
+    time += ((uint64_t)file_time.dwHighDateTime) << 32;
+
+    tv->tv_sec = (long)((time - EPOCH) / 10000000L);
+    tv->tv_usec = (long)(system_time.wMilliseconds * 1000);
+    return 0;
+}
+#endif
 
 // Month starts at 1. Month must be >= 1 and <= 12.
 int days_in_month(int year, unsigned month);

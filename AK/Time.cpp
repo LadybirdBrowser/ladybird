@@ -6,8 +6,13 @@
 
 #include <AK/Checked.h>
 #include <AK/Time.h>
-#include <sys/time.h>
+
 #include <time.h>
+#if defined(AK_OS_WINDOWS)
+#    include <profileapi.h>
+#else
+#    include <sys/time.h>
+#endif
 
 namespace AK {
 
@@ -201,12 +206,62 @@ Duration Duration::from_half_sanitized(i64 seconds, i32 extra_seconds, u32 nanos
 }
 
 namespace {
+#if defined(AK_OS_WINDOWS)
+#    define CLOCK_REALTIME 0
+#    define CLOCK_MONOTONIC 1
+
+// Ref https://stackoverflow.com/a/51974214
+Duration now_time_from_filetime()
+{
+    FILETIME ft {};
+    GetSystemTimeAsFileTime(&ft);
+
+    // Units: 1 LSB == 100 ns
+    ULARGE_INTEGER hundreds_of_nanos {
+        .LowPart = ft.dwLowDateTime,
+        .HighPart = ft.dwHighDateTime
+    };
+
+    constexpr u64 num_hundred_nanos_per_sec = 1000ULL * 1000ULL * 10ULL;
+    constexpr u64 seconds_from_jan_1601_to_jan_1970 = 11644473600ULL;
+
+    // To convert to Unix Epoch, subtract the number of hundred nanosecond intervals from Jan 1, 1601 to Jan 1, 1970.
+    hundreds_of_nanos.QuadPart -= (seconds_from_jan_1601_to_jan_1970 * num_hundred_nanos_per_sec);
+
+    return Duration::from_nanoseconds(hundreds_of_nanos.QuadPart * 100);
+}
+
+Duration now_time_from_query_performance_counter()
+{
+    static LARGE_INTEGER ticks_per_second;
+    // FIXME: Limit to microseconds for now, but could probably use nanos?
+    static float ticks_per_microsecond;
+    if (ticks_per_second.QuadPart == 0) {
+        QueryPerformanceFrequency(&ticks_per_second);
+        VERIFY(ticks_per_second.QuadPart != 0);
+        ticks_per_microsecond = static_cast<float>(ticks_per_second.QuadPart) / 1'000'000.0F;
+    }
+
+    LARGE_INTEGER now_time {};
+    QueryPerformanceCounter(&now_time);
+    return Duration::from_microseconds(static_cast<i64>(now_time.QuadPart / ticks_per_microsecond));
+}
+
+Duration now_time_from_clock(int clock_id)
+{
+    if (clock_id == CLOCK_REALTIME)
+        return now_time_from_filetime();
+    return now_time_from_query_performance_counter();
+}
+#else
 static Duration now_time_from_clock(clockid_t clock_id)
 {
     timespec now_spec {};
     ::clock_gettime(clock_id, &now_spec);
     return Duration::from_timespec(now_spec);
 }
+#endif
+
 }
 
 MonotonicTime MonotonicTime::now()

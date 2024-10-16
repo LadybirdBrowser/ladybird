@@ -18,7 +18,7 @@ if (NOT APPLE AND NOT ANDROID AND NOT LAGOM_USE_LINKER)
     endif()
 endif()
 
-if (LAGOM_USE_LINKER)
+if (LAGOM_USE_LINKER AND NOT WIN32)
     # FIXME: Move to only setting CMAKE_LINKER_TYPE once we drop support for CMake < 3.29
     if (CMAKE_VERSION VERSION_GREATER_EQUAL 3.29)
         string(TOUPPER ${LAGOM_USE_LINKER} linker_type)

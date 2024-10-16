@@ -46,10 +46,12 @@ function(add_cxx_linker_flag_if_supported flag)
     endif()
 endfunction()
 
-add_cxx_linker_flag_if_supported(LINKER:--gdb-index)
+if (NOT WIN32)
+    add_cxx_linker_flag_if_supported(LINKER:--gdb-index)
 
-if (NOT ENABLE_FUZZERS)
-    add_cxx_linker_flag_if_supported(LINKER:-Bsymbolic-non-weak-functions)
+    if (NOT ENABLE_FUZZERS)
+        add_cxx_linker_flag_if_supported(LINKER:-Bsymbolic-non-weak-functions)
+    endif()
 endif()
 
 if (ENABLE_LAGOM_COVERAGE_COLLECTION)

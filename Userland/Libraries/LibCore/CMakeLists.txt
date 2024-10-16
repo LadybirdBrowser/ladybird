@@ -5,16 +5,31 @@ include(vulkan)
 set(SOURCES
     ArgsParser.cpp
     Directory.cpp
-    DirectoryEntry.cpp
-    DirIterator.cpp
     Environment.cpp
     File.cpp
     StandardPaths.cpp
-    System.cpp
     Version.cpp
 )
 
+if (WIN32)
+    list(APPEND SOURCES
+        DirectoryEntryWindows.cpp
+        DirIteratorWindows.cpp
+        SystemWindows.cpp
+    )
+else()
+    list(APPEND SOURCES
+        DirectoryEntry.cpp
+        DirIterator.cpp
+        System.cpp
+    )
+endif()
+
 serenity_lib(LibCoreMinimal coreminimal)
+
+if (WIN32)
+    target_link_libraries(LibCoreMinimal PUBLIC ws2_32.lib)
+endif()
 
 if (LAGOM_TOOLS_ONLY)
     return()
@@ -22,29 +37,23 @@ endif()
 
 set(SOURCES
     AnonymousBuffer.cpp
-    Command.cpp
     ConfigFile.cpp
     DateTime.cpp
     ElapsedTimer.cpp
     Event.cpp
     EventLoop.cpp
     EventLoopImplementation.cpp
-    EventLoopImplementationUnix.cpp
     EventReceiver.cpp
     MappedFile.cpp
     MimeData.cpp
     Notifier.cpp
-    Process.cpp
     Resource.cpp
     ResourceImplementation.cpp
     ResourceImplementationFile.cpp
     SessionManagement.cpp
     Socket.cpp
-    SystemServerTakeover.cpp
-    TCPServer.cpp
     ThreadEventQueue.cpp
     Timer.cpp
-    UDPServer.cpp
 )
 if (NOT WIN32 AND NOT EMSCRIPTEN)
     list(APPEND SOURCES LocalServer.cpp)
@@ -68,6 +77,21 @@ else()
         FileWatcherUnimplemented.cpp
         Platform/ProcessStatisticsUnimplemented.cpp
         TimeZoneWatcherUnimplemented.cpp
+    )
+endif()
+
+if(WIN32)
+    list(APPEND SOURCES
+        EventLoopImplementationWindows.cpp
+    )
+else()
+    list(APPEND SOURCES
+        Command.cpp
+        EventLoopImplementationUnix.cpp
+        Process.cpp
+        SystemServerTakeover.cpp
+        TCPServer.cpp
+        UDPServer.cpp
     )
 endif()
 

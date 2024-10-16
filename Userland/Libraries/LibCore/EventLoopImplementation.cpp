@@ -7,8 +7,15 @@
 #include <AK/NonnullOwnPtr.h>
 #include <LibCore/Event.h>
 #include <LibCore/EventLoopImplementation.h>
-#include <LibCore/EventLoopImplementationUnix.h>
 #include <LibCore/ThreadEventQueue.h>
+
+#if !defined(AK_OS_WINDOWS)
+#    include <LibCore/EventLoopImplementationUnix.h>
+#    define EventLoopManagerPlatform EventLoopManagerUnix
+#else
+#    include <LibCore/EventLoopImplementationWindows.h>
+#    define EventLoopManagerPlatform EventLoopManagerWindows
+#endif
 
 namespace Core {
 
@@ -23,7 +30,7 @@ static EventLoopManager* s_event_loop_manager;
 EventLoopManager& EventLoopManager::the()
 {
     if (!s_event_loop_manager)
-        s_event_loop_manager = new EventLoopManagerUnix;
+        s_event_loop_manager = new EventLoopManagerPlatform;
     return *s_event_loop_manager;
 }
 
