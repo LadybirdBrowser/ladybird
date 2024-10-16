@@ -88,8 +88,8 @@ static CSSPixelRect measure_scrollable_overflow(Box const& box)
     auto scrollable_overflow_rect = paintable_box.absolute_padding_box_rect();
 
     // - All line boxes directly contained by the scroll container.
-    if (is<Painting::PaintableWithLines>(box.paintable())) {
-        for (auto const& fragment : static_cast<Painting::PaintableWithLines const&>(*box.paintable()).fragments()) {
+    if (is<Painting::PaintableWithLines>(box.first_paintable())) {
+        for (auto const& fragment : static_cast<Painting::PaintableWithLines const&>(*box.first_paintable()).fragments()) {
             scrollable_overflow_rect = scrollable_overflow_rect.united(fragment.absolute_rect());
         }
     }
@@ -129,8 +129,8 @@ static CSSPixelRect measure_scrollable_overflow(Box const& box)
         });
     } else {
         box.for_each_child([&scrollable_overflow_rect, &content_overflow_rect](Node const& child) {
-            if (child.paintable() && child.paintable()->is_inline_paintable()) {
-                for (auto const& fragment : static_cast<Painting::InlinePaintable const&>(*child.paintable()).fragments()) {
+            if (child.first_paintable() && child.first_paintable()->is_inline_paintable()) {
+                for (auto const& fragment : static_cast<Painting::InlinePaintable const&>(*child.first_paintable()).fragments()) {
                     scrollable_overflow_rect = scrollable_overflow_rect.united(fragment.absolute_rect());
                     content_overflow_rect = content_overflow_rect.united(fragment.absolute_rect());
                 }
@@ -165,7 +165,7 @@ void LayoutState::resolve_relative_positions()
         auto& used_values = *it.value;
         auto& node = const_cast<NodeWithStyle&>(used_values.node());
 
-        auto* paintable = node.paintable();
+        auto* paintable = node.first_paintable();
         if (!paintable)
             continue;
         if (!is<Painting::InlinePaintable>(*paintable))
@@ -197,8 +197,8 @@ void LayoutState::resolve_relative_positions()
 static void build_paint_tree(Node& node, Painting::Paintable* parent_paintable = nullptr)
 {
     Painting::Paintable* paintable = nullptr;
-    if (node.paintable()) {
-        paintable = const_cast<Painting::Paintable*>(node.paintable());
+    if (node.first_paintable()) {
+        paintable = const_cast<Painting::Paintable*>(node.first_paintable());
         if (parent_paintable && !paintable->forms_unconnected_subtree()) {
             VERIFY(!paintable->parent());
             parent_paintable->append_child(*paintable);
@@ -298,7 +298,7 @@ void LayoutState::commit(Box& root)
         if (!node.is_box())
             continue;
 
-        auto& paintable = static_cast<Painting::PaintableBox&>(*node.paintable());
+        auto& paintable = static_cast<Painting::PaintableBox&>(*node.first_paintable());
         CSSPixelPoint offset;
 
         if (used_values.containing_line_box_fragment.has_value()) {
@@ -336,7 +336,7 @@ void LayoutState::commit(Box& root)
             auto find_closest_inline_paintable = [&](auto& fragment) -> Painting::InlinePaintable const* {
                 for (auto const* parent = fragment.layout_node().parent(); parent; parent = parent->parent()) {
                     if (is<InlineNode>(*parent))
-                        return static_cast<Painting::InlinePaintable const*>(parent->paintable());
+                        return static_cast<Painting::InlinePaintable const*>(parent->first_paintable());
                 }
                 return nullptr;
             };
@@ -352,7 +352,7 @@ void LayoutState::commit(Box& root)
 
     for (auto* text_node : text_nodes) {
         text_node->add_paintable(text_node->create_paintable());
-        auto* paintable = text_node->paintable();
+        auto* paintable = text_node->first_paintable();
         auto const& font = text_node->first_available_font();
         auto const glyph_height = CSSPixels::nearest_value_for(font.pixel_size());
         auto const css_line_thickness = [&] {

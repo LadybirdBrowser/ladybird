@@ -82,7 +82,7 @@ void paint_background(PaintContext& context, Layout::NodeWithStyleAndBoxModelMet
 
     DisplayListRecorderStateSaver state { display_list_recorder };
     if (resolved_background.needs_text_clip) {
-        auto display_list = compute_text_clip_paths(context, *layout_node.paintable(), resolved_background.background_rect.location());
+        auto display_list = compute_text_clip_paths(context, *layout_node.first_paintable(), resolved_background.background_rect.location());
         auto rect = context.rounded_device_rect(resolved_background.background_rect);
         display_list_recorder.add_mask(move(display_list), rect.to_type<int>());
     }

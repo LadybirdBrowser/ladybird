@@ -601,8 +601,8 @@ CSS::RequiredInvalidationAfterStyleChange Element::recompute_style()
 
             if (auto* node_with_style = dynamic_cast<Layout::NodeWithStyle*>(pseudo_element->layout_node.ptr())) {
                 node_with_style->apply_style(*pseudo_element_style);
-                if (invalidation.repaint && node_with_style->paintable())
-                    node_with_style->paintable()->set_needs_display();
+                if (invalidation.repaint && node_with_style->first_paintable())
+                    node_with_style->first_paintable()->set_needs_display();
             }
         }
     }

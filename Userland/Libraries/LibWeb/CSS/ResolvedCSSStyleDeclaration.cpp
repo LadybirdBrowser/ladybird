@@ -198,9 +198,9 @@ RefPtr<CSSStyleValue const> ResolvedCSSStyleDeclaration::style_value_for_propert
 {
     auto used_value_for_property = [&layout_node, property_id](Function<CSSPixels(Painting::PaintableBox const&)>&& used_value_getter) -> Optional<CSSPixels> {
         auto const& display = layout_node.computed_values().display();
-        if (!display.is_none() && !display.is_contents() && layout_node.paintable()) {
-            if (layout_node.paintable()->is_paintable_box()) {
-                auto const& paintable_box = static_cast<Painting::PaintableBox const&>(*layout_node.paintable());
+        if (!display.is_none() && !display.is_contents() && layout_node.first_paintable()) {
+            if (layout_node.first_paintable()->is_paintable_box()) {
+                auto const& paintable_box = static_cast<Painting::PaintableBox const&>(*layout_node.first_paintable());
                 return used_value_getter(paintable_box);
             }
             dbgln("FIXME: Support getting used value for property `{}` on {}", string_from_property_id(property_id), layout_node.debug_description());
@@ -379,8 +379,8 @@ RefPtr<CSSStyleValue const> ResolvedCSSStyleDeclaration::style_value_for_propert
         auto transform = FloatMatrix4x4::identity();
 
         // 2. Post-multiply all <transform-function>s in <transform-list> to transform.
-        VERIFY(layout_node.paintable());
-        auto const& paintable_box = verify_cast<Painting::PaintableBox const>(*layout_node.paintable());
+        VERIFY(layout_node.first_paintable());
+        auto const& paintable_box = verify_cast<Painting::PaintableBox const>(*layout_node.first_paintable());
         for (auto transformation : transformations) {
             transform = transform * transformation.to_matrix(paintable_box).release_value();
         }
@@ -523,15 +523,15 @@ RefPtr<CSSStyleValue const> ResolvedCSSStyleDeclaration::style_value_for_propert
         // For grid-template-columns and grid-template-rows the resolved value is the used value.
         // https://www.w3.org/TR/css-grid-2/#resolved-track-list-standalone
         if (property_id == PropertyID::GridTemplateColumns) {
-            if (layout_node.paintable() && layout_node.paintable()->is_paintable_box()) {
-                auto const& paintable_box = verify_cast<Painting::PaintableBox const>(*layout_node.paintable());
+            if (layout_node.first_paintable() && layout_node.first_paintable()->is_paintable_box()) {
+                auto const& paintable_box = verify_cast<Painting::PaintableBox const>(*layout_node.first_paintable());
                 if (auto used_values_for_grid_template_columns = paintable_box.used_values_for_grid_template_columns()) {
                     return used_values_for_grid_template_columns;
                 }
             }
         } else if (property_id == PropertyID::GridTemplateRows) {
-            if (layout_node.paintable() && layout_node.paintable()->is_paintable_box()) {
-                auto const& paintable_box = verify_cast<Painting::PaintableBox const>(*layout_node.paintable());
+            if (layout_node.first_paintable() && layout_node.first_paintable()->is_paintable_box()) {
+                auto const& paintable_box = verify_cast<Painting::PaintableBox const>(*layout_node.first_paintable());
                 if (auto used_values_for_grid_template_rows = paintable_box.used_values_for_grid_template_rows()) {
                     return used_values_for_grid_template_rows;
                 }

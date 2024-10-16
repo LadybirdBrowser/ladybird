@@ -11,12 +11,12 @@ namespace Web::Layout {
 
 Painting::LabelablePaintable* LabelableNode::paintable()
 {
-    return static_cast<Painting::LabelablePaintable*>(ReplacedBox::paintable());
+    return static_cast<Painting::LabelablePaintable*>(ReplacedBox::first_paintable());
 }
 
 Painting::LabelablePaintable const* LabelableNode::paintable() const
 {
-    return static_cast<Painting::LabelablePaintable const*>(ReplacedBox::paintable());
+    return static_cast<Painting::LabelablePaintable const*>(ReplacedBox::first_paintable());
 }
 
 }

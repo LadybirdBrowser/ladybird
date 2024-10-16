@@ -136,7 +136,7 @@ static Gfx::StandardCursor cursor_css_to_gfx(Optional<CSS::Cursor> cursor)
 
 static CSSPixelPoint compute_mouse_event_offset(CSSPixelPoint position, Layout::Node const& layout_node)
 {
-    auto top_left_of_layout_node = layout_node.paintable()->box_type_agnostic_position();
+    auto top_left_of_layout_node = layout_node.first_paintable()->box_type_agnostic_position();
     return {
         position.x() - top_left_of_layout_node.x(),
         position.y() - top_left_of_layout_node.y()

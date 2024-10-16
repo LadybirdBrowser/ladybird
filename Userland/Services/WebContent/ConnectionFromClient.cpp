@@ -890,12 +890,12 @@ static void append_paint_tree(Web::Page& page, StringBuilder& builder)
         builder.append("(no layout tree)"sv);
         return;
     }
-    if (!layout_root->paintable()) {
+    if (!layout_root->first_paintable()) {
         builder.append("(no paint tree)"sv);
         return;
     }
 
-    Web::dump_tree(builder, *layout_root->paintable());
+    Web::dump_tree(builder, *layout_root->first_paintable());
 }
 
 static void append_gc_graph(StringBuilder& builder)

@@ -72,12 +72,12 @@ JS::GCPtr<Painting::Paintable> Box::create_paintable() const
 
 Painting::PaintableBox* Box::paintable_box()
 {
-    return static_cast<Painting::PaintableBox*>(Node::paintable());
+    return static_cast<Painting::PaintableBox*>(Node::first_paintable());
 }
 
 Painting::PaintableBox const* Box::paintable_box() const
 {
-    return static_cast<Painting::PaintableBox const*>(Node::paintable());
+    return static_cast<Painting::PaintableBox const*>(Node::first_paintable());
 }
 
 Optional<CSSPixelFraction> Box::preferred_aspect_ratio() const
