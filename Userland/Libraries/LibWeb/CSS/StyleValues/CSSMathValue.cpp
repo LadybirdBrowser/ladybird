@@ -2650,6 +2650,20 @@ Optional<Angle> CSSMathValue::resolve_angle() const
     return {};
 }
 
+Optional<Angle> CSSMathValue::resolve_angle(Layout::Node const& layout_node) const
+{
+    return resolve_angle(Length::ResolutionContext::for_layout_node(layout_node));
+}
+
+Optional<Angle> CSSMathValue::resolve_angle(Length::ResolutionContext const& context) const
+{
+    auto result = m_calculation->resolve(context, {});
+
+    if (result.value().has<Angle>())
+        return result.value().get<Angle>();
+    return {};
+}
+
 Optional<Angle> CSSMathValue::resolve_angle_percentage(Angle const& percentage_basis) const
 {
     auto result = m_calculation->resolve({}, percentage_basis);

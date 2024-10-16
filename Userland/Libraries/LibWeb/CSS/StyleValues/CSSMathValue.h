@@ -85,6 +85,8 @@ public:
     bool resolves_to_angle() const { return m_resolved_type.matches_angle(); }
     bool resolves_to_angle_percentage() const { return m_resolved_type.matches_angle_percentage(); }
     Optional<Angle> resolve_angle() const;
+    Optional<Angle> resolve_angle(Layout::Node const& layout_node) const;
+    Optional<Angle> resolve_angle(Length::ResolutionContext const& context) const;
     Optional<Angle> resolve_angle_percentage(Angle const& percentage_basis) const;
 
     bool resolves_to_flex() const { return m_resolved_type.matches_flex(); }
