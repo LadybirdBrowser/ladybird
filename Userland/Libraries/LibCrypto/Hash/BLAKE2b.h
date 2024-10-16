@@ -13,8 +13,8 @@
 namespace Crypto::Hash {
 
 namespace BLAKE2bConstants {
-static constexpr auto blockbytes { 128 };
-static constexpr auto hash_length { 64 };
+inline constexpr auto blockbytes { 128 };
+inline constexpr auto hash_length { 64 };
 };
 
 class BLAKE2b final : public HashFunction<1024, 512> {
