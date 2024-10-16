@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<details id="details1" open>
+  <p>Hi</p>
+</details>
+<script>
+    asyncTest(done => {
+        details1 = document.getElementById('details1');
+        details1.ontoggle = function(e) {
+            println(`target is trusted: ${e.isTrusted}`);
+            done();
+        }
+
+        details1.open = false;
+    });
+</script>
