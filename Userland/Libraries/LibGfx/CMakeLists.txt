@@ -120,7 +120,7 @@ endif()
 if (ENABLE_SWIFT)
     generate_clang_module_map(LibGfx GENERATED_FILES ${generated_headers})
     target_sources(LibGfx PRIVATE
-        Color.swift
+        Color.swift Point.swift Rect.swift Size.swift
     )
     target_link_libraries(LibGfx PRIVATE AK)
     add_swift_target_properties(LibGfx LAGOM_LIBRARIES AK)

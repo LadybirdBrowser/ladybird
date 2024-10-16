@@ -5,6 +5,7 @@
  */
 
 import AK
+import AppKit
 @_exported import GfxCxx
 
 // FIXME: Do this without extending String with an index operation that was explicitly deleted :^)
@@ -85,5 +86,31 @@ public func parseHexString(_ rawString: AK.StringView) -> [Gfx.Color] {
 
         return [Gfx.Color(r!, g!, b!, a!)]
     default: return []
+    }
+}
+
+extension Gfx.Color {
+    init(_ col: NSColor) {
+        guard let rgbColor = color.usingColorSpace(.genericRGB) else {
+            return nil
+        }
+
+        return GfxColor(
+            red: UInt8(rgbColor.redComponent * 255),
+            green: UInt8(rgbColor.greenComponent * 255),
+            blue: UInt8(rgbColor.blueComponent * 255),
+            alpha: UInt8(rgbColor.alphaComponent * 255)
+        )
+    }
+}
+
+extension NSColor {
+    init(_ gfxC: Gfx.Color) {
+        self = NSColor(
+            red: CGFloat(color.red) / 255.0,
+            green: CGFloat(color.green) / 255.0,
+            blue: CGFloat(color.blue) / 255.0,
+            alpha: CGFloat(color.alpha) / 255.0
+        )
     }
 }
