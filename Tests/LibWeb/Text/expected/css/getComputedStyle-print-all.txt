@@ -168,6 +168,7 @@ padding-top: 0px
 position: static
 r: 0px
 right: auto
+rotate: none
 row-gap: auto
 rx: auto
 ry: auto

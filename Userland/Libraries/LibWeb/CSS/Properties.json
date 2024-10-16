@@ -2301,6 +2301,13 @@
       "unitless-length"
     ]
   },
+  "rotate": {
+    "animation-type": "custom",
+    "inherited": false,
+    "initial": "none",
+    "affects-layout": false,
+    "affects-stacking-context": true
+  },
   "row-gap": {
     "animation-type": "by-computed-value",
     "inherited": false,

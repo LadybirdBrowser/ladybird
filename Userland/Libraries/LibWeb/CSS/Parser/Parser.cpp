@@ -77,6 +77,7 @@
 #include <LibWeb/CSS/StyleValues/RatioStyleValue.h>
 #include <LibWeb/CSS/StyleValues/RectStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ResolutionStyleValue.h>
+#include <LibWeb/CSS/StyleValues/RotationStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ScrollbarGutterStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ShadowStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ShorthandStyleValue.h>
@@ -5046,6 +5047,95 @@ RefPtr<CSSStyleValue> Parser::parse_single_shadow_value(TokenStream<ComponentVal
     return ShadowStyleValue::create(color.release_nonnull(), offset_x.release_nonnull(), offset_y.release_nonnull(), blur_radius.release_nonnull(), spread_distance.release_nonnull(), placement.release_value());
 }
 
+RefPtr<CSSStyleValue> Parser::parse_rotate_value(TokenStream<ComponentValue>& tokens)
+{
+    // Value:	none | <angle> | [ x | y | z | <number>{3} ] && <angle>
+
+    if (tokens.remaining_token_count() == 1) {
+        // "none"
+        if (auto none = parse_all_as_single_keyword_value(tokens, Keyword::None))
+            return none;
+
+        // <angle>
+        if (auto angle = parse_angle_value(tokens))
+            return RotationStyleValue::create(angle.release_nonnull(), NumberStyleValue::create(0), NumberStyleValue::create(0), NumberStyleValue::create(1));
+    }
+
+    auto parse_one_of_xyz = [&]() -> Optional<ComponentValue> {
+        auto transaction = tokens.begin_transaction();
+        auto axis = tokens.consume_a_token();
+
+        if (axis.is_ident("x"sv) || axis.is_ident("y"sv) || axis.is_ident("z"sv)) {
+            transaction.commit();
+            return axis;
+        }
+
+        return {};
+    };
+
+    // [ x | y | z ] && <angle>
+    if (tokens.remaining_token_count() == 2) {
+        // Try parsing `x <angle>`
+        if (auto axis = parse_one_of_xyz(); axis.has_value()) {
+            if (auto angle = parse_angle_value(tokens); angle) {
+                if (axis->is_ident("x"sv))
+                    return RotationStyleValue::create(angle.release_nonnull(), NumberStyleValue::create(1), NumberStyleValue::create(0), NumberStyleValue::create(0));
+                if (axis->is_ident("y"sv))
+                    return RotationStyleValue::create(angle.release_nonnull(), NumberStyleValue::create(0), NumberStyleValue::create(1), NumberStyleValue::create(0));
+                if (axis->is_ident("z"sv))
+                    return RotationStyleValue::create(angle.release_nonnull(), NumberStyleValue::create(0), NumberStyleValue::create(0), NumberStyleValue::create(1));
+            }
+        }
+
+        // Try parsing `<angle> x`
+        if (auto angle = parse_angle_value(tokens); angle) {
+            if (auto axis = parse_one_of_xyz(); axis.has_value()) {
+                if (axis->is_ident("x"sv))
+                    return RotationStyleValue::create(angle.release_nonnull(), NumberStyleValue::create(1), NumberStyleValue::create(0), NumberStyleValue::create(0));
+                if (axis->is_ident("y"sv))
+                    return RotationStyleValue::create(angle.release_nonnull(), NumberStyleValue::create(0), NumberStyleValue::create(1), NumberStyleValue::create(0));
+                if (axis->is_ident("z"sv))
+                    return RotationStyleValue::create(angle.release_nonnull(), NumberStyleValue::create(0), NumberStyleValue::create(0), NumberStyleValue::create(1));
+            }
+        }
+    }
+
+    auto parse_three_numbers = [&]() -> Optional<StyleValueVector> {
+        auto transaction = tokens.begin_transaction();
+        StyleValueVector numbers;
+        for (size_t i = 0; i < 3; ++i) {
+            if (auto number = parse_number_value(tokens); number) {
+                numbers.append(number.release_nonnull());
+            } else {
+                return {};
+            }
+        }
+        transaction.commit();
+        return numbers;
+    };
+
+    // <number>{3} && <angle>
+    if (tokens.remaining_token_count() == 4) {
+        // Try parsing <number>{3} <angle>
+        if (auto maybe_numbers = parse_three_numbers(); maybe_numbers.has_value()) {
+            if (auto angle = parse_angle_value(tokens); angle) {
+                auto numbers = maybe_numbers.release_value();
+                return RotationStyleValue::create(angle.release_nonnull(), numbers[0], numbers[1], numbers[2]);
+            }
+        }
+
+        // Try parsing <angle> <number>{3}
+        if (auto angle = parse_angle_value(tokens); angle) {
+            if (auto maybe_numbers = parse_three_numbers(); maybe_numbers.has_value()) {
+                auto numbers = maybe_numbers.release_value();
+                return RotationStyleValue::create(angle.release_nonnull(), numbers[0], numbers[1], numbers[2]);
+            }
+        }
+    }
+
+    return nullptr;
+}
+
 RefPtr<CSSStyleValue> Parser::parse_content_value(TokenStream<ComponentValue>& tokens)
 {
     // FIXME: `content` accepts several kinds of function() type, which we don't handle in property_accepts_value() yet.
@@ -8203,6 +8293,10 @@ Parser::ParseErrorOr<NonnullRefPtr<CSSStyleValue>> Parser::parse_css_value(Prope
         return ParseError::SyntaxError;
     case PropertyID::Quotes:
         if (auto parsed_value = parse_quotes_value(tokens); parsed_value && !tokens.has_next_token())
+            return parsed_value.release_nonnull();
+        return ParseError::SyntaxError;
+    case PropertyID::Rotate:
+        if (auto parsed_value = parse_rotate_value(tokens); parsed_value && !tokens.has_next_token())
             return parsed_value.release_nonnull();
         return ParseError::SyntaxError;
     case PropertyID::ScrollbarGutter:

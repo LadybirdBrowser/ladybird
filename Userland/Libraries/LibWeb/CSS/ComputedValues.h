@@ -494,6 +494,7 @@ public:
     Vector<CSS::Transformation> const& transformations() const { return m_noninherited.transformations; }
     CSS::TransformBox const& transform_box() const { return m_noninherited.transform_box; }
     CSS::TransformOrigin const& transform_origin() const { return m_noninherited.transform_origin; }
+    Optional<CSS::Transformation> const& rotate() const { return m_noninherited.rotate; }
 
     Gfx::FontCascadeList const& font_list() const { return *m_inherited.font_list; }
     CSSPixels font_size() const { return m_inherited.font_size; }
@@ -664,6 +665,7 @@ protected:
         CSS::ObjectFit object_fit { InitialValues::object_fit() };
         CSS::ObjectPosition object_position { InitialValues::object_position() };
         CSS::UnicodeBidi unicode_bidi { InitialValues::unicode_bidi() };
+        Optional<CSS::Transformation> rotate;
 
         Optional<MaskReference> mask;
         CSS::MaskType mask_type { InitialValues::mask_type() };
@@ -775,6 +777,7 @@ public:
     void set_justify_items(CSS::JustifyItems value) { m_noninherited.justify_items = value; }
     void set_justify_self(CSS::JustifySelf value) { m_noninherited.justify_self = value; }
     void set_box_shadow(Vector<ShadowData>&& value) { m_noninherited.box_shadow = move(value); }
+    void set_rotate(CSS::Transformation value) { m_noninherited.rotate = value; }
     void set_transformations(Vector<CSS::Transformation> value) { m_noninherited.transformations = move(value); }
     void set_transform_box(CSS::TransformBox value) { m_noninherited.transform_box = value; }
     void set_transform_origin(CSS::TransformOrigin value) { m_noninherited.transform_origin = value; }
