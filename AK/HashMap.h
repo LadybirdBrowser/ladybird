@@ -243,6 +243,12 @@ public:
         return {};
     }
 
+    V take_first()
+    requires(IsOrdered)
+    {
+        return take(begin()->key).release_value();
+    }
+
     V& ensure(K const& key)
     {
         auto it = find(key);
