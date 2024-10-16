@@ -483,15 +483,6 @@ void WebSocket::read_frame()
     }
 
     if (op_code == WebSocket::OpCode::ConnectionClose) {
-        dbgln("Close connection with status: {}", to_underlying(m_state));
-
-        if (m_state == InternalState::Closing) {
-            dbgln("Close connection lmao");
-            set_state(WebSocket::InternalState::Closed);
-            notify_close(m_last_close_code, m_last_close_message, true);
-            discard_connection();
-            return;
-        }
         send_frame(WebSocket::OpCode::ConnectionClose, {}, true);
         set_state(WebSocket::InternalState::Closing);
         if (payload.size() > 1) {
