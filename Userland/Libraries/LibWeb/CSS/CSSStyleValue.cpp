@@ -47,6 +47,7 @@
 #include <LibWeb/CSS/StyleValues/RatioStyleValue.h>
 #include <LibWeb/CSS/StyleValues/RectStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ResolutionStyleValue.h>
+#include <LibWeb/CSS/StyleValues/RotationStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ScrollbarGutterStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ShadowStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ShorthandStyleValue.h>
@@ -285,6 +286,12 @@ ResolutionStyleValue const& CSSStyleValue::as_resolution() const
 {
     VERIFY(is_resolution());
     return static_cast<ResolutionStyleValue const&>(*this);
+}
+
+RotationStyleValue const& CSSStyleValue::as_rotation() const
+{
+    VERIFY(is_rotation());
+    return static_cast<RotationStyleValue const&>(*this);
 }
 
 ScrollbarGutterStyleValue const& CSSStyleValue::as_scrollbar_gutter() const
