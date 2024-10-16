@@ -11,7 +11,6 @@
 #include <LibWeb/Layout/TextNode.h>
 #include <LibWeb/Layout/Viewport.h>
 #include <LibWeb/Painting/BackgroundPainting.h>
-#include <LibWeb/Painting/InlinePaintable.h>
 #include <LibWeb/Painting/PaintableBox.h>
 
 namespace Web::Painting {
@@ -39,12 +38,6 @@ static RefPtr<DisplayList> compute_text_clip_paths(PaintContext& context, Painta
         if (is<PaintableWithLines>(paintable)) {
             auto const& paintable_lines = static_cast<PaintableWithLines const&>(paintable);
             for (auto const& fragment : paintable_lines.fragments()) {
-                if (is<Layout::TextNode>(fragment.layout_node()))
-                    add_text_clip_path(fragment);
-            }
-        } else if (is<InlinePaintable>(paintable)) {
-            auto const& inline_paintable = static_cast<InlinePaintable const&>(paintable);
-            for (auto const& fragment : inline_paintable.fragments()) {
                 if (is<Layout::TextNode>(fragment.layout_node()))
                     add_text_clip_path(fragment);
             }

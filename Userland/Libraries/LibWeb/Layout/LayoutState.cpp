@@ -13,7 +13,6 @@
 #include <LibWeb/Layout/InlineNode.h>
 #include <LibWeb/Layout/LayoutState.h>
 #include <LibWeb/Layout/Viewport.h>
-#include <LibWeb/Painting/InlinePaintable.h>
 #include <LibWeb/Painting/SVGPathPaintable.h>
 #include <LibWeb/Painting/SVGSVGPaintable.h>
 #include <LibWeb/Painting/TextPaintable.h>
@@ -124,17 +123,6 @@ static CSSPixelRect measure_scrollable_overflow(Box const& box)
                     scrollable_overflow_rect.unite_horizontally(child_scrollable_overflow);
                 if (is<Viewport>(box) || child.computed_values().overflow_y() == CSS::Overflow::Visible)
                     scrollable_overflow_rect.unite_vertically(child_scrollable_overflow);
-            }
-
-            return IterationDecision::Continue;
-        });
-    } else {
-        box.for_each_child([&scrollable_overflow_rect, &content_overflow_rect](Node const& child) {
-            if (child.first_paintable() && child.first_paintable()->is_inline_paintable()) {
-                for (auto const& fragment : static_cast<Painting::InlinePaintable const&>(*child.first_paintable()).fragments()) {
-                    scrollable_overflow_rect = scrollable_overflow_rect.united(fragment.absolute_rect());
-                    content_overflow_rect = content_overflow_rect.united(fragment.absolute_rect());
-                }
             }
 
             return IterationDecision::Continue;

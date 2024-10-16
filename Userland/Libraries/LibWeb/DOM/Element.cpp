@@ -64,7 +64,6 @@
 #include <LibWeb/Layout/Viewport.h>
 #include <LibWeb/Namespace.h>
 #include <LibWeb/Page/Page.h>
-#include <LibWeb/Painting/InlinePaintable.h>
 #include <LibWeb/Painting/PaintableBox.h>
 #include <LibWeb/Painting/ViewportPaintable.h>
 #include <LibWeb/WebIDL/AbstractOperations.h>
@@ -1000,16 +999,6 @@ JS::NonnullGCPtr<Geometry::DOMRectList> Element::get_client_rects() const
                                     .translated(paintable_box->transform_origin())
                                     .translated(-scroll_offset);
         rects.append(Geometry::DOMRect::create(realm(), transformed_rect.to_type<float>()));
-    } else if (paintable && is<Painting::InlinePaintable>(*paintable)) {
-        auto const& inline_paintable = static_cast<Painting::InlinePaintable const&>(*paintable);
-
-        if (auto enclosing_scroll_offset = inline_paintable.enclosing_scroll_frame(); enclosing_scroll_offset) {
-            scroll_offset.translate_by(-enclosing_scroll_offset->cumulative_offset());
-        }
-
-        auto absolute_rect = inline_paintable.bounding_rect();
-        absolute_rect.translate_by(-scroll_offset);
-        rects.append(Geometry::DOMRect::create(realm(), transform.map(absolute_rect.to_type<float>())));
     } else if (paintable) {
         dbgln("FIXME: Failed to get client rects for element ({})", debug_description());
     }

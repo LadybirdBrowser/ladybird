@@ -11,7 +11,6 @@
 #include <LibWeb/Layout/BlockContainer.h>
 #include <LibWeb/Layout/InlineFormattingContext.h>
 #include <LibWeb/Layout/InlineNode.h>
-#include <LibWeb/Painting/InlinePaintable.h>
 
 namespace Web::Layout {
 

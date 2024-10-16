@@ -583,7 +583,6 @@ set(SOURCES
     Painting/DisplayListRecorder.cpp
     Painting/GradientPainting.cpp
     Painting/ImagePaintable.cpp
-    Painting/InlinePaintable.cpp
     Painting/LabelablePaintable.cpp
     Painting/MarkerPaintable.cpp
     Painting/MediaPaintable.cpp

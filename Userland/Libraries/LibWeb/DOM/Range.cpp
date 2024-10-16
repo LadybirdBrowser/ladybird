@@ -27,7 +27,6 @@
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/Layout/Viewport.h>
 #include <LibWeb/Namespace.h>
-#include <LibWeb/Painting/InlinePaintable.h>
 #include <LibWeb/Painting/ViewportPaintable.h>
 
 namespace Web::DOM {
