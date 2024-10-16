@@ -60,6 +60,8 @@ protected:
 
     virtual void visit_edges(Cell::Visitor&) override;
 
+    virtual void clear_caches();
+
     [[nodiscard]] FlyString const& parent_layer_internal_qualified_name() const
     {
         if (!m_cached_layer_name.has_value())

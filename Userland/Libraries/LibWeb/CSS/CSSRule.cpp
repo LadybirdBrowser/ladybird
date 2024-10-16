@@ -41,11 +41,18 @@ void CSSRule::set_css_text(StringView)
 void CSSRule::set_parent_rule(CSSRule* parent_rule)
 {
     m_parent_rule = parent_rule;
+    clear_caches();
 }
 
 void CSSRule::set_parent_style_sheet(CSSStyleSheet* parent_style_sheet)
 {
     m_parent_style_sheet = parent_style_sheet;
+    clear_caches();
+}
+
+void CSSRule::clear_caches()
+{
+    m_cached_layer_name.clear();
 }
 
 FlyString const& CSSRule::parent_layer_internal_qualified_name_slow_case() const
