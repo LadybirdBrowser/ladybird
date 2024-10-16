@@ -20,7 +20,7 @@ extension String {
 	}
 }
 
-func deserialize_json_to_dictionary(_ json: String) -> [String: Any]? {
+func deserialize_json_to_dictionary(_ json: String) -> Dictionary<String, Any>? {
     guard let jsonData = json.data(using: .utf8) else { return nil }
 
     do {
@@ -28,7 +28,7 @@ func deserialize_json_to_dictionary(_ json: String) -> [String: Any]? {
             return dictionary
         }
     } catch {
-        print("Error deserializing DOM tree: \(error)")
+        NSLog("Error deserializing DOM tree: \(error)")
     }
 
     return nil
