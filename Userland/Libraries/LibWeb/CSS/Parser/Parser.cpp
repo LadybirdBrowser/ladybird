@@ -8617,8 +8617,117 @@ OwnPtr<CalculationNode> Parser::parse_a_calculation(Vector<ComponentValue> const
     if (parsing_failed_for_child_node)
         return nullptr;
 
-    // FIXME: 6. Return the result of simplifying a calculation tree from values.
-    return single_value.release_value();
+    // 6. Return the result of simplifying a calculation tree from values.
+    return simplify_a_calculation_tree(single_value.release_value());
+}
+
+// https://drafts.csswg.org/css-values-4/#calc-simplification
+NonnullOwnPtr<CalculationNode> Parser::simplify_a_calculation_tree(NonnullOwnPtr<CalculationNode> root)
+{
+    // 1. If root is a numeric value:
+    if (root->type() == CalculationNode::Type::Numeric) {
+        // FIXME: 1. If root is a percentage that will be resolved against another value,
+        // and there is enough information available to resolve it, do so,
+        // and express the resulting numeric value in the appropriate canonical unit.
+        // Return the value.
+
+        // FIXME: 2. If root is a dimension that is not expressed in its canonical unit,
+        // and there is enough information available to convert it to the canonical unit,
+        // do so, and return the value.
+
+        // FIXME: 3. If root is a <calc-keyword>, return its numeric value.
+        // NOTE: Our Numeric nodes are never <calc-keyword>, so we need to handle them outside this block.
+
+        // 4. Otherwise, return root.
+        return root;
+    }
+
+    // 2. If root is any other leaf node (not an operator node):
+    if (!root->is_operator_node()) {
+        // FIXME: 1. If there is enough information available to determine its numeric value,
+        // return its value, expressed in the value’s canonical unit.
+
+        // 2. Otherwise, return root.
+        return root;
+    }
+
+    // FIXME: 3. At this point, root is an operator node. Simplify all the calculation children of root.
+
+    // FIXME: 4. If root is an operator node that’s not one of the calc-operator nodes,
+    //    and all of its calculation children are numeric values with enough information
+    //    to compute the operation root represents, return the result of running root’s operation using its children,
+    //    expressed in the result’s canonical unit.
+
+    // 5. If root is a Min or Max node, attempt to partially simplify it:
+    if (root->type() == CalculationNode::Type::Min || root->type() == CalculationNode::Type::Max) {
+        // FIXME: 1. For each node child of root’s children:
+        // If child is a numeric value with enough information to compare magnitudes with another child of the same unit
+        // (see note in previous step), and there are other children of root that are numeric values with the same unit,
+        // combine all such children with the appropriate operator per root, and replace child with the result,
+        // removing all other child nodes involved.
+
+        // 2. Return root.
+        return root;
+    }
+
+    // 6. If root is a Negate node:
+    if (root->type() == CalculationNode::Type::Negate) {
+        // FIXME: 1. If root’s child is a numeric value, return an equivalent numeric value, but with the value negated (0 - value).
+
+        // FIXME: 2. If root’s child is a Negate node, return the child’s child.
+
+        // 3. Return root.
+        return root;
+    }
+
+    // 7. If root is an Invert node:
+    if (root->type() == CalculationNode::Type::Invert) {
+        // FIXME: 1. If root’s child is a number (not a percentage or dimension) return the reciprocal of the child’s value.
+
+        // FIXME: 2. If root’s child is an Invert node, return the child’s child.
+
+        // 3. Return root.
+        return root;
+    }
+
+    // 8. If root is a Sum node:
+    if (root->type() == CalculationNode::Type::Sum) {
+        // FIXME: 1. For each of root’s children that are Sum nodes, replace them with their children.
+
+        // FIXME: 2. For each set of root’s children that are numeric values with identical units,
+        //           remove those children and replace them with a single numeric value containing the sum of the removed nodes,
+        //           and with the same unit. (E.g. combine numbers, combine percentages, combine px values, etc.)
+
+        // FIXME: 3. If root has only a single child at this point, return the child.
+
+        // Otherwise, return root.
+        return root;
+    }
+
+    // 9. If root is a Product node:
+    if (root->type() == CalculationNode::Type::Product) {
+        // FIXME: 1. For each of root’s children that are Product nodes, replace them with their children.
+
+        // FIXME: 2. If root has multiple children that are numbers (not percentages or dimensions),
+        //           remove them and replace them with a single number containing the product of the removed nodes.
+
+        // FIXME: 3. If root contains only two children, one of which is a number (not a percentage or dimension)
+        // and the other of which is a Sum whose children are all numeric values, multiply all of the Sum’s children by the number,
+        // then return the Sum.
+
+        // FIXME: 4. If root contains only numeric values and/or Invert nodes containing numeric values,
+        //           and multiplying the types of all the children (noting that the type of an Invert node is the inverse of its child’s type)
+        //           results in a type that matches any of the types that a math function can resolve to,
+        //           return the result of multiplying all the values of the children
+        //           (noting that the value of an Invert node is the reciprocal of its child’s value),
+        //           expressed in the result’s canonical unit.
+
+        // 5. Return root
+        return root;
+    }
+
+    // NOTE: The spec stops here, so we assume this is an invalid state
+    VERIFY_NOT_REACHED();
 }
 
 bool Parser::has_ignored_vendor_prefix(StringView string)
