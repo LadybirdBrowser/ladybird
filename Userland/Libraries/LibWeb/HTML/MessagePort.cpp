@@ -68,10 +68,7 @@ void MessagePort::visit_edges(Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_remote_port);
-
-    // FIXME: This is incorrect!! We *should* be visiting the worker event target,
-    //        but CI hangs if we do: https://github.com/SerenityOS/serenity/issues/23899
-    visitor.ignore(m_worker_event_target);
+    visitor.visit(m_worker_event_target);
 }
 
 void MessagePort::set_worker_event_target(JS::NonnullGCPtr<DOM::EventTarget> target)
