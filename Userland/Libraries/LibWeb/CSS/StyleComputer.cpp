@@ -434,7 +434,7 @@ Vector<MatchingRule> StyleComputer::collect_matching_rules(DOM::Element const& e
             continue;
         }
 
-        auto const& selector = rule_to_run.rule->selectors()[rule_to_run.selector_index];
+        auto const& selector = rule_to_run.rule->absolutized_selectors()[rule_to_run.selector_index];
         if (should_reject_with_ancestor_filter(*selector)) {
             rule_to_run.skip = true;
             continue;
@@ -461,7 +461,7 @@ Vector<MatchingRule> StyleComputer::collect_matching_rules(DOM::Element const& e
         if (element.is_shadow_host() && rule_root != element.shadow_root())
             shadow_host_to_use = nullptr;
 
-        auto const& selector = rule_to_run.rule->selectors()[rule_to_run.selector_index];
+        auto const& selector = rule_to_run.rule->absolutized_selectors()[rule_to_run.selector_index];
 
         if (rule_to_run.can_use_fast_matches) {
             if (!SelectorEngine::fast_matches(selector, *rule_to_run.sheet, element, shadow_host_to_use))
@@ -478,8 +478,8 @@ Vector<MatchingRule> StyleComputer::collect_matching_rules(DOM::Element const& e
 static void sort_matching_rules(Vector<MatchingRule>& matching_rules)
 {
     quick_sort(matching_rules, [&](MatchingRule& a, MatchingRule& b) {
-        auto const& a_selector = a.rule->selectors()[a.selector_index];
-        auto const& b_selector = b.rule->selectors()[b.selector_index];
+        auto const& a_selector = a.rule->absolutized_selectors()[a.selector_index];
+        auto const& b_selector = b.rule->absolutized_selectors()[b.selector_index];
         auto a_specificity = a_selector->specificity();
         auto b_specificity = b_selector->specificity();
         if (a_specificity == b_specificity) {
@@ -2418,7 +2418,7 @@ NonnullOwnPtr<StyleComputer::RuleCache> StyleComputer::make_rule_cache_for_casca
         size_t rule_index = 0;
         sheet.for_each_effective_style_rule([&](auto const& rule) {
             size_t selector_index = 0;
-            for (CSS::Selector const& selector : rule.selectors()) {
+            for (CSS::Selector const& selector : rule.absolutized_selectors()) {
                 MatchingRule matching_rule {
                     shadow_root,
                     &rule,

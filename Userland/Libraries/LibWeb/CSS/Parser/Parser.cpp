@@ -1374,11 +1374,12 @@ JS::GCPtr<CSSRule> Parser::convert_to_rule(Rule const& rule, Nested nested)
 JS::GCPtr<CSSStyleRule> Parser::convert_to_style_rule(QualifiedRule const& qualified_rule, Nested nested)
 {
     TokenStream prelude_stream { qualified_rule.prelude };
-    auto selectors = parse_a_selector_list(prelude_stream,
+
+    auto maybe_selectors = parse_a_selector_list(prelude_stream,
         nested == Nested::Yes ? SelectorType::Relative : SelectorType::Standalone);
 
-    if (selectors.is_error()) {
-        if (selectors.error() == ParseError::SyntaxError) {
+    if (maybe_selectors.is_error()) {
+        if (maybe_selectors.error() == ParseError::SyntaxError) {
             dbgln_if(CSS_PARSER_DEBUG, "CSSParser: style rule selectors invalid; discarding.");
             if constexpr (CSS_PARSER_DEBUG) {
                 prelude_stream.dump_all_tokens();
@@ -1387,9 +1388,44 @@ JS::GCPtr<CSSStyleRule> Parser::convert_to_style_rule(QualifiedRule const& quali
         return {};
     }
 
-    if (selectors.value().is_empty()) {
+    if (maybe_selectors.value().is_empty()) {
         dbgln_if(CSS_PARSER_DEBUG, "CSSParser: empty selector; discarding.");
         return {};
+    }
+
+    SelectorList selectors = maybe_selectors.release_value();
+    if (nested == Nested::Yes) {
+        // "Nested style rules differ from non-nested rules in the following ways:
+        // - A nested style rule accepts a <relative-selector-list> as its prelude (rather than just a <selector-list>).
+        //   Any relative selectors are relative to the elements represented by the nesting selector.
+        // - If a selector in the <relative-selector-list> does not start with a combinator but does contain the nesting
+        //   selector, it is interpreted as a non-relative selector."
+        // https://drafts.csswg.org/css-nesting-1/#syntax
+        // NOTE: We already parsed the selectors as a <relative-selector-list>
+
+        // Nested relative selectors get a `&` inserted at the beginning.
+        // This is, handily, how the spec wants them serialized:
+        // "When serializing a relative selector in a nested style rule, the selector must be absolutized,
+        // with the implied nesting selector inserted."
+        // - https://drafts.csswg.org/css-nesting-1/#cssom
+
+        SelectorList new_list;
+        new_list.ensure_capacity(selectors.size());
+        for (auto const& selector : selectors) {
+            auto first_combinator = selector->compound_selectors().first().combinator;
+            if (!first_is_one_of(first_combinator, Selector::Combinator::None, Selector::Combinator::Descendant)
+                || !selector->contains_the_nesting_selector()) {
+                new_list.append(selector->relative_to(Selector::SimpleSelector { .type = Selector::SimpleSelector::Type::Nesting }));
+            } else if (first_combinator == Selector::Combinator::Descendant) {
+                // Replace leading descendant combinator (whitespace) with none, because we're not actually relative.
+                auto copied_compound_selectors = selector->compound_selectors();
+                copied_compound_selectors.first().combinator = Selector::Combinator::None;
+                new_list.append(Selector::create(move(copied_compound_selectors)));
+            } else {
+                new_list.append(selector);
+            }
+        }
+        selectors = move(new_list);
     }
 
     auto* declaration = convert_to_style_declaration(qualified_rule.declarations);
@@ -1423,7 +1459,7 @@ JS::GCPtr<CSSStyleRule> Parser::convert_to_style_rule(QualifiedRule const& quali
             });
     }
     auto nested_rules = CSSRuleList::create(m_context.realm(), move(child_rules));
-    return CSSStyleRule::create(m_context.realm(), move(selectors.value()), *declaration, *nested_rules);
+    return CSSStyleRule::create(m_context.realm(), move(selectors), *declaration, *nested_rules);
 }
 
 JS::GCPtr<CSSImportRule> Parser::convert_to_import_rule(AtRule const& rule)

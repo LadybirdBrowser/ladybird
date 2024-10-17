@@ -213,6 +213,8 @@ public:
         QualifiedName& qualified_name() { return value.get<QualifiedName>(); }
 
         String serialize() const;
+
+        SimpleSelector absolutized(SimpleSelector const& selector_for_nesting) const;
     };
 
     enum class Combinator {
@@ -229,6 +231,8 @@ public:
         // but it is more understandable to put them together.
         Combinator combinator { Combinator::None };
         Vector<SimpleSelector> simple_selectors;
+
+        CompoundSelector absolutized(SimpleSelector const& selector_for_nesting) const;
     };
 
     static NonnullRefPtr<Selector> create(Vector<CompoundSelector>&& compound_selectors)
@@ -240,6 +244,9 @@ public:
 
     Vector<CompoundSelector> const& compound_selectors() const { return m_compound_selectors; }
     Optional<PseudoElement> pseudo_element() const { return m_pseudo_element; }
+    NonnullRefPtr<Selector> relative_to(SimpleSelector const&) const;
+    bool contains_the_nesting_selector() const { return m_contains_the_nesting_selector; }
+    NonnullRefPtr<Selector> absolutized(SimpleSelector const& selector_for_nesting) const;
     u32 specificity() const;
     String serialize() const;
 
@@ -251,6 +258,7 @@ private:
     Vector<CompoundSelector> m_compound_selectors;
     mutable Optional<u32> m_specificity;
     Optional<Selector::PseudoElement> m_pseudo_element;
+    bool m_contains_the_nesting_selector { false };
 
     void collect_ancestor_hashes();
 
