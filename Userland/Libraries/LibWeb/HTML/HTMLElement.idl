@@ -3,6 +3,7 @@
 #import <HTML/ElementInternals.idl>
 #import <DOM/Element.idl>
 #import <DOM/EventHandler.idl>
+#import <HTML/HTMLOrSVGElement.idl>
 
 // https://html.spec.whatwg.org/multipage/semantics.html#htmlelement
 [Exposed=Window]
@@ -56,18 +57,6 @@ interface mixin ElementContentEditable {
     [FIXME, CEReactions] attribute DOMString enterKeyHint;
     readonly attribute boolean isContentEditable;
     [FIXME, CEReactions] attribute DOMString inputMode;
-};
-
-// https://html.spec.whatwg.org/#htmlorsvgelement
-interface mixin HTMLOrSVGElement {
-    [SameObject] readonly attribute DOMStringMap dataset;
-    [FIXME] attribute DOMString nonce; // intentionally no [CEReactions]
-
-    [CEReactions, Reflect] attribute boolean autofocus;
-    [CEReactions] attribute long tabIndex;
-    // FIXME: Support the optional FocusOptions parameter.
-    undefined focus();
-    undefined blur();
 };
 
 HTMLElement includes ElementCSSInlineStyle;
