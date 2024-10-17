@@ -154,8 +154,11 @@ public:
     }
 
     ByteCode(ByteCode const&) = default;
+    ByteCode(ByteCode&&) = default;
+
     virtual ~ByteCode() = default;
 
+    ByteCode& operator=(ByteCode const&) = default;
     ByteCode& operator=(ByteCode&&) = default;
     ByteCode& operator=(Base&& value)
     {
