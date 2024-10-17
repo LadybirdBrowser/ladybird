@@ -3,6 +3,7 @@
 #import <WebAudio/AudioBuffer.idl>
 #import <WebAudio/AudioBufferSourceNode.idl>
 #import <WebAudio/AudioDestinationNode.idl>
+#import <WebAudio/AudioListener.idl>
 #import <WebAudio/DynamicsCompressorNode.idl>
 #import <WebAudio/GainNode.idl>
 #import <WebAudio/OscillatorNode.idl>
@@ -21,7 +22,7 @@ interface BaseAudioContext : EventTarget {
     readonly attribute AudioDestinationNode destination;
     readonly attribute float sampleRate;
     readonly attribute double currentTime;
-    [FIXME] readonly attribute AudioListener listener;
+    readonly attribute AudioListener listener;
     readonly attribute AudioContextState state;
     // FIXME: [SameObject, SecureContext]
     [FIXME] readonly attribute AudioWorklet audioWorklet;

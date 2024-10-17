@@ -768,6 +768,7 @@ class AudioBuffer;
 class AudioBufferSourceNode;
 class AudioContext;
 class AudioDestinationNode;
+class AudioListener;
 class AudioNode;
 class AudioParam;
 class AudioScheduledSourceNode;
