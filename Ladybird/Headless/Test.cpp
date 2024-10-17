@@ -110,7 +110,7 @@ static ErrorOr<void> load_test_config(StringView test_root_path)
 
                 // Suppress on all platforms by default
                 if (value.is_empty()) {
-                    dbgln(" Skipping test '{}'", key);
+                    dbgln("Skipping test '{}'", key);
                     s_skipped_tests.append(LexicalPath::join(test_root_path, key).string());
                     continue;
                 }
@@ -122,7 +122,7 @@ static ErrorOr<void> load_test_config(StringView test_root_path)
 
                     auto trimmed_platform = suppressed_platform.trim_whitespace();
                     if (current_oses.contains_slow(trimmed_platform)) {
-                        dbgln(" Skipping test '{}' due to platform '{}'", key, trimmed_platform);
+                        dbgln("Skipping test '{}' due to platform '{}'", key, trimmed_platform);
                         s_skipped_tests.append(LexicalPath::join(test_root_path, key).string());
                         break;
                     }
