@@ -300,11 +300,11 @@ void CSSStyleSheet::for_each_effective_rule(TraversalOrder order, Function<void(
         m_rules->for_each_effective_rule(order, callback);
 }
 
-void CSSStyleSheet::for_each_effective_style_rule(Function<void(CSSStyleRule const&)> const& callback) const
+void CSSStyleSheet::for_each_effective_style_producing_rule(Function<void(CSSRule const&)> const& callback) const
 {
     for_each_effective_rule(TraversalOrder::Preorder, [&](CSSRule const& rule) {
-        if (rule.type() == CSSRule::Type::Style)
-            callback(static_cast<CSSStyleRule const&>(rule));
+        if (rule.type() == CSSRule::Type::Style || rule.type() == CSSRule::Type::NestedDeclarations)
+            callback(rule);
     });
 }
 

@@ -82,7 +82,7 @@ enum class CascadeOrigin : u8 {
 
 struct MatchingRule {
     JS::GCPtr<DOM::ShadowRoot const> shadow_root;
-    JS::GCPtr<CSSStyleRule const> rule;
+    JS::GCPtr<CSSRule const> rule; // Either CSSStyleRule or CSSNestedDeclarations
     JS::GCPtr<CSSStyleSheet const> sheet;
     size_t style_sheet_index { 0 };
     size_t rule_index { 0 };
@@ -94,6 +94,11 @@ struct MatchingRule {
     bool can_use_fast_matches { false };
     bool must_be_hovered { false };
     bool skip { false };
+
+    // Helpers to deal with the fact that `rule` might be a CSSStyleRule or a CSSNestedDeclarations
+    PropertyOwningCSSStyleDeclaration const& declaration() const;
+    SelectorList const& absolutized_selectors() const;
+    FlyString const& qualified_layer_name() const;
 };
 
 struct FontFaceKey {
