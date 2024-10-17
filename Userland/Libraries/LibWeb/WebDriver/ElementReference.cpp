@@ -64,7 +64,7 @@ ErrorOr<JS::NonnullGCPtr<Web::DOM::Element>, WebDriver::Error> deserialize_web_e
     auto reference = extract_web_element_reference(object);
 
     // 3. Let element be the result of trying to get a known element with session and reference.
-    auto element = TRY(get_known_connected_element(reference));
+    auto element = TRY(get_known_element(reference));
 
     // 4. Return success with data element.
     return *element;
@@ -90,14 +90,14 @@ ErrorOr<JS::NonnullGCPtr<Web::DOM::Element>, Web::WebDriver::Error> get_web_elem
     // 1. Assert: browsing context is the current browsing context.
 
     // 2. Let element be equal to the result of trying to get a known element with session and origin.
-    auto element = TRY(get_known_connected_element(origin));
+    auto element = TRY(get_known_element(origin));
 
     // 3. Return success with data element.
     return element;
 }
 
 // https://w3c.github.io/webdriver/#dfn-get-a-known-element
-ErrorOr<JS::NonnullGCPtr<Web::DOM::Element>, Web::WebDriver::Error> get_known_connected_element(StringView element_id)
+ErrorOr<JS::NonnullGCPtr<Web::DOM::Element>, Web::WebDriver::Error> get_known_element(StringView element_id)
 {
     // NOTE: The whole concept of "connected elements" is not implemented yet. See get_or_create_a_web_element_reference().
     //       For now the element is only represented by its ID.
