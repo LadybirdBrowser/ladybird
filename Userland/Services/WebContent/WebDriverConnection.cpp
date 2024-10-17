@@ -199,6 +199,14 @@ WebDriverConnection::WebDriverConnection(NonnullOwnPtr<Core::LocalSocket> socket
     set_current_top_level_browsing_context(page_client.page().top_level_browsing_context());
 }
 
+void WebDriverConnection::visit_edges(JS::Cell::Visitor& visitor)
+{
+    visitor.visit(m_current_browsing_context);
+    visitor.visit(m_current_parent_browsing_context);
+    visitor.visit(m_current_top_level_browsing_context);
+    visitor.visit(m_action_executor);
+}
+
 // https://w3c.github.io/webdriver/#dfn-close-the-session
 void WebDriverConnection::close_session()
 {
