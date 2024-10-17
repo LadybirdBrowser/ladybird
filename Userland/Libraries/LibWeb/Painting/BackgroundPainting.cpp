@@ -292,7 +292,7 @@ void paint_background(PaintContext& context, PaintableBox const& paintable_box, 
     }
 }
 
-ResolvedBackground resolve_background_layers(Vector<CSS::BackgroundLayerData> const& layers, Layout::NodeWithStyleAndBoxModelMetrics const& layout_node, Color background_color, CSSPixelRect const& border_rect, BorderRadiiData const& border_radii)
+ResolvedBackground resolve_background_layers(Vector<CSS::BackgroundLayerData> const& layers, PaintableBox const& paintable_box, Color background_color, CSSPixelRect const& border_rect, BorderRadiiData const& border_radii)
 {
     auto layer_is_paintable = [&](auto& layer) {
         return layer.background_image && layer.background_image->is_paintable();
@@ -305,23 +305,23 @@ ResolvedBackground resolve_background_layers(Vector<CSS::BackgroundLayerData> co
 
     auto color_box = border_box;
     if (!layers.is_empty())
-        color_box = get_box(layers.last().clip, border_box, layout_node);
+        color_box = get_box(layers.last().clip, border_box, paintable_box);
 
     Vector<ResolvedBackgroundLayerData> resolved_layers;
     for (auto const& layer : layers) {
         if (!layer_is_paintable(layer))
             continue;
 
-        auto background_positioning_area = get_box(layer.origin, border_box, layout_node).rect;
+        auto background_positioning_area = get_box(layer.origin, border_box, paintable_box).rect;
         auto const& image = *layer.background_image;
 
         Optional<CSSPixels> specified_width {};
         Optional<CSSPixels> specified_height {};
         if (layer.size_type == CSS::BackgroundSize::LengthPercentage) {
             if (!layer.size_x.is_auto())
-                specified_width = layer.size_x.to_px(layout_node, background_positioning_area.width());
+                specified_width = layer.size_x.to_px(paintable_box.layout_node(), background_positioning_area.width());
             if (!layer.size_y.is_auto())
-                specified_height = layer.size_y.to_px(layout_node, background_positioning_area.height());
+                specified_height = layer.size_y.to_px(paintable_box.layout_node(), background_positioning_area.height());
         }
         auto concrete_image_size = CSS::run_default_sizing_algorithm(
             specified_width, specified_height,
@@ -391,8 +391,8 @@ ResolvedBackground resolve_background_layers(Vector<CSS::BackgroundLayerData> co
         CSSPixels space_x = background_positioning_area.width() - image_rect.width();
         CSSPixels space_y = background_positioning_area.height() - image_rect.height();
 
-        CSSPixels offset_x = layer.position_offset_x.to_px(layout_node, space_x);
-        CSSPixels offset_y = layer.position_offset_y.to_px(layout_node, space_y);
+        CSSPixels offset_x = layer.position_offset_x.to_px(paintable_box.layout_node(), space_x);
+        CSSPixels offset_y = layer.position_offset_y.to_px(paintable_box.layout_node(), space_y);
 
         resolved_layers.append({ .background_image = layer.background_image,
             .attachment = layer.attachment,
