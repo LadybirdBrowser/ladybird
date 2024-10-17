@@ -23,10 +23,13 @@ Storage::Storage(JS::Realm& realm)
     : Bindings::PlatformObject(realm)
 {
     m_legacy_platform_object_flags = LegacyPlatformObjectFlags {
+        .supports_indexed_properties = true,
         .supports_named_properties = true,
+        .has_indexed_property_setter = true,
         .has_named_property_setter = true,
         .has_named_property_deleter = true,
         .has_legacy_override_built_ins_interface_extended_attribute = true,
+        .indexed_property_setter_has_identifier = true,
         .named_property_setter_has_identifier = true,
         .named_property_deleter_has_identifier = true,
     };
@@ -168,6 +171,13 @@ Vector<FlyString> Storage::supported_property_names() const
     return names;
 }
 
+Optional<JS::Value> Storage::item_value(size_t index) const
+{
+    // Handle index as a string since that's our key type
+    auto key = String::number(index);
+    return named_item_value(key);
+}
+
 JS::Value Storage::named_item_value(FlyString const& name) const
 {
     auto value = get_item(name);
@@ -180,6 +190,13 @@ WebIDL::ExceptionOr<Bindings::PlatformObject::DidDeletionFail> Storage::delete_v
 {
     remove_item(name);
     return DidDeletionFail::NotRelevant;
+}
+
+WebIDL::ExceptionOr<void> Storage::set_value_of_indexed_property(u32 index, JS::Value unconverted_value)
+{
+    // Handle index as a string since that's our key type
+    auto key = String::number(index);
+    return set_value_of_named_property(key, unconverted_value);
 }
 
 WebIDL::ExceptionOr<void> Storage::set_value_of_named_property(String const& key, JS::Value unconverted_value)
