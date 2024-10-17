@@ -5415,8 +5415,7 @@ void Document::parse_html_from_a_string(StringView html)
     auto parser = HTML::HTMLParser::create(*this, html, "UTF-8"sv);
 
     // 4. Start parser and let it run until it has consumed all the characters just inserted into the input stream.
-    // FIXME: This is to match the default URL. Instead, pass in this's relevant global object's associated Document's URL.
-    parser->run("about:blank"sv);
+    parser->run(verify_cast<HTML::Window>(HTML::relevant_global_object(*this)).associated_document().url());
 }
 
 // https://html.spec.whatwg.org/multipage/dynamic-markup-insertion.html#dom-parsehtmlunsafe
