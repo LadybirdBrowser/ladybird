@@ -30,10 +30,14 @@ class MessagePort final : public DOM::EventTarget
 public:
     [[nodiscard]] static JS::NonnullGCPtr<MessagePort> create(JS::Realm&);
 
+    static void for_each_message_port(Function<void(MessagePort&)>);
+
     virtual ~MessagePort() override;
 
     // https://html.spec.whatwg.org/multipage/web-messaging.html#entangle
     void entangle_with(MessagePort&);
+
+    void disentangle();
 
     // https://html.spec.whatwg.org/multipage/web-messaging.html#dom-messageport-postmessage
     WebIDL::ExceptionOr<void> post_message(JS::Value message, Vector<JS::Handle<JS::Object>> const& transfer);
@@ -66,7 +70,6 @@ private:
     virtual void visit_edges(Cell::Visitor&) override;
 
     bool is_entangled() const { return static_cast<bool>(m_socket); }
-    void disentangle();
 
     WebIDL::ExceptionOr<void> message_port_post_message_steps(JS::GCPtr<MessagePort> target_port, JS::Value message, StructuredSerializeOptions const& options);
     void post_message_task_steps(SerializedTransferRecord&);

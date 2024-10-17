@@ -29,6 +29,12 @@ constexpr u8 IPC_FILE_TAG = 0xA5;
 
 JS_DEFINE_ALLOCATOR(MessagePort);
 
+static HashTable<JS::RawGCPtr<MessagePort>>& all_message_ports()
+{
+    static HashTable<JS::RawGCPtr<MessagePort>> ports;
+    return ports;
+}
+
 JS::NonnullGCPtr<MessagePort> MessagePort::create(JS::Realm& realm)
 {
     return realm.heap().allocate<MessagePort>(realm, realm);
@@ -37,11 +43,19 @@ JS::NonnullGCPtr<MessagePort> MessagePort::create(JS::Realm& realm)
 MessagePort::MessagePort(JS::Realm& realm)
     : DOM::EventTarget(realm)
 {
+    all_message_ports().set(this);
 }
 
 MessagePort::~MessagePort()
 {
+    all_message_ports().remove(this);
     disentangle();
+}
+
+void MessagePort::for_each_message_port(Function<void(MessagePort&)> callback)
+{
+    for (auto port : all_message_ports())
+        callback(*port);
 }
 
 void MessagePort::initialize(JS::Realm& realm)

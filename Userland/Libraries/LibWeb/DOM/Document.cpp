@@ -96,6 +96,7 @@
 #include <LibWeb/HTML/ListOfAvailableImages.h>
 #include <LibWeb/HTML/Location.h>
 #include <LibWeb/HTML/MessageEvent.h>
+#include <LibWeb/HTML/MessagePort.h>
 #include <LibWeb/HTML/Navigable.h>
 #include <LibWeb/HTML/Navigation.h>
 #include <LibWeb/HTML/NavigationParams.h>
@@ -3316,8 +3317,17 @@ void Document::destroy()
     // 3. Set document's salvageable state to false.
     m_salvageable = false;
 
-    // FIXME: 4. Let ports be the list of MessagePorts whose relevant global object's associated Document is document.
-    // FIXME: 5. For each port in ports, disentangle port.
+    // 4. Let ports be the list of MessagePorts whose relevant global object's associated Document is document.
+    // 5. For each port in ports, disentangle port.
+    HTML::MessagePort::for_each_message_port([&](HTML::MessagePort& port) {
+        auto& global = HTML::relevant_global_object(port);
+        if (!is<HTML::Window>(global))
+            return;
+
+        auto& window = static_cast<HTML::Window&>(global);
+        if (&window.associated_document() == this)
+            port.disentangle();
+    });
 
     // 6. Run any unloading document cleanup steps for document that are defined by this specification and other applicable specifications.
     run_unloading_cleanup_steps();
