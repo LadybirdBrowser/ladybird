@@ -24,6 +24,7 @@ public:
     virtual ~CSSStyleRule() override = default;
 
     SelectorList const& selectors() const { return m_selectors; }
+    SelectorList const& absolutized_selectors() const;
     PropertyOwningCSSStyleDeclaration const& declaration() const { return m_declaration; }
 
     virtual Type type() const override { return Type::Style; }
@@ -40,9 +41,11 @@ private:
 
     virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Cell::Visitor&) override;
+    virtual void clear_caches() override;
     virtual String serialized() const override;
 
     SelectorList m_selectors;
+    mutable Optional<SelectorList> m_cached_absolutized_selectors;
     JS::NonnullGCPtr<PropertyOwningCSSStyleDeclaration> m_declaration;
 };
 

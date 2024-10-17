@@ -6,6 +6,7 @@
  */
 
 #include "Selector.h"
+#include <AK/GenericShorthands.h>
 #include <LibWeb/CSS/Serialize.h>
 
 namespace Web::CSS {
@@ -22,6 +23,30 @@ Selector::Selector(Vector<CompoundSelector>&& compound_selectors)
                 break;
             }
         }
+    }
+
+    // https://drafts.csswg.org/css-nesting-1/#contain-the-nesting-selector
+    // "A selector is said to contain the nesting selector if, when it was parsed as any type of selector,
+    // a <delim-token> with the value "&" (U+0026 AMPERSAND) was encountered."
+    for (auto const& compound_selector : m_compound_selectors) {
+        for (auto const& simple_selector : compound_selector.simple_selectors) {
+            if (simple_selector.type == SimpleSelector::Type::Nesting) {
+                m_contains_the_nesting_selector = true;
+                break;
+            }
+            if (simple_selector.type == SimpleSelector::Type::PseudoClass) {
+                for (auto const& child_selector : simple_selector.pseudo_class().argument_selector_list) {
+                    if (child_selector->contains_the_nesting_selector()) {
+                        m_contains_the_nesting_selector = true;
+                        break;
+                    }
+                }
+                if (m_contains_the_nesting_selector)
+                    break;
+            }
+        }
+        if (m_contains_the_nesting_selector)
+            break;
     }
 
     collect_ancestor_hashes();
@@ -492,6 +517,93 @@ Optional<Selector::PseudoElement> Selector::PseudoElement::from_string(FlyString
         return Selector::PseudoElement { Selector::PseudoElement::Type::SliderThumb };
     }
     return {};
+}
+
+NonnullRefPtr<Selector> Selector::relative_to(SimpleSelector const& parent) const
+{
+    // To make us relative to the parent, prepend it to the list of compound selectors,
+    // and ensure the next compound selector starts with a combinator.
+    Vector<CompoundSelector> copied_compound_selectors;
+    copied_compound_selectors.ensure_capacity(compound_selectors().size() + 1);
+    copied_compound_selectors.empend(CompoundSelector { .simple_selectors = { parent } });
+
+    bool first = true;
+    for (auto compound_selector : compound_selectors()) {
+        if (first) {
+            if (compound_selector.combinator == Combinator::None)
+                compound_selector.combinator = Combinator::Descendant;
+            first = false;
+        }
+
+        copied_compound_selectors.append(move(compound_selector));
+    }
+
+    return Selector::create(move(copied_compound_selectors));
+}
+
+NonnullRefPtr<Selector> Selector::absolutized(Selector::SimpleSelector const& selector_for_nesting) const
+{
+    if (!contains_the_nesting_selector())
+        return *this;
+
+    Vector<CompoundSelector> absolutized_compound_selectors;
+    absolutized_compound_selectors.ensure_capacity(m_compound_selectors.size());
+    for (auto const& compound_selector : m_compound_selectors)
+        absolutized_compound_selectors.append(compound_selector.absolutized(selector_for_nesting));
+
+    return Selector::create(move(absolutized_compound_selectors));
+}
+
+Selector::CompoundSelector Selector::CompoundSelector::absolutized(Selector::SimpleSelector const& selector_for_nesting) const
+{
+    // TODO: Cache if it contains the nesting selector?
+
+    Vector<SimpleSelector> absolutized_simple_selectors;
+    absolutized_simple_selectors.ensure_capacity(simple_selectors.size());
+    for (auto const& simple_selector : simple_selectors)
+        absolutized_simple_selectors.append(simple_selector.absolutized(selector_for_nesting));
+
+    return CompoundSelector {
+        .combinator = this->combinator,
+        .simple_selectors = absolutized_simple_selectors,
+    };
+}
+
+Selector::SimpleSelector Selector::SimpleSelector::absolutized(Selector::SimpleSelector const& selector_for_nesting) const
+{
+    switch (type) {
+    case Type::Nesting:
+        // Nesting selectors get replaced directly.
+        return selector_for_nesting;
+
+    case Type::PseudoClass: {
+        // Pseudo-classes may contain other selectors, so we need to absolutize them.
+        // Copy the PseudoClassSelector, and then replace its argument selector list.
+        auto pseudo_class = this->pseudo_class();
+        if (!pseudo_class.argument_selector_list.is_empty()) {
+            SelectorList new_selector_list;
+            new_selector_list.ensure_capacity(pseudo_class.argument_selector_list.size());
+            for (auto const& argument_selector : pseudo_class.argument_selector_list)
+                new_selector_list.append(argument_selector->absolutized(selector_for_nesting));
+            pseudo_class.argument_selector_list = move(new_selector_list);
+        }
+        return SimpleSelector {
+            .type = Type::PseudoClass,
+            .value = move(pseudo_class),
+        };
+    }
+
+    case Type::Universal:
+    case Type::TagName:
+    case Type::Id:
+    case Type::Class:
+    case Type::Attribute:
+    case Type::PseudoElement:
+        // Everything else isn't affected
+        return *this;
+    }
+
+    VERIFY_NOT_REACHED();
 }
 
 }
