@@ -262,6 +262,8 @@ void CanvasRenderingContext2D::stroke_internal(Gfx::Path const& path)
     if (!painter)
         return;
 
+    paint_shadow_for_stroke_internal(path);
+
     auto& state = drawing_state();
 
     if (auto color = state.stroke_style.as_color(); color.has_value()) {
@@ -298,6 +300,8 @@ void CanvasRenderingContext2D::fill_internal(Gfx::Path const& path, Gfx::Winding
     auto* painter = this->painter();
     if (!painter)
         return;
+
+    paint_shadow_for_fill_internal(path, winding_rule);
 
     auto path_to_fill = path;
     path_to_fill.close_all_subpaths();
@@ -717,6 +721,97 @@ void CanvasRenderingContext2D::set_global_alpha(float alpha)
     }
     // 2. Otherwise, set this's global alpha to the given value.
     drawing_state().global_alpha = alpha;
+}
+
+float CanvasRenderingContext2D::shadow_offset_x() const
+{
+    return drawing_state().shadow_offset_x;
+}
+
+void CanvasRenderingContext2D::set_shadow_offset_x(float offsetX)
+{
+    // https://html.spec.whatwg.org/multipage/canvas.html#dom-context-2d-shadowoffsetx
+    drawing_state().shadow_offset_x = offsetX;
+}
+
+float CanvasRenderingContext2D::shadow_offset_y() const
+{
+    return drawing_state().shadow_offset_y;
+}
+
+void CanvasRenderingContext2D::set_shadow_offset_y(float offsetY)
+{
+    // https://html.spec.whatwg.org/multipage/canvas.html#dom-context-2d-shadowoffsety
+    drawing_state().shadow_offset_y = offsetY;
+}
+
+String CanvasRenderingContext2D::shadow_color() const
+{
+    // https://html.spec.whatwg.org/multipage/canvas.html#dom-context-2d-shadowcolor
+    return drawing_state().shadow_color.to_string(Gfx::Color::HTMLCompatibleSerialization::Yes);
+}
+
+void CanvasRenderingContext2D::set_shadow_color(String color)
+{
+    auto& realm = static_cast<CanvasRenderingContext2D&>(*this).realm();
+
+    // 1. Let context be this's canvas attribute's value, if that is an element; otherwise null.
+    auto parser = CSS::Parser::Parser::create(CSS::Parser::ParsingContext(realm), color);
+
+    auto style_value = parser.parse_as_css_value(CSS::PropertyID::Color);
+
+    // 2. Let parsedValue be the result of parsing the given value with context if non-null.
+    if (style_value && style_value->has_color()) {
+        auto parsedValue = style_value->to_color(OptionalNone());
+
+        // 4. Set this's shadow color to parsedValue.
+        drawing_state().shadow_color = parsedValue;
+    } else {
+        // 3. If parsedValue is failure, then return.
+        return;
+    }
+}
+void CanvasRenderingContext2D::paint_shadow_for_fill_internal(Gfx::Path const& path, Gfx::WindingRule winding_rule)
+{
+    auto* painter = this->painter();
+    if (!painter)
+        return;
+
+    auto path_to_fill = path;
+    path_to_fill.close_all_subpaths();
+
+    auto& state = this->drawing_state();
+
+    painter->save();
+
+    Gfx::AffineTransform transform;
+    transform.translate(state.shadow_offset_x, state.shadow_offset_y);
+    painter->set_transform(transform);
+    painter->fill_path(path_to_fill, state.shadow_color.with_opacity(state.global_alpha), winding_rule);
+
+    painter->restore();
+
+    did_draw(path_to_fill.bounding_box());
+}
+
+void CanvasRenderingContext2D::paint_shadow_for_stroke_internal(Gfx::Path const& path)
+{
+    auto* painter = this->painter();
+    if (!painter)
+        return;
+
+    auto& state = drawing_state();
+
+    painter->save();
+
+    Gfx::AffineTransform transform;
+    transform.translate(state.shadow_offset_x, state.shadow_offset_y);
+    painter->set_transform(transform);
+    painter->stroke_path(path, state.shadow_color.with_opacity(state.global_alpha), state.line_width);
+
+    painter->restore();
+
+    did_draw(path.bounding_box());
 }
 
 }
