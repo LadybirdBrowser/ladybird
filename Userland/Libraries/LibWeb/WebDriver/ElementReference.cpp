@@ -64,7 +64,7 @@ ErrorOr<JS::NonnullGCPtr<Web::DOM::Element>, WebDriver::Error> deserialize_web_e
     auto reference = extract_web_element_reference(object);
 
     // 3. Let element be the result of trying to get a known element with session and reference.
-    auto* element = TRY(get_known_connected_element(reference));
+    auto element = TRY(get_known_connected_element(reference));
 
     // 4. Return success with data element.
     return *element;
@@ -90,14 +90,14 @@ ErrorOr<JS::NonnullGCPtr<Web::DOM::Element>, Web::WebDriver::Error> get_web_elem
     // 1. Assert: browsing context is the current browsing context.
 
     // 2. Let element be equal to the result of trying to get a known element with session and origin.
-    auto* element = TRY(get_known_connected_element(origin));
+    auto element = TRY(get_known_connected_element(origin));
 
     // 3. Return success with data element.
-    return *element;
+    return element;
 }
 
 // https://w3c.github.io/webdriver/#dfn-get-a-known-element
-ErrorOr<Web::DOM::Element*, Web::WebDriver::Error> get_known_connected_element(StringView element_id)
+ErrorOr<JS::NonnullGCPtr<Web::DOM::Element>, Web::WebDriver::Error> get_known_connected_element(StringView element_id)
 {
     // NOTE: The whole concept of "connected elements" is not implemented yet. See get_or_create_a_web_element_reference().
     //       For now the element is only represented by its ID.
@@ -120,7 +120,7 @@ ErrorOr<Web::DOM::Element*, Web::WebDriver::Error> get_known_connected_element(S
         return Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::StaleElementReference, ByteString::formatted("Element with ID: {} is stale", element_id));
 
     // 5. Return success with data node.
-    return static_cast<Web::DOM::Element*>(node);
+    return static_cast<Web::DOM::Element&>(*node);
 }
 
 // https://w3c.github.io/webdriver/#dfn-is-stale
@@ -283,7 +283,7 @@ JsonObject shadow_root_reference_object(Web::DOM::ShadowRoot const& shadow_root)
 }
 
 // https://w3c.github.io/webdriver/#dfn-get-a-known-shadow-root
-ErrorOr<Web::DOM::ShadowRoot*, Web::WebDriver::Error> get_known_shadow_root(StringView shadow_id)
+ErrorOr<JS::NonnullGCPtr<Web::DOM::ShadowRoot>, Web::WebDriver::Error> get_known_shadow_root(StringView shadow_id)
 {
     // NOTE: The whole concept of "known shadow roots" is not implemented yet. See get_or_create_a_shadow_root_reference().
     //       For now the shadow root is only represented by its ID.
@@ -296,7 +296,7 @@ ErrorOr<Web::DOM::ShadowRoot*, Web::WebDriver::Error> get_known_shadow_root(Stri
     if (!node || !node->is_shadow_root())
         return Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::NoSuchElement, ByteString::formatted("Could not find shadow root with ID: {}", shadow_id));
 
-    return static_cast<Web::DOM::ShadowRoot*>(node);
+    return static_cast<Web::DOM::ShadowRoot&>(*node);
 }
 
 // https://w3c.github.io/webdriver/#dfn-center-point

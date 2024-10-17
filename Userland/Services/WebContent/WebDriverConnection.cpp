@@ -543,11 +543,11 @@ Messages::WebDriverClient::SwitchToFrameResponse WebDriverConnection::switch_to_
         TRY(handle_any_user_prompts());
 
         // 3. Let element be the result of trying to get a known element with session and id.
-        auto* element = TRY(Web::WebDriver::get_known_connected_element(element_id));
+        auto element = TRY(Web::WebDriver::get_known_connected_element(element_id));
 
         // 4. If element is not a frame or iframe element, return error with error code no such frame.
-        bool is_frame = is<Web::HTML::HTMLFrameElement>(element);
-        bool is_iframe = is<Web::HTML::HTMLIFrameElement>(element);
+        bool is_frame = is<Web::HTML::HTMLFrameElement>(*element);
+        bool is_iframe = is<Web::HTML::HTMLIFrameElement>(*element);
 
         if (!is_frame && !is_iframe)
             return Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::NoSuchFrame, "element is not a frame"sv);
@@ -808,7 +808,7 @@ Messages::WebDriverClient::FindElementResponse WebDriverConnection::find_element
         if (!start_node)
             return Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::NoSuchElement, "document element does not exist"sv);
 
-        return start_node;
+        return *start_node;
     };
 
     // 9. Let result be the result of trying to Find with start node, location strategy, and selector.
@@ -850,7 +850,7 @@ Messages::WebDriverClient::FindElementsResponse WebDriverConnection::find_elemen
         if (!start_node)
             return Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::NoSuchElement, "document element does not exist"sv);
 
-        return start_node;
+        return *start_node;
     };
 
     // 9. Return the result of trying to Find with start node, location strategy, and selector.
@@ -1019,7 +1019,7 @@ Messages::WebDriverClient::GetElementShadowRootResponse WebDriverConnection::get
     TRY(handle_any_user_prompts());
 
     // 3. Let element be the result of trying to get a known connected element with url variable element id.
-    auto* element = TRY(Web::WebDriver::get_known_connected_element(element_id));
+    auto element = TRY(Web::WebDriver::get_known_connected_element(element_id));
 
     // 4. Let shadow root be element's shadow root.
     auto shadow_root = element->shadow_root();
@@ -1045,7 +1045,7 @@ Messages::WebDriverClient::IsElementSelectedResponse WebDriverConnection::is_ele
     TRY(handle_any_user_prompts());
 
     // 3. Let element be the result of trying to get a known connected element with url variable element id.
-    auto* element = TRY(Web::WebDriver::get_known_connected_element(element_id));
+    auto element = TRY(Web::WebDriver::get_known_connected_element(element_id));
 
     // 4. Let selected be the value corresponding to the first matching statement:
     bool selected = false;
@@ -1081,7 +1081,7 @@ Messages::WebDriverClient::GetElementAttributeResponse WebDriverConnection::get_
     TRY(handle_any_user_prompts());
 
     // 3. Let element be the result of trying to get a known connected element with url variable element id.
-    auto* element = TRY(Web::WebDriver::get_known_connected_element(element_id));
+    auto element = TRY(Web::WebDriver::get_known_connected_element(element_id));
 
     // 4. Let result be the result of the first matching condition:
     Optional<ByteString> result;
@@ -1115,7 +1115,7 @@ Messages::WebDriverClient::GetElementPropertyResponse WebDriverConnection::get_e
     TRY(handle_any_user_prompts());
 
     // 3. Let element be the result of trying to get a known connected element with url variable element id.
-    auto* element = TRY(Web::WebDriver::get_known_connected_element(element_id));
+    auto element = TRY(Web::WebDriver::get_known_connected_element(element_id));
 
     Optional<ByteString> result;
 
@@ -1148,7 +1148,7 @@ Messages::WebDriverClient::GetElementCssValueResponse WebDriverConnection::get_e
     TRY(handle_any_user_prompts());
 
     // 3. Let element be the result of trying to get a known connected element with url variable element id.
-    auto* element = TRY(Web::WebDriver::get_known_connected_element(element_id));
+    auto element = TRY(Web::WebDriver::get_known_connected_element(element_id));
 
     // 4. Let computed value be the result of the first matching condition:
     ByteString computed_value;
@@ -1181,7 +1181,7 @@ Messages::WebDriverClient::GetElementTextResponse WebDriverConnection::get_eleme
     TRY(handle_any_user_prompts());
 
     // 3. Let element be the result of trying to get a known connected element with url variable element id.
-    auto* element = TRY(Web::WebDriver::get_known_connected_element(element_id));
+    auto element = TRY(Web::WebDriver::get_known_connected_element(element_id));
 
     // 4. Let rendered text be the result of performing implementation-specific steps whose result is exactly the same as the result of a Function.[[Call]](null, element) with bot.dom.getVisibleText as the this value.
     auto rendered_text = element->text_content();
@@ -1200,7 +1200,7 @@ Messages::WebDriverClient::GetElementTagNameResponse WebDriverConnection::get_el
     TRY(handle_any_user_prompts());
 
     // 3. Let element be the result of trying to get a known connected element with url variable element id.
-    auto* element = TRY(Web::WebDriver::get_known_connected_element(element_id));
+    auto element = TRY(Web::WebDriver::get_known_connected_element(element_id));
 
     // 4. Let qualified name be the result of getting element’s tagName IDL attribute.
     auto qualified_name = element->tag_name();
@@ -1219,7 +1219,7 @@ Messages::WebDriverClient::GetElementRectResponse WebDriverConnection::get_eleme
     TRY(handle_any_user_prompts());
 
     // 3. Let element be the result of trying to get a known connected element with url variable element id.
-    auto* element = TRY(Web::WebDriver::get_known_connected_element(element_id));
+    auto element = TRY(Web::WebDriver::get_known_connected_element(element_id));
 
     // 4. Calculate the absolute position of element and let it be coordinates.
     // 5. Let rect be element’s bounding rectangle.
@@ -1250,7 +1250,7 @@ Messages::WebDriverClient::IsElementEnabledResponse WebDriverConnection::is_elem
     TRY(handle_any_user_prompts());
 
     // 3. Let element be the result of trying to get a known connected element with url variable element id.
-    auto* element = TRY(Web::WebDriver::get_known_connected_element(element_id));
+    auto element = TRY(Web::WebDriver::get_known_connected_element(element_id));
 
     // 4. Let enabled be a boolean initially set to true if the current browsing context’s active document’s type is not "xml".
     // 5. Otherwise, let enabled to false and jump to the last step of this algorithm.
@@ -1276,7 +1276,7 @@ Messages::WebDriverClient::GetComputedRoleResponse WebDriverConnection::get_comp
     TRY(handle_any_user_prompts());
 
     // 3. Let element be the result of trying to get a known connected element with url variable element id.
-    auto* element = TRY(Web::WebDriver::get_known_connected_element(element_id));
+    auto element = TRY(Web::WebDriver::get_known_connected_element(element_id));
 
     // 4. Let role be the result of computing the WAI-ARIA role of element.
     auto role = element->role_or_default();
@@ -1297,7 +1297,7 @@ Messages::WebDriverClient::GetComputedLabelResponse WebDriverConnection::get_com
     TRY(handle_any_user_prompts());
 
     // 3. Let element be the result of trying to get a known element with url variable element id.
-    auto* element = TRY(Web::WebDriver::get_known_connected_element(element_id));
+    auto element = TRY(Web::WebDriver::get_known_connected_element(element_id));
 
     // 4. Let label be the result of a Accessible Name and Description Computation for the Accessible Name of the element.
     auto label = element->accessible_name(element->document()).release_value_but_fixme_should_propagate_errors();
@@ -1316,7 +1316,7 @@ Messages::WebDriverClient::ElementClickResponse WebDriverConnection::element_cli
     TRY(handle_any_user_prompts());
 
     // 3. Let element be the result of trying to get a known element with element id.
-    auto* element = TRY(Web::WebDriver::get_known_connected_element(element_id));
+    auto element = TRY(Web::WebDriver::get_known_connected_element(element_id));
 
     // 4. If the element is an input element in the file upload state return error with error code invalid argument.
     if (is<Web::HTML::HTMLInputElement>(*element)) {
@@ -1539,7 +1539,7 @@ Messages::WebDriverClient::ElementClearResponse WebDriverConnection::element_cle
     TRY(handle_any_user_prompts());
 
     // 3. Let element be the result of trying to get a known element with session and element id.
-    auto* element = TRY(Web::WebDriver::get_known_connected_element(element_id));
+    auto element = TRY(Web::WebDriver::get_known_connected_element(element_id));
 
     // 4. If element is not editable, return an error with error code invalid element state.
     if (!Web::WebDriver::is_element_editable(*element))
@@ -1595,7 +1595,7 @@ Messages::WebDriverClient::ElementSendKeysResponse WebDriverConnection::element_
     TRY(handle_any_user_prompts());
 
     // 5. Let element be the result of trying to get a known element with session and URL variables[element id].
-    auto* element = TRY(Web::WebDriver::get_known_connected_element(element_id));
+    auto element = TRY(Web::WebDriver::get_known_connected_element(element_id));
 
     // 6. Let file be true if element is input element in the file upload state, or false otherwise.
     auto file = is<Web::HTML::HTMLInputElement>(*element) && static_cast<Web::HTML::HTMLInputElement&>(*element).type_state() == Web::HTML::HTMLInputElement::TypeAttributeState::FileUpload;
@@ -2236,7 +2236,7 @@ Messages::WebDriverClient::TakeElementScreenshotResponse WebDriverConnection::ta
     TRY(handle_any_user_prompts());
 
     // 3. Let element be the result of trying to get a known connected element with url variable element id.
-    auto* element = TRY(Web::WebDriver::get_known_connected_element(element_id));
+    auto element = TRY(Web::WebDriver::get_known_connected_element(element_id));
 
     // 4. Scroll into view the element.
     (void)scroll_element_into_view(*element);
