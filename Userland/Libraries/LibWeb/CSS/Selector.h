@@ -257,7 +257,7 @@ private:
     Array<u32, 8> m_ancestor_hashes;
 };
 
-String serialize_a_group_of_selectors(Vector<NonnullRefPtr<Selector>> const& selectors);
+String serialize_a_group_of_selectors(SelectorList const& selectors);
 
 }
 

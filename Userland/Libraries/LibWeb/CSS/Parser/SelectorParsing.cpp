@@ -65,7 +65,7 @@ Parser::ParseErrorOr<SelectorList> Parser::parse_a_selector_list(TokenStream<T>&
 {
     auto comma_separated_lists = parse_a_comma_separated_list_of_component_values(tokens);
 
-    Vector<NonnullRefPtr<Selector>> selectors;
+    SelectorList selectors;
     for (auto& selector_parts : comma_separated_lists) {
         auto stream = TokenStream(selector_parts);
         auto selector = parse_complex_selector(stream, mode);

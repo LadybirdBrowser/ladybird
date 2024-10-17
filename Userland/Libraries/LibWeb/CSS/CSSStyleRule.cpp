@@ -16,12 +16,12 @@ namespace Web::CSS {
 
 JS_DEFINE_ALLOCATOR(CSSStyleRule);
 
-JS::NonnullGCPtr<CSSStyleRule> CSSStyleRule::create(JS::Realm& realm, Vector<NonnullRefPtr<Web::CSS::Selector>>&& selectors, PropertyOwningCSSStyleDeclaration& declaration, CSSRuleList& nested_rules)
+JS::NonnullGCPtr<CSSStyleRule> CSSStyleRule::create(JS::Realm& realm, SelectorList&& selectors, PropertyOwningCSSStyleDeclaration& declaration, CSSRuleList& nested_rules)
 {
     return realm.heap().allocate<CSSStyleRule>(realm, realm, move(selectors), declaration, nested_rules);
 }
 
-CSSStyleRule::CSSStyleRule(JS::Realm& realm, Vector<NonnullRefPtr<Selector>>&& selectors, PropertyOwningCSSStyleDeclaration& declaration, CSSRuleList& nested_rules)
+CSSStyleRule::CSSStyleRule(JS::Realm& realm, SelectorList&& selectors, PropertyOwningCSSStyleDeclaration& declaration, CSSRuleList& nested_rules)
     : CSSGroupingRule(realm, nested_rules)
     , m_selectors(move(selectors))
     , m_declaration(declaration)

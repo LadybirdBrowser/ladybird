@@ -407,7 +407,7 @@ String Selector::serialize() const
 }
 
 // https://www.w3.org/TR/cssom/#serialize-a-group-of-selectors
-String serialize_a_group_of_selectors(Vector<NonnullRefPtr<Selector>> const& selectors)
+String serialize_a_group_of_selectors(SelectorList const& selectors)
 {
     // To serialize a group of selectors serialize each selector in the group of selectors and then serialize a comma-separated list of these serializations.
     return MUST(String::join(", "sv, selectors));

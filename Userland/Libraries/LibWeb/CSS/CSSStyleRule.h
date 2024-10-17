@@ -19,11 +19,11 @@ class CSSStyleRule final : public CSSGroupingRule {
     JS_DECLARE_ALLOCATOR(CSSStyleRule);
 
 public:
-    [[nodiscard]] static JS::NonnullGCPtr<CSSStyleRule> create(JS::Realm&, Vector<NonnullRefPtr<Selector>>&&, PropertyOwningCSSStyleDeclaration&, CSSRuleList&);
+    [[nodiscard]] static JS::NonnullGCPtr<CSSStyleRule> create(JS::Realm&, SelectorList&&, PropertyOwningCSSStyleDeclaration&, CSSRuleList&);
 
     virtual ~CSSStyleRule() override = default;
 
-    Vector<NonnullRefPtr<Selector>> const& selectors() const { return m_selectors; }
+    SelectorList const& selectors() const { return m_selectors; }
     PropertyOwningCSSStyleDeclaration const& declaration() const { return m_declaration; }
 
     virtual Type type() const override { return Type::Style; }
@@ -36,13 +36,13 @@ public:
     [[nodiscard]] FlyString const& qualified_layer_name() const { return parent_layer_internal_qualified_name(); }
 
 private:
-    CSSStyleRule(JS::Realm&, Vector<NonnullRefPtr<Selector>>&&, PropertyOwningCSSStyleDeclaration&, CSSRuleList&);
+    CSSStyleRule(JS::Realm&, SelectorList&&, PropertyOwningCSSStyleDeclaration&, CSSRuleList&);
 
     virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Cell::Visitor&) override;
     virtual String serialized() const override;
 
-    Vector<NonnullRefPtr<Selector>> m_selectors;
+    SelectorList m_selectors;
     JS::NonnullGCPtr<PropertyOwningCSSStyleDeclaration> m_declaration;
 };
 
