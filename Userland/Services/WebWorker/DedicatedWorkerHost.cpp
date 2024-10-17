@@ -9,6 +9,7 @@
 #include <LibWeb/Fetch/Fetching/Fetching.h>
 #include <LibWeb/Fetch/Infrastructure/FetchAlgorithms.h>
 #include <LibWeb/HTML/DedicatedWorkerGlobalScope.h>
+#include <LibWeb/HTML/MessagePort.h>
 #include <LibWeb/HTML/Scripting/ClassicScript.h>
 #include <LibWeb/HTML/Scripting/EnvironmentSettingsSnapshot.h>
 #include <LibWeb/HTML/Scripting/Fetching.h>

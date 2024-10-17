@@ -27,6 +27,7 @@
 #include <LibWeb/HTML/Scripting/ExceptionReporter.h>
 #include <LibWeb/HTML/Scripting/Fetching.h>
 #include <LibWeb/HTML/StructuredSerialize.h>
+#include <LibWeb/HTML/StructuredSerializeOptions.h>
 #include <LibWeb/HTML/Timer.h>
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/HTML/WindowOrWorkerGlobalScope.h>

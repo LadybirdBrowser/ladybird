@@ -5,14 +5,12 @@
  */
 
 #include <AK/Debug.h>
-#include <LibJS/Runtime/ConsoleObject.h>
 #include <LibJS/Runtime/Realm.h>
-#include <LibWeb/Bindings/MainThreadVM.h>
 #include <LibWeb/Bindings/WorkerPrototype.h>
+#include <LibWeb/HTML/MessagePort.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
-#include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
+#include <LibWeb/HTML/Scripting/WindowEnvironmentSettingsObject.h>
 #include <LibWeb/HTML/Worker.h>
-#include <LibWeb/WebIDL/ExceptionOr.h>
 
 namespace Web::HTML {
 

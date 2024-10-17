@@ -544,6 +544,7 @@ struct POSTResource;
 struct ScrollOptions;
 struct ScrollToOptions;
 struct SerializedFormData;
+struct StructuredSerializeOptions;
 struct ToggleTaskTracker;
 struct TransferDataHolder;
 }
