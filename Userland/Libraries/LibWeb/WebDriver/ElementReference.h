@@ -22,7 +22,7 @@ ErrorOr<JS::NonnullGCPtr<Web::DOM::Element>, WebDriver::Error> deserialize_web_e
 ByteString extract_web_element_reference(JsonObject const&);
 bool represents_a_web_element(JsonValue const& value);
 ErrorOr<JS::NonnullGCPtr<Web::DOM::Element>, Web::WebDriver::Error> get_web_element_origin(StringView origin);
-ErrorOr<JS::NonnullGCPtr<Web::DOM::Element>, Web::WebDriver::Error> get_known_connected_element(StringView element_id);
+ErrorOr<JS::NonnullGCPtr<Web::DOM::Element>, Web::WebDriver::Error> get_known_element(StringView element_id);
 
 bool is_element_stale(Web::DOM::Node const& element);
 bool is_element_interactable(Web::HTML::BrowsingContext const&, Web::DOM::Element const&);
