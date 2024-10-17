@@ -128,6 +128,8 @@ void MessagePort::disentangle()
     m_remote_port = nullptr;
 
     m_socket = nullptr;
+
+    m_worker_event_target = nullptr;
 }
 
 // https://html.spec.whatwg.org/multipage/web-messaging.html#entangle
