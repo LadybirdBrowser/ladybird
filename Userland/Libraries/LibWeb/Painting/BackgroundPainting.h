@@ -45,7 +45,7 @@ struct ResolvedBackground {
     Color color {};
 };
 
-ResolvedBackground resolve_background_layers(Vector<CSS::BackgroundLayerData> const& layers, Layout::NodeWithStyleAndBoxModelMetrics const& layout_node, Color background_color, CSSPixelRect const& border_rect, BorderRadiiData const& border_radii);
+ResolvedBackground resolve_background_layers(Vector<CSS::BackgroundLayerData> const& layers, PaintableBox const& paintable_box, Color background_color, CSSPixelRect const& border_rect, BorderRadiiData const& border_radii);
 
 void paint_background(PaintContext&, PaintableBox const&, CSS::ImageRendering, ResolvedBackground resolved_background, BorderRadiiData const&);
 

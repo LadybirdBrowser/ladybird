@@ -1150,7 +1150,7 @@ void PaintableBox::resolve_paint_properties()
 
     m_resolved_background.layers.clear();
     if (background_layers) {
-        m_resolved_background = resolve_background_layers(*background_layers, layout_node_with_style_and_box_metrics(), background_color, background_rect, normalized_border_radii_data());
+        m_resolved_background = resolve_background_layers(*background_layers, *this, background_color, background_rect, normalized_border_radii_data());
     };
 }
 
