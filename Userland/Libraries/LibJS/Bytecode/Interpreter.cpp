@@ -15,6 +15,7 @@
 #include <LibJS/Bytecode/Label.h>
 #include <LibJS/Bytecode/Op.h>
 #include <LibJS/Runtime/AbstractOperations.h>
+#include <LibJS/Runtime/Accessor.h>
 #include <LibJS/Runtime/Array.h>
 #include <LibJS/Runtime/BigInt.h>
 #include <LibJS/Runtime/DeclarativeEnvironment.h>
@@ -991,11 +992,18 @@ inline ThrowCompletionOr<Value> get_by_id(VM& vm, Optional<IdentifierTableIndex>
                 return false;
             return true;
         }();
-        if (can_use_cache)
-            return cache.prototype->get_direct(cache.property_offset.value());
+        if (can_use_cache) {
+            auto value = cache.prototype->get_direct(cache.property_offset.value());
+            if (value.is_accessor())
+                return TRY(call(vm, value.as_accessor().getter(), this_value));
+            return value;
+        }
     } else if (&shape == cache.shape) {
         // OPTIMIZATION: If the shape of the object hasn't changed, we can use the cached property offset.
-        return base_obj->get_direct(cache.property_offset.value());
+        auto value = base_obj->get_direct(cache.property_offset.value());
+        if (value.is_accessor())
+            return TRY(call(vm, value.as_accessor().getter(), this_value));
+        return value;
     }
 
     CacheablePropertyMetadata cacheable_metadata;
@@ -1103,7 +1111,9 @@ inline ThrowCompletionOr<Value> get_global(Interpreter& interpreter, IdentifierT
         // OPTIMIZATION: For global var bindings, if the shape of the global object hasn't changed,
         //               we can use the cached property offset.
         if (&shape == cache.shape) {
-            return binding_object.get_direct(cache.property_offset.value());
+            auto value = binding_object.get_direct(cache.property_offset.value());
+            if (value.is_accessor())
+                return TRY(call(vm, value.as_accessor().getter(), js_undefined()));
         }
 
         // OPTIMIZATION: For global lexical bindings, if the global declarative environment hasn't changed,
