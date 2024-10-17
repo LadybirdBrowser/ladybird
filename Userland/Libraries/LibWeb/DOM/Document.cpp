@@ -3308,22 +3308,26 @@ void Document::run_unloading_cleanup_steps()
 // https://html.spec.whatwg.org/multipage/document-lifecycle.html#destroy-a-document
 void Document::destroy()
 {
-    // NOTE: Abort needs to happen before destory. There is currently bug in the spec: https://github.com/whatwg/html/issues/9148
-    // 4. Abort document.
+    // FIXME: 1. Assert: this is running as part of a task queued on document's relevant agent's event loop.
+
+    // 2. Abort document.
     abort();
 
-    // 2. Set document's salvageable state to false.
+    // 3. Set document's salvageable state to false.
     m_salvageable = false;
 
-    // 3. Run any unloading document cleanup steps for document that are defined by this specification and other applicable specifications.
+    // FIXME: 4. Let ports be the list of MessagePorts whose relevant global object's associated Document is document.
+    // FIXME: 5. For each port in ports, disentangle port.
+
+    // 6. Run any unloading document cleanup steps for document that are defined by this specification and other applicable specifications.
     run_unloading_cleanup_steps();
 
-    // 5. Remove any tasks whose document is document from any task queue (without running those tasks).
+    // 7. Remove any tasks whose document is document from any task queue (without running those tasks).
     HTML::main_thread_event_loop().task_queue().remove_tasks_matching([this](auto& task) {
         return task.document() == this;
     });
 
-    // 6. Set document's browsing context to null.
+    // 8. Set document's browsing context to null.
     m_browsing_context = nullptr;
 
     // Not in the spec:
@@ -3332,14 +3336,12 @@ void Document::destroy()
             HTML::all_navigables().remove(navigable_container->content_navigable());
     }
 
-    // 7. Set document's node navigable's active session history entry's document state's document to null.
-    if (navigable()) {
-        navigable()->active_session_history_entry()->document_state()->set_document(nullptr);
-    }
+    // 9. Set document's node navigable's active session history entry's document state's document to null.
+    if (auto navigable = this->navigable())
+        navigable->active_session_history_entry()->document_state()->set_document(nullptr);
 
-    // FIXME: 8. Remove document from the owner set of each WorkerGlobalScope object whose set contains document.
-
-    // FIXME: 9. For each workletGlobalScope in document's worklet global scopes, terminate workletGlobalScope.
+    // FIXME: 10. Remove document from the owner set of each WorkerGlobalScope object whose set contains document.
+    // FIXME: 11. For each workletGlobalScope in document's worklet global scopes, terminate workletGlobalScope.
 }
 
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#make-document-unsalvageable
