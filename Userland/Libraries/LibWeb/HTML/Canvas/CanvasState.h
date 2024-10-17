@@ -80,6 +80,9 @@ public:
         Gfx::AffineTransform transform;
         FillOrStrokeStyle fill_style { Gfx::Color::Black };
         FillOrStrokeStyle stroke_style { Gfx::Color::Black };
+        float shadow_offset_x { 0.0f };
+        float shadow_offset_y { 0.0f };
+        Gfx::Color shadow_color { Gfx::Color::Transparent };
         float line_width { 1 };
         Vector<double> dash_list;
         bool image_smoothing_enabled { true };
