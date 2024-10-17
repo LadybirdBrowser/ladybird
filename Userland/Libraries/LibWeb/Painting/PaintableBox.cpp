@@ -476,7 +476,7 @@ void PaintableBox::paint_background(PaintContext& context) const
     if (layout_node_with_style_and_box_metrics().is_body() && document().html_element()->should_use_body_background_properties())
         return;
 
-    Painting::paint_background(context, layout_node_with_style_and_box_metrics(), computed_values().image_rendering(), m_resolved_background, normalized_border_radii_data());
+    Painting::paint_background(context, *this, computed_values().image_rendering(), m_resolved_background, normalized_border_radii_data());
 }
 
 void PaintableBox::paint_box_shadow(PaintContext& context) const
