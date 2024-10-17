@@ -15,6 +15,7 @@ AudioBuffer
 AudioBufferSourceNode
 AudioContext
 AudioDestinationNode
+AudioListener
 AudioNode
 AudioParam
 AudioScheduledSourceNode

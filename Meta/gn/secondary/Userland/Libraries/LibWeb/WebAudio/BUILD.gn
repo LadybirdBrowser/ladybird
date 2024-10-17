@@ -12,6 +12,8 @@ source_set("WebAudio") {
     "AudioContext.h",
     "AudioDestinationNode.cpp",
     "AudioDestinationNode.h",
+    "AudioListener.cpp",
+    "AudioListener.h",
     "AudioNode.cpp",
     "AudioNode.h",
     "AudioParam.cpp",
