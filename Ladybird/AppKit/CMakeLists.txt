@@ -4,6 +4,7 @@ add_library(ladybird_impl STATIC
     Application/ApplicationDelegate.mm
     Application/EventLoopImplementation.mm
     UI/Event.mm
+    UI/InspectorWindow.mm
     UI/Inspector.mm
     UI/InspectorController.mm
     UI/LadybirdWebView.mm

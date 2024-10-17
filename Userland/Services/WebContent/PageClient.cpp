@@ -674,6 +674,11 @@ void PageClient::inspector_did_export_inspector_html(String const& html)
     client().async_inspector_did_export_inspector_html(m_id, html);
 }
 
+void PageClient::inspector_did_close()
+{
+    client().async_inspector_did_close(m_id);
+}
+
 ErrorOr<void> PageClient::connect_to_webdriver(ByteString const& webdriver_ipc_path)
 {
     VERIFY(!m_webdriver);

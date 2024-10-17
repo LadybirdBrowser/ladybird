@@ -96,6 +96,26 @@ inspector.exportInspector = () => {
     inspector.exportInspectorHTML(html);
 };
 
+inspector.close = () => {
+    inspector.closeInspector();
+};
+
+inspector.setCloseInspectorButtonVisibility = isVisible => {
+    const closeInspectorButton = document.getElementById("close-inspector-button");
+
+    if (!closeInspectorButton) {
+        console.error("Could not find close-inspector-button button");
+        return;
+    }
+
+    let display = "none";
+    if (isVisible) {
+        display = "block";
+    }
+
+    closeInspectorButton.style.display = display;
+};
+
 inspector.reset = () => {
     let domTree = document.getElementById("dom-tree");
     domTree.innerHTML = "";

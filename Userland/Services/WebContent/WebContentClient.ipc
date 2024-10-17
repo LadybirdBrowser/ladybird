@@ -113,5 +113,6 @@ endpoint WebContentClient
     inspector_did_request_cookie_context_menu(u64 page_id, size_t cookie_index, Gfx::IntPoint position) =|
     inspector_did_execute_console_script(u64 page_id, String script) =|
     inspector_did_export_inspector_html(u64 page_id, String html) =|
+    inspector_did_close(u64 page_id) =|
 
 }

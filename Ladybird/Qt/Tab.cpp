@@ -70,8 +70,11 @@ Tab::Tab(BrowserWindow* window, RefPtr<WebView::WebContentClient> parent_client,
     focus_location_editor_action->setShortcut(QKeySequence("Ctrl+L"));
     addAction(focus_location_editor_action);
 
+    m_splitter = new QSplitter(this);
+    m_splitter->addWidget(m_view);
+
     m_layout->addWidget(m_toolbar);
-    m_layout->addWidget(m_view);
+    m_layout->addWidget(m_splitter);
     m_layout->addWidget(m_find_in_page);
 
     m_hamburger_button = new QToolButton(m_toolbar);
@@ -875,18 +878,33 @@ void Tab::recreate_toolbar_icons()
 void Tab::show_inspector_window(InspectorTarget inspector_target)
 {
     if (!m_inspector_widget)
-        m_inspector_widget = new InspectorWidget(this, view());
-    else
-        m_inspector_widget->inspect();
+        m_inspector_widget = new InspectorWidget(this, view(), Qt::Window);
+    else {
+        m_inspector_widget->setParent(nullptr);
+        m_inspector_widget->setWindowFlag(Qt::Window);
+    }
 
     m_inspector_widget->show();
+    m_inspector_widget->resize(875, 825);
     m_inspector_widget->activateWindow();
     m_inspector_widget->raise();
 
     if (inspector_target == InspectorTarget::HoveredElement)
         m_inspector_widget->select_hovered_node();
+}
+
+void Tab::show_inspector_pane()
+{
+    if (!m_inspector_widget)
+        m_inspector_widget = new InspectorWidget(this, view(), Qt::Widget);
     else
-        m_inspector_widget->select_default_node();
+        m_inspector_widget->setWindowFlag(Qt::Widget);
+
+    m_splitter->addWidget(m_inspector_widget);
+
+    m_splitter->setSizes({ 200, 100 });
+
+    m_inspector_widget->show();
 }
 
 void Tab::show_find_in_page()
