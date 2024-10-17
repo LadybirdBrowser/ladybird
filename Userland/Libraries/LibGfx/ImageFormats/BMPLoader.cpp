@@ -1372,7 +1372,9 @@ static ErrorOr<void> decode_bmp_pixel_data(BMPLoadingContext& context)
             case 24: {
                 if (!streamer.has_u24())
                     return Error::from_string_literal("Cannot read 24 bits");
-                context.bitmap->scanline(row)[column++] = streamer.read_u24();
+                auto color = streamer.read_u24();
+                color |= 0xff000000; // Set the alpha value to opaque (255), to be compatible to BitmapFormat::BGRA8888.
+                context.bitmap->scanline(row)[column++] = color;
                 break;
             }
             case 32:
