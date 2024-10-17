@@ -1,0 +1,29 @@
+<script src="./include.js"></script>
+<script>
+    asyncTest(async (done, { createEcho }) => {
+        try {
+            const endpointWithCustomResponseHeaders = await createEcho({
+                status: 200,
+                headers: {
+                    "Access-Control-Allow-Origin": "*",  // necessary when running test using file://...
+                    "Access-Control-Expose-Headers": "X-Custom-Header", // tells the browser which headers to expose to JS
+                    "Content-Type": "text/plain",
+                    "X-Custom-Header": "well hello friends",
+                },
+                body: "hello world!",
+            });
+
+            const result = await fetch(endpointWithCustomResponseHeaders);
+            const headers = result.headers;
+
+            if (headers.get("X-Custom-Header") === "well hello friends") {
+                println("PASS");
+            } else {
+                println("FAIL");
+            }
+        } catch (err) {
+            println("FAIL - " + err);
+        }
+        done();
+    });
+</script>
