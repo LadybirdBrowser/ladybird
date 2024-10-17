@@ -476,7 +476,7 @@ void PaintableBox::paint_background(PaintContext& context) const
     if (layout_node_with_style_and_box_metrics().is_body() && document().html_element()->should_use_body_background_properties())
         return;
 
-    Painting::paint_background(context, layout_node_with_style_and_box_metrics(), computed_values().image_rendering(), m_resolved_background, normalized_border_radii_data());
+    Painting::paint_background(context, *this, computed_values().image_rendering(), m_resolved_background, normalized_border_radii_data());
 }
 
 void PaintableBox::paint_box_shadow(PaintContext& context) const
@@ -1150,7 +1150,7 @@ void PaintableBox::resolve_paint_properties()
 
     m_resolved_background.layers.clear();
     if (background_layers) {
-        m_resolved_background = resolve_background_layers(*background_layers, layout_node_with_style_and_box_metrics(), background_color, background_rect, normalized_border_radii_data());
+        m_resolved_background = resolve_background_layers(*background_layers, *this, background_color, background_rect, normalized_border_radii_data());
     };
 }
 
