@@ -187,6 +187,7 @@ private:
     JS::GCPtr<CSSMediaRule> convert_to_media_rule(AtRule const&, Nested);
     JS::GCPtr<CSSNamespaceRule> convert_to_namespace_rule(AtRule const&);
     JS::GCPtr<CSSSupportsRule> convert_to_supports_rule(AtRule const&, Nested);
+    JS::GCPtr<CSSPropertyRule> convert_to_property_rule(AtRule const& rule);
 
     PropertyOwningCSSStyleDeclaration* convert_to_style_declaration(Vector<Declaration> const&);
     Optional<StyleProperty> convert_to_style_property(Declaration const&);

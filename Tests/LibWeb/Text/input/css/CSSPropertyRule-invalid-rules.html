@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<style>
+    @property badname {
+        syntax: "*";
+        inherits: false;
+        initial-value: blue;
+    }
+    
+    @property --extra-syntax-tokens {
+        syntax: "*" "bad";
+        inherits: false;
+        initial-value: blue;
+    }
+
+    @property --extra-inherits-tokens {
+        syntax: "*";
+        inherits: false "bad";
+        initial-value: blue;
+    }
+
+    @property --missing-syntax {
+        inherits: false;
+        initial-value: blue;
+    }
+    
+    @property --missing-inherits {
+        syntax: "*";
+        initial-value: blue;
+    }
+
+    @property --valid {
+        syntax: "*";
+        inherits: false;
+    }
+</style>
+<div>This text shouldn't be visible</div>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const cssRuleCount = document.styleSheets[0].cssRules.length;
+
+        println(`Number of parsed css rules: ${cssRuleCount} (expected: 1)`);
+    });
+</script>
