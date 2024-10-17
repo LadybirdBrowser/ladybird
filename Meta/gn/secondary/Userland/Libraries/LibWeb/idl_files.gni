@@ -45,6 +45,7 @@ standard_idl_files = [
   "//Userland/Libraries/LibWeb/CSS/CSSLayerStatementRule.idl",
   "//Userland/Libraries/LibWeb/CSS/CSSMediaRule.idl",
   "//Userland/Libraries/LibWeb/CSS/CSSNamespaceRule.idl",
+  "//Userland/Libraries/LibWeb/CSS/CSSPropertyRule.idl",
   "//Userland/Libraries/LibWeb/CSS/CSSRule.idl",
   "//Userland/Libraries/LibWeb/CSS/CSSRuleList.idl",
   "//Userland/Libraries/LibWeb/CSS/CSSStyleDeclaration.idl",

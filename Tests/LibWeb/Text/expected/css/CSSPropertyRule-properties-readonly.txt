@@ -1,0 +1,6 @@
+@property rule syntax value: *
+@property rule syntax value: *
+@property rule inherits value: false
+@property rule inherits value: false
+@property rule initialValue value: blue
+@property rule initialValue value: blue

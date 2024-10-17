@@ -30,6 +30,7 @@ void dump_import_rule(StringBuilder&, CSS::CSSImportRule const&, int indent_leve
 void dump_media_rule(StringBuilder&, CSS::CSSMediaRule const&, int indent_levels = 0);
 void dump_style_rule(StringBuilder&, CSS::CSSStyleRule const&, int indent_levels = 0);
 void dump_supports_rule(StringBuilder&, CSS::CSSSupportsRule const&, int indent_levels = 0);
+void dump_property_rule(StringBuilder&, CSS::CSSPropertyRule const&, int indent_levels = 0);
 void dump_namespace_rule(StringBuilder&, CSS::CSSNamespaceRule const&, int indent_levels = 0);
 void dump_nested_declarations(StringBuilder&, CSS::CSSNestedDeclarations const&, int indent_levels = 0);
 void dump_layer_block_rule(StringBuilder&, CSS::CSSLayerBlockRule const&, int indent_levels = 0);

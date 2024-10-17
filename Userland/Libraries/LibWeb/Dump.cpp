@@ -15,6 +15,7 @@
 #include <LibWeb/CSS/CSSLayerStatementRule.h>
 #include <LibWeb/CSS/CSSMediaRule.h>
 #include <LibWeb/CSS/CSSNestedDeclarations.h>
+#include <LibWeb/CSS/CSSPropertyRule.h>
 #include <LibWeb/CSS/CSSRule.h>
 #include <LibWeb/CSS/CSSStyleRule.h>
 #include <LibWeb/CSS/CSSStyleSheet.h>
@@ -651,6 +652,9 @@ void dump_rule(StringBuilder& builder, CSS::CSSRule const& rule, int indent_leve
     case CSS::CSSRule::Type::Supports:
         dump_supports_rule(builder, verify_cast<CSS::CSSSupportsRule const>(rule), indent_levels);
         break;
+    case CSS::CSSRule::Type::Property:
+        dump_property_rule(builder, verify_cast<CSS::CSSPropertyRule const>(rule), indent_levels);
+        break;
     }
 }
 
@@ -784,6 +788,23 @@ void dump_supports_rule(StringBuilder& builder, CSS::CSSSupportsRule const& supp
         dump_rule(builder, rule, indent_levels + 2);
 }
 
+void dump_property_rule(StringBuilder& builder, CSS::CSSPropertyRule const& property, int indent_levels)
+{
+    indent(builder, indent_levels + 1);
+    builder.appendff("name: {}\n", property.name());
+
+    indent(builder, indent_levels + 1);
+    builder.appendff("syntax: {}\n", property.syntax());
+
+    indent(builder, indent_levels + 1);
+    builder.appendff("inherits: {}\n", property.inherits());
+
+    if (property.initial_value().has_value()) {
+        indent(builder, indent_levels + 1);
+        builder.appendff("initial-value: {}\n", property.initial_value().value());
+    }
+}
+
 void dump_declaration(StringBuilder& builder, CSS::PropertyOwningCSSStyleDeclaration const& declaration, int indent_levels)
 {
     indent(builder, indent_levels);
@@ -903,5 +924,4 @@ void dump_nested_declarations(StringBuilder& builder, CSS::CSSNestedDeclarations
     builder.append("  Nested declarations:\n"sv);
     dump_declaration(builder, declarations.declaration(), indent_levels + 1);
 }
-
 }
