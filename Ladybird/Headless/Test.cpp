@@ -29,6 +29,63 @@
 
 namespace Ladybird {
 
+static AK::Vector<AK::StringView> current_os_list()
+{
+    // This is a silly name.
+    AK::Vector<AK::StringView> oses = {};
+
+#ifdef AK_OS_ANDROID
+    oses.append("android"sv);
+#endif
+#ifdef AK_OS_BSD_GENERIC
+    oses.append("bsd_generic"sv);
+#endif
+#ifdef AK_OS_DRAGONFLY
+    oses.append("dragonfly"sv);
+#endif
+#ifdef AK_OS_EMSCRIPTEN
+    oses.append("emscripten"sv);
+#endif
+#ifdef AK_OS_FREEBSD
+    oses.append("freebsd"sv);
+#endif
+#ifdef AK_OS_GNU_HURD
+    oses.append("gnu_hurd"sv);
+#endif
+#ifdef AK_OS_HAIKU
+    oses.append("haiku"sv);
+#endif
+#ifdef AK_OS_IOS
+    oses.append("ios"sv);
+#endif
+#ifdef AK_OS_LINUX
+    oses.append("linux"sv);
+#endif
+#ifdef AK_OS_MACH
+    oses.append("mach"sv);
+#endif
+#ifdef AK_OS_MACOS
+    oses.append("macos"sv);
+#endif
+#ifdef AK_OS_NETBSD
+    oses.append("netbsd"sv);
+#endif
+#ifdef AK_OS_OPENBSD
+    oses.append("openbsd"sv);
+#endif
+#ifdef AK_OS_SERENITY
+    oses.append("serenity"sv);
+#endif
+#ifdef AK_OS_SOLARIS
+    oses.append("solaris"sv);
+#endif
+#ifdef AK_OS_WINDOWS
+    oses.append("windows"sv);
+#endif
+
+    return oses;
+}
+
 static Vector<ByteString> s_skipped_tests;
 
 static ErrorOr<void> load_test_config(StringView test_root_path)
@@ -44,11 +101,33 @@ static ErrorOr<void> load_test_config(StringView test_root_path)
     }
 
     auto config = config_or_error.release_value();
+    auto current_oses = current_os_list();
 
     for (auto const& group : config->groups()) {
         if (group == "Skipped"sv) {
-            for (auto& key : config->keys(group))
-                s_skipped_tests.append(LexicalPath::join(test_root_path, key).string());
+            for (auto& key : config->keys(group)) {
+                auto value = config->read_entry(group, key);
+
+                // Suppress on all platforms by default
+                if (value.is_empty()) {
+                    dbgln(" Skipping test '{}'", key);
+                    s_skipped_tests.append(LexicalPath::join(test_root_path, key).string());
+                    continue;
+                }
+
+                auto suppressed_platforms = value.split(',');
+                for (auto& suppressed_platform : suppressed_platforms) {
+                    if (suppressed_platform.is_empty())
+                        continue;
+
+                    auto trimmed_platform = suppressed_platform.trim_whitespace();
+                    if (current_oses.contains_slow(trimmed_platform)) {
+                        dbgln(" Skipping test '{}' due to platform '{}'", key, trimmed_platform);
+                        s_skipped_tests.append(LexicalPath::join(test_root_path, key).string());
+                        break;
+                    }
+                }
+            }
         } else {
             warnln("Unknown group '{}' in config {}", group, config_path);
         }
