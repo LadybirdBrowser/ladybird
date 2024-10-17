@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Test DynamicsCompressorNode Channel Count Mode</title>
+  </head>
+  <body>
+    <script>
+      // Function to run the tests and display results
+      function runTests() {
+        const context = new (window.AudioContext || window.webkitAudioContext)();
+        let testResults = [];
+        const validModes = ['clamped-max', 'explicit'];
+        const invalidMode = 'max';
+
+        // Test valid channelCountMode values via constructor
+        validModes.forEach(mode => {
+          try {
+            const options = { channelCountMode: mode };
+            const node = new DynamicsCompressorNode(context, options);
+            if (node.channelCountMode === mode) {
+              testResults.push(`Constructor correctly sets channelCountMode to '${mode}': PASS`);
+            } else {
+              testResults.push(`Constructor correctly sets channelCountMode to '${mode}': FAIL`);
+            }
+          } catch (error) {
+            testResults.push(`Constructor threw an error for channelCountMode '${mode}': FAIL`);
+          }
+        });
+
+        // Test invalid channelCountMode ('max') via constructor
+        try {
+          const options = { channelCountMode: invalidMode };
+          const node = new DynamicsCompressorNode(context, options);
+          testResults.push(`Constructor allows '${invalidMode}': FAIL (should not allow)`);
+        } catch (error) {
+          if (error.name === 'NotSupportedError' || error instanceof DOMException) {
+            testResults.push(`Constructor correctly rejects '${invalidMode}': PASS`);
+          } else {
+            testResults.push(`Constructor threw an unexpected error for '${invalidMode}': FAIL`);
+          }
+        }
+
+        // Test valid channelCountMode values via setter
+        validModes.forEach(mode => {
+          try {
+            const node = new DynamicsCompressorNode(context);
+            node.channelCountMode = mode;
+            if (node.channelCountMode === mode) {
+              testResults.push(`Setter correctly sets channelCountMode to '${mode}': PASS`);
+            } else {
+              testResults.push(`Setter correctly sets channelCountMode to '${mode}': FAIL`);
+            }
+          } catch (error) {
+            testResults.push(`Setter threw an error for channelCountMode '${mode}': FAIL`);
+          }
+        });
+
+        // Test invalid channelCountMode ('max') via setter
+        try {
+          const node = new DynamicsCompressorNode(context);
+          node.channelCountMode = invalidMode;
+          testResults.push(`Setter allows '${invalidMode}': FAIL (should not allow)`);
+        } catch (error) {
+          if (error.name === 'NotSupportedError' || error instanceof DOMException) {
+            testResults.push(`Setter correctly rejects '${invalidMode}': PASS`);
+          } else {
+            testResults.push(`Setter threw an unexpected error for '${invalidMode}': FAIL`);
+          }
+        }
+
+        // Output the results
+        const resultsContainer = document.createElement("div");
+        testResults.forEach(result => {
+          const resultElement = document.createElement("p");
+          resultElement.textContent = result;
+          resultsContainer.appendChild(resultElement);
+        });
+        document.body.appendChild(resultsContainer);
+      }
+
+      // Run the tests when the page loads
+      window.onload = runTests;
+    </script>
+  </body>
+</html>

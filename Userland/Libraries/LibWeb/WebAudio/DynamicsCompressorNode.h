@@ -17,6 +17,11 @@ struct DynamicsCompressorOptions : AudioNodeOptions {
     float ratio { 12 };
     float release { 0.25 };
     float threshold { -24 };
+    // DynamicsCompressor cannot have Max value (default for generic AudioNode)
+    DynamicsCompressorOptions()
+    {
+        channel_count_mode = Bindings::ChannelCountMode::ClampedMax; // Set ClampedMax only for DynamicsCompressorNode
+    }
 };
 
 // https://webaudio.github.io/web-audio-api/#DynamicsCompressorNode
@@ -39,6 +44,8 @@ public:
     JS::NonnullGCPtr<AudioParam const> attack() const { return m_attack; }
     JS::NonnullGCPtr<AudioParam const> release() const { return m_release; }
     float reduction() const { return m_reduction; }
+
+    WebIDL::ExceptionOr<void> set_channel_count_mode(Bindings::ChannelCountMode) override;
 
 protected:
     DynamicsCompressorNode(JS::Realm&, JS::NonnullGCPtr<BaseAudioContext>, DynamicsCompressorOptions const& = {});
