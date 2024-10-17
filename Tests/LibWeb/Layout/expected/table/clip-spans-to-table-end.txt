@@ -71,7 +71,7 @@ ViewportPaintable (Viewport<#document>) [0,0 800x600]
                 TextPaintable (TextNode<#text>)
               PaintableWithLines (BlockContainer<TD>) [69.265625,8 31.09375x39]
                 TextPaintable (TextNode<#text>)
-            PaintableBox (Box<TR>) [8,47 92.359375x39] overflow: [8,47 92.359375x78]
+            PaintableBox (Box<TR>) [8,47 92.359375x39]
               PaintableWithLines (BlockContainer<TD>) [8,47 30.453125x39]
                 TextPaintable (TextNode<#text>)
               PaintableWithLines (BlockContainer<TD>) [38.453125,47 61.90625x78]
