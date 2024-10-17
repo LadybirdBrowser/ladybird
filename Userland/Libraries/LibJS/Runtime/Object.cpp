@@ -911,26 +911,30 @@ ThrowCompletionOr<Value> Object::internal_get(PropertyKey const& property_key, V
         return parent->internal_get(property_key, receiver, cacheable_metadata, PropertyLookupPhase::PrototypeChain);
     }
 
+    auto update_inline_cache = [&] {
+        // Non-standard: If the caller has requested cacheable metadata and the property is an own property, fill it in.
+        if (!cacheable_metadata || !descriptor->property_offset.has_value() || !shape().is_cacheable())
+            return;
+        if (phase == PropertyLookupPhase::OwnProperty) {
+            *cacheable_metadata = CacheablePropertyMetadata {
+                .type = CacheablePropertyMetadata::Type::OwnProperty,
+                .property_offset = descriptor->property_offset.value(),
+                .prototype = nullptr,
+            };
+        } else if (phase == PropertyLookupPhase::PrototypeChain) {
+            VERIFY(shape().is_prototype_shape());
+            VERIFY(shape().prototype_chain_validity()->is_valid());
+            *cacheable_metadata = CacheablePropertyMetadata {
+                .type = CacheablePropertyMetadata::Type::InPrototypeChain,
+                .property_offset = descriptor->property_offset.value(),
+                .prototype = this,
+            };
+        }
+    };
+
     // 3. If IsDataDescriptor(desc) is true, return desc.[[Value]].
     if (descriptor->is_data_descriptor()) {
-        // Non-standard: If the caller has requested cacheable metadata and the property is an own property, fill it in.
-        if (cacheable_metadata && descriptor->property_offset.has_value() && shape().is_cacheable()) {
-            if (phase == PropertyLookupPhase::OwnProperty) {
-                *cacheable_metadata = CacheablePropertyMetadata {
-                    .type = CacheablePropertyMetadata::Type::OwnProperty,
-                    .property_offset = descriptor->property_offset.value(),
-                    .prototype = nullptr,
-                };
-            } else if (phase == PropertyLookupPhase::PrototypeChain) {
-                VERIFY(shape().is_prototype_shape());
-                VERIFY(shape().prototype_chain_validity()->is_valid());
-                *cacheable_metadata = CacheablePropertyMetadata {
-                    .type = CacheablePropertyMetadata::Type::InPrototypeChain,
-                    .property_offset = descriptor->property_offset.value(),
-                    .prototype = this,
-                };
-            }
-        }
+        update_inline_cache();
         return *descriptor->value;
     }
 
@@ -943,6 +947,8 @@ ThrowCompletionOr<Value> Object::internal_get(PropertyKey const& property_key, V
     // 6. If getter is undefined, return undefined.
     if (!getter)
         return js_undefined();
+
+    update_inline_cache();
 
     // 7. Return ? Call(getter, Receiver).
     return TRY(call(vm, *getter, receiver));
