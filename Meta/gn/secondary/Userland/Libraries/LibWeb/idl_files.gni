@@ -351,6 +351,7 @@ standard_idl_files = [
   "//Userland/Libraries/LibWeb/WebAudio/AudioBufferSourceNode.idl",
   "//Userland/Libraries/LibWeb/WebAudio/AudioContext.idl",
   "//Userland/Libraries/LibWeb/WebAudio/AudioDestinationNode.idl",
+  "//Userland/Libraries/LibWeb/WebAudio/AudioListener.idl",
   "//Userland/Libraries/LibWeb/WebAudio/AudioNode.idl",
   "//Userland/Libraries/LibWeb/WebAudio/AudioParam.idl",
   "//Userland/Libraries/LibWeb/WebAudio/AudioScheduledSourceNode.idl",

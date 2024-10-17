@@ -10,6 +10,7 @@
 
 #include <LibWeb/Bindings/BaseAudioContextPrototype.h>
 #include <LibWeb/DOM/EventTarget.h>
+#include <LibWeb/WebAudio/AudioListener.h>
 #include <LibWeb/WebAudio/BiquadFilterNode.h>
 #include <LibWeb/WebIDL/Types.h>
 
@@ -38,6 +39,7 @@ public:
     JS::NonnullGCPtr<AudioDestinationNode> destination() const { return m_destination; }
     float sample_rate() const { return m_sample_rate; }
     double current_time() const { return m_current_time; }
+    JS::NonnullGCPtr<AudioListener> listener() const { return m_listener; }
     Bindings::AudioContextState state() const { return m_control_thread_state; }
 
     // https://webaudio.github.io/web-audio-api/#--nyquist-frequency
@@ -77,6 +79,8 @@ private:
 
     float m_sample_rate { 0 };
     double m_current_time { 0 };
+
+    JS::NonnullGCPtr<AudioListener> m_listener;
 
     Bindings::AudioContextState m_control_thread_state = Bindings::AudioContextState::Suspended;
     Bindings::AudioContextState m_rendering_thread_state = Bindings::AudioContextState::Suspended;

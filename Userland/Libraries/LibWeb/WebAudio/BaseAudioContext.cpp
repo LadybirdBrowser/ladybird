@@ -28,6 +28,7 @@ BaseAudioContext::BaseAudioContext(JS::Realm& realm, float sample_rate)
     : DOM::EventTarget(realm)
     , m_destination(AudioDestinationNode::construct_impl(realm, *this))
     , m_sample_rate(sample_rate)
+    , m_listener(AudioListener::create(realm))
 {
 }
 
@@ -44,6 +45,7 @@ void BaseAudioContext::visit_edges(Cell::Visitor& visitor)
     Base::visit_edges(visitor);
     visitor.visit(m_destination);
     visitor.visit(m_pending_promises);
+    visitor.visit(m_listener);
 }
 
 void BaseAudioContext::set_onstatechange(WebIDL::CallbackType* event_handler)
