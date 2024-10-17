@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<style>
+    @property --tester {
+        syntax: "*";
+        inherits: false;
+        initial-value: blue;
+    }
+</style>
+<div>This text shouldn't be visible</div>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const propertyRule = document.styleSheets[0].cssRules[0];
+        println(`@property rule syntax value: ${propertyRule.syntax}`);
+        propertyRule.syntax = "<color> | none";
+        println(`@property rule syntax value: ${propertyRule.syntax}`);
+        
+        println(`@property rule inherits value: ${propertyRule.inherits}`);
+        propertyRule.inherits = true;
+        println(`@property rule inherits value: ${propertyRule.inherits}`);
+        
+        println(`@property rule initialValue value: ${propertyRule.initialValue}`);
+        propertyRule.initialValue = "red";
+        println(`@property rule initialValue value: ${propertyRule.initialValue}`);
+    });
+</script>

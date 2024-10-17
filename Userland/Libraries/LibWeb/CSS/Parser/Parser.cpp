@@ -26,6 +26,7 @@
 #include <LibWeb/CSS/CSSMediaRule.h>
 #include <LibWeb/CSS/CSSNamespaceRule.h>
 #include <LibWeb/CSS/CSSNestedDeclarations.h>
+#include <LibWeb/CSS/CSSPropertyRule.h>
 #include <LibWeb/CSS/CSSStyleDeclaration.h>
 #include <LibWeb/CSS/CSSStyleRule.h>
 #include <LibWeb/CSS/CSSStyleSheet.h>
@@ -1362,6 +1363,9 @@ JS::GCPtr<CSSRule> Parser::convert_to_rule(Rule const& rule, Nested nested)
             if (at_rule.name.equals_ignoring_ascii_case("supports"sv))
                 return convert_to_supports_rule(at_rule, nested);
 
+            if (at_rule.name.equals_ignoring_ascii_case("property"sv))
+                return convert_to_property_rule(at_rule);
+
             // FIXME: More at rules!
             dbgln_if(CSS_PARSER_DEBUG, "Unrecognized CSS at-rule: @{}", at_rule.name);
             return {};
@@ -1752,6 +1756,102 @@ JS::GCPtr<CSSSupportsRule> Parser::convert_to_supports_rule(AtRule const& rule, 
 
     auto rule_list = CSSRuleList::create(m_context.realm(), child_rules);
     return CSSSupportsRule::create(m_context.realm(), supports.release_nonnull(), rule_list);
+}
+JS::GCPtr<CSSPropertyRule> Parser::convert_to_property_rule(AtRule const& rule)
+{
+    // https://drafts.css-houdini.org/css-properties-values-api-1/#at-ruledef-property
+    // @property <custom-property-name> {
+    // <declaration-list>
+    // }
+
+    if (rule.prelude.is_empty()) {
+        dbgln_if(CSS_PARSER_DEBUG, "Failed to parse @property rule: Empty prelude.");
+        return {};
+    }
+
+    auto prelude_stream = TokenStream { rule.prelude };
+    prelude_stream.discard_whitespace();
+    auto const& token = prelude_stream.consume_a_token();
+    if (!token.is_token()) {
+        dbgln_if(CSS_PARSER_DEBUG, "CSSParser: @property has invalid prelude, prelude = {}; discarding.", rule.prelude);
+        return {};
+    }
+
+    auto name_token = token.token();
+    prelude_stream.discard_whitespace();
+
+    if (prelude_stream.has_next_token()) {
+        dbgln_if(CSS_PARSER_DEBUG, "CSSParser: @property has invalid prelude, prelude = {}; discarding.", rule.prelude);
+        return {};
+    }
+
+    if (!name_token.is(Token::Type::Ident)) {
+        dbgln_if(CSS_PARSER_DEBUG, "CSSParser: @property name is invalid: {}; discarding.", name_token.to_debug_string());
+        return {};
+    }
+
+    if (!is_a_custom_property_name_string(name_token.ident())) {
+        dbgln_if(CSS_PARSER_DEBUG, "CSSParser: @property name doesn't start with '--': {}; discarding.", name_token.ident());
+        return {};
+    }
+
+    auto const& name = name_token.ident();
+
+    Optional<FlyString> syntax_maybe;
+    Optional<bool> inherits_maybe;
+    Optional<String> initial_value_maybe;
+
+    rule.for_each_as_declaration_list([&](auto& declaration) {
+        if (declaration.name.equals_ignoring_ascii_case("syntax"sv)) {
+            TokenStream token_stream { declaration.value };
+            token_stream.discard_whitespace();
+
+            auto const& syntax_token = token_stream.consume_a_token();
+            if (syntax_token.is(Token::Type::String)) {
+                token_stream.discard_whitespace();
+                if (token_stream.has_next_token()) {
+                    dbgln_if(CSS_PARSER_DEBUG, "CSSParser: Unexpected trailing tokens in syntax");
+                } else {
+                    syntax_maybe = syntax_token.token().string();
+                }
+            } else {
+                dbgln_if(CSS_PARSER_DEBUG, "CSSParser: Unexpected value for @property \"syntax\": {}; discarding.", declaration.to_string());
+            }
+            return;
+        }
+        if (declaration.name.equals_ignoring_ascii_case("inherits"sv)) {
+            TokenStream token_stream { declaration.value };
+            token_stream.discard_whitespace();
+
+            auto const& inherits_token = token_stream.consume_a_token();
+            if (inherits_token.is_ident("true"sv) || inherits_token.is_ident("false"sv)) {
+                auto const& ident = inherits_token.token().ident();
+                token_stream.discard_whitespace();
+                if (token_stream.has_next_token()) {
+                    dbgln_if(CSS_PARSER_DEBUG, "CSSParser: Unexpected trailing tokens in inherits");
+                } else {
+                    inherits_maybe = (ident == "true");
+                }
+            } else {
+                dbgln_if(CSS_PARSER_DEBUG, "CSSParser: Expected true/false for @property \"inherits\" value, got: {}; discarding.", inherits_token.to_debug_string());
+            }
+            return;
+        }
+        if (declaration.name.equals_ignoring_ascii_case("initial-value"sv)) {
+            // FIXME: Ensure that the initial value matches the syntax, and parse the correct CSSValue out
+            StringBuilder initial_value_sb;
+            for (auto const& component : declaration.value) {
+                initial_value_sb.append(component.to_string());
+            }
+            initial_value_maybe = MUST(initial_value_sb.to_string());
+            return;
+        }
+    });
+
+    if (syntax_maybe.has_value() && inherits_maybe.has_value()) {
+        return CSSPropertyRule::create(m_context.realm(), name, syntax_maybe.value(), inherits_maybe.value(), std::move(initial_value_maybe));
+    }
+    return {};
 }
 
 Parser::PropertiesAndCustomProperties Parser::extract_properties(Vector<RuleOrListOfDeclarations> const& rules_and_lists_of_declarations)
