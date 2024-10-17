@@ -21,11 +21,6 @@ namespace Web::HTML {
     E(onmessage, HTML::EventNames::message)      \
     E(onmessageerror, HTML::EventNames::messageerror)
 
-// https://html.spec.whatwg.org/multipage/web-messaging.html#structuredserializeoptions
-struct StructuredSerializeOptions {
-    Vector<JS::Handle<JS::Object>> transfer;
-};
-
 // https://html.spec.whatwg.org/multipage/web-messaging.html#message-ports
 class MessagePort final : public DOM::EventTarget
     , public Bindings::Transferable {

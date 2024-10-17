@@ -8,7 +8,6 @@
 
 #include <LibWeb/Bindings/ServiceWorkerPrototype.h>
 #include <LibWeb/DOM/EventTarget.h>
-#include <LibWeb/HTML/MessagePort.h>
 
 #define ENUMERATE_SERVICE_WORKER_EVENT_HANDLERS(E)  \
     E(onstatechange, HTML::EventNames::statechange) \

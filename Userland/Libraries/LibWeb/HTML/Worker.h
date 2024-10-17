@@ -6,20 +6,11 @@
 
 #pragma once
 
-#include <AK/RefCounted.h>
-#include <LibURL/Parser.h>
-#include <LibWeb/Bindings/MainThreadVM.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/HTML/AbstractWorker.h>
-#include <LibWeb/HTML/MessageEvent.h>
-#include <LibWeb/HTML/MessagePort.h>
-#include <LibWeb/HTML/Scripting/ClassicScript.h>
-#include <LibWeb/HTML/Scripting/WindowEnvironmentSettingsObject.h>
-#include <LibWeb/HTML/Scripting/WorkerEnvironmentSettingsObject.h>
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/HTML/WorkerAgent.h>
-#include <LibWeb/HTML/WorkerDebugConsoleClient.h>
-#include <LibWeb/Loader/ResourceLoader.h>
+#include <LibWeb/WebIDL/ExceptionOr.h>
 
 #define ENUMERATE_WORKER_EVENT_HANDLERS(E)  \
     E(onmessage, HTML::EventNames::message) \

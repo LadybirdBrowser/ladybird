@@ -16,7 +16,6 @@
 #include <LibWeb/Fetch/Request.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/HTML/ImageBitmap.h>
-#include <LibWeb/HTML/MessagePort.h>
 #include <LibWeb/PerformanceTimeline/PerformanceEntry.h>
 #include <LibWeb/PerformanceTimeline/PerformanceEntryTuple.h>
 

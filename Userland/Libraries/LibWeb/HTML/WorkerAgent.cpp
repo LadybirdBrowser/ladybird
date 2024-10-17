@@ -5,6 +5,7 @@
  */
 
 #include <LibWeb/Bindings/HostDefined.h>
+#include <LibWeb/HTML/MessagePort.h>
 #include <LibWeb/HTML/WorkerAgent.h>
 #include <LibWeb/Page/Page.h>
 #include <LibWeb/Worker/WebWorkerClient.h>
