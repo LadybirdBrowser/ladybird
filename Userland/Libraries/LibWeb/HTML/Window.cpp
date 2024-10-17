@@ -127,6 +127,8 @@ void Window::visit_edges(JS::Cell::Visitor& visitor)
     visitor.visit(m_count_queuing_strategy_size_function);
     visitor.visit(m_byte_length_queuing_strategy_size_function);
     visitor.visit(m_close_watcher_manager);
+    visitor.visit(m_pending_first_pointer_down);
+    visitor.visit(m_entries_to_be_queued);
 }
 
 void Window::finalize()

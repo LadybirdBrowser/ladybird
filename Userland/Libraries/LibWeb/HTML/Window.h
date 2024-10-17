@@ -8,6 +8,7 @@
 #pragma once
 
 #include <AK/Badge.h>
+#include <AK/QuickSelect.h>
 #include <AK/RefPtr.h>
 #include <AK/TypeCasts.h>
 #include <LibJS/Heap/Heap.h>
@@ -15,6 +16,7 @@
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Bindings/WindowGlobalMixin.h>
 #include <LibWeb/DOM/EventTarget.h>
+#include <LibWeb/EventTiming/PerformanceEventTiming.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/HTML/AnimationFrameCallbackDriver.h>
 #include <LibWeb/HTML/CrossOrigin/CrossOriginPropertyDescriptorMap.h>
@@ -235,6 +237,18 @@ public:
 
     bool find(String const& string);
 
+    // https://www.w3.org/TR/event-timing/#sec-modifications-HTML
+    Vector<JS::NonnullGCPtr<EventTiming::PerformanceEventTiming>>& entries_to_be_queued() { return m_entries_to_be_queued; }
+
+    void increase_user_interaction_value(int increment) { m_user_interaction_value += increment; }
+    void set_user_interaction_value(int value) { m_user_interaction_value = value; }
+    int user_interaction_value() const { return m_user_interaction_value; }
+
+    HashMap<int, EventTiming::PerformanceEventTiming>& pending_key_downs() { return m_pending_key_downs; }
+    HashMap<int, int>& pointer_interaction_value_map() { return m_pointer_interaction_value_map; }
+    HashTable<int>& pointer_is_drag_set() { return m_pointer_is_drag_set; }
+    HashMap<int, EventTiming::PerformanceEventTiming>& pending_pointer_downs() { return m_pending_pointer_downs; }
+
 private:
     explicit Window(JS::Realm&);
 
@@ -313,6 +327,18 @@ private:
     // https://html.spec.whatwg.org/multipage/nav-history-apis.html#dom-window-status
     // When the Window object is created, the attribute must be set to the empty string. It does not do anything else.
     String m_status;
+
+    // https://www.w3.org/TR/event-timing/#sec-modifications-HTML
+    Vector<JS::NonnullGCPtr<EventTiming::PerformanceEventTiming>> m_entries_to_be_queued;
+    JS::GCPtr<EventTiming::PerformanceEventTiming> m_pending_first_pointer_down;
+    bool m_has_dispatched_input_event { false };
+    int m_user_interaction_value { (int)AK::random_int(100, 10000) };
+    HashMap<int, EventTiming::PerformanceEventTiming> m_pending_key_downs;
+    HashMap<int, int> m_pointer_interaction_value_map;
+    HashTable<int> m_pointer_is_drag_set;
+    HashMap<int, EventTiming::PerformanceEventTiming> m_pending_pointer_downs;
+    HashMap<FlyString, unsigned> m_event_counts;
+    int m_interaction_count;
 };
 
 void run_animation_frame_callbacks(DOM::Document&, double now);
