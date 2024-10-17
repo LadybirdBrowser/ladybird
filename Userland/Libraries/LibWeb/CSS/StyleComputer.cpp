@@ -2694,6 +2694,7 @@ void StyleComputer::build_qualified_layer_names_cache()
             case CSSRule::Type::Namespace:
             case CSSRule::Type::NestedDeclarations:
             case CSSRule::Type::Supports:
+            case CSSRule::Type::Property:
                 break;
             }
         });

@@ -50,6 +50,7 @@ set(SOURCES
     CSS/CSSNestedDeclarations.cpp
     CSS/CSSNumericType.cpp
     CSS/CSSNamespaceRule.cpp
+    CSS/CSSPropertyRule.cpp
     CSS/CSSRule.cpp
     CSS/CSSRuleList.cpp
     CSS/CSSStyleDeclaration.cpp
