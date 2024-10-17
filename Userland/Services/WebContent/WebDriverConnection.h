@@ -34,6 +34,8 @@ public:
     static ErrorOr<NonnullRefPtr<WebDriverConnection>> connect(Web::PageClient& page_client, ByteString const& webdriver_ipc_path);
     virtual ~WebDriverConnection() = default;
 
+    void visit_edges(JS::Cell::Visitor&);
+
 private:
     WebDriverConnection(NonnullOwnPtr<Core::LocalSocket> socket, Web::PageClient& page_client);
 
@@ -106,10 +108,10 @@ private:
 
     void set_current_browsing_context(Web::HTML::BrowsingContext&);
     Web::HTML::BrowsingContext& current_browsing_context() { return *m_current_browsing_context; }
-    JS::GCPtr<Web::HTML::BrowsingContext> current_parent_browsing_context() { return m_current_parent_browsing_context.ptr(); }
+    JS::GCPtr<Web::HTML::BrowsingContext> current_parent_browsing_context() { return m_current_parent_browsing_context; }
 
     void set_current_top_level_browsing_context(Web::HTML::BrowsingContext&);
-    JS::GCPtr<Web::HTML::BrowsingContext> current_top_level_browsing_context() { return m_current_top_level_browsing_context.ptr(); }
+    JS::GCPtr<Web::HTML::BrowsingContext> current_top_level_browsing_context() { return m_current_top_level_browsing_context; }
 
     ErrorOr<void, Web::WebDriver::Error> ensure_current_browsing_context_is_open();
     ErrorOr<void, Web::WebDriver::Error> ensure_current_top_level_browsing_context_is_open();
@@ -147,15 +149,15 @@ private:
     Web::WebDriver::TimeoutsConfiguration m_timeouts_configuration;
 
     // https://w3c.github.io/webdriver/#dfn-current-browsing-context
-    JS::Handle<Web::HTML::BrowsingContext> m_current_browsing_context;
+    JS::GCPtr<Web::HTML::BrowsingContext> m_current_browsing_context;
 
     // https://w3c.github.io/webdriver/#dfn-current-parent-browsing-context
-    JS::Handle<Web::HTML::BrowsingContext> m_current_parent_browsing_context;
+    JS::GCPtr<Web::HTML::BrowsingContext> m_current_parent_browsing_context;
 
     // https://w3c.github.io/webdriver/#dfn-current-top-level-browsing-context
-    JS::Handle<Web::HTML::BrowsingContext> m_current_top_level_browsing_context;
+    JS::GCPtr<Web::HTML::BrowsingContext> m_current_top_level_browsing_context;
 
-    JS::Handle<JS::Cell> m_action_executor;
+    JS::GCPtr<JS::Cell> m_action_executor;
 };
 
 }
