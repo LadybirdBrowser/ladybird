@@ -92,7 +92,6 @@ void AudioContext::initialize(JS::Realm& realm)
 void AudioContext::visit_edges(Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
-    visitor.visit(m_pending_promises);
     visitor.visit(m_pending_resume_promises);
 }
 
@@ -107,7 +106,6 @@ AudioTimestamp AudioContext::get_output_timestamp()
 WebIDL::ExceptionOr<JS::NonnullGCPtr<JS::Promise>> AudioContext::resume()
 {
     auto& realm = this->realm();
-    auto& vm = realm.vm();
 
     // 1. If this's relevant global object's associated Document is not fully active then return a promise rejected with "InvalidStateError" DOMException.
     auto const& associated_document = verify_cast<HTML::Window>(HTML::relevant_global_object(*this)).associated_document();
@@ -128,8 +126,8 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<JS::Promise>> AudioContext::resume()
 
     // 5. If the context is not allowed to start, append promise to [[pending promises]] and [[pending resume promises]] and abort these steps, returning promise.
     if (m_allowed_to_start) {
-        TRY_OR_THROW_OOM(vm, m_pending_promises.try_append(promise));
-        TRY_OR_THROW_OOM(vm, m_pending_resume_promises.try_append(promise));
+        m_pending_promises.append(promise);
+        m_pending_resume_promises.append(promise);
     }
 
     // 6. Set the [[control thread state]] on the AudioContext to running.
@@ -150,24 +148,28 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<JS::Promise>> AudioContext::resume()
             // 7.4.1: Reject all promises from [[pending resume promises]] in order, then clear [[pending resume promises]].
             for (auto const& promise : m_pending_resume_promises) {
                 WebIDL::reject_promise(realm, promise, JS::js_null());
+
+                // 7.4.2: Additionally, remove those promises from [[pending promises]].
+                m_pending_promises.remove_first_matching([&promise](auto& pending_promise) {
+                    return pending_promise == promise;
+                });
             }
             m_pending_resume_promises.clear();
-
-            // FIXME: 7.4.2: Additionally, remove those promises from [[pending promises]].
         }));
     }
 
     // 7.5: queue a media element task to execute the following steps:
     queue_a_media_element_task(JS::create_heap_function(heap(), [&realm, promise, this]() {
         // 7.5.1: Resolve all promises from [[pending resume promises]] in order.
+        // 7.5.2: Clear [[pending resume promises]]. Additionally, remove those promises from
+        //        [[pending promises]].
         for (auto const& pending_resume_promise : m_pending_resume_promises) {
             *pending_resume_promise->resolve();
+            m_pending_promises.remove_first_matching([&pending_resume_promise](auto& pending_promise) {
+                return pending_promise == pending_resume_promise;
+            });
         }
-
-        // 7.5.2: Clear [[pending resume promises]].
         m_pending_resume_promises.clear();
-
-        // FIXME: Additionally, remove those promises from [[pending promises]].
 
         // 7.5.3: Resolve promise.
         *promise->resolve();
@@ -192,7 +194,6 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<JS::Promise>> AudioContext::resume()
 WebIDL::ExceptionOr<JS::NonnullGCPtr<JS::Promise>> AudioContext::suspend()
 {
     auto& realm = this->realm();
-    auto& vm = realm.vm();
 
     // 1. If this's relevant global object's associated Document is not fully active then return a promise rejected with "InvalidStateError" DOMException.
     auto const& associated_document = verify_cast<HTML::Window>(HTML::relevant_global_object(*this)).associated_document();
@@ -209,7 +210,7 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<JS::Promise>> AudioContext::suspend()
     }
 
     // 4. Append promise to [[pending promises]].
-    TRY_OR_THROW_OOM(vm, m_pending_promises.try_append(promise));
+    m_pending_promises.append(promise);
 
     // 5. Set [[suspended by user]] to true.
     m_suspended_by_user = true;

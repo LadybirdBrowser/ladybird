@@ -43,6 +43,7 @@ void BaseAudioContext::visit_edges(Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_destination);
+    visitor.visit(m_pending_promises);
 }
 
 void BaseAudioContext::set_onstatechange(WebIDL::CallbackType* event_handler)
@@ -144,7 +145,8 @@ JS::NonnullGCPtr<JS::Promise> BaseAudioContext::decode_audio_data(JS::Handle<Web
 
     // FIXME: 3. If audioData is detached, execute the following steps:
     if (true) {
-        // FIXME: 3.1. Append promise to [[pending promises]].
+        // 3.1. Append promise to [[pending promises]].
+        m_pending_promises.append(promise);
 
         // FIXME: 3.2. Detach the audioData ArrayBuffer. If this operations throws, jump to the step 3.
 
@@ -159,6 +161,9 @@ JS::NonnullGCPtr<JS::Promise> BaseAudioContext::decode_audio_data(JS::Handle<Web
 
         // 4.2. Reject promise with error, and remove it from [[pending promises]].
         WebIDL::reject_promise(realm, promise, error);
+        m_pending_promises.remove_first_matching([&promise](auto& pending_promise) {
+            return pending_promise == promise;
+        });
 
         // 4.3. Queue a media element task to invoke errorCallback with error.
         if (error_callback) {
@@ -201,13 +206,15 @@ void BaseAudioContext::queue_a_decoding_operation(JS::NonnullGCPtr<JS::PromiseCa
     // 4. If can decode is false,
     if (!can_decode) {
         // queue a media element task to execute the following steps:
-        queue_a_media_element_task(JS::create_heap_function(heap(), [&realm, promise, error_callback] {
+        queue_a_media_element_task(JS::create_heap_function(heap(), [this, &realm, promise, error_callback] {
             // 4.1. Let error be a DOMException whose name is EncodingError.
             auto error = WebIDL::EncodingError::create(realm, "Unable to decode."_string);
 
-            // 4.1.2. Reject promise with error,
+            // 4.1.2. Reject promise with error, and remove it from [[pending promises]].
             WebIDL::reject_promise(realm, promise, error);
-            // FIXME: and remove it from [[pending promises]].
+            m_pending_promises.remove_first_matching([&promise](auto& pending_promise) {
+                return pending_promise == promise;
+            });
 
             // 4.2. If errorCallback is not missing, invoke errorCallback with error.
             if (error_callback) {

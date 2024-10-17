@@ -49,7 +49,6 @@ private:
     double m_output_latency { 0 };
 
     bool m_allowed_to_start = true;
-    Vector<JS::NonnullGCPtr<WebIDL::Promise>> m_pending_promises;
     Vector<JS::NonnullGCPtr<WebIDL::Promise>> m_pending_resume_promises;
     bool m_suspended_by_user = false;
 

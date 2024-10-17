@@ -70,6 +70,7 @@ protected:
     virtual void visit_edges(Cell::Visitor&) override;
 
     JS::NonnullGCPtr<AudioDestinationNode> m_destination;
+    Vector<JS::NonnullGCPtr<WebIDL::Promise>> m_pending_promises;
 
 private:
     void queue_a_decoding_operation(JS::NonnullGCPtr<JS::PromiseCapability>, JS::Handle<WebIDL::BufferSource>, JS::GCPtr<WebIDL::CallbackType>, JS::GCPtr<WebIDL::CallbackType>);
