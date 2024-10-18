@@ -4,11 +4,23 @@ source_set("IndexedDB") {
   deps = [ "//Userland/Libraries/LibWeb:all_generated" ]
 
   sources = [
+    "IDBCursor.cpp",
+    "IDBCursor.h",
+    "IDBDatabase.cpp",
+    "IDBDatabase.h",
     "IDBFactory.cpp",
     "IDBFactory.h",
+    "IDBIndex.cpp",
+    "IDBIndex.h",
+    "IDBKeyRange.cpp",
+    "IDBKeyRange.h",
+    "IDBObjectStore.cpp",
+    "IDBObjectStore.h",
     "IDBOpenDBRequest.cpp",
     "IDBOpenDBRequest.h",
     "IDBRequest.cpp",
     "IDBRequest.h",
+    "IDBTransaction.cpp",
+    "IDBTransaction.h",
   ]
 }
