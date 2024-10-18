@@ -31,6 +31,7 @@ public:
         Gfx::FloatPoint scale { 1, 1 };
         Gfx::BitmapSequence bitmaps;
         Vector<u32> durations;
+        Gfx::ColorSpace color_profile;
     };
 
 private:

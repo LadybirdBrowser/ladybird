@@ -7,6 +7,7 @@ set(SOURCES
     BitmapSequence.cpp
     CMYKBitmap.cpp
     Color.cpp
+    ColorSpace.cpp
     DeltaE.cpp
     DeprecatedPainter.cpp
     DeprecatedPath.cpp
@@ -107,7 +108,9 @@ find_package(WebP REQUIRED)
 find_package(harfbuzz REQUIRED)
 
 target_link_libraries(LibGfx PRIVATE PkgConfig::WOFF2 JPEG::JPEG PNG::PNG avif WebP::webp WebP::webpdecoder
-            WebP::webpdemux WebP::libwebpmux skia harfbuzz)
+            WebP::webpdemux WebP::libwebpmux harfbuzz)
+
+target_link_libraries(LibGfx PUBLIC skia)
 
 if (NOT ANDROID)
     pkg_check_modules(Jxl REQUIRED IMPORTED_TARGET libjxl)

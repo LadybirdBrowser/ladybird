@@ -10,6 +10,7 @@
 #include <AK/RefPtr.h>
 #include <AK/Vector.h>
 #include <LibCore/Promise.h>
+#include <LibGfx/ColorSpace.h>
 #include <LibGfx/Forward.h>
 
 namespace Web::Platform {
@@ -23,6 +24,7 @@ struct DecodedImage {
     bool is_animated { false };
     u32 loop_count { 0 };
     Vector<Frame> frames;
+    Gfx::ColorSpace color_space;
 };
 
 class ImageCodecPlugin {
