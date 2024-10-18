@@ -1,0 +1,13 @@
+#import <HTML/DOMStringMap.idl>
+
+// https://html.spec.whatwg.org/#htmlorsvgelement
+interface mixin HTMLOrSVGElement {
+    [SameObject] readonly attribute DOMStringMap dataset;
+    [FIXME] attribute DOMString nonce; // intentionally no [CEReactions]
+
+    [CEReactions, Reflect] attribute boolean autofocus;
+    [CEReactions] attribute long tabIndex;
+    // FIXME: Support the optional FocusOptions parameter.
+    undefined focus();
+    undefined blur();
+};
