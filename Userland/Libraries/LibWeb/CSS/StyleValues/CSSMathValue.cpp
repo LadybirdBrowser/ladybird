@@ -52,8 +52,10 @@ static double resolve_value(CSSMathValue::CalculationResult::Value value, Option
                 return length.absolute_length_to_px().to_double();
 
             // If we dont have a context, we cant resolve the length, so return NAN
-            if (!context.has_value())
+            if (!context.has_value()) {
+                dbgln("Failed to resolve length, likely due to calc() being used with relative units and a property not taking it into account");
                 return Number(Number::Type::Number, NAN).value();
+            }
 
             return length.to_px(*context).to_double();
         });
