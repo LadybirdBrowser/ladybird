@@ -1,0 +1,4 @@
+details9.open set to true
+details9.open is still true
+target.open is false
+this should be called
