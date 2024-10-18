@@ -254,6 +254,22 @@ ErrorOr<String> String::substring_from_byte_offset(size_t start) const
     return substring_from_byte_offset(start, bytes_as_string_view().length() - start);
 }
 
+ErrorOr<String> String::substring_from_code_unit_offset(size_t offset, size_t count) const
+{
+    auto const utf16_data = TRY(utf8_to_utf16(bytes_as_string_view()));
+    Utf16View const utf16_view { utf16_data };
+
+    return TRY(utf16_view.substring_view(offset, count).to_utf8());
+}
+
+ErrorOr<String> String::substring_from_code_unit_offset(size_t offset) const
+{
+    auto const utf16_data = TRY(utf8_to_utf16(bytes_as_string_view()));
+    Utf16View const utf16_view { utf16_data };
+
+    return TRY(utf16_view.substring_view(offset, utf16_view.length_in_code_units() - offset).to_utf8());
+}
+
 ErrorOr<String> String::substring_from_byte_offset_with_shared_superstring(size_t start, size_t byte_count) const
 {
     return String { TRY(StringBase::substring_from_byte_offset_with_shared_superstring(start, byte_count)) };

@@ -121,6 +121,10 @@ public:
     ErrorOr<String> substring_from_byte_offset(size_t start, size_t byte_count) const;
     ErrorOr<String> substring_from_byte_offset(size_t start) const;
 
+    // UTF-16 substring helpers
+    ErrorOr<String> substring_from_code_unit_offset(size_t offset, size_t count) const;
+    ErrorOr<String> substring_from_code_unit_offset(size_t offset) const;
+
     // Creates a substring that strongly references the origin superstring instead of making a deep copy of the data.
     ErrorOr<String> substring_from_byte_offset_with_shared_superstring(size_t start, size_t byte_count) const;
     ErrorOr<String> substring_from_byte_offset_with_shared_superstring(size_t start) const;
