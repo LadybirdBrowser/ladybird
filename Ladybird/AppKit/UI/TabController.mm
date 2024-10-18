@@ -59,7 +59,7 @@ static NSString* const TOOLBAR_TAB_OVERVIEW_IDENTIFIER = @"ToolbarTabOverviewIde
     bool m_can_navigate_forward;
 }
 
-@property (nonatomic, strong) Tab* parent;
+@property (nonatomic, weak) Tab* parent;
 
 @property (nonatomic, strong) NSToolbar* toolbar;
 @property (nonatomic, strong) NSArray* toolbar_identifiers;
