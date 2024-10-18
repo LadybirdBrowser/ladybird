@@ -44,8 +44,8 @@ void EditEventHandler::handle_delete(JS::NonnullGCPtr<DOM::Document> document, D
 
     if (start == end) {
         StringBuilder builder;
-        builder.append(start->data().bytes_as_string_view().substring_view(0, range.start_offset()));
-        builder.append(end->data().bytes_as_string_view().substring_view(range.end_offset()));
+        builder.append(MUST(start->substring_data(0, range.start_offset())));
+        builder.append(MUST(end->substring_data(end->length(), range.end_offset())));
 
         start->set_data(MUST(builder.to_string()));
     } else {
@@ -82,8 +82,8 @@ void EditEventHandler::handle_delete(JS::NonnullGCPtr<DOM::Document> document, D
 
         // Join the start and end nodes.
         StringBuilder builder;
-        builder.append(start->data().bytes_as_string_view().substring_view(0, range.start_offset()));
-        builder.append(end->data().bytes_as_string_view().substring_view(range.end_offset()));
+        builder.append(MUST(start->substring_data(0, range.start_offset())));
+        builder.append(MUST(end->substring_data(end->length(), range.end_offset())));
 
         start->set_data(MUST(builder.to_string()));
         end->remove();
@@ -99,15 +99,15 @@ void EditEventHandler::handle_insert(JS::NonnullGCPtr<DOM::Document> document, J
     handle_insert(document, position, MUST(builder.to_string()));
 }
 
-void EditEventHandler::handle_insert(JS::NonnullGCPtr<DOM::Document> document, JS::NonnullGCPtr<DOM::Position> position, String data)
+void EditEventHandler::handle_insert(JS::NonnullGCPtr<DOM::Document> document, JS::NonnullGCPtr<DOM::Position> position, String const& data)
 {
     if (is<DOM::Text>(*position->node())) {
         auto& node = verify_cast<DOM::Text>(*position->node());
 
         StringBuilder builder;
-        builder.append(node.data().bytes_as_string_view().substring_view(0, position->offset()));
+        builder.append(MUST(node.substring_data(0, position->offset())));
         builder.append(data);
-        builder.append(node.data().bytes_as_string_view().substring_view(position->offset()));
+        builder.append(MUST(node.substring_data(node.length(), position->offset())));
 
         // Cut string by max length
         // FIXME: Cut by UTF-16 code units instead of raw bytes
