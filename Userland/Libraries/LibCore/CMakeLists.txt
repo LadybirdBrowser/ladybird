@@ -5,14 +5,24 @@ include(vulkan)
 set(SOURCES
     ArgsParser.cpp
     Directory.cpp
-    DirectoryEntry.cpp
-    DirIterator.cpp
     Environment.cpp
     File.cpp
     StandardPaths.cpp
     System.cpp
     Version.cpp
 )
+
+if (WIN32)
+    list(APPEND SOURCES
+        DirectoryEntryWindows.cpp
+        DirIteratorWindows.cpp
+    )
+else()
+    list(APPEND SOURCES
+        DirectoryEntry.cpp
+        DirIterator.cpp
+    )
+endif()
 
 serenity_lib(LibCoreMinimal coreminimal)
 
