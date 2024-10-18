@@ -105,6 +105,7 @@ public:
     static CSS::ContentVisibility content_visibility() { return CSS::ContentVisibility::Visible; }
     static CSS::Cursor cursor() { return CSS::Cursor::Auto; }
     static CSS::WhiteSpace white_space() { return CSS::WhiteSpace::Normal; }
+    static CSS::LengthOrCalculated word_spacing() { return CSS::Length::make_px(0); }
     static Variant<LengthOrCalculated, NumberOrCalculated> tab_size() { return NumberOrCalculated(8.0f); }
     static CSS::TextAlign text_align() { return CSS::TextAlign::Start; }
     static CSS::TextJustify text_justify() { return CSS::TextJustify::Auto; }
@@ -387,6 +388,7 @@ public:
     Vector<ShadowData> const& text_shadow() const { return m_inherited.text_shadow; }
     CSS::Positioning position() const { return m_noninherited.position; }
     CSS::WhiteSpace white_space() const { return m_inherited.white_space; }
+    CSS::LengthOrCalculated word_spacing() const { return m_inherited.word_spacing; }
     CSS::FlexDirection flex_direction() const { return m_noninherited.flex_direction; }
     CSS::FlexWrap flex_wrap() const { return m_noninherited.flex_wrap; }
     FlexBasis const& flex_basis() const { return m_noninherited.flex_basis; }
@@ -547,6 +549,7 @@ protected:
         CSS::TextTransform text_transform { InitialValues::text_transform() };
         CSS::LengthPercentage text_indent { InitialValues::text_indent() };
         CSS::WhiteSpace white_space { InitialValues::white_space() };
+        CSS::LengthOrCalculated word_spacing { InitialValues::word_spacing() };
         CSS::ListStyleType list_style_type { InitialValues::list_style_type() };
         CSS::ListStylePosition list_style_position { InitialValues::list_style_position() };
         CSS::Visibility visibility { InitialValues::visibility() };
@@ -721,6 +724,7 @@ public:
     void set_webkit_text_fill_color(Color value) { m_inherited.webkit_text_fill_color = value; }
     void set_position(CSS::Positioning position) { m_noninherited.position = position; }
     void set_white_space(CSS::WhiteSpace value) { m_inherited.white_space = value; }
+    void set_word_spacing(CSS::LengthOrCalculated value) { m_inherited.word_spacing = value; }
     void set_width(CSS::Size const& width) { m_noninherited.width = width; }
     void set_min_width(CSS::Size const& width) { m_noninherited.min_width = width; }
     void set_max_width(CSS::Size const& width) { m_noninherited.max_width = width; }
