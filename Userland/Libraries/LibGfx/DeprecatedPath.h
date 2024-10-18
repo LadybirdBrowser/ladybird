@@ -155,16 +155,6 @@ public:
         invalidate_split_lines();
     }
 
-    void horizontal_line_to(float x)
-    {
-        line_to({ x, last_point().y() });
-    }
-
-    void vertical_line_to(float y)
-    {
-        line_to({ last_point().x(), y });
-    }
-
     void quadratic_bezier_curve_to(FloatPoint through, FloatPoint point)
     {
         append_segment<DeprecatedPathSegment::QuadraticBezierCurveTo>(through, point);
@@ -209,13 +199,6 @@ public:
     {
         (void)split_lines();
         return m_split_lines->bounding_box;
-    }
-
-    void append_path(DeprecatedPath const& path)
-    {
-        m_commands.extend(path.m_commands);
-        m_points.extend(path.m_points);
-        invalidate_split_lines();
     }
 
     ByteString to_byte_string() const;
