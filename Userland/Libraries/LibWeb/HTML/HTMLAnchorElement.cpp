@@ -13,6 +13,7 @@
 #include <LibWeb/HTML/HTMLAnchorElement.h>
 #include <LibWeb/HTML/HTMLImageElement.h>
 #include <LibWeb/HTML/Window.h>
+#include <LibWeb/Infra/CharacterTypes.h>
 #include <LibWeb/PixelUnits.h>
 #include <LibWeb/ReferrerPolicy/ReferrerPolicy.h>
 #include <LibWeb/UIEvents/MouseEvent.h>
@@ -64,6 +65,12 @@ WebIDL::ExceptionOr<void> HTMLAnchorElement::set_hyperlink_element_utils_href(St
 Optional<String> HTMLAnchorElement::hyperlink_element_utils_referrerpolicy() const
 {
     return attribute(HTML::AttributeNames::referrerpolicy);
+}
+
+Vector<StringView> HTMLAnchorElement::hyperlink_element_utils_subject_link_types() const
+{
+    String rel = MUST(this->rel().to_lowercase());
+    return rel.bytes_as_string_view().split_view_if(Infra::is_ascii_whitespace);
 }
 
 bool HTMLAnchorElement::has_activation_behavior() const
