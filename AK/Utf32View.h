@@ -119,6 +119,8 @@ public:
         return substring_view(offset, length() - offset);
     }
 
+    bool operator==(Utf32View const& other) const;
+
 private:
     u32 const* begin_ptr() const
     {
