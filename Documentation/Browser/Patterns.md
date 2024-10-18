@@ -144,7 +144,7 @@ is present and code should be placed in `Bindings/`.
 ## Testing
 
 Every feature or bug fix added to LibWeb should have a corresponding test in `Tests/LibWeb`.
-The test should be either a Text, Layout or Ref test depending on the feature.
+The test should be either a Text, Layout, Screenshot or Ref test depending on the feature.
 
 LibWeb tests can be run in one of two ways. The easiest is to use the `ladybird.sh` script. The LibWeb tests are
 registered with CMake as a test in `Ladybird/CMakeLists.txt`. Using the builtin test filtering, you can run all tests
@@ -152,16 +152,21 @@ with `Meta/ladybird.sh test` or run just the LibWeb tests with `Meta/ladybird.sh
 way is to invoke the headless browser test runner directly. See the invocation in `Ladybird/CMakeLists.txt` for the
 expected command line arguments.
 
-Running `Tests/LibWeb/add_libweb_test.py your-new-test-name` will create a new test HTML file in
-`Tests/LibWeb/Text/input/your-new-test-name.html` with the correct boilerplate code for a Text test — along with
-a corresponding expectations file in `Tests/LibWeb/Text/expected/your-new-test-name.txt`.
+Running `Tests/LibWeb/add_libweb_test.py your-new-test-name test_type` will create a new test HTML file in 
+`Tests/LibWeb/test_type(/input)` (`/input` is appended for Text and Layout tests) with the correct boilerplate
+code for a `test_type` test — along with a corresponding expectations file in the appropriate directory, e.g.,
+`Tests/LibWeb/Text/expected/your-new-test-name.txt`, for a Text test, or
+`Tests/LibWeb/Ref/reference/your-new-test-name.txt` for a Ref test. The accepted `test_types` are "Text",
+"Ref", "Screenshot", and "Layout". Quotes not necessary, case insensitive.
 
-After you update/replace the generated boilerplate in your `your-new-test-name.html` test file with your actual test,
-running `./Meta/ladybird.sh run headless-browser --run-tests "${LADYBIRD_SOURCE_DIR}/Tests/LibWeb" --rebaseline -f Text/input/foobar.html` will
-regenerate the corresponding expectations file — to match the actual output from your updated test (where
-`/opt/ladybird` should be replaced with the absolute path your ladybird clone in your local environment).
+If you make a new Text or Layout test, after you update/replace the generated boilerplate in your 
+`your-new-test-name.html` test file with your actual test, running 
+`./Meta/ladybird.sh run headless-browser --run-tests "${LADYBIRD_SOURCE_DIR}/Tests/LibWeb" --rebaseline -f Text/input/foobar.html` 
+will regenerate the corresponding expectations file to match the actual output from your updated test (
+`LADYBIRD_SOURCE_DIR` is the root of the Ladybird source tree. If you run `./Meta/ladybird.sh` from the
+directory you originally cloned the repo into, this doesn't need to be set.)
 
-Future versions of the `add_libweb_test.py` script will support Layout and Ref tests.
+If you add a new Ref or Screenshot test, you'll need to supply the equivalently rendering HTML manually.
 
 ### Text tests
 
@@ -173,3 +178,9 @@ compared to the expected output file by the test runner.
 Text tests can be either sync or async. Async tests should use the `done` callback to signal completion.
 Async tests are not necessarily run in an async context, they simply require the test function to signal completion
 when it is done. If an async context is needed to test the API, the lambda passed to `test` can be async.
+
+### Layout tests
+
+### Ref tests
+
+### Screenshot tests
