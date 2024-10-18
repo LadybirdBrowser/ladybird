@@ -229,6 +229,7 @@ MutationRecord
 NamedNodeMap
 NavigateEvent
 Navigation
+NavigationActivation
 NavigationCurrentEntryChangeEvent
 NavigationDestination
 NavigationHistoryEntry
