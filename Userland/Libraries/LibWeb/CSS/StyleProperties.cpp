@@ -135,6 +135,11 @@ RefPtr<CSSStyleValue const> StyleProperties::maybe_null_property(CSS::PropertyID
 CSS::Size StyleProperties::size_value(CSS::PropertyID id) const
 {
     auto value = property(id);
+    // Return none value for global CSS keywords to avoid crash
+    if (value->is_css_wide_keyword()) {
+        return CSS::Size::make_none();
+    }
+
     if (value->is_keyword()) {
         switch (value->to_keyword()) {
         case Keyword::Auto:
