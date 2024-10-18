@@ -25,14 +25,14 @@ Color CSSRGB::to_color(Optional<Layout::NodeWithStyle const&>) const
             return normalized(style_value.as_number().number());
 
         if (style_value.is_percentage())
-            return normalized(style_value.as_percentage().value() * 2.55);
+            return normalized(style_value.as_percentage().value() * 255 / 100);
 
         if (style_value.is_math()) {
             auto const& calculated = style_value.as_math();
             if (calculated.resolves_to_number())
                 return normalized(calculated.resolve_number().value());
             if (calculated.resolves_to_percentage())
-                return normalized(calculated.resolve_percentage().value().value() * 2.55);
+                return normalized(calculated.resolve_percentage().value().value() * 255 / 100);
         }
 
         if (style_value.is_keyword() && style_value.to_keyword() == Keyword::None)
