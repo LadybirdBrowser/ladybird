@@ -15,8 +15,8 @@ dictionary PointerEventInit : MouseEventInit {
     DOMString pointerType = "";
     boolean isPrimary = false;
     long persistentDeviceId = 0;
-    // FIXME: sequence<PointerEvent> coalescedEvents = [];
-    // FIXME: sequence<PointerEvent> predictedEvents = [];
+    sequence<PointerEvent> coalescedEvents = [];
+    sequence<PointerEvent> predictedEvents = [];
 };
 
 // https://w3c.github.io/pointerevents/#pointerevent-interface
@@ -36,6 +36,6 @@ interface PointerEvent : MouseEvent {
     readonly attribute DOMString pointerType;
     readonly attribute boolean isPrimary;
     readonly attribute long persistentDeviceId;
-    [FIXME, SecureContext] sequence<PointerEvent> getCoalescedEvents();
-    [FIXME] sequence<PointerEvent> getPredictedEvents();
+    [SecureContext] sequence<PointerEvent> getCoalescedEvents();
+    sequence<PointerEvent> getPredictedEvents();
 };
