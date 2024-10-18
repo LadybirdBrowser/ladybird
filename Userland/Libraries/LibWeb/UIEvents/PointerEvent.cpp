@@ -27,6 +27,13 @@ PointerEvent::PointerEvent(JS::Realm& realm, FlyString const& type, PointerEvent
     , m_is_primary(event_init.is_primary)
     , m_persistent_device_id(event_init.persistent_device_id)
 {
+    m_coalesced_events.ensure_capacity(event_init.coalesced_events.size());
+    for (auto const& coalesced_event : event_init.coalesced_events)
+        m_coalesced_events.unchecked_append(*coalesced_event);
+
+    m_predicted_events.ensure_capacity(event_init.predicted_events.size());
+    for (auto const& predicted_event : event_init.predicted_events)
+        m_predicted_events.unchecked_append(*predicted_event);
 }
 
 PointerEvent::~PointerEvent() = default;
@@ -35,6 +42,13 @@ void PointerEvent::initialize(JS::Realm& realm)
 {
     Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(PointerEvent);
+}
+
+void PointerEvent::visit_edges(Cell::Visitor& visitor)
+{
+    Base::visit_edges(visitor);
+    visitor.visit(m_coalesced_events);
+    visitor.visit(m_predicted_events);
 }
 
 JS::NonnullGCPtr<PointerEvent> PointerEvent::create(JS::Realm& realm, FlyString const& type, PointerEventInit const& event_init, double page_x, double page_y, double offset_x, double offset_y)
