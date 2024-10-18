@@ -4,8 +4,8 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#import <UI/Inspector.h>
 #import <UI/InspectorController.h>
+#import <UI/InspectorWindow.h>
 #import <UI/LadybirdWebView.h>
 #import <UI/Tab.h>
 
@@ -32,18 +32,30 @@
 
 #pragma mark - Private methods
 
-- (Inspector*)inspector
+- (InspectorWindow*)inspectorWindow
 {
-    return (Inspector*)[self window];
+    return (InspectorWindow*)[self window];
 }
 
 #pragma mark - NSWindowController
 
 - (IBAction)showWindow:(id)sender
 {
-    self.window = [[Inspector alloc] init:self.tab];
+    self.window = [[InspectorWindow alloc] init:self.tab];
     [self.window setDelegate:self];
     [self.window makeKeyAndOrderFront:sender];
+}
+
+- (void)close
+{
+    // Temporarily remove the window delegate to prevent `windowWillClose`
+    // from being called. This avoids deallocating the inspector when
+    // we just want to move it to the main window and close the
+    // inspector's window
+    auto delegate = self.window.delegate;
+    [self.window setDelegate:nil];
+    [self.window close];
+    [self.window setDelegate:delegate];
 }
 
 #pragma mark - NSWindowDelegate
@@ -56,13 +68,13 @@
 - (void)windowDidResize:(NSNotification*)notification
 {
     if (![[self window] inLiveResize]) {
-        [[[self inspector] web_view] handleResize];
+        [[[self tab] web_view] handleResize];
     }
 }
 
 - (void)windowDidChangeBackingProperties:(NSNotification*)notification
 {
-    [[[self inspector] web_view] handleDevicePixelRatioChange];
+    [[[self tab] web_view] handleDevicePixelRatioChange];
 }
 
 @end

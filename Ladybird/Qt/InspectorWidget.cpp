@@ -20,15 +20,16 @@ namespace Ladybird {
 
 extern bool is_using_dark_system_theme(QWidget&);
 
-InspectorWidget::InspectorWidget(QWidget* tab, WebContentView& content_view)
-    : QWidget(tab, Qt::Window)
+InspectorWidget::InspectorWidget(QWidget* tab, WebContentView& content_view, Qt::WindowType window_type)
+    : QWidget(tab, window_type)
 {
     m_inspector_view = new WebContentView(this);
 
     if (is_using_dark_system_theme(*this))
         m_inspector_view->update_palette(WebContentView::PaletteMode::Dark);
 
-    m_inspector_client = make<WebView::InspectorClient>(content_view, *m_inspector_view);
+    auto is_windowed = window_type == Qt::Window;
+    m_inspector_client = make<WebView::InspectorClient>(content_view, *m_inspector_view, is_windowed);
 
     m_edit_node_action = new QAction("&Edit node", this);
     connect(m_edit_node_action, &QAction::triggered, [this]() { m_inspector_client->context_menu_edit_dom_node(); });
@@ -136,11 +137,15 @@ InspectorWidget::InspectorWidget(QWidget* tab, WebContentView& content_view)
         m_cookie_context_menu->exec(m_inspector_view->map_point_to_global_position(position));
     };
 
+    m_inspector_client->on_requested_close = [this]() {
+        close();
+    };
+
     setLayout(new QVBoxLayout);
     layout()->addWidget(m_inspector_view);
 
-    setWindowTitle("Inspector");
-    resize(875, 825);
+    if (is_windowed)
+        setWindowTitle("Inspector");
 
     // Listen for DPI changes
     m_device_pixel_ratio = devicePixelRatio();
@@ -181,6 +186,14 @@ void InspectorWidget::select_hovered_node()
 void InspectorWidget::select_default_node()
 {
     m_inspector_client->select_default_node();
+}
+
+void InspectorWidget::setWindowFlag(Qt::WindowType flag, bool on)
+{
+    QWidget::setWindowFlag(flag, on);
+
+    auto is_windowed = flag == Qt::Window;
+    m_inspector_client->set_is_windowed(is_windowed);
 }
 
 void InspectorWidget::device_pixel_ratio_changed(qreal dpi)

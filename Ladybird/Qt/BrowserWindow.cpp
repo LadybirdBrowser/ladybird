@@ -363,6 +363,15 @@ BrowserWindow::BrowserWindow(Vector<URL::URL> const& initial_urls, IsPopupWindow
         }
     });
 
+    auto* inspector_pane_action = new QAction("Open Inspector Pane", this);
+    inspector_pane_action->setIcon(load_icon_from_uri("resource://icons/browser/dom-tree.png"sv));
+    inspect_menu->addAction(inspector_pane_action);
+    QObject::connect(inspector_pane_action, &QAction::triggered, this, [this] {
+        if (m_current_tab) {
+            m_current_tab->show_inspector_pane();
+        }
+    });
+
     auto* task_manager_action = new QAction("Open Task &Manager", this);
     task_manager_action->setIcon(load_icon_from_uri("resource://icons/16x16/app-system-monitor.png"sv));
     task_manager_action->setShortcuts({ QKeySequence("Ctrl+Shift+M") });
