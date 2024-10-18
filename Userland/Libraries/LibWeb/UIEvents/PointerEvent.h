@@ -24,6 +24,7 @@ struct PointerEventInit : public MouseEventInit {
     Optional<double> azimuth_angle;
     String pointer_type;
     bool is_primary { false };
+    WebIDL::Long persistent_device_id { 0 };
 };
 
 // https://w3c.github.io/pointerevents/#pointerevent-interface
@@ -49,6 +50,7 @@ public:
     double azimuth_angle() const { return m_azimuth_angle; }
     String const& pointer_type() const { return m_pointer_type; }
     bool is_primary() const { return m_is_primary; }
+    WebIDL::Long persistent_device_id() const { return m_persistent_device_id; }
 
     // https://w3c.github.io/pointerevents/#dom-pointerevent-pressure
     // For hardware and platforms that do not support pressure, the value MUST be 0.5 when in the active buttons state and 0 otherwise.
@@ -119,6 +121,10 @@ private:
     // Indicates if the pointer represents the primary pointer of this pointer type
     // https://w3c.github.io/pointerevents/#dom-pointerevent-isprimary
     bool m_is_primary { false };
+
+    // A unique identifier for the pointing device.
+    // https://w3c.github.io/pointerevents/#dom-pointerevent-persistentdeviceid
+    WebIDL::Long m_persistent_device_id { 0 };
 };
 
 }

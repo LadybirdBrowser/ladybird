@@ -25,6 +25,7 @@ PointerEvent::PointerEvent(JS::Realm& realm, FlyString const& type, PointerEvent
     , m_azimuth_angle(event_init.azimuth_angle.value_or(0))
     , m_pointer_type(event_init.pointer_type)
     , m_is_primary(event_init.is_primary)
+    , m_persistent_device_id(event_init.persistent_device_id)
 {
 }
 
