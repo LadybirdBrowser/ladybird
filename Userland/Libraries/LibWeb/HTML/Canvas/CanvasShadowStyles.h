@@ -1,4 +1,6 @@
 /*
+ * Copyright (c) 2024, İbrahim UYSAL <uysalibov@gmail.com>
+ *
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
