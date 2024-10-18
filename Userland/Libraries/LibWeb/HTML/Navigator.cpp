@@ -6,6 +6,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/Platform.h>
 #include <LibJS/Heap/Heap.h>
 #include <LibJS/Runtime/Realm.h>
 #include <LibWeb/Bindings/Intrinsics.h>
@@ -17,6 +18,15 @@
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/Loader/ResourceLoader.h>
 #include <LibWeb/Page/Page.h>
+
+#ifdef AK_OS_MACOS
+#    include <IOKit/IOKitLib.h>
+#    include <IOKit/hid/IOHIDLib.h>
+#endif
+
+#ifdef AK_OS_LINUX
+#    include <fstream>
+#endif
 
 namespace Web::HTML {
 
@@ -101,8 +111,40 @@ JS::NonnullGCPtr<UserActivation> Navigator::user_activation()
 // https://w3c.github.io/pointerevents/#dom-navigator-maxtouchpoints
 WebIDL::Long Navigator::max_touch_points()
 {
-    dbgln("FIXME: Unimplemented Navigator.maxTouchPoints");
-    return 0;
+    int max_touch_points = 0;
+
+#if defined(AK_OS_LINUX)
+    std::ifstream file("/proc/bus/input/devices");
+    std::string line;
+    while (std::getline(file, line)) {
+        if (line.find("ABS_MT_SLOT") != std::string::npos) {
+            max_touch_points++;
+        }
+    }
+#elif defined(AK_OS_MACOS)
+    CFMutableDictionaryRef matchingDict = IOServiceMatching(kIOHIDDeviceKey);
+    io_iterator_t iterator;
+    if (IOServiceGetMatchingServices(kIOMainPortDefault, matchingDict, &iterator) == KERN_SUCCESS) {
+        io_object_t device;
+        while ((device = IOIteratorNext(iterator))) {
+            CFTypeRef maxTouchPointsRef = IORegistryEntryCreateCFProperty(device, CFSTR(kIOHIDMaxInputReportSizeKey), kCFAllocatorDefault, 0);
+            if (maxTouchPointsRef) {
+                if (CFGetTypeID(maxTouchPointsRef) == CFNumberGetTypeID()) {
+                    int value;
+                    CFNumberGetValue((CFNumberRef)maxTouchPointsRef, kCFNumberIntType, &value);
+                    if (value > max_touch_points) {
+                        max_touch_points = value;
+                    }
+                }
+                CFRelease(maxTouchPointsRef);
+            }
+            IOObjectRelease(device);
+        }
+        IOObjectRelease(iterator);
+    }
+#endif
+
+    return max_touch_points;
 }
 
 // https://www.w3.org/TR/tracking-dnt/#dom-navigator-donottrack
