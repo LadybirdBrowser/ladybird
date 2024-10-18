@@ -1,5 +1,6 @@
 #import <UIEvents/MouseEvent.idl>
 
+// https://w3c.github.io/pointerevents/#ref-for-dom-pointereventinit-1
 dictionary PointerEventInit : MouseEventInit {
     long pointerId = 0;
     double width = 1;
@@ -13,8 +14,9 @@ dictionary PointerEventInit : MouseEventInit {
     double azimuthAngle;
     DOMString pointerType = "";
     boolean isPrimary = false;
-    // FIXME: sequence<PointerEvent> coalescedEvents = [];
-    // FIXME: sequence<PointerEvent> predictedEvents = [];
+    long persistentDeviceId = 0;
+    sequence<PointerEvent> coalescedEvents = [];
+    sequence<PointerEvent> predictedEvents = [];
 };
 
 // https://w3c.github.io/pointerevents/#pointerevent-interface
@@ -33,6 +35,7 @@ interface PointerEvent : MouseEvent {
     readonly attribute double azimuthAngle;
     readonly attribute DOMString pointerType;
     readonly attribute boolean isPrimary;
-    [FIXME, SecureContext] sequence<PointerEvent> getCoalescedEvents();
-    [FIXME] sequence<PointerEvent> getPredictedEvents();
+    readonly attribute long persistentDeviceId;
+    [SecureContext] sequence<PointerEvent> getCoalescedEvents();
+    sequence<PointerEvent> getPredictedEvents();
 };
