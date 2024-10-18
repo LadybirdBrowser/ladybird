@@ -261,11 +261,11 @@ void WebContentClient::did_request_media_context_menu(u64 page_id, Gfx::IntPoint
     }
 }
 
-void WebContentClient::did_get_source(u64 page_id, URL::URL const& url, ByteString const& source)
+void WebContentClient::did_get_source(u64 page_id, URL::URL const& url, URL::URL const& base_url, String const& source)
 {
     if (auto view = view_for_page_id(page_id); view.has_value()) {
         if (view->on_received_source)
-            view->on_received_source(url, source);
+            view->on_received_source(url, base_url, source);
     }
 }
 
@@ -720,11 +720,11 @@ void WebContentClient::inspector_did_request_style_sheet_source(u64 page_id, Web
     }
 }
 
-void WebContentClient::did_request_style_sheet_source(u64 page_id, Web::CSS::StyleSheetIdentifier const& identifier, String const& source)
+void WebContentClient::did_get_style_sheet_source(u64 page_id, Web::CSS::StyleSheetIdentifier const& identifier, URL::URL const& base_url, String const& source)
 {
     if (auto view = view_for_page_id(page_id); view.has_value()) {
         if (view->on_received_style_sheet_source)
-            view->on_received_style_sheet_source(identifier, source);
+            view->on_received_style_sheet_source(identifier, base_url, source);
     }
 }
 

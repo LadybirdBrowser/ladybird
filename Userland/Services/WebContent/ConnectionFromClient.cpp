@@ -432,7 +432,7 @@ void ConnectionFromClient::get_source(u64 page_id)
 {
     if (auto page = this->page(page_id); page.has_value()) {
         if (auto* doc = page->page().top_level_browsing_context().active_document())
-            async_did_get_source(page_id, doc->url(), doc->source().to_byte_string());
+            async_did_get_source(page_id, doc->url(), doc->base_url(), doc->source());
     }
 }
 
@@ -644,9 +644,8 @@ void ConnectionFromClient::request_style_sheet_source(u64 page_id, Web::CSS::Sty
         return;
 
     if (auto* document = page->page().top_level_browsing_context().active_document()) {
-        auto stylesheet = document->get_style_sheet_source(identifier);
-        if (stylesheet.has_value())
-            async_did_request_style_sheet_source(page_id, identifier, stylesheet.value());
+        if (auto stylesheet = document->get_style_sheet_source(identifier); stylesheet.has_value())
+            async_did_get_style_sheet_source(page_id, identifier, document->base_url(), stylesheet.value());
     }
 }
 
