@@ -1056,7 +1056,7 @@ static void copy_data_to_clipboard(StringView data, NSPasteboardType pasteboard_
         if (self == nil) {
             return;
         }
-        auto html = WebView::highlight_source(MUST(url.to_string()), source, Syntax::Language::HTML, WebView::HighlightOutputMode::FullDocument);
+        auto html = WebView::highlight_source(url, source, Syntax::Language::HTML, WebView::HighlightOutputMode::FullDocument);
 
         [self.observer onCreateNewTab:html
                                   url:url
