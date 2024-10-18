@@ -702,6 +702,22 @@ Variant<LengthOrCalculated, NumberOrCalculated> StyleProperties::tab_size() cons
     return NumberOrCalculated { value->as_number().number() };
 }
 
+Optional<CSS::LengthOrCalculated> StyleProperties::word_spacing() const
+{
+    auto value = property(CSS::PropertyID::WordSpacing);
+    if (value->is_math()) {
+        auto& math_value = value->as_math();
+        if (math_value.resolves_to_length()) {
+            return LengthOrCalculated { math_value };
+        }
+    }
+
+    if (value->is_length())
+        return LengthOrCalculated { value->as_length().length() };
+
+    return {};
+}
+
 Optional<CSS::WhiteSpace> StyleProperties::white_space() const
 {
     auto value = property(CSS::PropertyID::WhiteSpace);
