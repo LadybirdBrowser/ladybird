@@ -321,8 +321,8 @@ Tab::Tab(BrowserWindow* window, RefPtr<WebView::WebContentClient> parent_client,
 
     QObject::connect(focus_location_editor_action, &QAction::triggered, this, &Tab::focus_location_editor);
 
-    view().on_received_source = [this](auto const& url, auto const& source) {
-        auto html = WebView::highlight_source(MUST(url.to_string()), source, Syntax::Language::HTML, WebView::HighlightOutputMode::FullDocument);
+    view().on_received_source = [this](auto const& url, auto const& base_url, auto const& source) {
+        auto html = WebView::highlight_source(url, base_url, source, Syntax::Language::HTML, WebView::HighlightOutputMode::FullDocument);
         m_window->new_tab_from_content(html, Web::HTML::ActivateTab::Yes);
     };
 

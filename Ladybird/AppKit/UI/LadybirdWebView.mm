@@ -1051,12 +1051,12 @@ static void copy_data_to_clipboard(StringView data, NSPasteboardType pasteboard_
         return Ladybird::ns_rect_to_gfx_rect([[self window] frame]);
     };
 
-    m_web_view_bridge->on_received_source = [weak_self](auto const& url, auto const& source) {
+    m_web_view_bridge->on_received_source = [weak_self](auto const& url, auto const& base_url, auto const& source) {
         LadybirdWebView* self = weak_self;
         if (self == nil) {
             return;
         }
-        auto html = WebView::highlight_source(MUST(url.to_string()), source, Syntax::Language::HTML, WebView::HighlightOutputMode::FullDocument);
+        auto html = WebView::highlight_source(url, base_url, source, Syntax::Language::HTML, WebView::HighlightOutputMode::FullDocument);
 
         [self.observer onCreateNewTab:html
                                   url:url

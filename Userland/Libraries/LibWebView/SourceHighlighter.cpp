@@ -11,6 +11,7 @@
 #include <LibURL/URL.h>
 #include <LibWeb/CSS/Parser/Token.h>
 #include <LibWeb/CSS/SyntaxHighlighter/SyntaxHighlighter.h>
+#include <LibWeb/DOMURL/DOMURL.h>
 #include <LibWeb/HTML/SyntaxHighlighter/SyntaxHighlighter.h>
 #include <LibWebView/SourceHighlighter.h>
 
@@ -113,10 +114,10 @@ void SourceHighlighterClient::highlighter_did_set_folding_regions(Vector<Syntax:
     document().set_folding_regions(move(folding_regions));
 }
 
-String highlight_source(String const& url, StringView source, Syntax::Language language, HighlightOutputMode mode)
+String highlight_source(URL::URL const& url, URL::URL const& base_url, StringView source, Syntax::Language language, HighlightOutputMode mode)
 {
     SourceHighlighterClient highlighter_client { source, language };
-    return highlighter_client.to_html_string(url, mode);
+    return highlighter_client.to_html_string(url, base_url, mode);
 }
 
 StringView SourceHighlighterClient::class_for_token(u64 token_type) const
@@ -232,7 +233,7 @@ StringView SourceHighlighterClient::class_for_token(u64 token_type) const
     }
 }
 
-String SourceHighlighterClient::to_html_string(String const& url, HighlightOutputMode mode) const
+String SourceHighlighterClient::to_html_string(URL::URL const& url, URL::URL const& base_url, HighlightOutputMode mode) const
 {
     StringBuilder builder;
 
@@ -266,13 +267,29 @@ String SourceHighlighterClient::to_html_string(String const& url, HighlightOutpu
 <head>
     <meta name="color-scheme" content="dark light">)~~~"sv);
 
-        builder.appendff("<title>View Source - {}</title>", escape_html_entities(url));
+        builder.appendff("<title>View Source - {}</title>", escape_html_entities(url.serialize_for_display()));
         builder.appendff("<style type=\"text/css\">{}</style>", HTML_HIGHLIGHTER_STYLE);
         builder.append(R"~~~(
 </head>
 <body>)~~~"sv);
     }
     builder.append("<pre class=\"html\">"sv);
+
+    static constexpr auto href = to_array<u32>({ 'h', 'r', 'e', 'f' });
+    static constexpr auto src = to_array<u32>({ 's', 'r', 'c' });
+    bool linkify_attribute = false;
+
+    auto resolve_url_for_attribute = [&](Utf32View const& attribute_value) -> Optional<URL::URL> {
+        if (!linkify_attribute)
+            return {};
+
+        auto attribute_url = MUST(String::formatted("{}", attribute_value));
+        auto attribute_url_without_quotes = attribute_url.bytes_as_string_view().trim("\""sv);
+
+        if (auto resolved = Web::DOMURL::parse(attribute_url_without_quotes, base_url); resolved.is_valid())
+            return resolved;
+        return {};
+    };
 
     size_t span_index = 0;
     for (size_t line_index = 0; line_index < document().line_count(); ++line_index) {
@@ -286,11 +303,27 @@ String SourceHighlighterClient::to_html_string(String const& url, HighlightOutpu
             size_t length = end - start;
             if (length == 0)
                 return;
+
             auto text = line_view.substring_view(start, length);
+
             if (span.has_value()) {
+                bool append_anchor_close = false;
+
+                if (span->data == to_underlying(Web::HTML::AugmentedTokenKind::AttributeName)) {
+                    linkify_attribute = text == Utf32View { href } || text == Utf32View { src };
+                } else if (span->data == to_underlying(Web::HTML::AugmentedTokenKind::AttributeValue)) {
+                    if (auto href = resolve_url_for_attribute(text); href.has_value()) {
+                        builder.appendff("<a href=\"{}\">", *href);
+                        append_anchor_close = true;
+                    }
+                }
+
                 start_token(span->data);
                 append_escaped(text);
                 end_token();
+
+                if (append_anchor_close)
+                    builder.append("</a>"sv);
             } else {
                 append_escaped(text);
             }
