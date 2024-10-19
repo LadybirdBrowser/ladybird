@@ -22,6 +22,12 @@ struct AudioNodeOptions {
     Optional<Bindings::ChannelInterpretation> channel_interpretation;
 };
 
+struct AudioNodeDefaultOptions {
+    WebIDL::UnsignedLong channel_count;
+    Bindings::ChannelCountMode channel_count_mode;
+    Bindings::ChannelInterpretation channel_interpretation;
+};
+
 // https://webaudio.github.io/web-audio-api/#AudioNode
 class AudioNode : public DOM::EventTarget {
     WEB_PLATFORM_OBJECT(AudioNode, DOM::EventTarget);
@@ -62,7 +68,7 @@ public:
     WebIDL::ExceptionOr<void> set_channel_interpretation(Bindings::ChannelInterpretation);
     Bindings::ChannelInterpretation channel_interpretation();
 
-    WebIDL::ExceptionOr<void> initialize_audio_node_options(JS::NonnullGCPtr<BaseAudioContext> context, AudioNodeOptions const& given_options, AudioNodeOptions const& default_options);
+    WebIDL::ExceptionOr<void> initialize_audio_node_options(AudioNodeOptions const& given_options, AudioNodeDefaultOptions const& default_options);
 
 protected:
     AudioNode(JS::Realm&, JS::NonnullGCPtr<BaseAudioContext>);

@@ -21,28 +21,28 @@ AudioNode::AudioNode(JS::Realm& realm, JS::NonnullGCPtr<BaseAudioContext> contex
 
 AudioNode::~AudioNode() = default;
 
-WebIDL::ExceptionOr<void> AudioNode::initialize_audio_node_options(JS::NonnullGCPtr<BaseAudioContext> context, AudioNodeOptions const& given_options, AudioNodeOptions const& default_options)
+WebIDL::ExceptionOr<void> AudioNode::initialize_audio_node_options(AudioNodeOptions const& given_options, AudioNodeDefaultOptions const& default_options)
 {
-    // FIXME: Context will be used in the future implementation.
-    (void)context; // Cast to void to avoid unused parameter warning.
-
     // Set channel count, fallback to default if not provided
     if (given_options.channel_count.has_value()) {
         TRY(set_channel_count(given_options.channel_count.value()));
-    } else if (default_options.channel_count.has_value()) {
-        TRY(set_channel_count(default_options.channel_count.value()));
+    } else {
+        TRY(set_channel_count(default_options.channel_count));
     }
 
     // Set channel count mode, fallback to default if not provided
     if (given_options.channel_count_mode.has_value()) {
         TRY(set_channel_count_mode(given_options.channel_count_mode.value()));
-    } else if (default_options.channel_count_mode.has_value()) {
-        TRY(set_channel_count_mode(default_options.channel_count_mode.value()));
+    } else {
+        TRY(set_channel_count_mode(default_options.channel_count_mode));
     }
 
     // Set channel interpretation, fallback to default if not provided
-    Bindings::ChannelInterpretation channel_interpretation_to_set = given_options.channel_interpretation.value_or(default_options.channel_interpretation.value_or(Bindings::ChannelInterpretation::Speakers));
-    TRY(set_channel_interpretation(channel_interpretation_to_set));
+    if (given_options.channel_interpretation.has_value()) {
+        TRY(set_channel_interpretation(given_options.channel_interpretation.value()));
+    } else {
+        TRY(set_channel_interpretation(default_options.channel_interpretation));
+    }
 
     return {};
 }

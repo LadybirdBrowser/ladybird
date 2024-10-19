@@ -41,6 +41,7 @@ public:
     float reduction() const { return m_reduction; }
 
     WebIDL::ExceptionOr<void> set_channel_count_mode(Bindings::ChannelCountMode) override;
+    WebIDL::ExceptionOr<void> set_channel_count(WebIDL::UnsignedLong) override;
 
 protected:
     DynamicsCompressorNode(JS::Realm&, JS::NonnullGCPtr<BaseAudioContext>, DynamicsCompressorOptions const& = {});
