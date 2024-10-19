@@ -20,12 +20,12 @@
 #include <LibURL/Origin.h>
 #include <LibWeb/Bindings/XMLHttpRequestPrototype.h>
 #include <LibWeb/DOM/Document.h>
-#include <LibWeb/DOMURL/DOMURL.h>
 #include <LibWeb/DOM/DocumentLoading.h>
 #include <LibWeb/DOM/Event.h>
 #include <LibWeb/DOM/EventDispatcher.h>
 #include <LibWeb/DOM/IDLEventListener.h>
 #include <LibWeb/DOM/XMLDocument.h>
+#include <LibWeb/DOMURL/DOMURL.h>
 #include <LibWeb/Fetch/BodyInit.h>
 #include <LibWeb/Fetch/Fetching/Fetching.h>
 #include <LibWeb/Fetch/Infrastructure/FetchAlgorithms.h>
@@ -481,8 +481,10 @@ WebIDL::ExceptionOr<void> XMLHttpRequest::open(String const& method_string, Stri
     auto normalized_method = Fetch::Infrastructure::normalize_method(method);
 
     // 5. Let parsedURL be the result of parsing url with this’s relevant settings object’s API base URL and this’s relevant settings object’s API URL character encoding.
-    // FIXME: Pass in this’s relevant settings object’s API URL character encoding.
-    auto parsed_url = DOMURL::parse(url, HTML::relevant_settings_object(*this).api_base_url(), {});
+    auto& relevant_settings_object = HTML::relevant_settings_object(*this);
+    auto api_base_url = relevant_settings_object.api_base_url();
+    auto api_url_character_encoding = relevant_settings_object.api_url_character_encoding();
+    auto parsed_url = DOMURL::parse(url, api_base_url, api_url_character_encoding);
 
     // 6. If parsedURL is failure, then throw a "SyntaxError" DOMException.
     if (!parsed_url.is_valid())
