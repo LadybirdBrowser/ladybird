@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<details id="details9" open>
+  <p>Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.</p>
+</details>
+<script>
+    asyncTest(done => {
+        details9 = document.getElementById('details9');
+
+        details9.ontoggle = function(e) {
+            println(`target.open is ${e.target.open}`)
+            if (e.target.open) {
+                println("this should not be called")
+            } else {
+                println("this should be called")
+                done()
+            }
+        }
+        details9.open = true;
+        println("details9.open set to true")
+        println(`details9.open is still ${details9.open}`)
+
+        // End the test by retrigging the event
+        details9.open = false;
+    });
+</script>
