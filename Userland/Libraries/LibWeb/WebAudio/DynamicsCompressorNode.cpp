@@ -27,16 +27,17 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<DynamicsCompressorNode>> DynamicsCompressor
     auto node = realm.vm().heap().allocate<DynamicsCompressorNode>(realm, realm, context, options);
 
     // Default options for channel count and interpretation
-    AudioNodeOptions default_options;
+    // https://webaudio.github.io/web-audio-api/#DynamicsCompressorNode
+    AudioNodeDefaultOptions default_options;
     default_options.channel_count_mode = Bindings::ChannelCountMode::ClampedMax;
     default_options.channel_interpretation = Bindings::ChannelInterpretation::Speakers;
+    default_options.channel_count = 2;
+    // FIXME: Set tail-time to yes
 
-    // Initialize the AudioNode with the given options, default options, and context
-    TRY(node->initialize_audio_node_options(context, options, default_options));
+    TRY(node->initialize_audio_node_options(options, default_options));
 
     return node;
 }
-
 
 DynamicsCompressorNode::DynamicsCompressorNode(JS::Realm& realm, JS::NonnullGCPtr<BaseAudioContext> context, DynamicsCompressorOptions const& options)
     : AudioNode(realm, context)
@@ -74,6 +75,18 @@ WebIDL::ExceptionOr<void> DynamicsCompressorNode::set_channel_count_mode(Binding
 
     // If the mode is valid, call the base class implementation
     return AudioNode::set_channel_count_mode(mode);
+}
+
+// https://webaudio.github.io/web-audio-api/#dom-audionode-channelcount
+WebIDL::ExceptionOr<void> DynamicsCompressorNode::set_channel_count(WebIDL::UnsignedLong channel_count)
+{
+    if (channel_count > 2) {
+        // Return a NotSupportedError if 'max' is used
+        return WebIDL::NotSupportedError::create(realm(), "DynamicsCompressorNode does not support channel count greater than 2"_string);
+    }
+
+    // If the mode is valid, call the base class implementation
+    return AudioNode::set_channel_count(channel_count);
 }
 
 }
