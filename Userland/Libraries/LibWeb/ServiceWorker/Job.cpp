@@ -7,7 +7,16 @@
 #include <LibJS/Heap/Heap.h>
 #include <LibJS/Runtime/VM.h>
 #include <LibURL/URL.h>
+#include <LibWeb/DOMURL/DOMURL.h>
+#include <LibWeb/Fetch/Fetching/Fetching.h>
+#include <LibWeb/Fetch/Infrastructure/FetchController.h>
+#include <LibWeb/Fetch/Response.h>
+#include <LibWeb/HTML/Scripting/ClassicScript.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
+#include <LibWeb/HTML/Scripting/Fetching.h>
+#include <LibWeb/HTML/Scripting/ModuleMap.h>
+#include <LibWeb/HTML/Scripting/ModuleScript.h>
+#include <LibWeb/HTML/Scripting/Script.h>
 #include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
 #include <LibWeb/SecureContexts/AbstractOperations.h>
 #include <LibWeb/ServiceWorker/Job.h>
@@ -135,13 +144,283 @@ static void register_(JS::VM& vm, JS::NonnullGCPtr<Job> job)
     update(vm, job);
 }
 
+// Used to share internal Update algorithm state b/w fetch callbacks
+class UpdateAlgorithmState : JS::Cell {
+    JS_CELL(UpdateAlgorithmState, JS::Cell);
+
+public:
+    static JS::NonnullGCPtr<UpdateAlgorithmState> create(JS::VM& vm)
+    {
+        return vm.heap().allocate_without_realm<UpdateAlgorithmState>();
+    }
+
+    OrderedHashMap<URL::URL, JS::NonnullGCPtr<Fetch::Infrastructure::Response>>& updated_resource_map() { return m_map; }
+    bool has_updated_resources() const { return m_has_updated_resources; }
+    void set_has_updated_resources(bool b) { m_has_updated_resources = b; }
+
+private:
+    UpdateAlgorithmState() = default;
+
+    virtual void visit_edges(JS::Cell::Visitor& visitor) override
+    {
+        Base::visit_edges(visitor);
+        visitor.visit(m_map);
+    }
+
+    OrderedHashMap<URL::URL, JS::NonnullGCPtr<Fetch::Infrastructure::Response>> m_map;
+    bool m_has_updated_resources { false };
+};
+
+// https://w3c.github.io/ServiceWorker/#update
 static void update(JS::VM& vm, JS::NonnullGCPtr<Job> job)
 {
-    // If there's no client, there won't be any promises to resolve
-    if (job->client) {
-        auto context = HTML::TemporaryExecutionContext(*job->client, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes);
-        auto& realm = *vm.current_realm();
-        WebIDL::reject_promise(realm, *job->job_promise, *vm.throw_completion<JS::InternalError>(JS::ErrorType::NotImplemented, "Service Worker update"sv).value());
+    // 1. Let registration be the result of running Get Registration given job’s storage key and job’s scope url.
+    auto registration = Registration::get(job->storage_key, job->scope_url);
+
+    // 2. If registration is null, then:
+    if (!registration.has_value()) {
+        // 1. Invoke Reject Job Promise with job and TypeError.
+        reject_job_promise<JS::TypeError>(job, "Service Worker registration not found on update"_string);
+
+        // 2. Invoke Finish Job with job and abort these steps.
+        finish_job(vm, job);
+        return;
+    }
+
+    // 3. Let newestWorker be the result of running Get Newest Worker algorithm passing registration as the argument.
+    auto* newest_worker = registration->newest_worker();
+
+    // 4. If job’s job type is update, and newestWorker is not null and its script url does not equal job’s script url, then:
+    if (job->job_type == Job::Type::Update && newest_worker != nullptr && newest_worker->script_url != job->script_url) {
+        // 1. Invoke Reject Job Promise with job and TypeError.
+        reject_job_promise<JS::TypeError>(job, "Service Worker script URL mismatch on update"_string);
+
+        // 2. Invoke Finish Job with job and abort these steps.
+        finish_job(vm, job);
+        return;
+    }
+
+    // 5. Let hasUpdatedResources be false.
+    // 6. Let updatedResourceMap be an ordered map where the keys are URLs and the values are responses.
+    auto state = UpdateAlgorithmState::create(vm);
+
+    // Fetch time, with a few caveats:
+    // - The spec says to use the 'to be created environment settings object for this service worker'
+    // - Soft-Update has no client
+
+    // To perform the fetch hook given request, run the following steps:
+    auto perform_the_fetch_hook_function = [&registration = *registration, job, newest_worker, state](JS::NonnullGCPtr<Fetch::Infrastructure::Request> request, HTML::TopLevelModule top_level, Fetch::Infrastructure::FetchAlgorithms::ProcessResponseConsumeBodyFunction process_custom_fetch_response) -> WebIDL::ExceptionOr<void> {
+        // FIXME: Soft-Update has no client
+        auto& realm = job->client->realm();
+        auto& vm = realm.vm();
+
+        // 1. Append `Service-Worker`/`script` to request’s header list.
+        // Note: See https://w3c.github.io/ServiceWorker/#service-worker
+        request->header_list()->append(Fetch::Infrastructure::Header::from_string_pair("Service-Worker"sv, "script"sv));
+
+        // 2. Set request’s cache mode to "no-cache" if any of the following are true:
+        //  - registration’s update via cache mode is not "all".
+        //  - job’s force bypass cache flag is set.
+        //  - newestWorker is not null and registration is stale.
+        if (registration.update_via_cache() != Bindings::ServiceWorkerUpdateViaCache::All
+            || job->force_cache_bypass
+            || (newest_worker != nullptr && registration.is_stale())) {
+            request->set_cache_mode(Fetch::Infrastructure::Request::CacheMode::NoCache);
+        }
+
+        // 3. Set request’s service-workers mode to "none".
+        request->set_service_workers_mode(Fetch::Infrastructure::Request::ServiceWorkersMode::None);
+
+        Web::Fetch::Infrastructure::FetchAlgorithms::Input fetch_algorithms_input {};
+        fetch_algorithms_input.process_response_consume_body = move(process_custom_fetch_response);
+
+        // 4. If the isTopLevel flag is unset, then return the result of fetching request.
+        // FIXME: Needs spec issue, this wording is confusing and contradicts the way perform the fetch hook is used in `run a worker`
+        if (top_level == HTML::TopLevelModule::No) {
+            TRY(Web::Fetch::Fetching::fetch(realm, request, Web::Fetch::Infrastructure::FetchAlgorithms::create(vm, move(fetch_algorithms_input))));
+            return {};
+        }
+
+        // 5. Set request's redirect mode to "error".
+        request->set_redirect_mode(Fetch::Infrastructure::Request::RedirectMode::Error);
+
+        // 6. Fetch request, and asynchronously wait to run the remaining steps as part of fetch’s processResponse for the response response.
+        // Note: The rest of the steps are in the processCustomFetchResponse algorithm
+        // FIXME: Needs spec issue to mention the existence of processCustomFetchResponse, same as step 4
+
+        // FIXME: Is there a better way to 'wait' for the fetch's processResponse to complete?
+        //        Is this actually what the spec wants us to do?
+        IGNORE_USE_IN_ESCAPING_LAMBDA auto process_response_completion_result = Optional<WebIDL::ExceptionOr<void>> {};
+
+        fetch_algorithms_input.process_response = [request, job, state, newest_worker, &realm, &registration, &process_response_completion_result](JS::NonnullGCPtr<Fetch::Infrastructure::Response> response) mutable -> void {
+            // 7. Extract a MIME type from the response’s header list. If s MIME type (ignoring parameters) is not a JavaScript MIME type, then:
+            auto mime_type = response->header_list()->extract_mime_type();
+            if (!mime_type.has_value() || !mime_type->is_javascript()) {
+                // 1. Invoke Reject Job Promise with job and "SecurityError" DOMException.
+                reject_job_promise<WebIDL::SecurityError>(job, "Service Worker script response is not a JavaScript MIME type"_string);
+
+                // 2. Asynchronously complete these steps with a network error.
+                process_response_completion_result = WebIDL::NetworkError::create(realm, "Service Worker script response is not a JavaScript MIME type"_string);
+                return;
+            }
+
+            // 8. Let serviceWorkerAllowed be the result of extracting header list values given `Service-Worker-Allowed` and response’s header list.
+            // Note: See the definition of the Service-Worker-Allowed header in Appendix B: Extended HTTP headers. https://w3c.github.io/ServiceWorker/#service-worker-allowed
+            auto service_worker_allowed = Fetch::Infrastructure::extract_header_list_values("Service-Worker-Allowed"sv.bytes(), response->header_list());
+
+            // 9. Set policyContainer to the result of creating a policy container from a fetch response given response.
+            // FIXME: CSP not implemented yet
+
+            // 10. If serviceWorkerAllowed is failure, then:
+            if (service_worker_allowed.has<Fetch::Infrastructure::ExtractHeaderParseFailure>()) {
+                // FIXME: Should we reject the job promise with a security error here?
+
+                // 1. Asynchronously complete these steps with a network error.
+                process_response_completion_result = WebIDL::NetworkError::create(realm, "Failed to extract Service-Worker-Allowed header from fetch response"_string);
+                return;
+            }
+
+            // 11. Let scopeURL be registration’s scope url.
+            auto const& scope_url = registration.scope_url();
+
+            // 12. Let maxScopeString be null.
+            auto max_scope_string = Optional<ByteString> {};
+
+            auto join_paths_with_slash = [](URL::URL const& url) -> ByteString {
+                StringBuilder builder;
+                builder.append('/');
+                for (auto const& component : url.paths()) {
+                    builder.append(component);
+                    builder.append('/');
+                }
+                return builder.to_byte_string();
+            };
+
+            // 13. If serviceWorkerAllowed is null, then:
+            if (service_worker_allowed.has<Empty>()) {
+                // 1. Let resolvedScope be the result of parsing "./" using job’s script url as the base URL.
+                auto resolved_scope = DOMURL::parse("./"sv, job->script_url);
+
+                // 2. Set maxScopeString to "/", followed by the strings in resolvedScope’s path (including empty strings), separated from each other by "/".
+                max_scope_string = join_paths_with_slash(resolved_scope);
+            }
+            // 14. Else:
+            else {
+                // 1. Let maxScope be the result of parsing serviceWorkerAllowed using job’s script url as the base URL.
+                auto max_scope = DOMURL::parse(service_worker_allowed.get<Vector<ByteBuffer>>()[0], job->script_url);
+
+                // 2. If maxScope’s origin is job’s script url's origin, then:
+                if (max_scope.origin().is_same_origin(job->script_url.origin())) {
+                    // 1. Set maxScopeString to "/", followed by the strings in maxScope’s path (including empty strings), separated from each other by "/".
+                    max_scope_string = join_paths_with_slash(max_scope);
+                }
+            }
+
+            // 15. Let scopeString be "/", followed by the strings in scopeURL’s path (including empty strings), separated from each other by "/".
+            auto scope_string = join_paths_with_slash(scope_url);
+
+            // 16. If maxScopeString is null or scopeString does not start with maxScopeString, then:
+            if (!max_scope_string.has_value() || !scope_string.starts_with(max_scope_string.value())) {
+                // 1. Invoke Reject Job Promise with job and "SecurityError" DOMException.
+                reject_job_promise<WebIDL::SecurityError>(job, "Service Worker script scope does not match Service-Worker-Allowed header"_string);
+
+                // 2. Asynchronously complete these steps with a network error.
+                process_response_completion_result = WebIDL::NetworkError::create(realm, "Service Worker script scope does not match Service-Worker-Allowed header"_string);
+                return;
+            }
+
+            // 17. Let url be request’s url.
+            auto& url = request->url();
+
+            // 18. Set updatedResourceMap[url] to response.
+            state->updated_resource_map().set(url, response);
+
+            // 19. If response’s cache state is not "local", set registration’s last update check time to the current time.
+            if (response->cache_state() != Fetch::Infrastructure::Response::CacheState::Local)
+                registration.set_last_update_check_time(MonotonicTime::now());
+
+            // 20. Set hasUpdatedResources to true if any of the following are true:
+            // - newestWorker is null.
+            // - newestWorker’s script url is not url or newestWorker’s type is not job’s worker type.
+            // - FIXME: newestWorker’s script resource map[url]'s body is not byte-for-byte identical with response’s body.
+            if (newest_worker == nullptr
+                || newest_worker->script_url != url
+                || newest_worker->worker_type != job->worker_type) {
+                state->set_has_updated_resources(true);
+            }
+
+            // FIXME: 21. If hasUpdatedResources is false and newestWorker’s classic scripts imported flag is set, then:
+
+            // 22. Asynchronously complete these steps with response.
+            process_response_completion_result = WebIDL::ExceptionOr<void> {};
+        };
+
+        auto fetch_controller = TRY(Web::Fetch::Fetching::fetch(realm, request, Web::Fetch::Infrastructure::FetchAlgorithms::create(vm, move(fetch_algorithms_input))));
+
+        // FIXME: This feels.. uncomfortable but it should work to block the current task until the fetch has progressed past our processResponse hook or aborted
+        auto& event_loop = job->client ? job->client->responsible_event_loop() : HTML::main_thread_event_loop();
+        event_loop.spin_until([fetch_controller, &realm, &process_response_completion_result]() -> bool {
+            if (process_response_completion_result.has_value())
+                return true;
+            if (fetch_controller->state() == Fetch::Infrastructure::FetchController::State::Terminated || fetch_controller->state() == Fetch::Infrastructure::FetchController::State::Aborted) {
+                process_response_completion_result = WebIDL::AbortError::create(realm, "Service Worker fetch was terminated or aborted"_string);
+                return true;
+            }
+            return false;
+        });
+
+        return process_response_completion_result.release_value();
+    };
+    auto perform_the_fetch_hook = HTML::create_perform_the_fetch_hook(vm.heap(), move(perform_the_fetch_hook_function));
+
+    // When the algorithm asynchronously completes, continue the rest of these steps, with script being the asynchronous completion value.
+    auto on_fetch_complete = HTML::create_on_fetch_script_complete(vm.heap(), [job, newest_worker, state, &registration = *registration, &vm](JS::GCPtr<HTML::Script> script) -> void {
+        // If script is null or Is Async Module with script’s record, script’s base URL, and « » is true, then:
+        // FIXME: Reject async modules
+        if (!script) {
+            // 1. Invoke Reject Job Promise with job and TypeError.
+            reject_job_promise<JS::TypeError>(job, "Service Worker script is not a valid module"_string);
+
+            // 2. If newestWorker is null, then remove registration map[(registration’s storage key, serialized scopeURL)].
+            if (newest_worker == nullptr)
+                Registration::remove(registration.storage_key(), registration.scope_url());
+
+            // 3. Invoke Finish Job with job and abort these steps.
+            finish_job(vm, job);
+            return;
+        }
+
+        // FIXME: Actually create service worker
+        // 10. Let worker be a new service worker.
+        // 11. Set worker’s script url to job’s script url, worker’s script resource to script, worker’s type to job’s worker type, and worker’s script resource map to updatedResourceMap.
+        (void)state;
+        // 12. Append url to worker’s set of used scripts.
+        // 13. Set worker’s script resource’s policy container to policyContainer.
+        // 14. Let forceBypassCache be true if job’s force bypass cache flag is set, and false otherwise.
+        // 15. Let runResult be the result of running the Run Service Worker algorithm with worker and forceBypassCache.
+        // 16. If runResult is failure or an abrupt completion, then:
+        // 17. Else, invoke Install algorithm with job, worker, and registration as its arguments.
+        if (job->client) {
+            auto context = HTML::TemporaryExecutionContext(*job->client, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes);
+            auto& realm = *vm.current_realm();
+            WebIDL::reject_promise(realm, *job->job_promise, *vm.throw_completion<JS::InternalError>(JS::ErrorType::NotImplemented, "Run Service Worker"sv).value());
+            finish_job(vm, job);
+        }
+    });
+
+    // 7. Switching on job’s worker type, run these substeps with the following options:
+    switch (job->worker_type) {
+    case Bindings::WorkerType::Classic:
+        // 1. Fetch a classic worker script given job’s serialized script url, job’s client, "serviceworker", and the to-be-created environment settings object for this service worker.
+        // FIXME: Credentials mode
+        // FIXME: Use a 'stub' service worker ESO as the fetch "environment"
+        (void)HTML::fetch_classic_worker_script(job->script_url, *job->client, Fetch::Infrastructure::Request::Destination::ServiceWorker, *job->client, perform_the_fetch_hook, on_fetch_complete);
+        break;
+    case Bindings::WorkerType::Module:
+        // 2. Fetch a module worker script graph given job’s serialized script url, job’s client, "serviceworker", "omit", and the to-be-created environment settings object for this service worker.
+        // FIXME: Credentials mode
+        // FIXME: Use a 'stub' service worker ESO as the fetch "environment"
+        (void)HTML::fetch_module_worker_script_graph(job->script_url, *job->client, Fetch::Infrastructure::Request::Destination::ServiceWorker, *job->client, perform_the_fetch_hook, on_fetch_complete);
     }
 }
 
@@ -152,6 +431,7 @@ static void unregister(JS::VM& vm, JS::NonnullGCPtr<Job> job)
         auto context = HTML::TemporaryExecutionContext(*job->client, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes);
         auto& realm = *vm.current_realm();
         WebIDL::reject_promise(realm, *job->job_promise, *vm.throw_completion<JS::InternalError>(JS::ErrorType::NotImplemented, "Service Worker unregistration"sv).value());
+        finish_job(vm, job);
     }
 }
 

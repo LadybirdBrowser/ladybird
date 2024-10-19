@@ -36,6 +36,19 @@ bool Registration::is_unregistered()
     return s_registrations.get(key).map([](auto& registration) { return &registration; }).value_or(nullptr) != this;
 }
 
+// https://w3c.github.io/ServiceWorker/#service-worker-registration-stale
+bool Registration::is_stale() const
+{
+    using namespace AK::TimeLiterals;
+
+    // A service worker registration is said to be stale if the registration’s last update check time is non-null
+    // and the time difference in seconds calculated by the current time minus the registration’s last update check time is greater than 86400.
+    if (!m_last_update_check_time.has_value())
+        return false;
+
+    return (MonotonicTime::now() - m_last_update_check_time.value()) > 86400_sec;
+}
+
 // https://w3c.github.io/ServiceWorker/#get-registration-algorithm
 Optional<Registration&> Registration::get(StorageAPI::StorageKey const& key, Optional<URL::URL> scope)
 {
@@ -69,6 +82,11 @@ Registration& Registration::set(StorageAPI::StorageKey const& storage_key, URL::
     auto key = RegistrationKey { storage_key, scope.serialize(URL::ExcludeFragment::Yes) };
     (void)s_registrations.set(key, Registration(storage_key, scope, update_via_cache));
     return s_registrations.get(key).value();
+}
+
+void Registration::remove(StorageAPI::StorageKey const& key, URL::URL const& scope)
+{
+    (void)s_registrations.remove({ key, scope.serialize(URL::ExcludeFragment::Yes) });
 }
 
 // https://w3c.github.io/ServiceWorker/#get-newest-worker
