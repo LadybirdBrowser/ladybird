@@ -102,12 +102,18 @@ void XMLHttpRequest::visit_edges(Cell::Visitor& visitor)
 static void fire_progress_event(XMLHttpRequestEventTarget& target, FlyString const& event_name, u64 transmitted, u64 length)
 {
     // To fire a progress event named e at target, given transmitted and length, means to fire an event named e at target, using ProgressEvent,
-    // with the loaded attribute initialized to transmitted, and if length is not 0, with the lengthComputable attribute initialized to true
-    // and the total attribute initialized to length.
     ProgressEventInit event_init {};
-    event_init.length_computable = true;
+
+    // with the loaded attribute initialized to transmitted
     event_init.loaded = transmitted;
+
+    // and if length is not 0, with the lengthComputable attribute initialized to true
+    if (length != 0)
+        event_init.length_computable = true;
+
+    // and the total attribute initialized to length.
     event_init.total = length;
+
     // FIXME: If we're in an async context, this will propagate to a callback context which can't propagate it anywhere else and does not expect this to fail.
     target.dispatch_event(*ProgressEvent::create(target.realm(), event_name, event_init));
 }
