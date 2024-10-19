@@ -25,6 +25,8 @@ class WorkerAgent : public JS::Cell {
 
     WorkerAgent(URL::URL url, WorkerOptions const& options, JS::GCPtr<MessagePort> outside_port, JS::NonnullGCPtr<EnvironmentSettingsObject> outside_settings);
 
+    void terminate();
+
 private:
     virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Cell::Visitor&) override;
