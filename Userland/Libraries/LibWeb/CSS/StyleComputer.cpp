@@ -2310,8 +2310,7 @@ RefPtr<StyleProperties> StyleComputer::compute_style_impl(DOM::Element& element,
         auto style = compute_style(parent_element, *element.use_pseudo_element());
 
         // Merge back inline styles
-        if (element.has_attribute(HTML::AttributeNames::style)) {
-            auto* inline_style = parse_css_style_attribute(CSS::Parser::ParsingContext(document()), *element.get_attribute(HTML::AttributeNames::style), element);
+        if (auto inline_style = element.inline_style()) {
             for (auto const& property : inline_style->properties())
                 style->set_property(property.property_id, property.value);
         }
