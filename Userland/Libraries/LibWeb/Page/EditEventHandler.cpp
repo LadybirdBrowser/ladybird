@@ -20,17 +20,12 @@ namespace Web {
 void EditEventHandler::handle_delete_character_after(JS::NonnullGCPtr<DOM::Document> document, JS::NonnullGCPtr<DOM::Position> cursor_position)
 {
     auto& node = verify_cast<DOM::Text>(*cursor_position->node());
-    auto& text = node.data();
-
-    auto next_offset = node.grapheme_segmenter().next_boundary(cursor_position->offset());
-    if (!next_offset.has_value()) {
-        // FIXME: Move to the next node and delete the first character there.
-        return;
-    }
+    auto const& text = node.data();
+    auto const next_offset = node.length_in_utf16_code_units();
 
     StringBuilder builder;
-    builder.append(text.bytes_as_string_view().substring_view(0, cursor_position->offset()));
-    builder.append(text.bytes_as_string_view().substring_view(*next_offset));
+    builder.append(MUST(text.substring_from_code_unit_offset(0, cursor_position->offset())));
+    builder.append(MUST(text.substring_from_code_unit_offset(next_offset)));
     node.set_data(MUST(builder.to_string()));
 
     document->user_did_edit_document_text({});
@@ -44,8 +39,8 @@ void EditEventHandler::handle_delete(JS::NonnullGCPtr<DOM::Document> document, D
 
     if (start == end) {
         StringBuilder builder;
-        builder.append(start->data().bytes_as_string_view().substring_view(0, range.start_offset()));
-        builder.append(end->data().bytes_as_string_view().substring_view(range.end_offset()));
+        builder.append(MUST(start->data().substring_from_code_unit_offset(0, range.start_offset())));
+        builder.append(MUST(end->data().substring_from_code_unit_offset(range.end_offset())));
 
         start->set_data(MUST(builder.to_string()));
     } else {
@@ -82,8 +77,8 @@ void EditEventHandler::handle_delete(JS::NonnullGCPtr<DOM::Document> document, D
 
         // Join the start and end nodes.
         StringBuilder builder;
-        builder.append(start->data().bytes_as_string_view().substring_view(0, range.start_offset()));
-        builder.append(end->data().bytes_as_string_view().substring_view(range.end_offset()));
+        builder.append(MUST(start->data().substring_from_code_unit_offset(0, range.start_offset())));
+        builder.append(MUST(end->data().substring_from_code_unit_offset(range.end_offset())));
 
         start->set_data(MUST(builder.to_string()));
         end->remove();
@@ -99,22 +94,23 @@ void EditEventHandler::handle_insert(JS::NonnullGCPtr<DOM::Document> document, J
     handle_insert(document, position, MUST(builder.to_string()));
 }
 
-void EditEventHandler::handle_insert(JS::NonnullGCPtr<DOM::Document> document, JS::NonnullGCPtr<DOM::Position> position, String data)
+void EditEventHandler::handle_insert(JS::NonnullGCPtr<DOM::Document> document, JS::NonnullGCPtr<DOM::Position> position, String const& data)
 {
     if (is<DOM::Text>(*position->node())) {
         auto& node = verify_cast<DOM::Text>(*position->node());
 
         StringBuilder builder;
-        builder.append(node.data().bytes_as_string_view().substring_view(0, position->offset()));
+        builder.append(MUST(node.data().substring_from_code_unit_offset(0, position->offset())));
         builder.append(data);
-        builder.append(node.data().bytes_as_string_view().substring_view(position->offset()));
+        builder.append(MUST(node.data().substring_from_code_unit_offset(position->offset())));
+
+        auto const built_value = MUST(builder.to_string());
 
         // Cut string by max length
-        // FIXME: Cut by UTF-16 code units instead of raw bytes
-        if (auto max_length = node.max_length(); max_length.has_value() && builder.string_view().length() > *max_length) {
-            node.set_data(MUST(String::from_utf8(builder.string_view().substring_view(0, *max_length))));
+        if (auto max_length = node.max_length(); max_length.has_value() && Utf16View { MUST(AK::utf8_to_utf16(built_value)) }.length_in_code_units() > *max_length) {
+            node.set_data(MUST(built_value.substring_from_code_unit_offset(0, *max_length)));
         } else {
-            node.set_data(MUST(builder.to_string()));
+            node.set_data(built_value);
         }
         node.invalidate_style(DOM::StyleInvalidationReason::EditingInsertion);
     } else {

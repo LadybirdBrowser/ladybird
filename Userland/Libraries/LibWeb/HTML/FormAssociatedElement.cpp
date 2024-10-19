@@ -198,8 +198,8 @@ WebIDL::ExceptionOr<void> FormAssociatedElement::set_form_action(String const& v
 // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#concept-textarea/input-relevant-value
 void FormAssociatedTextControlElement::relevant_value_was_changed(JS::GCPtr<DOM::Text> text_node)
 {
-    auto the_relevant_value = relevant_value();
-    auto relevant_value_length = the_relevant_value.code_points().length();
+    auto const the_relevant_value = relevant_value();
+    auto const relevant_value_length = Utf16View { MUST(AK::utf8_to_utf16(the_relevant_value)) }.length_in_code_units();
 
     // 1. If the element has a selection:
     if (m_selection_start < m_selection_end) {
@@ -418,7 +418,7 @@ WebIDL::ExceptionOr<void> FormAssociatedTextControlElement::set_range_text(Strin
 
     // 5. If start is greater than the length of the relevant value of the text control, then set it to the length of the relevant value of the text control.
     auto the_relevant_value = relevant_value();
-    auto relevant_value_length = the_relevant_value.code_points().length();
+    auto relevant_value_length = Utf16View { MUST(AK::utf8_to_utf16(the_relevant_value)) }.length_in_code_units();
     if (start > relevant_value_length)
         start = relevant_value_length;
 
@@ -436,25 +436,25 @@ WebIDL::ExceptionOr<void> FormAssociatedTextControlElement::set_range_text(Strin
     //    the code unit at the startth position and ending with the code unit at the (end-1)th position.
     if (start < end) {
         StringBuilder builder;
-        auto before_removal_point_view = the_relevant_value.code_points().unicode_substring_view(0, start);
-        builder.append(before_removal_point_view.as_string());
-        auto after_removal_point_view = the_relevant_value.code_points().unicode_substring_view(end);
-        builder.append(after_removal_point_view.as_string());
+        auto before_removal_point_view = MUST(the_relevant_value.substring_from_code_unit_offset(0, start));
+        builder.append(before_removal_point_view);
+        auto after_removal_point_view = MUST(the_relevant_value.substring_from_code_unit_offset(end));
+        builder.append(after_removal_point_view);
         the_relevant_value = MUST(builder.to_string());
     }
 
     // 10. Insert the value of the first argument into the text of the relevant value of the text control, immediately before the startth code unit.
     StringBuilder builder;
-    auto before_insertion_point_view = the_relevant_value.code_points().unicode_substring_view(0, start);
-    builder.append(before_insertion_point_view.as_string());
+    auto before_insertion_point_view = MUST(the_relevant_value.substring_from_code_unit_offset(0, start));
+    builder.append(before_insertion_point_view);
     builder.append(replacement);
-    auto after_insertion_point_view = the_relevant_value.code_points().unicode_substring_view(start);
-    builder.append(after_insertion_point_view.as_string());
+    auto after_insertion_point_view = MUST(the_relevant_value.substring_from_code_unit_offset(start));
+    builder.append(after_insertion_point_view);
     the_relevant_value = MUST(builder.to_string());
     TRY(set_relevant_value(the_relevant_value));
 
     // 11. Let new length be the length of the value of the first argument.
-    i64 new_length = replacement.code_points().length();
+    size_t new_length = Utf16View { MUST(AK::utf8_to_utf16(replacement)) }.length_in_code_units();
 
     // 12. Let new end be the sum of start and new length.
     auto new_end = start + new_length;
@@ -545,7 +545,7 @@ void FormAssociatedTextControlElement::set_the_selection_range(Optional<WebIDL::
     //    relevant value of the text control (including the special value infinity) must be treated
     //    as pointing at the end of the text control.
     auto the_relevant_value = relevant_value();
-    auto relevant_value_length = the_relevant_value.code_points().length();
+    auto relevant_value_length = Utf16View { MUST(AK::utf8_to_utf16(the_relevant_value)) }.length_in_code_units();
     auto new_selection_start = AK::min(start.value(), relevant_value_length);
     auto new_selection_end = AK::min(end.value(), relevant_value_length);
 

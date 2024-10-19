@@ -194,7 +194,8 @@ void HTMLTextAreaElement::set_value(String const& value)
             m_text_node->set_data(m_raw_value);
             update_placeholder_visibility();
 
-            set_the_selection_range(m_text_node->length(), m_text_node->length());
+            auto const text_node_length = m_text_node->length_in_utf16_code_units();
+            set_the_selection_range(text_node_length, text_node_length);
         }
     }
 }

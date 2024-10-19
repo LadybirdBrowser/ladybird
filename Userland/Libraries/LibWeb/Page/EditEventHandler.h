@@ -24,7 +24,7 @@ public:
     void handle_delete_character_after(JS::NonnullGCPtr<DOM::Document>, JS::NonnullGCPtr<DOM::Position>);
     void handle_delete(JS::NonnullGCPtr<DOM::Document>, DOM::Range&);
     void handle_insert(JS::NonnullGCPtr<DOM::Document>, JS::NonnullGCPtr<DOM::Position>, u32 code_point);
-    void handle_insert(JS::NonnullGCPtr<DOM::Document>, JS::NonnullGCPtr<DOM::Position>, String);
+    void handle_insert(JS::NonnullGCPtr<DOM::Document>, JS::NonnullGCPtr<DOM::Position>, String const&);
 };
 
 }

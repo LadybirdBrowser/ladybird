@@ -1727,11 +1727,8 @@ Messages::WebDriverClient::ElementSendKeysResponse WebDriverConnection::element_
             Optional<Web::WebIDL::UnsignedLong> current_text_length;
 
             if (element->is_focused()) {
-                auto api_value = target->relevant_value();
-
-                // FIXME: This should be a UTF-16 code unit length, but `set_the_selection_range` is also currently
-                //        implemented in terms of code point length.
-                current_text_length = api_value.code_points().length();
+                auto const api_value = target->relevant_value();
+                current_text_length = Utf16View { MUST(AK::utf8_to_utf16(api_value)) }.length_in_code_units();
             }
 
             // 2. Set the text insertion caret using set selection range using current text length for both the start

@@ -586,7 +586,8 @@ WebIDL::ExceptionOr<void> HTMLInputElement::set_value(String const& value)
                 m_text_node->set_data(m_value);
                 update_placeholder_visibility();
 
-                set_the_selection_range(m_text_node->length(), m_text_node->length());
+                auto const text_node_length = m_text_node->length_in_utf16_code_units();
+                set_the_selection_range(text_node_length, text_node_length);
             }
 
             update_shadow_tree();
@@ -1177,8 +1178,10 @@ void HTMLInputElement::did_receive_focus()
     if (m_placeholder_text_node)
         m_placeholder_text_node->invalidate_style(DOM::StyleInvalidationReason::DidReceiveFocus);
 
-    if (auto cursor = document().cursor_position(); !cursor || m_text_node != cursor->node())
-        document().set_cursor_position(DOM::Position::create(realm(), *m_text_node, m_text_node->length()));
+    if (auto cursor = document().cursor_position(); !cursor || m_text_node != cursor->node()) {
+        auto const code_unit_length = m_text_node->length_in_utf16_code_units();
+        document().set_cursor_position(DOM::Position::create(realm(), *m_text_node, code_unit_length));
+    }
 }
 
 void HTMLInputElement::did_lose_focus()

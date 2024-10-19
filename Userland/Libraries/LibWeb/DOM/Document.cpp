@@ -5459,6 +5459,7 @@ void Document::set_cursor_position(JS::NonnullGCPtr<DOM::Position> position)
         m_cursor_position->node()->paintable()->set_needs_display();
 
     m_cursor_position = position;
+    m_cursor_position->set_offset(position->offset());
 
     if (m_cursor_position && m_cursor_position->node()->paintable())
         m_cursor_position->node()->paintable()->set_needs_display();

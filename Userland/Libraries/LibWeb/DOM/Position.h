@@ -32,7 +32,7 @@ public:
 
     unsigned offset() const { return m_offset; }
     bool offset_is_at_end_of_node() const;
-    void set_offset(unsigned value) { m_offset = value; }
+    void set_offset(unsigned const value) { m_offset = value; }
     bool increment_offset();
     bool decrement_offset();
 

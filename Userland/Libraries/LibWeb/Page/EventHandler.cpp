@@ -695,7 +695,7 @@ EventResult EventHandler::handle_doubleclick(CSSPixelPoint viewport_position, CS
             segmenter.set_segmented_text(text_for_rendering);
 
             auto previous_boundary = segmenter.previous_boundary(result->index_in_node, Unicode::Segmenter::Inclusive::Yes).value_or(0);
-            auto next_boundary = segmenter.next_boundary(result->index_in_node).value_or(text_for_rendering.byte_count());
+            auto next_boundary = segmenter.next_boundary(result->index_in_node).value_or(Utf16View { MUST(AK::utf8_to_utf16(text_for_rendering)) }.length_in_code_units());
 
             auto& realm = node->document().realm();
             document.set_cursor_position(DOM::Position::create(realm, hit_dom_node, next_boundary));
@@ -1027,15 +1027,16 @@ EventResult EventHandler::handle_keydown(UIEvents::KeyCode key, u32 modifiers, u
             return EventResult::Handled;
         }
 
-        if (key == UIEvents::KeyCode::Key_Home || key == UIEvents::KeyCode::Key_End) {
-            auto cursor_edge = key == UIEvents::KeyCode::Key_Home ? 0uz : node.length();
+        if ((key == UIEvents::KeyCode::Key_Home || key == UIEvents::KeyCode::Key_End) && is<DOM::Text>(node)) {
+            auto const& text_node = verify_cast<DOM::Text>(node);
+            auto const cursor_edge = key == UIEvents::KeyCode::Key_Home ? 0 : text_node.length_in_utf16_code_units();
 
             if ((modifiers & UIEvents::Mod_Shift) != 0) {
-                auto previous_position = document->cursor_position()->offset();
-                auto should_udpdate_selection = previous_position != cursor_edge;
+                auto const previous_position = document->cursor_position()->offset();
+                auto const should_update_selection = previous_position != cursor_edge;
 
-                if (should_udpdate_selection && selection) {
-                    auto selection_start = range ? selection->anchor_offset() : previous_position;
+                if (should_update_selection && selection) {
+                    auto const selection_start = range ? selection->anchor_offset() : previous_position;
                     (void)selection->set_base_and_extent(node, selection_start, node, cursor_edge);
                 }
             } else if (node.is_editable()) {
@@ -1139,7 +1140,9 @@ void EventHandler::handle_paste(String const& text)
             return;
         active_document->update_layout();
         m_edit_event_handler->handle_insert(*active_document, *cursor_position, text);
-        cursor_position->set_offset(cursor_position->offset() + text.code_points().length());
+
+        auto const code_unit_length = Utf16View { MUST(AK::utf8_to_utf16(text)) }.length_in_code_units();
+        cursor_position->set_offset(cursor_position->offset() + code_unit_length);
     }
 }
 
