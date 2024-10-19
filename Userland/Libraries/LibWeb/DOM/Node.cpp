@@ -1174,6 +1174,8 @@ void Node::set_needs_style_update(bool value)
 
     if (m_needs_style_update) {
         for (auto* ancestor = parent_or_shadow_host(); ancestor; ancestor = ancestor->parent_or_shadow_host()) {
+            if (ancestor->m_child_needs_style_update)
+                break;
             ancestor->m_child_needs_style_update = true;
         }
         document().schedule_style_update();
