@@ -25,6 +25,7 @@ interface HTMLElement : Element {
     [FIXME, CEReactions] attribute boolean draggable;
     [FIXME, CEReactions] attribute boolean spellcheck;
     [FIXME, CEReactions] attribute DOMString autocapitalize;
+    [FIXME, CEReactions] attribute boolean autocorrect;
 
     [LegacyNullToEmptyString, CEReactions] attribute DOMString innerText;
     [LegacyNullToEmptyString, CEReactions] attribute DOMString outerText;
