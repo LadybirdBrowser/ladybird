@@ -21,6 +21,32 @@ AudioNode::AudioNode(JS::Realm& realm, JS::NonnullGCPtr<BaseAudioContext> contex
 
 AudioNode::~AudioNode() = default;
 
+WebIDL::ExceptionOr<void> AudioNode::initialize_audio_node_options(JS::NonnullGCPtr<BaseAudioContext> context, AudioNodeOptions const& given_options, AudioNodeOptions const& default_options)
+{
+    // FIXME: Context will be used in the future implementation.
+    (void)context; // Cast to void to avoid unused parameter warning.
+
+    // Set channel count, fallback to default if not provided
+    if (given_options.channel_count.has_value()) {
+        TRY(set_channel_count(given_options.channel_count.value()));
+    } else if (default_options.channel_count.has_value()) {
+        TRY(set_channel_count(default_options.channel_count.value()));
+    }
+
+    // Set channel count mode, fallback to default if not provided
+    if (given_options.channel_count_mode.has_value()) {
+        TRY(set_channel_count_mode(given_options.channel_count_mode.value()));
+    } else if (default_options.channel_count_mode.has_value()) {
+        TRY(set_channel_count_mode(default_options.channel_count_mode.value()));
+    }
+
+    // Set channel interpretation, fallback to default if not provided
+    Bindings::ChannelInterpretation channel_interpretation_to_set = given_options.channel_interpretation.value_or(default_options.channel_interpretation.value_or(Bindings::ChannelInterpretation::Speakers));
+    TRY(set_channel_interpretation(channel_interpretation_to_set));
+
+    return {};
+}
+
 // https://webaudio.github.io/web-audio-api/#dom-audionode-connect
 WebIDL::ExceptionOr<JS::NonnullGCPtr<AudioNode>> AudioNode::connect(JS::NonnullGCPtr<AudioNode> destination_node, WebIDL::UnsignedLong output, WebIDL::UnsignedLong input)
 {
