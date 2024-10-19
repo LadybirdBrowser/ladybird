@@ -31,13 +31,18 @@ public:
     // https://w3c.github.io/ServiceWorker/#set-registration-algorithm
     static Registration& set(StorageAPI::StorageKey const&, URL::URL const&, Bindings::ServiceWorkerUpdateViaCache);
 
+    static void remove(StorageAPI::StorageKey const&, URL::URL const&);
+
     bool is_unregistered();
 
     StorageAPI::StorageKey const& storage_key() const { return m_storage_key; }
     URL::URL const& scope_url() const { return m_scope_url; }
     Bindings::ServiceWorkerUpdateViaCache update_via_cache() const { return m_update_via_cache_mode; }
 
+    void set_last_update_check_time(MonotonicTime time) { m_last_update_check_time = time; }
+
     ServiceWorker* newest_worker() const;
+    bool is_stale() const;
 
 private:
     Registration(StorageAPI::StorageKey, URL::URL, Bindings::ServiceWorkerUpdateViaCache);
