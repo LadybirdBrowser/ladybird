@@ -20,6 +20,7 @@
 #include <LibURL/Origin.h>
 #include <LibWeb/Bindings/XMLHttpRequestPrototype.h>
 #include <LibWeb/DOM/Document.h>
+#include <LibWeb/DOMURL/DOMURL.h>
 #include <LibWeb/DOM/DocumentLoading.h>
 #include <LibWeb/DOM/Event.h>
 #include <LibWeb/DOM/EventDispatcher.h>
@@ -481,7 +482,7 @@ WebIDL::ExceptionOr<void> XMLHttpRequest::open(String const& method_string, Stri
 
     // 5. Let parsedURL be the result of parsing url with this’s relevant settings object’s API base URL and this’s relevant settings object’s API URL character encoding.
     // FIXME: Pass in this’s relevant settings object’s API URL character encoding.
-    auto parsed_url = HTML::relevant_settings_object(*this).api_base_url().complete_url(url);
+    auto parsed_url = DOMURL::parse(url, HTML::relevant_settings_object(*this).api_base_url(), {});
 
     // 6. If parsedURL is failure, then throw a "SyntaxError" DOMException.
     if (!parsed_url.is_valid())
