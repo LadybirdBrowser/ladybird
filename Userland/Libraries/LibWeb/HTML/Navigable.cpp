@@ -1603,7 +1603,7 @@ WebIDL::ExceptionOr<JS::GCPtr<DOM::Document>> Navigable::evaluate_javascript_url
     String result;
 
     // 9. If evaluationStatus is a normal completion, and evaluationStatus.[[Value]] is a String, then set result to evaluationStatus.[[Value]].
-    if (evaluation_status.type() == JS::Completion::Type::Normal && evaluation_status.value()->is_string()) {
+    if (evaluation_status.type() == JS::Completion::Type::Normal && evaluation_status.value().has_value() && evaluation_status.value()->is_string()) {
         result = evaluation_status.value()->as_string().utf8_string();
     } else {
         // 10. Otherwise, return null.
