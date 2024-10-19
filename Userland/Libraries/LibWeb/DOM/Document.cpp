@@ -2784,7 +2784,7 @@ void Document::evaluate_media_rules()
         return;
 
     bool any_media_queries_changed_match_state = false;
-    for_each_active_css_style_sheet([&](CSS::CSSStyleSheet& style_sheet) {
+    for_each_active_css_style_sheet([&](CSS::CSSStyleSheet& style_sheet, auto) {
         if (style_sheet.evaluate_media_queries(*window))
             any_media_queries_changed_match_state = true;
     });
@@ -5173,21 +5173,28 @@ WebIDL::ExceptionOr<void> Document::set_adopted_style_sheets(JS::Value new_value
     return {};
 }
 
-void Document::for_each_active_css_style_sheet(Function<void(CSS::CSSStyleSheet&)>&& callback) const
+void Document::for_each_active_css_style_sheet(Function<void(CSS::CSSStyleSheet&, JS::GCPtr<DOM::ShadowRoot>)>&& callback) const
 {
     if (m_style_sheets) {
         for (auto& style_sheet : m_style_sheets->sheets()) {
             if (!(style_sheet->is_alternate() && style_sheet->disabled()))
-                callback(*style_sheet);
+                callback(*style_sheet, {});
         }
     }
 
     if (m_adopted_style_sheets) {
         m_adopted_style_sheets->for_each<CSS::CSSStyleSheet>([&](auto& style_sheet) {
             if (!style_sheet.disabled())
-                callback(style_sheet);
+                callback(style_sheet, {});
         });
     }
+
+    for_each_shadow_root([&](auto& shadow_root) {
+        shadow_root.for_each_css_style_sheet([&](auto& style_sheet) {
+            if (!style_sheet.disabled())
+                callback(style_sheet, &shadow_root);
+        });
+    });
 }
 
 static Optional<CSS::CSSStyleSheet&> find_style_sheet_with_url(String const& url, CSS::CSSStyleSheet& style_sheet)
@@ -5272,6 +5279,12 @@ void Document::unregister_shadow_root(Badge<DOM::ShadowRoot>, DOM::ShadowRoot& s
 }
 
 void Document::for_each_shadow_root(Function<void(DOM::ShadowRoot&)>&& callback)
+{
+    for (auto& shadow_root : m_shadow_roots)
+        callback(shadow_root);
+}
+
+void Document::for_each_shadow_root(Function<void(DOM::ShadowRoot&)>&& callback) const
 {
     for (auto& shadow_root : m_shadow_roots)
         callback(shadow_root);

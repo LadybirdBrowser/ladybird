@@ -162,7 +162,7 @@ public:
     CSS::StyleSheetList& style_sheets();
     CSS::StyleSheetList const& style_sheets() const;
 
-    void for_each_active_css_style_sheet(Function<void(CSS::CSSStyleSheet&)>&& callback) const;
+    void for_each_active_css_style_sheet(Function<void(CSS::CSSStyleSheet&, JS::GCPtr<DOM::ShadowRoot>)>&& callback) const;
 
     CSS::StyleSheetList* style_sheets_for_bindings() { return &style_sheets(); }
 
@@ -675,6 +675,7 @@ public:
     void register_shadow_root(Badge<DOM::ShadowRoot>, DOM::ShadowRoot&);
     void unregister_shadow_root(Badge<DOM::ShadowRoot>, DOM::ShadowRoot&);
     void for_each_shadow_root(Function<void(DOM::ShadowRoot&)>&& callback);
+    void for_each_shadow_root(Function<void(DOM::ShadowRoot&)>&& callback) const;
 
     void add_an_element_to_the_top_layer(JS::NonnullGCPtr<Element>);
     void request_an_element_to_be_remove_from_the_top_layer(JS::NonnullGCPtr<Element>);

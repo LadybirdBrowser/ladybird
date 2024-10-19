@@ -328,14 +328,8 @@ void StyleComputer::for_each_stylesheet(CascadeOrigin cascade_origin, Callback c
             callback(*m_user_style_sheet, {});
     }
     if (cascade_origin == CascadeOrigin::Author) {
-        document().for_each_active_css_style_sheet([&](CSSStyleSheet& sheet) {
-            callback(sheet, {});
-        });
-
-        const_cast<DOM::Document&>(document()).for_each_shadow_root([&](DOM::ShadowRoot& shadow_root) {
-            shadow_root.for_each_css_style_sheet([&](CSSStyleSheet& sheet) {
-                callback(sheet, &shadow_root);
-            });
+        document().for_each_active_css_style_sheet([&](auto& sheet, auto shadow_root) {
+            callback(sheet, shadow_root);
         });
     }
 }
