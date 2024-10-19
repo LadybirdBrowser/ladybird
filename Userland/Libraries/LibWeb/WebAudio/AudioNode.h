@@ -18,8 +18,8 @@ namespace Web::WebAudio {
 // https://webaudio.github.io/web-audio-api/#AudioNodeOptions
 struct AudioNodeOptions {
     Optional<WebIDL::UnsignedLong> channel_count;
-    Bindings::ChannelCountMode channel_count_mode;
-    Bindings::ChannelInterpretation channel_interpretation;
+    Optional<Bindings::ChannelCountMode> channel_count_mode;
+    Optional<Bindings::ChannelInterpretation> channel_interpretation;
 };
 
 // https://webaudio.github.io/web-audio-api/#AudioNode
@@ -57,10 +57,12 @@ public:
     virtual WebIDL::ExceptionOr<void> set_channel_count(WebIDL::UnsignedLong);
     virtual WebIDL::UnsignedLong channel_count() const { return m_channel_count; }
 
-    WebIDL::ExceptionOr<void> set_channel_count_mode(Bindings::ChannelCountMode);
+    virtual WebIDL::ExceptionOr<void> set_channel_count_mode(Bindings::ChannelCountMode);
     Bindings::ChannelCountMode channel_count_mode();
     WebIDL::ExceptionOr<void> set_channel_interpretation(Bindings::ChannelInterpretation);
     Bindings::ChannelInterpretation channel_interpretation();
+
+    WebIDL::ExceptionOr<void> initialize_audio_node_options(JS::NonnullGCPtr<BaseAudioContext> context, AudioNodeOptions const& given_options, AudioNodeOptions const& default_options);
 
 protected:
     AudioNode(JS::Realm&, JS::NonnullGCPtr<BaseAudioContext>);

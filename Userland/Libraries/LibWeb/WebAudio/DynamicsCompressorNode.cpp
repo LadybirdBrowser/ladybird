@@ -23,9 +23,20 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<DynamicsCompressorNode>> DynamicsCompressor
 // https://webaudio.github.io/web-audio-api/#dom-dynamicscompressornode-dynamicscompressornode
 WebIDL::ExceptionOr<JS::NonnullGCPtr<DynamicsCompressorNode>> DynamicsCompressorNode::construct_impl(JS::Realm& realm, JS::NonnullGCPtr<BaseAudioContext> context, DynamicsCompressorOptions const& options)
 {
-    // FIXME: Invoke "Initialize the AudioNode" steps.
-    return realm.vm().heap().allocate<DynamicsCompressorNode>(realm, realm, context, options);
+    // Create the node and allocate memory
+    auto node = realm.vm().heap().allocate<DynamicsCompressorNode>(realm, realm, context, options);
+
+    // Default options for channel count and interpretation
+    AudioNodeOptions default_options;
+    default_options.channel_count_mode = Bindings::ChannelCountMode::ClampedMax;
+    default_options.channel_interpretation = Bindings::ChannelInterpretation::Speakers;
+
+    // Initialize the AudioNode with the given options, default options, and context
+    TRY(node->initialize_audio_node_options(context, options, default_options));
+
+    return node;
 }
+
 
 DynamicsCompressorNode::DynamicsCompressorNode(JS::Realm& realm, JS::NonnullGCPtr<BaseAudioContext> context, DynamicsCompressorOptions const& options)
     : AudioNode(realm, context)
@@ -51,6 +62,18 @@ void DynamicsCompressorNode::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_ratio);
     visitor.visit(m_attack);
     visitor.visit(m_release);
+}
+
+// https://webaudio.github.io/web-audio-api/#dom-audionode-channelcountmode
+WebIDL::ExceptionOr<void> DynamicsCompressorNode::set_channel_count_mode(Bindings::ChannelCountMode mode)
+{
+    if (mode == Bindings::ChannelCountMode::Max) {
+        // Return a NotSupportedError if 'max' is used
+        return WebIDL::NotSupportedError::create(realm(), "DynamicsCompressorNode does not support 'max' as channelCountMode."_string);
+    }
+
+    // If the mode is valid, call the base class implementation
+    return AudioNode::set_channel_count_mode(mode);
 }
 
 }
