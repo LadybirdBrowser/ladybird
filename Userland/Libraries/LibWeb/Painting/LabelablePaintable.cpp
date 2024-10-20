@@ -27,12 +27,12 @@ void LabelablePaintable::set_being_pressed(bool being_pressed)
 
 Layout::FormAssociatedLabelableNode const& LabelablePaintable::layout_box() const
 {
-    return static_cast<Layout::FormAssociatedLabelableNode const&>(PaintableBox::layout_box());
+    return static_cast<Layout::FormAssociatedLabelableNode const&>(PaintableBox::layout_node_with_style_and_box_metrics());
 }
 
 Layout::FormAssociatedLabelableNode& LabelablePaintable::layout_box()
 {
-    return static_cast<Layout::FormAssociatedLabelableNode&>(PaintableBox::layout_box());
+    return static_cast<Layout::FormAssociatedLabelableNode&>(PaintableBox::layout_node_with_style_and_box_metrics());
 }
 
 LabelablePaintable::DispatchEventOfSameName LabelablePaintable::handle_mousedown(Badge<EventHandler>, CSSPixelPoint, unsigned button, unsigned)

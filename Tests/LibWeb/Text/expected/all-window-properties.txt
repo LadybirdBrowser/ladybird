@@ -15,6 +15,7 @@ AudioBuffer
 AudioBufferSourceNode
 AudioContext
 AudioDestinationNode
+AudioListener
 AudioNode
 AudioParam
 AudioScheduledSourceNode
@@ -42,6 +43,7 @@ CSSLayerBlockRule
 CSSLayerStatementRule
 CSSMediaRule
 CSSNamespaceRule
+CSSNestedDeclarations
 CSSRule
 CSSRuleList
 CSSStyleDeclaration

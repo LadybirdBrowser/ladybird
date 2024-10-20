@@ -129,7 +129,7 @@ unsigned int HTMLTableCellElement::col_span() const
 
 WebIDL::ExceptionOr<void> HTMLTableCellElement::set_col_span(unsigned int value)
 {
-    return set_attribute(HTML::AttributeNames::colspan, MUST(String::number(value)));
+    return set_attribute(HTML::AttributeNames::colspan, String::number(value));
 }
 
 // This implements step 9 in the spec here:
@@ -149,7 +149,7 @@ unsigned int HTMLTableCellElement::row_span() const
 
 WebIDL::ExceptionOr<void> HTMLTableCellElement::set_row_span(unsigned int value)
 {
-    return set_attribute(HTML::AttributeNames::rowspan, MUST(String::number(value)));
+    return set_attribute(HTML::AttributeNames::rowspan, String::number(value));
 }
 
 // https://html.spec.whatwg.org/multipage/tables.html#dom-tdth-cellindex

@@ -19,6 +19,7 @@
 #include <LibGfx/Font/Font.h>
 #include <LibGfx/Font/FontDatabase.h>
 #include <LibGfx/Font/FontStyleMapping.h>
+#include <LibGfx/Font/FontWeight.h>
 #include <LibGfx/Font/ScaledFont.h>
 #include <LibGfx/Font/Typeface.h>
 #include <LibGfx/Font/WOFF/Loader.h>
@@ -31,6 +32,7 @@
 #include <LibWeb/CSS/CSSImportRule.h>
 #include <LibWeb/CSS/CSSLayerBlockRule.h>
 #include <LibWeb/CSS/CSSLayerStatementRule.h>
+#include <LibWeb/CSS/CSSNestedDeclarations.h>
 #include <LibWeb/CSS/CSSStyleRule.h>
 #include <LibWeb/CSS/CSSTransition.h>
 #include <LibWeb/CSS/Interpolation.h>
@@ -94,6 +96,33 @@ struct Traits<Web::CSS::FontFaceKey> : public DefaultTraits<Web::CSS::FontFaceKe
 }
 
 namespace Web::CSS {
+
+PropertyOwningCSSStyleDeclaration const& MatchingRule::declaration() const
+{
+    if (rule->type() == CSSRule::Type::Style)
+        return static_cast<CSSStyleRule const&>(*rule).declaration();
+    if (rule->type() == CSSRule::Type::NestedDeclarations)
+        return static_cast<CSSNestedDeclarations const&>(*rule).declaration();
+    VERIFY_NOT_REACHED();
+}
+
+SelectorList const& MatchingRule::absolutized_selectors() const
+{
+    if (rule->type() == CSSRule::Type::Style)
+        return static_cast<CSSStyleRule const&>(*rule).absolutized_selectors();
+    if (rule->type() == CSSRule::Type::NestedDeclarations)
+        return static_cast<CSSStyleRule const&>(*rule->parent_rule()).absolutized_selectors();
+    VERIFY_NOT_REACHED();
+}
+
+FlyString const& MatchingRule::qualified_layer_name() const
+{
+    if (rule->type() == CSSRule::Type::Style)
+        return static_cast<CSSStyleRule const&>(*rule).qualified_layer_name();
+    if (rule->type() == CSSRule::Type::NestedDeclarations)
+        return static_cast<CSSStyleRule const&>(*rule->parent_rule()).qualified_layer_name();
+    VERIFY_NOT_REACHED();
+}
 
 static DOM::Element const* element_to_inherit_style_from(DOM::Element const*, Optional<CSS::Selector::PseudoElement::Type>);
 
@@ -181,9 +210,9 @@ void FontLoader::start_loading_next_url()
 ErrorOr<NonnullRefPtr<Gfx::Typeface>> FontLoader::try_load_font()
 {
     // FIXME: This could maybe use the format() provided in @font-face as well, since often the mime type is just application/octet-stream and we have to try every format
-    auto mime_type = MUST(MimeSniff::MimeType::parse(resource()->mime_type()));
+    auto mime_type = MimeSniff::MimeType::parse(resource()->mime_type());
     if (!mime_type.has_value() || !mime_type->is_font()) {
-        mime_type = MUST(MimeSniff::Resource::sniff(resource()->encoded_data(), Web::MimeSniff::SniffingConfiguration { .sniffing_context = Web::MimeSniff::SniffingContext::Font }));
+        mime_type = MimeSniff::Resource::sniff(resource()->encoded_data(), Web::MimeSniff::SniffingConfiguration { .sniffing_context = Web::MimeSniff::SniffingContext::Font });
     }
     if (mime_type.has_value()) {
         if (mime_type->essence() == "font/ttf"sv || mime_type->essence() == "application/x-font-ttf"sv) {
@@ -299,14 +328,8 @@ void StyleComputer::for_each_stylesheet(CascadeOrigin cascade_origin, Callback c
             callback(*m_user_style_sheet, {});
     }
     if (cascade_origin == CascadeOrigin::Author) {
-        document().for_each_active_css_style_sheet([&](CSSStyleSheet& sheet) {
-            callback(sheet, {});
-        });
-
-        const_cast<DOM::Document&>(document()).for_each_shadow_root([&](DOM::ShadowRoot& shadow_root) {
-            shadow_root.for_each_css_style_sheet([&](CSSStyleSheet& sheet) {
-                callback(sheet, &shadow_root);
-            });
+        document().for_each_active_css_style_sheet([&](auto& sheet, auto shadow_root) {
+            callback(sheet, shadow_root);
         });
     }
 }
@@ -337,7 +360,7 @@ StyleComputer::RuleCache const& StyleComputer::rule_cache_for_cascade_origin(Cas
 
 [[nodiscard]] static bool filter_layer(FlyString const& qualified_layer_name, MatchingRule const& rule)
 {
-    if (rule.rule && rule.rule->qualified_layer_name() != qualified_layer_name)
+    if (rule.rule && rule.qualified_layer_name() != qualified_layer_name)
         return false;
     return true;
 }
@@ -433,7 +456,7 @@ Vector<MatchingRule> StyleComputer::collect_matching_rules(DOM::Element const& e
             continue;
         }
 
-        auto const& selector = rule_to_run.rule->selectors()[rule_to_run.selector_index];
+        auto const& selector = rule_to_run.absolutized_selectors()[rule_to_run.selector_index];
         if (should_reject_with_ancestor_filter(*selector)) {
             rule_to_run.skip = true;
             continue;
@@ -460,7 +483,7 @@ Vector<MatchingRule> StyleComputer::collect_matching_rules(DOM::Element const& e
         if (element.is_shadow_host() && rule_root != element.shadow_root())
             shadow_host_to_use = nullptr;
 
-        auto const& selector = rule_to_run.rule->selectors()[rule_to_run.selector_index];
+        auto const& selector = rule_to_run.absolutized_selectors()[rule_to_run.selector_index];
 
         if (rule_to_run.can_use_fast_matches) {
             if (!SelectorEngine::fast_matches(selector, *rule_to_run.sheet, element, shadow_host_to_use))
@@ -477,8 +500,8 @@ Vector<MatchingRule> StyleComputer::collect_matching_rules(DOM::Element const& e
 static void sort_matching_rules(Vector<MatchingRule>& matching_rules)
 {
     quick_sort(matching_rules, [&](MatchingRule& a, MatchingRule& b) {
-        auto const& a_selector = a.rule->selectors()[a.selector_index];
-        auto const& b_selector = b.rule->selectors()[b.selector_index];
+        auto const& a_selector = a.absolutized_selectors()[a.selector_index];
+        auto const& b_selector = b.absolutized_selectors()[b.selector_index];
         auto a_specificity = a_selector->specificity();
         auto b_specificity = b_selector->specificity();
         if (a_specificity == b_specificity) {
@@ -726,7 +749,7 @@ void StyleComputer::for_each_property_expanding_shorthands(PropertyID property_i
         return;
     }
 
-    if (property_id == CSS::PropertyID::Gap || property_id == CSS::PropertyID::GridGap) {
+    if (property_id == CSS::PropertyID::Gap) {
         if (value.is_value_list()) {
             auto const& values_list = value.as_value_list();
             set_longhand_property(CSS::PropertyID::RowGap, values_list.values()[0]);
@@ -734,16 +757,6 @@ void StyleComputer::for_each_property_expanding_shorthands(PropertyID property_i
             return;
         }
         set_longhand_property(CSS::PropertyID::RowGap, value);
-        set_longhand_property(CSS::PropertyID::ColumnGap, value);
-        return;
-    }
-
-    if (property_id == CSS::PropertyID::RowGap || property_id == CSS::PropertyID::GridRowGap) {
-        set_longhand_property(CSS::PropertyID::RowGap, value);
-        return;
-    }
-
-    if (property_id == CSS::PropertyID::ColumnGap || property_id == CSS::PropertyID::GridColumnGap) {
         set_longhand_property(CSS::PropertyID::ColumnGap, value);
         return;
     }
@@ -898,12 +911,12 @@ void StyleComputer::set_all_properties(DOM::Element& element, Optional<CSS::Sele
 void StyleComputer::cascade_declarations(StyleProperties& style, DOM::Element& element, Optional<CSS::Selector::PseudoElement::Type> pseudo_element, Vector<MatchingRule> const& matching_rules, CascadeOrigin cascade_origin, Important important, StyleProperties const& style_for_revert, StyleProperties const& style_for_revert_layer) const
 {
     for (auto const& match : matching_rules) {
-        for (auto const& property : match.rule->declaration().properties()) {
+        for (auto const& property : match.declaration().properties()) {
             if (important != property.important)
                 continue;
 
             if (property.property_id == CSS::PropertyID::All) {
-                set_all_properties(element, pseudo_element, style, property.value, m_document, &match.rule->declaration(), style_for_revert, style_for_revert_layer, important);
+                set_all_properties(element, pseudo_element, style, property.value, m_document, &match.declaration(), style_for_revert, style_for_revert_layer, important);
                 continue;
             }
 
@@ -911,7 +924,7 @@ void StyleComputer::cascade_declarations(StyleProperties& style, DOM::Element& e
             if (property.value->is_unresolved())
                 property_value = Parser::Parser::resolve_unresolved_style_value(Parser::ParsingContext { document() }, element, pseudo_element, property.property_id, property.value->as_unresolved());
             if (!property_value->is_unresolved())
-                set_property_expanding_shorthands(style, property.property_id, property_value, &match.rule->declaration(), style_for_revert, style_for_revert_layer, important);
+                set_property_expanding_shorthands(style, property.property_id, property_value, &match.declaration(), style_for_revert, style_for_revert_layer, important);
         }
     }
 
@@ -940,7 +953,7 @@ static void cascade_custom_properties(DOM::Element& element, Optional<CSS::Selec
 {
     size_t needed_capacity = 0;
     for (auto const& matching_rule : matching_rules)
-        needed_capacity += matching_rule.rule->declaration().custom_properties().size();
+        needed_capacity += matching_rule.declaration().custom_properties().size();
 
     if (!pseudo_element.has_value()) {
         if (auto const inline_style = element.inline_style())
@@ -950,7 +963,7 @@ static void cascade_custom_properties(DOM::Element& element, Optional<CSS::Selec
     custom_properties.ensure_capacity(custom_properties.size() + needed_capacity);
 
     for (auto const& matching_rule : matching_rules) {
-        for (auto const& it : matching_rule.rule->declaration().custom_properties()) {
+        for (auto const& it : matching_rule.declaration().custom_properties()) {
             auto style_value = it.value.value;
             if (style_value->is_revert_layer())
                 continue;
@@ -2291,8 +2304,7 @@ RefPtr<StyleProperties> StyleComputer::compute_style_impl(DOM::Element& element,
         auto style = compute_style(parent_element, *element.use_pseudo_element());
 
         // Merge back inline styles
-        if (element.has_attribute(HTML::AttributeNames::style)) {
-            auto* inline_style = parse_css_style_attribute(CSS::Parser::ParsingContext(document()), *element.get_attribute(HTML::AttributeNames::style), element);
+        if (auto inline_style = element.inline_style()) {
             for (auto const& property : inline_style->properties())
                 style->set_property(property.property_id, property.value);
         }
@@ -2425,9 +2437,16 @@ NonnullOwnPtr<StyleComputer::RuleCache> StyleComputer::make_rule_cache_for_casca
     size_t style_sheet_index = 0;
     for_each_stylesheet(cascade_origin, [&](auto& sheet, JS::GCPtr<DOM::ShadowRoot> shadow_root) {
         size_t rule_index = 0;
-        sheet.for_each_effective_style_rule([&](auto const& rule) {
+        sheet.for_each_effective_style_producing_rule([&](auto const& rule) {
             size_t selector_index = 0;
-            for (CSS::Selector const& selector : rule.selectors()) {
+            SelectorList const& absolutized_selectors = [&]() {
+                if (rule.type() == CSSRule::Type::Style)
+                    return static_cast<CSSStyleRule const&>(rule).absolutized_selectors();
+                if (rule.type() == CSSRule::Type::NestedDeclarations)
+                    return static_cast<CSSStyleRule const&>(*rule.parent_rule()).absolutized_selectors();
+                VERIFY_NOT_REACHED();
+            }();
+            for (CSS::Selector const& selector : absolutized_selectors) {
                 MatchingRule matching_rule {
                     shadow_root,
                     &rule,
@@ -2673,6 +2692,7 @@ void StyleComputer::build_qualified_layer_names_cache()
             case CSSRule::Type::Keyframes:
             case CSSRule::Type::Keyframe:
             case CSSRule::Type::Namespace:
+            case CSSRule::Type::NestedDeclarations:
             case CSSRule::Type::Supports:
                 break;
             }

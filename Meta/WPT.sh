@@ -148,6 +148,15 @@ run_wpt() {
     execute_wpt
 }
 
+serve_wpt()
+{
+    ensure_wpt_repository
+
+    pushd "${WPT_SOURCE_DIR}" > /dev/null
+        ./wpt serve
+    popd > /dev/null
+}
+
 compare_wpt() {
     ensure_wpt_repository
     METADATA_DIR=$(mktemp -d)
@@ -160,13 +169,16 @@ compare_wpt() {
     rm -rf "${METADATA_DIR}"
 }
 
-if [[ "$CMD" =~ ^(update|run|compare)$ ]]; then
+if [[ "$CMD" =~ ^(update|run|serve|compare)$ ]]; then
     case "$CMD" in
         update)
             update_wpt
             ;;
         run)
             run_wpt
+            ;;
+        serve)
+            serve_wpt
             ;;
         compare)
             INPUT_LOG_NAME="$(pwd -P)/$1"

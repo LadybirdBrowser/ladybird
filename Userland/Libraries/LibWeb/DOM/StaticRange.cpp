@@ -29,10 +29,10 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<StaticRange>> StaticRange::construct_impl(J
 {
     // 1. If init["startContainer"] or init["endContainer"] is a DocumentType or Attr node, then throw an "InvalidNodeTypeError" DOMException.
     if (is<DocumentType>(*init.start_container) || is<Attr>(*init.start_container))
-        return WebIDL::InvalidNodeTypeError::create(realm, "startContainer cannot be a DocumentType or Attribute node."_fly_string);
+        return WebIDL::InvalidNodeTypeError::create(realm, "startContainer cannot be a DocumentType or Attribute node."_string);
 
     if (is<DocumentType>(*init.end_container) || is<Attr>(*init.end_container))
-        return WebIDL::InvalidNodeTypeError::create(realm, "endContainer cannot be a DocumentType or Attribute node."_fly_string);
+        return WebIDL::InvalidNodeTypeError::create(realm, "endContainer cannot be a DocumentType or Attribute node."_string);
 
     // 2. Set this’s start to (init["startContainer"], init["startOffset"]) and end to (init["endContainer"], init["endOffset"]).
     return realm.heap().allocate<StaticRange>(realm, *init.start_container, init.start_offset, *init.end_container, init.end_offset);

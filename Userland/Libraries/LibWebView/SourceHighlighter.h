@@ -7,11 +7,13 @@
 
 #pragma once
 
+#include <AK/OwnPtr.h>
 #include <AK/String.h>
 #include <AK/StringView.h>
 #include <LibSyntax/Document.h>
 #include <LibSyntax/HighlighterClient.h>
 #include <LibSyntax/Language.h>
+#include <LibURL/Forward.h>
 
 namespace WebView {
 
@@ -50,7 +52,7 @@ public:
     SourceHighlighterClient(StringView source, Syntax::Language);
     virtual ~SourceHighlighterClient() = default;
 
-    String to_html_string(String const&, HighlightOutputMode) const;
+    String to_html_string(URL::URL const& url, URL::URL const& base_url, HighlightOutputMode) const;
 
 private:
     // ^ Syntax::HighlighterClient
@@ -73,7 +75,7 @@ private:
     OwnPtr<Syntax::Highlighter> m_highlighter;
 };
 
-String highlight_source(String const&, StringView, Syntax::Language, HighlightOutputMode);
+String highlight_source(URL::URL const& url, URL::URL const& base_url, StringView, Syntax::Language, HighlightOutputMode);
 
 constexpr inline StringView HTML_HIGHLIGHTER_STYLE = R"~~~(
     @media (prefers-color-scheme: dark) {

@@ -47,6 +47,7 @@ set(SOURCES
     CSS/CSSLayerBlockRule.cpp
     CSS/CSSLayerStatementRule.cpp
     CSS/CSSMediaRule.cpp
+    CSS/CSSNestedDeclarations.cpp
     CSS/CSSNumericType.cpp
     CSS/CSSNamespaceRule.cpp
     CSS/CSSRule.cpp
@@ -72,20 +73,16 @@ set(SOURCES
     CSS/MediaQuery.cpp
     CSS/MediaQueryList.cpp
     CSS/MediaQueryListEvent.cpp
-    CSS/Parser/Block.cpp
     CSS/Parser/ComponentValue.cpp
-    CSS/Parser/Declaration.cpp
-    CSS/Parser/DeclarationOrAtRule.cpp
-    CSS/Parser/Function.cpp
     CSS/Parser/GradientParsing.cpp
     CSS/Parser/Helpers.cpp
     CSS/Parser/MediaParsing.cpp
     CSS/Parser/Parser.cpp
     CSS/Parser/ParsingContext.cpp
-    CSS/Parser/Rule.cpp
     CSS/Parser/SelectorParsing.cpp
     CSS/Parser/Token.cpp
     CSS/Parser/Tokenizer.cpp
+    CSS/Parser/Types.cpp
     CSS/ParsedFontFace.cpp
     CSS/PercentageOr.cpp
     CSS/PreferredColorScheme.cpp
@@ -588,7 +585,6 @@ set(SOURCES
     Painting/DisplayListRecorder.cpp
     Painting/GradientPainting.cpp
     Painting/ImagePaintable.cpp
-    Painting/InlinePaintable.cpp
     Painting/LabelablePaintable.cpp
     Painting/MarkerPaintable.cpp
     Painting/MediaPaintable.cpp
@@ -607,6 +603,7 @@ set(SOURCES
     Painting/SVGClipPaintable.cpp
     Painting/SVGPaintable.cpp
     Painting/SVGSVGPaintable.cpp
+    Painting/ScrollFrame.cpp
     Painting/ShadowPainting.cpp
     Painting/StackingContext.cpp
     Painting/TableBordersPainting.cpp
@@ -729,6 +726,7 @@ set(SOURCES
     WebAudio/AudioBufferSourceNode.cpp
     WebAudio/AudioContext.cpp
     WebAudio/AudioDestinationNode.cpp
+    WebAudio/AudioListener.cpp
     WebAudio/AudioNode.cpp
     WebAudio/AudioParam.cpp
     WebAudio/AudioScheduledSourceNode.cpp

@@ -14,6 +14,7 @@
 #include <LibWeb/Layout/SVGFormattingContext.h>
 #include <LibWeb/Layout/SVGSVGBox.h>
 #include <LibWeb/Layout/TableFormattingContext.h>
+#include <LibWeb/Layout/TextNode.h>
 #include <LibWeb/Layout/Viewport.h>
 
 namespace Web::Layout {
@@ -135,6 +136,10 @@ Optional<FormattingContext::Type> FormattingContext::formatting_context_type_cre
 
     if (display.is_grid_inside())
         return Type::Grid;
+
+    if (display.is_math_inside())
+        // HACK: Instead of crashing, create a dummy formatting context that does nothing.
+        return Type::InternalDummy;
 
     if (creates_block_formatting_context(box))
         return Type::Block;

@@ -153,13 +153,13 @@ JS::NonnullGCPtr<JS::Promise> SubtleCrypto::encrypt(AlgorithmIdentifier const& a
 
         // 8. If the name member of normalizedAlgorithm is not equal to the name attribute of the [[algorithm]] internal slot of key then throw an InvalidAccessError.
         if (normalized_algorithm.parameter->name != key->algorithm_name()) {
-            WebIDL::reject_promise(realm, promise, WebIDL::InvalidAccessError::create(realm, "Algorithm mismatch"_fly_string));
+            WebIDL::reject_promise(realm, promise, WebIDL::InvalidAccessError::create(realm, "Algorithm mismatch"_string));
             return;
         }
 
         // 9. If the [[usages]] internal slot of key does not contain an entry that is "encrypt", then throw an InvalidAccessError.
         if (!key->internal_usages().contains_slow(Bindings::KeyUsage::Encrypt)) {
-            WebIDL::reject_promise(realm, promise, WebIDL::InvalidAccessError::create(realm, "Key does not support encryption"_fly_string));
+            WebIDL::reject_promise(realm, promise, WebIDL::InvalidAccessError::create(realm, "Key does not support encryption"_string));
             return;
         }
 
@@ -210,13 +210,13 @@ JS::NonnullGCPtr<JS::Promise> SubtleCrypto::decrypt(AlgorithmIdentifier const& a
 
         // 8. If the name member of normalizedAlgorithm is not equal to the name attribute of the [[algorithm]] internal slot of key then throw an InvalidAccessError.
         if (normalized_algorithm.parameter->name != key->algorithm_name()) {
-            WebIDL::reject_promise(realm, promise, WebIDL::InvalidAccessError::create(realm, "Algorithm mismatch"_fly_string));
+            WebIDL::reject_promise(realm, promise, WebIDL::InvalidAccessError::create(realm, "Algorithm mismatch"_string));
             return;
         }
 
         // 9. If the [[usages]] internal slot of key does not contain an entry that is "decrypt", then throw an InvalidAccessError.
         if (!key->internal_usages().contains_slow(Bindings::KeyUsage::Decrypt)) {
-            WebIDL::reject_promise(realm, promise, WebIDL::InvalidAccessError::create(realm, "Key does not support encryption"_fly_string));
+            WebIDL::reject_promise(realm, promise, WebIDL::InvalidAccessError::create(realm, "Key does not support encryption"_string));
             return;
         }
 
@@ -325,14 +325,14 @@ JS::ThrowCompletionOr<JS::NonnullGCPtr<JS::Promise>> SubtleCrypto::generate_key(
         result.visit(
             [&](JS::NonnullGCPtr<CryptoKey>& key) {
                 if ((key->type() == Bindings::KeyType::Secret || key->type() == Bindings::KeyType::Private) && key_usages.is_empty()) {
-                    WebIDL::reject_promise(realm, promise, WebIDL::SyntaxError::create(realm, "usages must not be empty"_fly_string));
+                    WebIDL::reject_promise(realm, promise, WebIDL::SyntaxError::create(realm, "usages must not be empty"_string));
                     return;
                 }
                 WebIDL::resolve_promise(realm, promise, key);
             },
             [&](JS::NonnullGCPtr<CryptoKeyPair>& key_pair) {
                 if (key_pair->private_key()->internal_usages().is_empty()) {
-                    WebIDL::reject_promise(realm, promise, WebIDL::SyntaxError::create(realm, "usages must not be empty"_fly_string));
+                    WebIDL::reject_promise(realm, promise, WebIDL::SyntaxError::create(realm, "usages must not be empty"_string));
                     return;
                 }
                 WebIDL::resolve_promise(realm, promise, key_pair);
@@ -400,7 +400,7 @@ JS::ThrowCompletionOr<JS::NonnullGCPtr<JS::Promise>> SubtleCrypto::import_key(Bi
 
         // 11. If the [[type]] internal slot of result is "secret" or "private" and usages is empty, then throw a SyntaxError.
         if ((result->type() == Bindings::KeyType::Secret || result->type() == Bindings::KeyType::Private) && key_usages.is_empty()) {
-            WebIDL::reject_promise(realm, promise, WebIDL::SyntaxError::create(realm, "usages must not be empty"_fly_string));
+            WebIDL::reject_promise(realm, promise, WebIDL::SyntaxError::create(realm, "usages must not be empty"_string));
             return;
         }
 
@@ -446,7 +446,7 @@ JS::ThrowCompletionOr<JS::NonnullGCPtr<JS::Promise>> SubtleCrypto::export_key(Bi
 
         // 6. If the [[extractable]] internal slot of key is false, then throw an InvalidAccessError.
         if (!key->extractable()) {
-            WebIDL::reject_promise(realm, promise, WebIDL::InvalidAccessError::create(realm, "Key is not extractable"_fly_string));
+            WebIDL::reject_promise(realm, promise, WebIDL::InvalidAccessError::create(realm, "Key is not extractable"_string));
             return;
         }
 
@@ -497,13 +497,13 @@ JS::ThrowCompletionOr<JS::NonnullGCPtr<JS::Promise>> SubtleCrypto::sign(Algorith
 
         // 8. If the name member of normalizedAlgorithm is not equal to the name attribute of the [[algorithm]] internal slot of key then throw an InvalidAccessError.
         if (normalized_algorithm.parameter->name != key->algorithm_name()) {
-            WebIDL::reject_promise(realm, promise, WebIDL::InvalidAccessError::create(realm, "Algorithm mismatch"_fly_string));
+            WebIDL::reject_promise(realm, promise, WebIDL::InvalidAccessError::create(realm, "Algorithm mismatch"_string));
             return;
         }
 
         // 9. If the [[usages]] internal slot of key does not contain an entry that is "sign", then throw an InvalidAccessError.
         if (!key->internal_usages().contains_slow(Bindings::KeyUsage::Sign)) {
-            WebIDL::reject_promise(realm, promise, WebIDL::InvalidAccessError::create(realm, "Key does not support signing"_fly_string));
+            WebIDL::reject_promise(realm, promise, WebIDL::InvalidAccessError::create(realm, "Key does not support signing"_string));
             return;
         }
 
@@ -561,13 +561,13 @@ JS::ThrowCompletionOr<JS::NonnullGCPtr<JS::Promise>> SubtleCrypto::verify(Algori
 
         // 9. If the name member of normalizedAlgorithm is not equal to the name attribute of the [[algorithm]] internal slot of key then throw an InvalidAccessError.
         if (normalized_algorithm.parameter->name != key->algorithm_name()) {
-            WebIDL::reject_promise(realm, promise, WebIDL::InvalidAccessError::create(realm, "Algorithm mismatch"_fly_string));
+            WebIDL::reject_promise(realm, promise, WebIDL::InvalidAccessError::create(realm, "Algorithm mismatch"_string));
             return;
         }
 
         // 10. If the [[usages]] internal slot of key does not contain an entry that is "verify", then throw an InvalidAccessError.
         if (!key->internal_usages().contains_slow(Bindings::KeyUsage::Verify)) {
-            WebIDL::reject_promise(realm, promise, WebIDL::InvalidAccessError::create(realm, "Key does not support verification"_fly_string));
+            WebIDL::reject_promise(realm, promise, WebIDL::InvalidAccessError::create(realm, "Key does not support verification"_string));
             return;
         }
 
@@ -608,13 +608,13 @@ JS::ThrowCompletionOr<JS::NonnullGCPtr<JS::Promise>> SubtleCrypto::derive_bits(A
 
         // 7. If the name member of normalizedAlgorithm is not equal to the name attribute of the [[algorithm]] internal slot of baseKey then throw an InvalidAccessError.
         if (normalized_algorithm.parameter->name != base_key->algorithm_name()) {
-            WebIDL::reject_promise(realm, promise, WebIDL::InvalidAccessError::create(realm, "Algorithm mismatch"_fly_string));
+            WebIDL::reject_promise(realm, promise, WebIDL::InvalidAccessError::create(realm, "Algorithm mismatch"_string));
             return;
         }
 
         // 8. If the [[usages]] internal slot of baseKey does not contain an entry that is "deriveBits", then throw an InvalidAccessError.
         if (!base_key->internal_usages().contains_slow(Bindings::KeyUsage::Derivebits)) {
-            WebIDL::reject_promise(realm, promise, WebIDL::InvalidAccessError::create(realm, "Key does not support deriving bits"_fly_string));
+            WebIDL::reject_promise(realm, promise, WebIDL::InvalidAccessError::create(realm, "Key does not support deriving bits"_string));
             return;
         }
 
@@ -669,13 +669,13 @@ JS::ThrowCompletionOr<JS::NonnullGCPtr<JS::Promise>> SubtleCrypto::derive_key(Al
 
         // 11. If the name member of normalizedAlgorithm is not equal to the name attribute of the [[algorithm]] internal slot of baseKey then throw an InvalidAccessError.
         if (normalized_algorithm.parameter->name != base_key->algorithm_name()) {
-            WebIDL::reject_promise(realm, promise, WebIDL::InvalidAccessError::create(realm, "Algorithm mismatch"_fly_string));
+            WebIDL::reject_promise(realm, promise, WebIDL::InvalidAccessError::create(realm, "Algorithm mismatch"_string));
             return;
         }
 
         // 12. If the [[usages]] internal slot of baseKey does not contain an entry that is "deriveKey", then throw an InvalidAccessError.
         if (!base_key->internal_usages().contains_slow(Bindings::KeyUsage::Derivekey)) {
-            WebIDL::reject_promise(realm, promise, WebIDL::InvalidAccessError::create(realm, "Key does not support deriving keys"_fly_string));
+            WebIDL::reject_promise(realm, promise, WebIDL::InvalidAccessError::create(realm, "Key does not support deriving keys"_string));
             return;
         }
 
@@ -714,7 +714,7 @@ JS::ThrowCompletionOr<JS::NonnullGCPtr<JS::Promise>> SubtleCrypto::derive_key(Al
 
         // 16. If the [[type]] internal slot of result is "secret" or "private" and usages is empty, then throw a SyntaxError.
         if ((result.release_value()->type() == Bindings::KeyType::Secret || result.release_value()->type() == Bindings::KeyType::Private) && key_usages.is_empty()) {
-            WebIDL::reject_promise(realm, promise, WebIDL::SyntaxError::create(realm, "usages must not be empty"_fly_string));
+            WebIDL::reject_promise(realm, promise, WebIDL::SyntaxError::create(realm, "usages must not be empty"_string));
             return;
         }
 

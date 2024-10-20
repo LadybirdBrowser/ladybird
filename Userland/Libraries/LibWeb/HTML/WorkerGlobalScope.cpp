@@ -11,6 +11,7 @@
 #include <LibWeb/HTML/EventHandler.h>
 #include <LibWeb/HTML/EventNames.h>
 #include <LibWeb/HTML/MessageEvent.h>
+#include <LibWeb/HTML/MessagePort.h>
 #include <LibWeb/HTML/Scripting/ClassicScript.h>
 #include <LibWeb/HTML/StructuredSerialize.h>
 #include <LibWeb/HTML/WorkerGlobalScope.h>
@@ -104,7 +105,7 @@ WebIDL::ExceptionOr<void> WorkerGlobalScope::import_scripts(Vector<String> const
 
         // 2. If urlRecord is failure, then throw a "SyntaxError" DOMException.
         if (!url_record.is_valid())
-            return WebIDL::SyntaxError::create(realm(), "Invalid URL"_fly_string);
+            return WebIDL::SyntaxError::create(realm(), "Invalid URL"_string);
 
         // 3. Append urlRecord to urlRecords.
         url_records.unchecked_append(url_record);

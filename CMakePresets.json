@@ -14,14 +14,14 @@
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "RelWithDebInfo",
         "SERENITY_CACHE_DIR": "${fileDir}/Build/caches",
-        "CMAKE_TOOLCHAIN_FILE": "${fileDir}/Toolchain/Tarballs/vcpkg/scripts/buildsystems/vcpkg.cmake",
+        "CMAKE_TOOLCHAIN_FILE": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake",
         "VCPKG_INSTALL_OPTIONS": "--no-print-usage",
         "VCPKG_OVERLAY_TRIPLETS": "${fileDir}/Meta/CMake/vcpkg/release-triplets"
       },
       "environment": {
         "LADYBIRD_SOURCE_DIR": "${fileDir}",
         "VCPKG_ROOT": "${fileDir}/Toolchain/Tarballs/vcpkg",
-        "VCPKG_BINARY_SOURCES": "clear;files,${fileDir}/Toolchain/Build/vcpkg-binary-cache,readwrite"
+        "VCPKG_BINARY_SOURCES": "clear;files,${fileDir}/Toolchain/Build/vcpkg-binary-cache,readwrite;$penv{VCPKG_BINARY_SOURCES}"
       },
       "vendor": {
         "jetbrains.com/clion": {

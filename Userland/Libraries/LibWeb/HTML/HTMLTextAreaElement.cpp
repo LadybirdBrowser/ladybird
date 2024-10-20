@@ -119,6 +119,20 @@ void HTMLTextAreaElement::reset_algorithm()
     }
 }
 
+// https://w3c.github.io/webdriver/#dfn-clear-algorithm
+void HTMLTextAreaElement::clear_algorithm()
+{
+    // The clear algorithm for textarea elements is to set the dirty value flag back to false,
+    m_dirty_value = false;
+
+    // and set the raw value of element to an empty string.
+    set_raw_value(child_text_content());
+
+    // Unlike their associated reset algorithms, changes made to form controls as part of these algorithms do count as
+    // changes caused by the user (and thus, e.g. do cause input events to fire).
+    queue_firing_input_event();
+}
+
 // https://html.spec.whatwg.org/multipage/forms.html#the-textarea-element:concept-node-clone-ext
 WebIDL::ExceptionOr<void> HTMLTextAreaElement::cloned(DOM::Node& copy, bool)
 {
@@ -285,7 +299,7 @@ unsigned HTMLTextAreaElement::cols() const
 
 WebIDL::ExceptionOr<void> HTMLTextAreaElement::set_cols(unsigned cols)
 {
-    return set_attribute(HTML::AttributeNames::cols, MUST(String::number(cols)));
+    return set_attribute(HTML::AttributeNames::cols, String::number(cols));
 }
 
 // https://html.spec.whatwg.org/multipage/form-elements.html#dom-textarea-rows
@@ -301,7 +315,7 @@ unsigned HTMLTextAreaElement::rows() const
 
 WebIDL::ExceptionOr<void> HTMLTextAreaElement::set_rows(unsigned rows)
 {
-    return set_attribute(HTML::AttributeNames::rows, MUST(String::number(rows)));
+    return set_attribute(HTML::AttributeNames::rows, String::number(rows));
 }
 
 WebIDL::UnsignedLong HTMLTextAreaElement::selection_start_binding() const

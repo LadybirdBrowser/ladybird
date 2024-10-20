@@ -70,12 +70,12 @@ private:
     virtual void did_request_link_context_menu(u64 page_id, Gfx::IntPoint, URL::URL const&, ByteString const&, unsigned) override;
     virtual void did_request_image_context_menu(u64 page_id, Gfx::IntPoint, URL::URL const&, ByteString const&, unsigned, Gfx::ShareableBitmap const&) override;
     virtual void did_request_media_context_menu(u64 page_id, Gfx::IntPoint, ByteString const&, unsigned, Web::Page::MediaContextMenu const&) override;
-    virtual void did_get_source(u64 page_id, URL::URL const&, ByteString const&) override;
+    virtual void did_get_source(u64 page_id, URL::URL const&, URL::URL const&, String const&) override;
     virtual void did_inspect_dom_tree(u64 page_id, ByteString const&) override;
     virtual void did_inspect_dom_node(u64 page_id, bool has_style, ByteString const& computed_style, ByteString const& resolved_style, ByteString const& custom_properties, ByteString const& node_box_sizing, ByteString const& aria_properties_state, ByteString const& fonts) override;
     virtual void did_inspect_accessibility_tree(u64 page_id, ByteString const&) override;
-    virtual void did_get_hovered_node_id(u64 page_id, i32 node_id) override;
-    virtual void did_finish_editing_dom_node(u64 page_id, Optional<i32> const& node_id) override;
+    virtual void did_get_hovered_node_id(u64 page_id, Web::UniqueNodeID const& node_id) override;
+    virtual void did_finish_editing_dom_node(u64 page_id, Optional<Web::UniqueNodeID> const& node_id) override;
     virtual void did_get_dom_node_html(u64 page_id, String const& html) override;
     virtual void did_take_screenshot(u64 page_id, Gfx::ShareableBitmap const& screenshot) override;
     virtual void did_get_internal_page_info(u64 page_id, PageInfoType, String const&) override;
@@ -93,6 +93,7 @@ private:
     virtual Messages::WebContentClient::DidRequestCookieResponse did_request_cookie(URL::URL const&, Web::Cookie::Source) override;
     virtual void did_set_cookie(URL::URL const&, Web::Cookie::ParsedCookie const&, Web::Cookie::Source) override;
     virtual void did_update_cookie(Web::Cookie::Cookie const&) override;
+    virtual void did_expire_cookies_with_time_offset(AK::Duration) override;
     virtual Messages::WebContentClient::DidRequestNewWebViewResponse did_request_new_web_view(u64 page_id, Web::HTML::ActivateTab const&, Web::HTML::WebViewHints const&, Optional<u64> const& page_index) override;
     virtual void did_request_activate_tab(u64 page_id) override;
     virtual void did_close_browsing_context(u64 page_id) override;
@@ -116,19 +117,19 @@ private:
     virtual void did_update_navigation_buttons_state(u64 page_id, bool back_enabled, bool forward_enabled) override;
     virtual void did_allocate_backing_stores(u64 page_id, i32 front_bitmap_id, Gfx::ShareableBitmap const&, i32 back_bitmap_id, Gfx::ShareableBitmap const&) override;
     virtual void inspector_did_load(u64 page_id) override;
-    virtual void inspector_did_select_dom_node(u64 page_id, i32 node_id, Optional<Web::CSS::Selector::PseudoElement::Type> const& pseudo_element) override;
-    virtual void inspector_did_set_dom_node_text(u64 page_id, i32 node_id, String const& text) override;
-    virtual void inspector_did_set_dom_node_tag(u64 page_id, i32 node_id, String const& tag) override;
-    virtual void inspector_did_add_dom_node_attributes(u64 page_id, i32 node_id, Vector<Attribute> const& attributes) override;
-    virtual void inspector_did_replace_dom_node_attribute(u64 page_id, i32 node_id, size_t attribute_index, Vector<Attribute> const& replacement_attributes) override;
-    virtual void inspector_did_request_dom_tree_context_menu(u64 page_id, i32 node_id, Gfx::IntPoint position, String const& type, Optional<String> const& tag, Optional<size_t> const& attribute_index) override;
+    virtual void inspector_did_select_dom_node(u64 page_id, Web::UniqueNodeID const& node_id, Optional<Web::CSS::Selector::PseudoElement::Type> const& pseudo_element) override;
+    virtual void inspector_did_set_dom_node_text(u64 page_id, Web::UniqueNodeID const& node_id, String const& text) override;
+    virtual void inspector_did_set_dom_node_tag(u64 page_id, Web::UniqueNodeID const& node_id, String const& tag) override;
+    virtual void inspector_did_add_dom_node_attributes(u64 page_id, Web::UniqueNodeID const& node_id, Vector<Attribute> const& attributes) override;
+    virtual void inspector_did_replace_dom_node_attribute(u64 page_id, Web::UniqueNodeID const& node_id, size_t attribute_index, Vector<Attribute> const& replacement_attributes) override;
+    virtual void inspector_did_request_dom_tree_context_menu(u64 page_id, Web::UniqueNodeID const& node_id, Gfx::IntPoint position, String const& type, Optional<String> const& tag, Optional<size_t> const& attribute_index) override;
     virtual void inspector_did_request_cookie_context_menu(u64 page_id, size_t cookie_index, Gfx::IntPoint position) override;
     virtual void inspector_did_execute_console_script(u64 page_id, String const& script) override;
     virtual void inspector_did_export_inspector_html(u64 page_id, String const& html) override;
     virtual Messages::WebContentClient::RequestWorkerAgentResponse request_worker_agent(u64 page_id) override;
     virtual void inspector_did_list_style_sheets(u64 page_id, Vector<Web::CSS::StyleSheetIdentifier> const& stylesheets) override;
     virtual void inspector_did_request_style_sheet_source(u64 page_id, Web::CSS::StyleSheetIdentifier const& identifier) override;
-    virtual void did_request_style_sheet_source(u64 page_id, Web::CSS::StyleSheetIdentifier const& identifier, String const& source) override;
+    virtual void did_get_style_sheet_source(u64 page_id, Web::CSS::StyleSheetIdentifier const& identifier, URL::URL const&, String const& source) override;
 
     Optional<ViewImplementation&> view_for_page_id(u64, SourceLocation = SourceLocation::current());
 

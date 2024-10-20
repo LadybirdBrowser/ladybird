@@ -34,6 +34,7 @@ public:
         // AD-HOC: These are not included in the spec, but we need them internally. So, their numbers are arbitrary.
         LayerBlock = 100,
         LayerStatement = 101,
+        NestedDeclarations = 102,
     };
 
     virtual Type type() const = 0;
@@ -51,12 +52,15 @@ public:
     template<typename T>
     bool fast_is() const = delete;
 
+    // https://drafts.csswg.org/cssom-1/#serialize-a-css-rule
+    virtual String serialized() const = 0;
+
 protected:
     explicit CSSRule(JS::Realm&);
 
-    virtual String serialized() const = 0;
-
     virtual void visit_edges(Cell::Visitor&) override;
+
+    virtual void clear_caches();
 
     [[nodiscard]] FlyString const& parent_layer_internal_qualified_name() const
     {

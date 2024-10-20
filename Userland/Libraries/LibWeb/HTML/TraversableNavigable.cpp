@@ -560,9 +560,24 @@ TraversableNavigable::HistoryStepResult TraversableNavigable::apply_the_history_
             // 6. Let oldOrigin be targetEntry's document state's origin.
             auto old_origin = target_entry->document_state()->origin();
 
-            // FIXME: 7. If navigable is not traversable, and targetEntry is not navigable's current session history entry,
-            //    and oldOrigin is the same as navigable's current session history entry's document state's origin,
-            //    then fire a traverse navigate event given targetEntry and userInvolvementForNavigateEvents.
+            // 7. If all of the following are true:
+            //   * navigable is not traversable;
+            //   * targetEntry is not navigable's current session history entry; and
+            //   * oldOrigin is the same as navigable's current session history entry's document state's origin,
+            // then:
+            if (!navigable->is_traversable()
+                && target_entry != navigable->current_session_history_entry()
+                && old_origin == navigable->current_session_history_entry()->document_state()->origin()) {
+
+                // 1. Assert: userInvolvementForNavigateEvents is not null.
+                VERIFY(user_involvement_for_navigate_events.has_value());
+
+                // 2. Let navigation be navigable's active window's navigation API.
+                auto navigation = active_window()->navigation();
+
+                // 3. Fire a traverse navigate event at navigation given targetEntry and userInvolvementForNavigateEvents.
+                navigation->fire_a_traverse_navigate_event(*target_entry, *user_involvement_for_navigate_events);
+            }
 
             auto after_document_populated = [old_origin, changing_navigable_continuation, &changing_navigable_continuations, &vm, &navigable](bool populated_cloned_target_she, JS::NonnullGCPtr<SessionHistoryEntry> target_entry) mutable {
                 changing_navigable_continuation->populated_target_entry = target_entry;
@@ -584,8 +599,8 @@ TraversableNavigable::HistoryStepResult TraversableNavigable::apply_the_history_
                     //     - targetEntry's document's browsing context is not an auxiliary browsing context whose opener browsing context is non-null; and
                     //     - targetEntry's document's origin is not oldOrigin,
                     //    then set targetEntry's document state's navigable target name to the empty string.
-                    if (navigable->parent() != nullptr
-                        && target_entry->document()->browsing_context()->opener_browsing_context() == nullptr
+                    if (navigable->parent() == nullptr
+                        && !(target_entry->document()->browsing_context()->is_auxiliary() && target_entry->document()->browsing_context()->opener_browsing_context() != nullptr)
                         && target_entry->document_state()->origin() != old_origin) {
                         target_entry->document_state()->set_navigable_target_name(String {});
                     }
@@ -703,6 +718,10 @@ TraversableNavigable::HistoryStepResult TraversableNavigable::apply_the_history_
         // NOTE: This check is not in the spec but we should not continue navigation if navigable has been destroyed.
         if (navigable->has_been_destroyed())
             continue;
+
+        // AD-HOC: We re-compute targetStep here, since it might have changed since the last time we computed it.
+        //         This can happen if navigables are destroyed while we wait for tasks to complete.
+        target_step = get_the_used_step(step);
 
         // 7. Let (scriptHistoryLength, scriptHistoryIndex) be the result of getting the history object length and index given traversable and targetStep.
         auto history_object_length_and_index = get_the_history_object_length_and_index(target_step);

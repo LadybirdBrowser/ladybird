@@ -139,7 +139,7 @@ JS::ThrowCompletionOr<void> CustomElementRegistry::define(String const& name, We
     });
 
     if (existing_definition_with_constructor_iterator != m_custom_element_definitions.end())
-        return JS::throw_completion(WebIDL::NotSupportedError::create(realm, "The given constructor is already in use by another custom element"_fly_string));
+        return JS::throw_completion(WebIDL::NotSupportedError::create(realm, "The given constructor is already in use by another custom element"_string));
 
     // 5. Let localName be name.
     String local_name = name;
@@ -163,7 +163,7 @@ JS::ThrowCompletionOr<void> CustomElementRegistry::define(String const& name, We
 
     // 8. If this CustomElementRegistry's element definition is running flag is set, then throw a "NotSupportedError" DOMException.
     if (m_element_definition_is_running)
-        return JS::throw_completion(WebIDL::NotSupportedError::create(realm, "Cannot recursively define custom elements"_fly_string));
+        return JS::throw_completion(WebIDL::NotSupportedError::create(realm, "Cannot recursively define custom elements"_string));
 
     // 9. Set this CustomElementRegistry's element definition is running flag.
     m_element_definition_is_running = true;

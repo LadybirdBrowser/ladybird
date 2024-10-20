@@ -6,19 +6,20 @@
 
 #pragma once
 
+#include <LibWeb/Forward.h>
 #include <LibWeb/PixelUnits.h>
 
 namespace Web::Painting {
 
 class ScrollFrame : public RefCounted<ScrollFrame> {
 public:
-    ScrollFrame(i32 id, RefPtr<ScrollFrame const> parent)
-        : m_id(id)
-        , m_parent(move(parent))
-    {
-    }
+    ScrollFrame(PaintableBox const& paintable_box, size_t id, bool sticky, RefPtr<ScrollFrame const> parent);
 
-    i32 id() const { return m_id; }
+    PaintableBox const& paintable_box() const { return *m_paintable_box; }
+
+    size_t id() const { return m_id; }
+
+    bool is_sticky() const { return m_sticky; }
 
     CSSPixelPoint cumulative_offset() const
     {
@@ -39,7 +40,9 @@ public:
     }
 
 private:
-    i32 m_id { -1 };
+    WeakPtr<PaintableBox> m_paintable_box;
+    size_t m_id { 0 };
+    bool m_sticky { false };
     RefPtr<ScrollFrame const> m_parent;
     CSSPixelPoint m_own_offset;
 

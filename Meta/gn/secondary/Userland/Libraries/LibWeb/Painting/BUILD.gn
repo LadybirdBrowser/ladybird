@@ -23,7 +23,6 @@ source_set("Painting") {
     "DisplayListRecorder.cpp",
     "GradientPainting.cpp",
     "ImagePaintable.cpp",
-    "InlinePaintable.cpp",
     "LabelablePaintable.cpp",
     "MarkerPaintable.cpp",
     "MediaPaintable.cpp",

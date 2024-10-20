@@ -8,7 +8,6 @@
 
 #include <AK/Vector.h>
 #include <LibGfx/Matrix4x4.h>
-#include <LibWeb/Painting/InlinePaintable.h>
 #include <LibWeb/Painting/Paintable.h>
 
 namespace Web::Painting {
@@ -24,7 +23,6 @@ public:
 
     Paintable const& paintable() const { return *m_paintable; }
     PaintableBox const& paintable_box() const { return verify_cast<PaintableBox>(*m_paintable); }
-    InlinePaintable const& inline_paintable() const { return verify_cast<InlinePaintable>(*m_paintable); }
 
     enum class StackingContextPaintPhase {
         BackgroundAndBorders,

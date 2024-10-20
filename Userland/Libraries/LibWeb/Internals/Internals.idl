@@ -33,4 +33,6 @@ interface Internals {
     undefined simulateDragStart(double x, double y, DOMString mimeType, DOMString contents);
     undefined simulateDragMove(double x, double y);
     undefined simulateDrop(double x, double y);
+
+    undefined expireCookiesWithTimeOffset(long long seconds);
 };

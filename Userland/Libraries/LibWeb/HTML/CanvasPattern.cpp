@@ -124,7 +124,7 @@ WebIDL::ExceptionOr<JS::GCPtr<CanvasPattern>> CanvasPattern::create(JS::Realm& r
     // then throw a "SyntaxError" DOMException.
     auto repetition_value = parse_repetition(repetition);
     if (!repetition_value.has_value())
-        return WebIDL::SyntaxError::create(realm, "Repetition value is not valid"_fly_string);
+        return WebIDL::SyntaxError::create(realm, "Repetition value is not valid"_string);
 
     // Note: Bitmap won't be null here, as if it were it would have "bad" usability.
     auto const& bitmap = *image.visit([](auto const& source) -> Gfx::Bitmap const* { return source->bitmap(); });

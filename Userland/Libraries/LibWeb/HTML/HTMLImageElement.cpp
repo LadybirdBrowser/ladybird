@@ -191,7 +191,7 @@ unsigned HTMLImageElement::width() const
 
 WebIDL::ExceptionOr<void> HTMLImageElement::set_width(unsigned width)
 {
-    return set_attribute(HTML::AttributeNames::width, MUST(String::number(width)));
+    return set_attribute(HTML::AttributeNames::width, String::number(width));
 }
 
 // https://html.spec.whatwg.org/multipage/embedded-content.html#dom-img-height
@@ -220,7 +220,7 @@ unsigned HTMLImageElement::height() const
 
 WebIDL::ExceptionOr<void> HTMLImageElement::set_height(unsigned height)
 {
-    return set_attribute(HTML::AttributeNames::height, MUST(String::number(height)));
+    return set_attribute(HTML::AttributeNames::height, String::number(height));
 }
 
 // https://html.spec.whatwg.org/multipage/embedded-content.html#dom-img-naturalwidth
@@ -295,7 +295,7 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<JS::Promise>> HTMLImageElement::decode() co
             if (this->document().is_fully_active())
                 return false;
 
-            auto exception = WebIDL::EncodingError::create(realm, "Node document not fully active"_fly_string);
+            auto exception = WebIDL::EncodingError::create(realm, "Node document not fully active"_string);
             HTML::TemporaryExecutionContext context(HTML::relevant_settings_object(*this));
             WebIDL::reject_promise(realm, promise, exception);
             return true;
@@ -305,7 +305,7 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<JS::Promise>> HTMLImageElement::decode() co
             if (this->current_request().state() != ImageRequest::State::Broken)
                 return false;
 
-            auto exception = WebIDL::EncodingError::create(realm, "Current request state is broken"_fly_string);
+            auto exception = WebIDL::EncodingError::create(realm, "Current request state is broken"_string);
             HTML::TemporaryExecutionContext context(HTML::relevant_settings_object(*this));
             WebIDL::reject_promise(realm, promise, exception);
             return true;

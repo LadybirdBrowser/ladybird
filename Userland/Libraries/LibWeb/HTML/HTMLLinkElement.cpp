@@ -137,7 +137,7 @@ void HTMLLinkElement::attribute_changed(FlyString const& name, Optional<String> 
     if (name == HTML::AttributeNames::rel) {
         m_relationship = 0;
         // Keywords are always ASCII case-insensitive, and must be compared as such.
-        auto lowercased_value = MUST(Infra::to_ascii_lowercase(value.value_or(String {})));
+        auto lowercased_value = value.value_or(String {}).to_ascii_lowercase();
         // To determine which link types apply to a link, a, area, or form element,
         // the element's rel attribute must be split on ASCII whitespace.
         // The resulting tokens are the keywords for the link types that apply to that element.

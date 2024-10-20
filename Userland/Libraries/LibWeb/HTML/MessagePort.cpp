@@ -20,6 +20,7 @@
 #include <LibWeb/HTML/MessageEvent.h>
 #include <LibWeb/HTML/MessagePort.h>
 #include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
+#include <LibWeb/HTML/StructuredSerializeOptions.h>
 #include <LibWeb/HTML/WorkerGlobalScope.h>
 
 namespace Web::HTML {
@@ -27,6 +28,12 @@ namespace Web::HTML {
 constexpr u8 IPC_FILE_TAG = 0xA5;
 
 JS_DEFINE_ALLOCATOR(MessagePort);
+
+static HashTable<JS::RawGCPtr<MessagePort>>& all_message_ports()
+{
+    static HashTable<JS::RawGCPtr<MessagePort>> ports;
+    return ports;
+}
 
 JS::NonnullGCPtr<MessagePort> MessagePort::create(JS::Realm& realm)
 {
@@ -36,11 +43,19 @@ JS::NonnullGCPtr<MessagePort> MessagePort::create(JS::Realm& realm)
 MessagePort::MessagePort(JS::Realm& realm)
     : DOM::EventTarget(realm)
 {
+    all_message_ports().set(this);
 }
 
 MessagePort::~MessagePort()
 {
+    all_message_ports().remove(this);
     disentangle();
+}
+
+void MessagePort::for_each_message_port(Function<void(MessagePort&)> callback)
+{
+    for (auto port : all_message_ports())
+        callback(*port);
 }
 
 void MessagePort::initialize(JS::Realm& realm)
@@ -53,10 +68,7 @@ void MessagePort::visit_edges(Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_remote_port);
-
-    // FIXME: This is incorrect!! We *should* be visiting the worker event target,
-    //        but CI hangs if we do: https://github.com/SerenityOS/serenity/issues/23899
-    visitor.ignore(m_worker_event_target);
+    visitor.visit(m_worker_event_target);
 }
 
 void MessagePort::set_worker_event_target(JS::NonnullGCPtr<DOM::EventTarget> target)
@@ -127,6 +139,8 @@ void MessagePort::disentangle()
     m_remote_port = nullptr;
 
     m_socket = nullptr;
+
+    m_worker_event_target = nullptr;
 }
 
 // https://html.spec.whatwg.org/multipage/web-messaging.html#entangle
@@ -207,7 +221,7 @@ WebIDL::ExceptionOr<void> MessagePort::message_port_post_message_steps(JS::GCPtr
     // 2. If transfer contains this MessagePort, then throw a "DataCloneError" DOMException.
     for (auto const& handle : transfer) {
         if (handle == this)
-            return WebIDL::DataCloneError::create(realm, "Cannot transfer a MessagePort to itself"_fly_string);
+            return WebIDL::DataCloneError::create(realm, "Cannot transfer a MessagePort to itself"_string);
     }
 
     // 3. Let doomed be false.

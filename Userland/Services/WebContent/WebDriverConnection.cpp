@@ -45,6 +45,7 @@
 #include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
 #include <LibWeb/HTML/SelectedFile.h>
 #include <LibWeb/HTML/TraversableNavigable.h>
+#include <LibWeb/HTML/WindowProxy.h>
 #include <LibWeb/Page/Page.h>
 #include <LibWeb/Platform/EventLoopPlugin.h>
 #include <LibWeb/Platform/Timer.h>
@@ -199,6 +200,14 @@ WebDriverConnection::WebDriverConnection(NonnullOwnPtr<Core::LocalSocket> socket
     set_current_top_level_browsing_context(page_client.page().top_level_browsing_context());
 }
 
+void WebDriverConnection::visit_edges(JS::Cell::Visitor& visitor)
+{
+    visitor.visit(m_current_browsing_context);
+    visitor.visit(m_current_parent_browsing_context);
+    visitor.visit(m_current_top_level_browsing_context);
+    visitor.visit(m_action_executor);
+}
+
 // https://w3c.github.io/webdriver/#dfn-close-the-session
 void WebDriverConnection::close_session()
 {
@@ -243,11 +252,15 @@ Messages::WebDriverClient::GetTimeoutsResponse WebDriverConnection::get_timeouts
 // 9.2 Set Timeouts, https://w3c.github.io/webdriver/#dfn-set-timeouts
 Messages::WebDriverClient::SetTimeoutsResponse WebDriverConnection::set_timeouts(JsonValue const& payload)
 {
+    // FIXME: Spec issue: As written, the spec replaces the timeouts configuration with the newly provided values. But
+    //        all other implementations update the existing configuration with any new values instead. WPT relies on
+    //        this behavior, and sends us one timeout value at time.
+    //        https://github.com/w3c/webdriver/issues/1596
+
     // 1. Let timeouts be the result of trying to JSON deserialize as a timeouts configuration the request’s parameters.
-    auto timeouts = TRY(Web::WebDriver::json_deserialize_as_a_timeouts_configuration(payload));
+    TRY(Web::WebDriver::json_deserialize_as_a_timeouts_configuration_into(payload, m_timeouts_configuration));
 
     // 2. Make the session timeouts the new timeouts.
-    m_timeouts_configuration = move(timeouts);
 
     // 3. Return success with data null.
     return JsonValue {};
@@ -472,10 +485,14 @@ Messages::WebDriverClient::NewWindowResponse WebDriverConnection::new_window(Jso
     //    is "window", and the implementation supports multiple browsing contexts in separate OS windows, the
     //    created browsing context should be in a new OS window. In all other cases the details of how the browsing
     //    context is presented to the user are implementation defined.
-    auto [navigable, window_type] = current_browsing_context().top_level_traversable()->choose_a_navigable("_blank"sv, Web::HTML::TokenizedFeature::NoOpener::Yes, Web::HTML::ActivateTab::No);
+    auto* active_window = current_browsing_context().active_window();
+    VERIFY(active_window);
+
+    Web::HTML::TemporaryExecutionContext execution_context { active_window->document()->relevant_settings_object() };
+    auto [target_navigable, no_opener, window_type] = MUST(active_window->window_open_steps_internal("about:blank"sv, ""sv, "noopener"sv));
 
     // 6. Let handle be the associated window handle of the newly created window.
-    auto handle = navigable->traversable_navigable()->window_handle();
+    auto handle = target_navigable->traversable_navigable()->window_handle();
 
     // 7. Let type be "tab" if the newly created window shares an OS-level window with the current browsing context, or "window" otherwise.
     auto type = "tab"sv;
@@ -539,11 +556,11 @@ Messages::WebDriverClient::SwitchToFrameResponse WebDriverConnection::switch_to_
         TRY(handle_any_user_prompts());
 
         // 3. Let element be the result of trying to get a known element with session and id.
-        auto* element = TRY(Web::WebDriver::get_known_connected_element(element_id));
+        auto element = TRY(Web::WebDriver::get_known_element(element_id));
 
         // 4. If element is not a frame or iframe element, return error with error code no such frame.
-        bool is_frame = is<Web::HTML::HTMLFrameElement>(element);
-        bool is_iframe = is<Web::HTML::HTMLIFrameElement>(element);
+        bool is_frame = is<Web::HTML::HTMLFrameElement>(*element);
+        bool is_iframe = is<Web::HTML::HTMLIFrameElement>(*element);
 
         if (!is_frame && !is_iframe)
             return Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::NoSuchFrame, "element is not a frame"sv);
@@ -804,7 +821,7 @@ Messages::WebDriverClient::FindElementResponse WebDriverConnection::find_element
         if (!start_node)
             return Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::NoSuchElement, "document element does not exist"sv);
 
-        return start_node;
+        return *start_node;
     };
 
     // 9. Let result be the result of trying to Find with start node, location strategy, and selector.
@@ -846,7 +863,7 @@ Messages::WebDriverClient::FindElementsResponse WebDriverConnection::find_elemen
         if (!start_node)
             return Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::NoSuchElement, "document element does not exist"sv);
 
-        return start_node;
+        return *start_node;
     };
 
     // 9. Return the result of trying to Find with start node, location strategy, and selector.
@@ -876,7 +893,7 @@ Messages::WebDriverClient::FindElementFromElementResponse WebDriverConnection::f
 
     auto start_node_getter = [&]() -> StartNodeGetter::ReturnType {
         // 7. Let start node be the result of trying to get a known connected element with url variable element id.
-        return TRY(Web::WebDriver::get_known_connected_element(element_id));
+        return TRY(Web::WebDriver::get_known_element(element_id));
     };
 
     // 8. Let result be the value of trying to Find with start node, location strategy, and selector.
@@ -912,7 +929,7 @@ Messages::WebDriverClient::FindElementsFromElementResponse WebDriverConnection::
 
     auto start_node_getter = [&]() -> StartNodeGetter::ReturnType {
         // 7. Let start node be the result of trying to get a known connected element with url variable element id.
-        return TRY(Web::WebDriver::get_known_connected_element(element_id));
+        return TRY(Web::WebDriver::get_known_element(element_id));
     };
 
     // 8. Return the result of trying to Find with start node, location strategy, and selector.
@@ -1000,7 +1017,7 @@ Messages::WebDriverClient::GetActiveElementResponse WebDriverConnection::get_act
     // 4. If active element is a non-null element, return success with data set to web element reference object for active element.
     //    Otherwise, return error with error code no such element.
     if (active_element)
-        return ByteString::number(active_element->unique_id());
+        return ByteString::number(active_element->unique_id().value());
 
     return Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::NoSuchElement, "The current document does not have an active element"sv);
 }
@@ -1015,7 +1032,7 @@ Messages::WebDriverClient::GetElementShadowRootResponse WebDriverConnection::get
     TRY(handle_any_user_prompts());
 
     // 3. Let element be the result of trying to get a known connected element with url variable element id.
-    auto* element = TRY(Web::WebDriver::get_known_connected_element(element_id));
+    auto element = TRY(Web::WebDriver::get_known_element(element_id));
 
     // 4. Let shadow root be element's shadow root.
     auto shadow_root = element->shadow_root();
@@ -1041,7 +1058,7 @@ Messages::WebDriverClient::IsElementSelectedResponse WebDriverConnection::is_ele
     TRY(handle_any_user_prompts());
 
     // 3. Let element be the result of trying to get a known connected element with url variable element id.
-    auto* element = TRY(Web::WebDriver::get_known_connected_element(element_id));
+    auto element = TRY(Web::WebDriver::get_known_element(element_id));
 
     // 4. Let selected be the value corresponding to the first matching statement:
     bool selected = false;
@@ -1077,7 +1094,7 @@ Messages::WebDriverClient::GetElementAttributeResponse WebDriverConnection::get_
     TRY(handle_any_user_prompts());
 
     // 3. Let element be the result of trying to get a known connected element with url variable element id.
-    auto* element = TRY(Web::WebDriver::get_known_connected_element(element_id));
+    auto element = TRY(Web::WebDriver::get_known_element(element_id));
 
     // 4. Let result be the result of the first matching condition:
     Optional<ByteString> result;
@@ -1111,7 +1128,7 @@ Messages::WebDriverClient::GetElementPropertyResponse WebDriverConnection::get_e
     TRY(handle_any_user_prompts());
 
     // 3. Let element be the result of trying to get a known connected element with url variable element id.
-    auto* element = TRY(Web::WebDriver::get_known_connected_element(element_id));
+    auto element = TRY(Web::WebDriver::get_known_element(element_id));
 
     Optional<ByteString> result;
 
@@ -1144,7 +1161,7 @@ Messages::WebDriverClient::GetElementCssValueResponse WebDriverConnection::get_e
     TRY(handle_any_user_prompts());
 
     // 3. Let element be the result of trying to get a known connected element with url variable element id.
-    auto* element = TRY(Web::WebDriver::get_known_connected_element(element_id));
+    auto element = TRY(Web::WebDriver::get_known_element(element_id));
 
     // 4. Let computed value be the result of the first matching condition:
     ByteString computed_value;
@@ -1177,7 +1194,7 @@ Messages::WebDriverClient::GetElementTextResponse WebDriverConnection::get_eleme
     TRY(handle_any_user_prompts());
 
     // 3. Let element be the result of trying to get a known connected element with url variable element id.
-    auto* element = TRY(Web::WebDriver::get_known_connected_element(element_id));
+    auto element = TRY(Web::WebDriver::get_known_element(element_id));
 
     // 4. Let rendered text be the result of performing implementation-specific steps whose result is exactly the same as the result of a Function.[[Call]](null, element) with bot.dom.getVisibleText as the this value.
     auto rendered_text = element->text_content();
@@ -1196,7 +1213,7 @@ Messages::WebDriverClient::GetElementTagNameResponse WebDriverConnection::get_el
     TRY(handle_any_user_prompts());
 
     // 3. Let element be the result of trying to get a known connected element with url variable element id.
-    auto* element = TRY(Web::WebDriver::get_known_connected_element(element_id));
+    auto element = TRY(Web::WebDriver::get_known_element(element_id));
 
     // 4. Let qualified name be the result of getting element’s tagName IDL attribute.
     auto qualified_name = element->tag_name();
@@ -1215,7 +1232,7 @@ Messages::WebDriverClient::GetElementRectResponse WebDriverConnection::get_eleme
     TRY(handle_any_user_prompts());
 
     // 3. Let element be the result of trying to get a known connected element with url variable element id.
-    auto* element = TRY(Web::WebDriver::get_known_connected_element(element_id));
+    auto element = TRY(Web::WebDriver::get_known_element(element_id));
 
     // 4. Calculate the absolute position of element and let it be coordinates.
     // 5. Let rect be element’s bounding rectangle.
@@ -1246,7 +1263,7 @@ Messages::WebDriverClient::IsElementEnabledResponse WebDriverConnection::is_elem
     TRY(handle_any_user_prompts());
 
     // 3. Let element be the result of trying to get a known connected element with url variable element id.
-    auto* element = TRY(Web::WebDriver::get_known_connected_element(element_id));
+    auto element = TRY(Web::WebDriver::get_known_element(element_id));
 
     // 4. Let enabled be a boolean initially set to true if the current browsing context’s active document’s type is not "xml".
     // 5. Otherwise, let enabled to false and jump to the last step of this algorithm.
@@ -1272,7 +1289,7 @@ Messages::WebDriverClient::GetComputedRoleResponse WebDriverConnection::get_comp
     TRY(handle_any_user_prompts());
 
     // 3. Let element be the result of trying to get a known connected element with url variable element id.
-    auto* element = TRY(Web::WebDriver::get_known_connected_element(element_id));
+    auto element = TRY(Web::WebDriver::get_known_element(element_id));
 
     // 4. Let role be the result of computing the WAI-ARIA role of element.
     auto role = element->role_or_default();
@@ -1293,7 +1310,7 @@ Messages::WebDriverClient::GetComputedLabelResponse WebDriverConnection::get_com
     TRY(handle_any_user_prompts());
 
     // 3. Let element be the result of trying to get a known element with url variable element id.
-    auto* element = TRY(Web::WebDriver::get_known_connected_element(element_id));
+    auto element = TRY(Web::WebDriver::get_known_element(element_id));
 
     // 4. Let label be the result of a Accessible Name and Description Computation for the Accessible Name of the element.
     auto label = element->accessible_name(element->document()).release_value_but_fixme_should_propagate_errors();
@@ -1312,7 +1329,7 @@ Messages::WebDriverClient::ElementClickResponse WebDriverConnection::element_cli
     TRY(handle_any_user_prompts());
 
     // 3. Let element be the result of trying to get a known element with element id.
-    auto* element = TRY(Web::WebDriver::get_known_connected_element(element_id));
+    auto element = TRY(Web::WebDriver::get_known_element(element_id));
 
     // 4. If the element is an input element in the file upload state return error with error code invalid argument.
     if (is<Web::HTML::HTMLInputElement>(*element)) {
@@ -1475,40 +1492,75 @@ Messages::WebDriverClient::ElementClickResponse WebDriverConnection::element_cli
 // 12.5.2 Element Clear, https://w3c.github.io/webdriver/#dfn-element-clear
 Messages::WebDriverClient::ElementClearResponse WebDriverConnection::element_clear(String const& element_id)
 {
-    dbgln("FIXME: WebDriverConnection::element_clear({})", element_id);
+    // https://w3c.github.io/webdriver/#dfn-clear-a-content-editable-element
+    auto clear_content_editable_element = [&](Web::DOM::Element& element) {
+        // 1. If element's innerHTML IDL attribute is an empty string do nothing and return.
+        if (auto result = element.inner_html(); result.is_error() || result.value().is_empty())
+            return;
 
-    // To clear a content editable element:
-    {
-        // FIXME: 1. If element's innerHTML IDL attribute is an empty string do nothing and return.
-        // FIXME: 2. Run the focusing steps for element.
-        // FIXME: 3. Set element's innerHTML IDL attribute to an empty string.
-        // FIXME: 4. Run the unfocusing steps for the element.
-    }
+        // 2. Run the focusing steps for element.
+        Web::HTML::run_focusing_steps(&element);
 
-    // To clear a resettable element:
-    {
-        // FIXME: 1. Let empty be the result of the first matching condition:
-        {
+        // 3. Set element's innerHTML IDL attribute to an empty string.
+        (void)element.set_inner_html({});
+
+        // 4. Run the unfocusing steps for the element.
+        Web::HTML::run_unfocusing_steps(&element);
+    };
+
+    // https://w3c.github.io/webdriver/#dfn-clear-a-resettable-element
+    auto clear_resettable_element = [&](Web::DOM::Element& element) {
+        VERIFY(is<Web::HTML::FormAssociatedElement>(element));
+        auto& form_associated_element = dynamic_cast<Web::HTML::FormAssociatedElement&>(element);
+
+        // 1. Let empty be the result of the first matching condition:
+        auto empty = [&]() {
             // -> element is an input element whose type attribute is in the File Upload state
-            {
-                // True if the list of selected files has a length of 0, and false otherwise.
-            }
-            // -> otherwise
-            {
-                // True if its value IDL attribute is an empty string, and false otherwise.
-            }
-        }
-        // FIXME: 2. If element is a candidate for constraint validation it satisfies its constraints, and empty is true, abort these substeps.
-        // FIXME: 3. Invoke the focusing steps for element.
-        // FIXME: 4. Invoke the clear algorithm for element.
-        // FIXME: 5. Invoke the unfocusing steps for the element.
-    }
+            //    True if the list of selected files has a length of 0, and false otherwise
+            if (is<Web::HTML::HTMLInputElement>(element)) {
+                auto& input_element = static_cast<Web::HTML::HTMLInputElement&>(element);
 
-    // FIXME: 1. If session's current browsing context is no longer open, return error with error code no such window.
-    // FIXME: 2. Try to handle any user prompts with session.
-    // FIXME: 3. Let element be the result of trying to get a known element with session and element id.
-    // FIXME: 4. If element is not editable, return an error with error code invalid element state.
-    // FIXME: 5. Scroll into view the element.
+                if (input_element.type_state() == Web::HTML::HTMLInputElement::TypeAttributeState::FileUpload)
+                    return input_element.files()->length() == 0;
+            }
+
+            // -> otherwise
+            //    True if its value IDL attribute is an empty string, and false otherwise.
+            return form_associated_element.value().is_empty();
+        }();
+
+        // 2. If element is a candidate for constraint validation it satisfies its constraints, and empty is true,
+        //    abort these substeps.
+        // FIXME: Implement constraint validation.
+        if (empty)
+            return;
+
+        // 3. Invoke the focusing steps for element.
+        Web::HTML::run_focusing_steps(&element);
+
+        // 4. Invoke the clear algorithm for element.
+        form_associated_element.clear_algorithm();
+
+        // 5. Invoke the unfocusing steps for the element.
+        Web::HTML::run_unfocusing_steps(&element);
+    };
+
+    // 1. If session's current browsing context is no longer open, return error with error code no such window.
+    TRY(ensure_current_browsing_context_is_open());
+
+    // 2. Try to handle any user prompts with session.
+    TRY(handle_any_user_prompts());
+
+    // 3. Let element be the result of trying to get a known element with session and element id.
+    auto element = TRY(Web::WebDriver::get_known_element(element_id));
+
+    // 4. If element is not editable, return an error with error code invalid element state.
+    if (!Web::WebDriver::is_element_editable(*element))
+        return Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::InvalidElementState, "Element is not editable"sv);
+
+    // 5. Scroll into view the element.
+    TRY(scroll_element_into_view(*element));
+
     // FIXME: 6. Let timeout be session's session timeouts' implicit wait timeout.
     // FIXME: 7. Let timer be a new timer.
     // FIXME: 8. If timeout is not null:
@@ -1516,25 +1568,30 @@ Messages::WebDriverClient::ElementClearResponse WebDriverConnection::element_cle
         // FIXME: 1. Start the timer with timer and timeout.
     }
     // FIXME: 9. Wait for element to become interactable, or timer's timeout fired flag to be set, whichever occurs first.
-    // FIXME: 10. If element is not interactable, return error with error code element not interactable.
-    // FIXME: 11. Run the substeps of the first matching statement:
-    {
-        // -> element is a mutable form control element
-        {
-            // Invoke the steps to clear a resettable element.
-        }
-        // -> element is a mutable element
-        {
-            // Invoke the steps to clear a content editable element.
-        }
-        // -> otherwise
-        {
-            // Return error with error code invalid element state.
-        }
-    }
-    // FIXME: 12. Return success with data null.
 
-    return Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::UnsupportedOperation, "element clear not implemented"sv);
+    // 10. If element is not interactable, return error with error code element not interactable.
+    if (!Web::WebDriver::is_element_interactable(current_browsing_context(), *element))
+        return Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::ElementNotInteractable, "Element is not interactable"sv);
+
+    // 11. Run the substeps of the first matching statement:
+    // -> element is a mutable form control element
+    if (Web::WebDriver::is_element_mutable_form_control(*element)) {
+        // Invoke the steps to clear a resettable element.
+        clear_resettable_element(*element);
+    }
+    // -> element is a mutable element
+    else if (Web::WebDriver::is_element_mutable(*element)) {
+        // Invoke the steps to clear a content editable element.
+        clear_content_editable_element(*element);
+    }
+    // -> otherwise
+    else {
+        // Return error with error code invalid element state.
+        return Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::InvalidElementState, "Element is not editable"sv);
+    }
+
+    // 12. Return success with data null.
+    return JsonValue {};
 }
 
 // 12.5.3 Element Send Keys, https://w3c.github.io/webdriver/#dfn-element-send-keys
@@ -1551,7 +1608,7 @@ Messages::WebDriverClient::ElementSendKeysResponse WebDriverConnection::element_
     TRY(handle_any_user_prompts());
 
     // 5. Let element be the result of trying to get a known element with session and URL variables[element id].
-    auto* element = TRY(Web::WebDriver::get_known_connected_element(element_id));
+    auto element = TRY(Web::WebDriver::get_known_element(element_id));
 
     // 6. Let file be true if element is input element in the file upload state, or false otherwise.
     auto file = is<Web::HTML::HTMLInputElement>(*element) && static_cast<Web::HTML::HTMLInputElement&>(*element).type_state() == Web::HTML::HTMLInputElement::TypeAttributeState::FileUpload;
@@ -2192,7 +2249,7 @@ Messages::WebDriverClient::TakeElementScreenshotResponse WebDriverConnection::ta
     TRY(handle_any_user_prompts());
 
     // 3. Let element be the result of trying to get a known connected element with url variable element id.
-    auto* element = TRY(Web::WebDriver::get_known_connected_element(element_id));
+    auto element = TRY(Web::WebDriver::get_known_element(element_id));
 
     // 4. Scroll into view the element.
     (void)scroll_element_into_view(*element);
@@ -2316,6 +2373,7 @@ ErrorOr<void, Web::WebDriver::Error> WebDriverConnection::handle_any_user_prompt
 }
 
 // https://w3c.github.io/webdriver/#dfn-waiting-for-the-navigation-to-complete
+// FIXME: Update this AO to the latest spec steps.
 ErrorOr<void, Web::WebDriver::Error> WebDriverConnection::wait_for_navigation_to_complete()
 {
     // 1. If the current session has a page loading strategy of none, return success with data null.
@@ -2332,11 +2390,10 @@ ErrorOr<void, Web::WebDriver::Error> WebDriverConnection::wait_for_navigation_to
 
     // 3. Start a timer. If this algorithm has not completed before timer reaches the session’s session page load timeout in milliseconds, return an error with error code timeout.
     auto page_load_timeout_fired = false;
-    auto timer = Core::Timer::create_single_shot(m_timeouts_configuration.page_load_timeout, [&] {
+    auto timer = Core::Timer::create_single_shot(m_timeouts_configuration.page_load_timeout.value_or(300'000), [&] {
         page_load_timeout_fired = true;
     });
     timer->start();
-
     // 4. If there is an ongoing attempt to navigate the current browsing context that has not yet matured, wait for navigation to mature.
     Web::Platform::EventLoopPlugin::the().spin_until([&] {
         return page_load_timeout_fired || navigable->ongoing_navigation().has<Empty>();
@@ -2377,7 +2434,7 @@ void WebDriverConnection::restore_the_window()
     // Do not return from this operation until the visibility state of the top-level browsing context’s active document has reached the visible state, or until the operation times out.
     // FIXME: It isn't clear which timeout should be used here.
     auto page_load_timeout_fired = false;
-    auto timer = Core::Timer::create_single_shot(m_timeouts_configuration.page_load_timeout, [&] {
+    auto timer = Core::Timer::create_single_shot(m_timeouts_configuration.page_load_timeout.value_or(300'000), [&] {
         page_load_timeout_fired = true;
     });
     timer->start();
@@ -2407,7 +2464,7 @@ Gfx::IntRect WebDriverConnection::iconify_the_window()
     // Do not return from this operation until the visibility state of the top-level browsing context’s active document has reached the hidden state, or until the operation times out.
     // FIXME: It isn't clear which timeout should be used here.
     auto page_load_timeout_fired = false;
-    auto timer = Core::Timer::create_single_shot(m_timeouts_configuration.page_load_timeout, [&] {
+    auto timer = Core::Timer::create_single_shot(m_timeouts_configuration.page_load_timeout.value_or(300'000), [&] {
         page_load_timeout_fired = true;
     });
     timer->start();
@@ -2421,10 +2478,11 @@ Gfx::IntRect WebDriverConnection::iconify_the_window()
 }
 
 // https://w3c.github.io/webdriver/#dfn-find
+// FIXME: Update this AO to the latest spec steps.
 ErrorOr<JsonArray, Web::WebDriver::Error> WebDriverConnection::find(StartNodeGetter&& start_node_getter, Web::WebDriver::LocationStrategy using_, StringView value)
 {
     // 1. Let end time be the current time plus the session implicit wait timeout.
-    auto end_time = MonotonicTime::now() + AK::Duration::from_milliseconds(static_cast<i64>(m_timeouts_configuration.implicit_wait_timeout));
+    auto end_time = MonotonicTime::now() + AK::Duration::from_milliseconds(static_cast<i64>(m_timeouts_configuration.implicit_wait_timeout.value_or(0)));
 
     // 2. Let location strategy be equal to using.
     auto location_strategy = using_;

@@ -9,6 +9,7 @@
 #include <LibJS/Heap/Heap.h>
 #include <LibWeb/Bindings/SVGImageElementPrototype.h>
 #include <LibWeb/DOM/DocumentObserver.h>
+#include <LibWeb/DOM/Event.h>
 #include <LibWeb/HTML/PotentialCORSRequest.h>
 #include <LibWeb/HTML/SharedResourceRequest.h>
 #include <LibWeb/Layout/SVGImageBox.h>
@@ -161,9 +162,13 @@ void SVGImageElement::fetch_the_document(URL::URL const& url)
             }
             set_needs_style_update(true);
             document().set_needs_layout();
+
+            dispatch_event(DOM::Event::create(realm(), HTML::EventNames::load));
         },
         [this] {
             m_load_event_delayer.clear();
+
+            dispatch_event(DOM::Event::create(realm(), HTML::EventNames::error));
         });
 
     if (m_resource_request->needs_fetching()) {

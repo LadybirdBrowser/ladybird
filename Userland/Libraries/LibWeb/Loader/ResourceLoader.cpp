@@ -294,11 +294,11 @@ void ResourceLoader::load(LoadRequest& request, SuccessCallback success_callback
         auto data_url = data_url_or_error.release_value();
 
         dbgln_if(SPAM_DEBUG, "ResourceLoader loading a data URL with mime-type: '{}', payload='{}'",
-            MUST(data_url.mime_type.serialized()),
+            data_url.mime_type.serialized(),
             StringView(data_url.body.bytes()));
 
         HTTP::HeaderMap response_headers;
-        response_headers.set("Content-Type", MUST(data_url.mime_type.serialized()).to_byte_string());
+        response_headers.set("Content-Type", data_url.mime_type.serialized().to_byte_string());
 
         log_success(request);
 

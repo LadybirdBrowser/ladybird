@@ -1,6 +1,7 @@
 /*
  * Copyright (c) 2023, Luke Wilde <lukew@serenityos.org>
  * Copyright (c) 2024, Shannon Booth <shannon@serenityos.org>
+ * Copyright (c) 2024, Jelle Raaijmakers <jelle@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -9,6 +10,7 @@
 
 #include <LibWeb/Bindings/BaseAudioContextPrototype.h>
 #include <LibWeb/DOM/EventTarget.h>
+#include <LibWeb/WebAudio/AudioListener.h>
 #include <LibWeb/WebAudio/BiquadFilterNode.h>
 #include <LibWeb/WebIDL/Types.h>
 
@@ -37,6 +39,7 @@ public:
     JS::NonnullGCPtr<AudioDestinationNode> destination() const { return m_destination; }
     float sample_rate() const { return m_sample_rate; }
     double current_time() const { return m_current_time; }
+    JS::NonnullGCPtr<AudioListener> listener() const { return m_listener; }
     Bindings::AudioContextState state() const { return m_control_thread_state; }
 
     // https://webaudio.github.io/web-audio-api/#--nyquist-frequency
@@ -58,20 +61,31 @@ public:
     WebIDL::ExceptionOr<JS::NonnullGCPtr<DynamicsCompressorNode>> create_dynamics_compressor();
     JS::NonnullGCPtr<GainNode> create_gain();
 
+    JS::NonnullGCPtr<JS::Promise> decode_audio_data(JS::Handle<WebIDL::BufferSource>, JS::GCPtr<WebIDL::CallbackType>, JS::GCPtr<WebIDL::CallbackType>);
+
 protected:
     explicit BaseAudioContext(JS::Realm&, float m_sample_rate = 0);
 
-    JS::NonnullGCPtr<AudioDestinationNode> m_destination;
+    void queue_a_media_element_task(JS::NonnullGCPtr<JS::HeapFunction<void()>>);
 
     virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Cell::Visitor&) override;
 
+    JS::NonnullGCPtr<AudioDestinationNode> m_destination;
+    Vector<JS::NonnullGCPtr<WebIDL::Promise>> m_pending_promises;
+
 private:
+    void queue_a_decoding_operation(JS::NonnullGCPtr<JS::PromiseCapability>, JS::Handle<WebIDL::BufferSource>, JS::GCPtr<WebIDL::CallbackType>, JS::GCPtr<WebIDL::CallbackType>);
+
     float m_sample_rate { 0 };
     double m_current_time { 0 };
 
+    JS::NonnullGCPtr<AudioListener> m_listener;
+
     Bindings::AudioContextState m_control_thread_state = Bindings::AudioContextState::Suspended;
     Bindings::AudioContextState m_rendering_thread_state = Bindings::AudioContextState::Suspended;
+
+    HTML::UniqueTaskSource m_media_element_event_task_source {};
 };
 
 }

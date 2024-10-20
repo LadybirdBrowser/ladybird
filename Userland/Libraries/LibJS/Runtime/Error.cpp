@@ -17,19 +17,21 @@ namespace JS {
 
 JS_DEFINE_ALLOCATOR(Error);
 
+static SourceRange dummy_source_range { SourceCode::create(String {}, String {}), {}, {} };
+
 SourceRange const& TracebackFrame::source_range() const
 {
-    if (auto* unrealized = source_range_storage.get_pointer<UnrealizedSourceRange>()) {
+    if (!cached_source_range)
+        return dummy_source_range;
+    if (auto* unrealized = cached_source_range->source_range.get_pointer<UnrealizedSourceRange>()) {
         auto source_range = [&] {
-            if (!unrealized->source_code) {
-                static auto dummy_source_code = SourceCode::create(String {}, String {});
-                return SourceRange { dummy_source_code, {}, {} };
-            }
+            if (!unrealized->source_code)
+                return dummy_source_range;
             return unrealized->realize();
         }();
-        source_range_storage = move(source_range);
+        cached_source_range->source_range = move(source_range);
     }
-    return source_range_storage.get<SourceRange>();
+    return cached_source_range->source_range.get<SourceRange>();
 }
 
 NonnullGCPtr<Error> Error::create(Realm& realm)
@@ -81,12 +83,9 @@ void Error::populate_stack()
     m_traceback.ensure_capacity(stack_trace.size());
     for (auto& element : stack_trace) {
         auto* context = element.execution_context;
-        UnrealizedSourceRange range = {};
-        if (element.source_range.has_value())
-            range = element.source_range.value();
         TracebackFrame frame {
             .function_name = context->function_name ? context->function_name->byte_string() : "",
-            .source_range_storage = range,
+            .cached_source_range = element.source_range,
         };
 
         m_traceback.append(move(frame));

@@ -8,13 +8,14 @@
 
 #include <AK/RefPtr.h>
 #include <AK/Vector.h>
+#include <LibGfx/Font/FontDatabase.h>
 #include <LibWeb/Platform/FontPlugin.h>
 
 namespace Ladybird {
 
 class FontPlugin final : public Web::Platform::FontPlugin {
 public:
-    FontPlugin(bool is_layout_test_mode);
+    FontPlugin(bool is_layout_test_mode, Gfx::SystemFontProvider* = nullptr);
     virtual ~FontPlugin();
 
     virtual Gfx::Font& default_font() override;

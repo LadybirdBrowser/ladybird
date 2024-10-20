@@ -1,0 +1,19 @@
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const parser = new DOMParser();
+
+        for (const mimeType of ["text/html", "application/xhtml+xml"]) {
+            const doc = parser.parseFromString("<html><b>hello", mimeType);
+            if (doc.URL == "about:blank") {
+                println("FAIL 1 " + mimeType);
+            } else if (!doc.URL.endsWith(".html")) {
+                println("FAIL 2 " + mimeType);
+            } else if (doc.URL == document.URL) {
+                println("PASS " + mimeType);
+            } else {
+                println("FAIL 3 " + mimeType);
+            }
+        }
+    });
+</script>

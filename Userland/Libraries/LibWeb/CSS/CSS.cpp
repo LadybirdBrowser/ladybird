@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2023, Sam Atkins <atkinssj@serenityos.org>
+ * Copyright (c) 2021-2024, Sam Atkins <sam@ladybird.org>
  * Copyright (c) 2023, Tim Flynn <trflynn89@serenityos.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
@@ -9,6 +9,7 @@
 #include <LibWeb/CSS/CSS.h>
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/CSS/PropertyID.h>
+#include <LibWeb/CSS/PropertyName.h>
 #include <LibWeb/CSS/Serialize.h>
 
 namespace Web::CSS {
@@ -33,8 +34,7 @@ bool supports(JS::VM& vm, StringView property, StringView value)
     }
 
     // 2. Otherwise, if property is a custom property name string, return true.
-    // FIXME: This check is not enough to make sure this is a valid custom property name, but it's close enough.
-    else if (property.starts_with("--"sv) && property.length() >= 3) {
+    else if (is_a_custom_property_name_string(property)) {
         return true;
     }
 

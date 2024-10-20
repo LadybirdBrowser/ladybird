@@ -60,7 +60,7 @@ void WindowEnvironmentSettingsObject::setup(Page& page, URL::URL const& creation
         //        settings object's target browsing context to null,
         //        and settings object's active service worker to null.
         static i64 next_id = 1;
-        settings_object->id = MUST(String::number(next_id++));
+        settings_object->id = String::number(next_id++);
         settings_object->target_browsing_context = nullptr;
     }
 

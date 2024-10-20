@@ -261,11 +261,11 @@ void WebContentClient::did_request_media_context_menu(u64 page_id, Gfx::IntPoint
     }
 }
 
-void WebContentClient::did_get_source(u64 page_id, URL::URL const& url, ByteString const& source)
+void WebContentClient::did_get_source(u64 page_id, URL::URL const& url, URL::URL const& base_url, String const& source)
 {
     if (auto view = view_for_page_id(page_id); view.has_value()) {
         if (view->on_received_source)
-            view->on_received_source(url, source);
+            view->on_received_source(url, base_url, source);
     }
 }
 
@@ -307,7 +307,7 @@ void WebContentClient::did_inspect_accessibility_tree(u64 page_id, ByteString co
     }
 }
 
-void WebContentClient::did_get_hovered_node_id(u64 page_id, i32 node_id)
+void WebContentClient::did_get_hovered_node_id(u64 page_id, Web::UniqueNodeID const& node_id)
 {
     if (auto view = view_for_page_id(page_id); view.has_value()) {
         if (view->on_received_hovered_node_id)
@@ -315,7 +315,7 @@ void WebContentClient::did_get_hovered_node_id(u64 page_id, i32 node_id)
     }
 }
 
-void WebContentClient::did_finish_editing_dom_node(u64 page_id, Optional<i32> const& node_id)
+void WebContentClient::did_finish_editing_dom_node(u64 page_id, Optional<Web::UniqueNodeID> const& node_id)
 {
     if (auto view = view_for_page_id(page_id); view.has_value()) {
         if (view->on_finshed_editing_dom_node)
@@ -443,6 +443,11 @@ void WebContentClient::did_set_cookie(URL::URL const& url, Web::Cookie::ParsedCo
 void WebContentClient::did_update_cookie(Web::Cookie::Cookie const& cookie)
 {
     Application::cookie_jar().update_cookie(cookie);
+}
+
+void WebContentClient::did_expire_cookies_with_time_offset(AK::Duration offset)
+{
+    Application::cookie_jar().expire_cookies_with_time_offset(offset);
 }
 
 Messages::WebContentClient::DidRequestNewWebViewResponse WebContentClient::did_request_new_web_view(u64 page_id, Web::HTML::ActivateTab const& activate_tab, Web::HTML::WebViewHints const& hints, Optional<u64> const& page_index)
@@ -617,7 +622,7 @@ void WebContentClient::inspector_did_load(u64 page_id)
     }
 }
 
-void WebContentClient::inspector_did_select_dom_node(u64 page_id, i32 node_id, Optional<Web::CSS::Selector::PseudoElement::Type> const& pseudo_element)
+void WebContentClient::inspector_did_select_dom_node(u64 page_id, Web::UniqueNodeID const& node_id, Optional<Web::CSS::Selector::PseudoElement::Type> const& pseudo_element)
 {
     if (auto view = view_for_page_id(page_id); view.has_value()) {
         if (view->on_inspector_selected_dom_node)
@@ -625,7 +630,7 @@ void WebContentClient::inspector_did_select_dom_node(u64 page_id, i32 node_id, O
     }
 }
 
-void WebContentClient::inspector_did_set_dom_node_text(u64 page_id, i32 node_id, String const& text)
+void WebContentClient::inspector_did_set_dom_node_text(u64 page_id, Web::UniqueNodeID const& node_id, String const& text)
 {
     if (auto view = view_for_page_id(page_id); view.has_value()) {
         if (view->on_inspector_set_dom_node_text)
@@ -633,7 +638,7 @@ void WebContentClient::inspector_did_set_dom_node_text(u64 page_id, i32 node_id,
     }
 }
 
-void WebContentClient::inspector_did_set_dom_node_tag(u64 page_id, i32 node_id, String const& tag)
+void WebContentClient::inspector_did_set_dom_node_tag(u64 page_id, Web::UniqueNodeID const& node_id, String const& tag)
 {
     if (auto view = view_for_page_id(page_id); view.has_value()) {
         if (view->on_inspector_set_dom_node_tag)
@@ -641,7 +646,7 @@ void WebContentClient::inspector_did_set_dom_node_tag(u64 page_id, i32 node_id, 
     }
 }
 
-void WebContentClient::inspector_did_add_dom_node_attributes(u64 page_id, i32 node_id, Vector<Attribute> const& attributes)
+void WebContentClient::inspector_did_add_dom_node_attributes(u64 page_id, Web::UniqueNodeID const& node_id, Vector<Attribute> const& attributes)
 {
     if (auto view = view_for_page_id(page_id); view.has_value()) {
         if (view->on_inspector_added_dom_node_attributes)
@@ -649,7 +654,7 @@ void WebContentClient::inspector_did_add_dom_node_attributes(u64 page_id, i32 no
     }
 }
 
-void WebContentClient::inspector_did_replace_dom_node_attribute(u64 page_id, i32 node_id, size_t attribute_index, Vector<Attribute> const& replacement_attributes)
+void WebContentClient::inspector_did_replace_dom_node_attribute(u64 page_id, Web::UniqueNodeID const& node_id, size_t attribute_index, Vector<Attribute> const& replacement_attributes)
 {
     if (auto view = view_for_page_id(page_id); view.has_value()) {
         if (view->on_inspector_replaced_dom_node_attribute)
@@ -657,7 +662,7 @@ void WebContentClient::inspector_did_replace_dom_node_attribute(u64 page_id, i32
     }
 }
 
-void WebContentClient::inspector_did_request_dom_tree_context_menu(u64 page_id, i32 node_id, Gfx::IntPoint position, String const& type, Optional<String> const& tag, Optional<size_t> const& attribute_index)
+void WebContentClient::inspector_did_request_dom_tree_context_menu(u64 page_id, Web::UniqueNodeID const& node_id, Gfx::IntPoint position, String const& type, Optional<String> const& tag, Optional<size_t> const& attribute_index)
 {
     if (auto view = view_for_page_id(page_id); view.has_value()) {
         if (view->on_inspector_requested_dom_tree_context_menu)
@@ -715,11 +720,11 @@ void WebContentClient::inspector_did_request_style_sheet_source(u64 page_id, Web
     }
 }
 
-void WebContentClient::did_request_style_sheet_source(u64 page_id, Web::CSS::StyleSheetIdentifier const& identifier, String const& source)
+void WebContentClient::did_get_style_sheet_source(u64 page_id, Web::CSS::StyleSheetIdentifier const& identifier, URL::URL const& base_url, String const& source)
 {
     if (auto view = view_for_page_id(page_id); view.has_value()) {
         if (view->on_received_style_sheet_source)
-            view->on_received_style_sheet_source(identifier, source);
+            view->on_received_style_sheet_source(identifier, base_url, source);
     }
 }
 

@@ -42,7 +42,7 @@ endpoint WebContentServer
     debug_request(u64 page_id, ByteString request, ByteString argument) =|
     get_source(u64 page_id) =|
     inspect_dom_tree(u64 page_id) =|
-    inspect_dom_node(u64 page_id, i32 node_id, Optional<Web::CSS::Selector::PseudoElement::Type> pseudo_element) =|
+    inspect_dom_node(u64 page_id, Web::UniqueNodeID node_id, Optional<Web::CSS::Selector::PseudoElement::Type> pseudo_element) =|
     inspect_accessibility_tree(u64 page_id) =|
     get_hovered_node_id(u64 page_id) =|
     js_console_input(u64 page_id, ByteString js_source) =|
@@ -50,18 +50,18 @@ endpoint WebContentServer
     list_style_sheets(u64 page_id) =|
     request_style_sheet_source(u64 page_id, Web::CSS::StyleSheetIdentifier identifier) =|
 
-    set_dom_node_text(u64 page_id, i32 node_id, String text) =|
-    set_dom_node_tag(u64 page_id, i32 node_id, String name) =|
-    add_dom_node_attributes(u64 page_id, i32 node_id, Vector<WebView::Attribute> attributes) =|
-    replace_dom_node_attribute(u64 page_id, i32 node_id, String name, Vector<WebView::Attribute> replacement_attributes) =|
-    create_child_element(u64 page_id, i32 node_id) =|
-    create_child_text_node(u64 page_id, i32 node_id) =|
-    clone_dom_node(u64 page_id, i32 node_id) =|
-    remove_dom_node(u64 page_id, i32 node_id) =|
-    get_dom_node_html(u64 page_id, i32 node_id) =|
+    set_dom_node_text(u64 page_id, Web::UniqueNodeID node_id, String text) =|
+    set_dom_node_tag(u64 page_id, Web::UniqueNodeID node_id, String name) =|
+    add_dom_node_attributes(u64 page_id, Web::UniqueNodeID node_id, Vector<WebView::Attribute> attributes) =|
+    replace_dom_node_attribute(u64 page_id, Web::UniqueNodeID node_id, String name, Vector<WebView::Attribute> replacement_attributes) =|
+    create_child_element(u64 page_id, Web::UniqueNodeID node_id) =|
+    create_child_text_node(u64 page_id, Web::UniqueNodeID node_id) =|
+    clone_dom_node(u64 page_id, Web::UniqueNodeID node_id) =|
+    remove_dom_node(u64 page_id, Web::UniqueNodeID node_id) =|
+    get_dom_node_html(u64 page_id, Web::UniqueNodeID node_id) =|
 
     take_document_screenshot(u64 page_id) =|
-    take_dom_node_screenshot(u64 page_id, i32 node_id) =|
+    take_dom_node_screenshot(u64 page_id, Web::UniqueNodeID node_id) =|
 
     request_internal_page_info(u64 page_id, WebView::PageInfoType type) =|
 

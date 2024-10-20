@@ -57,7 +57,7 @@ void AudioTrack::initialize(JS::Realm& realm)
     WEB_SET_PROTOTYPE_FOR_INTERFACE(AudioTrack);
 
     auto id = s_audio_track_id_allocator.allocate();
-    m_id = MUST(String::number(id));
+    m_id = String::number(id);
 }
 
 void AudioTrack::play(Badge<HTMLAudioElement>)

@@ -7,10 +7,11 @@
 #pragma once
 
 #include <AK/NonnullOwnPtr.h>
+#include <LibJS/Heap/Handle.h>
 #include <LibWeb/InvalidateDisplayList.h>
-#include <LibWeb/Layout/Box.h>
 #include <LibWeb/Layout/LineBox.h>
-#include <LibWeb/Layout/TextNode.h>
+#include <LibWeb/TraversalDecision.h>
+#include <LibWeb/TreeNode.h>
 
 namespace Web::Painting {
 
@@ -62,7 +63,7 @@ public:
     [[nodiscard]] bool is_floating() const { return m_floating; }
     [[nodiscard]] bool is_inline() const { return m_inline; }
     [[nodiscard]] bool is_selected() const { return m_selected; }
-    [[nodiscard]] CSS::Display display() const { return layout_node().display(); }
+    [[nodiscard]] CSS::Display display() const;
 
     template<typename U, typename Callback>
     TraversalDecision for_each_in_inclusive_subtree_of_type(Callback callback)
@@ -194,40 +195,26 @@ public:
     [[nodiscard]] JS::GCPtr<DOM::Node const> dom_node() const;
     void set_dom_node(JS::GCPtr<DOM::Node>);
 
-    auto const& computed_values() const { return m_layout_node->computed_values(); }
+    CSS::ImmutableComputedValues const& computed_values() const;
 
     bool visible_for_hit_testing() const { return computed_values().pointer_events() != CSS::PointerEvents::None; }
-
-    [[nodiscard]] HTML::BrowsingContext const& browsing_context() const;
-    [[nodiscard]] HTML::BrowsingContext& browsing_context();
 
     JS::GCPtr<HTML::Navigable> navigable() const;
 
     virtual void set_needs_display(InvalidateDisplayList = InvalidateDisplayList::Yes);
 
-    PaintableBox* containing_block() const
-    {
-        if (!m_containing_block.has_value()) {
-            auto containing_layout_box = m_layout_node->containing_block();
-            if (containing_layout_box)
-                m_containing_block = const_cast<PaintableBox*>(containing_layout_box->paintable_box());
-            else
-                m_containing_block = nullptr;
-        }
-        return *m_containing_block;
-    }
+    PaintableBox* containing_block() const;
 
     template<typename T>
     bool fast_is() const = delete;
 
     [[nodiscard]] virtual bool is_paintable_box() const { return false; }
     [[nodiscard]] virtual bool is_paintable_with_lines() const { return false; }
-    [[nodiscard]] virtual bool is_inline_paintable() const { return false; }
     [[nodiscard]] virtual bool is_svg_paintable() const { return false; }
     [[nodiscard]] virtual bool is_text_paintable() const { return false; }
 
-    DOM::Document const& document() const { return layout_node().document(); }
-    DOM::Document& document() { return layout_node().document(); }
+    DOM::Document const& document() const;
+    DOM::Document& document();
 
     CSSPixelPoint box_type_agnostic_position() const;
 
@@ -245,7 +232,15 @@ public:
 
     Gfx::AffineTransform compute_combined_css_transform() const;
 
-    virtual void resolve_paint_properties() {};
+    virtual void resolve_paint_properties() { }
+
+    virtual void finalize() override
+    {
+        if (m_list_node.is_in_list())
+            m_list_node.remove();
+    }
+
+    friend class Layout::Node;
 
 protected:
     explicit Paintable(Layout::Node const&);
@@ -253,9 +248,9 @@ protected:
     virtual void visit_edges(Cell::Visitor&) override;
 
 private:
+    IntrusiveListNode<Paintable> m_list_node;
     JS::GCPtr<DOM::Node> m_dom_node;
     JS::NonnullGCPtr<Layout::Node const> m_layout_node;
-    JS::NonnullGCPtr<HTML::BrowsingContext> m_browsing_context;
     Optional<JS::GCPtr<PaintableBox>> mutable m_containing_block;
 
     OwnPtr<StackingContext> m_stacking_context;

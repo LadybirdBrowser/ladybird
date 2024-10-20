@@ -74,7 +74,7 @@ public:
     {
         if (m_type == Type::IntegerWithExplicitSign)
             return MUST(String::formatted("{:+}", m_value));
-        return MUST(String::number(m_value));
+        return String::number(m_value);
     }
 
     bool operator==(Number const& other) const

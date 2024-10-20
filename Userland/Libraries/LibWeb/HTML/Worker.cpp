@@ -5,14 +5,12 @@
  */
 
 #include <AK/Debug.h>
-#include <LibJS/Runtime/ConsoleObject.h>
 #include <LibJS/Runtime/Realm.h>
-#include <LibWeb/Bindings/MainThreadVM.h>
 #include <LibWeb/Bindings/WorkerPrototype.h>
+#include <LibWeb/HTML/MessagePort.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
-#include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
+#include <LibWeb/HTML/Scripting/WindowEnvironmentSettingsObject.h>
 #include <LibWeb/HTML/Worker.h>
-#include <LibWeb/WebIDL/ExceptionOr.h>
 
 namespace Web::HTML {
 
@@ -66,7 +64,7 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<Worker>> Worker::create(String const& scrip
     // 4. If this fails, throw a "SyntaxError" DOMException.
     if (!url.is_valid()) {
         dbgln_if(WEB_WORKER_DEBUG, "WebWorker: Invalid URL loaded '{}'.", script_url);
-        return WebIDL::SyntaxError::create(document.realm(), "url is not valid"_fly_string);
+        return WebIDL::SyntaxError::create(document.realm(), "url is not valid"_string);
     }
 
     // 5. Let worker URL be the resulting URL record.

@@ -3,7 +3,7 @@ Viewport <#document> at (0,0) content-size 800x600 children: not-inline
     BlockContainer <body> at (8,8) content-size 784x214 children: not-inline
       TableWrapper <(anonymous)> at (8,8) content-size 784x214 [BFC] children: not-inline
         Box <table.table> at (108,108) content-size 584x14 table-box [TFC] children: not-inline
-          Box <tbody> at (108,108) content-size 580x10 table-row-group children: not-inline
+          Box <tbody> at (110,110) content-size 580x10 table-row-group children: not-inline
             Box <tr> at (110,110) content-size 580x10 table-row children: not-inline
               BlockContainer <td.cell> at (111,115) content-size 578x0 table-cell [BFC] children: not-inline
 
@@ -12,6 +12,6 @@ ViewportPaintable (Viewport<#document>) [0,0 800x600]
     PaintableWithLines (BlockContainer<BODY>) [8,8 784x214]
       PaintableWithLines (TableWrapper(anonymous)) [8,8 784x214]
         PaintableBox (Box<TABLE>.table) [8,8 784x214]
-          PaintableBox (Box<TBODY>) [108,108 580x10] overflow: [108,108 582x12]
+          PaintableBox (Box<TBODY>) [110,110 580x10]
             PaintableBox (Box<TR>) [110,110 580x10]
               PaintableWithLines (BlockContainer<TD>.cell) [110,110 580x10]

@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2018-2024, Andreas Kling <andreas@ladybird.org>
- * Copyright (c) 2021-2023, Sam Atkins <atkinssj@serenityos.org>
+ * Copyright (c) 2021-2024, Sam Atkins <sam@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -742,9 +742,11 @@ static inline bool matches(CSS::Selector::SimpleSelector const& component, Optio
     case CSS::Selector::SimpleSelector::Type::PseudoElement:
         // Pseudo-element matching/not-matching is handled in the top level matches().
         return true;
-    default:
+    case CSS::Selector::SimpleSelector::Type::Nesting:
+        // We should only try to match selectors that have been absolutized!
         VERIFY_NOT_REACHED();
     }
+    VERIFY_NOT_REACHED();
 }
 
 static inline bool matches(CSS::Selector const& selector, Optional<CSS::CSSStyleSheet const&> style_sheet_for_rule, int component_list_index, DOM::Element const& element, JS::GCPtr<DOM::Element const> shadow_host, JS::GCPtr<DOM::ParentNode const> scope, SelectorKind selector_kind)

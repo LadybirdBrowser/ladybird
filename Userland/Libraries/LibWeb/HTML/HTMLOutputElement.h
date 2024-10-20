@@ -52,6 +52,7 @@ public:
     virtual bool is_labelable() const override { return true; }
 
     virtual void reset_algorithm() override;
+    virtual void clear_algorithm() override;
 
     // https://www.w3.org/TR/html-aria/#el-output
     virtual Optional<ARIA::Role> default_role() const override { return ARIA::Role::status; }

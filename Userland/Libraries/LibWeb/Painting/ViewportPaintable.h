@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2023, Andreas Kling <andreas@ladybird.org>
+ * Copyright (c) 2024, Aliaksandr Kalenik <kalenik.aliaksandr@gmail.com>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -7,6 +8,7 @@
 #pragma once
 
 #include <LibWeb/Painting/PaintableBox.h>
+#include <LibWeb/Painting/ScrollState.h>
 
 namespace Web::Painting {
 
@@ -21,8 +23,6 @@ public:
     void paint_all_phases(PaintContext&);
     void build_stacking_context_tree_if_needed();
 
-    HashMap<JS::GCPtr<PaintableBox const>, RefPtr<ScrollFrame>> scroll_state;
-    HashMap<JS::GCPtr<PaintableBox const>, RefPtr<ScrollFrame>> sticky_state;
     void assign_scroll_frames();
     void refresh_scroll_state();
 
@@ -39,6 +39,8 @@ public:
 
     void set_needs_to_refresh_scroll_state(bool value) { m_needs_to_refresh_scroll_state = value; }
 
+    ScrollState const& scroll_state() const { return m_scroll_state; }
+
 private:
     void build_stacking_context_tree();
 
@@ -46,6 +48,7 @@ private:
 
     virtual void visit_edges(Visitor&) override;
 
+    ScrollState m_scroll_state;
     bool m_needs_to_refresh_scroll_state { true };
 };
 

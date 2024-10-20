@@ -11,6 +11,7 @@
 #include <LibWeb/HTML/EventHandler.h>
 #include <LibWeb/HTML/EventNames.h>
 #include <LibWeb/HTML/MessageEvent.h>
+#include <LibWeb/HTML/MessagePort.h>
 
 namespace Web::HTML {
 
@@ -28,8 +29,6 @@ void DedicatedWorkerGlobalScope::initialize_web_interfaces_impl()
 {
     auto& realm = this->realm();
     add_dedicated_worker_exposed_interfaces(*this);
-
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(DedicatedWorkerGlobalScope);
 
     DedicatedWorkerGlobalScopeGlobalMixin::initialize(realm, *this);
 

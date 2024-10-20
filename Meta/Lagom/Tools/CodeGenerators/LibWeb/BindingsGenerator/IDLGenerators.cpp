@@ -35,6 +35,7 @@ static bool is_platform_object(Type const& type)
         "AnimationTimeline"sv,
         "Attr"sv,
         "AudioBuffer"sv,
+        "AudioListener"sv,
         "AudioNode"sv,
         "AudioParam"sv,
         "AudioScheduledSourceNode"sv,
@@ -121,7 +122,8 @@ static bool is_javascript_builtin(Type const& type)
         "ArrayBuffer"sv,
         "Float32Array"sv,
         "Float64Array"sv,
-        "Uint8Array"sv
+        "Uint8Array"sv,
+        "Uint8ClampedArray"sv,
     };
 
     return types.span().contains_slow(type.name());
@@ -693,7 +695,7 @@ static void generate_to_cpp(SourceGenerator& generator, ParameterType& parameter
     auto @cpp_name@ = JS::make_handle(TRY(@js_name@@js_suffix@.to_object(vm)));
 )~~~");
         }
-    } else if (parameter.type->name().is_one_of("BufferSource", "Float32Array", "Float64Array", "Uint8Array", "Uint8ClampedArray")) {
+    } else if (is_javascript_builtin(parameter.type) || parameter.type->name() == "BufferSource"sv) {
         if (optional) {
             scoped_generator.append(R"~~~(
     Optional<JS::Handle<WebIDL::BufferSource>> @cpp_name@;
@@ -1415,19 +1417,23 @@ static void generate_to_cpp(SourceGenerator& generator, ParameterType& parameter
 )~~~");
         }
 
-        bool includes_string = false;
+        RefPtr<IDL::Type const> string_type;
         for (auto& type : types) {
             if (type->is_string()) {
-                includes_string = true;
+                string_type = type;
                 break;
             }
         }
 
-        if (includes_string) {
+        if (string_type) {
             // 14. If types includes a string type, then return the result of converting V to that type.
             // NOTE: Currently all string types are converted to String.
+
+            IDL::Parameter parameter { .type = *string_type, .name = ByteString::empty(), .optional_default_value = {}, .extended_attributes = {} };
+            generate_to_cpp(union_generator, parameter, js_name, js_suffix, ByteString::formatted("{}{}_string", js_name, js_suffix), interface, false, false, {}, false, recursion_depth + 1);
+
             union_generator.append(R"~~~(
-        return TRY(@js_name@@js_suffix@.to_string(vm));
+        return { @js_name@@js_suffix@_string };
 )~~~");
         } else if (numeric_type && includes_bigint) {
             // 15. If types includes a numeric type and bigint, then return the result of converting V to either that numeric type or bigint.
@@ -2510,7 +2516,7 @@ static void generate_html_constructor(SourceGenerator& generator, IDL::Construct
 
     // 11. If element is an already constructed marker, then throw an "InvalidStateError" DOMException.
     if (element.has<HTML::AlreadyConstructedCustomElementMarker>())
-        return JS::throw_completion(WebIDL::InvalidStateError::create(realm, "Custom element has already been constructed"_fly_string));
+        return JS::throw_completion(WebIDL::InvalidStateError::create(realm, "Custom element has already been constructed"_string));
 
     // 12. Perform ? element.[[SetPrototypeOf]](prototype).
     auto actual_element = element.get<JS::Handle<DOM::Element>>();
@@ -3219,7 +3225,7 @@ void @class_name@::initialize(JS::Realm& realm)
     set_prototype(realm.intrinsics().object_prototype());
 
 )~~~");
-    } else if (is_global_interface && interface.supports_named_properties()) {
+    } else if (is_global_interface) {
         generator.append(R"~~~(
     set_prototype(&ensure_web_prototype<@prototype_name@>(realm, "@name@"_fly_string));
 )~~~");
@@ -3821,7 +3827,7 @@ JS_DEFINE_NATIVE_FUNCTION(@class_name@::@attribute.setter_callback@)
 )~~~");
                 } else if (attribute.type->is_integer() && !attribute.type->is_nullable()) {
                     attribute_generator.append(R"~~~(
-    MUST(impl->set_attribute(HTML::AttributeNames::@attribute.reflect_name@, MUST(String::number(cpp_value))));
+    MUST(impl->set_attribute(HTML::AttributeNames::@attribute.reflect_name@, String::number(cpp_value)));
 )~~~");
                 } else if (attribute.type->is_nullable()) {
                     attribute_generator.append(R"~~~(
@@ -4977,6 +4983,10 @@ void @prototype_class@::initialize(JS::Realm& realm)
             generator.append(R"~~~(
     define_direct_property(vm().well_known_symbol_to_string_tag(), JS::PrimitiveString::create(vm(), "@namespaced_name@"_string), JS::Attribute::Configurable);
     set_prototype(&ensure_web_prototype<@prototype_class@>(realm, "@named_properties_class@"_fly_string));
+)~~~");
+        } else {
+            generator.append(R"~~~(
+    set_prototype(&ensure_web_prototype<@prototype_base_class@>(realm, "@parent_name@"_fly_string));
 )~~~");
         }
         generator.append(R"~~~(

@@ -25,8 +25,6 @@ public:
     Painting::PaintableBox const* paintable_box() const;
     Painting::PaintableBox* paintable_box();
 
-    bool is_body() const;
-
     // https://www.w3.org/TR/css-images-3/#natural-dimensions
     Optional<CSSPixels> natural_width() const { return m_natural_width; }
     Optional<CSSPixels> natural_height() const { return m_natural_height; }
@@ -49,8 +47,6 @@ public:
     virtual void did_set_content_size() { }
 
     virtual JS::GCPtr<Painting::Paintable> create_paintable() const override;
-
-    bool is_scroll_container() const;
 
     void add_contained_abspos_child(JS::NonnullGCPtr<Node> child) { m_contained_abspos_children.append(child); }
     void clear_contained_abspos_children() { m_contained_abspos_children.clear(); }

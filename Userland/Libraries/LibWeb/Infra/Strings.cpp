@@ -3,11 +3,13 @@
  * Copyright (c) 2022, networkException <networkexception@serenityos.org>
  * Copyright (c) 2023, Kenneth Myhra <kennethmyhra@serenityos.org>
  * Copyright (c) 2023, Sam Atkins <atkinssj@serenityos.org>
+ * Copyright (c) 2024, Andreas Kling <andreas@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
 #include <AK/CharacterTypes.h>
+#include <AK/FlyString.h>
 #include <AK/GenericLexer.h>
 #include <AK/String.h>
 #include <AK/Utf16View.h>

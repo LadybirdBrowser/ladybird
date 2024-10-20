@@ -12,6 +12,7 @@
 #include <AK/RefPtr.h>
 #include <AK/String.h>
 #include <AK/StringView.h>
+#include <AK/Time.h>
 #include <LibCore/Forward.h>
 #include <LibCore/Promise.h>
 #include <LibGfx/Forward.h>
@@ -55,6 +56,9 @@ struct Test {
 
     ByteString input_path {};
     ByteString expectation_path {};
+
+    UnixDateTime start_time {};
+    UnixDateTime end_time {};
 
     String text {};
     bool did_finish_test { false };

@@ -96,7 +96,10 @@ bool Selection::is_collapsed() const
 {
     // The attribute must return true if and only if the anchor and focus are the same
     // (including if both are null). Otherwise it must return false.
-    return const_cast<Selection*>(this)->anchor_node() == const_cast<Selection*>(this)->focus_node();
+    if (!m_range)
+        return true;
+    return const_cast<Selection*>(this)->anchor_node() == const_cast<Selection*>(this)->focus_node()
+        && m_range->start_offset() == m_range->end_offset();
 }
 
 // https://w3c.github.io/selection-api/#dom-selection-rangecount
@@ -116,12 +119,21 @@ String Selection::type() const
     return "Range"_string;
 }
 
+String Selection::direction() const
+{
+    if (!m_range || m_direction == Direction::Directionless)
+        return "none"_string;
+    if (m_direction == Direction::Forwards)
+        return "forward"_string;
+    return "backward"_string;
+}
+
 // https://w3c.github.io/selection-api/#dom-selection-getrangeat
 WebIDL::ExceptionOr<JS::GCPtr<DOM::Range>> Selection::get_range_at(unsigned index)
 {
     // The method must throw an IndexSizeError exception if index is not 0, or if this is empty.
     if (index != 0 || is_empty())
-        return WebIDL::IndexSizeError::create(realm(), "Selection.getRangeAt() on empty Selection or with invalid argument"_fly_string);
+        return WebIDL::IndexSizeError::create(realm(), "Selection.getRangeAt() on empty Selection or with invalid argument"_string);
 
     // Otherwise, it must return a reference to (not a copy of) this's range.
     return m_range;
@@ -140,6 +152,9 @@ void Selection::add_range(JS::NonnullGCPtr<DOM::Range> range)
 
     // 3. Set this's range to range by a strong reference (not by making a copy).
     set_range(range);
+
+    // AD-HOC: WPT selection/removeAllRanges.html and selection/addRange.htm expect this
+    m_direction = Direction::Forwards;
 }
 
 // https://w3c.github.io/selection-api/#dom-selection-removerange
@@ -152,7 +167,7 @@ WebIDL::ExceptionOr<void> Selection::remove_range(JS::NonnullGCPtr<DOM::Range> r
     }
 
     // Otherwise, it must throw a NotFoundError.
-    return WebIDL::NotFoundError::create(realm(), "Selection.removeRange() with invalid argument"_fly_string);
+    return WebIDL::NotFoundError::create(realm(), "Selection.removeRange() with invalid argument"_string);
 }
 
 // https://w3c.github.io/selection-api/#dom-selection-removeallranges
@@ -180,7 +195,7 @@ WebIDL::ExceptionOr<void> Selection::collapse(JS::GCPtr<DOM::Node> node, unsigne
 
     // 2. The method must throw an IndexSizeError exception if offset is longer than node's length and abort these steps.
     if (offset > node->length()) {
-        return WebIDL::IndexSizeError::create(realm(), "Selection.collapse() with offset longer than node's length"_fly_string);
+        return WebIDL::IndexSizeError::create(realm(), "Selection.collapse() with offset longer than node's length"_string);
     }
 
     // 3. If document associated with this is not a shadow-including inclusive ancestor of node, abort these steps.
@@ -211,7 +226,7 @@ WebIDL::ExceptionOr<void> Selection::collapse_to_start()
 {
     // 1. The method must throw InvalidStateError exception if the this is empty.
     if (!m_range) {
-        return WebIDL::InvalidStateError::create(realm(), "Selection.collapse_to_start() on empty range"_fly_string);
+        return WebIDL::InvalidStateError::create(realm(), "Selection.collapse_to_start() on empty range"_string);
     }
 
     // 2. Otherwise, it must create a new range
@@ -231,7 +246,7 @@ WebIDL::ExceptionOr<void> Selection::collapse_to_end()
 {
     // 1. The method must throw InvalidStateError exception if the this is empty.
     if (!m_range) {
-        return WebIDL::InvalidStateError::create(realm(), "Selection.collapse_to_end() on empty range"_fly_string);
+        return WebIDL::InvalidStateError::create(realm(), "Selection.collapse_to_end() on empty range"_string);
     }
 
     // 2. Otherwise, it must create a new range
@@ -250,13 +265,13 @@ WebIDL::ExceptionOr<void> Selection::collapse_to_end()
 // https://w3c.github.io/selection-api/#dom-selection-extend
 WebIDL::ExceptionOr<void> Selection::extend(JS::NonnullGCPtr<DOM::Node> node, unsigned offset)
 {
-    // 1. If node's root is not the document associated with this, abort these steps.
-    if (&node->root() != m_document.ptr())
+    // 1. If the document associated with this is not a shadow-including inclusive ancestor of node, abort these steps.
+    if (!m_document->is_shadow_including_inclusive_ancestor_of(node))
         return {};
 
     // 2. If this is empty, throw an InvalidStateError exception and abort these steps.
     if (!m_range) {
-        return WebIDL::InvalidStateError::create(realm(), "Selection.extend() on empty range"_fly_string);
+        return WebIDL::InvalidStateError::create(realm(), "Selection.extend() on empty range"_string);
     }
 
     // 3. Let oldAnchor and oldFocus be the this's anchor and focus, and let newFocus be the boundary point (node, offset).
@@ -272,9 +287,11 @@ WebIDL::ExceptionOr<void> Selection::extend(JS::NonnullGCPtr<DOM::Node> node, un
     // 5. If node's root is not the same as the this's range's root, set the start newRange's start and end to newFocus.
     if (&node->root() != &m_range->start_container()->root()) {
         TRY(new_range->set_start(new_focus_node, new_focus_offset));
+        TRY(new_range->set_end(new_focus_node, new_focus_offset));
     }
     // 6. Otherwise, if oldAnchor is before or equal to newFocus, set the start newRange's start to oldAnchor, then set its end to newFocus.
-    else if (old_anchor_node.is_before(new_focus_node) || &old_anchor_node == new_focus_node.ptr()) {
+    else if (position_of_boundary_point_relative_to_other_boundary_point(old_anchor_node, old_anchor_offset, new_focus_node, new_focus_offset) != DOM::RelativeBoundaryPointPosition::After) {
+        TRY(new_range->set_start(old_anchor_node, old_anchor_offset));
         TRY(new_range->set_end(new_focus_node, new_focus_offset));
     }
     // 7. Otherwise, set the start newRange's start to newFocus, then set its end to oldAnchor.
@@ -287,7 +304,7 @@ WebIDL::ExceptionOr<void> Selection::extend(JS::NonnullGCPtr<DOM::Node> node, un
     set_range(new_range);
 
     // 9. If newFocus is before oldAnchor, set this's direction to backwards. Otherwise, set it to forwards.
-    if (new_focus_node->is_before(old_anchor_node)) {
+    if (position_of_boundary_point_relative_to_other_boundary_point(new_focus_node, new_focus_offset, old_anchor_node, old_anchor_offset) == DOM::RelativeBoundaryPointPosition::Before) {
         m_direction = Direction::Backwards;
     } else {
         m_direction = Direction::Forwards;
@@ -301,10 +318,10 @@ WebIDL::ExceptionOr<void> Selection::set_base_and_extent(JS::NonnullGCPtr<DOM::N
 {
     // 1. If anchorOffset is longer than anchorNode's length or if focusOffset is longer than focusNode's length, throw an IndexSizeError exception and abort these steps.
     if (anchor_offset > anchor_node->length())
-        return WebIDL::IndexSizeError::create(realm(), "Anchor offset points outside of the anchor node"_fly_string);
+        return WebIDL::IndexSizeError::create(realm(), "Anchor offset points outside of the anchor node"_string);
 
     if (focus_offset > focus_node->length())
-        return WebIDL::IndexSizeError::create(realm(), "Focus offset points outside of the focus node"_fly_string);
+        return WebIDL::IndexSizeError::create(realm(), "Focus offset points outside of the focus node"_string);
 
     // 2. If document associated with this is not a shadow-including inclusive ancestor of anchorNode or focusNode, abort these steps.
     if (!m_document->is_shadow_including_inclusive_ancestor_of(anchor_node) || !m_document->is_shadow_including_inclusive_ancestor_of(focus_node))

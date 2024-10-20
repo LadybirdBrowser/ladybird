@@ -31,6 +31,7 @@ test("basic functionality", () => {
     expect(Date.parse("2024-01-15 00:00:01")).toBe(1705298401000);
     expect(Date.parse("Tue Nov 07 2023 10:05:55  UTC")).toBe(1699351555000);
     expect(Date.parse("Wed Apr 17 23:08:53 2019")).toBe(1555560533000);
+    expect(Date.parse("Wed Apr 17 2019 23:08:53")).toBe(1555560533000);
     expect(Date.parse("2024-01-26T22:10:11.306+0000")).toBe(1706307011000); // FIXME: support sub-second precision
     expect(Date.parse("1/27/2024, 9:28:30 AM")).toBe(1706369310000);
     expect(Date.parse("01 February 2013")).toBe(1359698400000);

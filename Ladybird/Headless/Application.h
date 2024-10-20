@@ -59,6 +59,7 @@ public:
     ByteString test_glob;
     bool test_dry_run { false };
     bool rebaseline { false };
+    bool log_slowest_tests { false };
 
 private:
     RefPtr<Requests::RequestClient> m_request_client;

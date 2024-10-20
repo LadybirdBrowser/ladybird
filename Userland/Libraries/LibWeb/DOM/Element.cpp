@@ -64,7 +64,6 @@
 #include <LibWeb/Layout/Viewport.h>
 #include <LibWeb/Namespace.h>
 #include <LibWeb/Page/Page.h>
-#include <LibWeb/Painting/InlinePaintable.h>
 #include <LibWeb/Painting/PaintableBox.h>
 #include <LibWeb/Painting/ViewportPaintable.h>
 #include <LibWeb/WebIDL/AbstractOperations.h>
@@ -173,7 +172,7 @@ WebIDL::ExceptionOr<void> Element::set_attribute(FlyString const& name, String c
 {
     // 1. If qualifiedName does not match the Name production in XML, then throw an "InvalidCharacterError" DOMException.
     if (!Document::is_valid_name(name.to_string()))
-        return WebIDL::InvalidCharacterError::create(realm(), "Attribute name must not be empty or contain invalid characters"_fly_string);
+        return WebIDL::InvalidCharacterError::create(realm(), "Attribute name must not be empty or contain invalid characters"_string);
 
     // 2. If this is in the HTML namespace and its node document is an HTML document, then set qualifiedName to qualifiedName in ASCII lowercase.
     bool insert_as_lowercase = namespace_uri() == Namespace::HTML && document().document_type() == Document::Type::HTML;
@@ -184,7 +183,7 @@ WebIDL::ExceptionOr<void> Element::set_attribute(FlyString const& name, String c
     // 4. If attribute is null, create an attribute whose local name is qualifiedName, value is value, and node document
     //    is this’s node document, then append this attribute to this, and then return.
     if (!attribute) {
-        auto new_attribute = Attr::create(document(), insert_as_lowercase ? MUST(Infra::to_ascii_lowercase(name)) : name, value);
+        auto new_attribute = Attr::create(document(), insert_as_lowercase ? name.to_ascii_lowercase() : name, value);
         m_attributes->append_attribute(new_attribute);
 
         return {};
@@ -221,19 +220,19 @@ WebIDL::ExceptionOr<QualifiedName> validate_and_extract(JS::Realm& realm, Option
 
     // 6. If prefix is non-null and namespace is null, then throw a "NamespaceError" DOMException.
     if (prefix.has_value() && !namespace_.has_value())
-        return WebIDL::NamespaceError::create(realm, "Prefix is non-null and namespace is null."_fly_string);
+        return WebIDL::NamespaceError::create(realm, "Prefix is non-null and namespace is null."_string);
 
     // 7. If prefix is "xml" and namespace is not the XML namespace, then throw a "NamespaceError" DOMException.
     if (prefix == "xml"sv && namespace_ != Namespace::XML)
-        return WebIDL::NamespaceError::create(realm, "Prefix is 'xml' and namespace is not the XML namespace."_fly_string);
+        return WebIDL::NamespaceError::create(realm, "Prefix is 'xml' and namespace is not the XML namespace."_string);
 
     // 8. If either qualifiedName or prefix is "xmlns" and namespace is not the XMLNS namespace, then throw a "NamespaceError" DOMException.
     if ((qualified_name == "xmlns"sv || prefix == "xmlns"sv) && namespace_ != Namespace::XMLNS)
-        return WebIDL::NamespaceError::create(realm, "Either qualifiedName or prefix is 'xmlns' and namespace is not the XMLNS namespace."_fly_string);
+        return WebIDL::NamespaceError::create(realm, "Either qualifiedName or prefix is 'xmlns' and namespace is not the XMLNS namespace."_string);
 
     // 9. If namespace is the XMLNS namespace and neither qualifiedName nor prefix is "xmlns", then throw a "NamespaceError" DOMException.
     if (namespace_ == Namespace::XMLNS && !(qualified_name == "xmlns"sv || prefix == "xmlns"sv))
-        return WebIDL::NamespaceError::create(realm, "Namespace is the XMLNS namespace and neither qualifiedName nor prefix is 'xmlns'."_fly_string);
+        return WebIDL::NamespaceError::create(realm, "Namespace is the XMLNS namespace and neither qualifiedName nor prefix is 'xmlns'."_string);
 
     // 10. Return namespace, prefix, and localName.
     return QualifiedName { local_name, prefix, namespace_ };
@@ -341,7 +340,7 @@ WebIDL::ExceptionOr<bool> Element::toggle_attribute(FlyString const& name, Optio
 {
     // 1. If qualifiedName does not match the Name production in XML, then throw an "InvalidCharacterError" DOMException.
     if (!Document::is_valid_name(name.to_string()))
-        return WebIDL::InvalidCharacterError::create(realm(), "Attribute name must not be empty or contain invalid characters"_fly_string);
+        return WebIDL::InvalidCharacterError::create(realm(), "Attribute name must not be empty or contain invalid characters"_string);
 
     // 2. If this is in the HTML namespace and its node document is an HTML document, then set qualifiedName to qualifiedName in ASCII lowercase.
     bool insert_as_lowercase = namespace_uri() == Namespace::HTML && document().document_type() == Document::Type::HTML;
@@ -354,7 +353,7 @@ WebIDL::ExceptionOr<bool> Element::toggle_attribute(FlyString const& name, Optio
         // 1. If force is not given or is true, create an attribute whose local name is qualifiedName, value is the empty
         //    string, and node document is this’s node document, then append this attribute to this, and then return true.
         if (!force.has_value() || force.value()) {
-            auto new_attribute = Attr::create(document(), insert_as_lowercase ? MUST(Infra::to_ascii_lowercase(name)) : name.to_string(), String {});
+            auto new_attribute = Attr::create(document(), insert_as_lowercase ? name.to_ascii_lowercase() : name.to_string(), String {});
             m_attributes->append_attribute(new_attribute);
 
             return true;
@@ -601,8 +600,8 @@ CSS::RequiredInvalidationAfterStyleChange Element::recompute_style()
 
             if (auto* node_with_style = dynamic_cast<Layout::NodeWithStyle*>(pseudo_element->layout_node.ptr())) {
                 node_with_style->apply_style(*pseudo_element_style);
-                if (invalidation.repaint && node_with_style->paintable())
-                    node_with_style->paintable()->set_needs_display();
+                if (invalidation.repaint && node_with_style->first_paintable())
+                    node_with_style->first_paintable()->set_needs_display();
             }
         }
     }
@@ -658,11 +657,11 @@ WebIDL::ExceptionOr<void> Element::attach_a_shadow_root(Bindings::ShadowRootMode
 {
     // 1. If element’s namespace is not the HTML namespace, then throw a "NotSupportedError" DOMException.
     if (namespace_uri() != Namespace::HTML)
-        return WebIDL::NotSupportedError::create(realm(), "Element's namespace is not the HTML namespace"_fly_string);
+        return WebIDL::NotSupportedError::create(realm(), "Element's namespace is not the HTML namespace"_string);
 
     // 2. If element’s local name is not a valid shadow host name, then throw a "NotSupportedError" DOMException.
     if (!is_valid_shadow_host_name(local_name()))
-        return WebIDL::NotSupportedError::create(realm(), "Element's local name is not a valid shadow host name"_fly_string);
+        return WebIDL::NotSupportedError::create(realm(), "Element's local name is not a valid shadow host name"_string);
 
     // 3. If element’s local name is a valid custom element name, or element’s is value is not null, then:
     if (HTML::is_valid_custom_element_name(local_name()) || m_is_value.has_value()) {
@@ -671,7 +670,7 @@ WebIDL::ExceptionOr<void> Element::attach_a_shadow_root(Bindings::ShadowRootMode
 
         // 2. If definition is not null and definition’s disable shadow is true, then throw a "NotSupportedError" DOMException.
         if (definition && definition->disable_shadow())
-            return WebIDL::NotSupportedError::create(realm(), "Cannot attach a shadow root to a custom element that has disabled shadow roots"_fly_string);
+            return WebIDL::NotSupportedError::create(realm(), "Cannot attach a shadow root to a custom element that has disabled shadow roots"_string);
     }
 
     // 4. If element is a shadow host, then:
@@ -684,7 +683,7 @@ WebIDL::ExceptionOr<void> Element::attach_a_shadow_root(Bindings::ShadowRootMode
         // - currentShadowRoot’s mode is not mode,
         // then throw a "NotSupportedError" DOMException.
         if (!current_shadow_root->declarative() || current_shadow_root->mode() != mode) {
-            return WebIDL::NotSupportedError::create(realm(), "Element already is a shadow host"_fly_string);
+            return WebIDL::NotSupportedError::create(realm(), "Element already is a shadow host"_string);
         }
 
         // 3. Otherwise:
@@ -757,7 +756,7 @@ WebIDL::ExceptionOr<bool> Element::matches(StringView selectors) const
 
     // 2. If s is failure, then throw a "SyntaxError" DOMException.
     if (!maybe_selectors.has_value())
-        return WebIDL::SyntaxError::create(realm(), "Failed to parse selector"_fly_string);
+        return WebIDL::SyntaxError::create(realm(), "Failed to parse selector"_string);
 
     // 3. If the result of match a selector against an element, using s, this, and scoping root this, returns success, then return true; otherwise, return false.
     auto sel = maybe_selectors.value();
@@ -776,7 +775,7 @@ WebIDL::ExceptionOr<DOM::Element const*> Element::closest(StringView selectors) 
 
     // 2. If s is failure, then throw a "SyntaxError" DOMException.
     if (!maybe_selectors.has_value())
-        return WebIDL::SyntaxError::create(realm(), "Failed to parse selector"_fly_string);
+        return WebIDL::SyntaxError::create(realm(), "Failed to parse selector"_string);
 
     auto matches_selectors = [this](CSS::SelectorList const& selector_list, Element const* element) {
         // 4. For each element in elements, if match a selector against an element, using s, element, and scoping root this, returns success, return element.
@@ -891,7 +890,7 @@ void Element::make_html_uppercased_qualified_name()
 {
     // This is allowed by the spec: "User agents could optimize qualified name and HTML-uppercased qualified name by storing them in internal slots."
     if (namespace_uri() == Namespace::HTML && document().document_type() == Document::Type::HTML)
-        m_html_uppercased_qualified_name = MUST(Infra::to_ascii_uppercase(qualified_name()));
+        m_html_uppercased_qualified_name = qualified_name().to_ascii_uppercase();
     else
         m_html_uppercased_qualified_name = qualified_name();
 }
@@ -1000,16 +999,6 @@ JS::NonnullGCPtr<Geometry::DOMRectList> Element::get_client_rects() const
                                     .translated(paintable_box->transform_origin())
                                     .translated(-scroll_offset);
         rects.append(Geometry::DOMRect::create(realm(), transformed_rect.to_type<float>()));
-    } else if (paintable && is<Painting::InlinePaintable>(*paintable)) {
-        auto const& inline_paintable = static_cast<Painting::InlinePaintable const&>(*paintable);
-
-        if (auto enclosing_scroll_offset = inline_paintable.enclosing_scroll_frame(); enclosing_scroll_offset) {
-            scroll_offset.translate_by(-enclosing_scroll_offset->cumulative_offset());
-        }
-
-        auto absolute_rect = inline_paintable.bounding_rect();
-        absolute_rect.translate_by(-scroll_offset);
-        rects.append(Geometry::DOMRect::create(realm(), transform.map(absolute_rect.to_type<float>())));
     } else if (paintable) {
         dbgln("FIXME: Failed to get client rects for element ({})", debug_description());
     }
@@ -1180,7 +1169,7 @@ void Element::serialize_pseudo_elements_as_json(JsonArraySerializer<StringBuilde
         auto object = MUST(children_array.add_object());
         MUST(object.add("name"sv, MUST(String::formatted("::{}", CSS::Selector::PseudoElement::name(static_cast<CSS::Selector::PseudoElement::Type>(i))))));
         MUST(object.add("type"sv, "pseudo-element"));
-        MUST(object.add("parent-id"sv, unique_id()));
+        MUST(object.add("parent-id"sv, unique_id().value()));
         MUST(object.add("pseudo-element"sv, i));
         MUST(object.finish());
     }
@@ -1208,7 +1197,7 @@ i32 Element::tab_index() const
 // https://html.spec.whatwg.org/multipage/interaction.html#dom-tabindex
 void Element::set_tab_index(i32 tab_index)
 {
-    MUST(set_attribute(HTML::AttributeNames::tabindex, MUST(String::number(tab_index))));
+    MUST(set_attribute(HTML::AttributeNames::tabindex, String::number(tab_index)));
 }
 
 // https://drafts.csswg.org/cssom-view/#potentially-scrollable
@@ -1364,7 +1353,7 @@ void Element::set_scroll_left(double x)
     if (!paintable_box())
         return;
 
-    if (!paintable_box()->layout_box().is_scroll_container())
+    if (!paintable_box()->layout_node_with_style_and_box_metrics().is_scroll_container())
         return;
 
     // FIXME: or the element has no overflow.
@@ -1421,7 +1410,7 @@ void Element::set_scroll_top(double y)
     if (!paintable_box())
         return;
 
-    if (!paintable_box()->layout_box().is_scroll_container())
+    if (!paintable_box()->layout_node_with_style_and_box_metrics().is_scroll_container())
         return;
 
     // FIXME: or the element has no overflow.
@@ -1582,7 +1571,7 @@ WebIDL::ExceptionOr<void> Element::set_outer_html(String const& value)
 
     // 4. If parent is a Document, throw a "NoModificationAllowedError" DOMException.
     if (parent->is_document())
-        return WebIDL::NoModificationAllowedError::create(realm(), "Cannot set outer HTML on document"_fly_string);
+        return WebIDL::NoModificationAllowedError::create(realm(), "Cannot set outer HTML on document"_string);
 
     // 5. If parent is a DocumentFragment, set parent to the result of creating an element given this's node document, body, and the HTML namespace.
     if (parent->is_document_fragment())
@@ -1613,7 +1602,7 @@ WebIDL::ExceptionOr<void> Element::insert_adjacent_html(String const& position, 
 
         // 2. If context is null or a Document, throw a "NoModificationAllowedError" DOMException.
         if (!context || context->is_document())
-            return WebIDL::NoModificationAllowedError::create(realm(), "insertAdjacentHTML: context is null or a Document"_fly_string);
+            return WebIDL::NoModificationAllowedError::create(realm(), "insertAdjacentHTML: context is null or a Document"_string);
     }
     // - If position is an ASCII case-insensitive match for the string "afterbegin"
     // - If position is an ASCII case-insensitive match for the string "beforeend"
@@ -1625,7 +1614,7 @@ WebIDL::ExceptionOr<void> Element::insert_adjacent_html(String const& position, 
     // Otherwise
     else {
         // Throw a "SyntaxError" DOMException.
-        return WebIDL::SyntaxError::create(realm(), "insertAdjacentHTML: invalid position argument"_fly_string);
+        return WebIDL::SyntaxError::create(realm(), "insertAdjacentHTML: invalid position argument"_string);
     }
 
     // 3. If context is not an Element or the following are all true:
@@ -2132,7 +2121,7 @@ JS::ThrowCompletionOr<void> Element::upgrade_element(JS::NonnullGCPtr<HTML::Cust
     auto attempt_to_construct_custom_element = [&]() -> JS::ThrowCompletionOr<void> {
         // 1. If definition's disable shadow is true and element's shadow root is non-null, then throw a "NotSupportedError" DOMException.
         if (custom_element_definition->disable_shadow() && shadow_root())
-            return JS::throw_completion(WebIDL::NotSupportedError::create(realm, "Custom element definition disables shadow DOM and the custom element has a shadow root"_fly_string));
+            return JS::throw_completion(WebIDL::NotSupportedError::create(realm, "Custom element definition disables shadow DOM and the custom element has a shadow root"_string));
 
         // 2. Set element's custom element state to "precustomized".
         m_custom_element_state = CustomElementState::Precustomized;

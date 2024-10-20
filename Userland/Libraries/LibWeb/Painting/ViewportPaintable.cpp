@@ -1,10 +1,12 @@
 /*
  * Copyright (c) 2023, Andreas Kling <andreas@ladybird.org>
+ * Copyright (c) 2024, Aliaksandr Kalenik <kalenik.aliaksandr@gmail.com>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
 #include <LibWeb/DOM/Range.h>
+#include <LibWeb/Layout/TextNode.h>
 #include <LibWeb/Layout/Viewport.h>
 #include <LibWeb/Painting/StackingContext.h>
 #include <LibWeb/Painting/ViewportPaintable.h>
@@ -66,7 +68,6 @@ void ViewportPaintable::paint_all_phases(PaintContext& context)
 
 void ViewportPaintable::assign_scroll_frames()
 {
-    int next_id = 0;
     for_each_in_inclusive_subtree_of_type<PaintableBox>([&](auto& paintable_box) {
         RefPtr<ScrollFrame> sticky_scroll_frame;
         if (paintable_box.is_sticky_position()) {
@@ -75,11 +76,10 @@ void ViewportPaintable::assign_scroll_frames()
             if (nearest_scrollable_ancestor) {
                 parent_scroll_frame = nearest_scrollable_ancestor->nearest_scroll_frame();
             }
-            sticky_scroll_frame = adopt_ref(*new ScrollFrame(next_id++, parent_scroll_frame));
+            sticky_scroll_frame = m_scroll_state.create_sticky_frame_for(paintable_box, parent_scroll_frame);
 
             const_cast<PaintableBox&>(paintable_box).set_enclosing_scroll_frame(sticky_scroll_frame);
             const_cast<PaintableBox&>(paintable_box).set_own_scroll_frame(sticky_scroll_frame);
-            sticky_state.set(paintable_box, sticky_scroll_frame);
         }
 
         if (paintable_box.has_scrollable_overflow() || is<ViewportPaintable>(paintable_box)) {
@@ -89,9 +89,8 @@ void ViewportPaintable::assign_scroll_frames()
             } else {
                 parent_scroll_frame = paintable_box.nearest_scroll_frame();
             }
-            auto scroll_frame = adopt_ref(*new ScrollFrame(next_id++, parent_scroll_frame));
+            auto scroll_frame = m_scroll_state.create_scroll_frame_for(paintable_box, parent_scroll_frame);
             paintable_box.set_own_scroll_frame(scroll_frame);
-            scroll_state.set(paintable_box, move(scroll_frame));
         }
 
         return TraversalDecision::Continue;
@@ -109,9 +108,6 @@ void ViewportPaintable::assign_scroll_frames()
                 if (paintable.is_paintable_box()) {
                     auto const& paintable_box = static_cast<PaintableBox const&>(paintable);
                     const_cast<PaintableBox&>(paintable_box).set_enclosing_scroll_frame(*scroll_frame);
-                } else if (paintable.is_inline_paintable()) {
-                    auto const& inline_paintable = static_cast<InlinePaintable const&>(paintable);
-                    const_cast<InlinePaintable&>(inline_paintable).set_enclosing_scroll_frame(*scroll_frame);
                 }
                 return TraversalDecision::Continue;
             }
@@ -142,9 +138,6 @@ void ViewportPaintable::assign_clip_frames()
                 if (paintable.is_paintable_box()) {
                     auto const& paintable_box = static_cast<PaintableBox const&>(paintable);
                     const_cast<PaintableBox&>(paintable_box).set_enclosing_clip_frame(clip_frame.value());
-                } else if (paintable.is_inline_paintable()) {
-                    auto const& inline_paintable = static_cast<InlinePaintable const&>(paintable);
-                    const_cast<InlinePaintable&>(inline_paintable).set_enclosing_clip_frame(clip_frame.value());
                 }
                 break;
             }
@@ -158,15 +151,19 @@ void ViewportPaintable::assign_clip_frames()
     for (auto& it : clip_state) {
         auto const& paintable_box = *it.key;
         auto& clip_frame = *it.value;
-        for (auto const* block = &paintable_box.layout_box(); !block->is_viewport(); block = block->containing_block()) {
-            auto const& block_paintable_box = *block->paintable_box();
+        for (auto const* block = &paintable_box.layout_node_with_style_and_box_metrics(); !block->is_viewport(); block = block->containing_block()) {
+            auto const& paintable = block->first_paintable();
+            if (!paintable->is_paintable_box()) {
+                continue;
+            }
+            auto const& block_paintable_box = static_cast<PaintableBox const&>(*paintable);
             auto block_overflow_x = block_paintable_box.computed_values().overflow_x();
             auto block_overflow_y = block_paintable_box.computed_values().overflow_y();
             if (block_overflow_x != CSS::Overflow::Visible && block_overflow_y != CSS::Overflow::Visible) {
                 auto rect = block_paintable_box.absolute_padding_box_rect();
                 clip_frame.add_clip_rect(rect, block_paintable_box.normalized_border_radii_data(ShrinkRadiiForBorders::Yes), block_paintable_box.enclosing_scroll_frame());
             }
-            if (auto css_clip_property_rect = block->paintable_box()->get_clip_rect(); css_clip_property_rect.has_value()) {
+            if (auto css_clip_property_rect = block_paintable_box.get_clip_rect(); css_clip_property_rect.has_value()) {
                 clip_frame.add_clip_rect(css_clip_property_rect.value(), {}, block_paintable_box.enclosing_scroll_frame());
             }
             if (block->has_css_transform()) {
@@ -182,14 +179,13 @@ void ViewportPaintable::refresh_scroll_state()
         return;
     m_needs_to_refresh_scroll_state = false;
 
-    for (auto& it : sticky_state) {
-        auto const& sticky_box = *it.key;
-        auto& scroll_frame = *it.value;
+    m_scroll_state.for_each_sticky_frame([&](auto& scroll_frame) {
+        auto const& sticky_box = scroll_frame->paintable_box();
         auto const& sticky_insets = sticky_box.sticky_insets();
 
         auto const* nearest_scrollable_ancestor = sticky_box.nearest_scrollable_ancestor();
         if (!nearest_scrollable_ancestor) {
-            continue;
+            return;
         }
 
         // Min and max offsets are needed to clamp the sticky box's position to stay within bounds of containing block.
@@ -253,14 +249,12 @@ void ViewportPaintable::refresh_scroll_state()
             }
         }
 
-        scroll_frame.set_own_offset(sticky_offset);
-    }
+        scroll_frame->set_own_offset(sticky_offset);
+    });
 
-    for (auto& it : scroll_state) {
-        auto const& paintable_box = *it.key;
-        auto& scroll_frame = *it.value;
-        scroll_frame.set_own_offset(-paintable_box.scroll_offset());
-    }
+    m_scroll_state.for_each_scroll_frame([&](auto& scroll_frame) {
+        scroll_frame->set_own_offset(-scroll_frame->paintable_box().scroll_offset());
+    });
 }
 
 void ViewportPaintable::resolve_paint_only_properties()
@@ -368,8 +362,6 @@ bool ViewportPaintable::handle_mousewheel(Badge<EventHandler>, CSSPixelPoint, un
 void ViewportPaintable::visit_edges(Visitor& visitor)
 {
     Base::visit_edges(visitor);
-    visitor.visit(scroll_state);
-    visitor.visit(sticky_state);
     visitor.visit(clip_state);
 }
 

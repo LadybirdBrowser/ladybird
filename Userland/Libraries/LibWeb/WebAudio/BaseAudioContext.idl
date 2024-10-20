@@ -3,16 +3,18 @@
 #import <WebAudio/AudioBuffer.idl>
 #import <WebAudio/AudioBufferSourceNode.idl>
 #import <WebAudio/AudioDestinationNode.idl>
+#import <WebAudio/AudioListener.idl>
 #import <WebAudio/DynamicsCompressorNode.idl>
 #import <WebAudio/GainNode.idl>
 #import <WebAudio/OscillatorNode.idl>
+#import <WebIDL/DOMException.idl>
 
 // https://www.w3.org/TR/webaudio/#enumdef-audiocontextstate
 enum AudioContextState { "suspended", "running", "closed" };
 
-// FIXME: callback DecodeErrorCallback = undefined (DOMException error);
+callback DecodeErrorCallback = undefined (DOMException error);
 
-// FIXME: callback DecodeSuccessCallback = undefined (AudioBuffer decodedData);
+callback DecodeSuccessCallback = undefined (AudioBuffer decodedData);
 
 // https://webaudio.github.io/web-audio-api/#BaseAudioContext
 [Exposed=Window]
@@ -20,7 +22,7 @@ interface BaseAudioContext : EventTarget {
     readonly attribute AudioDestinationNode destination;
     readonly attribute float sampleRate;
     readonly attribute double currentTime;
-    [FIXME] readonly attribute AudioListener listener;
+    readonly attribute AudioListener listener;
     readonly attribute AudioContextState state;
     // FIXME: [SameObject, SecureContext]
     [FIXME] readonly attribute AudioWorklet audioWorklet;
@@ -45,5 +47,5 @@ interface BaseAudioContext : EventTarget {
     [FIXME] StereoPannerNode createStereoPanner ();
     [FIXME] WaveShaperNode createWaveShaper ();
 
-    [FIXME] Promise<AudioBuffer> decodeAudioData (ArrayBuffer audioData, optional DecodeSuccessCallback? successCallback, optional DecodeErrorCallback? errorCallback);
+    Promise<AudioBuffer> decodeAudioData (ArrayBuffer audioData, optional DecodeSuccessCallback? successCallback, optional DecodeErrorCallback? errorCallback);
 };

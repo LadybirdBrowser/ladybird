@@ -7,13 +7,10 @@
 #include <LibCompress/Lzma.h>
 #include <LibCore/ArgsParser.h>
 #include <LibCore/File.h>
-#include <LibCore/System.h>
 #include <LibMain/Main.h>
 
 ErrorOr<int> serenity_main(Main::Arguments arguments)
 {
-    TRY(Core::System::pledge("rpath stdio"));
-
     StringView filename;
 
     Core::ArgsParser args_parser;

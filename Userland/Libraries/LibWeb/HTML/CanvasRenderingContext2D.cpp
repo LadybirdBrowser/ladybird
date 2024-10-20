@@ -48,7 +48,7 @@ CanvasRenderingContext2D::~CanvasRenderingContext2D() = default;
 void CanvasRenderingContext2D::initialize(JS::Realm& realm)
 {
     Base::initialize(realm);
-    set_prototype(&Bindings::ensure_web_prototype<Bindings::CanvasRenderingContext2DPrototype>(realm, "CanvasRenderingContext2D"_fly_string));
+    set_prototype(&Bindings::ensure_web_prototype<Bindings::CanvasRenderingContext2DPrototype>(realm, "CanvasRenderingContext2D"_string));
 }
 
 void CanvasRenderingContext2D::visit_edges(Cell::Visitor& visitor)
@@ -321,9 +321,37 @@ void CanvasRenderingContext2D::fill(Path2D& path, StringView fill_rule)
     fill_internal(path.path(), parse_fill_rule(fill_rule));
 }
 
+// https://html.spec.whatwg.org/multipage/canvas.html#dom-context-2d-createimagedata
 WebIDL::ExceptionOr<JS::NonnullGCPtr<ImageData>> CanvasRenderingContext2D::create_image_data(int width, int height, Optional<ImageDataSettings> const& settings) const
 {
-    return ImageData::create(realm(), width, height, settings);
+    // 1. If one or both of sw and sh are zero, then throw an "IndexSizeError" DOMException.
+    if (width == 0 || height == 0)
+        return WebIDL::IndexSizeError::create(realm(), "Width and height must not be zero"_string);
+
+    int abs_width = abs(width);
+    int abs_height = abs(height);
+
+    // 2. Let newImageData be a new ImageData object.
+    // 3. Initialize newImageData given the absolute magnitude of sw, the absolute magnitude of sh, settings set to settings, and defaultColorSpace set to this's color space.
+    auto image_data = TRY(ImageData::create(realm(), abs_width, abs_height, settings));
+
+    // 4. Initialize the image data of newImageData to transparent black.
+    // ... this is handled by ImageData::create()
+
+    // 5. Return newImageData.
+    return image_data;
+}
+
+// https://html.spec.whatwg.org/multipage/canvas.html#dom-context-2d-createimagedata-imagedata
+WebIDL::ExceptionOr<JS::NonnullGCPtr<ImageData>> CanvasRenderingContext2D::create_image_data(ImageData const& image_data) const
+{
+    // 1. Let newImageData be a new ImageData object.
+    // 2. Initialize newImageData given the value of imagedata's width attribute, the value of imagedata's height attribute, and defaultColorSpace set to the value of imagedata's colorSpace attribute.
+    // FIXME: Set defaultColorSpace to the value of image_data's colorSpace attribute
+    // 3. Initialize the image data of newImageData to transparent black.
+    // NOTE: No-op, already done during creation.
+    // 4. Return newImageData.
+    return TRY(ImageData::create(realm(), image_data.width(), image_data.height()));
 }
 
 // https://html.spec.whatwg.org/multipage/canvas.html#dom-context-2d-getimagedata
@@ -331,15 +359,20 @@ WebIDL::ExceptionOr<JS::GCPtr<ImageData>> CanvasRenderingContext2D::get_image_da
 {
     // 1. If either the sw or sh arguments are zero, then throw an "IndexSizeError" DOMException.
     if (width == 0 || height == 0)
-        return WebIDL::IndexSizeError::create(realm(), "Width and height must not be zero"_fly_string);
+        return WebIDL::IndexSizeError::create(realm(), "Width and height must not be zero"_string);
 
     // 2. If the CanvasRenderingContext2D's origin-clean flag is set to false, then throw a "SecurityError" DOMException.
     if (!m_origin_clean)
-        return WebIDL::SecurityError::create(realm(), "CanvasRenderingContext2D is not origin-clean"_fly_string);
+        return WebIDL::SecurityError::create(realm(), "CanvasRenderingContext2D is not origin-clean"_string);
+
+    // ImageData initialization requires positive width and height
+    // https://html.spec.whatwg.org/multipage/canvas.html#initialize-an-imagedata-object
+    int abs_width = abs(width);
+    int abs_height = abs(height);
 
     // 3. Let imageData be a new ImageData object.
     // 4. Initialize imageData given sw, sh, settings set to settings, and defaultColorSpace set to this's color space.
-    auto image_data = TRY(ImageData::create(realm(), width, height, settings));
+    auto image_data = TRY(ImageData::create(realm(), abs_width, abs_height, settings));
 
     // NOTE: We don't attempt to create the underlying bitmap here; if it doesn't exist, it's like copying only transparent black pixels (which is a no-op).
     if (!canvas_element().bitmap())
@@ -347,7 +380,14 @@ WebIDL::ExceptionOr<JS::GCPtr<ImageData>> CanvasRenderingContext2D::get_image_da
     auto const& bitmap = *canvas_element().bitmap();
 
     // 5. Let the source rectangle be the rectangle whose corners are the four points (sx, sy), (sx+sw, sy), (sx+sw, sy+sh), (sx, sy+sh).
-    auto source_rect = Gfx::Rect { x, y, width, height };
+    auto source_rect = Gfx::Rect { x, y, abs_width, abs_height };
+
+    // NOTE: The spec doesn't seem to define this behavior, but MDN does and the WPT tests
+    // assume it works this way.
+    // https://developer.mozilla.org/en-US/docs/Web/API/CanvasRenderingContext2D/getImageData#sw
+    if (width < 0 || height < 0) {
+        source_rect = source_rect.translated(min(width, 0), min(height, 0));
+    }
     auto source_rect_intersected = source_rect.intersected(bitmap.rect());
 
     // 6. Set the pixel values of imageData to be the pixels of this's output bitmap in the area specified by the source rectangle in the bitmap's coordinate space units, converted from this's color space to imageData's colorSpace using 'relative-colorimetric' rendering intent.
@@ -600,7 +640,7 @@ WebIDL::ExceptionOr<CanvasImageSourceUsability> check_usability_of_image(CanvasI
         [](JS::Handle<HTMLCanvasElement> const& canvas_element) -> WebIDL::ExceptionOr<Optional<CanvasImageSourceUsability>> {
             // If image has either a horizontal dimension or a vertical dimension equal to zero, then throw an "InvalidStateError" DOMException.
             if (canvas_element->width() == 0 || canvas_element->height() == 0)
-                return WebIDL::InvalidStateError::create(canvas_element->realm(), "Canvas width or height is zero"_fly_string);
+                return WebIDL::InvalidStateError::create(canvas_element->realm(), "Canvas width or height is zero"_string);
             return Optional<CanvasImageSourceUsability> {};
         },
 
@@ -608,7 +648,7 @@ WebIDL::ExceptionOr<CanvasImageSourceUsability> check_usability_of_image(CanvasI
         // FIXME: VideoFrame
         [](JS::Handle<ImageBitmap> const& image_bitmap) -> WebIDL::ExceptionOr<Optional<CanvasImageSourceUsability>> {
             if (image_bitmap->is_detached())
-                return WebIDL::InvalidStateError::create(image_bitmap->realm(), "Image bitmap is detached"_fly_string);
+                return WebIDL::InvalidStateError::create(image_bitmap->realm(), "Image bitmap is detached"_string);
             return Optional<CanvasImageSourceUsability> {};
         }));
     if (usability.has_value())

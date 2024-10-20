@@ -23,7 +23,7 @@ bool is_javascript_mime_type_essence_match(StringView string)
 {
     // A string is a JavaScript MIME type essence match if it is an ASCII case-insensitive match for one of the JavaScript MIME type essence strings.
     // NOTE: The mime type parser automatically lowercases the essence.
-    auto type = MimeType::parse(string).release_value_but_fixme_should_propagate_errors();
+    auto type = MimeType::parse(string);
     if (!type.has_value())
         return false;
     return type->is_javascript();
@@ -73,16 +73,20 @@ MimeType& MimeType::operator=(MimeType&& other) = default;
 
 MimeType::~MimeType() = default;
 
-ErrorOr<MimeType> MimeType::create(String type, String subtype)
+MimeType MimeType::create(String type, String subtype)
 {
     auto mime_type = MimeType { move(type), move(subtype) };
-    mime_type.m_cached_essence = TRY(String::formatted("{}/{}", mime_type.m_type, mime_type.m_subtype));
+    mime_type.m_cached_essence = MUST(String::formatted("{}/{}", mime_type.m_type, mime_type.m_subtype));
     return mime_type;
 }
 
 // https://mimesniff.spec.whatwg.org/#parse-a-mime-type
-ErrorOr<Optional<MimeType>> MimeType::parse(StringView string)
+Optional<MimeType> MimeType::parse(StringView string)
 {
+    // Verify that the input string is valid UTF-8 first, so we don't have to think about it anymore.
+    if (!Utf8View(string).validate())
+        return OptionalNone {};
+
     // 1. Remove any leading and trailing HTTP whitespace from input.
     auto trimmed_string = string.trim(Fetch::Infrastructure::HTTP_WHITESPACE, TrimMode::Both);
 
@@ -114,7 +118,7 @@ ErrorOr<Optional<MimeType>> MimeType::parse(StringView string)
         return OptionalNone {};
 
     // 10. Let mimeType be a new MIME type record whose type is type, in ASCII lowercase, and subtype is subtype, in ASCII lowercase.
-    auto mime_type = TRY(MimeType::create(TRY(Infra::to_ascii_lowercase(type)), TRY(Infra::to_ascii_lowercase(subtype))));
+    auto mime_type = MimeType::create(MUST(Infra::to_ascii_lowercase(type)), MUST(Infra::to_ascii_lowercase(subtype)));
 
     // 11. While position is not past the end of input:
     while (!lexer.is_eof()) {
@@ -130,7 +134,7 @@ ErrorOr<Optional<MimeType>> MimeType::parse(StringView string)
         });
 
         // 4. Set parameterName to parameterName, in ASCII lowercase.
-        auto parameter_name = TRY(Infra::to_ascii_lowercase(parameter_name_view));
+        auto parameter_name = MUST(Infra::to_ascii_lowercase(parameter_name_view));
 
         // 5. If position is not past the end of input, then:
         if (!lexer.is_eof()) {
@@ -162,10 +166,10 @@ ErrorOr<Optional<MimeType>> MimeType::parse(StringView string)
         // 9. Otherwise:
         else {
             // 1. Set parameterValue to the result of collecting a sequence of code points that are not U+003B (;) from input, given position.
-            parameter_value = TRY(String::from_utf8(lexer.consume_until(';')));
+            parameter_value = String::from_utf8_without_validation(lexer.consume_until(';').bytes());
 
             // 2. Remove any trailing HTTP whitespace from parameterValue.
-            parameter_value = TRY(parameter_value.trim(Fetch::Infrastructure::HTTP_WHITESPACE, TrimMode::Right));
+            parameter_value = MUST(parameter_value.trim(Fetch::Infrastructure::HTTP_WHITESPACE, TrimMode::Right));
 
             // 3. If parameterValue is the empty string, then continue.
             if (parameter_value.is_empty())
@@ -183,7 +187,7 @@ ErrorOr<Optional<MimeType>> MimeType::parse(StringView string)
             // - mimeType’s parameters[parameterName] does not exist
             && !mime_type.m_parameters.contains(parameter_name)) {
             // then set mimeType’s parameters[parameterName] to parameterValue.
-            TRY(mime_type.m_parameters.try_set(move(parameter_name), move(parameter_value)));
+            mime_type.m_parameters.set(move(parameter_name), move(parameter_value));
         }
     }
 
@@ -199,52 +203,51 @@ String const& MimeType::essence() const
 }
 
 // https://mimesniff.spec.whatwg.org/#serialize-a-mime-type
-ErrorOr<String> MimeType::serialized() const
+String MimeType::serialized() const
 {
     // 1. Let serialization be the concatenation of mimeType’s type, U+002F (/), and mimeType’s subtype.
     StringBuilder serialization;
-    TRY(serialization.try_append(m_type));
-    TRY(serialization.try_append('/'));
-    TRY(serialization.try_append(m_subtype));
+    serialization.append(m_type);
+    serialization.append('/');
+    serialization.append(m_subtype);
 
     // 2. For each name → value of mimeType’s parameters:
     for (auto [name, value] : m_parameters) {
         // 1. Append U+003B (;) to serialization.
-        TRY(serialization.try_append(';'));
+        serialization.append(';');
 
         // 2. Append name to serialization.
-        TRY(serialization.try_append(name));
+        serialization.append(name);
 
         // 3. Append U+003D (=) to serialization.
-        TRY(serialization.try_append('='));
+        serialization.append('=');
 
         // 4. If value does not solely contain HTTP token code points or value is the empty string, then:
         if (!contains_only_http_token_code_points(value) || value.is_empty()) {
             // 1. Precede each occurrence of U+0022 (") or U+005C (\) in value with U+005C (\).
-            value = TRY(value.replace("\\"sv, "\\\\"sv, ReplaceMode::All));
-            value = TRY(value.replace("\""sv, "\\\""sv, ReplaceMode::All));
+            value = MUST(value.replace("\\"sv, "\\\\"sv, ReplaceMode::All));
+            value = MUST(value.replace("\""sv, "\\\""sv, ReplaceMode::All));
 
             // 2. Prepend U+0022 (") to value.
             // 3. Append U+0022 (") to value.
-            value = TRY(String::formatted("\"{}\"", value));
+            value = MUST(String::formatted("\"{}\"", value));
         }
 
         // 5. Append value to serialization.
-        TRY(serialization.try_append(value));
+        serialization.append(value);
     }
 
     // 3. Return serialization.
-    return serialization.to_string();
+    return serialization.to_string_without_validation();
 }
 
-ErrorOr<void> MimeType::set_parameter(String name, String value)
+void MimeType::set_parameter(String name, String value)
 {
     // https://mimesniff.spec.whatwg.org/#parameters
     // A MIME type’s parameters is an ordered map whose keys are ASCII strings and values are strings limited to HTTP quoted-string token code points.
     VERIFY(contains_only_http_quoted_string_token_code_points(name));
     VERIFY(contains_only_http_quoted_string_token_code_points(value));
-    TRY(m_parameters.try_set(move(name), move(value)));
-    return {};
+    m_parameters.set(move(name), move(value));
 }
 
 // https://mimesniff.spec.whatwg.org/#image-mime-type

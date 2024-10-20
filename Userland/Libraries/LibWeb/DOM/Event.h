@@ -9,6 +9,7 @@
 #include <AK/FlyString.h>
 #include <LibWeb/Bindings/PlatformObject.h>
 #include <LibWeb/DOM/EventTarget.h>
+#include <LibWeb/HighResolutionTime/DOMHighResTimeStamp.h>
 
 namespace Web::DOM {
 
@@ -54,7 +55,8 @@ public:
 
     virtual ~Event() = default;
 
-    double time_stamp() const;
+    // https://dom.spec.whatwg.org/#dom-event-timestamp
+    HighResolutionTime::DOMHighResTimeStamp time_stamp() const { return m_time_stamp; }
 
     FlyString const& type() const { return m_type; }
     void set_type(FlyString const& type) { m_type = type; }
@@ -180,7 +182,7 @@ private:
     Path m_path;
     TouchTargetList m_touch_target_list;
 
-    double m_time_stamp { 0 };
+    HighResolutionTime::DOMHighResTimeStamp m_time_stamp { 0 };
 
     void set_cancelled_flag();
 };

@@ -24,7 +24,7 @@ public:
     i32 value() { return get_attribute(AttributeNames::value).value_or("0"_string).to_number<i32>().value_or(0); }
     void set_value(i32 value)
     {
-        set_attribute(AttributeNames::value, MUST(String::number(value))).release_value_but_fixme_should_propagate_errors();
+        set_attribute(AttributeNames::value, String::number(value)).release_value_but_fixme_should_propagate_errors();
     }
 
 private:

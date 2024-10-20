@@ -12,20 +12,20 @@ namespace Web::WebIDL {
 
 JS_DEFINE_ALLOCATOR(DOMException);
 
-JS::NonnullGCPtr<DOMException> DOMException::create(JS::Realm& realm, FlyString const& name, FlyString const& message)
+JS::NonnullGCPtr<DOMException> DOMException::create(JS::Realm& realm, FlyString name, String message)
 {
-    return realm.heap().allocate<DOMException>(realm, realm, name, message);
+    return realm.heap().allocate<DOMException>(realm, realm, move(name), move(message));
 }
 
-JS::NonnullGCPtr<DOMException> DOMException::construct_impl(JS::Realm& realm, FlyString const& message, FlyString const& name)
+JS::NonnullGCPtr<DOMException> DOMException::construct_impl(JS::Realm& realm, String message, FlyString name)
 {
-    return realm.heap().allocate<DOMException>(realm, realm, name, message);
+    return realm.heap().allocate<DOMException>(realm, realm, move(name), move(message));
 }
 
-DOMException::DOMException(JS::Realm& realm, FlyString const& name, FlyString const& message)
+DOMException::DOMException(JS::Realm& realm, FlyString name, String message)
     : PlatformObject(realm)
-    , m_name(name)
-    , m_message(message)
+    , m_name(move(name))
+    , m_message(move(message))
 {
 }
 

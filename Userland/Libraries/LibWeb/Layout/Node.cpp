@@ -11,7 +11,6 @@
 #include <LibWeb/CSS/StyleValues/BackgroundSizeStyleValue.h>
 #include <LibWeb/CSS/StyleValues/BorderRadiusStyleValue.h>
 #include <LibWeb/CSS/StyleValues/CSSKeywordValue.h>
-#include <LibWeb/CSS/StyleValues/EdgeStyleValue.h>
 #include <LibWeb/CSS/StyleValues/IntegerStyleValue.h>
 #include <LibWeb/CSS/StyleValues/LengthStyleValue.h>
 #include <LibWeb/CSS/StyleValues/MathDepthStyleValue.h>
@@ -23,7 +22,6 @@
 #include <LibWeb/CSS/StyleValues/URLStyleValue.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/Dump.h>
-#include <LibWeb/HTML/BrowsingContext.h>
 #include <LibWeb/HTML/HTMLHtmlElement.h>
 #include <LibWeb/Layout/BlockContainer.h>
 #include <LibWeb/Layout/FormattingContext.h>
@@ -31,15 +29,12 @@
 #include <LibWeb/Layout/TableWrapper.h>
 #include <LibWeb/Layout/TextNode.h>
 #include <LibWeb/Layout/Viewport.h>
-#include <LibWeb/Page/Page.h>
-#include <LibWeb/Painting/InlinePaintable.h>
 #include <LibWeb/Platform/FontPlugin.h>
 
 namespace Web::Layout {
 
 Node::Node(DOM::Document& document, DOM::Node* node)
     : m_dom_node(node ? *node : document)
-    , m_browsing_context(*document.browsing_context())
     , m_anonymous(node == nullptr)
 {
     if (node)
@@ -52,9 +47,10 @@ void Node::visit_edges(Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_dom_node);
-    visitor.visit(m_paintable);
+    for (auto const& paintable : m_paintable) {
+        visitor.visit(JS::GCPtr { &paintable });
+    }
     visitor.visit(m_pseudo_element_generator);
-    visitor.visit(m_browsing_context);
     TreeNode::visit_edges(visitor);
 }
 
@@ -205,16 +201,6 @@ bool Node::establishes_stacking_context() const
         return true;
 
     return computed_values().opacity() < 1.0f;
-}
-
-HTML::BrowsingContext const& Node::browsing_context() const
-{
-    return *m_browsing_context;
-}
-
-HTML::BrowsingContext& Node::browsing_context()
-{
-    return *m_browsing_context;
 }
 
 JS::GCPtr<HTML::Navigable> Node::navigable() const
@@ -1030,9 +1016,45 @@ void NodeWithStyle::transfer_table_box_computed_values_to_wrapper_computed_value
     reset_table_box_computed_values_used_by_wrapper_to_init_values();
 }
 
-void Node::set_paintable(JS::GCPtr<Painting::Paintable> paintable)
+bool NodeWithStyle::is_body() const
 {
-    m_paintable = move(paintable);
+    return dom_node() && dom_node() == document().body();
+}
+
+static bool overflow_value_makes_box_a_scroll_container(CSS::Overflow overflow)
+{
+    switch (overflow) {
+    case CSS::Overflow::Clip:
+    case CSS::Overflow::Visible:
+        return false;
+    case CSS::Overflow::Auto:
+    case CSS::Overflow::Hidden:
+    case CSS::Overflow::Scroll:
+        return true;
+    }
+    VERIFY_NOT_REACHED();
+}
+
+bool NodeWithStyle::is_scroll_container() const
+{
+    // NOTE: This isn't in the spec, but we want the viewport to behave like a scroll container.
+    if (is_viewport())
+        return true;
+
+    return overflow_value_makes_box_a_scroll_container(computed_values().overflow_x())
+        || overflow_value_makes_box_a_scroll_container(computed_values().overflow_y());
+}
+
+void Node::add_paintable(JS::GCPtr<Painting::Paintable> paintable)
+{
+    if (!paintable)
+        return;
+    m_paintable.append(*paintable);
+}
+
+void Node::clear_paintables()
+{
+    m_paintable.clear();
 }
 
 JS::GCPtr<Painting::Paintable> Node::create_paintable() const

@@ -19,8 +19,10 @@ static Alignment to_alignment(CSS::JustifyContent value)
         return Alignment::Start;
     case CSS::JustifyContent::Right:
         return Alignment::End;
+    case CSS::JustifyContent::FlexStart:
     case CSS::JustifyContent::Start:
         return Alignment::Start;
+    case CSS::JustifyContent::FlexEnd:
     case CSS::JustifyContent::End:
         return Alignment::End;
     case CSS::JustifyContent::Center:

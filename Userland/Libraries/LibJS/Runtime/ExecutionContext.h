@@ -21,6 +21,16 @@ namespace JS {
 
 using ScriptOrModule = Variant<Empty, NonnullGCPtr<Script>, NonnullGCPtr<Module>>;
 
+struct CachedSourceRange : public RefCounted<CachedSourceRange> {
+    CachedSourceRange(size_t program_counter, Variant<UnrealizedSourceRange, SourceRange> source_range)
+        : program_counter(program_counter)
+        , source_range(move(source_range))
+    {
+    }
+    size_t program_counter { 0 };
+    Variant<UnrealizedSourceRange, SourceRange> source_range;
+};
+
 // 9.4 Execution Contexts, https://tc39.es/ecma262/#sec-execution-contexts
 struct ExecutionContext {
     static NonnullOwnPtr<ExecutionContext> create();
@@ -49,6 +59,9 @@ public:
     GCPtr<Cell> context_owner;
 
     Optional<size_t> program_counter;
+
+    mutable RefPtr<CachedSourceRange> cached_source_range;
+
     GCPtr<PrimitiveString> function_name;
     Value this_value;
 
@@ -82,7 +95,7 @@ public:
 
 struct StackTraceElement {
     ExecutionContext* execution_context;
-    Optional<UnrealizedSourceRange> source_range;
+    RefPtr<CachedSourceRange> source_range;
 };
 
 }

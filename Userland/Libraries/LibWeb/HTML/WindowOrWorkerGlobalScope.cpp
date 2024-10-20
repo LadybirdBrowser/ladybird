@@ -27,6 +27,7 @@
 #include <LibWeb/HTML/Scripting/ExceptionReporter.h>
 #include <LibWeb/HTML/Scripting/Fetching.h>
 #include <LibWeb/HTML/StructuredSerialize.h>
+#include <LibWeb/HTML/StructuredSerializeOptions.h>
 #include <LibWeb/HTML/Timer.h>
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/HTML/WindowOrWorkerGlobalScope.h>
@@ -115,7 +116,7 @@ WebIDL::ExceptionOr<String> WindowOrWorkerGlobalScopeMixin::btoa(String const& d
     byte_string.ensure_capacity(data.bytes().size());
     for (u32 code_point : Utf8View(data)) {
         if (code_point > 0xff)
-            return WebIDL::InvalidCharacterError::create(realm, "Data contains characters outside the range U+0000 and U+00FF"_fly_string);
+            return WebIDL::InvalidCharacterError::create(realm, "Data contains characters outside the range U+0000 and U+00FF"_string);
         byte_string.append(code_point);
     }
 
@@ -135,7 +136,7 @@ WebIDL::ExceptionOr<String> WindowOrWorkerGlobalScopeMixin::atob(String const& d
 
     // 2. If decodedData is failure, then throw an "InvalidCharacterError" DOMException.
     if (decoded_data.is_error())
-        return WebIDL::InvalidCharacterError::create(realm, "Input string is not valid base64 data"_fly_string);
+        return WebIDL::InvalidCharacterError::create(realm, "Input string is not valid base64 data"_string);
 
     // 3. Return decodedData.
     // decode_base64() returns a byte buffer. LibJS uses UTF-8 for strings. Use Latin1Decoder to convert bytes 128-255 to UTF-8.
@@ -377,7 +378,8 @@ i32 WindowOrWorkerGlobalScopeMixin::run_timer_initialization_steps(TimerHandler 
 
                 // 7. Let script be the result of creating a classic script given handler, settings object, base URL, and fetch options.
                 // FIXME: Pass fetch options.
-                auto script = ClassicScript::create(base_url.basename(), source, settings_object, move(base_url));
+                auto basename = base_url.basename();
+                auto script = ClassicScript::create(basename, source, settings_object, move(base_url));
 
                 // 8. Run the classic script script.
                 (void)script->run();

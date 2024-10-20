@@ -114,7 +114,7 @@ void HTMLCanvasElement::reset_context_to_default_state()
 
 WebIDL::ExceptionOr<void> HTMLCanvasElement::set_width(unsigned value)
 {
-    TRY(set_attribute(HTML::AttributeNames::width, MUST(String::number(value))));
+    TRY(set_attribute(HTML::AttributeNames::width, String::number(value)));
     m_bitmap = nullptr;
     reset_context_to_default_state();
     return {};
@@ -122,7 +122,7 @@ WebIDL::ExceptionOr<void> HTMLCanvasElement::set_width(unsigned value)
 
 WebIDL::ExceptionOr<void> HTMLCanvasElement::set_height(unsigned value)
 {
-    TRY(set_attribute(HTML::AttributeNames::height, MUST(String::number(value))));
+    TRY(set_attribute(HTML::AttributeNames::height, String::number(value)));
     m_bitmap = nullptr;
     reset_context_to_default_state();
     return {};

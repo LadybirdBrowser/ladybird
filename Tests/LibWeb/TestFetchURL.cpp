@@ -18,7 +18,7 @@ TEST_CASE(data_url)
     EXPECT_EQ(url.serialize(), "data:text/html,test");
 
     auto data_url = TRY_OR_FAIL(Web::Fetch::Infrastructure::process_data_url(url));
-    EXPECT_EQ(TRY_OR_FAIL(data_url.mime_type.serialized()), "text/html");
+    EXPECT_EQ(data_url.mime_type.serialized(), "text/html");
     EXPECT_EQ(StringView(data_url.body.bytes()), "test"sv);
 }
 
@@ -31,7 +31,7 @@ TEST_CASE(data_url_default_mime_type)
     EXPECT_EQ(url.serialize(), "data:,test");
 
     auto data_url = TRY_OR_FAIL(Web::Fetch::Infrastructure::process_data_url(url));
-    EXPECT_EQ(TRY_OR_FAIL(data_url.mime_type.serialized()), "text/plain;charset=US-ASCII");
+    EXPECT_EQ(data_url.mime_type.serialized(), "text/plain;charset=US-ASCII");
     EXPECT_EQ(StringView(data_url.body.bytes()), "test"sv);
 }
 
@@ -44,7 +44,7 @@ TEST_CASE(data_url_encoded)
     EXPECT_EQ(url.serialize(), "data:text/html,Hello%20friends%2C%0X%X0");
 
     auto data_url = TRY_OR_FAIL(Web::Fetch::Infrastructure::process_data_url(url));
-    EXPECT_EQ(TRY_OR_FAIL(data_url.mime_type.serialized()), "text/html");
+    EXPECT_EQ(data_url.mime_type.serialized(), "text/html");
     EXPECT_EQ(StringView(data_url.body.bytes()), "Hello friends,%0X%X0"sv);
 }
 
@@ -57,7 +57,7 @@ TEST_CASE(data_url_base64_encoded)
     EXPECT_EQ(url.serialize(), "data:text/html;base64,dGVzdA==");
 
     auto data_url = TRY_OR_FAIL(Web::Fetch::Infrastructure::process_data_url(url));
-    EXPECT_EQ(TRY_OR_FAIL(data_url.mime_type.serialized()), "text/html");
+    EXPECT_EQ(data_url.mime_type.serialized(), "text/html");
     EXPECT_EQ(StringView(data_url.body.bytes()), "test"sv);
 }
 
@@ -70,7 +70,7 @@ TEST_CASE(data_url_base64_encoded_default_mime_type)
     EXPECT_EQ(url.serialize(), "data:;base64,dGVzdA==");
 
     auto data_url = TRY_OR_FAIL(Web::Fetch::Infrastructure::process_data_url(url));
-    EXPECT_EQ(TRY_OR_FAIL(data_url.mime_type.serialized()), "text/plain;charset=US-ASCII");
+    EXPECT_EQ(data_url.mime_type.serialized(), "text/plain;charset=US-ASCII");
     EXPECT_EQ(StringView(data_url.body.bytes()), "test"sv);
 }
 
@@ -83,7 +83,7 @@ TEST_CASE(data_url_base64_encoded_with_whitespace)
     EXPECT_EQ(url.serialize(), "data: text/html ;     bAsE64 , dGVz dA==");
 
     auto data_url = TRY_OR_FAIL(Web::Fetch::Infrastructure::process_data_url(url));
-    EXPECT_EQ(TRY_OR_FAIL(data_url.mime_type.serialized()), "text/html");
+    EXPECT_EQ(data_url.mime_type.serialized(), "text/html");
     EXPECT_EQ(StringView(data_url.body.bytes()), "test");
 }
 
@@ -95,7 +95,7 @@ TEST_CASE(data_url_base64_encoded_with_inline_whitespace)
     EXPECT(url.host().has<Empty>());
 
     auto data_url = TRY_OR_FAIL(Web::Fetch::Infrastructure::process_data_url(url));
-    EXPECT_EQ(TRY_OR_FAIL(data_url.mime_type.serialized()), "text/javascript");
+    EXPECT_EQ(data_url.mime_type.serialized(), "text/javascript");
     EXPECT_EQ(StringView(data_url.body.bytes()), "d4 = 'four';"sv);
 }
 
@@ -108,6 +108,6 @@ TEST_CASE(data_url_completed_with_fragment)
     EXPECT(url.host().has<Empty>());
 
     auto data_url = TRY_OR_FAIL(Web::Fetch::Infrastructure::process_data_url(url));
-    EXPECT_EQ(TRY_OR_FAIL(data_url.mime_type.serialized()), "text/plain");
+    EXPECT_EQ(data_url.mime_type.serialized(), "text/plain");
     EXPECT_EQ(StringView(data_url.body.bytes()), "test"sv);
 }

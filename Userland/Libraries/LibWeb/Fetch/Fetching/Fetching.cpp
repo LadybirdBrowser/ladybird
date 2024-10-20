@@ -836,7 +836,7 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<PendingResponse>> scheme_fetch(JS::Realm& r
         auto full_length = blob->size();
 
         // 6. Let serializedFullLength be fullLength, serialized and isomorphic encoded.
-        auto serialized_full_length = TRY_OR_THROW_OOM(vm, String::number(full_length));
+        auto serialized_full_length = String::number(full_length);
 
         // 7. Let type be blob’s type.
         auto const& type = blob->type();
@@ -901,7 +901,7 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<PendingResponse>> scheme_fetch(JS::Realm& r
             return PendingResponse::create(vm, request, Infrastructure::Response::network_error(vm, "Failed to process 'data:' URL"sv));
 
         // 3. Let mimeType be dataURLStruct’s MIME type, serialized.
-        auto const& mime_type = MUST(data_url_struct.value().mime_type.serialized());
+        auto const& mime_type = data_url_struct.value().mime_type.serialized();
 
         // 4. Return a new response whose status message is `OK`, header list is « (`Content-Type`, mimeType) », and
         //    body is dataURLStruct’s body as a body.
@@ -1627,7 +1627,7 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<PendingResponse>> http_network_or_cache_fet
         // 8. If contentLength is non-null, then set contentLengthHeaderValue to contentLength, serialized and
         //    isomorphic encoded.
         if (content_length.has_value())
-            content_length_header_value = MUST(ByteBuffer::copy(TRY_OR_THROW_OOM(vm, String::number(*content_length)).bytes()));
+            content_length_header_value = MUST(ByteBuffer::copy(String::number(*content_length).bytes()));
 
         // 9. If contentLengthHeaderValue is non-null, then append (`Content-Length`, contentLengthHeaderValue) to
         //    httpRequest’s header list.

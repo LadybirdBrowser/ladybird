@@ -11,6 +11,7 @@
 #include <LibWeb/DOM/DocumentLoading.h>
 #include <LibWeb/DOM/Event.h>
 #include <LibWeb/DOM/Range.h>
+#include <LibWeb/DOM/Text.h>
 #include <LibWeb/Fetch/Fetching/Fetching.h>
 #include <LibWeb/Fetch/Infrastructure/FetchAlgorithms.h>
 #include <LibWeb/Fetch/Infrastructure/FetchController.h>
@@ -167,7 +168,7 @@ JS::GCPtr<Navigable> Navigable::navigable_with_active_document(JS::NonnullGCPtr<
 ErrorOr<void> Navigable::initialize_navigable(JS::NonnullGCPtr<DocumentState> document_state, JS::GCPtr<Navigable> parent)
 {
     static int next_id = 0;
-    m_id = TRY(String::number(next_id++));
+    m_id = String::number(next_id++);
 
     // 1. Assert: documentState's document is non-null.
     VERIFY(document_state->document());
@@ -1178,7 +1179,7 @@ WebIDL::ExceptionOr<void> Navigable::populate_session_history_entry_document(
         //            header specifying the attachment disposition type, then:
         // 6. Otherwise, if navigationParams's response's status is not 204 and is not 205, then set entry's document state's document to the result of
         //    loading a document given navigationParams, sourceSnapshotParams, and entry's document state's initiator origin.
-        else if (navigation_params.get<JS::NonnullGCPtr<NavigationParams>>()->response->status() != 204 && navigation_params.get<JS::NonnullGCPtr<NavigationParams>>()->response->status() != 205) {
+        else if (auto const& response = navigation_params.get<JS::NonnullGCPtr<NavigationParams>>()->response; response->status() != 204 && response->status() != 205) {
             auto document = load_document(navigation_params.get<JS::NonnullGCPtr<NavigationParams>>());
             entry->document_state()->set_document(document);
         }
@@ -1261,7 +1262,7 @@ WebIDL::ExceptionOr<void> Navigable::navigate(NavigateParams params)
     if (!source_document->navigable()->allowed_by_sandboxing_to_navigate(*this, source_snapshot_params)) {
         // 1. If exceptionsEnabled is true, then throw a "SecurityError" DOMException.
         if (exceptions_enabled) {
-            return WebIDL::SecurityError::create(realm, "Source document's node navigable is not allowed to navigate"_fly_string);
+            return WebIDL::SecurityError::create(realm, "Source document's node navigable is not allowed to navigate"_string);
         }
 
         // 2 Return.
@@ -1289,7 +1290,7 @@ WebIDL::ExceptionOr<void> Navigable::navigate(NavigateParams params)
         // 1. If url equals navigable's active document's URL,
         //     and initiatorOriginSnapshot is same origin with targetNavigable's active document's origin,
         //     then set historyHandling to "replace".
-        if (url.equals(active_document.url(), URL::ExcludeFragment::Yes) && initiator_origin_snapshot.is_same_origin(active_document.origin()))
+        if (url == active_document.url() && initiator_origin_snapshot.is_same_origin(active_document.origin()))
             history_handling = Bindings::NavigationHistoryBehavior::Replace;
 
         // 2. Otherwise, set historyHandling to "push".
@@ -1602,7 +1603,7 @@ WebIDL::ExceptionOr<JS::GCPtr<DOM::Document>> Navigable::evaluate_javascript_url
     String result;
 
     // 9. If evaluationStatus is a normal completion, and evaluationStatus.[[Value]] is a String, then set result to evaluationStatus.[[Value]].
-    if (evaluation_status.type() == JS::Completion::Type::Normal && evaluation_status.value()->is_string()) {
+    if (evaluation_status.type() == JS::Completion::Type::Normal && evaluation_status.value().has_value() && evaluation_status.value()->is_string()) {
         result = evaluation_status.value()->as_string().utf8_string();
     } else {
         // 10. Otherwise, return null.

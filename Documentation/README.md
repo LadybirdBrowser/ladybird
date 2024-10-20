@@ -9,7 +9,6 @@ you are welcome to ask on [Discord](../README.md#get-in-touch-and-participate).
 * [Advanced Build Instructions](AdvancedBuildInstructions.md)
 * [Troubleshooting](Troubleshooting.md)
 * [Running Tests](RunningTests.md)
-* [Setting Up Self-Hosted Runners](SelfHostedRunners.md)
 * [Profiling the Build](BuildProfilingInstructions.md)
 
 ## Configuring Editors

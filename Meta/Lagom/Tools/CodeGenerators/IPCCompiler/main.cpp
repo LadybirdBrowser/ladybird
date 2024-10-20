@@ -71,7 +71,7 @@ static bool is_primitive_type(ByteString const& type)
 static bool is_simple_type(ByteString const& type)
 {
     // Small types that it makes sense just to pass by value.
-    return type.is_one_of("AK::CaseSensitivity", "Gfx::Color", "Web::DevicePixels", "Gfx::IntPoint", "Gfx::FloatPoint", "Web::DevicePixelPoint", "Gfx::IntSize", "Gfx::FloatSize", "Web::DevicePixelSize", "Core::File::OpenMode", "Web::Cookie::Source", "Web::EventResult", "Web::HTML::AllowMultipleFiles", "Web::HTML::AudioPlayState", "Web::HTML::HistoryHandlingBehavior", "WebView::PageInfoType");
+    return type.is_one_of("AK::CaseSensitivity", "AK::Duration", "Gfx::Color", "Web::DevicePixels", "Gfx::IntPoint", "Gfx::FloatPoint", "Web::DevicePixelPoint", "Gfx::IntSize", "Gfx::FloatSize", "Web::DevicePixelSize", "Core::File::OpenMode", "Web::Cookie::Source", "Web::EventResult", "Web::HTML::AllowMultipleFiles", "Web::HTML::AudioPlayState", "Web::HTML::HistoryHandlingBehavior", "WebView::PageInfoType");
 }
 
 static bool is_primitive_or_simple_type(ByteString const& type)

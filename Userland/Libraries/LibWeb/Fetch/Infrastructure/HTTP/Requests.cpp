@@ -272,14 +272,14 @@ void Request::add_range_header(u64 first, Optional<u64> const& last)
     auto range_value = MUST(ByteBuffer::copy("bytes"sv.bytes()));
 
     // 3. Serialize and isomorphic encode first, and append the result to rangeValue.
-    range_value.append(MUST(String::number(first)).bytes());
+    range_value.append(String::number(first).bytes());
 
     // 4. Append 0x2D (-) to rangeValue.
     range_value.append('-');
 
     // 5. If last is given, then serialize and isomorphic encode it, and append the result to rangeValue.
     if (last.has_value())
-        range_value.append(MUST(String::number(*last)).bytes());
+        range_value.append(String::number(*last).bytes());
 
     // 6. Append (`Range`, rangeValue) to request’s header list.
     auto header = Header {

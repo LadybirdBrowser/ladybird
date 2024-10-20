@@ -17,8 +17,8 @@ bool is_javascript_mime_type_essence_match(StringView);
 // https://mimesniff.spec.whatwg.org/#mime-type
 class MimeType {
 public:
-    static ErrorOr<MimeType> create(String type, String subtype);
-    static ErrorOr<Optional<MimeType>> parse(StringView);
+    [[nodiscard]] static MimeType create(String type, String subtype);
+    [[nodiscard]] static Optional<MimeType> parse(StringView);
 
     MimeType(MimeType const&);
     MimeType& operator=(MimeType const&);
@@ -43,10 +43,10 @@ public:
     bool is_javascript() const;
     bool is_json() const;
 
-    ErrorOr<void> set_parameter(String name, String value);
+    void set_parameter(String name, String value);
 
     String const& essence() const;
-    ErrorOr<String> serialized() const;
+    [[nodiscard]] String serialized() const;
 
 private:
     MimeType(String type, String subtype);

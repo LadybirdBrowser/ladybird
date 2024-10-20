@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<link rel="match" href="reference/domparser-parsefromstring-xml-parsererror.html" />
+<script>
+const xhtml_prologue = '<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"' +
+                       ' "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">\n' +
+                       '<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">\n' +
+                       '<body>\n',
+      xhtml_epilogue = '</body>\n</html>\n';
+  test(() => {
+  [
+    '<span x:test="testing">1</span>',                // undeclared 'x' namespace prefix
+    '< span>2</span>',                                // bad start tag
+    '<span :test="testing">3</span>',                 // empty namespace prefix
+    '<span><em>4</span></em>',                        // staggered tags
+    '<span>5',                                        // missing end </span> tag
+    '6</span>',                                       // missing start <span> tag
+    '<span>7< /span>',                                // bad end tag
+    '<span>8</ span>',                                // bad end tag
+    '<span novalue>9</span>',                         // missing attribute value
+    '<span ="noattr">10</span>',                      // missing attribute name
+    '<span ::="test">11</span>',                      // bad namespace prefix
+    '<span xmlns:="urn:x-test:test">12</span>',       // missing namespace prefix
+    '<span xmlns:xmlns="">13</span>',                 // invalid namespace prefix
+    '<span data-test=testing>14</span>',              // unquoted attribute value
+    '15<span',                                        // bad start tag
+    '<8:test xmlns:8="urn:x-test:test">16</8:test>',  // invalid namespace prefix
+    '<span xmlns:p1 xmlns:p2="urn:x-test:test"/>17',  // missing namespace URI
+  ].forEach((fragment, i) => {
+    var document_string = xhtml_prologue + fragment + xhtml_epilogue;
+    var doc = (new DOMParser).parseFromString(document_string, "application/xhtml+xml");
+    var parsererrors = doc.getElementsByTagName("parsererror");
+    println(`${fragment} has ${parsererrors.length} parseerror`);
+  });
+
+  [
+    'text/xml',
+    'application/xml',
+    'application/xhtml+xml',
+    'image/svg+xml'
+  ].forEach(mimeType => {
+    const doc = (new DOMParser()).parseFromString('<span x:test="testing">1</span>', mimeType);
+    var parsererrors = doc.getElementsByTagName("parsererror");
+    println(`${mimeType} has ${parsererrors.length} parseerror`);
+  });
+});
+</script>

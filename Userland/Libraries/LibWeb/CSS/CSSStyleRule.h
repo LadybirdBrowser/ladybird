@@ -8,22 +8,23 @@
 #pragma once
 
 #include <AK/NonnullRefPtr.h>
-#include <LibWeb/CSS/CSSRule.h>
+#include <LibWeb/CSS/CSSGroupingRule.h>
 #include <LibWeb/CSS/CSSStyleDeclaration.h>
 #include <LibWeb/CSS/Selector.h>
 
 namespace Web::CSS {
 
-class CSSStyleRule final : public CSSRule {
-    WEB_PLATFORM_OBJECT(CSSStyleRule, CSSRule);
+class CSSStyleRule final : public CSSGroupingRule {
+    WEB_PLATFORM_OBJECT(CSSStyleRule, CSSGroupingRule);
     JS_DECLARE_ALLOCATOR(CSSStyleRule);
 
 public:
-    [[nodiscard]] static JS::NonnullGCPtr<CSSStyleRule> create(JS::Realm&, Vector<NonnullRefPtr<Selector>>&&, PropertyOwningCSSStyleDeclaration&);
+    [[nodiscard]] static JS::NonnullGCPtr<CSSStyleRule> create(JS::Realm&, SelectorList&&, PropertyOwningCSSStyleDeclaration&, CSSRuleList&);
 
     virtual ~CSSStyleRule() override = default;
 
-    Vector<NonnullRefPtr<Selector>> const& selectors() const { return m_selectors; }
+    SelectorList const& selectors() const { return m_selectors; }
+    SelectorList const& absolutized_selectors() const;
     PropertyOwningCSSStyleDeclaration const& declaration() const { return m_declaration; }
 
     virtual Type type() const override { return Type::Style; }
@@ -36,13 +37,15 @@ public:
     [[nodiscard]] FlyString const& qualified_layer_name() const { return parent_layer_internal_qualified_name(); }
 
 private:
-    CSSStyleRule(JS::Realm&, Vector<NonnullRefPtr<Selector>>&&, PropertyOwningCSSStyleDeclaration&);
+    CSSStyleRule(JS::Realm&, SelectorList&&, PropertyOwningCSSStyleDeclaration&, CSSRuleList&);
 
     virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Cell::Visitor&) override;
+    virtual void clear_caches() override;
     virtual String serialized() const override;
 
-    Vector<NonnullRefPtr<Selector>> m_selectors;
+    SelectorList m_selectors;
+    mutable Optional<SelectorList> m_cached_absolutized_selectors;
     JS::NonnullGCPtr<PropertyOwningCSSStyleDeclaration> m_declaration;
 };
 

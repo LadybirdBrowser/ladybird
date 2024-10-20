@@ -15,6 +15,7 @@
 #include <LibCore/Resource.h>
 #include <LibCore/SystemServerTakeover.h>
 #include <LibGfx/Font/FontDatabase.h>
+#include <LibGfx/Font/PathFontProvider.h>
 #include <LibIPC/ConnectionFromClient.h>
 #include <LibJS/Bytecode/Interpreter.h>
 #include <LibMain/Main.h>
@@ -128,11 +129,11 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
         Core::Process::wait_for_debugger_and_break();
     }
 
+    auto& font_provider = static_cast<Gfx::PathFontProvider&>(Gfx::FontDatabase::the().install_system_font_provider(make<Gfx::PathFontProvider>()));
     if (force_fontconfig) {
-        Gfx::FontDatabase::the().set_force_fontconfig(true);
+        font_provider.set_name_but_fixme_should_create_custom_system_font_provider("FontConfig"_string);
     }
-
-    Gfx::FontDatabase::the().load_all_fonts_from_uri("resource://fonts"sv);
+    font_provider.load_all_fonts_from_uri("resource://fonts"sv);
 
     // Layout test mode implies internals object is exposed and the Skia CPU backend is used
     if (is_layout_test_mode) {
@@ -167,7 +168,7 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
 
     Web::HTML::Window::set_internals_object_exposed(expose_internals_object);
 
-    Web::Platform::FontPlugin::install(*new Ladybird::FontPlugin(is_layout_test_mode));
+    Web::Platform::FontPlugin::install(*new Ladybird::FontPlugin(is_layout_test_mode, &font_provider));
 
     TRY(Web::Bindings::initialize_main_thread_vm(Web::HTML::EventLoop::Type::Window));
 

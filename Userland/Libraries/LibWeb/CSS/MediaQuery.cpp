@@ -29,7 +29,7 @@ String MediaFeatureValue::to_string() const
         [](Length const& length) { return length.to_string(); },
         [](Ratio const& ratio) { return ratio.to_string(); },
         [](Resolution const& resolution) { return resolution.to_string(); },
-        [](float number) { return MUST(String::number(number)); });
+        [](float number) { return String::number(number); });
 }
 
 bool MediaFeatureValue::is_same_type(MediaFeatureValue const& other) const

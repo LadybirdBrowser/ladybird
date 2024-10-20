@@ -20,6 +20,7 @@
 #include <LibWeb/Forward.h>
 #include <LibWeb/Layout/BoxModelMetrics.h>
 #include <LibWeb/Painting/PaintContext.h>
+#include <LibWeb/Painting/Paintable.h>
 #include <LibWeb/TreeNode.h>
 
 namespace Web::Layout {
@@ -64,17 +65,19 @@ public:
         m_pseudo_element_generator = &element;
     }
 
-    Painting::Paintable* paintable() { return m_paintable; }
-    Painting::Paintable const* paintable() const { return m_paintable; }
-    void set_paintable(JS::GCPtr<Painting::Paintable>);
+    using PaintableList = IntrusiveList<&Painting::Paintable::m_list_node>;
+
+    Painting::Paintable* first_paintable() { return m_paintable.first(); }
+    Painting::Paintable const* first_paintable() const { return m_paintable.first(); }
+    PaintableList& paintables() { return m_paintable; }
+    PaintableList const& paintables() const { return m_paintable; }
+    void add_paintable(JS::GCPtr<Painting::Paintable>);
+    void clear_paintables();
 
     virtual JS::GCPtr<Painting::Paintable> create_paintable() const;
 
     DOM::Document& document();
     DOM::Document const& document() const;
-
-    HTML::BrowsingContext const& browsing_context() const;
-    HTML::BrowsingContext& browsing_context();
 
     JS::GCPtr<HTML::Navigable> navigable() const;
 
@@ -184,9 +187,7 @@ private:
     friend class NodeWithStyle;
 
     JS::NonnullGCPtr<DOM::Node> m_dom_node;
-    JS::GCPtr<Painting::Paintable> m_paintable;
-
-    JS::NonnullGCPtr<HTML::BrowsingContext> m_browsing_context;
+    PaintableList m_paintable;
 
     JS::GCPtr<DOM::Element> m_pseudo_element_generator;
 
@@ -220,6 +221,9 @@ public:
     JS::NonnullGCPtr<NodeWithStyle> create_anonymous_wrapper() const;
 
     void transfer_table_box_computed_values_to_wrapper_computed_values(CSS::ComputedValues& wrapper_computed_values);
+
+    bool is_body() const;
+    bool is_scroll_container() const;
 
     virtual void visit_edges(Cell::Visitor& visitor) override;
 

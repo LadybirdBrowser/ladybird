@@ -204,10 +204,10 @@ JS::NonnullGCPtr<Blob> Blob::create(JS::Realm& realm, Optional<Vector<BlobPart>>
 
         // NOTE: The spec is out of date, and we are supposed to call into the MimeType parser here.
         if (!options->type.is_empty()) {
-            auto maybe_parsed_type = MUST(Web::MimeSniff::MimeType::parse(options->type));
+            auto maybe_parsed_type = Web::MimeSniff::MimeType::parse(options->type);
 
             if (maybe_parsed_type.has_value())
-                type = MUST(maybe_parsed_type->serialized());
+                type = maybe_parsed_type->serialized();
         }
     }
 
@@ -292,7 +292,7 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<Blob>> Blob::slice_blob(Optional<i64> start
         }
         // 2. Convert every character in relativeContentType to ASCII lowercase.
         else {
-            relative_content_type = TRY_OR_THROW_OOM(vm, Infra::to_ascii_lowercase(content_type.value()));
+            relative_content_type = content_type.value().to_ascii_lowercase();
         }
     }
 

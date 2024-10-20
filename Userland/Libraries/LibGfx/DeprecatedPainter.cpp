@@ -48,7 +48,6 @@ DeprecatedPainter::DeprecatedPainter(Gfx::Bitmap& bitmap)
     VERIFY(bitmap.format() == Gfx::BitmapFormat::BGRx8888 || bitmap.format() == Gfx::BitmapFormat::BGRA8888);
     m_state_stack.append(State());
     state().clip_rect = { { 0, 0 }, bitmap.size() };
-    m_clip_origin = state().clip_rect;
 }
 
 void DeprecatedPainter::clear_rect(IntRect const& a_rect, Color color)
@@ -115,20 +114,6 @@ void DeprecatedPainter::fill_rect(IntRect const& rect, PaintStyle const& paint_s
             }
         }
     });
-}
-
-void DeprecatedPainter::fill_rect_with_gradient(Orientation orientation, IntRect const& a_rect, Color gradient_start, Color gradient_end)
-{
-    if (gradient_start == gradient_end) {
-        fill_rect(a_rect, gradient_start);
-        return;
-    }
-    return fill_rect_with_linear_gradient(a_rect, Array { ColorStop { gradient_start, 0 }, ColorStop { gradient_end, 1 } }, orientation == Orientation::Horizontal ? 90.0f : 0.0f);
-}
-
-void DeprecatedPainter::fill_rect_with_gradient(IntRect const& a_rect, Color gradient_start, Color gradient_end)
-{
-    return fill_rect_with_gradient(Orientation::Horizontal, a_rect, gradient_start, gradient_end);
 }
 
 void DeprecatedPainter::fill_rect_with_rounded_corners(IntRect const& a_rect, Color color, int radius)
@@ -790,63 +775,6 @@ ALWAYS_INLINE static void do_draw_scaled_bitmap(Gfx::Bitmap& target, IntRect con
     }
 }
 
-void DeprecatedPainter::draw_scaled_bitmap(IntRect const& a_dst_rect, Gfx::Bitmap const& source, IntRect const& a_src_rect, float opacity, ScalingMode scaling_mode)
-{
-    draw_scaled_bitmap(a_dst_rect, source, FloatRect { a_src_rect }, opacity, scaling_mode);
-}
-
-void DeprecatedPainter::draw_scaled_bitmap(IntRect const& a_dst_rect, Gfx::Bitmap const& source, FloatRect const& a_src_rect, float opacity, ScalingMode scaling_mode)
-{
-    IntRect int_src_rect = enclosing_int_rect(a_src_rect);
-    if (a_src_rect == int_src_rect && a_dst_rect.size() == int_src_rect.size())
-        return blit(a_dst_rect.location(), source, int_src_rect, opacity);
-
-    if (scaling_mode == ScalingMode::None) {
-        IntRect clipped_draw_rect { (int)a_src_rect.location().x(), (int)a_src_rect.location().y(), a_dst_rect.size().width(), a_dst_rect.size().height() };
-        return blit(a_dst_rect.location(), source, clipped_draw_rect, opacity);
-    }
-
-    auto dst_rect = to_physical(a_dst_rect);
-    auto src_rect = a_src_rect;
-    auto clipped_rect = dst_rect.intersected(clip_rect());
-    if (clipped_rect.is_empty())
-        return;
-
-    if (source.has_alpha_channel() || opacity != 1.0f) {
-        switch (source.format()) {
-        case BitmapFormat::BGRx8888:
-            do_draw_scaled_bitmap<true>(*m_target, dst_rect, clipped_rect, source, src_rect, Gfx::get_pixel<BitmapFormat::BGRx8888>, opacity, scaling_mode);
-            break;
-        case BitmapFormat::BGRA8888:
-            do_draw_scaled_bitmap<true>(*m_target, dst_rect, clipped_rect, source, src_rect, Gfx::get_pixel<BitmapFormat::BGRA8888>, opacity, scaling_mode);
-            break;
-        default:
-            do_draw_scaled_bitmap<true>(*m_target, dst_rect, clipped_rect, source, src_rect, Gfx::get_pixel<BitmapFormat::Invalid>, opacity, scaling_mode);
-            break;
-        }
-    } else {
-        switch (source.format()) {
-        case BitmapFormat::BGRx8888:
-            do_draw_scaled_bitmap<false>(*m_target, dst_rect, clipped_rect, source, src_rect, Gfx::get_pixel<BitmapFormat::BGRx8888>, opacity, scaling_mode);
-            break;
-        default:
-            do_draw_scaled_bitmap<false>(*m_target, dst_rect, clipped_rect, source, src_rect, Gfx::get_pixel<BitmapFormat::Invalid>, opacity, scaling_mode);
-            break;
-        }
-    }
-}
-
-void DeprecatedPainter::set_pixel(IntPoint p, Color color, bool blend)
-{
-    auto point = p;
-    point.translate_by(state().translation);
-    // Use the scale only to avoid clipping pixels set in drawing functions that handle
-    // scaling and call set_pixel() -- do not scale the pixel.
-    if (!clip_rect().contains(point))
-        return;
-    set_physical_pixel(point, color, blend);
-}
-
 void DeprecatedPainter::set_physical_pixel(IntPoint physical_point, Color color, bool blend)
 {
     // This function should only be called after translation, clipping, etc has been handled elsewhere
@@ -865,14 +793,6 @@ Optional<Color> DeprecatedPainter::get_pixel(IntPoint p)
     if (!clip_rect().contains(point))
         return {};
     return target().get_pixel(point);
-}
-
-ErrorOr<NonnullRefPtr<Bitmap>> DeprecatedPainter::get_region_bitmap(IntRect const& region, BitmapFormat format, Optional<IntRect&> actual_region)
-{
-    auto bitmap_region = region.translated(state().translation).intersected(target().rect());
-    if (actual_region.has_value())
-        actual_region.value() = bitmap_region.translated(-state().translation);
-    return target().cropped(bitmap_region, format);
 }
 
 ALWAYS_INLINE void DeprecatedPainter::set_physical_pixel(u32& pixel, Color color)
@@ -1059,25 +979,6 @@ void DeprecatedPainter::draw_line(IntPoint a_p1, IntPoint a_p2, Color color, int
     }
 }
 
-void DeprecatedPainter::draw_triangle_wave(IntPoint a_p1, IntPoint a_p2, Color color, int amplitude, int thickness)
-{
-    // FIXME: Support more than horizontal waves
-    VERIFY(a_p1.y() == a_p2.y());
-
-    auto const p1 = thickness > 1 ? a_p1.translated(-(thickness / 2), -(thickness / 2)) : a_p1;
-    auto const p2 = thickness > 1 ? a_p2.translated(-(thickness / 2), -(thickness / 2)) : a_p2;
-
-    auto point1 = to_physical(p1);
-    auto point2 = to_physical(p2);
-
-    auto y = point1.y();
-
-    for (int x = 0; x <= point2.x() - point1.x(); ++x) {
-        auto y_offset = abs(x % (2 * amplitude) - amplitude) - amplitude;
-        draw_physical_pixel({ point1.x() + x, y + y_offset }, color, thickness);
-    }
-}
-
 static bool can_approximate_bezier_curve(FloatPoint p1, FloatPoint p2, FloatPoint control)
 {
     // TODO: Somehow calculate the required number of splits based on the curve (and its size).
@@ -1211,89 +1112,11 @@ void DeprecatedPainter::add_clip_rect(IntRect const& rect)
     state().clip_rect.intersect(target().rect()); // FIXME: This shouldn't be necessary?
 }
 
-void DeprecatedPainter::clear_clip_rect()
-{
-    state().clip_rect = m_clip_origin;
-}
-
-DeprecatedPainterStateSaver::DeprecatedPainterStateSaver(DeprecatedPainter& painter)
-    : m_painter(painter)
-{
-    m_painter.save();
-}
-
-DeprecatedPainterStateSaver::~DeprecatedPainterStateSaver()
-{
-    m_painter.restore();
-}
-
 void DeprecatedPainter::stroke_path(DeprecatedPath const& path, Color color, int thickness)
 {
     if (thickness <= 0)
         return;
     fill_path(path.stroke_to_fill(thickness), color);
-}
-
-void DeprecatedPainter::draw_scaled_bitmap_with_transform(IntRect const& dst_rect, Bitmap const& bitmap, FloatRect const& src_rect, AffineTransform const& transform, float opacity, ScalingMode scaling_mode)
-{
-    if (transform.is_identity_or_translation_or_scale()) {
-        draw_scaled_bitmap(transform.map(dst_rect.to_type<float>()).to_rounded<int>(), bitmap, src_rect, opacity, scaling_mode);
-    } else {
-        // The painter has an affine transform, we have to draw through it!
-
-        // FIXME: This is kinda inefficient.
-        // What we currently do, roughly:
-        // - Map the destination rect through the context's transform.
-        // - Compute the bounding rect of the destination quad.
-        // - For each point in the clipped bounding rect, reverse-map it to a point in the source image.
-        //   - Sample the source image at the computed point.
-        //   - Set or blend (depending on alpha values) one pixel in the canvas.
-        //   - Loop.
-
-        // FIXME: DeprecatedPainter should have an affine transform as part of its state and handle all of this instead.
-
-        if (opacity == 0.0f)
-            return;
-
-        auto inverse_transform = transform.inverse();
-        if (!inverse_transform.has_value())
-            return;
-
-        auto destination_quad = transform.map_to_quad(dst_rect.to_type<float>());
-        auto destination_bounding_rect = destination_quad.bounding_rect().to_rounded<int>();
-        auto source_rect = enclosing_int_rect(src_rect).intersected(bitmap.rect());
-
-        Gfx::AffineTransform source_transform;
-        source_transform.translate(src_rect.x(), src_rect.y());
-        source_transform.scale(src_rect.width() / dst_rect.width(), src_rect.height() / dst_rect.height());
-        source_transform.translate(-dst_rect.x(), -dst_rect.y());
-
-        auto translated_dest_rect = destination_bounding_rect.translated(translation());
-        auto clipped_bounding_rect = translated_dest_rect.intersected(clip_rect());
-        if (clipped_bounding_rect.is_empty())
-            return;
-
-        auto sample_transform = source_transform.multiply(*inverse_transform);
-        auto start_offset = destination_bounding_rect.location() + (clipped_bounding_rect.location() - translated_dest_rect.location());
-        for (int y = 0; y < clipped_bounding_rect.height(); ++y) {
-            for (int x = 0; x < clipped_bounding_rect.width(); ++x) {
-                auto point = Gfx::IntPoint { x, y };
-                auto sample_point = point + start_offset;
-
-                // AffineTransform::map(IntPoint) rounds internally, which is wrong here. So explicitly call the FloatPoint version, and then truncate the result.
-                auto source_point = Gfx::IntPoint { sample_transform.map(Gfx::FloatPoint { sample_point }) };
-
-                if (!source_rect.contains(source_point))
-                    continue;
-                auto source_color = bitmap.get_pixel(source_point);
-                if (source_color.alpha() == 0)
-                    continue;
-                if (opacity != 1.0f)
-                    source_color = source_color.with_opacity(opacity);
-                set_physical_pixel(point + clipped_bounding_rect.location(), source_color, true);
-            }
-        }
-    }
 }
 
 }

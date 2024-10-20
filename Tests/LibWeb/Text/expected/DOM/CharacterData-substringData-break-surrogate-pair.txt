@@ -1,0 +1,5 @@
+Before substringData:
+[0]: 55357
+[1]: 56374
+After substringData(0, 1):
+[0]: 55357
