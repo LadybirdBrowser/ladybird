@@ -65,7 +65,7 @@ struct ConnectionFromClient::ActiveRequest {
         long http_status_code = 0;
         auto result = curl_easy_getinfo(easy, CURLINFO_RESPONSE_CODE, &http_status_code);
         VERIFY(result == CURLE_OK);
-        client->async_headers_became_available(request_id, headers, http_status_code);
+        client->async_headers_became_available(request_id, headers, http_status_code, reason_phrase);
     }
 };
 
