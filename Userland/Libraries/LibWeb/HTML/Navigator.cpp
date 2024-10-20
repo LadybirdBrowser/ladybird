@@ -67,6 +67,7 @@ void Navigator::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_user_activation);
     visitor.visit(m_service_worker_container);
     visitor.visit(m_media_capabilities);
+    visitor.visit(m_keyboard);
 }
 
 JS::NonnullGCPtr<MimeTypeArray> Navigator::mime_types()
