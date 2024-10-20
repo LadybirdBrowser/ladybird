@@ -997,6 +997,8 @@ EventResult EventHandler::handle_keydown(UIEvents::KeyCode key, u32 modifiers, u
         auto& node = *document->cursor_position()->node();
 
         if (key == UIEvents::KeyCode::Key_Backspace && node.is_editable()) {
+            FIRE(input_event(UIEvents::EventNames::beforeinput, UIEvents::InputTypes::deleteContentBackward, m_navigable, code_point));
+
             if (!document->decrement_cursor_position_offset()) {
                 // FIXME: Move to the previous node and delete the last character there.
                 return EventResult::Handled;
@@ -1008,6 +1010,8 @@ EventResult EventHandler::handle_keydown(UIEvents::KeyCode key, u32 modifiers, u
         }
 
         if (key == UIEvents::KeyCode::Key_Delete && node.is_editable()) {
+            FIRE(input_event(UIEvents::EventNames::beforeinput, UIEvents::InputTypes::deleteContentForward, m_navigable, code_point));
+
             if (document->cursor_position()->offset_is_at_end_of_node()) {
                 // FIXME: Move to the next node and delete the first character there.
                 return EventResult::Handled;
@@ -1089,6 +1093,7 @@ EventResult EventHandler::handle_keydown(UIEvents::KeyCode key, u32 modifiers, u
         }
 
         if (key == UIEvents::KeyCode::Key_Return && node.is_editable()) {
+            FIRE(input_event(UIEvents::EventNames::beforeinput, UIEvents::InputTypes::insertParagraph, m_navigable, code_point));
             HTML::HTMLInputElement* input_element = nullptr;
             if (auto node = document->cursor_position()->node()) {
                 if (node->is_text()) {
@@ -1114,6 +1119,7 @@ EventResult EventHandler::handle_keydown(UIEvents::KeyCode key, u32 modifiers, u
 
         // FIXME: Text editing shortcut keys (copy/paste etc.) should be handled here.
         if (!should_ignore_keydown_event(code_point, modifiers) && node.is_editable()) {
+            FIRE(input_event(UIEvents::EventNames::beforeinput, UIEvents::InputTypes::insertText, m_navigable, code_point));
             m_edit_event_handler->handle_insert(document, JS::NonnullGCPtr { *document->cursor_position() }, code_point);
             document->increment_cursor_position_offset();
             FIRE(input_event(UIEvents::EventNames::input, UIEvents::InputTypes::insertText, m_navigable, code_point));
