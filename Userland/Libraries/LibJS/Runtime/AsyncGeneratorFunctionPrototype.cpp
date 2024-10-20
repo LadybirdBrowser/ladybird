@@ -7,7 +7,6 @@
 #include <LibJS/Runtime/AsyncGeneratorFunctionConstructor.h>
 #include <LibJS/Runtime/AsyncGeneratorFunctionPrototype.h>
 #include <LibJS/Runtime/AsyncGeneratorPrototype.h>
-#include <LibJS/Runtime/GlobalObject.h>
 
 namespace JS {
 

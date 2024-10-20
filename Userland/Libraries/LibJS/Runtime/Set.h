@@ -6,7 +6,6 @@
 
 #pragma once
 
-#include <LibJS/Runtime/GlobalObject.h>
 #include <LibJS/Runtime/Map.h>
 #include <LibJS/Runtime/Object.h>
 #include <LibJS/Runtime/Value.h>

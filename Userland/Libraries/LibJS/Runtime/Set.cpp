@@ -6,6 +6,7 @@
 
 #include <LibJS/Runtime/KeyedCollections.h>
 #include <LibJS/Runtime/Set.h>
+#include <LibJS/Runtime/VM.h>
 #include <LibJS/Runtime/ValueInlines.h>
 
 namespace JS {

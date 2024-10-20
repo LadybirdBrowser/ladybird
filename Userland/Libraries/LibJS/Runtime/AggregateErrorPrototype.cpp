@@ -5,8 +5,9 @@
  */
 
 #include <LibJS/Runtime/AggregateErrorPrototype.h>
-#include <LibJS/Runtime/GlobalObject.h>
 #include <LibJS/Runtime/PrimitiveString.h>
+#include <LibJS/Runtime/Realm.h>
+#include <LibJS/Runtime/VM.h>
 
 namespace JS {
 
