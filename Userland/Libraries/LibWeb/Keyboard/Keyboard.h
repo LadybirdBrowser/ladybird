@@ -1,6 +1,7 @@
 #pragma once
 
 #include "AK/Vector.h"
+#include "LibJS/Runtime/Promise.h"
 #include "LibWeb/HTML/DOMStringList.h"
 #include "LibWeb/UIEvents/KeyCode.h"
 #include <AK/String.h>
@@ -21,12 +22,13 @@ public:
 
     // JS::NonnullGCPtr<JS::Promise>
     // https://wicg.github.io/keyboard-lock/#keyboard-lock
-    JS::NonnullGCPtr<JS::Object> lock(const AK::Vector<AK::String>& key_codes);
+    JS::NonnullGCPtr<JS::Promise> lock(const AK::Vector<AK::String>& key_codes);
 
     void unlock();
 
+    // FIXME TODO
     // https://wicg.github.io/keyboard-map/#h-keyboard-getlayoutmap
-    JS::NonnullGCPtr<KeyboardLayoutMap> getLayoutMap();
+    // JS::NonnullGCPtr<KeyboardLayoutMap> getLayoutMap();
 
 private:
     Keyboard(JS::Realm& realm);

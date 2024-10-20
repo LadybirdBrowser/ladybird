@@ -1,4 +1,0 @@
-[Exposed=Window]
-interface KeyboardLayoutMap {
-  readonly maplike<DOMString, DOMString>;
-};

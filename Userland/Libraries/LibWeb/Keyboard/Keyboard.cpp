@@ -58,7 +58,7 @@ JS::NonnullGCPtr<JS::Promise> Keyboard::lock(const AK::Vector<AK::String>& key_c
                 // 3.2.1.1.1
                 m_enable_keyboard_lock = false;
                 // 3.2.1.1.2
-                WebIDL::reject_promise(realm, promise, WebIDL::InvalidAccessError::create(realm, "Invalid Key Code"_fly_string));
+                WebIDL::reject_promise(realm, promise, WebIDL::InvalidAccessError::create(realm, "Invalid Key Code"_string));
             }
             // 3.2.1.2
             m_reserved_key_codes.append(code);
@@ -97,6 +97,6 @@ void Keyboard::unlock()
 
 Keyboard::~Keyboard() {unlock();};
 
-JS::NonnullGCPtr<KeyboardLayoutMap> Keyboard::getLayoutMap() {}
+// JS::NonnullGCPtr<KeyboardLayoutMap> Keyboard::getLayoutMap() {}
 
 }
