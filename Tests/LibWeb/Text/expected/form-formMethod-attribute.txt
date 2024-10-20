@@ -49,3 +49,55 @@ button.formMethod == 'get'
 button.setAttribute('formMethod', '5%')
 button.getAttribute('formMethod') == '5%'
 button.formMethod == 'get'
+
+input: unset
+input.getAttribute('formMethod') == 'null'
+input.formMethod == ''
+
+input.setAttribute('formMethod', '')
+input.getAttribute('formMethod') == ''
+input.formMethod == 'get'
+
+input.setAttribute('formMethod', 'undefined')
+input.getAttribute('formMethod') == 'undefined'
+input.formMethod == 'get'
+
+input.setAttribute('formMethod', 'null')
+input.getAttribute('formMethod') == 'null'
+input.formMethod == 'get'
+
+input.setAttribute('formMethod', 'get')
+input.getAttribute('formMethod') == 'get'
+input.formMethod == 'get'
+
+input.setAttribute('formMethod', 'post')
+input.getAttribute('formMethod') == 'post'
+input.formMethod == 'post'
+
+input.setAttribute('formMethod', 'dialog')
+input.getAttribute('formMethod') == 'dialog'
+input.formMethod == 'dialog'
+
+input.setAttribute('formMethod', 'GeT')
+input.getAttribute('formMethod') == 'GeT'
+input.formMethod == 'get'
+
+input.setAttribute('formMethod', 'POST')
+input.getAttribute('formMethod') == 'POST'
+input.formMethod == 'post'
+
+input.setAttribute('formMethod', 'DIAlog')
+input.getAttribute('formMethod') == 'DIAlog'
+input.formMethod == 'dialog'
+
+input.setAttribute('formMethod', 'foo')
+input.getAttribute('formMethod') == 'foo'
+input.formMethod == 'get'
+
+input.setAttribute('formMethod', 'xpost')
+input.getAttribute('formMethod') == 'xpost'
+input.formMethod == 'get'
+
+input.setAttribute('formMethod', '5%')
+input.getAttribute('formMethod') == '5%'
+input.formMethod == 'get'
