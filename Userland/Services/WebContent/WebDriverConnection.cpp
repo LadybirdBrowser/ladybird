@@ -487,13 +487,12 @@ Messages::WebDriverClient::NewWindowResponse WebDriverConnection::new_window(Jso
     //    context is presented to the user are implementation defined.
     auto* active_window = current_browsing_context().active_window();
     VERIFY(active_window);
-    {
-        Web::HTML::TemporaryExecutionContext execution_context { active_window->document()->relevant_settings_object() };
-        MUST(active_window->window_open_steps("about:blank"sv, ""sv, "noopener"sv));
-    }
+
+    Web::HTML::TemporaryExecutionContext execution_context { active_window->document()->relevant_settings_object() };
+    auto [target_navigable, no_opener, window_type] = MUST(active_window->window_open_steps_internal("about:blank"sv, ""sv, "noopener"sv));
 
     // 6. Let handle be the associated window handle of the newly created window.
-    auto handle = current_browsing_context().top_level_traversable()->window_handle();
+    auto handle = target_navigable->traversable_navigable()->window_handle();
 
     // 7. Let type be "tab" if the newly created window shares an OS-level window with the current browsing context, or "window" otherwise.
     auto type = "tab"sv;
