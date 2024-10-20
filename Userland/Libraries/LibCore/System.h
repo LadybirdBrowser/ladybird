@@ -14,23 +14,30 @@
 #include <AK/StringView.h>
 #include <AK/Vector.h>
 #include <fcntl.h>
-#include <netdb.h>
-#include <poll.h>
-#include <pwd.h>
 #include <signal.h>
-#include <spawn.h>
-#include <sys/ioctl.h>
-#include <sys/resource.h>
-#include <sys/socket.h>
 #include <sys/stat.h>
-#include <sys/time.h>
-#include <sys/utsname.h>
-#include <sys/wait.h>
-#include <termios.h>
 #include <time.h>
-#include <utime.h>
 
-#if !defined(AK_OS_BSD_GENERIC) && !defined(AK_OS_ANDROID)
+#if !defined(AK_OS_WINDOWS)
+#    include <netdb.h>
+#    include <poll.h>
+#    include <pwd.h>
+#    include <spawn.h>
+#    include <sys/ioctl.h>
+#    include <sys/resource.h>
+#    include <sys/socket.h>
+#    include <sys/time.h>
+#    include <sys/utsname.h>
+#    include <sys/wait.h>
+#    include <termios.h>
+#    include <utime.h>
+#else
+#    define O_CLOEXEC O_NOINHERIT
+using sighandler_t = void (*)(int);
+using socklen_t = int;
+#endif
+
+#if !defined(AK_OS_BSD_GENERIC) && !defined(AK_OS_ANDROID) && !defined(AK_OS_WINDOWS)
 #    include <shadow.h>
 #endif
 
@@ -71,7 +78,6 @@ ErrorOr<struct stat> stat(StringView path);
 ErrorOr<struct stat> lstat(StringView path);
 ErrorOr<ssize_t> read(int fd, Bytes buffer);
 ErrorOr<ssize_t> write(int fd, ReadonlyBytes buffer);
-ErrorOr<void> kill(pid_t, int signal);
 ErrorOr<int> dup(int source_fd);
 ErrorOr<int> dup2(int source_fd, int destination_fd);
 ErrorOr<ByteString> getcwd();
@@ -79,17 +85,8 @@ ErrorOr<void> ioctl(int fd, unsigned request, ...);
 ErrorOr<struct termios> tcgetattr(int fd);
 ErrorOr<void> tcsetattr(int fd, int optional_actions, struct termios const&);
 ErrorOr<void> chmod(StringView pathname, mode_t mode);
-ErrorOr<void> chown(StringView pathname, uid_t uid, gid_t gid);
-
-ErrorOr<pid_t> posix_spawn(StringView path, posix_spawn_file_actions_t const* file_actions, posix_spawnattr_t const* attr, char* const arguments[], char* const envp[]);
-ErrorOr<pid_t> posix_spawnp(StringView path, posix_spawn_file_actions_t* const file_actions, posix_spawnattr_t* const attr, char* const arguments[], char* const envp[]);
 ErrorOr<off_t> lseek(int fd, off_t, int whence);
 
-struct WaitPidResult {
-    pid_t pid;
-    int status;
-};
-ErrorOr<WaitPidResult> waitpid(pid_t waitee, int options = 0);
 ErrorOr<bool> isatty(int fd);
 ErrorOr<void> link(StringView old_path, StringView new_path);
 ErrorOr<void> symlink(StringView target, StringView link_path);
@@ -99,11 +96,9 @@ ErrorOr<void> rmdir(StringView path);
 ErrorOr<int> mkstemp(Span<char> pattern);
 ErrorOr<String> mkdtemp(Span<char> pattern);
 ErrorOr<void> fchmod(int fd, mode_t mode);
-ErrorOr<void> fchown(int fd, uid_t, gid_t);
 ErrorOr<void> rename(StringView old_path, StringView new_path);
 ErrorOr<void> unlink(StringView path);
 ErrorOr<void> utimensat(int fd, StringView path, struct timespec const times[2], int flag);
-ErrorOr<struct utsname> uname();
 ErrorOr<Array<int, 2>> pipe2(int flags);
 
 ErrorOr<int> socket(int domain, int type, int protocol);
@@ -126,6 +121,20 @@ ErrorOr<void> socketpair(int domain, int type, int protocol, int sv[2]);
 ErrorOr<void> access(StringView pathname, int mode, int flags = 0);
 ErrorOr<ByteString> readlink(StringView pathname);
 ErrorOr<int> poll(Span<struct pollfd>, int timeout);
+
+#if !defined(AK_OS_WINDOWS)
+ErrorOr<void> kill(pid_t, int signal);
+ErrorOr<void> chown(StringView pathname, uid_t uid, gid_t gid);
+ErrorOr<pid_t> posix_spawn(StringView path, posix_spawn_file_actions_t const* file_actions, posix_spawnattr_t const* attr, char* const arguments[], char* const envp[]);
+ErrorOr<pid_t> posix_spawnp(StringView path, posix_spawn_file_actions_t* const file_actions, posix_spawnattr_t* const attr, char* const arguments[], char* const envp[]);
+
+struct WaitPidResult {
+    pid_t pid;
+    int status;
+};
+ErrorOr<WaitPidResult> waitpid(pid_t waitee, int options = 0);
+ErrorOr<void> fchown(int fd, uid_t, gid_t);
+ErrorOr<struct utsname> uname();
 
 class AddressInfoVector {
     AK_MAKE_NONCOPYABLE(AddressInfoVector);
@@ -158,13 +167,16 @@ private:
 };
 
 ErrorOr<AddressInfoVector> getaddrinfo(char const* nodename, char const* servname, struct addrinfo const& hints);
+#endif
 
 unsigned hardware_concurrency();
 u64 physical_memory_bytes();
 
 ErrorOr<ByteString> current_executable_path();
 
+#if !defined(AK_OS_WINDOWS)
 ErrorOr<rlimit> get_resource_limits(int resource);
 ErrorOr<void> set_resource_limits(int resource, rlim_t limit);
+#endif
 
 }
