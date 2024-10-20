@@ -93,7 +93,7 @@ private:
             auto digest = m_inner_hasher.digest();
             // FIXME: should we check if the hash function creates more data than its block size?
             key_buffer.overwrite(0, digest.immutable_data(), m_inner_hasher.digest_size());
-        } else {
+        } else if (length > 0) {
             key_buffer.overwrite(0, key, length);
         }
 
