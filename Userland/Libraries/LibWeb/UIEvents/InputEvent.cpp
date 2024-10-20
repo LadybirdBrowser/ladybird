@@ -43,4 +43,10 @@ void InputEvent::initialize(JS::Realm& realm)
     WEB_SET_PROTOTYPE_FOR_INTERFACE(InputEvent);
 }
 
+Vector<DOM::StaticRange> InputEvent::get_target_ranges() const
+{
+    dbgln("FIXME: Implement InputEvent::get_target_ranges()");
+    return {};
+}
+
 }

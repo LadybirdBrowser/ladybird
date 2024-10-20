@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <LibWeb/DOM/StaticRange.h>
 #include <LibWeb/UIEvents/UIEvent.h>
 
 namespace Web::UIEvents {
@@ -34,6 +35,8 @@ public:
 
     // https://w3c.github.io/uievents/#dom-inputevent-inputtype
     FlyString input_type() const { return m_input_type; }
+
+    Vector<DOM::StaticRange> get_target_ranges() const;
 
 private:
     InputEvent(JS::Realm&, FlyString const& event_name, InputEventInit const&);
