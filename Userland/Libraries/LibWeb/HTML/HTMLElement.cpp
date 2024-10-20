@@ -757,7 +757,18 @@ void HTMLElement::did_receive_focus()
 {
     if (m_content_editable_state != ContentEditableState::True)
         return;
-    document().set_cursor_position(DOM::Position::create(realm(), *this, 0));
+
+    DOM::Text* text = nullptr;
+    for_each_in_inclusive_subtree_of_type<DOM::Text>([&](auto& node) {
+        text = &node;
+        return TraversalDecision::Continue;
+    });
+
+    if (!text) {
+        document().set_cursor_position(DOM::Position::create(realm(), *this, 0));
+        return;
+    }
+    document().set_cursor_position(DOM::Position::create(realm(), *text, text->length()));
 }
 
 // https://html.spec.whatwg.org/multipage/interaction.html#dom-accesskeylabel
