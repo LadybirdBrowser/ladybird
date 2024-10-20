@@ -24,6 +24,22 @@ enum MethodAttribute {
     "dialog"
 };
 
+// https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#attr-fs-formenctype
+[InvalidValueDefault=application/x-www-form-urlencoded]
+enum FormEnctypeAttribute {
+    "application/x-www-form-urlencoded",
+    "multipart/form-data",
+    "text/plain"
+};
+
+// https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#attr-fs-formmethod
+[InvalidValueDefault=get]
+enum FormMethodAttribute {
+    "get",
+    "post",
+    "dialog"
+};
+
 // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#selectionmode
 enum SelectionMode {
     "select",

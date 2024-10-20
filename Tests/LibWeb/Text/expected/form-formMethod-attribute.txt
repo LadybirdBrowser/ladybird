@@ -1,0 +1,51 @@
+button: unset
+button.getAttribute('formMethod') == 'null'
+button.formMethod == ''
+
+button.setAttribute('formMethod', '')
+button.getAttribute('formMethod') == ''
+button.formMethod == 'get'
+
+button.setAttribute('formMethod', 'undefined')
+button.getAttribute('formMethod') == 'undefined'
+button.formMethod == 'get'
+
+button.setAttribute('formMethod', 'null')
+button.getAttribute('formMethod') == 'null'
+button.formMethod == 'get'
+
+button.setAttribute('formMethod', 'get')
+button.getAttribute('formMethod') == 'get'
+button.formMethod == 'get'
+
+button.setAttribute('formMethod', 'post')
+button.getAttribute('formMethod') == 'post'
+button.formMethod == 'post'
+
+button.setAttribute('formMethod', 'dialog')
+button.getAttribute('formMethod') == 'dialog'
+button.formMethod == 'dialog'
+
+button.setAttribute('formMethod', 'GeT')
+button.getAttribute('formMethod') == 'GeT'
+button.formMethod == 'get'
+
+button.setAttribute('formMethod', 'POST')
+button.getAttribute('formMethod') == 'POST'
+button.formMethod == 'post'
+
+button.setAttribute('formMethod', 'DIAlog')
+button.getAttribute('formMethod') == 'DIAlog'
+button.formMethod == 'dialog'
+
+button.setAttribute('formMethod', 'foo')
+button.getAttribute('formMethod') == 'foo'
+button.formMethod == 'get'
+
+button.setAttribute('formMethod', 'xpost')
+button.getAttribute('formMethod') == 'xpost'
+button.formMethod == 'get'
+
+button.setAttribute('formMethod', '5%')
+button.getAttribute('formMethod') == '5%'
+button.formMethod == 'get'
