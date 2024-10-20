@@ -37,6 +37,24 @@ struct AlgorithmParams {
     static JS::ThrowCompletionOr<NonnullOwnPtr<AlgorithmParams>> from_value(JS::VM&, JS::Value);
 };
 
+// https://w3c.github.io/webcrypto/#hkdf-params
+struct HKDFParams : public AlgorithmParams {
+    virtual ~HKDFParams() override;
+    HKDFParams(String name, HashAlgorithmIdentifier hash, ByteBuffer salt, ByteBuffer info)
+        : AlgorithmParams(move(name))
+        , hash(move(hash))
+        , salt(move(salt))
+        , info(move(info))
+    {
+    }
+
+    HashAlgorithmIdentifier hash;
+    ByteBuffer salt;
+    ByteBuffer info;
+
+    static JS::ThrowCompletionOr<NonnullOwnPtr<AlgorithmParams>> from_value(JS::VM&, JS::Value);
+};
+
 // https://w3c.github.io/webcrypto/#pbkdf2-params
 struct PBKDF2Params : public AlgorithmParams {
     virtual ~PBKDF2Params() override;
@@ -227,6 +245,21 @@ public:
 
 private:
     explicit RSAOAEP(JS::Realm& realm)
+        : AlgorithmMethods(realm)
+    {
+    }
+};
+
+class HKDF : public AlgorithmMethods {
+public:
+    virtual WebIDL::ExceptionOr<JS::NonnullGCPtr<CryptoKey>> import_key(AlgorithmParams const&, Bindings::KeyFormat, CryptoKey::InternalKeyData, bool, Vector<Bindings::KeyUsage> const&) override;
+    virtual WebIDL::ExceptionOr<JS::NonnullGCPtr<JS::ArrayBuffer>> derive_bits(AlgorithmParams const&, JS::NonnullGCPtr<CryptoKey>, Optional<u32>) override;
+    virtual WebIDL::ExceptionOr<JS::Value> get_key_length(AlgorithmParams const&) override;
+
+    static NonnullOwnPtr<AlgorithmMethods> create(JS::Realm& realm) { return adopt_own(*new HKDF(realm)); }
+
+private:
+    explicit HKDF(JS::Realm& realm)
         : AlgorithmMethods(realm)
     {
     }

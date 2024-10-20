@@ -768,6 +768,11 @@ SupportedAlgorithmsMap supported_algorithms()
     define_an_algorithm<SHA>("digest"_string, "SHA-384"_string);
     define_an_algorithm<SHA>("digest"_string, "SHA-512"_string);
 
+    // https://w3c.github.io/webcrypto/#hkdf
+    define_an_algorithm<HKDF>("importKey"_string, "HKDF"_string);
+    define_an_algorithm<HKDF, HKDFParams>("deriveBits"_string, "HKDF"_string);
+    define_an_algorithm<HKDF>("get key length"_string, "HKDF"_string);
+
     // https://w3c.github.io/webcrypto/#pbkdf2
     define_an_algorithm<PBKDF2>("importKey"_string, "PBKDF2"_string);
     define_an_algorithm<PBKDF2, PBKDF2Params>("deriveBits"_string, "PBKDF2"_string);

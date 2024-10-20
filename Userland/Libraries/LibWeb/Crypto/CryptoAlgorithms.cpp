@@ -10,6 +10,7 @@
 #include <LibCrypto/Authentication/HMAC.h>
 #include <LibCrypto/Curves/Ed25519.h>
 #include <LibCrypto/Curves/SECPxxxr1.h>
+#include <LibCrypto/Hash/HKDF.h>
 #include <LibCrypto/Hash/HashManager.h>
 #include <LibCrypto/Hash/PBKDF2.h>
 #include <LibCrypto/Hash/SHA1.h>
@@ -224,6 +225,31 @@ JS::ThrowCompletionOr<NonnullOwnPtr<AlgorithmParams>> AlgorithmParams::from_valu
     auto name_string = TRY(name.to_string(vm));
 
     return adopt_own(*new AlgorithmParams { name_string });
+}
+
+HKDFParams::~HKDFParams() = default;
+
+JS::ThrowCompletionOr<NonnullOwnPtr<AlgorithmParams>> HKDFParams::from_value(JS::VM& vm, JS::Value value)
+{
+    auto& object = value.as_object();
+
+    auto name_value = TRY(object.get("name"));
+    auto name = TRY(name_value.to_string(vm));
+
+    auto hash_value = TRY(object.get("hash"));
+    auto hash = TRY(hash_value.to_string(vm));
+
+    auto salt_value = TRY(object.get("salt"));
+    if (!salt_value.is_object() || !(is<JS::TypedArrayBase>(salt_value.as_object()) || is<JS::ArrayBuffer>(salt_value.as_object()) || is<JS::DataView>(salt_value.as_object())))
+        return vm.throw_completion<JS::TypeError>(JS::ErrorType::NotAnObjectOfType, "BufferSource");
+    auto salt = TRY_OR_THROW_OOM(vm, WebIDL::get_buffer_source_copy(salt_value.as_object()));
+
+    auto info_value = TRY(object.get("info"));
+    if (!info_value.is_object() || !(is<JS::TypedArrayBase>(info_value.as_object()) || is<JS::ArrayBuffer>(info_value.as_object()) || is<JS::DataView>(info_value.as_object())))
+        return vm.throw_completion<JS::TypeError>(JS::ErrorType::NotAnObjectOfType, "BufferSource");
+    auto info = TRY_OR_THROW_OOM(vm, WebIDL::get_buffer_source_copy(info_value.as_object()));
+
+    return adopt_own<AlgorithmParams>(*new HKDFParams { name, hash, salt, info });
 }
 
 PBKDF2Params::~PBKDF2Params() = default;
@@ -939,6 +965,52 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<JS::Object>> RSAOAEP::export_key(Bindings::
     return JS::NonnullGCPtr { *result };
 }
 
+// https://w3c.github.io/webcrypto/#hkdf-operations
+WebIDL::ExceptionOr<JS::NonnullGCPtr<CryptoKey>> HKDF::import_key(AlgorithmParams const&, Bindings::KeyFormat format, CryptoKey::InternalKeyData key_data, bool extractable, Vector<Bindings::KeyUsage> const& key_usages)
+{
+    // 1. Let keyData be the key data to be imported.
+
+    // 2. If format is "raw":
+    //        (… see below …)
+    //    Otherwise:
+    //        throw a NotSupportedError.
+    if (format != Bindings::KeyFormat::Raw) {
+        return WebIDL::NotSupportedError::create(m_realm, "Only raw format is supported"_string);
+    }
+
+    //        1. If usages contains a value that is not "deriveKey" or "deriveBits", then throw a SyntaxError.
+    for (auto& usage : key_usages) {
+        if (usage != Bindings::KeyUsage::Derivekey && usage != Bindings::KeyUsage::Derivebits) {
+            return WebIDL::SyntaxError::create(m_realm, MUST(String::formatted("Invalid key usage '{}'", idl_enum_to_string(usage))));
+        }
+    }
+
+    //        2. If extractable is not false, then throw a SyntaxError.
+    if (extractable)
+        return WebIDL::SyntaxError::create(m_realm, "extractable must be false"_string);
+
+    //        3. Let key be a new CryptoKey representing the key data provided in keyData.
+    auto key = CryptoKey::create(m_realm, move(key_data));
+
+    //        4. Set the [[type]] internal slot of key to "secret".
+    key->set_type(Bindings::KeyType::Secret);
+
+    //        5. Set the [[extractable]] internal slot of key to false.
+    key->set_extractable(false);
+
+    //        6. Let algorithm be a new KeyAlgorithm object.
+    auto algorithm = KeyAlgorithm::create(m_realm);
+
+    //        7. Set the name attribute of algorithm to "HKDF".
+    algorithm->set_name("HKDF"_string);
+
+    //        8. Set the [[algorithm]] internal slot of key to algorithm.
+    key->set_algorithm(algorithm);
+
+    //        9. Return key.
+    return key;
+}
+
 WebIDL::ExceptionOr<JS::NonnullGCPtr<CryptoKey>> PBKDF2::import_key(AlgorithmParams const&, Bindings::KeyFormat format, CryptoKey::InternalKeyData key_data, bool extractable, Vector<Bindings::KeyUsage> const& key_usages)
 {
     // 1. If format is not "raw", throw a NotSupportedError
@@ -1369,6 +1441,63 @@ WebIDL::ExceptionOr<JS::Value> ED25519::verify([[maybe_unused]] AlgorithmParams 
 
     // 10. Return result.
     return JS::Value(result);
+}
+
+// https://w3c.github.io/webcrypto/#hkdf-operations
+WebIDL::ExceptionOr<JS::NonnullGCPtr<JS::ArrayBuffer>> HKDF::derive_bits(AlgorithmParams const& params, JS::NonnullGCPtr<CryptoKey> key, Optional<u32> length_optional)
+{
+    auto& realm = *m_realm;
+    auto const& normalized_algorithm = static_cast<HKDFParams const&>(params);
+
+    // 1. If length is null or zero, or is not a multiple of 8, then throw an OperationError.
+    auto length = length_optional.value_or(0);
+
+    if (length == 0 || length % 8 != 0)
+        return WebIDL::OperationError::create(realm, "Length must be greater than 0 and divisible by 8"_string);
+
+    // 2. Let extractKey be a key equal to n zero bits where n is the size of the output of the hash function described by the hash member of normalizedAlgorithm.
+    // (However, this variable is never directly used, and therefore pointless.)
+
+    // 3. Let keyDerivationKey be the secret represented by [[handle]] internal slot of key as the message.
+    auto key_derivation_key = key->handle().get<ByteBuffer>();
+
+    // 4. Let result be the result of performing the HKDF extract and then the HKDF expand step described in Section 2 of [RFC5869] using:
+    //    * the hash member of normalizedAlgorithm as Hash,
+    //    * keyDerivationKey as the input keying material, IKM,
+    //    * the contents of the salt member of normalizedAlgorithm as salt,
+    //    * the contents of the info member of normalizedAlgorithm as info,
+    //    * length divided by 8 as the value of L,
+    // FIXME: salt null versus salt empty?!
+    auto const& hash_algorithm = TRY(normalized_algorithm.hash.visit(
+        [](String const& name) -> JS::ThrowCompletionOr<String> { return name; },
+        [&](JS::Handle<JS::Object> const& obj) -> JS::ThrowCompletionOr<String> {
+            auto name_property = TRY(obj->get("name"));
+            return name_property.to_string(m_realm->vm()); }));
+    ErrorOr<ByteBuffer> result = Error::from_string_literal("noop error");
+    if (hash_algorithm.equals_ignoring_ascii_case("SHA-1"sv)) {
+        result = ::Crypto::Hash::HKDF<::Crypto::Hash::SHA1>::derive_key(Optional<ReadonlyBytes>(normalized_algorithm.salt), key_derivation_key, normalized_algorithm.info, length / 8);
+    } else if (hash_algorithm.equals_ignoring_ascii_case("SHA-256"sv)) {
+        result = ::Crypto::Hash::HKDF<::Crypto::Hash::SHA256>::derive_key(Optional<ReadonlyBytes>(normalized_algorithm.salt), key_derivation_key, normalized_algorithm.info, length / 8);
+    } else if (hash_algorithm.equals_ignoring_ascii_case("SHA-384"sv)) {
+        result = ::Crypto::Hash::HKDF<::Crypto::Hash::SHA384>::derive_key(Optional<ReadonlyBytes>(normalized_algorithm.salt), key_derivation_key, normalized_algorithm.info, length / 8);
+    } else if (hash_algorithm.equals_ignoring_ascii_case("SHA-512"sv)) {
+        result = ::Crypto::Hash::HKDF<::Crypto::Hash::SHA512>::derive_key(Optional<ReadonlyBytes>(normalized_algorithm.salt), key_derivation_key, normalized_algorithm.info, length / 8);
+    } else {
+        return WebIDL::NotSupportedError::create(m_realm, MUST(String::formatted("Invalid hash function '{}'", hash_algorithm)));
+    }
+
+    // 5. If the key derivation operation fails, then throw an OperationError.
+    if (result.is_error())
+        return WebIDL::OperationError::create(realm, "Failed to derive key"_string);
+
+    // 6. Return result
+    return JS::ArrayBuffer::create(realm, result.release_value());
+}
+
+WebIDL::ExceptionOr<JS::Value> HKDF::get_key_length(AlgorithmParams const&)
+{
+    // 1. Return null.
+    return JS::js_null();
 }
 
 WebIDL::ExceptionOr<JS::NonnullGCPtr<JS::ArrayBuffer>> PBKDF2::derive_bits(AlgorithmParams const& params, JS::NonnullGCPtr<CryptoKey> key, Optional<u32> length_optional)
