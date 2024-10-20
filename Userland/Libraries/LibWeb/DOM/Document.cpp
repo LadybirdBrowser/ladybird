@@ -680,7 +680,7 @@ WebIDL::ExceptionOr<JS::GCPtr<HTML::WindowProxy>> Document::open(StringView url,
         return WebIDL::InvalidAccessError::create(realm(), "Cannot perform open on a document that isn't fully active."_string);
 
     // 2. Return the result of running the window open steps with url, name, and features.
-    return window()->open_impl(url, name, features);
+    return window()->window_open_steps(url, name, features);
 }
 
 // https://html.spec.whatwg.org/multipage/dynamic-markup-insertion.html#closing-the-input-stream
