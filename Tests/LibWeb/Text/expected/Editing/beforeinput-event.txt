@@ -1,0 +1,5 @@
+beforeinput data=(r) intputType=(insertText)
+beforeinput data=(e) intputType=(insertText)
+beforeinput data=(e) intputType=(insertText)
+beforeinput data=(e) intputType=(insertText)
+Text in input: reee

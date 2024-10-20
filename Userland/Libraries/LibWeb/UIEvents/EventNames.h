@@ -16,6 +16,7 @@ namespace Web::UIEvents::EventNames {
 
 #define ENUMERATE_UI_EVENTS           \
     __ENUMERATE_UI_EVENT(auxclick)    \
+    __ENUMERATE_UI_EVENT(beforeinput) \
     __ENUMERATE_UI_EVENT(click)       \
     __ENUMERATE_UI_EVENT(contextmenu) \
     __ENUMERATE_UI_EVENT(dblclick)    \
