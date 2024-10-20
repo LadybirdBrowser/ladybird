@@ -11,7 +11,7 @@
 namespace Web::CSS {
 
 // https://drafts.csswg.org/css-lists-3/#instantiate-counter
-Counter& CountersSet::instantiate_a_counter(FlyString name, i32 originating_element_id, bool reversed, Optional<CounterValue> value)
+Counter& CountersSet::instantiate_a_counter(FlyString name, UniqueNodeID originating_element_id, bool reversed, Optional<CounterValue> value)
 {
     // 1. Let counters be element’s CSS counters set.
     auto* element = DOM::Node::from_unique_id(originating_element_id);
@@ -48,7 +48,7 @@ Counter& CountersSet::instantiate_a_counter(FlyString name, i32 originating_elem
 }
 
 // https://drafts.csswg.org/css-lists-3/#propdef-counter-set
-void CountersSet::set_a_counter(FlyString name, i32 originating_element_id, CounterValue value)
+void CountersSet::set_a_counter(FlyString name, UniqueNodeID originating_element_id, CounterValue value)
 {
     if (auto existing_counter = last_counter_with_name(name); existing_counter.has_value()) {
         existing_counter->value = value;
@@ -63,7 +63,7 @@ void CountersSet::set_a_counter(FlyString name, i32 originating_element_id, Coun
 }
 
 // https://drafts.csswg.org/css-lists-3/#propdef-counter-increment
-void CountersSet::increment_a_counter(FlyString name, i32 originating_element_id, CounterValue amount)
+void CountersSet::increment_a_counter(FlyString name, UniqueNodeID originating_element_id, CounterValue amount)
 {
     if (auto existing_counter = last_counter_with_name(name); existing_counter.has_value()) {
         // FIXME: How should we handle existing counters with no value? Can that happen?
@@ -88,7 +88,7 @@ Optional<Counter&> CountersSet::last_counter_with_name(FlyString const& name)
     return {};
 }
 
-Optional<Counter&> CountersSet::counter_with_same_name_and_creator(FlyString const& name, i32 originating_element_id)
+Optional<Counter&> CountersSet::counter_with_same_name_and_creator(FlyString const& name, UniqueNodeID originating_element_id)
 {
     return m_counters.first_matching([&](auto& it) {
         return it.name == name && it.originating_element_id == originating_element_id;

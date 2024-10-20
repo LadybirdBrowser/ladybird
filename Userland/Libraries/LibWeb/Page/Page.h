@@ -164,8 +164,8 @@ public:
         Select,
     };
 
-    void register_media_element(Badge<HTML::HTMLMediaElement>, int media_id);
-    void unregister_media_element(Badge<HTML::HTMLMediaElement>, int media_id);
+    void register_media_element(Badge<HTML::HTMLMediaElement>, UniqueNodeID media_id);
+    void unregister_media_element(Badge<HTML::HTMLMediaElement>, UniqueNodeID media_id);
 
     struct MediaContextMenu {
         URL::URL media_url;
@@ -175,7 +175,7 @@ public:
         bool has_user_agent_controls { false };
         bool is_looping { false };
     };
-    void did_request_media_context_menu(i32 media_id, CSSPixelPoint, ByteString const& target, unsigned modifiers, MediaContextMenu);
+    void did_request_media_context_menu(UniqueNodeID media_id, CSSPixelPoint, ByteString const& target, unsigned modifiers, MediaContextMenu);
     WebIDL::ExceptionOr<void> toggle_media_play_state();
     void toggle_media_mute_state();
     WebIDL::ExceptionOr<void> toggle_media_loop_state();
@@ -253,8 +253,8 @@ private:
     PendingNonBlockingDialog m_pending_non_blocking_dialog { PendingNonBlockingDialog::None };
     WeakPtr<HTML::HTMLElement> m_pending_non_blocking_dialog_target;
 
-    Vector<int> m_media_elements;
-    Optional<int> m_media_context_menu_element_id;
+    Vector<UniqueNodeID> m_media_elements;
+    Optional<UniqueNodeID> m_media_context_menu_element_id;
 
     Web::HTML::MuteState m_mute_state { Web::HTML::MuteState::Unmuted };
 
@@ -373,12 +373,12 @@ public:
     virtual IPC::File request_worker_agent() { return IPC::File {}; }
 
     virtual void inspector_did_load() { }
-    virtual void inspector_did_select_dom_node([[maybe_unused]] i32 node_id, [[maybe_unused]] Optional<CSS::Selector::PseudoElement::Type> const& pseudo_element) { }
-    virtual void inspector_did_set_dom_node_text([[maybe_unused]] i32 node_id, [[maybe_unused]] String const& text) { }
-    virtual void inspector_did_set_dom_node_tag([[maybe_unused]] i32 node_id, [[maybe_unused]] String const& tag) { }
-    virtual void inspector_did_add_dom_node_attributes([[maybe_unused]] i32 node_id, [[maybe_unused]] JS::NonnullGCPtr<DOM::NamedNodeMap> attributes) { }
-    virtual void inspector_did_replace_dom_node_attribute([[maybe_unused]] i32 node_id, [[maybe_unused]] size_t attribute_index, [[maybe_unused]] JS::NonnullGCPtr<DOM::NamedNodeMap> replacement_attributes) { }
-    virtual void inspector_did_request_dom_tree_context_menu([[maybe_unused]] i32 node_id, [[maybe_unused]] CSSPixelPoint position, [[maybe_unused]] String const& type, [[maybe_unused]] Optional<String> const& tag, [[maybe_unused]] Optional<size_t> const& attribute_index) { }
+    virtual void inspector_did_select_dom_node([[maybe_unused]] UniqueNodeID node_id, [[maybe_unused]] Optional<CSS::Selector::PseudoElement::Type> const& pseudo_element) { }
+    virtual void inspector_did_set_dom_node_text([[maybe_unused]] UniqueNodeID node_id, [[maybe_unused]] String const& text) { }
+    virtual void inspector_did_set_dom_node_tag([[maybe_unused]] UniqueNodeID node_id, [[maybe_unused]] String const& tag) { }
+    virtual void inspector_did_add_dom_node_attributes([[maybe_unused]] UniqueNodeID node_id, [[maybe_unused]] JS::NonnullGCPtr<DOM::NamedNodeMap> attributes) { }
+    virtual void inspector_did_replace_dom_node_attribute([[maybe_unused]] UniqueNodeID node_id, [[maybe_unused]] size_t attribute_index, [[maybe_unused]] JS::NonnullGCPtr<DOM::NamedNodeMap> replacement_attributes) { }
+    virtual void inspector_did_request_dom_tree_context_menu([[maybe_unused]] UniqueNodeID node_id, [[maybe_unused]] CSSPixelPoint position, [[maybe_unused]] String const& type, [[maybe_unused]] Optional<String> const& tag, [[maybe_unused]] Optional<size_t> const& attribute_index) { }
     virtual void inspector_did_request_cookie_context_menu([[maybe_unused]] size_t cookie_index, [[maybe_unused]] CSSPixelPoint position) { }
     virtual void inspector_did_request_style_sheet_source([[maybe_unused]] CSS::StyleSheetIdentifier const& identifier) { }
     virtual void inspector_did_execute_console_script([[maybe_unused]] String const& script) { }

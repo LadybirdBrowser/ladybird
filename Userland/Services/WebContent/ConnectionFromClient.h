@@ -74,22 +74,22 @@ private:
     virtual void debug_request(u64 page_id, ByteString const&, ByteString const&) override;
     virtual void get_source(u64 page_id) override;
     virtual void inspect_dom_tree(u64 page_id) override;
-    virtual void inspect_dom_node(u64 page_id, i32 node_id, Optional<Web::CSS::Selector::PseudoElement::Type> const& pseudo_element) override;
+    virtual void inspect_dom_node(u64 page_id, Web::UniqueNodeID const& node_id, Optional<Web::CSS::Selector::PseudoElement::Type> const& pseudo_element) override;
     virtual void inspect_accessibility_tree(u64 page_id) override;
     virtual void get_hovered_node_id(u64 page_id) override;
 
     virtual void list_style_sheets(u64 page_id) override;
     virtual void request_style_sheet_source(u64 page_id, Web::CSS::StyleSheetIdentifier const& identifier) override;
 
-    virtual void set_dom_node_text(u64 page_id, i32 node_id, String const& text) override;
-    virtual void set_dom_node_tag(u64 page_id, i32 node_id, String const& name) override;
-    virtual void add_dom_node_attributes(u64 page_id, i32 node_id, Vector<WebView::Attribute> const& attributes) override;
-    virtual void replace_dom_node_attribute(u64 page_id, i32 node_id, String const& name, Vector<WebView::Attribute> const& replacement_attributes) override;
-    virtual void create_child_element(u64 page_id, i32 node_id) override;
-    virtual void create_child_text_node(u64 page_id, i32 node_id) override;
-    virtual void clone_dom_node(u64 page_id, i32 node_id) override;
-    virtual void remove_dom_node(u64 page_id, i32 node_id) override;
-    virtual void get_dom_node_html(u64 page_id, i32 node_id) override;
+    virtual void set_dom_node_text(u64 page_id, Web::UniqueNodeID const& node_id, String const& text) override;
+    virtual void set_dom_node_tag(u64 page_id, Web::UniqueNodeID const& node_id, String const& name) override;
+    virtual void add_dom_node_attributes(u64 page_id, Web::UniqueNodeID const& node_id, Vector<WebView::Attribute> const& attributes) override;
+    virtual void replace_dom_node_attribute(u64 page_id, Web::UniqueNodeID const& node_id, String const& name, Vector<WebView::Attribute> const& replacement_attributes) override;
+    virtual void create_child_element(u64 page_id, Web::UniqueNodeID const& node_id) override;
+    virtual void create_child_text_node(u64 page_id, Web::UniqueNodeID const& node_id) override;
+    virtual void clone_dom_node(u64 page_id, Web::UniqueNodeID const& node_id) override;
+    virtual void remove_dom_node(u64 page_id, Web::UniqueNodeID const& node_id) override;
+    virtual void get_dom_node_html(u64 page_id, Web::UniqueNodeID const& node_id) override;
 
     virtual void set_content_filters(u64 page_id, Vector<String> const&) override;
     virtual void set_autoplay_allowed_on_all_websites(u64 page_id) override;
@@ -131,7 +131,7 @@ private:
     virtual void enable_inspector_prototype(u64 page_id) override;
 
     virtual void take_document_screenshot(u64 page_id) override;
-    virtual void take_dom_node_screenshot(u64 page_id, i32 node_id) override;
+    virtual void take_dom_node_screenshot(u64 page_id, Web::UniqueNodeID const& node_id) override;
 
     virtual void request_internal_page_info(u64 page_id, WebView::PageInfoType) override;
 

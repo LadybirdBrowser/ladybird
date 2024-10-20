@@ -35,7 +35,7 @@ ByteString get_or_create_a_web_element_reference(Web::DOM::Node const& element)
     // FIXME: 2. Add element to the list of known elements of the current browsing context.
     // FIXME: 3. Return success with the element’s web element reference.
 
-    return ByteString::number(element.unique_id());
+    return ByteString::number(element.unique_id().value());
 }
 
 // https://w3c.github.io/webdriver/#dfn-web-element-reference-object
@@ -104,12 +104,12 @@ ErrorOr<JS::NonnullGCPtr<Web::DOM::Element>, Web::WebDriver::Error> get_known_el
 
     // 1. If not node reference is known with session, session's current browsing context, and reference return error
     //    with error code no such element.
-    auto element = element_id.to_number<int>();
+    auto element = element_id.to_number<i64>();
     if (!element.has_value())
         return Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::NoSuchElement, "Element ID is not an integer");
 
     // 2. Let node be the result of get a node with session, session's current browsing context, and reference.
-    auto* node = Web::DOM::Node::from_unique_id(*element);
+    auto* node = Web::DOM::Node::from_unique_id(UniqueNodeID(*element));
 
     // 3. If node is not null and node does not implement Element return error with error code no such element.
     if (node && !node->is_element())
@@ -264,7 +264,7 @@ ByteString get_or_create_a_shadow_root_reference(Web::DOM::ShadowRoot const& sha
     // FIXME: 2. Add shadow to the list of known shadow roots of the current browsing context.
     // FIXME: 3. Return success with the shadow’s shadow root reference.
 
-    return ByteString::number(shadow_root.unique_id());
+    return ByteString::number(shadow_root.unique_id().value());
 }
 
 // https://w3c.github.io/webdriver/#dfn-shadow-root-reference-object
@@ -287,11 +287,11 @@ ErrorOr<JS::NonnullGCPtr<Web::DOM::ShadowRoot>, Web::WebDriver::Error> get_known
 {
     // NOTE: The whole concept of "known shadow roots" is not implemented yet. See get_or_create_a_shadow_root_reference().
     //       For now the shadow root is only represented by its ID.
-    auto shadow_root = shadow_id.to_number<int>();
+    auto shadow_root = shadow_id.to_number<i64>();
     if (!shadow_root.has_value())
         return Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::InvalidArgument, "Shadow ID is not an integer");
 
-    auto* node = Web::DOM::Node::from_unique_id(*shadow_root);
+    auto* node = Web::DOM::Node::from_unique_id(UniqueNodeID(*shadow_root));
 
     if (!node || !node->is_shadow_root())
         return Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::NoSuchElement, ByteString::formatted("Could not find shadow root with ID: {}", shadow_id));
