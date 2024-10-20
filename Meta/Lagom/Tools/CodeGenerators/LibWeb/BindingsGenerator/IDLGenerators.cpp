@@ -59,6 +59,8 @@ static bool is_platform_object(Type const& type)
         "FontFace"sv,
         "FormData"sv,
         "HTMLCollection"sv,
+        "IDBIndex"sv,
+        "IDBObjectStore"sv,
         "ImageBitmap"sv,
         "ImageData"sv,
         "Instance"sv,
