@@ -271,8 +271,6 @@ void LineBuilder::update_last_line()
             }
 
             switch (vertical_align) {
-            case CSS::VerticalAlign::Baseline:
-                return m_current_y + line_box_baseline - fragment.baseline() + effective_box_top_offset;
             case CSS::VerticalAlign::Top:
                 return m_current_y + effective_box_top_offset;
             case CSS::VerticalAlign::Middle: {
@@ -286,7 +284,7 @@ void LineBuilder::update_last_line()
             case CSS::VerticalAlign::Super:
             case CSS::VerticalAlign::TextBottom:
             case CSS::VerticalAlign::TextTop:
-                // FIXME: These are all 'baseline'
+            case CSS::VerticalAlign::Baseline:
                 return m_current_y + line_box_baseline - fragment.baseline() + effective_box_top_offset;
             }
             VERIFY_NOT_REACHED();
