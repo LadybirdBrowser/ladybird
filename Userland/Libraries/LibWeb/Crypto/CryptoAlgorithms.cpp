@@ -1187,11 +1187,7 @@ WebIDL::ExceptionOr<JS::Value> ECDSA::verify(AlgorithmParams const& params, JS::
     auto M = result_buffer.release_value();
 
     // 4. Let Q be the ECDSA public key associated with key.
-    auto Q = key->handle().visit(
-        [](ByteBuffer data) -> ByteBuffer {
-            return data;
-        },
-        [](auto) -> ByteBuffer { VERIFY_NOT_REACHED(); });
+    auto Q = key->handle().get<ByteBuffer>();
 
     // FIXME: 5. Let params be the EC domain parameters associated with key.
 
@@ -1330,11 +1326,7 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<JS::ArrayBuffer>> ED25519::sign([[maybe_unu
 
     // 2. Perform the Ed25519 signing process, as specified in [RFC8032], Section 5.1.6,
     // with message as M, using the Ed25519 private key associated with key.
-    auto private_key = key->handle().visit(
-        [](ByteBuffer data) -> ByteBuffer {
-            return data;
-        },
-        [](auto) -> ByteBuffer { VERIFY_NOT_REACHED(); });
+    auto private_key = key->handle().get<ByteBuffer>();
 
     ::Crypto::Curves::Ed25519 curve;
     auto maybe_public_key = curve.generate_public_key(private_key);
@@ -1369,11 +1361,7 @@ WebIDL::ExceptionOr<JS::Value> ED25519::verify([[maybe_unused]] AlgorithmParams 
     // using the cofactorless (unbatched) equation, [S]B = R + [k]A', on the signature,
     // with message as M, using the Ed25519 public key associated with key.
 
-    auto public_key = key->handle().visit(
-        [](ByteBuffer data) -> ByteBuffer {
-            return data;
-        },
-        [](auto) -> ByteBuffer { VERIFY_NOT_REACHED(); });
+    auto public_key = key->handle().get<ByteBuffer>();
 
     // 9. Let result be a boolean with the value true if the signature is valid and the value false otherwise.
     ::Crypto::Curves::Ed25519 curve;
@@ -1413,11 +1401,7 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<JS::ArrayBuffer>> PBKDF2::derive_bits(Algor
     // and length divided by 8 as the intended key length, dkLen.
     ErrorOr<ByteBuffer> result = Error::from_string_literal("noop error");
 
-    auto password = key->handle().visit(
-        [](ByteBuffer data) -> ByteBuffer {
-            return data;
-        },
-        [](auto) -> ByteBuffer { VERIFY_NOT_REACHED(); });
+    auto password = key->handle().get<ByteBuffer>();
 
     auto salt = normalized_algorithm.salt;
     auto iterations = normalized_algorithm.iterations;
