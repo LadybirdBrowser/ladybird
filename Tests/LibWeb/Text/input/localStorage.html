@@ -1,6 +1,10 @@
 <script src="include.js"></script>
 <script>
     test(() => {
+
+        println(localStorage["test"])
+        println(localStorage.getItem("test"))
+
         localStorage["test"] = "value";
         println(localStorage["test"]);
         println(localStorage.getItem("test"));
@@ -10,6 +14,9 @@
         println(localStorage.getItem("test"));
 
         // Ensure indexed properties work
+        println(localStorage[0])
+        println(localStorage.getItem(0))
+
         localStorage[0] = "foo";
         println(localStorage[0]);
         println(localStorage.getItem("0"));
