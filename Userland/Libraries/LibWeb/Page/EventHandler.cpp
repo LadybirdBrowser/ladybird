@@ -226,6 +226,14 @@ EventResult EventHandler::handle_mousewheel(CSSPixelPoint viewport_position, CSS
             auto page_offset = compute_mouse_event_page_offset(client_offset);
             if (node->dispatch_event(UIEvents::WheelEvent::create_from_platform_event(node->realm(), UIEvents::EventNames::wheel, screen_position, page_offset, client_offset, offset, wheel_delta_x, wheel_delta_y, button, buttons, modifiers).release_value_but_fixme_should_propagate_errors())) {
                 m_navigable->active_window()->scroll_by(wheel_delta_x, wheel_delta_y);
+                auto end_scroll_offset = m_navigable->active_document()->navigable()->viewport_scroll_offset();
+                auto end_position = viewport_position.translated(end_scroll_offset);
+                // After the scroll event has been dispatched,
+                // update the hovered node in order to trigger relevant events.
+                // - e.g.: mouseover, mouseenter, mouseleave, etc.
+                if (auto result = target_for_mouse_position(end_position); result.has_value()) {
+                    m_navigable->active_document()->set_hovered_node(result->paintable->dom_node());
+                }
             }
 
             handled_event = EventResult::Handled;
