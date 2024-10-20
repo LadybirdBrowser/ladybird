@@ -8,6 +8,7 @@
     undefined setDOMNodeText(long nodeID, DOMString text);
     undefined setDOMNodeTag(long nodeID, DOMString tag);
     undefined addDOMNodeAttributes(long nodeID, NamedNodeMap attributes);
+    undefined setDOMNodeAsGlobalVariable(long nodeID, DOMString variableName);
     undefined replaceDOMNodeAttribute(long nodeID, unsigned long long attributeIndex, NamedNodeMap replacementAttributes);
 
     undefined requestDOMTreeContextMenu(long nodeID, long clientX, long clientY, DOMString type, DOMString? tag, unsigned long long? attributeIndex);

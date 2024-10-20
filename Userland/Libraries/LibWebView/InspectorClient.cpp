@@ -207,6 +207,10 @@ InspectorClient::InspectorClient(ViewImplementation& content_web_view, ViewImple
         m_content_web_view.add_dom_node_attributes(node_id, attributes);
     };
 
+    m_inspector_web_view.on_inspector_did_set_dom_node_as_global_variable = [this](auto node_id, auto const& variable_name) {
+        m_content_web_view.set_dom_node_as_global_variable(node_id, variable_name);
+    };
+
     m_inspector_web_view.on_inspector_replaced_dom_node_attribute = [this](auto node_id, u32 attribute_index, auto const& replacement_attributes) {
         auto const& attribute = m_dom_node_attributes.get(node_id)->at(attribute_index);
         m_content_web_view.replace_dom_node_attribute(node_id, attribute.name, replacement_attributes);
@@ -389,6 +393,15 @@ void InspectorClient::context_menu_edit_dom_node()
     auto script = MUST(String::formatted("inspector.editDOMNodeID({});", m_context_menu_data->dom_node_id));
     m_inspector_web_view.run_javascript(script);
 
+    m_context_menu_data.clear();
+}
+
+void InspectorClient::context_menu_store_dom_node_as_global_variable()
+{
+    VERIFY(m_context_menu_data.has_value());
+
+    auto script = MUST(String::formatted("inspector.setGlobalVariable({});"sv, m_context_menu_data->dom_node_id));
+    m_inspector_web_view.run_javascript(script);
     m_context_menu_data.clear();
 }
 
