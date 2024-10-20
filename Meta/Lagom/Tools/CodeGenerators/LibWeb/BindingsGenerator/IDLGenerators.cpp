@@ -63,6 +63,7 @@ static bool is_platform_object(Type const& type)
         "ImageData"sv,
         "Instance"sv,
         "IntersectionObserverEntry"sv,
+        // FIXME TODO
         // "KeyboardLayoutMap"sv,
         "KeyframeEffect"sv,
         "MediaList"sv,
@@ -2775,7 +2776,7 @@ static void generate_prototype_or_global_mixin_declarations(IDL::Interface const
 )~~~");
         }
     }
-
+// FIXME TODO
 //     if (interface.map_entry_type.has_value()) {
 //         auto maplike_generator = generator.fork();
 
@@ -3390,7 +3391,7 @@ void @class_name@::initialize(JS::Realm& realm)
 )~~~");
         }
     }
-
+    // FIXME TODO
     // https://webidl.spec.whatwg.org/#js-maplike
 //     if (interface.map_entry_type.has_value()) {
 
@@ -4186,7 +4187,7 @@ JS_DEFINE_NATIVE_FUNCTION(@class_name@::clear)
         }
     }
 
-        // ------- maplike -------------------
+        // FIXME TODO ------- maplike -------------------
 //         if (interface.map_entry_type.has_value()) {
 //         auto maplike_generator = generator.fork();
 //         maplike_generator.set("value_type", interface.map_entry_type.value()->name());

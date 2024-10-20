@@ -499,7 +499,7 @@ void Parser::parse_setlike(Interface& interface, bool is_readonly)
     assert_specific('>');
     assert_specific(';');
 }
-
+// FIXME TODO
 // void Parser::parse_maplike(Interface& interface, bool is_readonly)
 // {
 //     if (interface.supports_indexed_properties())
@@ -678,7 +678,7 @@ void Parser::parse_interface(Interface& interface)
             parse_setlike(interface, is_readonly);
             continue;
         }
-
+        // FIXME TODO
         // if (lexer.next_is("maplike")) {
         //     bool is_readonly = false;
         //     parse_maplike(interface, is_readonly);

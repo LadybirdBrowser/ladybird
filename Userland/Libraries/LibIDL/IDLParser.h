@@ -59,6 +59,7 @@ private:
     void parse_stringifier(HashMap<ByteString, ByteString>& extended_attributes, Interface&);
     void parse_iterable(Interface&);
     void parse_setlike(Interface&, bool is_readonly);
+    // FIXME TODO
     // void parse_maplike(Interface&, bool is_readonly);
     Function parse_function(HashMap<ByteString, ByteString>& extended_attributes, Interface&, IsStatic is_static = IsStatic::No, IsSpecialOperation is_special_operation = IsSpecialOperation::No);
     Vector<Parameter> parse_parameters();
