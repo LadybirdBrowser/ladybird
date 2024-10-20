@@ -1094,41 +1094,36 @@ void TableFormattingContext::position_cell_boxes()
         auto const& vertical_align = cell.box->computed_values().vertical_align();
         // The following image shows various alignment lines of a row:
         // https://www.w3.org/TR/css-tables-3/images/cell-align-explainer.png
+        // https://drafts.csswg.org/css2/#height-layout
+        // In the context of tables, values for vertical-align have the following meanings:
         if (vertical_align.has<CSS::VerticalAlign>()) {
             switch (vertical_align.get<CSS::VerticalAlign>()) {
+            // The center of the cell is aligned with the center of the rows it spans.
             case CSS::VerticalAlign::Middle: {
                 auto const height_diff = row_content_height - cell_state.border_box_height();
                 cell_state.padding_top += height_diff / 2;
                 cell_state.padding_bottom += height_diff / 2;
                 break;
             }
+            // The top of the cell box is aligned with the top of the first row it spans.
             case CSS::VerticalAlign::Top: {
                 cell_state.padding_bottom += row_content_height - cell_state.border_box_height();
                 break;
             }
+            // The bottom of the cell box is aligned with the bottom of the last row it spans.
             case CSS::VerticalAlign::Bottom: {
                 cell_state.padding_top += row_content_height - cell_state.border_box_height();
                 break;
             }
+            // These values do not apply to cells; the cell is aligned at the baseline instead.
+            case CSS::VerticalAlign::Sub:
+            case CSS::VerticalAlign::Super:
+            case CSS::VerticalAlign::TextBottom:
+            case CSS::VerticalAlign::TextTop:
+            // The baseline of the cell is put at the same height as the baseline of the first of the rows it spans.
             case CSS::VerticalAlign::Baseline: {
                 cell_state.padding_top += m_rows[cell.row_index].baseline - cell.baseline;
                 cell_state.padding_bottom += row_content_height - cell_state.border_box_height();
-                break;
-            }
-            case CSS::VerticalAlign::Sub: {
-                dbgln("FIXME: Implement \"vertical-align: sub\" support for table cells");
-                break;
-            }
-            case CSS::VerticalAlign::Super: {
-                dbgln("FIXME: Implement \"vertical-align: super\" support for table cells");
-                break;
-            }
-            case CSS::VerticalAlign::TextBottom: {
-                dbgln("FIXME: Implement \"vertical-align: text-bottom\" support for table cells");
-                break;
-            }
-            case CSS::VerticalAlign::TextTop: {
-                dbgln("FIXME: Implement \"vertical-align: text-top\" support for table cells");
                 break;
             }
             default:
