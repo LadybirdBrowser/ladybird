@@ -1,0 +1,51 @@
+form: unset
+form.getAttribute('method') == 'null'
+form.method == 'get'
+
+form.setAttribute('method', '')
+form.getAttribute('method') == ''
+form.method == 'get'
+
+form.setAttribute('method', 'undefined')
+form.getAttribute('method') == 'undefined'
+form.method == 'get'
+
+form.setAttribute('method', 'null')
+form.getAttribute('method') == 'null'
+form.method == 'get'
+
+form.setAttribute('method', 'get')
+form.getAttribute('method') == 'get'
+form.method == 'get'
+
+form.setAttribute('method', 'post')
+form.getAttribute('method') == 'post'
+form.method == 'post'
+
+form.setAttribute('method', 'dialog')
+form.getAttribute('method') == 'dialog'
+form.method == 'dialog'
+
+form.setAttribute('method', 'GeT')
+form.getAttribute('method') == 'GeT'
+form.method == 'get'
+
+form.setAttribute('method', 'POST')
+form.getAttribute('method') == 'POST'
+form.method == 'post'
+
+form.setAttribute('method', 'DIAlog')
+form.getAttribute('method') == 'DIAlog'
+form.method == 'dialog'
+
+form.setAttribute('method', 'foo')
+form.getAttribute('method') == 'foo'
+form.method == 'get'
+
+form.setAttribute('method', 'xpost')
+form.getAttribute('method') == 'xpost'
+form.method == 'get'
+
+form.setAttribute('method', '5%')
+form.getAttribute('method') == '5%'
+form.method == 'get'
