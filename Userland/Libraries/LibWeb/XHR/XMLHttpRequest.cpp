@@ -106,7 +106,7 @@ static void fire_progress_event(XMLHttpRequestEventTarget& target, FlyString con
     // with the loaded attribute initialized to transmitted, and if length is not 0, with the lengthComputable attribute initialized to true
     // and the total attribute initialized to length.
     ProgressEventInit event_init {};
-    event_init.length_computable = true;
+    event_init.length_computable = length;
     event_init.loaded = transmitted;
     event_init.total = length;
     // FIXME: If we're in an async context, this will propagate to a callback context which can't propagate it anywhere else and does not expect this to fail.
