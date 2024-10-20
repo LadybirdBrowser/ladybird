@@ -864,29 +864,7 @@ void BlockFormattingContext::resolve_vertical_box_model_metrics(Box const& box, 
 
 CSSPixels BlockFormattingContext::BlockMarginState::current_collapsed_margin() const
 {
-    CSSPixels smallest_margin = 0;
-    CSSPixels largest_margin = 0;
-    size_t negative_margin_count = 0;
-    for (auto margin : current_collapsible_margins) {
-        if (margin < 0)
-            ++negative_margin_count;
-        largest_margin = max(largest_margin, margin);
-        smallest_margin = min(smallest_margin, margin);
-    }
-
-    CSSPixels collapsed_margin = 0;
-    if (negative_margin_count == current_collapsible_margins.size()) {
-        // When all margins are negative, the size of the collapsed margin is the smallest (most negative) margin.
-        collapsed_margin = smallest_margin;
-    } else if (negative_margin_count > 0) {
-        // When negative margins are involved, the size of the collapsed margin is the sum of the largest positive margin and the smallest (most negative) negative margin.
-        collapsed_margin = largest_margin + smallest_margin;
-    } else {
-        // Otherwise, collapse all the adjacent margins by using only the largest one.
-        collapsed_margin = largest_margin;
-    }
-
-    return collapsed_margin;
+    return current_positive_collapsible_margin + current_negative_collapsible_margin;
 }
 
 BlockFormattingContext::DidIntroduceClearance BlockFormattingContext::clear_floating_boxes(Node const& child_box, Optional<InlineFormattingContext&> inline_formatting_context)
