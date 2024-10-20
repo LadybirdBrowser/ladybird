@@ -4,6 +4,6 @@ interface Keyboard : EventTarget {
   Promise<undefined> lock(optional sequence<DOMString> keyCodes = []);
   undefined unlock();
 
-  // Promise<KeyboardLayoutMap> getLayoutMap();
-  attribute EventHandler onlayoutchange;
+  // [FIXME] Promise<KeyboardLayoutMap> getLayoutMap();
+  // [FIXME] attribute EventHandler onlayoutchange;
 };

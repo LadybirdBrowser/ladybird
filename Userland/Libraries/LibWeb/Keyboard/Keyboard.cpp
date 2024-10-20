@@ -1,3 +1,4 @@
+#include "LibWeb/HTML/EventNames.h"
 #include <LibJS/Runtime/Realm.h>
 #include <LibJS/Runtime/Value.h>
 #include <LibTextCodec/Decoder.h>
@@ -16,6 +17,7 @@
 #include <LibWeb/UIEvents/KeyCode.h>
 #include <LibWeb/WebIDL/DOMException.h>
 #include <LibWeb/WebIDL/Promise.h>
+#include "LibWeb/DOM/EventTarget.h"
 
 namespace Web::Keyboard {
 JS_DEFINE_ALLOCATOR(Keyboard);
@@ -94,6 +96,11 @@ void Keyboard::unlock()
         m_reserved_key_codes = {};
     }
 }
+
+// JS::GCPtr<WebIDL::CallbackType> onlayoutchange()
+// {
+//     return event_handler_attribute(HTML::EventNames::layoutchange);
+// }
 
 Keyboard::~Keyboard() {unlock();};
 

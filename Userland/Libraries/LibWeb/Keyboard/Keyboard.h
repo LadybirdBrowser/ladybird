@@ -30,6 +30,8 @@ public:
     // https://wicg.github.io/keyboard-map/#h-keyboard-getlayoutmap
     // JS::NonnullGCPtr<KeyboardLayoutMap> getLayoutMap();
 
+    JS::GCPtr<WebIDL::CallbackType> onlayoutchange();
+
 private:
     Keyboard(JS::Realm& realm);
 
