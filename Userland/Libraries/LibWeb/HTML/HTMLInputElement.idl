@@ -18,8 +18,8 @@ interface HTMLInputElement : HTMLElement {
     readonly attribute HTMLFormElement? form;
     attribute FileList? files;
     [CEReactions] attribute USVString formAction;
-    [FIXME, CEReactions] attribute DOMString formEnctype;
-    [FIXME, CEReactions] attribute DOMString formMethod;
+    [CEReactions, Reflect=formenctype, Enumerated=FormEnctypeAttribute] attribute DOMString formEnctype;
+    [CEReactions, Reflect=formmethod, Enumerated=FormMethodAttribute] attribute DOMString formMethod;
     [CEReactions, Reflect=formnovalidate] attribute boolean formNoValidate;
     [CEReactions, Reflect=formtarget] attribute DOMString formTarget;
     [FIXME, CEReactions] attribute unsigned long height;
