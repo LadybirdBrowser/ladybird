@@ -4122,7 +4122,6 @@ JS_DEFINE_NATIVE_FUNCTION(@class_name@::clear)
 )~~~");
         }
     }
-
 }
 
 void generate_namespace_header(IDL::Interface const& interface, StringBuilder& builder)
