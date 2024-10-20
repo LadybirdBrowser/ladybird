@@ -1,4 +1,5 @@
 #import <UIEvents/UIEvent.idl>
+#import <DOM/StaticRange.idl>
 
 // https://w3c.github.io/uievents/#inputevent
 [Exposed=Window]
@@ -7,6 +8,8 @@ interface InputEvent : UIEvent {
     readonly attribute USVString? data;
     readonly attribute boolean isComposing;
     readonly attribute DOMString inputType;
+
+    sequence<StaticRange> getTargetRanges();
 };
 
 // https://w3c.github.io/uievents/#dictdef-inputeventinit
