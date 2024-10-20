@@ -15,8 +15,8 @@
 // RIFF chunks (as often used by Microsoft's older formats) use little-endian fields.
 namespace RIFF {
 
-static constexpr StringView const riff_magic = "RIFF"sv;
-static constexpr StringView const list_chunk_id = "LIST"sv;
+inline constexpr StringView const riff_magic = "RIFF"sv;
+inline constexpr StringView const list_chunk_id = "LIST"sv;
 
 using WordType = LittleEndian<u32>;
 using ChunkHeader = RIFF::Detail::ChunkHeader<WordType>;

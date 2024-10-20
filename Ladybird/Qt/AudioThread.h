@@ -23,7 +23,7 @@
 
 namespace Ladybird {
 
-static constexpr u32 UPDATE_RATE_MS = 10;
+inline constexpr u32 UPDATE_RATE_MS = 10;
 
 struct AudioTask {
     enum class Type {
