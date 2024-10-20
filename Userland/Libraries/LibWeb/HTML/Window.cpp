@@ -139,7 +139,7 @@ void Window::finalize()
 Window::~Window() = default;
 
 // https://html.spec.whatwg.org/multipage/window-object.html#window-open-steps
-WebIDL::ExceptionOr<JS::GCPtr<WindowProxy>> Window::open_impl(StringView url, StringView target, StringView features)
+WebIDL::ExceptionOr<JS::GCPtr<WindowProxy>> Window::window_open_steps(StringView url, StringView target, StringView features)
 {
     // 1. If the event loop's termination nesting level is nonzero, return null.
     if (main_thread_event_loop().termination_nesting_level() != 0)
@@ -1007,7 +1007,7 @@ JS::GCPtr<DOM::Element const> Window::frame_element() const
 WebIDL::ExceptionOr<JS::GCPtr<WindowProxy>> Window::open(Optional<String> const& url, Optional<String> const& target, Optional<String> const& features)
 {
     // The open(url, target, features) method steps are to run the window open steps with url, target, and features.
-    return open_impl(*url, *target, *features);
+    return window_open_steps(*url, *target, *features);
 }
 
 // https://html.spec.whatwg.org/multipage/system-state.html#dom-navigator
