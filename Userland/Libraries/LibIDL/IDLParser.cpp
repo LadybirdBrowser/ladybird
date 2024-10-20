@@ -499,24 +499,6 @@ void Parser::parse_setlike(Interface& interface, bool is_readonly)
     assert_specific('>');
     assert_specific(';');
 }
-// FIXME TODO
-// void Parser::parse_maplike(Interface& interface, bool is_readonly)
-// {
-//     if (interface.supports_indexed_properties())
-//         report_parsing_error("Interfaces with a maplike declaration must not supported indexed properties."sv, filename, input, lexer.tell());
-
-//     if (interface.value_iterator_type.has_value() || interface.pair_iterator_types.has_value())
-//         report_parsing_error("Interfaces with a maplike declaration must not must not be iterable."sv, filename, input, lexer.tell());
-
-//     assert_string("maplike"sv);
-//     assert_specific('<');
-
-//     interface.set_entry_type = parse_type();
-//     interface.is_map_readonly = is_readonly;
-
-//     assert_specific('>');
-//     assert_specific(';');
-// }
 
 void Parser::parse_getter(HashMap<ByteString, ByteString>& extended_attributes, Interface& interface)
 {
@@ -678,12 +660,6 @@ void Parser::parse_interface(Interface& interface)
             parse_setlike(interface, is_readonly);
             continue;
         }
-        // FIXME TODO
-        // if (lexer.next_is("maplike")) {
-        //     bool is_readonly = false;
-        //     parse_maplike(interface, is_readonly);
-        //     continue;
-        // }
 
         if (lexer.next_is("inherit") || lexer.next_is("readonly") || lexer.next_is("attribute")) {
             parse_attribute(extended_attributes, interface);

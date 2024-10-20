@@ -286,11 +286,7 @@ public:
     Optional<NonnullRefPtr<Type const>> value_iterator_type;
     Optional<Tuple<NonnullRefPtr<Type const>, NonnullRefPtr<Type const>>> pair_iterator_types;
     Optional<NonnullRefPtr<Type const>> set_entry_type;
-    // FIXME TODO
-    // Optional<NonnullRefPtr<Type const>> map_entry_type;
     bool is_set_readonly { false };
-    // FIXME TODO
-    // bool is_map_readonly { false };
 
     Optional<Function> named_property_getter;
     Optional<Function> named_property_setter;
