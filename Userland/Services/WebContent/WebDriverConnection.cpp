@@ -45,6 +45,7 @@
 #include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
 #include <LibWeb/HTML/SelectedFile.h>
 #include <LibWeb/HTML/TraversableNavigable.h>
+#include <LibWeb/HTML/WindowProxy.h>
 #include <LibWeb/Page/Page.h>
 #include <LibWeb/Platform/EventLoopPlugin.h>
 #include <LibWeb/Platform/Timer.h>
@@ -484,10 +485,15 @@ Messages::WebDriverClient::NewWindowResponse WebDriverConnection::new_window(Jso
     //    is "window", and the implementation supports multiple browsing contexts in separate OS windows, the
     //    created browsing context should be in a new OS window. In all other cases the details of how the browsing
     //    context is presented to the user are implementation defined.
-    auto [navigable, window_type] = current_browsing_context().top_level_traversable()->choose_a_navigable("_blank"sv, Web::HTML::TokenizedFeature::NoOpener::Yes, Web::HTML::ActivateTab::No);
+    auto* active_window = current_browsing_context().active_window();
+    VERIFY(active_window);
+    {
+        Web::HTML::TemporaryExecutionContext execution_context { active_window->document()->relevant_settings_object() };
+        MUST(active_window->window_open_steps("about:blank"sv, ""sv, "noopener"sv));
+    }
 
     // 6. Let handle be the associated window handle of the newly created window.
-    auto handle = navigable->traversable_navigable()->window_handle();
+    auto handle = current_browsing_context().top_level_traversable()->window_handle();
 
     // 7. Let type be "tab" if the newly created window shares an OS-level window with the current browsing context, or "window" otherwise.
     auto type = "tab"sv;
