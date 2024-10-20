@@ -40,7 +40,7 @@ static String style_sheet_identifier_to_json(Web::CSS::StyleSheetIdentifier cons
 {
     return MUST(String::formatted("{{ type: '{}', domNodeId: {}, url: '{}' }}"sv,
         Web::CSS::style_sheet_identifier_type_to_string(identifier.type),
-        identifier.dom_element_unique_id.map([](auto& it) { return String::number(it); }).value_or("undefined"_string),
+        identifier.dom_element_unique_id.map([](auto& it) { return String::number(it.value()); }).value_or("undefined"_string),
         identifier.url.value_or("undefined"_string)));
 }
 
@@ -343,14 +343,14 @@ void InspectorClient::clear_selection()
     m_inspector_web_view.run_javascript(script);
 }
 
-void InspectorClient::select_node(i32 node_id)
+void InspectorClient::select_node(Web::UniqueNodeID node_id)
 {
     if (!m_dom_tree_loaded) {
         m_pending_selection = node_id;
         return;
     }
 
-    auto script = MUST(String::formatted("inspector.inspectDOMNodeID({});", node_id));
+    auto script = MUST(String::formatted("inspector.inspectDOMNodeID({});", node_id.value()));
     m_inspector_web_view.run_javascript(script);
 }
 

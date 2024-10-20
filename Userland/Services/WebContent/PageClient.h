@@ -89,7 +89,7 @@ public:
 
     virtual Web::DisplayListPlayerType display_list_player_type() const override;
 
-    void queue_screenshot_task(Optional<i32> node_id);
+    void queue_screenshot_task(Optional<Web::UniqueNodeID> node_id);
 
     friend class BackingStoreManager;
 
@@ -163,12 +163,12 @@ private:
     virtual void page_did_allocate_backing_stores(i32 front_bitmap_id, Gfx::ShareableBitmap front_bitmap, i32 back_bitmap_id, Gfx::ShareableBitmap back_bitmap) override;
     virtual IPC::File request_worker_agent() override;
     virtual void inspector_did_load() override;
-    virtual void inspector_did_select_dom_node(i32 node_id, Optional<Web::CSS::Selector::PseudoElement::Type> const& pseudo_element) override;
-    virtual void inspector_did_set_dom_node_text(i32 node_id, String const& text) override;
-    virtual void inspector_did_set_dom_node_tag(i32 node_id, String const& tag) override;
-    virtual void inspector_did_add_dom_node_attributes(i32 node_id, JS::NonnullGCPtr<Web::DOM::NamedNodeMap> attributes) override;
-    virtual void inspector_did_replace_dom_node_attribute(i32 node_id, size_t attribute_index, JS::NonnullGCPtr<Web::DOM::NamedNodeMap> replacement_attributes) override;
-    virtual void inspector_did_request_dom_tree_context_menu(i32 node_id, Web::CSSPixelPoint position, String const& type, Optional<String> const& tag, Optional<size_t> const& attribute_index) override;
+    virtual void inspector_did_select_dom_node(Web::UniqueNodeID, Optional<Web::CSS::Selector::PseudoElement::Type> const& pseudo_element) override;
+    virtual void inspector_did_set_dom_node_text(Web::UniqueNodeID, String const& text) override;
+    virtual void inspector_did_set_dom_node_tag(Web::UniqueNodeID, String const& tag) override;
+    virtual void inspector_did_add_dom_node_attributes(Web::UniqueNodeID, JS::NonnullGCPtr<Web::DOM::NamedNodeMap> attributes) override;
+    virtual void inspector_did_replace_dom_node_attribute(Web::UniqueNodeID, size_t attribute_index, JS::NonnullGCPtr<Web::DOM::NamedNodeMap> replacement_attributes) override;
+    virtual void inspector_did_request_dom_tree_context_menu(Web::UniqueNodeID, Web::CSSPixelPoint position, String const& type, Optional<String> const& tag, Optional<size_t> const& attribute_index) override;
     virtual void inspector_did_request_cookie_context_menu(size_t cookie_index, Web::CSSPixelPoint position) override;
     virtual void inspector_did_request_style_sheet_source(Web::CSS::StyleSheetIdentifier const& stylesheet_source) override;
     virtual void inspector_did_execute_console_script(String const& script) override;
@@ -196,7 +196,7 @@ private:
     PaintState m_paint_state { PaintState::Ready };
 
     struct ScreenshotTask {
-        Optional<i32> node_id;
+        Optional<Web::UniqueNodeID> node_id;
     };
     Queue<ScreenshotTask> m_screenshot_tasks;
 

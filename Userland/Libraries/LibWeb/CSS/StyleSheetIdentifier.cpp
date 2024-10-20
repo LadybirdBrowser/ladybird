@@ -50,7 +50,8 @@ template<>
 ErrorOr<void> encode(Encoder& encoder, Web::CSS::StyleSheetIdentifier const& style_sheet_source)
 {
     TRY(encoder.encode(style_sheet_source.type));
-    TRY(encoder.encode(style_sheet_source.dom_element_unique_id));
+    Optional<i64> dom_element_unique_id = style_sheet_source.dom_element_unique_id.has_value() ? Optional<i64>(style_sheet_source.dom_element_unique_id.value()) : Optional<i64> {};
+    TRY(encoder.encode(dom_element_unique_id));
     TRY(encoder.encode(style_sheet_source.url));
 
     return {};
@@ -60,12 +61,12 @@ template<>
 ErrorOr<Web::CSS::StyleSheetIdentifier> decode(Decoder& decoder)
 {
     auto type = TRY(decoder.decode<Web::CSS::StyleSheetIdentifier::Type>());
-    auto dom_element_unique_id = TRY(decoder.decode<Optional<i32>>());
+    auto dom_element_unique_id = TRY(decoder.decode<Optional<i64>>());
     auto url = TRY(decoder.decode<Optional<String>>());
 
     return Web::CSS::StyleSheetIdentifier {
         .type = type,
-        .dom_element_unique_id = move(dom_element_unique_id),
+        .dom_element_unique_id = dom_element_unique_id.has_value() ? Web::UniqueNodeID(dom_element_unique_id.value()) : Optional<Web::UniqueNodeID> {},
         .url = move(url),
     };
 }

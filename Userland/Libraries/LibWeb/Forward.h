@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-2023, Andreas Kling <andreas@ladybird.org>
+ * Copyright (c) 2020-2024, Andreas Kling <andreas@ladybird.org>
  * Copyright (c) 2021-2023, the SerenityOS developers.
  *
  * SPDX-License-Identifier: BSD-2-Clause
@@ -7,7 +7,9 @@
 
 #pragma once
 
+#include <AK/DistinctNumeric.h>
 #include <AK/Variant.h>
+#include <LibIPC/Forward.h>
 #include <LibJS/Forward.h>
 
 namespace Web {
@@ -24,6 +26,8 @@ class XMLDocumentBuilder;
 
 enum class InvalidateDisplayList;
 enum class TraversalDecision;
+
+AK_TYPEDEF_DISTINCT_NUMERIC_GENERAL(i64, UniqueNodeID, Comparison, Increment, CastToUnderlying);
 }
 
 namespace Web::Painting {
@@ -828,4 +832,14 @@ class XMLHttpRequestEventTarget;
 class XMLHttpRequestUpload;
 
 struct FormDataEntry;
+}
+
+namespace IPC {
+
+template<>
+ErrorOr<void> encode(Encoder&, Web::UniqueNodeID const&);
+
+template<>
+ErrorOr<Web::UniqueNodeID> decode(Decoder&);
+
 }

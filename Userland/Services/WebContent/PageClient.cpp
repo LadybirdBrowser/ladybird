@@ -612,17 +612,17 @@ void PageClient::inspector_did_load()
     client().async_inspector_did_load(m_id);
 }
 
-void PageClient::inspector_did_select_dom_node(i32 node_id, Optional<Web::CSS::Selector::PseudoElement::Type> const& pseudo_element)
+void PageClient::inspector_did_select_dom_node(Web::UniqueNodeID node_id, Optional<Web::CSS::Selector::PseudoElement::Type> const& pseudo_element)
 {
     client().async_inspector_did_select_dom_node(m_id, node_id, pseudo_element);
 }
 
-void PageClient::inspector_did_set_dom_node_text(i32 node_id, String const& text)
+void PageClient::inspector_did_set_dom_node_text(Web::UniqueNodeID node_id, String const& text)
 {
     client().async_inspector_did_set_dom_node_text(m_id, node_id, text);
 }
 
-void PageClient::inspector_did_set_dom_node_tag(i32 node_id, String const& tag)
+void PageClient::inspector_did_set_dom_node_tag(Web::UniqueNodeID node_id, String const& tag)
 {
     client().async_inspector_did_set_dom_node_tag(m_id, node_id, tag);
 }
@@ -642,17 +642,17 @@ static Vector<WebView::Attribute> named_node_map_to_vector(JS::NonnullGCPtr<Web:
     return attributes;
 }
 
-void PageClient::inspector_did_add_dom_node_attributes(i32 node_id, JS::NonnullGCPtr<Web::DOM::NamedNodeMap> attributes)
+void PageClient::inspector_did_add_dom_node_attributes(Web::UniqueNodeID node_id, JS::NonnullGCPtr<Web::DOM::NamedNodeMap> attributes)
 {
     client().async_inspector_did_add_dom_node_attributes(m_id, node_id, named_node_map_to_vector(attributes));
 }
 
-void PageClient::inspector_did_replace_dom_node_attribute(i32 node_id, size_t attribute_index, JS::NonnullGCPtr<Web::DOM::NamedNodeMap> replacement_attributes)
+void PageClient::inspector_did_replace_dom_node_attribute(Web::UniqueNodeID node_id, size_t attribute_index, JS::NonnullGCPtr<Web::DOM::NamedNodeMap> replacement_attributes)
 {
     client().async_inspector_did_replace_dom_node_attribute(m_id, node_id, attribute_index, named_node_map_to_vector(replacement_attributes));
 }
 
-void PageClient::inspector_did_request_dom_tree_context_menu(i32 node_id, Web::CSSPixelPoint position, String const& type, Optional<String> const& tag, Optional<size_t> const& attribute_index)
+void PageClient::inspector_did_request_dom_tree_context_menu(Web::UniqueNodeID node_id, Web::CSSPixelPoint position, String const& type, Optional<String> const& tag, Optional<size_t> const& attribute_index)
 {
     client().async_inspector_did_request_dom_tree_context_menu(m_id, node_id, page().css_to_device_point(position).to_type<int>(), type, tag, attribute_index);
 }
@@ -846,7 +846,7 @@ Web::DisplayListPlayerType PageClient::display_list_player_type() const
     }
 }
 
-void PageClient::queue_screenshot_task(Optional<i32> node_id)
+void PageClient::queue_screenshot_task(Optional<Web::UniqueNodeID> node_id)
 {
     m_screenshot_tasks.enqueue({ node_id });
     page().top_level_traversable()->set_needs_display();

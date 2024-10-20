@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2023, Andreas Kling <andreas@ladybird.org>
+ * Copyright (c) 2018-2024, Andreas Kling <andreas@ladybird.org>
  * Copyright (c) 2021-2022, Linus Groh <linusg@serenityos.org>
  * Copyright (c) 2021, Luke Wilde <lukew@serenityos.org>
  *
@@ -7,7 +7,6 @@
  */
 
 #include <AK/HashTable.h>
-#include <AK/IDAllocator.h>
 #include <AK/StringBuilder.h>
 #include <LibJS/Heap/DeferGC.h>
 #include <LibJS/Runtime/FunctionObject.h>
@@ -50,24 +49,24 @@
 
 namespace Web::DOM {
 
-static IDAllocator s_unique_id_allocator;
-static HashMap<i32, Node*> s_node_directory;
+static UniqueNodeID s_next_unique_id;
+static HashMap<UniqueNodeID, Node*> s_node_directory;
 
-static i32 allocate_unique_id(Node* node)
+static UniqueNodeID allocate_unique_id(Node* node)
 {
-    i32 id = s_unique_id_allocator.allocate();
+    auto id = s_next_unique_id;
+    ++s_next_unique_id;
     s_node_directory.set(id, node);
     return id;
 }
 
-static void deallocate_unique_id(i32 node_id)
+static void deallocate_unique_id(UniqueNodeID node_id)
 {
     if (!s_node_directory.remove(node_id))
         VERIFY_NOT_REACHED();
-    s_unique_id_allocator.deallocate(node_id);
 }
 
-Node* Node::from_unique_id(i32 unique_id)
+Node* Node::from_unique_id(UniqueNodeID unique_id)
 {
     return s_node_directory.get(unique_id).value_or(nullptr);
 }
@@ -1386,7 +1385,7 @@ bool Node::is_uninteresting_whitespace_node() const
 void Node::serialize_tree_as_json(JsonObjectSerializer<StringBuilder>& object) const
 {
     MUST(object.add("name"sv, node_name()));
-    MUST(object.add("id"sv, unique_id()));
+    MUST(object.add("id"sv, unique_id().value()));
     if (is_document()) {
         MUST(object.add("type"sv, "document"));
     } else if (is_element()) {
@@ -2184,7 +2183,7 @@ void Node::build_accessibility_tree(AccessibilityTreeNode& parent)
 }
 
 // https://www.w3.org/TR/accname-1.2/#mapping_additional_nd_te
-ErrorOr<String> Node::name_or_description(NameOrDescription target, Document const& document, HashTable<i32>& visited_nodes) const
+ErrorOr<String> Node::name_or_description(NameOrDescription target, Document const& document, HashTable<UniqueNodeID>& visited_nodes) const
 {
     // The text alternative for a given element is computed as follows:
     // 1. Set the root node to the given element, the current node to the root node, and the total accumulated text to the empty string (""). If the root node's role prohibits naming, return the empty string ("").
@@ -2321,7 +2320,7 @@ ErrorOr<String> Node::name_or_description(NameOrDescription target, Document con
 // https://www.w3.org/TR/accname-1.2/#mapping_additional_nd_name
 ErrorOr<String> Node::accessible_name(Document const& document) const
 {
-    HashTable<i32> visited_nodes;
+    HashTable<UniqueNodeID> visited_nodes;
     // User agents MUST compute an accessible name using the rules outlined below in the section titled Accessible Name and Description Computation.
     return name_or_description(NameOrDescription::Name, document, visited_nodes);
 }
@@ -2339,7 +2338,7 @@ ErrorOr<String> Node::accessible_description(Document const& document) const
     if (!described_by.has_value())
         return String {};
 
-    HashTable<i32> visited_nodes;
+    HashTable<UniqueNodeID> visited_nodes;
     StringBuilder builder;
     auto id_list = described_by->bytes_as_string_view().split_view_if(Infra::is_ascii_whitespace);
     for (auto const& id : id_list) {
@@ -2431,6 +2430,23 @@ void Node::add_registered_observer(RegisteredObserver& registered_observer)
     if (!m_registered_observer_list)
         m_registered_observer_list = make<Vector<JS::NonnullGCPtr<RegisteredObserver>>>();
     m_registered_observer_list->append(registered_observer);
+}
+
+}
+
+namespace IPC {
+
+template<>
+ErrorOr<void> encode(Encoder& encoder, Web::UniqueNodeID const& value)
+{
+    return encode(encoder, value.value());
+}
+
+template<>
+ErrorOr<Web::UniqueNodeID> decode(Decoder& decoder)
+{
+    auto value = TRY(decoder.decode<i64>());
+    return Web::UniqueNodeID(value);
 }
 
 }
