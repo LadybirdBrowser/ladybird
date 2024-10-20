@@ -1467,7 +1467,10 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<JS::ArrayBuffer>> HKDF::derive_bits(Algorit
     //    * the contents of the salt member of normalizedAlgorithm as salt,
     //    * the contents of the info member of normalizedAlgorithm as info,
     //    * length divided by 8 as the value of L,
-    // FIXME: salt null versus salt empty?!
+    // Note: Although HKDF technically supports absent salt (treating it as hashLen many NUL bytes),
+    // all major browsers instead raise a TypeError, for example:
+    //     "Failed to execute 'deriveBits' on 'SubtleCrypto': HkdfParams: salt: Not a BufferSource"
+    // Because we are forced by neither peer pressure nor the spec, we don't support it either.
     auto const& hash_algorithm = TRY(normalized_algorithm.hash.visit(
         [](String const& name) -> JS::ThrowCompletionOr<String> { return name; },
         [&](JS::Handle<JS::Object> const& obj) -> JS::ThrowCompletionOr<String> {
