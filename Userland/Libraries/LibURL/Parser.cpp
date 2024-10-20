@@ -1688,10 +1688,12 @@ URL Parser::basic_parse(StringView raw_input, Optional<URL> const& base_url, URL
             break;
         // -> query state, https://url.spec.whatwg.org/#query-state
         case State::Query:
-            // FIXME: 1. If encoding is not UTF-8 and one of the following is true:
-            //           * url is not special
-            //           * url’s scheme is "ws" or "wss"
-            //        then set encoding to UTF-8.
+            // 1. If encoding is not UTF-8 and one of the following is true:
+            //     * url is not special
+            //     * url’s scheme is "ws" or "wss"
+            //  then set encoding to UTF-8.
+            if (!url->is_special() || url->m_data->scheme == "ws" || url->m_data->scheme == "wss")
+                encoder = TextCodec::encoder_for("utf-8"sv);
 
             // 2. If one of the following is true:
             //    * state override is not given and c is U+0023 (#)
@@ -1746,7 +1748,7 @@ URL Parser::basic_parse(StringView raw_input, Optional<URL> const& base_url, URL
                 // NOTE: The percent-encode is done on EOF on the entire buffer.
                 buffer.append_code_point(code_point);
             } else {
-                url->m_data->fragment = percent_encode_after_encoding(*encoder, buffer.string_view(), PercentEncodeSet::Fragment);
+                url->m_data->fragment = percent_encode_after_encoding(*TextCodec::encoder_for("utf-8"sv), buffer.string_view(), PercentEncodeSet::Fragment);
                 buffer.clear();
             }
             break;
