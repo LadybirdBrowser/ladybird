@@ -97,6 +97,7 @@ private:
     virtual void did_receive_focus() override;
 
     [[nodiscard]] String get_the_text_steps();
+    void append_rendered_text_fragment(StringView input);
 
     JS::GCPtr<DOMStringMap> m_dataset;
 
