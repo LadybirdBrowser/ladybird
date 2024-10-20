@@ -103,11 +103,22 @@ JS::GCPtr<Layout::Node> HTMLInputElement::create_layout_node(NonnullRefPtr<CSS::
     if (type_state() == TypeAttributeState::Hidden)
         return nullptr;
 
+    // NOTE: Image inputs are `appearance: none` per the default UA style,
+    //       but we still need to create an ImageBox for them, or no image will get loaded.
+    if (type_state() == TypeAttributeState::ImageButton) {
+        return heap().allocate_without_realm<Layout::ImageBox>(document(), *this, move(style), *this);
+    }
+
+    // https://drafts.csswg.org/css-ui/#appearance-switching
+    // This specification introduces the appearance property to provide some control over this behavior.
+    // In particular, using appearance: none allows authors to suppress the native appearance of widgets,
+    // giving them a primitive appearance where CSS can be used to restyle them.
+    if (style->appearance() == CSS::Appearance::None) {
+        return Element::create_layout_node_for_display_type(document(), style->display(), style, this);
+    }
+
     if (type_state() == TypeAttributeState::SubmitButton || type_state() == TypeAttributeState::Button || type_state() == TypeAttributeState::ResetButton)
         return heap().allocate_without_realm<Layout::BlockContainer>(document(), this, move(style));
-
-    if (type_state() == TypeAttributeState::ImageButton)
-        return heap().allocate_without_realm<Layout::ImageBox>(document(), *this, move(style), *this);
 
     if (type_state() == TypeAttributeState::Checkbox)
         return heap().allocate_without_realm<Layout::CheckBox>(document(), *this, move(style));
