@@ -102,6 +102,14 @@ public:
     void set_import_maps_allowed(bool import_maps_allowed) { m_import_maps_allowed = import_maps_allowed; }
 
     WebIDL::ExceptionOr<JS::GCPtr<WindowProxy>> window_open_steps(StringView url, StringView target, StringView features);
+
+    struct OpenedWindow {
+        JS::GCPtr<Navigable> navigable;
+        TokenizedFeature::NoOpener no_opener { TokenizedFeature::NoOpener::No };
+        Navigable::WindowType window_type { Navigable::WindowType::ExistingOrNone };
+    };
+    WebIDL::ExceptionOr<OpenedWindow> window_open_steps_internal(StringView url, StringView target, StringView features);
+
     bool has_animation_frame_callbacks() const { return m_animation_frame_callback_driver.has_callbacks(); }
 
     DOM::Event* current_event() { return m_current_event.ptr(); }
