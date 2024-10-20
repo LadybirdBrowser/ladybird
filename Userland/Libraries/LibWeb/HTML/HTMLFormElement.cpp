@@ -565,23 +565,6 @@ Vector<JS::NonnullGCPtr<DOM::Element>> HTMLFormElement::get_submittable_elements
     return submittable_elements;
 }
 
-// https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#dom-fs-method
-StringView HTMLFormElement::method() const
-{
-    // The method and enctype IDL attributes must reflect the respective content attributes of the same name, limited to only known values.
-    // FIXME: This should probably be `Reflect` in the IDL.
-    auto method_state = method_state_from_form_element(*this);
-    switch (method_state) {
-    case MethodAttributeState::GET:
-        return "get"sv;
-    case MethodAttributeState::POST:
-        return "post"sv;
-    case MethodAttributeState::Dialog:
-        return "dialog"sv;
-    }
-    VERIFY_NOT_REACHED();
-}
-
 // https://html.spec.whatwg.org/multipage/forms.html#dom-form-rellist
 JS::NonnullGCPtr<DOM::DOMTokenList> HTMLFormElement::rel_list()
 {

@@ -16,6 +16,14 @@ enum EnctypeAttribute {
     "text/plain"
 };
 
+// https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#attr-fs-method
+[MissingValueDefault=get, InvalidValueDefault=get]
+enum MethodAttribute {
+    "get",
+    "post",
+    "dialog"
+};
+
 // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#selectionmode
 enum SelectionMode {
     "select",
@@ -35,7 +43,7 @@ interface HTMLFormElement : HTMLElement {
     [CEReactions, Enumerated=Autocomplete, Reflect] attribute DOMString autocomplete;
     [CEReactions, Enumerated=EnctypeAttribute, Reflect] attribute DOMString enctype;
     [CEReactions, Enumerated=EnctypeAttribute, Reflect=enctype] attribute DOMString encoding;
-    [CEReactions] attribute DOMString method;
+    [CEReactions, Enumerated=MethodAttribute, Reflect] attribute DOMString method;
     [CEReactions, Reflect] attribute DOMString name;
     [CEReactions, Reflect=novalidate] attribute boolean noValidate;
     [CEReactions, Reflect] attribute DOMString target;
