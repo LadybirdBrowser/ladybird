@@ -3499,21 +3499,24 @@ JS_DEFINE_NATIVE_FUNCTION(@class_name@::@attribute.getter_callback@)
                         //    or that it is in a state of attributeDefinition with no associated keyword value, then return the empty string.
                         //    NOTE: @invalid_enum_default_value@ is set to the empty string if it isn't present.
                         attribute_generator.append(R"~~~(
-    if (!contentAttributeValue.has_value())
+    auto did_set_to_missing_value = false;
+    if (!contentAttributeValue.has_value()) {
         retval = "@missing_enum_default_value@"_string;
+        did_set_to_missing_value = true;
+    }
 
     Array valid_values { @valid_enum_values@ };
 
-    auto found = false;
+    auto has_keyword = false;
     for (auto const& value : valid_values) {
         if (value.equals_ignoring_ascii_case(retval)) {
-            found = true;
+            has_keyword = true;
             retval = value;
             break;
         }
     }
 
-    if (!found)
+    if (!has_keyword && !did_set_to_missing_value) 
         retval = "@invalid_enum_default_value@"_string;
     )~~~");
 
