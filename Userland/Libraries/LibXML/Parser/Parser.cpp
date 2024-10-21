@@ -259,7 +259,7 @@ requires(IsCallableWithArguments<Pred, bool, char>) ErrorOr<StringView, ParseErr
 }
 
 template<typename Pred>
-requires(IsCallableWithArguments<Pred, bool, char>) ErrorOr<StringView, ParseError> Parser::expect_many(Pred predicate, StringView description)
+requires(IsCallableWithArguments<Pred, bool, char>) ErrorOr<StringView, ParseError> Parser::expect_many(Pred predicate, StringView description, bool allow_empty)
 {
     auto rollback = rollback_point();
     auto start = m_lexer.tell();
@@ -269,7 +269,7 @@ requires(IsCallableWithArguments<Pred, bool, char>) ErrorOr<StringView, ParseErr
         m_lexer.ignore();
     }
 
-    if (m_lexer.tell() == start) {
+    if (m_lexer.tell() == start && !allow_empty) {
         if (m_options.treat_errors_as_fatal) {
             return parse_error(m_lexer.current_position(), Expectation { description });
         }
@@ -1561,7 +1561,7 @@ ErrorOr<StringView, ParseError> Parser::parse_system_id_literal()
     auto quote = TRY(expect(is_any_of("'\""sv), "any of ' or \""sv));
     auto accept = accept_rule();
 
-    auto id = TRY(expect_many(is_not_any_of(quote), "not a quote"sv));
+    auto id = TRY(expect_many(is_not_any_of(quote), "not a quote"sv, true));
     TRY(expect(quote));
 
     rollback.disarm();
