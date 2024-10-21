@@ -402,7 +402,7 @@ ErrorOr<void> run_tests(Core::AnonymousBuffer const& theme, Gfx::IntSize window_
     size_t loaded_web_views = 0;
 
     for (size_t i = 0; i < concurrency; ++i) {
-        auto& view = *TRY(app.create_web_view(theme, window_size));
+        auto& view = app.create_web_view(theme, window_size);
         view.on_load_finish = [&](auto const&) { ++loaded_web_views; };
     }
 
