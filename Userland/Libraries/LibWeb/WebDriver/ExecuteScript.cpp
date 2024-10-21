@@ -306,8 +306,8 @@ JS::ThrowCompletionOr<JS::Value> execute_a_function_body(HTML::Window const& win
     // 10. Clean up after running a callback with environment settings.
     environment_settings.clean_up_after_running_callback();
 
-    // 11. Clean up after running a script with environment settings.
-    environment_settings.clean_up_after_running_script();
+    // 11. Clean up after running a script with realm.
+    HTML::clean_up_after_running_script(realm);
 
     // 12. Return completion.
     return completion;

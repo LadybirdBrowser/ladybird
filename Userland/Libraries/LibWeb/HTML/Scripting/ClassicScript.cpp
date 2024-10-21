@@ -112,8 +112,8 @@ JS::Completion ClassicScript::run(RethrowErrors rethrow_errors)
     if (evaluation_status.is_abrupt()) {
         // 1. If rethrow errors is true and script's muted errors is false, then:
         if (rethrow_errors == RethrowErrors::Yes && m_muted_errors == MutedErrors::No) {
-            // 1. Clean up after running script with settings.
-            settings.clean_up_after_running_script();
+            // 1. Clean up after running script with realm.
+            clean_up_after_running_script(realm);
 
             // 2. Rethrow evaluationStatus.[[Value]].
             return JS::throw_completion(*evaluation_status.value());
@@ -121,8 +121,8 @@ JS::Completion ClassicScript::run(RethrowErrors rethrow_errors)
 
         // 2. If rethrow errors is true and script's muted errors is true, then:
         if (rethrow_errors == RethrowErrors::Yes && m_muted_errors == MutedErrors::Yes) {
-            // 1. Clean up after running script with settings.
-            settings.clean_up_after_running_script();
+            // 1. Clean up after running script with realm.
+            clean_up_after_running_script(realm);
 
             // 2. Throw a "NetworkError" DOMException.
             return throw_completion(WebIDL::NetworkError::create(realm, "Script error."_string));
@@ -136,15 +136,15 @@ JS::Completion ClassicScript::run(RethrowErrors rethrow_errors)
         VERIFY(window_or_worker);
         window_or_worker->report_an_exception(*evaluation_status.value());
 
-        // 2. Clean up after running script with settings.
-        settings.clean_up_after_running_script();
+        // 2. Clean up after running script with realm.
+        clean_up_after_running_script(realm);
 
         // 3. Return evaluationStatus.
         return evaluation_status;
     }
 
-    // 8. Clean up after running script with settings.
-    settings.clean_up_after_running_script();
+    // 8. Clean up after running script with realm.
+    clean_up_after_running_script(realm);
 
     // 9. If evaluationStatus is a normal completion, then return evaluationStatus.
     VERIFY(!evaluation_status.is_abrupt());

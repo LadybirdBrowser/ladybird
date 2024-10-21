@@ -102,6 +102,7 @@ ErrorOr<ByteBuffer> get_buffer_source_copy(JS::Object const& buffer_source)
 }
 
 // https://webidl.spec.whatwg.org/#call-user-object-operation-return
+// https://whatpr.org/webidl/1437.html#call-user-object-operation-return
 inline JS::Completion clean_up_on_return(HTML::EnvironmentSettingsObject& stored_settings, HTML::EnvironmentSettingsObject& relevant_settings, JS::Completion& completion, OperationReturnsPromise operation_returns_promise)
 {
     auto& realm = stored_settings.realm();
@@ -111,8 +112,8 @@ inline JS::Completion clean_up_on_return(HTML::EnvironmentSettingsObject& stored
     // 1. Clean up after running a callback with stored settings.
     stored_settings.clean_up_after_running_callback();
 
-    // 2. Clean up after running script with relevant settings.
-    relevant_settings.clean_up_after_running_script();
+    // 2. Clean up after running script with relevant realm.
+    HTML::clean_up_after_running_script(relevant_settings.realm());
 
     // 3. If completion is a normal completion, return completion.
     if (completion.type() == JS::Completion::Type::Normal)
@@ -313,8 +314,8 @@ JS::Completion construct(WebIDL::CallbackType& callback, JS::MarkedVector<JS::Va
     // 1. Clean up after running a callback with stored settings.
     stored_settings->clean_up_after_running_callback();
 
-    // 2. Clean up after running script with relevant settings.
-    relevant_settings.clean_up_after_running_script();
+    // 2. Clean up after running script with relevant realm.
+    HTML::clean_up_after_running_script(realm);
 
     // 3. Return completion.
     return completion;

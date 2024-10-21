@@ -20,7 +20,7 @@ TemporaryExecutionContext::TemporaryExecutionContext(EnvironmentSettingsObject& 
 
 TemporaryExecutionContext::~TemporaryExecutionContext()
 {
-    m_environment_settings->clean_up_after_running_script();
+    clean_up_after_running_script(m_environment_settings->realm());
     if (m_callbacks_enabled == CallbacksEnabled::Yes)
         m_environment_settings->clean_up_after_running_callback();
 }
