@@ -37,7 +37,8 @@ public:
     static Requests::RequestClient& request_client() { return *the().m_request_client; }
     static ImageDecoderClient::Client& image_decoder_client() { return *the().m_image_decoder_client; }
 
-    ErrorOr<HeadlessWebView*> create_web_view(Core::AnonymousBuffer theme, Gfx::IntSize window_size);
+    HeadlessWebView& create_web_view(Core::AnonymousBuffer theme, Gfx::IntSize window_size);
+    HeadlessWebView& create_child_web_view(HeadlessWebView const&, u64 page_index);
     void destroy_web_views();
 
     template<typename Callback>

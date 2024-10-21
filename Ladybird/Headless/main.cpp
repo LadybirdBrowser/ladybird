@@ -81,7 +81,7 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
         return 0;
     }
 
-    auto& view = *TRY(app->create_web_view(move(theme), window_size));
+    auto& view = app->create_web_view(move(theme), window_size);
 
     VERIFY(!WebView::Application::chrome_options().urls.is_empty());
     auto const& url = WebView::Application::chrome_options().urls.first();

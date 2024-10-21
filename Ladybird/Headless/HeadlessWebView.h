@@ -20,7 +20,8 @@ namespace Ladybird {
 
 class HeadlessWebView final : public WebView::ViewImplementation {
 public:
-    static ErrorOr<NonnullOwnPtr<HeadlessWebView>> create(Core::AnonymousBuffer theme, Gfx::IntSize window_size);
+    static NonnullOwnPtr<HeadlessWebView> create(Core::AnonymousBuffer theme, Gfx::IntSize window_size);
+    static NonnullOwnPtr<HeadlessWebView> create_child(HeadlessWebView const&, u64 page_index);
 
     void clear_content_filters();
 
@@ -30,10 +31,10 @@ public:
     void on_test_complete(TestCompletion);
 
 private:
-    explicit HeadlessWebView(Gfx::IntSize viewport_size);
+    HeadlessWebView(Core::AnonymousBuffer theme, Gfx::IntSize viewport_size);
 
     void update_zoom() override { }
-    void initialize_client(CreateNewClient) override { }
+    void initialize_client(CreateNewClient) override;
 
     virtual Web::DevicePixelSize viewport_size() const override { return m_viewport_size.to_type<Web::DevicePixels>(); }
     virtual Gfx::IntPoint to_content_position(Gfx::IntPoint widget_position) const override { return widget_position; }
@@ -41,7 +42,9 @@ private:
 
     virtual void did_receive_screenshot(Badge<WebView::WebContentClient>, Gfx::ShareableBitmap const& screenshot) override;
 
+    Core::AnonymousBuffer m_theme;
     Gfx::IntSize m_viewport_size;
+
     RefPtr<Core::Promise<RefPtr<Gfx::Bitmap>>> m_pending_screenshot;
 
     NonnullRefPtr<TestPromise> m_test_promise;

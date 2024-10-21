@@ -68,12 +68,20 @@ ErrorOr<void> Application::launch_services()
     return {};
 }
 
-ErrorOr<HeadlessWebView*> Application::create_web_view(Core::AnonymousBuffer theme, Gfx::IntSize window_size)
+HeadlessWebView& Application::create_web_view(Core::AnonymousBuffer theme, Gfx::IntSize window_size)
 {
-    auto web_view = TRY(HeadlessWebView::create(move(theme), window_size));
+    auto web_view = HeadlessWebView::create(move(theme), window_size);
     m_web_views.append(move(web_view));
 
-    return m_web_views.last().ptr();
+    return *m_web_views.last();
+}
+
+HeadlessWebView& Application::create_child_web_view(HeadlessWebView const& parent, u64 page_index)
+{
+    auto web_view = HeadlessWebView::create_child(parent, page_index);
+    m_web_views.append(move(web_view));
+
+    return *m_web_views.last();
 }
 
 void Application::destroy_web_views()
