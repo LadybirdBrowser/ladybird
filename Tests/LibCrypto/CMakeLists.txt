@@ -9,6 +9,7 @@ set(TEST_SOURCES
     TestCurves.cpp
     TestEd25519.cpp
     TestHash.cpp
+    TestHKDF.cpp
     TestHMAC.cpp
     TestMGF.cpp
     TestOAEP.cpp
