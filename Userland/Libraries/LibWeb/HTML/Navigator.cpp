@@ -11,6 +11,7 @@
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Bindings/NavigatorPrototype.h>
 #include <LibWeb/Clipboard/Clipboard.h>
+#include <LibWeb/Keyboard/Keyboard.h>
 #include <LibWeb/HTML/Navigator.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/ServiceWorkerContainer.h>
@@ -31,8 +32,6 @@ Navigator::Navigator(JS::Realm& realm)
     : PlatformObject(realm)
 {
 }
-
-Navigator::~Navigator() = default;
 
 void Navigator::initialize(JS::Realm& realm)
 {
@@ -68,6 +67,7 @@ void Navigator::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_user_activation);
     visitor.visit(m_service_worker_container);
     visitor.visit(m_media_capabilities);
+    visitor.visit(m_keyboard);
 }
 
 JS::NonnullGCPtr<MimeTypeArray> Navigator::mime_types()
@@ -89,6 +89,13 @@ JS::NonnullGCPtr<Clipboard::Clipboard> Navigator::clipboard()
     if (!m_clipboard)
         m_clipboard = heap().allocate<Clipboard::Clipboard>(realm(), realm());
     return *m_clipboard;
+}
+
+JS::NonnullGCPtr<Keyboard::Keyboard> Navigator::keyboard()
+{
+    if (!m_keyboard)
+        m_keyboard = heap().allocate<Keyboard::Keyboard>(realm(), realm());
+    return *m_keyboard;
 }
 
 JS::NonnullGCPtr<UserActivation> Navigator::user_activation()

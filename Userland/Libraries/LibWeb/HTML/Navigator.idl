@@ -1,4 +1,5 @@
 #import <Clipboard/Clipboard.idl>
+#import <Keyboard/Keyboard.idl>
 #import <HTML/MimeTypeArray.idl>
 #import <HTML/NavigatorBeacon.idl>
 #import <HTML/NavigatorConcurrentHardware.idl>
@@ -34,6 +35,9 @@ interface Navigator {
 
     // https://w3c.github.io/media-capabilities/#dom-navigator-mediacapabilities
     [SameObject] readonly attribute MediaCapabilities mediaCapabilities;
+
+    // https://wicg.github.io/keyboard-lock/#h-navigator-keyboard
+    [SecureContext, SameObject] readonly attribute Keyboard keyboard;
 };
 
 // NOTE: As NavigatorContentUtils, NavigatorCookies, NavigatorPlugins, and NavigatorAutomationInformation
