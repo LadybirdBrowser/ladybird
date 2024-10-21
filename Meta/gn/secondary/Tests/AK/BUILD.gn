@@ -18,6 +18,7 @@ tests = [
   "TestChecked",
   "TestCircularBuffer",
   "TestCircularQueue",
+  "TestComplex",
   "TestByteString",
   "TestDisjointChunks",
   "TestDistinctNumeric",
