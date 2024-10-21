@@ -98,10 +98,9 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
         return completion.result == Ladybird::TestResult::Pass ? 0 : 1;
     }
 
-    if (!WebView::Application::chrome_options().webdriver_content_ipc_path.has_value()) {
-        auto timer = TRY(load_page_for_screenshot_and_exit(Core::EventLoop::current(), view, url, app->screenshot_timeout));
-        return app->execute();
-    }
+    RefPtr<Core::Timer> timer;
+    if (!WebView::Application::chrome_options().webdriver_content_ipc_path.has_value())
+        timer = TRY(load_page_for_screenshot_and_exit(Core::EventLoop::current(), view, url, app->screenshot_timeout));
 
-    return 0;
+    return app->execute();
 }
