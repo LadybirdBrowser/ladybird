@@ -1,0 +1,40 @@
+<script src="./include.js"></script>
+<script>
+    test(() => {
+        const btn = document.createElement('button');
+        const input = document.createElement('input');
+        const values = [
+            '', undefined, null,
+            'application/x-www-form-urlencoded',
+            'multipart/form-data',
+            'text/plain',
+            'APPLICATION/X-WWW-FORM-URLENCODED',
+            'MULTIPART/FORM-DATA',
+            'tEXt/PlAIn',
+            'text/plain ', '7', '5%'
+        ];
+
+        println('button: unset');
+        println(`button.getAttribute('formEnctype') == '${btn.getAttribute('formEnctype')}'`);
+        println(`button.formEnctype == '${btn.formEnctype}'`);
+        for (value of values) {
+            btn.setAttribute('formEnctype', value);
+            println('');
+            println(`button.setAttribute('formEnctype', '${value}')`);
+            println(`button.getAttribute('formEnctype') == '${btn.getAttribute('formEnctype')}'`);
+            println(`button.formEnctype == '${btn.formEnctype}'`);
+        }
+
+        println('');
+        println('input: unset');
+        println(`input.getAttribute('formEnctype') == '${input.getAttribute('formEnctype')}'`);
+        println(`input.formEnctype == '${input.formEnctype}'`);
+        for (value of values) {
+            input.setAttribute('formEnctype', value);
+            println('');
+            println(`input.setAttribute('formEnctype', '${value}')`);
+            println(`input.getAttribute('formEnctype') == '${input.getAttribute('formEnctype')}'`);
+            println(`input.formEnctype == '${input.formEnctype}'`);
+        }
+    });
+</script>

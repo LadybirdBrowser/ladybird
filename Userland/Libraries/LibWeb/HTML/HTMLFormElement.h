@@ -88,7 +88,6 @@ public:
     bool constructing_entry_list() const { return m_constructing_entry_list; }
     void set_constructing_entry_list(bool value) { m_constructing_entry_list = value; }
 
-    StringView method() const;
     WebIDL::ExceptionOr<void> set_method(String const&);
 
     JS::NonnullGCPtr<DOM::DOMTokenList> rel_list();

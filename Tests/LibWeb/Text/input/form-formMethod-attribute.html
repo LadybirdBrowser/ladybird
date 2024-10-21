@@ -1,0 +1,36 @@
+<script src="./include.js"></script>
+<script>
+    test(() => {
+        const btn = document.createElement('button');
+        const input = document.createElement('input');
+        const values = [
+            '', undefined, null,
+            'get', 'post', 'dialog',
+            'GeT', 'POST', 'DIAlog',
+            'foo', 'xpost', '5%'
+        ];
+
+        println('button: unset');
+        println(`button.getAttribute('formMethod') == '${btn.getAttribute('formMethod')}'`);
+        println(`button.formMethod == '${btn.formMethod}'`);
+        for (value of values) {
+            btn.setAttribute('formMethod', value);
+            println('');
+            println(`button.setAttribute('formMethod', '${value}')`);
+            println(`button.getAttribute('formMethod') == '${btn.getAttribute('formMethod')}'`);
+            println(`button.formMethod == '${btn.formMethod}'`);
+        }
+
+        println('');
+        println('input: unset')
+        println(`input.getAttribute('formMethod') == '${input.getAttribute('formMethod')}'`);
+        println(`input.formMethod == '${input.formMethod}'`);
+        for (value of values) {
+            input.setAttribute('formMethod', value);
+            println('');
+            println(`input.setAttribute('formMethod', '${value}')`);
+            println(`input.getAttribute('formMethod') == '${input.getAttribute('formMethod')}'`);
+            println(`input.formMethod == '${input.formMethod}'`);
+        }
+    });
+</script>
