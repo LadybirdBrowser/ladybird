@@ -81,23 +81,25 @@ JS::ThrowCompletionOr<JS::PropertyDescriptor> cross_origin_property_fallback(JS:
     return throw_completion(WebIDL::SecurityError::create(*vm.current_realm(), MUST(String::formatted("Can't access property '{}' on cross-origin object", property_key))));
 }
 
-// 7.2.3.3 IsPlatformObjectSameOrigin ( O ), https://html.spec.whatwg.org/multipage/browsers.html#isplatformobjectsameorigin-(-o-)
+// 7.2.3.3 IsPlatformObjectSameOrigin ( O ), https://html.spec.whatwg.org/multipage/nav-history-apis.html#isplatformobjectsameorigin-(-o-)
+// https://whatpr.org/html/9893/nav-history-apis.html#isplatformobjectsameorigin-(-o-)
 bool is_platform_object_same_origin(JS::Object const& object)
 {
-    // 1. Return true if the current settings object's origin is same origin-domain with O's relevant settings object's origin, and false otherwise.
-    return HTML::current_settings_object().origin().is_same_origin_domain(HTML::relevant_settings_object(object).origin());
+    // 1. Return true if the current principal settings object's origin is same origin-domain with O's relevant settings object's origin, and false otherwise.
+    return HTML::current_principal_settings_object().origin().is_same_origin_domain(HTML::relevant_settings_object(object).origin());
 }
 
-// 7.2.3.4 CrossOriginGetOwnPropertyHelper ( O, P ), https://html.spec.whatwg.org/multipage/browsers.html#crossorigingetownpropertyhelper-(-o,-p-)
+// 7.2.3.4 CrossOriginGetOwnPropertyHelper ( O, P ), https://html.spec.whatwg.org/multipage/nav-history-apis.html#crossorigingetownpropertyhelper-(-o,-p-)
+// https://whatpr.org/html/9893/nav-history-apis.html#crossorigingetownpropertyhelper-(-o,-p-)
 Optional<JS::PropertyDescriptor> cross_origin_get_own_property_helper(Variant<HTML::Location*, HTML::Window*> const& object, JS::PropertyKey const& property_key)
 {
     auto& realm = *Bindings::main_thread_vm().current_realm();
     auto const* object_ptr = object.visit([](auto* o) { return static_cast<JS::Object const*>(o); });
     auto const object_const_variant = object.visit([](auto* o) { return Variant<HTML::Location const*, HTML::Window const*> { o }; });
 
-    // 1. Let crossOriginKey be a tuple consisting of the current settings object, O's relevant settings object, and P.
+    // 1. Let crossOriginKey be a tuple consisting of the current principal settings object, O's relevant settings object, and P.
     auto cross_origin_key = CrossOriginKey {
-        .current_settings_object = (FlatPtr)&HTML::current_settings_object(),
+        .current_principal_settings_object = (FlatPtr)&HTML::current_principal_settings_object(),
         .relevant_settings_object = (FlatPtr)&HTML::relevant_settings_object(*object_ptr),
         .property_key = property_key,
     };

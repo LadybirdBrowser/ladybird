@@ -81,6 +81,7 @@ ByteString module_type_from_module_request(JS::ModuleRequest const& module_reque
 }
 
 // https://html.spec.whatwg.org/multipage/webappapis.html#resolve-a-module-specifier
+// https://whatpr.org/html/9893/webappapis.html#resolve-a-module-specifier
 WebIDL::ExceptionOr<URL::URL> resolve_module_specifier(Optional<Script&> referring_script, ByteString const& specifier)
 {
     // 1. Let settingsObject and baseURL be null.
@@ -97,11 +98,11 @@ WebIDL::ExceptionOr<URL::URL> resolve_module_specifier(Optional<Script&> referri
     }
     // 3. Otherwise:
     else {
-        // 1. Assert: there is a current settings object.
-        // NOTE: This is handled by the current_settings_object() accessor.
+        // 1. Assert: there is a current principal settings object.
+        // NOTE: This is handled by the current_principal_settings_object() accessor.
 
-        // 2. Set settingsObject to the current settings object.
-        settings_object = current_settings_object();
+        // 2. Set settingsObject to the current principal settings object.
+        settings_object = current_principal_settings_object();
 
         // 3. Set baseURL to settingsObject's API base URL.
         base_url = settings_object->api_base_url();

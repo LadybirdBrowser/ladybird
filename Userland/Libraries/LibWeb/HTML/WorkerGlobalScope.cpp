@@ -79,6 +79,7 @@ void WorkerGlobalScope::close_a_worker()
 }
 
 // https://html.spec.whatwg.org/multipage/workers.html#importing-scripts-and-libraries
+// https://whatpr.org/html/9893/workers.html#importing-scripts-and-libraries
 WebIDL::ExceptionOr<void> WorkerGlobalScope::import_scripts(Vector<String> const& urls, PerformTheFetchHook perform_fetch)
 {
     // The algorithm may optionally be customized by supplying custom perform the fetch hooks,
@@ -87,8 +88,8 @@ WebIDL::ExceptionOr<void> WorkerGlobalScope::import_scripts(Vector<String> const
 
     // FIXME: 1. If worker global scope's type is "module", throw a TypeError exception.
 
-    // 2. Let settings object be the current settings object.
-    auto& settings_object = HTML::current_settings_object();
+    // 2. Let settings object be the current principal settings object.
+    auto& settings_object = HTML::current_principal_settings_object();
 
     // 3. If urls is empty, return.
     if (urls.is_empty())

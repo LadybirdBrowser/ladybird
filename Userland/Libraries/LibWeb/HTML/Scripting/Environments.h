@@ -142,7 +142,7 @@ private:
 EnvironmentSettingsObject& incumbent_settings_object();
 JS::Realm& incumbent_realm();
 JS::Object& incumbent_global_object();
-EnvironmentSettingsObject& current_settings_object();
+EnvironmentSettingsObject& current_principal_settings_object();
 JS::Object& current_global_object();
 JS::Realm& relevant_realm(JS::Object const&);
 EnvironmentSettingsObject& relevant_settings_object(JS::Object const&);
