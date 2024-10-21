@@ -69,7 +69,15 @@ String PropertyOwningCSSStyleDeclaration::item(size_t index) const
 JS::NonnullGCPtr<ElementInlineCSSStyleDeclaration> ElementInlineCSSStyleDeclaration::create(DOM::Element& element, Vector<StyleProperty> properties, HashMap<FlyString, StyleProperty> custom_properties)
 {
     auto& realm = element.realm();
-    return realm.heap().allocate<ElementInlineCSSStyleDeclaration>(realm, element, move(properties), move(custom_properties));
+    auto declaration = realm.heap().allocate<ElementInlineCSSStyleDeclaration>(realm, element, move(properties), move(custom_properties));
+    for (auto& property : declaration->m_properties) {
+        if (property_is_shorthand(property.property_id)) {
+            StyleComputer::for_each_property_expanding_shorthands(property.property_id, *property.value, StyleComputer::AllowUnresolved::Yes, [declaration, property](PropertyID longhand_property_id, CSSStyleValue const& longhand_value) {
+                declaration->set_a_css_declaration(longhand_property_id, longhand_value, property.important);
+            });
+        }
+    }
+    return declaration;
 }
 
 ElementInlineCSSStyleDeclaration::ElementInlineCSSStyleDeclaration(DOM::Element& element, Vector<StyleProperty> properties, HashMap<FlyString, StyleProperty> custom_properties)
@@ -242,6 +250,8 @@ String CSSStyleDeclaration::get_property_value(StringView property_name) const
     if (property_is_shorthand(property_id.value())) {
         // 1. Let list be a new empty array.
         StringBuilder list;
+        bool all_values_are_equal = true;
+        RefPtr<CSSStyleValue const> last_serialized_value;
         Optional<Important> last_important_flag;
 
         // 2. For each longhand property longhand that property maps to, in canonical order, follow these substeps:
@@ -256,7 +266,10 @@ String CSSStyleDeclaration::get_property_value(StringView property_name) const
             // 3. Append the declaration to list.
             if (!list.is_empty())
                 list.append(' ');
+            if (all_values_are_equal && last_serialized_value && *last_serialized_value != *declaration->value)
+                all_values_are_equal = false;
             list.append(declaration->value->to_string());
+            last_serialized_value = declaration->value;
 
             if (last_important_flag.has_value() && declaration->important != *last_important_flag)
                 return {};
@@ -264,6 +277,11 @@ String CSSStyleDeclaration::get_property_value(StringView property_name) const
         }
 
         // 3. If important flags of all declarations in list are same, then return the serialization of list.
+        // https://drafts.csswg.org/cssom/#serialize-a-css-value
+        // If this algorithm is invoked with a list list:
+        //   Let shorthand be the first shorthand property, in preferred order, that exactly maps to all of the longhand properties in list.
+        if (all_values_are_equal && last_serialized_value)
+            return last_serialized_value->to_string();
         return list.to_string_without_validation();
 
         // 4. Return the empty string.
