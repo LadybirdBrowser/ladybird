@@ -17,6 +17,7 @@ namespace Unicode {
 Optional<GeneralCategory> general_category_from_string(StringView);
 bool code_point_has_general_category(u32 code_point, GeneralCategory general_category);
 
+bool code_point_is_printable(u32 code_point);
 bool code_point_has_control_general_category(u32 code_point);
 bool code_point_has_letter_general_category(u32 code_point);
 bool code_point_has_number_general_category(u32 code_point);
