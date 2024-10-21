@@ -319,7 +319,7 @@ EnvironmentSettingsObject& current_principal_settings_object()
 }
 
 // https://html.spec.whatwg.org/multipage/webappapis.html#current-global-object
-JS::Object& current_global_object()
+JS::Object& current_principal_global_object()
 {
     auto& event_loop = HTML::main_thread_event_loop();
     auto& vm = event_loop.vm();
