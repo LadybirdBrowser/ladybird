@@ -6,6 +6,7 @@ add_library(ladybird_impl STATIC
     UI/Event.mm
     UI/Inspector.mm
     UI/InspectorController.mm
+    UI/InspectorWindow.mm
     UI/LadybirdWebView.mm
     UI/LadybirdWebViewBridge.cpp
     UI/Palette.mm

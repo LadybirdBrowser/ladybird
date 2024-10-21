@@ -44,9 +44,10 @@ static String style_sheet_identifier_to_json(Web::CSS::StyleSheetIdentifier cons
         identifier.url.value_or("undefined"_string)));
 }
 
-InspectorClient::InspectorClient(ViewImplementation& content_web_view, ViewImplementation& inspector_web_view)
+InspectorClient::InspectorClient(ViewImplementation& content_web_view, ViewImplementation& inspector_web_view, bool is_windowed)
     : m_content_web_view(content_web_view)
     , m_inspector_web_view(inspector_web_view)
+    , m_is_windowed(is_windowed)
 {
     m_content_web_view.on_received_dom_tree = [this](auto const& dom_tree) {
         auto result = parse_json_tree(dom_tree);
@@ -280,6 +281,10 @@ InspectorClient::InspectorClient(ViewImplementation& content_web_view, ViewImple
         append_console_message(MUST(String::formatted("Exported Inspector files to {}", inspector_path)));
     };
 
+    m_inspector_web_view.on_inspector_closed = [this]() {
+        this->on_requested_close();
+    };
+
     load_inspector();
 }
 
@@ -504,6 +509,15 @@ void InspectorClient::context_menu_delete_all_cookies()
     m_cookie_context_menu_index.clear();
 }
 
+void InspectorClient::set_is_windowed(bool is_windowed)
+{
+    if (!m_inspector_loaded)
+        return;
+
+    auto const script = MUST(String::formatted("inspector.setCloseInspectorButtonVisibility({});", !is_windowed));
+    m_inspector_web_view.run_javascript(script);
+}
+
 void InspectorClient::load_inspector()
 {
     auto inspector_html = MUST(Core::Resource::load_from_uri(INSPECTOR_HTML));
@@ -535,6 +549,19 @@ void InspectorClient::load_inspector()
     generator.set("COMPUTED_STYLE"sv, generate_property_table("computed-style"sv));
     generator.set("RESOVLED_STYLE"sv, generate_property_table("resolved-style"sv));
     generator.set("CUSTOM_PROPERTIES"sv, generate_property_table("custom-properties"sv));
+
+    auto display = "block";
+    if (m_is_windowed) {
+        display = "none";
+    }
+
+    auto button_element = MUST(String::formatted(R"~~~(
+        <button id="close-inspector-button" style="display: {}" title="Close the Inspector" onclick="inspector.close()"></button>
+)~~~",
+        display));
+
+    generator.set("CLOSE_INSPECTOR_BUTTON"sv, button_element);
+
     generator.append(inspector_html->data());
 
     m_inspector_web_view.load_html(generator.as_string_view());

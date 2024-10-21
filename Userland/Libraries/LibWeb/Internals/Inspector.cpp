@@ -105,4 +105,9 @@ void Inspector::export_inspector_html(String const& html)
     inspector_page_client().inspector_did_export_inspector_html(html);
 }
 
+void Inspector::close_inspector()
+{
+    inspector_page_client().inspector_did_close();
+}
+
 }

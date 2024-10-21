@@ -37,6 +37,8 @@ public:
 
     void export_inspector_html(String const& html);
 
+    void close_inspector();
+
 private:
     explicit Inspector(JS::Realm&);
 
