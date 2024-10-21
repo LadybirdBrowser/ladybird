@@ -18,7 +18,7 @@
 
 static Vector<ByteString> certificates;
 
-static ErrorOr<pid_t> launch_process(StringView application, ReadonlySpan<char const*> arguments)
+static ErrorOr<pid_t> launch_process(StringView application, ReadonlySpan<ByteString> arguments)
 {
     auto paths = TRY(get_paths_for_helper_process(application));
 
@@ -32,11 +32,11 @@ static ErrorOr<pid_t> launch_process(StringView application, ReadonlySpan<char c
     return result;
 }
 
-static ErrorOr<pid_t> launch_browser(ByteString const& socket_path, bool force_cpu_painting)
+static Vector<ByteString> create_arguments(ByteString const& socket_path, bool force_cpu_painting)
 {
-    auto arguments = Vector {
-        "--webdriver-content-path",
-        socket_path.characters(),
+    Vector<ByteString> arguments {
+        "--webdriver-content-path"sv,
+        socket_path,
     };
 
     Vector<ByteString> certificate_args;
@@ -45,28 +45,26 @@ static ErrorOr<pid_t> launch_browser(ByteString const& socket_path, bool force_c
         arguments.append(certificate_args.last().view().characters_without_null_termination());
     }
 
-    arguments.append("--allow-popups");
-    arguments.append("--force-new-process");
-    arguments.append("--enable-autoplay");
+    arguments.append("--allow-popups"sv);
+    arguments.append("--force-new-process"sv);
+    arguments.append("--enable-autoplay"sv);
     if (force_cpu_painting)
-        arguments.append("--force-cpu-painting");
+        arguments.append("--force-cpu-painting"sv);
 
-    arguments.append("about:blank");
+    arguments.append("about:blank"sv);
+    return arguments;
+}
 
+static ErrorOr<pid_t> launch_browser(ByteString const& socket_path, bool force_cpu_painting)
+{
+    auto arguments = create_arguments(socket_path, force_cpu_painting);
     return launch_process("Ladybird"sv, arguments.span());
 }
 
-static ErrorOr<pid_t> launch_headless_browser(ByteString const& socket_path)
+static ErrorOr<pid_t> launch_headless_browser(ByteString const& socket_path, bool force_cpu_painting)
 {
-    auto resources = ByteString::formatted("{}/res", s_ladybird_resource_root);
-    return launch_process("headless-browser"sv,
-        Array {
-            "--resources",
-            resources.characters(),
-            "--webdriver-content-path",
-            socket_path.characters(),
-            "about:blank",
-        });
+    auto arguments = create_arguments(socket_path, force_cpu_painting);
+    return launch_process("headless-browser"sv, arguments.span());
 }
 
 ErrorOr<int> serenity_main(Main::Arguments arguments)
@@ -121,7 +119,11 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
             return launch_browser(socket_path, force_cpu_painting);
         };
 
-        auto maybe_client = WebDriver::Client::try_create(maybe_buffered_socket.release_value(), { move(launch_browser_callback), launch_headless_browser }, server);
+        auto launch_headless_browser_callback = [&](ByteString const& socket_path) {
+            return launch_headless_browser(socket_path, force_cpu_painting);
+        };
+
+        auto maybe_client = WebDriver::Client::try_create(maybe_buffered_socket.release_value(), { move(launch_browser_callback), move(launch_headless_browser_callback) }, server);
         if (maybe_client.is_error()) {
             warnln("Could not create a WebDriver client: {}", maybe_client.error());
             return;
