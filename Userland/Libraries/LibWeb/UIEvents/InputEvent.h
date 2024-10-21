@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <LibWeb/DOM/StaticRange.h>
 #include <LibWeb/UIEvents/UIEvent.h>
 
 namespace Web::UIEvents {
@@ -13,7 +14,7 @@ namespace Web::UIEvents {
 struct InputEventInit : public UIEventInit {
     Optional<String> data;
     bool is_composing { false };
-    String input_type {};
+    FlyString input_type {};
 };
 
 class InputEvent final : public UIEvent {
@@ -21,6 +22,7 @@ class InputEvent final : public UIEvent {
     JS_DECLARE_ALLOCATOR(InputEvent);
 
 public:
+    [[nodiscard]] static JS::NonnullGCPtr<InputEvent> create_from_platform_event(JS::Realm&, FlyString const& type, InputEventInit const& event_init);
     static WebIDL::ExceptionOr<JS::NonnullGCPtr<InputEvent>> construct_impl(JS::Realm&, FlyString const& event_name, InputEventInit const& event_init);
 
     virtual ~InputEvent() override;
@@ -32,7 +34,9 @@ public:
     bool is_composing() const { return m_is_composing; }
 
     // https://w3c.github.io/uievents/#dom-inputevent-inputtype
-    String input_type() const { return m_input_type; }
+    FlyString input_type() const { return m_input_type; }
+
+    Vector<DOM::StaticRange> get_target_ranges() const;
 
 private:
     InputEvent(JS::Realm&, FlyString const& event_name, InputEventInit const&);
@@ -41,7 +45,7 @@ private:
 
     Optional<String> m_data;
     bool m_is_composing;
-    String m_input_type;
+    FlyString m_input_type;
 };
 
 }

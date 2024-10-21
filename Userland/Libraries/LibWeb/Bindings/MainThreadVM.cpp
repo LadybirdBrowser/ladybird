@@ -47,6 +47,7 @@
 #include <LibWeb/SVG/AttributeNames.h>
 #include <LibWeb/SVG/TagNames.h>
 #include <LibWeb/UIEvents/EventNames.h>
+#include <LibWeb/UIEvents/InputTypes.h>
 #include <LibWeb/WebGL/EventNames.h>
 #include <LibWeb/WebIDL/AbstractOperations.h>
 #include <LibWeb/XHR/EventNames.h>
@@ -105,6 +106,7 @@ ErrorOr<void> initialize_main_thread_vm(HTML::EventLoop::Type type)
     SVG::AttributeNames::initialize_strings();
     SVG::TagNames::initialize_strings();
     UIEvents::EventNames::initialize_strings();
+    UIEvents::InputTypes::initialize_strings();
     WebGL::EventNames::initialize_strings();
     XHR::EventNames::initialize_strings();
     XLink::AttributeNames::initialize_strings();

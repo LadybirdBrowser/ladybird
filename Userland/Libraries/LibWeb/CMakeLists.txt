@@ -708,6 +708,7 @@ set(SOURCES
     UIEvents/EventNames.cpp
     UIEvents/FocusEvent.cpp
     UIEvents/InputEvent.cpp
+    UIEvents/InputTypes.cpp
     UIEvents/KeyboardEvent.cpp
     UIEvents/MouseEvent.cpp
     UIEvents/PointerEvent.cpp
