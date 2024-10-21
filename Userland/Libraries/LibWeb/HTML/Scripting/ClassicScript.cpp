@@ -19,22 +19,24 @@ namespace Web::HTML {
 JS_DEFINE_ALLOCATOR(ClassicScript);
 
 // https://html.spec.whatwg.org/multipage/webappapis.html#creating-a-classic-script
+// https://whatpr.org/html/9893/webappapis.html#creating-a-classic-script
 JS::NonnullGCPtr<ClassicScript> ClassicScript::create(ByteString filename, StringView source, EnvironmentSettingsObject& environment_settings_object, URL::URL base_url, size_t source_line_number, MutedErrors muted_errors)
 {
-    auto& vm = environment_settings_object.realm().vm();
+    auto& realm = environment_settings_object.realm();
+    auto& vm = realm.vm();
 
     // 1. If muted errors is true, then set baseURL to about:blank.
     if (muted_errors == MutedErrors::Yes)
         base_url = "about:blank"sv;
 
-    // 2. If scripting is disabled for settings object, then set source to the empty string.
-    if (environment_settings_object.is_scripting_disabled())
+    // 2. If scripting is disabled for realm, then set source to the empty string.
+    if (is_scripting_disabled(realm))
         source = ""sv;
 
     // 3. Let script be a new classic script that this algorithm will subsequently initialize.
     auto script = vm.heap().allocate_without_realm<ClassicScript>(move(base_url), move(filename), environment_settings_object);
 
-    // 4. Set script's settings object to settings. (NOTE: This was already done when constructing.)
+    // FIXME: 4. Set script's realm to realm. (NOTE: This was already done when constructing.)
 
     // 5. Set script's base URL to baseURL. (NOTE: This was already done when constructing.)
 
@@ -49,9 +51,9 @@ JS::NonnullGCPtr<ClassicScript> ClassicScript::create(ByteString filename, Strin
 
     // FIXME: 9. Record classic script creation time given script and sourceURLForWindowScripts .
 
-    // 10. Let result be ParseScript(source, settings's Realm, script).
+    // 10. Let result be ParseScript(source, realm, script).
     auto parse_timer = Core::ElapsedTimer::start_new();
-    auto result = JS::Script::parse(source, environment_settings_object.realm(), script->filename(), script, source_line_number);
+    auto result = JS::Script::parse(source, realm, script->filename(), script, source_line_number);
     dbgln_if(HTML_SCRIPT_DEBUG, "ClassicScript: Parsed {} in {}ms", script->filename(), parse_timer.elapsed());
 
     // 11. If result is a list of errors, then:
@@ -60,7 +62,7 @@ JS::NonnullGCPtr<ClassicScript> ClassicScript::create(ByteString filename, Strin
         dbgln_if(HTML_SCRIPT_DEBUG, "ClassicScript: Failed to parse: {}", parse_error.to_string());
 
         // 1. Set script's parse error and its error to rethrow to result[0].
-        script->set_parse_error(JS::SyntaxError::create(environment_settings_object.realm(), parse_error.to_string()));
+        script->set_parse_error(JS::SyntaxError::create(realm, parse_error.to_string()));
         script->set_error_to_rethrow(script->parse_error());
 
         // 2. Return script.
@@ -75,13 +77,15 @@ JS::NonnullGCPtr<ClassicScript> ClassicScript::create(ByteString filename, Strin
 }
 
 // https://html.spec.whatwg.org/multipage/webappapis.html#run-a-classic-script
+// https://whatpr.org/html/9893/webappapis.html#run-a-classic-script
 JS::Completion ClassicScript::run(RethrowErrors rethrow_errors)
 {
     // 1. Let settings be the settings object of script.
     auto& settings = settings_object();
+    auto& realm = settings.realm();
 
     // 2. Check if we can run script with settings. If this returns "do not run" then return NormalCompletion(empty).
-    if (settings.can_run_script() == RunScriptDecision::DoNotRun)
+    if (can_run_script(realm) == RunScriptDecision::DoNotRun)
         return JS::normal_completion({});
 
     // 3. Prepare to run script given settings.
@@ -121,7 +125,7 @@ JS::Completion ClassicScript::run(RethrowErrors rethrow_errors)
             settings.clean_up_after_running_script();
 
             // 2. Throw a "NetworkError" DOMException.
-            return throw_completion(WebIDL::NetworkError::create(settings.realm(), "Script error."_string));
+            return throw_completion(WebIDL::NetworkError::create(realm, "Script error."_string));
         }
 
         // 3. Otherwise, rethrow errors is false. Perform the following steps:
