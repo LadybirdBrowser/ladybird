@@ -108,6 +108,11 @@ bool code_point_has_general_category(u32 code_point, GeneralCategory general_cat
     return u_charType(icu_code_point) == icu_general_category;
 }
 
+bool code_point_is_printable(u32 code_point)
+{
+    return static_cast<bool>(u_isprint(static_cast<UChar32>(code_point)));
+}
+
 bool code_point_has_control_general_category(u32 code_point)
 {
     return code_point_has_general_category(code_point, U_CONTROL_CHAR);
