@@ -7,6 +7,7 @@
  */
 
 #include <AK/Base64.h>
+#include <LibTextCodec/Decoder.h>
 #include <LibURL/URL.h>
 #include <LibWeb/Fetch/Infrastructure/URL.h>
 #include <LibWeb/MimeSniff/MimeType.h>
@@ -75,7 +76,9 @@ ErrorOr<DataURL> process_data_url(URL::URL const& data_url)
         trimmed_substring_view = trimmed_substring_view.trim(" "sv, TrimMode::Right);
         if (trimmed_substring_view.ends_with(';')) {
             // 1. Let stringBody be the isomorphic decode of body.
-            auto string_body = StringView(body);
+            auto decoder = TextCodec::decoder_for_exact_name("ISO-8859-1"sv);
+            VERIFY(decoder.has_value());
+            auto string_body = MUST(decoder->to_utf8(StringView { body }));
 
             // 2. Set body to the forgiving-base64 decode of stringBody.
             // 3. If body is failure, then return failure.
