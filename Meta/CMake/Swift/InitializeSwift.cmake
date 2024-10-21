@@ -98,7 +98,7 @@ function(_setup_swift_paths)
   elseif(NOT APPLE)
     find_file(SWIFT_SWIFTRT_FILE
               swiftrt.o
-              PATHS ${SWIFT_LIBRARY_SEARCH_PATHS}
+              PATHS ${SWIFT_LIBRARY_SEARCH_PATHS} "/usr/libexec/swift/6.0.1/lib/swift_static/linux/x86_64/"
               NO_CACHE
               REQUIRED
               NO_DEFAULT_PATH)
