@@ -2440,7 +2440,7 @@ static void generate_html_constructor(SourceGenerator& generator, IDL::Construct
     }
 
     constructor_generator.append(R"~~~(
-    auto& window = verify_cast<HTML::Window>(HTML::current_global_object());
+    auto& window = verify_cast<HTML::Window>(HTML::current_principal_global_object());
 
     // 1. Let registry be the current global object's CustomElementRegistry object.
     auto registry = TRY(throw_dom_exception_if_needed(vm, [&] { return window.custom_elements(); }));

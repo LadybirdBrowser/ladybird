@@ -146,7 +146,7 @@ JS::Object& incumbent_global_object();
 JS::Realm& current_principal_realm();
 EnvironmentSettingsObject& current_principal_settings_object();
 
-JS::Object& current_global_object();
+JS::Object& current_principal_global_object();
 JS::Realm& relevant_realm(JS::Object const&);
 EnvironmentSettingsObject& relevant_settings_object(JS::Object const&);
 EnvironmentSettingsObject& relevant_settings_object(DOM::Node const&);

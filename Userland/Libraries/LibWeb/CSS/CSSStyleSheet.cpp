@@ -34,8 +34,8 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<CSSStyleSheet>> CSSStyleSheet::construct_im
     // 1. Construct a new CSSStyleSheet object sheet.
     auto sheet = create(realm, CSSRuleList::create_empty(realm), CSS::MediaList::create(realm, {}), {});
 
-    // 2. Set sheet’s location to the base URL of the associated Document for the current global object.
-    auto associated_document = verify_cast<HTML::Window>(HTML::current_global_object()).document();
+    // 2. Set sheet’s location to the base URL of the associated Document for the current principal global object.
+    auto associated_document = verify_cast<HTML::Window>(HTML::current_principal_global_object()).document();
     sheet->set_location(MUST(associated_document->base_url().to_string()));
 
     // 3. Set sheet’s stylesheet base URL to the baseURL attribute value from options.

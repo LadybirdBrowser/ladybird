@@ -110,7 +110,7 @@ WebIDL::ExceptionOr<String> Location::href() const
 WebIDL::ExceptionOr<void> Location::set_href(String const& new_href)
 {
     auto& realm = this->realm();
-    auto& window = verify_cast<HTML::Window>(HTML::current_global_object());
+    auto& window = verify_cast<HTML::Window>(HTML::current_principal_global_object());
 
     // 1. If this's relevant Document is null, then return.
     auto const relevant_document = this->relevant_document();
