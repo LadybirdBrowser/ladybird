@@ -1909,7 +1909,7 @@ CSSPixelRect GridFormattingContext::get_grid_area_rect(GridItem const& grid_item
         }
     };
 
-    if (grid_item.row.has_value()) {
+    if (grid_item.row.has_value() && grid_item.row_span.has_value()) {
         if (grid_item.row == (int)m_grid_rows.size()) {
             place_into_track_formed_by_last_line_and_grid_container_padding_edge(GridDimension::Row);
         } else {
@@ -1931,7 +1931,7 @@ CSSPixelRect GridFormattingContext::get_grid_area_rect(GridItem const& grid_item
         area_rect.set_y(-grid_container_state.padding_top);
     }
 
-    if (grid_item.column.has_value()) {
+    if (grid_item.column.has_value() && grid_item.column_span.has_value()) {
         if (grid_item.column == (int)m_grid_columns.size()) {
             place_into_track_formed_by_last_line_and_grid_container_padding_edge(GridDimension::Column);
         } else {
@@ -2093,13 +2093,41 @@ void GridFormattingContext::layout_absolutely_positioned_element(Box const& box)
     GridItem item { box, {}, {}, {}, {} };
     if (!is_auto_row) {
         auto row_placement_position = resolve_grid_position(box, GridDimension::Row);
-        item.row = row_placement_position.start;
-        item.row_span = row_placement_position.span;
+
+        // https://www.w3.org/TR/css-grid-2/#abspos
+        // 10.1. With a Grid Container as Containing Block
+        // If a grid-placement property refers to a non-existent line either by
+        // explicitly specifying such a line or by spanning outside of the existing
+        // implicit grid, it is instead treated as specifying auto (instead of
+        // creating new implicit grid lines).
+
+        // FIXME: This logic is the same between rows and columns. We should
+        // deduplicate it into resolve_grid_position().
+
+        int max_row = m_grid_rows.size();
+
+        // NOTE: If the row start refers to a line before the first row or after the
+        // last row (intentionally allowing +1 row to allow placing abspos items
+        // between the last row and the container end), treat it as if it was `auto`.
+        auto start = row_placement_position.start;
+        if (start >= 0 && start <= max_row)
+            item.row = start;
+
+        // NOTE: If the placement starts past the end it should ignore the grid entirely.
+        if (start <= max_row)
+            item.row_span = row_placement_position.span;
     }
     if (!is_auto_column) {
         auto column_placement_position = resolve_grid_position(box, GridDimension::Column);
-        item.column = column_placement_position.start;
-        item.column_span = column_placement_position.span;
+
+        int max_column = m_grid_columns.size();
+
+        auto start = column_placement_position.start;
+        if (start >= 0 && start <= max_column)
+            item.column = start;
+
+        if (start <= max_column)
+            item.column_span = column_placement_position.span;
     }
 
     auto grid_area_rect = get_grid_area_rect(item);
