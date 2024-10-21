@@ -1,0 +1,27 @@
+<style>
+  .container {
+      display: box;
+      background-color: green;
+      width: 300px;
+      height: 200px;
+  }
+  .animate {
+      background-color: brown;
+      color: white;
+      animation: 0.3s slideUp
+  }
+
+  @keyframes slideUp {
+  0% {
+    height:inherit;
+  }
+  to {
+    height:fit-content;
+  }
+}
+
+</style>
+<div class="container">
+  <div class="animate">animate</div>
+  </div>
+</div>
