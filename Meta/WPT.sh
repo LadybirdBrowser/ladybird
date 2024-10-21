@@ -18,9 +18,9 @@ BUILD_DIR=$(get_build_dir "$BUILD_PRESET")
 
 default_binary_path() {
     if [ "$(uname -s)" = "Darwin" ]; then
-        echo "${BUILD_DIR}/bin/Ladybird.app/Contents/MacOS/"
+        echo "${BUILD_DIR}/bin/Ladybird.app/Contents/MacOS"
     else
-        echo "${BUILD_DIR}/bin/"
+        echo "${BUILD_DIR}/bin"
     fi
 }
 
@@ -31,8 +31,7 @@ WPT_CERTIFICATES=(
   "tools/certs/cacert.pem"
   "${LADYBIRD_SOURCE_DIR}/Build/ladybird/Lagom/cacert.pem"
 )
-WPT_ARGS=( "--binary=${LADYBIRD_BINARY}"
-           "--webdriver-binary=${WEBDRIVER_BINARY}"
+WPT_ARGS=( "--webdriver-binary=${WEBDRIVER_BINARY}"
            "--install-webdriver"
             "--processes=${WPT_PROCESSES}"
            "--webdriver-arg=--force-cpu-painting"
@@ -82,23 +81,39 @@ if [ "$CMD" = "--help" ] || [ "$CMD" = "help" ]; then
     exit 0
 fi
 
+set_logging_flags()
+{
+    [ -n "${1}" ] || usage;
+    [ -n "${2}" ] || usage;
+
+    log_type="${1}"
+    log_name="$(pwd -P)/${2}"
+
+    WPT_ARGS+=( "${log_type}=${log_name}" )
+}
+
 ARG=$1
-while [[ "$ARG" =~ ^--log(-(raw|unittest|xunit|html|mach|tbpl|grouped|chromium|wptreport|wptscreenshot))?$ ]]; do
+while [[ "$ARG" =~ ^(--headless|(--log(-(raw|unittest|xunit|html|mach|tbpl|grouped|chromium|wptreport|wptscreenshot))?))$ ]]; do
     case "$ARG" in
+        --headless)
+            LADYBIRD_BINARY="$(default_binary_path)/headless-browser"
+            WPT_ARGS+=( "--webdriver-arg=--headless" )
+            ;;
         --log)
-            LOG_TYPE="--log-raw"
+            set_logging_flags "--log-raw" "${2}"
+            shift
             ;;
         *)
-            LOG_TYPE="$ARG"
+            set_logging_flags "${ARG}" "${2}"
+            shift
             ;;
     esac
-    shift
-    LOG_NAME="$(pwd -P)/$1"
-    [ -n "$LOG_NAME" ] || usage;
-    WPT_ARGS+=( "${LOG_TYPE}=${LOG_NAME}" )
+
     shift
     ARG=$1
 done
+
+WPT_ARGS+=( "--binary=${LADYBIRD_BINARY}" )
 TEST_LIST=( "$@" )
 
 exit_if_running_as_root "Do not run WPT.sh as root"
