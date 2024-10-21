@@ -250,7 +250,7 @@ ErrorOr<void> initialize_main_thread_vm(HTML::EventLoop::Type type)
             auto result = finalization_registry.cleanup();
 
             // 5. Clean up after running script with entry.
-            entry.clean_up_after_running_script();
+            HTML::clean_up_after_running_script(realm);
 
             // 6. If result is an abrupt completion, then report the exception given by result.[[Value]].
             if (result.is_error())
@@ -309,15 +309,15 @@ ErrorOr<void> initialize_main_thread_vm(HTML::EventLoop::Type type)
             // 3. Let result be job().
             auto result = job->function()();
 
-            // 4. If job settings is not null, then clean up after running script with job settings.
-            if (job_settings) {
+            // 4. If realm is not null, then clean up after running script with job settings.
+            if (realm) {
                 // IMPLEMENTATION DEFINED: Disassociate the realm execution context from the script or module.
                 job_settings->realm_execution_context().script_or_module = Empty {};
 
                 // IMPLEMENTATION DEFINED: See comment above, we need to clean up the non-standard prepare_to_run_callback() call.
                 job_settings->clean_up_after_running_callback();
 
-                job_settings->clean_up_after_running_script();
+                HTML::clean_up_after_running_script(*realm);
             } else {
                 // Pop off the dummy execution context. See the above FIXME block about why this is done.
                 s_main_thread_vm->pop_execution_context();

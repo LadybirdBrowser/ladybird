@@ -1498,8 +1498,8 @@ void Navigation::update_the_navigation_api_entries_for_a_same_document_navigatio
         disposed_nhe->dispatch_event(DOM::Event::create(realm, EventNames::dispose, {}));
     }
 
-    // 12. Clean up after running script given navigation's relevant settings object.
-    relevant_settings_object(*this).clean_up_after_running_script();
+    // 12. Clean up after running script given navigation's relevant realm.
+    clean_up_after_running_script(relevant_realm(*this));
 }
 
 }
