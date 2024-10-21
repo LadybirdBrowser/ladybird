@@ -30,16 +30,45 @@ regex::Parser::Result Regex<Parser>::parse_pattern(StringView pattern, typename 
     return parser.parse();
 }
 
+template<typename Parser>
+struct CacheKey {
+    ByteString pattern;
+    typename ParserTraits<Parser>::OptionsType options;
+
+    bool operator==(CacheKey const& other) const
+    {
+        return pattern == other.pattern && options.value() == other.options.value();
+    }
+};
+template<class Parser>
+static OrderedHashMap<CacheKey<Parser>, regex::Parser::Result> s_parser_cache;
+
+template<class Parser>
+static size_t s_cached_bytecode_size = 0;
+
+static constexpr auto MaxRegexCachedBytecodeSize = 1 * MiB;
+
 template<class Parser>
 Regex<Parser>::Regex(ByteString pattern, typename ParserTraits<Parser>::OptionsType regex_options)
     : pattern_value(move(pattern))
 {
-    regex::Lexer lexer(pattern_value);
+    if (auto cache_entry = s_parser_cache<Parser>.get({ pattern_value, regex_options }); cache_entry.has_value()) {
+        parser_result = cache_entry.value();
+    } else {
+        regex::Lexer lexer(pattern_value);
 
-    Parser parser(lexer, regex_options);
-    parser_result = parser.parse();
+        Parser parser(lexer, regex_options);
+        parser_result = parser.parse();
 
-    run_optimization_passes();
+        run_optimization_passes();
+        if (parser_result.error == regex::Error::NoError) {
+            while (parser_result.bytecode.size() * sizeof(ByteCodeValueType) + s_cached_bytecode_size<Parser> > MaxRegexCachedBytecodeSize)
+                s_cached_bytecode_size<Parser> -= s_parser_cache<Parser>.take_first().bytecode.size() * sizeof(ByteCodeValueType);
+            s_parser_cache<Parser>.set({ pattern_value, regex_options }, parser_result);
+            s_cached_bytecode_size<Parser> += parser_result.bytecode.size() * sizeof(ByteCodeValueType);
+        }
+    }
+
     if (parser_result.error == regex::Error::NoError)
         matcher = make<Matcher<Parser>>(this, static_cast<decltype(regex_options.value())>(parser_result.options.value()));
 }
@@ -549,3 +578,11 @@ template class Regex<PosixExtendedParser>;
 template class Matcher<ECMA262Parser>;
 template class Regex<ECMA262Parser>;
 }
+
+template<typename Parser>
+struct AK::Traits<regex::CacheKey<Parser>> : public AK::DefaultTraits<regex::CacheKey<Parser>> {
+    static unsigned hash(regex::CacheKey<Parser> const& key)
+    {
+        return pair_int_hash(key.pattern.hash(), int_hash(to_underlying(key.options.value())));
+    }
+};
