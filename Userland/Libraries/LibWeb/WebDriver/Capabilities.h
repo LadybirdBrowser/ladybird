@@ -54,6 +54,12 @@ constexpr UnhandledPromptBehavior unhandled_prompt_behavior_from_string(StringVi
     VERIFY_NOT_REACHED();
 }
 
+enum class InterfaceMode {
+    Graphical,
+    Headless,
+};
+void set_default_interface_mode(InterfaceMode);
+
 struct LadybirdOptions {
     explicit LadybirdOptions(JsonObject const& capabilities);
 

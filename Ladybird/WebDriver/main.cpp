@@ -14,6 +14,7 @@
 #include <LibCore/System.h>
 #include <LibCore/TCPServer.h>
 #include <LibMain/Main.h>
+#include <LibWeb/WebDriver/Capabilities.h>
 #include <WebDriver/Client.h>
 
 static Vector<ByteString> certificates;
@@ -74,12 +75,14 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
     auto listen_address = "0.0.0.0"sv;
     int port = 8000;
     bool force_cpu_painting = false;
+    bool headless = false;
 
     Core::ArgsParser args_parser;
     args_parser.add_option(listen_address, "IP address to listen on", "listen-address", 'l', "listen_address");
     args_parser.add_option(port, "Port to listen on", "port", 'p', "port");
     args_parser.add_option(certificates, "Path to a certificate file", "certificate", 'C', "certificate");
     args_parser.add_option(force_cpu_painting, "Launch browser with GPU painting disabled", "force-cpu-painting");
+    args_parser.add_option(headless, "Launch browser without a graphical interface", "headless");
     args_parser.parse(arguments);
 
     auto ipv4_address = IPv4Address::from_string(listen_address);
@@ -94,6 +97,8 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
     }
 
     platform_init();
+
+    Web::WebDriver::set_default_interface_mode(headless ? Web::WebDriver::InterfaceMode::Headless : Web::WebDriver::InterfaceMode::Graphical);
 
     auto webdriver_socket_path = ByteString::formatted("{}/webdriver", TRY(Core::StandardPaths::runtime_directory()));
     TRY(Core::Directory::create(webdriver_socket_path, Core::Directory::CreateDirectories::Yes));

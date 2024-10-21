@@ -72,6 +72,13 @@ static ErrorOr<JsonObject, Error> deserialize_as_a_proxy(JsonValue parameter)
     return proxy;
 }
 
+static InterfaceMode default_interface_mode { InterfaceMode::Graphical };
+
+void set_default_interface_mode(InterfaceMode interface_mode)
+{
+    default_interface_mode = interface_mode;
+}
+
 static Response deserialize_as_ladybird_options(JsonValue value)
 {
     if (!value.is_object())
@@ -88,7 +95,7 @@ static Response deserialize_as_ladybird_options(JsonValue value)
 static JsonObject default_ladybird_options()
 {
     JsonObject options;
-    options.set("headless"sv, false);
+    options.set("headless"sv, default_interface_mode == InterfaceMode::Headless);
 
     return options;
 }
