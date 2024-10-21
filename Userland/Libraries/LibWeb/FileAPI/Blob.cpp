@@ -335,17 +335,17 @@ JS::NonnullGCPtr<Streams::ReadableStream> Blob::get_stream()
 
             // 2. Queue a global task on the file reading task source given blob’s relevant global object to perform the following steps:
             HTML::queue_global_task(HTML::Task::Source::FileReading, realm.global_object(), JS::create_heap_function(heap(), [stream, bytes = move(bytes)]() {
-                // NOTE: Using an TemporaryExecutionContext here results in a crash in the method HTML::incumbent_settings_object()
+                // NOTE: Using an TemporaryExecutionContext here results in a crash in the method HTML::incumbent_realm()
                 //       since we end up in a state where we have no execution context + an event loop with an empty incumbent
-                //       settings object stack. We still need an execution context therefore we push the realm's execution context
-                //       onto the realm's VM, and we need an incumbent settings object which is pushed onto the incumbent settings
-                //       object stack by EnvironmentSettings::prepare_to_run_callback().
+                //       realm stack. We still need an execution context therefore we push the realm's execution context
+                //       onto the realm's VM, and we need an incumbent realm which is pushed onto the incumbent realm stack
+                //       by HTML::prepare_to_run_callback().
                 auto& realm = stream->realm();
                 auto& environment_settings = Bindings::host_defined_environment_settings_object(realm);
                 realm.vm().push_execution_context(environment_settings.realm_execution_context());
-                environment_settings.prepare_to_run_callback();
-                ScopeGuard const guard = [&environment_settings, &realm] {
-                    environment_settings.clean_up_after_running_callback();
+                HTML::prepare_to_run_callback(realm);
+                ScopeGuard const guard = [&realm] {
+                    HTML::clean_up_after_running_callback(realm);
                     realm.vm().pop_execution_context();
                 };
 

@@ -283,7 +283,7 @@ JS::ThrowCompletionOr<JS::Value> execute_a_function_body(HTML::Window const& win
     HTML::prepare_to_run_script(realm);
 
     // 7. Prepare to run a callback with environment settings.
-    environment_settings.prepare_to_run_callback();
+    HTML::prepare_to_run_callback(realm);
 
     // 8. Let function be the result of calling FunctionCreate, with arguments:
     // kind
@@ -304,7 +304,7 @@ JS::ThrowCompletionOr<JS::Value> execute_a_function_body(HTML::Window const& win
     auto completion = function->internal_call(&window, parameters);
 
     // 10. Clean up after running a callback with environment settings.
-    environment_settings.clean_up_after_running_callback();
+    HTML::clean_up_after_running_callback(realm);
 
     // 11. Clean up after running a script with realm.
     HTML::clean_up_after_running_script(realm);

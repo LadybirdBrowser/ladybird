@@ -15,14 +15,14 @@ TemporaryExecutionContext::TemporaryExecutionContext(EnvironmentSettingsObject& 
 {
     prepare_to_run_script(m_environment_settings->realm());
     if (m_callbacks_enabled == CallbacksEnabled::Yes)
-        m_environment_settings->prepare_to_run_callback();
+        prepare_to_run_callback(m_environment_settings->realm());
 }
 
 TemporaryExecutionContext::~TemporaryExecutionContext()
 {
     clean_up_after_running_script(m_environment_settings->realm());
     if (m_callbacks_enabled == CallbacksEnabled::Yes)
-        m_environment_settings->clean_up_after_running_callback();
+        clean_up_after_running_callback(m_environment_settings->realm());
 }
 
 }

@@ -46,7 +46,7 @@ void EventLoop::visit_edges(Visitor& visitor)
     visitor.visit(m_task_queue);
     visitor.visit(m_microtask_queue);
     visitor.visit(m_currently_running_task);
-    visitor.visit(m_backup_incumbent_settings_object_stack);
+    visitor.visit(m_backup_incumbent_realm_stack);
     visitor.visit(m_rendering_task_function);
     visitor.visit(m_system_event_loop_timer);
 }
@@ -538,19 +538,19 @@ void EventLoop::unregister_document(Badge<DOM::Document>, DOM::Document& documen
     VERIFY(did_remove);
 }
 
-void EventLoop::push_onto_backup_incumbent_settings_object_stack(Badge<EnvironmentSettingsObject>, EnvironmentSettingsObject& environment_settings_object)
+void EventLoop::push_onto_backup_incumbent_realm_stack(JS::Realm& realm)
 {
-    m_backup_incumbent_settings_object_stack.append(environment_settings_object);
+    m_backup_incumbent_realm_stack.append(realm);
 }
 
-void EventLoop::pop_backup_incumbent_settings_object_stack(Badge<EnvironmentSettingsObject>)
+void EventLoop::pop_backup_incumbent_realm_stack()
 {
-    m_backup_incumbent_settings_object_stack.take_last();
+    m_backup_incumbent_realm_stack.take_last();
 }
 
-EnvironmentSettingsObject& EventLoop::top_of_backup_incumbent_settings_object_stack()
+JS::Realm& EventLoop::top_of_backup_incumbent_realm_stack()
 {
-    return m_backup_incumbent_settings_object_stack.last();
+    return m_backup_incumbent_realm_stack.last();
 }
 
 void EventLoop::register_environment_settings_object(Badge<EnvironmentSettingsObject>, EnvironmentSettingsObject& environment_settings_object)

@@ -61,10 +61,10 @@ public:
 
     Vector<JS::Handle<HTML::Window>> same_loop_windows() const;
 
-    void push_onto_backup_incumbent_settings_object_stack(Badge<EnvironmentSettingsObject>, EnvironmentSettingsObject& environment_settings_object);
-    void pop_backup_incumbent_settings_object_stack(Badge<EnvironmentSettingsObject>);
-    EnvironmentSettingsObject& top_of_backup_incumbent_settings_object_stack();
-    bool is_backup_incumbent_settings_object_stack_empty() const { return m_backup_incumbent_settings_object_stack.is_empty(); }
+    void push_onto_backup_incumbent_realm_stack(JS::Realm&);
+    void pop_backup_incumbent_realm_stack();
+    JS::Realm& top_of_backup_incumbent_realm_stack();
+    bool is_backup_incumbent_realm_stack_empty() const { return m_backup_incumbent_realm_stack.is_empty(); }
 
     void register_environment_settings_object(Badge<EnvironmentSettingsObject>, EnvironmentSettingsObject&);
     void unregister_environment_settings_object(Badge<EnvironmentSettingsObject>, EnvironmentSettingsObject&);
@@ -107,7 +107,8 @@ private:
     Vector<RawPtr<EnvironmentSettingsObject>> m_related_environment_settings_objects;
 
     // https://html.spec.whatwg.org/multipage/webappapis.html#backup-incumbent-settings-object-stack
-    Vector<JS::NonnullGCPtr<EnvironmentSettingsObject>> m_backup_incumbent_settings_object_stack;
+    // https://whatpr.org/html/9893/webappapis.html#backup-incumbent-realm-stack
+    Vector<JS::NonnullGCPtr<JS::Realm>> m_backup_incumbent_realm_stack;
 
     // https://html.spec.whatwg.org/multipage/browsing-the-web.html#termination-nesting-level
     size_t m_termination_nesting_level { 0 };
