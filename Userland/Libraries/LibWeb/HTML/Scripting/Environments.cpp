@@ -65,6 +65,12 @@ JS::ExecutionContext& EnvironmentSettingsObject::realm_execution_context()
     return *m_realm_execution_context;
 }
 
+JS::ExecutionContext const& EnvironmentSettingsObject::realm_execution_context() const
+{
+    // NOTE: All environment settings objects are created with a realm execution context, so it's stored and returned here in the base class.
+    return *m_realm_execution_context;
+}
+
 ModuleMap& EnvironmentSettingsObject::module_map()
 {
     return *m_module_map;
@@ -122,6 +128,15 @@ void EnvironmentSettingsObject::prepare_to_run_script()
     global_object().vm().push_execution_context(realm_execution_context());
 
     // FIXME: 2. Add settings to the currently running task's script evaluation environment settings object set.
+}
+
+// https://whatpr.org/html/9893/b8ea975...df5706b/webappapis.html#concept-realm-execution-context
+JS::ExecutionContext const& execution_context_of_realm(JS::Realm const& realm)
+{
+    // FIXME: 1. If realm is a principal realm, then return the realm execution context of the environment settings object of realm.
+    // FIXME: 2. Assert: realm is a synthetic realm.
+    // FIXME: 3. Return the execution context of the synthetic realm settings object of realm.
+    return Bindings::host_defined_environment_settings_object(realm).realm_execution_context();
 }
 
 // https://html.spec.whatwg.org/multipage/webappapis.html#clean-up-after-running-script

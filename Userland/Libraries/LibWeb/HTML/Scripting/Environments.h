@@ -63,6 +63,7 @@ public:
 
     // https://html.spec.whatwg.org/multipage/webappapis.html#concept-environment-target-browsing-context
     JS::ExecutionContext& realm_execution_context();
+    JS::ExecutionContext const& realm_execution_context() const;
 
     // https://html.spec.whatwg.org/multipage/webappapis.html#concept-settings-object-module-map
     ModuleMap& module_map();
@@ -134,6 +135,8 @@ private:
     // A service worker client has an associated discarded flag. It is initially unset.
     bool m_discarded { false };
 };
+
+JS::ExecutionContext const& execution_context_of_realm(JS::Realm const&);
 
 RunScriptDecision can_run_script(JS::Realm const&);
 bool is_scripting_enabled(JS::Realm const&);
