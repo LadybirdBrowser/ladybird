@@ -175,14 +175,14 @@ static JS::ExecutionContext* top_most_script_having_execution_context(JS::VM& vm
 }
 
 // https://html.spec.whatwg.org/multipage/webappapis.html#prepare-to-run-a-callback
-void EnvironmentSettingsObject::prepare_to_run_callback()
+void prepare_to_run_callback(JS::Realm& realm)
 {
-    auto& vm = global_object().vm();
+    auto& vm = realm.global_object().vm();
 
-    // 1. Push settings onto the backup incumbent settings object stack.
+    // 1. Push realm onto the backup incumbent settings object stack.
     // NOTE: The spec doesn't say which event loop's stack to put this on. However, all the examples of the incumbent settings object use iframes and cross browsing context communication to demonstrate the concept.
     //       This means that it must rely on some global state that can be accessed by all browsing contexts, which is the main thread event loop.
-    HTML::main_thread_event_loop().push_onto_backup_incumbent_settings_object_stack({}, *this);
+    HTML::main_thread_event_loop().push_onto_backup_incumbent_realm_stack(realm);
 
     // 2. Let context be the topmost script-having execution context.
     auto* context = top_most_script_having_execution_context(vm);
@@ -209,9 +209,10 @@ URL::URL EnvironmentSettingsObject::parse_url(StringView url)
 }
 
 // https://html.spec.whatwg.org/multipage/webappapis.html#clean-up-after-running-a-callback
-void EnvironmentSettingsObject::clean_up_after_running_callback()
+// https://whatpr.org/html/9893/b8ea975...df5706b/webappapis.html#clean-up-after-running-a-callback
+void clean_up_after_running_callback(JS::Realm const& realm)
 {
-    auto& vm = global_object().vm();
+    auto& vm = realm.global_object().vm();
 
     // 1. Let context be the topmost script-having execution context.
     auto* context = top_most_script_having_execution_context(vm);
@@ -220,12 +221,12 @@ void EnvironmentSettingsObject::clean_up_after_running_callback()
     if (context)
         context->skip_when_determining_incumbent_counter--;
 
-    // 3. Assert: the topmost entry of the backup incumbent settings object stack is settings.
+    // 3. Assert: the topmost entry of the backup incumbent realm stack is realm.
     auto& event_loop = HTML::main_thread_event_loop();
-    VERIFY(&event_loop.top_of_backup_incumbent_settings_object_stack() == this);
+    VERIFY(&event_loop.top_of_backup_incumbent_realm_stack() == &realm);
 
-    // 4. Remove settings from the backup incumbent settings object stack.
-    event_loop.pop_backup_incumbent_settings_object_stack({});
+    // 4. Remove realm from the backup incumbent realm stack.
+    event_loop.pop_backup_incumbent_realm_stack();
 }
 
 // https://html.spec.whatwg.org/multipage/webappapis.html#concept-environment-script
@@ -285,8 +286,9 @@ void EnvironmentSettingsObject::disallow_further_import_maps()
     verify_cast<Window>(global).set_import_maps_allowed(false);
 }
 
-// https://html.spec.whatwg.org/multipage/webappapis.html#incumbent-settings-object
-EnvironmentSettingsObject& incumbent_settings_object()
+// https://html.spec.whatwg.org/multipage/webappapis.html#concept-incumbent-realm
+// https://whatpr.org/html/9893/b8ea975...df5706b/webappapis.html#concept-incumbent-realm
+JS::Realm& incumbent_realm()
 {
     auto& event_loop = HTML::main_thread_event_loop();
     auto& vm = event_loop.vm();
@@ -297,22 +299,24 @@ EnvironmentSettingsObject& incumbent_settings_object()
     // 2. If context is null, or if context's skip-when-determining-incumbent counter is greater than zero, then:
     if (!context || context->skip_when_determining_incumbent_counter > 0) {
         // 1. Assert: the backup incumbent settings object stack is not empty.
-        // NOTE: If this assertion fails, it's because the incumbent settings object was used with no involvement of JavaScript.
-        VERIFY(!event_loop.is_backup_incumbent_settings_object_stack_empty());
+        // 1. Assert: the backup incumbent realm stack is not empty.
+        // NOTE: If this assertion fails, it's because the incumbent realm was used with no involvement of JavaScript.
+        VERIFY(!event_loop.is_backup_incumbent_realm_stack_empty());
 
-        // 2. Return the topmost entry of the backup incumbent settings object stack.
-        return event_loop.top_of_backup_incumbent_settings_object_stack();
+        // 2. Return the topmost entry of the backup incumbent realm stack.
+        return event_loop.top_of_backup_incumbent_realm_stack();
     }
 
-    // 3. Return context's Realm component's settings object.
-    return Bindings::host_defined_environment_settings_object(*context->realm);
+    // 3. Return context's Realm component.
+    return *context->realm;
 }
 
-// https://html.spec.whatwg.org/multipage/webappapis.html#concept-incumbent-realm
-JS::Realm& incumbent_realm()
+// https://html.spec.whatwg.org/multipage/webappapis.html#incumbent-settings-object
+// https://whatpr.org/html/9893/b8ea975...df5706b/webappapis.html#incumbent-settings-object
+EnvironmentSettingsObject& incumbent_settings_object()
 {
-    // Then, the incumbent Realm is the Realm of the incumbent settings object.
-    return incumbent_settings_object().realm();
+    // FIXME: Then, the incumbent settings object is the incumbent realm's principal realm settings object.
+    return Bindings::host_defined_environment_settings_object(incumbent_realm());
 }
 
 // https://html.spec.whatwg.org/multipage/webappapis.html#concept-incumbent-global

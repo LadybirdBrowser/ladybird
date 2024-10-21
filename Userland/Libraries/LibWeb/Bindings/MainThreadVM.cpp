@@ -199,14 +199,15 @@ ErrorOr<void> initialize_main_thread_vm(HTML::EventLoop::Type type)
     };
 
     // 8.1.5.4.1 HostCallJobCallback(callback, V, argumentsList), https://html.spec.whatwg.org/multipage/webappapis.html#hostcalljobcallback
+    // https://whatpr.org/html/9893/webappapis.html#hostcalljobcallback
     s_main_thread_vm->host_call_job_callback = [](JS::JobCallback& callback, JS::Value this_value, ReadonlySpan<JS::Value> arguments_list) {
         auto& callback_host_defined = verify_cast<WebEngineCustomJobCallbackData>(*callback.custom_data());
 
-        // 1. Let incumbent settings be callback.[[HostDefined]].[[IncumbentSettings]]. (NOTE: Not necessary)
+        // 1. Let incumbent realm be callback.[[HostDefined]].[[IncumbentRealm]]. (NOTE: Not necessary)
         // 2. Let script execution context be callback.[[HostDefined]].[[ActiveScriptContext]]. (NOTE: Not necessary)
 
-        // 3. Prepare to run a callback with incumbent settings.
-        callback_host_defined.incumbent_settings->prepare_to_run_callback();
+        // 3. Prepare to run a callback with incumbent realm.
+        HTML::prepare_to_run_callback(callback_host_defined.incumbent_settings->realm());
 
         // 4. If script execution context is not null, then push script execution context onto the JavaScript execution context stack.
         if (callback_host_defined.active_script_context)
@@ -221,8 +222,8 @@ ErrorOr<void> initialize_main_thread_vm(HTML::EventLoop::Type type)
             s_main_thread_vm->pop_execution_context();
         }
 
-        // 7. Clean up after running a callback with incumbent settings.
-        callback_host_defined.incumbent_settings->clean_up_after_running_callback();
+        // 7. Clean up after running a callback with incumbent realm.
+        HTML::clean_up_after_running_callback(callback_host_defined.incumbent_settings->realm());
 
         // 8. Return result.
         return result;
@@ -291,7 +292,7 @@ ErrorOr<void> initialize_main_thread_vm(HTML::EventLoop::Type type)
                 // IMPLEMENTATION DEFINED: Additionally to preparing to run a script, we also prepare to run a callback here. This matches WebIDL's
                 //                         invoke_callback() / call_user_object_operation() functions, and prevents a crash in host_make_job_callback()
                 //                         when getting the incumbent settings object.
-                job_settings->prepare_to_run_callback();
+                HTML::prepare_to_run_callback(*realm);
 
                 // IMPLEMENTATION DEFINED: Per the previous "implementation defined" comment, we must now make the script or module the active script or module.
                 //                         Since the only active execution context currently is the realm execution context of job settings, lets attach it here.
@@ -314,7 +315,7 @@ ErrorOr<void> initialize_main_thread_vm(HTML::EventLoop::Type type)
                 job_settings->realm_execution_context().script_or_module = Empty {};
 
                 // IMPLEMENTATION DEFINED: See comment above, we need to clean up the non-standard prepare_to_run_callback() call.
-                job_settings->clean_up_after_running_callback();
+                HTML::clean_up_after_running_callback(*realm);
 
                 HTML::clean_up_after_running_script(*realm);
             } else {

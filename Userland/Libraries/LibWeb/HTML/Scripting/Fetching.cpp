@@ -958,7 +958,7 @@ void fetch_descendants_of_and_link_a_module_script(JS::Realm& realm,
     //       resulting in the event loop hanging forever awaiting for the script to be ready for parser
     //       execution.
     realm.vm().push_execution_context(fetch_client.realm_execution_context());
-    fetch_client.prepare_to_run_callback();
+    prepare_to_run_callback(realm);
 
     // 5. Let loadingPromise be record.LoadRequestedModules(state).
     auto& loading_promise = record->load_requested_modules(state);
@@ -995,7 +995,8 @@ void fetch_descendants_of_and_link_a_module_script(JS::Realm& realm,
         return JS::js_undefined();
     }));
 
-    fetch_client.clean_up_after_running_callback();
+    clean_up_after_running_callback(realm);
+
     realm.vm().pop_execution_context();
 }
 
