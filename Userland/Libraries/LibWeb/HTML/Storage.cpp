@@ -182,7 +182,9 @@ JS::Value Storage::named_item_value(FlyString const& name) const
 {
     auto value = get_item(name);
     if (!value.has_value())
-        return JS::js_null();
+        // AD-HOC: Spec leaves open to a description at: https://html.spec.whatwg.org/multipage/webstorage.html#the-storage-interface
+        // However correct behavior expected here: https://github.com/whatwg/html/issues/8684
+        return JS::js_undefined();
     return JS::PrimitiveString::create(vm(), value.release_value());
 }
 
