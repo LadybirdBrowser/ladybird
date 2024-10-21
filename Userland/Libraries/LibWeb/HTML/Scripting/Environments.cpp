@@ -2,6 +2,7 @@
  * Copyright (c) 2021, Luke Wilde <lukew@serenityos.org>
  * Copyright (c) 2022, Linus Groh <linusg@serenityos.org>
  * Copyright (c) 2022, networkException <networkexception@serenityos.org>
+ * Copyright (c) 2024, Shannon Booth <shannon@serenityos.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -140,19 +141,20 @@ JS::ExecutionContext const& execution_context_of_realm(JS::Realm const& realm)
 }
 
 // https://html.spec.whatwg.org/multipage/webappapis.html#clean-up-after-running-script
-void EnvironmentSettingsObject::clean_up_after_running_script()
+// https://whatpr.org/html/9893/webappapis.html#clean-up-after-running-script
+void clean_up_after_running_script(JS::Realm const& realm)
 {
-    auto& vm = global_object().vm();
+    auto& vm = realm.global_object().vm();
 
-    // 1. Assert: settings's realm execution context is the running JavaScript execution context.
-    VERIFY(&realm_execution_context() == &vm.running_execution_context());
+    // 1. Assert: realm's execution context is the running JavaScript execution context.
+    VERIFY(&execution_context_of_realm(realm) == &vm.running_execution_context());
 
-    // 2. Remove settings's realm execution context from the JavaScript execution context stack.
+    // 2. Remove realm's execution context from the JavaScript execution context stack.
     vm.pop_execution_context();
 
     // 3. If the JavaScript execution context stack is now empty, perform a microtask checkpoint. (If this runs scripts, these algorithms will be invoked reentrantly.)
     if (vm.execution_context_stack().is_empty())
-        responsible_event_loop().perform_a_microtask_checkpoint();
+        main_thread_event_loop().perform_a_microtask_checkpoint();
 }
 
 static JS::ExecutionContext* top_most_script_having_execution_context(JS::VM& vm)

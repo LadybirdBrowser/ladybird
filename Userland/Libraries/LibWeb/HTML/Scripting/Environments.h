@@ -1,6 +1,7 @@
 /*
  * Copyright (c) 2021, Luke Wilde <lukew@serenityos.org>
  * Copyright (c) 2022, Linus Groh <linusg@serenityos.org>
+ * Copyright (c) 2024, Shannon Booth <shannon@serenityos.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -96,7 +97,6 @@ public:
     Vector<JS::NonnullGCPtr<Fetch::Infrastructure::FetchRecord>>& fetch_group() { return m_fetch_group; }
 
     void prepare_to_run_script();
-    void clean_up_after_running_script();
 
     void prepare_to_run_callback();
     void clean_up_after_running_callback();
@@ -141,6 +141,7 @@ JS::ExecutionContext const& execution_context_of_realm(JS::Realm const&);
 RunScriptDecision can_run_script(JS::Realm const&);
 bool is_scripting_enabled(JS::Realm const&);
 bool is_scripting_disabled(JS::Realm const&);
+void clean_up_after_running_script(JS::Realm const&);
 
 EnvironmentSettingsObject& incumbent_settings_object();
 JS::Realm& incumbent_realm();

@@ -177,8 +177,8 @@ JS::Promise* JavaScriptModuleScript::run(PreventErrorReporting)
 
     // FIXME: 7. If preventErrorReporting is false, then upon rejection of evaluationPromise with reason, report the exception given by reason for script.
 
-    // 8. Clean up after running script with settings.
-    settings.clean_up_after_running_script();
+    // 8. Clean up after running script with realm.
+    clean_up_after_running_script(realm);
 
     // 9. Return evaluationPromise.
     return evaluation_promise;

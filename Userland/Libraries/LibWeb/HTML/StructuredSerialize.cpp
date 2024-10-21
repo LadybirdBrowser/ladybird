@@ -1310,7 +1310,7 @@ WebIDL::ExceptionOr<JS::Value> structured_deserialize(JS::VM& vm, SerializationR
 
     auto result = TRY(structured_deserialize_internal(vm, serialized.span(), target_realm, *memory));
 
-    target_settings.clean_up_after_running_script();
+    clean_up_after_running_script(target_realm);
     VERIFY(result.value.has_value());
     return *result.value;
 }
