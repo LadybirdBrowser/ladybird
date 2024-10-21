@@ -22,17 +22,22 @@ RefPtr<GlyphRun> shape_text(FloatPoint baseline_start, Utf8View string, Gfx::Fon
     u32 glyph_count;
     auto* glyph_info = hb_buffer_get_glyph_infos(buffer, &glyph_count);
 
+    // FIXME: This is a very inefficient way to keep track of where we had tabs in the input string.
+    Vector<u32> input_code_points;
+    input_code_points.ensure_capacity(glyph_count);
+    for (size_t i = 0; i < glyph_count; ++i)
+        input_code_points.append(glyph_info[i].codepoint);
+
     auto* hb_font = font.harfbuzz_font();
     hb_shape(hb_font, buffer, nullptr, 0);
 
     glyph_info = hb_buffer_get_glyph_infos(buffer, &glyph_count);
     auto* positions = hb_buffer_get_glyph_positions(buffer, &glyph_count);
 
-    Vector<hb_glyph_info_t> const input_glyph_info({ glyph_info, glyph_count });
     Vector<Gfx::DrawGlyph> glyph_run;
     FloatPoint point = baseline_start;
     for (size_t i = 0; i < glyph_count; ++i) {
-        if (input_glyph_info[i].codepoint == '\t')
+        if (input_code_points[i] == '\t')
             continue;
 
         auto position = point
