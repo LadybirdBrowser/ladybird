@@ -8,6 +8,7 @@
 #include <LibUnicode/CharacterTypes.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Bindings/KeyboardEventPrototype.h>
+#include <LibWeb/UIEvents/EventNames.h>
 #include <LibWeb/UIEvents/KeyboardEvent.h>
 
 namespace Web::UIEvents {
@@ -135,6 +136,20 @@ static unsigned long determine_key_code(KeyCode platform_key, u32 code_point)
 
     // Return the virtual key code from the operating system.
     return platform_key;
+}
+
+// https://www.w3.org/TR/uievents/#dom-keyboardevent-charcode
+static u32 determine_char_code(FlyString const& event_name, u32 code_point)
+{
+    // charCode holds a character value, for keypress events which generate character input. The value is the Unicode
+    // reference number (code point) of that character (e.g. event.charCode = event.key.charCodeAt(0) for printable
+    // characters). For keydown or keyup events, the value of charCode is 0.
+    if (event_name == UIEvents::EventNames::keypress) {
+        if (Unicode::code_point_is_printable(code_point))
+            return code_point;
+    }
+
+    return 0;
 }
 
 // 3. Named key Attribute Values, https://www.w3.org/TR/uievents-key/#named-key-attribute-values
@@ -657,8 +672,9 @@ JS::NonnullGCPtr<KeyboardEvent> KeyboardEvent::create_from_platform_event(JS::Re
 {
     auto event_key = MUST(get_event_key(platform_key, code_point));
     auto event_code = MUST(get_event_code(platform_key, modifiers));
-
     auto key_code = determine_key_code(platform_key, code_point);
+    auto char_code = determine_char_code(event_name, code_point);
+
     KeyboardEventInit event_init {};
     event_init.key = move(event_key);
     event_init.code = move(event_code);
@@ -670,10 +686,11 @@ JS::NonnullGCPtr<KeyboardEvent> KeyboardEvent::create_from_platform_event(JS::Re
     event_init.repeat = false;
     event_init.is_composing = false;
     event_init.key_code = key_code;
-    event_init.char_code = code_point;
+    event_init.char_code = char_code;
     event_init.bubbles = true;
     event_init.cancelable = true;
     event_init.composed = true;
+
     auto event = KeyboardEvent::create(realm, event_name, event_init);
     event->set_is_trusted(true);
     return event;

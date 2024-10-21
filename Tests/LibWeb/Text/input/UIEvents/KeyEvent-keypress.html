@@ -5,10 +5,10 @@
         let input = document.getElementById("input");
 
         input.addEventListener("keydown", e => {
-            println(`keydown ${e.key}`);
+            println(`keydown key=${e.key} charCode=${e.charCode}`);
         });
         input.addEventListener("keypress", e => {
-            println(`keypress ${e.key}`);
+            println(`keypress key=${e.key} charCode=${e.charCode}`);
         });
 
         internals.sendText(input, "A");
