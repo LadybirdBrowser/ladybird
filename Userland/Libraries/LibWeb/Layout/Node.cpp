@@ -598,6 +598,10 @@ void NodeWithStyle::apply_style(const CSS::StyleProperties& computed_style)
     if (white_space.has_value())
         computed_values.set_white_space(white_space.value());
 
+    auto word_spacing = computed_style.word_spacing();
+    if (word_spacing.has_value())
+        computed_values.set_word_spacing(word_spacing.value());
+
     auto float_ = computed_style.float_();
     if (float_.has_value())
         computed_values.set_float(float_.value());
