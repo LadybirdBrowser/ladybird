@@ -11,6 +11,8 @@
 #include <AK/Debug.h>
 #include <AK/JsonObject.h>
 #include <AK/JsonValue.h>
+#include <LibCore/EventLoop.h>
+#include <LibCore/Timer.h>
 #include <LibWeb/WebDriver/Capabilities.h>
 #include <LibWeb/WebDriver/TimeoutsConfiguration.h>
 #include <WebDriver/Client.h>
@@ -345,7 +347,21 @@ Web::WebDriver::Response Client::new_window(Web::WebDriver::Parameters parameter
 {
     dbgln_if(WEBDRIVER_DEBUG, "Handling POST /session/<session_id>/window/new");
     auto session = TRY(find_session_with_id(parameters[0]));
-    return session->web_content_connection().new_window(payload);
+    auto handle = TRY(session->web_content_connection().new_window(payload));
+
+    constexpr u32 CONNECTION_TIMEOUT_MS = 5000;
+    auto timeout_fired = false;
+    auto timer = Core::Timer::create_single_shot(CONNECTION_TIMEOUT_MS, [&timeout_fired] { timeout_fired = true; });
+    timer->start();
+
+    Core::EventLoop::current().spin_until([&session, &timeout_fired, handle = handle.as_object().get("handle"sv)->as_string()]() {
+        return session->has_window_handle(handle) || timeout_fired;
+    });
+
+    if (timeout_fired)
+        return Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::Timeout, "Timed out waiting for window handle");
+
+    return handle;
 }
 
 // 11.6 Switch To Frame, https://w3c.github.io/webdriver/#dfn-switch-to-frame
