@@ -21,11 +21,6 @@
 // - It is restricted to JS values
 
 namespace Web::HTML {
-
-using SerializationRecord = Vector<u32>;
-using SerializationMemory = HashMap<JS::Handle<JS::Value>, u32>;
-using DeserializationMemory = JS::MarkedVector<JS::Value>;
-
 struct TransferDataHolder {
     Vector<u8> data;
     Vector<IPC::File> fds;

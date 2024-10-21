@@ -85,12 +85,39 @@ void FetchController::abort(JS::Realm& realm, Optional<JS::Value> error)
     if (!error.has_value())
         error = fallback_error;
 
-    // FIXME: 4. Let serializedError be StructuredSerialize(error). If that threw an exception, catch it, and let serializedError be StructuredSerialize(fallbackError).
-    // FIXME: 5. Set controller’s serialized abort reason to serializedError.
-    (void)error;
+    // 4. Let serializedError be StructuredSerialize(error). If that threw an exception, catch it, and let serializedError be StructuredSerialize(fallbackError).
+    auto serialized_error_result = HTML::structured_serialize(realm.vm(), error.value());
+    if (serialized_error_result.is_exception()) {
+        m_serialized_abort_reason = HTML::structured_serialize(realm.vm(), fallback_error).value();
+    }
+
+    // 5. Set controller’s serialized abort reason to serializedError.
+    else {
+        m_serialized_abort_reason = serialized_error_result.value();
+    }
 }
 
-// FIXME: https://fetch.spec.whatwg.org/#deserialize-a-serialized-abort-reason
+// https://fetch.spec.whatwg.org/#deserialize-a-serialized-abort-reason
+JS::NonnullGCPtr<WebIDL::DOMException> FetchController::deserialize_a_serialized_abort_reason(JS::Realm& realm)
+{
+    // 1. Let fallbackError be an "AbortError" DOMException.
+    auto fallback_error = WebIDL::AbortError::create(realm, "Fetch was aborted"_string);
+
+    // 2. Let deserializedError be fallbackError.
+    auto deserialized_error = fallback_error;
+
+    // 3. If abortReason is non-null, then set deserializedError to StructuredDeserialize(abortReason, realm).
+    //    If that threw an exception or returned undefined, then set deserializedError to fallbackError.
+    if (m_serialized_abort_reason.has_value()) {
+        auto deserialized_error_or_exception = HTML::structured_deserialize(realm.vm(), m_serialized_abort_reason.value(), realm, {});
+        if (!deserialized_error_or_exception.is_exception() && !deserialized_error_or_exception.value().is_undefined()) {
+            deserialized_error = verify_cast<WebIDL::DOMException>(deserialized_error_or_exception.value().as_object());
+        }
+    }
+
+    // 4. Return deserializedError.
+    return deserialized_error;
+}
 
 // https://fetch.spec.whatwg.org/#fetch-controller-terminate
 void FetchController::terminate()

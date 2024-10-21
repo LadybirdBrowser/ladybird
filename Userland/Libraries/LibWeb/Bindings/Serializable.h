@@ -7,7 +7,7 @@
 #pragma once
 
 #include <LibJS/Runtime/Realm.h>
-#include <LibWeb/HTML/StructuredSerialize.h>
+#include <LibWeb/Forward.h>
 
 namespace Web::Bindings {
 

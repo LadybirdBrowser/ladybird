@@ -7,6 +7,7 @@
 #include <LibWeb/Bindings/DOMQuadPrototype.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Geometry/DOMQuad.h>
+#include <LibWeb/HTML/StructuredSerialize.h>
 
 namespace Web::Geometry {
 

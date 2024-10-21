@@ -20,6 +20,7 @@
 #include <LibWeb/Fetch/Request.h>
 #include <LibWeb/Fetch/Response.h>
 #include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
+#include <LibWeb/Streams/AbstractOperations.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
 #include <LibWeb/WebIDL/Promise.h>
 
@@ -81,7 +82,7 @@ JS::NonnullGCPtr<JS::Promise> fetch(JS::VM& vm, RequestInfo const& input, Reques
 
     // 12. Set controller to the result of calling fetch given request and processResponse given response being these
     //     steps:
-    auto process_response = [locally_aborted, promise_capability, request, response_object, &relevant_realm](JS::NonnullGCPtr<Infrastructure::Response> response) mutable {
+    auto process_response = [locally_aborted, promise_capability, request, response_object, &relevant_realm, &controller](JS::NonnullGCPtr<Infrastructure::Response> response) mutable {
         // 1. If locallyAborted is true, then abort these steps.
         if (locally_aborted->value())
             return;
@@ -91,9 +92,9 @@ JS::NonnullGCPtr<JS::Promise> fetch(JS::VM& vm, RequestInfo const& input, Reques
 
         // 2. If response’s aborted flag is set, then:
         if (response->aborted()) {
-            // FIXME: 1. Let deserializedError be the result of deserialize a serialized abort reason given controller’s
-            //           serialized abort reason and relevantRealm.
-            auto deserialized_error = JS::js_undefined();
+            // 1. Let deserializedError be the result of deserialize a serialized abort reason given controller’s
+            //    serialized abort reason and relevantRealm.
+            auto deserialized_error = controller->deserialize_a_serialized_abort_reason(relevant_realm);
 
             // 2. Abort the fetch() call with p, request, responseObject, and deserializedError.
             abort_fetch(relevant_realm, promise_capability, request, response_object, deserialized_error);
@@ -164,8 +165,8 @@ void abort_fetch(JS::Realm& realm, WebIDL::Promise const& promise, JS::NonnullGC
 
     // 2. If request’s body is non-null and is readable, then cancel request’s body with error.
     if (auto* body = request->body().get_pointer<JS::NonnullGCPtr<Infrastructure::Body>>(); body != nullptr && (*body)->stream()->is_readable()) {
-        // TODO: Implement cancelling streams
-        (void)error;
+        // NOTE: Cancel here is different than the cancel method of stream and refers to https://streams.spec.whatwg.org/#readablestream-cancel
+        Streams::readable_stream_cancel((*body)->stream(), error);
     }
 
     // 3. If responseObject is null, then return.
@@ -179,8 +180,7 @@ void abort_fetch(JS::Realm& realm, WebIDL::Promise const& promise, JS::NonnullGC
     if (response->body()) {
         auto stream = response->body()->stream();
         if (stream->is_readable()) {
-            // TODO: Implement erroring streams
-            (void)error;
+            stream->error(error);
         }
     }
 }

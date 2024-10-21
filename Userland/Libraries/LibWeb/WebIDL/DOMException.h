@@ -9,6 +9,7 @@
 #include <AK/Diagnostics.h>
 #include <AK/String.h>
 #include <LibWeb/Bindings/PlatformObject.h>
+#include <LibWeb/Bindings/Serializable.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
 
 namespace Web::WebIDL {
@@ -89,7 +90,9 @@ static u16 get_legacy_code_for_name(FlyString const& name)
 }
 
 // https://webidl.spec.whatwg.org/#idl-DOMException
-class DOMException final : public Bindings::PlatformObject {
+class DOMException final
+    : public Bindings::PlatformObject
+    , public Bindings::Serializable {
     WEB_PLATFORM_OBJECT(DOMException, Bindings::PlatformObject);
     JS_DECLARE_ALLOCATOR(DOMException);
 
@@ -105,6 +108,10 @@ public:
     FlyString const& name() const { return m_name; }
     FlyString const& message() const { return m_message; }
     u16 code() const { return get_legacy_code_for_name(m_name); }
+
+    virtual StringView interface_name() const override { return "DOMException"sv; }
+    virtual WebIDL::ExceptionOr<void> serialization_steps(HTML::SerializationRecord&, bool for_storage, HTML::SerializationMemory&) override;
+    virtual WebIDL::ExceptionOr<void> deserialization_steps(ReadonlySpan<u32> const&, size_t& position, HTML::DeserializationMemory&) override;
 
 protected:
     DOMException(JS::Realm&, FlyString name, String message);
