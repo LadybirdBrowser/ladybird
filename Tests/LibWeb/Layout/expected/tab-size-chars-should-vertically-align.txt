@@ -3,7 +3,7 @@ Viewport <#document> at (0,0) content-size 800x600 children: not-inline
     BlockContainer <body> at (8,8) content-size 784x68 children: not-inline
       BlockContainer <div> at (8,8) content-size 784x17 children: inline
         frag 0 from BlockContainer start: 0, length: 0, rect: [8,21 60x0] baseline: 0
-        frag 1 from TextNode start: 0, length: 2, rect: [68,8 82.265625x17] baseline: 13.296875
+        frag 1 from TextNode start: 0, length: 2, rect: [68,8 88.109375x17] baseline: 13.296875
             "	A"
         BlockContainer <span#s1> at (8,21) content-size 60x0 inline-block [BFC] children: not-inline
         TextNode <#text>
@@ -11,7 +11,7 @@ Viewport <#document> at (0,0) content-size 800x600 children: not-inline
         TextNode <#text>
       BlockContainer <div> at (8,25) content-size 784x17 children: inline
         frag 0 from BlockContainer start: 0, length: 0, rect: [8,38 70x0] baseline: 0
-        frag 1 from TextNode start: 0, length: 2, rect: [78,25 72.265625x17] baseline: 13.296875
+        frag 1 from TextNode start: 0, length: 2, rect: [78,25 78.109375x17] baseline: 13.296875
             "	A"
         BlockContainer <span#s2> at (8,38) content-size 70x0 inline-block [BFC] children: not-inline
         TextNode <#text>
@@ -19,7 +19,7 @@ Viewport <#document> at (0,0) content-size 800x600 children: not-inline
         TextNode <#text>
       BlockContainer <div> at (8,42) content-size 784x17 children: inline
         frag 0 from BlockContainer start: 0, length: 0, rect: [8,55 73x0] baseline: 0
-        frag 1 from TextNode start: 0, length: 2, rect: [81,42 69.265625x17] baseline: 13.296875
+        frag 1 from TextNode start: 0, length: 2, rect: [81,42 75.109375x17] baseline: 13.296875
             "	A"
         BlockContainer <span#s3> at (8,55) content-size 73x0 inline-block [BFC] children: not-inline
         TextNode <#text>
