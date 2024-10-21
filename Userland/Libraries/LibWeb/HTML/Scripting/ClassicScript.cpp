@@ -23,31 +23,31 @@ JS::NonnullGCPtr<ClassicScript> ClassicScript::create(ByteString filename, Strin
 {
     auto& vm = environment_settings_object.realm().vm();
 
-    // 1. If muted errors was not provided, let it be false. (NOTE: This is taken care of by the default argument.)
-
-    // 2. If muted errors is true, then set baseURL to about:blank.
+    // 1. If muted errors is true, then set baseURL to about:blank.
     if (muted_errors == MutedErrors::Yes)
         base_url = "about:blank"sv;
 
-    // 3. If scripting is disabled for settings, then set source to the empty string.
+    // 2. If scripting is disabled for settings object, then set source to the empty string.
     if (environment_settings_object.is_scripting_disabled())
         source = ""sv;
 
-    // 4. Let script be a new classic script that this algorithm will subsequently initialize.
+    // 3. Let script be a new classic script that this algorithm will subsequently initialize.
     auto script = vm.heap().allocate_without_realm<ClassicScript>(move(base_url), move(filename), environment_settings_object);
 
-    // 5. Set script's settings object to settings. (NOTE: This was already done when constructing.)
+    // 4. Set script's settings object to settings. (NOTE: This was already done when constructing.)
 
-    // 6. Set script's base URL to baseURL. (NOTE: This was already done when constructing.)
+    // 5. Set script's base URL to baseURL. (NOTE: This was already done when constructing.)
 
-    // FIXME: 7. Set script's fetch options to options.
+    // FIXME: 6. Set script's fetch options to options.
 
-    // 8. Set script's muted errors to muted errors.
+    // 7. Set script's muted errors to muted errors.
     script->m_muted_errors = muted_errors;
 
-    // 9. Set script's parse error and error to rethrow to null.
+    // 8. Set script's parse error and error to rethrow to null.
     script->set_parse_error(JS::js_null());
     script->set_error_to_rethrow(JS::js_null());
+
+    // FIXME: 9. Record classic script creation time given script and sourceURLForWindowScripts .
 
     // 10. Let result be ParseScript(source, settings's Realm, script).
     auto parse_timer = Core::ElapsedTimer::start_new();
