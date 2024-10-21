@@ -152,15 +152,16 @@ JS::ThrowCompletionOr<bool> WindowProxy::internal_define_own_property(JS::Proper
     return throw_completion(WebIDL::SecurityError::create(m_window->realm(), MUST(String::formatted("Can't define property '{}' on cross-origin object", property_key))));
 }
 
-// 7.4.7 [[Get]] ( P, Receiver ), https://html.spec.whatwg.org/multipage/window-object.html#windowproxy-get
+// 7.4.7 [[Get]] ( P, Receiver ), https://html.spec.whatwg.org/multipage/nav-history-apis.html#windowproxy-get
+// https://html.spec.whatwg.org/multipage/nav-history-apis.html#windowproxy-get
 JS::ThrowCompletionOr<JS::Value> WindowProxy::internal_get(JS::PropertyKey const& property_key, JS::Value receiver, JS::CacheablePropertyMetadata*, PropertyLookupPhase) const
 {
     auto& vm = this->vm();
 
     // 1. Let W be the value of the [[Window]] internal slot of this.
 
-    // 2. Check if an access between two browsing contexts should be reported, given the current global object's browsing context, W's browsing context, P, and the current settings object.
-    check_if_access_between_two_browsing_contexts_should_be_reported(*verify_cast<Window>(current_global_object()).browsing_context(), m_window->browsing_context(), property_key, current_settings_object());
+    // 2. Check if an access between two browsing contexts should be reported, given the current global object's browsing context, W's browsing context, P, and the current principal settings object.
+    check_if_access_between_two_browsing_contexts_should_be_reported(*verify_cast<Window>(current_global_object()).browsing_context(), m_window->browsing_context(), property_key, current_principal_settings_object());
 
     // 3. If IsPlatformObjectSameOrigin(W) is true, then return ? OrdinaryGet(this, P, Receiver).
     // NOTE: this is passed rather than W as OrdinaryGet and CrossOriginGet will invoke the [[GetOwnProperty]] internal method.
@@ -172,15 +173,16 @@ JS::ThrowCompletionOr<JS::Value> WindowProxy::internal_get(JS::PropertyKey const
     return cross_origin_get(vm, *this, property_key, receiver);
 }
 
-// 7.4.8 [[Set]] ( P, V, Receiver ), https://html.spec.whatwg.org/multipage/window-object.html#windowproxy-set
+// 7.4.8 [[Set]] ( P, V, Receiver ), https://html.spec.whatwg.org/multipage/nav-history-apis.html#windowproxy-set
+// https://html.spec.whatwg.org/multipage/nav-history-apis.html#windowproxy-set
 JS::ThrowCompletionOr<bool> WindowProxy::internal_set(JS::PropertyKey const& property_key, JS::Value value, JS::Value receiver, JS::CacheablePropertyMetadata*)
 {
     auto& vm = this->vm();
 
     // 1. Let W be the value of the [[Window]] internal slot of this.
 
-    // 2. Check if an access between two browsing contexts should be reported, given the current global object's browsing context, W's browsing context, P, and the current settings object.
-    check_if_access_between_two_browsing_contexts_should_be_reported(*verify_cast<Window>(current_global_object()).browsing_context(), m_window->browsing_context(), property_key, current_settings_object());
+    // 2. Check if an access between two browsing contexts should be reported, given the current global object's browsing context, W's browsing context, P, and the current principal settings object.
+    check_if_access_between_two_browsing_contexts_should_be_reported(*verify_cast<Window>(current_global_object()).browsing_context(), m_window->browsing_context(), property_key, current_principal_settings_object());
 
     // 3. If IsPlatformObjectSameOrigin(W) is true, then:
     if (is_platform_object_same_origin(*m_window)) {

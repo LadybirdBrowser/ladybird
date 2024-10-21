@@ -264,7 +264,7 @@ void Page::did_update_window_rect()
 template<typename ResponseType>
 static ResponseType spin_event_loop_until_dialog_closed(PageClient& client, Optional<ResponseType>& response, SourceLocation location = SourceLocation::current())
 {
-    auto& event_loop = Web::HTML::current_settings_object().responsible_event_loop();
+    auto& event_loop = Web::HTML::current_principal_settings_object().responsible_event_loop();
 
     ScopeGuard guard { [&] { event_loop.set_execution_paused(false); } };
     event_loop.set_execution_paused(true);

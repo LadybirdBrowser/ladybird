@@ -124,6 +124,7 @@ ErrorOr<void> initialize_main_thread_vm(HTML::EventLoop::Type type)
     // FIXME: Implement 8.1.5.2 HostEnsureCanCompileStrings(callerRealm, calleeRealm), https://html.spec.whatwg.org/multipage/webappapis.html#hostensurecancompilestrings(callerrealm,-calleerealm)
 
     // 8.1.5.3 HostPromiseRejectionTracker(promise, operation), https://html.spec.whatwg.org/multipage/webappapis.html#the-hostpromiserejectiontracker-implementation
+    // https://whatpr.org/html/9893/webappapis.html#the-hostpromiserejectiontracker-implementation
     s_main_thread_vm->host_promise_rejection_tracker = [](JS::Promise& promise, JS::Promise::RejectionOperation operation) {
         // 1. Let script be the running script.
         //    The running script is the script in the [[HostDefined]] field in the ScriptOrModule component of the running JavaScript execution context.
@@ -147,8 +148,8 @@ ErrorOr<void> initialize_main_thread_vm(HTML::EventLoop::Type type)
         }
 
         // 3. Let settings object be the current settings object.
-        // 4. If script is not null, then set settings object to script's settings object.
-        auto& settings_object = script ? script->settings_object() : HTML::current_settings_object();
+        // 4. If script is not null, then set settings object to script's principal settings object.
+        auto& settings_object = script ? script->settings_object() : HTML::current_principal_settings_object();
 
         // 5. Let global be settingsObject's global object.
         auto* global_mixin = dynamic_cast<HTML::WindowOrWorkerGlobalScopeMixin*>(&settings_object.global_object());
@@ -414,12 +415,13 @@ ErrorOr<void> initialize_main_thread_vm(HTML::EventLoop::Type type)
     };
 
     // 8.1.6.7.3 HostLoadImportedModule(referrer, moduleRequest, loadState, payload), https://html.spec.whatwg.org/multipage/webappapis.html#hostloadimportedmodule
+    // https://whatpr.org/html/9893/webappapis.html#hostloadimportedmodule
     s_main_thread_vm->host_load_imported_module = [](JS::ImportedModuleReferrer referrer, JS::ModuleRequest const& module_request, JS::GCPtr<JS::GraphLoadingState::HostDefined> load_state, JS::ImportedModulePayload payload) -> void {
         auto& vm = *s_main_thread_vm;
         auto& realm = *vm.current_realm();
 
-        // 1. Let settingsObject be the current settings object.
-        Optional<HTML::EnvironmentSettingsObject&> settings_object = HTML::current_settings_object();
+        // 1. Let settingsObject be the current principal settings object.
+        Optional<HTML::EnvironmentSettingsObject&> settings_object = HTML::current_principal_settings_object();
 
         // FIXME: 2. If settingsObject's global object implements WorkletGlobalScope or ServiceWorkerGlobalScope and loadState is undefined, then:
 
