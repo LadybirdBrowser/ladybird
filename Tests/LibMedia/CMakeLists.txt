@@ -2,6 +2,7 @@ set(TEST_SOURCES
     TestH264Decode.cpp
     TestParseMatroska.cpp
     TestPlaybackStream.cpp
+    TestSignalProcessing.cpp
     TestVorbisDecode.cpp
     TestVP9Decode.cpp
     TestWav.cpp

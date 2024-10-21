@@ -8,6 +8,7 @@
 
 #include <AK/Concepts.h>
 #include <AK/Math.h>
+#include <AK/String.h>
 
 namespace AK {
 
