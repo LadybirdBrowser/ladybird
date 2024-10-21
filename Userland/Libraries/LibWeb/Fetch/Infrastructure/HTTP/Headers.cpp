@@ -20,6 +20,7 @@
 #include <LibWeb/Fetch/Infrastructure/HTTP/Headers.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/Methods.h>
 #include <LibWeb/Infra/ByteSequences.h>
+#include <LibWeb/Infra/Strings.h>
 #include <LibWeb/Loader/ResourceLoader.h>
 #include <LibWeb/MimeSniff/MimeType.h>
 
@@ -52,8 +53,8 @@ Header Header::copy(Header const& header)
 Header Header::from_string_pair(StringView name, StringView value)
 {
     return Header {
-        .name = MUST(ByteBuffer::copy(name.bytes())),
-        .value = MUST(ByteBuffer::copy(value.bytes())),
+        .name = Infra::isomorphic_encode(name),
+        .value = Infra::isomorphic_encode(value),
     };
 }
 
@@ -135,7 +136,7 @@ Optional<Vector<String>> get_decode_and_split_header_value(ReadonlyBytes value)
     // To get, decode, and split a header value value, run these steps:
 
     // 1. Let input be the result of isomorphic decoding value.
-    auto input = StringView { value };
+    auto input = Infra::isomorphic_decode(value);
 
     // 2. Let position be a position variable for input, initially pointing at the start of input.
     auto lexer = GenericLexer { input };
@@ -530,7 +531,8 @@ bool is_cors_safelisted_request_header(Header const& header)
             return false;
 
         // 2. Let mimeType be the result of parsing the result of isomorphic decoding value.
-        auto mime_type = MimeSniff::MimeType::parse(StringView { value });
+        auto decoded = Infra::isomorphic_decode(value);
+        auto mime_type = MimeSniff::MimeType::parse(decoded);
 
         // 3. If mimeType is failure, then return false.
         if (!mime_type.has_value())
@@ -733,6 +735,7 @@ bool is_forbidden_request_header(Header const& header)
         auto parsed_values = get_decode_and_split_header_value(header.value);
 
         // 2. For each method of parsedValues: if the isomorphic encoding of method is a forbidden method, then return true.
+        // Note: The values returned from get_decode_and_split_header_value have already been decoded.
         if (parsed_values.has_value() && any_of(*parsed_values, [](auto method) { return is_forbidden_method(method.bytes()); }))
             return true;
     }
@@ -833,10 +836,10 @@ Variant<Vector<ByteBuffer>, ExtractHeaderParseFailure, Empty> extract_header_lis
 Optional<RangeHeaderValue> parse_single_range_header_value(ReadonlyBytes value)
 {
     // 1. Let data be the isomorphic decoding of value.
-    auto data = StringView { value };
+    auto data = Infra::isomorphic_decode(value);
 
     // 2. If data does not start with "bytes=", then return failure.
-    if (!data.starts_with("bytes="sv))
+    if (!data.starts_with_bytes("bytes="sv))
         return {};
 
     // 3. Let position be a position variable for data, initially pointing at the 6th code point of data.
