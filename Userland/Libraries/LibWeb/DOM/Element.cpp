@@ -1455,7 +1455,10 @@ int Element::scroll_width() const
         return 0;
 
     // 7. Return the width of the element’s scrolling area.
-    return paintable_box()->scrollable_overflow_rect()->width().to_int();
+    if (auto scrollable_overflow_rect = paintable_box()->scrollable_overflow_rect(); scrollable_overflow_rect.has_value()) {
+        return scrollable_overflow_rect->width().to_int();
+    }
+    return 0;
 }
 
 // https://drafts.csswg.org/cssom-view/#dom-element-scrollheight
@@ -1491,7 +1494,10 @@ int Element::scroll_height() const
         return 0;
 
     // 7. Return the height of the element’s scrolling area.
-    return paintable_box()->scrollable_overflow_rect()->height().to_int();
+    if (auto scrollable_overflow_rect = paintable_box()->scrollable_overflow_rect(); scrollable_overflow_rect.has_value()) {
+        return scrollable_overflow_rect->height().to_int();
+    }
+    return 0;
 }
 
 // https://html.spec.whatwg.org/multipage/semantics-other.html#concept-element-disabled
