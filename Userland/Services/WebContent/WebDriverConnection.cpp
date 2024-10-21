@@ -465,7 +465,7 @@ Messages::WebDriverClient::SwitchToWindowResponse WebDriverConnection::switch_to
 }
 
 // 11.5 New Window, https://w3c.github.io/webdriver/#dfn-new-window
-Messages::WebDriverClient::NewWindowResponse WebDriverConnection::new_window(JsonValue const&)
+Messages::WebDriverClient::NewWindowResponse WebDriverConnection::new_window(JsonValue const& payload)
 {
     // 1. If the implementation does not support creating new top-level browsing contexts, return error with error code unsupported operation.
 
@@ -475,7 +475,14 @@ Messages::WebDriverClient::NewWindowResponse WebDriverConnection::new_window(Jso
     // 3. Handle any user prompts and return its value if it is an error.
     TRY(handle_any_user_prompts());
 
-    // FIXME: 4. Let type hint be the result of getting the property "type" from the parameters argument.
+    // 4. Let type hint be the result of getting the property "type" from the parameters argument.
+    if (!payload.is_object())
+        return Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::InvalidArgument, "Payload is not a JSON object");
+
+    // FIXME: Actually use this value to decide between an OS window or tab.
+    auto type_hint = payload.as_object().get("type"sv);
+    if (type_hint.has_value() && !type_hint->is_null() && !type_hint->is_string())
+        return Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::InvalidArgument, "Payload property `type` is not null or a string"sv);
 
     // 5. Create a new top-level browsing context by running the window open steps with url set to "about:blank",
     //    target set to the empty string, and features set to "noopener" and the user agent configured to create a new
