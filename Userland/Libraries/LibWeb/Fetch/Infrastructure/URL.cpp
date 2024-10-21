@@ -9,6 +9,7 @@
 #include <AK/Base64.h>
 #include <LibURL/URL.h>
 #include <LibWeb/Fetch/Infrastructure/URL.h>
+#include <LibWeb/Infra/Strings.h>
 #include <LibWeb/MimeSniff/MimeType.h>
 
 namespace Web::Fetch::Infrastructure {
@@ -75,7 +76,7 @@ ErrorOr<DataURL> process_data_url(URL::URL const& data_url)
         trimmed_substring_view = trimmed_substring_view.trim(" "sv, TrimMode::Right);
         if (trimmed_substring_view.ends_with(';')) {
             // 1. Let stringBody be the isomorphic decode of body.
-            auto string_body = StringView(body);
+            auto string_body = Infra::isomorphic_decode(body);
 
             // 2. Set body to the forgiving-base64 decode of stringBody.
             // 3. If body is failure, then return failure.

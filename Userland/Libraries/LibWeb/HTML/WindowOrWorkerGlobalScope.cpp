@@ -13,7 +13,6 @@
 #include <AK/Vector.h>
 #include <LibJS/Heap/HeapFunction.h>
 #include <LibJS/Runtime/Array.h>
-#include <LibTextCodec/Decoder.h>
 #include <LibWeb/Bindings/MainThreadVM.h>
 #include <LibWeb/Crypto/Crypto.h>
 #include <LibWeb/Fetch/FetchMethod.h>
@@ -36,6 +35,7 @@
 #include <LibWeb/HighResolutionTime/Performance.h>
 #include <LibWeb/HighResolutionTime/SupportedPerformanceTypes.h>
 #include <LibWeb/IndexedDB/IDBFactory.h>
+#include <LibWeb/Infra/Strings.h>
 #include <LibWeb/PerformanceTimeline/EntryTypes.h>
 #include <LibWeb/PerformanceTimeline/PerformanceObserver.h>
 #include <LibWeb/PerformanceTimeline/PerformanceObserverEntryList.h>
@@ -142,10 +142,8 @@ WebIDL::ExceptionOr<String> WindowOrWorkerGlobalScopeMixin::atob(String const& d
         return WebIDL::InvalidCharacterError::create(realm, "Input string is not valid base64 data"_string);
 
     // 3. Return decodedData.
-    // decode_base64() returns a byte buffer. LibJS uses UTF-8 for strings. Use Latin1Decoder to convert bytes 128-255 to UTF-8.
-    auto decoder = TextCodec::decoder_for_exact_name("ISO-8859-1"sv);
-    VERIFY(decoder.has_value());
-    return TRY_OR_THROW_OOM(vm, decoder->to_utf8(decoded_data.value()));
+    // decode_base64() returns a byte buffer. LibJS uses UTF-8 for strings. Use isomorphic decoding to convert bytes to UTF-8.
+    return Infra::isomorphic_decode(decoded_data.value());
 }
 
 // https://html.spec.whatwg.org/multipage/timers-and-user-prompts.html#dom-queuemicrotask

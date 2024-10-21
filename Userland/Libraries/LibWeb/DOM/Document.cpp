@@ -347,7 +347,7 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<Document>> Document::create_and_initialize(
     // 16. If navigationParams's response has a `Refresh` header, then:
     if (auto maybe_refresh = navigation_params.response->header_list()->get("Refresh"sv.bytes()); maybe_refresh.has_value()) {
         // 1. Let value be the isomorphic decoding of the value of the header.
-        auto const& value = maybe_refresh.value();
+        auto value = Infra::isomorphic_decode(maybe_refresh.value());
 
         // 2. Run the shared declarative refresh steps with document and value.
         document->shared_declarative_refresh_steps(value, nullptr);
