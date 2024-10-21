@@ -131,6 +131,7 @@ class CSSMediaRule;
 class CSSNestedDeclarations;
 class CSSOKLab;
 class CSSOKLCH;
+class CSSPropertyRule;
 class CSSRGB;
 class CSSRule;
 class CSSRuleList;

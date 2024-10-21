@@ -35,6 +35,7 @@ public:
         LayerBlock = 100,
         LayerStatement = 101,
         NestedDeclarations = 102,
+        Property = 103, // FIXME: This should return `0` as a type, but type is used for a lot of dispatching
     };
 
     virtual Type type() const = 0;
