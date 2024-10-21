@@ -100,14 +100,15 @@ EventLoop& EnvironmentSettingsObject::responsible_event_loop()
 }
 
 // https://html.spec.whatwg.org/multipage/webappapis.html#check-if-we-can-run-script
-RunScriptDecision EnvironmentSettingsObject::can_run_script()
+// https://whatpr.org/html/9893/webappapis.html#check-if-we-can-run-script
+RunScriptDecision can_run_script(JS::Realm const& realm)
 {
-    // 1. If the global object specified by settings is a Window object whose Document object is not fully active, then return "do not run".
-    if (is<HTML::Window>(global_object()) && !verify_cast<HTML::Window>(global_object()).associated_document().is_fully_active())
+    // 1. If the global object specified by realm is a Window object whose Document object is not fully active, then return "do not run".
+    if (is<HTML::Window>(realm.global_object()) && !verify_cast<HTML::Window>(realm.global_object()).associated_document().is_fully_active())
         return RunScriptDecision::DoNotRun;
 
-    // 2. If scripting is disabled for settings, then return "do not run".
-    if (is_scripting_disabled())
+    // 2. If scripting is disabled for realm, then return "do not run".
+    if (is_scripting_disabled(realm))
         return RunScriptDecision::DoNotRun;
 
     // 3. Return "run".
@@ -208,20 +209,20 @@ void EnvironmentSettingsObject::clean_up_after_running_callback()
 }
 
 // https://html.spec.whatwg.org/multipage/webappapis.html#concept-environment-script
-bool EnvironmentSettingsObject::is_scripting_enabled() const
+// https://whatpr.org/html/9893/webappapis.html#concept-environment-script
+bool is_scripting_enabled(JS::Realm const& realm)
 {
-    // Scripting is enabled for an environment settings object settings when all of the following conditions are true:
+    // Scripting is enabled for a realm realm when all of the following conditions are true:
     // The user agent supports scripting.
     // NOTE: This is always true in LibWeb :^)
 
     // FIXME: Do the right thing for workers.
-    if (!is<HTML::Window>(m_realm_execution_context->realm->global_object()))
+    if (!is<HTML::Window>(realm.global_object()))
         return true;
 
-    // The user has not disabled scripting for settings at this time. (User agents may provide users with the option to disable scripting globally, or in a finer-grained manner, e.g., on a per-origin basis, down to the level of individual environment settings objects.)
-    auto document = const_cast<EnvironmentSettingsObject&>(*this).responsible_document();
-    VERIFY(document);
-    if (!document->page().is_scripting_enabled())
+    // The user has not disabled scripting for realm at this time. (User agents may provide users with the option to disable scripting globally, or in a finer-grained manner, e.g., on a per-origin basis, down to the level of individual realms.)
+    auto const& document = verify_cast<HTML::Window>(realm.global_object()).associated_document();
+    if (!document.page().is_scripting_enabled())
         return false;
 
     // FIXME: Either settings's global object is not a Window object, or settings's global object's associated Document's active sandboxing flag set does not have its sandboxed scripts browsing context flag set.
@@ -230,10 +231,11 @@ bool EnvironmentSettingsObject::is_scripting_enabled() const
 }
 
 // https://html.spec.whatwg.org/multipage/webappapis.html#concept-environment-noscript
-bool EnvironmentSettingsObject::is_scripting_disabled() const
+// https://whatpr.org/html/9893/webappapis.html#concept-environment-noscript
+bool is_scripting_disabled(JS::Realm const& realm)
 {
-    // Scripting is disabled for an environment settings object when scripting is not enabled for it, i.e., when any of the above conditions are false.
-    return !is_scripting_enabled();
+    // Scripting is disabled for a realm when scripting is not enabled for it, i.e., when any of the above conditions are false.
+    return !is_scripting_enabled(realm);
 }
 
 // https://html.spec.whatwg.org/multipage/webappapis.html#module-type-allowed

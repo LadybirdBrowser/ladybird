@@ -30,18 +30,19 @@ JavaScriptModuleScript::JavaScriptModuleScript(URL::URL base_url, ByteString fil
 }
 
 // https://html.spec.whatwg.org/multipage/webappapis.html#creating-a-javascript-module-script
+// https://whatpr.org/html/9893/webappapis.html#creating-a-javascript-module-script
 WebIDL::ExceptionOr<JS::GCPtr<JavaScriptModuleScript>> JavaScriptModuleScript::create(ByteString const& filename, StringView source, EnvironmentSettingsObject& settings_object, URL::URL base_url)
 {
-    // 1. If scripting is disabled for settings, then set source to the empty string.
-    if (settings_object.is_scripting_disabled())
-        source = ""sv;
-
     auto& realm = settings_object.realm();
+
+    // 1. If scripting is disabled for settings, then set source to the empty string.
+    if (HTML::is_scripting_disabled(realm))
+        source = ""sv;
 
     // 2. Let script be a new module script that this algorithm will subsequently initialize.
     auto script = realm.heap().allocate<JavaScriptModuleScript>(realm, move(base_url), filename, settings_object);
 
-    // 3. Set script's settings object to settings.
+    // FIXME: 3. Set script's settings object to settings.
     // NOTE: This was already done when constructing.
 
     // 4. Set script's base URL to baseURL.
@@ -53,8 +54,8 @@ WebIDL::ExceptionOr<JS::GCPtr<JavaScriptModuleScript>> JavaScriptModuleScript::c
     script->set_parse_error(JS::js_null());
     script->set_error_to_rethrow(JS::js_null());
 
-    // 7. Let result be ParseModule(source, settings's Realm, script).
-    auto result = JS::SourceTextModule::parse(source, settings_object.realm(), filename.view(), script);
+    // 7. Let result be ParseModule(source, realm, script).
+    auto result = JS::SourceTextModule::parse(source, realm, filename.view(), script);
 
     // 8. If result is a list of errors, then:
     if (result.is_error()) {
@@ -62,7 +63,7 @@ WebIDL::ExceptionOr<JS::GCPtr<JavaScriptModuleScript>> JavaScriptModuleScript::c
         dbgln("JavaScriptModuleScript: Failed to parse: {}", parse_error.to_string());
 
         // 1. Set script's parse error to result[0].
-        script->set_parse_error(JS::SyntaxError::create(settings_object.realm(), parse_error.to_string()));
+        script->set_parse_error(JS::SyntaxError::create(realm, parse_error.to_string()));
 
         // 2. Return script.
         return script;
@@ -75,7 +76,7 @@ WebIDL::ExceptionOr<JS::GCPtr<JavaScriptModuleScript>> JavaScriptModuleScript::c
         for (auto const& attribute : requested.attributes) {
             if (attribute.key != "type"sv) {
                 // 1. Let error be a new SyntaxError exception.
-                auto error = JS::SyntaxError::create(settings_object.realm(), "Module request attributes must only contain a type attribute"_string);
+                auto error = JS::SyntaxError::create(realm, "Module request attributes must only contain a type attribute"_string);
 
                 // 2. Set script's parse error to error.
                 script->set_parse_error(error);
@@ -118,13 +119,15 @@ WebIDL::ExceptionOr<JS::GCPtr<JavaScriptModuleScript>> JavaScriptModuleScript::c
 }
 
 // https://html.spec.whatwg.org/multipage/webappapis.html#run-a-module-script
+// https://whatpr.org/html/9893/webappapis.html#run-a-module-script
 JS::Promise* JavaScriptModuleScript::run(PreventErrorReporting)
 {
     // 1. Let settings be the settings object of script.
     auto& settings = settings_object();
+    auto& realm = settings.realm();
 
-    // 2. Check if we can run script with settings. If this returns "do not run", then return a promise resolved with undefined.
-    if (settings.can_run_script() == RunScriptDecision::DoNotRun) {
+    // 2. Check if we can run script with realm. If this returns "do not run", then return a promise resolved with undefined.
+    if (can_run_script(realm) == RunScriptDecision::DoNotRun) {
         auto promise = JS::Promise::create(settings.realm());
         promise->fulfill(JS::js_undefined());
         return promise;
@@ -138,7 +141,7 @@ JS::Promise* JavaScriptModuleScript::run(PreventErrorReporting)
 
     // 5. If script's error to rethrow is not null, then set evaluationPromise to a promise rejected with script's error to rethrow.
     if (!error_to_rethrow().is_null()) {
-        evaluation_promise = JS::Promise::create(settings.realm());
+        evaluation_promise = JS::Promise::create(realm);
         evaluation_promise->reject(error_to_rethrow());
     }
     // 6. Otherwise:
@@ -149,7 +152,7 @@ JS::Promise* JavaScriptModuleScript::run(PreventErrorReporting)
 
         // NON-STANDARD: To ensure that LibJS can find the module on the stack, we push a new execution context.
         auto module_execution_context = JS::ExecutionContext::create();
-        module_execution_context->realm = &settings.realm();
+        module_execution_context->realm = &realm;
         module_execution_context->script_or_module = JS::NonnullGCPtr<JS::Module> { *record };
         vm().push_execution_context(*module_execution_context);
 
@@ -160,8 +163,8 @@ JS::Promise* JavaScriptModuleScript::run(PreventErrorReporting)
         // If Evaluate fails to complete as a result of the user agent aborting the running script,
         // then set evaluationPromise to a promise rejected with a new "QuotaExceededError" DOMException.
         if (elevation_promise_or_error.is_error()) {
-            auto promise = JS::Promise::create(settings_object().realm());
-            promise->reject(WebIDL::QuotaExceededError::create(settings_object().realm(), "Failed to evaluate module script"_string).ptr());
+            auto promise = JS::Promise::create(realm);
+            promise->reject(WebIDL::QuotaExceededError::create(realm, "Failed to evaluate module script"_string).ptr());
 
             evaluation_promise = promise;
         } else {

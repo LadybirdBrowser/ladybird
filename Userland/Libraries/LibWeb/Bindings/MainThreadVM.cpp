@@ -235,11 +235,12 @@ ErrorOr<void> initialize_main_thread_vm(HTML::EventLoop::Type type)
 
         // 2. Queue a global task on the JavaScript engine task source given global to perform the following steps:
         HTML::queue_global_task(HTML::Task::Source::JavaScriptEngine, global, JS::create_heap_function(s_main_thread_vm->heap(), [&finalization_registry] {
-            // 1. Let entry be finalizationRegistry.[[CleanupCallback]].[[Callback]].[[Realm]]'s environment settings object.
-            auto& entry = host_defined_environment_settings_object(*finalization_registry.cleanup_callback().callback().realm());
+            // FIXME: 1. Let entry be finalizationRegistry.[[CleanupCallback]].[[Callback]].[[Realm]]'s environment settings object.
+            auto& realm = *finalization_registry.cleanup_callback().callback().realm();
+            auto& entry = host_defined_environment_settings_object(realm);
 
             // 2. Check if we can run script with entry. If this returns "do not run", then return.
-            if (entry.can_run_script() == HTML::RunScriptDecision::DoNotRun)
+            if (HTML::can_run_script(realm) == HTML::RunScriptDecision::DoNotRun)
                 return;
 
             // 3. Prepare to run script with entry.
@@ -276,16 +277,16 @@ ErrorOr<void> initialize_main_thread_vm(HTML::EventLoop::Type type)
 
         auto& heap = realm ? realm->heap() : s_main_thread_vm->heap();
         // NOTE: This keeps job_settings alive by keeping realm alive, which is holding onto job_settings.
-        HTML::queue_a_microtask(script ? script->settings_object().responsible_document().ptr() : nullptr, JS::create_heap_function(heap, [job_settings, job = move(job), script_or_module = move(script_or_module)] {
+        HTML::queue_a_microtask(script ? script->settings_object().responsible_document().ptr() : nullptr, JS::create_heap_function(heap, [realm, job_settings, job = move(job), script_or_module = move(script_or_module)] {
             // The dummy execution context has to be kept up here to keep it alive for the duration of the function.
             OwnPtr<JS::ExecutionContext> dummy_execution_context;
 
-            if (job_settings) {
-                // 1. If job settings is not null, then check if we can run script with job settings. If this returns "do not run" then return.
-                if (job_settings->can_run_script() == HTML::RunScriptDecision::DoNotRun)
+            if (realm) {
+                // 1. If realm is not null, then check if we can run script with realm. If this returns "do not run" then return.
+                if (HTML::can_run_script(*realm) == HTML::RunScriptDecision::DoNotRun)
                     return;
 
-                // 2. If job settings is not null, then prepare to run script with job settings.
+                // FIXME: 2. If realm is not null, then prepare to run script with realm.
                 job_settings->prepare_to_run_script();
 
                 // IMPLEMENTATION DEFINED: Additionally to preparing to run a script, we also prepare to run a callback here. This matches WebIDL's
