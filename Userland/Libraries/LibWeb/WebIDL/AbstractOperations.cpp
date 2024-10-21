@@ -103,17 +103,15 @@ ErrorOr<ByteBuffer> get_buffer_source_copy(JS::Object const& buffer_source)
 
 // https://webidl.spec.whatwg.org/#call-user-object-operation-return
 // https://whatpr.org/webidl/1437.html#call-user-object-operation-return
-inline JS::Completion clean_up_on_return(HTML::EnvironmentSettingsObject& stored_settings, HTML::EnvironmentSettingsObject& relevant_settings, JS::Completion& completion, OperationReturnsPromise operation_returns_promise)
+inline JS::Completion clean_up_on_return(JS::Realm& stored_realm, JS::Realm& relevant_realm, JS::Completion& completion, OperationReturnsPromise operation_returns_promise)
 {
-    auto& realm = stored_settings.realm();
-
     // Return: at this point completion will be set to an ECMAScript completion value.
 
-    // 1. Clean up after running a callback with stored settings.
-    stored_settings.clean_up_after_running_callback();
+    // 1. Clean up after running a callback with stored realm.
+    HTML::clean_up_after_running_callback(stored_realm);
 
     // 2. Clean up after running script with relevant realm.
-    HTML::clean_up_after_running_script(relevant_settings.realm());
+    HTML::clean_up_after_running_script(relevant_realm);
 
     // 3. If completion is a normal completion, return completion.
     if (completion.type() == JS::Completion::Type::Normal)
@@ -124,7 +122,7 @@ inline JS::Completion clean_up_on_return(HTML::EnvironmentSettingsObject& stored
         return completion;
 
     // 5. Let rejectedPromise be ! Call(%Promise.reject%, %Promise%, «completion.[[Value]]»).
-    auto rejected_promise = create_rejected_promise(realm, *completion.release_value());
+    auto rejected_promise = create_rejected_promise(relevant_realm, *completion.release_value());
 
     // 6. Return the result of converting rejectedPromise to the operation’s return type.
     // Note: The operation must return a promise, so no conversion is necessary
@@ -148,22 +146,20 @@ JS::Completion call_user_object_operation(WebIDL::CallbackType& callback, String
     // 4. Let relevant realm be O’s associated Realm.
     auto& relevant_realm = object->shape().realm();
 
-    // 5. Let relevant settings be relvant realm’s settings object.
-    auto& relevant_settings = Bindings::host_defined_environment_settings_object(relevant_realm);
+    // FIXME: We should get the realm directly from the callback context.
+    // 5. Let stored realm be value’s callback context.
+    auto& stored_realm = callback.callback_context->realm();
 
-    // 6. Let stored settings be value’s callback context.
-    auto& stored_settings = callback.callback_context;
-
-    // 7. Prepare to run script with relevant realm.
+    // 6. Prepare to run script with relevant realm.
     HTML::prepare_to_run_script(relevant_realm);
 
-    // 8. Prepare to run a callback with stored settings.
-    stored_settings->prepare_to_run_callback();
+    // 7. Prepare to run a callback with stored realm.
+    HTML::prepare_to_run_callback(stored_realm);
 
-    // 9. Let X be O.
+    // 8. Let X be O.
     auto actual_function_object = object;
 
-    // 10. If ! IsCallable(O) is false, then:
+    // 9. If ! IsCallable(O) is false, then:
     if (!object->is_function()) {
         // 1. Let getResult be Get(O, opName).
         auto get_result = object->get(operation_name.to_byte_string());
@@ -171,13 +167,13 @@ JS::Completion call_user_object_operation(WebIDL::CallbackType& callback, String
         // 2. If getResult is an abrupt completion, set completion to getResult and jump to the step labeled return.
         if (get_result.is_throw_completion()) {
             completion = get_result.throw_completion();
-            return clean_up_on_return(stored_settings, relevant_settings, completion, callback.operation_returns_promise);
+            return clean_up_on_return(stored_realm, relevant_realm, completion, callback.operation_returns_promise);
         }
 
         // 4. If ! IsCallable(X) is false, then set completion to a new Completion{[[Type]]: throw, [[Value]]: a newly created TypeError object, [[Target]]: empty}, and jump to the step labeled return.
         if (!get_result.value().is_function()) {
             completion = relevant_realm.vm().template throw_completion<JS::TypeError>(JS::ErrorType::NotAFunction, get_result.value().to_string_without_side_effects());
-            return clean_up_on_return(stored_settings, relevant_settings, completion, callback.operation_returns_promise);
+            return clean_up_on_return(stored_realm, relevant_realm, completion, callback.operation_returns_promise);
         }
 
         // 3. Set X to getResult.[[Value]].
@@ -188,28 +184,29 @@ JS::Completion call_user_object_operation(WebIDL::CallbackType& callback, String
         this_argument = object;
     }
 
-    // FIXME: 11. Let esArgs be the result of converting args to an ECMAScript arguments list. If this throws an exception, set completion to the completion value representing the thrown exception and jump to the step labeled return.
+    // FIXME: 10. Let esArgs be the result of converting args to an ECMAScript arguments list. If this throws an exception, set completion to the completion value representing the thrown exception and jump to the step labeled return.
     //        For simplicity, we currently make the caller do this. However, this means we can't throw exceptions at this point like the spec wants us to.
 
-    // 12. Let callResult be Call(X, thisArg, esArgs).
+    // 11. Let callResult be Call(X, thisArg, esArgs).
     VERIFY(actual_function_object);
     auto& vm = object->vm();
     auto call_result = JS::call(vm, verify_cast<JS::FunctionObject>(*actual_function_object), this_argument.value(), args.span());
 
-    // 13. If callResult is an abrupt completion, set completion to callResult and jump to the step labeled return.
+    // 12. If callResult is an abrupt completion, set completion to callResult and jump to the step labeled return.
     if (call_result.is_throw_completion()) {
         completion = call_result.throw_completion();
-        return clean_up_on_return(stored_settings, relevant_settings, completion, callback.operation_returns_promise);
+        return clean_up_on_return(stored_realm, relevant_realm, completion, callback.operation_returns_promise);
     }
 
-    // 14. Set completion to the result of converting callResult.[[Value]] to an IDL value of the same type as the operation’s return type.
+    // 13. Set completion to the result of converting callResult.[[Value]] to an IDL value of the same type as the operation’s return type.
     // FIXME: This does no conversion.
     completion = call_result.value();
 
-    return clean_up_on_return(stored_settings, relevant_settings, completion, callback.operation_returns_promise);
+    return clean_up_on_return(stored_realm, relevant_realm, completion, callback.operation_returns_promise);
 }
 
 // https://webidl.spec.whatwg.org/#invoke-a-callback-function
+// https://whatpr.org/webidl/1437.html#invoke-a-callback-function
 JS::Completion invoke_callback(WebIDL::CallbackType& callback, Optional<JS::Value> this_argument, JS::MarkedVector<JS::Value> args)
 {
     // 1. Let completion be an uninitialized variable.
@@ -231,21 +228,18 @@ JS::Completion invoke_callback(WebIDL::CallbackType& callback, Optional<JS::Valu
         return { JS::js_undefined() };
     }
 
-    // 5. Let realm be F’s associated Realm.
-    // See the comment about associated realm on step 4 of call_user_object_operation.
-    auto& realm = function_object->shape().realm();
+    // 5. Let relevant realm be F’s associated Realm.
+    auto& relevant_realm = function_object->shape().realm();
 
-    // 6. Let relevant settings be realm’s settings object.
-    auto& relevant_settings = Bindings::host_defined_environment_settings_object(realm);
+    // FIXME: We should get the realm directly from the callback context.
+    // 6. Let stored realm be value’s callback context.
+    auto& stored_realm = callback.callback_context->realm();
 
-    // 7. Let stored settings be value’s callback context.
-    auto& stored_settings = callback.callback_context;
+    // 8. Prepare to run script with relevant realm.
+    HTML::prepare_to_run_script(relevant_realm);
 
-    // 8. Prepare to run script with relevant settings.
-    HTML::prepare_to_run_script(realm);
-
-    // 9. Prepare to run a callback with stored settings.
-    stored_settings->prepare_to_run_callback();
+    // 9. Prepare to run a callback with stored realm.
+    HTML::prepare_to_run_callback(stored_realm);
 
     // FIXME: 10. Let esArgs be the result of converting args to an ECMAScript arguments list. If this throws an exception, set completion to the completion value representing the thrown exception and jump to the step labeled return.
     //        For simplicity, we currently make the caller do this. However, this means we can't throw exceptions at this point like the spec wants us to.
@@ -257,14 +251,14 @@ JS::Completion invoke_callback(WebIDL::CallbackType& callback, Optional<JS::Valu
     // 12. If callResult is an abrupt completion, set completion to callResult and jump to the step labeled return.
     if (call_result.is_throw_completion()) {
         completion = call_result.throw_completion();
-        return clean_up_on_return(stored_settings, relevant_settings, completion, callback.operation_returns_promise);
+        return clean_up_on_return(stored_realm, relevant_realm, completion, callback.operation_returns_promise);
     }
 
     // 13. Set completion to the result of converting callResult.[[Value]] to an IDL value of the same type as the operation’s return type.
     // FIXME: This does no conversion.
     completion = call_result.value();
 
-    return clean_up_on_return(stored_settings, relevant_settings, completion, callback.operation_returns_promise);
+    return clean_up_on_return(stored_realm, relevant_realm, completion, callback.operation_returns_promise);
 }
 
 JS::Completion construct(WebIDL::CallbackType& callback, JS::MarkedVector<JS::Value> args)
@@ -275,49 +269,46 @@ JS::Completion construct(WebIDL::CallbackType& callback, JS::MarkedVector<JS::Va
     // 2. Let F be the ECMAScript object corresponding to callable.
     auto& function_object = callback.callback;
 
-    // 4. Let realm be F’s associated Realm.
-    auto& realm = function_object->shape().realm();
+    // 4. Let relevant realm be F’s associated Realm.
+    auto& relevant_realm = function_object->shape().realm();
 
     // 3. If IsConstructor(F) is false, throw a TypeError exception.
     if (!JS::Value(function_object).is_constructor())
-        return realm.vm().template throw_completion<JS::TypeError>(JS::ErrorType::NotAConstructor, JS::Value(function_object).to_string_without_side_effects());
+        return relevant_realm.vm().template throw_completion<JS::TypeError>(JS::ErrorType::NotAConstructor, JS::Value(function_object).to_string_without_side_effects());
 
-    // 5. Let relevant settings be realm’s settings object.
-    // NOTE: Not needed after ShadowRealm implementation.
+    // FIXME: We should get the realm directly from the callback context.
+    // 4. Let stored realm be callable’s callback context.
+    auto& stored_realm = callback.callback_context->realm();
 
-    // 6. Let stored settings be callable’s callback context.
-    auto& stored_settings = callback.callback_context;
+    // 5. Prepare to run script with relevant realm.
+    HTML::prepare_to_run_script(relevant_realm);
 
-    // 7. Prepare to run script with relevant settings.
-    HTML::prepare_to_run_script(realm);
+    // 6. Prepare to run a callback with stored realm.
+    HTML::prepare_to_run_callback(stored_realm);
 
-    // 8. Prepare to run a callback with stored settings.
-    stored_settings->prepare_to_run_callback();
-
-    // FIXME: 9. Let esArgs be the result of converting args to an ECMAScript arguments list. If this throws an exception, set completion to the completion value representing the thrown exception and jump to the step labeled return.
+    // FIXME: 7. Let esArgs be the result of converting args to an ECMAScript arguments list. If this throws an exception, set completion to the completion value representing the thrown exception and jump to the step labeled return.
     //        For simplicity, we currently make the caller do this. However, this means we can't throw exceptions at this point like the spec wants us to.
 
-    // 10. Let callResult be Completion(Construct(F, esArgs)).
+    // 8. Let callResult be Completion(Construct(F, esArgs)).
     auto& vm = function_object->vm();
     auto call_result = JS::construct(vm, verify_cast<JS::FunctionObject>(*function_object), args.span());
 
-    // 11. If callResult is an abrupt completion, set completion to callResult and jump to the step labeled return.
+    // 9. If callResult is an abrupt completion, set completion to callResult and jump to the step labeled return.
     if (call_result.is_throw_completion()) {
         completion = call_result.throw_completion();
     }
-
-    // 12. Set completion to the result of converting callResult.[[Value]] to an IDL value of the same type as the operation’s return type.
+    // 10. Set completion to the result of converting callResult.[[Value]] to an IDL value of the same type as the operation’s return type.
     else {
         // FIXME: This does no conversion.
         completion = JS::Value(call_result.value());
     }
 
-    // 13. Return: at this point completion will be set to an ECMAScript completion value.
-    // 1. Clean up after running a callback with stored settings.
-    stored_settings->clean_up_after_running_callback();
+    // 11. Return: at this point completion will be set to an ECMAScript completion value.
+    // 1. Clean up after running a callback with stored realm.
+    HTML::clean_up_after_running_callback(stored_realm);
 
     // 2. Clean up after running script with relevant realm.
-    HTML::clean_up_after_running_script(realm);
+    HTML::clean_up_after_running_script(relevant_realm);
 
     // 3. Return completion.
     return completion;
