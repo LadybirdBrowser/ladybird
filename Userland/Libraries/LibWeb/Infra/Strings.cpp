@@ -144,4 +144,27 @@ ErrorOr<String> to_ascii_uppercase(StringView string)
     return string_builder.to_string();
 }
 
+// https://infra.spec.whatwg.org/#isomorphic-encode
+ByteBuffer isomorphic_encode(StringView input)
+{
+    ByteBuffer buf = {};
+    for (auto code_point : Utf8View { input }) {
+        // VERIFY(code_point <= 0xFF);
+        if (code_point > 0xFF)
+            dbgln("FIXME: Trying to isomorphic encode a string with code points > U+00FF.");
+        buf.append((u8)code_point);
+    }
+    return buf;
+}
+
+// https://infra.spec.whatwg.org/#isomorphic-decode
+String isomorphic_decode(ReadonlyBytes input)
+{
+    StringBuilder builder(input.size());
+    for (u8 code_point : input) {
+        builder.append_code_point(code_point);
+    }
+    return builder.to_string_without_validation();
+}
+
 }
