@@ -1544,7 +1544,8 @@ ErrorOr<StringView, ParseError> Parser::parse_public_id_literal()
         [q = quote[0]](auto x) {
             return (q == '\'' ? x != '\'' : true) && s_public_id_characters.contains(x);
         },
-        "a PubidChar"sv));
+        "a PubidChar"sv,
+        true));
     TRY(expect(quote));
 
     rollback.disarm();
