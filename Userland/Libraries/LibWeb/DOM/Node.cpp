@@ -1450,16 +1450,18 @@ void Node::serialize_tree_as_json(JsonObjectSerializer<StringBuilder>& object) c
 }
 
 // https://html.spec.whatwg.org/multipage/webappapis.html#concept-n-script
+// https://whatpr.org/html/9893/webappapis.html#concept-n-script
 bool Node::is_scripting_enabled() const
 {
-    // Scripting is enabled for a node node if node's node document's browsing context is non-null, and scripting is enabled for node's relevant settings object.
-    return document().browsing_context() && const_cast<Document&>(document()).relevant_settings_object().is_scripting_enabled();
+    // Scripting is enabled for a node node if node's node document's browsing context is non-null, and scripting is enabled for node's relevant realm.
+    return document().browsing_context() && HTML::is_scripting_enabled(HTML::relevant_realm(*this));
 }
 
 // https://html.spec.whatwg.org/multipage/webappapis.html#concept-n-noscript
+// https://whatpr.org/html/9893/webappapis.html#concept-n-script
 bool Node::is_scripting_disabled() const
 {
-    // Scripting is disabled for a node when scripting is not enabled, i.e., when its node document's browsing context is null or when scripting is disabled for its relevant settings object.
+    // Scripting is disabled for a node when scripting is not enabled, i.e., when its node document's browsing context is null or when scripting is disabled for its relevant realm.
     return !is_scripting_enabled();
 }
 
