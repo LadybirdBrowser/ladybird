@@ -128,7 +128,9 @@ Optional<Vector<String>> get_decode_and_split_header_value(ReadonlyBytes value)
     // To get, decode, and split a header value value, run these steps:
 
     // 1. Let input be the result of isomorphic decoding value.
-    auto input = StringView { value };
+    auto decoder = TextCodec::decoder_for_exact_name("ISO-8859-1"sv);
+    VERIFY(decoder.has_value());
+    auto input = MUST(decoder->to_utf8(StringView { value }));
 
     // 2. Let position be a position variable for input, initially pointing at the start of input.
     auto lexer = GenericLexer { input };
@@ -523,7 +525,10 @@ bool is_cors_safelisted_request_header(Header const& header)
             return false;
 
         // 2. Let mimeType be the result of parsing the result of isomorphic decoding value.
-        auto mime_type = MimeSniff::MimeType::parse(StringView { value });
+        auto decoder = TextCodec::decoder_for_exact_name("ISO-8859-1"sv);
+        VERIFY(decoder.has_value());
+        auto decoded = MUST(decoder->to_utf8(StringView { value }));
+        auto mime_type = MimeSniff::MimeType::parse(decoded);
 
         // 3. If mimeType is failure, then return false.
         if (!mime_type.has_value())
@@ -726,6 +731,7 @@ bool is_forbidden_request_header(Header const& header)
         auto parsed_values = get_decode_and_split_header_value(header.value);
 
         // 2. For each method of parsedValues: if the isomorphic encoding of method is a forbidden method, then return true.
+        // Note: The values returned from get_decode_and_split_header_value have already been decoded.
         if (parsed_values.has_value() && any_of(*parsed_values, [](auto method) { return is_forbidden_method(method.bytes()); }))
             return true;
     }
@@ -826,10 +832,12 @@ Variant<Vector<ByteBuffer>, ExtractHeaderParseFailure, Empty> extract_header_lis
 Optional<RangeHeaderValue> parse_single_range_header_value(ReadonlyBytes value)
 {
     // 1. Let data be the isomorphic decoding of value.
-    auto data = StringView { value };
+    auto decoder = TextCodec::decoder_for_exact_name("ISO-8859-1"sv);
+    VERIFY(decoder.has_value());
+    auto data = MUST(decoder->to_utf8(StringView { value }));
 
     // 2. If data does not start with "bytes=", then return failure.
-    if (!data.starts_with("bytes="sv))
+    if (!data.starts_with_bytes("bytes="sv))
         return {};
 
     // 3. Let position be a position variable for data, initially pointing at the 6th code point of data.
