@@ -319,13 +319,11 @@ EnvironmentSettingsObject& current_principal_settings_object()
 }
 
 // https://html.spec.whatwg.org/multipage/webappapis.html#current-global-object
+// https://whatpr.org/html/9893/webappapis.html#current-principal-global-object
 JS::Object& current_principal_global_object()
 {
-    auto& event_loop = HTML::main_thread_event_loop();
-    auto& vm = event_loop.vm();
-
-    // Similarly, the current global object is the global object of the current Realm Record.
-    return vm.current_realm()->global_object();
+    // Similarly, the current principal global object is the global object of the current principal realm.
+    return current_principal_realm().global_object();
 }
 
 // https://html.spec.whatwg.org/multipage/webappapis.html#concept-relevant-realm
