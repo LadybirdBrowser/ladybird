@@ -300,14 +300,22 @@ JS::Object& incumbent_global_object()
     return incumbent_settings_object().global_object();
 }
 
-// https://html.spec.whatwg.org/multipage/webappapis.html#current-settings-object
-EnvironmentSettingsObject& current_principal_settings_object()
+// https://whatpr.org/html/9893/webappapis.html#current-principal-realm
+JS::Realm& current_principal_realm()
 {
+    // FIXME: The current principal realm is the principal realm of the current realm.
     auto& event_loop = HTML::main_thread_event_loop();
     auto& vm = event_loop.vm();
 
-    // Then, the current settings object is the environment settings object of the current Realm Record.
-    return Bindings::host_defined_environment_settings_object(*vm.current_realm());
+    return *vm.current_realm();
+}
+
+// https://html.spec.whatwg.org/multipage/webappapis.html#current-settings-object
+// https://whatpr.org/html/9893/webappapis.html#current-principal-settings-object
+EnvironmentSettingsObject& current_principal_settings_object()
+{
+    // Then, the current principal settings object is the environment settings object of the current principal realm.
+    return Bindings::host_defined_environment_settings_object(current_principal_realm());
 }
 
 // https://html.spec.whatwg.org/multipage/webappapis.html#current-global-object
