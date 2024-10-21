@@ -20,6 +20,7 @@
 #include <LibWeb/HTML/HTMLOptionElement.h>
 #include <LibWeb/HTML/HTMLSelectElement.h>
 #include <LibWeb/HTML/Numbers.h>
+#include <LibWeb/HTML/ValidityState.h>
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/Infra/Strings.h>
 #include <LibWeb/Layout/Node.h>
@@ -51,6 +52,7 @@ void HTMLSelectElement::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_selected_options);
     visitor.visit(m_inner_text_element);
     visitor.visit(m_chevron_icon_element);
+    visitor.visit(m_validity);
 
     for (auto const& item : m_select_items) {
         if (item.has<SelectItemOption>())
@@ -609,5 +611,45 @@ void HTMLSelectElement::update_selectedness()
         }
     }
     update_inner_text_element();
+}
+
+// https://html.spec.whatwg.org/multipage/form-elements.html#the-select-element:suffering-from-being-missing
+bool HTMLSelectElement::is_value_missing() const
+{
+    // If the element has its required attribute specified,
+    if (!has_attribute(HTML::AttributeNames::required)) {
+        return false;
+    }
+
+    auto const is_placeholder = [&](auto const& option_element) {
+        // If a select element has a required attribute specified,
+        // does not have a multiple attribute specified,
+        if (has_attribute(HTML::AttributeNames::multiple)) {
+            return false;
+        }
+        // ...and has a display size of 1
+        if (size() != 1) {
+            return false;
+        }
+        // ...and if the value of the first option element in the select element's list of options (if any) is the empty string,
+        if (list_of_options().first() != &option_element || !option_element.value().is_empty()) {
+            return false;
+        }
+        // ...and that option element's parent node is the select element (and not an optgroup element),
+        // then that option is the select element's placeholder label option.
+        return true;
+    };
+
+    // ...and either none of the option elements in the select element's list of options have their selectedness set to true,
+    // or the only option element in the select element's list of options with its selectedness set to true is the placeholder label option,
+    // then the element is suffering from being missing.
+    for (auto const& option_element : list_of_options()) {
+        if (option_element->selected()) {
+            if (!is_placeholder(*option_element)) {
+                return false;
+            }
+        }
+    }
+    return true;
 }
 }
