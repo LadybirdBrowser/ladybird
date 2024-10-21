@@ -24,6 +24,7 @@
 #include <gpu/ganesh/SkSurfaceGanesh.h>
 #include <pathops/SkPathOps.h>
 
+#include <LibGfx/ColorSpace.h>
 #include <LibGfx/Font/ScaledFont.h>
 #include <LibGfx/PathSkia.h>
 #include <LibWeb/CSS/ComputedValues.h>
@@ -56,7 +57,7 @@ public:
 
     void read_into_bitmap(Gfx::Bitmap& bitmap)
     {
-        auto image_info = SkImageInfo::Make(bitmap.width(), bitmap.height(), kBGRA_8888_SkColorType, kPremul_SkAlphaType);
+        auto image_info = SkImageInfo::Make(bitmap.width(), bitmap.height(), kBGRA_8888_SkColorType, kPremul_SkAlphaType, SkColorSpace::MakeSRGB());
         SkPixmap pixmap(image_info, bitmap.begin(), bitmap.pitch());
         m_surface->readPixels(pixmap, 0, 0);
     }
@@ -92,7 +93,7 @@ public:
 
     sk_sp<SkSurface> create_surface(int width, int height)
     {
-        auto image_info = SkImageInfo::Make(width, height, kBGRA_8888_SkColorType, kPremul_SkAlphaType);
+        auto image_info = SkImageInfo::Make(width, height, kBGRA_8888_SkColorType, kPremul_SkAlphaType, SkColorSpace::MakeSRGB());
         return SkSurfaces::RenderTarget(m_context.get(), skgpu::Budgeted::kYes, image_info);
     }
 
@@ -181,7 +182,7 @@ OwnPtr<SkiaBackendContext> DisplayListPlayerSkia::create_metal_context(Core::Met
 
 DisplayListPlayerSkia::DisplayListPlayerSkia(SkiaBackendContext& context, Core::MetalTexture& metal_texture)
 {
-    auto image_info = SkImageInfo::Make(metal_texture.width(), metal_texture.height(), kBGRA_8888_SkColorType, kPremul_SkAlphaType);
+    auto image_info = SkImageInfo::Make(metal_texture.width(), metal_texture.height(), kBGRA_8888_SkColorType, kPremul_SkAlphaType, SkColorSpace::MakeSRGB());
     VERIFY(is<SkiaMetalBackendContext>(context));
     auto surface = static_cast<SkiaMetalBackendContext&>(context).wrap_metal_texture(metal_texture);
     if (!surface) {
@@ -198,7 +199,7 @@ DisplayListPlayerSkia::DisplayListPlayerSkia(SkiaBackendContext& context, Core::
 DisplayListPlayerSkia::DisplayListPlayerSkia(Gfx::Bitmap& bitmap)
 {
     VERIFY(bitmap.format() == Gfx::BitmapFormat::BGRA8888);
-    auto image_info = SkImageInfo::Make(bitmap.width(), bitmap.height(), kBGRA_8888_SkColorType, kPremul_SkAlphaType);
+    auto image_info = SkImageInfo::Make(bitmap.width(), bitmap.height(), kBGRA_8888_SkColorType, kPremul_SkAlphaType, SkColorSpace::MakeSRGB());
     auto surface = SkSurfaces::WrapPixels(image_info, bitmap.begin(), bitmap.pitch());
     VERIFY(surface);
     m_surface = make<SkiaSurface>(surface);
@@ -278,11 +279,11 @@ static SkColorType to_skia_color_type(Gfx::BitmapFormat format)
     }
 }
 
-static SkBitmap to_skia_bitmap(Gfx::Bitmap const& bitmap)
+static SkBitmap to_skia_bitmap(Gfx::Bitmap const& bitmap, Gfx::ColorSpace maybe_profile = {})
 {
     SkColorType color_type = to_skia_color_type(bitmap.format());
     SkAlphaType alpha_type = bitmap.alpha_type() == Gfx::AlphaType::Premultiplied ? kPremul_SkAlphaType : kUnpremul_SkAlphaType;
-    SkImageInfo image_info = SkImageInfo::Make(bitmap.width(), bitmap.height(), color_type, alpha_type);
+    SkImageInfo image_info = SkImageInfo::Make(bitmap.width(), bitmap.height(), color_type, alpha_type, maybe_profile.color_space<sk_sp<SkColorSpace>>());
     SkBitmap sk_bitmap;
     sk_bitmap.setInfo(image_info);
 
@@ -379,7 +380,7 @@ void DisplayListPlayerSkia::draw_scaled_immutable_bitmap(DrawScaledImmutableBitm
 {
     auto src_rect = to_skia_rect(command.src_rect);
     auto dst_rect = to_skia_rect(command.dst_rect);
-    auto bitmap = to_skia_bitmap(command.bitmap->bitmap());
+    auto bitmap = to_skia_bitmap(command.bitmap->bitmap(), command.bitmap->color_space());
     auto image = SkImages::RasterFromBitmap(bitmap);
     auto& canvas = surface().canvas();
     SkPaint paint;
@@ -388,7 +389,7 @@ void DisplayListPlayerSkia::draw_scaled_immutable_bitmap(DrawScaledImmutableBitm
 
 void DisplayListPlayerSkia::draw_repeated_immutable_bitmap(DrawRepeatedImmutableBitmap const& command)
 {
-    auto bitmap = to_skia_bitmap(command.bitmap->bitmap());
+    auto bitmap = to_skia_bitmap(command.bitmap->bitmap(), command.bitmap->color_space());
     auto image = SkImages::RasterFromBitmap(bitmap);
 
     SkMatrix matrix;
