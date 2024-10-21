@@ -235,26 +235,25 @@ ErrorOr<void> initialize_main_thread_vm(HTML::EventLoop::Type type)
 
         // 2. Queue a global task on the JavaScript engine task source given global to perform the following steps:
         HTML::queue_global_task(HTML::Task::Source::JavaScriptEngine, global, JS::create_heap_function(s_main_thread_vm->heap(), [&finalization_registry] {
-            // FIXME: 1. Let entry be finalizationRegistry.[[CleanupCallback]].[[Callback]].[[Realm]]'s environment settings object.
-            auto& realm = *finalization_registry.cleanup_callback().callback().realm();
-            auto& entry = host_defined_environment_settings_object(realm);
+            // 1. Let entry be finalizationRegistry.[[CleanupCallback]].[[Callback]].[[Realm]].
+            auto& entry = *finalization_registry.cleanup_callback().callback().realm();
 
             // 2. Check if we can run script with entry. If this returns "do not run", then return.
-            if (HTML::can_run_script(realm) == HTML::RunScriptDecision::DoNotRun)
+            if (HTML::can_run_script(entry) == HTML::RunScriptDecision::DoNotRun)
                 return;
 
             // 3. Prepare to run script with entry.
-            entry.prepare_to_run_script();
+            HTML::prepare_to_run_script(entry);
 
             // 4. Let result be the result of performing CleanupFinalizationRegistry(finalizationRegistry).
             auto result = finalization_registry.cleanup();
 
             // 5. Clean up after running script with entry.
-            HTML::clean_up_after_running_script(realm);
+            HTML::clean_up_after_running_script(entry);
 
             // 6. If result is an abrupt completion, then report the exception given by result.[[Value]].
             if (result.is_error())
-                HTML::report_exception(result, finalization_registry.realm());
+                HTML::report_exception(result, entry);
         }));
     };
 
@@ -286,8 +285,8 @@ ErrorOr<void> initialize_main_thread_vm(HTML::EventLoop::Type type)
                 if (HTML::can_run_script(*realm) == HTML::RunScriptDecision::DoNotRun)
                     return;
 
-                // FIXME: 2. If realm is not null, then prepare to run script with realm.
-                job_settings->prepare_to_run_script();
+                // 2. If realm is not null, then prepare to run script with realm.
+                HTML::prepare_to_run_script(*realm);
 
                 // IMPLEMENTATION DEFINED: Additionally to preparing to run a script, we also prepare to run a callback here. This matches WebIDL's
                 //                         invoke_callback() / call_user_object_operation() functions, and prevents a crash in host_make_job_callback()

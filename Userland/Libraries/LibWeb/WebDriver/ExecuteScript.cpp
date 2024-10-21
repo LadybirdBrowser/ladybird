@@ -279,8 +279,8 @@ JS::ThrowCompletionOr<JS::Value> execute_a_function_body(HTML::Window const& win
     // 5. If body begins with a directive prologue that contains a use strict directive then let strict be true, otherwise let strict be false.
     // NOTE: Handled in step 8 below.
 
-    // 6. Prepare to run a script with environment settings.
-    environment_settings.prepare_to_run_script();
+    // 6. Prepare to run a script with realm.
+    HTML::prepare_to_run_script(realm);
 
     // 7. Prepare to run a callback with environment settings.
     environment_settings.prepare_to_run_callback();
