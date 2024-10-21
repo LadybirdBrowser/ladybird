@@ -93,6 +93,12 @@ sudo zypper install autoconf-archive automake ccache cmake curl ffmpeg-7-libavco
 ```
 The build process requires at least python3.7; openSUSE Leap only features Python 3.6 as default, so it is recommendable to install package python311 and create a virtual environment (venv) in this case.
 
+### Void Linux:
+```
+sudo xbps-install -Su # (optional) ensure packages are up to date to avoid "Transaction aborted due to unresolved dependencies."
+sudo xbps-install -S git bash gcc python3 curl cmake zip unzip linux-headers make pkg-config autoconf automake autoconf-archive nasm MesaLib-devel ninja ffmpeg-devel qt6-base-devel qt6-multimedia-devel qt6-tools-devel qt6-wayland-devel
+```
+
 ### NixOS or with Nix:
 
 > [!NOTE]
