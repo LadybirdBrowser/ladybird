@@ -49,6 +49,8 @@ public:
         return m_current_window_handle;
     }
 
+    bool has_window_handle(StringView handle) const { return m_windows.contains(handle); }
+
     ErrorOr<void> start(LaunchBrowserCallbacks const&);
     Web::WebDriver::Response close_window();
     Web::WebDriver::Response switch_to_window(StringView);
