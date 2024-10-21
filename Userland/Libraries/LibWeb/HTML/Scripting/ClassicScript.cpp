@@ -88,8 +88,8 @@ JS::Completion ClassicScript::run(RethrowErrors rethrow_errors)
     if (can_run_script(realm) == RunScriptDecision::DoNotRun)
         return JS::normal_completion({});
 
-    // 3. Prepare to run script given settings.
-    settings.prepare_to_run_script();
+    // 3. Prepare to run script given realm.
+    prepare_to_run_script(realm);
 
     // 4. Let evaluationStatus be null.
     JS::Completion evaluation_status;
