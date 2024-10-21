@@ -519,9 +519,24 @@ private:
 template<typename... Ts>
 struct TypeList<Variant<Ts...>> : TypeList<Ts...> { };
 
+namespace Detail {
+template<typename T1, typename T2>
+struct FlattenVariant;
+
+template<typename... Ts1, typename... Ts2>
+struct FlattenVariant<::AK::Variant<Ts1...>, ::AK::Variant<Ts2...>> {
+    using type = ::AK::Variant<Ts1..., Ts2...>;
+};
+
+}
+
+template<typename T1, typename T2>
+using FlattenVariant = Detail::FlattenVariant<T1, T2>::type;
+
 }
 
 #if USING_AK_GLOBALLY
 using AK::Empty;
+using AK::FlattenVariant;
 using AK::Variant;
 #endif

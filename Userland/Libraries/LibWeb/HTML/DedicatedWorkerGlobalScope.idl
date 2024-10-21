@@ -1,3 +1,4 @@
+#import <HTML/Window.idl>
 #import <HTML/WorkerGlobalScope.idl>
 
 // https://html.spec.whatwg.org/multipage/workers.html#dedicatedworkerglobalscope
