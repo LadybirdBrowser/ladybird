@@ -12,7 +12,6 @@ add_library(ladybird_impl STATIC
     UI/SearchPanel.mm
     UI/Tab.mm
     UI/TabController.mm
-    Utilities/Conversions.mm
 )
 target_include_directories(ladybird_impl PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>)
 
@@ -26,6 +25,7 @@ if (ENABLE_SWIFT)
     target_sources(ladybird_impl PRIVATE
         UI/TaskManager.swift
         UI/TaskManagerController.swift
+        Utilities/Conversions.swift
     )
     target_compile_definitions(ladybird_impl PUBLIC LADYBIRD_USE_SWIFT)
     set_target_properties(ladybird_impl PROPERTIES Swift_MODULE_NAME "SwiftLadybird")
@@ -38,6 +38,7 @@ else()
     target_sources(ladybird_impl PRIVATE
         UI/TaskManager.mm
         UI/TaskManagerController.mm
+        Utilities/Conversions.mm
     )
 endif()
 
