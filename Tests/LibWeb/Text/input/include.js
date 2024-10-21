@@ -74,6 +74,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
 function test(f) {
     __preventMultipleTestFunctions();
+
     document.addEventListener("DOMContentLoaded", f);
     window.addEventListener("load", () => {
         __finishTest();
@@ -85,8 +86,13 @@ function asyncTest(f) {
         __preventMultipleTestFunctions();
         __finishTest();
     };
+
+    const testServer = new HTTPTestServer("http://localhost:8000");
     document.addEventListener("DOMContentLoaded", () => {
-        f(done);
+        f(done, {
+            createEcho: testServer.createEcho.bind(testServer),
+            staticBaseURL: testServer.getStaticURL("").slice(0, -1),
+        });
     });
 }
 
@@ -97,4 +103,30 @@ function promiseTest(f) {
             __finishTest();
         });
     });
+}
+
+class HTTPTestServer {
+    constructor(baseURL) {
+        this.baseURL = baseURL;
+    }
+    async createEcho(options) {
+        const result = await fetch(`${this.baseURL}/create`, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+            },
+            body: JSON.stringify(options),
+        });
+        if (!result.ok) {
+            throw new Error("Error creating echo: " + result.statusText);
+        }
+        const data = await result.json();
+        if (typeof data.id !== "string") {
+            throw new Error("Invalid response from HTTP test server: " + JSON.stringify(data));
+        }
+        return `${this.baseURL}/echo/${data.id}`;
+    }
+    getStaticURL(path) {
+        return `${this.baseURL}/static/${path}`;
+    }
 }
