@@ -27,13 +27,13 @@ public:
 
     RefPtr<Resource> load_resource(Resource::Type, LoadRequest&);
 
-    using SuccessCallback = JS::SafeFunction<void(ReadonlyBytes, HTTP::HeaderMap const& response_headers, Optional<u32> status_code)>;
-    using ErrorCallback = JS::SafeFunction<void(ByteString const&, Optional<u32> status_code, ReadonlyBytes payload, HTTP::HeaderMap const& response_headers)>;
+    using SuccessCallback = JS::SafeFunction<void(ReadonlyBytes, HTTP::HeaderMap const& response_headers, Optional<u32> status_code, Optional<String> reason_phrase)>;
+    using ErrorCallback = JS::SafeFunction<void(ByteString const&, Optional<u32> status_code, Optional<String> reason_phrase, ReadonlyBytes payload, HTTP::HeaderMap const& response_headers)>;
     using TimeoutCallback = JS::SafeFunction<void()>;
 
     void load(LoadRequest&, SuccessCallback success_callback, ErrorCallback error_callback = nullptr, Optional<u32> timeout = {}, TimeoutCallback timeout_callback = nullptr);
 
-    using OnHeadersReceived = JS::SafeFunction<void(HTTP::HeaderMap const& response_headers, Optional<u32> status_code)>;
+    using OnHeadersReceived = JS::SafeFunction<void(HTTP::HeaderMap const& response_headers, Optional<u32> status_code, Optional<String> const& reason_phrase)>;
     using OnDataReceived = JS::SafeFunction<void(ReadonlyBytes data)>;
     using OnComplete = JS::SafeFunction<void(bool success, Optional<StringView> error_message)>;
 
