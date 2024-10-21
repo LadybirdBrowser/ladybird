@@ -133,8 +133,8 @@ JS::Promise* JavaScriptModuleScript::run(PreventErrorReporting)
         return promise;
     }
 
-    // 3. Prepare to run script given settings.
-    settings.prepare_to_run_script();
+    // 3. Prepare to run script given realm.
+    prepare_to_run_script(realm);
 
     // 4. Let evaluationPromise be null.
     JS::Promise* evaluation_promise = nullptr;

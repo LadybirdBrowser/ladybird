@@ -123,12 +123,15 @@ RunScriptDecision can_run_script(JS::Realm const& realm)
 }
 
 // https://html.spec.whatwg.org/multipage/webappapis.html#prepare-to-run-script
-void EnvironmentSettingsObject::prepare_to_run_script()
+// https://whatpr.org/html/9893/b8ea975...df5706b/webappapis.html#prepare-to-run-script
+void prepare_to_run_script(JS::Realm& realm)
 {
-    // 1. Push settings's realm execution context onto the JavaScript execution context stack; it is now the running JavaScript execution context.
-    global_object().vm().push_execution_context(realm_execution_context());
+    // 1. Push realms's execution context onto the JavaScript execution context stack; it is now the running JavaScript execution context.
+    realm.global_object().vm().push_execution_context(execution_context_of_realm(realm));
 
-    // FIXME: 2. Add settings to the currently running task's script evaluation environment settings object set.
+    // FIXME: 2. If realm is a principal realm, then:
+    // FIXME: 2.1 Let settings be realm's settings object.
+    // FIXME: 2.2 Add settings to the currently running task's script evaluation environment settings object set.
 }
 
 // https://whatpr.org/html/9893/b8ea975...df5706b/webappapis.html#concept-realm-execution-context

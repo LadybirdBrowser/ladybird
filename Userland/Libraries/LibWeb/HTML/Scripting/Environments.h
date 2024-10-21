@@ -96,8 +96,6 @@ public:
     // https://fetch.spec.whatwg.org/#concept-fetch-group
     Vector<JS::NonnullGCPtr<Fetch::Infrastructure::FetchRecord>>& fetch_group() { return m_fetch_group; }
 
-    void prepare_to_run_script();
-
     void prepare_to_run_callback();
     void clean_up_after_running_callback();
 
@@ -137,10 +135,12 @@ private:
 };
 
 JS::ExecutionContext const& execution_context_of_realm(JS::Realm const&);
+inline JS::ExecutionContext& execution_context_of_realm(JS::Realm& realm) { return const_cast<JS::ExecutionContext&>(execution_context_of_realm(const_cast<JS::Realm const&>(realm))); }
 
 RunScriptDecision can_run_script(JS::Realm const&);
 bool is_scripting_enabled(JS::Realm const&);
 bool is_scripting_disabled(JS::Realm const&);
+void prepare_to_run_script(JS::Realm&);
 void clean_up_after_running_script(JS::Realm const&);
 
 EnvironmentSettingsObject& incumbent_settings_object();

@@ -13,7 +13,7 @@ TemporaryExecutionContext::TemporaryExecutionContext(EnvironmentSettingsObject& 
     : m_environment_settings(environment_settings)
     , m_callbacks_enabled(callbacks_enabled)
 {
-    m_environment_settings->prepare_to_run_script();
+    prepare_to_run_script(m_environment_settings->realm());
     if (m_callbacks_enabled == CallbacksEnabled::Yes)
         m_environment_settings->prepare_to_run_callback();
 }
