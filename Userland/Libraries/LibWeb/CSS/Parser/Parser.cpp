@@ -39,6 +39,7 @@
 #include <LibWeb/CSS/PropertyName.h>
 #include <LibWeb/CSS/Selector.h>
 #include <LibWeb/CSS/Sizing.h>
+#include <LibWeb/CSS/StyleComputer.h>
 #include <LibWeb/CSS/StyleValues/AngleStyleValue.h>
 #include <LibWeb/CSS/StyleValues/BackgroundRepeatStyleValue.h>
 #include <LibWeb/CSS/StyleValues/BackgroundSizeStyleValue.h>
@@ -1187,9 +1188,28 @@ template Vector<Vector<ComponentValue>> Parser::parse_a_comma_separated_list_of_
 
 ElementInlineCSSStyleDeclaration* Parser::parse_as_style_attribute(DOM::Element& element)
 {
+    auto expand_shorthands = [&](Vector<StyleProperty>& properties) -> Vector<StyleProperty> {
+        Vector<StyleProperty> expanded_properties;
+        for (auto& property : properties) {
+            if (property_is_shorthand(property.property_id)) {
+                StyleComputer::for_each_property_expanding_shorthands(property.property_id, *property.value, StyleComputer::AllowUnresolved::Yes, [&](PropertyID longhand_property_id, CSSStyleValue const& longhand_value) {
+                    expanded_properties.append(CSS::StyleProperty {
+                        .important = property.important,
+                        .property_id = longhand_property_id,
+                        .value = longhand_value,
+                    });
+                });
+            } else {
+                expanded_properties.append(property);
+            }
+        }
+        return expanded_properties;
+    };
+
     auto declarations_and_at_rules = parse_a_blocks_contents(m_token_stream);
     auto [properties, custom_properties] = extract_properties(declarations_and_at_rules);
-    return ElementInlineCSSStyleDeclaration::create(element, move(properties), move(custom_properties));
+    auto expanded_properties = expand_shorthands(properties);
+    return ElementInlineCSSStyleDeclaration::create(element, move(expanded_properties), move(custom_properties));
 }
 
 Optional<URL::URL> Parser::parse_url_function(TokenStream<ComponentValue>& tokens)
