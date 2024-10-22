@@ -32,8 +32,6 @@ RefPtr<GlyphRun> shape_text(FloatPoint baseline_start, Utf8View string, Gfx::Fon
     Vector<Gfx::DrawGlyph> glyph_run;
     FloatPoint point = baseline_start;
     for (size_t i = 0; i < glyph_count; ++i) {
-        if (input_glyph_info[i].codepoint == '\t')
-            continue;
 
         auto position = point
             - FloatPoint { 0, font.pixel_metrics().ascent }

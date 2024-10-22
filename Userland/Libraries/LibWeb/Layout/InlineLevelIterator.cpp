@@ -285,6 +285,8 @@ Optional<InlineLevelIterator::Item> InlineLevelIterator::next_without_lookahead(
             }
             tab_stop_dist = tab_stop_dist * num_of_tabs;
 
+            // remove tabs, we don't want to render them when we shape the text
+            chunk.view = chunk.view.substring_view(num_of_tabs);
             x = tab_stop_dist.to_float();
         }
 
