@@ -8,7 +8,7 @@ you are welcome to ask on [Discord](../README.md#get-in-touch-and-participate).
 * [Build Instructions](BuildInstructionsLadybird.md)
 * [Advanced Build Instructions](AdvancedBuildInstructions.md)
 * [Troubleshooting](Troubleshooting.md)
-* [Running Tests](RunningTests.md)
+* [Testing](Testing.md)
 * [Profiling the Build](BuildProfilingInstructions.md)
 
 ## Configuring Editors

@@ -60,7 +60,7 @@ For more information on how the CMake cache works, see the CMake guide for [Runn
 
 ## Tests
 
-For information on running host and target tests, see [Running Tests](RunningTests.md). The documentation there also contains useful information for debugging CI test failures.
+For information on running host and target tests, see [Testing](Testing.md). The documentation there also contains useful information for debugging CI test failures.
 
 ## Clang-format updates
 
