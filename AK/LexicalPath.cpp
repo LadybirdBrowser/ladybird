@@ -58,6 +58,11 @@ LexicalPath::LexicalPath(ByteString path)
     }
 }
 
+bool LexicalPath::is_absolute() const
+{
+    return m_string.starts_with('/');
+}
+
 Vector<ByteString> LexicalPath::parts() const
 {
     Vector<ByteString> vector;
@@ -163,7 +168,7 @@ ByteString LexicalPath::relative_path(StringView a_path, StringView a_prefix)
     if (prefix == "/"sv)
         return path.substring_view(1);
 
-    // NOTE: This means the prefix is a direct child of the path.
+    // NOTE: This means the path is a direct child of the prefix.
     if (path.starts_with(prefix) && path[prefix.length()] == '/') {
         return path.substring_view(prefix.length() + 1);
     }

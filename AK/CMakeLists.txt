@@ -16,7 +16,6 @@ set(SOURCES
     JsonObject.cpp
     JsonParser.cpp
     JsonValue.cpp
-    LexicalPath.cpp
     MemoryStream.cpp
     NumberFormat.cpp
     OptionParser.cpp
@@ -37,6 +36,12 @@ set(SOURCES
     Utf8View.cpp
     kmalloc.cpp
 )
+
+if (WIN32)
+    list(APPEND SOURCES LexicalPathWindows.cpp)
+else()
+    list(APPEND SOURCES LexicalPath.cpp)
+endif()
 
 serenity_lib(AK ak)
 
