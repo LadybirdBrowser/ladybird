@@ -4,11 +4,14 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/Math.h>
+#include <LibMedia/Audio/SignalProcessing.h>
 #include <LibWeb/Bindings/AudioParamPrototype.h>
 #include <LibWeb/Bindings/BiquadFilterNodePrototype.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/WebAudio/AudioNode.h>
 #include <LibWeb/WebAudio/AudioParam.h>
+#include <LibWeb/WebAudio/BaseAudioContext.h>
 #include <LibWeb/WebAudio/BiquadFilterNode.h>
 
 namespace Web::WebAudio {
@@ -70,6 +73,46 @@ WebIDL::ExceptionOr<void> BiquadFilterNode::get_frequency_response(JS::Handle<We
     (void)mag_response;
     (void)phase_response;
     dbgln("FIXME: Implement BiquadFilterNode::get_frequency_response(Float32Array, Float32Array, Float32Array)");
+
+    auto F_s = context()->sample_rate();
+    // https://webaudio.github.io/web-audio-api/#computedfrequency
+    auto f0 = frequency()->value() * pow(2.0, detune()->value() / 1200.0);
+    auto G = gain()->value();
+    auto Q = q()->value();
+
+    auto A = pow(10, (f64)G / 40.0);
+    auto omega_0 = 2 * AK::Pi<f64> * f0 / F_s;
+    auto alpha_Q = sin(omega_0) / (2.0 * Q);
+    auto alpha_Q_dB = 0.5 * sin(omega_0) / (2.0 * pow(10, Q / 20.0));
+    auto S = 1.0;
+    auto alpha_S = 0.5 * sin(omega_0) * sqrt((A + 1.0 / A) * (1.0 / S - 1.0) + 2);
+
+    auto get_coefficients = [&]() {
+        switch (type()) {
+        case Bindings::BiquadFilterType::Lowpass:
+            return Audio::biquad_filter_lowpass_coefficients(omega_0, alpha_Q_dB);
+        case Bindings::BiquadFilterType::Highpass:
+            return Audio::biquad_filter_highpass_coefficients(omega_0, alpha_Q_dB);
+        case Bindings::BiquadFilterType::Bandpass:
+            return Audio::biquad_filter_bandpass_coefficients(omega_0, alpha_Q_dB);
+        case Bindings::BiquadFilterType::Notch:
+            return Audio::biquad_filter_notch_coefficients(omega_0, alpha_Q_dB);
+        case Bindings::BiquadFilterType::Allpass:
+            return Audio::biquad_filter_allpass_coefficients(omega_0, alpha_Q, A);
+        case Bindings::BiquadFilterType::Peaking:
+            return Audio::biquad_filter_peaking_coefficients(omega_0, alpha_Q, A);
+        case Bindings::BiquadFilterType::Lowshelf:
+            return Audio::biquad_filter_lowshelf_coefficients(omega_0, alpha_S, A);
+        case Bindings::BiquadFilterType::Highshelf:
+            return Audio::biquad_filter_highshelf_coefficients(omega_0, alpha_S, A);
+        }
+
+        return Audio::biquad_filter_lowpass_coefficients(omega_0, alpha_Q_dB);
+    };
+
+    Array<f64, 6> coefficients = get_coefficients();
+    (void)coefficients;
+
     return {};
 }
 
