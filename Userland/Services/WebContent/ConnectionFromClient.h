@@ -42,15 +42,13 @@ public:
 
     void request_file(u64 page_id, Web::FileRequest);
 
-    Optional<int> fd() { return socket().fd(); }
-
     PageHost& page_host() { return *m_page_host; }
     PageHost const& page_host() const { return *m_page_host; }
 
     Function<void(IPC::File const&)> on_image_decoder_connection;
 
 private:
-    explicit ConnectionFromClient(NonnullOwnPtr<Core::LocalSocket>);
+    explicit ConnectionFromClient(IPC::Transport);
 
     Optional<PageClient&> page(u64 index, SourceLocation = SourceLocation::current());
     Optional<PageClient const&> page(u64 index, SourceLocation = SourceLocation::current()) const;

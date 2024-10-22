@@ -135,7 +135,7 @@ WebContentView::WebContentView(QWidget* window, RefPtr<WebView::WebContentClient
     on_request_worker_agent = [&]() {
         auto& request_server_client = static_cast<Ladybird::Application*>(QApplication::instance())->request_server_client;
         auto worker_client = MUST(launch_web_worker_process(MUST(get_paths_for_helper_process("WebWorker"sv)), *request_server_client));
-        return worker_client->dup_socket();
+        return worker_client->clone_transport();
     };
 
     m_select_dropdown = new QMenu("Select Dropdown", this);

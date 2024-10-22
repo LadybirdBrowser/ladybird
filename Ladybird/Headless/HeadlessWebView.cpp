@@ -33,7 +33,7 @@ HeadlessWebView::HeadlessWebView(Core::AnonymousBuffer theme, Gfx::IntSize viewp
         auto web_worker_paths = MUST(get_paths_for_helper_process("WebWorker"sv));
         auto worker_client = MUST(launch_web_worker_process(web_worker_paths, Application::request_client()));
 
-        return worker_client->dup_socket();
+        return worker_client->clone_transport();
     };
 }
 

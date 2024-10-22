@@ -188,8 +188,10 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
     if (maybe_autoplay_allowlist_error.is_error())
         dbgln("Failed to load autoplay allowlist: {}", maybe_autoplay_allowlist_error.error());
 
+    static_assert(IsSame<IPC::Transport, IPC::TransportSocket>, "Need to handle other IPC transports here");
+
     auto webcontent_socket = TRY(Core::take_over_socket_from_system_server("WebContent"sv));
-    auto webcontent_client = TRY(WebContent::ConnectionFromClient::try_create(move(webcontent_socket)));
+    auto webcontent_client = TRY(WebContent::ConnectionFromClient::try_create(IPC::Transport(move(webcontent_socket))));
 
     webcontent_client->on_image_decoder_connection = [&](auto& socket_file) {
         auto maybe_error = reinitialize_image_decoder(socket_file);
@@ -250,10 +252,12 @@ static ErrorOr<void> load_autoplay_allowlist(StringView config_path)
 
 ErrorOr<void> initialize_resource_loader(int request_server_socket)
 {
+    static_assert(IsSame<IPC::Transport, IPC::TransportSocket>, "Need to handle other IPC transports here");
+
     auto socket = TRY(Core::LocalSocket::adopt_fd(request_server_socket));
     TRY(socket->set_blocking(true));
 
-    auto request_client = TRY(try_make_ref_counted<Requests::RequestClient>(move(socket)));
+    auto request_client = TRY(try_make_ref_counted<Requests::RequestClient>(IPC::Transport(move(socket))));
     Web::ResourceLoader::initialize(move(request_client));
 
     return {};
@@ -261,10 +265,11 @@ ErrorOr<void> initialize_resource_loader(int request_server_socket)
 
 ErrorOr<void> initialize_image_decoder(int image_decoder_socket)
 {
+    static_assert(IsSame<IPC::Transport, IPC::TransportSocket>, "Need to handle other IPC transports here");
     auto socket = TRY(Core::LocalSocket::adopt_fd(image_decoder_socket));
     TRY(socket->set_blocking(true));
 
-    auto new_client = TRY(try_make_ref_counted<ImageDecoderClient::Client>(move(socket)));
+    auto new_client = TRY(try_make_ref_counted<ImageDecoderClient::Client>(IPC::Transport(move(socket))));
 
     Web::Platform::ImageCodecPlugin::install(*new Ladybird::ImageCodecPlugin(move(new_client)));
 
@@ -273,10 +278,12 @@ ErrorOr<void> initialize_image_decoder(int image_decoder_socket)
 
 ErrorOr<void> reinitialize_image_decoder(IPC::File const& image_decoder_socket)
 {
+    static_assert(IsSame<IPC::Transport, IPC::TransportSocket>, "Need to handle other IPC transports here");
+
     auto socket = TRY(Core::LocalSocket::adopt_fd(image_decoder_socket.take_fd()));
     TRY(socket->set_blocking(true));
 
-    auto new_client = TRY(try_make_ref_counted<ImageDecoderClient::Client>(move(socket)));
+    auto new_client = TRY(try_make_ref_counted<ImageDecoderClient::Client>(IPC::Transport(move(socket))));
 
     static_cast<Ladybird::ImageCodecPlugin&>(Web::Platform::ImageCodecPlugin::the()).set_client(move(new_client));
 

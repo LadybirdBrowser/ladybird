@@ -175,8 +175,8 @@ int ConnectionFromClient::on_timeout_callback(void*, long timeout_ms, void* user
     return 0;
 }
 
-ConnectionFromClient::ConnectionFromClient(NonnullOwnPtr<Core::LocalSocket> socket)
-    : IPC::ConnectionFromClient<RequestClientEndpoint, RequestServerEndpoint>(*this, move(socket), s_client_ids.allocate())
+ConnectionFromClient::ConnectionFromClient(IPC::Transport transport)
+    : IPC::ConnectionFromClient<RequestClientEndpoint, RequestServerEndpoint>(*this, move(transport), s_client_ids.allocate())
 {
     s_connections.set(client_id(), *this);
 
@@ -215,6 +215,8 @@ void ConnectionFromClient::die()
 
 Messages::RequestServer::ConnectNewClientResponse ConnectionFromClient::connect_new_client()
 {
+    static_assert(IsSame<IPC::Transport, IPC::TransportSocket>, "Need to handle other IPC transports here");
+
     int socket_fds[2] {};
     if (auto err = Core::System::socketpair(AF_LOCAL, SOCK_STREAM, 0, socket_fds); err.is_error()) {
         dbgln("Failed to create client socketpair: {}", err.error());
@@ -230,7 +232,7 @@ Messages::RequestServer::ConnectNewClientResponse ConnectionFromClient::connect_
     }
     auto client_socket = client_socket_or_error.release_value();
     // Note: A ref is stored in the static s_connections map
-    auto client = adopt_ref(*new ConnectionFromClient(move(client_socket)));
+    auto client = adopt_ref(*new ConnectionFromClient(IPC::Transport(move(client_socket))));
 
     return IPC::File::adopt_fd(socket_fds[1]);
 }

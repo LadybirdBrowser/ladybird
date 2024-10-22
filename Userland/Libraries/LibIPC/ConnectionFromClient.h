@@ -26,16 +26,16 @@ public:
     using ServerStub = typename ServerEndpoint::Stub;
     using IPCProxy = typename ClientEndpoint::template Proxy<ServerEndpoint>;
 
-    ConnectionFromClient(ServerStub& stub, NonnullOwnPtr<Core::LocalSocket> socket, int client_id)
-        : IPC::Connection<ServerEndpoint, ClientEndpoint>(stub, move(socket))
+    ConnectionFromClient(ServerStub& stub, Transport transport, int client_id)
+        : IPC::Connection<ServerEndpoint, ClientEndpoint>(stub, move(transport))
         , ClientEndpoint::template Proxy<ServerEndpoint>(*this, {})
         , m_client_id(client_id)
     {
-        VERIFY(this->socket().is_open());
-        this->socket().on_ready_to_read = [this] {
+        this->transport().set_up_read_hook([this] {
+            NonnullRefPtr protect = *this;
             // FIXME: Do something about errors.
             (void)this->drain_messages_from_peer();
-        };
+        });
     }
 
     virtual ~ConnectionFromClient() override = default;

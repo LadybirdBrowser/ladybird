@@ -7,6 +7,7 @@
 #pragma once
 
 #include <LibIPC/ConnectionFromClient.h>
+#include <LibIPC/Transport.h>
 #include <WebContent/WebDriverClientEndpoint.h>
 #include <WebContent/WebDriverServerEndpoint.h>
 
@@ -18,7 +19,7 @@ class WebContentConnection
     : public IPC::ConnectionFromClient<WebDriverClientEndpoint, WebDriverServerEndpoint> {
     C_OBJECT_ABSTRACT(WebContentConnection)
 public:
-    WebContentConnection(NonnullOwnPtr<Core::LocalSocket> socket);
+    explicit WebContentConnection(IPC::Transport transport);
 
     Function<void()> on_close;
     Function<void(Web::WebDriver::Response)> on_script_executed;

@@ -10,7 +10,6 @@
 #include <AK/Function.h>
 #include <AK/OwnPtr.h>
 #include <AK/Types.h>
-#include <LibCore/Socket.h>
 #include <LibIPC/ConnectionFromClient.h>
 #include <LibIPC/Forward.h>
 #include <LibIPC/MultiServer.h>
@@ -33,7 +32,7 @@ public:
     Function<void(Vector<URL::URL> const&)> on_new_window;
 
 private:
-    UIProcessConnectionFromClient(NonnullOwnPtr<Core::LocalSocket>, int client_id);
+    UIProcessConnectionFromClient(IPC::Transport, int client_id);
 
     virtual void create_new_tab(Vector<ByteString> const& urls) override;
     virtual void create_new_window(Vector<ByteString> const& urls) override;

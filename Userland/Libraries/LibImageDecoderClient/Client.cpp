@@ -9,8 +9,8 @@
 
 namespace ImageDecoderClient {
 
-Client::Client(NonnullOwnPtr<Core::LocalSocket> socket)
-    : IPC::ConnectionToServer<ImageDecoderClientEndpoint, ImageDecoderServerEndpoint>(*this, move(socket))
+Client::Client(IPC::Transport transport)
+    : IPC::ConnectionToServer<ImageDecoderClientEndpoint, ImageDecoderServerEndpoint>(*this, move(transport))
 {
 }
 

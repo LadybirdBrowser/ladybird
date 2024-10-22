@@ -22,7 +22,7 @@ class UIProcessClient final
     C_OBJECT(UIProcessClient);
 
 private:
-    UIProcessClient(NonnullOwnPtr<Core::LocalSocket>);
+    explicit UIProcessClient(IPC::Transport);
 };
 
 ErrorOr<ChromeProcess::ProcessDisposition> ChromeProcess::connect(Vector<ByteString> const& raw_urls, NewWindow new_window)
@@ -48,7 +48,8 @@ ErrorOr<ChromeProcess::ProcessDisposition> ChromeProcess::connect(Vector<ByteStr
 ErrorOr<void> ChromeProcess::connect_as_client(ByteString const& socket_path, Vector<ByteString> const& raw_urls, NewWindow new_window)
 {
     auto socket = TRY(Core::LocalSocket::connect(socket_path));
-    auto client = UIProcessClient::construct(move(socket));
+    static_assert(IsSame<IPC::Transport, IPC::TransportSocket>, "Need to handle other IPC transports here");
+    auto client = UIProcessClient::construct(IPC::Transport(move(socket)));
 
     if (new_window == NewWindow::Yes) {
         if (!client->send_sync_but_allow_failure<Messages::UIProcessServer::CreateNewWindow>(raw_urls))
@@ -63,10 +64,13 @@ ErrorOr<void> ChromeProcess::connect_as_client(ByteString const& socket_path, Ve
 
 ErrorOr<void> ChromeProcess::connect_as_server(ByteString const& socket_path)
 {
+    static_assert(IsSame<IPC::Transport, IPC::TransportSocket>, "Need to handle other IPC transports here");
+
     auto socket_fd = TRY(Process::create_ipc_socket(socket_path));
     m_socket_path = socket_path;
     auto local_server = TRY(Core::LocalServer::try_create());
     TRY(local_server->take_over_fd(socket_fd));
+
     m_server_connection = TRY(IPC::MultiServer<UIProcessConnectionFromClient>::try_create(move(local_server)));
 
     m_server_connection->on_new_client = [this](auto& client) {
@@ -95,13 +99,13 @@ ChromeProcess::~ChromeProcess()
         MUST(Core::System::unlink(m_socket_path));
 }
 
-UIProcessClient::UIProcessClient(NonnullOwnPtr<Core::LocalSocket> socket)
-    : IPC::ConnectionToServer<UIProcessClientEndpoint, UIProcessServerEndpoint>(*this, move(socket))
+UIProcessClient::UIProcessClient(IPC::Transport transport)
+    : IPC::ConnectionToServer<UIProcessClientEndpoint, UIProcessServerEndpoint>(*this, move(transport))
 {
 }
 
-UIProcessConnectionFromClient::UIProcessConnectionFromClient(NonnullOwnPtr<Core::LocalSocket> socket, int client_id)
-    : IPC::ConnectionFromClient<UIProcessClientEndpoint, UIProcessServerEndpoint>(*this, move(socket), client_id)
+UIProcessConnectionFromClient::UIProcessConnectionFromClient(IPC::Transport transport, int client_id)
+    : IPC::ConnectionFromClient<UIProcessClientEndpoint, UIProcessServerEndpoint>(*this, move(transport), client_id)
 {
     s_connections.set(client_id, *this);
 }

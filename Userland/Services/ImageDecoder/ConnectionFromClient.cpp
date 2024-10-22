@@ -17,8 +17,8 @@ namespace ImageDecoder {
 static HashMap<int, RefPtr<ConnectionFromClient>> s_connections;
 static IDAllocator s_client_ids;
 
-ConnectionFromClient::ConnectionFromClient(NonnullOwnPtr<Core::LocalSocket> socket)
-    : IPC::ConnectionFromClient<ImageDecoderClientEndpoint, ImageDecoderServerEndpoint>(*this, move(socket), s_client_ids.allocate())
+ConnectionFromClient::ConnectionFromClient(IPC::Transport transport)
+    : IPC::ConnectionFromClient<ImageDecoderClientEndpoint, ImageDecoderServerEndpoint>(*this, move(transport), s_client_ids.allocate())
 {
     s_connections.set(client_id(), *this);
 }
@@ -55,7 +55,7 @@ ErrorOr<IPC::File> ConnectionFromClient::connect_new_client()
 
     auto client_socket = client_socket_or_error.release_value();
     // Note: A ref is stored in the static s_connections map
-    auto client = adopt_ref(*new ConnectionFromClient(move(client_socket)));
+    auto client = adopt_ref(*new ConnectionFromClient(IPC::Transport(move(client_socket))));
 
     return IPC::File::adopt_fd(socket_fds[1]);
 }

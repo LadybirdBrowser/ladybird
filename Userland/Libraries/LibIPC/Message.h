@@ -12,6 +12,7 @@
 #include <AK/RefPtr.h>
 #include <AK/Vector.h>
 #include <LibCore/Forward.h>
+#include <LibIPC/Transport.h>
 #include <unistd.h>
 
 namespace IPC {
@@ -44,7 +45,7 @@ public:
 
     ErrorOr<void> append_file_descriptor(int fd);
 
-    ErrorOr<void> transfer_message(Core::LocalSocket& socket);
+    ErrorOr<void> transfer_message(Transport& socket);
 
 private:
     Vector<u8, 1024> m_data;

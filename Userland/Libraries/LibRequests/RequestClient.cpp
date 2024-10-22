@@ -9,8 +9,8 @@
 
 namespace Requests {
 
-RequestClient::RequestClient(NonnullOwnPtr<Core::LocalSocket> socket)
-    : IPC::ConnectionToServer<RequestClientEndpoint, RequestServerEndpoint>(*this, move(socket))
+RequestClient::RequestClient(IPC::Transport transport)
+    : IPC::ConnectionToServer<RequestClientEndpoint, RequestServerEndpoint>(*this, move(transport))
 {
 }
 

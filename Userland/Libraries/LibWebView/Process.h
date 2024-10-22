@@ -9,8 +9,8 @@
 #include <AK/String.h>
 #include <AK/WeakPtr.h>
 #include <LibCore/Process.h>
-#include <LibCore/Socket.h>
 #include <LibIPC/Connection.h>
+#include <LibIPC/Transport.h>
 #include <LibWebView/ProcessType.h>
 
 namespace WebView {
@@ -52,11 +52,11 @@ public:
     static ErrorOr<int> create_ipc_socket(ByteString const& socket_path);
 
 private:
-    struct ProcessAndIPCSocket {
+    struct ProcessAndIPCTransport {
         Core::Process process;
-        NonnullOwnPtr<Core::LocalSocket> socket;
+        IPC::Transport transport;
     };
-    static ErrorOr<ProcessAndIPCSocket> spawn_and_connect_to_process(Core::ProcessSpawnOptions const& options);
+    static ErrorOr<ProcessAndIPCTransport> spawn_and_connect_to_process(Core::ProcessSpawnOptions const& options);
 
     Core::Process m_process;
     ProcessType m_type;
@@ -73,8 +73,8 @@ struct Process::ProcessAndClient {
 template<typename ClientType, typename... ClientArguments>
 ErrorOr<Process::ProcessAndClient<ClientType>> Process::spawn(ProcessType type, Core::ProcessSpawnOptions const& options, ClientArguments&&... client_arguments)
 {
-    auto [core_process, socket] = TRY(spawn_and_connect_to_process(options));
-    auto client = TRY(adopt_nonnull_ref_or_enomem(new (nothrow) ClientType { move(socket), forward<ClientArguments>(client_arguments)... }));
+    auto [core_process, transport] = TRY(spawn_and_connect_to_process(options));
+    auto client = TRY(adopt_nonnull_ref_or_enomem(new (nothrow) ClientType { move(transport), forward<ClientArguments>(client_arguments)... }));
 
     return ProcessAndClient { Process { type, client, move(core_process) }, client };
 }

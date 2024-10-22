@@ -6,6 +6,7 @@
 
 #include <LibCore/Environment.h>
 #include <LibCore/Process.h>
+#include <LibCore/Socket.h>
 #include <LibCore/StandardPaths.h>
 #include <LibWebView/Process.h>
 
@@ -24,8 +25,10 @@ Process::~Process()
         m_connection->shutdown();
 }
 
-ErrorOr<Process::ProcessAndIPCSocket> Process::spawn_and_connect_to_process(Core::ProcessSpawnOptions const& options)
+ErrorOr<Process::ProcessAndIPCTransport> Process::spawn_and_connect_to_process(Core::ProcessSpawnOptions const& options)
 {
+    static_assert(IsSame<IPC::Transport, IPC::TransportSocket>, "Need to handle other IPC transports here");
+
     int socket_fds[2] {};
     TRY(Core::System::socketpair(AF_LOCAL, SOCK_STREAM, 0, socket_fds));
 
@@ -44,7 +47,7 @@ ErrorOr<Process::ProcessAndIPCSocket> Process::spawn_and_connect_to_process(Core
     guard_fd_0.disarm();
     TRY(ipc_socket->set_blocking(true));
 
-    return ProcessAndIPCSocket { move(process), move(ipc_socket) };
+    return ProcessAndIPCTransport { move(process), IPC::Transport(move(ipc_socket)) };
 }
 
 ErrorOr<Optional<pid_t>> Process::get_process_pid(StringView process_name, StringView pid_path)

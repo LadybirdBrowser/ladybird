@@ -73,10 +73,12 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
 
 static ErrorOr<void> initialize_resource_loader(int request_server_socket)
 {
+    static_assert(IsSame<IPC::Transport, IPC::TransportSocket>, "Need to handle other IPC transports here");
+
     auto socket = TRY(Core::LocalSocket::adopt_fd(request_server_socket));
     TRY(socket->set_blocking(true));
 
-    auto request_client = TRY(try_make_ref_counted<Requests::RequestClient>(move(socket)));
+    auto request_client = TRY(try_make_ref_counted<Requests::RequestClient>(IPC::Transport(move(socket))));
     Web::ResourceLoader::initialize(move(request_client));
 
     return {};

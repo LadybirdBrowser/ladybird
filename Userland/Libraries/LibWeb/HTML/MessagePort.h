@@ -11,6 +11,7 @@
 #include <AK/Weakable.h>
 #include <LibCore/Socket.h>
 #include <LibIPC/File.h>
+#include <LibIPC/Transport.h>
 #include <LibWeb/Bindings/Transferable.h>
 #include <LibWeb/DOM/EventTarget.h>
 #include <LibWeb/Forward.h>
@@ -69,13 +70,13 @@ private:
     virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Cell::Visitor&) override;
 
-    bool is_entangled() const { return static_cast<bool>(m_socket); }
+    bool is_entangled() const;
 
     WebIDL::ExceptionOr<void> message_port_post_message_steps(JS::GCPtr<MessagePort> target_port, JS::Value message, StructuredSerializeOptions const& options);
     void post_message_task_steps(SerializedTransferRecord&);
     void post_port_message(SerializedTransferRecord);
-    ErrorOr<void> send_message_on_socket(SerializedTransferRecord const&);
-    void read_from_socket();
+    ErrorOr<void> send_message_on_transport(SerializedTransferRecord const&);
+    void read_from_transport();
 
     enum class ParseDecision {
         NotEnoughData,
@@ -89,7 +90,7 @@ private:
     // https://html.spec.whatwg.org/multipage/web-messaging.html#has-been-shipped
     bool m_has_been_shipped { false };
 
-    OwnPtr<Core::LocalSocket> m_socket;
+    Optional<IPC::Transport> m_transport;
 
     enum class SocketState : u8 {
         Header,

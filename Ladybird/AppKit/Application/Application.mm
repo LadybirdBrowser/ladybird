@@ -134,7 +134,7 @@ static ErrorOr<NonnullRefPtr<ImageDecoderClient::Client>> launch_new_image_decod
     auto web_worker_paths = TRY(get_paths_for_helper_process("WebWorker"sv));
     auto worker_client = TRY(launch_web_worker_process(web_worker_paths, *m_request_server_client));
 
-    return worker_client->dup_socket();
+    return worker_client->clone_transport();
 }
 
 #pragma mark - NSApplication
