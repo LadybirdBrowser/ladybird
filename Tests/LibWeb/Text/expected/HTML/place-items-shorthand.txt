@@ -1,0 +1,48 @@
+=== place-items: normal
+place-items: normal normal
+align-items: normal
+justify-items: normal
+=== place-items: stretch
+place-items: stretch stretch
+align-items: stretch
+justify-items: stretch
+=== place-items: start
+place-items: start start
+align-items: start
+justify-items: start
+=== place-items: end
+place-items: end end
+align-items: end
+justify-items: end
+=== place-items: self-start
+place-items: self-start self-start
+align-items: self-start
+justify-items: self-start
+=== place-items: self-end
+place-items: self-end self-end
+align-items: self-end
+justify-items: self-end
+=== place-items: center
+place-items: center center
+align-items: center
+justify-items: center
+=== place-items: flex-start
+place-items: flex-start flex-start
+align-items: flex-start
+justify-items: flex-start
+=== place-items: flex-end
+place-items: flex-end flex-end
+align-items: flex-end
+justify-items: flex-end
+=== place-items: baseline
+place-items: baseline baseline
+align-items: baseline
+justify-items: baseline
+=== place-items: normal start
+place-items: normal start
+align-items: normal
+justify-items: start
+=== place-items: normal center
+place-items: normal center
+align-items: normal
+justify-items: center

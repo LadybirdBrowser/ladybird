@@ -1,0 +1,34 @@
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        for (const alignValue of [
+            "normal",
+            "stretch",
+            "start",
+            "end",
+            "self-start",
+            "self-end",
+            "center",
+            "flex-start",
+            "flex-end",
+            "baseline",
+            // "first baseline",
+            // "last baseline",
+            // "safe flex-end",
+            // "unsafe end",
+            // "safe end",
+            // "unsafe flex-start",
+            // "safe center",
+            "normal start",
+            "normal center",
+        ]) {
+            println("=== place-items: " + alignValue);
+            var div = document.createElement("div");
+            div.setAttribute("style", "place-items: " + alignValue + ";");
+            document.body.appendChild(div);
+            for (const prop of ["place-items", "align-items", "justify-items"]) {
+                println(prop + ": " + div.style[prop]);
+            }
+        }
+    });
+</script>
