@@ -11,7 +11,7 @@ If you want to bring the comfortable Serenity classes with you to another system
 Lagom is used by the Serenity project in the following ways:
 
 - [Build tools](./Tools) required to build Serenity itself using Serenity's own C++ libraries are in Lagom.
-- [Unit tests](../../Documentation/RunningTests.md) in CI are built using the Lagom build for host systems to ensure portability.
+- [Unit tests](../../Documentation/Testing.md) in CI are built using the Lagom build for host systems to ensure portability.
 - [Continuous fuzzing](#fuzzing-on-oss-fuzz) is done with the help of OSS-fuzz using the Lagom build.
 - [The Ladybird browser](../../Ladybird/README.md) uses Lagom to provide LibWeb and LibJS for non-Serenity systems.
 - [ECMA 262 spec tests](https://ladybirdbrowser.github.io/libjs-website/test262) for LibJS are run per-commit and tracked on [LibJS website](https://ladybirdbrowser.github.io/libjs-website/).
