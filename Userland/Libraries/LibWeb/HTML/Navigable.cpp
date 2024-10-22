@@ -1071,7 +1071,7 @@ WebIDL::ExceptionOr<void> Navigable::populate_session_history_entry_document(
 
     // 2. Assert: if navigationParams is non-null, then navigationParams's response is non-null.
     // NavigationParams' response field is NonnullGCPtr
-    if (!navigation_params.has<Empty>())
+    if (!navigation_params.has<Empty>() && !navigation_params.has<NullWithError>())
         VERIFY(navigation_params.has<JS::NonnullGCPtr<NavigationParams>>());
 
     // 3. Let currentBrowsingContext be navigable's active browsing context.
@@ -1081,7 +1081,7 @@ WebIDL::ExceptionOr<void> Navigable::populate_session_history_entry_document(
     auto document_resource = entry->document_state()->resource();
 
     // 5. If navigationParams is null, then:
-    if (navigation_params.has<Empty>()) {
+    if (navigation_params.has<Empty>() || navigation_params.has<NullWithError>()) {
         // 1. If documentResource is a string, then set navigationParams to the result
         //    of creating navigation params from a srcdoc resource given entry, navigable,
         //    targetSnapshotParams, navigationId, and navTimingType.
@@ -1170,7 +1170,7 @@ WebIDL::ExceptionOr<void> Navigable::populate_session_history_entry_document(
             saveExtraDocumentState = false;
 
             // 4. If navigationParams is not null, then:
-            if (navigation_params.has<Empty>()) {
+            if (!navigation_params.has<Empty>() && !navigation_params.has<NullWithError>()) {
                 // FIXME: 1. Run the environment discarding steps for navigationParams's reserved environment.
                 // FIXME: 2. Invoke WebDriver BiDi navigation failed with currentBrowsingContext and a new WebDriver BiDi navigation status whose id is navigationId, status is "canceled", and url is navigationParams's response's URL.
             }
@@ -1202,7 +1202,7 @@ WebIDL::ExceptionOr<void> Navigable::populate_session_history_entry_document(
 
             // 3. If entry's document state's request referrer is "client", and navigationParams is a navigation params (i.e., neither null nor a non-fetch scheme navigation params), then:
             if (entry->document_state()->request_referrer() == Fetch::Infrastructure::Request::Referrer::Client
-                && (!navigation_params.has<Empty>() && Fetch::Infrastructure::is_fetch_scheme(entry->url().scheme()))) {
+                && (!navigation_params.has<Empty>() && !navigation_params.has<NullWithError>() && Fetch::Infrastructure::is_fetch_scheme(entry->url().scheme()))) {
                 // FIXME: 1. Assert: navigationParams's request is not null.
                 // FIXME: 2. Set entry's document state's request referrer to navigationParams's request's referrer.
             }
