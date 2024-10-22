@@ -56,6 +56,8 @@ Session::~Session()
 
 ErrorOr<NonnullRefPtr<Core::LocalServer>> Session::create_server(NonnullRefPtr<ServerPromise> promise)
 {
+    static_assert(IsSame<IPC::Transport, IPC::TransportSocket>, "Need to handle other IPC transports here");
+
     dbgln("Listening for WebDriver connection on {}", *m_web_content_socket_path);
 
     (void)Core::System::unlink(*m_web_content_socket_path);
@@ -64,7 +66,7 @@ ErrorOr<NonnullRefPtr<Core::LocalServer>> Session::create_server(NonnullRefPtr<S
     server->listen(*m_web_content_socket_path);
 
     server->on_accept = [this, promise](auto client_socket) {
-        auto maybe_connection = adopt_nonnull_ref_or_enomem(new (nothrow) WebContentConnection(move(client_socket)));
+        auto maybe_connection = adopt_nonnull_ref_or_enomem(new (nothrow) WebContentConnection(IPC::Transport(move(client_socket))));
         if (maybe_connection.is_error()) {
             promise->resolve(maybe_connection.release_error());
             return;

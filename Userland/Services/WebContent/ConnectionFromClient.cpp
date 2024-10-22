@@ -53,8 +53,8 @@
 
 namespace WebContent {
 
-ConnectionFromClient::ConnectionFromClient(NonnullOwnPtr<Core::LocalSocket> socket)
-    : IPC::ConnectionFromClient<WebContentClientEndpoint, WebContentServerEndpoint>(*this, move(socket), 1)
+ConnectionFromClient::ConnectionFromClient(IPC::Transport transport)
+    : IPC::ConnectionFromClient<WebContentClientEndpoint, WebContentServerEndpoint>(*this, move(transport), 1)
     , m_page_host(PageHost::create(*this))
 {
     m_input_event_queue_timer = Web::Platform::Timer::create_single_shot(0, [this] { process_next_input_event(); });

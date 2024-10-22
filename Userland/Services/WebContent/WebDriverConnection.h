@@ -14,6 +14,7 @@
 #include <AK/String.h>
 #include <LibGfx/Rect.h>
 #include <LibIPC/ConnectionToServer.h>
+#include <LibIPC/Transport.h>
 #include <LibJS/Forward.h>
 #include <LibJS/Heap/MarkedVector.h>
 #include <LibWeb/Forward.h>
@@ -37,7 +38,7 @@ public:
     void visit_edges(JS::Cell::Visitor&);
 
 private:
-    WebDriverConnection(NonnullOwnPtr<Core::LocalSocket> socket, Web::PageClient& page_client);
+    WebDriverConnection(IPC::Transport transport, Web::PageClient& page_client);
 
     virtual void die() override { }
 

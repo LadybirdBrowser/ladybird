@@ -30,7 +30,7 @@ public:
     void did_request_certificates(Badge<Request>, Request&);
 
 private:
-    explicit ConnectionFromClient(NonnullOwnPtr<Core::LocalSocket>);
+    explicit ConnectionFromClient(IPC::Transport);
 
     virtual Messages::RequestServer::ConnectNewClientResponse connect_new_client() override;
     virtual Messages::RequestServer::IsSupportedProtocolResponse is_supported_protocol(ByteString const&) override;

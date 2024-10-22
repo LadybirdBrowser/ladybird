@@ -24,7 +24,7 @@ class RequestClient final
     IPC_CLIENT_CONNECTION(RequestClient, "/tmp/session/%sid/portal/request"sv)
 
 public:
-    explicit RequestClient(NonnullOwnPtr<Core::LocalSocket>);
+    explicit RequestClient(IPC::Transport);
     virtual ~RequestClient() override;
 
     RefPtr<Request> start_request(ByteString const& method, URL::URL const&, HTTP::HeaderMap const& request_headers = {}, ReadonlyBytes request_body = {}, Core::ProxyData const& = {});

@@ -9,8 +9,8 @@
 
 namespace WebDriver {
 
-WebContentConnection::WebContentConnection(NonnullOwnPtr<Core::LocalSocket> socket)
-    : IPC::ConnectionFromClient<WebDriverClientEndpoint, WebDriverServerEndpoint>(*this, move(socket), 1)
+WebContentConnection::WebContentConnection(IPC::Transport transport)
+    : IPC::ConnectionFromClient<WebDriverClientEndpoint, WebDriverServerEndpoint>(*this, move(transport), 1)
 {
 }
 

@@ -36,7 +36,7 @@ public:
     PageHost const& page_host() const { return *m_page_host; }
 
 private:
-    explicit ConnectionFromClient(NonnullOwnPtr<Core::LocalSocket>);
+    explicit ConnectionFromClient(IPC::Transport);
 
     Web::Page& page();
     Web::Page const& page() const;

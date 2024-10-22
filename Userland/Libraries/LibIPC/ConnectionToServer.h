@@ -11,18 +11,18 @@
 
 namespace IPC {
 
-#define IPC_CLIENT_CONNECTION(klass, socket_path)                                                      \
-    C_OBJECT_ABSTRACT(klass)                                                                           \
-public:                                                                                                \
-    template<typename Klass = klass, class... Args>                                                    \
-    static ErrorOr<NonnullRefPtr<klass>> try_create(Args&&... args)                                    \
-    {                                                                                                  \
-        auto parsed_socket_path = TRY(Core::SessionManagement::parse_path_with_sid(socket_path));      \
-        auto socket = TRY(Core::LocalSocket::connect(move(parsed_socket_path)));                       \
-        /* We want to rate-limit our clients */                                                        \
-        TRY(socket->set_blocking(true));                                                               \
-                                                                                                       \
-        return adopt_nonnull_ref_or_enomem(new (nothrow) Klass(move(socket), forward<Args>(args)...)); \
+#define IPC_CLIENT_CONNECTION(klass, socket_path)                                                                      \
+    C_OBJECT_ABSTRACT(klass)                                                                                           \
+public:                                                                                                                \
+    template<typename Klass = klass, class... Args>                                                                    \
+    static ErrorOr<NonnullRefPtr<klass>> try_create(Args&&... args)                                                    \
+    {                                                                                                                  \
+        auto parsed_socket_path = TRY(Core::SessionManagement::parse_path_with_sid(socket_path));                      \
+        auto socket = TRY(Core::LocalSocket::connect(move(parsed_socket_path)));                                       \
+        /* We want to rate-limit our clients */                                                                        \
+        TRY(socket->set_blocking(true));                                                                               \
+                                                                                                                       \
+        return adopt_nonnull_ref_or_enomem(new (nothrow) Klass(IPC::Transport(move(socket)), forward<Args>(args)...)); \
     }
 
 template<typename ClientEndpoint, typename ServerEndpoint>
@@ -33,8 +33,8 @@ public:
     using ClientStub = typename ClientEndpoint::Stub;
     using IPCProxy = typename ServerEndpoint::template Proxy<ClientEndpoint>;
 
-    ConnectionToServer(ClientStub& local_endpoint, NonnullOwnPtr<Core::LocalSocket> socket)
-        : Connection<ClientEndpoint, ServerEndpoint>(local_endpoint, move(socket))
+    ConnectionToServer(ClientStub& local_endpoint, Transport transport)
+        : Connection<ClientEndpoint, ServerEndpoint>(local_endpoint, move(transport))
         , ServerEndpoint::template Proxy<ClientEndpoint>(*this, {})
     {
     }

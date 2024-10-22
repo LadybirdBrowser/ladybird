@@ -23,8 +23,8 @@ Optional<ViewImplementation&> WebContentClient::view_for_pid_and_page_id(pid_t p
     return {};
 }
 
-WebContentClient::WebContentClient(NonnullOwnPtr<Core::LocalSocket> socket, ViewImplementation& view)
-    : IPC::ConnectionToServer<WebContentClientEndpoint, WebContentServerEndpoint>(*this, move(socket))
+WebContentClient::WebContentClient(IPC::Transport transport, ViewImplementation& view)
+    : IPC::ConnectionToServer<WebContentClientEndpoint, WebContentServerEndpoint>(*this, move(transport))
 {
     s_clients.set(this);
     m_views.set(0, &view);

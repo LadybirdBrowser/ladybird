@@ -9,6 +9,7 @@
 #include <AK/HashMap.h>
 #include <AK/SourceLocation.h>
 #include <LibIPC/ConnectionToServer.h>
+#include <LibIPC/Transport.h>
 #include <LibWeb/CSS/StyleSheetIdentifier.h>
 #include <LibWeb/HTML/ActivateTab.h>
 #include <LibWeb/HTML/FileFilter.h>
@@ -35,7 +36,7 @@ public:
 
     static size_t client_count() { return s_clients.size(); }
 
-    WebContentClient(NonnullOwnPtr<Core::LocalSocket>, ViewImplementation&);
+    WebContentClient(IPC::Transport, ViewImplementation&);
     ~WebContentClient();
 
     void register_view(u64 page_id, ViewImplementation&);

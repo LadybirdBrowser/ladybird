@@ -12,6 +12,7 @@
 #include <LibCore/EventReceiver.h>
 #include <LibIPC/File.h>
 #include <LibIPC/Forward.h>
+#include <LibIPC/Transport.h>
 #include <LibThreading/ConditionVariable.h>
 #include <LibThreading/MutexProtected.h>
 #include <LibThreading/Thread.h>
@@ -30,10 +31,10 @@ public:
     void shutdown();
     virtual void die() { }
 
-    Core::LocalSocket& socket() { return *m_socket; }
+    Transport& transport() { return m_transport; }
 
 protected:
-    explicit ConnectionBase(IPC::Stub&, NonnullOwnPtr<Core::LocalSocket>, u32 local_endpoint_magic);
+    explicit ConnectionBase(IPC::Stub&, Transport, u32 local_endpoint_magic);
 
     virtual void may_have_become_unresponsive() { }
     virtual void did_become_responsive() { }
@@ -41,8 +42,8 @@ protected:
     virtual OwnPtr<Message> try_parse_message(ReadonlyBytes, Queue<IPC::File>&) = 0;
 
     OwnPtr<IPC::Message> wait_for_specific_endpoint_message_impl(u32 endpoint_magic, int message_id);
-    void wait_for_socket_to_become_readable();
-    ErrorOr<Vector<u8>> read_as_much_as_possible_from_socket_without_blocking();
+    void wait_for_transport_to_become_readable();
+    ErrorOr<Vector<u8>> read_as_much_as_possible_from_transport_without_blocking();
     ErrorOr<void> drain_messages_from_peer();
     void try_parse_messages(Vector<u8> const& bytes, size_t& index);
 
@@ -51,7 +52,7 @@ protected:
 
     IPC::Stub& m_local_stub;
 
-    NonnullOwnPtr<Core::LocalSocket> m_socket;
+    Transport m_transport;
 
     RefPtr<Core::Timer> m_responsiveness_timer;
 
@@ -75,8 +76,8 @@ protected:
 template<typename LocalEndpoint, typename PeerEndpoint>
 class Connection : public ConnectionBase {
 public:
-    Connection(IPC::Stub& local_stub, NonnullOwnPtr<Core::LocalSocket> socket)
-        : ConnectionBase(local_stub, move(socket), LocalEndpoint::static_magic())
+    Connection(IPC::Stub& local_stub, Transport transport)
+        : ConnectionBase(local_stub, move(transport), LocalEndpoint::static_magic())
     {
     }
 
