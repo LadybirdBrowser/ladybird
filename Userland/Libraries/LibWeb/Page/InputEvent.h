@@ -34,6 +34,7 @@ struct KeyEvent {
     UIEvents::KeyCode key { UIEvents::KeyCode::Key_Invalid };
     UIEvents::KeyModifier modifiers { UIEvents::KeyModifier::Mod_None };
     u32 code_point { 0 };
+    bool repeat { false };
 
     OwnPtr<ChromeInputData> chrome_data;
 };

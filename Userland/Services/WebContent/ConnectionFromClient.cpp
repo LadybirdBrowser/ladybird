@@ -189,9 +189,9 @@ void ConnectionFromClient::process_next_input_event()
         [&](Web::KeyEvent const& event) {
             switch (event.type) {
             case Web::KeyEvent::Type::KeyDown:
-                return page->page().handle_keydown(event.key, event.modifiers, event.code_point);
+                return page->page().handle_keydown(event.key, event.modifiers, event.code_point, event.repeat);
             case Web::KeyEvent::Type::KeyUp:
-                return page->page().handle_keyup(event.key, event.modifiers, event.code_point);
+                return page->page().handle_keyup(event.key, event.modifiers, event.code_point, event.repeat);
             }
             VERIFY_NOT_REACHED();
         },

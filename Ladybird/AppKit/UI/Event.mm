@@ -297,6 +297,7 @@ Web::KeyEvent ns_event_to_key_event(Web::KeyEvent::Type type, NSEvent* event)
 {
     auto modifiers = ns_modifiers_to_key_modifiers(event.modifierFlags);
     auto key_code = ns_key_code_to_key_code(event.keyCode, modifiers);
+    auto repeat = event.isARepeat;
 
     // FIXME: WebContent should really support multi-code point key events.
     u32 code_point = 0;
@@ -312,7 +313,7 @@ Web::KeyEvent ns_event_to_key_event(Web::KeyEvent::Type type, NSEvent* event)
     if (code_point >= 0xE000 && code_point <= 0xF8FF)
         code_point = 0;
 
-    return { type, key_code, modifiers, code_point, make<KeyData>(event) };
+    return { type, key_code, modifiers, code_point, repeat, make<KeyData>(event) };
 }
 
 NSEvent* key_event_to_ns_event(Web::KeyEvent const& event)

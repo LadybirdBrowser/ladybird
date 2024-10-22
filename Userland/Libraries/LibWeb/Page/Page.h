@@ -100,8 +100,8 @@ public:
 
     EventResult handle_drag_and_drop_event(DragEvent::Type, DevicePixelPoint, DevicePixelPoint screen_position, unsigned button, unsigned buttons, unsigned modifiers, Vector<HTML::SelectedFile> files);
 
-    EventResult handle_keydown(UIEvents::KeyCode, unsigned modifiers, u32 code_point);
-    EventResult handle_keyup(UIEvents::KeyCode, unsigned modifiers, u32 code_point);
+    EventResult handle_keydown(UIEvents::KeyCode, unsigned modifiers, u32 code_point, bool repeat);
+    EventResult handle_keyup(UIEvents::KeyCode, unsigned modifiers, u32 code_point, bool repeat);
 
     Gfx::Palette palette() const;
     CSSPixelRect web_exposed_screen_area() const;

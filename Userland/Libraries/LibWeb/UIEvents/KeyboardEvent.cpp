@@ -668,7 +668,7 @@ static DOMKeyLocation get_event_location(KeyCode platform_key, unsigned modifier
     return DOMKeyLocation::Standard;
 }
 
-JS::NonnullGCPtr<KeyboardEvent> KeyboardEvent::create_from_platform_event(JS::Realm& realm, FlyString const& event_name, KeyCode platform_key, unsigned modifiers, u32 code_point)
+JS::NonnullGCPtr<KeyboardEvent> KeyboardEvent::create_from_platform_event(JS::Realm& realm, FlyString const& event_name, KeyCode platform_key, unsigned modifiers, u32 code_point, bool repeat)
 {
     auto event_key = MUST(get_event_key(platform_key, code_point));
     auto event_code = MUST(get_event_code(platform_key, modifiers));
@@ -683,7 +683,7 @@ JS::NonnullGCPtr<KeyboardEvent> KeyboardEvent::create_from_platform_event(JS::Re
     event_init.shift_key = modifiers & Mod_Shift;
     event_init.alt_key = modifiers & Mod_Alt;
     event_init.meta_key = modifiers & Mod_Super;
-    event_init.repeat = false;
+    event_init.repeat = repeat;
     event_init.is_composing = false;
     event_init.key_code = key_code;
     event_init.char_code = char_code;
