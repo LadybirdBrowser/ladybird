@@ -39,6 +39,7 @@ public:
     }
     ErrorOr<void> try_append(char const*, size_t);
     ErrorOr<void> try_append_repeated(char, size_t);
+    ErrorOr<void> try_append_repeated(StringView, size_t);
     ErrorOr<void> try_append_escaped_for_json(StringView);
 
     void append(StringView);
@@ -49,6 +50,7 @@ public:
     void append(char const*, size_t);
     void appendvf(char const*, va_list);
     void append_repeated(char, size_t);
+    void append_repeated(StringView, size_t);
 
     void append_as_lowercase(char);
     void append_escaped_for_json(StringView);
