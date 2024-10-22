@@ -46,7 +46,7 @@ public:
 
     [[nodiscard]] static ByteString canonicalized_path(ByteString);
     [[nodiscard]] static ByteString absolute_path(ByteString dir_path, ByteString target);
-    [[nodiscard]] static ByteString relative_path(StringView absolute_path, StringView absolute_prefix);
+    [[nodiscard]] static Optional<ByteString> relative_path(StringView absolute_path, StringView absolute_prefix);
 
     template<typename... S>
     [[nodiscard]] static LexicalPath join(StringView first, S&&... rest)

@@ -115,11 +115,11 @@ ByteString LexicalPath::absolute_path(ByteString dir_path, ByteString target)
 }
 
 // Returns relative version of abs_path (relative to abs_prefix), such that join(abs_prefix, rel_path) == abs_path.
-ByteString LexicalPath::relative_path(StringView abs_path, StringView abs_prefix)
+Optional<ByteString> LexicalPath::relative_path(StringView abs_path, StringView abs_prefix)
 {
     if (!is_absolute_path(abs_path) || !is_absolute_path(abs_prefix)
         || abs_path[0] != abs_prefix[0]) // different drives
-        return "";
+        return {};
 
     auto path = canonicalized_path(abs_path);
     auto prefix = canonicalized_path(abs_prefix);
