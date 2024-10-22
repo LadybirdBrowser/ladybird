@@ -602,6 +602,10 @@ void NodeWithStyle::apply_style(const CSS::StyleProperties& computed_style)
     if (word_spacing.has_value())
         computed_values.set_word_spacing(word_spacing.value());
 
+    auto letter_spacing = computed_style.letter_spacing();
+    if (letter_spacing.has_value())
+        computed_values.set_letter_spacing(letter_spacing.value());
+
     auto float_ = computed_style.float_();
     if (float_.has_value())
         computed_values.set_float(float_.value());
