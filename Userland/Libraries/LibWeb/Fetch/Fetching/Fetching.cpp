@@ -1301,21 +1301,10 @@ WebIDL::ExceptionOr<JS::GCPtr<PendingResponse>> http_redirect_fetch(JS::Realm& r
     return main_fetch(realm, fetch_params, recursive);
 }
 
-class CachedResponse : public RefCounted<CachedResponse> {
-public:
-    HTTP::HeaderMap headers;
-    ByteBuffer body;
-    Infrastructure::Response::BodyInfo body_info;
-    ByteBuffer method;
-    Infrastructure::Status status;
-    URL::URL url;
-    UnixDateTime current_age;
-};
-
 class CachePartition : public RefCounted<CachePartition> {
 public:
     // https://httpwg.org/specs/rfc9111.html#constructing.responses.from.caches
-    JS::GCPtr<Infrastructure::Response> select_response(JS::Realm& realm, URL::URL const& url, ReadonlyBytes method, Vector<Infrastructure::Header> const& headers) const
+    JS::GCPtr<Infrastructure::Response> select_response(URL::URL const& url, ReadonlyBytes method, Vector<Infrastructure::Header> const& headers, Vector<JS::GCPtr<Infrastructure::Response>>& initial_set_of_stored_responses) const
     {
         // When presented with a request, a cache MUST NOT reuse a stored response unless:
 
@@ -1325,10 +1314,10 @@ public:
             dbgln("\033[31;1mHTTP CACHE MISS!\033[0m {}", url);
             return {};
         }
-        auto const& cached_response = *it->value;
+        auto const& cached_response = it->value;
 
         // - the request method associated with the stored response allows it to be used for the presented request, and
-        if (method != cached_response.method) {
+        if (method != cached_response->method()) {
             dbgln("\033[31;1mHTTP CACHE MISS!\033[0m (Bad method) {}", url);
             return {};
         }
@@ -1338,7 +1327,7 @@ public:
 
         // FIXME: - the stored response does not contain the no-cache directive (Section 5.2.2.4), unless it is successfully validated (Section 4.3), and
 
-        // FIXME: Any remaining responses at this point should be saved as "The initial set of stored responses", for use in `freshen_stored_responses_upon_validation`.
+        initial_set_of_stored_responses.append(cached_response);
 
         // FIXME: - the stored response is one of the following:
         //          + fresh (see Section 4.2), or
@@ -1347,39 +1336,27 @@ public:
 
         dbgln("\033[32;1mHTTP CACHE HIT!\033[0m {}", url);
 
-        // FIXME: It appears that the spec intends this operation to return a reference to the stored response, rather than a copy.
-        // This is because some (or all?) state changes of the returned response should be propagated to the stored response as well.
-        // This is noticable in `freshen_stored_responses_upon_validation`, which must currently change both the content of the response
-        // returned by this function as well as the cached_response.
-        auto [body, _] = MUST(extract_body(realm, ReadonlyBytes(cached_response.body)));
-        auto response = Infrastructure::Response::create(realm.vm());
-        response->set_body(body);
-        response->set_body_info(cached_response.body_info);
-        response->set_status(cached_response.status);
-        for (auto& [name, value] : cached_response.headers.headers()) {
-            response->header_list()->append(Infrastructure::Header::from_string_pair(name, value));
-        }
-        return response;
+        return cached_response;
     }
 
-    void store_response(Infrastructure::Request const& http_request, Infrastructure::Response const& response)
+    void store_response(JS::Realm& realm, Infrastructure::Request const& http_request, Infrastructure::Response const& response)
     {
         if (!is_cacheable(http_request, response))
             return;
 
-        auto cached_response = adopt_ref(*new CachedResponse);
-        store_header_and_trailer_fields(response, cached_response->headers);
-        cached_response->body = response.body()->source().get<ByteBuffer>();
-        cached_response->body_info = response.body_info();
-        cached_response->method = MUST(ByteBuffer::copy(http_request.method()));
-        cached_response->status = response.status();
-        cached_response->url = http_request.current_url();
-        cached_response->current_age = UnixDateTime::now();
+        auto cached_response = Infrastructure::Response::create(realm.vm());
+
+        store_header_and_trailer_fields(response, *cached_response->header_list());
+        cached_response->set_body(response.body()->clone(realm));
+        cached_response->set_body_info(response.body_info());
+        cached_response->set_method(MUST(ByteBuffer::copy(http_request.method())));
+        cached_response->set_status(response.status());
+        cached_response->url_list().append(http_request.current_url());
         m_cache.set(http_request.current_url(), move(cached_response));
     }
 
     // https://httpwg.org/specs/rfc9111.html#freshening.responses
-    void freshen_stored_responses_upon_validation(Infrastructure::Request const& http_request, Infrastructure::Response const& response, Infrastructure::Response& stored_response)
+    void freshen_stored_responses_upon_validation(Infrastructure::Response const& response, Vector<JS::GCPtr<Infrastructure::Response>>& initial_set_of_stored_responses)
     {
         // When a cache receives a 304 (Not Modified) response, it needs to identify stored
         // responses that are suitable for updating with the new information provided, and then do so.
@@ -1387,37 +1364,27 @@ public:
         // The initial set of stored responses to update are those that could have been
         // chosen for that request — i.e., those that meet the requirements in Section 4,
         // except the last requirement to be fresh, able to be served stale, or just validated.
-        // NOTE: This corresponds to the logic in `select_response`.
+        for (auto stored_response : initial_set_of_stored_responses) {
+            // Then, that initial set of stored responses is further filtered by the first match of:
 
-        auto it = m_cache.find(http_request.current_url());
-        if (it == m_cache.end())
-            return;
+            // - FIXME: If the new response contains one or more strong validators (see Section 8.8.1 of [HTTP]),
+            //   then each of those strong validators identifies a selected representation for update.
+            //   All the stored responses in the initial set with one of those same strong validators
+            //   are identified for update.
+            //   If none of the initial set contains at least one of the same strong validators,
+            //   then the cache MUST NOT use the new response to update any stored responses.
+            // - FIXME: If the new response contains no strong validators but does contain one or more weak validators,
+            //   and those validators correspond to one of the initial set's stored responses,
+            //   then the most recent of those matching stored responses is identified for update.
+            // - FIXME: If the new response does not include any form of validator (such as where a client generates an
+            //   `If-Modified-Since` request from a source other than the `Last-Modified` response header field),
+            //   and there is only one stored response in the initial set, and that stored response also lacks a validator,
+            //   then that stored response is identified for update.
 
-        // Then, that initial set of stored responses is further filtered by the first match of:
-
-        // - FIXME: If the new response contains one or more strong validators (see Section 8.8.1 of [HTTP]),
-        //   then each of those strong validators identifies a selected representation for update.
-        //   All the stored responses in the initial set with one of those same strong validators
-        //   are identified for update.
-        //   If none of the initial set contains at least one of the same strong validators,
-        //   then the cache MUST NOT use the new response to update any stored responses.
-        // - FIXME: If the new response contains no strong validators but does contain one or more weak validators,
-        //   and those validators correspond to one of the initial set's stored responses,
-        //   then the most recent of those matching stored responses is identified for update.
-        // - FIXME: If the new response does not include any form of validator (such as where a client generates an
-        //   `If-Modified-Since` request from a source other than the `Last-Modified` response header field),
-        //   and there is only one stored response in the initial set, and that stored response also lacks a validator,
-        //   then that stored response is identified for update.
-
-        // For each stored response identified, the cache MUST update its header fields
-        // with the header fields provided in the 304 (Not Modified) response, as per Section 3.2.
-        auto& cached_response = *it->value;
-        update_stored_header_fields(response, cached_response.headers);
-
-        // FIXME: We shouldn't have to update the same response twice,
-        // and the intention of the spec seems to be that `stored_response == cached_response` here.
-        // They are not, because the response gets copied in `select_response`.
-        update_header_fields_for_stored_response(response, stored_response);
+            // For each stored response identified, the cache MUST update its header fields
+            // with the header fields provided in the 304 (Not Modified) response, as per Section 3.2.
+            update_stored_header_fields(response, stored_response->header_list());
+        }
     }
 
 private:
@@ -1489,32 +1456,29 @@ private:
     }
 
     // https://httpwg.org/specs/rfc9111.html#update
-    void update_stored_header_fields(Infrastructure::Response const& response, HTTP::HeaderMap& headers)
+    void update_stored_header_fields(Infrastructure::Response const& response, Infrastructure::HeaderList& headers)
     {
         for (auto& header : *response.header_list()) {
             auto name = StringView(header.name);
+
             if (is_exempted_for_updating(name))
                 continue;
-            headers.set(ByteString::copy(header.name), ByteString::copy(header.value));
+
+            headers.delete_(header.name);
         }
-    }
-    void update_header_fields_for_stored_response(Infrastructure::Response const& response, Infrastructure::Response& stored_response)
-    {
-        auto headers = stored_response.header_list();
 
         for (auto& header : *response.header_list()) {
             auto name = StringView(header.name);
+
             if (is_exempted_for_updating(name))
                 continue;
-            headers->set(Infrastructure::Header {
-                .name = MUST(ByteBuffer::copy(header.name)),
-                .value = MUST(ByteBuffer::copy(header.value)),
-            });
+
+            headers.append(Infrastructure::Header::copy(header));
         }
     }
 
     // https://httpwg.org/specs/rfc9111.html#storing.fields
-    void store_header_and_trailer_fields(Infrastructure::Response const& response, HTTP::HeaderMap& headers)
+    void store_header_and_trailer_fields(Infrastructure::Response const& response, Web::Fetch::Infrastructure::HeaderList& headers)
     {
         for (auto& header : *response.header_list()) {
             auto name = StringView(header.name);
@@ -1522,7 +1486,7 @@ private:
             if (is_exempted_for_storage(name))
                 continue;
 
-            headers.set(ByteString::copy(header.name), ByteString::copy(header.value));
+            headers.append(Infrastructure::Header::copy(header));
         }
     }
 
@@ -1573,7 +1537,7 @@ private:
         return true;
     }
 
-    HashMap<URL::URL, NonnullRefPtr<CachedResponse>> m_cache;
+    HashMap<URL::URL, JS::GCPtr<Infrastructure::Response>> m_cache;
 };
 
 class HTTPCache {
@@ -1634,6 +1598,7 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<PendingResponse>> http_network_or_cache_fet
 
     // 5. Let storedResponse be null.
     JS::GCPtr<Infrastructure::Response> stored_response;
+    Vector<JS::GCPtr<Infrastructure::Response>> initial_set_of_stored_responses;
 
     // 6. Let httpCache be null.
     // (Typeless until we actually implement it, needed for checks below)
@@ -1927,7 +1892,7 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<PendingResponse>> http_network_or_cache_fet
             //    validation, as per the "Constructing Responses from Caches" chapter of HTTP Caching [HTTP-CACHING],
             //    if any.
             // NOTE: As mandated by HTTP, this still takes the `Vary` header into account.
-            stored_response = http_cache->select_response(realm, http_request->current_url(), http_request->method(), *http_request->header_list());
+            stored_response = http_cache->select_response(http_request->current_url(), http_request->method(), *http_request->header_list(), initial_set_of_stored_responses);
             // 2. If storedResponse is non-null, then:
             if (stored_response) {
                 // 1. If cache mode is "default", storedResponse is a stale-while-revalidate response,
@@ -2011,7 +1976,7 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<PendingResponse>> http_network_or_cache_fet
 
     auto returned_pending_response = PendingResponse::create(vm, request);
 
-    pending_forward_response->when_loaded([&realm, &vm, &fetch_params, request, response, stored_response, http_request, returned_pending_response, is_authentication_fetch, is_new_connection_fetch, revalidating_flag, include_credentials, response_was_null = !response, http_cache](JS::NonnullGCPtr<Infrastructure::Response> resolved_forward_response) mutable {
+    pending_forward_response->when_loaded([&realm, &vm, &fetch_params, request, response, stored_response, initial_set_of_stored_responses, http_request, returned_pending_response, is_authentication_fetch, is_new_connection_fetch, revalidating_flag, include_credentials, response_was_null = !response, http_cache](JS::NonnullGCPtr<Infrastructure::Response> resolved_forward_response) mutable {
         dbgln_if(WEB_FETCH_DEBUG, "Fetch: Running 'HTTP-network-or-cache fetch' pending_forward_response load callback");
         if (response_was_null) {
             auto forward_response = resolved_forward_response;
@@ -2033,7 +1998,7 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<PendingResponse>> http_network_or_cache_fet
                 // 1. Update storedResponse’s header list using forwardResponse’s header list, as per the "Freshening
                 //    Stored Responses upon Validation" chapter of HTTP Caching.
                 // NOTE: This updates the stored response in cache as well.
-                http_cache->freshen_stored_responses_upon_validation(*http_request, *forward_response, *stored_response);
+                http_cache->freshen_stored_responses_upon_validation(*forward_response, initial_set_of_stored_responses);
 
                 // 2. Set response to storedResponse.
                 response = stored_response;
@@ -2053,7 +2018,7 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<PendingResponse>> http_network_or_cache_fet
                 //       sometimes known as "negative caching".
                 // NOTE: The associated body info is stored in the cache alongside the response.
                 if (http_cache)
-                    http_cache->store_response(*http_request, *forward_response);
+                    http_cache->store_response(realm, *http_request, *forward_response);
             }
         }
 

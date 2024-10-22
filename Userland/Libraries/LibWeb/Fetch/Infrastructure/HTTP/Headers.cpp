@@ -42,6 +42,13 @@ requires(IsSameIgnoringCV<T, u8>) struct CaseInsensitiveBytesTraits : public Tra
     }
 };
 
+Header Header::copy(Header const& header)
+{
+    return Header {
+        .name = MUST(ByteBuffer::copy(header.name)),
+        .value = MUST(ByteBuffer::copy(header.value)),
+    };
+}
 Header Header::from_string_pair(StringView name, StringView value)
 {
     return Header {
