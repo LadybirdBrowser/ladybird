@@ -26,11 +26,11 @@ public:
 
     explicit LexicalPath(ByteString);
 
-    bool is_absolute() const { return !m_string.is_empty() && m_string[0] == '/'; }
+    bool is_absolute() const;
     ByteString const& string() const { return m_string; }
 
     StringView dirname() const { return m_dirname; }
-    StringView basename(StripExtension s = StripExtension::No) const { return s == StripExtension::No ? m_basename : m_basename.substring_view(0, m_basename.length() - m_extension.length() - 1); }
+    StringView basename(StripExtension s = StripExtension::No) const { return s == StripExtension::No ? m_basename : m_title; }
     StringView title() const { return m_title; }
     StringView extension() const { return m_extension; }
 
@@ -46,13 +46,14 @@ public:
 
     [[nodiscard]] static ByteString canonicalized_path(ByteString);
     [[nodiscard]] static ByteString absolute_path(ByteString dir_path, ByteString target);
-    [[nodiscard]] static ByteString relative_path(StringView absolute_path, StringView prefix);
+    [[nodiscard]] static ByteString relative_path(StringView absolute_path, StringView absolute_prefix);
 
     template<typename... S>
     [[nodiscard]] static LexicalPath join(StringView first, S&&... rest)
     {
         StringBuilder builder;
         builder.append(first);
+        // NOTE: On Windows slashes will be converted to backslashes in LexicalPath constructor
         ((builder.append('/'), builder.append(forward<S>(rest))), ...);
 
         return LexicalPath { builder.to_byte_string() };
@@ -88,7 +89,7 @@ private:
     StringView m_dirname;
     StringView m_basename;
     StringView m_title;
-    StringView m_extension;
+    StringView m_extension; // doesn't include the dot
 };
 
 template<>
