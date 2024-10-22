@@ -147,12 +147,10 @@ ByteString LexicalPath::absolute_path(ByteString dir_path, ByteString target)
     return LexicalPath::canonicalized_path(join(dir_path, target).string());
 }
 
-ByteString LexicalPath::relative_path(StringView a_path, StringView a_prefix)
+Optional<ByteString> LexicalPath::relative_path(StringView a_path, StringView a_prefix)
 {
-    if (!a_path.starts_with('/') || !a_prefix.starts_with('/')) {
-        // FIXME: This should probably VERIFY or return an Optional<ByteString>.
-        return ""sv;
-    }
+    if (!a_path.starts_with('/') || !a_prefix.starts_with('/'))
+        return {};
 
     if (a_path == a_prefix)
         return ".";

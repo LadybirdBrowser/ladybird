@@ -186,7 +186,7 @@ TESTJS_RUN_FILE_FUNCTION(ByteString const& test_file, JS::Realm& realm, JS::Exec
     }
 
     auto test_result = test_passed ? Test::Result::Pass : Test::Result::Fail;
-    auto test_path = LexicalPath::relative_path(test_file, Test::JS::g_test_root);
+    auto test_path = *LexicalPath::relative_path(test_file, Test::JS::g_test_root);
     auto duration_ms = Test::get_time_in_ms() - start_time;
     return Test::JS::JSFileResult {
         test_path,

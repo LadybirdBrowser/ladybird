@@ -390,7 +390,7 @@ ErrorOr<void> run_tests(Core::AnonymousBuffer const& theme, Gfx::IntSize window_
         outln("Found {} tests...", tests.size());
 
         for (auto const& [i, test] : enumerate(tests))
-            outln("{}/{}: {}", i + 1, tests.size(), LexicalPath::relative_path(test.input_path, app.test_root_path));
+            outln("{}/{}: {}", i + 1, tests.size(), *LexicalPath::relative_path(test.input_path, app.test_root_path));
 
         return {};
     }

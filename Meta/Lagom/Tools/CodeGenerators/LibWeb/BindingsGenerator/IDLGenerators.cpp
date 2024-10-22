@@ -295,7 +295,7 @@ static void generate_include_for(auto& generator, auto& path)
     for (auto& search_path : g_header_search_paths) {
         if (!path.starts_with(search_path))
             continue;
-        auto relative_path = LexicalPath::relative_path(path, search_path);
+        auto relative_path = *LexicalPath::relative_path(path, search_path);
         if (relative_path.length() < path_string.length())
             path_string = relative_path;
     }
