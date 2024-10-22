@@ -29,18 +29,12 @@
 #include <LibWeb/Painting/PaintableBox.h>
 #include <LibWeb/Painting/TextPaintable.h>
 #include <LibWeb/UIEvents/EventNames.h>
-#include <LibWeb/UIEvents/InputEvent.h>
-#include <LibWeb/UIEvents/InputTypes.h>
 #include <LibWeb/UIEvents/KeyboardEvent.h>
 #include <LibWeb/UIEvents/MouseButton.h>
 #include <LibWeb/UIEvents/MouseEvent.h>
 #include <LibWeb/UIEvents/WheelEvent.h>
 
 namespace Web {
-
-#define FIRE(event_result)                      \
-    if (event_result == EventResult::Cancelled) \
-        return event_result;
 
 static JS::GCPtr<DOM::Node> dom_node_for_event_dispatch(Painting::Paintable& paintable)
 {
@@ -831,16 +825,42 @@ bool EventHandler::focus_previous_element()
     return true;
 }
 
-constexpr bool should_ignore_keydown_event(u32 code_point, u32 modifiers)
+constexpr bool should_ignore_keydown_event(u32 code_point, u32 modifiers, bool is_editable_context)
 {
+    // These switches are typically used for specific system or 
+    // browser actions, so it is common to ignore some keyboard 
+    // events when these switches are present.
     if (modifiers & (UIEvents::KeyModifier::Mod_Ctrl | UIEvents::KeyModifier::Mod_Alt | UIEvents::KeyModifier::Mod_Super))
         return true;
 
-    // FIXME: There are probably also keys with non-zero code points that should be filtered out.
-    return code_point == 0 || code_point == 27;
+    // If the context is editable, do not ignore certain keys.
+    // - Backspace: used to delete text backwards.
+    // - Tab: used to change focus between elements or insert a tab character.
+    // - Enter: used to insert a new line or confirm an action.
+    // In these cases, we let the event process normally.
+    if (is_editable_context) {
+        switch (code_point) {
+            case 8: // Backspace
+            case 9: // Tab
+            case 13: // Enter
+                return false;
+        }
+    }
+
+    // Ignore specific keys globally.
+    // - Null code (0): Represents an invalid or unassigned key, of no use in most cases.
+    // - Escape (27): Mainly used for canceling or closing window actions, so it should not be
+    // interfere with regular user interaction.
+    switch (code_point) {
+        case 0: // Null code
+        case 27: // Escape
+            return true;
+        default:
+            return false;
+    }
 }
 
-EventResult EventHandler::fire_keyboard_event(FlyString const& event_name, HTML::Navigable& navigable, UIEvents::KeyCode key, u32 modifiers, u32 code_point, bool repeat)
+EventResult EventHandler::fire_keyboard_event(FlyString const& event_name, HTML::Navigable& navigable, UIEvents::KeyCode key, u32 modifiers, u32 code_point)
 {
     JS::GCPtr<DOM::Document> document = navigable.active_document();
     if (!document)
@@ -852,15 +872,15 @@ EventResult EventHandler::fire_keyboard_event(FlyString const& event_name, HTML:
         if (is<HTML::NavigableContainer>(*focused_element)) {
             auto& navigable_container = verify_cast<HTML::NavigableContainer>(*focused_element);
             if (navigable_container.content_navigable())
-                return fire_keyboard_event(event_name, *navigable_container.content_navigable(), key, modifiers, code_point, repeat);
+                return fire_keyboard_event(event_name, *navigable_container.content_navigable(), key, modifiers, code_point);
         }
 
-        auto event = UIEvents::KeyboardEvent::create_from_platform_event(document->realm(), event_name, key, modifiers, code_point, repeat);
+        auto event = UIEvents::KeyboardEvent::create_from_platform_event(document->realm(), event_name, key, modifiers, code_point);
         return focused_element->dispatch_event(event) ? EventResult::Accepted : EventResult::Cancelled;
     }
 
     // FIXME: De-duplicate this. This is just to prevent wasting a KeyboardEvent allocation when recursing into an (i)frame.
-    auto event = UIEvents::KeyboardEvent::create_from_platform_event(document->realm(), event_name, key, modifiers, code_point, repeat);
+    auto event = UIEvents::KeyboardEvent::create_from_platform_event(document->realm(), event_name, key, modifiers, code_point);
 
     JS::GCPtr target = document->body() ?: &document->root();
     return target->dispatch_event(event) ? EventResult::Accepted : EventResult::Cancelled;
@@ -878,47 +898,14 @@ static bool produces_character_value(u32 code_point)
         || Unicode::code_point_has_symbol_general_category(code_point);
 }
 
-EventResult EventHandler::input_event(FlyString const& event_name, FlyString const& input_type, HTML::Navigable& navigable, u32 code_point)
-{
-    auto document = navigable.active_document();
-    if (!document)
-        return EventResult::Dropped;
-    if (!document->is_fully_active())
-        return EventResult::Dropped;
-
-    UIEvents::InputEventInit input_event_init;
-    if (!is_unicode_control(code_point)) {
-        input_event_init.data = String::from_code_point(code_point);
-    }
-    input_event_init.input_type = input_type;
-
-    if (auto* focused_element = document->focused_element()) {
-        if (is<HTML::NavigableContainer>(*focused_element)) {
-            auto& navigable_container = verify_cast<HTML::NavigableContainer>(*focused_element);
-            if (navigable_container.content_navigable())
-                return input_event(event_name, input_type, *navigable_container.content_navigable(), code_point);
-        }
-
-        auto event = UIEvents::InputEvent::create_from_platform_event(document->realm(), event_name, input_event_init);
-        return focused_element->dispatch_event(event) ? EventResult::Accepted : EventResult::Cancelled;
-    }
-
-    auto event = UIEvents::InputEvent::create_from_platform_event(document->realm(), event_name, input_event_init);
-
-    if (auto* body = document->body())
-        return body->dispatch_event(event) ? EventResult::Accepted : EventResult::Cancelled;
-
-    return document->root().dispatch_event(event) ? EventResult::Accepted : EventResult::Cancelled;
-}
-
-EventResult EventHandler::handle_keydown(UIEvents::KeyCode key, u32 modifiers, u32 code_point, bool repeat)
+EventResult EventHandler::handle_keydown(UIEvents::KeyCode key, u32 modifiers, u32 code_point)
 {
     if (!m_navigable->active_document())
         return EventResult::Dropped;
     if (!m_navigable->active_document()->is_fully_active())
         return EventResult::Dropped;
 
-    auto dispatch_result = fire_keyboard_event(UIEvents::EventNames::keydown, m_navigable, key, modifiers, code_point, repeat);
+    auto dispatch_result = fire_keyboard_event(UIEvents::EventNames::keydown, m_navigable, key, modifiers, code_point);
     if (dispatch_result != EventResult::Accepted)
         return dispatch_result;
 
@@ -926,7 +913,7 @@ EventResult EventHandler::handle_keydown(UIEvents::KeyCode key, u32 modifiers, u
     // If supported by a user agent, this event MUST be dispatched when a key is pressed down, if and only if that key
     // normally produces a character value.
     if (produces_character_value(code_point)) {
-        dispatch_result = fire_keyboard_event(UIEvents::EventNames::keypress, m_navigable, key, modifiers, code_point, repeat);
+        dispatch_result = fire_keyboard_event(UIEvents::EventNames::keypress, m_navigable, key, modifiers, code_point);
         if (dispatch_result != EventResult::Accepted)
             return dispatch_result;
     }
@@ -978,7 +965,7 @@ EventResult EventHandler::handle_keydown(UIEvents::KeyCode key, u32 modifiers, u
         }
 
         // FIXME: Text editing shortcut keys (copy/paste etc.) should be handled here.
-        if (!should_ignore_keydown_event(code_point, modifiers)) {
+        if (!should_ignore_keydown_event(code_point, modifiers, range->start_container()->is_editable())) {
             clear_selection();
             m_edit_event_handler->handle_delete(document, *range);
             m_edit_event_handler->handle_insert(document, JS::NonnullGCPtr { *document->cursor_position() }, code_point);
@@ -997,28 +984,22 @@ EventResult EventHandler::handle_keydown(UIEvents::KeyCode key, u32 modifiers, u
         auto& node = *document->cursor_position()->node();
 
         if (key == UIEvents::KeyCode::Key_Backspace && node.is_editable()) {
-            FIRE(input_event(UIEvents::EventNames::beforeinput, UIEvents::InputTypes::deleteContentBackward, m_navigable, code_point));
-
             if (!document->decrement_cursor_position_offset()) {
                 // FIXME: Move to the previous node and delete the last character there.
                 return EventResult::Handled;
             }
 
             m_edit_event_handler->handle_delete_character_after(document, *document->cursor_position());
-            FIRE(input_event(UIEvents::EventNames::input, UIEvents::InputTypes::deleteContentBackward, m_navigable, code_point));
             return EventResult::Handled;
         }
 
         if (key == UIEvents::KeyCode::Key_Delete && node.is_editable()) {
-            FIRE(input_event(UIEvents::EventNames::beforeinput, UIEvents::InputTypes::deleteContentForward, m_navigable, code_point));
-
             if (document->cursor_position()->offset_is_at_end_of_node()) {
                 // FIXME: Move to the next node and delete the first character there.
                 return EventResult::Handled;
             }
 
             m_edit_event_handler->handle_delete_character_after(document, *document->cursor_position());
-            FIRE(input_event(UIEvents::EventNames::input, UIEvents::InputTypes::deleteContentForward, m_navigable, code_point));
             return EventResult::Handled;
         }
 
@@ -1093,7 +1074,6 @@ EventResult EventHandler::handle_keydown(UIEvents::KeyCode key, u32 modifiers, u
         }
 
         if (key == UIEvents::KeyCode::Key_Return && node.is_editable()) {
-            FIRE(input_event(UIEvents::EventNames::beforeinput, UIEvents::InputTypes::insertParagraph, m_navigable, code_point));
             HTML::HTMLInputElement* input_element = nullptr;
             if (auto node = document->cursor_position()->node()) {
                 if (node->is_text()) {
@@ -1111,18 +1091,14 @@ EventResult EventHandler::handle_keydown(UIEvents::KeyCode key, u32 modifiers, u
                 }
 
                 input_element->commit_pending_changes();
-                FIRE(input_event(UIEvents::EventNames::input, UIEvents::InputTypes::insertParagraph, m_navigable, code_point));
                 return EventResult::Handled;
             }
-            FIRE(input_event(UIEvents::EventNames::input, UIEvents::InputTypes::insertParagraph, m_navigable, code_point));
         }
 
         // FIXME: Text editing shortcut keys (copy/paste etc.) should be handled here.
-        if (!should_ignore_keydown_event(code_point, modifiers) && node.is_editable()) {
-            FIRE(input_event(UIEvents::EventNames::beforeinput, UIEvents::InputTypes::insertText, m_navigable, code_point));
+        if (!should_ignore_keydown_event(code_point, modifiers, node.is_editable()) && node.is_editable()) {
             m_edit_event_handler->handle_insert(document, JS::NonnullGCPtr { *document->cursor_position() }, code_point);
             document->increment_cursor_position_offset();
-            FIRE(input_event(UIEvents::EventNames::input, UIEvents::InputTypes::insertText, m_navigable, code_point));
             return EventResult::Handled;
         }
     }
@@ -1171,14 +1147,9 @@ EventResult EventHandler::handle_keydown(UIEvents::KeyCode key, u32 modifiers, u
     return EventResult::Accepted;
 }
 
-EventResult EventHandler::handle_keyup(UIEvents::KeyCode key, u32 modifiers, u32 code_point, bool repeat)
+EventResult EventHandler::handle_keyup(UIEvents::KeyCode key, u32 modifiers, u32 code_point)
 {
-    // Keyup events as a result of auto-repeat are not fired.
-    // See: https://w3c.github.io/uievents/#events-keyboard-event-order
-    if (repeat)
-        return EventResult::Dropped;
-
-    return fire_keyboard_event(UIEvents::EventNames::keyup, m_navigable, key, modifiers, code_point, false);
+    return fire_keyboard_event(UIEvents::EventNames::keyup, m_navigable, key, modifiers, code_point);
 }
 
 void EventHandler::handle_paste(String const& text)
