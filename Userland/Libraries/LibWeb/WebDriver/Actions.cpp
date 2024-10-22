@@ -902,7 +902,7 @@ static ErrorOr<void, WebDriver::Error> dispatch_key_down_action(ActionObject::Ke
     auto key = normalized_key_value(raw_key);
 
     // 3. If the source's pressed property contains key, let repeat be true, otherwise let repeat be false.
-    // FIXME: Add `repeat` support to Page::handle_keydown.
+    bool repeat = source.pressed.contains(key);
 
     // 4. Let code be the code for raw key.
     auto code = key_code_data(raw_key);
@@ -945,7 +945,7 @@ static ErrorOr<void, WebDriver::Error> dispatch_key_down_action(ActionObject::Ke
     //     keyboard in accordance with the requirements of [UI-EVENTS], and producing the following events, as appropriate,
     //     with the specified properties. This will always produce events including at least a keyDown event.
     auto event = key_code_to_page_event(raw_key, modifiers, code);
-    browsing_context.page().handle_keydown(code.code, event.modifiers, event.code_point);
+    browsing_context.page().handle_keydown(code.code, event.modifiers, event.code_point, repeat);
 
     // 13. Return success with data null.
     return {};
@@ -1005,7 +1005,7 @@ static ErrorOr<void, WebDriver::Error> dispatch_key_up_action(ActionObject::KeyF
     //     keyboard in accordance with the requirements of [UI-EVENTS], and producing at least the following events with
     //     the specified properties:
     auto event = key_code_to_page_event(raw_key, modifiers, code);
-    browsing_context.page().handle_keyup(code.code, event.modifiers, event.code_point);
+    browsing_context.page().handle_keyup(code.code, event.modifiers, event.code_point, false);
 
     // 13. Return success with data null.
     return {};

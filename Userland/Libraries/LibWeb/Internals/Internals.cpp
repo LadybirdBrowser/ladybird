@@ -79,7 +79,7 @@ void Internals::send_text(HTML::HTMLElement& target, String const& text, WebIDL:
     target.focus();
 
     for (auto code_point : text.code_points())
-        page.handle_keydown(UIEvents::code_point_to_key_code(code_point), modifiers, code_point);
+        page.handle_keydown(UIEvents::code_point_to_key_code(code_point), modifiers, code_point, false);
 }
 
 void Internals::send_key(HTML::HTMLElement& target, String const& key_name, WebIDL::UnsignedShort modifiers)
@@ -87,12 +87,12 @@ void Internals::send_key(HTML::HTMLElement& target, String const& key_name, WebI
     auto key_code = UIEvents::key_code_from_string(key_name);
     target.focus();
 
-    internals_page().handle_keydown(key_code, modifiers, 0);
+    internals_page().handle_keydown(key_code, modifiers, 0, false);
 }
 
 void Internals::commit_text()
 {
-    internals_page().handle_keydown(UIEvents::Key_Return, 0, 0);
+    internals_page().handle_keydown(UIEvents::Key_Return, 0, 0, false);
 }
 
 void Internals::click(double x, double y)

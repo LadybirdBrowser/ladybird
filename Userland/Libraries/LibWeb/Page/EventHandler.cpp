@@ -840,7 +840,7 @@ constexpr bool should_ignore_keydown_event(u32 code_point, u32 modifiers)
     return code_point == 0 || code_point == 27;
 }
 
-EventResult EventHandler::fire_keyboard_event(FlyString const& event_name, HTML::Navigable& navigable, UIEvents::KeyCode key, u32 modifiers, u32 code_point)
+EventResult EventHandler::fire_keyboard_event(FlyString const& event_name, HTML::Navigable& navigable, UIEvents::KeyCode key, u32 modifiers, u32 code_point, bool repeat)
 {
     JS::GCPtr<DOM::Document> document = navigable.active_document();
     if (!document)
@@ -852,15 +852,15 @@ EventResult EventHandler::fire_keyboard_event(FlyString const& event_name, HTML:
         if (is<HTML::NavigableContainer>(*focused_element)) {
             auto& navigable_container = verify_cast<HTML::NavigableContainer>(*focused_element);
             if (navigable_container.content_navigable())
-                return fire_keyboard_event(event_name, *navigable_container.content_navigable(), key, modifiers, code_point);
+                return fire_keyboard_event(event_name, *navigable_container.content_navigable(), key, modifiers, code_point, repeat);
         }
 
-        auto event = UIEvents::KeyboardEvent::create_from_platform_event(document->realm(), event_name, key, modifiers, code_point);
+        auto event = UIEvents::KeyboardEvent::create_from_platform_event(document->realm(), event_name, key, modifiers, code_point, repeat);
         return focused_element->dispatch_event(event) ? EventResult::Accepted : EventResult::Cancelled;
     }
 
     // FIXME: De-duplicate this. This is just to prevent wasting a KeyboardEvent allocation when recursing into an (i)frame.
-    auto event = UIEvents::KeyboardEvent::create_from_platform_event(document->realm(), event_name, key, modifiers, code_point);
+    auto event = UIEvents::KeyboardEvent::create_from_platform_event(document->realm(), event_name, key, modifiers, code_point, repeat);
 
     JS::GCPtr target = document->body() ?: &document->root();
     return target->dispatch_event(event) ? EventResult::Accepted : EventResult::Cancelled;
@@ -911,14 +911,14 @@ EventResult EventHandler::input_event(FlyString const& event_name, FlyString con
     return document->root().dispatch_event(event) ? EventResult::Accepted : EventResult::Cancelled;
 }
 
-EventResult EventHandler::handle_keydown(UIEvents::KeyCode key, u32 modifiers, u32 code_point)
+EventResult EventHandler::handle_keydown(UIEvents::KeyCode key, u32 modifiers, u32 code_point, bool repeat)
 {
     if (!m_navigable->active_document())
         return EventResult::Dropped;
     if (!m_navigable->active_document()->is_fully_active())
         return EventResult::Dropped;
 
-    auto dispatch_result = fire_keyboard_event(UIEvents::EventNames::keydown, m_navigable, key, modifiers, code_point);
+    auto dispatch_result = fire_keyboard_event(UIEvents::EventNames::keydown, m_navigable, key, modifiers, code_point, repeat);
     if (dispatch_result != EventResult::Accepted)
         return dispatch_result;
 
@@ -926,7 +926,7 @@ EventResult EventHandler::handle_keydown(UIEvents::KeyCode key, u32 modifiers, u
     // If supported by a user agent, this event MUST be dispatched when a key is pressed down, if and only if that key
     // normally produces a character value.
     if (produces_character_value(code_point)) {
-        dispatch_result = fire_keyboard_event(UIEvents::EventNames::keypress, m_navigable, key, modifiers, code_point);
+        dispatch_result = fire_keyboard_event(UIEvents::EventNames::keypress, m_navigable, key, modifiers, code_point, repeat);
         if (dispatch_result != EventResult::Accepted)
             return dispatch_result;
     }
@@ -1171,9 +1171,9 @@ EventResult EventHandler::handle_keydown(UIEvents::KeyCode key, u32 modifiers, u
     return EventResult::Accepted;
 }
 
-EventResult EventHandler::handle_keyup(UIEvents::KeyCode key, u32 modifiers, u32 code_point)
+EventResult EventHandler::handle_keyup(UIEvents::KeyCode key, u32 modifiers, u32 code_point, [[maybe_unused]] bool repeat)
 {
-    return fire_keyboard_event(UIEvents::EventNames::keyup, m_navigable, key, modifiers, code_point);
+    return fire_keyboard_event(UIEvents::EventNames::keyup, m_navigable, key, modifiers, code_point, false);
 }
 
 void EventHandler::handle_paste(String const& text)

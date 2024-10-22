@@ -899,15 +899,15 @@ void WebContentView::enqueue_native_event(Web::KeyEvent::Type type, QKeyEvent co
     auto to_web_event = [&]() -> Web::KeyEvent {
         if (event.key() == Qt::Key_Backtab) {
             // Qt transforms Shift+Tab into a "Backtab", so we undo that transformation here.
-            return { type, Web::UIEvents::KeyCode::Key_Tab, Web::UIEvents::Mod_Shift, '\t', make<KeyData>(event) };
+            return { type, Web::UIEvents::KeyCode::Key_Tab, Web::UIEvents::Mod_Shift, '\t', event.isAutoRepeat(), make<KeyData>(event) };
         }
 
         if (event.key() == Qt::Key_Enter || event.key() == Qt::Key_Return) {
             // This ensures consistent behavior between systems that treat Enter as '\n' and '\r\n'
-            return { type, Web::UIEvents::KeyCode::Key_Return, Web::UIEvents::Mod_Shift, '\n', make<KeyData>(event) };
+            return { type, Web::UIEvents::KeyCode::Key_Return, Web::UIEvents::Mod_Shift, '\n', event.isAutoRepeat(), make<KeyData>(event) };
         }
 
-        return { type, keycode, modifiers, code_point, make<KeyData>(event) };
+        return { type, keycode, modifiers, code_point, event.isAutoRepeat(), make<KeyData>(event) };
     };
 
     enqueue_input_event(to_web_event());

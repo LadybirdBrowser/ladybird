@@ -216,14 +216,14 @@ EventResult Page::handle_drag_and_drop_event(DragEvent::Type type, DevicePixelPo
     return top_level_traversable()->event_handler().handle_drag_and_drop_event(type, device_to_css_point(position), device_to_css_point(screen_position), button, buttons, modifiers, move(files));
 }
 
-EventResult Page::handle_keydown(UIEvents::KeyCode key, unsigned modifiers, u32 code_point)
+EventResult Page::handle_keydown(UIEvents::KeyCode key, unsigned modifiers, u32 code_point, bool repeat)
 {
-    return focused_navigable().event_handler().handle_keydown(key, modifiers, code_point);
+    return focused_navigable().event_handler().handle_keydown(key, modifiers, code_point, repeat);
 }
 
-EventResult Page::handle_keyup(UIEvents::KeyCode key, unsigned modifiers, u32 code_point)
+EventResult Page::handle_keyup(UIEvents::KeyCode key, unsigned modifiers, u32 code_point, bool repeat)
 {
-    return focused_navigable().event_handler().handle_keyup(key, modifiers, code_point);
+    return focused_navigable().event_handler().handle_keyup(key, modifiers, code_point, repeat);
 }
 
 void Page::set_top_level_traversable(JS::NonnullGCPtr<HTML::TraversableNavigable> navigable)
