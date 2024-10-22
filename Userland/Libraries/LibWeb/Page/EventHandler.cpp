@@ -38,8 +38,8 @@
 
 namespace Web {
 
-#define FIRE(event_result)                      \
-    if (event_result == EventResult::Cancelled) \
+#define FIRE(expression)                                                          \
+    if (auto event_result = (expression); event_result == EventResult::Cancelled) \
         return event_result;
 
 static JS::GCPtr<DOM::Node> dom_node_for_event_dispatch(Painting::Paintable& paintable)

@@ -11,11 +11,11 @@
     test(() => {
         const input = document.getElementById("input");
         input.addEventListener("beforeinput", (e) => {
+            println(`beforeinput data=(${e.data}) intputType=(${e.inputType})`);
             if (e.data !== 'r' && e.data !== 'e') {
                 e.preventDefault();
                 return;
             }
-            println(`beforeinput data=(${e.data}) intputType=(${e.inputType})`);
         });
         internals.sendText(input, "raebece");
         internals.commitText();
