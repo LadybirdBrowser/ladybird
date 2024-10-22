@@ -171,7 +171,7 @@ public:
     }
 
     ALWAYS_INLINE ~Optional()
-    requires(!IsTriviallyDestructible<T>)
+    requires(!IsTriviallyDestructible<T> && IsDestructible<T>)
     {
         clear();
     }
