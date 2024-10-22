@@ -108,6 +108,25 @@ describe("correct behavior", () => {
 
         decodeEqual("8J-kkw==", "🤓", options);
         decodeEqual("8J-kk2Zvb_CflpY=", "🤓foo🖖", options);
+
+        decodeEqual("b2g_", "oh?", options);
+    });
+
+    test("strict mode with base64url alphabet", () => {
+        const options = { alphabet: "base64url", lastChunkHandling: "strict" };
+
+        decodeEqual("", "", options);
+        decodeEqual("Zg==", "f", options);
+        decodeEqual("Zm8=", "fo", options);
+        decodeEqual("Zm9v", "foo", options);
+        decodeEqual("Zm9vYg==", "foob", options);
+        decodeEqual("Zm9vYmE=", "fooba", options);
+        decodeEqual("Zm9vYmFy", "foobar", options);
+
+        decodeEqual("8J-kkw==", "🤓", options);
+        decodeEqual("8J-kk2Zvb_CflpY=", "🤓foo🖖", options);
+
+        decodeEqual("b2g_", "oh?", options);
     });
 
     test("stop-before-partial lastChunkHandling", () => {
