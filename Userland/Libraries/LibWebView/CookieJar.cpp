@@ -234,30 +234,6 @@ Optional<String> CookieJar::canonicalize_domain(const URL::URL& url)
     return MUST(MUST(url.serialized_host()).to_lowercase());
 }
 
-// https://www.ietf.org/archive/id/draft-ietf-httpbis-rfc6265bis-15.html#section-5.1.3
-bool CookieJar::domain_matches(StringView string, StringView domain_string)
-{
-    // A string domain-matches a given domain string if at least one of the following conditions hold:
-
-    // * The domain string and the string are identical. (Note that both the domain string and the string will have been
-    //   canonicalized to lower case at this point.)
-    if (string == domain_string)
-        return true;
-
-    // * All of the following conditions hold:
-    //   - The domain string is a suffix of the string.
-    if (!string.ends_with(domain_string))
-        return false;
-    //   - The last character of the string that is not included in the domain string is a %x2E (".") character.
-    if (string[string.length() - domain_string.length() - 1] != '.')
-        return false;
-    //   - The string is a host name (i.e., not an IP address).
-    if (AK::IPv4Address::from_string(string).has_value())
-        return false;
-
-    return true;
-}
-
 // https://www.ietf.org/archive/id/draft-ietf-httpbis-rfc6265bis-15.html#section-5.1.4
 bool CookieJar::path_matches(StringView request_path, StringView cookie_path)
 {
@@ -375,7 +351,7 @@ void CookieJar::store_cookie(Web::Cookie::ParsedCookie const& parsed_cookie, con
     // 10. If the domain-attribute is non-empty:
     if (!domain_attribute.is_empty()) {
         // 1. If the canonicalized request-host does not domain-match the domain-attribute:
-        if (!domain_matches(canonicalized_domain, domain_attribute)) {
+        if (!Web::Cookie::domain_matches(canonicalized_domain, domain_attribute)) {
             // 1. Abort these steps and ignore the cookie entirely.
             return;
         }
@@ -442,7 +418,7 @@ void CookieJar::store_cookie(Web::Cookie::ParsedCookie const& parsed_cookie, con
                 return IterationDecision::Continue;
 
             // 3. Their domain domain-matches the domain of the newly-created cookie, or vice-versa.
-            if (!domain_matches(old_cookie.domain, cookie.domain) && !domain_matches(cookie.domain, old_cookie.domain))
+            if (!Web::Cookie::domain_matches(old_cookie.domain, cookie.domain) && !Web::Cookie::domain_matches(cookie.domain, old_cookie.domain))
                 return IterationDecision::Continue;
 
             // 4. The path of the newly-created cookie path-matches the path of the existing cookie.
@@ -568,7 +544,7 @@ Vector<Web::Cookie::Cookie> CookieJar::get_matching_cookies(const URL::URL& url,
         // Or:
         //     The cookie's host-only-flag is false and the canonicalized host of the retrieval's URI domain-matches
         //     the cookie's domain.
-        bool is_not_host_only_and_domain_matches = !cookie.host_only && domain_matches(canonicalized_domain, cookie.domain);
+        bool is_not_host_only_and_domain_matches = !cookie.host_only && Web::Cookie::domain_matches(canonicalized_domain, cookie.domain);
 
         if (!is_host_only_and_has_identical_domain && !is_not_host_only_and_domain_matches)
             return;
