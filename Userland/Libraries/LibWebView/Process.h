@@ -9,6 +9,7 @@
 #include <AK/String.h>
 #include <AK/WeakPtr.h>
 #include <LibCore/Process.h>
+#include <LibCore/Socket.h>
 #include <LibIPC/Connection.h>
 #include <LibWebView/ProcessType.h>
 
@@ -21,6 +22,12 @@ class Process {
 public:
     Process(ProcessType type, RefPtr<IPC::ConnectionBase> connection, Core::Process process);
     ~Process();
+
+    template<typename ClientType>
+    struct ProcessAndClient;
+
+    template<typename ClientType, typename... ClientArguments>
+    static ErrorOr<ProcessAndClient<ClientType>> spawn(ProcessType type, Core::ProcessSpawnOptions const& options, ClientArguments&&... client_arguments);
 
     ProcessType type() const { return m_type; }
     Optional<String> const& title() const { return m_title; }
@@ -36,11 +43,40 @@ public:
 
     pid_t pid() const { return m_process.pid(); }
 
+    struct ProcessPaths {
+        ByteString socket_path;
+        ByteString pid_path;
+    };
+    static ErrorOr<ProcessPaths> paths_for_process(StringView process_name);
+    static ErrorOr<Optional<pid_t>> get_process_pid(StringView process_name, StringView pid_path);
+    static ErrorOr<int> create_ipc_socket(ByteString const& socket_path);
+
 private:
+    struct ProcessAndIPCSocket {
+        Core::Process process;
+        NonnullOwnPtr<Core::LocalSocket> socket;
+    };
+    static ErrorOr<ProcessAndIPCSocket> spawn_and_connect_to_process(Core::ProcessSpawnOptions const& options);
+
     Core::Process m_process;
     ProcessType m_type;
     Optional<String> m_title;
     WeakPtr<IPC::ConnectionBase> m_connection;
 };
+
+template<typename ClientType>
+struct Process::ProcessAndClient {
+    Process process;
+    NonnullRefPtr<ClientType> client;
+};
+
+template<typename ClientType, typename... ClientArguments>
+ErrorOr<Process::ProcessAndClient<ClientType>> Process::spawn(ProcessType type, Core::ProcessSpawnOptions const& options, ClientArguments&&... client_arguments)
+{
+    auto [core_process, socket] = TRY(spawn_and_connect_to_process(options));
+    auto client = TRY(adopt_nonnull_ref_or_enomem(new (nothrow) ClientType { move(socket), forward<ClientArguments>(client_arguments)... }));
+
+    return ProcessAndClient { Process { type, client, move(core_process) }, client };
+}
 
 }

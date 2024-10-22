@@ -42,15 +42,15 @@ static ErrorOr<NonnullRefPtr<ClientType>> launch_server_process(
             options.executable = path;
         }
 
-        auto result = Core::IPCProcess::spawn<ClientType>(move(options), forward<ClientArguments>(client_arguments)...);
+        auto result = WebView::Process::spawn<ClientType>(process_type, move(options), forward<ClientArguments>(client_arguments)...);
 
         if (!result.is_error()) {
-            auto process = result.release_value();
+            auto&& [process, client] = result.release_value();
 
-            if constexpr (requires { process.client->set_pid(pid_t {}); })
-                process.client->set_pid(process.process.pid());
+            if constexpr (requires { client->set_pid(pid_t {}); })
+                client->set_pid(process.pid());
 
-            WebView::Application::the().add_child_process(WebView::Process { process_type, process.client, move(process.process) });
+            WebView::Application::the().add_child_process(move(process));
 
             if (chrome_options.profile_helper_process == process_type) {
                 dbgln();
@@ -59,7 +59,7 @@ static ErrorOr<NonnullRefPtr<ClientType>> launch_server_process(
                 dbgln();
             }
 
-            return move(process.client);
+            return move(client);
         }
 
         if (i == candidate_server_paths.size() - 1) {

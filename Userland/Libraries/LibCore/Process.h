@@ -13,7 +13,6 @@
 #include <AK/Forward.h>
 #include <AK/Span.h>
 #include <LibCore/File.h>
-#include <LibCore/Socket.h>
 
 namespace Core {
 
@@ -44,8 +43,6 @@ struct ProcessSpawnOptions {
     using FileActionType = Variant<FileAction::OpenFile, FileAction::CloseFile>;
     Vector<FileActionType> file_actions {};
 };
-
-class IPCProcess;
 
 class Process {
     AK_MAKE_NONCOPYABLE(Process);
@@ -102,8 +99,6 @@ public:
     ErrorOr<bool> wait_for_termination();
 
 private:
-    friend IPCProcess;
-
     Process(pid_t pid)
         : m_pid(pid)
         , m_should_disown(true)
@@ -112,43 +107,6 @@ private:
 
     pid_t m_pid;
     bool m_should_disown;
-};
-
-class IPCProcess {
-public:
-    template<typename ClientType>
-    struct ProcessAndIPCClient {
-        Process process;
-        NonnullRefPtr<ClientType> client;
-    };
-
-    template<typename ClientType, typename... ClientArguments>
-    static ErrorOr<ProcessAndIPCClient<ClientType>> spawn(ProcessSpawnOptions const& options, ClientArguments&&... client_arguments)
-    {
-        auto [process, socket] = TRY(spawn_and_connect_to_process(options));
-        auto client = TRY(adopt_nonnull_ref_or_enomem(new (nothrow) ClientType { move(socket), forward<ClientArguments>(client_arguments)... }));
-
-        return ProcessAndIPCClient<ClientType> { move(process), move(client) };
-    }
-
-    struct ProcessPaths {
-        ByteString socket_path;
-        ByteString pid_path;
-    };
-    static ErrorOr<ProcessPaths> paths_for_process(StringView process_name);
-    static ErrorOr<Optional<pid_t>> get_process_pid(StringView process_name, StringView pid_path);
-    static ErrorOr<int> create_ipc_socket(ByteString const& socket_path);
-
-    pid_t pid() const { return m_process.pid(); }
-
-private:
-    struct ProcessAndIPCSocket {
-        Process process;
-        NonnullOwnPtr<Core::LocalSocket> m_ipc_socket;
-    };
-    static ErrorOr<ProcessAndIPCSocket> spawn_and_connect_to_process(ProcessSpawnOptions const& options);
-
-    Process m_process;
 };
 
 }

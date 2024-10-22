@@ -29,9 +29,9 @@ ErrorOr<ChromeProcess::ProcessDisposition> ChromeProcess::connect(Vector<ByteStr
 {
     static constexpr auto process_name = "Ladybird"sv;
 
-    auto [socket_path, pid_path] = TRY(Core::IPCProcess::paths_for_process(process_name));
+    auto [socket_path, pid_path] = TRY(Process::paths_for_process(process_name));
 
-    if (auto pid = TRY(Core::IPCProcess::get_process_pid(process_name, pid_path)); pid.has_value()) {
+    if (auto pid = TRY(Process::get_process_pid(process_name, pid_path)); pid.has_value()) {
         TRY(connect_as_client(socket_path, raw_urls, new_window));
         return ProcessDisposition::ExitProcess;
     }
@@ -63,7 +63,7 @@ ErrorOr<void> ChromeProcess::connect_as_client(ByteString const& socket_path, Ve
 
 ErrorOr<void> ChromeProcess::connect_as_server(ByteString const& socket_path)
 {
-    auto socket_fd = TRY(Core::IPCProcess::create_ipc_socket(socket_path));
+    auto socket_fd = TRY(Process::create_ipc_socket(socket_path));
     m_socket_path = socket_path;
     auto local_server = TRY(Core::LocalServer::try_create());
     TRY(local_server->take_over_fd(socket_fd));
