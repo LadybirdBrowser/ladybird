@@ -11,7 +11,6 @@
 #include <LibWeb/DOM/Event.h>
 #include <LibWeb/DOM/EventTarget.h>
 #include <LibWeb/DOMURL/DOMURL.h>
-#include <LibWeb/HTML/BrowsingContext.h>
 #include <LibWeb/HTML/HTMLElement.h>
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/Internals/Internals.h>
