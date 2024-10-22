@@ -391,6 +391,12 @@ void WebContentView::keyPressEvent(QKeyEvent* event)
 
 void WebContentView::keyReleaseEvent(QKeyEvent* event)
 {
+    // NOTE: Prevent auto-repeated keyRelease events from being enqueued, as they should not result
+    //       in a keyup event down the line.
+    //       See: https://w3c.github.io/uievents/#events-keyboard-event-order
+    if (event->isAutoRepeat())
+        return;
+
     enqueue_native_event(Web::KeyEvent::Type::KeyUp, *event);
 }
 
