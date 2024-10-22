@@ -44,6 +44,7 @@ public:
     void simulate_drag_move(double x, double y);
     void simulate_drop(double x, double y);
 
+    void enable_cookies_on_file_domains();
     void expire_cookies_with_time_offset(WebIDL::LongLong seconds);
 
 private:

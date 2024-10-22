@@ -12,6 +12,11 @@
         document.cookie = `${name}=""; max-age=-9999`;
     };
 
+    const cookieAverseTest = () => {
+        document.cookie = "cookie=value";
+        printCookies("Cookie averse test");
+    };
+
     const basicTest = () => {
         document.cookie = "cookie=value";
         printCookies("Basic test");
@@ -178,6 +183,10 @@
     };
 
     test(() => {
+        cookieAverseTest();
+
+        internals.enableCookiesOnFileDomains();
+
         basicTest();
         multipleCookiesTest();
 

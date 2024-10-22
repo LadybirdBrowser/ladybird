@@ -116,8 +116,10 @@ public:
 
     JS::GCPtr<Selection::Selection> get_selection() const;
 
-    String cookie(Cookie::Source = Cookie::Source::NonHttp);
-    void set_cookie(StringView, Cookie::Source = Cookie::Source::NonHttp);
+    WebIDL::ExceptionOr<String> cookie(Cookie::Source = Cookie::Source::NonHttp);
+    WebIDL::ExceptionOr<void> set_cookie(StringView, Cookie::Source = Cookie::Source::NonHttp);
+    bool is_cookie_averse() const;
+    void enable_cookies_on_file_domains(Badge<Internals::Internals>) { m_enable_cookies_on_file_domains = true; }
 
     String fg_color() const;
     void set_fg_color(String const&);
@@ -1019,6 +1021,8 @@ private:
     WeakPtr<HTML::Navigable> m_cached_navigable;
 
     bool m_needs_repaint { false };
+
+    bool m_enable_cookies_on_file_domains { false };
 
     Optional<PaintConfig> m_cached_display_list_paint_config;
     RefPtr<Painting::DisplayList> m_cached_display_list;
