@@ -20,7 +20,6 @@
 #include <LibCore/Resource.h>
 #include <LibCore/Timer.h>
 #include <LibGfx/Bitmap.h>
-#include <LibGfx/DeprecatedPainter.h>
 #include <LibGfx/Font/FontDatabase.h>
 #include <LibGfx/ImageFormats/PNGWriter.h>
 #include <LibGfx/Palette.h>
@@ -29,7 +28,6 @@
 #include <LibWeb/Crypto/Crypto.h>
 #include <LibWeb/UIEvents/KeyCode.h>
 #include <LibWeb/UIEvents/MouseButton.h>
-#include <LibWeb/Worker/WebWorkerClient.h>
 #include <LibWebView/Application.h>
 #include <LibWebView/WebContentClient.h>
 #include <QApplication>
