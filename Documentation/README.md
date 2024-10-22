@@ -31,10 +31,9 @@ you are welcome to ask on [Discord](../README.md#get-in-touch-and-participate).
 * [String Formatting](StringFormatting.md)
 
 ## Browser/LibWeb
-* [Ladybird Browser Build Instructions](BuildInstructionsLadybird.md)
-* [General Architecture](Browser/ProcessArchitecture.md)
-* [LibWeb: From Loading to Painting](Browser/LibWebFromLoadingToPainting.md)
-* [LibWeb: Browsing Contexts and Navigables](Browser/BrowsingContextsAndNavigables.md)
-* [How to Add an IDL File](Browser/AddNewIDLFile.md)
+* [General Architecture](ProcessArchitecture.md)
+* [LibWeb: From Loading to Painting](LibWebFromLoadingToPainting.md)
+* [LibWeb: Browsing Contexts and Navigables](BrowsingContextsAndNavigables.md)
+* [How to Add an IDL File](AddNewIDLFile.md)
 * [LibWeb Code Style & Patterns](Browser/Patterns.md)
-* [CSS Generated Files](Browser/CSSGeneratedFiles.md)
+* [CSS Generated Files](CSSGeneratedFiles.md)

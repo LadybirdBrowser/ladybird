@@ -6,7 +6,7 @@ The SerenityOS web browser (**"Browser"**) uses a multi-process architecture to 
 
 ## Process overview
 
-![](processes.png)
+![](Images/processes.png)
 
 Every instance of the **Browser** application can have one or more tabs open. Each tab has a unique **WebContent** service process spawned on its behalf.
 
@@ -39,7 +39,7 @@ by **WebContent** as needed, not by **Browser**.
 
 ## Class overview
 
-![](classes.png)
+![](Images/classes.png)
 
 In the GUI application process, a `OutOfProcessWebView` widget is placed somewhere in a window, and it takes care of spawning all of the helper processes, etc.
 
