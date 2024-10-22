@@ -1171,8 +1171,13 @@ EventResult EventHandler::handle_keydown(UIEvents::KeyCode key, u32 modifiers, u
     return EventResult::Accepted;
 }
 
-EventResult EventHandler::handle_keyup(UIEvents::KeyCode key, u32 modifiers, u32 code_point, [[maybe_unused]] bool repeat)
+EventResult EventHandler::handle_keyup(UIEvents::KeyCode key, u32 modifiers, u32 code_point, bool repeat)
 {
+    // Keyup events as a result of auto-repeat are not fired.
+    // See: https://w3c.github.io/uievents/#events-keyboard-event-order
+    if (repeat)
+        return EventResult::Dropped;
+
     return fire_keyboard_event(UIEvents::EventNames::keyup, m_navigable, key, modifiers, code_point, false);
 }
 
