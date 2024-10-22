@@ -33,7 +33,116 @@ namespace JS {
 
 JS_DEFINE_ALLOCATOR(ECMAScriptFunctionObject);
 
-NonnullGCPtr<ECMAScriptFunctionObject> ECMAScriptFunctionObject::create(Realm& realm, DeprecatedFlyString name, ByteString source_text, Statement const& ecmascript_code, Vector<FunctionParameter> parameters, i32 m_function_length, Vector<DeprecatedFlyString> local_variables_names, Environment* parent_environment, PrivateEnvironment* private_environment, FunctionKind kind, bool is_strict, FunctionParsingInsights parsing_insights, bool is_arrow_function, Variant<PropertyKey, PrivateName, Empty> class_field_initializer_name)
+// 8.6.1 Runtime Semantics: InstantiateFunctionObject, https://tc39.es/ecma262/#sec-runtime-semantics-instantiatefunctionobject
+NonnullGCPtr<ECMAScriptFunctionObject> ECMAScriptFunctionObject::instantiate_function_object(Realm& realm, Environment* global_environment, PrivateEnvironment* private_environment, FunctionNode const& declaration)
+{
+    switch (declaration.kind()) {
+    case FunctionKind::Normal:
+        return ECMAScriptFunctionObject::instantiate_ordinary_function_object(realm, global_environment, private_environment, declaration);
+    case FunctionKind::Generator:
+        return ECMAScriptFunctionObject::instantiate_generator_function_object(realm, global_environment, private_environment, declaration);
+    case FunctionKind::Async:
+        return ECMAScriptFunctionObject::instantiate_async_function_object(realm, global_environment, private_environment, declaration);
+    case FunctionKind::AsyncGenerator:
+        return ECMAScriptFunctionObject::instantiate_generator_function_object(realm, global_environment, private_environment, declaration);
+    }
+
+    VERIFY_NOT_REACHED();
+}
+
+// 15.2.4 Runtime Semantics: InstantiateOrdinaryFunctionObject, https://tc39.es/ecma262/#sec-runtime-semantics-instantiateordinaryfunctionobject
+NonnullGCPtr<ECMAScriptFunctionObject> ECMAScriptFunctionObject::instantiate_ordinary_function_object(Realm& realm, Environment* global_environment, PrivateEnvironment* private_environment, FunctionNode const& declaration)
+{
+    // 1. Let name be the StringValue of BindingIdentifier.
+    // NOTE: Special case if the function is a default export of an anonymous function
+    //       it has name "*default*" but internally should have name "default".
+    auto name = (declaration.name().is_empty() || declaration.name() == ExportStatement::local_name_for_default) ? "default"sv : declaration.name();
+
+    // 2. Let sourceText be the source text matched by FunctionDeclaration.
+    auto source_text = declaration.source_text();
+
+    // 3. Let F be OrdinaryFunctionCreate(%Function.prototype%, sourceText, FormalParameters, FunctionBody, non-lexical-this, env, privateEnv).
+    auto function = ECMAScriptFunctionObject::create(realm, name, *realm.intrinsics().function_prototype(), source_text, declaration.body(), declaration.parameters(), declaration.function_length(), declaration.local_variables_names(), global_environment, private_environment, declaration.kind(), declaration.is_strict_mode(),
+        declaration.parsing_insights(), true);
+
+    // 4. Perform SetFunctionName(F, name).
+    function->set_function_name(PropertyKey(name.to_byte_string()));
+
+    // 5. Perform MakeConstructor(F).
+    function->make_constructor();
+
+    // 6. Return F.
+    return function;
+}
+
+// 15.8.2 Runtime Semantics: InstantiateAsyncFunctionObject, https://tc39.es/ecma262/#sec-runtime-semantics-instantiateasyncfunctionobject
+NonnullGCPtr<ECMAScriptFunctionObject> ECMAScriptFunctionObject::instantiate_async_function_object(Realm& realm, Environment* global_environment, PrivateEnvironment* private_environment, FunctionNode const& declaration)
+{
+    // 1. Let name be the StringValue of BindingIdentifier.
+    // NOTE: Special case if the function is a default export of an anonymous function
+    //       it has name "*default*" but internally should have name "default".
+    auto name = (declaration.name().is_empty() || declaration.name() == ExportStatement::local_name_for_default) ? "default"sv : declaration.name();
+
+    // 2. Let sourceText be the source text matched by AsyncFunctionDeclaration.
+    auto source_text = declaration.source_text();
+
+    // 3. Let F be OrdinaryFunctionCreate(%AsyncFunction.prototype%, sourceText, FormalParameters, AsyncFunctionBody, non-lexical-this, env, privateEnv).
+    auto function = ECMAScriptFunctionObject::create(realm, name, *realm.intrinsics().async_function_prototype(), source_text, declaration.body(), declaration.parameters(), declaration.function_length(), declaration.local_variables_names(), global_environment, private_environment, declaration.kind(), declaration.is_strict_mode(),
+        declaration.parsing_insights(), true);
+
+    // 4. Perform SetFunctionName(F, name).
+    function->set_function_name(PropertyKey(name.to_byte_string()));
+
+    // 5. Return F.
+    return function;
+}
+
+// 15.5.3 Runtime Semantics: InstantiateGeneratorFunctionObject, https://tc39.es/ecma262/#sec-runtime-semantics-instantiategeneratorfunctionobject
+// 15.6.3 Runtime Semantics: InstantiateAsyncGeneratorFunctionObject, https://tc39.es/ecma262/#sec-runtime-semantics-instantiateasyncgeneratorfunctionobject
+NonnullGCPtr<ECMAScriptFunctionObject> ECMAScriptFunctionObject::instantiate_generator_function_object(Realm& realm, Environment* global_environment, PrivateEnvironment* private_environment, FunctionNode const& declaration)
+{
+    // NOTE: InstantiateGeneratorFunctionObject and InstantiateAsyncGeneratorFunctionObject do the exact same thing, the only difference is which prototype is used,
+    // %GeneratorFunction.prototype% for GeneratorFunctionObject and %AsyncGeneratorFunction.prototype% for AsyncGeneratorFunctionObject.
+    VERIFY(declaration.kind() == FunctionKind::Generator || declaration.kind() == FunctionKind::AsyncGenerator);
+
+    // 1. Let name be the StringValue of BindingIdentifier.
+    // NOTE: Special case if the function is a default export of an anonymous function
+    //       it has name "*default*" but internally should have name "default".
+    auto name = (declaration.name().is_empty() || declaration.name() == ExportStatement::local_name_for_default) ? "default"sv : declaration.name();
+
+    // 2. Let sourceText be the source text matched by GeneratorDeclaration.
+    auto source_text = declaration.source_text();
+
+    // 3. Let F be OrdinaryFunctionCreate(%GeneratorFunction.prototype%, sourceText, FormalParameters, GeneratorBody, non-lexical-this, env, privateEnv).
+    // 3. Let F be OrdinaryFunctionCreate(%AsyncGeneratorFunction.prototype%, sourceText, FormalParameters, AsyncGeneratorBody, non-lexical-this, env, privateEnv).
+    Object* generator_function_prototype;
+    if (declaration.kind() == FunctionKind::Generator)
+        generator_function_prototype = realm.intrinsics().generator_function_prototype();
+    else
+        generator_function_prototype = realm.intrinsics().async_generator_function_prototype();
+
+    NonnullGCPtr<ECMAScriptFunctionObject> function = ECMAScriptFunctionObject::create(realm, name, *generator_function_prototype, source_text, declaration.body(), declaration.parameters(), declaration.function_length(), declaration.local_variables_names(), global_environment, private_environment, declaration.kind(), declaration.is_strict_mode(),
+        declaration.parsing_insights(), true);
+
+    // 4. Perform SetFunctionName(F, name).
+    function->set_function_name(PropertyKey(name.to_byte_string()));
+
+    // 5. Let prototype be OrdinaryObjectCreate(%GeneratorFunction.prototype.prototype%).
+    // 5. Let prototype be OrdinaryObjectCreate(%AsyncGeneratorFunction.prototype.prototype%).
+    GCPtr<Object> prototype;
+    if (declaration.kind() == FunctionKind::Generator)
+        prototype = Object::create_with_premade_shape(realm.intrinsics().generator_function_prototype_shape());
+    else
+        prototype = Object::create_with_premade_shape(realm.intrinsics().async_generator_function_prototype_shape());
+
+    // 6. Perform ! DefinePropertyOrThrow(F, "prototype", PropertyDescriptor { [[Value]]: prototype, [[Writable]]: true, [[Enumerable]]: false, [[Configurable]]: false }).
+    MUST(function->define_property_or_throw(realm.vm().names.prototype, PropertyDescriptor { .value = prototype, .writable = true, .enumerable = false, .configurable = false }));
+
+    // 7. Return F.
+    return function;
+}
+
+NonnullGCPtr<ECMAScriptFunctionObject> ECMAScriptFunctionObject::create(Realm& realm, DeprecatedFlyString name, ByteString source_text, Statement const& ecmascript_code, Vector<FunctionParameter> parameters, i32 m_function_length, Vector<DeprecatedFlyString> local_variables_names, Environment* parent_environment, PrivateEnvironment* private_environment, FunctionKind kind, bool is_strict, FunctionParsingInsights parsing_insights, bool skip_initialization, bool is_arrow_function, Variant<PropertyKey, PrivateName, Empty> class_field_initializer_name)
 {
     Object* prototype = nullptr;
     switch (kind) {
@@ -50,15 +159,15 @@ NonnullGCPtr<ECMAScriptFunctionObject> ECMAScriptFunctionObject::create(Realm& r
         prototype = realm.intrinsics().async_generator_function_prototype();
         break;
     }
-    return realm.heap().allocate<ECMAScriptFunctionObject>(realm, move(name), move(source_text), ecmascript_code, move(parameters), m_function_length, move(local_variables_names), parent_environment, private_environment, *prototype, kind, is_strict, parsing_insights, is_arrow_function, move(class_field_initializer_name));
+    return realm.heap().allocate<ECMAScriptFunctionObject>(realm, move(name), move(source_text), ecmascript_code, move(parameters), m_function_length, move(local_variables_names), parent_environment, private_environment, *prototype, kind, is_strict, parsing_insights, skip_initialization, is_arrow_function, move(class_field_initializer_name));
 }
 
-NonnullGCPtr<ECMAScriptFunctionObject> ECMAScriptFunctionObject::create(Realm& realm, DeprecatedFlyString name, Object& prototype, ByteString source_text, Statement const& ecmascript_code, Vector<FunctionParameter> parameters, i32 m_function_length, Vector<DeprecatedFlyString> local_variables_names, Environment* parent_environment, PrivateEnvironment* private_environment, FunctionKind kind, bool is_strict, FunctionParsingInsights parsing_insights, bool is_arrow_function, Variant<PropertyKey, PrivateName, Empty> class_field_initializer_name)
+NonnullGCPtr<ECMAScriptFunctionObject> ECMAScriptFunctionObject::create(Realm& realm, DeprecatedFlyString name, Object& prototype, ByteString source_text, Statement const& ecmascript_code, Vector<FunctionParameter> parameters, i32 m_function_length, Vector<DeprecatedFlyString> local_variables_names, Environment* parent_environment, PrivateEnvironment* private_environment, FunctionKind kind, bool is_strict, FunctionParsingInsights parsing_insights, bool skip_initialization, bool is_arrow_function, Variant<PropertyKey, PrivateName, Empty> class_field_initializer_name)
 {
-    return realm.heap().allocate<ECMAScriptFunctionObject>(realm, move(name), move(source_text), ecmascript_code, move(parameters), m_function_length, move(local_variables_names), parent_environment, private_environment, prototype, kind, is_strict, parsing_insights, is_arrow_function, move(class_field_initializer_name));
+    return realm.heap().allocate<ECMAScriptFunctionObject>(realm, move(name), move(source_text), ecmascript_code, move(parameters), m_function_length, move(local_variables_names), parent_environment, private_environment, prototype, kind, is_strict, parsing_insights, skip_initialization, is_arrow_function, move(class_field_initializer_name));
 }
 
-ECMAScriptFunctionObject::ECMAScriptFunctionObject(DeprecatedFlyString name, ByteString source_text, Statement const& ecmascript_code, Vector<FunctionParameter> formal_parameters, i32 function_length, Vector<DeprecatedFlyString> local_variables_names, Environment* parent_environment, PrivateEnvironment* private_environment, Object& prototype, FunctionKind kind, bool strict, FunctionParsingInsights parsing_insights, bool is_arrow_function, Variant<PropertyKey, PrivateName, Empty> class_field_initializer_name)
+ECMAScriptFunctionObject::ECMAScriptFunctionObject(DeprecatedFlyString name, ByteString source_text, Statement const& ecmascript_code, Vector<FunctionParameter> formal_parameters, i32 function_length, Vector<DeprecatedFlyString> local_variables_names, Environment* parent_environment, PrivateEnvironment* private_environment, Object& prototype, FunctionKind kind, bool strict, FunctionParsingInsights parsing_insights, bool skip_initialization, bool is_arrow_function, Variant<PropertyKey, PrivateName, Empty> class_field_initializer_name)
     : FunctionObject(prototype)
     , m_name(move(name))
     , m_function_length(function_length)
@@ -75,6 +184,7 @@ ECMAScriptFunctionObject::ECMAScriptFunctionObject(DeprecatedFlyString name, Byt
     , m_contains_direct_call_to_eval(parsing_insights.contains_direct_call_to_eval)
     , m_is_arrow_function(is_arrow_function)
     , m_kind(kind)
+    , m_skip_initialization(skip_initialization)
 {
     // NOTE: This logic is from OrdinaryFunctionCreate, https://tc39.es/ecma262/#sec-ordinaryfunctioncreate
 
@@ -348,23 +458,30 @@ void ECMAScriptFunctionObject::initialize(Realm& realm)
     m_name_string = PrimitiveString::create(vm, m_name);
 
     MUST(define_property_or_throw(vm.names.length, { .value = Value(m_function_length), .writable = false, .enumerable = false, .configurable = true }));
+
+    // NOTE: When instantiating JS functions from functions that match the spec e.g (instantiate_ordinary_function_object) we won't need the code below, so let's skip it.
+    //       However, if we're instantiating from other places that do not match the spec, the code below is needed.
+    // FIXME: make sure functions that call ECMAScriptFunctionObject::create() won't need the code below then remove it.
+    if (m_skip_initialization)
+        return;
+
     MUST(define_property_or_throw(vm.names.name, { .value = m_name_string, .writable = false, .enumerable = false, .configurable = true }));
 
     if (!m_is_arrow_function) {
         Object* prototype = nullptr;
         switch (m_kind) {
         case FunctionKind::Normal:
-            prototype = Object::create_prototype(realm, realm.intrinsics().object_prototype());
+            prototype = Object::create_with_premade_shape(realm.intrinsics().object_prototype_shape());
             MUST(prototype->define_property_or_throw(vm.names.constructor, { .value = this, .writable = true, .enumerable = false, .configurable = true }));
             break;
         case FunctionKind::Generator:
             // prototype is "g1.prototype" in figure-2 (https://tc39.es/ecma262/img/figure-2.png)
-            prototype = Object::create_prototype(realm, realm.intrinsics().generator_function_prototype_prototype());
+            prototype = Object::create_with_premade_shape(realm.intrinsics().generator_function_prototype_shape());
             break;
         case FunctionKind::Async:
             break;
         case FunctionKind::AsyncGenerator:
-            prototype = Object::create_prototype(realm, realm.intrinsics().async_generator_function_prototype_prototype());
+            prototype = Object::create_with_premade_shape(realm.intrinsics().async_generator_function_prototype_shape());
             break;
         }
         // 27.7.4 AsyncFunction Instances, https://tc39.es/ecma262/#sec-async-function-instances
@@ -556,6 +673,44 @@ void ECMAScriptFunctionObject::visit_edges(Visitor& visitor)
         [&](auto& script_or_module) {
             visitor.visit(script_or_module);
         });
+}
+
+// 10.2.5 MakeConstructor ( F [ , writablePrototype [ , prototype ] ] ), https://tc39.es/ecma262/#sec-makeconstructor
+void ECMAScriptFunctionObject::make_constructor(GCPtr<Object> prototype)
+{
+    auto& vm = this->vm();
+
+    // 1. If F is an ECMAScript function object, then
+    // This is implicitly taken care of simply being in this method
+
+    // a. Assert: IsConstructor(F) is false.
+    VERIFY(is_class_constructor() == false);
+
+    // b. Assert: F is an extensible object that does not have a "prototype" own property.
+    VERIFY(MUST(is_extensible()));
+    VERIFY(!storage_has(vm.names.prototype));
+
+    // c. Set F.[[Construct]] to the definition specified in 10.2.2
+    // This is implicitly taken care of by the class ECMAScriptFunctionObject
+
+    // 3. Set F.[[ConstructorKind]] to base.
+    set_constructor_kind(ConstructorKind::Base);
+
+    // 4. If writablePrototype is not present, set writablePrototype to true.
+    bool writable_prototype = (prototype == nullptr);
+
+    // 5. If prototype is not present, then
+    if (prototype == nullptr) {
+        // a. Set prototype to OrdinaryObjectCreate(%Object.prototype%).
+        prototype = Object::create(*m_realm, m_realm->intrinsics().object_prototype());
+
+        // b. Perform ! DefinePropertyOrThrow(prototype, "constructor", PropertyDescriptor { [[Value]]: F, [[Writable]]: writablePrototype, [[Enumerable]]: false, [[Configurable]]: true }).
+        MUST(prototype->define_property_or_throw(vm.names.constructor, PropertyDescriptor { .value = this, .writable = writable_prototype, .enumerable = false, .configurable = true }));
+    }
+    // 6. Perform ! DefinePropertyOrThrow(F, "prototype", PropertyDescriptor { [[Value]]: prototype, [[Writable]]: writablePrototype, [[Enumerable]]: false, [[Configurable]]: false }).
+    MUST(define_property_or_throw(vm.names.prototype, PropertyDescriptor { .value = prototype, .writable = writable_prototype, .enumerable = false, .configurable = false }));
+
+    // 7. Return unused.
 }
 
 // 10.2.7 MakeMethod ( F, homeObject ), https://tc39.es/ecma262/#sec-makemethod

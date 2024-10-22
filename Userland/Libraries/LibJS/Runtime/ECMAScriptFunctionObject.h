@@ -39,8 +39,13 @@ public:
         Global,
     };
 
-    static NonnullGCPtr<ECMAScriptFunctionObject> create(Realm&, DeprecatedFlyString name, ByteString source_text, Statement const& ecmascript_code, Vector<FunctionParameter> parameters, i32 m_function_length, Vector<DeprecatedFlyString> local_variables_names, Environment* parent_environment, PrivateEnvironment* private_environment, FunctionKind, bool is_strict, FunctionParsingInsights, bool is_arrow_function = false, Variant<PropertyKey, PrivateName, Empty> class_field_initializer_name = {});
-    static NonnullGCPtr<ECMAScriptFunctionObject> create(Realm&, DeprecatedFlyString name, Object& prototype, ByteString source_text, Statement const& ecmascript_code, Vector<FunctionParameter> parameters, i32 m_function_length, Vector<DeprecatedFlyString> local_variables_names, Environment* parent_environment, PrivateEnvironment* private_environment, FunctionKind, bool is_strict, FunctionParsingInsights, bool is_arrow_function = false, Variant<PropertyKey, PrivateName, Empty> class_field_initializer_name = {});
+    static NonnullGCPtr<ECMAScriptFunctionObject> create(Realm&, DeprecatedFlyString name, ByteString source_text, Statement const& ecmascript_code, Vector<FunctionParameter> parameters, i32 m_function_length, Vector<DeprecatedFlyString> local_variables_names, Environment* parent_environment, PrivateEnvironment* private_environment, FunctionKind, bool is_strict, FunctionParsingInsights, bool skip_initialization = false, bool is_arrow_function = false, Variant<PropertyKey, PrivateName, Empty> class_field_initializer_name = {});
+    static NonnullGCPtr<ECMAScriptFunctionObject> create(Realm&, DeprecatedFlyString name, Object& prototype, ByteString source_text, Statement const& ecmascript_code, Vector<FunctionParameter> parameters, i32 m_function_length, Vector<DeprecatedFlyString> local_variables_names, Environment* parent_environment, PrivateEnvironment* private_environment, FunctionKind, bool is_strict, FunctionParsingInsights, bool skip_initialization = false, bool is_arrow_function = false, Variant<PropertyKey, PrivateName, Empty> class_field_initializer_name = {});
+
+    static NonnullGCPtr<ECMAScriptFunctionObject> instantiate_function_object(Realm& realm, Environment* global_environment, PrivateEnvironment* private_environment, FunctionNode const& declaration);
+    static NonnullGCPtr<ECMAScriptFunctionObject> instantiate_ordinary_function_object(Realm& realm, Environment* global_environment, PrivateEnvironment* private_environment, FunctionNode const& declaration);
+    static NonnullGCPtr<ECMAScriptFunctionObject> instantiate_async_function_object(Realm& realm, Environment* global_environment, PrivateEnvironment* private_environment, FunctionNode const& declaration);
+    static NonnullGCPtr<ECMAScriptFunctionObject> instantiate_generator_function_object(Realm& realm, Environment* global_environment, PrivateEnvironment* private_environment, FunctionNode const& declaration);
 
     virtual void initialize(Realm&) override;
     virtual ~ECMAScriptFunctionObject() override = default;
@@ -48,6 +53,7 @@ public:
     virtual ThrowCompletionOr<Value> internal_call(Value this_argument, ReadonlySpan<Value> arguments_list) override;
     virtual ThrowCompletionOr<NonnullGCPtr<Object>> internal_construct(ReadonlySpan<Value> arguments_list, FunctionObject& new_target) override;
 
+    void make_constructor(GCPtr<Object> prototype = nullptr);
     void make_method(Object& home_object);
 
     [[nodiscard]] bool is_module_wrapper() const { return m_is_module_wrapper; }
@@ -60,6 +66,7 @@ public:
     void set_name(DeprecatedFlyString const& name);
 
     void set_is_class_constructor() { m_is_class_constructor = true; }
+    bool is_class_constructor() const { return m_is_class_constructor; }
 
     auto& bytecode_executable() const { return m_bytecode_executable; }
 
@@ -109,7 +116,7 @@ protected:
     virtual Completion ordinary_call_evaluate_body();
 
 private:
-    ECMAScriptFunctionObject(DeprecatedFlyString name, ByteString source_text, Statement const& ecmascript_code, Vector<FunctionParameter> parameters, i32 m_function_length, Vector<DeprecatedFlyString> local_variables_names, Environment* parent_environment, PrivateEnvironment* private_environment, Object& prototype, FunctionKind, bool is_strict, FunctionParsingInsights, bool is_arrow_function, Variant<PropertyKey, PrivateName, Empty> class_field_initializer_name);
+    ECMAScriptFunctionObject(DeprecatedFlyString name, ByteString source_text, Statement const& ecmascript_code, Vector<FunctionParameter> parameters, i32 m_function_length, Vector<DeprecatedFlyString> local_variables_names, Environment* parent_environment, PrivateEnvironment* private_environment, Object& prototype, FunctionKind, bool is_strict, FunctionParsingInsights, bool skip_initialization, bool is_arrow_function, Variant<PropertyKey, PrivateName, Empty> class_field_initializer_name);
 
     virtual bool is_ecmascript_function_object() const override { return true; }
     virtual void visit_edges(Visitor&) override;
@@ -165,6 +172,8 @@ private:
     bool m_is_module_wrapper { false };
     bool m_function_environment_needed { false };
     bool m_uses_this { false };
+    bool m_skip_initialization { false };
+
     Vector<VariableNameToInitialize> m_var_names_to_initialize_binding;
     Vector<DeprecatedFlyString> m_function_names_to_initialize_binding;
 
