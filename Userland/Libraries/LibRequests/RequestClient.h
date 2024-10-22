@@ -40,10 +40,10 @@ public:
 private:
     virtual void die() override;
 
-    virtual void request_started(i32, IPC::File const&) override;
-    virtual void request_finished(i32, u64, Optional<NetworkError> const&) override;
-    virtual void certificate_requested(i32) override;
-    virtual void headers_became_available(i32, u16, ByteBuffer const&, HTTP::HeaderMap const&) override;
+    virtual void request_started(i32 request_id, IPC::File const&) override;
+    virtual void request_finished(i32 request_id, u64, Optional<NetworkError> const&) override;
+    virtual void certificate_requested(i32 request_id) override;
+    virtual void headers_became_available(i32 request_id, u16 response_status, ByteBuffer const& response_reason_phrase, HTTP::HeaderMap const& response_headers) override;
 
     virtual void websocket_connected(i64 websocket_id) override;
     virtual void websocket_received(i64 websocket_id, bool, ByteBuffer const&) override;
