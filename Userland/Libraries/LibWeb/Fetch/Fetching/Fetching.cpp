@@ -1337,13 +1337,20 @@ public:
         (void)headers;
 
         // FIXME: - the stored response does not contain the no-cache directive (Section 5.2.2.4), unless it is successfully validated (Section 4.3), and
-        //          the stored response is one of the following:
+
+        // FIXME: Any remaining responses at this point should be saved as "The initial set of stored responses", for use in `freshen_stored_responses_upon_validation`.
+
+        // FIXME: - the stored response is one of the following:
         //          + fresh (see Section 4.2), or
         //          + allowed to be served stale (see Section 4.2.4), or
         //          + successfully validated (see Section 4.3).
 
         dbgln("\033[32;1mHTTP CACHE HIT!\033[0m {}", url);
 
+        // FIXME: It appears that the spec intends this operation to return a reference to the stored response, rather than a copy.
+        // This is because some (or all?) state changes of the returned response should be propagated to the stored response as well.
+        // This is noticable in `freshen_stored_responses_upon_validation`, which must currently change both the content of the response
+        // returned by this function as well as the cached_response.
         auto [body, _] = MUST(extract_body(realm, ReadonlyBytes(cached_response.body)));
         auto response = Infrastructure::Response::create(realm.vm());
         response->set_body(body);
@@ -1372,40 +1379,50 @@ public:
     }
 
     // https://httpwg.org/specs/rfc9111.html#freshening.responses
-    void freshen_stored_responses_upon_validation(Infrastructure::Request const& http_request, Infrastructure::Response const& response)
+    void freshen_stored_responses_upon_validation(Infrastructure::Request const& http_request, Infrastructure::Response const& response, Infrastructure::Response& stored_response)
     {
+        // When a cache receives a 304 (Not Modified) response, it needs to identify stored
+        // responses that are suitable for updating with the new information provided, and then do so.
+
+        // The initial set of stored responses to update are those that could have been
+        // chosen for that request — i.e., those that meet the requirements in Section 4,
+        // except the last requirement to be fresh, able to be served stale, or just validated.
+        // NOTE: This corresponds to the logic in `select_response`.
+
         auto it = m_cache.find(http_request.current_url());
         if (it == m_cache.end())
             return;
+
+        // Then, that initial set of stored responses is further filtered by the first match of:
+
+        // - FIXME: If the new response contains one or more strong validators (see Section 8.8.1 of [HTTP]),
+        //   then each of those strong validators identifies a selected representation for update.
+        //   All the stored responses in the initial set with one of those same strong validators
+        //   are identified for update.
+        //   If none of the initial set contains at least one of the same strong validators,
+        //   then the cache MUST NOT use the new response to update any stored responses.
+        // - FIXME: If the new response contains no strong validators but does contain one or more weak validators,
+        //   and those validators correspond to one of the initial set's stored responses,
+        //   then the most recent of those matching stored responses is identified for update.
+        // - FIXME: If the new response does not include any form of validator (such as where a client generates an
+        //   `If-Modified-Since` request from a source other than the `Last-Modified` response header field),
+        //   and there is only one stored response in the initial set, and that stored response also lacks a validator,
+        //   then that stored response is identified for update.
 
         // For each stored response identified, the cache MUST update its header fields
         // with the header fields provided in the 304 (Not Modified) response, as per Section 3.2.
         auto& cached_response = *it->value;
         update_stored_header_fields(response, cached_response.headers);
+
+        // FIXME: We shouldn't have to update the same response twice,
+        // and the intention of the spec seems to be that `stored_response == cached_response` here.
+        // They are not, because the response gets copied in `select_response`.
+        update_header_fields_for_stored_response(response, stored_response);
     }
 
 private:
-    // https://httpwg.org/specs/rfc9111.html#update
-    void update_stored_header_fields(Infrastructure::Response const& response, HTTP::HeaderMap& headers)
-    {
-        for (auto& header : *response.header_list()) {
-            auto name = StringView(header.name);
-            if (name.is_one_of_ignoring_ascii_case(
-                    "Connection"sv,
-                    "Proxy-Connection"sv,
-                    "Keep-Alive"sv,
-                    "TE"sv,
-                    "Transfer-Encoding"sv,
-                    "Upgrade"sv,
-                    "Content-Length"sv)) {
-                continue;
-            }
-            headers.set(ByteString::copy(header.name), ByteString::copy(header.value));
-        }
-    }
-
     // https://httpwg.org/specs/rfc9111.html#storing.fields
-    void store_header_and_trailer_fields(Infrastructure::Response const& response, HTTP::HeaderMap& headers)
+    bool is_exempted_for_storage(StringView header_name)
     {
         // Caches MUST include all received response header fields — including unrecognized ones — when storing a response;
         // this assures that new HTTP header fields can be successfully deployed. However, the following exceptions are made:
@@ -1423,17 +1440,88 @@ private:
         //          unless the cache incorporates the identity of the proxy into the cache key.
         //          Effectively, this is limited to Proxy-Authenticate (Section 11.7.1 of [HTTP]), Proxy-Authentication-Info (Section 11.7.3 of [HTTP]), and Proxy-Authorization (Section 11.7.2 of [HTTP]).
 
+        return header_name.is_one_of_ignoring_ascii_case(
+            "Connection"sv,
+            "Proxy-Connection"sv,
+            "Keep-Alive"sv,
+            "TE"sv,
+            "Transfer-Encoding"sv,
+            "Upgrade"sv);
+    }
+
+    // https://httpwg.org/specs/rfc9111.html#update
+    bool is_exempted_for_updating(StringView header_name)
+    {
+        // Caches are required to update a stored response's header fields from another
+        // (typically newer) response in several situations; for example, see Sections 3.4, 4.3.4, and 4.3.5.
+
+        // When doing so, the cache MUST add each header field in the provided response to the stored response,
+        // replacing field values that are already present, with the following exceptions:
+
+        // - Header fields excepted from storage in Section 3.1,
+        return is_exempted_for_storage(header_name)
+            // - Header fields that the cache's stored response depends upon, as described below,
+            || false
+            // - Header fields that are automatically processed and removed by the recipient, as described below, and
+            || false
+            // - The Content-Length header field.
+            || header_name.equals_ignoring_ascii_case("Content-Length"sv);
+
+        // In some cases, caches (especially in user agents) store the results of processing
+        // the received response, rather than the response itself, and updating header fields
+        // that affect that processing can result in inconsistent behavior and security issues.
+        // Caches in this situation MAY omit these header fields from updating stored responses
+        // on an exceptional basis but SHOULD limit such omission to those fields necessary to
+        // assure integrity of the stored response.
+
+        // For example, a browser might decode the content coding of a response while it is being received,
+        // creating a disconnect between the data it has stored and the response's original metadata.
+        // Updating that stored metadata with a different Content-Encoding header field would be problematic.
+        // Likewise, a browser might store a post-parse HTML tree rather than the content received in the response;
+        // updating the Content-Type header field would not be workable in this case because any assumptions about
+        // the format made in parsing would now be invalid.
+
+        // Furthermore, some fields are automatically processed and removed by the HTTP implementation,
+        // such as the Content-Range header field. Implementations MAY automatically omit such header fields from updates,
+        // even when the processing does not actually occur.
+
+        // Note that the Content-* prefix is not a signal that a header field is omitted from update; it is a convention for MIME header fields, not HTTP.
+    }
+
+    // https://httpwg.org/specs/rfc9111.html#update
+    void update_stored_header_fields(Infrastructure::Response const& response, HTTP::HeaderMap& headers)
+    {
         for (auto& header : *response.header_list()) {
             auto name = StringView(header.name);
-            if (name.is_one_of_ignoring_ascii_case(
-                    "Connection"sv,
-                    "Proxy-Connection"sv,
-                    "Keep-Alive"sv,
-                    "TE"sv,
-                    "Transfer-Encoding"sv,
-                    "Upgrade"sv)) {
+            if (is_exempted_for_updating(name))
                 continue;
-            }
+            headers.set(ByteString::copy(header.name), ByteString::copy(header.value));
+        }
+    }
+    void update_header_fields_for_stored_response(Infrastructure::Response const& response, Infrastructure::Response& stored_response)
+    {
+        auto headers = stored_response.header_list();
+
+        for (auto& header : *response.header_list()) {
+            auto name = StringView(header.name);
+            if (is_exempted_for_updating(name))
+                continue;
+            headers->set(Infrastructure::Header {
+                .name = MUST(ByteBuffer::copy(header.name)),
+                .value = MUST(ByteBuffer::copy(header.value)),
+            });
+        }
+    }
+
+    // https://httpwg.org/specs/rfc9111.html#storing.fields
+    void store_header_and_trailer_fields(Infrastructure::Response const& response, HTTP::HeaderMap& headers)
+    {
+        for (auto& header : *response.header_list()) {
+            auto name = StringView(header.name);
+
+            if (is_exempted_for_storage(name))
+                continue;
+
             headers.set(ByteString::copy(header.name), ByteString::copy(header.value));
         }
     }
@@ -1945,7 +2033,7 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<PendingResponse>> http_network_or_cache_fet
                 // 1. Update storedResponse’s header list using forwardResponse’s header list, as per the "Freshening
                 //    Stored Responses upon Validation" chapter of HTTP Caching.
                 // NOTE: This updates the stored response in cache as well.
-                http_cache->freshen_stored_responses_upon_validation(*http_request, *forward_response);
+                http_cache->freshen_stored_responses_upon_validation(*http_request, *forward_response, *stored_response);
 
                 // 2. Set response to storedResponse.
                 response = stored_response;
