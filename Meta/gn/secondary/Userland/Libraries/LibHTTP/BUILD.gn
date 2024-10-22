@@ -4,6 +4,7 @@ shared_library("LibHTTP") {
   sources = [
     "HttpRequest.cpp",
     "HttpResponse.cpp",
+    "HttpStatus.cpp",
   ]
   deps = [
     "//AK",

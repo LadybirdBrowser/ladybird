@@ -77,14 +77,18 @@ void RequestClient::request_finished(i32 request_id, u64 total_size, Optional<Ne
     m_requests.remove(request_id);
 }
 
-void RequestClient::headers_became_available(i32 request_id, HTTP::HeaderMap const& response_headers, Optional<u32> const& status_code)
+void RequestClient::headers_became_available(i32 request_id, u16 response_code, ByteBuffer const& response_reason_phrase, HTTP::HeaderMap const& response_headers)
 {
     auto request = const_cast<Request*>(m_requests.get(request_id).value_or(nullptr));
     if (!request) {
         warnln("Received headers for non-existent request {}", request_id);
         return;
     }
-    request->did_receive_headers({}, response_headers, status_code);
+    auto response_status = HTTP::HttpStatus {
+        .code = response_code,
+        .reason_phrase = response_reason_phrase,
+    };
+    request->did_receive_headers({}, response_status, response_headers);
 }
 
 void RequestClient::certificate_requested(i32 request_id)

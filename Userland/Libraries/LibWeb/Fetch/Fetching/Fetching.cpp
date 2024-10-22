@@ -10,6 +10,7 @@
 #include <AK/Base64.h>
 #include <AK/Debug.h>
 #include <AK/ScopeGuard.h>
+#include <LibHTTP/HttpStatus.h>
 #include <LibJS/Runtime/Completion.h>
 #include <LibWeb/Bindings/MainThreadVM.h>
 #include <LibWeb/Cookie/Cookie.h>
@@ -2115,9 +2116,9 @@ static void log_load_request(auto const& load_request)
         dbgln("> {}", line);
 }
 
-static void log_response(auto const& status_code, auto const& headers, auto const& data)
+static void log_response(auto const& status, auto const& headers, auto const& data)
 {
-    dbgln("< HTTP/1.1 {}", status_code.value_or(0));
+    dbgln("< HTTP/1.1 {}", status.value_or({}));
     for (auto const& [name, value] : headers.headers())
         dbgln("< {}: {}", name, value);
     dbgln("<");
@@ -2207,7 +2208,7 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<PendingResponse>> nonstandard_resource_load
         // 13. Set up stream with byte reading support with pullAlgorithm set to pullAlgorithm, cancelAlgorithm set to cancelAlgorithm.
         Streams::set_up_readable_stream_controller_with_byte_reading_support(stream, pull_algorithm, cancel_algorithm);
 
-        auto on_headers_received = [&vm, request, pending_response, stream](auto const& response_headers, Optional<u32> status_code) {
+        auto on_headers_received = [&vm, request, pending_response, stream](auto const& response_status, auto const& response_headers) {
             if (pending_response->is_resolved()) {
                 // RequestServer will send us the response headers twice, the second time being for HTTP trailers. This
                 // fetch algorithm is not interested in trailers, so just drop them here.
@@ -2215,15 +2216,15 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<PendingResponse>> nonstandard_resource_load
             }
 
             auto response = Infrastructure::Response::create(vm);
-            response->set_status(status_code.value_or(200));
-            // FIXME: Set response status message
+            response->set_status(response_status.code);
+            response->set_status_message(response_status.reason_phrase);
 
             if constexpr (WEB_FETCH_DEBUG) {
                 dbgln("Fetch: ResourceLoader load for '{}' {}: (status {})",
                     request->url(),
                     Infrastructure::is_ok_status(response->status()) ? "complete"sv : "failed"sv,
                     response->status());
-                log_response(status_code, response_headers, ReadonlyBytes {});
+                log_response(response_status, response_headers, ReadonlyBytes {});
             }
 
             for (auto const& [name, value] : response_headers.headers()) {
@@ -2283,13 +2284,15 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<PendingResponse>> nonstandard_resource_load
 
         ResourceLoader::the().load_unbuffered(load_request, move(on_headers_received), move(on_data_received), move(on_complete));
     } else {
-        auto on_load_success = [&realm, &vm, request, pending_response](auto data, auto& response_headers, auto status_code) {
+        auto on_load_success = [&realm, &vm, request, pending_response](auto response_status, auto& response_headers, auto response_body) {
             dbgln_if(WEB_FETCH_DEBUG, "Fetch: ResourceLoader load for '{}' complete", request->url());
+            auto status = response_status.value_or(HTTP::HttpStatus::OK);
             if constexpr (WEB_FETCH_DEBUG)
-                log_response(status_code, response_headers, data);
-            auto [body, _] = TRY_OR_IGNORE(extract_body(realm, data));
+                log_response(status, response_headers, response_body);
+            auto [body, _] = TRY_OR_IGNORE(extract_body(realm, response_body));
             auto response = Infrastructure::Response::create(vm);
-            response->set_status(status_code.value_or(200));
+            response->set_status(status.code);
+            response->set_status_message(status.reason_phrase);
             response->set_body(move(body));
             for (auto const& [name, value] : response_headers.headers()) {
                 auto header = Infrastructure::Header::from_string_pair(name, value);
@@ -2299,24 +2302,23 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<PendingResponse>> nonstandard_resource_load
             pending_response->resolve(response);
         };
 
-        auto on_load_error = [&realm, &vm, request, pending_response](auto& error, auto status_code, auto data, auto& response_headers) {
-            dbgln_if(WEB_FETCH_DEBUG, "Fetch: ResourceLoader load for '{}' failed: {} (status {})", request->url(), error, status_code.value_or(0));
+        auto on_load_error = [&realm, &vm, request, pending_response](auto& error, auto response_status, auto& response_headers, auto response_body) {
+            dbgln_if(WEB_FETCH_DEBUG, "Fetch: ResourceLoader load for '{}' failed: {} (status {})", request->url(), error, response_status);
             if constexpr (WEB_FETCH_DEBUG)
-                log_response(status_code, response_headers, data);
+                log_response(response_status, response_headers, response_body);
             auto response = Infrastructure::Response::create(vm);
-            // FIXME: This is ugly, ResourceLoader should tell us.
-            if (status_code.value_or(0) == 0) {
-                response = Infrastructure::Response::network_error(vm, TRY_OR_IGNORE(String::from_byte_string(error)));
-            } else {
+            if (response_status.has_value()) {
                 response->set_type(Infrastructure::Response::Type::Error);
-                response->set_status(status_code.value_or(400));
-                auto [body, _] = TRY_OR_IGNORE(extract_body(realm, data));
+                response->set_status(response_status->code);
+                response->set_status_message(response_status->reason_phrase);
+                auto [body, _] = TRY_OR_IGNORE(extract_body(realm, response_body));
                 response->set_body(move(body));
                 for (auto const& [name, value] : response_headers.headers()) {
                     auto header = Infrastructure::Header::from_string_pair(name, value);
                     response->header_list()->append(move(header));
                 }
-                // FIXME: Set response status message
+            } else {
+                response = Infrastructure::Response::network_error(vm, TRY_OR_IGNORE(String::from_byte_string(error)));
             }
             pending_response->resolve(response);
         };

@@ -7,6 +7,7 @@
 #include <AK/Debug.h>
 #include <AK/Function.h>
 #include <LibCore/MimeData.h>
+#include <LibHTTP/HttpStatus.h>
 #include <LibTextCodec/Decoder.h>
 #include <LibWeb/HTML/HTMLImageElement.h>
 #include <LibWeb/Loader/Resource.h>
@@ -35,7 +36,7 @@ Resource::Resource(Type type, Resource& resource)
     , m_encoding(move(resource.m_encoding))
     , m_mime_type(move(resource.m_mime_type))
     , m_response_headers(move(resource.m_response_headers))
-    , m_status_code(move(resource.m_status_code))
+    , m_status(move(resource.m_status))
 {
     ResourceLoader::the().evict_from_cache(m_request);
 }
@@ -83,13 +84,13 @@ static bool is_valid_encoding(StringView encoding)
     return TextCodec::decoder_for(encoding).has_value();
 }
 
-void Resource::did_load(Badge<ResourceLoader>, ReadonlyBytes data, HTTP::HeaderMap const& headers, Optional<u32> status_code)
+void Resource::did_load(Badge<ResourceLoader>, Optional<HTTP::HttpStatus> status, HTTP::HeaderMap const& headers, ReadonlyBytes data)
 {
     VERIFY(m_state == State::Pending);
     // FIXME: Handle OOM failure.
     m_encoded_data = ByteBuffer::copy(data).release_value_but_fixme_should_propagate_errors();
     m_response_headers = headers;
-    m_status_code = move(status_code);
+    m_status = move(status);
     m_state = State::Loaded;
 
     auto content_type = headers.get("Content-Type");
@@ -120,12 +121,12 @@ void Resource::did_load(Badge<ResourceLoader>, ReadonlyBytes data, HTTP::HeaderM
     });
 }
 
-void Resource::did_fail(Badge<ResourceLoader>, ByteString const& error, ReadonlyBytes data, HTTP::HeaderMap const& headers, Optional<u32> status_code)
+void Resource::did_fail(Badge<ResourceLoader>, ByteString const& error, Optional<HTTP::HttpStatus> status, HTTP::HeaderMap const& headers, ReadonlyBytes data)
 {
     m_error = error;
     m_encoded_data = ByteBuffer::copy(data).release_value_but_fixme_should_propagate_errors();
     m_response_headers = headers;
-    m_status_code = move(status_code);
+    m_status = move(status);
     m_state = State::Failed;
 
     for_each_client([](auto& client) {

@@ -11,28 +11,27 @@
 #include <AK/HashMap.h>
 #include <LibCore/NetworkResponse.h>
 #include <LibHTTP/HeaderMap.h>
+#include <LibHTTP/HttpStatus.h>
 
 namespace HTTP {
 
 class HttpResponse : public Core::NetworkResponse {
 public:
     virtual ~HttpResponse() override = default;
-    static NonnullRefPtr<HttpResponse> create(int code, HeaderMap&& headers, size_t downloaded_size)
+    static NonnullRefPtr<HttpResponse> create(HttpStatus code, HeaderMap&& headers, size_t downloaded_size)
     {
         return adopt_ref(*new HttpResponse(code, move(headers), downloaded_size));
     }
 
-    int code() const { return m_code; }
+    HttpStatus const& status() const { return m_status; }
+    int code() const { return m_status.code; }
     size_t downloaded_size() const { return m_downloaded_size; }
-    StringView reason_phrase() const { return reason_phrase_for_code(m_code); }
     HeaderMap const& headers() const { return m_headers; }
 
-    static StringView reason_phrase_for_code(int code);
-
 private:
-    HttpResponse(int code, HeaderMap&&, size_t size);
+    HttpResponse(HttpStatus code, HeaderMap&&, size_t size);
 
-    int m_code { 0 };
+    HttpStatus m_status;
     HeaderMap m_headers;
     size_t m_downloaded_size { 0 };
 };

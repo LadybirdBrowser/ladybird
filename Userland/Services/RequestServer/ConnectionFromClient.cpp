@@ -12,6 +12,7 @@
 #include <LibCore/EventLoop.h>
 #include <LibCore/Proxy.h>
 #include <LibCore/Socket.h>
+#include <LibHTTP/HttpStatus.h>
 #include <LibRequests/NetworkErrorEnum.h>
 #include <LibWebSocket/ConnectionInfo.h>
 #include <LibWebSocket/Message.h>
@@ -33,7 +34,9 @@ struct ConnectionFromClient::ActiveRequest {
     RefPtr<Core::Notifier> notifier;
     WeakPtr<ConnectionFromClient> client;
     int writer_fd { 0 };
+    HTTP::HttpStatus status;
     HTTP::HeaderMap headers;
+    bool got_status { false };
     bool got_all_headers { false };
     size_t downloaded_so_far { 0 };
     String url;
@@ -64,7 +67,8 @@ struct ConnectionFromClient::ActiveRequest {
         long http_status_code = 0;
         auto result = curl_easy_getinfo(easy, CURLINFO_RESPONSE_CODE, &http_status_code);
         VERIFY(result == CURLE_OK);
-        client->async_headers_became_available(request_id, headers, http_status_code);
+        status.code = http_status_code;
+        client->async_headers_became_available(request_id, status.code, status.reason_phrase, headers);
     }
 };
 
@@ -73,10 +77,20 @@ size_t ConnectionFromClient::on_header_received(void* buffer, size_t size, size_
     auto* request = static_cast<ActiveRequest*>(user_data);
     size_t total_size = size * nmemb;
     auto header_line = StringView { static_cast<char const*>(buffer), total_size };
-    if (auto colon_index = header_line.find(':'); colon_index.has_value()) {
-        auto name = header_line.substring_view(0, colon_index.value()).trim_whitespace();
-        auto value = header_line.substring_view(colon_index.value() + 1, header_line.length() - colon_index.value() - 1).trim_whitespace();
-        request->headers.set(name, value);
+    if (!request->got_status) {
+        request->got_status = true;
+
+        if (auto code_index = header_line.find(' '); code_index.has_value()) {
+            if (auto reason_phrase_index = header_line.find(' ', code_index.value() + 1); reason_phrase_index.has_value()) {
+                request->status.reason_phrase = MUST(ByteBuffer::copy(header_line.substring_view(reason_phrase_index.value()).trim_whitespace().bytes()));
+            }
+        }
+    } else {
+        if (auto colon_index = header_line.find(':'); colon_index.has_value()) {
+            auto name = header_line.substring_view(0, colon_index.value()).trim_whitespace();
+            auto value = header_line.substring_view(colon_index.value() + 1, header_line.length() - colon_index.value() - 1).trim_whitespace();
+            request->headers.set(name, value);
+        }
     }
     return total_size;
 }

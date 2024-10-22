@@ -15,6 +15,7 @@
 #include <AK/WeakPtr.h>
 #include <LibCore/Notifier.h>
 #include <LibHTTP/HeaderMap.h>
+#include <LibHTTP/HttpStatus.h>
 #include <LibIPC/Forward.h>
 #include <LibRequests/NetworkErrorEnum.h>
 
@@ -38,13 +39,13 @@ public:
     int fd() const { return m_fd; }
     bool stop();
 
-    using BufferedRequestFinished = Function<void(u64 total_size, Optional<NetworkError> const& network_error, HTTP::HeaderMap const& response_headers, Optional<u32> response_code, ReadonlyBytes payload)>;
+    using BufferedRequestFinished = Function<void(u64 total_size, Optional<NetworkError> const& network_error, HTTP::HttpStatus const& response_status, HTTP::HeaderMap const& response_headers, ReadonlyBytes payload)>;
 
     // Configure the request such that the entirety of the response data is buffered. The callback receives that data and
     // the response headers all at once. Using this method is mutually exclusive with `set_unbuffered_data_received_callback`.
     void set_buffered_request_finished_callback(BufferedRequestFinished);
 
-    using HeadersReceived = Function<void(HTTP::HeaderMap const& response_headers, Optional<u32> response_code)>;
+    using HeadersReceived = Function<void(HTTP::HttpStatus const& response_status, HTTP::HeaderMap const& response_headers)>;
     using DataReceived = Function<void(ReadonlyBytes data)>;
     using RequestFinished = Function<void(u64 total_size, Optional<NetworkError> network_error)>;
 
@@ -55,7 +56,7 @@ public:
     Function<CertificateAndKey()> on_certificate_requested;
 
     void did_finish(Badge<RequestClient>, u64 total_size, Optional<NetworkError> const& network_error);
-    void did_receive_headers(Badge<RequestClient>, HTTP::HeaderMap const& response_headers, Optional<u32> response_code);
+    void did_receive_headers(Badge<RequestClient>, HTTP::HttpStatus const& response_status, HTTP::HeaderMap const& response_headers);
     void did_request_certificates(Badge<RequestClient>);
 
     RefPtr<Core::Notifier>& write_notifier(Badge<RequestClient>) { return m_write_notifier; }
@@ -83,8 +84,8 @@ private:
 
     struct InternalBufferedData {
         AllocatingMemoryStream payload_stream;
+        HTTP::HttpStatus response_status;
         HTTP::HeaderMap response_headers;
-        Optional<u32> response_code;
     };
 
     struct InternalStreamData {

@@ -15,6 +15,7 @@
 #include <AK/Weakable.h>
 #include <LibGfx/Forward.h>
 #include <LibHTTP/HeaderMap.h>
+#include <LibHTTP/HttpStatus.h>
 #include <LibURL/URL.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/Loader/LoadRequest.h>
@@ -55,8 +56,7 @@ public:
     ByteBuffer const& encoded_data() const { return m_encoded_data; }
 
     [[nodiscard]] HTTP::HeaderMap const& response_headers() const { return m_response_headers; }
-
-    [[nodiscard]] Optional<u32> status_code() const { return m_status_code; }
+    [[nodiscard]] Optional<HTTP::HttpStatus> status() const { return m_status; }
 
     void register_client(Badge<ResourceClient>, ResourceClient&);
     void unregister_client(Badge<ResourceClient>, ResourceClient&);
@@ -67,8 +67,8 @@ public:
 
     void for_each_client(Function<void(ResourceClient&)>);
 
-    void did_load(Badge<ResourceLoader>, ReadonlyBytes data, HTTP::HeaderMap const&, Optional<u32> status_code);
-    void did_fail(Badge<ResourceLoader>, ByteString const& error, ReadonlyBytes data, HTTP::HeaderMap const&, Optional<u32> status_code);
+    void did_load(Badge<ResourceLoader>, Optional<HTTP::HttpStatus> status, HTTP::HeaderMap const&, ReadonlyBytes body);
+    void did_fail(Badge<ResourceLoader>, ByteString const& error, Optional<HTTP::HttpStatus> status, HTTP::HeaderMap const&, ReadonlyBytes body);
 
 protected:
     explicit Resource(Type, LoadRequest const&);
@@ -86,7 +86,7 @@ private:
 
     ByteString m_mime_type;
     HTTP::HeaderMap m_response_headers;
-    Optional<u32> m_status_code;
+    Optional<HTTP::HttpStatus> m_status;
     HashTable<ResourceClient*> m_clients;
 };
 

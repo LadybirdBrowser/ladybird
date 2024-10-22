@@ -11,6 +11,7 @@
 #include <LibCore/MimeData.h>
 #include <LibCore/Resource.h>
 #include <LibHTTP/HttpResponse.h>
+#include <LibHTTP/HttpStatus.h>
 #include <LibRequests/Request.h>
 #include <LibRequests/RequestClient.h>
 #include <LibWeb/Cookie/Cookie.h>
@@ -107,11 +108,11 @@ RefPtr<Resource> ResourceLoader::load_resource(Resource::Type type, LoadRequest&
 
     load(
         request,
-        [=](auto data, auto& headers, auto status_code) {
-            const_cast<Resource&>(*resource).did_load({}, data, headers, status_code);
+        [=](auto status, auto& headers, auto data) {
+            const_cast<Resource&>(*resource).did_load({}, status, headers, data);
         },
-        [=](auto& error, auto status_code, auto data, auto& headers) {
-            const_cast<Resource&>(*resource).did_fail({}, error, data, headers, status_code);
+        [=](auto& error, auto status, auto& headers, auto data) {
+            const_cast<Resource&>(*resource).did_fail({}, error, status, headers, data);
         });
 
     return resource;
@@ -246,14 +247,14 @@ void ResourceLoader::load(LoadRequest& request, SuccessCallback success_callback
         if (maybe_response.is_error()) {
             log_failure(request, maybe_response.error());
             if (error_callback)
-                error_callback(ByteString::formatted("{}", maybe_response.error()), 500u, {}, {});
+                error_callback(ByteString::formatted("{}", maybe_response.error()), HTTP::HttpStatus::INTERNAL_SERVER_ERROR, {}, {});
             return;
         }
 
         log_success(request);
         HTTP::HeaderMap response_headers;
         response_headers.set("Content-Type"sv, "text/html"sv);
-        success_callback(maybe_response.release_value().bytes(), response_headers, {});
+        success_callback({}, response_headers, maybe_response.release_value().bytes());
     };
 
     if (url.scheme() == "about") {
@@ -265,7 +266,7 @@ void ResourceLoader::load(LoadRequest& request, SuccessCallback success_callback
 
         // About version page
         if (url.path_segment_at_index(0) == "version") {
-            success_callback(MUST(load_about_version_page()).bytes(), response_headers, {});
+            success_callback({}, response_headers, MUST(load_about_version_page()).bytes());
             return;
         }
 
@@ -273,12 +274,12 @@ void ResourceLoader::load(LoadRequest& request, SuccessCallback success_callback
         auto resource = Core::Resource::load_from_uri(MUST(String::formatted("resource://ladybird/{}.html", url.path_segment_at_index(0))));
         if (!resource.is_error()) {
             auto data = resource.value()->data();
-            success_callback(data, response_headers, {});
+            success_callback({}, response_headers, data);
             return;
         }
 
         Platform::EventLoopPlugin::the().deferred_invoke([success_callback = move(success_callback), response_headers = move(response_headers)] {
-            success_callback(ByteString::empty().to_byte_buffer(), response_headers, {});
+            success_callback({}, response_headers, ByteString::empty().to_byte_buffer());
         });
         return;
     }
@@ -303,7 +304,7 @@ void ResourceLoader::load(LoadRequest& request, SuccessCallback success_callback
         log_success(request);
 
         Platform::EventLoopPlugin::the().deferred_invoke([data = move(data_url.body), response_headers = move(response_headers), success_callback = move(success_callback)] {
-            success_callback(data, response_headers, {});
+            success_callback({}, response_headers, data);
         });
         return;
     }
@@ -327,7 +328,7 @@ void ResourceLoader::load(LoadRequest& request, SuccessCallback success_callback
         auto response_headers = response_headers_for_file(URL::percent_decode(url.serialize_path()), resource.value()->modified_time());
 
         log_success(request);
-        success_callback(data, response_headers, {});
+        success_callback({}, response_headers, data);
 
         return;
     }
@@ -392,7 +393,7 @@ void ResourceLoader::load(LoadRequest& request, SuccessCallback success_callback
             auto response_headers = response_headers_for_file(URL::percent_decode(request.url().serialize_path()), st_or_error.value().st_mtime);
 
             log_success(request);
-            success_callback(data, response_headers, {});
+            success_callback({}, response_headers, data);
         });
 
         (*m_page)->client().request_file(move(file_request));
@@ -422,28 +423,28 @@ void ResourceLoader::load(LoadRequest& request, SuccessCallback success_callback
             timer->start();
         }
 
-        auto on_buffered_request_finished = [this, success_callback = move(success_callback), error_callback = move(error_callback), request, &protocol_request = *protocol_request](auto, auto const& network_error, auto& response_headers, auto status_code, ReadonlyBytes payload) mutable {
+        auto on_buffered_request_finished = [this, success_callback = move(success_callback), error_callback = move(error_callback), request, &protocol_request = *protocol_request](auto, auto const& network_error, auto& response_status, auto& response_headers, ReadonlyBytes payload) mutable {
             handle_network_response_headers(request, response_headers);
             finish_network_request(protocol_request);
 
-            if (network_error.has_value() || (status_code.has_value() && *status_code >= 400 && *status_code <= 599 && (payload.is_empty() || !request.is_main_resource()))) {
+            if (network_error.has_value() || (response_status.code >= 400 && response_status.code <= 599 && (payload.is_empty() || !request.is_main_resource()))) {
                 StringBuilder error_builder;
                 if (network_error.has_value())
                     error_builder.appendff("{}", network_error_to_string_view(*network_error));
                 else
                     error_builder.append("Load failed"sv);
 
-                if (status_code.has_value() && *status_code > 0)
-                    error_builder.appendff(" (status: {} {})", *status_code, HTTP::HttpResponse::reason_phrase_for_code(*status_code));
+                if (response_status.code > 0)
+                    error_builder.appendff(" (status: {})", response_status);
 
                 log_failure(request, error_builder.string_view());
                 if (error_callback)
-                    error_callback(error_builder.to_byte_string(), status_code, payload, response_headers);
+                    error_callback(error_builder.to_byte_string(), response_status, response_headers, payload);
                 return;
             }
 
             log_success(request);
-            success_callback(payload, response_headers, status_code);
+            success_callback(response_status, response_headers, payload);
         };
 
         protocol_request->set_buffered_request_finished_callback(move(on_buffered_request_finished));
@@ -480,9 +481,9 @@ void ResourceLoader::load_unbuffered(LoadRequest& request, OnHeadersReceived on_
         return;
     }
 
-    auto protocol_headers_received = [this, on_headers_received = move(on_headers_received), request](auto const& response_headers, auto status_code) {
+    auto protocol_headers_received = [this, on_headers_received = move(on_headers_received), request](auto const& response_status, auto const& response_headers) {
         handle_network_response_headers(request, response_headers);
-        on_headers_received(response_headers, move(status_code));
+        on_headers_received(response_status, response_headers);
     };
 
     auto protocol_data_received = [on_data_received = move(on_data_received)](auto data) {

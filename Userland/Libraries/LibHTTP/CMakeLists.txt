@@ -1,6 +1,7 @@
 set(SOURCES
     HttpRequest.cpp
     HttpResponse.cpp
+    HttpStatus.cpp
 )
 
 serenity_lib(LibHTTP http)

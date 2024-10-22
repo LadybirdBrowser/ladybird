@@ -49,6 +49,7 @@ enum class ErrorCode {
 
 // https://w3c.github.io/webdriver/#errors
 struct Error {
+    // TODO: Make this u16
     unsigned http_status;
     ByteString error;
     ByteString message;
