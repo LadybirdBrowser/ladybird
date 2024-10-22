@@ -687,7 +687,7 @@ Variant<LengthOrCalculated, NumberOrCalculated> StyleProperties::tab_size() cons
 {
     auto value = property(CSS::PropertyID::TabSize);
     if (value->is_math()) {
-        auto& math_value = value->as_math();
+        auto const& math_value = value->as_math();
         if (math_value.resolves_to_length()) {
             return LengthOrCalculated { math_value };
         }
@@ -722,6 +722,22 @@ Optional<CSS::WhiteSpace> StyleProperties::white_space() const
 {
     auto value = property(CSS::PropertyID::WhiteSpace);
     return keyword_to_white_space(value->to_keyword());
+}
+
+Optional<LengthOrCalculated> StyleProperties::letter_spacing() const
+{
+    auto value = property(CSS::PropertyID::LetterSpacing);
+    if (value->is_math()) {
+        auto const& math_value = value->as_math();
+        if (math_value.resolves_to_length()) {
+            return LengthOrCalculated { math_value };
+        }
+    }
+
+    if (value->is_length())
+        return LengthOrCalculated { value->as_length().length() };
+
+    return {};
 }
 
 Optional<CSS::LineStyle> StyleProperties::line_style(CSS::PropertyID property_id) const

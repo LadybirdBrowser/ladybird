@@ -116,6 +116,7 @@ public:
     Variant<LengthOrCalculated, NumberOrCalculated> tab_size() const;
     Optional<CSS::WhiteSpace> white_space() const;
     Optional<CSS::LengthOrCalculated> word_spacing() const;
+    Optional<LengthOrCalculated> letter_spacing() const;
     Optional<CSS::LineStyle> line_style(CSS::PropertyID) const;
     Optional<CSS::OutlineStyle> outline_style() const;
     Vector<CSS::TextDecorationLine> text_decoration_line() const;
