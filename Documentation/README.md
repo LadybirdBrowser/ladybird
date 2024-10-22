@@ -12,13 +12,14 @@ you are welcome to ask on [Discord](../README.md#get-in-touch-and-participate).
 * [Profiling the Build](BuildProfilingInstructions.md)
 
 ## Configuring Editors
-* [CLion](CLionConfiguration.md)
-* [Emacs](EmacsConfiguration.md)
-* [Helix](HelixConfiguration.md)
-* [NVim](NvimConfiguration.md)
-* [Qt Creator](QtCreatorConfiguration.md)
-* [Vim](VimConfiguration.md)
-* [VS Code](VSCodeConfiguration.md)
+* [Android Studio](EditorConfiguration/AndroidStudioConfiguration.md)
+* [CLion](EditorConfiguration/CLionConfiguration.md)
+* [Emacs](EditorConfiguration/EmacsConfiguration.md)
+* [Helix](EditorConfiguration/HelixConfiguration.md)
+* [NVim](EditorConfiguration/NvimConfiguration.md)
+* [Qt Creator](EditorConfiguration/QtCreatorConfiguration.md)
+* [Vim](EditorConfiguration/VimConfiguration.md)
+* [VS Code](EditorConfiguration/VSCodeConfiguration.md)
 
 ## Development
 * [How to Contribute](../CONTRIBUTING.md)

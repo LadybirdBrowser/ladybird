@@ -41,7 +41,7 @@ It is possible to set the embedded terminal in CLion to the one that your WSL di
 This way you can build and run ladybird without leaving the IDE.
 Note that following will only help if you don't use an X-window server to access qemu.
 It is possible to install qemu natively on Windows and allow WSL to use it instead of installing qemu first on (wsl) linux and then use X server to launch ladybird inside of it.
-Check the updated manual [here](BuildInstructionsWindows.md).
+Check the updated manual [here](../BuildInstructionsLadybird.md#windows).
 
 - Locate the terminal emulator for your linux distribution.
 Open CMD with elevated privileges and cd to `C:/Program Files/WindowsApps/`.
