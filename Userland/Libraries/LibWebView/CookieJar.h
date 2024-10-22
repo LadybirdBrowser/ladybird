@@ -103,7 +103,6 @@ private:
     AK_MAKE_NONMOVABLE(CookieJar);
 
     static Optional<String> canonicalize_domain(const URL::URL& url);
-    static bool domain_matches(StringView string, StringView domain_string);
     static bool path_matches(StringView request_path, StringView cookie_path);
 
     enum class MatchingCookiesSpecMode {
