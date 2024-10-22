@@ -176,7 +176,7 @@ pkgman install cmake cmd:python3 ninja openal_devel qt6_base_devel qt6_multimedi
 
 ### Android:
 
-On a Unix-like platform, install the prerequisites for that platform and then see the [Android Studio guide](AndroidStudioConfiguration.md).
+On a Unix-like platform, install the prerequisites for that platform and then see the [Android Studio guide](EditorConfiguration/AndroidStudioConfiguration.md).
 Or, download a version of Gradle >= 8.0.0, and run the ``gradlew`` program in ``Ladybird/Android``
 
 ## Build steps
