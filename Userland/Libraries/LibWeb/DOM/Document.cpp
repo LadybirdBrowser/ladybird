@@ -2492,18 +2492,58 @@ void Document::completely_finish_loading()
     }
 }
 
-String Document::cookie(Cookie::Source source)
+// https://html.spec.whatwg.org/#dom-document-cookie
+WebIDL::ExceptionOr<String> Document::cookie(Cookie::Source source)
 {
+    // On getting, if the document is a cookie-averse Document object, then the user agent must return the empty string.
+    if (is_cookie_averse())
+        return String {};
+
+    // Otherwise, if the Document's origin is an opaque origin, the user agent must throw a "SecurityError" DOMException.
+    if (origin().is_opaque())
+        return WebIDL::SecurityError::create(realm(), "Document origin is opaque"_string);
+
+    // Otherwise, the user agent must return the cookie-string for the document's URL for a "non-HTTP" API, decoded using
+    // UTF-8 decode without BOM.
     return page().client().page_did_request_cookie(m_url, source);
 }
 
-void Document::set_cookie(StringView cookie_string, Cookie::Source source)
+// https://html.spec.whatwg.org/#dom-document-cookie
+WebIDL::ExceptionOr<void> Document::set_cookie(StringView cookie_string, Cookie::Source source)
 {
-    auto cookie = Cookie::parse_cookie(url(), cookie_string);
-    if (!cookie.has_value())
-        return;
+    // On setting, if the document is a cookie-averse Document object, then the user agent must do nothing.
+    if (is_cookie_averse())
+        return {};
 
-    page().client().page_did_set_cookie(m_url, cookie.value(), source);
+    // Otherwise, if the Document's origin is an opaque origin, the user agent must throw a "SecurityError" DOMException.
+    if (origin().is_opaque())
+        return WebIDL::SecurityError::create(realm(), "Document origin is opaque"_string);
+
+    // Otherwise, the user agent must act as it would when receiving a set-cookie-string for the document's URL via a
+    // "non-HTTP" API, consisting of the new value encoded as UTF-8.
+    if (auto cookie = Cookie::parse_cookie(url(), cookie_string); cookie.has_value())
+        page().client().page_did_set_cookie(m_url, cookie.value(), source);
+
+    return {};
+}
+
+// https://html.spec.whatwg.org/#cookie-averse-document-object
+bool Document::is_cookie_averse() const
+{
+    // A Document object that falls into one of the following conditions is a cookie-averse Document object:
+
+    // * A Document object whose browsing context is null.
+    if (!browsing_context())
+        return true;
+
+    // * A Document whose URL's scheme is not an HTTP(S) scheme.
+    if (!url().scheme().is_one_of("http"sv, "https"sv)) {
+        // AD-HOC: This allows us to write cookie integration tests.
+        if (!m_enable_cookies_on_file_domains || url().scheme() != "file"sv)
+            return true;
+    }
+
+    return false;
 }
 
 String Document::fg_color() const

@@ -183,6 +183,11 @@ void Internals::simulate_drop(double x, double y)
     page.handle_drag_and_drop_event(DragEvent::Type::Drop, position, position, UIEvents::MouseButton::Primary, 0, 0, {});
 }
 
+void Internals::enable_cookies_on_file_domains()
+{
+    internals_window().associated_document().enable_cookies_on_file_domains({});
+}
+
 void Internals::expire_cookies_with_time_offset(WebIDL::LongLong seconds)
 {
     internals_page().client().page_did_expire_cookies_with_time_offset(AK::Duration::from_seconds(seconds));

@@ -34,5 +34,6 @@ interface Internals {
     undefined simulateDragMove(double x, double y);
     undefined simulateDrop(double x, double y);
 
+    undefined enableCookiesOnFileDomains();
     undefined expireCookiesWithTimeOffset(long long seconds);
 };
