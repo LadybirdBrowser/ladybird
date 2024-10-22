@@ -831,13 +831,40 @@ bool EventHandler::focus_previous_element()
     return true;
 }
 
-constexpr bool should_ignore_keydown_event(u32 code_point, u32 modifiers)
+
+constexpr bool should_ignore_keydown_event(u32 code_point, u32 modifiers, bool is_editable_context)
 {
+    // These switches are typically used for specific system or 
+    // browser actions, so it is common to ignore some keyboard 
+    // events when these switches are present.
     if (modifiers & (UIEvents::KeyModifier::Mod_Ctrl | UIEvents::KeyModifier::Mod_Alt | UIEvents::KeyModifier::Mod_Super))
         return true;
 
-    // FIXME: There are probably also keys with non-zero code points that should be filtered out.
-    return code_point == 0 || code_point == 27;
+    // If the context is editable, do not ignore certain keys.
+    // - Backspace: used to delete text backwards.
+    // - Tab: used to change focus between elements or insert a tab character.
+    // - Enter: used to insert a new line or confirm an action.
+    // In these cases, we let the event process normally.
+    if (is_editable_context) {
+        switch (code_point) {
+            case 8: // Backspace
+            case 9: // Tab
+            case 13: // Enter
+                return false;
+        }
+    }
+
+    // Ignore specific keys globally.
+    // - Null code (0): Represents an invalid or unassigned key, of no use in most cases.
+    // - Escape (27): Mainly used for canceling or closing window actions, so it should not be
+    // interfere with regular user interaction.
+    switch (code_point) {
+        case 0: // Null code
+        case 27: // Escape
+            return true;
+        default:
+            return false;
+    }
 }
 
 EventResult EventHandler::fire_keyboard_event(FlyString const& event_name, HTML::Navigable& navigable, UIEvents::KeyCode key, u32 modifiers, u32 code_point, bool repeat)
@@ -978,7 +1005,7 @@ EventResult EventHandler::handle_keydown(UIEvents::KeyCode key, u32 modifiers, u
         }
 
         // FIXME: Text editing shortcut keys (copy/paste etc.) should be handled here.
-        if (!should_ignore_keydown_event(code_point, modifiers)) {
+        if (!should_ignore_keydown_event(code_point, modifiers, range->start_container()->is_editable())) {
             clear_selection();
             m_edit_event_handler->handle_delete(document, *range);
             m_edit_event_handler->handle_insert(document, JS::NonnullGCPtr { *document->cursor_position() }, code_point);
@@ -1118,7 +1145,7 @@ EventResult EventHandler::handle_keydown(UIEvents::KeyCode key, u32 modifiers, u
         }
 
         // FIXME: Text editing shortcut keys (copy/paste etc.) should be handled here.
-        if (!should_ignore_keydown_event(code_point, modifiers) && node.is_editable()) {
+        if (!should_ignore_keydown_event(code_point, modifiers, node.is_editable()) && node.is_editable()) {
             FIRE(input_event(UIEvents::EventNames::beforeinput, UIEvents::InputTypes::insertText, m_navigable, code_point));
             m_edit_event_handler->handle_insert(document, JS::NonnullGCPtr { *document->cursor_position() }, code_point);
             document->increment_cursor_position_offset();
