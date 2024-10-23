@@ -424,15 +424,25 @@ AnimationEffect::Phase AnimationEffect::phase() const
 {
     // This is a convenience method that returns the phase of the animation effect, to avoid having to call all of the
     // phase functions separately.
-    // FIXME: There is a lot of duplicated condition checking here which can probably be inlined into this function
+    auto local_time = this->local_time();
+    if (!local_time.has_value())
+        return Phase::Idle;
 
-    if (is_in_the_before_phase())
+    auto before_active_boundary_time = this->before_active_boundary_time();
+    // - the local time is less than the before-active boundary time, or
+    // - the animation direction is "backwards" and the local time is equal to the before-active boundary time.
+    if(local_time.value() < before_active_boundary_time || (animation_direction() == AnimationDirection::Backwards && local_time.value() == before_active_boundary_time))
         return Phase::Before;
-    if (is_in_the_active_phase())
-        return Phase::Active;
-    if (is_in_the_after_phase())
+
+    auto after_active_boundary_time = this->after_active_boundary_time();
+    // - the local time is greater than the active-after boundary time, or
+    // - the animation direction is "forwards" and the local time is equal to the active-after boundary time.
+    if(local_time.value() > after_active_boundary_time || (animation_direction() == AnimationDirection::Forwards && local_time.value() == after_active_boundary_time))
         return Phase::After;
-    return Phase::Idle;
+
+    // - An animation effect is in the active phase if the animation effect’s local time is not unresolved and it is not
+    // - in either the before phase nor the after phase.
+    return Phase::Active;
 }
 
 // https://www.w3.org/TR/web-animations-1/#overall-progress
