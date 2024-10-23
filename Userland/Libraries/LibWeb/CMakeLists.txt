@@ -177,6 +177,7 @@ set(SOURCES
     DOM/DocumentLoading.cpp
     DOM/DocumentObserver.cpp
     DOM/DocumentType.cpp
+    DOM/EditingHostManager.cpp
     DOM/Element.cpp
     DOM/ElementFactory.cpp
     DOM/Event.cpp
@@ -567,7 +568,6 @@ set(SOURCES
     NavigationTiming/PerformanceNavigation.cpp
     NavigationTiming/PerformanceTiming.cpp
     Page/DragAndDropEventHandler.cpp
-    Page/EditEventHandler.cpp
     Page/EventHandler.cpp
     Page/InputEvent.cpp
     Page/Page.cpp

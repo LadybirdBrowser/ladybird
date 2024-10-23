@@ -7,6 +7,7 @@
 #include <AK/CharacterTypes.h>
 #include <AK/TypeCasts.h>
 #include <AK/Utf8View.h>
+#include <LibWeb/DOM/Position.h>
 #include <LibWeb/Layout/Box.h>
 #include <LibWeb/Layout/BreakNode.h>
 #include <LibWeb/Layout/LineBox.h>
@@ -45,9 +46,12 @@ void LineBox::trim_trailing_whitespace()
             return;
         // last_fragment cannot be null from here on down, as m_fragments is not empty.
         last_fragment = &m_fragments.last();
-        auto dom_node = last_fragment->layout_node().dom_node();
-        if (dom_node && dom_node->is_editable() && dom_node->document().cursor_position())
-            return;
+        auto const* dom_node = last_fragment->layout_node().dom_node();
+        if (dom_node) {
+            auto cursor_position = dom_node->document().cursor_position();
+            if (cursor_position && cursor_position->node() == dom_node)
+                return;
+        }
         if (!should_trim(last_fragment))
             return;
         if (last_fragment->is_justifiable_whitespace()) {

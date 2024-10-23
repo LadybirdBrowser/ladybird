@@ -3,7 +3,6 @@ source_set("Page") {
   deps = [ "//Userland/Libraries/LibWeb:all_generated" ]
   sources = [
     "DragAndDropEventHandler.cpp",
-    "EditEventHandler.cpp",
     "EventHandler.cpp",
     "InputEvent.cpp",
     "Page.cpp",

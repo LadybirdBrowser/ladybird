@@ -58,6 +58,9 @@ public:
     // Non-standard accessor for the selection's document.
     JS::NonnullGCPtr<DOM::Document> document() const;
 
+    // Non-standard
+    JS::GCPtr<DOM::Position> cursor_position() const;
+
 private:
     Selection(JS::NonnullGCPtr<JS::Realm>, JS::NonnullGCPtr<DOM::Document>);
 

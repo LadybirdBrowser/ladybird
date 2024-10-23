@@ -700,16 +700,11 @@ public:
     void set_console_client(JS::GCPtr<JS::ConsoleClient> console_client) { m_console_client = console_client; }
     JS::GCPtr<JS::ConsoleClient> console_client() const { return m_console_client; }
 
-    JS::GCPtr<DOM::Position> cursor_position() const { return m_cursor_position; }
-    void set_cursor_position(JS::NonnullGCPtr<DOM::Position>);
-    bool increment_cursor_position_offset();
-    bool decrement_cursor_position_offset();
-    bool increment_cursor_position_to_next_word();
-    bool decrement_cursor_position_to_previous_word();
+    InputEventsTarget* active_input_events_target();
+    JS::GCPtr<DOM::Position> cursor_position() const;
 
     bool cursor_blink_state() const { return m_cursor_blink_state; }
 
-    void user_did_edit_document_text(Badge<EditEventHandler>);
     // Cached pointer to the last known node navigable.
     // If this document is currently the "active document" of the cached navigable, the cache is still valid.
     JS::GCPtr<HTML::Navigable> cached_navigable();
@@ -746,6 +741,10 @@ public:
     [[nodiscard]] WebIDL::CallbackType* onvisibilitychange();
     void set_onvisibilitychange(WebIDL::CallbackType*);
 
+    void reset_cursor_blink_cycle();
+
+    JS::NonnullGCPtr<EditingHostManager> editing_host_manager() const { return *m_editing_host_manager; }
+
 protected:
     virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Cell::Visitor&) override;
@@ -772,8 +771,6 @@ private:
     Element* find_a_potential_indicated_element(FlyString const& fragment) const;
 
     void dispatch_events_for_animation_if_necessary(JS::NonnullGCPtr<Animations::Animation>);
-
-    void reset_cursor_blink_cycle();
 
     JS::NonnullGCPtr<Page> m_page;
     OwnPtr<CSS::StyleComputer> m_style_computer;
@@ -1014,7 +1011,6 @@ private:
 
     JS::GCPtr<JS::ConsoleClient> m_console_client;
 
-    JS::GCPtr<DOM::Position> m_cursor_position;
     RefPtr<Core::Timer> m_cursor_blink_timer;
     bool m_cursor_blink_state { false };
 
@@ -1030,6 +1026,8 @@ private:
 
     mutable OwnPtr<Unicode::Segmenter> m_grapheme_segmenter;
     mutable OwnPtr<Unicode::Segmenter> m_word_segmenter;
+
+    JS::NonnullGCPtr<EditingHostManager> m_editing_host_manager;
 };
 
 template<>

@@ -65,15 +65,14 @@ private:
     Painting::PaintableBox const* paint_root() const;
 
     bool should_ignore_device_input_event() const;
-    void update_selection_range_for_input_or_textarea();
 
     JS::NonnullGCPtr<HTML::Navigable> m_navigable;
 
     bool m_in_mouse_selection { false };
+    InputEventsTarget* m_mouse_selection_target { nullptr };
 
     JS::GCPtr<Painting::Paintable> m_mouse_event_tracking_paintable;
 
-    NonnullOwnPtr<EditEventHandler> m_edit_event_handler;
     NonnullOwnPtr<DragAndDropEventHandler> m_drag_and_drop_event_handler;
 
     WeakPtr<DOM::EventTarget> m_mousedown_target;

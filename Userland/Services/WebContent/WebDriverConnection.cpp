@@ -1737,8 +1737,8 @@ Messages::WebDriverClient::ElementSendKeysResponse WebDriverConnection::element_
     // -> element is content editable
     else if (is<Web::HTML::HTMLElement>(*element) && static_cast<Web::HTML::HTMLElement&>(*element).is_content_editable()) {
         // If element does not currently have focus, set the text insertion caret after any child content.
-        if (!element->is_focused())
-            element->document().set_cursor_position(Web::DOM::Position::create(element->realm(), *element, element->length()));
+        auto* document = current_browsing_context().active_document();
+        document->set_focused_element(element);
     }
     // -> otherwise
     else if (is<Web::HTML::FormAssociatedTextControlElement>(*element)) {

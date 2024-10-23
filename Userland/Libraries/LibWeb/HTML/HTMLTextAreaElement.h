@@ -38,7 +38,7 @@ public:
     }
 
     // ^DOM::EditableTextNodeOwner
-    virtual void did_edit_text_node(Badge<DOM::Document>) override;
+    virtual void did_edit_text_node() override;
 
     // ^EventTarget
     // https://html.spec.whatwg.org/multipage/interaction.html#the-tabindex-attribute:the-textarea-element
@@ -123,8 +123,7 @@ public:
 
     void set_dirty_value_flag(Badge<FormAssociatedElement>, bool flag) { m_dirty_value = flag; }
 
-protected:
-    void selection_was_changed(size_t selection_start, size_t selection_end) override;
+    virtual JS::GCPtr<DOM::Text> form_associated_element_to_text_node() override { return m_text_node; }
 
 private:
     HTMLTextAreaElement(DOM::Document&, DOM::QualifiedName);

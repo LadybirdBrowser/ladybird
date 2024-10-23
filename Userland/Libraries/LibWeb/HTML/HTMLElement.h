@@ -95,6 +95,7 @@ private:
     // ^HTML::GlobalEventHandlers
     virtual JS::GCPtr<DOM::EventTarget> global_event_handlers_to_event_target(FlyString const&) override { return *this; }
     virtual void did_receive_focus() override;
+    virtual void did_lose_focus() override;
 
     [[nodiscard]] String get_the_text_steps();
     void append_rendered_text_fragment(StringView input);

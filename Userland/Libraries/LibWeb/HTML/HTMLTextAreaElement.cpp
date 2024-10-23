@@ -22,6 +22,7 @@
 #include <LibWeb/HTML/Numbers.h>
 #include <LibWeb/Infra/Strings.h>
 #include <LibWeb/Namespace.h>
+#include <LibWeb/Painting/Paintable.h>
 #include <LibWeb/Selection/Selection.h>
 
 namespace Web::HTML {
@@ -74,17 +75,20 @@ void HTMLTextAreaElement::did_receive_focus()
         return;
     m_text_node->invalidate_style(DOM::StyleInvalidationReason::DidReceiveFocus);
 
+    if (auto* paintable = m_text_node->paintable())
+        paintable->set_selected(true);
+
     if (m_placeholder_text_node)
         m_placeholder_text_node->invalidate_style(DOM::StyleInvalidationReason::DidReceiveFocus);
-
-    if (auto cursor = document().cursor_position(); !cursor || m_text_node != cursor->node())
-        document().set_cursor_position(DOM::Position::create(realm(), *m_text_node, 0));
 }
 
 void HTMLTextAreaElement::did_lose_focus()
 {
     if (m_text_node)
         m_text_node->invalidate_style(DOM::StyleInvalidationReason::DidLoseFocus);
+
+    if (auto* paintable = m_text_node->paintable())
+        paintable->set_selected(false);
 
     if (m_placeholder_text_node)
         m_placeholder_text_node->invalidate_style(DOM::StyleInvalidationReason::DidLoseFocus);
@@ -206,7 +210,7 @@ void HTMLTextAreaElement::set_raw_value(String value)
     m_api_value.clear();
 
     if (m_raw_value != old_raw_value)
-        relevant_value_was_changed(m_text_node);
+        relevant_value_was_changed();
 }
 
 // https://html.spec.whatwg.org/multipage/form-elements.html#the-textarea-element:concept-fe-api-value-3
@@ -448,7 +452,7 @@ void HTMLTextAreaElement::form_associated_element_attribute_changed(FlyString co
     }
 }
 
-void HTMLTextAreaElement::did_edit_text_node(Badge<DOM::Document>)
+void HTMLTextAreaElement::did_edit_text_node()
 {
     VERIFY(m_text_node);
     set_raw_value(m_text_node->data());
@@ -472,17 +476,6 @@ void HTMLTextAreaElement::queue_firing_input_event()
         auto change_event = DOM::Event::create(realm(), HTML::EventNames::input, { .bubbles = true, .composed = true });
         dispatch_event(change_event);
     });
-}
-
-void HTMLTextAreaElement::selection_was_changed(size_t selection_start, size_t selection_end)
-{
-    if (!m_text_node || !document().cursor_position() || document().cursor_position()->node() != m_text_node)
-        return;
-
-    document().set_cursor_position(DOM::Position::create(realm(), *m_text_node, selection_end));
-
-    if (auto selection = document().get_selection())
-        MUST(selection->set_base_and_extent(*m_text_node, selection_start, *m_text_node, selection_end));
 }
 
 }

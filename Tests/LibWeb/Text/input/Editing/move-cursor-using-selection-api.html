@@ -1,0 +1,11 @@
+<script src="../include.js"></script>
+<div id="text" contenteditable="true">heo</div>
+<script>
+    test(() => {
+        let text = document.getElementById("text");
+        text.focus();
+        document.getSelection().collapse(text.firstChild, 2);
+        internals.sendText(text, "lll");
+        println(text.textContent);
+    });
+</script>
