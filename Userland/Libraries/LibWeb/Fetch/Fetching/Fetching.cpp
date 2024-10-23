@@ -2260,7 +2260,7 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<PendingResponse>> nonstandard_resource_load
         // 13. Set up stream with byte reading support with pullAlgorithm set to pullAlgorithm, cancelAlgorithm set to cancelAlgorithm.
         Streams::set_up_readable_stream_controller_with_byte_reading_support(stream, pull_algorithm, cancel_algorithm);
 
-        auto on_headers_received = JS::create_heap_function(vm.heap(), [&vm, request, pending_response, stream](HTTP::HeaderMap const& response_headers, Optional<u32> status_code) {
+        auto on_headers_received = JS::create_heap_function(vm.heap(), [&vm, request, pending_response, stream](HTTP::HeaderMap const& response_headers, Optional<u32> status_code, Optional<String> const& reason_phrase) {
             (void)request;
             if (pending_response->is_resolved()) {
                 // RequestServer will send us the response headers twice, the second time being for HTTP trailers. This
@@ -2270,7 +2270,9 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<PendingResponse>> nonstandard_resource_load
 
             auto response = Infrastructure::Response::create(vm);
             response->set_status(status_code.value_or(200));
-            // FIXME: Set response status message
+
+            if (reason_phrase.has_value())
+                response->set_status_message(MUST(ByteBuffer::copy(reason_phrase.value().bytes())));
 
             if constexpr (WEB_FETCH_DEBUG) {
                 dbgln("Fetch: ResourceLoader load for '{}' {}: (status {})",
@@ -2337,7 +2339,7 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<PendingResponse>> nonstandard_resource_load
 
         ResourceLoader::the().load_unbuffered(load_request, on_headers_received, on_data_received, on_complete);
     } else {
-        auto on_load_success = JS::create_heap_function(vm.heap(), [&realm, &vm, request, pending_response](ReadonlyBytes data, HTTP::HeaderMap const& response_headers, Optional<u32> status_code) {
+        auto on_load_success = JS::create_heap_function(vm.heap(), [&realm, &vm, request, pending_response](ReadonlyBytes data, HTTP::HeaderMap const& response_headers, Optional<u32> status_code, Optional<String> const& reason_phrase) {
             (void)request;
             dbgln_if(WEB_FETCH_DEBUG, "Fetch: ResourceLoader load for '{}' complete", request->url());
             if constexpr (WEB_FETCH_DEBUG)
@@ -2350,11 +2352,14 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<PendingResponse>> nonstandard_resource_load
                 auto header = Infrastructure::Header::from_string_pair(name, value);
                 response->header_list()->append(move(header));
             }
-            // FIXME: Set response status message
+
+            if (reason_phrase.has_value())
+                response->set_status_message(MUST(ByteBuffer::copy(reason_phrase.value().bytes())));
+
             pending_response->resolve(response);
         });
 
-        auto on_load_error = JS::create_heap_function(vm.heap(), [&realm, &vm, request, pending_response](ByteString const& error, Optional<u32> status_code, ReadonlyBytes data, HTTP::HeaderMap const& response_headers) {
+        auto on_load_error = JS::create_heap_function(vm.heap(), [&realm, &vm, request, pending_response](ByteString const& error, Optional<u32> status_code, Optional<String> const& reason_phrase, ReadonlyBytes data, HTTP::HeaderMap const& response_headers) {
             (void)request;
             dbgln_if(WEB_FETCH_DEBUG, "Fetch: ResourceLoader load for '{}' failed: {} (status {})", request->url(), error, status_code.value_or(0));
             if constexpr (WEB_FETCH_DEBUG)
@@ -2372,7 +2377,9 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<PendingResponse>> nonstandard_resource_load
                     auto header = Infrastructure::Header::from_string_pair(name, value);
                     response->header_list()->append(move(header));
                 }
-                // FIXME: Set response status message
+
+                if (reason_phrase.has_value())
+                    response->set_status_message(MUST(ByteBuffer::copy(reason_phrase.value().bytes())));
             }
             pending_response->resolve(response);
         });

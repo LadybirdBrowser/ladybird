@@ -47,9 +47,10 @@ void Request::set_buffered_request_finished_callback(BufferedRequestFinished on_
 
     m_internal_buffered_data = make<InternalBufferedData>();
 
-    on_headers_received = [this](auto& headers, auto response_code) {
+    on_headers_received = [this](auto& headers, auto response_code, auto const& reason_phrase) {
         m_internal_buffered_data->response_headers = headers;
         m_internal_buffered_data->response_code = move(response_code);
+        m_internal_buffered_data->reason_phrase = reason_phrase;
     };
 
     on_finish = [this, on_buffered_request_finished = move(on_buffered_request_finished)](auto total_size, auto network_error) {
@@ -61,6 +62,7 @@ void Request::set_buffered_request_finished_callback(BufferedRequestFinished on_
             network_error,
             m_internal_buffered_data->response_headers,
             m_internal_buffered_data->response_code,
+            m_internal_buffered_data->reason_phrase,
             output_buffer);
     };
 
@@ -87,10 +89,10 @@ void Request::did_finish(Badge<RequestClient>, u64 total_size, Optional<NetworkE
         on_finish(total_size, network_error);
 }
 
-void Request::did_receive_headers(Badge<RequestClient>, HTTP::HeaderMap const& response_headers, Optional<u32> response_code)
+void Request::did_receive_headers(Badge<RequestClient>, HTTP::HeaderMap const& response_headers, Optional<u32> response_code, Optional<String> const& reason_phrase)
 {
     if (on_headers_received)
-        on_headers_received(response_headers, response_code);
+        on_headers_received(response_headers, response_code, reason_phrase);
 }
 
 void Request::did_request_certificates(Badge<RequestClient>)
