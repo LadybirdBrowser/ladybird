@@ -16,7 +16,7 @@ namespace Web::DOM {
 class EditableTextNodeOwner {
 public:
     virtual ~EditableTextNodeOwner() = default;
-    virtual void did_edit_text_node(Badge<Document>) = 0;
+    virtual void did_edit_text_node() = 0;
 };
 
 class Text

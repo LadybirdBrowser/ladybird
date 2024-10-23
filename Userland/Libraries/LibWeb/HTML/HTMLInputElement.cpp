@@ -429,7 +429,7 @@ WebIDL::ExceptionOr<void> HTMLInputElement::run_input_activation_behavior(DOM::E
     return {};
 }
 
-void HTMLInputElement::did_edit_text_node(Badge<DOM::Document>)
+void HTMLInputElement::did_edit_text_node()
 {
     // An input element's dirty value flag must be set to true whenever the user interacts with the control in a way that changes the value.
     auto old_value = move(m_value);
@@ -439,7 +439,7 @@ void HTMLInputElement::did_edit_text_node(Badge<DOM::Document>)
     m_has_uncommitted_changes = true;
 
     if (m_value != old_value)
-        relevant_value_was_changed(m_text_node);
+        relevant_value_was_changed();
 
     update_placeholder_visibility();
 
@@ -584,7 +584,7 @@ WebIDL::ExceptionOr<void> HTMLInputElement::set_value(String const& value)
         //    and the element has a text entry cursor position, move the text entry cursor position to the end of the
         //    text control, unselecting any selected text and resetting the selection direction to "none".
         if (m_value != old_value) {
-            relevant_value_was_changed(m_text_node);
+            relevant_value_was_changed();
 
             if (m_text_node) {
                 m_text_node->set_data(m_value);
@@ -1178,17 +1178,20 @@ void HTMLInputElement::did_receive_focus()
         return;
     m_text_node->invalidate_style(DOM::StyleInvalidationReason::DidReceiveFocus);
 
+    if (auto* paintable = m_text_node->paintable())
+        paintable->set_selected(true);
+
     if (m_placeholder_text_node)
         m_placeholder_text_node->invalidate_style(DOM::StyleInvalidationReason::DidReceiveFocus);
-
-    if (auto cursor = document().cursor_position(); !cursor || m_text_node != cursor->node())
-        document().set_cursor_position(DOM::Position::create(realm(), *m_text_node, m_text_node->length()));
 }
 
 void HTMLInputElement::did_lose_focus()
 {
     if (m_text_node)
         m_text_node->invalidate_style(DOM::StyleInvalidationReason::DidLoseFocus);
+
+    if (auto* paintable = m_text_node->paintable())
+        paintable->set_selected(false);
 
     if (m_placeholder_text_node)
         m_placeholder_text_node->invalidate_style(DOM::StyleInvalidationReason::DidLoseFocus);
@@ -1232,7 +1235,7 @@ void HTMLInputElement::form_associated_element_attribute_changed(FlyString const
             }
 
             if (m_value != old_value)
-                relevant_value_was_changed(m_text_node);
+                relevant_value_was_changed();
 
             update_shadow_tree();
         }
@@ -1303,7 +1306,6 @@ void HTMLInputElement::type_attribute_changed(TypeAttributeState old_state, Type
     // 9. If previouslySelectable is false and nowSelectable is true, set the element's text entry cursor position to the
     //    beginning of the text control, and set its selection direction to "none".
     if (!previously_selectable && now_selectable) {
-        document().set_cursor_position(DOM::Position::create(realm(), *m_text_node, 0));
         set_selection_direction(OptionalNone {});
     }
 }
@@ -1539,7 +1541,7 @@ void HTMLInputElement::reset_algorithm()
     m_value = value_sanitization_algorithm(m_value);
 
     if (m_value != old_value)
-        relevant_value_was_changed(m_text_node);
+        relevant_value_was_changed();
 
     if (m_text_node) {
         m_text_node->set_data(m_value);
@@ -1575,7 +1577,7 @@ void HTMLInputElement::clear_algorithm()
     user_interaction_did_change_input_value();
 
     if (m_value != old_value)
-        relevant_value_was_changed(m_text_node);
+        relevant_value_was_changed();
 
     if (m_text_node) {
         m_text_node->set_data(m_value);
@@ -2583,17 +2585,6 @@ HTMLInputElement::ValueAttributeMode HTMLInputElement::value_attribute_mode_for_
 HTMLInputElement::ValueAttributeMode HTMLInputElement::value_attribute_mode() const
 {
     return value_attribute_mode_for_type_state(type_state());
-}
-
-void HTMLInputElement::selection_was_changed(size_t selection_start, size_t selection_end)
-{
-    if (!m_text_node || !document().cursor_position() || document().cursor_position()->node() != m_text_node)
-        return;
-
-    document().set_cursor_position(DOM::Position::create(realm(), *m_text_node, selection_end));
-
-    if (auto selection = document().get_selection())
-        MUST(selection->set_base_and_extent(*m_text_node, selection_start, *m_text_node, selection_end));
 }
 
 }

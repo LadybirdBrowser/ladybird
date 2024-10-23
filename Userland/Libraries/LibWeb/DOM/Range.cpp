@@ -1257,7 +1257,7 @@ JS::NonnullGCPtr<Geometry::DOMRectList> Range::get_client_rects()
                     auto fragments = paintable_lines.fragments();
                     auto const& font = paintable->layout_node().first_available_font();
                     for (auto frag = fragments.begin(); frag != fragments.end(); frag++) {
-                        auto rect = frag->range_rect(font, *this);
+                        auto rect = frag->range_rect(font, start_offset(), end_offset());
                         if (rect.is_empty())
                             continue;
                         rects.append(Geometry::DOMRect::create(realm(),

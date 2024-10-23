@@ -7,6 +7,7 @@
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Bindings/SelectionPrototype.h>
 #include <LibWeb/DOM/Document.h>
+#include <LibWeb/DOM/Position.h>
 #include <LibWeb/DOM/Range.h>
 #include <LibWeb/Selection/Selection.h>
 
@@ -469,6 +470,18 @@ void Selection::set_range(JS::GCPtr<DOM::Range> range)
 
     if (m_range)
         m_range->set_associated_selection({}, this);
+}
+
+JS::GCPtr<DOM::Position> Selection::cursor_position() const
+{
+    if (!m_range)
+        return nullptr;
+
+    if (is_collapsed()) {
+        return DOM::Position::create(m_document->realm(), *m_range->start_container(), m_range->start_offset());
+    }
+
+    return nullptr;
 }
 
 }

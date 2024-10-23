@@ -2189,12 +2189,8 @@ void Navigable::select_all()
     if (!selection)
         return;
 
-    if (auto position = document->cursor_position(); position && position->node()->is_editable()) {
-        auto& node = *position->node();
-        auto node_length = node.length();
-
-        (void)selection->set_base_and_extent(node, 0, node, node_length);
-        document->set_cursor_position(DOM::Position::create(document->realm(), node, node_length));
+    if (auto target = document->active_input_events_target()) {
+        target->select_all();
     } else if (auto* body = document->body()) {
         (void)selection->select_all_children(*body);
     }

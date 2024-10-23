@@ -12,6 +12,7 @@
 #include <LibUnicode/CharacterTypes.h>
 #include <LibWeb/CSS/SystemColor.h>
 #include <LibWeb/DOM/Document.h>
+#include <LibWeb/DOM/Position.h>
 #include <LibWeb/DOM/Range.h>
 #include <LibWeb/HTML/HTMLHtmlElement.h>
 #include <LibWeb/HTML/Window.h>
@@ -543,11 +544,15 @@ void paint_cursor_if_needed(PaintContext& context, TextPaintable const& paintabl
     if (!document.cursor_blink_state())
         return;
 
-    if (document.cursor_position()->node() != paintable.dom_node())
+    auto cursor_position = document.cursor_position();
+    if (!cursor_position || !cursor_position->node())
+        return;
+
+    if (cursor_position->node() != paintable.dom_node())
         return;
 
     // NOTE: This checks if the cursor is before the start or after the end of the fragment. If it is at the end, after all text, it should still be painted.
-    if (document.cursor_position()->offset() < (unsigned)fragment.start() || document.cursor_position()->offset() > (unsigned)(fragment.start() + fragment.length()))
+    if (cursor_position->offset() < (unsigned)fragment.start() || cursor_position->offset() > (unsigned)(fragment.start() + fragment.length()))
         return;
 
     if (!fragment.layout_node().dom_node() || !fragment.layout_node().dom_node()->is_editable())

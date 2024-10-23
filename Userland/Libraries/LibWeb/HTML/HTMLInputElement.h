@@ -151,7 +151,7 @@ public:
     WebIDL::ExceptionOr<void> show_picker();
 
     // ^DOM::EditableTextNodeOwner
-    virtual void did_edit_text_node(Badge<DOM::Document>) override;
+    virtual void did_edit_text_node() override;
 
     // ^EventTarget
     // https://html.spec.whatwg.org/multipage/interaction.html#the-tabindex-attribute:the-input-element
@@ -216,8 +216,7 @@ public:
 
     Optional<String> selection_direction_binding() { return selection_direction(); }
 
-protected:
-    void selection_was_changed(size_t selection_start, size_t selection_end) override;
+    virtual JS::GCPtr<DOM::Text> form_associated_element_to_text_node() override { return m_text_node; }
 
 private:
     HTMLInputElement(DOM::Document&, DOM::QualifiedName);

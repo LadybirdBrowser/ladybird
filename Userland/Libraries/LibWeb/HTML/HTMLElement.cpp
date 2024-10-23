@@ -9,9 +9,11 @@
 #include <LibWeb/Bindings/ExceptionOrUtils.h>
 #include <LibWeb/Bindings/HTMLElementPrototype.h>
 #include <LibWeb/DOM/Document.h>
+#include <LibWeb/DOM/EditingHostManager.h>
 #include <LibWeb/DOM/ElementFactory.h>
 #include <LibWeb/DOM/IDLEventListener.h>
 #include <LibWeb/DOM/LiveNodeList.h>
+#include <LibWeb/DOM/Position.h>
 #include <LibWeb/DOM/ShadowRoot.h>
 #include <LibWeb/HTML/BrowsingContext.h>
 #include <LibWeb/HTML/CustomElements/CustomElementDefinition.h>
@@ -887,6 +889,9 @@ void HTMLElement::did_receive_focus()
     if (m_content_editable_state != ContentEditableState::True)
         return;
 
+    auto editing_host = document().editing_host_manager();
+    editing_host->set_active_contenteditable_element(this);
+
     DOM::Text* text = nullptr;
     for_each_in_inclusive_subtree_of_type<DOM::Text>([&](auto& node) {
         text = &node;
@@ -894,10 +899,18 @@ void HTMLElement::did_receive_focus()
     });
 
     if (!text) {
-        document().set_cursor_position(DOM::Position::create(realm(), *this, 0));
+        editing_host->set_selection_anchor(*this, 0);
         return;
     }
-    document().set_cursor_position(DOM::Position::create(realm(), *text, text->length()));
+    editing_host->set_selection_anchor(*text, text->length());
+}
+
+void HTMLElement::did_lose_focus()
+{
+    if (m_content_editable_state != ContentEditableState::True)
+        return;
+
+    document().editing_host_manager()->set_active_contenteditable_element(nullptr);
 }
 
 // https://html.spec.whatwg.org/multipage/interaction.html#dom-accesskeylabel

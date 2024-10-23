@@ -10,6 +10,7 @@
 #include <AK/String.h>
 #include <AK/WeakPtr.h>
 #include <LibWeb/Bindings/HTMLFormElementPrototype.h>
+#include <LibWeb/DOM/InputEventsTarget.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/WebIDL/Types.h>
 
@@ -96,7 +97,7 @@ public:
     HTMLElement const& form_associated_element_to_html_element() const { return const_cast<FormAssociatedElement&>(*this).form_associated_element_to_html_element(); }
 
     // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#concept-form-reset-control
-    virtual void reset_algorithm() {};
+    virtual void reset_algorithm() { }
 
     virtual void clear_algorithm();
 
@@ -129,7 +130,8 @@ enum class SelectionSource {
     DOM,
 };
 
-class FormAssociatedTextControlElement : public FormAssociatedElement {
+class FormAssociatedTextControlElement : public FormAssociatedElement
+    , public InputEventsTarget {
 public:
     // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#concept-textarea/input-relevant-value
     virtual String relevant_value() = 0;
@@ -168,13 +170,34 @@ public:
     bool has_scheduled_selectionchange_event() const { return m_has_scheduled_selectionchange_event; }
     void set_scheduled_selectionchange_event(bool value) { m_has_scheduled_selectionchange_event = value; }
 
+    virtual JS::GCPtr<DOM::Text> form_associated_element_to_text_node() = 0;
+    virtual JS::GCPtr<DOM::Text const> form_associated_element_to_text_node() const { return const_cast<FormAssociatedTextControlElement&>(*this).form_associated_element_to_text_node(); }
+
+    virtual void handle_insert(String const&) override;
+    virtual void handle_delete(DeleteDirection) override;
+    virtual void handle_return_key() override;
+    virtual void select_all() override;
+    virtual void set_selection_anchor(JS::NonnullGCPtr<DOM::Node>, size_t offset) override;
+    virtual void set_selection_focus(JS::NonnullGCPtr<DOM::Node>, size_t offset) override;
+    virtual void move_cursor_to_start(CollapseSelection) override;
+    virtual void move_cursor_to_end(CollapseSelection) override;
+    virtual void increment_cursor_position_offset(CollapseSelection) override;
+    virtual void decrement_cursor_position_offset(CollapseSelection) override;
+    virtual void increment_cursor_position_to_next_word(CollapseSelection) override;
+    virtual void decrement_cursor_position_to_previous_word(CollapseSelection) override;
+
+    JS::GCPtr<DOM::Position> cursor_position() const;
+
 protected:
     // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#concept-textarea/input-relevant-value
-    void relevant_value_was_changed(JS::GCPtr<DOM::Text>);
+    void relevant_value_was_changed();
 
     virtual void selection_was_changed([[maybe_unused]] size_t selection_start, [[maybe_unused]] size_t selection_end) { }
 
 private:
+    void collapse_selection_to_offset(size_t);
+    void selection_was_changed();
+
     // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#concept-textarea/input-selection
     WebIDL::UnsignedLong m_selection_start { 0 };
     WebIDL::UnsignedLong m_selection_end { 0 };

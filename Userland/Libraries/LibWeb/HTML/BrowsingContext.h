@@ -16,7 +16,6 @@
 #include <LibJS/Forward.h>
 #include <LibJS/Heap/Cell.h>
 #include <LibURL/Origin.h>
-#include <LibWeb/DOM/Position.h>
 #include <LibWeb/HTML/ActivateTab.h>
 #include <LibWeb/HTML/NavigableContainer.h>
 #include <LibWeb/HTML/SandboxingFlagSet.h>
