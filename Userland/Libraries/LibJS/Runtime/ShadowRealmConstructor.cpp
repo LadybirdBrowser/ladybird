@@ -39,7 +39,30 @@ ThrowCompletionOr<Value> ShadowRealmConstructor::call()
     return vm.throw_completion<TypeError>(ErrorType::ConstructorWithoutNew, vm.names.ShadowRealm);
 }
 
+// https://github.com/tc39/proposal-shadowrealm/pull/392
+static ThrowCompletionOr<NonnullGCPtr<Object>> initialize_shadow_realm(ShadowRealm& object)
+{
+    auto& vm = object.vm();
+
+    // 1. Let context be the running Javascript execution context.
+    auto& context = vm.running_execution_context();
+
+    // 2. Let realm be the Realm of context.
+    auto& realm = *context.realm;
+
+    // 3. Return ? HostInitializeShadowRealm(realm, context, O).
+    if (vm.host_initialize_shadow_realm)
+        return TRY(vm.host_initialize_shadow_realm(realm, context.copy(), object));
+
+    // AD-HOC: Fallback for when there is no host defined implementation.
+    vm.pop_execution_context();
+    object.set_execution_context(vm.running_execution_context().copy());
+    object.set_shadow_realm(*vm.running_execution_context().realm);
+    return Object::create(realm, realm.intrinsics().object_prototype());
+}
+
 // 3.2.1 ShadowRealm ( ), https://tc39.es/proposal-shadowrealm/#sec-shadowrealm
+// https://github.com/tc39/proposal-shadowrealm/pull/392
 ThrowCompletionOr<NonnullGCPtr<Object>> ShadowRealmConstructor::construct(FunctionObject& new_target)
 {
     auto& vm = this->vm();
@@ -47,37 +70,19 @@ ThrowCompletionOr<NonnullGCPtr<Object>> ShadowRealmConstructor::construct(Functi
     // 2. Let O be ? OrdinaryCreateFromConstructor(NewTarget, "%ShadowRealm.prototype%", « [[ShadowRealm]], [[ExecutionContext]] »).
     auto object = TRY(ordinary_create_from_constructor<ShadowRealm>(vm, new_target, &Intrinsics::shadow_realm_prototype));
 
-    // 3. Let realmRec be CreateRealm().
-    auto realm = MUST_OR_THROW_OOM(Realm::create(vm));
+    // 3. Perform ? InitializeHostDefinedRealm(). The customizations for creating the global object are to return ? InitializeShadowRealm().
+    // 4. Let context be the running Javascript execution context.
+    auto context = TRY(Realm::initialize_host_defined_realm(vm, [&object](JS::Realm&) -> JS::Object* { return MUST(initialize_shadow_realm(object)); }, nullptr));
 
-    // 4. Set O.[[ShadowRealm]] to realmRec.
-    object->set_shadow_realm(realm);
-
-    // 5. Let context be a new execution context.
-    auto context = ExecutionContext::create();
-
-    // 6. Set the Function of context to null.
-    context->function = nullptr;
-
-    // 7. Set the Realm of context to realmRec.
-    context->realm = realm;
-
-    // 8. Set the ScriptOrModule of context to null.
-    // Note: This is already the default value.
-
-    // 9. Set O.[[ExecutionContext]] to context.
+    // 5. Set O.[[ExecutionContext]] to context.
+    // 6. Let realmRec be the Realm of context.
+    auto& realm_record = *context->realm;
     object->set_execution_context(move(context));
 
-    // 10. Perform ? SetRealmGlobalObject(realmRec, undefined, undefined).
-    realm->set_global_object(nullptr, nullptr);
+    // 7. Set O.[[ShadowRealm]] to realmRec.
+    object->set_shadow_realm(realm_record);
 
-    // 11. Perform ? SetDefaultGlobalBindings(O.[[ShadowRealm]]).
-    auto& global_object = set_default_global_bindings(object->shadow_realm());
-
-    // FIXME: 12. Perform ? HostInitializeShadowRealm(O.[[ShadowRealm]]).
-    global_object.initialize(object->shadow_realm());
-
-    // 13. Return O.
+    // 8. Return O.
     return object;
 }
 
