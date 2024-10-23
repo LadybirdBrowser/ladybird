@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2021-2023, Linus Groh <linusg@serenityos.org>
+ * Copyright (c) 2024, Shannon Booth <shannon@serenityos.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -43,8 +44,14 @@ ThrowCompletionOr<NonnullGCPtr<Object>> ShadowRealmConstructor::construct(Functi
 {
     auto& vm = this->vm();
 
+    // 2. Let O be ? OrdinaryCreateFromConstructor(NewTarget, "%ShadowRealm.prototype%", « [[ShadowRealm]], [[ExecutionContext]] »).
+    auto object = TRY(ordinary_create_from_constructor<ShadowRealm>(vm, new_target, &Intrinsics::shadow_realm_prototype));
+
     // 3. Let realmRec be CreateRealm().
     auto realm = MUST_OR_THROW_OOM(Realm::create(vm));
+
+    // 4. Set O.[[ShadowRealm]] to realmRec.
+    object->set_shadow_realm(realm);
 
     // 5. Let context be a new execution context.
     auto context = ExecutionContext::create();
@@ -58,10 +65,8 @@ ThrowCompletionOr<NonnullGCPtr<Object>> ShadowRealmConstructor::construct(Functi
     // 8. Set the ScriptOrModule of context to null.
     // Note: This is already the default value.
 
-    // 2. Let O be ? OrdinaryCreateFromConstructor(NewTarget, "%ShadowRealm.prototype%", « [[ShadowRealm]], [[ExecutionContext]] »).
-    // 4. Set O.[[ShadowRealm]] to realmRec.
     // 9. Set O.[[ExecutionContext]] to context.
-    auto object = TRY(ordinary_create_from_constructor<ShadowRealm>(vm, new_target, &Intrinsics::shadow_realm_prototype, *realm, move(context)));
+    object->set_execution_context(move(context));
 
     // 10. Perform ? SetRealmGlobalObject(realmRec, undefined, undefined).
     realm->set_global_object(nullptr, nullptr);
