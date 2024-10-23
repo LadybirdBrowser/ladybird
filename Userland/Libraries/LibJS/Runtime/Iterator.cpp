@@ -143,25 +143,44 @@ ThrowCompletionOr<NonnullGCPtr<IteratorRecord>> get_iterator_flattenable(VM& vm,
 }
 
 // 7.4.4 IteratorNext ( iteratorRecord [ , value ] ), https://tc39.es/ecma262/#sec-iteratornext
-ThrowCompletionOr<NonnullGCPtr<Object>> iterator_next(VM& vm, IteratorRecord const& iterator_record, Optional<Value> value)
+ThrowCompletionOr<NonnullGCPtr<Object>> iterator_next(VM& vm, IteratorRecord& iterator_record, Optional<Value> value)
 {
-    Value result;
+    auto result = [&]() {
+        // 1. If value is not present, then
+        if (!value.has_value()) {
+            // a. Let result be Completion(Call(iteratorRecord.[[NextMethod]], iteratorRecord.[[Iterator]])).
+            return call(vm, iterator_record.next_method, iterator_record.iterator);
+        }
+        // 2. Else,
+        else {
+            // a. Let result be Completion(Call(iteratorRecord.[[NextMethod]], iteratorRecord.[[Iterator]], « value »)).
+            return call(vm, iterator_record.next_method, iterator_record.iterator, *value);
+        }
+    }();
 
-    // 1. If value is not present, then
-    if (!value.has_value()) {
-        // a. Let result be ? Call(iteratorRecord.[[NextMethod]], iteratorRecord.[[Iterator]]).
-        result = TRY(call(vm, iterator_record.next_method, iterator_record.iterator));
-    } else {
-        // a. Let result be ? Call(iteratorRecord.[[NextMethod]], iteratorRecord.[[Iterator]], « value »).
-        result = TRY(call(vm, iterator_record.next_method, iterator_record.iterator, *value));
+    // 3. If result is a throw completion, then
+    if (result.is_throw_completion()) {
+        // a. Set iteratorRecord.[[Done]] to true.
+        iterator_record.done = true;
+
+        // b. Return ? result.
+        return result.release_error();
     }
 
-    // 3. If Type(result) is not Object, throw a TypeError exception.
-    if (!result.is_object())
-        return vm.throw_completion<TypeError>(ErrorType::IterableNextBadReturn);
+    // 4. Set result to ! result.
+    auto result_value = result.release_value();
 
-    // 4. Return result.
-    return result.as_object();
+    // 5. If result is not an Object, then
+    if (!result_value.is_object()) {
+        // a. Set iteratorRecord.[[Done]] to true.
+        iterator_record.done = true;
+
+        // b. Throw a TypeError exception.
+        return vm.throw_completion<TypeError>(ErrorType::IterableNextBadReturn);
+    }
+
+    // 6. Return result.
+    return result_value.as_object();
 }
 
 // 7.4.5 IteratorComplete ( iterResult ), https://tc39.es/ecma262/#sec-iteratorcomplete
@@ -179,44 +198,15 @@ ThrowCompletionOr<Value> iterator_value(VM& vm, Object& iterator_result)
 }
 
 // 7.4.7 IteratorStep ( iteratorRecord ), https://tc39.es/ecma262/#sec-iteratorstep
-ThrowCompletionOr<GCPtr<Object>> iterator_step(VM& vm, IteratorRecord const& iterator_record)
+ThrowCompletionOr<GCPtr<Object>> iterator_step(VM& vm, IteratorRecord& iterator_record)
 {
     // 1. Let result be ? IteratorNext(iteratorRecord).
     auto result = TRY(iterator_next(vm, iterator_record));
 
-    // 2. Let done be ? IteratorComplete(result).
-    auto done = TRY(iterator_complete(vm, result));
+    // 2. Let done be Completion(IteratorComplete(result)).
+    auto done = iterator_complete(vm, result);
 
-    // 3. If done is true, return false.
-    if (done)
-        return nullptr;
-
-    // 4. Return result.
-    return result;
-}
-
-// 7.4.8 IteratorStepValue ( iteratorRecord ), https://tc39.es/ecma262/#sec-iteratorstepvalue
-ThrowCompletionOr<Optional<Value>> iterator_step_value(VM& vm, IteratorRecord& iterator_record)
-{
-    // 1. Let result be Completion(IteratorNext(iteratorRecord)).
-    auto result = iterator_next(vm, iterator_record);
-
-    // 2. If result is a throw completion, then
-    if (result.is_throw_completion()) {
-        // a. Set iteratorRecord.[[Done]] to true.
-        iterator_record.done = true;
-
-        // b. Return ? result.
-        return result.release_error();
-    }
-
-    // 3. Set result to ! result.
-    auto result_value = result.release_value();
-
-    // 4. Let done be Completion(IteratorComplete(result)).
-    auto done = iterator_complete(vm, result_value);
-
-    // 5. If done is a throw completion, then
+    // 3. If done is a throw completion, then
     if (done.is_throw_completion()) {
         // a. Set iteratorRecord.[[Done]] to true.
         iterator_record.done = true;
@@ -225,28 +215,44 @@ ThrowCompletionOr<Optional<Value>> iterator_step_value(VM& vm, IteratorRecord& i
         return done.release_error();
     }
 
-    // 6. Set done to ! done.
+    // 4. Set done to ! done.
     auto done_value = done.release_value();
 
-    // 7. If done is true, then
+    // 5. If done is true, then
     if (done_value) {
         // a. Set iteratorRecord.[[Done]] to true.
         iterator_record.done = true;
 
         // b. Return DONE.
+        return nullptr;
+    }
+
+    // 6. Return result.
+    return result;
+}
+
+// 7.4.8 IteratorStepValue ( iteratorRecord ), https://tc39.es/ecma262/#sec-iteratorstepvalue
+ThrowCompletionOr<Optional<Value>> iterator_step_value(VM& vm, IteratorRecord& iterator_record)
+{
+    // 1. Let result be ? IteratorStep(iteratorRecord).
+    auto result = TRY(iterator_step(vm, iterator_record));
+
+    // 2. If result is done, then
+    if (!result) {
+        // a. Return DONE.
         return OptionalNone {};
     }
 
-    // 8. Let value be Completion(Get(result, "value")).
-    auto value = result_value->get(vm.names.value);
+    // 3. Let value be Completion(IteratorValue(result)).
+    auto value = iterator_value(vm, *result);
 
-    // 9. If value is a throw completion, then
+    // 4. If value is a throw completion, then
     if (value.is_throw_completion()) {
         // a. Set iteratorRecord.[[Done]] to true.
         iterator_record.done = true;
     }
 
-    // 10. Return ? value.
+    // 5. Return ? value.
     return TRY(value);
 }
 
