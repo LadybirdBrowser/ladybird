@@ -108,10 +108,10 @@ RefPtr<Resource> ResourceLoader::load_resource(Resource::Type type, LoadRequest&
 
     load(
         request,
-        JS::create_heap_function(m_heap, [=](ReadonlyBytes data, HTTP::HeaderMap const& headers, Optional<u32> status_code) {
+        JS::create_heap_function(m_heap, [=](ReadonlyBytes data, HTTP::HeaderMap const& headers, Optional<u32> status_code, Optional<String> const&) {
             const_cast<Resource&>(*resource).did_load({}, data, headers, status_code);
         }),
-        JS::create_heap_function(m_heap, [=](ByteString const& error, Optional<u32> status_code, ReadonlyBytes data, HTTP::HeaderMap const& headers) {
+        JS::create_heap_function(m_heap, [=](ByteString const& error, Optional<u32> status_code, Optional<String> const&, ReadonlyBytes data, HTTP::HeaderMap const& headers) {
             const_cast<Resource&>(*resource).did_fail({}, error, data, headers, status_code);
         }));
 
@@ -238,7 +238,7 @@ void ResourceLoader::load(LoadRequest& request, JS::Handle<SuccessCallback> succ
     request.start_timer();
 
     if (should_block_request(request)) {
-        error_callback->function()("Request was blocked", {}, {}, {});
+        error_callback->function()("Request was blocked", {}, {}, {}, {});
         return;
     }
 
@@ -247,14 +247,14 @@ void ResourceLoader::load(LoadRequest& request, JS::Handle<SuccessCallback> succ
         if (maybe_response.is_error()) {
             log_failure(request, maybe_response.error());
             if (error_callback)
-                error_callback->function()(ByteString::formatted("{}", maybe_response.error()), 500u, {}, {});
+                error_callback->function()(ByteString::formatted("{}", maybe_response.error()), 500u, {}, {}, {});
             return;
         }
 
         log_success(request);
         HTTP::HeaderMap response_headers;
         response_headers.set("Content-Type"sv, "text/html"sv);
-        success_callback->function()(maybe_response.release_value().bytes(), response_headers, {});
+        success_callback->function()(maybe_response.release_value().bytes(), response_headers, {}, {});
     };
 
     if (url.scheme() == "about") {
@@ -266,7 +266,7 @@ void ResourceLoader::load(LoadRequest& request, JS::Handle<SuccessCallback> succ
 
         // About version page
         if (url.path_segment_at_index(0) == "version") {
-            success_callback->function()(MUST(load_about_version_page()).bytes(), response_headers, {});
+            success_callback->function()(MUST(load_about_version_page()).bytes(), response_headers, {}, {});
             return;
         }
 
@@ -274,12 +274,12 @@ void ResourceLoader::load(LoadRequest& request, JS::Handle<SuccessCallback> succ
         auto resource = Core::Resource::load_from_uri(MUST(String::formatted("resource://ladybird/{}.html", url.path_segment_at_index(0))));
         if (!resource.is_error()) {
             auto data = resource.value()->data();
-            success_callback->function()(data, response_headers, {});
+            success_callback->function()(data, response_headers, {}, {});
             return;
         }
 
         Platform::EventLoopPlugin::the().deferred_invoke(JS::create_heap_function(m_heap, [success_callback, response_headers = move(response_headers)] {
-            success_callback->function()(ByteString::empty().to_byte_buffer(), response_headers, {});
+            success_callback->function()(ByteString::empty().to_byte_buffer(), response_headers, {}, {});
         }));
         return;
     }
@@ -289,7 +289,7 @@ void ResourceLoader::load(LoadRequest& request, JS::Handle<SuccessCallback> succ
         if (data_url_or_error.is_error()) {
             auto error_message = data_url_or_error.error().string_literal();
             log_failure(request, error_message);
-            error_callback->function()(error_message, {}, {}, {});
+            error_callback->function()(error_message, {}, {}, {}, {});
             return;
         }
         auto data_url = data_url_or_error.release_value();
@@ -304,7 +304,7 @@ void ResourceLoader::load(LoadRequest& request, JS::Handle<SuccessCallback> succ
         log_success(request);
 
         Platform::EventLoopPlugin::the().deferred_invoke(JS::create_heap_function(m_heap, [data = move(data_url.body), response_headers = move(response_headers), success_callback] {
-            success_callback->function()(data, response_headers, {});
+            success_callback->function()(data, response_headers, {}, {});
         }));
         return;
     }
@@ -314,7 +314,7 @@ void ResourceLoader::load(LoadRequest& request, JS::Handle<SuccessCallback> succ
         if (resource.is_error()) {
             log_failure(request, resource.error());
             if (error_callback)
-                error_callback->function()(ByteString::formatted("{}", resource.error()), {}, {}, {});
+                error_callback->function()(ByteString::formatted("{}", resource.error()), {}, {}, {}, {});
             return;
         }
 
@@ -328,7 +328,7 @@ void ResourceLoader::load(LoadRequest& request, JS::Handle<SuccessCallback> succ
         auto response_headers = response_headers_for_file(URL::percent_decode(url.serialize_path()), resource.value()->modified_time());
 
         log_success(request);
-        success_callback->function()(data, response_headers, {});
+        success_callback->function()(data, response_headers, {}, {});
 
         return;
     }
@@ -350,7 +350,7 @@ void ResourceLoader::load(LoadRequest& request, JS::Handle<SuccessCallback> succ
             if (file_or_error.is_error()) {
                 log_failure(request, file_or_error.error());
                 if (error_callback)
-                    error_callback->function()(ByteString::formatted("{}", file_or_error.error()), {}, {}, {});
+                    error_callback->function()(ByteString::formatted("{}", file_or_error.error()), {}, {}, {}, {});
                 return;
             }
 
@@ -367,7 +367,7 @@ void ResourceLoader::load(LoadRequest& request, JS::Handle<SuccessCallback> succ
             if (st_or_error.is_error()) {
                 log_failure(request, st_or_error.error());
                 if (error_callback)
-                    error_callback->function()(ByteString::formatted("{}", st_or_error.error()), {}, {}, {});
+                    error_callback->function()(ByteString::formatted("{}", st_or_error.error()), {}, {}, {}, {});
                 return;
             }
 
@@ -376,7 +376,7 @@ void ResourceLoader::load(LoadRequest& request, JS::Handle<SuccessCallback> succ
             if (maybe_file.is_error()) {
                 log_failure(request, maybe_file.error());
                 if (error_callback)
-                    error_callback->function()(ByteString::formatted("{}", maybe_file.error()), {}, {}, {});
+                    error_callback->function()(ByteString::formatted("{}", maybe_file.error()), {}, {}, {}, {});
                 return;
             }
 
@@ -385,7 +385,7 @@ void ResourceLoader::load(LoadRequest& request, JS::Handle<SuccessCallback> succ
             if (maybe_data.is_error()) {
                 log_failure(request, maybe_data.error());
                 if (error_callback)
-                    error_callback->function()(ByteString::formatted("{}", maybe_data.error()), {}, {}, {});
+                    error_callback->function()(ByteString::formatted("{}", maybe_data.error()), {}, {}, {}, {});
                 return;
             }
 
@@ -393,7 +393,7 @@ void ResourceLoader::load(LoadRequest& request, JS::Handle<SuccessCallback> succ
             auto response_headers = response_headers_for_file(URL::percent_decode(request.url().serialize_path()), st_or_error.value().st_mtime);
 
             log_success(request);
-            success_callback->function()(data, response_headers, {});
+            success_callback->function()(data, response_headers, {}, {});
         });
 
         (*m_page)->client().request_file(move(file_request));
@@ -409,7 +409,7 @@ void ResourceLoader::load(LoadRequest& request, JS::Handle<SuccessCallback> succ
         auto protocol_request = start_network_request(request);
         if (!protocol_request) {
             if (error_callback)
-                error_callback->function()("Failed to start network request"sv, {}, {}, {});
+                error_callback->function()("Failed to start network request"sv, {}, {}, {}, {});
             return;
         }
 
@@ -424,7 +424,7 @@ void ResourceLoader::load(LoadRequest& request, JS::Handle<SuccessCallback> succ
             timer->start();
         }
 
-        auto on_buffered_request_finished = [this, success_callback, error_callback, request, &protocol_request = *protocol_request](auto, auto const& network_error, auto& response_headers, auto status_code, ReadonlyBytes payload) mutable {
+        auto on_buffered_request_finished = [this, success_callback, error_callback, request, &protocol_request = *protocol_request](auto, auto const& network_error, auto& response_headers, auto status_code, auto const& reason_phrase, ReadonlyBytes payload) mutable {
             handle_network_response_headers(request, response_headers);
             finish_network_request(protocol_request);
 
@@ -440,12 +440,12 @@ void ResourceLoader::load(LoadRequest& request, JS::Handle<SuccessCallback> succ
 
                 log_failure(request, error_builder.string_view());
                 if (error_callback)
-                    error_callback->function()(error_builder.to_byte_string(), status_code, payload, response_headers);
+                    error_callback->function()(error_builder.to_byte_string(), status_code, reason_phrase, payload, response_headers);
                 return;
             }
 
             log_success(request);
-            success_callback->function()(payload, response_headers, status_code);
+            success_callback->function()(payload, response_headers, status_code, reason_phrase);
         };
 
         protocol_request->set_buffered_request_finished_callback(move(on_buffered_request_finished));
@@ -455,7 +455,7 @@ void ResourceLoader::load(LoadRequest& request, JS::Handle<SuccessCallback> succ
     auto not_implemented_error = ByteString::formatted("Protocol not implemented: {}", url.scheme());
     log_failure(request, not_implemented_error);
     if (error_callback)
-        error_callback->function()(not_implemented_error, {}, {}, {});
+        error_callback->function()(not_implemented_error, {}, {}, {}, {});
 }
 
 void ResourceLoader::load_unbuffered(LoadRequest& request, JS::Handle<OnHeadersReceived> on_headers_received, JS::Handle<OnDataReceived> on_data_received, JS::Handle<OnComplete> on_complete)
@@ -482,9 +482,9 @@ void ResourceLoader::load_unbuffered(LoadRequest& request, JS::Handle<OnHeadersR
         return;
     }
 
-    auto protocol_headers_received = [this, on_headers_received, request](auto const& response_headers, auto status_code) {
+    auto protocol_headers_received = [this, on_headers_received, request](auto const& response_headers, auto status_code, auto const& reason_phrase) {
         handle_network_response_headers(request, response_headers);
-        on_headers_received->function()(response_headers, move(status_code));
+        on_headers_received->function()(response_headers, move(status_code), reason_phrase);
     };
 
     auto protocol_data_received = [on_data_received](auto data) {
