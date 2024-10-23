@@ -13,6 +13,7 @@
 #include <LibCore/Proxy.h>
 #include <LibCore/Socket.h>
 #include <LibRequests/NetworkErrorEnum.h>
+#include <LibTextCodec/Decoder.h>
 #include <LibWebSocket/ConnectionInfo.h>
 #include <LibWebSocket/Message.h>
 #include <RequestServer/ConnectionFromClient.h>
@@ -37,6 +38,7 @@ struct ConnectionFromClient::ActiveRequest {
     bool got_all_headers { false };
     size_t downloaded_so_far { 0 };
     String url;
+    Optional<String> reason_phrase;
     ByteBuffer body;
 
     ActiveRequest(ConnectionFromClient& client, CURLM* multi, CURL* easy, i32 request_id, int writer_fd)
@@ -64,7 +66,7 @@ struct ConnectionFromClient::ActiveRequest {
         long http_status_code = 0;
         auto result = curl_easy_getinfo(easy, CURLINFO_RESPONSE_CODE, &http_status_code);
         VERIFY(result == CURLE_OK);
-        client->async_headers_became_available(request_id, headers, http_status_code);
+        client->async_headers_became_available(request_id, headers, http_status_code, reason_phrase);
     }
 };
 
@@ -73,11 +75,30 @@ size_t ConnectionFromClient::on_header_received(void* buffer, size_t size, size_
     auto* request = static_cast<ActiveRequest*>(user_data);
     size_t total_size = size * nmemb;
     auto header_line = StringView { static_cast<char const*>(buffer), total_size };
+
+    // NOTE: We need to extract the HTTP reason phrase since it can be a custom value.
+    //       Fetching infrastructure needs this value for setting the status message.
+    if (!request->reason_phrase.has_value() && header_line.starts_with("HTTP/"sv)) {
+        if (auto const space_positions = header_line.find_all(" "sv); space_positions.size() > 1) {
+            auto const second_space_offset = space_positions.at(1);
+            auto const reason_phrase_string_view = header_line.substring_view(second_space_offset + 1).trim_whitespace();
+
+            if (!reason_phrase_string_view.is_empty()) {
+                auto decoder = TextCodec::decoder_for_exact_name("ISO-8859-1"sv);
+                VERIFY(decoder.has_value());
+
+                request->reason_phrase = MUST(decoder->to_utf8(reason_phrase_string_view));
+                return total_size;
+            }
+        }
+    }
+
     if (auto colon_index = header_line.find(':'); colon_index.has_value()) {
         auto name = header_line.substring_view(0, colon_index.value()).trim_whitespace();
         auto value = header_line.substring_view(colon_index.value() + 1, header_line.length() - colon_index.value() - 1).trim_whitespace();
         request->headers.set(name, value);
     }
+
     return total_size;
 }
 
