@@ -7,7 +7,6 @@
 #include <LibJS/Runtime/Completion.h>
 #include <LibJS/Runtime/ECMAScriptFunctionObject.h>
 #include <LibJS/Runtime/FunctionEnvironment.h>
-#include <LibJS/Runtime/GlobalObject.h>
 
 namespace JS {
 

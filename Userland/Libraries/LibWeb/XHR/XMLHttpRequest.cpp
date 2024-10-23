@@ -15,7 +15,6 @@
 #include <LibJS/Runtime/ArrayBuffer.h>
 #include <LibJS/Runtime/Completion.h>
 #include <LibJS/Runtime/FunctionObject.h>
-#include <LibJS/Runtime/GlobalObject.h>
 #include <LibTextCodec/Decoder.h>
 #include <LibURL/Origin.h>
 #include <LibWeb/Bindings/XMLHttpRequestPrototype.h>

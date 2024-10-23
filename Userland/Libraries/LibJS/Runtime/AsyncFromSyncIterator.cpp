@@ -7,7 +7,6 @@
 
 #include <LibJS/Runtime/AsyncFromSyncIterator.h>
 #include <LibJS/Runtime/AsyncFromSyncIteratorPrototype.h>
-#include <LibJS/Runtime/GlobalObject.h>
 
 namespace JS {
 

@@ -39,6 +39,7 @@
 #include <LibJS/Runtime/GeneratorFunctionConstructor.h>
 #include <LibJS/Runtime/GeneratorFunctionPrototype.h>
 #include <LibJS/Runtime/GeneratorPrototype.h>
+#include <LibJS/Runtime/GlobalObject.h>
 #include <LibJS/Runtime/Intl/CollatorConstructor.h>
 #include <LibJS/Runtime/Intl/CollatorPrototype.h>
 #include <LibJS/Runtime/Intl/DateTimeFormatConstructor.h>

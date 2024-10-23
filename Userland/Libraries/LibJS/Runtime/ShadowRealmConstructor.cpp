@@ -6,6 +6,7 @@
  */
 
 #include <LibJS/Runtime/AbstractOperations.h>
+#include <LibJS/Runtime/GlobalObject.h>
 #include <LibJS/Runtime/ShadowRealm.h>
 #include <LibJS/Runtime/ShadowRealmConstructor.h>
 
