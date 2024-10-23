@@ -3,12 +3,16 @@ interface mixin ARIAMixin {
     [CEReactions] attribute DOMString? role;
     [CEReactions] attribute DOMString? ariaAtomic;
     [CEReactions] attribute DOMString? ariaAutoComplete;
+    [CEReactions] attribute DOMString? ariaBrailleLabel;
+    [CEReactions] attribute DOMString? ariaBrailleRoleDescription;
     [CEReactions] attribute DOMString? ariaBusy;
     [CEReactions] attribute DOMString? ariaChecked;
     [CEReactions] attribute DOMString? ariaColCount;
     [CEReactions] attribute DOMString? ariaColIndex;
+    [CEReactions] attribute DOMString? ariaColIndexText;
     [CEReactions] attribute DOMString? ariaColSpan;
     [CEReactions] attribute DOMString? ariaCurrent;
+    [CEReactions] attribute DOMString? ariaDescription;
     [CEReactions] attribute DOMString? ariaDisabled;
     [CEReactions] attribute DOMString? ariaExpanded;
     [CEReactions] attribute DOMString? ariaHasPopup;
@@ -31,6 +35,7 @@ interface mixin ARIAMixin {
     [CEReactions] attribute DOMString? ariaRoleDescription;
     [CEReactions] attribute DOMString? ariaRowCount;
     [CEReactions] attribute DOMString? ariaRowIndex;
+    [CEReactions] attribute DOMString? ariaRowIndexText;
     [CEReactions] attribute DOMString? ariaRowSpan;
     [CEReactions] attribute DOMString? ariaSelected;
     [CEReactions] attribute DOMString? ariaSetSize;

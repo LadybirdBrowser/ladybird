@@ -15,14 +15,18 @@ AriaData::AriaData(Web::ARIA::ARIAMixin const& source)
     m_aria_active_descendant = source.aria_active_descendant();
     m_aria_atomic = AriaData::parse_optional_true_false(source.aria_atomic());
     m_aria_auto_complete = AriaData::parse_aria_autocomplete(source.aria_auto_complete());
+    m_aria_braille_label = source.aria_braille_label().value_or(String {});
+    m_aria_braille_role_description = source.aria_braille_role_description().value_or(String {});
     m_aria_busy = AriaData::parse_true_false(source.aria_busy());
     m_aria_checked = AriaData::parse_tristate(source.aria_checked());
     m_aria_col_count = AriaData::parse_integer(source.aria_col_count());
     m_aria_col_index = AriaData::parse_integer(source.aria_col_index());
+    m_aria_col_index_text = source.aria_col_index_text().value_or(String {});
     m_aria_col_span = AriaData::parse_integer(source.aria_col_span());
     m_aria_controls = source.parse_id_reference_list(source.aria_controls());
     m_aria_current = AriaData::parse_aria_current(source.aria_current());
     m_aria_described_by = source.parse_id_reference_list(source.aria_described_by());
+    m_aria_description = source.aria_description().value_or(String {});
     m_aria_details = source.parse_id_reference(source.aria_details());
     m_aria_disabled = AriaData::parse_true_false(source.aria_disabled());
     m_aria_drop_effect = AriaData::parse_aria_drop_effect(source.aria_drop_effect());
@@ -52,6 +56,7 @@ AriaData::AriaData(Web::ARIA::ARIAMixin const& source)
     m_aria_role_description = source.aria_role_description().value_or(String {});
     m_aria_row_count = AriaData::parse_integer(source.aria_row_count());
     m_aria_row_index = AriaData::parse_integer(source.aria_row_index());
+    m_aria_row_index_text = source.aria_row_index_text().value_or(String {});
     m_aria_row_span = AriaData::parse_integer(source.aria_row_span());
     m_aria_selected = AriaData::parse_true_false_undefined(source.aria_selected());
     m_aria_set_size = AriaData::parse_integer(source.aria_set_size());
@@ -127,6 +132,16 @@ AriaAutocomplete AriaData::aria_auto_complete_or_default() const
     return m_aria_auto_complete;
 }
 
+String AriaData::aria_braille_label_or_default() const
+{
+    return m_aria_braille_label;
+}
+
+String AriaData::aria_braille_role_description_or_default() const
+{
+    return m_aria_braille_role_description;
+}
+
 bool AriaData::aria_busy_or_default() const
 {
     return m_aria_busy;
@@ -147,6 +162,11 @@ Optional<i32> AriaData::aria_col_index_or_default() const
     return m_aria_col_index;
 }
 
+String AriaData::aria_col_index_text_or_default() const
+{
+    return m_aria_col_index_text;
+}
+
 Optional<i32> AriaData::aria_col_span_or_default() const
 {
     return m_aria_col_span;
@@ -165,6 +185,11 @@ AriaCurrent AriaData::aria_current_or_default() const
 Vector<String> AriaData::aria_described_by_or_default() const
 {
     return m_aria_described_by;
+}
+
+String AriaData::aria_description_or_default() const
+{
+    return m_aria_description;
 }
 
 Optional<String> AriaData::aria_details_or_default() const
@@ -318,6 +343,11 @@ Optional<i32> AriaData::aria_row_count_or_default() const
 Optional<i32> AriaData::aria_row_index_or_default() const
 {
     return m_aria_row_index;
+}
+
+String AriaData::aria_row_index_text_or_default() const
+{
+    return m_aria_row_index_text;
 }
 
 Optional<i32> AriaData::aria_row_span_or_default() const

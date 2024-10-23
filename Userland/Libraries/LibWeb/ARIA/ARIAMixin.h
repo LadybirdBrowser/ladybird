@@ -31,6 +31,12 @@ public:
     virtual Optional<String> aria_auto_complete() const = 0;
     virtual WebIDL::ExceptionOr<void> set_aria_auto_complete(Optional<String> const&) = 0;
 
+    virtual Optional<String> aria_braille_label() const = 0;
+    virtual WebIDL::ExceptionOr<void> set_aria_braille_label(Optional<String> const&) = 0;
+
+    virtual Optional<String> aria_braille_role_description() const = 0;
+    virtual WebIDL::ExceptionOr<void> set_aria_braille_role_description(Optional<String> const&) = 0;
+
     virtual Optional<String> aria_busy() const = 0;
     virtual WebIDL::ExceptionOr<void> set_aria_busy(Optional<String> const&) = 0;
 
@@ -43,6 +49,9 @@ public:
     virtual Optional<String> aria_col_index() const = 0;
     virtual WebIDL::ExceptionOr<void> set_aria_col_index(Optional<String> const&) = 0;
 
+    virtual Optional<String> aria_col_index_text() const = 0;
+    virtual WebIDL::ExceptionOr<void> set_aria_col_index_text(Optional<String> const&) = 0;
+
     virtual Optional<String> aria_col_span() const = 0;
     virtual WebIDL::ExceptionOr<void> set_aria_col_span(Optional<String> const&) = 0;
 
@@ -54,6 +63,9 @@ public:
 
     virtual Optional<String> aria_described_by() const = 0;
     virtual WebIDL::ExceptionOr<void> set_aria_described_by(Optional<String> const&) = 0;
+
+    virtual Optional<String> aria_description() const = 0;
+    virtual WebIDL::ExceptionOr<void> set_aria_description(Optional<String> const&) = 0;
 
     virtual Optional<String> aria_details() const = 0;
     virtual WebIDL::ExceptionOr<void> set_aria_details(Optional<String> const&) = 0;
@@ -141,6 +153,9 @@ public:
 
     virtual Optional<String> aria_row_index() const = 0;
     virtual WebIDL::ExceptionOr<void> set_aria_row_index(Optional<String> const&) = 0;
+
+    virtual Optional<String> aria_row_index_text() const = 0;
+    virtual WebIDL::ExceptionOr<void> set_aria_row_index_text(Optional<String> const&) = 0;
 
     virtual Optional<String> aria_row_span() const = 0;
     virtual WebIDL::ExceptionOr<void> set_aria_row_span(Optional<String> const&) = 0;
