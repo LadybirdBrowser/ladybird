@@ -27,10 +27,6 @@ public:
 
 private:
     virtual bool is_replaced_box() const final { return true; }
-
-    Optional<CSSPixels> m_intrinsic_width;
-    Optional<CSSPixels> m_intrinsic_height;
-    Optional<float> m_intrinsic_aspect_ratio;
 };
 
 template<>
