@@ -1,0 +1,33 @@
+<script src="../include.js"></script>
+<script type="text/javascript">
+    asyncTest(async done => {
+        const fontFaceSet = document.fonts;
+
+        const fontFace = new FontFace("Hash Sans", "url(../../../../Ref/assets/HashSans.woff)");
+        fontFaceSet.add(fontFace);
+
+        try {
+            await fontFaceSet.load("invalid");
+            println("Load invalid font: FAIL");
+        } catch (e) {
+            println("Load invalid font: PASS");
+        }
+
+        try {
+            await fontFaceSet.load("revert");
+            println("Load CSS keyword as font: FAIL");
+        } catch (e) {
+            println("Load CSS keyword as font: PASS");
+        }
+
+        try {
+            await fontFaceSet.load("1em Hash Sans");
+            println("Load valid font: PASS");
+        } catch (e) {
+            println("Load valid font: FAIL");
+            println(e);
+        }
+
+        done();
+    });
+</script>

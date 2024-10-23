@@ -79,6 +79,8 @@ public:
 
     void load_font_source();
 
+    JS::NonnullGCPtr<WebIDL::Promise> font_status_promise() { return m_font_status_promise; }
+
 private:
     FontFace(JS::Realm&, JS::NonnullGCPtr<WebIDL::Promise> font_status_promise, Vector<ParsedFontFace::Source> urls, ByteBuffer data, String family, FontFaceDescriptors const& descriptors);
 
