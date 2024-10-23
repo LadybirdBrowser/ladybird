@@ -12,7 +12,8 @@
 #include <AK/ByteString.h>
 #include <AK/ScopeGuard.h>
 #include <LibCore/System.h>
-#include <WinSock2.h>
+#include <Windows.h>
+#include <direct.h>
 #include <io.h>
 
 namespace Core::System {
@@ -20,9 +21,21 @@ namespace Core::System {
 ErrorOr<int> open(StringView path, int options, mode_t mode)
 {
     ByteString string_path = path;
-    int rc = _open(string_path.characters(), options, mode);
-    if (rc < 0)
-        return Error::from_syscall("open"sv, -errno);
+    auto sz_path = string_path.characters();
+    int rc = _open(sz_path, options, mode);
+    if (rc < 0) {
+        int error = errno;
+        struct stat st = {};
+        if (::stat(sz_path, &st) == 0 && (st.st_mode & S_IFDIR)) {
+            HANDLE dir_handle = CreateFile(sz_path, GENERIC_ALL, 0, NULL, OPEN_EXISTING, FILE_FLAG_BACKUP_SEMANTICS, NULL);
+            if (dir_handle == INVALID_HANDLE_VALUE)
+                return Error::from_windows_error(GetLastError());
+            int dir_fd = _open_osfhandle((intptr_t)dir_handle, 0);
+            if (dir_fd != -1)
+                return dir_fd;
+        }
+        return Error::from_syscall("open"sv, -error);
+    }
     return rc;
 }
 
@@ -131,6 +144,26 @@ ErrorOr<void> unlink(StringView path)
     if (_unlink(path_string.characters()) < 0)
         return Error::from_syscall("unlink"sv, -errno);
     return {};
+}
+
+ErrorOr<void> mkdir(StringView path, mode_t)
+{
+    ByteString str = path;
+    if (_mkdir(str.characters()) < 0)
+        return Error::from_syscall("mkdir"sv, -errno);
+    return {};
+}
+
+ErrorOr<int> openat(int, StringView, int, mode_t)
+{
+    dbgln("Core::System::openat() is not implemented");
+    VERIFY_NOT_REACHED();
+}
+
+ErrorOr<struct stat> fstatat(int, StringView, int)
+{
+    dbgln("Core::System::fstatat() is not implemented");
+    VERIFY_NOT_REACHED();
 }
 
 }
