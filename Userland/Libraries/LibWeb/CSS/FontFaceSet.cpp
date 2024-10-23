@@ -8,11 +8,19 @@
 #include <LibJS/Heap/Heap.h>
 #include <LibJS/Runtime/Realm.h>
 #include <LibJS/Runtime/Set.h>
+#include <LibWeb/Bindings/ExceptionOrUtils.h>
 #include <LibWeb/Bindings/FontFaceSetPrototype.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/CSS/FontFace.h>
 #include <LibWeb/CSS/FontFaceSet.h>
+#include <LibWeb/CSS/Parser/Parser.h>
+#include <LibWeb/CSS/StyleValues/ShorthandStyleValue.h>
+#include <LibWeb/CSS/StyleValues/StringStyleValue.h>
+#include <LibWeb/CSS/StyleValues/StyleValueList.h>
+#include <LibWeb/DOM/Document.h>
 #include <LibWeb/HTML/EventNames.h>
+#include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
+#include <LibWeb/Platform/EventLoopPlugin.h>
 #include <LibWeb/WebIDL/Promise.h>
 
 namespace Web::CSS {
@@ -162,12 +170,115 @@ WebIDL::CallbackType* FontFaceSet::onloadingerror()
     return event_handler_attribute(HTML::EventNames::loadingerror);
 }
 
-// https://drafts.csswg.org/css-font-loading/#dom-fontfaceset-load
-JS::ThrowCompletionOr<JS::NonnullGCPtr<JS::Promise>> FontFaceSet::load(String const&, String const&)
+// https://drafts.csswg.org/css-font-loading/#find-the-matching-font-faces
+static WebIDL::ExceptionOr<JS::NonnullGCPtr<JS::Set>> find_matching_font_faces(JS::Realm& realm, FontFaceSet& font_face_set, String const& font, String const&)
 {
-    // FIXME: Do the steps
-    auto promise = WebIDL::create_rejected_promise(realm(), WebIDL::NotSupportedError::create(realm(), "FontFaceSet::load is not yet implemented"_string));
-    return verify_cast<JS::Promise>(*promise->promise());
+    // 1. Parse font using the CSS value syntax of the font property. If a syntax error occurs, return a syntax error.
+    auto parser = CSS::Parser::Parser::create(CSS::Parser::ParsingContext(realm), font);
+    auto property = parser.parse_as_css_value(PropertyID::Font);
+    if (!property)
+        return WebIDL::SyntaxError::create(realm, "Unable to parse font"_string);
+
+    // If the parsed value is a CSS-wide keyword, return a syntax error.
+    if (property->is_css_wide_keyword())
+        return WebIDL::SyntaxError::create(realm, "Parsed font is a CSS-wide keyword"_string);
+
+    // FIXME: Absolutize all relative lengths against the initial values of the corresponding properties. (For example, a
+    //        relative font weight like bolder is evaluated against the initial value normal.)
+
+    // FIXME: 2. If text was not explicitly provided, let it be a string containing a single space character (U+0020 SPACE).
+
+    // 3. Let font family list be the list of font families parsed from font, and font style be the other font style
+    //    attributes parsed from font.
+    auto const& font_family_list = property->as_shorthand().longhand(PropertyID::FontFamily)->as_value_list();
+
+    // 4. Let available font faces be the available font faces within source. If the allow system fonts flag is specified,
+    //    add all system fonts to available font faces.
+    auto available_font_faces = font_face_set.set_entries();
+
+    // 5. Let matched font faces initially be an empty list.
+    auto matched_font_faces = JS::Set::create(realm);
+
+    // 6. For each family in font family list, use the font matching rules to select the font faces from available font
+    //    faces that match the font style, and add them to matched font faces. The use of the unicodeRange attribute means
+    //    that this may be more than just a single font face.
+    for (auto const& font_family : font_family_list.values()) {
+        // FIXME: The matching below is super basic. We currently just match font family names by their string value.
+        if (!font_family->is_string())
+            continue;
+
+        auto const& font_family_name = font_family->as_string().string_value();
+
+        for (auto font_face_value : *available_font_faces) {
+            auto& font_face = verify_cast<FontFace>(font_face_value.key.as_object());
+            if (font_face.family() != font_family_name)
+                continue;
+
+            matched_font_faces->set_add(font_face_value.key);
+        }
+    }
+
+    // FIXME: 7. If matched font faces is empty, set the found faces flag to false. Otherwise, set it to true.
+    // FIXME: 8. For each font face in matched font faces, if its defined unicode-range does not include the codepoint of at
+    //           least one character in text, remove it from the list.
+
+    // 9. Return matched font faces and the found faces flag.
+    return matched_font_faces;
+}
+
+// https://drafts.csswg.org/css-font-loading/#dom-fontfaceset-load
+JS::ThrowCompletionOr<JS::NonnullGCPtr<JS::Promise>> FontFaceSet::load(String const& font, String const& text)
+{
+    auto& realm = this->realm();
+
+    // 1. Let font face set be the FontFaceSet object this method was called on. Let promise be a newly-created promise object.
+    JS::NonnullGCPtr font_face_set = *this;
+    auto promise = WebIDL::create_promise(realm);
+
+    Platform::EventLoopPlugin::the().deferred_invoke([&realm, font_face_set, promise, font, text]() mutable {
+        // 3. Find the matching font faces from font face set using the font and text arguments passed to the function,
+        //    and let font face list be the return value (ignoring the found faces flag). If a syntax error was returned,
+        //    reject promise with a SyntaxError exception and terminate these steps.
+        auto result = find_matching_font_faces(realm, font_face_set, font, text);
+        if (result.is_error()) {
+            HTML::TemporaryExecutionContext execution_context { Bindings::host_defined_environment_settings_object(realm), HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
+            WebIDL::reject_promise(realm, promise, Bindings::dom_exception_to_throw_completion(realm.vm(), result.release_error()).release_value().value());
+            return;
+        }
+
+        auto matched_font_faces = result.release_value();
+
+        // 4. Queue a task to run the following steps synchronously:
+        HTML::queue_a_task(HTML::Task::Source::FontLoading, nullptr, nullptr, JS::create_heap_function(realm.heap(), [&realm, promise, matched_font_faces] {
+            JS::MarkedVector<JS::NonnullGCPtr<WebIDL::Promise>> promises(realm.heap());
+
+            // 1. For all of the font faces in the font face list, call their load() method.
+            for (auto font_face_value : *matched_font_faces) {
+                auto& font_face = verify_cast<FontFace>(font_face_value.key.as_object());
+                font_face.load();
+
+                promises.append(font_face.font_status_promise());
+            }
+
+            // 2. Resolve promise with the result of waiting for all of the [[FontStatusPromise]]s of each font face in
+            //    the font face list, in order.
+            HTML::TemporaryExecutionContext execution_context { Bindings::host_defined_environment_settings_object(realm), HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
+
+            WebIDL::wait_for_all(
+                realm, promises,
+                [&realm, promise](auto const&) {
+                    HTML::TemporaryExecutionContext execution_context { Bindings::host_defined_environment_settings_object(realm), HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
+                    WebIDL::resolve_promise(realm, promise);
+                },
+                [&realm, promise](auto error) {
+                    HTML::TemporaryExecutionContext execution_context { Bindings::host_defined_environment_settings_object(realm), HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
+                    WebIDL::reject_promise(realm, promise, error);
+                });
+        }));
+    });
+
+    // 2. Return promise. Complete the rest of these steps asynchronously.
+    return JS::NonnullGCPtr { verify_cast<JS::Promise>(*promise->promise()) };
 }
 
 // https://drafts.csswg.org/css-font-loading/#font-face-set-ready
