@@ -459,10 +459,10 @@ JS_DEFINE_NATIVE_FUNCTION(PromiseConstructor::resolve)
     return TRY(promise_resolve(vm, constructor.as_object(), value));
 }
 
-// 1 Promise.try ( callbackfn, ...args ), https://tc39.es/proposal-promise-try/#sec-promise.try
+// 27.2.4.8 Promise.try ( callback, ...args ), https://tc39.es/ecma262/#sec-promise.try
 JS_DEFINE_NATIVE_FUNCTION(PromiseConstructor::try_)
 {
-    auto callbackfn = vm.argument(0);
+    auto callback = vm.argument(0);
     Span<Value> args;
     if (vm.argument_count() > 1) {
         args = vm.running_execution_context().arguments.span().slice(1, vm.argument_count() - 1);
@@ -478,8 +478,8 @@ JS_DEFINE_NATIVE_FUNCTION(PromiseConstructor::try_)
     // 3. Let promiseCapability be ? NewPromiseCapability(C).
     auto promise_capability = TRY(new_promise_capability(vm, constructor));
 
-    // 4. Let status be Completion(Call(callbackfn, undefined, args)).
-    auto status = JS::call(vm, callbackfn, js_undefined(), args);
+    // 4. Let status be Completion(Call(callback, undefined, args)).
+    auto status = JS::call(vm, callback, js_undefined(), args);
 
     // 5. If status is an abrupt completion, then
     if (status.is_throw_completion()) {
@@ -496,7 +496,7 @@ JS_DEFINE_NATIVE_FUNCTION(PromiseConstructor::try_)
     return promise_capability->promise();
 }
 
-// 27.2.4.8 Promise.withResolvers ( ), https://tc39.es/ecma262/#sec-promise.withResolvers
+// 27.2.4.9 Promise.withResolvers ( ), https://tc39.es/ecma262/#sec-promise.withResolvers
 JS_DEFINE_NATIVE_FUNCTION(PromiseConstructor::with_resolvers)
 {
     auto& realm = *vm.current_realm();
@@ -523,7 +523,7 @@ JS_DEFINE_NATIVE_FUNCTION(PromiseConstructor::with_resolvers)
     return object;
 }
 
-// 27.2.4.9 get Promise [ @@species ], https://tc39.es/ecma262/#sec-get-promise-@@species
+// 27.2.4.10 get Promise [ @@species ], https://tc39.es/ecma262/#sec-get-promise-@@species
 JS_DEFINE_NATIVE_FUNCTION(PromiseConstructor::symbol_species_getter)
 {
     // 1. Return the this value.
