@@ -175,7 +175,10 @@ Optional<JS::Value> Storage::item_value(size_t index) const
 {
     // Handle index as a string since that's our key type
     auto key = String::number(index);
-    return named_item_value(key);
+    auto value = get_item(key);
+    if (!value.has_value())
+        return {};
+    return JS::PrimitiveString::create(vm(), value.release_value());
 }
 
 JS::Value Storage::named_item_value(FlyString const& name) const
