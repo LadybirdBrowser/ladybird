@@ -1967,10 +1967,18 @@ Messages::WebDriverClient::AddCookieResponse WebDriverConnection::add_cookie(Jso
     // 4. Handle any user prompts, and return its value if it is an error.
     TRY(handle_any_user_prompts());
 
-    // FIXME: 5. If the current browsing context’s document element is a cookie-averse Document object, return error with error code invalid cookie domain.
+    auto* document = current_browsing_context().active_document();
 
-    // 6. If cookie name or cookie value is null, cookie domain is not equal to the current browsing context’s active document’s domain, cookie secure only or cookie HTTP only are not boolean types, or cookie expiry time is not an integer type, or it less than 0 or greater than the maximum safe integer, return error with error code invalid argument.
-    // NOTE: This validation is either performed in subsequent steps, or is performed by the CookieJar (namely domain matching).
+    // 5. If the current browsing context’s document element is a cookie-averse Document object, return error with
+    //    error code invalid cookie domain.
+    if (document->is_cookie_averse())
+        return Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::InvalidCookieDomain, "Document is cookie-averse"sv);
+
+    // 6. If cookie name or cookie value is null, cookie domain is not equal to the current browsing context’s active
+    //    document’s domain, cookie secure only or cookie HTTP only are not boolean types, or cookie expiry time is not
+    //    an integer type, or it less than 0 or greater than the maximum safe integer, return error with error code
+    //    invalid argument.
+    // NOTE: This validation is either performed in subsequent steps.
 
     // 7. Create a cookie in the cookie store associated with the active document’s address using cookie name name, cookie value value, and an attribute-value list of the following cookie concepts listed in the table for cookie conversion from data:
     Web::Cookie::ParsedCookie cookie {};
@@ -1987,8 +1995,14 @@ Messages::WebDriverClient::AddCookieResponse WebDriverConnection::add_cookie(Jso
     // Cookie domain
     //     The value if the entry exists, otherwise the current browsing context’s active document’s URL domain.
     // NOTE: The otherwise case is handled by the CookieJar
-    if (data.has("domain"sv))
+    if (data.has("domain"sv)) {
         cookie.domain = MUST(String::from_byte_string(TRY(Web::WebDriver::get_property(data, "domain"sv))));
+
+        // FIXME: Spec issue: We must return InvalidCookieDomain for invalid domains, rather than InvalidArgument.
+        // https://github.com/w3c/webdriver/issues/1570
+        if (!Web::Cookie::domain_matches(*cookie.domain, document->domain()))
+            return Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::InvalidCookieDomain, "Cookie domain does not match document domain"sv);
+    }
 
     // Cookie secure only
     //     The value if the entry exists, otherwise false.
@@ -2003,8 +2017,7 @@ Messages::WebDriverClient::AddCookieResponse WebDriverConnection::add_cookie(Jso
     // Cookie expiry time
     //     The value if the entry exists, otherwise leave unset to indicate that this is a session cookie.
     if (data.has("expiry"sv)) {
-        // NOTE: less than 0 or greater than safe integer are handled by the JSON parser
-        auto expiry = TRY(Web::WebDriver::get_property<u32>(data, "expiry"sv));
+        auto expiry = TRY(Web::WebDriver::get_property<i64>(data, "expiry"sv));
         cookie.expiry_time_from_expires_attribute = UnixDateTime::from_seconds_since_epoch(expiry);
     }
 
@@ -2013,9 +2026,11 @@ Messages::WebDriverClient::AddCookieResponse WebDriverConnection::add_cookie(Jso
     if (data.has("sameSite"sv)) {
         auto same_site = TRY(Web::WebDriver::get_property(data, "sameSite"sv));
         cookie.same_site_attribute = Web::Cookie::same_site_from_string(same_site);
+
+        if (cookie.same_site_attribute == Web::Cookie::SameSite::Default)
+            return Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::InvalidArgument, "Invalid same-site attribute"sv);
     }
 
-    auto* document = current_browsing_context().active_document();
     current_browsing_context().page().client().page_did_set_cookie(document->url(), cookie, Web::Cookie::Source::Http);
 
     // If there is an error during this step, return error with error code unable to set cookie.
