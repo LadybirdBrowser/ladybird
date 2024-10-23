@@ -291,14 +291,18 @@ public:
     ARIA_IMPL(aria_active_descendant, "aria-activedescendant"_fly_string);
     ARIA_IMPL(aria_atomic, "aria-atomic"_fly_string);
     ARIA_IMPL(aria_auto_complete, "aria-autocomplete"_fly_string);
+    ARIA_IMPL(aria_braille_label, "aria-braillelabel"_fly_string);
+    ARIA_IMPL(aria_braille_role_description, "aria-brailleroledescription"_fly_string);
     ARIA_IMPL(aria_busy, "aria-busy"_fly_string);
     ARIA_IMPL(aria_checked, "aria-checked"_fly_string);
     ARIA_IMPL(aria_col_count, "aria-colcount"_fly_string);
     ARIA_IMPL(aria_col_index, "aria-colindex"_fly_string);
+    ARIA_IMPL(aria_col_index_text, "aria-colindextext"_fly_string);
     ARIA_IMPL(aria_col_span, "aria-colspan"_fly_string);
     ARIA_IMPL(aria_controls, "aria-controls"_fly_string);
     ARIA_IMPL(aria_current, "aria-current"_fly_string);
     ARIA_IMPL(aria_described_by, "aria-describedby"_fly_string);
+    ARIA_IMPL(aria_description, "aria-description"_fly_string);
     ARIA_IMPL(aria_details, "aria-details"_fly_string);
     ARIA_IMPL(aria_drop_effect, "aria-dropeffect"_fly_string);
     ARIA_IMPL(aria_error_message, "aria-errormessage"_fly_string);
@@ -328,6 +332,7 @@ public:
     ARIA_IMPL(aria_role_description, "aria-roledescription"_fly_string);
     ARIA_IMPL(aria_row_count, "aria-rowcount"_fly_string);
     ARIA_IMPL(aria_row_index, "aria-rowindex"_fly_string);
+    ARIA_IMPL(aria_row_index_text, "aria-rowindextext"_fly_string);
     ARIA_IMPL(aria_row_span, "aria-rowspan"_fly_string);
     ARIA_IMPL(aria_selected, "aria-selected"_fly_string);
     ARIA_IMPL(aria_set_size, "aria-setsize"_fly_string);

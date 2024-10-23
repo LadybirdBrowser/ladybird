@@ -37,6 +37,10 @@ ErrorOr<String> state_or_property_to_string_value(StateAndProperties state_or_pr
         }
         VERIFY_NOT_REACHED();
     }
+    case StateAndProperties::AriaBrailleLabel:
+        return aria_data.aria_braille_label_or_default();
+    case StateAndProperties::AriaBrailleRoleDescription:
+        return aria_data.aria_braille_role_description_or_default();
     case StateAndProperties::AriaBusy:
         return String::from_utf8(aria_data.aria_busy_or_default() ? "true"sv : "false"sv);
     case StateAndProperties::AriaChecked:
@@ -45,6 +49,8 @@ ErrorOr<String> state_or_property_to_string_value(StateAndProperties state_or_pr
         return ARIA::optional_integer_to_string(aria_data.aria_col_count_or_default());
     case StateAndProperties::AriaColIndex:
         return ARIA::optional_integer_to_string(aria_data.aria_col_index_or_default());
+    case StateAndProperties::AriaColIndexText:
+        return aria_data.aria_col_index_text_or_default();
     case StateAndProperties::AriaColSpan:
         return ARIA::optional_integer_to_string(aria_data.aria_col_span_or_default());
     case StateAndProperties::AriaControls:
@@ -71,6 +77,8 @@ ErrorOr<String> state_or_property_to_string_value(StateAndProperties state_or_pr
     }
     case StateAndProperties::AriaDescribedBy:
         return id_reference_list_to_string(aria_data.aria_described_by_or_default());
+    case StateAndProperties::AriaDescription:
+        return aria_data.aria_description_or_default();
     case StateAndProperties::AriaDetails: {
         return aria_data.aria_details_or_default().value_or(String {});
     }
@@ -252,6 +260,8 @@ ErrorOr<String> state_or_property_to_string_value(StateAndProperties state_or_pr
         return ARIA::optional_integer_to_string(aria_data.aria_row_count_or_default());
     case StateAndProperties::AriaRowIndex:
         return ARIA::optional_integer_to_string(aria_data.aria_row_index_or_default());
+    case StateAndProperties::AriaRowIndexText:
+        return aria_data.aria_row_index_text_or_default();
     case StateAndProperties::AriaRowSpan:
         return ARIA::optional_integer_to_string(aria_data.aria_row_span_or_default());
     case StateAndProperties::AriaSelected:
@@ -351,6 +361,10 @@ StringView state_or_property_to_string(StateAndProperties value)
         return "aria-atomic"sv;
     case StateAndProperties::AriaAutoComplete:
         return "aria-autocomplete"sv;
+    case StateAndProperties::AriaBrailleLabel:
+        return "aria-braillelabel"sv;
+    case StateAndProperties::AriaBrailleRoleDescription:
+        return "aria-brailleroledescription"sv;
     case StateAndProperties::AriaBusy:
         return "aria-busy"sv;
     case StateAndProperties::AriaChecked:
@@ -359,6 +373,8 @@ StringView state_or_property_to_string(StateAndProperties value)
         return "aria-colcount"sv;
     case StateAndProperties::AriaColIndex:
         return "aria-colindex"sv;
+    case StateAndProperties::AriaColIndexText:
+        return "aria-colindextext"sv;
     case StateAndProperties::AriaColSpan:
         return "aria-colspan"sv;
     case StateAndProperties::AriaControls:
@@ -367,6 +383,8 @@ StringView state_or_property_to_string(StateAndProperties value)
         return "aria-current"sv;
     case StateAndProperties::AriaDescribedBy:
         return "aria-describedby"sv;
+    case StateAndProperties::AriaDescription:
+        return "aria-description"sv;
     case StateAndProperties::AriaDetails:
         return "aria-details"sv;
     case StateAndProperties::AriaDisabled:
@@ -425,6 +443,8 @@ StringView state_or_property_to_string(StateAndProperties value)
         return "aria-rowcount"sv;
     case StateAndProperties::AriaRowIndex:
         return "aria-rowindex"sv;
+    case StateAndProperties::AriaRowIndexText:
+        return "aria-rowindextext"sv;
     case StateAndProperties::AriaRowSpan:
         return "aria-rowspan"sv;
     case StateAndProperties::AriaSelected:

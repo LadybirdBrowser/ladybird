@@ -42,10 +42,13 @@ Optional<Role> ARIAMixin::role_or_default() const
 bool ARIAMixin::has_global_aria_attribute() const
 {
     return aria_atomic().has_value()
+        || aria_braille_label().has_value()
+        || aria_braille_role_description().has_value()
         || aria_busy().has_value()
         || aria_controls().has_value()
         || aria_current().has_value()
         || aria_described_by().has_value()
+        || aria_description().has_value()
         || aria_details().has_value()
         || aria_disabled().has_value()
         || aria_drop_effect().has_value()

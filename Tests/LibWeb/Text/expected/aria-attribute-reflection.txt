@@ -15,19 +15,15 @@ Testing: aria-autocomplete attribute reflects.
     ✅ PASS: null is equal to null as expected.
     ✅ PASS: null is equal to null as expected.
 Testing: aria-braillelabel attribute reflects.
-    ❌ FAIL: undefined is not equal to x.
-    ❌ FAIL: x is not equal to y.
+    ✅ PASS: x is equal to x as expected.
+    ✅ PASS: y is equal to y as expected.
     ✅ PASS: null is equal to null as expected.
-    ❌ FAIL: Expected false but got true.
-    ✅ PASS: undefined is equal to null as expected.
-    ❌ FAIL: Expected false but got true.
+    ✅ PASS: null is equal to null as expected.
 Testing: aria-brailleroledescription attribute reflects.
-    ❌ FAIL: undefined is not equal to x.
-    ❌ FAIL: x is not equal to y.
+    ✅ PASS: x is equal to x as expected.
+    ✅ PASS: y is equal to y as expected.
     ✅ PASS: null is equal to null as expected.
-    ❌ FAIL: Expected false but got true.
-    ✅ PASS: undefined is equal to null as expected.
-    ❌ FAIL: Expected false but got true.
+    ✅ PASS: null is equal to null as expected.
 Testing: aria-busy attribute reflects.
     ✅ PASS: true is equal to true as expected.
     ✅ PASS: false is equal to false as expected.
@@ -49,12 +45,10 @@ Testing: aria-colindex attribute reflects.
     ✅ PASS: null is equal to null as expected.
     ✅ PASS: null is equal to null as expected.
 Testing: aria-colindextext attribute reflects.
-    ❌ FAIL: undefined is not equal to x.
-    ❌ FAIL: x is not equal to y.
+    ✅ PASS: x is equal to x as expected.
+    ✅ PASS: y is equal to y as expected.
     ✅ PASS: null is equal to null as expected.
-    ❌ FAIL: Expected false but got true.
-    ✅ PASS: undefined is equal to null as expected.
-    ❌ FAIL: Expected false but got true.
+    ✅ PASS: null is equal to null as expected.
 Testing: aria-colspan attribute reflects.
     ✅ PASS: 2 is equal to 2 as expected.
     ✅ PASS: 3 is equal to 3 as expected.
@@ -66,12 +60,10 @@ Testing: aria-current attribute reflects.
     ✅ PASS: null is equal to null as expected.
     ✅ PASS: null is equal to null as expected.
 Testing: aria-description attribute reflects.
-    ❌ FAIL: undefined is not equal to cold as ice.
-    ❌ FAIL: cold as ice is not equal to hot as fire.
+    ✅ PASS: cold as ice is equal to cold as ice as expected.
+    ✅ PASS: hot as fire is equal to hot as fire as expected.
     ✅ PASS: null is equal to null as expected.
-    ❌ FAIL: Expected false but got true.
-    ✅ PASS: undefined is equal to null as expected.
-    ❌ FAIL: Expected false but got true.
+    ✅ PASS: null is equal to null as expected.
 Testing: aria-disabled attribute reflects.
     ✅ PASS: true is equal to true as expected.
     ✅ PASS: false is equal to false as expected.
@@ -183,12 +175,10 @@ Testing: aria-rowindex attribute reflects.
     ✅ PASS: null is equal to null as expected.
     ✅ PASS: null is equal to null as expected.
 Testing: aria-rowindextext attribute reflects.
-    ❌ FAIL: undefined is not equal to x.
-    ❌ FAIL: x is not equal to y.
+    ✅ PASS: x is equal to x as expected.
+    ✅ PASS: y is equal to y as expected.
     ✅ PASS: null is equal to null as expected.
-    ❌ FAIL: Expected false but got true.
-    ✅ PASS: undefined is equal to null as expected.
-    ❌ FAIL: Expected false but got true.
+    ✅ PASS: null is equal to null as expected.
 Testing: aria-rowspan attribute reflects.
     ✅ PASS: 2 is equal to 2 as expected.
     ✅ PASS: 3 is equal to 3 as expected.
