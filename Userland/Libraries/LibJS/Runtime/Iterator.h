@@ -1,7 +1,7 @@
 /*
  * Copyright (c) 2020, Matthew Olsson <mattco@serenityos.org>
  * Copyright (c) 2022-2023, Linus Groh <linusg@serenityos.org>
- * Copyright (c) 2023, Tim Flynn <trflynn89@serenityos.org>
+ * Copyright (c) 2023-2024, Tim Flynn <trflynn89@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -65,20 +65,20 @@ enum class IteratorHint {
     Async,
 };
 
-enum class StringHandling {
-    IterateStrings,
-    RejectStrings,
+enum class PrimitiveHandling {
+    IterateStringPrimitives,
+    RejectPrimitives,
 };
 
+ThrowCompletionOr<NonnullGCPtr<IteratorRecord>> get_iterator_direct(VM&, Object&);
 ThrowCompletionOr<NonnullGCPtr<IteratorRecord>> get_iterator_from_method(VM&, Value, NonnullGCPtr<FunctionObject>);
 ThrowCompletionOr<NonnullGCPtr<IteratorRecord>> get_iterator(VM&, Value, IteratorHint);
-ThrowCompletionOr<NonnullGCPtr<IteratorRecord>> get_iterator_direct(VM&, Object&);
-ThrowCompletionOr<NonnullGCPtr<IteratorRecord>> get_iterator_flattenable(VM&, Value, StringHandling);
+ThrowCompletionOr<NonnullGCPtr<IteratorRecord>> get_iterator_flattenable(VM&, Value, PrimitiveHandling);
 ThrowCompletionOr<NonnullGCPtr<Object>> iterator_next(VM&, IteratorRecord&, Optional<Value> = {});
-ThrowCompletionOr<GCPtr<Object>> iterator_step(VM&, IteratorRecord&);
-ThrowCompletionOr<Optional<Value>> iterator_step_value(VM&, IteratorRecord&);
 ThrowCompletionOr<bool> iterator_complete(VM&, Object& iterator_result);
 ThrowCompletionOr<Value> iterator_value(VM&, Object& iterator_result);
+ThrowCompletionOr<GCPtr<Object>> iterator_step(VM&, IteratorRecord&);
+ThrowCompletionOr<Optional<Value>> iterator_step_value(VM&, IteratorRecord&);
 Completion iterator_close(VM&, IteratorRecord const&, Completion);
 Completion async_iterator_close(VM&, IteratorRecord const&, Completion);
 NonnullGCPtr<Object> create_iterator_result_object(VM&, Value, bool done);
