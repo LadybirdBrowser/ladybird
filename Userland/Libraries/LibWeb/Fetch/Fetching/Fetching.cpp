@@ -2207,7 +2207,7 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<PendingResponse>> nonstandard_resource_load
         // 13. Set up stream with byte reading support with pullAlgorithm set to pullAlgorithm, cancelAlgorithm set to cancelAlgorithm.
         Streams::set_up_readable_stream_controller_with_byte_reading_support(stream, pull_algorithm, cancel_algorithm);
 
-        auto on_headers_received = [&vm, request, pending_response, stream](auto const& response_headers, Optional<u32> status_code) {
+        auto on_headers_received = [&vm, request, pending_response, stream](auto const& response_headers, Optional<u32> status_code, Optional<String> const& reason_phrase) {
             if (pending_response->is_resolved()) {
                 // RequestServer will send us the response headers twice, the second time being for HTTP trailers. This
                 // fetch algorithm is not interested in trailers, so just drop them here.
@@ -2216,7 +2216,9 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<PendingResponse>> nonstandard_resource_load
 
             auto response = Infrastructure::Response::create(vm);
             response->set_status(status_code.value_or(200));
-            // FIXME: Set response status message
+
+            if (reason_phrase.has_value())
+                response->set_status_message(MUST(ByteBuffer::copy(reason_phrase.value().bytes())));
 
             if constexpr (WEB_FETCH_DEBUG) {
                 dbgln("Fetch: ResourceLoader load for '{}' {}: (status {})",
@@ -2283,7 +2285,7 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<PendingResponse>> nonstandard_resource_load
 
         ResourceLoader::the().load_unbuffered(load_request, move(on_headers_received), move(on_data_received), move(on_complete));
     } else {
-        auto on_load_success = [&realm, &vm, request, pending_response](auto data, auto& response_headers, auto status_code) {
+        auto on_load_success = [&realm, &vm, request, pending_response](auto data, auto& response_headers, auto status_code, auto reason_phrase) {
             dbgln_if(WEB_FETCH_DEBUG, "Fetch: ResourceLoader load for '{}' complete", request->url());
             if constexpr (WEB_FETCH_DEBUG)
                 log_response(status_code, response_headers, data);
@@ -2295,11 +2297,14 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<PendingResponse>> nonstandard_resource_load
                 auto header = Infrastructure::Header::from_string_pair(name, value);
                 response->header_list()->append(move(header));
             }
-            // FIXME: Set response status message
+
+            if (reason_phrase.has_value())
+                response->set_status_message(MUST(ByteBuffer::copy(reason_phrase.value().bytes())));
+
             pending_response->resolve(response);
         };
 
-        auto on_load_error = [&realm, &vm, request, pending_response](auto& error, auto status_code, auto data, auto& response_headers) {
+        auto on_load_error = [&realm, &vm, request, pending_response](auto& error, auto status_code, auto reason_phrase, auto data, auto& response_headers) {
             dbgln_if(WEB_FETCH_DEBUG, "Fetch: ResourceLoader load for '{}' failed: {} (status {})", request->url(), error, status_code.value_or(0));
             if constexpr (WEB_FETCH_DEBUG)
                 log_response(status_code, response_headers, data);
@@ -2316,7 +2321,9 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<PendingResponse>> nonstandard_resource_load
                     auto header = Infrastructure::Header::from_string_pair(name, value);
                     response->header_list()->append(move(header));
                 }
-                // FIXME: Set response status message
+
+                if (reason_phrase.has_value())
+                    response->set_status_message(MUST(ByteBuffer::copy(reason_phrase.value().bytes())));
             }
             pending_response->resolve(response);
         };
