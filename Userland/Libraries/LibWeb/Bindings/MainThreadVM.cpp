@@ -150,31 +150,33 @@ ErrorOr<void> initialize_main_thread_vm(HTML::EventLoop::Type type)
         // 4. If script is not null, then set settings object to script's settings object.
         auto& settings_object = script ? script->settings_object() : HTML::current_settings_object();
 
+        // 5. Let global be settingsObject's global object.
+        auto* global_mixin = dynamic_cast<HTML::WindowOrWorkerGlobalScopeMixin*>(&settings_object.global_object());
+        VERIFY(global_mixin);
+        auto& global = global_mixin->this_impl();
+
         switch (operation) {
+        // 6. If operation is "reject",
         case JS::Promise::RejectionOperation::Reject:
-            // 4. If operation is "reject",
-            //    1. Add promise to settings object's about-to-be-notified rejected promises list.
-            settings_object.push_onto_about_to_be_notified_rejected_promises_list(promise);
+            // 1. Append promise to global's about-to-be-notified rejected promises list.
+            global_mixin->push_onto_about_to_be_notified_rejected_promises_list(promise);
             break;
+        // 7. If operation is "handle",
         case JS::Promise::RejectionOperation::Handle: {
-            // 5. If operation is "handle",
-            //    1. If settings object's about-to-be-notified rejected promises list contains promise, then remove promise from that list and return.
-            bool removed_about_to_be_notified_rejected_promise = settings_object.remove_from_about_to_be_notified_rejected_promises_list(promise);
+            // 1. If global's about-to-be-notified rejected promises list contains promise, then remove promise from that list and return.
+            bool removed_about_to_be_notified_rejected_promise = global_mixin->remove_from_about_to_be_notified_rejected_promises_list(promise);
             if (removed_about_to_be_notified_rejected_promise)
                 return;
 
-            // 3. Remove promise from settings object's outstanding rejected promises weak set.
-            bool removed_outstanding_rejected_promise = settings_object.remove_from_outstanding_rejected_promises_weak_set(&promise);
+            // 3. Remove promise from global's outstanding rejected promises weak set.
+            bool removed_outstanding_rejected_promise = global_mixin->remove_from_outstanding_rejected_promises_weak_set(&promise);
 
-            // 2. If settings object's outstanding rejected promises weak set does not contain promise, then return.
+            // 2. If global's outstanding rejected promises weak set does not contain promise, then return.
             // NOTE: This is done out of order because removed_outstanding_rejected_promise will be false if the promise wasn't in the set or true if it was and got removed.
             if (!removed_outstanding_rejected_promise)
                 return;
 
-            // 4. Let global be settings object's global object.
-            auto& global = settings_object.global_object();
-
-            // 5. Queue a global task on the DOM manipulation task source given global to fire an event named rejectionhandled at global, using PromiseRejectionEvent,
+            // 4. Queue a global task on the DOM manipulation task source given global to fire an event named rejectionhandled at global, using PromiseRejectionEvent,
             //    with the promise attribute initialized to promise, and the reason attribute initialized to the value of promise's [[PromiseResult]] internal slot.
             HTML::queue_global_task(HTML::Task::Source::DOMManipulation, global, JS::create_heap_function(s_main_thread_vm->heap(), [&global, &promise] {
                 // FIXME: This currently assumes that global is a WindowObject.

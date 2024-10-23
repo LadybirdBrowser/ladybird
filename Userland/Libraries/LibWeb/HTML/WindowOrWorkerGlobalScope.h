@@ -80,6 +80,18 @@ public:
 
     [[nodiscard]] JS::NonnullGCPtr<Crypto::Crypto> crypto();
 
+    void push_onto_outstanding_rejected_promises_weak_set(JS::Promise*);
+
+    // Returns true if removed, false otherwise.
+    bool remove_from_outstanding_rejected_promises_weak_set(JS::Promise*);
+
+    void push_onto_about_to_be_notified_rejected_promises_list(JS::NonnullGCPtr<JS::Promise>);
+
+    // Returns true if removed, false otherwise.
+    bool remove_from_about_to_be_notified_rejected_promises_list(JS::NonnullGCPtr<JS::Promise>);
+
+    void notify_about_rejected_promises(Badge<EventLoop>);
+
 protected:
     void initialize(JS::Realm&);
     void visit_edges(JS::Cell::Visitor&);
@@ -122,6 +134,13 @@ private:
     JS::GCPtr<Crypto::Crypto> m_crypto;
 
     bool m_error_reporting_mode { false };
+
+    // https://html.spec.whatwg.org/multipage/webappapis.html#about-to-be-notified-rejected-promises-list
+    Vector<JS::Handle<JS::Promise>> m_about_to_be_notified_rejected_promises_list;
+
+    // https://html.spec.whatwg.org/multipage/webappapis.html#outstanding-rejected-promises-weak-set
+    // The outstanding rejected promises weak set must not create strong references to any of its members, and implementations are free to limit its size, e.g. by removing old entries from it when new ones are added.
+    Vector<JS::GCPtr<JS::Promise>> m_outstanding_rejected_promises_weak_set;
 };
 
 }
