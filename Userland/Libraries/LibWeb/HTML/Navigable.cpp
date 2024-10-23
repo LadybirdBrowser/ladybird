@@ -1070,9 +1070,8 @@ WebIDL::ExceptionOr<void> Navigable::populate_session_history_entry_document(
     // FIXME: 1. Assert: this is running in parallel.
 
     // 2. Assert: if navigationParams is non-null, then navigationParams's response is non-null.
-    // NavigationParams' response field is NonnullGCPtr
     if (!navigation_params.has<Empty>() && !navigation_params.has<NullWithError>())
-        VERIFY(navigation_params.has<JS::NonnullGCPtr<NavigationParams>>());
+        VERIFY(navigation_params.has<JS::NonnullGCPtr<NavigationParams>>() && navigation_params.get<JS::NonnullGCPtr<NavigationParams>>()->response);
 
     // 3. Let currentBrowsingContext be navigable's active browsing context.
     [[maybe_unused]] auto current_browsing_context = active_browsing_context();
@@ -1202,9 +1201,12 @@ WebIDL::ExceptionOr<void> Navigable::populate_session_history_entry_document(
 
             // 3. If entry's document state's request referrer is "client", and navigationParams is a navigation params (i.e., neither null nor a non-fetch scheme navigation params), then:
             if (entry->document_state()->request_referrer() == Fetch::Infrastructure::Request::Referrer::Client
-                && (!navigation_params.has<Empty>() && !navigation_params.has<NullWithError>() && Fetch::Infrastructure::is_fetch_scheme(entry->url().scheme()))) {
-                // FIXME: 1. Assert: navigationParams's request is not null.
-                // FIXME: 2. Set entry's document state's request referrer to navigationParams's request's referrer.
+                && (!navigation_params.has<Empty>() && !navigation_params.has<NullWithError>() && navigation_params.has<JS::NonnullGCPtr<NonFetchSchemeNavigationParams>>())) {
+                // 1. Assert: navigationParams's request is not null.
+                VERIFY(navigation_params.has<JS::NonnullGCPtr<NavigationParams>>() && navigation_params.get<JS::NonnullGCPtr<NavigationParams>>()->request);
+
+                // 2. Set entry's document state's request referrer to navigationParams's request's referrer.
+                entry->document_state()->set_request_referrer(navigation_params.get<JS::NonnullGCPtr<NavigationParams>>()->request->referrer());
             }
         }
 
