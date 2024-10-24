@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022, Andreas Kling <andreas@ladybird.org>
+ * Copyright (c) 2018-2024, Andreas Kling <andreas@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -21,10 +21,12 @@
 #include <LibWeb/HTML/Focus.h>
 #include <LibWeb/HTML/HTMLAnchorElement.h>
 #include <LibWeb/HTML/HTMLAreaElement.h>
+#include <LibWeb/HTML/HTMLBRElement.h>
 #include <LibWeb/HTML/HTMLBaseElement.h>
 #include <LibWeb/HTML/HTMLBodyElement.h>
 #include <LibWeb/HTML/HTMLElement.h>
 #include <LibWeb/HTML/HTMLLabelElement.h>
+#include <LibWeb/HTML/HTMLParagraphElement.h>
 #include <LibWeb/HTML/NavigableContainer.h>
 #include <LibWeb/HTML/VisibilityState.h>
 #include <LibWeb/HTML/Window.h>
@@ -209,30 +211,151 @@ void HTMLElement::append_rendered_text_fragment(StringView input)
     }
 }
 
+struct RequiredLineBreakCount {
+    int count { 0 };
+};
+
+// https://html.spec.whatwg.org/multipage/dom.html#rendered-text-collection-steps
+static Vector<Variant<String, RequiredLineBreakCount>> rendered_text_collection_steps(DOM::Node const& node)
+{
+    // 1. Let items be the result of running the rendered text collection steps with each child node of node in tree order, and then concatenating the results to a single list.
+    Vector<Variant<String, RequiredLineBreakCount>> items;
+    node.for_each_child([&](auto const& child) {
+        auto child_items = rendered_text_collection_steps(child);
+        items.extend(move(child_items));
+        return IterationDecision::Continue;
+    });
+
+    // NOTE: Steps are re-ordered here a bit.
+
+    // 3. If node is not being rendered, then return items.
+    //    For the purpose of this step, the following elements must act as described
+    //    if the computed value of the 'display' property is not 'none':
+    //    FIXME: - select elements have an associated non-replaced inline CSS box whose child boxes include only those of optgroup and option element child nodes;
+    //    FIXME: - optgroup elements have an associated non-replaced block-level CSS box whose child boxes include only those of option element child nodes; and
+    //    FIXME: - option element have an associated non-replaced block-level CSS box whose child boxes are as normal for non-replaced block-level CSS boxes.
+    auto* layout_node = node.layout_node();
+    if (!layout_node)
+        return items;
+
+    auto const& computed_values = layout_node->computed_values();
+
+    // 2. If node's computed value of 'visibility' is not 'visible', then return items.
+    if (computed_values.visibility() != CSS::Visibility::Visible)
+        return items;
+
+    // AD-HOC: If node's computed value of 'content-visibility' is 'hidden', then return items.
+    if (computed_values.content_visibility() == CSS::ContentVisibility::Hidden)
+        return items;
+
+    // 4. If node is a Text node, then for each CSS text box produced by node, in content order,
+    //    compute the text of the box after application of the CSS 'white-space' processing rules
+    //    and 'text-transform' rules, set items to the list of the resulting strings, and return items.
+
+    //    FIXME: The CSS 'white-space' processing rules are slightly modified:
+    //           collapsible spaces at the end of lines are always collapsed,
+    //           but they are only removed if the line is the last line of the block,
+    //           or it ends with a br element. Soft hyphens should be preserved. [CSSTEXT]
+
+    if (is<DOM::Text>(node)) {
+        auto const* layout_text_node = verify_cast<Layout::TextNode>(layout_node);
+        items.append(layout_text_node->text_for_rendering());
+        return items;
+    }
+
+    // 5. If node is a br element, then append a string containing a single U+000A LF code point to items.
+    if (is<HTML::HTMLBRElement>(node)) {
+        items.append("\n"_string);
+        return items;
+    }
+
+    auto display = computed_values.display();
+
+    // 6. If node's computed value of 'display' is 'table-cell', and node's CSS box is not the last 'table-cell' box of its enclosing 'table-row' box, then append a string containing a single U+0009 TAB code point to items.
+    if (display.is_table_cell() && node.next_sibling())
+        items.append("\t"_string);
+
+    // 7. If node's computed value of 'display' is 'table-row', and node's CSS box is not the last 'table-row' box of the nearest ancestor 'table' box, then append a string containing a single U+000A LF code point to items.
+    if (display.is_table_row() && node.next_sibling())
+        items.append("\n"_string);
+
+    // 8. If node is a p element, then append 2 (a required line break count) at the beginning and end of items.
+    if (is<HTML::HTMLParagraphElement>(node)) {
+        items.prepend(RequiredLineBreakCount { 2 });
+        items.append(RequiredLineBreakCount { 2 });
+    }
+
+    // 9. If node's used value of 'display' is block-level or 'table-caption', then append 1 (a required line break count) at the beginning and end of items. [CSSDISPLAY]
+    if (display.is_block_outside() || display.is_table_caption()) {
+        items.prepend(RequiredLineBreakCount { 1 });
+        items.append(RequiredLineBreakCount { 1 });
+    }
+
+    // 10. Return items.
+    return items;
+}
+
 // https://html.spec.whatwg.org/multipage/dom.html#get-the-text-steps
 String HTMLElement::get_the_text_steps()
 {
-    // FIXME: Implement this according to spec.
-
-    StringBuilder builder;
-
-    // innerText for element being rendered takes visibility into account, so force a layout and then walk the layout tree.
+    // 1. If element is not being rendered or if the user agent is a non-CSS user agent, then return element's descendant text content.
     document().update_layout();
     if (!layout_node())
-        return text_content().value_or(String {});
+        return descendant_text_content();
 
-    Function<void(Layout::Node const&)> recurse = [&](auto& node) {
-        for (auto* child = node.first_child(); child; child = child->next_sibling()) {
-            if (is<Layout::TextNode>(child))
-                builder.append(verify_cast<Layout::TextNode>(*child).text_for_rendering());
-            if (is<Layout::BreakNode>(child))
-                builder.append('\n');
-            recurse(*child);
+    // 2. Let results be a new empty list.
+    Vector<Variant<String, RequiredLineBreakCount>> results;
+
+    // 3. For each child node node of element:
+    for_each_child([&](Node const& node) {
+        // 1. Let current be the list resulting in running the rendered text collection steps with node.
+        //    Each item in results will either be a string or a positive integer (a required line break count).
+        auto current = rendered_text_collection_steps(node);
+
+        // 2. For each item item in current, append item to results.
+        results.extend(move(current));
+        return IterationDecision::Continue;
+    });
+
+    // 4. Remove any items from results that are the empty string.
+    results.remove_all_matching([](auto& item) {
+        return item.visit(
+            [](String const& string) { return string.is_empty(); },
+            [](RequiredLineBreakCount const&) { return false; });
+    });
+
+    // 5. Remove any runs of consecutive required line break count items at the start or end of results.
+    while (!results.is_empty() && results.first().has<RequiredLineBreakCount>())
+        results.take_first();
+    while (!results.is_empty() && results.last().has<RequiredLineBreakCount>())
+        results.take_last();
+
+    // 6. Replace each remaining run of consecutive required line break count items
+    //    with a string consisting of as many U+000A LF code points as the maximum of the values
+    //    in the required line break count items.
+    for (size_t i = 0; i < results.size(); ++i) {
+        if (!results[i].has<RequiredLineBreakCount>())
+            continue;
+
+        int max_line_breaks = results[i].get<RequiredLineBreakCount>().count;
+        size_t j = i + 1;
+        while (j < results.size() && results[j].has<RequiredLineBreakCount>()) {
+            max_line_breaks = max(max_line_breaks, results[j].get<RequiredLineBreakCount>().count);
+            ++j;
         }
-    };
-    recurse(*layout_node());
 
-    return MUST(builder.to_string());
+        results.remove(i, j - i);
+        results.insert(i, MUST(String::repeated('\n', max_line_breaks)));
+    }
+
+    // 7. Return the concatenation of the string items in results.
+    StringBuilder builder;
+    for (auto& item : results) {
+        item.visit(
+            [&](String const& string) { builder.append(string); },
+            [&](RequiredLineBreakCount const&) {});
+    }
+    return builder.to_string_without_validation();
 }
 
 // https://html.spec.whatwg.org/multipage/dom.html#dom-innertext

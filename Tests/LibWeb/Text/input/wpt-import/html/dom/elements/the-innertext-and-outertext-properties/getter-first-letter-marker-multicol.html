@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<title>Test innerText/outerText for a combination of a list item with ::first-letter in multicol</title>
+<link rel="help" href="https://html.spec.whatwg.org/multipage/dom.html#dom-innertext">
+<link rel="help" href="https://crbug.com/1174985">
+<script src="../../../../resources/testharness.js"></script>
+<script src="../../../../resources/testharnessreport.js"></script>
+<style>
+  #item { display: list-item; }
+  #item::first-letter { background: lime; }
+  .col { column-count: 1; }
+</style>
+<div id="item" class="col"><div class="col">PASS</div></div>
+<script>
+  test(() => {
+    assert_equals(item.innerText, "PASS", "innerText");
+    assert_equals(item.outerText, "PASS", "outerText");
+  }, "");
+</script>
