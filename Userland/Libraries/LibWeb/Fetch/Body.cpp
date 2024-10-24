@@ -190,7 +190,7 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<WebIDL::Promise>> consume_body(JS::Realm& r
     // NOTE: `promise` and `realm` is protected by JS::HeapFunction.
     auto error_steps = JS::create_heap_function(realm.heap(), [promise, &realm](JS::Value error) {
         // AD-HOC: An execution context is required for Promise's reject function.
-        HTML::TemporaryExecutionContext execution_context { Bindings::host_defined_environment_settings_object(realm) };
+        HTML::TemporaryExecutionContext execution_context { realm };
         WebIDL::reject_promise(realm, promise, error);
     });
 
@@ -202,7 +202,7 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<WebIDL::Promise>> consume_body(JS::Realm& r
         auto& vm = realm.vm();
 
         // AD-HOC: An execution context is required for Promise's reject function and JSON.parse.
-        HTML::TemporaryExecutionContext execution_context { Bindings::host_defined_environment_settings_object(realm) };
+        HTML::TemporaryExecutionContext execution_context { realm };
 
         auto value_or_error = Bindings::throw_dom_exception_if_needed(vm, [&]() -> WebIDL::ExceptionOr<JS::Value> {
             return package_data(realm, data, type, object.mime_type_impl());

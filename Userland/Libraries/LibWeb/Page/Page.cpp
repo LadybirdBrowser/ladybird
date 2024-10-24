@@ -477,7 +477,7 @@ WebIDL::ExceptionOr<void> Page::toggle_media_play_state()
         return {};
 
     // AD-HOC: An execution context is required for Promise creation hooks.
-    HTML::TemporaryExecutionContext execution_context { media_element->document().relevant_settings_object() };
+    HTML::TemporaryExecutionContext execution_context { media_element->realm() };
 
     if (media_element->potentially_playing())
         TRY(media_element->pause());
@@ -494,7 +494,7 @@ void Page::toggle_media_mute_state()
         return;
 
     // AD-HOC: An execution context is required for Promise creation hooks.
-    HTML::TemporaryExecutionContext execution_context { media_element->document().relevant_settings_object() };
+    HTML::TemporaryExecutionContext execution_context { media_element->realm() };
 
     media_element->set_muted(!media_element->muted());
 }
@@ -506,7 +506,7 @@ WebIDL::ExceptionOr<void> Page::toggle_media_loop_state()
         return {};
 
     // AD-HOC: An execution context is required for Promise creation hooks.
-    HTML::TemporaryExecutionContext execution_context { media_element->document().relevant_settings_object() };
+    HTML::TemporaryExecutionContext execution_context { media_element->realm() };
 
     if (media_element->has_attribute(HTML::AttributeNames::loop))
         media_element->remove_attribute(HTML::AttributeNames::loop);
@@ -522,7 +522,7 @@ WebIDL::ExceptionOr<void> Page::toggle_media_controls_state()
     if (!media_element)
         return {};
 
-    HTML::TemporaryExecutionContext execution_context { media_element->document().relevant_settings_object() };
+    HTML::TemporaryExecutionContext execution_context { media_element->realm() };
 
     if (media_element->has_attribute(HTML::AttributeNames::controls))
         media_element->remove_attribute(HTML::AttributeNames::controls);

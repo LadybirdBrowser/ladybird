@@ -130,7 +130,7 @@ JS::NonnullGCPtr<FontFace> FontFace::construct_impl(JS::Realm& realm, String fam
 
         font->m_font_load_promise->when_resolved([font = JS::make_handle(font)](auto const& vector_font) -> ErrorOr<void> {
             HTML::queue_global_task(HTML::Task::Source::FontLoading, HTML::relevant_global_object(*font), JS::create_heap_function(font->heap(), [font = JS::NonnullGCPtr(*font), vector_font] {
-                HTML::TemporaryExecutionContext context(HTML::relevant_settings_object(*font), HTML::TemporaryExecutionContext::CallbacksEnabled::Yes);
+                HTML::TemporaryExecutionContext context(font->realm(), HTML::TemporaryExecutionContext::CallbacksEnabled::Yes);
                 // 1. If the load was successful, font face now represents the parsed font;
                 //    fulfill font face’s [[FontStatusPromise]] with font face, and set its status attribute to "loaded".
 
@@ -147,7 +147,7 @@ JS::NonnullGCPtr<FontFace> FontFace::construct_impl(JS::Realm& realm, String fam
         });
         font->m_font_load_promise->when_rejected([font = JS::make_handle(font)](auto const& error) {
             HTML::queue_global_task(HTML::Task::Source::FontLoading, HTML::relevant_global_object(*font), JS::create_heap_function(font->heap(), [font = JS::NonnullGCPtr(*font), error = Error::copy(error)] {
-                HTML::TemporaryExecutionContext context(HTML::relevant_settings_object(*font), HTML::TemporaryExecutionContext::CallbacksEnabled::Yes);
+                HTML::TemporaryExecutionContext context(font->realm(), HTML::TemporaryExecutionContext::CallbacksEnabled::Yes);
                 // 2. Otherwise, reject font face’s [[FontStatusPromise]] with a DOMException named "SyntaxError"
                 //    and set font face’s status attribute to "error".
                 font->m_status = Bindings::FontFaceLoadStatus::Error;
@@ -356,7 +356,7 @@ void FontFace::load_font_source()
         // 5. When the load operation completes, successfully or not, queue a task to run the following steps synchronously:
         auto on_error = [font] {
             HTML::queue_global_task(HTML::Task::Source::FontLoading, HTML::relevant_global_object(*font), JS::create_heap_function(font->heap(), [font = JS::NonnullGCPtr(*font)] {
-                HTML::TemporaryExecutionContext context(HTML::relevant_settings_object(*font), HTML::TemporaryExecutionContext::CallbacksEnabled::Yes);
+                HTML::TemporaryExecutionContext context(font->realm(), HTML::TemporaryExecutionContext::CallbacksEnabled::Yes);
 
                 //     1. If the attempt to load fails, reject font face’s [[FontStatusPromise]] with a DOMException whose name
                 //        is "NetworkError" and set font face’s status attribute to "error".
@@ -370,7 +370,7 @@ void FontFace::load_font_source()
         auto on_load = [font](FontLoader const& loader) {
             // FIXME: We are assuming that the font loader will live as long as the document! This is an unsafe capture
             HTML::queue_global_task(HTML::Task::Source::FontLoading, HTML::relevant_global_object(*font), JS::create_heap_function(font->heap(), [font = JS::NonnullGCPtr(*font), &loader] {
-                HTML::TemporaryExecutionContext context(HTML::relevant_settings_object(*font), HTML::TemporaryExecutionContext::CallbacksEnabled::Yes);
+                HTML::TemporaryExecutionContext context(font->realm(), HTML::TemporaryExecutionContext::CallbacksEnabled::Yes);
 
                 // 2. Otherwise, font face now represents the loaded font; fulfill font face’s [[FontStatusPromise]] with font face
                 //    and set font face’s status attribute to "loaded".

@@ -146,7 +146,7 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<WebIDL::Promise>> AudioContext::resume()
     if (!start_rendering_audio_graph()) {
         // 7.4: In case of failure, queue a media element task to execute the following steps:
         queue_a_media_element_task(JS::create_heap_function(heap(), [&realm, this]() {
-            HTML::TemporaryExecutionContext context(Bindings::host_defined_environment_settings_object(realm), HTML::TemporaryExecutionContext::CallbacksEnabled::Yes);
+            HTML::TemporaryExecutionContext context(realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes);
 
             // 7.4.1: Reject all promises from [[pending resume promises]] in order, then clear [[pending resume promises]].
             for (auto const& promise : m_pending_resume_promises) {
@@ -163,7 +163,7 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<WebIDL::Promise>> AudioContext::resume()
 
     // 7.5: queue a media element task to execute the following steps:
     queue_a_media_element_task(JS::create_heap_function(heap(), [&realm, promise, this]() {
-        HTML::TemporaryExecutionContext context(Bindings::host_defined_environment_settings_object(realm), HTML::TemporaryExecutionContext::CallbacksEnabled::Yes);
+        HTML::TemporaryExecutionContext context(realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes);
 
         // 7.5.1: Resolve all promises from [[pending resume promises]] in order.
         // 7.5.2: Clear [[pending resume promises]]. Additionally, remove those promises from
@@ -233,7 +233,7 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<WebIDL::Promise>> AudioContext::suspend()
 
     // 7.3: queue a media element task to execute the following steps:
     queue_a_media_element_task(JS::create_heap_function(heap(), [&realm, promise, this]() {
-        HTML::TemporaryExecutionContext context(Bindings::host_defined_environment_settings_object(realm), HTML::TemporaryExecutionContext::CallbacksEnabled::Yes);
+        HTML::TemporaryExecutionContext context(realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes);
 
         // 7.3.1: Resolve promise.
         WebIDL::resolve_promise(realm, promise, JS::js_undefined());
@@ -288,7 +288,7 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<WebIDL::Promise>> AudioContext::close()
 
     // 5.4: queue a media element task to execute the following steps:
     queue_a_media_element_task(JS::create_heap_function(heap(), [&realm, promise, this]() {
-        HTML::TemporaryExecutionContext context(Bindings::host_defined_environment_settings_object(realm), HTML::TemporaryExecutionContext::CallbacksEnabled::Yes);
+        HTML::TemporaryExecutionContext context(realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes);
 
         // 5.4.1: Resolve promise.
         WebIDL::resolve_promise(realm, promise, JS::js_undefined());

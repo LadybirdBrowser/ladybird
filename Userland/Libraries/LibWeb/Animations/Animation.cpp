@@ -424,7 +424,7 @@ void Animation::cancel(ShouldInvalidate should_invalidate)
 
     // 1. If animation’s play state is not idle, perform the following steps:
     if (play_state() != Bindings::AnimationPlayState::Idle) {
-        HTML::TemporaryExecutionContext execution_context { Bindings::host_defined_environment_settings_object(realm) };
+        HTML::TemporaryExecutionContext execution_context { realm };
 
         // 1. Run the procedure to reset an animation’s pending tasks on animation.
         reset_an_animations_pending_tasks();
@@ -537,7 +537,7 @@ WebIDL::ExceptionOr<void> Animation::finish()
     }
 
     if (should_resolve_ready_promise) {
-        HTML::TemporaryExecutionContext execution_context { Bindings::host_defined_environment_settings_object(realm()) };
+        HTML::TemporaryExecutionContext execution_context { realm() };
         WebIDL::resolve_promise(realm(), current_ready_promise(), this);
     }
 
@@ -1111,7 +1111,7 @@ void Animation::update_finished_state(DidSeek did_seek, SynchronouslyNotify sync
                 return;
 
             // 2. Resolve animation’s current finished promise object with animation.
-            HTML::TemporaryExecutionContext execution_context { Bindings::host_defined_environment_settings_object(realm) };
+            HTML::TemporaryExecutionContext execution_context { realm };
             WebIDL::resolve_promise(realm, current_finished_promise(), this);
             m_is_finished = true;
 
@@ -1178,7 +1178,7 @@ void Animation::update_finished_state(DidSeek did_seek, SynchronouslyNotify sync
     // 6. If current finished state is false and animation’s current finished promise is already resolved, set
     //    animation’s current finished promise to a new promise in the relevant Realm of animation.
     if (!current_finished_state && m_is_finished) {
-        HTML::TemporaryExecutionContext execution_context { Bindings::host_defined_environment_settings_object(realm) };
+        HTML::TemporaryExecutionContext execution_context { realm };
         m_current_finished_promise = WebIDL::create_promise(realm);
         m_is_finished = false;
     }
@@ -1266,7 +1266,7 @@ void Animation::run_pending_play_task()
     }
 
     // 4. Resolve animation’s current ready promise with animation.
-    HTML::TemporaryExecutionContext execution_context { Bindings::host_defined_environment_settings_object(realm()) };
+    HTML::TemporaryExecutionContext execution_context { realm() };
     WebIDL::resolve_promise(realm(), current_ready_promise(), this);
 
     // 5. Run the procedure to update an animation’s finished state for animation with the did seek flag set to false,
@@ -1296,7 +1296,7 @@ void Animation::run_pending_pause_task()
     m_start_time = {};
 
     // 5. Resolve animation’s current ready promise with animation.
-    HTML::TemporaryExecutionContext execution_context { Bindings::host_defined_environment_settings_object(realm()) };
+    HTML::TemporaryExecutionContext execution_context { realm() };
     WebIDL::resolve_promise(realm(), current_ready_promise(), this);
 
     // 6. Run the procedure to update an animation’s finished state for animation with the did seek flag set to false,

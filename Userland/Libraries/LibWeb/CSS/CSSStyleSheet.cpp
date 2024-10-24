@@ -210,7 +210,7 @@ JS::NonnullGCPtr<WebIDL::Promise> CSSStyleSheet::replace(String text)
 
     // 4. In parallel, do these steps:
     Platform::EventLoopPlugin::the().deferred_invoke(JS::create_heap_function(realm.heap(), [&realm, this, text = move(text), promise = JS::Handle(promise)] {
-        HTML::TemporaryExecutionContext execution_context { HTML::relevant_settings_object(*this), HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
+        HTML::TemporaryExecutionContext execution_context { realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
 
         // 1. Let rules be the result of running parse a stylesheet’s contents from text.
         auto context = m_style_sheet_list ? CSS::Parser::ParsingContext { m_style_sheet_list->document() } : CSS::Parser::ParsingContext { realm };

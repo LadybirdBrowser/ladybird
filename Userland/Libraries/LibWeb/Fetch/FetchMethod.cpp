@@ -87,7 +87,7 @@ JS::NonnullGCPtr<WebIDL::Promise> fetch(JS::VM& vm, RequestInfo const& input, Re
             return;
 
         // AD-HOC: An execution context is required for Promise functions.
-        HTML::TemporaryExecutionContext execution_context { Bindings::host_defined_environment_settings_object(relevant_realm) };
+        HTML::TemporaryExecutionContext execution_context { relevant_realm };
 
         // 2. If response’s aborted flag is set, then:
         if (response->aborted()) {
@@ -143,7 +143,7 @@ JS::NonnullGCPtr<WebIDL::Promise> fetch(JS::VM& vm, RequestInfo const& input, Re
         controller->abort(relevant_realm, request_object->signal()->reason());
 
         // AD-HOC: An execution context is required for Promise functions.
-        HTML::TemporaryExecutionContext execution_context { Bindings::host_defined_environment_settings_object(relevant_realm) };
+        HTML::TemporaryExecutionContext execution_context { relevant_realm };
 
         // 4. Abort the fetch() call with p, request, responseObject, and requestObject’s signal’s abort reason.
         abort_fetch(relevant_realm, *promise_capability, request, response_object, request_object->signal()->reason());

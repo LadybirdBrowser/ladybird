@@ -296,7 +296,7 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<WebIDL::Promise>> HTMLImageElement::decode(
                 return false;
 
             auto exception = WebIDL::EncodingError::create(realm, "Node document not fully active"_string);
-            HTML::TemporaryExecutionContext context(HTML::relevant_settings_object(*this));
+            HTML::TemporaryExecutionContext context(realm);
             WebIDL::reject_promise(realm, promise, exception);
             return true;
         };
@@ -306,7 +306,7 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<WebIDL::Promise>> HTMLImageElement::decode(
                 return false;
 
             auto exception = WebIDL::EncodingError::create(realm, "Current request state is broken"_string);
-            HTML::TemporaryExecutionContext context(HTML::relevant_settings_object(*this));
+            HTML::TemporaryExecutionContext context(realm);
             WebIDL::reject_promise(realm, promise, exception);
             return true;
         };
@@ -354,7 +354,7 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<WebIDL::Promise>> HTMLImageElement::decode(
                 // (Typically, this would only be violated in low-memory situations that require evicting decoded image data, or when the image is too large
                 // to keep in decoded form for this period of time.)
 
-                HTML::TemporaryExecutionContext context(HTML::relevant_settings_object(*this));
+                HTML::TemporaryExecutionContext context(realm);
                 WebIDL::resolve_promise(realm, promise, JS::js_undefined());
             }
         }));

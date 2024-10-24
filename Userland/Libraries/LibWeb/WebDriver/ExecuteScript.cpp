@@ -340,14 +340,14 @@ void execute_script(HTML::BrowsingContext const& browsing_context, ByteString bo
     }
 
     // AD-HOC: An execution context is required for Promise creation hooks.
-    HTML::TemporaryExecutionContext execution_context { document->relevant_settings_object(), HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
+    HTML::TemporaryExecutionContext execution_context { realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
 
     // 7. Let promise be a new Promise.
     auto promise = WebIDL::create_promise(realm);
 
     // 8. Run the following substeps in parallel:
-    Platform::EventLoopPlugin::the().deferred_invoke(JS::create_heap_function(realm.heap(), [&realm, &browsing_context, promise, document, body = move(body), arguments = move(arguments)]() mutable {
-        HTML::TemporaryExecutionContext execution_context { document->relevant_settings_object() };
+    Platform::EventLoopPlugin::the().deferred_invoke(JS::create_heap_function(realm.heap(), [&realm, &browsing_context, promise, body = move(body), arguments = move(arguments)]() mutable {
+        HTML::TemporaryExecutionContext execution_context { realm };
 
         // 1. Let scriptPromise be the result of promise-calling execute a function body, with arguments body and arguments.
         auto script_result = execute_a_function_body(browsing_context, body, move(arguments));
@@ -418,15 +418,15 @@ void execute_async_script(HTML::BrowsingContext const& browsing_context, ByteStr
     }
 
     // AD-HOC: An execution context is required for Promise creation hooks.
-    HTML::TemporaryExecutionContext execution_context { document->relevant_settings_object(), HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
+    HTML::TemporaryExecutionContext execution_context { realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
 
     // 7. Let promise be a new Promise.
     auto promise_capability = WebIDL::create_promise(realm);
     JS::NonnullGCPtr promise { verify_cast<JS::Promise>(*promise_capability->promise()) };
 
     // 8. Run the following substeps in parallel:
-    Platform::EventLoopPlugin::the().deferred_invoke(JS::create_heap_function(realm.heap(), [&vm, &realm, &browsing_context, timer, document, promise_capability, promise, body = move(body), arguments = move(arguments)]() mutable {
-        HTML::TemporaryExecutionContext execution_context { document->relevant_settings_object() };
+    Platform::EventLoopPlugin::the().deferred_invoke(JS::create_heap_function(realm.heap(), [&vm, &realm, &browsing_context, timer, promise_capability, promise, body = move(body), arguments = move(arguments)]() mutable {
+        HTML::TemporaryExecutionContext execution_context { realm };
 
         // 1. Let resolvingFunctions be CreateResolvingFunctions(promise).
         auto resolving_functions = promise->create_resolving_functions();

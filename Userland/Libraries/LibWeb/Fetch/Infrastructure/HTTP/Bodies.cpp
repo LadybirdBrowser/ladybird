@@ -49,7 +49,7 @@ void Body::visit_edges(Cell::Visitor& visitor)
 // https://fetch.spec.whatwg.org/#concept-body-clone
 JS::NonnullGCPtr<Body> Body::clone(JS::Realm& realm)
 {
-    HTML::TemporaryExecutionContext execution_context { Bindings::host_defined_environment_settings_object(realm), HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
+    HTML::TemporaryExecutionContext execution_context { realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
 
     // To clone a body body, run these steps:
     // 1. Let « out1, out2 » be the result of teeing body’s stream.
@@ -107,7 +107,7 @@ void Body::fully_read(JS::Realm& realm, Web::Fetch::Infrastructure::Body::Proces
 // https://fetch.spec.whatwg.org/#body-incrementally-read
 void Body::incrementally_read(ProcessBodyChunkCallback process_body_chunk, ProcessEndOfBodyCallback process_end_of_body, ProcessBodyErrorCallback process_body_error, TaskDestination task_destination)
 {
-    HTML::TemporaryExecutionContext const execution_context { Bindings::host_defined_environment_settings_object(m_stream->realm()), HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
+    HTML::TemporaryExecutionContext const execution_context { m_stream->realm(), HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
 
     VERIFY(task_destination.has<JS::NonnullGCPtr<JS::Object>>());
     // FIXME: 1. If taskDestination is null, then set taskDestination to the result of starting a new parallel queue.

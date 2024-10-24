@@ -241,7 +241,7 @@ JS::ThrowCompletionOr<JS::NonnullGCPtr<WebIDL::Promise>> FontFaceSet::load(Strin
         //    reject promise with a SyntaxError exception and terminate these steps.
         auto result = find_matching_font_faces(realm, font_face_set, font, text);
         if (result.is_error()) {
-            HTML::TemporaryExecutionContext execution_context { Bindings::host_defined_environment_settings_object(realm), HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
+            HTML::TemporaryExecutionContext execution_context { realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
             WebIDL::reject_promise(realm, promise, Bindings::dom_exception_to_throw_completion(realm.vm(), result.release_error()).release_value().value());
             return;
         }
@@ -262,16 +262,16 @@ JS::ThrowCompletionOr<JS::NonnullGCPtr<WebIDL::Promise>> FontFaceSet::load(Strin
 
             // 2. Resolve promise with the result of waiting for all of the [[FontStatusPromise]]s of each font face in
             //    the font face list, in order.
-            HTML::TemporaryExecutionContext execution_context { Bindings::host_defined_environment_settings_object(realm), HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
+            HTML::TemporaryExecutionContext execution_context { realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
 
             WebIDL::wait_for_all(
                 realm, promises,
                 [&realm, promise](auto const&) {
-                    HTML::TemporaryExecutionContext execution_context { Bindings::host_defined_environment_settings_object(realm), HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
+                    HTML::TemporaryExecutionContext execution_context { realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
                     WebIDL::resolve_promise(realm, promise);
                 },
                 [&realm, promise](auto error) {
-                    HTML::TemporaryExecutionContext execution_context { Bindings::host_defined_environment_settings_object(realm), HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
+                    HTML::TemporaryExecutionContext execution_context { realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
                     WebIDL::reject_promise(realm, promise, error);
                 });
         }));

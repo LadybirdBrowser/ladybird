@@ -375,7 +375,7 @@ WebIDL::ExceptionOr<void> HTMLMediaElement::pause()
 WebIDL::ExceptionOr<void> HTMLMediaElement::toggle_playback()
 {
     // AD-HOC: An execution context is required for Promise creation hooks.
-    TemporaryExecutionContext execution_context { document().relevant_settings_object() };
+    TemporaryExecutionContext execution_context { realm() };
 
     if (potentially_playing())
         TRY(pause());
@@ -1886,7 +1886,7 @@ void HTMLMediaElement::resolve_pending_play_promises(ReadonlySpan<JS::NonnullGCP
     auto& realm = this->realm();
 
     // AD-HOC: An execution context is required for Promise resolving hooks.
-    TemporaryExecutionContext execution_context { document().relevant_settings_object() };
+    TemporaryExecutionContext execution_context { realm };
 
     // To resolve pending play promises for a media element with a list of promises promises, the user agent
     // must resolve each promise in promises with undefined.
@@ -1900,7 +1900,7 @@ void HTMLMediaElement::reject_pending_play_promises(ReadonlySpan<JS::NonnullGCPt
     auto& realm = this->realm();
 
     // AD-HOC: An execution context is required for Promise rejection hooks.
-    TemporaryExecutionContext execution_context { document().relevant_settings_object() };
+    TemporaryExecutionContext execution_context { realm };
 
     // To reject pending play promises for a media element with a list of promise promises and an exception name
     // error, the user agent must reject each promise in promises with error.

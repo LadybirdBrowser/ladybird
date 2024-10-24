@@ -160,7 +160,7 @@ JS::NonnullGCPtr<WebIDL::Promise> Clipboard::write_text(String data)
             // 1. Queue a global task on the permission task source, given realm’s global object, to reject p with
             //    "NotAllowedError" DOMException in realm.
             queue_global_task(HTML::Task::Source::Permissions, realm.global_object(), JS::create_heap_function(realm.heap(), [&realm, promise]() mutable {
-                HTML::TemporaryExecutionContext execution_context { Bindings::host_defined_environment_settings_object(realm) };
+                HTML::TemporaryExecutionContext execution_context { realm };
                 WebIDL::reject_promise(realm, promise, WebIDL::NotAllowedError::create(realm, "Clipboard writing is only allowed through user activation"_string));
             }));
 
@@ -188,7 +188,7 @@ JS::NonnullGCPtr<WebIDL::Promise> Clipboard::write_text(String data)
             write_blobs_and_option_to_clipboard(realm, item_list, move(option));
 
             // 6. Resolve p.
-            HTML::TemporaryExecutionContext execution_context { Bindings::host_defined_environment_settings_object(realm) };
+            HTML::TemporaryExecutionContext execution_context { realm };
             WebIDL::resolve_promise(realm, promise, JS::js_undefined());
         }));
     }));

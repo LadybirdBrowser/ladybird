@@ -21,11 +21,11 @@ public:
         Yes,
     };
 
-    explicit TemporaryExecutionContext(EnvironmentSettingsObject&, CallbacksEnabled = CallbacksEnabled::No);
+    explicit TemporaryExecutionContext(JS::Realm&, CallbacksEnabled = CallbacksEnabled::No);
     ~TemporaryExecutionContext();
 
 private:
-    JS::NonnullGCPtr<EnvironmentSettingsObject> m_environment_settings;
+    JS::NonnullGCPtr<JS::Realm> m_realm;
     CallbacksEnabled m_callbacks_enabled { CallbacksEnabled::No };
 };
 
