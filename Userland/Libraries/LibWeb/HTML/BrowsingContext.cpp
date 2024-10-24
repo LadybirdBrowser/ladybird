@@ -397,6 +397,11 @@ BrowsingContextGroup* BrowsingContext::group()
     return m_group;
 }
 
+BrowsingContextGroup const* BrowsingContext::group() const
+{
+    return m_group;
+}
+
 void BrowsingContext::set_group(BrowsingContextGroup* group)
 {
     m_group = group;

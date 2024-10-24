@@ -119,7 +119,7 @@ struct ActionObject {
 // https://w3c.github.io/webdriver/#dfn-actions-options
 struct ActionsOptions {
     Function<bool(JsonObject const&)> is_element_origin;
-    Function<ErrorOr<JS::NonnullGCPtr<DOM::Element>, WebDriver::Error>(StringView)> get_element_origin;
+    Function<ErrorOr<JS::NonnullGCPtr<DOM::Element>, WebDriver::Error>(HTML::BrowsingContext const&, StringView)> get_element_origin;
 };
 
 using OnActionsComplete = JS::NonnullGCPtr<JS::HeapFunction<void(Web::WebDriver::Response)>>;

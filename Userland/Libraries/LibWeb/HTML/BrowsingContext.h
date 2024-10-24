@@ -117,6 +117,7 @@ public:
     JS::GCPtr<BrowsingContext> top_level_browsing_context() const;
 
     BrowsingContextGroup* group();
+    BrowsingContextGroup const* group() const;
     void set_group(BrowsingContextGroup*);
 
     // https://html.spec.whatwg.org/multipage/browsers.html#bcg-remove

@@ -46,8 +46,8 @@ namespace Web::WebDriver {
         _temporary_result.release_value();                                                           \
     })
 
-static ErrorOr<JsonValue, ExecuteScriptResultType> internal_json_clone_algorithm(JS::Realm&, JS::Value, HashTable<JS::Object*>& seen);
-static ErrorOr<JsonValue, ExecuteScriptResultType> clone_an_object(JS::Realm&, JS::Object&, HashTable<JS::Object*>& seen, auto const& clone_algorithm);
+static ErrorOr<JsonValue, ExecuteScriptResultType> internal_json_clone_algorithm(JS::Realm&, HTML::BrowsingContext const&, JS::Value, HashTable<JS::Object*>& seen);
+static ErrorOr<JsonValue, ExecuteScriptResultType> clone_an_object(JS::Realm&, HTML::BrowsingContext const&, JS::Object&, HashTable<JS::Object*>& seen, auto const& clone_algorithm);
 
 // https://w3c.github.io/webdriver/#dfn-collection
 static bool is_collection(JS::Object const& value)
@@ -73,15 +73,15 @@ static bool is_collection(JS::Object const& value)
 }
 
 // https://w3c.github.io/webdriver/#dfn-json-clone
-static ErrorOr<JsonValue, ExecuteScriptResultType> json_clone(JS::Realm& realm, JS::Value value)
+static ErrorOr<JsonValue, ExecuteScriptResultType> json_clone(JS::Realm& realm, HTML::BrowsingContext const& browsing_context, JS::Value value)
 {
     // To perform a JSON clone return the result of calling the internal JSON clone algorithm with arguments value and an empty List.
     auto seen = HashTable<JS::Object*> {};
-    return internal_json_clone_algorithm(realm, value, seen);
+    return internal_json_clone_algorithm(realm, browsing_context, value, seen);
 }
 
 // https://w3c.github.io/webdriver/#dfn-internal-json-clone-algorithm
-static ErrorOr<JsonValue, ExecuteScriptResultType> internal_json_clone_algorithm(JS::Realm& realm, JS::Value value, HashTable<JS::Object*>& seen)
+static ErrorOr<JsonValue, ExecuteScriptResultType> internal_json_clone_algorithm(JS::Realm& realm, HTML::BrowsingContext const& browsing_context, JS::Value value, HashTable<JS::Object*>& seen)
 {
     auto& vm = realm.vm();
 
@@ -122,7 +122,7 @@ static ErrorOr<JsonValue, ExecuteScriptResultType> internal_json_clone_algorithm
         // Otherwise:
         else {
             // 1. Let reference be the web element reference object for session and value.
-            auto reference = web_element_reference_object(element);
+            auto reference = web_element_reference_object(browsing_context, element);
 
             // 2. Return success with data reference.
             return reference;
@@ -168,14 +168,14 @@ static ErrorOr<JsonValue, ExecuteScriptResultType> internal_json_clone_algorithm
     } };
 
     // 3. Let result be the value of running the clone an object algorithm with arguments value and seen, and the internal JSON clone algorithm as the clone algorithm.
-    auto result = TRY(clone_an_object(realm, value.as_object(), seen, internal_json_clone_algorithm));
+    auto result = TRY(clone_an_object(realm, browsing_context, value.as_object(), seen, internal_json_clone_algorithm));
 
     // 5. Return result.
     return result;
 }
 
 // https://w3c.github.io/webdriver/#dfn-clone-an-object
-static ErrorOr<JsonValue, ExecuteScriptResultType> clone_an_object(JS::Realm& realm, JS::Object& value, HashTable<JS::Object*>& seen, auto const& clone_algorithm)
+static ErrorOr<JsonValue, ExecuteScriptResultType> clone_an_object(JS::Realm& realm, HTML::BrowsingContext const& browsing_context, JS::Object& value, HashTable<JS::Object*>& seen, auto const& clone_algorithm)
 {
     auto& vm = realm.vm();
 
@@ -217,7 +217,7 @@ static ErrorOr<JsonValue, ExecuteScriptResultType> clone_an_object(JS::Realm& re
             continue;
 
         // 3. Let cloned property result be the result of calling the clone algorithm with arguments source property value and seen.
-        auto cloned_property_result = clone_algorithm(realm, *source_property_value->value, seen);
+        auto cloned_property_result = clone_algorithm(realm, browsing_context, *source_property_value->value, seen);
 
         // 4. If cloned property result is a success, set a property of result with name name and value equal to cloned property result’s data.
         if (!cloned_property_result.is_error()) {
@@ -398,12 +398,12 @@ void execute_script(HTML::BrowsingContext const& browsing_context, ByteString bo
     });
 
     // 9. Wait until promise is resolved, or timer's timeout fired flag is set, whichever occurs first.
-    auto reaction_steps = JS::create_heap_function(vm.heap(), [&realm, promise, timer, on_complete](JS::Value) -> WebIDL::ExceptionOr<JS::Value> {
+    auto reaction_steps = JS::create_heap_function(vm.heap(), [&realm, &browsing_context, promise, timer, on_complete](JS::Value) -> WebIDL::ExceptionOr<JS::Value> {
         if (timer->is_timed_out())
             return JS::js_undefined();
         timer->stop();
 
-        auto json_value_or_error = json_clone(realm, promise->result());
+        auto json_value_or_error = json_clone(realm, browsing_context, promise->result());
         if (json_value_or_error.is_error()) {
             auto error_object = JsonObject {};
             error_object.set("name", "Error");
@@ -513,12 +513,12 @@ void execute_async_script(HTML::BrowsingContext const& browsing_context, ByteStr
     });
 
     // 9. Wait until promise is resolved, or timer's timeout fired flag is set, whichever occurs first.
-    auto reaction_steps = JS::create_heap_function(vm.heap(), [&realm, promise, timer, on_complete](JS::Value) -> WebIDL::ExceptionOr<JS::Value> {
+    auto reaction_steps = JS::create_heap_function(vm.heap(), [&realm, &browsing_context, promise, timer, on_complete](JS::Value) -> WebIDL::ExceptionOr<JS::Value> {
         if (timer->is_timed_out())
             return JS::js_undefined();
         timer->stop();
 
-        auto json_value_or_error = json_clone(realm, promise->result());
+        auto json_value_or_error = json_clone(realm, browsing_context, promise->result());
         if (json_value_or_error.is_error()) {
             auto error_object = JsonObject {};
             error_object.set("name", "Error");
