@@ -7,10 +7,7 @@
 
 #pragma once
 
-#include <AK/ByteString.h>
 #include <LibCore/DirectoryEntry.h>
-#include <dirent.h>
-#include <string.h>
 
 namespace Core {
 

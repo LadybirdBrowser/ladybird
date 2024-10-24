@@ -5,9 +5,8 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <AK/Vector.h>
 #include <LibCore/DirIterator.h>
-#include <errno.h>
+#include <dirent.h>
 #include <fcntl.h>
 #include <sys/stat.h>
 
@@ -79,6 +78,7 @@ bool DirIterator::advance_next()
         if (m_flags & Flags::SkipParentAndBaseDir && (m_next->name == "." || m_next->name == ".."))
             continue;
 
+#ifndef AK_OS_WINDOWS
         if constexpr (dirent_has_d_type) {
             // dirent structures from readdir aren't guaranteed to contain valid file types,
             // as it is possible that the underlying filesystem doesn't keep track of those.
@@ -94,6 +94,7 @@ bool DirIterator::advance_next()
                 m_next->type = DirectoryEntry::directory_entry_type_from_stat(statbuf.st_mode);
             }
         }
+#endif
 
         return !m_next->name.is_empty();
     }
@@ -135,11 +136,13 @@ ByteString DirIterator::next_full_path()
     return builder.to_byte_string();
 }
 
+#ifndef AK_OS_WINDOWS
 int DirIterator::fd() const
 {
     if (!m_dir)
         return -1;
     return dirfd(m_dir);
 }
+#endif
 
 }

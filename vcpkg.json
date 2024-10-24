@@ -9,6 +9,10 @@
       ]
     },
     {
+      "name": "dirent",
+      "platform": "windows"
+    },
+    {
       "name": "fontconfig",
       "platform": "linux | freebsd | openbsd | osx | windows"
     },

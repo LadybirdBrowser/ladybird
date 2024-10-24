@@ -21,6 +21,11 @@ endif()
 
 serenity_lib(LibCoreMinimal coreminimal)
 
+if (WIN32)
+    find_path(DIRENT_INCLUDE_DIR dirent.h REQUIRED)
+    target_include_directories(LibCoreMinimal PRIVATE ${DIRENT_INCLUDE_DIR})
+endif()
+
 if (LAGOM_TOOLS_ONLY)
     return()
 endif()
