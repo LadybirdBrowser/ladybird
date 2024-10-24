@@ -106,7 +106,7 @@ static ErrorOr<void, Web::WebDriver::Error> ensure_browsing_context_is_open(JS::
 }
 
 // https://w3c.github.io/webdriver/#dfn-scrolls-into-view
-static ErrorOr<void> scroll_element_into_view(Web::DOM::Element& element)
+static void scroll_element_into_view(Web::DOM::Element& element)
 {
     // 1. Let options be the following ScrollIntoViewOptions:
     Web::DOM::ScrollIntoViewOptions options {};
@@ -118,9 +118,7 @@ static ErrorOr<void> scroll_element_into_view(Web::DOM::Element& element)
     options.inline_ = Web::Bindings::ScrollLogicalPosition::Nearest;
 
     // 2. Run Function.[[Call]](scrollIntoView, options) with element as the this value.
-    TRY(element.scroll_into_view(options));
-
-    return {};
+    (void)element.scroll_into_view(options);
 }
 
 // https://w3c.github.io/webdriver/#dfn-container
@@ -1347,9 +1345,7 @@ Messages::WebDriverClient::ElementClickResponse WebDriverConnection::element_cli
 
     // 5. Scroll into view the element’s container.
     auto element_container = container_for_element(*element);
-    auto scroll_or_error = scroll_element_into_view(*element_container);
-    if (scroll_or_error.is_error())
-        return Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::UnknownError, scroll_or_error.error().string_literal());
+    scroll_element_into_view(*element_container);
 
     // FIXME: 6. If element’s container is still not in view, return error with error code element not interactable.
     // FIXME: 7. If element’s container is obscured by another element, return error with error code element click intercepted.
@@ -1563,7 +1559,7 @@ Messages::WebDriverClient::ElementClearResponse WebDriverConnection::element_cle
         return Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::InvalidElementState, "Element is not editable"sv);
 
     // 5. Scroll into view the element.
-    TRY(scroll_element_into_view(*element));
+    scroll_element_into_view(*element);
 
     // FIXME: 6. Let timeout be session's session timeouts' implicit wait timeout.
     // FIXME: 7. Let timer be a new timer.
@@ -1620,7 +1616,7 @@ Messages::WebDriverClient::ElementSendKeysResponse WebDriverConnection::element_
     // 7. If file is false or the session's strict file interactability, is true run the following substeps:
     if (!file || m_strict_file_interactability) {
         // 1. Scroll into view the element.
-        TRY(scroll_element_into_view(*element));
+        scroll_element_into_view(*element);
 
         // FIXME: 2. Let timeout be session's session timeouts' implicit wait timeout.
         // FIXME: 3. Let timer be a new timer.
@@ -2271,7 +2267,7 @@ Messages::WebDriverClient::TakeElementScreenshotResponse WebDriverConnection::ta
     auto element = TRY(Web::WebDriver::get_known_element(current_browsing_context(), element_id));
 
     // 4. Scroll into view the element.
-    (void)scroll_element_into_view(*element);
+    scroll_element_into_view(*element);
 
     // 5. When the user agent is next to run the animation frame callbacks:
     //     a. Let element rect be element’s rectangle.
