@@ -55,6 +55,13 @@ Utf16View Utf16StringImpl::view() const
     return Utf16View { m_string };
 }
 
+u32 Utf16StringImpl::compute_hash() const
+{
+    if (m_string.is_empty())
+        return 0;
+    return string_hash((char const*)m_string.data(), m_string.size() * sizeof(u16));
+}
+
 }
 
 Utf16String Utf16String::create()
