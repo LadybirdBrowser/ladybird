@@ -707,6 +707,7 @@ TEST_CASE(ECMA262_match)
         { "^(.*?):[ \\t]*([^\\r\\n]*)$"sv, "content-length: 488\r\ncontent-type: application/json; charset=utf-8\r\n"sv, true, global_multiline.value() },
         { "^\\?((&?category=[0-9]+)?(&?shippable=1)?(&?ad_type=demand)?(&?page=[0-9]+)?(&?locations=(r|d)_[0-9]+)?)+$"sv,
             "?category=54&shippable=1&baby_age=p,0,1,3"sv, false }, // ladybird#968, ?+ should not loop forever.
+        { "([^\\s]+):\\s*([^;]+);"sv, "font-family: 'Inter';"sv, true }, // optimizer bug, blindly accepting inverted char classes [^x] as atomic rewrite opportunities.
     };
     // clang-format on
 
