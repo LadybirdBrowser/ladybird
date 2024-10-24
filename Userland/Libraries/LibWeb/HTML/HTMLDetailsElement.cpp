@@ -59,6 +59,13 @@ void HTMLDetailsElement::attribute_changed(FlyString const& name, Optional<Strin
 
     // https://html.spec.whatwg.org/multipage/interactive-elements.html#details-notification-task-steps
     if (name == HTML::AttributeNames::open) {
+
+        // if the open attribute was there previously and the new value is also there elide the event per spec
+        // > When the open attribute is toggled several times in succession the resulting tasks essentially get coalesced so that only one event is fired.
+        if (old_value.has_value() && value.has_value()) {
+            return;
+        }
+
         // 1. If the open attribute is added, queue a details toggle event task given the details element, "closed", and "open".
         if (value.has_value()) {
             queue_a_details_toggle_event_task("closed"_string, "open"_string);
