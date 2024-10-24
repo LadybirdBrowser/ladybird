@@ -75,6 +75,11 @@ public:
         return m_byte_string_cache;
     }
 
+    HashMap<Utf16String, GCPtr<PrimitiveString>>& utf16_string_cache()
+    {
+        return m_utf16_string_cache;
+    }
+
     PrimitiveString& empty_string() { return *m_empty_string; }
 
     PrimitiveString& single_ascii_character_string(u8 character)
@@ -298,6 +303,7 @@ private:
 
     HashMap<String, GCPtr<PrimitiveString>> m_string_cache;
     HashMap<ByteString, GCPtr<PrimitiveString>> m_byte_string_cache;
+    HashMap<Utf16String, GCPtr<PrimitiveString>> m_utf16_string_cache;
 
     Heap m_heap;
 
