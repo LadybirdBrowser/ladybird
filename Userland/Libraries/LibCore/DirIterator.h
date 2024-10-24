@@ -8,8 +8,9 @@
 #pragma once
 
 #include <AK/ByteString.h>
-#include <AK/OwnPtr.h>
 #include <LibCore/DirectoryEntry.h>
+#include <dirent.h>
+#include <string.h>
 
 namespace Core {
 
@@ -37,8 +38,7 @@ public:
     int fd() const;
 
 private:
-    struct Impl;
-    OwnPtr<Impl> m_impl;
+    DIR* m_dir = nullptr;
     Optional<Error> m_error;
     Optional<DirectoryEntry> m_next;
     ByteString m_path;

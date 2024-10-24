@@ -5,6 +5,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/Vector.h>
 #include <LibCore/DirIterator.h>
 #include <errno.h>
 #include <fcntl.h>
@@ -12,36 +13,32 @@
 
 namespace Core {
 
-struct DirIterator::Impl {
-    DIR* dir { nullptr };
-};
-
 DirIterator::DirIterator(ByteString path, Flags flags)
-    : m_impl(make<Impl>())
-    , m_path(move(path))
+    : m_path(move(path))
     , m_flags(flags)
 {
-    m_impl->dir = opendir(m_path.characters());
-    if (!m_impl->dir) {
+    m_dir = opendir(m_path.characters());
+    if (!m_dir) {
         m_error = Error::from_errno(errno);
     }
 }
 
 DirIterator::~DirIterator()
 {
-    if (m_impl && m_impl->dir) {
-        closedir(m_impl->dir);
-        m_impl->dir = nullptr;
+    if (m_dir) {
+        closedir(m_dir);
+        m_dir = nullptr;
     }
 }
 
 DirIterator::DirIterator(DirIterator&& other)
-    : m_impl(move(other.m_impl))
+    : m_dir(other.m_dir)
     , m_error(move(other.m_error))
     , m_next(move(other.m_next))
     , m_path(move(other.m_path))
     , m_flags(other.m_flags)
 {
+    other.m_dir = nullptr;
 }
 
 static constexpr bool dirent_has_d_type =
@@ -53,12 +50,12 @@ static constexpr bool dirent_has_d_type =
 
 bool DirIterator::advance_next()
 {
-    if (!m_impl || !m_impl->dir)
+    if (!m_dir)
         return false;
 
     while (true) {
         errno = 0;
-        auto* de = readdir(m_impl->dir);
+        auto* de = readdir(m_dir);
         if (!de) {
             if (errno != 0) {
                 m_error = Error::from_errno(errno);
@@ -71,7 +68,7 @@ bool DirIterator::advance_next()
         if constexpr (dirent_has_d_type)
             m_next = DirectoryEntry::from_dirent(*de);
         else
-            m_next = DirectoryEntry::from_stat(m_impl->dir, *de);
+            m_next = DirectoryEntry::from_stat(m_dir, *de);
 
         if (m_next->name.is_empty())
             return false;
@@ -89,7 +86,7 @@ bool DirIterator::advance_next()
             // the calling code will be given the raw unknown type.
             if ((m_flags & Flags::NoStat) == 0 && m_next->type == DirectoryEntry::Type::Unknown) {
                 struct stat statbuf;
-                if (fstatat(dirfd(m_impl->dir), de->d_name, &statbuf, AT_SYMLINK_NOFOLLOW) < 0) {
+                if (fstatat(dirfd(m_dir), de->d_name, &statbuf, AT_SYMLINK_NOFOLLOW) < 0) {
                     m_error = Error::from_errno(errno);
                     dbgln("DirIteration error: {}", m_error.value());
                     return false;
@@ -140,9 +137,9 @@ ByteString DirIterator::next_full_path()
 
 int DirIterator::fd() const
 {
-    if (!m_impl || !m_impl->dir)
+    if (!m_dir)
         return -1;
-    return dirfd(m_impl->dir);
+    return dirfd(m_dir);
 }
 
 }
