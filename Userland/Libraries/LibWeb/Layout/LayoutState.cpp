@@ -100,18 +100,17 @@ static CSSPixelRect measure_scrollable_overflow(Box const& box)
     //   and whose border boxes are positioned not wholly in the negative scrollable overflow region,
     //   FIXME: accounting for transforms by projecting each box onto the plane of the element that establishes its 3D rendering context. [CSS3-TRANSFORMS]
     if (!box.children_are_inline()) {
-        box.for_each_in_subtree_of_type<Box>([&box, &scrollable_overflow_rect, &content_overflow_rect](Box const& child) {
-            if (!child.paintable_box())
-                return TraversalDecision::Continue;
+        for (auto& child_node : box.contained_children()) {
+            auto const& child = *static_cast<Box*>(child_node.ptr());
 
-            if (child.containing_block() != &box)
-                return TraversalDecision::Continue;
+            if (!child.paintable_box())
+                continue;
 
             auto child_border_box = child.paintable_box()->absolute_border_box_rect();
 
             // NOTE: Here we check that the child is not wholly in the negative scrollable overflow region.
             if (child_border_box.bottom() < 0 || child_border_box.right() < 0)
-                return TraversalDecision::Continue;
+                continue;
 
             scrollable_overflow_rect = scrollable_overflow_rect.united(child_border_box);
             content_overflow_rect = content_overflow_rect.united(child_border_box);
@@ -127,9 +126,7 @@ static CSSPixelRect measure_scrollable_overflow(Box const& box)
                 if (is<Viewport>(box) || child.computed_values().overflow_y() == CSS::Overflow::Visible)
                     scrollable_overflow_rect.unite_vertically(child_scrollable_overflow);
             }
-
-            return TraversalDecision::Continue;
-        });
+        }
     }
 
     // FIXME: - The margin areas of grid item and flex item boxes for which the box establishes a containing block.
