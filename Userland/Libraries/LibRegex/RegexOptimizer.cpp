@@ -198,8 +198,19 @@ static bool has_overlap(Vector<CompareTypeAndValuePair> const& lhs, Vector<Compa
         if (lhs_negated_char_classes.contains(value))
             return false;
 
-        // This char class might match something in the ranges we have, and checking that is far too expensive, so just bail out.
-        return true;
+        if (lhs_ranges.is_empty())
+            return false;
+
+        for (auto it = lhs_ranges.begin(); it != lhs_ranges.end(); ++it) {
+            auto start = it.key();
+            auto end = *it;
+            for (u32 ch = start; ch <= end; ++ch) {
+                if (OpCode_Compare::matches_character_class(value, ch, false))
+                    return true;
+            }
+        }
+
+        return false;
     };
 
     for (auto const& pair : lhs) {
@@ -302,6 +313,10 @@ static bool has_overlap(Vector<CompareTypeAndValuePair> const& lhs, Vector<Compa
             dbgln("  {}..{}", it.key(), *it);
     }
 
+    temporary_inverse = false;
+    reset_temporary_inverse = false;
+    inverse = false;
+
     for (auto const& pair : rhs) {
         if (reset_temporary_inverse) {
             reset_temporary_inverse = false;
@@ -310,7 +325,7 @@ static bool has_overlap(Vector<CompareTypeAndValuePair> const& lhs, Vector<Compa
             reset_temporary_inverse = true;
         }
 
-        dbgln_if(REGEX_DEBUG, "check {} ({})...", character_compare_type_name(pair.type), pair.value);
+        dbgln_if(REGEX_DEBUG, "check {} ({}) [inverted? {}]...", character_compare_type_name(pair.type), pair.value, current_lhs_inversion_state());
 
         switch (pair.type) {
         case CharacterCompareType::Inverse:
