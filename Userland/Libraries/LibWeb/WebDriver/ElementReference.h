@@ -16,13 +16,17 @@
 
 namespace Web::WebDriver {
 
-ByteString get_or_create_a_web_element_reference(Web::DOM::Node const& element);
-JsonObject web_element_reference_object(Web::DOM::Node const& element);
-ErrorOr<JS::NonnullGCPtr<Web::DOM::Element>, WebDriver::Error> deserialize_web_element(JsonObject const&);
+JS::GCPtr<Web::DOM::Node> get_node(HTML::BrowsingContext const&, StringView reference);
+ByteString get_or_create_a_node_reference(HTML::BrowsingContext const&, Web::DOM::Node const&);
+bool node_reference_is_known(HTML::BrowsingContext const&, StringView reference);
+
+ByteString get_or_create_a_web_element_reference(HTML::BrowsingContext const&, Web::DOM::Node const& element);
+JsonObject web_element_reference_object(HTML::BrowsingContext const&, Web::DOM::Node const& element);
+ErrorOr<JS::NonnullGCPtr<Web::DOM::Element>, WebDriver::Error> deserialize_web_element(Web::HTML::BrowsingContext const&, JsonObject const&);
 ByteString extract_web_element_reference(JsonObject const&);
 bool represents_a_web_element(JsonValue const& value);
-ErrorOr<JS::NonnullGCPtr<Web::DOM::Element>, Web::WebDriver::Error> get_web_element_origin(StringView origin);
-ErrorOr<JS::NonnullGCPtr<Web::DOM::Element>, Web::WebDriver::Error> get_known_element(StringView element_id);
+ErrorOr<JS::NonnullGCPtr<Web::DOM::Element>, Web::WebDriver::Error> get_web_element_origin(Web::HTML::BrowsingContext const&, StringView origin);
+ErrorOr<JS::NonnullGCPtr<Web::DOM::Element>, Web::WebDriver::Error> get_known_element(Web::HTML::BrowsingContext const&, StringView reference);
 
 bool is_element_stale(Web::DOM::Node const& element);
 bool is_element_interactable(Web::HTML::BrowsingContext const&, Web::DOM::Element const&);

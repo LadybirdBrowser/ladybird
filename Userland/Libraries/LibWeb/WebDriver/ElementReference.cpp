@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/HashMap.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Element.h>
 #include <LibWeb/DOM/Node.h>
@@ -11,6 +12,7 @@
 #include <LibWeb/Geometry/DOMRect.h>
 #include <LibWeb/Geometry/DOMRectList.h>
 #include <LibWeb/HTML/BrowsingContext.h>
+#include <LibWeb/HTML/BrowsingContextGroup.h>
 #include <LibWeb/HTML/HTMLBodyElement.h>
 #include <LibWeb/HTML/HTMLInputElement.h>
 #include <LibWeb/HTML/HTMLTextAreaElement.h>
@@ -27,25 +29,105 @@ static ByteString const web_element_identifier = "element-6066-11e4-a52e-4f73546
 // https://w3c.github.io/webdriver/#dfn-shadow-root-identifier
 static ByteString const shadow_root_identifier = "shadow-6066-11e4-a52e-4f735466cecf"sv;
 
-// https://w3c.github.io/webdriver/#dfn-get-or-create-a-web-element-reference
-ByteString get_or_create_a_web_element_reference(Web::DOM::Node const& element)
-{
-    // FIXME: 1. For each known element of the current browsing context’s list of known elements:
-    // FIXME:     1. If known element equals element, return success with known element’s web element reference.
-    // FIXME: 2. Add element to the list of known elements of the current browsing context.
-    // FIXME: 3. Return success with the element’s web element reference.
+// https://w3c.github.io/webdriver/#dfn-browsing-context-group-node-map
+static HashMap<JS::RawGCPtr<HTML::BrowsingContextGroup const>, HashTable<ByteString>> browsing_context_group_node_map;
 
-    return ByteString::number(element.unique_id().value());
+// https://w3c.github.io/webdriver/#dfn-navigable-seen-nodes-map
+static HashMap<JS::RawGCPtr<HTML::Navigable>, HashTable<ByteString>> navigable_seen_nodes_map;
+
+// https://w3c.github.io/webdriver/#dfn-get-a-node
+JS::GCPtr<Web::DOM::Node> get_node(HTML::BrowsingContext const& browsing_context, StringView reference)
+{
+    // 1. Let browsing context group node map be session's browsing context group node map.
+    // 2. Let browsing context group be browsing context's browsing context group.
+    auto const* browsing_context_group = browsing_context.group();
+
+    // 3. If browsing context group node map does not contain browsing context group, return null.
+    // 4. Let node id map be browsing context group node map[browsing context group].
+    auto node_id_map = browsing_context_group_node_map.get(browsing_context_group);
+    if (!node_id_map.has_value())
+        return nullptr;
+
+    // 5. Let node be the entry in node id map whose value is reference, if such an entry exists, or null otherwise.
+    JS::GCPtr<Web::DOM::Node> node;
+
+    if (node_id_map->contains(reference)) {
+        auto node_id = reference.to_number<i64>().value();
+        node = Web::DOM::Node::from_unique_id(UniqueNodeID(node_id));
+    }
+
+    // 6. Return node.
+    return node;
+}
+
+// https://w3c.github.io/webdriver/#dfn-get-or-create-a-node-reference
+ByteString get_or_create_a_node_reference(HTML::BrowsingContext const& browsing_context, Web::DOM::Node const& node)
+{
+    // 1. Let browsing context group node map be session's browsing context group node map.
+    // 2. Let browsing context group be browsing context's browsing context group.
+    auto const* browsing_context_group = browsing_context.group();
+
+    // 3. If browsing context group node map does not contain browsing context group, set browsing context group node
+    //    map[browsing context group] to a new weak map.
+    // 4. Let node id map be browsing context group node map[browsing context group].
+    auto& node_id_map = browsing_context_group_node_map.ensure(browsing_context_group);
+
+    auto node_id = ByteString::number(node.unique_id().value());
+
+    // 5. If node id map does not contain node:
+    if (!node_id_map.contains(node_id)) {
+        // 1. Let node id be a new globally unique string.
+        // 2. Set node id map[node] to node id.
+        node_id_map.set(node_id);
+
+        // 3. Let navigable be browsing context's active document's node navigable.
+        auto navigable = browsing_context.active_document()->navigable();
+
+        // 4. Let navigable seen nodes map be session's navigable seen nodes map.
+        // 5. If navigable seen nodes map does not contain navigable, set navigable seen nodes map[navigable] to an empty set.
+        // 6. Append node id to navigable seen nodes map[navigable].
+        navigable_seen_nodes_map.ensure(navigable).set(node_id);
+    }
+
+    // 6. Return node id map[node].
+    return node_id;
+}
+
+// https://w3c.github.io/webdriver/#dfn-node-reference-is-known
+bool node_reference_is_known(HTML::BrowsingContext const& browsing_context, StringView reference)
+{
+    // 1. Let navigable be browsing context's active document's node navigable.
+    auto navigable = browsing_context.active_document()->navigable();
+    if (!navigable)
+        return false;
+
+    // 2. Let navigable seen nodes map be session's navigable seen nodes map.
+    // 3. If navigable seen nodes map contains navigable and navigable seen nodes map[navigable] contains reference,
+    //    return true, otherwise return false.
+    if (auto map = navigable_seen_nodes_map.get(navigable); map.has_value())
+        return map->contains(reference);
+    return false;
+}
+
+// https://w3c.github.io/webdriver/#dfn-get-or-create-a-web-element-reference
+ByteString get_or_create_a_web_element_reference(HTML::BrowsingContext const& browsing_context, Web::DOM::Node const& element)
+{
+    // 1. Assert: element implements Element.
+    VERIFY(element.is_element());
+
+    // 2. Return the result of trying to get or create a node reference given session, session's current browsing
+    //    context, and element.
+    return get_or_create_a_node_reference(browsing_context, element);
 }
 
 // https://w3c.github.io/webdriver/#dfn-web-element-reference-object
-JsonObject web_element_reference_object(Web::DOM::Node const& element)
+JsonObject web_element_reference_object(HTML::BrowsingContext const& browsing_context, Web::DOM::Node const& element)
 {
     // 1. Let identifier be the web element identifier.
     auto identifier = web_element_identifier;
 
     // 2. Let reference be the result of get or create a web element reference given element.
-    auto reference = get_or_create_a_web_element_reference(element);
+    auto reference = get_or_create_a_web_element_reference(browsing_context, element);
 
     // 3. Return a JSON Object initialized with a property with name identifier and value reference.
     JsonObject object;
@@ -54,7 +136,7 @@ JsonObject web_element_reference_object(Web::DOM::Node const& element)
 }
 
 // https://w3c.github.io/webdriver/#dfn-deserialize-a-web-element
-ErrorOr<JS::NonnullGCPtr<Web::DOM::Element>, WebDriver::Error> deserialize_web_element(JsonObject const& object)
+ErrorOr<JS::NonnullGCPtr<Web::DOM::Element>, WebDriver::Error> deserialize_web_element(Web::HTML::BrowsingContext const& browsing_context, JsonObject const& object)
 {
     // 1. If object has no own property web element identifier, return error with error code invalid argument.
     if (!object.has_string(web_element_identifier))
@@ -64,10 +146,10 @@ ErrorOr<JS::NonnullGCPtr<Web::DOM::Element>, WebDriver::Error> deserialize_web_e
     auto reference = extract_web_element_reference(object);
 
     // 3. Let element be the result of trying to get a known element with session and reference.
-    auto element = TRY(get_known_element(reference));
+    auto element = TRY(get_known_element(browsing_context, reference));
 
     // 4. Return success with data element.
-    return *element;
+    return element;
 }
 
 ByteString extract_web_element_reference(JsonObject const& object)
@@ -85,39 +167,35 @@ bool represents_a_web_element(JsonValue const& value)
 }
 
 // https://w3c.github.io/webdriver/#dfn-get-a-webelement-origin
-ErrorOr<JS::NonnullGCPtr<Web::DOM::Element>, Web::WebDriver::Error> get_web_element_origin(StringView origin)
+ErrorOr<JS::NonnullGCPtr<Web::DOM::Element>, Web::WebDriver::Error> get_web_element_origin(Web::HTML::BrowsingContext const& browsing_context, StringView origin)
 {
     // 1. Assert: browsing context is the current browsing context.
 
     // 2. Let element be equal to the result of trying to get a known element with session and origin.
-    auto element = TRY(get_known_element(origin));
+    auto element = TRY(get_known_element(browsing_context, origin));
 
     // 3. Return success with data element.
     return element;
 }
 
 // https://w3c.github.io/webdriver/#dfn-get-a-known-element
-ErrorOr<JS::NonnullGCPtr<Web::DOM::Element>, Web::WebDriver::Error> get_known_element(StringView element_id)
+ErrorOr<JS::NonnullGCPtr<Web::DOM::Element>, Web::WebDriver::Error> get_known_element(Web::HTML::BrowsingContext const& browsing_context, StringView reference)
 {
-    // NOTE: The whole concept of "connected elements" is not implemented yet. See get_or_create_a_web_element_reference().
-    //       For now the element is only represented by its ID.
-
     // 1. If not node reference is known with session, session's current browsing context, and reference return error
     //    with error code no such element.
-    auto element = element_id.to_number<i64>();
-    if (!element.has_value())
+    if (!node_reference_is_known(browsing_context, reference))
         return Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::NoSuchElement, "Element ID is not an integer");
 
     // 2. Let node be the result of get a node with session, session's current browsing context, and reference.
-    auto* node = Web::DOM::Node::from_unique_id(UniqueNodeID(*element));
+    auto node = get_node(browsing_context, reference);
 
     // 3. If node is not null and node does not implement Element return error with error code no such element.
     if (node && !node->is_element())
-        return Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::NoSuchElement, ByteString::formatted("Could not find element with ID: {}", element_id));
+        return Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::NoSuchElement, ByteString::formatted("Could not find element with node reference: {}", reference));
 
     // 4. If node is null or node is stale return error with error code stale element reference.
     if (!node || is_element_stale(*node))
-        return Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::StaleElementReference, ByteString::formatted("Element with ID: {} is stale", element_id));
+        return Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::StaleElementReference, ByteString::formatted("Element reference {} is stale", reference));
 
     // 5. Return success with data node.
     return static_cast<Web::DOM::Element&>(*node);

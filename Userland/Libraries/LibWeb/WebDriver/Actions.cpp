@@ -200,7 +200,7 @@ static ErrorOr<CSSPixelPoint, WebDriver::Error> get_coordinates_relative_to_orig
             // 1. Let element be the result of trying to run actions options' get element origin steps with origin and
             //    browsing context.
             // 2. If element is null, return error with error code no such element.
-            auto element = TRY(actions_options.get_element_origin(origin));
+            auto element = TRY(actions_options.get_element_origin(browsing_context, origin));
 
             // 3. Let x element and y element be the result of calculating the in-view center point of element.
             auto position = in_view_center_point(element, viewport);
