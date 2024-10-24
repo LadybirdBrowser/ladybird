@@ -292,9 +292,11 @@ static bool has_overlap(Vector<CompareTypeAndValuePair> const& lhs, Vector<Compa
             else
                 lhs_negated_unicode_script_extensions.set(static_cast<Unicode::Script>(pair.value));
             break;
-        case CharacterCompareType::And:
         case CharacterCompareType::Or:
         case CharacterCompareType::EndAndOr:
+            // These are the default behaviour for [...], so we don't need to do anything (unless we add support for 'And' below).
+            break;
+        case CharacterCompareType::And:
             // FIXME: These are too difficult to handle, so bail out.
             return true;
         case CharacterCompareType::Undefined:
@@ -316,6 +318,9 @@ static bool has_overlap(Vector<CompareTypeAndValuePair> const& lhs, Vector<Compa
     temporary_inverse = false;
     reset_temporary_inverse = false;
     inverse = false;
+    auto in_or = false; // We're in an OR block, so we should wait for the EndAndOr to decide if we would match.
+    auto matched_in_or = false;
+    auto inverse_matched_in_or = false;
 
     for (auto const& pair : rhs) {
         if (reset_temporary_inverse) {
@@ -325,7 +330,18 @@ static bool has_overlap(Vector<CompareTypeAndValuePair> const& lhs, Vector<Compa
             reset_temporary_inverse = true;
         }
 
-        dbgln_if(REGEX_DEBUG, "check {} ({}) [inverted? {}]...", character_compare_type_name(pair.type), pair.value, current_lhs_inversion_state());
+        if constexpr (REGEX_DEBUG) {
+            dbgln("check {} ({}) [inverted? {}] against {{", character_compare_type_name(pair.type), pair.value, current_lhs_inversion_state());
+            for (auto it = lhs_ranges.begin(); it != lhs_ranges.end(); ++it)
+                dbgln("  {}..{}", it.key(), *it);
+            for (auto it = lhs_negated_ranges.begin(); it != lhs_negated_ranges.end(); ++it)
+                dbgln("  ^[{}..{}]", it.key(), *it);
+            for (auto& char_class : lhs_char_classes)
+                dbgln("  {}", character_class_name(char_class));
+            for (auto& char_class : lhs_negated_char_classes)
+                dbgln("  ^{}", character_class_name(char_class));
+            dbgln("}}, in or: {}, matched in or: {}, inverse matched in or: {}", in_or, matched_in_or, inverse_matched_in_or);
+        }
 
         switch (pair.type) {
         case CharacterCompareType::Inverse:
@@ -337,25 +353,48 @@ static bool has_overlap(Vector<CompareTypeAndValuePair> const& lhs, Vector<Compa
             break;
         case CharacterCompareType::AnyChar:
             // Special case: if not inverted, AnyChar is always in the range.
-            if (!current_lhs_inversion_state())
+            if (!in_or && !current_lhs_inversion_state())
                 return true;
+            if (in_or) {
+                matched_in_or = true;
+                inverse_matched_in_or = false;
+            }
             break;
-        case CharacterCompareType::Char:
-            if (current_lhs_inversion_state() ^ range_contains(pair.value))
+        case CharacterCompareType::Char: {
+            auto matched = range_contains(pair.value);
+            if (!in_or && (current_lhs_inversion_state() ^ matched))
                 return true;
+            if (in_or) {
+                matched_in_or |= matched;
+                inverse_matched_in_or |= !matched;
+            }
             break;
+        }
         case CharacterCompareType::String:
             // FIXME: We just need to look at the last character of this string, but we only have the first character here.
             //        Just bail out to avoid false positives.
             return true;
-        case CharacterCompareType::CharClass:
-            if (current_lhs_inversion_state() ^ char_class_contains(static_cast<CharClass>(pair.value)))
+        case CharacterCompareType::CharClass: {
+            auto contains = char_class_contains(static_cast<CharClass>(pair.value));
+            if (!in_or && (current_lhs_inversion_state() ^ contains))
                 return true;
+            if (in_or) {
+                matched_in_or |= contains;
+                inverse_matched_in_or |= !contains;
+            }
             break;
+        }
         case CharacterCompareType::CharRange: {
             auto range = CharRange(pair.value);
-            if (current_lhs_inversion_state() ^ range_contains(range))
+            auto contains = range_contains(range);
+            if (!in_or && (contains ^ current_lhs_inversion_state()))
                 return true;
+
+            if (in_or) {
+                matched_in_or |= contains;
+                inverse_matched_in_or |= !contains;
+            }
+
             break;
         }
         case CharacterCompareType::LookupTable:
@@ -372,45 +411,85 @@ static bool has_overlap(Vector<CompareTypeAndValuePair> const& lhs, Vector<Compa
             if (!lhs_ranges.is_empty() || !lhs_negated_ranges.is_empty() || !lhs_char_classes.is_empty() || !lhs_negated_char_classes.is_empty())
                 return true;
             if (has_any_unicode_property && !lhs_unicode_properties.is_empty() && !lhs_negated_unicode_properties.is_empty()) {
-                if (current_lhs_inversion_state() ^ lhs_unicode_properties.contains(static_cast<Unicode::Property>(pair.value)))
+                auto contains = lhs_unicode_properties.contains(static_cast<Unicode::Property>(pair.value));
+                if (!in_or && (current_lhs_inversion_state() ^ contains))
                     return true;
-                if (false == (current_lhs_inversion_state() ^ lhs_negated_unicode_properties.contains(static_cast<Unicode::Property>(pair.value))))
+
+                auto inverse_contains = lhs_negated_unicode_properties.contains(static_cast<Unicode::Property>(pair.value));
+                if (!in_or && !(current_lhs_inversion_state() ^ inverse_contains))
                     return true;
+
+                if (in_or) {
+                    matched_in_or |= contains;
+                    inverse_matched_in_or |= inverse_contains;
+                }
             }
             break;
         case CharacterCompareType::GeneralCategory:
             if (!lhs_ranges.is_empty() || !lhs_negated_ranges.is_empty() || !lhs_char_classes.is_empty() || !lhs_negated_char_classes.is_empty())
                 return true;
             if (has_any_unicode_property && !lhs_unicode_general_categories.is_empty() && !lhs_negated_unicode_general_categories.is_empty()) {
-                if (current_lhs_inversion_state() ^ lhs_unicode_general_categories.contains(static_cast<Unicode::GeneralCategory>(pair.value)))
+                auto contains = lhs_unicode_general_categories.contains(static_cast<Unicode::GeneralCategory>(pair.value));
+                if (!in_or && (current_lhs_inversion_state() ^ contains))
                     return true;
-                if (false == (current_lhs_inversion_state() ^ lhs_negated_unicode_general_categories.contains(static_cast<Unicode::GeneralCategory>(pair.value))))
+                auto inverse_contains = lhs_negated_unicode_general_categories.contains(static_cast<Unicode::GeneralCategory>(pair.value));
+                if (!in_or && !(current_lhs_inversion_state() ^ inverse_contains))
                     return true;
+                if (in_or) {
+                    matched_in_or |= contains;
+                    inverse_matched_in_or |= inverse_contains;
+                }
             }
             break;
         case CharacterCompareType::Script:
             if (!lhs_ranges.is_empty() || !lhs_negated_ranges.is_empty() || !lhs_char_classes.is_empty() || !lhs_negated_char_classes.is_empty())
                 return true;
             if (has_any_unicode_property && !lhs_unicode_scripts.is_empty() && !lhs_negated_unicode_scripts.is_empty()) {
-                if (current_lhs_inversion_state() ^ lhs_unicode_scripts.contains(static_cast<Unicode::Script>(pair.value)))
+                auto contains = lhs_unicode_scripts.contains(static_cast<Unicode::Script>(pair.value));
+                if (!in_or && (current_lhs_inversion_state() ^ contains))
                     return true;
-                if (false == (current_lhs_inversion_state() ^ lhs_negated_unicode_scripts.contains(static_cast<Unicode::Script>(pair.value))))
+                auto inverse_contains = lhs_negated_unicode_scripts.contains(static_cast<Unicode::Script>(pair.value));
+                if (!in_or && !(current_lhs_inversion_state() ^ inverse_contains))
                     return true;
+                if (in_or) {
+                    matched_in_or |= contains;
+                    inverse_matched_in_or |= inverse_contains;
+                }
             }
             break;
         case CharacterCompareType::ScriptExtension:
             if (!lhs_ranges.is_empty() || !lhs_negated_ranges.is_empty() || !lhs_char_classes.is_empty() || !lhs_negated_char_classes.is_empty())
                 return true;
             if (has_any_unicode_property && !lhs_unicode_script_extensions.is_empty() && !lhs_negated_unicode_script_extensions.is_empty()) {
-                if (current_lhs_inversion_state() ^ lhs_unicode_script_extensions.contains(static_cast<Unicode::Script>(pair.value)))
+                auto contains = lhs_unicode_script_extensions.contains(static_cast<Unicode::Script>(pair.value));
+                if (!in_or && (current_lhs_inversion_state() ^ contains))
                     return true;
-                if (false == (current_lhs_inversion_state() ^ lhs_negated_unicode_script_extensions.contains(static_cast<Unicode::Script>(pair.value))))
+                auto inverse_contains = lhs_negated_unicode_script_extensions.contains(static_cast<Unicode::Script>(pair.value));
+                if (!in_or && !(current_lhs_inversion_state() ^ inverse_contains))
                     return true;
+                if (in_or) {
+                    matched_in_or |= contains;
+                    inverse_matched_in_or |= inverse_contains;
+                }
             }
             break;
-        case CharacterCompareType::And:
         case CharacterCompareType::Or:
+            in_or = true;
+            break;
         case CharacterCompareType::EndAndOr:
+            // FIXME: Handle And when we support it below.
+            VERIFY(in_or);
+            in_or = false;
+            if (current_lhs_inversion_state()) {
+                if (!inverse_matched_in_or)
+                    return true;
+            } else {
+                if (matched_in_or)
+                    return true;
+            }
+
+            break;
+        case CharacterCompareType::And:
             // FIXME: These are too difficult to handle, so bail out.
             return true;
         case CharacterCompareType::Undefined:
@@ -722,6 +801,23 @@ void Regex<Parser>::attempt_rewrite_loops_as_atomic_groups(BasicBlockList const&
                     if (!block_following_fork_fallback.has_value()
                         || block_satisfies_atomic_rewrite_precondition(bytecode, *fork_fallback_block, *block_following_fork_fallback) != AtomicRewritePreconditionResult::NotSatisfied) {
                         candidate_blocks.append({ forking_block, {}, AlternateForm::DirectLoopWithHeader });
+                        break;
+                    }
+                }
+            }
+            // We've found a slightly degenerate case, where the next block jumps back to the _jump_ instruction in the forking block.
+            // This is a direct loop without a proper header that is posing as a loop with a header.
+            if (is_an_eligible_jump(opcode, state.instruction_position, forking_block.end, AlternateForm::DirectLoopWithHeader)) {
+                // We've found bb1 and bb0, let's just make sure that bb0 forks to bb2.
+                state.instruction_position = forking_block.end;
+                auto& opcode = bytecode.get_opcode(state);
+                if (opcode.opcode_id() == OpCodeId::ForkJump || opcode.opcode_id() == OpCodeId::ForkStay) {
+                    Optional<Block> block_following_fork_fallback;
+                    if (i + 2 < basic_blocks.size())
+                        block_following_fork_fallback = basic_blocks[i + 2];
+                    if (!block_following_fork_fallback.has_value()
+                        || block_satisfies_atomic_rewrite_precondition(bytecode, *fork_fallback_block, *block_following_fork_fallback) != AtomicRewritePreconditionResult::NotSatisfied) {
+                        candidate_blocks.append({ forking_block, {}, AlternateForm::DirectLoopWithoutHeader });
                         break;
                     }
                 }
