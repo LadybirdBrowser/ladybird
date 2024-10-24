@@ -1,0 +1,54 @@
+Summary
+
+Harness status: OK
+
+Rerun
+
+Found 43 tests
+
+2 Pass
+41 Fail
+Details
+Result	Test Name	MessageFail	Replacing a node and merging with the previous text node	assert_equals: expected "A Replaced" but got "A <span id=\"testReplacePrevious\">B</span>"
+Fail	Replacing a node and merging with the following text node	assert_equals: expected "Replaced B" but got "<span id=\"testReplaceFollowing\">A</span> B"
+Fail	Replacing a node and merging with the previous and following text node	assert_equals: expected "A Replaced C" but got "A <span id=\"testReplaceBoth\">B</span> C"
+Fail	Only merges with the previous and following text nodes, does not completely normalize	assert_equals: expected "ABReplacedDE" but got "AB<span></span>DE"
+Fail	Empty string	assert_equals: expected (string) "" but got (undefined) undefined
+Fail	Empty string with surrounding text nodes	assert_equals: It got merged with the previous and following text node expected 3 but got 5
+Fail	Setting outerText to a bunch of newlines creates a bunch of <br>s with no text nodes	assert_equals: expected "<br><br><br>" but got "<span id=\"testNewlines\">Replace this child with lots of newlines</span>"
+Fail	Removing a node	assert_equals: expected " removing node using outerText." but got "<span id=\"testRemove\">Testing</span> removing node using outerText."
+Fail	Detached node	assert_throws_dom: function "() => { node.outerText = ""; }" did not throw
+Fail	Simplest possible test	assert_equals: expected "abc" but got ""
+Fail	Newlines convert to <br> in non-white-space:pre elements	assert_equals: expected "abc<br>def" but got "<div></div>"
+Fail	Newlines convert to <br> in <pre> element	assert_equals: expected "abc<br>def" but got "<pre></pre>"
+Fail	Newlines convert to <br> in <textarea> element	assert_equals: expected "abc<br>def" but got "<textarea></textarea>"
+Fail	Newlines convert to <br> in white-space:pre element	assert_equals: expected "abc<br>def" but got "<div style=\"white-space:pre\"></div>"
+Fail	CRs convert to <br> in non-white-space:pre elements	assert_equals: expected "abc<br>def" but got "<div></div>"
+Fail	CRs convert to <br> in <pre> element	assert_equals: expected "abc<br>def" but got "<pre></pre>"
+Fail	Newline/CR pair converts to <br> in non-white-space:pre element	assert_equals: expected "abc<br>def" but got "<div></div>"
+Fail	Newline/newline pair converts to two <br>s in non-white-space:pre element	assert_equals: expected "abc<br><br>def" but got "<div></div>"
+Fail	CR/CR pair converts to two <br>s in non-white-space:pre element	assert_equals: expected "abc<br><br>def" but got "<div></div>"
+Fail	CRs convert to <br> in white-space:pre element	assert_equals: expected "abc<br>def" but got "<div style=\"white-space:pre\"></div>"
+Fail	< preserved	assert_equals: expected "abc<def" but got ""
+Fail	> preserved	assert_equals: expected "abc>def" but got ""
+Fail	& preserved	assert_equals: expected "abc&" but got ""
+Fail	" preserved	assert_equals: expected "abc\"def" but got ""
+Fail	' preserved	assert_equals: expected "abc'def" but got ""
+Pass	outerText not supported on SVG elements	
+Pass	outerText not supported on MathML elements	
+Fail	Null characters preserved	assert_equals: expected "abc\0def" but got ""
+Fail	Tabs preserved	assert_equals: expected "abc\tdef" but got ""
+Fail	Leading whitespace preserved	assert_equals: expected " abc" but got ""
+Fail	Trailing whitespace preserved	assert_equals: expected "abc " but got ""
+Fail	Whitespace not compressed	assert_equals: expected "abc def" but got ""
+Fail	Existing text deleted	assert_equals: expected "abc" but got "abc\n\n"
+Fail	Existing <br> deleted	assert_equals: expected "abc" but got ""
+Fail	Assigning the empty string	assert_equals: expected "" but got "<div></div>"
+Fail	Assigning null	assert_equals: expected "" but got "<div></div>"
+Fail	Assigning undefined	assert_equals: expected "undefined" but got "<div></div>"
+Fail	Start with CR	assert_equals: expected "<br>abc" but got "<div></div>"
+Fail	Start with LF	assert_equals: expected "<br>abc" but got "<div></div>"
+Fail	Start with CRLF	assert_equals: expected "<br>abc" but got "<div></div>"
+Fail	End with CR	assert_equals: expected "abc<br>" but got "<div></div>"
+Fail	End with LF	assert_equals: expected "abc<br>" but got "<div></div>"
+Fail	End with CRLF	assert_equals: expected "abc<br>" but got "<div></div>"

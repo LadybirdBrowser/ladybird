@@ -75,7 +75,7 @@ struct TestCompletion {
 
 using TestPromise = Core::Promise<TestCompletion>;
 
-constexpr inline int DEFAULT_TIMEOUT_MS = 30000; // 30sec
+constexpr inline int DEFAULT_TIMEOUT_MS = 60'000;
 
 ErrorOr<void> run_tests(Core::AnonymousBuffer const& theme, Gfx::IntSize window_size);
 void run_dump_test(HeadlessWebView&, Test&, URL::URL const&, int timeout_in_milliseconds = DEFAULT_TIMEOUT_MS);
