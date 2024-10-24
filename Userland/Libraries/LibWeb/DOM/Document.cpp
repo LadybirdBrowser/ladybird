@@ -4838,10 +4838,10 @@ Element const* Document::element_from_point(double x, double y)
 }
 
 // https://drafts.csswg.org/cssom-view/#dom-document-elementsfrompoint
-Vector<JS::NonnullGCPtr<Element>> Document::elements_from_point(double x, double y)
+JS::MarkedVector<JS::NonnullGCPtr<Element>> Document::elements_from_point(double x, double y)
 {
     // 1. Let sequence be a new empty sequence.
-    Vector<JS::NonnullGCPtr<Element>> sequence;
+    JS::MarkedVector<JS::NonnullGCPtr<Element>> sequence(heap());
 
     // 2. If either argument is negative, x is greater than the viewport width excluding the size of a rendered scroll bar (if any),
     //    or y is greater than the viewport height excluding the size of a rendered scroll bar (if any),
