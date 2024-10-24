@@ -397,7 +397,7 @@ void EventLoop::update_the_rendering()
 
     for (auto& document : docs) {
         if (document->readiness() == HTML::DocumentReadyState::Complete && document->style_computer().number_of_css_font_faces_with_loading_in_progress() == 0) {
-            HTML::TemporaryExecutionContext context(HTML::relevant_settings_object(*document), HTML::TemporaryExecutionContext::CallbacksEnabled::Yes);
+            HTML::TemporaryExecutionContext context(document->realm(), HTML::TemporaryExecutionContext::CallbacksEnabled::Yes);
             document->fonts()->resolve_ready_promise();
         }
     }

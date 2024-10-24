@@ -464,7 +464,7 @@ ErrorOr<void> initialize_main_thread_vm(HTML::EventLoop::Type type)
             auto completion = dom_exception_to_throw_completion(main_thread_vm(), url.exception());
 
             // 2. Perform FinishLoadingImportedModule(referrer, moduleRequest, payload, completion).
-            HTML::TemporaryExecutionContext context { host_defined_environment_settings_object(realm) };
+            HTML::TemporaryExecutionContext context { realm };
             JS::finish_loading_imported_module(referrer, module_request, payload, completion);
 
             // 3. Return.

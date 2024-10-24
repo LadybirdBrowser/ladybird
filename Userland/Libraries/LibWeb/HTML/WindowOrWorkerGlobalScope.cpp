@@ -226,7 +226,7 @@ JS::NonnullGCPtr<WebIDL::Promise> WindowOrWorkerGlobalScopeMixin::create_image_b
                     // (e.g., a vector graphic with no natural size), then reject p with an "InvalidStateError" DOMException
                     // and abort these steps.
                     auto& realm = relevant_realm(p->promise());
-                    TemporaryExecutionContext context { relevant_settings_object(p->promise()), TemporaryExecutionContext::CallbacksEnabled::Yes };
+                    TemporaryExecutionContext context { relevant_realm(p->promise()), TemporaryExecutionContext::CallbacksEnabled::Yes };
                     WebIDL::reject_promise(realm, *p, WebIDL::InvalidStateError::create(realm, "image does not contain a supported image format"_string));
                 };
 
@@ -240,7 +240,7 @@ JS::NonnullGCPtr<WebIDL::Promise> WindowOrWorkerGlobalScopeMixin::create_image_b
                     auto& realm = relevant_realm(p->promise());
 
                     // 5. Resolve p with imageBitmap.
-                    TemporaryExecutionContext context { relevant_settings_object(*image_bitmap), TemporaryExecutionContext::CallbacksEnabled::Yes };
+                    TemporaryExecutionContext context { relevant_realm(*image_bitmap), TemporaryExecutionContext::CallbacksEnabled::Yes };
                     WebIDL::resolve_promise(realm, *p, image_bitmap);
                     return {};
                 };
@@ -253,7 +253,7 @@ JS::NonnullGCPtr<WebIDL::Promise> WindowOrWorkerGlobalScopeMixin::create_image_b
             (void)sx;
             (void)sy;
             auto error = JS::Error::create(realm, "Not Implemented: createImageBitmap() for non-blob types"sv);
-            TemporaryExecutionContext context { relevant_settings_object(p->promise()), TemporaryExecutionContext::CallbacksEnabled::Yes };
+            TemporaryExecutionContext context { relevant_realm(p->promise()), TemporaryExecutionContext::CallbacksEnabled::Yes };
             WebIDL::reject_promise(realm, *p, error);
         });
 
@@ -416,7 +416,7 @@ i32 WindowOrWorkerGlobalScopeMixin::run_timer_initialization_steps(TimerHandler 
     // 11. Let completionStep be an algorithm step which queues a global task on the timer task source given global to run task.
     Function<void()> completion_step = [this, task = move(task)]() mutable {
         queue_global_task(Task::Source::TimerTask, this_impl(), JS::create_heap_function(this_impl().heap(), [this, task] {
-            HTML::TemporaryExecutionContext execution_context { Bindings::host_defined_environment_settings_object(this_impl().realm()), HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
+            HTML::TemporaryExecutionContext execution_context { this_impl().realm(), HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
             task->function()();
         }));
     };
@@ -587,7 +587,7 @@ void WindowOrWorkerGlobalScopeMixin::queue_the_performance_observer_task()
     //    timeline task source.
     queue_global_task(Task::Source::PerformanceTimeline, this_impl(), JS::create_heap_function(this_impl().heap(), [this]() {
         auto& realm = this_impl().realm();
-        HTML::TemporaryExecutionContext execution_context { Bindings::host_defined_environment_settings_object(realm), HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
+        HTML::TemporaryExecutionContext execution_context { realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
 
         // 1. Unset performance observer task queued flag of relevantGlobal.
         m_performance_observer_task_queued = false;

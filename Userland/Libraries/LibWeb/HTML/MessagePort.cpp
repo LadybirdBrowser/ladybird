@@ -380,7 +380,7 @@ void MessagePort::post_message_task_steps(SerializedTransferRecord& serialize_wi
     auto& target_vm = target_realm.vm();
 
     // 3. Let deserializeRecord be StructuredDeserializeWithTransfer(serializeWithTransferResult, targetRealm).
-    TemporaryExecutionContext context { relevant_settings_object(*final_target_port) };
+    TemporaryExecutionContext context { relevant_realm(*final_target_port) };
     auto deserialize_record_or_error = structured_deserialize_with_transfer(target_vm, serialize_with_transfer_result);
     if (deserialize_record_or_error.is_error()) {
         // If this throws an exception, catch it, fire an event named messageerror at finalTargetPort, using MessageEvent, and then return.

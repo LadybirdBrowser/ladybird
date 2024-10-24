@@ -66,7 +66,7 @@ void FetchedDataReceiver::on_data_received(ReadonlyBytes bytes)
         m_fetch_params->controller(),
         m_fetch_params->task_destination().get<JS::NonnullGCPtr<JS::Object>>(),
         JS::create_heap_function(heap(), [this, bytes = MUST(ByteBuffer::copy(bytes))]() mutable {
-            HTML::TemporaryExecutionContext execution_context { Bindings::host_defined_environment_settings_object(m_stream->realm()), HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
+            HTML::TemporaryExecutionContext execution_context { m_stream->realm(), HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
 
             // 1. Pull from bytes buffer into stream.
             if (auto result = Streams::readable_stream_pull_from_bytes(m_stream, move(bytes)); result.is_error()) {

@@ -680,7 +680,7 @@ WebIDL::ExceptionOr<NavigationResult> Navigation::perform_a_navigation_api_trave
             //    to reject the finished promise for apiMethodTracker with an "InvalidStateError" DOMException.
             queue_global_task(HTML::Task::Source::NavigationAndTraversal, relevant_global_object(*this), JS::create_heap_function(heap(), [this, api_method_tracker] {
                 auto& reject_realm = relevant_realm(*this);
-                TemporaryExecutionContext execution_context { relevant_settings_object(*this) };
+                TemporaryExecutionContext execution_context { reject_realm };
                 WebIDL::reject_promise(reject_realm, api_method_tracker->finished_promise,
                     WebIDL::InvalidStateError::create(reject_realm, "Cannot traverse with stale session history entry"_string));
             }));
@@ -712,7 +712,7 @@ WebIDL::ExceptionOr<NavigationResult> Navigation::perform_a_navigation_api_trave
         auto& global = relevant_global_object(*this);
         if (result == TraversableNavigable::HistoryStepResult::CanceledByBeforeUnload) {
             queue_global_task(Task::Source::NavigationAndTraversal, global, JS::create_heap_function(heap(), [this, api_method_tracker, &realm] {
-                TemporaryExecutionContext execution_context { relevant_settings_object(*this) };
+                TemporaryExecutionContext execution_context { realm };
                 reject_the_finished_promise(api_method_tracker, WebIDL::AbortError::create(realm, "Navigation cancelled by beforeunload"_string));
             }));
         }
@@ -722,7 +722,7 @@ WebIDL::ExceptionOr<NavigationResult> Navigation::perform_a_navigation_api_trave
         //    new "SecurityError" DOMException created in navigation's relevant realm.
         if (result == TraversableNavigable::HistoryStepResult::InitiatorDisallowed) {
             queue_global_task(Task::Source::NavigationAndTraversal, global, JS::create_heap_function(heap(), [this, api_method_tracker, &realm] {
-                TemporaryExecutionContext execution_context { relevant_settings_object(*this) };
+                TemporaryExecutionContext execution_context { realm };
                 reject_the_finished_promise(api_method_tracker, WebIDL::SecurityError::create(realm, "Navigation disallowed from this origin"_string));
             }));
         }
@@ -904,7 +904,7 @@ void Navigation::notify_about_the_committed_to_entry(JS::NonnullGCPtr<Navigation
     }
 
     // 3. Resolve apiMethodTracker's committed promise with nhe.
-    TemporaryExecutionContext execution_context { relevant_settings_object(*this) };
+    TemporaryExecutionContext execution_context { realm };
     WebIDL::resolve_promise(realm, api_method_tracker->committed_promise, nhe);
 }
 
@@ -1088,7 +1088,7 @@ bool Navigation::inner_navigate_event_firing_algorithm(
 
     // 31. Prepare to run script given navigation's relevant settings object.
     // NOTE: There's a massive spec note here
-    TemporaryExecutionContext execution_context { relevant_settings_object(*this), TemporaryExecutionContext::CallbacksEnabled::Yes };
+    TemporaryExecutionContext execution_context { realm, TemporaryExecutionContext::CallbacksEnabled::Yes };
 
     // 32. If event's interception state is not "none":
     if (event->interception_state() != NavigateEvent::InterceptionState::None) {

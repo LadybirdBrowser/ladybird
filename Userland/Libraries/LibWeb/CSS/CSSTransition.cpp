@@ -120,7 +120,7 @@ CSSTransition::CSSTransition(JS::Realm& realm, DOM::Element& element, PropertyID
     element.associate_with_animation(*this);
     element.set_transition(m_transition_property, *this);
 
-    HTML::TemporaryExecutionContext context(element.document().relevant_settings_object());
+    HTML::TemporaryExecutionContext context(realm);
     play().release_value_but_fixme_should_propagate_errors();
 }
 

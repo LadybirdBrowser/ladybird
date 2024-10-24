@@ -401,8 +401,8 @@ static void update(JS::VM& vm, JS::NonnullGCPtr<Job> job)
         // 16. If runResult is failure or an abrupt completion, then:
         // 17. Else, invoke Install algorithm with job, worker, and registration as its arguments.
         if (job->client) {
-            auto context = HTML::TemporaryExecutionContext(*job->client, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes);
             auto& realm = *vm.current_realm();
+            auto context = HTML::TemporaryExecutionContext(realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes);
             WebIDL::reject_promise(realm, *job->job_promise, *vm.throw_completion<JS::InternalError>(JS::ErrorType::NotImplemented, "Run Service Worker"sv).value());
             finish_job(vm, job);
         }
@@ -428,8 +428,8 @@ static void unregister(JS::VM& vm, JS::NonnullGCPtr<Job> job)
 {
     // If there's no client, there won't be any promises to resolve
     if (job->client) {
-        auto context = HTML::TemporaryExecutionContext(*job->client, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes);
         auto& realm = *vm.current_realm();
+        auto context = HTML::TemporaryExecutionContext(realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes);
         WebIDL::reject_promise(realm, *job->job_promise, *vm.throw_completion<JS::InternalError>(JS::ErrorType::NotImplemented, "Service Worker unregistration"sv).value());
         finish_job(vm, job);
     }
@@ -497,7 +497,7 @@ static void resolve_job_promise(JS::NonnullGCPtr<Job> job, Optional<Registration
     if (job->client) {
         auto& realm = job->client->realm();
         HTML::queue_a_task(HTML::Task::Source::DOMManipulation, job->client->responsible_event_loop(), nullptr, JS::create_heap_function(realm.heap(), [&realm, job, value] {
-            HTML::TemporaryExecutionContext const context(*job->client, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes);
+            HTML::TemporaryExecutionContext const context(realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes);
             // FIXME: Resolve to a ServiceWorkerRegistration platform object
             // 1. Let convertedValue be null.
             // 2. If job’s job type is either register or update, set convertedValue to the result of
@@ -518,7 +518,7 @@ static void resolve_job_promise(JS::NonnullGCPtr<Job> job, Optional<Registration
         //    to run the following substeps:
         auto& realm = equivalent_job->client->realm();
         HTML::queue_a_task(HTML::Task::Source::DOMManipulation, equivalent_job->client->responsible_event_loop(), nullptr, JS::create_heap_function(realm.heap(), [&realm, equivalent_job, value] {
-            HTML::TemporaryExecutionContext const context(*equivalent_job->client, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes);
+            HTML::TemporaryExecutionContext const context(realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes);
             // FIXME: Resolve to a ServiceWorkerRegistration platform object
             // 1. Let convertedValue be null.
             // 2. If equivalentJob’s job type is either register or update, set convertedValue to the result of
@@ -539,7 +539,7 @@ static void reject_job_promise(JS::NonnullGCPtr<Job> job, String message)
     if (job->client) {
         auto& realm = job->client->realm();
         HTML::queue_a_task(HTML::Task::Source::DOMManipulation, job->client->responsible_event_loop(), nullptr, JS::create_heap_function(realm.heap(), [&realm, job, message] {
-            HTML::TemporaryExecutionContext const context(*job->client, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes);
+            HTML::TemporaryExecutionContext const context(realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes);
             WebIDL::reject_promise(realm, *job->job_promise, Error::create(realm, message));
         }));
     }
@@ -555,7 +555,7 @@ static void reject_job_promise(JS::NonnullGCPtr<Job> job, String message)
         //    in equivalentJob’s client's Realm.
         auto& realm = equivalent_job->client->realm();
         HTML::queue_a_task(HTML::Task::Source::DOMManipulation, equivalent_job->client->responsible_event_loop(), nullptr, JS::create_heap_function(realm.heap(), [&realm, equivalent_job, message] {
-            HTML::TemporaryExecutionContext const context(*equivalent_job->client, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes);
+            HTML::TemporaryExecutionContext const context(realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes);
             WebIDL::reject_promise(realm, *equivalent_job->job_promise, Error::create(realm, message));
         }));
     }

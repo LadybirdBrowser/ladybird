@@ -504,7 +504,7 @@ Messages::WebDriverClient::NewWindowResponse WebDriverConnection::new_window(Jso
     auto* active_window = current_browsing_context().active_window();
     VERIFY(active_window);
 
-    Web::HTML::TemporaryExecutionContext execution_context { active_window->document()->relevant_settings_object() };
+    Web::HTML::TemporaryExecutionContext execution_context { active_window->document()->realm() };
     auto [target_navigable, no_opener, window_type] = MUST(active_window->window_open_steps_internal("about:blank"sv, ""sv, "noopener"sv));
 
     // 6. Let handle be the associated window handle of the newly created window.
@@ -1175,7 +1175,7 @@ Messages::WebDriverClient::GetElementPropertyResponse WebDriverConnection::get_e
     Optional<ByteString> result;
 
     // 4. Let property be the result of calling the Object.[[GetProperty]](name) on element.
-    Web::HTML::TemporaryExecutionContext execution_context { current_browsing_context().active_document()->relevant_settings_object() };
+    Web::HTML::TemporaryExecutionContext execution_context { current_browsing_context().active_document()->realm() };
 
     if (auto property_or_error = element->get(name.to_byte_string()); !property_or_error.is_throw_completion()) {
         auto property = property_or_error.release_value();
@@ -2787,7 +2787,7 @@ static ErrorOr<JS::Value, Web::WebDriver::Error> json_deserialize(JS::VM& vm, We
 ErrorOr<WebDriverConnection::ScriptArguments, Web::WebDriver::Error> WebDriverConnection::extract_the_script_arguments_from_a_request(JS::VM& vm, JsonValue const& payload)
 {
     // Creating JSON objects below requires an execution context.
-    Web::HTML::TemporaryExecutionContext execution_context { current_browsing_context().active_document()->relevant_settings_object() };
+    Web::HTML::TemporaryExecutionContext execution_context { current_browsing_context().active_document()->realm() };
 
     // 1. Let script be the result of getting a property named script from the parameters.
     // 2. If script is not a String, return error with error code invalid argument.

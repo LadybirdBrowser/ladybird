@@ -723,7 +723,7 @@ void fetch_response_handover(JS::Realm& realm, Infrastructure::FetchParams const
     }
     // 7. Otherwise:
     else {
-        HTML::TemporaryExecutionContext const execution_context { Bindings::host_defined_environment_settings_object(realm), HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
+        HTML::TemporaryExecutionContext const execution_context { realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
 
         // 1. Let transformStream be a new TransformStream.
         auto transform_stream = realm.heap().allocate<Streams::TransformStream>(realm, realm);
@@ -2232,7 +2232,7 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<PendingResponse>> nonstandard_resource_load
     //        user-agent-defined limit (or not). However, we will need to fully use stream operations throughout the
     //        fetch process to enable this (e.g. Body::fully_read must use streams for this to work).
     if (request->buffer_policy() == Infrastructure::Request::BufferPolicy::DoNotBufferResponse) {
-        HTML::TemporaryExecutionContext execution_context { Bindings::host_defined_environment_settings_object(realm), HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
+        HTML::TemporaryExecutionContext execution_context { realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
 
         // 12. Let stream be a new ReadableStream.
         auto stream = realm.heap().allocate<Streams::ReadableStream>(realm, realm);
@@ -2315,7 +2315,7 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<PendingResponse>> nonstandard_resource_load
         });
 
         auto on_complete = JS::create_heap_function(vm.heap(), [&vm, &realm, pending_response, stream](bool success, Optional<StringView> error_message) {
-            HTML::TemporaryExecutionContext execution_context { Bindings::host_defined_environment_settings_object(realm), HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
+            HTML::TemporaryExecutionContext execution_context { realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
 
             // 16.1.1.2. Otherwise, if the bytes transmission for response’s message body is done normally and stream is readable,
             //           then close stream, and abort these in-parallel steps.

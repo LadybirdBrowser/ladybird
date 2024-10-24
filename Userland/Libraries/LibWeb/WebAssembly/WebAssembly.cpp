@@ -506,14 +506,14 @@ JS::NonnullGCPtr<WebIDL::Promise> asynchronously_compile_webassembly_module(JS::
     auto promise = WebIDL::create_promise(realm);
 
     // 2. Run the following steps in parallel:
-    Platform::EventLoopPlugin::the().deferred_invoke(JS::create_heap_function(vm.heap(), [&vm, bytes = move(bytes), promise, task_source]() mutable {
-        HTML::TemporaryExecutionContext context(HTML::relevant_settings_object(*promise->promise()), HTML::TemporaryExecutionContext::CallbacksEnabled::Yes);
+    Platform::EventLoopPlugin::the().deferred_invoke(JS::create_heap_function(vm.heap(), [&vm, &realm, bytes = move(bytes), promise, task_source]() mutable {
+        HTML::TemporaryExecutionContext context(realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes);
         // 1. Compile the WebAssembly module bytes and store the result as module.
         auto module_or_error = Detail::compile_a_webassembly_module(vm, move(bytes));
 
         // 2. Queue a task to perform the following steps. If taskSource was provided, queue the task on that task source.
-        HTML::queue_a_task(task_source, nullptr, nullptr, JS::create_heap_function(vm.heap(), [&vm, promise, module_or_error = move(module_or_error)]() mutable {
-            HTML::TemporaryExecutionContext context(HTML::relevant_settings_object(*promise->promise()), HTML::TemporaryExecutionContext::CallbacksEnabled::Yes);
+        HTML::queue_a_task(task_source, nullptr, nullptr, JS::create_heap_function(vm.heap(), [&vm, &realm, promise, module_or_error = move(module_or_error)]() mutable {
+            HTML::TemporaryExecutionContext context(realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes);
             auto& realm = HTML::relevant_realm(*promise->promise());
 
             // 1. If module is error, reject promise with a CompileError exception.
@@ -554,8 +554,8 @@ JS::NonnullGCPtr<WebIDL::Promise> asynchronously_instantiate_webassembly_module(
 
     // 4. Run the following steps in parallel:
     //   1. Queue a task to perform the following steps: Note: Implementation-specific work may be performed here.
-    HTML::queue_a_task(HTML::Task::Source::Unspecified, nullptr, nullptr, JS::create_heap_function(vm.heap(), [&vm, promise, module, import_object]() {
-        HTML::TemporaryExecutionContext context(HTML::relevant_settings_object(*promise->promise()), HTML::TemporaryExecutionContext::CallbacksEnabled::Yes);
+    HTML::queue_a_task(HTML::Task::Source::Unspecified, nullptr, nullptr, JS::create_heap_function(vm.heap(), [&vm, &realm, promise, module, import_object]() {
+        HTML::TemporaryExecutionContext context(realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes);
         auto& realm = HTML::relevant_realm(*promise->promise());
 
         // 1. Instantiate the core of a WebAssembly module module with imports, and let instance be the result.

@@ -1140,10 +1140,10 @@ static void apply_animation_properties(DOM::Document& document, StyleProperties&
 
     if (play_state != effect.last_css_animation_play_state()) {
         if (play_state == CSS::AnimationPlayState::Running && animation.play_state() == Bindings::AnimationPlayState::Paused) {
-            HTML::TemporaryExecutionContext context(document.relevant_settings_object());
+            HTML::TemporaryExecutionContext context(document.realm());
             animation.play().release_value_but_fixme_should_propagate_errors();
         } else if (play_state == CSS::AnimationPlayState::Paused && animation.play_state() != Bindings::AnimationPlayState::Paused) {
-            HTML::TemporaryExecutionContext context(document.relevant_settings_object());
+            HTML::TemporaryExecutionContext context(document.realm());
             animation.pause().release_value_but_fixme_should_propagate_errors();
         }
 
@@ -1561,7 +1561,7 @@ void StyleComputer::compute_cascaded_values(StyleProperties& style, DOM::Element
                 effect->set_target(&element);
                 element.set_cached_animation_name_animation(animation, pseudo_element);
 
-                HTML::TemporaryExecutionContext context(m_document->relevant_settings_object());
+                HTML::TemporaryExecutionContext context(realm);
                 animation->play().release_value_but_fixme_should_propagate_errors();
             } else {
                 // The animation hasn't changed, but some properties of the animation may have
