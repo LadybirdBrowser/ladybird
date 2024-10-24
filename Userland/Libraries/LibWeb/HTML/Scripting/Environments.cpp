@@ -329,11 +329,22 @@ JS::Object& incumbent_global_object()
 // https://whatpr.org/html/9893/webappapis.html#current-principal-realm
 JS::Realm& current_principal_realm()
 {
-    // FIXME: The current principal realm is the principal realm of the current realm.
     auto& event_loop = HTML::main_thread_event_loop();
     auto& vm = event_loop.vm();
 
-    return *vm.current_realm();
+    // The current principal realm is the principal realm of the current realm.
+    return principal_realm(*vm.current_realm());
+}
+
+// https://whatpr.org/html/9893/webappapis.html#concept-principal-realm-of-realm
+JS::Realm& principal_realm(JS::Realm& realm)
+{
+    // FIXME: 1. If realm.[[HostDefined]] is a synthetic realm settings object, then:
+    // FIXME: 1.1. Assert: realm is a synthetic realm.
+    // FIXME: 1.2. Set realm to the principal realm of realm.[[HostDefined]].
+    // FIXME: 2. Assert: realm.[[HostDefined]] is an environment settings object and realm is a principal realm.
+    // 3. Return realm.
+    return realm;
 }
 
 // https://html.spec.whatwg.org/multipage/webappapis.html#current-settings-object
