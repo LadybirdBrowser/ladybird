@@ -880,7 +880,12 @@ void NodeWithStyle::apply_style(const CSS::StyleProperties& computed_style)
     } else if (aspect_ratio->is_keyword() && aspect_ratio->as_keyword().keyword() == CSS::Keyword::Auto) {
         computed_values.set_aspect_ratio({ true, {} });
     } else if (aspect_ratio->is_ratio()) {
-        computed_values.set_aspect_ratio({ false, aspect_ratio->as_ratio().ratio() });
+        // https://drafts.csswg.org/css-sizing-4/#aspect-ratio
+        // If the <ratio> is degenerate, the property instead behaves as auto.
+        if (aspect_ratio->as_ratio().ratio().is_degenerate())
+            computed_values.set_aspect_ratio({ true, {} });
+        else
+            computed_values.set_aspect_ratio({ false, aspect_ratio->as_ratio().ratio() });
     }
 
     auto math_shift_value = computed_style.property(CSS::PropertyID::MathShift);
