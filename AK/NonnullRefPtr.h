@@ -168,7 +168,7 @@ public:
         return as_nonnull_ptr();
     }
 
-    ALWAYS_INLINE T& operator*() const
+    [[nodiscard]] ALWAYS_INLINE T& operator*() const
     {
         return *as_nonnull_ptr();
     }

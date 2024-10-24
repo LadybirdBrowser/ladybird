@@ -96,7 +96,7 @@ public:
         return cell();
     }
 
-    T& operator*() const
+    [[nodiscard]] T& operator*() const
     {
         return *cell();
     }
