@@ -38,6 +38,10 @@ bool is_element_mutable(Web::DOM::Element const&);
 bool is_element_mutable_form_control(Web::DOM::Element const&);
 bool is_element_non_typeable_form_control(Web::DOM::Element const&);
 
+bool is_element_in_view(ReadonlySpan<JS::NonnullGCPtr<Web::DOM::Element>> paint_tree, Web::DOM::Element&);
+bool is_element_obscured(ReadonlySpan<JS::NonnullGCPtr<Web::DOM::Element>> paint_tree, Web::DOM::Element&);
+JS::MarkedVector<JS::NonnullGCPtr<Web::DOM::Element>> pointer_interactable_tree(Web::HTML::BrowsingContext&, Web::DOM::Element&);
+
 ByteString get_or_create_a_shadow_root_reference(Web::DOM::ShadowRoot const& shadow_root);
 JsonObject shadow_root_reference_object(Web::DOM::ShadowRoot const& shadow_root);
 ErrorOr<JS::NonnullGCPtr<Web::DOM::ShadowRoot>, Web::WebDriver::Error> get_known_shadow_root(StringView shadow_id);

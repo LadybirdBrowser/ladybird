@@ -334,6 +334,47 @@ bool is_element_non_typeable_form_control(Web::DOM::Element const& element)
     }
 }
 
+// https://w3c.github.io/webdriver/#dfn-in-view
+bool is_element_in_view(ReadonlySpan<JS::NonnullGCPtr<Web::DOM::Element>> paint_tree, Web::DOM::Element& element)
+{
+    // An element is in view if it is a member of its own pointer-interactable paint tree, given the pretense that its
+    // pointer events are not disabled.
+    if (!element.paintable() || !element.paintable()->is_visible() || !element.paintable()->visible_for_hit_testing())
+        return false;
+
+    return paint_tree.contains_slow(JS::NonnullGCPtr { element });
+}
+
+// https://w3c.github.io/webdriver/#dfn-in-view
+bool is_element_obscured(ReadonlySpan<JS::NonnullGCPtr<Web::DOM::Element>> paint_tree, Web::DOM::Element& element)
+{
+    // An element is obscured if the pointer-interactable paint tree at its center point is empty, or the first element
+    // in this tree is not an inclusive descendant of itself.
+    return paint_tree.is_empty() || !paint_tree.first()->is_shadow_including_inclusive_descendant_of(element);
+}
+
+// https://w3c.github.io/webdriver/#dfn-pointer-interactable-paint-tree
+JS::MarkedVector<JS::NonnullGCPtr<Web::DOM::Element>> pointer_interactable_tree(Web::HTML::BrowsingContext& browsing_context, Web::DOM::Element& element)
+{
+    // 1. If element is not in the same tree as session's current browsing context's active document, return an empty sequence.
+    if (!browsing_context.active_document()->contains(element))
+        return JS::MarkedVector<JS::NonnullGCPtr<Web::DOM::Element>>(browsing_context.heap());
+
+    // 2. Let rectangles be the DOMRect sequence returned by calling getClientRects().
+    auto rectangles = element.get_client_rects();
+
+    // 3. If rectangles has the length of 0, return an empty sequence.
+    if (rectangles->length() == 0)
+        return JS::MarkedVector<JS::NonnullGCPtr<Web::DOM::Element>>(browsing_context.heap());
+
+    // 4. Let center point be the in-view center point of the first indexed element in rectangles.
+    auto viewport = browsing_context.page().top_level_traversable()->viewport_rect();
+    auto center_point = Web::WebDriver::in_view_center_point(element, viewport);
+
+    // 5. Return the elements from point given the coordinates center point.
+    return browsing_context.active_document()->elements_from_point(center_point.x().to_double(), center_point.y().to_double());
+}
+
 // https://w3c.github.io/webdriver/#dfn-get-or-create-a-shadow-root-reference
 ByteString get_or_create_a_shadow_root_reference(Web::DOM::ShadowRoot const& shadow_root)
 {
