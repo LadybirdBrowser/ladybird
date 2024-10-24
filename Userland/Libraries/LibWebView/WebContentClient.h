@@ -127,6 +127,7 @@ private:
     virtual void inspector_did_request_cookie_context_menu(u64 page_id, size_t cookie_index, Gfx::IntPoint position) override;
     virtual void inspector_did_execute_console_script(u64 page_id, String const& script) override;
     virtual void inspector_did_export_inspector_html(u64 page_id, String const& html) override;
+    virtual void inspector_did_close(u64 page_id) override;
     virtual Messages::WebContentClient::RequestWorkerAgentResponse request_worker_agent(u64 page_id) override;
     virtual void inspector_did_list_style_sheets(u64 page_id, Vector<Web::CSS::StyleSheetIdentifier> const& stylesheets) override;
     virtual void inspector_did_request_style_sheet_source(u64 page_id, Web::CSS::StyleSheetIdentifier const& identifier) override;

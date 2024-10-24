@@ -19,9 +19,6 @@
 #    error "This project requires ARC"
 #endif
 
-static constexpr CGFloat const WINDOW_WIDTH = 875;
-static constexpr CGFloat const WINDOW_HEIGHT = 825;
-
 static constexpr NSInteger CONTEXT_MENU_EDIT_NODE_TAG = 1;
 static constexpr NSInteger CONTEXT_MENU_REMOVE_ATTRIBUTE_TAG = 2;
 static constexpr NSInteger CONTEXT_MENU_COPY_ATTRIBUTE_VALUE_TAG = 3;
@@ -50,18 +47,9 @@ static constexpr NSInteger CONTEXT_MENU_DELETE_COOKIE_TAG = 4;
 @synthesize cookie_context_menu = _cookie_context_menu;
 
 - (instancetype)init:(Tab*)tab
+          isWindowed:(BOOL)is_windowed
 {
-    auto tab_rect = [tab frame];
-    auto position_x = tab_rect.origin.x + (tab_rect.size.width - WINDOW_WIDTH) / 2;
-    auto position_y = tab_rect.origin.y + (tab_rect.size.height - WINDOW_HEIGHT) / 2;
-
-    auto window_rect = NSMakeRect(position_x, position_y, WINDOW_WIDTH, WINDOW_HEIGHT);
-    auto style_mask = NSWindowStyleMaskTitled | NSWindowStyleMaskClosable | NSWindowStyleMaskMiniaturizable | NSWindowStyleMaskResizable;
-
-    self = [super initWithContentRect:window_rect
-                            styleMask:style_mask
-                              backing:NSBackingStoreBuffered
-                                defer:NO];
+    self = [super init];
 
     if (self) {
         self.tab = tab;
@@ -69,7 +57,13 @@ static constexpr NSInteger CONTEXT_MENU_DELETE_COOKIE_TAG = 4;
         self.web_view = [[LadybirdWebView alloc] init:nil];
         [self.web_view setPostsBoundsChangedNotifications:YES];
 
-        m_inspector_client = make<WebView::InspectorClient>([[tab web_view] view], [[self web_view] view]);
+        [self setHasVerticalScroller:YES];
+        [self setHasHorizontalScroller:YES];
+        [self setLineScroll:24];
+        [self setContentView:self.web_view];
+        [self setDocumentView:[[NSView alloc] init]];
+
+        m_inspector_client = make<WebView::InspectorClient>([[tab web_view] view], [[self web_view] view], is_windowed);
         __weak Inspector* weak_self = self;
 
         m_inspector_client->on_requested_dom_node_text_context_menu = [weak_self](auto position) {
@@ -139,26 +133,17 @@ static constexpr NSInteger CONTEXT_MENU_DELETE_COOKIE_TAG = 4;
             [NSMenu popUpContextMenu:strong_self.cookie_context_menu withEvent:event forView:strong_self.web_view];
         };
 
-        auto* scroll_view = [[NSScrollView alloc] init];
-        [scroll_view setHasVerticalScroller:YES];
-        [scroll_view setHasHorizontalScroller:YES];
-        [scroll_view setLineScroll:24];
+        m_inspector_client->on_requested_close = [weak_self]() {
+            Inspector* strong_self = weak_self;
+            if (strong_self == nil) {
+                return;
+            }
 
-        [scroll_view setContentView:self.web_view];
-        [scroll_view setDocumentView:[[NSView alloc] init]];
-
-        [self setContentView:scroll_view];
-        [self setTitle:@"Inspector"];
-        [self setIsVisible:YES];
+            [strong_self removeFromSuperview];
+        };
     }
 
     return self;
-}
-
-- (void)dealloc
-{
-    auto& web_view = [[self.tab web_view] view];
-    web_view.clear_inspected_dom_node();
 }
 
 #pragma mark - Public methods
@@ -176,6 +161,11 @@ static constexpr NSInteger CONTEXT_MENU_DELETE_COOKIE_TAG = 4;
 - (void)selectHoveredElement
 {
     m_inspector_client->select_hovered_node();
+}
+
+- (void)setIsWindowed:(BOOL)is_visible
+{
+    m_inspector_client->set_is_windowed(is_visible);
 }
 
 #pragma mark - Private methods
@@ -385,6 +375,16 @@ static constexpr NSInteger CONTEXT_MENU_DELETE_COOKIE_TAG = 4;
     }
 
     return _cookie_context_menu;
+}
+
+#pragma mark - NSView
+
+- (void)viewWillMoveToWindow:(NSWindow*)newWindow
+{
+    // newWindow being nil indicates the inspector view has been removed from its parent
+    if (newWindow == nil) {
+        [self.tab onInspectorClosed];
+    }
 }
 
 @end
