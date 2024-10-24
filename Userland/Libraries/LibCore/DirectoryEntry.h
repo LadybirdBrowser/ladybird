@@ -7,8 +7,12 @@
 #pragma once
 
 #include <AK/ByteString.h>
-#include <AK/StringView.h>
-#include <dirent.h>
+#ifdef AK_OS_WINDOWS
+struct dirent;
+struct DIR;
+#else
+#    include <dirent.h>
+#endif
 
 namespace Core {
 
