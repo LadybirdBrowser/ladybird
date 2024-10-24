@@ -25,8 +25,6 @@
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Element.h>
 #include <LibWeb/DOM/Event.h>
-#include <LibWeb/DOM/NodeFilter.h>
-#include <LibWeb/DOM/NodeIterator.h>
 #include <LibWeb/DOM/Position.h>
 #include <LibWeb/DOM/ShadowRoot.h>
 #include <LibWeb/Geometry/DOMRect.h>
@@ -129,12 +127,9 @@ static ErrorOr<void> scroll_element_into_view(Web::DOM::Element& element)
 static Optional<Web::DOM::Element&> container_for_element(Web::DOM::Element& element)
 {
     auto first_element_reached_by_traversing_the_tree_in_reverse_order = [](Web::DOM::Element& element, auto filter) -> Optional<Web::DOM::Element&> {
-        auto node_iterator = element.document().create_node_iterator(element, to_underlying(Web::DOM::NodeFilter::WhatToShow::SHOW_ALL), nullptr);
-
-        auto current_node = node_iterator->previous_node();
-        while (current_node.has_value() && current_node.value() != nullptr && current_node.value()->is_element()) {
-            if (filter(current_node.value()))
-                return static_cast<Web::DOM::Element&>(*current_node.release_value());
+        for (auto* current = element.previous_element_in_pre_order(); current; current = current->previous_element_in_pre_order()) {
+            if (filter(*current))
+                return *current;
         }
 
         return {};
@@ -147,10 +142,10 @@ static Optional<Web::DOM::Element&> container_for_element(Web::DOM::Element& ele
     if (is<Web::HTML::HTMLOptionElement>(element) || is<Web::HTML::HTMLOptGroupElement>(element)) {
         // The element’s element context, which is determined by:
         // 1. Let datalist parent be the first datalist element reached by traversing the tree in reverse order from element, or undefined if the root of the tree is reached.
-        auto datalist_parent = first_element_reached_by_traversing_the_tree_in_reverse_order(element, [](auto& node) { return is<Web::HTML::HTMLDataListElement>(*node); });
+        auto datalist_parent = first_element_reached_by_traversing_the_tree_in_reverse_order(element, [](auto& node) { return is<Web::HTML::HTMLDataListElement>(node); });
 
         // 2. Let select parent be the first select element reached by traversing the tree in reverse order from element, or undefined if the root of the tree is reached.
-        auto select_parent = first_element_reached_by_traversing_the_tree_in_reverse_order(element, [](auto& node) { return is<Web::HTML::HTMLSelectElement>(*node); });
+        auto select_parent = first_element_reached_by_traversing_the_tree_in_reverse_order(element, [](auto& node) { return is<Web::HTML::HTMLSelectElement>(node); });
 
         // 3. If datalist parent is undefined, the element context is select parent. Otherwise, the element context is datalist parent.
         if (!datalist_parent.has_value())
