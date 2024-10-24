@@ -297,7 +297,7 @@ Web::KeyEvent ns_event_to_key_event(Web::KeyEvent::Type type, NSEvent* event)
 {
     auto modifiers = ns_modifiers_to_key_modifiers(event.modifierFlags);
     auto key_code = ns_key_code_to_key_code(event.keyCode, modifiers);
-    auto repeat = event.isARepeat;
+    auto repeat = false;
 
     // FIXME: WebContent should really support multi-code point key events.
     u32 code_point = 0;
@@ -307,6 +307,8 @@ Web::KeyEvent ns_event_to_key_event(Web::KeyEvent::Type type, NSEvent* event)
         Utf8View utf8_view { StringView { utf8, strlen(utf8) } };
 
         code_point = utf8_view.is_empty() ? 0u : *utf8_view.begin();
+
+        repeat = event.isARepeat;
     }
 
     // NSEvent assigns PUA code points to to functional keys, e.g. arrow keys. Do not propagate them.
