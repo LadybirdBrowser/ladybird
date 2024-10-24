@@ -13,10 +13,12 @@
 #include <AK/Math.h>
 #include <AK/Utf8View.h>
 #include <LibWeb/Crypto/Crypto.h>
+#include <LibWeb/DOM/Document.h>
 #include <LibWeb/HTML/BrowsingContext.h>
 #include <LibWeb/HTML/EventLoop/EventLoop.h>
 #include <LibWeb/HTML/TraversableNavigable.h>
 #include <LibWeb/Page/Page.h>
+#include <LibWeb/Painting/PaintableBox.h>
 #include <LibWeb/WebDriver/Actions.h>
 #include <LibWeb/WebDriver/ElementReference.h>
 #include <LibWeb/WebDriver/InputState.h>
@@ -109,10 +111,72 @@ static Optional<ActionObject::Origin> determine_origin(ActionsOptions const& act
     return {};
 }
 
-// https://w3c.github.io/webdriver/#dfn-get-coordinates-relative-to-an-origin
-static ErrorOr<CSSPixelPoint, WebDriver::Error> get_coordinates_relative_to_origin(PointerInputSource const& source, CSSPixelPoint offset, CSSPixelRect viewport, ActionObject::Origin const& origin, ActionsOptions const& actions_options)
+// https://pr-preview.s3.amazonaws.com/w3c/webdriver/pull/1847.html#dfn-get-parent-offset
+static CSSPixelPoint get_parent_offset(HTML::BrowsingContext const& browsing_context)
 {
-    // 1. Run the substeps of the first matching value of origin
+    // 1. Let offsetLeft equal to 0 and offsetTop equal to 0.
+    CSSPixelPoint offset;
+
+    // 2. Let navigable be context's active document's parent.
+    auto navigable = browsing_context.active_document()->navigable();
+    if (!navigable)
+        return offset;
+
+    // 3. Let parent navigable be navigable's parent.
+    auto parent_navigable = navigable->parent();
+
+    // 4. If parent navigable is not null:
+    if (parent_navigable && parent_navigable->active_document() && parent_navigable->active_document()->browsing_context()) {
+        // 1. Let parent context be parent navigable's document's browsing context.
+        auto* parent_context = parent_navigable->active_document()->browsing_context();
+
+        // 2. Let (parentOffsetLeft, parentOffsetTop) be result of get parent offset of parent context.
+        auto parent_offset = get_parent_offset(*parent_context);
+
+        // 3. Add parentOffsetLeft to offsetLeft.
+        // 4. Add parentOffsetTop to offsetTop.
+        offset.translate_by(parent_offset);
+
+        // 5. Let containerElement be an element which navigable container presents parent navigable.
+        auto container_element = parent_navigable->container();
+        if (!container_element)
+            return offset;
+
+        // 6. Let containerRect be the result of calling getBoundingClientRect() of containerElement.
+        auto container_rect = container_element->get_bounding_client_rect();
+
+        CSSPixels border_left_width = 0;
+        CSSPixels border_top_width = 0;
+
+        if (auto* paintable_box = container_element->paintable_box()) {
+            // 7. Let borderLeftWidth be the computed border-left-width of containerElement in CSS pixels.
+            border_left_width = paintable_box->computed_values().border_left().width;
+
+            // 8. Let borderTopWidth be the computed border-top-width of containerElement in CSS pixels.
+            border_top_width = paintable_box->computed_values().border_top().width;
+        }
+
+        // 9. Add containerRect.left + borderLeftWidth to offsetLeft.
+        // 10. Add containerRect.top + borderTopWidth to offsetTop.
+        offset.translate_by(
+            CSSPixels { container_rect->left() } + border_left_width,
+            CSSPixels { container_rect->top() } + border_top_width);
+    }
+
+    // 5. Return (offsetLeft, offsetTop).
+    return offset;
+}
+
+// https://w3c.github.io/webdriver/#dfn-get-coordinates-relative-to-an-origin
+static ErrorOr<CSSPixelPoint, WebDriver::Error> get_coordinates_relative_to_origin(PointerInputSource const& source, HTML::BrowsingContext const& browsing_context, CSSPixelPoint offset, CSSPixelRect viewport, ActionObject::Origin const& origin, ActionsOptions const& actions_options)
+{
+    // FIXME: Spec-issue: If the browsing context is that of a subframe, we need to get its offset relative to the top
+    //        frame, rather than its own frame.
+    //        https://github.com/w3c/webdriver/issues/1840
+    // 1. Let (parentOffsetLeft, parentOffsetTop) be the result of get parent offset of browsing context.
+    auto parent_offset = get_parent_offset(browsing_context);
+
+    // 2. Run the substeps of the first matching value of origin
     auto coordinates = TRY(origin.visit(
         [&](ActionObject::OriginType origin) -> ErrorOr<CSSPixelPoint, WebDriver::Error> {
             switch (origin) {
@@ -145,8 +209,8 @@ static ErrorOr<CSSPixelPoint, WebDriver::Error> get_coordinates_relative_to_orig
             return position.translated(offset);
         }));
 
-    // 2. Return (x, y)
-    return coordinates;
+    // 2. Return (x + parentOffsetLeft, y + parentOffsetTop)
+    return coordinates.translated(parent_offset);
 }
 
 // https://w3c.github.io/webdriver/#dfn-process-pointer-parameters
@@ -1171,7 +1235,7 @@ static ErrorOr<void, WebDriver::Error> dispatch_pointer_move_action(ActionObject
     // 3. Let origin be equal to the origin property of action object.
     // 4. Let (x, y) be the result of trying to get coordinates relative to an origin with source, x offset, y offset,
     //    origin, browsing context, and actions options.
-    auto coordinates = TRY(get_coordinates_relative_to_origin(source, action_object.position, viewport, action_object.origin, actions_options));
+    auto coordinates = TRY(get_coordinates_relative_to_origin(source, browsing_context, action_object.position, viewport, action_object.origin, actions_options));
 
     // 5. If x is less than 0 or greater than the width of the viewport in CSS pixels, then return error with error code move target out of bounds.
     if (coordinates.x() < 0 || coordinates.x() > viewport.width())
