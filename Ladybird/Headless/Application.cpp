@@ -47,6 +47,9 @@ void Application::create_platform_options(WebView::ChromeOptions& chrome_options
     if (is_layout_test_mode) {
         // Allow window.open() to succeed for tests.
         chrome_options.allow_popups = WebView::AllowPopups::Yes;
+
+        // Ensure consistent font rendering between operating systems.
+        web_content_options.force_fontconfig = WebView::ForceFontconfig::Yes;
     }
 
     if (dump_gc_graph) {
