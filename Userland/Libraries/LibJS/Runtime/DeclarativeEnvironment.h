@@ -115,18 +115,16 @@ protected:
 
     virtual Optional<BindingAndIndex> find_binding_and_index(DeprecatedFlyString const& name) const
     {
-        auto it = m_bindings.find_if([&](auto const& binding) {
-            return binding.name == name;
-        });
+        if (auto it = m_bindings_assoc.find(name); it != m_bindings_assoc.end()) {
+            return BindingAndIndex { const_cast<Binding*>(&m_bindings.at(it->value)), it->value };
+        }
 
-        if (it == m_bindings.end())
-            return {};
-
-        return BindingAndIndex { const_cast<Binding*>(&(*it)), it.index() };
+        return {};
     }
 
 private:
     Vector<Binding> m_bindings;
+    HashMap<DeprecatedFlyString, size_t> m_bindings_assoc;
     Vector<DisposableResource> m_disposable_resource_stack;
 
     u64 m_environment_serial_number { 0 };
