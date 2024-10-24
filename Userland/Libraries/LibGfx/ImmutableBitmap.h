@@ -9,6 +9,7 @@
 #include <AK/Forward.h>
 #include <AK/RefCounted.h>
 #include <LibGfx/Bitmap.h>
+#include <LibGfx/ColorSpace.h>
 #include <LibGfx/Forward.h>
 #include <LibGfx/Rect.h>
 
@@ -16,11 +17,12 @@ namespace Gfx {
 
 class ImmutableBitmap final : public RefCounted<ImmutableBitmap> {
 public:
-    static NonnullRefPtr<ImmutableBitmap> create(NonnullRefPtr<Bitmap> bitmap);
+    static NonnullRefPtr<ImmutableBitmap> create(NonnullRefPtr<Bitmap> bitmap, ColorSpace profile = {});
 
     ~ImmutableBitmap() = default;
 
     Bitmap const& bitmap() const { return *m_bitmap; }
+    ColorSpace const& color_space() const { return m_color_space; }
 
     size_t width() const { return m_bitmap->width(); }
     size_t height() const { return m_bitmap->height(); }
@@ -32,9 +34,10 @@ public:
 
 private:
     NonnullRefPtr<Bitmap> m_bitmap;
+    ColorSpace m_color_space;
     size_t m_id;
 
-    explicit ImmutableBitmap(NonnullRefPtr<Bitmap> bitmap);
+    explicit ImmutableBitmap(NonnullRefPtr<Bitmap> bitmap, ColorSpace color_space);
 };
 
 }

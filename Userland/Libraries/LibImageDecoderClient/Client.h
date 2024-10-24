@@ -10,6 +10,7 @@
 #include <ImageDecoder/ImageDecoderClientEndpoint.h>
 #include <ImageDecoder/ImageDecoderServerEndpoint.h>
 #include <LibCore/Promise.h>
+#include <LibGfx/ColorSpace.h>
 #include <LibIPC/ConnectionToServer.h>
 
 namespace ImageDecoderClient {
@@ -24,6 +25,7 @@ struct DecodedImage {
     Gfx::FloatPoint scale { 1, 1 };
     u32 loop_count { 0 };
     Vector<Frame> frames;
+    Gfx::ColorSpace color_space;
 };
 
 class Client final
@@ -41,7 +43,7 @@ public:
 private:
     virtual void die() override;
 
-    virtual void did_decode_image(i64 image_id, bool is_animated, u32 loop_count, Gfx::BitmapSequence const& bitmap_sequence, Vector<u32> const& durations, Gfx::FloatPoint scale) override;
+    virtual void did_decode_image(i64 image_id, bool is_animated, u32 loop_count, Gfx::BitmapSequence const& bitmap_sequence, Vector<u32> const& durations, Gfx::FloatPoint scale, Gfx::ColorSpace const& color_profile) override;
     virtual void did_fail_to_decode_image(i64 image_id, String const& error_message) override;
 
     HashMap<i64, NonnullRefPtr<Core::Promise<DecodedImage>>> m_pending_decoded_images;
