@@ -101,7 +101,7 @@ public:
 
     ALWAYS_INLINE RETURNS_NONNULL T* operator->() const { return ptr(); }
 
-    ALWAYS_INLINE T& operator*() const { return *ptr(); }
+    [[nodiscard]] ALWAYS_INLINE T& operator*() const { return *ptr(); }
 
     ALWAYS_INLINE RETURNS_NONNULL operator T*() const { return ptr(); }
 
