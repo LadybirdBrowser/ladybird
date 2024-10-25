@@ -1110,25 +1110,13 @@ void TableFormattingContext::position_cell_boxes()
                 cell_state.padding_top += row_content_height - cell_state.border_box_height();
                 break;
             }
+            case CSS::VerticalAlign::Sub:
+            case CSS::VerticalAlign::Super:
+            case CSS::VerticalAlign::TextBottom:
+            case CSS::VerticalAlign::TextTop: 
             case CSS::VerticalAlign::Baseline: {
                 cell_state.padding_top += m_rows[cell.row_index].baseline - cell.baseline;
                 cell_state.padding_bottom += row_content_height - cell_state.border_box_height();
-                break;
-            }
-            case CSS::VerticalAlign::Sub: {
-                dbgln("FIXME: Implement \"vertical-align: sub\" support for table cells");
-                break;
-            }
-            case CSS::VerticalAlign::Super: {
-                dbgln("FIXME: Implement \"vertical-align: super\" support for table cells");
-                break;
-            }
-            case CSS::VerticalAlign::TextBottom: {
-                dbgln("FIXME: Implement \"vertical-align: text-bottom\" support for table cells");
-                break;
-            }
-            case CSS::VerticalAlign::TextTop: {
-                dbgln("FIXME: Implement \"vertical-align: text-top\" support for table cells");
                 break;
             }
             default:
