@@ -34,6 +34,8 @@
 #include <LibWeb/DOM/StaticNodeList.h>
 #include <LibWeb/HTML/CustomElements/CustomElementReactionNames.h>
 #include <LibWeb/HTML/HTMLAnchorElement.h>
+#include <LibWeb/HTML/HTMLInputElement.h>
+#include <LibWeb/HTML/HTMLSelectElement.h>
 #include <LibWeb/HTML/HTMLSlotElement.h>
 #include <LibWeb/HTML/HTMLStyleElement.h>
 #include <LibWeb/HTML/Navigable.h>
@@ -2192,7 +2194,7 @@ ErrorOr<String> Node::name_or_description(NameOrDescription target, Document con
         // 2. Compute the text alternative for the current node:
         // A. If the current node is hidden and is not directly referenced by aria-labelledby or aria-describedby, nor directly referenced by a native host language text alternative element (e.g. label in HTML) or attribute, return the empty string.
         // FIXME: Check for references
-        if (element->aria_hidden() == "true" || !layout_node())
+        if (element->aria_hidden() == "true")
             return String {};
         // B. Otherwise:
         // - if computing a name, and the current node has an aria-labelledby attribute that contains at least one valid IDREF, and the current node is not already part of an aria-labelledby traversal,
@@ -2231,7 +2233,83 @@ ErrorOr<String> Node::name_or_description(NameOrDescription target, Document con
             // iii. Return the accumulated text.
             return total_accumulated_text.to_string();
         }
-        // C. Otherwise, if computing a name, and if the current node has an aria-label attribute whose value is not the empty string, nor, when trimmed of white space, is not the empty string:
+        // C. Embedded Control: Otherwise, if the current node is a control embedded
+        // within the label (e.g. any element directly referenced by aria-labelledby) for
+        // another widget, where the user can adjust the embedded control's value, then
+        // return the embedded control as part of the text alternative in the following
+        // manner:
+        JS::GCPtr<DOM::NodeList> labels;
+        if (is<HTML::HTMLElement>(this))
+            labels = (const_cast<HTML::HTMLElement&>(static_cast<HTML::HTMLElement const&>(*current_node))).labels();
+        if (labels != nullptr && labels->length() > 0) {
+            StringBuilder builder;
+            for (u32 i = 0; i < labels->length(); i++) {
+                auto nodes = labels->item(i)->children_as_vector();
+                for (auto const& node : nodes) {
+                    if (node->is_element()) {
+                        auto const& element = static_cast<DOM::Element const&>(*node);
+                        auto role = element.role_or_default();
+                        if (role == ARIA::Role::textbox) {
+                            // i. Textbox: If the embedded control has role textbox, return its value.
+                            if (is<HTML::HTMLInputElement>(*node)) {
+                                auto const& element = static_cast<HTML::HTMLInputElement const&>(*node);
+                                if (element.has_attribute("value"_string))
+                                    builder.append(element.value());
+                            } else
+                                builder.append(node->text_content().value());
+                        } else if (role == ARIA::Role::combobox) {
+                            // ii. Combobox/Listbox: If the embedded control has role combobox or listbox, return the text alternative of the chosen option.
+                            if (is<HTML::HTMLInputElement>(*node)) {
+                                auto const& element = static_cast<HTML::HTMLInputElement const&>(*node);
+                                if (element.has_attribute("value"_string))
+                                    builder.append(element.value());
+                            } else if (is<HTML::HTMLSelectElement>(*node)) {
+                                auto const& element = static_cast<HTML::HTMLSelectElement const&>(*node);
+                                builder.append(element.value());
+                            } else
+                                builder.append(node->text_content().value());
+                        } else if (role == ARIA::Role::listbox) {
+                            // ii. Combobox/Listbox: If the embedded control has role combobox or listbox, return the text alternative of the chosen option.
+                            if (is<HTML::HTMLSelectElement>(*node)) {
+                                auto const& element = static_cast<HTML::HTMLSelectElement const&>(*node);
+                                builder.append(element.value());
+                            }
+                            auto children = node->children_as_vector();
+                            for (auto& child : children) {
+                                if (child->is_element()) {
+                                    auto const& element = static_cast<DOM::Element const&>(*child);
+                                    auto role = element.role_or_default();
+                                    if (role == ARIA::Role::option && element.aria_selected() == "true")
+                                        builder.append(element.text_content().value());
+                                }
+                            }
+                        } else if (role == ARIA::Role::spinbutton || role == ARIA::Role::slider) {
+                            // iii. Range: If the embedded control has role range (e.g., a spinbutton or slider):
+                            // a. If the aria-valuetext property is present, return its value,
+                            if (element.has_attribute("aria-valuetext"_string))
+                                builder.append(element.get_attribute("aria-valuetext"_string).value());
+                            // b. Otherwise, if the aria-valuenow property is present, return its value
+                            else if (element.has_attribute("aria-valuenow"_string))
+                                builder.append(element.get_attribute("aria-valuenow"_string).value());
+                            // c. Otherwise, use the value as specified by a host language attribute.
+                            else if (is<HTML::HTMLInputElement>(*node)) {
+                                auto const& element = static_cast<HTML::HTMLInputElement const&>(*node);
+                                if (element.has_attribute("value"_string))
+                                    builder.append(element.value());
+                            }
+                        }
+                    } else if (node->is_text()) {
+                        auto const& text_node = static_cast<DOM::Text const&>(*node);
+                        builder.append(text_node.data());
+                    }
+                }
+            }
+            return builder.to_string();
+        }
+
+        // D. AriaLabel: Otherwise, if the current node has an aria-label attribute whose
+        // value is not undefined, not the empty string, nor, when trimmed of whitespace,
+        // is not the empty string:
         if (target == NameOrDescription::Name && element->aria_label().has_value() && !element->aria_label()->is_empty() && !element->aria_label()->bytes_as_string_view().is_whitespace()) {
             // TODO: - If traversal of the current node is due to recursion and the current node is an embedded control as defined in step 2E, ignore aria-label and skip to rule 2E.
             // - Otherwise, return the value of aria-label.
@@ -2239,16 +2317,6 @@ ErrorOr<String> Node::name_or_description(NameOrDescription target, Document con
         }
         // TODO: D. Otherwise, if the current node's native markup provides an attribute (e.g. title) or element (e.g. HTML label) that defines a text alternative,
         //      return that alternative in the form of a flat string as defined by the host language, unless the element is marked as presentational (role="presentation" or role="none").
-
-        // TODO: E. Otherwise, if the current node is a control embedded within the label (e.g. the label element in HTML or any element directly referenced by aria-labelledby) for another widget, where the user can adjust the embedded
-        //          control's value, then include the embedded control as part of the text alternative in the following manner:
-        //   - If the embedded control has role textbox, return its value.
-        //   - If the embedded control has role menu button, return the text alternative of the button.
-        //   - If the embedded control has role combobox or listbox, return the text alternative of the chosen option.
-        //   - If the embedded control has role range (e.g., a spinbutton or slider):
-        //      - If the aria-valuetext property is present, return its value,
-        //      - Otherwise, if the aria-valuenow property is present, return its value,
-        //      - Otherwise, use the value as specified by a host language attribute.
 
         // F. Otherwise, if the current node's role allows name from content, or if the current node is referenced by aria-labelledby, aria-describedby, or is a native host language text alternative element (e.g. label in HTML), or is a descendant of a native host language text alternative element:
         auto role = element->role_or_default();
