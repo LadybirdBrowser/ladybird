@@ -111,6 +111,7 @@ public:
 
     struct PushStackingContextParams {
         float opacity;
+        CSS::ResolvedFilter filter;
         bool is_fixed_position;
         Gfx::IntRect source_paintable_rect;
         StackingContextTransform transform;
