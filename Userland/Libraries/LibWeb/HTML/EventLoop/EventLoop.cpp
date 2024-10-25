@@ -32,6 +32,10 @@ EventLoop::EventLoop(Type type)
 {
     m_task_queue = heap().allocate_without_realm<TaskQueue>(*this);
     m_microtask_queue = heap().allocate_without_realm<TaskQueue>(*this);
+
+    m_rendering_task_function = JS::create_heap_function(heap(), [this] {
+        update_the_rendering();
+    });
 }
 
 EventLoop::~EventLoop() = default;
@@ -43,6 +47,7 @@ void EventLoop::visit_edges(Visitor& visitor)
     visitor.visit(m_microtask_queue);
     visitor.visit(m_currently_running_task);
     visitor.visit(m_backup_incumbent_settings_object_stack);
+    visitor.visit(m_rendering_task_function);
 }
 
 void EventLoop::schedule()
@@ -239,158 +244,161 @@ void EventLoop::queue_task_to_update_the_rendering()
         if (document->is_decoded_svg())
             continue;
 
-        queue_global_task(Task::Source::Rendering, *navigable->active_window(), JS::create_heap_function(navigable->heap(), [this] mutable {
-            VERIFY(!m_is_running_rendering_task);
-            m_is_running_rendering_task = true;
-            ScopeGuard const guard = [this] {
-                m_is_running_rendering_task = false;
-            };
+        queue_global_task(Task::Source::Rendering, *navigable->active_window(), *m_rendering_task_function);
+    }
+}
 
-            // FIXME: 1. Let frameTimestamp be eventLoop's last render opportunity time.
+void EventLoop::update_the_rendering()
+{
+    VERIFY(!m_is_running_rendering_task);
+    m_is_running_rendering_task = true;
+    ScopeGuard const guard = [this] {
+        m_is_running_rendering_task = false;
+    };
 
-            // FIXME: 2. Let docs be all fully active Document objects whose relevant agent's event loop is eventLoop, sorted arbitrarily except that the following conditions must be met:
-            auto docs = documents_in_this_event_loop();
-            docs.remove_all_matching([&](auto& document) {
-                return !document->is_fully_active();
-            });
+    // FIXME: 1. Let frameTimestamp be eventLoop's last render opportunity time.
 
-            // 3. Filter non-renderable documents: Remove from docs any Document object doc for which any of the following are true:
-            docs.remove_all_matching([&](auto const& document) {
-                auto navigable = document->navigable();
-                if (!navigable)
-                    return true;
+    // FIXME: 2. Let docs be all fully active Document objects whose relevant agent's event loop is eventLoop, sorted arbitrarily except that the following conditions must be met:
+    auto docs = documents_in_this_event_loop();
+    docs.remove_all_matching([&](auto& document) {
+        return !document->is_fully_active();
+    });
 
-                // FIXME: doc is render-blocked;
+    // 3. Filter non-renderable documents: Remove from docs any Document object doc for which any of the following are true:
+    docs.remove_all_matching([&](auto const& document) {
+        auto navigable = document->navigable();
+        if (!navigable)
+            return true;
 
-                // doc's visibility state is "hidden";
-                if (document->visibility_state() == "hidden"sv)
-                    return true;
+        // FIXME: doc is render-blocked;
 
-                // FIXME: doc's rendering is suppressed for view transitions; or
+        // doc's visibility state is "hidden";
+        if (document->visibility_state() == "hidden"sv)
+            return true;
 
-                // doc's node navigable doesn't currently have a rendering opportunity.
-                if (!navigable->has_a_rendering_opportunity())
-                    return true;
+        // FIXME: doc's rendering is suppressed for view transitions; or
 
-                return false;
-            });
+        // doc's node navigable doesn't currently have a rendering opportunity.
+        if (!navigable->has_a_rendering_opportunity())
+            return true;
 
-            // FIXME: 4. Unnecessary rendering: Remove from docs any Document object doc for which all of the following are true:
+        return false;
+    });
 
-            // FIXME: 5. Remove from docs all Document objects for which the user agent believes that it's preferable to skip updating the rendering for other reasons.
+    // FIXME: 4. Unnecessary rendering: Remove from docs any Document object doc for which all of the following are true:
 
-            // FIXME: 6. For each doc of docs, reveal doc.
+    // FIXME: 5. Remove from docs all Document objects for which the user agent believes that it's preferable to skip updating the rendering for other reasons.
 
-            // FIXME: 7. For each doc of docs, flush autofocus candidates for doc if its node navigable is a top-level traversable.
+    // FIXME: 6. For each doc of docs, reveal doc.
 
-            // 8. For each doc of docs, run the resize steps for doc. [CSSOMVIEW]
-            for (auto& document : docs) {
-                document->run_the_resize_steps();
+    // FIXME: 7. For each doc of docs, flush autofocus candidates for doc if its node navigable is a top-level traversable.
+
+    // 8. For each doc of docs, run the resize steps for doc. [CSSOMVIEW]
+    for (auto& document : docs) {
+        document->run_the_resize_steps();
+    }
+
+    // 9. For each doc of docs, run the scroll steps for doc. [CSSOMVIEW]
+    for (auto& document : docs) {
+        document->run_the_scroll_steps();
+    }
+
+    // 10. For each doc of docs, evaluate media queries and report changes for doc. [CSSOMVIEW]
+    for (auto& document : docs) {
+        document->evaluate_media_queries_and_report_changes();
+    }
+
+    // 11. For each doc of docs, update animations and send events for doc, passing in relative high resolution time given frameTimestamp and doc's relevant global object as the timestamp [WEBANIMATIONS]
+    for (auto& document : docs) {
+        document->update_animations_and_send_events(document->window()->performance()->now());
+    };
+
+    // FIXME: 12. For each doc of docs, run the fullscreen steps for doc. [FULLSCREEN]
+
+    // FIXME: 13. For each doc of docs, if the user agent detects that the backing storage associated with a CanvasRenderingContext2D or an OffscreenCanvasRenderingContext2D, context, has been lost, then it must run the context lost steps for each such context:
+
+    // 14. For each doc of docs, run the animation frame callbacks for doc, passing in the relative high resolution time given frameTimestamp and doc's relevant global object as the timestamp.
+    auto now = HighResolutionTime::unsafe_shared_current_time();
+    for (auto& document : docs) {
+        run_animation_frame_callbacks(*document, now);
+    }
+
+    // FIXME: 15. Let unsafeStyleAndLayoutStartTime be the unsafe shared current time.
+
+    // 16. For each doc of docs:
+    for (auto& document : docs) {
+        // 1. Let resizeObserverDepth be 0.
+        size_t resize_observer_depth = 0;
+
+        // 2. While true:
+        while (true) {
+            // 1. Recalculate styles and update layout for doc.
+            // NOTE: Recalculation of styles is handled by update_layout()
+            document->update_layout();
+
+            // FIXME: 2. Let hadInitialVisibleContentVisibilityDetermination be false.
+            // FIXME: 3. For each element element with 'auto' used value of 'content-visibility':
+            // FIXME: 4. If hadInitialVisibleContentVisibilityDetermination is true, then continue.
+
+            // 5. Gather active resize observations at depth resizeObserverDepth for doc.
+            document->gather_active_observations_at_depth(resize_observer_depth);
+
+            // 6. If doc has active resize observations:
+            if (document->has_active_resize_observations()) {
+                // 1. Set resizeObserverDepth to the result of broadcasting active resize observations given doc.
+                resize_observer_depth = document->broadcast_active_resize_observations();
+
+                // 2. Continue.
+                continue;
             }
 
-            // 9. For each doc of docs, run the scroll steps for doc. [CSSOMVIEW]
-            for (auto& document : docs) {
-                document->run_the_scroll_steps();
+            // 7. Otherwise, break.
+            break;
+        }
+
+        // 3. If doc has skipped resize observations, then deliver resize loop error given doc.
+        if (document->has_skipped_resize_observations()) {
+            // FIXME: Deliver resize loop error.
+        }
+    }
+
+    // FIXME: 17. For each doc of docs, if the focused area of doc is not a focusable area, then run the focusing steps for doc's viewport, and set doc's relevant global object's navigation API's focus changed during ongoing navigation to false.
+
+    // FIXME: 18. For each doc of docs, perform pending transition operations for doc. [CSSVIEWTRANSITIONS]
+
+    // 19. For each doc of docs, run the update intersection observations steps for doc, passing in the relative high resolution time given now and doc's relevant global object as the timestamp. [INTERSECTIONOBSERVER]
+    for (auto& document : docs) {
+        document->run_the_update_intersection_observations_steps(now);
+    }
+
+    // FIXME: 20. For each doc of docs, record rendering time for doc given unsafeStyleAndLayoutStartTime.
+
+    // FIXME: 21. For each doc of docs, mark paint timing for doc.
+
+    // 22. For each doc of docs, update the rendering or user interface of doc and its node navigable to reflect the current state.
+    for (auto& document : docs) {
+        document->page().client().process_screenshot_requests();
+        auto navigable = document->navigable();
+        if (navigable && document->needs_repaint()) {
+            auto* browsing_context = document->browsing_context();
+            auto& page = browsing_context->page();
+            if (navigable->is_traversable()) {
+                VERIFY(page.client().is_ready_to_paint());
+                page.client().paint_next_frame();
             }
+        }
+    }
 
-            // 10. For each doc of docs, evaluate media queries and report changes for doc. [CSSOMVIEW]
-            for (auto& document : docs) {
-                document->evaluate_media_queries_and_report_changes();
-            }
+    // 23. For each doc of docs, process top layer removals given doc.
+    for (auto& document : docs) {
+        document->process_top_layer_removals();
+    }
 
-            // 11. For each doc of docs, update animations and send events for doc, passing in relative high resolution time given frameTimestamp and doc's relevant global object as the timestamp [WEBANIMATIONS]
-            for (auto& document : docs) {
-                document->update_animations_and_send_events(document->window()->performance()->now());
-            };
-
-            // FIXME: 12. For each doc of docs, run the fullscreen steps for doc. [FULLSCREEN]
-
-            // FIXME: 13. For each doc of docs, if the user agent detects that the backing storage associated with a CanvasRenderingContext2D or an OffscreenCanvasRenderingContext2D, context, has been lost, then it must run the context lost steps for each such context:
-
-            // 14. For each doc of docs, run the animation frame callbacks for doc, passing in the relative high resolution time given frameTimestamp and doc's relevant global object as the timestamp.
-            auto now = HighResolutionTime::unsafe_shared_current_time();
-            for (auto& document : docs) {
-                run_animation_frame_callbacks(*document, now);
-            }
-
-            // FIXME: 15. Let unsafeStyleAndLayoutStartTime be the unsafe shared current time.
-
-            // 16. For each doc of docs:
-            for (auto& document : docs) {
-                // 1. Let resizeObserverDepth be 0.
-                size_t resize_observer_depth = 0;
-
-                // 2. While true:
-                while (true) {
-                    // 1. Recalculate styles and update layout for doc.
-                    // NOTE: Recalculation of styles is handled by update_layout()
-                    document->update_layout();
-
-                    // FIXME: 2. Let hadInitialVisibleContentVisibilityDetermination be false.
-                    // FIXME: 3. For each element element with 'auto' used value of 'content-visibility':
-                    // FIXME: 4. If hadInitialVisibleContentVisibilityDetermination is true, then continue.
-
-                    // 5. Gather active resize observations at depth resizeObserverDepth for doc.
-                    document->gather_active_observations_at_depth(resize_observer_depth);
-
-                    // 6. If doc has active resize observations:
-                    if (document->has_active_resize_observations()) {
-                        // 1. Set resizeObserverDepth to the result of broadcasting active resize observations given doc.
-                        resize_observer_depth = document->broadcast_active_resize_observations();
-
-                        // 2. Continue.
-                        continue;
-                    }
-
-                    // 7. Otherwise, break.
-                    break;
-                }
-
-                // 3. If doc has skipped resize observations, then deliver resize loop error given doc.
-                if (document->has_skipped_resize_observations()) {
-                    // FIXME: Deliver resize loop error.
-                }
-            }
-
-            // FIXME: 17. For each doc of docs, if the focused area of doc is not a focusable area, then run the focusing steps for doc's viewport, and set doc's relevant global object's navigation API's focus changed during ongoing navigation to false.
-
-            // FIXME: 18. For each doc of docs, perform pending transition operations for doc. [CSSVIEWTRANSITIONS]
-
-            // 19. For each doc of docs, run the update intersection observations steps for doc, passing in the relative high resolution time given now and doc's relevant global object as the timestamp. [INTERSECTIONOBSERVER]
-            for (auto& document : docs) {
-                document->run_the_update_intersection_observations_steps(now);
-            }
-
-            // FIXME: 20. For each doc of docs, record rendering time for doc given unsafeStyleAndLayoutStartTime.
-
-            // FIXME: 21. For each doc of docs, mark paint timing for doc.
-
-            // 22. For each doc of docs, update the rendering or user interface of doc and its node navigable to reflect the current state.
-            for (auto& document : docs) {
-                document->page().client().process_screenshot_requests();
-                auto navigable = document->navigable();
-                if (navigable && document->needs_repaint()) {
-                    auto* browsing_context = document->browsing_context();
-                    auto& page = browsing_context->page();
-                    if (navigable->is_traversable()) {
-                        VERIFY(page.client().is_ready_to_paint());
-                        page.client().paint_next_frame();
-                    }
-                }
-            }
-
-            // 23. For each doc of docs, process top layer removals given doc.
-            for (auto& document : docs) {
-                document->process_top_layer_removals();
-            }
-
-            for (auto& document : docs) {
-                if (document->readiness() == HTML::DocumentReadyState::Complete && document->style_computer().number_of_css_font_faces_with_loading_in_progress() == 0) {
-                    HTML::TemporaryExecutionContext context(HTML::relevant_settings_object(*document), HTML::TemporaryExecutionContext::CallbacksEnabled::Yes);
-                    document->fonts()->resolve_ready_promise();
-                }
-            }
-        }));
+    for (auto& document : docs) {
+        if (document->readiness() == HTML::DocumentReadyState::Complete && document->style_computer().number_of_css_font_faces_with_loading_in_progress() == 0) {
+            HTML::TemporaryExecutionContext context(HTML::relevant_settings_object(*document), HTML::TemporaryExecutionContext::CallbacksEnabled::Yes);
+            document->fonts()->resolve_ready_promise();
+        }
     }
 }
 
