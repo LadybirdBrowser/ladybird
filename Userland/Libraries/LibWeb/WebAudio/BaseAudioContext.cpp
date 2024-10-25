@@ -128,7 +128,7 @@ void BaseAudioContext::queue_a_media_element_task(JS::NonnullGCPtr<JS::HeapFunct
 }
 
 // https://webaudio.github.io/web-audio-api/#dom-baseaudiocontext-decodeaudiodata
-JS::NonnullGCPtr<JS::Promise> BaseAudioContext::decode_audio_data(JS::Handle<WebIDL::BufferSource> audio_data, JS::GCPtr<WebIDL::CallbackType> success_callback, JS::GCPtr<WebIDL::CallbackType> error_callback)
+JS::NonnullGCPtr<WebIDL::Promise> BaseAudioContext::decode_audio_data(JS::Handle<WebIDL::BufferSource> audio_data, JS::GCPtr<WebIDL::CallbackType> success_callback, JS::GCPtr<WebIDL::CallbackType> error_callback)
 {
     auto& realm = this->realm();
 
@@ -178,7 +178,7 @@ JS::NonnullGCPtr<JS::Promise> BaseAudioContext::decode_audio_data(JS::Handle<Web
     }
 
     // 5. Return promise.
-    return verify_cast<JS::Promise>(*promise->promise());
+    return promise;
 }
 
 // https://webaudio.github.io/web-audio-api/#dom-baseaudiocontext-decodeaudiodata

@@ -376,24 +376,24 @@ void execute_script(HTML::BrowsingContext const& browsing_context, ByteString bo
     HTML::TemporaryExecutionContext execution_context { document->relevant_settings_object(), HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
 
     // 7. Let promise be a new Promise.
-    auto promise_capability = WebIDL::create_promise(realm);
-    JS::NonnullGCPtr promise { verify_cast<JS::Promise>(*promise_capability->promise()) };
+    auto promise = WebIDL::create_promise(realm);
 
     // 8. Run the following substeps in parallel:
-    Platform::EventLoopPlugin::the().deferred_invoke([&realm, &browsing_context, promise_capability, document, promise, body = move(body), arguments = move(arguments)]() mutable {
+    Platform::EventLoopPlugin::the().deferred_invoke([&realm, &browsing_context, promise, document, body = move(body), arguments = move(arguments)]() mutable {
         HTML::TemporaryExecutionContext execution_context { document->relevant_settings_object() };
 
         // 1. Let scriptPromise be the result of promise-calling execute a function body, with arguments body and arguments.
         auto script_result = execute_a_function_body(browsing_context, body, move(arguments));
 
+        // FIXME: This isn't right, we should be reacting to this using WebIDL::react_to_promise()
         // 2. Upon fulfillment of scriptPromise with value v, resolve promise with value v.
         if (script_result.has_value()) {
-            WebIDL::resolve_promise(realm, promise_capability, script_result.release_value());
+            WebIDL::resolve_promise(realm, promise, script_result.release_value());
         }
 
         // 3. Upon rejection of scriptPromise with value r, reject promise with value r.
         if (script_result.is_throw_completion()) {
-            promise->reject(*script_result.throw_completion().value());
+            WebIDL::reject_promise(realm, promise, *script_result.throw_completion().value());
         }
     });
 
@@ -403,7 +403,9 @@ void execute_script(HTML::BrowsingContext const& browsing_context, ByteString bo
             return JS::js_undefined();
         timer->stop();
 
-        auto json_value_or_error = json_clone(realm, browsing_context, promise->result());
+        auto promise_promise = JS::NonnullGCPtr { verify_cast<JS::Promise>(*promise->promise()) };
+
+        auto json_value_or_error = json_clone(realm, browsing_context, promise_promise->result());
         if (json_value_or_error.is_error()) {
             auto error_object = JsonObject {};
             error_object.set("name", "Error");
@@ -416,19 +418,19 @@ void execute_script(HTML::BrowsingContext const& browsing_context, ByteString bo
         // NOTE: This is handled by the HeapTimer.
 
         // 11. If promise is fulfilled with value v, let result be JSON clone with session and v, and return success with data result.
-        else if (promise->state() == JS::Promise::State::Fulfilled) {
+        else if (promise_promise->state() == JS::Promise::State::Fulfilled) {
             on_complete->function()({ ExecuteScriptResultType::PromiseResolved, json_value_or_error.release_value() });
         }
 
         // 12. If promise is rejected with reason r, let result be JSON clone with session and r, and return error with error code javascript error and data result.
-        else if (promise->state() == JS::Promise::State::Rejected) {
+        else if (promise_promise->state() == JS::Promise::State::Rejected) {
             on_complete->function()({ ExecuteScriptResultType::PromiseRejected, json_value_or_error.release_value() });
         }
 
         return JS::js_undefined();
     });
 
-    WebIDL::react_to_promise(promise_capability, reaction_steps, reaction_steps);
+    WebIDL::react_to_promise(promise, reaction_steps, reaction_steps);
 }
 
 void execute_async_script(HTML::BrowsingContext const& browsing_context, ByteString body, JS::MarkedVector<JS::Value> arguments, Optional<u64> const& timeout_ms, JS::NonnullGCPtr<OnScriptComplete> on_complete)

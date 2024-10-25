@@ -147,20 +147,23 @@ WebIDL::ExceptionOr<void> FileReader::read_operation(Blob& blob, Type type, Opti
 
     // 10. In parallel, while true:
     Platform::EventLoopPlugin::the().deferred_invoke([this, chunk_promise, reader, bytes, is_first_chunk, &realm, type, encoding_name, blobs_type]() mutable {
-        HTML::TemporaryExecutionContext execution_context { Bindings::host_defined_environment_settings_object(realm) };
+        HTML::TemporaryExecutionContext execution_context { Bindings::host_defined_environment_settings_object(realm), HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
         Optional<MonotonicTime> progress_timer;
 
         while (true) {
             auto& vm = realm.vm();
+            // FIXME: Try harder to not reach into the [[Promise]] slot of chunkPromise
+            auto promise = JS::NonnullGCPtr { verify_cast<JS::Promise>(*chunk_promise->promise()) };
 
             // 1. Wait for chunkPromise to be fulfilled or rejected.
+            // FIXME: Create spec issue to use WebIDL react to promise steps here instead of this custom logic
             Platform::EventLoopPlugin::the().spin_until([&]() {
-                return chunk_promise->state() == JS::Promise::State::Fulfilled || chunk_promise->state() == JS::Promise::State::Rejected;
+                return promise->state() == JS::Promise::State::Fulfilled || promise->state() == JS::Promise::State::Rejected;
             });
 
             // 2. If chunkPromise is fulfilled, and isFirstChunk is true, queue a task to fire a progress event called loadstart at fr.
             // NOTE: ISSUE 2 We might change loadstart to be dispatched synchronously, to align with XMLHttpRequest behavior. [Issue #119]
-            if (chunk_promise->state() == JS::Promise::State::Fulfilled && is_first_chunk) {
+            if (promise->state() == JS::Promise::State::Fulfilled && is_first_chunk) {
                 HTML::queue_global_task(HTML::Task::Source::FileReading, realm.global_object(), JS::create_heap_function(heap(), [this, &realm]() {
                     dispatch_event(DOM::Event::create(realm, HTML::EventNames::loadstart));
                 }));
@@ -169,14 +172,14 @@ WebIDL::ExceptionOr<void> FileReader::read_operation(Blob& blob, Type type, Opti
             // 3. Set isFirstChunk to false.
             is_first_chunk = false;
 
-            VERIFY(chunk_promise->result().is_object());
-            auto& result = chunk_promise->result().as_object();
+            VERIFY(promise->result().is_object());
+            auto& result = promise->result().as_object();
 
             auto value = MUST(result.get(vm.names.value));
             auto done = MUST(result.get(vm.names.done));
 
             // 4. If chunkPromise is fulfilled with an object whose done property is false and whose value property is a Uint8Array object, run these steps:
-            if (chunk_promise->state() == JS::Promise::State::Fulfilled && !done.as_bool() && is<JS::Uint8Array>(value.as_object())) {
+            if (promise->state() == JS::Promise::State::Fulfilled && !done.as_bool() && is<JS::Uint8Array>(value.as_object())) {
                 // 1. Let bs be the byte sequence represented by the Uint8Array object.
                 auto const& byte_sequence = verify_cast<JS::Uint8Array>(value.as_object());
 
@@ -200,7 +203,7 @@ WebIDL::ExceptionOr<void> FileReader::read_operation(Blob& blob, Type type, Opti
                 chunk_promise = reader->read();
             }
             // 5. Otherwise, if chunkPromise is fulfilled with an object whose done property is true, queue a task to run the following steps and abort this algorithm:
-            else if (chunk_promise->state() == JS::Promise::State::Fulfilled && done.as_bool()) {
+            else if (promise->state() == JS::Promise::State::Fulfilled && done.as_bool()) {
                 HTML::queue_global_task(HTML::Task::Source::FileReading, realm.global_object(), JS::create_heap_function(heap(), [this, bytes, type, &realm, encoding_name, blobs_type]() {
                     // 1. Set fr’s state to "done".
                     m_state = State::Done;
@@ -234,7 +237,7 @@ WebIDL::ExceptionOr<void> FileReader::read_operation(Blob& blob, Type type, Opti
                 return;
             }
             // 6. Otherwise, if chunkPromise is rejected with an error error, queue a task to run the following steps and abort this algorithm:
-            else if (chunk_promise->state() == JS::Promise::State::Rejected) {
+            else if (promise->state() == JS::Promise::State::Rejected) {
                 HTML::queue_global_task(HTML::Task::Source::FileReading, realm.global_object(), JS::create_heap_function(heap(), [this, &realm]() {
                     // 1. Set fr’s state to "done".
                     m_state = State::Done;
@@ -250,6 +253,8 @@ WebIDL::ExceptionOr<void> FileReader::read_operation(Blob& blob, Type type, Opti
 
                     // 5. Note: Event handler for the error event could have started another load, if that happens the loadend event for this load is not fired.
                 }));
+
+                return;
             }
         }
     });

@@ -313,7 +313,7 @@ JS::ThrowCompletionOr<void> CustomElementRegistry::define(String const& name, We
         auto promise = promise_when_defined_iterator->value;
 
         // 2. Resolve promise with constructor.
-        promise->fulfill(constructor->callback);
+        WebIDL::resolve_promise(realm, promise, constructor->callback);
 
         // 3. Delete the entry with key name from this CustomElementRegistry's when-defined promise map.
         m_when_defined_promise_map.remove(name);
@@ -353,40 +353,34 @@ Optional<String> CustomElementRegistry::get_name(JS::Handle<WebIDL::CallbackType
 }
 
 // https://html.spec.whatwg.org/multipage/custom-elements.html#dom-customelementregistry-whendefined
-WebIDL::ExceptionOr<JS::NonnullGCPtr<JS::Promise>> CustomElementRegistry::when_defined(String const& name)
+WebIDL::ExceptionOr<JS::NonnullGCPtr<WebIDL::Promise>> CustomElementRegistry::when_defined(String const& name)
 {
     auto& realm = this->realm();
 
     // 1. If name is not a valid custom element name, then return a new promise rejected with a "SyntaxError" DOMException.
-    if (!is_valid_custom_element_name(name)) {
-        auto promise = JS::Promise::create(realm);
-        promise->reject(WebIDL::SyntaxError::create(realm, MUST(String::formatted("'{}' is not a valid custom element name"sv, name))));
-        return promise;
-    }
+    if (!is_valid_custom_element_name(name))
+        return WebIDL::create_rejected_promise(realm, WebIDL::SyntaxError::create(realm, MUST(String::formatted("'{}' is not a valid custom element name"sv, name))));
 
     // 2. If this CustomElementRegistry contains an entry with name name, then return a new promise resolved with that entry's constructor.
     auto existing_definition_iterator = m_custom_element_definitions.find_if([&name](JS::Handle<CustomElementDefinition> const& definition) {
         return definition->name() == name;
     });
 
-    if (existing_definition_iterator != m_custom_element_definitions.end()) {
-        auto promise = JS::Promise::create(realm);
-        promise->fulfill((*existing_definition_iterator)->constructor().callback);
-        return promise;
-    }
+    if (existing_definition_iterator != m_custom_element_definitions.end())
+        return WebIDL::create_resolved_promise(realm, (*existing_definition_iterator)->constructor().callback);
 
     // 3. Let map be this CustomElementRegistry's when-defined promise map.
     // NOTE: Not necessary.
 
     // 4. If map does not contain an entry with key name, create an entry in map with key name and whose value is a new promise.
     // 5. Let promise be the value of the entry in map with key name.
-    JS::GCPtr<JS::Promise> promise;
+    JS::GCPtr<WebIDL::Promise> promise;
 
     auto existing_promise_iterator = m_when_defined_promise_map.find(name);
     if (existing_promise_iterator != m_when_defined_promise_map.end()) {
         promise = existing_promise_iterator->value;
     } else {
-        promise = JS::Promise::create(realm);
+        promise = WebIDL::create_promise(realm);
         m_when_defined_promise_map.set(name, *promise);
     }
 

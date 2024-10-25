@@ -48,9 +48,9 @@ public:
     WebIDL::ExceptionOr<JS::NonnullGCPtr<Blob>> slice(Optional<i64> start = {}, Optional<i64> end = {}, Optional<String> const& content_type = {});
 
     JS::NonnullGCPtr<Streams::ReadableStream> stream();
-    JS::NonnullGCPtr<JS::Promise> text();
-    JS::NonnullGCPtr<JS::Promise> array_buffer();
-    JS::NonnullGCPtr<JS::Promise> bytes();
+    JS::NonnullGCPtr<WebIDL::Promise> text();
+    JS::NonnullGCPtr<WebIDL::Promise> array_buffer();
+    JS::NonnullGCPtr<WebIDL::Promise> bytes();
 
     ReadonlyBytes raw_bytes() const { return m_byte_buffer.bytes(); }
 

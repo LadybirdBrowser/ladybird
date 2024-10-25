@@ -44,7 +44,7 @@ JS::NonnullGCPtr<ServiceWorkerContainer> ServiceWorkerContainer::create(JS::Real
 }
 
 // https://w3c.github.io/ServiceWorker/#navigator-service-worker-register
-JS::NonnullGCPtr<JS::Promise> ServiceWorkerContainer::register_(String script_url, RegistrationOptions const& options)
+JS::NonnullGCPtr<WebIDL::Promise> ServiceWorkerContainer::register_(String script_url, RegistrationOptions const& options)
 {
     auto& realm = this->realm();
     // Note: The register(scriptURL, options) method creates or updates a service worker registration for the given scope url.
@@ -76,7 +76,7 @@ JS::NonnullGCPtr<JS::Promise> ServiceWorkerContainer::register_(String script_ur
     start_register(scope_url, parsed_script_url, p, client, client->creation_url, options.type, options.update_via_cache);
 
     // 8. Return p.
-    return verify_cast<JS::Promise>(*p->promise());
+    return p;
 }
 
 // https://w3c.github.io/ServiceWorker/#start-register-algorithm

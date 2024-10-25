@@ -39,15 +39,15 @@ public:
     [[nodiscard]] bool body_used() const;
 
     // JS API functions
-    [[nodiscard]] WebIDL::ExceptionOr<JS::NonnullGCPtr<JS::Promise>> array_buffer() const;
-    [[nodiscard]] WebIDL::ExceptionOr<JS::NonnullGCPtr<JS::Promise>> blob() const;
-    [[nodiscard]] WebIDL::ExceptionOr<JS::NonnullGCPtr<JS::Promise>> bytes() const;
-    [[nodiscard]] WebIDL::ExceptionOr<JS::NonnullGCPtr<JS::Promise>> form_data() const;
-    [[nodiscard]] WebIDL::ExceptionOr<JS::NonnullGCPtr<JS::Promise>> json() const;
-    [[nodiscard]] WebIDL::ExceptionOr<JS::NonnullGCPtr<JS::Promise>> text() const;
+    [[nodiscard]] WebIDL::ExceptionOr<JS::NonnullGCPtr<WebIDL::Promise>> array_buffer() const;
+    [[nodiscard]] WebIDL::ExceptionOr<JS::NonnullGCPtr<WebIDL::Promise>> blob() const;
+    [[nodiscard]] WebIDL::ExceptionOr<JS::NonnullGCPtr<WebIDL::Promise>> bytes() const;
+    [[nodiscard]] WebIDL::ExceptionOr<JS::NonnullGCPtr<WebIDL::Promise>> form_data() const;
+    [[nodiscard]] WebIDL::ExceptionOr<JS::NonnullGCPtr<WebIDL::Promise>> json() const;
+    [[nodiscard]] WebIDL::ExceptionOr<JS::NonnullGCPtr<WebIDL::Promise>> text() const;
 };
 
 [[nodiscard]] WebIDL::ExceptionOr<JS::Value> package_data(JS::Realm&, ByteBuffer, PackageDataType, Optional<MimeSniff::MimeType> const&);
-[[nodiscard]] WebIDL::ExceptionOr<JS::NonnullGCPtr<JS::Promise>> consume_body(JS::Realm&, BodyMixin const&, PackageDataType);
+[[nodiscard]] WebIDL::ExceptionOr<JS::NonnullGCPtr<WebIDL::Promise>> consume_body(JS::Realm&, BodyMixin const&, PackageDataType);
 
 }

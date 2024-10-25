@@ -77,7 +77,7 @@ public:
 
     virtual ~ReadableStreamDefaultReader() override = default;
 
-    JS::NonnullGCPtr<JS::Promise> read();
+    JS::NonnullGCPtr<WebIDL::Promise> read();
 
     void read_a_chunk(Fetch::Infrastructure::IncrementalReadLoopReadRequest& read_request);
     void read_all_bytes(JS::NonnullGCPtr<ReadLoopReadRequest::SuccessSteps>, JS::NonnullGCPtr<ReadLoopReadRequest::FailureSteps>);

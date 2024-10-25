@@ -89,7 +89,7 @@ public:
     bool paused() const { return m_paused; }
     bool ended() const;
     bool potentially_playing() const;
-    WebIDL::ExceptionOr<JS::NonnullGCPtr<JS::Promise>> play();
+    WebIDL::ExceptionOr<JS::NonnullGCPtr<WebIDL::Promise>> play();
     WebIDL::ExceptionOr<void> pause();
     WebIDL::ExceptionOr<void> toggle_playback();
 

@@ -61,7 +61,7 @@ public:
     WebIDL::ExceptionOr<JS::NonnullGCPtr<DynamicsCompressorNode>> create_dynamics_compressor();
     JS::NonnullGCPtr<GainNode> create_gain();
 
-    JS::NonnullGCPtr<JS::Promise> decode_audio_data(JS::Handle<WebIDL::BufferSource>, JS::GCPtr<WebIDL::CallbackType>, JS::GCPtr<WebIDL::CallbackType>);
+    JS::NonnullGCPtr<WebIDL::Promise> decode_audio_data(JS::Handle<WebIDL::BufferSource>, JS::GCPtr<WebIDL::CallbackType>, JS::GCPtr<WebIDL::CallbackType>);
 
 protected:
     explicit BaseAudioContext(JS::Realm&, float m_sample_rate = 0);

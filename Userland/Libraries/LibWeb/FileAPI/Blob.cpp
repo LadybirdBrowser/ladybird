@@ -377,7 +377,7 @@ JS::NonnullGCPtr<Streams::ReadableStream> Blob::get_stream()
 }
 
 // https://w3c.github.io/FileAPI/#dom-blob-text
-JS::NonnullGCPtr<JS::Promise> Blob::text()
+JS::NonnullGCPtr<WebIDL::Promise> Blob::text()
 {
     auto& realm = this->realm();
     auto& vm = realm.vm();
@@ -407,7 +407,7 @@ JS::NonnullGCPtr<JS::Promise> Blob::text()
 }
 
 // https://w3c.github.io/FileAPI/#dom-blob-arraybuffer
-JS::NonnullGCPtr<JS::Promise> Blob::array_buffer()
+JS::NonnullGCPtr<WebIDL::Promise> Blob::array_buffer()
 {
     auto& realm = this->realm();
 
@@ -434,7 +434,7 @@ JS::NonnullGCPtr<JS::Promise> Blob::array_buffer()
 }
 
 // https://w3c.github.io/FileAPI/#dom-blob-bytes
-JS::NonnullGCPtr<JS::Promise> Blob::bytes()
+JS::NonnullGCPtr<WebIDL::Promise> Blob::bytes()
 {
     auto& realm = this->realm();
 

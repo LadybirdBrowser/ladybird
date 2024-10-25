@@ -74,8 +74,8 @@ public:
 
     Bindings::FontFaceLoadStatus status() const { return m_status; }
 
-    JS::NonnullGCPtr<JS::Promise> load();
-    JS::NonnullGCPtr<JS::Promise> loaded() const;
+    JS::NonnullGCPtr<WebIDL::Promise> load();
+    JS::NonnullGCPtr<WebIDL::Promise> loaded() const;
 
     void load_font_source();
 

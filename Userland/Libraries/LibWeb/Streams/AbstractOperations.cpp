@@ -131,7 +131,7 @@ JS::NonnullGCPtr<WebIDL::Promise> readable_stream_cancel(ReadableStream& stream,
         JS::create_heap_function(stream.heap(), [](JS::Value) -> WebIDL::ExceptionOr<JS::Value> { return JS::js_undefined(); }),
         {});
 
-    return WebIDL::create_resolved_promise(realm, react_result);
+    return react_result;
 }
 
 // https://streams.spec.whatwg.org/#readable-stream-fulfill-read-into-request
@@ -431,9 +431,9 @@ public:
 
                     // 3. Resolve cancelPromise with ! ReadableStreamCancel(stream, cloneResult.[[Value]]).
                     auto cancel_result = readable_stream_cancel(m_stream, completion.value().value());
-                    JS::NonnullGCPtr cancel_value = verify_cast<JS::Promise>(*cancel_result->promise().ptr());
 
-                    WebIDL::resolve_promise(m_realm, m_cancel_promise, cancel_value);
+                    // Note: We need to manually convert the result to an ECMAScript value here, by extracting its [[Promise]] slot.
+                    WebIDL::resolve_promise(m_realm, m_cancel_promise, cancel_result->promise());
 
                     // 4. Return.
                     return;
@@ -584,8 +584,7 @@ WebIDL::ExceptionOr<ReadableStreamPair> readable_stream_default_tee(JS::Realm& r
             auto cancel_result = readable_stream_cancel(stream, composite_reason);
 
             // 3. Resolve cancelPromise with cancelResult.
-            JS::NonnullGCPtr cancel_value = verify_cast<JS::Promise>(*cancel_result->promise().ptr());
-            WebIDL::resolve_promise(realm, cancel_promise, cancel_value);
+            WebIDL::resolve_promise(realm, cancel_promise, cancel_result->promise());
         }
 
         // 4. Return cancelPromise.
@@ -609,8 +608,7 @@ WebIDL::ExceptionOr<ReadableStreamPair> readable_stream_default_tee(JS::Realm& r
             auto cancel_result = readable_stream_cancel(stream, composite_reason);
 
             // 3. Resolve cancelPromise with cancelResult.
-            JS::NonnullGCPtr cancel_value = verify_cast<JS::Promise>(*cancel_result->promise().ptr());
-            WebIDL::resolve_promise(realm, cancel_promise, cancel_value);
+            WebIDL::resolve_promise(realm, cancel_promise, cancel_result->promise());
         }
 
         // 4. Return cancelPromise.
@@ -744,9 +742,8 @@ public:
 
                     // 3. Resolve cancelPromise with ! ReadableStreamCancel(stream, cloneResult.[[Value]]).
                     auto cancel_result = readable_stream_cancel(m_stream, completion.value().value());
-                    JS::NonnullGCPtr cancel_value = verify_cast<JS::Promise>(*cancel_result->promise().ptr());
 
-                    WebIDL::resolve_promise(m_realm, m_cancel_promise, cancel_value);
+                    WebIDL::resolve_promise(m_realm, m_cancel_promise, cancel_result->promise());
 
                     // 4. Return.
                     return;
@@ -909,9 +906,8 @@ public:
 
                     // 3. Resolve cancelPromise with ! ReadableStreamCancel(stream, cloneResult.[[Value]]).
                     auto cancel_result = readable_stream_cancel(m_stream, completion.value().value());
-                    JS::NonnullGCPtr cancel_value = verify_cast<JS::Promise>(*cancel_result->promise().ptr());
 
-                    WebIDL::resolve_promise(m_realm, m_cancel_promise, cancel_value);
+                    WebIDL::resolve_promise(m_realm, m_cancel_promise, cancel_result->promise());
 
                     // 4. Return.
                     return;
@@ -1221,8 +1217,7 @@ WebIDL::ExceptionOr<ReadableStreamPair> readable_byte_stream_tee(JS::Realm& real
             auto cancel_result = readable_stream_cancel(stream, composite_reason);
 
             // 3. Resolve cancelPromise with cancelResult.
-            JS::NonnullGCPtr cancel_value = verify_cast<JS::Promise>(*cancel_result->promise().ptr());
-            WebIDL::resolve_promise(realm, cancel_promise, cancel_value);
+            WebIDL::resolve_promise(realm, cancel_promise, cancel_result->promise());
         }
 
         // 4. Return cancelPromise.
@@ -1246,8 +1241,7 @@ WebIDL::ExceptionOr<ReadableStreamPair> readable_byte_stream_tee(JS::Realm& real
             auto cancel_result = readable_stream_cancel(stream, composite_reason);
 
             // 3. Resolve cancelPromise with cancelResult.
-            JS::NonnullGCPtr cancel_value = verify_cast<JS::Promise>(*cancel_result->promise().ptr());
-            WebIDL::resolve_promise(realm, cancel_promise, cancel_value);
+            WebIDL::resolve_promise(realm, cancel_promise, cancel_result->promise());
         }
 
         // 4. Return cancelPromise.
@@ -1442,7 +1436,7 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<ReadableStream>> readable_stream_from_itera
             }),
             {});
 
-        return WebIDL::create_resolved_promise(realm, react_result);
+        return react_result;
     });
 
     // 5. Let cancelAlgorithm be the following steps, given reason:
@@ -1483,7 +1477,7 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<ReadableStream>> readable_stream_from_itera
             }),
             {});
 
-        return WebIDL::create_resolved_promise(realm, react_result);
+        return react_result;
     });
 
     // 6. Set stream to ! CreateReadableStream(startAlgorithm, pullAlgorithm, cancelAlgorithm, 0).
@@ -4711,7 +4705,7 @@ void writable_stream_default_controller_write(WritableStreamDefaultController& c
 }
 
 // https://streams.spec.whatwg.org/#initialize-transform-stream
-void initialize_transform_stream(TransformStream& stream, JS::NonnullGCPtr<JS::PromiseCapability> start_promise, double writable_high_water_mark, JS::NonnullGCPtr<SizeAlgorithm> writable_size_algorithm, double readable_high_water_mark, JS::NonnullGCPtr<SizeAlgorithm> readable_size_algorithm)
+void initialize_transform_stream(TransformStream& stream, JS::NonnullGCPtr<WebIDL::Promise> start_promise, double writable_high_water_mark, JS::NonnullGCPtr<SizeAlgorithm> writable_size_algorithm, double readable_high_water_mark, JS::NonnullGCPtr<SizeAlgorithm> readable_size_algorithm)
 {
     auto& realm = stream.realm();
 
@@ -4970,7 +4964,7 @@ JS::NonnullGCPtr<WebIDL::Promise> transform_stream_default_controller_perform_tr
             return JS::throw_completion(reason);
         }));
 
-    return WebIDL::create_resolved_promise(realm, react_result);
+    return react_result;
 }
 
 // https://streams.spec.whatwg.org/#transform-stream-default-sink-abort-algorithm
@@ -5031,7 +5025,7 @@ JS::NonnullGCPtr<WebIDL::Promise> transform_stream_default_sink_abort_algorithm(
         }));
 
     // 8. Return controller.[[finishPromise]].
-    return JS::NonnullGCPtr { *controller->finish_promise() };
+    return *controller->finish_promise();
 }
 
 // https://streams.spec.whatwg.org/#transform-stream-default-sink-close-algorithm
@@ -5075,7 +5069,7 @@ JS::NonnullGCPtr<WebIDL::Promise> transform_stream_default_sink_close_algorithm(
             return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, readable->stored_error().as_string().utf8_string() };
         }));
 
-    return WebIDL::create_resolved_promise(realm, react_result);
+    return react_result;
 }
 
 // https://streams.spec.whatwg.org/#transform-stream-default-sink-write-algorithm
@@ -5118,7 +5112,7 @@ JS::NonnullGCPtr<WebIDL::Promise> transform_stream_default_sink_write_algorithm(
             }),
             {});
 
-        return WebIDL::create_resolved_promise(realm, react_result);
+        return react_result;
     }
 
     // 4. Return ! TransformStreamDefaultControllerPerformTransform(controller, chunk).
@@ -5196,7 +5190,7 @@ JS::NonnullGCPtr<WebIDL::Promise> transform_stream_default_source_cancel_algorit
         }));
 
     // 8. Return controller.[[finishPromise]].
-    return JS::NonnullGCPtr { *controller->finish_promise() };
+    return *controller->finish_promise();
 }
 
 // https://streams.spec.whatwg.org/#transform-stream-error

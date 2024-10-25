@@ -93,7 +93,7 @@ void reject_promise(JS::Realm& realm, Promise const& promise, JS::Value reason)
 }
 
 // https://webidl.spec.whatwg.org/#dfn-perform-steps-once-promise-is-settled
-JS::NonnullGCPtr<JS::Promise> react_to_promise(Promise const& promise, JS::GCPtr<ReactionSteps> on_fulfilled_callback, JS::GCPtr<ReactionSteps> on_rejected_callback)
+JS::NonnullGCPtr<Promise> react_to_promise(Promise const& promise, JS::GCPtr<ReactionSteps> on_fulfilled_callback, JS::GCPtr<ReactionSteps> on_rejected_callback)
 {
     auto& realm = promise.promise()->shape().realm();
     auto& vm = realm.vm();
@@ -140,13 +140,17 @@ JS::NonnullGCPtr<JS::Promise> react_to_promise(Promise const& promise, JS::GCPtr
     auto new_capability = MUST(JS::new_promise_capability(vm, constructor));
 
     // 7. Return PerformPromiseThen(promise.[[Promise]], onFulfilled, onRejected, newCapability).
+    // FIXME: https://github.com/whatwg/webidl/issues/1443
+    //  Returning newCapability instead of newCapability.[[Promise].
     auto promise_object = verify_cast<JS::Promise>(promise.promise().ptr());
     auto value = promise_object->perform_then(on_fulfilled, on_rejected, new_capability);
-    return verify_cast<JS::Promise>(value.as_object());
+
+    VERIFY(value == new_capability->promise());
+    return new_capability;
 }
 
 // https://webidl.spec.whatwg.org/#upon-fulfillment
-JS::NonnullGCPtr<JS::Promise> upon_fulfillment(Promise const& promise, JS::NonnullGCPtr<ReactionSteps> steps)
+JS::NonnullGCPtr<Promise> upon_fulfillment(Promise const& promise, JS::NonnullGCPtr<ReactionSteps> steps)
 {
     // 1. Return the result of reacting to promise:
     return react_to_promise(promise,
@@ -157,7 +161,7 @@ JS::NonnullGCPtr<JS::Promise> upon_fulfillment(Promise const& promise, JS::Nonnu
 }
 
 // https://webidl.spec.whatwg.org/#upon-rejection
-JS::NonnullGCPtr<JS::Promise> upon_rejection(Promise const& promise, JS::NonnullGCPtr<ReactionSteps> steps)
+JS::NonnullGCPtr<Promise> upon_rejection(Promise const& promise, JS::NonnullGCPtr<ReactionSteps> steps)
 {
     // 1. Return the result of reacting to promise:
     return react_to_promise(promise, {},
@@ -287,11 +291,10 @@ void wait_for_all(JS::Realm& realm, Vector<JS::NonnullGCPtr<Promise>> const& pro
     }
 }
 
-JS::NonnullGCPtr<JS::Promise> create_rejected_promise_from_exception(JS::Realm& realm, Exception exception)
+JS::NonnullGCPtr<Promise> create_rejected_promise_from_exception(JS::Realm& realm, Exception exception)
 {
     auto throw_completion = Bindings::dom_exception_to_throw_completion(realm.vm(), move(exception));
-    auto promise_capability = WebIDL::create_rejected_promise(realm, *throw_completion.value());
-    return JS::NonnullGCPtr { verify_cast<JS::Promise>(*promise_capability->promise().ptr()) };
+    return WebIDL::create_rejected_promise(realm, *throw_completion.value());
 }
 
 }

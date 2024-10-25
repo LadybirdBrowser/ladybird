@@ -27,13 +27,13 @@ JS::NonnullGCPtr<Promise> create_resolved_promise(JS::Realm&, JS::Value);
 JS::NonnullGCPtr<Promise> create_rejected_promise(JS::Realm&, JS::Value);
 void resolve_promise(JS::Realm&, Promise const&, JS::Value = JS::js_undefined());
 void reject_promise(JS::Realm&, Promise const&, JS::Value);
-JS::NonnullGCPtr<JS::Promise> react_to_promise(Promise const&, JS::GCPtr<ReactionSteps> on_fulfilled_callback, JS::GCPtr<ReactionSteps> on_rejected_callback);
-JS::NonnullGCPtr<JS::Promise> upon_fulfillment(Promise const&, JS::NonnullGCPtr<ReactionSteps>);
-JS::NonnullGCPtr<JS::Promise> upon_rejection(Promise const&, JS::NonnullGCPtr<ReactionSteps>);
+JS::NonnullGCPtr<Promise> react_to_promise(Promise const&, JS::GCPtr<ReactionSteps> on_fulfilled_callback, JS::GCPtr<ReactionSteps> on_rejected_callback);
+JS::NonnullGCPtr<Promise> upon_fulfillment(Promise const&, JS::NonnullGCPtr<ReactionSteps>);
+JS::NonnullGCPtr<Promise> upon_rejection(Promise const&, JS::NonnullGCPtr<ReactionSteps>);
 void mark_promise_as_handled(Promise const&);
 void wait_for_all(JS::Realm&, Vector<JS::NonnullGCPtr<Promise>> const& promises, Function<void(Vector<JS::Value> const&)> success_steps, Function<void(JS::Value)> failure_steps);
 
 // Non-spec, convenience method.
-JS::NonnullGCPtr<JS::Promise> create_rejected_promise_from_exception(JS::Realm&, Exception);
+JS::NonnullGCPtr<Promise> create_rejected_promise_from_exception(JS::Realm&, Exception);
 
 }

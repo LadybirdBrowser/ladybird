@@ -23,7 +23,7 @@ public:
     static WebIDL::ExceptionOr<JS::NonnullGCPtr<Clipboard>> construct_impl(JS::Realm&);
     virtual ~Clipboard() override;
 
-    JS::NonnullGCPtr<JS::Promise> write_text(String);
+    JS::NonnullGCPtr<WebIDL::Promise> write_text(String);
 
 private:
     Clipboard(JS::Realm&);
