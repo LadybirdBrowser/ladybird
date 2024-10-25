@@ -26,7 +26,8 @@ struct Header {
     ByteBuffer name;
     ByteBuffer value;
 
-    static Header from_string_pair(StringView, StringView);
+    [[nodiscard]] static Header copy(Header const&);
+    [[nodiscard]] static Header from_string_pair(StringView, StringView);
 };
 
 // https://fetch.spec.whatwg.org/#concept-header-list
