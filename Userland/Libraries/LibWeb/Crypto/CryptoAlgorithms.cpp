@@ -1126,9 +1126,72 @@ WebIDL::ExceptionOr<Variant<JS::NonnullGCPtr<CryptoKey>, JS::NonnullGCPtr<Crypto
     VERIFY_NOT_REACHED();
 }
 
-WebIDL::ExceptionOr<JS::NonnullGCPtr<JS::Object>> AesCbc::export_key(Bindings::KeyFormat, JS::NonnullGCPtr<CryptoKey>)
+WebIDL::ExceptionOr<JS::NonnullGCPtr<JS::Object>> AesCbc::export_key(Bindings::KeyFormat format, JS::NonnullGCPtr<CryptoKey> key)
 {
-    VERIFY_NOT_REACHED();
+    // 1. If the underlying cryptographic key material represented by the [[handle]] internal slot of key cannot be accessed, then throw an OperationError.
+    // Note: In our impl this is always accessible
+    auto const& handle = key->handle();
+
+    JS::GCPtr<JS::Object> result = nullptr;
+
+    // 2. -> If format is "raw":
+    if (format == Bindings::KeyFormat::Raw) {
+        // 1. Let data be the raw octets of the key represented by [[handle]] internal slot of key.
+        auto data = handle.get<ByteBuffer>();
+
+        // 2. Let result be the result of creating an ArrayBuffer containing data.
+        result = JS::ArrayBuffer::create(m_realm, data);
+    }
+    //    -> If format is "jwk":
+    else if (format == Bindings::KeyFormat::Jwk) {
+        // 1. Let jwk be a new JsonWebKey dictionary.
+        Bindings::JsonWebKey jwk = {};
+
+        // 2. Set the kty attribute of jwk to the string "oct".
+        jwk.kty = "oct"_string;
+
+        // 3. Set the k attribute of jwk to be a string containing the raw octets of the key represented by [[handle]] internal slot of key, encoded according to Section 6.4 of JSON Web Algorithms [JWA].
+        auto const& key_bytes = handle.get<ByteBuffer>();
+        jwk.k = TRY_OR_THROW_OOM(m_realm->vm(), encode_base64url(key_bytes));
+
+        // 4. -> If the length attribute of key is 128:
+        //        Set the alg attribute of jwk to the string "A128CBC".
+        //    -> If the length attribute of key is 192:
+        //        Set the alg attribute of jwk to the string "A192CBC".
+        //    -> If the length attribute of key is 256:
+        //        Set the alg attribute of jwk to the string "A256CBC".
+        auto key_bits = key_bytes.size() * 8;
+        if (key_bits == 128) {
+            jwk.alg = "A128CBC"_string;
+        } else if (key_bits == 192) {
+            jwk.alg = "A192CBC"_string;
+        } else if (key_bits == 256) {
+            jwk.alg = "A256CBC"_string;
+        } else {
+            return WebIDL::OperationError::create(m_realm, "unclear key size"_string);
+        }
+
+        // 5. Set the key_ops attribute of jwk to equal the usages attribute of key.
+        jwk.key_ops = Vector<String> {};
+        jwk.key_ops->ensure_capacity(key->internal_usages().size());
+        for (auto const& usage : key->internal_usages()) {
+            jwk.key_ops->append(Bindings::idl_enum_to_string(usage));
+        }
+
+        // 6. Set the ext attribute of jwk to equal the [[extractable]] internal slot of key.
+        jwk.ext = key->extractable();
+
+        // 7. Let result be the result of converting jwk to an ECMAScript Object, as defined by [WebIDL].
+        result = TRY(jwk.to_object(m_realm));
+    }
+    //    -> Otherwise:
+    else {
+        //        throw a NotSupportedError.
+        return WebIDL::NotSupportedError::create(m_realm, "Cannot export to unsupported format"_string);
+    }
+
+    // 3. Return result.
+    return JS::NonnullGCPtr { *result };
 }
 
 WebIDL::ExceptionOr<JS::Value> AesCbc::get_key_length(AlgorithmParams const&)

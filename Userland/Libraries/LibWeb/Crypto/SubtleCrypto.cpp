@@ -773,7 +773,7 @@ SupportedAlgorithmsMap supported_algorithms()
     // FIXME: define_an_algorithm<AesCbc, AesCbcParams>("decrypt"_string, "AES-CBC"_string);
     // FIXME: define_an_algorithm<AesCbc, AesKeyGenParams>("generateKey"_string, "AES-CBC"_string);
     define_an_algorithm<AesCbc>("importKey"_string, "AES-CBC"_string);
-    // FIXME: define_an_algorithm<AesCbc>("exportKey"_string, "AES-CBC"_string);
+    define_an_algorithm<AesCbc>("exportKey"_string, "AES-CBC"_string);
     // FIXME: define_an_algorithm<AesCbc, AesDerivedKeyParams>("get key length"_string, "AES-CBC"_string);
 
     // https://w3c.github.io/webcrypto/#hkdf
