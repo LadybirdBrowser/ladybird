@@ -20,6 +20,12 @@ void WebContentConnection::die()
         on_close();
 }
 
+void WebContentConnection::navigation_complete(Web::WebDriver::Response const& response)
+{
+    if (on_navigation_complete)
+        on_navigation_complete(response);
+}
+
 void WebContentConnection::script_executed(Web::WebDriver::Response const& response)
 {
     if (on_script_executed)

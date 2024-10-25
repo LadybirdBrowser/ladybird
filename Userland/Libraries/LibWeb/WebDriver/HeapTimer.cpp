@@ -42,6 +42,15 @@ void HeapTimer::start(u64 timeout_ms, JS::NonnullGCPtr<JS::HeapFunction<void()>>
     m_timer->start();
 }
 
+void HeapTimer::stop_and_fire_timeout_handler()
+{
+    auto on_timeout = m_on_timeout;
+    stop();
+
+    if (on_timeout)
+        on_timeout->function()();
+}
+
 void HeapTimer::stop()
 {
     m_on_timeout = nullptr;

@@ -241,7 +241,7 @@ Web::WebDriver::Response Client::navigate_to(Web::WebDriver::Parameters paramete
 {
     dbgln_if(WEBDRIVER_DEBUG, "Handling POST /session/<session_id>/url");
     auto session = TRY(find_session_with_id(parameters[0]));
-    return session->web_content_connection().navigate_to(payload);
+    return session->navigate_to(payload);
 }
 
 // 10.2 Get Current URL, https://w3c.github.io/webdriver/#dfn-get-current-url
