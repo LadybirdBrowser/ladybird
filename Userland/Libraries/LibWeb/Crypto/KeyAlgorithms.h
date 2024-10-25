@@ -121,4 +121,28 @@ private:
     NamedCurve m_named_curve;
 };
 
+// https://w3c.github.io/webcrypto/#AesKeyAlgorithm-dictionary
+struct AesKeyAlgorithm : public KeyAlgorithm {
+    JS_OBJECT(AesKeyAlgorithm, KeyAlgorithm);
+    JS_DECLARE_ALLOCATOR(AesKeyAlgorithm);
+
+public:
+    static JS::NonnullGCPtr<AesKeyAlgorithm> create(JS::Realm&);
+
+    virtual ~AesKeyAlgorithm() override = default;
+
+    u16 length() const { return m_length; }
+    void set_length(u16 length) { m_length = length; }
+
+protected:
+    AesKeyAlgorithm(JS::Realm&);
+
+    virtual void initialize(JS::Realm&) override;
+
+private:
+    JS_DECLARE_NATIVE_FUNCTION(length_getter);
+
+    u16 m_length;
+};
+
 }
