@@ -34,6 +34,7 @@ void PlainYearMonthPrototype::initialize(Realm& realm)
     define_direct_property(vm.well_known_symbol_to_string_tag(), PrimitiveString::create(vm, "Temporal.PlainYearMonth"_string), Attribute::Configurable);
 
     define_native_accessor(realm, vm.names.calendar, calendar_getter, {}, Attribute::Configurable);
+    define_native_accessor(realm, vm.names.calendarId, calendar_id_getter, {}, Attribute::Configurable);
     define_native_accessor(realm, vm.names.year, year_getter, {}, Attribute::Configurable);
     define_native_accessor(realm, vm.names.month, month_getter, {}, Attribute::Configurable);
     define_native_accessor(realm, vm.names.monthCode, month_code_getter, {}, Attribute::Configurable);
@@ -445,6 +446,18 @@ JS_DEFINE_NATIVE_FUNCTION(PlainYearMonthPrototype::get_iso_fields)
 
     // 8. Return fields.
     return fields;
+}
+
+// 9.3.3 get Temporal.PlainYearMonth.prototype.calendarId
+JS_DEFINE_NATIVE_FUNCTION(PlainYearMonthPrototype::calendar_id_getter)
+{
+    // Step 1: Let yearMonth be the this value
+    // Step 2: Perform ? RequireInternalSlot(yearMonth, [[InitializedTemporalYearMonth]]).
+    auto year_month = TRY(typed_this_object(vm));
+
+    // Step 3: Return yearMonth.[[Calendar]].identifier
+    auto& calendar = static_cast<Calendar&>(year_month->calendar());
+    return PrimitiveString::create(vm, calendar.identifier());
 }
 
 }
