@@ -6885,6 +6885,9 @@ RefPtr<CSSStyleValue> Parser::parse_transform_origin_value(TokenStream<Component
                 return OptionalNone {};
             }
         }
+        if (value->is_math()) {
+            return AxisOffset { Axis::None, value->as_math() };
+        }
         return OptionalNone {};
     };
 

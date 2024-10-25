@@ -534,6 +534,8 @@ static Optional<LengthPercentage> length_percentage_for_style_value(CSSStyleValu
         return value.as_length().length();
     if (value.is_percentage())
         return value.as_percentage().percentage();
+    if (value.is_math())
+        return LengthPercentage { const_cast<CSSMathValue&>(value.as_math()) };
     return {};
 }
 
