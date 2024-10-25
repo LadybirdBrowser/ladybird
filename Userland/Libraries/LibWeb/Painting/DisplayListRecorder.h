@@ -124,7 +124,7 @@ public:
     void add_rounded_rect_clip(CornerRadii corner_radii, Gfx::IntRect border_rect, CornerClip corner_clip);
     void add_mask(RefPtr<DisplayList> display_list, Gfx::IntRect rect);
 
-    void apply_backdrop_filter(Gfx::IntRect const& backdrop_region, BorderRadiiData const& border_radii_data, CSS::ResolvedBackdropFilter const& backdrop_filter);
+    void apply_backdrop_filter(Gfx::IntRect const& backdrop_region, BorderRadiiData const& border_radii_data, CSS::ResolvedFilter const& backdrop_filter);
 
     void paint_outer_box_shadow_params(PaintBoxShadowParams params);
     void paint_inner_box_shadow_params(PaintBoxShadowParams params);

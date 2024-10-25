@@ -299,7 +299,7 @@ void DisplayListRecorder::pop_stacking_context()
     append(PopStackingContext {});
 }
 
-void DisplayListRecorder::apply_backdrop_filter(Gfx::IntRect const& backdrop_region, BorderRadiiData const& border_radii_data, CSS::ResolvedBackdropFilter const& backdrop_filter)
+void DisplayListRecorder::apply_backdrop_filter(Gfx::IntRect const& backdrop_region, BorderRadiiData const& border_radii_data, CSS::ResolvedFilter const& backdrop_filter)
 {
     if (backdrop_region.is_empty())
         return;

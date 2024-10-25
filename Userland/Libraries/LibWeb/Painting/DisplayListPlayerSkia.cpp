@@ -964,18 +964,18 @@ void DisplayListPlayerSkia::apply_backdrop_filter(ApplyBackdropFilter const& com
     for (auto const& filter_function : command.backdrop_filter.filters) {
         // See: https://drafts.fxtf.org/filter-effects-1/#supported-filter-functions
         filter_function.visit(
-            [&](CSS::ResolvedBackdropFilter::Blur const& blur_filter) {
+            [&](CSS::ResolvedFilter::Blur const& blur_filter) {
                 auto blur_image_filter = SkImageFilters::Blur(blur_filter.radius, blur_filter.radius, nullptr);
                 canvas.saveLayer(SkCanvas::SaveLayerRec(nullptr, nullptr, blur_image_filter.get(), 0));
                 canvas.restore();
             },
-            [&](CSS::ResolvedBackdropFilter::ColorOperation const& color) {
+            [&](CSS::ResolvedFilter::Color const& color) {
                 auto amount = clamp(color.amount, 0.0f, 1.0f);
 
                 // Matrices are taken from https://drafts.fxtf.org/filter-effects-1/#FilterPrimitiveRepresentation
                 sk_sp<SkColorFilter> color_filter;
-                switch (color.operation) {
-                case CSS::Filter::Color::Operation::Grayscale: {
+                switch (color.type) {
+                case CSS::FilterOperation::Color::Type::Grayscale: {
                     float matrix[20] = {
                         0.2126f + 0.7874f * (1 - amount), 0.7152f - 0.7152f * (1 - amount), 0.0722f - 0.0722f * (1 - amount), 0, 0,
                         0.2126f - 0.2126f * (1 - amount), 0.7152f + 0.2848f * (1 - amount), 0.0722f - 0.0722f * (1 - amount), 0, 0,
@@ -985,7 +985,7 @@ void DisplayListPlayerSkia::apply_backdrop_filter(ApplyBackdropFilter const& com
                     color_filter = SkColorFilters::Matrix(matrix);
                     break;
                 }
-                case CSS::Filter::Color::Operation::Brightness: {
+                case CSS::FilterOperation::Color::Type::Brightness: {
                     float matrix[20] = {
                         amount, 0, 0, 0, 0,
                         0, amount, 0, 0, 0,
@@ -995,7 +995,7 @@ void DisplayListPlayerSkia::apply_backdrop_filter(ApplyBackdropFilter const& com
                     color_filter = SkColorFilters::Matrix(matrix);
                     break;
                 }
-                case CSS::Filter::Color::Operation::Contrast: {
+                case CSS::FilterOperation::Color::Type::Contrast: {
                     float intercept = -(0.5f * amount) + 0.5f;
                     float matrix[20] = {
                         amount, 0, 0, 0, intercept,
@@ -1006,7 +1006,7 @@ void DisplayListPlayerSkia::apply_backdrop_filter(ApplyBackdropFilter const& com
                     color_filter = SkColorFilters::Matrix(matrix);
                     break;
                 }
-                case CSS::Filter::Color::Operation::Invert: {
+                case CSS::FilterOperation::Color::Type::Invert: {
                     float matrix[20] = {
                         1 - 2 * amount, 0, 0, 0, amount,
                         0, 1 - 2 * amount, 0, 0, amount,
@@ -1016,7 +1016,7 @@ void DisplayListPlayerSkia::apply_backdrop_filter(ApplyBackdropFilter const& com
                     color_filter = SkColorFilters::Matrix(matrix);
                     break;
                 }
-                case CSS::Filter::Color::Operation::Opacity: {
+                case CSS::FilterOperation::Color::Type::Opacity: {
                     float matrix[20] = {
                         1, 0, 0, 0, 0,
                         0, 1, 0, 0, 0,
@@ -1026,7 +1026,7 @@ void DisplayListPlayerSkia::apply_backdrop_filter(ApplyBackdropFilter const& com
                     color_filter = SkColorFilters::Matrix(matrix);
                     break;
                 }
-                case CSS::Filter::Color::Operation::Sepia: {
+                case CSS::FilterOperation::Color::Type::Sepia: {
                     float matrix[20] = {
                         0.393f + 0.607f * (1 - amount), 0.769f - 0.769f * (1 - amount), 0.189f - 0.189f * (1 - amount), 0, 0,
                         0.349f - 0.349f * (1 - amount), 0.686f + 0.314f * (1 - amount), 0.168f - 0.168f * (1 - amount), 0, 0,
@@ -1036,7 +1036,7 @@ void DisplayListPlayerSkia::apply_backdrop_filter(ApplyBackdropFilter const& com
                     color_filter = SkColorFilters::Matrix(matrix);
                     break;
                 }
-                case CSS::Filter::Color::Operation::Saturate: {
+                case CSS::FilterOperation::Color::Type::Saturate: {
                     float matrix[20] = {
                         0.213f + 0.787f * amount, 0.715f - 0.715f * amount, 0.072f - 0.072f * amount, 0, 0,
                         0.213f - 0.213f * amount, 0.715f + 0.285f * amount, 0.072f - 0.072f * amount, 0, 0,
@@ -1054,7 +1054,7 @@ void DisplayListPlayerSkia::apply_backdrop_filter(ApplyBackdropFilter const& com
                 canvas.saveLayer(SkCanvas::SaveLayerRec(nullptr, nullptr, image_filter.get(), 0));
                 canvas.restore();
             },
-            [&](CSS::ResolvedBackdropFilter::HueRotate const& hue_rotate) {
+            [&](CSS::ResolvedFilter::HueRotate const& hue_rotate) {
                 float radians = AK::to_radians(hue_rotate.angle_degrees);
 
                 auto cosA = cos(radians);
@@ -1082,7 +1082,7 @@ void DisplayListPlayerSkia::apply_backdrop_filter(ApplyBackdropFilter const& com
                 canvas.saveLayer(SkCanvas::SaveLayerRec(nullptr, nullptr, image_filter.get(), 0));
                 canvas.restore();
             },
-            [&](CSS::ResolvedBackdropFilter::DropShadow const&) {
+            [&](CSS::ResolvedFilter::DropShadow const&) {
                 dbgln("TODO: Implement drop-shadow() filter function!");
             });
     }

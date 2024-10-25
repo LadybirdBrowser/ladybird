@@ -5156,7 +5156,7 @@ RefPtr<CSSStyleValue> Parser::parse_filter_value_list_value(TokenStream<Componen
 
     auto filter_token_to_operation = [&](auto filter) {
         VERIFY(to_underlying(filter) < to_underlying(FilterToken::Blur));
-        return static_cast<Filter::Color::Operation>(filter);
+        return static_cast<FilterOperation::Color::Type>(filter);
     };
 
     auto parse_number_percentage = [&](auto& token) -> Optional<NumberPercentage> {
@@ -5205,13 +5205,13 @@ RefPtr<CSSStyleValue> Parser::parse_filter_value_list_value(TokenStream<Componen
         if (filter_token == FilterToken::Blur) {
             // blur( <length>? )
             if (!tokens.has_next_token())
-                return Filter::Blur {};
+                return FilterOperation::Blur {};
             auto blur_radius = parse_length(tokens);
             tokens.discard_whitespace();
             if (!blur_radius.has_value())
                 return {};
             // FIXME: Support calculated radius
-            return if_no_more_tokens_return(Filter::Blur { blur_radius->value() });
+            return if_no_more_tokens_return(FilterOperation::Blur { blur_radius->value() });
         } else if (filter_token == FilterToken::DropShadow) {
             if (!tokens.has_next_token())
                 return {};
@@ -5240,17 +5240,17 @@ RefPtr<CSSStyleValue> Parser::parse_filter_value_list_value(TokenStream<Componen
                 }
             }
             // FIXME: Support calculated offsets and radius
-            return if_no_more_tokens_return(Filter::DropShadow { x_offset->value(), y_offset->value(), maybe_radius.map([](auto& it) { return it.value(); }), maybe_color->to_color({}) });
+            return if_no_more_tokens_return(FilterOperation::DropShadow { x_offset->value(), y_offset->value(), maybe_radius.map([](auto& it) { return it.value(); }), maybe_color->to_color({}) });
         } else if (filter_token == FilterToken::HueRotate) {
             // hue-rotate( [ <angle> | <zero> ]? )
             if (!tokens.has_next_token())
-                return Filter::HueRotate {};
+                return FilterOperation::HueRotate {};
             auto& token = tokens.consume_a_token();
             if (token.is(Token::Type::Number)) {
                 // hue-rotate(0)
                 auto number = token.token().number();
                 if (number.is_integer() && number.integer_value() == 0)
-                    return if_no_more_tokens_return(Filter::HueRotate { Filter::HueRotate::Zero {} });
+                    return if_no_more_tokens_return(FilterOperation::HueRotate { FilterOperation::HueRotate::Zero {} });
                 return {};
             }
             if (!token.is(Token::Type::Dimension))
@@ -5261,7 +5261,7 @@ RefPtr<CSSStyleValue> Parser::parse_filter_value_list_value(TokenStream<Componen
             if (!angle_unit.has_value())
                 return {};
             Angle angle { angle_value, angle_unit.release_value() };
-            return if_no_more_tokens_return(Filter::HueRotate { angle });
+            return if_no_more_tokens_return(FilterOperation::HueRotate { angle });
         } else {
             // Simple filters:
             // brightness( <number-percentage>? )
@@ -5272,11 +5272,11 @@ RefPtr<CSSStyleValue> Parser::parse_filter_value_list_value(TokenStream<Componen
             // sepia( <number-percentage>? )
             // saturate( <number-percentage>? )
             if (!tokens.has_next_token())
-                return Filter::Color { filter_token_to_operation(filter_token) };
+                return FilterOperation::Color { filter_token_to_operation(filter_token) };
             auto amount = parse_number_percentage(tokens.consume_a_token());
             if (!amount.has_value())
                 return {};
-            return if_no_more_tokens_return(Filter::Color { filter_token_to_operation(filter_token), *amount });
+            return if_no_more_tokens_return(FilterOperation::Color { filter_token_to_operation(filter_token), *amount });
         }
     };
 
@@ -7860,6 +7860,7 @@ Parser::ParseErrorOr<NonnullRefPtr<CSSStyleValue>> Parser::parse_css_value(Prope
             return parsed_value.release_nonnull();
         return ParseError::SyntaxError;
     case PropertyID::BackdropFilter:
+    case PropertyID::Filter:
         if (auto parsed_value = parse_filter_value_list_value(tokens); parsed_value && !tokens.has_next_token())
             return parsed_value.release_nonnull();
         return ParseError::SyntaxError;
