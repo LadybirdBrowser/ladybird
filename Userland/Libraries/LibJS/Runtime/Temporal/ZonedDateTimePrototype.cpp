@@ -38,6 +38,7 @@ void ZonedDateTimePrototype::initialize(Realm& realm)
     define_direct_property(vm.well_known_symbol_to_string_tag(), PrimitiveString::create(vm, "Temporal.ZonedDateTime"_string), Attribute::Configurable);
 
     define_native_accessor(realm, vm.names.calendar, calendar_getter, {}, Attribute::Configurable);
+    define_native_accessor(realm, vm.names.calendarId, calendar_id_getter, {}, Attribute::Configurable);
     define_native_accessor(realm, vm.names.timeZone, time_zone_getter, {}, Attribute::Configurable);
     define_native_accessor(realm, vm.names.year, year_getter, {}, Attribute::Configurable);
     define_native_accessor(realm, vm.names.month, month_getter, {}, Attribute::Configurable);
@@ -1399,6 +1400,19 @@ JS_DEFINE_NATIVE_FUNCTION(ZonedDateTimePrototype::get_iso_fields)
 
     // 21. Return fields.
     return fields;
+}
+
+// 6.3.3 get Temporal.ZonedDateTime.prototype.calendarId
+// https://tc39.es/proposal-temporal/#sec-get-temporal.zoneddatetime.prototype.calendarid
+JS_DEFINE_NATIVE_FUNCTION(ZonedDateTimePrototype::calendar_id_getter)
+{
+    // 1. Let zonedDateTime be the this value.
+    // 2. Perform ? RequireInternalSlot(zonedDateTime, [[InitializedTemporalZonedDateTime]]).
+    auto zoned_date_time = TRY(typed_this_object(vm));
+
+    // 3. Return zonedDateTime.[[Calendar]].identifier
+    auto& calendar = static_cast<Calendar&>(zoned_date_time->calendar());
+    return PrimitiveString::create(vm, calendar.identifier());
 }
 
 }
