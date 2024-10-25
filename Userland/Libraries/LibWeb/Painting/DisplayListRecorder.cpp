@@ -284,6 +284,7 @@ void DisplayListRecorder::push_stacking_context(PushStackingContextParams params
 {
     append(PushStackingContext {
         .opacity = params.opacity,
+        .filter = params.filter,
         .source_paintable_rect = params.source_paintable_rect,
         .transform = {
             .origin = params.transform.origin,

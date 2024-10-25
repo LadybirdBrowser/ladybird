@@ -311,6 +311,7 @@ void StackingContext::paint(PaintContext& context) const
 
     DisplayListRecorder::PushStackingContextParams push_stacking_context_params {
         .opacity = opacity,
+        .filter = paintable().computed_values().filter(),
         .is_fixed_position = paintable().is_fixed_position(),
         .source_paintable_rect = source_paintable_rect,
         .transform = {
