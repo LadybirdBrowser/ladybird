@@ -995,19 +995,16 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<CryptoKey>> HKDF::import_key(AlgorithmParam
     //        4. Set the [[type]] internal slot of key to "secret".
     key->set_type(Bindings::KeyType::Secret);
 
-    //        5. Set the [[extractable]] internal slot of key to false.
-    key->set_extractable(false);
-
-    //        6. Let algorithm be a new KeyAlgorithm object.
+    //        5. Let algorithm be a new KeyAlgorithm object.
     auto algorithm = KeyAlgorithm::create(m_realm);
 
-    //        7. Set the name attribute of algorithm to "HKDF".
+    //        6. Set the name attribute of algorithm to "HKDF".
     algorithm->set_name("HKDF"_string);
 
-    //        8. Set the [[algorithm]] internal slot of key to algorithm.
+    //        7. Set the [[algorithm]] internal slot of key to algorithm.
     key->set_algorithm(algorithm);
 
-    //        9. Return key.
+    //        8. Return key.
     return key;
 }
 
@@ -1035,19 +1032,16 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<CryptoKey>> PBKDF2::import_key(AlgorithmPar
     // 5. Set the [[type]] internal slot of key to "secret".
     key->set_type(Bindings::KeyType::Secret);
 
-    // 6. Set the [[extractable]] internal slot of key to false.
-    key->set_extractable(false);
-
-    // 7. Let algorithm be a new KeyAlgorithm object.
+    // 6. Let algorithm be a new KeyAlgorithm object.
     auto algorithm = KeyAlgorithm::create(m_realm);
 
-    // 8. Set the name attribute of algorithm to "PBKDF2".
+    // 7. Set the name attribute of algorithm to "PBKDF2".
     algorithm->set_name("PBKDF2"_string);
 
-    // 9. Set the [[algorithm]] internal slot of key to algorithm.
+    // 8. Set the [[algorithm]] internal slot of key to algorithm.
     key->set_algorithm(algorithm);
 
-    // 10. Return key.
+    // 9. Return key.
     return key;
 }
 
