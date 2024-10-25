@@ -69,7 +69,15 @@ String PropertyOwningCSSStyleDeclaration::item(size_t index) const
 JS::NonnullGCPtr<ElementInlineCSSStyleDeclaration> ElementInlineCSSStyleDeclaration::create(DOM::Element& element, Vector<StyleProperty> properties, HashMap<FlyString, StyleProperty> custom_properties)
 {
     auto& realm = element.realm();
-    return realm.heap().allocate<ElementInlineCSSStyleDeclaration>(realm, element, move(properties), move(custom_properties));
+    auto declaration = realm.heap().allocate<ElementInlineCSSStyleDeclaration>(realm, element, move(properties), move(custom_properties));
+    for (auto& property : declaration->m_properties) {
+        if (property_is_shorthand(property.property_id)) {
+            StyleComputer::for_each_property_expanding_shorthands(property.property_id, *property.value, StyleComputer::AllowUnresolved::Yes, [declaration, property](PropertyID longhand_property_id, CSSStyleValue const& longhand_value) {
+                declaration->set_a_css_declaration(longhand_property_id, longhand_value, property.important);
+            });
+        }
+    }
+    return declaration;
 }
 
 ElementInlineCSSStyleDeclaration::ElementInlineCSSStyleDeclaration(DOM::Element& element, Vector<StyleProperty> properties, HashMap<FlyString, StyleProperty> custom_properties)
