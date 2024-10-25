@@ -123,6 +123,8 @@ public:
     Optional<String> get_attribute_ns(Optional<FlyString> const& namespace_, FlyString const& name) const;
     String get_attribute_value(FlyString const& local_name, Optional<FlyString> const& namespace_ = {}) const;
 
+    Optional<String> lang() const;
+
     WebIDL::ExceptionOr<void> set_attribute(FlyString const& name, String const& value);
 
     WebIDL::ExceptionOr<void> set_attribute_ns(Optional<FlyString> const& namespace_, FlyString const& qualified_name, String const& value);
