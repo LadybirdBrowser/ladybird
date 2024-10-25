@@ -11,6 +11,8 @@
 #include <AK/Function.h>
 #include <AK/HashTable.h>
 #include <LibCore/EventReceiver.h>
+#include <LibHTTP/HeaderMap.h>
+#include <LibHTTP/HttpStatus.h>
 #include <LibJS/SafeFunction.h>
 #include <LibRequests/Forward.h>
 #include <LibURL/URL.h>
@@ -27,13 +29,13 @@ public:
 
     RefPtr<Resource> load_resource(Resource::Type, LoadRequest&);
 
-    using SuccessCallback = JS::SafeFunction<void(ReadonlyBytes, HTTP::HeaderMap const& response_headers, Optional<u32> status_code)>;
-    using ErrorCallback = JS::SafeFunction<void(ByteString const&, Optional<u32> status_code, ReadonlyBytes payload, HTTP::HeaderMap const& response_headers)>;
+    using SuccessCallback = JS::SafeFunction<void(Optional<HTTP::HttpStatus> const& response_status, HTTP::HeaderMap const& response_headers, ReadonlyBytes response_body)>;
+    using ErrorCallback = JS::SafeFunction<void(ByteString const& error, Optional<HTTP::HttpStatus> const& response_status, HTTP::HeaderMap const& response_headers, ReadonlyBytes response_body)>;
     using TimeoutCallback = JS::SafeFunction<void()>;
 
     void load(LoadRequest&, SuccessCallback success_callback, ErrorCallback error_callback = nullptr, Optional<u32> timeout = {}, TimeoutCallback timeout_callback = nullptr);
 
-    using OnHeadersReceived = JS::SafeFunction<void(HTTP::HeaderMap const& response_headers, Optional<u32> status_code)>;
+    using OnHeadersReceived = JS::SafeFunction<void(HTTP::HttpStatus const& status_code, HTTP::HeaderMap const& response_headers)>;
     using OnDataReceived = JS::SafeFunction<void(ReadonlyBytes data)>;
     using OnComplete = JS::SafeFunction<void(bool success, Optional<StringView> error_message)>;
 

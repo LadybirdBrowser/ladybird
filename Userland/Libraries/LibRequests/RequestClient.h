@@ -8,6 +8,7 @@
 
 #include <AK/HashMap.h>
 #include <LibHTTP/HeaderMap.h>
+#include <LibHTTP/HttpStatus.h>
 #include <LibIPC/ConnectionToServer.h>
 #include <LibRequests/WebSocket.h>
 #include <LibWebSocket/WebSocket.h>
@@ -39,10 +40,10 @@ public:
 private:
     virtual void die() override;
 
-    virtual void request_started(i32, IPC::File const&) override;
-    virtual void request_finished(i32, u64, Optional<NetworkError> const&) override;
-    virtual void certificate_requested(i32) override;
-    virtual void headers_became_available(i32, HTTP::HeaderMap const&, Optional<u32> const&) override;
+    virtual void request_started(i32 request_id, IPC::File const&) override;
+    virtual void request_finished(i32 request_id, u64, Optional<NetworkError> const&) override;
+    virtual void certificate_requested(i32 request_id) override;
+    virtual void headers_became_available(i32 request_id, u16 response_status, ByteBuffer const& response_reason_phrase, HTTP::HeaderMap const& response_headers) override;
 
     virtual void websocket_connected(i64 websocket_id) override;
     virtual void websocket_received(i64 websocket_id, bool, ByteBuffer const&) override;
