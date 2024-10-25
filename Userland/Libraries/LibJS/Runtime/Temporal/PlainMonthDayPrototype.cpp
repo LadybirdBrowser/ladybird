@@ -32,6 +32,7 @@ void PlainMonthDayPrototype::initialize(Realm& realm)
     define_direct_property(vm.well_known_symbol_to_string_tag(), PrimitiveString::create(vm, "Temporal.PlainMonthDay"_string), Attribute::Configurable);
 
     define_native_accessor(realm, vm.names.calendar, calendar_getter, {}, Attribute::Configurable);
+    define_native_accessor(realm, vm.names.calendarId, calendar_id_getter, {}, Attribute::Configurable);
     define_native_accessor(realm, vm.names.monthCode, month_code_getter, {}, Attribute::Configurable);
     define_native_accessor(realm, vm.names.day, day_getter, {}, Attribute::Configurable);
 
@@ -278,6 +279,18 @@ JS_DEFINE_NATIVE_FUNCTION(PlainMonthDayPrototype::get_iso_fields)
 
     // 8. Return fields.
     return fields;
+}
+
+// 10.3.3 get Temporal.PlainMonthDay.prototype.calendarId
+JS_DEFINE_NATIVE_FUNCTION(PlainMonthDayPrototype::calendar_id_getter)
+{
+    // Step 1: Let monthDay be the this value
+    // Step 2: Perform ? RequireInternalSlot(monthDay, [[InitializedTemporalMonthDay]]).
+    auto month_day = TRY(typed_this_object(vm));
+
+    // Step 3: Return monthDay.[[Calendar]].
+    auto& calendar = static_cast<Calendar&>(month_day->calendar());
+    return PrimitiveString::create(vm, calendar.identifier());
 }
 
 }
