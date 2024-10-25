@@ -253,18 +253,22 @@ Optional<InlineLevelIterator::Item> InlineLevelIterator::next_without_lookahead(
 
             // https://drafts.csswg.org/css-text/#tab-size-property
             auto tab_size = text_node.computed_values().tab_size();
+            auto resolution_context = CSS::Length::ResolutionContext::for_layout_node(text_node);
             CSSPixels tab_width;
             tab_width = tab_size.visit(
                 [&](CSS::LengthOrCalculated const& t) -> CSSPixels {
-                    auto resolution_context = CSS::Length::ResolutionContext::for_layout_node(text_node);
                     auto value = t.resolved(resolution_context);
-
                     return value.to_px(text_node);
                 },
                 [&](CSS::NumberOrCalculated const& n) -> CSSPixels {
-                    auto number = n.resolved(text_node);
+                    auto tab_number = n.resolved(text_node);
+                    auto computed_letter_spacing = text_node.computed_values().letter_spacing();
+                    auto computed_word_spacing = text_node.computed_values().word_spacing();
 
-                    return CSSPixels::nearest_value_for(number * chunk.font->glyph_width(' '));
+                    auto letter_spacing = computed_letter_spacing.resolved(resolution_context).to_px(text_node);
+                    auto word_spacing = computed_letter_spacing.resolved(resolution_context).to_px(text_node);
+
+                    return CSSPixels::nearest_value_for(tab_number * (chunk.font->glyph_width(' ') + word_spacing.to_float() + letter_spacing.to_float()));
                 });
 
             // https://drafts.csswg.org/css-text/#white-space-phase-2
