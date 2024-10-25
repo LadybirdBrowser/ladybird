@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023, Tim Flynn <trflynn89@serenityos.org>
+ * Copyright (c) 2023-2024, Tim Flynn <trflynn89@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -11,6 +11,7 @@
 #include <LibJS/SafeFunction.h>
 #include <LibWeb/Bindings/PlatformObject.h>
 #include <LibWeb/Forward.h>
+#include <LibWeb/HTML/DocumentReadyState.h>
 
 namespace Web::DOM {
 
@@ -25,6 +26,9 @@ public:
     [[nodiscard]] JS::GCPtr<JS::HeapFunction<void()>> document_completely_loaded() const { return m_document_completely_loaded; }
     void set_document_completely_loaded(Function<void()>);
 
+    [[nodiscard]] JS::GCPtr<JS::HeapFunction<void(HTML::DocumentReadyState)>> document_readiness_observer() const { return m_document_readiness_observer; }
+    void set_document_readiness_observer(Function<void(HTML::DocumentReadyState)>);
+
 private:
     explicit DocumentObserver(JS::Realm&, DOM::Document&);
 
@@ -34,6 +38,7 @@ private:
     JS::NonnullGCPtr<DOM::Document> m_document;
     JS::GCPtr<JS::HeapFunction<void()>> m_document_became_inactive;
     JS::GCPtr<JS::HeapFunction<void()>> m_document_completely_loaded;
+    JS::GCPtr<JS::HeapFunction<void(HTML::DocumentReadyState)>> m_document_readiness_observer;
 };
 
 }
