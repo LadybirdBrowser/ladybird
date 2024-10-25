@@ -36,17 +36,26 @@ void DocumentObserver::finalize()
 
 void DocumentObserver::set_document_became_inactive(Function<void()> callback)
 {
-    m_document_became_inactive = JS::create_heap_function(vm().heap(), move(callback));
+    if (callback)
+        m_document_became_inactive = JS::create_heap_function(vm().heap(), move(callback));
+    else
+        m_document_became_inactive = nullptr;
 }
 
 void DocumentObserver::set_document_completely_loaded(Function<void()> callback)
 {
-    m_document_completely_loaded = JS::create_heap_function(vm().heap(), move(callback));
+    if (callback)
+        m_document_completely_loaded = JS::create_heap_function(vm().heap(), move(callback));
+    else
+        m_document_completely_loaded = nullptr;
 }
 
 void DocumentObserver::set_document_readiness_observer(Function<void(HTML::DocumentReadyState)> callback)
 {
-    m_document_readiness_observer = JS::create_heap_function(vm().heap(), move(callback));
+    if (callback)
+        m_document_readiness_observer = JS::create_heap_function(vm().heap(), move(callback));
+    else
+        m_document_readiness_observer = nullptr;
 }
 
 }
