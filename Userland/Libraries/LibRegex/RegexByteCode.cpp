@@ -95,7 +95,7 @@ StringView character_compare_type_name(CharacterCompareType ch_compare_type)
     }
 }
 
-static StringView character_class_name(CharClass ch_class)
+StringView character_class_name(CharClass ch_class)
 {
     switch (ch_class) {
 #define __ENUMERATE_CHARACTER_CLASS(x) \
