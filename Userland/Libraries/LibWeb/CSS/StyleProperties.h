@@ -115,6 +115,7 @@ public:
     Optional<CSS::Cursor> cursor() const;
     Variant<LengthOrCalculated, NumberOrCalculated> tab_size() const;
     Optional<CSS::WhiteSpace> white_space() const;
+    Optional<CSS::WordBreak> word_break() const;
     Optional<CSS::LengthOrCalculated> word_spacing() const;
     Optional<LengthOrCalculated> letter_spacing() const;
     Optional<CSS::LineStyle> line_style(CSS::PropertyID) const;

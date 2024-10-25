@@ -702,6 +702,12 @@ Variant<LengthOrCalculated, NumberOrCalculated> StyleProperties::tab_size() cons
     return NumberOrCalculated { value->as_number().number() };
 }
 
+Optional<CSS::WordBreak> StyleProperties::word_break() const
+{
+    auto value = property(CSS::PropertyID::WordBreak);
+    return keyword_to_word_break(value->to_keyword());
+}
+
 Optional<CSS::LengthOrCalculated> StyleProperties::word_spacing() const
 {
     auto value = property(CSS::PropertyID::WordSpacing);
