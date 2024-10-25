@@ -9,6 +9,7 @@
 #include <AK/Debug.h>
 #include <AK/StringBuilder.h>
 #include <LibUnicode/CharacterTypes.h>
+#include <LibUnicode/Locale.h>
 #include <LibWeb/Bindings/ElementPrototype.h>
 #include <LibWeb/Bindings/ExceptionOrUtils.h>
 #include <LibWeb/Bindings/MainThreadVM.h>
@@ -2899,6 +2900,45 @@ void Element::inherit_counters()
 
     VERIFY(!element_counters || !element_counters->is_empty());
     m_counters_set = move(element_counters);
+}
+
+// https://html.spec.whatwg.org/multipage/dom.html#the-lang-and-xml:lang-attributes
+Optional<String> Element::lang() const
+{
+    // 1. If the node is an element that has a lang attribute in the XML namespace set
+    //      Use the value of that attribute.
+    auto maybe_xml_lang = get_attribute_ns(Namespace::XML, HTML::AttributeNames::lang);
+    if (maybe_xml_lang.has_value())
+        return maybe_xml_lang.release_value();
+
+    // 2. If the node is an HTML element or an element in the SVG namespace, and it has a lang in no namespace attribute set
+    //      Use the value of that attribute.
+    if (is_html_element() || namespace_uri() == Namespace::SVG) {
+        auto maybe_lang = get_attribute(HTML::AttributeNames::lang);
+        if (maybe_lang.has_value())
+            return maybe_lang.release_value();
+    }
+
+    // 3. If the node's parent is a shadow root
+    //      Use the language of that shadow root's host.
+    if (auto const* parent = parent_element()) {
+        if (parent->is_shadow_root())
+            return parent->shadow_root()->host()->lang();
+    }
+
+    // 4. If the node's parent element is not null
+    //      Use the language of that parent element.
+    if (auto const* parent = parent_element())
+        return parent->lang();
+
+    // 5. Otherwise
+    //      - If there is a pragma-set default language set, then that is the language of the node.
+    //      - If there is no pragma-set default language set, then language information from a higher-level protocol (such as HTTP),
+    //        if any, must be used as the final fallback language instead.
+    //      - In the absence of any such language information, and in cases where the higher-level protocol reports multiple languages,
+    //        the language of the node is unknown, and the corresponding language tag is the empty string.
+    // Default locale sounds like a reasonable fallback here.
+    return {};
 }
 
 }
