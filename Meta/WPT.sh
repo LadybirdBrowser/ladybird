@@ -153,6 +153,7 @@ execute_wpt() {
             fi
             WPT_ARGS+=( "--webdriver-arg=--certificate=${certificate_path}" )
         done
+        echo QT_QPA_PLATFORM="offscreen" ./wpt run "${WPT_ARGS[@]}" ladybird "${TEST_LIST[@]}"
         QT_QPA_PLATFORM="offscreen" ./wpt run "${WPT_ARGS[@]}" ladybird "${TEST_LIST[@]}"
     popd > /dev/null
 }
