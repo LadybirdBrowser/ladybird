@@ -22,12 +22,14 @@ enum class PaddingMode {
     CMS,     // RFC 1423
     RFC5246, // very similar to CMS, but filled with |length - 1|, instead of |length|
     Null,
+    ZeroLength,
     // FIXME: We do not implement these yet
     Bit,
     Random,
     Space,
-    ZeroLength,
 };
+
+bool padding_always_needs_extra_block(PaddingMode);
 
 template<typename B, typename T>
 class Cipher;

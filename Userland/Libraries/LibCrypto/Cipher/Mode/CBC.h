@@ -66,17 +66,21 @@ public:
             offset += block_size;
         }
 
-        if (length > 0) {
+        if (length > 0 || padding_always_needs_extra_block(cipher.padding_mode())) {
             m_cipher_block.overwrite(in.slice(offset, length));
             m_cipher_block.apply_initialization_vector(iv);
             cipher.encrypt_block(m_cipher_block, m_cipher_block);
             VERIFY(offset + block_size <= out.size());
             __builtin_memcpy(out.offset(offset), m_cipher_block.bytes().data(), block_size);
             iv = out.slice(offset);
+            offset += block_size;
         }
 
         if (ivec_out)
             __builtin_memcpy(ivec_out->data(), iv.data(), min(IV_length(), ivec_out->size()));
+
+        // Indicate how much output was generated. (This can be non-trivial, as it depends on the padding mode.)
+        out = out.slice(0, offset);
     }
 
     virtual void decrypt(ReadonlyBytes in, Bytes& out, ReadonlyBytes ivec = {}) override
