@@ -81,6 +81,8 @@ private:
 
     virtual void visit_edges(Visitor&) override;
 
+    void update_the_rendering();
+
     Type m_type { Type::Window };
 
     JS::GCPtr<TaskQueue> m_task_queue;
@@ -116,6 +118,8 @@ private:
     bool m_skip_event_loop_processing_steps { false };
 
     bool m_is_running_rendering_task { false };
+
+    JS::GCPtr<JS::HeapFunction<void()>> m_rendering_task_function;
 };
 
 EventLoop& main_thread_event_loop();
