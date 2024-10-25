@@ -34,7 +34,7 @@ public:
     [[nodiscard]] static JS::NonnullGCPtr<ServiceWorkerContainer> create(JS::Realm& realm);
     virtual ~ServiceWorkerContainer() override;
 
-    JS::NonnullGCPtr<JS::Promise> register_(String script_url, RegistrationOptions const& options);
+    JS::NonnullGCPtr<WebIDL::Promise> register_(String script_url, RegistrationOptions const& options);
 
 #undef __ENUMERATE
 #define __ENUMERATE(attribute_name, event_name)       \

@@ -32,9 +32,9 @@ public:
 
     virtual ~OfflineAudioContext() override;
 
-    WebIDL::ExceptionOr<JS::NonnullGCPtr<JS::Promise>> start_rendering();
-    WebIDL::ExceptionOr<JS::NonnullGCPtr<JS::Promise>> resume();
-    WebIDL::ExceptionOr<JS::NonnullGCPtr<JS::Promise>> suspend(double suspend_time);
+    WebIDL::ExceptionOr<JS::NonnullGCPtr<WebIDL::Promise>> start_rendering();
+    WebIDL::ExceptionOr<JS::NonnullGCPtr<WebIDL::Promise>> resume();
+    WebIDL::ExceptionOr<JS::NonnullGCPtr<WebIDL::Promise>> suspend(double suspend_time);
 
     WebIDL::UnsignedLong length() const;
 

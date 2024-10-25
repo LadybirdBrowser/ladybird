@@ -32,17 +32,17 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<OfflineAudioContext>> OfflineAudioContext::
 OfflineAudioContext::~OfflineAudioContext() = default;
 
 // https://webaudio.github.io/web-audio-api/#dom-offlineaudiocontext-startrendering
-WebIDL::ExceptionOr<JS::NonnullGCPtr<JS::Promise>> OfflineAudioContext::start_rendering()
+WebIDL::ExceptionOr<JS::NonnullGCPtr<WebIDL::Promise>> OfflineAudioContext::start_rendering()
 {
     return WebIDL::NotSupportedError::create(realm(), "FIXME: Implement OfflineAudioContext::start_rendering"_string);
 }
 
-WebIDL::ExceptionOr<JS::NonnullGCPtr<JS::Promise>> OfflineAudioContext::resume()
+WebIDL::ExceptionOr<JS::NonnullGCPtr<WebIDL::Promise>> OfflineAudioContext::resume()
 {
     return WebIDL::NotSupportedError::create(realm(), "FIXME: Implement OfflineAudioContext::resume"_string);
 }
 
-WebIDL::ExceptionOr<JS::NonnullGCPtr<JS::Promise>> OfflineAudioContext::suspend(double suspend_time)
+WebIDL::ExceptionOr<JS::NonnullGCPtr<WebIDL::Promise>> OfflineAudioContext::suspend(double suspend_time)
 {
     (void)suspend_time;
     return WebIDL::NotSupportedError::create(realm(), "FIXME: Implement OfflineAudioContext::suspend"_string);

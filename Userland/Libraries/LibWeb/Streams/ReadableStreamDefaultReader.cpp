@@ -162,7 +162,7 @@ private:
 JS_DEFINE_ALLOCATOR(DefaultReaderReadRequest);
 
 // https://streams.spec.whatwg.org/#default-reader-read
-JS::NonnullGCPtr<JS::Promise> ReadableStreamDefaultReader::read()
+JS::NonnullGCPtr<WebIDL::Promise> ReadableStreamDefaultReader::read()
 {
     auto& realm = this->realm();
 
@@ -188,7 +188,7 @@ JS::NonnullGCPtr<JS::Promise> ReadableStreamDefaultReader::read()
     readable_stream_default_reader_read(*this, read_request);
 
     // 5. Return promise.
-    return JS::NonnullGCPtr { verify_cast<JS::Promise>(*promise_capability->promise()) };
+    return promise_capability;
 }
 
 void ReadableStreamDefaultReader::read_a_chunk(Fetch::Infrastructure::IncrementalReadLoopReadRequest& read_request)

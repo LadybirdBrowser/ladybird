@@ -35,9 +35,9 @@ public:
     double base_latency() const { return m_base_latency; }
     double output_latency() const { return m_output_latency; }
     AudioTimestamp get_output_timestamp();
-    WebIDL::ExceptionOr<JS::NonnullGCPtr<JS::Promise>> resume();
-    WebIDL::ExceptionOr<JS::NonnullGCPtr<JS::Promise>> suspend();
-    WebIDL::ExceptionOr<JS::NonnullGCPtr<JS::Promise>> close();
+    WebIDL::ExceptionOr<JS::NonnullGCPtr<WebIDL::Promise>> resume();
+    WebIDL::ExceptionOr<JS::NonnullGCPtr<WebIDL::Promise>> suspend();
+    WebIDL::ExceptionOr<JS::NonnullGCPtr<WebIDL::Promise>> close();
 
 private:
     explicit AudioContext(JS::Realm&, AudioContextOptions const& context_options);

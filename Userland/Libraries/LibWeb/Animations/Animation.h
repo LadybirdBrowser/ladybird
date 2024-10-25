@@ -60,10 +60,10 @@ public:
     bool pending() const { return m_pending_play_task == TaskState::Scheduled || m_pending_pause_task == TaskState::Scheduled; }
 
     // https://www.w3.org/TR/web-animations-1/#dom-animation-ready
-    JS::NonnullGCPtr<JS::Object> ready() const { return *current_ready_promise()->promise(); }
+    JS::NonnullGCPtr<WebIDL::Promise> ready() const { return current_ready_promise(); }
 
     // https://www.w3.org/TR/web-animations-1/#dom-animation-finished
-    JS::NonnullGCPtr<JS::Object> finished() const { return *current_finished_promise()->promise(); }
+    JS::NonnullGCPtr<WebIDL::Promise> finished() const { return current_finished_promise(); }
     bool is_finished() const { return m_is_finished; }
 
     JS::GCPtr<WebIDL::CallbackType> onfinish();

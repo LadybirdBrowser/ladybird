@@ -27,6 +27,7 @@
 #include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/Scripting/ExceptionReporter.h>
 #include <LibWeb/HTML/Scripting/Fetching.h>
+#include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
 #include <LibWeb/HTML/StructuredSerialize.h>
 #include <LibWeb/HTML/StructuredSerializeOptions.h>
 #include <LibWeb/HTML/Timer.h>
@@ -166,25 +167,26 @@ void WindowOrWorkerGlobalScopeMixin::queue_microtask(WebIDL::CallbackType& callb
 }
 
 // https://html.spec.whatwg.org/multipage/imagebitmap-and-animations.html#dom-createimagebitmap
-JS::NonnullGCPtr<JS::Promise> WindowOrWorkerGlobalScopeMixin::create_image_bitmap(ImageBitmapSource image, Optional<ImageBitmapOptions> options) const
+JS::NonnullGCPtr<WebIDL::Promise> WindowOrWorkerGlobalScopeMixin::create_image_bitmap(ImageBitmapSource image, Optional<ImageBitmapOptions> options) const
 {
     return create_image_bitmap_impl(image, {}, {}, {}, {}, options);
 }
 
 // https://html.spec.whatwg.org/multipage/imagebitmap-and-animations.html#dom-createimagebitmap
-JS::NonnullGCPtr<JS::Promise> WindowOrWorkerGlobalScopeMixin::create_image_bitmap(ImageBitmapSource image, WebIDL::Long sx, WebIDL::Long sy, WebIDL::Long sw, WebIDL::Long sh, Optional<ImageBitmapOptions> options) const
+JS::NonnullGCPtr<WebIDL::Promise> WindowOrWorkerGlobalScopeMixin::create_image_bitmap(ImageBitmapSource image, WebIDL::Long sx, WebIDL::Long sy, WebIDL::Long sw, WebIDL::Long sh, Optional<ImageBitmapOptions> options) const
 {
     return create_image_bitmap_impl(image, sx, sy, sw, sh, options);
 }
 
-JS::NonnullGCPtr<JS::Promise> WindowOrWorkerGlobalScopeMixin::create_image_bitmap_impl(ImageBitmapSource& image, Optional<WebIDL::Long> sx, Optional<WebIDL::Long> sy, Optional<WebIDL::Long> sw, Optional<WebIDL::Long> sh, Optional<ImageBitmapOptions>& options) const
+JS::NonnullGCPtr<WebIDL::Promise> WindowOrWorkerGlobalScopeMixin::create_image_bitmap_impl(ImageBitmapSource& image, Optional<WebIDL::Long> sx, Optional<WebIDL::Long> sy, Optional<WebIDL::Long> sw, Optional<WebIDL::Long> sh, Optional<ImageBitmapOptions>& options) const
 {
+    auto& realm = this_impl().realm();
+
     // 1. If either sw or sh is given and is 0, then return a promise rejected with a RangeError.
     if (sw == 0 || sh == 0) {
-        auto promise = JS::Promise::create(this_impl().realm());
         auto error_message = MUST(String::formatted("{} is an invalid value for {}", sw == 0 ? *sw : *sh, sw == 0 ? "sw"sv : "sh"sv));
-        promise->reject(JS::RangeError::create(this_impl().realm(), move(error_message)));
-        return promise;
+        auto error = JS::RangeError::create(realm, move(error_message));
+        return WebIDL::create_rejected_promise(realm, move(error));
     }
 
     // FIXME:
@@ -195,14 +197,13 @@ JS::NonnullGCPtr<JS::Promise> WindowOrWorkerGlobalScopeMixin::create_image_bitma
     // FIXME: "Check the usability of the image argument" is only defined for CanvasImageSource, let's skip it for other types
     if (image.has<CanvasImageSource>()) {
         if (auto usability = check_usability_of_image(image.get<CanvasImageSource>()); usability.is_error() or usability.value() == CanvasImageSourceUsability::Bad) {
-            auto promise = JS::Promise::create(this_impl().realm());
-            promise->reject(WebIDL::InvalidStateError::create(this_impl().realm(), "image argument is not usable"_string));
-            return promise;
+            auto error = WebIDL::InvalidStateError::create(this_impl().realm(), "image argument is not usable"_string);
+            return WebIDL::create_rejected_promise_from_exception(realm, error);
         }
     }
 
     // 4. Let p be a new promise.
-    auto p = JS::Promise::create(this_impl().realm());
+    auto p = WebIDL::create_promise(realm);
 
     // 5. Let imageBitmap be a new ImageBitmap object.
     auto image_bitmap = ImageBitmap::create(this_impl().realm());
@@ -226,7 +227,9 @@ JS::NonnullGCPtr<JS::Promise> WindowOrWorkerGlobalScopeMixin::create_image_bitma
                     // imageData is corrupted in some fatal way such that the image dimensions cannot be obtained
                     // (e.g., a vector graphic with no natural size), then reject p with an "InvalidStateError" DOMException
                     // and abort these steps.
-                    p->reject(WebIDL::InvalidStateError::create(relevant_realm(*p), "image does not contain a supported image format"_string));
+                    auto& realm = relevant_realm(p->promise());
+                    TemporaryExecutionContext context { relevant_settings_object(p->promise()), TemporaryExecutionContext::CallbacksEnabled::Yes };
+                    WebIDL::reject_promise(realm, *p, WebIDL::InvalidStateError::create(realm, "image does not contain a supported image format"_string));
                 };
 
                 auto on_successful_decode = [image_bitmap = JS::Handle(*image_bitmap), p = JS::Handle(*p)](Web::Platform::DecodedImage& result) -> ErrorOr<void> {
@@ -236,8 +239,11 @@ JS::NonnullGCPtr<JS::Promise> WindowOrWorkerGlobalScopeMixin::create_image_bitma
                     // or is disabled), or, if there is no such image, the first frame of the animation.
                     image_bitmap->set_bitmap(result.frames.take_first().bitmap);
 
+                    auto& realm = relevant_realm(p->promise());
+
                     // 5. Resolve p with imageBitmap.
-                    p->fulfill(image_bitmap);
+                    TemporaryExecutionContext context { relevant_settings_object(*image_bitmap), TemporaryExecutionContext::CallbacksEnabled::Yes };
+                    WebIDL::resolve_promise(realm, *p, image_bitmap);
                     return {};
                 };
 
@@ -248,7 +254,9 @@ JS::NonnullGCPtr<JS::Promise> WindowOrWorkerGlobalScopeMixin::create_image_bitma
             dbgln("(STUBBED) createImageBitmap() for non-blob types");
             (void)sx;
             (void)sy;
-            p->reject(JS::Error::create(relevant_realm(*p), "Not Implemented: createImageBitmap() for non-blob types"sv));
+            auto error = JS::Error::create(realm, "Not Implemented: createImageBitmap() for non-blob types"sv);
+            TemporaryExecutionContext context { relevant_settings_object(p->promise()), TemporaryExecutionContext::CallbacksEnabled::Yes };
+            WebIDL::reject_promise(realm, *p, error);
         });
 
     // 7. Return p.
@@ -273,7 +281,7 @@ WebIDL::ExceptionOr<JS::Value> WindowOrWorkerGlobalScopeMixin::structured_clone(
     return deserialized;
 }
 
-JS::NonnullGCPtr<JS::Promise> WindowOrWorkerGlobalScopeMixin::fetch(Fetch::RequestInfo const& input, Fetch::RequestInit const& init) const
+JS::NonnullGCPtr<WebIDL::Promise> WindowOrWorkerGlobalScopeMixin::fetch(Fetch::RequestInfo const& input, Fetch::RequestInit const& init) const
 {
     auto& vm = this_impl().vm();
     return Fetch::fetch(vm, input, init);
@@ -926,7 +934,7 @@ void WindowOrWorkerGlobalScopeMixin::notify_about_rejected_promises(Badge<EventL
                     .composed = false,
                 },
                 // Sadly we can't use .promise and .reason here, as we can't use the designator on the initialization of DOM::EventInit above.
-                /* .promise = */ JS::make_handle(*promise),
+                /* .promise = */ *promise,
                 /* .reason = */ promise->result(),
             };
 

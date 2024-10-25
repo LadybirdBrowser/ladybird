@@ -142,7 +142,7 @@ static bool check_clipboard_write_permission(JS::Realm& realm)
 }
 
 // https://w3c.github.io/clipboard-apis/#dom-clipboard-writetext
-JS::NonnullGCPtr<JS::Promise> Clipboard::write_text(String data)
+JS::NonnullGCPtr<WebIDL::Promise> Clipboard::write_text(String data)
 {
     // 1. Let realm be this's relevant realm.
     auto& realm = HTML::relevant_realm(*this);
@@ -194,7 +194,7 @@ JS::NonnullGCPtr<JS::Promise> Clipboard::write_text(String data)
     });
 
     // 4. Return p.
-    return JS::NonnullGCPtr { verify_cast<JS::Promise>(*promise->promise()) };
+    return promise;
 }
 
 }

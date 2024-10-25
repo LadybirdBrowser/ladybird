@@ -168,7 +168,7 @@ void writable_stream_default_controller_process_close(WritableStreamDefaultContr
 void writable_stream_default_controller_process_write(WritableStreamDefaultController&, JS::Value chunk);
 void writable_stream_default_controller_write(WritableStreamDefaultController&, JS::Value chunk, JS::Value chunk_size);
 
-void initialize_transform_stream(TransformStream&, JS::NonnullGCPtr<JS::PromiseCapability> start_promise, double writable_high_water_mark, JS::NonnullGCPtr<SizeAlgorithm> writable_size_algorithm, double readable_high_water_mark, JS::NonnullGCPtr<SizeAlgorithm> readable_size_algorithm);
+void initialize_transform_stream(TransformStream&, JS::NonnullGCPtr<WebIDL::Promise> start_promise, double writable_high_water_mark, JS::NonnullGCPtr<SizeAlgorithm> writable_size_algorithm, double readable_high_water_mark, JS::NonnullGCPtr<SizeAlgorithm> readable_size_algorithm);
 void set_up_transform_stream_default_controller(TransformStream&, TransformStreamDefaultController&, JS::NonnullGCPtr<TransformAlgorithm>, JS::NonnullGCPtr<FlushAlgorithm>, JS::NonnullGCPtr<CancelAlgorithm>);
 void set_up_transform_stream_default_controller_from_transformer(TransformStream&, JS::Value transformer, Transformer&);
 void transform_stream_default_controller_clear_algorithms(TransformStreamDefaultController&);

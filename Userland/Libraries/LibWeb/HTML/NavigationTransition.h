@@ -17,7 +17,7 @@ class NavigationTransition : public Bindings::PlatformObject {
     JS_DECLARE_ALLOCATOR(NavigationTransition);
 
 public:
-    [[nodiscard]] static JS::NonnullGCPtr<NavigationTransition> create(JS::Realm&, Bindings::NavigationType, JS::NonnullGCPtr<NavigationHistoryEntry>, JS::GCPtr<JS::Promise>);
+    [[nodiscard]] static JS::NonnullGCPtr<NavigationTransition> create(JS::Realm&, Bindings::NavigationType, JS::NonnullGCPtr<NavigationHistoryEntry>, JS::NonnullGCPtr<WebIDL::Promise>);
 
     // https://html.spec.whatwg.org/multipage/nav-history-apis.html#dom-navigationtransition-navigationtype
     Bindings::NavigationType navigation_type() const { return m_navigation_type; }
@@ -26,12 +26,12 @@ public:
     JS::NonnullGCPtr<NavigationHistoryEntry> from() const { return m_from_entry; }
 
     // https://html.spec.whatwg.org/multipage/nav-history-apis.html#dom-navigationtransition-finished
-    JS::GCPtr<JS::Promise> finished() const { return m_finished_promise; }
+    JS::NonnullGCPtr<WebIDL::Promise> finished() const { return m_finished_promise; }
 
     virtual ~NavigationTransition() override;
 
 private:
-    NavigationTransition(JS::Realm&, Bindings::NavigationType, JS::NonnullGCPtr<NavigationHistoryEntry>, JS::GCPtr<JS::Promise>);
+    NavigationTransition(JS::Realm&, Bindings::NavigationType, JS::NonnullGCPtr<NavigationHistoryEntry>, JS::NonnullGCPtr<WebIDL::Promise>);
 
     virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(JS::Cell::Visitor&) override;
@@ -43,7 +43,7 @@ private:
     JS::NonnullGCPtr<NavigationHistoryEntry> m_from_entry;
 
     // https://html.spec.whatwg.org/multipage/nav-history-apis.html#concept-navigationtransition-finished
-    JS::GCPtr<JS::Promise> m_finished_promise;
+    JS::NonnullGCPtr<WebIDL::Promise> m_finished_promise;
 };
 
 }

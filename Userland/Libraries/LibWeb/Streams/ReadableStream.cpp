@@ -90,18 +90,18 @@ bool ReadableStream::locked() const
 }
 
 // https://streams.spec.whatwg.org/#rs-cancel
-JS::NonnullGCPtr<JS::Object> ReadableStream::cancel(JS::Value reason)
+JS::NonnullGCPtr<WebIDL::Promise> ReadableStream::cancel(JS::Value reason)
 {
     auto& realm = this->realm();
 
     // 1. If ! IsReadableStreamLocked(this) is true, return a promise rejected with a TypeError exception.
     if (is_readable_stream_locked(*this)) {
         auto exception = JS::TypeError::create(realm, "Cannot cancel a locked stream"sv);
-        return WebIDL::create_rejected_promise(realm, JS::Value { exception })->promise();
+        return WebIDL::create_rejected_promise(realm, exception);
     }
 
     // 2. Return ! ReadableStreamCancel(this, reason).
-    return readable_stream_cancel(*this, reason)->promise();
+    return readable_stream_cancel(*this, reason);
 }
 
 // https://streams.spec.whatwg.org/#rs-get-reader
@@ -141,29 +141,26 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<ReadableStream>> ReadableStream::pipe_throu
     return JS::NonnullGCPtr { *transform.readable };
 }
 
-JS::NonnullGCPtr<JS::Object> ReadableStream::pipe_to(WritableStream& destination, StreamPipeOptions const& options)
+JS::NonnullGCPtr<WebIDL::Promise> ReadableStream::pipe_to(WritableStream& destination, StreamPipeOptions const& options)
 {
     auto& realm = this->realm();
+    auto& vm = realm.vm();
 
     // 1. If ! IsReadableStreamLocked(this) is true, return a promise rejected with a TypeError exception.
     if (is_readable_stream_locked(*this)) {
-        auto promise = WebIDL::create_promise(realm);
-        WebIDL::reject_promise(realm, promise, JS::TypeError::create(realm, "Failed to execute 'pipeTo' on 'ReadableStream': Cannot pipe a locked stream"sv));
-        return promise->promise();
+        return WebIDL::create_rejected_promise_from_exception(realm, vm.throw_completion<JS::TypeError>("Failed to execute 'pipeTo' on 'ReadableStream': Cannot pipe a locked stream"sv));
     }
 
     // 2. If ! IsWritableStreamLocked(destination) is true, return a promise rejected with a TypeError exception.
     if (is_writable_stream_locked(destination)) {
-        auto promise = WebIDL::create_promise(realm);
-        WebIDL::reject_promise(realm, promise, JS::TypeError::create(realm, "Failed to execute 'pipeTo' on 'ReadableStream':  Cannot pipe to a locked stream"sv));
-        return promise->promise();
+        return WebIDL::create_rejected_promise_from_exception(realm, vm.throw_completion<JS::TypeError>("Failed to execute 'pipeTo' on 'ReadableStream':  Cannot pipe to a locked stream"sv));
     }
 
     // 3. Let signal be options["signal"] if it exists, or undefined otherwise.
     auto signal = options.signal ? JS::Value(options.signal) : JS::js_undefined();
 
     // 4. Return ! ReadableStreamPipeTo(this, destination, options["preventClose"], options["preventAbort"], options["preventCancel"], signal).
-    return readable_stream_pipe_to(*this, destination, options.prevent_close, options.prevent_abort, options.prevent_cancel, signal)->promise();
+    return readable_stream_pipe_to(*this, destination, options.prevent_close, options.prevent_abort, options.prevent_cancel, signal);
 }
 
 // https://streams.spec.whatwg.org/#readablestream-tee

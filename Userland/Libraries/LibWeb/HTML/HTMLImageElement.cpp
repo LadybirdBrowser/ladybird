@@ -282,7 +282,7 @@ String HTMLImageElement::current_src() const
 }
 
 // https://html.spec.whatwg.org/multipage/embedded-content.html#dom-img-decode
-WebIDL::ExceptionOr<JS::NonnullGCPtr<JS::Promise>> HTMLImageElement::decode() const
+WebIDL::ExceptionOr<JS::NonnullGCPtr<WebIDL::Promise>> HTMLImageElement::decode() const
 {
     auto& realm = this->realm();
 
@@ -360,7 +360,7 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<JS::Promise>> HTMLImageElement::decode() co
         });
     }));
 
-    return JS::NonnullGCPtr { verify_cast<JS::Promise>(*promise->promise()) };
+    return promise;
 }
 
 Optional<ARIA::Role> HTMLImageElement::default_role() const

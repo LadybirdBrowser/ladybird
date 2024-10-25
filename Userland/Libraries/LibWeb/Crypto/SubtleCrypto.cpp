@@ -121,7 +121,7 @@ WebIDL::ExceptionOr<NormalizedAlgorithmAndParameter> normalize_an_algorithm(JS::
 }
 
 // https://w3c.github.io/webcrypto/#dfn-SubtleCrypto-method-encrypt
-JS::NonnullGCPtr<JS::Promise> SubtleCrypto::encrypt(AlgorithmIdentifier const& algorithm, JS::NonnullGCPtr<CryptoKey> key, JS::Handle<WebIDL::BufferSource> const& data_parameter)
+JS::NonnullGCPtr<WebIDL::Promise> SubtleCrypto::encrypt(AlgorithmIdentifier const& algorithm, JS::NonnullGCPtr<CryptoKey> key, JS::Handle<WebIDL::BufferSource> const& data_parameter)
 {
     auto& realm = this->realm();
     auto& vm = this->vm();
@@ -174,11 +174,11 @@ JS::NonnullGCPtr<JS::Promise> SubtleCrypto::encrypt(AlgorithmIdentifier const& a
         WebIDL::resolve_promise(realm, promise, cipher_text.release_value());
     });
 
-    return verify_cast<JS::Promise>(*promise->promise());
+    return promise;
 }
 
 // https://w3c.github.io/webcrypto/#dfn-SubtleCrypto-method-decrypt
-JS::NonnullGCPtr<JS::Promise> SubtleCrypto::decrypt(AlgorithmIdentifier const& algorithm, JS::NonnullGCPtr<CryptoKey> key, JS::Handle<WebIDL::BufferSource> const& data_parameter)
+JS::NonnullGCPtr<WebIDL::Promise> SubtleCrypto::decrypt(AlgorithmIdentifier const& algorithm, JS::NonnullGCPtr<CryptoKey> key, JS::Handle<WebIDL::BufferSource> const& data_parameter)
 {
     auto& realm = this->realm();
     auto& vm = this->vm();
@@ -231,11 +231,11 @@ JS::NonnullGCPtr<JS::Promise> SubtleCrypto::decrypt(AlgorithmIdentifier const& a
         WebIDL::resolve_promise(realm, promise, plain_text.release_value());
     });
 
-    return verify_cast<JS::Promise>(*promise->promise());
+    return promise;
 }
 
 // https://w3c.github.io/webcrypto/#dfn-SubtleCrypto-method-digest
-JS::NonnullGCPtr<JS::Promise> SubtleCrypto::digest(AlgorithmIdentifier const& algorithm, JS::Handle<WebIDL::BufferSource> const& data)
+JS::NonnullGCPtr<WebIDL::Promise> SubtleCrypto::digest(AlgorithmIdentifier const& algorithm, JS::Handle<WebIDL::BufferSource> const& data)
 {
     auto& realm = this->realm();
     auto& vm = this->vm();
@@ -279,11 +279,11 @@ JS::NonnullGCPtr<JS::Promise> SubtleCrypto::digest(AlgorithmIdentifier const& al
         WebIDL::resolve_promise(realm, promise, result.release_value());
     });
 
-    return verify_cast<JS::Promise>(*promise->promise());
+    return promise;
 }
 
 // https://w3c.github.io/webcrypto/#dfn-SubtleCrypto-method-generateKey
-JS::ThrowCompletionOr<JS::NonnullGCPtr<JS::Promise>> SubtleCrypto::generate_key(AlgorithmIdentifier algorithm, bool extractable, Vector<Bindings::KeyUsage> key_usages)
+JS::ThrowCompletionOr<JS::NonnullGCPtr<WebIDL::Promise>> SubtleCrypto::generate_key(AlgorithmIdentifier algorithm, bool extractable, Vector<Bindings::KeyUsage> key_usages)
 {
     auto& realm = this->realm();
 
@@ -339,11 +339,11 @@ JS::ThrowCompletionOr<JS::NonnullGCPtr<JS::Promise>> SubtleCrypto::generate_key(
             });
     });
 
-    return verify_cast<JS::Promise>(*promise->promise());
+    return promise;
 }
 
 // https://w3c.github.io/webcrypto/#SubtleCrypto-method-importKey
-JS::ThrowCompletionOr<JS::NonnullGCPtr<JS::Promise>> SubtleCrypto::import_key(Bindings::KeyFormat format, KeyDataType key_data, AlgorithmIdentifier algorithm, bool extractable, Vector<Bindings::KeyUsage> key_usages)
+JS::ThrowCompletionOr<JS::NonnullGCPtr<WebIDL::Promise>> SubtleCrypto::import_key(Bindings::KeyFormat format, KeyDataType key_data, AlgorithmIdentifier algorithm, bool extractable, Vector<Bindings::KeyUsage> key_usages)
 {
     auto& realm = this->realm();
 
@@ -415,11 +415,11 @@ JS::ThrowCompletionOr<JS::NonnullGCPtr<JS::Promise>> SubtleCrypto::import_key(Bi
         WebIDL::resolve_promise(realm, promise, result);
     });
 
-    return verify_cast<JS::Promise>(*promise->promise());
+    return promise;
 }
 
 // https://w3c.github.io/webcrypto/#dfn-SubtleCrypto-method-exportKey
-JS::ThrowCompletionOr<JS::NonnullGCPtr<JS::Promise>> SubtleCrypto::export_key(Bindings::KeyFormat format, JS::NonnullGCPtr<CryptoKey> key)
+JS::ThrowCompletionOr<JS::NonnullGCPtr<WebIDL::Promise>> SubtleCrypto::export_key(Bindings::KeyFormat format, JS::NonnullGCPtr<CryptoKey> key)
 {
     auto& realm = this->realm();
     // 1. Let format and key be the format and key parameters passed to the exportKey() method, respectively.
@@ -461,11 +461,11 @@ JS::ThrowCompletionOr<JS::NonnullGCPtr<JS::Promise>> SubtleCrypto::export_key(Bi
         WebIDL::resolve_promise(realm, promise, result_or_error.release_value());
     });
 
-    return verify_cast<JS::Promise>(*promise->promise());
+    return promise;
 }
 
 // https://w3c.github.io/webcrypto/#dfn-SubtleCrypto-method-sign
-JS::ThrowCompletionOr<JS::NonnullGCPtr<JS::Promise>> SubtleCrypto::sign(AlgorithmIdentifier const& algorithm, JS::NonnullGCPtr<CryptoKey> key, JS::Handle<WebIDL::BufferSource> const& data_parameter)
+JS::ThrowCompletionOr<JS::NonnullGCPtr<WebIDL::Promise>> SubtleCrypto::sign(AlgorithmIdentifier const& algorithm, JS::NonnullGCPtr<CryptoKey> key, JS::Handle<WebIDL::BufferSource> const& data_parameter)
 {
     auto& realm = this->realm();
     auto& vm = this->vm();
@@ -518,11 +518,11 @@ JS::ThrowCompletionOr<JS::NonnullGCPtr<JS::Promise>> SubtleCrypto::sign(Algorith
         WebIDL::resolve_promise(realm, promise, result.release_value());
     });
 
-    return verify_cast<JS::Promise>(*promise->promise());
+    return promise;
 }
 
 // https://w3c.github.io/webcrypto/#dfn-SubtleCrypto-method-verify
-JS::ThrowCompletionOr<JS::NonnullGCPtr<JS::Promise>> SubtleCrypto::verify(AlgorithmIdentifier const& algorithm, JS::NonnullGCPtr<CryptoKey> key, JS::Handle<WebIDL::BufferSource> const& signature_data, JS::Handle<WebIDL::BufferSource> const& data_parameter)
+JS::ThrowCompletionOr<JS::NonnullGCPtr<WebIDL::Promise>> SubtleCrypto::verify(AlgorithmIdentifier const& algorithm, JS::NonnullGCPtr<CryptoKey> key, JS::Handle<WebIDL::BufferSource> const& signature_data, JS::Handle<WebIDL::BufferSource> const& data_parameter)
 {
     auto& realm = this->realm();
     auto& vm = this->vm();
@@ -582,11 +582,11 @@ JS::ThrowCompletionOr<JS::NonnullGCPtr<JS::Promise>> SubtleCrypto::verify(Algori
         WebIDL::resolve_promise(realm, promise, result.release_value());
     });
 
-    return verify_cast<JS::Promise>(*promise->promise());
+    return promise;
 }
 
 // https://w3c.github.io/webcrypto/#SubtleCrypto-method-deriveBits
-JS::ThrowCompletionOr<JS::NonnullGCPtr<JS::Promise>> SubtleCrypto::derive_bits(AlgorithmIdentifier algorithm, JS::NonnullGCPtr<CryptoKey> base_key, u32 length)
+JS::ThrowCompletionOr<JS::NonnullGCPtr<WebIDL::Promise>> SubtleCrypto::derive_bits(AlgorithmIdentifier algorithm, JS::NonnullGCPtr<CryptoKey> base_key, u32 length)
 {
     auto& realm = this->realm();
     // 1. Let algorithm, baseKey and length, be the algorithm, baseKey and length parameters passed to the deriveBits() method, respectively.
@@ -629,10 +629,10 @@ JS::ThrowCompletionOr<JS::NonnullGCPtr<JS::Promise>> SubtleCrypto::derive_bits(A
         WebIDL::resolve_promise(realm, promise, result.release_value());
     });
 
-    return verify_cast<JS::Promise>(*promise->promise());
+    return promise;
 }
 
-JS::ThrowCompletionOr<JS::NonnullGCPtr<JS::Promise>> SubtleCrypto::derive_key(AlgorithmIdentifier algorithm, JS::NonnullGCPtr<CryptoKey> base_key, AlgorithmIdentifier derived_key_type, bool extractable, Vector<Bindings::KeyUsage> key_usages)
+JS::ThrowCompletionOr<JS::NonnullGCPtr<WebIDL::Promise>> SubtleCrypto::derive_key(AlgorithmIdentifier algorithm, JS::NonnullGCPtr<CryptoKey> base_key, AlgorithmIdentifier derived_key_type, bool extractable, Vector<Bindings::KeyUsage> key_usages)
 {
     auto& realm = this->realm();
     auto& vm = this->vm();
@@ -722,7 +722,7 @@ JS::ThrowCompletionOr<JS::NonnullGCPtr<JS::Promise>> SubtleCrypto::derive_key(Al
         WebIDL::resolve_promise(realm, promise, result.release_value());
     });
 
-    return verify_cast<JS::Promise>(*promise->promise());
+    return promise;
 }
 
 SupportedAlgorithmsMap& supported_algorithms_internal()

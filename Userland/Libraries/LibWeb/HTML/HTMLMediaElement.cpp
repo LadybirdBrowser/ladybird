@@ -334,7 +334,7 @@ void HTMLMediaElement::set_duration(double duration)
         paintable->set_needs_display();
 }
 
-WebIDL::ExceptionOr<JS::NonnullGCPtr<JS::Promise>> HTMLMediaElement::play()
+WebIDL::ExceptionOr<JS::NonnullGCPtr<WebIDL::Promise>> HTMLMediaElement::play()
 {
     auto& realm = this->realm();
 
@@ -355,7 +355,7 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<JS::Promise>> HTMLMediaElement::play()
     TRY(play_element());
 
     // 5. Return promise.
-    return JS::NonnullGCPtr { verify_cast<JS::Promise>(*promise->promise()) };
+    return promise;
 }
 
 // https://html.spec.whatwg.org/multipage/media.html#dom-media-pause

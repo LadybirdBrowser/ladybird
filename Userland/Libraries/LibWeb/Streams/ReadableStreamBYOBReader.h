@@ -51,7 +51,7 @@ public:
 
     virtual ~ReadableStreamBYOBReader() override = default;
 
-    JS::NonnullGCPtr<JS::Promise> read(JS::Handle<WebIDL::ArrayBufferView>&, ReadableStreamBYOBReaderReadOptions options = {});
+    JS::NonnullGCPtr<WebIDL::Promise> read(JS::Handle<WebIDL::ArrayBufferView>&, ReadableStreamBYOBReaderReadOptions options = {});
 
     void release_lock();
 

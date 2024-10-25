@@ -495,14 +495,13 @@ i64 Navigation::get_the_navigation_api_entry_index(SessionHistoryEntry const& sh
 // https://html.spec.whatwg.org/multipage/nav-history-apis.html#navigation-api-early-error-result
 NavigationResult Navigation::early_error_result(AnyException e)
 {
-    auto& vm = this->vm();
+    auto& realm = this->realm();
 
     // An early error result for an exception e is a NavigationResult dictionary instance given by
     // «[ "committed" → a promise rejected with e, "finished" → a promise rejected with e ]».
-    auto throw_completion = Bindings::dom_exception_to_throw_completion(vm, e);
     return {
-        .committed = WebIDL::create_rejected_promise(realm(), *throw_completion.value())->promise(),
-        .finished = WebIDL::create_rejected_promise(realm(), *throw_completion.value())->promise(),
+        .committed = WebIDL::create_rejected_promise_from_exception(realm, e),
+        .finished = WebIDL::create_rejected_promise_from_exception(realm, e),
     };
 }
 
@@ -512,8 +511,8 @@ NavigationResult navigation_api_method_tracker_derived_result(JS::NonnullGCPtr<N
     // A navigation API method tracker-derived result for a navigation API method tracker is a NavigationResult
     /// dictionary instance given by «[ "committed" apiMethodTracker's committed promise, "finished" → apiMethodTracker's finished promise ]».
     return {
-        api_method_tracker->committed_promise->promise(),
-        api_method_tracker->finished_promise->promise(),
+        api_method_tracker->committed_promise,
+        api_method_tracker->finished_promise,
     };
 }
 
@@ -639,8 +638,8 @@ WebIDL::ExceptionOr<NavigationResult> Navigation::perform_a_navigation_api_trave
     //    «[ "committed" → a promise resolved with current, "finished" → a promise resolved with current ]».
     if (key == current->session_history_entry().navigation_api_key()) {
         return NavigationResult {
-            .committed = WebIDL::create_resolved_promise(realm, current)->promise(),
-            .finished = WebIDL::create_resolved_promise(realm, current)->promise()
+            .committed = WebIDL::create_resolved_promise(realm, current),
+            .finished = WebIDL::create_resolved_promise(realm, current)
         };
     }
 
@@ -788,7 +787,7 @@ void Navigation::abort_the_ongoing_navigation(JS::GCPtr<WebIDL::DOMException> er
     // 11. If navigation's transition is not null, then:
     if (m_transition != nullptr) {
         // 1. Reject navigation's transition's finished promise with error.
-        m_transition->finished()->reject(error);
+        WebIDL::reject_promise(realm, m_transition->finished(), error);
 
         // 2. Set navigation's transition to null.
         m_transition = nullptr;
@@ -1105,10 +1104,10 @@ bool Navigation::inner_navigate_event_firing_algorithm(
         // 4. Set navigation's transition to a new NavigationTransition created in navigation's relevant realm,
         //    whose navigation type is navigationType, from entry is fromNHE, and whose finished promise is a new promise
         //    created in navigation's relevant realm.
-        m_transition = NavigationTransition::create(realm, navigation_type, *from_nhe, JS::Promise::create(realm));
+        m_transition = NavigationTransition::create(realm, navigation_type, *from_nhe, WebIDL::create_promise(realm));
 
         // 5. Mark as handled navigation's transition's finished promise.
-        m_transition->finished()->set_is_handled();
+        WebIDL::mark_promise_as_handled(*m_transition->finished());
 
         // 6. If navigationType is "traverse", then set navigation's suppress normal scroll restoration during ongoing navigation to true.
         // NOTE: If event's scroll behavior was set to "after-transition", then scroll restoration will happen as part of finishing
@@ -1187,7 +1186,7 @@ bool Navigation::inner_navigate_event_firing_algorithm(
 
                 // 8. If navigation's transition is not null, then resolve navigation's transition's finished promise with undefined.
                 if (m_transition != nullptr)
-                    m_transition->finished()->fulfill(JS::js_undefined());
+                    WebIDL::resolve_promise(realm, m_transition->finished(), JS::js_undefined());
 
                 // 9. Set navigation's transition to null.
                 m_transition = nullptr; },
@@ -1231,7 +1230,7 @@ bool Navigation::inner_navigate_event_firing_algorithm(
 
                 // 9. If navigation's transition is not null, then reject navigation's transition's finished promise with rejectionReason.
                 if (m_transition)
-                    m_transition->finished()->reject(rejection_reason);
+                    WebIDL::reject_promise(realm, m_transition->finished(), rejection_reason);
 
                 // 10. Set navigation's transition to null.
                 m_transition = nullptr;

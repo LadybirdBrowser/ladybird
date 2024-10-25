@@ -205,9 +205,9 @@ void FontFace::visit_edges(JS::Cell::Visitor& visitor)
     visitor.visit(m_font_status_promise);
 }
 
-JS::NonnullGCPtr<JS::Promise> FontFace::loaded() const
+JS::NonnullGCPtr<WebIDL::Promise> FontFace::loaded() const
 {
-    return verify_cast<JS::Promise>(*m_font_status_promise->promise());
+    return m_font_status_promise;
 }
 
 // https://drafts.csswg.org/css-font-loading/#dom-fontface-family
@@ -320,7 +320,7 @@ WebIDL::ExceptionOr<void> FontFace::set_line_gap_override(String const&)
 }
 
 // https://drafts.csswg.org/css-font-loading/#dom-fontface-load
-JS::NonnullGCPtr<JS::Promise> FontFace::load()
+JS::NonnullGCPtr<WebIDL::Promise> FontFace::load()
 {
     //  1. Let font face be the FontFace object on which this method was called.
     auto& font_face = *this;

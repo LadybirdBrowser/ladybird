@@ -53,7 +53,7 @@ public:
     WebIDL::ExceptionOr<void> remove_rule(Optional<WebIDL::UnsignedLong> index);
     WebIDL::ExceptionOr<void> delete_rule(unsigned index);
 
-    JS::NonnullGCPtr<JS::Promise> replace(String text);
+    JS::NonnullGCPtr<WebIDL::Promise> replace(String text);
     WebIDL::ExceptionOr<void> replace_sync(StringView text);
 
     void for_each_effective_rule(TraversalOrder, Function<void(CSSRule const&)> const& callback) const;

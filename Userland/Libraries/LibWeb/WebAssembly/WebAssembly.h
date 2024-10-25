@@ -22,10 +22,10 @@ void visit_edges(JS::Object&, JS::Cell::Visitor&);
 void finalize(JS::Object&);
 
 bool validate(JS::VM&, JS::Handle<WebIDL::BufferSource>& bytes);
-WebIDL::ExceptionOr<JS::Value> compile(JS::VM&, JS::Handle<WebIDL::BufferSource>& bytes);
+WebIDL::ExceptionOr<JS::NonnullGCPtr<WebIDL::Promise>> compile(JS::VM&, JS::Handle<WebIDL::BufferSource>& bytes);
 
-WebIDL::ExceptionOr<JS::Value> instantiate(JS::VM&, JS::Handle<WebIDL::BufferSource>& bytes, Optional<JS::Handle<JS::Object>>& import_object);
-WebIDL::ExceptionOr<JS::Value> instantiate(JS::VM&, Module const& module_object, Optional<JS::Handle<JS::Object>>& import_object);
+WebIDL::ExceptionOr<JS::NonnullGCPtr<WebIDL::Promise>> instantiate(JS::VM&, JS::Handle<WebIDL::BufferSource>& bytes, Optional<JS::Handle<JS::Object>>& import_object);
+WebIDL::ExceptionOr<JS::NonnullGCPtr<WebIDL::Promise>> instantiate(JS::VM&, Module const& module_object, Optional<JS::Handle<JS::Object>>& import_object);
 
 namespace Detail {
 struct CompiledWebAssemblyModule : public RefCounted<CompiledWebAssemblyModule> {

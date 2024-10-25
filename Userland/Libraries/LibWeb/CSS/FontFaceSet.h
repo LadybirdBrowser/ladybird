@@ -38,9 +38,9 @@ public:
     void set_onloadingerror(WebIDL::CallbackType*);
     WebIDL::CallbackType* onloadingerror();
 
-    JS::ThrowCompletionOr<JS::NonnullGCPtr<JS::Promise>> load(String const& font, String const& text);
+    JS::ThrowCompletionOr<JS::NonnullGCPtr<WebIDL::Promise>> load(String const& font, String const& text);
 
-    JS::NonnullGCPtr<JS::Promise> ready() const;
+    JS::NonnullGCPtr<WebIDL::Promise> ready() const;
     Bindings::FontFaceSetLoadStatus status() const { return m_status; }
 
     void resolve_ready_promise();
@@ -52,7 +52,7 @@ private:
     virtual void visit_edges(Cell::Visitor&) override;
 
     JS::NonnullGCPtr<JS::Set> m_set_entries;
-    JS::GCPtr<WebIDL::Promise> m_ready_promise; // [[ReadyPromise]]
+    JS::NonnullGCPtr<WebIDL::Promise> m_ready_promise; // [[ReadyPromise]]
 
     Vector<JS::NonnullGCPtr<FontFace>> m_loading_fonts {}; // [[LoadingFonts]]
     Vector<JS::NonnullGCPtr<FontFace>> m_loaded_fonts {};  // [[LoadedFonts]]

@@ -61,7 +61,7 @@ public:
     String current_src() const;
 
     // https://html.spec.whatwg.org/multipage/embedded-content.html#dom-img-decode
-    [[nodiscard]] WebIDL::ExceptionOr<JS::NonnullGCPtr<JS::Promise>> decode() const;
+    [[nodiscard]] WebIDL::ExceptionOr<JS::NonnullGCPtr<WebIDL::Promise>> decode() const;
 
     virtual Optional<ARIA::Role> default_role() const override;
 

@@ -665,16 +665,17 @@ static void generate_to_cpp(SourceGenerator& generator, ParameterType& parameter
             }
         }
     } else if (parameter.type->name() == "Promise") {
-        // NOTE: It's not clear to me where the implicit wrapping of non-Promise values in a resolved
-        // Promise is defined in the spec; https://webidl.spec.whatwg.org/#idl-promise doesn't say
-        // anything of this sort. Both Gecko and Blink do it, however, so I'm sure it's correct.
+        // https://webidl.spec.whatwg.org/#js-promise
         scoped_generator.append(R"~~~(
-    if (!@js_name@@js_suffix@.is_object() || !is<JS::Promise>(@js_name@@js_suffix@.as_object())) {
-        auto new_promise = JS::Promise::create(realm);
-        new_promise->fulfill(@js_name@@js_suffix@);
-        @js_name@@js_suffix@ = new_promise;
+    if (!@js_name@@js_suffix@.is_cell() || !is<JS::PromiseCapability>(@js_name@@js_suffix@.as_cell())) {
+        // 1. Let promiseCapability be ? NewPromiseCapability(%Promise%).
+        auto promise_capability = TRY(JS::new_promise_capability(vm, realm.intrinsics().promise_constructor()));
+        // 2. Perform ? Call(promiseCapability.[[Resolve]], undefined, « V »).
+        TRY(JS::call(vm, *promise_capability->resolve(), JS::js_undefined(), @js_name@@js_suffix@));
+        // 3. Return promiseCapability.
+        @js_name@@js_suffix@ = promise_capability;
     }
-    auto @cpp_name@ = JS::make_handle(&static_cast<JS::Promise&>(@js_name@@js_suffix@.as_object()));
+    auto @cpp_name@ = JS::make_handle(static_cast<JS::PromiseCapability&>(@js_name@@js_suffix@.as_cell()));
 )~~~");
     } else if (parameter.type->name() == "object") {
         if (parameter.type->is_nullable()) {
@@ -1794,9 +1795,13 @@ static void generate_wrap_statement(SourceGenerator& generator, ByteString const
         }
     } else if (type.is_integer()) {
         generate_from_integral(scoped_generator, type);
-    } else if (type.name() == "Location" || type.name() == "Promise" || type.name() == "Uint8Array" || type.name() == "Uint8ClampedArray" || type.name() == "any") {
+    } else if (type.name() == "Location" || type.name() == "Uint8Array" || type.name() == "Uint8ClampedArray" || type.name() == "any") {
         scoped_generator.append(R"~~~(
     @result_expression@ @value@;
+)~~~");
+    } else if (type.name() == "Promise") {
+        scoped_generator.append(R"~~~(
+    @result_expression@ JS::NonnullGCPtr { verify_cast<JS::Promise>(*@value@->promise()) };
 )~~~");
     } else if (type.name() == "ArrayBufferView" || type.name() == "BufferSource") {
         scoped_generator.append(R"~~~(
@@ -4243,6 +4248,7 @@ void generate_namespace_implementation(IDL::Interface const& interface, StringBu
 #include <LibJS/Runtime/DataView.h>
 #include <LibJS/Runtime/Error.h>
 #include <LibJS/Runtime/PrimitiveString.h>
+#include <LibJS/Runtime/PromiseConstructor.h>
 #include <LibJS/Runtime/TypedArray.h>
 #include <LibJS/Runtime/Value.h>
 #include <LibJS/Runtime/ValueInlines.h>
@@ -4254,6 +4260,7 @@ void generate_namespace_implementation(IDL::Interface const& interface, StringBu
 #include <LibWeb/WebIDL/AbstractOperations.h>
 #include <LibWeb/WebIDL/Buffers.h>
 #include <LibWeb/WebIDL/OverloadResolution.h>
+#include <LibWeb/WebIDL/Promise.h>
 #include <LibWeb/WebIDL/Tracing.h>
 #include <LibWeb/WebIDL/Types.h>
 
@@ -4663,6 +4670,7 @@ void generate_prototype_implementation(IDL::Interface const& interface, StringBu
 #include <LibJS/Runtime/FunctionObject.h>
 #include <LibJS/Runtime/GlobalObject.h>
 #include <LibJS/Runtime/Iterator.h>
+#include <LibJS/Runtime/PromiseConstructor.h>
 #include <LibJS/Runtime/TypedArray.h>
 #include <LibJS/Runtime/Value.h>
 #include <LibJS/Runtime/ValueInlines.h>
@@ -4682,8 +4690,9 @@ void generate_prototype_implementation(IDL::Interface const& interface, StringBu
 #include <LibWeb/Infra/Strings.h>
 #include <LibWeb/WebIDL/AbstractOperations.h>
 #include <LibWeb/WebIDL/Buffers.h>
-#include <LibWeb/WebIDL/Tracing.h>
 #include <LibWeb/WebIDL/OverloadResolution.h>
+#include <LibWeb/WebIDL/Promise.h>
+#include <LibWeb/WebIDL/Tracing.h>
 #include <LibWeb/WebIDL/Types.h>
 
 #if __has_include(<LibWeb/Bindings/@prototype_base_class@.h>)

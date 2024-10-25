@@ -25,13 +25,13 @@ public:
 
     virtual ~WritableStreamDefaultWriter() override = default;
 
-    JS::GCPtr<JS::Object> closed();
+    JS::GCPtr<WebIDL::Promise> closed();
     WebIDL::ExceptionOr<Optional<double>> desired_size() const;
-    JS::GCPtr<JS::Object> ready();
-    JS::GCPtr<JS::Object> abort(JS::Value reason);
-    JS::GCPtr<JS::Object> close();
+    JS::GCPtr<WebIDL::Promise> ready();
+    JS::GCPtr<WebIDL::Promise> abort(JS::Value reason);
+    JS::GCPtr<WebIDL::Promise> close();
     void release_lock();
-    JS::GCPtr<JS::Object> write(JS::Value chunk);
+    JS::GCPtr<WebIDL::Promise> write(JS::Value chunk);
 
     JS::GCPtr<WebIDL::Promise> closed_promise() { return m_closed_promise; }
     void set_closed_promise(JS::GCPtr<WebIDL::Promise> value) { m_closed_promise = value; }
