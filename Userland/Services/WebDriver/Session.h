@@ -69,6 +69,9 @@ public:
     Web::WebDriver::Response element_send_keys(String, JsonValue) const;
     Web::WebDriver::Response perform_actions(JsonValue) const;
 
+    Web::WebDriver::Response dismiss_alert() const;
+    Web::WebDriver::Response accept_alert() const;
+
 private:
     using ServerPromise = Core::Promise<ErrorOr<void>>;
     ErrorOr<NonnullRefPtr<Core::LocalServer>> create_server(NonnullRefPtr<ServerPromise> promise);

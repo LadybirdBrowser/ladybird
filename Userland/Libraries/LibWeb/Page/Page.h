@@ -145,8 +145,8 @@ public:
     bool has_pending_dialog() const { return m_pending_dialog != PendingDialog::None; }
     PendingDialog pending_dialog() const { return m_pending_dialog; }
     Optional<String> const& pending_dialog_text() const { return m_pending_dialog_text; }
-    void dismiss_dialog();
-    void accept_dialog();
+    void dismiss_dialog(JS::GCPtr<JS::HeapFunction<void()>> on_dialog_closed = nullptr);
+    void accept_dialog(JS::GCPtr<JS::HeapFunction<void()>> on_dialog_closed = nullptr);
 
     void did_request_color_picker(WeakPtr<HTML::HTMLInputElement> target, Color current_color);
     void color_picker_update(Optional<Color> picked_color, HTML::ColorPickerUpdateState state);
@@ -224,6 +224,8 @@ private:
     FindInPageResult perform_find_in_page_query(FindInPageQuery const&, Optional<SearchDirection> = {});
     void update_find_in_page_selection(Vector<JS::Handle<DOM::Range>> matches);
 
+    void on_pending_dialog_closed();
+
     JS::NonnullGCPtr<PageClient> m_client;
 
     WeakPtr<HTML::Navigable> m_focused_navigable;
@@ -249,6 +251,7 @@ private:
     Optional<Empty> m_pending_alert_response;
     Optional<bool> m_pending_confirm_response;
     Optional<Optional<String>> m_pending_prompt_response;
+    JS::GCPtr<JS::HeapFunction<void()>> m_on_pending_dialog_closed;
 
     PendingNonBlockingDialog m_pending_non_blocking_dialog { PendingNonBlockingDialog::None };
     WeakPtr<HTML::HTMLElement> m_pending_non_blocking_dialog_target;

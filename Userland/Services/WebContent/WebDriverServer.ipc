@@ -4,4 +4,5 @@ endpoint WebDriverServer {
     navigation_complete(Web::WebDriver::Response response) =|
     script_executed(Web::WebDriver::Response response) =|
     actions_performed(Web::WebDriver::Response response) =|
+    dialog_closed(Web::WebDriver::Response response) =|
 }

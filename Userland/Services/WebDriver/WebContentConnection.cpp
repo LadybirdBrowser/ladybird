@@ -38,4 +38,10 @@ void WebContentConnection::actions_performed(Web::WebDriver::Response const& res
         on_actions_performed(response);
 }
 
+void WebContentConnection::dialog_closed(Web::WebDriver::Response const& response)
+{
+    if (on_dialog_closed)
+        on_dialog_closed(response);
+}
+
 }

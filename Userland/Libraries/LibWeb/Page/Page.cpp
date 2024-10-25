@@ -48,6 +48,7 @@ void Page::visit_edges(JS::Cell::Visitor& visitor)
     Base::visit_edges(visitor);
     visitor.visit(m_top_level_traversable);
     visitor.visit(m_client);
+    visitor.visit(m_on_pending_dialog_closed);
 }
 
 HTML::Navigable& Page::focused_navigable()
@@ -287,9 +288,8 @@ void Page::did_request_alert(String const& message)
 void Page::alert_closed()
 {
     if (m_pending_dialog == PendingDialog::Alert) {
-        m_pending_dialog = PendingDialog::None;
         m_pending_alert_response = Empty {};
-        m_pending_dialog_text.clear();
+        on_pending_dialog_closed();
     }
 }
 
@@ -307,9 +307,8 @@ bool Page::did_request_confirm(String const& message)
 void Page::confirm_closed(bool accepted)
 {
     if (m_pending_dialog == PendingDialog::Confirm) {
-        m_pending_dialog = PendingDialog::None;
         m_pending_confirm_response = accepted;
-        m_pending_dialog_text.clear();
+        on_pending_dialog_closed();
     }
 }
 
@@ -327,14 +326,15 @@ Optional<String> Page::did_request_prompt(String const& message, String const& d
 void Page::prompt_closed(Optional<String> response)
 {
     if (m_pending_dialog == PendingDialog::Prompt) {
-        m_pending_dialog = PendingDialog::None;
         m_pending_prompt_response = move(response);
-        m_pending_dialog_text.clear();
+        on_pending_dialog_closed();
     }
 }
 
-void Page::dismiss_dialog()
+void Page::dismiss_dialog(JS::GCPtr<JS::HeapFunction<void()>> on_dialog_closed)
 {
+    m_on_pending_dialog_closed = on_dialog_closed;
+
     switch (m_pending_dialog) {
     case PendingDialog::None:
         break;
@@ -348,8 +348,10 @@ void Page::dismiss_dialog()
     }
 }
 
-void Page::accept_dialog()
+void Page::accept_dialog(JS::GCPtr<JS::HeapFunction<void()>> on_dialog_closed)
 {
+    m_on_pending_dialog_closed = on_dialog_closed;
+
     switch (m_pending_dialog) {
     case PendingDialog::None:
         break;
@@ -358,6 +360,17 @@ void Page::accept_dialog()
     case PendingDialog::Prompt:
         m_client->page_did_request_accept_dialog();
         break;
+    }
+}
+
+void Page::on_pending_dialog_closed()
+{
+    m_pending_dialog = PendingDialog::None;
+    m_pending_dialog_text.clear();
+
+    if (m_on_pending_dialog_closed) {
+        m_on_pending_dialog_closed->function()();
+        m_on_pending_dialog_closed = nullptr;
     }
 }
 
