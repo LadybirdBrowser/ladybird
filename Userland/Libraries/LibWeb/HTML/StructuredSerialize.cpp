@@ -157,6 +157,7 @@ public:
     }
 
     // https://html.spec.whatwg.org/multipage/structured-data.html#structuredserializeinternal
+    // https://whatpr.org/html/9893/structured-data.html#structuredserializeinternal
     WebIDL::ExceptionOr<SerializationRecord> serialize(JS::Value value)
     {
         // 2. If memory[value] exists, then return memory[value].
@@ -565,10 +566,10 @@ WebIDL::ExceptionOr<void> serialize_array_buffer(JS::VM& vm, Vector<u32>& vector
 
     // FIXME: 1.  If IsSharedArrayBuffer(value) is true, then:
     if (false) {
-        // 1. If the current settings object's cross-origin isolated capability is false, then throw a "DataCloneError" DOMException.
+        // 1. If the current principal settings object's cross-origin isolated capability is false, then throw a "DataCloneError" DOMException.
         // NOTE: This check is only needed when serializing (and not when deserializing) as the cross-origin isolated capability cannot change
         //       over time and a SharedArrayBuffer cannot leave an agent cluster.
-        if (current_settings_object().cross_origin_isolated_capability() == CanUseCrossOriginIsolatedAPIs::No)
+        if (current_principal_settings_object().cross_origin_isolated_capability() == CanUseCrossOriginIsolatedAPIs::No)
             return WebIDL::DataCloneError::create(*vm.current_realm(), "Cannot serialize SharedArrayBuffer when cross-origin isolated"_string);
 
         // 2. If forStorage is true, then throw a "DataCloneError" DOMException.
@@ -1304,12 +1305,11 @@ WebIDL::ExceptionOr<JS::Value> structured_deserialize(JS::VM& vm, SerializationR
         memory = DeserializationMemory { vm.heap() };
 
     // IMPLEMENTATION DEFINED: We need to make sure there's an execution context for target_realm on the stack before constructing these JS objects
-    auto& target_settings = Bindings::host_defined_environment_settings_object(target_realm);
-    target_settings.prepare_to_run_script();
+    prepare_to_run_script(target_realm);
 
     auto result = TRY(structured_deserialize_internal(vm, serialized.span(), target_realm, *memory));
 
-    target_settings.clean_up_after_running_script();
+    clean_up_after_running_script(target_realm);
     VERIFY(result.value.has_value());
     return *result.value;
 }

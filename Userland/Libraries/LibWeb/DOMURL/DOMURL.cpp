@@ -144,7 +144,7 @@ WebIDL::ExceptionOr<void> DOMURL::revoke_object_url(JS::VM& vm, StringView url)
     auto origin = url_record.origin();
 
     // 4. Let settings be the current settings object.
-    auto& settings = HTML::current_settings_object();
+    auto& settings = HTML::current_principal_settings_object();
 
     // 5. If origin is not same origin with settings’s origin, return.
     if (!origin.is_same_origin(settings.origin()))

@@ -48,6 +48,8 @@ public:
     }
 
     HostDefined* host_defined() { return m_host_defined; }
+    HostDefined const* host_defined() const { return m_host_defined; }
+
     void set_host_defined(OwnPtr<HostDefined> host_defined) { m_host_defined = move(host_defined); }
 
     void define_builtin(Bytecode::Builtin builtin, NonnullGCPtr<NativeFunction> value)

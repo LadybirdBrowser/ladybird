@@ -168,7 +168,7 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<Response>> Response::redirect(JS::VM& vm, S
     auto& realm = *vm.current_realm();
 
     // 1. Let parsedURL be the result of parsing url with current settings object’s API base URL.
-    auto api_base_url = HTML::current_settings_object().api_base_url();
+    auto api_base_url = HTML::current_principal_settings_object().api_base_url();
     auto parsed_url = DOMURL::parse(url, api_base_url);
 
     // 2. If parsedURL is failure, then throw a TypeError.

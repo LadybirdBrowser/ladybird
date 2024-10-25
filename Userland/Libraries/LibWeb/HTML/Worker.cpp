@@ -40,6 +40,7 @@ void Worker::visit_edges(Cell::Visitor& visitor)
 }
 
 // https://html.spec.whatwg.org/multipage/workers.html#dom-worker
+// https://whatpr.org/html/9893/workers.html#dom-worker
 WebIDL::ExceptionOr<JS::NonnullGCPtr<Worker>> Worker::create(String const& script_url, WorkerOptions const& options, DOM::Document& document)
 {
     dbgln_if(WEB_WORKER_DEBUG, "WebWorker: Creating worker with script_url = {}", script_url);
@@ -55,8 +56,8 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<Worker>> Worker::create(String const& scrip
     // a policy decision (e.g. if the user agent is configured to not allow the page to start dedicated workers).
     // Technically not a fixme if our policy is not to throw errors :^)
 
-    // 2. Let outside settings be the current settings object.
-    auto& outside_settings = current_settings_object();
+    // 2. Let outside settings be the current principal settings object.
+    auto& outside_settings = current_principal_settings_object();
 
     // 3. Parse the scriptURL argument relative to outside settings.
     auto url = document.parse_url(script_url);

@@ -33,6 +33,11 @@ struct HostDefined : public JS::Realm::HostDefined {
     return *verify_cast<HostDefined>(realm.host_defined())->environment_settings_object;
 }
 
+[[nodiscard]] inline HTML::EnvironmentSettingsObject const& host_defined_environment_settings_object(JS::Realm const& realm)
+{
+    return *verify_cast<HostDefined>(realm.host_defined())->environment_settings_object;
+}
+
 [[nodiscard]] inline Page& host_defined_page(JS::Realm& realm)
 {
     return *verify_cast<HostDefined>(realm.host_defined())->page;

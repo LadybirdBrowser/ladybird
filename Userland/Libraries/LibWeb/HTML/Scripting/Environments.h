@@ -1,6 +1,7 @@
 /*
  * Copyright (c) 2021, Luke Wilde <lukew@serenityos.org>
  * Copyright (c) 2022, Linus Groh <linusg@serenityos.org>
+ * Copyright (c) 2024, Shannon Booth <shannon@serenityos.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -63,6 +64,7 @@ public:
 
     // https://html.spec.whatwg.org/multipage/webappapis.html#concept-environment-target-browsing-context
     JS::ExecutionContext& realm_execution_context();
+    JS::ExecutionContext const& realm_execution_context() const;
 
     // https://html.spec.whatwg.org/multipage/webappapis.html#concept-settings-object-module-map
     ModuleMap& module_map();
@@ -93,16 +95,6 @@ public:
 
     // https://fetch.spec.whatwg.org/#concept-fetch-group
     Vector<JS::NonnullGCPtr<Fetch::Infrastructure::FetchRecord>>& fetch_group() { return m_fetch_group; }
-
-    RunScriptDecision can_run_script();
-    void prepare_to_run_script();
-    void clean_up_after_running_script();
-
-    void prepare_to_run_callback();
-    void clean_up_after_running_callback();
-
-    bool is_scripting_enabled() const;
-    bool is_scripting_disabled() const;
 
     bool module_type_allowed(StringView module_type) const;
 
@@ -139,11 +131,25 @@ private:
     bool m_discarded { false };
 };
 
+JS::ExecutionContext const& execution_context_of_realm(JS::Realm const&);
+inline JS::ExecutionContext& execution_context_of_realm(JS::Realm& realm) { return const_cast<JS::ExecutionContext&>(execution_context_of_realm(const_cast<JS::Realm const&>(realm))); }
+
+RunScriptDecision can_run_script(JS::Realm const&);
+bool is_scripting_enabled(JS::Realm const&);
+bool is_scripting_disabled(JS::Realm const&);
+void prepare_to_run_script(JS::Realm&);
+void clean_up_after_running_script(JS::Realm const&);
+void prepare_to_run_callback(JS::Realm&);
+void clean_up_after_running_callback(JS::Realm const&);
+
 EnvironmentSettingsObject& incumbent_settings_object();
 JS::Realm& incumbent_realm();
 JS::Object& incumbent_global_object();
-EnvironmentSettingsObject& current_settings_object();
-JS::Object& current_global_object();
+
+JS::Realm& current_principal_realm();
+EnvironmentSettingsObject& current_principal_settings_object();
+
+JS::Object& current_principal_global_object();
 JS::Realm& relevant_realm(JS::Object const&);
 EnvironmentSettingsObject& relevant_settings_object(JS::Object const&);
 EnvironmentSettingsObject& relevant_settings_object(DOM::Node const&);

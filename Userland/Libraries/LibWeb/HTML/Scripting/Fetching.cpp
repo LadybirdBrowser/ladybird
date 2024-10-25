@@ -81,6 +81,7 @@ ByteString module_type_from_module_request(JS::ModuleRequest const& module_reque
 }
 
 // https://html.spec.whatwg.org/multipage/webappapis.html#resolve-a-module-specifier
+// https://whatpr.org/html/9893/webappapis.html#resolve-a-module-specifier
 WebIDL::ExceptionOr<URL::URL> resolve_module_specifier(Optional<Script&> referring_script, ByteString const& specifier)
 {
     // 1. Let settingsObject and baseURL be null.
@@ -97,11 +98,11 @@ WebIDL::ExceptionOr<URL::URL> resolve_module_specifier(Optional<Script&> referri
     }
     // 3. Otherwise:
     else {
-        // 1. Assert: there is a current settings object.
-        // NOTE: This is handled by the current_settings_object() accessor.
+        // 1. Assert: there is a current principal settings object.
+        // NOTE: This is handled by the current_principal_settings_object() accessor.
 
-        // 2. Set settingsObject to the current settings object.
-        settings_object = current_settings_object();
+        // 2. Set settingsObject to the current principal settings object.
+        settings_object = current_principal_settings_object();
 
         // 3. Set baseURL to settingsObject's API base URL.
         base_url = settings_object->api_base_url();
@@ -957,7 +958,7 @@ void fetch_descendants_of_and_link_a_module_script(JS::Realm& realm,
     //       resulting in the event loop hanging forever awaiting for the script to be ready for parser
     //       execution.
     realm.vm().push_execution_context(fetch_client.realm_execution_context());
-    fetch_client.prepare_to_run_callback();
+    prepare_to_run_callback(realm);
 
     // 5. Let loadingPromise be record.LoadRequestedModules(state).
     auto& loading_promise = record->load_requested_modules(state);
@@ -994,7 +995,8 @@ void fetch_descendants_of_and_link_a_module_script(JS::Realm& realm,
         return JS::js_undefined();
     }));
 
-    fetch_client.clean_up_after_running_callback();
+    clean_up_after_running_callback(realm);
+
     realm.vm().pop_execution_context();
 }
 

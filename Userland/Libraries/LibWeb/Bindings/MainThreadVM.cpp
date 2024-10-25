@@ -124,6 +124,7 @@ ErrorOr<void> initialize_main_thread_vm(HTML::EventLoop::Type type)
     // FIXME: Implement 8.1.5.2 HostEnsureCanCompileStrings(callerRealm, calleeRealm), https://html.spec.whatwg.org/multipage/webappapis.html#hostensurecancompilestrings(callerrealm,-calleerealm)
 
     // 8.1.5.3 HostPromiseRejectionTracker(promise, operation), https://html.spec.whatwg.org/multipage/webappapis.html#the-hostpromiserejectiontracker-implementation
+    // https://whatpr.org/html/9893/webappapis.html#the-hostpromiserejectiontracker-implementation
     s_main_thread_vm->host_promise_rejection_tracker = [](JS::Promise& promise, JS::Promise::RejectionOperation operation) {
         // 1. Let script be the running script.
         //    The running script is the script in the [[HostDefined]] field in the ScriptOrModule component of the running JavaScript execution context.
@@ -147,8 +148,8 @@ ErrorOr<void> initialize_main_thread_vm(HTML::EventLoop::Type type)
         }
 
         // 3. Let settings object be the current settings object.
-        // 4. If script is not null, then set settings object to script's settings object.
-        auto& settings_object = script ? script->settings_object() : HTML::current_settings_object();
+        // 4. If script is not null, then set settings object to script's principal settings object.
+        auto& settings_object = script ? script->settings_object() : HTML::current_principal_settings_object();
 
         // 5. Let global be settingsObject's global object.
         auto* global_mixin = dynamic_cast<HTML::WindowOrWorkerGlobalScopeMixin*>(&settings_object.global_object());
@@ -198,14 +199,15 @@ ErrorOr<void> initialize_main_thread_vm(HTML::EventLoop::Type type)
     };
 
     // 8.1.5.4.1 HostCallJobCallback(callback, V, argumentsList), https://html.spec.whatwg.org/multipage/webappapis.html#hostcalljobcallback
+    // https://whatpr.org/html/9893/webappapis.html#hostcalljobcallback
     s_main_thread_vm->host_call_job_callback = [](JS::JobCallback& callback, JS::Value this_value, ReadonlySpan<JS::Value> arguments_list) {
         auto& callback_host_defined = verify_cast<WebEngineCustomJobCallbackData>(*callback.custom_data());
 
-        // 1. Let incumbent settings be callback.[[HostDefined]].[[IncumbentSettings]]. (NOTE: Not necessary)
+        // 1. Let incumbent realm be callback.[[HostDefined]].[[IncumbentRealm]]. (NOTE: Not necessary)
         // 2. Let script execution context be callback.[[HostDefined]].[[ActiveScriptContext]]. (NOTE: Not necessary)
 
-        // 3. Prepare to run a callback with incumbent settings.
-        callback_host_defined.incumbent_settings->prepare_to_run_callback();
+        // 3. Prepare to run a callback with incumbent realm.
+        HTML::prepare_to_run_callback(callback_host_defined.incumbent_settings->realm());
 
         // 4. If script execution context is not null, then push script execution context onto the JavaScript execution context stack.
         if (callback_host_defined.active_script_context)
@@ -220,8 +222,8 @@ ErrorOr<void> initialize_main_thread_vm(HTML::EventLoop::Type type)
             s_main_thread_vm->pop_execution_context();
         }
 
-        // 7. Clean up after running a callback with incumbent settings.
-        callback_host_defined.incumbent_settings->clean_up_after_running_callback();
+        // 7. Clean up after running a callback with incumbent realm.
+        HTML::clean_up_after_running_callback(callback_host_defined.incumbent_settings->realm());
 
         // 8. Return result.
         return result;
@@ -234,25 +236,25 @@ ErrorOr<void> initialize_main_thread_vm(HTML::EventLoop::Type type)
 
         // 2. Queue a global task on the JavaScript engine task source given global to perform the following steps:
         HTML::queue_global_task(HTML::Task::Source::JavaScriptEngine, global, JS::create_heap_function(s_main_thread_vm->heap(), [&finalization_registry] {
-            // 1. Let entry be finalizationRegistry.[[CleanupCallback]].[[Callback]].[[Realm]]'s environment settings object.
-            auto& entry = host_defined_environment_settings_object(*finalization_registry.cleanup_callback().callback().realm());
+            // 1. Let entry be finalizationRegistry.[[CleanupCallback]].[[Callback]].[[Realm]].
+            auto& entry = *finalization_registry.cleanup_callback().callback().realm();
 
             // 2. Check if we can run script with entry. If this returns "do not run", then return.
-            if (entry.can_run_script() == HTML::RunScriptDecision::DoNotRun)
+            if (HTML::can_run_script(entry) == HTML::RunScriptDecision::DoNotRun)
                 return;
 
             // 3. Prepare to run script with entry.
-            entry.prepare_to_run_script();
+            HTML::prepare_to_run_script(entry);
 
             // 4. Let result be the result of performing CleanupFinalizationRegistry(finalizationRegistry).
             auto result = finalization_registry.cleanup();
 
             // 5. Clean up after running script with entry.
-            entry.clean_up_after_running_script();
+            HTML::clean_up_after_running_script(entry);
 
             // 6. If result is an abrupt completion, then report the exception given by result.[[Value]].
             if (result.is_error())
-                HTML::report_exception(result, finalization_registry.realm());
+                HTML::report_exception(result, entry);
         }));
     };
 
@@ -275,22 +277,22 @@ ErrorOr<void> initialize_main_thread_vm(HTML::EventLoop::Type type)
 
         auto& heap = realm ? realm->heap() : s_main_thread_vm->heap();
         // NOTE: This keeps job_settings alive by keeping realm alive, which is holding onto job_settings.
-        HTML::queue_a_microtask(script ? script->settings_object().responsible_document().ptr() : nullptr, JS::create_heap_function(heap, [job_settings, job = move(job), script_or_module = move(script_or_module)] {
+        HTML::queue_a_microtask(script ? script->settings_object().responsible_document().ptr() : nullptr, JS::create_heap_function(heap, [realm, job_settings, job = move(job), script_or_module = move(script_or_module)] {
             // The dummy execution context has to be kept up here to keep it alive for the duration of the function.
             OwnPtr<JS::ExecutionContext> dummy_execution_context;
 
-            if (job_settings) {
-                // 1. If job settings is not null, then check if we can run script with job settings. If this returns "do not run" then return.
-                if (job_settings->can_run_script() == HTML::RunScriptDecision::DoNotRun)
+            if (realm) {
+                // 1. If realm is not null, then check if we can run script with realm. If this returns "do not run" then return.
+                if (HTML::can_run_script(*realm) == HTML::RunScriptDecision::DoNotRun)
                     return;
 
-                // 2. If job settings is not null, then prepare to run script with job settings.
-                job_settings->prepare_to_run_script();
+                // 2. If realm is not null, then prepare to run script with realm.
+                HTML::prepare_to_run_script(*realm);
 
                 // IMPLEMENTATION DEFINED: Additionally to preparing to run a script, we also prepare to run a callback here. This matches WebIDL's
                 //                         invoke_callback() / call_user_object_operation() functions, and prevents a crash in host_make_job_callback()
                 //                         when getting the incumbent settings object.
-                job_settings->prepare_to_run_callback();
+                HTML::prepare_to_run_callback(*realm);
 
                 // IMPLEMENTATION DEFINED: Per the previous "implementation defined" comment, we must now make the script or module the active script or module.
                 //                         Since the only active execution context currently is the realm execution context of job settings, lets attach it here.
@@ -307,15 +309,15 @@ ErrorOr<void> initialize_main_thread_vm(HTML::EventLoop::Type type)
             // 3. Let result be job().
             auto result = job->function()();
 
-            // 4. If job settings is not null, then clean up after running script with job settings.
-            if (job_settings) {
+            // 4. If realm is not null, then clean up after running script with job settings.
+            if (realm) {
                 // IMPLEMENTATION DEFINED: Disassociate the realm execution context from the script or module.
                 job_settings->realm_execution_context().script_or_module = Empty {};
 
                 // IMPLEMENTATION DEFINED: See comment above, we need to clean up the non-standard prepare_to_run_callback() call.
-                job_settings->clean_up_after_running_callback();
+                HTML::clean_up_after_running_callback(*realm);
 
-                job_settings->clean_up_after_running_script();
+                HTML::clean_up_after_running_script(*realm);
             } else {
                 // Pop off the dummy execution context. See the above FIXME block about why this is done.
                 s_main_thread_vm->pop_execution_context();
@@ -414,12 +416,13 @@ ErrorOr<void> initialize_main_thread_vm(HTML::EventLoop::Type type)
     };
 
     // 8.1.6.7.3 HostLoadImportedModule(referrer, moduleRequest, loadState, payload), https://html.spec.whatwg.org/multipage/webappapis.html#hostloadimportedmodule
+    // https://whatpr.org/html/9893/webappapis.html#hostloadimportedmodule
     s_main_thread_vm->host_load_imported_module = [](JS::ImportedModuleReferrer referrer, JS::ModuleRequest const& module_request, JS::GCPtr<JS::GraphLoadingState::HostDefined> load_state, JS::ImportedModulePayload payload) -> void {
         auto& vm = *s_main_thread_vm;
         auto& realm = *vm.current_realm();
 
-        // 1. Let settingsObject be the current settings object.
-        Optional<HTML::EnvironmentSettingsObject&> settings_object = HTML::current_settings_object();
+        // 1. Let settingsObject be the current principal settings object.
+        Optional<HTML::EnvironmentSettingsObject&> settings_object = HTML::current_principal_settings_object();
 
         // FIXME: 2. If settingsObject's global object implements WorkletGlobalScope or ServiceWorkerGlobalScope and loadState is undefined, then:
 
