@@ -384,10 +384,10 @@ i32 WindowOrWorkerGlobalScopeMixin::run_timer_initialization_steps(TimerHandler 
                     //            done by eval(). That is, module script fetches via import() will behave the same in both contexts.
                 }
 
-                // 7. Let script be the result of creating a classic script given handler, settings object, base URL, and fetch options.
+                // 7. Let script be the result of creating a classic script given handler, realm, base URL, and fetch options.
                 // FIXME: Pass fetch options.
                 auto basename = base_url.basename();
-                auto script = ClassicScript::create(basename, source, settings_object, move(base_url));
+                auto script = ClassicScript::create(basename, source, this_impl().realm(), move(base_url));
 
                 // 8. Run the classic script script.
                 (void)script->run();

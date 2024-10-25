@@ -96,10 +96,6 @@ public:
     // https://fetch.spec.whatwg.org/#concept-fetch-group
     Vector<JS::NonnullGCPtr<Fetch::Infrastructure::FetchRecord>>& fetch_group() { return m_fetch_group; }
 
-    bool module_type_allowed(StringView module_type) const;
-
-    void disallow_further_import_maps();
-
     SerializedEnvironmentSettingsObject serialize();
 
     JS::NonnullGCPtr<StorageAPI::StorageManager> storage_manager();
@@ -142,6 +138,8 @@ void clean_up_after_running_script(JS::Realm const&);
 void prepare_to_run_callback(JS::Realm&);
 void clean_up_after_running_callback(JS::Realm const&);
 ModuleMap& module_map_of_realm(JS::Realm&);
+bool module_type_allowed(JS::Realm const&, StringView module_type);
+void disallow_further_import_maps(JS::Realm&);
 
 EnvironmentSettingsObject& incumbent_settings_object();
 JS::Realm& incumbent_realm();

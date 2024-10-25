@@ -14,6 +14,7 @@
 namespace Web::HTML {
 
 // https://html.spec.whatwg.org/multipage/webappapis.html#concept-script
+// https://whatpr.org/html/9893/webappapis.html#concept-script
 class Script
     : public JS::Cell
     , public JS::Script::HostDefined {
@@ -26,7 +27,8 @@ public:
     URL::URL const& base_url() const { return m_base_url; }
     ByteString const& filename() const { return m_filename; }
 
-    EnvironmentSettingsObject& settings_object() { return m_settings_object; }
+    JS::Realm& realm() { return m_realm; }
+    EnvironmentSettingsObject& settings_object();
 
     [[nodiscard]] JS::Value error_to_rethrow() const { return m_error_to_rethrow; }
     void set_error_to_rethrow(JS::Value value) { m_error_to_rethrow = value; }
@@ -35,7 +37,7 @@ public:
     void set_parse_error(JS::Value value) { m_parse_error = value; }
 
 protected:
-    Script(URL::URL base_url, ByteString filename, EnvironmentSettingsObject& environment_settings_object);
+    Script(URL::URL base_url, ByteString filename, JS::Realm&);
 
     virtual void visit_edges(Visitor&) override;
 
@@ -44,7 +46,7 @@ private:
 
     URL::URL m_base_url;
     ByteString m_filename;
-    JS::NonnullGCPtr<EnvironmentSettingsObject> m_settings_object;
+    JS::NonnullGCPtr<JS::Realm> m_realm;
 
     // https://html.spec.whatwg.org/multipage/webappapis.html#concept-script-parse-error
     JS::Value m_parse_error;

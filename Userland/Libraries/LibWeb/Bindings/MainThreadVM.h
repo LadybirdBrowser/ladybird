@@ -66,15 +66,15 @@ struct WebEngineCustomData final : public JS::VM::CustomData {
 };
 
 struct WebEngineCustomJobCallbackData final : public JS::JobCallback::CustomData {
-    WebEngineCustomJobCallbackData(HTML::EnvironmentSettingsObject& incumbent_settings, OwnPtr<JS::ExecutionContext> active_script_context)
-        : incumbent_settings(incumbent_settings)
+    WebEngineCustomJobCallbackData(JS::Realm& incumbent_realm, OwnPtr<JS::ExecutionContext> active_script_context)
+        : incumbent_realm(incumbent_realm)
         , active_script_context(move(active_script_context))
     {
     }
 
     virtual ~WebEngineCustomJobCallbackData() override = default;
 
-    JS::NonnullGCPtr<HTML::EnvironmentSettingsObject> incumbent_settings;
+    JS::NonnullGCPtr<JS::Realm> incumbent_realm;
     OwnPtr<JS::ExecutionContext> active_script_context;
 };
 

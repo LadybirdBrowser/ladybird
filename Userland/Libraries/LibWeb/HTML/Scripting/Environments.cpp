@@ -260,23 +260,25 @@ bool is_scripting_disabled(JS::Realm const& realm)
 }
 
 // https://html.spec.whatwg.org/multipage/webappapis.html#module-type-allowed
-bool EnvironmentSettingsObject::module_type_allowed(StringView module_type) const
+// https://whatpr.org/html/9893/webappapis.html#module-type-allowed
+bool module_type_allowed(JS::Realm const&, StringView module_type)
 {
     // 1. If moduleType is not "javascript", "css", or "json", then return false.
     if (module_type != "javascript"sv && module_type != "css"sv && module_type != "json"sv)
         return false;
 
-    // FIXME: 2. If moduleType is "css" and the CSSStyleSheet interface is not exposed in settings's Realm, then return false.
+    // FIXME: 2. If moduleType is "css" and the CSSStyleSheet interface is not exposed in realm, then return false.
 
     // 3. Return true.
     return true;
 }
 
 // https://html.spec.whatwg.org/multipage/webappapis.html#disallow-further-import-maps
-void EnvironmentSettingsObject::disallow_further_import_maps()
+// https://whatpr.org/html/9893/webappapis.html#disallow-further-import-maps
+void disallow_further_import_maps(JS::Realm& realm)
 {
-    // 1. Let global be settingsObject's global object.
-    auto& global = global_object();
+    // 1. Let global be realm's global object.
+    auto& global = realm.global_object();
 
     // 2. If global does not implement Window, then return.
     if (!is<Window>(global))
