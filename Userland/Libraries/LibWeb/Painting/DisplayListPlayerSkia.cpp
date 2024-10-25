@@ -243,7 +243,7 @@ static sk_sp<SkImageFilter> to_skia_image_filter(CSS::ResolvedFilter::FilterFunc
             return SkImageFilters::Blur(blur_filter.radius, blur_filter.radius, nullptr);
         },
         [&](CSS::ResolvedFilter::Color const& color) {
-            auto amount = clamp(color.amount, 0.0f, 1.0f);
+            auto amount = color.amount;
 
             // Matrices are taken from https://drafts.fxtf.org/filter-effects-1/#FilterPrimitiveRepresentation
             sk_sp<SkColorFilter> color_filter;
@@ -255,7 +255,7 @@ static sk_sp<SkImageFilter> to_skia_image_filter(CSS::ResolvedFilter::FilterFunc
                     0.2126f - 0.2126f * (1 - amount), 0.7152f - 0.7152f * (1 - amount), 0.0722f + 0.9278f * (1 - amount), 0, 0,
                     0, 0, 0, 1, 0
                 };
-                color_filter = SkColorFilters::Matrix(matrix);
+                color_filter = SkColorFilters::Matrix(matrix, SkColorFilters::Clamp::kYes);
                 break;
             }
             case CSS::FilterOperation::Color::Type::Brightness: {
@@ -265,7 +265,7 @@ static sk_sp<SkImageFilter> to_skia_image_filter(CSS::ResolvedFilter::FilterFunc
                     0, 0, amount, 0, 0,
                     0, 0, 0, 1, 0
                 };
-                color_filter = SkColorFilters::Matrix(matrix);
+                color_filter = SkColorFilters::Matrix(matrix, SkColorFilters::Clamp::kNo);
                 break;
             }
             case CSS::FilterOperation::Color::Type::Contrast: {
@@ -276,7 +276,7 @@ static sk_sp<SkImageFilter> to_skia_image_filter(CSS::ResolvedFilter::FilterFunc
                     0, 0, amount, 0, intercept,
                     0, 0, 0, 1, 0
                 };
-                color_filter = SkColorFilters::Matrix(matrix);
+                color_filter = SkColorFilters::Matrix(matrix, SkColorFilters::Clamp::kNo);
                 break;
             }
             case CSS::FilterOperation::Color::Type::Invert: {
@@ -286,7 +286,7 @@ static sk_sp<SkImageFilter> to_skia_image_filter(CSS::ResolvedFilter::FilterFunc
                     0, 0, 1 - 2 * amount, 0, amount,
                     0, 0, 0, 1, 0
                 };
-                color_filter = SkColorFilters::Matrix(matrix);
+                color_filter = SkColorFilters::Matrix(matrix, SkColorFilters::Clamp::kYes);
                 break;
             }
             case CSS::FilterOperation::Color::Type::Opacity: {
@@ -296,7 +296,7 @@ static sk_sp<SkImageFilter> to_skia_image_filter(CSS::ResolvedFilter::FilterFunc
                     0, 0, 1, 0, 0,
                     0, 0, 0, amount, 0
                 };
-                color_filter = SkColorFilters::Matrix(matrix);
+                color_filter = SkColorFilters::Matrix(matrix, SkColorFilters::Clamp::kYes);
                 break;
             }
             case CSS::FilterOperation::Color::Type::Sepia: {
@@ -306,7 +306,7 @@ static sk_sp<SkImageFilter> to_skia_image_filter(CSS::ResolvedFilter::FilterFunc
                     0.272f - 0.272f * (1 - amount), 0.534f - 0.534f * (1 - amount), 0.131f + 0.869f * (1 - amount), 0, 0,
                     0, 0, 0, 1, 0
                 };
-                color_filter = SkColorFilters::Matrix(matrix);
+                color_filter = SkColorFilters::Matrix(matrix, SkColorFilters::Clamp::kYes);
                 break;
             }
             case CSS::FilterOperation::Color::Type::Saturate: {
@@ -316,7 +316,7 @@ static sk_sp<SkImageFilter> to_skia_image_filter(CSS::ResolvedFilter::FilterFunc
                     0.213f - 0.213f * amount, 0.715f - 0.715f * amount, 0.072f + 0.928f * amount, 0, 0,
                     0, 0, 0, 1, 0
                 };
-                color_filter = SkColorFilters::Matrix(matrix);
+                color_filter = SkColorFilters::Matrix(matrix, SkColorFilters::Clamp::kNo);
                 break;
             }
             default:
@@ -348,7 +348,7 @@ static sk_sp<SkImageFilter> to_skia_image_filter(CSS::ResolvedFilter::FilterFunc
                 0, 0, 0, 1, 0
             };
 
-            auto color_filter = SkColorFilters::Matrix(matrix);
+            auto color_filter = SkColorFilters::Matrix(matrix, SkColorFilters::Clamp::kNo);
             return SkImageFilters::ColorFilter(color_filter, nullptr);
         },
         [&](CSS::ResolvedFilter::DropShadow const&) {
