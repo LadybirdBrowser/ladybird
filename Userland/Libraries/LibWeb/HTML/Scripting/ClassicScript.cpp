@@ -20,9 +20,8 @@ JS_DEFINE_ALLOCATOR(ClassicScript);
 
 // https://html.spec.whatwg.org/multipage/webappapis.html#creating-a-classic-script
 // https://whatpr.org/html/9893/webappapis.html#creating-a-classic-script
-JS::NonnullGCPtr<ClassicScript> ClassicScript::create(ByteString filename, StringView source, EnvironmentSettingsObject& environment_settings_object, URL::URL base_url, size_t source_line_number, MutedErrors muted_errors)
+JS::NonnullGCPtr<ClassicScript> ClassicScript::create(ByteString filename, StringView source, JS::Realm& realm, URL::URL base_url, size_t source_line_number, MutedErrors muted_errors)
 {
-    auto& realm = environment_settings_object.realm();
     auto& vm = realm.vm();
 
     // 1. If muted errors is true, then set baseURL to about:blank.
@@ -34,11 +33,9 @@ JS::NonnullGCPtr<ClassicScript> ClassicScript::create(ByteString filename, Strin
         source = ""sv;
 
     // 3. Let script be a new classic script that this algorithm will subsequently initialize.
-    auto script = vm.heap().allocate_without_realm<ClassicScript>(move(base_url), move(filename), environment_settings_object);
-
-    // FIXME: 4. Set script's realm to realm. (NOTE: This was already done when constructing.)
-
-    // 5. Set script's base URL to baseURL. (NOTE: This was already done when constructing.)
+    // 4. Set script's realm to realm.
+    // 5. Set script's base URL to baseURL.
+    auto script = vm.heap().allocate_without_realm<ClassicScript>(move(base_url), move(filename), realm);
 
     // FIXME: 6. Set script's fetch options to options.
 
@@ -80,11 +77,10 @@ JS::NonnullGCPtr<ClassicScript> ClassicScript::create(ByteString filename, Strin
 // https://whatpr.org/html/9893/webappapis.html#run-a-classic-script
 JS::Completion ClassicScript::run(RethrowErrors rethrow_errors)
 {
-    // 1. Let settings be the settings object of script.
-    auto& settings = settings_object();
-    auto& realm = settings.realm();
+    // 1. Let realm be the realm of script.
+    auto& realm = this->realm();
 
-    // 2. Check if we can run script with settings. If this returns "do not run" then return NormalCompletion(empty).
+    // 2. Check if we can run script with realm. If this returns "do not run" then return NormalCompletion(empty).
     if (can_run_script(realm) == RunScriptDecision::DoNotRun)
         return JS::normal_completion({});
 
@@ -131,8 +127,8 @@ JS::Completion ClassicScript::run(RethrowErrors rethrow_errors)
         // 3. Otherwise, rethrow errors is false. Perform the following steps:
         VERIFY(rethrow_errors == RethrowErrors::No);
 
-        // 1. Report an exception given by evaluationStatus.[[Value]] for script's settings object's global object.
-        auto* window_or_worker = dynamic_cast<WindowOrWorkerGlobalScopeMixin*>(&settings.global_object());
+        // 1. Report an exception given by evaluationStatus.[[Value]] for realms's global object.
+        auto* window_or_worker = dynamic_cast<WindowOrWorkerGlobalScopeMixin*>(&realm.global_object());
         VERIFY(window_or_worker);
         window_or_worker->report_an_exception(*evaluation_status.value());
 
@@ -154,8 +150,8 @@ JS::Completion ClassicScript::run(RethrowErrors rethrow_errors)
     //            Return Completion { [[Type]]: throw, [[Value]]: a new "QuotaExceededError" DOMException, [[Target]]: empty }.
 }
 
-ClassicScript::ClassicScript(URL::URL base_url, ByteString filename, EnvironmentSettingsObject& environment_settings_object)
-    : Script(move(base_url), move(filename), environment_settings_object)
+ClassicScript::ClassicScript(URL::URL base_url, ByteString filename, JS::Realm& realm)
+    : Script(move(base_url), move(filename), realm)
 {
 }
 

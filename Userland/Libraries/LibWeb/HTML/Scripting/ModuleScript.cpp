@@ -17,36 +17,30 @@ JS_DEFINE_ALLOCATOR(JavaScriptModuleScript);
 
 ModuleScript::~ModuleScript() = default;
 
-ModuleScript::ModuleScript(URL::URL base_url, ByteString filename, EnvironmentSettingsObject& environment_settings_object)
-    : Script(move(base_url), move(filename), environment_settings_object)
+ModuleScript::ModuleScript(URL::URL base_url, ByteString filename, JS::Realm& realm)
+    : Script(move(base_url), move(filename), realm)
 {
 }
 
 JavaScriptModuleScript::~JavaScriptModuleScript() = default;
 
-JavaScriptModuleScript::JavaScriptModuleScript(URL::URL base_url, ByteString filename, EnvironmentSettingsObject& environment_settings_object)
-    : ModuleScript(move(base_url), move(filename), environment_settings_object)
+JavaScriptModuleScript::JavaScriptModuleScript(URL::URL base_url, ByteString filename, JS::Realm& realm)
+    : ModuleScript(move(base_url), move(filename), realm)
 {
 }
 
 // https://html.spec.whatwg.org/multipage/webappapis.html#creating-a-javascript-module-script
 // https://whatpr.org/html/9893/webappapis.html#creating-a-javascript-module-script
-WebIDL::ExceptionOr<JS::GCPtr<JavaScriptModuleScript>> JavaScriptModuleScript::create(ByteString const& filename, StringView source, EnvironmentSettingsObject& settings_object, URL::URL base_url)
+WebIDL::ExceptionOr<JS::GCPtr<JavaScriptModuleScript>> JavaScriptModuleScript::create(ByteString const& filename, StringView source, JS::Realm& realm, URL::URL base_url)
 {
-    auto& realm = settings_object.realm();
-
-    // 1. If scripting is disabled for settings, then set source to the empty string.
+    // 1. If scripting is disabled for realm, then set source to the empty string.
     if (HTML::is_scripting_disabled(realm))
         source = ""sv;
 
     // 2. Let script be a new module script that this algorithm will subsequently initialize.
-    auto script = realm.heap().allocate<JavaScriptModuleScript>(realm, move(base_url), filename, settings_object);
-
-    // FIXME: 3. Set script's settings object to settings.
-    // NOTE: This was already done when constructing.
-
+    // 3. Set script's realm to realm.
     // 4. Set script's base URL to baseURL.
-    // NOTE: This was already done when constructing.
+    auto script = realm.heap().allocate<JavaScriptModuleScript>(realm, move(base_url), filename, realm);
 
     // FIXME: 5. Set script's fetch options to options.
 
@@ -100,8 +94,8 @@ WebIDL::ExceptionOr<JS::GCPtr<JavaScriptModuleScript>> JavaScriptModuleScript::c
         // 4. Let moduleType be the result of running the module type from module request steps given requested.
         auto module_type = module_type_from_module_request(requested);
 
-        // 5. If the result of running the module type allowed steps given moduleType and settings is false, then:
-        if (!settings_object.module_type_allowed(module_type)) {
+        // 5. If the result of running the module type allowed steps given moduleType and realm is false, then:
+        if (!module_type_allowed(realm, module_type)) {
             // FIXME: 1. Let error be a new TypeError exception.
 
             // FIXME: 2. Set script's parse error to error.
@@ -122,13 +116,12 @@ WebIDL::ExceptionOr<JS::GCPtr<JavaScriptModuleScript>> JavaScriptModuleScript::c
 // https://whatpr.org/html/9893/webappapis.html#run-a-module-script
 JS::Promise* JavaScriptModuleScript::run(PreventErrorReporting)
 {
-    // 1. Let settings be the settings object of script.
-    auto& settings = settings_object();
-    auto& realm = settings.realm();
+    // 1. Let realm be the realm of script.
+    auto& realm = this->realm();
 
     // 2. Check if we can run script with realm. If this returns "do not run", then return a promise resolved with undefined.
     if (can_run_script(realm) == RunScriptDecision::DoNotRun) {
-        auto promise = JS::Promise::create(settings.realm());
+        auto promise = JS::Promise::create(realm);
         promise->fulfill(JS::js_undefined());
         return promise;
     }
