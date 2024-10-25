@@ -12,15 +12,15 @@
 
 namespace Web::CSS {
 
-class BackdropFilter {
+class Filter {
 public:
-    BackdropFilter() = default;
-    BackdropFilter(FilterValueListStyleValue const& filter_value_list)
+    Filter() = default;
+    Filter(FilterValueListStyleValue const& filter_value_list)
         : m_filter_value_list { filter_value_list } {};
 
-    static inline BackdropFilter make_none()
+    static Filter make_none()
     {
-        return BackdropFilter {};
+        return Filter {};
     }
 
     bool has_filters() const { return m_filter_value_list; }

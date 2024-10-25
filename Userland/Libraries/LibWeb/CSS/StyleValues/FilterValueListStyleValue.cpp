@@ -13,7 +13,7 @@
 
 namespace Web::CSS {
 
-float Filter::Blur::resolved_radius(Layout::Node const& node) const
+float FilterOperation::Blur::resolved_radius(Layout::Node const& node) const
 {
     // Default value when omitted is 0px.
     auto sigma = 0;
@@ -23,7 +23,7 @@ float Filter::Blur::resolved_radius(Layout::Node const& node) const
     return sigma * 2;
 }
 
-float Filter::HueRotate::angle_degrees() const
+float FilterOperation::HueRotate::angle_degrees() const
 {
     // Default value when omitted is 0deg.
     if (!angle.has_value())
@@ -31,7 +31,7 @@ float Filter::HueRotate::angle_degrees() const
     return angle->visit([&](Angle const& a) { return a.to_degrees(); }, [&](auto) { return 0.0; });
 }
 
-float Filter::Color::resolved_amount() const
+float FilterOperation::Color::resolved_amount() const
 {
     if (amount.has_value()) {
         if (amount->is_percentage())
@@ -50,12 +50,12 @@ String FilterValueListStyleValue::to_string() const
         if (!first)
             builder.append(' ');
         filter_function.visit(
-            [&](Filter::Blur const& blur) {
+            [&](FilterOperation::Blur const& blur) {
                 builder.append("blur("sv);
                 if (blur.radius.has_value())
                     builder.append(blur.radius->to_string());
             },
-            [&](Filter::DropShadow const& drop_shadow) {
+            [&](FilterOperation::DropShadow const& drop_shadow) {
                 builder.appendff("drop-shadow({} {}"sv,
                     drop_shadow.offset_x, drop_shadow.offset_y);
                 if (drop_shadow.radius.has_value())
@@ -65,7 +65,7 @@ String FilterValueListStyleValue::to_string() const
                     serialize_a_srgb_value(builder, *drop_shadow.color);
                 }
             },
-            [&](Filter::HueRotate const& hue_rotate) {
+            [&](FilterOperation::HueRotate const& hue_rotate) {
                 builder.append("hue-rotate("sv);
                 if (hue_rotate.angle.has_value()) {
                     hue_rotate.angle->visit(
@@ -77,23 +77,23 @@ String FilterValueListStyleValue::to_string() const
                         });
                 }
             },
-            [&](Filter::Color const& color) {
+            [&](FilterOperation::Color const& color) {
                 builder.appendff("{}(",
                     [&] {
                         switch (color.operation) {
-                        case Filter::Color::Operation::Brightness:
+                        case FilterOperation::Color::Type::Brightness:
                             return "brightness"sv;
-                        case Filter::Color::Operation::Contrast:
+                        case FilterOperation::Color::Type::Contrast:
                             return "contrast"sv;
-                        case Filter::Color::Operation::Grayscale:
+                        case FilterOperation::Color::Type::Grayscale:
                             return "grayscale"sv;
-                        case Filter::Color::Operation::Invert:
+                        case FilterOperation::Color::Type::Invert:
                             return "invert"sv;
-                        case Filter::Color::Operation::Opacity:
+                        case FilterOperation::Color::Type::Opacity:
                             return "opacity"sv;
-                        case Filter::Color::Operation::Saturate:
+                        case FilterOperation::Color::Type::Saturate:
                             return "saturate"sv;
-                        case Filter::Color::Operation::Sepia:
+                        case FilterOperation::Color::Type::Sepia:
                             return "sepia"sv;
                         default:
                             VERIFY_NOT_REACHED();

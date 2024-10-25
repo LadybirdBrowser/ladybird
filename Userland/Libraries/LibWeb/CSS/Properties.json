@@ -1065,6 +1065,16 @@
       "fill-rule"
     ]
   },
+  "filter": {
+    "affects-layout": false,
+    "animation-type": "custom",
+    "inherited": false,
+    "initial": "none",
+    "__comment": "FIXME: List `filter-value-list` as a valid-type once it's generically supported.",
+    "valid-identifiers": [
+      "none"
+    ]
+  },
   "flex": {
     "inherited": false,
     "initial": "0 1 auto",

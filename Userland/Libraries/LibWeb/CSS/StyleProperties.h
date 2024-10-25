@@ -137,7 +137,8 @@ public:
     Optional<CSS::AlignItems> align_items() const;
     Optional<CSS::AlignSelf> align_self() const;
     Optional<CSS::Appearance> appearance() const;
-    CSS::BackdropFilter backdrop_filter() const;
+    CSS::Filter backdrop_filter() const;
+    CSS::Filter filter() const;
     float opacity() const;
     Optional<CSS::Visibility> visibility() const;
     Optional<CSS::ImageRendering> image_rendering() const;

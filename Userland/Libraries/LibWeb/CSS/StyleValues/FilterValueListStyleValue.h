@@ -16,7 +16,7 @@
 
 namespace Web::CSS {
 
-namespace Filter {
+namespace FilterOperation {
 
 struct Blur {
     Optional<Length> radius {};
@@ -43,7 +43,7 @@ struct HueRotate {
 };
 
 struct Color {
-    enum class Operation {
+    enum class Type {
         Brightness,
         Contrast,
         Grayscale,
@@ -59,7 +59,7 @@ struct Color {
 
 };
 
-using FilterFunction = Variant<Filter::Blur, Filter::DropShadow, Filter::HueRotate, Filter::Color>;
+using FilterFunction = Variant<FilterOperation::Blur, FilterOperation::DropShadow, FilterOperation::HueRotate, FilterOperation::Color>;
 
 class FilterValueListStyleValue final : public StyleValueWithDefaultOperators<FilterValueListStyleValue> {
 public:
