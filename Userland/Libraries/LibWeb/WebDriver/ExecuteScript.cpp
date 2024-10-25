@@ -33,6 +33,7 @@
 #include <LibWeb/WebDriver/Contexts.h>
 #include <LibWeb/WebDriver/ElementReference.h>
 #include <LibWeb/WebDriver/ExecuteScript.h>
+#include <LibWeb/WebDriver/HeapTimer.h>
 
 namespace Web::WebDriver {
 
@@ -301,61 +302,14 @@ static JS::ThrowCompletionOr<JS::Value> execute_a_function_body(HTML::BrowsingCo
     return completion;
 }
 
-class HeapTimer : public JS::Cell {
-    JS_CELL(HeapTimer, JS::Cell);
-    JS_DECLARE_ALLOCATOR(HeapTimer);
+static ExecuteScriptResultSerialized create_timeout_result()
+{
+    JsonObject error_object;
+    error_object.set("name", "Error");
+    error_object.set("message", "Script Timeout");
 
-public:
-    explicit HeapTimer()
-        : m_timer(Core::Timer::create())
-    {
-    }
-
-    virtual ~HeapTimer() override = default;
-
-    void start(u64 timeout_ms, JS::NonnullGCPtr<OnScriptComplete> on_timeout)
-    {
-        m_on_timeout = on_timeout;
-
-        m_timer->on_timeout = [this]() {
-            m_timed_out = true;
-
-            if (m_on_timeout) {
-                auto error_object = JsonObject {};
-                error_object.set("name", "Error");
-                error_object.set("message", "Script Timeout");
-
-                m_on_timeout->function()({ ExecuteScriptResultType::Timeout, move(error_object) });
-                m_on_timeout = nullptr;
-            }
-        };
-
-        m_timer->set_interval(static_cast<int>(timeout_ms));
-        m_timer->set_single_shot(true);
-        m_timer->start();
-    }
-
-    void stop()
-    {
-        m_on_timeout = nullptr;
-        m_timer->stop();
-    }
-
-    bool is_timed_out() const { return m_timed_out; }
-
-private:
-    virtual void visit_edges(JS::Cell::Visitor& visitor) override
-    {
-        Base::visit_edges(visitor);
-        visitor.visit(m_on_timeout);
-    }
-
-    NonnullRefPtr<Core::Timer> m_timer;
-    JS::GCPtr<OnScriptComplete> m_on_timeout;
-    bool m_timed_out { false };
-};
-
-JS_DEFINE_ALLOCATOR(HeapTimer);
+    return { ExecuteScriptResultType::Timeout, move(error_object) };
+}
 
 void execute_script(HTML::BrowsingContext const& browsing_context, ByteString body, JS::MarkedVector<JS::Value> arguments, Optional<u64> const& timeout_ms, JS::NonnullGCPtr<OnScriptComplete> on_complete)
 {
@@ -369,7 +323,9 @@ void execute_script(HTML::BrowsingContext const& browsing_context, ByteString bo
     // 6. If timeout is not null:
     if (timeout_ms.has_value()) {
         // 1. Start the timer with timer and timeout.
-        timer->start(timeout_ms.value(), on_complete);
+        timer->start(timeout_ms.value(), JS::create_heap_function(vm.heap(), [on_complete]() {
+            on_complete->function()(create_timeout_result());
+        }));
     }
 
     // AD-HOC: An execution context is required for Promise creation hooks.
@@ -445,7 +401,9 @@ void execute_async_script(HTML::BrowsingContext const& browsing_context, ByteStr
     // 6. If timeout is not null:
     if (timeout_ms.has_value()) {
         // 1. Start the timer with timer and timeout.
-        timer->start(timeout_ms.value(), on_complete);
+        timer->start(timeout_ms.value(), JS::create_heap_function(vm.heap(), [on_complete]() {
+            on_complete->function()(create_timeout_result());
+        }));
     }
 
     // AD-HOC: An execution context is required for Promise creation hooks.
