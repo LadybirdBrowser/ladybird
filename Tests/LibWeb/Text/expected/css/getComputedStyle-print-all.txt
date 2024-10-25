@@ -44,6 +44,7 @@ text-shadow: none
 text-transform: none
 visibility: visible
 white-space: normal
+word-break: normal
 word-spacing: normal
 word-wrap: normal
 align-content: normal
@@ -119,7 +120,7 @@ grid-row-start: auto
 grid-template-areas: none
 grid-template-columns: auto
 grid-template-rows: auto
-height: 2057px
+height: 2074px
 inline-size: auto
 inset-block-end: auto
 inset-block-start: auto

@@ -499,5 +499,11 @@
     "pre",
     "pre-line",
     "pre-wrap"
+  ],
+  "word-break": [
+    "normal",
+    "keep-all",
+    "break-all",
+    "break-word"
   ]
 }

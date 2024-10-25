@@ -105,6 +105,7 @@ public:
     static CSS::ContentVisibility content_visibility() { return CSS::ContentVisibility::Visible; }
     static CSS::Cursor cursor() { return CSS::Cursor::Auto; }
     static CSS::WhiteSpace white_space() { return CSS::WhiteSpace::Normal; }
+    static CSS::WordBreak word_break() { return CSS::WordBreak::Normal; }
     static CSS::LengthOrCalculated word_spacing() { return CSS::Length::make_px(0); }
     static LengthOrCalculated letter_spacing() { return CSS::Length::make_px(0); }
     static Variant<LengthOrCalculated, NumberOrCalculated> tab_size() { return NumberOrCalculated(8.0f); }
@@ -551,6 +552,7 @@ protected:
         CSS::TextTransform text_transform { InitialValues::text_transform() };
         CSS::LengthPercentage text_indent { InitialValues::text_indent() };
         CSS::WhiteSpace white_space { InitialValues::white_space() };
+        CSS::WordBreak word_break { InitialValues::word_break() };
         CSS::LengthOrCalculated word_spacing { InitialValues::word_spacing() };
         LengthOrCalculated letter_spacing { InitialValues::letter_spacing() };
         CSS::ListStyleType list_style_type { InitialValues::list_style_type() };
@@ -728,6 +730,7 @@ public:
     void set_position(CSS::Positioning position) { m_noninherited.position = position; }
     void set_white_space(CSS::WhiteSpace value) { m_inherited.white_space = value; }
     void set_word_spacing(CSS::LengthOrCalculated value) { m_inherited.word_spacing = value; }
+    void set_word_break(CSS::WordBreak value) { m_inherited.word_break = value; }
     void set_letter_spacing(CSS::LengthOrCalculated value) { m_inherited.letter_spacing = value; }
     void set_width(CSS::Size const& width) { m_noninherited.width = width; }
     void set_min_width(CSS::Size const& width) { m_noninherited.min_width = width; }
