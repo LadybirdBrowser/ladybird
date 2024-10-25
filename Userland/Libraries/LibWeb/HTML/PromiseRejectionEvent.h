@@ -16,7 +16,7 @@
 namespace Web::HTML {
 
 struct PromiseRejectionEventInit : public DOM::EventInit {
-    JS::Handle<JS::Promise> promise;
+    JS::Handle<JS::Object> promise;
     JS::Value reason;
 };
 
@@ -31,7 +31,7 @@ public:
     virtual ~PromiseRejectionEvent() override;
 
     // Needs to return a pointer for the generated JS bindings to work.
-    JS::Promise const* promise() const { return m_promise; }
+    JS::Object const* promise() const { return m_promise; }
     JS::Value reason() const { return m_reason; }
 
 private:
@@ -40,7 +40,7 @@ private:
     virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Cell::Visitor&) override;
 
-    JS::GCPtr<JS::Promise> m_promise;
+    JS::NonnullGCPtr<JS::Object> m_promise;
     JS::Value m_reason;
 };
 
