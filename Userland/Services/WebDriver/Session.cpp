@@ -243,4 +243,18 @@ Web::WebDriver::Response Session::perform_actions(JsonValue payload) const
     });
 }
 
+Web::WebDriver::Response Session::dismiss_alert() const
+{
+    return perform_async_action(web_content_connection().on_dialog_closed, [&]() {
+        return web_content_connection().dismiss_alert();
+    });
+}
+
+Web::WebDriver::Response Session::accept_alert() const
+{
+    return perform_async_action(web_content_connection().on_dialog_closed, [&]() {
+        return web_content_connection().accept_alert();
+    });
+}
+
 }

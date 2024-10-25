@@ -721,7 +721,7 @@ Web::WebDriver::Response Client::dismiss_alert(Web::WebDriver::Parameters parame
 {
     dbgln_if(WEBDRIVER_DEBUG, "Handling POST /session/<session_id>/alert/dismiss");
     auto session = TRY(find_session_with_id(parameters[0]));
-    return session->web_content_connection().dismiss_alert();
+    return session->dismiss_alert();
 }
 
 // 16.2 Accept Alert, https://w3c.github.io/webdriver/#accept-alert
@@ -730,7 +730,7 @@ Web::WebDriver::Response Client::accept_alert(Web::WebDriver::Parameters paramet
 {
     dbgln_if(WEBDRIVER_DEBUG, "Handling POST /session/<session_id>/alert/accept");
     auto session = TRY(find_session_with_id(parameters[0]));
-    return session->web_content_connection().accept_alert();
+    return session->accept_alert();
 }
 
 // 16.3 Get Alert Text, https://w3c.github.io/webdriver/#get-alert-text
