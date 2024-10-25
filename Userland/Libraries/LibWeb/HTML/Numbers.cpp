@@ -83,13 +83,204 @@ Optional<u32> parse_non_negative_integer(StringView string)
 // https://html.spec.whatwg.org/multipage/common-microsyntaxes.html#rules-for-parsing-floating-point-number-values
 Optional<double> parse_floating_point_number(StringView string)
 {
-    // FIXME: Implement spec compliant floating point number parsing
-    auto maybe_double = string.to_number<double>(TrimWhitespace::Yes);
-    if (!maybe_double.has_value())
+    // 1. Let input be the string being parsed.
+    // 2. Let position be a pointer into input, initially pointing at the start of the string.
+    GenericLexer lexer { string };
+
+    // 3. Let value have the value 1.
+    double value = 1;
+
+    // 4. Let divisor have the value 1.
+    double divisor = 1;
+
+    // 5. Let exponent have the value 1.
+    i16 exponent = 1;
+
+    // 6. Skip ASCII whitespace within input given position.
+    lexer.ignore_while(Web::Infra::is_ascii_whitespace);
+
+    // 7. If position is past the end of input, return an error.
+    if (lexer.is_eof()) {
         return {};
-    if (!isfinite(maybe_double.value()))
+    }
+
+    // 8. If the character indicated by position is a U+002D HYPHEN-MINUS character (-):
+    if (lexer.next_is('-')) {
+        // 8.1. Change value and divisor to −1.
+        value = -1;
+        divisor = -1;
+
+        // 8.2. Advance position to the next character.
+        lexer.consume();
+
+        // 8.3. If position is past the end of input, return an error.
+        if (lexer.is_eof()) {
+            return {};
+        }
+    }
+    // Otherwise, if the character indicated by position (the first character) is a U+002B PLUS SIGN character (+):
+    else if (lexer.next_is('+')) {
+        // 8.1. Advance position to the next character. (The "+" is ignored, but it is not conforming.)
+        lexer.consume();
+
+        // 8.2. If position is past the end of input, return an error.
+        if (lexer.is_eof()) {
+            return {};
+        }
+    }
+
+    // 9. If the character indicated by position is a U+002E FULL STOP (.),
+    //    and that is not the last character in input,
+    //    and the character after the character indicated by position is an ASCII digit,
+    //    then set value to zero and jump to the step labeled fraction.
+    if (lexer.next_is('.') && (lexer.tell_remaining() > 1) && is_ascii_digit(lexer.peek(1))) {
+        value = 0;
+        goto fraction;
+    }
+
+    // 10. If the character indicated by position is not an ASCII digit, then return an error.
+    if (!lexer.next_is(is_ascii_digit)) {
         return {};
-    return maybe_double.value();
+    }
+
+    // 11. Collect a sequence of code points that are ASCII digits from input given position, and interpret the resulting sequence as a base-ten integer.
+    //     Multiply value by that integer.
+    {
+        size_t start_index = lexer.tell();
+        lexer.consume_while(is_ascii_digit);
+        size_t end_index = lexer.tell();
+        auto digits = lexer.input().substring_view(start_index, end_index - start_index);
+        auto optional_value = AK::StringUtils::convert_to_int<i32>(digits);
+        value *= optional_value.value();
+    }
+
+    // 12. If position is past the end of input, jump to the step labeled conversion.
+    if (lexer.is_eof()) {
+        goto conversion;
+    }
+
+fraction: {
+    // 13. Fraction: If the character indicated by position is a U+002E FULL STOP (.), run these substeps:
+    if (lexer.next_is('.')) {
+        // 13.1. Advance position to the next character.
+        lexer.consume();
+
+        // 13.2. If position is past the end of input,
+        //       or if the character indicated by position is not an ASCII digit,
+        //       U+0065 LATIN SMALL LETTER E (e), or U+0045 LATIN CAPITAL LETTER E (E),
+        //       then jump to the step labeled conversion.
+        if (lexer.is_eof() || (!lexer.next_is(is_ascii_digit) && !lexer.next_is('e') && !lexer.next_is('E'))) {
+            goto conversion;
+        }
+
+        // 13.3. If the character indicated by position is a U+0065 LATIN SMALL LETTER E character (e) or a U+0045 LATIN CAPITAL LETTER E character (E),
+        //       skip the remainder of these substeps.
+        if (lexer.next_is('e') || lexer.next_is('E')) {
+            goto fraction_exit;
+        }
+
+        // fraction_loop:
+        while (true) {
+            // 13.4. Fraction loop: Multiply divisor by ten.
+            divisor *= 10;
+
+            // 13.5. Add the value of the character indicated by position, interpreted as a base-ten digit (0..9) and divided by divisor, to value.
+            value += (lexer.peek() - '0') / divisor;
+
+            // 13.6. Advance position to the next character.
+            lexer.consume();
+
+            // 13.7. If position is past the end of input, then jump to the step labeled conversion.
+            if (lexer.is_eof()) {
+                goto conversion;
+            }
+
+            // 13.8. If the character indicated by position is an ASCII digit, jump back to the step labeled fraction loop in these substeps.
+            if (!lexer.next_is(is_ascii_digit)) {
+                break;
+            }
+        }
+    }
+
+fraction_exit:
+}
+
+    // 14. If the character indicated by position is U+0065 (e) or a U+0045 (E), then:
+    if (lexer.next_is('e') || lexer.next_is('E')) {
+        // 14.1. Advance position to the next character.
+        lexer.consume();
+
+        // 14.2. If position is past the end of input, then jump to the step labeled conversion.
+        if (lexer.is_eof()) {
+            goto conversion;
+        }
+
+        // 14.3. If the character indicated by position is a U+002D HYPHEN-MINUS character (-):
+        if (lexer.next_is('-')) {
+            // 14.3.1. Change exponent to −1.
+            exponent = -1;
+
+            // 14.3.2. Advance position to the next character.
+            lexer.consume();
+
+            // 14.3.3. If position is past the end of input, then jump to the step labeled conversion.
+            if (lexer.is_eof()) {
+                goto conversion;
+            }
+        }
+        // Otherwise, if the character indicated by position is a U+002B PLUS SIGN character (+):
+        else if (lexer.next_is('+')) {
+            // 14.3.1. Advance position to the next character.
+            lexer.consume();
+
+            // 14.3.2. If position is past the end of input, then jump to the step labeled conversion.
+            if (lexer.is_eof()) {
+                goto conversion;
+            }
+        }
+
+        // 14.4. If the character indicated by position is not an ASCII digit, then jump to the step labeled conversion.
+        if (!lexer.next_is(is_ascii_digit)) {
+            goto conversion;
+        }
+
+        // 14.5. Collect a sequence of code points that are ASCII digits from input given position, and interpret the resulting sequence as a base-ten integer.
+        //       Multiply exponent by that integer.
+        {
+            size_t start_index = lexer.tell();
+            lexer.consume_while(is_ascii_digit);
+            size_t end_index = lexer.tell();
+            auto digits = lexer.input().substring_view(start_index, end_index - start_index);
+            auto optional_value = AK::StringUtils::convert_to_int<i32>(digits);
+            exponent *= optional_value.value();
+        }
+
+        // 14.6. Multiply value by ten raised to the exponentth power.
+        value *= std::pow(10, exponent);
+    }
+
+conversion: {
+    // 15. Conversion: Let S be the set of finite IEEE 754 double-precision floating-point values except −0,
+    //     but with two special values added: 2^1024 and −2^1024.
+    if (!std::isfinite(value)) {
+        return {};
+    }
+    if ((value == 0) && std::signbit(value)) {
+        return 0;
+    }
+
+    // 16. Let rounded-value be the number in S that is closest to value, selecting the number with an even significand if there are two equally close values.
+    //     (The two special values 2^1024 and −2^1024 are considered to have even significands for this purpose.)
+    double rounded_value = value;
+
+    // 17. If rounded-value is 2^1024 or −2^1024, return an error.
+    if (std::abs(rounded_value) >= std::pow(2, 1024)) {
+        return {};
+    }
+
+    // 18. Return rounded-value.
+    return rounded_value;
+}
 }
 
 // https://html.spec.whatwg.org/multipage/common-microsyntaxes.html#valid-floating-point-number

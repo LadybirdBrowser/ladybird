@@ -1,0 +1,84 @@
+<input id="input_number" type="number" />
+<script src="include.js"></script>
+<script>
+    function testInputGetter(element, value) {
+        try {
+            element.value = value;
+            println(`${element.valueAsNumber}`);
+        } catch (e) {
+            println(`error`);
+        }
+    };
+
+    function testInputSetter(element, valueAsNumber) {
+        try {
+            element.valueAsNumber = valueAsNumber;
+            println(`${element.value}`);
+        } catch (e) {
+            println(`error`);
+        }
+    };
+
+    test(() => {
+        let input = document.getElementById("input_number");
+
+        println(`Getting values (string to number)`);
+        // Basic valid floating point number parsing
+        testInputGetter(input, "42");
+        testInputGetter(input, "-42");
+        testInputGetter(input, "+42");
+        testInputGetter(input, "0");
+        testInputGetter(input, "0.5");
+        testInputGetter(input, "-0.5");
+        testInputGetter(input, ".5");
+        testInputGetter(input, ".");
+        // Floating point parsing with leading and trailing whitespace
+        testInputGetter(input, "  123  ");
+        testInputGetter(input, "\t-123\t");
+        testInputGetter(input, "\n 0.5 \n");
+        // Handling NaN and Infinity values
+        testInputGetter(input, "NaN");
+        testInputGetter(input, "Infinity");
+        testInputGetter(input, "-Infinity");
+        // Parsing numbers in exponential notation
+        testInputGetter(input, "1e2");
+        testInputGetter(input, "1e-2");
+        testInputGetter(input, "1.5e3");
+        testInputGetter(input, "-1.5e-3");
+        // Handling special values 2^1024 and -2^1024
+        testInputGetter(input, "2e1024");
+        testInputGetter(input, "-2e1024");
+        // Handling invalid floating point number inputs
+        testInputGetter(input, "abc");
+        testInputGetter(input, "1.2.3");
+        testInputGetter(input, "++123");
+        testInputGetter(input, "--123");
+        // Handling negative zero (-0)
+        testInputGetter(input, "-0");
+        testInputGetter(input, "+0");
+        // Handling large numbers and overflow
+        testInputGetter(input, "1e308");
+        testInputGetter(input, "-1e308");
+        testInputGetter(input, "1e309"); // overflow
+        testInputGetter(input, "-1e309"); // overflow
+
+        println(`Setting values (number to string)`);
+        testInputSetter(input, 42);
+        testInputSetter(input, -42);
+        testInputSetter(input, 0.5);
+        testInputSetter(input, -0.5);
+        testInputSetter(input, 1e2);
+        testInputSetter(input, 1e-2);
+        testInputSetter(input, 1.5e3);
+        testInputSetter(input, -1.5e-3);
+        testInputSetter(input, 2e1024);
+        testInputSetter(input, -2e1024);
+        testInputSetter(input, 1e308);
+        testInputSetter(input, -1e308);
+        testInputSetter(input, 1e309);
+        testInputSetter(input, -1e309);
+        testInputSetter(input, -0);
+        testInputSetter(input, +0);
+        testInputSetter(input, 0);
+    });
+</script>
