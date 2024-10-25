@@ -660,9 +660,11 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<CryptoKey>> RSAOAEP::import_key(Web::Crypto
 
         // 6. If the key_ops field of jwk is present, and is invalid according to the requirements of JSON Web Key [JWK]
         //    or does not contain all of the specified usages values, then throw a DataError.
-        for (auto const& usage : usages) {
-            if (!jwk.key_ops->contains_slow(Bindings::idl_enum_to_string(usage)))
-                return WebIDL::DataError::create(m_realm, MUST(String::formatted("Missing key_ops field: {}", Bindings::idl_enum_to_string(usage))));
+        if (jwk.key_ops.has_value()) {
+            for (auto const& usage : usages) {
+                if (!jwk.key_ops->contains_slow(Bindings::idl_enum_to_string(usage)))
+                    return WebIDL::DataError::create(m_realm, MUST(String::formatted("Missing key_ops field: {}", Bindings::idl_enum_to_string(usage))));
+            }
         }
         // FIXME: Validate jwk.key_ops against requirements in https://www.rfc-editor.org/rfc/rfc7517#section-4.3
 
@@ -676,7 +678,7 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<CryptoKey>> RSAOAEP::import_key(Web::Crypto
             //     Let hash be undefined.
         }
         //    ->  If the alg field of jwk is equal to "RSA-OAEP":
-        if (jwk.alg == "RSA-OAEP"sv) {
+        else if (jwk.alg == "RSA-OAEP"sv) {
             //     Let hash be the string "SHA-1".
             hash = "SHA-1"_string;
         }

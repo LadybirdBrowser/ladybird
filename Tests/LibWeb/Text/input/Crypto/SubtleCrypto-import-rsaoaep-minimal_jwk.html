@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    asyncTest(async done => {
+        var subtle = self.crypto.subtle;
+        var key = await subtle.importKey(
+            "jwk",
+            {
+                kty: "RSA",
+                n: "zZn4sRGfjQos56yL_Qy1R9NI-THMnFynn94g5RxA6wGrJh4BJT3x6I9x0IbpS3q-d4ORA6R2vuDMh8dDFRr9RDH6XY-gUScc9U5Jz3UA2KmVfsCbnUPvcAmMV_ENA7_TF0ivVjuIFodyDTx7EKHNVTrHHSlrbt7spbmcivs23Zc",
+                e: "AQAB",
+            },
+            { name: "RSA-OAEP", hash: "SHA-1" },
+            true,
+            ["encrypt", "wrapKey"]
+        );
+        println(key.extractable);
+        println(key.algorithm.name);
+        println(key.algorithm.hash);
+        println(key.algorithm.publicExponent);
+        done();
+    });
+</script>
