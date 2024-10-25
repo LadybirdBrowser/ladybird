@@ -351,9 +351,9 @@ static sk_sp<SkImageFilter> to_skia_image_filter(CSS::ResolvedFilter::FilterFunc
             auto color_filter = SkColorFilters::Matrix(matrix, SkColorFilters::Clamp::kNo);
             return SkImageFilters::ColorFilter(color_filter, nullptr);
         },
-        [&](CSS::ResolvedFilter::DropShadow const&) {
-            dbgln("TODO: Implement drop-shadow() filter function!");
-            return sk_sp<SkImageFilter> {};
+        [&](CSS::ResolvedFilter::DropShadow const& command) {
+            auto shadow_color = to_skia_color(command.color);
+            return SkImageFilters::DropShadow(command.offset_x, command.offset_y, command.radius, command.radius, shadow_color, nullptr);
         });
 }
 
