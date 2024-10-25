@@ -23,6 +23,7 @@
 #include <LibWeb/Cookie/ParsedCookie.h>
 #include <LibWeb/Crypto/Crypto.h>
 #include <LibWeb/DOM/Document.h>
+#include <LibWeb/DOM/DocumentObserver.h>
 #include <LibWeb/DOM/Element.h>
 #include <LibWeb/DOM/Event.h>
 #include <LibWeb/DOM/Position.h>
@@ -40,6 +41,7 @@
 #include <LibWeb/HTML/HTMLOptionElement.h>
 #include <LibWeb/HTML/HTMLSelectElement.h>
 #include <LibWeb/HTML/HTMLTextAreaElement.h>
+#include <LibWeb/HTML/NavigationObserver.h>
 #include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
 #include <LibWeb/HTML/SelectedFile.h>
 #include <LibWeb/HTML/TraversableNavigable.h>
@@ -52,6 +54,7 @@
 #include <LibWeb/WebDriver/Actions.h>
 #include <LibWeb/WebDriver/ElementReference.h>
 #include <LibWeb/WebDriver/ExecuteScript.h>
+#include <LibWeb/WebDriver/HeapTimer.h>
 #include <LibWeb/WebDriver/InputState.h>
 #include <LibWeb/WebDriver/Properties.h>
 #include <LibWeb/WebDriver/Screenshot.h>
@@ -201,6 +204,9 @@ void WebDriverConnection::visit_edges(JS::Cell::Visitor& visitor)
     visitor.visit(m_current_parent_browsing_context);
     visitor.visit(m_current_top_level_browsing_context);
     visitor.visit(m_action_executor);
+    visitor.visit(m_document_observer);
+    visitor.visit(m_navigation_observer);
+    visitor.visit(m_navigation_timer);
 }
 
 // https://w3c.github.io/webdriver/#dfn-close-the-session
@@ -288,21 +294,27 @@ Messages::WebDriverClient::NavigateToResponse WebDriverConnection::navigate_to(J
     // 7. Navigate the current top-level browsing context to url.
     current_top_level_browsing_context()->page().load(url);
 
+    auto navigation_complete = JS::create_heap_function(current_top_level_browsing_context()->heap(), [this](Web::WebDriver::Response result) {
+        // 9. Set the current browsing context with the current top-level browsing context.
+        set_current_browsing_context(*current_top_level_browsing_context());
+
+        // FIXME: 10. If the current top-level browsing context contains a refresh state pragma directive of time 1 second or less, wait until the refresh timeout has elapsed, a new navigate has begun, and return to the first step of this algorithm.
+
+        async_navigation_complete(move(result));
+    });
+
     // 8. If url is special except for file and current URL and URL do not have the same absolute URL:
     // AD-HOC: We wait for the navigation to complete regardless of whether the current URL differs from the provided
     //         URL. Even if they're the same, the navigation queues a tasks that we must await, otherwise subsequent
     //         endpoint invocations will attempt to operate on the wrong page.
     if (url.is_special() && url.scheme() != "file"sv) {
         // a. Try to wait for navigation to complete.
-        TRY(wait_for_navigation_to_complete());
+        wait_for_navigation_to_complete(navigation_complete);
 
         // FIXME: b. Try to run the post-navigation checks.
+    } else {
+        navigation_complete->function()(JsonValue {});
     }
-
-    // 9. Set the current browsing context with the current top-level browsing context.
-    set_current_browsing_context(*current_top_level_browsing_context());
-
-    // FIXME: 10. If the current top-level browsing context contains a refresh state pragma directive of time 1 second or less, wait until the refresh timeout has elapsed, a new navigate has begun, and return to the first step of this algorithm.
 
     // 11. Return success with data null.
     return JsonValue {};
@@ -1365,14 +1377,14 @@ Messages::WebDriverClient::ElementClickResponse WebDriverConnection::element_cli
         // FIXME: 10. Perform implementation-defined steps to allow any navigations triggered by the click to start.
 
         // 11. Try to wait for navigation to complete.
-        if (auto navigation_result = wait_for_navigation_to_complete(); navigation_result.is_error()) {
-            async_actions_performed(navigation_result.release_error());
-            return;
-        }
+        wait_for_navigation_to_complete(JS::create_heap_function(current_browsing_context().heap(), [this, result = move(result)](Web::WebDriver::Response navigation_result) mutable {
+            // FIXME: 12. Try to run the post-navigation checks.
 
-        // FIXME: 12. Try to run the post-navigation checks.
-
-        async_actions_performed(move(result));
+            if (navigation_result.is_error())
+                async_actions_performed(move(navigation_result));
+            else
+                async_actions_performed(move(result));
+        }));
     });
 
     // 8. Matching on element:
@@ -2394,57 +2406,105 @@ ErrorOr<void, Web::WebDriver::Error> WebDriverConnection::handle_any_user_prompt
     return {};
 }
 
-// https://w3c.github.io/webdriver/#dfn-waiting-for-the-navigation-to-complete
+// https://w3c.github.io/webdriver/#dfn-wait-for-navigation-to-complete
 // FIXME: Update this AO to the latest spec steps.
-ErrorOr<void, Web::WebDriver::Error> WebDriverConnection::wait_for_navigation_to_complete()
+void WebDriverConnection::wait_for_navigation_to_complete(OnNavigationComplete on_complete)
 {
     // 1. If the current session has a page loading strategy of none, return success with data null.
-    if (m_page_load_strategy == Web::WebDriver::PageLoadStrategy::None)
-        return {};
+    if (m_page_load_strategy == Web::WebDriver::PageLoadStrategy::None) {
+        on_complete->function()(JsonValue {});
+        return;
+    }
 
     // 2. If the current browsing context is no longer open, return success with data null.
-    if (ensure_browsing_context_is_open(current_browsing_context()).is_error())
-        return {};
+    if (ensure_browsing_context_is_open(current_browsing_context()).is_error()) {
+        on_complete->function()(JsonValue {});
+        return;
+    }
 
+    auto& realm = current_browsing_context().active_document()->realm();
     auto navigable = current_browsing_context().active_document()->navigable();
-    if (!navigable || navigable->ongoing_navigation().has<Empty>())
-        return {};
 
-    // 3. Start a timer. If this algorithm has not completed before timer reaches the session’s session page load timeout in milliseconds, return an error with error code timeout.
-    auto page_load_timeout_fired = false;
-    auto timer = Core::Timer::create_single_shot(m_timeouts_configuration.page_load_timeout.value_or(300'000), [&] {
-        page_load_timeout_fired = true;
+    if (!navigable || navigable->ongoing_navigation().has<Empty>()) {
+        on_complete->function()(JsonValue {});
+        return;
+    }
+
+    auto reset_observers = [](auto& self) {
+        if (self.m_navigation_observer) {
+            self.m_navigation_observer->set_navigation_complete({});
+            self.m_navigation_observer = nullptr;
+        }
+        if (self.m_document_observer) {
+            self.m_document_observer->set_document_readiness_observer({});
+            self.m_document_observer = nullptr;
+        }
+    };
+
+    // 3. Start a timer. If this algorithm has not completed before timer reaches the session’s session page load timeout
+    //    in milliseconds, return an error with error code timeout.
+    m_navigation_timer = realm.heap().allocate<Web::WebDriver::HeapTimer>(realm);
+
+    // 4. If there is an ongoing attempt to navigate the current browsing context that has not yet matured, wait for
+    //    navigation to mature.
+    m_navigation_observer = realm.heap().allocate<Web::HTML::NavigationObserver>(realm, realm, *navigable);
+
+    m_navigation_observer->set_navigation_complete([this, &realm, reset_observers]() {
+        reset_observers(*this);
+
+        // 5. Let readiness target be the document readiness state associated with the current session’s page loading
+        //    strategy, which can be found in the table of page load strategies.
+        auto readiness_target = [this]() {
+            switch (m_page_load_strategy) {
+            case Web::WebDriver::PageLoadStrategy::Normal:
+                return Web::HTML::DocumentReadyState::Complete;
+            case Web::WebDriver::PageLoadStrategy::Eager:
+                return Web::HTML::DocumentReadyState::Interactive;
+            default:
+                VERIFY_NOT_REACHED();
+            };
+        }();
+
+        // 6. Wait for the current browsing context’s document readiness state to reach readiness target,
+        //    or for the session page load timeout to pass, whichever occurs sooner.
+        if (auto* document = current_browsing_context().active_document(); document->readiness() != readiness_target) {
+            m_document_observer = realm.heap().allocate<Web::DOM::DocumentObserver>(realm, realm, *document);
+
+            m_document_observer->set_document_readiness_observer([this, readiness_target](Web::HTML::DocumentReadyState readiness) {
+                if (readiness == readiness_target)
+                    m_navigation_timer->stop_and_fire_timeout_handler();
+            });
+        } else {
+            m_navigation_timer->stop_and_fire_timeout_handler();
+        }
     });
-    timer->start();
-    // 4. If there is an ongoing attempt to navigate the current browsing context that has not yet matured, wait for navigation to mature.
-    Web::Platform::EventLoopPlugin::the().spin_until([&] {
-        return page_load_timeout_fired || navigable->ongoing_navigation().has<Empty>();
-    });
 
-    // 5. Let readiness target be the document readiness state associated with the current session’s page loading strategy, which can be found in the table of page load strategies.
-    auto readiness_target = [this]() {
-        switch (m_page_load_strategy) {
-        case Web::WebDriver::PageLoadStrategy::Normal:
-            return Web::HTML::DocumentReadyState::Complete;
-        case Web::WebDriver::PageLoadStrategy::Eager:
-            return Web::HTML::DocumentReadyState::Interactive;
-        default:
-            VERIFY_NOT_REACHED();
-        };
-    }();
+    m_navigation_timer->start(m_timeouts_configuration.page_load_timeout.value_or(300'000), JS::create_heap_function(realm.heap(), [this, on_complete, reset_observers]() {
+        reset_observers(*this);
 
-    // 6. Wait for the current browsing context’s document readiness state to reach readiness target,
-    //    or for the session page load timeout to pass, whichever occurs sooner.
-    Web::Platform::EventLoopPlugin::the().spin_until([&]() {
-        return page_load_timeout_fired || current_browsing_context().active_document()->readiness() == readiness_target;
-    });
+        auto did_time_out = m_navigation_timer->is_timed_out();
+        m_navigation_timer = nullptr;
 
-    // 7. If the previous step completed by the session page load timeout being reached and the browser does not have an active user prompt, return error with error code timeout.
-    if (page_load_timeout_fired && !current_browsing_context().page().has_pending_dialog())
-        return Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::Timeout, "Navigation timed out"sv);
+        // 7. If the previous step completed by the session page load timeout being reached and the browser does
+        //    not have an active user prompt, return error with error code timeout.
+        if (did_time_out && !current_browsing_context().active_document()->page().has_pending_dialog()) {
+            on_complete->function()(Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::Timeout, "Navigation timed out"sv));
+            return;
+        }
 
-    // 8. Return success with data null.
-    return {};
+        // 8. Return success with data null.
+        on_complete->function()(JsonValue {});
+    }));
+}
+
+void WebDriverConnection::page_did_open_dialog(Badge<PageClient>)
+{
+    // OPTMIZATION: If a dialog is opened while we are awaiting a specific document readiness state, that state will
+    //              never be reached, as the dialog will block the HTML event loop from any further processing. Instead
+    //              of waiting for the session's page load timeout to expire, unblock the waiter immediately. This also
+    //              seems to match how other browsers behave.
+    if (m_navigation_timer)
+        m_navigation_timer->stop_and_fire_timeout_handler();
 }
 
 // https://w3c.github.io/webdriver/#dfn-restore-the-window

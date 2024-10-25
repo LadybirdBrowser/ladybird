@@ -21,6 +21,7 @@ public:
     virtual ~HeapTimer() override;
 
     void start(u64 timeout_ms, JS::NonnullGCPtr<JS::HeapFunction<void()>> on_timeout);
+    void stop_and_fire_timeout_handler();
     void stop();
 
     bool is_timed_out() const { return m_timed_out; }

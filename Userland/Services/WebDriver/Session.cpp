@@ -202,6 +202,13 @@ static Web::WebDriver::Response perform_async_action(Handler& handler, Action&& 
     return response.release_value();
 }
 
+Web::WebDriver::Response Session::navigate_to(JsonValue payload) const
+{
+    return perform_async_action(web_content_connection().on_navigation_complete, [&]() {
+        return web_content_connection().navigate_to(move(payload));
+    });
+}
+
 Web::WebDriver::Response Session::execute_script(JsonValue payload, ScriptMode mode) const
 {
     return perform_async_action(web_content_connection().on_script_executed, [&]() {

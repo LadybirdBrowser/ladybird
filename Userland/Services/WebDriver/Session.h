@@ -57,6 +57,8 @@ public:
     Web::WebDriver::Response get_window_handles() const;
     ErrorOr<void, Web::WebDriver::Error> ensure_current_window_handle_is_valid() const;
 
+    Web::WebDriver::Response navigate_to(JsonValue) const;
+
     enum class ScriptMode {
         Sync,
         Async,

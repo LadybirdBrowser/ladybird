@@ -389,6 +389,9 @@ void PageClient::page_did_request_media_context_menu(Web::CSSPixelPoint content_
 void PageClient::page_did_request_alert(String const& message)
 {
     client().async_did_request_alert(m_id, message);
+
+    if (m_webdriver)
+        m_webdriver->page_did_open_dialog({});
 }
 
 void PageClient::alert_closed()
@@ -399,6 +402,9 @@ void PageClient::alert_closed()
 void PageClient::page_did_request_confirm(String const& message)
 {
     client().async_did_request_confirm(m_id, message);
+
+    if (m_webdriver)
+        m_webdriver->page_did_open_dialog({});
 }
 
 void PageClient::confirm_closed(bool accepted)
@@ -409,6 +415,9 @@ void PageClient::confirm_closed(bool accepted)
 void PageClient::page_did_request_prompt(String const& message, String const& default_)
 {
     client().async_did_request_prompt(m_id, message, default_);
+
+    if (m_webdriver)
+        m_webdriver->page_did_open_dialog({});
 }
 
 void PageClient::page_did_request_set_prompt_text(String const& text)
