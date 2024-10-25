@@ -298,6 +298,7 @@ shared_library("LibWeb") {
            "Bindings",
            "CSS",
            "Clipboard",
+           "Keyboard",
            "Cookie",
            "Crypto",
            "DOM",

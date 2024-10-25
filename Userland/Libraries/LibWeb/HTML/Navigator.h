@@ -7,6 +7,7 @@
 #pragma once
 
 #include <LibWeb/Bindings/PlatformObject.h>
+#include <LibWeb/Keyboard/Keyboard.h>
 #include <LibWeb/HTML/MimeTypeArray.h>
 #include <LibWeb/HTML/NavigatorBeacon.h>
 #include <LibWeb/HTML/NavigatorConcurrentHardware.h>
@@ -50,6 +51,7 @@ public:
 
     bool webdriver() const;
 
+    [[nodiscard]] JS::NonnullGCPtr<Keyboard::Keyboard> keyboard();
     [[nodiscard]] JS::NonnullGCPtr<MimeTypeArray> mime_types();
     [[nodiscard]] JS::NonnullGCPtr<PluginArray> plugins();
     [[nodiscard]] JS::NonnullGCPtr<Clipboard::Clipboard> clipboard();
@@ -63,7 +65,7 @@ public:
 
     static WebIDL::Long max_touch_points();
 
-    virtual ~Navigator() override;
+    virtual ~Navigator() override = default;
 
 protected:
     virtual void visit_edges(Cell::Visitor&) override;
@@ -78,6 +80,8 @@ private:
 
     JS::GCPtr<PluginArray> m_plugin_array;
     JS::GCPtr<MimeTypeArray> m_mime_type_array;
+
+    JS::GCPtr<Keyboard::Keyboard> m_keyboard;
 
     // https://w3c.github.io/clipboard-apis/#dom-navigator-clipboard
     JS::GCPtr<Clipboard::Clipboard> m_clipboard;

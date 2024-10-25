@@ -1,0 +1,9 @@
+#import <DOM/EventTarget.idl>
+[SecureContext, Exposed=Window]
+interface Keyboard : EventTarget {
+  Promise<undefined> lock(optional sequence<DOMString> keyCodes = []);
+  undefined unlock();
+
+  // [FIXME] Promise<KeyboardLayoutMap> getLayoutMap();
+  // [FIXME] attribute EventHandler onlayoutchange;
+};
