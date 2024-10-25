@@ -1455,13 +1455,10 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<JS::ArrayBuffer>> HKDF::derive_bits(Algorit
     if (length == 0 || length % 8 != 0)
         return WebIDL::OperationError::create(realm, "Length must be greater than 0 and divisible by 8"_string);
 
-    // 2. Let extractKey be a key equal to n zero bits where n is the size of the output of the hash function described by the hash member of normalizedAlgorithm.
-    // (However, this variable is never directly used, and therefore pointless.)
-
-    // 3. Let keyDerivationKey be the secret represented by [[handle]] internal slot of key as the message.
+    // 2. Let keyDerivationKey be the secret represented by [[handle]] internal slot of key as the message.
     auto key_derivation_key = key->handle().get<ByteBuffer>();
 
-    // 4. Let result be the result of performing the HKDF extract and then the HKDF expand step described in Section 2 of [RFC5869] using:
+    // 3. Let result be the result of performing the HKDF extract and then the HKDF expand step described in Section 2 of [RFC5869] using:
     //    * the hash member of normalizedAlgorithm as Hash,
     //    * keyDerivationKey as the input keying material, IKM,
     //    * the contents of the salt member of normalizedAlgorithm as salt,
@@ -1489,11 +1486,11 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<JS::ArrayBuffer>> HKDF::derive_bits(Algorit
         return WebIDL::NotSupportedError::create(m_realm, MUST(String::formatted("Invalid hash function '{}'", hash_algorithm)));
     }
 
-    // 5. If the key derivation operation fails, then throw an OperationError.
+    // 4. If the key derivation operation fails, then throw an OperationError.
     if (result.is_error())
         return WebIDL::OperationError::create(realm, "Failed to derive key"_string);
 
-    // 6. Return result
+    // 5. Return result
     return JS::ArrayBuffer::create(realm, result.release_value());
 }
 
