@@ -38,7 +38,7 @@ private:
     JS_DECLARE_NATIVE_FUNCTION(to_string);
     JS_DECLARE_NATIVE_FUNCTION(compile);
 
-#define __JS_ENUMERATE(_, flag_name, ...) \
+#define __JS_ENUMERATE(FlagName, flagName, flag_name, ...) \
     JS_DECLARE_NATIVE_FUNCTION(flag_name);
     JS_ENUMERATE_REGEXP_FLAGS
 #undef __JS_ENUMERATE

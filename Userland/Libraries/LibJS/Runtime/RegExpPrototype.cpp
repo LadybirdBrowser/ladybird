@@ -50,7 +50,7 @@ void RegExpPrototype::initialize(Realm& realm)
     define_native_accessor(realm, vm.names.flags, flags, {}, Attribute::Configurable);
     define_native_accessor(realm, vm.names.source, source, {}, Attribute::Configurable);
 
-#define __JS_ENUMERATE(flagName, flag_name, flag_char) \
+#define __JS_ENUMERATE(FlagName, flagName, flag_name, flag_char) \
     define_native_accessor(realm, vm.names.flagName, flag_name, {}, Attribute::Configurable);
     JS_ENUMERATE_REGEXP_FLAGS
 #undef __JS_ENUMERATE
@@ -441,7 +441,7 @@ size_t advance_string_index(Utf16View const& string, size_t index, bool unicode)
 // 22.2.6.15 get RegExp.prototype.sticky, https://tc39.es/ecma262/#sec-get-regexp.prototype.sticky
 // 22.2.6.18 get RegExp.prototype.unicode, https://tc39.es/ecma262/#sec-get-regexp.prototype.unicode
 // 22.2.6.19 get RegExp.prototype.unicodeSets, https://tc39.es/ecma262/#sec-get-regexp.prototype.unicodesets
-#define __JS_ENUMERATE(flagName, flag_name, flag_char)                                     \
+#define __JS_ENUMERATE(FlagName, flagName, flag_name, flag_char)                           \
     JS_DEFINE_NATIVE_FUNCTION(RegExpPrototype::flag_name)                                  \
     {                                                                                      \
         auto& realm = *vm.current_realm();                                                 \
@@ -456,10 +456,10 @@ size_t advance_string_index(Utf16View const& string, size_t index, bool unicode)
             return vm.throw_completion<TypeError>(ErrorType::NotAnObjectOfType, "RegExp"); \
         }                                                                                  \
         /* 3. Let flags be R.[[OriginalFlags]]. */                                         \
-        auto const& flags = static_cast<RegExpObject&>(*regexp_object).flags();            \
+        auto flags = static_cast<RegExpObject&>(*regexp_object).flag_bits();               \
         /* 4. If flags contains codeUnit, return true. */                                  \
         /* 5. Return false. */                                                             \
-        return Value(flags.contains(#flag_char##sv));                                      \
+        return Value(has_flag(flags, RegExpObject::Flags::FlagName));                      \
     }
 JS_ENUMERATE_REGEXP_FLAGS
 #undef __JS_ENUMERATE
@@ -505,7 +505,7 @@ JS_DEFINE_NATIVE_FUNCTION(RegExpPrototype::flags)
     // 17. If unicodeSets is true, append the code unit 0x0076 (LATIN SMALL LETTER V) as the last code unit of result.
     // 18. Let sticky be ToBoolean(? Get(R, "sticky")).
     // 19. If sticky is true, append the code unit 0x0079 (LATIN SMALL LETTER Y) as the last code unit of result.
-#define __JS_ENUMERATE(flagName, flag_name, flag_char)                  \
+#define __JS_ENUMERATE(FlagName, flagName, flag_name, flag_char)        \
     auto flag_##flag_name = TRY(regexp_object->get(vm.names.flagName)); \
     if (flag_##flag_name.to_boolean())                                  \
         builder.append(#flag_char##sv);
