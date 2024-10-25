@@ -19,8 +19,7 @@ float FilterOperation::Blur::resolved_radius(Layout::Node const& node) const
     auto sigma = 0;
     if (radius.has_value())
         sigma = radius->to_px(node).to_int();
-    // Note: The radius/sigma of the blur needs to be doubled for LibGfx's blur functions.
-    return sigma * 2;
+    return sigma;
 }
 
 float FilterOperation::HueRotate::angle_degrees() const
