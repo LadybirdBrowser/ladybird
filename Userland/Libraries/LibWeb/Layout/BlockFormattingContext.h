@@ -126,13 +126,18 @@ private:
     };
 
     struct BlockMarginState {
-        Vector<CSSPixels> current_collapsible_margins;
+        CSSPixels current_positive_collapsible_margin;
+        CSSPixels current_negative_collapsible_margin;
         Function<void(CSSPixels)> block_container_y_position_update_callback;
         bool box_last_in_flow_child_margin_bottom_collapsed { false };
 
         void add_margin(CSSPixels margin)
         {
-            current_collapsible_margins.append(margin);
+            if (margin < 0) {
+                current_negative_collapsible_margin = min(margin, current_negative_collapsible_margin);
+            } else {
+                current_positive_collapsible_margin = max(margin, current_positive_collapsible_margin);
+            }
         }
 
         void register_block_container_y_position_update_callback(ESCAPING Function<void(CSSPixels)> callback)
@@ -158,7 +163,8 @@ private:
         void reset()
         {
             block_container_y_position_update_callback = {};
-            current_collapsible_margins.clear();
+            current_negative_collapsible_margin = 0;
+            current_positive_collapsible_margin = 0;
         }
     };
 
