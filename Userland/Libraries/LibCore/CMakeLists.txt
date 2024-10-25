@@ -1,5 +1,7 @@
 include(vulkan)
 
+generate_git_hash(GitHash.h.in GitHash.h)
+
 # These are the minimal set of sources needed to build the code generators. We separate them to allow
 # LibCore to depend on generated sources.
 set(SOURCES

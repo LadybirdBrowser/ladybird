@@ -1,30 +1,20 @@
 /*
  * Copyright (c) 2021, Mahmoud Mandour <ma.mandourr@gmail.com>
+ * Copyright (c) 2024, Tim Ledbetter <tim.ledbetter@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
 #include <AK/String.h>
+#include <LibCore/GitHash.h>
 #include <LibCore/Version.h>
-
-#ifdef AK_OS_SERENITY
-#    include <sys/utsname.h>
-#endif
 
 namespace Core::Version {
 
 ErrorOr<String> read_long_version_string()
 {
-#ifdef AK_OS_SERENITY
-    struct utsname uts;
-    int rc = uname(&uts);
-    if ((rc) < 0) {
-        return Error::from_syscall("uname"sv, rc);
-    }
-    auto const* version = uts.release;
-    auto const* git_hash = uts.version;
-
-    return String::formatted("Version {} revision {}", version, git_hash);
+#if defined(GIT_HASH)
+    return MUST(String::formatted("Version 1.0-{}", GIT_HASH));
 #else
     return "Version 1.0"_string;
 #endif
