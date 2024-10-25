@@ -496,6 +496,7 @@ class Navigation;
 class NavigationCurrentEntryChangeEvent;
 class NavigationDestination;
 class NavigationHistoryEntry;
+class NavigationObserver;
 class NavigationTransition;
 class Navigator;
 class PageTransitionEvent;
