@@ -17,6 +17,7 @@ set(AK_TEST_SOURCES
     TestChecked.cpp
     TestCircularBuffer.cpp
     TestCircularQueue.cpp
+    TestComplex.cpp
     TestDisjointChunks.cpp
     TestDistinctNumeric.cpp
     TestDoublyLinkedList.cpp
