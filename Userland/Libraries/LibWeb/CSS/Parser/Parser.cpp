@@ -5221,18 +5221,19 @@ RefPtr<CSSStyleValue> Parser::parse_filter_value_list_value(TokenStream<Componen
             auto maybe_color = parse_color_value(tokens);
             auto x_offset = parse_length(tokens);
             tokens.discard_whitespace();
-            if (!x_offset.has_value() || !tokens.has_next_token()) {
+            if (!x_offset.has_value() || !tokens.has_next_token())
                 return {};
-            }
+
             auto y_offset = parse_length(tokens);
-            if (!y_offset.has_value()) {
+            tokens.discard_whitespace();
+            if (!y_offset.has_value())
                 return {};
-            }
+
             if (tokens.has_next_token()) {
                 maybe_radius = parse_length(tokens);
+                tokens.discard_whitespace();
                 if (!maybe_color && (!maybe_radius.has_value() || tokens.has_next_token())) {
                     maybe_color = parse_color_value(tokens);
-                    tokens.discard_whitespace();
                     if (!maybe_color)
                         return {};
                 } else if (!maybe_radius.has_value()) {
