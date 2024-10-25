@@ -140,7 +140,7 @@ public:
         return m_ptr;
     }
 
-    T& operator*() const
+    [[nodiscard]] T& operator*() const
     {
         VERIFY(m_ptr);
         return *m_ptr;

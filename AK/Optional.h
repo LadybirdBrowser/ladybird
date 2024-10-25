@@ -274,8 +274,8 @@ public:
         return TRY(callback());
     }
 
-    ALWAYS_INLINE T const& operator*() const { return value(); }
-    ALWAYS_INLINE T& operator*() { return value(); }
+    [[nodiscard]] ALWAYS_INLINE T const& operator*() const { return value(); }
+    [[nodiscard]] ALWAYS_INLINE T& operator*() { return value(); }
 
     ALWAYS_INLINE T const* operator->() const { return &value(); }
     ALWAYS_INLINE T* operator->() { return &value(); }

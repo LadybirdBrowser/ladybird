@@ -164,7 +164,7 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<JS::Promise>> AudioContext::resume()
         // 7.5.2: Clear [[pending resume promises]]. Additionally, remove those promises from
         //        [[pending promises]].
         for (auto const& pending_resume_promise : m_pending_resume_promises) {
-            *pending_resume_promise->resolve();
+            WebIDL::resolve_promise(realm, pending_resume_promise, JS::js_undefined());
             m_pending_promises.remove_first_matching([&pending_resume_promise](auto& pending_promise) {
                 return pending_promise == pending_resume_promise;
             });
@@ -172,7 +172,7 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<JS::Promise>> AudioContext::resume()
         m_pending_resume_promises.clear();
 
         // 7.5.3: Resolve promise.
-        *promise->resolve();
+        WebIDL::resolve_promise(realm, promise, JS::js_undefined());
 
         // 7.5.4: If the state attribute of the AudioContext is not already "running":
         if (state() != Bindings::AudioContextState::Running) {
@@ -229,7 +229,7 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<JS::Promise>> AudioContext::suspend()
     // 7.3: queue a media element task to execute the following steps:
     queue_a_media_element_task(JS::create_heap_function(heap(), [&realm, promise, this]() {
         // 7.3.1: Resolve promise.
-        *promise->resolve();
+        WebIDL::resolve_promise(realm, promise, JS::js_undefined());
 
         // 7.3.2: If the state attribute of the AudioContext is not already "suspended":
         if (state() != Bindings::AudioContextState::Suspended) {
@@ -282,7 +282,7 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<JS::Promise>> AudioContext::close()
     // 5.4: queue a media element task to execute the following steps:
     queue_a_media_element_task(JS::create_heap_function(heap(), [&realm, promise, this]() {
         // 5.4.1: Resolve promise.
-        *promise->resolve();
+        WebIDL::resolve_promise(realm, promise, JS::js_undefined());
 
         // 5.4.2: If the state attribute of the AudioContext is not already "closed":
         if (state() != Bindings::AudioContextState::Closed) {

@@ -76,12 +76,12 @@ public:
         return SimpleIterator { *m_container, m_index + 1 };
     }
 
-    ALWAYS_INLINE constexpr ValueType const& operator*() const
+    [[nodiscard]] ALWAYS_INLINE constexpr ValueType const& operator*() const
     requires(IsConst<ValueType>)
     {
         return (*m_container)[m_index];
     }
-    ALWAYS_INLINE constexpr ValueType& operator*() const
+    [[nodiscard]] ALWAYS_INLINE constexpr ValueType& operator*() const
     requires(!IsConst<ValueType>)
     {
         return (*m_container)[m_index];
