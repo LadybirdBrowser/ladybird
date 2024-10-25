@@ -441,6 +441,7 @@ BrowserWindow::BrowserWindow(Vector<URL::URL> const& initial_urls, IsPopupWindow
 
     m_show_line_box_borders_action = new QAction("Show Line Box Borders", this);
     m_show_line_box_borders_action->setCheckable(true);
+    m_show_line_box_borders_action->setIcon(load_icon_from_uri("resource://icons/16x16/box.png"sv));
     debug_menu->addAction(m_show_line_box_borders_action);
     QObject::connect(m_show_line_box_borders_action, &QAction::triggered, this, [this] {
         bool state = m_show_line_box_borders_action->isChecked();
