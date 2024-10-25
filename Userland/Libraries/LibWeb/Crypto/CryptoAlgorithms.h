@@ -180,6 +180,36 @@ struct EcKeyGenParams : public AlgorithmParams {
     static JS::ThrowCompletionOr<NonnullOwnPtr<AlgorithmParams>> from_value(JS::VM&, JS::Value);
 };
 
+// https://w3c.github.io/webcrypto/#dfn-AesKeyGenParams
+struct AesKeyGenParams : public AlgorithmParams {
+    virtual ~AesKeyGenParams() override;
+
+    AesKeyGenParams(String name, u16 length)
+        : AlgorithmParams(move(name))
+        , length(length)
+    {
+    }
+
+    u16 length;
+
+    static JS::ThrowCompletionOr<NonnullOwnPtr<AlgorithmParams>> from_value(JS::VM&, JS::Value);
+};
+
+// https://w3c.github.io/webcrypto/#dfn-AesDerivedKeyParams
+struct AesDerivedKeyParams : public AlgorithmParams {
+    virtual ~AesDerivedKeyParams() override;
+
+    AesDerivedKeyParams(String name, u16 length)
+        : AlgorithmParams(move(name))
+        , length(length)
+    {
+    }
+
+    u16 length;
+
+    static JS::ThrowCompletionOr<NonnullOwnPtr<AlgorithmParams>> from_value(JS::VM&, JS::Value);
+};
+
 class AlgorithmMethods {
 public:
     virtual ~AlgorithmMethods();

@@ -228,6 +228,13 @@ static WebIDL::ExceptionOr<ByteBuffer> parse_jwk_symmetric_key(JS::Realm& realm,
     return base64_url_bytes_decode(realm, *jwk.k);
 }
 
+static WebIDL::ExceptionOr<ByteBuffer> generate_aes_key(JS::VM& vm, u16 bits)
+{
+    auto key_buffer = TRY_OR_THROW_OOM(vm, ByteBuffer::create_uninitialized(bits / 8));
+    fill_with_random(key_buffer);
+    return key_buffer;
+}
+
 AlgorithmParams::~AlgorithmParams() = default;
 
 JS::ThrowCompletionOr<NonnullOwnPtr<AlgorithmParams>> AlgorithmParams::from_value(JS::VM& vm, JS::Value value)
@@ -442,6 +449,36 @@ JS::ThrowCompletionOr<NonnullOwnPtr<AlgorithmParams>> EcKeyGenParams::from_value
     auto curve = TRY(curve_value.to_string(vm));
 
     return adopt_own<AlgorithmParams>(*new EcKeyGenParams { name, curve });
+}
+
+AesKeyGenParams::~AesKeyGenParams() = default;
+
+JS::ThrowCompletionOr<NonnullOwnPtr<AlgorithmParams>> AesKeyGenParams::from_value(JS::VM& vm, JS::Value value)
+{
+    auto& object = value.as_object();
+
+    auto name_value = TRY(object.get("name"));
+    auto name = TRY(name_value.to_string(vm));
+
+    auto length_value = TRY(object.get("length"));
+    auto length = TRY(length_value.to_u16(vm));
+
+    return adopt_own<AlgorithmParams>(*new AesKeyGenParams { name, length });
+}
+
+AesDerivedKeyParams::~AesDerivedKeyParams() = default;
+
+JS::ThrowCompletionOr<NonnullOwnPtr<AlgorithmParams>> AesDerivedKeyParams::from_value(JS::VM& vm, JS::Value value)
+{
+    auto& object = value.as_object();
+
+    auto name_value = TRY(object.get("name"));
+    auto name = TRY(name_value.to_string(vm));
+
+    auto length_value = TRY(object.get("length"));
+    auto length = TRY(length_value.to_u16(vm));
+
+    return adopt_own<AlgorithmParams>(*new AesDerivedKeyParams { name, length });
 }
 
 // https://w3c.github.io/webcrypto/#rsa-oaep-operations
@@ -1121,9 +1158,55 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<CryptoKey>> AesCbc::import_key(AlgorithmPar
     return key;
 }
 
-WebIDL::ExceptionOr<Variant<JS::NonnullGCPtr<CryptoKey>, JS::NonnullGCPtr<CryptoKeyPair>>> AesCbc::generate_key(AlgorithmParams const&, bool, Vector<Bindings::KeyUsage> const&)
+WebIDL::ExceptionOr<Variant<JS::NonnullGCPtr<CryptoKey>, JS::NonnullGCPtr<CryptoKeyPair>>> AesCbc::generate_key(AlgorithmParams const& params, bool extractable, Vector<Bindings::KeyUsage> const& key_usages)
 {
-    VERIFY_NOT_REACHED();
+    // 1. If usages contains any entry which is not one of "encrypt", "decrypt", "wrapKey" or "unwrapKey", then throw a SyntaxError.
+    for (auto const& usage : key_usages) {
+        if (usage != Bindings::KeyUsage::Encrypt && usage != Bindings::KeyUsage::Decrypt && usage != Bindings::KeyUsage::Wrapkey && usage != Bindings::KeyUsage::Unwrapkey) {
+            return WebIDL::SyntaxError::create(m_realm, MUST(String::formatted("Invalid key usage '{}'", idl_enum_to_string(usage))));
+        }
+    }
+
+    auto const& normalized_algorithm = static_cast<AesKeyGenParams const&>(params);
+
+    // 2. If the length member of normalizedAlgorithm is not equal to one of 128, 192 or 256, then throw an OperationError.
+    auto bits = normalized_algorithm.length;
+    if (bits != 128 && bits != 192 && bits != 256) {
+        return WebIDL::OperationError::create(m_realm, MUST(String::formatted("Cannot create AES-CBC key with unusual amount of {} bits", bits)));
+    }
+
+    // 3. Generate an AES key of length equal to the length member of normalizedAlgorithm.
+    auto key_buffer = TRY(generate_aes_key(m_realm->vm(), bits / 8));
+
+    // 4. If the key generation step fails, then throw an OperationError.
+    // Note: Cannot happen in our implementation; and if we OOM, then allocating the Exception is probably going to crash anyway.
+
+    // 5. Let key be a new CryptoKey object representing the generated AES key.
+    auto key = CryptoKey::create(m_realm, CryptoKey::InternalKeyData { key_buffer });
+
+    // 6. Let algorithm be a new AesKeyAlgorithm.
+    auto algorithm = AesKeyAlgorithm::create(m_realm);
+
+    // 7. Set the name attribute of algorithm to "AES-CBC".
+    algorithm->set_name("AES-CBC"_string);
+
+    // 8. Set the length attribute of algorithm to equal the length member of normalizedAlgorithm.
+    algorithm->set_length(bits);
+
+    // 9. Set the [[type]] internal slot of key to "secret".
+    key->set_type(Bindings::KeyType::Secret);
+
+    // 10. Set the [[algorithm]] internal slot of key to algorithm.
+    key->set_algorithm(algorithm);
+
+    // 11. Set the [[extractable]] internal slot of key to be extractable.
+    key->set_extractable(extractable);
+
+    // 12. Set the [[usages]] internal slot of key to be usages.
+    key->set_usages(key_usages);
+
+    // 13. Return key.
+    return { key };
 }
 
 WebIDL::ExceptionOr<JS::NonnullGCPtr<JS::Object>> AesCbc::export_key(Bindings::KeyFormat format, JS::NonnullGCPtr<CryptoKey> key)
@@ -1194,9 +1277,16 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<JS::Object>> AesCbc::export_key(Bindings::K
     return JS::NonnullGCPtr { *result };
 }
 
-WebIDL::ExceptionOr<JS::Value> AesCbc::get_key_length(AlgorithmParams const&)
+WebIDL::ExceptionOr<JS::Value> AesCbc::get_key_length(AlgorithmParams const& params)
 {
-    VERIFY_NOT_REACHED();
+    // 1. If the length member of normalizedDerivedKeyAlgorithm is not 128, 192 or 256, then throw an OperationError.
+    auto const& normalized_algorithm = static_cast<AesDerivedKeyParams const&>(params);
+    auto length = normalized_algorithm.length;
+    if (length != 128 && length != 192 && length != 256)
+        return WebIDL::OperationError::create(m_realm, "Invalid key length"_string);
+
+    // 2. Return the length member of normalizedDerivedKeyAlgorithm.
+    return JS::Value(length);
 }
 
 // https://w3c.github.io/webcrypto/#hkdf-operations
