@@ -273,7 +273,7 @@ void EventLoop::update_the_rendering()
         // FIXME: doc is render-blocked;
 
         // doc's visibility state is "hidden";
-        if (document->visibility_state() == "hidden"sv)
+        if (document->hidden())
             return true;
 
         // FIXME: doc's rendering is suppressed for view transitions; or
