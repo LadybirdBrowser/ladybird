@@ -9,6 +9,7 @@
 #include <LibWeb/Bindings/FilePrototype.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/FileAPI/File.h>
+#include <LibWeb/HTML/StructuredSerialize.h>
 #include <LibWeb/Infra/Strings.h>
 #include <LibWeb/MimeSniff/MimeType.h>
 
