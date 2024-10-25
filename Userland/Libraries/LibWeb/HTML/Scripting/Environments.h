@@ -147,6 +147,7 @@ JS::Realm& incumbent_realm();
 JS::Object& incumbent_global_object();
 
 JS::Realm& current_principal_realm();
+EnvironmentSettingsObject& principal_realm_settings_object(JS::Realm&);
 EnvironmentSettingsObject& current_principal_settings_object();
 
 JS::Realm& principal_realm(JS::Realm&);

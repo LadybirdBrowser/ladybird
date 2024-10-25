@@ -347,12 +347,19 @@ JS::Realm& principal_realm(JS::Realm& realm)
     return realm;
 }
 
+// https://whatpr.org/html/9893/webappapis.html#concept-realm-settings-object
+EnvironmentSettingsObject& principal_realm_settings_object(JS::Realm& realm)
+{
+    // A principal realm has a [[HostDefined]] field, which contains the principal realm's settings object.
+    return Bindings::host_defined_environment_settings_object(realm);
+}
+
 // https://html.spec.whatwg.org/multipage/webappapis.html#current-settings-object
 // https://whatpr.org/html/9893/webappapis.html#current-principal-settings-object
 EnvironmentSettingsObject& current_principal_settings_object()
 {
     // Then, the current principal settings object is the environment settings object of the current principal realm.
-    return Bindings::host_defined_environment_settings_object(current_principal_realm());
+    return principal_realm_settings_object(current_principal_realm());
 }
 
 // https://html.spec.whatwg.org/multipage/webappapis.html#current-global-object
