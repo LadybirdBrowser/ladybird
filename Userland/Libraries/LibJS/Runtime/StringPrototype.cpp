@@ -97,27 +97,8 @@ Optional<size_t> string_index_of(Utf16View const& string, Utf16View const& searc
 // 7.2.9 Static Semantics: IsStringWellFormedUnicode ( string )
 static bool is_string_well_formed_unicode(Utf16View string)
 {
-    // 1. Let strLen be the length of string.
-    auto length = string.length_in_code_units();
-
-    // 2. Let k be 0.
-    size_t k = 0;
-
-    // 3. Repeat, while k ≠ strLen,
-    while (k != length) {
-        // a. Let cp be CodePointAt(string, k).
-        auto code_point = code_point_at(string, k);
-
-        // b. If cp.[[IsUnpairedSurrogate]] is true, return false.
-        if (code_point.is_unpaired_surrogate)
-            return false;
-
-        // c. Set k to k + cp.[[CodeUnitCount]].
-        k += code_point.code_unit_count;
-    }
-
-    // 4. Return true.
-    return true;
+    // OPTIMIZATION: simdutf can do this much faster.
+    return string.validate();
 }
 
 // 11.1.4 CodePointAt ( string, position ), https://tc39.es/ecma262/#sec-codepointat
