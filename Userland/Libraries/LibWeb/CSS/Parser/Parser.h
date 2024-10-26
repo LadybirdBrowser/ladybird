@@ -250,6 +250,7 @@ private:
     RefPtr<CSSStyleValue> parse_rgb_color_value(TokenStream<ComponentValue>&);
     RefPtr<CSSStyleValue> parse_hsl_color_value(TokenStream<ComponentValue>&);
     RefPtr<CSSStyleValue> parse_hwb_color_value(TokenStream<ComponentValue>&);
+    Optional<Array<RefPtr<CSSStyleValue>, 4>> parse_lab_like_color_value(TokenStream<ComponentValue>&, StringView);
     RefPtr<CSSStyleValue> parse_oklab_color_value(TokenStream<ComponentValue>&);
     RefPtr<CSSStyleValue> parse_oklch_color_value(TokenStream<ComponentValue>&);
     RefPtr<CSSStyleValue> parse_color_value(TokenStream<ComponentValue>&);

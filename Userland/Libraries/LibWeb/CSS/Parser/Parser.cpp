@@ -3244,10 +3244,10 @@ RefPtr<CSSStyleValue> Parser::parse_hwb_color_value(TokenStream<ComponentValue>&
     return CSSHWB::create(h.release_nonnull(), w.release_nonnull(), b.release_nonnull(), alpha.release_nonnull());
 }
 
-// https://www.w3.org/TR/css-color-4/#funcdef-oklab
-RefPtr<CSSStyleValue> Parser::parse_oklab_color_value(TokenStream<ComponentValue>& outer_tokens)
+Optional<Array<RefPtr<CSSStyleValue>, 4>> Parser::parse_lab_like_color_value(TokenStream<ComponentValue>& outer_tokens, StringView function_name)
 {
-    // oklab() = oklab( [ <percentage> | <number> | none]
+    // This helper is designed to be compatible with lab and oklab and parses a function with a form like:
+    // f() = f( [ <percentage> | <number> | none]
     //     [ <percentage> | <number> | none]
     //     [ <percentage> | <number> | none]
     //     [ / [<alpha-value> | none] ]? )
@@ -3256,8 +3256,8 @@ RefPtr<CSSStyleValue> Parser::parse_oklab_color_value(TokenStream<ComponentValue
     outer_tokens.discard_whitespace();
 
     auto& function_token = outer_tokens.consume_a_token();
-    if (!function_token.is_function("oklab"sv))
-        return {};
+    if (!function_token.is_function(function_name))
+        return OptionalNone {};
 
     RefPtr<CSSStyleValue> l;
     RefPtr<CSSStyleValue> a;
@@ -3269,30 +3269,51 @@ RefPtr<CSSStyleValue> Parser::parse_oklab_color_value(TokenStream<ComponentValue
 
     l = parse_number_percentage_value(inner_tokens);
     if (!l)
-        return {};
+        return OptionalNone {};
     inner_tokens.discard_whitespace();
 
     a = parse_number_percentage_value(inner_tokens);
     if (!a)
-        return {};
+        return OptionalNone {};
     inner_tokens.discard_whitespace();
 
     b = parse_number_percentage_value(inner_tokens);
     if (!b)
-        return {};
+        return OptionalNone {};
     inner_tokens.discard_whitespace();
 
     if (inner_tokens.has_next_token()) {
         alpha = parse_solidus_and_alpha_value(inner_tokens);
         if (!alpha || inner_tokens.has_next_token())
-            return {};
+            return OptionalNone {};
     }
 
     if (!alpha)
         alpha = NumberStyleValue::create(1);
 
     transaction.commit();
-    return CSSOKLab::create(l.release_nonnull(), a.release_nonnull(), b.release_nonnull(), alpha.release_nonnull());
+
+    return Array { move(l), move(a), move(b), move(alpha) };
+}
+
+// https://www.w3.org/TR/css-color-4/#funcdef-oklab
+RefPtr<CSSStyleValue> Parser::parse_oklab_color_value(TokenStream<ComponentValue>& outer_tokens)
+{
+    // oklab() = oklab( [ <percentage> | <number> | none]
+    //     [ <percentage> | <number> | none]
+    //     [ <percentage> | <number> | none]
+    //     [ / [<alpha-value> | none] ]? )
+
+    auto maybe_color_values = parse_lab_like_color_value(outer_tokens, "oklab"sv);
+    if (!maybe_color_values.has_value())
+        return {};
+
+    auto& color_values = *maybe_color_values;
+
+    return CSSOKLab::create(color_values[0].release_nonnull(),
+        color_values[1].release_nonnull(),
+        color_values[2].release_nonnull(),
+        color_values[3].release_nonnull());
 }
 
 // https://www.w3.org/TR/css-color-4/#funcdef-oklch
