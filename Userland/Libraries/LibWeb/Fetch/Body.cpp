@@ -13,7 +13,6 @@
 #include <LibJS/Runtime/TypedArray.h>
 #include <LibTextCodec/Decoder.h>
 #include <LibWeb/Bindings/ExceptionOrUtils.h>
-#include <LibWeb/Bindings/HostDefined.h>
 #include <LibWeb/Bindings/MainThreadVM.h>
 #include <LibWeb/DOMURL/URLSearchParams.h>
 #include <LibWeb/Fetch/Body.h>

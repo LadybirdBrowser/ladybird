@@ -140,7 +140,7 @@ JS::ExecutionContext const& execution_context_of_realm(JS::Realm const& realm)
     // FIXME: 1. If realm is a principal realm, then return the realm execution context of the environment settings object of realm.
     // FIXME: 2. Assert: realm is a synthetic realm.
     // FIXME: 3. Return the execution context of the synthetic realm settings object of realm.
-    return Bindings::host_defined_environment_settings_object(realm).realm_execution_context();
+    return Bindings::principal_host_defined_environment_settings_object(realm).realm_execution_context();
 }
 
 // https://html.spec.whatwg.org/multipage/webappapis.html#clean-up-after-running-script
@@ -327,7 +327,7 @@ JS::Realm& incumbent_realm()
 EnvironmentSettingsObject& incumbent_settings_object()
 {
     // FIXME: Then, the incumbent settings object is the incumbent realm's principal realm settings object.
-    return Bindings::host_defined_environment_settings_object(incumbent_realm());
+    return Bindings::principal_host_defined_environment_settings_object(incumbent_realm());
 }
 
 // https://html.spec.whatwg.org/multipage/webappapis.html#concept-incumbent-global
@@ -362,7 +362,7 @@ JS::Realm& principal_realm(JS::Realm& realm)
 EnvironmentSettingsObject& principal_realm_settings_object(JS::Realm& realm)
 {
     // A principal realm has a [[HostDefined]] field, which contains the principal realm's settings object.
-    return Bindings::host_defined_environment_settings_object(realm);
+    return Bindings::principal_host_defined_environment_settings_object(realm);
 }
 
 // https://html.spec.whatwg.org/multipage/webappapis.html#current-settings-object
@@ -392,7 +392,7 @@ JS::Realm& relevant_realm(JS::Object const& object)
 EnvironmentSettingsObject& relevant_settings_object(JS::Object const& object)
 {
     // Then, the relevant settings object for a platform object o is the environment settings object of the relevant Realm for o.
-    return Bindings::host_defined_environment_settings_object(relevant_realm(object));
+    return Bindings::principal_host_defined_environment_settings_object(relevant_realm(object));
 }
 
 EnvironmentSettingsObject& relevant_settings_object(DOM::Node const& node)
@@ -424,7 +424,7 @@ JS::Realm& entry_realm()
 EnvironmentSettingsObject& entry_settings_object()
 {
     // Then, the entry settings object is the environment settings object of the entry realm.
-    return Bindings::host_defined_environment_settings_object(entry_realm());
+    return Bindings::principal_host_defined_environment_settings_object(entry_realm());
 }
 
 // https://html.spec.whatwg.org/multipage/webappapis.html#entry-global-object

@@ -383,7 +383,7 @@ JS::NonnullGCPtr<Document> Document::create_for_fragment_parsing(JS::Realm& real
 
 Document::Document(JS::Realm& realm, const URL::URL& url, TemporaryDocumentForFragmentParsing temporary_document_for_fragment_parsing)
     : ParentNode(realm, *this, NodeType::DOCUMENT_NODE)
-    , m_page(Bindings::host_defined_page(realm))
+    , m_page(Bindings::principal_host_defined_page(realm))
     , m_style_computer(make<CSS::StyleComputer>(*this))
     , m_url(url)
     , m_temporary_document_for_fragment_parsing(temporary_document_for_fragment_parsing)
@@ -1649,7 +1649,7 @@ Color Document::visited_link_color() const
 HTML::EnvironmentSettingsObject& Document::relevant_settings_object() const
 {
     // Then, the relevant settings object for a platform object o is the environment settings object of the relevant Realm for o.
-    return Bindings::host_defined_environment_settings_object(realm());
+    return Bindings::principal_host_defined_environment_settings_object(realm());
 }
 
 // https://dom.spec.whatwg.org/#dom-document-createelement
@@ -4171,7 +4171,7 @@ void Document::start_intersection_observing_a_lazy_loading_element(Element& elem
         // Spec Note: This allows for fetching the image during scrolling, when it does not yet — but is about to — intersect the viewport.
         auto options = IntersectionObserver::IntersectionObserverInit {};
 
-        auto wrapped_callback = realm.heap().allocate_without_realm<WebIDL::CallbackType>(callback, Bindings::host_defined_environment_settings_object(realm));
+        auto wrapped_callback = realm.heap().allocate_without_realm<WebIDL::CallbackType>(callback, Bindings::principal_host_defined_environment_settings_object(realm));
         m_lazy_load_intersection_observer = IntersectionObserver::IntersectionObserver::construct_impl(realm, wrapped_callback, options).release_value_but_fixme_should_propagate_errors();
     }
 

@@ -4,8 +4,8 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/Bindings/HostDefined.h>
 #include <LibWeb/Bindings/Intrinsics.h>
+#include <LibWeb/Bindings/PrincipalHostDefined.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/HTML/Scripting/WindowEnvironmentSettingsObject.h>
 #include <LibWeb/HTML/Window.h>
@@ -74,7 +74,7 @@ void WindowEnvironmentSettingsObject::setup(Page& page, URL::URL const& creation
     // 7. Set realm's [[HostDefined]] field to settings object.
     // Non-Standard: We store the ESO next to the web intrinsics in a custom HostDefined object
     auto intrinsics = realm->heap().allocate<Bindings::Intrinsics>(*realm, *realm);
-    auto host_defined = make<Bindings::HostDefined>(settings_object, intrinsics, page);
+    auto host_defined = make<Bindings::PrincipalHostDefined>(settings_object, intrinsics, page);
     realm->set_host_defined(move(host_defined));
 
     // Non-Standard: We cannot fully initialize window object until *after* the we set up

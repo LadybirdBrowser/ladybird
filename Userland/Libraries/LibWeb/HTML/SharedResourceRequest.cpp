@@ -24,7 +24,7 @@ JS_DEFINE_ALLOCATOR(SharedResourceRequest);
 
 JS::NonnullGCPtr<SharedResourceRequest> SharedResourceRequest::get_or_create(JS::Realm& realm, JS::NonnullGCPtr<Page> page, URL::URL const& url)
 {
-    auto document = Bindings::host_defined_environment_settings_object(realm).responsible_document();
+    auto document = Bindings::principal_host_defined_environment_settings_object(realm).responsible_document();
     VERIFY(document);
     auto& shared_resource_requests = document->shared_resource_requests();
     if (auto it = shared_resource_requests.find(url); it != shared_resource_requests.end())
