@@ -491,6 +491,7 @@ class MessageEvent;
 class MessagePort;
 class MimeType;
 class MimeTypeArray;
+class ModuleMap;
 class Navigable;
 class NavigableContainer;
 class NavigateEvent;
@@ -555,6 +556,7 @@ struct ScrollOptions;
 struct ScrollToOptions;
 struct SerializedFormData;
 struct StructuredSerializeOptions;
+struct SyntheticRealmSettings;
 struct ToggleTaskTracker;
 struct TransferDataHolder;
 }
