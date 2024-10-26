@@ -11,6 +11,7 @@
 #include <LibWeb/Bindings/ModulePrototype.h>
 #include <LibWeb/WebAssembly/Module.h>
 #include <LibWeb/WebAssembly/WebAssembly.h>
+#include <LibWeb/WebIDL/AbstractOperations.h>
 #include <LibWeb/WebIDL/Buffers.h>
 
 namespace Web::WebAssembly {
@@ -21,7 +22,14 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<Module>> Module::construct_impl(JS::Realm& 
 {
     auto& vm = realm.vm();
 
-    auto compiled_module = TRY(Detail::parse_module(vm, bytes->raw_object()));
+    auto stable_bytes_or_error = WebIDL::get_buffer_source_copy(bytes->raw_object());
+    if (stable_bytes_or_error.is_error()) {
+        VERIFY(stable_bytes_or_error.error().code() == ENOMEM);
+        return vm.throw_completion<JS::InternalError>(vm.error_message(JS::VM::ErrorMessage::OutOfMemory));
+    }
+    auto stable_bytes = stable_bytes_or_error.release_value();
+
+    auto compiled_module = TRY(Detail::compile_a_webassembly_module(vm, move(stable_bytes)));
     return vm.heap().allocate<Module>(realm, realm, move(compiled_module));
 }
 

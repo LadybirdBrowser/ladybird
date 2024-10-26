@@ -9,13 +9,8 @@
 
         cachedTextDecoder.decode();
 
-        let cachedUint8Memory0 = null;
-
         function getUint8Memory0() {
-            if (cachedUint8Memory0 === null || cachedUint8Memory0.byteLength === 0) {
-                cachedUint8Memory0 = new Uint8Array(wasm.memory.buffer);
-            }
-            return cachedUint8Memory0;
+            return  new Uint8Array(wasm.memory.buffer);
         }
 
         function getStringFromWasm0(ptr, len) {
@@ -58,24 +53,30 @@
         ]).buffer;
 
         const BUFFER_SOURCES = [
-            { constructor: Uint8Array, flaky: true },
-            { constructor: Uint8ClampedArray, flaky: true },
-            { constructor: Uint16Array, flaky: true },
-            { constructor: Uint32Array, flaky: true },
-            { constructor: Int8Array, flaky: true },
-            { constructor: Int16Array, flaky: true },
-            { constructor: Float32Array, flaky: true },
-            { constructor: Float64Array, flaky: true },
-            { constructor: BigUint64Array, flaky: true },
-            { constructor: BigInt64Array, flaky: true },
-            { constructor: DataView, flaky: true },
+            { constructor: Uint8Array},
+            { constructor: Uint8ClampedArray },
+            { constructor: Uint16Array },
+            { constructor: Uint32Array },
+            { constructor: Int8Array },
+            { constructor: Int16Array },
+            { constructor: Float32Array },
+            { constructor: Float64Array },
+            { constructor: BigUint64Array },
+            { constructor: BigInt64Array },
+            { constructor: DataView },
         ];
-        
+
         async function runTest(buffer) {
             println("-------------")
             println(buffer.constructor.name);
             println("-------------")
-            const module = await WebAssembly.instantiate(buffer, exports);
+            const module = await WebAssembly.instantiate(buffer, exports).catch(e => {
+                println(`FIXME: Failed to instantiate with ${buffer.constructor.name}: ${e.name}: ${e.message}`);
+                return Promise.resolve();
+            });
+            if (!module) {
+                return Promise.resolve();
+            }
             wasm = module.instance?.exports ?? module.exports;
             try {
                 wasm.greet();
@@ -87,23 +88,16 @@
 
         await runTest(arrayBuffer);
 
-        for (const { constructor, flaky } of BUFFER_SOURCES) {
-            if (!flaky) {
-                await runTest(new constructor(arrayBuffer));
-            } else {
-                // The flakiness is the runtime either trapping with a RangeError, or the printed string being complete garbage,
-                // which more prominently happens with DataView and the arrays bigger than u8. However, the RangeError flake is
-                // still possible with u8.
-                println(`FIXME: Run test for ${constructor.name}. Not running due to flakiness.`);
-            }
+        for (const { constructor } of BUFFER_SOURCES) {
+            await runTest(new constructor(arrayBuffer));
         }
 
-        if (false) {
-            const compiledModule = await WebAssembly.compile(arrayBuffer);
+        const compiledModule = await WebAssembly.compile(arrayBuffer).catch(() => {
+            println(`FIXME: Failed to compile with ArrayBuffer`);
+            return Promise.resolve()
+        });
+        if (compiledModule) {
             await runTest(compiledModule);
-        } else {
-            // Same issues as above.
-            println(`FIXME: Run test for WebAssembly.Module. Not running due to flakiness.`);
         }
 
         done();

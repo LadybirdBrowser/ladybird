@@ -2,15 +2,51 @@
 ArrayBuffer
 -------------
 Hello from wasm!!!!!!
-FIXME: Run test for Uint8Array. Not running due to flakiness.
-FIXME: Run test for Uint8ClampedArray. Not running due to flakiness.
-FIXME: Run test for Uint16Array. Not running due to flakiness.
-FIXME: Run test for Uint32Array. Not running due to flakiness.
-FIXME: Run test for Int8Array. Not running due to flakiness.
-FIXME: Run test for Int16Array. Not running due to flakiness.
-FIXME: Run test for Float32Array. Not running due to flakiness.
-FIXME: Run test for Float64Array. Not running due to flakiness.
-FIXME: Run test for BigUint64Array. Not running due to flakiness.
-FIXME: Run test for BigInt64Array. Not running due to flakiness.
-FIXME: Run test for DataView. Not running due to flakiness.
-FIXME: Run test for WebAssembly.Module. Not running due to flakiness.
+-------------
+Uint8Array
+-------------
+Hello from wasm!!!!!!
+-------------
+Uint8ClampedArray
+-------------
+Hello from wasm!!!!!!
+-------------
+Uint16Array
+-------------
+Hello from wasm!!!!!!
+-------------
+Uint32Array
+-------------
+Hello from wasm!!!!!!
+-------------
+Int8Array
+-------------
+Hello from wasm!!!!!!
+-------------
+Int16Array
+-------------
+Hello from wasm!!!!!!
+-------------
+Float32Array
+-------------
+Hello from wasm!!!!!!
+-------------
+Float64Array
+-------------
+Hello from wasm!!!!!!
+-------------
+BigUint64Array
+-------------
+Hello from wasm!!!!!!
+-------------
+BigInt64Array
+-------------
+Hello from wasm!!!!!!
+-------------
+DataView
+-------------
+Hello from wasm!!!!!!
+-------------
+WebAssembly.Module
+-------------
+Hello from wasm!!!!!!
