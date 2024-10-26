@@ -286,6 +286,15 @@ void EnvironmentSettingsObject::disallow_further_import_maps()
     verify_cast<Window>(global).set_import_maps_allowed(false);
 }
 
+// https://whatpr.org/html/9893/webappapis.html#concept-realm-module-map
+ModuleMap& module_map_of_realm(JS::Realm& realm)
+{
+    // FIXME: 1. If realm is a principal realm, then return the module map of the environment settings object of realm.
+    // FIXME: 2. Assert: realm is a synthetic realm.
+    // FIXME: 3. Return the module map of the synthetic realm settings object of realm.
+    return principal_realm_settings_object(realm).module_map();
+}
+
 // https://html.spec.whatwg.org/multipage/webappapis.html#concept-incumbent-realm
 // https://whatpr.org/html/9893/b8ea975...df5706b/webappapis.html#concept-incumbent-realm
 JS::Realm& incumbent_realm()
