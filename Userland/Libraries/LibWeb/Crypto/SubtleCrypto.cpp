@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2021-2022, Linus Groh <linusg@serenityos.org>
- * Copyright (c) 2023, stelar7 <dudedbz@gmail.com>
+ * Copyright (c) 2023-2024, stelar7 <dudedbz@gmail.com>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -813,6 +813,7 @@ SupportedAlgorithmsMap supported_algorithms()
 
     // https://wicg.github.io/webcrypto-secure-curves/#x25519
     define_an_algorithm<X25519, EcdhKeyDerivePrams>("deriveBits"_string, "X25519"_string);
+    define_an_algorithm<X25519>("generateKey"_string, "X25519"_string);
 
     return internal_object;
 }
