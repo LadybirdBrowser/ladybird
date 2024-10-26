@@ -63,7 +63,11 @@ static constexpr CGFloat const SEARCH_FIELD_WIDTH = 300;
                                                target:self
                                                action:@selector(cancelSearch:)];
         [search_done setToolTip:@"Close Search Bar"];
+#if __MAC_OS_X_VERSION_MAX_ALLOWED >= 140000
         [search_done setBezelStyle:NSBezelStyleAccessoryBarAction];
+#else
+        [search_done setBezelStyle:NSBezelStyleRoundRect];
+#endif
 
         [self addView:self.search_field inGravity:NSStackViewGravityLeading];
         [self addView:search_previous inGravity:NSStackViewGravityLeading];
