@@ -769,7 +769,7 @@ SupportedAlgorithmsMap supported_algorithms()
     define_an_algorithm<SHA>("digest"_string, "SHA-512"_string);
 
     // https://w3c.github.io/webcrypto/#aes-cbc-registration
-    // FIXME: define_an_algorithm<AesCbc, AesCbcParams>("encrypt"_string, "AES-CBC"_string);
+    define_an_algorithm<AesCbc, AesCbcParams>("encrypt"_string, "AES-CBC"_string);
     // FIXME: define_an_algorithm<AesCbc, AesCbcParams>("decrypt"_string, "AES-CBC"_string);
     define_an_algorithm<AesCbc, AesKeyGenParams>("generateKey"_string, "AES-CBC"_string);
     define_an_algorithm<AesCbc>("importKey"_string, "AES-CBC"_string);
