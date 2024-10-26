@@ -101,13 +101,20 @@ struct MatchingRule {
     FlyString const& qualified_layer_name() const;
 };
 
-struct FontFaceKey {
+struct FontFaceKey;
+
+struct OwnFontFaceKey {
+    explicit OwnFontFaceKey(FontFaceKey const& other);
+
+    operator FontFaceKey() const;
+
+    [[nodiscard]] u32 hash() const { return pair_int_hash(family_name.hash(), pair_int_hash(weight, slope)); }
+    [[nodiscard]] bool operator==(OwnFontFaceKey const& other) const = default;
+    [[nodiscard]] bool operator==(FontFaceKey const& other) const;
+
     FlyString family_name;
     int weight { 0 };
     int slope { 0 };
-
-    [[nodiscard]] u32 hash() const { return pair_int_hash(family_name.hash(), pair_int_hash(weight, slope)); }
-    [[nodiscard]] bool operator==(FontFaceKey const&) const = default;
 };
 
 class FontLoader;
@@ -180,7 +187,7 @@ private:
     void compute_cascaded_values(StyleProperties&, DOM::Element&, Optional<CSS::Selector::PseudoElement::Type>, bool& did_match_any_pseudo_element_rules, ComputeStyleMode) const;
     static RefPtr<Gfx::FontCascadeList const> find_matching_font_weight_ascending(Vector<MatchingFontCandidate> const& candidates, int target_weight, float font_size_in_pt, bool inclusive);
     static RefPtr<Gfx::FontCascadeList const> find_matching_font_weight_descending(Vector<MatchingFontCandidate> const& candidates, int target_weight, float font_size_in_pt, bool inclusive);
-    RefPtr<Gfx::FontCascadeList const> font_matching_algorithm(FontFaceKey const& key, float font_size_in_pt) const;
+    RefPtr<Gfx::FontCascadeList const> font_matching_algorithm(FlyString const& family_name, int weight, int slope, float font_size_in_pt) const;
     void compute_font(StyleProperties&, DOM::Element const*, Optional<CSS::Selector::PseudoElement::Type>) const;
     void compute_math_depth(StyleProperties&, DOM::Element const*, Optional<CSS::Selector::PseudoElement::Type>) const;
     void compute_defaulted_values(StyleProperties&, DOM::Element const*, Optional<CSS::Selector::PseudoElement::Type>) const;
@@ -246,7 +253,7 @@ private:
     GC::Root<CSSStyleSheet> m_user_style_sheet;
 
     using FontLoaderList = Vector<NonnullOwnPtr<FontLoader>>;
-    HashMap<FontFaceKey, FontLoaderList> m_loaded_fonts;
+    HashMap<OwnFontFaceKey, FontLoaderList> m_loaded_fonts;
 
     Length::FontMetrics m_default_font_metrics;
     Length::FontMetrics m_root_element_font_metrics;

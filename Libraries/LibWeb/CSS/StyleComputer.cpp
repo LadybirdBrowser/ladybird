@@ -14,6 +14,7 @@
 #include <AK/Function.h>
 #include <AK/HashMap.h>
 #include <AK/Math.h>
+#include <AK/NonnullRawPtr.h>
 #include <AK/QuickSort.h>
 #include <AK/TemporaryChange.h>
 #include <LibGfx/Font/Font.h>
@@ -85,12 +86,33 @@
 #include <math.h>
 #include <stdio.h>
 
+namespace Web::CSS {
+
+struct FontFaceKey {
+    NonnullRawPtr<FlyString const> family_name;
+    int weight { 0 };
+    int slope { 0 };
+};
+
+}
+
 namespace AK {
 
-// traits for FontFaceKey
+namespace Detail {
+template<>
+inline constexpr bool IsHashCompatible<Web::CSS::FontFaceKey, Web::CSS::OwnFontFaceKey> = true;
+template<>
+inline constexpr bool IsHashCompatible<Web::CSS::OwnFontFaceKey, Web::CSS::FontFaceKey> = true;
+}
+
 template<>
 struct Traits<Web::CSS::FontFaceKey> : public DefaultTraits<Web::CSS::FontFaceKey> {
-    static unsigned hash(Web::CSS::FontFaceKey const& key) { return pair_int_hash(key.family_name.hash(), pair_int_hash(key.weight, key.slope)); }
+    static unsigned hash(Web::CSS::FontFaceKey const& key) { return pair_int_hash(key.family_name->hash(), pair_int_hash(key.weight, key.slope)); }
+};
+
+template<>
+struct Traits<Web::CSS::OwnFontFaceKey> : public DefaultTraits<Web::CSS::OwnFontFaceKey> {
+    static unsigned hash(Web::CSS::OwnFontFaceKey const& key) { return pair_int_hash(key.family_name.hash(), pair_int_hash(key.weight, key.slope)); }
 };
 
 }
@@ -122,6 +144,29 @@ FlyString const& MatchingRule::qualified_layer_name() const
     if (rule->type() == CSSRule::Type::NestedDeclarations)
         return static_cast<CSSNestedDeclarations const&>(*rule).parent_style_rule().qualified_layer_name();
     VERIFY_NOT_REACHED();
+}
+
+OwnFontFaceKey::OwnFontFaceKey(FontFaceKey const& other)
+    : family_name(other.family_name)
+    , weight(other.weight)
+    , slope(other.slope)
+{
+}
+
+OwnFontFaceKey::operator FontFaceKey() const
+{
+    return FontFaceKey {
+        family_name,
+        weight,
+        slope
+    };
+}
+
+[[nodiscard]] bool OwnFontFaceKey::operator==(FontFaceKey const& other) const
+{
+    return family_name == other.family_name
+        && weight == other.weight
+        && slope == other.slope;
 }
 
 static DOM::Element const* element_to_inherit_style_from(DOM::Element const*, Optional<CSS::Selector::PseudoElement::Type>);
@@ -1738,16 +1783,16 @@ RefPtr<Gfx::FontCascadeList const> StyleComputer::find_matching_font_weight_desc
 
 // Partial implementation of the font-matching algorithm: https://www.w3.org/TR/css-fonts-4/#font-matching-algorithm
 // FIXME: This should be replaced by the full CSS font selection algorithm.
-RefPtr<Gfx::FontCascadeList const> StyleComputer::font_matching_algorithm(FontFaceKey const& key, float font_size_in_pt) const
+RefPtr<Gfx::FontCascadeList const> StyleComputer::font_matching_algorithm(FlyString const& family_name, int weight, int slope, float font_size_in_pt) const
 {
     // If a font family match occurs, the user agent assembles the set of font faces in that family and then
     // narrows the set to a single face using other font properties in the order given below.
     Vector<MatchingFontCandidate> matching_family_fonts;
     for (auto const& font_key_and_loader : m_loaded_fonts) {
-        if (font_key_and_loader.key.family_name.equals_ignoring_ascii_case(key.family_name))
+        if (font_key_and_loader.key.family_name.equals_ignoring_ascii_case(family_name))
             matching_family_fonts.empend(font_key_and_loader.key, const_cast<FontLoaderList*>(&font_key_and_loader.value));
     }
-    Gfx::FontDatabase::the().for_each_typeface_with_family_name(key.family_name, [&](Gfx::Typeface const& typeface) {
+    Gfx::FontDatabase::the().for_each_typeface_with_family_name(family_name, [&](Gfx::Typeface const& typeface) {
         matching_family_fonts.empend(
             FontFaceKey {
                 .family_name = typeface.family(),
@@ -1764,24 +1809,24 @@ RefPtr<Gfx::FontCascadeList const> StyleComputer::font_matching_algorithm(FontFa
     // We don't have complete support of italic and oblique fonts, so matching on font-style can be simplified to:
     // If a matching slope is found, all faces which don't have that matching slope are excluded from the matching set.
     auto style_it = find_if(matching_family_fonts.begin(), matching_family_fonts.end(),
-        [&](auto const& matching_font_candidate) { return matching_font_candidate.key.slope == key.slope; });
+        [&](auto const& matching_font_candidate) { return matching_font_candidate.key.slope == slope; });
     if (style_it != matching_family_fonts.end()) {
         matching_family_fonts.remove_all_matching([&](auto const& matching_font_candidate) {
-            return matching_font_candidate.key.slope != key.slope;
+            return matching_font_candidate.key.slope != slope;
         });
     }
     // 3. font-weight is matched next.
     // If the desired weight is inclusively between 400 and 500, weights greater than or equal to the target weight
     // are checked in ascending order until 500 is hit and checked, followed by weights less than the target weight
     // in descending order, followed by weights greater than 500, until a match is found.
-    if (key.weight >= 400 && key.weight <= 500) {
+    if (weight >= 400 && weight <= 500) {
         auto it = find_if(matching_family_fonts.begin(), matching_family_fonts.end(),
-            [&](auto const& matching_font_candidate) { return matching_font_candidate.key.weight >= key.weight; });
+            [&](auto const& matching_font_candidate) { return matching_font_candidate.key.weight >= weight; });
         for (; it != matching_family_fonts.end() && it->key.weight <= 500; ++it) {
             if (auto found_font = it->font_with_point_size(font_size_in_pt))
                 return found_font;
         }
-        if (auto found_font = find_matching_font_weight_descending(matching_family_fonts, key.weight, font_size_in_pt, false))
+        if (auto found_font = find_matching_font_weight_descending(matching_family_fonts, weight, font_size_in_pt, false))
             return found_font;
         for (; it != matching_family_fonts.end(); ++it) {
             if (auto found_font = it->font_with_point_size(font_size_in_pt))
@@ -1790,18 +1835,18 @@ RefPtr<Gfx::FontCascadeList const> StyleComputer::font_matching_algorithm(FontFa
     }
     // If the desired weight is less than 400, weights less than or equal to the desired weight are checked in descending order
     // followed by weights above the desired weight in ascending order until a match is found.
-    if (key.weight < 400) {
-        if (auto found_font = find_matching_font_weight_descending(matching_family_fonts, key.weight, font_size_in_pt, true))
+    if (weight < 400) {
+        if (auto found_font = find_matching_font_weight_descending(matching_family_fonts, weight, font_size_in_pt, true))
             return found_font;
-        if (auto found_font = find_matching_font_weight_ascending(matching_family_fonts, key.weight, font_size_in_pt, false))
+        if (auto found_font = find_matching_font_weight_ascending(matching_family_fonts, weight, font_size_in_pt, false))
             return found_font;
     }
     // If the desired weight is greater than 500, weights greater than or equal to the desired weight are checked in ascending order
     // followed by weights below the desired weight in descending order until a match is found.
-    if (key.weight > 500) {
-        if (auto found_font = find_matching_font_weight_ascending(matching_family_fonts, key.weight, font_size_in_pt, true))
+    if (weight > 500) {
+        if (auto found_font = find_matching_font_weight_ascending(matching_family_fonts, weight, font_size_in_pt, true))
             return found_font;
-        if (auto found_font = find_matching_font_weight_descending(matching_family_fonts, key.weight, font_size_in_pt, false))
+        if (auto found_font = find_matching_font_weight_descending(matching_family_fonts, weight, font_size_in_pt, false))
             return found_font;
     }
     return {};
@@ -1963,7 +2008,6 @@ RefPtr<Gfx::FontCascadeList const> StyleComputer::compute_font_for_style_values(
             .weight = weight,
             .slope = slope,
         };
-
         auto result = Gfx::FontCascadeList::create();
         if (auto it = m_loaded_fonts.find(key); it != m_loaded_fonts.end()) {
             auto const& loaders = it->value;
@@ -1974,7 +2018,7 @@ RefPtr<Gfx::FontCascadeList const> StyleComputer::compute_font_for_style_values(
             return result;
         }
 
-        if (auto found_font = font_matching_algorithm(key, font_size_in_pt); found_font && !found_font->is_empty()) {
+        if (auto found_font = font_matching_algorithm(family, weight, slope, font_size_in_pt); found_font && !found_font->is_empty()) {
             return found_font;
         }
 
@@ -2800,7 +2844,7 @@ Optional<FontLoader&> StyleComputer::load_font_face(ParsedFontFace const& font_f
     } else {
         FontLoaderList loaders;
         loaders.append(move(loader));
-        const_cast<StyleComputer&>(*this).m_loaded_fonts.set(key, move(loaders));
+        const_cast<StyleComputer&>(*this).m_loaded_fonts.set(OwnFontFaceKey(key), move(loaders));
     }
     // Actual object owned by font loader list inside m_loaded_fonts, this isn't use-after-move/free
     return loader_ref;
