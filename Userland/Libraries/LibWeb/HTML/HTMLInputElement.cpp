@@ -2311,7 +2311,7 @@ Optional<ARIA::Role> HTMLInputElement::default_role() const
         return ARIA::Role::combobox;
     // https://www.w3.org/TR/html-aria/#el-input-search
     if (type_state() == TypeAttributeState::Search && !has_attribute(AttributeNames::list))
-        return ARIA::Role::textbox;
+        return ARIA::Role::searchbox;
     // https://www.w3.org/TR/html-aria/#el-input-submit
     if (type_state() == TypeAttributeState::SubmitButton)
         return ARIA::Role::button;

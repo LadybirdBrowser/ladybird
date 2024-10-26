@@ -571,6 +571,9 @@ void HTMLElement::blur()
 
 Optional<ARIA::Role> HTMLElement::default_role() const
 {
+    // https://www.w3.org/TR/html-aria/#el-address
+    if (local_name() == TagNames::address)
+        return ARIA::Role::group;
     // https://www.w3.org/TR/html-aria/#el-article
     if (local_name() == TagNames::article)
         return ARIA::Role::article;
@@ -612,7 +615,7 @@ Optional<ARIA::Role> HTMLElement::default_role() const
     }
     // https://www.w3.org/TR/html-aria/#el-hgroup
     if (local_name() == TagNames::hgroup)
-        return ARIA::Role::generic;
+        return ARIA::Role::group;
     // https://www.w3.org/TR/html-aria/#el-i
     if (local_name() == TagNames::i)
         return ARIA::Role::generic;
@@ -622,6 +625,9 @@ Optional<ARIA::Role> HTMLElement::default_role() const
     // https://www.w3.org/TR/html-aria/#el-nav
     if (local_name() == TagNames::nav)
         return ARIA::Role::navigation;
+    // https://www.w3.org/TR/html-aria/#el-s
+    if (local_name() == TagNames::s)
+        return ARIA::Role::deletion;
     // https://www.w3.org/TR/html-aria/#el-samp
     if (local_name() == TagNames::samp)
         return ARIA::Role::generic;
