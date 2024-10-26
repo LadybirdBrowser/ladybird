@@ -3296,6 +3296,26 @@ Optional<Array<RefPtr<CSSStyleValue>, 4>> Parser::parse_lab_like_color_value(Tok
     return Array { move(l), move(a), move(b), move(alpha) };
 }
 
+// https://www.w3.org/TR/css-color-4/#funcdef-lab
+RefPtr<CSSStyleValue> Parser::parse_lab_color_value(TokenStream<ComponentValue>& outer_tokens)
+{
+    // lab() = lab( [<percentage> | <number> | none]
+    //      [ <percentage> | <number> | none]
+    //      [ <percentage> | <number> | none]
+    //      [ / [<alpha-value> | none] ]? )
+
+    auto maybe_color_values = parse_lab_like_color_value(outer_tokens, "lab"sv);
+    if (!maybe_color_values.has_value())
+        return {};
+
+    auto& color_values = *maybe_color_values;
+
+    return CSSLab::create(color_values[0].release_nonnull(),
+        color_values[1].release_nonnull(),
+        color_values[2].release_nonnull(),
+        color_values[3].release_nonnull());
+}
+
 // https://www.w3.org/TR/css-color-4/#funcdef-oklab
 RefPtr<CSSStyleValue> Parser::parse_oklab_color_value(TokenStream<ComponentValue>& outer_tokens)
 {
@@ -3387,6 +3407,8 @@ RefPtr<CSSStyleValue> Parser::parse_color_value(TokenStream<ComponentValue>& tok
         return hsl;
     if (auto hwb = parse_hwb_color_value(tokens))
         return hwb;
+    if (auto lab = parse_lab_color_value(tokens))
+        return lab;
     if (auto oklab = parse_oklab_color_value(tokens))
         return oklab;
     if (auto oklch = parse_oklch_color_value(tokens))

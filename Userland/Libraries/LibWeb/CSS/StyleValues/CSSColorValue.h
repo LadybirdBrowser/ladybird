@@ -26,6 +26,7 @@ public:
         RGB,
         HSL,
         HWB,
+        Lab,
         OKLab,
         OKLCH,
     };

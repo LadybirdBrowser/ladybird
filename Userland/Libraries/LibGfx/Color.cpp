@@ -1,6 +1,7 @@
 /*
  * Copyright (c) 2018-2020, Andreas Kling <andreas@ladybird.org>
  * Copyright (c) 2019-2023, Shannon Booth <shannon@serenityos.org>
+ * Copyright (c) 2024, Lucas Chollet <lucas.chollet@serenityos.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -393,6 +394,55 @@ Vector<Color> Color::tints(u32 steps, float max) const
         tints.append(this->lightened(shade));
     }
     return tints;
+}
+
+Color Color::from_xyz50(float x, float y, float z, float alpha)
+{
+    // See commit description for these values
+    float red = 3.13397926 * x - 1.61689519 * y - 0.49070587 * z;
+    float green = -0.97840009 * x + 1.91589112 * y + 0.03339256 * z;
+    float blue = 0.07200357 * x - 0.22897505 * y + 1.40517398 * z;
+
+    auto linear_to_srgb = [](float c) {
+        return c >= 0.0031308f ? 1.055f * pow(c, 0.4166666f) - 0.055f : 12.92f * c;
+    };
+
+    red = linear_to_srgb(red) * 255.f;
+    green = linear_to_srgb(green) * 255.f;
+    blue = linear_to_srgb(blue) * 255.f;
+
+    return Color(
+        clamp(lroundf(red), 0, 255),
+        clamp(lroundf(green), 0, 255),
+        clamp(lroundf(blue), 0, 255),
+        clamp(lroundf(alpha * 255.f), 0, 255));
+}
+
+Color Color::from_lab(float L, float a, float b, float alpha)
+{
+    // Third edition of "Colorimetry" by the CIE
+    // 8.2.1 CIE 1976 (L*a*b*) colour space; CIELAB colour space
+    float y = (L + 16) / 116;
+    float x = y + a / 500;
+    float z = y - b / 200;
+
+    auto f_inv = [](float t) -> float {
+        constexpr auto delta = 24. / 116;
+        if (t > delta)
+            return t * t * t;
+        return (108. / 841) * (t - 116. / 16);
+    };
+
+    // D50
+    constexpr float x_n = 0.96422;
+    constexpr float y_n = 1;
+    constexpr float z_n = 0.82521;
+
+    x = x_n * f_inv(x);
+    y = y_n * f_inv(y);
+    z = z_n * f_inv(z);
+
+    return from_xyz50(x, y, z, alpha);
 }
 
 }
