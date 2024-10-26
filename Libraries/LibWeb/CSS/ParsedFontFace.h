@@ -30,7 +30,7 @@ public:
     Optional<Percentage> ascent_override() const { return m_ascent_override; }
     Optional<Percentage> descent_override() const { return m_descent_override; }
     FontDisplay font_display() const { return m_font_display; }
-    FlyString font_family() const { return m_font_family; }
+    FlyString const& font_family() const { return m_font_family; }
     Optional<OrderedHashMap<FlyString, i64>> font_feature_settings() const { return m_font_feature_settings; }
     Optional<FlyString> font_language_override() const { return m_font_language_override; }
     Optional<FlyString> font_named_instance() const { return m_font_named_instance; }
