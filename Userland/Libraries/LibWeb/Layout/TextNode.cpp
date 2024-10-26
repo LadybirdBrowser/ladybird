@@ -8,6 +8,7 @@
 #include <AK/CharacterTypes.h>
 #include <AK/StringBuilder.h>
 #include <LibUnicode/CharacterTypes.h>
+#include <LibUnicode/Locale.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/Layout/BlockContainer.h>
 #include <LibWeb/Layout/InlineFormattingContext.h>
@@ -278,7 +279,7 @@ static String apply_math_auto_text_transform(String const& string)
     return MUST(builder.to_string());
 }
 
-static ErrorOr<String> apply_text_transform(String const& string, CSS::TextTransform text_transform)
+static ErrorOr<String> apply_text_transform(String const& string, CSS::TextTransform text_transform, Optional<StringView> const& locale)
 {
     switch (text_transform) {
     case CSS::TextTransform::Uppercase:
@@ -290,7 +291,7 @@ static ErrorOr<String> apply_text_transform(String const& string, CSS::TextTrans
     case CSS::TextTransform::MathAuto:
         return apply_math_auto_text_transform(string);
     case CSS::TextTransform::Capitalize: {
-        return string.to_titlecase({}, TrailingCodePointTransformation::PreserveExisting);
+        return string.to_titlecase(locale, TrailingCodePointTransformation::PreserveExisting);
     }
     case CSS::TextTransform::FullSizeKana:
     case CSS::TextTransform::FullWidth:
@@ -333,7 +334,11 @@ void TextNode::compute_text_for_rendering()
     if (dom_node().is_editable() && !dom_node().is_uninteresting_whitespace_node())
         collapse = false;
 
-    auto data = apply_text_transform(dom_node().data(), computed_values().text_transform()).release_value_but_fixme_should_propagate_errors();
+    auto const* parent_element = dom_node().parent_element();
+    auto const maybe_lang = parent_element ? parent_element->lang() : Optional<String> {};
+    auto const lang = maybe_lang.has_value() ? maybe_lang.value() : Optional<StringView> {};
+
+    auto data = apply_text_transform(dom_node().data(), computed_values().text_transform(), lang).release_value_but_fixme_should_propagate_errors();
 
     auto data_view = data.bytes_as_string_view();
 
