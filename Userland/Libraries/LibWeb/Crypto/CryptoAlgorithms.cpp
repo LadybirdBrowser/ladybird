@@ -8,6 +8,7 @@
 #include <AK/QuickSort.h>
 #include <LibCrypto/ASN1/DER.h>
 #include <LibCrypto/Authentication/HMAC.h>
+#include <LibCrypto/Cipher/AES.h>
 #include <LibCrypto/Curves/Ed25519.h>
 #include <LibCrypto/Curves/SECPxxxr1.h>
 #include <LibCrypto/Hash/HKDF.h>
@@ -1035,9 +1036,31 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<JS::Object>> RSAOAEP::export_key(Bindings::
 }
 
 // https://w3c.github.io/webcrypto/#aes-cbc-operations
-WebIDL::ExceptionOr<JS::NonnullGCPtr<JS::ArrayBuffer>> AesCbc::encrypt(AlgorithmParams const&, JS::NonnullGCPtr<CryptoKey>, ByteBuffer const&)
+WebIDL::ExceptionOr<JS::NonnullGCPtr<JS::ArrayBuffer>> AesCbc::encrypt(AlgorithmParams const& params, JS::NonnullGCPtr<CryptoKey> key, ByteBuffer const& plaintext)
 {
-    VERIFY_NOT_REACHED();
+    auto const& normalized_algorithm = static_cast<AesCbcParams const&>(params);
+
+    // 1. If the iv member of normalizedAlgorithm does not have length 16 bytes, then throw an OperationError.
+    if (normalized_algorithm.iv.size() != 16)
+        return WebIDL::OperationError::create(m_realm, "IV to AES-CBC must be exactly 16 bytes"_string);
+
+    // 2. Let paddedPlaintext be the result of adding padding octets to the contents of plaintext according to the procedure defined in Section 10.3 of [RFC2315], step 2, with a value of k of 16.
+    // Note: This is identical to RFC 5652 Cryptographic Message Syntax (CMS).
+    // We do this during encryption, which avoid reallocating a potentially-large buffer.
+    auto mode = ::Crypto::Cipher::PaddingMode::CMS;
+
+    // 3. Let ciphertext be the result of performing the CBC Encryption operation described in Section 6.2 of [NIST-SP800-38A] using AES as the block cipher, the contents of the iv member of normalizedAlgorithm as the IV input parameter and paddedPlaintext as the input plaintext.
+    auto key_bytes = key->handle().get<ByteBuffer>();
+    auto key_bits = key_bytes.size() * 8;
+    ::Crypto::Cipher::AESCipher::CBCMode cipher(key_bytes, key_bits, ::Crypto::Cipher::Intent::Encryption, mode);
+    auto iv = normalized_algorithm.iv;
+    auto ciphertext = TRY_OR_THROW_OOM(m_realm->vm(), cipher.create_aligned_buffer(plaintext.size() + 1));
+    auto ciphertext_view = ciphertext.bytes();
+    cipher.encrypt(plaintext, ciphertext_view, iv);
+    ciphertext.trim(ciphertext_view.size(), false);
+
+    // 4. Return the result of creating an ArrayBuffer containing ciphertext.
+    return JS::ArrayBuffer::create(m_realm, move(ciphertext));
 }
 
 WebIDL::ExceptionOr<JS::NonnullGCPtr<JS::ArrayBuffer>> AesCbc::decrypt(AlgorithmParams const&, JS::NonnullGCPtr<CryptoKey>, ByteBuffer const&)
