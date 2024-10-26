@@ -141,6 +141,7 @@ void prepare_to_run_script(JS::Realm&);
 void clean_up_after_running_script(JS::Realm const&);
 void prepare_to_run_callback(JS::Realm&);
 void clean_up_after_running_callback(JS::Realm const&);
+ModuleMap& module_map_of_realm(JS::Realm&);
 
 EnvironmentSettingsObject& incumbent_settings_object();
 JS::Realm& incumbent_realm();
