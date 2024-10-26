@@ -16,13 +16,13 @@ set(SOURCES
     ARIA/RoleType.cpp
     ARIA/StateAndProperties.cpp
     Bindings/AudioConstructor.cpp
-    Bindings/HostDefined.cpp
     Bindings/ImageConstructor.cpp
     Bindings/Intrinsics.cpp
     Bindings/LocationConstructor.cpp
     Bindings/MainThreadVM.cpp
     Bindings/OptionConstructor.cpp
     Bindings/PlatformObject.cpp
+    Bindings/PrincipalHostDefined.cpp
     Clipboard/Clipboard.cpp
     Clipboard/ClipboardEvent.cpp
     Crypto/Crypto.cpp

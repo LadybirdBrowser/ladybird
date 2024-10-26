@@ -894,7 +894,7 @@ void HTMLInputElement::create_text_input_shadow_tree()
                 return JS::js_undefined();
             },
             0, "", &realm());
-        auto mouseup_callback = realm().heap().allocate_without_realm<WebIDL::CallbackType>(*mouseup_callback_function, Bindings::host_defined_environment_settings_object(realm()));
+        auto mouseup_callback = realm().heap().allocate_without_realm<WebIDL::CallbackType>(*mouseup_callback_function, Bindings::principal_host_defined_environment_settings_object(realm()));
         DOM::AddEventListenerOptions mouseup_listener_options;
         mouseup_listener_options.once = true;
 
@@ -907,7 +907,7 @@ void HTMLInputElement::create_text_input_shadow_tree()
                 return JS::js_undefined();
             },
             0, "", &realm());
-        auto step_up_callback = realm().heap().allocate_without_realm<WebIDL::CallbackType>(*up_callback_function, Bindings::host_defined_environment_settings_object(realm()));
+        auto step_up_callback = realm().heap().allocate_without_realm<WebIDL::CallbackType>(*up_callback_function, Bindings::principal_host_defined_environment_settings_object(realm()));
         up_button->add_event_listener_without_options(UIEvents::EventNames::mousedown, DOM::IDLEventListener::create(realm(), step_up_callback));
         up_button->add_event_listener_without_options(UIEvents::EventNames::mouseup, DOM::IDLEventListener::create(realm(), mouseup_callback));
 
@@ -929,7 +929,7 @@ void HTMLInputElement::create_text_input_shadow_tree()
                 return JS::js_undefined();
             },
             0, "", &realm());
-        auto step_down_callback = realm().heap().allocate_without_realm<WebIDL::CallbackType>(*down_callback_function, Bindings::host_defined_environment_settings_object(realm()));
+        auto step_down_callback = realm().heap().allocate_without_realm<WebIDL::CallbackType>(*down_callback_function, Bindings::principal_host_defined_environment_settings_object(realm()));
         down_button->add_event_listener_without_options(UIEvents::EventNames::mousedown, DOM::IDLEventListener::create(realm(), step_down_callback));
         down_button->add_event_listener_without_options(UIEvents::EventNames::mouseup, DOM::IDLEventListener::create(realm(), mouseup_callback));
     }
@@ -988,7 +988,7 @@ void HTMLInputElement::create_file_input_shadow_tree()
     };
 
     auto on_button_click_function = JS::NativeFunction::create(realm, move(on_button_click), 0, "", &realm);
-    auto on_button_click_callback = realm.heap().allocate_without_realm<WebIDL::CallbackType>(on_button_click_function, Bindings::host_defined_environment_settings_object(realm));
+    auto on_button_click_callback = realm.heap().allocate_without_realm<WebIDL::CallbackType>(on_button_click_function, Bindings::principal_host_defined_environment_settings_object(realm));
     m_file_button->add_event_listener_without_options(UIEvents::EventNames::click, DOM::IDLEventListener::create(realm, on_button_click_callback));
 
     update_file_input_shadow_tree();
@@ -1060,7 +1060,7 @@ void HTMLInputElement::create_range_input_shadow_tree()
             return JS::js_undefined();
         },
         0, "", &realm());
-    auto keydown_callback = realm().heap().allocate_without_realm<WebIDL::CallbackType>(*keydown_callback_function, Bindings::host_defined_environment_settings_object(realm()));
+    auto keydown_callback = realm().heap().allocate_without_realm<WebIDL::CallbackType>(*keydown_callback_function, Bindings::principal_host_defined_environment_settings_object(realm()));
     add_event_listener_without_options(UIEvents::EventNames::keydown, DOM::IDLEventListener::create(realm(), keydown_callback));
 
     auto wheel_callback_function = JS::NativeFunction::create(
@@ -1075,7 +1075,7 @@ void HTMLInputElement::create_range_input_shadow_tree()
             return JS::js_undefined();
         },
         0, "", &realm());
-    auto wheel_callback = realm().heap().allocate_without_realm<WebIDL::CallbackType>(*wheel_callback_function, Bindings::host_defined_environment_settings_object(realm()));
+    auto wheel_callback = realm().heap().allocate_without_realm<WebIDL::CallbackType>(*wheel_callback_function, Bindings::principal_host_defined_environment_settings_object(realm()));
     add_event_listener_without_options(UIEvents::EventNames::wheel, DOM::IDLEventListener::create(realm(), wheel_callback));
 
     auto update_slider_by_mouse = [this](JS::VM& vm) {
@@ -1098,7 +1098,7 @@ void HTMLInputElement::create_range_input_shadow_tree()
                     return JS::js_undefined();
                 },
                 0, "", &realm());
-            auto mousemove_callback = realm().heap().allocate_without_realm<WebIDL::CallbackType>(*mousemove_callback_function, Bindings::host_defined_environment_settings_object(realm()));
+            auto mousemove_callback = realm().heap().allocate_without_realm<WebIDL::CallbackType>(*mousemove_callback_function, Bindings::principal_host_defined_environment_settings_object(realm()));
             auto mousemove_listener = DOM::IDLEventListener::create(realm(), mousemove_callback);
             auto& window = static_cast<HTML::Window&>(relevant_global_object(*this));
             window.add_event_listener_without_options(UIEvents::EventNames::mousemove, mousemove_listener);
@@ -1110,7 +1110,7 @@ void HTMLInputElement::create_range_input_shadow_tree()
                     return JS::js_undefined();
                 },
                 0, "", &realm());
-            auto mouseup_callback = realm().heap().allocate_without_realm<WebIDL::CallbackType>(*mouseup_callback_function, Bindings::host_defined_environment_settings_object(realm()));
+            auto mouseup_callback = realm().heap().allocate_without_realm<WebIDL::CallbackType>(*mouseup_callback_function, Bindings::principal_host_defined_environment_settings_object(realm()));
             DOM::AddEventListenerOptions mouseup_listener_options;
             mouseup_listener_options.once = true;
             window.add_event_listener(UIEvents::EventNames::mouseup, DOM::IDLEventListener::create(realm(), mouseup_callback), mouseup_listener_options);
@@ -1118,7 +1118,7 @@ void HTMLInputElement::create_range_input_shadow_tree()
             return JS::js_undefined();
         },
         0, "", &realm());
-    auto mousedown_callback = realm().heap().allocate_without_realm<WebIDL::CallbackType>(*mousedown_callback_function, Bindings::host_defined_environment_settings_object(realm()));
+    auto mousedown_callback = realm().heap().allocate_without_realm<WebIDL::CallbackType>(*mousedown_callback_function, Bindings::principal_host_defined_environment_settings_object(realm()));
     add_event_listener_without_options(UIEvents::EventNames::mousedown, DOM::IDLEventListener::create(realm(), mousedown_callback));
 }
 

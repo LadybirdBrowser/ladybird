@@ -590,7 +590,7 @@ void EventTarget::activate_event_handler(FlyString const& name, HTML::EventHandl
         0, "", &realm);
 
     // NOTE: As per the spec, the callback context is arbitrary.
-    auto callback = realm.heap().allocate_without_realm<WebIDL::CallbackType>(*callback_function, Bindings::host_defined_environment_settings_object(realm));
+    auto callback = realm.heap().allocate_without_realm<WebIDL::CallbackType>(*callback_function, Bindings::principal_host_defined_environment_settings_object(realm));
 
     // 5. Let listener be a new event listener whose type is the event handler event type corresponding to eventHandler and callback is callback.
     auto listener = realm.heap().allocate_without_realm<DOMEventListener>();

@@ -6,7 +6,6 @@
 
 #include <LibJS/Console.h>
 #include <LibJS/Runtime/ConsoleObject.h>
-#include <LibWeb/Bindings/HostDefined.h>
 #include <LibWeb/DOMURL/DOMURL.h>
 #include <LibWeb/HTML/Scripting/Fetching.h>
 #include <LibWeb/HTML/Scripting/ImportMap.h>

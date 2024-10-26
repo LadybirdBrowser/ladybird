@@ -7,7 +7,6 @@
 #include <LibJS/Runtime/Realm.h>
 #include <LibTextCodec/Decoder.h>
 #include <LibWeb/Bindings/ClipboardPrototype.h>
-#include <LibWeb/Bindings/HostDefined.h>
 #include <LibWeb/Clipboard/Clipboard.h>
 #include <LibWeb/FileAPI/Blob.h>
 #include <LibWeb/HTML/Scripting/Environments.h>

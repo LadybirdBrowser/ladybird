@@ -13,7 +13,7 @@
 #include <LibJS/Heap/Cell.h>
 #include <LibJS/Heap/Heap.h>
 #include <LibJS/Runtime/VM.h>
-#include <LibWeb/Bindings/HostDefined.h>
+#include <LibWeb/Bindings/PrincipalHostDefined.h>
 
 #define WEB_SET_PROTOTYPE_FOR_INTERFACE_WITH_CUSTOM_NAME(interface_class, interface_name)                  \
     do {                                                                                                   \
@@ -84,7 +84,7 @@ private:
 
 [[nodiscard]] inline Intrinsics& host_defined_intrinsics(JS::Realm& realm)
 {
-    return *verify_cast<HostDefined>(realm.host_defined())->intrinsics;
+    return *verify_cast<PrincipalHostDefined>(realm.host_defined())->intrinsics;
 }
 
 template<typename T>

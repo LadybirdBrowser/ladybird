@@ -12,7 +12,6 @@
 #include <LibJS/Forward.h>
 #include <LibJS/Runtime/AbstractOperations.h>
 #include <LibJS/Runtime/FunctionObject.h>
-#include <LibWeb/Bindings/HostDefined.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/WebIDL/CallbackType.h>
 

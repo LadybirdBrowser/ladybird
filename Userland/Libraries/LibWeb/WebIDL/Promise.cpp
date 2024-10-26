@@ -11,7 +11,6 @@
 #include <LibJS/Runtime/PromiseConstructor.h>
 #include <LibJS/Runtime/Realm.h>
 #include <LibWeb/Bindings/ExceptionOrUtils.h>
-#include <LibWeb/Bindings/HostDefined.h>
 #include <LibWeb/HTML/Scripting/ExceptionReporter.h>
 #include <LibWeb/WebIDL/Promise.h>
 

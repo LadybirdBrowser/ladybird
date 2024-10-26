@@ -5,7 +5,6 @@
  */
 
 #include <LibJS/Runtime/TypedArray.h>
-#include <LibWeb/Bindings/HostDefined.h>
 #include <LibWeb/Fetch/Infrastructure/IncrementalReadLoopReadRequest.h>
 #include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
 

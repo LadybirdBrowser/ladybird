@@ -6,7 +6,6 @@
 
 #include <LibJS/Heap/HeapFunction.h>
 #include <LibWeb/Bindings/ExceptionOrUtils.h>
-#include <LibWeb/Bindings/HostDefined.h>
 #include <LibWeb/Fetch/Fetching/FetchedDataReceiver.h>
 #include <LibWeb/Fetch/Infrastructure/FetchParams.h>
 #include <LibWeb/Fetch/Infrastructure/Task.h>

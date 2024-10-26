@@ -44,7 +44,7 @@ JS::NonnullGCPtr<WorkerEnvironmentSettingsObject> WorkerEnvironmentSettingsObjec
 
     // 8. Set realm's [[HostDefined]] field to settings object.
     auto intrinsics = realm->heap().allocate<Bindings::Intrinsics>(*realm, *realm);
-    auto host_defined = make<Bindings::HostDefined>(settings_object, intrinsics, page);
+    auto host_defined = make<Bindings::PrincipalHostDefined>(settings_object, intrinsics, page);
     realm->set_host_defined(move(host_defined));
 
     // Non-Standard: We cannot fully initialize worker object until *after* the we set up

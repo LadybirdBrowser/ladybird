@@ -341,7 +341,7 @@ JS::NonnullGCPtr<Streams::ReadableStream> Blob::get_stream()
                 //       onto the realm's VM, and we need an incumbent realm which is pushed onto the incumbent realm stack
                 //       by HTML::prepare_to_run_callback().
                 auto& realm = stream->realm();
-                auto& environment_settings = Bindings::host_defined_environment_settings_object(realm);
+                auto& environment_settings = Bindings::principal_host_defined_environment_settings_object(realm);
                 realm.vm().push_execution_context(environment_settings.realm_execution_context());
                 HTML::prepare_to_run_callback(realm);
                 ScopeGuard const guard = [&realm] {

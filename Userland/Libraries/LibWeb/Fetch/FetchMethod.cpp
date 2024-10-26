@@ -8,7 +8,6 @@
 #include <AK/TypeCasts.h>
 #include <LibJS/Runtime/PromiseCapability.h>
 #include <LibWeb/Bindings/ExceptionOrUtils.h>
-#include <LibWeb/Bindings/HostDefined.h>
 #include <LibWeb/DOM/AbortSignal.h>
 #include <LibWeb/Fetch/FetchMethod.h>
 #include <LibWeb/Fetch/Fetching/Fetching.h>
