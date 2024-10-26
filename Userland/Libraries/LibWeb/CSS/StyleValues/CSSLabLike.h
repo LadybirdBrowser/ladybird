@@ -60,4 +60,26 @@ private:
     }
 };
 
+// https://drafts.css-houdini.org/css-typed-om-1/#csslab
+class CSSLab final : public CSSLabLike {
+public:
+    static ValueComparingNonnullRefPtr<CSSLab> create(ValueComparingNonnullRefPtr<CSSStyleValue> l, ValueComparingNonnullRefPtr<CSSStyleValue> a, ValueComparingNonnullRefPtr<CSSStyleValue> b, ValueComparingRefPtr<CSSStyleValue> alpha = {})
+    {
+        // alpha defaults to 1
+        if (!alpha)
+            return adopt_ref(*new (nothrow) CSSLab(move(l), move(a), move(b), NumberStyleValue::create(1)));
+
+        return adopt_ref(*new (nothrow) CSSLab(move(l), move(a), move(b), alpha.release_nonnull()));
+    }
+
+    virtual Color to_color(Optional<Layout::NodeWithStyle const&>) const override;
+    virtual String to_string() const override;
+
+private:
+    CSSLab(ValueComparingNonnullRefPtr<CSSStyleValue> l, ValueComparingNonnullRefPtr<CSSStyleValue> a, ValueComparingNonnullRefPtr<CSSStyleValue> b, ValueComparingNonnullRefPtr<CSSStyleValue> alpha)
+        : CSSLabLike(ColorType::Lab, move(l), move(a), move(b), move(alpha))
+    {
+    }
+};
+
 }

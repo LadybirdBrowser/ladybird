@@ -41,4 +41,21 @@ String CSSOKLab::to_string() const
     return serialize_a_srgb_value(to_color({}));
 }
 
+Color CSSLab::to_color(Optional<Layout::NodeWithStyle const&>) const
+{
+    auto const l_val = clamp(resolve_with_reference_value(m_properties.l, 100).value_or(0), 0, 100);
+    auto const a_val = resolve_with_reference_value(m_properties.a, 125).value_or(0);
+    auto const b_val = resolve_with_reference_value(m_properties.b, 125).value_or(0);
+    auto const alpha_val = resolve_alpha(m_properties.alpha).value_or(1);
+
+    return Color::from_lab(l_val, a_val, b_val, alpha_val);
+}
+
+// https://www.w3.org/TR/css-color-4/#serializing-lab-lch
+String CSSLab::to_string() const
+{
+    // FIXME: Do this properly, taking unresolved calculated values into account.
+    return serialize_a_srgb_value(to_color({}));
+}
+
 }
