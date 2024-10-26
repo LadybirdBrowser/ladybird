@@ -815,6 +815,7 @@ SupportedAlgorithmsMap supported_algorithms()
     define_an_algorithm<X25519, EcdhKeyDerivePrams>("deriveBits"_string, "X25519"_string);
     define_an_algorithm<X25519>("generateKey"_string, "X25519"_string);
     define_an_algorithm<X25519>("importKey"_string, "X25519"_string);
+    define_an_algorithm<X25519>("exportKey"_string, "X25519"_string);
 
     return internal_object;
 }
