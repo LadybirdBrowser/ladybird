@@ -21,14 +21,13 @@ namespace Web::WebAssembly {
 
 JS_DEFINE_ALLOCATOR(Instance);
 
-WebIDL::ExceptionOr<JS::NonnullGCPtr<Instance>> Instance::construct_impl(JS::Realm& realm, Module& module, Optional<JS::Handle<JS::Object>>& import_object)
+WebIDL::ExceptionOr<JS::NonnullGCPtr<Instance>> Instance::construct_impl(JS::Realm& realm, Module& module, Optional<JS::Handle<JS::Object>>& import_object_handle)
 {
-    // FIXME: Implement the importObject parameter.
-    (void)import_object;
+    JS::GCPtr<JS::Object> import_object = import_object_handle.has_value() ? import_object_handle.value().ptr() : nullptr;
 
     auto& vm = realm.vm();
 
-    auto module_instance = TRY(Detail::instantiate_module(vm, module.compiled_module()->module));
+    auto module_instance = TRY(Detail::instantiate_module(vm, module.compiled_module()->module, import_object));
     return vm.heap().allocate<Instance>(realm, realm, move(module_instance));
 }
 

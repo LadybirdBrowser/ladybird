@@ -19,16 +19,22 @@
 #include <LibJS/Runtime/TypedArray.h>
 #include <LibJS/Runtime/VM.h>
 #include <LibWasm/AbstractMachine/Validator.h>
+#include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
 #include <LibWeb/Platform/EventLoopPlugin.h>
 #include <LibWeb/WebAssembly/Instance.h>
 #include <LibWeb/WebAssembly/Memory.h>
 #include <LibWeb/WebAssembly/Module.h>
 #include <LibWeb/WebAssembly/Table.h>
 #include <LibWeb/WebAssembly/WebAssembly.h>
+#include <LibWeb/WebIDL/AbstractOperations.h>
 #include <LibWeb/WebIDL/Buffers.h>
 #include <LibWeb/WebIDL/Promise.h>
 
 namespace Web::WebAssembly {
+
+static JS::NonnullGCPtr<WebIDL::Promise> asynchronously_compile_webassembly_module(JS::VM&, ByteBuffer, HTML::Task::Source = HTML::Task::Source::Unspecified);
+static JS::NonnullGCPtr<WebIDL::Promise> instantiate_promise_of_module(JS::VM&, JS::NonnullGCPtr<WebIDL::Promise>, JS::GCPtr<JS::Object> import_object);
+static JS::NonnullGCPtr<WebIDL::Promise> asynchronously_instantiate_webassembly_module(JS::VM&, JS::NonnullGCPtr<Module>, JS::GCPtr<JS::Object> import_object);
 
 namespace Detail {
 
@@ -62,19 +68,17 @@ void finalize(JS::Object& object)
 bool validate(JS::VM& vm, JS::Handle<WebIDL::BufferSource>& bytes)
 {
     // 1. Let stableBytes be a copy of the bytes held by the buffer bytes.
-    // Note: There's no need to copy the bytes here as the buffer data cannot change while we're compiling the module.
+    auto stable_bytes = WebIDL::get_buffer_source_copy(*bytes->raw_object());
+    if (stable_bytes.is_error()) {
+        VERIFY(stable_bytes.error().code() == ENOMEM);
+        return false;
+    }
 
     // 2. Compile stableBytes as a WebAssembly module and store the results as module.
-    auto module_or_error = Detail::parse_module(vm, bytes->raw_object());
+    auto module_or_error = Detail::compile_a_webassembly_module(vm, stable_bytes.release_value());
 
     // 3. If module is error, return false.
     if (module_or_error.is_error())
-        return false;
-
-    // 3 continued - our "compile" step is lazy with validation, explicitly do the validation.
-    auto compiled_module = module_or_error.release_value();
-    auto& cache = Detail::get_cache(*vm.current_realm());
-    if (cache.abstract_machine().validate(compiled_module->module).is_error())
         return false;
 
     // 4. Return true.
@@ -86,87 +90,54 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<WebIDL::Promise>> compile(JS::VM& vm, JS::H
 {
     auto& realm = *vm.current_realm();
 
-    // FIXME: This shouldn't block!
-    auto compiled_module_or_error = Detail::parse_module(vm, bytes->raw_object());
-    auto promise = WebIDL::create_promise(realm);
-    if (compiled_module_or_error.is_error()) {
-        WebIDL::reject_promise(realm, promise, compiled_module_or_error.error_value());
-    } else {
-        auto module_object = vm.heap().allocate<Module>(realm, realm, compiled_module_or_error.release_value());
-        WebIDL::resolve_promise(realm, promise, module_object);
+    // 1. Let stableBytes be a copy of the bytes held by the buffer bytes.
+    auto stable_bytes = WebIDL::get_buffer_source_copy(*bytes->raw_object());
+    if (stable_bytes.is_error()) {
+        VERIFY(stable_bytes.error().code() == ENOMEM);
+        return WebIDL::create_rejected_promise_from_exception(realm, vm.throw_completion<JS::InternalError>(vm.error_message(JS::VM::ErrorMessage::OutOfMemory)));
     }
 
-    return promise;
+    // 2. Asynchronously compile a WebAssembly module from stableBytes and return the result.
+    return asynchronously_compile_webassembly_module(vm, stable_bytes.release_value());
 }
 
 // https://webassembly.github.io/spec/js-api/#dom-webassembly-instantiate
-WebIDL::ExceptionOr<JS::NonnullGCPtr<WebIDL::Promise>> instantiate(JS::VM& vm, JS::Handle<WebIDL::BufferSource>& bytes, Optional<JS::Handle<JS::Object>>& import_object)
+WebIDL::ExceptionOr<JS::NonnullGCPtr<WebIDL::Promise>> instantiate(JS::VM& vm, JS::Handle<WebIDL::BufferSource>& bytes, Optional<JS::Handle<JS::Object>>& import_object_handle)
 {
-    // FIXME: Implement the importObject parameter.
-    (void)import_object;
-
     auto& realm = *vm.current_realm();
 
-    // FIXME: This shouldn't block!
-    auto compiled_module_or_error = Detail::parse_module(vm, bytes->raw_object());
-    auto promise = WebIDL::create_promise(realm);
-
-    if (compiled_module_or_error.is_error()) {
-        WebIDL::reject_promise(realm, promise, compiled_module_or_error.error_value());
-        return promise;
+    // 1. Let stableBytes be a copy of the bytes held by the buffer bytes.
+    auto stable_bytes = WebIDL::get_buffer_source_copy(*bytes->raw_object());
+    if (stable_bytes.is_error()) {
+        VERIFY(stable_bytes.error().code() == ENOMEM);
+        return WebIDL::create_rejected_promise_from_exception(realm, vm.throw_completion<JS::InternalError>(vm.error_message(JS::VM::ErrorMessage::OutOfMemory)));
     }
 
-    auto compiled_module = compiled_module_or_error.release_value();
-    auto result = Detail::instantiate_module(vm, compiled_module->module);
+    // 2. Asynchronously compile a WebAssembly module from stableBytes and let promiseOfModule be the result.
+    auto promise_of_module = asynchronously_compile_webassembly_module(vm, stable_bytes.release_value());
 
-    if (result.is_error()) {
-        WebIDL::reject_promise(realm, promise, result.error_value());
-    } else {
-        auto module_object = vm.heap().allocate<Module>(realm, realm, move(compiled_module));
-        auto instance_object = vm.heap().allocate<Instance>(realm, realm, result.release_value());
-
-        auto object = JS::Object::create(realm, nullptr);
-        object->define_direct_property("module", module_object, JS::default_attributes);
-        object->define_direct_property("instance", instance_object, JS::default_attributes);
-        WebIDL::resolve_promise(realm, promise, object);
-    }
-
-    return promise;
+    // 3. Instantiate promiseOfModule with imports importObject and return the result.
+    JS::GCPtr<JS::Object> const import_object = import_object_handle.has_value() ? import_object_handle.value().ptr() : nullptr;
+    return instantiate_promise_of_module(vm, promise_of_module, import_object);
 }
 
 // https://webassembly.github.io/spec/js-api/#dom-webassembly-instantiate-moduleobject-importobject
 WebIDL::ExceptionOr<JS::NonnullGCPtr<WebIDL::Promise>> instantiate(JS::VM& vm, Module const& module_object, Optional<JS::Handle<JS::Object>>& import_object)
 {
-    // FIXME: Implement the importObject parameter.
-    (void)import_object;
-
-    auto& realm = *vm.current_realm();
-    auto promise = WebIDL::create_promise(realm);
-
-    // FIXME: This shouldn't block!
-    auto const& compiled_module = module_object.compiled_module();
-    auto result = Detail::instantiate_module(vm, compiled_module->module);
-
-    if (result.is_error()) {
-        WebIDL::reject_promise(realm, promise, result.error_value());
-    } else {
-        auto instance_object = vm.heap().allocate<Instance>(realm, realm, result.release_value());
-        WebIDL::resolve_promise(realm, promise, instance_object);
-    }
-
-    return promise;
+    // 1. Asynchronously instantiate the WebAssembly module moduleObject importing importObject, and return the result.
+    JS::NonnullGCPtr<Module> module { const_cast<Module&>(module_object) };
+    JS::GCPtr<JS::Object> const imports = import_object.has_value() ? import_object.value().ptr() : nullptr;
+    return asynchronously_instantiate_webassembly_module(vm, module, imports);
 }
 
 namespace Detail {
 
-JS::ThrowCompletionOr<NonnullOwnPtr<Wasm::ModuleInstance>> instantiate_module(JS::VM& vm, Wasm::Module const& module)
+JS::ThrowCompletionOr<NonnullOwnPtr<Wasm::ModuleInstance>> instantiate_module(JS::VM& vm, Wasm::Module const& module, JS::GCPtr<JS::Object> import_object)
 {
     Wasm::Linker linker { module };
     HashMap<Wasm::Linker::Name, Wasm::ExternValue> resolved_imports;
-    auto import_argument = vm.argument(1);
     auto& cache = get_cache(*vm.current_realm());
-    if (!import_argument.is_undefined()) {
-        auto import_object = TRY(import_argument.to_object(vm));
+    if (import_object) {
         dbgln_if(LIBWEB_WASM_DEBUG, "Trying to resolve stuff because import object was specified");
         for (Wasm::Linker::Name const& import_name : linker.unresolved_imports()) {
             dbgln_if(LIBWEB_WASM_DEBUG, "Trying to resolve {}::{}", import_name.module, import_name.name);
@@ -309,32 +280,10 @@ JS::ThrowCompletionOr<NonnullOwnPtr<Wasm::ModuleInstance>> instantiate_module(JS
     return instance_result.release_value();
 }
 
-JS::ThrowCompletionOr<NonnullRefPtr<CompiledWebAssemblyModule>> parse_module(JS::VM& vm, JS::Object* buffer_object)
+// // https://webassembly.github.io/spec/js-api/#compile-a-webassembly-module
+JS::ThrowCompletionOr<NonnullRefPtr<CompiledWebAssemblyModule>> compile_a_webassembly_module(JS::VM& vm, ByteBuffer data)
 {
-    ReadonlyBytes data;
-    if (is<JS::ArrayBuffer>(buffer_object)) {
-        auto& buffer = static_cast<JS::ArrayBuffer&>(*buffer_object);
-        data = buffer.buffer();
-    } else if (is<JS::TypedArrayBase>(buffer_object)) {
-        auto& buffer = static_cast<JS::TypedArrayBase&>(*buffer_object);
-
-        auto typed_array_record = JS::make_typed_array_with_buffer_witness_record(buffer, JS::ArrayBuffer::Order::SeqCst);
-        if (JS::is_typed_array_out_of_bounds(typed_array_record))
-            return vm.throw_completion<JS::TypeError>(JS::ErrorType::BufferOutOfBounds, "TypedArray"sv);
-
-        data = buffer.viewed_array_buffer()->buffer().span().slice(buffer.byte_offset(), JS::typed_array_byte_length(typed_array_record));
-    } else if (is<JS::DataView>(buffer_object)) {
-        auto& buffer = static_cast<JS::DataView&>(*buffer_object);
-
-        auto view_record = JS::make_data_view_with_buffer_witness_record(buffer, JS::ArrayBuffer::Order::SeqCst);
-        if (JS::is_view_out_of_bounds(view_record))
-            return vm.throw_completion<JS::TypeError>(JS::ErrorType::BufferOutOfBounds, "DataView"sv);
-
-        data = buffer.viewed_array_buffer()->buffer().span().slice(buffer.byte_offset(), JS::get_view_byte_length(view_record));
-    } else {
-        return vm.throw_completion<JS::TypeError>("Not a BufferSource"sv);
-    }
-    FixedMemoryStream stream { data };
+    FixedMemoryStream stream { data.bytes() };
     auto module_result = Wasm::Module::parse(stream);
     if (module_result.is_error()) {
         // FIXME: Throw CompileError instead.
@@ -523,6 +472,156 @@ JS::Value to_js_value(JS::VM& vm, Wasm::Value& wasm_value, Wasm::ValueType type)
     VERIFY_NOT_REACHED();
 }
 
+}
+
+// https://webassembly.github.io/spec/js-api/#asynchronously-compile-a-webassembly-module
+JS::NonnullGCPtr<WebIDL::Promise> asynchronously_compile_webassembly_module(JS::VM& vm, ByteBuffer bytes, HTML::Task::Source task_source)
+{
+    auto& realm = *vm.current_realm();
+
+    // 1. Let promise be a new Promise.
+    auto promise = WebIDL::create_promise(realm);
+
+    // 2. Run the following steps in parallel:
+    Platform::EventLoopPlugin::the().deferred_invoke([&vm, bytes = move(bytes), promise, task_source]() mutable {
+        HTML::TemporaryExecutionContext context(HTML::relevant_settings_object(*promise->promise()), HTML::TemporaryExecutionContext::CallbacksEnabled::Yes);
+        // 1. Compile the WebAssembly module bytes and store the result as module.
+        auto module_or_error = Detail::compile_a_webassembly_module(vm, move(bytes));
+
+        // 2. Queue a task to perform the following steps. If taskSource was provided, queue the task on that task source.
+        HTML::queue_a_task(task_source, nullptr, nullptr, JS::create_heap_function(vm.heap(), [&vm, promise, module_or_error = move(module_or_error)]() mutable {
+            HTML::TemporaryExecutionContext context(HTML::relevant_settings_object(*promise->promise()), HTML::TemporaryExecutionContext::CallbacksEnabled::Yes);
+            auto& realm = HTML::relevant_realm(*promise->promise());
+
+            // 1. If module is error, reject promise with a CompileError exception.
+            if (module_or_error.is_error()) {
+                WebIDL::reject_promise(realm, promise, module_or_error.error_value());
+            }
+
+            // 2. Otherwise,
+            else {
+                // 1. Construct a WebAssembly module object from module and bytes, and let moduleObject be the result.
+                // FIXME: Save bytes to the Module instance instead of moving into compile_a_webassembly_module
+                auto module_object = vm.heap().allocate<Module>(realm, realm, module_or_error.release_value());
+
+                // 2. Resolve promise with moduleObject.
+                WebIDL::resolve_promise(*vm.current_realm(), promise, module_object);
+            }
+        }));
+    });
+
+    // 3. Return promise.
+    return promise;
+}
+
+// https://webassembly.github.io/spec/js-api/#asynchronously-instantiate-a-webassembly-module
+JS::NonnullGCPtr<WebIDL::Promise> asynchronously_instantiate_webassembly_module(JS::VM& vm, JS::NonnullGCPtr<Module> module_object, JS::GCPtr<JS::Object> import_object)
+{
+    auto& realm = *vm.current_realm();
+
+    // 1. Let promise be a new promise.
+    auto promise = WebIDL::create_promise(realm);
+
+    // 2. Let module be moduleObject.[[Module]].
+    auto module = module_object->compiled_module();
+
+    // 3. Read the imports of module with imports importObject, and let imports be the result.
+    //    If this operation throws an exception, catch it, reject promise with the exception, and return promise.
+    // Note: We do this at the same time as instantiation in instantiate_module.
+
+    // 4. Run the following steps in parallel:
+    //   1. Queue a task to perform the following steps: Note: Implementation-specific work may be performed here.
+    HTML::queue_a_task(HTML::Task::Source::Unspecified, nullptr, nullptr, JS::create_heap_function(vm.heap(), [&vm, promise, module, import_object]() {
+        HTML::TemporaryExecutionContext context(HTML::relevant_settings_object(*promise->promise()), HTML::TemporaryExecutionContext::CallbacksEnabled::Yes);
+        auto& realm = HTML::relevant_realm(*promise->promise());
+
+        // 1. Instantiate the core of a WebAssembly module module with imports, and let instance be the result.
+        //    If this throws an exception, catch it, reject promise with the exception, and terminate these substeps.
+        auto result = Detail::instantiate_module(vm, module->module, import_object);
+        if (result.is_error()) {
+            WebIDL::reject_promise(realm, promise, result.error_value());
+            return;
+        }
+        auto instance = result.release_value();
+
+        // 2. Let instanceObject be a new Instance.
+        // 3. Initialize instanceObject from module and instance. If this throws an exception, catch it, reject promise with the exception, and terminate these substeps.
+        // FIXME: Investigate whether we are doing all the proper steps for "initialize an instance object"
+        auto instance_object = vm.heap().allocate<Instance>(realm, realm, move(instance));
+
+        // 4. Resolve promise with instanceObject.
+        WebIDL::resolve_promise(realm, promise, instance_object);
+    }));
+
+    // 5. Return promise.
+    return promise;
+}
+
+// https://webassembly.github.io/spec/js-api/#instantiate-a-promise-of-a-module
+JS::NonnullGCPtr<WebIDL::Promise> instantiate_promise_of_module(JS::VM& vm, JS::NonnullGCPtr<WebIDL::Promise> promise_of_module, JS::GCPtr<JS::Object> import_object)
+{
+    auto& realm = *vm.current_realm();
+
+    // 1. Let promise be a new Promise.
+    auto promise = WebIDL::create_promise(realm);
+
+    // FIXME: Spec should use react to promise here instead of separate upon fulfillment and upon rejection steps
+
+    // 2. Upon fulfillment of promiseOfModule with value module:
+    auto fulfillment_steps = JS::create_heap_function(vm.heap(), [&vm, promise, import_object](JS::Value module_value) -> WebIDL::ExceptionOr<JS::Value> {
+        VERIFY(module_value.is_object() && is<Module>(module_value.as_object()));
+        auto module = JS::NonnullGCPtr { static_cast<Module&>(module_value.as_object()) };
+
+        // 1. Instantiate the WebAssembly module module importing importObject, and let innerPromise be the result.
+        auto inner_promise = asynchronously_instantiate_webassembly_module(vm, module, import_object);
+
+        // 2. Upon fulfillment of innerPromise with value instance.
+        auto instantiate_fulfillment_steps = JS::create_heap_function(vm.heap(), [promise, module](JS::Value instance_value) -> WebIDL::ExceptionOr<JS::Value> {
+            auto& realm = HTML::relevant_realm(*promise->promise());
+
+            VERIFY(instance_value.is_object() && is<Instance>(instance_value.as_object()));
+            auto instance = JS::NonnullGCPtr { static_cast<Instance&>(instance_value.as_object()) };
+
+            // 1. Let result be the WebAssemblyInstantiatedSource value «[ "module" → module, "instance" → instance ]».
+            auto result = JS::Object::create(realm, nullptr);
+            result->define_direct_property("module", module, JS::default_attributes);
+            result->define_direct_property("instance", instance, JS::default_attributes);
+
+            // 2. Resolve promise with result.
+            WebIDL::resolve_promise(realm, promise, result);
+
+            return JS::js_undefined();
+        });
+
+        // 3. Upon rejection of innerPromise with reason reason.
+        auto instantiate_rejection_steps = JS::create_heap_function(vm.heap(), [promise](JS::Value reason) -> WebIDL::ExceptionOr<JS::Value> {
+            auto& realm = HTML::relevant_realm(*promise->promise());
+
+            // 1. Reject promise with reason.
+            WebIDL::reject_promise(realm, promise, reason);
+
+            return JS::js_undefined();
+        });
+
+        WebIDL::react_to_promise(inner_promise, instantiate_fulfillment_steps, instantiate_rejection_steps);
+
+        return JS::js_undefined();
+    });
+
+    // 3. Upon rejection of promiseOfModule with reason reason:
+    auto rejection_steps = JS::create_heap_function(vm.heap(), [promise](JS::Value reason) -> WebIDL::ExceptionOr<JS::Value> {
+        auto& realm = HTML::relevant_realm(*promise->promise());
+
+        // 1. Reject promise with reason.
+        WebIDL::reject_promise(realm, promise, reason);
+
+        return JS::js_undefined();
+    });
+
+    WebIDL::react_to_promise(promise_of_module, fulfillment_steps, rejection_steps);
+
+    // 4. Return promise.
+    return promise;
 }
 
 }
