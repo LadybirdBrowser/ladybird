@@ -76,6 +76,7 @@ ErrorOr<ByteBuffer> get_buffer_source_copy(JS::Object const& buffer_source)
     // 6. Otherwise:
     else {
         // 1. Assert: esBufferSource is an ArrayBuffer or SharedArrayBuffer object.
+        VERIFY(is<JS::ArrayBuffer>(buffer_source));
         auto const& es_buffer_source = static_cast<JS::ArrayBuffer const&>(buffer_source);
         es_array_buffer = &const_cast<JS::ArrayBuffer&>(es_buffer_source);
 
