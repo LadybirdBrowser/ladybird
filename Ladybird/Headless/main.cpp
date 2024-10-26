@@ -92,7 +92,7 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
 
     if (app->dump_layout_tree || app->dump_text) {
         Ladybird::Test test { app->dump_layout_tree ? Ladybird::TestMode::Layout : Ladybird::TestMode::Text };
-        Ladybird::run_dump_test(view, test, url);
+        Ladybird::run_dump_test(view, test, url, app->per_test_timeout_in_seconds * 1000);
 
         auto completion = MUST(view.test_promise().await());
         return completion.result == Ladybird::TestResult::Pass ? 0 : 1;

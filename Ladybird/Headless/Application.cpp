@@ -35,6 +35,7 @@ void Application::create_platform_arguments(Core::ArgsParser& args_parser)
     args_parser.add_option(is_layout_test_mode, "Enable layout test mode", "layout-test-mode");
     args_parser.add_option(rebaseline, "Rebaseline any executed layout or text tests", "rebaseline");
     args_parser.add_option(log_slowest_tests, "Log the tests with the slowest run times", "log-slowest-tests");
+    args_parser.add_option(per_test_timeout_in_seconds, "Per-test timeout (default: 30)", "per-test-timeout", 't', "seconds");
 }
 
 void Application::create_platform_options(WebView::ChromeOptions& chrome_options, WebView::WebContentOptions& web_content_options)
