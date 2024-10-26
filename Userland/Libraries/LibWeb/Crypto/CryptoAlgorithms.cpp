@@ -1063,9 +1063,43 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<JS::ArrayBuffer>> AesCbc::encrypt(Algorithm
     return JS::ArrayBuffer::create(m_realm, move(ciphertext));
 }
 
-WebIDL::ExceptionOr<JS::NonnullGCPtr<JS::ArrayBuffer>> AesCbc::decrypt(AlgorithmParams const&, JS::NonnullGCPtr<CryptoKey>, ByteBuffer const&)
+WebIDL::ExceptionOr<JS::NonnullGCPtr<JS::ArrayBuffer>> AesCbc::decrypt(AlgorithmParams const& params, JS::NonnullGCPtr<CryptoKey> key, ByteBuffer const& ciphertext)
 {
-    VERIFY_NOT_REACHED();
+    auto const& normalized_algorithm = static_cast<AesCbcParams const&>(params);
+
+    // 1. If the iv member of normalizedAlgorithm does not have length 16 bytes, then throw an OperationError.
+    if (normalized_algorithm.iv.size() != 16)
+        return WebIDL::OperationError::create(m_realm, "IV to AES-CBC must be exactly 16 bytes"_string);
+
+    // Spec bug? TODO: https://github.com/w3c/webcrypto/issues/381
+    // If ciphertext does not have a length that is a multiple of 16 bytes, then throw an OperationError. (Note that a zero-length ciphertext will result in an OperationError in all cases.)
+    if (ciphertext.size() % 16 != 0)
+        return WebIDL::OperationError::create(m_realm, "Ciphertext length must be a multiple of 16 bytes"_string);
+
+    // 2. Let paddedPlaintext be the result of performing the CBC Decryption operation described in Section 6.2 of [NIST-SP800-38A] using AES as the block cipher, the contents of the iv member of normalizedAlgorithm as the IV input parameter and the contents of ciphertext as the input ciphertext.
+    auto mode = ::Crypto::Cipher::PaddingMode::CMS;
+    auto key_bytes = key->handle().get<ByteBuffer>();
+    auto key_bits = key_bytes.size() * 8;
+    ::Crypto::Cipher::AESCipher::CBCMode cipher(key_bytes, key_bits, ::Crypto::Cipher::Intent::Decryption, mode);
+    auto iv = normalized_algorithm.iv;
+    auto plaintext = TRY_OR_THROW_OOM(m_realm->vm(), cipher.create_aligned_buffer(ciphertext.size()));
+    auto plaintext_view = plaintext.bytes();
+    cipher.decrypt(ciphertext, plaintext_view, iv);
+    plaintext.trim(plaintext_view.size(), false);
+
+    // 3. Let p be the value of the last octet of paddedPlaintext.
+    // 4. If p is zero or greater than 16, or if any of the last p octets of paddedPlaintext have a value which is not p, then throw an OperationError.
+    // 5. Let plaintext be the result of removing p octets from the end of paddedPlaintext.
+    // Note that LibCrypto already does the padding removal for us.
+    // In the case that any issues arise (e.g. inconsistent padding), the padding is instead not trimmed.
+    // This is *ONLY* meaningful for the specific case of PaddingMode::CMS, as this is the only padding mode that always appends a block.
+    if (plaintext.size() == ciphertext.size()) {
+        // Padding was not removed for an unknown reason. Apply Step 4:
+        return WebIDL::OperationError::create(m_realm, "Inconsistent padding"_string);
+    }
+
+    // 6. Return the result of creating an ArrayBuffer containing plaintext.
+    return JS::ArrayBuffer::create(m_realm, move(plaintext));
 }
 
 WebIDL::ExceptionOr<JS::NonnullGCPtr<CryptoKey>> AesCbc::import_key(AlgorithmParams const&, Bindings::KeyFormat format, CryptoKey::InternalKeyData key_data, bool extractable, Vector<Bindings::KeyUsage> const& key_usages)
