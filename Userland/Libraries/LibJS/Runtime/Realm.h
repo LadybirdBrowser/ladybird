@@ -34,7 +34,10 @@ public:
     static ThrowCompletionOr<NonnullOwnPtr<ExecutionContext>> initialize_host_defined_realm(VM&, Function<Object*(Realm&)> create_global_object, Function<Object*(Realm&)> create_global_this_value);
 
     [[nodiscard]] Object& global_object() const { return *m_global_object; }
+    void set_global_object(NonnullGCPtr<Object> global) { m_global_object = global; }
+
     [[nodiscard]] GlobalEnvironment& global_environment() const { return *m_global_environment; }
+    void set_global_environment(NonnullGCPtr<GlobalEnvironment> environment) { m_global_environment = environment; }
 
     [[nodiscard]] Intrinsics const& intrinsics() const { return *m_intrinsics; }
     [[nodiscard]] Intrinsics& intrinsics() { return *m_intrinsics; }

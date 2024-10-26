@@ -13,13 +13,16 @@
 #include <LibJS/Runtime/Array.h>
 #include <LibJS/Runtime/Environment.h>
 #include <LibJS/Runtime/FinalizationRegistry.h>
+#include <LibJS/Runtime/GlobalEnvironment.h>
 #include <LibJS/Runtime/ModuleRequest.h>
 #include <LibJS/Runtime/NativeFunction.h>
+#include <LibJS/Runtime/ShadowRealm.h>
 #include <LibJS/Runtime/VM.h>
 #include <LibJS/SourceTextModule.h>
 #include <LibWeb/Bindings/ExceptionOrUtils.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Bindings/MainThreadVM.h>
+#include <LibWeb/Bindings/SyntheticHostDefined.h>
 #include <LibWeb/Bindings/WindowExposedInterfaces.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/MutationType.h>
@@ -35,7 +38,9 @@
 #include <LibWeb/HTML/Scripting/Fetching.h>
 #include <LibWeb/HTML/Scripting/ModuleScript.h>
 #include <LibWeb/HTML/Scripting/Script.h>
+#include <LibWeb/HTML/Scripting/SyntheticRealmSettings.h>
 #include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
+#include <LibWeb/HTML/ShadowRealmGlobalScope.h>
 #include <LibWeb/HTML/TagNames.h>
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/HTML/WindowProxy.h>
@@ -558,6 +563,45 @@ ErrorOr<void> initialize_main_thread_vm(HTML::EventLoop::Type type)
         //     moduleRequest, and onSingleFetchComplete as defined below.
         //     If loadState is not undefined and loadState.[[PerformFetch]] is not null, pass loadState.[[PerformFetch]] along as well.
         HTML::fetch_single_imported_module_script(*module_map_realm, url.release_value(), *fetch_client, destination, fetch_options, *module_map_realm, fetch_referrer, module_request, perform_fetch, on_single_fetch_complete);
+    };
+
+    // https://whatpr.org/html/9893/webappapis.html#hostinitializeshadowrealm(realm,-context,-o)
+    // 8.1.6.8 HostInitializeShadowRealm(realm, context, O)
+    s_main_thread_vm->host_initialize_shadow_realm = [](JS::Realm& realm, NonnullOwnPtr<JS::ExecutionContext> context, JS::ShadowRealm& object) -> JS::ThrowCompletionOr<void> {
+        // FIXME: 1. Set realm's is global prototype chain mutable to true.
+
+        // 2. Let globalObject be a new ShadowRealmGlobalScope object with realm.
+        auto global_object = HTML::ShadowRealmGlobalScope::create(realm);
+
+        // 3. Let settings be a new synthetic realm settings object that this algorithm will subsequently initialize.
+        auto settings = HTML::SyntheticRealmSettings {
+            // 4. Set settings's execution context to context.
+            .execution_context = move(context),
+
+            // 5. Set settings's principal realm to O's associated realm
+            .principal_realm = object.shape().realm(),
+
+            // 6. Set settings's underlying realm to realm.
+            .underlying_realm = realm,
+
+            // 7. Set settings's module map to a new module map, initially empty.
+            .module_map = realm.heap().allocate<HTML::ModuleMap>(realm),
+        };
+
+        // 8. Set realm.[[HostDefined]] to settings.
+        realm.set_host_defined(make<Bindings::SyntheticHostDefined>(move(settings)));
+
+        // 9. Set realm.[[GlobalObject]] to globalObject.
+        realm.set_global_object(global_object);
+
+        // 10. Set realm.[[GlobalEnv]] to NewGlobalEnvironment(globalObject, globalObject).
+        realm.set_global_environment(realm.vm().heap().allocate_without_realm<JS::GlobalEnvironment>(global_object, global_object));
+
+        // 11. Perform ? SetDefaultGlobalBindings(realm).
+        set_default_global_bindings(realm);
+
+        // 12. Return NormalCompletion(unused).
+        return {};
     };
 
     s_main_thread_vm->host_unrecognized_date_string = [](StringView date) {
