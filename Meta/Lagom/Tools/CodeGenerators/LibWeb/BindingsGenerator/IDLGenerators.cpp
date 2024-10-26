@@ -669,15 +669,12 @@ static void generate_to_cpp(SourceGenerator& generator, ParameterType& parameter
     } else if (parameter.type->name() == "Promise") {
         // https://webidl.spec.whatwg.org/#js-promise
         scoped_generator.append(R"~~~(
-    if (!@js_name@@js_suffix@.is_cell() || !is<JS::PromiseCapability>(@js_name@@js_suffix@.as_cell())) {
-        // 1. Let promiseCapability be ? NewPromiseCapability(%Promise%).
-        auto promise_capability = TRY(JS::new_promise_capability(vm, realm.intrinsics().promise_constructor()));
-        // 2. Perform ? Call(promiseCapability.[[Resolve]], undefined, « V »).
-        TRY(JS::call(vm, *promise_capability->resolve(), JS::js_undefined(), @js_name@@js_suffix@));
-        // 3. Return promiseCapability.
-        @js_name@@js_suffix@ = promise_capability;
-    }
-    auto @cpp_name@ = JS::make_handle(static_cast<JS::PromiseCapability&>(@js_name@@js_suffix@.as_cell()));
+    // 1. Let promiseCapability be ? NewPromiseCapability(%Promise%).
+    auto promise_capability = TRY(JS::new_promise_capability(vm, realm.intrinsics().promise_constructor()));
+    // 2. Perform ? Call(promiseCapability.[[Resolve]], undefined, « V »).
+    TRY(JS::call(vm, *promise_capability->resolve(), JS::js_undefined(), @js_name@@js_suffix@));
+    // 3. Return promiseCapability.
+    auto @cpp_name@ = JS::make_handle(promise_capability);
 )~~~");
     } else if (parameter.type->name() == "object") {
         if (parameter.type->is_nullable()) {
