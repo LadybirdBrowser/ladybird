@@ -88,4 +88,49 @@ ErrorOr<void> ioctl(int, unsigned, ...)
     VERIFY_NOT_REACHED();
 }
 
+ErrorOr<ByteString> getcwd()
+{
+    auto* cwd = _getcwd(nullptr, 0);
+    if (!cwd)
+        return Error::from_syscall("getcwd"sv, -errno);
+
+    ByteString string_cwd(cwd);
+    free(cwd);
+    return string_cwd;
+}
+
+ErrorOr<struct stat> stat(StringView path)
+{
+    if (path.is_null())
+        return Error::from_syscall("stat"sv, -EFAULT);
+
+    struct stat st = {};
+    ByteString path_string = path;
+    if (::stat(path_string.characters(), &st) < 0)
+        return Error::from_syscall("stat"sv, -errno);
+    return st;
+}
+
+ErrorOr<void> rmdir(StringView path)
+{
+    if (path.is_null())
+        return Error::from_errno(EFAULT);
+
+    ByteString path_string = path;
+    if (_rmdir(path_string.characters()) < 0)
+        return Error::from_syscall("rmdir"sv, -errno);
+    return {};
+}
+
+ErrorOr<void> unlink(StringView path)
+{
+    if (path.is_null())
+        return Error::from_errno(EFAULT);
+
+    ByteString path_string = path;
+    if (_unlink(path_string.characters()) < 0)
+        return Error::from_syscall("unlink"sv, -errno);
+    return {};
+}
+
 }
