@@ -8,6 +8,7 @@
  */
 
 #include <LibWeb/Bindings/MainThreadVM.h>
+#include <LibWeb/Bindings/SyntheticHostDefined.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/Fetch/Infrastructure/FetchRecord.h>
 #include <LibWeb/HTML/PromiseRejectionEvent.h>
@@ -137,10 +138,15 @@ void prepare_to_run_script(JS::Realm& realm)
 // https://whatpr.org/html/9893/b8ea975...df5706b/webappapis.html#concept-realm-execution-context
 JS::ExecutionContext const& execution_context_of_realm(JS::Realm const& realm)
 {
-    // FIXME: 1. If realm is a principal realm, then return the realm execution context of the environment settings object of realm.
-    // FIXME: 2. Assert: realm is a synthetic realm.
-    // FIXME: 3. Return the execution context of the synthetic realm settings object of realm.
-    return Bindings::principal_host_defined_environment_settings_object(realm).realm_execution_context();
+    VERIFY(realm.host_defined());
+
+    // 1. If realm is a principal realm, then return the realm execution context of the environment settings object of realm.
+    if (is<Bindings::PrincipalHostDefined>(*realm.host_defined()))
+        return static_cast<Bindings::PrincipalHostDefined const&>(*realm.host_defined()).environment_settings_object->realm_execution_context();
+
+    // 2. Assert: realm is a synthetic realm.
+    // 3. Return the execution context of the synthetic realm settings object of realm.
+    return *verify_cast<Bindings::SyntheticHostDefined>(*realm.host_defined()).synthetic_realm_settings.execution_context;
 }
 
 // https://html.spec.whatwg.org/multipage/webappapis.html#clean-up-after-running-script
@@ -291,10 +297,15 @@ void disallow_further_import_maps(JS::Realm& realm)
 // https://whatpr.org/html/9893/webappapis.html#concept-realm-module-map
 ModuleMap& module_map_of_realm(JS::Realm& realm)
 {
-    // FIXME: 1. If realm is a principal realm, then return the module map of the environment settings object of realm.
-    // FIXME: 2. Assert: realm is a synthetic realm.
-    // FIXME: 3. Return the module map of the synthetic realm settings object of realm.
-    return principal_realm_settings_object(realm).module_map();
+    VERIFY(realm.host_defined());
+
+    // 1. If realm is a principal realm, then return the module map of the environment settings object of realm.
+    if (is<Bindings::PrincipalHostDefined>(*realm.host_defined()))
+        return static_cast<Bindings::PrincipalHostDefined const&>(*realm.host_defined()).environment_settings_object->module_map();
+
+    // 2. Assert: realm is a synthetic realm.
+    // 3. Return the module map of the synthetic realm settings object of realm.
+    return *verify_cast<Bindings::SyntheticHostDefined>(*realm.host_defined()).synthetic_realm_settings.module_map;
 }
 
 // https://html.spec.whatwg.org/multipage/webappapis.html#concept-incumbent-realm
@@ -326,8 +337,8 @@ JS::Realm& incumbent_realm()
 // https://whatpr.org/html/9893/b8ea975...df5706b/webappapis.html#incumbent-settings-object
 EnvironmentSettingsObject& incumbent_settings_object()
 {
-    // FIXME: Then, the incumbent settings object is the incumbent realm's principal realm settings object.
-    return Bindings::principal_host_defined_environment_settings_object(incumbent_realm());
+    // Then, the incumbent settings object is the incumbent realm's principal realm settings object.
+    return principal_realm_settings_object(principal_realm(incumbent_realm()));
 }
 
 // https://html.spec.whatwg.org/multipage/webappapis.html#concept-incumbent-global
@@ -350,10 +361,18 @@ JS::Realm& current_principal_realm()
 // https://whatpr.org/html/9893/webappapis.html#concept-principal-realm-of-realm
 JS::Realm& principal_realm(JS::Realm& realm)
 {
-    // FIXME: 1. If realm.[[HostDefined]] is a synthetic realm settings object, then:
-    // FIXME: 1.1. Assert: realm is a synthetic realm.
-    // FIXME: 1.2. Set realm to the principal realm of realm.[[HostDefined]].
-    // FIXME: 2. Assert: realm.[[HostDefined]] is an environment settings object and realm is a principal realm.
+    VERIFY(realm.host_defined());
+
+    // 1. If realm.[[HostDefined]] is a synthetic realm settings object, then:
+    if (is<Bindings::SyntheticHostDefined>(*realm.host_defined())) {
+        // 1. Assert: realm is a synthetic realm.
+        // 2. Set realm to the principal realm of realm.[[HostDefined]].
+        return static_cast<Bindings::SyntheticHostDefined const&>(*realm.host_defined()).synthetic_realm_settings.principal_realm;
+    }
+
+    // 2. Assert: realm.[[HostDefined]] is an environment settings object and realm is a principal realm.
+    VERIFY(is<Bindings::PrincipalHostDefined>(*realm.host_defined()));
+
     // 3. Return realm.
     return realm;
 }
@@ -409,15 +428,16 @@ JS::Object& relevant_global_object(JS::Object const& object)
 }
 
 // https://html.spec.whatwg.org/multipage/webappapis.html#concept-entry-realm
+// https://whatpr.org/html/9893/webappapis.html#concept-entry-realm
 JS::Realm& entry_realm()
 {
     auto& event_loop = HTML::main_thread_event_loop();
     auto& vm = event_loop.vm();
 
     // With this in hand, we define the entry execution context to be the most recently pushed item in the JavaScript execution context stack that is a realm execution context.
-    // The entry realm is the entry execution context's Realm component.
+    // The entry realm is the principal realm of the entry execution context's Realm component.
     // NOTE: Currently all execution contexts in LibJS are realm execution contexts
-    return *vm.running_execution_context().realm;
+    return principal_realm(*vm.running_execution_context().realm);
 }
 
 // https://html.spec.whatwg.org/multipage/webappapis.html#entry-settings-object
