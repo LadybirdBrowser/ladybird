@@ -1,5 +1,6 @@
 #import <WebAssembly/Instance.idl>
 #import <WebAssembly/Module.idl>
+#import <Fetch/Response.idl>
 
 dictionary WebAssemblyInstantiatedSource {
     required Module module;
@@ -7,11 +8,16 @@ dictionary WebAssemblyInstantiatedSource {
 };
 
 // https://webassembly.github.io/spec/js-api/#webassembly-namespace
+// https://webassembly.github.io/spec/web-api/index.html#streaming-modules
 [Exposed=*, WithGCVisitor, WithFinalizer]
 namespace WebAssembly {
+    // FIXME: Streaming APIs are supposed to be only exposed to Window, Worker
+
     boolean validate(BufferSource bytes);
     Promise<Module> compile(BufferSource bytes);
+    Promise<Module> compileStreaming(Promise<Response> source);
 
     Promise<WebAssemblyInstantiatedSource> instantiate(BufferSource bytes, optional object importObject);
+    Promise<WebAssemblyInstantiatedSource> instantiateStreaming(Promise<Response> source, optional object importObject);
     Promise<Instance> instantiate(Module moduleObject, optional object importObject);
 };

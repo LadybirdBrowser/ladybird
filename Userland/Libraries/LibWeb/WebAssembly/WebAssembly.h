@@ -23,9 +23,11 @@ void finalize(JS::Object&);
 
 bool validate(JS::VM&, JS::Handle<WebIDL::BufferSource>& bytes);
 WebIDL::ExceptionOr<JS::NonnullGCPtr<WebIDL::Promise>> compile(JS::VM&, JS::Handle<WebIDL::BufferSource>& bytes);
+WebIDL::ExceptionOr<JS::NonnullGCPtr<WebIDL::Promise>> compile_streaming(JS::VM&, JS::Handle<WebIDL::Promise> source);
 
 WebIDL::ExceptionOr<JS::NonnullGCPtr<WebIDL::Promise>> instantiate(JS::VM&, JS::Handle<WebIDL::BufferSource>& bytes, Optional<JS::Handle<JS::Object>>& import_object);
 WebIDL::ExceptionOr<JS::NonnullGCPtr<WebIDL::Promise>> instantiate(JS::VM&, Module const& module_object, Optional<JS::Handle<JS::Object>>& import_object);
+WebIDL::ExceptionOr<JS::NonnullGCPtr<WebIDL::Promise>> instantiate_streaming(JS::VM&, JS::Handle<WebIDL::Promise> source, Optional<JS::Handle<JS::Object>>& import_object);
 
 namespace Detail {
 struct CompiledWebAssemblyModule : public RefCounted<CompiledWebAssemblyModule> {

@@ -19,6 +19,8 @@
 #include <LibJS/Runtime/TypedArray.h>
 #include <LibJS/Runtime/VM.h>
 #include <LibWasm/AbstractMachine/Validator.h>
+#include <LibWeb/Bindings/ResponsePrototype.h>
+#include <LibWeb/Fetch/Response.h>
 #include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
 #include <LibWeb/Platform/EventLoopPlugin.h>
 #include <LibWeb/WebAssembly/Instance.h>
@@ -35,6 +37,7 @@ namespace Web::WebAssembly {
 static JS::NonnullGCPtr<WebIDL::Promise> asynchronously_compile_webassembly_module(JS::VM&, ByteBuffer, HTML::Task::Source = HTML::Task::Source::Unspecified);
 static JS::NonnullGCPtr<WebIDL::Promise> instantiate_promise_of_module(JS::VM&, JS::NonnullGCPtr<WebIDL::Promise>, JS::GCPtr<JS::Object> import_object);
 static JS::NonnullGCPtr<WebIDL::Promise> asynchronously_instantiate_webassembly_module(JS::VM&, JS::NonnullGCPtr<Module>, JS::GCPtr<JS::Object> import_object);
+static JS::NonnullGCPtr<WebIDL::Promise> compile_potential_webassembly_response(JS::VM&, JS::NonnullGCPtr<WebIDL::Promise>);
 
 namespace Detail {
 
@@ -101,6 +104,13 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<WebIDL::Promise>> compile(JS::VM& vm, JS::H
     return asynchronously_compile_webassembly_module(vm, stable_bytes.release_value());
 }
 
+// https://webassembly.github.io/spec/web-api/index.html#dom-webassembly-compilestreaming
+WebIDL::ExceptionOr<JS::NonnullGCPtr<WebIDL::Promise>> compile_streaming(JS::VM& vm, JS::Handle<WebIDL::Promise> source)
+{
+    //  The compileStreaming(source) method, when invoked, returns the result of compiling a potential WebAssembly response with source.
+    return compile_potential_webassembly_response(vm, *source);
+}
+
 // https://webassembly.github.io/spec/js-api/#dom-webassembly-instantiate
 WebIDL::ExceptionOr<JS::NonnullGCPtr<WebIDL::Promise>> instantiate(JS::VM& vm, JS::Handle<WebIDL::BufferSource>& bytes, Optional<JS::Handle<JS::Object>>& import_object_handle)
 {
@@ -128,6 +138,19 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<WebIDL::Promise>> instantiate(JS::VM& vm, M
     JS::NonnullGCPtr<Module> module { const_cast<Module&>(module_object) };
     JS::GCPtr<JS::Object> const imports = import_object.has_value() ? import_object.value().ptr() : nullptr;
     return asynchronously_instantiate_webassembly_module(vm, module, imports);
+}
+
+// https://webassembly.github.io/spec/web-api/index.html#dom-webassembly-instantiatestreaming
+WebIDL::ExceptionOr<JS::NonnullGCPtr<WebIDL::Promise>> instantiate_streaming(JS::VM& vm, JS::Handle<WebIDL::Promise> source, Optional<JS::Handle<JS::Object>>& import_object)
+{
+    // The instantiateStreaming(source, importObject) method, when invoked, performs the following steps:
+
+    // 1. Let promiseOfModule be the result of compiling a potential WebAssembly response with source.
+    auto promise_of_module = compile_potential_webassembly_response(vm, *source);
+
+    // 2. Return the result of instantiating the promise of a module promiseOfModule with imports importObject.
+    auto imports = JS::GCPtr { import_object.has_value() ? import_object.value().ptr() : nullptr };
+    return instantiate_promise_of_module(vm, promise_of_module, imports);
 }
 
 namespace Detail {
@@ -622,6 +645,112 @@ JS::NonnullGCPtr<WebIDL::Promise> instantiate_promise_of_module(JS::VM& vm, JS::
 
     // 4. Return promise.
     return promise;
+}
+
+// https://webassembly.github.io/spec/web-api/index.html#compile-a-potential-webassembly-response
+JS::NonnullGCPtr<WebIDL::Promise> compile_potential_webassembly_response(JS::VM& vm, JS::NonnullGCPtr<WebIDL::Promise> source)
+{
+    auto& realm = *vm.current_realm();
+
+    // Note: This algorithm accepts a Response object, or a promise for one, and compiles and instantiates the resulting bytes of the response.
+    //       This compilation can be performed in the background and in a streaming manner.
+    //       If the Response is not CORS-same-origin, does not represent an ok status, or does not match the `application/wasm` MIME type,
+    //       the returned promise will be rejected with a TypeError; if compilation or instantiation fails,
+    //       the returned promise will be rejected with a CompileError or other relevant error type, depending on the cause of failure.
+
+    // 1. Let returnValue be a new promise
+    auto return_value = WebIDL::create_promise(realm);
+
+    // 2. Upon fulfillment of source with value unwrappedSource:
+    auto fulfillment_steps = JS::create_heap_function(vm.heap(), [&vm, return_value](JS::Value unwrapped_source) -> WebIDL::ExceptionOr<JS::Value> {
+        auto& realm = HTML::relevant_realm(*return_value->promise());
+
+        // 1. Let response be unwrappedSource’s response.
+        if (!unwrapped_source.is_object() || !is<Fetch::Response>(unwrapped_source.as_object())) {
+            WebIDL::reject_promise(realm, return_value, *vm.throw_completion<JS::TypeError>(JS::ErrorType::NotAnObjectOfType, "Response").value());
+            return JS::js_undefined();
+        }
+        auto& response_object = static_cast<Fetch::Response&>(unwrapped_source.as_object());
+        auto response = response_object.response();
+
+        // 2. Let mimeType be the result of getting `Content-Type` from response’s header list.
+        // 3. If mimeType is null, reject returnValue with a TypeError and abort these substeps.
+        // 4. Remove all HTTP tab or space byte from the start and end of mimeType.
+        // 5. If mimeType is not a byte-case-insensitive match for `application/wasm`, reject returnValue with a TypeError and abort these substeps.
+        // Note: extra parameters are not allowed, including the empty `application/wasm;`.
+        // FIXME: Validate these extra constraints that are not checked by extract_mime_type()
+        if (auto mime = response->header_list()->extract_mime_type(); !mime.has_value() || mime.value().essence() != "application/wasm"sv) {
+            WebIDL::reject_promise(realm, return_value, *vm.throw_completion<JS::TypeError>("Response does not match the application/wasm MIME type"sv).value());
+            return JS::js_undefined();
+        }
+
+        // 6. If response is not CORS-same-origin, reject returnValue with a TypeError and abort these substeps.
+        // https://html.spec.whatwg.org/#cors-same-origin
+        auto type = response_object.type();
+        if (type != Bindings::ResponseType::Basic && type != Bindings::ResponseType::Cors && type != Bindings::ResponseType::Default) {
+            WebIDL::reject_promise(realm, return_value, *vm.throw_completion<JS::TypeError>("Response is not CORS-same-origin"sv).value());
+            return JS::js_undefined();
+        }
+
+        // 7. If response’s status is not an ok status, reject returnValue with a TypeError and abort these substeps.
+        if (!response_object.ok()) {
+            WebIDL::reject_promise(realm, return_value, *vm.throw_completion<JS::TypeError>("Response does not represent an ok status"sv).value());
+            return JS::js_undefined();
+        }
+
+        // 8. Consume response’s body as an ArrayBuffer, and let bodyPromise be the result.
+        auto body_promise_or_error = response_object.array_buffer();
+        if (body_promise_or_error.is_error()) {
+            auto throw_completion = Bindings::dom_exception_to_throw_completion(realm.vm(), body_promise_or_error.release_error());
+            WebIDL::reject_promise(realm, return_value, *throw_completion.value());
+            return JS::js_undefined();
+        }
+        auto body_promise = body_promise_or_error.release_value();
+
+        // 9. Upon fulfillment of bodyPromise with value bodyArrayBuffer:
+        auto body_fulfillment_steps = JS::create_heap_function(vm.heap(), [&vm, return_value](JS::Value body_array_buffer) -> WebIDL::ExceptionOr<JS::Value> {
+            // 1. Let stableBytes be a copy of the bytes held by the buffer bodyArrayBuffer.
+            VERIFY(body_array_buffer.is_object());
+            auto stable_bytes = WebIDL::get_buffer_source_copy(body_array_buffer.as_object());
+            if (stable_bytes.is_error()) {
+                VERIFY(stable_bytes.error().code() == ENOMEM);
+                WebIDL::reject_promise(HTML::relevant_realm(*return_value->promise()), return_value, *vm.throw_completion<JS::InternalError>(vm.error_message(JS::VM::ErrorMessage::OutOfMemory)).value());
+                return JS::js_undefined();
+            }
+
+            // 2. Asynchronously compile the WebAssembly module stableBytes using the networking task source and resolve returnValue with the result.
+            auto result = asynchronously_compile_webassembly_module(vm, stable_bytes.release_value(), HTML::Task::Source::Networking);
+
+            // Need to manually convert WebIDL promise to an ECMAScript value here to resolve
+            WebIDL::resolve_promise(HTML::relevant_realm(*return_value->promise()), return_value, result->promise());
+
+            return JS::js_undefined();
+        });
+
+        // 10. Upon rejection of bodyPromise with reason reason:
+        auto body_rejection_steps = JS::create_heap_function(vm.heap(), [return_value](JS::Value reason) -> WebIDL::ExceptionOr<JS::Value> {
+            // 1. Reject returnValue with reason.
+            WebIDL::reject_promise(HTML::relevant_realm(*return_value->promise()), return_value, reason);
+            return JS::js_undefined();
+        });
+
+        WebIDL::react_to_promise(body_promise, body_fulfillment_steps, body_rejection_steps);
+
+        return JS::js_undefined();
+    });
+
+    // 3. Upon rejection of source with reason reason:
+    auto rejection_steps = JS::create_heap_function(vm.heap(), [return_value](JS::Value reason) -> WebIDL::ExceptionOr<JS::Value> {
+        // 1. Reject returnValue with reason.
+        WebIDL::reject_promise(HTML::relevant_realm(*return_value->promise()), return_value, reason);
+
+        return JS::js_undefined();
+    });
+
+    WebIDL::react_to_promise(source, fulfillment_steps, rejection_steps);
+
+    // 4. Return returnValue.
+    return return_value;
 }
 
 }
