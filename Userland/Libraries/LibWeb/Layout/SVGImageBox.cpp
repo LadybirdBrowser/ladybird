@@ -11,7 +11,7 @@
 
 namespace Web::Layout {
 
-SVGImageBox::SVGImageBox(DOM::Document& document, SVG::SVGGraphicsElement& element, NonnullRefPtr<CSS::StyleProperties> properties)
+SVGImageBox::SVGImageBox(DOM::Document& document, SVG::SVGGraphicsElement& element, CSS::StyleProperties properties)
     : SVGGraphicsBox(document, element, properties)
 {
 }

@@ -193,7 +193,7 @@ void TreeBuilder::create_pseudo_element_if_needed(DOM::Element& element, CSS::Se
     auto& document = element.document();
 
     auto pseudo_element_style = element.pseudo_element_computed_css_values(pseudo_element);
-    if (!pseudo_element_style)
+    if (!pseudo_element_style.has_value())
         return;
 
     auto initial_quote_nesting_level = m_quote_nesting_level;
@@ -221,7 +221,7 @@ void TreeBuilder::create_pseudo_element_if_needed(DOM::Element& element, CSS::Se
             pseudo_element_node->computed_values().list_style_type(),
             pseudo_element_node->computed_values().list_style_position(),
             0,
-            *marker_style);
+            marker_style);
         static_cast<ListItemBox&>(*pseudo_element_node).set_marker(list_item_marker);
         element.set_pseudo_element_node({}, CSS::Selector::PseudoElement::Type::Marker, list_item_marker);
         pseudo_element_node->append_child(*list_item_marker);
@@ -341,7 +341,7 @@ void TreeBuilder::create_layout_tree(DOM::Node& dom_node, TreeBuilder::Context& 
 
     auto& document = dom_node.document();
     auto& style_computer = document.style_computer();
-    RefPtr<CSS::StyleProperties> style;
+    Optional<CSS::StyleProperties> style;
     CSS::Display display;
 
     if (is<DOM::Element>(dom_node)) {
@@ -429,7 +429,7 @@ void TreeBuilder::create_layout_tree(DOM::Node& dom_node, TreeBuilder::Context& 
     if (is<ListItemBox>(*layout_node)) {
         auto& element = static_cast<DOM::Element&>(dom_node);
         auto marker_style = style_computer.compute_style(element, CSS::Selector::PseudoElement::Type::Marker);
-        auto list_item_marker = document.heap().allocate_without_realm<ListItemMarkerBox>(document, layout_node->computed_values().list_style_type(), layout_node->computed_values().list_style_position(), calculate_list_item_index(dom_node), *marker_style);
+        auto list_item_marker = document.heap().allocate_without_realm<ListItemMarkerBox>(document, layout_node->computed_values().list_style_type(), layout_node->computed_values().list_style_position(), calculate_list_item_index(dom_node), marker_style);
         static_cast<ListItemBox&>(*layout_node).set_marker(list_item_marker);
         element.set_pseudo_element_node({}, CSS::Selector::PseudoElement::Type::Marker, list_item_marker);
         layout_node->append_child(*list_item_marker);

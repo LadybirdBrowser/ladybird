@@ -28,7 +28,7 @@ void HTMLAudioElement::initialize(JS::Realm& realm)
     WEB_SET_PROTOTYPE_FOR_INTERFACE(HTMLAudioElement);
 }
 
-JS::GCPtr<Layout::Node> HTMLAudioElement::create_layout_node(NonnullRefPtr<CSS::StyleProperties> style)
+JS::GCPtr<Layout::Node> HTMLAudioElement::create_layout_node(CSS::StyleProperties style)
 {
     return heap().allocate_without_realm<Layout::AudioBox>(document(), *this, move(style));
 }

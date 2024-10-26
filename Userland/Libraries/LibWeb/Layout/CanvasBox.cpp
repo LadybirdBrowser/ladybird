@@ -11,7 +11,7 @@ namespace Web::Layout {
 
 JS_DEFINE_ALLOCATOR(CanvasBox);
 
-CanvasBox::CanvasBox(DOM::Document& document, HTML::HTMLCanvasElement& element, NonnullRefPtr<CSS::StyleProperties> style)
+CanvasBox::CanvasBox(DOM::Document& document, HTML::HTMLCanvasElement& element, CSS::StyleProperties style)
     : ReplacedBox(document, element, move(style))
 {
 }

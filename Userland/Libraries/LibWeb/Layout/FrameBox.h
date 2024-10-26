@@ -16,7 +16,7 @@ class FrameBox final : public ReplacedBox {
     JS_DECLARE_ALLOCATOR(FrameBox);
 
 public:
-    FrameBox(DOM::Document&, DOM::Element&, NonnullRefPtr<CSS::StyleProperties>);
+    FrameBox(DOM::Document&, DOM::Element&, CSS::StyleProperties);
     virtual ~FrameBox() override;
 
     virtual void prepare_for_replaced_layout() override;

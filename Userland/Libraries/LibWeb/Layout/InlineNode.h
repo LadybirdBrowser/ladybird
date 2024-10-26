@@ -15,7 +15,7 @@ class InlineNode final : public NodeWithStyleAndBoxModelMetrics {
     JS_DECLARE_ALLOCATOR(InlineNode);
 
 public:
-    InlineNode(DOM::Document&, DOM::Element*, NonnullRefPtr<CSS::StyleProperties>);
+    InlineNode(DOM::Document&, DOM::Element*, CSS::StyleProperties);
     virtual ~InlineNode() override;
 
     JS::GCPtr<Painting::PaintableWithLines> create_paintable_for_line_with_index(size_t line_index) const;

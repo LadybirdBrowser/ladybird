@@ -1172,7 +1172,7 @@ static void compute_transitioned_properties(StyleProperties const& style, DOM::E
     auto const source_declaration = style.transition_property_source();
     if (!source_declaration)
         return;
-    if (!element.computed_css_values())
+    if (!element.computed_css_values().has_value())
         return;
     if (source_declaration == element.cached_transition_property_source())
         return;
@@ -1482,13 +1482,13 @@ void StyleComputer::compute_cascaded_values(StyleProperties& style, DOM::Element
     // Then we apply the declarations from the matched rules in cascade order:
 
     // Normal user agent declarations
-    auto previous_origin_style = style.clone();
-    auto previous_layer_style = style.clone();
+    auto previous_origin_style = style;
+    auto previous_layer_style = style;
     cascade_declarations(style, element, pseudo_element, matching_rule_set.user_agent_rules, CascadeOrigin::UserAgent, Important::No, previous_origin_style, previous_layer_style);
 
     // Normal user declarations
-    previous_origin_style = style.clone();
-    previous_layer_style = style.clone();
+    previous_origin_style = style;
+    previous_layer_style = style;
     cascade_declarations(style, element, pseudo_element, matching_rule_set.user_rules, CascadeOrigin::User, Important::No, previous_origin_style, previous_layer_style);
 
     // Author presentational hints
@@ -1497,7 +1497,7 @@ void StyleComputer::compute_cascaded_values(StyleProperties& style, DOM::Element
     // however for the purpose of the revert keyword (but not for the revert-layer keyword) it is considered
     // part of the author origin."
     // https://drafts.csswg.org/css-cascade-5/#author-presentational-hint-origin
-    previous_origin_style = style.clone();
+    previous_origin_style = style;
     if (!pseudo_element.has_value()) {
         element.apply_presentational_hints(style);
 
@@ -1520,7 +1520,7 @@ void StyleComputer::compute_cascaded_values(StyleProperties& style, DOM::Element
 
     // Normal author declarations, ordered by @layer, with un-@layer-ed rules last
     for (auto const& layer : matching_rule_set.author_rules) {
-        previous_layer_style = style.clone();
+        previous_layer_style = style;
         cascade_declarations(style, element, pseudo_element, layer.rules, CascadeOrigin::Author, Important::No, previous_origin_style, previous_layer_style);
     }
 
@@ -1587,20 +1587,20 @@ void StyleComputer::compute_cascaded_values(StyleProperties& style, DOM::Element
     }
 
     // Important author declarations, with un-@layer-ed rules first, followed by each @layer in reverse order.
-    previous_origin_style = style.clone();
+    previous_origin_style = style;
     for (auto const& layer : matching_rule_set.author_rules.in_reverse()) {
-        previous_layer_style = style.clone();
+        previous_layer_style = style;
         cascade_declarations(style, element, pseudo_element, layer.rules, CascadeOrigin::Author, Important::Yes, previous_origin_style, previous_layer_style);
     }
 
     // Important user declarations
-    previous_origin_style = style.clone();
-    previous_layer_style = style.clone();
+    previous_origin_style = style;
+    previous_layer_style = style;
     cascade_declarations(style, element, pseudo_element, matching_rule_set.user_rules, CascadeOrigin::User, Important::Yes, previous_origin_style, previous_layer_style);
 
     // Important user agent declarations
-    previous_origin_style = style.clone();
-    previous_layer_style = style.clone();
+    previous_origin_style = style;
+    previous_layer_style = style;
     cascade_declarations(style, element, pseudo_element, matching_rule_set.user_agent_rules, CascadeOrigin::UserAgent, Important::Yes, previous_origin_style, previous_layer_style);
 
     // Transition declarations [css-transitions-1]
@@ -1624,7 +1624,7 @@ NonnullRefPtr<CSSStyleValue const> StyleComputer::get_inherit_value(JS::Realm& i
 {
     auto* parent_element = element_to_inherit_style_from(element, pseudo_element);
 
-    if (!parent_element || !parent_element->computed_css_values())
+    if (!parent_element || !parent_element->computed_css_values().has_value())
         return property_initial_value(initial_value_context_realm, property_id);
     return parent_element->computed_css_values()->property(property_id);
 }
@@ -1814,12 +1814,12 @@ RefPtr<Gfx::FontCascadeList const> StyleComputer::compute_font_for_style_values(
     CSSPixels font_size_in_px = 16;
 
     Gfx::FontPixelMetrics font_pixel_metrics;
-    if (parent_element && parent_element->computed_css_values())
+    if (parent_element && parent_element->computed_css_values().has_value())
         font_pixel_metrics = parent_element->computed_css_values()->first_available_computed_font().pixel_metrics();
     else
         font_pixel_metrics = Platform::FontPlugin::the().default_font().pixel_metrics();
     auto parent_font_size = [&]() -> CSSPixels {
-        if (!parent_element || !parent_element->computed_css_values())
+        if (!parent_element || !parent_element->computed_css_values().has_value())
             return font_size_in_px;
         auto value = parent_element->computed_css_values()->property(CSS::PropertyID::FontSize);
         if (value->is_length()) {
@@ -1870,7 +1870,7 @@ RefPtr<Gfx::FontCascadeList const> StyleComputer::compute_font_for_style_values(
                 // If the specified value font-size is math then the computed value of font-size is obtained by multiplying
                 // the inherited value of font-size by a nonzero scale factor calculated by the following procedure:
                 // 1. Let A be the inherited math-depth value, B the computed math-depth value, C be 0.71 and S be 1.0
-                int inherited_math_depth = parent_element && parent_element->computed_css_values()
+                int inherited_math_depth = parent_element && parent_element->computed_css_values().has_value()
                     ? parent_element->computed_css_values()->math_depth()
                     : InitialValues::math_depth();
                 int computed_math_depth = math_depth;
@@ -1910,7 +1910,7 @@ RefPtr<Gfx::FontCascadeList const> StyleComputer::compute_font_for_style_values(
             //       larger may compute the font size to the next entry in the table,
             //       and smaller may compute the font size to the previous entry in the table.
             if (keyword == Keyword::Smaller || keyword == Keyword::Larger) {
-                if (parent_element && parent_element->computed_css_values()) {
+                if (parent_element && parent_element->computed_css_values().has_value()) {
                     font_size_in_px = CSSPixels::nearest_value_for(parent_element->computed_css_values()->first_available_computed_font().pixel_metrics().size);
                 }
             }
@@ -2172,7 +2172,7 @@ static BoxTypeTransformation required_box_type_transformation(StyleProperties co
     auto const* parent = pseudo_element.has_value() ? &element : element.parent_element();
 
     // A parent with a grid or flex display value blockifies the box’s display type. [CSS-GRID-1] [CSS-FLEXBOX-1]
-    if (parent && parent->computed_css_values()) {
+    if (parent && parent->computed_css_values().has_value()) {
         auto const& parent_display = parent->computed_css_values()->display();
         if (parent_display.is_grid_inside() || parent_display.is_flex_inside())
             return BoxTypeTransformation::Blockify;
@@ -2271,30 +2271,30 @@ void StyleComputer::transform_box_type_if_needed(StyleProperties& style, DOM::El
         style.set_property(CSS::PropertyID::Display, DisplayStyleValue::create(new_display));
 }
 
-NonnullRefPtr<StyleProperties> StyleComputer::create_document_style() const
+StyleProperties StyleComputer::create_document_style() const
 {
-    auto style = StyleProperties::create();
+    StyleProperties style = {};
     compute_math_depth(style, nullptr, {});
     compute_font(style, nullptr, {});
     compute_defaulted_values(style, nullptr, {});
     absolutize_values(style);
-    style->set_property(CSS::PropertyID::Width, CSS::LengthStyleValue::create(CSS::Length::make_px(viewport_rect().width())));
-    style->set_property(CSS::PropertyID::Height, CSS::LengthStyleValue::create(CSS::Length::make_px(viewport_rect().height())));
-    style->set_property(CSS::PropertyID::Display, CSS::DisplayStyleValue::create(CSS::Display::from_short(CSS::Display::Short::Block)));
+    style.set_property(CSS::PropertyID::Width, CSS::LengthStyleValue::create(CSS::Length::make_px(viewport_rect().width())));
+    style.set_property(CSS::PropertyID::Height, CSS::LengthStyleValue::create(CSS::Length::make_px(viewport_rect().height())));
+    style.set_property(CSS::PropertyID::Display, CSS::DisplayStyleValue::create(CSS::Display::from_short(CSS::Display::Short::Block)));
     return style;
 }
 
-NonnullRefPtr<StyleProperties> StyleComputer::compute_style(DOM::Element& element, Optional<CSS::Selector::PseudoElement::Type> pseudo_element) const
+StyleProperties StyleComputer::compute_style(DOM::Element& element, Optional<CSS::Selector::PseudoElement::Type> pseudo_element) const
 {
-    return compute_style_impl(element, move(pseudo_element), ComputeStyleMode::Normal).release_nonnull();
+    return compute_style_impl(element, move(pseudo_element), ComputeStyleMode::Normal).release_value();
 }
 
-RefPtr<StyleProperties> StyleComputer::compute_pseudo_element_style_if_needed(DOM::Element& element, Optional<CSS::Selector::PseudoElement::Type> pseudo_element) const
+Optional<StyleProperties> StyleComputer::compute_pseudo_element_style_if_needed(DOM::Element& element, Optional<CSS::Selector::PseudoElement::Type> pseudo_element) const
 {
     return compute_style_impl(element, move(pseudo_element), ComputeStyleMode::CreatePseudoElementStyleIfNeeded);
 }
 
-RefPtr<StyleProperties> StyleComputer::compute_style_impl(DOM::Element& element, Optional<CSS::Selector::PseudoElement::Type> pseudo_element, ComputeStyleMode mode) const
+Optional<StyleProperties> StyleComputer::compute_style_impl(DOM::Element& element, Optional<CSS::Selector::PseudoElement::Type> pseudo_element, ComputeStyleMode mode) const
 {
     build_rule_cache_if_needed();
 
@@ -2306,14 +2306,14 @@ RefPtr<StyleProperties> StyleComputer::compute_style_impl(DOM::Element& element,
         // Merge back inline styles
         if (auto inline_style = element.inline_style()) {
             for (auto const& property : inline_style->properties())
-                style->set_property(property.property_id, property.value);
+                style.set_property(property.property_id, property.value);
         }
         return style;
     }
 
     ScopeGuard guard { [&element]() { element.set_needs_style_update(false); } };
 
-    auto style = StyleProperties::create();
+    StyleProperties style = {};
     // 1. Perform the cascade. This produces the "specified style"
     bool did_match_any_pseudo_element_rules = false;
     compute_cascaded_values(style, element, pseudo_element, did_match_any_pseudo_element_rules, mode);
@@ -2323,17 +2323,17 @@ RefPtr<StyleProperties> StyleComputer::compute_style_impl(DOM::Element& element,
 
         // Bail if no pseudo-element rules matched.
         if (!did_match_any_pseudo_element_rules)
-            return nullptr;
+            return {};
 
         // Bail if no pseudo-element would be generated due to...
         // - content: none
         // - content: normal (for ::before and ::after)
         bool content_is_normal = false;
-        if (auto content_value = style->maybe_null_property(CSS::PropertyID::Content)) {
+        if (auto content_value = style.maybe_null_property(CSS::PropertyID::Content)) {
             if (content_value->is_keyword()) {
                 auto content = content_value->as_keyword().keyword();
                 if (content == CSS::Keyword::None)
-                    return nullptr;
+                    return {};
                 content_is_normal = content == CSS::Keyword::Normal;
             } else {
                 content_is_normal = false;
@@ -2343,7 +2343,7 @@ RefPtr<StyleProperties> StyleComputer::compute_style_impl(DOM::Element& element,
             content_is_normal = true;
         }
         if (content_is_normal && first_is_one_of(*pseudo_element, CSS::Selector::PseudoElement::Type::Before, CSS::Selector::PseudoElement::Type::After)) {
-            return nullptr;
+            return {};
         }
     }
 
@@ -2371,7 +2371,7 @@ RefPtr<StyleProperties> StyleComputer::compute_style_impl(DOM::Element& element,
     // 9. Transition declarations [css-transitions-1]
     // Theoretically this should be part of the cascade, but it works with computed values, which we don't have until now.
     compute_transitioned_properties(style, element, pseudo_element);
-    if (auto const* previous_style = element.computed_css_values()) {
+    if (auto previous_style = element.computed_css_values(); previous_style.has_value()) {
         start_needed_transitions(*previous_style, style, element, pseudo_element);
     }
 

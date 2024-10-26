@@ -19,7 +19,7 @@
 
 namespace Web::CSS {
 
-class StyleProperties : public RefCounted<StyleProperties> {
+class StyleProperties {
 public:
     static constexpr size_t number_of_properties = to_underlying(CSS::last_property_id) + 1;
 
@@ -47,9 +47,6 @@ private:
 
 public:
     StyleProperties() = default;
-
-    static NonnullRefPtr<StyleProperties> create() { return adopt_ref(*new StyleProperties); }
-    NonnullRefPtr<StyleProperties> clone() const;
 
     template<typename Callback>
     inline void for_each_property(Callback callback) const

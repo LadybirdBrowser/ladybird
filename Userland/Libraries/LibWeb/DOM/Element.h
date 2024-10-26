@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <AK/Optional.h>
 #include <LibWeb/ARIA/ARIAMixin.h>
 #include <LibWeb/Animations/Animatable.h>
 #include <LibWeb/Bindings/ElementPrototype.h>
@@ -14,6 +15,7 @@
 #include <LibWeb/CSS/CountersSet.h>
 #include <LibWeb/CSS/Selector.h>
 #include <LibWeb/CSS/StyleInvalidation.h>
+#include <LibWeb/CSS/StyleProperties.h>
 #include <LibWeb/CSS/StyleProperty.h>
 #include <LibWeb/DOM/ChildNode.h>
 #include <LibWeb/DOM/NonDocumentTypeChildNode.h>
@@ -183,13 +185,13 @@ public:
     JS::GCPtr<Layout::NodeWithStyle> layout_node();
     JS::GCPtr<Layout::NodeWithStyle const> layout_node() const;
 
-    CSS::StyleProperties* computed_css_values() { return m_computed_css_values.ptr(); }
-    CSS::StyleProperties const* computed_css_values() const { return m_computed_css_values.ptr(); }
-    void set_computed_css_values(RefPtr<CSS::StyleProperties>);
-    NonnullRefPtr<CSS::StyleProperties> resolved_css_values(Optional<CSS::Selector::PseudoElement::Type> = {});
+    Optional<CSS::StyleProperties>& computed_css_values() { return m_computed_css_values; }
+    Optional<CSS::StyleProperties> const& computed_css_values() const { return m_computed_css_values; }
+    void set_computed_css_values(Optional<CSS::StyleProperties>);
+    CSS::StyleProperties resolved_css_values(Optional<CSS::Selector::PseudoElement::Type> = {});
 
-    void set_pseudo_element_computed_css_values(CSS::Selector::PseudoElement::Type, RefPtr<CSS::StyleProperties>);
-    RefPtr<CSS::StyleProperties> pseudo_element_computed_css_values(CSS::Selector::PseudoElement::Type);
+    void set_pseudo_element_computed_css_values(CSS::Selector::PseudoElement::Type, Optional<CSS::StyleProperties>);
+    Optional<CSS::StyleProperties&> pseudo_element_computed_css_values(CSS::Selector::PseudoElement::Type);
 
     void reset_animated_css_properties();
 
@@ -235,13 +237,13 @@ public:
     JS::NonnullGCPtr<Geometry::DOMRect> get_bounding_client_rect() const;
     JS::NonnullGCPtr<Geometry::DOMRectList> get_client_rects() const;
 
-    virtual JS::GCPtr<Layout::Node> create_layout_node(NonnullRefPtr<CSS::StyleProperties>);
+    virtual JS::GCPtr<Layout::Node> create_layout_node(CSS::StyleProperties);
     virtual void adjust_computed_style(CSS::StyleProperties&) { }
 
     virtual void did_receive_focus() { }
     virtual void did_lose_focus() { }
 
-    static JS::GCPtr<Layout::NodeWithStyle> create_layout_node_for_display_type(DOM::Document&, CSS::Display const&, NonnullRefPtr<CSS::StyleProperties>, Element*);
+    static JS::GCPtr<Layout::NodeWithStyle> create_layout_node_for_display_type(DOM::Document&, CSS::Display const&, CSS::StyleProperties, Element*);
 
     void set_pseudo_element_node(Badge<Layout::TreeBuilder>, CSS::Selector::PseudoElement::Type, JS::GCPtr<Layout::NodeWithStyle>);
     JS::GCPtr<Layout::NodeWithStyle> get_pseudo_element_node(CSS::Selector::PseudoElement::Type) const;
@@ -456,12 +458,12 @@ private:
     JS::GCPtr<DOMTokenList> m_class_list;
     JS::GCPtr<ShadowRoot> m_shadow_root;
 
-    RefPtr<CSS::StyleProperties> m_computed_css_values;
+    Optional<CSS::StyleProperties> m_computed_css_values;
     HashMap<FlyString, CSS::StyleProperty> m_custom_properties;
 
     struct PseudoElement {
         JS::GCPtr<Layout::NodeWithStyle> layout_node;
-        RefPtr<CSS::StyleProperties> computed_css_values;
+        Optional<CSS::StyleProperties> computed_css_values;
         HashMap<FlyString, CSS::StyleProperty> custom_properties;
     };
     // TODO: CSS::Selector::PseudoElement::Type includes a lot of pseudo-elements that exist in shadow trees,

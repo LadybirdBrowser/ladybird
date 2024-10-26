@@ -53,13 +53,6 @@ NonnullRefPtr<StyleProperties::Data> StyleProperties::Data::clone() const
     return clone;
 }
 
-NonnullRefPtr<StyleProperties> StyleProperties::clone() const
-{
-    auto cloned = adopt_ref(*new StyleProperties);
-    cloned->m_data = m_data;
-    return cloned;
-}
-
 bool StyleProperties::is_property_important(CSS::PropertyID property_id) const
 {
     size_t n = to_underlying(property_id);

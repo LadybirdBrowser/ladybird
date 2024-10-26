@@ -59,7 +59,7 @@ class HTMLInputElement final
 public:
     virtual ~HTMLInputElement() override;
 
-    virtual JS::GCPtr<Layout::Node> create_layout_node(NonnullRefPtr<CSS::StyleProperties>) override;
+    virtual JS::GCPtr<Layout::Node> create_layout_node(CSS::StyleProperties) override;
     virtual void adjust_computed_style(CSS::StyleProperties&) override;
 
     enum class TypeAttributeState {
