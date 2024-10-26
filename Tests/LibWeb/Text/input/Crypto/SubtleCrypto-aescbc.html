@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    asyncTest(async (done) => {
+        var key = new Uint8Array([0x20, 0x21, 0x22, 0x23, 0x24, 0x25, 0x26, 0x27, 0x28, 0x29, 0x2a, 0x2b, 0x2c, 0x2d, 0x2e, 0x2f]);
+        var iv = new Uint8Array([0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37, 0x38, 0x39, 0x3a, 0x3b, 0x3c, 0x3d, 0x3e, 0x3f]);
+        var plaintextEvil = new Uint8Array([
+            0x57, 0x65, 0x6c, 0x6c, 0x48, 0x65, 0x6c, 0x6c, 0x6f, 0x46, 0x72, 0x69, 0x65, 0x6e, 0x64, 0x73, /* "WellHelloFriends" */
+            0x10, 0x10, 0x10, 0x10, 0x10, 0x10, 0xFF, 0x10, 0x10, 0x10, 0x10, 0x10, 0x10, 0x10, 0x10, 0x10, /* Fake (broken) padding */
+        ]);
+        var aesAlgorithmKeyGen = { name: "AES-CBC", length: 128 };
+        var aesAlgorithmEncryptDecrypt = { name: "AES-CBC", iv };
+
+        // Test "importKey" operation:
+        var aesKey = await window.crypto.subtle.importKey("raw", key, aesAlgorithmKeyGen, true, ["encrypt", "decrypt"]);
+
+        // Test "exportKey" operation:
+        println("exported key: " + new Uint8Array(await window.crypto.subtle.exportKey("raw", aesKey)));
+
+        // Test "encrypt" operation. Note, this is an edge case where CMS causes the ciphertext to be 16 bytes *longer* than the plaintext!
+        var ciphertext = new Uint8Array(await window.crypto.subtle.encrypt(aesAlgorithmEncryptDecrypt, aesKey, plaintextEvil));
+        println("ciphertext: " + ciphertext.toString());
+
+        // Test "decrypt" operation:
+        var plaintextRoundtrip = new Uint8Array(await window.crypto.subtle.decrypt(aesAlgorithmEncryptDecrypt, aesKey, ciphertext));
+        println("plaintextRoundtrip: " + plaintextRoundtrip.toString());
+
+        // Test "decrypt" operation with odd ciphertext:
+        var ciphertextOddError = await window.crypto.subtle.decrypt(aesAlgorithmEncryptDecrypt, aesKey, new Uint8Array([0x05, 0x06, 0x07, 0x08, 0x09]))
+        .then(
+            () => { return "decode with odd padding succeeded?!"; },
+            (err) => { return "odd padding results in: " + err.name; }
+        );
+        println(ciphertextOddError);
+
+        // Test "decrypt" operation with invalid padding. The invalid padding was originally injected as part of the plaintext, and is only visible now due to the truncation:
+        var ciphertextEvil = new Uint8Array([193, 138, 47, 224, 83, 254, 87, 179, 130, 27, 206, 126, 144, 28, 38, 111, 123, 45, 177, 85, 53, 201, 206, 231, 38, 234, 7, 146, 184, 159, 64, 117]);
+        var ciphertextEvilError = await window.crypto.subtle.decrypt(aesAlgorithmEncryptDecrypt, aesKey, ciphertextEvil)
+        .then(
+            () => { return "decode with broken padding succeeded?!"; },
+            (err) => { return "broken padding results in: " + err.name; }
+        );
+        println(ciphertextEvilError);
+
+        // This test isn't meant to be exhaustive, but to cover the most fundamental use cases and the "sharpest" edge cases.
+        // For a more detailed analysis, try the following WPT pages:
+        // - WebCryptoAPI/encrypt_decrypt/aes_cbc.https.any
+        // - WebCryptoAPI/generateKey/successes_AES-CBC.https.any
+        // - WebCryptoAPI/import_export/symmetric_importKey.https.any
+        done();
+    });
+</script>
