@@ -15,7 +15,7 @@ class ReplacedBox : public Box {
     JS_CELL(ReplacedBox, Box);
 
 public:
-    ReplacedBox(DOM::Document&, DOM::Element&, NonnullRefPtr<CSS::StyleProperties>);
+    ReplacedBox(DOM::Document&, DOM::Element&, CSS::StyleProperties);
     virtual ~ReplacedBox() override;
 
     DOM::Element const& dom_node() const { return verify_cast<DOM::Element>(*Node::dom_node()); }

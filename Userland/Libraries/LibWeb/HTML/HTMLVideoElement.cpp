@@ -62,7 +62,7 @@ void HTMLVideoElement::attribute_changed(FlyString const& name, Optional<String>
     }
 }
 
-JS::GCPtr<Layout::Node> HTMLVideoElement::create_layout_node(NonnullRefPtr<CSS::StyleProperties> style)
+JS::GCPtr<Layout::Node> HTMLVideoElement::create_layout_node(CSS::StyleProperties style)
 {
     return heap().allocate_without_realm<Layout::VideoBox>(document(), *this, move(style));
 }

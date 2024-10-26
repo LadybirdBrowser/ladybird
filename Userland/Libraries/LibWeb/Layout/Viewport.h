@@ -16,7 +16,7 @@ class Viewport final : public BlockContainer {
     JS_DECLARE_ALLOCATOR(Viewport);
 
 public:
-    explicit Viewport(DOM::Document&, NonnullRefPtr<CSS::StyleProperties>);
+    explicit Viewport(DOM::Document&, CSS::StyleProperties);
     virtual ~Viewport() override;
 
     struct TextPosition {

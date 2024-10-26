@@ -133,8 +133,8 @@ Optional<CSSPixels> SVGDecodedImageData::intrinsic_width() const
 {
     // https://www.w3.org/TR/SVG2/coords.html#SizingSVGInCSS
     m_document->update_style();
-    auto const* root_element_style = m_root_element->computed_css_values();
-    VERIFY(root_element_style);
+    auto const root_element_style = m_root_element->computed_css_values();
+    VERIFY(root_element_style.has_value());
     auto const& width_value = root_element_style->size_value(CSS::PropertyID::Width);
     if (width_value.is_length() && width_value.length().is_absolute())
         return width_value.length().absolute_length_to_px();
@@ -145,8 +145,8 @@ Optional<CSSPixels> SVGDecodedImageData::intrinsic_height() const
 {
     // https://www.w3.org/TR/SVG2/coords.html#SizingSVGInCSS
     m_document->update_style();
-    auto const* root_element_style = m_root_element->computed_css_values();
-    VERIFY(root_element_style);
+    auto const root_element_style = m_root_element->computed_css_values();
+    VERIFY(root_element_style.has_value());
     auto const& height_value = root_element_style->size_value(CSS::PropertyID::Height);
     if (height_value.is_length() && height_value.length().is_absolute())
         return height_value.length().absolute_length_to_px();

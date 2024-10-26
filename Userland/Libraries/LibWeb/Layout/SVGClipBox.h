@@ -17,7 +17,7 @@ class SVGClipBox : public SVGBox {
     JS_DECLARE_ALLOCATOR(SVGClipBox);
 
 public:
-    SVGClipBox(DOM::Document&, SVG::SVGClipPathElement&, NonnullRefPtr<CSS::StyleProperties>);
+    SVGClipBox(DOM::Document&, SVG::SVGClipPathElement&, CSS::StyleProperties);
     virtual ~SVGClipBox() override = default;
 
     SVG::SVGClipPathElement& dom_node() { return verify_cast<SVG::SVGClipPathElement>(SVGBox::dom_node()); }

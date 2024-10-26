@@ -261,12 +261,12 @@ bool Node::is_sticky_position() const
     return position == CSS::Positioning::Sticky;
 }
 
-NodeWithStyle::NodeWithStyle(DOM::Document& document, DOM::Node* node, NonnullRefPtr<CSS::StyleProperties> computed_style)
+NodeWithStyle::NodeWithStyle(DOM::Document& document, DOM::Node* node, CSS::StyleProperties computed_style)
     : Node(document, node)
     , m_computed_values(make<CSS::ComputedValues>())
 {
     m_has_style = true;
-    apply_style(*computed_style);
+    apply_style(computed_style);
 }
 
 NodeWithStyle::NodeWithStyle(DOM::Document& document, DOM::Node* node, NonnullOwnPtr<CSS::ComputedValues> computed_values)

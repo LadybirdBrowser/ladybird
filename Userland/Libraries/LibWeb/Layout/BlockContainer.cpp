@@ -9,7 +9,7 @@
 
 namespace Web::Layout {
 
-BlockContainer::BlockContainer(DOM::Document& document, DOM::Node* node, NonnullRefPtr<CSS::StyleProperties> style)
+BlockContainer::BlockContainer(DOM::Document& document, DOM::Node* node, CSS::StyleProperties style)
     : Box(document, node, move(style))
 {
 }

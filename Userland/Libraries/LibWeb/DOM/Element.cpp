@@ -385,16 +385,16 @@ Vector<String> Element::get_attribute_names() const
     return names;
 }
 
-JS::GCPtr<Layout::Node> Element::create_layout_node(NonnullRefPtr<CSS::StyleProperties> style)
+JS::GCPtr<Layout::Node> Element::create_layout_node(CSS::StyleProperties style)
 {
     if (local_name() == "noscript" && document().is_scripting_enabled())
         return nullptr;
 
-    auto display = style->display();
+    auto display = style.display();
     return create_layout_node_for_display_type(document(), display, move(style), this);
 }
 
-JS::GCPtr<Layout::NodeWithStyle> Element::create_layout_node_for_display_type(DOM::Document& document, CSS::Display const& display, NonnullRefPtr<CSS::StyleProperties> style, Element* element)
+JS::GCPtr<Layout::NodeWithStyle> Element::create_layout_node_for_display_type(DOM::Document& document, CSS::Display const& display, CSS::StyleProperties style, Element* element)
 {
     if (display.is_table_inside() || display.is_table_row_group() || display.is_table_header_group() || display.is_table_footer_group() || display.is_table_row())
         return document.heap().allocate_without_realm<Layout::Box>(document, element, move(style));
@@ -540,14 +540,14 @@ CSS::RequiredInvalidationAfterStyleChange Element::recompute_style()
     // Tables must not inherit -libweb-* values for text-align.
     // FIXME: Find the spec for this.
     if (is<HTML::HTMLTableElement>(*this)) {
-        auto text_align = new_computed_css_values->text_align();
+        auto text_align = new_computed_css_values.text_align();
         if (text_align.has_value() && (text_align.value() == CSS::TextAlign::LibwebLeft || text_align.value() == CSS::TextAlign::LibwebCenter || text_align.value() == CSS::TextAlign::LibwebRight))
-            new_computed_css_values->set_property(CSS::PropertyID::TextAlign, CSS::CSSKeywordValue::create(CSS::Keyword::Start));
+            new_computed_css_values.set_property(CSS::PropertyID::TextAlign, CSS::CSSKeywordValue::create(CSS::Keyword::Start));
     }
 
     CSS::RequiredInvalidationAfterStyleChange invalidation;
-    if (m_computed_css_values)
-        invalidation = compute_required_invalidation(*m_computed_css_values, *new_computed_css_values);
+    if (m_computed_css_values.has_value())
+        invalidation = compute_required_invalidation(*m_computed_css_values, new_computed_css_values);
     else
         invalidation = CSS::RequiredInvalidationAfterStyleChange::full();
 
@@ -562,9 +562,9 @@ CSS::RequiredInvalidationAfterStyleChange Element::recompute_style()
         auto new_pseudo_element_style = style_computer.compute_pseudo_element_style_if_needed(*this, pseudo_element);
 
         // TODO: Can we be smarter about invalidation?
-        if (pseudo_element_style && new_pseudo_element_style) {
+        if (pseudo_element_style.has_value() && new_pseudo_element_style.has_value()) {
             invalidation |= compute_required_invalidation(*pseudo_element_style, *new_pseudo_element_style);
-        } else if (pseudo_element_style || new_pseudo_element_style) {
+        } else if (pseudo_element_style.has_value() || new_pseudo_element_style.has_value()) {
             invalidation = CSS::RequiredInvalidationAfterStyleChange::full();
         }
 
@@ -595,7 +595,7 @@ CSS::RequiredInvalidationAfterStyleChange Element::recompute_style()
                 continue;
 
             auto pseudo_element_style = pseudo_element_computed_css_values(pseudo_element_type);
-            if (!pseudo_element_style)
+            if (!pseudo_element_style.has_value())
                 continue;
 
             if (auto* node_with_style = dynamic_cast<Layout::NodeWithStyle*>(pseudo_element->layout_node.ptr())) {
@@ -609,17 +609,17 @@ CSS::RequiredInvalidationAfterStyleChange Element::recompute_style()
     return invalidation;
 }
 
-NonnullRefPtr<CSS::StyleProperties> Element::resolved_css_values(Optional<CSS::Selector::PseudoElement::Type> type)
+CSS::StyleProperties Element::resolved_css_values(Optional<CSS::Selector::PseudoElement::Type> type)
 {
     auto element_computed_style = CSS::ResolvedCSSStyleDeclaration::create(*this, type);
-    auto properties = CSS::StyleProperties::create();
+    CSS::StyleProperties properties = {};
 
     for (auto i = to_underlying(CSS::first_property_id); i <= to_underlying(CSS::last_property_id); ++i) {
         auto property_id = (CSS::PropertyID)i;
         auto maybe_value = element_computed_style->property(property_id);
         if (!maybe_value.has_value())
             continue;
-        properties->set_property(property_id, maybe_value.release_value().value);
+        properties.set_property(property_id, maybe_value.release_value().value);
     }
 
     return properties;
@@ -627,7 +627,7 @@ NonnullRefPtr<CSS::StyleProperties> Element::resolved_css_values(Optional<CSS::S
 
 void Element::reset_animated_css_properties()
 {
-    if (!m_computed_css_values)
+    if (!m_computed_css_values.has_value())
         return;
     m_computed_css_values->reset_animated_properties();
 }
@@ -2273,25 +2273,25 @@ size_t Element::attribute_list_size() const
     return m_attributes->length();
 }
 
-void Element::set_computed_css_values(RefPtr<CSS::StyleProperties> style)
+void Element::set_computed_css_values(Optional<CSS::StyleProperties> style)
 {
     m_computed_css_values = move(style);
     computed_css_values_changed();
 }
 
-void Element::set_pseudo_element_computed_css_values(CSS::Selector::PseudoElement::Type pseudo_element, RefPtr<CSS::StyleProperties> style)
+void Element::set_pseudo_element_computed_css_values(CSS::Selector::PseudoElement::Type pseudo_element, Optional<CSS::StyleProperties> style)
 {
-    if (!m_pseudo_element_data && !style)
+    if (!m_pseudo_element_data && !style.has_value())
         return;
     ensure_pseudo_element(pseudo_element).computed_css_values = move(style);
 }
 
-RefPtr<CSS::StyleProperties> Element::pseudo_element_computed_css_values(CSS::Selector::PseudoElement::Type type)
+Optional<CSS::StyleProperties&> Element::pseudo_element_computed_css_values(CSS::Selector::PseudoElement::Type type)
 {
     auto pseudo_element = get_pseudo_element(type);
     if (pseudo_element.has_value())
         return pseudo_element->computed_css_values;
-    return nullptr;
+    return {};
 }
 
 Optional<Element::PseudoElement&> Element::get_pseudo_element(CSS::Selector::PseudoElement::Type type) const

@@ -16,7 +16,7 @@ class BlockContainer : public Box {
     JS_CELL(BlockContainer, Box);
 
 public:
-    BlockContainer(DOM::Document&, DOM::Node*, NonnullRefPtr<CSS::StyleProperties>);
+    BlockContainer(DOM::Document&, DOM::Node*, CSS::StyleProperties);
     BlockContainer(DOM::Document&, DOM::Node*, NonnullOwnPtr<CSS::ComputedValues>);
     virtual ~BlockContainer() override;
 

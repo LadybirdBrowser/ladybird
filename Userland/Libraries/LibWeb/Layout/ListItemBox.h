@@ -16,7 +16,7 @@ class ListItemBox final : public BlockContainer {
     JS_DECLARE_ALLOCATOR(ListItemBox);
 
 public:
-    ListItemBox(DOM::Document&, DOM::Element*, NonnullRefPtr<CSS::StyleProperties>);
+    ListItemBox(DOM::Document&, DOM::Element*, CSS::StyleProperties);
     virtual ~ListItemBox() override;
 
     DOM::Element& dom_node() { return static_cast<DOM::Element&>(*BlockContainer::dom_node()); }

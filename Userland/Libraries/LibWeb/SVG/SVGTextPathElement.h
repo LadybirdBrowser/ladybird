@@ -20,7 +20,7 @@ class SVGTextPathElement
     JS_DECLARE_ALLOCATOR(SVGTextPathElement);
 
 public:
-    virtual JS::GCPtr<Layout::Node> create_layout_node(NonnullRefPtr<CSS::StyleProperties>) override;
+    virtual JS::GCPtr<Layout::Node> create_layout_node(CSS::StyleProperties) override;
 
     JS::GCPtr<SVGGeometryElement const> path_or_shape() const;
 

@@ -13,7 +13,7 @@ namespace Web::Layout {
 
 JS_DEFINE_ALLOCATOR(CheckBox);
 
-CheckBox::CheckBox(DOM::Document& document, HTML::HTMLInputElement& element, NonnullRefPtr<CSS::StyleProperties> style)
+CheckBox::CheckBox(DOM::Document& document, HTML::HTMLInputElement& element, CSS::StyleProperties style)
     : FormAssociatedLabelableNode(document, element, move(style))
 {
     set_natural_width(13);

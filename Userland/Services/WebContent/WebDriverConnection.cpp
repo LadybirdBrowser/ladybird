@@ -1184,7 +1184,7 @@ Messages::WebDriverClient::GetElementCssValueResponse WebDriverConnection::get_e
     if (!current_browsing_context().active_document()->is_xml_document()) {
         // computed value of parameter property name from element’s style declarations. property name is obtained from url variables.
         if (auto property = Web::CSS::property_id_from_string(name); property.has_value()) {
-            if (auto* computed_values = element->computed_css_values())
+            if (auto computed_values = element->computed_css_values(); computed_values.has_value())
                 computed_value = computed_values->property(property.value())->to_string().to_byte_string();
         }
     }

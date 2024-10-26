@@ -139,7 +139,7 @@ JS::NonnullGCPtr<SVGAnimatedLength> SVGElement::svg_animated_length_for_property
 {
     // FIXME: Create a proper animated value when animations are supported.
     auto make_length = [&] {
-        if (auto const* style = computed_css_values(); style) {
+        if (auto const style = computed_css_values(); style.has_value()) {
             if (auto length = style->length_percentage(property); length.has_value())
                 return SVGLength::from_length_percentage(realm(), *length);
         }
