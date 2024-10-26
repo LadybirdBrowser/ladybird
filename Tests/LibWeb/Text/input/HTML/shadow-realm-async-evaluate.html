@@ -1,0 +1,13 @@
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const realm = new ShadowRealm()
+        const aSync = realm.evaluate(`async () => 1 + 1`);
+        try {
+            aSync();
+            println('Fail! No exception thrown');
+        } catch (e) {
+            println(`PASS: Exception thrown '${e}'`);
+        }
+    })
+</script>
