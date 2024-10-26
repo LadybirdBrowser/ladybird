@@ -2330,7 +2330,8 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> IfStatement::generate_b
 
     auto& true_block = generator.make_block();
     auto& false_block = generator.make_block();
-    auto& end_block = generator.make_block();
+    // NOTE: if there is no 'else' block the end block is the same as the false block
+    auto& end_block = m_alternate ? generator.make_block() : false_block;
 
     Optional<ScopedOperand> completion;
     if (generator.must_propagate_completion()) {
@@ -2347,25 +2348,19 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> IfStatement::generate_b
     generator.switch_to_basic_block(true_block);
     auto consequent = TRY(m_consequent->generate_bytecode(generator, completion));
     if (!generator.is_current_block_terminated()) {
-        if (generator.must_propagate_completion()) {
-            if (consequent.has_value())
-                generator.emit<Bytecode::Op::Mov>(*completion, *consequent);
-        }
+        if (generator.must_propagate_completion() && consequent.has_value())
+            generator.emit<Bytecode::Op::Mov>(*completion, *consequent);
         generator.emit<Bytecode::Op::Jump>(Bytecode::Label { end_block });
     }
 
-    generator.switch_to_basic_block(false_block);
-
-    Optional<ScopedOperand> alternate;
     if (m_alternate) {
-        alternate = TRY(m_alternate->generate_bytecode(generator, completion));
-    }
-    if (!generator.is_current_block_terminated()) {
-        if (generator.must_propagate_completion()) {
-            if (alternate.has_value())
+        generator.switch_to_basic_block(false_block);
+        auto alternate = TRY(m_alternate->generate_bytecode(generator, completion));
+        if (!generator.is_current_block_terminated()) {
+            if (generator.must_propagate_completion() && alternate.has_value())
                 generator.emit<Bytecode::Op::Mov>(*completion, *alternate);
+            generator.emit<Bytecode::Op::Jump>(Bytecode::Label { end_block });
         }
-        generator.emit<Bytecode::Op::Jump>(Bytecode::Label { end_block });
     }
 
     generator.switch_to_basic_block(end_block);
