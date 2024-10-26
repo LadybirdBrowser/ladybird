@@ -338,6 +338,7 @@ ServiceWorkerContainer
 ServiceWorkerRegistration
 Set
 ShadowRealm
+ShadowRealmGlobalScope
 ShadowRoot
 SharedArrayBuffer
 SourceBuffer

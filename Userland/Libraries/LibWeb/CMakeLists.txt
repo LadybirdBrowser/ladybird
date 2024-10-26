@@ -462,6 +462,7 @@ set(SOURCES
     HTML/ServiceWorkerRegistration.cpp
     HTML/SessionHistoryEntry.cpp
     HTML/SessionHistoryTraversalQueue.cpp
+    HTML/ShadowRealmGlobalScope.cpp
     HTML/SharedResourceRequest.cpp
     HTML/SourceSet.cpp
     HTML/Storage.cpp
