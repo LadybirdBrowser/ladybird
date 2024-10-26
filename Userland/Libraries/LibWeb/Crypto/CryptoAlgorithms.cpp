@@ -902,12 +902,12 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<CryptoKey>> RSAOAEP::import_key(Web::Crypto
     // 6. Set the publicExponent attribute of algorithm to the BigInteger representation of the RSA public exponent.
     TRY(key->handle().visit(
         [&](::Crypto::PK::RSAPublicKey<> const& public_key) -> WebIDL::ExceptionOr<void> {
-            algorithm->set_modulus_length(public_key.length());
+            algorithm->set_modulus_length(public_key.modulus().trimmed_byte_length() * 8);
             TRY(algorithm->set_public_exponent(public_key.public_exponent()));
             return {};
         },
         [&](::Crypto::PK::RSAPrivateKey<> const& private_key) -> WebIDL::ExceptionOr<void> {
-            algorithm->set_modulus_length(private_key.length());
+            algorithm->set_modulus_length(private_key.modulus().trimmed_byte_length() * 8);
             TRY(algorithm->set_public_exponent(private_key.public_exponent()));
             return {};
         },
