@@ -243,7 +243,7 @@ public:
     ~Selector() = default;
 
     Vector<CompoundSelector> const& compound_selectors() const { return m_compound_selectors; }
-    Optional<PseudoElement> pseudo_element() const { return m_pseudo_element; }
+    Optional<PseudoElement> const& pseudo_element() const { return m_pseudo_element; }
     NonnullRefPtr<Selector> relative_to(SimpleSelector const&) const;
     bool contains_the_nesting_selector() const { return m_contains_the_nesting_selector; }
     NonnullRefPtr<Selector> absolutized(SimpleSelector const& selector_for_nesting) const;
