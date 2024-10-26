@@ -11,6 +11,7 @@
 #include <LibCrypto/Cipher/AES.h>
 #include <LibCrypto/Curves/Ed25519.h>
 #include <LibCrypto/Curves/SECPxxxr1.h>
+#include <LibCrypto/Curves/X25519.h>
 #include <LibCrypto/Hash/HKDF.h>
 #include <LibCrypto/Hash/HashManager.h>
 #include <LibCrypto/Hash/MGF.h>
@@ -502,6 +503,27 @@ JS::ThrowCompletionOr<NonnullOwnPtr<AlgorithmParams>> AesDerivedKeyParams::from_
     auto length = TRY(length_value.to_u16(vm));
 
     return adopt_own<AlgorithmParams>(*new AesDerivedKeyParams { name, length });
+}
+
+EcdhKeyDerivePrams::~EcdhKeyDerivePrams() = default;
+
+JS::ThrowCompletionOr<NonnullOwnPtr<AlgorithmParams>> EcdhKeyDerivePrams::from_value(JS::VM& vm, JS::Value value)
+{
+    auto& object = value.as_object();
+
+    auto name_value = TRY(object.get("name"));
+    auto name = TRY(name_value.to_string(vm));
+
+    auto key_value = TRY(object.get("public"));
+    auto key_object = TRY(key_value.to_object(vm));
+
+    if (!is<CryptoKey>(*key_object)) {
+        return vm.throw_completion<JS::TypeError>(JS::ErrorType::NotAnObjectOfType, "CryptoKey");
+    }
+
+    auto& key = verify_cast<CryptoKey>(*key_object);
+
+    return adopt_own<AlgorithmParams>(*new EcdhKeyDerivePrams { name, key });
 }
 
 // https://w3c.github.io/webcrypto/#rsa-oaep-operations
@@ -2304,6 +2326,72 @@ WebIDL::ExceptionOr<JS::Value> PBKDF2::get_key_length(AlgorithmParams const&)
 {
     // 1. Return null.
     return JS::js_null();
+}
+
+// https://wicg.github.io/webcrypto-secure-curves/#x25519-operations
+WebIDL::ExceptionOr<JS::NonnullGCPtr<JS::ArrayBuffer>> X25519::derive_bits(AlgorithmParams const& params, JS::NonnullGCPtr<CryptoKey> key, Optional<u32> length_optional)
+{
+    auto& realm = *m_realm;
+    auto const& normalized_algorithm = static_cast<EcdhKeyDerivePrams const&>(params);
+
+    // 1. If the [[type]] internal slot of key is not "private", then throw an InvalidAccessError.
+    if (key->type() != Bindings::KeyType::Private)
+        return WebIDL::InvalidAccessError::create(realm, "Key is not a private key"_string);
+
+    // 2. Let publicKey be the public member of normalizedAlgorithm.
+    auto& public_key = normalized_algorithm.public_key;
+
+    // 3. If the [[type]] internal slot of publicKey is not "public", then throw an InvalidAccessError.
+    if (public_key->type() != Bindings::KeyType::Public)
+        return WebIDL::InvalidAccessError::create(realm, "Public key is not a public key"_string);
+
+    // 4. If the name attribute of the [[algorithm]] internal slot of publicKey is not equal to
+    //    the name property of the [[algorithm]] internal slot of key, then throw an InvalidAccessError.
+    auto& internal_algorithm = static_cast<KeyAlgorithm const&>(*key->algorithm());
+    auto& public_internal_algorithm = static_cast<KeyAlgorithm const&>(*public_key->algorithm());
+    if (internal_algorithm.name() != public_internal_algorithm.name())
+        return WebIDL::InvalidAccessError::create(realm, "Algorithm mismatch"_string);
+
+    // 5. Let secret be the result of performing the X25519 function specified in [RFC7748] Section 5 with
+    //    key as the X25519 private key k and
+    //    the X25519 public key represented by the [[handle]] internal slot of publicKey as the X25519 public key u.
+    auto private_key = key->handle().get<ByteBuffer>();
+    auto public_key_data = public_key->handle().get<ByteBuffer>();
+
+    ::Crypto::Curves::X25519 curve;
+    auto maybe_secret = curve.compute_coordinate(private_key, public_key_data);
+    if (maybe_secret.is_error())
+        return WebIDL::OperationError::create(realm, "Failed to compute secret"_string);
+
+    auto secret = maybe_secret.release_value();
+
+    // 6. If secret is the all-zero value, then throw a OperationError.
+    //    This check must be performed in constant-time, as per [RFC7748] Section 6.1.
+    // NOTE: The check may be performed by ORing all the bytes together and checking whether the result is zero,
+    //       as this eliminates standard side-channels in software implementations.
+    auto or_bytes = 0;
+    for (auto byte : secret.bytes()) {
+        or_bytes |= byte;
+    }
+
+    if (or_bytes == 0)
+        return WebIDL::OperationError::create(realm, "Secret is the all-zero value"_string);
+
+    // 7. If length is null: Return secret
+    if (!length_optional.has_value()) {
+        auto result = TRY_OR_THROW_OOM(realm.vm(), ByteBuffer::copy(secret));
+        return JS::ArrayBuffer::create(realm, move(result));
+    }
+
+    // Otherwise: If the length of secret in bits is less than length: throw an OperationError.
+    auto length = length_optional.value();
+    if (secret.size() * 8 < length)
+        return WebIDL::OperationError::create(realm, "Secret is too short"_string);
+
+    // Otherwise: Return an octet string containing the first length bits of secret.
+    auto slice = TRY_OR_THROW_OOM(realm.vm(), secret.slice(0, length / 8));
+    auto result = TRY_OR_THROW_OOM(realm.vm(), ByteBuffer::copy(slice));
+    return JS::ArrayBuffer::create(realm, move(result));
 }
 
 }

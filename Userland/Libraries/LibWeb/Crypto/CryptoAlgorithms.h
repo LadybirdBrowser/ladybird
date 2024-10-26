@@ -436,6 +436,33 @@ private:
     }
 };
 
+class X25519 : public AlgorithmMethods {
+public:
+    virtual WebIDL::ExceptionOr<JS::NonnullGCPtr<JS::ArrayBuffer>> derive_bits(AlgorithmParams const&, JS::NonnullGCPtr<CryptoKey>, Optional<u32>) override;
+
+    static NonnullOwnPtr<AlgorithmMethods> create(JS::Realm& realm) { return adopt_own(*new X25519(realm)); }
+
+private:
+    explicit X25519(JS::Realm& realm)
+        : AlgorithmMethods(realm)
+    {
+    }
+};
+
+struct EcdhKeyDerivePrams : public AlgorithmParams {
+    virtual ~EcdhKeyDerivePrams() override;
+
+    EcdhKeyDerivePrams(String name, CryptoKey& public_key)
+        : AlgorithmParams(move(name))
+        , public_key(public_key)
+    {
+    }
+
+    JS::NonnullGCPtr<CryptoKey> public_key;
+
+    static JS::ThrowCompletionOr<NonnullOwnPtr<AlgorithmParams>> from_value(JS::VM&, JS::Value);
+};
+
 ErrorOr<String> base64_url_uint_encode(::Crypto::UnsignedBigInteger);
 WebIDL::ExceptionOr<ByteBuffer> base64_url_bytes_decode(JS::Realm&, String const& base64_url_string);
 WebIDL::ExceptionOr<::Crypto::UnsignedBigInteger> base64_url_uint_decode(JS::Realm&, String const& base64_url_string);
