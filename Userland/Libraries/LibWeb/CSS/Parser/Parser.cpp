@@ -48,8 +48,8 @@
 #include <LibWeb/CSS/StyleValues/CSSHSL.h>
 #include <LibWeb/CSS/StyleValues/CSSHWB.h>
 #include <LibWeb/CSS/StyleValues/CSSKeywordValue.h>
+#include <LibWeb/CSS/StyleValues/CSSLabLike.h>
 #include <LibWeb/CSS/StyleValues/CSSOKLCH.h>
-#include <LibWeb/CSS/StyleValues/CSSOKLab.h>
 #include <LibWeb/CSS/StyleValues/CSSRGB.h>
 #include <LibWeb/CSS/StyleValues/ContentStyleValue.h>
 #include <LibWeb/CSS/StyleValues/CounterDefinitionsStyleValue.h>

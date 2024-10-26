@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include "CSSOKLab.h"
+#include "CSSLabLike.h"
 #include <AK/TypeCasts.h>
 #include <LibWeb/CSS/Serialize.h>
 #include <LibWeb/CSS/StyleValues/CSSMathValue.h>
@@ -12,6 +12,17 @@
 #include <LibWeb/CSS/StyleValues/PercentageStyleValue.h>
 
 namespace Web::CSS {
+
+bool CSSLabLike::equals(CSSStyleValue const& other) const
+{
+    if (type() != other.type())
+        return false;
+    auto const& other_color = other.as_color();
+    if (color_type() != other_color.color_type())
+        return false;
+    auto const& other_lab_like = verify_cast<CSSLabLike>(other_color);
+    return m_properties == other_lab_like.m_properties;
+}
 
 Color CSSOKLab::to_color(Optional<Layout::NodeWithStyle const&>) const
 {
@@ -21,17 +32,6 @@ Color CSSOKLab::to_color(Optional<Layout::NodeWithStyle const&>) const
     auto const alpha_val = resolve_alpha(m_properties.alpha).value_or(1);
 
     return Color::from_oklab(l_val, a_val, b_val, alpha_val);
-}
-
-bool CSSOKLab::equals(CSSStyleValue const& other) const
-{
-    if (type() != other.type())
-        return false;
-    auto const& other_color = other.as_color();
-    if (color_type() != other_color.color_type())
-        return false;
-    auto const& other_oklab = verify_cast<CSSOKLab>(other_color);
-    return m_properties == other_oklab.m_properties;
 }
 
 // https://www.w3.org/TR/css-color-4/#serializing-oklab-oklch
