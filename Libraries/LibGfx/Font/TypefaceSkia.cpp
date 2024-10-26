@@ -114,7 +114,7 @@ void TypefaceSkia::populate_glyph_page(GlyphPage& glyph_page, size_t page_index)
     }
 }
 
-FlyString TypefaceSkia::family() const
+FlyString const& TypefaceSkia::family() const
 {
     if (!m_family.has_value()) {
         SkString family_name;

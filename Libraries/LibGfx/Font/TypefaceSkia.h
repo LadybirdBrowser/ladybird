@@ -19,7 +19,7 @@ public:
     virtual u32 glyph_count() const override;
     virtual u16 units_per_em() const override;
     virtual u32 glyph_id_for_code_point(u32 code_point) const override;
-    virtual FlyString family() const override;
+    virtual FlyString const& family() const override;
     virtual u16 weight() const override;
     virtual u16 width() const override;
     virtual u8 slope() const override;
