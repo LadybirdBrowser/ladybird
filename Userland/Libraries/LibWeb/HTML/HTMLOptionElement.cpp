@@ -138,8 +138,8 @@ int HTMLOptionElement::index() const
 void HTMLOptionElement::ask_for_a_reset()
 {
     // If an option element in the list of options asks for a reset, then run that select element's selectedness setting algorithm.
-    if (is<HTMLSelectElement>(parent_element())) {
-        static_cast<HTMLSelectElement*>(parent())->update_selectedness();
+    if (auto* select = first_ancestor_of_type<HTMLSelectElement>()) {
+        select->update_selectedness(this);
     }
 }
 
