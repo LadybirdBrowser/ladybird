@@ -202,6 +202,16 @@ public:
 
     [[nodiscard]] ALWAYS_INLINE bool has_value() const { return m_has_value; }
 
+    [[nodiscard]] ALWAYS_INLINE T* ptr() &
+    {
+        return m_has_value ? __builtin_launder(reinterpret_cast<T*>(&m_storage)) : nullptr;
+    }
+
+    [[nodiscard]] ALWAYS_INLINE T const* ptr() const&
+    {
+        return m_has_value ? __builtin_launder(reinterpret_cast<T const*>(&m_storage)) : nullptr;
+    }
+
     [[nodiscard]] ALWAYS_INLINE T& value() &
     {
         VERIFY(m_has_value);
@@ -362,18 +372,31 @@ public:
     }
 
     template<typename U>
-    ALWAYS_INLINE Optional(Optional<U> const& other)
+    ALWAYS_INLINE Optional(Optional<U>& other)
     requires(CanBePlacedInOptional<U>)
-        : m_pointer(other.m_pointer)
+        : m_pointer(other.ptr())
+    {
+    }
+
+    template<typename U>
+    ALWAYS_INLINE Optional(Optional<U> const& other)
+    requires(CanBePlacedInOptional<U const>)
+        : m_pointer(other.ptr())
     {
     }
 
     template<typename U>
     ALWAYS_INLINE Optional(Optional<U>&& other)
     requires(CanBePlacedInOptional<U>)
-        : m_pointer(other.m_pointer)
+        : m_pointer(other.ptr())
     {
         other.m_pointer = nullptr;
+    }
+
+    ALWAYS_INLINE Optional& operator=(Optional& other)
+    {
+        m_pointer = other.m_pointer;
+        return *this;
     }
 
     ALWAYS_INLINE Optional& operator=(Optional const& other)
@@ -390,16 +413,24 @@ public:
     }
 
     template<typename U>
-    ALWAYS_INLINE Optional& operator=(Optional<U> const& other)
+    ALWAYS_INLINE Optional& operator=(Optional<U>& other)
     requires(CanBePlacedInOptional<U>)
     {
-        m_pointer = other.m_pointer;
+        m_pointer = other.ptr();
+        return *this;
+    }
+
+    template<typename U>
+    ALWAYS_INLINE Optional& operator=(Optional<U> const& other)
+    requires(CanBePlacedInOptional<U const>)
+    {
+        m_pointer = other.ptr();
         return *this;
     }
 
     template<typename U>
     ALWAYS_INLINE Optional& operator=(Optional<U>&& other)
-    requires(CanBePlacedInOptional<U>)
+    requires(CanBePlacedInOptional<U> && IsLvalueReference<U>)
     {
         m_pointer = other.m_pointer;
         other.m_pointer = nullptr;
@@ -422,6 +453,16 @@ public:
     }
 
     [[nodiscard]] ALWAYS_INLINE bool has_value() const { return m_pointer != nullptr; }
+
+    [[nodiscard]] ALWAYS_INLINE RemoveReference<T>* ptr()
+    {
+        return m_pointer;
+    }
+
+    [[nodiscard]] ALWAYS_INLINE RemoveReference<T> const* ptr() const
+    {
+        return m_pointer;
+    }
 
     [[nodiscard]] ALWAYS_INLINE T value()
     {
