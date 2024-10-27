@@ -992,7 +992,7 @@ ErrorOr<rlimit> get_resource_limits(int resource)
 ErrorOr<void> set_resource_limits(int resource, rlim_t limit)
 {
     auto limits = TRY(get_resource_limits(resource));
-    limits.rlim_cur = limit;
+    limits.rlim_cur = min(limit, limits.rlim_max);
 
     if (::setrlimit(resource, &limits) != 0)
         return Error::from_syscall("setrlimit"sv, -errno);
