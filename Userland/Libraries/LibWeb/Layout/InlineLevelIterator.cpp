@@ -266,7 +266,7 @@ Optional<InlineLevelIterator::Item> InlineLevelIterator::next_without_lookahead(
                     auto computed_word_spacing = text_node.computed_values().word_spacing();
 
                     auto letter_spacing = computed_letter_spacing.resolved(resolution_context).to_px(text_node);
-                    auto word_spacing = computed_letter_spacing.resolved(resolution_context).to_px(text_node);
+                    auto word_spacing = computed_word_spacing.resolved(resolution_context).to_px(text_node);
 
                     return CSSPixels::nearest_value_for(tab_number * (chunk.font->glyph_width(' ') + word_spacing.to_float() + letter_spacing.to_float()));
                 });
