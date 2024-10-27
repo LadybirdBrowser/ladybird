@@ -31,7 +31,6 @@ if (LAGOM_TOOLS_ONLY)
 endif()
 
 set(SOURCES
-    AnonymousBuffer.cpp
     Command.cpp
     ConfigFile.cpp
     DateTime.cpp
@@ -56,6 +55,13 @@ set(SOURCES
     Timer.cpp
     UDPServer.cpp
 )
+
+if (WIN32)
+    list(APPEND SOURCES AnonymousBufferWindows.cpp)
+else()
+    list(APPEND SOURCES AnonymousBuffer.cpp)
+endif()
+
 if (NOT WIN32 AND NOT EMSCRIPTEN)
     list(APPEND SOURCES LocalServer.cpp)
 endif()
