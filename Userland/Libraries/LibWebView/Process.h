@@ -76,7 +76,7 @@ ErrorOr<Process::ProcessAndClient<ClientType>> Process::spawn(ProcessType type, 
     auto [core_process, transport] = TRY(spawn_and_connect_to_process(options));
     auto client = TRY(adopt_nonnull_ref_or_enomem(new (nothrow) ClientType { move(transport), forward<ClientArguments>(client_arguments)... }));
 
-    return ProcessAndClient { Process { type, client, move(core_process) }, client };
+    return ProcessAndClient<ClientType> { Process { type, client, move(core_process) }, client };
 }
 
 }
