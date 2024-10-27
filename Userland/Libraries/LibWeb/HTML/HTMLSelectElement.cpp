@@ -558,7 +558,7 @@ void HTMLSelectElement::update_inner_text_element()
 }
 
 // https://html.spec.whatwg.org/multipage/form-elements.html#selectedness-setting-algorithm
-void HTMLSelectElement::update_selectedness()
+void HTMLSelectElement::update_selectedness(JS::GCPtr<HTML::HTMLOptionElement> last_selected_option)
 {
     if (has_attribute(AttributeNames::multiple))
         return;
@@ -581,9 +581,10 @@ void HTMLSelectElement::update_selectedness()
                 if (!option_element->disabled()) {
                     option_element->set_selected_internal(true);
                     update_inner_text_element();
-                    return;
+                    break;
                 }
             }
+            return;
         }
     }
 
@@ -601,6 +602,8 @@ void HTMLSelectElement::update_selectedness()
         // then set the selectedness of all but the last option element with its selectedness set to true
         // in the list of options in tree order to false.
         for (auto const& option_element : list_of_options()) {
+            if (option_element == last_selected_option)
+                continue;
             if (number_of_selected == 1) {
                 break;
             }
