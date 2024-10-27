@@ -1,0 +1,22 @@
+Summary
+
+Harness status: OK
+
+Rerun
+
+Found 11 tests
+
+3 Pass
+8 Fail
+Details
+Result	Test Name	MessageFail	Property min-height value 'min-content'	assert_true: 'min-content' is a supported value for min-height. expected true got false
+Fail	Property min-height value 'max-content'	assert_true: 'max-content' is a supported value for min-height. expected true got false
+Pass	Property min-height value '10px'	
+Pass	Property min-height value '20%'	
+Pass	Property min-height value 'calc(10% + 40px)'	
+Fail	Property min-height value 'calc(10px - 0.5em)'	assert_equals: expected "0px" but got "calc(10px + (0 - 0.5em))"
+Fail	Property min-height value 'calc(10px + 0.5em)'	assert_equals: expected "30px" but got "calc(10px + 0.5em)"
+Fail	Property min-height value 'fit-content(10px)'	assert_true: 'fit-content(10px)' is a supported value for min-height. expected true got false
+Fail	Property min-height value 'fit-content(20%)'	assert_true: 'fit-content(20%)' is a supported value for min-height. expected true got false
+Fail	Property min-height value 'fit-content(calc(10% + 40px))'	assert_true: 'fit-content(calc(10% + 40px))' is a supported value for min-height. expected true got false
+Fail	Property min-height value 'fit-content(calc(10px + 0.5em))'	assert_true: 'fit-content(calc(10px + 0.5em))' is a supported value for min-height. expected true got false

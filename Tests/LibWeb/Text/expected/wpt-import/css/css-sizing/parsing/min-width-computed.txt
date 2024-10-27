@@ -1,0 +1,22 @@
+Summary
+
+Harness status: OK
+
+Rerun
+
+Found 11 tests
+
+5 Pass
+6 Fail
+Details
+Result	Test Name	MessagePass	Property min-width value 'min-content'	
+Pass	Property min-width value 'max-content'	
+Pass	Property min-width value '10px'	
+Pass	Property min-width value '20%'	
+Pass	Property min-width value 'calc(10% + 40px)'	
+Fail	Property min-width value 'calc(10px - 0.5em)'	assert_equals: expected "0px" but got "calc(10px + (0 - 0.5em))"
+Fail	Property min-width value 'calc(10px + 0.5em)'	assert_equals: expected "30px" but got "calc(10px + 0.5em)"
+Fail	Property min-width value 'fit-content(10px)'	assert_true: 'fit-content(10px)' is a supported value for min-width. expected true got false
+Fail	Property min-width value 'fit-content(20%)'	assert_true: 'fit-content(20%)' is a supported value for min-width. expected true got false
+Fail	Property min-width value 'fit-content(calc(10% + 40px))'	assert_true: 'fit-content(calc(10% + 40px))' is a supported value for min-width. expected true got false
+Fail	Property min-width value 'fit-content(calc(10px + 0.5em))'	assert_true: 'fit-content(calc(10px + 0.5em))' is a supported value for min-width. expected true got false

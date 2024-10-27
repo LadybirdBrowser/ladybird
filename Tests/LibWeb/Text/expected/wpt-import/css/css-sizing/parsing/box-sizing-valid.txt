@@ -1,0 +1,12 @@
+Summary
+
+Harness status: OK
+
+Rerun
+
+Found 2 tests
+
+2 Pass
+Details
+Result	Test Name	MessagePass	e.style['box-sizing'] = "content-box" should set the property value	
+Pass	e.style['box-sizing'] = "border-box" should set the property value	
