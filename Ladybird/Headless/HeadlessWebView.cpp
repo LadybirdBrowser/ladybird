@@ -35,6 +35,62 @@ HeadlessWebView::HeadlessWebView(Core::AnonymousBuffer theme, Gfx::IntSize viewp
 
         return worker_client->clone_transport();
     };
+
+    on_request_alert = [this](auto const&) {
+        m_pending_dialog = Web::Page::PendingDialog::Alert;
+    };
+
+    on_request_confirm = [this](auto const&) {
+        m_pending_dialog = Web::Page::PendingDialog::Confirm;
+    };
+
+    on_request_prompt = [this](auto const&, auto const& prompt_text) {
+        m_pending_dialog = Web::Page::PendingDialog::Prompt;
+        m_pending_prompt_text = prompt_text;
+    };
+
+    on_request_set_prompt_text = [this](auto const& prompt_text) {
+        m_pending_prompt_text = prompt_text;
+    };
+
+    on_request_accept_dialog = [this]() {
+        switch (m_pending_dialog) {
+        case Web::Page::PendingDialog::None:
+            VERIFY_NOT_REACHED();
+            break;
+        case Web::Page::PendingDialog::Alert:
+            alert_closed();
+            break;
+        case Web::Page::PendingDialog::Confirm:
+            confirm_closed(true);
+            break;
+        case Web::Page::PendingDialog::Prompt:
+            prompt_closed(move(m_pending_prompt_text));
+            break;
+        }
+
+        m_pending_dialog = Web::Page::PendingDialog::None;
+    };
+
+    on_request_dismiss_dialog = [this]() {
+        switch (m_pending_dialog) {
+        case Web::Page::PendingDialog::None:
+            VERIFY_NOT_REACHED();
+            break;
+        case Web::Page::PendingDialog::Alert:
+            alert_closed();
+            break;
+        case Web::Page::PendingDialog::Confirm:
+            confirm_closed(false);
+            break;
+        case Web::Page::PendingDialog::Prompt:
+            prompt_closed({});
+            break;
+        }
+
+        m_pending_dialog = Web::Page::PendingDialog::None;
+        m_pending_prompt_text.clear();
+    };
 }
 
 NonnullOwnPtr<HeadlessWebView> HeadlessWebView::create(Core::AnonymousBuffer theme, Gfx::IntSize window_size)
