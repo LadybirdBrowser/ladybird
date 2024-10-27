@@ -221,6 +221,7 @@ private:
     Optional<URL::URL> parse_url_function(TokenStream<ComponentValue>&);
     RefPtr<CSSStyleValue> parse_url_value(TokenStream<ComponentValue>&);
 
+    Optional<ShapeRadius> parse_shape_radius(TokenStream<ComponentValue>&);
     RefPtr<CSSStyleValue> parse_basic_shape_value(TokenStream<ComponentValue>&);
 
     template<typename TElement>

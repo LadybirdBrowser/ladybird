@@ -27,6 +27,8 @@ public:
     LengthPercentage const& bottom() const { return m_bottom; }
     LengthPercentage const& left() const { return m_left; }
 
+    bool operator==(LengthBox const&) const = default;
+
 private:
     LengthPercentage m_top;
     LengthPercentage m_right;
