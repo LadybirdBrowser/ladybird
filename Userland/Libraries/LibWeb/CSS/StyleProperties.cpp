@@ -1303,6 +1303,12 @@ Optional<CSS::UnicodeBidi> StyleProperties::unicode_bidi() const
     return keyword_to_unicode_bidi(value->to_keyword());
 }
 
+Optional<CSS::WritingMode> StyleProperties::writing_mode() const
+{
+    auto value = property(CSS::PropertyID::WritingMode);
+    return keyword_to_writing_mode(value->to_keyword());
+}
+
 Optional<CSS::MaskType> StyleProperties::mask_type() const
 {
     auto value = property(CSS::PropertyID::MaskType);
