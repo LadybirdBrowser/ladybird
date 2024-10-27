@@ -13,6 +13,7 @@
 #include <LibCore/Promise.h>
 #include <LibGfx/Forward.h>
 #include <LibGfx/Size.h>
+#include <LibWeb/Page/Page.h>
 #include <LibWeb/PixelUnits.h>
 #include <LibWebView/ViewImplementation.h>
 
@@ -48,6 +49,9 @@ private:
     RefPtr<Core::Promise<RefPtr<Gfx::Bitmap>>> m_pending_screenshot;
 
     NonnullRefPtr<TestPromise> m_test_promise;
+
+    Web::Page::PendingDialog m_pending_dialog { Web::Page::PendingDialog::None };
+    Optional<String> m_pending_prompt_text;
 };
 
 }
