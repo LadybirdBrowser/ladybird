@@ -1,0 +1,13 @@
+Summary
+
+Harness status: OK
+
+Rerun
+
+Found 3 tests
+
+3 Pass
+Details
+Result	Test Name	MessagePass	Initial colors	
+Pass	Matches after #blocks_match removed	
+Pass	Does not match after #blocks_match added	

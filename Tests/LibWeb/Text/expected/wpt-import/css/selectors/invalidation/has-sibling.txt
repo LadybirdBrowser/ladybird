@@ -1,0 +1,81 @@
+Summary
+
+Harness status: OK
+
+Rerun
+
+Found 71 tests
+
+71 Pass
+Details
+Result	Test Name	MessagePass	initial_color	
+Pass	add .test to first_sibling	
+Pass	remove .test from first_sibling	
+Pass	add .test to second_sibling	
+Pass	remove .test from second_sibling	
+Pass	add .test to third_sibling	
+Pass	remove .test from third_sibling	
+Pass	add .test to first_sibling_child	
+Pass	remove .test from first_sibling_child	
+Pass	add .test to first_sibling_descendant	
+Pass	remove .test from first_sibling_descendant	
+Pass	add .test to third_sibling_child	
+Pass	remove .test from third_sibling_child	
+Pass	add .test to third_sibling_descendant	
+Pass	remove .test from third_sibling_descendant	
+Pass	insert element div.test before first_sibling	
+Pass	remove element div.test before first_sibling	
+Pass	insert element div.test before second_sibling	
+Pass	remove element div.test before second_sibling	
+Pass	insert element div.test before third_sibling	
+Pass	remove element div.test before third_sibling	
+Pass	insert element div.test before first_sibling_child	
+Pass	remove element div.test before first_sibling_child	
+Pass	insert element div.test before first_sibling_descendant	
+Pass	remove element div.test before first_sibling_descendant	
+Pass	insert element div.test before third_sibling_child	
+Pass	remove element div.test before third_sibling_child	
+Pass	insert element div.test before third_sibling_descendant	
+Pass	remove element div.test before third_sibling_descendant	
+Pass	insert element div.test after first_sibling	
+Pass	remove element div.test after first_sibling	
+Pass	insert element div.test after second_sibling	
+Pass	remove element div.test after second_sibling	
+Pass	insert element div.test after third_sibling	
+Pass	remove element div.test after third_sibling	
+Pass	insert element div.test after first_sibling_child	
+Pass	remove element div.test after first_sibling_child	
+Pass	insert element div.test after first_sibling_descendant	
+Pass	remove element div.test after first_sibling_descendant	
+Pass	insert element div.test after third_sibling_child	
+Pass	remove element div.test after third_sibling_child	
+Pass	insert element div.test after third_sibling_descendant	
+Pass	remove element div.test after third_sibling_descendant	
+Pass	insert tree div>div.test before first_sibling	
+Pass	remove tree div>div.test before first_sibling	
+Pass	insert tree div>div.test before second_sibling	
+Pass	remove tree div>div.test before second_sibling	
+Pass	insert tree div>div.test before third_sibling	
+Pass	remove tree div>div.test before third_sibling	
+Pass	insert tree div>div.test before first_sibling_child	
+Pass	remove tree div>div.test before first_sibling_child	
+Pass	insert tree div>div.test before first_sibling_descendant	
+Pass	remove tree div>div.test before first_sibling_descendant	
+Pass	insert tree div>div.test before third_sibling_child	
+Pass	remove tree div>div.test before third_sibling_child	
+Pass	insert tree div>div.test before third_sibling_descendant	
+Pass	remove tree div>div.test before third_sibling_descendant	
+Pass	insert tree div>div.test after first_sibling	
+Pass	remove tree div>div.test after first_sibling	
+Pass	insert tree div>div.test after second_sibling	
+Pass	remove tree div>div.test after second_sibling	
+Pass	insert tree div>div.test after third_sibling	
+Pass	remove tree div>div.test after third_sibling	
+Pass	insert tree div>div.test after first_sibling_child	
+Pass	remove tree div>div.test after first_sibling_child	
+Pass	insert tree div>div.test after first_sibling_descendant	
+Pass	remove tree div>div.test after first_sibling_descendant	
+Pass	insert tree div>div.test after third_sibling_child	
+Pass	remove tree div>div.test after third_sibling_child	
+Pass	insert tree div>div.test after third_sibling_descendant	
+Pass	remove tree div>div.test after third_sibling_descendant	

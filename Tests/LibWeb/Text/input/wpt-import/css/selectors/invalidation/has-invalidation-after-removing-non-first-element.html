@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>:has() invalidation after removing non-first element</title>
+<link rel="author" title="Byungwoo Lee" href="mailto:blee@igalia.com">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<link rel="help" href="https://drafts.csswg.org/selectors/#relational">
+<style>
+div, main { color: grey }
+#subject:has(descendant) { color: red }
+</style>
+<main id="main">
+  <div id="subject">
+    <div></div>
+    <descendant id="descendant"></descendant>
+  </div>
+</main>
+<script>
+  let grey = 'rgb(128, 128, 128)';
+  let red = 'rgb(255, 0, 0)';
+
+  function test_div(test_name, el, color) {
+    test(function() {
+      assert_equals(getComputedStyle(el).color, color);
+    }, test_name + ': div#' + el.id + '.color');
+  }
+
+  test_div('initial_color', subject, red);
+  subject.removeChild(descendant);
+  test_div('remove descendant', subject, grey);
+</script>
