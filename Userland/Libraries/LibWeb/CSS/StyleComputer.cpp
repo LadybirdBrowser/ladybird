@@ -2421,6 +2421,23 @@ static Optional<SimplifiedSelectorForBucketing> is_roundabout_selector_bucketabl
     return {};
 }
 
+static bool contains_has_pseudo_class(Selector const& selector)
+{
+    for (auto const& compound_selector : selector.compound_selectors()) {
+        for (auto const& simple_selector : compound_selector.simple_selectors) {
+            if (simple_selector.type != CSS::Selector::SimpleSelector::Type::PseudoClass)
+                continue;
+            if (simple_selector.pseudo_class().type == CSS::PseudoClass::Has)
+                return true;
+            for (auto const& argument_selector : simple_selector.pseudo_class().argument_selector_list) {
+                if (contains_has_pseudo_class(argument_selector))
+                    return true;
+            }
+        }
+    }
+    return false;
+}
+
 NonnullOwnPtr<StyleComputer::RuleCache> StyleComputer::make_rule_cache_for_cascade_origin(CascadeOrigin cascade_origin)
 {
     auto rule_cache = make<RuleCache>();
@@ -2464,9 +2481,10 @@ NonnullOwnPtr<StyleComputer::RuleCache> StyleComputer::make_rule_cache_for_casca
                 bool contains_root_pseudo_class = false;
                 Optional<CSS::Selector::PseudoElement::Type> pseudo_element;
 
+                if (!rule_cache->has_has_selectors)
+                    rule_cache->has_has_selectors = contains_has_pseudo_class(selector);
+
                 for (auto const& simple_selector : selector.compound_selectors().last().simple_selectors) {
-                    if (!rule_cache->has_has_selectors && simple_selector.type == CSS::Selector::SimpleSelector::Type::PseudoClass && simple_selector.pseudo_class().type == CSS::PseudoClass::Has)
-                        rule_cache->has_has_selectors = true;
                     if (!matching_rule.contains_pseudo_element) {
                         if (simple_selector.type == CSS::Selector::SimpleSelector::Type::PseudoElement) {
                             matching_rule.contains_pseudo_element = true;
