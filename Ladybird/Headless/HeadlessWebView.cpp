@@ -75,6 +75,9 @@ void HeadlessWebView::initialize_client(CreateNewClient create_new_client)
     client().async_set_viewport_size(m_client_state.page_index, viewport_size());
     client().async_set_window_size(m_client_state.page_index, viewport_size());
 
+    Vector<Web::DevicePixelRect> screen_rects { Web::DevicePixelRect { 0, 0, 1920, 1080 } };
+    client().async_update_screen_rects(m_client_state.page_index, move(screen_rects), 0);
+
     if (Application::chrome_options().allow_popups == WebView::AllowPopups::Yes)
         client().async_debug_request(m_client_state.page_index, "block-pop-ups"sv, "off"sv);
 
