@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>CSS Selector Invalidation: :has() with nesting parent containing :hover</title>
+<link rel="help" href="https://drafts.csswg.org/selectors/#relational">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../resources/testdriver.js"></script>
+<script src="../../../resources/testdriver-actions.js"></script>
+<script src="../../../resources/testdriver-vendor.js"></script>
+<style>
+  dd, dt { background: white; }
+  dd:hover {
+    dt:has(~ &) { background: lime; }
+  }
+</style>
+<dt id=dt1>#dt1</dt>
+<dd id=dd1>#dd1, Hover me, the DT above should go lime</dd>
+<dt id=dt2>#dt2</dt>
+<dd id=dd2>#dd2, Hover me, both DTs above should go lime</dd>
+<script>
+  const white = 'rgb(255, 255, 255)';
+  const lime = 'rgb(0, 255, 0)';
+
+  function bg_color(element, color, message) {
+    assert_equals(getComputedStyle(element)['background-color'], color, message);
+  }
+
+  promise_test(async () => {
+    bg_color(dt1, white, "#dt1 initially white");
+    bg_color(dd1, white, "#dd1 initially white");
+    bg_color(dt2, white, "#dt2 initially white");
+    bg_color(dd2, white, "#dd2 initially white");
+
+    await new test_driver.Actions().pointerMove(0, 0, {origin: dd1}).send();
+
+    bg_color(dt1, lime, "#dt1 should go lime when hover #dd1");
+    bg_color(dd1, white, "#dd1 doesn't change when hover #dd1");
+    bg_color(dt2, white, "#dt2 doesn't change when hover #dd1");
+    bg_color(dd2, white, "#dd2 doesn't change when hover #dd1");
+
+    await new test_driver.Actions().pointerMove(0, 0, {origin: dt1}).send();
+
+    bg_color(dt1, white, "#dt1 should go white when hover #dt2");
+    bg_color(dd1, white, "#dd1 doesn't change when hover #dt2");
+    bg_color(dt2, white, "#dt2 doesn't change when hover #dt2");
+    bg_color(dd2, white, "#dd2 doesn't change when hover #dt2");
+
+    await new test_driver.Actions().pointerMove(0, 0, {origin: dd2}).send();
+
+    bg_color(dt1, lime, "#dt1 should go lime when hover #dd2");
+    bg_color(dd1, white, "#dd1 doesn't change when hover #dd2");
+    bg_color(dt2, lime, "#dt2 should go lime when hover #dd2");
+    bg_color(dd2, white, "#dd2 doesn't change when hover #dd2");
+  });
+</script>

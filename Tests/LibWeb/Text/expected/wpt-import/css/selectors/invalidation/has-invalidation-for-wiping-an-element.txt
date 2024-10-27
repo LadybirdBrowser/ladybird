@@ -1,0 +1,15 @@
+Summary
+
+Harness status: OK
+
+Rerun
+
+Found 5 tests
+
+5 Pass
+Details
+Result	Test Name	MessagePass	initial color: div#subject.color	
+Pass	color after inserting text and div > .descendant: div#subject.color	
+Pass	color after wiping #child to remove div > .descendant: div#subject.color	
+Pass	color after inserting text and #child > .descendant: div#subject.color	
+Pass	color after wiping #child to remove .descendant: div#subject.color	

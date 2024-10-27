@@ -1,0 +1,22 @@
+Summary
+
+Harness status: OK
+
+Rerun
+
+Found 12 tests
+
+12 Pass
+Details
+Result	Test Name	MessagePass	:has(child) matches expectedly	
+Pass	:has(> child) matches expectedly	
+Pass	:has(descendant) matches expectedly	
+Pass	:has(> descendant) matches expectedly	
+Pass	:has(~ direct_sibling) matches expectedly	
+Pass	:has(+ direct_sibling) matches expectedly	
+Pass	:has(~ indirect_sibling) matches expectedly	
+Pass	:has(+ indirect_sibling) matches expectedly	
+Pass	:has(*) matches expectedly	
+Pass	:has(> *) matches expectedly	
+Pass	:has(~ *) matches expectedly	
+Pass	:has(+ *) matches expectedly	

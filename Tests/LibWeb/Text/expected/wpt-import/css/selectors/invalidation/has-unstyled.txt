@@ -1,0 +1,19 @@
+Summary
+
+Harness status: OK
+
+Rerun
+
+Found 9 tests
+
+9 Pass
+Details
+Result	Test Name	MessagePass	Initial color	
+Pass	add test to subject_descendant	
+Pass	remove test from subject_descendant	
+Pass	add test to sibling_descendant	
+Pass	remove test from sibling_descendant	
+Pass	add test_inner to subject_child	
+Pass	remove test_inner from subject_child	
+Pass	add test_inner to sibling_child	
+Pass	remove test_inner from sibling_child	
