@@ -423,6 +423,16 @@ Color Color::from_xyz50(float x, float y, float z, float alpha)
     return from_linear_srgb(red, green, blue, alpha);
 }
 
+Color Color::from_xyz65(float x, float y, float z, float alpha)
+{
+    // https://en.wikipedia.org/wiki/SRGB#From_CIE_XYZ_to_sRGB
+    float red = 3.2406 * x - 1.5372 * y - 0.4986 * z;
+    float green = -0.9689 * x + 1.8758 * y + 0.0415 * z;
+    float blue = 0.0557 * x - 0.2040 * y + 1.0570 * z;
+
+    return from_linear_srgb(red, green, blue, alpha);
+}
+
 Color Color::from_lab(float L, float a, float b, float alpha)
 {
     // Third edition of "Colorimetry" by the CIE

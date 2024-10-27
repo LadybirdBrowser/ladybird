@@ -31,6 +31,7 @@ public:
         OKLab,
         OKLCH,
         XYZD50,
+        XYZD65,
     };
     ColorType color_type() const { return m_color_type; }
 
