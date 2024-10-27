@@ -13,6 +13,16 @@ namespace Web::CSS {
 
 class CSSLabLike : public CSSColorValue {
 public:
+    template<typename T>
+    static ValueComparingNonnullRefPtr<T> create(ValueComparingNonnullRefPtr<CSSStyleValue> l, ValueComparingNonnullRefPtr<CSSStyleValue> a, ValueComparingNonnullRefPtr<CSSStyleValue> b, ValueComparingRefPtr<CSSStyleValue> alpha = {})
+    {
+        // alpha defaults to 1
+        if (!alpha)
+            alpha = NumberStyleValue::create(1);
+
+        return adopt_ref(*new (nothrow) T({}, move(l), move(a), move(b), alpha.release_nonnull()));
+    }
+
     virtual ~CSSLabLike() override = default;
 
     CSSStyleValue const& l() const { return *m_properties.l; }
@@ -41,20 +51,10 @@ protected:
 // https://drafts.css-houdini.org/css-typed-om-1/#cssoklab
 class CSSOKLab final : public CSSLabLike {
 public:
-    static ValueComparingNonnullRefPtr<CSSOKLab> create(ValueComparingNonnullRefPtr<CSSStyleValue> l, ValueComparingNonnullRefPtr<CSSStyleValue> a, ValueComparingNonnullRefPtr<CSSStyleValue> b, ValueComparingRefPtr<CSSStyleValue> alpha = {})
-    {
-        // alpha defaults to 1
-        if (!alpha)
-            return adopt_ref(*new (nothrow) CSSOKLab(move(l), move(a), move(b), NumberStyleValue::create(1)));
-
-        return adopt_ref(*new (nothrow) CSSOKLab(move(l), move(a), move(b), alpha.release_nonnull()));
-    }
-
     virtual Color to_color(Optional<Layout::NodeWithStyle const&>) const override;
     virtual String to_string() const override;
 
-private:
-    CSSOKLab(ValueComparingNonnullRefPtr<CSSStyleValue> l, ValueComparingNonnullRefPtr<CSSStyleValue> a, ValueComparingNonnullRefPtr<CSSStyleValue> b, ValueComparingNonnullRefPtr<CSSStyleValue> alpha)
+    CSSOKLab(Badge<CSSLabLike>, ValueComparingNonnullRefPtr<CSSStyleValue> l, ValueComparingNonnullRefPtr<CSSStyleValue> a, ValueComparingNonnullRefPtr<CSSStyleValue> b, ValueComparingNonnullRefPtr<CSSStyleValue> alpha)
         : CSSLabLike(ColorType::OKLab, move(l), move(a), move(b), move(alpha))
     {
     }
@@ -63,20 +63,10 @@ private:
 // https://drafts.css-houdini.org/css-typed-om-1/#csslab
 class CSSLab final : public CSSLabLike {
 public:
-    static ValueComparingNonnullRefPtr<CSSLab> create(ValueComparingNonnullRefPtr<CSSStyleValue> l, ValueComparingNonnullRefPtr<CSSStyleValue> a, ValueComparingNonnullRefPtr<CSSStyleValue> b, ValueComparingRefPtr<CSSStyleValue> alpha = {})
-    {
-        // alpha defaults to 1
-        if (!alpha)
-            return adopt_ref(*new (nothrow) CSSLab(move(l), move(a), move(b), NumberStyleValue::create(1)));
-
-        return adopt_ref(*new (nothrow) CSSLab(move(l), move(a), move(b), alpha.release_nonnull()));
-    }
-
     virtual Color to_color(Optional<Layout::NodeWithStyle const&>) const override;
     virtual String to_string() const override;
 
-private:
-    CSSLab(ValueComparingNonnullRefPtr<CSSStyleValue> l, ValueComparingNonnullRefPtr<CSSStyleValue> a, ValueComparingNonnullRefPtr<CSSStyleValue> b, ValueComparingNonnullRefPtr<CSSStyleValue> alpha)
+    CSSLab(Badge<CSSLabLike>, ValueComparingNonnullRefPtr<CSSStyleValue> l, ValueComparingNonnullRefPtr<CSSStyleValue> a, ValueComparingNonnullRefPtr<CSSStyleValue> b, ValueComparingNonnullRefPtr<CSSStyleValue> alpha)
         : CSSLabLike(ColorType::Lab, move(l), move(a), move(b), move(alpha))
     {
     }
