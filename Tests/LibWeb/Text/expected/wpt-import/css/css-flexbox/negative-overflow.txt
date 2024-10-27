@@ -6,8 +6,8 @@ Rerun
 
 Found 11 tests
 
-5 Pass
-6 Fail
+4 Pass
+7 Fail
 Details
 Result	Test Name	MessageFail	.flexbox 1	
 Fail	.flexbox 2	
@@ -19,4 +19,4 @@ Fail	.flexbox 7
 Fail	.flexbox 8	
 Pass	.flexbox 9	
 Pass	.flexbox 10	
-Pass	.flexbox 11	
+Fail	.flexbox 11	

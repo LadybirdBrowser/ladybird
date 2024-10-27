@@ -6,8 +6,8 @@ Rerun
 
 Found 72 tests
 
-54 Pass
-18 Fail
+71 Pass
+1 Fail
 Details
 Result	Test Name	MessagePass	.flexbox div 1	
 Pass	.flexbox div 2	
@@ -17,22 +17,22 @@ Pass	.flexbox div 5
 Pass	.flexbox div 6	
 Pass	.flexbox div 7	
 Pass	.flexbox div 8	
-Fail	.flexbox div 9	
-Fail	.flexbox div 10	
-Fail	.flexbox div 11	
-Fail	.flexbox div 12	
-Fail	.flexbox div 13	
-Fail	.flexbox div 14	
-Fail	.flexbox div 15	
-Fail	.flexbox div 16	
-Fail	.flexbox div 17	
-Fail	.flexbox div 18	
-Fail	.flexbox div 19	
-Fail	.flexbox div 20	
-Fail	.flexbox div 21	
-Fail	.flexbox div 22	
-Fail	.flexbox div 23	
-Fail	.flexbox div 24	
+Pass	.flexbox div 9	
+Pass	.flexbox div 10	
+Pass	.flexbox div 11	
+Pass	.flexbox div 12	
+Pass	.flexbox div 13	
+Pass	.flexbox div 14	
+Pass	.flexbox div 15	
+Pass	.flexbox div 16	
+Pass	.flexbox div 17	
+Pass	.flexbox div 18	
+Pass	.flexbox div 19	
+Pass	.flexbox div 20	
+Pass	.flexbox div 21	
+Pass	.flexbox div 22	
+Pass	.flexbox div 23	
+Pass	.flexbox div 24	
 Pass	.flexbox div 25	
 Pass	.flexbox div 26	
 Pass	.flexbox div 27	
@@ -41,7 +41,7 @@ Pass	.flexbox div 29
 Pass	.flexbox div 30	
 Pass	.flexbox div 31	
 Pass	.flexbox div 32	
-Fail	.flexbox div 33	
+Pass	.flexbox div 33	
 Pass	.flexbox div 34	
 Pass	.flexbox div 35	
 Pass	.flexbox div 36	
