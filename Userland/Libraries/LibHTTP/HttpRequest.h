@@ -9,6 +9,7 @@
 
 #include <AK/ByteBuffer.h>
 #include <AK/ByteString.h>
+#include <AK/Noncopyable.h>
 #include <AK/Optional.h>
 #include <AK/Vector.h>
 #include <LibCore/Forward.h>
@@ -63,6 +64,8 @@ public:
 
     HttpRequest() = default;
     ~HttpRequest() = default;
+
+    AK_MAKE_DEFAULT_MOVABLE(HttpRequest);
 
     ByteString const& resource() const { return m_resource; }
     HeaderMap const& headers() const { return m_headers; }
