@@ -1,7 +1,7 @@
 /*
  * Copyright (c) 2022, Florent Castelli <florent.castelli@gmail.com>
  * Copyright (c) 2022, Linus Groh <linusg@serenityos.org>
- * Copyright (c) 2022-2023, Tim Flynn <trflynn89@serenityos.org>
+ * Copyright (c) 2022-2024, Tim Flynn <trflynn89@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -123,15 +123,18 @@ private:
     using WrappedError = Variant<AK::Error, HTTP::HttpRequest::ParseError, WebDriver::Error>;
 
     void die();
+
     ErrorOr<void, WrappedError> on_ready_to_read();
-    ErrorOr<JsonValue, WrappedError> read_body_as_json();
-    ErrorOr<void, WrappedError> handle_request(JsonValue body);
-    ErrorOr<void, WrappedError> send_success_response(JsonValue result);
-    ErrorOr<void, WrappedError> send_error_response(Error const& error);
-    void log_response(unsigned code);
+    static ErrorOr<JsonValue, WrappedError> read_body_as_json(HTTP::HttpRequest const&);
+
+    ErrorOr<void, WrappedError> handle_request(HTTP::HttpRequest const&, JsonValue body);
+    void handle_error(HTTP::HttpRequest const&, WrappedError const&);
+
+    ErrorOr<void, WrappedError> send_success_response(HTTP::HttpRequest const&, JsonValue result);
+    ErrorOr<void, WrappedError> send_error_response(HTTP::HttpRequest const&, Error const& error);
+    static void log_response(HTTP::HttpRequest const&, unsigned code);
 
     NonnullOwnPtr<Core::BufferedTCPSocket> m_socket;
-    Optional<HTTP::HttpRequest> m_request;
     StringBuilder m_remaining_request;
 };
 
