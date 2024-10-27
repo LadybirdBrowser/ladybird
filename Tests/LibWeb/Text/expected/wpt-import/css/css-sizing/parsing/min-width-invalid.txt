@@ -6,10 +6,10 @@ Rerun
 
 Found 11 tests
 
-9 Pass
-2 Fail
+10 Pass
+1 Fail
 Details
-Result	Test Name	MessageFail	e.style['min-width'] = "none" should not set the property value	assert_equals: expected "" but got "none"
+Result	Test Name	MessagePass	e.style['min-width'] = "none" should not set the property value	
 Pass	e.style['min-width'] = "complex" should not set the property value	
 Pass	e.style['min-width'] = "-10%" should not set the property value	
 Pass	e.style['min-width'] = "-0.5em" should not set the property value	
