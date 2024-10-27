@@ -57,16 +57,11 @@ static inline JS::GCPtr<DOM::Node const> traverse_up(JS::GCPtr<DOM::Node const> 
 // https://drafts.csswg.org/selectors-4/#the-lang-pseudo
 static inline bool matches_lang_pseudo_class(DOM::Element const& element, Vector<FlyString> const& languages)
 {
-    FlyString element_language;
-    for (auto const* e = &element; e; e = e->parent_element()) {
-        auto lang = e->attribute(HTML::AttributeNames::lang);
-        if (lang.has_value()) {
-            element_language = lang.release_value();
-            break;
-        }
-    }
-    if (element_language.is_empty())
+    auto maybe_element_language = element.lang();
+    if (!maybe_element_language.has_value())
         return false;
+
+    auto element_language = maybe_element_language.release_value();
 
     // FIXME: This is ad-hoc. Implement a proper language range matching algorithm as recommended by BCP47.
     for (auto const& language : languages) {
@@ -74,9 +69,9 @@ static inline bool matches_lang_pseudo_class(DOM::Element const& element, Vector
             continue;
         if (language == "*"sv)
             return true;
-        if (!element_language.to_string().contains('-') && Infra::is_ascii_case_insensitive_match(element_language, language))
+        if (!element_language.contains('-') && Infra::is_ascii_case_insensitive_match(element_language, language))
             return true;
-        auto parts = element_language.to_string().split_limit('-', 2).release_value_but_fixme_should_propagate_errors();
+        auto parts = element_language.split_limit('-', 2).release_value_but_fixme_should_propagate_errors();
         if (Infra::is_ascii_case_insensitive_match(parts[0], language))
             return true;
     }
