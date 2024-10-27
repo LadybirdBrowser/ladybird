@@ -165,14 +165,7 @@ void HTMLInputElement::set_checked(bool checked, ChangeSource change_source)
 
     m_checked = checked;
 
-    // This element's :checked pseudo-class could be used in a sibling's sibling-selector,
-    // so we need to invalidate the style of all siblings.
-    if (parent()) {
-        parent()->for_each_child([&](auto& child) {
-            child.invalidate_style(DOM::StyleInvalidationReason::HTMLInputElementSetChecked);
-            return IterationDecision::Continue;
-        });
-    }
+    invalidate_style(DOM::StyleInvalidationReason::HTMLInputElementSetChecked);
 }
 
 void HTMLInputElement::set_checked_binding(bool checked)

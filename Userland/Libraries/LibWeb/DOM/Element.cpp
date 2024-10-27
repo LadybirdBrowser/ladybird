@@ -1930,10 +1930,7 @@ void Element::invalidate_style_after_attribute_change(FlyString const& attribute
     // FIXME: Only invalidate if the attribute can actually affect style.
     (void)attribute_name;
 
-    if (document().style_computer().has_has_selectors())
-        document().invalidate_style(StyleInvalidationReason::ElementAttributeChange);
-    else
-        invalidate_style(StyleInvalidationReason::ElementAttributeChange);
+    invalidate_style(StyleInvalidationReason::ElementAttributeChange);
 }
 
 // https://www.w3.org/TR/wai-aria-1.2/#tree_exclusion

@@ -6,11 +6,11 @@ Rerun
 
 Found 41 tests
 
-22 Pass
-19 Fail
+23 Pass
+18 Fail
 Details
 Result	Test Name	MessagePass	Before set checked on checkbox, testing subject	
-Fail	Set checked on checkbox, testing subject	assert_equals: expected "rgb(255, 0, 0)" but got "rgb(128, 128, 128)"
+Pass	Set checked on checkbox, testing subject	
 Pass	Unset checked on checkbox, testing subject	
 Fail	Set select on option	assert_equals: expected "rgb(255, 0, 0)" but got "rgb(128, 128, 128)"
 Pass	Reset select	
