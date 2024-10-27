@@ -396,13 +396,8 @@ Vector<Color> Color::tints(u32 steps, float max) const
     return tints;
 }
 
-Color Color::from_xyz50(float x, float y, float z, float alpha)
+Color Color::from_linear_srgb(float red, float green, float blue, float alpha)
 {
-    // See commit description for these values
-    float red = 3.13397926 * x - 1.61689519 * y - 0.49070587 * z;
-    float green = -0.97840009 * x + 1.91589112 * y + 0.03339256 * z;
-    float blue = 0.07200357 * x - 0.22897505 * y + 1.40517398 * z;
-
     auto linear_to_srgb = [](float c) {
         return c >= 0.0031308f ? 1.055f * pow(c, 0.4166666f) - 0.055f : 12.92f * c;
     };
@@ -416,6 +411,16 @@ Color Color::from_xyz50(float x, float y, float z, float alpha)
         clamp(lroundf(green), 0, 255),
         clamp(lroundf(blue), 0, 255),
         clamp(lroundf(alpha * 255.f), 0, 255));
+}
+
+Color Color::from_xyz50(float x, float y, float z, float alpha)
+{
+    // See commit description for these values
+    float red = 3.13397926 * x - 1.61689519 * y - 0.49070587 * z;
+    float green = -0.97840009 * x + 1.91589112 * y + 0.03339256 * z;
+    float blue = 0.07200357 * x - 0.22897505 * y + 1.40517398 * z;
+
+    return from_linear_srgb(red, green, blue, alpha);
 }
 
 Color Color::from_lab(float L, float a, float b, float alpha)
