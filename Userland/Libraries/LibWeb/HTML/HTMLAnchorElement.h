@@ -43,6 +43,7 @@ private:
 
     virtual bool has_activation_behavior() const override;
     virtual void activation_behavior(Web::DOM::Event const&) override;
+    virtual bool has_download_preference() const;
 
     // ^DOM::Element
     virtual void attribute_changed(FlyString const& name, Optional<String> const& old_value, Optional<String> const& value) override;
