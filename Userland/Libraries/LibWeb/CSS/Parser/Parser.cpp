@@ -3337,6 +3337,54 @@ RefPtr<CSSStyleValue> Parser::parse_oklab_color_value(TokenStream<ComponentValue
         color_values[3].release_nonnull());
 }
 
+Optional<Array<RefPtr<CSSStyleValue>, 4>> Parser::parse_lch_like_color_value(TokenStream<ComponentValue>& outer_tokens, StringView function_name)
+{
+    // This helper is designed to be compatible with lch and oklch and parses a function with a form like:
+    // f() = f( [<percentage> | <number> | none]
+    //     [ <percentage> | <number> | none]
+    //     [ <hue> | none]
+    //     [ / [<alpha-value> | none] ]? )
+
+    auto transaction = outer_tokens.begin_transaction();
+    outer_tokens.discard_whitespace();
+
+    auto const& function_token = outer_tokens.consume_a_token();
+    if (!function_token.is_function(function_name))
+        return OptionalNone {};
+
+    auto inner_tokens = TokenStream { function_token.function().value };
+    inner_tokens.discard_whitespace();
+
+    auto l = parse_number_percentage_value(inner_tokens);
+    if (!l)
+        return OptionalNone {};
+    inner_tokens.discard_whitespace();
+
+    auto c = parse_number_percentage_value(inner_tokens);
+    if (!c)
+        return OptionalNone {};
+    inner_tokens.discard_whitespace();
+
+    auto h = parse_hue_value(inner_tokens);
+    if (!h)
+        return OptionalNone {};
+    inner_tokens.discard_whitespace();
+
+    RefPtr<CSSStyleValue> alpha;
+    if (inner_tokens.has_next_token()) {
+        alpha = parse_solidus_and_alpha_value(inner_tokens);
+        if (!alpha || inner_tokens.has_next_token())
+            return OptionalNone {};
+    }
+
+    if (!alpha)
+        alpha = NumberStyleValue::create(1);
+
+    transaction.commit();
+
+    return Array { move(l), move(c), move(h), move(alpha) };
+}
+
 // https://www.w3.org/TR/css-color-4/#funcdef-oklch
 RefPtr<CSSStyleValue> Parser::parse_oklch_color_value(TokenStream<ComponentValue>& outer_tokens)
 {
@@ -3345,47 +3393,16 @@ RefPtr<CSSStyleValue> Parser::parse_oklch_color_value(TokenStream<ComponentValue
     //     [ <hue> | none]
     //     [ / [<alpha-value> | none] ]? )
 
-    auto transaction = outer_tokens.begin_transaction();
-    outer_tokens.discard_whitespace();
-
-    auto& function_token = outer_tokens.consume_a_token();
-    if (!function_token.is_function("oklch"sv))
+    auto maybe_color_values = parse_lch_like_color_value(outer_tokens, "oklch"sv);
+    if (!maybe_color_values.has_value())
         return {};
 
-    RefPtr<CSSStyleValue> l;
-    RefPtr<CSSStyleValue> c;
-    RefPtr<CSSStyleValue> h;
-    RefPtr<CSSStyleValue> alpha;
+    auto& color_values = *maybe_color_values;
 
-    auto inner_tokens = TokenStream { function_token.function().value };
-    inner_tokens.discard_whitespace();
-
-    l = parse_number_percentage_value(inner_tokens);
-    if (!l)
-        return {};
-    inner_tokens.discard_whitespace();
-
-    c = parse_number_percentage_value(inner_tokens);
-    if (!c)
-        return {};
-    inner_tokens.discard_whitespace();
-
-    h = parse_hue_value(inner_tokens);
-    if (!h)
-        return {};
-    inner_tokens.discard_whitespace();
-
-    if (inner_tokens.has_next_token()) {
-        alpha = parse_solidus_and_alpha_value(inner_tokens);
-        if (!alpha || inner_tokens.has_next_token())
-            return {};
-    }
-
-    if (!alpha)
-        alpha = NumberStyleValue::create(1);
-
-    transaction.commit();
-    return CSSOKLCH::create(l.release_nonnull(), c.release_nonnull(), h.release_nonnull(), alpha.release_nonnull());
+    return CSSOKLCH::create(color_values[0].release_nonnull(),
+        color_values[1].release_nonnull(),
+        color_values[2].release_nonnull(),
+        color_values[3].release_nonnull());
 }
 
 // https://www.w3.org/TR/css-color-4/#funcdef-color
