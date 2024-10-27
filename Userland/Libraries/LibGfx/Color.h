@@ -184,14 +184,11 @@ public:
 
     static Color from_lab(float L, float a, float b, float alpha = 1.0f);
     static Color from_xyz50(float x, float y, float z, float alpha = 1.0f);
+    static Color from_linear_srgb(float x, float y, float z, float alpha = 1.0f);
 
     // https://bottosson.github.io/posts/oklab/
     static constexpr Color from_oklab(float L, float a, float b, float alpha = 1.0f)
     {
-        auto linear_to_srgb = [](float c) {
-            return c >= 0.0031308f ? 1.055f * pow(c, 0.4166666f) - 0.055f : 12.92f * c;
-        };
-
         float l = L + 0.3963377774f * a + 0.2158037573f * b;
         float m = L - 0.1055613458f * a - 0.0638541728f * b;
         float s = L - 0.0894841775f * a - 1.2914855480f * b;
@@ -204,15 +201,7 @@ public:
         float green = -1.2684380046f * l + 2.6097574011f * m - 0.3413193965f * s;
         float blue = -0.0041960863f * l - 0.7034186147f * m + 1.7076147010f * s;
 
-        red = linear_to_srgb(red) * 255.f;
-        green = linear_to_srgb(green) * 255.f;
-        blue = linear_to_srgb(blue) * 255.f;
-
-        return Color(
-            clamp(lroundf(red), 0, 255),
-            clamp(lroundf(green), 0, 255),
-            clamp(lroundf(blue), 0, 255),
-            clamp(lroundf(alpha * 255.f), 0, 255));
+        return from_linear_srgb(red, green, blue, alpha);
     }
 
     // https://bottosson.github.io/posts/oklab/
