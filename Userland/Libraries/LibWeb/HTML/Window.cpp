@@ -423,6 +423,9 @@ void Window::fire_a_page_transition_event(FlyString const& event_name, bool pers
     // the bubbles attribute initialized to true,
     event->set_bubbles(true);
 
+    // isTrusted is a convenience that indicates whether an event is dispatched by the user agent (as opposed to using dispatchEvent())
+    event->set_is_trusted(true);
+
     // and legacy target override flag set.
     dispatch_event(event);
 }

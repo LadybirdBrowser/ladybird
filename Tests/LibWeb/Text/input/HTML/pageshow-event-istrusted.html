@@ -1,0 +1,14 @@
+<script src="../include.js"></script>
+<iframe id="i"></iframe>
+<script>
+    asyncTest((done) => {
+        window.addEventListener("pageshow", (e) => {
+            if (e.isTrusted) {
+                println("PASS");
+            } else {
+                println("FAIL");
+            }
+            done();
+		});
+    });
+</script>
