@@ -49,6 +49,7 @@ white-space: normal
 word-break: normal
 word-spacing: normal
 word-wrap: normal
+writing-mode: horizontal-tb
 align-content: normal
 align-items: normal
 align-self: auto
@@ -123,7 +124,7 @@ grid-row-start: auto
 grid-template-areas: none
 grid-template-columns: auto
 grid-template-rows: auto
-height: 2125px
+height: 2142px
 inline-size: auto
 inset-block-end: auto
 inset-block-start: auto

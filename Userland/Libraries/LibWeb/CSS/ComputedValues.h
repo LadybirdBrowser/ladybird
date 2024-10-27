@@ -191,6 +191,7 @@ public:
     static CSS::TransformBox transform_box() { return CSS::TransformBox::ViewBox; }
     static CSS::Direction direction() { return CSS::Direction::Ltr; }
     static CSS::UnicodeBidi unicode_bidi() { return CSS::UnicodeBidi::Normal; }
+    static CSS::WritingMode writing_mode() { return CSS::WritingMode::HorizontalTb; }
 
     // https://www.w3.org/TR/SVG/geometry.html
     static LengthPercentage cx() { return CSS::Length::make_px(0); }
@@ -443,6 +444,7 @@ public:
     CSS::ObjectPosition object_position() const { return m_noninherited.object_position; }
     CSS::Direction direction() const { return m_inherited.direction; }
     CSS::UnicodeBidi unicode_bidi() const { return m_noninherited.unicode_bidi; }
+    CSS::WritingMode writing_mode() const { return m_inherited.writing_mode; }
 
     CSS::LengthBox const& inset() const { return m_noninherited.inset; }
     const CSS::LengthBox& margin() const { return m_noninherited.margin; }
@@ -567,6 +569,7 @@ protected:
         CSS::Visibility visibility { InitialValues::visibility() };
         CSS::QuotesData quotes { InitialValues::quotes() };
         CSS::Direction direction { InitialValues::direction() };
+        CSS::WritingMode writing_mode { InitialValues::writing_mode() };
 
         Optional<SVGPaint> fill;
         CSS::FillRule fill_rule { InitialValues::fill_rule() };
@@ -813,6 +816,7 @@ public:
     void set_object_position(CSS::ObjectPosition value) { m_noninherited.object_position = value; }
     void set_direction(CSS::Direction value) { m_inherited.direction = value; }
     void set_unicode_bidi(CSS::UnicodeBidi value) { m_noninherited.unicode_bidi = value; }
+    void set_writing_mode(CSS::WritingMode value) { m_inherited.writing_mode = value; }
 
     void set_fill(SVGPaint value) { m_inherited.fill = value; }
     void set_stroke(SVGPaint value) { m_inherited.stroke = value; }
