@@ -43,11 +43,6 @@ ErrorOr<AnonymousBuffer> AnonymousBuffer::create_from_anon_fd(int fd, size_t siz
     return AnonymousBuffer(move(impl));
 }
 
-AnonymousBuffer::AnonymousBuffer(NonnullRefPtr<AnonymousBufferImpl> impl)
-    : m_impl(move(impl))
-{
-}
-
 AnonymousBufferImpl::AnonymousBufferImpl(int fd, size_t size, void* data)
     : m_fd(fd)
     , m_size(size)

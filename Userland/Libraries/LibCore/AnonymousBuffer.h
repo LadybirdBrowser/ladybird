@@ -18,6 +18,7 @@ namespace Core {
 
 class AnonymousBufferImpl final : public RefCounted<AnonymousBufferImpl> {
 public:
+    static ErrorOr<NonnullRefPtr<AnonymousBufferImpl>> create(size_t);
     static ErrorOr<NonnullRefPtr<AnonymousBufferImpl>> create(int fd, size_t);
     ~AnonymousBufferImpl();
 
@@ -65,7 +66,10 @@ public:
     }
 
 private:
-    explicit AnonymousBuffer(NonnullRefPtr<AnonymousBufferImpl>);
+    explicit AnonymousBuffer(NonnullRefPtr<AnonymousBufferImpl> impl)
+        : m_impl(move(impl))
+    {
+    }
 
     RefPtr<AnonymousBufferImpl> m_impl;
 };
