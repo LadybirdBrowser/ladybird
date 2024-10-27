@@ -1947,8 +1947,7 @@
       "percentage [0,∞]"
     ],
     "valid-identifiers": [
-      "auto",
-      "none"
+      "auto"
     ],
     "percentages-resolve-to": "length",
     "quirks": [
@@ -1974,8 +1973,7 @@
       "auto",
       "fit-content",
       "max-content",
-      "min-content",
-      "none"
+      "min-content"
     ],
     "percentages-resolve-to": "length",
     "quirks": [
