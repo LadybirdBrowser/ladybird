@@ -184,6 +184,7 @@ public:
 
     static Color from_lab(float L, float a, float b, float alpha = 1.0f);
     static Color from_xyz50(float x, float y, float z, float alpha = 1.0f);
+    static Color from_xyz65(float x, float y, float z, float alpha = 1.0f);
     static Color from_linear_srgb(float x, float y, float z, float alpha = 1.0f);
 
     // https://bottosson.github.io/posts/oklab/

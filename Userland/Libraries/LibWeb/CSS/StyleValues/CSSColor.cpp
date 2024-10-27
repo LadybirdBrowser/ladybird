@@ -11,6 +11,19 @@
 
 namespace Web::CSS {
 
+namespace {
+
+CSSColorValue::ColorType color_type_from_string_view(StringView color_space)
+{
+    if (color_space == "xyz-d50"sv)
+        return CSSColorValue::ColorType::XYZD50;
+    if (color_space == "xyz"sv || color_space == "xyz-d65")
+        return CSSColorValue::ColorType::XYZD65;
+    VERIFY_NOT_REACHED();
+}
+
+}
+
 ValueComparingNonnullRefPtr<CSSColor> CSSColor::create(StringView color_space, ValueComparingNonnullRefPtr<CSSStyleValue> c1, ValueComparingNonnullRefPtr<CSSStyleValue> c2, ValueComparingNonnullRefPtr<CSSStyleValue> c3, ValueComparingRefPtr<CSSStyleValue> alpha)
 {
     VERIFY(any_of(s_supported_color_space, [=](auto supported) { return color_space == supported; }));
@@ -18,8 +31,7 @@ ValueComparingNonnullRefPtr<CSSColor> CSSColor::create(StringView color_space, V
     if (!alpha)
         alpha = NumberStyleValue::create(1);
 
-    if (color_space == "xyz-d50")
-        return adopt_ref(*new (nothrow) CSSColor(ColorType::XYZD50, move(c1), move(c2), move(c3), alpha.release_nonnull()));
+    return adopt_ref(*new (nothrow) CSSColor(color_type_from_string_view(color_space), move(c1), move(c2), move(c3), alpha.release_nonnull()));
 
     VERIFY_NOT_REACHED();
 }
@@ -51,6 +63,9 @@ Color CSSColor::to_color(Optional<Layout::NodeWithStyle const&>) const
 
     if (color_type() == ColorType::XYZD50)
         return Color::from_xyz50(c1, c2, c3, alpha_val);
+
+    if (color_type() == ColorType::XYZD65)
+        return Color::from_xyz65(c1, c2, c3, alpha_val);
 
     VERIFY_NOT_REACHED();
 }
