@@ -105,7 +105,7 @@ clangd provides code formatting out of the box using the ``clang-format`` engine
 
 ## Settings
 
-These belong in the `.vscode/settings.json` of Serenity.
+These belong in the `.vscode/settings.json` of Ladybird.
 
 ```json
 {
