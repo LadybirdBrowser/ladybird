@@ -7,6 +7,7 @@ source_set("StyleValues") {
     "BackgroundSizeStyleValue.cpp",
     "BasicShapeStyleValue.cpp",
     "BorderRadiusStyleValue.cpp",
+    "CSSColor.cpp",
     "CSSColorValue.cpp",
     "CSSHSL.cpp",
     "CSSHWB.cpp",

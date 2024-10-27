@@ -44,6 +44,7 @@
 #include <LibWeb/CSS/StyleValues/BackgroundSizeStyleValue.h>
 #include <LibWeb/CSS/StyleValues/BasicShapeStyleValue.h>
 #include <LibWeb/CSS/StyleValues/BorderRadiusStyleValue.h>
+#include <LibWeb/CSS/StyleValues/CSSColor.h>
 #include <LibWeb/CSS/StyleValues/CSSColorValue.h>
 #include <LibWeb/CSS/StyleValues/CSSHSL.h>
 #include <LibWeb/CSS/StyleValues/CSSHWB.h>
@@ -3387,6 +3388,66 @@ RefPtr<CSSStyleValue> Parser::parse_oklch_color_value(TokenStream<ComponentValue
     return CSSOKLCH::create(l.release_nonnull(), c.release_nonnull(), h.release_nonnull(), alpha.release_nonnull());
 }
 
+// https://www.w3.org/TR/css-color-4/#funcdef-color
+RefPtr<CSSStyleValue> Parser::parse_color_function(TokenStream<ComponentValue>& outer_tokens)
+{
+    // color() = color( <colorspace-params> [ / [ <alpha-value> | none ] ]? )
+    //     <colorspace-params> = [ <predefined-rgb-params> | <xyz-params>]
+    //     <predefined-rgb-params> = <predefined-rgb> [ <number> | <percentage> | none ]{3}
+    //     <predefined-rgb> = srgb | srgb-linear | display-p3 | a98-rgb | prophoto-rgb | rec2020
+    //     <xyz-params> = <xyz-space> [ <number> | <percentage> | none ]{3}
+    //     <xyz-space> = xyz | xyz-d50 | xyz-d65
+
+    auto transaction = outer_tokens.begin_transaction();
+    outer_tokens.discard_whitespace();
+
+    auto const& function_token = outer_tokens.consume_a_token();
+    if (!function_token.is_function("color"sv))
+        return {};
+
+    auto inner_tokens = TokenStream { function_token.function().value };
+    inner_tokens.discard_whitespace();
+
+    auto maybe_color_space = inner_tokens.consume_a_token();
+    inner_tokens.discard_whitespace();
+    if (!any_of(CSSColor::s_supported_color_space, [&](auto supported) { return maybe_color_space.is_ident(supported); }))
+        return {};
+
+    auto const& color_space = maybe_color_space.token().ident();
+
+    auto c1 = parse_number_percentage_value(inner_tokens);
+    if (!c1)
+        return {};
+    inner_tokens.discard_whitespace();
+
+    auto c2 = parse_number_percentage_value(inner_tokens);
+    if (!c2)
+        return {};
+    inner_tokens.discard_whitespace();
+
+    auto c3 = parse_number_percentage_value(inner_tokens);
+    if (!c3)
+        return {};
+    inner_tokens.discard_whitespace();
+
+    RefPtr<CSSStyleValue> alpha;
+    if (inner_tokens.has_next_token()) {
+        alpha = parse_solidus_and_alpha_value(inner_tokens);
+        if (!alpha || inner_tokens.has_next_token())
+            return {};
+    }
+
+    if (!alpha)
+        alpha = NumberStyleValue::create(1);
+
+    transaction.commit();
+    return CSSColor::create(color_space.to_ascii_lowercase(),
+        c1.release_nonnull(),
+        c2.release_nonnull(),
+        c3.release_nonnull(),
+        alpha.release_nonnull());
+}
+
 // https://www.w3.org/TR/css-color-4/#color-syntax
 RefPtr<CSSStyleValue> Parser::parse_color_value(TokenStream<ComponentValue>& tokens)
 {
@@ -3401,6 +3462,9 @@ RefPtr<CSSStyleValue> Parser::parse_color_value(TokenStream<ComponentValue>& tok
     }
 
     // Functions
+    if (auto color = parse_color_function(tokens))
+        return color;
+
     if (auto rgb = parse_rgb_color_value(tokens))
         return rgb;
     if (auto hsl = parse_hsl_color_value(tokens))
