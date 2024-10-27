@@ -6,12 +6,12 @@ Rerun
 
 Found 12 tests
 
-4 Pass
-8 Fail
+6 Pass
+6 Fail
 Details
 Result	Test Name	MessagePass	Property max-height value 'none'	
-Fail	Property max-height value 'min-content'	assert_true: 'min-content' is a supported value for max-height. expected true got false
-Fail	Property max-height value 'max-content'	assert_true: 'max-content' is a supported value for max-height. expected true got false
+Pass	Property max-height value 'min-content'	
+Pass	Property max-height value 'max-content'	
 Pass	Property max-height value '10px'	
 Pass	Property max-height value '20%'	
 Pass	Property max-height value 'calc(10% + 40px)'	
