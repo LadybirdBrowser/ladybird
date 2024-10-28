@@ -4,8 +4,7 @@
 // https://html.spec.whatwg.org/multipage/web-messaging.html#messageport
 [Exposed=(Window,Worker,AudioWorklet), Transferable]
 interface MessagePort : EventTarget {
-    // FIXME: IDL Overload resolution fails here
-    // FIXME: undefined postMessage(any message, sequence<object> transfer);
+    undefined postMessage(any message, sequence<object> transfer);
     undefined postMessage(any message, optional StructuredSerializeOptions options = {});
     undefined start();
     undefined close();
