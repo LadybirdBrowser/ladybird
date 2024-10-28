@@ -1168,7 +1168,7 @@ void BrowserWindow::resizeEvent(QResizeEvent* event)
     QWidget::resizeEvent(event);
 
     for_each_tab([&](auto& tab) {
-        tab.view().set_window_size({ frameSize().width(), frameSize().height() });
+        tab.view().set_window_size({ width(), height() });
     });
 }
 
@@ -1177,7 +1177,7 @@ void BrowserWindow::moveEvent(QMoveEvent* event)
     QWidget::moveEvent(event);
 
     for_each_tab([&](auto& tab) {
-        tab.view().set_window_position({ event->pos().x(), event->pos().y() });
+        tab.view().set_window_position({ x(), y() });
     });
 }
 
