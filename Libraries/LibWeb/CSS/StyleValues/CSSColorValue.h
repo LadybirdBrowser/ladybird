@@ -23,13 +23,14 @@ public:
     virtual bool has_color() const override { return true; }
 
     enum class ColorType {
-        RGB,
+        RGB, // This is used by CSSRGB for rgb(...) and rgba(...).
         HSL,
         HWB,
         Lab,
         LCH,
         OKLab,
         OKLCH,
+        sRGB, // This is used by CSSColor for color(srgb ...).
         XYZD50,
         XYZD65,
     };
