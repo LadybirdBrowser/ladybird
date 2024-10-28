@@ -48,12 +48,22 @@ void DedicatedWorkerGlobalScope::finalize()
     WindowOrWorkerGlobalScopeMixin::finalize();
 }
 
+// https://html.spec.whatwg.org/multipage/workers.html#dom-dedicatedworkerglobalscope-postmessage-options
 WebIDL::ExceptionOr<void> DedicatedWorkerGlobalScope::post_message(JS::Value message, StructuredSerializeOptions const& options)
 {
     // The postMessage(message, transfer) and postMessage(message, options) methods on DedicatedWorkerGlobalScope objects act as if,
     // when invoked, it immediately invoked the respective postMessage(message, transfer) and postMessage(message, options)
     // on the port, with the same arguments, and returned the same return value.
     return m_internal_port->post_message(message, options);
+}
+
+// https://html.spec.whatwg.org/multipage/workers.html#dom-dedicatedworkerglobalscope-postmessage
+WebIDL::ExceptionOr<void> DedicatedWorkerGlobalScope::post_message(JS::Value message, Vector<JS::Handle<JS::Object>> const& transfer)
+{
+    // The postMessage(message, transfer) and postMessage(message, options) methods on DedicatedWorkerGlobalScope objects act as if,
+    // when invoked, it immediately invoked the respective postMessage(message, transfer) and postMessage(message, options)
+    // on the port, with the same arguments, and returned the same return value.
+    return m_internal_port->post_message(message, transfer);
 }
 
 #undef __ENUMERATE
