@@ -36,6 +36,7 @@ public:
     virtual Gfx::FloatPoint last_point() const override;
     virtual Gfx::FloatRect bounding_box() const override;
     virtual bool contains(FloatPoint point, Gfx::WindingRule) const override;
+    virtual void set_fill_type(Gfx::WindingRule winding_rule) override;
 
     virtual NonnullOwnPtr<PathImpl> clone() const override;
     virtual NonnullOwnPtr<PathImpl> copy_transformed(Gfx::AffineTransform const&) const override;
@@ -46,6 +47,7 @@ public:
 
 private:
     PathImplSkia();
+    PathImplSkia(PathImplSkia const& other);
 
     Gfx::FloatPoint m_last_move_to;
     NonnullOwnPtr<SkPath> m_path;

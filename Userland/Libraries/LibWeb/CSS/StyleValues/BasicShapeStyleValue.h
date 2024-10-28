@@ -7,6 +7,7 @@
 #pragma once
 
 #include <AK/Variant.h>
+#include <LibGfx/WindingRule.h>
 #include <LibWeb/CSS/CSSStyleValue.h>
 #include <LibWeb/CSS/LengthBox.h>
 #include <LibWeb/CSS/PercentageOr.h>
@@ -84,8 +85,7 @@ struct Polygon {
 
     bool operator==(Polygon const&) const = default;
 
-    // FIXME: Actually use the fill rule
-    FillRule fill_rule;
+    Gfx::WindingRule fill_rule;
     Vector<Point> points;
 };
 

@@ -29,6 +29,12 @@ PathImplSkia::PathImplSkia()
 {
 }
 
+PathImplSkia::PathImplSkia(PathImplSkia const& other)
+    : m_last_move_to(other.m_last_move_to)
+    , m_path(adopt_own(*new SkPath(other.sk_path())))
+{
+}
+
 PathImplSkia::~PathImplSkia() = default;
 
 void PathImplSkia::clear()
@@ -217,21 +223,24 @@ bool PathImplSkia::contains(FloatPoint point, Gfx::WindingRule winding_rule) con
     return temp_path.contains(point.x(), point.y());
 }
 
+void PathImplSkia::set_fill_type(Gfx::WindingRule winding_rule)
+{
+    m_path->setFillType(to_skia_path_fill_type(winding_rule));
+}
+
 NonnullOwnPtr<PathImpl> PathImplSkia::clone() const
 {
-    auto new_path = PathImplSkia::create();
-    new_path->sk_path().addPath(*m_path);
-    return new_path;
+    return adopt_own(*new PathImplSkia(*this));
 }
 
 NonnullOwnPtr<PathImpl> PathImplSkia::copy_transformed(Gfx::AffineTransform const& transform) const
 {
-    auto new_path = PathImplSkia::create();
+    auto new_path = adopt_own(*new PathImplSkia(*this));
     auto matrix = SkMatrix::MakeAll(
         transform.a(), transform.c(), transform.e(),
         transform.b(), transform.d(), transform.f(),
         0, 0, 1);
-    new_path->sk_path().addPath(*m_path, matrix);
+    new_path->sk_path().transform(matrix);
     return new_path;
 }
 
