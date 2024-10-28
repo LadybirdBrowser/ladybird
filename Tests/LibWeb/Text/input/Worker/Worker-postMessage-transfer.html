@@ -1,0 +1,29 @@
+<script src="../include.js"></script>
+<script>
+    asyncTest((done) => {
+        const workerScript = `
+            self.onmessage = function(evt) {
+                const receivedBuffer = evt.data;
+                self.postMessage(receivedBuffer, [receivedBuffer]);
+            };
+        `;
+
+        const blob = new Blob([workerScript], { type: 'application/javascript' });
+        const workerScriptURL = URL.createObjectURL(blob);
+        const worker = new Worker(workerScriptURL);
+
+        worker.onmessage = function(evt) {
+            const bufTransferredBackFromWorker = evt.data;
+            const decoder = new TextDecoder();
+
+            println('Message received from worker: ' + decoder.decode(bufTransferredBackFromWorker));
+            done();
+        };
+
+        const encoder = new TextEncoder();
+        const message = encoder.encode("Hello, world");
+        const myBuf = message.buffer;
+
+        worker.postMessage(myBuf, [myBuf]);
+    });
+</script>
