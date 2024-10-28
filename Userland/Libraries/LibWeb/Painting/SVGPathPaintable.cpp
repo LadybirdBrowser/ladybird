@@ -106,7 +106,6 @@ void SVGPathPaintable::paint(PaintContext& context, PaintPhase phase) const
     SVG::SVGPaintContext paint_context {
         .viewport = svg_viewport,
         .path_bounding_box = computed_path()->bounding_box(),
-        .transform = paint_transform
     };
 
     auto fill_opacity = graphics_element.fill_opacity().value_or(1);

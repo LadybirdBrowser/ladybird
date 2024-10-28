@@ -83,15 +83,21 @@ Optional<Gfx::AffineTransform> SVGGradientElement::gradient_transform_impl(HashT
 // The gradient transform, appropriately scaled and combined with the paint transform.
 Gfx::AffineTransform SVGGradientElement::gradient_paint_transform(SVGPaintContext const& paint_context) const
 {
-    auto transform = gradient_transform().value_or(Gfx::AffineTransform {});
-    if (gradient_units() == GradientUnits::ObjectBoundingBox) {
-        // Adjust transform to take place in the coordinate system defined by the bounding box:
-        return Gfx::AffineTransform { paint_context.transform }
-            .translate(paint_context.path_bounding_box.location())
-            .scale(paint_context.path_bounding_box.width(), paint_context.path_bounding_box.height())
-            .multiply(transform);
+    Gfx::AffineTransform gradient_paint_transform;
+    auto const& bounding_box = paint_context.path_bounding_box;
+
+    if (gradient_units() == SVGUnits::ObjectBoundingBox) {
+        // Scale points from 0..1 to bounding box coordinates:
+        gradient_paint_transform.scale(bounding_box.width(), bounding_box.height());
+    } else {
+        // Translate points from viewport to bounding box coordinates:
+        gradient_paint_transform.translate(paint_context.viewport.location() - bounding_box.location());
     }
-    return Gfx::AffineTransform { paint_context.transform }.multiply(transform);
+
+    if (auto transform = gradient_transform(); transform.has_value())
+        gradient_paint_transform.multiply(transform.value());
+
+    return gradient_paint_transform;
 }
 
 void SVGGradientElement::add_color_stops(Painting::SVGGradientPaintStyle& paint_style) const
