@@ -8,7 +8,9 @@
 #include <LibTest/TestCase.h>
 
 #include <AK/ByteString.h>
+#include <AK/FlyString.h>
 #include <AK/Optional.h>
+#include <AK/String.h>
 #include <AK/Vector.h>
 
 TEST_CASE(basic_optional)
@@ -268,4 +270,174 @@ TEST_CASE(comparison_reference)
     EXPECT_NE(opt0, opt1);
     EXPECT_EQ(opt1, opt2);
     EXPECT_NE(opt1, opt3);
+}
+
+TEST_CASE(string_specialization)
+{
+    EXPECT_EQ(sizeof(Optional<String>), sizeof(String));
+
+    {
+        Optional<String> foo;
+
+        EXPECT(!foo.has_value());
+
+        foo = "long_enough_to_be_allocated"_string;
+
+        EXPECT(foo.has_value());
+        EXPECT_EQ(foo.value(), "long_enough_to_be_allocated"sv);
+    }
+
+    {
+        Optional<String> foo = "initial_value"_string;
+
+        EXPECT(foo.has_value());
+        EXPECT_EQ(foo.value(), "initial_value"sv);
+
+        foo = "long_enough_to_be_allocated"_string;
+
+        EXPECT(foo.has_value());
+        EXPECT_EQ(foo.value(), "long_enough_to_be_allocated"sv);
+    }
+
+    {
+        Optional<String> foo;
+
+        EXPECT(!foo.has_value());
+
+        String bar = "long_enough_to_be_allocated"_string;
+        foo = bar;
+
+        EXPECT(foo.has_value());
+        EXPECT_EQ(foo.value(), "long_enough_to_be_allocated"sv);
+    }
+
+    {
+        Optional<String> foo;
+
+        EXPECT(!foo.has_value());
+
+        Optional<String> bar = "long_enough_to_be_allocated"_string;
+        foo = bar;
+
+        EXPECT(foo.has_value());
+        EXPECT_EQ(foo.value(), "long_enough_to_be_allocated"sv);
+        EXPECT(bar.has_value());
+        EXPECT_EQ(bar.value(), "long_enough_to_be_allocated"sv);
+    }
+
+    {
+        Optional<String> foo;
+
+        EXPECT(!foo.has_value());
+
+        foo = Optional<String> { "long_enough_to_be_allocated"_string };
+
+        EXPECT(foo.has_value());
+        EXPECT_EQ(foo.value(), "long_enough_to_be_allocated"sv);
+    }
+
+    {
+        Optional<String> foo = "long_enough_to_be_allocated"_string;
+
+        EXPECT_EQ(foo.value_or("fallback_value"_string), "long_enough_to_be_allocated"sv);
+    }
+
+    {
+        Optional<String> foo;
+
+        EXPECT_EQ(foo.value_or("fallback_value"_string), "fallback_value"sv);
+    }
+
+    {
+        EXPECT_EQ((Optional<String> { "long_enough_to_be_allocated"_string }).value_or("fallback_value"_string), "long_enough_to_be_allocated"sv);
+    }
+
+    {
+        EXPECT_EQ((Optional<String> {}).value_or("fallback_value"_string), "fallback_value"sv);
+    }
+}
+
+TEST_CASE(flystring_specialization)
+{
+    EXPECT_EQ(sizeof(Optional<FlyString>), sizeof(FlyString));
+
+    {
+        Optional<FlyString> foo;
+
+        EXPECT(!foo.has_value());
+
+        foo = "long_enough_to_be_allocated"_fly_string;
+
+        EXPECT(foo.has_value());
+        EXPECT_EQ(foo.value(), "long_enough_to_be_allocated"sv);
+    }
+
+    {
+        Optional<FlyString> foo = "initial_value"_fly_string;
+
+        EXPECT(foo.has_value());
+        EXPECT_EQ(foo.value(), "initial_value"sv);
+
+        foo = "long_enough_to_be_allocated"_fly_string;
+
+        EXPECT(foo.has_value());
+        EXPECT_EQ(foo.value(), "long_enough_to_be_allocated"sv);
+    }
+
+    {
+        Optional<FlyString> foo;
+
+        EXPECT(!foo.has_value());
+
+        FlyString bar = "long_enough_to_be_allocated"_fly_string;
+        foo = bar;
+
+        EXPECT(foo.has_value());
+        EXPECT_EQ(foo.value(), "long_enough_to_be_allocated"sv);
+    }
+
+    {
+        Optional<FlyString> foo;
+
+        EXPECT(!foo.has_value());
+
+        Optional<FlyString> bar = "long_enough_to_be_allocated"_fly_string;
+        foo = bar;
+
+        EXPECT(bar.has_value());
+        EXPECT_EQ(bar.value(), "long_enough_to_be_allocated"sv);
+        EXPECT(foo.has_value());
+        EXPECT_EQ(foo.value(), "long_enough_to_be_allocated"sv);
+    }
+
+    {
+        Optional<FlyString> foo;
+
+        EXPECT(!foo.has_value());
+
+        foo = Optional<FlyString> { "long_enough_to_be_allocated"_fly_string };
+
+        EXPECT(foo.has_value());
+        EXPECT_EQ(foo.value(), "long_enough_to_be_allocated"sv);
+    }
+
+    {
+        Optional<FlyString> foo = "long_enough_to_be_allocated"_fly_string;
+
+        EXPECT_EQ(foo.value_or("fallback_value"_fly_string), "long_enough_to_be_allocated"sv);
+    }
+
+    {
+        Optional<FlyString> foo;
+
+        EXPECT_EQ(foo.value_or("fallback_value"_fly_string), "fallback_value"sv);
+    }
+
+    {
+        EXPECT_EQ((Optional<FlyString> { "long_enough_to_be_allocated"_fly_string }).value_or("fallback_value"_fly_string), "long_enough_to_be_allocated"sv);
+    }
+
+    {
+        EXPECT_EQ((Optional<FlyString> {}).value_or("fallback_value"_fly_string), "fallback_value"sv);
+    }
 }

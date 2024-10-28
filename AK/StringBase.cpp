@@ -58,6 +58,7 @@ StringBase& StringBase::operator=(StringBase const& other)
 
 ReadonlyBytes StringBase::bytes() const
 {
+    ASSERT(!is_invalid());
     if (is_short_string())
         return m_short_string.bytes();
     return m_data->bytes();
@@ -65,6 +66,7 @@ ReadonlyBytes StringBase::bytes() const
 
 u32 StringBase::hash() const
 {
+    ASSERT(!is_invalid());
     if (is_short_string()) {
         auto bytes = this->bytes();
         return string_hash(reinterpret_cast<char const*>(bytes.data()), bytes.size());
@@ -74,6 +76,7 @@ u32 StringBase::hash() const
 
 size_t StringBase::byte_count() const
 {
+    ASSERT(!is_invalid());
     if (is_short_string())
         return m_short_string.byte_count_and_short_string_flag >> 1;
     return m_data->byte_count();
@@ -81,6 +84,7 @@ size_t StringBase::byte_count() const
 
 bool StringBase::operator==(StringBase const& other) const
 {
+    ASSERT(!is_invalid());
     if (is_short_string())
         return m_data == other.m_data;
     if (other.is_short_string())
@@ -92,6 +96,7 @@ bool StringBase::operator==(StringBase const& other) const
 
 void StringBase::replace_with_string_builder(StringBuilder& builder)
 {
+    ASSERT(!is_invalid());
     if (builder.length() <= MAX_SHORT_STRING_BYTE_COUNT) {
         return replace_with_new_short_string(builder.length(), [&](Bytes buffer) {
             builder.string_view().bytes().copy_to(buffer);
@@ -105,6 +110,7 @@ void StringBase::replace_with_string_builder(StringBuilder& builder)
 
 ErrorOr<Bytes> StringBase::replace_with_uninitialized_buffer(size_t byte_count)
 {
+    ASSERT(!is_invalid());
     if (byte_count <= MAX_SHORT_STRING_BYTE_COUNT)
         return replace_with_uninitialized_short_string(byte_count);
 
@@ -116,6 +122,7 @@ ErrorOr<Bytes> StringBase::replace_with_uninitialized_buffer(size_t byte_count)
 
 ErrorOr<StringBase> StringBase::substring_from_byte_offset_with_shared_superstring(size_t start, size_t length) const
 {
+    ASSERT(!is_invalid());
     VERIFY(start + length <= byte_count());
 
     if (length == 0)
