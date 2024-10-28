@@ -132,6 +132,16 @@ WebIDL::ExceptionOr<void> Worker::post_message(JS::Value message, StructuredSeri
     return m_outside_port->post_message(message, options);
 }
 
+// https://html.spec.whatwg.org/multipage/workers.html#dom-worker-postmessage
+WebIDL::ExceptionOr<void> Worker::post_message(JS::Value message, Vector<JS::Handle<JS::Object>> const& transfer)
+{
+    // The postMessage(message, transfer) and postMessage(message, options) methods on Worker objects act as if,
+    // when invoked, they immediately invoked the respective postMessage(message, transfer) and
+    // postMessage(message, options) on the port, with the same arguments, and returned the same return value.
+
+    return m_outside_port->post_message(message, transfer);
+}
+
 #undef __ENUMERATE
 #define __ENUMERATE(attribute_name, event_name)                    \
     void Worker::set_##attribute_name(WebIDL::CallbackType* value) \
