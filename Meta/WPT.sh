@@ -29,7 +29,7 @@ WEBDRIVER_BINARY=${WEBDRIVER_BINARY:-"$(default_binary_path)/WebDriver"}
 WPT_PROCESSES=${WPT_PROCESSES:-$(get_number_of_processing_units)}
 WPT_CERTIFICATES=(
   "tools/certs/cacert.pem"
-  "${LADYBIRD_SOURCE_DIR}/Build/ladybird/Lagom/cacert.pem"
+  "${BUILD_DIR}/Lagom/cacert.pem"
 )
 WPT_ARGS=( "--webdriver-binary=${WEBDRIVER_BINARY}"
            "--install-webdriver"
