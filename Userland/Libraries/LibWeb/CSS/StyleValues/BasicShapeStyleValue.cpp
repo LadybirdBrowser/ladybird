@@ -176,6 +176,7 @@ String Ellipse::to_string() const
 Gfx::Path Polygon::to_path(CSSPixelRect reference_box, Layout::Node const& node) const
 {
     Gfx::Path path;
+    path.set_fill_type(fill_rule);
     bool first = true;
     for (auto const& point : points) {
         Gfx::FloatPoint resolved_point {
@@ -196,12 +197,15 @@ String Polygon::to_string() const
 {
     StringBuilder builder;
     builder.append("polygon("sv);
-    bool first = true;
+    switch (fill_rule) {
+    case Gfx::WindingRule::Nonzero:
+        builder.append("nonzero"sv);
+        break;
+    case Gfx::WindingRule::EvenOdd:
+        builder.append("evenodd"sv);
+    }
     for (auto const& point : points) {
-        if (!first)
-            builder.append(',');
-        builder.appendff("{} {}", point.x, point.y);
-        first = false;
+        builder.appendff(", {} {}", point.x, point.y);
     }
     builder.append(')');
     return MUST(builder.to_string());

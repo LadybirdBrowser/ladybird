@@ -1457,15 +1457,15 @@ RefPtr<CSSStyleValue> Parser::parse_basic_shape_value(TokenStream<ComponentValue
         if (arguments.size() < 1)
             return nullptr;
 
-        Optional<FillRule> fill_rule;
+        Optional<Gfx::WindingRule> fill_rule;
         auto first_argument = arguments[0];
         TokenStream first_argument_tokens { first_argument };
 
         first_argument_tokens.discard_whitespace();
         if (first_argument_tokens.next_token().is_ident("nonzero"sv)) {
-            fill_rule = FillRule::Nonzero;
+            fill_rule = Gfx::WindingRule::Nonzero;
         } else if (first_argument_tokens.next_token().is_ident("evenodd"sv)) {
-            fill_rule = FillRule::Evenodd;
+            fill_rule = Gfx::WindingRule::EvenOdd;
         }
 
         if (fill_rule.has_value()) {
@@ -1475,7 +1475,7 @@ RefPtr<CSSStyleValue> Parser::parse_basic_shape_value(TokenStream<ComponentValue
 
             arguments.remove(0);
         } else {
-            fill_rule = FillRule::Nonzero;
+            fill_rule = Gfx::WindingRule::Nonzero;
         }
 
         if (arguments.size() < 1)
