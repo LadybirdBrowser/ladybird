@@ -121,8 +121,8 @@ set(SOURCES
     CSS/StyleValues/CSSHWB.cpp
     CSS/StyleValues/CSSKeywordValue.cpp
     CSS/StyleValues/CSSLabLike.cpp
+    CSS/StyleValues/CSSLCHLike.cpp
     CSS/StyleValues/CSSMathValue.cpp
-    CSS/StyleValues/CSSOKLCH.cpp
     CSS/StyleValues/CSSRGB.cpp
     CSS/StyleValues/DisplayStyleValue.cpp
     CSS/StyleValues/EasingStyleValue.cpp
