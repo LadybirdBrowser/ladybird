@@ -14,6 +14,8 @@
 
 namespace Ladybird {
 
+static Web::DevicePixelRect const screen_rect { 0, 0, 1920, 1080 };
+
 HeadlessWebView::HeadlessWebView(Core::AnonymousBuffer theme, Gfx::IntSize viewport_size)
     : m_theme(move(theme))
     , m_viewport_size(viewport_size)
@@ -34,6 +36,32 @@ HeadlessWebView::HeadlessWebView(Core::AnonymousBuffer theme, Gfx::IntSize viewp
         auto worker_client = MUST(launch_web_worker_process(web_worker_paths, Application::request_client()));
 
         return worker_client->clone_transport();
+    };
+
+    on_reposition_window = [this](auto position) {
+        client().async_set_window_position(m_client_state.page_index, position.template to_type<Web::DevicePixels>());
+
+        client().async_did_update_window_rect(m_client_state.page_index);
+    };
+
+    on_resize_window = [this](auto size) {
+        client().async_set_window_size(m_client_state.page_index, size.template to_type<Web::DevicePixels>());
+
+        client().async_did_update_window_rect(m_client_state.page_index);
+    };
+
+    on_maximize_window = [this]() {
+        client().async_set_window_position(m_client_state.page_index, screen_rect.location());
+        client().async_set_window_size(m_client_state.page_index, screen_rect.size());
+
+        client().async_did_update_window_rect(m_client_state.page_index);
+    };
+
+    on_fullscreen_window = [this]() {
+        client().async_set_window_position(m_client_state.page_index, screen_rect.location());
+        client().async_set_window_size(m_client_state.page_index, screen_rect.size());
+
+        client().async_did_update_window_rect(m_client_state.page_index);
     };
 
     on_request_alert = [this](auto const&) {
@@ -131,9 +159,7 @@ void HeadlessWebView::initialize_client(CreateNewClient create_new_client)
     client().async_set_system_visibility_state(m_client_state.page_index, true);
     client().async_set_viewport_size(m_client_state.page_index, viewport_size());
     client().async_set_window_size(m_client_state.page_index, viewport_size());
-
-    Vector<Web::DevicePixelRect> screen_rects { Web::DevicePixelRect { 0, 0, 1920, 1080 } };
-    client().async_update_screen_rects(m_client_state.page_index, move(screen_rects), 0);
+    client().async_update_screen_rects(m_client_state.page_index, { screen_rect }, 0);
 
     if (Application::chrome_options().allow_popups == WebView::AllowPopups::Yes)
         client().async_debug_request(m_client_state.page_index, "block-pop-ups"sv, "off"sv);
