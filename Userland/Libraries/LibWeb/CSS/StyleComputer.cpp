@@ -1949,7 +1949,7 @@ RefPtr<Gfx::FontCascadeList const> StyleComputer::compute_font_for_style_values(
     // Note: This is modified by the find_font() lambda
     bool monospace = false;
 
-    float const font_size_in_pt = font_size_in_px * 0.75f;
+    float font_size_in_pt = font_size_in_px * 0.75f;
 
     auto find_font = [&](FlyString const& family) -> RefPtr<Gfx::FontCascadeList const> {
         FontFaceKey key {
@@ -1986,6 +1986,7 @@ RefPtr<Gfx::FontCascadeList const> StyleComputer::compute_font_for_style_values(
         case Keyword::Monospace:
         case Keyword::UiMonospace:
             generic_font = Platform::GenericFont::Monospace;
+            font_size_in_pt = 13 * 0.75f;
             monospace = true;
             break;
         case Keyword::Serif:
