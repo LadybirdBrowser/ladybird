@@ -19,7 +19,6 @@ namespace Web::SVG {
 struct SVGPaintContext {
     Gfx::FloatRect viewport;
     Gfx::FloatRect path_bounding_box;
-    Gfx::AffineTransform transform;
 };
 
 inline Painting::SVGGradientPaintStyle::SpreadMethod to_painting_spread_method(SpreadMethod spread_method)

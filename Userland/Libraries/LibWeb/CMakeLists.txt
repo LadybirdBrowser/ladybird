@@ -591,7 +591,6 @@ set(SOURCES
     Painting/MediaPaintable.cpp
     Painting/NestedBrowsingContextPaintable.cpp
     Painting/PaintContext.cpp
-    Painting/PaintStyle.cpp
     Painting/Paintable.cpp
     Painting/PaintableBox.cpp
     Painting/PaintableFragment.cpp

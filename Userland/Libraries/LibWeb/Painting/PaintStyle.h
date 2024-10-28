@@ -20,19 +20,17 @@ struct ColorStop {
 
 class SVGGradientPaintStyle : public RefCounted<SVGGradientPaintStyle> {
 public:
-    void set_gradient_transform(Gfx::AffineTransform transform);
-
     enum class SpreadMethod {
         Pad,
         Repeat,
         Reflect
     };
 
-    void set_spread_method(SpreadMethod spread_method) { m_spread_method = spread_method; }
+    Optional<Gfx::AffineTransform> const& gradient_transform() const { return m_gradient_transform; }
+    void set_gradient_transform(Gfx::AffineTransform transform) { m_gradient_transform = transform; }
 
-    Optional<Gfx::AffineTransform> const& scale_adjusted_inverse_gradient_transform() const { return m_inverse_transform; }
-    float gradient_transform_scale() const { return m_scale; }
     SpreadMethod spread_method() const { return m_spread_method; }
+    void set_spread_method(SpreadMethod spread_method) { m_spread_method = spread_method; }
 
     void add_color_stop(float position, Color color, Optional<float> transition_hint = {})
     {
@@ -49,16 +47,13 @@ public:
     ReadonlySpan<ColorStop> color_stops() const { return m_color_stops; }
     Optional<float> repeat_length() const { return m_repeat_length; }
 
-    float scale() const { return m_scale; }
-
     virtual ~SVGGradientPaintStyle() {};
 
 protected:
     Vector<ColorStop, 4> m_color_stops;
     Optional<float> m_repeat_length;
 
-    Optional<Gfx::AffineTransform> m_inverse_transform {};
-    float m_scale { 1.0f };
+    Optional<Gfx::AffineTransform> m_gradient_transform {};
     SpreadMethod m_spread_method { SpreadMethod::Pad };
 };
 

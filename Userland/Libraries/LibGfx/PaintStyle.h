@@ -324,9 +324,6 @@ public:
         m_spread_method = spread_method;
     }
 
-    void set_inverse_transform(AffineTransform transform) { m_inverse_transform = transform; }
-    void set_scale(float scale) { m_scale = scale; }
-
 protected:
     Optional<AffineTransform> const& scale_adjusted_inverse_gradient_transform() const { return m_inverse_transform; }
     float gradient_transform_scale() const { return m_scale; }
