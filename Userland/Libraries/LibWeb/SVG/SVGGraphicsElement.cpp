@@ -149,6 +149,7 @@ void SVGGraphicsElement::apply_presentational_hints(CSS::StyleProperties& style)
         NamedPropertyID(CSS::PropertyID::Fill),
         // FIXME: The `stroke` attribute and CSS `stroke` property are not the same! But our support is limited enough that they are equivalent for now.
         NamedPropertyID(CSS::PropertyID::Stroke),
+        NamedPropertyID(CSS::PropertyID::StrokeLinecap),
         NamedPropertyID(CSS::PropertyID::StrokeWidth),
         NamedPropertyID(CSS::PropertyID::FillRule),
         NamedPropertyID(CSS::PropertyID::FillOpacity),
