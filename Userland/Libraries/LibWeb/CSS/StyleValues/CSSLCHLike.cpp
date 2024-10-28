@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include "CSSOKLCH.h"
+#include "CSSLCHLike.h"
 #include <AK/Math.h>
 #include <AK/TypeCasts.h>
 #include <LibWeb/CSS/Serialize.h>
@@ -14,6 +14,17 @@
 
 namespace Web::CSS {
 
+bool CSSLCHLike::equals(CSSStyleValue const& other) const
+{
+    if (type() != other.type())
+        return false;
+    auto const& other_color = other.as_color();
+    if (color_type() != other_color.color_type())
+        return false;
+    auto const& other_oklch_like = verify_cast<CSSLCHLike>(other_color);
+    return m_properties == other_oklch_like.m_properties;
+}
+
 Color CSSOKLCH::to_color(Optional<Layout::NodeWithStyle const&>) const
 {
     auto const l_val = clamp(resolve_with_reference_value(m_properties.l, 1.0).value_or(0), 0, 1);
@@ -22,17 +33,6 @@ Color CSSOKLCH::to_color(Optional<Layout::NodeWithStyle const&>) const
     auto const alpha_val = resolve_alpha(m_properties.alpha).value_or(1);
 
     return Color::from_oklab(l_val, c_val * cos(h_val), c_val * sin(h_val), alpha_val);
-}
-
-bool CSSOKLCH::equals(CSSStyleValue const& other) const
-{
-    if (type() != other.type())
-        return false;
-    auto const& other_color = other.as_color();
-    if (color_type() != other_color.color_type())
-        return false;
-    auto const& other_oklch = verify_cast<CSSOKLCH>(other_color);
-    return m_properties == other_oklch.m_properties;
 }
 
 // https://www.w3.org/TR/css-color-4/#serializing-oklab-oklch

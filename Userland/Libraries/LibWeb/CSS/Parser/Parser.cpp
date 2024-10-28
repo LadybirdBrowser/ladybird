@@ -48,8 +48,8 @@
 #include <LibWeb/CSS/StyleValues/CSSHSL.h>
 #include <LibWeb/CSS/StyleValues/CSSHWB.h>
 #include <LibWeb/CSS/StyleValues/CSSKeywordValue.h>
+#include <LibWeb/CSS/StyleValues/CSSLCHLike.h>
 #include <LibWeb/CSS/StyleValues/CSSLabLike.h>
-#include <LibWeb/CSS/StyleValues/CSSOKLCH.h>
 #include <LibWeb/CSS/StyleValues/CSSRGB.h>
 #include <LibWeb/CSS/StyleValues/ContentStyleValue.h>
 #include <LibWeb/CSS/StyleValues/CounterDefinitionsStyleValue.h>
@@ -3398,7 +3398,7 @@ RefPtr<CSSStyleValue> Parser::parse_oklch_color_value(TokenStream<ComponentValue
 
     auto& color_values = *maybe_color_values;
 
-    return CSSOKLCH::create(color_values[0].release_nonnull(),
+    return CSSLCHLike::create<CSSOKLCH>(color_values[0].release_nonnull(),
         color_values[1].release_nonnull(),
         color_values[2].release_nonnull(),
         color_values[3].release_nonnull());
