@@ -1168,7 +1168,7 @@ void BrowserWindow::resizeEvent(QResizeEvent* event)
     QWidget::resizeEvent(event);
 
     for_each_tab([&](auto& tab) {
-        tab.view().set_window_size({ frameSize().width() * m_device_pixel_ratio, frameSize().height() * m_device_pixel_ratio });
+        tab.view().set_window_size({ frameSize().width(), frameSize().height() });
     });
 }
 
@@ -1177,7 +1177,7 @@ void BrowserWindow::moveEvent(QMoveEvent* event)
     QWidget::moveEvent(event);
 
     for_each_tab([&](auto& tab) {
-        tab.view().set_window_position({ event->pos().x() * m_device_pixel_ratio, event->pos().y() * m_device_pixel_ratio });
+        tab.view().set_window_position({ event->pos().x(), event->pos().y() });
     });
 }
 
