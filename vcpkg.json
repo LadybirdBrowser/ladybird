@@ -1,5 +1,5 @@
 {
-  "builtin-baseline": "2960d7d80e8d09c84ae8abf15c12196c2ca7d39a",
+  "builtin-baseline": "10b7a178346f3f0abef60cecd5130e295afd8da4",
   "dependencies": [
     {
       "name": "curl",
