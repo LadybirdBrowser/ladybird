@@ -29,7 +29,7 @@ JS::NonnullGCPtr<CSSImportRule> CSSImportRule::create(URL::URL url, DOM::Documen
 }
 
 CSSImportRule::CSSImportRule(URL::URL url, DOM::Document& document)
-    : CSSRule(document.realm())
+    : CSSRule(document.realm(), Type::Import)
     , m_url(move(url))
     , m_document(document)
 {

@@ -19,7 +19,6 @@ public:
 
     virtual ~CSSNestedDeclarations() override = default;
 
-    virtual Type type() const override { return Type::NestedDeclarations; }
     PropertyOwningCSSStyleDeclaration const& declaration() const { return m_declaration; }
 
     CSSStyleDeclaration* style();

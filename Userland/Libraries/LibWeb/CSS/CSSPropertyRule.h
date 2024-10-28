@@ -25,7 +25,6 @@ public:
 
     virtual ~CSSPropertyRule() = default;
 
-    virtual Type type() const override { return Type::Property; }
     FlyString const& name() const { return m_name; }
     FlyString const& syntax() const { return m_syntax; }
     bool inherits() const { return m_inherits; }

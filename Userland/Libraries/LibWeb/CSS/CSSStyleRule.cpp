@@ -22,7 +22,7 @@ JS::NonnullGCPtr<CSSStyleRule> CSSStyleRule::create(JS::Realm& realm, SelectorLi
 }
 
 CSSStyleRule::CSSStyleRule(JS::Realm& realm, SelectorList&& selectors, PropertyOwningCSSStyleDeclaration& declaration, CSSRuleList& nested_rules)
-    : CSSGroupingRule(realm, nested_rules)
+    : CSSGroupingRule(realm, nested_rules, Type::Style)
     , m_selectors(move(selectors))
     , m_declaration(declaration)
 {

@@ -19,7 +19,7 @@ JS::NonnullGCPtr<CSSSupportsRule> CSSSupportsRule::create(JS::Realm& realm, Nonn
 }
 
 CSSSupportsRule::CSSSupportsRule(JS::Realm& realm, NonnullRefPtr<Supports>&& supports, CSSRuleList& rules)
-    : CSSConditionRule(realm, rules)
+    : CSSConditionRule(realm, rules, Type::Supports)
     , m_supports(move(supports))
 {
 }

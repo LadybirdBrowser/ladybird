@@ -20,8 +20,6 @@ public:
 
     virtual ~CSSLayerStatementRule() = default;
 
-    virtual Type type() const override { return Type::LayerStatement; }
-
     // FIXME: Should be FrozenArray
     ReadonlySpan<FlyString> name_list() const { return m_name_list; }
     Vector<FlyString> internal_qualified_name_list(Badge<StyleComputer>) const;

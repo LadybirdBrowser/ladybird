@@ -19,7 +19,7 @@ JS::NonnullGCPtr<CSSLayerStatementRule> CSSLayerStatementRule::create(JS::Realm&
 }
 
 CSSLayerStatementRule::CSSLayerStatementRule(JS::Realm& realm, Vector<FlyString> name_list)
-    : CSSRule(realm)
+    : CSSRule(realm, Type::LayerStatement)
     , m_name_list(move(name_list))
 {
 }

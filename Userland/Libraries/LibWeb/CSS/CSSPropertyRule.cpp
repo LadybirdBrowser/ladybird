@@ -19,7 +19,7 @@ JS::NonnullGCPtr<CSSPropertyRule> CSSPropertyRule::create(JS::Realm& realm, FlyS
 }
 
 CSSPropertyRule::CSSPropertyRule(JS::Realm& realm, FlyString name, FlyString syntax, bool inherits, Optional<String> initial_value)
-    : CSSRule(realm)
+    : CSSRule(realm, Type::Property)
     , m_name(move(name))
     , m_syntax(move(syntax))
     , m_inherits(inherits)

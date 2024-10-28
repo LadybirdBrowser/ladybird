@@ -18,7 +18,7 @@ JS::NonnullGCPtr<CSSNestedDeclarations> CSSNestedDeclarations::create(JS::Realm&
 }
 
 CSSNestedDeclarations::CSSNestedDeclarations(JS::Realm& realm, PropertyOwningCSSStyleDeclaration& declaration)
-    : CSSRule(realm)
+    : CSSRule(realm, Type::NestedDeclarations)
     , m_declaration(declaration)
 {
     m_declaration->set_parent_rule(*this);

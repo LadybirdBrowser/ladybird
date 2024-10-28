@@ -38,7 +38,7 @@ public:
         Property = 103, // FIXME: This should return `0` as a type, but type is used for a lot of dispatching
     };
 
-    virtual Type type() const = 0;
+    Type type() const { return m_type; }
 
     String css_text() const;
     void set_css_text(StringView);
@@ -57,7 +57,7 @@ public:
     virtual String serialized() const = 0;
 
 protected:
-    explicit CSSRule(JS::Realm&);
+    explicit CSSRule(JS::Realm&, Type);
 
     virtual void visit_edges(Cell::Visitor&) override;
 
@@ -72,6 +72,7 @@ protected:
 
     [[nodiscard]] FlyString const& parent_layer_internal_qualified_name_slow_case() const;
 
+    Type m_type;
     JS::GCPtr<CSSRule> m_parent_rule;
     JS::GCPtr<CSSStyleSheet> m_parent_style_sheet;
 

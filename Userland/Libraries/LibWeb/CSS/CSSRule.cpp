@@ -13,8 +13,9 @@
 
 namespace Web::CSS {
 
-CSSRule::CSSRule(JS::Realm& realm)
+CSSRule::CSSRule(JS::Realm& realm, Type type)
     : PlatformObject(realm)
+    , m_type(type)
 {
 }
 

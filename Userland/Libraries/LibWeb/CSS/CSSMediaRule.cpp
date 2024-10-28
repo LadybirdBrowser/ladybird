@@ -20,7 +20,7 @@ JS::NonnullGCPtr<CSSMediaRule> CSSMediaRule::create(JS::Realm& realm, MediaList&
 }
 
 CSSMediaRule::CSSMediaRule(JS::Realm& realm, MediaList& media, CSSRuleList& rules)
-    : CSSConditionRule(realm, rules)
+    : CSSConditionRule(realm, rules, Type::Media)
     , m_media(media)
 {
 }
