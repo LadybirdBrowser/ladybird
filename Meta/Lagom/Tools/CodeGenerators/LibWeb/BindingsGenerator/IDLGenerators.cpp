@@ -3280,8 +3280,8 @@ void @class_name@::initialize(JS::Realm& realm)
         function_generator.set("function.name:snakecase", make_input_acceptable_cpp(overload_set.key.to_snakecase()));
         function_generator.set("function.length", ByteString::number(get_shortest_function_length(overload_set.value)));
 
-        // FIXME: What if only some of the overloads are Unscopable?
         if (any_of(overload_set.value, [](auto const& function) { return function.extended_attributes.contains("Unscopable"); })) {
+            VERIFY(all_of(overload_set.value, [](auto const& function) { return function.extended_attributes.contains("Unscopable"); }));
             function_generator.append(R"~~~(
     MUST(unscopable_object->create_data_property("@function.name@", JS::Value(true)));
 )~~~");
