@@ -184,7 +184,7 @@ private:
     mutable bool m_have_length { false };
 };
 
-class DeprecatedStringCodePointIterator {
+class ByteStringCodePointIterator {
 public:
     Optional<u32> next()
     {
@@ -207,7 +207,7 @@ public:
         return Utf8View(m_string).byte_offset_of(m_it);
     }
 
-    DeprecatedStringCodePointIterator(ByteString string)
+    ByteStringCodePointIterator(ByteString string)
         : m_string(move(string))
         , m_it(Utf8View(m_string).begin())
     {
@@ -312,7 +312,7 @@ inline u32 Utf8CodePointIterator::operator*() const
 }
 
 #if USING_AK_GLOBALLY
-using AK::DeprecatedStringCodePointIterator;
+using AK::ByteStringCodePointIterator;
 using AK::Utf8CodePointIterator;
 using AK::Utf8View;
 #endif
