@@ -2729,7 +2729,11 @@ void Document::update_the_visibility_state(HTML::VisibilityState visibility_stat
     // 2. Set document's visibility state to visibilityState.
     m_visibility_state = visibility_state;
 
-    // FIXME: 3. Run any page visibility change steps which may be defined in other specifications, with visibility state and document.
+    // 3. Run any page visibility change steps which may be defined in other specifications, with visibility state and document.
+    for (auto document_observer : m_document_observers) {
+        if (document_observer->document_visibility_state_observer())
+            document_observer->document_visibility_state_observer()->function()(m_visibility_state);
+    }
 
     // 4. Fire an event named visibilitychange at document, with its bubbles attribute initialized to true.
     auto event = DOM::Event::create(realm(), HTML::EventNames::visibilitychange);
