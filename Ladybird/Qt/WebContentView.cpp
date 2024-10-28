@@ -536,16 +536,6 @@ void WebContentView::set_viewport_rect(Gfx::IntRect rect)
     client().async_set_viewport_size(m_client_state.page_index, rect.size().to_type<Web::DevicePixels>());
 }
 
-void WebContentView::set_window_size(Gfx::IntSize size)
-{
-    client().async_set_window_size(m_client_state.page_index, size.to_type<Web::DevicePixels>());
-}
-
-void WebContentView::set_window_position(Gfx::IntPoint position)
-{
-    client().async_set_window_position(m_client_state.page_index, position.to_type<Web::DevicePixels>());
-}
-
 void WebContentView::set_device_pixel_ratio(double device_pixel_ratio)
 {
     m_device_pixel_ratio = device_pixel_ratio;

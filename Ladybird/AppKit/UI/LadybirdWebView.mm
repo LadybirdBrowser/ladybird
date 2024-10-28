@@ -184,6 +184,16 @@ struct HideCursor {
     return m_web_view_bridge->handle();
 }
 
+- (void)setWindowPosition:(Gfx::IntPoint)position
+{
+    m_web_view_bridge->set_window_position(Ladybird::compute_origin_relative_to_window([self window], position));
+}
+
+- (void)setWindowSize:(Gfx::IntSize)size
+{
+    m_web_view_bridge->set_window_size(size);
+}
+
 - (void)handleResize
 {
     [self updateViewportRect:Ladybird::WebViewBridge::ForResize::Yes];
@@ -1546,6 +1556,10 @@ static void copy_data_to_clipboard(StringView data, NSPasteboardType pasteboard_
 {
     [super viewDidMoveToWindow];
     [self handleResize];
+
+    auto window = Ladybird::ns_rect_to_gfx_rect([[self window] frame]);
+    [self setWindowPosition:window.location()];
+    [self setWindowSize:window.size()];
 }
 
 - (void)viewDidEndLiveResize

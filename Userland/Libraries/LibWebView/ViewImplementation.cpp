@@ -77,6 +77,16 @@ void ViewImplementation::server_did_paint(Badge<WebContentClient>, i32 bitmap_id
     client().async_ready_to_paint(page_id());
 }
 
+void ViewImplementation::set_window_position(Gfx::IntPoint position)
+{
+    client().async_set_window_position(m_client_state.page_index, position.to_type<Web::DevicePixels>());
+}
+
+void ViewImplementation::set_window_size(Gfx::IntSize size)
+{
+    client().async_set_window_size(m_client_state.page_index, size.to_type<Web::DevicePixels>());
+}
+
 void ViewImplementation::load(URL::URL const& url)
 {
     m_url = url;

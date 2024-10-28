@@ -50,6 +50,9 @@ public:
 
     void server_did_paint(Badge<WebContentClient>, i32 bitmap_id, Gfx::IntSize size);
 
+    void set_window_position(Gfx::IntPoint);
+    void set_window_size(Gfx::IntSize);
+
     void load(URL::URL const&);
     void load_html(StringView);
     void load_empty_document();
