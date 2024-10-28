@@ -93,7 +93,9 @@ private:
     SpreadMethod spread_method_impl(HashTable<SVGGradientElement const*>& seen_gradients) const;
     Optional<Gfx::AffineTransform> gradient_transform_impl(HashTable<SVGGradientElement const*>& seen_gradients) const;
 
+    // https://svgwg.org/svg2-draft/pservers.html#LinearGradientAttributes
     Optional<GradientUnits> m_gradient_units = {};
+
     Optional<SpreadMethod> m_spread_method = {};
     Optional<Gfx::AffineTransform> m_gradient_transform = {};
 };
