@@ -117,4 +117,15 @@ NSColor* gfx_color_to_ns_color(Gfx::Color color)
                            alpha:(color.alpha() / 255.f)];
 }
 
+Gfx::IntPoint compute_origin_relative_to_window(NSWindow* window, Gfx::IntPoint position)
+{
+    // The origin of the NSWindow is its bottom-left corner, relative to the bottom-left of the screen. We must convert
+    // window positions sent to/from WebContent between this origin and the window's and screen's top-left corners.
+    auto screen_frame = Ladybird::ns_rect_to_gfx_rect([[window screen] frame]);
+    auto window_frame = Ladybird::ns_rect_to_gfx_rect([window frame]);
+
+    position.set_y(screen_frame.height() - window_frame.height() - position.y());
+    return position;
+}
+
 }

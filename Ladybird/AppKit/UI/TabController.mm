@@ -607,6 +607,12 @@ static NSString* const TOOLBAR_TAB_OVERVIEW_IDENTIFIER = @"ToolbarTabOverviewIde
     [delegate removeTab:self];
 }
 
+- (void)windowDidMove:(NSNotification*)notification
+{
+    auto position = Ladybird::ns_point_to_gfx_point([[self tab] frame].origin);
+    [[[self tab] web_view] setWindowPosition:position];
+}
+
 - (void)windowDidResize:(NSNotification*)notification
 {
     if (self.location_toolbar_item_width != nil) {
@@ -620,6 +626,9 @@ static NSString* const TOOLBAR_TAB_OVERVIEW_IDENTIFIER = @"ToolbarTabOverviewIde
     if (![[self window] inLiveResize]) {
         [[[self tab] web_view] handleResize];
     }
+
+    auto size = Ladybird::ns_size_to_gfx_size([[self tab] frame].size);
+    [[[self tab] web_view] setWindowSize:size];
 }
 
 - (void)windowDidChangeBackingProperties:(NSNotification*)notification

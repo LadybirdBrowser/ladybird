@@ -73,8 +73,6 @@ public:
     virtual bool event(QEvent*) override;
 
     void set_viewport_rect(Gfx::IntRect);
-    void set_window_size(Gfx::IntSize);
-    void set_window_position(Gfx::IntPoint);
     void set_device_pixel_ratio(double);
 
     enum class PaletteMode {

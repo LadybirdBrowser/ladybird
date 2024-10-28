@@ -65,6 +65,9 @@
 - (WebView::ViewImplementation&)view;
 - (String const&)handle;
 
+- (void)setWindowPosition:(Gfx::IntPoint)position;
+- (void)setWindowSize:(Gfx::IntSize)size;
+
 - (void)handleResize;
 - (void)handleDevicePixelRatioChange;
 - (void)handleScroll;
