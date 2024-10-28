@@ -125,6 +125,12 @@ class NonnullOwnPtr;
 template<typename T>
 class Optional;
 
+template<>
+class Optional<String>;
+
+template<>
+class Optional<FlyString>;
+
 template<typename T>
 class RefPtr;
 

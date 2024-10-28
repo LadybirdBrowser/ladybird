@@ -8,6 +8,7 @@
 
 #include <AK/Error.h>
 #include <AK/Format.h>
+#include <AK/Optional.h>
 #include <AK/Platform.h>
 #include <AK/String.h>
 #include <AK/Traits.h>
@@ -80,12 +81,129 @@ public:
     }
 
 private:
+    friend class Optional<FlyString>;
+
+    explicit FlyString(nullptr_t)
+        : m_data(Detail::StringBase(nullptr))
+    {
+    }
+
     explicit FlyString(Detail::StringBase data)
         : m_data(move(data))
     {
     }
 
     Detail::StringBase m_data;
+
+    bool is_invalid() const { return m_data.is_invalid(); }
+};
+
+template<>
+class Optional<FlyString> : public OptionalBase<FlyString> {
+    template<typename U>
+    friend class Optional;
+
+public:
+    using ValueType = FlyString;
+
+    Optional() = default;
+
+    template<SameAs<OptionalNone> V>
+    Optional(V) { }
+
+    Optional(Optional<FlyString> const& other)
+    {
+        if (other.has_value())
+            m_value = other.m_value;
+    }
+
+    Optional(Optional&& other)
+        : m_value(other.m_value)
+    {
+    }
+
+    template<typename U = FlyString>
+    requires(!IsSame<OptionalNone, RemoveCVReference<U>>)
+    explicit(!IsConvertible<U&&, FlyString>) Optional(U&& value)
+    requires(!IsSame<RemoveCVReference<U>, Optional<FlyString>> && IsConstructible<FlyString, U &&>)
+        : m_value(forward<U>(value))
+    {
+    }
+
+    template<SameAs<OptionalNone> V>
+    Optional& operator=(V)
+    {
+        clear();
+        return *this;
+    }
+
+    Optional& operator=(Optional const& other)
+    {
+        if (this != &other) {
+            clear();
+            m_value = other.m_value;
+        }
+        return *this;
+    }
+
+    Optional& operator=(Optional&& other)
+    {
+        if (this != &other) {
+            clear();
+            m_value = other.m_value;
+        }
+        return *this;
+    }
+
+    template<typename O>
+    ALWAYS_INLINE bool operator==(Optional<O> const& other) const
+    {
+        return has_value() == other.has_value() && (!has_value() || value() == other.value());
+    }
+
+    template<typename O>
+    ALWAYS_INLINE bool operator==(O const& other) const
+    {
+        return has_value() && value() == other;
+    }
+
+    void clear()
+    {
+        m_value = FlyString(nullptr);
+    }
+
+    [[nodiscard]] bool has_value() const
+    {
+        return !m_value.is_invalid();
+    }
+
+    [[nodiscard]] FlyString& value() &
+    {
+        VERIFY(has_value());
+        return m_value;
+    }
+
+    [[nodiscard]] FlyString const& value() const&
+    {
+        VERIFY(has_value());
+        return m_value;
+    }
+
+    [[nodiscard]] FlyString value() &&
+    {
+        return release_value();
+    }
+
+    [[nodiscard]] FlyString release_value()
+    {
+        VERIFY(has_value());
+        FlyString released_value = m_value;
+        clear();
+        return released_value;
+    }
+
+private:
+    FlyString m_value = FlyString(nullptr);
 };
 
 template<>
