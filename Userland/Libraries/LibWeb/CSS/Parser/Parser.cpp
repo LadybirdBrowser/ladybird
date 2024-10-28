@@ -3385,6 +3385,26 @@ Optional<Array<RefPtr<CSSStyleValue>, 4>> Parser::parse_lch_like_color_value(Tok
     return Array { move(l), move(c), move(h), move(alpha) };
 }
 
+// https://www.w3.org/TR/css-color-4/#funcdef-lch
+RefPtr<CSSStyleValue> Parser::parse_lch_color_value(TokenStream<ComponentValue>& outer_tokens)
+{
+    // lch() = lch( [<percentage> | <number> | none]
+    //      [ <percentage> | <number> | none]
+    //      [ <hue> | none]
+    //      [ / [<alpha-value> | none] ]? )
+
+    auto maybe_color_values = parse_lch_like_color_value(outer_tokens, "lch"sv);
+    if (!maybe_color_values.has_value())
+        return {};
+
+    auto& color_values = *maybe_color_values;
+
+    return CSSLCHLike::create<CSSLCH>(color_values[0].release_nonnull(),
+        color_values[1].release_nonnull(),
+        color_values[2].release_nonnull(),
+        color_values[3].release_nonnull());
+}
+
 // https://www.w3.org/TR/css-color-4/#funcdef-oklch
 RefPtr<CSSStyleValue> Parser::parse_oklch_color_value(TokenStream<ComponentValue>& outer_tokens)
 {
@@ -3490,6 +3510,8 @@ RefPtr<CSSStyleValue> Parser::parse_color_value(TokenStream<ComponentValue>& tok
         return hwb;
     if (auto lab = parse_lab_color_value(tokens))
         return lab;
+    if (auto lch = parse_lch_color_value(tokens))
+        return lch;
     if (auto oklab = parse_oklab_color_value(tokens))
         return oklab;
     if (auto oklch = parse_oklch_color_value(tokens))

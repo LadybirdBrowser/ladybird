@@ -254,6 +254,7 @@ private:
     RefPtr<CSSStyleValue> parse_lab_color_value(TokenStream<ComponentValue>&);
     RefPtr<CSSStyleValue> parse_oklab_color_value(TokenStream<ComponentValue>&);
     Optional<Array<RefPtr<CSSStyleValue>, 4>> parse_lch_like_color_value(TokenStream<ComponentValue>&, StringView);
+    RefPtr<CSSStyleValue> parse_lch_color_value(TokenStream<ComponentValue>&);
     RefPtr<CSSStyleValue> parse_oklch_color_value(TokenStream<ComponentValue>&);
     RefPtr<CSSStyleValue> parse_color_function(TokenStream<ComponentValue>&);
     RefPtr<CSSStyleValue> parse_color_value(TokenStream<ComponentValue>&);

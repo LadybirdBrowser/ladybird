@@ -27,6 +27,7 @@ public:
         HSL,
         HWB,
         Lab,
+        LCH,
         OKLab,
         OKLCH,
         XYZD50,
