@@ -25,6 +25,23 @@ bool CSSLCHLike::equals(CSSStyleValue const& other) const
     return m_properties == other_oklch_like.m_properties;
 }
 
+Color CSSLCH::to_color(Optional<Layout::NodeWithStyle const&>) const
+{
+    auto const l_val = clamp(resolve_with_reference_value(m_properties.l, 100).value_or(0), 0, 100);
+    auto const c_val = resolve_with_reference_value(m_properties.c, 150).value_or(0);
+    auto const h_val = AK::to_radians(resolve_hue(m_properties.h).value_or(0));
+    auto const alpha_val = resolve_alpha(m_properties.alpha).value_or(1);
+
+    return Color::from_lab(l_val, c_val * cos(h_val), c_val * sin(h_val), alpha_val);
+}
+
+// https://www.w3.org/TR/css-color-4/#serializing-lab-lch
+String CSSLCH::to_string() const
+{
+    // FIXME: Do this properly, taking unresolved calculated values into account.
+    return serialize_a_srgb_value(to_color({}));
+}
+
 Color CSSOKLCH::to_color(Optional<Layout::NodeWithStyle const&>) const
 {
     auto const l_val = clamp(resolve_with_reference_value(m_properties.l, 1.0).value_or(0), 0, 1);

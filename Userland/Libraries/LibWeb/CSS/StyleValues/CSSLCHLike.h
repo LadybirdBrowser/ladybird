@@ -14,7 +14,7 @@ namespace Web::CSS {
 class CSSLCHLike : public CSSColorValue {
 public:
     template<DerivedFrom<CSSLCHLike> T>
-    static ValueComparingNonnullRefPtr<CSSOKLCH> create(ValueComparingNonnullRefPtr<CSSStyleValue> l, ValueComparingNonnullRefPtr<CSSStyleValue> c, ValueComparingNonnullRefPtr<CSSStyleValue> h, ValueComparingRefPtr<CSSStyleValue> alpha = {})
+    static ValueComparingNonnullRefPtr<T> create(ValueComparingNonnullRefPtr<CSSStyleValue> l, ValueComparingNonnullRefPtr<CSSStyleValue> c, ValueComparingNonnullRefPtr<CSSStyleValue> h, ValueComparingRefPtr<CSSStyleValue> alpha = {})
     {
         // alpha defaults to 1
         if (!alpha)
@@ -45,6 +45,20 @@ protected:
         ValueComparingNonnullRefPtr<CSSStyleValue> alpha;
         bool operator==(Properties const&) const = default;
     } m_properties;
+};
+
+// https://drafts.css-houdini.org/css-typed-om-1/#csslch
+class CSSLCH final : public CSSLCHLike {
+public:
+    CSSLCH(Badge<CSSLCHLike>, ValueComparingNonnullRefPtr<CSSStyleValue> l, ValueComparingNonnullRefPtr<CSSStyleValue> c, ValueComparingNonnullRefPtr<CSSStyleValue> h, ValueComparingNonnullRefPtr<CSSStyleValue> alpha)
+        : CSSLCHLike(ColorType::LCH, move(l), move(c), move(h), move(alpha))
+    {
+    }
+    virtual ~CSSLCH() override = default;
+
+    virtual Color to_color(Optional<Layout::NodeWithStyle const&>) const override;
+
+    virtual String to_string() const override;
 };
 
 // https://drafts.css-houdini.org/css-typed-om-1/#cssoklch
