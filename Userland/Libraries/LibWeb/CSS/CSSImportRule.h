@@ -36,8 +36,6 @@ public:
     CSSStyleSheet* style_sheet_for_bindings() { return m_style_sheet; }
     void set_style_sheet(CSSStyleSheet* style_sheet) { m_style_sheet = style_sheet; }
 
-    virtual Type type() const override { return Type::Import; }
-
 private:
     CSSImportRule(URL::URL, DOM::Document&);
 

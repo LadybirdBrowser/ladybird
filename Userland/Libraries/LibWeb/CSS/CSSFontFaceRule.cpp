@@ -23,7 +23,7 @@ JS::NonnullGCPtr<CSSFontFaceRule> CSSFontFaceRule::create(JS::Realm& realm, Pars
 }
 
 CSSFontFaceRule::CSSFontFaceRule(JS::Realm& realm, ParsedFontFace&& font_face)
-    : CSSRule(realm)
+    : CSSRule(realm, Type::FontFace)
     , m_font_face(move(font_face))
 {
 }

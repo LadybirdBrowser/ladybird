@@ -24,7 +24,7 @@ public:
     virtual void for_each_effective_rule(TraversalOrder, Function<void(CSSRule const&)> const& callback) const override;
 
 protected:
-    CSSConditionRule(JS::Realm&, CSSRuleList&);
+    CSSConditionRule(JS::Realm&, CSSRuleList&, Type);
 
     virtual void initialize(JS::Realm&) override;
 };

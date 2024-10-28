@@ -19,7 +19,7 @@ JS::NonnullGCPtr<CSSKeyframeRule> CSSKeyframeRule::create(JS::Realm& realm, CSS:
 }
 
 CSSKeyframeRule::CSSKeyframeRule(JS::Realm& realm, CSS::Percentage key, PropertyOwningCSSStyleDeclaration& declarations)
-    : CSSRule(realm)
+    : CSSRule(realm, Type::Keyframe)
     , m_key(key)
     , m_declarations(declarations)
 {

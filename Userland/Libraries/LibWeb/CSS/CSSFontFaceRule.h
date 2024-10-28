@@ -21,8 +21,6 @@ public:
 
     virtual ~CSSFontFaceRule() override = default;
 
-    virtual Type type() const override { return Type::FontFace; }
-
     ParsedFontFace const& font_face() const { return m_font_face; }
     CSSStyleDeclaration* style();
 

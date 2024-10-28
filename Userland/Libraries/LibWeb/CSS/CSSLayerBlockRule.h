@@ -22,8 +22,6 @@ public:
 
     virtual ~CSSLayerBlockRule() = default;
 
-    virtual Type type() const override { return Type::LayerBlock; }
-
     FlyString const& name() const { return m_name; }
     FlyString const& internal_name() const { return m_name_internal; }
     FlyString internal_qualified_name(Badge<StyleComputer>) const;

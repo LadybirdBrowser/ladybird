@@ -14,8 +14,8 @@
 
 namespace Web::CSS {
 
-CSSGroupingRule::CSSGroupingRule(JS::Realm& realm, CSSRuleList& rules)
-    : CSSRule(realm)
+CSSGroupingRule::CSSGroupingRule(JS::Realm& realm, CSSRuleList& rules, Type type)
+    : CSSRule(realm, type)
     , m_rules(rules)
 {
     for (auto& rule : *m_rules)

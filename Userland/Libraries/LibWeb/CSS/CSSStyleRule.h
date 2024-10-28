@@ -27,8 +27,6 @@ public:
     SelectorList const& absolutized_selectors() const;
     PropertyOwningCSSStyleDeclaration const& declaration() const { return m_declaration; }
 
-    virtual Type type() const override { return Type::Style; }
-
     String selector_text() const;
     void set_selector_text(StringView);
 
