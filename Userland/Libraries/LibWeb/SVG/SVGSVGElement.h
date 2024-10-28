@@ -29,7 +29,7 @@ class SVGSVGElement final : public SVGGraphicsElement
     JS_DECLARE_ALLOCATOR(SVGSVGElement);
 
 public:
-    virtual JS::GCPtr<Layout::Node> create_layout_node(NonnullRefPtr<CSS::StyleProperties>) override;
+    virtual JS::GCPtr<Layout::Node> create_layout_node(CSS::StyleProperties) override;
 
     virtual void apply_presentational_hints(CSS::StyleProperties&) const override;
 

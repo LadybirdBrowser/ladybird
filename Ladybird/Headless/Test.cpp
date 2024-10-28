@@ -218,7 +218,7 @@ void run_dump_test(HeadlessWebView& view, Test& test, URL::URL const& url, int t
     timer->start();
 }
 
-static void run_ref_test(HeadlessWebView& view, Test& test, URL::URL const& url, int timeout_in_milliseconds = DEFAULT_TIMEOUT_MS)
+static void run_ref_test(HeadlessWebView& view, Test& test, URL::URL const& url, int timeout_in_milliseconds)
 {
     auto timer = Core::Timer::create_single_shot(timeout_in_milliseconds, [&view, &test]() {
         view.on_load_finish = {};
@@ -287,7 +287,7 @@ static void run_ref_test(HeadlessWebView& view, Test& test, URL::URL const& url,
     timer->start();
 }
 
-static void run_test(HeadlessWebView& view, Test& test)
+static void run_test(HeadlessWebView& view, Test& test, Application& app)
 {
     // Clear the current document.
     // FIXME: Implement a debug-request to do this more thoroughly.
@@ -345,16 +345,16 @@ static void run_test(HeadlessWebView& view, Test& test)
         view.file_picker_closed(move(selected_files));
     };
 
-    promise->when_resolved([&view, &test](auto) {
+    promise->when_resolved([&view, &test, &app](auto) {
         auto url = URL::create_with_file_scheme(MUST(FileSystem::real_path(test.input_path)));
 
         switch (test.mode) {
         case TestMode::Text:
         case TestMode::Layout:
-            run_dump_test(view, test, url);
+            run_dump_test(view, test, url, app.per_test_timeout_in_seconds * 1000);
             return;
         case TestMode::Ref:
-            run_ref_test(view, test, url);
+            run_ref_test(view, test, url, app.per_test_timeout_in_seconds * 1000);
             return;
         }
 
@@ -453,7 +453,7 @@ ErrorOr<void> run_tests(Core::AnonymousBuffer const& theme, Gfx::IntSize window_
                 if (s_skipped_tests.contains_slow(test.input_path))
                     view.on_test_complete({ test, TestResult::Skipped });
                 else
-                    run_test(view, test);
+                    run_test(view, test, app);
             });
         };
 

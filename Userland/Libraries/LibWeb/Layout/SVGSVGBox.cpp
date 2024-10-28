@@ -15,7 +15,7 @@ namespace Web::Layout {
 
 JS_DEFINE_ALLOCATOR(SVGSVGBox);
 
-SVGSVGBox::SVGSVGBox(DOM::Document& document, SVG::SVGSVGElement& element, NonnullRefPtr<CSS::StyleProperties> properties)
+SVGSVGBox::SVGSVGBox(DOM::Document& document, SVG::SVGSVGElement& element, CSS::StyleProperties properties)
     : ReplacedBox(document, element, move(properties))
 {
 }

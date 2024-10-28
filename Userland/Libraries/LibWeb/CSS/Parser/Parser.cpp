@@ -48,8 +48,8 @@
 #include <LibWeb/CSS/StyleValues/CSSHSL.h>
 #include <LibWeb/CSS/StyleValues/CSSHWB.h>
 #include <LibWeb/CSS/StyleValues/CSSKeywordValue.h>
+#include <LibWeb/CSS/StyleValues/CSSLabLike.h>
 #include <LibWeb/CSS/StyleValues/CSSOKLCH.h>
-#include <LibWeb/CSS/StyleValues/CSSOKLab.h>
 #include <LibWeb/CSS/StyleValues/CSSRGB.h>
 #include <LibWeb/CSS/StyleValues/ContentStyleValue.h>
 #include <LibWeb/CSS/StyleValues/CounterDefinitionsStyleValue.h>
@@ -3244,10 +3244,10 @@ RefPtr<CSSStyleValue> Parser::parse_hwb_color_value(TokenStream<ComponentValue>&
     return CSSHWB::create(h.release_nonnull(), w.release_nonnull(), b.release_nonnull(), alpha.release_nonnull());
 }
 
-// https://www.w3.org/TR/css-color-4/#funcdef-oklab
-RefPtr<CSSStyleValue> Parser::parse_oklab_color_value(TokenStream<ComponentValue>& outer_tokens)
+Optional<Array<RefPtr<CSSStyleValue>, 4>> Parser::parse_lab_like_color_value(TokenStream<ComponentValue>& outer_tokens, StringView function_name)
 {
-    // oklab() = oklab( [ <percentage> | <number> | none]
+    // This helper is designed to be compatible with lab and oklab and parses a function with a form like:
+    // f() = f( [ <percentage> | <number> | none]
     //     [ <percentage> | <number> | none]
     //     [ <percentage> | <number> | none]
     //     [ / [<alpha-value> | none] ]? )
@@ -3256,8 +3256,8 @@ RefPtr<CSSStyleValue> Parser::parse_oklab_color_value(TokenStream<ComponentValue
     outer_tokens.discard_whitespace();
 
     auto& function_token = outer_tokens.consume_a_token();
-    if (!function_token.is_function("oklab"sv))
-        return {};
+    if (!function_token.is_function(function_name))
+        return OptionalNone {};
 
     RefPtr<CSSStyleValue> l;
     RefPtr<CSSStyleValue> a;
@@ -3269,30 +3269,71 @@ RefPtr<CSSStyleValue> Parser::parse_oklab_color_value(TokenStream<ComponentValue
 
     l = parse_number_percentage_value(inner_tokens);
     if (!l)
-        return {};
+        return OptionalNone {};
     inner_tokens.discard_whitespace();
 
     a = parse_number_percentage_value(inner_tokens);
     if (!a)
-        return {};
+        return OptionalNone {};
     inner_tokens.discard_whitespace();
 
     b = parse_number_percentage_value(inner_tokens);
     if (!b)
-        return {};
+        return OptionalNone {};
     inner_tokens.discard_whitespace();
 
     if (inner_tokens.has_next_token()) {
         alpha = parse_solidus_and_alpha_value(inner_tokens);
         if (!alpha || inner_tokens.has_next_token())
-            return {};
+            return OptionalNone {};
     }
 
     if (!alpha)
         alpha = NumberStyleValue::create(1);
 
     transaction.commit();
-    return CSSOKLab::create(l.release_nonnull(), a.release_nonnull(), b.release_nonnull(), alpha.release_nonnull());
+
+    return Array { move(l), move(a), move(b), move(alpha) };
+}
+
+// https://www.w3.org/TR/css-color-4/#funcdef-lab
+RefPtr<CSSStyleValue> Parser::parse_lab_color_value(TokenStream<ComponentValue>& outer_tokens)
+{
+    // lab() = lab( [<percentage> | <number> | none]
+    //      [ <percentage> | <number> | none]
+    //      [ <percentage> | <number> | none]
+    //      [ / [<alpha-value> | none] ]? )
+
+    auto maybe_color_values = parse_lab_like_color_value(outer_tokens, "lab"sv);
+    if (!maybe_color_values.has_value())
+        return {};
+
+    auto& color_values = *maybe_color_values;
+
+    return CSSLab::create(color_values[0].release_nonnull(),
+        color_values[1].release_nonnull(),
+        color_values[2].release_nonnull(),
+        color_values[3].release_nonnull());
+}
+
+// https://www.w3.org/TR/css-color-4/#funcdef-oklab
+RefPtr<CSSStyleValue> Parser::parse_oklab_color_value(TokenStream<ComponentValue>& outer_tokens)
+{
+    // oklab() = oklab( [ <percentage> | <number> | none]
+    //     [ <percentage> | <number> | none]
+    //     [ <percentage> | <number> | none]
+    //     [ / [<alpha-value> | none] ]? )
+
+    auto maybe_color_values = parse_lab_like_color_value(outer_tokens, "oklab"sv);
+    if (!maybe_color_values.has_value())
+        return {};
+
+    auto& color_values = *maybe_color_values;
+
+    return CSSOKLab::create(color_values[0].release_nonnull(),
+        color_values[1].release_nonnull(),
+        color_values[2].release_nonnull(),
+        color_values[3].release_nonnull());
 }
 
 // https://www.w3.org/TR/css-color-4/#funcdef-oklch
@@ -3366,6 +3407,8 @@ RefPtr<CSSStyleValue> Parser::parse_color_value(TokenStream<ComponentValue>& tok
         return hsl;
     if (auto hwb = parse_hwb_color_value(tokens))
         return hwb;
+    if (auto lab = parse_lab_color_value(tokens))
+        return lab;
     if (auto oklab = parse_oklab_color_value(tokens))
         return oklab;
     if (auto oklch = parse_oklch_color_value(tokens))
@@ -5156,7 +5199,7 @@ RefPtr<CSSStyleValue> Parser::parse_filter_value_list_value(TokenStream<Componen
 
     auto filter_token_to_operation = [&](auto filter) {
         VERIFY(to_underlying(filter) < to_underlying(FilterToken::Blur));
-        return static_cast<Filter::Color::Operation>(filter);
+        return static_cast<FilterOperation::Color::Type>(filter);
     };
 
     auto parse_number_percentage = [&](auto& token) -> Optional<NumberPercentage> {
@@ -5205,13 +5248,13 @@ RefPtr<CSSStyleValue> Parser::parse_filter_value_list_value(TokenStream<Componen
         if (filter_token == FilterToken::Blur) {
             // blur( <length>? )
             if (!tokens.has_next_token())
-                return Filter::Blur {};
+                return FilterOperation::Blur {};
             auto blur_radius = parse_length(tokens);
             tokens.discard_whitespace();
             if (!blur_radius.has_value())
                 return {};
             // FIXME: Support calculated radius
-            return if_no_more_tokens_return(Filter::Blur { blur_radius->value() });
+            return if_no_more_tokens_return(FilterOperation::Blur { blur_radius->value() });
         } else if (filter_token == FilterToken::DropShadow) {
             if (!tokens.has_next_token())
                 return {};
@@ -5221,18 +5264,19 @@ RefPtr<CSSStyleValue> Parser::parse_filter_value_list_value(TokenStream<Componen
             auto maybe_color = parse_color_value(tokens);
             auto x_offset = parse_length(tokens);
             tokens.discard_whitespace();
-            if (!x_offset.has_value() || !tokens.has_next_token()) {
+            if (!x_offset.has_value() || !tokens.has_next_token())
                 return {};
-            }
+
             auto y_offset = parse_length(tokens);
-            if (!y_offset.has_value()) {
+            tokens.discard_whitespace();
+            if (!y_offset.has_value())
                 return {};
-            }
+
             if (tokens.has_next_token()) {
                 maybe_radius = parse_length(tokens);
+                tokens.discard_whitespace();
                 if (!maybe_color && (!maybe_radius.has_value() || tokens.has_next_token())) {
                     maybe_color = parse_color_value(tokens);
-                    tokens.discard_whitespace();
                     if (!maybe_color)
                         return {};
                 } else if (!maybe_radius.has_value()) {
@@ -5240,17 +5284,17 @@ RefPtr<CSSStyleValue> Parser::parse_filter_value_list_value(TokenStream<Componen
                 }
             }
             // FIXME: Support calculated offsets and radius
-            return if_no_more_tokens_return(Filter::DropShadow { x_offset->value(), y_offset->value(), maybe_radius.map([](auto& it) { return it.value(); }), maybe_color->to_color({}) });
+            return if_no_more_tokens_return(FilterOperation::DropShadow { x_offset->value(), y_offset->value(), maybe_radius.map([](auto& it) { return it.value(); }), maybe_color->to_color({}) });
         } else if (filter_token == FilterToken::HueRotate) {
             // hue-rotate( [ <angle> | <zero> ]? )
             if (!tokens.has_next_token())
-                return Filter::HueRotate {};
+                return FilterOperation::HueRotate {};
             auto& token = tokens.consume_a_token();
             if (token.is(Token::Type::Number)) {
                 // hue-rotate(0)
                 auto number = token.token().number();
                 if (number.is_integer() && number.integer_value() == 0)
-                    return if_no_more_tokens_return(Filter::HueRotate { Filter::HueRotate::Zero {} });
+                    return if_no_more_tokens_return(FilterOperation::HueRotate { FilterOperation::HueRotate::Zero {} });
                 return {};
             }
             if (!token.is(Token::Type::Dimension))
@@ -5261,7 +5305,7 @@ RefPtr<CSSStyleValue> Parser::parse_filter_value_list_value(TokenStream<Componen
             if (!angle_unit.has_value())
                 return {};
             Angle angle { angle_value, angle_unit.release_value() };
-            return if_no_more_tokens_return(Filter::HueRotate { angle });
+            return if_no_more_tokens_return(FilterOperation::HueRotate { angle });
         } else {
             // Simple filters:
             // brightness( <number-percentage>? )
@@ -5272,11 +5316,11 @@ RefPtr<CSSStyleValue> Parser::parse_filter_value_list_value(TokenStream<Componen
             // sepia( <number-percentage>? )
             // saturate( <number-percentage>? )
             if (!tokens.has_next_token())
-                return Filter::Color { filter_token_to_operation(filter_token) };
+                return FilterOperation::Color { filter_token_to_operation(filter_token) };
             auto amount = parse_number_percentage(tokens.consume_a_token());
             if (!amount.has_value())
                 return {};
-            return if_no_more_tokens_return(Filter::Color { filter_token_to_operation(filter_token), *amount });
+            return if_no_more_tokens_return(FilterOperation::Color { filter_token_to_operation(filter_token), *amount });
         }
     };
 
@@ -6885,6 +6929,9 @@ RefPtr<CSSStyleValue> Parser::parse_transform_origin_value(TokenStream<Component
                 return OptionalNone {};
             }
         }
+        if (value->is_math()) {
+            return AxisOffset { Axis::None, value->as_math() };
+        }
         return OptionalNone {};
     };
 
@@ -7860,6 +7907,7 @@ Parser::ParseErrorOr<NonnullRefPtr<CSSStyleValue>> Parser::parse_css_value(Prope
             return parsed_value.release_nonnull();
         return ParseError::SyntaxError;
     case PropertyID::BackdropFilter:
+    case PropertyID::Filter:
         if (auto parsed_value = parse_filter_value_list_value(tokens); parsed_value && !tokens.has_next_token())
             return parsed_value.release_nonnull();
         return ParseError::SyntaxError;

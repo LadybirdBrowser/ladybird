@@ -7,6 +7,7 @@
 
 #pragma once
 
+#include <AK/FlyString.h>
 #include <AK/HashMap.h>
 #include <LibGfx/Bitmap.h>
 #include <LibGfx/Font/Font.h>
@@ -36,7 +37,7 @@ public:
     virtual u8 baseline() const override { return m_point_height; }  // FIXME: Read from font
     virtual float width(StringView) const override;
     virtual float width(Utf8View const&) const override;
-    virtual String family() const override { return m_typeface->family(); }
+    virtual FlyString family() const override { return m_typeface->family(); }
 
     virtual NonnullRefPtr<ScaledFont> scaled_with_size(float point_size) const;
     virtual NonnullRefPtr<Font> with_size(float point_size) const override;

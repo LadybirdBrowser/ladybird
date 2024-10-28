@@ -16,7 +16,7 @@ class CanvasBox final : public ReplacedBox {
     JS_DECLARE_ALLOCATOR(CanvasBox);
 
 public:
-    CanvasBox(DOM::Document&, HTML::HTMLCanvasElement&, NonnullRefPtr<CSS::StyleProperties>);
+    CanvasBox(DOM::Document&, HTML::HTMLCanvasElement&, CSS::StyleProperties);
     virtual ~CanvasBox() override;
 
     virtual void prepare_for_replaced_layout() override;

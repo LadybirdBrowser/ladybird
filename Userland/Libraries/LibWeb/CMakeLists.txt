@@ -119,8 +119,8 @@ set(SOURCES
     CSS/StyleValues/CSSHSL.cpp
     CSS/StyleValues/CSSHWB.cpp
     CSS/StyleValues/CSSKeywordValue.cpp
+    CSS/StyleValues/CSSLabLike.cpp
     CSS/StyleValues/CSSMathValue.cpp
-    CSS/StyleValues/CSSOKLab.cpp
     CSS/StyleValues/CSSOKLCH.cpp
     CSS/StyleValues/CSSRGB.cpp
     CSS/StyleValues/DisplayStyleValue.cpp
@@ -411,6 +411,7 @@ set(SOURCES
     HTML/NavigationDestination.cpp
     HTML/NavigationCurrentEntryChangeEvent.cpp
     HTML/NavigationHistoryEntry.cpp
+    HTML/NavigationObserver.cpp
     HTML/NavigationParams.cpp
     HTML/NavigationTransition.cpp
     HTML/Navigator.cpp
@@ -746,6 +747,7 @@ set(SOURCES
     WebDriver/ElementReference.cpp
     WebDriver/Error.cpp
     WebDriver/ExecuteScript.cpp
+    WebDriver/HeapTimer.cpp
     WebDriver/InputSource.cpp
     WebDriver/InputState.cpp
     WebDriver/Response.cpp

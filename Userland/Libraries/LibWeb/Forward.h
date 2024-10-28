@@ -496,6 +496,7 @@ class Navigation;
 class NavigationCurrentEntryChangeEvent;
 class NavigationDestination;
 class NavigationHistoryEntry;
+class NavigationObserver;
 class NavigationTransition;
 class Navigator;
 class PageTransitionEvent;
@@ -811,6 +812,8 @@ using Promise = JS::PromiseCapability;
 }
 
 namespace Web::WebDriver {
+class HeapTimer;
+
 struct ActionObject;
 struct InputState;
 };

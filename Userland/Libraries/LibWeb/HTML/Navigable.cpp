@@ -23,6 +23,7 @@
 #include <LibWeb/HTML/HistoryHandlingBehavior.h>
 #include <LibWeb/HTML/Navigable.h>
 #include <LibWeb/HTML/Navigation.h>
+#include <LibWeb/HTML/NavigationObserver.h>
 #include <LibWeb/HTML/NavigationParams.h>
 #include <LibWeb/HTML/POSTResource.h>
 #include <LibWeb/HTML/Parser/HTMLParser.h>
@@ -126,6 +127,7 @@ void Navigable::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_current_session_history_entry);
     visitor.visit(m_active_session_history_entry);
     visitor.visit(m_container);
+    visitor.visit(m_navigation_observers);
     m_event_handler.visit_edges(visitor);
 }
 
@@ -230,6 +232,13 @@ void Navigable::activate_history_entry(JS::GCPtr<SessionHistoryEntry> entry)
 
     // 5. Make active newDocument.
     new_document->make_active();
+
+    if (m_ongoing_navigation.has<Empty>()) {
+        for (auto navigation_observer : m_navigation_observers) {
+            if (navigation_observer->navigation_complete())
+                navigation_observer->navigation_complete()->function()();
+        }
+    }
 }
 
 // https://html.spec.whatwg.org/multipage/document-sequences.html#nav-document
@@ -2198,6 +2207,18 @@ void Navigable::paste(String const& text)
         return;
 
     m_event_handler.handle_paste(text);
+}
+
+void Navigable::register_navigation_observer(Badge<NavigationObserver>, NavigationObserver& navigation_observer)
+{
+    auto result = m_navigation_observers.set(navigation_observer);
+    VERIFY(result == AK::HashSetResult::InsertedNewEntry);
+}
+
+void Navigable::unregister_navigation_observer(Badge<NavigationObserver>, NavigationObserver& navigation_observer)
+{
+    bool was_removed = m_navigation_observers.remove(navigation_observer);
+    VERIFY(was_removed);
 }
 
 }

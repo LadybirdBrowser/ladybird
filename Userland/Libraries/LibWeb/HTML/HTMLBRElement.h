@@ -17,7 +17,7 @@ class HTMLBRElement final : public HTMLElement {
 public:
     virtual ~HTMLBRElement() override;
 
-    virtual JS::GCPtr<Layout::Node> create_layout_node(NonnullRefPtr<CSS::StyleProperties>) override;
+    virtual JS::GCPtr<Layout::Node> create_layout_node(CSS::StyleProperties) override;
 
 private:
     virtual bool is_html_br_element() const override { return true; }

@@ -42,7 +42,7 @@ void SVGSVGElement::visit_edges(Visitor& visitor)
     visitor.visit(m_view_box_for_bindings);
 }
 
-JS::GCPtr<Layout::Node> SVGSVGElement::create_layout_node(NonnullRefPtr<CSS::StyleProperties> style)
+JS::GCPtr<Layout::Node> SVGSVGElement::create_layout_node(CSS::StyleProperties style)
 {
     return heap().allocate_without_realm<Layout::SVGSVGBox>(document(), *this, move(style));
 }

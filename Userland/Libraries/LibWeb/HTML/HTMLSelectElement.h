@@ -92,7 +92,7 @@ public:
 
     void did_select_item(Optional<u32> const& id);
 
-    void update_selectedness();
+    void update_selectedness(JS::GCPtr<HTMLOptionElement> last_selected_option = nullptr);
 
 private:
     HTMLSelectElement(DOM::Document&, DOM::QualifiedName);

@@ -16,7 +16,7 @@ class CheckBox final : public FormAssociatedLabelableNode {
     JS_DECLARE_ALLOCATOR(CheckBox);
 
 public:
-    CheckBox(DOM::Document&, HTML::HTMLInputElement&, NonnullRefPtr<CSS::StyleProperties>);
+    CheckBox(DOM::Document&, HTML::HTMLInputElement&, CSS::StyleProperties);
     virtual ~CheckBox() override;
 
 private:

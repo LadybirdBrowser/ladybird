@@ -59,6 +59,9 @@ public:
 
     ErrorOr<void> initialize_navigable(JS::NonnullGCPtr<DocumentState> document_state, JS::GCPtr<Navigable> parent);
 
+    void register_navigation_observer(Badge<NavigationObserver>, NavigationObserver&);
+    void unregister_navigation_observer(Badge<NavigationObserver>, NavigationObserver&);
+
     Vector<JS::Handle<Navigable>> child_navigables() const;
 
     bool is_traversable() const;
@@ -231,6 +234,8 @@ private:
     JS::GCPtr<NavigableContainer> m_container;
 
     JS::NonnullGCPtr<Page> m_page;
+
+    HashTable<JS::NonnullGCPtr<NavigationObserver>> m_navigation_observers;
 
     bool m_has_been_destroyed { false };
 

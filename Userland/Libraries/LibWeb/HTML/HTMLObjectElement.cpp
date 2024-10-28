@@ -136,7 +136,7 @@ String HTMLObjectElement::data() const
     return MUST(document().parse_url(*data).to_string());
 }
 
-JS::GCPtr<Layout::Node> HTMLObjectElement::create_layout_node(NonnullRefPtr<CSS::StyleProperties> style)
+JS::GCPtr<Layout::Node> HTMLObjectElement::create_layout_node(CSS::StyleProperties style)
 {
     switch (m_representation) {
     case Representation::Children:

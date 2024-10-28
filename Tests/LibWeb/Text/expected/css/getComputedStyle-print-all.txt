@@ -104,6 +104,7 @@ counter-set: none
 cx: 0px
 cy: 0px
 display: block
+filter: none
 flex-basis: auto
 flex-direction: row
 flex-grow: 0
@@ -120,7 +121,7 @@ grid-row-start: auto
 grid-template-areas: none
 grid-template-columns: auto
 grid-template-rows: auto
-height: 2074px
+height: 2091px
 inline-size: auto
 inset-block-end: auto
 inset-block-start: auto

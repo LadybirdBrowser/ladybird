@@ -1,0 +1,47 @@
+Summary
+
+Harness status: OK
+
+Rerun
+
+Found 37 tests
+
+37 Pass
+Details
+Result	Test Name	MessagePass	#anchor1 initially white	
+Pass	#anchor1 becomes rgb(0, 0, 255) after adding .ancestor to #grand_parent1	
+Pass	#anchor1 becomes rgb(255, 255, 255) after removing .ancestor from #grand_parent1	
+Pass	#anchor1 becomes rgb(0, 0, 255) after adding .ancestor to #parent1	
+Pass	#anchor1 becomes rgb(255, 255, 255) after removing .ancestor from #parent1	
+Pass	#anchor2 initially white	
+Pass	#anchor2 becomes rgb(173, 216, 230) after adding .ancestor to #grand_parent2	
+Pass	#anchor2 becomes rgb(255, 255, 255) after removing .ancestor from #grand_parent2	
+Pass	#anchor2 becomes rgb(173, 216, 230) after adding .ancestor to #parent2	
+Pass	#anchor2 becomes rgb(255, 255, 255) after removing .ancestor from #parent2	
+Pass	#anchor3 initially white	
+Pass	#anchor3 becomes rgb(255, 255, 0) after adding .ancestor_prev to #grand_parent_indirect_prev3	
+Pass	#anchor3 becomes rgb(154, 205, 50) after adding .ancestor to #grand_parent3	
+Pass	#anchor3 becomes rgb(255, 255, 0) after removing .ancestor from #grand_parent3	
+Pass	#anchor3 becomes rgb(255, 255, 255) after removing .ancestor_prev from #grand_parent_indirect_prev3	
+Pass	#anchor3 becomes rgb(255, 255, 0) after adding .ancestor_prev to #grand_parent_direct_prev3	
+Pass	#anchor3 becomes rgb(255, 255, 255) after removing .ancestor_prev from #grand_parent_direct_prev3	
+Pass	#anchor3 becomes rgb(255, 255, 0) after adding .ancestor_prev to #parent_indirect_prev3	
+Pass	#anchor3 becomes rgb(154, 205, 50) after adding .ancestor to #parent3	
+Pass	#anchor3 becomes rgb(255, 255, 0) after removing .ancestor from #parent3	
+Pass	#anchor3 becomes rgb(255, 255, 255) after removing .ancestor_prev from #parent_indirect_prev3	
+Pass	#anchor3 becomes rgb(255, 255, 0) after adding .ancestor_prev to #parent_direct_prev3	
+Pass	#anchor3 becomes rgb(255, 255, 255) after removing .ancestor_prev from #parent_direct_prev3	
+Pass	#anchor3 becomes rgb(255, 255, 0) after adding .ancestor_prev to #anchor_indirect_prev3	
+Pass	#anchor3 becomes rgb(255, 255, 255) after removing .ancestor_prev from #anchor_indirect_prev3	
+Pass	#anchor3 becomes rgb(255, 255, 0) after adding .ancestor_prev to #anchor_direct_prev3	
+Pass	#anchor3 becomes rgb(255, 255, 255) after removing .ancestor_prev from #anchor_direct_prev3	
+Pass	#anchor4 initially white	
+Pass	#anchor4 becomes rgb(0, 128, 0) after adding .prev to #indirect_prev4	
+Pass	#anchor4 becomes rgb(255, 255, 255) after removing .prev from #indirect_prev4	
+Pass	#anchor4 becomes rgb(0, 128, 0) after adding .prev to #direct_prev4	
+Pass	#anchor4 becomes rgb(255, 255, 255) after removing .prev from #direct_prev4	
+Pass	#anchor5 initially white	
+Pass	#anchor5 becomes rgb(144, 238, 144) after adding .prev to #indirect_prev5	
+Pass	#anchor5 becomes rgb(255, 255, 255) after removing .prev from #indirect_prev5	
+Pass	#anchor5 becomes rgb(144, 238, 144) after adding .prev to #direct_prev5	
+Pass	#anchor5 becomes rgb(255, 255, 255) after removing .prev from #direct_prev5	

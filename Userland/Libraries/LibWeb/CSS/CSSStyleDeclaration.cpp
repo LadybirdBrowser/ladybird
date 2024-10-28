@@ -520,8 +520,7 @@ WebIDL::ExceptionOr<void> ElementInlineCSSStyleDeclaration::set_css_text(StringV
 
     // 3. Parse the given value and, if the return value is not the empty list, insert the items in the list into the declarations, in specified order.
     auto style = parse_css_style_attribute(CSS::Parser::ParsingContext(m_element->document()), css_text, *m_element.ptr());
-    auto custom_properties = TRY_OR_THROW_OOM(vm(), style->custom_properties().clone());
-    set_the_declarations(style->properties(), move(custom_properties));
+    set_the_declarations(style->properties(), style->custom_properties());
 
     // 4. Update style attribute for the CSS declaration block.
     update_style_attribute();

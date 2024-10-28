@@ -12,7 +12,7 @@ namespace Web::Layout {
 
 JS_DEFINE_ALLOCATOR(ListItemBox);
 
-ListItemBox::ListItemBox(DOM::Document& document, DOM::Element* element, NonnullRefPtr<CSS::StyleProperties> style)
+ListItemBox::ListItemBox(DOM::Document& document, DOM::Element* element, CSS::StyleProperties style)
     : Layout::BlockContainer(document, element, move(style))
 {
 }

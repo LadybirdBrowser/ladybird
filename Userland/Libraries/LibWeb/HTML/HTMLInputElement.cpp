@@ -98,7 +98,7 @@ JS::NonnullGCPtr<ValidityState const> HTMLInputElement::validity() const
     return vm.heap().allocate<ValidityState>(realm, realm);
 }
 
-JS::GCPtr<Layout::Node> HTMLInputElement::create_layout_node(NonnullRefPtr<CSS::StyleProperties> style)
+JS::GCPtr<Layout::Node> HTMLInputElement::create_layout_node(CSS::StyleProperties style)
 {
     if (type_state() == TypeAttributeState::Hidden)
         return nullptr;
@@ -113,8 +113,8 @@ JS::GCPtr<Layout::Node> HTMLInputElement::create_layout_node(NonnullRefPtr<CSS::
     // This specification introduces the appearance property to provide some control over this behavior.
     // In particular, using appearance: none allows authors to suppress the native appearance of widgets,
     // giving them a primitive appearance where CSS can be used to restyle them.
-    if (style->appearance() == CSS::Appearance::None) {
-        return Element::create_layout_node_for_display_type(document(), style->display(), style, this);
+    if (style.appearance() == CSS::Appearance::None) {
+        return Element::create_layout_node_for_display_type(document(), style.display(), style, this);
     }
 
     if (type_state() == TypeAttributeState::SubmitButton || type_state() == TypeAttributeState::Button || type_state() == TypeAttributeState::ResetButton)
@@ -126,7 +126,7 @@ JS::GCPtr<Layout::Node> HTMLInputElement::create_layout_node(NonnullRefPtr<CSS::
     if (type_state() == TypeAttributeState::RadioButton)
         return heap().allocate_without_realm<Layout::RadioButton>(document(), *this, move(style));
 
-    return Element::create_layout_node_for_display_type(document(), style->display(), style, this);
+    return Element::create_layout_node_for_display_type(document(), style.display(), style, this);
 }
 
 void HTMLInputElement::adjust_computed_style(CSS::StyleProperties& style)
@@ -165,14 +165,7 @@ void HTMLInputElement::set_checked(bool checked, ChangeSource change_source)
 
     m_checked = checked;
 
-    // This element's :checked pseudo-class could be used in a sibling's sibling-selector,
-    // so we need to invalidate the style of all siblings.
-    if (parent()) {
-        parent()->for_each_child([&](auto& child) {
-            child.invalidate_style(DOM::StyleInvalidationReason::HTMLInputElementSetChecked);
-            return IterationDecision::Continue;
-        });
-    }
+    invalidate_style(DOM::StyleInvalidationReason::HTMLInputElementSetChecked);
 }
 
 void HTMLInputElement::set_checked_binding(bool checked)
@@ -2311,7 +2304,7 @@ Optional<ARIA::Role> HTMLInputElement::default_role() const
         return ARIA::Role::combobox;
     // https://www.w3.org/TR/html-aria/#el-input-search
     if (type_state() == TypeAttributeState::Search && !has_attribute(AttributeNames::list))
-        return ARIA::Role::textbox;
+        return ARIA::Role::searchbox;
     // https://www.w3.org/TR/html-aria/#el-input-submit
     if (type_state() == TypeAttributeState::SubmitButton)
         return ARIA::Role::button;

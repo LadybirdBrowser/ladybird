@@ -57,6 +57,8 @@ public:
     Web::WebDriver::Response get_window_handles() const;
     ErrorOr<void, Web::WebDriver::Error> ensure_current_window_handle_is_valid() const;
 
+    Web::WebDriver::Response navigate_to(JsonValue) const;
+
     enum class ScriptMode {
         Sync,
         Async,
@@ -66,6 +68,9 @@ public:
     Web::WebDriver::Response element_click(String) const;
     Web::WebDriver::Response element_send_keys(String, JsonValue) const;
     Web::WebDriver::Response perform_actions(JsonValue) const;
+
+    Web::WebDriver::Response dismiss_alert() const;
+    Web::WebDriver::Response accept_alert() const;
 
 private:
     using ServerPromise = Core::Promise<ErrorOr<void>>;

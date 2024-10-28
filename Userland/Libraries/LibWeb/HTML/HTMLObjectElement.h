@@ -58,7 +58,7 @@ private:
 
     virtual void apply_presentational_hints(CSS::StyleProperties&) const override;
 
-    virtual JS::GCPtr<Layout::Node> create_layout_node(NonnullRefPtr<CSS::StyleProperties>) override;
+    virtual JS::GCPtr<Layout::Node> create_layout_node(CSS::StyleProperties) override;
 
     bool has_ancestor_media_element_or_object_element_not_showing_fallback_content() const;
 

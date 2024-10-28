@@ -100,9 +100,9 @@
     },
     {
       "name": "Sanitizer",
-      "inherits": "Debug",
+      "inherits": "default",
       "displayName": "Sanitizer Config",
-      "description": "Debug build using Sanitizers",
+      "description": "Sanitizer build using Ninja generator",
       "binaryDir": "${fileDir}/Build/ladybird-sanitizers",
       "cacheVariables": {
         "ENABLE_UNDEFINED_SANITIZER": "ON",

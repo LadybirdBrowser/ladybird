@@ -2392,6 +2392,11 @@ void Document::update_readiness(HTML::DocumentReadyState readiness_value)
             m_needs_to_call_page_did_load = true;
         }
     }
+
+    for (auto document_observer : m_document_observers) {
+        if (document_observer->document_readiness_observer())
+            document_observer->document_readiness_observer()->function()(m_readiness);
+    }
 }
 
 // https://html.spec.whatwg.org/multipage/dom.html#dom-document-lastmodified

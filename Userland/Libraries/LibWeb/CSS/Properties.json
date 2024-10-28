@@ -1065,6 +1065,16 @@
       "fill-rule"
     ]
   },
+  "filter": {
+    "affects-layout": false,
+    "animation-type": "custom",
+    "inherited": false,
+    "initial": "none",
+    "__comment": "FIXME: List `filter-value-list` as a valid-type once it's generically supported.",
+    "valid-identifiers": [
+      "none"
+    ]
+  },
   "flex": {
     "inherited": false,
     "initial": "0 1 auto",
@@ -1895,6 +1905,9 @@
       "percentage [0,∞]"
     ],
     "valid-identifiers": [
+      "fit-content",
+      "max-content",
+      "min-content",
       "none"
     ],
     "percentages-resolve-to": "length",
@@ -1938,7 +1951,9 @@
     ],
     "valid-identifiers": [
       "auto",
-      "none"
+      "fit-content",
+      "max-content",
+      "min-content"
     ],
     "percentages-resolve-to": "length",
     "quirks": [
@@ -1964,8 +1979,7 @@
       "auto",
       "fit-content",
       "max-content",
-      "min-content",
-      "none"
+      "min-content"
     ],
     "percentages-resolve-to": "length",
     "quirks": [

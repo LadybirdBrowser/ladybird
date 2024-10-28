@@ -181,6 +181,7 @@ protected:
             length -= write_size;
             offset += write_size;
         }
+        // FIXME: Apply padding if requested
 
         if (ivec_out)
             __builtin_memcpy(ivec_out->data(), iv.data(), min(ivec_out->size(), IV_length()));

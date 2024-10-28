@@ -284,6 +284,7 @@ void DisplayListRecorder::push_stacking_context(PushStackingContextParams params
 {
     append(PushStackingContext {
         .opacity = params.opacity,
+        .filter = params.filter,
         .source_paintable_rect = params.source_paintable_rect,
         .transform = {
             .origin = params.transform.origin,
@@ -299,7 +300,7 @@ void DisplayListRecorder::pop_stacking_context()
     append(PopStackingContext {});
 }
 
-void DisplayListRecorder::apply_backdrop_filter(Gfx::IntRect const& backdrop_region, BorderRadiiData const& border_radii_data, CSS::ResolvedBackdropFilter const& backdrop_filter)
+void DisplayListRecorder::apply_backdrop_filter(Gfx::IntRect const& backdrop_region, BorderRadiiData const& border_radii_data, CSS::ResolvedFilter const& backdrop_filter)
 {
     if (backdrop_region.is_empty())
         return;

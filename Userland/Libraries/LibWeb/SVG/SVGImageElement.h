@@ -57,7 +57,7 @@ protected:
     void fetch_the_document(URL::URL const& url);
 
 private:
-    virtual JS::GCPtr<Layout::Node> create_layout_node(NonnullRefPtr<CSS::StyleProperties>) override;
+    virtual JS::GCPtr<Layout::Node> create_layout_node(CSS::StyleProperties) override;
     void animate();
 
     JS::GCPtr<SVG::SVGAnimatedLength> m_x;

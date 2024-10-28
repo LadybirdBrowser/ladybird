@@ -20,6 +20,12 @@ void WebContentConnection::die()
         on_close();
 }
 
+void WebContentConnection::navigation_complete(Web::WebDriver::Response const& response)
+{
+    if (on_navigation_complete)
+        on_navigation_complete(response);
+}
+
 void WebContentConnection::script_executed(Web::WebDriver::Response const& response)
 {
     if (on_script_executed)
@@ -30,6 +36,12 @@ void WebContentConnection::actions_performed(Web::WebDriver::Response const& res
 {
     if (on_actions_performed)
         on_actions_performed(response);
+}
+
+void WebContentConnection::dialog_closed(Web::WebDriver::Response const& response)
+{
+    if (on_dialog_closed)
+        on_dialog_closed(response);
 }
 
 }

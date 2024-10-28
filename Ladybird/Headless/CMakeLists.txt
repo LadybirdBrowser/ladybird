@@ -14,6 +14,6 @@ target_link_libraries(headless-browser PRIVATE ${LADYBIRD_LIBS} LibDiff)
 if (BUILD_TESTING)
     add_test(
         NAME LibWeb
-        COMMAND $<TARGET_FILE:headless-browser> --run-tests ${LADYBIRD_SOURCE_DIR}/Tests/LibWeb --dump-failed-ref-tests
+        COMMAND $<TARGET_FILE:headless-browser> --run-tests ${LADYBIRD_SOURCE_DIR}/Tests/LibWeb --dump-failed-ref-tests --per-test-timeout 120
     )
 endif()

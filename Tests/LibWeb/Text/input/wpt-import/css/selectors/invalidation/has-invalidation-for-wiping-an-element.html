@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>:has() invalidation for wiping an element by means of innerHTML</title>
+<link rel="author" title="Byungwoo Lee" href="mailto:blee@igalia.com">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<link rel="help" href="https://drafts.csswg.org/selectors/#relational">
+<style>
+div, main { color: grey }
+.subject:has(.descendant) { color: green}
+</style>
+<main id=main>
+  <div id="subject" class="subject"></div>
+</main>
+<script>
+  let grey = 'rgb(128, 128, 128)';
+  let green = 'rgb(0, 128, 0)';
+
+  function test_div(test_name, el, color) {
+    test(function() {
+      assert_equals(getComputedStyle(el).color, color);
+    }, test_name + ': div#' + el.id + '.color');
+  }
+
+  test_div('initial color', subject, grey);
+
+  subject.innerHTML = "This is a text <div><div class='descendant'></div></div>";
+
+  test_div('color after inserting text and div > .descendant', subject, green);
+
+  subject.innerHTML = "This is a text";
+
+  test_div('color after wiping #child to remove div > .descendant', subject, grey);
+
+  subject.innerHTML = "<div id='child'> This is a text <div class='descendant'></div></div>";
+
+  test_div('color after inserting text and #child > .descendant', subject, green);
+
+  child.innerHTML = "This is a text";
+
+  test_div('color after wiping #child to remove .descendant', subject, grey);
+</script>

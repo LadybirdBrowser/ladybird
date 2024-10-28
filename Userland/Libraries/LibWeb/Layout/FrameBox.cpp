@@ -13,7 +13,7 @@ namespace Web::Layout {
 
 JS_DEFINE_ALLOCATOR(FrameBox);
 
-FrameBox::FrameBox(DOM::Document& document, DOM::Element& element, NonnullRefPtr<CSS::StyleProperties> style)
+FrameBox::FrameBox(DOM::Document& document, DOM::Element& element, CSS::StyleProperties style)
     : ReplacedBox(document, element, move(style))
 {
 }

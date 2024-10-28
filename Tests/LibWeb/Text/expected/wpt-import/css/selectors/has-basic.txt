@@ -1,0 +1,28 @@
+Summary
+
+Harness status: OK
+
+Rerun
+
+Found 18 tests
+
+18 Pass
+Details
+Result	Test Name	MessagePass	:has(#a) matches expected elements	
+Pass	:has(.ancestor) matches expected elements	
+Pass	:has(.target) matches expected elements	
+Pass	:has(.descendant) matches expected elements	
+Pass	.parent:has(.target) matches expected elements	
+Pass	:has(.sibling ~ .target) matches expected elements	
+Pass	.parent:has(.sibling ~ .target) matches expected elements	
+Pass	:has(:is(.target ~ .sibling .descendant)) matches expected elements	
+Pass	.parent:has(:is(.target ~ .sibling .descendant)) matches expected elements	
+Pass	.sibling:has(.descendant) ~ .target matches expected elements	
+Pass	:has(> .parent) matches expected elements	
+Pass	:has(> .target) matches expected elements	
+Pass	:has(> .parent, > .target) matches expected elements	
+Pass	:has(+ #h) matches expected elements	
+Pass	.parent:has(~ #h) matches expected elements	
+Pass	.sibling:has(.descendant) matches expected element	
+Pass	closest(.ancestor:has(.descendant)) returns expected element	
+Pass	:has(.target ~ .sibling .descendant) matches expectedly	

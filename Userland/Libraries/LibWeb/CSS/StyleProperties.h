@@ -19,7 +19,7 @@
 
 namespace Web::CSS {
 
-class StyleProperties : public RefCounted<StyleProperties> {
+class StyleProperties {
 public:
     static constexpr size_t number_of_properties = to_underlying(CSS::last_property_id) + 1;
 
@@ -47,9 +47,6 @@ private:
 
 public:
     StyleProperties() = default;
-
-    static NonnullRefPtr<StyleProperties> create() { return adopt_ref(*new StyleProperties); }
-    NonnullRefPtr<StyleProperties> clone() const;
 
     template<typename Callback>
     inline void for_each_property(Callback callback) const
@@ -137,7 +134,8 @@ public:
     Optional<CSS::AlignItems> align_items() const;
     Optional<CSS::AlignSelf> align_self() const;
     Optional<CSS::Appearance> appearance() const;
-    CSS::BackdropFilter backdrop_filter() const;
+    CSS::Filter backdrop_filter() const;
+    CSS::Filter filter() const;
     float opacity() const;
     Optional<CSS::Visibility> visibility() const;
     Optional<CSS::ImageRendering> image_rendering() const;

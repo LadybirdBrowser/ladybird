@@ -12,7 +12,7 @@ namespace Web::Layout {
 
 JS_DEFINE_ALLOCATOR(ListItemMarkerBox);
 
-ListItemMarkerBox::ListItemMarkerBox(DOM::Document& document, CSS::ListStyleType style_type, CSS::ListStylePosition style_position, size_t index, NonnullRefPtr<CSS::StyleProperties> style)
+ListItemMarkerBox::ListItemMarkerBox(DOM::Document& document, CSS::ListStyleType style_type, CSS::ListStylePosition style_position, size_t index, CSS::StyleProperties style)
     : Box(document, nullptr, move(style))
     , m_list_style_type(style_type)
     , m_list_style_position(style_position)

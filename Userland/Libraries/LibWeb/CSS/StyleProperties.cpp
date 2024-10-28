@@ -53,13 +53,6 @@ NonnullRefPtr<StyleProperties::Data> StyleProperties::Data::clone() const
     return clone;
 }
 
-NonnullRefPtr<StyleProperties> StyleProperties::clone() const
-{
-    auto cloned = adopt_ref(*new StyleProperties);
-    cloned->m_data = m_data;
-    return cloned;
-}
-
 bool StyleProperties::is_property_important(CSS::PropertyID property_id) const
 {
     size_t n = to_underlying(property_id);
@@ -534,6 +527,8 @@ static Optional<LengthPercentage> length_percentage_for_style_value(CSSStyleValu
         return value.as_length().length();
     if (value.is_percentage())
         return value.as_percentage().percentage();
+    if (value.is_math())
+        return LengthPercentage { const_cast<CSSMathValue&>(value.as_math()) };
     return {};
 }
 
@@ -613,12 +608,20 @@ Optional<CSS::Appearance> StyleProperties::appearance() const
     return appearance;
 }
 
-CSS::BackdropFilter StyleProperties::backdrop_filter() const
+CSS::Filter StyleProperties::backdrop_filter() const
 {
     auto value = property(CSS::PropertyID::BackdropFilter);
     if (value->is_filter_value_list())
-        return BackdropFilter(value->as_filter_value_list());
-    return BackdropFilter::make_none();
+        return Filter(value->as_filter_value_list());
+    return Filter::make_none();
+}
+
+CSS::Filter StyleProperties::filter() const
+{
+    auto value = property(CSS::PropertyID::Filter);
+    if (value->is_filter_value_list())
+        return Filter(value->as_filter_value_list());
+    return Filter::make_none();
 }
 
 Optional<CSS::Positioning> StyleProperties::position() const

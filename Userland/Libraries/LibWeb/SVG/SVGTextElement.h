@@ -17,7 +17,7 @@ class SVGTextElement : public SVGTextPositioningElement {
     JS_DECLARE_ALLOCATOR(SVGTextElement);
 
 public:
-    virtual JS::GCPtr<Layout::Node> create_layout_node(NonnullRefPtr<CSS::StyleProperties>) override;
+    virtual JS::GCPtr<Layout::Node> create_layout_node(CSS::StyleProperties) override;
 
 protected:
     SVGTextElement(DOM::Document&, DOM::QualifiedName);

@@ -1,0 +1,38 @@
+Summary
+
+Harness status: OK
+
+Rerun
+
+Found 28 tests
+
+28 Pass
+Details
+Result	Test Name	MessagePass	subject1: initial color should be rgb(128, 128, 128)	
+Pass	subject1: color after #sibling1_1 inserted should be rgb(255, 0, 0)	
+Pass	subject2: initial color should be rgb(128, 128, 128)	
+Pass	subject2: color after #sibling2_1 removed should be rgb(0, 128, 0)	
+Pass	subject3: initial color should be rgb(128, 128, 128)	
+Pass	subject3: color after #sibling3_1 inserted should be rgb(0, 0, 255)	
+Pass	subject4: initial color should be rgb(128, 128, 128)	
+Pass	subject4: color after #sibling4_1 removed should be rgb(255, 255, 0)	
+Pass	subject5: initial color should be rgb(255, 0, 0)	
+Pass	subject5: color after #sibling5_1 removed should be rgb(128, 128, 128)	
+Pass	subject6: initial color should be rgb(0, 128, 0)	
+Pass	subject6: color after #sibling6_1 inserted should be rgb(128, 128, 128)	
+Pass	subject7: initial color should be rgb(0, 0, 255)	
+Pass	subject7: color after #sibling7_1 removed should be rgb(128, 128, 128)	
+Pass	subject8: initial color should be rgb(255, 255, 0)	
+Pass	subject8: color after #sibling8_1 inserted should be rgb(128, 128, 128)	
+Pass	subject9: initial color should be rgb(128, 128, 128)	
+Pass	subject9: color after #sibling9_1 inserted should be rgb(255, 0, 0)	
+Pass	subject10: initial color should be rgb(128, 128, 128)	
+Pass	subject10: color after #sibling10_1 removed should be rgb(0, 128, 0)	
+Pass	subject11: initial color should be rgb(128, 128, 128)	
+Pass	subject11: color after #sibling11_1 inserted should be rgb(0, 0, 255)	
+Pass	subject12: initial color should be rgb(128, 128, 128)	
+Pass	subject12: color after #sibling12_1 removed should be rgb(255, 255, 0)	
+Pass	subject13: initial color should be rgb(128, 128, 128)	
+Pass	subject13: color after #sibling12_1 removed should be rgb(0, 128, 0)	
+Pass	subject14: initial color should be rgb(0, 128, 0)	
+Pass	subject14: color after #sibling14_2 removed should be rgb(128, 128, 128)	

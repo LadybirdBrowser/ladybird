@@ -113,6 +113,7 @@ struct StackingContextTransform {
 
 struct PushStackingContext {
     float opacity;
+    CSS::ResolvedFilter filter;
     // The bounding box of the source paintable (pre-transform).
     Gfx::IntRect source_paintable_rect;
     // A translation to be applied after the stacking context has been transformed.
@@ -285,7 +286,7 @@ struct DrawLine {
 struct ApplyBackdropFilter {
     Gfx::IntRect backdrop_region;
     BorderRadiiData border_radii_data;
-    CSS::ResolvedBackdropFilter backdrop_filter;
+    CSS::ResolvedFilter backdrop_filter;
 
     [[nodiscard]] Gfx::IntRect bounding_rect() const { return backdrop_region; }
 

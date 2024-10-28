@@ -183,11 +183,13 @@ bool Node::establishes_stacking_context() const
     if (parent() && parent()->display().is_grid_inside() && computed_values().z_index().has_value())
         return true;
 
+    // https://drafts.fxtf.org/filter-effects/#FilterProperty
     // https://drafts.fxtf.org/filter-effects-2/#backdrop-filter-operation
-    // A computed value of other than none results in the creation of both a stacking context [CSS21] and a Containing Block for absolute and fixed position descendants,
-    // unless the element it applies to is a document root element in the current browsing context.
+    // A computed value of other than none results in the creation of both a stacking context
+    // [CSS21] and a Containing Block for absolute and fixed position descendants, unless the
+    // element it applies to is a document root element in the current browsing context.
     // Spec Note: This rule works in the same way as for the filter property.
-    if (!computed_values().backdrop_filter().is_none())
+    if (!computed_values().backdrop_filter().is_none() || !computed_values().filter().is_none())
         return true;
 
     // Element with any of the following properties with value other than none:
@@ -259,12 +261,12 @@ bool Node::is_sticky_position() const
     return position == CSS::Positioning::Sticky;
 }
 
-NodeWithStyle::NodeWithStyle(DOM::Document& document, DOM::Node* node, NonnullRefPtr<CSS::StyleProperties> computed_style)
+NodeWithStyle::NodeWithStyle(DOM::Document& document, DOM::Node* node, CSS::StyleProperties computed_style)
     : Node(document, node)
     , m_computed_values(make<CSS::ComputedValues>())
 {
     m_has_style = true;
-    apply_style(*computed_style);
+    apply_style(computed_style);
 }
 
 NodeWithStyle::NodeWithStyle(DOM::Document& document, DOM::Node* node, NonnullOwnPtr<CSS::ComputedValues> computed_values)
@@ -512,34 +514,38 @@ void NodeWithStyle::apply_style(const CSS::StyleProperties& computed_style)
     computed_values.set_order(computed_style.order());
     computed_values.set_clip(computed_style.clip());
 
-    if (computed_style.backdrop_filter().has_filters()) {
-        CSS::ResolvedBackdropFilter resolved_backdrop_filter;
-        for (auto& filter : computed_style.backdrop_filter().filters()) {
+    auto resolve_filter = [this](CSS::Filter const& computed_filter) -> CSS::ResolvedFilter {
+        CSS::ResolvedFilter resolved_filter;
+        for (auto const& filter : computed_filter.filters()) {
             filter.visit(
-                [&](CSS::Filter::Blur const& blur) {
-                    resolved_backdrop_filter.filters.append(CSS::ResolvedBackdropFilter::Blur {
+                [&](CSS::FilterOperation::Blur const& blur) {
+                    resolved_filter.filters.append(CSS::ResolvedFilter::Blur {
                         .radius = blur.resolved_radius(*this) });
                 },
-                [&](CSS::Filter::DropShadow const& drop_shadow) {
+                [&](CSS::FilterOperation::DropShadow const& drop_shadow) {
                     // The default value for omitted values is missing length values set to 0
                     // and the missing used color is taken from the color property.
-                    resolved_backdrop_filter.filters.append(CSS::ResolvedBackdropFilter::DropShadow {
+                    resolved_filter.filters.append(CSS::ResolvedFilter::DropShadow {
                         .offset_x = drop_shadow.offset_x.to_px(*this).to_double(),
                         .offset_y = drop_shadow.offset_y.to_px(*this).to_double(),
                         .radius = drop_shadow.radius.has_value() ? drop_shadow.radius->to_px(*this).to_double() : 0.0,
                         .color = drop_shadow.color.has_value() ? *drop_shadow.color : this->computed_values().color() });
                 },
-                [&](CSS::Filter::Color const& color_operation) {
-                    resolved_backdrop_filter.filters.append(CSS::ResolvedBackdropFilter::ColorOperation {
-                        .operation = color_operation.operation,
+                [&](CSS::FilterOperation::Color const& color_operation) {
+                    resolved_filter.filters.append(CSS::ResolvedFilter::Color {
+                        .type = color_operation.operation,
                         .amount = color_operation.resolved_amount() });
                 },
-                [&](CSS::Filter::HueRotate const& hue_rotate) {
-                    resolved_backdrop_filter.filters.append(CSS::ResolvedBackdropFilter::HueRotate { .angle_degrees = hue_rotate.angle_degrees() });
+                [&](CSS::FilterOperation::HueRotate const& hue_rotate) {
+                    resolved_filter.filters.append(CSS::ResolvedFilter::HueRotate { .angle_degrees = hue_rotate.angle_degrees() });
                 });
         }
-        computed_values.set_backdrop_filter(resolved_backdrop_filter);
-    }
+        return resolved_filter;
+    };
+    if (computed_style.backdrop_filter().has_filters())
+        computed_values.set_backdrop_filter(resolve_filter(computed_style.backdrop_filter()));
+    if (computed_style.filter().has_filters())
+        computed_values.set_filter(resolve_filter(computed_style.filter()));
 
     auto justify_content = computed_style.justify_content();
     if (justify_content.has_value())
@@ -874,7 +880,12 @@ void NodeWithStyle::apply_style(const CSS::StyleProperties& computed_style)
     } else if (aspect_ratio->is_keyword() && aspect_ratio->as_keyword().keyword() == CSS::Keyword::Auto) {
         computed_values.set_aspect_ratio({ true, {} });
     } else if (aspect_ratio->is_ratio()) {
-        computed_values.set_aspect_ratio({ false, aspect_ratio->as_ratio().ratio() });
+        // https://drafts.csswg.org/css-sizing-4/#aspect-ratio
+        // If the <ratio> is degenerate, the property instead behaves as auto.
+        if (aspect_ratio->as_ratio().ratio().is_degenerate())
+            computed_values.set_aspect_ratio({ true, {} });
+        else
+            computed_values.set_aspect_ratio({ false, aspect_ratio->as_ratio().ratio() });
     }
 
     auto math_shift_value = computed_style.property(CSS::PropertyID::MathShift);

@@ -1,0 +1,31 @@
+Summary
+
+Harness status: OK
+
+Rerun
+
+Found 21 tests
+
+21 Pass
+Details
+Result	Test Name	MessagePass	Initial color	
+Pass	remove .test to subject_child	
+Pass	add .test from subject_child	
+Pass	remove .test to subject_descendant	
+Pass	add .test from subject_descendant	
+Pass	insert element div before subject_child	
+Pass	remove element div before subject_child	
+Pass	insert element div before subject_descendant	
+Pass	remove element div before subject_descendant	
+Pass	insert element div after subject_child	
+Pass	remove element div after subject_child	
+Pass	insert element div after subject_descendant	
+Pass	remove element div after subject_descendant	
+Pass	insert tree div>div before subject_child	
+Pass	remove tree div>div before subject_child	
+Pass	insert tree div>div before subject_descendant	
+Pass	remove tree div>div before subject_descendant	
+Pass	insert tree div.test after subject_child	
+Pass	remove tree div.test after subject_child	
+Pass	insert tree div.test after subject_descendant	
+Pass	remove tree div.test after subject_descendant	

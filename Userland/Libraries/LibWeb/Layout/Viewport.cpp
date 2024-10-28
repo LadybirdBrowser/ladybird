@@ -16,7 +16,7 @@ namespace Web::Layout {
 
 JS_DEFINE_ALLOCATOR(Viewport);
 
-Viewport::Viewport(DOM::Document& document, NonnullRefPtr<CSS::StyleProperties> style)
+Viewport::Viewport(DOM::Document& document, CSS::StyleProperties style)
     : BlockContainer(document, &document, move(style))
 {
 }
