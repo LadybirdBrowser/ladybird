@@ -1342,7 +1342,7 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<JS::Object>> AesCbc::export_key(Bindings::K
 
         // 3. Set the k attribute of jwk to be a string containing the raw octets of the key represented by [[handle]] internal slot of key, encoded according to Section 6.4 of JSON Web Algorithms [JWA].
         auto const& key_bytes = handle.get<ByteBuffer>();
-        jwk.k = TRY_OR_THROW_OOM(m_realm->vm(), encode_base64url(key_bytes));
+        jwk.k = TRY_OR_THROW_OOM(m_realm->vm(), encode_base64url(key_bytes, AK::OmitPadding::Yes));
 
         // 4. -> If the length attribute of key is 128:
         //        Set the alg attribute of jwk to the string "A128CBC".
