@@ -202,15 +202,23 @@ static ErrorOr<AlgorithmIdentifier> parse_algorithm_identifier(Crypto::ASN1::Dec
         return AlgorithmIdentifier(algorithm);
     }
 
+    // https://www.ietf.org/rfc/rfc5758.txt
     // When the ecdsa-with-SHA224, ecdsa-with-SHA256, ecdsa-with-SHA384, or
     // ecdsa-with-SHA512 algorithm identifier appears in the algorithm field
     // as an AlgorithmIdentifier, the encoding MUST omit the parameters
     // field.
+
+    // https://datatracker.ietf.org/doc/html/rfc8410#section-9
+    // For all of the OIDs, the parameters MUST be absent.
     Array<Array<int, 7>, 8> no_parameter_algorithms = {
         ecdsa_with_sha224_encryption_oid,
         ecdsa_with_sha256_encryption_oid,
         ecdsa_with_sha384_encryption_oid,
         ecdsa_with_sha512_encryption_oid,
+        x25519_oid,
+        x448_oid,
+        ed25519_oid,
+        ed448_oid
     };
 
     bool is_no_parameter_algorithm = false;
@@ -379,10 +387,22 @@ ErrorOr<SubjectPublicKey> parse_subject_public_key_info(Crypto::ASN1::Decoder& d
         return public_key;
     }
 
-    if (public_key.algorithm.identifier.span() == ec_public_key_encryption_oid.span()) {
-        // Note: Raw key is already stored, so we can just exit out at this point.
-        EXIT_SCOPE();
-        return public_key;
+    // https://datatracker.ietf.org/doc/html/rfc8410#section-9
+    // For all of the OIDs, the parameters MUST be absent.
+    Array<Array<int, 7>, 5> no_parameter_algorithms = {
+        ec_public_key_encryption_oid,
+        x25519_oid,
+        x448_oid,
+        ed25519_oid,
+        ed448_oid
+    };
+
+    for (auto const& inner : no_parameter_algorithms) {
+        if (public_key.algorithm.identifier.span() == inner.span()) {
+            // Note: Raw key is already stored, so we can just exit out at this point.
+            EXIT_SCOPE();
+            return public_key;
+        }
     }
 
     String algo_oid = TRY(String::join("."sv, public_key.algorithm.identifier));
@@ -426,10 +446,22 @@ ErrorOr<PrivateKey> parse_private_key_info(Crypto::ASN1::Decoder& decoder, Vecto
         return private_key;
     }
 
-    if (private_key.algorithm.identifier.span() == ec_public_key_encryption_oid.span()) {
-        // Note: Raw key is already stored, so we can just exit out at this point.
-        EXIT_SCOPE();
-        return private_key;
+    // https://datatracker.ietf.org/doc/html/rfc8410#section-9
+    // For all of the OIDs, the parameters MUST be absent.
+    Array<Array<int, 7>, 5> no_parameter_algorithms = {
+        ec_public_key_encryption_oid,
+        x25519_oid,
+        x448_oid,
+        ed25519_oid,
+        ed448_oid
+    };
+
+    for (auto const& inner : no_parameter_algorithms) {
+        if (private_key.algorithm.identifier.span() == inner.span()) {
+            // Note: Raw key is already stored, so we can just exit out at this point.
+            EXIT_SCOPE();
+            return private_key;
+        }
     }
 
     String algo_oid = TRY(String::join("."sv, private_key.algorithm.identifier));
