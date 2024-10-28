@@ -15,6 +15,8 @@ namespace {
 
 CSSColorValue::ColorType color_type_from_string_view(StringView color_space)
 {
+    if (color_space == "srgb"sv)
+        return CSSColorValue::ColorType::sRGB;
     if (color_space == "xyz-d50"sv)
         return CSSColorValue::ColorType::XYZD50;
     if (color_space == "xyz"sv || color_space == "xyz-d65")
@@ -60,6 +62,11 @@ Color CSSColor::to_color(Optional<Layout::NodeWithStyle const&>) const
     auto const c2 = resolve_with_reference_value(m_properties.channels[1], 100).value_or(0);
     auto const c3 = resolve_with_reference_value(m_properties.channels[2], 100).value_or(0);
     auto const alpha_val = resolve_alpha(m_properties.alpha).value_or(1);
+
+    if (color_type() == ColorType::sRGB) {
+        auto const to_u8 = [](float c) -> u8 { return round_to<u8>(clamp(255 * c, 0, 255)); };
+        return Color(to_u8(c1), to_u8(c2), to_u8(c3), to_u8(alpha_val));
+    }
 
     if (color_type() == ColorType::XYZD50)
         return Color::from_xyz50(c1, c2, c3, alpha_val);
