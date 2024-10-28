@@ -15,7 +15,8 @@
         var aesKey = await window.crypto.subtle.importKey("raw", key, aesAlgorithmKeyGen, true, ["encrypt", "decrypt"]);
 
         // Test "exportKey" operation:
-        println("exported key: " + new Uint8Array(await window.crypto.subtle.exportKey("raw", aesKey)));
+        println("exported key, raw: " + new Uint8Array(await window.crypto.subtle.exportKey("raw", aesKey)));
+        println("exported key, jwk: " + JSON.stringify(await window.crypto.subtle.exportKey("jwk", aesKey)));
 
         // Test "encrypt" operation. Note, this is an edge case where CMS causes the ciphertext to be 16 bytes *longer* than the plaintext!
         var ciphertext = new Uint8Array(await window.crypto.subtle.encrypt(aesAlgorithmEncryptDecrypt, aesKey, plaintextEvil));
