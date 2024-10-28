@@ -1,0 +1,3 @@
+high: >grayscale(1) brightness(2) contrast(2) invert(1) opacity(1) saturate(2) sepia(1)<
+neg: >none<
+default: >grayscale() brightness() contrast() invert() opacity() saturate() sepia()<

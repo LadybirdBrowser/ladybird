@@ -36,20 +36,22 @@ float FilterOperation::Color::resolved_amount() const
     if (!amount.has_value())
         return 1;
 
-    if (amount->is_number())
-        return amount->number().value();
+    return amount.value().value();
+}
 
-    if (amount->is_percentage())
-        return amount->percentage().as_fraction();
-
-    if (amount->is_calculated()) {
-        if (amount->calculated()->resolves_to_number())
-            return amount->calculated()->resolve_number().value();
-
-        if (amount->calculated()->resolves_to_percentage())
-            return amount->calculated()->resolve_percentage()->as_fraction();
+bool FilterOperation::Color::is_clamped(FilterOperation::Color::Type type)
+{
+    switch (type) {
+    case Type::Grayscale:
+    case Type::Invert:
+    case Type::Opacity:
+    case Type::Sepia:
+        return true;
+    case Type::Brightness:
+    case Type::Contrast:
+    case Type::Saturate:
+        return false;
     }
-
     VERIFY_NOT_REACHED();
 }
 
@@ -111,7 +113,7 @@ String FilterValueListStyleValue::to_string() const
                         }
                     }());
                 if (color.amount.has_value())
-                    builder.append(color.amount->to_string());
+                    builder.appendff("{}", color.amount.value());
             });
         builder.append(')');
         first = false;

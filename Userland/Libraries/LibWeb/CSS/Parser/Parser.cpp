@@ -5195,6 +5195,7 @@ RefPtr<CSSStyleValue> Parser::parse_filter_value_list_value(TokenStream<Componen
 
         if (filter_token == FilterToken::Blur) {
             // blur( <length>? )
+            // FIXME: "Negative values are not allowed."
             if (!tokens.has_next_token())
                 return FilterOperation::Blur {};
             auto blur_radius = parse_length(tokens);
@@ -5256,16 +5257,36 @@ RefPtr<CSSStyleValue> Parser::parse_filter_value_list_value(TokenStream<Componen
         } else {
             // Simple filters:
             // brightness( <number-percentage>? )
+            // https://drafts.fxtf.org/filter-effects/#funcdef-filter-brightness
             // contrast( <number-percentage>? )
+            // https://drafts.fxtf.org/filter-effects/#funcdef-filter-contrast
             // grayscale( <number-percentage>? )
+            // https://drafts.fxtf.org/filter-effects/#funcdef-filter-grayscale
             // invert( <number-percentage>? )
+            // https://drafts.fxtf.org/filter-effects/#funcdef-filter-invert
             // opacity( <number-percentage>? )
-            // sepia( <number-percentage>? )
+            // https://drafts.fxtf.org/filter-effects/#funcdef-filter-opacity
             // saturate( <number-percentage>? )
+            // https://drafts.fxtf.org/filter-effects/#funcdef-filter-saturate
+            // sepia( <number-percentage>? )
+            // https://drafts.fxtf.org/filter-effects/#funcdef-filter-sepia
+            auto color_op = filter_token_to_operation(filter_token);
             if (!tokens.has_next_token())
-                return FilterOperation::Color { filter_token_to_operation(filter_token) };
-            auto amount = parse_number_percentage(tokens);
-            return if_no_more_tokens_return(FilterOperation::Color { filter_token_to_operation(filter_token), amount });
+                return FilterOperation::Color { color_op, {} };
+            auto amount_raw = parse_number_percentage(tokens);
+            if (!amount_raw.has_value())
+                return {};
+            Number amount;
+            if (amount_raw->is_percentage())
+                amount = Number(Number::Type::Number, amount_raw->percentage().as_fraction());
+            else
+                amount = amount_raw->number();
+            // None of what we call "Color" operations allow negative values:
+            if (amount.value() < 0.0)
+                return {};
+            if (FilterOperation::Color::is_clamped(color_op) && amount.value() > 1)
+                amount = Number(Number::Type::Integer, 1);
+            return if_no_more_tokens_return(FilterOperation::Color { color_op, amount });
         }
     };
 

@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    #high{
+        background-color: blue;
+        height: 30px;
+        width: 30px;
+        filter: grayscale(200%) brightness(200%) contrast(200%) invert(200%) opacity(200%) saturate(200%) sepia(200%);
+    }
+    #neg{
+        background-color: blue;
+        height: 30px;
+        width: 30px;
+        filter: grayscale(-50%) brightness(-50%) contrast(-50%) invert(-50%) opacity(-50%) saturate(-50%) sepia(-50%);
+    }
+    #default{
+        background-color: blue;
+        height: 30px;
+        width: 30px;
+        filter: grayscale() brightness() contrast() invert() opacity() saturate() sepia();
+    }
+</style>
+<div id="high"></div>
+<div id="neg"></div>
+<div id="default"></div>
+<script>
+    test(() => {
+        println("high: >" + window.getComputedStyle(document.getElementById("high"))["filter"] + "<");
+        println("neg: >" + window.getComputedStyle(document.getElementById("neg"))["filter"] + "<");
+        println("default: >" + window.getComputedStyle(document.getElementById("default"))["filter"] + "<");
+    });
+</script>

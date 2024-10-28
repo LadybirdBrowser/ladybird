@@ -53,9 +53,11 @@ struct Color {
         Saturate,
         Sepia
     } operation;
-    Optional<NumberPercentage> amount {};
+    Optional<Number> amount;
     float resolved_amount() const;
     bool operator==(Color const&) const = default;
+    static bool allows_negative(Type);
+    static bool is_clamped(Type);
 };
 
 };

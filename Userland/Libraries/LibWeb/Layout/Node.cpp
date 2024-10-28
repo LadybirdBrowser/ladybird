@@ -513,7 +513,6 @@ void NodeWithStyle::apply_style(const CSS::StyleProperties& computed_style)
     computed_values.set_flex_shrink(computed_style.flex_shrink());
     computed_values.set_order(computed_style.order());
     computed_values.set_clip(computed_style.clip());
-
     auto resolve_filter = [this](CSS::Filter const& computed_filter) -> CSS::ResolvedFilter {
         CSS::ResolvedFilter resolved_filter;
         for (auto const& filter : computed_filter.filters()) {
