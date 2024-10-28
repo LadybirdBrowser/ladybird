@@ -9,8 +9,7 @@ interface ServiceWorker : EventTarget {
     readonly attribute USVString scriptURL;
     [ImplementedAs=service_worker_state] readonly attribute ServiceWorkerState state;
 
-    // FIXME: IDL overload issue here
-    // FIXME: undefined postMessage(any message, sequence<object> transfer);
+    [FIXME] undefined postMessage(any message, sequence<object> transfer);
     [FIXME] undefined postMessage(any message, optional StructuredSerializeOptions options = {});
 
     // event
