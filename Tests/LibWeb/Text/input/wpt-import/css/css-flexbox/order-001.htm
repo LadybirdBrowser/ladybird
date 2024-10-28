@@ -1,0 +1,38 @@
+﻿<!DOCTYPE html PUBLIC "-//W3C//DTD//XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+    <head>
+        <title>CSS Test: The 'order' property on flex items set to a value of '-1'</title>
+        <link rel="author" title="Microsoft" href="http://www.microsoft.com/" />
+        <link rel="help" href="http://www.w3.org/TR/css-flexbox-1/#order-property" />
+        <meta name="assert" content="This test checks that a flex container will lay out its content in the order specified by the ordinal groups." />
+        <style type="text/css">
+            #flexbox
+            {
+                background-color: red;
+                display: flex;
+                width: 300px;
+            }
+            div div
+            {
+                height: 100px;
+                width: 150px;
+            }
+            #flexItem1
+            {
+                background-color: orange;
+            }
+            #flexItem2
+            {
+                background-color: blue;
+                order: -1;
+            }
+        </style>
+    </head>
+    <body>
+        <p>Test passes if there is a single blue rectangle on the left, a single orange rectangle directly to its right, and there is no red visible on the page.</p>
+        <div id="flexbox">
+            <div id="flexItem1"></div>
+            <div id="flexItem2"></div>
+        </div>
+    </body>
+</html>

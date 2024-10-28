@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<link rel="help" href="https://crbug.com/1081789" />
+<link rel="stylesheet" type="text/css" href="/fonts/ahem.css" />
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<style>
+#target::before {
+  font: 50px/1 Ahem;
+  display: inline-flex;
+  content: "X";
+  border: 2px solid black;
+  color: green;
+}
+</style>
+<div id=target></div>
+<script>
+test(function(t) {
+  const target = document.getElementById('target');
+  assert_equals(target, document.elementFromPoint(30, 30));
+}, 'Hit-testing text within a pseudo-element flex-item should return the flexbox as the hittest result.');
+</script>

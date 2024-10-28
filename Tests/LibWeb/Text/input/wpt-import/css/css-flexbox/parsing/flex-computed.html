@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS Flexible Box Layout: getComputedStyle().flex</title>
+<link rel="help" href="https://drafts.csswg.org/css-flexbox/#propdef-flex">
+<meta name="assert" content="flex computed value is specified keywords and/or computed <length-percentage>.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../support/computed-testcommon.js"></script>
+<style>
+  #target {
+    font-size: 40px;
+  }
+</style>
+</head>
+<body>
+<div id="target"></div>
+<script>
+test_computed_value("flex", "none", "0 0 auto");
+test_computed_value("flex", "1", "1 1 0%");
+test_computed_value("flex", "2 3", "2 3 0%");
+test_computed_value("flex", "4 5 6px");
+test_computed_value("flex", "7% 8", "8 1 7%");
+test_computed_value("flex", "8 auto", "8 1 auto");
+test_computed_value("flex", "calc(10px + 0.5em)", "1 1 30px");
+test_computed_value("flex", "calc(10px - 0.5em)", "1 1 0px");
+</script>
+</body>
+</html>

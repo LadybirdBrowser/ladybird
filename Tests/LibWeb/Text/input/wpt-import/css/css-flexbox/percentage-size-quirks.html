@@ -1,0 +1,107 @@
+<title>CSS Flexbox: percentage size in flexbox children in quirks mode</title>
+<link rel="help" href="https://drafts.csswg.org/css-flexbox/#flex-containers">
+<link rel="help" href="https://drafts.csswg.org/css-sizing-3/#percentage-sizing">
+<link rel="help" href="https://crbug.com/531783">
+<meta name="assert" content="This test checks that percentage height/width values in flexbox children are correctly resolved regardless of quirks mode.">
+<style>
+.flexbox {
+    display: flex;
+}
+.column, .column .fixed {
+    height: 50px;
+}
+.row, .row .fixed {
+    width: 50px;
+}
+.container > div {
+    outline: 2px solid blue;
+}
+.row > div > div {
+    height: 20px;
+}
+.flexbox > div {
+    flex: 0 0 auto;
+}
+.column > .flexbox {
+    flex-direction: column;
+}
+.container > div > :nth-child(1) {
+    background-color: orange;
+}
+.container > div > :nth-child(2) {
+    background-color: yellow;
+}
+.container > div > :nth-child(3) {
+    background-color: salmon;
+}
+.container > div > :nth-child(4) {
+    background-color: purple;
+}
+</style>
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../../resources/check-layout-th.js"></script>
+<body onload="checkLayout('.flexbox')">
+<div id=log></div>
+
+<div class="container row">
+    <div class="flexbox">
+        <div style='width: 10px; min-width: 50%;' data-expected-width=25></div>
+        <div style='width: 50%;' data-expected-width=25></div>
+        <div style='width: 10px; max-width: 50%;' data-expected-width=10></div>
+        <div style='min-width: 10px; width: 100px; max-width: 50%;' data-expected-width=25></div>
+    </div>
+</div>
+
+<div class="container row" style='width: 100px'>
+    <div class="flexbox fixed">
+        <div style='width: 10px; min-width: 50%;' data-expected-width=25></div>
+        <div style='width: 50%;' data-expected-width=25></div>
+        <div style='width: 10px; max-width: 50%;' data-expected-width=10></div>
+        <div style='min-width: 10px; width: 100px; max-width: 50%;' data-expected-width=25></div>
+    </div>
+</div>
+
+<div class="container column" style='margin-bottom: 100px'>
+    <div class="flexbox" style="height: auto">
+        <div style='height: 10px; min-height: 50%;' data-expected-height=10></div>
+        <div style='height: 50%;' data-expected-height=0></div>
+        <div style='height: 10px; max-height: 50%;' data-expected-height=10></div>
+        <div style='min-height: 10px; height: 100px; max-height: 50%;' data-expected-height=100></div>
+    </div>
+</div>
+
+<div class="container column">
+    <div class="flexbox fixed">
+        <div style='height: 10px; min-height: 50%;' data-expected-height=25></div>
+        <div style='height: 50%;' data-expected-height=25></div>
+        <div style='height: 10px; max-height: 50%;' data-expected-height=10></div>
+        <div style='min-height: 10px; height: 100px; max-height: 50%;' data-expected-height=25></div>
+    </div>
+</div>
+
+<div class="container row">
+    <div class="flexbox">
+        <div style="flex: 0 0 50%" data-expected-width=25></div>
+    </div>
+</div>
+
+<div class="container column">
+    <div class="flexbox">
+        <div style="flex: 0 0 50%" data-expected-height=0></div>
+    </div>
+</div>
+
+<div class="container row">
+    <div class="flexbox fixed">
+        <div style="flex: 0 0 50%" data-expected-width=25></div>
+    </div>
+</div>
+
+<div class="container column">
+    <div class="flexbox fixed">
+        <div style="flex: 0 0 50%" data-expected-height=25></div>
+    </div>
+</div>
+
+</body>

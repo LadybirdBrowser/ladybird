@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS Flexible Box Layout Module Level 1: parsing flex-wrap with valid values</title>
+<link rel="author" title="Eric Willigers" href="mailto:ericwilligers@chromium.org">
+<link rel="help" href="https://drafts.csswg.org/css-flexbox/#propdef-flex-wrap">
+<meta name="assert" content="flex-wrap supports the full grammar 'nowrap | wrap | wrap-reverse'.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../support/parsing-testcommon.js"></script>
+</head>
+<body>
+<script>
+test_valid_value("flex-wrap", "nowrap");
+test_valid_value("flex-wrap", "wrap");
+test_valid_value("flex-wrap", "wrap-reverse");
+</script>
+</body>
+</html>

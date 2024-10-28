@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<!--
+     Any copyright is dedicated to the Public Domain.
+     http://creativecommons.org/publicdomain/zero/1.0/
+-->
+<html>
+  <meta charset="utf-8">
+  <title>CSS Flexbox Test: Testing automatic minimun size of &lt;input&gt; flex items in a column flex container</title>
+  <link rel="author" title="Ting-Yu Lin" href="mailto:tlin@mozilla.com">
+  <link rel="author" title="Mozilla" href="https://www.mozilla.org/">
+  <link rel="help" href="https://drafts.csswg.org/css-flexbox-1/#min-size-auto">
+  <link rel="help" href="https://drafts.csswg.org/css-sizing-3/#replaced-percentage-min-contribution">
+  <link rel="help" href="https://drafts.csswg.org/css-sizing-3/#min-content-zero">
+  <link rel="stylesheet" href="/fonts/ahem.css">
+  <meta name="assert" content="This test verifies that an <input> flex item should resolve its percentage part of main size to zero when computing specified size suggestion.">
+
+  <script src="../../resources/testharness.js"></script>
+  <script src="../../resources/testharnessreport.js"></script>
+  <script src="../../resources/check-layout-th.js"></script>
+
+  <style>
+  .flexbox {
+    display: inline-flex;
+    flex-direction: column;
+    width: 40px;
+    height: 300px;
+    border: 1px solid black;
+    margin-bottom: 40px;
+  }
+  .spacer {
+    /* Just to occupy some space, so that the flex algorithm will try to shrink
+       the <input> element below its percentage specified height. */
+    flex: 0 0 200px;
+    background: lightgray;
+  }
+  input {
+    writing-mode: vertical-lr;
+    font: 20px/1 Ahem;
+    background: lightblue;
+    /* Get rid of native theming and UA default styles. */
+    appearance: none;
+    border: 0;
+    padding: 0;
+    margin: 0;
+  }
+  .test1 {
+    height: 100%;
+  }
+  .test2 {
+    height: calc(100%);
+  }
+  .test3 {
+    height: calc(140px + 100%);
+  }
+  </style>
+
+  <body onload="checkLayout('.flexbox')">
+    <p>Test1: "height: 100%"</p>
+    <div class="flexbox">
+      <div class="spacer"></div>
+      <input type="text"
+             class="test1" data-expected-height="100">
+    </div>
+
+    <div class="flexbox">
+      <div class="spacer"></div>
+      <input type="range"
+             class="test1" data-expected-height="100">
+    </div>
+
+    <div class="flexbox">
+      <div class="spacer"></div>
+      <input type="button" value="XXXXXXX"
+             class="test1" data-expected-height="140">
+    </div>
+
+    <div class="flexbox">
+      <div class="spacer"></div>
+      <input type="submit" value="XXXXXXX"
+             class="test1" data-expected-height="140">
+    </div>
+
+    <div class="flexbox">
+      <div class="spacer"></div>
+      <input type="reset" value="XXXXXXX"
+             class="test1" data-expected-height="140">
+    </div>
+
+    <p>Test2: "height: calc(100%)"</p>
+    <div class="flexbox">
+      <div class="spacer"></div>
+      <input type="text"
+             class="test2" data-expected-height="100">
+    </div>
+
+    <div class="flexbox">
+      <div class="spacer"></div>
+      <input type="range"
+             class="test2" data-expected-height="100">
+    </div>
+
+    <div class="flexbox">
+      <div class="spacer"></div>
+      <input type="button" value="XXXXXXX"
+             class="test2" data-expected-height="140">
+    </div>
+
+    <div class="flexbox">
+      <div class="spacer"></div>
+      <input type="submit" value="XXXXXXX"
+             class="test2" data-expected-height="140">
+    </div>
+
+    <div class="flexbox">
+      <div class="spacer"></div>
+      <input type="reset" value="XXXXXXX"
+             class="test2" data-expected-height="140">
+    </div>
+
+    <p>Test3: "height: calc(140px + 100%)"</p>
+    <div class="flexbox">
+      <div class="spacer"></div>
+      <input type="text"
+             class="test3" data-expected-height="140">
+    </div>
+
+    <div class="flexbox">
+      <div class="spacer"></div>
+      <input type="range"
+             class="test3" data-expected-height="140">
+    </div>
+
+    <div class="flexbox">
+      <div class="spacer"></div>
+      <input type="button" value="XXXXXXX"
+             class="test3" data-expected-height="140">
+    </div>
+
+    <div class="flexbox">
+      <div class="spacer"></div>
+      <input type="submit" value="XXXXXXX"
+             class="test3" data-expected-height="140">
+    </div>
+
+    <div class="flexbox">
+      <div class="spacer"></div>
+      <input type="reset" value="XXXXXXX"
+             class="test3" data-expected-height="140">
+    </div>
+  </body>
+</html>

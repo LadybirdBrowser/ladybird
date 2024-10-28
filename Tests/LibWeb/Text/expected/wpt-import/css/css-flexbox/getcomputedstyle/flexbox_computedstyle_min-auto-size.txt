@@ -1,0 +1,15 @@
+Summary
+
+Harness status: OK
+
+Rerun
+
+Found 4 tests
+
+2 Pass
+2 Fail
+Details
+Result	Test Name	MessagePass	Computed min-width/min-height of specified auto for flex item.	
+Fail	Computed min-width/min-height of specified auto inside display:none which would otherwise have been a flex item.	
+Pass	Computed min-width/min-height of specified auto for flex item inside display:contents.	
+Fail	Computed min-width/min-height of specified auto with display:none which would otherwise have been a flex item.	

@@ -1,0 +1,19 @@
+Summary
+
+Harness status: OK
+
+Rerun
+
+Found 8 tests
+
+2 Pass
+6 Fail
+Details
+Result	Test Name	MessageFail	.target > * 1	
+Fail	.target > * 2	
+Fail	.target > * 3	
+Fail	.target > * 4	
+Fail	.target > * 5	
+Pass	.target > * 6	
+Fail	.target > * 7	
+Pass	.target > * 8	

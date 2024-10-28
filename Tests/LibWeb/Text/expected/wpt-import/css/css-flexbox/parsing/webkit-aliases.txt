@@ -1,0 +1,23 @@
+Summary
+
+Harness status: OK
+
+Rerun
+
+Found 12 tests
+
+10 Pass
+2 Fail
+Details
+Result	Test Name	MessagePass	-webkit-align-content is a legacy name alias for align-content	
+Pass	-webkit-align-items is a legacy name alias for align-items	
+Pass	-webkit-align-self is a legacy name alias for align-self	
+Fail	-webkit-flex is a legacy name alias for flex	
+Pass	-webkit-flex-basis is a legacy name alias for flex-basis	
+Pass	-webkit-flex-direction is a legacy name alias for flex-direction	
+Fail	-webkit-flex-flow is a legacy name alias for flex-flow	
+Pass	-webkit-flex-grow is a legacy name alias for flex-grow	
+Pass	-webkit-flex-shrink is a legacy name alias for flex-shrink	
+Pass	-webkit-flex-wrap is a legacy name alias for flex-wrap	
+Pass	-webkit-justify-content is a legacy name alias for justify-content	
+Pass	-webkit-order is a legacy name alias for order	

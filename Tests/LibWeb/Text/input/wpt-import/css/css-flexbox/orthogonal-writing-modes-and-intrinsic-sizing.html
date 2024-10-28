@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html>
+<title>CSS Flexbox: main size on orthogonal flex item.</title>
+<link rel="stylesheet" href="support/flexbox.css" >
+<link rel="help" href="https://drafts.csswg.org/css-flexbox/#flex-base-size">
+<link rel="issue" href="https://codereview.chromium.org/1052363002">
+<meta name="assert" content="This test ensure the correct main sizes are used when flex item is orthogonal to the flex container."/>
+<style>
+.flexbox {
+  background-color: gray;
+}
+
+.vertical {
+  writing-mode: vertical-lr;
+  width: min-content;
+  background-color: blue;
+}
+</style>
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../../resources/check-layout-th.js"></script>
+
+<body onload="checkLayout('.flexbox')">
+<div id=log></div>
+
+<div class="flexbox" data-expected-height="20">
+  <div class="vertical" data-expected-width="50" data-expected-height="20">
+    <div style="width: 50px; height: 20px; background-color: blue;" data-expected-width="50" data-expected-height="20"></div>
+  </div>
+</div>
+
+<div class="flexbox column" data-expected-height="20">
+  <div class="vertical" data-expected-width="50" data-expected-height="20">
+    <div style="width: 50px; height: 20px; background-color: blue;" data-expected-width="50" data-expected-height="20"></div>
+  </div>
+</div>

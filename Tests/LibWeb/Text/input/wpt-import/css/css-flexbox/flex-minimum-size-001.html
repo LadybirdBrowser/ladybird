@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<title>CSS Flexbox: flexbox with min-size: auto</title>
+<link rel="help" href="https://drafts.csswg.org/css-flexbox/#flex-containers">
+<link rel="help" href="https://drafts.csswg.org/css-flexbox/#flex-direction-property">
+<link rel="help" href="https://drafts.csswg.org/css-flexbox/#min-size-auto">
+<link rel="help" href="https://drafts.csswg.org/css-flexbox/#flex-basis-property">
+<link rel="bookmark" href="https://crbug.com/426898">
+<link href="support/flexbox.css" rel="stylesheet">
+<meta name="assert" content="Flexbox with min-size: auto is handled correctly.">
+
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../../resources/check-layout-th.js"></script>
+
+<style>
+.flexbox {
+    width: 10px;
+    height: 10px;
+    background-color: grey;
+}
+
+.item {
+    background-color: red;
+    margin: 5px;
+}
+
+.child {
+    height: 100px;
+    width: 100px;
+    background-color: green;
+}
+
+.width-20 {
+    width: 20px;
+}
+
+.flex-basis-20 {
+    flex-basis: 20px;
+}
+
+</style>
+
+<body onload="checkLayout('.flexbox, .inline-flexbox');">
+<div id=log></div>
+
+<div class="flexbox" data-expected-width="10">
+    <div class="item" data-expected-width="100">
+        <div class="child" data-expected-width="100"></div>
+    </div>
+</div>
+
+<div class="flexbox column" data-expected-height="10">
+    <div class="item" data-expected-height="100">
+        <div class="child" data-expected-height="100"></div>
+    </div>
+</div>
+
+<div class="inline-flexbox column" data-expected-height="110">
+    <div class="item flex-basis-20" data-expected-height="100">
+        <div class="child" data-expected-height="100"></div>
+    </div>
+</div>
+
+<div class="flexbox" data-expected-width="10">
+    <div class="item width-20" data-expected-width="20">
+        <div class="child" data-expected-width="100"></div>
+    </div>
+</div>
+
+<div class="flexbox" data-expected-width="10">
+    <div class="item flex-basis-20" data-expected-width="100">
+        <div class="child" data-expected-width="100"></div>
+    </div>
+</div>
+
+<div class="inline-flexbox" data-expected-width="110">
+    <div class="item flex-basis-20" data-expected-width="100">
+        <div class="child" data-expected-width="100"></div>
+    </div>
+</div>

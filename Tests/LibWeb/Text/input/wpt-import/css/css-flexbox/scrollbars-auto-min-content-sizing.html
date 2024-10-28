@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<link rel="help" href="https://bugs.chromium.org/p/chromium/issues/detail?id=1127415">
+<meta name="assert" content="The presence of a scrollbar should not make a min-sized flexbox, and a single flex-item differ in size.">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<div style="display: flex; width: 100px;">
+  <div id="outer" style="display: flex; width: min-content; height: 100px;">
+    <div id="inner" style="flex: 0 0 auto; overflow-y: auto;">
+      <div style="width: 100px; height: 3000px;"></div>
+    </div>
+  </div>
+</div>
+<script>
+test(() => {
+  const outer = document.getElementById('outer');
+  const inner = document.getElementById('inner');
+  assert_equals(outer.getBoundingClientRect().width, inner.getBoundingClientRect().width);
+});
+</script>

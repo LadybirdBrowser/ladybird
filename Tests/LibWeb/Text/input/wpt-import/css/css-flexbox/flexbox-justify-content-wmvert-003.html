@@ -1,0 +1,43 @@
+<!doctype html>
+<link rel="author" title="David Grogan" href="mailto:dgrogan@chromium.org">
+<link rel="author" title="Ting-Yu Lin" href="mailto:tlin@mozilla.com">
+<link rel="help" href="https://drafts.csswg.org/css-flexbox/#justify-content-property" />
+<link rel="help" href="https://drafts.csswg.org/css-align-3/#positional-values" />
+<meta name="assert" content="Flexbox honors justify-content values when vertical row flexboxes have main axis parallel to line-left <-> line-right axis.">
+
+<style>
+.flexbox {
+  display: flex;
+  height: 100px;
+  background: orange;
+  border: 1px solid;
+  margin-bottom: 20px;
+  position: relative;
+}
+
+.flexitem {
+  width: 50px;
+  height: 50px;
+  background: blue;
+}
+</style>
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../../resources/check-layout-th.js"></script>
+<body onload="checkLayout('.flexitem')">
+
+Both should be Blue on top of Orange.
+<div class=flexbox style="justify-content: left; writing-mode: vertical-rl;">
+  <div class=flexitem data-offset-y=0></div>
+</div>
+<div class=flexbox style="justify-content: left; writing-mode: vertical-lr;">
+  <div class=flexitem data-offset-y=0></div>
+</div>
+
+Both should be Orange on top of Blue.
+<div class=flexbox style="justify-content: right; writing-mode: vertical-rl;">
+  <div class=flexitem data-offset-y=50></div>
+</div>
+<div class=flexbox style="justify-content: right; writing-mode: vertical-lr;">
+  <div class=flexitem data-offset-y=50></div>
+</div>

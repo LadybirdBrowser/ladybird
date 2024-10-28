@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html>
+<title>CSS Flexbox: flex shorthand with 'auto' or 'zero' percentage value</title>
+<link rel="help" href="https://drafts.csswg.org/css-flexbox/#flex-property">
+<link href="support/flexbox.css" rel="stylesheet">
+<meta name="assert" content="This test ensures that setting '%0' or 'auto' to the flex-basis
+in the middle of between 'flex-grow' and 'flex-shrink' properties whose value is '1' works properly.">
+<style>
+.flexbox {
+    width: 500px;
+    height: 100px;
+    background: green;
+}
+
+.flexbox > div {
+    width: 50px;
+    background: yellow;
+}
+</style>
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../../resources/check-layout-th.js"></script>
+<body onload="checkLayout('.flexbox')">
+<div id=log></div>
+<div class="flexbox">
+    <div data-expected-width="50" style="flex: 1 0% 1"></div>
+    <div data-expected-width="50" style="flex: 1 0% 1"></div>
+    <div data-expected-width="50" style="flex: 1 0% 1"></div>
+</div>
+
+<div class="flexbox">
+    <div data-expected-width="50" style="flex: 1 auto 1"></div>
+    <div data-expected-width="50" style="flex: 1 auto 1"></div>
+    <div data-expected-width="50" style="flex: 1 auto 1"></div>
+</div>
+</body>
+</html>

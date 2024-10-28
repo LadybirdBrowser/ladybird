@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>CSS Flexbox: Relayout after loading an image</title>
+<link rel="help" href="https://drafts.csswg.org/css-flexbox/#resolve-flexible-lengths">
+<link rel="help" href="https://drafts.csswg.org/css-images-4/#image-values">
+<meta name="assert" content="This test ensures flexbox does a relayout after an image loads.">
+<link href="support/flexbox.css" rel="stylesheet">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../../resources/check-layout-th.js"></script>
+</head>
+<body>
+<div id=log></div>
+<p>Test passes if a green 100x100 image is rendered.</p>
+<div id="test" class="flexbox">
+    &nbsp;
+    <div class="flexbox">
+        <img data-expected-width=100 data-expected-height=100 id="image" onload="imageLoaded()">
+    </div>
+</div>
+<script>
+
+function changeImage()
+{
+    document.getElementById("image").src = "support/100x100-green.png";
+}
+step_timeout(changeImage, 0);
+
+function imageLoaded()
+{
+    checkLayout('#test')
+}
+</script>
+</body>
+</html>

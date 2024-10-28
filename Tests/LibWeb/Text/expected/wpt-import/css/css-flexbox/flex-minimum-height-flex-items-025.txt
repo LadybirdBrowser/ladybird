@@ -1,0 +1,15 @@
+Summary
+
+Harness status: OK
+
+Rerun
+
+Found 4 tests
+
+3 Pass
+1 Fail
+Details
+Result	Test Name	MessagePass	.outer-column-flexbox > div 1	
+Pass	.outer-column-flexbox > div 2	
+Pass	.outer-column-flexbox > div 3	
+Fail	.outer-column-flexbox > div 4	

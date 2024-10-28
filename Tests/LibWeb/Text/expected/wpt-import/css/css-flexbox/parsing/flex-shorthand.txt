@@ -1,0 +1,50 @@
+Summary
+
+Harness status: OK
+
+Rerun
+
+Found 40 tests
+
+40 Pass
+Details
+Result	Test Name	MessagePass	e.style['flex'] = "none" should set flex-basis	
+Pass	e.style['flex'] = "none" should set flex-grow	
+Pass	e.style['flex'] = "none" should set flex-shrink	
+Pass	e.style['flex'] = "none" should not set unrelated longhands	
+Pass	e.style['flex'] = "1" should set flex-basis	
+Pass	e.style['flex'] = "1" should set flex-grow	
+Pass	e.style['flex'] = "1" should set flex-shrink	
+Pass	e.style['flex'] = "1" should not set unrelated longhands	
+Pass	e.style['flex'] = "2 3" should set flex-basis	
+Pass	e.style['flex'] = "2 3" should set flex-grow	
+Pass	e.style['flex'] = "2 3" should set flex-shrink	
+Pass	e.style['flex'] = "2 3" should not set unrelated longhands	
+Pass	e.style['flex'] = "4 5 6px" should set flex-basis	
+Pass	e.style['flex'] = "4 5 6px" should set flex-grow	
+Pass	e.style['flex'] = "4 5 6px" should set flex-shrink	
+Pass	e.style['flex'] = "4 5 6px" should not set unrelated longhands	
+Pass	e.style['flex'] = "7% 8" should set flex-basis	
+Pass	e.style['flex'] = "7% 8" should set flex-grow	
+Pass	e.style['flex'] = "7% 8" should set flex-shrink	
+Pass	e.style['flex'] = "7% 8" should not set unrelated longhands	
+Pass	e.style['flex'] = "8 auto" should set flex-basis	
+Pass	e.style['flex'] = "8 auto" should set flex-grow	
+Pass	e.style['flex'] = "8 auto" should set flex-shrink	
+Pass	e.style['flex'] = "8 auto" should not set unrelated longhands	
+Pass	e.style['flex'] = "content" should set flex-basis	
+Pass	e.style['flex'] = "content" should set flex-grow	
+Pass	e.style['flex'] = "content" should set flex-shrink	
+Pass	e.style['flex'] = "content" should not set unrelated longhands	
+Pass	e.style['flex'] = "0 fit-content" should set flex-basis	
+Pass	e.style['flex'] = "0 fit-content" should set flex-grow	
+Pass	e.style['flex'] = "0 fit-content" should set flex-shrink	
+Pass	e.style['flex'] = "0 fit-content" should not set unrelated longhands	
+Pass	e.style['flex'] = "1 0 max-content" should set flex-basis	
+Pass	e.style['flex'] = "1 0 max-content" should set flex-grow	
+Pass	e.style['flex'] = "1 0 max-content" should set flex-shrink	
+Pass	e.style['flex'] = "1 0 max-content" should not set unrelated longhands	
+Pass	e.style['flex'] = "auto 1 2" should set flex-basis	
+Pass	e.style['flex'] = "auto 1 2" should set flex-grow	
+Pass	e.style['flex'] = "auto 1 2" should set flex-shrink	
+Pass	e.style['flex'] = "auto 1 2" should not set unrelated longhands	

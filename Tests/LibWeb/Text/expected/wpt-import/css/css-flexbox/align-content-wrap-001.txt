@@ -1,0 +1,24 @@
+Summary
+
+Harness status: OK
+
+Rerun
+
+Found 13 tests
+
+10 Pass
+3 Fail
+Details
+Result	Test Name	MessagePass	.default, .verticalWriting 1	
+Pass	.default, .verticalWriting 2	
+Pass	.default, .verticalWriting 3	
+Pass	.default, .verticalWriting 4	
+Pass	.default, .verticalWriting 5	
+Pass	.default, .verticalWriting 6	
+Pass	.default, .verticalWriting 7	
+Pass	.default, .verticalWriting 8	
+Fail	.default, .verticalWriting 9	
+Fail	.default, .verticalWriting 10	
+Pass	.default, .verticalWriting 11	
+Fail	.default, .verticalWriting 12	
+Pass	.default, .verticalWriting 13	

@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html>
+<title>CSS Flexbox: layout of child SVG elements.</title>
+<link rel="help" href="https://drafts.csswg.org/css-flexbox/#flex-direction-property">
+<link rel="help" href="https://drafts.csswg.org/css-position/#position-property">
+<link rel="help" href="https://crbug.com/633212"/>
+<meta name="assert" content="This test ensures that a flexbox and its flex items are properly laid out when containing an empty SVG element in an abspos container."/>
+
+<style>
+html, body {
+  margin: 0;
+}
+
+#flexbox {
+    display: flex;
+    flex-direction: column;
+}
+
+#flexitem {
+    outline: 1px solid black;
+    width: 100%;
+    height: 166px;
+    position: relative;
+    background: green;
+}
+
+#abspos {
+    position: absolute;
+}
+
+#container {
+    background: red;
+}
+</style>
+
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+
+<body>
+
+<div id="container">
+  <div id="flexbox">
+    <div id="flexitem">
+      <div id="abspos">
+        <svg></svg>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+test(function() {
+  assert_equals(document.getElementById('flexbox').offsetWidth,
+    document.getElementById('flexitem').offsetWidth);
+}, "sizes");
+</script>
+
+</body>
+</html>

@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html>
+<title>CSS Flexbox: align-self: center content with flex-direction: column.</title>
+<link rel="help" href="https://drafts.csswg.org/css-flexbox/#flex-direction-property">
+<link rel="help" href="https://drafts.csswg.org/css-align/#align-self-property">
+<link rel="help" href="https://crbug.com/750553"/>
+<meta name="assert" content="This test ensures that no unnecessary horizontal offset is applied to inline content in a 'align-self: center' box, inside of a flexbox with 'flex-direction: column'."/>
+
+<style>
+html, body {
+  margin: 0;
+}
+
+body {
+  display: flex;
+  flex-direction: column;
+}
+
+.content {
+  align-self: center;
+}
+
+.content > div {
+  width: 400px;
+  display: inline-block;
+}
+</style>
+
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../../resources/check-layout-th.js"></script>
+
+<body onload="checkLayout('.content')">
+
+<div class="content" data-offset-x="0">
+  <div data-offset-x="0">X</div>
+  <div>X</div>
+  <div>X</div>
+  <div>X</div>
+  <div>X</div>
+</div>
+
+</body>
+</html>

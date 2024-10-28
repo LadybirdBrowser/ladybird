@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<link rel="author" title="David Grogan" href="mailto:dgrogan@chromium.org">
+<link rel="help" href="https://drafts.csswg.org/css-flexbox/#transferred-size-suggestion">
+<link rel="help" href="https://github.com/w3c/csswg-drafts/issues/5663">
+<meta name="assert" content="Transferred size suggestion can get its cross size from stretching." />
+
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../../resources/check-layout-th.js"></script>
+
+<body onload="checkLayout('img')">
+<p>
+Pass condition is 4 green 100x100 squares and 1 0x0 square.
+</p>
+
+<p>
+Firefox 84a1 passes. Chrome 87 fails them all by making the green rectangles be 200x100.
+</p>
+
+<p>Transferred size suggestion is the stretched 100px:</p>
+<div style="display: flex; width: 0; height: 100px;">
+  <img src="support/200x200-green.png" data-expected-height=100 data-expected-width=100>
+</div>
+
+<p>Have to subtract the margin from the stretched height to get the transferred size suggestion:</p>
+<div style="display: flex; width: 0; height: 120px;">
+  <img src="support/200x200-green.png" style="margin-bottom: 20px" data-expected-height=100 data-expected-width=100>
+</div>
+
+<p>Have to subtract a margin larger than the stretched height to get 0px transferred size suggestion:</p>
+<div style="display: flex; width: 0; height: 120px;">
+  <img src="support/200x200-green.png" style="margin-bottom: 160px" data-expected-height=0 data-expected-width=0>
+</div>
+
+<p>Have to subtract the margin from the stretched height (ignoring the presence of a border) to get the transferred size suggestion:</p>
+<div style="display: flex; width: 0; height: 120px;">
+  <img src="support/200x200-green.png" style="border-right: 10px solid black; margin-bottom: 20px" data-expected-height=100 data-expected-width=110>
+</div>
+
+<p>Stretched transferred size suggestion has to obey min-height:</p>
+<div style="display: flex; width: 0; height: 50px;">
+  <img src="support/200x200-green.png" style="min-height: 100px;" data-expected-height=100 data-expected-width=100>
+</div>

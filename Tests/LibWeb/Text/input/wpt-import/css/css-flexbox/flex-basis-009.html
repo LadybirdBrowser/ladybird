@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<script src='../../resources/testharness.js'></script>
+<script src='../../resources/testharnessreport.js'></script>
+<script src='../../resources/check-layout-th.js'></script>
+<link rel="author" title="David Grogan" href="dgrogan@chromium.org">
+<link rel="help" href="https://www.w3.org/TR/css-flexbox-1/#valdef-flex-basis-auto">
+<meta name="assert" content="flex-basis:auto on orthogonal item in horizontal column flexbox is calculated correctly" />
+
+<style>
+x-word-h {
+  display: inline-block;
+  height: 10px;
+  width: 20px;
+  background: blue;
+}
+
+x-word-v {
+  display: inline-block;
+  height: 20px;
+  width: 10px;
+  background: blue;
+}
+
+* {
+  /* This is for easier manual calculations, not necessary to demonstrate behavior. */
+  line-height: 0;
+}
+</style>
+
+<div id=flexbox style="width:150px; background:green; height:400px; display:flex; flex-direction:column">
+  <div style="writing-mode: vertical-rl;background:orange; flex:1 1 auto" data-expected-height=225>
+    <x-word-v></x-word-v><x-word-v></x-word-v><x-word-v></x-word-v>
+  </div>
+  <div style="background:lightblue; flex: 1 1 auto">
+    <x-word-h></x-word-h><x-word-h></x-word-h><x-word-h></x-word-h>
+  </div>
+</div>
+
+<script>
+checkLayout('#flexbox');
+</script>

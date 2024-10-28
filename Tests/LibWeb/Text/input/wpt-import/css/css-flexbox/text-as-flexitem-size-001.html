@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<!--
+     Any copyright is dedicated to the Public Domain.
+     http://creativecommons.org/publicdomain/zero/1.0/
+
+     This test is a text-based variant of text-as-flexitem-size-001.
+     (Not sure if all these variants are needed without an aspect ratio,
+     but seemed best to keep it in parallel as much as reasonable.)
+-->
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>
+      CSS Test: Testing how explicit main-size & cross-size constraints
+      influence sizing on non-stretched flex item containing text.
+    </title>
+    <link rel="author" title="Daniel Holbert" href="mailto:dholbert@mozilla.com">
+    <link rel="author" title="David Grogan" href="mailto:dgrogan@chromium.org">
+    <link rel="author" title="Elika J. Etemad" href="http://inkedblade.net/contact">
+    <link rel="help" href="https://www.w3.org/TR/css-flexbox-1/#hypothetical-main-size">
+    <link rel="help" href="https://www.w3.org/TR/css-flexbox-1/#hypothetical-cross-size">
+    <style>
+      @import "/fonts/ahem.css";
+      .flexbox {
+        display: flex;
+        flex-direction: row;
+        border: 1px solid black;
+        margin: 0 2px 2px 0; /* (Just for spacing things out, visually) */
+        width: 80px;
+        height: 50px;
+
+        justify-content: flex-start;
+        align-items: flex-start;
+
+        float: left; /* For testing in "rows" */
+      }
+      br { clear: both; }
+
+      .flexbox > * {
+        /* Disable "min-width:auto"/"min-height:auto" to focus purely on
+           later channels of influence. */
+        min-width: 0;
+        min-height: 0;
+        background: orange;
+      }
+
+      .flexbox p {
+        font: 10px/1 Ahem, monospace;
+        margin: 0.5em;
+        color: #0006;
+      }
+      /* Depending on wrapping, flex item content will be 35px or 45px tall,
+         min-content width = 40px and max-content width = 70px */
+    </style>
+    <script src="../../resources/testharness.js"></script>
+    <script src="../../resources/testharnessreport.js"></script>
+    <script src="../../resources/check-layout-th.js"></script>
+  </head>
+  <body onload="checkLayout('.flexbox > div')">
+    <!-- Row 1: no special sizing: -->
+    <div class="flexbox">
+      <div data-expected-width="70" data-expected-height="35">
+        <p>xx xxx</p>
+        <p>xx</p>
+      </div>
+    </div>
+    <div class="flexbox" style="width: 50px">
+      <div data-expected-width="50" data-expected-height="45">
+        <p>xx xxx</p>
+        <p>xx</p>
+      </div>
+    </div>
+    <div class="flexbox" style="width: 20px">
+      <div data-expected-width="20" data-expected-height="45">
+        <p>xx xxx</p>
+        <p>xx</p>
+      </div>
+    </div>
+    <br>
+
+    <!-- Row 2: Specified main-size, cross-size, or flex-basis: -->
+    <div class="flexbox">
+      <div style="width: 30px"
+           data-expected-width="30" data-expected-height="45">
+        <p>xx xxx</p>
+        <p>xx</p>
+      </div>
+    </div>
+    <div class="flexbox">
+      <div style="height: 30px"
+           data-expected-width="70" data-expected-height="30">
+        <p>xx xxx</p>
+        <p>xx</p>
+      </div>
+    </div>
+    <div class="flexbox">
+      <div style="flex: 0 0 30px"
+           data-expected-width="30" data-expected-height="45">
+        <p>xx xxx</p>
+        <p>xx</p>
+      </div>
+    </div>
+    <br>
+
+    <!-- Row 3: min main-size OR min cross-size, or both -->
+    <div class="flexbox">
+      <div style="min-width: 75px"
+           data-expected-width="75" data-expected-height="35">
+        <p>xx xxx</p>
+        <p>xx</p>
+      </div>
+    </div>
+    <div class="flexbox">
+      <div style="min-height: 40px"
+           data-expected-width="70" data-expected-height="40">
+        <p>xx xxx</p>
+        <p>xx</p>
+      </div>
+    </div>
+    <div class="flexbox">
+      <div style="min-width: 75px; min-height: 40px"
+           data-expected-width="75" data-expected-height="40">
+        <p>xx xxx</p>
+        <p>xx</p>
+      </div>
+    </div>
+    <br>
+
+    <!-- Row 4: max main-size OR max cross-size, or both -->
+    <div class="flexbox">
+      <div style="max-width: 20px"
+           data-expected-width="20" data-expected-height="45">
+        <p>xx xxx</p>
+        <p>xx</p>
+      </div>
+    </div>
+    <div class="flexbox">
+      <div style="max-height: 20px"
+           data-expected-width="70" data-expected-height="20">
+        <p>xx xxx</p>
+        <p>xx</p>
+      </div>
+    </div>
+    <div class="flexbox">
+      <div style="max-width: 20px; max-height: 20px"
+           data-expected-width="20" data-expected-height="20">
+        <p>xx xxx</p>
+        <p>xx</p>
+      </div>
+    </div>
+    <br>
+
+    <!-- Row 5: min main-size vs. max cross-size, & vice versa -->
+    <div class="flexbox">
+      <div style="min-width: 70px; max-height: 20px"
+           data-expected-width="70" data-expected-height="20">
+        <p>xx xxx</p>
+        <p>xx</p>
+      </div>
+    </div>
+    <div class="flexbox">
+      <div style="max-width: 20px; min-height: 50px"
+           data-expected-width="20" data-expected-height="50">
+        <p>xx xxx</p>
+        <p>xx</p>
+      </div>
+    </div>
+    <br>
+
+    <!-- Row 6: min|max main-size vs. explicit cross-size, & vice versa -->
+    <div class="flexbox">
+      <div style="min-width: 70px; height: 20px"
+           data-expected-width="70" data-expected-height="20">
+        <p>xx xxx</p>
+        <p>xx</p>
+      </div>
+    </div>
+    <div class="flexbox">
+      <div style="width: 40px; max-height: 20px"
+           data-expected-width="40" data-expected-height="20">
+        <p>xx xxx</p>
+        <p>xx</p>
+      </div>
+    </div>
+    <div class="flexbox">
+      <div style="max-width: 20px; height: 20px"
+           data-expected-width="20" data-expected-height="20">
+        <p>xx xxx</p>
+        <p>xx</p>
+      </div>
+    </div>
+    <div class="flexbox">
+      <div style="width: 20px; min-height: 20px"
+           data-expected-width="20" data-expected-height="45">
+        <p>xx xxx</p>
+        <p>xx</p>
+      </div>
+    </div>
+  </body>
+</html>

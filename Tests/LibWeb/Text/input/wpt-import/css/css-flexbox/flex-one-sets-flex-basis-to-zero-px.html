@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html>
+<title>CSS Flexbox: flex-basis with zero pixel</title>
+<link rel="help" href="https://drafts.csswg.org/css-flexbox/#flex-basis-property">
+<link rel="help" href="https://drafts.csswg.org/css-flexbox/#intrinsic-main-sizes">
+<link rel="stylesheet" type="text/css" href="/fonts/ahem.css" />
+<link href="support/flexbox.css" rel="stylesheet">
+<meta name="assert" content="This test ensures that setting 'flex-basis' property to
+zero pixel or percentage in combination with one value of both 'flex-grow' and 'flex-shrink'
+and 'writing-mode' value works properly.">
+<style>
+.flexbox > div {
+    font: 14px/1 Ahem;
+    min-width: 0;
+    min-height: 0;
+}
+
+.flex-zero {
+    flex: 0;
+}
+
+.flex-zero-one-zero-percent {
+    flex: 0 1 0%;
+}
+
+.flex-zero-one-zero-px {
+    flex: 0 1 0px;
+}
+
+.flex-half {
+    flex: 0.5;
+}
+
+.flex-half-one-zero-percent {
+    flex: 0.5 1 0%;
+}
+
+.flex-half-one-zero-px {
+    flex: 0.5 1 0px;
+}
+
+.flex-one-one-zero-percent {
+    flex: 1 1 0%;
+}
+
+.flex-one-one-zero-px {
+    flex: 1 1 0px;
+}
+
+.vertical {
+    writing-mode: vertical-rl;
+}
+</style>
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../../resources/check-layout-th.js"></script>
+<body onload="document.fonts.ready.then(() => { checkLayout('.flexbox'); })">
+<div id=log></div>
+<div class="flexbox column">
+  <div class="flex-zero" data-expected-height="14">Flex item with flex: 0</div>
+</div>
+
+<div class="flexbox column">
+  <div class="flex-zero-one-zero-percent" data-expected-height="14">Flex item with flex: 0 1 0%</div>
+</div>
+
+<div class="flexbox column">
+  <div class="flex-zero-one-zero-px" data-expected-height="0">Flex item with flex: 0 1 0px</div>
+</div>
+
+<div class="flexbox column">
+  <div class="flex-half" data-expected-height="14">Flex item with flex: 0.5</div>
+</div>
+
+<div class="flexbox column">
+  <div class="flex-half-one-zero-percent" data-expected-height="14">Flex item with flex: 0.5 1 0%</div>
+</div>
+
+<!-- Following comment follows current spec to the letter, but it is not web
+     compatible. The expectation is for what everyone is shipping. -->
+<!-- A flex-grow of 0 would size the container to the flex base size of the item (0px),
+     and a flex-grow of 1 would size it to the max-content contribution of the item (14px).
+     Therefore, a flew-grow of 0.5 sizes the container to the average, 7px.
+     And then the item grows to fill half of that, 3.5px.
+     Note that Gecko, Blink and WebKit use the flex-basis instead. -->
+<div class="flexbox column">
+  <div class="flex-half-one-zero-px" data-expected-height="0">Flex item with flex: 0.5 1 0px</div>
+</div>
+
+<div class="flexbox column">
+  <div class="flex-one" data-expected-height="14">Flex item with flex: 1</div>
+</div>
+
+<div class="flexbox column">
+  <div class="flex-one-one-zero-percent" data-expected-height="14">Flex item with flex: 1 1 0%</div>
+</div>
+
+<!-- Following comment follows current spec to the letter, but it is not web
+     compatible. The expectation is for what everyone is shipping. -->
+<!-- flex-grow is >= 1, so the flex container is sized to the max-content contribution of the item.
+     Note that Gecko, Blink and WebKit use the flex-basis instead. -->
+<div class="flexbox column">
+  <div class="flex-one-one-zero-px" data-expected-height="0">Flex item with flex: 1 1 0px</div>
+</div>
+
+<div class="flexbox column vertical">
+  <div class="flex-zero" data-expected-width="14">Flex item with flex: 0</div>
+</div>
+
+<div class="flexbox column vertical">
+  <div class="flex-zero-one-zero-percent" data-expected-width="14">Flex item with flex: 0 1 0%</div>
+</div>
+
+<div class="flexbox column vertical">
+  <div class="flex-zero-one-zero-px" data-expected-width="0">Flex item with flex: 0 1 0px</div>
+</div>
+
+<div class="flexbox column vertical">
+  <div class="flex-half" data-expected-width="14">Flex item with flex: 0.5</div>
+</div>
+
+<div class="flexbox column vertical">
+  <div class="flex-half-one-zero-percent" data-expected-width="14">Flex item with flex: 0.5 1 0%</div>
+</div>
+
+<!-- Following comment follows current spec to the letter, but it is not web
+     compatible. The expectation is for what everyone is shipping. -->
+<!-- A flex-grow of 0 would size the container to the flex base size of the item (0px),
+     and a flex-grow of 1 would size it to the max-content contribution of the item (14px).
+     Therefore, a flew-grow of 0.5 sizes the container to the average, 7px.
+     And then the item grows to fill half of that, 3.5px.
+     Note that Gecko, Blink and WebKit use the flex-basis instead. -->
+<div class="flexbox column vertical">
+  <div class="flex-half-one-zero-px" data-expected-width="0">Flex item with flex: 0.5 1 0px</div>
+</div>
+
+<div class="flexbox column vertical">
+  <div class="flex-one" data-expected-width="14">Flex item with flex: 1</div>
+</div>
+
+<div class="flexbox column vertical">
+  <div class="flex-one-one-zero-percent" data-expected-width="14">Flex item with flex: 1 1 0%</div>
+</div>
+
+<!-- Following comment follows current spec to the letter, but it is not web
+     compatible. The expectation is for what everyone is shipping. -->
+<!-- flex-grow is >= 1, so the flex container is sized to the max-content contribution of the item.
+     Note that Gecko, Blink and WebKit use the flex-basis instead. -->
+<div class="flexbox column vertical">
+  <div class="flex-one-one-zero-px" data-expected-width="0">Flex item with flex: 1 1 0px</div>
+</div>
+</body>
+</html>

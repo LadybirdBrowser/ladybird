@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html>
+<title>CSS Flexbox: vertical overlap with flex-direction: column.</title>
+<link rel="help" href="https://drafts.csswg.org/css-flexbox/#flex-direction-property">
+<link rel="help" href="https://crbug.com/669714"/>
+<meta name="assert" content="This test ensures that no unnecessary vertical overlap happens between an inline flex item and a block element inside a nested flexbox with 'flex-direction: column'."/>
+
+<style>
+html {
+  line-height: 1;
+  font-size: 18px;
+}
+
+.flex {
+  flex: 1;
+  min-height: 0;
+}
+
+.layout-column, .layout-row {
+  display: flex;
+}
+
+.layout-column {
+  flex-direction: column;
+}
+
+#relpos {
+  position: relative;
+  top: 1px;
+}
+</style>
+
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../../resources/check-layout-th.js"></script>
+
+<body>
+
+<p>XXX and YYY should be on separate lines and not overlap, i.e. the height of .flex should not be 0.</p>
+
+<div class="layout-column" id="container">
+    <div class="layout-row">
+      <div class="layout-column">
+        <div class="flex" data-expected-height="18">XXX<span id="relpos"></span></div>
+        <div>YYY</div>
+      </div>
+    </div>
+</div>
+
+<script>
+document.body.offsetHeight;
+document.getElementById("relpos").innerText = " ";
+checkLayout("#container");
+</script>
+</body>
+</html>
