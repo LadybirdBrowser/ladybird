@@ -2250,6 +2250,21 @@ static size_t resolve_distinguishing_argument_index(Interface const& interface, 
     VERIFY_NOT_REACHED();
 }
 
+static void generate_dictionary_types(SourceGenerator& generator, Vector<ByteString> const& dictionary_types)
+{
+    generator.append(R"~~~(
+    Vector<StringView> dictionary_types {
+)~~~");
+
+    for (auto const& dictionary : dictionary_types) {
+        generator.append("    \"");
+        generator.append(dictionary);
+        generator.appendln("\"sv,");
+    }
+
+    generator.append("};\n");
+}
+
 static void generate_overload_arbiter(SourceGenerator& generator, auto const& overload_set, IDL::Interface const& interface, ByteString const& class_name, IsConstructor is_constructor)
 {
     auto function_generator = generator.fork();
@@ -2259,6 +2274,8 @@ static void generate_overload_arbiter(SourceGenerator& generator, auto const& ov
         function_generator.set("class_name", class_name);
 
     function_generator.set("function.name:snakecase", make_input_acceptable_cpp(overload_set.key.to_snakecase()));
+
+    HashTable<ByteString> dictionary_types;
 
     if (is_constructor == IsConstructor::Yes) {
         function_generator.append(R"~~~(
@@ -2324,6 +2341,10 @@ JS_DEFINE_NATIVE_FUNCTION(@class_name@::@function.name:snakecase@)
                     optionality_builder.append(", "sv);
                 }
 
+                auto const& type = overload.types[i];
+                if (interface.dictionaries.contains(type->name()))
+                    dictionary_types.set(type->name());
+
                 types_builder.append(generate_constructor_for_idl_type(overload.types[i]));
 
                 optionality_builder.append("IDL::Optionality::"sv);
@@ -2360,11 +2381,16 @@ JS_DEFINE_NATIVE_FUNCTION(@class_name@::@function.name:snakecase@)
 
     function_generator.append(R"~~~(
     }
+)~~~");
+
+    generate_dictionary_types(function_generator, dictionary_types.values());
+
+    function_generator.append(R"~~~(
 
     if (!effective_overload_set.has_value())
         return vm.throw_completion<JS::TypeError>(JS::ErrorType::OverloadResolutionFailed);
 
-    auto chosen_overload = TRY(WebIDL::resolve_overload(vm, effective_overload_set.value()));
+    auto chosen_overload = TRY(WebIDL::resolve_overload(vm, effective_overload_set.value(), dictionary_types));
     switch (chosen_overload.callable_id) {
 )~~~");
 
