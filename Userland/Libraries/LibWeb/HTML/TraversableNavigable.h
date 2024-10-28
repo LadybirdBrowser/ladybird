@@ -138,7 +138,7 @@ private:
     bool m_running_nested_apply_history_step { false };
 
     // https://html.spec.whatwg.org/multipage/document-sequences.html#system-visibility-state
-    VisibilityState m_system_visibility_state { VisibilityState::Visible };
+    VisibilityState m_system_visibility_state { VisibilityState::Hidden };
 
     JS::NonnullGCPtr<SessionHistoryTraversalQueue> m_session_history_traversal_queue;
 
