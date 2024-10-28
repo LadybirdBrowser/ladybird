@@ -36,6 +36,7 @@ public:
     WebIDL::ExceptionOr<void> terminate();
 
     WebIDL::ExceptionOr<void> post_message(JS::Value message, StructuredSerializeOptions const&);
+    WebIDL::ExceptionOr<void> post_message(JS::Value message, Vector<JS::Handle<JS::Object>> const& transfer);
 
     virtual ~Worker() = default;
 
