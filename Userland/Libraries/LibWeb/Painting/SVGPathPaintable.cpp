@@ -83,13 +83,10 @@ void SVGPathPaintable::paint(PaintContext& context, PaintPhase phase) const
         return copy;
     };
 
-    // Note: This is assuming .x_scale() == .y_scale() (which it does currently).
-    auto viewbox_scale = paint_transform.x_scale();
-
     auto svg_viewport = [&] {
         if (maybe_view_box.has_value())
             return Gfx::FloatRect { maybe_view_box->min_x, maybe_view_box->min_y, maybe_view_box->width, maybe_view_box->height };
-        return Gfx::FloatRect { { 0, 0 }, svg_element_rect.size().to_type<float>() };
+        return Gfx::FloatRect { {}, svg_element_rect.size().to_type<float>() };
     }();
 
     if (context.draw_svg_geometry_for_clip_path()) {
@@ -137,6 +134,7 @@ void SVGPathPaintable::paint(PaintContext& context, PaintPhase phase) const
     auto stroke_opacity = graphics_element.stroke_opacity().value_or(1);
 
     // Note: This is assuming .x_scale() == .y_scale() (which it does currently).
+    auto viewbox_scale = paint_transform.x_scale();
     float stroke_thickness = graphics_element.stroke_width().value_or(1) * viewbox_scale;
 
     if (auto paint_style = graphics_element.stroke_paint_style(paint_context); paint_style.has_value()) {
