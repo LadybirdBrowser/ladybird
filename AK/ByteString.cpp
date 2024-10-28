@@ -387,9 +387,9 @@ Vector<size_t> ByteString::find_all(StringView needle) const
     return StringUtils::find_all(*this, needle);
 }
 
-DeprecatedStringCodePointIterator ByteString::code_points() const
+ByteStringCodePointIterator ByteString::code_points() const
 {
-    return DeprecatedStringCodePointIterator(*this);
+    return ByteStringCodePointIterator(*this);
 }
 
 ErrorOr<ByteString> ByteString::from_utf8(ReadonlyBytes bytes)
