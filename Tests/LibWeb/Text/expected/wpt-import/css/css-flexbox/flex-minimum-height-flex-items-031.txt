@@ -1,0 +1,83 @@
+Summary
+
+Harness status: OK
+
+Rerun
+
+Found 72 tests
+
+24 Pass
+48 Fail
+Details
+Result	Test Name	MessagePass	.flex 1	
+Pass	.flex 2	
+Fail	.flex 3	
+Fail	.flex 4	
+Fail	.flex 5	
+Fail	.flex 6	
+Pass	.flex 7	
+Pass	.flex 8	
+Fail	.flex 9	
+Fail	.flex 10	
+Fail	.flex 11	
+Fail	.flex 12	
+Pass	.flex 13	
+Pass	.flex 14	
+Fail	.flex 15	
+Fail	.flex 16	
+Fail	.flex 17	
+Fail	.flex 18	
+Pass	.flex 19	
+Pass	.flex 20	
+Fail	.flex 21	
+Fail	.flex 22	
+Fail	.flex 23	
+Fail	.flex 24	
+Pass	.flex 25	
+Pass	.flex 26	
+Fail	.flex 27	
+Fail	.flex 28	
+Fail	.flex 29	
+Fail	.flex 30	
+Pass	.flex 31	
+Pass	.flex 32	
+Fail	.flex 33	
+Fail	.flex 34	
+Fail	.flex 35	
+Fail	.flex 36	
+Pass	.flex 37	
+Pass	.flex 38	
+Fail	.flex 39	
+Fail	.flex 40	
+Fail	.flex 41	
+Fail	.flex 42	
+Pass	.flex 43	
+Pass	.flex 44	
+Fail	.flex 45	
+Fail	.flex 46	
+Fail	.flex 47	
+Fail	.flex 48	
+Pass	.flex 49	
+Pass	.flex 50	
+Fail	.flex 51	
+Fail	.flex 52	
+Fail	.flex 53	
+Fail	.flex 54	
+Pass	.flex 55	
+Pass	.flex 56	
+Fail	.flex 57	
+Fail	.flex 58	
+Fail	.flex 59	
+Fail	.flex 60	
+Pass	.flex 61	
+Pass	.flex 62	
+Fail	.flex 63	
+Fail	.flex 64	
+Fail	.flex 65	
+Fail	.flex 66	
+Pass	.flex 67	
+Pass	.flex 68	
+Fail	.flex 69	
+Fail	.flex 70	
+Fail	.flex 71	
+Fail	.flex 72	

@@ -1,0 +1,20 @@
+Summary
+
+Harness status: OK
+
+Rerun
+
+Found 9 tests
+
+4 Pass
+5 Fail
+Details
+Result	Test Name	MessageFail	.floating-flexbox 1	
+Fail	.floating-flexbox 2	
+Fail	.floating-flexbox 3	
+Fail	.floating-flexbox 4	
+Pass	.floating-flexbox 5	
+Pass	.floating-flexbox 6	
+Pass	.floating-flexbox 7	
+Pass	.floating-flexbox 8	
+Fail	.floating-flexbox 9	

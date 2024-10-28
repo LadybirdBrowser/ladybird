@@ -1,0 +1,13 @@
+Summary
+
+Harness status: OK
+
+Rerun
+
+Found 3 tests
+
+3 Pass
+Details
+Result	Test Name	MessagePass	e.style['order'] = "auto" should not set the property value	
+Pass	e.style['order'] = "123.45" should not set the property value	
+Pass	e.style['order'] = "123 45" should not set the property value	

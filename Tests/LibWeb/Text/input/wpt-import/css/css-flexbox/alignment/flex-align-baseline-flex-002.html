@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<link rel="help" href="https://drafts.csswg.org/css-flexbox-1/#flex-baselines">
+<style>
+.target {
+  display: flex;
+  position: relative;
+  line-height: 0;
+  font-size: 20px;
+  inline-size: 200px;
+  margin-inline: 10px;
+  padding: 10px;
+  border: solid 3px;
+  writing-mode: vertical-rl;
+}
+
+.inner {
+  display: flex;
+  border: solid 5px;
+  padding: 10px;
+}
+
+span {
+  display: inline-block;
+  width: 1em;
+  height: 1em;
+  outline: solid cyan 3px;
+  outline-offset: -3px;
+}
+</style>
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../resources/check-layout-th.js"></script>
+<body onload="checkLayout('.target > *')">
+
+<div class="target" style="align-items: first baseline;">
+  <div data-offset-x="40"><span></span></div>
+  <div class="inner" data-offset-x="10">
+    <div style="font-size: 10px;"><span></span></div>
+    <div style="font-size: 30px;"><span></span></div>
+  </div>
+</div>
+
+<div class="target" style="align-items: last baseline;">
+  <div data-offset-x="30"><span></span></div>
+  <div class="inner" data-offset-x="10">
+    <div style="font-size: 10px;"><span></span></div>
+    <div style="font-size: 30px;"><span></span></div>
+  </div>
+</div>
+
+<div class="target" style="align-items: first baseline;">
+  <div data-offset-x="30"><span></span></div>
+  <div class="inner" style="flex-direction: row-reverse;" data-offset-x="10">
+    <div style="font-size: 10px;"><span></span></div>
+    <div style="font-size: 30px;"><span></span></div>
+  </div>
+</div>
+
+<div class="target" style="align-items: last baseline;">
+  <div data-offset-x="40"><span></span></div>
+  <div class="inner" style="flex-direction: row-reverse;" data-offset-x="10">
+    <div style="font-size: 10px;"><span></span></div>
+    <div style="font-size: 30px;"><span></span></div>
+  </div>
+</div>
+
+<div class="target" style="align-items: first baseline;">
+  <div data-offset-x="50"><span></span></div>
+  <div class="inner" style="flex-direction: column;" data-offset-x="10">
+    <div style="font-size: 10px;"><span></span></div>
+    <div style="font-size: 30px;"><span></span></div>
+  </div>
+</div>
+
+<div class="target" style="align-items: last baseline;">
+  <div data-offset-x="30"><span></span></div>
+  <div class="inner" style="flex-direction: column;" data-offset-x="10">
+    <div style="font-size: 10px;"><span></span></div>
+    <div style="font-size: 30px;"><span></span></div>
+  </div>
+</div>
+
+<div class="target" style="align-items: first baseline;">
+  <div data-offset-x="40"><span></span></div>
+  <div class="inner" style="flex-direction: column-reverse;" data-offset-x="10">
+    <div style="font-size: 10px;"><span></span></div>
+    <div style="font-size: 30px;"><span></span></div>
+  </div>
+</div>
+
+<div class="target" style="align-items: last baseline;">
+  <div data-offset-x="20"><span></span></div>
+  <div class="inner" style="flex-direction: column-reverse;" data-offset-x="10">
+    <div style="font-size: 10px;"><span></span></div>
+    <div style="font-size: 30px;"><span></span></div>
+  </div>
+</div>
+
+<!-- flex-wrap: wrap -->
+
+<div class="target" style="align-items: first baseline;">
+  <div data-offset-x="70"><span></span></div>
+  <div class="inner" style="flex-wrap: wrap; inline-size: 50px;" data-offset-x="10">
+    <div style="font-size: 20px;"><span></span></div>
+    <div style="font-size: 30px;"><span></span></div>
+    <div style="font-size: 10px;"><span></span></div>
+    <div style="font-size: 35px;"><span></span></div>
+  </div>
+</div>
+
+<div class="target" style="align-items: last baseline;">
+  <div data-offset-x="33"><span></span></div>
+  <div class="inner" style="flex-wrap: wrap; inline-size: 50px;" data-offset-x="10">
+    <div style="font-size: 20px;"><span></span></div>
+    <div style="font-size: 30px;"><span></span></div>
+    <div style="font-size: 10px;"><span></span></div>
+    <div style="font-size: 35px;"><span></span></div>
+  </div>
+</div>
+
+<div class="target" style="align-items: first baseline;">
+  <div data-offset-x="65"><span></span></div>
+  <div class="inner" style="flex-wrap: wrap; flex-direction: row-reverse; inline-size: 50px;" data-offset-x="10">
+    <div style="font-size: 20px;"><span></span></div>
+    <div style="font-size: 30px;"><span></span></div>
+    <div style="font-size: 10px;"><span></span></div>
+    <div style="font-size: 35px;"><span></span></div>
+  </div>
+</div>
+
+<div class="target" style="align-items: last baseline;">
+  <div data-offset-x="45"><span></span></div>
+  <div class="inner" style="flex-wrap: wrap; flex-direction: row-reverse; inline-size: 50px;" data-offset-x="10">
+    <div style="font-size: 20px;"><span></span></div>
+    <div style="font-size: 30px;"><span></span></div>
+    <div style="font-size: 10px;"><span></span></div>
+    <div style="font-size: 35px;"><span></span></div>
+  </div>
+</div>
+
+<div class="target" style="align-items: first baseline;">
+  <div data-offset-x="55"><span></span></div>
+  <div class="inner" style="flex-wrap: wrap; flex-direction: column; block-size: 50px;" data-offset-x="10">
+    <div style="font-size: 20px;"><span></span></div>
+    <div style="font-size: 30px;"><span></span></div>
+    <div style="font-size: 10px;"><span></span></div>
+    <div style="font-size: 35px;"><span></span></div>
+  </div>
+</div>
+
+<div class="target" style="align-items: last baseline;">
+  <div data-offset-x="38"><span></span></div>
+  <div class="inner" style="flex-wrap: wrap; flex-direction: column; block-size: 50px;" data-offset-x="10">
+    <div style="font-size: 20px;"><span></span></div>
+    <div style="font-size: 30px;"><span></span></div>
+    <div style="font-size: 10px;"><span></span></div>
+    <div style="font-size: 35px;"><span></span></div>
+  </div>
+</div>
+
+<div class="target" style="align-items: first baseline;">
+  <div data-offset-x="50"><span></span></div>
+  <div class="inner" style="flex-wrap: wrap; flex-direction: column-reverse; block-size: 50px;" data-offset-x="10">
+    <div style="font-size: 20px;"><span></span></div>
+    <div style="font-size: 30px;"><span></span></div>
+    <div style="font-size: 10px;"><span></span></div>
+    <div style="font-size: 35px;"><span></span></div>
+  </div>
+</div>
+
+<div class="target" style="align-items: last baseline;">
+  <div data-offset-x="20"><span></span></div>
+  <div class="inner" style="flex-wrap: wrap; flex-direction: column-reverse; block-size: 50px;" data-offset-x="10">
+    <div style="font-size: 20px;"><span></span></div>
+    <div style="font-size: 30px;"><span></span></div>
+    <div style="font-size: 10px;"><span></span></div>
+    <div style="font-size: 35px;"><span></span></div>
+  </div>
+</div>
+
+<!-- flex-wrap: wrap-reverse -->
+
+<div class="target" style="align-items: first baseline;">
+  <div data-offset-x="75"><span></span></div>
+  <div class="inner" style="flex-wrap: wrap-reverse; inline-size: 50px;" data-offset-x="10">
+    <div style="font-size: 20px;"><span></span></div>
+    <div style="font-size: 30px;"><span></span></div>
+    <div style="font-size: 10px;"><span></span></div>
+    <div style="font-size: 35px;"><span></span></div>
+  </div>
+</div>
+
+<div class="target" style="align-items: last baseline;">
+  <div data-offset-x="30"><span></span></div>
+  <div class="inner" style="flex-wrap: wrap-reverse; inline-size: 50px;" data-offset-x="10">
+    <div style="font-size: 20px;"><span></span></div>
+    <div style="font-size: 30px;"><span></span></div>
+    <div style="font-size: 10px;"><span></span></div>
+    <div style="font-size: 35px;"><span></span></div>
+  </div>
+</div>
+
+<div class="target" style="align-items: first baseline;">
+  <div data-offset-x="63"><span></span></div>
+  <div class="inner" style="flex-wrap: wrap-reverse; flex-direction: row-reverse; inline-size: 50px;" data-offset-x="10">
+    <div style="font-size: 20px;"><span></span></div>
+    <div style="font-size: 30px;"><span></span></div>
+    <div style="font-size: 10px;"><span></span></div>
+    <div style="font-size: 35px;"><span></span></div>
+  </div>
+</div>
+
+<div class="target" style="align-items: last baseline;">
+  <div data-offset-x="35"><span></span></div>
+  <div class="inner" style="flex-wrap: wrap-reverse; flex-direction: row-reverse; inline-size: 50px;" data-offset-x="10">
+    <div style="font-size: 20px;"><span></span></div>
+    <div style="font-size: 30px;"><span></span></div>
+    <div style="font-size: 10px;"><span></span></div>
+    <div style="font-size: 35px;"><span></span></div>
+  </div>
+</div>
+
+<div class="target" style="align-items: first baseline;">
+  <div data-offset-x="60"><span></span></div>
+  <div class="inner" style="flex-wrap: wrap-reverse; flex-direction: column; block-size: 50px;" data-offset-x="10">
+    <div style="font-size: 20px;"><span></span></div>
+    <div style="font-size: 30px;"><span></span></div>
+    <div style="font-size: 10px;"><span></span></div>
+    <div style="font-size: 35px;"><span></span></div>
+  </div>
+</div>
+
+<div class="target" style="align-items: last baseline;">
+  <div data-offset-x="30"><span></span></div>
+  <div class="inner" style="flex-wrap: wrap-reverse; flex-direction: column; block-size: 50px;" data-offset-x="10">
+    <div style="font-size: 20px;"><span></span></div>
+    <div style="font-size: 30px;"><span></span></div>
+    <div style="font-size: 10px;"><span></span></div>
+    <div style="font-size: 35px;"><span></span></div>
+  </div>
+</div>
+
+<div class="target" style="align-items: first baseline;">
+  <div data-offset-x="43"><span></span></div>
+  <div class="inner" style="flex-wrap: wrap-reverse; flex-direction: column-reverse; block-size: 50px;" data-offset-x="10">
+    <div style="font-size: 20px;"><span></span></div>
+    <div style="font-size: 30px;"><span></span></div>
+    <div style="font-size: 10px;"><span></span></div>
+    <div style="font-size: 35px;"><span></span></div>
+  </div>
+</div>
+
+<div class="target" style="align-items: last baseline;">
+  <div data-offset-x="25"><span></span></div>
+  <div class="inner" style="flex-wrap: wrap-reverse; flex-direction: column-reverse; block-size: 50px;" data-offset-x="10">
+    <div style="font-size: 20px;"><span></span></div>
+    <div style="font-size: 30px;"><span></span></div>
+    <div style="font-size: 10px;"><span></span></div>
+    <div style="font-size: 35px;"><span></span></div>
+  </div>
+</div>

@@ -1,0 +1,13 @@
+Summary
+
+Harness status: OK
+
+Rerun
+
+Found 3 tests
+
+3 Pass
+Details
+Result	Test Name	MessagePass	Property flex-wrap value 'nowrap'	
+Pass	Property flex-wrap value 'wrap'	
+Pass	Property flex-wrap value 'wrap-reverse'	

@@ -1,0 +1,29 @@
+Summary
+
+Harness status: OK
+
+Rerun
+
+Found 18 tests
+
+16 Pass
+2 Fail
+Details
+Result	Test Name	MessagePass	position of x	
+Pass	position of y	
+Pass	position of width	
+Pass	position of height	
+Pass	position of top	
+Pass	position of right	
+Pass	position of bottom	
+Pass	position of left	
+Pass	position of toJSON	
+Pass	.flexbox 1	
+Pass	.flexbox 2	
+Pass	.flexbox 3	
+Fail	.flexbox 4	
+Fail	.flexbox 5	
+Pass	.flexbox 6	
+Pass	.flexbox 7	
+Pass	.flexbox 8	
+Pass	.flexbox 9	

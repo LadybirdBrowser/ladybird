@@ -1,0 +1,54 @@
+<!doctype html>
+<link rel="author" title="David Grogan" href="mailto:dgrogan@chromium.org">
+<link rel="help" href="https://drafts.csswg.org/css-flexbox/#propdef-align-content" />
+<link rel="help" href="https://drafts.csswg.org/css-align-3/#positional-values" />
+<meta name="assert" content="Flex items are positioned correctly in wrap-reverse align-content:start/end containers in either text direction.">
+
+<style>
+.flexbox {
+  display: flex;
+  width: 75px; /* make the row flexbox wrap */
+  height: 150px;
+  flex-wrap: wrap-reverse;
+  position: relative;
+  float: left;
+  margin-right: 20px;
+  border: 1px solid black;
+}
+
+.flexitem {
+  width: 50px;
+  height: 50px;
+}
+
+.flexbox :nth-child(1) {
+    background-color: blue;
+}
+.flexbox :nth-child(2) {
+    background-color: orange;
+}
+</style>
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../../resources/check-layout-th.js"></script>
+<body onload="checkLayout('.flexitem')">
+
+<div class=flexbox style="align-content: start;">
+  <div class=flexitem data-offset-x=0 data-offset-y=50></div>
+  <div class=flexitem data-offset-x=0 data-offset-y=0></div>
+</div>
+
+<div class=flexbox style="align-content: end;">
+  <div class=flexitem data-offset-x=0 data-offset-y=100></div>
+  <div class=flexitem data-offset-x=0 data-offset-y=50></div>
+</div>
+
+<div class=flexbox style="align-content: start; direction: rtl;">
+  <div class=flexitem data-offset-x=25 data-offset-y=50></div>
+  <div class=flexitem data-offset-x=25 data-offset-y=0></div>
+</div>
+
+<div class=flexbox style="align-content: end; direction: rtl">
+  <div class=flexitem data-offset-x=25 data-offset-y=100></div>
+  <div class=flexitem data-offset-x=25 data-offset-y=50></div>
+</div>

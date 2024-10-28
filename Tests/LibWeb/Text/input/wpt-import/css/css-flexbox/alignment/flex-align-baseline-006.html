@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<link rel="help" href="https://drafts.csswg.org/css-align-3/#baseline-rules">
+<link rel="help" href="https://drafts.csswg.org/css-flexbox-1/#cross-alignment">
+<style>
+#target {
+  display: flex;
+  flex-direction: column;
+  height: 100px;
+  align-items: last baseline;
+  width: 200px;
+  border: solid 3px;
+  position: relative;
+  line-height: 0;
+  writing-mode: vertical-rl;
+}
+span {
+  display: inline-block;
+  width: 1em;
+  height: 1em;
+  outline: solid cornflowerblue 3px;
+  outline-offset: -3px;
+}
+#target > div {
+  flex: none;
+}
+#target > :nth-child(1) {
+  background: lime;
+  margin-bottom: 20px;
+  padding-bottom: 20px;
+  font-size: 20px;
+  writing-mode: horizontal-tb;
+}
+#target > :nth-child(2) {
+  background: hotpink;
+  font-size: 30px;
+  writing-mode: horizontal-tb;
+}
+#target > :nth-child(3) {
+  background: papayawhip;
+  font-size: 10px;
+}
+</style>
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../resources/check-layout-th.js"></script>
+<body onload="checkLayout('#target > div')">
+
+<div id="target">
+  <div data-offset-y="20"><span></span><br><span></span></div>
+  <div data-offset-y="0"><span></span><br><span></span></div>
+  <div data-offset-y="55"><span></span><br><span></span></div>
+</div>

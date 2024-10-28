@@ -1,0 +1,16 @@
+Summary
+
+Harness status: OK
+
+Rerun
+
+Found 6 tests
+
+6 Pass
+Details
+Result	Test Name	MessagePass	e.style['flex-flow'] = "nowrap column" should set flex-direction	
+Pass	e.style['flex-flow'] = "nowrap column" should set flex-wrap	
+Pass	e.style['flex-flow'] = "nowrap column" should not set unrelated longhands	
+Pass	e.style['flex-flow'] = "wrap row-reverse" should set flex-direction	
+Pass	e.style['flex-flow'] = "wrap row-reverse" should set flex-wrap	
+Pass	e.style['flex-flow'] = "wrap row-reverse" should not set unrelated longhands	

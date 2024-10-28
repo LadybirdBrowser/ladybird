@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<link rel="author" title="David Grogan" href="mailto:dgrogan@chromium.org">
+<link rel="help" href="https://drafts.csswg.org/css-flexbox/#intrinsic-sizes">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../resources/check-layout-th.js"></script>
+<meta name="assert"
+  content="min-content width is calculated correctly in a variety of scenarios with two flex items. These cases were used as examples when deriving the intrinsic size algorithm. " />
+
+<style>
+  .min-width-flexbox {
+    display: flex;
+    outline: 5px solid blue;
+    height: 100px;
+    width: min-content;
+    margin-bottom: 20px;
+  }
+
+  .min-width-flexbox>div:nth-child(1) {
+    background: yellow;
+  }
+
+  .min-width-flexbox>div:nth-child(2) {
+    background: orange;
+  }
+
+  .min-width-flexbox>div>div {
+    width: 100px;
+  }
+
+</style>
+
+<body onload="checkLayout('.min-width-flexbox')">
+  <div id=log></div>
+</body>
+
+<script>
+  // These are from the table in https://github.com/w3c/csswg-drafts/issues/7189#issuecomment-1172771501
+  var test_cases = [
+    [0, 0, 200, 100, 300],
+    [0, .1, 200, 101, 310],
+    [.1, .1, 203, 103, 330],
+    [.4, .4, 248, 148, 420],
+    [.5, .5, 275, 175, 450],
+    [.75, .75, 368.75, 268.75, 637.5],
+    [1, 1, 500, 400, 900],
+    [0, 2, 200, 200, 400],
+    [.1, 2, 205, 200, 405],
+    [.2, 2, 212, 220, 432],
+    [2, 2, 500, 400, 900],
+  ];
+  test_cases.forEach(test_case => {
+    var flexbox = document.createElement('div');
+    flexbox.className = "min-width-flexbox";
+    flexbox.setAttribute("data-expected-width", test_case[4]);
+
+    var child1 = document.createElement('div');
+    child1.style.flex = "0 1 200px";
+    child1.style.width = "500px";
+    child1.style.flexGrow = test_case[0];
+    child1.setAttribute("data-expected-width", test_case[2]);
+    child1.appendChild(document.createElement('div'));
+
+    var child2 = document.createElement('div');
+    child2.style.flex = "0 0 100px";
+    child2.style.width = "200px";
+    child2.style.flexGrow = test_case[1];
+    child2.setAttribute("data-expected-width", test_case[3]);
+    child2.appendChild(document.createElement('div'));
+
+    flexbox.appendChild(child1);
+    flexbox.appendChild(child2);
+    document.body.appendChild(flexbox);
+  });
+</script>

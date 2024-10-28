@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS Flexible Box Layout Module Level 1: flex sets longhands</title>
+<link rel="help" href="https://drafts.csswg.org/css-flexbox/#propdef-flex">
+<meta name="assert" content="flex supports the full grammar 'none | [ <‘flex-grow’> <‘flex-shrink’>? || <‘flex-basis’> ]'.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../support/shorthand-testcommon.js"></script>
+</head>
+<body>
+<script>
+test_shorthand_value('flex', 'none', {
+  'flex-grow': '0',
+  'flex-shrink': '0',
+  'flex-basis': 'auto'
+});
+
+test_shorthand_value('flex', '1', {
+  'flex-grow': '1',
+  'flex-shrink': '1',
+  'flex-basis': '0%'
+});
+
+test_shorthand_value('flex', '2 3', {
+  'flex-grow': '2',
+  'flex-shrink': '3',
+  'flex-basis': '0%'
+});
+
+test_shorthand_value('flex', '4 5 6px', {
+  'flex-grow': '4',
+  'flex-shrink': '5',
+  'flex-basis': '6px'
+});
+
+test_shorthand_value('flex', '7% 8', {
+  'flex-grow': '8',
+  'flex-shrink': '1',
+  'flex-basis': '7%'
+});
+
+test_shorthand_value('flex', '8 auto', {
+  'flex-grow': '8',
+  'flex-shrink': '1',
+  'flex-basis': 'auto'
+});
+
+test_shorthand_value('flex', 'content', {
+  'flex-grow': '1',
+  'flex-shrink': '1',
+  'flex-basis': 'content'
+});
+
+test_shorthand_value('flex', '0 fit-content', {
+  'flex-grow': '0',
+  'flex-shrink': '1',
+  'flex-basis': 'fit-content'
+});
+
+test_shorthand_value('flex', '1 0 max-content', {
+  'flex-grow': '1',
+  'flex-shrink': '0',
+  'flex-basis': 'max-content'
+});
+
+test_shorthand_value('flex', 'auto 1 2', {
+  'flex-grow': '1',
+  'flex-shrink': '2',
+  'flex-basis': 'auto'
+});
+</script>
+</body>
+</html>

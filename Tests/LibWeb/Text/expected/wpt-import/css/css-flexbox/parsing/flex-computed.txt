@@ -1,0 +1,19 @@
+Summary
+
+Harness status: OK
+
+Rerun
+
+Found 8 tests
+
+6 Pass
+2 Fail
+Details
+Result	Test Name	MessagePass	Property flex value 'none'	
+Pass	Property flex value '1'	
+Pass	Property flex value '2 3'	
+Pass	Property flex value '4 5 6px'	
+Pass	Property flex value '7% 8'	
+Pass	Property flex value '8 auto'	
+Fail	Property flex value 'calc(10px + 0.5em)'	
+Fail	Property flex value 'calc(10px - 0.5em)'	

@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>CSS Flexbox: removing abspos descendents</title>
+<link rel="help" href="https://drafts.csswg.org/css-flexbox/#flex-containers">
+<link rel="help" href="https://drafts.csswg.org/css-flexbox/#abspos-items">
+<link rel="issue" href="https://bugs.chromium.org/p/chromium/issues/detail?id=167566">
+<meta name="assert" content="This test ensures that flex item's padding doesn't disappear when an abspos descendent is removed.">
+<link href="../support/flexbox.css" rel="stylesheet">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../resources/check-layout-th.js"></script>
+<script>
+window.onload = function() {
+    document.body.offsetHeight;
+
+    document.getElementById('to-hide').style.display = "none";
+    checkLayout(".flexbox");
+};
+</script>
+</head>
+<body>
+<div id=log></div>
+<div class="flexbox" style="height: 100px;" data-expected-height="100">
+    <div style="width: 100%; overflow: auto; padding-bottom: 100px; background-color: red;" data-expected-height="100">
+        <div style="position: relative; height: 100px; background-color: green;" data-expected-height="100">
+            <div id="to-hide" style="position: absolute;" data-expected-height="0"></div>
+        </div>
+    </div>
+</div>
+</body>
+</html>

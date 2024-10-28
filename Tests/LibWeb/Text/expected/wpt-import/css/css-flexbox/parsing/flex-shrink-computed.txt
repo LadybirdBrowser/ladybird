@@ -1,0 +1,14 @@
+Summary
+
+Harness status: OK
+
+Rerun
+
+Found 4 tests
+
+4 Pass
+Details
+Result	Test Name	MessagePass	Property flex-shrink value '1'	
+Pass	Property flex-shrink value '2.34e+06'	
+Pass	Property flex-shrink value '6.78e+08'	
+Pass	Property flex-shrink value '0'	

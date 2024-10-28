@@ -1,0 +1,13 @@
+Summary
+
+Harness status: OK
+
+Rerun
+
+Found 3 tests
+
+3 Pass
+Details
+Result	Test Name	MessagePass	e.style['order'] = "0" should set the property value	
+Pass	e.style['order'] = "123" should set the property value	
+Pass	e.style['order'] = "-45" should set the property value	

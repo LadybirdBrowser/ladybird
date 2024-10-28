@@ -1,0 +1,23 @@
+Summary
+
+Harness status: OK
+
+Rerun
+
+Found 12 tests
+
+8 Pass
+4 Fail
+Details
+Result	Test Name	MessagePass	Property flex-basis value '1px'	
+Pass	Property flex-basis value '400%'	
+Pass	Property flex-basis value 'auto'	
+Pass	Property flex-basis value 'content'	
+Pass	Property flex-basis value 'fit-content'	
+Pass	Property flex-basis value 'min-content'	
+Pass	Property flex-basis value 'max-content'	
+Fail	Property flex-basis value 'calc(10px + 0.5em)'	
+Fail	Property flex-basis value 'calc(10px - 0.5em)'	
+Fail	Property flex-basis value 'calc(10%)'	
+Pass	Property flex-basis value 'calc(0% + 10px)'	
+Fail	Property flex-basis value 'calc(10% + 0px)'	

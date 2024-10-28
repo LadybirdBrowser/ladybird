@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<title>CSS Flexbox: Relative position with a percentage top</title>
+<link rel="help" href="https://drafts.csswg.org/css-flexbox/#valdef-align-items-stretch">
+<meta name="assert" content="This test ensures that a flexbox with 'flex-flow: row wrap' properly centers a grandchild with 'position: relative' and 'top: 50%'.">
+<style>
+html, body {
+  margin: 0;
+}
+
+.border {
+  border:1px solid #000;
+}
+.width-50 {
+  width: 50%;
+}
+.flex {
+  display: flex;
+  flex-flow: row wrap;
+}
+.tall {
+  height: 300px;
+}
+.top-50 {
+  position: relative;
+  top: 50%;
+}
+</style>
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../../resources/check-layout-th.js"></script>
+<body onload="checkLayout('.border')">
+<div class="border">
+  <div class="flex">
+    <div class="width-50">
+      <label class="top-50" data-offset-y="151">This should be in the center of the container</label>
+    </div>
+    <div class="width-50">
+      <div class="tall">
+        This is tall
+      </div>
+    </div>
+  </div>
+</div>

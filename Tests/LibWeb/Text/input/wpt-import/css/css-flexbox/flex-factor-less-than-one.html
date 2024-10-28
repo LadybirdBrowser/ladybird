@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<title>CSS Flexbox: flex factors less than one</title>
+<link href="support/flexbox.css" rel="stylesheet">
+<link rel="help" href="https://www.w3.org/TR/css-flexbox-1/#propdef-flex-grow">
+<link rel="help" href="https://www.w3.org/TR/css-flexbox-1/#propdef-flex-shrink">
+<meta name="assert" content="flex-grow and flex-shrink factors less than 1 work">
+<style>
+
+html, body {
+  margin: 0;
+  padding: 0;
+}
+
+.container {
+  height: 100px;
+  width: 100px;
+  border: 1px solid black;
+}
+
+.child-flex-grow-0-75 {
+  background-color: lime;
+  flex-grow: 0.75;
+}
+
+.child-flex-grow-0-5 {
+  background-color: green;
+  flex-grow: 0.5;
+}
+
+.child-flex-grow-0-25 {
+  background-color: red;
+  flex-grow: 0.25;
+}
+
+.child-flex-shrink-0-5 {
+  background-color: green;
+  flex-shrink: 0.5;
+  width: 200px;
+  height: 200px;
+}
+
+.child-flex-shrink-0-25 {
+  background-color: red;
+  flex-shrink: 0.25;
+  width: 200px;
+  height: 200px;
+}
+
+.basis-0 {
+  flex-basis: 0;
+}
+
+.basis {
+  flex-basis: 30px;
+}
+
+.basis-big {
+  flex-basis: 100px;
+}
+
+.vertical {
+  writing-mode: vertical-rl;
+}
+</style>
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../../resources/check-layout-th.js"></script>
+<body onload="checkLayout('.flexbox');">
+<div id=log></div>
+
+<div class="flexbox container">
+  <div class="child-flex-grow-0-5" data-expected-width="50"></div>
+</div>
+
+<div class="flexbox container">
+  <div class="child-flex-grow-0-5" data-expected-width="50"></div>
+  <div class="child-flex-grow-0-25" data-expected-width="25"></div>
+</div>
+
+<div class="flexbox container column">
+  <div class="child-flex-grow-0-5" data-expected-height="50"></div>
+  <div class="child-flex-grow-0-25" data-expected-height="25"></div>
+</div>
+
+<div class="flexbox container column vertical">
+  <div class="child-flex-grow-0-5 " data-expected-width="50"></div>
+  <div class="child-flex-grow-0-25 " data-expected-width="25"></div>
+</div>
+
+<div class="flexbox container vertical">
+  <div class="child-flex-grow-0-5 " data-expected-height="50"></div>
+  <div class="child-flex-grow-0-25 " data-expected-height="25"></div>
+</div>
+
+<div class="flexbox container">
+  <div class="child-flex-grow-0-5 basis" data-expected-width="50"></div>
+  <div class="child-flex-grow-0-25 basis" data-expected-width="40"></div>
+ </div>
+
+<div class="flexbox container column">
+  <div class="child-flex-grow-0-5 basis" data-expected-height="50"></div>
+  <div class="child-flex-grow-0-25 basis" data-expected-height="40"></div>
+</div>
+
+<div class="flexbox container vertical">
+  <div class="child-flex-grow-0-5 basis" data-expected-height="50"></div>
+  <div class="child-flex-grow-0-25 basis" data-expected-height="40"></div>
+</div>
+
+<div class="flexbox container column vertical">
+  <div class="child-flex-grow-0-5 basis" data-expected-width="50"></div>
+  <div class="child-flex-grow-0-25 basis" data-expected-width="40"></div>
+</div>
+
+<!-- And now, the shrink cases -->
+<div class="flexbox container">
+  <div class="child-flex-shrink-0-5" data-expected-width="150"></div>
+</div>
+
+<div class="flexbox container">
+  <div class="child-flex-shrink-0-5" data-expected-width="50"></div>
+  <div class="child-flex-shrink-0-25" data-expected-width="125"></div>
+</div>
+
+<div class="flexbox container column">
+  <div class="child-flex-shrink-0-5" data-expected-height="50"></div>
+  <div class="child-flex-shrink-0-25" data-expected-height="125"></div>
+</div>
+
+<div class="flexbox container column vertical">
+  <div class="child-flex-shrink-0-5 " data-expected-width="50"></div>
+  <div class="child-flex-shrink-0-25 " data-expected-width="125"></div>
+</div>
+
+<div class="flexbox container vertical">
+  <div class="child-flex-shrink-0-5 " data-expected-height="50"></div>
+  <div class="child-flex-shrink-0-25 " data-expected-height="125"></div>
+</div>
+
+<div class="flexbox container">
+  <div class="child-flex-shrink-0-5 basis-big" data-expected-width="50"></div>
+  <div class="child-flex-shrink-0-25 basis-big" data-expected-width="75"></div>
+ </div>
+<div class="flexbox container column">
+  <div class="child-flex-shrink-0-5 basis-big" data-expected-height="50"></div>
+  <div class="child-flex-shrink-0-25 basis-big" data-expected-height="75"></div>
+</div>
+
+<div class="flexbox container vertical">
+  <div class="child-flex-shrink-0-5 basis-big" data-expected-height="50"></div>
+  <div class="child-flex-shrink-0-25 basis-big" data-expected-height="75"></div>
+</div>
+
+<div class="flexbox container column vertical">
+  <div class="child-flex-shrink-0-5 basis-big" data-expected-width="50"></div>
+  <div class="child-flex-shrink-0-25 basis-big" data-expected-width="75"></div>
+</div>
+
+<!-- Interaction of min-width: auto with fractional flex basis -->
+<div class="flexbox container" style="background-color: red;">
+  <div class="child-flex-grow-0-25 basis-0" style="background-color: green;" data-expected-width="10"></div>
+  <div class="child-flex-grow-0-75 basis-0" data-expected-width="90">
+    <div style="width: 90px;"></div>
+  </div>
+</div>
+
+<!-- centering should still center; same for other justify-content values -->
+<div class="flexbox container justify-content-center">
+  <div class="child-flex-grow-0-5" data-expected-width="50" data-offset-x="26"></div>
+</div>
+
+<div class="flexbox container justify-content-space-around">
+  <div class="child-flex-grow-0-5" data-expected-width="50" data-offset-x="26"></div>
+</div>
+
+<div class="flexbox container justify-content-flex-end">
+  <div class="child-flex-grow-0-5" data-expected-width="50" data-offset-x="51"></div>
+</div>
+
+</body>

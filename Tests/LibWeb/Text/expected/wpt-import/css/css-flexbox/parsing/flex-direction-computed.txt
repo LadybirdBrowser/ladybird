@@ -1,0 +1,14 @@
+Summary
+
+Harness status: OK
+
+Rerun
+
+Found 4 tests
+
+4 Pass
+Details
+Result	Test Name	MessagePass	Property flex-direction value 'row'	
+Pass	Property flex-direction value 'row-reverse'	
+Pass	Property flex-direction value 'column'	
+Pass	Property flex-direction value 'column-reverse'	

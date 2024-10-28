@@ -1,0 +1,14 @@
+Summary
+
+Harness status: OK
+
+Rerun
+
+Found 3 tests
+
+1 Pass
+2 Fail
+Details
+Result	Test Name	MessagePass	.inline-flexbox 1	
+Fail	.inline-flexbox 2	
+Fail	.inline-flexbox 3	

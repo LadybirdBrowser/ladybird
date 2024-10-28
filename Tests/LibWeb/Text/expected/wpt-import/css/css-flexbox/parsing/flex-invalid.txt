@@ -1,0 +1,14 @@
+Summary
+
+Harness status: OK
+
+Rerun
+
+Found 4 tests
+
+4 Pass
+Details
+Result	Test Name	MessagePass	e.style['flex'] = "none 1" should not set the property value	
+Pass	e.style['flex'] = "2 3 4" should not set the property value	
+Pass	e.style['flex'] = "5px 7%" should not set the property value	
+Pass	e.style['flex'] = "9 none" should not set the property value	

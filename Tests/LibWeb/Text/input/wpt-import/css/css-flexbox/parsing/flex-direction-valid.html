@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS Flexible Box Layout Module Level 1: parsing flex-direction with valid values</title>
+<link rel="author" title="Eric Willigers" href="mailto:ericwilligers@chromium.org">
+<link rel="help" href="https://drafts.csswg.org/css-flexbox/#propdef-flex-direction">
+<meta name="assert" content="flex-direction supports the full grammar 'row | row-reverse | column | column-reverse'.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../support/parsing-testcommon.js"></script>
+</head>
+<body>
+<script>
+test_valid_value("flex-direction", "row");
+test_valid_value("flex-direction", "row-reverse");
+test_valid_value("flex-direction", "column");
+test_valid_value("flex-direction", "column-reverse");
+</script>
+</body>
+</html>

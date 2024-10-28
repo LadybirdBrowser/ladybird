@@ -1,0 +1,13 @@
+Summary
+
+Harness status: OK
+
+Rerun
+
+Found 2 tests
+
+1 Pass
+1 Fail
+Details
+Result	Test Name	MessagePass	#target > div 1	
+Fail	#target > div 2	

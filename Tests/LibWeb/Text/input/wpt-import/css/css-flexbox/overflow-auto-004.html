@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html>
+<title>CSS Flexbox: no unnecessary scrollbars with overflow: auto.</title>
+<link rel="help" href="https://drafts.csswg.org/css-flexbox/#flex-direction-property">
+<link rel="help" href="https://drafts.csswg.org/css-overflow-3/#overflow-properties">
+<link rel="help" href="https://crbug.com/646288"/>
+<meta name="assert" content="This test ensures that no vertical scrollbar is rendered with 'overflow: auto' and 'flex-direction: column' when only horizontal scrolling is needed."/>
+
+<style>
+* {
+  min-width: 0;
+  min-height: 0;
+}
+
+body {
+  width: 800px;
+}
+
+#list-wrapper {
+  display: flex;
+  flex-direction: column;
+}
+
+#player-list-wrapper {
+  flex-grow: 1;
+  overflow: auto;
+}
+</style>
+
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../../resources/check-layout-th.js"></script>
+
+<body onload="checkLayout('#list-wrapper')">
+
+<p>No vertical scrollbar should be rendered for this content.</p>
+
+<div id="list-wrapper" data-expected-width="800">
+  <div id="player-list-wrapper" data-expected-width="800">
+    <div data-expected-width="800">http://www.ispeech.org/p/generic/getaudio?text=http%3A%2F%2Fwww.ispeech.org%2Ftext.to.speech%3Flink%3Dhttp%253A%252F%252Fwww.ispeech.org%252Ftext.to.speech%253Fvoice%253Dusenglishfemale%2526action%253Dconvert%2526speed%253D0%2526text%253DType%252520some%252520text%252520and%252520click%252520play%2C&amp;voice=usenglishfemale&amp;speed=0&amp;action=convert</div>
+  </div>
+</div>
+
+</body>
+</html>

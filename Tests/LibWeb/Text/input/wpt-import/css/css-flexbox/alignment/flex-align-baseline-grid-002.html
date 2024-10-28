@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<link rel="help" href="https://drafts.csswg.org/css-grid-1/#grid-baselines">
+<style>
+.target {
+  display: flex;
+  position: relative;
+  line-height: 0;
+  font-size: 20px;
+  inline-size: 300px;
+  margin-block: 10px;
+  padding: 10px;
+  border: solid 3px;
+  writing-mode: vertical-rl;
+}
+
+.inner {
+  display: grid;
+  gap: 10px;
+  grid-template: 50px 50px / 50px 50px 50px;
+  border: solid 5px;
+  padding: 10px;
+}
+
+.inner > div:first-child,
+.inner > div:last-child {
+  align-self: start;
+}
+
+span {
+  display: inline-block;
+  width: 1em;
+  height: 1em;
+  outline: solid cyan 3px;
+  outline-offset: -3px;
+}
+</style>
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../resources/check-layout-th.js"></script>
+<body onload="checkLayout('.target > *')">
+
+<div class="target" style="align-items: first baseline;">
+  <div data-offset-x="110"><span></span></div>
+  <div class="inner" style="align-items: first baseline;" data-offset-x="10">
+    <div style="font-size: 20px;"><span></span></div>
+    <div style="font-size: 10px;"><span></span></div>
+    <div style="font-size: 30px;"><span></span></div>
+    <div style="font-size: 15px;"><span></span></div>
+    <div style="font-size: 35px;"><span></span></div>
+    <div style="font-size: 25px;"><span></span></div>
+  </div>
+</div>
+
+<div class="target" style="align-items: last baseline;">
+  <div data-offset-x="48"><span></span></div>
+  <div class="inner" style="align-items: first baseline;" data-offset-x="10">
+    <div style="font-size: 20px;"><span></span></div>
+    <div style="font-size: 10px;"><span></span></div>
+    <div style="font-size: 30px;"><span></span></div>
+    <div style="font-size: 15px;"><span></span></div>
+    <div style="font-size: 35px;"><span></span></div>
+    <div style="font-size: 25px;"><span></span></div>
+  </div>
+</div>
+
+<div class="target" style="align-items: first baseline;">
+  <div data-offset-x="90"><span></span></div>
+  <div class="inner" style="align-items: last baseline;" data-offset-x="10">
+    <div style="font-size: 20px;"><span></span></div>
+    <div style="font-size: 10px;"><span></span></div>
+    <div style="font-size: 30px;"><span></span></div>
+    <div style="font-size: 15px;"><span></span></div>
+    <div style="font-size: 35px;"><span></span></div>
+    <div style="font-size: 25px;"><span></span></div>
+  </div>
+</div>
+
+<div class="target" style="align-items: last baseline;">
+  <div data-offset-x="33"><span></span></div>
+  <div class="inner" style="align-items: last baseline;" data-offset-x="10">
+    <div style="font-size: 20px;"><span></span></div>
+    <div style="font-size: 10px;"><span></span></div>
+    <div style="font-size: 30px;"><span></span></div>
+    <div style="font-size: 15px;"><span></span></div>
+    <div style="font-size: 35px;"><span></span></div>
+    <div style="font-size: 25px;"><span></span></div>
+  </div>
+</div>
+
+<div class="target" style="align-items: first baseline;">
+  <div data-offset-x="115"><span></span></div>
+  <div class="inner" style="align-items: end;" data-offset-x="10">
+    <div style="font-size: 20px;"><span></span></div>
+    <div style="font-size: 10px;"><span></span></div>
+    <div style="font-size: 30px;"><span></span></div>
+    <div style="font-size: 15px;"><span></span></div>
+    <div style="font-size: 35px;"><span></span></div>
+    <div style="font-size: 25px;"><span></span></div>
+  </div>
+</div>
+
+<div class="target" style="align-items: last baseline;">
+  <div data-offset-x="53"><span></span></div>
+  <div class="inner" style="align-items: end;" data-offset-x="10">
+    <div style="font-size: 20px;"><span></span></div>
+    <div style="font-size: 10px;"><span></span></div>
+    <div style="font-size: 30px;"><span></span></div>
+    <div style="font-size: 15px;"><span></span></div>
+    <div style="font-size: 35px;"><span></span></div>
+    <div style="font-size: 25px;"><span></span></div>
+  </div>
+</div>

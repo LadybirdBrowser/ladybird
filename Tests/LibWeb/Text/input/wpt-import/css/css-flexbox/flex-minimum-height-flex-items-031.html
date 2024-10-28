@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<link rel="author" title="Oriol Brufau" href="mailto:obrufau@igalia.com">
+<link rel="help" href="https://drafts.csswg.org/css-flexbox/#min-size-auto">
+<link rel="help" href="https://bugs.webkit.org/show_bug.cgi?id=240068">
+<meta name="assert" content="An intrinsic min-height can make a column flex container grow enough for its contents, even if it's also a flex item with 'flex-basis: 0px'.">
+
+<div id="log"></div>
+
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../../resources/check-layout-th.js"></script>
+<script>
+for (let outerFlexDirection of ["column", "column-reverse"]) {
+  for (let innerFlexDirection of ["column", "column-reverse"]) {
+    for (let placeContent of ["start", "center", "end"]) {
+      for (let minHeight of ["auto", "min-content", "max-content"]) {
+        for (let flex of ["0 0 44px", "1 1 44px"]) {
+          const outer = document.createElement("div");
+          outer.className = "flex";
+          outer.style.display = "inline-flex";
+          outer.style.flexDirection = outerFlexDirection;
+          outer.style.border = "1px solid #000";
+          outer.dataset.expectedClientHeight = "104";
+
+          const inner = document.createElement("div");
+          inner.style.flexBasis = "0px";
+          inner.style.display = "flex";
+          inner.style.flexDirection = innerFlexDirection;
+          inner.style.placeContent = placeContent;
+          inner.style.minHeight = minHeight;
+          inner.style.border = "2px solid #0ff";
+          inner.dataset.expectedClientHeight = "100";
+
+          const content1 = document.createElement("div");
+          content1.style.flex = flex;
+          content1.style.border = "3px solid #f0f";
+          content1.dataset.expectedHeight = "50";
+
+          const content2 = content1.cloneNode();
+
+          content1.textContent = "1";
+          content2.textContent = "2";
+          inner.appendChild(content1);
+          inner.appendChild(content2);
+          outer.appendChild(inner);
+          document.body.appendChild(outer);
+        }
+      }
+    }
+  }
+  document.body.appendChild(document.createElement("br"));
+}
+checkLayout(".flex");
+</script>

@@ -1,0 +1,16 @@
+Summary
+
+Harness status: OK
+
+Rerun
+
+Found 6 tests
+
+6 Pass
+Details
+Result	Test Name	MessagePass	e.style['flex'] = "none" should set the property value	
+Pass	e.style['flex'] = "1" should set the property value	
+Pass	e.style['flex'] = "2 3" should set the property value	
+Pass	e.style['flex'] = "4 5 6px" should set the property value	
+Pass	e.style['flex'] = "7% 8" should set the property value	
+Pass	e.style['flex'] = "8 auto" should set the property value	

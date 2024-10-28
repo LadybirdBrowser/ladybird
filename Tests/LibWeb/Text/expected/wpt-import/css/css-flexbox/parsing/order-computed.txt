@@ -1,0 +1,13 @@
+Summary
+
+Harness status: OK
+
+Rerun
+
+Found 3 tests
+
+3 Pass
+Details
+Result	Test Name	MessagePass	Property order value '0'	
+Pass	Property order value '123'	
+Pass	Property order value '-45'	

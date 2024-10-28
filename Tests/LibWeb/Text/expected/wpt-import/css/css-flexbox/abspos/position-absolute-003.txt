@@ -1,0 +1,27 @@
+Summary
+
+Harness status: OK
+
+Rerun
+
+Found 16 tests
+
+10 Pass
+6 Fail
+Details
+Result	Test Name	MessagePass	.rect 1	
+Pass	.rect 2	
+Pass	.rect 3	
+Pass	.rect 4	
+Pass	.rect 5	
+Fail	.rect 6	
+Fail	.rect 7	
+Fail	.rect 8	
+Pass	.rect 9	
+Pass	.rect 10	
+Pass	.rect 11	
+Pass	.rect 12	
+Pass	.rect 13	
+Fail	.rect 14	
+Fail	.rect 15	
+Fail	.rect 16	

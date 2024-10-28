@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html>
+<title>CSS Flexbox: adding scrollbars with overflow: auto and flex-direction: column.</title>
+<link rel="help" href="https://drafts.csswg.org/css-overflow-3/#overflow-properties">
+<link rel="help" href="https://drafts.csswg.org/css-flexbox/#flex-direction-property">
+<link rel="help" href="https://crbug.com/512229">
+<meta name="assert" content="This test checks that, when a block inside a flexbox with flex-direction: column adds horizontal scrollbars due to overflow, the parent flexbox is still able to render its contents without overflowing."/>
+
+<style>
+.vflex {
+  display: flex;
+  flex-direction: column;
+  max-width: 200px;
+  margin: 10px 0 10px 0;
+}
+
+.hbox {
+  overflow-x: auto;
+  white-space: nowrap;
+}
+
+.rect {
+  min-height: 100px;
+  min-width: 100px;
+  background-color: green;
+  display: inline-block;
+}
+</style>
+
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+
+<body>
+
+<div class="vflex">
+  <div class="hbox">
+    <div class="rect"></div>
+    <div class="rect"></div>
+  </div>
+</div>
+
+<script>
+var hbox = document.querySelector('.hbox');
+test(function() {
+  assert_equals(hbox.parentNode.clientHeight, hbox.parentNode.scrollHeight);
+  assert_equals(hbox.clientHeight, hbox.scrollHeight);
+}, 'hbox dimensions');
+</script>
+</body>
+</html>

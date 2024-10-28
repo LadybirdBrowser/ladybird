@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<meta charset="UTF-8">
+<title>CSS Flexbox: flex items inside flex-direction:column</title>
+<link rel="help" href="https://drafts.csswg.org/css-flexbox/#flex-direction-property">
+<meta name="assert" content="This test ensures that when main axis is logical y, layout flex items before getting intrinsic size."/>
+<link href="support/flexbox.css" rel="stylesheet">
+
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../../resources/check-layout-th.js"></script>
+<script>
+function change() {
+  document.body.offsetTop;
+  var flex = document.getElementById("flex");
+  flex.style.width = "100px";
+  checkLayout("#container");
+}
+</script>
+<body onload="change()">
+<p>There should be a green square below. No red.</p>
+<!-- #container is just here to make sure the test fails more reliably visually if the bug is present. -->
+<div id="container" style="width:500px;">
+    <div id="flex" style="display:flex; flex-direction:column; width:70px;" data-expected-height="100">
+        <div style="background:red;" data-expected-height="100">
+            <div style="float:left; width:50px; height:100px; background:green;"></div>
+            <div style="float:left; width:50px; height:100px; background:green;"></div>
+        </div>
+    </div>
+</div>
+</body>
