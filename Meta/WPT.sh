@@ -87,7 +87,7 @@ set_logging_flags()
     [ -n "${2}" ] || usage;
 
     log_type="${1}"
-    log_name="$(pwd -P)/${2}"
+    log_name="$(realpath "${2}")"
 
     WPT_ARGS+=( "${log_type}=${log_name}" )
 }
