@@ -16,6 +16,7 @@
 #include <LibJS/Runtime/ECMAScriptFunctionObject.h>
 #include <LibJS/Runtime/GlobalEnvironment.h>
 #include <LibJS/Runtime/JSONObject.h>
+#include <LibJS/Runtime/ObjectEnvironment.h>
 #include <LibJS/Runtime/Promise.h>
 #include <LibJS/Runtime/PromiseConstructor.h>
 #include <LibWeb/DOM/Document.h>
@@ -242,20 +243,30 @@ static ErrorOr<JsonValue, ExecuteScriptResultType> clone_an_object(JS::Realm& re
 }
 
 // https://w3c.github.io/webdriver/#dfn-execute-a-function-body
-static JS::ThrowCompletionOr<JS::Value> execute_a_function_body(HTML::BrowsingContext const& browsing_context, ByteString const& body, JS::MarkedVector<JS::Value> parameters)
+JS::ThrowCompletionOr<JS::Value> execute_a_function_body(HTML::BrowsingContext const& browsing_context, ByteString const& body, ReadonlySpan<JS::Value> parameters)
 {
-    // FIXME: If at any point during the algorithm a user prompt appears, immediately return Completion { [[Type]]: normal, [[Value]]: null, [[Target]]: empty }, but continue to run the other steps of this algorithm in parallel.
-
     // 1. Let window be the associated window of the current browsing context’s active document.
     auto window = browsing_context.active_document()->window();
 
+    return execute_a_function_body(*window, body, move(parameters));
+}
+
+// https://w3c.github.io/webdriver/#dfn-execute-a-function-body
+JS::ThrowCompletionOr<JS::Value> execute_a_function_body(HTML::Window const& window, ByteString const& body, ReadonlySpan<JS::Value> parameters, JS::GCPtr<JS::Object> environment_override_object)
+{
+    // FIXME: If at any point during the algorithm a user prompt appears, immediately return Completion { [[Type]]: normal, [[Value]]: null, [[Target]]: empty }, but continue to run the other steps of this algorithm in parallel.
+
+    auto& realm = window.realm();
+
     // 2. Let environment settings be the environment settings object for window.
-    auto& environment_settings = Web::HTML::relevant_settings_object(*window);
+    auto& environment_settings = Web::HTML::relevant_settings_object(window);
 
     // 3. Let global scope be environment settings realm’s global environment.
     auto& global_scope = environment_settings.realm().global_environment();
+    JS::NonnullGCPtr<JS::Environment> scope = global_scope;
 
-    auto& realm = window->realm();
+    if (environment_override_object)
+        scope = JS::new_object_environment(*environment_override_object, true, &global_scope);
 
     auto source_text = ByteString::formatted("function() {{ {} }}", body);
     auto parser = JS::Parser { JS::Lexer { source_text } };
@@ -285,12 +296,12 @@ static JS::ThrowCompletionOr<JS::Value> execute_a_function_body(HTML::BrowsingCo
     //    The result of parsing global scope above.
     // strict
     //    The result of parsing strict above.
-    auto function = JS::ECMAScriptFunctionObject::create(realm, "", move(source_text), function_expression->body(), function_expression->parameters(), function_expression->function_length(), function_expression->local_variables_names(), &global_scope, nullptr, function_expression->kind(), function_expression->is_strict_mode(), function_expression->parsing_insights());
+    auto function = JS::ECMAScriptFunctionObject::create(realm, "", move(source_text), function_expression->body(), function_expression->parameters(), function_expression->function_length(), function_expression->local_variables_names(), scope, nullptr, function_expression->kind(), function_expression->is_strict_mode(), function_expression->parsing_insights());
 
     // 9. Let completion be Function.[[Call]](window, parameters) with function as the this value.
     // NOTE: This is not entirely clear, but I don't think they mean actually passing `function` as
     // the this value argument, but using it as the object [[Call]] is executed on.
-    auto completion = function->internal_call(window, move(parameters));
+    auto completion = function->internal_call(&window, parameters);
 
     // 10. Clean up after running a callback with environment settings.
     environment_settings.clean_up_after_running_callback();
