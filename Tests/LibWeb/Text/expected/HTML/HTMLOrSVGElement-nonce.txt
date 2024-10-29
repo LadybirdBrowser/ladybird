@@ -1,0 +1,11 @@
+generic IDL and attribute interaction
+nonce: "" attribute: null;
+nonce: "123" attribute: null;
+nonce: "456" attribute: 456;
+nonce: "null" attribute: 456;
+insertion
+nonce: "foo" attribute: foo;
+nonce: "foo" attribute: ;
+cloning
+nonce: "bar" attribute: bar;
+nonce: "bar" attribute: bar;

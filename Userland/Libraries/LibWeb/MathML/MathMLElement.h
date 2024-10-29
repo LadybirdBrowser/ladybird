@@ -24,6 +24,9 @@ public:
     virtual Optional<ARIA::Role> default_role() const override;
 
 protected:
+    virtual void attribute_change_steps(FlyString const&, Optional<String> const&, Optional<String> const&, Optional<FlyString> const&) override;
+    virtual WebIDL::ExceptionOr<void> cloned(DOM::Node&, bool) override;
+    virtual void inserted() override;
     virtual JS::GCPtr<DOM::EventTarget> global_event_handlers_to_event_target(FlyString const&) override { return *this; }
 
 private:

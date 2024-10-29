@@ -22,12 +22,6 @@ class SVGElement
 public:
     virtual bool requires_svg_container() const override { return true; }
 
-    virtual void attribute_changed(FlyString const& name, Optional<String> const& old_value, Optional<String> const& value) override;
-
-    virtual void children_changed() override;
-    virtual void inserted() override;
-    virtual void removed_from(Node*) override;
-
     JS::NonnullGCPtr<SVGAnimatedString> class_name();
     JS::GCPtr<SVGSVGElement> owner_svg_element();
 
@@ -36,6 +30,13 @@ protected:
 
     virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Cell::Visitor&) override;
+
+    virtual void attribute_changed(FlyString const& name, Optional<String> const& old_value, Optional<String> const& value) override;
+    virtual void attribute_change_steps(FlyString const&, Optional<String> const&, Optional<String> const&, Optional<FlyString> const&) override;
+    virtual WebIDL::ExceptionOr<void> cloned(DOM::Node&, bool) override;
+    virtual void children_changed() override;
+    virtual void inserted() override;
+    virtual void removed_from(Node*) override;
 
     void update_use_elements_that_reference_this();
     void remove_from_use_element_that_reference_this();
