@@ -291,7 +291,7 @@ unsigned HTMLTextAreaElement::cols() const
 {
     // The cols and rows attributes are limited to only positive numbers with fallback. The cols IDL attribute's default value is 20.
     if (auto cols_string = get_attribute(HTML::AttributeNames::cols); cols_string.has_value()) {
-        if (auto cols = parse_non_negative_integer(*cols_string); cols.has_value())
+        if (auto cols = parse_non_negative_integer(*cols_string); cols.has_value() && *cols > 0)
             return *cols;
     }
     return 20;
@@ -307,7 +307,7 @@ unsigned HTMLTextAreaElement::rows() const
 {
     // The cols and rows attributes are limited to only positive numbers with fallback. The rows IDL attribute's default value is 2.
     if (auto rows_string = get_attribute(HTML::AttributeNames::rows); rows_string.has_value()) {
-        if (auto rows = parse_non_negative_integer(*rows_string); rows.has_value())
+        if (auto rows = parse_non_negative_integer(*rows_string); rows.has_value() && *rows > 0)
             return *rows;
     }
     return 2;
