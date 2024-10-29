@@ -18,6 +18,7 @@
 #include <LibJS/Forward.h>
 #include <LibJS/Heap/MarkedVector.h>
 #include <LibWeb/Forward.h>
+#include <LibWeb/HTML/VisibilityState.h>
 #include <LibWeb/WebDriver/ElementLocationStrategies.h>
 #include <LibWeb/WebDriver/Response.h>
 #include <LibWeb/WebDriver/TimeoutsConfiguration.h>
@@ -120,9 +121,11 @@ private:
     ErrorOr<void, Web::WebDriver::Error> ensure_current_top_level_browsing_context_is_open();
 
     ErrorOr<void, Web::WebDriver::Error> handle_any_user_prompts();
-    void restore_the_window();
-    Gfx::IntRect maximize_the_window();
-    Gfx::IntRect iconify_the_window();
+
+    void maximize_the_window();
+    void iconify_the_window(JS::NonnullGCPtr<JS::HeapFunction<void()>>);
+    void restore_the_window(JS::NonnullGCPtr<JS::HeapFunction<void()>>);
+    void wait_for_visibility_state(JS::NonnullGCPtr<JS::HeapFunction<void()>>, Web::HTML::VisibilityState);
 
     using OnNavigationComplete = JS::NonnullGCPtr<JS::HeapFunction<void(Web::WebDriver::Response)>>;
     void wait_for_navigation_to_complete(OnNavigationComplete);

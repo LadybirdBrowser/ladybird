@@ -216,6 +216,27 @@ Web::WebDriver::Response Session::set_window_rect(JsonValue payload) const
     });
 }
 
+Web::WebDriver::Response Session::maximize_window() const
+{
+    return perform_async_action(web_content_connection().on_window_rect_updated, [&]() {
+        return web_content_connection().maximize_window();
+    });
+}
+
+Web::WebDriver::Response Session::minimize_window() const
+{
+    return perform_async_action(web_content_connection().on_window_rect_updated, [&]() {
+        return web_content_connection().minimize_window();
+    });
+}
+
+Web::WebDriver::Response Session::fullscreen_window() const
+{
+    return perform_async_action(web_content_connection().on_window_rect_updated, [&]() {
+        return web_content_connection().fullscreen_window();
+    });
+}
+
 Web::WebDriver::Response Session::execute_script(JsonValue payload, ScriptMode mode) const
 {
     return perform_async_action(web_content_connection().on_script_executed, [&]() {
@@ -263,5 +284,4 @@ Web::WebDriver::Response Session::accept_alert() const
         return web_content_connection().accept_alert();
     });
 }
-
 }

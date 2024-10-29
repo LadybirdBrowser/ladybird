@@ -66,6 +66,9 @@ public:
     Web::WebDriver::Response execute_script(JsonValue, ScriptMode) const;
 
     Web::WebDriver::Response set_window_rect(JsonValue) const;
+    Web::WebDriver::Response maximize_window() const;
+    Web::WebDriver::Response minimize_window() const;
+    Web::WebDriver::Response fullscreen_window() const;
 
     Web::WebDriver::Response element_click(String) const;
     Web::WebDriver::Response element_send_keys(String, JsonValue) const;
