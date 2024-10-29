@@ -32,15 +32,8 @@ void SVGElement::initialize(JS::Realm& realm)
 void SVGElement::visit_edges(Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
-    visitor.visit(m_dataset);
+    HTMLOrSVGElement::visit_edges(visitor);
     visitor.visit(m_class_name_animated_string);
-}
-
-JS::NonnullGCPtr<HTML::DOMStringMap> SVGElement::dataset()
-{
-    if (!m_dataset)
-        m_dataset = HTML::DOMStringMap::create(*this);
-    return *m_dataset;
 }
 
 void SVGElement::attribute_changed(FlyString const& name, Optional<String> const& old_value, Optional<String> const& value)
@@ -104,16 +97,6 @@ void SVGElement::remove_from_use_element_that_reference_this()
         use_element.svg_element_removed(*this);
         return TraversalDecision::Continue;
     });
-}
-
-void SVGElement::focus()
-{
-    dbgln("(STUBBED) SVGElement::focus()");
-}
-
-void SVGElement::blur()
-{
-    dbgln("(STUBBED) SVGElement::blur()");
 }
 
 // https://svgwg.org/svg2-draft/types.html#__svg__SVGElement__classNames

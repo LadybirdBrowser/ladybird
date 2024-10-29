@@ -26,13 +26,6 @@ void MathMLElement::initialize(JS::Realm& realm)
     WEB_SET_PROTOTYPE_FOR_INTERFACE(MathMLElement);
 }
 
-JS::NonnullGCPtr<HTML::DOMStringMap> MathMLElement::dataset()
-{
-    if (!m_dataset)
-        m_dataset = HTML::DOMStringMap::create(*this);
-    return *m_dataset;
-}
-
 Optional<ARIA::Role> MathMLElement::default_role() const
 {
     // https://www.w3.org/TR/html-aria/#el-math
@@ -41,20 +34,10 @@ Optional<ARIA::Role> MathMLElement::default_role() const
     return {};
 }
 
-void MathMLElement::focus()
-{
-    dbgln("(STUBBED) MathMLElement::focus()");
-}
-
-void MathMLElement::blur()
-{
-    dbgln("(STUBBED) MathMLElement::blur()");
-}
-
 void MathMLElement::visit_edges(JS::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
-    visitor.visit(m_dataset);
+    HTMLOrSVGElement::visit_edges(visitor);
 }
 
 }

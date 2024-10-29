@@ -66,16 +66,9 @@ void HTMLElement::initialize(JS::Realm& realm)
 void HTMLElement::visit_edges(Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
-    visitor.visit(m_dataset);
+    HTMLOrSVGElement::visit_edges(visitor);
     visitor.visit(m_labels);
     visitor.visit(m_attached_internals);
-}
-
-JS::NonnullGCPtr<DOMStringMap> HTMLElement::dataset()
-{
-    if (!m_dataset)
-        m_dataset = DOMStringMap::create(*this);
-    return *m_dataset;
 }
 
 // https://html.spec.whatwg.org/multipage/dom.html#dom-dir
@@ -591,28 +584,6 @@ void HTMLElement::attribute_changed(FlyString const& name, Optional<String> cons
 #undef __ENUMERATE
 }
 
-// https://html.spec.whatwg.org/multipage/interaction.html#dom-focus
-void HTMLElement::focus()
-{
-    // 1. If the element is marked as locked for focus, then return.
-    if (m_locked_for_focus)
-        return;
-
-    // 2. Mark the element as locked for focus.
-    m_locked_for_focus = true;
-
-    // 3. Run the focusing steps for the element.
-    run_focusing_steps(this);
-
-    // FIXME: 4. If the value of the preventScroll dictionary member of options is false,
-    //           then scroll the element into view with scroll behavior "auto",
-    //           block flow direction position set to an implementation-defined value,
-    //           and inline base direction position set to an implementation-defined value.
-
-    // 5. Unmark the element as locked for focus.
-    m_locked_for_focus = false;
-}
-
 // https://html.spec.whatwg.org/multipage/webappapis.html#fire-a-synthetic-pointer-event
 bool HTMLElement::fire_a_synthetic_pointer_event(FlyString const& type, DOM::Element& target, bool not_trusted)
 {
@@ -683,15 +654,6 @@ void HTMLElement::click()
 
     // 5. Unset this element's click in progress flag.
     m_click_in_progress = false;
-}
-
-// https://html.spec.whatwg.org/multipage/interaction.html#dom-blur
-void HTMLElement::blur()
-{
-    // The blur() method, when invoked, should run the unfocusing steps for the element on which the method was called.
-    run_unfocusing_steps(this);
-
-    // User agents may selectively or uniformly ignore calls to this method for usability reasons.
 }
 
 Optional<ARIA::Role> HTMLElement::default_role() const

@@ -7,25 +7,21 @@
 #pragma once
 
 #include <LibWeb/DOM/Element.h>
-#include <LibWeb/HTML/DOMStringMap.h>
 #include <LibWeb/HTML/GlobalEventHandlers.h>
+#include <LibWeb/HTML/HTMLOrSVGElement.h>
 
 namespace Web::MathML {
 
 class MathMLElement : public DOM::Element
-    , public HTML::GlobalEventHandlers {
+    , public HTML::GlobalEventHandlers
+    , public HTML::HTMLOrSVGElement<MathMLElement> {
     WEB_PLATFORM_OBJECT(MathMLElement, DOM::Element);
     JS_DECLARE_ALLOCATOR(MathMLElement);
 
 public:
     virtual ~MathMLElement() override;
 
-    [[nodiscard]] JS::NonnullGCPtr<HTML::DOMStringMap> dataset();
-
     virtual Optional<ARIA::Role> default_role() const override;
-
-    void focus();
-    void blur();
 
 protected:
     virtual JS::GCPtr<DOM::EventTarget> global_event_handlers_to_event_target(FlyString const&) override { return *this; }
@@ -36,8 +32,6 @@ private:
     virtual void visit_edges(Visitor&) override;
 
     virtual void initialize(JS::Realm&) override;
-
-    JS::GCPtr<HTML::DOMStringMap> m_dataset;
 };
 
 }

@@ -187,6 +187,7 @@ standard_idl_files = [
   "//Userland/Libraries/LibWeb/HTML/HTMLOptGroupElement.idl",
   "//Userland/Libraries/LibWeb/HTML/HTMLOptionElement.idl",
   "//Userland/Libraries/LibWeb/HTML/HTMLOptionsCollection.idl",
+  "//Userland/Libraries/LibWeb/HTML/HTMLOrSVGElement.idl",
   "//Userland/Libraries/LibWeb/HTML/HTMLOutputElement.idl",
   "//Userland/Libraries/LibWeb/HTML/HTMLParagraphElement.idl",
   "//Userland/Libraries/LibWeb/HTML/HTMLParamElement.idl",

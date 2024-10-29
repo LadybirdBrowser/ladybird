@@ -8,13 +8,15 @@
 
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Element.h>
+#include <LibWeb/HTML/HTMLOrSVGElement.h>
 #include <LibWeb/SVG/SVGAnimatedString.h>
 
 namespace Web::SVG {
 
 class SVGElement
     : public DOM::Element
-    , public HTML::GlobalEventHandlers {
+    , public HTML::GlobalEventHandlers
+    , public HTML::HTMLOrSVGElement<SVGElement> {
     WEB_PLATFORM_OBJECT(SVGElement, DOM::Element);
 
 public:
@@ -25,11 +27,6 @@ public:
     virtual void children_changed() override;
     virtual void inserted() override;
     virtual void removed_from(Node*) override;
-
-    [[nodiscard]] JS::NonnullGCPtr<HTML::DOMStringMap> dataset();
-
-    void focus();
-    void blur();
 
     JS::NonnullGCPtr<SVGAnimatedString> class_name();
     JS::GCPtr<SVGSVGElement> owner_svg_element();
@@ -42,8 +39,6 @@ protected:
 
     void update_use_elements_that_reference_this();
     void remove_from_use_element_that_reference_this();
-
-    JS::GCPtr<HTML::DOMStringMap> m_dataset;
 
     JS::NonnullGCPtr<SVGAnimatedLength> svg_animated_length_for_property(CSS::PropertyID) const;
 
