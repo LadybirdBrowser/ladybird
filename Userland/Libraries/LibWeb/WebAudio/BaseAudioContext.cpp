@@ -95,7 +95,7 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<DynamicsCompressorNode>> BaseAudioContext::
 }
 
 // https://webaudio.github.io/web-audio-api/#dom-baseaudiocontext-creategain
-JS::NonnullGCPtr<GainNode> BaseAudioContext::create_gain()
+WebIDL::ExceptionOr<JS::NonnullGCPtr<GainNode>> BaseAudioContext::create_gain()
 {
     // Factory method for GainNode.
     return GainNode::create(realm(), *this);
