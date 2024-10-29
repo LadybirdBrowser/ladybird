@@ -83,3 +83,14 @@ get_build_dir() {
 
     echo "${BUILD_DIR}"
 }
+
+absolutize_path() {
+    directory="$(eval echo "$(dirname "$1")")"
+    if [ -d "$directory" ]; then
+        resolved_directory="$(cd "$directory" && pwd)"
+        echo "${resolved_directory%/}/$(basename "$1")"
+    else
+        echo "No such directory: '$directory'" >&2
+        return 1
+    fi
+}
