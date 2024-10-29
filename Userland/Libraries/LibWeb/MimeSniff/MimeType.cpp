@@ -22,11 +22,11 @@ namespace Web::MimeSniff {
 bool is_javascript_mime_type_essence_match(StringView string)
 {
     // A string is a JavaScript MIME type essence match if it is an ASCII case-insensitive match for one of the JavaScript MIME type essence strings.
-    // NOTE: The mime type parser automatically lowercases the essence.
-    auto type = MimeType::parse(string);
-    if (!type.has_value())
-        return false;
-    return type->is_javascript();
+    for (auto const& javascript_essence : s_javascript_mime_type_essence_strings) {
+        if (string.equals_ignoring_ascii_case(javascript_essence))
+            return true;
+    }
+    return false;
 }
 
 static bool contains_only_http_quoted_string_token_code_points(StringView string)
@@ -330,40 +330,7 @@ bool MimeType::is_scriptable() const
 // https://mimesniff.spec.whatwg.org/#javascript-mime-type
 bool MimeType::is_javascript() const
 {
-    // A JavaScript MIME type is any MIME type whose essence is one of the following:
-    //    - application/ecmascript
-    //    - application/javascript
-    //    - application/x-ecmascript
-    //    - application/x-javascript
-    //    - text/ecmascript
-    //    - text/javascript
-    //    - text/javascript1.0
-    //    - text/javascript1.1
-    //    - text/javascript1.2
-    //    - text/javascript1.3
-    //    - text/javascript1.4
-    //    - text/javascript1.5
-    //    - text/jscript
-    //    - text/livescript
-    //    - text/x-ecmascript
-    //    - text/x-javascript
-    return essence().is_one_of(
-        "application/ecmascript"sv,
-        "application/javascript"sv,
-        "application/x-ecmascript"sv,
-        "application/x-javascript"sv,
-        "text/ecmascript"sv,
-        "text/javascript"sv,
-        "text/javascript1.0"sv,
-        "text/javascript1.1"sv,
-        "text/javascript1.2"sv,
-        "text/javascript1.3"sv,
-        "text/javascript1.4"sv,
-        "text/javascript1.5"sv,
-        "text/jscript"sv,
-        "text/livescript"sv,
-        "text/x-ecmascript"sv,
-        "text/x-javascript"sv);
+    return s_javascript_mime_type_essence_strings.contains_slow(essence());
 }
 
 // https://mimesniff.spec.whatwg.org/#json-mime-type
