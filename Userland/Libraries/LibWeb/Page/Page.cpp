@@ -48,6 +48,7 @@ void Page::visit_edges(JS::Cell::Visitor& visitor)
     Base::visit_edges(visitor);
     visitor.visit(m_top_level_traversable);
     visitor.visit(m_client);
+    visitor.visit(m_window_rect_observer);
     visitor.visit(m_on_pending_dialog_closed);
 }
 
@@ -252,6 +253,12 @@ HTML::BrowsingContext const& Page::top_level_browsing_context() const
 JS::NonnullGCPtr<HTML::TraversableNavigable> Page::top_level_traversable() const
 {
     return *m_top_level_traversable;
+}
+
+void Page::did_update_window_rect()
+{
+    if (m_window_rect_observer)
+        m_window_rect_observer->function()({ window_position(), window_size() });
 }
 
 template<typename ResponseType>

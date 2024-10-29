@@ -112,8 +112,8 @@ private:
     virtual void page_did_request_navigate_back() override;
     virtual void page_did_request_navigate_forward() override;
     virtual void page_did_request_refresh() override;
-    virtual Gfx::IntSize page_did_request_resize_window(Gfx::IntSize) override;
-    virtual Gfx::IntPoint page_did_request_reposition_window(Gfx::IntPoint) override;
+    virtual void page_did_request_resize_window(Gfx::IntSize) override;
+    virtual void page_did_request_reposition_window(Gfx::IntPoint) override;
     virtual void page_did_request_restore_window() override;
     virtual Gfx::IntRect page_did_request_maximize_window() override;
     virtual Gfx::IntRect page_did_request_minimize_window() override;

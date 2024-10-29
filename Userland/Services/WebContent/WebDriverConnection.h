@@ -161,6 +161,8 @@ private:
     // https://w3c.github.io/webdriver/#dfn-current-top-level-browsing-context
     JS::GCPtr<Web::HTML::BrowsingContext> m_current_top_level_browsing_context;
 
+    size_t m_pending_window_rect_requests { 0 };
+
     JS::GCPtr<JS::Cell> m_action_executor;
 
     JS::GCPtr<Web::DOM::DocumentObserver> m_document_observer;

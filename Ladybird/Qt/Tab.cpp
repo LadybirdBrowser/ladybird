@@ -354,12 +354,12 @@ Tab::Tab(BrowserWindow* window, RefPtr<WebView::WebContentClient> parent_client,
 
     view().on_reposition_window = [this](auto const& position) {
         m_window->move(position.x(), position.y());
-        return Gfx::IntPoint { m_window->x(), m_window->y() };
+        view().did_update_window_rect();
     };
 
     view().on_resize_window = [this](auto const& size) {
         m_window->resize(size.width(), size.height());
-        return Gfx::IntSize { m_window->width(), m_window->height() };
+        view().did_update_window_rect();
     };
 
     view().on_maximize_window = [this]() {

@@ -52,6 +52,7 @@ public:
 
     void set_window_position(Gfx::IntPoint);
     void set_window_size(Gfx::IntSize);
+    void did_update_window_rect();
 
     void load(URL::URL const&);
     void load_html(StringView);
@@ -202,8 +203,8 @@ public:
     Function<void(i32 start_index, Vector<ByteString> const& message_types, Vector<ByteString> const& messages)> on_received_console_messages;
     Function<void(i32 count_waiting)> on_resource_status_change;
     Function<void()> on_restore_window;
-    Function<Gfx::IntPoint(Gfx::IntPoint)> on_reposition_window;
-    Function<Gfx::IntSize(Gfx::IntSize)> on_resize_window;
+    Function<void(Gfx::IntPoint)> on_reposition_window;
+    Function<void(Gfx::IntSize)> on_resize_window;
     Function<Gfx::IntRect()> on_maximize_window;
     Function<Gfx::IntRect()> on_minimize_window;
     Function<Gfx::IntRect()> on_fullscreen_window;

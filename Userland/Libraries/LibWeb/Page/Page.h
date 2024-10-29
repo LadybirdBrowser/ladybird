@@ -127,6 +127,9 @@ public:
     DevicePixelSize window_size() const { return m_window_size; }
     void set_window_size(DevicePixelSize size) { m_window_size = size; }
 
+    void did_update_window_rect();
+    void set_window_rect_observer(JS::GCPtr<JS::HeapFunction<void(DevicePixelRect)>> window_rect_observer) { m_window_rect_observer = window_rect_observer; }
+
     void did_request_alert(String const& message);
     void alert_closed();
 
@@ -245,6 +248,7 @@ private:
 
     DevicePixelPoint m_window_position {};
     DevicePixelSize m_window_size {};
+    JS::GCPtr<JS::HeapFunction<void(DevicePixelRect)>> m_window_rect_observer;
 
     PendingDialog m_pending_dialog { PendingDialog::None };
     Optional<String> m_pending_dialog_text;
@@ -310,8 +314,8 @@ public:
     virtual void page_did_request_navigate_back() { }
     virtual void page_did_request_navigate_forward() { }
     virtual void page_did_request_refresh() { }
-    virtual Gfx::IntSize page_did_request_resize_window(Gfx::IntSize) { return {}; }
-    virtual Gfx::IntPoint page_did_request_reposition_window(Gfx::IntPoint) { return {}; }
+    virtual void page_did_request_resize_window(Gfx::IntSize) { }
+    virtual void page_did_request_reposition_window(Gfx::IntPoint) { }
     virtual void page_did_request_restore_window() { }
     virtual Gfx::IntRect page_did_request_maximize_window() { return {}; }
     virtual Gfx::IntRect page_did_request_minimize_window() { return {}; }

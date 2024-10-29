@@ -647,10 +647,11 @@ Messages::WebDriverClient::SetWindowRectResponse WebDriverConnection::set_window
 
     auto const& properties = payload.as_object();
 
-    auto resolve_property = [](auto name, auto const& property, i32 min, i32 max) -> ErrorOr<Optional<i32>, Web::WebDriver::Error> {
+    auto resolve_property = [](auto name, auto const& property, double min, double max) -> ErrorOr<Optional<double>, Web::WebDriver::Error> {
         if (property.is_null())
-            return Optional<i32> {};
-        auto value = property.template get_integer<i32>();
+            return OptionalNone {};
+
+        auto value = property.get_double_with_precision_loss();
         if (!value.has_value())
             return Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::InvalidArgument, ByteString::formatted("Property '{}' is not a Number", name));
         if (*value < min)
@@ -694,29 +695,28 @@ Messages::WebDriverClient::SetWindowRectResponse WebDriverConnection::set_window
     // 11. Restore the window.
     restore_the_window();
 
-    Gfx::IntRect window_rect;
+    auto& page = current_top_level_browsing_context()->page();
 
     // 11. If width and height are not null:
     if (width.has_value() && height.has_value()) {
         // a. Set the width, in CSS pixels, of the operating system window containing the current top-level browsing context, including any browser chrome and externally drawn window decorations to a value that is as close as possible to width.
         // b. Set the height, in CSS pixels, of the operating system window containing the current top-level browsing context, including any browser chrome and externally drawn window decorations to a value that is as close as possible to height.
-        auto size = current_top_level_browsing_context()->page().client().page_did_request_resize_window({ *width, *height });
-        window_rect.set_size(size);
-    } else {
-        window_rect.set_size(current_top_level_browsing_context()->page().window_size().to_type<int>());
+        page.client().page_did_request_resize_window({ *width, *height });
+        ++m_pending_window_rect_requests;
     }
 
     // 12. If x and y are not null:
     if (x.has_value() && y.has_value()) {
         // a. Run the implementation-specific steps to set the position of the operating system level window containing the current top-level browsing context to the position given by the x and y coordinates.
-        auto position = current_top_level_browsing_context()->page().client().page_did_request_reposition_window({ *x, *y });
-        window_rect.set_location(position);
-    } else {
-        window_rect.set_location(current_top_level_browsing_context()->page().window_position().to_type<int>());
+        page.client().page_did_request_reposition_window({ *x, *y });
+        ++m_pending_window_rect_requests;
     }
 
+    if (m_pending_window_rect_requests == 0)
+        async_window_rect_updated(serialize_rect(compute_window_rect(page)));
+
     // 14. Return success with data set to the WindowRect object for the current top-level browsing context.
-    return serialize_rect(window_rect);
+    return JsonValue {};
 }
 
 // 11.8.3 Maximize Window, https://w3c.github.io/webdriver/#dfn-maximize-window
@@ -2340,8 +2340,18 @@ void WebDriverConnection::set_current_top_level_browsing_context(Web::HTML::Brow
     // 1. Assert: context is a top-level browsing context.
     VERIFY(browsing_context.is_top_level());
 
+    if (m_current_top_level_browsing_context)
+        m_current_top_level_browsing_context->page().set_window_rect_observer({});
+
     // 2. Set session's current top-level browsing context to context.
     m_current_top_level_browsing_context = browsing_context;
+
+    if (m_current_top_level_browsing_context) {
+        m_current_top_level_browsing_context->page().set_window_rect_observer(JS::create_heap_function(m_current_top_level_browsing_context->heap(), [this](Web::DevicePixelRect rect) {
+            if (m_pending_window_rect_requests > 0 && --m_pending_window_rect_requests == 0)
+                async_window_rect_updated(serialize_rect(rect.to_type<int>()));
+        }));
+    }
 
     // 3. Set the current browsing context with session and context.
     set_current_browsing_context(browsing_context);
