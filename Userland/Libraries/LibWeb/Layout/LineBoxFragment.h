@@ -19,28 +19,30 @@ class LineBoxFragment {
     friend class LineBox;
 
 public:
-    LineBoxFragment(Node const& layout_node, int start, int length, CSSPixelPoint offset, CSSPixelSize size, CSSPixels border_box_top, CSS::Direction, RefPtr<Gfx::GlyphRun>);
+    LineBoxFragment(Node const& layout_node, int start, int length, CSSPixels inline_offset, CSSPixels block_offset, CSSPixels inline_length, CSSPixels block_length, CSSPixels border_box_top, CSS::Direction, RefPtr<Gfx::GlyphRun>);
 
     Node const& layout_node() const { return m_layout_node; }
     int start() const { return m_start; }
     int length() const { return m_length; }
     CSSPixelRect const absolute_rect() const;
 
-    CSSPixelPoint offset() const { return m_offset; }
-    void set_offset(CSSPixelPoint offset) { m_offset = offset; }
+    CSSPixelPoint offset() const;
+    CSSPixels inline_offset() const { return m_inline_offset; }
+    CSSPixels block_offset() const { return m_block_offset; }
+    void set_inline_offset(CSSPixels inline_offset) { m_inline_offset = inline_offset; }
+    void set_block_offset(CSSPixels block_offset) { m_block_offset = block_offset; }
 
     // The baseline of a fragment is the number of pixels from the top to the text baseline.
     void set_baseline(CSSPixels y) { m_baseline = y; }
     CSSPixels baseline() const { return m_baseline; }
 
-    CSSPixelSize size() const
-    {
-        return m_size;
-    }
-    void set_width(CSSPixels width) { m_size.set_width(width); }
-    void set_height(CSSPixels height) { m_size.set_height(height); }
-    CSSPixels width() const { return m_size.width(); }
-    CSSPixels height() const { return m_size.height(); }
+    CSSPixelSize size() const;
+    CSSPixels width() const { return size().width(); }
+    CSSPixels height() const { return size().height(); }
+    CSSPixels inline_length() const { return m_inline_length; }
+    CSSPixels block_length() const { return m_block_length; }
+    void set_inline_length(CSSPixels inline_length) { m_inline_length = inline_length; }
+    void set_block_length(CSSPixels block_length) { m_block_length = block_length; }
 
     CSSPixels border_box_top() const { return m_border_box_top; }
 
@@ -61,8 +63,10 @@ private:
     JS::NonnullGCPtr<Node const> m_layout_node;
     int m_start { 0 };
     int m_length { 0 };
-    CSSPixelPoint m_offset;
-    CSSPixelSize m_size;
+    CSSPixels m_inline_offset;
+    CSSPixels m_block_offset;
+    CSSPixels m_inline_length;
+    CSSPixels m_block_length;
     CSSPixels m_border_box_top { 0 };
     CSSPixels m_baseline { 0 };
     CSS::Direction m_direction { CSS::Direction::Ltr };

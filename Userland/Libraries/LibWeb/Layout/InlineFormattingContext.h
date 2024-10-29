@@ -30,10 +30,10 @@ public:
 
     void dimension_box_on_line(Box const&, LayoutMode);
 
-    CSSPixels leftmost_x_offset_at(CSSPixels y) const;
+    CSSPixels leftmost_inline_offset_at(CSSPixels y) const;
     AvailableSize available_space_for_line(CSSPixels y) const;
-    bool any_floats_intrude_at_y(CSSPixels y) const;
-    bool can_fit_new_line_at_y(CSSPixels y) const;
+    bool any_floats_intrude_at_block_offset(CSSPixels block_offset) const;
+    bool can_fit_new_line_at_block_offset(CSSPixels block_offset) const;
 
     CSSPixels vertical_float_clearance() const;
     void set_vertical_float_clearance(CSSPixels);
