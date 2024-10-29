@@ -217,7 +217,7 @@ void HTMLScriptElement::prepare_script()
     }
 
     // 9. If the script block's type string is a JavaScript MIME type essence match,
-    if (MimeSniff::is_javascript_mime_type_essence_match(MUST(script_block_type.trim(Infra::ASCII_WHITESPACE)))) {
+    if (MimeSniff::is_javascript_mime_type_essence_match(script_block_type)) {
         // then set el's type to "classic".
         m_script_type = ScriptType::Classic;
     }
