@@ -6,8 +6,8 @@ Rerun
 
 Found 271 tests
 
-209 Pass
-62 Fail
+210 Pass
+61 Fail
 Details
 Result	Test Name	MessagePass	Simplest possible test ("<div>abc")	
 Fail	Leading whitespace removed ("<div> abc")	
@@ -251,7 +251,7 @@ Pass	unopened <details> ignored ("<div><details><summary>abc</summary>123")
 Pass	opened <details> content shown ("<div><details open><summary>abc</summary>123")	
 Pass	text-transform is applied ("<div><div style='text-transform:uppercase'>abc")	
 Pass	text-transform handles es-zet ("<div><div style='text-transform:uppercase'>Maß")	
-Fail	text-transform handles Turkish casing ("<div><div lang='tr' style='text-transform:uppercase'>i ı")	
+Pass	text-transform handles Turkish casing ("<div><div lang='tr' style='text-transform:uppercase'>i ı")	
 Pass	block-in-inline doesn't add unnecessary newlines ("<div>abc<span>123<div>456</div>789</span>def")	
 Pass	floats induce a block boundary ("<div>abc<div style='float:left'>123</div>def")	
 Pass	floats induce a block boundary ("<div>abc<span style='float:left'>123</span>def")	

@@ -283,7 +283,7 @@ static ErrorOr<String> apply_text_transform(String const& string, CSS::TextTrans
 {
     switch (text_transform) {
     case CSS::TextTransform::Uppercase:
-        return string.to_uppercase();
+        return string.to_uppercase(locale);
     case CSS::TextTransform::Lowercase:
         return string.to_lowercase();
     case CSS::TextTransform::None:
