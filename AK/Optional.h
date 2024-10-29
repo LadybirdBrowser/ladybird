@@ -48,8 +48,127 @@ struct OptionalNone {
     explicit OptionalNone() = default;
 };
 
+template<typename T, typename Self = Optional<T>>
+requires(!IsLvalueReference<Self>) class [[nodiscard]] OptionalBase {
+public:
+    using ValueType = T;
+
+    template<SameAs<OptionalNone> V>
+    Self& operator=(V)
+    {
+        static_cast<Self&>(*this).clear();
+        return static_cast<Self&>(*this);
+    }
+
+    [[nodiscard]] ALWAYS_INLINE T* ptr() &
+    {
+        return static_cast<Self&>(*this).has_value() ? __builtin_launder(reinterpret_cast<T*>(&static_cast<Self&>(*this).value())) : nullptr;
+    }
+
+    [[nodiscard]] ALWAYS_INLINE T const* ptr() const&
+    {
+        return static_cast<Self const&>(*this).has_value() ? __builtin_launder(reinterpret_cast<T const*>(&static_cast<Self const&>(*this).value())) : nullptr;
+    }
+
+    [[nodiscard]] ALWAYS_INLINE T value_or(T const& fallback) const&
+    {
+        if (static_cast<Self const&>(*this).has_value())
+            return static_cast<Self const&>(*this).value();
+        return fallback;
+    }
+
+    [[nodiscard]] ALWAYS_INLINE T value_or(T&& fallback) &&
+    {
+        if (static_cast<Self&>(*this).has_value())
+            return move(static_cast<Self&>(*this).value());
+        return move(fallback);
+    }
+
+    template<typename Callback, typename O = T>
+    [[nodiscard]] ALWAYS_INLINE O value_or_lazy_evaluated(Callback callback) const
+    {
+        if (static_cast<Self const&>(*this).has_value())
+            return static_cast<Self const&>(*this).value();
+        return callback();
+    }
+
+    template<typename Callback, typename O = T>
+    [[nodiscard]] ALWAYS_INLINE Optional<O> value_or_lazy_evaluated_optional(Callback callback) const
+    {
+        if (static_cast<Self const&>(*this).has_value())
+            return static_cast<Self const&>(*this).value();
+        return callback();
+    }
+
+    template<typename Callback, typename O = T>
+    [[nodiscard]] ALWAYS_INLINE ErrorOr<O> try_value_or_lazy_evaluated(Callback callback) const
+    {
+        if (static_cast<Self const&>(*this).has_value())
+            return static_cast<Self const&>(*this).value();
+        return TRY(callback());
+    }
+
+    template<typename Callback, typename O = T>
+    [[nodiscard]] ALWAYS_INLINE ErrorOr<Optional<O>> try_value_or_lazy_evaluated_optional(Callback callback) const
+    {
+        if (static_cast<Self const&>(*this).has_value())
+            return static_cast<Self const&>(*this).value();
+        return TRY(callback());
+    }
+
+    template<typename O>
+    ALWAYS_INLINE bool operator==(Optional<O> const& other) const
+    {
+        return static_cast<Self const&>(*this).has_value() == (other).has_value()
+            && (!static_cast<Self const&>(*this).has_value() || static_cast<Self const&>(*this).value() == (other).value());
+    }
+
+    template<typename O>
+    requires(!Detail::IsBaseOf<OptionalBase<T, Self>, O>)
+    ALWAYS_INLINE bool operator==(O const& other) const
+    {
+        return static_cast<Self const&>(*this).has_value() && static_cast<Self const&>(*this).value() == other;
+    }
+
+    [[nodiscard]] ALWAYS_INLINE T const& operator*() const { return static_cast<Self const&>(*this).value(); }
+    [[nodiscard]] ALWAYS_INLINE T& operator*() { return static_cast<Self&>(*this).value(); }
+
+    ALWAYS_INLINE T const* operator->() const { return &static_cast<Self const&>(*this).value(); }
+    ALWAYS_INLINE T* operator->() { return &static_cast<Self&>(*this).value(); }
+
+    template<typename F, typename MappedType = decltype(declval<F>()(declval<T&>())), auto IsErrorOr = IsSpecializationOf<MappedType, ErrorOr>, typename OptionalType = Optional<ConditionallyResultType<IsErrorOr, MappedType>>>
+    ALWAYS_INLINE Conditional<IsErrorOr, ErrorOr<OptionalType>, OptionalType> map(F&& mapper)
+    {
+        if constexpr (IsErrorOr) {
+            if (static_cast<Self&>(*this).has_value())
+                return OptionalType { TRY(mapper(static_cast<Self&>(*this).value())) };
+            return OptionalType {};
+        } else {
+            if (static_cast<Self&>(*this).has_value())
+                return OptionalType { mapper(static_cast<Self&>(*this).value()) };
+
+            return OptionalType {};
+        }
+    }
+
+    template<typename F, typename MappedType = decltype(declval<F>()(declval<T&>())), auto IsErrorOr = IsSpecializationOf<MappedType, ErrorOr>, typename OptionalType = Optional<ConditionallyResultType<IsErrorOr, MappedType>>>
+    ALWAYS_INLINE Conditional<IsErrorOr, ErrorOr<OptionalType>, OptionalType> map(F&& mapper) const
+    {
+        if constexpr (IsErrorOr) {
+            if (static_cast<Self const&>(*this).has_value())
+                return OptionalType { TRY(mapper(static_cast<Self const&>(*this).value())) };
+            return OptionalType {};
+        } else {
+            if (static_cast<Self const&>(*this).has_value())
+                return OptionalType { mapper(static_cast<Self const&>(*this).value()) };
+
+            return OptionalType {};
+        }
+    }
+};
+
 template<typename T>
-requires(!IsLvalueReference<T>) class [[nodiscard]] Optional<T> {
+requires(!IsLvalueReference<T>) class [[nodiscard]] Optional<T> : public OptionalBase<T, Optional<T>> {
     template<typename U>
     friend class Optional;
 
@@ -202,16 +321,6 @@ public:
 
     [[nodiscard]] ALWAYS_INLINE bool has_value() const { return m_has_value; }
 
-    [[nodiscard]] ALWAYS_INLINE T* ptr() &
-    {
-        return m_has_value ? __builtin_launder(reinterpret_cast<T*>(&m_storage)) : nullptr;
-    }
-
-    [[nodiscard]] ALWAYS_INLINE T const* ptr() const&
-    {
-        return m_has_value ? __builtin_launder(reinterpret_cast<T const*>(&m_storage)) : nullptr;
-    }
-
     [[nodiscard]] ALWAYS_INLINE T& value() &
     {
         VERIFY(m_has_value);
@@ -236,88 +345,6 @@ public:
         value().~T();
         m_has_value = false;
         return released_value;
-    }
-
-    [[nodiscard]] ALWAYS_INLINE T value_or(T const& fallback) const&
-    {
-        if (m_has_value)
-            return value();
-        return fallback;
-    }
-
-    [[nodiscard]] ALWAYS_INLINE T value_or(T&& fallback) &&
-    {
-        if (m_has_value)
-            return move(value());
-        return move(fallback);
-    }
-
-    template<typename Callback>
-    [[nodiscard]] ALWAYS_INLINE T value_or_lazy_evaluated(Callback callback) const
-    {
-        if (m_has_value)
-            return value();
-        return callback();
-    }
-
-    template<typename Callback>
-    [[nodiscard]] ALWAYS_INLINE Optional<T> value_or_lazy_evaluated_optional(Callback callback) const
-    {
-        if (m_has_value)
-            return value();
-        return callback();
-    }
-
-    template<typename Callback>
-    [[nodiscard]] ALWAYS_INLINE ErrorOr<T> try_value_or_lazy_evaluated(Callback callback) const
-    {
-        if (m_has_value)
-            return value();
-        return TRY(callback());
-    }
-
-    template<typename Callback>
-    [[nodiscard]] ALWAYS_INLINE ErrorOr<Optional<T>> try_value_or_lazy_evaluated_optional(Callback callback) const
-    {
-        if (m_has_value)
-            return value();
-        return TRY(callback());
-    }
-
-    [[nodiscard]] ALWAYS_INLINE T const& operator*() const { return value(); }
-    [[nodiscard]] ALWAYS_INLINE T& operator*() { return value(); }
-
-    ALWAYS_INLINE T const* operator->() const { return &value(); }
-    ALWAYS_INLINE T* operator->() { return &value(); }
-
-    template<typename F, typename MappedType = decltype(declval<F>()(declval<T&>())), auto IsErrorOr = IsSpecializationOf<MappedType, ErrorOr>, typename OptionalType = Optional<ConditionallyResultType<IsErrorOr, MappedType>>>
-    ALWAYS_INLINE Conditional<IsErrorOr, ErrorOr<OptionalType>, OptionalType> map(F&& mapper)
-    {
-        if constexpr (IsErrorOr) {
-            if (m_has_value)
-                return OptionalType { TRY(mapper(value())) };
-            return OptionalType {};
-        } else {
-            if (m_has_value)
-                return OptionalType { mapper(value()) };
-
-            return OptionalType {};
-        }
-    }
-
-    template<typename F, typename MappedType = decltype(declval<F>()(declval<T&>())), auto IsErrorOr = IsSpecializationOf<MappedType, ErrorOr>, typename OptionalType = Optional<ConditionallyResultType<IsErrorOr, MappedType>>>
-    ALWAYS_INLINE Conditional<IsErrorOr, ErrorOr<OptionalType>, OptionalType> map(F&& mapper) const
-    {
-        if constexpr (IsErrorOr) {
-            if (m_has_value)
-                return OptionalType { TRY(mapper(value())) };
-            return OptionalType {};
-        } else {
-            if (m_has_value)
-                return OptionalType { mapper(value()) };
-
-            return OptionalType {};
-        }
     }
 
 private:
