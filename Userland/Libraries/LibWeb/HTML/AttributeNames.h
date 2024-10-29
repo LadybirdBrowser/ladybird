@@ -119,6 +119,7 @@ namespace AttributeNames {
     __ENUMERATE_HTML_ATTRIBUTE(name)                       \
     __ENUMERATE_HTML_ATTRIBUTE(nohref)                     \
     __ENUMERATE_HTML_ATTRIBUTE(nomodule)                   \
+    __ENUMERATE_HTML_ATTRIBUTE(nonce)                      \
     __ENUMERATE_HTML_ATTRIBUTE(noresize)                   \
     __ENUMERATE_HTML_ATTRIBUTE(noshade)                    \
     __ENUMERATE_HTML_ATTRIBUTE(novalidate)                 \

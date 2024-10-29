@@ -576,6 +576,25 @@ void HTMLElement::attribute_changed(FlyString const& name, Optional<String> cons
 #undef __ENUMERATE
 }
 
+void HTMLElement::attribute_change_steps(FlyString const& local_name, Optional<String> const& old_value, Optional<String> const& value, Optional<FlyString> const& namespace_)
+{
+    Base::attribute_change_steps(local_name, old_value, value, namespace_);
+    HTMLOrSVGElement::attribute_change_steps(local_name, old_value, value, namespace_);
+}
+
+WebIDL::ExceptionOr<void> HTMLElement::cloned(Web::DOM::Node& copy, bool clone_children)
+{
+    TRY(Base::cloned(copy, clone_children));
+    TRY(HTMLOrSVGElement::cloned(copy, clone_children));
+    return {};
+}
+
+void HTMLElement::inserted()
+{
+    Base::inserted();
+    HTMLOrSVGElement::inserted();
+}
+
 // https://html.spec.whatwg.org/multipage/webappapis.html#fire-a-synthetic-pointer-event
 bool HTMLElement::fire_a_synthetic_pointer_event(FlyString const& type, DOM::Element& target, bool not_trusted)
 {

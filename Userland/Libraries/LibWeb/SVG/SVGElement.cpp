@@ -42,9 +42,23 @@ void SVGElement::attribute_changed(FlyString const& name, Optional<String> const
     update_use_elements_that_reference_this();
 }
 
+void SVGElement::attribute_change_steps(FlyString const& local_name, Optional<String> const& old_value, Optional<String> const& value, Optional<FlyString> const& namespace_)
+{
+    Base::attribute_change_steps(local_name, old_value, value, namespace_);
+    HTMLOrSVGElement::attribute_change_steps(local_name, old_value, value, namespace_);
+}
+
+WebIDL::ExceptionOr<void> SVGElement::cloned(DOM::Node& copy, bool clone_children)
+{
+    TRY(Base::cloned(copy, clone_children));
+    TRY(HTMLOrSVGElement::cloned(copy, clone_children));
+    return {};
+}
+
 void SVGElement::inserted()
 {
     Base::inserted();
+    HTMLOrSVGElement::inserted();
 
     update_use_elements_that_reference_this();
 }

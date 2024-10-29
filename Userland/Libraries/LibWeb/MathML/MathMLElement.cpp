@@ -20,6 +20,25 @@ MathMLElement::MathMLElement(DOM::Document& document, DOM::QualifiedName qualifi
 {
 }
 
+void MathMLElement::attribute_change_steps(FlyString const& local_name, Optional<String> const& old_value, Optional<String> const& value, Optional<FlyString> const& namespace_)
+{
+    Base::attribute_change_steps(local_name, old_value, value, namespace_);
+    HTMLOrSVGElement::attribute_change_steps(local_name, old_value, value, namespace_);
+}
+
+WebIDL::ExceptionOr<void> MathMLElement::cloned(DOM::Node& node, bool clone_children)
+{
+    TRY(Base::cloned(node, clone_children));
+    TRY(HTMLOrSVGElement::cloned(node, clone_children));
+    return {};
+}
+
+void MathMLElement::inserted()
+{
+    Base::inserted();
+    HTMLOrSVGElement::inserted();
+}
+
 void MathMLElement::initialize(JS::Realm& realm)
 {
     Base::initialize(realm);
