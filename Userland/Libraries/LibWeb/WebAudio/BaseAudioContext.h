@@ -59,7 +59,7 @@ public:
     WebIDL::ExceptionOr<JS::NonnullGCPtr<AudioBufferSourceNode>> create_buffer_source();
     WebIDL::ExceptionOr<JS::NonnullGCPtr<OscillatorNode>> create_oscillator();
     WebIDL::ExceptionOr<JS::NonnullGCPtr<DynamicsCompressorNode>> create_dynamics_compressor();
-    JS::NonnullGCPtr<GainNode> create_gain();
+    WebIDL::ExceptionOr<JS::NonnullGCPtr<GainNode>> create_gain();
 
     JS::NonnullGCPtr<WebIDL::Promise> decode_audio_data(JS::Handle<WebIDL::BufferSource>, JS::GCPtr<WebIDL::CallbackType>, JS::GCPtr<WebIDL::CallbackType>);
 

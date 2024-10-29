@@ -24,8 +24,8 @@ class GainNode : public AudioNode {
 public:
     virtual ~GainNode() override;
 
-    static JS::NonnullGCPtr<GainNode> create(JS::Realm&, JS::NonnullGCPtr<BaseAudioContext>, GainOptions const& = {});
-    static JS::NonnullGCPtr<GainNode> construct_impl(JS::Realm&, JS::NonnullGCPtr<BaseAudioContext>, GainOptions const& = {});
+    static WebIDL::ExceptionOr<JS::NonnullGCPtr<GainNode>> create(JS::Realm&, JS::NonnullGCPtr<BaseAudioContext>, GainOptions const& = {});
+    static WebIDL::ExceptionOr<JS::NonnullGCPtr<GainNode>> construct_impl(JS::Realm&, JS::NonnullGCPtr<BaseAudioContext>, GainOptions const& = {});
 
     WebIDL::UnsignedLong number_of_inputs() override { return 1; }
     WebIDL::UnsignedLong number_of_outputs() override { return 1; }
