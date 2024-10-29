@@ -1994,15 +1994,12 @@ bool FormattingContext::should_treat_max_width_as_none(Box const& box, Available
         if (!m_state.get(*box.non_anonymous_containing_block()).has_definite_width())
             return true;
     }
-    if (box.children_are_inline()) {
-        if (max_width.is_fit_content() && available_width.is_intrinsic_sizing_constraint())
-            return true;
-        if (max_width.is_max_content() && available_width.is_max_content())
-            return true;
-        if (max_width.is_min_content() && available_width.is_min_content())
-            return true;
-    }
-
+    if (max_width.is_fit_content() && available_width.is_intrinsic_sizing_constraint())
+        return true;
+    if (max_width.is_max_content() && available_width.is_max_content())
+        return true;
+    if (max_width.is_min_content() && available_width.is_min_content())
+        return true;
     return false;
 }
 
