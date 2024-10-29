@@ -80,6 +80,12 @@
             "calc(2px)",
             "calc(2px * var(--n))",
         ],
+        "clip-path": [
+            "polygon(calc(0px) calc(2px), calc(2px) calc(0px), calc(2px) calc(2px))",
+            "polygon(calc(0px * var(--n)) calc(2px * var(--n)), calc(2px * var(--n)) calc(0px * var(--n)), calc(2px * var(--n)) calc(2px * var(--n)))",
+            "polygon(calc(0%) calc(2%), calc(2%) calc(0%), calc(2%) calc(2%))",
+            "polygon(calc(0% * var(--n)) calc(2% * var(--n)), calc(2% * var(--n)) calc(0% * var(--n)), calc(2% * var(--n)) calc(2% * var(--n)))",
+        ],
         "column-count": [
             "calc(2)",
             "calc(2 * var(--n))",
