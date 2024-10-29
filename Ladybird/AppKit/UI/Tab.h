@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023, Tim Flynn <trflynn89@serenityos.org>
+ * Copyright (c) 2023-2024, Tim Flynn <trflynn89@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -9,10 +9,11 @@
 #include <AK/Types.h>
 
 #import <Cocoa/Cocoa.h>
+#import <Ladybird/AppKit/UI/LadybirdWebViewWindow.h>
 
 @class LadybirdWebView;
 
-@interface Tab : NSWindow
+@interface Tab : LadybirdWebViewWindow
 
 - (instancetype)init;
 - (instancetype)initAsChild:(Tab*)parent
@@ -22,7 +23,5 @@
 
 - (void)openInspector:(id)sender;
 - (void)onInspectorClosed;
-
-@property (nonatomic, strong) LadybirdWebView* web_view;
 
 @end

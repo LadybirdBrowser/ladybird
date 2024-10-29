@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023, Tim Flynn <trflynn89@serenityos.org>
+ * Copyright (c) 2023-2024, Tim Flynn <trflynn89@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -54,20 +54,10 @@ static constexpr NSInteger CONTEXT_MENU_DELETE_COOKIE_TAG = 4;
     auto tab_rect = [tab frame];
     auto position_x = tab_rect.origin.x + (tab_rect.size.width - WINDOW_WIDTH) / 2;
     auto position_y = tab_rect.origin.y + (tab_rect.size.height - WINDOW_HEIGHT) / 2;
-
     auto window_rect = NSMakeRect(position_x, position_y, WINDOW_WIDTH, WINDOW_HEIGHT);
-    auto style_mask = NSWindowStyleMaskTitled | NSWindowStyleMaskClosable | NSWindowStyleMaskMiniaturizable | NSWindowStyleMaskResizable;
 
-    self = [super initWithContentRect:window_rect
-                            styleMask:style_mask
-                              backing:NSBackingStoreBuffered
-                                defer:NO];
-
-    if (self) {
+    if (self = [super initWithWebView:nil windowRect:window_rect]) {
         self.tab = tab;
-
-        self.web_view = [[LadybirdWebView alloc] init:nil];
-        [self.web_view setPostsBoundsChangedNotifications:YES];
 
         m_inspector_client = make<WebView::InspectorClient>([[tab web_view] view], [[self web_view] view]);
         __weak Inspector* weak_self = self;
@@ -139,15 +129,7 @@ static constexpr NSInteger CONTEXT_MENU_DELETE_COOKIE_TAG = 4;
             [NSMenu popUpContextMenu:strong_self.cookie_context_menu withEvent:event forView:strong_self.web_view];
         };
 
-        auto* scroll_view = [[NSScrollView alloc] init];
-        [scroll_view setHasVerticalScroller:YES];
-        [scroll_view setHasHorizontalScroller:YES];
-        [scroll_view setLineScroll:24];
-
-        [scroll_view setContentView:self.web_view];
-        [scroll_view setDocumentView:[[NSView alloc] init]];
-
-        [self setContentView:scroll_view];
+        [self setContentView:self.web_view.enclosingScrollView];
         [self setTitle:@"Inspector"];
         [self setIsVisible:YES];
     }
