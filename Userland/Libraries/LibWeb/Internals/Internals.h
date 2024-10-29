@@ -47,6 +47,8 @@ public:
     void enable_cookies_on_file_domains();
     void expire_cookies_with_time_offset(WebIDL::LongLong seconds);
 
+    String get_computed_label(DOM::Element& element);
+
 private:
     explicit Internals(JS::Realm&);
     virtual void initialize(JS::Realm&) override;

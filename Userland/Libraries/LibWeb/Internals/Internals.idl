@@ -36,4 +36,6 @@ interface Internals {
 
     undefined enableCookiesOnFileDomains();
     undefined expireCookiesWithTimeOffset(long long seconds);
+
+    DOMString getComputedLabel(Element element);
 };

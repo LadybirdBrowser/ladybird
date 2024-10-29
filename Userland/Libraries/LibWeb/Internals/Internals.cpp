@@ -193,4 +193,10 @@ void Internals::expire_cookies_with_time_offset(WebIDL::LongLong seconds)
     internals_page().client().page_did_expire_cookies_with_time_offset(AK::Duration::from_seconds(seconds));
 }
 
+String Internals::get_computed_label(DOM::Element& element)
+{
+    auto& active_document = internals_window().associated_document();
+    return MUST(element.accessible_name(active_document));
+}
+
 }
