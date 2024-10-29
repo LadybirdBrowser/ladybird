@@ -1,0 +1,84 @@
+Viewport <#document> at (0,0) content-size 800x600 children: not-inline
+  BlockContainer <html> at (0,0) content-size 800x560 [BFC] children: not-inline
+    BlockContainer <body> at (8,8) content-size 784x544 children: not-inline
+      BlockContainer <div.wrapper> at (8,8) content-size 36.84375x544 children: not-inline
+        Box <div.constrained> at (8,8) content-size 36.84375x544 [GFC] children: not-inline
+          BlockContainer <(anonymous)> at (8,8) content-size 36.84375x544 [BFC] children: inline
+            frag 0 from TextNode start: 1, length: 5, rect: [8,8 36.84375x17] baseline: 13.296875
+                "hello"
+            frag 1 from TextNode start: 7, length: 5, rect: [8,25 36.84375x17] baseline: 13.296875
+                "hello"
+            frag 2 from TextNode start: 13, length: 5, rect: [8,42 36.84375x17] baseline: 13.296875
+                "hello"
+            frag 3 from TextNode start: 19, length: 5, rect: [8,59 36.84375x17] baseline: 13.296875
+                "hello"
+            frag 4 from TextNode start: 25, length: 5, rect: [8,76 36.84375x17] baseline: 13.296875
+                "hello"
+            frag 5 from TextNode start: 31, length: 5, rect: [8,93 36.84375x17] baseline: 13.296875
+                "hello"
+            frag 6 from TextNode start: 37, length: 5, rect: [8,110 36.84375x17] baseline: 13.296875
+                "hello"
+            frag 7 from TextNode start: 43, length: 5, rect: [8,127 36.84375x17] baseline: 13.296875
+                "hello"
+            frag 8 from TextNode start: 49, length: 5, rect: [8,144 36.84375x17] baseline: 13.296875
+                "hello"
+            frag 9 from TextNode start: 55, length: 5, rect: [8,161 36.84375x17] baseline: 13.296875
+                "hello"
+            frag 10 from TextNode start: 61, length: 5, rect: [8,178 36.84375x17] baseline: 13.296875
+                "hello"
+            frag 11 from TextNode start: 67, length: 5, rect: [8,195 36.84375x17] baseline: 13.296875
+                "hello"
+            frag 12 from TextNode start: 73, length: 5, rect: [8,212 36.84375x17] baseline: 13.296875
+                "hello"
+            frag 13 from TextNode start: 79, length: 5, rect: [8,229 36.84375x17] baseline: 13.296875
+                "hello"
+            frag 14 from TextNode start: 85, length: 5, rect: [8,246 36.84375x17] baseline: 13.296875
+                "hello"
+            frag 15 from TextNode start: 91, length: 5, rect: [8,263 36.84375x17] baseline: 13.296875
+                "hello"
+            frag 16 from TextNode start: 97, length: 5, rect: [8,280 36.84375x17] baseline: 13.296875
+                "hello"
+            frag 17 from TextNode start: 103, length: 5, rect: [8,297 36.84375x17] baseline: 13.296875
+                "hello"
+            frag 18 from TextNode start: 109, length: 5, rect: [8,314 36.84375x17] baseline: 13.296875
+                "hello"
+            frag 19 from TextNode start: 115, length: 5, rect: [8,331 36.84375x17] baseline: 13.296875
+                "hello"
+            frag 20 from TextNode start: 121, length: 5, rect: [8,348 36.84375x17] baseline: 13.296875
+                "hello"
+            frag 21 from TextNode start: 127, length: 5, rect: [8,365 36.84375x17] baseline: 13.296875
+                "hello"
+            frag 22 from TextNode start: 133, length: 5, rect: [8,382 36.84375x17] baseline: 13.296875
+                "hello"
+            frag 23 from TextNode start: 139, length: 5, rect: [8,399 36.84375x17] baseline: 13.296875
+                "hello"
+            frag 24 from TextNode start: 145, length: 5, rect: [8,416 36.84375x17] baseline: 13.296875
+                "hello"
+            frag 25 from TextNode start: 151, length: 5, rect: [8,433 36.84375x17] baseline: 13.296875
+                "hello"
+            frag 26 from TextNode start: 157, length: 5, rect: [8,450 36.84375x17] baseline: 13.296875
+                "hello"
+            frag 27 from TextNode start: 163, length: 5, rect: [8,467 36.84375x17] baseline: 13.296875
+                "hello"
+            frag 28 from TextNode start: 169, length: 5, rect: [8,484 36.84375x17] baseline: 13.296875
+                "hello"
+            frag 29 from TextNode start: 175, length: 5, rect: [8,501 36.84375x17] baseline: 13.296875
+                "hello"
+            frag 30 from TextNode start: 181, length: 5, rect: [8,518 36.84375x17] baseline: 13.296875
+                "hello"
+            frag 31 from TextNode start: 187, length: 5, rect: [8,535 36.84375x17] baseline: 13.296875
+                "hello"
+            TextNode <#text>
+          BlockContainer <div> at (8,552) content-size 36.84375x0 [BFC] children: not-inline
+      BlockContainer <(anonymous)> at (8,552) content-size 784x0 children: inline
+        TextNode <#text>
+
+ViewportPaintable (Viewport<#document>) [0,0 800x600]
+  PaintableWithLines (BlockContainer<HTML>) [0,0 800x560]
+    PaintableWithLines (BlockContainer<BODY>) [8,8 784x544]
+      PaintableWithLines (BlockContainer<DIV>.wrapper) [8,8 36.84375x544]
+        PaintableBox (Box<DIV>.constrained) [8,8 36.84375x544]
+          PaintableWithLines (BlockContainer(anonymous)) [8,8 36.84375x544]
+            TextPaintable (TextNode<#text>)
+          PaintableWithLines (BlockContainer<DIV>) [8,552 36.84375x0]
+      PaintableWithLines (BlockContainer(anonymous)) [8,552 784x0]
