@@ -397,7 +397,7 @@ Web::WebDriver::Response Client::set_window_rect(Web::WebDriver::Parameters para
 {
     dbgln_if(WEBDRIVER_DEBUG, "Handling POST /session/<session_id>/window/rect");
     auto session = TRY(find_session_with_id(parameters[0]));
-    return session->web_content_connection().set_window_rect(payload);
+    return session->set_window_rect(payload);
 }
 
 // 11.8.3 Maximize Window, https://w3c.github.io/webdriver/#dfn-maximize-window

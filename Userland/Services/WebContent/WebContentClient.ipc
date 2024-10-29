@@ -77,8 +77,8 @@ endpoint WebContentClient
     did_request_activate_tab(u64 page_id) =|
     did_close_browsing_context(u64 page_id) =|
     did_request_restore_window(u64 page_id) =|
-    did_request_reposition_window(u64 page_id, Gfx::IntPoint position) => (Gfx::IntPoint window_position)
-    did_request_resize_window(u64 page_id, Gfx::IntSize size) => (Gfx::IntSize window_size)
+    did_request_reposition_window(u64 page_id, Gfx::IntPoint position) =|
+    did_request_resize_window(u64 page_id, Gfx::IntSize size) =|
     did_request_maximize_window(u64 page_id) => (Gfx::IntRect window_rect)
     did_request_minimize_window(u64 page_id) => (Gfx::IntRect window_rect)
     did_request_fullscreen_window(u64 page_id) => (Gfx::IntRect window_rect)

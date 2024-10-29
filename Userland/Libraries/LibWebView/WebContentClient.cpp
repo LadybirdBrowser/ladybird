@@ -492,24 +492,20 @@ void WebContentClient::did_request_restore_window(u64 page_id)
     }
 }
 
-Messages::WebContentClient::DidRequestRepositionWindowResponse WebContentClient::did_request_reposition_window(u64 page_id, Gfx::IntPoint position)
+void WebContentClient::did_request_reposition_window(u64 page_id, Gfx::IntPoint position)
 {
     if (auto view = view_for_page_id(page_id); view.has_value()) {
         if (view->on_reposition_window)
-            return view->on_reposition_window(position);
+            view->on_reposition_window(position);
     }
-
-    return Gfx::IntPoint {};
 }
 
-Messages::WebContentClient::DidRequestResizeWindowResponse WebContentClient::did_request_resize_window(u64 page_id, Gfx::IntSize size)
+void WebContentClient::did_request_resize_window(u64 page_id, Gfx::IntSize size)
 {
     if (auto view = view_for_page_id(page_id); view.has_value()) {
         if (view->on_resize_window)
-            return view->on_resize_window(size);
+            view->on_resize_window(size);
     }
-
-    return Gfx::IntSize {};
 }
 
 Messages::WebContentClient::DidRequestMaximizeWindowResponse WebContentClient::did_request_maximize_window(u64 page_id)

@@ -100,8 +100,8 @@ private:
     virtual void did_close_browsing_context(u64 page_id) override;
     virtual void did_update_resource_count(u64 page_id, i32 count_waiting) override;
     virtual void did_request_restore_window(u64 page_id) override;
-    virtual Messages::WebContentClient::DidRequestRepositionWindowResponse did_request_reposition_window(u64 page_id, Gfx::IntPoint) override;
-    virtual Messages::WebContentClient::DidRequestResizeWindowResponse did_request_resize_window(u64 page_id, Gfx::IntSize) override;
+    virtual void did_request_reposition_window(u64 page_id, Gfx::IntPoint) override;
+    virtual void did_request_resize_window(u64 page_id, Gfx::IntSize) override;
     virtual Messages::WebContentClient::DidRequestMaximizeWindowResponse did_request_maximize_window(u64 page_id) override;
     virtual Messages::WebContentClient::DidRequestMinimizeWindowResponse did_request_minimize_window(u64 page_id) override;
     virtual Messages::WebContentClient::DidRequestFullscreenWindowResponse did_request_fullscreen_window(u64 page_id) override;

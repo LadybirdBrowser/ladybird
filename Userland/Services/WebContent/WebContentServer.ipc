@@ -90,6 +90,7 @@ endpoint WebContentServer
 
     set_window_position(u64 page_id, Web::DevicePixelPoint position) =|
     set_window_size(u64 page_id, Web::DevicePixelSize size) =|
+    did_update_window_rect(u64 page_id) =|
 
     get_local_storage_entries(u64 page_id) => (OrderedHashMap<String, String> entries)
     get_session_storage_entries(u64 page_id) => (OrderedHashMap<String, String> entries)

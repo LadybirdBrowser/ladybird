@@ -26,6 +26,12 @@ void WebContentConnection::navigation_complete(Web::WebDriver::Response const& r
         on_navigation_complete(response);
 }
 
+void WebContentConnection::window_rect_updated(Web::WebDriver::Response const& response)
+{
+    if (on_window_rect_updated)
+        on_window_rect_updated(response);
+}
+
 void WebContentConnection::script_executed(Web::WebDriver::Response const& response)
 {
     if (on_script_executed)

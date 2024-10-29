@@ -1007,26 +1007,26 @@ static void copy_data_to_clipboard(StringView data, NSPasteboardType pasteboard_
     m_web_view_bridge->on_reposition_window = [weak_self](auto position) {
         LadybirdWebView* self = weak_self;
         if (self == nil) {
-            return Gfx::IntPoint {};
+            return;
         }
 
         position = Ladybird::compute_origin_relative_to_window([self window], position);
         [[self window] setFrameOrigin:Ladybird::gfx_point_to_ns_point(position)];
 
-        position = Ladybird::ns_point_to_gfx_point([[self window] frame].origin);
-        return Ladybird::compute_origin_relative_to_window([self window], position);
+        m_web_view_bridge->did_update_window_rect();
     };
 
     m_web_view_bridge->on_resize_window = [weak_self](auto size) {
         LadybirdWebView* self = weak_self;
         if (self == nil) {
-            return Gfx::IntSize {};
+            return;
         }
+
         auto frame = [[self window] frame];
         frame.size = Ladybird::gfx_size_to_ns_size(size);
         [[self window] setFrame:frame display:YES];
 
-        return Ladybird::ns_size_to_gfx_size([[self window] frame].size);
+        m_web_view_bridge->did_update_window_rect();
     };
 
     m_web_view_bridge->on_maximize_window = [weak_self]() {

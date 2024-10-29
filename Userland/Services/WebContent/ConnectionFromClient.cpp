@@ -1082,6 +1082,12 @@ void ConnectionFromClient::set_window_size(u64 page_id, Web::DevicePixelSize siz
         page->set_window_size(size);
 }
 
+void ConnectionFromClient::did_update_window_rect(u64 page_id)
+{
+    if (auto page = this->page(page_id); page.has_value())
+        page->page().did_update_window_rect();
+}
+
 Messages::WebContentServer::GetLocalStorageEntriesResponse ConnectionFromClient::get_local_storage_entries(u64 page_id)
 {
     auto page = this->page(page_id);

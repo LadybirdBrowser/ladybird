@@ -209,6 +209,13 @@ Web::WebDriver::Response Session::navigate_to(JsonValue payload) const
     });
 }
 
+Web::WebDriver::Response Session::set_window_rect(JsonValue payload) const
+{
+    return perform_async_action(web_content_connection().on_window_rect_updated, [&]() {
+        return web_content_connection().set_window_rect(move(payload));
+    });
+}
+
 Web::WebDriver::Response Session::execute_script(JsonValue payload, ScriptMode mode) const
 {
     return perform_async_action(web_content_connection().on_script_executed, [&]() {

@@ -261,14 +261,14 @@ void PageClient::page_did_request_refresh()
     client().async_did_request_refresh(m_id);
 }
 
-Gfx::IntSize PageClient::page_did_request_resize_window(Gfx::IntSize size)
+void PageClient::page_did_request_resize_window(Gfx::IntSize size)
 {
-    return client().did_request_resize_window(m_id, size);
+    client().async_did_request_resize_window(m_id, size);
 }
 
-Gfx::IntPoint PageClient::page_did_request_reposition_window(Gfx::IntPoint position)
+void PageClient::page_did_request_reposition_window(Gfx::IntPoint position)
 {
-    return client().did_request_reposition_window(m_id, position);
+    client().async_did_request_reposition_window(m_id, position);
 }
 
 void PageClient::page_did_request_restore_window()
