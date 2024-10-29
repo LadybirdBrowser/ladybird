@@ -10,11 +10,12 @@
 
 namespace Web::Layout {
 
-LineBuilder::LineBuilder(InlineFormattingContext& context, LayoutState& layout_state, LayoutState::UsedValues& containing_block_used_values, CSS::Direction direction)
+LineBuilder::LineBuilder(InlineFormattingContext& context, LayoutState& layout_state, LayoutState::UsedValues& containing_block_used_values, CSS::Direction direction, CSS::WritingMode writing_mode)
     : m_context(context)
     , m_layout_state(layout_state)
     , m_containing_block_used_values(containing_block_used_values)
     , m_direction(direction)
+    , m_writing_mode(writing_mode)
 {
     m_text_indent = m_context.containing_block().computed_values().text_indent().to_px(m_context.containing_block(), m_containing_block_used_values.content_width());
     begin_new_line(false);
@@ -38,7 +39,7 @@ void LineBuilder::break_line(ForcedBreak forced_break, Optional<CSSPixels> next_
     size_t break_count = 0;
     bool floats_intrude_at_current_y = false;
     do {
-        m_containing_block_used_values.line_boxes.append(LineBox(m_direction));
+        m_containing_block_used_values.line_boxes.append(LineBox(m_direction, m_writing_mode));
         begin_new_line(true, break_count == 0);
         break_count++;
         floats_intrude_at_current_y = m_context.any_floats_intrude_at_block_offset(m_current_block_offset);
@@ -83,7 +84,7 @@ LineBox& LineBuilder::ensure_last_line_box()
 {
     auto& line_boxes = m_containing_block_used_values.line_boxes;
     if (line_boxes.is_empty())
-        line_boxes.append(LineBox(m_direction));
+        line_boxes.append(LineBox(m_direction, m_writing_mode));
     return line_boxes.last();
 }
 
@@ -178,6 +179,10 @@ void LineBuilder::update_last_line()
 
     // FIXME: Respect inline direction.
     CSSPixels excess_inline_space = m_available_width_for_current_line.to_px_or_zero() - line_box.inline_length();
+
+    if (m_writing_mode != CSS::WritingMode::HorizontalTb) {
+        block_offset = m_available_width_for_current_line.to_px_or_zero() - line_box.block_length();
+    }
 
     // If (after justification, if any) the inline contents of a line box are too long to fit within it,
     // then the contents are start-aligned: any content that doesn't fit overflows the line box’s end edge.

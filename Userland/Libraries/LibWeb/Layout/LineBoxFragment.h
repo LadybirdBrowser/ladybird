@@ -19,7 +19,7 @@ class LineBoxFragment {
     friend class LineBox;
 
 public:
-    LineBoxFragment(Node const& layout_node, int start, int length, CSSPixels inline_offset, CSSPixels block_offset, CSSPixels inline_length, CSSPixels block_length, CSSPixels border_box_top, CSS::Direction, RefPtr<Gfx::GlyphRun>);
+    LineBoxFragment(Node const& layout_node, int start, int length, CSSPixels inline_offset, CSSPixels block_offset, CSSPixels inline_length, CSSPixels block_length, CSSPixels border_box_top, CSS::Direction, CSS::WritingMode, RefPtr<Gfx::GlyphRun>);
 
     Node const& layout_node() const { return m_layout_node; }
     int start() const { return m_start; }
@@ -70,6 +70,7 @@ private:
     CSSPixels m_border_box_top { 0 };
     CSSPixels m_baseline { 0 };
     CSS::Direction m_direction { CSS::Direction::Ltr };
+    CSS::WritingMode m_writing_mode { CSS::WritingMode::HorizontalTb };
 
     RefPtr<Gfx::GlyphRun> m_glyph_run;
     float m_insert_position { 0 };

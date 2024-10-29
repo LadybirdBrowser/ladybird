@@ -250,9 +250,10 @@ void InlineFormattingContext::generate_line_boxes()
     line_boxes.clear_with_capacity();
 
     auto direction = m_context_box->computed_values().direction();
+    auto writing_mode = m_context_box->computed_values().writing_mode();
 
     InlineLevelIterator iterator(*this, m_state, containing_block(), m_containing_block_used_values, m_layout_mode);
-    LineBuilder line_builder(*this, m_state, m_containing_block_used_values, direction);
+    LineBuilder line_builder(*this, m_state, m_containing_block_used_values, direction, writing_mode);
 
     // NOTE: When we ignore collapsible whitespace chunks at the start of a line,
     //       we have to remember how much start margin that chunk had in the inline
