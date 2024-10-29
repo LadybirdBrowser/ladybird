@@ -75,7 +75,7 @@ JS::NonnullGCPtr<ClassicScript> ClassicScript::create(ByteString filename, Strin
 }
 
 // https://html.spec.whatwg.org/multipage/webappapis.html#run-a-classic-script
-JS::Completion ClassicScript::run(RethrowErrors rethrow_errors, JS::GCPtr<JS::Environment> lexical_environment_override)
+JS::Completion ClassicScript::run(RethrowErrors rethrow_errors)
 {
     // 1. Let settings be the settings object of script.
     auto& settings = settings_object();
@@ -97,7 +97,7 @@ JS::Completion ClassicScript::run(RethrowErrors rethrow_errors, JS::GCPtr<JS::En
         auto timer = Core::ElapsedTimer::start_new();
 
         // 6. Otherwise, set evaluationStatus to ScriptEvaluation(script's record).
-        evaluation_status = vm().bytecode_interpreter().run(*m_script_record, lexical_environment_override);
+        evaluation_status = vm().bytecode_interpreter().run(*m_script_record);
 
         // FIXME: If ScriptEvaluation does not complete because the user agent has aborted the running script, leave evaluationStatus as null.
 

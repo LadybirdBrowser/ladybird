@@ -182,7 +182,7 @@ ALWAYS_INLINE Value Interpreter::do_yield(Value value, Optional<Label> continuat
 }
 
 // 16.1.6 ScriptEvaluation ( scriptRecord ), https://tc39.es/ecma262/#sec-runtime-semantics-scriptevaluation
-ThrowCompletionOr<Value> Interpreter::run(Script& script_record, JS::GCPtr<Environment> lexical_environment_override)
+ThrowCompletionOr<Value> Interpreter::run(Script& script_record)
 {
     auto& vm = this->vm();
 
@@ -206,10 +206,6 @@ ThrowCompletionOr<Value> Interpreter::run(Script& script_record, JS::GCPtr<Envir
 
     // 7. Set the LexicalEnvironment of scriptContext to globalEnv.
     script_context->lexical_environment = &global_environment;
-
-    // Non-standard: Override the lexical environment if requested.
-    if (lexical_environment_override)
-        script_context->lexical_environment = lexical_environment_override;
 
     // 8. Set the PrivateEnvironment of scriptContext to null.
 
