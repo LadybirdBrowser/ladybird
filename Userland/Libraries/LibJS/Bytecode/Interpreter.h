@@ -30,7 +30,7 @@ public:
     VM& vm() { return m_vm; }
     VM const& vm() const { return m_vm; }
 
-    ThrowCompletionOr<Value> run(Script&, JS::GCPtr<Environment> lexical_environment_override = nullptr);
+    ThrowCompletionOr<Value> run(Script&);
     ThrowCompletionOr<Value> run(SourceTextModule&);
 
     ThrowCompletionOr<Value> run(Bytecode::Executable& executable, Optional<size_t> entry_point = {}, Value initial_accumulator_value = {})
