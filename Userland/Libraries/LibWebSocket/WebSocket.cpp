@@ -483,8 +483,6 @@ void WebSocket::read_frame()
     }
 
     if (op_code == WebSocket::OpCode::ConnectionClose) {
-        send_frame(WebSocket::OpCode::ConnectionClose, {}, true);
-        set_state(WebSocket::InternalState::Closing);
         if (payload.size() > 1) {
             m_last_close_code = (((u16)(payload[0] & 0xff) << 8) | ((u16)(payload[1] & 0xff)));
             m_last_close_message = ByteString(ReadonlyBytes(payload.offset_pointer(2), payload.size() - 2));
@@ -492,6 +490,7 @@ void WebSocket::read_frame()
             m_last_close_code = 1000;
             m_last_close_message = {};
         }
+        close(m_last_close_code, m_last_close_message);
         return;
     }
     if (op_code == WebSocket::OpCode::Ping) {
