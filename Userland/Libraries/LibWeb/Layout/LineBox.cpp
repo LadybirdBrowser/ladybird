@@ -25,12 +25,12 @@ void LineBox::add_fragment(Node const& layout_node, int start, int length, CSSPi
         m_fragments.last().m_length = (start - m_fragments.last().m_start) + length;
         m_fragments.last().append_glyph_run(glyph_run, content_width);
     } else {
-        CSSPixels x_offset = leading_margin + leading_size + m_width;
-        CSSPixels y_offset = 0;
-        m_fragments.append(LineBoxFragment { layout_node, start, length, CSSPixelPoint(x_offset, y_offset), CSSPixelSize(content_width, content_height), border_box_top, m_direction, move(glyph_run) });
+        CSSPixels inline_offset = leading_margin + leading_size + m_inline_length;
+        CSSPixels block_offset = 0;
+        m_fragments.append(LineBoxFragment { layout_node, start, length, inline_offset, block_offset, content_width, content_height, border_box_top, m_direction, move(glyph_run) });
     }
-    m_width += leading_margin + leading_size + content_width + trailing_size + trailing_margin;
-    m_height = max(m_height, content_height + border_box_top + border_box_bottom);
+    m_inline_length += leading_margin + leading_size + content_width + trailing_size + trailing_margin;
+    m_block_length = max(m_block_length, content_height + border_box_top + border_box_bottom);
 }
 
 void LineBox::trim_trailing_whitespace()
@@ -55,7 +55,7 @@ void LineBox::trim_trailing_whitespace()
         if (!should_trim(last_fragment))
             return;
         if (last_fragment->is_justifiable_whitespace()) {
-            m_width -= last_fragment->width();
+            m_inline_length -= last_fragment->inline_length();
             m_fragments.remove(m_fragments.size() - 1);
         } else {
             break;
@@ -74,8 +74,8 @@ void LineBox::trim_trailing_whitespace()
         // FIXME: Use fragment's glyph run to determine the width of the last character.
         int last_character_width = last_fragment->layout_node().first_available_font().glyph_width(last_character);
         last_fragment->m_length -= 1;
-        last_fragment->set_width(last_fragment->width() - last_character_width);
-        m_width -= last_character_width;
+        last_fragment->set_inline_length(last_fragment->inline_length() - last_character_width);
+        m_inline_length -= last_character_width;
     }
 }
 

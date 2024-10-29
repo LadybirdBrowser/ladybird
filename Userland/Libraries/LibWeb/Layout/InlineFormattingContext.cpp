@@ -41,7 +41,7 @@ BlockFormattingContext const& InlineFormattingContext::parent() const
     return static_cast<BlockFormattingContext const&>(*FormattingContext::parent());
 }
 
-CSSPixels InlineFormattingContext::leftmost_x_offset_at(CSSPixels y) const
+CSSPixels InlineFormattingContext::leftmost_inline_offset_at(CSSPixels y) const
 {
     // NOTE: Floats are relative to the BFC root box, not necessarily the containing block of this IFC.
     auto box_in_root_rect = content_box_rect_in_ancestor_coordinate_space(m_containing_block_used_values, parent().root());
@@ -216,13 +216,13 @@ void InlineFormattingContext::apply_justification_to_fragments(CSS::TextJustify 
     if (is_last_line || line_box.m_has_forced_break)
         return;
 
-    CSSPixels excess_horizontal_space = line_box.original_available_width().to_px_or_zero() - line_box.width();
+    CSSPixels excess_horizontal_space = line_box.original_available_width().to_px_or_zero() - line_box.inline_length();
     CSSPixels excess_horizontal_space_including_whitespace = excess_horizontal_space;
     size_t whitespace_count = 0;
     for (auto& fragment : line_box.fragments()) {
         if (fragment.is_justifiable_whitespace()) {
             ++whitespace_count;
-            excess_horizontal_space_including_whitespace += fragment.width();
+            excess_horizontal_space_including_whitespace += fragment.inline_length();
         }
     }
 
@@ -234,15 +234,12 @@ void InlineFormattingContext::apply_justification_to_fragments(CSS::TextJustify 
     CSSPixels running_diff = 0;
     for (size_t i = 0; i < line_box.fragments().size(); ++i) {
         auto& fragment = line_box.fragments()[i];
-
-        auto offset = fragment.offset();
-        offset.translate_by(running_diff, 0);
-        fragment.set_offset(offset);
+        fragment.set_inline_offset(fragment.inline_offset() + running_diff);
 
         if (fragment.is_justifiable_whitespace()
-            && fragment.width() != justified_space_width) {
-            running_diff += justified_space_width - fragment.width();
-            fragment.set_width(justified_space_width);
+            && fragment.inline_length() != justified_space_width) {
+            running_diff += justified_space_width - fragment.inline_length();
+            fragment.set_inline_length(justified_space_width);
         }
     }
 }
@@ -421,18 +418,21 @@ void InlineFormattingContext::generate_line_boxes()
     }
 }
 
-bool InlineFormattingContext::any_floats_intrude_at_y(CSSPixels y) const
+bool InlineFormattingContext::any_floats_intrude_at_block_offset(CSSPixels block_offset) const
 {
     auto box_in_root_rect = content_box_rect_in_ancestor_coordinate_space(m_containing_block_used_values, parent().root());
-    CSSPixels y_in_root = box_in_root_rect.y() + y;
+    // FIXME: Respect inline direction.
+    CSSPixels y_in_root = box_in_root_rect.y() + block_offset;
     auto space_and_containing_margin = parent().space_used_and_containing_margin_for_floats(y_in_root);
     return space_and_containing_margin.left_used_space > 0 || space_and_containing_margin.right_used_space > 0;
 }
 
-bool InlineFormattingContext::can_fit_new_line_at_y(CSSPixels y) const
+bool InlineFormattingContext::can_fit_new_line_at_block_offset(CSSPixels block_offset) const
 {
-    auto top_intrusions = parent().intrusion_by_floats_into_box(m_containing_block_used_values, y);
-    auto bottom_intrusions = parent().intrusion_by_floats_into_box(m_containing_block_used_values, y + containing_block().computed_values().line_height() - 1);
+    // FIXME: Respect inline direction.
+
+    auto top_intrusions = parent().intrusion_by_floats_into_box(m_containing_block_used_values, block_offset);
+    auto bottom_intrusions = parent().intrusion_by_floats_into_box(m_containing_block_used_values, block_offset + containing_block().computed_values().line_height() - 1);
 
     auto left_edge = [](auto& space) -> CSSPixels {
         return space.left;

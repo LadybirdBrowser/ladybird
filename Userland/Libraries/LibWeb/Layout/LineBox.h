@@ -18,9 +18,12 @@ public:
     {
     }
 
-    CSSPixels width() const { return m_width; }
-    CSSPixels height() const { return m_height; }
+    CSSPixels width() const { return m_inline_length; }
+    CSSPixels height() const { return m_block_length; }
     CSSPixels bottom() const { return m_bottom; }
+
+    CSSPixels inline_length() const { return m_inline_length; }
+    CSSPixels block_length() const { return m_block_length; }
     CSSPixels baseline() const { return m_baseline; }
 
     void add_fragment(Node const& layout_node, int start, int length, CSSPixels leading_size, CSSPixels trailing_size, CSSPixels leading_margin, CSSPixels trailing_margin, CSSPixels content_width, CSSPixels content_height, CSSPixels border_box_top, CSSPixels border_box_bottom, RefPtr<Gfx::GlyphRun> glyph_run = {});
@@ -41,8 +44,8 @@ private:
     friend class LineBuilder;
 
     Vector<LineBoxFragment> m_fragments;
-    CSSPixels m_width { 0 };
-    CSSPixels m_height { 0 };
+    CSSPixels m_inline_length { 0 };
+    CSSPixels m_block_length { 0 };
     CSSPixels m_bottom { 0 };
     CSSPixels m_baseline { 0 };
     CSS::Direction m_direction { CSS::Direction::Ltr };

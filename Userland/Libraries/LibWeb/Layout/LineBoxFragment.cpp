@@ -13,12 +13,14 @@
 
 namespace Web::Layout {
 
-LineBoxFragment::LineBoxFragment(Node const& layout_node, int start, int length, CSSPixelPoint offset, CSSPixelSize size, CSSPixels border_box_top, CSS::Direction direction, RefPtr<Gfx::GlyphRun> glyph_run)
+LineBoxFragment::LineBoxFragment(Node const& layout_node, int start, int length, CSSPixels inline_offset, CSSPixels block_offset, CSSPixels inline_length, CSSPixels block_length, CSSPixels border_box_top, CSS::Direction direction, RefPtr<Gfx::GlyphRun> glyph_run)
     : m_layout_node(layout_node)
     , m_start(start)
     , m_length(length)
-    , m_offset(offset)
-    , m_size(size)
+    , m_inline_offset(inline_offset)
+    , m_block_offset(block_offset)
+    , m_inline_length(inline_length)
+    , m_block_length(block_length)
     , m_border_box_top(border_box_top)
     , m_direction(direction)
     , m_glyph_run(move(glyph_run))
@@ -26,8 +28,18 @@ LineBoxFragment::LineBoxFragment(Node const& layout_node, int start, int length,
     if (m_glyph_run) {
         m_current_insert_direction = resolve_glyph_run_direction(m_glyph_run->text_type());
         if (m_direction == CSS::Direction::Rtl)
-            m_insert_position = m_size.width().to_float();
+            m_insert_position = m_inline_length.to_float();
     }
+}
+
+CSSPixelPoint LineBoxFragment::offset() const
+{
+    return { m_inline_offset, m_block_offset };
+}
+
+CSSPixelSize LineBoxFragment::size() const
+{
+    return { m_inline_length, m_block_length };
 }
 
 bool LineBoxFragment::ends_in_whitespace() const
@@ -97,14 +109,14 @@ void LineBoxFragment::append_glyph_run_ltr(RefPtr<Gfx::GlyphRun> const& glyph_ru
 
     if (m_current_insert_direction != run_direction) {
         if (run_direction == CSS::Direction::Rtl)
-            m_insert_position = width().to_float();
+            m_insert_position = m_inline_length.to_float();
         m_current_insert_direction = run_direction;
     }
 
     switch (run_direction) {
     case CSS::Direction::Ltr:
         for (auto& glyph : glyph_run->glyphs()) {
-            glyph.position.translate_by(width().to_float(), 0);
+            glyph.position.translate_by(m_inline_length.to_float(), 0);
             m_glyph_run->append(glyph);
         }
         break;
@@ -120,7 +132,7 @@ void LineBoxFragment::append_glyph_run_ltr(RefPtr<Gfx::GlyphRun> const& glyph_ru
         break;
     }
 
-    m_size.set_width(width() + run_width);
+    m_inline_length += run_width;
 }
 
 void LineBoxFragment::append_glyph_run_rtl(RefPtr<Gfx::GlyphRun> const& glyph_run, CSSPixels run_width)
@@ -156,7 +168,7 @@ void LineBoxFragment::append_glyph_run_rtl(RefPtr<Gfx::GlyphRun> const& glyph_ru
         break;
     }
 
-    m_size.set_width(width() + run_width);
+    m_inline_length += run_width;
     m_insert_position += run_width.to_float();
 }
 
