@@ -285,7 +285,7 @@ static ErrorOr<String> apply_text_transform(String const& string, CSS::TextTrans
     case CSS::TextTransform::Uppercase:
         return string.to_uppercase(locale);
     case CSS::TextTransform::Lowercase:
-        return string.to_lowercase();
+        return string.to_lowercase(locale);
     case CSS::TextTransform::None:
         return string;
     case CSS::TextTransform::MathAuto:
