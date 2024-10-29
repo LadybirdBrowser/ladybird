@@ -228,7 +228,7 @@ void URLSearchParams::update()
         serialized_query = {};
 
     // 4. Set query’s URL object’s URL’s query to serializedQuery.
-    m_url->set_query({}, move(serialized_query));
+    m_url->set_query({}, serialized_query);
 
     // 5. If serializedQuery is null, then potentially strip trailing spaces from an opaque path with query’s URL object.
     if (!serialized_query.has_value())
