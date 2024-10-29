@@ -42,6 +42,7 @@ struct DrawGlyphRun {
     Gfx::IntRect rect;
     Gfx::FloatPoint translation;
     double scale { 1 };
+    Gfx::Orientation orientation { Gfx::Orientation::Horizontal };
 
     [[nodiscard]] Gfx::IntRect bounding_rect() const { return rect; }
 

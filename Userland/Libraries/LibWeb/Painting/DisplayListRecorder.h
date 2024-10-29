@@ -97,7 +97,7 @@ public:
     void draw_text(Gfx::IntRect const&, String, Gfx::Font const&, Gfx::TextAlignment, Color);
 
     // Streamlined text drawing routine that does no wrapping/elision/alignment.
-    void draw_text_run(Gfx::IntPoint baseline_start, Gfx::GlyphRun const& glyph_run, Color color, Gfx::IntRect const& rect, double scale);
+    void draw_text_run(Gfx::IntPoint baseline_start, Gfx::GlyphRun const& glyph_run, Color color, Gfx::IntRect const& rect, double scale, Gfx::Orientation);
 
     void add_clip_rect(Gfx::IntRect const& rect);
 

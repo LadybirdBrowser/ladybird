@@ -31,7 +31,7 @@ static RefPtr<DisplayList> compute_text_clip_paths(PaintContext& context, Painta
 
         DevicePixelPoint baseline_start { fragment_absolute_device_rect.x(), fragment_absolute_device_rect.y() + context.rounded_device_pixels(fragment.baseline()) };
         auto scale = context.device_pixels_per_css_pixel();
-        display_list_recorder.draw_text_run(baseline_start.to_type<int>(), *glyph_run, Gfx::Color::Black, fragment_absolute_device_rect.to_type<int>(), scale);
+        display_list_recorder.draw_text_run(baseline_start.to_type<int>(), *glyph_run, Gfx::Color::Black, fragment_absolute_device_rect.to_type<int>(), scale, fragment.orientation());
     };
 
     paintable.for_each_in_inclusive_subtree([&](auto& paintable) {

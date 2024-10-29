@@ -53,6 +53,7 @@ public:
     bool is_atomic_inline() const;
 
     RefPtr<Gfx::GlyphRun> glyph_run() const { return m_glyph_run; }
+    CSS::WritingMode writing_mode() const { return m_writing_mode; }
     void append_glyph_run(RefPtr<Gfx::GlyphRun> const&, CSSPixels run_width);
 
 private:

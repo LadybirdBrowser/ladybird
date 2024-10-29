@@ -44,6 +44,7 @@ public:
     CSSPixelRect const absolute_rect() const;
 
     RefPtr<Gfx::GlyphRun> glyph_run() const { return m_glyph_run; }
+    Gfx::Orientation orientation() const;
 
     CSSPixelRect selection_rect(Gfx::Font const&) const;
     CSSPixelRect range_rect(Gfx::Font const&, size_t start_offset, size_t end_offset) const;
@@ -64,6 +65,7 @@ private:
     int m_length;
     Painting::BorderRadiiData m_border_radii_data;
     RefPtr<Gfx::GlyphRun> m_glyph_run;
+    CSS::WritingMode m_writing_mode;
     Vector<ShadowData> m_shadows;
     ResolvedBackground m_resolved_background;
 };
