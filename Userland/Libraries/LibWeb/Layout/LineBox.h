@@ -13,14 +13,15 @@ namespace Web::Layout {
 
 class LineBox {
 public:
-    LineBox(CSS::Direction direction)
+    LineBox(CSS::Direction direction, CSS::WritingMode writing_mode)
         : m_direction(direction)
+        , m_writing_mode(writing_mode)
     {
     }
 
-    CSSPixels width() const { return m_inline_length; }
-    CSSPixels height() const { return m_block_length; }
-    CSSPixels bottom() const { return m_bottom; }
+    CSSPixels width() const;
+    CSSPixels height() const;
+    CSSPixels bottom() const;
 
     CSSPixels inline_length() const { return m_inline_length; }
     CSSPixels block_length() const { return m_block_length; }
@@ -49,6 +50,7 @@ private:
     CSSPixels m_bottom { 0 };
     CSSPixels m_baseline { 0 };
     CSS::Direction m_direction { CSS::Direction::Ltr };
+    CSS::WritingMode m_writing_mode { CSS::WritingMode::HorizontalTb };
 
     // The amount of available width that was originally available when creating this line box. Used for text justification.
     AvailableSize m_original_available_width { AvailableSize::make_indefinite() };

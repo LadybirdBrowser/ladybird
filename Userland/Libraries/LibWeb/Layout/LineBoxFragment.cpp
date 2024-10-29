@@ -13,7 +13,7 @@
 
 namespace Web::Layout {
 
-LineBoxFragment::LineBoxFragment(Node const& layout_node, int start, int length, CSSPixels inline_offset, CSSPixels block_offset, CSSPixels inline_length, CSSPixels block_length, CSSPixels border_box_top, CSS::Direction direction, RefPtr<Gfx::GlyphRun> glyph_run)
+LineBoxFragment::LineBoxFragment(Node const& layout_node, int start, int length, CSSPixels inline_offset, CSSPixels block_offset, CSSPixels inline_length, CSSPixels block_length, CSSPixels border_box_top, CSS::Direction direction, CSS::WritingMode writing_mode, RefPtr<Gfx::GlyphRun> glyph_run)
     : m_layout_node(layout_node)
     , m_start(start)
     , m_length(length)
@@ -23,6 +23,7 @@ LineBoxFragment::LineBoxFragment(Node const& layout_node, int start, int length,
     , m_block_length(block_length)
     , m_border_box_top(border_box_top)
     , m_direction(direction)
+    , m_writing_mode(writing_mode)
     , m_glyph_run(move(glyph_run))
 {
     if (m_glyph_run) {
@@ -34,11 +35,15 @@ LineBoxFragment::LineBoxFragment(Node const& layout_node, int start, int length,
 
 CSSPixelPoint LineBoxFragment::offset() const
 {
+    if (m_writing_mode != CSS::WritingMode::HorizontalTb)
+        return { m_block_offset, m_inline_offset };
     return { m_inline_offset, m_block_offset };
 }
 
 CSSPixelSize LineBoxFragment::size() const
 {
+    if (m_writing_mode != CSS::WritingMode::HorizontalTb)
+        return { m_block_length, m_inline_length };
     return { m_inline_length, m_block_length };
 }
 
