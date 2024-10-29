@@ -22,6 +22,7 @@ PaintableFragment::PaintableFragment(Layout::LineBoxFragment const& fragment)
     , m_start(fragment.start())
     , m_length(fragment.length())
     , m_glyph_run(fragment.glyph_run())
+    , m_writing_mode(fragment.writing_mode())
 {
 }
 
@@ -127,6 +128,21 @@ CSSPixelRect PaintableFragment::range_rect(Gfx::Font const& font, size_t start_o
         return rect;
     }
     return {};
+}
+
+Gfx::Orientation PaintableFragment::orientation() const
+{
+    switch (m_writing_mode) {
+    case CSS::WritingMode::HorizontalTb:
+        return Gfx::Orientation::Horizontal;
+    case CSS::WritingMode::VerticalRl:
+    case CSS::WritingMode::VerticalLr:
+    case CSS::WritingMode::SidewaysRl:
+    case CSS::WritingMode::SidewaysLr:
+        return Gfx::Orientation::Vertical;
+    default:
+        VERIFY_NOT_REACHED();
+    }
 }
 
 CSSPixelRect PaintableFragment::selection_rect(Gfx::Font const& font) const

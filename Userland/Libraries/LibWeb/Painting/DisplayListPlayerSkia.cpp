@@ -474,7 +474,20 @@ void DisplayListPlayerSkia::draw_glyph_run(DrawGlyphRun const& command)
 
     SkPaint paint;
     paint.setColor(to_skia_color(command.color));
-    surface().canvas().drawGlyphs(glyphs.size(), glyphs.data(), positions.data(), to_skia_point(command.translation), sk_font, paint);
+
+    auto& canvas = surface().canvas();
+    switch (command.orientation) {
+    case Gfx::Orientation::Horizontal:
+        canvas.drawGlyphs(glyphs.size(), glyphs.data(), positions.data(), to_skia_point(command.translation), sk_font, paint);
+        break;
+    case Gfx::Orientation::Vertical:
+        canvas.save();
+        canvas.translate(command.rect.width(), 0);
+        canvas.rotate(90, command.rect.top_left().x(), command.rect.top_left().y());
+        canvas.drawGlyphs(glyphs.size(), glyphs.data(), positions.data(), to_skia_point(command.translation), sk_font, paint);
+        canvas.restore();
+        break;
+    }
 }
 
 void DisplayListPlayerSkia::fill_rect(FillRect const& command)
