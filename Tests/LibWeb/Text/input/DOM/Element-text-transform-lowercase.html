@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<style type='text/css'>
+.test { text-transform: lowercase; }
+</style>
+</head>
+
+<script src="../include.js"></script>
+<body>
+<div class="test" lang="lt">
+  <span>&#xCC; &#x69;&#x307;&#x300;</span> <span>&#xCD; &#x69;&#x307;&#x301;</span> <span>&#x128; &#x69;&#x307;&#x303;</span>
+  <span>&#x49;&#x300; &#x69;&#x307;&#x300;</span> <span>&#x4A;&#x301; &#x6A;&#x307;&#x301;</span> <span>&#x12E;&#x303; &#x12F;&#x307;&#x303;</span>
+</div>
+
+<script>
+    test(() => {
+        var elements = document.getElementsByClassName('test');
+        for (var i = 0; i < elements.length; i++) {
+            println(elements[i].innerText);
+        }
+    });
+</script>
+</body>
+
+</html>
