@@ -11,7 +11,6 @@
 #include <LibWeb/CSS/StyleProperties.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/ShadowRoot.h>
-#include <LibWeb/HTML/DOMStringMap.h>
 #include <LibWeb/SVG/SVGElement.h>
 #include <LibWeb/SVG/SVGSVGElement.h>
 #include <LibWeb/SVG/SVGUseElement.h>
