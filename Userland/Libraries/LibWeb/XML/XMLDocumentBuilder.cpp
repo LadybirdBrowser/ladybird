@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibWeb/DOM/DocumentType.h>
 #include <LibWeb/DOM/Event.h>
 #include <LibWeb/HTML/HTMLTemplateElement.h>
 #include <LibWeb/HTML/Window.h>
@@ -59,6 +60,31 @@ XMLDocumentBuilder::XMLDocumentBuilder(DOM::Document& document, XMLScriptingSupp
 void XMLDocumentBuilder::set_source(ByteString source)
 {
     m_document->set_source(MUST(String::from_byte_string(source)));
+}
+
+void XMLDocumentBuilder::set_doctype(XML::Doctype doctype)
+{
+    if (m_document->doctype()) {
+        return;
+    }
+
+    auto document_type = DOM::DocumentType::create(m_document);
+    auto name = MUST(AK::String::from_byte_string(doctype.type));
+    document_type->set_name(name);
+
+    if (doctype.external_id.has_value()) {
+        auto external_id = doctype.external_id.release_value();
+
+        auto system_id = MUST(AK::String::from_byte_string(external_id.system_id.system_literal));
+        document_type->set_system_id(system_id);
+
+        if (external_id.public_id.has_value()) {
+            auto public_id = MUST(AK::String::from_byte_string(external_id.public_id.release_value().public_literal));
+            document_type->set_public_id(public_id);
+        }
+    }
+
+    m_document->insert_before(document_type, m_document->first_child(), false);
 }
 
 void XMLDocumentBuilder::element_start(const XML::Name& name, HashMap<XML::Name, ByteString> const& attributes)
