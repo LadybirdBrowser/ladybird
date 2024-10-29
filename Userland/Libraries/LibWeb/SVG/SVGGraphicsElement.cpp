@@ -150,6 +150,8 @@ void SVGGraphicsElement::apply_presentational_hints(CSS::StyleProperties& style)
         // FIXME: The `stroke` attribute and CSS `stroke` property are not the same! But our support is limited enough that they are equivalent for now.
         NamedPropertyID(CSS::PropertyID::Stroke),
         NamedPropertyID(CSS::PropertyID::StrokeLinecap),
+        NamedPropertyID(CSS::PropertyID::StrokeLinejoin),
+        NamedPropertyID(CSS::PropertyID::StrokeMiterlimit),
         NamedPropertyID(CSS::PropertyID::StrokeWidth),
         NamedPropertyID(CSS::PropertyID::FillRule),
         NamedPropertyID(CSS::PropertyID::FillOpacity),
@@ -240,6 +242,20 @@ Optional<CSS::StrokeLinecap> SVGGraphicsElement::stroke_linecap() const
     if (!layout_node())
         return {};
     return layout_node()->computed_values().stroke_linecap();
+}
+
+Optional<CSS::StrokeLinejoin> SVGGraphicsElement::stroke_linejoin() const
+{
+    if (!layout_node())
+        return {};
+    return layout_node()->computed_values().stroke_linejoin();
+}
+
+Optional<CSS::NumberOrCalculated> SVGGraphicsElement::stroke_miterlimit() const
+{
+    if (!layout_node())
+        return {};
+    return layout_node()->computed_values().stroke_miterlimit();
 }
 
 Optional<float> SVGGraphicsElement::stroke_opacity() const

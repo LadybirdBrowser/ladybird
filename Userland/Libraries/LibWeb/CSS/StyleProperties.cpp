@@ -326,6 +326,25 @@ Optional<CSS::StrokeLinecap> StyleProperties::stroke_linecap() const
     return keyword_to_stroke_linecap(value->to_keyword());
 }
 
+Optional<CSS::StrokeLinejoin> StyleProperties::stroke_linejoin() const
+{
+    auto value = property(CSS::PropertyID::StrokeLinejoin);
+    return keyword_to_stroke_linejoin(value->to_keyword());
+}
+
+NumberOrCalculated StyleProperties::stroke_miterlimit() const
+{
+    auto value = property(CSS::PropertyID::StrokeMiterlimit);
+
+    if (value->is_math()) {
+        auto const& math_value = value->as_math();
+        VERIFY(math_value.resolves_to_number());
+        return NumberOrCalculated { math_value };
+    }
+
+    return NumberOrCalculated { value->as_number().number() };
+}
+
 float StyleProperties::stroke_opacity() const
 {
     auto value = property(CSS::PropertyID::StrokeOpacity);

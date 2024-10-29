@@ -180,6 +180,8 @@ public:
     float stop_opacity() const;
     float fill_opacity() const;
     Optional<CSS::StrokeLinecap> stroke_linecap() const;
+    Optional<CSS::StrokeLinejoin> stroke_linejoin() const;
+    NumberOrCalculated stroke_miterlimit() const;
     float stroke_opacity() const;
     Optional<CSS::FillRule> fill_rule() const;
     Optional<CSS::ClipRule> clip_rule() const;

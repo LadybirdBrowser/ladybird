@@ -422,6 +422,11 @@
     "square",
     "round"
   ],
+  "stroke-linejoin": [
+    "miter",
+    "round",
+    "bevel"
+  ],
   "text-align": [
     "center",
     "justify",

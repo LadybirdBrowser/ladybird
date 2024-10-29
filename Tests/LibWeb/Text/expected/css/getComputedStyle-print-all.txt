@@ -32,6 +32,8 @@ pointer-events: auto
 quotes: auto
 stroke: none
 stroke-linecap: butt
+stroke-linejoin: miter
+stroke-miterlimit: 4
 stroke-opacity: 1
 stroke-width: 1px
 tab-size: 8
@@ -121,7 +123,7 @@ grid-row-start: auto
 grid-template-areas: none
 grid-template-columns: auto
 grid-template-rows: auto
-height: 2091px
+height: 2125px
 inline-size: auto
 inset-block-end: auto
 inset-block-start: auto

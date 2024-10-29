@@ -149,6 +149,8 @@ public:
     static CSS::FillRule fill_rule() { return CSS::FillRule::Nonzero; }
     static CSS::ClipRule clip_rule() { return CSS::ClipRule::Nonzero; }
     static CSS::StrokeLinecap stroke_linecap() { return CSS::StrokeLinecap::Butt; }
+    static CSS::StrokeLinejoin stroke_linejoin() { return CSS::StrokeLinejoin::Miter; }
+    static float stroke_miterlimit() { return 4.0f; }
     static float stroke_opacity() { return 1.0f; }
     static float stop_opacity() { return 1.0f; }
     static CSS::TextAnchor text_anchor() { return CSS::TextAnchor::Start; }
@@ -473,6 +475,8 @@ public:
     Optional<SVGPaint> const& stroke() const { return m_inherited.stroke; }
     float fill_opacity() const { return m_inherited.fill_opacity; }
     CSS::StrokeLinecap stroke_linecap() const { return m_inherited.stroke_linecap; }
+    CSS::StrokeLinejoin stroke_linejoin() const { return m_inherited.stroke_linejoin; }
+    NumberOrCalculated stroke_miterlimit() const { return m_inherited.stroke_miterlimit; }
     float stroke_opacity() const { return m_inherited.stroke_opacity; }
     LengthPercentage const& stroke_width() const { return m_inherited.stroke_width; }
     Color stop_color() const { return m_noninherited.stop_color; }
@@ -569,6 +573,8 @@ protected:
         Optional<SVGPaint> stroke;
         float fill_opacity { InitialValues::fill_opacity() };
         CSS::StrokeLinecap stroke_linecap { InitialValues::stroke_linecap() };
+        CSS::StrokeLinejoin stroke_linejoin { InitialValues::stroke_linejoin() };
+        NumberOrCalculated stroke_miterlimit { InitialValues::stroke_miterlimit() };
         float stroke_opacity { InitialValues::stroke_opacity() };
         LengthPercentage stroke_width { Length::make_px(1) };
         CSS::TextAnchor text_anchor { InitialValues::text_anchor() };
@@ -813,6 +819,8 @@ public:
     void set_fill_rule(CSS::FillRule value) { m_inherited.fill_rule = value; }
     void set_fill_opacity(float value) { m_inherited.fill_opacity = value; }
     void set_stroke_linecap(CSS::StrokeLinecap value) { m_inherited.stroke_linecap = value; }
+    void set_stroke_linejoin(CSS::StrokeLinejoin value) { m_inherited.stroke_linejoin = value; }
+    void set_stroke_miterlimit(NumberOrCalculated value) { m_inherited.stroke_miterlimit = value; }
     void set_stroke_opacity(float value) { m_inherited.stroke_opacity = value; }
     void set_stroke_width(LengthPercentage value) { m_inherited.stroke_width = value; }
     void set_stop_color(Color value) { m_noninherited.stop_color = value; }

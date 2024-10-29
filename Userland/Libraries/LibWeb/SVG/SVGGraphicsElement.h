@@ -39,6 +39,8 @@ public:
     Optional<float> stroke_width() const;
     Optional<float> fill_opacity() const;
     Optional<CSS::StrokeLinecap> stroke_linecap() const;
+    Optional<CSS::StrokeLinejoin> stroke_linejoin() const;
+    Optional<CSS::NumberOrCalculated> stroke_miterlimit() const;
     Optional<float> stroke_opacity() const;
     Optional<FillRule> fill_rule() const;
     Optional<ClipRule> clip_rule() const;

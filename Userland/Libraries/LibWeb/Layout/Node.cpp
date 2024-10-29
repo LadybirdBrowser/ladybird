@@ -849,6 +849,11 @@ void NodeWithStyle::apply_style(const CSS::StyleProperties& computed_style)
     computed_values.set_fill_opacity(computed_style.fill_opacity());
     if (auto stroke_linecap = computed_style.stroke_linecap(); stroke_linecap.has_value())
         computed_values.set_stroke_linecap(stroke_linecap.value());
+    if (auto stroke_linejoin = computed_style.stroke_linejoin(); stroke_linejoin.has_value())
+        computed_values.set_stroke_linejoin(stroke_linejoin.value());
+
+    computed_values.set_stroke_miterlimit(computed_style.stroke_miterlimit());
+
     computed_values.set_stroke_opacity(computed_style.stroke_opacity());
     computed_values.set_stop_opacity(computed_style.stop_opacity());
 
