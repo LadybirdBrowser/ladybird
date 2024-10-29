@@ -1032,34 +1032,35 @@ static void copy_data_to_clipboard(StringView data, NSPasteboardType pasteboard_
     m_web_view_bridge->on_maximize_window = [weak_self]() {
         LadybirdWebView* self = weak_self;
         if (self == nil) {
-            return Gfx::IntRect {};
+            return;
         }
-        auto frame = [[NSScreen mainScreen] frame];
+
+        auto frame = [[[self window] screen] frame];
         [[self window] setFrame:frame display:YES];
 
-        return Ladybird::ns_rect_to_gfx_rect([[self window] frame]);
+        m_web_view_bridge->did_update_window_rect();
     };
 
     m_web_view_bridge->on_minimize_window = [weak_self]() {
         LadybirdWebView* self = weak_self;
         if (self == nil) {
-            return Gfx::IntRect {};
+            return;
         }
-        [[self window] setIsMiniaturized:YES];
 
-        return Ladybird::ns_rect_to_gfx_rect([[self window] frame]);
+        [[self window] setIsMiniaturized:YES];
     };
 
     m_web_view_bridge->on_fullscreen_window = [weak_self]() {
         LadybirdWebView* self = weak_self;
         if (self == nil) {
-            return Gfx::IntRect {};
+            return;
         }
+
         if (([[self window] styleMask] & NSWindowStyleMaskFullScreen) == 0) {
             [[self window] toggleFullScreen:nil];
         }
 
-        return Ladybird::ns_rect_to_gfx_rect([[self window] frame]);
+        m_web_view_bridge->did_update_window_rect();
     };
 
     m_web_view_bridge->on_received_source = [weak_self](auto const& url, auto const& base_url, auto const& source) {

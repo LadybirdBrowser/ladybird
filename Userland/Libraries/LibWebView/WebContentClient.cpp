@@ -508,34 +508,28 @@ void WebContentClient::did_request_resize_window(u64 page_id, Gfx::IntSize size)
     }
 }
 
-Messages::WebContentClient::DidRequestMaximizeWindowResponse WebContentClient::did_request_maximize_window(u64 page_id)
+void WebContentClient::did_request_maximize_window(u64 page_id)
 {
     if (auto view = view_for_page_id(page_id); view.has_value()) {
         if (view->on_maximize_window)
-            return view->on_maximize_window();
+            view->on_maximize_window();
     }
-
-    return Gfx::IntRect {};
 }
 
-Messages::WebContentClient::DidRequestMinimizeWindowResponse WebContentClient::did_request_minimize_window(u64 page_id)
+void WebContentClient::did_request_minimize_window(u64 page_id)
 {
     if (auto view = view_for_page_id(page_id); view.has_value()) {
         if (view->on_minimize_window)
-            return view->on_minimize_window();
+            view->on_minimize_window();
     }
-
-    return Gfx::IntRect {};
 }
 
-Messages::WebContentClient::DidRequestFullscreenWindowResponse WebContentClient::did_request_fullscreen_window(u64 page_id)
+void WebContentClient::did_request_fullscreen_window(u64 page_id)
 {
     if (auto view = view_for_page_id(page_id); view.has_value()) {
         if (view->on_fullscreen_window)
-            return view->on_fullscreen_window();
+            view->on_fullscreen_window();
     }
-
-    return Gfx::IntRect {};
 }
 
 void WebContentClient::did_request_file(u64 page_id, ByteString const& path, i32 request_id)

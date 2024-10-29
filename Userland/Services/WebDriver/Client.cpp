@@ -406,7 +406,7 @@ Web::WebDriver::Response Client::maximize_window(Web::WebDriver::Parameters para
 {
     dbgln_if(WEBDRIVER_DEBUG, "Handling POST /session/<session_id>/window/maximize");
     auto session = TRY(find_session_with_id(parameters[0]));
-    return session->web_content_connection().maximize_window();
+    return session->maximize_window();
 }
 
 // 11.8.4 Minimize Window, https://w3c.github.io/webdriver/#minimize-window
@@ -415,7 +415,7 @@ Web::WebDriver::Response Client::minimize_window(Web::WebDriver::Parameters para
 {
     dbgln_if(WEBDRIVER_DEBUG, "Handling POST /session/<session_id>/window/minimize");
     auto session = TRY(find_session_with_id(parameters[0]));
-    return session->web_content_connection().minimize_window();
+    return session->minimize_window();
 }
 
 // 11.8.5 Fullscreen Window, https://w3c.github.io/webdriver/#dfn-fullscreen-window
@@ -424,7 +424,7 @@ Web::WebDriver::Response Client::fullscreen_window(Web::WebDriver::Parameters pa
 {
     dbgln_if(WEBDRIVER_DEBUG, "Handling POST /session/<session_id>/window/fullscreen");
     auto session = TRY(find_session_with_id(parameters[0]));
-    return session->web_content_connection().fullscreen_window();
+    return session->fullscreen_window();
 }
 
 // Extension: Consume User Activation, https://html.spec.whatwg.org/multipage/interaction.html#user-activation-user-agent-automation

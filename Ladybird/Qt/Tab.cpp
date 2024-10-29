@@ -364,17 +364,16 @@ Tab::Tab(BrowserWindow* window, RefPtr<WebView::WebContentClient> parent_client,
 
     view().on_maximize_window = [this]() {
         m_window->showMaximized();
-        return Gfx::IntRect { m_window->x(), m_window->y(), m_window->width(), m_window->height() };
+        view().did_update_window_rect();
     };
 
     view().on_minimize_window = [this]() {
         m_window->showMinimized();
-        return Gfx::IntRect { m_window->x(), m_window->y(), m_window->width(), m_window->height() };
     };
 
     view().on_fullscreen_window = [this]() {
         m_window->showFullScreen();
-        return Gfx::IntRect { m_window->x(), m_window->y(), m_window->width(), m_window->height() };
+        view().did_update_window_rect();
     };
 
     view().on_insert_clipboard_entry = [](auto const& data, auto const&, auto const& mime_type) {

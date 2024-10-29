@@ -102,9 +102,9 @@ private:
     virtual void did_request_restore_window(u64 page_id) override;
     virtual void did_request_reposition_window(u64 page_id, Gfx::IntPoint) override;
     virtual void did_request_resize_window(u64 page_id, Gfx::IntSize) override;
-    virtual Messages::WebContentClient::DidRequestMaximizeWindowResponse did_request_maximize_window(u64 page_id) override;
-    virtual Messages::WebContentClient::DidRequestMinimizeWindowResponse did_request_minimize_window(u64 page_id) override;
-    virtual Messages::WebContentClient::DidRequestFullscreenWindowResponse did_request_fullscreen_window(u64 page_id) override;
+    virtual void did_request_maximize_window(u64 page_id) override;
+    virtual void did_request_minimize_window(u64 page_id) override;
+    virtual void did_request_fullscreen_window(u64 page_id) override;
     virtual void did_request_file(u64 page_id, ByteString const& path, i32) override;
     virtual void did_request_color_picker(u64 page_id, Color const& current_color) override;
     virtual void did_request_file_picker(u64 page_id, Web::HTML::FileFilter const& accepted_file_types, Web::HTML::AllowMultipleFiles) override;

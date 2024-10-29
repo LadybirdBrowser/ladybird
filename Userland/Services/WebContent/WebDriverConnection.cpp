@@ -693,27 +693,27 @@ Messages::WebDriverClient::SetWindowRectResponse WebDriverConnection::set_window
     // FIXME: 10. Fully exit fullscreen.
 
     // 11. Restore the window.
-    restore_the_window();
+    restore_the_window(JS::create_heap_function(current_top_level_browsing_context()->heap(), [this, x, y, width, height]() {
+        auto& page = current_top_level_browsing_context()->page();
 
-    auto& page = current_top_level_browsing_context()->page();
+        // 11. If width and height are not null:
+        if (width.has_value() && height.has_value()) {
+            // a. Set the width, in CSS pixels, of the operating system window containing the current top-level browsing context, including any browser chrome and externally drawn window decorations to a value that is as close as possible to width.
+            // b. Set the height, in CSS pixels, of the operating system window containing the current top-level browsing context, including any browser chrome and externally drawn window decorations to a value that is as close as possible to height.
+            page.client().page_did_request_resize_window({ *width, *height });
+            ++m_pending_window_rect_requests;
+        }
 
-    // 11. If width and height are not null:
-    if (width.has_value() && height.has_value()) {
-        // a. Set the width, in CSS pixels, of the operating system window containing the current top-level browsing context, including any browser chrome and externally drawn window decorations to a value that is as close as possible to width.
-        // b. Set the height, in CSS pixels, of the operating system window containing the current top-level browsing context, including any browser chrome and externally drawn window decorations to a value that is as close as possible to height.
-        page.client().page_did_request_resize_window({ *width, *height });
-        ++m_pending_window_rect_requests;
-    }
+        // 12. If x and y are not null:
+        if (x.has_value() && y.has_value()) {
+            // a. Run the implementation-specific steps to set the position of the operating system level window containing the current top-level browsing context to the position given by the x and y coordinates.
+            page.client().page_did_request_reposition_window({ *x, *y });
+            ++m_pending_window_rect_requests;
+        }
 
-    // 12. If x and y are not null:
-    if (x.has_value() && y.has_value()) {
-        // a. Run the implementation-specific steps to set the position of the operating system level window containing the current top-level browsing context to the position given by the x and y coordinates.
-        page.client().page_did_request_reposition_window({ *x, *y });
-        ++m_pending_window_rect_requests;
-    }
-
-    if (m_pending_window_rect_requests == 0)
-        async_window_rect_updated(serialize_rect(compute_window_rect(page)));
+        if (m_pending_window_rect_requests == 0)
+            async_window_rect_updated(serialize_rect(compute_window_rect(page)));
+    }));
 
     // 14. Return success with data set to the WindowRect object for the current top-level browsing context.
     return JsonValue {};
@@ -733,13 +733,13 @@ Messages::WebDriverClient::MaximizeWindowResponse WebDriverConnection::maximize_
     // FIXME: 4. Fully exit fullscreen.
 
     // 5. Restore the window.
-    restore_the_window();
-
-    // 6. Maximize the window of the current top-level browsing context.
-    auto window_rect = maximize_the_window();
+    restore_the_window(JS::create_heap_function(current_top_level_browsing_context()->heap(), [this]() {
+        // 6. Maximize the window of the current top-level browsing context.
+        maximize_the_window();
+    }));
 
     // 7. Return success with data set to the WindowRect object for the current top-level browsing context.
-    return serialize_rect(window_rect);
+    return JsonValue {};
 }
 
 // 11.8.4 Minimize Window, https://w3c.github.io/webdriver/#minimize-window
@@ -756,10 +756,13 @@ Messages::WebDriverClient::MinimizeWindowResponse WebDriverConnection::minimize_
     // FIXME: 4. Fully exit fullscreen.
 
     // 5. Iconify the window.
-    auto window_rect = iconify_the_window();
+    iconify_the_window(JS::create_heap_function(current_top_level_browsing_context()->heap(), [this]() {
+        auto& page = current_top_level_browsing_context()->page();
+        async_window_rect_updated(serialize_rect(compute_window_rect(page)));
+    }));
 
     // 6. Return success with data set to the WindowRect object for the current top-level browsing context.
-    return serialize_rect(window_rect);
+    return JsonValue {};
 }
 
 // 11.8.5 Fullscreen Window, https://w3c.github.io/webdriver/#dfn-fullscreen-window
@@ -774,15 +777,16 @@ Messages::WebDriverClient::FullscreenWindowResponse WebDriverConnection::fullscr
     TRY(handle_any_user_prompts());
 
     // 4. Restore the window.
-    restore_the_window();
-
-    // 5. FIXME: Call fullscreen an element with the current top-level browsing context’s active document’s document element.
-    //           As described in https://fullscreen.spec.whatwg.org/#fullscreen-an-element
-    //    NOTE: What we do here is basically `requestFullscreen(options)` with options["navigationUI"]="show"
-    auto rect = current_top_level_browsing_context()->page().client().page_did_request_fullscreen_window();
+    restore_the_window(JS::create_heap_function(current_top_level_browsing_context()->heap(), [this]() {
+        // 5. FIXME: Call fullscreen an element with the current top-level browsing context’s active document’s document element.
+        //           As described in https://fullscreen.spec.whatwg.org/#fullscreen-an-element
+        //    NOTE: What we do here is basically `requestFullscreen(options)` with options["navigationUI"]="show"
+        current_top_level_browsing_context()->page().client().page_did_request_fullscreen_window();
+        ++m_pending_window_rect_requests;
+    }));
 
     // 6. Return success with data set to the WindowRect object for the current top-level browsing context.
-    return serialize_rect(rect);
+    return JsonValue {};
 }
 
 // Extension Consume User Activation, https://html.spec.whatwg.org/multipage/interaction.html#user-activation-user-agent-automation
@@ -2521,56 +2525,66 @@ void WebDriverConnection::page_did_open_dialog(Badge<PageClient>)
         m_navigation_timer->stop_and_fire_timeout_handler();
 }
 
-// https://w3c.github.io/webdriver/#dfn-restore-the-window
-void WebDriverConnection::restore_the_window()
-{
-    // To restore the window, given an operating system level window with an associated top-level browsing context, run implementation-specific steps to restore or unhide the window to the visible screen.
-    current_top_level_browsing_context()->page().client().page_did_request_restore_window();
-
-    // Do not return from this operation until the visibility state of the top-level browsing context’s active document has reached the visible state, or until the operation times out.
-    // FIXME: It isn't clear which timeout should be used here.
-    auto page_load_timeout_fired = false;
-    auto timer = Core::Timer::create_single_shot(m_timeouts_configuration.page_load_timeout.value_or(300'000), [&] {
-        page_load_timeout_fired = true;
-    });
-    timer->start();
-
-    Web::Platform::EventLoopPlugin::the().spin_until([&]() {
-        auto state = current_top_level_browsing_context()->top_level_traversable()->system_visibility_state();
-        return page_load_timeout_fired || state == Web::HTML::VisibilityState::Visible;
-    });
-}
-
 // https://w3c.github.io/webdriver/#dfn-maximize-the-window
-Gfx::IntRect WebDriverConnection::maximize_the_window()
+void WebDriverConnection::maximize_the_window()
 {
-    // To maximize the window, given an operating system level window with an associated top-level browsing context, run the implementation-specific steps to transition the operating system level window into the maximized window state.
-    auto rect = current_top_level_browsing_context()->page().client().page_did_request_maximize_window();
-
+    // To maximize the window, given an operating system level window with an associated top-level browsing context, run
+    // the implementation-specific steps to transition the operating system level window into the maximized window state.
     // Return when the window has completed the transition, or within an implementation-defined timeout.
-    return rect;
+    current_top_level_browsing_context()->page().client().page_did_request_maximize_window();
+    ++m_pending_window_rect_requests;
 }
 
 // https://w3c.github.io/webdriver/#dfn-iconify-the-window
-Gfx::IntRect WebDriverConnection::iconify_the_window()
+void WebDriverConnection::iconify_the_window(JS::NonnullGCPtr<JS::HeapFunction<void()>> on_complete)
 {
-    // To iconify the window, given an operating system level window with an associated top-level browsing context, run implementation-specific steps to iconify, minimize, or hide the window from the visible screen.
-    auto rect = current_top_level_browsing_context()->page().client().page_did_request_minimize_window();
+    // To iconify the window, given an operating system level window with an associated top-level browsing context, run
+    // implementation-specific steps to iconify, minimize, or hide the window from the visible screen.
+    current_top_level_browsing_context()->page().client().page_did_request_minimize_window();
 
-    // Do not return from this operation until the visibility state of the top-level browsing context’s active document has reached the hidden state, or until the operation times out.
-    // FIXME: It isn't clear which timeout should be used here.
-    auto page_load_timeout_fired = false;
-    auto timer = Core::Timer::create_single_shot(m_timeouts_configuration.page_load_timeout.value_or(300'000), [&] {
-        page_load_timeout_fired = true;
+    // Do not return from this operation until the visibility state of the top-level browsing context’s active document
+    // has reached the hidden state, or until the operation times out.
+    wait_for_visibility_state(on_complete, Web::HTML::VisibilityState::Hidden);
+}
+
+// https://w3c.github.io/webdriver/#dfn-restore-the-window
+void WebDriverConnection::restore_the_window(JS::NonnullGCPtr<JS::HeapFunction<void()>> on_complete)
+{
+    // To restore the window, given an operating system level window with an associated top-level browsing context, run
+    // implementation-specific steps to restore or unhide the window to the visible screen.
+    current_top_level_browsing_context()->page().client().page_did_request_restore_window();
+
+    // Do not return from this operation until the visibility state of the top-level browsing context’s active document
+    // has reached the visible state, or until the operation times out.
+    wait_for_visibility_state(on_complete, Web::HTML::VisibilityState::Visible);
+}
+
+void WebDriverConnection::wait_for_visibility_state(JS::NonnullGCPtr<JS::HeapFunction<void()>> on_complete, Web::HTML::VisibilityState target_visibility_state)
+{
+    static constexpr auto VISIBILITY_STATE_TIMEOUT_MS = 5'000;
+
+    auto* document = current_top_level_browsing_context()->active_document();
+    auto& realm = document->realm();
+
+    if (document->visibility_state_value() == target_visibility_state) {
+        on_complete->function()();
+        return;
+    }
+
+    auto timer = realm.heap().allocate<Web::WebDriver::HeapTimer>(realm);
+    m_document_observer = realm.heap().allocate<Web::DOM::DocumentObserver>(realm, realm, *document);
+
+    m_document_observer->set_document_visibility_state_observer([timer, target_visibility_state](Web::HTML::VisibilityState visibility_state) {
+        if (visibility_state == target_visibility_state)
+            timer->stop_and_fire_timeout_handler();
     });
-    timer->start();
 
-    Web::Platform::EventLoopPlugin::the().spin_until([&]() {
-        auto state = current_top_level_browsing_context()->top_level_traversable()->system_visibility_state();
-        return page_load_timeout_fired || state == Web::HTML::VisibilityState::Hidden;
-    });
+    timer->start(VISIBILITY_STATE_TIMEOUT_MS, JS::create_heap_function(realm.heap(), [this, on_complete]() {
+        m_document_observer->set_document_visibility_state_observer({});
+        m_document_observer = nullptr;
 
-    return rect;
+        on_complete->function()();
+    }));
 }
 
 // https://w3c.github.io/webdriver/#dfn-find

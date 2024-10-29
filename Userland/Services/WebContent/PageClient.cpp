@@ -276,19 +276,19 @@ void PageClient::page_did_request_restore_window()
     client().async_did_request_restore_window(m_id);
 }
 
-Gfx::IntRect PageClient::page_did_request_maximize_window()
+void PageClient::page_did_request_maximize_window()
 {
-    return client().did_request_maximize_window(m_id);
+    client().async_did_request_maximize_window(m_id);
 }
 
-Gfx::IntRect PageClient::page_did_request_minimize_window()
+void PageClient::page_did_request_minimize_window()
 {
-    return client().did_request_minimize_window(m_id);
+    client().async_did_request_minimize_window(m_id);
 }
 
-Gfx::IntRect PageClient::page_did_request_fullscreen_window()
+void PageClient::page_did_request_fullscreen_window()
 {
-    return client().did_request_fullscreen_window(m_id);
+    client().async_did_request_fullscreen_window(m_id);
 }
 
 void PageClient::page_did_request_tooltip_override(Web::CSSPixelPoint position, ByteString const& title)
