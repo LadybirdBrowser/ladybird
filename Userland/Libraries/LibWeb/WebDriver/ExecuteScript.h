@@ -36,6 +36,9 @@ struct ExecuteScriptResultSerialized {
 
 using OnScriptComplete = JS::HeapFunction<void(ExecuteScriptResultSerialized)>;
 
+JS::ThrowCompletionOr<JS::Value> execute_a_function_body(HTML::BrowsingContext const&, ByteString const& body, ReadonlySpan<JS::Value> parameters);
+JS::ThrowCompletionOr<JS::Value> execute_a_function_body(HTML::Window const&, ByteString const& body, ReadonlySpan<JS::Value> parameters, JS::GCPtr<JS::Object> environment_override_object = {});
+
 void execute_script(HTML::BrowsingContext const&, ByteString body, JS::MarkedVector<JS::Value> arguments, Optional<u64> const& timeout_ms, JS::NonnullGCPtr<OnScriptComplete> on_complete);
 void execute_async_script(HTML::BrowsingContext const&, ByteString body, JS::MarkedVector<JS::Value> arguments, Optional<u64> const& timeout_ms, JS::NonnullGCPtr<OnScriptComplete> on_complete);
 
