@@ -24,6 +24,12 @@ default_binary_path() {
     fi
 }
 
+ladybird_git_hash() {
+    pushd "${LADYBIRD_SOURCE_DIR}" > /dev/null
+        git rev-parse --short HEAD
+    popd > /dev/null
+}
+
 LADYBIRD_BINARY=${LADYBIRD_BINARY:-"$(default_binary_path)/Ladybird"}
 WEBDRIVER_BINARY=${WEBDRIVER_BINARY:-"$(default_binary_path)/WebDriver"}
 WPT_PROCESSES=${WPT_PROCESSES:-$(get_number_of_processing_units)}
@@ -153,8 +159,8 @@ execute_wpt() {
             fi
             WPT_ARGS+=( "--webdriver-arg=--certificate=${certificate_path}" )
         done
-        echo QT_QPA_PLATFORM="offscreen" ./wpt run "${WPT_ARGS[@]}" ladybird "${TEST_LIST[@]}"
-        QT_QPA_PLATFORM="offscreen" ./wpt run "${WPT_ARGS[@]}" ladybird "${TEST_LIST[@]}"
+        echo QT_QPA_PLATFORM="offscreen" LADYBIRD_GIT_VERSION="$(ladybird_git_hash)" ./wpt run "${WPT_ARGS[@]}" ladybird "${TEST_LIST[@]}"
+        QT_QPA_PLATFORM="offscreen" LADYBIRD_GIT_VERSION="$(ladybird_git_hash)" ./wpt run "${WPT_ARGS[@]}" ladybird "${TEST_LIST[@]}"
     popd > /dev/null
 }
 
