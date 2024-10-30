@@ -70,6 +70,13 @@ public:
     Web::WebDriver::Response minimize_window() const;
     Web::WebDriver::Response fullscreen_window() const;
 
+    Web::WebDriver::Response find_element(JsonValue) const;
+    Web::WebDriver::Response find_elements(JsonValue) const;
+    Web::WebDriver::Response find_element_from_element(String, JsonValue) const;
+    Web::WebDriver::Response find_elements_from_element(String, JsonValue) const;
+    Web::WebDriver::Response find_element_from_shadow_root(String, JsonValue) const;
+    Web::WebDriver::Response find_elements_from_shadow_root(String, JsonValue) const;
+
     Web::WebDriver::Response element_click(String) const;
     Web::WebDriver::Response element_send_keys(String, JsonValue) const;
     Web::WebDriver::Response perform_actions(JsonValue) const;

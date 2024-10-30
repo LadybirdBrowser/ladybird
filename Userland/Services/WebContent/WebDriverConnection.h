@@ -9,7 +9,6 @@
 #pragma once
 
 #include <AK/ByteString.h>
-#include <AK/Function.h>
 #include <AK/HashMap.h>
 #include <AK/String.h>
 #include <LibGfx/Rect.h>
@@ -27,6 +26,8 @@
 #include <WebContent/WebDriverServerEndpoint.h>
 
 namespace WebContent {
+
+class ElementLocator;
 
 class WebDriverConnection final
     : public IPC::ConnectionToServer<WebDriverClientEndpoint, WebDriverServerEndpoint> {
@@ -133,8 +134,9 @@ private:
     Gfx::IntPoint calculate_absolute_position_of_element(JS::NonnullGCPtr<Web::Geometry::DOMRect> rect);
     Gfx::IntRect calculate_absolute_rect_of_element(Web::DOM::Element const& element);
 
-    using StartNodeGetter = Function<ErrorOr<JS::NonnullGCPtr<Web::DOM::ParentNode>, Web::WebDriver::Error>()>;
-    ErrorOr<JsonArray, Web::WebDriver::Error> find(StartNodeGetter&& start_node_getter, Web::WebDriver::LocationStrategy using_, StringView value);
+    using GetStartNode = JS::NonnullGCPtr<JS::HeapFunction<ErrorOr<JS::NonnullGCPtr<Web::DOM::ParentNode>, Web::WebDriver::Error>()>>;
+    using OnFindComplete = JS::NonnullGCPtr<JS::HeapFunction<void(Web::WebDriver::Response)>>;
+    void find(Web::WebDriver::LocationStrategy, ByteString, GetStartNode, OnFindComplete);
 
     struct ScriptArguments {
         ByteString script;
@@ -165,6 +167,9 @@ private:
     JS::GCPtr<Web::HTML::BrowsingContext> m_current_top_level_browsing_context;
 
     size_t m_pending_window_rect_requests { 0 };
+
+    friend class ElementLocator;
+    JS::GCPtr<ElementLocator> m_element_locator;
 
     JS::GCPtr<JS::Cell> m_action_executor;
 

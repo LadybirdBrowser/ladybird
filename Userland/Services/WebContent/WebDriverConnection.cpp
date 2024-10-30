@@ -203,6 +203,7 @@ void WebDriverConnection::visit_edges(JS::Cell::Visitor& visitor)
     visitor.visit(m_current_browsing_context);
     visitor.visit(m_current_parent_browsing_context);
     visitor.visit(m_current_top_level_browsing_context);
+    visitor.visit(m_element_locator);
     visitor.visit(m_action_executor);
     visitor.visit(m_document_observer);
     visitor.visit(m_navigation_observer);
@@ -810,29 +811,41 @@ Messages::WebDriverClient::ConsumeUserActivationResponse WebDriverConnection::co
     return consume;
 }
 
+static Web::WebDriver::Response extract_first_element(Web::WebDriver::Response result)
+{
+    auto array = TRY(result);
+    VERIFY(array.is_array());
+
+    if (!array.as_array().is_empty())
+        return array.as_array().take(0);
+
+    return Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::NoSuchElement, "The requested element does not exist"sv);
+}
+
 // 12.3.2 Find Element, https://w3c.github.io/webdriver/#dfn-find-element
 Messages::WebDriverClient::FindElementResponse WebDriverConnection::find_element(JsonValue const& payload)
 {
-    // 1. Let location strategy be the result of getting a property called "using".
+    // 1. Let location strategy be the result of getting a property named "using" from parameters.
     auto location_strategy_string = TRY(Web::WebDriver::get_property(payload, "using"sv));
     auto location_strategy = Web::WebDriver::location_strategy_from_string(location_strategy_string);
 
-    // 2. If location strategy is not present as a keyword in the table of location strategies, return error with error code invalid argument.
+    // 2. If location strategy is not present as a keyword in the table of location strategies, return error with error
+    //    code invalid argument.
     if (!location_strategy.has_value())
         return Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::InvalidArgument, ByteString::formatted("Location strategy '{}' is invalid", location_strategy_string));
 
-    // 3. Let selector be the result of getting a property called "value".
+    // 3. Let selector be the result of getting a property named "value" from parameters.
     // 4. If selector is undefined, return error with error code invalid argument.
     auto selector = TRY(Web::WebDriver::get_property(payload, "value"sv));
 
-    // 5. If the current browsing context is no longer open, return error with error code no such window.
+    // 5. If session's current browsing context is no longer open, return error with error code no such window.
     TRY(ensure_current_browsing_context_is_open());
 
-    // 6. Handle any user prompts and return its value if it is an error.
+    // 6. Try to handle any user prompts with session.
     TRY(handle_any_user_prompts());
 
-    auto start_node_getter = [this]() -> StartNodeGetter::ReturnType {
-        // 7. Let start node be the current browsing context’s document element.
+    auto get_start_node = JS::create_heap_function(current_browsing_context().heap(), [this]() -> ErrorOr<JS::NonnullGCPtr<Web::DOM::ParentNode>, Web::WebDriver::Error> {
+        // 7. Let start node be session's current browsing context's document element.
         auto* start_node = current_browsing_context().active_document();
 
         // 8. If start node is null, return error with error code no such element.
@@ -840,41 +853,41 @@ Messages::WebDriverClient::FindElementResponse WebDriverConnection::find_element
             return Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::NoSuchElement, "document element does not exist"sv);
 
         return *start_node;
-    };
+    });
 
-    // 9. Let result be the result of trying to Find with start node, location strategy, and selector.
-    auto result = TRY(find(move(start_node_getter), *location_strategy, selector));
+    // 9. Let result be the result of trying to Find with session, start node, location strategy, and selector.
+    find(*location_strategy, move(selector), get_start_node, JS::create_heap_function(current_browsing_context().heap(), [this](Web::WebDriver::Response result) {
+        // 10. If result is empty, return error with error code no such element. Otherwise, return the first element of result.
+        async_find_elements_complete(extract_first_element(move(result)));
+    }));
 
-    // 10. If result is empty, return error with error code no such element. Otherwise, return the first element of result.
-    if (result.is_empty())
-        return Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::NoSuchElement, "The requested element does not exist"sv);
-
-    return result.take(0);
+    return JsonValue {};
 }
 
 // 12.3.3 Find Elements, https://w3c.github.io/webdriver/#dfn-find-elements
 Messages::WebDriverClient::FindElementsResponse WebDriverConnection::find_elements(JsonValue const& payload)
 {
-    // 1. Let location strategy be the result of getting a property called "using".
+    // 1. Let location strategy be the result of getting a property named "using" from parameters.
     auto location_strategy_string = TRY(Web::WebDriver::get_property(payload, "using"sv));
     auto location_strategy = Web::WebDriver::location_strategy_from_string(location_strategy_string);
 
-    // 2. If location strategy is not present as a keyword in the table of location strategies, return error with error code invalid argument.
+    // 2. If location strategy is not present as a keyword in the table of location strategies, return error with error
+    //    code invalid argument.
     if (!location_strategy.has_value())
         return Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::InvalidArgument, ByteString::formatted("Location strategy '{}' is invalid", location_strategy_string));
 
-    // 3. Let selector be the result of getting a property called "value".
+    // 3. Let selector be the result of getting a property named "value" from parameters.
     // 4. If selector is undefined, return error with error code invalid argument.
     auto selector = TRY(Web::WebDriver::get_property(payload, "value"sv));
 
-    // 5. If the current browsing context is no longer open, return error with error code no such window.
+    // 5. If session's current browsing context is no longer open, return error with error code no such window.
     TRY(ensure_current_browsing_context_is_open());
 
-    // 6. Handle any user prompts and return its value if it is an error.
+    // 6. Try to handle any user prompts with session.
     TRY(handle_any_user_prompts());
 
-    auto start_node_getter = [this]() -> StartNodeGetter::ReturnType {
-        // 7. Let start node be the current browsing context’s document element.
+    auto get_start_node = JS::create_heap_function(current_browsing_context().heap(), [this]() -> ErrorOr<JS::NonnullGCPtr<Web::DOM::ParentNode>, Web::WebDriver::Error> {
+        // 7. Let start node be session's current browsing context's document element.
         auto* start_node = current_browsing_context().active_document();
 
         // 8. If start node is null, return error with error code no such element.
@@ -882,16 +895,20 @@ Messages::WebDriverClient::FindElementsResponse WebDriverConnection::find_elemen
             return Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::NoSuchElement, "document element does not exist"sv);
 
         return *start_node;
-    };
+    });
 
-    // 9. Return the result of trying to Find with start node, location strategy, and selector.
-    return TRY(find(move(start_node_getter), *location_strategy, selector));
+    // 9. Return the result of trying to Find with session, start node, location strategy, and selector.
+    find(*location_strategy, move(selector), get_start_node, JS::create_heap_function(current_browsing_context().heap(), [this](Web::WebDriver::Response result) {
+        async_find_elements_complete(move(result));
+    }));
+
+    return JsonValue {};
 }
 
 // 12.3.4 Find Element From Element, https://w3c.github.io/webdriver/#dfn-find-element-from-element
 Messages::WebDriverClient::FindElementFromElementResponse WebDriverConnection::find_element_from_element(JsonValue const& payload, String const& element_id)
 {
-    // 1. Let location strategy be the result of getting a property called "using".
+    // 1. Let location strategy be the result of getting a property named "using" from parameters.
     auto location_strategy_string = TRY(Web::WebDriver::get_property(payload, "using"sv));
     auto location_strategy = Web::WebDriver::location_strategy_from_string(location_strategy_string);
 
@@ -899,35 +916,34 @@ Messages::WebDriverClient::FindElementFromElementResponse WebDriverConnection::f
     if (!location_strategy.has_value())
         return Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::InvalidArgument, ByteString::formatted("Location strategy '{}' is invalid", location_strategy_string));
 
-    // 3. Let selector be the result of getting a property called "value".
+    // 3. Let selector be the result of getting a property named "value" from parameters.
     // 4. If selector is undefined, return error with error code invalid argument.
     auto selector = TRY(Web::WebDriver::get_property(payload, "value"sv));
 
-    // 5. If the current browsing context is no longer open, return error with error code no such window.
+    // 5. If session's current browsing context is no longer open, return error with error code no such window.
     TRY(ensure_current_browsing_context_is_open());
 
-    // 6. Handle any user prompts and return its value if it is an error.
+    // 6. Try to handle any user prompts with session.
     TRY(handle_any_user_prompts());
 
-    auto start_node_getter = [&]() -> StartNodeGetter::ReturnType {
-        // 7. Let start node be the result of trying to get a known connected element with url variable element id.
-        return TRY(Web::WebDriver::get_known_element(current_browsing_context(), element_id));
-    };
+    auto get_start_node = JS::create_heap_function(current_browsing_context().heap(), [this, element_id]() -> ErrorOr<JS::NonnullGCPtr<Web::DOM::ParentNode>, Web::WebDriver::Error> {
+        // 7. Let start node be the result of trying to get a known element with session and URL variables["element id"].
+        return Web::WebDriver::get_known_element(current_browsing_context(), element_id);
+    });
 
-    // 8. Let result be the value of trying to Find with start node, location strategy, and selector.
-    auto result = TRY(find(move(start_node_getter), *location_strategy, selector));
+    // 8. Let result be the value of trying to Find with session, start node, location strategy, and selector.
+    find(*location_strategy, move(selector), get_start_node, JS::create_heap_function(current_browsing_context().heap(), [this](Web::WebDriver::Response result) {
+        // 9. If result is empty, return error with error code no such element. Otherwise, return the first element of result.
+        async_find_elements_complete(extract_first_element(move(result)));
+    }));
 
-    // 9. If result is empty, return error with error code no such element. Otherwise, return the first element of result.
-    if (result.is_empty())
-        return Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::NoSuchElement, "The requested element does not exist"sv);
-
-    return result.take(0);
+    return JsonValue {};
 }
 
 // 12.3.5 Find Elements From Element, https://w3c.github.io/webdriver/#dfn-find-elements-from-element
 Messages::WebDriverClient::FindElementsFromElementResponse WebDriverConnection::find_elements_from_element(JsonValue const& payload, String const& element_id)
 {
-    // 1. Let location strategy be the result of getting a property called "using".
+    // 1. Let location strategy be the result of getting a property named "using" from parameters.
     auto location_strategy_string = TRY(Web::WebDriver::get_property(payload, "using"sv));
     auto location_strategy = Web::WebDriver::location_strategy_from_string(location_strategy_string);
 
@@ -935,23 +951,27 @@ Messages::WebDriverClient::FindElementsFromElementResponse WebDriverConnection::
     if (!location_strategy.has_value())
         return Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::InvalidArgument, ByteString::formatted("Location strategy '{}' is invalid", location_strategy_string));
 
-    // 3. Let selector be the result of getting a property called "value".
+    // 3. Let selector be the result of getting a property named "value" from parameters.
     // 4. If selector is undefined, return error with error code invalid argument.
     auto selector = TRY(Web::WebDriver::get_property(payload, "value"sv));
 
-    // 5. If the current browsing context is no longer open, return error with error code no such window.
+    // 5. If session's current browsing context is no longer open, return error with error code no such window.
     TRY(ensure_current_browsing_context_is_open());
 
-    // 6. Handle any user prompts and return its value if it is an error.
+    // 6. Try to handle any user prompts with session.
     TRY(handle_any_user_prompts());
 
-    auto start_node_getter = [&]() -> StartNodeGetter::ReturnType {
-        // 7. Let start node be the result of trying to get a known connected element with url variable element id.
-        return TRY(Web::WebDriver::get_known_element(current_browsing_context(), element_id));
-    };
+    auto get_start_node = JS::create_heap_function(current_browsing_context().heap(), [this, element_id]() -> ErrorOr<JS::NonnullGCPtr<Web::DOM::ParentNode>, Web::WebDriver::Error> {
+        // 7. Let start node be the result of trying to get a known element with session and URL variables["element id"].
+        return Web::WebDriver::get_known_element(current_browsing_context(), element_id);
+    });
 
-    // 8. Return the result of trying to Find with start node, location strategy, and selector.
-    return TRY(find(move(start_node_getter), *location_strategy, selector));
+    // 8. Return the result of trying to Find with session, start node, location strategy, and selector.
+    find(*location_strategy, move(selector), get_start_node, JS::create_heap_function(current_browsing_context().heap(), [this](Web::WebDriver::Response result) {
+        async_find_elements_complete(move(result));
+    }));
+
+    return JsonValue {};
 }
 
 // 12.3.6 Find Element From Shadow Root, https://w3c.github.io/webdriver/#find-element-from-shadow-root
@@ -969,25 +989,24 @@ Messages::WebDriverClient::FindElementFromShadowRootResponse WebDriverConnection
     // 4. If selector is undefined, return error with error code invalid argument.
     auto selector = TRY(Web::WebDriver::get_property(payload, "value"sv));
 
-    // 5. If the current browsing context is no longer open, return error with error code no such window.
+    // 5. If the ssession's current browsing context is no longer open, return error with error code no such window.
     TRY(ensure_current_browsing_context_is_open());
 
     // 6. Handle any user prompts and return its value if it is an error.
     TRY(handle_any_user_prompts());
 
-    auto start_node_getter = [&]() -> StartNodeGetter::ReturnType {
-        // 7. Let start node be the result of trying to get a known shadow root with url variable shadow id.
-        return TRY(Web::WebDriver::get_known_shadow_root(shadow_id));
-    };
+    auto get_start_node = JS::create_heap_function(current_browsing_context().heap(), [this, shadow_id]() -> ErrorOr<JS::NonnullGCPtr<Web::DOM::ParentNode>, Web::WebDriver::Error> {
+        // 7. Let start node be the result of trying to get a known shadow root with session and URL variables["shadow id"].
+        return Web::WebDriver::get_known_shadow_root(current_browsing_context(), shadow_id);
+    });
 
-    // 8. Let result be the value of trying to Find with start node, location strategy, and selector.
-    auto result = TRY(find(move(start_node_getter), *location_strategy, selector));
+    // 8. Let result be the value of trying to Find with session, start node, location strategy, and selector.
+    find(*location_strategy, move(selector), get_start_node, JS::create_heap_function(current_browsing_context().heap(), [this](Web::WebDriver::Response result) {
+        // 9. If result is empty, return error with error code no such element. Otherwise, return the first element of result.
+        async_find_elements_complete(extract_first_element(move(result)));
+    }));
 
-    // 9. If result is empty, return error with error code no such element. Otherwise, return the first element of result.
-    if (result.is_empty())
-        return Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::NoSuchElement, "The requested element does not exist"sv);
-
-    return result.take(0);
+    return JsonValue {};
 }
 
 // 12.3.7 Find Elements From Shadow Root, https://w3c.github.io/webdriver/#find-elements-from-shadow-root
@@ -1005,19 +1024,23 @@ Messages::WebDriverClient::FindElementsFromShadowRootResponse WebDriverConnectio
     // 4. If selector is undefined, return error with error code invalid argument.
     auto selector = TRY(Web::WebDriver::get_property(payload, "value"sv));
 
-    // 5. If the current browsing context is no longer open, return error with error code no such window.
+    // 5. If session's current browsing context is no longer open, return error with error code no such window.
     TRY(ensure_current_browsing_context_is_open());
 
     // 6. Handle any user prompts and return its value if it is an error.
     TRY(handle_any_user_prompts());
 
-    auto start_node_getter = [&]() -> StartNodeGetter::ReturnType {
-        // 7. Let start node be the result of trying to get a known shadow root with url variable shadow id.
-        return TRY(Web::WebDriver::get_known_shadow_root(shadow_id));
-    };
+    auto get_start_node = JS::create_heap_function(current_browsing_context().heap(), [this, shadow_id]() -> ErrorOr<JS::NonnullGCPtr<Web::DOM::ParentNode>, Web::WebDriver::Error> {
+        // 7. Let start node be the result of trying to get a known shadow root with session and URL variables["shadow id"].
+        return Web::WebDriver::get_known_shadow_root(current_browsing_context(), shadow_id);
+    });
 
-    // 8. Return the result of trying to Find with start node, location strategy, and selector.
-    return TRY(find(move(start_node_getter), *location_strategy, selector));
+    // 8. Return the result of trying to Find with session, start node, location strategy, and selector.
+    find(*location_strategy, move(selector), get_start_node, JS::create_heap_function(current_browsing_context().heap(), [this](Web::WebDriver::Response result) {
+        async_find_elements_complete(move(result));
+    }));
+
+    return JsonValue {};
 }
 
 // 12.3.8 Get Active Element, https://w3c.github.io/webdriver/#get-active-element
@@ -1043,13 +1066,13 @@ Messages::WebDriverClient::GetActiveElementResponse WebDriverConnection::get_act
 // 12.3.9 Get Element Shadow Root, https://w3c.github.io/webdriver/#get-element-shadow-root
 Messages::WebDriverClient::GetElementShadowRootResponse WebDriverConnection::get_element_shadow_root(String const& element_id)
 {
-    // 1. If the current browsing context is no longer open, return error with error code no such window.
+    // 1. If session's current browsing context is no longer open, return error with error code no such window.
     TRY(ensure_current_browsing_context_is_open());
 
     // 2. Handle any user prompts and return its value if it is an error.
     TRY(handle_any_user_prompts());
 
-    // 3. Let element be the result of trying to get a known connected element with url variable element id.
+    // 3. Let element be the result of trying to get a known element with session and URL variables[element id].
     auto element = TRY(Web::WebDriver::get_known_element(current_browsing_context(), element_id));
 
     // 4. Let shadow root be element's shadow root.
@@ -1059,8 +1082,8 @@ Messages::WebDriverClient::GetElementShadowRootResponse WebDriverConnection::get
     if (!shadow_root)
         return Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::NoSuchShadowRoot, ByteString::formatted("Element with ID '{}' does not have a shadow root", element_id));
 
-    // 6. Let serialized be the shadow root reference object for shadow root.
-    auto serialized = Web::WebDriver::shadow_root_reference_object(*shadow_root);
+    // 6. Let serialized be the shadow root reference object for session and shadow root.
+    auto serialized = Web::WebDriver::shadow_root_reference_object(current_browsing_context(), *shadow_root);
 
     // 7. Return success with data serialized.
     return serialized;
@@ -2587,54 +2610,126 @@ void WebDriverConnection::wait_for_visibility_state(JS::NonnullGCPtr<JS::HeapFun
     }));
 }
 
-// https://w3c.github.io/webdriver/#dfn-find
-// FIXME: Update this AO to the latest spec steps.
-ErrorOr<JsonArray, Web::WebDriver::Error> WebDriverConnection::find(StartNodeGetter&& start_node_getter, Web::WebDriver::LocationStrategy using_, StringView value)
-{
-    // 1. Let end time be the current time plus the session implicit wait timeout.
-    auto end_time = MonotonicTime::now() + AK::Duration::from_milliseconds(static_cast<i64>(m_timeouts_configuration.implicit_wait_timeout.value_or(0)));
+class ElementLocator final : public JS::Cell {
+    JS_CELL(ElementLocator, JS::Cell);
+    JS_DECLARE_ALLOCATOR(ElementLocator);
 
-    // 2. Let location strategy be equal to using.
-    auto location_strategy = using_;
+public:
+    ElementLocator(
+        Web::HTML::BrowsingContext const& browsing_context,
+        Web::WebDriver::LocationStrategy location_strategy,
+        ByteString selector,
+        WebDriverConnection::GetStartNode get_start_node,
+        WebDriverConnection::OnFindComplete on_complete,
+        JS::NonnullGCPtr<Web::WebDriver::HeapTimer> timer)
+        : m_browsing_context(browsing_context)
+        , m_location_strategy(location_strategy)
+        , m_selector(move(selector))
+        , m_get_start_node(get_start_node)
+        , m_on_complete(on_complete)
+        , m_timer(timer)
+    {
+    }
 
-    // 3. Let selector be equal to value.
-    auto selector = value;
+    void search_for_element()
+    {
+        if (auto result = perform_search(); result.has_value()) {
+            m_on_complete->function()(result.release_value());
+            return;
+        }
 
-    ErrorOr<JS::GCPtr<Web::DOM::NodeList>, Web::WebDriver::Error> maybe_elements { nullptr };
+        if (m_timer->is_timed_out())
+            return;
 
-    auto try_to_find_element = [&]() -> decltype(maybe_elements) {
-        // 4. Let elements returned be the result of trying to call the relevant element location strategy with arguments start node, and selector.
-        auto elements = Web::WebDriver::invoke_location_strategy(location_strategy, *TRY(start_node_getter()), selector);
+        Web::HTML::queue_a_task(Web::HTML::Task::Source::Unspecified, nullptr, nullptr, JS::create_heap_function(heap(), [this]() {
+            search_for_element();
+        }));
+    }
 
-        // 5. If a DOMException, SyntaxError, XPathException, or other error occurs during the execution of the element location strategy, return error invalid selector.
-        if (elements.is_error())
-            return Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::InvalidSelector, ByteString::formatted("The location strategy could not finish: {}", elements.error().message));
+private:
+    Optional<Web::WebDriver::Response> perform_search()
+    {
+        // 1. Set elements returned to the result of trying to call the relevant element location strategy with arguments
+        //    start node, and selector.
+        auto maybe_elements = Web::WebDriver::invoke_location_strategy(m_location_strategy, TRY(m_get_start_node->function()()), m_selector);
 
-        return elements.release_value();
-    };
-
-    Web::Platform::EventLoopPlugin::the().spin_until(JS::create_heap_function(current_top_level_browsing_context()->heap(), [&]() {
-        maybe_elements = try_to_find_element();
+        // 2. If a DOMException, SyntaxError, XPathException, or other error occurs during the execution of the element
+        //    location strategy, return error invalid selector.
         if (maybe_elements.is_error())
-            return true;
+            return Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::InvalidSelector, ByteString::formatted("The location strategy could not finish: {}", maybe_elements.error().message));
 
-        // 6. If elements returned is empty and the current time is less than end time return to step 4. Otherwise, continue to the next step.
-        return maybe_elements.value()->length() != 0 || MonotonicTime::now() >= end_time;
-    }));
+        if (auto elements = maybe_elements.release_value(); elements->length() > 0) {
+            // 8. Let result be an empty List.
+            JsonArray result;
+            result.ensure_capacity(elements->length());
 
-    auto elements = TRY(maybe_elements);
-    VERIFY(elements);
+            // 9. For each element in elements returned, append the web element reference object for session and element,
+            //    to result.
+            for (size_t i = 0; i < elements->length(); ++i)
+                result.must_append(Web::WebDriver::web_element_reference_object(m_browsing_context, *elements->item(i)));
 
-    // 7. Let result be an empty JSON List.
-    JsonArray result;
-    result.ensure_capacity(elements->length());
+            // 10. Return success with data result.
+            return JsonValue { move(result) };
+        }
 
-    // 8. For each element in elements returned, append the web element reference object for element, to result.
-    for (size_t i = 0; i < elements->length(); ++i)
-        TRY(result.append(Web::WebDriver::web_element_reference_object(current_browsing_context(), *elements->item(i))));
+        return {};
+    }
 
-    // 9. Return success with data result.
-    return result;
+    virtual void visit_edges(Cell::Visitor& visitor) override
+    {
+        Base::visit_edges(visitor);
+        visitor.visit(m_browsing_context);
+        visitor.visit(m_get_start_node);
+        visitor.visit(m_on_complete);
+        visitor.visit(m_timer);
+    }
+
+    JS::NonnullGCPtr<Web::HTML::BrowsingContext const> m_browsing_context;
+
+    Web::WebDriver::LocationStrategy m_location_strategy;
+    ByteString m_selector;
+
+    WebDriverConnection::GetStartNode m_get_start_node;
+    WebDriverConnection::OnFindComplete m_on_complete;
+
+    JS::NonnullGCPtr<Web::WebDriver::HeapTimer> m_timer;
+};
+
+JS_DEFINE_ALLOCATOR(ElementLocator);
+
+// https://w3c.github.io/webdriver/#dfn-find
+void WebDriverConnection::find(Web::WebDriver::LocationStrategy location_strategy, ByteString selector, GetStartNode get_start_node, OnFindComplete on_complete)
+{
+    auto& realm = current_browsing_context().active_document()->realm();
+
+    // 1. Let location strategy be equal to using.
+    // 2. Let selector be equal to value.
+
+    // 3. Let timeout be session's session timeouts' implicit wait timeout.
+    auto timeout = m_timeouts_configuration.implicit_wait_timeout;
+
+    // 4. Let timer be a new timer.
+    auto timer = realm.heap().allocate<Web::WebDriver::HeapTimer>(realm);
+
+    auto wrapped_on_complete = JS::create_heap_function(realm.heap(), [this, on_complete, timer](Web::WebDriver::Response result) {
+        m_element_locator = nullptr;
+        timer->stop();
+
+        on_complete->function()(move(result));
+    });
+
+    // 5. If timeout is not null:
+    if (timeout.has_value()) {
+        // 1. Start the timer with timer and timeout.
+        timer->start(*timeout, JS::create_heap_function(realm.heap(), [wrapped_on_complete]() {
+            wrapped_on_complete->function()({ JsonArray {} });
+        }));
+    }
+
+    // 6. Let elements returned be an empty List.
+    // 7. While elements returned is empty and timer's timeout fired flag is not set:
+    m_element_locator = realm.heap().allocate<ElementLocator>(realm, current_browsing_context(), location_strategy, move(selector), get_start_node, wrapped_on_complete, timer);
+    m_element_locator->search_for_element();
 }
 
 // https://w3c.github.io/webdriver/#dfn-json-deserialize
