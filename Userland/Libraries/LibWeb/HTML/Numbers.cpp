@@ -150,7 +150,7 @@ Optional<double> parse_floating_point_number(StringView string)
         lexer.consume_while(is_ascii_digit);
         size_t end_index = lexer.tell();
         auto digits = lexer.input().substring_view(start_index, end_index - start_index);
-        auto optional_value = AK::StringUtils::convert_to_int<i32>(digits);
+        auto optional_value = AK::StringUtils::convert_to_floating_point<double>(digits, TrimWhitespace::No);
         value *= optional_value.value();
     }
 
