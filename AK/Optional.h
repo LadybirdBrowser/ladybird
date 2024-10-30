@@ -8,6 +8,7 @@
 #pragma once
 
 #include <AK/Assertions.h>
+#include <AK/Noncopyable.h>
 #include <AK/StdLibExtras.h>
 #include <AK/Try.h>
 #include <AK/Types.h>
@@ -189,28 +190,9 @@ public:
         return *this;
     }
 
-    Optional(Optional const& other)
-    requires(!IsCopyConstructible<T>)
-    = delete;
-    Optional(Optional const& other) = default;
-
-    Optional(Optional&& other)
-    requires(!IsMoveConstructible<T>)
-    = delete;
-
-    Optional& operator=(Optional const&)
-    requires(!IsCopyConstructible<T> || !IsDestructible<T>)
-    = delete;
-    Optional& operator=(Optional const&) = default;
-
-    Optional& operator=(Optional&& other)
-    requires(!IsMoveConstructible<T> || !IsDestructible<T>)
-    = delete;
-
-    ~Optional()
-    requires(!IsDestructible<T>)
-    = delete;
-    ~Optional() = default;
+    AK_MAKE_CONDITIONALLY_COPYABLE(Optional, <T>);
+    AK_MAKE_CONDITIONALLY_NONMOVABLE(Optional, <T>);
+    AK_MAKE_CONDITIONALLY_DESTRUCTIBLE(Optional, <T>);
 
     ALWAYS_INLINE Optional(Optional const& other)
     requires(!IsTriviallyCopyConstructible<T>)
