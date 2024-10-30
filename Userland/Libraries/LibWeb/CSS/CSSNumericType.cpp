@@ -350,7 +350,7 @@ bool CSSNumericType::matches_percentage() const
         auto base_type = static_cast<BaseType>(i);
         auto type_exponent = exponent(base_type);
         if (base_type == BaseType::Percent) {
-            if (!type_exponent.has_value() || type_exponent == 0)
+            if (type_exponent != 1)
                 return false;
         } else {
             if (type_exponent.has_value() && type_exponent != 0)
@@ -409,8 +409,9 @@ bool CSSNumericType::matches_number_percentage() const
         auto base_type = static_cast<BaseType>(i);
         auto type_exponent = exponent(base_type);
 
-        if (base_type == BaseType::Percent && type_exponent.has_value() && type_exponent != 0 && type_exponent != 1) {
-            return false;
+        if (base_type == BaseType::Percent) {
+            if (type_exponent.has_value() && type_exponent != 0 && type_exponent != 1)
+                return false;
         } else if (type_exponent.has_value() && type_exponent != 0) {
             return false;
         }
