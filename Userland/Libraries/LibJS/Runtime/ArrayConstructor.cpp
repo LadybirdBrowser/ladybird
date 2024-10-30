@@ -306,7 +306,7 @@ JS_DEFINE_NATIVE_FUNCTION(ArrayConstructor::from_async)
     auto promise_capability = MUST(new_promise_capability(vm, realm.intrinsics().promise_constructor()));
 
     // 3. Let fromAsyncClosure be a new Abstract Closure with no parameters that captures C, mapfn, and thisArg and performs the following steps when called:
-    SafeFunction<Completion()> from_async_closure = [constructor, mapfn, this_arg, &vm, &realm, async_items]() mutable -> Completion {
+    auto from_async_closure = create_heap_function(realm.heap(), [constructor, mapfn, this_arg, &vm, &realm, async_items]() mutable -> Completion {
         bool mapping;
 
         // a. If mapfn is undefined, let mapping be false.
@@ -510,10 +510,10 @@ JS_DEFINE_NATIVE_FUNCTION(ArrayConstructor::from_async)
             // ix. Return Completion Record { [[Type]]: return, [[Value]]: A, [[Target]]: empty }.
             return Completion { Completion::Type::Return, array };
         }
-    };
+    });
 
     // 4. Perform AsyncFunctionStart(promiseCapability, fromAsyncClosure).
-    async_function_start(vm, promise_capability, from_async_closure);
+    async_function_start(vm, promise_capability, *from_async_closure);
 
     // 5. Return promiseCapability.[[Promise]].
     return promise_capability->promise();
