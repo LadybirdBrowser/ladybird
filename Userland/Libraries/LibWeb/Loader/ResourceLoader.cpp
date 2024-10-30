@@ -30,9 +30,9 @@ namespace Web {
 
 static RefPtr<ResourceLoader> s_resource_loader;
 
-void ResourceLoader::initialize(NonnullRefPtr<Requests::RequestClient> request_client)
+void ResourceLoader::initialize(JS::Heap& heap, NonnullRefPtr<Requests::RequestClient> request_client)
 {
-    s_resource_loader = adopt_ref(*new ResourceLoader(move(request_client)));
+    s_resource_loader = adopt_ref(*new ResourceLoader(heap, move(request_client)));
 }
 
 ResourceLoader& ResourceLoader::the()
@@ -44,8 +44,9 @@ ResourceLoader& ResourceLoader::the()
     return *s_resource_loader;
 }
 
-ResourceLoader::ResourceLoader(NonnullRefPtr<Requests::RequestClient> request_client)
-    : m_request_client(move(request_client))
+ResourceLoader::ResourceLoader(JS::Heap& heap, NonnullRefPtr<Requests::RequestClient> request_client)
+    : m_heap(heap)
+    , m_request_client(move(request_client))
     , m_user_agent(MUST(String::from_utf8(default_user_agent)))
     , m_platform(MUST(String::from_utf8(default_platform)))
     , m_preferred_languages({ "en-US"_string })

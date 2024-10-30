@@ -48,7 +48,7 @@
 
 static ErrorOr<void> load_content_filters(StringView config_path);
 static ErrorOr<void> load_autoplay_allowlist(StringView config_path);
-static ErrorOr<void> initialize_resource_loader(int request_server_socket);
+static ErrorOr<void> initialize_resource_loader(JS::Heap&, int request_server_socket);
 static ErrorOr<void> initialize_image_decoder(int image_decoder_socket);
 static ErrorOr<void> reinitialize_image_decoder(IPC::File const& image_decoder_socket);
 
@@ -163,7 +163,6 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
     }
 #endif
 
-    TRY(initialize_resource_loader(request_server_socket));
     TRY(initialize_image_decoder(image_decoder_socket));
 
     Web::HTML::Window::set_internals_object_exposed(expose_internals_object);
@@ -171,6 +170,8 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
     Web::Platform::FontPlugin::install(*new Ladybird::FontPlugin(is_layout_test_mode, &font_provider));
 
     TRY(Web::Bindings::initialize_main_thread_vm(Web::HTML::EventLoop::Type::Window));
+
+    TRY(initialize_resource_loader(Web::Bindings::main_thread_vm().heap(), request_server_socket));
 
     if (log_all_js_exceptions) {
         JS::g_log_all_js_exceptions = true;
@@ -191,7 +192,7 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
     static_assert(IsSame<IPC::Transport, IPC::TransportSocket>, "Need to handle other IPC transports here");
 
     auto webcontent_socket = TRY(Core::take_over_socket_from_system_server("WebContent"sv));
-    auto webcontent_client = TRY(WebContent::ConnectionFromClient::try_create(IPC::Transport(move(webcontent_socket))));
+    auto webcontent_client = TRY(WebContent::ConnectionFromClient::try_create(Web::Bindings::main_thread_vm().heap(), IPC::Transport(move(webcontent_socket))));
 
     webcontent_client->on_image_decoder_connection = [&](auto& socket_file) {
         auto maybe_error = reinitialize_image_decoder(socket_file);
@@ -250,7 +251,7 @@ static ErrorOr<void> load_autoplay_allowlist(StringView config_path)
     return {};
 }
 
-ErrorOr<void> initialize_resource_loader(int request_server_socket)
+ErrorOr<void> initialize_resource_loader(JS::Heap& heap, int request_server_socket)
 {
     static_assert(IsSame<IPC::Transport, IPC::TransportSocket>, "Need to handle other IPC transports here");
 
@@ -258,7 +259,7 @@ ErrorOr<void> initialize_resource_loader(int request_server_socket)
     TRY(socket->set_blocking(true));
 
     auto request_client = TRY(try_make_ref_counted<Requests::RequestClient>(IPC::Transport(move(socket))));
-    Web::ResourceLoader::initialize(move(request_client));
+    Web::ResourceLoader::initialize(heap, move(request_client));
 
     return {};
 }

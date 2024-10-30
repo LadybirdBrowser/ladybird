@@ -50,8 +50,8 @@ ErrorOr<int> serenity_main(Main::Arguments)
         return Web::Platform::AudioCodecPluginAgnostic::create(move(loader));
     });
 
-    Web::ResourceLoader::initialize(TRY(WebView::RequestServerAdapter::try_create()));
     TRY(Web::Bindings::initialize_main_thread_vm(Web::HTML::EventLoop::Type::Window));
+    Web::ResourceLoader::initialize(Web::Bindings::main_thread_vm().heap(), TRY(WebView::RequestServerAdapter::try_create()));
 
     auto client = TRY(IPC::take_over_accepted_client_from_system_server<WebContent::ConnectionFromClient>());
     return event_loop.exec();
