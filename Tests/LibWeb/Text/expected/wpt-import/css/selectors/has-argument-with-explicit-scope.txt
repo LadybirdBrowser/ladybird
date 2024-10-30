@@ -12,7 +12,7 @@ Details
 Result	Test Name	MessagePass	:has(:scope) matches expected elements on scope1	
 Pass	:has(:scope .c) matches expected elements on scope1	
 Pass	:has(.a :scope) matches expected elements on scope1	
-Fail	.a:has(:scope) .c matches expected elements on scope1	assert_equals: expected "d02,d03" but got ""
+Fail	.a:has(:scope) .c matches expected elements on scope1	
 Pass	.a:has(:scope) .c and :is(.a :scope .c) returns same elements on scope1	
 Pass	.a:has(:scope) .c matches expected elements on scope2	
 Pass	.a:has(:scope) .c and :is(.a :scope .c) returns same elements on scope2	

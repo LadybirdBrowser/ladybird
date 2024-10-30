@@ -8,11 +8,11 @@ Found 8 tests
 
 8 Fail
 Details
-Result	Test Name	MessageFail	:has(#foo) wins over :has(.foo)	assert_equals: expected "PASS" but got ""
-Fail	:has(span#foo) wins over :has(#foo)	assert_equals: expected "PASS" but got ""
-Fail	:has(.bar, #foo) has same specificity as :has(#foo, .bar)	assert_equals: expected "PASS" but got ""
-Fail	:has(.bar, #foo) wins over :has(.foo, .bar)	assert_equals: expected "PASS" but got ""
-Fail	:has(span + span) wins over :has(span)	assert_equals: expected "PASS" but got ""
-Fail	:has(span, li, p) wins over :has(span, lo, p)	assert_equals: expected "PASS" but got ""
-Fail	latter .baz wins over :has(.foo)	assert_equals: expected "PASS" but got ""
-Fail	latter :has(.foo) wins over .baz	assert_equals: expected "PASS" but got ""
+Result	Test Name	MessageFail	:has(#foo) wins over :has(.foo)	
+Fail	:has(span#foo) wins over :has(#foo)	
+Fail	:has(.bar, #foo) has same specificity as :has(#foo, .bar)	
+Fail	:has(.bar, #foo) wins over :has(.foo, .bar)	
+Fail	:has(span + span) wins over :has(span)	
+Fail	:has(span, li, p) wins over :has(span, lo, p)	
+Fail	latter .baz wins over :has(.foo)	
+Fail	latter :has(.foo) wins over .baz	

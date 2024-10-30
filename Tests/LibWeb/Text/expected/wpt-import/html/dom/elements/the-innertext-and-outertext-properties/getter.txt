@@ -10,14 +10,14 @@ Found 271 tests
 62 Fail
 Details
 Result	Test Name	MessagePass	Simplest possible test ("<div>abc")	
-Fail	Leading whitespace removed ("<div> abc")	assert_equals: innerText expected "abc" but got " abc"
-Fail	Trailing whitespace removed ("<div>abc ")	assert_equals: innerText expected "abc" but got "abc "
+Fail	Leading whitespace removed ("<div> abc")	
+Fail	Trailing whitespace removed ("<div>abc ")	
 Pass	Internal whitespace compressed ("<div>abc def")	
 Pass	\n converted to space ("<div>abc\ndef")	
 Pass	\r converted to space ("<div>abc\rdef")	
 Pass	\t converted to space ("<div>abc\tdef")	
-Fail	Trailing whitespace before hard line break removed ("<div>abc <br>def")	assert_equals: innerText expected "abc\ndef" but got "abc \ndef"
-Fail	Leading whitespace after hard line break removed ("<div>abc<br> def")	assert_equals: innerText expected "abc\ndef" but got "abc\n def"
+Fail	Trailing whitespace before hard line break removed ("<div>abc <br>def")	
+Fail	Leading whitespace after hard line break removed ("<div>abc<br> def")	
 Pass	Leading whitespace preserved ("<pre> abc")	
 Pass	Trailing whitespace preserved ("<pre>abc ")	
 Pass	Internal whitespace preserved ("<pre>abc def")	
@@ -37,54 +37,54 @@ Pass	Internal whitespace preserved ("<span style='white-space:pre'>abc def")
 Pass	\n preserved ("<span style='white-space:pre'>abc\ndef")	
 Pass	\r converted to newline ("<span style='white-space:pre'>abc\rdef")	
 Pass	\t preserved ("<span style='white-space:pre'>abc\tdef")	
-Fail	Leading whitespace removed ("<div style='white-space:pre-line'> abc")	assert_equals: innerText expected "abc" but got " abc"
-Fail	Trailing whitespace removed ("<div style='white-space:pre-line'>abc ")	assert_equals: innerText expected "abc" but got "abc "
+Fail	Leading whitespace removed ("<div style='white-space:pre-line'> abc")	
+Fail	Trailing whitespace removed ("<div style='white-space:pre-line'>abc ")	
 Pass	Internal whitespace collapsed ("<div style='white-space:pre-line'>abc def")	
-Fail	\n preserved ("<div style='white-space:pre-line'>abc\ndef")	assert_equals: innerText expected "abc\ndef" but got "abc def"
-Fail	\r converted to newline ("<div style='white-space:pre-line'>abc\rdef")	assert_equals: innerText expected "abc\ndef" but got "abc def"
+Fail	\n preserved ("<div style='white-space:pre-line'>abc\ndef")	
+Fail	\r converted to newline ("<div style='white-space:pre-line'>abc\rdef")	
 Pass	\t converted to space ("<div style='white-space:pre-line'>abc\tdef")	
-Fail	Whitespace collapses across element boundaries ("<div><span>abc </span> def")	assert_equals: innerText expected "abc def" but got "abc def"
-Fail	Whitespace collapses across element boundaries ("<div><span>abc </span><span></span> def")	assert_equals: innerText expected "abc def" but got "abc def"
-Fail	Whitespace collapses across element boundaries ("<div><span>abc </span><span style='white-space:pre'></span> def")	assert_equals: innerText expected "abc def" but got "abc def"
+Fail	Whitespace collapses across element boundaries ("<div><span>abc </span> def")	
+Fail	Whitespace collapses across element boundaries ("<div><span>abc </span><span></span> def")	
+Fail	Whitespace collapses across element boundaries ("<div><span>abc </span><span style='white-space:pre'></span> def")	
 Pass	Whitespace around <input> should not be collapsed ("<div>abc <input> def")	
 Pass	Whitespace around inline-block should not be collapsed ("<div>abc <span style='display:inline-block'></span> def")	
-Fail	Trailing space at end of inline-block should be collapsed ("<div>abc <span style='display:inline-block'> def </span> ghi")	assert_equals: innerText expected "abc def ghi" but got "abc def ghi"
+Fail	Trailing space at end of inline-block should be collapsed ("<div>abc <span style='display:inline-block'> def </span> ghi")	
 Pass	Whitespace around inline-flex should not be collapsed ("<div>abc <span style='display:inline-flex'></span> def")	
-Fail	Trailing space at end of inline-flex should be collapsed ("<div>abc <span style='display:inline-flex'> def </span> ghi")	assert_equals: innerText expected "abc def ghi" but got "abc def ghi"
+Fail	Trailing space at end of inline-flex should be collapsed ("<div>abc <span style='display:inline-flex'> def </span> ghi")	
 Pass	Whitespace around inline-grid should not be collapsed ("<div>abc <span style='display:inline-grid'></span> def")	
-Fail	Trailing space at end of grid-flex should be collapsed ("<div>abc <span style='display:inline-grid'> def </span> ghi")	assert_equals: innerText expected "abc def ghi" but got "abc def ghi"
-Fail	Whitespace between <input> and block should be collapsed ("<div><input> <div>abc</div>")	assert_equals: innerText expected "abc" but got " \nabc"
-Fail	Whitespace between inline-block and block should be collapsed ("<div><span style='inline-block'></span> <div>abc</div>")	assert_equals: innerText expected "abc" but got " \nabc"
-Fail	Whitespace between inline-flex and block should be collapsed ("<div><span style='inline-flex'></span> <div>abc</div>")	assert_equals: innerText expected "abc" but got " \nabc"
-Fail	Whitespace between inline-grid and block should be collapsed ("<div><span style='inline-grid'></span> <div>abc</div>")	assert_equals: innerText expected "abc" but got " \nabc"
+Fail	Trailing space at end of grid-flex should be collapsed ("<div>abc <span style='display:inline-grid'> def </span> ghi")	
+Fail	Whitespace between <input> and block should be collapsed ("<div><input> <div>abc</div>")	
+Fail	Whitespace between inline-block and block should be collapsed ("<div><span style='inline-block'></span> <div>abc</div>")	
+Fail	Whitespace between inline-flex and block should be collapsed ("<div><span style='inline-flex'></span> <div>abc</div>")	
+Fail	Whitespace between inline-grid and block should be collapsed ("<div><span style='inline-grid'></span> <div>abc</div>")	
 Pass	Whitespace around <img> should not be collapsed ("<div>abc <img> def")	
 Pass	Whitespace around <img> should not be collapsed ("<div>abc <img width=1 height=1> def")	
 Pass	Leading whitesapce should not be collapsed ("<div><img> abc")	
 Pass	Trailing whitesapce should not be collapsed ("<div>abc <img>")	
-Fail	Whitespace around empty span should be collapsed ("<div>abc <b></b> def")	assert_equals: innerText expected "abc def" but got "abc def"
-Fail	Whitespace around empty spans should be collapsed ("<div>abc <b><i></i></b> def")	assert_equals: innerText expected "abc def" but got "abc def"
+Fail	Whitespace around empty span should be collapsed ("<div>abc <b></b> def")	
+Fail	Whitespace around empty spans should be collapsed ("<div>abc <b><i></i></b> def")	
 Pass	<canvas> should not collapse following space ("<div><canvas></canvas> abc")	
-Fail	Replaced element <img> with display:block should be treated as block-level ("<div>abc <img style='display:block'> def")	assert_equals: innerText expected "abc\ndef" but got "abc \n def"
-Fail	Replaced element <canvas> with display:block should be treated as block-level ("<div>abc <canvas style='display:block'></canvas> def")	assert_equals: innerText expected "abc\ndef" but got "abc \n def"
+Fail	Replaced element <img> with display:block should be treated as block-level ("<div>abc <img style='display:block'> def")	
+Fail	Replaced element <canvas> with display:block should be treated as block-level ("<div>abc <canvas style='display:block'></canvas> def")	
 Pass	Soft line breaks ignored ("<div style='width:0'>abc def")	
 Pass	Soft line break at hyphen ignored ("<div style='width:0'>abc-def")	
 Pass	Whitespace text node preserved ("<div style='width:0'><span>abc</span> <span>def</span>")	
 Pass	Soft breaks ignored in presence of word-break:break-word ("<div style='width:1px; word-break:break-word'>Hello Kitty</div>")	
 Pass	Element boundaries ignored for soft break handling (1) ("<div style='width:1px; word-break:break-word'><x>Hello</x> <x>Kitty</x></div>")	
-Fail	Whitespace collapses across element boundaries at soft break (1) ("<div style='width:1px; word-break:break-word'><x>Hello</x> <x> Kitty</x></div>")	assert_equals: innerText expected "Hello Kitty" but got "Hello Kitty"
+Fail	Whitespace collapses across element boundaries at soft break (1) ("<div style='width:1px; word-break:break-word'><x>Hello</x> <x> Kitty</x></div>")	
 Pass	Element boundaries ignored for soft break handling (2) ("<div style='width:1px; word-break:break-word'><x>Hello</x><x> Kitty</x></div>")	
-Fail	Whitespace collapses across element boundaries at soft break (2) ("<div style='width:1px; word-break:break-word'><x>Hello </x> <x>Kitty</x></div>")	assert_equals: innerText expected "Hello Kitty" but got "Hello Kitty"
+Fail	Whitespace collapses across element boundaries at soft break (2) ("<div style='width:1px; word-break:break-word'><x>Hello </x> <x>Kitty</x></div>")	
 Pass	Element boundaries ignored for soft break handling (3) ("<div style='width:1px; word-break:break-word'><x>Hello </x><x>Kitty</x></div>")	
-Fail	Whitespace collapses across element boundaries at soft break (3) ("<div style='width:1px; word-break:break-word'><x>Hello </x><x> Kitty</x></div>")	assert_equals: innerText expected "Hello Kitty" but got "Hello Kitty"
-Fail	Whitespace collapses across element boundaries at soft break (4) ("<div style='width:1px; word-break:break-word'><x>Hello </x> <x> Kitty</x></div>")	assert_equals: innerText expected "Hello Kitty" but got "Hello Kitty"
+Fail	Whitespace collapses across element boundaries at soft break (3) ("<div style='width:1px; word-break:break-word'><x>Hello </x><x> Kitty</x></div>")	
+Fail	Whitespace collapses across element boundaries at soft break (4) ("<div style='width:1px; word-break:break-word'><x>Hello </x> <x> Kitty</x></div>")	
 Pass	Element boundaries ignored for soft break handling (4) ("<div style='width:1px; word-break:break-word'><x>Hello</x> Kitty</div>")	
 Pass	Element boundaries ignored for soft break handling (5) ("<div style='width:1px; word-break:break-word'><x>Hello </x>Kitty</div>")	
 Pass	Soft breaks ignored, text-transform applied ("<div style='width:1px; word-break:break-word; text-transform:uppercase'>Hello Kitty</div>")	
-Fail	<br> returned as newline, following space collapsed ("<div style='width:1px; word-break:break-word'>Hello<br> Kitty</div>")	assert_equals: innerText expected "Hello\nKitty" but got "Hello\n Kitty"
-Fail	<br> returned as newline, preceding space collapsed ("<div style='width:1px; word-break:break-word'>Hello <br>Kitty</div>")	assert_equals: innerText expected "Hello\nKitty" but got "Hello \nKitty"
-Fail	<br> returned as newline, adjacent spaces collapsed across element boundaries ("<div style='width:1px; word-break:break-word'><x>Hello </x> <br> <x> Kitty</x></div>")	assert_equals: innerText expected "Hello\nKitty" but got "Hello \n Kitty"
-Fail	::first-line styles applied ("<div class='first-line-uppercase' style='width:0'>abc def")	assert_equals: innerText expected "ABC def" but got "abc def"
-Fail	::first-letter styles applied ("<div class='first-letter-uppercase' style='width:0'>abc def")	assert_equals: innerText expected "Abc def" but got "abc def"
+Fail	<br> returned as newline, following space collapsed ("<div style='width:1px; word-break:break-word'>Hello<br> Kitty</div>")	
+Fail	<br> returned as newline, preceding space collapsed ("<div style='width:1px; word-break:break-word'>Hello <br>Kitty</div>")	
+Fail	<br> returned as newline, adjacent spaces collapsed across element boundaries ("<div style='width:1px; word-break:break-word'><x>Hello </x> <br> <x> Kitty</x></div>")	
+Fail	::first-line styles applied ("<div class='first-line-uppercase' style='width:0'>abc def")	
+Fail	::first-letter styles applied ("<div class='first-letter-uppercase' style='width:0'>abc def")	
 Pass	::first-letter float ignored ("<div class='first-letter-float' style='width:0'>abc def")	
 Pass	&nbsp; preserved ("<div>&nbsp;")	
 Pass	display:none container ("<div style='display:none'>abc")	
@@ -98,8 +98,8 @@ Pass	child of display:none child of svg ("<div style='display:none'><div id='tar
 Pass	display:contents container ("<div style='display:contents'>abc")	
 Pass	display:contents container ("<div><div style='display:contents'>abc")	
 Pass	display:contents rendered ("<div>123<span style='display:contents'>abc")	
-Fail	display:contents not processed via textContent ("<div style='display:contents'> ")	assert_equals: innerText expected "" but got " "
-Fail	display:contents not processed via textContent ("<div><div style='display:contents'> ")	assert_equals: innerText expected "" but got " "
+Fail	display:contents not processed via textContent ("<div style='display:contents'> ")	
+Fail	display:contents not processed via textContent ("<div><div style='display:contents'> ")	
 Pass	visibility:hidden container ("<div style='visibility:hidden'>abc")	
 Pass	visibility:hidden child not rendered ("<div>123<span style='visibility:hidden'>abc")	
 Pass	visibility:visible child rendered ("<div style='visibility:hidden'>123<span style='visibility:visible'>abc")	
@@ -112,7 +112,7 @@ Pass	visibility:collapse honored on flex item ("<div style='display:flex'><span 
 Pass	visibility:collapse honored on grid item ("<div style='display:grid'><span style='visibility:collapse'>1</span><span>2</span></div>")	
 Pass	opacity:0 container ("<div style='opacity:0'>abc")	
 Pass	Whitespace compression in opacity:0 container ("<div style='opacity:0'>abc def")	
-Fail	Remove leading/trailing whitespace in opacity:0 container ("<div style='opacity:0'> abc def ")	assert_equals: innerText expected "abc def" but got " abc def "
+Fail	Remove leading/trailing whitespace in opacity:0 container ("<div style='opacity:0'> abc def ")	
 Pass	opacity:0 child rendered ("<div>123<span style='opacity:0'>abc")	
 Pass	Generated content not included ("<div class='before'>")	
 Pass	Generated content on child not included ("<div><div class='before'>")	
@@ -136,30 +136,30 @@ Pass	<img> alt text ignored ("<img alt='abc'>")
 Pass	<img> contents ignored ("<img src='about:blank' class='poke'>")	
 Pass	<svg> text contents preserved ("<div><svg><text>abc</text></svg></div>")	
 Pass	<svg><defs> text contents ignored ("<div><svg><defs><text>abc</text></defs></svg></div>")	
-Fail	<svg> non-rendered text ignored ("<div><svg><stop>abc</stop></svg></div>")	assert_equals: innerText expected "" but got "abc"
+Fail	<svg> non-rendered text ignored ("<div><svg><stop>abc</stop></svg></div>")	
 Pass	<foreignObject> contents preserved ("<svg><foreignObject><span id='target'>abc</span></foreignObject></svg>")	
-Fail	<select size='1'> contents of options preserved ("<select size='1'><option>abc</option><option>def")	assert_equals: innerText expected "abc\ndef" but got ""
-Fail	<select size='2'> contents of options preserved ("<select size='2'><option>abc</option><option>def")	assert_equals: innerText expected "abc\ndef" but got ""
+Fail	<select size='1'> contents of options preserved ("<select size='1'><option>abc</option><option>def")	
+Fail	<select size='2'> contents of options preserved ("<select size='2'><option>abc</option><option>def")	
 Pass	<select size='1'> contents of target option preserved ("<select size='1'><option id='target'>abc</option><option>def")	
 Pass	<select size='2'> contents of target option preserved ("<select size='2'><option id='target'>abc</option><option>def")	
 Pass	empty <select> ("<div>a<select></select>bc")	
-Fail	empty <optgroup> in <select> ("<div>a<select><optgroup></select>bc")	assert_equals: innerText expected "a\nbc" but got "abc"
-Fail	empty <option> in <select> ("<div>a<select><option></select>bc")	assert_equals: innerText expected "a\nbc" but got "abc"
+Fail	empty <optgroup> in <select> ("<div>a<select><optgroup></select>bc")	
+Fail	empty <option> in <select> ("<div>a<select><option></select>bc")	
 Pass	<select> containing text node child ("<select class='poke'></select>")	
 Pass	<optgroup> containing <optgroup> ("<select><optgroup class='poke-optgroup'></select>")	
-Fail	<optgroup> containing <option> ("<select><optgroup><option>abc</select>")	assert_equals: innerText expected "abc" but got ""
-Fail	<div> in <option> ("<select><option class='poke-div'>123</select>")	assert_equals: innerText expected "123\nabc" but got ""
-Fail	empty <optgroup> in <div> ("<div>a<optgroup></optgroup>bc")	assert_equals: innerText expected "a\nbc" but got "abc"
-Fail	<optgroup> in <div> ("<div>a<optgroup>123</optgroup>bc")	assert_equals: innerText expected "a\nbc" but got "a123bc"
-Fail	empty <option> in <div> ("<div>a<option></option>bc")	assert_equals: innerText expected "a\nbc" but got "abc"
-Fail	<option> in <div> ("<div>a<option>123</option>bc")	assert_equals: innerText expected "a\n123\nbc" but got "abc"
+Fail	<optgroup> containing <option> ("<select><optgroup><option>abc</select>")	
+Fail	<div> in <option> ("<select><option class='poke-div'>123</select>")	
+Fail	empty <optgroup> in <div> ("<div>a<optgroup></optgroup>bc")	
+Fail	<optgroup> in <div> ("<div>a<optgroup>123</optgroup>bc")	
+Fail	empty <option> in <div> ("<div>a<option></option>bc")	
+Fail	<option> in <div> ("<div>a<option>123</option>bc")	
 Pass	<button> contents preserved ("<div><button>abc")	
 Pass	<fieldset> contents preserved ("<div><fieldset>abc")	
 Pass	<fieldset> <legend> contents preserved ("<div><fieldset><legend>abc")	
 Pass	<input> contents ignored ("<div><input type='text' value='abc'>")	
 Pass	<textarea> contents ignored ("<div><textarea>abc")	
-Fail	<select size='1'> contents of options preserved ("<div><select size='1'><option>abc</option><option>def")	assert_equals: innerText expected "abc\ndef" but got ""
-Fail	<select size='2'> contents of options preserved ("<div><select size='2'><option>abc</option><option>def")	assert_equals: innerText expected "abc\ndef" but got ""
+Fail	<select size='1'> contents of options preserved ("<div><select size='1'><option>abc</option><option>def")	
+Fail	<select size='2'> contents of options preserved ("<div><select size='2'><option>abc</option><option>def")	
 Pass	<iframe> contents ignored ("<div><iframe>abc")	
 Pass	 <iframe> subdocument ignored ("<div><iframe src='data:text/html,abc'>")	
 Pass	<audio> contents ignored ("<div><audio>abc")	
@@ -172,10 +172,10 @@ Pass	Newline at display:block boundary ("<div>123<span style='display:block'>abc
 Pass	Empty block induces single line break ("<div>abc<div></div>def")	
 Pass	Consecutive empty blocks ignored ("<div>abc<div></div><div></div>def")	
 Pass	No blank lines around <p> alone ("<div><p>abc")	
-Fail	No blank lines around <p> followed by only collapsible whitespace ("<div><p>abc</p> ")	assert_equals: innerText expected "abc" but got "abc\n\n "
-Fail	No blank lines around <p> preceded by only collapsible whitespace ("<div> <p>abc</p>")	assert_equals: innerText expected "abc" but got " \n\nabc"
+Fail	No blank lines around <p> followed by only collapsible whitespace ("<div><p>abc</p> ")	
+Fail	No blank lines around <p> preceded by only collapsible whitespace ("<div> <p>abc</p>")	
 Pass	Blank line between consecutive <p>s ("<div><p>abc<p>def")	
-Fail	Blank line between consecutive <p>s separated only by collapsible whitespace ("<div><p>abc</p> <p>def")	assert_equals: innerText expected "abc\n\ndef" but got "abc\n\n \n\ndef"
+Fail	Blank line between consecutive <p>s separated only by collapsible whitespace ("<div><p>abc</p> <p>def")	
 Pass	Blank line between consecutive <p>s separated only by empty block ("<div><p>abc</p><div></div><p>def")	
 Pass	Blank lines between <p>s separated by non-empty block ("<div><p>abc</p><div>123</div><p>def")	
 Pass	Blank lines around a <p> in its own block ("<div>abc<div><p>123</p></div>def")	
@@ -185,9 +185,9 @@ Pass	One blank line between <p>s, ignoring empty <p>s ("<div><p>abc<p></p><p></p
 Pass	Invisible <p> doesn't induce extra line breaks ("<div style='visibility:hidden'><p><span style='visibility:visible'>abc</span></p>\n<div style='visibility:visible'>def</div>")	
 Pass	No blank lines around <div> with margin ("<div>abc<div style='margin:2em'>def")	
 Pass	No newlines at display:inline-block boundary ("<div>123<span style='display:inline-block'>abc</span>def")	
-Fail	Leading/trailing space removal at display:inline-block boundary ("<div>123<span style='display:inline-block'> abc </span>def")	assert_equals: innerText expected "123abcdef" but got "123 abc def"
-Fail	Leading/trailing space removal at display:inline-flex boundary ("<div>123<span style='display:inline-flex'> abc </span>def")	assert_equals: innerText expected "123abcdef" but got "123 abc def"
-Fail	Leading/trailing space removal at display:inline-grid boundary ("<div>123<span style='display:inline-grid'> abc </span>def")	assert_equals: innerText expected "123abcdef" but got "123 abc def"
+Fail	Leading/trailing space removal at display:inline-block boundary ("<div>123<span style='display:inline-block'> abc </span>def")	
+Fail	Leading/trailing space removal at display:inline-flex boundary ("<div>123<span style='display:inline-flex'> abc </span>def")	
+Fail	Leading/trailing space removal at display:inline-grid boundary ("<div>123<span style='display:inline-grid'> abc </span>def")	
 Pass	Blank lines around <p> even without margin ("<div>123<p style='margin:0px'>abc</p>def")	
 Pass	No blank lines around <h1> ("<div>123<h1>abc</h1>def")	
 Pass	No blank lines around <h2> ("<div>123<h2>abc</h2>def")	
@@ -208,7 +208,7 @@ Pass	<tt> gets no special treatment ("<div>123<tt>abc</tt>def")
 Pass	<code> gets no special treatment ("<div>123<code>abc</code>def")	
 Pass	soft hyphen preserved ("<div>abc&shy;def")	
 Pass	soft hyphen preserved ("<div style='width:0'>abc&shy;def")	
-Fail	Ignoring non-rendered table whitespace ("<div><table style='white-space:pre'> <td>abc</td> </table>")	assert_equals: innerText expected "abc" but got " abc\t "
+Fail	Ignoring non-rendered table whitespace ("<div><table style='white-space:pre'> <td>abc</td> </table>")	
 Pass	Tab-separated table cells ("<div><table><tr><td>abc<td>def</table>")	
 Pass	Tab-separated table cells including empty cells ("<div><table><tr><td>abc<td><td>def</table>")	
 Pass	Tab-separated table cells including trailing empty cells ("<div><table><tr><td>abc<td><td></table>")	
@@ -216,17 +216,17 @@ Pass	Newline-separated table rows ("<div><table><tr><td>abc<tr><td>def</table>")
 Pass	Newlines around table ("<div>abc<table><td>def</table>ghi")	
 Pass	Tab-separated table cells in a border-collapse table ("<div><table style='border-collapse:collapse'><tr><td>abc<td>def</table>")	
 Pass	tfoot not reordered ("<div><table><tfoot>x</tfoot><tbody>y</tbody></table>")	
-Fail	 ("<table><tfoot><tr><td>footer</tfoot><thead><tr><td style='visibility:collapse'>thead</thead><tbody><tr><td>tbody</tbody></table>")	assert_equals: innerText expected "footer\n\ntbody" but got "footertbody"
+Fail	 ("<table><tfoot><tr><td>footer</tfoot><thead><tr><td style='visibility:collapse'>thead</thead><tbody><tr><td>tbody</tbody></table>")	
 Pass	No tab on table-cell itself ("<table><tr><td id=target>abc</td><td>def</td>")	
 Pass	No newline on table-row itself ("<table><tr id=target><td>abc</td><td>def</td></tr><tr id=target><td>ghi</td><td>jkl</td></tr>")	
 Pass	Newline between cells and caption ("<div><table><tr><td>abc<caption>def</caption></table>")	
-Fail	Tab-separated table cells ("<div><div class='table'><span class='cell'>abc</span>\n<span class='cell'>def</span></div>")	assert_equals: innerText expected "abc\tdef" but got "abc\t def"
-Fail	Newline-separated table rows ("<div><div class='table'><span class='row'><span class='cell'>abc</span></span>\n<span class='row'><span class='cell'>def</span></span></div>")	assert_equals: innerText expected "abc\ndef" but got "abc\n def"
+Fail	Tab-separated table cells ("<div><div class='table'><span class='cell'>abc</span>\n<span class='cell'>def</span></div>")	
+Fail	Newline-separated table rows ("<div><div class='table'><span class='row'><span class='cell'>abc</span></span>\n<span class='row'><span class='cell'>def</span></span></div>")	
 Pass	Newlines around table ("<div>abc<div class='table'><span class='cell'>def</span></div>ghi")	
-Fail	Tab-separated table cells ("<div><div class='itable'><span class='cell'>abc</span>\n<span class='cell'>def</span></div>")	assert_equals: innerText expected "abc\tdef" but got "abc\t def"
-Fail	Newline-separated table rows ("<div><div class='itable'><span class='row'><span class='cell'>abc</span></span>\n<span class='row'><span class='cell'>def</span></span></div>")	assert_equals: innerText expected "abc\ndef" but got "abc\n def"
+Fail	Tab-separated table cells ("<div><div class='itable'><span class='cell'>abc</span>\n<span class='cell'>def</span></div>")	
+Fail	Newline-separated table rows ("<div><div class='itable'><span class='row'><span class='cell'>abc</span></span>\n<span class='row'><span class='cell'>def</span></span></div>")	
 Pass	No newlines around inline-table ("<div>abc<div class='itable'><span class='cell'>def</span></div>ghi")	
-Fail	Single newline in two-row inline-table ("<div>abc<div class='itable'><span class='row'><span class='cell'>def</span></span>\n<span class='row'><span class='cell'>123</span></span></div>ghi")	assert_equals: innerText expected "abcdef\n123ghi" but got "abcdef\n 123ghi"
+Fail	Single newline in two-row inline-table ("<div>abc<div class='itable'><span class='row'><span class='cell'>def</span></span>\n<span class='row'><span class='cell'>123</span></span></div>ghi")	
 Pass	display:table-row on the element itself ("<div style='display:table-row'>")	
 Pass	display:table-cell on the element itself ("<div style='display:table-cell'>")	
 Pass	display:table-caption on the element itself ("<div style='display:table-caption'>")	
@@ -251,7 +251,7 @@ Pass	unopened <details> ignored ("<div><details><summary>abc</summary>123")
 Pass	opened <details> content shown ("<div><details open><summary>abc</summary>123")	
 Pass	text-transform is applied ("<div><div style='text-transform:uppercase'>abc")	
 Pass	text-transform handles es-zet ("<div><div style='text-transform:uppercase'>Maß")	
-Fail	text-transform handles Turkish casing ("<div><div lang='tr' style='text-transform:uppercase'>i ı")	assert_equals: innerText expected "İ I" but got "I I"
+Fail	text-transform handles Turkish casing ("<div><div lang='tr' style='text-transform:uppercase'>i ı")	
 Pass	block-in-inline doesn't add unnecessary newlines ("<div>abc<span>123<div>456</div>789</span>def")	
 Pass	floats induce a block boundary ("<div>abc<div style='float:left'>123</div>def")	
 Pass	floats induce a block boundary ("<div>abc<span style='float:left'>123</span>def")	
@@ -272,7 +272,7 @@ Pass	<rp> ("<div><ruby>abc<rp>(</rp><rt>def</rt><rp>)</rp></ruby>")
 Pass	Lone <rp> ("<div><rp>abc</rp>")	
 Pass	visibility:hidden <rp> ("<div><rp style='visibility:hidden'>abc</rp>")	
 Pass	display:block <rp> ("<div><rp style='display:block'>abc</rp>def")	
-Fail	display:block <rp> with whitespace ("<div><rp style='display:block'> abc </rp>def")	assert_equals: innerText expected "abc\ndef" but got " abc \ndef"
+Fail	display:block <rp> with whitespace ("<div><rp style='display:block'> abc </rp>def")	
 Pass	<rp> in a <select> ("<div><select class='poke-rp'></select>")	
 Pass	Shadow DOM contents ignored ("<div class='shadow'>")	
 Pass	Shadow DOM contents ignored ("<div><div class='shadow'>")	

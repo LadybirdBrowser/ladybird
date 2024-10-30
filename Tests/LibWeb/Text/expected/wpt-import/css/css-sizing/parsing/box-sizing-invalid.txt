@@ -15,4 +15,4 @@ Pass	e.style['box-sizing'] = "fill-box" should not set the property value
 Pass	e.style['box-sizing'] = "stroke-box" should not set the property value	
 Pass	e.style['box-sizing'] = "view-box" should not set the property value	
 Pass	e.style['box-sizing'] = "content-box border-box" should not set the property value	
-Fail	e.style['box-sizing'] = "content-box, border-box" should not set the property value	assert_equals: expected "" but got "content-box"
+Fail	e.style['box-sizing'] = "content-box, border-box" should not set the property value	
