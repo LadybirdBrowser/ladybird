@@ -442,7 +442,7 @@ Web::WebDriver::Response Client::find_element(Web::WebDriver::Parameters paramet
 {
     dbgln_if(WEBDRIVER_DEBUG, "Handling POST /session/<session_id>/element");
     auto session = TRY(find_session_with_id(parameters[0]));
-    return session->web_content_connection().find_element(payload);
+    return session->find_element(payload);
 }
 
 // 12.3.3 Find Elements, https://w3c.github.io/webdriver/#dfn-find-elements
@@ -451,7 +451,7 @@ Web::WebDriver::Response Client::find_elements(Web::WebDriver::Parameters parame
 {
     dbgln_if(WEBDRIVER_DEBUG, "Handling POST /session/<session_id>/elements");
     auto session = TRY(find_session_with_id(parameters[0]));
-    return session->web_content_connection().find_elements(payload);
+    return session->find_elements(payload);
 }
 
 // 12.3.4 Find Element From Element, https://w3c.github.io/webdriver/#dfn-find-element-from-element
@@ -460,7 +460,7 @@ Web::WebDriver::Response Client::find_element_from_element(Web::WebDriver::Param
 {
     dbgln_if(WEBDRIVER_DEBUG, "Handling POST /session/<session_id>/element/<element_id>/element");
     auto session = TRY(find_session_with_id(parameters[0]));
-    return session->web_content_connection().find_element_from_element(payload, move(parameters[1]));
+    return session->find_element_from_element(move(parameters[1]), move(payload));
 }
 
 // 12.3.5 Find Elements From Element, https://w3c.github.io/webdriver/#dfn-find-elements-from-element
@@ -469,7 +469,7 @@ Web::WebDriver::Response Client::find_elements_from_element(Web::WebDriver::Para
 {
     dbgln_if(WEBDRIVER_DEBUG, "Handling POST /session/<session_id>/element/<element_id>/elements");
     auto session = TRY(find_session_with_id(parameters[0]));
-    return session->web_content_connection().find_elements_from_element(payload, move(parameters[1]));
+    return session->find_elements_from_element(move(parameters[1]), move(payload));
 }
 
 // 12.3.6 Find Element From Shadow Root, https://w3c.github.io/webdriver/#find-element-from-shadow-root
@@ -478,7 +478,7 @@ Web::WebDriver::Response Client::find_element_from_shadow_root(Web::WebDriver::P
 {
     dbgln_if(WEBDRIVER_DEBUG, "Handling POST /session/<session_id>/shadow/<shadow_id>/element");
     auto session = TRY(find_session_with_id(parameters[0]));
-    return session->web_content_connection().find_element_from_shadow_root(payload, move(parameters[1]));
+    return session->find_element_from_shadow_root(move(parameters[1]), move(payload));
 }
 
 // 12.3.7 Find Elements From Shadow Root, https://w3c.github.io/webdriver/#find-elements-from-shadow-root
@@ -487,7 +487,7 @@ Web::WebDriver::Response Client::find_elements_from_shadow_root(Web::WebDriver::
 {
     dbgln_if(WEBDRIVER_DEBUG, "Handling POST /session/<session_id>/shadow/<shadow_id>/elements");
     auto session = TRY(find_session_with_id(parameters[0]));
-    return session->web_content_connection().find_elements_from_shadow_root(payload, move(parameters[1]));
+    return session->find_elements_from_shadow_root(move(parameters[1]), move(payload));
 }
 
 // 12.3.8 Get Active Element, https://w3c.github.io/webdriver/#get-active-element

@@ -24,6 +24,7 @@ public:
     Function<void()> on_close;
     Function<void(Web::WebDriver::Response)> on_navigation_complete;
     Function<void(Web::WebDriver::Response)> on_window_rect_updated;
+    Function<void(Web::WebDriver::Response)> on_find_elements_complete;
     Function<void(Web::WebDriver::Response)> on_script_executed;
     Function<void(Web::WebDriver::Response)> on_actions_performed;
     Function<void(Web::WebDriver::Response)> on_dialog_closed;
@@ -33,6 +34,7 @@ private:
 
     virtual void navigation_complete(Web::WebDriver::Response const&) override;
     virtual void window_rect_updated(Web::WebDriver::Response const&) override;
+    virtual void find_elements_complete(Web::WebDriver::Response const&) override;
     virtual void script_executed(Web::WebDriver::Response const&) override;
     virtual void actions_performed(Web::WebDriver::Response const&) override;
     virtual void dialog_closed(Web::WebDriver::Response const&) override;

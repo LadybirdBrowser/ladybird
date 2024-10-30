@@ -237,6 +237,48 @@ Web::WebDriver::Response Session::fullscreen_window() const
     });
 }
 
+Web::WebDriver::Response Session::find_element(JsonValue payload) const
+{
+    return perform_async_action(web_content_connection().on_find_elements_complete, [&]() {
+        return web_content_connection().find_element(move(payload));
+    });
+}
+
+Web::WebDriver::Response Session::find_elements(JsonValue payload) const
+{
+    return perform_async_action(web_content_connection().on_find_elements_complete, [&]() {
+        return web_content_connection().find_elements(move(payload));
+    });
+}
+
+Web::WebDriver::Response Session::find_element_from_element(String element_id, JsonValue payload) const
+{
+    return perform_async_action(web_content_connection().on_find_elements_complete, [&]() {
+        return web_content_connection().find_element_from_element(move(payload), move(element_id));
+    });
+}
+
+Web::WebDriver::Response Session::find_elements_from_element(String element_id, JsonValue payload) const
+{
+    return perform_async_action(web_content_connection().on_find_elements_complete, [&]() {
+        return web_content_connection().find_elements_from_element(move(payload), move(element_id));
+    });
+}
+
+Web::WebDriver::Response Session::find_element_from_shadow_root(String shadow_id, JsonValue payload) const
+{
+    return perform_async_action(web_content_connection().on_find_elements_complete, [&]() {
+        return web_content_connection().find_element_from_shadow_root(move(payload), move(shadow_id));
+    });
+}
+
+Web::WebDriver::Response Session::find_elements_from_shadow_root(String shadow_id, JsonValue payload) const
+{
+    return perform_async_action(web_content_connection().on_find_elements_complete, [&]() {
+        return web_content_connection().find_elements_from_shadow_root(move(payload), move(shadow_id));
+    });
+}
+
 Web::WebDriver::Response Session::execute_script(JsonValue payload, ScriptMode mode) const
 {
     return perform_async_action(web_content_connection().on_script_executed, [&]() {
