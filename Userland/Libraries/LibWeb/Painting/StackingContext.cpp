@@ -120,6 +120,9 @@ void StackingContext::paint_descendants(PaintContext& context, Paintable const& 
             return IterationDecision::Continue;
         }
 
+        if (stacking_context)
+            return IterationDecision::Continue;
+
         // NOTE: Grid specification https://www.w3.org/TR/css-grid-2/#z-order says that grid items should be treated
         //       the same way as CSS2 defines for inline-blocks:
         //       "For each one of these, treat the element as if it created a new stacking context, but any positioned
@@ -133,8 +136,6 @@ void StackingContext::paint_descendants(PaintContext& context, Paintable const& 
             return IterationDecision::Continue;
         }
 
-        if (stacking_context)
-            return IterationDecision::Continue;
         if (child.is_positioned() && z_index.value_or(0) == 0)
             return IterationDecision::Continue;
 
