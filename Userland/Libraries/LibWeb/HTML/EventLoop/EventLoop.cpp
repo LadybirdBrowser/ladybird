@@ -54,9 +54,9 @@ void EventLoop::visit_edges(Visitor& visitor)
 void EventLoop::schedule()
 {
     if (!m_system_event_loop_timer) {
-        m_system_event_loop_timer = Platform::Timer::create_single_shot(heap(), 0, [this] {
+        m_system_event_loop_timer = Platform::Timer::create_single_shot(heap(), 0, JS::create_heap_function(heap(), [this] {
             process();
-        });
+        }));
     }
 
     if (!m_system_event_loop_timer->is_active())

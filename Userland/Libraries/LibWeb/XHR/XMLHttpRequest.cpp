@@ -879,14 +879,14 @@ WebIDL::ExceptionOr<void> XMLHttpRequest::send(Optional<DocumentOrXMLHttpRequest
             auto timer = Platform::Timer::create_single_shot(heap(), m_timeout, nullptr);
 
             // NOTE: `timer` is kept alive by capturing into the lambda for the GC to see
-            // NOTE: `this` and `request` is kept alive by Platform::Timer using JS::SafeFunction.
-            timer->on_timeout = [this, request, timer]() {
+            // NOTE: `this` and `request` is kept alive by Platform::Timer using a Handle.
+            timer->on_timeout = JS::create_heap_function(heap(), [this, request, timer = JS::make_handle(timer)]() {
                 (void)timer;
                 if (!request->done()) {
                     m_timed_out = true;
                     m_fetch_controller->terminate();
                 }
-            };
+            });
 
             timer->start();
         }
@@ -933,10 +933,10 @@ WebIDL::ExceptionOr<void> XMLHttpRequest::send(Optional<DocumentOrXMLHttpRequest
             auto timer = Platform::Timer::create_single_shot(heap(), m_timeout, nullptr);
 
             // NOTE: `timer` is kept alive by capturing into the lambda for the GC to see
-            timer->on_timeout = [timer, &did_time_out]() {
+            timer->on_timeout = JS::create_heap_function(heap(), [timer = JS::make_handle(timer), &did_time_out]() {
                 (void)timer;
                 did_time_out = true;
-            };
+            });
 
             timer->start();
         }

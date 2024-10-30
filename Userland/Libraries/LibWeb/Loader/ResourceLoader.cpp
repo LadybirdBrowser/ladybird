@@ -415,12 +415,12 @@ void ResourceLoader::load(LoadRequest& request, SuccessCallback success_callback
 
         if (timeout.has_value() && timeout.value() > 0) {
             auto timer = Platform::Timer::create_single_shot(m_heap, timeout.value(), nullptr);
-            timer->on_timeout = [timer, protocol_request, timeout_callback = move(timeout_callback)] {
+            timer->on_timeout = JS::create_heap_function(m_heap, [timer = JS::make_handle(timer), protocol_request, timeout_callback = move(timeout_callback)] {
                 (void)timer;
                 protocol_request->stop();
                 if (timeout_callback)
                     timeout_callback();
-            };
+            });
             timer->start();
         }
 
