@@ -5,9 +5,9 @@
  */
 
 #include "TimerSerenity.h"
-#include <AK/NonnullRefPtr.h>
 #include <LibCore/Timer.h>
 #include <LibJS/Heap/Heap.h>
+#include <LibJS/Heap/HeapFunction.h>
 
 namespace Web::Platform {
 
@@ -21,7 +21,7 @@ TimerSerenity::TimerSerenity()
 {
     m_timer->on_timeout = [this] {
         if (on_timeout)
-            on_timeout();
+            on_timeout->function()();
     };
 }
 

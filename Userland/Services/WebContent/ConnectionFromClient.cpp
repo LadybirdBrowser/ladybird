@@ -58,7 +58,7 @@ ConnectionFromClient::ConnectionFromClient(JS::Heap& heap, IPC::Transport transp
     , m_heap(heap)
     , m_page_host(PageHost::create(*this))
 {
-    m_input_event_queue_timer = Web::Platform::Timer::create_single_shot(m_heap, 0, [this] { process_next_input_event(); });
+    m_input_event_queue_timer = Web::Platform::Timer::create_single_shot(m_heap, 0, JS::create_heap_function(heap, [this] { process_next_input_event(); }));
 }
 
 ConnectionFromClient::~ConnectionFromClient() = default;
