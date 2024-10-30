@@ -470,9 +470,9 @@ void execute_async_script(HTML::BrowsingContext const& browsing_context, ByteStr
             return;
         auto& script_promise = static_cast<JS::Promise&>(*script_promise_or_error.value());
 
-        vm.custom_data()->spin_event_loop_until([&] {
+        vm.custom_data()->spin_event_loop_until(JS::create_heap_function(vm.heap(), [timer, &script_promise]() {
             return timer->is_timed_out() || script_promise.state() != JS::Promise::State::Pending;
-        });
+        }));
 
         // 10. Upon fulfillment of scriptPromise with value v, resolve promise with value v.
         if (script_promise.state() == JS::Promise::State::Fulfilled)

@@ -14,9 +14,11 @@ namespace Web::Platform {
 EventLoopPluginSerenity::EventLoopPluginSerenity() = default;
 EventLoopPluginSerenity::~EventLoopPluginSerenity() = default;
 
-void EventLoopPluginSerenity::spin_until(JS::SafeFunction<bool()> goal_condition)
+void EventLoopPluginSerenity::spin_until(JS::Handle<JS::HeapFunction<bool()>> goal_condition)
 {
-    Core::EventLoop::current().spin_until(move(goal_condition));
+    Core::EventLoop::current().spin_until([goal_condition = move(goal_condition)]() {
+        return goal_condition->function()();
+    });
 }
 
 void EventLoopPluginSerenity::deferred_invoke(JS::SafeFunction<void()> function)
