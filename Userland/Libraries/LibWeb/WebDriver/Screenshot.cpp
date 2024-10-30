@@ -102,7 +102,7 @@ Response capture_element_screenshot(Painter const& painter, Page& page, DOM::Ele
         encoded_string_or_error = encode_canvas_element(canvas_or_error.release_value());
     });
 
-    Platform::EventLoopPlugin::the().spin_until([&]() { return encoded_string_or_error.has_value(); });
+    Platform::EventLoopPlugin::the().spin_until(JS::create_heap_function(element.document().heap(), [&]() { return encoded_string_or_error.has_value(); }));
     return encoded_string_or_error.release_value();
 }
 

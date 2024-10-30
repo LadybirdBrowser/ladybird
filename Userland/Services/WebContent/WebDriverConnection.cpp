@@ -2613,14 +2613,14 @@ ErrorOr<JsonArray, Web::WebDriver::Error> WebDriverConnection::find(StartNodeGet
         return elements.release_value();
     };
 
-    Web::Platform::EventLoopPlugin::the().spin_until([&]() {
+    Web::Platform::EventLoopPlugin::the().spin_until(JS::create_heap_function(current_top_level_browsing_context()->heap(), [&]() {
         maybe_elements = try_to_find_element();
         if (maybe_elements.is_error())
             return true;
 
         // 6. If elements returned is empty and the current time is less than end time return to step 4. Otherwise, continue to the next step.
         return maybe_elements.value()->length() != 0 || MonotonicTime::now() >= end_time;
-    });
+    }));
 
     auto elements = TRY(maybe_elements);
     VERIFY(elements);

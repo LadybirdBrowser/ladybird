@@ -92,7 +92,7 @@ void EventLoop::spin_until(JS::SafeFunction<bool()> goal_condition)
     //       2. Perform any steps that appear after this spin the event loop instance in the original algorithm.
     //       NOTE: This is achieved by returning from the function.
 
-    Platform::EventLoopPlugin::the().spin_until([&] {
+    Platform::EventLoopPlugin::the().spin_until(JS::create_heap_function(heap(), [&] {
         if (goal_condition())
             return true;
         if (m_task_queue->has_runnable_tasks()) {
@@ -101,7 +101,7 @@ void EventLoop::spin_until(JS::SafeFunction<bool()> goal_condition)
             Core::EventLoop::current().wake();
         }
         return goal_condition();
-    });
+    }));
 
     vm.restore_execution_context_stack();
 
@@ -120,7 +120,7 @@ void EventLoop::spin_processing_tasks_with_source_until(Task::Source source, JS:
     // NOTE: HTML event loop processing steps could run a task with arbitrary source
     m_skip_event_loop_processing_steps = true;
 
-    Platform::EventLoopPlugin::the().spin_until([&] {
+    Platform::EventLoopPlugin::the().spin_until(JS::create_heap_function(heap(), [&] {
         if (goal_condition())
             return true;
         if (m_task_queue->has_runnable_tasks()) {
@@ -138,7 +138,7 @@ void EventLoop::spin_processing_tasks_with_source_until(Task::Source source, JS:
         // FIXME: Remove the platform event loop plugin so that this doesn't look out of place
         Core::EventLoop::current().wake();
         return goal_condition();
-    });
+    }));
 
     m_skip_event_loop_processing_steps = false;
 

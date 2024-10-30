@@ -324,11 +324,11 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<WebIDL::Promise>> HTMLImageElement::decode(
 
         // 2.2 Otherwise, in parallel wait for one of the following cases to occur, and perform the corresponding actions:
         Platform::EventLoopPlugin::the().deferred_invoke([this, promise, &realm, reject_if_document_not_fully_active, reject_if_current_request_state_broken] {
-            Platform::EventLoopPlugin::the().spin_until([&] {
+            Platform::EventLoopPlugin::the().spin_until(JS::create_heap_function(heap(), [&] {
                 auto state = this->current_request().state();
 
                 return !this->document().is_fully_active() || state == ImageRequest::State::Broken || state == ImageRequest::State::CompletelyAvailable;
-            });
+            }));
 
             // 2.2.1 This img element's node document stops being fully active
             // 2.2.1 Reject promise with an "EncodingError" DOMException.

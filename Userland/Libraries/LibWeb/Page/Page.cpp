@@ -269,9 +269,9 @@ static ResponseType spin_event_loop_until_dialog_closed(PageClient& client, Opti
     ScopeGuard guard { [&] { event_loop.set_execution_paused(false); } };
     event_loop.set_execution_paused(true);
 
-    Web::Platform::EventLoopPlugin::the().spin_until([&]() {
+    Web::Platform::EventLoopPlugin::the().spin_until(JS::create_heap_function(event_loop.heap(), [&]() {
         return response.has_value() || !client.is_connection_open();
-    });
+    }));
 
     if (!client.is_connection_open()) {
         dbgln("WebContent client disconnected during {}. Exiting peacefully.", location.function_name());

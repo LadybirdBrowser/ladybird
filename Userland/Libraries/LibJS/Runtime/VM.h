@@ -42,7 +42,7 @@ public:
     struct CustomData {
         virtual ~CustomData() = default;
 
-        virtual void spin_event_loop_until(JS::SafeFunction<bool()> goal_condition) = 0;
+        virtual void spin_event_loop_until(JS::Handle<JS::HeapFunction<bool()>> goal_condition) = 0;
     };
 
     static ErrorOr<NonnullRefPtr<VM>> create(OwnPtr<CustomData> = {});

@@ -942,9 +942,9 @@ WebIDL::ExceptionOr<void> XMLHttpRequest::send(Optional<DocumentOrXMLHttpRequest
         }
 
         // FIXME: This is not exactly correct, as it allows the HTML event loop to continue executing tasks.
-        Platform::EventLoopPlugin::the().spin_until([&]() {
+        Platform::EventLoopPlugin::the().spin_until(JS::create_heap_function(heap(), [&]() {
             return processed_response || did_time_out;
-        });
+        }));
 
         // 6. If processedResponse is false, then set this’s timed out flag and terminate this’s fetch controller.
         if (!processed_response) {
