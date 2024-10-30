@@ -1517,6 +1517,18 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<CryptoKey>> AesCtr::import_key(AlgorithmPar
     return key;
 }
 
+WebIDL::ExceptionOr<JS::Value> AesCtr::get_key_length(AlgorithmParams const& params)
+{
+    // 1. If the length member of normalizedDerivedKeyAlgorithm is not 128, 192 or 256, then throw a OperationError.
+    auto const& normalized_algorithm = static_cast<AesDerivedKeyParams const&>(params);
+    auto length = normalized_algorithm.length;
+    if (length != 128 && length != 192 && length != 256)
+        return WebIDL::OperationError::create(m_realm, "Invalid key length"_string);
+
+    // 2. Return the length member of normalizedDerivedKeyAlgorithm.
+    return JS::Value(length);
+}
+
 // https://w3c.github.io/webcrypto/#hkdf-operations
 WebIDL::ExceptionOr<JS::NonnullGCPtr<CryptoKey>> HKDF::import_key(AlgorithmParams const&, Bindings::KeyFormat format, CryptoKey::InternalKeyData key_data, bool extractable, Vector<Bindings::KeyUsage> const& key_usages)
 {
