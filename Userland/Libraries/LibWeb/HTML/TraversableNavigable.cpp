@@ -659,16 +659,16 @@ TraversableNavigable::HistoryStepResult TraversableNavigable::apply_the_history_
         }));
     }
 
-    auto check_if_document_population_tasks_completed = JS::SafeFunction<bool()>([&] {
+    auto check_if_document_population_tasks_completed = JS::create_heap_function(heap(), [&] {
         return changing_navigable_continuations.size() + completed_change_jobs == total_change_jobs;
     });
 
     if (synchronous_navigation == SynchronousNavigation::Yes) {
         // NOTE: Synchronous navigation should never require document population, so it is safe to process only NavigationAndTraversal source.
-        main_thread_event_loop().spin_processing_tasks_with_source_until(Task::Source::NavigationAndTraversal, move(check_if_document_population_tasks_completed));
+        main_thread_event_loop().spin_processing_tasks_with_source_until(Task::Source::NavigationAndTraversal, check_if_document_population_tasks_completed);
     } else {
         // NOTE: Process all task sources while waiting because reloading or back/forward navigation might require fetching to populate a document.
-        main_thread_event_loop().spin_until(move(check_if_document_population_tasks_completed));
+        main_thread_event_loop().spin_until(check_if_document_population_tasks_completed);
     }
 
     // 13. Let navigablesThatMustWaitBeforeHandlingSyncNavigation be an empty set.
@@ -788,9 +788,9 @@ TraversableNavigable::HistoryStepResult TraversableNavigable::apply_the_history_
         }
     }
 
-    main_thread_event_loop().spin_processing_tasks_with_source_until(Task::Source::NavigationAndTraversal, [&] {
+    main_thread_event_loop().spin_processing_tasks_with_source_until(Task::Source::NavigationAndTraversal, JS::create_heap_function(heap(), [&] {
         return completed_change_jobs == total_change_jobs;
-    });
+    }));
 
     // 15. Let totalNonchangingJobs be the size of nonchangingNavigablesThatStillNeedUpdates.
     auto total_non_changing_jobs = non_changing_navigables_that_still_need_updates.size();
@@ -836,9 +836,9 @@ TraversableNavigable::HistoryStepResult TraversableNavigable::apply_the_history_
     // AD-HOC: Since currently populate_session_history_entry_document does not run in parallel
     //         we call spin_until to interrupt execution of this function and let document population
     //         to complete.
-    main_thread_event_loop().spin_processing_tasks_with_source_until(Task::Source::NavigationAndTraversal, [&] {
+    main_thread_event_loop().spin_processing_tasks_with_source_until(Task::Source::NavigationAndTraversal, JS::create_heap_function(heap(), [&] {
         return completed_non_changing_jobs == total_non_changing_jobs;
-    });
+    }));
 
     // 20. Set traversable's current session history step to targetStep.
     m_current_session_history_step = target_step;
@@ -941,9 +941,9 @@ TraversableNavigable::CheckIfUnloadingIsCanceledResult TraversableNavigable::che
             }));
 
             // 6. Wait for eventsFired to be true.
-            main_thread_event_loop().spin_until([&] {
+            main_thread_event_loop().spin_until(JS::create_heap_function(heap(), [&] {
                 return events_fired;
-            });
+            }));
 
             // 7. If finalStatus is not "continue", then return finalStatus.
             if (final_status != CheckIfUnloadingIsCanceledResult::Continue)
@@ -977,9 +977,9 @@ TraversableNavigable::CheckIfUnloadingIsCanceledResult TraversableNavigable::che
     }
 
     // 8. Wait for completedTasks to be totalTasks.
-    main_thread_event_loop().spin_until([&] {
+    main_thread_event_loop().spin_until(JS::create_heap_function(heap(), [&] {
         return completed_tasks == total_tasks;
-    });
+    }));
 
     // 9. Return finalStatus.
     return final_status;

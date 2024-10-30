@@ -69,7 +69,7 @@ EventLoop& main_thread_event_loop()
 }
 
 // https://html.spec.whatwg.org/multipage/webappapis.html#spin-the-event-loop
-void EventLoop::spin_until(JS::SafeFunction<bool()> goal_condition)
+void EventLoop::spin_until(JS::NonnullGCPtr<JS::HeapFunction<bool()>> goal_condition)
 {
     // FIXME: The spec wants us to do the rest of the enclosing algorithm (i.e. the caller)
     //    in the context of the currently running task on entry. That's not possible with this implementation.
@@ -92,15 +92,15 @@ void EventLoop::spin_until(JS::SafeFunction<bool()> goal_condition)
     //       2. Perform any steps that appear after this spin the event loop instance in the original algorithm.
     //       NOTE: This is achieved by returning from the function.
 
-    Platform::EventLoopPlugin::the().spin_until(JS::create_heap_function(heap(), [&] {
-        if (goal_condition())
+    Platform::EventLoopPlugin::the().spin_until(JS::create_heap_function(heap(), [this, goal_condition] {
+        if (goal_condition->function()())
             return true;
         if (m_task_queue->has_runnable_tasks()) {
             schedule();
             // FIXME: Remove the platform event loop plugin so that this doesn't look out of place
             Core::EventLoop::current().wake();
         }
-        return goal_condition();
+        return goal_condition->function()();
     }));
 
     vm.restore_execution_context_stack();
@@ -109,7 +109,7 @@ void EventLoop::spin_until(JS::SafeFunction<bool()> goal_condition)
     // NOTE: This is achieved by returning from the function.
 }
 
-void EventLoop::spin_processing_tasks_with_source_until(Task::Source source, JS::SafeFunction<bool()> goal_condition)
+void EventLoop::spin_processing_tasks_with_source_until(Task::Source source, JS::NonnullGCPtr<JS::HeapFunction<bool()>> goal_condition)
 {
     auto& vm = this->vm();
     vm.save_execution_context_stack();
@@ -120,8 +120,8 @@ void EventLoop::spin_processing_tasks_with_source_until(Task::Source source, JS:
     // NOTE: HTML event loop processing steps could run a task with arbitrary source
     m_skip_event_loop_processing_steps = true;
 
-    Platform::EventLoopPlugin::the().spin_until(JS::create_heap_function(heap(), [&] {
-        if (goal_condition())
+    Platform::EventLoopPlugin::the().spin_until(JS::create_heap_function(heap(), [this, source, goal_condition] {
+        if (goal_condition->function()())
             return true;
         if (m_task_queue->has_runnable_tasks()) {
             auto tasks = m_task_queue->take_tasks_matching([&](auto& task) {
@@ -137,7 +137,7 @@ void EventLoop::spin_processing_tasks_with_source_until(Task::Source source, JS:
 
         // FIXME: Remove the platform event loop plugin so that this doesn't look out of place
         Core::EventLoop::current().wake();
-        return goal_condition();
+        return goal_condition->function()();
     }));
 
     m_skip_event_loop_processing_steps = false;

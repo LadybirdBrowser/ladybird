@@ -606,9 +606,9 @@ WebIDL::ExceptionOr<Document*> Document::open(Optional<String> const&, Optional<
     // because subsequent steps will modify "initial about:blank" to false, which would cause
     // initial navigation to fail in case it was "about:blank".
     if (auto navigable = this->navigable(); navigable && navigable->container() && !navigable->container()->content_navigable_initialized()) {
-        HTML::main_thread_event_loop().spin_processing_tasks_with_source_until(HTML::Task::Source::NavigationAndTraversal, [navigable_container = navigable->container()] {
+        HTML::main_thread_event_loop().spin_processing_tasks_with_source_until(HTML::Task::Source::NavigationAndTraversal, JS::create_heap_function(heap(), [navigable_container = navigable->container()] {
             return navigable_container->content_navigable_initialized();
-        });
+        }));
     }
 
     // 1. If document is an XML document, then throw an "InvalidStateError" DOMException exception.
@@ -3451,9 +3451,9 @@ void Document::destroy_a_document_and_its_descendants(JS::GCPtr<JS::HeapFunction
     }
 
     // 5. Wait until numberDestroyed equals childNavigable's size.
-    HTML::main_thread_event_loop().spin_until([&] {
+    HTML::main_thread_event_loop().spin_until(JS::create_heap_function(heap(), [&] {
         return number_destroyed == child_navigables.size();
-    });
+    }));
 
     // 6. Queue a global task on the navigation and traversal task source given document's relevant global object to perform the following steps:
     HTML::queue_global_task(HTML::Task::Source::NavigationAndTraversal, relevant_global_object(*this), JS::create_heap_function(heap(), [after_all_destruction = move(after_all_destruction), this] {
@@ -3675,9 +3675,9 @@ void Document::unload_a_document_and_its_descendants(JS::GCPtr<Document> new_doc
         }));
     }
 
-    HTML::main_thread_event_loop().spin_until([&] {
+    HTML::main_thread_event_loop().spin_until(JS::create_heap_function(heap(), [&] {
         return number_unloaded == unloaded_documents_count;
-    });
+    }));
 
     destroy_a_document_and_its_descendants(move(after_all_unloads));
 }

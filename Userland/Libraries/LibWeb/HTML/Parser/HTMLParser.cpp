@@ -231,6 +231,8 @@ void HTMLParser::run(const URL::URL& url, HTMLTokenizer::StopAtInsertionPoint st
 // https://html.spec.whatwg.org/multipage/parsing.html#the-end
 void HTMLParser::the_end(JS::NonnullGCPtr<DOM::Document> document, JS::GCPtr<HTMLParser> parser)
 {
+    auto& heap = document->heap();
+
     // Once the user agent stops parsing the document, the user agent must run the following steps:
 
     // NOTE: This is a static method because the spec sometimes wants us to "act as if the user agent had stopped
@@ -281,10 +283,10 @@ void HTMLParser::the_end(JS::NonnullGCPtr<DOM::Document> document, JS::GCPtr<HTM
     while (!document->scripts_to_execute_when_parsing_has_finished().is_empty()) {
         // 1. Spin the event loop until the first script in the list of scripts that will execute when the document has finished parsing
         //    has its "ready to be parser-executed" flag set and the parser's Document has no style sheet that is blocking scripts.
-        main_thread_event_loop().spin_until([&] {
+        main_thread_event_loop().spin_until(JS::create_heap_function(heap, [&] {
             return document->scripts_to_execute_when_parsing_has_finished().first()->is_ready_to_be_parser_executed()
                 && !document->has_a_style_sheet_that_is_blocking_scripts();
-        });
+        }));
 
         // 2. Execute the first script in the list of scripts that will execute when the document has finished parsing.
         document->scripts_to_execute_when_parsing_has_finished().first()->execute_script();
@@ -294,7 +296,7 @@ void HTMLParser::the_end(JS::NonnullGCPtr<DOM::Document> document, JS::GCPtr<HTM
     }
 
     // 6. Queue a global task on the DOM manipulation task source given the Document's relevant global object to run the following substeps:
-    queue_global_task(HTML::Task::Source::DOMManipulation, *document, JS::create_heap_function(document->heap(), [document = document] {
+    queue_global_task(HTML::Task::Source::DOMManipulation, *document, JS::create_heap_function(heap, [document = document] {
         // 1. Set the Document's load timing info's DOM content loaded event start time to the current high resolution time given the Document's relevant global object.
         document->load_timing_info().dom_content_loaded_event_start_time = HighResolutionTime::current_high_resolution_time(relevant_global_object(*document));
 
@@ -312,14 +314,14 @@ void HTMLParser::the_end(JS::NonnullGCPtr<DOM::Document> document, JS::GCPtr<HTM
     }));
 
     // 7. Spin the event loop until the set of scripts that will execute as soon as possible and the list of scripts that will execute in order as soon as possible are empty.
-    main_thread_event_loop().spin_until([&] {
+    main_thread_event_loop().spin_until(JS::create_heap_function(heap, [&] {
         return document->scripts_to_execute_as_soon_as_possible().is_empty();
-    });
+    }));
 
     // 8. Spin the event loop until there is nothing that delays the load event in the Document.
-    main_thread_event_loop().spin_until([&] {
+    main_thread_event_loop().spin_until(JS::create_heap_function(heap, [&] {
         return !document->anything_is_delaying_the_load_event();
-    });
+    }));
 
     // 9. Queue a global task on the DOM manipulation task source given the Document's relevant global object to run the following steps:
     queue_global_task(HTML::Task::Source::DOMManipulation, *document, JS::create_heap_function(document->heap(), [document = document] {
@@ -2940,9 +2942,9 @@ void HTMLParser::handle_text(HTMLToken& token)
                     if (m_document->has_a_style_sheet_that_is_blocking_scripts() || the_script->is_ready_to_be_parser_executed() == false) {
                         // spin the event loop until the parser's Document has no style sheet that is blocking scripts
                         // and the script's ready to be parser-executed becomes true.
-                        main_thread_event_loop().spin_until([&] {
+                        main_thread_event_loop().spin_until(JS::create_heap_function(heap(), [&] {
                             return !m_document->has_a_style_sheet_that_is_blocking_scripts() && the_script->is_ready_to_be_parser_executed();
-                        });
+                        }));
                     }
 
                     // 6. If this parser has been aborted in the meantime, return.

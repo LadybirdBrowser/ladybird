@@ -177,9 +177,9 @@ void XMLDocumentBuilder::element_end(const XML::Name& name)
 
             // 2. Spin the event loop until the parser's Document has no style sheet that is blocking scripts and the pending parsing-blocking script's "ready to be parser-executed" flag is set.
             if (m_document->has_a_style_sheet_that_is_blocking_scripts() || !pending_parsing_blocking_script->is_ready_to_be_parser_executed()) {
-                HTML::main_thread_event_loop().spin_until([&] {
+                HTML::main_thread_event_loop().spin_until(JS::create_heap_function(script_element.heap(), [&] {
                     return !m_document->has_a_style_sheet_that_is_blocking_scripts() && pending_parsing_blocking_script->is_ready_to_be_parser_executed();
-                });
+                }));
             }
 
             // 3. Unblock this instance of the XML parser, such that tasks that invoke it can again be run.
@@ -231,6 +231,8 @@ void XMLDocumentBuilder::comment(StringView data)
 
 void XMLDocumentBuilder::document_end()
 {
+    auto& heap = m_document->heap();
+
     // When an XML parser reaches the end of its input, it must stop parsing.
     // If the active speculative HTML parser is not null, then stop the speculative HTML parser and return.
     // NOTE: Noop.
@@ -248,10 +250,10 @@ void XMLDocumentBuilder::document_end()
     while (!m_document->scripts_to_execute_when_parsing_has_finished().is_empty()) {
         // Spin the event loop until the first script in the list of scripts that will execute when the document has finished parsing has its "ready to be parser-executed" flag set
         // and the parser's Document has no style sheet that is blocking scripts.
-        HTML::main_thread_event_loop().spin_until([&] {
+        HTML::main_thread_event_loop().spin_until(JS::create_heap_function(heap, [&] {
             return m_document->scripts_to_execute_when_parsing_has_finished().first()->is_ready_to_be_parser_executed()
                 && !m_document->has_a_style_sheet_that_is_blocking_scripts();
-        });
+        }));
 
         // Execute the first script in the list of scripts that will execute when the document has finished parsing.
         m_document->scripts_to_execute_when_parsing_has_finished().first()->execute_script();
@@ -278,14 +280,14 @@ void XMLDocumentBuilder::document_end()
     }));
 
     // Spin the event loop until the set of scripts that will execute as soon as possible and the list of scripts that will execute in order as soon as possible are empty.
-    HTML::main_thread_event_loop().spin_until([&] {
+    HTML::main_thread_event_loop().spin_until(JS::create_heap_function(heap, [&] {
         return m_document->scripts_to_execute_as_soon_as_possible().is_empty();
-    });
+    }));
 
     // Spin the event loop until there is nothing that delays the load event in the Document.
-    HTML::main_thread_event_loop().spin_until([&] {
+    HTML::main_thread_event_loop().spin_until(JS::create_heap_function(heap, [&] {
         return !m_document->anything_is_delaying_the_load_event();
-    });
+    }));
 
     // Queue a global task on the DOM manipulation task source given the Document's relevant global object to run the following steps:
     queue_global_task(HTML::Task::Source::DOMManipulation, m_document, JS::create_heap_function(m_document->heap(), [document = m_document] {

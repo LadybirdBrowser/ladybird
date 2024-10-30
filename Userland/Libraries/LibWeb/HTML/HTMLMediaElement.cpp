@@ -862,7 +862,7 @@ WebIDL::ExceptionOr<void> HTMLMediaElement::select_resource()
             });
 
             // 7. Wait for the task queued by the previous step to have executed.
-            HTML::main_thread_event_loop().spin_until([&]() { return ran_media_element_task; });
+            HTML::main_thread_event_loop().spin_until(JS::create_heap_function(heap(), [&]() { return ran_media_element_task; }));
         };
 
         // 1. ⌛ If the src attribute's value is the empty string, then end the synchronous section, and jump down to the failed with attribute step below.
@@ -1580,7 +1580,7 @@ void HTMLMediaElement::seek_element(double playback_position, MediaSeekMode seek
     //     available, and, if it is, until it has decoded enough data to play back that position.
     m_seek_in_progress = true;
     on_seek(playback_position, seek_mode);
-    HTML::main_thread_event_loop().spin_until([&]() { return !m_seek_in_progress; });
+    HTML::main_thread_event_loop().spin_until(JS::create_heap_function(heap(), [&]() { return !m_seek_in_progress; }));
 
     // FIXME: 13. Await a stable state. The synchronous section consists of all the remaining steps of this algorithm. (Steps in the
     //            synchronous section are marked with ⌛.)
