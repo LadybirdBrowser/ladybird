@@ -902,6 +902,19 @@ TraversalDecision PaintableWithLines::hit_test(CSSPixelPoint position, HitTestTy
     auto position_adjusted_by_scroll_offset = position;
     position_adjusted_by_scroll_offset.translate_by(-cumulative_offset_of_enclosing_scroll_frame());
 
+    // TextCursor hit testing mode should be able to place cursor in contenteditable elements even if they are empty
+    auto is_editable = layout_node_with_style_and_box_metrics().dom_node() && layout_node_with_style_and_box_metrics().dom_node()->is_editable();
+    if (is_editable && m_fragments.is_empty() && !has_children() && type == HitTestType::TextCursor) {
+        HitTestResult const hit_test_result {
+            .paintable = const_cast<PaintableWithLines&>(*this),
+            .index_in_node = 0,
+            .vertical_distance = 0,
+            .horizontal_distance = 0,
+        };
+        if (callback(hit_test_result) == TraversalDecision::Break)
+            return TraversalDecision::Break;
+    }
+
     if (!layout_node_with_style_and_box_metrics().children_are_inline() || m_fragments.is_empty()) {
         return PaintableBox::hit_test(position, type, callback);
     }
