@@ -28,6 +28,10 @@ output/
 .exrc
 .helix/
 
+# Environments
+.venv*/
+venv*/
+
 # Gradle/AndroidStudio
 .gradle/
 .cxx/
