@@ -1696,6 +1696,37 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<JS::ArrayBuffer>> AesCtr::encrypt(Algorithm
     return JS::ArrayBuffer::create(m_realm, ciphertext);
 }
 
+WebIDL::ExceptionOr<JS::NonnullGCPtr<JS::ArrayBuffer>> AesCtr::decrypt(AlgorithmParams const& params, JS::NonnullGCPtr<CryptoKey> key, ByteBuffer const& ciphertext)
+{
+    // 1. If the counter member of normalizedAlgorithm does not have length 16 bytes, then throw an OperationError.
+    auto const& normalized_algorithm = static_cast<AesCtrParams const&>(params);
+    auto const& counter = normalized_algorithm.counter;
+    if (counter.size() != 16)
+        return WebIDL::OperationError::create(m_realm, "Invalid counter length"_string);
+
+    // 2. If the length member of normalizedAlgorithm is zero or is greater than 128, then throw an OperationError.
+    auto const& length = normalized_algorithm.length;
+    if (length == 0 || length > 128)
+        return WebIDL::OperationError::create(m_realm, "Invalid length"_string);
+
+    // 3. Let plaintext be the result of performing the CTR Decryption operation described in Section 6.5 of [NIST-SP800-38A] using
+    //    AES as the block cipher,
+    //    the contents of the counter member of normalizedAlgorithm as the initial value of the counter block,
+    //    the length member of normalizedAlgorithm as the input parameter m to the standard counter block incrementing function defined in Appendix B.1 of [NIST-SP800-38A]
+    //    and the contents of ciphertext as the input ciphertext.
+    auto& aes_algorithm = static_cast<AesKeyAlgorithm const&>(*key->algorithm());
+    auto key_length = aes_algorithm.length();
+    auto key_bytes = key->handle().get<ByteBuffer>();
+
+    ::Crypto::Cipher::AESCipher::CTRMode cipher(key_bytes, key_length, ::Crypto::Cipher::Intent::Decryption);
+    ByteBuffer plaintext = TRY_OR_THROW_OOM(m_realm->vm(), ByteBuffer::create_zeroed(ciphertext.size()));
+    Bytes plaintext_span = plaintext.bytes();
+    cipher.decrypt(ciphertext, plaintext_span, counter);
+
+    // 4. Return the result of creating an ArrayBuffer containing plaintext.
+    return JS::ArrayBuffer::create(m_realm, plaintext);
+}
+
 // https://w3c.github.io/webcrypto/#hkdf-operations
 WebIDL::ExceptionOr<JS::NonnullGCPtr<CryptoKey>> HKDF::import_key(AlgorithmParams const&, Bindings::KeyFormat format, CryptoKey::InternalKeyData key_data, bool extractable, Vector<Bindings::KeyUsage> const& key_usages)
 {

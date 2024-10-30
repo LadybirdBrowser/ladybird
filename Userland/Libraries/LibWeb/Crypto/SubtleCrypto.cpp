@@ -778,6 +778,7 @@ SupportedAlgorithmsMap supported_algorithms()
 
     // https://w3c.github.io/webcrypto/#aes-ctr-registration
     define_an_algorithm<AesCtr, AesCtrParams>("encrypt"_string, "AES-CTR"_string);
+    define_an_algorithm<AesCtr, AesCtrParams>("decrypt"_string, "AES-CTR"_string);
     define_an_algorithm<AesCtr>("importKey"_string, "AES-CTR"_string);
     define_an_algorithm<AesCtr>("exportKey"_string, "AES-CTR"_string);
     define_an_algorithm<AesCtr, AesDerivedKeyParams>("get key length"_string, "AES-CTR"_string);
