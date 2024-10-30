@@ -17,6 +17,7 @@ JS_DEFINE_ALLOCATOR(BiquadFilterNode);
 
 BiquadFilterNode::BiquadFilterNode(JS::Realm& realm, JS::NonnullGCPtr<BaseAudioContext> context, BiquadFilterOptions const& options)
     : AudioNode(realm, context)
+    , m_type(options.type)
     , m_frequency(AudioParam::create(realm, options.frequency, NumericLimits<float>::lowest(), NumericLimits<float>::max(), Bindings::AutomationRate::ARate))
     , m_detune(AudioParam::create(realm, options.detune, NumericLimits<float>::lowest(), NumericLimits<float>::max(), Bindings::AutomationRate::ARate))
     , m_q(AudioParam::create(realm, options.q, NumericLimits<float>::lowest(), NumericLimits<float>::max(), Bindings::AutomationRate::ARate))
@@ -27,10 +28,9 @@ BiquadFilterNode::BiquadFilterNode(JS::Realm& realm, JS::NonnullGCPtr<BaseAudioC
 BiquadFilterNode::~BiquadFilterNode() = default;
 
 // https://webaudio.github.io/web-audio-api/#dom-biquadfilternode-type
-WebIDL::ExceptionOr<void> BiquadFilterNode::set_type(Bindings::BiquadFilterType type)
+void BiquadFilterNode::set_type(Bindings::BiquadFilterType type)
 {
     m_type = type;
-    return {};
 }
 
 // https://webaudio.github.io/web-audio-api/#dom-biquadfilternode-type
@@ -85,6 +85,17 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<BiquadFilterNode>> BiquadFilterNode::constr
     // MUST initialize the AudioNode this, with context and options as arguments.
 
     auto node = realm.vm().heap().allocate<BiquadFilterNode>(realm, realm, context, options);
+
+    // Default options for channel count and interpretation
+    // https://webaudio.github.io/web-audio-api/#BiquadFilterNode
+    AudioNodeDefaultOptions default_options;
+    default_options.channel_count_mode = Bindings::ChannelCountMode::Max;
+    default_options.channel_interpretation = Bindings::ChannelInterpretation::Speakers;
+    default_options.channel_count = 2;
+    // FIXME: Set tail-time to yes
+
+    TRY(node->initialize_audio_node_options(options, default_options));
+
     return node;
 }
 
