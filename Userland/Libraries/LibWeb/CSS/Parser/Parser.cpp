@@ -5455,6 +5455,7 @@ RefPtr<CSSStyleValue> Parser::parse_filter_value_list_value(TokenStream<Componen
             // Note: The following code is a little awkward to allow the color to be before or after the lengths.
             Optional<LengthOrCalculated> maybe_radius = {};
             auto maybe_color = parse_color_value(tokens);
+            tokens.discard_whitespace();
             auto x_offset = parse_length(tokens);
             tokens.discard_whitespace();
             if (!x_offset.has_value() || !tokens.has_next_token())
@@ -5476,8 +5477,12 @@ RefPtr<CSSStyleValue> Parser::parse_filter_value_list_value(TokenStream<Componen
                     return {};
                 }
             }
+            Optional<Color> color = {};
+            if (maybe_color)
+                color = maybe_color->to_color({});
+
             // FIXME: Support calculated offsets and radius
-            return if_no_more_tokens_return(FilterOperation::DropShadow { x_offset->value(), y_offset->value(), maybe_radius.map([](auto& it) { return it.value(); }), maybe_color->to_color({}) });
+            return if_no_more_tokens_return(FilterOperation::DropShadow { x_offset->value(), y_offset->value(), maybe_radius.map([](auto& it) { return it.value(); }), color });
         } else if (filter_token == FilterToken::HueRotate) {
             // hue-rotate( [ <angle> | <zero> ]? )
             if (!tokens.has_next_token())
