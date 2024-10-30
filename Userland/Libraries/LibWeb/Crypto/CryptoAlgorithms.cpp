@@ -267,6 +267,26 @@ JS::ThrowCompletionOr<NonnullOwnPtr<AlgorithmParams>> AesCbcParams::from_value(J
     return adopt_own<AlgorithmParams>(*new AesCbcParams { name, iv });
 }
 
+AesCtrParams::~AesCtrParams() = default;
+
+JS::ThrowCompletionOr<NonnullOwnPtr<AlgorithmParams>> AesCtrParams::from_value(JS::VM& vm, JS::Value value)
+{
+    auto& object = value.as_object();
+
+    auto name_value = TRY(object.get("name"));
+    auto name = TRY(name_value.to_string(vm));
+
+    auto iv_value = TRY(object.get("counter"));
+    if (!iv_value.is_object() || !(is<JS::TypedArrayBase>(iv_value.as_object()) || is<JS::ArrayBuffer>(iv_value.as_object()) || is<JS::DataView>(iv_value.as_object())))
+        return vm.throw_completion<JS::TypeError>(JS::ErrorType::NotAnObjectOfType, "BufferSource");
+    auto iv = TRY_OR_THROW_OOM(vm, WebIDL::get_buffer_source_copy(iv_value.as_object()));
+
+    auto length_value = TRY(object.get("length"));
+    auto length = TRY(length_value.to_u8(vm));
+
+    return adopt_own<AlgorithmParams>(*new AesCtrParams { name, iv, length });
+}
+
 HKDFParams::~HKDFParams() = default;
 
 JS::ThrowCompletionOr<NonnullOwnPtr<AlgorithmParams>> HKDFParams::from_value(JS::VM& vm, JS::Value value)
@@ -1643,6 +1663,37 @@ WebIDL::ExceptionOr<Variant<JS::NonnullGCPtr<CryptoKey>, JS::NonnullGCPtr<Crypto
 
     // 13. Return key.
     return { key };
+}
+
+WebIDL::ExceptionOr<JS::NonnullGCPtr<JS::ArrayBuffer>> AesCtr::encrypt(AlgorithmParams const& params, JS::NonnullGCPtr<CryptoKey> key, ByteBuffer const& plaintext)
+{
+    // 1. If the counter member of normalizedAlgorithm does not have length 16 bytes, then throw an OperationError.
+    auto const& normalized_algorithm = static_cast<AesCtrParams const&>(params);
+    auto const& counter = normalized_algorithm.counter;
+    if (counter.size() != 16)
+        return WebIDL::OperationError::create(m_realm, "Invalid counter length"_string);
+
+    // 2. If the length member of normalizedAlgorithm is zero or is greater than 128, then throw an OperationError.
+    auto const& length = normalized_algorithm.length;
+    if (length == 0 || length > 128)
+        return WebIDL::OperationError::create(m_realm, "Invalid length"_string);
+
+    // 3. Let ciphertext be the result of performing the CTR Encryption operation described in Section 6.5 of [NIST-SP800-38A] using
+    //    AES as the block cipher,
+    //    the contents of the counter member of normalizedAlgorithm as the initial value of the counter block,
+    //    the length member of normalizedAlgorithm as the input parameter m to the standard counter block incrementing function defined in Appendix B.1 of [NIST-SP800-38A]
+    //    and the contents of plaintext as the input plaintext.
+    auto& aes_algorithm = static_cast<AesKeyAlgorithm const&>(*key->algorithm());
+    auto key_length = aes_algorithm.length();
+    auto key_bytes = key->handle().get<ByteBuffer>();
+
+    ::Crypto::Cipher::AESCipher::CTRMode cipher(key_bytes, key_length, ::Crypto::Cipher::Intent::Encryption);
+    ByteBuffer ciphertext = TRY_OR_THROW_OOM(m_realm->vm(), ByteBuffer::create_zeroed(plaintext.size()));
+    Bytes ciphertext_span = ciphertext.bytes();
+    cipher.encrypt(plaintext, ciphertext_span, counter);
+
+    // 4. Return the result of creating an ArrayBuffer containing plaintext.
+    return JS::ArrayBuffer::create(m_realm, ciphertext);
 }
 
 // https://w3c.github.io/webcrypto/#hkdf-operations
