@@ -278,9 +278,9 @@ void ResourceLoader::load(LoadRequest& request, SuccessCallback success_callback
             return;
         }
 
-        Platform::EventLoopPlugin::the().deferred_invoke([success_callback = move(success_callback), response_headers = move(response_headers)] {
+        Platform::EventLoopPlugin::the().deferred_invoke(JS::create_heap_function(m_heap, [success_callback = move(success_callback), response_headers = move(response_headers)] {
             success_callback(ByteString::empty().to_byte_buffer(), response_headers, {});
-        });
+        }));
         return;
     }
 
@@ -303,9 +303,9 @@ void ResourceLoader::load(LoadRequest& request, SuccessCallback success_callback
 
         log_success(request);
 
-        Platform::EventLoopPlugin::the().deferred_invoke([data = move(data_url.body), response_headers = move(response_headers), success_callback = move(success_callback)] {
+        Platform::EventLoopPlugin::the().deferred_invoke(JS::create_heap_function(m_heap, [data = move(data_url.body), response_headers = move(response_headers), success_callback = move(success_callback)] {
             success_callback(data, response_headers, {});
-        });
+        }));
         return;
     }
 
@@ -560,9 +560,9 @@ void ResourceLoader::finish_network_request(NonnullRefPtr<Requests::Request> con
     if (on_load_counter_change)
         on_load_counter_change();
 
-    Platform::EventLoopPlugin::the().deferred_invoke([this, protocol_request] {
+    Platform::EventLoopPlugin::the().deferred_invoke(JS::create_heap_function(m_heap, [this, protocol_request] {
         m_active_requests.remove(protocol_request);
-    });
+    }));
 }
 
 void ResourceLoader::clear_cache()

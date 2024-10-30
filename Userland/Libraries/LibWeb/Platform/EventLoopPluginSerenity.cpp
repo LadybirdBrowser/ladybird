@@ -21,10 +21,12 @@ void EventLoopPluginSerenity::spin_until(JS::Handle<JS::HeapFunction<bool()>> go
     });
 }
 
-void EventLoopPluginSerenity::deferred_invoke(JS::SafeFunction<void()> function)
+void EventLoopPluginSerenity::deferred_invoke(JS::Handle<JS::HeapFunction<void()>> function)
 {
     VERIFY(function);
-    Core::deferred_invoke(move(function));
+    Core::deferred_invoke([function = move(function)]() {
+        function->function()();
+    });
 }
 
 JS::NonnullGCPtr<Timer> EventLoopPluginSerenity::create_timer(JS::Heap& heap)

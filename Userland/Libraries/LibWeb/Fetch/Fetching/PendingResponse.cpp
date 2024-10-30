@@ -59,12 +59,12 @@ void PendingResponse::run_callback()
 {
     VERIFY(m_callback);
     VERIFY(m_response);
-    Platform::EventLoopPlugin::the().deferred_invoke([this] {
+    Platform::EventLoopPlugin::the().deferred_invoke(JS::create_heap_function(heap(), [this] {
         VERIFY(m_callback);
         VERIFY(m_response);
         m_callback->function()(*m_response);
         m_request->remove_pending_response({}, *this);
-    });
+    }));
 }
 
 }

@@ -297,7 +297,7 @@ WebIDL::ExceptionOr<void> HTMLCanvasElement::to_blob(JS::NonnullGCPtr<WebIDL::Ca
         bitmap_result = TRY_OR_THROW_OOM(vm(), m_bitmap->clone());
 
     // 4. Run these steps in parallel:
-    Platform::EventLoopPlugin::the().deferred_invoke([this, callback, bitmap_result, type, quality] {
+    Platform::EventLoopPlugin::the().deferred_invoke(JS::create_heap_function(heap(), [this, callback, bitmap_result, type, quality] {
         // 1. If result is non-null, then set result to a serialization of result as a file with type and quality if given.
         Optional<SerializeBitmapResult> file_result;
         if (bitmap_result) {
@@ -320,7 +320,7 @@ WebIDL::ExceptionOr<void> HTMLCanvasElement::to_blob(JS::NonnullGCPtr<WebIDL::Ca
             if (maybe_error.is_throw_completion())
                 report_exception(maybe_error.throw_completion(), realm());
         });
-    });
+    }));
     return {};
 }
 

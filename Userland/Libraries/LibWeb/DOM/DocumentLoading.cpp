@@ -92,10 +92,10 @@ static WebIDL::ExceptionOr<JS::NonnullGCPtr<DOM::Document>> load_html_document(H
     else {
         // FIXME: Parse as we receive the document data, instead of waiting for the whole document to be fetched first.
         auto process_body = JS::create_heap_function(document->heap(), [document, url = navigation_params.response->url().value(), mime_type = navigation_params.response->header_list()->extract_mime_type()](ByteBuffer data) {
-            Platform::EventLoopPlugin::the().deferred_invoke([document = document, data = move(data), url = url, mime_type] {
+            Platform::EventLoopPlugin::the().deferred_invoke(JS::create_heap_function(document->heap(), [document = document, data = move(data), url = url, mime_type] {
                 auto parser = HTML::HTMLParser::create_with_uncertain_encoding(document, data, mime_type);
                 parser->run(url);
-            });
+            }));
         });
 
         auto process_body_error = JS::create_heap_function(document->heap(), [](JS::Value) {

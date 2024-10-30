@@ -22,7 +22,7 @@ public:
     virtual ~EventLoopPlugin();
 
     virtual void spin_until(JS::Handle<JS::HeapFunction<bool()>> goal_condition) = 0;
-    virtual void deferred_invoke(ESCAPING JS::SafeFunction<void()>) = 0;
+    virtual void deferred_invoke(ESCAPING JS::Handle<JS::HeapFunction<void()>>) = 0;
     virtual JS::NonnullGCPtr<Timer> create_timer(JS::Heap&) = 0;
     virtual void quit() = 0;
 };

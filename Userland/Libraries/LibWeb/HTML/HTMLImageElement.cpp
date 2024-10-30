@@ -323,7 +323,7 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<WebIDL::Promise>> HTMLImageElement::decode(
             return;
 
         // 2.2 Otherwise, in parallel wait for one of the following cases to occur, and perform the corresponding actions:
-        Platform::EventLoopPlugin::the().deferred_invoke([this, promise, &realm, reject_if_document_not_fully_active, reject_if_current_request_state_broken] {
+        Platform::EventLoopPlugin::the().deferred_invoke(JS::create_heap_function(heap(), [this, promise, &realm, reject_if_document_not_fully_active, reject_if_current_request_state_broken] {
             Platform::EventLoopPlugin::the().spin_until(JS::create_heap_function(heap(), [&] {
                 auto state = this->current_request().state();
 
@@ -357,7 +357,7 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<WebIDL::Promise>> HTMLImageElement::decode(
                 HTML::TemporaryExecutionContext context(HTML::relevant_settings_object(*this));
                 WebIDL::resolve_promise(realm, promise, JS::js_undefined());
             }
-        });
+        }));
     }));
 
     return promise;

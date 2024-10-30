@@ -209,7 +209,7 @@ JS::NonnullGCPtr<WebIDL::Promise> CSSStyleSheet::replace(String text)
     set_disallow_modification(true);
 
     // 4. In parallel, do these steps:
-    Platform::EventLoopPlugin::the().deferred_invoke([&realm, this, text = move(text), promise = JS::Handle(promise)] {
+    Platform::EventLoopPlugin::the().deferred_invoke(JS::create_heap_function(realm.heap(), [&realm, this, text = move(text), promise = JS::Handle(promise)] {
         HTML::TemporaryExecutionContext execution_context { HTML::relevant_settings_object(*this), HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
 
         // 1. Let rules be the result of running parse a stylesheet’s contents from text.
@@ -232,7 +232,7 @@ JS::NonnullGCPtr<WebIDL::Promise> CSSStyleSheet::replace(String text)
 
         // 5. Resolve promise with sheet.
         WebIDL::resolve_promise(realm, *promise, this);
-    });
+    }));
 
     return promise;
 }
