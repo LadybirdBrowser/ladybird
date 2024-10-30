@@ -25,13 +25,13 @@
 
 namespace Web::CSS {
 
-static NonnullRefPtr<Core::Promise<NonnullRefPtr<Gfx::Typeface>>> load_vector_font(ByteBuffer const& data)
+static NonnullRefPtr<Core::Promise<NonnullRefPtr<Gfx::Typeface>>> load_vector_font(JS::Realm& realm, ByteBuffer const& data)
 {
     auto promise = Core::Promise<NonnullRefPtr<Gfx::Typeface>>::construct();
 
     // FIXME: 'Asynchronously' shouldn't mean 'later on the main thread'.
     //        Can we defer this to a background thread?
-    Platform::EventLoopPlugin::the().deferred_invoke([&data, promise] {
+    Platform::EventLoopPlugin::the().deferred_invoke(JS::create_heap_function(realm.heap(), [&data, promise] {
         // FIXME: This should be de-duplicated with StyleComputer::FontLoader::try_load_font
         // We don't have the luxury of knowing the MIME type, so we have to try all formats.
         auto ttf = Gfx::Typeface::try_load_from_externally_owned_memory(data);
@@ -50,7 +50,7 @@ static NonnullRefPtr<Core::Promise<NonnullRefPtr<Gfx::Typeface>>> load_vector_fo
             return;
         }
         promise->reject(Error::from_string_literal("Automatic format detection failed"));
-    });
+    }));
 
     return promise;
 }
@@ -118,7 +118,7 @@ JS::NonnullGCPtr<FontFace> FontFace::construct_impl(JS::Realm& realm, String fam
     if (font->m_binary_data.is_empty())
         return font;
 
-    HTML::queue_global_task(HTML::Task::Source::FontLoading, HTML::relevant_global_object(*font), JS::create_heap_function(vm.heap(), [font] {
+    HTML::queue_global_task(HTML::Task::Source::FontLoading, HTML::relevant_global_object(*font), JS::create_heap_function(vm.heap(), [&realm, font] {
         // 1.  Set font face’s status attribute to "loading".
         font->m_status = Bindings::FontFaceLoadStatus::Loading;
 
@@ -126,7 +126,7 @@ JS::NonnullGCPtr<FontFace> FontFace::construct_impl(JS::Realm& realm, String fam
 
         // 3. Asynchronously, attempt to parse the data in it as a font.
         //    When this is completed, successfully or not, queue a task to run the following steps synchronously:
-        font->m_font_load_promise = load_vector_font(font->m_binary_data);
+        font->m_font_load_promise = load_vector_font(realm, font->m_binary_data);
 
         font->m_font_load_promise->when_resolved([font = JS::make_handle(font)](auto const& vector_font) -> ErrorOr<void> {
             HTML::queue_global_task(HTML::Task::Source::FontLoading, HTML::relevant_global_object(*font), JS::create_heap_function(font->heap(), [font = JS::NonnullGCPtr(*font), vector_font] {
@@ -349,7 +349,7 @@ void FontFace::load_font_source()
     //    and continue executing the rest of this algorithm asynchronously.
     m_status = Bindings::FontFaceLoadStatus::Loading;
 
-    Web::Platform::EventLoopPlugin::the().deferred_invoke([font = JS::make_handle(this)] {
+    Web::Platform::EventLoopPlugin::the().deferred_invoke(JS::create_heap_function(heap(), [font = JS::make_handle(this)] {
         // 4. Using the value of font face’s [[Urls]] slot, attempt to load a font as defined in [CSS-FONTS-3],
         //     as if it was the value of a @font-face rule’s src descriptor.
 
@@ -411,7 +411,7 @@ void FontFace::load_font_source()
             // FIXME: Don't know how to load fonts in workers! They don't have a StyleComputer
             dbgln("FIXME: Worker font loading not implemented");
         }
-    });
+    }));
 }
 
 }

@@ -1401,7 +1401,7 @@ WebIDL::ExceptionOr<void> Navigable::navigate(NavigateParams params)
     }
 
     // 20. In parallel, run these steps:
-    Platform::EventLoopPlugin::the().deferred_invoke([this, source_snapshot_params, target_snapshot_params, csp_navigation_type, document_resource, url, navigation_id, referrer_policy, initiator_origin_snapshot, response, history_handling, initiator_base_url_snapshot] {
+    Platform::EventLoopPlugin::the().deferred_invoke(JS::create_heap_function(heap(), [this, source_snapshot_params, target_snapshot_params, csp_navigation_type, document_resource, url, navigation_id, referrer_policy, initiator_origin_snapshot, response, history_handling, initiator_base_url_snapshot] {
         // AD-HOC: Not in the spec but subsequent steps will fail if the navigable doesn't have an active window.
         if (!active_window()) {
             set_delaying_load_events(false);
@@ -1489,7 +1489,7 @@ WebIDL::ExceptionOr<void> Navigable::navigate(NavigateParams params)
                 finalize_a_cross_document_navigation(*this, to_history_handling_behavior(history_handling), history_entry);
             }));
         })).release_value_but_fixme_should_propagate_errors();
-    });
+    }));
 
     return {};
 }

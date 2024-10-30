@@ -159,7 +159,7 @@ void ResourceClient::set_resource(Resource* resource)
         // This ensures that these callbacks always happen in a consistent way, instead of being invoked
         // synchronously in some cases, and asynchronously in others.
         if (resource->is_loaded() || resource->is_failed()) {
-            Platform::EventLoopPlugin::the().deferred_invoke([weak_this = make_weak_ptr(), strong_resource = NonnullRefPtr { *m_resource }] {
+            Platform::EventLoopPlugin::the().deferred_invoke(JS::create_heap_function(ResourceLoader::the().heap(), [weak_this = make_weak_ptr(), strong_resource = NonnullRefPtr { *m_resource }] {
                 if (!weak_this)
                     return;
 
@@ -177,7 +177,7 @@ void ResourceClient::set_resource(Resource* resource)
                     weak_this->resource_did_fail();
                     return;
                 }
-            });
+            }));
         }
     }
 }

@@ -151,7 +151,7 @@ JS::NonnullGCPtr<WebIDL::Promise> Clipboard::write_text(String data)
     auto promise = WebIDL::create_promise(realm);
 
     // 3. Run the following steps in parallel:
-    Platform::EventLoopPlugin::the().deferred_invoke([&realm, promise, data = move(data)]() mutable {
+    Platform::EventLoopPlugin::the().deferred_invoke(JS::create_heap_function(realm.heap(), [&realm, promise, data = move(data)]() mutable {
         // 1. Let r be the result of running check clipboard write permission.
         auto result = check_clipboard_write_permission(realm);
 
@@ -191,7 +191,7 @@ JS::NonnullGCPtr<WebIDL::Promise> Clipboard::write_text(String data)
             HTML::TemporaryExecutionContext execution_context { Bindings::host_defined_environment_settings_object(realm) };
             WebIDL::resolve_promise(realm, promise, JS::js_undefined());
         }));
-    });
+    }));
 
     // 4. Return p.
     return promise;
