@@ -8,7 +8,6 @@
 
 #include <AK/RefCounted.h>
 #include <LibJS/Heap/Cell.h>
-#include <LibJS/SafeFunction.h>
 
 namespace Web::Platform {
 

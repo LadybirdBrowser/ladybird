@@ -738,7 +738,7 @@ WebIDL::ExceptionOr<void> XMLHttpRequest::send(Optional<DocumentOrXMLHttpRequest
 
         // 7. Let processRequestBodyChunkLength, given a bytesLength, be these steps:
         // NOTE: request_body_length is captured by copy as to not UAF it when we leave `send()` and the callback gets called.
-        // NOTE: `this` is kept alive by FetchAlgorithms using JS::SafeFunction.
+        // NOTE: `this` is kept alive by FetchAlgorithms using JS::HeapFunction.
         auto process_request_body_chunk_length = [this, request_body_length](u64 bytes_length) {
             // 1. Increase requestBodyTransmitted by bytesLength.
             m_request_body_transmitted += bytes_length;
@@ -752,7 +752,7 @@ WebIDL::ExceptionOr<void> XMLHttpRequest::send(Optional<DocumentOrXMLHttpRequest
 
         // 8. Let processRequestEndOfBody be these steps:
         // NOTE: request_body_length is captured by copy as to not UAF it when we leave `send()` and the callback gets called.
-        // NOTE: `this` is kept alive by FetchAlgorithms using JS::SafeFunction.
+        // NOTE: `this` is kept alive by FetchAlgorithms using JS::HeapFunction.
         auto process_request_end_of_body = [this, request_body_length]() {
             // 1. Set this’s upload complete flag.
             m_upload_complete = true;
@@ -772,7 +772,7 @@ WebIDL::ExceptionOr<void> XMLHttpRequest::send(Optional<DocumentOrXMLHttpRequest
         };
 
         // 9. Let processResponse, given a response, be these steps:
-        // NOTE: `this` is kept alive by FetchAlgorithms using JS::SafeFunction.
+        // NOTE: `this` is kept alive by FetchAlgorithms using JS::HeapFunction.
         auto process_response = [this](JS::NonnullGCPtr<Fetch::Infrastructure::Response> response) {
             // 1. Set this’s response to response.
             m_response = response;
