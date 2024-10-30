@@ -15,6 +15,13 @@
 #include <errno.h>
 #include <time.h>
 
+#ifdef AK_OS_WINDOWS
+#    define tzname _tzname
+#    define timegm _mkgmtime
+#    define localtime_r(time, tm) localtime_s(tm, time)
+#    define gmtime_r(time, tm) gmtime_s(tm, time)
+#endif
+
 namespace Core {
 
 static Optional<StringView> parse_time_zone_name(GenericLexer& lexer)
