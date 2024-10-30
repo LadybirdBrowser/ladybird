@@ -101,6 +101,7 @@ public:
     ErrorOr<String> to_uppercase(Optional<StringView> const& locale = {}) const;
     ErrorOr<String> to_titlecase(Optional<StringView> const& locale = {}, TrailingCodePointTransformation trailing_code_point_transformation = TrailingCodePointTransformation::Lowercase) const;
     ErrorOr<String> to_casefold() const;
+    ErrorOr<String> to_fullwidth() const;
 
     [[nodiscard]] String to_ascii_lowercase() const;
     [[nodiscard]] String to_ascii_uppercase() const;
