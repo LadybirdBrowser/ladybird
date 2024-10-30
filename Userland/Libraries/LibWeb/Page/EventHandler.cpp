@@ -693,15 +693,9 @@ EventResult EventHandler::handle_doubleclick(CSSPixelPoint viewport_position, CS
                 return EventResult::Accepted;
 
             auto& hit_paintable = static_cast<Painting::TextPaintable const&>(*result->paintable);
-
             auto& hit_dom_node = const_cast<DOM::Text&>(verify_cast<DOM::Text>(*hit_paintable.dom_node()));
-            auto const& text_for_rendering = hit_paintable.text_for_rendering();
-
-            auto& segmenter = word_segmenter();
-            segmenter.set_segmented_text(text_for_rendering);
-
-            auto previous_boundary = segmenter.previous_boundary(result->index_in_node, Unicode::Segmenter::Inclusive::Yes).value_or(0);
-            auto next_boundary = segmenter.next_boundary(result->index_in_node).value_or(text_for_rendering.byte_count());
+            auto previous_boundary = hit_dom_node.word_segmenter().previous_boundary(result->index_in_node, Unicode::Segmenter::Inclusive::Yes).value_or(0);
+            auto next_boundary = hit_dom_node.word_segmenter().next_boundary(result->index_in_node).value_or(hit_dom_node.length());
 
             auto& realm = node->document().realm();
             document.set_cursor_position(DOM::Position::create(realm, hit_dom_node, next_boundary));
