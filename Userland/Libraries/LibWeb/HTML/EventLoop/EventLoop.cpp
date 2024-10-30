@@ -48,12 +48,13 @@ void EventLoop::visit_edges(Visitor& visitor)
     visitor.visit(m_currently_running_task);
     visitor.visit(m_backup_incumbent_settings_object_stack);
     visitor.visit(m_rendering_task_function);
+    visitor.visit(m_system_event_loop_timer);
 }
 
 void EventLoop::schedule()
 {
     if (!m_system_event_loop_timer) {
-        m_system_event_loop_timer = Platform::Timer::create_single_shot(0, [this] {
+        m_system_event_loop_timer = Platform::Timer::create_single_shot(heap(), 0, [this] {
             process();
         });
     }

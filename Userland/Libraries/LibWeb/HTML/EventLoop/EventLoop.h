@@ -96,7 +96,7 @@ private:
     // https://html.spec.whatwg.org/multipage/webappapis.html#last-idle-period-start-time
     double m_last_idle_period_start_time { 0 };
 
-    RefPtr<Platform::Timer> m_system_event_loop_timer;
+    JS::GCPtr<Platform::Timer> m_system_event_loop_timer;
 
     // https://html.spec.whatwg.org/#performing-a-microtask-checkpoint
     bool m_performing_a_microtask_checkpoint { false };

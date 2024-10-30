@@ -25,9 +25,9 @@ void EventLoopPluginSerenity::deferred_invoke(JS::SafeFunction<void()> function)
     Core::deferred_invoke(move(function));
 }
 
-NonnullRefPtr<Timer> EventLoopPluginSerenity::create_timer()
+JS::NonnullGCPtr<Timer> EventLoopPluginSerenity::create_timer(JS::Heap& heap)
 {
-    return TimerSerenity::create();
+    return TimerSerenity::create(heap);
 }
 
 void EventLoopPluginSerenity::quit()

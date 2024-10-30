@@ -6,15 +6,16 @@
 
 #pragma once
 
-#include <AK/NonnullRefPtr.h>
 #include <LibCore/Forward.h>
 #include <LibWeb/Platform/Timer.h>
 
 namespace Web::Platform {
 
 class TimerSerenity final : public Timer {
+    JS_CELL(TimerSerenity, Timer);
+
 public:
-    static NonnullRefPtr<TimerSerenity> create();
+    static JS::NonnullGCPtr<TimerSerenity> create(JS::Heap&);
 
     virtual ~TimerSerenity();
 
