@@ -33,7 +33,6 @@ endif()
 
 set(SOURCES
     AnonymousBuffer.cpp
-    Command.cpp
     ConfigFile.cpp
     DateTime.cpp
     ElapsedTimer.cpp
@@ -57,6 +56,13 @@ set(SOURCES
     Timer.cpp
     UDPServer.cpp
 )
+
+if (WIN32)
+    list(APPEND SOURCES CommandWindows.cpp)
+else()
+    list(APPEND SOURCES Command.cpp)
+endif()
+
 if (NOT WIN32 AND NOT EMSCRIPTEN)
     list(APPEND SOURCES LocalServer.cpp)
 endif()
