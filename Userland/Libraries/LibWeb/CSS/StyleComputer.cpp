@@ -2166,10 +2166,13 @@ static BoxTypeTransformation required_box_type_transformation(StyleProperties co
     if (style.position() == CSS::Positioning::Absolute || style.position() == CSS::Positioning::Fixed || style.float_() != CSS::Float::None)
         return BoxTypeTransformation::Blockify;
 
-    // FIXME: Containment in a ruby container inlinifies the box’s display type, as described in [CSS-RUBY-1].
-
-    // NOTE: If we're computing style for a pseudo-element, the effective parent will be the originating element itself, not its parent.
+    // Inlinify if parent is inline-level
     auto const* parent = pseudo_element.has_value() ? &element : element.parent_element();
+    if (parent && parent->computed_css_values().has_value()) {
+        auto const& parent_display = parent->computed_css_values()->display();
+        if (parent_display.is_inline_outside())
+            return BoxTypeTransformation::Inlinify;
+    }
 
     // A parent with a grid or flex display value blockifies the box’s display type. [CSS-GRID-1] [CSS-FLEXBOX-1]
     if (parent && parent->computed_css_values().has_value()) {
@@ -2257,11 +2260,12 @@ void StyleComputer::transform_box_type_if_needed(StyleProperties& style, DOM::El
         } else {
             VERIFY(display.is_outside_and_inside());
 
-            // If a block box (block flow) is inlinified, its inner display type is set to flow-root so that it remains a block container.
+            /*// If a block box (block flow) is inlinified, its inner display type is set to flow-root so that it remains a block container.
             if (display.is_block_outside() && display.is_flow_inside()) {
                 new_display = CSS::Display { CSS::DisplayOutside::Inline, CSS::DisplayInside::FlowRoot, display.list_item() };
+                dbgln("got to the bug");
                 break;
-            }
+            }*/
 
             new_display = CSS::Display { CSS::DisplayOutside::Inline, display.inside(), display.list_item() };
         }
