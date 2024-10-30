@@ -82,7 +82,7 @@ void StackingContext::paint_node_as_stacking_context(Paintable const& paintable,
         paint_svg(context, static_cast<PaintableBox const&>(paintable), PaintPhase::Foreground);
         return;
     }
-    VERIFY(!paintable.layout_node().is_svg_svg_box());
+
     paint_node(paintable, context, PaintPhase::Background);
     paint_node(paintable, context, PaintPhase::Border);
     paint_descendants(context, paintable, StackingContextPaintPhase::BackgroundAndBorders);
