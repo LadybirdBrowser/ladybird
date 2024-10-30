@@ -776,6 +776,9 @@ SupportedAlgorithmsMap supported_algorithms()
     define_an_algorithm<AesCbc>("exportKey"_string, "AES-CBC"_string);
     define_an_algorithm<AesCbc, AesDerivedKeyParams>("get key length"_string, "AES-CBC"_string);
 
+    // https://w3c.github.io/webcrypto/#aes-ctr-registration
+    define_an_algorithm<AesCtr>("importKey"_string, "AES-CTR"_string);
+
     // https://w3c.github.io/webcrypto/#hkdf
     define_an_algorithm<HKDF>("importKey"_string, "HKDF"_string);
     define_an_algorithm<HKDF, HKDFParams>("deriveBits"_string, "HKDF"_string);
