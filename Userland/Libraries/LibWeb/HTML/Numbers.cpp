@@ -256,16 +256,16 @@ fraction_exit:
         }
 
         // 14.6. Multiply value by ten raised to the exponentth power.
-        value *= std::pow(10, exponent);
+        value *= pow(10, exponent);
     }
 
 conversion: {
     // 15. Conversion: Let S be the set of finite IEEE 754 double-precision floating-point values except −0,
     //     but with two special values added: 2^1024 and −2^1024.
-    if (!std::isfinite(value)) {
+    if (!isfinite(value)) {
         return {};
     }
-    if ((value == 0) && std::signbit(value)) {
+    if ((value == 0) && signbit(value)) {
         return 0;
     }
 
@@ -274,7 +274,7 @@ conversion: {
     double rounded_value = value;
 
     // 17. If rounded-value is 2^1024 or −2^1024, return an error.
-    if (std::abs(rounded_value) >= std::pow(2, 1024)) {
+    if (abs(rounded_value) >= pow(2, 1024)) {
         return {};
     }
 
