@@ -7,15 +7,18 @@
 #pragma once
 
 #include <AK/RefCounted.h>
+#include <LibJS/Heap/Cell.h>
 #include <LibJS/SafeFunction.h>
 
 namespace Web::Platform {
 
-class Timer : public RefCounted<Timer> {
+class Timer : public JS::Cell {
+    JS_CELL(Timer, JS::Cell);
+
 public:
-    static NonnullRefPtr<Timer> create();
-    static NonnullRefPtr<Timer> create_repeating(int interval_ms, JS::SafeFunction<void()>&& timeout_handler);
-    static NonnullRefPtr<Timer> create_single_shot(int interval_ms, JS::SafeFunction<void()>&& timeout_handler);
+    static JS::NonnullGCPtr<Timer> create(JS::Heap&);
+    static JS::NonnullGCPtr<Timer> create_repeating(JS::Heap&, int interval_ms, JS::SafeFunction<void()>&& timeout_handler);
+    static JS::NonnullGCPtr<Timer> create_single_shot(JS::Heap&, int interval_ms, JS::SafeFunction<void()>&& timeout_handler);
 
     virtual ~Timer();
 

@@ -876,11 +876,12 @@ WebIDL::ExceptionOr<void> XMLHttpRequest::send(Optional<DocumentOrXMLHttpRequest
         //     1. Wait until either req’s done flag is set or this’s timeout is not 0 and this’s timeout milliseconds have passed since now.
         //     2. If req’s done flag is unset, then set this’s timed out flag and terminate this’s fetch controller.
         if (m_timeout != 0) {
-            auto timer = Platform::Timer::create_single_shot(m_timeout, nullptr);
+            auto timer = Platform::Timer::create_single_shot(heap(), m_timeout, nullptr);
 
-            // NOTE: `timer` is kept alive by copying the NNRP into the lambda, incrementing its ref-count.
+            // NOTE: `timer` is kept alive by capturing into the lambda for the GC to see
             // NOTE: `this` and `request` is kept alive by Platform::Timer using JS::SafeFunction.
             timer->on_timeout = [this, request, timer]() {
+                (void)timer;
                 if (!request->done()) {
                     m_timed_out = true;
                     m_fetch_controller->terminate();
@@ -929,10 +930,11 @@ WebIDL::ExceptionOr<void> XMLHttpRequest::send(Optional<DocumentOrXMLHttpRequest
         bool did_time_out = false;
 
         if (m_timeout != 0) {
-            auto timer = Platform::Timer::create_single_shot(m_timeout, nullptr);
+            auto timer = Platform::Timer::create_single_shot(heap(), m_timeout, nullptr);
 
-            // NOTE: `timer` is kept alive by copying the NNRP into the lambda, incrementing its ref-count.
+            // NOTE: `timer` is kept alive by capturing into the lambda for the GC to see
             timer->on_timeout = [timer, &did_time_out]() {
+                (void)timer;
                 did_time_out = true;
             };
 

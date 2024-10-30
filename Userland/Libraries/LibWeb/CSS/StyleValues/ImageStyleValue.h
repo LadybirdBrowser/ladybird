@@ -28,12 +28,7 @@ public:
     }
     virtual ~ImageStyleValue() override;
 
-    void visit_edges(JS::Cell::Visitor& visitor) const
-    {
-        // FIXME: visit_edges in non-GC allocated classes is confusing pattern.
-        //        Consider making CSSStyleValue to be GC allocated instead.
-        visitor.visit(m_resource_request);
-    }
+    void visit_edges(JS::Cell::Visitor& visitor) const;
 
     virtual String to_string() const override;
     virtual bool equals(CSSStyleValue const& other) const override;
@@ -67,7 +62,7 @@ private:
 
     size_t m_current_frame_index { 0 };
     size_t m_loops_completed { 0 };
-    RefPtr<Platform::Timer> m_timer;
+    JS::GCPtr<Platform::Timer> m_timer;
 };
 
 }

@@ -53,11 +53,12 @@
 
 namespace WebContent {
 
-ConnectionFromClient::ConnectionFromClient(IPC::Transport transport)
+ConnectionFromClient::ConnectionFromClient(JS::Heap& heap, IPC::Transport transport)
     : IPC::ConnectionFromClient<WebContentClientEndpoint, WebContentServerEndpoint>(*this, move(transport), 1)
+    , m_heap(heap)
     , m_page_host(PageHost::create(*this))
 {
-    m_input_event_queue_timer = Web::Platform::Timer::create_single_shot(0, [this] { process_next_input_event(); });
+    m_input_event_queue_timer = Web::Platform::Timer::create_single_shot(m_heap, 0, [this] { process_next_input_event(); });
 }
 
 ConnectionFromClient::~ConnectionFromClient() = default;

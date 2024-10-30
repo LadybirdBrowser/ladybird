@@ -7,6 +7,7 @@
 #pragma once
 
 #include <AK/Forward.h>
+#include <LibJS/Heap/GCPtr.h>
 #include <LibJS/SafeFunction.h>
 #include <LibWeb/Forward.h>
 
@@ -21,7 +22,7 @@ public:
 
     virtual void spin_until(JS::SafeFunction<bool()> goal_condition) = 0;
     virtual void deferred_invoke(ESCAPING JS::SafeFunction<void()>) = 0;
-    virtual NonnullRefPtr<Timer> create_timer() = 0;
+    virtual JS::NonnullGCPtr<Timer> create_timer(JS::Heap&) = 0;
     virtual void quit() = 0;
 };
 

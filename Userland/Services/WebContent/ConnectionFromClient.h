@@ -48,7 +48,7 @@ public:
     Function<void(IPC::File const&)> on_image_decoder_connection;
 
 private:
-    explicit ConnectionFromClient(IPC::Transport);
+    explicit ConnectionFromClient(JS::Heap&, IPC::Transport);
 
     Optional<PageClient&> page(u64 index, SourceLocation = SourceLocation::current());
     Optional<PageClient const&> page(u64 index, SourceLocation = SourceLocation::current()) const;
@@ -150,6 +150,7 @@ private:
 
     void report_finished_handling_input_event(u64 page_id, Web::EventResult event_was_handled);
 
+    JS::Heap& m_heap;
     NonnullOwnPtr<PageHost> m_page_host;
 
     HashMap<int, Web::FileRequest> m_requested_files {};
@@ -166,7 +167,7 @@ private:
 
     Queue<QueuedInputEvent> m_input_event_queue;
 
-    RefPtr<Web::Platform::Timer> m_input_event_queue_timer;
+    JS::Handle<Web::Platform::Timer> m_input_event_queue_timer;
 };
 
 }
