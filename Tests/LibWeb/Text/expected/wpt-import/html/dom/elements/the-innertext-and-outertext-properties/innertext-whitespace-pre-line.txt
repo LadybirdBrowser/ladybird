@@ -8,5 +8,5 @@ Found 2 tests
 
 2 Fail
 Details
-Result	Test Name	MessageFail	innerText should be the same for the pre-line and pre examples	assert_equals: expected "one\ntwo\nthree\nfour" but got "one two three four"
-Fail	innerText has collapsed whitespace but preserved newlines with pre-line	assert_equals: expected "one\ntwo\nthree\nfour\n" but got " one two three four "
+Result	Test Name	MessageFail	innerText should be the same for the pre-line and pre examples	
+Fail	innerText has collapsed whitespace but preserved newlines with pre-line	
