@@ -2260,6 +2260,7 @@ void StyleComputer::transform_box_type_if_needed(StyleProperties& style, DOM::El
             // If a block box (block flow) is inlinified, its inner display type is set to flow-root so that it remains a block container.
             if (display.is_block_outside() && display.is_flow_inside()) {
                 new_display = CSS::Display { CSS::DisplayOutside::Inline, CSS::DisplayInside::FlowRoot, display.list_item() };
+                break;
             }
 
             new_display = CSS::Display { CSS::DisplayOutside::Inline, display.inside(), display.list_item() };
