@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<style>
+    @import "http://something.invalid/style.css";
+    @namespace "wheee";
+    .foo {}
+    @media (min-width: 100px) {}
+    @font-face {}
+    @keyframes foo {}
+    @supports (foo: bar) {}
+    @layer foo;
+    @layer bar {}
+    @property --foo {
+        syntax: "*";
+        inherits: false;
+    }
+</style>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        let styleSheet = document.styleSheets[0];
+        for (let rule of styleSheet.cssRules) {
+            println(`${rule.constructor.name} type = ${rule.type}`);
+        }
+    });
+</script>

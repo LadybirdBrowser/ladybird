@@ -26,6 +26,17 @@ void CSSRule::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_parent_rule);
 }
 
+// https://www.w3.org/TR/cssom/#dom-cssrule-type
+WebIDL::UnsignedShort CSSRule::type_for_bindings() const
+{
+    // NOTE: Types that aren't defined in the spec must return 0.
+    // To do this, we arbitrarily make non-spec ones start at 100.
+    auto type = to_underlying(m_type);
+    if (type >= 100)
+        return 0;
+    return type;
+}
+
 // https://www.w3.org/TR/cssom/#dom-cssrule-csstext
 String CSSRule::css_text() const
 {

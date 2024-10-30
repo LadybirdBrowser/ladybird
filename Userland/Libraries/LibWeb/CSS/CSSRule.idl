@@ -9,7 +9,7 @@ interface CSSRule {
     readonly attribute CSSStyleSheet? parentStyleSheet;
 
     // the following attribute and constants are historical
-    readonly attribute unsigned short type;
+    [ImplementedAs=type_for_bindings] readonly attribute unsigned short type;
     const unsigned short STYLE_RULE = 1;
     const unsigned short CHARSET_RULE = 2;
     const unsigned short IMPORT_RULE = 3;
