@@ -112,8 +112,11 @@ WebIDL::ExceptionOr<void> CharacterData::replace_data(size_t offset, size_t coun
 
     // 11. For each live range whose end node is node and end offset is greater than offset plus count, increase its end offset by data’s length and decrease it by count.
     for (auto& range : Range::live_ranges()) {
-        if (range->end_container() == this && range->end_offset() > (offset + count))
-            TRY(range->set_end(*range->end_container(), range->end_offset() + data.bytes().size() - count));
+        if (range->end_container() == this && range->end_offset() > (offset + count)) {
+            // AD-HOC: Clamp offset to the end of the data if it's too large.
+            auto new_offset = min(range->end_offset() + data.bytes().size() - count, m_data.bytes().size());
+            TRY(range->set_end(*range->end_container(), new_offset));
+        }
     }
 
     // 12. If node’s parent is non-null, then run the children changed steps for node’s parent.
