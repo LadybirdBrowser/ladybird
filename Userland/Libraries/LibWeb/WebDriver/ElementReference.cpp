@@ -184,18 +184,18 @@ ErrorOr<JS::NonnullGCPtr<Web::DOM::Element>, Web::WebDriver::Error> get_known_el
     // 1. If not node reference is known with session, session's current browsing context, and reference return error
     //    with error code no such element.
     if (!node_reference_is_known(browsing_context, reference))
-        return Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::NoSuchElement, "Element ID is not an integer");
+        return Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::NoSuchElement, ByteString::formatted("Element reference '{}' is not known", reference));
 
     // 2. Let node be the result of get a node with session, session's current browsing context, and reference.
     auto node = get_node(browsing_context, reference);
 
     // 3. If node is not null and node does not implement Element return error with error code no such element.
     if (node && !node->is_element())
-        return Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::NoSuchElement, ByteString::formatted("Could not find element with node reference: {}", reference));
+        return Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::NoSuchElement, ByteString::formatted("Could not find element with reference '{}'", reference));
 
     // 4. If node is null or node is stale return error with error code stale element reference.
     if (!node || is_element_stale(*node))
-        return Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::StaleElementReference, ByteString::formatted("Element reference {} is stale", reference));
+        return Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::StaleElementReference, ByteString::formatted("Element reference '{}' is stale", reference));
 
     // 5. Return success with data node.
     return static_cast<Web::DOM::Element&>(*node);
@@ -376,24 +376,22 @@ JS::MarkedVector<JS::NonnullGCPtr<Web::DOM::Element>> pointer_interactable_tree(
 }
 
 // https://w3c.github.io/webdriver/#dfn-get-or-create-a-shadow-root-reference
-ByteString get_or_create_a_shadow_root_reference(Web::DOM::ShadowRoot const& shadow_root)
+ByteString get_or_create_a_shadow_root_reference(HTML::BrowsingContext const& browsing_context, Web::DOM::ShadowRoot const& shadow_root)
 {
-    // FIXME: 1. For each known shadow root of the current browsing context’s list of known shadow roots:
-    // FIXME:     1. If known shadow root equals shadow root, return success with known shadow root’s shadow root reference.
-    // FIXME: 2. Add shadow to the list of known shadow roots of the current browsing context.
-    // FIXME: 3. Return success with the shadow’s shadow root reference.
-
-    return ByteString::number(shadow_root.unique_id().value());
+    // 1. Assert: element implements ShadowRoot.
+    // 2. Return the result of trying to get or create a node reference with session, session's current browsing context,
+    //    and element.
+    return get_or_create_a_node_reference(browsing_context, shadow_root);
 }
 
 // https://w3c.github.io/webdriver/#dfn-shadow-root-reference-object
-JsonObject shadow_root_reference_object(Web::DOM::ShadowRoot const& shadow_root)
+JsonObject shadow_root_reference_object(HTML::BrowsingContext const& browsing_context, Web::DOM::ShadowRoot const& shadow_root)
 {
     // 1. Let identifier be the shadow root identifier.
     auto identifier = shadow_root_identifier;
 
-    // 2. Let reference be the result of get or create a shadow root reference given shadow root.
-    auto reference = get_or_create_a_shadow_root_reference(shadow_root);
+    // 2. Let reference be the result of get or create a shadow root reference with session and shadow root.
+    auto reference = get_or_create_a_shadow_root_reference(browsing_context, shadow_root);
 
     // 3. Return a JSON Object initialized with a property with name identifier and value reference.
     JsonObject object;
@@ -402,20 +400,33 @@ JsonObject shadow_root_reference_object(Web::DOM::ShadowRoot const& shadow_root)
 }
 
 // https://w3c.github.io/webdriver/#dfn-get-a-known-shadow-root
-ErrorOr<JS::NonnullGCPtr<Web::DOM::ShadowRoot>, Web::WebDriver::Error> get_known_shadow_root(StringView shadow_id)
+ErrorOr<JS::NonnullGCPtr<Web::DOM::ShadowRoot>, Web::WebDriver::Error> get_known_shadow_root(HTML::BrowsingContext const& browsing_context, StringView reference)
 {
-    // NOTE: The whole concept of "known shadow roots" is not implemented yet. See get_or_create_a_shadow_root_reference().
-    //       For now the shadow root is only represented by its ID.
-    auto shadow_root = shadow_id.to_number<i64>();
-    if (!shadow_root.has_value())
-        return Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::InvalidArgument, "Shadow ID is not an integer");
+    // 1. If not node reference is known with session, session's current browsing context, and reference return error with error code no such shadow root.
+    if (!node_reference_is_known(browsing_context, reference))
+        return Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::NoSuchShadowRoot, ByteString::formatted("Shadow root reference '{}' is not known", reference));
 
-    auto* node = Web::DOM::Node::from_unique_id(UniqueNodeID(*shadow_root));
+    // 2. Let node be the result of get a node with session, session's current browsing context, and reference.
+    auto node = get_node(browsing_context, reference);
 
-    if (!node || !node->is_shadow_root())
-        return Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::NoSuchElement, ByteString::formatted("Could not find shadow root with ID: {}", shadow_id));
+    // 3. If node is not null and node does not implement ShadowRoot return error with error code no such shadow root.
+    if (node && !node->is_shadow_root())
+        return Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::NoSuchShadowRoot, ByteString::formatted("Could not find shadow root with reference '{}'", reference));
 
+    // 4. If node is null or node is detached return error with error code detached shadow root.
+    if (!node || is_shadow_root_detached(static_cast<Web::DOM::ShadowRoot&>(*node)))
+        return Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::DetachedShadowRoot, ByteString::formatted("Element reference '{}' is stale", reference));
+
+    // 5. Return success with data node.
     return static_cast<Web::DOM::ShadowRoot&>(*node);
+}
+
+// https://w3c.github.io/webdriver/#dfn-is-detached
+bool is_shadow_root_detached(Web::DOM::ShadowRoot const& shadow_root)
+{
+    // A shadow root is detached if its node document is not the active document or if the element node referred to as
+    // its host is stale.
+    return !shadow_root.document().is_active() || !shadow_root.host() || is_element_stale(*shadow_root.host());
 }
 
 // https://w3c.github.io/webdriver/#dfn-center-point
