@@ -187,7 +187,7 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<WebIDL::Promise>> consume_body(JS::Realm& r
     auto promise = WebIDL::create_promise(realm);
 
     // 3. Let errorSteps given error be to reject promise with error.
-    // NOTE: `promise` and `realm` is protected by JS::SafeFunction.
+    // NOTE: `promise` and `realm` is protected by JS::HeapFunction.
     auto error_steps = JS::create_heap_function(realm.heap(), [promise, &realm](JS::Value error) {
         // AD-HOC: An execution context is required for Promise's reject function.
         HTML::TemporaryExecutionContext execution_context { Bindings::host_defined_environment_settings_object(realm) };
@@ -196,7 +196,7 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<WebIDL::Promise>> consume_body(JS::Realm& r
 
     // 4. Let successSteps given a byte sequence data be to resolve promise with the result of running convertBytesToJSValue
     //    with data. If that threw an exception, then run errorSteps with that exception.
-    // NOTE: `promise`, `realm` and `object` is protected by JS::SafeFunction.
+    // NOTE: `promise`, `realm` and `object` is protected by JS::HeapFunction.
     // FIXME: Refactor this to the new version of the spec introduced with https://github.com/whatwg/fetch/commit/464326e8eb6a602122c030cd40042480a3c0e265
     auto success_steps = JS::create_heap_function(realm.heap(), [promise, &realm, &object, type](ByteBuffer data) {
         auto& vm = realm.vm();

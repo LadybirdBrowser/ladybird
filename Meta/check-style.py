@@ -23,7 +23,6 @@ GOOD_LICENSE_HEADER_PATTERN = re.compile(
 LICENSE_HEADER_CHECK_EXCLUDES = {
     'AK/Checked.h',
     'AK/Function.h',
-    'Userland/Libraries/LibJS/SafeFunction.h',
 }
 
 # We check that "#pragma once" is present

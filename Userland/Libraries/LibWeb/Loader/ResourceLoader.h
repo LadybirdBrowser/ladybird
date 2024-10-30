@@ -11,7 +11,6 @@
 #include <AK/Function.h>
 #include <AK/HashTable.h>
 #include <LibCore/EventReceiver.h>
-#include <LibJS/SafeFunction.h>
 #include <LibRequests/Forward.h>
 #include <LibURL/URL.h>
 #include <LibWeb/Loader/Resource.h>

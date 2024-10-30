@@ -21,7 +21,6 @@
 #include <LibJS/Heap/HeapBlock.h>
 #include <LibJS/Runtime/Object.h>
 #include <LibJS/Runtime/WeakContainer.h>
-#include <LibJS/SafeFunction.h>
 #include <setjmp.h>
 
 #ifdef HAS_ADDRESS_SANITIZER
@@ -29,10 +28,6 @@
 #endif
 
 namespace JS {
-
-// NOTE: We keep a per-thread list of custom ranges. This hinges on the assumption that there is one JS VM per thread.
-static __thread HashMap<FlatPtr*, size_t>* s_custom_ranges_for_conservative_scan = nullptr;
-static __thread HashMap<FlatPtr*, SourceLocation*>* s_safe_function_locations = nullptr;
 
 Heap::Heap(VM& vm)
     : HeapBase(vm)
@@ -205,9 +200,6 @@ public:
                 case HeapRoot::Type::VM:
                     node.set("root"sv, "VM");
                     break;
-                case HeapRoot::Type::SafeFunction:
-                    node.set("root"sv, ByteString::formatted("SafeFunction {} {}:{}", location->function_name(), location->filename(), location->line_number()));
-                    break;
                 default:
                     VERIFY_NOT_REACHED();
                 }
@@ -334,17 +326,6 @@ NO_SANITIZE_ADDRESS void Heap::gather_conservative_roots(HashMap<Cell*, HeapRoot
         auto data = *reinterpret_cast<FlatPtr*>(stack_address);
         add_possible_value(possible_pointers, data, HeapRoot { .type = HeapRoot::Type::StackPointer }, min_block_address, max_block_address);
         gather_asan_fake_stack_roots(possible_pointers, data, min_block_address, max_block_address);
-    }
-
-    // NOTE: If we have any custom ranges registered, scan those as well.
-    //       This is where JS::SafeFunction closures get marked.
-    if (s_custom_ranges_for_conservative_scan) {
-        for (auto& custom_range : *s_custom_ranges_for_conservative_scan) {
-            for (size_t i = 0; i < (custom_range.value / sizeof(FlatPtr)); ++i) {
-                auto safe_function_location = s_safe_function_locations->get(custom_range.key);
-                add_possible_value(possible_pointers, custom_range.key[i], HeapRoot { .type = HeapRoot::Type::SafeFunction, .location = *safe_function_location }, min_block_address, max_block_address);
-            }
-        }
     }
 
     for (auto& vector : m_conservative_vectors) {
@@ -555,30 +536,6 @@ void Heap::undefer_gc()
 void Heap::uproot_cell(Cell* cell)
 {
     m_uprooted_cells.append(cell);
-}
-
-void register_safe_function_closure(void* base, size_t size, SourceLocation* location)
-{
-    if (!s_custom_ranges_for_conservative_scan) {
-        // FIXME: This per-thread HashMap is currently leaked on thread exit.
-        s_custom_ranges_for_conservative_scan = new HashMap<FlatPtr*, size_t>;
-    }
-    if (!s_safe_function_locations) {
-        s_safe_function_locations = new HashMap<FlatPtr*, SourceLocation*>;
-    }
-    auto result = s_custom_ranges_for_conservative_scan->set(reinterpret_cast<FlatPtr*>(base), size);
-    VERIFY(result == AK::HashSetResult::InsertedNewEntry);
-    result = s_safe_function_locations->set(reinterpret_cast<FlatPtr*>(base), location);
-    VERIFY(result == AK::HashSetResult::InsertedNewEntry);
-}
-
-void unregister_safe_function_closure(void* base, size_t, SourceLocation*)
-{
-    VERIFY(s_custom_ranges_for_conservative_scan);
-    bool did_remove_range = s_custom_ranges_for_conservative_scan->remove(reinterpret_cast<FlatPtr*>(base));
-    VERIFY(did_remove_range);
-    bool did_remove_location = s_safe_function_locations->remove(reinterpret_cast<FlatPtr*>(base));
-    VERIFY(did_remove_location);
 }
 
 }

@@ -885,7 +885,7 @@ void HTMLFormElement::plan_to_navigate_to(URL::URL url, Variant<Empty, String, P
     }
 
     // 4. Queue an element task on the DOM manipulation task source given the form element and the following steps:
-    // NOTE: `this`, `actual_resource` and `target_navigable` are protected by JS::SafeFunction.
+    // NOTE: `this`, `actual_resource` and `target_navigable` are protected by JS::HeapFunction.
     queue_an_element_task(Task::Source::DOMManipulation, [this, url, post_resource, target_navigable, history_handling, referrer_policy, user_involvement]() {
         // 1. Set the form's planned navigation to null.
         m_planned_navigation = {};

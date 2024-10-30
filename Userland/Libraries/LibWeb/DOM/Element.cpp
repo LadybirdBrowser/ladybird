@@ -2014,7 +2014,7 @@ void Element::enqueue_an_element_on_the_appropriate_element_queue()
         reactions_stack.processing_the_backup_element_queue = true;
 
         // 4. Queue a microtask to perform the following steps:
-        // NOTE: `this` is protected by JS::SafeFunction
+        // NOTE: `this` is protected by JS::HeapFunction
         HTML::queue_a_microtask(&document(), JS::create_heap_function(relevant_agent.heap(), [this]() {
             auto& relevant_agent = HTML::relevant_agent(*this);
             auto* custom_data = verify_cast<Bindings::WebEngineCustomData>(relevant_agent.custom_data());

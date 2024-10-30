@@ -8,7 +8,6 @@
 
 #include <LibJS/Forward.h>
 #include <LibJS/Heap/HeapFunction.h>
-#include <LibJS/SafeFunction.h>
 #include <LibWeb/Bindings/PlatformObject.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/HTML/DocumentReadyState.h>
