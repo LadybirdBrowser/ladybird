@@ -29,7 +29,7 @@
 #    include <QCoreApplication>
 #endif
 
-static ErrorOr<void> initialize_resource_loader(int request_server_socket);
+static ErrorOr<void> initialize_resource_loader(JS::Heap&, int request_server_socket);
 
 ErrorOr<int> serenity_main(Main::Arguments arguments)
 {
@@ -62,16 +62,16 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
 
     Web::Platform::FontPlugin::install(*new Ladybird::FontPlugin(false));
 
-    TRY(initialize_resource_loader(request_server_socket));
-
     TRY(Web::Bindings::initialize_main_thread_vm(Web::HTML::EventLoop::Type::Worker));
+
+    TRY(initialize_resource_loader(Web::Bindings::main_thread_vm().heap(), request_server_socket));
 
     auto client = TRY(IPC::take_over_accepted_client_from_system_server<WebWorker::ConnectionFromClient>());
 
     return event_loop.exec();
 }
 
-static ErrorOr<void> initialize_resource_loader(int request_server_socket)
+static ErrorOr<void> initialize_resource_loader(JS::Heap& heap, int request_server_socket)
 {
     static_assert(IsSame<IPC::Transport, IPC::TransportSocket>, "Need to handle other IPC transports here");
 
@@ -79,7 +79,7 @@ static ErrorOr<void> initialize_resource_loader(int request_server_socket)
     TRY(socket->set_blocking(true));
 
     auto request_client = TRY(try_make_ref_counted<Requests::RequestClient>(IPC::Transport(move(socket))));
-    Web::ResourceLoader::initialize(move(request_client));
+    Web::ResourceLoader::initialize(heap, move(request_client));
 
     return {};
 }
