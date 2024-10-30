@@ -286,6 +286,58 @@ The following three example tasks should suffice in most situations, and allow y
 
 </details>
 
+### Debugging
+#### Mac
+If you want to run the debugger, first place the content below in `.vscode/launch.json` in the root of the project.
+
+```json 
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Attach to WebContent",
+            "type": "lldb",
+            "request": "attach",
+            "program": "${workspaceFolder}/Build/ladybird-debug/bin/Ladybird.app/Contents/MacOS/WebContent",
+        }
+    ],
+}
+```
+
+then run Ladybird with the debug preset and with the `--debug-process WebContent` flag:
+
+```bash
+CC=$(brew --prefix llvm)/bin/clang CXX=$(brew --prefix llvm)/bin/clang++ BUILD_PRESET=Debug ./Meta/ladybird.sh run ladybird --debug-process WebContent
+```
+
+Running Ladybird in this way will pause execution until a debugger is attached. You can then run the debugger by going to the **Run and Debug** menu and selecting the **Attach to WebContent** configuration. 
+
+#### Linux
+For Linux, the `launch.json` will instead be the file below.
+
+```json
+{
+  "version": "2.0.0",
+  "configurations": [
+    {
+      "name": "Attach and debug",
+      "type": "cppdbg",
+      "request": "attach",
+      "program": "${workspaceRoot}/Build/ladybird-debug/libexec/WebContent",
+      "MIMode": "gdb",
+    },
+  ]
+}
+```
+
+Running Ladybird as follows:
+
+```bash
+BUILD_PRESET=Debug Meta/ladybird.sh run ladybird --debug-process WebContent
+```
+
+Then follow the same steps found in the Mac section.
+
 ### License snippet
 
 The following snippet may be useful if you want to quickly generate a license header, put it in `.vscode/ladybird.code-snippets`:
