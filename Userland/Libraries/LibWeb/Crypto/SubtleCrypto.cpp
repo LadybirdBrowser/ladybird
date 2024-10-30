@@ -780,6 +780,7 @@ SupportedAlgorithmsMap supported_algorithms()
     define_an_algorithm<AesCtr>("importKey"_string, "AES-CTR"_string);
     define_an_algorithm<AesCtr>("exportKey"_string, "AES-CTR"_string);
     define_an_algorithm<AesCtr, AesDerivedKeyParams>("get key length"_string, "AES-CTR"_string);
+    define_an_algorithm<AesCtr, AesKeyGenParams>("generateKey"_string, "AES-CTR"_string);
 
     // https://w3c.github.io/webcrypto/#hkdf
     define_an_algorithm<HKDF>("importKey"_string, "HKDF"_string);
