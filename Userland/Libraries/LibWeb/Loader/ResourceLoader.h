@@ -27,17 +27,17 @@ public:
 
     RefPtr<Resource> load_resource(Resource::Type, LoadRequest&);
 
-    using SuccessCallback = JS::SafeFunction<void(ReadonlyBytes, HTTP::HeaderMap const& response_headers, Optional<u32> status_code)>;
-    using ErrorCallback = JS::SafeFunction<void(ByteString const&, Optional<u32> status_code, ReadonlyBytes payload, HTTP::HeaderMap const& response_headers)>;
-    using TimeoutCallback = JS::SafeFunction<void()>;
+    using SuccessCallback = JS::HeapFunction<void(ReadonlyBytes, HTTP::HeaderMap const& response_headers, Optional<u32> status_code)>;
+    using ErrorCallback = JS::HeapFunction<void(ByteString const&, Optional<u32> status_code, ReadonlyBytes payload, HTTP::HeaderMap const& response_headers)>;
+    using TimeoutCallback = JS::HeapFunction<void()>;
 
-    void load(LoadRequest&, SuccessCallback success_callback, ErrorCallback error_callback = nullptr, Optional<u32> timeout = {}, TimeoutCallback timeout_callback = nullptr);
+    void load(LoadRequest&, JS::Handle<SuccessCallback> success_callback, JS::Handle<ErrorCallback> error_callback = nullptr, Optional<u32> timeout = {}, JS::Handle<TimeoutCallback> timeout_callback = nullptr);
 
-    using OnHeadersReceived = JS::SafeFunction<void(HTTP::HeaderMap const& response_headers, Optional<u32> status_code)>;
-    using OnDataReceived = JS::SafeFunction<void(ReadonlyBytes data)>;
-    using OnComplete = JS::SafeFunction<void(bool success, Optional<StringView> error_message)>;
+    using OnHeadersReceived = JS::HeapFunction<void(HTTP::HeaderMap const& response_headers, Optional<u32> status_code)>;
+    using OnDataReceived = JS::HeapFunction<void(ReadonlyBytes data)>;
+    using OnComplete = JS::HeapFunction<void(bool success, Optional<StringView> error_message)>;
 
-    void load_unbuffered(LoadRequest&, OnHeadersReceived, OnDataReceived, OnComplete);
+    void load_unbuffered(LoadRequest&, JS::Handle<OnHeadersReceived>, JS::Handle<OnDataReceived>, JS::Handle<OnComplete>);
 
     Requests::RequestClient& request_client() { return *m_request_client; }
 
