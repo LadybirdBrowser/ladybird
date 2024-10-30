@@ -11,6 +11,7 @@
 #include <unicode/bytestream.h>
 #include <unicode/casemap.h>
 #include <unicode/stringoptions.h>
+#include <unicode/translit.h>
 
 // This file contains definitions of AK::String methods which require UCD data.
 
@@ -83,6 +84,21 @@ ErrorOr<String> String::to_titlecase(Optional<StringView> const& locale, Trailin
         return Error::from_string_literal("Unable to convert string to titlecase");
 
     return builder.to_string_without_validation();
+}
+
+ErrorOr<String> String::to_fullwidth() const
+{
+    UErrorCode status = U_ZERO_ERROR;
+
+    auto const transliterator = adopt_own_if_nonnull(icu::Transliterator::createInstance("Halfwidth-Fullwidth", UTRANS_FORWARD, status));
+    if (Unicode::icu_failure(status)) {
+        return Error::from_string_literal("Unable to create transliterator");
+    }
+
+    auto icu_string = Unicode::icu_string(bytes_as_string_view());
+    transliterator->transliterate(icu_string);
+
+    return Unicode::icu_string_to_string(icu_string);
 }
 
 static ErrorOr<void> build_casefold_string(StringView string, StringBuilder& builder)
