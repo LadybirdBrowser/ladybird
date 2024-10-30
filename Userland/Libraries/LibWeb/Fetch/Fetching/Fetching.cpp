@@ -332,15 +332,15 @@ WebIDL::ExceptionOr<JS::GCPtr<PendingResponse>> main_fetch(JS::Realm& realm, Inf
         request->current_url().set_scheme("https"_string);
     }
 
-    JS::SafeFunction<WebIDL::ExceptionOr<JS::NonnullGCPtr<PendingResponse>>()> get_response = [&realm, &vm, &fetch_params, request]() -> WebIDL::ExceptionOr<JS::NonnullGCPtr<PendingResponse>> {
+    auto get_response = JS::create_heap_function(vm.heap(), [&realm, &vm, &fetch_params, request]() -> WebIDL::ExceptionOr<JS::NonnullGCPtr<PendingResponse>> {
         dbgln_if(WEB_FETCH_DEBUG, "Fetch: Running 'main fetch' get_response() function");
 
         // -> fetchParams’s preloaded response candidate is not null
         if (!fetch_params.preloaded_response_candidate().has<Empty>()) {
             // 1. Wait until fetchParams’s preloaded response candidate is not "pending".
-            HTML::main_thread_event_loop().spin_until([&] {
+            HTML::main_thread_event_loop().spin_until(JS::create_heap_function(vm.heap(), [&] {
                 return !fetch_params.preloaded_response_candidate().has<Infrastructure::FetchParams::PreloadedResponseCandidatePendingTag>();
-            });
+            }));
 
             // 2. Assert: fetchParams’s preloaded response candidate is a response.
             VERIFY(fetch_params.preloaded_response_candidate().has<JS::NonnullGCPtr<Infrastructure::Response>>());
@@ -426,13 +426,13 @@ WebIDL::ExceptionOr<JS::GCPtr<PendingResponse>> main_fetch(JS::Realm& realm, Inf
             // 2. Return the result of running HTTP fetch given fetchParams.
             return http_fetch(realm, fetch_params);
         }
-    };
+    });
 
     if (recursive == Recursive::Yes) {
         // 12. If response is null, then set response to the result of running the steps corresponding to the first
         //     matching statement:
         auto pending_response = !response
-            ? TRY(get_response())
+            ? TRY(get_response->function()())
             : PendingResponse::create(vm, request, *response);
 
         // 13. If recursive is true, then return response.
@@ -440,12 +440,12 @@ WebIDL::ExceptionOr<JS::GCPtr<PendingResponse>> main_fetch(JS::Realm& realm, Inf
     }
 
     // 11. If recursive is false, then run the remaining steps in parallel.
-    Platform::EventLoopPlugin::the().deferred_invoke(JS::create_heap_function(realm.heap(), [&realm, &vm, &fetch_params, request, response, get_response = move(get_response)] {
+    Platform::EventLoopPlugin::the().deferred_invoke(JS::create_heap_function(realm.heap(), [&realm, &vm, &fetch_params, request, response, get_response] {
         // 12. If response is null, then set response to the result of running the steps corresponding to the first
         //     matching statement:
         auto pending_response = PendingResponse::create(vm, request, Infrastructure::Response::create(vm));
         if (!response) {
-            auto pending_response_or_error = get_response();
+            auto pending_response_or_error = get_response->function()();
             if (pending_response_or_error.is_error())
                 return;
             pending_response = pending_response_or_error.release_value();

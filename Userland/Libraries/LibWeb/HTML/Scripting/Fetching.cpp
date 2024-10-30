@@ -505,9 +505,9 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<ClassicScript>> fetch_a_classic_worker_impo
 
     // 5. Pause until response is not null.
     auto& event_loop = settings_object.responsible_event_loop();
-    event_loop.spin_until([&]() {
+    event_loop.spin_until(JS::create_heap_function(vm.heap(), [&]() -> bool {
         return response;
-    });
+    }));
 
     // 6. Set response to response's unsafe response.
     response = response->unsafe_response();

@@ -359,7 +359,7 @@ static void update(JS::VM& vm, JS::NonnullGCPtr<Job> job)
 
         // FIXME: This feels.. uncomfortable but it should work to block the current task until the fetch has progressed past our processResponse hook or aborted
         auto& event_loop = job->client ? job->client->responsible_event_loop() : HTML::main_thread_event_loop();
-        event_loop.spin_until([fetch_controller, &realm, &process_response_completion_result]() -> bool {
+        event_loop.spin_until(JS::create_heap_function(realm.heap(), [fetch_controller, &realm, &process_response_completion_result]() -> bool {
             if (process_response_completion_result.has_value())
                 return true;
             if (fetch_controller->state() == Fetch::Infrastructure::FetchController::State::Terminated || fetch_controller->state() == Fetch::Infrastructure::FetchController::State::Aborted) {
@@ -367,7 +367,7 @@ static void update(JS::VM& vm, JS::NonnullGCPtr<Job> job)
                 return true;
             }
             return false;
-        });
+        }));
 
         return process_response_completion_result.release_value();
     };

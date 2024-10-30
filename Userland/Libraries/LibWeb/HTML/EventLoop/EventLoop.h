@@ -10,7 +10,6 @@
 #include <AK/WeakPtr.h>
 #include <LibCore/Forward.h>
 #include <LibJS/Forward.h>
-#include <LibJS/SafeFunction.h>
 #include <LibWeb/HTML/EventLoop/TaskQueue.h>
 
 namespace Web::HTML {
@@ -39,8 +38,8 @@ public:
     TaskQueue& microtask_queue() { return *m_microtask_queue; }
     TaskQueue const& microtask_queue() const { return *m_microtask_queue; }
 
-    void spin_until(JS::SafeFunction<bool()> goal_condition);
-    void spin_processing_tasks_with_source_until(Task::Source, JS::SafeFunction<bool()> goal_condition);
+    void spin_until(JS::NonnullGCPtr<JS::HeapFunction<bool()>> goal_condition);
+    void spin_processing_tasks_with_source_until(Task::Source, JS::NonnullGCPtr<JS::HeapFunction<bool()>> goal_condition);
     void process();
     void queue_task_to_update_the_rendering();
 

@@ -883,7 +883,7 @@ static WebIDL::ExceptionOr<Navigable::NavigationParamsVariant> create_navigation
         }
 
         // 7. Wait until either response is non-null, or navigable's ongoing navigation changes to no longer equal navigationId.
-        HTML::main_thread_event_loop().spin_until([&]() {
+        HTML::main_thread_event_loop().spin_until(JS::create_heap_function(vm.heap(), [&]() {
             if (response_holder->response() != nullptr)
                 return true;
 
@@ -891,7 +891,7 @@ static WebIDL::ExceptionOr<Navigable::NavigationParamsVariant> create_navigation
                 return true;
 
             return false;
-        });
+        }));
         // If the latter condition occurs, then abort fetchController, and return. Otherwise, proceed onward.
         if (navigation_id.has_value() && (!navigable->ongoing_navigation().has<String>() || navigable->ongoing_navigation().get<String>() != *navigation_id)) {
             fetch_controller->abort(realm, {});
