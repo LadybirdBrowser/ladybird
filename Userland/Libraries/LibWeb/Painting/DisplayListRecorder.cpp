@@ -313,7 +313,6 @@ void DisplayListRecorder::apply_backdrop_filter(Gfx::IntRect const& backdrop_reg
 
 void DisplayListRecorder::paint_outer_box_shadow_params(PaintBoxShadowParams params)
 {
-    params.device_content_rect = params.device_content_rect;
     append(PaintOuterBoxShadow { .box_shadow_params = params });
 }
 
