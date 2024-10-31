@@ -6,6 +6,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/ScopeGuard.h>
 #include <LibWeb/HTML/AnimationFrameCallbackDriver.h>
 
 namespace Web::HTML {
@@ -16,6 +17,7 @@ void AnimationFrameCallbackDriver::visit_edges(Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_callbacks);
+    visitor.visit(m_executing_callbacks);
 }
 
 WebIDL::UnsignedLong AnimationFrameCallbackDriver::add(Callback handler)
@@ -37,8 +39,10 @@ bool AnimationFrameCallbackDriver::has_callbacks() const
 
 void AnimationFrameCallbackDriver::run(double now)
 {
-    auto taken_callbacks = move(m_callbacks);
-    for (auto& [id, callback] : taken_callbacks)
+    AK::ScopeGuard guard { [&]() { m_executing_callbacks.clear(); } };
+    m_executing_callbacks = move(m_callbacks);
+
+    for (auto& [id, callback] : m_executing_callbacks)
         callback->function()(now);
 }
 

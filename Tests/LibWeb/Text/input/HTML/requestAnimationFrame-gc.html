@@ -1,0 +1,14 @@
+<script src="../include.js"></script>
+<script>
+    asyncTest((done) => {
+        requestAnimationFrame(() => {
+            println("Collect garbage");
+            internals.gc();
+        });
+
+        requestAnimationFrame(() => {
+            println("PASS! (Didn't crash)");
+            done();
+        });
+    });
+</script>
