@@ -34,6 +34,7 @@ private:
     WebIDL::UnsignedLong m_animation_frame_callback_identifier { 0 };
 
     OrderedHashMap<WebIDL::UnsignedLong, Callback> m_callbacks;
+    OrderedHashMap<WebIDL::UnsignedLong, Callback> m_executing_callbacks;
 };
 
 }
