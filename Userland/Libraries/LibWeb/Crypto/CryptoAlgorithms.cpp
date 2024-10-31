@@ -1769,6 +1769,127 @@ WebIDL::ExceptionOr<JS::Value> AesGcm::get_key_length(AlgorithmParams const& par
     return JS::Value(length);
 }
 
+WebIDL::ExceptionOr<JS::NonnullGCPtr<CryptoKey>> AesGcm::import_key(AlgorithmParams const&, Bindings::KeyFormat format, CryptoKey::InternalKeyData key_data, bool extractable, Vector<Bindings::KeyUsage> const& key_usages)
+{
+    // 1. If usages contains an entry which is not one of "encrypt", "decrypt", "wrapKey" or "unwrapKey", then throw a SyntaxError.
+    for (auto& usage : key_usages) {
+        if (usage != Bindings::KeyUsage::Encrypt && usage != Bindings::KeyUsage::Decrypt && usage != Bindings::KeyUsage::Wrapkey && usage != Bindings::KeyUsage::Unwrapkey) {
+            return WebIDL::SyntaxError::create(m_realm, MUST(String::formatted("Invalid key usage '{}'", idl_enum_to_string(usage))));
+        }
+    }
+
+    ByteBuffer data;
+
+    // 2. If format is "raw":
+    if (format == Bindings::KeyFormat::Raw) {
+        // 1. Let data be the octet string contained in keyData.
+        data = key_data.get<ByteBuffer>();
+
+        // 2. If the length in bits of data is not 128, 192 or 256 then throw a DataError.
+        auto length_in_bits = data.size() * 8;
+        if (length_in_bits != 128 && length_in_bits != 192 && length_in_bits != 256) {
+            return WebIDL::DataError::create(m_realm, MUST(String::formatted("Invalid key length '{}' bits (must be either 128, 192, or 256 bits)", length_in_bits)));
+        }
+    }
+
+    // 2. If format is "jwk":
+    else if (format == Bindings::KeyFormat::Jwk) {
+        // 1. -> If keyData is a JsonWebKey dictionary:
+        //         Let jwk equal keyData.
+        //    -> Otherwise:
+        //         Throw a DataError.
+        if (!key_data.has<Bindings::JsonWebKey>())
+            return WebIDL::DataError::create(m_realm, "keyData is not a JsonWebKey dictionary"_string);
+
+        auto& jwk = key_data.get<Bindings::JsonWebKey>();
+
+        // 2. If the kty field of jwk is not "oct", then throw a DataError.
+        if (jwk.kty != "oct"_string)
+            return WebIDL::DataError::create(m_realm, "Invalid key type"_string);
+
+        // 3. If jwk does not meet the requirements of Section 6.4 of JSON Web Algorithms [JWA], then throw a DataError.
+        // Specifically, those requirements are:
+        // * the member "k" is used to represent a symmetric key (or another key whose value is a single octet sequence).
+        // * An "alg" member SHOULD also be present to identify the algorithm intended to be used with the key,
+        //   unless the application uses another means or convention to determine the algorithm used.
+        if (!jwk.k.has_value())
+            return WebIDL::DataError::create(m_realm, "Missing 'k' field"_string);
+
+        if (!jwk.alg.has_value())
+            return WebIDL::DataError::create(m_realm, "Missing 'alg' field"_string);
+
+        // 4. Let data be the octet string obtained by decoding the k field of jwk.
+        data = TRY(parse_jwk_symmetric_key(m_realm, jwk));
+
+        //    5. -> If data has length 128 bits:
+        //              If the alg field of jwk is present, and is not "A128GCM", then throw a DataError.
+        //       -> If data has length 192 bits:
+        //              If the alg field of jwk is present, and is not "A192GCM", then throw a DataError.
+        //       -> If data has length 256 bits:
+        //              If the alg field of jwk is present, and is not "A256GCM", then throw a DataError.
+        //       -> Otherwise:
+        //              throw a DataError.
+        auto data_bits = data.size() * 8;
+        auto const& alg = jwk.alg;
+        if (data_bits == 128 && alg != "A128GCM") {
+            return WebIDL::DataError::create(m_realm, "Contradictory key size: key has 128 bits, but alg specifies non-128-bit algorithm"_string);
+        } else if (data_bits == 192 && alg != "A192GCM") {
+            return WebIDL::DataError::create(m_realm, "Contradictory key size: key has 192 bits, but alg specifies non-192-bit algorithm"_string);
+        } else if (data_bits == 256 && alg != "A256GCM") {
+            return WebIDL::DataError::create(m_realm, "Contradictory key size: key has 256 bits, but alg specifies non-256-bit algorithm"_string);
+        } else {
+            return WebIDL::DataError::create(m_realm, MUST(String::formatted("Invalid key size: {} bits", data_bits)));
+        }
+
+        // 6. If usages is non-empty and the use field of jwk is present and is not "enc", then throw a DataError.
+        if (!key_usages.is_empty() && jwk.use.has_value() && *jwk.use != "enc"_string)
+            return WebIDL::DataError::create(m_realm, "Invalid use field"_string);
+
+        // 7. If the key_ops field of jwk is present, and is invalid according to the requirements of JSON Web Key [JWK]
+        //    or does not contain all of the specified usages values, then throw a DataError.
+        // FIXME: Validate jwk.key_ops against requirements in https://www.rfc-editor.org/rfc/rfc7517#section-4.3
+        if (jwk.key_ops.has_value()) {
+            for (auto const& usage : key_usages) {
+                if (!jwk.key_ops->contains_slow(Bindings::idl_enum_to_string(usage)))
+                    return WebIDL::DataError::create(m_realm, MUST(String::formatted("Missing key_ops field: {}", Bindings::idl_enum_to_string(usage))));
+            }
+        }
+
+        // 8. If the ext field of jwk is present and has the value false and extractable is true, then throw a DataError.
+        if (jwk.ext.has_value() && !*jwk.ext && extractable)
+            return WebIDL::DataError::create(m_realm, "Invalid ext field"_string);
+    }
+
+    // 2. Otherwise:
+    else {
+        // 1. throw a NotSupportedError.
+        return WebIDL::NotSupportedError::create(m_realm, "Only raw and jwk formats are supported"_string);
+    }
+
+    auto data_bits = data.size() * 8;
+
+    // 3. Let key be a new CryptoKey object representing an AES key with value data.
+    auto key = CryptoKey::create(m_realm, move(data));
+
+    // 4. Set the [[type]] internal slot of key to "secret".
+    key->set_type(Bindings::KeyType::Secret);
+
+    // 5. Let algorithm be a new AesKeyAlgorithm.
+    auto algorithm = AesKeyAlgorithm::create(m_realm);
+
+    // 6. Set the name attribute of algorithm to "AES-GCM".
+    algorithm->set_name("AES-GCM"_string);
+
+    // 7. Set the length attribute of algorithm to the length, in bits, of data.
+    algorithm->set_length(data_bits);
+
+    // 8. Set the [[algorithm]] internal slot of key to algorithm.
+    key->set_algorithm(algorithm);
+
+    // 9. Return key.
+    return key;
+}
+
 // https://w3c.github.io/webcrypto/#hkdf-operations
 WebIDL::ExceptionOr<JS::NonnullGCPtr<CryptoKey>> HKDF::import_key(AlgorithmParams const&, Bindings::KeyFormat format, CryptoKey::InternalKeyData key_data, bool extractable, Vector<Bindings::KeyUsage> const& key_usages)
 {
