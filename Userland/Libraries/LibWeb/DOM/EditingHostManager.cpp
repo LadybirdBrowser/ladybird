@@ -6,6 +6,7 @@
 
 #include <LibUnicode/CharacterTypes.h>
 #include <LibUnicode/Segmenter.h>
+#include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/EditingHostManager.h>
 #include <LibWeb/DOM/Range.h>
 #include <LibWeb/DOM/Text.h>
@@ -14,6 +15,23 @@
 namespace Web::DOM {
 
 JS_DEFINE_ALLOCATOR(EditingHostManager);
+
+JS::NonnullGCPtr<EditingHostManager> EditingHostManager::create(JS::Realm& realm, JS::NonnullGCPtr<Document> document)
+{
+    return realm.heap().allocate<EditingHostManager>(realm, document);
+}
+
+EditingHostManager::EditingHostManager(JS::NonnullGCPtr<Document> document)
+    : m_document(document)
+{
+}
+
+void EditingHostManager::visit_edges(Cell::Visitor& visitor)
+{
+    Base::visit_edges(visitor);
+    visitor.visit(m_document);
+    visitor.visit(m_active_contenteditable_element);
+}
 
 void EditingHostManager::handle_insert(String const& data)
 {

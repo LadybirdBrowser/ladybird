@@ -9,7 +9,6 @@
 #include <LibJS/Heap/Cell.h>
 #include <LibJS/Heap/CellAllocator.h>
 #include <LibJS/Runtime/Realm.h>
-#include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/InputEventsTarget.h>
 #include <LibWeb/Forward.h>
 
@@ -21,10 +20,7 @@ class EditingHostManager : public JS::Cell
     JS_DECLARE_ALLOCATOR(EditingHostManager);
 
 public:
-    [[nodiscard]] static JS::NonnullGCPtr<EditingHostManager> create(JS::Realm& realm, JS::NonnullGCPtr<Document> document)
-    {
-        return realm.heap().allocate<EditingHostManager>(realm, document);
-    }
+    [[nodiscard]] static JS::NonnullGCPtr<EditingHostManager> create(JS::Realm&, JS::NonnullGCPtr<Document>);
 
     virtual void handle_insert(String const&) override;
     virtual void handle_delete(DeleteDirection) override;
@@ -39,24 +35,16 @@ public:
     virtual void increment_cursor_position_to_next_word(CollapseSelection) override;
     virtual void decrement_cursor_position_to_previous_word(CollapseSelection) override;
 
-    virtual void visit_edges(Cell::Visitor& visitor) override
-    {
-        Base::visit_edges(visitor);
-        visitor.visit(m_document);
-        visitor.visit(m_active_contenteditable_element);
-    }
+    virtual void visit_edges(Cell::Visitor& visitor) override;
 
     void set_active_contenteditable_element(JS::GCPtr<DOM::Node> element)
     {
         m_active_contenteditable_element = element;
     }
 
-    EditingHostManager(JS::NonnullGCPtr<Document> document)
-        : m_document(document)
-    {
-    }
-
 private:
+    EditingHostManager(JS::NonnullGCPtr<Document>);
+
     JS::NonnullGCPtr<Document> m_document;
     JS::GCPtr<DOM::Node> m_active_contenteditable_element;
 };
