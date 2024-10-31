@@ -757,7 +757,7 @@ Web::WebDriver::Response Client::take_screenshot(Web::WebDriver::Parameters para
 {
     dbgln_if(WEBDRIVER_DEBUG, "Handling GET /session/<session_id>/screenshot");
     auto session = TRY(find_session_with_id(parameters[0]));
-    return session->web_content_connection().take_screenshot();
+    return session->take_screenshot();
 }
 
 // 17.2 Take Element Screenshot, https://w3c.github.io/webdriver/#dfn-take-element-screenshot
@@ -766,7 +766,7 @@ Web::WebDriver::Response Client::take_element_screenshot(Web::WebDriver::Paramet
 {
     dbgln_if(WEBDRIVER_DEBUG, "Handling GET /session/<session_id>/element/<element_id>/screenshot");
     auto session = TRY(find_session_with_id(parameters[0]));
-    return session->web_content_connection().take_element_screenshot(move(parameters[1]));
+    return session->take_element_screenshot(move(parameters[1]));
 }
 
 // 18.1 Print Page, https://w3c.github.io/webdriver/#dfn-print-page

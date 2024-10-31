@@ -84,6 +84,9 @@ public:
     Web::WebDriver::Response dismiss_alert() const;
     Web::WebDriver::Response accept_alert() const;
 
+    Web::WebDriver::Response take_screenshot() const;
+    Web::WebDriver::Response take_element_screenshot(String) const;
+
 private:
     using ServerPromise = Core::Promise<ErrorOr<void>>;
     ErrorOr<NonnullRefPtr<Core::LocalServer>> create_server(NonnullRefPtr<ServerPromise> promise);

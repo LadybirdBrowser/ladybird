@@ -29,6 +29,7 @@
 #include <LibWeb/DOM/Position.h>
 #include <LibWeb/DOM/ShadowRoot.h>
 #include <LibWeb/Geometry/DOMRect.h>
+#include <LibWeb/HTML/AnimationFrameCallbackDriver.h>
 #include <LibWeb/HTML/AttributeNames.h>
 #include <LibWeb/HTML/BrowsingContext.h>
 #include <LibWeb/HTML/Focus.h>
@@ -2279,65 +2280,80 @@ Messages::WebDriverClient::SendAlertTextResponse WebDriverConnection::send_alert
 // 17.1 Take Screenshot, https://w3c.github.io/webdriver/#take-screenshot
 Messages::WebDriverClient::TakeScreenshotResponse WebDriverConnection::take_screenshot()
 {
-    // 1. If the current top-level browsing context is no longer open, return error with error code no such window.
+    // 1. If session's current top-level browsing context is no longer open, return error with error code no such window.
     TRY(ensure_current_top_level_browsing_context_is_open());
 
-    // 2. When the user agent is next to run the animation frame callbacks:
-    //     a. Let root rect be the current top-level browsing context’s document element’s rectangle.
-    //     b. Let screenshot result be the result of trying to call draw a bounding box from the framebuffer, given root rect as an argument.
-    //     c. Let canvas be a canvas element of screenshot result’s data.
-    //     d. Let encoding result be the result of trying encoding a canvas as Base64 canvas.
-    //     e. Let encoded string be encoding result’s data.
     auto* document = current_top_level_browsing_context()->active_document();
-    auto root_rect = calculate_absolute_rect_of_element(*document->document_element());
+    auto window = document->window();
 
-    auto encoded_string = TRY(Web::WebDriver::capture_element_screenshot(
-        [&](auto const& rect, auto& bitmap) {
-            auto backing_store = Web::Painting::BitmapBackingStore(bitmap);
-            current_top_level_browsing_context()->page().client().paint(rect.template to_type<Web::DevicePixels>(), backing_store);
-        },
-        current_top_level_browsing_context()->page(),
-        *document->document_element(),
-        root_rect));
+    // 2. When the user agent is next to run the animation frame callbacks:
+    (void)window->animation_frame_callback_driver().add(JS::create_heap_function(document->heap(), [this, document](double) mutable {
+        // a. Let root rect be session's current top-level browsing context's document element's rectangle.
+        auto root_rect = calculate_absolute_rect_of_element(*document->document_element());
 
-    // 3. Return success with data encoded string.
-    return encoded_string;
+        // b. Let screenshot result be the result of trying to call draw a bounding box from the framebuffer, given root rect as an argument.
+        auto screenshot_result = Web::WebDriver::draw_bounding_box_from_the_framebuffer(*current_top_level_browsing_context(), *document->document_element(), root_rect);
+        if (screenshot_result.is_error()) {
+            async_screenshot_taken(screenshot_result.release_error());
+            return;
+        }
+
+        // c. Let canvas be a canvas element of screenshot result's data.
+        auto canvas = screenshot_result.release_value();
+
+        // d. Let encoding result be the result of trying encoding a canvas as Base64 canvas.
+        // e. Let encoded string be encoding result's data.
+        auto encoded_string = Web::WebDriver::encode_canvas_element(canvas);
+
+        // 3. Return success with data encoded string.
+        async_screenshot_taken(move(encoded_string));
+    }));
+
+    return JsonValue {};
 }
 
 // 17.2 Take Element Screenshot, https://w3c.github.io/webdriver/#dfn-take-element-screenshot
 Messages::WebDriverClient::TakeElementScreenshotResponse WebDriverConnection::take_element_screenshot(String const& element_id)
 {
-    // 1. If the current top-level browsing context is no longer open, return error with error code no such window.
-    TRY(ensure_current_top_level_browsing_context_is_open());
+    // 1. If session's current browsing context is no longer open, return error with error code no such window.
+    TRY(ensure_current_browsing_context_is_open());
 
-    // 2. Handle any user prompts and return its value if it is an error.
+    auto* document = current_browsing_context().active_document();
+    auto window = document->window();
+
+    // 2. Try to handle any user prompts with session.
     TRY(handle_any_user_prompts());
 
-    // 3. Let element be the result of trying to get a known connected element with url variable element id.
+    // 3. Let element be the result of trying to get a known element with session and URL variables["element id"].
     auto element = TRY(Web::WebDriver::get_known_element(current_browsing_context(), element_id));
 
     // 4. Scroll into view the element.
-    scroll_element_into_view(*element);
+    scroll_element_into_view(element);
 
     // 5. When the user agent is next to run the animation frame callbacks:
-    //     a. Let element rect be element’s rectangle.
-    //     b. Let screenshot result be the result of trying to call draw a bounding box from the framebuffer, given element rect as an argument.
-    //     c. Let canvas be a canvas element of screenshot result’s data.
-    //     d. Let encoding result be the result of trying encoding a canvas as Base64 canvas.
-    //     e. Let encoded string be encoding result’s data.
-    auto element_rect = calculate_absolute_rect_of_element(*element);
+    (void)window->animation_frame_callback_driver().add(JS::create_heap_function(document->heap(), [this, element](double) {
+        // a. Let element rect be element's rectangle.
+        auto element_rect = calculate_absolute_rect_of_element(element);
 
-    auto encoded_string = TRY(Web::WebDriver::capture_element_screenshot(
-        [&](auto const& rect, auto& bitmap) {
-            auto backing_store = Web::Painting::BitmapBackingStore(bitmap);
-            current_top_level_browsing_context()->page().client().paint(rect.template to_type<Web::DevicePixels>(), backing_store);
-        },
-        current_top_level_browsing_context()->page(),
-        *element,
-        element_rect));
+        // b. Let screenshot result be the result of trying to call draw a bounding box from the framebuffer, given element rect as an argument.
+        auto screenshot_result = Web::WebDriver::draw_bounding_box_from_the_framebuffer(current_browsing_context(), element, element_rect);
+        if (screenshot_result.is_error()) {
+            async_screenshot_taken(screenshot_result.release_error());
+            return;
+        }
 
-    // 6. Return success with data encoded string.
-    return encoded_string;
+        // c. Let canvas be a canvas element of screenshot result's data.
+        auto canvas = screenshot_result.release_value();
+
+        // d. Let encoding result be the result of trying encoding a canvas as Base64 canvas.
+        // e. Let encoded string be encoding result's data.
+        auto encoded_string = Web::WebDriver::encode_canvas_element(canvas);
+
+        // 6. Return success with data encoded string.
+        async_screenshot_taken(move(encoded_string));
+    }));
+
+    return JsonValue {};
 }
 
 // 18.1 Print Page, https://w3c.github.io/webdriver/#dfn-print-page

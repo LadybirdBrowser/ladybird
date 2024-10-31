@@ -326,4 +326,19 @@ Web::WebDriver::Response Session::accept_alert() const
         return web_content_connection().accept_alert();
     });
 }
+
+Web::WebDriver::Response Session::take_screenshot() const
+{
+    return perform_async_action(web_content_connection().on_screenshot_taken, [&]() {
+        return web_content_connection().take_screenshot();
+    });
+}
+
+Web::WebDriver::Response Session::take_element_screenshot(String element_id) const
+{
+    return perform_async_action(web_content_connection().on_screenshot_taken, [&]() {
+        return web_content_connection().take_element_screenshot(move(element_id));
+    });
+}
+
 }
