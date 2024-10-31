@@ -14,11 +14,11 @@ ComponentValue::ComponentValue(Token token)
 {
 }
 ComponentValue::ComponentValue(Function&& function)
-    : m_value(function)
+    : m_value(move(function))
 {
 }
 ComponentValue::ComponentValue(SimpleBlock&& block)
-    : m_value(block)
+    : m_value(move(block))
 {
 }
 
