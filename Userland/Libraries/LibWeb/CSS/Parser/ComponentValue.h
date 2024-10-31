@@ -24,12 +24,10 @@ public:
     ~ComponentValue();
 
     bool is_block() const { return m_value.has<SimpleBlock>(); }
-    SimpleBlock& block() { return m_value.get<SimpleBlock>(); }
     SimpleBlock const& block() const { return m_value.get<SimpleBlock>(); }
 
     bool is_function() const { return m_value.has<Function>(); }
     bool is_function(StringView name) const;
-    Function& function() { return m_value.get<Function>(); }
     Function const& function() const { return m_value.get<Function>(); }
 
     bool is_token() const { return m_value.has<Token>(); }
