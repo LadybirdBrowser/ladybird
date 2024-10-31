@@ -1,0 +1,3 @@
+Element nodeName: FOO namespaceURI: http://www.w3.org/1999/xhtml __proto__: [object HTMLUnknownElement]
+Element nodeName: foo namespaceURI: http://www.w3.org/2000/svg __proto__: [object SVGElement]
+Element nodeName: foo namespaceURI: http://www.w3.org/1998/Math/MathML __proto__: [object MathMLElement]
