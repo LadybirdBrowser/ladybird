@@ -741,7 +741,7 @@ JS::NonnullGCPtr<JS::Object> WindowOrWorkerGlobalScopeMixin::supported_entry_typ
     auto& realm = this_impl().realm();
 
     if (!m_supported_entry_types_array) {
-        Vector<JS::Value> supported_entry_types;
+        JS::MarkedVector<JS::Value> supported_entry_types(vm.heap());
 
 #define __ENUMERATE_SUPPORTED_PERFORMANCE_ENTRY_TYPES(entry_type, cpp_class) \
     supported_entry_types.append(JS::PrimitiveString::create(vm, entry_type));
