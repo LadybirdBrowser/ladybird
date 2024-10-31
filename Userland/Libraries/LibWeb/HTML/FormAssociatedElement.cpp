@@ -593,6 +593,7 @@ void FormAssociatedTextControlElement::handle_insert(String const& data)
         return;
 
     String data_for_insertion = data;
+    // FIXME: Cut by UTF-16 code units instead of raw bytes
     if (auto max_length = text_node->max_length(); max_length.has_value()) {
         auto remaining_length = *max_length - text_node->data().code_points().length();
         if (remaining_length < data.code_points().length()) {
