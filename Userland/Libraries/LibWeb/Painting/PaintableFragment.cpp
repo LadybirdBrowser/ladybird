@@ -137,11 +137,9 @@ CSSPixelRect PaintableFragment::selection_rect(Gfx::Font const& font) const
     if (auto const* focused_element = paintable().document().focused_element(); focused_element && is<HTML::FormAssociatedTextControlElement>(*focused_element)) {
         HTML::FormAssociatedTextControlElement const* text_control_element = nullptr;
         if (is<HTML::HTMLInputElement>(*focused_element)) {
-            auto const& input_element = static_cast<HTML::HTMLInputElement const&>(*focused_element);
-            text_control_element = static_cast<HTML::FormAssociatedTextControlElement const*>(&input_element);
+            text_control_element = static_cast<HTML::HTMLInputElement const*>(focused_element);
         } else if (is<HTML::HTMLTextAreaElement>(*focused_element)) {
-            auto const& textarea_element = static_cast<HTML::HTMLTextAreaElement const&>(*focused_element);
-            text_control_element = static_cast<HTML::FormAssociatedTextControlElement const*>(&textarea_element);
+            text_control_element = static_cast<HTML::HTMLTextAreaElement const*>(focused_element);
         } else {
             VERIFY_NOT_REACHED();
         }
