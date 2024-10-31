@@ -105,6 +105,7 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
     bool enable_http_cache = false;
     bool force_cpu_painting = false;
     bool force_fontconfig = false;
+    bool collect_garbage_on_every_allocation = false;
 
     Core::ArgsParser args_parser;
     args_parser.add_option(command_line, "Chrome process command line", "command-line", 0, "command_line");
@@ -122,6 +123,7 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
     args_parser.add_option(enable_http_cache, "Enable HTTP cache", "enable-http-cache");
     args_parser.add_option(force_cpu_painting, "Force CPU painting", "force-cpu-painting");
     args_parser.add_option(force_fontconfig, "Force using fontconfig for font loading", "force-fontconfig");
+    args_parser.add_option(collect_garbage_on_every_allocation, "Collect garbage after every JS heap allocation", "collect-garbage-on-every-allocation");
 
     args_parser.parse(arguments);
 
@@ -170,6 +172,9 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
     Web::Platform::FontPlugin::install(*new Ladybird::FontPlugin(is_layout_test_mode, &font_provider));
 
     TRY(Web::Bindings::initialize_main_thread_vm(Web::HTML::EventLoop::Type::Window));
+
+    if (collect_garbage_on_every_allocation)
+        Web::Bindings::main_thread_vm().heap().set_should_collect_on_every_allocation(true);
 
     TRY(initialize_resource_loader(Web::Bindings::main_thread_vm().heap(), request_server_socket));
 
