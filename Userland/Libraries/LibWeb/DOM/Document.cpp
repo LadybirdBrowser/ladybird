@@ -5131,7 +5131,7 @@ size_t Document::broadcast_active_resize_observations()
         }
 
         // 2. Let entries be an empty list of ResizeObserverEntryies.
-        Vector<JS::NonnullGCPtr<ResizeObserver::ResizeObserverEntry>> entries;
+        JS::MarkedVector<JS::NonnullGCPtr<ResizeObserver::ResizeObserverEntry>> entries(heap());
 
         // 3. For each observation in [[activeTargets]] perform these steps:
         for (auto const& observation : observer->active_targets()) {

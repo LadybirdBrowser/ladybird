@@ -97,7 +97,7 @@ void ResizeObserver::disconnect()
     m_active_targets.clear();
 }
 
-void ResizeObserver::invoke_callback(Vector<JS::NonnullGCPtr<ResizeObserverEntry>>& entries) const
+void ResizeObserver::invoke_callback(ReadonlySpan<JS::NonnullGCPtr<ResizeObserverEntry>> entries) const
 {
     auto& callback = *m_callback;
     auto& realm = callback.callback_context->realm();
