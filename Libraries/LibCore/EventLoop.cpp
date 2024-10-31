@@ -9,7 +9,7 @@
 #include <AK/Badge.h>
 #include <LibCore/Event.h>
 #include <LibCore/EventLoop.h>
-#include <LibCore/EventLoopImplementationUnix.h>
+#include <LibCore/EventLoopImplementation.h>
 #include <LibCore/EventReceiver.h>
 #include <LibCore/Promise.h>
 #include <LibCore/ThreadEventQueue.h>

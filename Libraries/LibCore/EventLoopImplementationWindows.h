@@ -6,14 +6,14 @@
 
 #pragma once
 
-#include <AK/Time.h>
+#include <AK/NonnullOwnPtr.h>
 #include <LibCore/EventLoopImplementation.h>
 
 namespace Core {
 
-class EventLoopManagerUnix final : public EventLoopManager {
+class EventLoopManagerWindows final : public EventLoopManager {
 public:
-    virtual ~EventLoopManagerUnix() override;
+    virtual ~EventLoopManagerWindows() override = default;
 
     virtual NonnullOwnPtr<EventLoopImplementation> make_implementation() override;
 
@@ -27,21 +27,14 @@ public:
 
     virtual int register_signal(int signal_number, Function<void(int)> handler) override;
     virtual void unregister_signal(int handler_id) override;
-
-    void wait_for_events(EventLoopImplementation::PumpMode);
-    static Optional<MonotonicTime> get_next_timer_expiration();
-
-private:
-    void dispatch_signal(int signal_number);
-    static void handle_signal(int signal_number);
 };
 
-class EventLoopImplementationUnix final : public EventLoopImplementation {
+class EventLoopImplementationWindows final : public EventLoopImplementation {
 public:
-    static NonnullOwnPtr<EventLoopImplementationUnix> create() { return make<EventLoopImplementationUnix>(); }
+    static NonnullOwnPtr<EventLoopImplementationWindows> create() { return make<EventLoopImplementationWindows>(); }
 
-    EventLoopImplementationUnix();
-    virtual ~EventLoopImplementationUnix();
+    EventLoopImplementationWindows();
+    virtual ~EventLoopImplementationWindows() override = default;
 
     virtual int exec() override;
     virtual size_t pump(PumpMode) override;
@@ -58,10 +51,10 @@ private:
     bool m_exit_requested { false };
     int m_exit_code { 0 };
 
-    // The wake pipe of this event loop needs to be accessible from other threads.
-    Array<int, 2>& m_wake_pipe_fds;
+    // The wake event handle of this event loop needs to be accessible from other threads.
+    void*& m_wake_event;
 };
 
-using EventLoopManagerPlatform = EventLoopManagerUnix;
+using EventLoopManagerPlatform = EventLoopManagerWindows;
 
 }
