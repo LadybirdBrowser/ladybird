@@ -202,6 +202,7 @@ private:
     Optional<LengthOrCalculated> parse_length(TokenStream<ComponentValue>&);
     Optional<LengthPercentage> parse_length_percentage(TokenStream<ComponentValue>&);
     Optional<NumberOrCalculated> parse_number(TokenStream<ComponentValue>&);
+    Optional<NumberPercentage> parse_number_percentage(TokenStream<ComponentValue>&);
     Optional<ResolutionOrCalculated> parse_resolution(TokenStream<ComponentValue>&);
     Optional<TimeOrCalculated> parse_time(TokenStream<ComponentValue>&);
     Optional<TimePercentage> parse_time_percentage(TokenStream<ComponentValue>&);

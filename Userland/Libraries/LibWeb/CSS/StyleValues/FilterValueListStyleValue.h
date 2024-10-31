@@ -10,6 +10,7 @@
 #pragma once
 
 #include <LibWeb/CSS/Angle.h>
+#include <LibWeb/CSS/CalculatedOr.h>
 #include <LibWeb/CSS/Length.h>
 #include <LibWeb/CSS/Number.h>
 #include <LibWeb/CSS/PercentageOr.h>
@@ -19,16 +20,16 @@ namespace Web::CSS {
 namespace FilterOperation {
 
 struct Blur {
-    Optional<Length> radius {};
+    Optional<LengthOrCalculated> radius;
     float resolved_radius(Layout::Node const&) const;
     bool operator==(Blur const&) const = default;
 };
 
 struct DropShadow {
-    Length offset_x;
-    Length offset_y;
-    Optional<Length> radius {};
-    Optional<Color> color {};
+    LengthOrCalculated offset_x;
+    LengthOrCalculated offset_y;
+    Optional<LengthOrCalculated> radius;
+    Optional<Color> color;
     bool operator==(DropShadow const&) const = default;
 };
 
@@ -36,9 +37,9 @@ struct HueRotate {
     struct Zero {
         bool operator==(Zero const&) const = default;
     };
-    using AngleOrZero = Variant<Angle, Zero>;
-    Optional<AngleOrZero> angle {};
-    float angle_degrees() const;
+    using AngleOrZero = Variant<AngleOrCalculated, Zero>;
+    Optional<AngleOrZero> angle;
+    float angle_degrees(Layout::Node const&) const;
     bool operator==(HueRotate const&) const = default;
 };
 

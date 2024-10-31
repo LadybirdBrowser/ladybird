@@ -15,30 +15,42 @@ namespace Web::CSS {
 
 float FilterOperation::Blur::resolved_radius(Layout::Node const& node) const
 {
-    // Default value when omitted is 0px.
-    auto sigma = 0;
     if (radius.has_value())
-        sigma = radius->to_px(node).to_int();
-    return sigma;
+        return radius->resolved(Length::ResolutionContext::for_layout_node(node)).to_px(node).to_float();
+
+    // Default value when omitted is 0px.
+    return 0;
 }
 
-float FilterOperation::HueRotate::angle_degrees() const
+float FilterOperation::HueRotate::angle_degrees(Layout::Node const& node) const
 {
     // Default value when omitted is 0deg.
     if (!angle.has_value())
         return 0.0f;
-    return angle->visit([&](Angle const& a) { return a.to_degrees(); }, [&](auto) { return 0.0; });
+    return angle->visit([&](AngleOrCalculated const& a) { return a.resolved(node).to_degrees(); }, [&](Zero) { return 0.0; });
 }
 
 float FilterOperation::Color::resolved_amount() const
 {
-    if (amount.has_value()) {
-        if (amount->is_percentage())
-            return amount->percentage().as_fraction();
+    // Default value when omitted is 1.
+    if (!amount.has_value())
+        return 1;
+
+    if (amount->is_number())
         return amount->number().value();
+
+    if (amount->is_percentage())
+        return amount->percentage().as_fraction();
+
+    if (amount->is_calculated()) {
+        if (amount->calculated()->resolves_to_number())
+            return amount->calculated()->resolve_number().value();
+
+        if (amount->calculated()->resolves_to_percentage())
+            return amount->calculated()->resolve_percentage()->as_fraction();
     }
-    // All color filters (brightness, sepia, etc) have a default amount of 1.
-    return 1.0f;
+
+    VERIFY_NOT_REACHED();
 }
 
 String FilterValueListStyleValue::to_string() const
