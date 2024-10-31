@@ -2679,7 +2679,7 @@ bool Document::is_fully_active() const
         return true;
 
     auto container_document = navigable->container_document();
-    if (container_document && container_document->is_fully_active())
+    if (container_document && container_document != this && container_document->is_fully_active())
         return true;
 
     return false;
