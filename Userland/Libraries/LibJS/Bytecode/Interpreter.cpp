@@ -2545,10 +2545,9 @@ ThrowCompletionOr<void> Call::execute_impl(Bytecode::Interpreter& interpreter) c
         return {};
     }
 
-    Vector<Value> argument_values;
-    argument_values.ensure_capacity(m_argument_count);
+    auto argument_values = interpreter.allocate_argument_values(m_argument_count);
     for (size_t i = 0; i < m_argument_count; ++i)
-        argument_values.unchecked_append(interpreter.get(m_arguments[i]));
+        argument_values[i] = interpreter.get(m_arguments[i]);
     interpreter.set(dst(), TRY(perform_call(interpreter, interpreter.get(m_this_value), call_type(), callee, argument_values)));
     return {};
 }
