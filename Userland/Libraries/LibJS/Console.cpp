@@ -143,7 +143,7 @@ ThrowCompletionOr<Value> Console::log()
 }
 
 // To [create table row] given tabularDataItem, rowIndex, list finalColumns, and optional list properties, perform the following steps:
-static ThrowCompletionOr<NonnullGCPtr<Object>> create_table_row(Realm& realm, Value row_index, Value tabular_data_item, Vector<Value>& final_columns, HashMap<PropertyKey, bool>& visited_columns, HashMap<PropertyKey, bool>& properties)
+static ThrowCompletionOr<NonnullGCPtr<Object>> create_table_row(Realm& realm, Value row_index, Value tabular_data_item, MarkedVector<Value>& final_columns, HashMap<PropertyKey, bool>& visited_columns, HashMap<PropertyKey, bool>& properties)
 {
     auto& vm = realm.vm();
 
@@ -265,10 +265,10 @@ ThrowCompletionOr<Value> Console::table()
         }
 
         // 1. Let `finalRows` be the new list, initially empty
-        Vector<Value> final_rows;
+        MarkedVector<Value> final_rows(vm.heap());
 
         // 2. Let `finalColumns` be the new list, initially empty
-        Vector<Value> final_columns;
+        MarkedVector<Value> final_columns(vm.heap());
 
         HashMap<PropertyKey, bool> visited_columns;
 
