@@ -36,7 +36,6 @@ set(SOURCES
     Event.cpp
     EventLoop.cpp
     EventLoopImplementation.cpp
-    EventLoopImplementationUnix.cpp
     EventReceiver.cpp
     MappedFile.cpp
     MimeData.cpp
@@ -55,9 +54,13 @@ set(SOURCES
 )
 
 if (WIN32)
-    list(APPEND SOURCES AnonymousBufferWindows.cpp)
+    list(APPEND SOURCES
+        AnonymousBufferWindows.cpp
+        EventLoopImplementationWindows.cpp)
 else()
-    list(APPEND SOURCES AnonymousBuffer.cpp)
+    list(APPEND SOURCES
+        AnonymousBuffer.cpp
+        EventLoopImplementationUnix.cpp)
 endif()
 
 if (NOT WIN32 AND NOT EMSCRIPTEN)

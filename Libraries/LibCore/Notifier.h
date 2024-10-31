@@ -9,6 +9,7 @@
 #include <AK/Function.h>
 #include <LibCore/Event.h>
 #include <LibCore/EventReceiver.h>
+#include <pthread.h>
 
 namespace Core {
 
