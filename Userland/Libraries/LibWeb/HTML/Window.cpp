@@ -31,6 +31,7 @@
 #include <LibWeb/DOM/EventDispatcher.h>
 #include <LibWeb/DOM/HTMLCollection.h>
 #include <LibWeb/DOMURL/DOMURL.h>
+#include <LibWeb/HTML/AnimationFrameCallbackDriver.h>
 #include <LibWeb/HTML/BrowsingContext.h>
 #include <LibWeb/HTML/CloseWatcherManager.h>
 #include <LibWeb/HTML/CustomElements/CustomElementRegistry.h>
@@ -123,6 +124,7 @@ void Window::visit_edges(JS::Cell::Visitor& visitor)
     visitor.visit(m_navigator);
     visitor.visit(m_navigation);
     visitor.visit(m_custom_element_registry);
+    visitor.visit(m_animation_frame_callback_driver);
     visitor.visit(m_pdf_viewer_plugin_objects);
     visitor.visit(m_pdf_viewer_mime_type_objects);
     visitor.visit(m_count_queuing_strategy_size_function);
@@ -1541,15 +1543,15 @@ double Window::device_pixel_ratio() const
 }
 
 // https://html.spec.whatwg.org/multipage/imagebitmap-and-animations.html#dom-animationframeprovider-requestanimationframe
-WebIDL::UnsignedLong Window::request_animation_frame(WebIDL::CallbackType& callback)
+WebIDL::UnsignedLong Window::request_animation_frame(JS::NonnullGCPtr<WebIDL::CallbackType> callback)
 {
     // FIXME: Make this fully spec compliant. Currently implements a mix of 'requestAnimationFrame()' and 'run the animation frame callbacks'.
-    return m_animation_frame_callback_driver.add([this, callback = JS::make_handle(callback)](double now) {
+    return animation_frame_callback_driver().add(JS::create_heap_function(heap(), [this, callback](double now) {
         // 3. Invoke callback, passing now as the only argument, and if an exception is thrown, report the exception.
         auto result = WebIDL::invoke_callback(*callback, {}, JS::Value(now));
         if (result.is_error())
             report_exception(result, realm());
-    });
+    }));
 }
 
 // https://html.spec.whatwg.org/multipage/imagebitmap-and-animations.html#animationframeprovider-cancelanimationframe
@@ -1560,7 +1562,21 @@ void Window::cancel_animation_frame(WebIDL::UnsignedLong handle)
 
     // 2. Let callbacks be this's target object's map of animation frame callbacks.
     // 3. Remove callbacks[handle].
-    (void)m_animation_frame_callback_driver.remove(handle);
+    (void)animation_frame_callback_driver().remove(handle);
+}
+
+AnimationFrameCallbackDriver& Window::animation_frame_callback_driver()
+{
+    if (!m_animation_frame_callback_driver)
+        m_animation_frame_callback_driver = heap().allocate<AnimationFrameCallbackDriver>(realm());
+    return *m_animation_frame_callback_driver;
+}
+
+bool Window::has_animation_frame_callbacks()
+{
+    if (!m_animation_frame_callback_driver)
+        return false;
+    return m_animation_frame_callback_driver->has_callbacks();
 }
 
 // https://w3c.github.io/requestidlecallback/#dom-window-requestidlecallback

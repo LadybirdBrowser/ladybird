@@ -269,6 +269,7 @@ set(SOURCES
     Geometry/DOMRectReadOnly.cpp
     HTML/AbstractWorker.cpp
     HTML/AnimatedBitmapDecodedImageData.cpp
+    HTML/AnimationFrameCallbackDriver.cpp
     HTML/AttributeNames.cpp
     HTML/AudioTrack.cpp
     HTML/AudioTrackList.cpp

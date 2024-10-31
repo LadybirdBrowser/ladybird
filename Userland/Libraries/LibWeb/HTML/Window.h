@@ -16,7 +16,6 @@
 #include <LibWeb/Bindings/WindowGlobalMixin.h>
 #include <LibWeb/DOM/EventTarget.h>
 #include <LibWeb/Forward.h>
-#include <LibWeb/HTML/AnimationFrameCallbackDriver.h>
 #include <LibWeb/HTML/CrossOrigin/CrossOriginPropertyDescriptorMap.h>
 #include <LibWeb/HTML/GlobalEventHandlers.h>
 #include <LibWeb/HTML/MimeType.h>
@@ -110,8 +109,6 @@ public:
     };
     WebIDL::ExceptionOr<OpenedWindow> window_open_steps_internal(StringView url, StringView target, StringView features);
 
-    bool has_animation_frame_callbacks() const { return m_animation_frame_callback_driver.has_callbacks(); }
-
     DOM::Event* current_event() { return m_current_event.ptr(); }
     DOM::Event const* current_event() const { return m_current_event.ptr(); }
     void set_current_event(DOM::Event* event);
@@ -124,8 +121,6 @@ public:
     WebIDL::ExceptionOr<JS::NonnullGCPtr<Storage>> session_storage();
 
     void start_an_idle_period();
-
-    AnimationFrameCallbackDriver& animation_frame_callback_driver() { return m_animation_frame_callback_driver; }
 
     // https://html.spec.whatwg.org/multipage/interaction.html#sticky-activation
     bool has_sticky_activation() const;
@@ -211,7 +206,10 @@ public:
     i32 outer_height() const;
     double device_pixel_ratio() const;
 
-    WebIDL::UnsignedLong request_animation_frame(WebIDL::CallbackType&);
+    AnimationFrameCallbackDriver& animation_frame_callback_driver();
+    bool has_animation_frame_callbacks();
+
+    WebIDL::UnsignedLong request_animation_frame(JS::NonnullGCPtr<WebIDL::CallbackType>);
     void cancel_animation_frame(WebIDL::UnsignedLong handle);
 
     u32 request_idle_callback(WebIDL::CallbackType&, RequestIdleCallback::IdleRequestOptions const&);
@@ -289,7 +287,7 @@ private:
     // Each Window object is associated with a unique instance of a CustomElementRegistry object, allocated when the Window object is created.
     JS::GCPtr<CustomElementRegistry> m_custom_element_registry;
 
-    AnimationFrameCallbackDriver m_animation_frame_callback_driver;
+    JS::GCPtr<AnimationFrameCallbackDriver> m_animation_frame_callback_driver;
 
     // https://w3c.github.io/requestidlecallback/#dfn-list-of-idle-request-callbacks
     Vector<NonnullRefPtr<IdleCallback>> m_idle_request_callbacks;

@@ -375,6 +375,7 @@ struct DOMPointInit;
 }
 
 namespace Web::HTML {
+class AnimationFrameCallbackDriver;
 class AudioTrack;
 class AudioTrackList;
 class BroadcastChannel;
