@@ -18,14 +18,12 @@
 #include <LibWeb/DOM/Node.h>
 #include <LibWeb/DOM/ProcessingInstruction.h>
 #include <LibWeb/DOM/Range.h>
+#include <LibWeb/DOM/SelectionchangeEventDispatching.h>
 #include <LibWeb/DOM/Text.h>
 #include <LibWeb/Geometry/DOMRect.h>
 #include <LibWeb/Geometry/DOMRectList.h>
 #include <LibWeb/HTML/HTMLHtmlElement.h>
-#include <LibWeb/HTML/HTMLInputElement.h>
-#include <LibWeb/HTML/HTMLTextAreaElement.h>
 #include <LibWeb/HTML/Window.h>
-#include <LibWeb/Layout/Viewport.h>
 #include <LibWeb/Namespace.h>
 #include <LibWeb/Painting/ViewportPaintable.h>
 
@@ -109,57 +107,7 @@ void Range::update_associated_selection()
     // When the selection is dissociated with its range, associated with a new range, or the
     // associated range's boundary point is mutated either by the user or the content script, the
     // user agent must schedule a selectionchange event on document.
-    schedule_a_selectionchange_event(document);
-
-    // When an input or textarea element provide a text selection and its selection changes (in
-    // either extent or direction), the user agent must schedule a selectionchange event on the
-    // element.
-    if (m_start_container == m_end_container) {
-        if (is<HTML::HTMLInputElement>(*m_start_container))
-            schedule_a_selectionchange_event(verify_cast<HTML::HTMLInputElement>(*m_start_container));
-        if (is<HTML::HTMLTextAreaElement>(*m_start_container))
-            schedule_a_selectionchange_event(verify_cast<HTML::HTMLTextAreaElement>(*m_start_container));
-    }
-}
-
-// https://w3c.github.io/selection-api/#scheduling-selectionhange-event
-template<SelectionChangeTarget T>
-void Range::schedule_a_selectionchange_event(T& target)
-{
-    // 1. If target's has scheduled selectionchange event is true, abort these steps.
-    if (target.has_scheduled_selectionchange_event())
-        return;
-
-    // AD-HOC (https://github.com/w3c/selection-api/issues/338):
-    // Set target's has scheduled selectionchange event to true
-    target.set_scheduled_selectionchange_event(true);
-
-    // 2. Queue a task on the user interaction task source to fire a selectionchange event on
-    //    target.
-    JS::NonnullGCPtr<Document> document = m_start_container->document();
-    queue_global_task(HTML::Task::Source::UserInteraction, relevant_global_object(*document), JS::create_heap_function(document->heap(), [&] {
-        fire_a_selectionchange_event(target);
-    }));
-}
-
-// https://w3c.github.io/selection-api/#firing-selectionhange-event
-template<SelectionChangeTarget T>
-void Range::fire_a_selectionchange_event(T& target)
-{
-    // 1. Set target's has scheduled selectionchange event to false.
-    target.set_scheduled_selectionchange_event(false);
-
-    // 2. If target is an element, fire an event named selectionchange, which bubbles and not
-    //    cancelable, at target.
-    // 3. Otherwise, if target is a document, fire an event named selectionchange, which does not
-    //    bubble and not cancelable, at target.
-    EventInit event_init;
-    event_init.bubbles = SameAs<T, Element>;
-    event_init.cancelable = false;
-
-    auto& realm = m_start_container->document().realm();
-    auto event = DOM::Event::create(realm, HTML::EventNames::selectionchange, event_init);
-    target.dispatch_event(event);
+    schedule_a_selectionchange_event(document, document);
 }
 
 // https://dom.spec.whatwg.org/#concept-range-root
