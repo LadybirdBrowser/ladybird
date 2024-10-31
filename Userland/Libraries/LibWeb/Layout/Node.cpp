@@ -41,7 +41,10 @@ Node::Node(DOM::Document& document, DOM::Node* node)
         node->set_layout_node({}, *this);
 }
 
-Node::~Node() = default;
+Node::~Node() {
+    if (m_sibling_contained_node.is_in_list())
+        m_sibling_contained_node.remove();
+}
 
 void Node::visit_edges(Cell::Visitor& visitor)
 {

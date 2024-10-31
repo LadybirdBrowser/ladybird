@@ -178,6 +178,10 @@ public:
 
     bool has_css_transform() const { return computed_values().transformations().size() > 0; }
 
+    void add_contained_child(Node& child) { m_contained_children.append(child); }
+    void clear_contained_children() { m_contained_children.clear(); }
+    auto const& contained_children() const { return m_contained_children; }
+
 protected:
     Node(DOM::Document&, DOM::Node*);
 
@@ -201,6 +205,10 @@ private:
     GeneratedFor m_generated_for { GeneratedFor::NotGenerated };
 
     u32 m_initial_quote_nesting_level { 0 };
+
+    IntrusiveListNode<Node> m_sibling_contained_node;
+    using ContainedChildrenList = IntrusiveList<&Node::m_sibling_contained_node>;
+    ContainedChildrenList m_contained_children;
 };
 
 class NodeWithStyle : public Node {
