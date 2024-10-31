@@ -4769,23 +4769,22 @@ RefPtr<CSS::CSSStyleValue> parse_nonzero_dimension_value(StringView string)
 }
 
 // https://html.spec.whatwg.org/multipage/common-microsyntaxes.html#rules-for-parsing-a-legacy-colour-value
-Optional<Color> parse_legacy_color_value(StringView string)
+Optional<Color> parse_legacy_color_value(StringView string_view)
 {
-    // 1. Let input be the string being parsed
-    ByteString input = MUST(ByteString::from_utf8(string));
-
-    // 2. If input is the empty string, then return an error.
-    if (input.is_empty())
+    // 1. If input is the empty string, then return failure.
+    if (string_view.is_empty())
         return {};
 
-    // 3. Strip leading and trailing ASCII whitespace from input.
+    ByteString input = string_view;
+
+    // 2. Strip leading and trailing ASCII whitespace from input.
     input = input.trim(Infra::ASCII_WHITESPACE);
 
-    // 4. If input is an ASCII case-insensitive match for the string "transparent", then return an error.
+    // 3. If input is an ASCII case-insensitive match for "transparent", then return failure.
     if (Infra::is_ascii_case_insensitive_match(input, "transparent"sv))
         return {};
 
-    // 5. If input is an ASCII case-insensitive match for one of the named colors, then return the simple color corresponding to that keyword. [CSSCOLOR]
+    // 4. If input is an ASCII case-insensitive match for one of the named colors, then return the CSS color corresponding to that keyword. [CSSCOLOR]
     if (auto const color = Color::from_named_css_color_string(input); color.has_value())
         return color;
 
@@ -4797,9 +4796,9 @@ Optional<Color> parse_legacy_color_value(StringView string)
         return nibble - 'A' + 10;
     };
 
-    // 6. If input's code point length is four, and the first character in input is U+0023 (#), and the last three characters of input are all ASCII hex digits, then:
+    // 5. If input's code point length is four, and the first character in input is U+0023 (#), and the last three characters of input are all ASCII hex digits, then:
     if (input.length() == 4 && input[0] == '#' && is_ascii_hex_digit(input[1]) && is_ascii_hex_digit(input[2]) && is_ascii_hex_digit(input[3])) {
-        // 1. Let result be a simple color.
+        // 1. Let result be a CSS color.
         Color result;
         result.set_alpha(0xFF);
 
@@ -4816,7 +4815,7 @@ Optional<Color> parse_legacy_color_value(StringView string)
         return result;
     }
 
-    // 7. Replace any code points greater than U+FFFF in input (i.e., any characters that are not in the basic multilingual plane) with the two-character string "00".
+    // 6. Replace any code points greater than U+FFFF in input (i.e., any characters that are not in the basic multilingual plane) with "00".
     auto replace_non_basic_multilingual_code_points = [](StringView string) -> ByteString {
         StringBuilder builder;
         for (auto code_point : Utf8View { string }) {
@@ -4829,15 +4828,15 @@ Optional<Color> parse_legacy_color_value(StringView string)
     };
     input = replace_non_basic_multilingual_code_points(input);
 
-    // 8. If input's code point length is greater than 128, truncate input, leaving only the first 128 characters.
+    // 7. If input's code point length is greater than 128, truncate input, leaving only the first 128 characters.
     if (input.length() > 128)
         input = input.substring(0, 128);
 
-    // 9. If the first character in input is a U+0023 NUMBER SIGN character (#), remove it.
+    // 8. If the first character in input is U+0023 (#), then remove it.
     if (input[0] == '#')
         input = input.substring(1);
 
-    // 10. Replace any character in input that is not an ASCII hex digit with the character U+0030 DIGIT ZERO (0).
+    // 9. Replace any character in input that is not an ASCII hex digit with U+0030 (0).
     auto replace_non_ascii_hex = [](StringView string) -> ByteString {
         StringBuilder builder;
         for (auto code_point : Utf8View { string }) {
@@ -4850,20 +4849,20 @@ Optional<Color> parse_legacy_color_value(StringView string)
     };
     input = replace_non_ascii_hex(input);
 
-    // 11. While input's code point length is zero or not a multiple of three, append a U+0030 DIGIT ZERO (0) character to input.
+    // 10. While input's code point length is zero or not a multiple of three, append U+0030 (0) to input.
     StringBuilder builder;
     builder.append(input);
     while (builder.length() == 0 || (builder.length() % 3 != 0))
         builder.append_code_point('0');
     input = builder.to_byte_string();
 
-    // 12. Split input into three strings of equal code point length, to obtain three components. Let length be the code point length that all of those components have (one third the code point length of input).
+    // 11. Split input into three strings of equal code point length, to obtain three components. Let length be the code point length that all of those components have (one third the code point length of input).
     auto length = input.length() / 3;
     auto first_component = input.substring_view(0, length);
     auto second_component = input.substring_view(length, length);
     auto third_component = input.substring_view(length * 2, length);
 
-    // 13. If length is greater than 8, then remove the leading length-8 characters in each component, and let length be 8.
+    // 12. If length is greater than 8, then remove the leading length-8 characters in each component, and let length be 8.
     if (length > 8) {
         first_component = first_component.substring_view(length - 8);
         second_component = second_component.substring_view(length - 8);
@@ -4871,7 +4870,7 @@ Optional<Color> parse_legacy_color_value(StringView string)
         length = 8;
     }
 
-    // 14. While length is greater than two and the first character in each component is a U+0030 DIGIT ZERO (0) character, remove that character and reduce length by one.
+    // 13. While length is greater than two and the first character in each component is U+0030 (0), remove that character and reduce length by one.
     while (length > 2 && first_component[0] == '0' && second_component[0] == '0' && third_component[0] == '0') {
         --length;
         first_component = first_component.substring_view(1);
@@ -4879,7 +4878,7 @@ Optional<Color> parse_legacy_color_value(StringView string)
         third_component = third_component.substring_view(1);
     }
 
-    // 15. If length is still greater than two, truncate each component, leaving only the first two characters in each.
+    // 14. If length is still greater than two, truncate each component, leaving only the first two characters in each.
     if (length > 2) {
         first_component = first_component.substring_view(0, 2);
         second_component = second_component.substring_view(0, 2);
@@ -4895,20 +4894,20 @@ Optional<Color> parse_legacy_color_value(StringView string)
         return nib1 << 4 | nib2;
     };
 
-    // 16. Let result be a simple color.
+    // 15. Let result be a CSS color.
     Color result;
     result.set_alpha(0xFF);
 
-    // 17. Interpret the first component as a hexadecimal number; let the red component of result be the resulting number.
+    // 16. Interpret the first component as a hexadecimal number; let the red component of result be the resulting number.
     result.set_red(to_hex(first_component));
 
-    // 18. Interpret the second component as a hexadecimal number; let the green component of result be the resulting number.
+    // 17. Interpret the second component as a hexadecimal number; let the green component of result be the resulting number.
     result.set_green(to_hex(second_component));
 
-    // 19. Interpret the third component as a hexadecimal number; let the blue component of result be the resulting number.
+    // 18. Interpret the third component as a hexadecimal number; let the blue component of result be the resulting number.
     result.set_blue(to_hex(third_component));
 
-    // 20. Return result.
+    // 19. Return result.
     return result;
 }
 
