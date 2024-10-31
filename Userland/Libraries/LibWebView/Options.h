@@ -95,6 +95,11 @@ enum class ForceFontconfig {
     Yes,
 };
 
+enum class CollectGarbageOnEveryAllocation {
+    No,
+    Yes,
+};
+
 struct WebContentOptions {
     String command_line;
     String executable_path;
@@ -108,6 +113,7 @@ struct WebContentOptions {
     ForceCPUPainting force_cpu_painting { ForceCPUPainting::No };
     ForceFontconfig force_fontconfig { ForceFontconfig::No };
     EnableAutoplay enable_autoplay { EnableAutoplay::No };
+    CollectGarbageOnEveryAllocation collect_garbage_on_every_allocation { CollectGarbageOnEveryAllocation::No };
 };
 
 }
