@@ -383,6 +383,7 @@ private:
     bool substitute_attr_function(DOM::Element& element, FlyString const& property_name, Function const& attr_function, Vector<ComponentValue>& dest);
 
     static bool has_ignored_vendor_prefix(StringView);
+    static bool is_generic_font_family(Keyword);
 
     struct PropertiesAndCustomProperties {
         Vector<StyleProperty> properties;
