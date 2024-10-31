@@ -45,25 +45,7 @@ ThrowCompletionOr<NonnullGCPtr<Array>> Array::create(Realm& realm, u64 length, O
 }
 
 // 7.3.18 CreateArrayFromList ( elements ), https://tc39.es/ecma262/#sec-createarrayfromlist
-NonnullGCPtr<Array> Array::create_from(Realm& realm, Vector<Value> const& elements)
-{
-    // 1. Let array be ! ArrayCreate(0).
-    auto array = MUST(Array::create(realm, 0));
-
-    // 2. Let n be 0.
-    // 3. For each element e of elements, do
-    for (u32 n = 0; n < elements.size(); ++n) {
-        // a. Perform ! CreateDataPropertyOrThrow(array, ! ToString(𝔽(n)), e).
-        MUST(array->create_data_property_or_throw(n, elements[n]));
-
-        // b. Set n to n + 1.
-    }
-
-    // 4. Return array.
-    return array;
-}
-
-NonnullGCPtr<Array> Array::create_from(Realm& realm, ReadonlySpan<Value> const& elements)
+NonnullGCPtr<Array> Array::create_from(Realm& realm, ReadonlySpan<Value> elements)
 {
     // 1. Let array be ! ArrayCreate(0).
     auto array = MUST(Array::create(realm, 0));
