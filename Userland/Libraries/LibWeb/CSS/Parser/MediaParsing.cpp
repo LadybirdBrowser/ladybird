@@ -121,7 +121,7 @@ NonnullRefPtr<MediaQuery> Parser::parse_media_query(TokenStream<ComponentValue>&
         return media_query;
 
     // `[ and <media-condition-without-or> ]?`
-    if (auto maybe_and = tokens.consume_a_token(); maybe_and.is_ident("and"sv)) {
+    if (auto const& maybe_and = tokens.consume_a_token(); maybe_and.is_ident("and"sv)) {
         if (auto media_condition = parse_media_condition(tokens, MediaCondition::AllowOr::No)) {
             tokens.discard_whitespace();
             if (tokens.has_next_token())

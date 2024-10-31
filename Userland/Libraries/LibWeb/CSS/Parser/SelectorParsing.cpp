@@ -184,11 +184,11 @@ Optional<Selector::SimpleSelector::QualifiedName> Parser::parse_selector_qualifi
 
     auto transaction = tokens.begin_transaction();
 
-    auto first_token = tokens.consume_a_token();
+    auto const& first_token = tokens.consume_a_token();
     if (first_token.is_delim('|')) {
         // Case 1: `|<name>`
         if (is_name(tokens.next_token())) {
-            auto name_token = tokens.consume_a_token();
+            auto const& name_token = tokens.consume_a_token();
 
             if (allow_wildcard_name == AllowWildcardName::No && name_token.is_delim('*'))
                 return {};
@@ -559,7 +559,7 @@ Parser::ParseErrorOr<Selector::SimpleSelector> Parser::parse_pseudo_simple_selec
         case PseudoClassMetadata::ParameterType::Ident: {
             auto function_token_stream = TokenStream(pseudo_function.value);
             function_token_stream.discard_whitespace();
-            auto maybe_keyword_token = function_token_stream.consume_a_token();
+            auto const& maybe_keyword_token = function_token_stream.consume_a_token();
             function_token_stream.discard_whitespace();
             if (!maybe_keyword_token.is(Token::Type::Ident) || function_token_stream.has_next_token()) {
                 dbgln_if(CSS_PARSER_DEBUG, "Failed to parse :{}() parameter as a keyword: not an ident", pseudo_function.name);
@@ -584,10 +584,10 @@ Parser::ParseErrorOr<Selector::SimpleSelector> Parser::parse_pseudo_simple_selec
             auto function_token_stream = TokenStream(pseudo_function.value);
             auto language_token_lists = parse_a_comma_separated_list_of_component_values(function_token_stream);
 
-            for (auto language_token_list : language_token_lists) {
+            for (auto const& language_token_list : language_token_lists) {
                 auto language_token_stream = TokenStream(language_token_list);
                 language_token_stream.discard_whitespace();
-                auto language_token = language_token_stream.consume_a_token();
+                auto const& language_token = language_token_stream.consume_a_token();
                 if (!(language_token.is(Token::Type::Ident) || language_token.is(Token::Type::String))) {
                     dbgln_if(CSS_PARSER_DEBUG, "Invalid language range in :{}() - not a string/ident", pseudo_function.name);
                     return ParseError::SyntaxError;
