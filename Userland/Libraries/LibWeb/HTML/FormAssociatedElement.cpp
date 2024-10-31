@@ -624,16 +624,16 @@ void FormAssociatedTextControlElement::handle_delete(DeleteDirection direction)
     if (selection_start == selection_end) {
         if (direction == DeleteDirection::Backward) {
             if (selection_start.value() > 0) {
-                MUST(set_range_text(MUST(String::from_utf8(""sv)), selection_start.value() - 1, selection_end.value(), Bindings::SelectionMode::End));
+                MUST(set_range_text(String {}, selection_start.value() - 1, selection_end.value(), Bindings::SelectionMode::End));
             }
         } else {
             if (selection_start.value() < text_node->data().code_points().length()) {
-                MUST(set_range_text(MUST(String::from_utf8(""sv)), selection_start.value(), selection_end.value() + 1, Bindings::SelectionMode::End));
+                MUST(set_range_text(String {}, selection_start.value(), selection_end.value() + 1, Bindings::SelectionMode::End));
             }
         }
         return;
     }
-    MUST(set_range_text(MUST(String::from_utf8(""sv)), selection_start.value(), selection_end.value(), Bindings::SelectionMode::End));
+    MUST(set_range_text(String {}, selection_start.value(), selection_end.value(), Bindings::SelectionMode::End));
 }
 
 void FormAssociatedTextControlElement::handle_return_key()
