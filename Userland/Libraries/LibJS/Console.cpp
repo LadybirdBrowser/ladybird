@@ -67,7 +67,7 @@ ThrowCompletionOr<Value> Console::assert_()
     else {
         // 1. Let first be data[0].
         auto& first = data[0];
-        // 2. If Type(first) is not String, then prepend message to data.
+        // 2. If first is not a String, then prepend message to data.
         if (!first.is_string()) {
             data.prepend(message);
         }
@@ -858,7 +858,7 @@ ThrowCompletionOr<MarkedVector<Value>> ConsoleClient::formatter(MarkedVector<Val
         }
         // 2. If specifier is %d or %i:
         else if (specifier.is_one_of("%d"sv, "%i"sv)) {
-            // 1. If Type(current) is Symbol, let converted be NaN
+            // 1. If current is a Symbol, let converted be NaN
             if (current.is_symbol()) {
                 converted = js_nan();
             }
@@ -869,7 +869,7 @@ ThrowCompletionOr<MarkedVector<Value>> ConsoleClient::formatter(MarkedVector<Val
         }
         // 3. If specifier is %f:
         else if (specifier == "%f"sv) {
-            // 1. If Type(current) is Symbol, let converted be NaN
+            // 1. If current is a Symbol, let converted be NaN
             if (current.is_symbol()) {
                 converted = js_nan();
             }
