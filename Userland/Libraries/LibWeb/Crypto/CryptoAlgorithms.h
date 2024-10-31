@@ -387,6 +387,7 @@ public:
     virtual WebIDL::ExceptionOr<JS::NonnullGCPtr<JS::Object>> export_key(Bindings::KeyFormat, JS::NonnullGCPtr<CryptoKey>) override;
     virtual WebIDL::ExceptionOr<JS::NonnullGCPtr<JS::ArrayBuffer>> encrypt(AlgorithmParams const&, JS::NonnullGCPtr<CryptoKey>, ByteBuffer const&) override;
     virtual WebIDL::ExceptionOr<JS::NonnullGCPtr<JS::ArrayBuffer>> decrypt(AlgorithmParams const&, JS::NonnullGCPtr<CryptoKey>, ByteBuffer const&) override;
+    virtual WebIDL::ExceptionOr<Variant<JS::NonnullGCPtr<CryptoKey>, JS::NonnullGCPtr<CryptoKeyPair>>> generate_key(AlgorithmParams const&, bool, Vector<Bindings::KeyUsage> const&) override;
 
     static NonnullOwnPtr<AlgorithmMethods> create(JS::Realm& realm) { return adopt_own(*new AesGcm(realm)); }
 

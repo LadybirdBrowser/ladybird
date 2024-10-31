@@ -788,6 +788,7 @@ SupportedAlgorithmsMap supported_algorithms()
     define_an_algorithm<AesGcm, AesDerivedKeyParams>("get key length"_string, "AES-GCM"_string);
     define_an_algorithm<AesGcm>("importKey"_string, "AES-GCM"_string);
     define_an_algorithm<AesGcm>("exportKey"_string, "AES-GCM"_string);
+    define_an_algorithm<AesGcm, AesKeyGenParams>("generateKey"_string, "AES-GCM"_string);
     define_an_algorithm<AesGcm, AesGcmParams>("encrypt"_string, "AES-GCM"_string);
     define_an_algorithm<AesGcm, AesGcmParams>("decrypt"_string, "AES-GCM"_string);
 
