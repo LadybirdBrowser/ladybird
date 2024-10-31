@@ -296,6 +296,37 @@ JS::ThrowCompletionOr<NonnullOwnPtr<AlgorithmParams>> AesCtrParams::from_value(J
     return adopt_own<AlgorithmParams>(*new AesCtrParams { name, iv, length });
 }
 
+AesGcmParams::~AesGcmParams() = default;
+
+JS::ThrowCompletionOr<NonnullOwnPtr<AlgorithmParams>> AesGcmParams::from_value(JS::VM& vm, JS::Value value)
+{
+    auto& object = value.as_object();
+
+    auto name_value = TRY(object.get("name"));
+    auto name = TRY(name_value.to_string(vm));
+
+    auto iv_value = TRY(object.get("iv"));
+    if (!iv_value.is_object() || !(is<JS::TypedArrayBase>(iv_value.as_object()) || is<JS::ArrayBuffer>(iv_value.as_object()) || is<JS::DataView>(iv_value.as_object())))
+        return vm.throw_completion<JS::TypeError>(JS::ErrorType::NotAnObjectOfType, "BufferSource");
+    auto iv = TRY_OR_THROW_OOM(vm, WebIDL::get_buffer_source_copy(iv_value.as_object()));
+
+    auto maybe_additional_data = Optional<ByteBuffer> {};
+    if (MUST(object.has_property("additionalData"))) {
+        auto additional_data_value = TRY(object.get("additionalData"));
+        if (!additional_data_value.is_object() || !(is<JS::TypedArrayBase>(additional_data_value.as_object()) || is<JS::ArrayBuffer>(additional_data_value.as_object()) || is<JS::DataView>(additional_data_value.as_object())))
+            return vm.throw_completion<JS::TypeError>(JS::ErrorType::NotAnObjectOfType, "BufferSource");
+        maybe_additional_data = TRY_OR_THROW_OOM(vm, WebIDL::get_buffer_source_copy(additional_data_value.as_object()));
+    }
+
+    auto maybe_tag_length = Optional<u8> {};
+    if (MUST(object.has_property("tagLength"))) {
+        auto tag_length_value = TRY(object.get("tagLength"));
+        maybe_tag_length = TRY(tag_length_value.to_u8(vm));
+    }
+
+    return adopt_own<AlgorithmParams>(*new AesGcmParams { name, iv, maybe_additional_data, maybe_tag_length });
+}
+
 HKDFParams::~HKDFParams() = default;
 
 JS::ThrowCompletionOr<NonnullOwnPtr<AlgorithmParams>> HKDFParams::from_value(JS::VM& vm, JS::Value value)
@@ -1956,6 +1987,58 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<JS::Object>> AesGcm::export_key(Bindings::K
 
     // 3. Return result.
     return JS::NonnullGCPtr { *result };
+}
+
+WebIDL::ExceptionOr<JS::NonnullGCPtr<JS::ArrayBuffer>> AesGcm::encrypt(AlgorithmParams const& params, JS::NonnullGCPtr<CryptoKey> key, ByteBuffer const& plaintext)
+{
+    auto const& normalized_algorithm = static_cast<AesGcmParams const&>(params);
+
+    // FIXME: 1. If plaintext has a length greater than 2^39 - 256 bytes, then throw an OperationError.
+
+    // FIXME: 2. If the iv member of normalizedAlgorithm has a length greater than 2^64 - 1 bytes, then throw an OperationError.
+
+    // FIXME: 3. If the additionalData member of normalizedAlgorithm is present and has a length greater than 2^64 - 1 bytes, then throw an OperationError.
+
+    // 4. If the tagLength member of normalizedAlgorithm is not present: Let tagLength be 128.
+    auto tag_length = 0;
+    auto to_compare_against = Vector<int> { 32, 64, 96, 104, 112, 120, 128 };
+    if (!normalized_algorithm.tag_length.has_value())
+        tag_length = 128;
+
+    // If the tagLength member of normalizedAlgorithm is one of 32, 64, 96, 104, 112, 120 or 128: Let tagLength be equal to the tagLength member of normalizedAlgorithm
+    else if (to_compare_against.contains_slow(normalized_algorithm.tag_length.value()))
+        tag_length = normalized_algorithm.tag_length.value();
+
+    // Otherwise: throw an OperationError.
+    else
+        return WebIDL::OperationError::create(m_realm, "Invalid tag length"_string);
+
+    // 5. Let additionalData be the contents of the additionalData member of normalizedAlgorithm if present or the empty octet string otherwise.
+    auto additional_data = normalized_algorithm.additional_data.value_or(ByteBuffer {});
+
+    // 6. Let C and T be the outputs that result from performing the Authenticated Encryption Function described in Section 7.1 of [NIST-SP800-38D] using
+    //    AES as the block cipher,
+    //    the contents of the iv member of normalizedAlgorithm as the IV input parameter,
+    //    the contents of additionalData as the A input parameter,
+    //    tagLength as the t pre-requisite
+    //    and the contents of plaintext as the input plaintext.
+    auto& aes_algorithm = static_cast<AesKeyAlgorithm const&>(*key->algorithm());
+    auto key_length = aes_algorithm.length();
+    auto key_bytes = key->handle().get<ByteBuffer>();
+
+    ::Crypto::Cipher::AESCipher::GCMMode cipher(key_bytes, key_length, ::Crypto::Cipher::Intent::Encryption);
+    ByteBuffer ciphertext = TRY_OR_THROW_OOM(m_realm->vm(), ByteBuffer::create_zeroed(plaintext.size()));
+    ByteBuffer tag = TRY_OR_THROW_OOM(m_realm->vm(), ByteBuffer::create_zeroed(tag_length / 8));
+    [[maybe_unused]] Bytes ciphertext_span = ciphertext.bytes();
+    [[maybe_unused]] Bytes tag_span = tag.bytes();
+
+    // FIXME: cipher.encrypt(plaintext, ciphertext_span, normalized_algorithm.iv, additional_data, tag_span);
+
+    // 7. Let ciphertext be equal to C | T, where '|' denotes concatenation.
+    TRY_OR_THROW_OOM(m_realm->vm(), ciphertext.try_append(tag));
+
+    // 8. Return the result of creating an ArrayBuffer containing ciphertext.
+    return JS::ArrayBuffer::create(m_realm, ciphertext);
 }
 
 // https://w3c.github.io/webcrypto/#hkdf-operations
