@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<textarea id="textarea">hello hmmm</textarea>
+<script>
+    asyncTest(done => {
+        const textarea = document.getElementById("textarea");
+        textarea.addEventListener("selectionchange", event => {
+            const start = textarea.selectionStart;
+            const end = textarea.selectionEnd;
+            println(`selectionchange event dispatched on textarea should bubble: ${event.bubbles}`);
+            println(`Selected range: ${start} - ${end}`);
+            done();
+        });
+        textarea.setSelectionRange(6, 10);
+    });
+</script>

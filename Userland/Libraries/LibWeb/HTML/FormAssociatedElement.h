@@ -192,8 +192,6 @@ protected:
     // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#concept-textarea/input-relevant-value
     void relevant_value_was_changed();
 
-    virtual void selection_was_changed([[maybe_unused]] size_t selection_start, [[maybe_unused]] size_t selection_end) { }
-
 private:
     void collapse_selection_to_offset(size_t);
     void selection_was_changed();

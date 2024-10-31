@@ -11,6 +11,7 @@
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Event.h>
 #include <LibWeb/DOM/Position.h>
+#include <LibWeb/DOM/SelectionchangeEventDispatching.h>
 #include <LibWeb/HTML/FormAssociatedElement.h>
 #include <LibWeb/HTML/HTMLButtonElement.h>
 #include <LibWeb/HTML/HTMLFieldSetElement.h>
@@ -580,9 +581,7 @@ void FormAssociatedTextControlElement::set_the_selection_range(Optional<WebIDL::
             });
         }
 
-        // AD-HOC: Notify the element that the selection was changed, so it can perform
-        //         element-specific updates.
-        selection_was_changed(m_selection_start, m_selection_end);
+        selection_was_changed();
     }
 }
 
@@ -657,6 +656,15 @@ void FormAssociatedTextControlElement::collapse_selection_to_offset(size_t posit
 
 void FormAssociatedTextControlElement::selection_was_changed()
 {
+    auto& element = form_associated_element_to_html_element();
+    if (is<HTML::HTMLInputElement>(element)) {
+        schedule_a_selectionchange_event(static_cast<HTML::HTMLInputElement&>(element), element.document());
+    } else if (is<HTML::HTMLTextAreaElement>(element)) {
+        schedule_a_selectionchange_event(static_cast<HTML::HTMLTextAreaElement&>(element), element.document());
+    } else {
+        VERIFY_NOT_REACHED();
+    }
+
     auto text_node = form_associated_element_to_text_node();
     if (!text_node)
         return;
