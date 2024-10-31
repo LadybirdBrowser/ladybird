@@ -33,7 +33,7 @@ public:
         No,
         Yes,
     };
-    JS::Completion run(RethrowErrors = RethrowErrors::No);
+    JS::Completion run(RethrowErrors = RethrowErrors::No, JS::GCPtr<JS::Environment> lexical_environment_override = {});
 
     MutedErrors muted_errors() const { return m_muted_errors; }
 
