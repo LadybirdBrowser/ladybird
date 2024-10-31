@@ -2041,6 +2041,72 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<JS::ArrayBuffer>> AesGcm::encrypt(Algorithm
     return JS::ArrayBuffer::create(m_realm, ciphertext);
 }
 
+WebIDL::ExceptionOr<JS::NonnullGCPtr<JS::ArrayBuffer>> AesGcm::decrypt(AlgorithmParams const& params, JS::NonnullGCPtr<CryptoKey> key, ByteBuffer const& ciphertext)
+{
+    auto const& normalized_algorithm = static_cast<AesGcmParams const&>(params);
+
+    // 1. If the tagLength member of normalizedAlgorithm is not present: Let tagLength be 128.
+    u32 tag_length = 0;
+    auto to_compare_against = Vector<u32> { 32, 64, 96, 104, 112, 120, 128 };
+    if (!normalized_algorithm.tag_length.has_value())
+        tag_length = 128;
+
+    // If the tagLength member of normalizedAlgorithm is one of 32, 64, 96, 104, 112, 120 or 128: Let tagLength be equal to the tagLength member of normalizedAlgorithm
+    else if (to_compare_against.contains_slow(normalized_algorithm.tag_length.value()))
+        tag_length = normalized_algorithm.tag_length.value();
+
+    // Otherwise: throw an OperationError.
+    else
+        return WebIDL::OperationError::create(m_realm, "Invalid tag length"_string);
+
+    // 2. If ciphertext has a length less than tagLength bits, then throw an OperationError.
+    if (ciphertext.size() < tag_length / 8)
+        return WebIDL::OperationError::create(m_realm, "Invalid ciphertext length"_string);
+
+    // FIXME: 3. If the iv member of normalizedAlgorithm has a length greater than 2^64 - 1 bytes, then throw an OperationError.
+
+    // FIXME: 4. If the additionalData member of normalizedAlgorithm is present and has a length greater than 2^64 - 1 bytes, then throw an OperationError.
+
+    // 5. Let tag be the last tagLength bits of ciphertext.
+    auto tag_bits = tag_length / 8;
+    auto tag = TRY_OR_THROW_OOM(m_realm->vm(), ciphertext.slice(ciphertext.size() - tag_bits, tag_bits));
+
+    // 6. Let actualCiphertext be the result of removing the last tagLength bits from ciphertext.
+    auto actual_ciphertext = TRY_OR_THROW_OOM(m_realm->vm(), ciphertext.slice(0, ciphertext.size() - tag_bits));
+
+    // 7. Let additionalData be the contents of the additionalData member of normalizedAlgorithm if present or the empty octet string otherwise.
+    auto additional_data = normalized_algorithm.additional_data.value_or(ByteBuffer {});
+
+    // 8. Perform the Authenticated Decryption Function described in Section 7.2 of [NIST-SP800-38D] using
+    //    AES as the block cipher,
+    //    the contents of the iv member of normalizedAlgorithm as the IV input parameter,
+    //    the contents of additionalData as the A input parameter,
+    //    tagLength as the t pre-requisite,
+    //    the contents of actualCiphertext as the input ciphertext, C
+    //    and the contents of tag as the authentication tag, T.
+    auto& aes_algorithm = static_cast<AesKeyAlgorithm const&>(*key->algorithm());
+    auto key_length = aes_algorithm.length();
+    auto key_bytes = key->handle().get<ByteBuffer>();
+
+    ::Crypto::Cipher::AESCipher::GCMMode cipher(key_bytes, key_length, ::Crypto::Cipher::Intent::Decryption);
+    ByteBuffer plaintext = TRY_OR_THROW_OOM(m_realm->vm(), ByteBuffer::create_zeroed(actual_ciphertext.size()));
+    [[maybe_unused]] Bytes plaintext_span = plaintext.bytes();
+    [[maybe_unused]] Bytes actual_ciphertext_span = actual_ciphertext.bytes();
+    [[maybe_unused]] Bytes tag_span = tag.bytes();
+
+    // FIXME: auto result = cipher.decrypt(ciphertext, plaintext_span, normalized_algorithm.iv, additional_data, tag_span);
+    auto result = ::Crypto::VerificationConsistency::Inconsistent;
+
+    // If the result of the algorithm is the indication of inauthenticity, "FAIL": throw an OperationError
+    if (result == ::Crypto::VerificationConsistency::Inconsistent)
+        return WebIDL::OperationError::create(m_realm, "Decryption failed"_string);
+
+    // Otherwise: Let plaintext be the output P of the Authenticated Decryption Function.
+
+    // 9. Return the result of creating an ArrayBuffer containing plaintext.
+    return JS::ArrayBuffer::create(m_realm, plaintext);
+}
+
 // https://w3c.github.io/webcrypto/#hkdf-operations
 WebIDL::ExceptionOr<JS::NonnullGCPtr<CryptoKey>> HKDF::import_key(AlgorithmParams const&, Bindings::KeyFormat format, CryptoKey::InternalKeyData key_data, bool extractable, Vector<Bindings::KeyUsage> const& key_usages)
 {
