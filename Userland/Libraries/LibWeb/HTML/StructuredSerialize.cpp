@@ -169,7 +169,7 @@ public:
         auto deep = false;
 
         bool return_primitive_type = true;
-        // 4. If Type(value) is Undefined, Null, Boolean, Number, BigInt, or String, then return { [[Type]]: "primitive", [[Value]]: value }.
+        // 4. If value is undefined, null, a Boolean, a Number, a BigInt, or a String, then return { [[Type]]: "primitive", [[Value]]: value }.
         if (value.is_undefined()) {
             serialize_enum(m_serialized, ValueTag::UndefinedPrimitive);
         } else if (value.is_null()) {
@@ -193,7 +193,7 @@ public:
         if (return_primitive_type)
             return m_serialized;
 
-        // 5. If Type(value) is Symbol, then throw a "DataCloneError" DOMException.
+        // 5. If value is a Symbol, then throw a "DataCloneError" DOMException.
         if (value.is_symbol())
             return WebIDL::DataCloneError::create(*m_vm.current_realm(), "Cannot serialize Symbol"_string);
 

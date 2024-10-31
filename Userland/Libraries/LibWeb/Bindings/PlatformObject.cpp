@@ -233,7 +233,7 @@ JS::ThrowCompletionOr<bool> PlatformObject::internal_set(JS::PropertyKey const& 
             return true;
         }
 
-        // 2. If O implements an interface with a named property setter and Type(P) is String, then:
+        // 2. If O implements an interface with a named property setter and P is a String, then:
         if (m_legacy_platform_object_flags->has_named_property_setter && property_name.is_string()) {
             // 1. Invoke the named property setter on O with P and V.
             TRY(throw_dom_exception_if_needed(vm, [&] { return invoke_named_property_setter(MUST(String::from_byte_string(property_name.as_string())), value); }));
@@ -277,7 +277,7 @@ JS::ThrowCompletionOr<bool> PlatformObject::internal_define_own_property(JS::Pro
         return true;
     }
 
-    // 2. If O supports named properties, O does not implement an interface with the [Global] extended attribute, Type(P) is String, and P is not an unforgeable property name of O, then:
+    // 2. If O supports named properties, O does not implement an interface with the [Global] extended attribute, P is a String, and P is not an unforgeable property name of O, then:
     // FIXME: Check if P is not an unforgeable property name of O
     if (m_legacy_platform_object_flags->supports_named_properties && !m_legacy_platform_object_flags->has_global_interface_extended_attribute && property_name.is_string()) {
         auto const property_name_as_string = MUST(FlyString::from_deprecated_fly_string(property_name.as_string()));

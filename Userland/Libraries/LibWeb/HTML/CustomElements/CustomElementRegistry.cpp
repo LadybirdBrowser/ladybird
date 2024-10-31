@@ -60,7 +60,7 @@ static JS::ThrowCompletionOr<Vector<String>> convert_value_to_sequence_of_string
 {
     // FIXME: De-duplicate this from the IDL generator.
     // An ECMAScript value V is converted to an IDL sequence<T> value as follows:
-    // 1. If Type(V) is not Object, throw a TypeError.
+    // 1. If V is not an Object, throw a TypeError.
     if (!value.is_object())
         return vm.throw_completion<JS::TypeError>(JS::ErrorType::NotAnObject, value.to_string_without_side_effects());
 
@@ -188,7 +188,7 @@ JS::ThrowCompletionOr<void> CustomElementRegistry::define(String const& name, We
         // 1. Let prototype be ? Get(constructor, "prototype").
         auto prototype_value = TRY(constructor->callback->get(vm.names.prototype));
 
-        // 2. If Type(prototype) is not Object, then throw a TypeError exception.
+        // 2. If prototype is not an Object, then throw a TypeError exception.
         if (!prototype_value.is_object())
             return vm.throw_completion<JS::TypeError>(JS::ErrorType::NotAnObject, prototype_value.to_string_without_side_effects());
 
