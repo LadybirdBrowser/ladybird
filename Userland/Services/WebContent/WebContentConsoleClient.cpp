@@ -11,10 +11,13 @@
 #include <AK/StringBuilder.h>
 #include <LibJS/MarkupGenerator.h>
 #include <LibJS/Print.h>
+#include <LibJS/Runtime/GlobalEnvironment.h>
+#include <LibJS/Runtime/ObjectEnvironment.h>
 #include <LibJS/Runtime/Realm.h>
 #include <LibJS/Runtime/VM.h>
+#include <LibWeb/HTML/Scripting/ClassicScript.h>
+#include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/Window.h>
-#include <LibWeb/WebDriver/ExecuteScript.h>
 #include <WebContent/ConsoleGlobalEnvironmentExtensions.h>
 #include <WebContent/PageClient.h>
 #include <WebContent/WebContentConsoleClient.h>
@@ -45,21 +48,17 @@ void WebContentConsoleClient::handle_input(ByteString const& js_source)
     if (!m_console_global_environment_extensions)
         return;
 
-    auto& realm = m_console->realm();
-    auto& window = verify_cast<Web::HTML::Window>(realm.global_object());
+    auto& settings = Web::HTML::relevant_settings_object(*m_console_global_environment_extensions);
+    auto script = Web::HTML::ClassicScript::create("(console)", js_source, settings.realm(), settings.api_base_url());
 
-    auto source_text = ByteString::formatted("return {}", js_source);
+    auto with_scope = JS::new_object_environment(*m_console_global_environment_extensions, true, &settings.realm().global_environment());
 
-    auto completion = Web::WebDriver::execute_a_function_body(window, source_text, {}, m_console_global_environment_extensions);
+    // FIXME: Add parse error printouts back once ClassicScript can report parse errors.
+    auto result = script->run(Web::HTML::ClassicScript::RethrowErrors::No, with_scope);
 
-    if (completion.has_value()) {
-        m_console_global_environment_extensions->set_most_recent_result(completion.value());
-        print_html(JS::MarkupGenerator::html_from_value(completion.value()).release_value_but_fixme_should_propagate_errors().to_byte_string());
-    } else {
-        m_console_global_environment_extensions->set_most_recent_result(JS::js_undefined());
-
-        if (completion.error().value().has_value())
-            print_html(JS::MarkupGenerator::html_from_value(completion.error().value().value()).release_value_but_fixme_should_propagate_errors().to_byte_string());
+    if (result.value().has_value()) {
+        m_console_global_environment_extensions->set_most_recent_result(result.value().value());
+        print_html(JS::MarkupGenerator::html_from_value(*result.value()).release_value_but_fixme_should_propagate_errors().to_byte_string());
     }
 }
 
