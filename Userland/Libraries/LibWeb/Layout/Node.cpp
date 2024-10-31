@@ -523,12 +523,13 @@ void NodeWithStyle::apply_style(const CSS::StyleProperties& computed_style)
                         .radius = blur.resolved_radius(*this) });
                 },
                 [&](CSS::FilterOperation::DropShadow const& drop_shadow) {
+                    auto context = CSS::Length::ResolutionContext::for_layout_node(*this);
                     // The default value for omitted values is missing length values set to 0
                     // and the missing used color is taken from the color property.
                     resolved_filter.filters.append(CSS::ResolvedFilter::DropShadow {
-                        .offset_x = drop_shadow.offset_x.to_px(*this).to_double(),
-                        .offset_y = drop_shadow.offset_y.to_px(*this).to_double(),
-                        .radius = drop_shadow.radius.has_value() ? drop_shadow.radius->to_px(*this).to_double() : 0.0,
+                        .offset_x = drop_shadow.offset_x.resolved(context).to_px(*this).to_double(),
+                        .offset_y = drop_shadow.offset_y.resolved(context).to_px(*this).to_double(),
+                        .radius = drop_shadow.radius.has_value() ? drop_shadow.radius->resolved(context).to_px(*this).to_double() : 0.0,
                         .color = drop_shadow.color.has_value() ? *drop_shadow.color : this->computed_values().color() });
                 },
                 [&](CSS::FilterOperation::Color const& color_operation) {
@@ -537,7 +538,7 @@ void NodeWithStyle::apply_style(const CSS::StyleProperties& computed_style)
                         .amount = color_operation.resolved_amount() });
                 },
                 [&](CSS::FilterOperation::HueRotate const& hue_rotate) {
-                    resolved_filter.filters.append(CSS::ResolvedFilter::HueRotate { .angle_degrees = hue_rotate.angle_degrees() });
+                    resolved_filter.filters.append(CSS::ResolvedFilter::HueRotate { .angle_degrees = hue_rotate.angle_degrees(*this) });
                 });
         }
         return resolved_filter;

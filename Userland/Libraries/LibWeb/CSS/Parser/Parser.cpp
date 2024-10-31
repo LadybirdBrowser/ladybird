@@ -2246,6 +2246,29 @@ Optional<NumberOrCalculated> Parser::parse_number(TokenStream<ComponentValue>& t
     return {};
 }
 
+Optional<NumberPercentage> Parser::parse_number_percentage(TokenStream<ComponentValue>& tokens)
+{
+    auto transaction = tokens.begin_transaction();
+    auto& token = tokens.consume_a_token();
+
+    if (token.is(Token::Type::Number)) {
+        transaction.commit();
+        return token.token().number();
+    }
+
+    if (token.is(Token::Type::Percentage)) {
+        transaction.commit();
+        return Percentage(token.token().percentage());
+    }
+
+    if (auto calc = parse_calculated_value(token); calc && calc->resolves_to_number_percentage()) {
+        transaction.commit();
+        return calc.release_nonnull();
+    }
+
+    return {};
+}
+
 Optional<ResolutionOrCalculated> Parser::parse_resolution(TokenStream<ComponentValue>& tokens)
 {
     auto transaction = tokens.begin_transaction();
@@ -5395,14 +5418,6 @@ RefPtr<CSSStyleValue> Parser::parse_filter_value_list_value(TokenStream<Componen
         return static_cast<FilterOperation::Color::Type>(filter);
     };
 
-    auto parse_number_percentage = [&](auto& token) -> Optional<NumberPercentage> {
-        if (token.is(Token::Type::Percentage))
-            return NumberPercentage(Percentage(token.token().percentage()));
-        if (token.is(Token::Type::Number))
-            return NumberPercentage(Number(Number::Type::Number, token.token().number_value()));
-        return {};
-    };
-
     auto parse_filter_function_name = [&](auto name) -> Optional<FilterToken> {
         if (name.equals_ignoring_ascii_case("blur"sv))
             return FilterToken::Blur;
@@ -5446,8 +5461,7 @@ RefPtr<CSSStyleValue> Parser::parse_filter_value_list_value(TokenStream<Componen
             tokens.discard_whitespace();
             if (!blur_radius.has_value())
                 return {};
-            // FIXME: Support calculated radius
-            return if_no_more_tokens_return(FilterOperation::Blur { blur_radius->value() });
+            return if_no_more_tokens_return(FilterOperation::Blur { blur_radius.value() });
         } else if (filter_token == FilterToken::DropShadow) {
             if (!tokens.has_next_token())
                 return {};
@@ -5481,29 +5495,24 @@ RefPtr<CSSStyleValue> Parser::parse_filter_value_list_value(TokenStream<Componen
             if (maybe_color)
                 color = maybe_color->to_color({});
 
-            // FIXME: Support calculated offsets and radius
-            return if_no_more_tokens_return(FilterOperation::DropShadow { x_offset->value(), y_offset->value(), maybe_radius.map([](auto& it) { return it.value(); }), color });
+            return if_no_more_tokens_return(FilterOperation::DropShadow { x_offset.value(), y_offset.value(), maybe_radius, color });
         } else if (filter_token == FilterToken::HueRotate) {
             // hue-rotate( [ <angle> | <zero> ]? )
             if (!tokens.has_next_token())
                 return FilterOperation::HueRotate {};
-            auto& token = tokens.consume_a_token();
-            if (token.is(Token::Type::Number)) {
+
+            if (tokens.next_token().is(Token::Type::Number)) {
                 // hue-rotate(0)
-                auto number = token.token().number();
+                auto number = tokens.consume_a_token().token().number();
                 if (number.is_integer() && number.integer_value() == 0)
                     return if_no_more_tokens_return(FilterOperation::HueRotate { FilterOperation::HueRotate::Zero {} });
                 return {};
             }
-            if (!token.is(Token::Type::Dimension))
-                return {};
-            auto angle_value = token.token().dimension_value();
-            auto angle_unit_name = token.token().dimension_unit();
-            auto angle_unit = Angle::unit_from_name(angle_unit_name);
-            if (!angle_unit.has_value())
-                return {};
-            Angle angle { angle_value, angle_unit.release_value() };
-            return if_no_more_tokens_return(FilterOperation::HueRotate { angle });
+
+            if (auto angle = parse_angle(tokens); angle.has_value())
+                return if_no_more_tokens_return(FilterOperation::HueRotate { angle.value() });
+
+            return {};
         } else {
             // Simple filters:
             // brightness( <number-percentage>? )
@@ -5515,10 +5524,8 @@ RefPtr<CSSStyleValue> Parser::parse_filter_value_list_value(TokenStream<Componen
             // saturate( <number-percentage>? )
             if (!tokens.has_next_token())
                 return FilterOperation::Color { filter_token_to_operation(filter_token) };
-            auto amount = parse_number_percentage(tokens.consume_a_token());
-            if (!amount.has_value())
-                return {};
-            return if_no_more_tokens_return(FilterOperation::Color { filter_token_to_operation(filter_token), *amount });
+            auto amount = parse_number_percentage(tokens);
+            return if_no_more_tokens_return(FilterOperation::Color { filter_token_to_operation(filter_token), amount });
         }
     };
 
