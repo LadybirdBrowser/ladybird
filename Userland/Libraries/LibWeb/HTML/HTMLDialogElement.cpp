@@ -89,25 +89,29 @@ WebIDL::ExceptionOr<void> HTMLDialogElement::show_modal()
     if (has_attribute(AttributeNames::open))
         return WebIDL::InvalidStateError::create(realm(), "Dialog already open"_string);
 
-    // 3. If this is not connected, then throw an "InvalidStateError" DOMException.
+    // 3. If this's node document is not fully active, then throw an "InvalidStateError" DOMException.
+    if (!document().is_fully_active())
+        return WebIDL::InvalidStateError::create(realm(), "Document is not fully active"_string);
+
+    // 4. If this is not connected, then throw an "InvalidStateError" DOMException.
     if (!is_connected())
         return WebIDL::InvalidStateError::create(realm(), "Dialog not connected"_string);
 
-    // FIXME: 4. If this is in the popover showing state, then throw an "InvalidStateError" DOMException.
+    // FIXME: 5. If this is in the popover showing state, then throw an "InvalidStateError" DOMException.
 
-    // 5. Add an open attribute to this, whose value is the empty string.
+    // 6. Add an open attribute to this, whose value is the empty string.
     TRY(set_attribute(AttributeNames::open, {}));
 
-    // 6. Set the is modal flag of this to true.
+    // 7. Set the is modal flag of this to true.
     m_is_modal = true;
 
-    // FIXME: 7. Let this's node document be blocked by the modal dialog this.
+    // FIXME: 8. Let this's node document be blocked by the modal dialog this.
 
-    // 8. If this's node document's top layer does not already contain this, then add an element to the top layer given this.
+    // 9. If this's node document's top layer does not already contain this, then add an element to the top layer given this.
     if (!document().top_layer_elements().contains(*this))
         document().add_an_element_to_the_top_layer(*this);
 
-    // 9. Set this's close watcher to the result of establishing a close watcher given this's relevant global object
+    // 10. Set this's close watcher to the result of establishing a close watcher given this's relevant global object
     m_close_watcher = CloseWatcher::establish(*document().window());
     // - cancelAction given canPreventClose being to return the result of firing an event named cancel at this, with the cancelable attribute initialized to canPreventClose.
     auto cancel_callback_function = JS::NativeFunction::create(
@@ -133,15 +137,15 @@ WebIDL::ExceptionOr<void> HTMLDialogElement::show_modal()
     auto close_callback = realm().heap().allocate_without_realm<WebIDL::CallbackType>(*close_callback_function, Bindings::host_defined_environment_settings_object(realm()));
     m_close_watcher->add_event_listener_without_options(HTML::EventNames::close, DOM::IDLEventListener::create(realm(), close_callback));
 
-    // FIXME: 10. Set this's previously focused element to the focused element.
+    // FIXME: 11. Set this's previously focused element to the focused element.
 
-    // FIXME: 11. Let hideUntil be the result of running topmost popover ancestor given this, null, and false.
+    // FIXME: 12. Let hideUntil be the result of running topmost popover ancestor given this, null, and false.
 
-    // FIXME: 12. If hideUntil is null, then set hideUntil to this's node document.
+    // FIXME: 13. If hideUntil is null, then set hideUntil to this's node document.
 
-    // FIXME: 13. Run hide all popovers until given hideUntil, false, and true.
+    // FIXME: 14. Run hide all popovers until given hideUntil, false, and true.
 
-    // FIXME: 14. Run the dialog focusing steps given this.
+    // FIXME: 15. Run the dialog focusing steps given this.
 
     return {};
 }
