@@ -76,9 +76,10 @@ void ResizeObserverEntry::visit_edges(JS::Cell::Visitor& visitor)
 
 static JS::NonnullGCPtr<JS::Object> to_js_array(JS::Realm& realm, Vector<JS::NonnullGCPtr<ResizeObserverSize>> const& sizes)
 {
-    Vector<JS::Value> vector;
+    JS::MarkedVector<JS::Value> vector(realm.heap());
     for (auto const& size : sizes)
         vector.append(JS::Value(size.ptr()));
+
     auto array = JS::Array::create_from(realm, vector);
     MUST(array->set_integrity_level(JS::Object::IntegrityLevel::Frozen));
     return array;
