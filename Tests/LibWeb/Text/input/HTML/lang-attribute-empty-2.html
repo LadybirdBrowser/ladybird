@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="ko">
+    <head>
+        <style type='text/css'>
+            .test div { width: 50px; }
+            #box:lang(ko) { width: 100px; }
+        </style>
+    </head>
+    <body>
+        <div class="test">
+            <div id="box" lang="">Test</div>
+        </div>
+    </body>
+    <script src="../include.js"></script>
+    <script>
+        asyncTest((done) => {
+            if (document.getElementById('box').offsetWidth == 50) {
+                println("OK");
+            } else {
+                println("FAIL. If the meta Content-Language element contains a language declaration but the html element uses an empty lang value, the UA will not recognize the language declared in the meta Content-Language element.");
+            }
+            done();
+        });
+    </script>
+</html>
