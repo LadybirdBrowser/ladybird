@@ -787,6 +787,7 @@ SupportedAlgorithmsMap supported_algorithms()
     // https://w3c.github.io/webcrypto/#aes-gcm-registration
     define_an_algorithm<AesGcm, AesDerivedKeyParams>("get key length"_string, "AES-GCM"_string);
     define_an_algorithm<AesGcm>("importKey"_string, "AES-GCM"_string);
+    define_an_algorithm<AesGcm>("exportKey"_string, "AES-GCM"_string);
 
     // https://w3c.github.io/webcrypto/#hkdf
     define_an_algorithm<HKDF>("importKey"_string, "HKDF"_string);
