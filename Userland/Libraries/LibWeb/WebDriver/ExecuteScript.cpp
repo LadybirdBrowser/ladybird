@@ -22,28 +22,17 @@
 namespace Web::WebDriver {
 
 // https://w3c.github.io/webdriver/#dfn-execute-a-function-body
-JS::ThrowCompletionOr<JS::Value> execute_a_function_body(HTML::BrowsingContext const& browsing_context, ByteString const& body, ReadonlySpan<JS::Value> parameters)
+static JS::ThrowCompletionOr<JS::Value> execute_a_function_body(HTML::BrowsingContext const& browsing_context, ByteString const& body, ReadonlySpan<JS::Value> parameters)
 {
     // 1. Let window be the associated window of the current browsing context’s active document.
     auto window = browsing_context.active_document()->window();
 
-    return execute_a_function_body(*window, body, move(parameters));
-}
-
-// https://w3c.github.io/webdriver/#dfn-execute-a-function-body
-JS::ThrowCompletionOr<JS::Value> execute_a_function_body(HTML::Window const& window, ByteString const& body, ReadonlySpan<JS::Value> parameters, JS::GCPtr<JS::Object> environment_override_object)
-{
-    auto& realm = window.realm();
-
     // 2. Let environment settings be the environment settings object for window.
-    auto& environment_settings = Web::HTML::relevant_settings_object(window);
+    auto& environment_settings = Web::HTML::relevant_settings_object(*window);
 
     // 3. Let global scope be environment settings realm’s global environment.
-    auto& global_scope = environment_settings.realm().global_environment();
-    JS::NonnullGCPtr<JS::Environment> scope = global_scope;
-
-    if (environment_override_object)
-        scope = JS::new_object_environment(*environment_override_object, true, &global_scope);
+    auto& realm = environment_settings.realm();
+    auto& global_scope = realm.global_environment();
 
     auto source_text = ByteString::formatted(
         R"~~~(function() {{
@@ -78,12 +67,12 @@ JS::ThrowCompletionOr<JS::Value> execute_a_function_body(HTML::Window const& win
     //    The result of parsing global scope above.
     // strict
     //    The result of parsing strict above.
-    auto function = JS::ECMAScriptFunctionObject::create(realm, "", move(source_text), function_expression->body(), function_expression->parameters(), function_expression->function_length(), function_expression->local_variables_names(), scope, nullptr, function_expression->kind(), function_expression->is_strict_mode(), function_expression->parsing_insights());
+    auto function = JS::ECMAScriptFunctionObject::create(realm, "", move(source_text), function_expression->body(), function_expression->parameters(), function_expression->function_length(), function_expression->local_variables_names(), &global_scope, nullptr, function_expression->kind(), function_expression->is_strict_mode(), function_expression->parsing_insights());
 
     // 9. Let completion be Function.[[Call]](window, parameters) with function as the this value.
     // NOTE: This is not entirely clear, but I don't think they mean actually passing `function` as
     // the this value argument, but using it as the object [[Call]] is executed on.
-    auto completion = function->internal_call(&window, parameters);
+    auto completion = function->internal_call(window, parameters);
 
     // 10. Clean up after running a callback with environment settings.
     HTML::clean_up_after_running_callback(realm);
