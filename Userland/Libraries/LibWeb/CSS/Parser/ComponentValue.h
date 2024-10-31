@@ -17,6 +17,9 @@ namespace Web::CSS::Parser {
 
 // https://drafts.csswg.org/css-syntax/#component-value
 class ComponentValue {
+    AK_MAKE_DEFAULT_COPYABLE(ComponentValue);
+    AK_MAKE_DEFAULT_MOVABLE(ComponentValue);
+
 public:
     ComponentValue(Token);
     explicit ComponentValue(Function&&);

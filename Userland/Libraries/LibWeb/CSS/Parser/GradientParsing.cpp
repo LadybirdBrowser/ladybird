@@ -9,6 +9,7 @@
  */
 
 #include <AK/Debug.h>
+#include <AK/NonnullRawPtr.h>
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/CSS/StyleValues/ConicGradientStyleValue.h>
 #include <LibWeb/CSS/StyleValues/LinearGradientStyleValue.h>
@@ -297,13 +298,13 @@ RefPtr<CSSStyleValue> Parser::parse_conic_gradient_function(TokenStream<Componen
 
     // conic-gradient( [ [ from <angle> ]? [ at <position> ]? ]  ||
     // <color-interpolation-method> , <angular-color-stop-list> )
-    auto token = tokens.next_token();
+    NonnullRawPtr<ComponentValue const> token = tokens.next_token();
     bool got_from_angle = false;
     bool got_color_interpolation_method = false;
     bool got_at_position = false;
-    while (token.is(Token::Type::Ident)) {
+    while (token->is(Token::Type::Ident)) {
         auto consume_identifier = [&](auto identifier) {
-            auto token_string = token.token().ident();
+            auto token_string = token->token().ident();
             if (token_string.equals_ignoring_ascii_case(identifier)) {
                 tokens.discard_a_token();
                 tokens.discard_whitespace();
@@ -319,7 +320,7 @@ RefPtr<CSSStyleValue> Parser::parse_conic_gradient_function(TokenStream<Componen
             if (!tokens.has_next_token())
                 return nullptr;
 
-            auto angle_token = tokens.consume_a_token();
+            auto const& angle_token = tokens.consume_a_token();
             if (!angle_token.is(Token::Type::Dimension))
                 return nullptr;
             auto angle = angle_token.token().dimension_value();

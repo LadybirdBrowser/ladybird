@@ -15,6 +15,7 @@
 #include <AK/CharacterTypes.h>
 #include <AK/Debug.h>
 #include <AK/GenericLexer.h>
+#include <AK/NonnullRawPtr.h>
 #include <AK/SourceLocation.h>
 #include <AK/TemporaryChange.h>
 #include <LibWeb/CSS/CSSStyleDeclaration.h>
@@ -152,7 +153,7 @@ Vector<Rule> Parser::parse_a_stylesheets_contents(TokenStream<T>& input)
 CSSStyleSheet* Parser::parse_as_css_stylesheet(Optional<URL::URL> location)
 {
     // To parse a CSS stylesheet, first parse a stylesheet.
-    auto style_sheet = parse_a_stylesheet(m_token_stream, {});
+    auto const& style_sheet = parse_a_stylesheet(m_token_stream, {});
 
     // Interpret all of the resulting top-level qualified rules as style rules, defined below.
     JS::MarkedVector<CSSRule*> rules(m_context.realm().heap());
@@ -672,7 +673,7 @@ Vector<RuleOrListOfDeclarations> Parser::consume_a_blocks_contents(TokenStream<T
 }
 
 template<>
-ComponentValue Parser::consume_a_component_value(TokenStream<ComponentValue>& tokens)
+ComponentValue Parser::consume_a_component_value<ComponentValue>(TokenStream<ComponentValue>& tokens)
 {
     // Note: This overload is called once tokens have already been converted into component values,
     //       so we do not need to do the work in the more general overload.
@@ -791,7 +792,7 @@ SimpleBlock Parser::consume_a_simple_block(TokenStream<T>& input)
         // anything else
         {
             // Consume a component value from input and append the result to block’s value.
-            block.value.empend(consume_a_component_value(input));
+            block.value.empend(move(consume_a_component_value(input)));
         }
     }
 }
@@ -1130,7 +1131,7 @@ Optional<ComponentValue> Parser::parse_a_component_value(TokenStream<T>& input)
 
     // 6. If input is empty, return value. Otherwise, return a syntax error.
     if (input.is_empty())
-        return value;
+        return move(value);
     // FIXME: Syntax error
     return {};
 }
@@ -1468,7 +1469,7 @@ RefPtr<CSSStyleValue> Parser::parse_basic_shape_value(TokenStream<ComponentValue
             return nullptr;
 
         Optional<Gfx::WindingRule> fill_rule;
-        auto first_argument = arguments[0];
+        auto const& first_argument = arguments[0];
         TokenStream first_argument_tokens { first_argument };
 
         first_argument_tokens.discard_whitespace();
@@ -1536,6 +1537,7 @@ bool Parser::is_valid_in_the_current_context(QualifiedRule&)
     // FIXME: Implement this check
     return true;
 }
+
 Parser::PropertiesAndCustomProperties Parser::extract_properties(Vector<RuleOrListOfDeclarations> const& rules_and_lists_of_declarations)
 {
     PropertiesAndCustomProperties result;
@@ -1645,7 +1647,7 @@ RefPtr<CustomIdentStyleValue> Parser::parse_custom_ident_value(TokenStream<Compo
     auto transaction = tokens.begin_transaction();
     tokens.discard_whitespace();
 
-    auto token = tokens.consume_a_token();
+    auto const& token = tokens.consume_a_token();
     if (!token.is(Token::Type::Ident))
         return nullptr;
     auto custom_ident = token.token().ident();
@@ -2050,7 +2052,7 @@ Optional<Ratio> Parser::parse_ratio(TokenStream<ComponentValue>& tokens)
     {
         auto two_value_transaction = tokens.begin_transaction();
         tokens.discard_whitespace();
-        auto solidus = tokens.consume_a_token();
+        auto const& solidus = tokens.consume_a_token();
         tokens.discard_whitespace();
         auto maybe_denominator = read_number_value(tokens.consume_a_token());
 
@@ -2359,7 +2361,7 @@ RefPtr<CSSStyleValue> Parser::parse_dimension_value(TokenStream<ComponentValue>&
 
 RefPtr<CSSStyleValue> Parser::parse_integer_value(TokenStream<ComponentValue>& tokens)
 {
-    auto peek_token = tokens.next_token();
+    auto const& peek_token = tokens.next_token();
     if (peek_token.is(Token::Type::Number) && peek_token.token().number().is_integer()) {
         tokens.discard_a_token(); // integer
         return IntegerStyleValue::create(peek_token.token().number().integer_value());
@@ -2374,7 +2376,7 @@ RefPtr<CSSStyleValue> Parser::parse_integer_value(TokenStream<ComponentValue>& t
 
 RefPtr<CSSStyleValue> Parser::parse_number_value(TokenStream<ComponentValue>& tokens)
 {
-    auto peek_token = tokens.next_token();
+    auto const& peek_token = tokens.next_token();
     if (peek_token.is(Token::Type::Number)) {
         tokens.discard_a_token(); // number
         return NumberStyleValue::create(peek_token.token().number().value());
@@ -2390,7 +2392,7 @@ RefPtr<CSSStyleValue> Parser::parse_number_value(TokenStream<ComponentValue>& to
 RefPtr<CSSStyleValue> Parser::parse_number_percentage_value(TokenStream<ComponentValue>& tokens)
 {
     // Parses [<percentage> | <number>] (which is equivalent to [<alpha-value>])
-    auto peek_token = tokens.next_token();
+    auto const& peek_token = tokens.next_token();
     if (peek_token.is(Token::Type::Number)) {
         tokens.discard_a_token(); // number
         return NumberStyleValue::create(peek_token.token().number().value());
@@ -2436,7 +2438,7 @@ RefPtr<CSSStyleValue> Parser::parse_number_percentage_none_value(TokenStream<Com
 
 RefPtr<CSSStyleValue> Parser::parse_percentage_value(TokenStream<ComponentValue>& tokens)
 {
-    auto peek_token = tokens.next_token();
+    auto const& peek_token = tokens.next_token();
     if (peek_token.is(Token::Type::Percentage)) {
         tokens.discard_a_token(); // percentage
         return PercentageStyleValue::create(Percentage(peek_token.token().percentage()));
@@ -2581,7 +2583,7 @@ RefPtr<CSSStyleValue> Parser::parse_time_percentage_value(TokenStream<ComponentV
 
 RefPtr<CSSStyleValue> Parser::parse_keyword_value(TokenStream<ComponentValue>& tokens)
 {
-    auto peek_token = tokens.next_token();
+    auto const& peek_token = tokens.next_token();
     if (peek_token.is(Token::Type::Ident)) {
         auto keyword = keyword_from_string(peek_token.token().ident());
         if (keyword.has_value()) {
@@ -2597,7 +2599,7 @@ RefPtr<CSSStyleValue> Parser::parse_keyword_value(TokenStream<ComponentValue>& t
 RefPtr<CSSStyleValue> Parser::parse_rect_value(TokenStream<ComponentValue>& tokens)
 {
     auto transaction = tokens.begin_transaction();
-    auto function_token = tokens.consume_a_token();
+    auto const& function_token = tokens.consume_a_token();
     if (!function_token.is_function("rect"sv))
         return nullptr;
 
@@ -3207,7 +3209,7 @@ RefPtr<CSSStyleValue> Parser::parse_color_function(TokenStream<ComponentValue>& 
     auto inner_tokens = TokenStream { function_token.function().value };
     inner_tokens.discard_whitespace();
 
-    auto maybe_color_space = inner_tokens.consume_a_token();
+    auto const& maybe_color_space = inner_tokens.consume_a_token();
     inner_tokens.discard_whitespace();
     if (!any_of(CSSColor::s_supported_color_space, [&](auto supported) { return maybe_color_space.is_ident(supported); }))
         return {};
@@ -3281,7 +3283,7 @@ RefPtr<CSSStyleValue> Parser::parse_color_value(TokenStream<ComponentValue>& tok
 
     auto transaction = tokens.begin_transaction();
     tokens.discard_whitespace();
-    auto component_value = tokens.consume_a_token();
+    auto const& component_value = tokens.consume_a_token();
 
     if (component_value.is(Token::Type::Ident)) {
         auto ident = component_value.token().ident();
@@ -3414,7 +3416,7 @@ RefPtr<CSSStyleValue> Parser::parse_counter_value(TokenStream<ComponentValue>& t
     };
 
     auto transaction = tokens.begin_transaction();
-    auto token = tokens.consume_a_token();
+    auto const& token = tokens.consume_a_token();
     if (token.is_function("counter"sv)) {
         // counter() = counter( <counter-name>, <counter-style>? )
         auto& function = token.function();
@@ -3547,7 +3549,7 @@ RefPtr<CSSStyleValue> Parser::parse_ratio_value(TokenStream<ComponentValue>& tok
 
 RefPtr<StringStyleValue> Parser::parse_string_value(TokenStream<ComponentValue>& tokens)
 {
-    auto peek = tokens.next_token();
+    auto const& peek = tokens.next_token();
     if (peek.is(Token::Type::String)) {
         tokens.discard_a_token();
         return StringStyleValue::create(peek.token().string());
@@ -4822,9 +4824,9 @@ RefPtr<CSSStyleValue> Parser::parse_rotate_value(TokenStream<ComponentValue>& to
             return RotationStyleValue::create(angle.release_nonnull(), NumberStyleValue::create(0), NumberStyleValue::create(0), NumberStyleValue::create(1));
     }
 
-    auto parse_one_of_xyz = [&]() -> Optional<ComponentValue> {
+    auto parse_one_of_xyz = [&]() -> Optional<ComponentValue const&> {
         auto transaction = tokens.begin_transaction();
-        auto axis = tokens.consume_a_token();
+        auto const& axis = tokens.consume_a_token();
 
         if (axis.is_ident("x"sv) || axis.is_ident("y"sv) || axis.is_ident("z"sv)) {
             transaction.commit();
@@ -5180,7 +5182,7 @@ RefPtr<CSSStyleValue> Parser::parse_filter_value_list_value(TokenStream<Componen
         return {};
     };
 
-    auto parse_filter_function = [&](auto filter_token, auto function_values) -> Optional<FilterFunction> {
+    auto parse_filter_function = [&](auto filter_token, auto const& function_values) -> Optional<FilterFunction> {
         TokenStream tokens { function_values };
         tokens.discard_whitespace();
 
@@ -5823,7 +5825,7 @@ Vector<ParsedFontFace::Source> Parser::parse_font_face_src(TokenStream<T>& compo
                 continue;
             }
 
-            auto maybe_function = source_tokens.consume_a_token();
+            auto const& maybe_function = source_tokens.consume_a_token();
             if (!maybe_function.is_function()) {
                 dbgln_if(CSS_PARSER_DEBUG, "CSSParser: @font-face src invalid (token after `url()` that isn't a function: {}); discarding.", maybe_function.to_debug_string());
                 return {};
@@ -5894,7 +5896,7 @@ RefPtr<CSSStyleValue> Parser::parse_list_style_value(TokenStream<ComponentValue>
 
     auto transaction = tokens.begin_transaction();
     while (tokens.has_next_token()) {
-        if (auto peek = tokens.next_token(); peek.is_ident("none"sv)) {
+        if (auto const& peek = tokens.next_token(); peek.is_ident("none"sv)) {
             tokens.discard_a_token();
             found_nones++;
             continue;
@@ -5966,7 +5968,7 @@ RefPtr<CSSStyleValue> Parser::parse_math_depth_value(TokenStream<ComponentValue>
     // auto-add | add(<integer>) | <integer>
     auto transaction = tokens.begin_transaction();
 
-    auto token = tokens.consume_a_token();
+    auto const& token = tokens.consume_a_token();
     if (tokens.has_next_token())
         return nullptr;
 
@@ -5977,7 +5979,7 @@ RefPtr<CSSStyleValue> Parser::parse_math_depth_value(TokenStream<ComponentValue>
     }
 
     // FIXME: Make it easier to parse "thing that might be <bar> or literally anything that resolves to it" and get rid of this
-    auto parse_something_that_resolves_to_integer = [this](ComponentValue& token) -> RefPtr<CSSStyleValue> {
+    auto parse_something_that_resolves_to_integer = [this](ComponentValue const& token) -> RefPtr<CSSStyleValue> {
         if (token.is(Token::Type::Number) && token.token().number().is_integer())
             return IntegerStyleValue::create(token.token().to_integer());
         if (auto value = parse_calculated_value(token); value && value->resolves_to_number())
@@ -5989,7 +5991,7 @@ RefPtr<CSSStyleValue> Parser::parse_math_depth_value(TokenStream<ComponentValue>
     if (token.is_function("add"sv)) {
         auto add_tokens = TokenStream { token.function().value };
         add_tokens.discard_whitespace();
-        auto integer_token = add_tokens.consume_a_token();
+        auto const& integer_token = add_tokens.consume_a_token();
         add_tokens.discard_whitespace();
         if (add_tokens.has_next_token())
             return nullptr;
@@ -6349,7 +6351,7 @@ RefPtr<CSSStyleValue> Parser::parse_easing_value(TokenStream<ComponentValue>& to
 
         EasingStyleValue::Steps steps;
 
-        auto intervals_argument = comma_separated_arguments[0][0];
+        auto const& intervals_argument = comma_separated_arguments[0][0];
         if (!intervals_argument.is(Token::Type::Number))
             return nullptr;
         if (!intervals_argument.token().number().is_integer())
@@ -6807,7 +6809,7 @@ Optional<CSS::GridMinMax> Parser::parse_min_max(Vector<ComponentValue> const& co
     part_one_tokens.discard_whitespace();
     if (!part_one_tokens.has_next_token())
         return {};
-    auto current_token = part_one_tokens.consume_a_token();
+    NonnullRawPtr<ComponentValue const> current_token = part_one_tokens.consume_a_token();
     auto min_grid_size = parse_grid_size(current_token);
 
     TokenStream part_two_tokens { comma_separated_list[1] };
@@ -6863,7 +6865,7 @@ Optional<CSS::GridRepeat> Parser::parse_repeat(Vector<ComponentValue> const& com
     Vector<Variant<ExplicitGridTrack, GridLineNames>> repeat_params;
     auto last_object_was_line_names = false;
     while (part_two_tokens.has_next_token()) {
-        auto token = part_two_tokens.consume_a_token();
+        auto const& token = part_two_tokens.consume_a_token();
         Vector<String> line_names;
         if (token.is_block()) {
             if (last_object_was_line_names)
@@ -6873,7 +6875,7 @@ Optional<CSS::GridRepeat> Parser::parse_repeat(Vector<ComponentValue> const& com
                 return {};
             TokenStream block_tokens { token.block().value };
             while (block_tokens.has_next_token()) {
-                auto current_block_token = block_tokens.consume_a_token();
+                auto const& current_block_token = block_tokens.consume_a_token();
                 line_names.append(current_block_token.token().ident().to_string());
                 block_tokens.discard_whitespace();
             }
@@ -6979,7 +6981,7 @@ RefPtr<CSSStyleValue> Parser::parse_grid_track_size_list(TokenStream<ComponentVa
     Vector<Variant<ExplicitGridTrack, GridLineNames>> track_list;
     auto last_object_was_line_names = false;
     while (tokens.has_next_token()) {
-        auto token = tokens.consume_a_token();
+        auto const& token = tokens.consume_a_token();
         if (token.is_block()) {
             if (last_object_was_line_names && !allow_separate_line_name_blocks) {
                 transaction.commit();
@@ -6994,7 +6996,7 @@ RefPtr<CSSStyleValue> Parser::parse_grid_track_size_list(TokenStream<ComponentVa
             TokenStream block_tokens { token.block().value };
             block_tokens.discard_whitespace();
             while (block_tokens.has_next_token()) {
-                auto current_block_token = block_tokens.consume_a_token();
+                auto const& current_block_token = block_tokens.consume_a_token();
                 line_names.append(current_block_token.token().ident().to_string());
                 block_tokens.discard_whitespace();
             }
@@ -7027,7 +7029,7 @@ RefPtr<GridAutoFlowStyleValue> Parser::parse_grid_auto_flow_value(TokenStream<Co
 
     auto parse_axis = [&]() -> Optional<GridAutoFlowStyleValue::Axis> {
         auto transaction = tokens.begin_transaction();
-        auto token = tokens.consume_a_token();
+        auto const& token = tokens.consume_a_token();
         if (!token.is(Token::Type::Ident))
             return {};
         auto const& ident = token.token().ident();
@@ -7043,7 +7045,7 @@ RefPtr<GridAutoFlowStyleValue> Parser::parse_grid_auto_flow_value(TokenStream<Co
 
     auto parse_dense = [&]() -> Optional<GridAutoFlowStyleValue::Dense> {
         auto transaction = tokens.begin_transaction();
-        auto token = tokens.consume_a_token();
+        auto const& token = tokens.consume_a_token();
         if (!token.is(Token::Type::Ident))
             return {};
         auto const& ident = token.token().ident();
@@ -7080,7 +7082,7 @@ RefPtr<CSSStyleValue> Parser::parse_scrollbar_gutter_value(TokenStream<Component
 
     auto parse_stable = [&]() -> Optional<bool> {
         auto transaction = tokens.begin_transaction();
-        auto token = tokens.consume_a_token();
+        auto const& token = tokens.consume_a_token();
         if (!token.is(Token::Type::Ident))
             return {};
         auto const& ident = token.token().ident();
@@ -7096,7 +7098,7 @@ RefPtr<CSSStyleValue> Parser::parse_scrollbar_gutter_value(TokenStream<Component
 
     auto parse_both_edges = [&]() -> Optional<bool> {
         auto transaction = tokens.begin_transaction();
-        auto token = tokens.consume_a_token();
+        auto const& token = tokens.consume_a_token();
         if (!token.is(Token::Type::Ident))
             return {};
         auto const& ident = token.token().ident();
@@ -7140,7 +7142,7 @@ RefPtr<CSSStyleValue> Parser::parse_grid_auto_track_sizes(TokenStream<ComponentV
     Vector<Variant<ExplicitGridTrack, GridLineNames>> track_list;
     auto transaction = tokens.begin_transaction();
     while (tokens.has_next_token()) {
-        auto token = tokens.consume_a_token();
+        auto const& token = tokens.consume_a_token();
         auto track_sizing_function = parse_track_sizing_function(token);
         if (!track_sizing_function.has_value()) {
             transaction.commit();
@@ -7187,7 +7189,7 @@ RefPtr<GridTrackPlacementStyleValue> Parser::parse_grid_track_placement(TokenStr
             transaction.commit();
             return GridTrackPlacementStyleValue::create(GridTrackPlacement::make_line({}, custom_ident->custom_ident().to_string()));
         }
-        auto& token = tokens.consume_a_token();
+        auto const& token = tokens.consume_a_token();
         if (auto maybe_calculated = parse_calculated_value(token); maybe_calculated && maybe_calculated->resolves_to_number()) {
             transaction.commit();
             return GridTrackPlacementStyleValue::create(GridTrackPlacement::make_line(static_cast<int>(maybe_calculated->resolve_integer().value()), {}));
@@ -7211,7 +7213,7 @@ RefPtr<GridTrackPlacementStyleValue> Parser::parse_grid_track_placement(TokenStr
     auto span_or_position_value = 0;
     String identifier_value;
     while (tokens.has_next_token()) {
-        auto& token = tokens.next_token();
+        auto const& token = tokens.next_token();
         if (token.is_ident("auto"sv))
             return nullptr;
         if (token.is_ident("span"sv)) {
@@ -7256,11 +7258,11 @@ RefPtr<CSSStyleValue> Parser::parse_grid_track_placement_shorthand_value(Propert
     auto end_property = (property_id == PropertyID::GridColumn) ? PropertyID::GridColumnEnd : PropertyID::GridRowEnd;
 
     auto transaction = tokens.begin_transaction();
-    auto current_token = tokens.consume_a_token();
+    NonnullRawPtr<ComponentValue const> current_token = tokens.consume_a_token();
 
     Vector<ComponentValue> track_start_placement_tokens;
     while (true) {
-        if (current_token.is_delim('/'))
+        if (current_token->is_delim('/'))
             break;
         track_start_placement_tokens.append(current_token);
         if (!tokens.has_next_token())
@@ -8021,7 +8023,7 @@ Optional<Parser::PropertyAndValue> Parser::parse_css_value_for_properties(Readon
     if (property_accepts_dimension) {
         if (peek_token.is(Token::Type::Number) && m_context.is_parsing_svg_presentation_attribute()) {
             auto transaction = tokens.begin_transaction();
-            auto token = tokens.consume_a_token();
+            auto const& token = tokens.consume_a_token();
             // https://svgwg.org/svg2-draft/types.html#presentation-attribute-css-value
             // We need to allow <number> in any place that expects a <length> or <angle>.
             // FIXME: How should these numbers be interpreted? https://github.com/w3c/svgwg/issues/792
@@ -8292,7 +8294,7 @@ OwnPtr<CalculationNode> Parser::parse_a_calculation(Vector<ComponentValue> const
     };
     using Value = Variant<NonnullOwnPtr<CalculationNode>, Operator>;
     Vector<Value> values;
-    for (auto& value : original_values) {
+    for (auto const& value : original_values) {
         if (value.is(Token::Type::Whitespace))
             continue;
         if (value.is(Token::Type::Delim)) {
@@ -8422,7 +8424,7 @@ OwnPtr<CalculationNode> Parser::parse_a_calculation(Vector<ComponentValue> const
             values.first().visit(
                 [&](ComponentValue& component_value) {
                     if (component_value.is_block() && component_value.block().is_paren())
-                        single_value = UnparsedCalculationNode::create(component_value);
+                        single_value = UnparsedCalculationNode::create(move(component_value));
                 },
                 [&](NonnullOwnPtr<CalculationNode>& node) {
                     if (node->type() == CalculationNode::Type::Product)
@@ -8624,7 +8626,7 @@ bool Parser::expand_variables(DOM::Element& element, Optional<Selector::PseudoEl
             continue;
         }
         if (!value.is_function()) {
-            dest.empend(value);
+            dest.empend(value.token());
             continue;
         }
         if (!value.function().name.equals_ignoring_ascii_case("var"sv)) {
