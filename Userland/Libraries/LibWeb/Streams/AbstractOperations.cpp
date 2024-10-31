@@ -1411,7 +1411,7 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<ReadableStream>> readable_stream_from_itera
         // 4. Return the result of reacting to nextPromise with the following fulfillment steps, given iterResult:
         auto react_result = WebIDL::react_to_promise(*next_promise,
             JS::create_heap_function(realm.heap(), [&vm, stream](JS::Value iter_result) -> WebIDL::ExceptionOr<JS::Value> {
-                // 1. If Type(iterResult) is not Object, throw a TypeError.
+                // 1. If iterResult is not an Object, throw a TypeError.
                 if (!iter_result.is_object())
                     return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "iterResult is not an Object"sv };
 
@@ -1468,7 +1468,7 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<ReadableStream>> readable_stream_from_itera
         // 8. Return the result of reacting to returnPromise with the following fulfillment steps, given iterResult:
         auto react_result = WebIDL::react_to_promise(*return_promise,
             JS::create_heap_function(realm.heap(), [](JS::Value iter_result) -> WebIDL::ExceptionOr<JS::Value> {
-                // 1. If Type(iterResult) is not Object, throw a TypeError.
+                // 1. If iterResult is not an Object, throw a TypeError.
                 if (!iter_result.is_object())
                     return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "iterResult is not an Object"sv };
 
@@ -5328,7 +5328,7 @@ void transform_stream_unblock_write(TransformStream& stream)
 // https://streams.spec.whatwg.org/#is-non-negative-number
 bool is_non_negative_number(JS::Value value)
 {
-    // 1. If Type(v) is not Number, return false.
+    // 1. If v is not a Number, return false.
     if (!value.is_number())
         return false;
 
@@ -5347,7 +5347,7 @@ bool is_non_negative_number(JS::Value value)
 // https://streams.spec.whatwg.org/#can-transfer-array-buffer
 bool can_transfer_array_buffer(JS::ArrayBuffer const& array_buffer)
 {
-    // 1. Assert: Type(O) is Object.
+    // 1. Assert: O is an Object.
     // 2. Assert: O has an [[ArrayBufferData]] internal slot.
 
     // 3. If ! IsDetachedBuffer(O) is true, return false.
@@ -5367,7 +5367,7 @@ WebIDL::ExceptionOr<JS::Value> clone_as_uint8_array(JS::Realm& realm, WebIDL::Ar
 {
     auto& vm = realm.vm();
 
-    // 1. Assert: Type(O) is Object.
+    // 1. Assert: O is an Object.
     // 2. Assert: O has an [[ViewedArrayBuffer]] internal slot.
 
     // 3. Assert: ! IsDetachedBuffer(O.[[ViewedArrayBuffer]]) is false.

@@ -229,7 +229,7 @@ struct SerializeBitmapResult {
 static ErrorOr<SerializeBitmapResult> serialize_bitmap(Gfx::Bitmap const& bitmap, StringView type, Optional<double> quality)
 {
     // If type is an image format that supports variable quality (such as "image/jpeg"), quality is given, and type is not "image/png", then,
-    // if Type(quality) is Number, and quality is in the range 0.0 to 1.0 inclusive, the user agent must treat quality as the desired quality level.
+    // if quality is a Number in the range 0.0 to 1.0 inclusive, the user agent must treat quality as the desired quality level.
     // Otherwise, the user agent must use its default quality value, as if the quality argument had not been given.
     if (quality.has_value() && !(*quality >= 0.0 && *quality <= 1.0))
         quality = OptionalNone {};
