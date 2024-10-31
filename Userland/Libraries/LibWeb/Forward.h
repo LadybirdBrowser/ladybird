@@ -13,9 +13,9 @@
 #include <LibJS/Forward.h>
 
 namespace Web {
-class InputEventsTarget;
 class DragAndDropEventHandler;
 class EventHandler;
+class InputEventsTarget;
 class LoadRequest;
 class Page;
 class PageClient;
@@ -267,10 +267,10 @@ class DocumentType;
 class DOMEventListener;
 class DOMImplementation;
 class DOMTokenList;
+class EditingHostManager;
 class Element;
 class Event;
 class EventHandler;
-class EditingHostManager;
 class EventTarget;
 class HTMLCollection;
 class HTMLFormControlsCollection;
