@@ -540,8 +540,9 @@ Variant<Empty, QualifiedRule, Parser::InvalidRuleError> Parser::consume_a_qualif
                 rule.declarations = move(first.get<Vector<Declaration>>());
             }
 
-            // FIXME: If any remaining items of child rules are lists of declarations, replace them with nested declarations rules
-            //        containing the list as its sole child. Assign child rules to rule’s child rules.
+            // If any remaining items of child rules are lists of declarations, replace them with nested declarations rules
+            // containing the list as its sole child. Assign child rules to rule’s child rules.
+            // NOTE: We do this later, when converting the QualifiedRule to a CSSRule type.
 
             // If rule is valid in the current context, return it; otherwise return an invalid rule error.
             if (is_valid_in_the_current_context(rule))
