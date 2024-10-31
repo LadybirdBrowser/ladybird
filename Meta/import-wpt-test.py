@@ -4,6 +4,7 @@ import os
 import sys
 from pathlib import Path
 from bs4 import BeautifulSoup
+from urllib.parse import urljoin
 from urllib.request import urlopen
 from collections import namedtuple
 
@@ -81,23 +82,26 @@ def download_files(filepaths):
     downloaded_files = []
 
     for file in filepaths:
-        if (file.destination.exists()):
-            print(f"Skipping {file.destination} as it already exists")
+        source = urljoin(file.source, "/".join(file.source.split('/')[3:]))
+        destination = Path(file.destination).absolute()
+
+        if destination.exists():
+            print(f"Skipping {destination} as it already exists")
             continue
 
-        print(f"Downloading {file.source} to {file.destination}")
+        print(f"Downloading {source} to {destination}")
 
-        connection = urlopen(file.source)
+        connection = urlopen(source)
         if connection.status != 200:
             print(f"Failed to download {file.source}")
             continue
 
-        os.makedirs(file.destination.parent, exist_ok=True)
+        os.makedirs(destination.parent, exist_ok=True)
 
-        with open(file.destination, 'wb') as f:
+        with open(destination, 'wb') as f:
             f.write(connection.read())
 
-            downloaded_files.append(file.destination)
+            downloaded_files.append(destination)
 
     return downloaded_files
 
