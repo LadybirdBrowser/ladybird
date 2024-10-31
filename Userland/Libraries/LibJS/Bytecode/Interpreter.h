@@ -77,6 +77,11 @@ public:
     Executable& current_executable() { return *m_current_executable; }
     Executable const& current_executable() const { return *m_current_executable; }
     Optional<size_t> program_counter() const { return m_program_counter; }
+    Span<Value> allocate_argument_values(size_t argument_count)
+    {
+        m_argument_values_buffer.resize_and_keep_capacity(argument_count);
+        return m_argument_values_buffer.span();
+    }
 
     ExecutionContext& running_execution_context() { return *m_running_execution_context; }
 
@@ -98,6 +103,7 @@ private:
     Optional<size_t&> m_program_counter;
     Span<Value> m_arguments;
     Span<Value> m_registers_and_constants_and_locals;
+    Vector<Value> m_argument_values_buffer;
     ExecutionContext* m_running_execution_context { nullptr };
 };
 
