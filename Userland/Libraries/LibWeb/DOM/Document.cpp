@@ -1144,7 +1144,7 @@ void Document::update_layout()
 
     // NOTE: If our parent document needs a relayout, we must do that *first*.
     //       This is necessary as the parent layout may cause our viewport to change.
-    if (navigable->container())
+    if (navigable->container() && &navigable->container()->document() != this)
         navigable->container()->document().update_layout();
 
     update_style();
