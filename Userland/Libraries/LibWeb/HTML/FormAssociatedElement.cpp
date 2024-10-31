@@ -757,16 +757,6 @@ void FormAssociatedTextControlElement::decrement_cursor_position_offset(Collapse
     selection_was_changed();
 }
 
-static bool should_continue_beyond_word(Utf8View const& word)
-{
-    for (auto code_point : word) {
-        if (!Unicode::code_point_has_punctuation_general_category(code_point) && !Unicode::code_point_has_separator_general_category(code_point))
-            return false;
-    }
-
-    return true;
-}
-
 void FormAssociatedTextControlElement::increment_cursor_position_to_next_word(CollapseSelection collapse)
 {
     auto const text_node = form_associated_element_to_text_node();
@@ -781,7 +771,7 @@ void FormAssociatedTextControlElement::increment_cursor_position_to_next_word(Co
             } else {
                 m_selection_end = *offset;
             }
-            if (should_continue_beyond_word(word))
+            if (Unicode::Segmenter::should_continue_beyond_word(word))
                 continue;
         }
         break;
@@ -804,7 +794,7 @@ void FormAssociatedTextControlElement::decrement_cursor_position_to_previous_wor
             } else {
                 m_selection_end = *offset;
             }
-            if (should_continue_beyond_word(word))
+            if (Unicode::Segmenter::should_continue_beyond_word(word))
                 continue;
         }
         break;
