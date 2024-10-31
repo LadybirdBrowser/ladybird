@@ -1,19 +1,19 @@
 /*
- * Copyright (c) 2022, Tim Flynn <trflynn89@serenityos.org>
+ * Copyright (c) 2022-2024, Tim Flynn <trflynn89@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
 #pragma once
 
-#include <AK/Function.h>
-#include <LibGfx/Forward.h>
+#include <LibGfx/Rect.h>
+#include <LibJS/Heap/GCPtr.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/WebDriver/Response.h>
 
 namespace Web::WebDriver {
 
-using Painter = Function<void(Gfx::IntRect const&, Gfx::Bitmap&)>;
-Response capture_element_screenshot(Painter const& painter, Page& page, DOM::Element& element, Gfx::IntRect& rect);
+ErrorOr<JS::NonnullGCPtr<HTML::HTMLCanvasElement>, WebDriver::Error> draw_bounding_box_from_the_framebuffer(HTML::BrowsingContext&, DOM::Element&, Gfx::IntRect);
+Response encode_canvas_element(HTML::HTMLCanvasElement&);
 
 }

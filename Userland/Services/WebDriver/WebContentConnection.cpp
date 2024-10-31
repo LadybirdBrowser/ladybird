@@ -56,4 +56,10 @@ void WebContentConnection::dialog_closed(Web::WebDriver::Response const& respons
         on_dialog_closed(response);
 }
 
+void WebContentConnection::screenshot_taken(Web::WebDriver::Response const& response)
+{
+    if (on_screenshot_taken)
+        on_screenshot_taken(response);
+}
+
 }

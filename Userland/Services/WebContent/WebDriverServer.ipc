@@ -7,4 +7,5 @@ endpoint WebDriverServer {
     script_executed(Web::WebDriver::Response response) =|
     actions_performed(Web::WebDriver::Response response) =|
     dialog_closed(Web::WebDriver::Response response) =|
+    screenshot_taken(Web::WebDriver::Response response) =|
 }

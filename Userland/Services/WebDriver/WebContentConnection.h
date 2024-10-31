@@ -28,6 +28,7 @@ public:
     Function<void(Web::WebDriver::Response)> on_script_executed;
     Function<void(Web::WebDriver::Response)> on_actions_performed;
     Function<void(Web::WebDriver::Response)> on_dialog_closed;
+    Function<void(Web::WebDriver::Response)> on_screenshot_taken;
 
 private:
     virtual void die() override;
@@ -38,6 +39,7 @@ private:
     virtual void script_executed(Web::WebDriver::Response const&) override;
     virtual void actions_performed(Web::WebDriver::Response const&) override;
     virtual void dialog_closed(Web::WebDriver::Response const&) override;
+    virtual void screenshot_taken(Web::WebDriver::Response const&) override;
 };
 
 }
