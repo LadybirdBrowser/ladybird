@@ -1712,9 +1712,11 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> CallExpression::generat
 
     Optional<ScopedOperand> original_callee;
     auto this_value = generator.add_constant(js_undefined());
+    Bytecode::Op::CallType call_type = Bytecode::Op::CallType::Call;
 
     if (is<NewExpression>(this)) {
         original_callee = TRY(m_callee->generate_bytecode(generator)).value();
+        call_type = Bytecode::Op::CallType::Construct;
     } else if (is<MemberExpression>(*m_callee)) {
         auto& member_expression = static_cast<MemberExpression const&>(*m_callee);
         auto base_and_value = TRY(get_base_and_value_from_member_expression(generator, member_expression));
@@ -1733,6 +1735,9 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> CallExpression::generat
         // NOTE: If the identifier refers to a known "local" or "global", we know it can't be
         //       a `with` binding, so we can skip this.
         auto& identifier = static_cast<Identifier const&>(*m_callee);
+        if (identifier.string() == "eval"sv) {
+            call_type = Bytecode::Op::CallType::DirectEval;
+        }
         if (identifier.is_local()) {
             auto local = generator.local(identifier.local_variable_index());
             if (!generator.is_local_initialized(local.operand().index())) {
@@ -1758,15 +1763,6 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> CallExpression::generat
     //       to avoid overwriting it while evaluating arguments.
     auto callee = generator.copy_if_needed_to_preserve_evaluation_order(original_callee.value());
 
-    Bytecode::Op::CallType call_type;
-    if (is<NewExpression>(*this)) {
-        call_type = Bytecode::Op::CallType::Construct;
-    } else if (m_callee->is_identifier() && static_cast<Identifier const&>(*m_callee).string() == "eval"sv) {
-        call_type = Bytecode::Op::CallType::DirectEval;
-    } else {
-        call_type = Bytecode::Op::CallType::Call;
-    }
-
     Optional<Bytecode::StringTableIndex> expression_string_index;
     if (auto expression_string = this->expression_string(); expression_string.has_value())
         expression_string_index = generator.intern_string(expression_string.release_value());
@@ -1784,15 +1780,41 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> CallExpression::generat
             auto argument_value = TRY(argument.value->generate_bytecode(generator)).value();
             argument_operands.append(generator.copy_if_needed_to_preserve_evaluation_order(argument_value));
         }
-        generator.emit_with_extra_operand_slots<Bytecode::Op::Call>(
-            argument_operands.size(),
-            call_type,
-            dst,
-            callee,
-            this_value,
-            argument_operands,
-            expression_string_index,
-            builtin);
+        if (builtin.has_value()) {
+            VERIFY(call_type == Op::CallType::Call);
+            generator.emit_with_extra_operand_slots<Bytecode::Op::CallBuiltin>(
+                argument_operands.size(),
+                dst,
+                callee,
+                this_value,
+                argument_operands,
+                builtin.value(),
+                expression_string_index);
+        } else if (call_type == Op::CallType::Construct) {
+            generator.emit_with_extra_operand_slots<Bytecode::Op::CallConstruct>(
+                argument_operands.size(),
+                dst,
+                callee,
+                this_value,
+                argument_operands,
+                expression_string_index);
+        } else if (call_type == Op::CallType::DirectEval) {
+            generator.emit_with_extra_operand_slots<Bytecode::Op::CallDirectEval>(
+                argument_operands.size(),
+                dst,
+                callee,
+                this_value,
+                argument_operands,
+                expression_string_index);
+        } else {
+            generator.emit_with_extra_operand_slots<Bytecode::Op::Call>(
+                argument_operands.size(),
+                dst,
+                callee,
+                this_value,
+                argument_operands,
+                expression_string_index);
+        }
     }
 
     return dst;

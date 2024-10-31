@@ -1726,14 +1726,12 @@ class Call final : public Instruction {
 public:
     static constexpr bool IsVariableLength = true;
 
-    Call(CallType type, Operand dst, Operand callee, Operand this_value, ReadonlySpan<ScopedOperand> arguments, Optional<StringTableIndex> expression_string = {}, Optional<Builtin> builtin = {})
+    Call(Operand dst, Operand callee, Operand this_value, ReadonlySpan<ScopedOperand> arguments, Optional<StringTableIndex> expression_string = {})
         : Instruction(Type::Call)
         , m_dst(dst)
         , m_callee(callee)
         , m_this_value(this_value)
         , m_argument_count(arguments.size())
-        , m_type(type)
-        , m_builtin(builtin)
         , m_expression_string(expression_string)
     {
         for (size_t i = 0; i < arguments.size(); ++i)
@@ -1745,15 +1743,12 @@ public:
         return round_up_to_power_of_two(alignof(void*), sizeof(*this) + sizeof(Operand) * m_argument_count);
     }
 
-    CallType call_type() const { return m_type; }
     Operand dst() const { return m_dst; }
     Operand callee() const { return m_callee; }
     Operand this_value() const { return m_this_value; }
     Optional<StringTableIndex> const& expression_string() const { return m_expression_string; }
 
     u32 argument_count() const { return m_argument_count; }
-
-    Optional<Builtin> const& builtin() const { return m_builtin; }
 
     ThrowCompletionOr<void> execute_impl(Bytecode::Interpreter&) const;
     ByteString to_byte_string_impl(Bytecode::Executable const&) const;
@@ -1771,8 +1766,154 @@ private:
     Operand m_callee;
     Operand m_this_value;
     u32 m_argument_count { 0 };
-    CallType m_type;
-    Optional<Builtin> m_builtin;
+    Optional<StringTableIndex> m_expression_string;
+    Operand m_arguments[];
+};
+
+class CallBuiltin final : public Instruction {
+public:
+    static constexpr bool IsVariableLength = true;
+
+    CallBuiltin(Operand dst, Operand callee, Operand this_value, ReadonlySpan<ScopedOperand> arguments, Builtin builtin, Optional<StringTableIndex> expression_string = {})
+        : Instruction(Type::CallBuiltin)
+        , m_dst(dst)
+        , m_callee(callee)
+        , m_this_value(this_value)
+        , m_argument_count(arguments.size())
+        , m_builtin(builtin)
+        , m_expression_string(expression_string)
+    {
+        for (size_t i = 0; i < arguments.size(); ++i)
+            m_arguments[i] = arguments[i];
+    }
+
+    size_t length_impl() const
+    {
+        return round_up_to_power_of_two(alignof(void*), sizeof(*this) + sizeof(Operand) * m_argument_count);
+    }
+
+    Operand dst() const { return m_dst; }
+    Operand callee() const { return m_callee; }
+    Operand this_value() const { return m_this_value; }
+    Optional<StringTableIndex> const& expression_string() const { return m_expression_string; }
+
+    u32 argument_count() const { return m_argument_count; }
+
+    Builtin const& builtin() const { return m_builtin; }
+
+    ThrowCompletionOr<void> execute_impl(Bytecode::Interpreter&) const;
+    ByteString to_byte_string_impl(Bytecode::Executable const&) const;
+    void visit_operands_impl(Function<void(Operand&)> visitor)
+    {
+        visitor(m_dst);
+        visitor(m_callee);
+        visitor(m_this_value);
+        for (size_t i = 0; i < m_argument_count; i++)
+            visitor(m_arguments[i]);
+    }
+
+private:
+    Operand m_dst;
+    Operand m_callee;
+    Operand m_this_value;
+    u32 m_argument_count { 0 };
+    Builtin m_builtin;
+    Optional<StringTableIndex> m_expression_string;
+    Operand m_arguments[];
+};
+
+class CallConstruct final : public Instruction {
+public:
+    static constexpr bool IsVariableLength = true;
+
+    CallConstruct(Operand dst, Operand callee, Operand this_value, ReadonlySpan<ScopedOperand> arguments, Optional<StringTableIndex> expression_string = {})
+        : Instruction(Type::CallConstruct)
+        , m_dst(dst)
+        , m_callee(callee)
+        , m_this_value(this_value)
+        , m_argument_count(arguments.size())
+        , m_expression_string(expression_string)
+    {
+        for (size_t i = 0; i < arguments.size(); ++i)
+            m_arguments[i] = arguments[i];
+    }
+
+    size_t length_impl() const
+    {
+        return round_up_to_power_of_two(alignof(void*), sizeof(*this) + sizeof(Operand) * m_argument_count);
+    }
+
+    Operand dst() const { return m_dst; }
+    Operand callee() const { return m_callee; }
+    Operand this_value() const { return m_this_value; }
+    Optional<StringTableIndex> const& expression_string() const { return m_expression_string; }
+
+    u32 argument_count() const { return m_argument_count; }
+
+    ThrowCompletionOr<void> execute_impl(Bytecode::Interpreter&) const;
+    ByteString to_byte_string_impl(Bytecode::Executable const&) const;
+    void visit_operands_impl(Function<void(Operand&)> visitor)
+    {
+        visitor(m_dst);
+        visitor(m_callee);
+        visitor(m_this_value);
+        for (size_t i = 0; i < m_argument_count; i++)
+            visitor(m_arguments[i]);
+    }
+
+private:
+    Operand m_dst;
+    Operand m_callee;
+    Operand m_this_value;
+    u32 m_argument_count { 0 };
+    Optional<StringTableIndex> m_expression_string;
+    Operand m_arguments[];
+};
+
+class CallDirectEval final : public Instruction {
+public:
+    static constexpr bool IsVariableLength = true;
+
+    CallDirectEval(Operand dst, Operand callee, Operand this_value, ReadonlySpan<ScopedOperand> arguments, Optional<StringTableIndex> expression_string = {})
+        : Instruction(Type::CallDirectEval)
+        , m_dst(dst)
+        , m_callee(callee)
+        , m_this_value(this_value)
+        , m_argument_count(arguments.size())
+        , m_expression_string(expression_string)
+    {
+        for (size_t i = 0; i < arguments.size(); ++i)
+            m_arguments[i] = arguments[i];
+    }
+
+    size_t length_impl() const
+    {
+        return round_up_to_power_of_two(alignof(void*), sizeof(*this) + sizeof(Operand) * m_argument_count);
+    }
+
+    Operand dst() const { return m_dst; }
+    Operand callee() const { return m_callee; }
+    Operand this_value() const { return m_this_value; }
+    Optional<StringTableIndex> const& expression_string() const { return m_expression_string; }
+
+    u32 argument_count() const { return m_argument_count; }
+
+    ThrowCompletionOr<void> execute_impl(Bytecode::Interpreter&) const;
+    ByteString to_byte_string_impl(Bytecode::Executable const&) const;
+    void visit_operands_impl(Function<void(Operand&)> visitor)
+    {
+        visitor(m_dst);
+        visitor(m_callee);
+        visitor(m_this_value);
+        for (size_t i = 0; i < m_argument_count; i++)
+            visitor(m_arguments[i]);
+    }
+
+private:
+    Operand m_dst;
+    Operand m_callee;
+    Operand m_this_value;
+    u32 m_argument_count { 0 };
     Optional<StringTableIndex> m_expression_string;
     Operand m_arguments[];
 };

@@ -25,6 +25,9 @@
     O(BitwiseXor)                      \
     O(BlockDeclarationInstantiation)   \
     O(Call)                            \
+    O(CallBuiltin)                     \
+    O(CallConstruct)                   \
+    O(CallDirectEval)                  \
     O(CallWithArgumentArray)           \
     O(Catch)                           \
     O(ConcatString)                    \

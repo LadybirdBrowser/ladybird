@@ -569,6 +569,9 @@ FLATTEN_ON_CLANG void Interpreter::run_bytecode(size_t entry_point)
             HANDLE_INSTRUCTION(BitwiseXor);
             HANDLE_INSTRUCTION_WITHOUT_EXCEPTION_CHECK(BlockDeclarationInstantiation);
             HANDLE_INSTRUCTION(Call);
+            HANDLE_INSTRUCTION(CallBuiltin);
+            HANDLE_INSTRUCTION(CallConstruct);
+            HANDLE_INSTRUCTION(CallDirectEval);
             HANDLE_INSTRUCTION(CallWithArgumentArray);
             HANDLE_INSTRUCTION_WITHOUT_EXCEPTION_CHECK(Catch);
             HANDLE_INSTRUCTION(ConcatString);
@@ -2535,20 +2538,57 @@ ThrowCompletionOr<void> Call::execute_impl(Bytecode::Interpreter& interpreter) c
 {
     auto callee = interpreter.get(m_callee);
 
-    TRY(throw_if_needed_for_call(interpreter, callee, call_type(), expression_string()));
+    TRY(throw_if_needed_for_call(interpreter, callee, CallType::Call, expression_string()));
 
-    if (m_builtin.has_value()
-        && m_argument_count == Bytecode::builtin_argument_count(m_builtin.value())
-        && callee.is_object()
-        && interpreter.realm().get_builtin_value(m_builtin.value()) == &callee.as_object()) {
-        interpreter.set(dst(), TRY(dispatch_builtin_call(interpreter, m_builtin.value(), { m_arguments, m_argument_count })));
+    auto argument_values = interpreter.allocate_argument_values(m_argument_count);
+    for (size_t i = 0; i < m_argument_count; ++i)
+        argument_values[i] = interpreter.get(m_arguments[i]);
+    interpreter.set(dst(), TRY(perform_call(interpreter, interpreter.get(m_this_value), CallType::Call, callee, argument_values)));
+    return {};
+}
+
+ThrowCompletionOr<void> CallConstruct::execute_impl(Bytecode::Interpreter& interpreter) const
+{
+    auto callee = interpreter.get(m_callee);
+
+    TRY(throw_if_needed_for_call(interpreter, callee, CallType::Construct, expression_string()));
+
+    auto argument_values = interpreter.allocate_argument_values(m_argument_count);
+    for (size_t i = 0; i < m_argument_count; ++i)
+        argument_values[i] = interpreter.get(m_arguments[i]);
+    interpreter.set(dst(), TRY(perform_call(interpreter, interpreter.get(m_this_value), CallType::Construct, callee, argument_values)));
+    return {};
+}
+
+ThrowCompletionOr<void> CallDirectEval::execute_impl(Bytecode::Interpreter& interpreter) const
+{
+    auto callee = interpreter.get(m_callee);
+
+    TRY(throw_if_needed_for_call(interpreter, callee, CallType::DirectEval, expression_string()));
+
+    auto argument_values = interpreter.allocate_argument_values(m_argument_count);
+    for (size_t i = 0; i < m_argument_count; ++i)
+        argument_values[i] = interpreter.get(m_arguments[i]);
+    interpreter.set(dst(), TRY(perform_call(interpreter, interpreter.get(m_this_value), CallType::DirectEval, callee, argument_values)));
+    return {};
+}
+
+ThrowCompletionOr<void> CallBuiltin::execute_impl(Bytecode::Interpreter& interpreter) const
+{
+    auto callee = interpreter.get(m_callee);
+
+    TRY(throw_if_needed_for_call(interpreter, callee, CallType::Call, expression_string()));
+
+    if (m_argument_count == Bytecode::builtin_argument_count(m_builtin) && callee.is_object() && interpreter.realm().get_builtin_value(m_builtin) == &callee.as_object()) {
+        interpreter.set(dst(), TRY(dispatch_builtin_call(interpreter, m_builtin, { m_arguments, m_argument_count })));
+
         return {};
     }
 
     auto argument_values = interpreter.allocate_argument_values(m_argument_count);
     for (size_t i = 0; i < m_argument_count; ++i)
         argument_values[i] = interpreter.get(m_arguments[i]);
-    interpreter.set(dst(), TRY(perform_call(interpreter, interpreter.get(m_this_value), call_type(), callee, argument_values)));
+    interpreter.set(dst(), TRY(perform_call(interpreter, interpreter.get(m_this_value), CallType::Call, callee, argument_values)));
     return {};
 }
 
@@ -3289,20 +3329,66 @@ static StringView call_type_to_string(CallType type)
 
 ByteString Call::to_byte_string_impl(Bytecode::Executable const& executable) const
 {
-    auto type = call_type_to_string(m_type);
-
     StringBuilder builder;
-    builder.appendff("Call{} {}, {}, {}, "sv,
-        type,
+    builder.appendff("Call {}, {}, {}, "sv,
         format_operand("dst"sv, m_dst, executable),
         format_operand("callee"sv, m_callee, executable),
         format_operand("this"sv, m_this_value, executable));
 
     builder.append(format_operand_list("args"sv, { m_arguments, m_argument_count }, executable));
 
-    if (m_builtin.has_value()) {
-        builder.appendff(", (builtin:{})", m_builtin.value());
+    if (m_expression_string.has_value()) {
+        builder.appendff(", `{}`", executable.get_string(m_expression_string.value()));
     }
+
+    return builder.to_byte_string();
+}
+
+ByteString CallConstruct::to_byte_string_impl(Bytecode::Executable const& executable) const
+{
+    StringBuilder builder;
+    builder.appendff("CallConstruct {}, {}, {}, "sv,
+        format_operand("dst"sv, m_dst, executable),
+        format_operand("callee"sv, m_callee, executable),
+        format_operand("this"sv, m_this_value, executable));
+
+    builder.append(format_operand_list("args"sv, { m_arguments, m_argument_count }, executable));
+
+    if (m_expression_string.has_value()) {
+        builder.appendff(", `{}`", executable.get_string(m_expression_string.value()));
+    }
+
+    return builder.to_byte_string();
+}
+
+ByteString CallDirectEval::to_byte_string_impl(Bytecode::Executable const& executable) const
+{
+    StringBuilder builder;
+    builder.appendff("CallDirectEval {}, {}, {}, "sv,
+        format_operand("dst"sv, m_dst, executable),
+        format_operand("callee"sv, m_callee, executable),
+        format_operand("this"sv, m_this_value, executable));
+
+    builder.append(format_operand_list("args"sv, { m_arguments, m_argument_count }, executable));
+
+    if (m_expression_string.has_value()) {
+        builder.appendff(", `{}`", executable.get_string(m_expression_string.value()));
+    }
+
+    return builder.to_byte_string();
+}
+
+ByteString CallBuiltin::to_byte_string_impl(Bytecode::Executable const& executable) const
+{
+    StringBuilder builder;
+    builder.appendff("CallBuiltin {}, {}, {}, "sv,
+        format_operand("dst"sv, m_dst, executable),
+        format_operand("callee"sv, m_callee, executable),
+        format_operand("this"sv, m_this_value, executable));
+
+    builder.append(format_operand_list("args"sv, { m_arguments, m_argument_count }, executable));
+
+    builder.appendff(", (builtin:{})", m_builtin);
 
     if (m_expression_string.has_value()) {
         builder.appendff(", `{}`", executable.get_string(m_expression_string.value()));
