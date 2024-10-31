@@ -1933,7 +1933,6 @@ void perform_url_and_history_update_steps(DOM::Document& document, URL::URL new_
     // 2. Let activeEntry be navigable's active session history entry.
     auto active_entry = navigable->active_session_history_entry();
 
-    // FIXME: Spec should be updated to say "classic history api state" instead of serialized state
     // 3. Let newEntry be a new session history entry, with
     //      URL: newURL
     //      serialized state: if serializedData is not null, serializedData; otherwise activeEntry's classic history API state
@@ -1988,6 +1987,8 @@ void perform_url_and_history_update_steps(DOM::Document& document, URL::URL new_
     traversable->append_session_history_synchronous_navigation_steps(*navigable, JS::create_heap_function(document.realm().heap(), [traversable, navigable, new_entry, entry_to_replace, history_handling] {
         // 1. Finalize a same-document navigation given traversable, navigable, newEntry, and entryToReplace.
         finalize_a_same_document_navigation(*traversable, *navigable, new_entry, entry_to_replace, history_handling);
+
+        // 2. FIXME: Invoke WebDriver BiDi history updated with navigable.
     }));
 }
 
