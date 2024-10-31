@@ -1010,9 +1010,6 @@ void PaintableBox::set_needs_display(InvalidateDisplayList should_invalidate_dis
 
 Optional<CSSPixelRect> PaintableBox::get_masking_area() const
 {
-    // FIXME: Support clip-paths with transforms.
-    if (!combined_css_transform().is_identity_or_translation())
-        return {};
     auto clip_path = computed_values().clip_path();
     // FIXME: Support other clip sources.
     if (!clip_path.has_value() || !clip_path->is_basic_shape())
