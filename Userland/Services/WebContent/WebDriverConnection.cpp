@@ -54,7 +54,6 @@
 #include <LibWeb/UIEvents/MouseEvent.h>
 #include <LibWeb/WebDriver/Actions.h>
 #include <LibWeb/WebDriver/ElementReference.h>
-#include <LibWeb/WebDriver/ExecuteScript.h>
 #include <LibWeb/WebDriver/HeapTimer.h>
 #include <LibWeb/WebDriver/InputState.h>
 #include <LibWeb/WebDriver/Properties.h>
@@ -1861,35 +1860,12 @@ Messages::WebDriverClient::ExecuteScriptResponse WebDriverConnection::execute_sc
     auto timeout_ms = m_timeouts_configuration.script_timeout;
 
     // This handles steps 5 to 9 and produces the appropriate result type for the following steps.
-    Web::WebDriver::execute_script(current_browsing_context(), move(body), move(arguments), timeout_ms, JS::create_heap_function(vm.heap(), [&](Web::WebDriver::ExecuteScriptResultSerialized result) {
+    Web::WebDriver::execute_script(current_browsing_context(), move(body), move(arguments), timeout_ms, JS::create_heap_function(vm.heap(), [this](Web::WebDriver::ExecuteScriptResultSerialized result) {
         dbgln_if(WEBDRIVER_DEBUG, "Executing script returned: {}", result.value);
-        Web::WebDriver::Response response;
-
-        switch (result.type) {
-        // 10. If promise is still pending and the session script timeout is reached, return error with error code script timeout.
-        case Web::WebDriver::ExecuteScriptResultType::Timeout:
-            response = Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::ScriptTimeoutError, "Script timed out");
-            break;
-        // 11. Upon fulfillment of promise with value v, let result be a JSON clone of v, and return success with data result.
-        case Web::WebDriver::ExecuteScriptResultType::PromiseResolved:
-            response = move(result.value);
-            break;
-        // 12. Upon rejection of promise with reason r, let result be a JSON clone of r, and return error with error code javascript error and data result.
-        case Web::WebDriver::ExecuteScriptResultType::PromiseRejected:
-        case Web::WebDriver::ExecuteScriptResultType::JavaScriptError:
-            response = Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::JavascriptError, "Script returned an error", move(result.value));
-            break;
-        case Web::WebDriver::ExecuteScriptResultType::BrowsingContextDiscarded:
-            response = Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::StaleElementReference, "Browsing context has been discarded", move(result.value));
-            break;
-        case Web::WebDriver::ExecuteScriptResultType::StaleElement:
-            response = Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::StaleElementReference, "Referenced element has become stale", move(result.value));
-            break;
-        }
-
-        async_script_executed(move(response));
+        handle_script_response(move(result));
     }));
 
+    m_has_pending_script_execution = true;
     return JsonValue {};
 }
 
@@ -1914,34 +1890,43 @@ Messages::WebDriverClient::ExecuteAsyncScriptResponse WebDriverConnection::execu
     // This handles steps 5 to 9 and produces the appropriate result type for the following steps.
     Web::WebDriver::execute_async_script(current_browsing_context(), move(body), move(arguments), timeout_ms, JS::create_heap_function(vm.heap(), [&](Web::WebDriver::ExecuteScriptResultSerialized result) {
         dbgln_if(WEBDRIVER_DEBUG, "Executing async script returned: {}", result.value);
-        Web::WebDriver::Response response;
+        handle_script_response(move(result));
+    }));
 
+    m_has_pending_script_execution = true;
+    return JsonValue {};
+}
+
+void WebDriverConnection::handle_script_response(Web::WebDriver::ExecuteScriptResultSerialized result)
+{
+    if (!m_has_pending_script_execution)
+        return;
+    m_has_pending_script_execution = false;
+
+    auto response = [&]() -> Web::WebDriver::Response {
         switch (result.type) {
         // 10. If promise is still pending and the session script timeout is reached, return error with error code script timeout.
         case Web::WebDriver::ExecuteScriptResultType::Timeout:
-            response = Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::ScriptTimeoutError, "Script timed out");
-            break;
+            return Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::ScriptTimeoutError, "Script timed out");
+
         // 11. Upon fulfillment of promise with value v, let result be a JSON clone of v, and return success with data result.
         case Web::WebDriver::ExecuteScriptResultType::PromiseResolved:
-            response = move(result.value);
-            break;
+            return move(result.value);
+
         // 12. Upon rejection of promise with reason r, let result be a JSON clone of r, and return error with error code javascript error and data result.
         case Web::WebDriver::ExecuteScriptResultType::PromiseRejected:
         case Web::WebDriver::ExecuteScriptResultType::JavaScriptError:
-            response = Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::JavascriptError, "Script returned an error", move(result.value));
-            break;
+            return Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::JavascriptError, "Script returned an error", move(result.value));
         case Web::WebDriver::ExecuteScriptResultType::BrowsingContextDiscarded:
-            response = Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::StaleElementReference, "Browsing context has been discarded", move(result.value));
-            break;
+            return Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::StaleElementReference, "Browsing context has been discarded", move(result.value));
         case Web::WebDriver::ExecuteScriptResultType::StaleElement:
-            response = Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::StaleElementReference, "Referenced element has become stale", move(result.value));
-            break;
+            return Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::StaleElementReference, "Referenced element has become stale", move(result.value));
         }
 
-        async_script_executed(move(response));
-    }));
+        VERIFY_NOT_REACHED();
+    }();
 
-    return JsonValue {};
+    async_script_executed(move(response));
 }
 
 // 14.1 Get All Cookies, https://w3c.github.io/webdriver/#dfn-get-all-cookies
@@ -2562,6 +2547,14 @@ void WebDriverConnection::page_did_open_dialog(Badge<PageClient>)
     //              seems to match how other browsers behave.
     if (m_navigation_timer)
         m_navigation_timer->stop_and_fire_timeout_handler();
+
+    // https://w3c.github.io/webdriver/#dfn-execute-a-function-body
+    // If at any point during the algorithm a user prompt appears, immediately return Completion { [[Type]]: normal,
+    // [[Value]]: null, [[Target]]: empty }, but continue to run the other steps of this algorithm in parallel.
+    if (m_has_pending_script_execution) {
+        m_has_pending_script_execution = false;
+        async_script_executed(JsonValue {});
+    }
 }
 
 // https://w3c.github.io/webdriver/#dfn-maximize-the-window

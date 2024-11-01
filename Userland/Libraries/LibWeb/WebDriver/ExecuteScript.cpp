@@ -254,8 +254,6 @@ JS::ThrowCompletionOr<JS::Value> execute_a_function_body(HTML::BrowsingContext c
 // https://w3c.github.io/webdriver/#dfn-execute-a-function-body
 JS::ThrowCompletionOr<JS::Value> execute_a_function_body(HTML::Window const& window, ByteString const& body, ReadonlySpan<JS::Value> parameters, JS::GCPtr<JS::Object> environment_override_object)
 {
-    // FIXME: If at any point during the algorithm a user prompt appears, immediately return Completion { [[Type]]: normal, [[Value]]: null, [[Target]]: empty }, but continue to run the other steps of this algorithm in parallel.
-
     auto& realm = window.realm();
 
     // 2. Let environment settings be the environment settings object for window.
