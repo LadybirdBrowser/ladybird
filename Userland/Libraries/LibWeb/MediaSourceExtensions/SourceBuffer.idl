@@ -1,0 +1,36 @@
+#import <DOM/EventHandler.idl>
+#import <HTML/AudioTrackList.idl>
+#import <HTML/TextTrackList.idl>
+#import <HTML/VideoTrackList.idl>
+#import <HTML/TimeRanges.idl>
+
+// https://w3c.github.io/media-source/#dom-sourcebuffer
+enum AppendMode {
+    "segments",
+    "sequence",
+};
+
+// https://w3c.github.io/media-source/#dom-sourcebuffer
+[Exposed=(Window,DedicatedWorker)]
+interface SourceBuffer : EventTarget {
+    [FIXME] attribute AppendMode mode;
+    [FIXME] readonly  attribute boolean updating;
+    [FIXME] readonly  attribute TimeRanges buffered;
+    [FIXME] attribute double timestampOffset;
+    [FIXME] readonly  attribute AudioTrackList audioTracks;
+    [FIXME] readonly  attribute VideoTrackList videoTracks;
+    [FIXME] readonly  attribute TextTrackList textTracks;
+    [FIXME] attribute double appendWindowStart;
+    [FIXME] attribute unrestricted double appendWindowEnd;
+
+    [FIXME] attribute EventHandler onupdatestart;
+    [FIXME] attribute EventHandler onupdate;
+    [FIXME] attribute EventHandler onupdateend;
+    [FIXME] attribute EventHandler onerror;
+    [FIXME] attribute EventHandler onabort;
+
+    [FIXME] undefined appendBuffer(BufferSource data);
+    [FIXME] undefined abort();
+    [FIXME] undefined changeType(DOMString type);
+    [FIXME] undefined remove(double start, unrestricted double end);
+};

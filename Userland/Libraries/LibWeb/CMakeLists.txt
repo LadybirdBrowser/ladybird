@@ -563,6 +563,13 @@ set(SOURCES
     MathML/MathMLElement.cpp
     MathML/TagNames.cpp
     MediaCapabilitiesAPI/MediaCapabilities.cpp
+    MediaSourceExtensions/BufferedChangeEvent.cpp
+    MediaSourceExtensions/ManagedMediaSource.cpp
+    MediaSourceExtensions/ManagedSourceBuffer.cpp
+    MediaSourceExtensions/MediaSource.cpp
+    MediaSourceExtensions/MediaSourceHandle.cpp
+    MediaSourceExtensions/SourceBuffer.cpp
+    MediaSourceExtensions/SourceBufferList.cpp
     MimeSniff/MimeType.cpp
     MimeSniff/Resource.cpp
     MixedContent/AbstractOperations.cpp

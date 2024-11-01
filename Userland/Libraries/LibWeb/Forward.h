@@ -623,6 +623,16 @@ namespace Web::MediaCapabilitiesAPI {
 class MediaCapabilities;
 }
 
+namespace Web::MediaSourceExtensions {
+class BufferedChangeEvent;
+class ManagedMediaSource;
+class ManagedSourceBuffer;
+class MediaSource;
+class MediaSourceHandle;
+class SourceBuffer;
+class SourceBufferList;
+}
+
 namespace Web::MimeSniff {
 class MimeType;
 }

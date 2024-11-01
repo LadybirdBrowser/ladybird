@@ -90,10 +90,12 @@ static bool is_platform_object(Type const& type)
         "ServiceWorkerRegistration"sv,
         "SVGTransform"sv,
         "ShadowRoot"sv,
+        "SourceBuffer"sv,
         "Table"sv,
         "Text"sv,
         "TextMetrics"sv,
         "TextTrack"sv,
+        "TimeRanges"sv,
         "URLSearchParams"sv,
         "VTTRegion"sv,
         "VideoTrack"sv,
@@ -4240,6 +4242,7 @@ static void generate_using_namespace_definitions(SourceGenerator& generator)
     using namespace Web::Internals;
     using namespace Web::IntersectionObserver;
     using namespace Web::MediaCapabilitiesAPI;
+    using namespace Web::MediaSourceExtensions;
     using namespace Web::NavigationTiming;
     using namespace Web::PerformanceTimeline;
     using namespace Web::RequestIdleCallback;
