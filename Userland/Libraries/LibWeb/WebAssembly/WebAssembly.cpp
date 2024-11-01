@@ -506,7 +506,7 @@ JS::NonnullGCPtr<WebIDL::Promise> asynchronously_compile_webassembly_module(JS::
     auto promise = WebIDL::create_promise(realm);
 
     // 2. Run the following steps in parallel:
-    Platform::EventLoopPlugin::the().deferred_invoke([&vm, bytes = move(bytes), promise, task_source]() mutable {
+    Platform::EventLoopPlugin::the().deferred_invoke(JS::create_heap_function(vm.heap(), [&vm, bytes = move(bytes), promise, task_source]() mutable {
         HTML::TemporaryExecutionContext context(HTML::relevant_settings_object(*promise->promise()), HTML::TemporaryExecutionContext::CallbacksEnabled::Yes);
         // 1. Compile the WebAssembly module bytes and store the result as module.
         auto module_or_error = Detail::compile_a_webassembly_module(vm, move(bytes));
@@ -531,7 +531,7 @@ JS::NonnullGCPtr<WebIDL::Promise> asynchronously_compile_webassembly_module(JS::
                 WebIDL::resolve_promise(*vm.current_realm(), promise, module_object);
             }
         }));
-    });
+    }));
 
     // 3. Return promise.
     return promise;
