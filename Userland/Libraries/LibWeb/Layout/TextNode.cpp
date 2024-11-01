@@ -293,10 +293,13 @@ static ErrorOr<String> apply_text_transform(String const& string, CSS::TextTrans
     case CSS::TextTransform::Capitalize: {
         return string.to_titlecase(locale, TrailingCodePointTransformation::PreserveExisting);
     }
-    case CSS::TextTransform::FullSizeKana:
-    case CSS::TextTransform::FullWidth:
-        // FIXME: Implement these!
+    case CSS::TextTransform::FullSizeKana: {
+        // FIXME: Implement this!
         return string;
+    }
+    case CSS::TextTransform::FullWidth: {
+        return string.to_fullwidth();
+    }
     }
 
     VERIFY_NOT_REACHED();
