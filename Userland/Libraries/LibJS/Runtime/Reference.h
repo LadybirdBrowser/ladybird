@@ -23,7 +23,6 @@ public:
         Environment,
     };
 
-    Reference() = default;
     Reference(BaseType type, PropertyKey name, bool strict)
         : m_base_type(type)
         , m_name(move(name))
@@ -52,10 +51,8 @@ public:
     Reference(Value base, PrivateName name)
         : m_base_type(BaseType::Value)
         , m_base_value(base)
-        , m_this_value(Value {})
+        , m_name(move(name))
         , m_strict(true)
-        , m_is_private(true)
-        , m_private_name(move(name))
     {
     }
 
@@ -71,7 +68,8 @@ public:
         return *m_base_environment;
     }
 
-    PropertyKey const& name() const { return m_name; }
+    PropertyKey const& name() const { return m_name.get<PropertyKey>(); }
+    PrivateName const& private_name() const { return m_name.get<PrivateName>(); }
     bool is_strict() const { return m_strict; }
 
     // 6.2.4.2 IsUnresolvableReference ( V ), https://tc39.es/ecma262/#sec-isunresolvablereference
@@ -105,7 +103,7 @@ public:
     // 6.2.4.4 IsPrivateReference ( V ), https://tc39.es/ecma262/#sec-isprivatereference
     bool is_private_reference() const
     {
-        return m_is_private;
+        return m_name.has<PrivateName>();
     }
 
     // Note: Non-standard helper.
@@ -120,7 +118,7 @@ public:
     ThrowCompletionOr<Value> get_value(VM&) const;
     ThrowCompletionOr<bool> delete_(VM&);
 
-    bool is_valid_reference() const { return m_name.is_valid() || m_is_private; }
+    bool is_valid_reference() const { return true; }
 
     Optional<EnvironmentCoordinate> environment_coordinate() const { return m_environment_coordinate; }
 
@@ -132,13 +130,9 @@ private:
         Value m_base_value {};
         mutable Environment* m_base_environment;
     };
-    PropertyKey m_name;
+    Variant<PropertyKey, PrivateName> m_name;
     Value m_this_value;
     bool m_strict { false };
-
-    bool m_is_private { false };
-    // FIXME: This can (probably) be an union with m_name.
-    PrivateName m_private_name;
 
     Optional<EnvironmentCoordinate> m_environment_coordinate;
 };

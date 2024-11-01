@@ -1362,7 +1362,7 @@ inline ThrowCompletionOr<void> put_by_value(VM& vm, Value base, Optional<Depreca
         }
     }
 
-    auto property_key = kind != Op::PropertyKind::Spread ? TRY(property_key_value.to_property_key(vm)) : PropertyKey {};
+    auto property_key = kind != Op::PropertyKind::Spread ? TRY(property_key_value.to_property_key(vm)) : PropertyKey { 0 };
     TRY(put_by_property_key(vm, base, base, value, base_identifier, property_key, kind));
     return {};
 }
@@ -2807,7 +2807,7 @@ ThrowCompletionOr<void> PutByValueWithThis::execute_impl(Bytecode::Interpreter& 
     auto& vm = interpreter.vm();
     auto value = interpreter.get(m_src);
     auto base = interpreter.get(m_base);
-    auto property_key = m_kind != PropertyKind::Spread ? TRY(interpreter.get(m_property).to_property_key(vm)) : PropertyKey {};
+    auto property_key = m_kind != PropertyKind::Spread ? TRY(interpreter.get(m_property).to_property_key(vm)) : PropertyKey { 0 };
     TRY(put_by_property_key(vm, base, interpreter.get(m_this_value), value, {}, property_key, m_kind));
     return {};
 }
