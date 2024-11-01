@@ -73,6 +73,29 @@ ErrorOr<NonnullOwnPtr<TLSv12>> TLSv12::connect(ByteString const& host, u16 port,
     return tls_socket;
 }
 
+ErrorOr<NonnullOwnPtr<TLSv12>> TLSv12::connect(Core::SocketAddress address, ByteString const& host, Options options)
+{
+    auto promise = Core::Promise<Empty>::construct();
+    OwnPtr<Core::Socket> tcp_socket = TRY(Core::TCPSocket::connect(address));
+    TRY(tcp_socket->set_blocking(false));
+    auto tls_socket = make<TLSv12>(move(tcp_socket), move(options));
+    tls_socket->set_sni(host);
+    tls_socket->on_connected = [&] {
+        promise->resolve({});
+    };
+    tls_socket->on_tls_error = [&](auto alert) {
+        tls_socket->try_disambiguate_error();
+        promise->reject(AK::Error::from_string_view(enum_to_string(alert)));
+    };
+
+    TRY(promise->await());
+
+    tls_socket->on_tls_error = nullptr;
+    tls_socket->on_connected = nullptr;
+    tls_socket->m_context.should_expect_successful_read = true;
+    return tls_socket;
+}
+
 ErrorOr<NonnullOwnPtr<TLSv12>> TLSv12::connect(ByteString const& host, Core::Socket& underlying_stream, Options options)
 {
     auto promise = Core::Promise<Empty>::construct();
@@ -271,7 +294,8 @@ bool TLSv12::check_connection_state(bool read)
 
 ErrorOr<bool> TLSv12::flush()
 {
-    auto out_bytes = m_context.tls_buffer.bytes();
+    ByteBuffer out = move(m_context.tls_buffer);
+    auto out_bytes = out.bytes();
 
     if (out_bytes.is_empty())
         return true;
@@ -298,17 +322,11 @@ ErrorOr<bool> TLSv12::flush()
         out_bytes = out_bytes.slice(written);
     } while (!out_bytes.is_empty());
 
-    if (out_bytes.is_empty() && !error.has_value()) {
-        m_context.tls_buffer.clear();
+    if (out_bytes.is_empty() && !error.has_value())
         return true;
-    }
 
-    if (m_context.send_retries++ == 10) {
-        // drop the records, we can't send
-        dbgln_if(TLS_DEBUG, "Dropping {} bytes worth of TLS records as max retries has been reached", m_context.tls_buffer.size());
-        m_context.tls_buffer.clear();
-        m_context.send_retries = 0;
-    }
+    if (!out_bytes.is_empty())
+        dbgln("Dropping {} bytes worth of TLS records on the floor", out_bytes.size());
     return false;
 }
 
