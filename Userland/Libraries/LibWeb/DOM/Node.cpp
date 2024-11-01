@@ -1568,11 +1568,10 @@ WebIDL::ExceptionOr<String> Node::serialize_fragment(DOMParsing::RequireWellForm
     //         For inner, concatenate the serialization of all children.
     if (fragment_serialization_mode == FragmentSerializationMode::Inner) {
         StringBuilder markup;
-        for_each_child([&markup, require_well_formed](auto& child) {
-            auto child_markup = DOMParsing::serialize_node_to_xml_string(child, require_well_formed).release_value_but_fixme_should_propagate_errors();
+        for (auto* child = first_child(); child; child = child->next_sibling()) {
+            auto child_markup = TRY(DOMParsing::serialize_node_to_xml_string(*child, require_well_formed));
             markup.append(child_markup.bytes_as_string_view());
-            return IterationDecision::Continue;
-        });
+        }
         return MUST(markup.to_string());
     }
     return DOMParsing::serialize_node_to_xml_string(*this, require_well_formed);
