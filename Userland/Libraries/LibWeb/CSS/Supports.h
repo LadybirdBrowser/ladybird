@@ -24,18 +24,21 @@ public:
         String declaration;
         [[nodiscard]] bool evaluate(JS::Realm&) const;
         String to_string() const;
+        void dump(StringBuilder&, int indent_levels = 0) const;
     };
 
     struct Selector {
         String selector;
         [[nodiscard]] bool evaluate(JS::Realm&) const;
         String to_string() const;
+        void dump(StringBuilder&, int indent_levels = 0) const;
     };
 
     struct Feature {
         Variant<Declaration, Selector> value;
         [[nodiscard]] bool evaluate(JS::Realm&) const;
         String to_string() const;
+        void dump(StringBuilder&, int indent_levels = 0) const;
     };
 
     struct Condition;
@@ -44,6 +47,7 @@ public:
 
         [[nodiscard]] bool evaluate(JS::Realm&) const;
         String to_string() const;
+        void dump(StringBuilder&, int indent_levels = 0) const;
     };
 
     struct Condition {
@@ -57,6 +61,7 @@ public:
 
         [[nodiscard]] bool evaluate(JS::Realm&) const;
         String to_string() const;
+        void dump(StringBuilder&, int indent_levels = 0) const;
     };
 
     static NonnullRefPtr<Supports> create(JS::Realm& realm, NonnullOwnPtr<Condition>&& condition)
@@ -66,6 +71,8 @@ public:
 
     bool matches() const { return m_matches; }
     String to_string() const;
+
+    void dump(StringBuilder&, int indent_levels = 0) const;
 
 private:
     Supports(JS::Realm&, NonnullOwnPtr<Condition>&&);
