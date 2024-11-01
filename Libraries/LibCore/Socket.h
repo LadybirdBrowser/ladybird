@@ -159,6 +159,7 @@ class TCPSocket final : public Socket {
 public:
     static ErrorOr<NonnullOwnPtr<TCPSocket>> connect(ByteString const& host, u16 port);
     static ErrorOr<NonnullOwnPtr<TCPSocket>> connect(SocketAddress const& address);
+    static ErrorOr<NonnullOwnPtr<TCPSocket>> connect(SocketAddress const& address, ByteString const&) { return connect(address); }
     static ErrorOr<NonnullOwnPtr<TCPSocket>> adopt_fd(int fd);
 
     TCPSocket(TCPSocket&& other)
@@ -220,6 +221,7 @@ class UDPSocket final : public Socket {
 public:
     static ErrorOr<NonnullOwnPtr<UDPSocket>> connect(ByteString const& host, u16 port, Optional<AK::Duration> timeout = {});
     static ErrorOr<NonnullOwnPtr<UDPSocket>> connect(SocketAddress const& address, Optional<AK::Duration> timeout = {});
+    static ErrorOr<NonnullOwnPtr<UDPSocket>> connect(SocketAddress const& address, ByteString const&, Optional<AK::Duration> timeout = {}) { return connect(address, timeout); }
 
     UDPSocket(UDPSocket&& other)
         : Socket(static_cast<Socket&&>(other))

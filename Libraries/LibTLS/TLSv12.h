@@ -357,6 +357,7 @@ public:
 
     virtual void set_notifications_enabled(bool enabled) override { underlying_stream().set_notifications_enabled(enabled); }
 
+    static ErrorOr<NonnullOwnPtr<TLSv12>> connect(Core::SocketAddress, ByteString const& host, Options = {});
     static ErrorOr<NonnullOwnPtr<TLSv12>> connect(ByteString const& host, u16 port, Options = {});
     static ErrorOr<NonnullOwnPtr<TLSv12>> connect(ByteString const& host, Core::Socket& underlying_stream, Options = {});
 
