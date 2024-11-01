@@ -2861,6 +2861,9 @@ RefPtr<CSSStyleValue> Parser::parse_hsl_color_value(TokenStream<ComponentValue>&
             inner_tokens.discard_whitespace();
 
             alpha = parse_number_percentage_value(inner_tokens);
+            // The parser has consumed a comma, so the alpha value is now required
+            if (!alpha)
+                return {};
             inner_tokens.discard_whitespace();
 
             if (inner_tokens.has_next_token())
