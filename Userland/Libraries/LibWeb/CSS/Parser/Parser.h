@@ -175,9 +175,9 @@ private:
     };
     Optional<FlyString> parse_layer_name(TokenStream<ComponentValue>&, AllowBlankLayerName);
 
-    bool is_valid_in_the_current_context(Declaration&);
-    bool is_valid_in_the_current_context(AtRule&);
-    bool is_valid_in_the_current_context(QualifiedRule&);
+    bool is_valid_in_the_current_context(Declaration const&) const;
+    bool is_valid_in_the_current_context(AtRule const&) const;
+    bool is_valid_in_the_current_context(QualifiedRule const&) const;
     JS::GCPtr<CSSRule> convert_to_rule(Rule const&, Nested);
     JS::GCPtr<CSSStyleRule> convert_to_style_rule(QualifiedRule const&, Nested);
     JS::GCPtr<CSSFontFaceRule> convert_to_font_face_rule(AtRule const&);
@@ -398,6 +398,21 @@ private:
 
     Vector<Token> m_tokens;
     TokenStream<Token> m_token_stream;
+
+    enum class ContextType {
+        Unknown,
+        Style,
+        AtMedia,
+        AtFontFace,
+        AtKeyframes,
+        Keyframe,
+        AtSupports,
+        SupportsCondition,
+        AtLayer,
+        AtProperty,
+    };
+    static ContextType context_type_for_at_rule(FlyString const&);
+    Vector<ContextType> m_rule_context;
 };
 
 }
