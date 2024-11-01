@@ -27,6 +27,8 @@ public:
     String condition_text() const override;
     virtual bool condition_matches() const override { return m_supports->matches(); }
 
+    Supports const& supports() const { return m_supports; }
+
 private:
     CSSSupportsRule(JS::Realm&, NonnullRefPtr<Supports>&&, CSSRuleList&);
 

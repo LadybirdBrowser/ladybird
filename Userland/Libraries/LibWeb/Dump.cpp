@@ -778,7 +778,8 @@ void dump_media_rule(StringBuilder& builder, CSS::CSSMediaRule const& media, int
 void dump_supports_rule(StringBuilder& builder, CSS::CSSSupportsRule const& supports, int indent_levels)
 {
     indent(builder, indent_levels);
-    builder.appendff("  Supports: {}\n", supports.condition_text());
+    builder.append("  Supports:\n"sv);
+    supports.supports().dump(builder, indent_levels + 2);
     indent(builder, indent_levels);
     builder.appendff("  Rules ({}):\n", supports.css_rules().length());
 

@@ -10,6 +10,12 @@
 
 namespace Web::CSS {
 
+static void indent(StringBuilder& builder, int levels)
+{
+    for (int i = 0; i < levels; i++)
+        builder.append("  "sv);
+}
+
 Supports::Supports(JS::Realm& realm, NonnullOwnPtr<Condition>&& condition)
     : m_condition(move(condition))
 {
@@ -113,6 +119,58 @@ String Supports::Condition::to_string() const
 String Supports::to_string() const
 {
     return m_condition->to_string();
+}
+
+void Supports::Declaration::dump(StringBuilder& builder, int indent_levels) const
+{
+    indent(builder, indent_levels);
+    builder.appendff("Declaration: {}\n", declaration);
+}
+
+void Supports::Selector::dump(StringBuilder& builder, int indent_levels) const
+{
+    indent(builder, indent_levels);
+    builder.appendff("Selector: {}\n", selector);
+}
+
+void Supports::Feature::dump(StringBuilder& builder, int indent_levels) const
+{
+    value.visit([&](auto& it) { it.dump(builder, indent_levels); });
+}
+
+void Supports::InParens::dump(StringBuilder& builder, int indent_levels) const
+{
+    value.visit(
+        [&](NonnullOwnPtr<Condition> const& condition) { condition->dump(builder, indent_levels); },
+        [&](Supports::Feature const& it) { it.dump(builder, indent_levels); },
+        [&](GeneralEnclosed const& it) {
+            indent(builder, indent_levels);
+            builder.appendff("GeneralEnclosed: {}\n", it.to_string());
+        });
+}
+
+void Supports::Condition::dump(StringBuilder& builder, int indent_levels) const
+{
+    indent(builder, indent_levels);
+    StringView type_name = [](Type type) {
+        switch (type) {
+        case Type::And:
+            return "AND"sv;
+        case Type::Or:
+            return "OR"sv;
+        case Type::Not:
+            return "NOT"sv;
+        }
+        VERIFY_NOT_REACHED();
+    }(type);
+    builder.appendff("Condition: {}\n", type_name);
+    for (auto const& child : children)
+        child.dump(builder, indent_levels + 1);
+}
+
+void Supports::dump(StringBuilder& builder, int indent_levels) const
+{
+    m_condition->dump(builder, indent_levels);
 }
 
 }
