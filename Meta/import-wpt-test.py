@@ -2,8 +2,9 @@
 
 import os
 import sys
+
+from html.parser import HTMLParser
 from pathlib import Path
-from bs4 import BeautifulSoup
 from urllib.parse import urljoin
 from urllib.request import urlopen
 from collections import namedtuple
@@ -13,18 +14,16 @@ wpt_import_path = 'Tests/LibWeb/Text/input/wpt-import'
 wpt_expected_path = 'Tests/LibWeb/Text/expected/wpt-import'
 PathMapping = namedtuple('PathMapping', ['source', 'destination'])
 
+src_values = []
 
-def get_script_sources(page_source):
-    # Find all the <script> tags
-    scripts = [script for script in page_source.findAll('script')]
 
-    # Get the src attribute of each script tag
-    sources = list(map(lambda x: x.get('src'), scripts))
+class ScriptSrcValueFinder(HTMLParser):
 
-    # Remove None values
-    sources = list(filter(lambda x: x is not None, sources))
-
-    return sources
+    def handle_starttag(self, tag, attrs):
+        if tag == "script":
+            attr_dict = dict(attrs)
+            if "src" in attr_dict:
+                src_values.append(attr_dict["src"])
 
 
 def map_to_path(sources, is_resource=True, resource_path=None):
@@ -65,17 +64,15 @@ def modify_sources(files):
         parent_folder_path = '../' * parent_folder_count
 
         with open(file, 'r') as f:
-            page_source = BeautifulSoup(f.read(), 'html.parser')
+            page_source = f.read()
 
-            # Iterate all scripts and overwrite the src attribute
-            scripts = [script for script in page_source.findAll('script')]
-            for script in scripts:
-                if script.get('src') is not None:
-                    if script['src'].startswith('/'):
-                        script['src'] = parent_folder_path + script['src'][1::]
-
-            with open(file, 'w') as f:
-                f.write(str(page_source))
+        # Iterate all scripts and overwrite the src attribute
+        for i, src_value in enumerate(src_values):
+            if src_value.startswith('/'):
+                new_src_value = parent_folder_path + src_value[1::]
+                page_source = page_source.replace(src_value, new_src_value)
+                with open(file, 'w') as f:
+                    f.write(str(page_source))
 
 
 def download_files(filepaths):
@@ -83,7 +80,7 @@ def download_files(filepaths):
 
     for file in filepaths:
         source = urljoin(file.source, "/".join(file.source.split('/')[3:]))
-        destination = Path(file.destination).absolute()
+        destination = Path(os.path.normpath(file.destination))
 
         if destination.exists():
             print(f"Skipping {destination} as it already exists")
@@ -132,13 +129,15 @@ def main():
     main_paths = map_to_path(main_file, False)
     files_to_modify = download_files(main_paths)
     create_expectation_files(main_paths)
+
+    with urlopen(url_to_import) as response:
+        page = response.read().decode("utf-8")
+
+    parser = ScriptSrcValueFinder()
+    parser.feed(page)
+
     modify_sources(files_to_modify)
-
-    page = urlopen(url_to_import)
-    page_source = BeautifulSoup(page, 'html.parser')
-
-    scripts = get_script_sources(page_source)
-    script_paths = map_to_path(scripts, True, resource_path)
+    script_paths = map_to_path(src_values, True, resource_path)
     download_files(script_paths)
 
 
