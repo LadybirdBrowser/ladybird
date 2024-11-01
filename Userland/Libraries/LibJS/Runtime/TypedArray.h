@@ -268,7 +268,7 @@ public:
     }
 
     // 10.4.5.3 [[DefineOwnProperty]] ( P, Desc ), https://tc39.es/ecma262/#sec-integer-indexed-exotic-objects-defineownproperty-p-desc
-    virtual ThrowCompletionOr<bool> internal_define_own_property(PropertyKey const& property_key, PropertyDescriptor const& property_descriptor) override
+    virtual ThrowCompletionOr<bool> internal_define_own_property(PropertyKey const& property_key, PropertyDescriptor const& property_descriptor, Optional<PropertyDescriptor>* precomputed_get_own_property = nullptr) override
     {
         VERIFY(property_key.is_valid());
 
@@ -313,7 +313,7 @@ public:
         }
 
         // 2. Return ! OrdinaryDefineOwnProperty(O, P, Desc).
-        return Object::internal_define_own_property(property_key, property_descriptor);
+        return Object::internal_define_own_property(property_key, property_descriptor, precomputed_get_own_property);
     }
 
     // 10.4.5.4 [[Get]] ( P, Receiver ), 10.4.5.4 [[Get]] ( P, Receiver )
