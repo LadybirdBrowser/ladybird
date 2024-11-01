@@ -762,11 +762,48 @@ SupportedAlgorithmsMap supported_algorithms()
     }
 
     // https://w3c.github.io/webcrypto/#algorithm-conventions
-    // https://w3c.github.io/webcrypto/#sha
-    define_an_algorithm<SHA>("digest"_string, "SHA-1"_string);
-    define_an_algorithm<SHA>("digest"_string, "SHA-256"_string);
-    define_an_algorithm<SHA>("digest"_string, "SHA-384"_string);
-    define_an_algorithm<SHA>("digest"_string, "SHA-512"_string);
+
+    // https://w3c.github.io/webcrypto/#rsassa-pkcs1-registration
+    // FIXME: define_an_algorithm<RSAESPKCS1>("sign"_string, "RSAES-PKCS1-v1_5"_string);
+    // FIXME: define_an_algorithm<RSAESPKCS1>("verify"_string, "RSAES-PKCS1-v1_5"_string);
+    // FIXME: define_an_algorithm<RSAESPKCS1, RsaHashedKeyGenParams>("generateKey"_string, "RSASSA-PKCS1-v1_5"_string);
+    // FIXME: define_an_algorithm<RSAESPKCS1, RsaHashedImportParams>("importKey"_string, "RSASSA-PKCS1-v1_5"_string);
+    // FIXME: define_an_algorithm<RSAESPKCS1>("exportKey"_string, "RSASSA-PKCS1-v1_5"_string);
+
+    // https://w3c.github.io/webcrypto/#rsa-pss-registration
+    // FIXME: define_an_algorithm<RSAPSS>("sign"_string, "RSA-PSS"_string);
+    // FIXME: define_an_algorithm<RSAPSS>("verify"_string, "RSA-PSS"_string);
+    // FIXME: define_an_algorithm<RSAPSS, RsaHashedKeyGenParams>("generateKey"_string, "RSA-PSS"_string);
+    // FIXME: define_an_algorithm<RSAPSS, RsaHashedImportParams>("importKey"_string, "RSA-PSS"_string);
+    // FIXME: define_an_algorithm<RSAPSS>("exportKey"_string, "RSA-PSS"_string);
+
+    // https://w3c.github.io/webcrypto/#rsa-oaep-registration
+    define_an_algorithm<RSAOAEP, RsaOaepParams>("encrypt"_string, "RSA-OAEP"_string);
+    define_an_algorithm<RSAOAEP, RsaOaepParams>("decrypt"_string, "RSA-OAEP"_string);
+    define_an_algorithm<RSAOAEP, RsaHashedKeyGenParams>("generateKey"_string, "RSA-OAEP"_string);
+    define_an_algorithm<RSAOAEP, RsaHashedImportParams>("importKey"_string, "RSA-OAEP"_string);
+    define_an_algorithm<RSAOAEP>("exportKey"_string, "RSA-OAEP"_string);
+
+    // https://w3c.github.io/webcrypto/#ecdsa-registration
+    define_an_algorithm<ECDSA, EcdsaParams>("sign"_string, "ECDSA"_string);
+    define_an_algorithm<ECDSA, EcdsaParams>("verify"_string, "ECDSA"_string);
+    define_an_algorithm<ECDSA, EcKeyGenParams>("generateKey"_string, "ECDSA"_string);
+    // FIXME: define_an_algorithm<ECDSA, EcKeyImportParams>("importKey"_string, "ECDSA"_string);
+    // FIXME: define_an_algorithm<ECDSA>("exportKey"_string, "ECDSA"_string);
+
+    // https://w3c.github.io/webcrypto/#ecdh-registration
+    // FIXME: define_an_algorithm<ECDH, EcKeyGenParams>("generateKey"_string, "ECDH"_string);
+    // FIXME: define_an_algorithm<ECDH, EcdhKeyDerivePrams>("deriveBits"_string, "ECDH"_string);
+    // FIXME: define_an_algorithm<ECDH, EcKeyImportParams>("importKey"_string, "ECDH"_string);
+    // FIXME: define_an_algorithm<ECDH>("exportKey"_string, "ECDH"_string);
+
+    // https://w3c.github.io/webcrypto/#aes-ctr-registration
+    define_an_algorithm<AesCtr, AesCtrParams>("encrypt"_string, "AES-CTR"_string);
+    define_an_algorithm<AesCtr, AesCtrParams>("decrypt"_string, "AES-CTR"_string);
+    define_an_algorithm<AesCtr, AesKeyGenParams>("generateKey"_string, "AES-CTR"_string);
+    define_an_algorithm<AesCtr>("importKey"_string, "AES-CTR"_string);
+    define_an_algorithm<AesCtr>("exportKey"_string, "AES-CTR"_string);
+    define_an_algorithm<AesCtr, AesDerivedKeyParams>("get key length"_string, "AES-CTR"_string);
 
     // https://w3c.github.io/webcrypto/#aes-cbc-registration
     define_an_algorithm<AesCbc, AesCbcParams>("encrypt"_string, "AES-CBC"_string);
@@ -776,54 +813,71 @@ SupportedAlgorithmsMap supported_algorithms()
     define_an_algorithm<AesCbc>("exportKey"_string, "AES-CBC"_string);
     define_an_algorithm<AesCbc, AesDerivedKeyParams>("get key length"_string, "AES-CBC"_string);
 
-    // https://w3c.github.io/webcrypto/#aes-ctr-registration
-    define_an_algorithm<AesCtr, AesCtrParams>("encrypt"_string, "AES-CTR"_string);
-    define_an_algorithm<AesCtr, AesCtrParams>("decrypt"_string, "AES-CTR"_string);
-    define_an_algorithm<AesCtr>("importKey"_string, "AES-CTR"_string);
-    define_an_algorithm<AesCtr>("exportKey"_string, "AES-CTR"_string);
-    define_an_algorithm<AesCtr, AesDerivedKeyParams>("get key length"_string, "AES-CTR"_string);
-    define_an_algorithm<AesCtr, AesKeyGenParams>("generateKey"_string, "AES-CTR"_string);
-
     // https://w3c.github.io/webcrypto/#aes-gcm-registration
-    define_an_algorithm<AesGcm, AesDerivedKeyParams>("get key length"_string, "AES-GCM"_string);
-    define_an_algorithm<AesGcm>("importKey"_string, "AES-GCM"_string);
-    define_an_algorithm<AesGcm>("exportKey"_string, "AES-GCM"_string);
-    define_an_algorithm<AesGcm, AesKeyGenParams>("generateKey"_string, "AES-GCM"_string);
     define_an_algorithm<AesGcm, AesGcmParams>("encrypt"_string, "AES-GCM"_string);
     define_an_algorithm<AesGcm, AesGcmParams>("decrypt"_string, "AES-GCM"_string);
+    define_an_algorithm<AesGcm, AesKeyGenParams>("generateKey"_string, "AES-GCM"_string);
+    define_an_algorithm<AesGcm>("importKey"_string, "AES-GCM"_string);
+    define_an_algorithm<AesGcm>("exportKey"_string, "AES-GCM"_string);
+    define_an_algorithm<AesGcm, AesDerivedKeyParams>("get key length"_string, "AES-GCM"_string);
 
-    // https://w3c.github.io/webcrypto/#hkdf
-    define_an_algorithm<HKDF>("importKey"_string, "HKDF"_string);
+    // https://w3c.github.io/webcrypto/#aes-kw-registration
+    // FIXME: define_an_algorithm<AesKw>("wrapKey"_string, "AES-KW"_string);
+    // FIXME: define_an_algorithm<AesKw>("unwrapKey"_string, "AES-KW"_string);
+    // FIXME: define_an_algorithm<AesKw, AesKeyGenParams>("generateKey"_string, "AES-KW"_string);
+    // FIXME: define_an_algorithm<AesKw>("importKey"_string, "AES-KW"_string);
+    // FIXME: define_an_algorithm<AesKw>("exportKey"_string, "AES-KW"_string);
+    // FIXME: define_an_algorithm<AesKw, AesDerivedKeyParams>("get key length"_string, "AES-KW"_string);
+
+    // https://w3c.github.io/webcrypto/#hmac-registration
+    // FIXME: define_an_algorithm<HMAC>("sign"_string, "HMAC"_string);
+    // FIXME: define_an_algorithm<HMAC>("verify"_string, "HMAC"_string);
+    // FIXME: define_an_algorithm<HMAC, HmacKeyGenParams>("generateKey"_string, "HMAC"_string);
+    // FIXME: define_an_algorithm<HMAC, HmacImportParams>("importKey"_string, "HMAC"_string);
+    // FIXME: define_an_algorithm<HMAC>("exportKey"_string, "HMAC"_string);
+    // FIXME: define_an_algorithm<HMAC, HmacImportParams>("get key length"_string, "HMAC"_string);
+
+    // https://w3c.github.io/webcrypto/#sha-registration
+    define_an_algorithm<SHA>("digest"_string, "SHA-1"_string);
+    define_an_algorithm<SHA>("digest"_string, "SHA-256"_string);
+    define_an_algorithm<SHA>("digest"_string, "SHA-384"_string);
+    define_an_algorithm<SHA>("digest"_string, "SHA-512"_string);
+
+    // https://w3c.github.io/webcrypto/#hkdf-registration
     define_an_algorithm<HKDF, HKDFParams>("deriveBits"_string, "HKDF"_string);
+    define_an_algorithm<HKDF>("importKey"_string, "HKDF"_string);
     define_an_algorithm<HKDF>("get key length"_string, "HKDF"_string);
 
-    // https://w3c.github.io/webcrypto/#pbkdf2
-    define_an_algorithm<PBKDF2>("importKey"_string, "PBKDF2"_string);
+    // https://w3c.github.io/webcrypto/#pbkdf2-registration
     define_an_algorithm<PBKDF2, PBKDF2Params>("deriveBits"_string, "PBKDF2"_string);
+    define_an_algorithm<PBKDF2>("importKey"_string, "PBKDF2"_string);
     define_an_algorithm<PBKDF2>("get key length"_string, "PBKDF2"_string);
 
-    // https://w3c.github.io/webcrypto/#rsa-oaep
-    define_an_algorithm<RSAOAEP, RsaHashedKeyGenParams>("generateKey"_string, "RSA-OAEP"_string);
-    define_an_algorithm<RSAOAEP>("exportKey"_string, "RSA-OAEP"_string);
-    define_an_algorithm<RSAOAEP, RsaHashedImportParams>("importKey"_string, "RSA-OAEP"_string);
-    define_an_algorithm<RSAOAEP, RsaOaepParams>("encrypt"_string, "RSA-OAEP"_string);
-    define_an_algorithm<RSAOAEP, RsaOaepParams>("decrypt"_string, "RSA-OAEP"_string);
-
-    // https://w3c.github.io/webcrypto/#ecdsa
-    define_an_algorithm<ECDSA, EcdsaParams>("sign"_string, "ECDSA"_string);
-    define_an_algorithm<ECDSA, EcdsaParams>("verify"_string, "ECDSA"_string);
-    define_an_algorithm<ECDSA, EcKeyGenParams>("generateKey"_string, "ECDSA"_string);
-
-    // https://wicg.github.io/webcrypto-secure-curves/#ed25519
-    define_an_algorithm<ED25519>("sign"_string, "Ed25519"_string);
-    define_an_algorithm<ED25519>("verify"_string, "Ed25519"_string);
-    define_an_algorithm<ED25519>("generateKey"_string, "Ed25519"_string);
-
-    // https://wicg.github.io/webcrypto-secure-curves/#x25519
+    // https://wicg.github.io/webcrypto-secure-curves/#x25519-registration
     define_an_algorithm<X25519, EcdhKeyDerivePrams>("deriveBits"_string, "X25519"_string);
     define_an_algorithm<X25519>("generateKey"_string, "X25519"_string);
     define_an_algorithm<X25519>("importKey"_string, "X25519"_string);
     define_an_algorithm<X25519>("exportKey"_string, "X25519"_string);
+
+    // https://wicg.github.io/webcrypto-secure-curves/#x448-registration
+    // FIXME: define_an_algorithm<X448, EcdhKeyDerivePrams>("deriveBits"_string, "X448"_string);
+    // FIXME: define_an_algorithm<X448>("generateKey"_string, "X448"_string);
+    // FIXME: define_an_algorithm<X448>("importKey"_string, "X448"_string);
+    // FIXME: define_an_algorithm<X448>("exportKey"_string, "X448"_string);
+
+    // https://wicg.github.io/webcrypto-secure-curves/#ed25519-registration
+    define_an_algorithm<ED25519>("sign"_string, "Ed25519"_string);
+    define_an_algorithm<ED25519>("verify"_string, "Ed25519"_string);
+    define_an_algorithm<ED25519>("generateKey"_string, "Ed25519"_string);
+    // FIXME: define_an_algorithm<ED25519>("importKey"_string, "Ed25519"_string);
+    // FIXME: define_an_algorithm<ED25519>("exportKey"_string, "Ed25519"_string);
+
+    // https://wicg.github.io/webcrypto-secure-curves/#ed448-registration
+    // FIXME: define_an_algorithm<ED448, Ed448Params>("sign"_string, "Ed448"_string);
+    // FIXME: define_an_algorithm<ED448, Ed448Params>("verify"_string, "Ed448"_string);
+    // FIXME: define_an_algorithm<ED448>("generateKey"_string, "Ed448"_string);
+    // FIXME: define_an_algorithm<ED448>("importKey"_string, "Ed448"_string);
+    // FIXME: define_an_algorithm<ED448>("exportKey"_string, "Ed448"_string);
 
     return internal_object;
 }
