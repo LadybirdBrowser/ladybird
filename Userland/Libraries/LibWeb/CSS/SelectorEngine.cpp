@@ -72,7 +72,7 @@ static inline bool matches_lang_pseudo_class(DOM::Element const& element, Vector
         if (!element_language.contains('-') && Infra::is_ascii_case_insensitive_match(element_language, language))
             return true;
         auto parts = element_language.split_limit('-', 2).release_value_but_fixme_should_propagate_errors();
-        if (Infra::is_ascii_case_insensitive_match(parts[0], language))
+        if (!parts.is_empty() && Infra::is_ascii_case_insensitive_match(parts[0], language))
             return true;
     }
     return false;

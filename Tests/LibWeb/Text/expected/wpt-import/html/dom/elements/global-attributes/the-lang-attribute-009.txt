@@ -1,0 +1,11 @@
+Summary
+
+Harness status: OK
+
+Rerun
+
+Found 1 tests
+
+1 Pass
+Details
+Result	Test Name	MessagePass	If the HTTP header contains a language declaration but the html element uses an empty lang value, the UA will not recognize the language declared in the HTTP header.	
