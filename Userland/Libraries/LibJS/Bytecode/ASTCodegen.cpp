@@ -1132,12 +1132,12 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> ObjectExpression::gener
         case ObjectProperty::Type::Setter:
             property_kind = Bytecode::Op::PropertyKind::Setter;
             break;
-        case ObjectProperty::Type::Spread:
-            property_kind = Bytecode::Op::PropertyKind::Spread;
-            break;
         case ObjectProperty::Type::ProtoSetter:
             property_kind = Bytecode::Op::PropertyKind::ProtoSetter;
             break;
+        case ObjectProperty::Type::Spread:
+            generator.emit<Bytecode::Op::PutBySpread>(object, TRY(property->key().generate_bytecode(generator)).value());
+            continue;
         }
 
         if (is<StringLiteral>(property->key())) {
@@ -1147,7 +1147,7 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> ObjectExpression::gener
             Optional<ScopedOperand> value;
             if (property_kind == Bytecode::Op::PropertyKind::ProtoSetter) {
                 value = TRY(property->value().generate_bytecode(generator)).value();
-            } else if (property_kind != Bytecode::Op::PropertyKind::Spread) {
+            } else {
                 ByteString identifier = string_literal.value();
                 if (property_kind == Bytecode::Op::PropertyKind::Getter)
                     identifier = ByteString::formatted("get {}", identifier);
@@ -1155,21 +1155,14 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> ObjectExpression::gener
                     identifier = ByteString::formatted("set {}", identifier);
                 auto name = generator.intern_identifier(identifier);
                 value = TRY(generator.emit_named_evaluation_if_anonymous_function(property->value(), name)).value();
-            } else {
-                // Spread the key.
-                value = TRY(property->key().generate_bytecode(generator)).value();
             }
 
             generator.emit<Bytecode::Op::PutById>(object, key_name, *value, property_kind, generator.next_property_lookup_cache());
         } else {
             auto property_name = TRY(property->key().generate_bytecode(generator)).value();
-            Optional<ScopedOperand> value;
-            if (property_kind != Bytecode::Op::PropertyKind::Spread)
-                value = TRY(property->value().generate_bytecode(generator)).value();
-            else
-                value = property_name;
+            auto value = TRY(property->value().generate_bytecode(generator)).value();
 
-            generator.emit<Bytecode::Op::PutByValue>(object, property_name, *value, property_kind);
+            generator.emit<Bytecode::Op::PutByValue>(object, property_name, value, property_kind);
         }
     }
 

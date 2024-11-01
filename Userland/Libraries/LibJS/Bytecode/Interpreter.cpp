@@ -649,6 +649,7 @@ FLATTEN_ON_CLANG void Interpreter::run_bytecode(size_t entry_point)
             HANDLE_INSTRUCTION(PostfixIncrement);
             HANDLE_INSTRUCTION(PutById);
             HANDLE_INSTRUCTION(PutByIdWithThis);
+            HANDLE_INSTRUCTION(PutBySpread);
             HANDLE_INSTRUCTION(PutByValue);
             HANDLE_INSTRUCTION(PutByValueWithThis);
             HANDLE_INSTRUCTION(PutPrivateById);
@@ -1213,9 +1214,6 @@ inline ThrowCompletionOr<void> put_by_property_key(VM& vm, Value base, Value thi
     case Op::PropertyKind::DirectKeyValue:
         object->define_direct_property(name, value, Attribute::Enumerable | Attribute::Writable | Attribute::Configurable);
         break;
-    case Op::PropertyKind::Spread:
-        TRY(object->copy_data_properties(vm, value, {}));
-        break;
     case Op::PropertyKind::ProtoSetter:
         if (value.is_object() || value.is_null())
             MUST(object->internal_set_prototype_of(value.is_object() ? &value.as_object() : nullptr));
@@ -1362,7 +1360,7 @@ inline ThrowCompletionOr<void> put_by_value(VM& vm, Value base, Optional<Depreca
         }
     }
 
-    auto property_key = kind != Op::PropertyKind::Spread ? TRY(property_key_value.to_property_key(vm)) : PropertyKey { 0 };
+    auto property_key = TRY(property_key_value.to_property_key(vm));
     TRY(put_by_property_key(vm, base, base, value, base_identifier, property_key, kind));
     return {};
 }
@@ -2417,6 +2415,20 @@ ThrowCompletionOr<void> HasPrivateId::execute_impl(Bytecode::Interpreter& interp
     return {};
 }
 
+ThrowCompletionOr<void> PutBySpread::execute_impl(Bytecode::Interpreter& interpreter) const
+{
+    auto& vm = interpreter.vm();
+    auto value = interpreter.get(m_src);
+    auto base = interpreter.get(m_base);
+
+    // a. Let baseObj be ? ToObject(V.[[Base]]).
+    auto object = TRY(base.to_object(vm));
+
+    TRY(object->copy_data_properties(vm, value, {}));
+
+    return {};
+}
+
 ThrowCompletionOr<void> PutById::execute_impl(Bytecode::Interpreter& interpreter) const
 {
     auto& vm = interpreter.vm();
@@ -2807,7 +2819,7 @@ ThrowCompletionOr<void> PutByValueWithThis::execute_impl(Bytecode::Interpreter& 
     auto& vm = interpreter.vm();
     auto value = interpreter.get(m_src);
     auto base = interpreter.get(m_base);
-    auto property_key = m_kind != PropertyKind::Spread ? TRY(interpreter.get(m_property).to_property_key(vm)) : PropertyKey { 0 };
+    auto property_key = TRY(interpreter.get(m_property).to_property_key(vm));
     TRY(put_by_property_key(vm, base, interpreter.get(m_this_value), value, {}, property_key, m_kind));
     return {};
 }
@@ -3158,12 +3170,17 @@ static StringView property_kind_to_string(PropertyKind kind)
         return "key-value"sv;
     case PropertyKind::DirectKeyValue:
         return "direct-key-value"sv;
-    case PropertyKind::Spread:
-        return "spread"sv;
     case PropertyKind::ProtoSetter:
         return "proto-setter"sv;
     }
     VERIFY_NOT_REACHED();
+}
+
+ByteString PutBySpread::to_byte_string_impl(Bytecode::Executable const& executable) const
+{
+    return ByteString::formatted("PutBySpread {}, {}",
+        format_operand("base"sv, m_base, executable),
+        format_operand("src"sv, m_src, executable));
 }
 
 ByteString PutById::to_byte_string_impl(Bytecode::Executable const& executable) const
