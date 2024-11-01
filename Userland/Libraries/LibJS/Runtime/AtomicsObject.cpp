@@ -239,6 +239,7 @@ void AtomicsObject::initialize(Realm& realm)
     define_native_function(realm, vm.names.isLockFree, is_lock_free, 1, attr);
     define_native_function(realm, vm.names.load, load, 2, attr);
     define_native_function(realm, vm.names.or_, or_, 3, attr);
+    define_native_function(realm, vm.names.pause, pause, 0, attr);
     define_native_function(realm, vm.names.store, store, 3, attr);
     define_native_function(realm, vm.names.sub, sub, 3, attr);
     define_native_function(realm, vm.names.wait, wait, 4, attr);
@@ -438,6 +439,40 @@ JS_DEFINE_NATIVE_FUNCTION(AtomicsObject::or_)
 #undef __JS_ENUMERATE
 
     VERIFY_NOT_REACHED();
+}
+
+// 1 Atomics.pause ( [ N ] ), http://tc39.es/proposal-atomics-microwait/
+JS_DEFINE_NATIVE_FUNCTION(AtomicsObject::pause)
+{
+    // NOTE: This value is arbitrary, but intends to put an upper bound on the spin loop of between ~10-100ns on most systems.
+    constexpr i32 MAXIMUM_ITERATIONS = 1000;
+    // NOTE: This value is arbitrary, but intends to account for function call overhead.
+    constexpr i32 DEFAULT_ITERATIONS = 100;
+
+    // 1. If N is neither undefined nor an integral Number, throw a TypeError exception.
+    auto pause = vm.argument(0);
+
+    if (!pause.is_undefined() && !pause.is_integral_number())
+        return vm.throw_completion<TypeError>(ErrorType::NotAnIntegerOrUndefined, "pause time");
+
+    // 2. If the execution environment of the ECMAScript implementation supports signaling to the operating system or CPU that the current executing code is in a spin-wait loop, such as executing a pause CPU instruction, send that signal.
+    //    When N is not undefined, it determines the number of times that signal is sent.
+    u32 N = DEFAULT_ITERATIONS;
+    if (!pause.is_undefined()) {
+        auto integral = pause.as_i32_clamped_integral_number();
+        if (integral < 0)
+            N = MAXIMUM_ITERATIONS + max(integral, -MAXIMUM_ITERATIONS) + 1;
+        else
+            // Implementation note: `N` is not required to be the _number of times_ that the signal is sent, but it seems like reasonable behaviour regardless.
+            N = min(integral, MAXIMUM_ITERATIONS);
+    }
+
+    // The number of times the signal is sent for an integral Number N is less than or equal to the number times it is sent for N + 1 if both N and N + 1 have the same sign.
+    for (; N != 0; N--)
+        AK::atomic_pause();
+
+    // 3. Return undefined.
+    return js_undefined();
 }
 
 // 25.4.11 Atomics.store ( typedArray, index, value ), https://tc39.es/ecma262/#sec-atomics.store

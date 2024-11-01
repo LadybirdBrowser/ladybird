@@ -411,6 +411,7 @@ namespace JS {
     P(parse)                                 \
     P(parseFloat)                            \
     P(parseInt)                              \
+    P(pause)                                 \
     P(plainDate)                             \
     P(plainDateISO)                          \
     P(plainDateTime)                         \

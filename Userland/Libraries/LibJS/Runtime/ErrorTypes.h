@@ -96,6 +96,7 @@
     M(NotAConstructor, "{} is not a constructor")                                                                                       \
     M(NotAFunction, "{} is not a function")                                                                                             \
     M(NotAFunctionNoParam, "Not a function")                                                                                            \
+    M(NotAnIntegerOrUndefined, "{} is neither an integer nor undefined")                                                                \
     M(NotAnObject, "{} is not an object")                                                                                               \
     M(NotAnObjectOfType, "Not an object of type {}")                                                                                    \
     M(NotAnObjectOrNull, "{} is neither an object nor null")                                                                            \
