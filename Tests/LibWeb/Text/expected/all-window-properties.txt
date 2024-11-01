@@ -30,6 +30,7 @@ BiquadFilterNode
 Blob
 Boolean
 BroadcastChannel
+BufferedChangeEvent
 ByteLengthQueuingStrategy
 CDATASection
 CSSAnimation
@@ -212,6 +213,8 @@ Iterator
 KeyboardEvent
 KeyframeEffect
 Location
+ManagedMediaSource
+ManagedSourceBuffer
 Map
 MathMLElement
 MediaCapabilities
@@ -219,6 +222,8 @@ MediaError
 MediaList
 MediaQueryList
 MediaQueryListEvent
+MediaSource
+MediaSourceHandle
 MessageChannel
 MessageEvent
 MessagePort
@@ -335,6 +340,8 @@ Set
 ShadowRealm
 ShadowRoot
 SharedArrayBuffer
+SourceBuffer
+SourceBufferList
 StaticRange
 Storage
 StorageManager

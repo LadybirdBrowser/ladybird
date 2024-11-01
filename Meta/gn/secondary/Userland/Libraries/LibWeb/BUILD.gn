@@ -319,6 +319,7 @@ shared_library("LibWeb") {
            "Loader",
            "MathML",
            "MediaCapabilitiesAPI",
+           "MediaSourceExtensions",
            "MimeSniff",
            "MixedContent",
            "NavigationTiming",

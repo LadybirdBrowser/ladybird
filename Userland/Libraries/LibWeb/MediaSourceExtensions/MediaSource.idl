@@ -1,0 +1,42 @@
+#import <DOM/EventHandler.idl>
+#import <MediaSourceExtensions/MediaSourceHandle.idl>
+#import <MediaSourceExtensions/SourceBufferList.idl>
+
+// https://w3c.github.io/media-source/#dom-mediasource
+enum ReadyState {
+    "closed",
+    "open",
+    "ended",
+};
+
+// https://w3c.github.io/media-source/#dom-mediasource
+enum EndOfStreamError {
+    "network",
+    "decode",
+};
+
+// https://w3c.github.io/media-source/#dom-mediasource
+[Exposed=(Window,DedicatedWorker)]
+interface MediaSource : EventTarget {
+    constructor();
+
+    [FIXME, SameObject, Exposed=DedicatedWorker]
+    readonly  attribute MediaSourceHandle handle;
+    [FIXME] readonly  attribute SourceBufferList sourceBuffers;
+    [FIXME] readonly  attribute SourceBufferList activeSourceBuffers;
+    [FIXME] readonly  attribute ReadyState readyState;
+
+    [FIXME] attribute unrestricted double duration;
+    [FIXME] attribute EventHandler onsourceopen;
+    [FIXME] attribute EventHandler onsourceended;
+    [FIXME] attribute EventHandler onsourceclose;
+
+    static readonly attribute boolean canConstructInDedicatedWorker;
+
+    [FIXME] SourceBuffer addSourceBuffer(DOMString type);
+    [FIXME] undefined removeSourceBuffer(SourceBuffer sourceBuffer);
+    [FIXME] undefined endOfStream(optional EndOfStreamError error);
+    [FIXME] undefined setLiveSeekableRange(double start, double end);
+    [FIXME] undefined clearLiveSeekableRange();
+    [FIXME] static boolean isTypeSupported(DOMString type);
+};

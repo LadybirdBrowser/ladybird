@@ -1,0 +1,13 @@
+source_set("MediaSourceExtensions") {
+  configs += [ "//Userland/Libraries/LibWeb:configs" ]
+  deps = [ "//Userland/Libraries/LibWeb:all_generated" ]
+  sources = [
+    "BufferedChangeEvent.cpp",
+    "ManagedMediaSource.cpp",
+    "ManagedSourceBuffer.cpp",
+    "MediaSource.cpp",
+    "MediaSourceHandle.cpp",
+    "SourceBuffer.cpp",
+    "SourceBufferList.cpp",
+  ]
+}

@@ -1,0 +1,13 @@
+#import <DOM/EventHandler.idl>
+#import <MediaSourceExtensions/SourceBuffer.idl>
+
+// https://w3c.github.io/media-source/#dom-sourcebufferlist
+[Exposed=(Window,DedicatedWorker)]
+interface SourceBufferList : EventTarget {
+    [FIXME] readonly attribute unsigned long length;
+
+    [FIXME] attribute EventHandler onaddsourcebuffer;
+    [FIXME] attribute EventHandler onremovesourcebuffer;
+
+    [FIXME] getter SourceBuffer (unsigned long index);
+};

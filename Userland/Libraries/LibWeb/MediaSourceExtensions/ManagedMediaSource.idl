@@ -1,0 +1,11 @@
+#import <DOM/EventHandler.idl>
+#import <MediaSourceExtensions/MediaSource.idl>
+
+// https://w3c.github.io/media-source/#managedmediasource-interface
+[Exposed=(Window,DedicatedWorker)]
+interface ManagedMediaSource : MediaSource {
+    constructor();
+    [FIXME] readonly attribute boolean streaming;
+    [FIXME] attribute EventHandler onstartstreaming;
+    [FIXME] attribute EventHandler onendstreaming;
+};
