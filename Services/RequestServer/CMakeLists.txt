@@ -25,7 +25,7 @@ target_include_directories(requestserverservice PRIVATE ${CMAKE_CURRENT_BINARY_D
 target_include_directories(requestserverservice PRIVATE ${LADYBIRD_SOURCE_DIR}/Services/)
 
 target_link_libraries(RequestServer PRIVATE requestserverservice)
-target_link_libraries(requestserverservice PUBLIC LibCore LibMain LibCrypto LibFileSystem LibIPC LibMain LibTLS LibWebView LibWebSocket LibURL LibTextCodec LibThreading CURL::libcurl)
+target_link_libraries(requestserverservice PUBLIC LibCore LibDNS LibMain LibCrypto LibFileSystem LibIPC LibMain LibTLS LibWebView LibWebSocket LibURL LibTextCodec LibThreading CURL::libcurl)
 
 if (${CMAKE_SYSTEM_NAME} MATCHES "SunOS")
     # Solaris has socket and networking related functions in two extra libraries

@@ -7,6 +7,7 @@
 #pragma once
 
 #include <AK/HashMap.h>
+#include <LibDNS/Resolver.h>
 #include <LibIPC/ConnectionFromClient.h>
 #include <LibWebSocket/WebSocket.h>
 #include <RequestServer/Forward.h>
@@ -14,6 +15,16 @@
 #include <RequestServer/RequestServerEndpoint.h>
 
 namespace RequestServer {
+
+struct Resolver : public RefCounted<Resolver>
+    , Weakable<Resolver> {
+    Resolver(Function<ErrorOr<DNS::Resolver::SocketResult>()> create_socket)
+        : dns(move(create_socket))
+    {
+    }
+
+    DNS::Resolver dns;
+};
 
 class ConnectionFromClient final
     : public IPC::ConnectionFromClient<RequestClientEndpoint, RequestServerEndpoint> {
@@ -34,6 +45,7 @@ private:
 
     virtual Messages::RequestServer::ConnectNewClientResponse connect_new_client() override;
     virtual Messages::RequestServer::IsSupportedProtocolResponse is_supported_protocol(ByteString const&) override;
+    virtual void set_dns_server(ByteString const& host_or_address, u16 port, bool use_tls) override;
     virtual void start_request(i32 request_id, ByteString const&, URL::URL const&, HTTP::HeaderMap const&, ByteBuffer const&, Core::ProxyData const&) override;
     virtual Messages::RequestServer::StopRequestResponse stop_request(i32) override;
     virtual Messages::RequestServer::SetCertificateResponse set_certificate(i32, ByteString const&, ByteString const&) override;
@@ -61,6 +73,7 @@ private:
     RefPtr<Core::Timer> m_timer;
     HashMap<int, NonnullRefPtr<Core::Notifier>> m_read_notifiers;
     HashMap<int, NonnullRefPtr<Core::Notifier>> m_write_notifiers;
+    NonnullRefPtr<Resolver> m_resolver;
 };
 
 }

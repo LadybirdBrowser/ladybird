@@ -382,6 +382,7 @@ set(lagom_standard_libraries
     Compress
     Crypto
     Diff
+    DNS
     GC
     HTTP
     IPC
@@ -447,6 +448,8 @@ endif()
 
 # Lagom Utilities
 lagom_utility(abench SOURCES ../../Utilities/abench.cpp LIBS LibMain LibFileSystem LibMedia)
+
+lagom_utility(dns SOURCES ../../Utilities/dns.cpp LIBS LibDNS LibMain LibTLS LibCrypto)
 
 if (ENABLE_GUI_TARGETS)
     lagom_utility(animation SOURCES ../../Utilities/animation.cpp LIBS LibGfx LibMain)
