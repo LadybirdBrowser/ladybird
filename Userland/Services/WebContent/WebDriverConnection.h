@@ -122,7 +122,7 @@ private:
     ErrorOr<void, Web::WebDriver::Error> ensure_current_browsing_context_is_open();
     ErrorOr<void, Web::WebDriver::Error> ensure_current_top_level_browsing_context_is_open();
 
-    ErrorOr<void, Web::WebDriver::Error> handle_any_user_prompts();
+    ErrorOr<void, Web::WebDriver::Error> deprecated_handle_any_user_prompts();
 
     void maximize_the_window();
     void iconify_the_window(JS::NonnullGCPtr<JS::HeapFunction<void()>>);
