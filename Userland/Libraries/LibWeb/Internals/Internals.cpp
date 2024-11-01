@@ -100,6 +100,14 @@ void Internals::click(double x, double y)
     click(x, y, UIEvents::MouseButton::Primary);
 }
 
+void Internals::doubleclick(double x, double y)
+{
+    auto& page = internals_page();
+
+    auto position = page.css_to_device_point({ x, y });
+    page.handle_doubleclick(position, position, UIEvents::MouseButton::Primary, 0, 0);
+}
+
 void Internals::middle_click(double x, double y)
 {
     click(x, y, UIEvents::MouseButton::Middle);
