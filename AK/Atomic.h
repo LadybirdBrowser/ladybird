@@ -112,6 +112,15 @@ static inline V* atomic_load(T volatile** var, MemoryOrder order = memory_order_
     return __atomic_load_n(const_cast<V**>(var), order);
 }
 
+static inline void atomic_pause()
+{
+#if __has_builtin(__builtin_ia32_pause)
+    __builtin_ia32_pause();
+#elif __has_builtin(__builtin_arm_yield)
+    __builtin_arm_yield();
+#endif
+}
+
 template<typename T>
 static inline void atomic_store(T volatile* var, T desired, MemoryOrder order = memory_order_seq_cst) noexcept
 {

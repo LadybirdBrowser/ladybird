@@ -458,6 +458,19 @@ public:
         return static_cast<i32>(m_value.encoded & 0xFFFFFFFF);
     }
 
+    i32 as_i32_clamped_integral_number() const
+    {
+        VERIFY(is_int32() || is_finite_number());
+        if (is_int32())
+            return as_i32();
+        double value = trunc(as_double());
+        if (value > INT32_MAX)
+            return INT32_MAX;
+        if (value < INT32_MIN)
+            return INT32_MIN;
+        return static_cast<i32>(value);
+    }
+
     bool to_boolean_slow_case() const;
 
 private:
