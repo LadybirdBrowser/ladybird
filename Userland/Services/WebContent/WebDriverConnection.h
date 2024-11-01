@@ -122,6 +122,10 @@ private:
     ErrorOr<void, Web::WebDriver::Error> ensure_current_browsing_context_is_open();
     ErrorOr<void, Web::WebDriver::Error> ensure_current_top_level_browsing_context_is_open();
 
+    Web::WebDriver::Response element_click_impl(String const& element_id);
+    Web::WebDriver::Response element_send_keys_impl(String const& element_id, ByteString const& text);
+
+    void handle_any_user_prompts(Function<void()> on_dialog_closed);
     ErrorOr<void, Web::WebDriver::Error> deprecated_handle_any_user_prompts();
 
     void maximize_the_window();
