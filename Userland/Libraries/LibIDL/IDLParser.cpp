@@ -3,6 +3,7 @@
  * Copyright (c) 2021-2022, Linus Groh <linusg@serenityos.org>
  * Copyright (c) 2021, Luke Wilde <lukew@serenityos.org>
  * Copyright (c) 2022, Ali Mohammad Pur <mpfard@serenityos.org>
+ * Copyright (c) 2024, Jelle Raaijmakers <jelle@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -738,6 +739,7 @@ void Parser::parse_namespace(Interface& interface)
     consume_whitespace();
 }
 
+// https://webidl.spec.whatwg.org/#prod-Enum
 void Parser::parse_enumeration(HashMap<ByteString, ByteString> extended_attributes, Interface& interface)
 {
     assert_string("enum"sv);
@@ -751,15 +753,10 @@ void Parser::parse_enumeration(HashMap<ByteString, ByteString> extended_attribut
 
     assert_specific('{');
 
-    bool first = true;
     for (; !lexer.is_eof();) {
         consume_whitespace();
         if (lexer.next_is('}'))
             break;
-        if (!first) {
-            assert_specific(',');
-            consume_whitespace();
-        }
 
         assert_specific('"');
         auto string = lexer.consume_until('"');
@@ -771,10 +768,11 @@ void Parser::parse_enumeration(HashMap<ByteString, ByteString> extended_attribut
         else
             enumeration.values.set(string);
 
-        if (first)
+        if (enumeration.first_member.is_empty())
             enumeration.first_member = move(string);
 
-        first = false;
+        if (!lexer.next_is('}'))
+            assert_specific(',');
     }
 
     consume_whitespace();
