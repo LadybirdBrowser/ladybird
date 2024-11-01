@@ -15,6 +15,19 @@ public:
     HeaderMap() = default;
     ~HeaderMap() = default;
 
+    HeaderMap(Vector<Header> headers)
+        : m_headers(move(headers))
+    {
+        for (auto& header : m_headers)
+            m_map.set(header.name, header.value);
+    }
+
+    HeaderMap(HeaderMap const&) = default;
+    HeaderMap(HeaderMap&&) = default;
+
+    HeaderMap& operator=(HeaderMap const&) = default;
+    HeaderMap& operator=(HeaderMap&&) = default;
+
     void set(ByteString name, ByteString value)
     {
         m_map.set(name, value);
@@ -56,10 +69,7 @@ template<>
 inline ErrorOr<HTTP::HeaderMap> decode(Decoder& decoder)
 {
     auto headers = TRY(decoder.decode<Vector<HTTP::Header>>());
-    HTTP::HeaderMap header_map;
-    for (auto& header : headers)
-        header_map.set(move(header.name), move(header.value));
-    return header_map;
+    return HTTP::HeaderMap { move(headers) };
 }
 
 }
