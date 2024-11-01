@@ -1,11 +1,5 @@
 #include <LibWeb/WebDriver/Response.h>
 
 endpoint WebDriverServer {
-    navigation_complete(Web::WebDriver::Response response) =|
-    window_rect_updated(Web::WebDriver::Response response) =|
-    find_elements_complete(Web::WebDriver::Response response) =|
-    script_executed(Web::WebDriver::Response response) =|
-    actions_performed(Web::WebDriver::Response response) =|
-    dialog_closed(Web::WebDriver::Response response) =|
-    screenshot_taken(Web::WebDriver::Response response) =|
+    driver_execution_complete(Web::WebDriver::Response response) =|
 }

@@ -241,7 +241,10 @@ Web::WebDriver::Response Client::navigate_to(Web::WebDriver::Parameters paramete
 {
     dbgln_if(WEBDRIVER_DEBUG, "Handling POST /session/<session_id>/url");
     auto session = TRY(find_session_with_id(parameters[0]));
-    return session->navigate_to(payload);
+
+    return session->perform_async_action([&](auto& connection) {
+        return connection.navigate_to(move(payload));
+    });
 }
 
 // 10.2 Get Current URL, https://w3c.github.io/webdriver/#dfn-get-current-url
@@ -397,7 +400,10 @@ Web::WebDriver::Response Client::set_window_rect(Web::WebDriver::Parameters para
 {
     dbgln_if(WEBDRIVER_DEBUG, "Handling POST /session/<session_id>/window/rect");
     auto session = TRY(find_session_with_id(parameters[0]));
-    return session->set_window_rect(payload);
+
+    return session->perform_async_action([&](auto& connection) {
+        return connection.set_window_rect(move(payload));
+    });
 }
 
 // 11.8.3 Maximize Window, https://w3c.github.io/webdriver/#dfn-maximize-window
@@ -406,7 +412,10 @@ Web::WebDriver::Response Client::maximize_window(Web::WebDriver::Parameters para
 {
     dbgln_if(WEBDRIVER_DEBUG, "Handling POST /session/<session_id>/window/maximize");
     auto session = TRY(find_session_with_id(parameters[0]));
-    return session->maximize_window();
+
+    return session->perform_async_action([&](auto& connection) {
+        return connection.maximize_window();
+    });
 }
 
 // 11.8.4 Minimize Window, https://w3c.github.io/webdriver/#minimize-window
@@ -415,7 +424,10 @@ Web::WebDriver::Response Client::minimize_window(Web::WebDriver::Parameters para
 {
     dbgln_if(WEBDRIVER_DEBUG, "Handling POST /session/<session_id>/window/minimize");
     auto session = TRY(find_session_with_id(parameters[0]));
-    return session->minimize_window();
+
+    return session->perform_async_action([&](auto& connection) {
+        return connection.minimize_window();
+    });
 }
 
 // 11.8.5 Fullscreen Window, https://w3c.github.io/webdriver/#dfn-fullscreen-window
@@ -424,7 +436,10 @@ Web::WebDriver::Response Client::fullscreen_window(Web::WebDriver::Parameters pa
 {
     dbgln_if(WEBDRIVER_DEBUG, "Handling POST /session/<session_id>/window/fullscreen");
     auto session = TRY(find_session_with_id(parameters[0]));
-    return session->fullscreen_window();
+
+    return session->perform_async_action([&](auto& connection) {
+        return connection.fullscreen_window();
+    });
 }
 
 // Extension: Consume User Activation, https://html.spec.whatwg.org/multipage/interaction.html#user-activation-user-agent-automation
@@ -442,7 +457,10 @@ Web::WebDriver::Response Client::find_element(Web::WebDriver::Parameters paramet
 {
     dbgln_if(WEBDRIVER_DEBUG, "Handling POST /session/<session_id>/element");
     auto session = TRY(find_session_with_id(parameters[0]));
-    return session->find_element(payload);
+
+    return session->perform_async_action([&](auto& connection) {
+        return connection.find_element(move(payload));
+    });
 }
 
 // 12.3.3 Find Elements, https://w3c.github.io/webdriver/#dfn-find-elements
@@ -451,7 +469,10 @@ Web::WebDriver::Response Client::find_elements(Web::WebDriver::Parameters parame
 {
     dbgln_if(WEBDRIVER_DEBUG, "Handling POST /session/<session_id>/elements");
     auto session = TRY(find_session_with_id(parameters[0]));
-    return session->find_elements(payload);
+
+    return session->perform_async_action([&](auto& connection) {
+        return connection.find_elements(move(payload));
+    });
 }
 
 // 12.3.4 Find Element From Element, https://w3c.github.io/webdriver/#dfn-find-element-from-element
@@ -460,7 +481,10 @@ Web::WebDriver::Response Client::find_element_from_element(Web::WebDriver::Param
 {
     dbgln_if(WEBDRIVER_DEBUG, "Handling POST /session/<session_id>/element/<element_id>/element");
     auto session = TRY(find_session_with_id(parameters[0]));
-    return session->find_element_from_element(move(parameters[1]), move(payload));
+
+    return session->perform_async_action([&](auto& connection) {
+        return connection.find_element_from_element(move(payload), move(parameters[1]));
+    });
 }
 
 // 12.3.5 Find Elements From Element, https://w3c.github.io/webdriver/#dfn-find-elements-from-element
@@ -469,7 +493,10 @@ Web::WebDriver::Response Client::find_elements_from_element(Web::WebDriver::Para
 {
     dbgln_if(WEBDRIVER_DEBUG, "Handling POST /session/<session_id>/element/<element_id>/elements");
     auto session = TRY(find_session_with_id(parameters[0]));
-    return session->find_elements_from_element(move(parameters[1]), move(payload));
+
+    return session->perform_async_action([&](auto& connection) {
+        return connection.find_elements_from_element(move(payload), move(parameters[1]));
+    });
 }
 
 // 12.3.6 Find Element From Shadow Root, https://w3c.github.io/webdriver/#find-element-from-shadow-root
@@ -478,7 +505,10 @@ Web::WebDriver::Response Client::find_element_from_shadow_root(Web::WebDriver::P
 {
     dbgln_if(WEBDRIVER_DEBUG, "Handling POST /session/<session_id>/shadow/<shadow_id>/element");
     auto session = TRY(find_session_with_id(parameters[0]));
-    return session->find_element_from_shadow_root(move(parameters[1]), move(payload));
+
+    return session->perform_async_action([&](auto& connection) {
+        return connection.find_element_from_shadow_root(move(payload), move(parameters[1]));
+    });
 }
 
 // 12.3.7 Find Elements From Shadow Root, https://w3c.github.io/webdriver/#find-elements-from-shadow-root
@@ -487,7 +517,10 @@ Web::WebDriver::Response Client::find_elements_from_shadow_root(Web::WebDriver::
 {
     dbgln_if(WEBDRIVER_DEBUG, "Handling POST /session/<session_id>/shadow/<shadow_id>/elements");
     auto session = TRY(find_session_with_id(parameters[0]));
-    return session->find_elements_from_shadow_root(move(parameters[1]), move(payload));
+
+    return session->perform_async_action([&](auto& connection) {
+        return connection.find_elements_from_shadow_root(move(payload), move(parameters[1]));
+    });
 }
 
 // 12.3.8 Get Active Element, https://w3c.github.io/webdriver/#get-active-element
@@ -604,7 +637,10 @@ Web::WebDriver::Response Client::element_click(Web::WebDriver::Parameters parame
 {
     dbgln_if(WEBDRIVER_DEBUG, "Handling POST /session/<session_id>/element/<element_id>/click");
     auto session = TRY(find_session_with_id(parameters[0]));
-    return session->element_click(move(parameters[1]));
+
+    return session->perform_async_action([&](auto& connection) {
+        return connection.element_click(move(parameters[1]));
+    });
 }
 
 // 12.5.2 Element Clear, https://w3c.github.io/webdriver/#dfn-element-clear
@@ -622,7 +658,10 @@ Web::WebDriver::Response Client::element_send_keys(Web::WebDriver::Parameters pa
 {
     dbgln_if(WEBDRIVER_DEBUG, "Handling POST /session/<session_id>/element/<element_id>/value");
     auto session = TRY(find_session_with_id(parameters[0]));
-    return session->element_send_keys(move(parameters[1]), move(payload));
+
+    return session->perform_async_action([&](auto& connection) {
+        return connection.element_send_keys(move(parameters[1]), move(payload));
+    });
 }
 
 // 13.1 Get Page Source, https://w3c.github.io/webdriver/#dfn-get-page-source
@@ -640,7 +679,10 @@ Web::WebDriver::Response Client::execute_script(Web::WebDriver::Parameters param
 {
     dbgln_if(WEBDRIVER_DEBUG, "Handling POST /session/<session_id>/execute/sync");
     auto session = TRY(find_session_with_id(parameters[0]));
-    return session->execute_script(move(payload), Session::ScriptMode::Sync);
+
+    return session->perform_async_action([&](auto& connection) {
+        return connection.execute_script(move(payload));
+    });
 }
 
 // 13.2.2 Execute Async Script, https://w3c.github.io/webdriver/#dfn-execute-async-script
@@ -649,7 +691,10 @@ Web::WebDriver::Response Client::execute_async_script(Web::WebDriver::Parameters
 {
     dbgln_if(WEBDRIVER_DEBUG, "Handling POST /session/<session_id>/execute/async");
     auto session = TRY(find_session_with_id(parameters[0]));
-    return session->execute_script(move(payload), Session::ScriptMode::Async);
+
+    return session->perform_async_action([&](auto& connection) {
+        return connection.execute_async_script(move(payload));
+    });
 }
 
 // 14.1 Get All Cookies, https://w3c.github.io/webdriver/#dfn-get-all-cookies
@@ -703,7 +748,10 @@ Web::WebDriver::Response Client::perform_actions(Web::WebDriver::Parameters para
 {
     dbgln_if(WEBDRIVER_DEBUG, "Handling POST /session/<session_id>/actions");
     auto session = TRY(find_session_with_id(parameters[0]));
-    return session->perform_actions(move(payload));
+
+    return session->perform_async_action([&](auto& connection) {
+        return connection.perform_actions(move(payload));
+    });
 }
 
 // 15.8 Release Actions, https://w3c.github.io/webdriver/#release-actions
@@ -721,7 +769,10 @@ Web::WebDriver::Response Client::dismiss_alert(Web::WebDriver::Parameters parame
 {
     dbgln_if(WEBDRIVER_DEBUG, "Handling POST /session/<session_id>/alert/dismiss");
     auto session = TRY(find_session_with_id(parameters[0]));
-    return session->dismiss_alert();
+
+    return session->perform_async_action([&](auto& connection) {
+        return connection.dismiss_alert();
+    });
 }
 
 // 16.2 Accept Alert, https://w3c.github.io/webdriver/#accept-alert
@@ -730,7 +781,10 @@ Web::WebDriver::Response Client::accept_alert(Web::WebDriver::Parameters paramet
 {
     dbgln_if(WEBDRIVER_DEBUG, "Handling POST /session/<session_id>/alert/accept");
     auto session = TRY(find_session_with_id(parameters[0]));
-    return session->accept_alert();
+
+    return session->perform_async_action([&](auto& connection) {
+        return connection.accept_alert();
+    });
 }
 
 // 16.3 Get Alert Text, https://w3c.github.io/webdriver/#get-alert-text
@@ -757,7 +811,10 @@ Web::WebDriver::Response Client::take_screenshot(Web::WebDriver::Parameters para
 {
     dbgln_if(WEBDRIVER_DEBUG, "Handling GET /session/<session_id>/screenshot");
     auto session = TRY(find_session_with_id(parameters[0]));
-    return session->take_screenshot();
+
+    return session->perform_async_action([&](auto& connection) {
+        return connection.take_screenshot();
+    });
 }
 
 // 17.2 Take Element Screenshot, https://w3c.github.io/webdriver/#dfn-take-element-screenshot
@@ -766,7 +823,10 @@ Web::WebDriver::Response Client::take_element_screenshot(Web::WebDriver::Paramet
 {
     dbgln_if(WEBDRIVER_DEBUG, "Handling GET /session/<session_id>/element/<element_id>/screenshot");
     auto session = TRY(find_session_with_id(parameters[0]));
-    return session->take_element_screenshot(move(parameters[1]));
+
+    return session->perform_async_action([&](auto& connection) {
+        return connection.take_element_screenshot(move(parameters[1]));
+    });
 }
 
 // 18.1 Print Page, https://w3c.github.io/webdriver/#dfn-print-page

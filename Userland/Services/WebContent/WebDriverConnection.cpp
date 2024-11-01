@@ -301,7 +301,7 @@ Messages::WebDriverClient::NavigateToResponse WebDriverConnection::navigate_to(J
 
         // FIXME: 10. If the current top-level browsing context contains a refresh state pragma directive of time 1 second or less, wait until the refresh timeout has elapsed, a new navigate has begun, and return to the first step of this algorithm.
 
-        async_navigation_complete(move(result));
+        async_driver_execution_complete(move(result));
     });
 
     // 8. If url is special except for file and current URL and URL do not have the same absolute URL:
@@ -713,7 +713,7 @@ Messages::WebDriverClient::SetWindowRectResponse WebDriverConnection::set_window
         }
 
         if (m_pending_window_rect_requests == 0)
-            async_window_rect_updated(serialize_rect(compute_window_rect(page)));
+            async_driver_execution_complete(serialize_rect(compute_window_rect(page)));
     }));
 
     // 14. Return success with data set to the WindowRect object for the current top-level browsing context.
@@ -759,7 +759,7 @@ Messages::WebDriverClient::MinimizeWindowResponse WebDriverConnection::minimize_
     // 5. Iconify the window.
     iconify_the_window(JS::create_heap_function(current_top_level_browsing_context()->heap(), [this]() {
         auto& page = current_top_level_browsing_context()->page();
-        async_window_rect_updated(serialize_rect(compute_window_rect(page)));
+        async_driver_execution_complete(serialize_rect(compute_window_rect(page)));
     }));
 
     // 6. Return success with data set to the WindowRect object for the current top-level browsing context.
@@ -858,7 +858,7 @@ Messages::WebDriverClient::FindElementResponse WebDriverConnection::find_element
     // 9. Let result be the result of trying to Find with session, start node, location strategy, and selector.
     find(*location_strategy, move(selector), get_start_node, JS::create_heap_function(current_browsing_context().heap(), [this](Web::WebDriver::Response result) {
         // 10. If result is empty, return error with error code no such element. Otherwise, return the first element of result.
-        async_find_elements_complete(extract_first_element(move(result)));
+        async_driver_execution_complete(extract_first_element(move(result)));
     }));
 
     return JsonValue {};
@@ -899,7 +899,7 @@ Messages::WebDriverClient::FindElementsResponse WebDriverConnection::find_elemen
 
     // 9. Return the result of trying to Find with session, start node, location strategy, and selector.
     find(*location_strategy, move(selector), get_start_node, JS::create_heap_function(current_browsing_context().heap(), [this](Web::WebDriver::Response result) {
-        async_find_elements_complete(move(result));
+        async_driver_execution_complete(move(result));
     }));
 
     return JsonValue {};
@@ -934,7 +934,7 @@ Messages::WebDriverClient::FindElementFromElementResponse WebDriverConnection::f
     // 8. Let result be the value of trying to Find with session, start node, location strategy, and selector.
     find(*location_strategy, move(selector), get_start_node, JS::create_heap_function(current_browsing_context().heap(), [this](Web::WebDriver::Response result) {
         // 9. If result is empty, return error with error code no such element. Otherwise, return the first element of result.
-        async_find_elements_complete(extract_first_element(move(result)));
+        async_driver_execution_complete(extract_first_element(move(result)));
     }));
 
     return JsonValue {};
@@ -968,7 +968,7 @@ Messages::WebDriverClient::FindElementsFromElementResponse WebDriverConnection::
 
     // 8. Return the result of trying to Find with session, start node, location strategy, and selector.
     find(*location_strategy, move(selector), get_start_node, JS::create_heap_function(current_browsing_context().heap(), [this](Web::WebDriver::Response result) {
-        async_find_elements_complete(move(result));
+        async_driver_execution_complete(move(result));
     }));
 
     return JsonValue {};
@@ -1003,7 +1003,7 @@ Messages::WebDriverClient::FindElementFromShadowRootResponse WebDriverConnection
     // 8. Let result be the value of trying to Find with session, start node, location strategy, and selector.
     find(*location_strategy, move(selector), get_start_node, JS::create_heap_function(current_browsing_context().heap(), [this](Web::WebDriver::Response result) {
         // 9. If result is empty, return error with error code no such element. Otherwise, return the first element of result.
-        async_find_elements_complete(extract_first_element(move(result)));
+        async_driver_execution_complete(extract_first_element(move(result)));
     }));
 
     return JsonValue {};
@@ -1037,7 +1037,7 @@ Messages::WebDriverClient::FindElementsFromShadowRootResponse WebDriverConnectio
 
     // 8. Return the result of trying to Find with session, start node, location strategy, and selector.
     find(*location_strategy, move(selector), get_start_node, JS::create_heap_function(current_browsing_context().heap(), [this](Web::WebDriver::Response result) {
-        async_find_elements_complete(move(result));
+        async_driver_execution_complete(move(result));
     }));
 
     return JsonValue {};
@@ -1408,9 +1408,9 @@ Messages::WebDriverClient::ElementClickResponse WebDriverConnection::element_cli
             // FIXME: 12. Try to run the post-navigation checks.
 
             if (navigation_result.is_error())
-                async_actions_performed(move(navigation_result));
+                async_driver_execution_complete(move(navigation_result));
             else
-                async_actions_performed(move(result));
+                async_driver_execution_complete(move(result));
         }));
     });
 
@@ -1730,7 +1730,7 @@ Messages::WebDriverClient::ElementSendKeysResponse WebDriverConnection::element_
         // NOTE: These events are fired by `did_select_files` as an element task. So instead of firing them here, we spin
         //       the event loop once before informing the client that the action is complete.
         Web::HTML::queue_a_task(Web::HTML::Task::Source::Unspecified, nullptr, nullptr, JS::create_heap_function(current_browsing_context().heap(), [this]() {
-            async_actions_performed(JsonValue {});
+            async_driver_execution_complete(JsonValue {});
         }));
 
         // 8. Return success with data null.
@@ -1754,7 +1754,7 @@ Messages::WebDriverClient::ElementSendKeysResponse WebDriverConnection::element_
         // FIXME: 4. If element is suffering from bad input return an error with error code invalid argument.
 
         // 5. Return success with data null.
-        async_actions_performed(JsonValue {});
+        async_driver_execution_complete(JsonValue {});
         return JsonValue {};
     }
     // -> element is content editable
@@ -1810,7 +1810,7 @@ Messages::WebDriverClient::ElementSendKeysResponse WebDriverConnection::element_
         // 14. Remove an input source with input state and input id.
         Web::WebDriver::remove_input_source(input_state, input_id);
 
-        async_actions_performed(move(result));
+        async_driver_execution_complete(move(result));
     }));
 
     // 15. Return success with data null.
@@ -1926,7 +1926,7 @@ void WebDriverConnection::handle_script_response(Web::WebDriver::ExecuteScriptRe
         VERIFY_NOT_REACHED();
     }();
 
-    async_script_executed(move(response));
+    async_driver_execution_complete(move(response));
 }
 
 // 14.1 Get All Cookies, https://w3c.github.io/webdriver/#dfn-get-all-cookies
@@ -2125,7 +2125,7 @@ Messages::WebDriverClient::PerformActionsResponse WebDriverConnection::perform_a
     //    results in an error return that error.
     auto on_complete = JS::create_heap_function(current_browsing_context().heap(), [this](Web::WebDriver::Response result) {
         m_action_executor = nullptr;
-        async_actions_performed(move(result));
+        async_driver_execution_complete(move(result));
     });
 
     m_action_executor = Web::WebDriver::dispatch_actions(input_state, move(actions_by_tick), current_browsing_context(), move(actions_options), on_complete);
@@ -2176,7 +2176,7 @@ Messages::WebDriverClient::DismissAlertResponse WebDriverConnection::dismiss_ale
 
     // 3. Dismiss the current user prompt.
     current_browsing_context().page().dismiss_dialog(JS::create_heap_function(current_browsing_context().heap(), [this]() {
-        async_dialog_closed(JsonValue {});
+        async_driver_execution_complete(JsonValue {});
     }));
 
     // 4. Return success with data null.
@@ -2195,7 +2195,7 @@ Messages::WebDriverClient::AcceptAlertResponse WebDriverConnection::accept_alert
 
     // 3. Accept the current user prompt.
     current_browsing_context().page().accept_dialog(JS::create_heap_function(current_browsing_context().heap(), [this]() {
-        async_dialog_closed(JsonValue {});
+        async_driver_execution_complete(JsonValue {});
     }));
 
     // 4. Return success with data null.
@@ -2279,7 +2279,7 @@ Messages::WebDriverClient::TakeScreenshotResponse WebDriverConnection::take_scre
         // b. Let screenshot result be the result of trying to call draw a bounding box from the framebuffer, given root rect as an argument.
         auto screenshot_result = Web::WebDriver::draw_bounding_box_from_the_framebuffer(*current_top_level_browsing_context(), *document->document_element(), root_rect);
         if (screenshot_result.is_error()) {
-            async_screenshot_taken(screenshot_result.release_error());
+            async_driver_execution_complete(screenshot_result.release_error());
             return;
         }
 
@@ -2291,7 +2291,7 @@ Messages::WebDriverClient::TakeScreenshotResponse WebDriverConnection::take_scre
         auto encoded_string = Web::WebDriver::encode_canvas_element(canvas);
 
         // 3. Return success with data encoded string.
-        async_screenshot_taken(move(encoded_string));
+        async_driver_execution_complete(move(encoded_string));
     }));
 
     return JsonValue {};
@@ -2323,7 +2323,7 @@ Messages::WebDriverClient::TakeElementScreenshotResponse WebDriverConnection::ta
         // b. Let screenshot result be the result of trying to call draw a bounding box from the framebuffer, given element rect as an argument.
         auto screenshot_result = Web::WebDriver::draw_bounding_box_from_the_framebuffer(current_browsing_context(), element, element_rect);
         if (screenshot_result.is_error()) {
-            async_screenshot_taken(screenshot_result.release_error());
+            async_driver_execution_complete(screenshot_result.release_error());
             return;
         }
 
@@ -2335,7 +2335,7 @@ Messages::WebDriverClient::TakeElementScreenshotResponse WebDriverConnection::ta
         auto encoded_string = Web::WebDriver::encode_canvas_element(canvas);
 
         // 6. Return success with data encoded string.
-        async_screenshot_taken(move(encoded_string));
+        async_driver_execution_complete(move(encoded_string));
     }));
 
     return JsonValue {};
@@ -2377,7 +2377,7 @@ void WebDriverConnection::set_current_top_level_browsing_context(Web::HTML::Brow
     if (m_current_top_level_browsing_context) {
         m_current_top_level_browsing_context->page().set_window_rect_observer(JS::create_heap_function(m_current_top_level_browsing_context->heap(), [this](Web::DevicePixelRect rect) {
             if (m_pending_window_rect_requests > 0 && --m_pending_window_rect_requests == 0)
-                async_window_rect_updated(serialize_rect(rect.to_type<int>()));
+                async_driver_execution_complete(serialize_rect(rect.to_type<int>()));
         }));
     }
 
@@ -2553,7 +2553,7 @@ void WebDriverConnection::page_did_open_dialog(Badge<PageClient>)
     // [[Value]]: null, [[Target]]: empty }, but continue to run the other steps of this algorithm in parallel.
     if (m_has_pending_script_execution) {
         m_has_pending_script_execution = false;
-        async_script_executed(JsonValue {});
+        async_driver_execution_complete(JsonValue {});
     }
 }
 
