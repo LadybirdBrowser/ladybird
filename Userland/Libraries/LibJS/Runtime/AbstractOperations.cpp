@@ -239,7 +239,6 @@ bool is_compatible_property_descriptor(bool extensible, PropertyDescriptor const
 bool validate_and_apply_property_descriptor(Object* object, PropertyKey const& property_key, bool extensible, PropertyDescriptor const& descriptor, Optional<PropertyDescriptor> const& current)
 {
     // 1. Assert: IsPropertyKey(P) is true.
-    VERIFY(property_key.is_valid());
 
     // 2. If current is undefined, then
     if (!current.has_value()) {

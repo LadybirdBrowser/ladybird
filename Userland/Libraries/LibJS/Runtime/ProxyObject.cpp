@@ -50,7 +50,6 @@ ProxyObject::ProxyObject(Object& target, Object& handler, Object& prototype)
 
 static Value property_key_to_value(VM& vm, PropertyKey const& property_key)
 {
-    VERIFY(property_key.is_valid());
     if (property_key.is_symbol())
         return property_key.as_symbol();
 
@@ -249,8 +248,6 @@ ThrowCompletionOr<Optional<PropertyDescriptor>> ProxyObject::internal_get_own_pr
 
     auto& vm = this->vm();
 
-    VERIFY(property_key.is_valid());
-
     // 1. Let handler be O.[[ProxyHandler]].
 
     // 2. If handler is null, throw a TypeError exception.
@@ -342,8 +339,6 @@ ThrowCompletionOr<bool> ProxyObject::internal_define_own_property(PropertyKey co
 
     auto& vm = this->vm();
 
-    VERIFY(property_key.is_valid());
-
     // 1. Let handler be O.[[ProxyHandler]].
 
     // 2. If handler is null, throw a TypeError exception.
@@ -426,8 +421,6 @@ ThrowCompletionOr<bool> ProxyObject::internal_has_property(PropertyKey const& pr
 
     auto& vm = this->vm();
 
-    VERIFY(property_key.is_valid());
-
     // 1. Let handler be O.[[ProxyHandler]].
 
     // 2. If handler is null, throw a TypeError exception.
@@ -497,7 +490,6 @@ ThrowCompletionOr<Value> ProxyObject::internal_get(PropertyKey const& property_k
 
     auto& vm = this->vm();
 
-    VERIFY(property_key.is_valid());
     VERIFY(!receiver.is_empty());
 
     // 1. Let handler be O.[[ProxyHandler]].
@@ -567,7 +559,6 @@ ThrowCompletionOr<bool> ProxyObject::internal_set(PropertyKey const& property_ke
 
     auto& vm = this->vm();
 
-    VERIFY(property_key.is_valid());
     VERIFY(!value.is_empty());
     VERIFY(!receiver.is_empty());
 
@@ -641,8 +632,6 @@ ThrowCompletionOr<bool> ProxyObject::internal_delete(PropertyKey const& property
     LIMIT_PROXY_RECURSION_DEPTH();
 
     auto& vm = this->vm();
-
-    VERIFY(property_key.is_valid());
 
     // 1. Let handler be O.[[ProxyHandler]].
 

@@ -210,13 +210,11 @@ public:
     // 10.4.5.1 [[GetOwnProperty]] ( P ), https://tc39.es/ecma262/#sec-integer-indexed-exotic-objects-getownproperty-p
     virtual ThrowCompletionOr<Optional<PropertyDescriptor>> internal_get_own_property(PropertyKey const& property_key) const override
     {
-        VERIFY(property_key.is_valid());
-
         // NOTE: If the property name is a number type (An implementation-defined optimized
         // property key type), it can be treated as a string property that will transparently be
         // converted into a canonical numeric index.
 
-        // 1. If Type(P) is String, then
+        // 1. If P is a String, then
         // NOTE: This includes an implementation-defined optimization, see note above!
         if (property_key.is_string() || property_key.is_number()) {
             // a. Let numericIndex be CanonicalNumericIndexString(P).
@@ -247,13 +245,11 @@ public:
     // 10.4.5.2 [[HasProperty]] ( P ), https://tc39.es/ecma262/#sec-integer-indexed-exotic-objects-hasproperty-p
     virtual ThrowCompletionOr<bool> internal_has_property(PropertyKey const& property_key) const override
     {
-        VERIFY(property_key.is_valid());
-
         // NOTE: If the property name is a number type (An implementation-defined optimized
         // property key type), it can be treated as a string property that will transparently be
         // converted into a canonical numeric index.
 
-        // 1. If Type(P) is String, then
+        // 1. If P is a String, then
         // NOTE: This includes an implementation-defined optimization, see note above!
         if (property_key.is_string() || property_key.is_number()) {
             // a. Let numericIndex be CanonicalNumericIndexString(P).
@@ -270,13 +266,11 @@ public:
     // 10.4.5.3 [[DefineOwnProperty]] ( P, Desc ), https://tc39.es/ecma262/#sec-integer-indexed-exotic-objects-defineownproperty-p-desc
     virtual ThrowCompletionOr<bool> internal_define_own_property(PropertyKey const& property_key, PropertyDescriptor const& property_descriptor, Optional<PropertyDescriptor>* precomputed_get_own_property = nullptr) override
     {
-        VERIFY(property_key.is_valid());
-
         // NOTE: If the property name is a number type (An implementation-defined optimized
         // property key type), it can be treated as a string property that will transparently be
         // converted into a canonical numeric index.
 
-        // 1. If Type(P) is String, then
+        // 1. If P is a String, then
         // NOTE: This includes an implementation-defined optimization, see note above!
         if (property_key.is_string() || property_key.is_number()) {
             // a. Let numericIndex be CanonicalNumericIndexString(P).
@@ -316,17 +310,16 @@ public:
         return Object::internal_define_own_property(property_key, property_descriptor, precomputed_get_own_property);
     }
 
-    // 10.4.5.4 [[Get]] ( P, Receiver ), 10.4.5.4 [[Get]] ( P, Receiver )
+    // 10.4.5.4 [[Get]] ( P, Receiver ), https://tc39.es/ecma262/#sec-typedarray-get
     virtual ThrowCompletionOr<Value> internal_get(PropertyKey const& property_key, Value receiver, CacheablePropertyMetadata* cacheable_metadata, PropertyLookupPhase phase) const override
     {
         VERIFY(!receiver.is_empty());
 
-        VERIFY(property_key.is_valid());
         // NOTE: If the property name is a number type (An implementation-defined optimized
         // property key type), it can be treated as a string property that will transparently be
         // converted into a canonical numeric index.
 
-        // 1. If Type(P) is String, then
+        // 1. If P is a String, then
         // NOTE: This includes an implementation-defined optimization, see note above!
         if (property_key.is_string() || property_key.is_number()) {
             // a. Let numericIndex be CanonicalNumericIndexString(P).
@@ -348,12 +341,11 @@ public:
         VERIFY(!value.is_empty());
         VERIFY(!receiver.is_empty());
 
-        VERIFY(property_key.is_valid());
         // NOTE: If the property name is a number type (An implementation-defined optimized
         // property key type), it can be treated as a string property that will transparently be
         // converted into a canonical numeric index.
 
-        // 1. If Type(P) is String, then
+        // 1. If P is a String, then
         // NOTE: This includes an implementation-defined optimization, see note above!
         if (property_key.is_string() || property_key.is_number()) {
             // a. Let numericIndex be CanonicalNumericIndexString(P).
@@ -382,13 +374,11 @@ public:
     // 10.4.5.6 [[Delete]] ( P ), https://tc39.es/ecma262/#sec-integer-indexed-exotic-objects-delete-p
     virtual ThrowCompletionOr<bool> internal_delete(PropertyKey const& property_key) override
     {
-        VERIFY(property_key.is_valid());
-
         // NOTE: If the property name is a number type (An implementation-defined optimized
         // property key type), it can be treated as a string property that will transparently be
         // converted into a canonical numeric index.
 
-        // 1. If Type(P) is String, then
+        // 1. If P is a String, then
         // NOTE: This includes an implementation-defined optimization, see note above!
         if (property_key.is_string() || property_key.is_number()) {
             // a. Let numericIndex be CanonicalNumericIndexString(P).

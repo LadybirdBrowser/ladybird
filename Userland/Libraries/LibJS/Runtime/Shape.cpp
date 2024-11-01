@@ -284,7 +284,6 @@ NonnullGCPtr<Shape> Shape::create_delete_transition(StringOrSymbol const& proper
 
 void Shape::add_property_without_transition(StringOrSymbol const& property_key, PropertyAttributes attributes)
 {
-    VERIFY(property_key.is_valid());
     ensure_property_table();
     if (m_property_table->set(property_key, { m_property_count, attributes }) == AK::HashSetResult::InsertedNewEntry) {
         VERIFY(m_property_count < NumericLimits<u32>::max());
@@ -294,7 +293,6 @@ void Shape::add_property_without_transition(StringOrSymbol const& property_key, 
 
 FLATTEN void Shape::add_property_without_transition(PropertyKey const& property_key, PropertyAttributes attributes)
 {
-    VERIFY(property_key.is_valid());
     add_property_without_transition(property_key.to_string_or_symbol(), attributes);
 }
 

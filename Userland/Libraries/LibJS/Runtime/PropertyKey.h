@@ -103,7 +103,6 @@ public:
 
     ALWAYS_INLINE Type type() const { return m_type; }
 
-    bool is_valid() const { return m_type != Type::Invalid; }
     bool is_number() const
     {
         if (m_type == Type::Number)
@@ -170,7 +169,6 @@ public:
 
     ByteString to_string() const
     {
-        VERIFY(is_valid());
         VERIFY(!is_symbol());
         if (is_string())
             return as_string();
@@ -179,7 +177,6 @@ public:
 
     StringOrSymbol to_string_or_symbol() const
     {
-        VERIFY(is_valid());
         VERIFY(!is_number());
         if (is_string())
             return StringOrSymbol(as_string());
@@ -202,7 +199,6 @@ template<>
 struct Traits<JS::PropertyKey> : public DefaultTraits<JS::PropertyKey> {
     static unsigned hash(JS::PropertyKey const& name)
     {
-        VERIFY(name.is_valid());
         if (name.is_string())
             return name.as_string().hash();
         if (name.is_number())
@@ -232,8 +228,6 @@ template<>
 struct Formatter<JS::PropertyKey> : Formatter<StringView> {
     ErrorOr<void> format(FormatBuilder& builder, JS::PropertyKey const& property_key)
     {
-        if (!property_key.is_valid())
-            return builder.put_string("<invalid PropertyKey>"sv);
         if (property_key.is_number())
             return builder.put_u64(property_key.as_number());
         return builder.put_string(property_key.to_string_or_symbol().to_display_string());
