@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2020, Ali Mohammad Pur <mpfard@serenityos.org>
- * Copyright (c) 2023, Jelle Raaijmakers <jelle@gmta.nl>
+ * Copyright (c) 2023, Jelle Raaijmakers <jelle@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */

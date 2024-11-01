@@ -2,7 +2,7 @@
  * Copyright (c) 2021-2024, Tim Flynn <trflynn89@serenityos.org>
  * Copyright (c) 2022, the SerenityOS developers.
  * Copyright (c) 2022, Tobias Christiansen <tobyase@serenityos.org>
- * Copyright (c) 2023, Jelle Raaijmakers <jelle@gmta.nl>
+ * Copyright (c) 2023, Jelle Raaijmakers <jelle@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
