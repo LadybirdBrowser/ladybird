@@ -19,6 +19,7 @@
 #include <LibWeb/Forward.h>
 #include <LibWeb/HTML/VisibilityState.h>
 #include <LibWeb/WebDriver/ElementLocationStrategies.h>
+#include <LibWeb/WebDriver/ExecuteScript.h>
 #include <LibWeb/WebDriver/Response.h>
 #include <LibWeb/WebDriver/TimeoutsConfiguration.h>
 #include <WebContent/Forward.h>
@@ -143,6 +144,8 @@ private:
         JS::MarkedVector<JS::Value> arguments;
     };
     ErrorOr<ScriptArguments, Web::WebDriver::Error> extract_the_script_arguments_from_a_request(JS::VM&, JsonValue const& payload);
+    void handle_script_response(Web::WebDriver::ExecuteScriptResultSerialized);
+
     void delete_cookies(Optional<StringView> const& name = {});
 
     // https://w3c.github.io/webdriver/#dfn-page-load-strategy
@@ -167,6 +170,7 @@ private:
     JS::GCPtr<Web::HTML::BrowsingContext> m_current_top_level_browsing_context;
 
     size_t m_pending_window_rect_requests { 0 };
+    bool m_has_pending_script_execution { false };
 
     friend class ElementLocator;
     JS::GCPtr<ElementLocator> m_element_locator;
