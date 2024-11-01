@@ -1,0 +1,11 @@
+Summary
+
+Harness status: OK
+
+Rerun
+
+Found 1 tests
+
+1 Pass
+Details
+Result	Test Name	MessagePass	If an element contains a lang attribute with an empty value, the value of a lang attribute higher up the document tree will no longer be applied to the content of that element.	
