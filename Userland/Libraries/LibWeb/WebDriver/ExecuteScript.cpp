@@ -268,7 +268,12 @@ JS::ThrowCompletionOr<JS::Value> execute_a_function_body(HTML::Window const& win
     if (environment_override_object)
         scope = JS::new_object_environment(*environment_override_object, true, &global_scope);
 
-    auto source_text = ByteString::formatted("function() {{ {} }}", body);
+    auto source_text = ByteString::formatted(
+        R"~~~(function() {{
+            {}
+        }})~~~",
+        body);
+
     auto parser = JS::Parser { JS::Lexer { source_text } };
     auto function_expression = parser.parse_function_node<JS::FunctionExpression>();
 
