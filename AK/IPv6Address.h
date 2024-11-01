@@ -29,6 +29,15 @@ public:
             m_data[i] = data[i];
     }
 
+    constexpr IPv6Address(Array<u8, 16> const& data)
+    {
+        for (size_t i = 0; i < 16; i++)
+            m_data[i] = data[i];
+    }
+
+    template<SameAs<char const*> T>
+    constexpr IPv6Address(T const&) = delete; // Disable implicit conversion of char const* -> ipv4 -> ipv6
+
     constexpr IPv6Address(IPv4Address const& ipv4_address)
     {
         // IPv4 mapped IPv6 address
