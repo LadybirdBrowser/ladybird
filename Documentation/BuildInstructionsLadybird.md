@@ -140,6 +140,11 @@ If you also plan to use the Qt chrome on macOS:
 brew install qt
 ```
 
+> [!NOTE]
+> It is recommended to add your terminal application (i.e. Terminal.app or iTerm.app) to the system list of developer tools.
+> Doing so will reduce slow startup time of freshly compiled binaries, due to macOS validating the binary on its first run.
+> This can be done in the "Developer Tools" section of the "Privacy & Security" system settings.
+
 ### Windows:
 
 WSL2 is the supported way to build Ladybird on Windows. An experimental native build is being setup but does not fully
