@@ -10,7 +10,7 @@ extern "C" __attribute__((noreturn)) void ak_verification_failed(char const*);
 #define __stringify_helper(x) #x
 #define __stringify(x) __stringify_helper(x)
 #define VERIFY(expr)                                                                  \
-    (__builtin_expect(!(expr), 0)                                                     \
+    (__builtin_expect(/* NOLINT(readability-simplify-boolean-expr) */ !(expr), 0)     \
             ? ak_verification_failed(#expr " at " __FILE__ ":" __stringify(__LINE__)) \
             : (void)0)
 #define VERIFY_NOT_REACHED() VERIFY(false) /* NOLINT(cert-dcl03-c,misc-static-assert) No, this can't be static_assert, it's a runtime check */
