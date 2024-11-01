@@ -111,8 +111,6 @@ ThrowCompletionOr<bool> Object::is_extensible() const
 // 7.3.2 Get ( O, P ), https://tc39.es/ecma262/#sec-get-o-p
 ThrowCompletionOr<Value> Object::get(PropertyKey const& property_key) const
 {
-    VERIFY(property_key.is_valid());
-
     // 1. Return ? O.[[Get]](P, O).
     return TRY(internal_get(property_key, this));
 }
@@ -124,7 +122,6 @@ ThrowCompletionOr<void> Object::set(PropertyKey const& property_key, Value value
 {
     auto& vm = this->vm();
 
-    VERIFY(property_key.is_valid());
     VERIFY(!value.is_empty());
 
     // 1. Let success be ? O.[[Set]](P, V, O).
@@ -143,8 +140,6 @@ ThrowCompletionOr<void> Object::set(PropertyKey const& property_key, Value value
 // 7.3.5 CreateDataProperty ( O, P, V ), https://tc39.es/ecma262/#sec-createdataproperty
 ThrowCompletionOr<bool> Object::create_data_property(PropertyKey const& property_key, Value value)
 {
-    VERIFY(property_key.is_valid());
-
     // 1. Let newDesc be the PropertyDescriptor { [[Value]]: V, [[Writable]]: true, [[Enumerable]]: true, [[Configurable]]: true }.
     auto new_descriptor = PropertyDescriptor {
         .value = value,
@@ -160,7 +155,6 @@ ThrowCompletionOr<bool> Object::create_data_property(PropertyKey const& property
 // 7.3.6 CreateMethodProperty ( O, P, V ), https://tc39.es/ecma262/#sec-createmethodproperty
 void Object::create_method_property(PropertyKey const& property_key, Value value)
 {
-    VERIFY(property_key.is_valid());
     VERIFY(!value.is_empty());
 
     // 1. Assert: O is an ordinary, extensible object with no non-configurable properties.
@@ -184,7 +178,6 @@ ThrowCompletionOr<bool> Object::create_data_property_or_throw(PropertyKey const&
 {
     auto& vm = this->vm();
 
-    VERIFY(property_key.is_valid());
     VERIFY(!value.is_empty());
 
     // 1. Let success be ? CreateDataProperty(O, P, V).
@@ -203,7 +196,6 @@ ThrowCompletionOr<bool> Object::create_data_property_or_throw(PropertyKey const&
 // 7.3.8 CreateNonEnumerableDataPropertyOrThrow ( O, P, V ), https://tc39.es/ecma262/#sec-createnonenumerabledatapropertyorthrow
 void Object::create_non_enumerable_data_property_or_throw(PropertyKey const& property_key, Value value)
 {
-    VERIFY(property_key.is_valid());
     VERIFY(!value.is_empty());
 
     // 1. Assert: O is an ordinary, extensible object with no non-configurable properties.
@@ -221,8 +213,6 @@ void Object::create_non_enumerable_data_property_or_throw(PropertyKey const& pro
 ThrowCompletionOr<void> Object::define_property_or_throw(PropertyKey const& property_key, PropertyDescriptor const& property_descriptor)
 {
     auto& vm = this->vm();
-
-    VERIFY(property_key.is_valid());
 
     // 1. Let success be ? O.[[DefineOwnProperty]](P, desc).
     auto success = TRY(internal_define_own_property(property_key, property_descriptor));
@@ -242,8 +232,6 @@ ThrowCompletionOr<void> Object::delete_property_or_throw(PropertyKey const& prop
 {
     auto& vm = this->vm();
 
-    VERIFY(property_key.is_valid());
-
     // 1. Let success be ? O.[[Delete]](P).
     auto success = TRY(internal_delete(property_key));
 
@@ -260,8 +248,6 @@ ThrowCompletionOr<void> Object::delete_property_or_throw(PropertyKey const& prop
 // 7.3.12 HasProperty ( O, P ), https://tc39.es/ecma262/#sec-hasproperty
 ThrowCompletionOr<bool> Object::has_property(PropertyKey const& property_key) const
 {
-    VERIFY(property_key.is_valid());
-
     // 1. Return ? O.[[HasProperty]](P).
     return internal_has_property(property_key);
 }
@@ -269,8 +255,6 @@ ThrowCompletionOr<bool> Object::has_property(PropertyKey const& property_key) co
 // 7.3.13 HasOwnProperty ( O, P ), https://tc39.es/ecma262/#sec-hasownproperty
 ThrowCompletionOr<bool> Object::has_own_property(PropertyKey const& property_key) const
 {
-    VERIFY(property_key.is_valid());
-
     // 1. Let desc be ? O.[[GetOwnProperty]](P).
     auto descriptor = TRY(internal_get_own_property(property_key));
 
@@ -793,10 +777,9 @@ ThrowCompletionOr<bool> Object::internal_prevent_extensions()
 }
 
 // 10.1.5 [[GetOwnProperty]] ( P ), https://tc39.es/ecma262/#sec-ordinary-object-internal-methods-and-internal-slots-getownproperty-p
+// 10.1.5.1 OrdinaryGetOwnProperty ( O, P ) https://tc39.es/ecma262/#sec-ordinarygetownproperty
 ThrowCompletionOr<Optional<PropertyDescriptor>> Object::internal_get_own_property(PropertyKey const& property_key) const
 {
-    VERIFY(property_key.is_valid());
-
     // 1. If O does not have an own property with key P, return undefined.
     auto maybe_storage_entry = storage_get(property_key);
     if (!maybe_storage_entry.has_value())
@@ -848,10 +831,9 @@ ThrowCompletionOr<Optional<PropertyDescriptor>> Object::internal_get_own_propert
 }
 
 // 10.1.6 [[DefineOwnProperty]] ( P, Desc ), https://tc39.es/ecma262/#sec-ordinary-object-internal-methods-and-internal-slots-defineownproperty-p-desc
+// 10.1.6.1 OrdinaryDefineOwnProperty ( O, P, Desc ), https://tc39.es/ecma262/#sec-ordinarydefineownproperty
 ThrowCompletionOr<bool> Object::internal_define_own_property(PropertyKey const& property_key, PropertyDescriptor const& property_descriptor, Optional<PropertyDescriptor>* precomputed_get_own_property)
 {
-    VERIFY(property_key.is_valid());
-
     // 1. Let current be ? O.[[GetOwnProperty]](P).
     auto current = precomputed_get_own_property ? *precomputed_get_own_property : TRY(internal_get_own_property(property_key));
 
@@ -863,10 +845,9 @@ ThrowCompletionOr<bool> Object::internal_define_own_property(PropertyKey const& 
 }
 
 // 10.1.7 [[HasProperty]] ( P ), https://tc39.es/ecma262/#sec-ordinary-object-internal-methods-and-internal-slots-hasproperty-p
+// 10.1.7.1 OrdinaryHasProperty ( O, P ), https://tc39.es/ecma262/#sec-ordinaryhasproperty
 ThrowCompletionOr<bool> Object::internal_has_property(PropertyKey const& property_key) const
 {
-    VERIFY(property_key.is_valid());
-
     // 1. Let hasOwn be ? O.[[GetOwnProperty]](P).
     auto has_own = TRY(internal_get_own_property(property_key));
 
@@ -888,10 +869,10 @@ ThrowCompletionOr<bool> Object::internal_has_property(PropertyKey const& propert
 }
 
 // 10.1.8 [[Get]] ( P, Receiver ), https://tc39.es/ecma262/#sec-ordinary-object-internal-methods-and-internal-slots-get-p-receiver
+// 10.1.8.1 OrdinaryGet ( O, P, Receiver ), https://tc39.es/ecma262/#sec-ordinaryget
 ThrowCompletionOr<Value> Object::internal_get(PropertyKey const& property_key, Value receiver, CacheablePropertyMetadata* cacheable_metadata, PropertyLookupPhase phase) const
 {
     VERIFY(!receiver.is_empty());
-    VERIFY(property_key.is_valid());
 
     auto& vm = this->vm();
 
@@ -955,9 +936,9 @@ ThrowCompletionOr<Value> Object::internal_get(PropertyKey const& property_key, V
 }
 
 // 10.1.9 [[Set]] ( P, V, Receiver ), https://tc39.es/ecma262/#sec-ordinary-object-internal-methods-and-internal-slots-set-p-v-receiver
+// 10.1.9.1 OrdinarySet ( O, P, V, Receiver ), https://tc39.es/ecma262/#sec-ordinaryset
 ThrowCompletionOr<bool> Object::internal_set(PropertyKey const& property_key, Value value, Value receiver, CacheablePropertyMetadata* cacheable_metadata)
 {
-    VERIFY(property_key.is_valid());
     VERIFY(!value.is_empty());
     VERIFY(!receiver.is_empty());
 
@@ -971,7 +952,6 @@ ThrowCompletionOr<bool> Object::internal_set(PropertyKey const& property_key, Va
 // 10.1.9.2 OrdinarySetWithOwnDescriptor ( O, P, V, Receiver, ownDesc ), https://tc39.es/ecma262/#sec-ordinarysetwithowndescriptor
 ThrowCompletionOr<bool> Object::ordinary_set_with_own_descriptor(PropertyKey const& property_key, Value value, Value receiver, Optional<PropertyDescriptor> own_descriptor, CacheablePropertyMetadata* cacheable_metadata)
 {
-    VERIFY(property_key.is_valid());
     VERIFY(!value.is_empty());
     VERIFY(!receiver.is_empty());
 
@@ -1005,7 +985,7 @@ ThrowCompletionOr<bool> Object::ordinary_set_with_own_descriptor(PropertyKey con
         if (!*own_descriptor->writable)
             return false;
 
-        // b. If Type(Receiver) is not Object, return false.
+        // b. If Receiver is not an Object, return false.
         if (!receiver.is_object())
             return false;
 
@@ -1066,10 +1046,9 @@ ThrowCompletionOr<bool> Object::ordinary_set_with_own_descriptor(PropertyKey con
 }
 
 // 10.1.10 [[Delete]] ( P ), https://tc39.es/ecma262/#sec-ordinary-object-internal-methods-and-internal-slots-delete-p
+// 10.1.10.1 OrdinaryDelete ( O, P ), https://tc39.es/ecma262/#sec-ordinarydelete
 ThrowCompletionOr<bool> Object::internal_delete(PropertyKey const& property_key)
 {
-    VERIFY(property_key.is_valid());
-
     // 1. Let desc be ? O.[[GetOwnProperty]](P).
     auto descriptor = TRY(internal_get_own_property(property_key));
 
@@ -1158,8 +1137,6 @@ static Optional<Object::IntrinsicAccessor> find_intrinsic_accessor(Object const*
 
 Optional<ValueAndAttributes> Object::storage_get(PropertyKey const& property_key) const
 {
-    VERIFY(property_key.is_valid());
-
     Value value;
     PropertyAttributes attributes;
     Optional<u32> property_offset;
@@ -1190,7 +1167,6 @@ Optional<ValueAndAttributes> Object::storage_get(PropertyKey const& property_key
 
 bool Object::storage_has(PropertyKey const& property_key) const
 {
-    VERIFY(property_key.is_valid());
     if (property_key.is_number())
         return m_indexed_properties.has_index(property_key.as_number());
     return shape().lookup(property_key.to_string_or_symbol()).has_value();
@@ -1198,8 +1174,6 @@ bool Object::storage_has(PropertyKey const& property_key) const
 
 void Object::storage_set(PropertyKey const& property_key, ValueAndAttributes const& value_and_attributes)
 {
-    VERIFY(property_key.is_valid());
-
     auto [value, attributes, _] = value_and_attributes;
 
     if (property_key.is_number()) {
@@ -1241,7 +1215,6 @@ void Object::storage_set(PropertyKey const& property_key, ValueAndAttributes con
 
 void Object::storage_delete(PropertyKey const& property_key)
 {
-    VERIFY(property_key.is_valid());
     VERIFY(storage_has(property_key));
 
     if (property_key.is_number())
@@ -1287,8 +1260,6 @@ void Object::define_native_accessor(Realm& realm, PropertyKey const& property_ke
 
 void Object::define_direct_accessor(PropertyKey const& property_key, FunctionObject* getter, FunctionObject* setter, PropertyAttributes attributes)
 {
-    VERIFY(property_key.is_valid());
-
     auto existing_property = storage_get(property_key).value_or({}).value;
     auto* accessor = existing_property.is_accessor() ? &existing_property.as_accessor() : nullptr;
     if (!accessor) {

@@ -54,11 +54,9 @@ void StringObject::visit_edges(Cell::Visitor& visitor)
 // 10.4.3.5 StringGetOwnProperty ( S, P ), https://tc39.es/ecma262/#sec-stringgetownproperty
 static ThrowCompletionOr<Optional<PropertyDescriptor>> string_get_own_property(StringObject const& string, PropertyKey const& property_key)
 {
-    VERIFY(property_key.is_valid());
-
     auto& vm = string.vm();
 
-    // 1. If Type(P) is not String, return undefined.
+    // 1. If P is not a String, return undefined.
     // NOTE: The spec only uses string and symbol keys, and later coerces to numbers -
     // this is not the case for PropertyKey, so '!property_key.is_string()' would be wrong.
     if (property_key.is_symbol())
@@ -68,7 +66,7 @@ static ThrowCompletionOr<Optional<PropertyDescriptor>> string_get_own_property(S
     auto index = canonical_numeric_index_string(property_key, CanonicalIndexMode::IgnoreNumericRoundtrip);
 
     // 3. If index is undefined, return undefined.
-    // 4. If IsIntegralNumber(index) is false, return undefined.
+    // 4. If index is not an integral Number, return undefined.
     // 5. If index is -0𝔽, return undefined.
     if (!index.is_index())
         return Optional<PropertyDescriptor> {};
@@ -84,7 +82,7 @@ static ThrowCompletionOr<Optional<PropertyDescriptor>> string_get_own_property(S
     if (length <= index.as_index())
         return Optional<PropertyDescriptor> {};
 
-    // 10. Let resultStr be the String value of length 1, containing one code unit from str, specifically the code unit at index ℝ(index).
+    // 10. Let resultStr be the substring of str from ℝ(index) to ℝ(index) + 1.
     auto result_str = PrimitiveString::create(vm, Utf16String::create(str.substring_view(index.as_index(), 1)));
 
     // 11. Return the PropertyDescriptor { [[Value]]: resultStr, [[Writable]]: false, [[Enumerable]]: true, [[Configurable]]: false }.
@@ -99,8 +97,6 @@ static ThrowCompletionOr<Optional<PropertyDescriptor>> string_get_own_property(S
 // 10.4.3.1 [[GetOwnProperty]] ( P ), https://tc39.es/ecma262/#sec-string-exotic-objects-getownproperty-p
 ThrowCompletionOr<Optional<PropertyDescriptor>> StringObject::internal_get_own_property(PropertyKey const& property_key) const
 {
-    VERIFY(property_key.is_valid());
-
     // 1. Let desc be OrdinaryGetOwnProperty(S, P).
     auto descriptor = MUST(Object::internal_get_own_property(property_key));
 
@@ -115,8 +111,6 @@ ThrowCompletionOr<Optional<PropertyDescriptor>> StringObject::internal_get_own_p
 // 10.4.3.2 [[DefineOwnProperty]] ( P, Desc ), https://tc39.es/ecma262/#sec-string-exotic-objects-defineownproperty-p-desc
 ThrowCompletionOr<bool> StringObject::internal_define_own_property(PropertyKey const& property_key, PropertyDescriptor const& property_descriptor, Optional<PropertyDescriptor>* precomputed_get_own_property)
 {
-    VERIFY(property_key.is_valid());
-
     // 1. Let stringDesc be StringGetOwnProperty(S, P).
     auto string_descriptor = TRY(string_get_own_property(*this, property_key));
 
@@ -144,7 +138,7 @@ ThrowCompletionOr<MarkedVector<Value>> StringObject::internal_own_property_keys(
     // 2. Let str be O.[[StringData]].
     auto str = m_string->utf16_string_view();
 
-    // 3. Assert: Type(str) is String.
+    // 3. Assert: str is a String.
 
     // 4. Let len be the length of str.
     auto length = str.length_in_code_units();
@@ -163,7 +157,7 @@ ThrowCompletionOr<MarkedVector<Value>> StringObject::internal_own_property_keys(
         }
     }
 
-    // 7. For each own property key P of O such that Type(P) is String and P is not an array index, in ascending chronological order of property creation, do
+    // 7. For each own property key P of O such that P is a String and P is not an array index, in ascending chronological order of property creation, do
     for (auto& it : shape().property_table()) {
         if (it.key.is_string()) {
             // a. Add P as the last element of keys.
@@ -171,7 +165,7 @@ ThrowCompletionOr<MarkedVector<Value>> StringObject::internal_own_property_keys(
         }
     }
 
-    // 8. For each own property key P of O such that Type(P) is Symbol, in ascending chronological order of property creation, do
+    // 8. For each own property key P of O such that P is a Symbol, in ascending chronological order of property creation, do
     for (auto& it : shape().property_table()) {
         if (it.key.is_symbol()) {
             // a. Add P as the last element of keys.

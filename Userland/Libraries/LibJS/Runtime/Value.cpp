@@ -1210,34 +1210,28 @@ double to_integer_or_infinity(double number)
 // 7.3.3 GetV ( V, P ), https://tc39.es/ecma262/#sec-getv
 ThrowCompletionOr<Value> Value::get(VM& vm, PropertyKey const& property_key) const
 {
-    // 1. Assert: IsPropertyKey(P) is true.
-    VERIFY(property_key.is_valid());
-
-    // 2. Let O be ? ToObject(V).
+    // 1. Let O be ? ToObject(V).
     auto object = TRY(to_object(vm));
 
-    // 3. Return ? O.[[Get]](P, V).
+    // 2. Return ? O.[[Get]](P, V).
     return TRY(object->internal_get(property_key, *this));
 }
 
 // 7.3.11 GetMethod ( V, P ), https://tc39.es/ecma262/#sec-getmethod
 ThrowCompletionOr<GCPtr<FunctionObject>> Value::get_method(VM& vm, PropertyKey const& property_key) const
 {
-    // 1. Assert: IsPropertyKey(P) is true.
-    VERIFY(property_key.is_valid());
-
-    // 2. Let func be ? GetV(V, P).
+    // 1. Let func be ? GetV(V, P).
     auto function = TRY(get(vm, property_key));
 
-    // 3. If func is either undefined or null, return undefined.
+    // 2. If func is either undefined or null, return undefined.
     if (function.is_nullish())
         return nullptr;
 
-    // 4. If IsCallable(func) is false, throw a TypeError exception.
+    // 3. If IsCallable(func) is false, throw a TypeError exception.
     if (!function.is_function())
         return vm.throw_completion<TypeError>(ErrorType::NotAFunction, function.to_string_without_side_effects());
 
-    // 5. Return func.
+    // 4. Return func.
     return function.as_function();
 }
 

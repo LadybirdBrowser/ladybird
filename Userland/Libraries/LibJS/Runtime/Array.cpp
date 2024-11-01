@@ -281,8 +281,6 @@ ThrowCompletionOr<bool> Array::internal_define_own_property(PropertyKey const& p
 {
     auto& vm = this->vm();
 
-    VERIFY(property_key.is_valid());
-
     // 1. If P is "length", then
     if (property_key.is_string() && property_key.as_string() == vm.names.length.as_string()) {
         // a. Return ? ArraySetLength(A, Desc).
