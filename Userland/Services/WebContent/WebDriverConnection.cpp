@@ -284,7 +284,7 @@ Messages::WebDriverClient::NavigateToResponse WebDriverConnection::navigate_to(J
     // FIXME: 3. If url is not an absolute URL or is not an absolute URL with fragment or not a local scheme, return error with error code invalid argument.
 
     // 4. Handle any user prompts and return its value if it is an error.
-    TRY(handle_any_user_prompts());
+    TRY(deprecated_handle_any_user_prompts());
 
     // 5. Let current URL be the current top-level browsing context’s active document’s URL.
     auto const& current_url = current_top_level_browsing_context()->active_document()->url();
@@ -330,7 +330,7 @@ Messages::WebDriverClient::GetCurrentUrlResponse WebDriverConnection::get_curren
     TRY(ensure_current_top_level_browsing_context_is_open());
 
     // 2. Handle any user prompts and return its value if it is an error.
-    TRY(handle_any_user_prompts());
+    TRY(deprecated_handle_any_user_prompts());
 
     // 3. Let url be the serialization of the current top-level browsing context’s active document’s document URL.
     auto url = current_top_level_browsing_context()->active_document()->url().to_byte_string();
@@ -346,7 +346,7 @@ Messages::WebDriverClient::BackResponse WebDriverConnection::back()
     TRY(ensure_current_top_level_browsing_context_is_open());
 
     // 2. Handle any user prompts and return its value if it is an error.
-    TRY(handle_any_user_prompts());
+    TRY(deprecated_handle_any_user_prompts());
 
     // 3. Traverse the history by a delta –1 for the current browsing context.
     current_browsing_context().page().client().page_did_request_navigate_back();
@@ -365,7 +365,7 @@ Messages::WebDriverClient::ForwardResponse WebDriverConnection::forward()
     TRY(ensure_current_top_level_browsing_context_is_open());
 
     // 2. Handle any user prompts and return its value if it is an error.
-    TRY(handle_any_user_prompts());
+    TRY(deprecated_handle_any_user_prompts());
 
     // 3. Traverse the history by a delta 1 for the current browsing context.
     current_browsing_context().page().client().page_did_request_navigate_forward();
@@ -384,7 +384,7 @@ Messages::WebDriverClient::RefreshResponse WebDriverConnection::refresh()
     TRY(ensure_current_top_level_browsing_context_is_open());
 
     // 2. Handle any user prompts and return its value if it is an error.
-    TRY(handle_any_user_prompts());
+    TRY(deprecated_handle_any_user_prompts());
 
     // 3. Initiate an overridden reload of the current top-level browsing context’s active document.
     current_top_level_browsing_context()->page().client().page_did_request_refresh();
@@ -407,7 +407,7 @@ Messages::WebDriverClient::GetTitleResponse WebDriverConnection::get_title()
     TRY(ensure_current_top_level_browsing_context_is_open());
 
     // 2. Handle any user prompts and return its value if it is an error.
-    TRY(handle_any_user_prompts());
+    TRY(deprecated_handle_any_user_prompts());
 
     // 3. Let title be the initial value of the title IDL attribute of the current top-level browsing context's active document.
     auto title = current_top_level_browsing_context()->active_document()->title();
@@ -433,7 +433,7 @@ Messages::WebDriverClient::CloseWindowResponse WebDriverConnection::close_window
     TRY(ensure_current_top_level_browsing_context_is_open());
 
     // 2. Handle any user prompts and return its value if it is an error.
-    TRY(handle_any_user_prompts());
+    TRY(deprecated_handle_any_user_prompts());
 
     // 3. Close the current top-level browsing context.
     current_top_level_browsing_context()->top_level_traversable()->close_top_level_traversable();
@@ -481,7 +481,7 @@ Messages::WebDriverClient::NewWindowResponse WebDriverConnection::new_window(Jso
     TRY(ensure_current_top_level_browsing_context_is_open());
 
     // 3. Handle any user prompts and return its value if it is an error.
-    TRY(handle_any_user_prompts());
+    TRY(deprecated_handle_any_user_prompts());
 
     // 4. Let type hint be the result of getting the property "type" from the parameters argument.
     if (!payload.is_object())
@@ -542,7 +542,7 @@ Messages::WebDriverClient::SwitchToFrameResponse WebDriverConnection::switch_to_
         TRY(ensure_current_top_level_browsing_context_is_open());
 
         // 2. Try to handle any user prompts with session.
-        TRY(handle_any_user_prompts());
+        TRY(deprecated_handle_any_user_prompts());
 
         // 3. Set the current browsing context with session and session's current top-level browsing context.
         set_current_browsing_context(*current_top_level_browsing_context());
@@ -568,7 +568,7 @@ Messages::WebDriverClient::SwitchToFrameResponse WebDriverConnection::switch_to_
         TRY(ensure_current_browsing_context_is_open());
 
         // 2. Try to handle any user prompts with session.
-        TRY(handle_any_user_prompts());
+        TRY(deprecated_handle_any_user_prompts());
 
         // 3. Let element be the result of trying to get a known element with session and id.
         auto element = TRY(Web::WebDriver::get_known_element(current_browsing_context(), element_id));
@@ -614,7 +614,7 @@ Messages::WebDriverClient::SwitchToParentFrameResponse WebDriverConnection::swit
     TRY(ensure_browsing_context_is_open(parent_browsing_context));
 
     // 3. Try to handle any user prompts with session.
-    TRY(handle_any_user_prompts());
+    TRY(deprecated_handle_any_user_prompts());
 
     // 4. If session's current parent browsing context is not null, set the current browsing context with session and
     //    current parent browsing context.
@@ -634,7 +634,7 @@ Messages::WebDriverClient::GetWindowRectResponse WebDriverConnection::get_window
     TRY(ensure_current_top_level_browsing_context_is_open());
 
     // 2. Handle any user prompts and return its value if it is an error.
-    TRY(handle_any_user_prompts());
+    TRY(deprecated_handle_any_user_prompts());
 
     // 3. Return success with data set to the WindowRect object for the current top-level browsing context.
     return serialize_rect(compute_window_rect(current_top_level_browsing_context()->page()));
@@ -689,7 +689,7 @@ Messages::WebDriverClient::SetWindowRectResponse WebDriverConnection::set_window
     TRY(ensure_current_top_level_browsing_context_is_open());
 
     // 9. Handle any user prompts and return its value if it is an error.
-    TRY(handle_any_user_prompts());
+    TRY(deprecated_handle_any_user_prompts());
 
     // FIXME: 10. Fully exit fullscreen.
 
@@ -729,7 +729,7 @@ Messages::WebDriverClient::MaximizeWindowResponse WebDriverConnection::maximize_
     TRY(ensure_current_top_level_browsing_context_is_open());
 
     // 3. Handle any user prompts and return its value if it is an error.
-    TRY(handle_any_user_prompts());
+    TRY(deprecated_handle_any_user_prompts());
 
     // FIXME: 4. Fully exit fullscreen.
 
@@ -752,7 +752,7 @@ Messages::WebDriverClient::MinimizeWindowResponse WebDriverConnection::minimize_
     TRY(ensure_current_top_level_browsing_context_is_open());
 
     // 3. Handle any user prompts and return its value if it is an error.
-    TRY(handle_any_user_prompts());
+    TRY(deprecated_handle_any_user_prompts());
 
     // FIXME: 4. Fully exit fullscreen.
 
@@ -775,7 +775,7 @@ Messages::WebDriverClient::FullscreenWindowResponse WebDriverConnection::fullscr
     TRY(ensure_current_top_level_browsing_context_is_open());
 
     // 3. Handle any user prompts and return its value if it is an error.
-    TRY(handle_any_user_prompts());
+    TRY(deprecated_handle_any_user_prompts());
 
     // 4. Restore the window.
     restore_the_window(JS::create_heap_function(current_top_level_browsing_context()->heap(), [this]() {
@@ -842,7 +842,7 @@ Messages::WebDriverClient::FindElementResponse WebDriverConnection::find_element
     TRY(ensure_current_browsing_context_is_open());
 
     // 6. Try to handle any user prompts with session.
-    TRY(handle_any_user_prompts());
+    TRY(deprecated_handle_any_user_prompts());
 
     auto get_start_node = JS::create_heap_function(current_browsing_context().heap(), [this]() -> ErrorOr<JS::NonnullGCPtr<Web::DOM::ParentNode>, Web::WebDriver::Error> {
         // 7. Let start node be session's current browsing context's document element.
@@ -884,7 +884,7 @@ Messages::WebDriverClient::FindElementsResponse WebDriverConnection::find_elemen
     TRY(ensure_current_browsing_context_is_open());
 
     // 6. Try to handle any user prompts with session.
-    TRY(handle_any_user_prompts());
+    TRY(deprecated_handle_any_user_prompts());
 
     auto get_start_node = JS::create_heap_function(current_browsing_context().heap(), [this]() -> ErrorOr<JS::NonnullGCPtr<Web::DOM::ParentNode>, Web::WebDriver::Error> {
         // 7. Let start node be session's current browsing context's document element.
@@ -924,7 +924,7 @@ Messages::WebDriverClient::FindElementFromElementResponse WebDriverConnection::f
     TRY(ensure_current_browsing_context_is_open());
 
     // 6. Try to handle any user prompts with session.
-    TRY(handle_any_user_prompts());
+    TRY(deprecated_handle_any_user_prompts());
 
     auto get_start_node = JS::create_heap_function(current_browsing_context().heap(), [this, element_id]() -> ErrorOr<JS::NonnullGCPtr<Web::DOM::ParentNode>, Web::WebDriver::Error> {
         // 7. Let start node be the result of trying to get a known element with session and URL variables["element id"].
@@ -959,7 +959,7 @@ Messages::WebDriverClient::FindElementsFromElementResponse WebDriverConnection::
     TRY(ensure_current_browsing_context_is_open());
 
     // 6. Try to handle any user prompts with session.
-    TRY(handle_any_user_prompts());
+    TRY(deprecated_handle_any_user_prompts());
 
     auto get_start_node = JS::create_heap_function(current_browsing_context().heap(), [this, element_id]() -> ErrorOr<JS::NonnullGCPtr<Web::DOM::ParentNode>, Web::WebDriver::Error> {
         // 7. Let start node be the result of trying to get a known element with session and URL variables["element id"].
@@ -993,7 +993,7 @@ Messages::WebDriverClient::FindElementFromShadowRootResponse WebDriverConnection
     TRY(ensure_current_browsing_context_is_open());
 
     // 6. Handle any user prompts and return its value if it is an error.
-    TRY(handle_any_user_prompts());
+    TRY(deprecated_handle_any_user_prompts());
 
     auto get_start_node = JS::create_heap_function(current_browsing_context().heap(), [this, shadow_id]() -> ErrorOr<JS::NonnullGCPtr<Web::DOM::ParentNode>, Web::WebDriver::Error> {
         // 7. Let start node be the result of trying to get a known shadow root with session and URL variables["shadow id"].
@@ -1028,7 +1028,7 @@ Messages::WebDriverClient::FindElementsFromShadowRootResponse WebDriverConnectio
     TRY(ensure_current_browsing_context_is_open());
 
     // 6. Handle any user prompts and return its value if it is an error.
-    TRY(handle_any_user_prompts());
+    TRY(deprecated_handle_any_user_prompts());
 
     auto get_start_node = JS::create_heap_function(current_browsing_context().heap(), [this, shadow_id]() -> ErrorOr<JS::NonnullGCPtr<Web::DOM::ParentNode>, Web::WebDriver::Error> {
         // 7. Let start node be the result of trying to get a known shadow root with session and URL variables["shadow id"].
@@ -1050,7 +1050,7 @@ Messages::WebDriverClient::GetActiveElementResponse WebDriverConnection::get_act
     TRY(ensure_current_browsing_context_is_open());
 
     // 2. Handle any user prompts and return its value if it is an error.
-    TRY(handle_any_user_prompts());
+    TRY(deprecated_handle_any_user_prompts());
 
     // 3. Let active element be the active element of the current browsing context’s document element.
     auto* active_element = current_browsing_context().active_document()->active_element();
@@ -1070,7 +1070,7 @@ Messages::WebDriverClient::GetElementShadowRootResponse WebDriverConnection::get
     TRY(ensure_current_browsing_context_is_open());
 
     // 2. Handle any user prompts and return its value if it is an error.
-    TRY(handle_any_user_prompts());
+    TRY(deprecated_handle_any_user_prompts());
 
     // 3. Let element be the result of trying to get a known element with session and URL variables[element id].
     auto element = TRY(Web::WebDriver::get_known_element(current_browsing_context(), element_id));
@@ -1096,7 +1096,7 @@ Messages::WebDriverClient::IsElementSelectedResponse WebDriverConnection::is_ele
     TRY(ensure_current_browsing_context_is_open());
 
     // 2. Handle any user prompts and return its value if it is an error.
-    TRY(handle_any_user_prompts());
+    TRY(deprecated_handle_any_user_prompts());
 
     // 3. Let element be the result of trying to get a known connected element with url variable element id.
     auto element = TRY(Web::WebDriver::get_known_element(current_browsing_context(), element_id));
@@ -1132,7 +1132,7 @@ Messages::WebDriverClient::GetElementAttributeResponse WebDriverConnection::get_
     TRY(ensure_current_browsing_context_is_open());
 
     // 2. Handle any user prompts and return its value if it is an error.
-    TRY(handle_any_user_prompts());
+    TRY(deprecated_handle_any_user_prompts());
 
     // 3. Let element be the result of trying to get a known connected element with url variable element id.
     auto element = TRY(Web::WebDriver::get_known_element(current_browsing_context(), element_id));
@@ -1166,7 +1166,7 @@ Messages::WebDriverClient::GetElementPropertyResponse WebDriverConnection::get_e
     TRY(ensure_current_browsing_context_is_open());
 
     // 2. Handle any user prompts and return its value if it is an error.
-    TRY(handle_any_user_prompts());
+    TRY(deprecated_handle_any_user_prompts());
 
     // 3. Let element be the result of trying to get a known connected element with url variable element id.
     auto element = TRY(Web::WebDriver::get_known_element(current_browsing_context(), element_id));
@@ -1199,7 +1199,7 @@ Messages::WebDriverClient::GetElementCssValueResponse WebDriverConnection::get_e
     TRY(ensure_current_browsing_context_is_open());
 
     // 2. Handle any user prompts and return its value if it is an error.
-    TRY(handle_any_user_prompts());
+    TRY(deprecated_handle_any_user_prompts());
 
     // 3. Let element be the result of trying to get a known connected element with url variable element id.
     auto element = TRY(Web::WebDriver::get_known_element(current_browsing_context(), element_id));
@@ -1232,7 +1232,7 @@ Messages::WebDriverClient::GetElementTextResponse WebDriverConnection::get_eleme
     TRY(ensure_current_browsing_context_is_open());
 
     // 2. Handle any user prompts and return its value if it is an error.
-    TRY(handle_any_user_prompts());
+    TRY(deprecated_handle_any_user_prompts());
 
     // 3. Let element be the result of trying to get a known connected element with url variable element id.
     auto element = TRY(Web::WebDriver::get_known_element(current_browsing_context(), element_id));
@@ -1251,7 +1251,7 @@ Messages::WebDriverClient::GetElementTagNameResponse WebDriverConnection::get_el
     TRY(ensure_current_browsing_context_is_open());
 
     // 2. Handle any user prompts and return its value if it is an error.
-    TRY(handle_any_user_prompts());
+    TRY(deprecated_handle_any_user_prompts());
 
     // 3. Let element be the result of trying to get a known connected element with url variable element id.
     auto element = TRY(Web::WebDriver::get_known_element(current_browsing_context(), element_id));
@@ -1270,7 +1270,7 @@ Messages::WebDriverClient::GetElementRectResponse WebDriverConnection::get_eleme
     TRY(ensure_current_browsing_context_is_open());
 
     // 2. Handle any user prompts and return its value if it is an error.
-    TRY(handle_any_user_prompts());
+    TRY(deprecated_handle_any_user_prompts());
 
     // 3. Let element be the result of trying to get a known connected element with url variable element id.
     auto element = TRY(Web::WebDriver::get_known_element(current_browsing_context(), element_id));
@@ -1301,7 +1301,7 @@ Messages::WebDriverClient::IsElementEnabledResponse WebDriverConnection::is_elem
     TRY(ensure_current_browsing_context_is_open());
 
     // 2. Handle any user prompts and return its value if it is an error.
-    TRY(handle_any_user_prompts());
+    TRY(deprecated_handle_any_user_prompts());
 
     // 3. Let element be the result of trying to get a known connected element with url variable element id.
     auto element = TRY(Web::WebDriver::get_known_element(current_browsing_context(), element_id));
@@ -1327,7 +1327,7 @@ Messages::WebDriverClient::GetComputedRoleResponse WebDriverConnection::get_comp
     TRY(ensure_current_top_level_browsing_context_is_open());
 
     // 2. Handle any user prompts and return its value if it is an error.
-    TRY(handle_any_user_prompts());
+    TRY(deprecated_handle_any_user_prompts());
 
     // 3. Let element be the result of trying to get a known connected element with url variable element id.
     auto element = TRY(Web::WebDriver::get_known_element(current_browsing_context(), element_id));
@@ -1348,7 +1348,7 @@ Messages::WebDriverClient::GetComputedLabelResponse WebDriverConnection::get_com
     TRY(ensure_current_browsing_context_is_open());
 
     // 2. Handle any user prompts and return its value if it is an error.
-    TRY(handle_any_user_prompts());
+    TRY(deprecated_handle_any_user_prompts());
 
     // 3. Let element be the result of trying to get a known element with url variable element id.
     auto element = TRY(Web::WebDriver::get_known_element(current_browsing_context(), element_id));
@@ -1367,7 +1367,7 @@ Messages::WebDriverClient::ElementClickResponse WebDriverConnection::element_cli
     TRY(ensure_current_browsing_context_is_open());
 
     // 2. Handle any user prompts and return its value if it is an error.
-    TRY(handle_any_user_prompts());
+    TRY(deprecated_handle_any_user_prompts());
 
     // 3. Let element be the result of trying to get a known element with element id.
     auto element = TRY(Web::WebDriver::get_known_element(current_browsing_context(), element_id));
@@ -1595,7 +1595,7 @@ Messages::WebDriverClient::ElementClearResponse WebDriverConnection::element_cle
     TRY(ensure_current_browsing_context_is_open());
 
     // 2. Try to handle any user prompts with session.
-    TRY(handle_any_user_prompts());
+    TRY(deprecated_handle_any_user_prompts());
 
     // 3. Let element be the result of trying to get a known element with session and element id.
     auto element = TRY(Web::WebDriver::get_known_element(current_browsing_context(), element_id));
@@ -1651,7 +1651,7 @@ Messages::WebDriverClient::ElementSendKeysResponse WebDriverConnection::element_
     TRY(ensure_current_browsing_context_is_open());
 
     // 4. Try to handle any user prompts with session.
-    TRY(handle_any_user_prompts());
+    TRY(deprecated_handle_any_user_prompts());
 
     // 5. Let element be the result of trying to get a known element with session and URL variables[element id].
     auto element = TRY(Web::WebDriver::get_known_element(current_browsing_context(), element_id));
@@ -1824,7 +1824,7 @@ Messages::WebDriverClient::GetSourceResponse WebDriverConnection::get_source()
     TRY(ensure_current_browsing_context_is_open());
 
     // 2. Handle any user prompts and return its value if it is an error.
-    TRY(handle_any_user_prompts());
+    TRY(deprecated_handle_any_user_prompts());
 
     auto* document = current_browsing_context().active_document();
     Optional<ByteString> source;
@@ -1854,7 +1854,7 @@ Messages::WebDriverClient::ExecuteScriptResponse WebDriverConnection::execute_sc
     TRY(ensure_current_browsing_context_is_open());
 
     // 3. Handle any user prompts, and return its value if it is an error.
-    TRY(handle_any_user_prompts());
+    TRY(deprecated_handle_any_user_prompts());
 
     // 4. Let timeout be session's session timeouts' script timeout.
     auto timeout_ms = m_timeouts_configuration.script_timeout;
@@ -1882,7 +1882,7 @@ Messages::WebDriverClient::ExecuteAsyncScriptResponse WebDriverConnection::execu
     TRY(ensure_current_browsing_context_is_open());
 
     // 3. Handle any user prompts, and return its value if it is an error.
-    TRY(handle_any_user_prompts());
+    TRY(deprecated_handle_any_user_prompts());
 
     // 4. Let timeout be session's session timeouts' script timeout.
     auto timeout_ms = m_timeouts_configuration.script_timeout;
@@ -1936,7 +1936,7 @@ Messages::WebDriverClient::GetAllCookiesResponse WebDriverConnection::get_all_co
     TRY(ensure_current_browsing_context_is_open());
 
     // 2. Handle any user prompts, and return its value if it is an error.
-    TRY(handle_any_user_prompts());
+    TRY(deprecated_handle_any_user_prompts());
 
     // 3. Let cookies be a new JSON List.
     JsonArray cookies;
@@ -1963,7 +1963,7 @@ Messages::WebDriverClient::GetNamedCookieResponse WebDriverConnection::get_named
     TRY(ensure_current_browsing_context_is_open());
 
     // 2. Handle any user prompts, and return its value if it is an error.
-    TRY(handle_any_user_prompts());
+    TRY(deprecated_handle_any_user_prompts());
 
     // 3. If the url variable name is equal to a cookie’s cookie name amongst all associated cookies of the current browsing context’s active document, return success with the serialized cookie as data.
     auto* document = current_browsing_context().active_document();
@@ -1990,7 +1990,7 @@ Messages::WebDriverClient::AddCookieResponse WebDriverConnection::add_cookie(Jso
     TRY(ensure_current_browsing_context_is_open());
 
     // 4. Handle any user prompts, and return its value if it is an error.
-    TRY(handle_any_user_prompts());
+    TRY(deprecated_handle_any_user_prompts());
 
     auto* document = current_browsing_context().active_document();
 
@@ -2072,7 +2072,7 @@ Messages::WebDriverClient::DeleteCookieResponse WebDriverConnection::delete_cook
     TRY(ensure_current_browsing_context_is_open());
 
     // 2. Handle any user prompts, and return its value if it is an error.
-    TRY(handle_any_user_prompts());
+    TRY(deprecated_handle_any_user_prompts());
 
     // 3. Delete cookies using the url variable name parameter as the filter argument.
     delete_cookies(name);
@@ -2088,7 +2088,7 @@ Messages::WebDriverClient::DeleteAllCookiesResponse WebDriverConnection::delete_
     TRY(ensure_current_browsing_context_is_open());
 
     // 2. Handle any user prompts, and return its value if it is an error.
-    TRY(handle_any_user_prompts());
+    TRY(deprecated_handle_any_user_prompts());
 
     // 3. Delete cookies, giving no filtering argument.
     delete_cookies();
@@ -2119,7 +2119,7 @@ Messages::WebDriverClient::PerformActionsResponse WebDriverConnection::perform_a
     auto actions_by_tick = TRY(Web::WebDriver::extract_an_action_sequence(input_state, payload, actions_options));
 
     // 5. Try to handle any user prompts with session.
-    TRY(handle_any_user_prompts());
+    TRY(deprecated_handle_any_user_prompts());
 
     // 6. Dispatch actions with input state, actions by tick, current browsing context, and actions options. If this
     //    results in an error return that error.
@@ -2307,7 +2307,7 @@ Messages::WebDriverClient::TakeElementScreenshotResponse WebDriverConnection::ta
     auto window = document->window();
 
     // 2. Try to handle any user prompts with session.
-    TRY(handle_any_user_prompts());
+    TRY(deprecated_handle_any_user_prompts());
 
     // 3. Let element be the result of trying to get a known element with session and URL variables["element id"].
     auto element = TRY(Web::WebDriver::get_known_element(current_browsing_context(), element_id));
@@ -2402,7 +2402,10 @@ ErrorOr<void, Web::WebDriver::Error> WebDriverConnection::ensure_current_top_lev
 }
 
 // https://w3c.github.io/webdriver/#dfn-handle-any-user-prompts
-ErrorOr<void, Web::WebDriver::Error> WebDriverConnection::handle_any_user_prompts()
+// FIXME: Handling of user prompts must become completely asynchronous, as we must wait for the UI process to close the
+//        dialog widget and inform WebContent of the result. Thus, all endpoints which handle user prompts must also be
+//        become async.
+ErrorOr<void, Web::WebDriver::Error> WebDriverConnection::deprecated_handle_any_user_prompts()
 {
     // 1. If there is no current user prompt, abort these steps and return success.
     if (!current_browsing_context().page().has_pending_dialog())
