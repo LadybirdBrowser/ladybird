@@ -163,7 +163,19 @@ ErrorOr<NonnullRefPtr<Requests::RequestClient>> launch_request_server_process()
         arguments.append(server.value());
     }
 
-    return launch_server_process<Requests::RequestClient>("RequestServer"sv, move(arguments));
+    auto client = TRY(launch_server_process<Requests::RequestClient>("RequestServer"sv, move(arguments)));
+    WebView::Application::chrome_options().dns_settings.visit(
+        [](WebView::SystemDNS) {},
+        [&](WebView::DNSOverTLS const& dns_over_tls) {
+            dbgln("Setting DNS server to {}:{} with TLS", dns_over_tls.server_address, dns_over_tls.port);
+            client->async_set_dns_server(dns_over_tls.server_address, dns_over_tls.port, true);
+        },
+        [&](WebView::DNSOverUDP const& dns_over_udp) {
+            dbgln("Setting DNS server to {}:{}", dns_over_udp.server_address, dns_over_udp.port);
+            client->async_set_dns_server(dns_over_udp.server_address, dns_over_udp.port, false);
+        });
+
+    return client;
 }
 
 ErrorOr<IPC::File> connect_new_request_server_client()

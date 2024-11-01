@@ -72,6 +72,9 @@ void Application::initialize(Main::Arguments const& arguments, URL::URL new_tab_
     Optional<StringView> profile_process;
     Optional<StringView> webdriver_content_ipc_path;
     Optional<StringView> user_agent_preset;
+    Optional<StringView> dns_server_address;
+    Optional<u16> dns_server_port;
+    bool use_dns_over_tls = false;
     bool log_all_js_exceptions = false;
     bool enable_idl_tracing = false;
     bool enable_http_cache = false;
@@ -101,6 +104,9 @@ void Application::initialize(Main::Arguments const& arguments, URL::URL new_tab_
     args_parser.add_option(force_cpu_painting, "Force CPU painting", "force-cpu-painting");
     args_parser.add_option(force_fontconfig, "Force using fontconfig for font loading", "force-fontconfig");
     args_parser.add_option(collect_garbage_on_every_allocation, "Collect garbage after every JS heap allocation", "collect-garbage-on-every-allocation", 'g');
+    args_parser.add_option(dns_server_address, "Set the DNS server address", "dns-server", 0, "host|address");
+    args_parser.add_option(dns_server_port, "Set the DNS server port", "dns-port", 0, "port (default: 53 or 853 if --dot)");
+    args_parser.add_option(use_dns_over_tls, "Use DNS over TLS", "dot");
     args_parser.add_option(Core::ArgsParser::Option {
         .argument_mode = Core::ArgsParser::OptionArgumentMode::Required,
         .help_string = "Name of the User-Agent preset to use in place of the default User-Agent",
@@ -119,6 +125,9 @@ void Application::initialize(Main::Arguments const& arguments, URL::URL new_tab_
     // the same underlying database, one of them is likely to fail.
     if (force_new_process)
         disable_sql_database = true;
+
+    if (!dns_server_port.has_value())
+        dns_server_port = use_dns_over_tls ? 853 : 53;
 
     Optional<ProcessType> debug_process_type;
     Optional<ProcessType> profile_process_type;
@@ -140,6 +149,11 @@ void Application::initialize(Main::Arguments const& arguments, URL::URL new_tab_
         .disable_sql_database = disable_sql_database ? DisableSQLDatabase::Yes : DisableSQLDatabase::No,
         .debug_helper_process = move(debug_process_type),
         .profile_helper_process = move(profile_process_type),
+        .dns_settings = (dns_server_address.has_value()
+                ? (use_dns_over_tls
+                          ? DNSSettings(DNSOverTLS(dns_server_address.release_value(), *dns_server_port))
+                          : DNSSettings(DNSOverUDP(dns_server_address.release_value(), *dns_server_port)))
+                : SystemDNS {}),
     };
 
     if (webdriver_content_ipc_path.has_value())

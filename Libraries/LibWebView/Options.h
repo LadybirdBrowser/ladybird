@@ -45,6 +45,18 @@ enum class EnableAutoplay {
     Yes,
 };
 
+struct SystemDNS { };
+struct DNSOverTLS {
+    ByteString server_address;
+    u16 port;
+};
+struct DNSOverUDP {
+    ByteString server_address;
+    u16 port;
+};
+
+using DNSSettings = Variant<SystemDNS, DNSOverTLS, DNSOverUDP>;
+
 struct ChromeOptions {
     Vector<URL::URL> urls;
     Vector<ByteString> raw_urls;
@@ -58,6 +70,7 @@ struct ChromeOptions {
     Optional<ProcessType> debug_helper_process {};
     Optional<ProcessType> profile_helper_process {};
     Optional<ByteString> webdriver_content_ipc_path {};
+    DNSSettings dns_settings { SystemDNS {} };
 };
 
 enum class IsLayoutTestMode {
