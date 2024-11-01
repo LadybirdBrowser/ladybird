@@ -30,8 +30,7 @@ public:
 
     static ThrowCompletionOr<PropertyKey> from_value(VM& vm, Value value)
     {
-        if (value.is_empty())
-            return PropertyKey {};
+        VERIFY(!value.is_empty());
         if (value.is_symbol())
             return PropertyKey { value.as_symbol() };
         if (value.is_integral_number() && value.as_double() >= 0 && value.as_double() < NumericLimits<u32>::max())
@@ -39,7 +38,7 @@ public:
         return TRY(value.to_byte_string(vm));
     }
 
-    PropertyKey() = default;
+    PropertyKey() = delete;
 
     template<Integral T>
     PropertyKey(T index)

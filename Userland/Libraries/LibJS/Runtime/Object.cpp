@@ -1448,18 +1448,13 @@ ThrowCompletionOr<Value> Object::ordinary_to_primitive(Value::PreferredType pref
 
     auto& vm = this->vm();
 
-    AK::Array<PropertyKey, 2> method_names;
-
-    // 1. If hint is string, then
-    if (preferred_type == Value::PreferredType::String) {
+    AK::Array<PropertyKey, 2> method_names = (preferred_type == Value::PreferredType::String)
+        // 1. If hint is string, then
         // a. Let methodNames be « "toString", "valueOf" ».
-        method_names = { vm.names.toString, vm.names.valueOf };
-    }
-    // 2. Else,
-    else {
+        ? AK::Array { vm.names.toString, vm.names.valueOf }
+        // 2. Else,
         // a. Let methodNames be « "valueOf", "toString" ».
-        method_names = { vm.names.valueOf, vm.names.toString };
-    }
+        : AK::Array { vm.names.valueOf, vm.names.toString };
 
     // 3. For each element name of methodNames, do
     for (auto& method_name : method_names) {

@@ -31,7 +31,7 @@ ThrowCompletionOr<void> Reference::put_value(VM& vm, Value value)
         auto& global_object = vm.get_global_object();
 
         // c. Perform ? Set(globalObj, V.[[ReferencedName]], W, false).
-        TRY(global_object.set(m_name, value, Object::ShouldThrowExceptions::No));
+        TRY(global_object.set(name(), value, Object::ShouldThrowExceptions::No));
 
         // Return unused.
         return {};
@@ -45,15 +45,15 @@ ThrowCompletionOr<void> Reference::put_value(VM& vm, Value value)
         // b. If IsPrivateReference(V) is true, then
         if (is_private_reference()) {
             // i. Return ? PrivateSet(baseObj, V.[[ReferencedName]], W).
-            return base_obj->private_set(m_private_name, value);
+            return base_obj->private_set(private_name(), value);
         }
 
         // c. Let succeeded be ? baseObj.[[Set]](V.[[ReferencedName]], W, GetThisValue(V)).
-        auto succeeded = TRY(base_obj->internal_set(m_name, value, get_this_value()));
+        auto succeeded = TRY(base_obj->internal_set(name(), value, get_this_value()));
 
         // d. If succeeded is false and V.[[Strict]] is true, throw a TypeError exception.
         if (!succeeded && m_strict)
-            return vm.throw_completion<TypeError>(ErrorType::ReferenceNullishSetProperty, m_name, m_base_value.to_string_without_side_effects());
+            return vm.throw_completion<TypeError>(ErrorType::ReferenceNullishSetProperty, name(), m_base_value.to_string_without_side_effects());
 
         // e. Return unused.
         return {};
@@ -70,15 +70,15 @@ ThrowCompletionOr<void> Reference::put_value(VM& vm, Value value)
     if (m_environment_coordinate.has_value())
         return static_cast<DeclarativeEnvironment*>(m_base_environment)->set_mutable_binding_direct(vm, m_environment_coordinate->index, value, m_strict);
     else
-        return m_base_environment->set_mutable_binding(vm, m_name.as_string(), value, m_strict);
+        return m_base_environment->set_mutable_binding(vm, name().as_string(), value, m_strict);
 }
 
 Completion Reference::throw_reference_error(VM& vm) const
 {
-    if (!m_name.is_valid())
+    if (is_private_reference())
         return vm.throw_completion<ReferenceError>(ErrorType::ReferenceUnresolvable);
     else
-        return vm.throw_completion<ReferenceError>(ErrorType::UnknownIdentifier, m_name.to_string_or_symbol().to_display_string());
+        return vm.throw_completion<ReferenceError>(ErrorType::UnknownIdentifier, name().to_string_or_symbol().to_display_string());
 }
 
 // 6.2.4.5 GetValue ( V ), https://tc39.es/ecma262/#sec-getvalue
@@ -108,13 +108,13 @@ ThrowCompletionOr<Value> Reference::get_value(VM& vm) const
             auto base_obj = TRY(m_base_value.to_object(vm));
 
             // i. Return ? PrivateGet(baseObj, V.[[ReferencedName]]).
-            return base_obj->private_get(m_private_name);
+            return base_obj->private_get(private_name());
         }
 
         // OPTIMIZATION: For various primitives we can avoid actually creating a new object for them.
         GCPtr<Object> base_obj;
         if (m_base_value.is_string()) {
-            auto string_value = TRY(m_base_value.as_string().get(vm, m_name));
+            auto string_value = TRY(m_base_value.as_string().get(vm, name()));
             if (string_value.has_value())
                 return *string_value;
             base_obj = realm.intrinsics().string_prototype();
@@ -130,7 +130,7 @@ ThrowCompletionOr<Value> Reference::get_value(VM& vm) const
             base_obj = TRY(m_base_value.to_object(vm));
 
         // c. Return ? baseObj.[[Get]](V.[[ReferencedName]], GetThisValue(V)).
-        return base_obj->internal_get(m_name, get_this_value());
+        return base_obj->internal_get(name(), get_this_value());
     }
 
     // 5. Else,
@@ -143,7 +143,7 @@ ThrowCompletionOr<Value> Reference::get_value(VM& vm) const
     // c. Return ? base.GetBindingValue(V.[[ReferencedName]], V.[[Strict]]) (see 9.1).
     if (m_environment_coordinate.has_value())
         return static_cast<DeclarativeEnvironment*>(m_base_environment)->get_binding_value_direct(vm, m_environment_coordinate->index);
-    return m_base_environment->get_binding_value(vm, m_name.as_string(), m_strict);
+    return m_base_environment->get_binding_value(vm, name().as_string(), m_strict);
 }
 
 // 13.5.1.2 Runtime Semantics: Evaluation, https://tc39.es/ecma262/#sec-delete-operator-runtime-semantics-evaluation
@@ -178,11 +178,11 @@ ThrowCompletionOr<bool> Reference::delete_(VM& vm)
         auto base_obj = TRY(m_base_value.to_object(vm));
 
         // d. Let deleteStatus be ? baseObj.[[Delete]](ref.[[ReferencedName]]).
-        bool delete_status = TRY(base_obj->internal_delete(m_name));
+        bool delete_status = TRY(base_obj->internal_delete(name()));
 
         // e. If deleteStatus is false and ref.[[Strict]] is true, throw a TypeError exception.
         if (!delete_status && m_strict)
-            return vm.throw_completion<TypeError>(ErrorType::ReferenceNullishDeleteProperty, m_name, m_base_value.to_string_without_side_effects());
+            return vm.throw_completion<TypeError>(ErrorType::ReferenceNullishDeleteProperty, name(), m_base_value.to_string_without_side_effects());
 
         // f. Return deleteStatus.
         return delete_status;
@@ -195,7 +195,7 @@ ThrowCompletionOr<bool> Reference::delete_(VM& vm)
     VERIFY(m_base_type == BaseType::Environment);
 
     //    c. Return ? base.DeleteBinding(ref.[[ReferencedName]]).
-    return m_base_environment->delete_binding(vm, m_name.as_string());
+    return m_base_environment->delete_binding(vm, name().as_string());
 }
 
 // 6.2.4.8 InitializeReferencedBinding ( V, W ), https://tc39.es/ecma262/#sec-object.prototype.hasownproperty
@@ -204,7 +204,7 @@ ThrowCompletionOr<void> Reference::initialize_referenced_binding(VM& vm, Value v
 {
     VERIFY(!is_unresolvable());
     VERIFY(m_base_type == BaseType::Environment);
-    return m_base_environment->initialize_binding(vm, m_name.as_string(), value, hint);
+    return m_base_environment->initialize_binding(vm, name().as_string(), value, hint);
 }
 
 // 6.2.4.9 MakePrivateReference ( baseValue, privateIdentifier ), https://tc39.es/ecma262/#sec-makeprivatereference
