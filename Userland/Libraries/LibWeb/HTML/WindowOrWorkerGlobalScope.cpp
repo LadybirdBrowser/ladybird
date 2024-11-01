@@ -415,7 +415,8 @@ i32 WindowOrWorkerGlobalScopeMixin::run_timer_initialization_steps(TimerHandler 
 
     // 11. Let completionStep be an algorithm step which queues a global task on the timer task source given global to run task.
     Function<void()> completion_step = [this, task = move(task)]() mutable {
-        queue_global_task(Task::Source::TimerTask, this_impl(), JS::create_heap_function(this_impl().heap(), [task] {
+        queue_global_task(Task::Source::TimerTask, this_impl(), JS::create_heap_function(this_impl().heap(), [this, task] {
+            HTML::TemporaryExecutionContext execution_context { Bindings::host_defined_environment_settings_object(this_impl().realm()), HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
             task->function()();
         }));
     };
@@ -586,6 +587,7 @@ void WindowOrWorkerGlobalScopeMixin::queue_the_performance_observer_task()
     //    timeline task source.
     queue_global_task(Task::Source::PerformanceTimeline, this_impl(), JS::create_heap_function(this_impl().heap(), [this]() {
         auto& realm = this_impl().realm();
+        HTML::TemporaryExecutionContext execution_context { Bindings::host_defined_environment_settings_object(realm), HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
 
         // 1. Unset performance observer task queued flag of relevantGlobal.
         m_performance_observer_task_queued = false;
