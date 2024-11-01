@@ -2181,7 +2181,7 @@ void Node::build_accessibility_tree(AccessibilityTreeNode& parent)
 }
 
 // https://www.w3.org/TR/accname-1.2/#mapping_additional_nd_te
-ErrorOr<String> Node::name_or_description(NameOrDescription target, Document const& document, HashTable<UniqueNodeID>& visited_nodes) const
+ErrorOr<String> Node::name_or_description(NameOrDescription target, Document const& document, HashTable<UniqueNodeID>& visited_nodes, IsDescendant is_descendant) const
 {
     // The text alternative for a given element is computed as follows:
     // 1. Set the root node to the given element, the current node to the root node, and the total accumulated text to the empty string (""). If the root node's role prohibits naming, return the empty string ("").
@@ -2321,7 +2321,7 @@ ErrorOr<String> Node::name_or_description(NameOrDescription target, Document con
 
         // F. Otherwise, if the current node's role allows name from content, or if the current node is referenced by aria-labelledby, aria-describedby, or is a native host language text alternative element (e.g. label in HTML), or is a descendant of a native host language text alternative element:
         auto role = element->role_or_default();
-        if (role.has_value() && ARIA::allows_name_from_content(role.value())) {
+        if ((role.has_value() && ARIA::allows_name_from_content(role.value())) || is_descendant == IsDescendant::Yes) {
             // i. Set the accumulated text to the empty string.
             total_accumulated_text.clear();
             // ii. Check for CSS generated textual content associated with the current node and include it in the accumulated text. The CSS :before and :after pseudo elements [CSS2] can provide textual content for elements that have a content model.
@@ -2345,7 +2345,7 @@ ErrorOr<String> Node::name_or_description(NameOrDescription target, Document con
                 current_node = &child_node;
 
                 // b. Compute the text alternative of the current node beginning with step 2. Set the result to that text alternative.
-                auto result = MUST(current_node->name_or_description(target, document, visited_nodes));
+                auto result = MUST(current_node->name_or_description(target, document, visited_nodes, IsDescendant::Yes));
 
                 // c. Append the result to the accumulated text.
                 total_accumulated_text.append(result);

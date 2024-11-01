@@ -53,6 +53,11 @@ enum class FragmentSerializationMode {
     Outer,
 };
 
+enum class IsDescendant {
+    No,
+    Yes,
+};
+
 #define ENUMERATE_STYLE_INVALIDATION_REASONS(X)     \
     X(AdoptedStyleSheetsList)                       \
     X(CSSFontLoaded)                                \
@@ -761,7 +766,7 @@ protected:
 
     void build_accessibility_tree(AccessibilityTreeNode& parent);
 
-    ErrorOr<String> name_or_description(NameOrDescription, Document const&, HashTable<UniqueNodeID>&) const;
+    ErrorOr<String> name_or_description(NameOrDescription, Document const&, HashTable<UniqueNodeID>&, IsDescendant = IsDescendant::No) const;
 
 private:
     void queue_tree_mutation_record(Vector<JS::Handle<Node>> added_nodes, Vector<JS::Handle<Node>> removed_nodes, Node* previous_sibling, Node* next_sibling);
