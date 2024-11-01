@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/Debug.h>
 #include <LibWeb/Dump.h>
 #include <LibWeb/Layout/BlockFormattingContext.h>
 #include <LibWeb/Layout/Box.h>
@@ -1176,7 +1177,10 @@ CSSPixelRect FormattingContext::content_box_rect_in_static_position_ancestor_coo
         rect.translate_by(current_state.offset);
     }
     // If we get here, ancestor_box was not an ancestor of `box`!
-    VERIFY_NOT_REACHED();
+
+    // https://github.com/LadybirdBrowser/ladybird/issues/2012
+    dbgln("FormattingContext: returning rect anyway: \033[31;1mancestor_box was not an ancestor of box\033[0m");
+    return rect;
 }
 
 void FormattingContext::layout_absolutely_positioned_element(Box const& box, AvailableSpace const& available_space)
