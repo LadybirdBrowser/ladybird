@@ -61,6 +61,12 @@ public:
     // Non-standard
     JS::GCPtr<DOM::Position> cursor_position() const;
 
+    // Non-standard
+    void move_offset_to_next_character(bool collapse_selection);
+    void move_offset_to_previous_character(bool collapse_selection);
+    void move_offset_to_next_word(bool collapse_selection);
+    void move_offset_to_previous_word(bool collapse_selection);
+
 private:
     Selection(JS::NonnullGCPtr<JS::Realm>, JS::NonnullGCPtr<DOM::Document>);
 

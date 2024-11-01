@@ -1,0 +1,25 @@
+<script src="include.js"></script>
+<style>
+    div {
+        font-size: 20px;
+    }
+</style>
+<div id="text">Lorem ipsum dolor sit amet, consectetur adipiscing elit. Morbi sapien velit, sagittis vel mauris eget, placerat mattis arcu. Praesent ac pharetra dolor.</div>
+<script>
+    test(() => {
+        // Select word "Lorem" by dispatching double click event
+        internals.doubleclick(20, 20);
+
+        // Should be equal to "Lorem"
+        println(window.getSelection());
+
+        const text = document.getElementById("text");
+
+        let modifiers = 1 << 2; // Mod_Shift
+        internals.sendKey(text, "Right", modifiers);
+        internals.sendKey(text, "Right", modifiers);
+        internals.sendKey(text, "Right", modifiers);
+        // Should be equal to "Lorem ip"
+        println(window.getSelection());
+    });
+</script>

@@ -4,8 +4,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibUnicode/CharacterTypes.h>
-#include <LibUnicode/Segmenter.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/EditingHostManager.h>
 #include <LibWeb/DOM/Range.h>
@@ -132,96 +130,33 @@ void EditingHostManager::move_cursor_to_end(CollapseSelection collapse)
 void EditingHostManager::increment_cursor_position_offset(CollapseSelection collapse)
 {
     auto selection = m_document->get_selection();
-    auto node = selection->anchor_node();
-    if (!node || !is<DOM::Text>(*node))
+    if (!selection)
         return;
-
-    auto& text_node = static_cast<DOM::Text&>(*node);
-    if (auto offset = text_node.grapheme_segmenter().next_boundary(selection->focus_offset()); offset.has_value()) {
-        if (collapse == CollapseSelection::Yes) {
-            MUST(selection->collapse(*node, *offset));
-            m_document->reset_cursor_blink_cycle();
-        } else {
-            MUST(selection->set_base_and_extent(*node, selection->anchor_offset(), *node, *offset));
-        }
-    }
+    selection->move_offset_to_next_character(collapse == CollapseSelection::Yes);
 }
 
 void EditingHostManager::decrement_cursor_position_offset(CollapseSelection collapse)
 {
     auto selection = m_document->get_selection();
-    auto node = selection->anchor_node();
-    if (!node || !is<DOM::Text>(*node)) {
+    if (!selection)
         return;
-    }
-
-    auto& text_node = static_cast<DOM::Text&>(*node);
-    if (auto offset = text_node.grapheme_segmenter().previous_boundary(selection->focus_offset()); offset.has_value()) {
-        if (collapse == CollapseSelection::Yes) {
-            MUST(selection->collapse(*node, *offset));
-            m_document->reset_cursor_blink_cycle();
-        } else {
-            MUST(selection->set_base_and_extent(*node, selection->anchor_offset(), *node, *offset));
-        }
-    }
+    selection->move_offset_to_previous_character(collapse == CollapseSelection::Yes);
 }
 
 void EditingHostManager::increment_cursor_position_to_next_word(CollapseSelection collapse)
 {
     auto selection = m_document->get_selection();
-    auto node = selection->anchor_node();
-    if (!node || !is<DOM::Text>(*node)) {
+    if (!selection)
         return;
-    }
-
-    auto& text_node = static_cast<DOM::Text&>(*node);
-
-    while (true) {
-        auto focus_offset = selection->focus_offset();
-        if (focus_offset == text_node.data().bytes_as_string_view().length()) {
-            return;
-        }
-
-        if (auto offset = text_node.word_segmenter().next_boundary(focus_offset); offset.has_value()) {
-            auto word = text_node.data().code_points().substring_view(focus_offset, *offset - focus_offset);
-            if (collapse == CollapseSelection::Yes) {
-                MUST(selection->collapse(node, *offset));
-                m_document->reset_cursor_blink_cycle();
-            } else {
-                MUST(selection->set_base_and_extent(*node, selection->anchor_offset(), *node, *offset));
-            }
-            if (Unicode::Segmenter::should_continue_beyond_word(word))
-                continue;
-        }
-        break;
-    }
+    selection->move_offset_to_next_character(collapse == CollapseSelection::Yes);
 }
 
 void EditingHostManager::decrement_cursor_position_to_previous_word(CollapseSelection collapse)
 {
     auto selection = m_document->get_selection();
-    auto node = selection->anchor_node();
-    if (!node || !is<DOM::Text>(*node)) {
+    if (!selection)
         return;
-    }
-
-    auto& text_node = static_cast<DOM::Text&>(*node);
-
-    while (true) {
-        auto focus_offset = selection->focus_offset();
-        if (auto offset = text_node.word_segmenter().previous_boundary(focus_offset); offset.has_value()) {
-            auto word = text_node.data().code_points().substring_view(focus_offset, focus_offset - *offset);
-            if (collapse == CollapseSelection::Yes) {
-                MUST(selection->collapse(node, *offset));
-                m_document->reset_cursor_blink_cycle();
-            } else {
-                MUST(selection->set_base_and_extent(*node, selection->anchor_offset(), *node, *offset));
-            }
-            if (Unicode::Segmenter::should_continue_beyond_word(word))
-                continue;
-        }
-        break;
-    }
+    selection->move_offset_to_previous_word(collapse == CollapseSelection::Yes);
 }
 
 void EditingHostManager::handle_delete(DeleteDirection direction)
