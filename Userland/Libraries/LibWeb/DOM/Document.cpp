@@ -3240,7 +3240,11 @@ Vector<JS::Handle<HTML::Navigable>> Document::descendant_navigables()
                 return TraversalDecision::Continue;
 
             // 2. Extend navigables with navigableContainer's content navigable's active document's inclusive descendant navigables.
-            navigables.extend(navigable_container.content_navigable()->active_document()->inclusive_descendant_navigables());
+            auto document = navigable_container.content_navigable()->active_document();
+            // AD-HOC: If the descendant navigable doesn't have an active document, just skip over it.
+            if (!document)
+                return TraversalDecision::Continue;
+            navigables.extend(document->inclusive_descendant_navigables());
         }
         return TraversalDecision::Continue;
     });
