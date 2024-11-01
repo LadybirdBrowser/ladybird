@@ -528,13 +528,13 @@ JS::ThrowCompletionOr<Optional<JS::PropertyDescriptor>> Location::internal_get_o
 }
 
 // 7.10.5.6 [[DefineOwnProperty]] ( P, Desc ), https://html.spec.whatwg.org/multipage/history.html#location-defineownproperty
-JS::ThrowCompletionOr<bool> Location::internal_define_own_property(JS::PropertyKey const& property_key, JS::PropertyDescriptor const& descriptor)
+JS::ThrowCompletionOr<bool> Location::internal_define_own_property(JS::PropertyKey const& property_key, JS::PropertyDescriptor const& descriptor, Optional<JS::PropertyDescriptor>* precomputed_get_own_property)
 {
     // 1. If IsPlatformObjectSameOrigin(this) is true, then:
     if (HTML::is_platform_object_same_origin(*this)) {
         // 1. If the value of the [[DefaultProperties]] internal slot of this contains P, then return false.
         // 2. Return ? OrdinaryDefineOwnProperty(this, P, Desc).
-        return JS::Object::internal_define_own_property(property_key, descriptor);
+        return JS::Object::internal_define_own_property(property_key, descriptor, precomputed_get_own_property);
     }
 
     // 2. Throw a "SecurityError" DOMException.

@@ -253,10 +253,12 @@ JS::ThrowCompletionOr<bool> PlatformObject::internal_set(JS::PropertyKey const& 
 }
 
 // https://webidl.spec.whatwg.org/#legacy-platform-object-defineownproperty
-JS::ThrowCompletionOr<bool> PlatformObject::internal_define_own_property(JS::PropertyKey const& property_name, JS::PropertyDescriptor const& property_descriptor)
+JS::ThrowCompletionOr<bool> PlatformObject::internal_define_own_property(JS::PropertyKey const& property_name, JS::PropertyDescriptor const& property_descriptor, Optional<JS::PropertyDescriptor>* precomputed_get_own_property)
 {
+    Optional<JS::PropertyDescriptor> get_own_property_result = {};
+
     if (!m_legacy_platform_object_flags.has_value() || m_legacy_platform_object_flags->has_global_interface_extended_attribute)
-        return Base::internal_define_own_property(property_name, property_descriptor);
+        return Base::internal_define_own_property(property_name, property_descriptor, precomputed_get_own_property);
 
     auto& vm = this->vm();
 
@@ -287,7 +289,14 @@ JS::ThrowCompletionOr<bool> PlatformObject::internal_define_own_property(JS::Pro
 
         // 2. If O implements an interface with the [LegacyOverrideBuiltIns] extended attribute or O does not have an own property named P, then:
         // NOTE: Own property lookup has to be done manually instead of using Object::has_own_property, as that would use the overridden internal_get_own_property.
-        if (m_legacy_platform_object_flags->has_legacy_override_built_ins_interface_extended_attribute || !TRY(Object::internal_get_own_property(property_name)).has_value()) {
+        if (!m_legacy_platform_object_flags->has_legacy_override_built_ins_interface_extended_attribute) {
+            // AD-HOC: Avoid computing the [[GetOwnProperty]] multiple times.
+            if (!precomputed_get_own_property) {
+                get_own_property_result = TRY(Object::internal_get_own_property(property_name));
+                precomputed_get_own_property = &get_own_property_result;
+            }
+        }
+        if (m_legacy_platform_object_flags->has_legacy_override_built_ins_interface_extended_attribute || precomputed_get_own_property->has_value()) {
             // 1. If creating is false and O does not implement an interface with a named property setter, then return false.
             if (!creating && !m_legacy_platform_object_flags->has_named_property_setter)
                 return false;
@@ -308,7 +317,7 @@ JS::ThrowCompletionOr<bool> PlatformObject::internal_define_own_property(JS::Pro
     }
 
     // 3. Return ! OrdinaryDefineOwnProperty(O, P, Desc).
-    return Object::internal_define_own_property(property_name, property_descriptor);
+    return Object::internal_define_own_property(property_name, property_descriptor, precomputed_get_own_property);
 }
 
 // https://webidl.spec.whatwg.org/#legacy-platform-object-delete

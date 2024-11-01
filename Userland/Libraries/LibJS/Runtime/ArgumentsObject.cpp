@@ -127,7 +127,7 @@ ThrowCompletionOr<Optional<PropertyDescriptor>> ArgumentsObject::internal_get_ow
 }
 
 // 10.4.4.2 [[DefineOwnProperty]] ( P, Desc ), https://tc39.es/ecma262/#sec-arguments-exotic-objects-defineownproperty-p-desc
-ThrowCompletionOr<bool> ArgumentsObject::internal_define_own_property(PropertyKey const& property_key, PropertyDescriptor const& descriptor)
+ThrowCompletionOr<bool> ArgumentsObject::internal_define_own_property(PropertyKey const& property_key, PropertyDescriptor const& descriptor, Optional<PropertyDescriptor>* precomputed_get_own_property)
 {
     // 1. Let map be args.[[ParameterMap]].
     auto& map = parameter_map();
@@ -150,7 +150,7 @@ ThrowCompletionOr<bool> ArgumentsObject::internal_define_own_property(PropertyKe
     }
 
     // 5. Let allowed be ! OrdinaryDefineOwnProperty(args, P, newArgDesc).
-    bool allowed = MUST(Object::internal_define_own_property(property_key, new_arg_desc));
+    bool allowed = MUST(Object::internal_define_own_property(property_key, new_arg_desc, precomputed_get_own_property));
 
     // 6. If allowed is false, return false.
     if (!allowed)

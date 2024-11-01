@@ -848,12 +848,12 @@ ThrowCompletionOr<Optional<PropertyDescriptor>> Object::internal_get_own_propert
 }
 
 // 10.1.6 [[DefineOwnProperty]] ( P, Desc ), https://tc39.es/ecma262/#sec-ordinary-object-internal-methods-and-internal-slots-defineownproperty-p-desc
-ThrowCompletionOr<bool> Object::internal_define_own_property(PropertyKey const& property_key, PropertyDescriptor const& property_descriptor)
+ThrowCompletionOr<bool> Object::internal_define_own_property(PropertyKey const& property_key, PropertyDescriptor const& property_descriptor, Optional<PropertyDescriptor>* precomputed_get_own_property)
 {
     VERIFY(property_key.is_valid());
 
     // 1. Let current be ? O.[[GetOwnProperty]](P).
-    auto current = TRY(internal_get_own_property(property_key));
+    auto current = precomputed_get_own_property ? *precomputed_get_own_property : TRY(internal_get_own_property(property_key));
 
     // 2. Let extensible be ? IsExtensible(O).
     auto extensible = TRY(is_extensible());
@@ -1009,8 +1009,10 @@ ThrowCompletionOr<bool> Object::ordinary_set_with_own_descriptor(PropertyKey con
         if (!receiver.is_object())
             return false;
 
+        auto& receiver_object = receiver.as_object();
+
         // c. Let existingDescriptor be ? Receiver.[[GetOwnProperty]](P).
-        auto existing_descriptor = TRY(receiver.as_object().internal_get_own_property(property_key));
+        auto existing_descriptor = TRY(receiver_object.internal_get_own_property(property_key));
 
         // d. If existingDescriptor is not undefined, then
         if (existing_descriptor.has_value()) {
@@ -1034,15 +1036,15 @@ ThrowCompletionOr<bool> Object::ordinary_set_with_own_descriptor(PropertyKey con
             }
 
             // iv. Return ? Receiver.[[DefineOwnProperty]](P, valueDesc).
-            return TRY(receiver.as_object().internal_define_own_property(property_key, value_descriptor));
+            return TRY(receiver_object.internal_define_own_property(property_key, value_descriptor, &existing_descriptor));
         }
         // e. Else,
         else {
             // i. Assert: Receiver does not currently have a property P.
-            VERIFY(!receiver.as_object().storage_has(property_key));
+            VERIFY(!receiver_object.storage_has(property_key));
 
             // ii. Return ? CreateDataProperty(Receiver, P, V).
-            return TRY(receiver.as_object().create_data_property(property_key, value));
+            return TRY(receiver_object.create_data_property(property_key, value));
         }
     }
 

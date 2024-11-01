@@ -48,7 +48,7 @@ public:
     virtual ~Array() override = default;
 
     virtual ThrowCompletionOr<Optional<PropertyDescriptor>> internal_get_own_property(PropertyKey const&) const override final;
-    virtual ThrowCompletionOr<bool> internal_define_own_property(PropertyKey const&, PropertyDescriptor const&) override final;
+    virtual ThrowCompletionOr<bool> internal_define_own_property(PropertyKey const&, PropertyDescriptor const&, Optional<PropertyDescriptor>* precomputed_get_own_property = nullptr) override final;
     virtual ThrowCompletionOr<bool> internal_delete(PropertyKey const&) override;
     virtual ThrowCompletionOr<MarkedVector<Value>> internal_own_property_keys() const override final;
 

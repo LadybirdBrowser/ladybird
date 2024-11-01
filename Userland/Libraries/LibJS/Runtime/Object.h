@@ -138,7 +138,7 @@ public:
     virtual ThrowCompletionOr<bool> internal_is_extensible() const;
     virtual ThrowCompletionOr<bool> internal_prevent_extensions();
     virtual ThrowCompletionOr<Optional<PropertyDescriptor>> internal_get_own_property(PropertyKey const&) const;
-    virtual ThrowCompletionOr<bool> internal_define_own_property(PropertyKey const&, PropertyDescriptor const&);
+    virtual ThrowCompletionOr<bool> internal_define_own_property(PropertyKey const&, PropertyDescriptor const&, Optional<PropertyDescriptor>* precomputed_get_own_property = nullptr);
     virtual ThrowCompletionOr<bool> internal_has_property(PropertyKey const&) const;
     enum class PropertyLookupPhase {
         OwnProperty,

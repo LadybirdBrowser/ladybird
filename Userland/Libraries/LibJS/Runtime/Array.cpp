@@ -277,7 +277,7 @@ ThrowCompletionOr<Optional<PropertyDescriptor>> Array::internal_get_own_property
 }
 
 // 10.4.2.1 [[DefineOwnProperty]] ( P, Desc ), https://tc39.es/ecma262/#sec-array-exotic-objects-defineownproperty-p-desc
-ThrowCompletionOr<bool> Array::internal_define_own_property(PropertyKey const& property_key, PropertyDescriptor const& property_descriptor)
+ThrowCompletionOr<bool> Array::internal_define_own_property(PropertyKey const& property_key, PropertyDescriptor const& property_descriptor, Optional<PropertyDescriptor>* precomputed_get_own_property)
 {
     auto& vm = this->vm();
 
@@ -303,7 +303,7 @@ ThrowCompletionOr<bool> Array::internal_define_own_property(PropertyKey const& p
             return false;
 
         // h. Let succeeded be ! OrdinaryDefineOwnProperty(A, P, Desc).
-        auto succeeded = MUST(Object::internal_define_own_property(property_key, property_descriptor));
+        auto succeeded = MUST(Object::internal_define_own_property(property_key, property_descriptor, precomputed_get_own_property));
 
         // i. If succeeded is false, return false.
         if (!succeeded)
@@ -319,7 +319,7 @@ ThrowCompletionOr<bool> Array::internal_define_own_property(PropertyKey const& p
     }
 
     // 3. Return ? OrdinaryDefineOwnProperty(A, P, Desc).
-    return Object::internal_define_own_property(property_key, property_descriptor);
+    return Object::internal_define_own_property(property_key, property_descriptor, precomputed_get_own_property);
 }
 
 // NON-STANDARD: Used to reject deletes to ephemeral (non-configurable) length property

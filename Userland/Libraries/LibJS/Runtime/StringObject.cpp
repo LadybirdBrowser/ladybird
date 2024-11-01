@@ -113,7 +113,7 @@ ThrowCompletionOr<Optional<PropertyDescriptor>> StringObject::internal_get_own_p
 }
 
 // 10.4.3.2 [[DefineOwnProperty]] ( P, Desc ), https://tc39.es/ecma262/#sec-string-exotic-objects-defineownproperty-p-desc
-ThrowCompletionOr<bool> StringObject::internal_define_own_property(PropertyKey const& property_key, PropertyDescriptor const& property_descriptor)
+ThrowCompletionOr<bool> StringObject::internal_define_own_property(PropertyKey const& property_key, PropertyDescriptor const& property_descriptor, Optional<PropertyDescriptor>* precomputed_get_own_property)
 {
     VERIFY(property_key.is_valid());
 
@@ -130,7 +130,7 @@ ThrowCompletionOr<bool> StringObject::internal_define_own_property(PropertyKey c
     }
 
     // 3. Return ! OrdinaryDefineOwnProperty(S, P, Desc).
-    return Object::internal_define_own_property(property_key, property_descriptor);
+    return Object::internal_define_own_property(property_key, property_descriptor, precomputed_get_own_property);
 }
 
 // 10.4.3.3 [[OwnPropertyKeys]] ( ), https://tc39.es/ecma262/#sec-string-exotic-objects-ownpropertykeys
