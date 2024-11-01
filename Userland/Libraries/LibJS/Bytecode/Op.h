@@ -1120,8 +1120,32 @@ enum class PropertyKind {
     Setter,
     KeyValue,
     DirectKeyValue, // Used for Object expressions. Always sets an own property, never calls a setter.
-    Spread,
     ProtoSetter,
+};
+
+class PutBySpread final : public Instruction {
+public:
+    PutBySpread(Operand base, Operand src)
+        : Instruction(Type::PutBySpread)
+        , m_base(base)
+        , m_src(src)
+    {
+    }
+
+    ThrowCompletionOr<void> execute_impl(Bytecode::Interpreter&) const;
+    ByteString to_byte_string_impl(Bytecode::Executable const&) const;
+    void visit_operands_impl(Function<void(Operand&)> visitor)
+    {
+        visitor(m_base);
+        visitor(m_src);
+    }
+
+    Operand base() const { return m_base; }
+    Operand src() const { return m_src; }
+
+private:
+    Operand m_base;
+    Operand m_src;
 };
 
 class PutById final : public Instruction {
