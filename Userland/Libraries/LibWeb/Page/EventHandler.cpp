@@ -1023,6 +1023,22 @@ EventResult EventHandler::handle_keydown(UIEvents::KeyCode key, u32 modifiers, u
             FIRE(input_event(UIEvents::EventNames::input, UIEvents::InputTypes::insertText, m_navigable, code_point));
             return EventResult::Handled;
         }
+    } else if (auto selection = document->get_selection(); selection && !selection->is_collapsed()) {
+        if (modifiers & UIEvents::Mod_Shift) {
+            if (key == UIEvents::KeyCode::Key_Right) {
+                if (modifiers & UIEvents::Mod_PlatformWordJump)
+                    selection->move_offset_to_next_word(false);
+                else
+                    selection->move_offset_to_next_character(false);
+                return EventResult::Handled;
+            } else if (key == UIEvents::KeyCode::Key_Left) {
+                if (modifiers & UIEvents::Mod_PlatformWordJump)
+                    selection->move_offset_to_previous_word(false);
+                else
+                    selection->move_offset_to_previous_character(false);
+                return EventResult::Handled;
+            }
+        }
     }
 
     // FIXME: Implement scroll by line and by page instead of approximating the behavior of other browsers.
