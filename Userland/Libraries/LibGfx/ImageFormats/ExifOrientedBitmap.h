@@ -9,6 +9,7 @@
 #include <AK/Concepts.h>
 #include <AK/NonnullOwnPtr.h>
 #include <LibGfx/Bitmap.h>
+#include <LibGfx/ImageFormats/TIFFLoader.h>
 #include <LibGfx/ImageFormats/TIFFMetadata.h>
 
 namespace Gfx {
@@ -30,6 +31,17 @@ public:
     {
         auto bitmap = TRY(CMYKBitmap::create_with_size(oriented_size(size, orientation)));
         return ExifOrientedBitmap(move(bitmap), size, orientation);
+    }
+
+    static Gfx::TIFF::Orientation extract_orientation_from_exif(ReadonlyBytes exif_data)
+    {
+        auto exif_metadata_result = Gfx::TIFFImageDecoderPlugin::read_exif_metadata(exif_data);
+        if (exif_metadata_result.is_error())
+            return Gfx::TIFF::Orientation::Default;
+
+        auto& exif_metadata = exif_metadata_result.value();
+
+        return exif_metadata->orientation().value_or(Gfx::TIFF::Orientation::Default);
     }
 
     template<OneOf<ARGB32, CMYK> Value>
