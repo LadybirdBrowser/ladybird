@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf8">
+    <title>HTML 5 Parser tests html5lib_inbody01.html</title>
+    <meta name="timeout" content="long">
+    <meta name="variant" content="?run_type=uri">
+    <meta name="variant" content="?run_type=write">
+    <meta name="variant" content="?run_type=write_single">
+  </head>
+  <body>
+    <h1>html5lib Parser Test</h1>
+    <div id="log"></div>
+    <script src="common.js"></script>
+    <script src="test.js"></script>
+    <script src="template.js"></script>
+    <script src="../../../resources/testharness.js"></script>
+    <script src="../../../resources/testharnessreport.js"></script>
+    <script>
+      var num_iframes = 8;
+      var order = ['3e20aae3cbc7f10b28cbfc1e20b2949708872a3c','ec6b9d9dccaa3494a317afac0edfcc485b959663','cc4923612d10b2115cd03e269080ddf5463d95ae','a5ebf8808e479239966038951d5383ed65ff4eb6',];
+      var tests = {
+          "3e20aae3cbc7f10b28cbfc1e20b2949708872a3c":[async_test('html5lib_inbody01.html 3e20aae3cbc7f10b28cbfc1e20b2949708872a3c'), "%3Cbutton%3E1%3C/foo%3E", "%23document%0A%7C%20%3Chtml%3E%0A%7C%20%20%20%3Chead%3E%0A%7C%20%20%20%3Cbody%3E%0A%7C%20%20%20%20%20%3Cbutton%3E%0A%7C%20%20%20%20%20%20%20%221%22"],"ec6b9d9dccaa3494a317afac0edfcc485b959663":[async_test('html5lib_inbody01.html ec6b9d9dccaa3494a317afac0edfcc485b959663'), "%3Cfoo%3E1%3Cp%3E2%3C/foo%3E", "%23document%0A%7C%20%3Chtml%3E%0A%7C%20%20%20%3Chead%3E%0A%7C%20%20%20%3Cbody%3E%0A%7C%20%20%20%20%20%3Cfoo%3E%0A%7C%20%20%20%20%20%20%20%221%22%0A%7C%20%20%20%20%20%20%20%3Cp%3E%0A%7C%20%20%20%20%20%20%20%20%20%222%22"],"cc4923612d10b2115cd03e269080ddf5463d95ae":[async_test('html5lib_inbody01.html cc4923612d10b2115cd03e269080ddf5463d95ae'), "%3Cdd%3E1%3C/foo%3E", "%23document%0A%7C%20%3Chtml%3E%0A%7C%20%20%20%3Chead%3E%0A%7C%20%20%20%3Cbody%3E%0A%7C%20%20%20%20%20%3Cdd%3E%0A%7C%20%20%20%20%20%20%20%221%22"],"a5ebf8808e479239966038951d5383ed65ff4eb6":[async_test('html5lib_inbody01.html a5ebf8808e479239966038951d5383ed65ff4eb6'), "%3Cfoo%3E1%3Cdd%3E2%3C/foo%3E", "%23document%0A%7C%20%3Chtml%3E%0A%7C%20%20%20%3Chead%3E%0A%7C%20%20%20%3Cbody%3E%0A%7C%20%20%20%20%20%3Cfoo%3E%0A%7C%20%20%20%20%20%20%20%221%22%0A%7C%20%20%20%20%20%20%20%3Cdd%3E%0A%7C%20%20%20%20%20%20%20%20%20%222%22"],
+      }
+      init_tests(get_type());
+    </script>
+  </body>
+</html>

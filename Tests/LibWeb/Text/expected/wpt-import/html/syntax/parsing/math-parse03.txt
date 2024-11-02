@@ -1,0 +1,30 @@
+Summary
+
+Harness status: OK
+
+Rerun
+
+Found 19 tests
+
+9 Pass
+10 Fail
+Details
+Result	Test Name	MessagePass	MATH element name should be lowercased	
+Pass	MI element name and mathvariant attribute name should be lowercased, attribute value unchanged	
+Pass	DEFINITIONurl attribute markup should produce a definitionURL attribute, attribute value unchanged	
+Fail	html Span in mtext produces SPAN nodename in XHTML namespace	Cannot access property "nodeName" on null object ".firstChild.firstChild"
+Fail	html Span in mi produces SPAN nodename in XHTML namespace	Cannot access property "nodeName" on null object ".firstChild.firstChild"
+Fail	html Span in mrow produces SPAN nodename in XHTML namespace	Cannot access property "nodeName" on null object ".firstChild.firstChild"
+Fail	html P in mtext produces P nodename in XHTML namespace	Cannot access property "nodeName" on null object ".firstChild.firstChild"
+Fail	html P in mi produces P nodename in XHTML namespace	Cannot access property "nodeName" on null object ".firstChild.firstChild"
+Pass	html P in mrow terminates the math: mrow,P,MI children of div	
+Pass	html P in mrow terminates the math: mrow child of math	
+Pass	html P in mrow terminates the math: mrow empty	
+Pass	html P in mrow terminates the math: math,P,MI children of div	
+Fail	Undefinedelement in mtext produces UNDEFINEDELEMENT nodename in XHTML namespace	
+Fail	mi in mtext produces MI nodename in XHTML namespace	
+Pass	p in annotation-xml moves to be child of DIV	
+Fail	p in annotation-xml encoding=text/html stays as child of annotation-xml	
+Fail	p in annotation-xml encoding=TEXT/HTML stays as child of annotation-xml	
+Fail	p in annotation-xml encoding=application/xhtml+xml stays as child of annotation-xml	
+Pass	p in annotation-xml encoding=foo moves to be child of DIV	

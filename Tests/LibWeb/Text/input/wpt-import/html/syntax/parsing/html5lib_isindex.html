@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf8">
+    <title>HTML 5 Parser tests html5lib_isindex.html</title>
+    <meta name="timeout" content="long">
+    <meta name="variant" content="?run_type=uri">
+    <meta name="variant" content="?run_type=write">
+    <meta name="variant" content="?run_type=write_single">
+  </head>
+  <body>
+    <h1>html5lib Parser Test</h1>
+    <div id="log"></div>
+    <script src="common.js"></script>
+    <script src="test.js"></script>
+    <script src="template.js"></script>
+    <script src="../../../resources/testharness.js"></script>
+    <script src="../../../resources/testharnessreport.js"></script>
+    <script>
+      var num_iframes = 8;
+      var order = ['579ca96e69c47b3d2ac83f1aa79a450b745d21f3','cb91f67071d81dd18d7ba9990de8f0f845c375f0','bd8ac64cc8f1422fac94bbe1c8828c0b51dca3f2','4303a393c6933743460836cb5e7dd29ca7fd6f43',];
+      var tests = {
+          "579ca96e69c47b3d2ac83f1aa79a450b745d21f3":[async_test('html5lib_isindex.html 579ca96e69c47b3d2ac83f1aa79a450b745d21f3'), "%3Cisindex%3E", "%23document%0A%7C%20%3Chtml%3E%0A%7C%20%20%20%3Chead%3E%0A%7C%20%20%20%3Cbody%3E%0A%7C%20%20%20%20%20%3Cisindex%3E"],"cb91f67071d81dd18d7ba9990de8f0f845c375f0":[async_test('html5lib_isindex.html cb91f67071d81dd18d7ba9990de8f0f845c375f0'), "%3Cisindex%20name%3D%22A%22%20action%3D%22B%22%20prompt%3D%22C%22%20foo%3D%22D%22%3E", "%23document%0A%7C%20%3Chtml%3E%0A%7C%20%20%20%3Chead%3E%0A%7C%20%20%20%3Cbody%3E%0A%7C%20%20%20%20%20%3Cisindex%3E%0A%7C%20%20%20%20%20%20%20action%3D%22B%22%0A%7C%20%20%20%20%20%20%20foo%3D%22D%22%0A%7C%20%20%20%20%20%20%20name%3D%22A%22%0A%7C%20%20%20%20%20%20%20prompt%3D%22C%22"],"bd8ac64cc8f1422fac94bbe1c8828c0b51dca3f2":[async_test('html5lib_isindex.html bd8ac64cc8f1422fac94bbe1c8828c0b51dca3f2'), "%3Cform%3E%3Cisindex%3E", "%23document%0A%7C%20%3Chtml%3E%0A%7C%20%20%20%3Chead%3E%0A%7C%20%20%20%3Cbody%3E%0A%7C%20%20%20%20%20%3Cform%3E%0A%7C%20%20%20%20%20%20%20%3Cisindex%3E"],"4303a393c6933743460836cb5e7dd29ca7fd6f43":[async_test('html5lib_isindex.html 4303a393c6933743460836cb5e7dd29ca7fd6f43'), "%3C%21doctype%20html%3E%3Cisindex%3Ex%3C/isindex%3Ex", "%23document%0A%7C%20%3C%21DOCTYPE%20html%3E%0A%7C%20%3Chtml%3E%0A%7C%20%20%20%3Chead%3E%0A%7C%20%20%20%3Cbody%3E%0A%7C%20%20%20%20%20%3Cisindex%3E%0A%7C%20%20%20%20%20%20%20%22x%22%0A%7C%20%20%20%20%20%22x%22"],
+      }
+      init_tests(get_type());
+    </script>
+  </body>
+</html>

@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf8">
+    <title>HTML 5 Parser tests html5lib_scripted_webkit01.html</title>
+    <meta name="timeout" content="long">
+    <meta name="variant" content="?run_type=uri">
+    <meta name="variant" content="?run_type=write">
+    <meta name="variant" content="?run_type=write_single">
+  </head>
+  <body>
+    <h1>html5lib Parser Test</h1>
+    <div id="log"></div>
+    <script src="common.js"></script>
+    <script src="test.js"></script>
+    <script src="template.js"></script>
+    <script src="../../../resources/testharness.js"></script>
+    <script src="../../../resources/testharnessreport.js"></script>
+    <script>
+      var num_iframes = 8;
+      var order = ['3ff6ec1125852c7933bf6d89ecb375354e6e1b40','46ae362de712eb9c55916de93110299dbbcb5726',];
+      var tests = {
+          "3ff6ec1125852c7933bf6d89ecb375354e6e1b40":[async_test('html5lib_scripted_webkit01.html 3ff6ec1125852c7933bf6d89ecb375354e6e1b40'), "1%3Cscript%3Edocument.write%28%222%22%29%3C/script%3E3", "%23document%0A%7C%20%3Chtml%3E%0A%7C%20%20%20%3Chead%3E%0A%7C%20%20%20%3Cbody%3E%0A%7C%20%20%20%20%20%221%22%0A%7C%20%20%20%20%20%3Cscript%3E%0A%7C%20%20%20%20%20%20%20%22document.write%28%222%22%29%22%0A%7C%20%20%20%20%20%2223%22"],"46ae362de712eb9c55916de93110299dbbcb5726":[async_test('html5lib_scripted_webkit01.html 46ae362de712eb9c55916de93110299dbbcb5726'), "1%3Cscript%3Edocument.write%28%22%3Cscript%3Edocument.write%28%272%27%29%3C/scr%22%2B%20%22ipt%3E%3Cscript%3Edocument.write%28%273%27%29%3C/scr%22%20%2B%20%22ipt%3E%22%29%3C/script%3E4", "%23document%0A%7C%20%3Chtml%3E%0A%7C%20%20%20%3Chead%3E%0A%7C%20%20%20%3Cbody%3E%0A%7C%20%20%20%20%20%221%22%0A%7C%20%20%20%20%20%3Cscript%3E%0A%7C%20%20%20%20%20%20%20%22document.write%28%22%3Cscript%3Edocument.write%28%272%27%29%3C/scr%22%2B%20%22ipt%3E%3Cscript%3Edocument.write%28%273%27%29%3C/scr%22%20%2B%20%22ipt%3E%22%29%22%0A%7C%20%20%20%20%20%3Cscript%3E%0A%7C%20%20%20%20%20%20%20%22document.write%28%272%27%29%22%0A%7C%20%20%20%20%20%222%22%0A%7C%20%20%20%20%20%3Cscript%3E%0A%7C%20%20%20%20%20%20%20%22document.write%28%273%27%29%22%0A%7C%20%20%20%20%20%2234%22"],
+      }
+      init_tests(get_type());
+    </script>
+  </body>
+</html>

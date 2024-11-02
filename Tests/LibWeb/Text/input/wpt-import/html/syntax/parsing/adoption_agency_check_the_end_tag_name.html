@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<title>The adoption agency algorithm should check the end tag's name</title>
+<link rel="author" href="mailto:n4ag3a2sh1i@gmail.com">
+<link rel="help" href="https://html.spec.whatwg.org/multipage/parsing.html#adoption-agency-algorithm">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+
+
+<script>
+'use strict';
+
+// This is a regression test for https://crbug.com/1217523.
+test(() => {
+  const wrapper = document.createElement('div');
+  const html = '<code some-attribute=""><div><code><code><code><code></code></code></code></code></div></code>';
+  wrapper.innerHTML = html;
+  assert_equals(wrapper.innerHTML, html);
+}, 'The algorithm should not reparent properly nested tags');
+
+</script>
