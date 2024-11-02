@@ -1233,7 +1233,6 @@ void DisplayListPlayerSkia::add_mask(AddMask const& command)
     mask_matrix.setTranslate(rect.x(), rect.y());
     auto image = mask_surface->makeImageSnapshot();
     auto shader = image->makeShader(SkSamplingOptions(), mask_matrix);
-    surface().canvas().save();
     surface().canvas().clipShader(shader);
 }
 
