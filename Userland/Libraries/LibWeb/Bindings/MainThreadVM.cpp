@@ -279,7 +279,7 @@ ErrorOr<void> initialize_main_thread_vm(HTML::EventLoop::Type type)
         auto* script = active_script();
 
         auto& heap = realm ? realm->heap() : vm.heap();
-        HTML::queue_a_microtask(script ? &verify_cast<HTML::Window>(script->realm().global_object()).associated_document() : nullptr, JS::create_heap_function(heap, [&vm, realm, job = move(job), script_or_module = move(script_or_module)] {
+        HTML::queue_a_microtask(script ? script->settings_object().responsible_document().ptr() : nullptr, JS::create_heap_function(heap, [&vm, realm, job = move(job), script_or_module = move(script_or_module)] {
             // The dummy execution context has to be kept up here to keep it alive for the duration of the function.
             OwnPtr<JS::ExecutionContext> dummy_execution_context;
 
