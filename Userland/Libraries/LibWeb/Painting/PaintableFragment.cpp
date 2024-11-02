@@ -36,13 +36,23 @@ CSSPixelRect const PaintableFragment::absolute_rect() const
     return rect;
 }
 
-int PaintableFragment::text_index_at(CSSPixels x) const
+int PaintableFragment::text_index_at(CSSPixelPoint position) const
 {
     if (!is<TextPaintable>(paintable()))
         return 0;
 
-    CSSPixels relative_x = x - absolute_rect().x();
-    if (relative_x < 0)
+    CSSPixels relative_inline_offset = [&]() {
+        switch (orientation()) {
+        case Gfx::Orientation::Horizontal:
+            return position.x() - absolute_rect().x();
+        case Gfx::Orientation::Vertical:
+            return position.y() - absolute_rect().y();
+        default:
+            VERIFY_NOT_REACHED();
+        }
+    }();
+
+    if (relative_inline_offset < 0)
         return 0;
 
     auto const& glyphs = m_glyph_run->glyphs();
@@ -50,10 +60,10 @@ int PaintableFragment::text_index_at(CSSPixels x) const
         auto glyph_position = CSSPixels::nearest_value_for(glyphs[i].position.x());
         if (i + 1 < glyphs.size()) {
             auto next_glyph_position = CSSPixels::nearest_value_for(glyphs[i + 1].position.x());
-            if (relative_x >= glyph_position && relative_x < next_glyph_position)
+            if (relative_inline_offset >= glyph_position && relative_inline_offset < next_glyph_position)
                 return m_start + i;
         } else {
-            if (relative_x >= glyph_position)
+            if (relative_inline_offset >= glyph_position)
                 return m_start + i;
         }
     }
@@ -90,8 +100,18 @@ CSSPixelRect PaintableFragment::range_rect(Gfx::Font const& font, size_t start_o
         auto pixel_width_of_selection = CSSPixels::nearest_value_for(font.width(text.substring_view(selection_start_in_this_fragment, selection_end_in_this_fragment - selection_start_in_this_fragment))) + 1;
 
         auto rect = absolute_rect();
-        rect.set_x(rect.x() + pixel_distance_to_first_selected_character);
-        rect.set_width(pixel_width_of_selection);
+        switch (orientation()) {
+        case Gfx::Orientation::Horizontal:
+            rect.set_x(rect.x() + pixel_distance_to_first_selected_character);
+            rect.set_width(pixel_width_of_selection);
+            break;
+        case Gfx::Orientation::Vertical:
+            rect.set_y(rect.y() + pixel_distance_to_first_selected_character);
+            rect.set_height(pixel_width_of_selection);
+            break;
+        default:
+            VERIFY_NOT_REACHED();
+        }
 
         return rect;
     }
@@ -106,8 +126,18 @@ CSSPixelRect PaintableFragment::range_rect(Gfx::Font const& font, size_t start_o
         auto pixel_width_of_selection = CSSPixels::nearest_value_for(font.width(text.substring_view(selection_start_in_this_fragment, selection_end_in_this_fragment - selection_start_in_this_fragment))) + 1;
 
         auto rect = absolute_rect();
-        rect.set_x(rect.x() + pixel_distance_to_first_selected_character);
-        rect.set_width(pixel_width_of_selection);
+        switch (orientation()) {
+        case Gfx::Orientation::Horizontal:
+            rect.set_x(rect.x() + pixel_distance_to_first_selected_character);
+            rect.set_width(pixel_width_of_selection);
+            break;
+        case Gfx::Orientation::Vertical:
+            rect.set_y(rect.y() + pixel_distance_to_first_selected_character);
+            rect.set_height(pixel_width_of_selection);
+            break;
+        default:
+            VERIFY_NOT_REACHED();
+        }
 
         return rect;
     }
@@ -122,8 +152,18 @@ CSSPixelRect PaintableFragment::range_rect(Gfx::Font const& font, size_t start_o
         auto pixel_width_of_selection = CSSPixels::nearest_value_for(font.width(text.substring_view(selection_start_in_this_fragment, selection_end_in_this_fragment - selection_start_in_this_fragment))) + 1;
 
         auto rect = absolute_rect();
-        rect.set_x(rect.x() + pixel_distance_to_first_selected_character);
-        rect.set_width(pixel_width_of_selection);
+        switch (orientation()) {
+        case Gfx::Orientation::Horizontal:
+            rect.set_x(rect.x() + pixel_distance_to_first_selected_character);
+            rect.set_width(pixel_width_of_selection);
+            break;
+        case Gfx::Orientation::Vertical:
+            rect.set_y(rect.y() + pixel_distance_to_first_selected_character);
+            rect.set_height(pixel_width_of_selection);
+            break;
+        default:
+            VERIFY_NOT_REACHED();
+        }
 
         return rect;
     }
