@@ -1,6 +1,7 @@
 /*
  * Copyright (c) 2020, Matthew Olsson <mattco@serenityos.org>
  * Copyright (c) 2022, Bruno Conde <brunompconde@gmail.com>
+ * Copyright (c) 2024, Pavel Shliak <shlyakpavel@gmail.com>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -1256,7 +1257,7 @@ static ErrorOr<void> decode_bmp_pixel_data(BMPLoadingContext& context)
                 return BitmapFormat::BGRA8888;
             return BitmapFormat::BGRx8888;
         case 24:
-            return BitmapFormat::BGRx8888;
+            return BitmapFormat::RGBx8888;
         case 32:
             return BitmapFormat::BGRA8888;
         default:
@@ -1372,7 +1373,14 @@ static ErrorOr<void> decode_bmp_pixel_data(BMPLoadingContext& context)
             case 24: {
                 if (!streamer.has_u24())
                     return Error::from_string_literal("Cannot read 24 bits");
-                context.bitmap->scanline(row)[column++] = streamer.read_u24();
+
+                u32 pixel = streamer.read_u24();
+                u8 b = (pixel & 0xFF0000) >> 16;
+                u8 g = (pixel & 0x00FF00) >> 8;
+                u8 r = (pixel & 0x0000FF);
+
+                u32 rgbx_pixel = (r << 16) | (g << 8) | b;
+                context.bitmap->scanline(row)[column++] = rgbx_pixel;
                 break;
             }
             case 32:
