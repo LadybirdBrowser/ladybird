@@ -7,8 +7,6 @@
 #include <AK/Badge.h>
 #include <AK/IDAllocator.h>
 #include <AK/NonnullOwnPtr.h>
-#include <AK/RefCounted.h>
-#include <AK/Weakable.h>
 #include <LibCore/EventLoop.h>
 #include <LibCore/Proxy.h>
 #include <LibCore/Socket.h>
@@ -19,7 +17,6 @@
 #include <RequestServer/ConnectionFromClient.h>
 #include <RequestServer/RequestClientEndpoint.h>
 #include <curl/curl.h>
-#include <netdb.h>
 
 namespace RequestServer {
 
