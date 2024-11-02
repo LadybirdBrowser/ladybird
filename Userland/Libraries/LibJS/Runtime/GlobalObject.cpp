@@ -95,8 +95,8 @@ GlobalObject::GlobalObject(Realm& realm)
     Object::set_prototype(realm.intrinsics().object_prototype());
 }
 
-// 9.3.4 SetDefaultGlobalBindings ( realmRec ), https://tc39.es/ecma262/#sec-setdefaultglobalbindings
-Object& set_default_global_bindings(Realm& realm)
+// 9.3.3 SetDefaultGlobalBindings ( realmRec ), https://tc39.es/ecma262/#sec-setdefaultglobalbindings
+void set_default_global_bindings(Realm& realm)
 {
     auto& vm = realm.vm();
 
@@ -191,8 +191,7 @@ Object& set_default_global_bindings(Realm& realm)
     global.define_direct_property(vm.names.InternalError, realm.intrinsics().internal_error_constructor(), attr);
     global.define_direct_property(vm.names.console, realm.intrinsics().console_object(), attr);
 
-    // 3. Return global.
-    return global;
+    // 3. Return unused.
 }
 
 void GlobalObject::initialize(Realm& realm)
