@@ -23,6 +23,7 @@
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/HTMLCollection.h>
 #include <LibWeb/DOM/NodeList.h>
+#include <LibWeb/DOM/ShadowRoot.h>
 #include <LibWeb/FileAPI/FileList.h>
 #include <LibWeb/HTML/BrowsingContext.h>
 #include <LibWeb/HTML/HTMLAllCollection.h>
@@ -51,8 +52,10 @@ namespace Web::WebDriver {
         _temporary_result.release_value();                                                           \
     })
 
-static ErrorOr<JsonValue, ExecuteScriptResultType> internal_json_clone_algorithm(JS::Realm&, HTML::BrowsingContext const&, JS::Value, HashTable<JS::Object*>& seen);
-static ErrorOr<JsonValue, ExecuteScriptResultType> clone_an_object(JS::Realm&, HTML::BrowsingContext const&, JS::Object&, HashTable<JS::Object*>& seen, auto const& clone_algorithm);
+using SeenMap = HashTable<JS::RawGCPtr<JS::Object const>>;
+
+static ErrorOr<JsonValue, ExecuteScriptResultType> internal_json_clone(JS::Realm&, HTML::BrowsingContext const&, JS::Value, SeenMap& seen);
+static ErrorOr<JsonValue, ExecuteScriptResultType> clone_an_object(JS::Realm&, HTML::BrowsingContext const&, JS::Object const&, SeenMap& seen, auto const& clone_algorithm);
 
 // https://w3c.github.io/webdriver/#dfn-collection
 static bool is_collection(JS::Object const& value)
@@ -82,28 +85,30 @@ static bool is_collection(JS::Object const& value)
 // https://w3c.github.io/webdriver/#dfn-json-clone
 static ErrorOr<JsonValue, ExecuteScriptResultType> json_clone(JS::Realm& realm, HTML::BrowsingContext const& browsing_context, JS::Value value)
 {
-    // To perform a JSON clone return the result of calling the internal JSON clone algorithm with arguments value and an empty List.
-    auto seen = HashTable<JS::Object*> {};
-    return internal_json_clone_algorithm(realm, browsing_context, value, seen);
+    // To JSON clone given session and value, return the result of internal JSON clone with session, value and an empty List.
+    SeenMap seen;
+    return internal_json_clone(realm, browsing_context, value, seen);
 }
 
-// https://w3c.github.io/webdriver/#dfn-internal-json-clone-algorithm
-static ErrorOr<JsonValue, ExecuteScriptResultType> internal_json_clone_algorithm(JS::Realm& realm, HTML::BrowsingContext const& browsing_context, JS::Value value, HashTable<JS::Object*>& seen)
+// https://w3c.github.io/webdriver/#dfn-internal-json-clone
+static ErrorOr<JsonValue, ExecuteScriptResultType> internal_json_clone(JS::Realm& realm, HTML::BrowsingContext const& browsing_context, JS::Value value, SeenMap& seen)
 {
     auto& vm = realm.vm();
 
-    // When required to run the internal JSON clone algorithm with arguments value and seen, a remote end must return the value of the first matching statement, matching on value:
+    // To internal JSON clone given session, value and seen, return the value of the first matching statement, matching
+    // on value:
+
     // -> undefined
     // -> null
     if (value.is_nullish()) {
-        // Success with data null.
+        // Return success with data null.
         return JsonValue {};
     }
 
     // -> type Boolean
     // -> type Number
     // -> type String
-    //     Success with data value.
+    //     Return success with data value.
     if (value.is_boolean())
         return JsonValue { value.as_bool() };
     if (value.is_number())
@@ -111,16 +116,17 @@ static ErrorOr<JsonValue, ExecuteScriptResultType> internal_json_clone_algorithm
     if (value.is_string())
         return JsonValue { value.as_string().byte_string() };
 
-    // NOTE: BigInt and Symbol not mentioned anywhere in the WebDriver spec, as it references ES5.
-    //       It assumes that all primitives are handled above, and the value is an object for the remaining steps.
+    // AD-HOC: BigInt and Symbol not mentioned anywhere in the WebDriver spec, as it references ES5.
+    //         It assumes that all primitives are handled above, and the value is an object for the remaining steps.
     if (value.is_bigint() || value.is_symbol())
         return ExecuteScriptResultType::JavaScriptError;
 
-    // FIXME: -> a collection
+    VERIFY(value.is_object());
+    auto const& object = static_cast<JS::Object const&>(value.as_object());
 
-    // -> instance of element
-    if (value.is_object() && is<DOM::Element>(value.as_object())) {
-        auto const& element = static_cast<DOM::Element const&>(value.as_object());
+    // -> instance of Element
+    if (is<DOM::Element>(object)) {
+        auto const& element = static_cast<DOM::Element const&>(object);
 
         // If the element is stale, return error with error code stale element reference.
         if (is_element_stale(element)) {
@@ -136,57 +142,74 @@ static ErrorOr<JsonValue, ExecuteScriptResultType> internal_json_clone_algorithm
         }
     }
 
-    // FIXME: -> instance of shadow root
+    // -> instance of ShadowRoot
+    if (is<DOM::ShadowRoot>(object)) {
+        auto const& shadow_root = static_cast<DOM::ShadowRoot const&>(object);
+
+        // If the shadow root is detached, return error with error code detached shadow root.
+        if (is_shadow_root_detached(shadow_root)) {
+            return ExecuteScriptResultType::DetachedShadowRoot;
+        }
+        // Otherwise:
+        else {
+            // 1. Let reference be the shadow root reference object for session and value.
+            auto reference = shadow_root_reference_object(browsing_context, shadow_root);
+
+            // 2. Return success with data reference.
+            return reference;
+        }
+    }
 
     // -> a WindowProxy object
-    if (is<HTML::WindowProxy>(value.as_object())) {
-        auto const& window_proxy = static_cast<HTML::WindowProxy&>(value.as_object());
+    if (is<HTML::WindowProxy>(object)) {
+        auto const& window_proxy = static_cast<HTML::WindowProxy const&>(object);
 
-        // If the associated browsing context of the WindowProxy object in value has been destroyed, return error with
-        // error code stale element reference.
-        if (window_proxy.associated_browsing_context()->has_navigable_been_destroyed())
+        // If the associated browsing context of the WindowProxy object in value has been destroyed, return error
+        // with error code stale element reference.
+        if (window_proxy.associated_browsing_context()->has_navigable_been_destroyed()) {
             return ExecuteScriptResultType::BrowsingContextDiscarded;
+        }
+        // Otherwise:
+        else {
+            // 1. Let reference be the WindowProxy reference object for value.
+            auto reference = window_proxy_reference_object(window_proxy);
 
-        // Otherwise return success with data set to WindowProxy reference object for value.
-        return window_proxy_reference_object(window_proxy);
+            // 2. Return success with data reference.
+            return reference;
+        }
     }
 
     // -> has an own property named "toJSON" that is a Function
-    auto to_json = value.as_object().get_without_side_effects(vm.names.toJSON);
-    if (to_json.is_function()) {
+    if (auto to_json = object.get_without_side_effects(vm.names.toJSON); to_json.is_function()) {
         // Return success with the value returned by Function.[[Call]](toJSON) with value as the this value.
         auto to_json_result = TRY_OR_JS_ERROR(to_json.as_function().internal_call(value, JS::MarkedVector<JS::Value> { vm.heap() }));
         if (!to_json_result.is_string())
             return ExecuteScriptResultType::JavaScriptError;
+
         return to_json_result.as_string().byte_string();
     }
 
     // -> Otherwise
-    // 1. If value is in seen, return error with error code javascript error.
-    if (seen.contains(&value.as_object()))
-        return ExecuteScriptResultType::JavaScriptError;
+    // 1. Let result be clone an object with session value and seen, and internal JSON clone as the clone algorithm.
+    auto result = TRY(clone_an_object(realm, browsing_context, object, seen, internal_json_clone));
 
-    // 2. Append value to seen.
-    seen.set(&value.as_object());
-
-    ScopeGuard remove_seen { [&] {
-        // 4. Remove the last element of seen.
-        seen.remove(&value.as_object());
-    } };
-
-    // 3. Let result be the value of running the clone an object algorithm with arguments value and seen, and the internal JSON clone algorithm as the clone algorithm.
-    auto result = TRY(clone_an_object(realm, browsing_context, value.as_object(), seen, internal_json_clone_algorithm));
-
-    // 5. Return result.
+    // 2. Return success with data result.
     return result;
 }
 
 // https://w3c.github.io/webdriver/#dfn-clone-an-object
-static ErrorOr<JsonValue, ExecuteScriptResultType> clone_an_object(JS::Realm& realm, HTML::BrowsingContext const& browsing_context, JS::Object& value, HashTable<JS::Object*>& seen, auto const& clone_algorithm)
+static ErrorOr<JsonValue, ExecuteScriptResultType> clone_an_object(JS::Realm& realm, HTML::BrowsingContext const& browsing_context, JS::Object const& value, SeenMap& seen, auto const& clone_algorithm)
 {
     auto& vm = realm.vm();
 
-    // 1. Let result be the value of the first matching statement, matching on value:
+    // 1. If value is in seen, return error with error code javascript error.
+    if (seen.contains(value))
+        return ExecuteScriptResultType::JavaScriptError;
+
+    // 2. Append value to seen.
+    seen.set(value);
+
+    // 3. Let result be the value of the first matching statement, matching on value:
     auto result = TRY(([&]() -> ErrorOr<Variant<JsonArray, JsonObject>, ExecuteScriptResultType> {
         // -> a collection
         if (is_collection(value)) {
@@ -210,23 +233,27 @@ static ErrorOr<JsonValue, ExecuteScriptResultType> clone_an_object(JS::Realm& re
         }
     }()));
 
-    // 2. For each enumerable own property in value, run the following substeps:
-    for (auto& key : MUST(value.Object::internal_own_property_keys())) {
+    Optional<ExecuteScriptResultType> error;
+
+    // 4. For each enumerable property in value, run the following substeps:
+    (void)value.enumerate_object_properties([&](auto property) -> Optional<JS::Completion> {
         // 1. Let name be the name of the property.
-        auto name = MUST(JS::PropertyKey::from_value(vm, key));
+        auto name = MUST(JS::PropertyKey::from_value(vm, property));
 
-        if (!value.storage_get(name)->attributes.is_enumerable())
-            continue;
+        // 2. Let source property value be the result of getting a property named name from value. If doing so causes
+        //    script to be run and that script throws an error, return error with error code javascript error.
+        auto source_property_value = value.get(name);
+        if (source_property_value.is_error()) {
+            error = ExecuteScriptResultType::JavaScriptError;
+            return JS::normal_completion({});
+        }
 
-        // 2. Let source property value be the result of getting a property named name from value. If doing so causes script to be run and that script throws an error, return error with error code javascript error.
-        auto source_property_value = TRY_OR_JS_ERROR(value.internal_get_own_property(name));
-        if (!source_property_value.has_value() || !source_property_value->value.has_value())
-            continue;
+        // 3. Let cloned property result be the result of calling the clone algorithm with session, source property
+        //    value and seen.
+        auto cloned_property_result = clone_algorithm(realm, browsing_context, source_property_value.value(), seen);
 
-        // 3. Let cloned property result be the result of calling the clone algorithm with arguments source property value and seen.
-        auto cloned_property_result = clone_algorithm(realm, browsing_context, *source_property_value->value, seen);
-
-        // 4. If cloned property result is a success, set a property of result with name name and value equal to cloned property result’s data.
+        // 4. If cloned property result is a success, set a property of result with name name and value equal to cloned
+        //    property result's data.
         if (!cloned_property_result.is_error()) {
             result.visit(
                 [&](JsonArray& array) {
@@ -240,11 +267,21 @@ static ErrorOr<JsonValue, ExecuteScriptResultType> clone_an_object(JS::Realm& re
         }
         // 5. Otherwise, return cloned property result.
         else {
-            return cloned_property_result;
+            error = cloned_property_result.release_error();
+            return JS::normal_completion({});
         }
-    }
 
-    return result.visit([&](auto const& value) -> JsonValue { return value; });
+        return {};
+    });
+
+    if (error.has_value())
+        return error.release_value();
+
+    // 5. Remove the last element of seen.
+    seen.remove(value);
+
+    // 6. Return success with data result.
+    return result.visit([&](auto& value) { return JsonValue { move(value) }; });
 }
 
 // https://w3c.github.io/webdriver/#dfn-execute-a-function-body

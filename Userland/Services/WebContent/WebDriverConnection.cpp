@@ -1950,6 +1950,8 @@ void WebDriverConnection::handle_script_response(Web::WebDriver::ExecuteScriptRe
             return Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::StaleElementReference, "Browsing context has been discarded", move(result.value));
         case Web::WebDriver::ExecuteScriptResultType::StaleElement:
             return Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::StaleElementReference, "Referenced element has become stale", move(result.value));
+        case Web::WebDriver::ExecuteScriptResultType::DetachedShadowRoot:
+            return Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::DetachedShadowRoot, "Referenced shadow root has become detached", move(result.value));
         }
 
         VERIFY_NOT_REACHED();
