@@ -89,3 +89,4 @@ Make sure your code meets the requirements in the [full contribution guidelines]
 * Make correctly formatted, atomic commits (building the project at every commit should succeed).
 * Discuss and resolve any reviews you receive.
 * Fix CI failures by editing your commits.
+* Include tests ([use `Meta/import-wpt-test.py` to import WPT tests](Testing.md#importing-web-platform-tests))
