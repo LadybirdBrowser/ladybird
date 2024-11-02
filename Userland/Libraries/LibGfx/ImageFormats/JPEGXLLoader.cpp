@@ -135,6 +135,7 @@ private:
         m_size = { info.xsize, info.ysize };
 
         m_animated = static_cast<bool>(info.have_animation);
+        m_alpha_premultiplied = info.alpha_premultiplied ? Gfx::AlphaType::Premultiplied : Gfx::AlphaType::Unpremultiplied;
 
         if (m_animated)
             m_loop_count = info.animation.num_loops;
@@ -149,7 +150,7 @@ private:
             if (JxlDecoderProcessInput(m_decoder) != JXL_DEC_NEED_IMAGE_OUT_BUFFER)
                 return Error::from_string_literal("JPEGXLImageDecoderPlugin: Decoder is in an unexpected state.");
 
-            auto bitmap = TRY(Bitmap::create(Gfx::BitmapFormat::RGBA8888, m_size));
+            auto bitmap = TRY(Bitmap::create(Gfx::BitmapFormat::RGBA8888, m_alpha_premultiplied, m_size));
             TRY(m_frame_descriptors.try_empend(bitmap, static_cast<int>(duration)));
 
             JxlPixelFormat format = { 4, JXL_TYPE_UINT8, JXL_NATIVE_ENDIAN, 0 };
@@ -183,6 +184,7 @@ private:
     Vector<ImageFrameDescriptor> m_frame_descriptors;
 
     bool m_animated { false };
+    Gfx::AlphaType m_alpha_premultiplied { Gfx::AlphaType::Premultiplied };
     u32 m_loop_count { 0 };
     u32 m_frame_count { 0 };
 };
