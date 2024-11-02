@@ -761,6 +761,7 @@ set(SOURCES
     WebDriver/HeapTimer.cpp
     WebDriver/InputSource.cpp
     WebDriver/InputState.cpp
+    WebDriver/JSON.cpp
     WebDriver/Response.cpp
     WebDriver/Screenshot.cpp
     WebDriver/TimeoutsConfiguration.cpp
