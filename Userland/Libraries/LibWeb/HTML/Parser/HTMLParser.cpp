@@ -1912,7 +1912,7 @@ void HTMLParser::handle_in_body(HTMLToken& token)
         auto next_token = m_tokenizer.next_token();
         if (next_token.has_value() && next_token.value().is_character() && next_token.value().code_point() == '\n') {
             // Ignore it.
-        } else {
+        } else if (next_token.has_value()) {
             process_using_the_rules_for(m_insertion_mode, next_token.value());
         }
 
@@ -2471,7 +2471,7 @@ void HTMLParser::handle_in_body(HTMLToken& token)
         // FIXME: This step is not in the spec.
         if (next_token.has_value() && next_token.value().is_character() && next_token.value().code_point() == '\n') {
             // Ignore it.
-        } else {
+        } else if (next_token.has_value()) {
             process_using_the_rules_for(m_insertion_mode, next_token.value());
         }
         return;
