@@ -14,7 +14,6 @@
 #include <LibWeb/DOM/DOMTokenList.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Event.h>
-#include <LibWeb/DOM/HTMLFormControlsCollection.h>
 #include <LibWeb/DOMURL/DOMURL.h>
 #include <LibWeb/HTML/BrowsingContext.h>
 #include <LibWeb/HTML/EventNames.h>
@@ -22,6 +21,7 @@
 #include <LibWeb/HTML/HTMLButtonElement.h>
 #include <LibWeb/HTML/HTMLDialogElement.h>
 #include <LibWeb/HTML/HTMLFieldSetElement.h>
+#include <LibWeb/HTML/HTMLFormControlsCollection.h>
 #include <LibWeb/HTML/HTMLFormElement.h>
 #include <LibWeb/HTML/HTMLImageElement.h>
 #include <LibWeb/HTML/HTMLInputElement.h>
@@ -29,6 +29,7 @@
 #include <LibWeb/HTML/HTMLOutputElement.h>
 #include <LibWeb/HTML/HTMLSelectElement.h>
 #include <LibWeb/HTML/HTMLTextAreaElement.h>
+#include <LibWeb/HTML/RadioNodeList.h>
 #include <LibWeb/HTML/SubmitEvent.h>
 #include <LibWeb/Infra/CharacterTypes.h>
 #include <LibWeb/Infra/Strings.h>
@@ -516,11 +517,11 @@ static bool is_form_control(DOM::Element const& element, HTMLFormElement const& 
 }
 
 // https://html.spec.whatwg.org/multipage/forms.html#dom-form-elements
-JS::NonnullGCPtr<DOM::HTMLFormControlsCollection> HTMLFormElement::elements() const
+JS::NonnullGCPtr<HTMLFormControlsCollection> HTMLFormElement::elements() const
 {
     if (!m_elements) {
         auto& root = verify_cast<ParentNode>(const_cast<HTMLFormElement*>(this)->root());
-        m_elements = DOM::HTMLFormControlsCollection::create(root, DOM::HTMLCollection::Scope::Descendants, [this](Element const& element) {
+        m_elements = HTMLFormControlsCollection::create(root, DOM::HTMLCollection::Scope::Descendants, [this](Element const& element) {
             return is_form_control(element, *this);
         });
     }
@@ -1021,7 +1022,7 @@ JS::Value HTMLFormElement::named_item_value(FlyString const& name) const
     // 1. Let candidates be a live RadioNodeList object containing all the listed elements, whose form owner is the form
     //    element, that have either an id attribute or a name attribute equal to name, with the exception of input
     //    elements whose type attribute is in the Image Button state, in tree order.
-    auto candidates = DOM::RadioNodeList::create(realm, root, DOM::LiveNodeList::Scope::Descendants, [this, name](auto& node) -> bool {
+    auto candidates = RadioNodeList::create(realm, root, DOM::LiveNodeList::Scope::Descendants, [this, name](auto& node) -> bool {
         if (!is<DOM::Element>(node))
             return false;
         auto const& element = static_cast<DOM::Element const&>(node);
@@ -1038,7 +1039,7 @@ JS::Value HTMLFormElement::named_item_value(FlyString const& name) const
     //    whose form owner is the form element, that have either an id attribute or a name attribute equal to name,
     //    in tree order.
     if (candidates->length() == 0) {
-        candidates = DOM::RadioNodeList::create(realm, root, DOM::LiveNodeList::Scope::Descendants, [this, name](auto& node) -> bool {
+        candidates = RadioNodeList::create(realm, root, DOM::LiveNodeList::Scope::Descendants, [this, name](auto& node) -> bool {
             if (!is<HTMLImageElement>(node))
                 return false;
 

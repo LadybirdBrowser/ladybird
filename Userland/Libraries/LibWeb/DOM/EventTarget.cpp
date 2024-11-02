@@ -16,13 +16,13 @@
 #include <LibWeb/Bindings/EventTargetPrototype.h>
 #include <LibWeb/Bindings/MainThreadVM.h>
 #include <LibWeb/DOM/AbortSignal.h>
-#include <LibWeb/DOM/BeforeUnloadEvent.h>
 #include <LibWeb/DOM/DOMEventListener.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Event.h>
 #include <LibWeb/DOM/EventDispatcher.h>
 #include <LibWeb/DOM/EventTarget.h>
 #include <LibWeb/DOM/IDLEventListener.h>
+#include <LibWeb/HTML/BeforeUnloadEvent.h>
 #include <LibWeb/HTML/CloseWatcherManager.h>
 #include <LibWeb/HTML/ErrorEvent.h>
 #include <LibWeb/HTML/EventHandler.h>
@@ -691,7 +691,7 @@ JS::ThrowCompletionOr<void> EventTarget::process_event_handler_for_event(FlyStri
     auto return_value = *return_value_or_error.value();
 
     // 5. Process return value as follows:
-    if (is<BeforeUnloadEvent>(event) && event.type() == "beforeunload") {
+    if (is<HTML::BeforeUnloadEvent>(event) && event.type() == "beforeunload") {
         // ->  If event is a BeforeUnloadEvent object and event's type is "beforeunload"
         //         If return value is not null, then:
         if (!return_value.is_nullish()) {
@@ -699,7 +699,7 @@ JS::ThrowCompletionOr<void> EventTarget::process_event_handler_for_event(FlyStri
             event.set_cancelled(true);
 
             // 2. If event's returnValue attribute's value is the empty string, then set event's returnValue attribute's value to return value.
-            auto& before_unload_event = static_cast<BeforeUnloadEvent&>(event);
+            auto& before_unload_event = static_cast<HTML::BeforeUnloadEvent&>(event);
             if (before_unload_event.return_value().is_empty())
                 before_unload_event.set_return_value(TRY(return_value.to_string(vm())));
         }

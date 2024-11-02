@@ -75,7 +75,7 @@ public:
 
     Vector<JS::NonnullGCPtr<DOM::Element>> get_submittable_elements();
 
-    JS::NonnullGCPtr<DOM::HTMLFormControlsCollection> elements() const;
+    JS::NonnullGCPtr<HTMLFormControlsCollection> elements() const;
     unsigned length() const;
 
     WebIDL::ExceptionOr<bool> check_validity();
@@ -136,7 +136,7 @@ private:
     };
     HashMap<FlyString, PastNameEntry> mutable m_past_names_map;
 
-    JS::GCPtr<DOM::HTMLFormControlsCollection> mutable m_elements;
+    JS::GCPtr<HTMLFormControlsCollection> mutable m_elements;
 
     bool m_constructing_entry_list { false };
 

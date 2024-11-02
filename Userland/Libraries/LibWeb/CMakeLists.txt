@@ -164,7 +164,6 @@ set(SOURCES
     DOM/AccessibilityTreeNode.cpp
     DOM/AdoptedStyleSheets.cpp
     DOM/Attr.cpp
-    DOM/BeforeUnloadEvent.cpp
     DOM/CDATASection.cpp
     DOM/CharacterData.cpp
     DOM/Comment.cpp
@@ -185,7 +184,6 @@ set(SOURCES
     DOM/EventDispatcher.cpp
     DOM/EventTarget.cpp
     DOM/HTMLCollection.cpp
-    DOM/HTMLFormControlsCollection.cpp
     DOM/IDLEventListener.cpp
     DOM/LiveNodeList.cpp
     DOM/MutationObserver.cpp
@@ -201,7 +199,6 @@ set(SOURCES
     DOM/Position.cpp
     DOM/ProcessingInstruction.cpp
     DOM/QualifiedName.cpp
-    DOM/RadioNodeList.cpp
     DOM/Range.cpp
     DOM/ShadowRoot.cpp
     DOM/Slot.cpp
@@ -274,6 +271,7 @@ set(SOURCES
     HTML/AttributeNames.cpp
     HTML/AudioTrack.cpp
     HTML/AudioTrackList.cpp
+    HTML/BeforeUnloadEvent.cpp
     HTML/BroadcastChannel.cpp
     HTML/BrowsingContext.cpp
     HTML/BrowsingContextGroup.cpp
@@ -343,6 +341,7 @@ set(SOURCES
     HTML/HTMLEmbedElement.cpp
     HTML/HTMLFieldSetElement.cpp
     HTML/HTMLFontElement.cpp
+    HTML/HTMLFormControlsCollection.cpp
     HTML/HTMLFormElement.cpp
     HTML/HTMLFrameElement.cpp
     HTML/HTMLFrameSetElement.cpp
@@ -439,6 +438,7 @@ set(SOURCES
     HTML/PluginArray.cpp
     HTML/PotentialCORSRequest.cpp
     HTML/PromiseRejectionEvent.cpp
+    HTML/RadioNodeList.cpp
     HTML/Scripting/ClassicScript.cpp
     HTML/Scripting/Environments.cpp
     HTML/Scripting/EnvironmentSettingsSnapshot.cpp
