@@ -27,6 +27,9 @@ public:
         Vector<Stop> stops;
 
         bool operator==(Linear const&) const = default;
+
+        double evaluate_at(double input_progress, bool before_flag) const;
+        String to_string() const;
     };
 
     struct CubicBezier {
@@ -49,6 +52,9 @@ public:
         mutable Vector<CachedSample, 64> m_cached_x_samples {};
 
         bool operator==(CubicBezier const&) const;
+
+        double evaluate_at(double input_progress, bool before_flag) const;
+        String to_string() const;
     };
 
     struct Steps {
@@ -68,13 +74,15 @@ public:
         Position position { Position::End };
 
         bool operator==(Steps const&) const = default;
+
+        double evaluate_at(double input_progress, bool before_flag) const;
+        String to_string() const;
     };
 
     struct Function : public Variant<Linear, CubicBezier, Steps> {
         using Variant::Variant;
 
         double evaluate_at(double input_progress, bool before_flag) const;
-
         String to_string() const;
     };
 
