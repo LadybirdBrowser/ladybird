@@ -210,10 +210,12 @@ bool IndexedPropertyIterator::operator!=(IndexedPropertyIterator const& other) c
 
 void IndexedPropertyIterator::skip_empty_indices()
 {
-    for (auto i : m_cached_indices) {
-        if (i < m_index)
+    for (size_t i = m_next_cached_index; i < m_cached_indices.size(); i++) {
+        auto index = m_cached_indices[i];
+        if (index < m_index)
             continue;
-        m_index = i;
+        m_index = index;
+        m_next_cached_index = i + 1;
         return;
     }
     m_index = m_indexed_properties.array_like_size();

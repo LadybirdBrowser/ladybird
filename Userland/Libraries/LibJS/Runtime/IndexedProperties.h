@@ -135,6 +135,7 @@ private:
 
     IndexedProperties const& m_indexed_properties;
     Vector<u32> m_cached_indices;
+    size_t m_next_cached_index { 0 };
     u32 m_index { 0 };
     bool m_skip_empty { false };
 };
