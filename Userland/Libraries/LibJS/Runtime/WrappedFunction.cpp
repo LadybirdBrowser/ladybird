@@ -68,16 +68,13 @@ ThrowCompletionOr<Value> WrappedFunction::internal_call(Value this_argument, Rea
     // 3. Assert: calleeContext is now the running execution context.
     VERIFY(&vm.running_execution_context() == callee_context);
 
-    // 4. Let result be OrdinaryWrappedFunctionCall(F, thisArgument, argumentsList).
+    // 4. Let result be Completion(OrdinaryWrappedFunctionCall(F, thisArgument, argumentsList)).
     auto result = ordinary_wrapped_function_call(*this, this_argument, arguments_list);
 
     // 5. Remove calleeContext from the execution context stack and restore callerContext as the running execution context.
     vm.pop_execution_context();
 
-    // NOTE: I think the spec isn't fully correct here, see https://github.com/tc39/proposal-shadowrealm/issues/371.
-    // 6. If result.[[Type]] is return, return result.[[Value]].
-    // 7. ReturnIfAbrupt(result).
-    // 8. Return undefined.
+    // 6. Return ? result.
     return result;
 }
 
