@@ -22,6 +22,7 @@ enum class ExecuteScriptResultType {
     JavaScriptError,
     BrowsingContextDiscarded,
     StaleElement,
+    DetachedShadowRoot,
 };
 
 struct ExecuteScriptResult {
