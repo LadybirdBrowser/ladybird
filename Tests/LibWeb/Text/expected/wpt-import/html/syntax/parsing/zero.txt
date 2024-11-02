@@ -1,0 +1,24 @@
+Summary
+
+Harness status: OK
+
+Rerun
+
+Found 14 tests
+
+14 Pass
+Details
+Result	Test Name	MessagePass	U+0000 should get replaced with U+FFFD after markup declaration hyphen	
+Pass	U+0000 should vanish after ampersand	
+Pass	U+0000 should vanish after ampersand and one letter of entity prefix	
+Pass	U+0000 should vanish after ampersand and two letters of entity prefix	
+Pass	U+0000 should vanish after ampersand and three letters of entity prefix	
+Pass	U+0000 should vanish after semicolonless entity	
+Pass	U+0000 should vanish before required semicolon	
+Pass	U+0000 should be dropped in body	
+Pass	U+0000 should get replaced with U+FFFD after ampersand	
+Pass	U+0000 should get replaced with U+FFFD after ampersand and one letter of entity prefix	
+Pass	U+0000 should get replaced with U+FFFD after ampersand and two letters of entity prefix	
+Pass	U+0000 should get replaced with U+FFFD after ampersand and three letters of entity prefix	
+Pass	U+0000 should get replaced with U+FFFD after semicolonless entity	
+Pass	U+0000 should get replaced with U+FFFD before required semicolon	

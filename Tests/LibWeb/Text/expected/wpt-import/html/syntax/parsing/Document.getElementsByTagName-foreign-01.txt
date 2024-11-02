@@ -1,0 +1,48 @@
+Summary
+
+Harness status: OK
+
+Rerun
+
+Found 37 tests
+
+34 Pass
+3 Fail
+Details
+Result	Test Name	MessagePass	document.getElementsByTagName and foreign parser-inserted elements	
+Pass	Testing altGlyph	
+Pass	Testing altGlyphDef	
+Pass	Testing altGlyphItem	
+Pass	Testing animateColor	
+Pass	Testing animateMotion	
+Pass	Testing animateTransform	
+Pass	Testing clipPath	
+Pass	Testing feBlend	
+Pass	Testing feColorMatrix	
+Pass	Testing feComponentTransfer	
+Pass	Testing feComposite	
+Pass	Testing feConvolveMatrix	
+Pass	Testing feDiffuseLighting	
+Pass	Testing feDisplacementMap	
+Pass	Testing feDistantLight	
+Pass	Testing feFlood	
+Pass	Testing feFuncA	
+Pass	Testing feFuncB	
+Pass	Testing feFuncG	
+Pass	Testing feFuncR	
+Pass	Testing feGaussianBlur	
+Pass	Testing feImage	
+Pass	Testing feMerge	
+Pass	Testing feMergeNode	
+Pass	Testing feMorphology	
+Pass	Testing feOffset	
+Pass	Testing fePointLight	
+Pass	Testing feSpecularLighting	
+Fail	Testing feSpotLight	
+Fail	Testing feTile	
+Fail	Testing feTurbulence	
+Pass	Testing foreignObject	
+Pass	Testing glyphRef	
+Pass	Testing linearGradient	
+Pass	Testing radialGradient	
+Pass	Testing textPath	

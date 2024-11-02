@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf8">
+    <title>HTML 5 Parser tests html5lib_search-element.html</title>
+    <meta name="timeout" content="long">
+    <meta name="variant" content="?run_type=uri">
+    <meta name="variant" content="?run_type=write">
+    <meta name="variant" content="?run_type=write_single">
+  </head>
+  <body>
+    <h1>html5lib Parser Test</h1>
+    <div id="log"></div>
+    <script src="common.js"></script>
+    <script src="test.js"></script>
+    <script src="template.js"></script>
+    <script src="../../../resources/testharness.js"></script>
+    <script src="../../../resources/testharnessreport.js"></script>
+    <script>
+      var num_iframes = 8;
+      var order = ['114b9f3c8147c0ed8ef3ed1811a9da3f10d74402','2204afb9037ec886f428ab5dcead5ee9f87c65cb','5153f797fbb63a23a40d19e298aca06d53d22f7f',];
+      var tests = {
+          "114b9f3c8147c0ed8ef3ed1811a9da3f10d74402":[async_test('html5lib_search-element.html 114b9f3c8147c0ed8ef3ed1811a9da3f10d74402'), "%3C%21doctype%20html%3E%3Cp%3Efoo%3Csearch%3Ebar%3Cp%3Ebaz", "%23document%0A%7C%20%3C%21DOCTYPE%20html%3E%0A%7C%20%3Chtml%3E%0A%7C%20%20%20%3Chead%3E%0A%7C%20%20%20%3Cbody%3E%0A%7C%20%20%20%20%20%3Cp%3E%0A%7C%20%20%20%20%20%20%20%22foo%22%0A%7C%20%20%20%20%20%3Csearch%3E%0A%7C%20%20%20%20%20%20%20%22bar%22%0A%7C%20%20%20%20%20%20%20%3Cp%3E%0A%7C%20%20%20%20%20%20%20%20%20%22baz%22"],"2204afb9037ec886f428ab5dcead5ee9f87c65cb":[async_test('html5lib_search-element.html 2204afb9037ec886f428ab5dcead5ee9f87c65cb'), "%3C%21doctype%20html%3E%3Csearch%3E%3Cp%3Efoo%3C/search%3Ebar", "%23document%0A%7C%20%3C%21DOCTYPE%20html%3E%0A%7C%20%3Chtml%3E%0A%7C%20%20%20%3Chead%3E%0A%7C%20%20%20%3Cbody%3E%0A%7C%20%20%20%20%20%3Csearch%3E%0A%7C%20%20%20%20%20%20%20%3Cp%3E%0A%7C%20%20%20%20%20%20%20%20%20%22foo%22%0A%7C%20%20%20%20%20%22bar%22"],"5153f797fbb63a23a40d19e298aca06d53d22f7f":[async_test('html5lib_search-element.html 5153f797fbb63a23a40d19e298aca06d53d22f7f'), "%3C%21DOCTYPE%20html%3Exxx%3Csvg%3E%3Cx%3E%3Cg%3E%3Ca%3E%3Csearch%3E%3Cb%3E", "%23document%0A%7C%20%3C%21DOCTYPE%20html%3E%0A%7C%20%3Chtml%3E%0A%7C%20%20%20%3Chead%3E%0A%7C%20%20%20%3Cbody%3E%0A%7C%20%20%20%20%20%22xxx%22%0A%7C%20%20%20%20%20%3Csvg%20svg%3E%0A%7C%20%20%20%20%20%20%20%3Csvg%20x%3E%0A%7C%20%20%20%20%20%20%20%20%20%3Csvg%20g%3E%0A%7C%20%20%20%20%20%20%20%20%20%20%20%3Csvg%20a%3E%0A%7C%20%20%20%20%20%20%20%20%20%20%20%20%20%3Csvg%20search%3E%0A%7C%20%20%20%20%20%3Cb%3E"],
+      }
+      init_tests(get_type());
+    </script>
+  </body>
+</html>
