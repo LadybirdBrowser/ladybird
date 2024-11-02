@@ -22,6 +22,11 @@ public:
     JsonArray() = default;
     ~JsonArray() = default;
 
+    explicit JsonArray(size_t initial_size)
+    {
+        resize(initial_size);
+    }
+
     JsonArray(JsonArray const& other)
         : m_values(other.m_values)
     {
@@ -93,6 +98,7 @@ public:
     [[nodiscard]] Vector<JsonValue> const& values() const { return m_values; }
 
     void ensure_capacity(size_t capacity) { m_values.ensure_capacity(capacity); }
+    void resize(size_t size) { m_values.resize(size); }
 
 private:
     Vector<JsonValue> m_values;
