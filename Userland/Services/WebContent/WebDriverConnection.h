@@ -148,7 +148,7 @@ private:
         JS::MarkedVector<JS::Value> arguments;
     };
     ErrorOr<ScriptArguments, Web::WebDriver::Error> extract_the_script_arguments_from_a_request(JS::VM&, JsonValue const& payload);
-    void handle_script_response(Web::WebDriver::ExecuteScriptResultSerialized);
+    void handle_script_response(Web::WebDriver::ExecutionResult);
 
     void delete_cookies(Optional<StringView> const& name = {});
 
