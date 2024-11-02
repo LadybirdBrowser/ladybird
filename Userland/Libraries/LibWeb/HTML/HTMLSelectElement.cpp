@@ -613,4 +613,10 @@ void HTMLSelectElement::update_selectedness(JS::GCPtr<HTML::HTMLOptionElement> l
     }
     update_inner_text_element();
 }
+
+bool HTMLSelectElement::is_focusable() const
+{
+    return enabled();
+}
+
 }

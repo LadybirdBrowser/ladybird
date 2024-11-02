@@ -2590,4 +2590,9 @@ HTMLInputElement::ValueAttributeMode HTMLInputElement::value_attribute_mode() co
     return value_attribute_mode_for_type_state(type_state());
 }
 
+bool HTMLInputElement::is_focusable() const
+{
+    return m_type != TypeAttributeState::Hidden && enabled();
+}
+
 }
