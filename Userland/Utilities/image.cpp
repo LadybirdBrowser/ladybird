@@ -88,6 +88,10 @@ static ErrorOr<void> move_alpha_to_rgb(LoadedImage& image)
             u8 alpha = pixel >> 24;
             pixel = 0xff000000 | (alpha << 16) | (alpha << 8) | alpha;
         }
+        break;
+    case Gfx::BitmapFormat::RGBx8888:
+        // This should never be the case, as there's no alpha channel in the image
+        return Error::from_string_literal("Can't --move-alpha-to-rgb with RGBx8888 bitmaps");
     }
     return {};
 }
@@ -108,7 +112,13 @@ static ErrorOr<void> strip_alpha(LoadedImage& image)
         return Error::from_string_literal("--strip-alpha not implemented for RGBA8888");
     case Gfx::BitmapFormat::BGRA8888:
     case Gfx::BitmapFormat::BGRx8888:
+        // BGRx8888 is sent as BGRA8888 to Skia,
+        // that's why we need to ensure there's no "alpha channel" left
         frame->strip_alpha_channel();
+        break;
+    case Gfx::BitmapFormat::RGBx8888:
+        // This format means there's no alpha channel, so nothing to do here
+        break;
     }
     return {};
 }

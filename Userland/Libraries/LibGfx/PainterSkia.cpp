@@ -38,6 +38,8 @@ static SkColorType to_skia_color_type(Gfx::BitmapFormat format)
         return kBGRA_8888_SkColorType;
     case Gfx::BitmapFormat::RGBA8888:
         return kRGBA_8888_SkColorType;
+    case Gfx::BitmapFormat::RGBx8888:
+        return kRGB_888x_SkColorType;
     default:
         return kUnknown_SkColorType;
     }

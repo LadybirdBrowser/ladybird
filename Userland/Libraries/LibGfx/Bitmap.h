@@ -23,6 +23,7 @@ enum class BitmapFormat {
     Invalid,
     BGRx8888,
     BGRA8888,
+    RGBx8888,
     RGBA8888,
 };
 
@@ -31,6 +32,7 @@ inline bool is_valid_bitmap_format(unsigned format)
     switch (format) {
     case (unsigned)BitmapFormat::Invalid:
     case (unsigned)BitmapFormat::BGRx8888:
+    case (unsigned)BitmapFormat::RGBx8888:
     case (unsigned)BitmapFormat::BGRA8888:
     case (unsigned)BitmapFormat::RGBA8888:
         return true;
@@ -42,6 +44,7 @@ enum class StorageFormat {
     BGRx8888,
     BGRA8888,
     RGBA8888,
+    RGBx8888,
 };
 
 inline StorageFormat determine_storage_format(BitmapFormat format)
@@ -53,6 +56,8 @@ inline StorageFormat determine_storage_format(BitmapFormat format)
         return StorageFormat::BGRA8888;
     case BitmapFormat::RGBA8888:
         return StorageFormat::RGBA8888;
+    case BitmapFormat::RGBx8888:
+        return StorageFormat::RGBx8888;
     default:
         VERIFY_NOT_REACHED();
     }
@@ -309,6 +314,15 @@ ALWAYS_INLINE void Bitmap::set_pixel<StorageFormat::RGBA8888>(int x, int y, Colo
     scanline(y)[x] = rgba;
 }
 
+template<>
+ALWAYS_INLINE void Bitmap::set_pixel<StorageFormat::RGBx8888>(int x, int y, Color color)
+{
+    VERIFY(x >= 0);
+    VERIFY(x < width());
+    auto rgb = (color.blue() << 16) | (color.green() << 8) | color.red();
+    scanline(y)[x] = rgb;
+}
+
 ALWAYS_INLINE void Bitmap::set_pixel(int x, int y, Color color)
 {
     switch (determine_storage_format(m_format)) {
@@ -320,6 +334,9 @@ ALWAYS_INLINE void Bitmap::set_pixel(int x, int y, Color color)
         break;
     case StorageFormat::RGBA8888:
         set_pixel<StorageFormat::RGBA8888>(x, y, color);
+        break;
+    case StorageFormat::RGBx8888:
+        set_pixel<StorageFormat::RGBx8888>(x, y, color);
         break;
     default:
         VERIFY_NOT_REACHED();

@@ -59,7 +59,10 @@ TEST_CASE(test_bmp_top_down)
     EXPECT(Gfx::BMPImageDecoderPlugin::sniff(file->bytes()));
     auto plugin_decoder = TRY_OR_FAIL(Gfx::BMPImageDecoderPlugin::create(file->bytes()));
 
-    TRY_OR_FAIL(expect_single_frame(*plugin_decoder));
+    auto frame = TRY_OR_FAIL(expect_single_frame(*plugin_decoder));
+    EXPECT_EQ(frame.image->format(), Gfx::BitmapFormat::RGBx8888);
+    // Compares only rgb data
+    EXPECT_EQ(frame.image->begin()[0] & 0x00ffffffU, 0x00dcc1b8U);
 }
 
 TEST_CASE(test_bmp_1bpp)
