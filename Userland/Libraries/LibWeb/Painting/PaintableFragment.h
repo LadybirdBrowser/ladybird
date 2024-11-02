@@ -52,7 +52,7 @@ public:
     CSSPixels width() const { return m_size.width(); }
     CSSPixels height() const { return m_size.height(); }
 
-    int text_index_at(CSSPixels) const;
+    int text_index_at(CSSPixelPoint) const;
 
     StringView string_view() const;
 
