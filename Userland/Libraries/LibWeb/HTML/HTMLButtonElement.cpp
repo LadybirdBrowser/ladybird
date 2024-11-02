@@ -107,4 +107,9 @@ void HTMLButtonElement::activation_behavior(DOM::Event const& event)
     // 4. FIXME: Run the popover target attribute activation behavior given element.
 }
 
+bool HTMLButtonElement::is_focusable() const
+{
+    return enabled();
+}
+
 }

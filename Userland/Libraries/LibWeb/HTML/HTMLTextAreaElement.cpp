@@ -478,4 +478,9 @@ void HTMLTextAreaElement::queue_firing_input_event()
     });
 }
 
+bool HTMLTextAreaElement::is_focusable() const
+{
+    return enabled();
+}
+
 }

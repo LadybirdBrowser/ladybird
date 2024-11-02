@@ -155,7 +155,9 @@ public:
 
     // ^EventTarget
     // https://html.spec.whatwg.org/multipage/interaction.html#the-tabindex-attribute:the-input-element
-    virtual bool is_focusable() const override { return m_type != TypeAttributeState::Hidden; }
+    // https://html.spec.whatwg.org/multipage/interaction.html#focusable-area
+    // https://html.spec.whatwg.org/multipage/semantics-other.html#concept-element-disabled
+    virtual bool is_focusable() const override;
 
     // ^FormAssociatedElement
     // https://html.spec.whatwg.org/multipage/forms.html#category-listed
