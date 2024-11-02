@@ -187,19 +187,20 @@ static ErrorOr<JsonValue, ExecuteScriptResultType> clone_an_object(JS::Realm& re
     auto& vm = realm.vm();
 
     // 1. Let result be the value of the first matching statement, matching on value:
-    auto get_result = [&]() -> ErrorOr<Variant<JsonArray, JsonObject>, ExecuteScriptResultType> {
+    auto result = TRY(([&]() -> ErrorOr<Variant<JsonArray, JsonObject>, ExecuteScriptResultType> {
         // -> a collection
         if (is_collection(value)) {
             // A new Array which length property is equal to the result of getting the property length of value.
-            auto length_property = TRY_OR_JS_ERROR(value.internal_get_own_property(vm.names.length));
-            if (!length_property->value.has_value())
-                return ExecuteScriptResultType::JavaScriptError;
-            auto length = TRY_OR_JS_ERROR(length_property->value->to_length(vm));
+            auto length_property = TRY_OR_JS_ERROR(value.get(vm.names.length));
+
+            auto length = TRY_OR_JS_ERROR(length_property.to_length(vm));
             if (length > NumericLimits<u32>::max())
                 return ExecuteScriptResultType::JavaScriptError;
+
             auto array = JsonArray {};
             for (size_t i = 0; i < length; ++i)
                 array.must_append(JsonValue {});
+
             return array;
         }
         // -> Otherwise
@@ -207,8 +208,7 @@ static ErrorOr<JsonValue, ExecuteScriptResultType> clone_an_object(JS::Realm& re
             // A new Object.
             return JsonObject {};
         }
-    };
-    auto result = TRY(get_result());
+    }()));
 
     // 2. For each enumerable own property in value, run the following substeps:
     for (auto& key : MUST(value.Object::internal_own_property_keys())) {
