@@ -58,6 +58,8 @@ Note that this also applies to debug logging and other internal strings, as they
 
 When possible, please include tests when fixing bugs or adding new features.
 
+If changes you’re making have relevant [Web Platform Tests (WPT)](https://wpt.fyi/) tests — especially if the changes cause Ladybird to pass any WPT tests it hadn’t yet been passing — you should consider [importing those tests into your Ladybird clone](https://github.com/LadybirdBrowser/ladybird/blob/master/Documentation/Testing.md#importing-web-platform-tests), and then commit the imported tests along with your code changes.
+
 ## Code submission policy
 
 Nobody is perfect, and sometimes we mess things up. That said, here are some good do's & don'ts to try and stick to:
