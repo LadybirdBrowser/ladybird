@@ -19,11 +19,14 @@
 #include <LibJS/Runtime/ObjectEnvironment.h>
 #include <LibJS/Runtime/Promise.h>
 #include <LibJS/Runtime/PromiseConstructor.h>
+#include <LibWeb/DOM/DOMTokenList.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/HTMLCollection.h>
 #include <LibWeb/DOM/NodeList.h>
 #include <LibWeb/FileAPI/FileList.h>
 #include <LibWeb/HTML/BrowsingContext.h>
+#include <LibWeb/HTML/HTMLAllCollection.h>
+#include <LibWeb/HTML/HTMLFormControlsCollection.h>
 #include <LibWeb/HTML/HTMLOptionsCollection.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
@@ -60,14 +63,16 @@ static bool is_collection(JS::Object const& value)
         value.has_parameter_map()
         // - instance of Array
         || is<JS::Array>(value)
+        // - instance of DOMTokenList
+        || is<DOM::DOMTokenList>(value)
         // - instance of FileList
         || is<FileAPI::FileList>(value)
         // - instance of HTMLAllCollection
-        || false // FIXME
+        || is<HTML::HTMLAllCollection>(value)
         // - instance of HTMLCollection
         || is<DOM::HTMLCollection>(value)
         // - instance of HTMLFormControlsCollection
-        || false // FIXME
+        || is<HTML::HTMLFormControlsCollection>(value)
         // - instance of HTMLOptionsCollection
         || is<HTML::HTMLOptionsCollection>(value)
         // - instance of NodeList
