@@ -6,9 +6,9 @@
 
 #include <LibWeb/Bindings/BeforeUnloadEventPrototype.h>
 #include <LibWeb/Bindings/Intrinsics.h>
-#include <LibWeb/DOM/BeforeUnloadEvent.h>
+#include <LibWeb/HTML/BeforeUnloadEvent.h>
 
-namespace Web::DOM {
+namespace Web::HTML {
 
 JS_DEFINE_ALLOCATOR(BeforeUnloadEvent);
 

@@ -8,15 +8,15 @@
 
 #include <LibWeb/DOM/LiveNodeList.h>
 
-namespace Web::DOM {
+namespace Web::HTML {
 
 // https://html.spec.whatwg.org/multipage/common-dom-interfaces.html#radionodelist
-class RadioNodeList : public LiveNodeList {
-    WEB_PLATFORM_OBJECT(RadioNodeList, LiveNodeList);
+class RadioNodeList : public DOM::LiveNodeList {
+    WEB_PLATFORM_OBJECT(RadioNodeList, DOM::LiveNodeList);
     JS_DECLARE_ALLOCATOR(RadioNodeList);
 
 public:
-    [[nodiscard]] static JS::NonnullGCPtr<RadioNodeList> create(JS::Realm& realm, Node const& root, Scope scope, ESCAPING Function<bool(Node const&)> filter);
+    [[nodiscard]] static JS::NonnullGCPtr<RadioNodeList> create(JS::Realm& realm, DOM::Node const& root, Scope scope, ESCAPING Function<bool(DOM::Node const&)> filter);
 
     virtual ~RadioNodeList() override;
 
@@ -27,7 +27,7 @@ protected:
     virtual void initialize(JS::Realm&) override;
 
 private:
-    explicit RadioNodeList(JS::Realm& realm, Node const& root, Scope scope, ESCAPING Function<bool(Node const&)> filter);
+    explicit RadioNodeList(JS::Realm& realm, DOM::Node const& root, Scope scope, ESCAPING Function<bool(DOM::Node const&)> filter);
 };
 
 }

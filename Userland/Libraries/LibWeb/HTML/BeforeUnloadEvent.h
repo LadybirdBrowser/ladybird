@@ -9,7 +9,7 @@
 #include <AK/FlyString.h>
 #include <LibWeb/DOM/Event.h>
 
-namespace Web::DOM {
+namespace Web::HTML {
 
 class BeforeUnloadEvent final : public DOM::Event {
     WEB_PLATFORM_OBJECT(BeforeUnloadEvent, DOM::Event);
