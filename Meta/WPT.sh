@@ -122,6 +122,13 @@ done
 WPT_ARGS+=( "--binary=${LADYBIRD_BINARY}" )
 TEST_LIST=( "$@" )
 
+for i in "${!TEST_LIST[@]}"; do
+    item="${TEST_LIST[i]}"
+    item="${item#"$WPT_SOURCE_DIR"/}"
+    item="${item#*Tests/LibWeb/WPT/wpt/}"
+    TEST_LIST[i]="$item"
+done
+
 exit_if_running_as_root "Do not run WPT.sh as root"
 
 ensure_wpt_repository() {
