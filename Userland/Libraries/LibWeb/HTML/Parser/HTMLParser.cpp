@@ -29,6 +29,7 @@
 #include <LibWeb/HTML/EventNames.h>
 #include <LibWeb/HTML/HTMLFormElement.h>
 #include <LibWeb/HTML/HTMLHeadElement.h>
+#include <LibWeb/HTML/HTMLHtmlElement.h>
 #include <LibWeb/HTML/HTMLScriptElement.h>
 #include <LibWeb/HTML/HTMLTableElement.h>
 #include <LibWeb/HTML/HTMLTemplateElement.h>
@@ -1788,12 +1789,22 @@ void HTMLParser::handle_in_body(HTMLToken& token)
         if (!m_frameset_ok)
             return;
 
-        // FIXME: Otherwise, run the following steps:
+        // Otherwise, run the following steps:
         // 1. Remove the second element on the stack of open elements from its parent node, if it has one.
+        m_stack_of_open_elements.elements().at(1)->remove(true);
+
         // 2. Pop all the nodes from the bottom of the stack of open elements, from the current node up to, but not including, the root html element.
+        while (m_stack_of_open_elements.elements().size() > 1) {
+            if (is<HTML::HTMLHtmlElement>(*m_stack_of_open_elements.elements().last()))
+                break;
+            (void)m_stack_of_open_elements.pop();
+        }
+
         // 3. Insert an HTML element for the token.
+        (void)insert_html_element(token);
+
         // 4. Switch the insertion mode to "in frameset".
-        TODO();
+        m_insertion_mode = InsertionMode::InFrameset;
     }
 
     // -> An end-of-file token
