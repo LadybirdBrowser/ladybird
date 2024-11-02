@@ -26,6 +26,7 @@ namespace RequestServer {
 ByteString g_default_certificate_path;
 static HashMap<int, RefPtr<ConnectionFromClient>> s_connections;
 static IDAllocator s_client_ids;
+static long s_connect_timeout_seconds = 90L;
 
 struct ConnectionFromClient::ActiveRequest {
     CURLM* multi { nullptr };
@@ -36,6 +37,7 @@ struct ConnectionFromClient::ActiveRequest {
     int writer_fd { 0 };
     HTTP::HeaderMap headers;
     bool got_all_headers { false };
+    bool is_connect_only { false };
     size_t downloaded_so_far { 0 };
     String url;
     Optional<String> reason_phrase;
@@ -52,7 +54,9 @@ struct ConnectionFromClient::ActiveRequest {
 
     ~ActiveRequest()
     {
-        MUST(Core::System::close(writer_fd));
+        if (writer_fd > 0)
+            MUST(Core::System::close(writer_fd));
+
         auto result = curl_multi_remove_handle(multi, easy);
         VERIFY(result == CURLM_OK);
         curl_easy_cleanup(easy);
@@ -308,7 +312,7 @@ void ConnectionFromClient::start_request(i32 request_id, ByteString const& metho
     set_option(CURLOPT_ACCEPT_ENCODING, "gzip, deflate, br");
     set_option(CURLOPT_URL, url.to_string().value().to_byte_string().characters());
     set_option(CURLOPT_PORT, url.port_or_default());
-    set_option(CURLOPT_CONNECTTIMEOUT, 90L);
+    set_option(CURLOPT_CONNECTTIMEOUT, s_connect_timeout_seconds);
 
     if (method == "GET"sv) {
         set_option(CURLOPT_HTTPGET, 1L);
@@ -379,22 +383,25 @@ void ConnectionFromClient::check_active_requests()
         ActiveRequest* request = nullptr;
         auto result = curl_easy_getinfo(msg->easy_handle, CURLINFO_PRIVATE, &request);
         VERIFY(result == CURLE_OK);
-        request->flush_headers_if_needed();
 
-        auto result_code = msg->data.result;
+        if (!request->is_connect_only) {
+            request->flush_headers_if_needed();
 
-        Optional<Requests::NetworkError> network_error;
-        bool const request_was_successful = result_code == CURLE_OK;
-        if (!request_was_successful) {
-            network_error = map_curl_code_to_network_error(result_code);
+            auto result_code = msg->data.result;
 
-            if (network_error.has_value() && network_error.value() == Requests::NetworkError::Unknown) {
-                char const* curl_error_message = curl_easy_strerror(result_code);
-                dbgln("ConnectionFromClient: Unable to map error ({}), message: \"\033[31;1m{}\033[0m\"", static_cast<int>(result_code), curl_error_message);
+            Optional<Requests::NetworkError> network_error;
+            bool const request_was_successful = result_code == CURLE_OK;
+            if (!request_was_successful) {
+                network_error = map_curl_code_to_network_error(result_code);
+
+                if (network_error.has_value() && network_error.value() == Requests::NetworkError::Unknown) {
+                    char const* curl_error_message = curl_easy_strerror(result_code);
+                    dbgln("ConnectionFromClient: Unable to map error ({}), message: \"\033[31;1m{}\033[0m\"", static_cast<int>(result_code), curl_error_message);
+                }
             }
-        }
 
-        async_request_finished(request->request_id, request->downloaded_so_far, network_error);
+            async_request_finished(request->request_id, request->downloaded_so_far, network_error);
+        }
 
         m_active_requests.remove(request->request_id);
     }
@@ -443,8 +450,47 @@ void ConnectionFromClient::ensure_connection(URL::URL const& url, ::RequestServe
         return;
     }
 
-    (void)cache_level;
-    dbgln("FIXME: EnsureConnection: Pre-connect to {}", url);
+    auto const url_string_value = url.to_string().value();
+
+    if (cache_level == CacheLevel::CreateConnection) {
+        auto* easy = curl_easy_init();
+        if (!easy) {
+            dbgln("EnsureConnection: Failed to initialize curl easy handle");
+            return;
+        }
+
+        auto set_option = [easy](auto option, auto value) {
+            auto result = curl_easy_setopt(easy, option, value);
+            if (result != CURLE_OK) {
+                dbgln("EnsureConnection: Failed to set curl option: {}", curl_easy_strerror(result));
+                return false;
+            }
+            return true;
+        };
+
+        auto connect_only_request_id = get_random<i32>();
+
+        auto request = make<ActiveRequest>(*this, m_curl_multi, easy, connect_only_request_id, 0);
+        request->url = url_string_value;
+        request->is_connect_only = true;
+
+        set_option(CURLOPT_PRIVATE, request.ptr());
+        set_option(CURLOPT_URL, url_string_value.to_byte_string().characters());
+        set_option(CURLOPT_PORT, url.port_or_default());
+        set_option(CURLOPT_CONNECTTIMEOUT, s_connect_timeout_seconds);
+        set_option(CURLOPT_CONNECT_ONLY, 1L);
+
+        auto const result = curl_multi_add_handle(m_curl_multi, easy);
+        VERIFY(result == CURLM_OK);
+
+        m_active_requests.set(connect_only_request_id, move(request));
+
+        return;
+    }
+
+    if (cache_level == CacheLevel::ResolveOnly) {
+        dbgln("FIXME: EnsureConnection: Implement ResolveOnly cache level");
+    }
 }
 
 void ConnectionFromClient::websocket_connect(i64 websocket_id, URL::URL const& url, ByteString const& origin, Vector<ByteString> const& protocols, Vector<ByteString> const& extensions, HTTP::HeaderMap const& additional_request_headers)
