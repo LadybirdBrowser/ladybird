@@ -309,4 +309,42 @@ ThrowCompletionOr<Value> get_wrapped_value(VM& vm, Realm& caller_realm, Value va
     return value;
 }
 
+// 3.1.7 GetShadowRealmContext ( shadowRealmRecord, strictEval ), https://tc39.es/proposal-shadowrealm/#sec-getshadowrealmcontext
+NonnullOwnPtr<ExecutionContext> get_shadow_realm_context(Realm& shadow_realm, bool strict_eval)
+{
+    // 1. Let lexEnv be NewDeclarativeEnvironment(shadowRealmRecord.[[GlobalEnv]]).
+    Environment* lexical_environment = new_declarative_environment(shadow_realm.global_environment()).ptr();
+
+    // 2. Let varEnv be shadowRealmRecord.[[GlobalEnv]].
+    Environment* variable_environment = &shadow_realm.global_environment();
+
+    // 3. If strictEval is true, set varEnv to lexEnv.
+    if (strict_eval)
+        variable_environment = lexical_environment;
+
+    // 4. Let context be a new ECMAScript code execution context.
+    auto context = ExecutionContext::create();
+
+    // 5. Set context's Function to null.
+    context->function = nullptr;
+
+    // 6. Set context's Realm to shadowRealmRecord.
+    context->realm = &shadow_realm;
+
+    // 7. Set context's ScriptOrModule to null.
+    context->script_or_module = {};
+
+    // 8. Set context's VariableEnvironment to varEnv.
+    context->variable_environment = variable_environment;
+
+    // 9. Set context's LexicalEnvironment to lexEnv.
+    context->lexical_environment = lexical_environment;
+
+    // 10. Set context's PrivateEnvironment to null.
+    context->private_environment = nullptr;
+
+    // 11. Return context.
+    return context;
+}
+
 }
