@@ -401,7 +401,7 @@ static void update(JS::VM& vm, JS::NonnullGCPtr<Job> job)
         // 16. If runResult is failure or an abrupt completion, then:
         // 17. Else, invoke Install algorithm with job, worker, and registration as its arguments.
         if (job->client) {
-            auto& realm = *vm.current_realm();
+            auto& realm = job->client->realm();
             auto context = HTML::TemporaryExecutionContext(realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes);
             WebIDL::reject_promise(realm, *job->job_promise, *vm.throw_completion<JS::InternalError>(JS::ErrorType::NotImplemented, "Run Service Worker"sv).value());
             finish_job(vm, job);
@@ -428,7 +428,7 @@ static void unregister(JS::VM& vm, JS::NonnullGCPtr<Job> job)
 {
     // If there's no client, there won't be any promises to resolve
     if (job->client) {
-        auto& realm = *vm.current_realm();
+        auto& realm = job->client->realm();
         auto context = HTML::TemporaryExecutionContext(realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes);
         WebIDL::reject_promise(realm, *job->job_promise, *vm.throw_completion<JS::InternalError>(JS::ErrorType::NotImplemented, "Service Worker unregistration"sv).value());
         finish_job(vm, job);
