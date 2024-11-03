@@ -798,6 +798,10 @@ TraversableNavigable::HistoryStepResult TraversableNavigable::apply_the_history_
     // 16. Let completedNonchangingJobs be 0.
     IGNORE_USE_IN_ESCAPING_LAMBDA auto completed_non_changing_jobs = 0u;
 
+    // AD-HOC: We re-compute targetStep here, since it might have changed since the last time we computed it.
+    //         This can happen if navigables are destroyed while we wait for tasks to complete.
+    target_step = get_the_used_step(step);
+
     // 17. Let (scriptHistoryLength, scriptHistoryIndex) be the result of getting the history object length and index given traversable and targetStep.
     auto length_and_index = get_the_history_object_length_and_index(target_step);
     IGNORE_USE_IN_ESCAPING_LAMBDA auto script_history_length = length_and_index.script_history_length;
