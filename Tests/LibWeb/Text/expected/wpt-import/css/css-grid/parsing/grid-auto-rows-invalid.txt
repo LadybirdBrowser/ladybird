@@ -1,0 +1,25 @@
+Summary
+
+Harness status: OK
+
+Rerun
+
+Found 14 tests
+
+4 Pass
+10 Fail
+Details
+Result	Test Name	MessageFail	e.style['grid-auto-rows'] = "none" should not set the property value	
+Fail	e.style['grid-auto-rows'] = "-1px" should not set the property value	
+Fail	e.style['grid-auto-rows'] = "-4%" should not set the property value	
+Fail	e.style['grid-auto-rows'] = "minmax(1px)" should not set the property value	
+Fail	e.style['grid-auto-rows'] = "minmax(1px, 2px, 3px)" should not set the property value	
+Fail	e.style['grid-auto-rows'] = "minmax(5fr, 1px)" should not set the property value	
+Fail	e.style['grid-auto-rows'] = "minmax(6px, -7%)" should not set the property value	
+Fail	e.style['grid-auto-rows'] = "fit-content(-1px)" should not set the property value	
+Fail	e.style['grid-auto-rows'] = "fit-content(1px, 2px)" should not set the property value	
+Fail	e.style['grid-auto-rows'] = "fit-content(1px auto)" should not set the property value	
+Pass	e.style['grid-auto-rows'] = "2em / 3em" should not set the property value	
+Pass	e.style['grid-auto-rows'] = "auto, 10%" should not set the property value	
+Pass	e.style['grid-auto-rows'] = "1px [a] 1px" should not set the property value	
+Pass	e.style['grid-auto-rows'] = "[] 1px []" should not set the property value	

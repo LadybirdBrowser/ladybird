@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<link rel="author" title="Sammy Gill" href="mailto:sammy.gill@apple.com">
+<link rel="help" href="https://drafts.csswg.org/css-grid-2/#placement-shorthands">
+<meta name="assert" content="grid-row should set values for grid-row-start and grid-row-end">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/shorthand-testcommon.js"></script>
+</head>
+<body>
+<script>
+test_shorthand_value("grid-row", "auto / auto", {
+    "grid-row-start": "auto",
+    "grid-row-end": "auto"
+});
+test_shorthand_value("grid-row", "auto", {
+    "grid-row-start": "auto",
+    "grid-row-end": "auto"
+});
+
+test_shorthand_value("grid-row", "10 / auto", {
+    "grid-row-start": "10",
+    "grid-row-end": "auto"
+});
+test_shorthand_value("grid-row", "10", {
+    "grid-row-start": "10",
+    "grid-row-end": "auto"
+});
+
+test_shorthand_value("grid-row", "-10 / auto", {
+    "grid-row-start": "-10",
+    "grid-row-end": "auto"
+});
+test_shorthand_value("grid-row", "-10", {
+    "grid-row-start": "-10",
+    "grid-row-end": "auto"
+});
+
+test_shorthand_value("grid-row", "span 2 / auto", {
+    "grid-row-start": "span 2",
+    "grid-row-end": "auto"
+});
+test_shorthand_value("grid-row", "span 2", {
+    "grid-row-start": "span 2",
+    "grid-row-end": "auto"
+});
+
+test_shorthand_value("grid-row", "3 last / auto", {
+    "grid-row-start": "3 last",
+    "grid-row-end": "auto"
+});
+test_shorthand_value("grid-row", "3 last", {
+    "grid-row-start": "3 last",
+    "grid-row-end": "auto"
+});
+
+test_shorthand_value("grid-row", "span first / auto", {
+    "grid-row-start": "span first",
+    "grid-row-end": "auto"
+});
+test_shorthand_value("grid-row", "span first", {
+    "grid-row-start": "span first",
+    "grid-row-end": "auto"
+});
+test_shorthand_value("grid-row", "span 2 first / auto", {
+    "grid-row-start": "span 2 first",
+    "grid-row-end": "auto"
+});
+test_shorthand_value("grid-row", "span 2 first", {
+    "grid-row-start": "span 2 first",
+    "grid-row-end": "auto"
+});
+
+test_shorthand_value("grid-row", "last / last", {
+    "grid-row-start": "last",
+    "grid-row-end": "last"
+});
+test_shorthand_value("grid-row", "last", {
+    "grid-row-start": "last",
+    "grid-row-end": "last"
+});
+
+</script>
+</body>
+</html>

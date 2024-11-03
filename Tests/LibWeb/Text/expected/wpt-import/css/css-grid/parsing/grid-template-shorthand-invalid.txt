@@ -1,0 +1,77 @@
+Summary
+
+Harness status: OK
+
+Rerun
+
+Found 66 tests
+
+7 Pass
+59 Fail
+Details
+Result	Test Name	MessageFail	e.style['grid-template'] = "auto" should not set the property value	
+Pass	e.style['grid-template'] = "none none" should not set the property value	
+Pass	e.style['grid-template'] = "none []" should not set the property value	
+Fail	e.style['grid-template'] = "10px" should not set the property value	
+Fail	e.style['grid-template'] = "20%" should not set the property value	
+Fail	e.style['grid-template'] = "5fr" should not set the property value	
+Fail	e.style['grid-template'] = "[a]" should not set the property value	
+Fail	e.style['grid-template'] = "[a] 10px" should not set the property value	
+Fail	e.style['grid-template'] = "[a] repeat(2, 10px)" should not set the property value	
+Fail	e.style['grid-template'] = "[a] repeat(auto-fill, 10px)" should not set the property value	
+Fail	e.style['grid-template'] = "[a] repeat(auto-fit, 10px)" should not set the property value	
+Fail	e.style['grid-template'] = "[a] 10px []" should not set the property value	
+Fail	e.style['grid-template'] = "[a] repeat(2, 10px) []" should not set the property value	
+Fail	e.style['grid-template'] = "[a] repeat(auto-fill, 10px) []" should not set the property value	
+Fail	e.style['grid-template'] = "[a] repeat(auto-fit, 10px) []" should not set the property value	
+Fail	e.style['grid-template'] = "[]" should not set the property value	
+Fail	e.style['grid-template'] = "10px \"a\"" should not set the property value	
+Fail	e.style['grid-template'] = "repeat(2, 10px) \"a\"" should not set the property value	
+Fail	e.style['grid-template'] = "repeat(auto-fill, 10px) \"a\"" should not set the property value	
+Fail	e.style['grid-template'] = "repeat(auto-fit, 10px) \"a\"" should not set the property value	
+Fail	e.style['grid-template'] = "[] 10px \"a\"" should not set the property value	
+Fail	e.style['grid-template'] = "[] repeat(2, 10px) \"a\"" should not set the property value	
+Fail	e.style['grid-template'] = "[] repeat(auto-fill, 10px) \"a\"" should not set the property value	
+Fail	e.style['grid-template'] = "[] repeat(auto-fit, 10px) \"a\"" should not set the property value	
+Fail	e.style['grid-template'] = "10px [] \"a\"" should not set the property value	
+Fail	e.style['grid-template'] = "repeat(2, 10px) [] \"a\"" should not set the property value	
+Fail	e.style['grid-template'] = "repeat(auto-fill, 10px) [] \"a\"" should not set the property value	
+Fail	e.style['grid-template'] = "repeat(auto-fit, 10px) [] \"a\"" should not set the property value	
+Fail	e.style['grid-template'] = "[] [] \"a\"" should not set the property value	
+Fail	e.style['grid-template'] = "\"a\" none" should not set the property value	
+Fail	e.style['grid-template'] = "\"a\" 10px 10px" should not set the property value	
+Fail	e.style['grid-template'] = "\"a\" repeat(2, 10px) 10px" should not set the property value	
+Fail	e.style['grid-template'] = "\"a\" 10px repeat(2, 10px)" should not set the property value	
+Fail	e.style['grid-template'] = "\"a\" repeat(auto-fill, 10px) 10px" should not set the property value	
+Fail	e.style['grid-template'] = "\"a\" 10px repeat(auto-fill, 10px)" should not set the property value	
+Fail	e.style['grid-template'] = "\"a\" repeat(auto-fit, 10px) 10px" should not set the property value	
+Fail	e.style['grid-template'] = "\"a\" 10px repeat(auto-fit, 10px)" should not set the property value	
+Fail	e.style['grid-template'] = "\"a\" [a] 10px" should not set the property value	
+Fail	e.style['grid-template'] = "\"a\" [a] repeat(2, 10px)" should not set the property value	
+Fail	e.style['grid-template'] = "\"a\" [a] repeat(auto-fill, 10px)" should not set the property value	
+Fail	e.style['grid-template'] = "\"a\" [a] repeat(auto-fit, 10px)" should not set the property value	
+Fail	e.style['grid-template'] = "\"a\" [a] 10px [a]" should not set the property value	
+Fail	e.style['grid-template'] = "\"a\" [a] repeat(2, 10px) [a]" should not set the property value	
+Fail	e.style['grid-template'] = "\"a\" [a] repeat(auto-fill, 10px) [a]" should not set the property value	
+Fail	e.style['grid-template'] = "\"a\" [a] repeat(auto-fit, 10px) [a]" should not set the property value	
+Fail	e.style['grid-template'] = "\"a\" [a] [a] 10px" should not set the property value	
+Fail	e.style['grid-template'] = "\"a\" [a] [a] repeat(2, 10px)" should not set the property value	
+Fail	e.style['grid-template'] = "\"a\" [a] [a] repeat(auto-fill, 10px)" should not set the property value	
+Fail	e.style['grid-template'] = "\"a\" [a] [a] repeat(auto-fit, 10px)" should not set the property value	
+Fail	e.style['grid-template'] = "\"a\" 10px [a] [a]" should not set the property value	
+Fail	e.style['grid-template'] = "\"a\" repeat(2, 10px) [a] [a]" should not set the property value	
+Fail	e.style['grid-template'] = "\"a\" repeat(auto-fill, 10px) [a] [a]" should not set the property value	
+Fail	e.style['grid-template'] = "\"a\" repeat(auto-fit, 10px) [a] [a]" should not set the property value	
+Fail	e.style['grid-template'] = "\"a\" [a] [a]" should not set the property value	
+Fail	e.style['grid-template'] = "[a] \"a\" [a] [a]" should not set the property value	
+Fail	e.style['grid-template'] = "\"a\" \"a\" [a] [a]" should not set the property value	
+Fail	e.style['grid-template'] = "\"a\" [a] [a] / none" should not set the property value	
+Fail	e.style['grid-template'] = "\"a\" \"a\" [a] [a] / none" should not set the property value	
+Fail	e.style['grid-template'] = "none / \"a\"" should not set the property value	
+Fail	e.style['grid-template'] = "\"a\" / none" should not set the property value	
+Fail	e.style['grid-template'] = "none / [] \"a\"" should not set the property value	
+Pass	e.style['grid-template'] = "none / \"a\" []" should not set the property value	
+Pass	e.style['grid-template'] = "none / \"a\" [] 10px" should not set the property value	
+Pass	e.style['grid-template'] = "none / \"a\" [] repeat(2, 10px)" should not set the property value	
+Pass	e.style['grid-template'] = "none / \"a\" [] repeat(auto-fill, 10px)" should not set the property value	
+Pass	e.style['grid-template'] = "none / \"a\" [] repeat(auto-fit, 10px)" should not set the property value	

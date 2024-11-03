@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS Grid Layout Test: parsing grid-auto-columns with valid values</title>
+<link rel="author" title="Eric Willigers" href="mailto:ericwilligers@chromium.org">
+<link rel="help" href="https://drafts.csswg.org/css-grid-1/#propdef-grid-auto-columns">
+<meta name="assert" content="grid-auto-columns supports the full grammar '<track-size>+'.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/parsing-testcommon.js"></script>
+</head>
+<body>
+<script>
+// <track-breadth>
+// <track-breadth> = <length-percentage> | <flex> | min-content | max-content | auto
+test_valid_value("grid-auto-columns", "1px");
+test_valid_value("grid-auto-columns", "2em");
+test_valid_value("grid-auto-columns", "calc(2em + 3ex)");
+test_valid_value("grid-auto-columns", "4%");
+test_valid_value("grid-auto-columns", "5fr");
+test_valid_value("grid-auto-columns", "min-content");
+test_valid_value("grid-auto-columns", "max-content");
+test_valid_value("grid-auto-columns", "auto");
+test_valid_value("grid-auto-columns", "auto /**/", "auto");
+
+// minmax( <inflexible-breadth> , <track-breadth> )
+// <inflexible-breadth> = <length-percentage> | min-content | max-content | auto
+test_valid_value("grid-auto-columns", "minmax(1px, 5fr)");
+test_valid_value("grid-auto-columns", "minmax(2em, min-content)");
+test_valid_value("grid-auto-columns", "minmax(calc(2em + 3ex), max-content)");
+test_valid_value("grid-auto-columns", "minmax(4%, auto)");
+test_valid_value("grid-auto-columns", "minmax(5vmin, 1px)");
+test_valid_value("grid-auto-columns", "minmax(min-content, 2em)");
+test_valid_value("grid-auto-columns", "minmax(max-content, calc(2em + 3ex))");
+test_valid_value("grid-auto-columns", "minmax(auto, 4%)");
+
+// fit-content( <length-percentage> )
+test_valid_value("grid-auto-columns", "fit-content(1px)");
+test_valid_value("grid-auto-columns", "fit-content(2em)");
+test_valid_value("grid-auto-columns", "fit-content(calc(2em + 3ex))");
+test_valid_value("grid-auto-columns", "fit-content(4%)");
+
+test_valid_value("grid-auto-columns", "0px");
+test_valid_value("grid-auto-columns", "0%");
+test_valid_value("grid-auto-columns", "0fr");
+test_valid_value("grid-auto-columns", "minmax(auto, 0%)");
+test_valid_value("grid-auto-columns", "fit-content(0px)");
+
+// <track-size>+
+test_valid_value("grid-auto-columns", "auto auto");
+test_valid_value("grid-auto-columns", "auto 10px");
+test_valid_value("grid-auto-columns", "1px 2px 3px 0px");
+test_valid_value("grid-auto-columns", "fit-content(1px) minmax(2px, 3px) 4px");
+</script>
+</body>
+</html>

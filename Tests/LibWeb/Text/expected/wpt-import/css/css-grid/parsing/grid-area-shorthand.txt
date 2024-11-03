@@ -1,0 +1,64 @@
+Summary
+
+Harness status: OK
+
+Rerun
+
+Found 53 tests
+
+42 Pass
+11 Fail
+Details
+Result	Test Name	MessagePass	e.style['grid-area'] = "auto" should set grid-column-end	
+Pass	e.style['grid-area'] = "auto" should set grid-column-start	
+Pass	e.style['grid-area'] = "auto" should set grid-row-end	
+Pass	e.style['grid-area'] = "auto" should set grid-row-start	
+Pass	e.style['grid-area'] = "auto" should not set unrelated longhands	
+Pass	e.style['grid-area'] = "--a" should set grid-column-end	
+Pass	e.style['grid-area'] = "--a" should set grid-column-start	
+Pass	e.style['grid-area'] = "--a" should set grid-row-end	
+Pass	e.style['grid-area'] = "--a" should set grid-row-start	
+Pass	e.style['grid-area'] = "--a" should not set unrelated longhands	
+Pass	e.style['grid-area'] = "a / b" should set grid-column-end	
+Pass	e.style['grid-area'] = "a / b" should set grid-column-start	
+Fail	e.style['grid-area'] = "a / b" should set grid-row-end	
+Pass	e.style['grid-area'] = "a / b" should set grid-row-start	
+Pass	e.style['grid-area'] = "a / b" should not set unrelated longhands	
+Fail	e.style['grid-area'] = "a / b / c" should set grid-column-end	
+Pass	e.style['grid-area'] = "a / b / c" should set grid-column-start	
+Pass	e.style['grid-area'] = "a / b / c" should set grid-row-end	
+Pass	e.style['grid-area'] = "a / b / c" should set grid-row-start	
+Pass	e.style['grid-area'] = "a / b / c" should not set unrelated longhands	
+Pass	e.style['grid-area'] = "a / b / c / d" should set grid-column-end	
+Pass	e.style['grid-area'] = "a / b / c / d" should set grid-column-start	
+Pass	e.style['grid-area'] = "a / b / c / d" should set grid-row-end	
+Pass	e.style['grid-area'] = "a / b / c / d" should set grid-row-start	
+Pass	e.style['grid-area'] = "a / b / c / d" should not set unrelated longhands	
+Fail	e.style['grid-area'] = "+90 -a- / 2 i span" should set grid-column-end	
+Fail	e.style['grid-area'] = "+90 -a- / 2 i span" should set grid-column-start	
+Fail	e.style['grid-area'] = "+90 -a- / 2 i span" should set grid-row-end	
+Fail	e.style['grid-area'] = "+90 -a- / 2 i span" should set grid-row-start	
+Fail	e.style['grid-area'] = "+90 -a- / 2 i span" should not set unrelated longhands	
+Pass	e.style['grid-area'] = "1 / 2 / 3 / 4" should set grid-column-end	
+Pass	e.style['grid-area'] = "1 / 2 / 3 / 4" should set grid-column-start	
+Pass	e.style['grid-area'] = "1 / 2 / 3 / 4" should set grid-row-end	
+Pass	e.style['grid-area'] = "1 / 2 / 3 / 4" should set grid-row-start	
+Pass	e.style['grid-area'] = "1 / 2 / 3 / 4" should not set unrelated longhands	
+Pass	e.style['grid-row'] = "auto" should set grid-row-end	
+Pass	e.style['grid-row'] = "auto" should set grid-row-start	
+Pass	e.style['grid-row'] = "auto" should not set unrelated longhands	
+Pass	e.style['grid-row'] = "one / 2" should set grid-row-end	
+Pass	e.style['grid-row'] = "one / 2" should set grid-row-start	
+Pass	e.style['grid-row'] = "one / 2" should not set unrelated longhands	
+Fail	e.style['grid-row'] = "1 two / four 3" should set grid-row-end	
+Fail	e.style['grid-row'] = "1 two / four 3" should set grid-row-start	
+Pass	e.style['grid-row'] = "1 two / four 3" should not set unrelated longhands	
+Pass	e.style['grid-column'] = "5 span" should set grid-column-end	
+Pass	e.style['grid-column'] = "5 span" should set grid-column-start	
+Pass	e.style['grid-column'] = "5 span" should not set unrelated longhands	
+Pass	e.style['grid-column'] = "1 / two" should set grid-column-end	
+Pass	e.style['grid-column'] = "1 / two" should set grid-column-start	
+Pass	e.style['grid-column'] = "1 / two" should not set unrelated longhands	
+Fail	e.style['grid-column'] = "span 1 two / four 3 span" should set grid-column-end	
+Fail	e.style['grid-column'] = "span 1 two / four 3 span" should set grid-column-start	
+Pass	e.style['grid-column'] = "span 1 two / four 3 span" should not set unrelated longhands	

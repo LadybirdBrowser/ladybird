@@ -1,0 +1,38 @@
+Summary
+
+Harness status: OK
+
+Rerun
+
+Found 27 tests
+
+16 Pass
+11 Fail
+Details
+Result	Test Name	MessagePass	Property grid-template-rows value 'none'	
+Fail	Property grid-template-rows value '20%'	
+Fail	Property grid-template-rows value 'calc(-0.5em + 10px)'	
+Pass	Property grid-template-rows value 'calc(0.5em + 10px)'	
+Fail	Property grid-template-rows value 'calc(30% + 40px)'	
+Pass	Property grid-template-rows value '5fr'	
+Pass	Property grid-template-rows value 'min-content'	
+Pass	Property grid-template-rows value 'max-content'	
+Pass	Property grid-template-rows value 'auto'	
+Pass	Property grid-template-rows value 'minmax(10px, auto)'	
+Fail	Property grid-template-rows value 'minmax(20%, max-content)'	
+Pass	Property grid-template-rows value 'minmax(min-content, calc(-0.5em + 10px))'	
+Pass	Property grid-template-rows value 'minmax(auto, 0)'	
+Pass	Property grid-template-rows value 'fit-content(70px)'	
+Pass	Property grid-template-rows value 'fit-content(20%)'	
+Fail	Property grid-template-rows value 'fit-content(calc(-0.5em + 10px))'	
+Pass	Property grid-template-rows value 'repeat(1, 10px)'	
+Fail	Property grid-template-rows value 'repeat(1, [one two] 20%)'	
+Pass	Property grid-template-rows value 'repeat(2, minmax(10px, auto))'	
+Fail	Property grid-template-rows value 'repeat(2, fit-content(20%) [three four] 30px 40px [five six])'	
+Pass	Property grid-template-rows value 'min-content repeat(5, minmax(10px, auto))'	
+Pass	Property grid-template-rows value '[] 150px [] 1fr []'	
+Pass	Property grid-template-rows value 'repeat(auto-fill, 200px)'	
+Fail	Property grid-template-rows value 'repeat(auto-fit, [one] 20%)'	
+Fail	Property grid-template-rows value 'repeat(auto-fill, minmax(100px, 5fr) [two])'	
+Fail	Property grid-template-rows value 'repeat(auto-fit, [three] minmax(max-content, 6em) [four])'	
+Fail	Property grid-template-rows value '[one] repeat(2, minmax(50px, auto)) [two] 30px [three] repeat(auto-fill, 10px) 40px [four five] repeat(2, minmax(200px, auto)) [six]'	

@@ -1,0 +1,35 @@
+Summary
+
+Harness status: OK
+
+Rerun
+
+Found 24 tests
+
+1 Pass
+23 Fail
+Details
+Result	Test Name	MessagePass	Property grid-template-rows value 'none' computes to '10px'	
+Fail	Property grid-template-rows value '1px' computes to '10px 1px'	
+Fail	Property grid-template-rows value '1px [a]' computes to '10px 1px [a]'	
+Fail	Property grid-template-rows value '1px [a] 2px' computes to '10px 1px [a] 2px'	
+Fail	Property grid-template-rows value '[a] 1px' computes to '10px [a] 1px'	
+Fail	Property grid-template-rows value '[a] 1px [b]' computes to '10px [a] 1px [b]'	
+Fail	Property grid-template-rows value '1px repeat(1, 2px) 3px' computes to '10px 1px 2px 3px'	
+Fail	Property grid-template-rows value '1px repeat(auto-fill, 2px) 3px' computes to '10px 1px 2px 3px'	
+Fail	Property grid-template-rows value '1px repeat(auto-fit, 2px) 3px' computes to '10px 1px 0px 3px'	
+Fail	Property grid-template-rows value '1px [a] repeat(1, 2px 3px) [b] 4px' computes to '10px 1px [a] 2px 3px [b] 4px'	
+Fail	Property grid-template-rows value '1px [a] repeat(auto-fill, 2px 3px) [b] 4px' computes to '10px 1px [a] 2px 3px [b] 4px'	
+Fail	Property grid-template-rows value '1px [a] repeat(auto-fit, 2px 3px) [b] 4px' computes to '10px 1px [a] 0px 0px [b] 4px'	
+Fail	Property grid-template-rows value '1px [a] repeat(1, [b] 2px [c]) [d] 3px' computes to '10px 1px [a b] 2px [c d] 3px'	
+Fail	Property grid-template-rows value '1px [a] repeat(auto-fill, [b] 2px [c]) [d] 3px' computes to '10px 1px [a b] 2px [c d] 3px'	
+Fail	Property grid-template-rows value '1px [a] repeat(auto-fit, [b] 2px [c]) [d] 3px' computes to '10px 1px [a b] 0px [c d] 3px'	
+Fail	Property grid-template-rows value '[a] 1px repeat(1, 2px [b] 3px) 4px [d]' computes to '10px [a] 1px 2px [b] 3px 4px [d]'	
+Fail	Property grid-template-rows value '[a] 1px repeat(auto-fill, 2px [b] 3px) 4px [d]' computes to '10px [a] 1px 2px [b] 3px 4px [d]'	
+Fail	Property grid-template-rows value '[a] 1px repeat(auto-fit, 2px [b] 3px) 4px [d]' computes to '10px [a] 1px 0px [b] 0px 4px [d]'	
+Fail	Property grid-template-rows value '100% [a] repeat(1, [b] 200% [c]) [d] 300%' computes to '10px 1px [a b] 2px [c d] 3px'	
+Fail	Property grid-template-rows value '100% [a] repeat(auto-fill, [b] 200% [c]) [d] 300%' computes to '10px 1px [a b] 2px [c d] 3px'	
+Fail	Property grid-template-rows value '100% [a] repeat(auto-fit, [b] 200% [c]) [d] 300%' computes to '10px 1px [a b] 0px [c d] 3px'	
+Fail	Property grid-template-rows value '[a] 1em repeat(1, 2em [b] 3em) 4em [d]' computes to '10px [a] 1px 2px [b] 3px 4px [d]'	
+Fail	Property grid-template-rows value '[a] 1em repeat(auto-fill, 2em [b] 3em) 4em [d]' computes to '10px [a] 1px 2px [b] 3px 4px [d]'	
+Fail	Property grid-template-rows value '[a] 1em repeat(auto-fit, 2em [b] 3em) 4em [d]' computes to '10px [a] 1px 0px [b] 0px 4px [d]'	

@@ -1,0 +1,45 @@
+Summary
+
+Harness status: OK
+
+Rerun
+
+Found 34 tests
+
+8 Pass
+26 Fail
+Details
+Result	Test Name	MessagePass	e.style['grid'] = "none none" should not set the property value	
+Pass	e.style['grid'] = "none []" should not set the property value	
+Fail	e.style['grid'] = "10px" should not set the property value	
+Fail	e.style['grid'] = "20%" should not set the property value	
+Fail	e.style['grid'] = "5fr" should not set the property value	
+Fail	e.style['grid'] = "[a]" should not set the property value	
+Fail	e.style['grid'] = "[a] 10px" should not set the property value	
+Fail	e.style['grid'] = "[a] 10px []" should not set the property value	
+Fail	e.style['grid'] = "[]" should not set the property value	
+Fail	e.style['grid'] = "10px \"a\"" should not set the property value	
+Fail	e.style['grid'] = "[] 10px \"a\"" should not set the property value	
+Fail	e.style['grid'] = "10px [] \"a\"" should not set the property value	
+Fail	e.style['grid'] = "[] [] \"a\"" should not set the property value	
+Fail	e.style['grid'] = "\"a\" none" should not set the property value	
+Fail	e.style['grid'] = "\"a\" 10px 10px" should not set the property value	
+Fail	e.style['grid'] = "\"a\" [a] 10px" should not set the property value	
+Fail	e.style['grid'] = "\"a\" [a] 10px [a]" should not set the property value	
+Fail	e.style['grid'] = "\"a\" [a] [a] 10px" should not set the property value	
+Fail	e.style['grid'] = "\"a\" 10px [a] [a]" should not set the property value	
+Fail	e.style['grid'] = "\"a\" [a] [a]" should not set the property value	
+Fail	e.style['grid'] = "[a] \"a\" [a] [a]" should not set the property value	
+Fail	e.style['grid'] = "\"a\" \"a\" [a] [a]" should not set the property value	
+Fail	e.style['grid'] = "\"a\" [a] [a] / none" should not set the property value	
+Fail	e.style['grid'] = "\"a\" \"a\" [a] [a] / none" should not set the property value	
+Fail	e.style['grid'] = "none / \"a\"" should not set the property value	
+Fail	e.style['grid'] = "\"a\" / none" should not set the property value	
+Fail	e.style['grid'] = "none / [] \"a\"" should not set the property value	
+Pass	e.style['grid'] = "none / \"a\" []" should not set the property value	
+Pass	e.style['grid'] = "none / \"a\" [] 10px" should not set the property value	
+Pass	e.style['grid'] = "auto-flow 100px" should not set the property value	
+Fail	e.style['grid'] = "auto-flow / auto-flow" should not set the property value	
+Pass	e.style['grid'] = "auto-flow 1fr / auto-flow 1fr" should not set the property value	
+Pass	e.style['grid'] = "dense auto-flow / dense auto-flow" should not set the property value	
+Pass	e.style['grid'] = "auto / auto-flow foo()" should not set the property value	

@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS Grid Layout Test: parsing grid-template with valid values</title>
+<link rel="author" title="Mats Palmgren" href="mailto:mats@mozilla.com">
+<link rel="help" href="https://drafts.csswg.org/css-grid/#propdef-grid-template">
+<meta name="assert" content="grid-template supports the grammar `none | [ <'grid-template-rows'> / <'grid-template-columns'> ] | [ <line-names>? <string> <track-size>? <line-names>? ]+ [ / <explicit-track-list> ]?`.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/parsing-testcommon.js"></script>
+</head>
+<body>
+<script>
+
+test_valid_value("grid-template", 'none');
+test_valid_value("grid-template", 'none / none', 'none');
+test_valid_value("grid-template", 'auto / auto');
+test_valid_value("grid-template", 'none / [a] 0px');
+test_valid_value("grid-template", 'none / [] 0px', 'none / 0px');
+test_valid_value("grid-template", '[a] 10px / auto');
+test_valid_value("grid-template", '[a] 10px / none');
+test_valid_value("grid-template", '[] 10px [] / [] auto []', '10px / auto');
+test_valid_value("grid-template", '[a] "a" 10px');
+test_valid_value("grid-template", '[a] "a" 10px []', '[a] "a" 10px');
+test_valid_value("grid-template", '"a" 10px');
+test_valid_value("grid-template", '[] "a" 10px', '"a" 10px');
+test_valid_value("grid-template", '[a] "a" 10px [a]');
+test_valid_value("grid-template", '"a"');
+test_valid_value("grid-template", '"a" auto', '"a"');
+test_valid_value("grid-template", '"a a a"', '"a a a"');
+test_valid_value("grid-template", '"a" / 10px');
+test_valid_value("grid-template", '"a" / 20%');
+test_valid_value("grid-template", '"a" / 5fr');
+test_valid_value("grid-template", '[a] "a"');
+test_valid_value("grid-template", '[a] "a" [a]');
+test_valid_value("grid-template", '[] "a"', '"a"');
+test_valid_value("grid-template", '"a" [] [] "b"', '"a" "b"');
+test_valid_value("grid-template", '"a" [] "b"', '"a" "b"');
+test_valid_value("grid-template", '"a" [a] [b] "b"', '"a" [a b] "b"');
+test_valid_value("grid-template", '"a" [a] "b"');
+test_valid_value("grid-template", '"a" / 0', '"a" / 0px');
+test_valid_value("grid-template", '"a" 10px / 10px');
+test_valid_value("grid-template", '"a" calc(100% - 10px) / calc(10px)');
+test_valid_value("grid-template", '"a" [a] "b" 10px');
+test_valid_value("grid-template", '"a" [a] "b" 10px [a]');
+test_valid_value("grid-template", '"a" [a] [a] "b" 10px', '"a" [a a] "b" 10px');
+test_valid_value("grid-template", '"a" [a] [] "b" 10px', '"a" [a] "b" 10px');
+test_valid_value("grid-template", '"a" 10px [a] "b" [a]');
+test_valid_value("grid-template", '"a" [a] "b" [a]');
+test_valid_value("grid-template", '[a] "a" [a] "b" [a]');
+test_valid_value("grid-template", '"a" "a" [a] "b" [a]');
+test_valid_value("grid-template", '"a" [a] "b" [a] / 0', '"a" [a] "b" [a] / 0px');
+test_valid_value("grid-template", '"a" "a" [a] [a] "b" / auto', '"a" "a" [a a] "b" / auto');
+test_valid_value("grid-template", '"a" auto [a] "b" auto [b] / 10px', '"a" [a] "b" [b] / 10px');
+
+// FIXME: add more values to test full syntax
+
+</script>
+</body>
+</html>

@@ -1,0 +1,27 @@
+Summary
+
+Harness status: OK
+
+Rerun
+
+Found 17 tests
+
+17 Fail
+Details
+Result	Test Name	MessageFail	Property grid-template-rows value '[a] 1px [b] 2px [c d] repeat(auto-fit, [e f] 3px [g] 4px [h] 5px [i j]) [k] 7px [k] 8px [l m]' gridRow = 3	
+Fail	Property grid-template-rows value '[a] 1px [b] 2px [c d] repeat(auto-fit, [e f] 3px [g] 4px [h] 5px [i j]) [k] 7px [k] 8px [l m]' gridRow = 5	
+Fail	Property grid-template-rows value '[a] 1px [b] 2px [c d] repeat(auto-fit, [e f] 3px [g] 4px [h] 5px [i j]) [k] 7px [k] 8px [l m]' gridRow = 3 / 8	
+Fail	Property grid-template-rows value '[a] 1px [b] 2px [c d] repeat(auto-fit, [e f] 3px [g] 4px [h] 5px [i j]) [k] 7px [k] 8px [l m]' gridRow = 4 / span 2	
+Fail	Property grid-template-rows value '[a] 1px [b] 2px [c d] repeat(auto-fit, [e f] 3px [g] 4px [h] 5px [i j]) [k] 7px [k] 8px [l m]' gridRow = 4 / 5	
+Fail	Property grid-template-columns value '[a] 1px [b] 2px [c d] repeat(auto-fit, [e f] 3px [g] 4px [h] 5px [i j]) [k] 7px [k] 8px [l m]' gridColumn = 3	
+Fail	Property grid-template-columns value '[a] 1px [b] 2px [c d] repeat(auto-fit, [e f] 3px [g] 4px [h] 5px [i j]) [k] 7px [k] 8px [l m]' gridColumn = 6	
+Fail	Property grid-template-columns value '[a] 1px [b] 2px [c d] repeat(auto-fit, [e f] 3px [g] 4px [h] 5px [i j]) [k] 7px [k] 8px [l m]' gridColumn = 3 / 8	
+Fail	Property grid-template-columns value '[a] 1px [b] 2px [c d] repeat(auto-fit, [e f] 3px [g] 4px [h] 5px [i j]) [k] 7px [k] 8px [l m]' gridColumn = 5 / span 2	
+Fail	Property grid-template-columns value '[a] 1px [b] 2px [c d] repeat(auto-fit, [e f] 3px [g] 4px [h] 5px [i j]) [k] 7px [k] 8px [l m]' gridColumn = 7 / span 2	
+Fail	Property grid-template-columns value '[a] 1px [b] 2px [c d] repeat(auto-fit, [e f] 3px [g] 4px [h] 5px [i j]) [k] 7px [k] 8px [l m]' gridColumn = 5 / 8	
+Fail	Property grid-template-columns value '[a] 1px [b] 2px [c d] repeat(auto-fit, [e f] 3px [g] 4px [h] 5px [i j]) [k] 7px [k] 8px [l m]' gridColumn = 8 / 10	
+Fail	Property grid-template-columns value '[a] 1px [b] 2px [c d] repeat(auto-fit, [e f] 3px [g] 4px [h]) [i j] 7px [k] 8px [l m]' gridColumn = 3	
+Fail	Property grid-template-columns value '[a] 1px [b] 2px [c d] repeat(auto-fit, [e f] 3px [g] 4px [h]) [i j] 7px [k] 8px [l m]' gridColumn = 6	
+Fail	Property grid-template-columns value '[a] 1px [b] 2px [c d] repeat(auto-fit, [e f] 3px [g] 4px [h]) [i j] 7px [k] 8px [l m]' gridColumn = 3 / 8	
+Fail	Property grid-template-columns value '[a] 1px [b] 2px [c d] repeat(auto-fit, [e f] 3px [g] 4px [h]) [i j] 7px [k] 8px [l m]' gridColumn = 6 / span 2	
+Fail	Property grid-template-columns value '[a] 1px [b] 2px [c d] repeat(auto-fit, [e f] 3px [g] 4px [h]) [i j] 7px [k] 8px [l m]' gridColumn = 5 / 10	

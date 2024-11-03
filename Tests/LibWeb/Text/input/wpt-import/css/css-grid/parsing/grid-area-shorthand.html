@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS Grid Layout Test: grid-area sets longhands</title>
+<link rel="help" href="https://drafts.csswg.org/css-grid-1/#propdef-grid-area">
+<meta name="assert" content="grid-area supports the full grammar '<grid-line> [ / <grid-line> ]{0,3}'.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/shorthand-testcommon.js"></script>
+</head>
+<body>
+<script>
+test_shorthand_value('grid-area', 'auto', {
+  'grid-row-start': 'auto',
+  'grid-column-start': 'auto',
+  'grid-row-end': 'auto',
+  'grid-column-end': 'auto'
+});
+
+// <custom-ident>
+test_shorthand_value('grid-area', '--a', {
+  'grid-row-start': '--a',
+  'grid-column-start': '--a',
+  'grid-row-end': '--a',
+  'grid-column-end': '--a'
+});
+
+test_shorthand_value('grid-area', 'a / b', {
+  'grid-row-start': 'a',
+  'grid-column-start': 'b',
+  'grid-row-end': 'a',
+  'grid-column-end': 'b'
+});
+
+test_shorthand_value('grid-area', 'a / b / c', {
+  'grid-row-start': 'a',
+  'grid-column-start': 'b',
+  'grid-row-end': 'c',
+  'grid-column-end': 'b'
+});
+
+test_shorthand_value('grid-area', 'a / b / c / d', {
+  'grid-row-start': 'a',
+  'grid-column-start': 'b',
+  'grid-row-end': 'c',
+  'grid-column-end': 'd'
+});
+
+// <integer> && <custom-ident>?
+// span && [ <integer> || <custom-ident> ]
+test_shorthand_value('grid-area', '+90 -a- / 2 i span', {
+  'grid-row-start': '90 -a-',
+  'grid-column-start': 'span 2 i',
+  'grid-row-end': 'auto',
+  'grid-column-end': 'auto'
+});
+
+test_shorthand_value('grid-area', '1 / 2 / 3 / 4', {
+  'grid-row-start': '1',
+  'grid-column-start': '2',
+  'grid-row-end': '3',
+  'grid-column-end': '4'
+});
+
+
+test_shorthand_value('grid-row', 'auto', {
+  'grid-row-start': 'auto',
+  'grid-row-end': 'auto'
+});
+
+test_shorthand_value('grid-row', 'one / 2', {
+  'grid-row-start': 'one',
+  'grid-row-end': '2'
+});
+
+test_shorthand_value('grid-row', '1 two / four 3', {
+  'grid-row-start': '1 two',
+  'grid-row-end': '3 four'
+});
+
+
+test_shorthand_value('grid-column', '5 span', {
+  'grid-column-start': 'span 5',
+  'grid-column-end': 'auto'
+});
+
+test_shorthand_value('grid-column', '1 / two', {
+  'grid-column-start': '1',
+  'grid-column-end': 'two'
+});
+
+test_shorthand_value('grid-column', 'span 1 two / four 3 span', {
+  'grid-column-start': 'span two',
+  'grid-column-end': 'span 3 four'
+});
+</script>
+</body>
+</html>

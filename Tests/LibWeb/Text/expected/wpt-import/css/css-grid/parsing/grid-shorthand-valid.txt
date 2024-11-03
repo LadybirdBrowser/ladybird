@@ -1,0 +1,59 @@
+Summary
+
+Harness status: OK
+
+Rerun
+
+Found 49 tests
+
+49 Fail
+Details
+Result	Test Name	MessageFail	e.style['grid'] = "none" should set the property value	
+Fail	e.style['grid'] = "none / none" should set the property value	
+Fail	e.style['grid'] = "auto / auto" should set the property value	
+Fail	e.style['grid'] = "none / [a] 0px" should set the property value	
+Fail	e.style['grid'] = "none / [] 0px" should set the property value	
+Fail	e.style['grid'] = "[a] 10px / auto" should set the property value	
+Fail	e.style['grid'] = "[a] 10px / none" should set the property value	
+Fail	e.style['grid'] = "[] 10px [] / [] auto []" should set the property value	
+Fail	e.style['grid'] = "[a] \"a\" 10px" should set the property value	
+Fail	e.style['grid'] = "[a] \"a\" 10px []" should set the property value	
+Fail	e.style['grid'] = "\"a\" 10px" should set the property value	
+Fail	e.style['grid'] = "[] \"a\" 10px" should set the property value	
+Fail	e.style['grid'] = "[a] \"a\" 10px [a]" should set the property value	
+Fail	e.style['grid'] = "\"a\"" should set the property value	
+Fail	e.style['grid'] = "\"a\" auto" should set the property value	
+Fail	e.style['grid'] = "\"a a a\"" should set the property value	
+Fail	e.style['grid'] = "\"a\" / 10px" should set the property value	
+Fail	e.style['grid'] = "\"a\" / 20%" should set the property value	
+Fail	e.style['grid'] = "\"a\" / 5fr" should set the property value	
+Fail	e.style['grid'] = "[a] \"a\"" should set the property value	
+Fail	e.style['grid'] = "[a] \"a\" [a]" should set the property value	
+Fail	e.style['grid'] = "[] \"a\"" should set the property value	
+Fail	e.style['grid'] = "\"a\" [] [] \"b\"" should set the property value	
+Fail	e.style['grid'] = "\"a\" [] \"b\"" should set the property value	
+Fail	e.style['grid'] = "\"a\" [a] [b] \"b\"" should set the property value	
+Fail	e.style['grid'] = "\"a\" [a] \"b\"" should set the property value	
+Fail	e.style['grid'] = "\"a\" / 0" should set the property value	
+Fail	e.style['grid'] = "\"a\" 10px / 10px" should set the property value	
+Fail	e.style['grid'] = "\"a\" [a] \"b\" 10px" should set the property value	
+Fail	e.style['grid'] = "\"a\" [a] \"b\" 10px [a]" should set the property value	
+Fail	e.style['grid'] = "\"a\" [a] [a] \"b\" 10px" should set the property value	
+Fail	e.style['grid'] = "\"a\" [a] [] \"b\" 10px" should set the property value	
+Fail	e.style['grid'] = "\"a\" 10px [a] \"b\" [a]" should set the property value	
+Fail	e.style['grid'] = "\"a\" [a] \"b\" [a]" should set the property value	
+Fail	e.style['grid'] = "[a] \"a\" [a] \"b\" [a]" should set the property value	
+Fail	e.style['grid'] = "\"a\" \"a\" [a] \"b\" [a]" should set the property value	
+Fail	e.style['grid'] = "\"a\" [a] \"b\" [a] / 0" should set the property value	
+Fail	e.style['grid'] = "\"a\" \"a\" [a] [a] \"b\" / auto" should set the property value	
+Fail	e.style['grid'] = "100px / auto-flow dense 100px" should set the property value	
+Fail	e.style['grid'] = "auto-flow dense 1fr / 100px" should set the property value	
+Fail	e.style['grid'] = "100px / dense auto-flow 100px" should set the property value	
+Fail	e.style['grid'] = "dense auto-flow 1fr / 100px" should set the property value	
+Fail	e.style['grid'] = "100px / auto-flow 100px" should set the property value	
+Fail	e.style['grid'] = "auto-flow 1fr / 100px" should set the property value	
+Fail	e.style['grid'] = "none / auto-flow 100px" should set the property value	
+Fail	e.style['grid'] = "auto-flow 1fr / none" should set the property value	
+Fail	e.style['grid'] = "auto / auto-flow 100px" should set the property value	
+Fail	e.style['grid'] = "auto-flow 1fr / auto" should set the property value	
+Fail	e.style['grid'] = "1fr / 1fr" should set the property value	

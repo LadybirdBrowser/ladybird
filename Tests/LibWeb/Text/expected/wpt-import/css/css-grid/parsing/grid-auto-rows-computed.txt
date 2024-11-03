@@ -1,0 +1,36 @@
+Summary
+
+Harness status: OK
+
+Rerun
+
+Found 25 tests
+
+18 Pass
+7 Fail
+Details
+Result	Test Name	MessagePass	Property grid-auto-rows value '1px'	
+Fail	Property grid-auto-rows value 'calc(10px + 0.5em)'	
+Fail	Property grid-auto-rows value 'calc(10px - 0.5em)'	
+Pass	Property grid-auto-rows value '4%'	
+Pass	Property grid-auto-rows value '5fr'	
+Pass	Property grid-auto-rows value 'min-content'	
+Pass	Property grid-auto-rows value 'max-content'	
+Pass	Property grid-auto-rows value 'auto'	
+Pass	Property grid-auto-rows value 'minmax(1px, 5fr)'	
+Fail	Property grid-auto-rows value 'minmax(calc(10px + 0.5em), max-content)'	
+Fail	Property grid-auto-rows value 'minmax(calc(10px - 0.5em), max-content)'	
+Pass	Property grid-auto-rows value 'minmax(4%, auto)'	
+Fail	Property grid-auto-rows value 'minmax(min-content, calc(10px + 0.5em))'	
+Pass	Property grid-auto-rows value 'minmax(auto, 4%)'	
+Pass	Property grid-auto-rows value 'fit-content(1px)'	
+Fail	Property grid-auto-rows value 'fit-content(calc(10px + 0.5em))'	
+Fail	Property grid-auto-rows value 'fit-content(calc(10px - 0.5em))'	
+Pass	Property grid-auto-rows value 'fit-content(4%)'	
+Pass	Property grid-auto-rows value '0px'	
+Pass	Property grid-auto-rows value '0%'	
+Pass	Property grid-auto-rows value '0fr'	
+Pass	Property grid-auto-rows value 'minmax(auto, 0%)'	
+Pass	Property grid-auto-rows value 'fit-content(0px)'	
+Pass	Property grid-auto-rows value '1px 2px 3px 0px'	
+Pass	Property grid-auto-rows value 'fit-content(1px) minmax(2px, 3px) 4px'	

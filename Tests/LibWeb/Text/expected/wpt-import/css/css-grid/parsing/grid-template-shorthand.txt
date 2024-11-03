@@ -1,0 +1,35 @@
+Summary
+
+Harness status: OK
+
+Rerun
+
+Found 24 tests
+
+15 Pass
+9 Fail
+Details
+Result	Test Name	MessagePass	e.style['grid-template'] = "none" should set grid-template-areas	
+Fail	e.style['grid-template'] = "none" should set grid-template-columns	
+Fail	e.style['grid-template'] = "none" should set grid-template-rows	
+Pass	e.style['grid-template'] = "none" should not set unrelated longhands	
+Pass	e.style['grid-template'] = "10px / 20%" should set grid-template-areas	
+Pass	e.style['grid-template'] = "10px / 20%" should set grid-template-columns	
+Pass	e.style['grid-template'] = "10px / 20%" should set grid-template-rows	
+Pass	e.style['grid-template'] = "10px / 20%" should not set unrelated longhands	
+Pass	e.style['grid-template'] = "fit-content(calc(-0.5em + 10px)) / fit-content(calc(0.5em + 10px))" should set grid-template-areas	
+Pass	e.style['grid-template'] = "fit-content(calc(-0.5em + 10px)) / fit-content(calc(0.5em + 10px))" should set grid-template-columns	
+Pass	e.style['grid-template'] = "fit-content(calc(-0.5em + 10px)) / fit-content(calc(0.5em + 10px))" should set grid-template-rows	
+Pass	e.style['grid-template'] = "fit-content(calc(-0.5em + 10px)) / fit-content(calc(0.5em + 10px))" should not set unrelated longhands	
+Fail	e.style['grid-template'] = "[header-top] \"a a a\" [header-bottom] [main-top] \"b b b\" 1fr [main-bottom] / auto 1fr auto" should set grid-template-areas	
+Pass	e.style['grid-template'] = "[header-top] \"a a a\" [header-bottom] [main-top] \"b b b\" 1fr [main-bottom] / auto 1fr auto" should set grid-template-columns	
+Fail	e.style['grid-template'] = "[header-top] \"a a a\" [header-bottom] [main-top] \"b b b\" 1fr [main-bottom] / auto 1fr auto" should set grid-template-rows	
+Pass	e.style['grid-template'] = "[header-top] \"a a a\" [header-bottom] [main-top] \"b b b\" 1fr [main-bottom] / auto 1fr auto" should not set unrelated longhands	
+Fail	e.style['grid-template'] = " \"a a a\" \"b b b\" 1fr/ auto 1fr auto" should set grid-template-areas	
+Pass	e.style['grid-template'] = " \"a a a\" \"b b b\" 1fr/ auto 1fr auto" should set grid-template-columns	
+Fail	e.style['grid-template'] = " \"a a a\" \"b b b\" 1fr/ auto 1fr auto" should set grid-template-rows	
+Pass	e.style['grid-template'] = " \"a a a\" \"b b b\" 1fr/ auto 1fr auto" should not set unrelated longhands	
+Fail	e.style['grid-template'] = " [] \"a a a\" [] [] \"b b b\" 1fr [] / [] auto 1fr [] auto []" should set grid-template-areas	
+Fail	e.style['grid-template'] = " [] \"a a a\" [] [] \"b b b\" 1fr [] / [] auto 1fr [] auto []" should set grid-template-columns	
+Fail	e.style['grid-template'] = " [] \"a a a\" [] [] \"b b b\" 1fr [] / [] auto 1fr [] auto []" should set grid-template-rows	
+Pass	e.style['grid-template'] = " [] \"a a a\" [] [] \"b b b\" 1fr [] / [] auto 1fr [] auto []" should not set unrelated longhands	

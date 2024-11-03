@@ -1,0 +1,17 @@
+Summary
+
+Harness status: OK
+
+Rerun
+
+Found 6 tests
+
+4 Pass
+2 Fail
+Details
+Result	Test Name	MessagePass	"grid-template-areas: 'a';" should be valid.	
+Pass	"grid-template-areas: '.';" should be valid.	
+Pass	"grid-template-areas: '';" should be invalid.	
+Fail	"grid-template-areas: '' '';" should be invalid.	
+Fail	"grid-template-areas: '$';" should be invalid.	
+Pass	"grid-template-areas: ' ';" should be invalid.	

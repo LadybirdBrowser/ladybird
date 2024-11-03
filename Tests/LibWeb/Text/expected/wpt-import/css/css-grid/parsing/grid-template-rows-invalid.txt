@@ -1,0 +1,26 @@
+Summary
+
+Harness status: OK
+
+Rerun
+
+Found 15 tests
+
+1 Pass
+14 Fail
+Details
+Result	Test Name	MessageFail	e.style['grid-template-rows'] = "-10px" should not set the property value	
+Fail	e.style['grid-template-rows'] = "-20%" should not set the property value	
+Fail	e.style['grid-template-rows'] = "-5fr" should not set the property value	
+Fail	e.style['grid-template-rows'] = "minmax(5fr, calc(0.5em + 10px))" should not set the property value	
+Fail	e.style['grid-template-rows'] = "minmax(-10px, auto)" should not set the property value	
+Fail	e.style['grid-template-rows'] = "minmax(-20%, max-content)" should not set the property value	
+Fail	e.style['grid-template-rows'] = "minmax(min-content, -20%)" should not set the property value	
+Fail	e.style['grid-template-rows'] = "fit-content(-10px)" should not set the property value	
+Fail	e.style['grid-template-rows'] = "fit-content(-20%)" should not set the property value	
+Pass	e.style['grid-template-rows'] = "[one] 10px [two three] repeat(20%) [four five six] 3fr [seven]" should not set the property value	
+Fail	e.style['grid-template-rows'] = "[one]" should not set the property value	
+Fail	e.style['grid-template-rows'] = "[one] 10px [two] [three]" should not set the property value	
+Fail	e.style['grid-template-rows'] = "repeat(auto-fill, -10px)" should not set the property value	
+Fail	e.style['grid-template-rows'] = "repeat(auto-fill, 10px) repeat(auto-fit, 20%)" should not set the property value	
+Fail	e.style['grid-template-rows'] = "[auto] 1px" should not set the property value	
