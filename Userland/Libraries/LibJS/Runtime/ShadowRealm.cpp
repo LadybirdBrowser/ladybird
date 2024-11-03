@@ -211,14 +211,12 @@ ThrowCompletionOr<Value> perform_shadow_realm_eval(VM& vm, StringView source_tex
 }
 
 // 3.1.4 ShadowRealmImportValue ( specifierString: a String, exportNameString: a String, callerRealm: a Realm Record, evalRealm: a Realm Record, evalContext: an execution context, ), https://tc39.es/proposal-shadowrealm/#sec-shadowrealmimportvalue
-ThrowCompletionOr<Value> shadow_realm_import_value(VM& vm, ByteString specifier_string, ByteString export_name_string, Realm& caller_realm, Realm& eval_realm, ExecutionContext& eval_context)
+ThrowCompletionOr<Value> shadow_realm_import_value(VM& vm, ByteString specifier_string, ByteString export_name_string, Realm& caller_realm, Realm& eval_realm)
 {
-    // FIXME: evalRealm isn't being used anywhere in this AO (spec issue)
-    (void)eval_realm;
-
     auto& realm = *vm.current_realm();
 
-    // 1. Assert: evalContext is an execution context associated to a ShadowRealm instance's [[ExecutionContext]].
+    // 1. Let evalContext be GetShadowRealmContext(evalRealm, true).
+    auto eval_context = get_shadow_realm_context(eval_realm, true);
 
     // 2. Let innerCapability be ! NewPromiseCapability(%Promise%).
     auto inner_capability = MUST(new_promise_capability(vm, realm.intrinsics().promise_constructor()));
@@ -228,10 +226,11 @@ ThrowCompletionOr<Value> shadow_realm_import_value(VM& vm, ByteString specifier_
     // NOTE: We don't support this concept yet.
 
     // 5. Push evalContext onto the execution context stack; evalContext is now the running execution context.
-    TRY(vm.push_execution_context(eval_context, {}));
+    TRY(vm.push_execution_context(*eval_context, {}));
 
     // 6. Let referrer be the Realm component of evalContext.
-    auto referrer = JS::NonnullGCPtr { *eval_context.realm };
+    auto referrer = JS::NonnullGCPtr { *eval_context->realm };
+
     // 7. Perform HostLoadImportedModule(referrer, specifierString, empty, innerCapability).
     vm.host_load_imported_module(referrer, ModuleRequest { specifier_string }, nullptr, inner_capability);
 

@@ -77,11 +77,8 @@ JS_DEFINE_NATIVE_FUNCTION(ShadowRealmPrototype::import_value)
     // 6. Let evalRealm be O.[[ShadowRealm]].
     auto& eval_realm = object->shadow_realm();
 
-    // 7. Let evalContext be O.[[ExecutionContext]].
-    auto& eval_context = object->execution_context();
-
-    // 8. Return ? ShadowRealmImportValue(specifierString, exportNameString, callerRealm, evalRealm, evalContext).
-    return shadow_realm_import_value(vm, move(specifier_string), export_name.as_string().byte_string(), *caller_realm, eval_realm, eval_context);
+    // 7. Return ShadowRealmImportValue(specifierString, exportName, callerRealm, evalRealm).
+    return shadow_realm_import_value(vm, move(specifier_string), export_name.as_string().byte_string(), *caller_realm, eval_realm);
 }
 
 }
