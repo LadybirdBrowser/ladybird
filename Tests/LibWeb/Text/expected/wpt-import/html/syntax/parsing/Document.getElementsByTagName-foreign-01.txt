@@ -6,8 +6,7 @@ Rerun
 
 Found 37 tests
 
-34 Pass
-3 Fail
+37 Pass
 Details
 Result	Test Name	MessagePass	document.getElementsByTagName and foreign parser-inserted elements	
 Pass	Testing altGlyph	
@@ -38,9 +37,9 @@ Pass	Testing feMorphology
 Pass	Testing feOffset	
 Pass	Testing fePointLight	
 Pass	Testing feSpecularLighting	
-Fail	Testing feSpotLight	
-Fail	Testing feTile	
-Fail	Testing feTurbulence	
+Pass	Testing feSpotLight	
+Pass	Testing feTile	
+Pass	Testing feTurbulence	
 Pass	Testing foreignObject	
 Pass	Testing glyphRef	
 Pass	Testing linearGradient	
