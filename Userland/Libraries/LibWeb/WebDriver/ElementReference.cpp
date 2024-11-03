@@ -5,6 +5,7 @@
  */
 
 #include <AK/HashMap.h>
+#include <LibJS/Runtime/Object.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Element.h>
 #include <LibWeb/DOM/Node.h>
@@ -135,6 +136,27 @@ JsonObject web_element_reference_object(HTML::BrowsingContext const& browsing_co
     return object;
 }
 
+// https://w3c.github.io/webdriver/#dfn-represents-a-web-element
+bool represents_a_web_element(JsonValue const& value)
+{
+    // An ECMAScript Object represents a web element if it has a web element identifier own property.
+    if (!value.is_object())
+        return false;
+
+    return value.as_object().has(web_element_identifier);
+}
+
+// https://w3c.github.io/webdriver/#dfn-represents-a-web-element
+bool represents_a_web_element(JS::Value value)
+{
+    // An ECMAScript Object represents a web element if it has a web element identifier own property.
+    if (!value.is_object())
+        return false;
+
+    auto result = value.as_object().has_own_property(web_element_identifier);
+    return !result.is_error() && result.value();
+}
+
 // https://w3c.github.io/webdriver/#dfn-deserialize-a-web-element
 ErrorOr<JS::NonnullGCPtr<Web::DOM::Element>, WebDriver::Error> deserialize_web_element(Web::HTML::BrowsingContext const& browsing_context, JsonObject const& object)
 {
@@ -152,18 +174,27 @@ ErrorOr<JS::NonnullGCPtr<Web::DOM::Element>, WebDriver::Error> deserialize_web_e
     return element;
 }
 
+// https://w3c.github.io/webdriver/#dfn-deserialize-a-web-element
+ErrorOr<JS::NonnullGCPtr<Web::DOM::Element>, WebDriver::Error> deserialize_web_element(Web::HTML::BrowsingContext const& browsing_context, JS::Object const& object)
+{
+    // 1. If object has no own property web element identifier, return error with error code invalid argument.
+    auto property = object.get(web_element_identifier);
+    if (property.is_error() || !property.value().is_string())
+        return WebDriver::Error::from_code(WebDriver::ErrorCode::InvalidArgument, "Object is not a web element");
+
+    // 2. Let reference be the result of getting the web element identifier property from object.
+    auto reference = property.value().as_string().utf8_string();
+
+    // 3. Let element be the result of trying to get a known element with session and reference.
+    auto element = TRY(get_known_element(browsing_context, reference));
+
+    // 4. Return success with data element.
+    return element;
+}
+
 ByteString extract_web_element_reference(JsonObject const& object)
 {
     return object.get_byte_string(web_element_identifier).release_value();
-}
-
-// https://w3c.github.io/webdriver/#dfn-represents-a-web-element
-bool represents_a_web_element(JsonValue const& value)
-{
-    // An ECMAScript Object represents a web element if it has a web element identifier own property.
-    if (!value.is_object())
-        return false;
-    return value.as_object().has_string(web_element_identifier);
 }
 
 // https://w3c.github.io/webdriver/#dfn-get-a-webelement-origin
@@ -397,6 +428,62 @@ JsonObject shadow_root_reference_object(HTML::BrowsingContext const& browsing_co
     JsonObject object;
     object.set(identifier, reference);
     return object;
+}
+
+// https://w3c.github.io/webdriver/#dfn-represents-a-shadow-root
+bool represents_a_shadow_root(JsonValue const& value)
+{
+    // An ECMAScript Object represents a shadow root if it has a shadow root identifier own property.
+    if (!value.is_object())
+        return false;
+
+    return value.as_object().has(shadow_root_identifier);
+}
+
+// https://w3c.github.io/webdriver/#dfn-represents-a-shadow-root
+bool represents_a_shadow_root(JS::Value value)
+{
+    // An ECMAScript Object represents a shadow root if it has a shadow root identifier own property.
+    if (!value.is_object())
+        return false;
+
+    auto result = value.as_object().has_own_property(shadow_root_identifier);
+    return !result.is_error() && result.value();
+}
+
+// https://w3c.github.io/webdriver/#dfn-deserialize-a-shadow-root
+ErrorOr<JS::NonnullGCPtr<Web::DOM::ShadowRoot>, WebDriver::Error> deserialize_shadow_root(Web::HTML::BrowsingContext const& browsing_context, JsonObject const& object)
+{
+    // 1. If object has no own property shadow root identifier, return error with error code invalid argument.
+    if (!object.has_string(shadow_root_identifier))
+        return WebDriver::Error::from_code(WebDriver::ErrorCode::InvalidArgument, "Object is not a Shadow Root");
+
+    // 2. Let reference be the result of getting the shadow root identifier property from object.
+    auto reference = object.get_byte_string(shadow_root_identifier).release_value();
+
+    // 3. Let shadow be the result of trying to get a known shadow root with session and reference.
+    auto shadow = TRY(get_known_shadow_root(browsing_context, reference));
+
+    // 4. Return success with data shadow.
+    return shadow;
+}
+
+// https://w3c.github.io/webdriver/#dfn-deserialize-a-shadow-root
+ErrorOr<JS::NonnullGCPtr<Web::DOM::ShadowRoot>, WebDriver::Error> deserialize_shadow_root(Web::HTML::BrowsingContext const& browsing_context, JS::Object const& object)
+{
+    // 1. If object has no own property shadow root identifier, return error with error code invalid argument.
+    auto property = object.get(shadow_root_identifier);
+    if (property.is_error() || !property.value().is_string())
+        return WebDriver::Error::from_code(WebDriver::ErrorCode::InvalidArgument, "Object is not a Shadow Root");
+
+    // 2. Let reference be the result of getting the shadow root identifier property from object.
+    auto reference = property.value().as_string().utf8_string();
+
+    // 3. Let shadow be the result of trying to get a known shadow root with session and reference.
+    auto shadow = TRY(get_known_shadow_root(browsing_context, reference));
+
+    // 4. Return success with data shadow.
+    return shadow;
 }
 
 // https://w3c.github.io/webdriver/#dfn-get-a-known-shadow-root
