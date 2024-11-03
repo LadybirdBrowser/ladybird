@@ -6,11 +6,10 @@ Rerun
 
 Found 5 tests
 
-3 Pass
-2 Fail
+5 Pass
 Details
-Result	Test Name	MessageFail	MathML annotation-xml with encoding=text/html should be an HTML integration point	
-Fail	MathML annotation-xml with encoding=application/xhtml+xml should be an HTML integration point	
+Result	Test Name	MessagePass	MathML annotation-xml with encoding=text/html should be an HTML integration point	
+Pass	MathML annotation-xml with encoding=application/xhtml+xml should be an HTML integration point	
 Pass	SVG foreignObject should be an HTML integration point	
 Pass	SVG desc should be an HTML integration point	
 Pass	SVG title should be an HTML integration point	

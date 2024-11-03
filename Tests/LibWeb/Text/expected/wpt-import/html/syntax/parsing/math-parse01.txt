@@ -6,8 +6,7 @@ Rerun
 
 Found 9 tests
 
-8 Pass
-1 Fail
+9 Pass
 Details
 Result	Test Name	MessagePass	The id attribute should be recognised on math elements	
 Pass	The node name should be math	
@@ -17,4 +16,4 @@ Pass	Nested mrow elements should be parsed correctly
 Pass	Testing rang and lang entity code points	
 Pass	Testing Kopf (Plane 1) entity code point	
 Pass	Empty element tags in annotation-xml parsed as per XML.	
-Fail	html tags allowed in annotation-xml/@encoding='text/html'.	
+Pass	html tags allowed in annotation-xml/@encoding='text/html'.	

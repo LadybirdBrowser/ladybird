@@ -6,10 +6,10 @@ Rerun
 
 Found 8 tests
 
-3 Pass
-5 Fail
+4 Pass
+4 Fail
 Details
-Result	Test Name	MessageFail	html5lib_innerHTML_math.html 0e7e70d0dcf0c26593203b36cac4fa7f6325613e	
+Result	Test Name	MessagePass	html5lib_innerHTML_math.html 0e7e70d0dcf0c26593203b36cac4fa7f6325613e	
 Fail	html5lib_innerHTML_math.html fa7d4a31838dbcc16bf73672f2f4486cca185673	
 Fail	html5lib_innerHTML_math.html d9d2e4c0e926a91f5e704846cdbc855e3cb21949	
 Fail	html5lib_innerHTML_math.html c04b203803f6b3bec3db65db16854e7e624d13ef	

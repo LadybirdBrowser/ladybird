@@ -114,22 +114,33 @@ static Vector<StringView> const s_quirks_public_ids = {
 };
 
 // https://html.spec.whatwg.org/multipage/parsing.html#mathml-text-integration-point
-static bool is_mathml_text_integration_point(DOM::Element const&)
+static bool is_mathml_text_integration_point(DOM::Element const& element)
 {
-    // FIXME: Implement.
-    return false;
+    // A node is a MathML text integration point if it is one of the following elements:
+    // - A MathML mi element
+    // - A MathML mo element
+    // - A MathML mn element
+    // - A MathML ms element
+    // - A MathML mtext element
+    return element.tag_name().is_one_of(MathML::TagNames::mi, MathML::TagNames::mo, MathML::TagNames::mn, MathML::TagNames::ms, MathML::TagNames::mtext);
 }
 
 // https://html.spec.whatwg.org/multipage/parsing.html#html-integration-point
 static bool is_html_integration_point(DOM::Element const& element)
 {
     // A node is an HTML integration point if it is one of the following elements:
-    // FIXME: A MathML annotation-xml element whose start tag token had an attribute with the name "encoding" whose value was an ASCII case-insensitive match for the string "text/html"
-    // FIXME: A MathML annotation-xml element whose start tag token had an attribute with the name "encoding" whose value was an ASCII case-insensitive match for the string "application/xhtml+xml"
+    // - A MathML annotation-xml element whose start tag token had an attribute with the name "encoding" whose value was an ASCII case-insensitive match for the string "text/html"
+    // - A MathML annotation-xml element whose start tag token had an attribute with the name "encoding" whose value was an ASCII case-insensitive match for the string "application/xhtml+xml"
+    if (element.namespace_uri() == Namespace::MathML
+        && element.tag_name() == MathML::TagNames::annotation_xml) {
+        auto encoding = element.attribute("encoding"_fly_string);
+        if (encoding.has_value() && (encoding->equals_ignoring_ascii_case("text/html"sv) || encoding->equals_ignoring_ascii_case("application/xhtml+xml"sv)))
+            return true;
+    }
 
-    // An SVG foreignObject element
-    // An SVG desc element
-    // An SVG title element
+    // - An SVG foreignObject element
+    // - An SVG desc element
+    // - An SVG title element
     if (element.tag_name().is_one_of(SVG::TagNames::foreignObject, SVG::TagNames::desc, SVG::TagNames::title))
         return true;
 
@@ -191,13 +202,16 @@ void HTMLParser::run(HTMLTokenizer::StopAtInsertionPoint stop_at_insertion_point
         // As each token is emitted from the tokenizer, the user agent must follow the appropriate steps from the following list, known as the tree construction dispatcher:
         if (m_stack_of_open_elements.is_empty()
             || adjusted_current_node().namespace_uri() == Namespace::HTML
+            || (is_mathml_text_integration_point(adjusted_current_node()) && token.is_start_tag() && token.tag_name() != MathML::TagNames::mglyph && token.tag_name() != MathML::TagNames::malignmark)
+            || (is_mathml_text_integration_point(adjusted_current_node()) && token.is_character())
+            || (adjusted_current_node().namespace_uri() == Namespace::MathML && adjusted_current_node().tag_name() == MathML::TagNames::annotation_xml && token.is_start_tag() && token.tag_name() == SVG::TagNames::svg)
             || (is_html_integration_point(adjusted_current_node()) && (token.is_start_tag() || token.is_character()))
             || token.is_end_of_file()) {
             // -> If the stack of open elements is empty
             // -> If the adjusted current node is an element in the HTML namespace
-            // FIXME: -> If the adjusted current node is a MathML text integration point and the token is a start tag whose tag name is neither "mglyph" nor "malignmark"
-            // FIXME: -> If the adjusted current node is a MathML text integration point and the token is a character token
-            // FIXME: -> If the adjusted current node is a MathML annotation-xml element and the token is a start tag whose tag name is "svg"
+            // -> If the adjusted current node is a MathML text integration point and the token is a start tag whose tag name is neither "mglyph" nor "malignmark"
+            // -> If the adjusted current node is a MathML text integration point and the token is a character token
+            // -> If the adjusted current node is a MathML annotation-xml element and the token is a start tag whose tag name is "svg"
             // -> If the adjusted current node is an HTML integration point and the token is a start tag
             // -> If the adjusted current node is an HTML integration point and the token is a character token
             // -> If the token is an end-of-file token
