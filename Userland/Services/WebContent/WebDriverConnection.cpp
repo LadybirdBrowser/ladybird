@@ -584,15 +584,38 @@ Messages::WebDriverClient::SwitchToFrameResponse WebDriverConnection::switch_to_
 
     // -> id is a Number object
     else if (id.is_number()) {
-        // FIXME: 1. If id is less than 0 or greater than 216 – 1, return error with error code invalid argument.
-        // FIXME: 2. If session's current browsing context is no longer open, return error with error code no such window.
-        // FIXME: 3. Try to handle any user prompts with session.
-        // FIXME: 4. Let window be the associated window of session's current browsing context's active document.
-        // FIXME: 5. If id is not a supported property index of window, return error with error code no such frame.
-        // FIXME: 6. Let child window be the WindowProxy object obtained by calling window.[[GetOwnProperty]] (id).
-        // FIXME: 7. Set the current browsing context with session and child window's browsing context.
-        dbgln("FIXME: WebDriverConnection::switch_to_frame(id={})", id);
-        async_driver_execution_complete(JsonValue {});
+        // 1. If id is less than 0 or greater than 2^16 – 1, return error with error code invalid argument.
+        auto id_value = id.get_integer<u16>();
+
+        if (!id_value.has_value())
+            return Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::InvalidArgument, ByteString::formatted("Frame ID {} is invalid", id));
+
+        // 2. If session's current browsing context is no longer open, return error with error code no such window.
+        TRY(ensure_current_browsing_context_is_open());
+
+        // 3. Try to handle any user prompts with session.
+        handle_any_user_prompts([this, id = *id_value]() {
+            Web::HTML::TemporaryExecutionContext execution_context { current_browsing_context().active_document()->realm() };
+
+            // 4. Let window be the associated window of session's current browsing context's active document.
+            auto window = current_browsing_context().active_document()->window()->window();
+
+            // 5. If id is not a supported property index of window, return error with error code no such frame.
+            auto property = window->get(id);
+
+            if (property.is_error() || !property.value().is_object() || !is<Web::HTML::WindowProxy>(property.value().as_object())) {
+                async_driver_execution_complete(Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::NoSuchFrame, ByteString::formatted("Frame ID {} not found", id)));
+                return;
+            }
+
+            // 6. Let child window be the WindowProxy object obtained by calling window.[[GetOwnProperty]] (id).
+            auto const& child_window = static_cast<Web::HTML::WindowProxy const&>(property.value().as_object());
+
+            // 7. Set the current browsing context with session and child window's browsing context.
+            set_current_browsing_context(child_window.associated_browsing_context());
+
+            async_driver_execution_complete(JsonValue {});
+        });
     }
 
     // -> id represents a web element
