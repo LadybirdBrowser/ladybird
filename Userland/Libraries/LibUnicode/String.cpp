@@ -1,11 +1,12 @@
 /*
- * Copyright (c) 2023-2024, Tim Flynn <trflynn89@serenityos.org>
+ * Copyright (c) 2023-2024, Tim Flynn <trflynn89@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
 #include <AK/String.h>
 #include <AK/StringBuilder.h>
+#include <LibUnicode/CharacterTypes.h>
 #include <LibUnicode/ICU.h>
 
 #include <unicode/bytestream.h>
@@ -153,6 +154,38 @@ Optional<size_t> String::find_byte_offset_ignoring_case(StringView needle, size_
         return *index + from_byte_offset;
 
     return {};
+}
+
+ErrorOr<String> String::trim_whitespace(TrimMode mode) const
+{
+    auto code_points = this->code_points();
+
+    Optional<size_t> start;
+    size_t length = 0;
+
+    for (auto it = code_points.begin(); it != code_points.end(); ++it) {
+        if (Unicode::code_point_has_white_space_property(*it))
+            continue;
+
+        auto offset = code_points.byte_offset_of(it);
+
+        if (!start.has_value())
+            start = offset;
+
+        length = offset + it.underlying_code_point_length_in_bytes();
+    }
+
+    if (mode == TrimMode::Right)
+        start = 0;
+    if (mode == TrimMode::Left)
+        length = bytes_as_string_view().length();
+
+    if (!start.has_value() || start == length)
+        return String {};
+    if (start == 0uz && length == bytes_as_string_view().length())
+        return *this;
+
+    return substring_from_byte_offset_with_shared_superstring(*start, length - *start);
 }
 
 }

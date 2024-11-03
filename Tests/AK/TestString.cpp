@@ -1289,6 +1289,82 @@ TEST_CASE(trim)
     }
 }
 
+TEST_CASE(trim_whitespace)
+{
+    {
+        String string {};
+        EXPECT_EQ(MUST(string.trim_whitespace(TrimMode::Both)), String {});
+        EXPECT_EQ(MUST(string.trim_whitespace(TrimMode::Left)), String {});
+        EXPECT_EQ(MUST(string.trim_whitespace(TrimMode::Right)), String {});
+    }
+    {
+        auto string = " "_string;
+        EXPECT_EQ(MUST(string.trim_whitespace(TrimMode::Both)), String {});
+        EXPECT_EQ(MUST(string.trim_whitespace(TrimMode::Left)), String {});
+        EXPECT_EQ(MUST(string.trim_whitespace(TrimMode::Right)), String {});
+    }
+    {
+        auto string = "   "_string;
+        EXPECT_EQ(MUST(string.trim_whitespace(TrimMode::Both)), String {});
+        EXPECT_EQ(MUST(string.trim_whitespace(TrimMode::Left)), String {});
+        EXPECT_EQ(MUST(string.trim_whitespace(TrimMode::Right)), String {});
+    }
+    {
+        auto string = " \t \n \r \u00A0 \u202F "_string;
+        EXPECT_EQ(MUST(string.trim_whitespace(TrimMode::Both)), String {});
+        EXPECT_EQ(MUST(string.trim_whitespace(TrimMode::Left)), String {});
+        EXPECT_EQ(MUST(string.trim_whitespace(TrimMode::Right)), String {});
+    }
+    {
+        auto string = "abcdef"_string;
+        EXPECT_EQ(MUST(string.trim_whitespace(TrimMode::Both)), "abcdef"_string);
+        EXPECT_EQ(MUST(string.trim_whitespace(TrimMode::Left)), "abcdef"_string);
+        EXPECT_EQ(MUST(string.trim_whitespace(TrimMode::Right)), "abcdef"_string);
+    }
+    {
+        auto string = " \u00A0 abcdef"_string;
+        EXPECT_EQ(MUST(string.trim_whitespace(TrimMode::Both)), "abcdef"_string);
+        EXPECT_EQ(MUST(string.trim_whitespace(TrimMode::Left)), "abcdef"_string);
+        EXPECT_EQ(MUST(string.trim_whitespace(TrimMode::Right)), " \u00A0 abcdef"_string);
+    }
+    {
+        auto string = "abcdef \u202F "_string;
+        EXPECT_EQ(MUST(string.trim_whitespace(TrimMode::Both)), "abcdef"_string);
+        EXPECT_EQ(MUST(string.trim_whitespace(TrimMode::Left)), "abcdef \u202F "_string);
+        EXPECT_EQ(MUST(string.trim_whitespace(TrimMode::Right)), "abcdef"_string);
+    }
+    {
+        auto string = " \u00A0 abcdef \u202F "_string;
+        EXPECT_EQ(MUST(string.trim_whitespace(TrimMode::Both)), "abcdef"_string);
+        EXPECT_EQ(MUST(string.trim_whitespace(TrimMode::Left)), "abcdef \u202F "_string);
+        EXPECT_EQ(MUST(string.trim_whitespace(TrimMode::Right)), " \u00A0 abcdef"_string);
+    }
+    {
+        auto string = "ab \t cd \n ef"_string;
+        EXPECT_EQ(MUST(string.trim_whitespace(TrimMode::Both)), "ab \t cd \n ef"_string);
+        EXPECT_EQ(MUST(string.trim_whitespace(TrimMode::Left)), "ab \t cd \n ef"_string);
+        EXPECT_EQ(MUST(string.trim_whitespace(TrimMode::Right)), "ab \t cd \n ef"_string);
+    }
+    {
+        auto string = " \u00A0 ab \t cd \n ef"_string;
+        EXPECT_EQ(MUST(string.trim_whitespace(TrimMode::Both)), "ab \t cd \n ef"_string);
+        EXPECT_EQ(MUST(string.trim_whitespace(TrimMode::Left)), "ab \t cd \n ef"_string);
+        EXPECT_EQ(MUST(string.trim_whitespace(TrimMode::Right)), " \u00A0 ab \t cd \n ef"_string);
+    }
+    {
+        auto string = "ab \t cd \n ef \u202F "_string;
+        EXPECT_EQ(MUST(string.trim_whitespace(TrimMode::Both)), "ab \t cd \n ef"_string);
+        EXPECT_EQ(MUST(string.trim_whitespace(TrimMode::Left)), "ab \t cd \n ef \u202F "_string);
+        EXPECT_EQ(MUST(string.trim_whitespace(TrimMode::Right)), "ab \t cd \n ef"_string);
+    }
+    {
+        auto string = " \u00A0 ab \t cd \n ef \u202F "_string;
+        EXPECT_EQ(MUST(string.trim_whitespace(TrimMode::Both)), "ab \t cd \n ef"_string);
+        EXPECT_EQ(MUST(string.trim_whitespace(TrimMode::Left)), "ab \t cd \n ef \u202F "_string);
+        EXPECT_EQ(MUST(string.trim_whitespace(TrimMode::Right)), " \u00A0 ab \t cd \n ef"_string);
+    }
+}
+
 TEST_CASE(contains)
 {
     EXPECT(!String {}.contains({}));
