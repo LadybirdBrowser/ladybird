@@ -13,8 +13,10 @@ namespace Web::MathML::TagNames {
 #define ENUMERATE_MATHML_TAGS             \
     __ENUMERATE_MATHML_TAG(annotation)    \
     __ENUMERATE_MATHML_TAG(maction)       \
+    __ENUMERATE_MATHML_TAG(malignmark)    \
     __ENUMERATE_MATHML_TAG(math)          \
     __ENUMERATE_MATHML_TAG(merror)        \
+    __ENUMERATE_MATHML_TAG(mglyph)        \
     __ENUMERATE_MATHML_TAG(mfrac)         \
     __ENUMERATE_MATHML_TAG(mi)            \
     __ENUMERATE_MATHML_TAG(mmultiscripts) \

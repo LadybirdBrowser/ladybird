@@ -6,7 +6,8 @@ Rerun
 
 Found 2 tests
 
-2 Fail
+1 Pass
+1 Fail
 Details
 Result	Test Name	MessageFail	html5lib_tests12.html 95751b82f57d4feaaf06d208d57b7f6cc4d5fef5	
-Fail	html5lib_tests12.html 411c792cef85cbb029d5c91f4a2142751a319bc2	
+Pass	html5lib_tests12.html 411c792cef85cbb029d5c91f4a2142751a319bc2	

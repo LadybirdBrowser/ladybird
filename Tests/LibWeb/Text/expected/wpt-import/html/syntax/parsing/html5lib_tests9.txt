@@ -6,13 +6,12 @@ Rerun
 
 Found 27 tests
 
-26 Pass
-1 Fail
+27 Pass
 Details
 Result	Test Name	MessagePass	html5lib_tests9.html cb005f4b2a248cc98dc153d7391715b8d113cd0d	
 Pass	html5lib_tests9.html 6b687e562bd878d3a6098f0a1b1c05b04dc8c02c	
 Pass	html5lib_tests9.html a28615629ac367bd8127ff3049e81b349e7ec7f6	
-Fail	html5lib_tests9.html d70e711bf9b7582d9b83488ab14f99b53a0f3a26	
+Pass	html5lib_tests9.html d70e711bf9b7582d9b83488ab14f99b53a0f3a26	
 Pass	html5lib_tests9.html b2a8131e72e53265479c08cd18d4f4663278a021	
 Pass	html5lib_tests9.html a45a8948b799dadc321a86ff0bebf13167b5f076	
 Pass	html5lib_tests9.html 9d6809ff0d5796525b655f44e8abe4267cfd84e1	
