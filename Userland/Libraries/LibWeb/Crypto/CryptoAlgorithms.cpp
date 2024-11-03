@@ -240,9 +240,9 @@ static WebIDL::ExceptionOr<ByteBuffer> parse_jwk_symmetric_key(JS::Realm& realm,
     return base64_url_bytes_decode(realm, *jwk.k);
 }
 
-static WebIDL::ExceptionOr<ByteBuffer> generate_aes_key(JS::VM& vm, u16 bits)
+static WebIDL::ExceptionOr<ByteBuffer> generate_aes_key(JS::VM& vm, u16 const size_in_bits)
 {
-    auto key_buffer = TRY_OR_THROW_OOM(vm, ByteBuffer::create_uninitialized(bits / 8));
+    auto key_buffer = TRY_OR_THROW_OOM(vm, ByteBuffer::create_uninitialized(size_in_bits / 8));
     fill_with_random(key_buffer);
     return key_buffer;
 }
@@ -1358,13 +1358,13 @@ WebIDL::ExceptionOr<Variant<JS::NonnullGCPtr<CryptoKey>, JS::NonnullGCPtr<Crypto
     auto const& normalized_algorithm = static_cast<AesKeyGenParams const&>(params);
 
     // 2. If the length member of normalizedAlgorithm is not equal to one of 128, 192 or 256, then throw an OperationError.
-    auto bits = normalized_algorithm.length;
+    auto const bits = normalized_algorithm.length;
     if (bits != 128 && bits != 192 && bits != 256) {
         return WebIDL::OperationError::create(m_realm, MUST(String::formatted("Cannot create AES-CBC key with unusual amount of {} bits", bits)));
     }
 
     // 3. Generate an AES key of length equal to the length member of normalizedAlgorithm.
-    auto key_buffer = TRY(generate_aes_key(m_realm->vm(), bits / 8));
+    auto key_buffer = TRY(generate_aes_key(m_realm->vm(), bits));
 
     // 4. If the key generation step fails, then throw an OperationError.
     // Note: Cannot happen in our implementation; and if we OOM, then allocating the Exception is probably going to crash anyway.
@@ -1689,14 +1689,14 @@ WebIDL::ExceptionOr<Variant<JS::NonnullGCPtr<CryptoKey>, JS::NonnullGCPtr<Crypto
 
     // 2. If the length member of normalizedAlgorithm is not equal to one of 128, 192 or 256, then throw an OperationError.
     auto const& normalized_algorithm = static_cast<AesKeyGenParams const&>(params);
-    auto length = normalized_algorithm.length;
-    if (length != 128 && length != 192 && length != 256) {
-        return WebIDL::OperationError::create(m_realm, MUST(String::formatted("Cannot create AES-CTR key with unusual amount of {} bits", length)));
+    auto const bits = normalized_algorithm.length;
+    if (bits != 128 && bits != 192 && bits != 256) {
+        return WebIDL::OperationError::create(m_realm, MUST(String::formatted("Cannot create AES-CTR key with unusual amount of {} bits", bits)));
     }
 
     // 3. Generate an AES key of length equal to the length member of normalizedAlgorithm.
     // 4. If the key generation step fails, then throw an OperationError.
-    auto key_buffer = TRY(generate_aes_key(m_realm->vm(), length / 8));
+    auto key_buffer = TRY(generate_aes_key(m_realm->vm(), bits));
 
     // 5. Let key be a new CryptoKey object representing the generated AES key.
     auto key = CryptoKey::create(m_realm, CryptoKey::InternalKeyData { key_buffer });
@@ -1708,7 +1708,7 @@ WebIDL::ExceptionOr<Variant<JS::NonnullGCPtr<CryptoKey>, JS::NonnullGCPtr<Crypto
     algorithm->set_name("AES-CTR"_string);
 
     // 8. Set the length attribute of algorithm to equal the length member of normalizedAlgorithm.
-    algorithm->set_length(length);
+    algorithm->set_length(bits);
 
     // 9. Set the [[type]] internal slot of key to "secret".
     key->set_type(Bindings::KeyType::Secret);
@@ -2118,14 +2118,14 @@ WebIDL::ExceptionOr<Variant<JS::NonnullGCPtr<CryptoKey>, JS::NonnullGCPtr<Crypto
 
     // 2. If the length member of normalizedAlgorithm is not equal to one of 128, 192 or 256, then throw an OperationError.
     auto const& normalized_algorithm = static_cast<AesKeyGenParams const&>(params);
-    auto length = normalized_algorithm.length;
-    if (length != 128 && length != 192 && length != 256) {
-        return WebIDL::OperationError::create(m_realm, MUST(String::formatted("Cannot create AES-CTR key with unusual amount of {} bits", length)));
+    auto const bits = normalized_algorithm.length;
+    if (bits != 128 && bits != 192 && bits != 256) {
+        return WebIDL::OperationError::create(m_realm, MUST(String::formatted("Cannot create AES-GCM key with unusual amount of {} bits", bits)));
     }
 
     // 3. Generate an AES key of length equal to the length member of normalizedAlgorithm.
     // 4. If the key generation step fails, then throw an OperationError.
-    auto key_buffer = TRY(generate_aes_key(m_realm->vm(), length / 8));
+    auto key_buffer = TRY(generate_aes_key(m_realm->vm(), bits));
 
     // 5. Let key be a new CryptoKey object representing the generated AES key.
     auto key = CryptoKey::create(m_realm, CryptoKey::InternalKeyData { key_buffer });
@@ -2137,7 +2137,7 @@ WebIDL::ExceptionOr<Variant<JS::NonnullGCPtr<CryptoKey>, JS::NonnullGCPtr<Crypto
     algorithm->set_name("AES-GCM"_string);
 
     // 8. Set the length attribute of algorithm to equal the length member of normalizedAlgorithm.
-    algorithm->set_length(length);
+    algorithm->set_length(bits);
 
     // 9. Set the [[type]] internal slot of key to "secret".
     key->set_type(Bindings::KeyType::Secret);
