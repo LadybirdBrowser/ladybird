@@ -56,7 +56,6 @@ static ThrowCompletionOr<NonnullGCPtr<Object>> initialize_shadow_realm(ShadowRea
 
     // AD-HOC: Fallback for when there is no host defined implementation.
     vm.pop_execution_context();
-    object.set_execution_context(vm.running_execution_context().copy());
     object.set_shadow_realm(*vm.running_execution_context().realm);
     return Object::create(realm, realm.intrinsics().object_prototype());
 }
@@ -74,15 +73,13 @@ ThrowCompletionOr<NonnullGCPtr<Object>> ShadowRealmConstructor::construct(Functi
     // 4. Let context be the running Javascript execution context.
     auto context = TRY(Realm::initialize_host_defined_realm(vm, [&object](JS::Realm&) -> JS::Object* { return MUST(initialize_shadow_realm(object)); }, nullptr));
 
-    // 5. Set O.[[ExecutionContext]] to context.
-    // 6. Let realmRec be the Realm of context.
+    // 5. Let realmRec be the Realm of context.
     auto& realm_record = *context->realm;
-    object->set_execution_context(move(context));
 
-    // 7. Set O.[[ShadowRealm]] to realmRec.
+    // 6. Set O.[[ShadowRealm]] to realmRec.
     object->set_shadow_realm(realm_record);
 
-    // 8. Return O.
+    // 7. Return O.
     return object;
 }
 
