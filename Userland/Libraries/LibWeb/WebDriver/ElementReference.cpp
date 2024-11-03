@@ -516,6 +516,18 @@ bool is_shadow_root_detached(Web::DOM::ShadowRoot const& shadow_root)
     return !shadow_root.document().is_active() || !shadow_root.host() || is_element_stale(*shadow_root.host());
 }
 
+// https://w3c.github.io/webdriver/#dfn-bot-dom-getvisibletext
+String element_rendered_text(DOM::Node& node)
+{
+    // FIXME: The spec does not define how to get the element's rendered text, other than to do exactly as Selenium does.
+    //        This implementation is not sufficient, as we must also at least consider the shadow DOM.
+    if (!is<HTML::HTMLElement>(node))
+        return node.text_content().value_or(String {});
+
+    auto& element = static_cast<HTML::HTMLElement&>(node);
+    return element.inner_text();
+}
+
 // https://w3c.github.io/webdriver/#dfn-center-point
 CSSPixelPoint in_view_center_point(DOM::Element const& element, CSSPixelRect viewport)
 {

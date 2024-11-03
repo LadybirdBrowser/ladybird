@@ -55,6 +55,8 @@ ErrorOr<JS::NonnullGCPtr<Web::DOM::ShadowRoot>, WebDriver::Error> deserialize_sh
 ErrorOr<JS::NonnullGCPtr<Web::DOM::ShadowRoot>, Web::WebDriver::Error> get_known_shadow_root(HTML::BrowsingContext const&, StringView reference);
 bool is_shadow_root_detached(Web::DOM::ShadowRoot const&);
 
+String element_rendered_text(DOM::Node&);
+
 CSSPixelPoint in_view_center_point(DOM::Element const& element, CSSPixelRect viewport);
 
 }
