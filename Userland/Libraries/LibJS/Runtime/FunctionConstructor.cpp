@@ -36,16 +36,35 @@ void FunctionConstructor::initialize(Realm& realm)
     define_direct_property(vm.names.length, Value(1), Attribute::Configurable);
 }
 
-// 20.2.1.1.1 CreateDynamicFunction ( constructor, newTarget, kind, args ), https://tc39.es/ecma262/#sec-createdynamicfunction
-ThrowCompletionOr<ECMAScriptFunctionObject*> FunctionConstructor::create_dynamic_function(VM& vm, FunctionObject& constructor, FunctionObject* new_target, FunctionKind kind, MarkedVector<Value> const& args)
+// NON-STANDARD: Exists to simplify calling CreateDynamicFunction using strong types, instead of a Value.
+// Analogous to parts of the following two AO's - and basically just extracts the body and parameters as strings.
+//
+// 20.2.1.1 Function ( ...parameterArgs, bodyArg ), https://tc39.es/ecma262/#sec-function-p1-p2-pn-body
+// 20.2.1.1.1 CreateDynamicFunction ( constructor, newTarget, kind, parameterArgs, bodyArg ), https://tc39.es/ecma262/#sec-createdynamicfunction
+ThrowCompletionOr<ParameterArgumentsAndBody> extract_parameter_arguments_and_body(VM& vm, Span<Value> arguments)
 {
-    // 1. Let currentRealm be the current Realm Record.
-    auto& current_realm = *vm.current_realm();
+    if (arguments.is_empty())
+        return ParameterArgumentsAndBody {};
 
-    // 2. Perform ? HostEnsureCanCompileStrings(currentRealm).
-    TRY(vm.host_ensure_can_compile_strings(current_realm));
+    auto parameter_values = arguments.slice(0, arguments.size() - 1);
 
-    // 3. If newTarget is undefined, set newTarget to constructor.
+    Vector<String> parameters;
+    parameters.ensure_capacity(parameter_values.size());
+    for (auto const& parameter_value : parameter_values)
+        parameters.unchecked_append(TRY(parameter_value.to_string(vm)));
+
+    auto body = TRY(arguments.last().to_string(vm));
+
+    return ParameterArgumentsAndBody {
+        .parameters = move(parameters),
+        .body = move(body),
+    };
+}
+
+// 20.2.1.1.1 CreateDynamicFunction ( constructor, newTarget, kind, parameterArgs, bodyArg ), https://tc39.es/ecma262/#sec-createdynamicfunction
+ThrowCompletionOr<NonnullGCPtr<ECMAScriptFunctionObject>> FunctionConstructor::create_dynamic_function(VM& vm, FunctionObject& constructor, FunctionObject* new_target, FunctionKind kind, ReadonlySpan<String> parameter_strings, String const& body_string)
+{
+    // 1. If newTarget is undefined, set newTarget to constructor.
     if (new_target == nullptr)
         new_target = &constructor;
 
@@ -53,7 +72,7 @@ ThrowCompletionOr<ECMAScriptFunctionObject*> FunctionConstructor::create_dynamic
     NonnullGCPtr<Object> (Intrinsics::*fallback_prototype)() = nullptr;
 
     switch (kind) {
-    // 4. If kind is normal, then
+    // 2. If kind is normal, then
     case FunctionKind::Normal:
         // a. Let prefix be "function".
         prefix = "function"sv;
@@ -66,7 +85,7 @@ ThrowCompletionOr<ECMAScriptFunctionObject*> FunctionConstructor::create_dynamic
         fallback_prototype = &Intrinsics::function_prototype;
         break;
 
-    // 5. Else if kind is generator, then
+    // 3. Else if kind is generator, then
     case FunctionKind::Generator:
         // a. Let prefix be "function*".
         prefix = "function*"sv;
@@ -79,7 +98,7 @@ ThrowCompletionOr<ECMAScriptFunctionObject*> FunctionConstructor::create_dynamic
         fallback_prototype = &Intrinsics::generator_function_prototype;
         break;
 
-    // 6. Else if kind is async, then
+    // 4. Else if kind is async, then
     case FunctionKind::Async:
         // a. Let prefix be "async function".
         prefix = "async function"sv;
@@ -92,9 +111,9 @@ ThrowCompletionOr<ECMAScriptFunctionObject*> FunctionConstructor::create_dynamic
         fallback_prototype = &Intrinsics::async_function_prototype;
         break;
 
-    // 7. Else,
+    // 5. Else,
     case FunctionKind::AsyncGenerator:
-        // a. Assert: kind is asyncGenerator.
+        // a. Assert: kind is async-generator.
 
         // b. Let prefix be "async function*".
         prefix = "async function*"sv;
@@ -111,58 +130,41 @@ ThrowCompletionOr<ECMAScriptFunctionObject*> FunctionConstructor::create_dynamic
         VERIFY_NOT_REACHED();
     }
 
-    // 8. Let argCount be the number of elements in args.
-    auto arg_count = args.size();
+    // 6. Let argCount be the number of elements in parameterArgs.
+    auto arg_count = parameter_strings.size();
 
-    // 9. Let P be the empty String.
-    ByteString parameters_string = "";
+    // NOTE: Done by caller
+    // 7. Let parameterStrings be a new empty List.
+    // 8. For each element arg of parameterArgs, do
+    //     a. Append ? ToString(arg) to parameterStrings.
+    // 9. Let bodyString be ? ToString(bodyArg).
 
-    Optional<Value> body_arg;
+    // 10. Let currentRealm be the current Realm Record.
+    auto& realm = *vm.current_realm();
 
-    // 10. If argCount = 0, let bodyArg be the empty String.
-    if (arg_count == 0) {
-        // Optimization: Instead of creating a PrimitiveString here, we just check if body_arg is empty in step 16.
-    }
-    // 11. Else if argCount = 1, let bodyArg be args[0].
-    else if (arg_count == 1) {
-        body_arg = args[0];
-    }
-    // 12. Else,
-    else {
-        // a. Assert: argCount > 1.
-        VERIFY(arg_count > 1);
+    // FIXME: 11. Perform ? HostEnsureCanCompileStrings(currentRealm, parameterStrings, bodyString, false).
+    TRY(vm.host_ensure_can_compile_strings(current_realm));
 
-        // b. Let firstArg be args[0].
-        // c. Set P to ? ToString(firstArg).
-        // NOTE: Also done in the loop. We start at 0 instead and then join() with a comma.
+    // 12. Let P be the empty String.
+    String parameters_string;
 
-        // d. Let k be 1.
-        size_t k = 0;
-
-        // e. Repeat, while k < argCount - 1,
-        Vector<ByteString> parameters;
-        for (; k < arg_count - 1; ++k) {
-            // i. Let nextArg be args[k].
-            auto next_arg = args[k];
-
-            // ii. Let nextArgString be ? ToString(nextArg).
-            // iii. Set P to the string-concatenation of P, "," (a comma), and nextArgString.
-            parameters.append(TRY(next_arg.to_byte_string(vm)));
-
-            // iv. Set k to k + 1.
-        }
-        parameters_string = ByteString::join(',', parameters);
-
-        // f. Let bodyArg be args[k].
-        body_arg = args[k];
+    // 13. If argCount > 0, then
+    if (arg_count > 0) {
+        // a. Set P to parameterStrings[0].
+        // b. Let k be 1.
+        // c. Repeat, while k < argCount,
+        //     i. Let nextArgString be parameterStrings[k].
+        //     ii. Set P to the string-concatenation of P, "," (a comma), and nextArgString.
+        //     iii. Set k to k + 1.
+        parameters_string = MUST(String::join(',', parameter_strings));
     }
 
-    // 13. Let bodyString be the string-concatenation of 0x000A (LINE FEED), ? ToString(bodyArg), and 0x000A (LINE FEED).
-    auto body_string = ByteString::formatted("\n{}\n", body_arg.has_value() ? TRY(body_arg->to_byte_string(vm)) : "");
+    // 14. Let bodyParseString be the string-concatenation of 0x000A (LINE FEED), bodyString, and 0x000A (LINE FEED).
+    auto body_parse_string = ByteString::formatted("\n{}\n", body_string);
 
-    // 14. Let sourceString be the string-concatenation of prefix, " anonymous(", P, 0x000A (LINE FEED), ") {", bodyString, and "}".
-    // 15. Let sourceText be StringToCodePoints(sourceString).
-    auto source_text = ByteString::formatted("{} anonymous({}\n) {{{}}}", prefix, parameters_string, body_string);
+    // 15. Let sourceString be the string-concatenation of prefix, " anonymous(", P, 0x000A (LINE FEED), ") {", bodyParseString, and "}".
+    // 16. Let sourceText be StringToCodePoints(sourceString).
+    auto source_text = ByteString::formatted("{} anonymous({}\n) {{{}}}", prefix, parameters_string, body_parse_string);
 
     u8 parse_options = FunctionNodeParseOptions::CheckForFunctionAndName;
     if (kind == FunctionKind::Async || kind == FunctionKind::AsyncGenerator)
@@ -170,48 +172,45 @@ ThrowCompletionOr<ECMAScriptFunctionObject*> FunctionConstructor::create_dynamic
     if (kind == FunctionKind::Generator || kind == FunctionKind::AsyncGenerator)
         parse_options |= FunctionNodeParseOptions::IsGeneratorFunction;
 
-    // 16. Let parameters be ParseText(StringToCodePoints(P), parameterSym).
+    // 17. Let parameters be ParseText(P, parameterSym).
     i32 function_length = 0;
     auto parameters_parser = Parser { Lexer { parameters_string } };
     auto parameters = parameters_parser.parse_formal_parameters(function_length, parse_options);
 
-    // 17. If parameters is a List of errors, throw a SyntaxError exception.
+    // 18. If parameters is a List of errors, throw a SyntaxError exception.
     if (parameters_parser.has_errors()) {
         auto error = parameters_parser.errors()[0];
         return vm.throw_completion<SyntaxError>(error.to_string());
     }
 
-    // 18. Let body be ParseText(StringToCodePoints(bodyString), bodySym).
+    // 19. Let body be ParseText(bodyParseString, bodySym).
     FunctionParsingInsights parsing_insights;
-    auto body_parser = Parser::parse_function_body_from_string(body_string, parse_options, parameters, kind, parsing_insights);
+    auto body_parser = Parser::parse_function_body_from_string(body_parse_string, parse_options, parameters, kind, parsing_insights);
 
-    // 19. If body is a List of errors, throw a SyntaxError exception.
+    // 20. If body is a List of errors, throw a SyntaxError exception.
     if (body_parser.has_errors()) {
         auto error = body_parser.errors()[0];
         return vm.throw_completion<SyntaxError>(error.to_string());
     }
 
-    // 20. NOTE: The parameters and body are parsed separately to ensure that each is valid alone. For example, new Function("/*", "*/ ) {") is not legal.
-    // 21. NOTE: If this step is reached, sourceText must have the syntax of exprSym (although the reverse implication does not hold). The purpose of the next two steps is to enforce any Early Error rules which apply to exprSym directly.
+    // 21. NOTE: The parameters and body are parsed separately to ensure that each is valid alone. For example, new Function("/*", "*/ ) {") does not evaluate to a function.
+    // 22. NOTE: If this step is reached, sourceText must have the syntax of exprSym (although the reverse implication does not hold). The purpose of the next two steps is to enforce any Early Error rules which apply to exprSym directly.
 
-    // 22. Let expr be ParseText(sourceText, exprSym).
+    // 23. Let expr be ParseText(sourceText, exprSym).
     auto source_parser = Parser { Lexer { source_text } };
     // This doesn't need any parse_options, it determines those & the function type based on the tokens that were found.
     auto expr = source_parser.parse_function_node<FunctionExpression>();
 
-    // 23. If expr is a List of errors, throw a SyntaxError exception.
+    // 24. If expr is a List of errors, throw a SyntaxError exception.
     if (source_parser.has_errors()) {
         auto error = source_parser.errors()[0];
         return vm.throw_completion<SyntaxError>(error.to_string());
     }
 
-    // 24. Let proto be ? GetPrototypeFromConstructor(newTarget, fallbackProto).
+    // 25. Let proto be ? GetPrototypeFromConstructor(newTarget, fallbackProto).
     auto* prototype = TRY(get_prototype_from_constructor(vm, *new_target, fallback_prototype));
 
-    // 25. Let realmF be the current Realm Record.
-    auto& realm = *vm.current_realm();
-
-    // 26. Let env be realmF.[[GlobalEnv]].
+    // 26. Let env be currentRealm.[[GlobalEnv]].
     auto& environment = realm.global_environment();
 
     // 27. Let privateEnv be null.
@@ -251,7 +250,7 @@ ThrowCompletionOr<ECMAScriptFunctionObject*> FunctionConstructor::create_dynamic
     // 33. NOTE: Functions whose kind is async are not constructible and do not have a [[Construct]] internal method or a "prototype" property.
 
     // 34. Return F.
-    return function.ptr();
+    return function;
 }
 
 // 20.2.1.1 Function ( p1, p2, … , pn, body ), https://tc39.es/ecma262/#sec-function-p1-p2-pn-body
@@ -260,7 +259,7 @@ ThrowCompletionOr<Value> FunctionConstructor::call()
     return TRY(construct(*this));
 }
 
-// 20.2.1.1 Function ( p1, p2, … , pn, body ), https://tc39.es/ecma262/#sec-function-p1-p2-pn-body
+// 20.2.1.1 Function ( ...parameterArgs, bodyArg ), https://tc39.es/ecma262/#sec-function-p1-p2-pn-body
 ThrowCompletionOr<NonnullGCPtr<Object>> FunctionConstructor::construct(FunctionObject& new_target)
 {
     auto& vm = this->vm();
@@ -268,13 +267,12 @@ ThrowCompletionOr<NonnullGCPtr<Object>> FunctionConstructor::construct(FunctionO
     // 1. Let C be the active function object.
     auto* constructor = vm.active_function_object();
 
-    // 2. Let args be the argumentsList that was passed to this function by [[Call]] or [[Construct]].
-    MarkedVector<Value> args(heap());
-    for (auto argument : vm.running_execution_context().arguments)
-        args.append(argument);
+    // 2. If bodyArg is not present, set bodyArg to the empty String.
+    // NOTE: This does that, as well as the string extraction done inside of CreateDynamicFunction
+    auto extracted = TRY(extract_parameter_arguments_and_body(vm, vm.running_execution_context().arguments));
 
-    // 3. Return ? CreateDynamicFunction(C, NewTarget, normal, args).
-    return *TRY(create_dynamic_function(vm, *constructor, &new_target, FunctionKind::Normal, args));
+    // 3. Return ? CreateDynamicFunction(C, NewTarget, normal, parameterArgs, bodyArg).
+    return TRY(create_dynamic_function(vm, *constructor, &new_target, FunctionKind::Normal, extracted.parameters, extracted.body));
 }
 
 }
