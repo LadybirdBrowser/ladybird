@@ -123,7 +123,7 @@ void Request::set_up_internal_stream_data(DataReceived on_data_available)
     };
 
     m_internal_stream_data->on_finish = [this, user_on_finish = move(user_on_finish)]() {
-        if (!m_internal_stream_data->user_finish_called && m_internal_stream_data->read_stream->is_eof()) {
+        if (!m_internal_stream_data->user_finish_called && (!m_internal_stream_data->read_stream || m_internal_stream_data->read_stream->is_eof())) {
             m_internal_stream_data->user_finish_called = true;
             user_on_finish(m_internal_stream_data->total_size, m_internal_stream_data->network_error);
         }
