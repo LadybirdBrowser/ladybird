@@ -1,0 +1,637 @@
+<!doctype html>
+<html>
+ <head>
+  <meta content="text/html; charset=utf-8" http-equiv="content-type" />
+  <title>2.8 Common DOM interfaces - Structured Clone Algorithm </title>
+  <link rel="help" href="http://www.w3.org/TR/html5/common-dom-interfaces.html#safe-passing-of-structured-data" />
+  <script src="../../../resources/testharness.js"></script>
+  <script src="../../../resources/testharnessreport.js"></script>
+</head>
+<body>
+ <div id="log"></div>
+ <iframe></iframe> <!-- used for grabbing an URIError from another realm -->
+
+<script type="text/javascript">
+    var worker;
+    var testCollection;
+    setup(function()
+    {
+        //the worker is used for each test in sequence
+        //worker's callback will be set for each test
+        //worker's internal onmessage echoes the data back to this thread through postMessage
+        worker = new Worker("./resources/echo-worker.js");
+        testCollection = [
+            function() {
+                var t = async_test("Primitive string is cloned");
+                t.id = 0;
+                worker.onmessage = t.step_func(function(e) {assert_equals("primitive string", e.data, "\"primitive string\" === event.data"); t.done(); });
+                t.step(function() { worker.postMessage("primitive string");});
+            },
+            function() {
+                var t = async_test("Primitive integer is cloned");
+                t.id = 1;
+                worker.onmessage = t.step_func(function(e) {assert_equals(2000, e.data, "2000 === event.data"); t.done(); });
+                t.step(function() { worker.postMessage(2000);});
+            },
+            function() {
+                var t = async_test("Primitive floating point is cloned");
+                t.id = 2;
+                worker.onmessage = t.step_func(function(e) {assert_equals(111.456, e.data, "111.456 === event.data"); t.done(); });
+                t.step(function() { worker.postMessage(111.456);});
+            },
+            function() {
+                var t = async_test("Primitive floating point (negative) is cloned");
+                t.id = 3;
+                worker.onmessage = t.step_func(function(e) {assert_equals(-111.456, e.data, "-111.456 === event.data"); t.done(); });
+                t.step(function() { worker.postMessage(-111.456);});
+            },
+            function() {
+                var t = async_test("Primitive number (hex) is cloned");
+                t.id = 4;
+                worker.onmessage = t.step_func(function(e) {assert_equals(0xAB25, e.data, "0xAB25 === event.data"); t.done(); });
+                t.step(function() { worker.postMessage(0xAB25);});
+            },
+            function() {
+                var t = async_test("Primitive number (scientific) is cloned");
+                t.id = 5;
+                worker.onmessage = t.step_func(function(e) {assert_equals(15e2, e.data, "15e2 === event.data"); t.done(); });
+                t.step(function() { worker.postMessage(15e2);});
+            },
+            function() {
+                var t = async_test("Primitive boolean is cloned");
+                t.id = 6;
+                worker.onmessage = t.step_func(function(e) {assert_equals(false, e.data, "false === event.data"); t.done(); });
+                t.step(function() { worker.postMessage(false);});
+            },
+            function() {
+                var t = async_test("Instance of Boolean is cloned");
+                t.id = 7;
+                var obj;
+                t.step(function() {obj = new Boolean(false);});
+                worker.onmessage = t.step_func(function(e) {
+                    assert_equals(obj.constructor, e.data.constructor, "Boolean === event.data.constructor");
+                    assert_equals(obj.valueOf(), e.data.valueOf(), "(new Boolean(false)).valueof() === event.data.valueOf()");
+                    t.done();
+                });
+                t.step(function() { worker.postMessage(obj);});
+            },function() {
+                var t = async_test("Instance of Number is cloned");
+                t.id = 8;
+                var obj;
+                t.step(function() {obj = new Number(2000);});
+                worker.onmessage = t.step_func(function(e) {
+                    assert_equals(obj.constructor, e.data.constructor, "Number === event.data.constructor");
+                    assert_equals(obj.valueOf(), e.data.valueOf(), "(new Number(2000)).valueof() === event.data.valueOf()");
+                    t.done();
+                });
+                t.step(function() { worker.postMessage(obj);});
+            },
+            function() {
+                var t = async_test("Instance of String is cloned");
+                t.id = 9;
+                var obj;
+                t.step(function() { obj = new String("String Object");});
+                worker.onmessage = t.step_func(function(e) {
+                    assert_equals(obj.constructor, e.data.constructor, "String === event.data.constructor");
+                    assert_equals(obj.valueOf(), e.data.valueOf(), "(new String(\"String Object\")).valueof() === event.data.valueOf()");
+                    t.done();
+                });
+                t.step(function() { worker.postMessage(obj);});
+            },
+            function() {
+                var t = async_test("Instance of Date is cloned");
+                t.id = 10;
+                var obj;
+                t.step(function() { obj= new Date(2011,1,1);});
+                worker.onmessage = t.step_func(function(e) {
+                    assert_equals(obj.constructor, e.data.constructor, "Date === event.data.constructor");
+                    assert_equals(obj.valueOf(), e.data.valueOf(), "(new Date(2011,1,1)).valueof() === event.data.valueOf()");
+                    t.done();
+                });
+                t.step(function() { worker.postMessage(obj);});
+            },
+            function() {
+                var t = async_test("Instance of RegExp is cloned");
+                t.id = 11;
+                var obj;
+                t.step(function() {obj = new RegExp("w3+c","g","i");});
+                worker.onmessage = t.step_func(function(e) {
+                    assert_equals(obj.constructor, e.data.constructor, "RegExp === event.data.constructor");
+                    assert_equals(obj.source, e.data.source, "canon.source === event.data.source");
+                    assert_equals(obj.multiline, e.data.multiline, "canon.multiline === event.data.multiline");
+                    assert_equals(obj.global, e.data.global, "canon.global === event.data.global");
+                    assert_equals(obj.ignoreCase, e.data.ignoreCase, "canon.ignoreCase === event.data.ignoreCase");
+                    t.done();
+                });
+                t.step(function() { worker.postMessage(obj);});
+            },
+            function() {
+                var t = async_test("Value 'null' is cloned");
+                t.id = 12;
+                worker.onmessage = t.step_func(function(e) {assert_equals(null, e.data, "null === event.data"); t.done(); });
+                t.step(function() { worker.postMessage(null);});
+            },
+            function() {
+                var t = async_test("Value 'undefined' is cloned");
+                t.id = 13;
+                worker.onmessage = t.step_func(function(e) {assert_equals(undefined, e.data, "undefined === event.data"); t.done(); });
+                t.step(function() { worker.postMessage(undefined);});
+            },
+            function() {
+                var t = async_test("Object properties are cloned");
+                t.id = 14;
+                var obj;
+                t.step(function() {
+                    obj= {};
+                    obj.a = "test";
+                    obj.b = 2;
+                    obj["child"] = 3;
+                });
+                worker.onmessage = t.step_func(function(e) {
+                    assert_equals(obj.constructor, e.data.constructor, "canon.constructor === event.data.constructor");
+                    assert_equals(obj.a, e.data.a, "canon.a === event.data.a");
+                    assert_equals(obj.b, e.data.b, "canon.b === event.data.b");
+                    assert_equals(obj.child, e.data.child, "canon.child === e.data.child");
+                    t.done();
+                });
+                t.step(function() { worker.postMessage(obj);});
+            },
+            function() {
+                var t = async_test("Prototype chains are not walked.");
+                t.id = 15;
+                function Custom() {
+                    this.a = "hello";
+                }
+
+                var obj;
+                t.step(function() {
+                    Object.defineProperty(Custom.prototype, "b", { enumerable: true, value: 100 });
+                    obj = new Custom();
+                });
+                worker.onmessage = t.step_func(function(e) {
+                    assert_not_equals(obj.constructor, e.data.constructor, "canon.constructor !== event.data.constructor");
+                    assert_equals(Object, e.data.constructor, "Object === e.data.constructor");
+                    assert_equals(obj.a, e.data.a, "canon.a === e.data.a");
+                    assert_equals(undefined, e.data.b, "undefined === e.data.b");
+                    t.done();
+                });
+                t.step(function() { worker.postMessage(obj);});
+            },
+            function() {
+                var t = async_test("Property descriptors of Objects are not cloned");
+                t.id = 16;
+                var obj;
+                t.step(function() {
+                    obj = {};
+                    Object.defineProperty(obj, "a", { enumerable: true, writable: false, value: 100 });
+                });
+                worker.onmessage = t.step_func(function(e) {
+                    var des = Object.getOwnPropertyDescriptor(e.data, "a");
+                    assert_equals(obj.constructor, e.data.constructor, "canon.constructor === event.data.constructor");
+                    assert_true(des.writable, "Descriptor is writable");
+                    t.done();
+                });
+                t.step(function() { worker.postMessage(obj);});
+            },
+            function() {
+                var t = async_test("Cycles are preserved in Objects");
+                t.id = 17;
+                var obj;
+                t.step(function() {
+                    obj = {};
+                    obj.a = obj;
+                });
+                worker.onmessage = t.step_func(function(e) {
+                    assert_equals(obj.constructor, e.data.constructor, "canon.constructor === event.data.constructor");
+                    assert_equals(e.data, e.data.a, "cycle is preserved");
+                    t.done();
+                });
+                t.step(function() { worker.postMessage(obj);});
+            },
+            function() {
+                var t = async_test("Identity of duplicates is preserved");
+                t.id = 18;
+                var ref;
+                var obj;
+                t.step(function() {
+                    ref = {};
+                    ref.called = 0;
+                    Object.defineProperty(ref, "child", {get: function(){this.called++;}, enumerable: true});
+
+                    obj = {a:ref, b:ref};
+                });
+                worker.onmessage = t.step_func(function(e) {
+                    assert_equals(obj.constructor, e.data.constructor, "canon.constructor === event.data.constructor");
+                    assert_equals(e.data.b.called, 0, "e.data.b.called === 0");
+                    t.done();
+                });
+                t.step(function() { worker.postMessage(obj);});
+            },
+            function() {
+                var t = async_test("Property order is preserved");
+                t.id = 19;
+                var obj;
+                t.step(function() {
+                    obj = { "a": "hello", "b": "w3c", "c": "and world" };
+                    obj["a"] = "named1";
+                });
+                worker.onmessage = t.step_func(function(e) {
+                    assert_equals(obj.constructor, e.data.constructor, "canon.constructor === event.data.constructor");
+                    var canonNames = Object.getOwnPropertyNames(obj);
+                    var testNames = Object.getOwnPropertyNames(e.data);
+                    for (var i in canonNames) {
+                        assert_equals(canonNames[i], testNames[i], "canonProperty["+i+"] === dataProperty["+i+"]");
+                    }
+                    t.done();
+                });
+                t.step(function() { worker.postMessage(obj);});
+            },
+            function() {
+                var t = async_test("Enumerable properties of Arrays are cloned");
+                t.id = 20;
+                var obj;
+                t.step(function() {
+                    obj = [0,1];
+                    obj["a"] = "named1";
+                });
+                worker.onmessage = t.step_func(function(e) {
+                    assert_equals(obj.constructor, e.data.constructor, "canon.constructor === event.data.constructor");
+                    assert_equals(e.data["a"], "named1", "e.data[\"a\"] === \"named1\"");
+                    assert_equals(e.data[0], 0, "e.data[0] === 0");
+                    assert_equals(e.data[1], 1, "e.data[1] === 1");
+                    t.done();
+                });
+                t.step(function() { worker.postMessage(obj);});
+            },
+            function() {
+                var t = async_test("Property descriptors of Arrays are not cloned");
+                t.id = 21;
+                var obj;
+                t.step(function() {
+                    obj = [0, 1];
+                    Object.defineProperty(obj, "2", { enumerable: true, writable: false, value: 100 });
+                });
+                worker.onmessage = t.step_func(function(e) {
+                    assert_equals(obj.constructor, e.data.constructor, "canon.constructor === event.data.constructor");
+                    assert_equals(e.data[0], 0, "e.data[0] === 0");
+                    assert_equals(e.data[1], 1, "e.data[1] === 1");
+                    var des = Object.getOwnPropertyDescriptor(e.data, "2");
+                    assert_true(des.writable, "Descriptor is writable");
+                    t.done();
+                });
+                t.step(function() { worker.postMessage(obj);});
+            },
+            function() {
+                var t = async_test("Cycles are preserved in Arrays");
+                t.id = 22;
+                var obj;
+                t.step(function() {
+                    obj = [0,1];
+                    obj[2] = obj;
+                });
+                worker.onmessage = t.step_func(function(e) {
+                    assert_equals(obj.constructor, e.data.constructor, "canon.constructor === event.data.constructor");
+                    assert_equals(e.data[0], 0, "e.data[0] === 0");
+                    assert_equals(e.data[1], 1, "e.data[1] === 1");
+                    assert_equals(e.data[2], e.data, "e.data[2] === e.data");
+                    t.done();
+                });
+                t.step(function() { worker.postMessage(obj);});
+            },
+
+            function() {
+                var t = async_test("ImageData object can be cloned");
+                t.id = 23;
+                var obj;
+                t.step(function() {
+                    var canvas = document.createElement("canvas");
+                    canvas.width = 40;
+                    canvas.height = 40;
+                    var context = canvas.getContext('2d');
+                    obj = context.createImageData(40, 40);
+                    assert_true(window.hasOwnProperty("ImageData"), "ImageData constructor must be present");
+                    assert_true(obj instanceof ImageData, "ImageData must be returned by .createImageData");
+                });
+                worker.onmessage = t.step_func(function(e) {
+                    assert_equals(obj.constructor, e.data.constructor, "canon.constructor === event.data.constructor");
+                    assert_not_equals(obj, e.data, "cloned object should be a new instance of ImageData");
+                    assert_equals(obj.width, e.data.width, "canon.width === e.data.width");
+                    assert_equals(obj.height, e.data.height, "canon.height === e.data.height");
+                    assert_array_equals(obj.data, e.data.data, "data arrays are the same");
+                    t.done();
+                });
+                t.step(function() { worker.postMessage(obj);});
+            },
+            function() {
+                var t = async_test("ImageData expandos are not cloned");
+                t.id = 24;
+                var obj;
+                t.step(function() {
+                    var canvas = document.createElement("canvas");
+                    canvas.width = 40;
+                    canvas.height = 40;
+                    var context = canvas.getContext('2d');
+                    obj = context.createImageData(40, 40);
+                    assert_true(window.hasOwnProperty("ImageData"), "ImageData constructor must be present");
+                    assert_true(obj instanceof ImageData, "ImageData must be returned by .createImageData");
+                    obj.foo = "bar";
+                });
+                worker.onmessage = t.step_func(function(e) {
+                    assert_equals(obj.constructor, e.data.constructor, "canon.constructor === event.data.constructor");
+                    assert_not_equals(obj, e.data, "cloned object should be a new instance of ImageData");
+                    assert_equals(obj.width, e.data.width, "canon.width === e.data.width");
+                    assert_equals(obj.height, e.data.height, "canon.height === e.data.height");
+                    assert_array_equals(obj.data, e.data.data, "data arrays are the same");
+                    assert_equals(undefined, e.data.foo, "Expando is lost (undefined === e.data.foo)");
+                    t.done();
+                });
+                t.step(function() { worker.postMessage(obj);});
+            },
+            function() {
+                var t = async_test("Window objects cannot be cloned");
+                t.id = 25;
+                worker.onmessage = function() {}; //no op because exception should be thrown.
+                t.step(function() {
+                    assert_true(DOMException.hasOwnProperty('DATA_CLONE_ERR'), "DOMException.DATA_CLONE_ERR is present");
+                    assert_equals(DOMException.DATA_CLONE_ERR, 25, "DOMException.DATA_CLONE_ERR === 25");
+                    assert_throws_dom('DATA_CLONE_ERR', function() {worker.postMessage(window)});
+                });
+                t.done();
+            },
+            function() {
+                var t = async_test("Document objects cannot be cloned");
+                t.id = 26;
+                worker.onmessage = function() {}; //no op because exception should be thrown.
+                t.step(function() {
+                    assert_true(DOMException.hasOwnProperty('DATA_CLONE_ERR'), "DOMException.DATA_CLONE_ERR is present");
+                    assert_equals(DOMException.DATA_CLONE_ERR, 25, "DOMException.DATA_CLONE_ERR === 25");
+                    assert_throws_dom('DATA_CLONE_ERR', function() {worker.postMessage(document)});
+                });
+                t.done();
+            },
+            function() {
+                var t = async_test("Empty Error objects can be cloned");
+                t.id = 27;
+                worker.onmessage = t.step_func_done(function(e) {
+                    assert_equals(Object.getPrototypeOf(e.data), Error.prototype, "Checking prototype");
+                    assert_equals(e.data.constructor, Error, "Checking constructor");
+                    assert_equals(e.data.name, "Error", "Checking name");
+                    assert_false(e.data.hasOwnProperty("message"), "Checking message");
+                    assert_equals(e.data.foo, undefined, "Checking custom property");
+                });
+                t.step(function() {
+                    const error = Error();
+                    assert_false(error.hasOwnProperty("message"), "Checking message on the source realm");
+                    worker.postMessage(error);
+                });
+            },
+            function() {
+                var t = async_test("Error objects can be cloned");
+                t.id = 28;
+                worker.onmessage = t.step_func_done(function(e) {
+                    assert_equals(Object.getPrototypeOf(e.data), Error.prototype, "Checking prototype");
+                    assert_equals(e.data.constructor, Error, "Checking constructor");
+                    assert_equals(e.data.name, "Error", "Checking name");
+                    assert_equals(e.data.message, "some message", "Checking message");
+                    assert_equals(e.data.foo, undefined, "Checking custom property");
+                });
+                t.step(function() {
+                    const error = Error("some message");
+                    error.foo = "bar";
+                    worker.postMessage(error);
+                });
+            },
+            function() {
+                var t = async_test("EvalError objects can be cloned");
+                t.id = 29;
+                worker.onmessage = t.step_func_done(function(e) {
+                    assert_equals(Object.getPrototypeOf(e.data), EvalError.prototype, "Checking prototype");
+                    assert_equals(e.data.constructor, EvalError, "Checking constructor");
+                    assert_equals(e.data.name, "EvalError", "Checking name");
+                    assert_equals(e.data.message, "some message", "Checking message");
+                    assert_equals(e.data.foo, undefined, "Checking custom property");
+                });
+                t.step(function() {
+                    const error = EvalError("some message");
+                    error.foo = "bar";
+                    worker.postMessage(error);
+                });
+            },
+            function() {
+                var t = async_test("RangeError objects can be cloned");
+                t.id = 30;
+                worker.onmessage = t.step_func_done(function(e) {
+                    assert_equals(Object.getPrototypeOf(e.data), RangeError.prototype, "Checking prototype");
+                    assert_equals(e.data.constructor, RangeError, "Checking constructor");
+                    assert_equals(e.data.name, "RangeError", "Checking name");
+                    assert_equals(e.data.message, "some message", "Checking message");
+                    assert_equals(e.data.foo, undefined, "Checking custom property");
+                });
+                t.step(function() {
+                    const error = RangeError("some message");
+                    error.foo = "bar";
+                    worker.postMessage(error);
+                });
+            },
+            function() {
+                var t = async_test("ReferenceError objects can be cloned");
+                t.id = 31;
+                worker.onmessage = t.step_func_done(function(e) {
+                    assert_equals(Object.getPrototypeOf(e.data), ReferenceError.prototype, "Checking prototype");
+                    assert_equals(e.data.constructor, ReferenceError, "Checking constructor");
+                    assert_equals(e.data.name, "ReferenceError", "Checking name");
+                    assert_equals(e.data.message, "some message", "Checking message");
+                    assert_equals(e.data.foo, undefined, "Checking custom property");
+                });
+                t.step(function() {
+                    const error = ReferenceError("some message");
+                    error.foo = "bar";
+                    worker.postMessage(error);
+                });
+            },
+            function() {
+                var t = async_test("SyntaxError objects can be cloned");
+                t.id = 32;
+                worker.onmessage = t.step_func_done(function(e) {
+                    assert_equals(Object.getPrototypeOf(e.data), SyntaxError.prototype, "Checking prototype");
+                    assert_equals(e.data.constructor, SyntaxError, "Checking constructor");
+                    assert_equals(e.data.name, "SyntaxError", "Checking name");
+                    assert_equals(e.data.message, "some message", "Checking message");
+                    assert_equals(e.data.foo, undefined, "Checking custom property");
+                });
+                t.step(function() {
+                    const error = SyntaxError("some message");
+                    error.foo = "bar";
+                    worker.postMessage(error);
+                });
+            },
+            function() {
+                var t = async_test("TypeError objects can be cloned");
+                t.id = 33;
+                worker.onmessage = t.step_func_done(function(e) {
+                    assert_equals(Object.getPrototypeOf(e.data), TypeError.prototype, "Checking prototype");
+                    assert_equals(e.data.constructor, TypeError, "Checking constructor");
+                    assert_equals(e.data.name, "TypeError", "Checking name");
+                    assert_equals(e.data.message, "some message", "Checking message");
+                    assert_equals(e.data.foo, undefined, "Checking custom property");
+                });
+                t.step(function() {
+                    const error = TypeError("some message");
+                    error.foo = "bar";
+                    worker.postMessage(error);
+                });
+            },
+            function() {
+                var t = async_test("URIError objects can be cloned");
+                t.id = 34;
+                worker.onmessage = t.step_func_done(function(e) {
+                    assert_equals(Object.getPrototypeOf(e.data), URIError.prototype, "Checking prototype");
+                    assert_equals(e.data.constructor, URIError, "Checking constructor");
+                    assert_equals(e.data.name, "URIError", "Checking name");
+                    assert_equals(e.data.message, "some message", "Checking message");
+                    assert_equals(e.data.foo, undefined, "Checking custom property");
+                });
+                t.step(function() {
+                    const error = URIError("some message");
+                    error.foo = "bar";
+                    worker.postMessage(error);
+                });
+            },
+            function() {
+                var t = async_test("URIError objects from other realms are treated as URIError");
+                t.id = 35;
+                worker.onmessage = t.step_func_done(function(e) {
+                    assert_equals(Object.getPrototypeOf(e.data), URIError.prototype, "Checking prototype");
+                    assert_equals(e.data.constructor, URIError, "Checking constructor");
+                    assert_equals(e.data.name, "URIError", "Checking name");
+                    assert_equals(e.data.message, "some message", "Checking message");
+                    assert_equals(e.data.foo, undefined, "Checking custom property");
+                });
+                t.step(function() {
+                    const error = frames[0].URIError("some message");
+                    assert_equals(Object.getPrototypeOf(error), frames[0].URIError.prototype, "Checking prototype before cloning");
+                    assert_equals(error.constructor, frames[0].URIError, "Checking constructor before cloning");
+                    assert_equals(error.name, "URIError", "Checking name before cloning");
+                    error.foo = "bar";
+                    worker.postMessage(error);
+                });
+            },
+            function() {
+                var t = async_test("Cloning a modified Error");
+                t.id = 36;
+                worker.onmessage = t.step_func_done(function(e) {
+                    assert_equals(Object.getPrototypeOf(e.data), TypeError.prototype, "Checking prototype");
+                    assert_equals(e.data.constructor, TypeError, "Checking constructor");
+                    assert_equals(e.data.name, "TypeError", "Checking name");
+                    assert_equals(e.data.message, "another message", "Checking message");
+                    assert_equals(e.data.foo, undefined, "Checking custom property");
+                });
+                t.step(function() {
+                    const error = URIError("some message");
+                    Object.setPrototypeOf(error, SyntaxError.prototype);
+                    error.message = {toString: () => "another message" }
+                    error.constructor = RangeError;
+                    error.name = "TypeError";
+                    error.foo = "bar";
+                    worker.postMessage(error);
+                });
+            },
+            function() {
+                var t = async_test("Error.message: getter is ignored when cloning");
+                t.id = 37;
+                worker.onmessage = t.step_func_done(function(e) {
+                    assert_equals(Object.getPrototypeOf(e.data), Error.prototype, "Checking prototype");
+                    assert_equals(e.data.constructor, Error, "Checking constructor");
+                    assert_equals(e.data.name, "Error", "Checking name");
+                    assert_false(e.data.hasOwnProperty("message"), "Checking message");
+                    assert_equals(e.data.foo, undefined, "Checking custom property");
+                });
+                t.step(function() {
+                    const error = Error();
+                    Object.defineProperty(error, "message", { get: () => "hello" });
+                    assert_equals(error.message, "hello", "Checking message on the source realm");
+                    worker.postMessage(error);
+                });
+            },
+            function() {
+                var t = async_test("Error.message: undefined property is stringified");
+                t.id = 38;
+                worker.onmessage = t.step_func_done(function(e) {
+                    assert_equals(Object.getPrototypeOf(e.data), Error.prototype, "Checking prototype");
+                    assert_equals(e.data.constructor, Error, "Checking constructor");
+                    assert_equals(e.data.name, "Error", "Checking name");
+                    assert_equals(e.data.message, "undefined", "Checking message");
+                    assert_equals(e.data.foo, undefined, "Checking custom property");
+                });
+                t.step(function() {
+                    const error = Error();
+                    error.message = undefined;
+                    assert_equals(error.message, undefined, "Checking message on the source realm");
+                    worker.postMessage(error);
+                });
+            },
+            function() {
+                var t = async_test("DOMException objects can be cloned");
+                t.id = 39;
+                worker.onmessage = t.step_func_done(function(e) {
+                    assert_equals(Object.getPrototypeOf(e.data), DOMException.prototype, "Checking prototype");
+                    assert_equals(e.data.constructor, DOMException, "Checking constructor");
+                    assert_equals(e.data.name, "IndexSizeError", "Checking name");
+                    assert_equals(e.data.message, "some message", "Checking message");
+                    assert_equals(e.data.code, DOMException.INDEX_SIZE_ERR, "Checking code");
+                    assert_equals(e.data.foo, undefined, "Checking custom property");
+                });
+                t.step(function() {
+                    const error = new DOMException("some message", "IndexSizeError");
+                    worker.postMessage(error);
+                });
+            },
+            function() {
+                var t = async_test("DOMException objects created by the UA can be cloned");
+                t.id = 40;
+                worker.onmessage = t.step_func_done(function(e) {
+                    assert_equals(Object.getPrototypeOf(e.data), DOMException.prototype, "Checking prototype");
+                    assert_equals(e.data.constructor, DOMException, "Checking constructor");
+                    assert_equals(e.data.code, DOMException.DATA_CLONE_ERR, "Checking code");
+                    assert_equals(e.data.name, "DataCloneError", "Checking name");
+                });
+                t.step(function() {
+                    try {
+                        worker.postMessage(window);
+                    } catch (error) {
+                        worker.postMessage(error);
+                        return;
+                    }
+                    assert_unreached("Window must not be clonable");
+                });
+            },
+        ];
+    }, {explicit_done:true});
+
+    //Callback for result_callback
+    //queues the next test in the array testCollection
+    //serves to make test execution sequential from the async worker callbacks
+    //alternatively, we would have to create a worker for each test
+    function testFinished(test) {
+        if(test.id < testCollection.length - 1) {
+            //queue the function so that stack remains shallow
+            queue(testCollection[test.id+1]);
+        } else {
+            //when the last test has run, explicitly end test suite
+            done();
+        }
+    }
+    function queue(func) {
+        step_timeout(func, 10);
+    }
+
+    add_result_callback(testFinished);
+    //start the first test manually
+    queue(testCollection[0]);
+
+
+
+
+ </script>
+</body>
+</html>
