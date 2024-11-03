@@ -48,9 +48,9 @@ void HTMLTextAreaElement::adjust_computed_style(CSS::StyleProperties& style)
     if (style.display().is_inline_outside() && style.display().is_flow_inside())
         style.set_property(CSS::PropertyID::Display, CSS::DisplayStyleValue::create(CSS::Display::from_short(CSS::Display::Short::InlineBlock)));
 
-    if (style.property(CSS::PropertyID::Width)->has_auto())
+    if (style.property(CSS::PropertyID::Width).has_auto())
         style.set_property(CSS::PropertyID::Width, CSS::LengthStyleValue::create(CSS::Length(cols(), CSS::Length::Type::Ch)));
-    if (style.property(CSS::PropertyID::Height)->has_auto())
+    if (style.property(CSS::PropertyID::Height).has_auto())
         style.set_property(CSS::PropertyID::Height, CSS::LengthStyleValue::create(CSS::Length(rows(), CSS::Length::Type::Lh)));
 }
 

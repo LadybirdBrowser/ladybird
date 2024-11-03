@@ -208,7 +208,7 @@ RefPtr<CSSStyleValue const> ResolvedCSSStyleDeclaration::style_value_for_propert
         return {};
     };
 
-    auto get_computed_value = [this](PropertyID property_id) {
+    auto get_computed_value = [this](PropertyID property_id) -> auto const& {
         if (m_pseudo_element.has_value())
             return m_element->pseudo_element_computed_css_values(m_pseudo_element.value())->property(property_id);
         return m_element->computed_css_values()->property(property_id);
@@ -261,8 +261,8 @@ RefPtr<CSSStyleValue const> ResolvedCSSStyleDeclaration::style_value_for_propert
         // -> line-height
         //    The resolved value is normal if the computed value is normal, or the used value otherwise.
     case PropertyID::LineHeight: {
-        auto line_height = get_computed_value(property_id);
-        if (line_height->is_keyword() && line_height->to_keyword() == Keyword::Normal)
+        auto const& line_height = get_computed_value(property_id);
+        if (line_height.is_keyword() && line_height.to_keyword() == Keyword::Normal)
             return line_height;
         return LengthStyleValue::create(Length::make_px(layout_node.computed_values().line_height()));
     }
@@ -581,14 +581,14 @@ Optional<StyleProperty> ResolvedCSSStyleDeclaration::property(PropertyID propert
         auto style = m_element->document().style_computer().compute_style(const_cast<DOM::Element&>(*m_element), m_pseudo_element);
 
         // FIXME: This is a stopgap until we implement shorthand -> longhand conversion.
-        auto value = style.maybe_null_property(property_id);
+        auto const* value = style.maybe_null_property(property_id);
         if (!value) {
             dbgln("FIXME: ResolvedCSSStyleDeclaration::property(property_id={:#x}) No value for property ID in newly computed style case.", to_underlying(property_id));
             return {};
         }
         return StyleProperty {
             .property_id = property_id,
-            .value = value.release_nonnull(),
+            .value = *value,
         };
     }
 
@@ -597,7 +597,7 @@ Optional<StyleProperty> ResolvedCSSStyleDeclaration::property(PropertyID propert
         return {};
     return StyleProperty {
         .property_id = property_id,
-        .value = value.release_nonnull(),
+        .value = *value,
     };
 }
 

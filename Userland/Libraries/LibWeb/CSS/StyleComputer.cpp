@@ -1182,9 +1182,9 @@ static void compute_transitioned_properties(StyleProperties const& style, DOM::E
     element.clear_transitions();
     element.set_cached_transition_property_source(*source_declaration);
 
-    auto transition_properties_value = style.property(PropertyID::TransitionProperty);
-    auto transition_properties = transition_properties_value->is_value_list()
-        ? transition_properties_value->as_value_list().values()
+    auto const& transition_properties_value = style.property(PropertyID::TransitionProperty);
+    auto transition_properties = transition_properties_value.is_value_list()
+        ? transition_properties_value.as_value_list().values()
         : StyleValueVector { transition_properties_value };
 
     Vector<Vector<PropertyID>> properties;
@@ -1219,7 +1219,7 @@ static void compute_transitioned_properties(StyleProperties const& style, DOM::E
     }
 
     auto normalize_transition_length_list = [&properties, &style](PropertyID property, auto make_default_value) {
-        auto style_value = style.maybe_null_property(property);
+        auto const* style_value = style.maybe_null_property(property);
         StyleValueVector list;
 
         if (!style_value || !style_value->is_value_list() || style_value->as_value_list().size() == 0) {
@@ -1268,14 +1268,14 @@ void StyleComputer::start_needed_transitions(StyleProperties const& previous_sty
     for (auto i = to_underlying(CSS::first_longhand_property_id); i <= to_underlying(CSS::last_longhand_property_id); ++i) {
         auto property_id = static_cast<CSS::PropertyID>(i);
         auto matching_transition_properties = element.property_transition_attributes(property_id);
-        auto before_change_value = previous_style.property(property_id, StyleProperties::WithAnimationsApplied::No);
-        auto after_change_value = new_style.property(property_id, StyleProperties::WithAnimationsApplied::No);
+        auto const& before_change_value = previous_style.property(property_id, StyleProperties::WithAnimationsApplied::No);
+        auto const& after_change_value = new_style.property(property_id, StyleProperties::WithAnimationsApplied::No);
 
         auto existing_transition = element.property_transition(property_id);
         bool has_running_transition = existing_transition && !existing_transition->is_finished();
         bool has_completed_transition = existing_transition && existing_transition->is_finished();
 
-        auto start_a_transition = [&](auto start_time, auto end_time, auto start_value, auto end_value, auto reversing_adjusted_start_value, auto reversing_shortening_factor) {
+        auto start_a_transition = [&](auto start_time, auto end_time, auto const& start_value, auto const& end_value, auto const& reversing_adjusted_start_value, auto reversing_shortening_factor) {
             dbgln_if(CSS_TRANSITIONS_DEBUG, "Starting a transition of {} from {} to {}", string_from_property_id(property_id), start_value->to_string(), end_value->to_string());
 
             auto transition = CSSTransition::start_a_transition(element, property_id, document().transition_generation(),
@@ -1289,7 +1289,7 @@ void StyleComputer::start_needed_transitions(StyleProperties const& previous_sty
             // - the element does not have a running transition for the property,
             (!has_running_transition) &&
             // - the before-change style is different from the after-change style for that property, and the values for the property are transitionable,
-            (!before_change_value->equals(after_change_value) && property_values_are_transitionable(property_id, before_change_value, after_change_value)) &&
+            (!before_change_value.equals(after_change_value) && property_values_are_transitionable(property_id, before_change_value, after_change_value)) &&
             // - the element does not have a completed transition for the property
             //   or the end value of the completed transition is different from the after-change style for the property,
             (!has_completed_transition || !existing_transition->transition_end_value()->equals(after_change_value)) &&
@@ -1312,13 +1312,13 @@ void StyleComputer::start_needed_transitions(StyleProperties const& previous_sty
             auto end_time = start_time + matching_transition_properties->duration;
 
             // - start value is the value of the transitioning property in the before-change style,
-            auto start_value = before_change_value;
+            auto const& start_value = before_change_value;
 
             // - end value is the value of the transitioning property in the after-change style,
-            auto end_value = after_change_value;
+            auto const& end_value = after_change_value;
 
             // - reversing-adjusted start value is the same as the start value, and
-            auto reversing_adjusted_start_value = start_value;
+            auto const& reversing_adjusted_start_value = start_value;
 
             // - reversing shortening factor is 1.
             double reversing_shortening_factor = 1;
@@ -1349,7 +1349,7 @@ void StyleComputer::start_needed_transitions(StyleProperties const& previous_sty
         //    there is a matching transition-property value,
         //    and the end value of the running transition is not equal to the value of the property in the after-change style, then:
         if (has_running_transition && matching_transition_properties.has_value() && !existing_transition->transition_end_value()->equals(after_change_value)) {
-            dbgln_if(CSS_TRANSITIONS_DEBUG, "Transition step 4. existing end value = {}, after change value = {}", existing_transition->transition_end_value()->to_string(), after_change_value->to_string());
+            dbgln_if(CSS_TRANSITIONS_DEBUG, "Transition step 4. existing end value = {}, after change value = {}", existing_transition->transition_end_value()->to_string(), after_change_value.to_string());
             // 1. If the current value of the property in the running transition is equal to the value of the property in the after-change style,
             //    or if these two values are not transitionable,
             //    then implementations must cancel the running transition.
@@ -1401,10 +1401,10 @@ void StyleComputer::start_needed_transitions(StyleProperties const& previous_sty
                 auto end_time = start_time + (matching_transition_properties->duration * reversing_shortening_factor);
 
                 // - start value is the current value of the property in the running transition,
-                auto start_value = current_value;
+                auto const& start_value = current_value;
 
                 // - end value is the value of the property in the after-change style,
-                auto end_value = after_change_value;
+                auto const& end_value = after_change_value;
 
                 start_a_transition(start_time, end_time, start_value, end_value, reversing_adjusted_start_value, reversing_shortening_factor);
             }
@@ -1425,13 +1425,13 @@ void StyleComputer::start_needed_transitions(StyleProperties const& previous_sty
                 auto end_time = start_time + matching_transition_properties->duration;
 
                 // - start value is the current value of the property in the running transition,
-                auto start_value = current_value;
+                auto const& start_value = current_value;
 
                 // - end value is the value of the property in the after-change style,
-                auto end_value = after_change_value;
+                auto const& end_value = after_change_value;
 
                 // - reversing-adjusted start value is the same as the start value, and
-                auto reversing_adjusted_start_value = start_value;
+                auto const& reversing_adjusted_start_value = start_value;
 
                 // - reversing shortening factor is 1.
                 double reversing_shortening_factor = 1;
@@ -1528,8 +1528,8 @@ void StyleComputer::compute_cascaded_values(StyleProperties& style, DOM::Element
 
     // Animation declarations [css-animations-2]
     auto animation_name = [&]() -> Optional<String> {
-        auto animation_name = style.maybe_null_property(PropertyID::AnimationName);
-        if (animation_name.is_null())
+        auto const* animation_name = style.maybe_null_property(PropertyID::AnimationName);
+        if (!animation_name)
             return OptionalNone {};
         if (animation_name->is_string())
             return animation_name->as_string().string_value().to_string();
@@ -1687,20 +1687,20 @@ void StyleComputer::compute_defaulted_values(StyleProperties& style, DOM::Elemen
 
     // https://www.w3.org/TR/css-color-4/#resolving-other-colors
     // In the color property, the used value of currentcolor is the inherited value.
-    auto color = style.property(CSS::PropertyID::Color);
-    if (color->to_keyword() == Keyword::Currentcolor) {
-        color = get_inherit_value(document().realm(), CSS::PropertyID::Color, element, pseudo_element);
-        style.set_property(CSS::PropertyID::Color, color);
+    auto const& color = style.property(CSS::PropertyID::Color);
+    if (color.to_keyword() == Keyword::Currentcolor) {
+        auto const& inherited_value = get_inherit_value(document().realm(), CSS::PropertyID::Color, element, pseudo_element);
+        style.set_property(CSS::PropertyID::Color, inherited_value);
     }
 }
 
 Length::FontMetrics StyleComputer::calculate_root_element_font_metrics(StyleProperties const& style) const
 {
-    auto root_value = style.property(CSS::PropertyID::FontSize);
+    auto const& root_value = style.property(CSS::PropertyID::FontSize);
 
     auto font_pixel_metrics = style.first_available_computed_font().pixel_metrics();
     Length::FontMetrics font_metrics { m_default_font_metrics.font_size, font_pixel_metrics };
-    font_metrics.font_size = root_value->as_length().length().to_px(viewport_rect(), font_metrics, font_metrics);
+    font_metrics.font_size = root_value.as_length().length().to_px(viewport_rect(), font_metrics, font_metrics);
     font_metrics.line_height = style.compute_line_height(viewport_rect(), font_metrics, font_metrics);
 
     return font_metrics;
@@ -1823,9 +1823,9 @@ RefPtr<Gfx::FontCascadeList const> StyleComputer::compute_font_for_style_values(
     auto parent_font_size = [&]() -> CSSPixels {
         if (!parent_element || !parent_element->computed_css_values().has_value())
             return font_size_in_px;
-        auto value = parent_element->computed_css_values()->property(CSS::PropertyID::FontSize);
-        if (value->is_length()) {
-            auto length = value->as_length().length();
+        auto const& value = parent_element->computed_css_values()->property(CSS::PropertyID::FontSize);
+        if (value.is_length()) {
+            auto length = value.as_length().length();
             if (length.is_absolute() || length.is_relative()) {
                 Length::FontMetrics font_metrics { font_size_in_px, font_pixel_metrics };
                 return length.to_px(viewport_rect(), font_metrics, m_root_element_font_metrics);
@@ -2064,11 +2064,11 @@ void StyleComputer::compute_font(StyleProperties& style, DOM::Element const* ele
     compute_defaulted_property_value(style, element, CSS::PropertyID::FontWeight, pseudo_element);
     compute_defaulted_property_value(style, element, CSS::PropertyID::LineHeight, pseudo_element);
 
-    auto font_family = style.property(CSS::PropertyID::FontFamily);
-    auto font_size = style.property(CSS::PropertyID::FontSize);
-    auto font_style = style.property(CSS::PropertyID::FontStyle);
-    auto font_weight = style.property(CSS::PropertyID::FontWeight);
-    auto font_width = style.property(CSS::PropertyID::FontWidth);
+    auto const& font_family = style.property(CSS::PropertyID::FontFamily);
+    auto const& font_size = style.property(CSS::PropertyID::FontSize);
+    auto const& font_style = style.property(CSS::PropertyID::FontStyle);
+    auto const& font_weight = style.property(CSS::PropertyID::FontWeight);
+    auto const& font_width = style.property(CSS::PropertyID::FontWidth);
 
     auto font_list = compute_font_for_style_values(element, pseudo_element, font_family, font_size, font_style, font_weight, font_width, style.math_depth());
     VERIFY(font_list);
@@ -2077,7 +2077,7 @@ void StyleComputer::compute_font(StyleProperties& style, DOM::Element const* ele
     RefPtr<Gfx::Font const> const found_font = font_list->first();
 
     style.set_property(CSS::PropertyID::FontSize, LengthStyleValue::create(CSS::Length::make_px(CSSPixels::nearest_value_for(found_font->pixel_size()))));
-    style.set_property(CSS::PropertyID::FontWeight, NumberStyleValue::create(font_weight->to_font_weight()));
+    style.set_property(CSS::PropertyID::FontWeight, NumberStyleValue::create(font_weight.to_font_weight()));
 
     style.set_computed_font_list(*font_list);
 
@@ -2099,7 +2099,7 @@ void StyleComputer::absolutize_values(StyleProperties& style) const
         style.first_available_computed_font().pixel_metrics()
     };
 
-    auto font_size = style.property(CSS::PropertyID::FontSize)->as_length().length().to_px(viewport_rect(), font_metrics, m_root_element_font_metrics);
+    auto font_size = style.property(CSS::PropertyID::FontSize).as_length().length().to_px(viewport_rect(), font_metrics, m_root_element_font_metrics);
     font_metrics.font_size = font_size;
 
     // NOTE: Percentage line-height values are relative to the font-size of the element.
@@ -2134,8 +2134,8 @@ void StyleComputer::resolve_effective_overflow_values(StyleProperties& style) co
     // https://www.w3.org/TR/css-overflow-3/#overflow-control
     // The visible/clip values of overflow compute to auto/hidden (respectively) if one of overflow-x or
     // overflow-y is neither visible nor clip.
-    auto overflow_x = keyword_to_overflow(style.property(PropertyID::OverflowX)->to_keyword());
-    auto overflow_y = keyword_to_overflow(style.property(PropertyID::OverflowY)->to_keyword());
+    auto overflow_x = keyword_to_overflow(style.property(PropertyID::OverflowX).to_keyword());
+    auto overflow_y = keyword_to_overflow(style.property(PropertyID::OverflowY).to_keyword());
     auto overflow_x_is_visible_or_clip = overflow_x == Overflow::Visible || overflow_x == Overflow::Clip;
     auto overflow_y_is_visible_or_clip = overflow_y == Overflow::Visible || overflow_y == Overflow::Clip;
     if (!overflow_x_is_visible_or_clip || !overflow_y_is_visible_or_clip) {
@@ -2838,12 +2838,12 @@ void StyleComputer::compute_math_depth(StyleProperties& style, DOM::Element cons
         return element->parent_element()->computed_css_values()->math_depth();
     };
 
-    auto value = style.property(CSS::PropertyID::MathDepth);
-    if (!value->is_math_depth()) {
+    auto const& value = style.property(CSS::PropertyID::MathDepth);
+    if (!value.is_math_depth()) {
         style.set_math_depth(inherited_math_depth());
         return;
     }
-    auto& math_depth = value->as_math_depth();
+    auto const& math_depth = value.as_math_depth();
 
     auto resolve_integer = [&](CSSStyleValue const& integer_value) {
         if (integer_value.is_integer())
@@ -2856,7 +2856,7 @@ void StyleComputer::compute_math_depth(StyleProperties& style, DOM::Element cons
     // The computed value of the math-depth value is determined as follows:
     // - If the specified value of math-depth is auto-add and the inherited value of math-style is compact
     //   then the computed value of math-depth of the element is its inherited value plus one.
-    if (math_depth.is_auto_add() && style.property(CSS::PropertyID::MathStyle)->to_keyword() == Keyword::Compact) {
+    if (math_depth.is_auto_add() && style.property(CSS::PropertyID::MathStyle).to_keyword() == Keyword::Compact) {
         style.set_math_depth(inherited_math_depth() + 1);
         return;
     }

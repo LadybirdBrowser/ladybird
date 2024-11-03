@@ -939,8 +939,8 @@ static CSS::RequiredInvalidationAfterStyleChange compute_required_invalidation(H
         if (!old_and_new_properties.get(i))
             continue;
         auto property_id = static_cast<CSS::PropertyID>(i);
-        auto old_value = old_properties.get(property_id).value_or({});
-        auto new_value = new_properties.get(property_id).value_or({});
+        auto const* old_value = old_properties.get(property_id).value_or({});
+        auto const* new_value = new_properties.get(property_id).value_or({});
         if (!old_value && !new_value)
             continue;
         invalidation |= compute_property_invalidation(property_id, old_value, new_value);
