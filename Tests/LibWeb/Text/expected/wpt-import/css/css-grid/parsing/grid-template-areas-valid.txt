@@ -1,0 +1,20 @@
+Summary
+
+Harness status: OK
+
+Rerun
+
+Found 9 tests
+
+1 Pass
+8 Fail
+Details
+Result	Test Name	MessagePass	e.style['grid-template-areas'] = "none" should set the property value	
+Fail	e.style['grid-template-areas'] = "\"first\"" should set the property value	
+Fail	e.style['grid-template-areas'] = "\"first second\"" should set the property value	
+Fail	e.style['grid-template-areas'] = "\"1st 2nd 3rd\"" should set the property value	
+Fail	e.style['grid-template-areas'] = "\"first second\" \"third fourth\"" should set the property value	
+Fail	e.style['grid-template-areas'] = "\"first second\" \"third .\" \"1st 2nd\" \"3rd 4th\"" should set the property value	
+Fail	e.style['grid-template-areas'] = "\" a \t b \"" should set the property value	
+Fail	e.style['grid-template-areas'] = "\"c\td\"" should set the property value	
+Fail	e.style['grid-template-areas'] = "\"first ...\"" should set the property value	

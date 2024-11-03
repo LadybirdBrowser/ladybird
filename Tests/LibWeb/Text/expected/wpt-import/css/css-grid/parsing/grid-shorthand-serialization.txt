@@ -1,0 +1,132 @@
+Summary
+
+Harness status: OK
+
+Rerun
+
+Found 121 tests
+
+26 Pass
+95 Fail
+Details
+Result	Test Name	MessageFail	e.style.cssText = grid: auto-flow auto / 100px 100px should set grid	
+Fail	e.style.cssText = grid: auto-flow auto / 100px 100px should set grid-template-areas	
+Pass	e.style.cssText = grid: auto-flow auto / 100px 100px; grid-template-areas: "one two" "three four" should set grid	
+Fail	e.style.cssText = grid: auto-flow auto / 100px 100px; grid-template-areas: "one two" "three four" should set grid-auto-flow	
+Fail	e.style.cssText = grid: auto-flow auto / 100px 100px; grid-template-areas: "one two" "three four" should set grid-auto-rows	
+Fail	e.style.cssText = grid: auto-flow auto / 100px 100px; grid-template-areas: "one two" "three four" should set grid-template-areas	
+Fail	e.style.cssText = grid: 30px 40px / 50px 60px; grid-auto-flow: column should set grid	
+Pass	e.style.cssText = grid: 30px 40px / 50px 60px; grid-auto-flow: column should set grid-auto-flow	
+Fail	e.style.cssText = grid: 30px 40px / 50px 60px; grid-auto-flow: column should set grid-template	
+Fail	cssText ('grid: 30px 40px / 50px 60px; grid-auto-flow: column') must contain 'grid-template: 30px 40px / 50px 60px;' in its serialization	
+Fail	cssText ('grid: 30px 40px / 50px 60px; grid-auto-flow: column') must contain 'grid-auto-rows: auto;' in its serialization	
+Fail	cssText ('grid: 30px 40px / 50px 60px; grid-auto-flow: column') must contain 'grid-auto-columns: auto;' in its serialization	
+Pass	cssText ('grid: 30px 40px / 50px 60px; grid-auto-flow: column') must contain 'grid-auto-flow: column;' in its serialization	
+Fail	e.style.cssText = grid: auto-flow / 10px; grid-template-rows: 20px should set grid	
+Fail	e.style.cssText = grid: auto-flow / 10px; grid-template-rows: 20px should set grid-template	
+Fail	cssText ('grid: auto-flow / 10px; grid-template-rows: 20px') must contain 'grid: 20px / 10px;' in its serialization	
+Fail	e.style.cssText = grid: auto-flow / 10px; grid-template-rows: repeat(2, 20px) should set grid	
+Fail	e.style.cssText = grid: auto-flow / 10px; grid-template-rows: repeat(2, 20px) should set grid-template-rows	
+Fail	e.style.cssText = grid: auto-flow / 10px; grid-template-rows: repeat(2, 20px) repeat(3, 30px) should set grid	
+Fail	e.style.cssText = grid: auto-flow / 10px; grid-template-rows: repeat(2, 20px) repeat(3, 30px) should set grid-template-rows	
+Fail	e.style.cssText = grid: auto-flow / 10px; grid-template-rows: repeat(auto-fill, 20px) should set grid	
+Fail	e.style.cssText = grid: auto-flow / 10px; grid-template-rows: repeat(auto-fill, 20px) should set grid-template-rows	
+Fail	e.style.cssText = grid: auto-flow / 10px; grid-template-rows: repeat(auto-fit, 20px) should set grid	
+Fail	e.style.cssText = grid: auto-flow / 10px; grid-template-rows: repeat(auto-fit, 20px) should set grid-template-rows	
+Fail	e.style.cssText = grid: 10px / auto; grid-template-columns: 20px should set grid	
+Fail	e.style.cssText = grid: 10px / auto; grid-template-columns: 20px should set grid-template	
+Fail	cssText ('grid: 10px / auto; grid-template-columns: 20px') must contain 'grid: 10px / 20px;' in its serialization	
+Fail	e.style.cssText = grid: auto-flow / 10px; grid-template-columns: repeat(2, 20px) should set grid	
+Fail	e.style.cssText = grid: auto-flow / 10px; grid-template-columns: repeat(2, 20px) should set grid-template-columns	
+Fail	e.style.cssText = grid: auto-flow / 10px; grid-template-columns: repeat(2, 20px) repeat(3, 30px) should set grid	
+Fail	e.style.cssText = grid: auto-flow / 10px; grid-template-columns: repeat(2, 20px) repeat(3, 30px) should set grid-template-columns	
+Fail	e.style.cssText = grid: auto-flow / 10px; grid-template-columns: repeat(auto-fill, 20px) should set grid	
+Fail	e.style.cssText = grid: auto-flow / 10px; grid-template-columns: repeat(auto-fill, 20px) should set grid-template-columns	
+Fail	e.style.cssText = grid: auto-flow / 10px; grid-template-columns: repeat(auto-fit, 20px) should set grid	
+Fail	e.style.cssText = grid: auto-flow / 10px; grid-template-columns: repeat(auto-fit, 20px) should set grid-template-columns	
+Pass	e.style.cssText = grid: auto-flow 1px / 2px; grid-auto-flow: inherit should set grid	
+Fail	e.style.cssText = grid: 1px / 2px; grid-auto-flow: row should set grid	
+Fail	e.style.cssText = grid: none / 2px; grid-auto-flow: row should set grid	
+Fail	e.style.cssText = grid: 1px / 2px; grid-auto-columns: auto should set grid	
+Fail	e.style.cssText = grid: 1px / 2px; grid-auto-rows: auto should set grid	
+Fail	e.style.cssText = grid: 1px / auto-flow 2px; grid-auto-rows: auto should set grid	
+Fail	e.style.cssText = grid: 1px / auto-flow; grid-auto-columns: auto should set grid	
+Fail	e.style.cssText = grid: auto-flow 1px / 2px; grid-auto-columns: auto should set grid	
+Fail	e.style.cssText = grid: auto-flow 1px / none; grid-auto-columns: auto should set grid	
+Fail	e.style.cssText = grid: auto-flow dense / 2px; grid-auto-rows: auto should set grid	
+Pass	e.style.cssText = grid: auto-flow 1px / 2px; grid-auto-columns: 3px should set grid	
+Pass	e.style.cssText = grid: auto-flow 1px / 2px; grid-auto-columns: 3px should set grid-auto-columns	
+Fail	e.style.cssText = grid: auto-flow 1px / 2px; grid-auto-columns: 3px should set grid-auto-flow	
+Fail	e.style.cssText = grid: auto-flow 1px / 2px; grid-auto-columns: 3px should set grid-auto-rows	
+Fail	e.style.cssText = grid: auto-flow 1px / 2px; grid-auto-columns: 3px should set grid-template-columns	
+Fail	e.style.cssText = grid: auto-flow 1px / 2px; grid-auto-columns: 3px should set grid-template-rows	
+Pass	e.style.cssText = grid: 1px / auto-flow 2px; grid-auto-rows: 3px should set grid	
+Fail	e.style.cssText = grid: 1px / auto-flow 2px; grid-auto-rows: 3px should set grid-auto-columns	
+Fail	e.style.cssText = grid: 1px / auto-flow 2px; grid-auto-rows: 3px should set grid-auto-flow	
+Pass	e.style.cssText = grid: 1px / auto-flow 2px; grid-auto-rows: 3px should set grid-auto-rows	
+Fail	e.style.cssText = grid: 1px / auto-flow 2px; grid-auto-rows: 3px should set grid-template-columns	
+Fail	e.style.cssText = grid: 1px / auto-flow 2px; grid-auto-rows: 3px should set grid-template-rows	
+Pass	e.style.cssText = grid: none / auto-flow 1px; grid-template-columns: 3px should set grid	
+Fail	e.style.cssText = grid: none / auto-flow 1px; grid-template-columns: 3px should set grid-auto-columns	
+Fail	e.style.cssText = grid: none / auto-flow 1px; grid-template-columns: 3px should set grid-auto-flow	
+Fail	e.style.cssText = grid: none / auto-flow 1px; grid-template-columns: 3px should set grid-auto-rows	
+Pass	e.style.cssText = grid: none / auto-flow 1px; grid-template-columns: 3px should set grid-template-columns	
+Fail	e.style.cssText = grid: none / auto-flow 1px; grid-template-columns: 3px should set grid-template-rows	
+Pass	e.style.cssText = grid: none / auto-flow 1px; grid-template-columns: repeat(2, 3px) should set grid	
+Fail	e.style.cssText = grid: none / auto-flow 1px; grid-template-columns: repeat(2, 3px) should set grid-auto-columns	
+Fail	e.style.cssText = grid: none / auto-flow 1px; grid-template-columns: repeat(2, 3px) should set grid-auto-flow	
+Fail	e.style.cssText = grid: none / auto-flow 1px; grid-template-columns: repeat(2, 3px) should set grid-auto-rows	
+Pass	e.style.cssText = grid: none / auto-flow 1px; grid-template-columns: repeat(2, 3px) should set grid-template-columns	
+Fail	e.style.cssText = grid: none / auto-flow 1px; grid-template-columns: repeat(2, 3px) should set grid-template-rows	
+Pass	e.style.cssText = grid: none / auto-flow 1px; grid-template-columns: repeat(auto-fill, 3px) should set grid	
+Fail	e.style.cssText = grid: none / auto-flow 1px; grid-template-columns: repeat(auto-fill, 3px) should set grid-auto-columns	
+Fail	e.style.cssText = grid: none / auto-flow 1px; grid-template-columns: repeat(auto-fill, 3px) should set grid-auto-flow	
+Fail	e.style.cssText = grid: none / auto-flow 1px; grid-template-columns: repeat(auto-fill, 3px) should set grid-auto-rows	
+Fail	e.style.cssText = grid: none / auto-flow 1px; grid-template-columns: repeat(auto-fill, 3px) should set grid-template-columns	
+Fail	e.style.cssText = grid: none / auto-flow 1px; grid-template-columns: repeat(auto-fill, 3px) should set grid-template-rows	
+Pass	e.style.cssText = grid: none / auto-flow 1px; grid-template-columns: repeat(auto-fit, 3px) should set grid	
+Fail	e.style.cssText = grid: none / auto-flow 1px; grid-template-columns: repeat(auto-fit, 3px) should set grid-auto-columns	
+Fail	e.style.cssText = grid: none / auto-flow 1px; grid-template-columns: repeat(auto-fit, 3px) should set grid-auto-flow	
+Fail	e.style.cssText = grid: none / auto-flow 1px; grid-template-columns: repeat(auto-fit, 3px) should set grid-auto-rows	
+Fail	e.style.cssText = grid: none / auto-flow 1px; grid-template-columns: repeat(auto-fit, 3px) should set grid-template-columns	
+Fail	e.style.cssText = grid: none / auto-flow 1px; grid-template-columns: repeat(auto-fit, 3px) should set grid-template-rows	
+Pass	e.style.cssText = grid: auto-flow 1px / none; grid-template-rows: 3px should set grid	
+Fail	e.style.cssText = grid: auto-flow 1px / none; grid-template-rows: 3px should set grid-auto-columns	
+Fail	e.style.cssText = grid: auto-flow 1px / none; grid-template-rows: 3px should set grid-auto-flow	
+Fail	e.style.cssText = grid: auto-flow 1px / none; grid-template-rows: 3px should set grid-auto-rows	
+Fail	e.style.cssText = grid: auto-flow 1px / none; grid-template-rows: 3px should set grid-template-columns	
+Pass	e.style.cssText = grid: auto-flow 1px / none; grid-template-rows: 3px should set grid-template-rows	
+Pass	e.style.cssText = grid: auto-flow 1px / none; grid-template-rows: repeat(2, 3px) should set grid	
+Fail	e.style.cssText = grid: auto-flow 1px / none; grid-template-rows: repeat(2, 3px) should set grid-auto-columns	
+Fail	e.style.cssText = grid: auto-flow 1px / none; grid-template-rows: repeat(2, 3px) should set grid-auto-flow	
+Fail	e.style.cssText = grid: auto-flow 1px / none; grid-template-rows: repeat(2, 3px) should set grid-auto-rows	
+Fail	e.style.cssText = grid: auto-flow 1px / none; grid-template-rows: repeat(2, 3px) should set grid-template-columns	
+Pass	e.style.cssText = grid: auto-flow 1px / none; grid-template-rows: repeat(2, 3px) should set grid-template-rows	
+Pass	e.style.cssText = grid: auto-flow 1px / none; grid-template-rows: repeat(auto-fill, 3px) should set grid	
+Fail	e.style.cssText = grid: auto-flow 1px / none; grid-template-rows: repeat(auto-fill, 3px) should set grid-auto-columns	
+Fail	e.style.cssText = grid: auto-flow 1px / none; grid-template-rows: repeat(auto-fill, 3px) should set grid-auto-flow	
+Fail	e.style.cssText = grid: auto-flow 1px / none; grid-template-rows: repeat(auto-fill, 3px) should set grid-auto-rows	
+Fail	e.style.cssText = grid: auto-flow 1px / none; grid-template-rows: repeat(auto-fill, 3px) should set grid-template-columns	
+Fail	e.style.cssText = grid: auto-flow 1px / none; grid-template-rows: repeat(auto-fill, 3px) should set grid-template-rows	
+Pass	e.style.cssText = grid: auto-flow 1px / none; grid-template-rows: repeat(auto-fit, 3px) should set grid	
+Fail	e.style.cssText = grid: auto-flow 1px / none; grid-template-rows: repeat(auto-fit, 3px) should set grid-auto-columns	
+Fail	e.style.cssText = grid: auto-flow 1px / none; grid-template-rows: repeat(auto-fit, 3px) should set grid-auto-flow	
+Fail	e.style.cssText = grid: auto-flow 1px / none; grid-template-rows: repeat(auto-fit, 3px) should set grid-auto-rows	
+Fail	e.style.cssText = grid: auto-flow 1px / none; grid-template-rows: repeat(auto-fit, 3px) should set grid-template-columns	
+Fail	e.style.cssText = grid: auto-flow 1px / none; grid-template-rows: repeat(auto-fit, 3px) should set grid-template-rows	
+Fail	e.style.cssText = grid-template-rows: auto auto; grid-template-columns: repeat(2, 3px); grid-template-areas: "one two" "three four" should set grid	
+Fail	e.style.cssText = grid-template-rows: auto auto; grid-template-columns: repeat(2, 3px); grid-template-areas: "one two" "three four" should set grid-template-areas	
+Pass	e.style.cssText = grid-template-rows: auto auto; grid-template-columns: repeat(2, 3px); grid-template-areas: "one two" "three four" should set grid-template-columns	
+Pass	e.style.cssText = grid-template-rows: auto auto; grid-template-columns: repeat(2, 3px); grid-template-areas: "one two" "three four" should set grid-template-rows	
+Fail	e.style.cssText = grid-template-rows: auto auto; grid-template-columns: repeat(2, 1fr); grid-template-areas: "one two" "three four" should set grid	
+Fail	e.style.cssText = grid-template-rows: auto auto; grid-template-columns: repeat(2, 1fr); grid-template-areas: "one two" "three four" should set grid-template-areas	
+Pass	e.style.cssText = grid-template-rows: auto auto; grid-template-columns: repeat(2, 1fr); grid-template-areas: "one two" "three four" should set grid-template-columns	
+Pass	e.style.cssText = grid-template-rows: auto auto; grid-template-columns: repeat(2, 1fr); grid-template-areas: "one two" "three four" should set grid-template-rows	
+Fail	e.style.cssText = grid-template-rows: auto auto; grid-template-columns: repeat(auto-fill, 3px); grid-template-areas: "one two" "three four" should set grid	
+Fail	e.style.cssText = grid-template-rows: auto auto; grid-template-columns: repeat(auto-fill, 3px); grid-template-areas: "one two" "three four" should set grid-template-areas	
+Fail	e.style.cssText = grid-template-rows: auto auto; grid-template-columns: repeat(auto-fill, 3px); grid-template-areas: "one two" "three four" should set grid-template-columns	
+Pass	e.style.cssText = grid-template-rows: auto auto; grid-template-columns: repeat(auto-fill, 3px); grid-template-areas: "one two" "three four" should set grid-template-rows	
+Fail	e.style.cssText = grid-template-rows: auto auto; grid-template-columns: repeat(auto-fit, 3px); grid-template-areas: "one two" "three four" should set grid	
+Fail	e.style.cssText = grid-template-rows: auto auto; grid-template-columns: repeat(auto-fit, 3px); grid-template-areas: "one two" "three four" should set grid-template-areas	
+Fail	e.style.cssText = grid-template-rows: auto auto; grid-template-columns: repeat(auto-fit, 3px); grid-template-areas: "one two" "three four" should set grid-template-columns	
+Pass	e.style.cssText = grid-template-rows: auto auto; grid-template-columns: repeat(auto-fit, 3px); grid-template-areas: "one two" "three four" should set grid-template-rows	

@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS Grid Layout Test: getComputedStyle().gridAutoColumns</title>
+<link rel="help" href="https://drafts.csswg.org/css-grid-1/#propdef-grid-auto-columns">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/computed-testcommon.js"></script>
+</head>
+<body>
+<div id="target"></div>
+<style>
+  #target {
+    font-size: 40px;
+  }
+</style>
+<script>
+// <track-breadth>
+// <track-breadth> = <length-percentage> | <flex> | min-content | max-content | auto
+test_computed_value("grid-auto-columns", "1px");
+test_computed_value("grid-auto-columns", "calc(10px + 0.5em)", "30px");
+test_computed_value("grid-auto-columns", "calc(10px - 0.5em)", "0px");
+test_computed_value("grid-auto-columns", "4%");
+test_computed_value("grid-auto-columns", "5fr");
+test_computed_value("grid-auto-columns", "min-content");
+test_computed_value("grid-auto-columns", "max-content");
+test_computed_value("grid-auto-columns", "auto");
+
+// minmax( <inflexible-breadth> , <track-breadth> )
+// <inflexible-breadth> = <length-percentage> | min-content | max-content | auto
+test_computed_value("grid-auto-columns", "minmax(1px, 5fr)");
+test_computed_value("grid-auto-columns", "minmax(calc(10px + 0.5em), max-content)", "minmax(30px, max-content)");
+test_computed_value("grid-auto-columns", "minmax(calc(10px - 0.5em), max-content)", "minmax(0px, max-content)");
+test_computed_value("grid-auto-columns", "minmax(4%, auto)");
+test_computed_value("grid-auto-columns", "minmax(min-content, calc(10px + 0.5em))", "minmax(min-content, 30px)");
+test_computed_value("grid-auto-columns", "minmax(auto, 4%)");
+
+// fit-content( <length-percentage> )
+test_computed_value("grid-auto-columns", "fit-content(1px)");
+test_computed_value("grid-auto-columns", "fit-content(calc(10px + 0.5em))", "fit-content(30px)");
+test_computed_value("grid-auto-columns", "fit-content(calc(10px - 0.5em))", "fit-content(0px)");
+test_computed_value("grid-auto-columns", "fit-content(4%)");
+
+// 0
+test_computed_value("grid-auto-columns", "0px");
+test_computed_value("grid-auto-columns", "0%");
+test_computed_value("grid-auto-columns", "0fr");
+test_computed_value("grid-auto-columns", "minmax(auto, 0%)");
+test_computed_value("grid-auto-columns", "fit-content(0px)");
+
+// <track-size>+
+// https://bugzilla.mozilla.org/show_bug.cgi?id=1339672
+test_computed_value("grid-auto-columns", "1px 2px 3px 0px");
+test_computed_value("grid-auto-columns", "fit-content(1px) minmax(2px, 3px) 4px");
+</script>
+</body>
+</html>

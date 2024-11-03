@@ -1,0 +1,25 @@
+Summary
+
+Harness status: OK
+
+Rerun
+
+Found 15 tests
+
+15 Fail
+Details
+Result	Test Name	MessageFail	Property grid-row value 'auto / auto'	
+Fail	Property grid-row value 'auto'	
+Fail	Property grid-row value '10 / auto'	
+Fail	Property grid-row value '10'	
+Fail	Property grid-row value '-10 / auto'	
+Fail	Property grid-row value '-10'	
+Fail	Property grid-row value 'span 2 / auto'	
+Fail	Property grid-row value 'span 2'	
+Fail	Property grid-row value '3 last / auto'	
+Fail	Property grid-row value '3 last'	
+Fail	Property grid-row value 'span first / auto'	
+Fail	Property grid-row value 'span first'	
+Fail	Property grid-row value 'span 2 first / auto'	
+Fail	Property grid-row value 'span 2 first'	
+Fail	Property grid-row value 'last / last'	

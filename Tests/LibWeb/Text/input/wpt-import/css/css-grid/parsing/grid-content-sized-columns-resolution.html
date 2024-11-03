@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<link rel="author" title="Sergio Villar" href="mailto:svillar@igalia.com">
+<link rel="help" href="https://bugs.chromium.org/p/chromium/issues/detail?id=392200">
+<link href="/css/support/grid.css" rel="stylesheet">
+<link href="/css/support/alignment.css" rel="stylesheet">
+<link rel="stylesheet" type="text/css" href="/fonts/ahem.css">
+<link rel="help" href="https://drafts.csswg.org/css-grid/#track-sizing">
+<meta name="assert" content="Checks resolution of content sized grid columns and verifies that items are processed by ascending span to compute column breadths">
+<style>
+.grid {
+    font: 10px/1 Ahem;
+ }
+.gridWidth300 {
+    width: 300px;
+}
+.gridMinContentFixedAndAuto {
+    grid-template-columns: minmax(min-content, 15px) auto;
+}
+.gridMaxContentFixedAndAuto {
+    grid-template-columns: minmax(max-content, 15px) auto;
+}
+.gridAutoAndAuto {
+    grid-template-columns: auto auto;
+}
+.gridMinContentAndMinContentFixed {
+    grid-template-columns: min-content minmax(min-content, 30px);
+}
+.gridMinContentAndMaxContentFixed {
+    grid-template-columns: min-content minmax(max-content, 30px);
+}
+.gridMaxContentAndMinContent {
+    grid-template-columns: max-content min-content;
+}
+.gridFixedMinContentAndMaxContent {
+    grid-template-columns: minmax(10px, min-content) max-content;
+}
+.gridFixedMaxContentAndMinContent {
+    grid-template-columns: minmax(10px, max-content) min-content;
+}
+.gridAutoMinContent {
+    grid-template-columns: auto min-content;
+}
+.gridAutoMaxContent {
+    grid-template-columns: auto max-content;
+}
+.gridMaxContentAndMinContentFixed {
+    grid-template-columns: max-content minmax(min-content, 35px);
+}
+.gridMaxContentAndMaxContentFixed {
+    grid-template-columns: max-content minmax(max-content, 35px);
+}
+.gridMinContentFixedAndFixedFixedAndAuto {
+    grid-template-columns: minmax(min-content, 20px) minmax(20px, 30px) auto;
+}
+.gridAutoAndFixedFixedAndMaxContentFixed {
+    grid-template-columns: auto minmax(20px, 30px) minmax(max-content, 20px);
+}
+.gridMaxContentAndMaxContentFixedAndMaxContent {
+    grid-template-columns: max-content minmax(max-content, 20px) max-content;
+}
+.gridAutoAndMinContentFixedAndMinContent {
+    grid-template-columns: auto minmax(min-content, 30px) min-content;
+}
+
+</style>
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<div class="grid gridMinContentFixedAndAuto justifyContentStart" id="gridMinContentFixedAndAuto">
+    <div class="firstRowBothColumn">XXXX XXXX</div>
+</div>
+
+<div class="grid gridAutoAndAuto justifyContentStart" id="gridAutoAndAuto">
+    <div class="firstRowBothColumn">XXXX XXXX</div>
+</div>
+
+<div class="grid gridMinContentAndMinContentFixed" id="gridMinContentAndMinContentFixed">
+    <div class="firstRowBothColumn">XXXX XXXX</div>
+</div>
+
+<div class="grid gridMaxContentAndMinContent" id="gridMaxContentAndMinContent">
+    <div class="firstRowBothColumn">XXXX XXXX</div>
+</div>
+
+<div class="grid gridFixedMinContentAndMaxContent" id="gridFixedMinContentAndMaxContent">
+    <div class="firstRowBothColumn">XXXX XXXX</div>
+</div>
+
+<div class="grid gridFixedMaxContentAndMinContent" id="gridFixedMaxContentAndMinContent">
+    <div class="firstRowBothColumn">XXXX XXXX</div>
+</div>
+
+<div class="grid gridMinContentAndMaxContentFixed" id="gridMinContentAndMaxContentFixed">
+    <div class="firstRowBothColumn">XXXX XXXX</div>
+</div>
+
+<div class="constrainedContainer">
+    <div class="grid gridMaxContentFixedAndAuto" id="gridMaxContentFixedAndAuto">
+        <div class="firstRowBothColumn">XXXX XXXX</div>
+    </div>
+</div>
+
+<div class="grid gridAutoMinContent justifyContentStart" id="gridAutoMinContent">
+    <div class="firstRowBothColumn">XXXX XXXX</div>
+</div>
+
+<div class="grid gridAutoMaxContent justifyContentStart" id="gridAutoMaxContent">
+    <div class="firstRowBothColumn">XXXX XXXX</div>
+</div>
+
+<div class="constrainedContainer">
+    <div class="grid gridMaxContentAndMinContentFixed" id="gridMaxContentAndMinContentFixed">
+        <div class="firstRowBothColumn">XXXX XXXX</div>
+    </div>
+</div>
+
+<div class="grid gridMaxContentAndMaxContentFixed" id="gridMaxContentAndMaxContentFixed">
+    <div class="firstRowBothColumn">XXXX XXXX</div>
+</div>
+
+<!-- Check that items are processed by ascending span instead of going track by track forbidding extra space distribution. -->
+<div class="constrainedContainer">
+    <div class="grid gridMinContentFixedAndAuto" id="gridMinContentFixedAndAutoUnsortedConstrained">
+        <div class="firstRowBothColumn">XXXX XXXX</div>
+        <div class="firstRowSecondColumn">XXXX XXXX</div>
+    </div>
+</div>
+
+<div class="constrainedContainer">
+    <div class="grid gridAutoAndAuto" id="gridAutoAndAutoUnsortedConstrained">
+        <div class="firstRowBothColumn">XXXX XXXX</div>
+        <div class="firstRowSecondColumn">XXX</div>
+    </div>
+</div>
+
+<div class="constrainedContainer">
+    <div class="grid gridMinContentAndMinContentFixed" id="gridMinContentAndMinContentFixedUnsortedConstrained">
+        <div class="firstRowBothColumn">XXXX XXXX</div>
+        <div class="firstRowBothColumn">XX XX XX</div>
+        <div class="firstRowSecondColumn">XXXX XXXX</div>
+    </div>
+</div>
+
+<div class="constrainedContainer">
+    <div class="grid gridMaxContentAndMinContent" id="gridMaxContentAndMinContentUnsortedConstrained">
+        <div class="firstRowBothColumn">XXX XXX</div>
+        <div class="firstRowSecondColumn">XXXXXXX</div>
+    </div>
+</div>
+
+<div class="constrainedContainer">
+    <div class="grid gridFixedMinContentAndMaxContent" id="gridFixedMinContentAndMaxContentUnsortedConstrained">
+        <div class="firstRowBothColumn">XXXXX XX</div>
+        <div class="firstRowSecondColumn">XXX</div>
+        <div class="firstRowSecondColumn">XXXXX</div>
+    </div>
+</div>
+
+<div class="constrainedContainer">
+    <div class="grid gridFixedMaxContentAndMinContent" id="gridFixedMaxContentAndMinContentUnsortedConstrained">
+        <div class="firstRowBothColumn">XXXX XXXX</div>
+        <div class="firstRowBothColumn">X X</div>
+        <div class="firstRowSecondColumn">XXXX</div>
+    </div>
+</div>
+
+<div class="constrainedContainer">
+    <div class="grid gridMinContentAndMaxContentFixed" id="gridMinContentAndMaxContentFixedUnsortedConstrained">
+        <div class="firstRowBothColumn">XXXX XXXX</div>
+        <div class="firstRowSecondColumn">XXXX XXXX</div>
+    </div>
+</div>
+
+<div class="constrainedContainer">
+    <div class="grid gridMaxContentFixedAndAuto" id="gridMaxContentFixedAndAutoUnsortedConstrained">
+        <div class="firstRowBothColumn">XX XX</div>
+        <div class="firstRowSecondColumn">XXXX</div>
+        <div class="firstRowSecondColumn">XXX XXX</div>
+    </div>
+</div>
+
+<div class="constrainedContainer">
+    <div class="grid gridAutoMinContent" id="gridAutoMinContentUnsortedConstrained">
+        <div class="firstRowBothColumn">XX XX XX XX</div>
+        <div class="firstRowSecondColumn">XXXXXX XXXXXX</div>
+    </div>
+</div>
+
+<div class="constrainedContainer">
+    <div class="grid gridAutoMaxContent" id="gridAutoMaxContentUnsortedConstrained">
+        <div class="firstRowBothColumn">XXXX XXXX</div>
+        <div class="firstRowBothColumn">XXX XXX</div>
+        <div class="firstRowSecondColumn">XXXXX</div>
+    </div>
+</div>
+
+<div class="constrainedContainer">
+    <div class="grid gridMaxContentAndMinContentFixed" id="gridMaxContentAndMinContentFixedUnsortedConstrained">
+        <div class="firstRowBothColumn">XXX XXX</div>
+        <div class="firstRowBothColumn">XXXX XXXX</div>
+        <div class="firstRowSecondColumn">XXXX XXXX</div>
+        <div class="firstRowSecondColumn">XX</div>
+    </div>
+</div>
+
+<div class="constrainedContainer">
+    <div class="grid gridMaxContentAndMaxContentFixed" id="gridMaxContentAndMaxContentFixedUnsortedConstrained">
+        <div class="firstRowBothColumn">XXXX XXXX</div>
+        <div class="firstRowBothColumn">XX XX XX XX</div>
+        <div class="firstRowSecondColumn">XXXXXXX</div>
+    </div>
+</div>
+
+<!-- Check that items are processed by ascending span instead of going track by track allowing extra space distribution. -->
+<div class="grid gridMinContentFixedAndAuto justifyContentStart" id="gridMinContentFixedAndAutoUnsorted">
+    <div class="firstRowBothColumn">XXXX XXXX</div>
+    <div class="firstRowSecondColumn">XXXX XXXX</div>
+</div>
+
+<div class="grid gridAutoAndAuto justifyContentStart" id="gridAutoAndAutoUnsorted">
+    <div class="firstRowBothColumn">XXXX XXXX</div>
+    <div class="firstRowSecondColumn">XXX</div>
+</div>
+
+<div class="grid gridMinContentAndMinContentFixed" id="gridMinContentAndMinContentFixedUnsorted">
+    <div class="firstRowBothColumn">XXXX XXXX</div>
+    <div class="firstRowBothColumn">XX XX XX XX</div>
+    <div class="firstRowSecondColumn">XXXX XXXX</div>
+</div>
+
+<div class="grid gridMaxContentAndMinContent" id="gridMaxContentAndMinContentUnsorted">
+    <div class="firstRowBothColumn">XXX XXX</div>
+    <div class="firstRowSecondColumn">XXXXXXX</div>
+</div>
+
+<div class="grid gridFixedMinContentAndMaxContent" id="gridFixedMinContentAndMaxContentUnsorted">
+    <div class="firstRowBothColumn">XXXXX XX</div>
+    <div class="firstRowSecondColumn">XXX</div>
+    <div class="firstRowSecondColumn">XXXXX</div>
+</div>
+
+<div class="grid gridFixedMaxContentAndMinContent" id="gridFixedMaxContentAndMinContentUnsorted">
+    <div class="firstRowBothColumn">XXXX XXXX</div>
+    <div class="firstRowBothColumn">X X</div>
+    <div class="firstRowSecondColumn">XXXX</div>
+</div>
+
+<div class="grid gridMinContentAndMaxContentFixed" id="gridMinContentAndMaxContentFixedUnsorted">
+    <div class="firstRowBothColumn">XXXX XXXX</div>
+    <div class="firstRowSecondColumn">XXXX XXXX</div>
+</div>
+
+<div class="grid gridMaxContentFixedAndAuto justifyContentStart" id="gridMaxContentFixedAndAutoUnsorted">
+    <div class="firstRowBothColumn">XX XX</div>
+    <div class="firstRowSecondColumn">XXXX</div>
+    <div class="firstRowSecondColumn">XXX XXX</div>
+</div>
+
+<div class="grid gridAutoMinContent justifyContentStart" id="gridAutoMinContentUnsorted">
+    <div class="firstRowBothColumn">XX XX XX XX</div>
+    <div class="firstRowSecondColumn">XXXXXX XXXXXX</div>
+</div>
+
+<div class="grid gridAutoMaxContent justifyContentStart" id="gridAutoMaxContentUnsorted">
+    <div class="firstRowBothColumn">XXXX XXXX</div>
+    <div class="firstRowBothColumn">XXX XXX</div>
+    <div class="firstRowSecondColumn">XXXXX</div>
+</div>
+
+<div class="grid gridMaxContentAndMinContentFixed" id="gridMaxContentAndMinContentFixedUnsorted">
+    <div class="firstRowBothColumn">XXX XXX</div>
+    <div class="firstRowBothColumn">XXXX XXXX</div>
+    <div class="firstRowSecondColumn">XXXX XXXX</div>
+    <div class="firstRowSecondColumn">XX</div>
+</div>
+
+<div class="grid gridMaxContentAndMaxContentFixed" id="gridMaxContentAndMaxContentFixedUnsorted">
+    <div class="firstRowBothColumn">XXXX XXXX</div>
+    <div class="firstRowBothColumn">XX XX XX XX</div>
+    <div class="firstRowSecondColumn">XXXXXXX</div>
+</div>
+
+<!-- The next four force the grid to grow only a particular subset of tracks above the limits -->
+<div class="constrainedContainer">
+    <div class="grid gridMinContentFixedAndAuto justifyContentStart" id="gridMinContentFixedAndAutoAboveLimits">
+        <div class="firstRowBothColumn">XXXX XXXX</div>
+        <div class="firstRowBothColumn">XXXXXXXXXXX</div>
+    </div>
+</div>
+
+<div class="constrainedContainer">
+    <div class="grid gridMaxContentFixedAndAuto" id="gridMaxContentFixedAndAutoAboveLimits">
+        <div class="firstRowBothColumn">XXXX XXXX</div>
+        <div class="firstRowBothColumn">XXXXXXXXXXXXXXX</div>
+    </div>
+</div>
+
+<div class="constrainedContainer">
+    <div class="grid gridMinContentFixedAndFixedFixedAndAuto" id="gridMinContentFixedAndFixedFixedAndAuto">
+        <div class="firstRowBothColumn">XXXX XXXX</div>
+        <div class="firstRowBothColumn">XXXXXXXXXX</div>
+    </div>
+</div>
+
+<div class="constrainedContainer">
+    <div class="grid gridAutoAndFixedFixedAndMaxContentFixed" id="gridAutoAndFixedFixedAndMaxContentFixed">
+        <div class="firstRowBothColumn">XXXX XXXX</div>
+        <div class="firstRowBothColumn">XXXXXXXXXXXXXXX</div>
+    </div>
+</div>
+
+<div class="grid gridMaxContentAndMaxContentFixedAndMaxContent" id="gridMaxContentAndMaxContentFixedAndMaxContent">
+    <div style="grid-row: 1; grid-column: 1;">X X X</div>
+    <div style="grid-row: 1; grid-column: 3;">X X</div>
+    <div style="grid-row: 1; grid-column: 1 / -1;">XX XX XX XX XX</div>
+</div>
+
+<div class="grid gridAutoAndMinContentFixedAndMinContent justifyContentStart" id="gridAutoAndMinContentFixedAndMinContent">
+    <div style="grid-row: 1; grid-column: 1;">XX</div>
+    <div style="grid-row: 1; grid-column: 1 / -1;">XXXXXXXXXXXXXXX</div>
+    <div style="grid-row: 1; grid-column: 3;">XXX XXX</div>
+</div>
+
+<script>
+function testGridColumnsValues(id, computedColumnValue) {
+    test(function(){
+        var div = document.getElementById(id);
+        var readValue = getComputedStyle(div).gridTemplateColumns;
+        assert_equals(readValue, computedColumnValue);
+    }, `Element '${id}' grid-template-columns value computes to '${computedColumnValue}'`);
+}
+
+setup({ explicit_done: true });
+document.fonts.ready.then(() => {
+    testGridColumnsValues("gridMinContentFixedAndAuto", "15px 75px");
+    testGridColumnsValues("gridAutoAndAuto", "45px 45px");
+    testGridColumnsValues("gridMinContentAndMinContentFixed", "20px 30px");
+    testGridColumnsValues("gridMaxContentAndMinContent", "70px 20px");
+    testGridColumnsValues("gridFixedMinContentAndMaxContent", "10px 80px");
+    testGridColumnsValues("gridFixedMaxContentAndMinContent", "60px 30px");
+    testGridColumnsValues("gridMinContentAndMaxContentFixed", "20px 70px");
+    testGridColumnsValues("gridMaxContentFixedAndAuto", "65px 25px");
+    testGridColumnsValues("gridAutoMinContent", "70px 20px");
+    testGridColumnsValues("gridAutoMaxContent", "20px 70px");
+    testGridColumnsValues("gridMaxContentAndMinContentFixed", "70px 20px");
+    testGridColumnsValues("gridMaxContentAndMaxContentFixed", "55px 35px");
+
+    // Check that items are processed by ascending span to compute track breadths forbidding extra space distribution.
+    testGridColumnsValues("gridMinContentFixedAndAutoUnsortedConstrained", "0px 40px");
+    testGridColumnsValues("gridAutoAndAutoUnsortedConstrained", "10px 30px");
+    testGridColumnsValues("gridMinContentAndMinContentFixedUnsortedConstrained", "0px 40px");
+    testGridColumnsValues("gridMaxContentAndMinContentUnsortedConstrained", "0px 70px");
+    testGridColumnsValues("gridFixedMinContentAndMaxContentUnsortedConstrained", "10px 70px");
+    testGridColumnsValues("gridFixedMaxContentAndMinContentUnsortedConstrained", "10px 40px");
+    testGridColumnsValues("gridMinContentAndMaxContentFixedUnsortedConstrained", "0px 90px");
+    testGridColumnsValues("gridMaxContentFixedAndAutoUnsortedConstrained", "10px 40px");
+    testGridColumnsValues("gridAutoMinContentUnsortedConstrained", "0px 60px");
+    testGridColumnsValues("gridAutoMaxContentUnsortedConstrained", "0px 90px");
+    testGridColumnsValues("gridMaxContentAndMinContentFixedUnsortedConstrained", "50px 40px");
+    testGridColumnsValues("gridMaxContentAndMaxContentFixedUnsortedConstrained", "40px 70px");
+
+    // Check that items are processed by ascending span to compute track breadths allowing extra space distribution.
+    testGridColumnsValues("gridMinContentFixedAndAutoUnsorted", "15px 90px");
+    testGridColumnsValues("gridAutoAndAutoUnsorted", "60px 30px");
+    testGridColumnsValues("gridMinContentAndMinContentFixedUnsorted", "0px 40px");
+    testGridColumnsValues("gridMaxContentAndMinContentUnsorted", "0px 70px");
+    testGridColumnsValues("gridFixedMinContentAndMaxContentUnsorted", "10px 70px");
+    testGridColumnsValues("gridFixedMaxContentAndMinContentUnsorted", "50px 40px");
+    testGridColumnsValues("gridMinContentAndMaxContentFixedUnsorted", "0px 90px");
+    testGridColumnsValues("gridMaxContentFixedAndAutoUnsorted", "15px 70px");
+    testGridColumnsValues("gridAutoMinContentUnsorted", "50px 60px");
+    testGridColumnsValues("gridAutoMaxContentUnsorted", "0px 90px");
+    testGridColumnsValues("gridMaxContentAndMinContentFixedUnsorted", "50px 40px");
+    testGridColumnsValues("gridMaxContentAndMaxContentFixedUnsorted", "40px 70px");
+
+    // Check that only a subset of tracks grow above track limits.
+    testGridColumnsValues("gridMinContentFixedAndAutoAboveLimits", "15px 95px");
+    testGridColumnsValues("gridMaxContentFixedAndAutoAboveLimits", "15px 135px");
+    testGridColumnsValues("gridMinContentFixedAndFixedFixedAndAuto", "20px 20px 60px");
+    testGridColumnsValues("gridAutoAndFixedFixedAndMaxContentFixed", "110px 20px 20px");
+    testGridColumnsValues("gridMaxContentAndMaxContentFixedAndMaxContent", "70px 20px 50px");
+    testGridColumnsValues("gridAutoAndMinContentFixedAndMinContent", "55px 30px 65px");
+
+    done();
+});
+</script>

@@ -1,0 +1,40 @@
+Summary
+
+Harness status: OK
+
+Rerun
+
+Found 30 tests
+
+30 Pass
+Details
+Result	Test Name	MessagePass	e.style['grid-auto-columns'] = "1px" should set the property value	
+Pass	e.style['grid-auto-columns'] = "2em" should set the property value	
+Pass	e.style['grid-auto-columns'] = "calc(2em + 3ex)" should set the property value	
+Pass	e.style['grid-auto-columns'] = "4%" should set the property value	
+Pass	e.style['grid-auto-columns'] = "5fr" should set the property value	
+Pass	e.style['grid-auto-columns'] = "min-content" should set the property value	
+Pass	e.style['grid-auto-columns'] = "max-content" should set the property value	
+Pass	e.style['grid-auto-columns'] = "auto" should set the property value	
+Pass	e.style['grid-auto-columns'] = "auto /**/" should set the property value	
+Pass	e.style['grid-auto-columns'] = "minmax(1px, 5fr)" should set the property value	
+Pass	e.style['grid-auto-columns'] = "minmax(2em, min-content)" should set the property value	
+Pass	e.style['grid-auto-columns'] = "minmax(calc(2em + 3ex), max-content)" should set the property value	
+Pass	e.style['grid-auto-columns'] = "minmax(4%, auto)" should set the property value	
+Pass	e.style['grid-auto-columns'] = "minmax(5vmin, 1px)" should set the property value	
+Pass	e.style['grid-auto-columns'] = "minmax(min-content, 2em)" should set the property value	
+Pass	e.style['grid-auto-columns'] = "minmax(max-content, calc(2em + 3ex))" should set the property value	
+Pass	e.style['grid-auto-columns'] = "minmax(auto, 4%)" should set the property value	
+Pass	e.style['grid-auto-columns'] = "fit-content(1px)" should set the property value	
+Pass	e.style['grid-auto-columns'] = "fit-content(2em)" should set the property value	
+Pass	e.style['grid-auto-columns'] = "fit-content(calc(2em + 3ex))" should set the property value	
+Pass	e.style['grid-auto-columns'] = "fit-content(4%)" should set the property value	
+Pass	e.style['grid-auto-columns'] = "0px" should set the property value	
+Pass	e.style['grid-auto-columns'] = "0%" should set the property value	
+Pass	e.style['grid-auto-columns'] = "0fr" should set the property value	
+Pass	e.style['grid-auto-columns'] = "minmax(auto, 0%)" should set the property value	
+Pass	e.style['grid-auto-columns'] = "fit-content(0px)" should set the property value	
+Pass	e.style['grid-auto-columns'] = "auto auto" should set the property value	
+Pass	e.style['grid-auto-columns'] = "auto 10px" should set the property value	
+Pass	e.style['grid-auto-columns'] = "1px 2px 3px 0px" should set the property value	
+Pass	e.style['grid-auto-columns'] = "fit-content(1px) minmax(2px, 3px) 4px" should set the property value	

@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS Grid Layout Test: parsing grid-template-rows with invalid values</title>
+<link rel="help" href="https://drafts.csswg.org/css-grid-1/#propdef-grid-template-rows">
+<meta name="assert" content="grid-template-rows supports only the grammar 'none | <track-list> | <auto-track-list>'.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/parsing-testcommon.js"></script>
+</head>
+<body>
+<script>
+test_invalid_value("grid-template-rows", '-10px');
+test_invalid_value("grid-template-rows", '-20%');
+test_invalid_value("grid-template-rows", '-5fr');
+test_invalid_value("grid-template-rows", 'minmax(5fr, calc(0.5em + 10px))');
+test_invalid_value("grid-template-rows", 'minmax(-10px, auto)');
+test_invalid_value("grid-template-rows", 'minmax(-20%, max-content)');
+test_invalid_value("grid-template-rows", 'minmax(min-content, -20%)');
+test_invalid_value("grid-template-rows", 'fit-content(-10px)');
+test_invalid_value("grid-template-rows", 'fit-content(-20%)');
+test_invalid_value("grid-template-rows", '[one] 10px [two three] repeat(20%) [four five six] 3fr [seven]');
+test_invalid_value("grid-template-rows", '[one]');
+test_invalid_value("grid-template-rows", '[one] 10px [two] [three]');
+test_invalid_value("grid-template-rows", 'repeat(auto-fill, -10px)');
+test_invalid_value("grid-template-rows", 'repeat(auto-fill, 10px) repeat(auto-fit, 20%)');
+test_invalid_value("grid-template-rows", '[auto] 1px');
+</script>
+</body>
+</html>

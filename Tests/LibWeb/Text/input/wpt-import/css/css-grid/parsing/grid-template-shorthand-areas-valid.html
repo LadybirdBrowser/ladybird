@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS Grid Layout Test: grid-template and grid-template-areas</title>
+<link rel="help" href="https://drafts.csswg.org/css-grid-1/#propdef-grid-template">
+<meta name=assert content="grid-template and grid-template-areas parsing is valid.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+</head>
+<body>
+<script>
+
+function testValidGridTemplate(valueGridTemplate, valueGridAreas, serializedGridTemplateValue) {
+  if (arguments.length < 3)
+    serializedGridTemplateValue = valueGridTemplate;
+
+  test(()=>{
+    const root = document.children[0];
+    root.style.gridTemplate = "";
+    root.style.gridTemplate = valueGridTemplate;
+    root.style.gridTemplateAreas = "";
+    root.style.gridTemplateAreas = valueGridAreas;
+    assert_equals(root.style.gridTemplate, serializedGridTemplateValue);
+    assert_equals(root.style.gridTemplateAreas, valueGridAreas);
+  }, `grid-template: ${valueGridTemplate} and "grid-template-areas: ${valueGridAreas};" should be valid.`);
+}
+
+testValidGridTemplate("none / 1px",  "\"a\"", "");
+testValidGridTemplate("none / none", "\"a\"", "");
+testValidGridTemplate("auto / 1px", "\"a a a\"", "\"a a a\" / 1px");
+testValidGridTemplate("auto / auto", "\"a a a\"", "\"a a a\" / auto");
+testValidGridTemplate("10px 20px 30px / 40px 50px 60px 70px",
+                      "\"a . b .\" \"c d . e\" \"f g h .\"",
+                      "\"a . b .\" 10px \"c d . e\" 20px \"f g h .\" 30px / 40px 50px 60px 70px");
+</script>
+</body>
+</html>

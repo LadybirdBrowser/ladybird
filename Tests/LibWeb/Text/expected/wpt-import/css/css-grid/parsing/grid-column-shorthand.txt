@@ -1,0 +1,59 @@
+Summary
+
+Harness status: OK
+
+Rerun
+
+Found 48 tests
+
+36 Pass
+12 Fail
+Details
+Result	Test Name	MessagePass	e.style['grid-column'] = "auto / auto" should set grid-column-end	
+Pass	e.style['grid-column'] = "auto / auto" should set grid-column-start	
+Pass	e.style['grid-column'] = "auto / auto" should not set unrelated longhands	
+Pass	e.style['grid-column'] = "auto" should set grid-column-end	
+Pass	e.style['grid-column'] = "auto" should set grid-column-start	
+Pass	e.style['grid-column'] = "auto" should not set unrelated longhands	
+Pass	e.style['grid-column'] = "10 / auto" should set grid-column-end	
+Pass	e.style['grid-column'] = "10 / auto" should set grid-column-start	
+Pass	e.style['grid-column'] = "10 / auto" should not set unrelated longhands	
+Pass	e.style['grid-column'] = "10" should set grid-column-end	
+Pass	e.style['grid-column'] = "10" should set grid-column-start	
+Pass	e.style['grid-column'] = "10" should not set unrelated longhands	
+Pass	e.style['grid-column'] = "-10 / auto" should set grid-column-end	
+Pass	e.style['grid-column'] = "-10 / auto" should set grid-column-start	
+Pass	e.style['grid-column'] = "-10 / auto" should not set unrelated longhands	
+Pass	e.style['grid-column'] = "-10" should set grid-column-end	
+Pass	e.style['grid-column'] = "-10" should set grid-column-start	
+Pass	e.style['grid-column'] = "-10" should not set unrelated longhands	
+Pass	e.style['grid-column'] = "span 2 / auto" should set grid-column-end	
+Pass	e.style['grid-column'] = "span 2 / auto" should set grid-column-start	
+Pass	e.style['grid-column'] = "span 2 / auto" should not set unrelated longhands	
+Pass	e.style['grid-column'] = "span 2" should set grid-column-end	
+Pass	e.style['grid-column'] = "span 2" should set grid-column-start	
+Pass	e.style['grid-column'] = "span 2" should not set unrelated longhands	
+Pass	e.style['grid-column'] = "3 last / auto" should set grid-column-end	
+Fail	e.style['grid-column'] = "3 last / auto" should set grid-column-start	
+Pass	e.style['grid-column'] = "3 last / auto" should not set unrelated longhands	
+Fail	e.style['grid-column'] = "3 last" should set grid-column-end	
+Fail	e.style['grid-column'] = "3 last" should set grid-column-start	
+Pass	e.style['grid-column'] = "3 last" should not set unrelated longhands	
+Fail	e.style['grid-column'] = "span first / auto" should set grid-column-end	
+Fail	e.style['grid-column'] = "span first / auto" should set grid-column-start	
+Fail	e.style['grid-column'] = "span first / auto" should not set unrelated longhands	
+Fail	e.style['grid-column'] = "span first" should set grid-column-end	
+Fail	e.style['grid-column'] = "span first" should set grid-column-start	
+Fail	e.style['grid-column'] = "span first" should not set unrelated longhands	
+Pass	e.style['grid-column'] = "span 2 first / auto" should set grid-column-end	
+Fail	e.style['grid-column'] = "span 2 first / auto" should set grid-column-start	
+Pass	e.style['grid-column'] = "span 2 first / auto" should not set unrelated longhands	
+Fail	e.style['grid-column'] = "span 2 first" should set grid-column-end	
+Fail	e.style['grid-column'] = "span 2 first" should set grid-column-start	
+Pass	e.style['grid-column'] = "span 2 first" should not set unrelated longhands	
+Pass	e.style['grid-column'] = "last / last" should set grid-column-end	
+Pass	e.style['grid-column'] = "last / last" should set grid-column-start	
+Pass	e.style['grid-column'] = "last / last" should not set unrelated longhands	
+Pass	e.style['grid-column'] = "last" should set grid-column-end	
+Pass	e.style['grid-column'] = "last" should set grid-column-start	
+Pass	e.style['grid-column'] = "last" should not set unrelated longhands	

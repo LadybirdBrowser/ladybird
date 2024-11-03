@@ -1,0 +1,20 @@
+Summary
+
+Harness status: OK
+
+Rerun
+
+Found 9 tests
+
+1 Pass
+8 Fail
+Details
+Result	Test Name	MessagePass	Property grid-template-areas value 'none'	
+Fail	Property grid-template-areas value '"first"'	
+Fail	Property grid-template-areas value '"first second"'	
+Fail	Property grid-template-areas value '"1st 2nd 3rd"'	
+Fail	Property grid-template-areas value '"first second" "third fourth"'	
+Fail	Property grid-template-areas value '"first second" "third ." "1st 2nd" "3rd 4th"'	
+Fail	Property grid-template-areas value '" a b "'	
+Fail	Property grid-template-areas value '"c d"'	
+Fail	Property grid-template-areas value '"first ..."'	

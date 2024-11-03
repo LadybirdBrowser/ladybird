@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS Grid Layout Test: parsing grid-area with valid values</title>
+<link rel="author" title="Eric Willigers" href="mailto:ericwilligers@chromium.org">
+<link rel="help" href="https://drafts.csswg.org/css-grid-1/#propdef-grid-area">
+<meta name="assert" content="grid-area supports the full grammar '<grid-line> [ / <grid-line> ]{0,3}'.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/parsing-testcommon.js"></script>
+</head>
+<body>
+<script>
+// auto
+test_valid_value("grid-area", "auto");
+test_valid_value("grid-area", "auto / auto", "auto");
+test_valid_value("grid-area", "auto / auto / auto", "auto");
+test_valid_value("grid-area", "auto / auto / auto / auto", "auto");
+test_valid_value("grid-area", "AuTo", "auto");
+test_valid_value("grid-row", "auto");
+test_valid_value("grid-row", "auto/auto", "auto");
+test_valid_value("grid-column-end", "AuTo", "auto");
+
+// <custom-ident>
+test_valid_value("grid-area", "--a");
+test_valid_value("grid-row", "-zπ");
+test_valid_value("grid-row", "-zπ/-zπ", "-zπ");
+test_valid_value("grid-row", "i / i", "i");
+test_valid_value("grid-row-start", "AZ");
+test_valid_value("grid-column-start", "-_π");
+test_valid_value("grid-row-end", "_9");
+
+
+// <integer> && <custom-ident>?
+test_valid_value("grid-area", "1");
+test_valid_value("grid-area", "+90 -a-", "90 -a-");
+test_valid_value("grid-row", "az 2", "2 az");
+test_valid_value("grid-column", "9");
+test_valid_value("grid-column", "-19 zA");
+test_valid_value("grid-column", "-A0 33", "33 -A0");
+test_valid_value("grid-row-start", "-19");
+test_valid_value("grid-row-start", "9 -Z_");
+test_valid_value("grid-column-start", "+90", "90");
+test_valid_value("grid-column-start", "Z -44", "-44 Z");
+test_valid_value("grid-row-end", "1 -πA");
+test_valid_value("grid-column-end", "π_ +5", "5 π_");
+
+// span && [ <integer> || <custom-ident> ]
+test_valid_value("grid-area", "span 2 i");
+test_valid_value("grid-area", "i 2 SpAn", "span 2 i");
+test_valid_value("grid-area", "span 1 i", "span i")
+test_valid_value("grid-row", "span 2");
+test_valid_value("grid-column", "i SpAn", "span i");
+test_valid_value("grid-row-start", "span i");
+test_valid_value("grid-column-start", "SpAn i 2", "span 2 i");
+test_valid_value("grid-row-end", "2 i span", "span 2 i");
+test_valid_value("grid-column-end", "2 SpAn", "span 2");
+
+// <grid-line> [ / <grid-line> ]{0,3}
+test_valid_value("grid-area", "auto / i");
+test_valid_value("grid-area", "auto / i / auto / i", "auto / i");
+test_valid_value("grid-area", "auto / i / auto / 2 i");
+test_valid_value("grid-area", "1 / i  / auto / i", "1 / i");
+test_valid_value("grid-area", "1 / auto / auto / auto", "1");
+test_valid_value("grid-area", "1 / auto / i / auto", "1 / auto / i");
+test_valid_value("grid-area", "1 / j / i / k");
+test_valid_value("grid-area", "1 / auto / 2 / auto", "1 / auto / 2");
+test_valid_value("grid-area", "1 / i / 2 / auto");
+test_valid_value("grid-area", "i / i / auto / auto");
+test_valid_value("grid-area", "i / auto / i / auto", "i / auto");
+test_valid_value("grid-area", "auto / i / 2 j");
+test_valid_value("grid-area", "auto / i / 2 j / span 3 k");
+test_valid_value("grid-row", "auto / i");
+test_valid_value("grid-row", "i / auto");
+test_valid_value("grid-row", "2 i / auto", "2 i");
+test_valid_value("grid-row", "1 / auto", "1");
+test_valid_value("grid-column", "2 j / span 3 k");
+
+// https://github.com/w3c/csswg-drafts/issues/2858
+// '\\31 st' in Blink, Firefox, EdgeHTML and Safari serialize invalid values.
+test_valid_value("grid-column-end", "\\31st", ["\\31 st", "\\31st"]);
+test_valid_value("grid-column-end", "\\31 st", ["\\31 st", "\\31st"]);
+test_valid_value("grid-column", "\\31st / \\31 st", ["\\31 st", "\\31st"]);
+
+</script>
+</body>
+</html>

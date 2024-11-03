@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<link rel="author" title="Sammy Gill" href="mailto:sammy.gill@apple.com">
+<link rel="help" href="https://drafts.csswg.org/css-grid-2/#placement-shorthands">
+<meta name="assert" content="Tests invalid values for grid-row"/>
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/parsing-testcommon.js"></script>
+</head>
+<body>
+<div id="target"></div>
+<script>
+    test_invalid_value("grid-row", "5 8");
+    test_invalid_value("grid-row", "5 /");
+    test_invalid_value("grid-row", "8 auto");
+    test_invalid_value("grid-row", "8 / /");
+    test_invalid_value("grid-row", "0 / 6");
+    test_invalid_value("grid-row", "8 / 0");
+    test_invalid_value("grid-row", "0");
+    test_invalid_value("grid-row", "span");
+    test_invalid_value("grid-row", "span / span");
+    test_invalid_value("grid-row", "span span / span span");
+    test_invalid_value("grid-row", "4 4 / 3 span");
+    test_invalid_value("grid-row", "first 4 last / 3 span");
+    test_invalid_value("grid-row", "4 / first 3 last");
+    test_invalid_value("grid-row", "first last / 3 span");
+    test_invalid_value("grid-row", "4 / first last");
+    test_invalid_value("grid-row", "span 4 4 / 3");
+    test_invalid_value("grid-row", "5 span 4 / 3");
+    test_invalid_value("grid-row", "span first last / 3");
+    test_invalid_value("grid-row", "3 / span first last");
+    test_invalid_value("grid-row", "span first last 7 / 3");
+    test_invalid_value("grid-row", "3 / span first 5 last");
+    test_invalid_value("grid-row", "1 span last 7 / 3");
+    test_invalid_value("grid-row", "3 / 5 span first 5");
+    test_invalid_value("grid-row", "-3 span / -4");
+    test_invalid_value("grid-row", "-3 / span -4");
+    test_invalid_value("grid-row", "span 0 / 0");
+    test_invalid_value("grid-row", "0 / 0 span");
+    test_invalid_value("grid-row", "last -2 span / 1 nav");
+    test_invalid_value("grid-row", "2 span first / last");
+    test_invalid_value("grid-row", "5 nav / last span 7");
+    test_invalid_value("grid-row", "5 / 3 span 3");
+</script>
+</body>
+</html>

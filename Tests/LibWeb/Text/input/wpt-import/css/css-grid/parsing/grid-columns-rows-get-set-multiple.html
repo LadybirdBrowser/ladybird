@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<link rel="author" title="Julien Chaffraix" href="mailto:jchaffraix@webkit.org">
+<link rel="help" href="https://bugs.webkit.org/show_bug.cgi?id=73272">
+<link href="/css/support/width-keyword-classes.css" rel="stylesheet">
+<link href="/css/support/grid.css" rel="stylesheet">
+<link href="/css/support/alignment.css" rel="stylesheet">
+<link rel="stylesheet" type="text/css" href="/fonts/ahem.css">
+<link rel="help" href="https://drafts.csswg.org/css-grid/#track-sizing">
+<meta name="assert" content="Test that setting and getting multiple grid-template-columns and grid-template-rows works as expected">
+<style>
+/* Give an explicit size to the grid so that percentage grid tracks have a consistent resolution. */
+.definite {
+    width: 800px;
+    height: 600px;
+}
+
+.gridItem {
+    grid-column: 1;
+    grid-row: 1;
+    width: 7px;
+    height: 16px;
+}
+
+.gridItem2 {
+    grid-column: 2;
+    grid-row: 2;
+    width: 17px;
+    height: 3px;
+}
+
+.gridWithFixed {
+    grid-template-columns: 7px 11px;
+    grid-template-rows: 17px 2px;
+}
+
+.gridWithPercent {
+    grid-template-columns: 50% 100%;
+    grid-template-rows: 25% 75%;
+}
+.gridWithAuto {
+    grid-template-columns: auto auto;
+    grid-template-rows: auto auto;
+}
+.gridWithEM {
+    grid-template-columns: 10em 12em;
+    grid-template-rows: 15em 17em;
+    font: 10px Ahem;
+}
+.gridWithNoneAndAuto {
+    grid-template-columns: none auto;
+    grid-template-rows: none auto;
+}
+.gridNoneWithAndFixed {
+    grid-template-columns: none 15px;
+    grid-template-rows: none 22px;
+}
+.gridWithThreeItems {
+    grid-template-columns: 15px auto 10em;
+    grid-template-rows: 12em 18px auto;
+    font: 10px Ahem;
+}
+.gridWithFitContentAndFitAvailable {
+    grid-template-columns: -webkit-content-available;
+    grid-template-rows: -webkit-fit-content -webkit-fit-available;
+}
+.gridWithMinMaxContent {
+    grid-template-columns: min-content max-content;
+    grid-template-rows: max-content min-content;
+}
+.gridWithMinMaxAndFixed {
+    grid-template-columns: minmax(45px, 30%) 15px;
+    grid-template-rows: 12em minmax(35%, 10px);
+    font: 10px Ahem;
+}
+.gridWithMinMaxAndMinMaxContent {
+    grid-template-columns: minmax(min-content, 30%) 15px;
+    grid-template-rows: 12em minmax(35%, max-content);
+    font: 10px Ahem;
+}
+.gridWithFractionFraction {
+    grid-template-columns: 2fr 3fr;
+    grid-template-rows: 3fr 5fr;
+}
+.gridWithFractionMinMax {
+    grid-template-columns: minmax(min-content, 45px) 2fr;
+    grid-template-rows: 3fr minmax(14px, max-content);
+}
+.gridWithCalcCalc {
+    grid-template-columns: calc(200px) calc(10em);
+    grid-template-rows: calc(15em) calc(75px);
+    font: 10px Ahem;
+}
+.gridWithCalcAndFixed {
+    grid-template-columns: calc(50%) 8em;
+    grid-template-rows: 88px calc(25%);
+    font: 10px Ahem;
+}
+.gridWithCalcAndMinMax {
+    grid-template-columns: calc(30px + 20%) minmax(min-content, 80px);
+    grid-template-rows: minmax(25%, max-content) calc(10% - 7px);
+}
+.gridWithCalcInsideMinMax {
+    grid-template-columns: minmax(calc(23px + 10%), 400px) 12em;
+    grid-template-rows: calc(150px) minmax(5%, calc(50% - 125px));
+    font: 10px Ahem;
+}
+.gridWithAutoInsideMinMax {
+    grid-template-columns: minmax(auto, min-content) 30px;
+    grid-template-rows: calc(100px + 2em) minmax(10%, auto);
+}
+</style>
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<div class="grid definite gridWithFixed" id="gridWithFixedElement"></div>
+<div class="grid definite gridWithPercent" id="gridWithPercentElement"></div>
+<div class="grid min-content gridWithPercent" id="gridWithPercentWithoutSize">
+    <div class="gridItem"></div>
+</div>
+<div class="grid definite gridWithAuto contentStart" id="gridWithAutoElement">
+    <div class="gridItem2"></div>
+</div>
+<div class="grid definite gridWithEM" id="gridWithEMElement"></div>
+<div class="grid definite gridWithNoneAndAuto" id="gridWithNoneAndAuto"></div>
+<div class="grid definite gridWithNoneAndFixed" id="gridWithNoneAndFixed"></div>
+<div class="grid definite gridWithThreeItems contentStart" id="gridWithThreeItems"></div>
+<div class="grid definite gridWithFitContentAndFitAvailable" id="gridWithFitContentAndFitAvailable"></div>
+<div class="grid definite gridWithMinMaxContent" id="gridWithMinMaxContent"></div>
+<div class="grid definite gridWithMinMaxContent" id="gridWithMinMaxContentWithChildrenElement">
+    <div class="gridItem"></div>
+    <div class="gridItem2"></div>
+</div>
+<div class="grid definite gridWithMinMaxAndFixed" id="gridWithMinMaxAndFixed"></div>
+<div class="grid definite gridWithMinMaxAndMinMaxContent" id="gridWithMinMaxAndMinMaxContent"></div>
+<div class="grid definite gridWithFractionFraction" id="gridWithFractionFraction"></div>
+<div class="grid definite gridWithFractionMinMax" id="gridWithFractionMinMax"></div>
+<div class="grid definite gridWithCalcCalc" id="gridWithCalcCalc"></div>
+<div class="grid definite gridWithCalcAndFixed" id="gridWithCalcAndFixed"></div>
+<div class="grid definite gridWithCalcAndMinMax" id="gridWithCalcAndMinMax"></div>
+<div class="grid definite gridWithCalcInsideMinMax" id="gridWithCalcInsideMinMax"></div>
+<div class="grid definite gridWithAutoInsideMinMax contentStart" id="gridWithAutoInsideMinMax"></div>
+
+<script>
+function testGridDefinitionsValues(id, columnValue, rowValue)
+{
+    test(function(){
+        var element = document.getElementById(id);
+        var readColumnValue = getComputedStyle(element).gridTemplateColumns;
+        var readRowValue = getComputedStyle(element).gridTemplateRows;
+        assert_equals(readColumnValue, columnValue);
+        assert_equals(readRowValue, rowValue);
+    }, `Test getting grid-template-columns and grid-template-rows set through CSS for element '${id}' : grid-template-columns = '${columnValue}', grid-template-rows = '${rowValue}'`);
+}
+
+function testGridDefinitionsSetJSValues(
+  columnValue,
+  rowValue,
+  computedColumnValue = columnValue,
+  computedRowValue = rowValue,
+  jsColumnValue = columnValue,
+  jsRowValue = rowValue)
+{
+    test(function(){
+        window.element = document.createElement("div");
+        document.body.appendChild(element);
+        element.style.display = "grid";
+        element.style.width = "800px";
+        element.style.height = "600px";
+        element.style.justifyContent = "start";
+        element.style.alignContent = "start";
+        element.style.font = "10px Ahem"; // Used to resolve em font consistently.
+        element.style.gridTemplateColumns = columnValue;
+        element.style.gridTemplateRows = rowValue;
+        assert_equals(getComputedStyle(element).gridTemplateColumns, computedColumnValue);
+        assert_equals(element.style.gridTemplateColumns, jsColumnValue);
+        assert_equals(getComputedStyle(element).gridTemplateRows, computedRowValue);
+        assert_equals(element.style.gridTemplateRows, jsRowValue);
+        document.body.removeChild(element);
+    }, `Test getting and setting grid-template-rows and grid-template-columns through JS: grid-template-columns = '${computedColumnValue}', element.style.gridTemplateColumns = '${columnValue}', grid-template-rows = '${computedRowValue}', element.style.gridTemplateRows = '${rowValue}'`);
+}
+
+function testGridDefinitionsSetBadJSValues(columnValue, rowValue)
+{
+    test(function(){
+        window.element = document.createElement("div");
+        document.body.appendChild(element);
+        element.style.gridTemplateColumns = columnValue;
+        element.style.gridTemplateRows = rowValue;
+        assert_equals(getComputedStyle(element).gridTemplateColumns, "none");
+        assert_equals(getComputedStyle(element).gridTemplateRows, "none");
+        document.body.removeChild(element);
+    }, `Test setting bad JS values: grid-template-columns = '${columnValue}', grid-template-rows = '${rowValue}'`);
+}
+
+function testDefaultValue()
+{
+    test(function(){
+        var element = document.createElement("div");
+        document.body.appendChild(element);
+        assert_equals(getComputedStyle(element).gridTemplateColumns, "none");
+        assert_equals(getComputedStyle(element).gridTemplateRows, "none");
+        document.body.removeChild(element);
+    }, `Test the default value`);
+}
+
+function testWrongCSSValue()
+{
+    test(function(){
+        var gridWithNoneAndAuto = document.getElementById("gridWithNoneAndAuto");
+        assert_equals(getComputedStyle(gridWithNoneAndAuto).gridTemplateColumns, "none");
+        assert_equals(getComputedStyle(gridWithNoneAndAuto).gridTemplateRows, "none");
+
+        var gridWithNoneAndFixed = document.getElementById("gridWithNoneAndFixed");
+        assert_equals(getComputedStyle(gridWithNoneAndFixed).gridTemplateColumns, "none");
+        assert_equals(getComputedStyle(gridWithNoneAndFixed).gridTemplateRows, "none");
+    }, `Test setting wrong/invalid values through CSS`);
+}
+
+function testInherit()
+{
+    test(function(){
+        var parentElement = document.createElement("div");
+        document.body.appendChild(parentElement);
+        parentElement.style.display = "grid";
+        parentElement.style.width = "800px";
+        parentElement.style.height = "600px";
+        parentElement.style.font = "10px Ahem"; // Used to resolve em font consistently.
+        parentElement.style.gridTemplateColumns = "50px 1fr [last]";
+        parentElement.style.gridTemplateRows = "2em [middle] 45px";
+        assert_equals(getComputedStyle(parentElement).gridTemplateColumns, "50px 750px [last]");
+        assert_equals(getComputedStyle(parentElement).gridTemplateRows, "20px [middle] 45px");
+
+        element = document.createElement("div");
+        parentElement.appendChild(element);
+        element.style.display = "grid";
+        element.style.gridTemplateColumns = "inherit";
+        element.style.gridTemplateRows = "inherit";
+        assert_equals(getComputedStyle(element).gridTemplateColumns, "50px 0px [last]");
+        assert_equals(getComputedStyle(element).gridTemplateRows, "20px [middle] 45px");
+
+        document.body.removeChild(parentElement);
+    }, `Test setting grid-template-columns and grid-template-rows to 'inherit' through JS`);
+}
+
+function testInitial()
+{
+    test(function(){
+        element = document.createElement("div");
+        document.body.appendChild(element);
+        element.style.display = "grid";
+        element.style.width = "800px";
+        element.style.height = "600px";
+        element.style.gridTemplateColumns = "150% [middle] 55px";
+        element.style.gridTemplateRows = "1fr [line] 2fr [line]";
+        assert_equals(getComputedStyle(element).gridTemplateColumns, "1200px [middle] 55px");
+        assert_equals(getComputedStyle(element).gridTemplateRows, "200px [line] 400px [line]");
+
+        element.style.gridTemplateColumns = "initial";
+        element.style.gridTemplateRows = "initial";
+        assert_equals(getComputedStyle(element).gridTemplateColumns, "none");
+        assert_equals(getComputedStyle(element).gridTemplateRows, "none");
+
+        document.body.removeChild(element);
+    }, `Test setting grid-template-columns and grid-template-rows to 'initial' through JS`);
+}
+
+setup({ explicit_done: true });
+document.fonts.ready.then(() => {
+    testGridDefinitionsValues("gridWithFixedElement", "7px 11px", "17px 2px");
+    testGridDefinitionsValues("gridWithPercentElement", "400px 800px", "150px 450px");
+    // This test failing in Firefox is caused by https://bugzilla.mozilla.org/show_bug.cgi?id=1481876
+    testGridDefinitionsValues("gridWithPercentWithoutSize", "3.5px 7px", "4px 12px");
+    testGridDefinitionsValues("gridWithAutoElement", "0px 17px", "0px 3px");
+    testGridDefinitionsValues("gridWithEMElement", "100px 120px", "150px 170px");
+    testGridDefinitionsValues("gridWithThreeItems", "15px 0px 100px", "120px 18px 0px");
+    testGridDefinitionsValues("gridWithFitContentAndFitAvailable", "none", "none");
+    testGridDefinitionsValues("gridWithMinMaxContent", "0px 0px", "0px 0px");
+    testGridDefinitionsValues("gridWithMinMaxContentWithChildrenElement", "7px 17px", "16px 3px");
+    testGridDefinitionsValues("gridWithMinMaxAndFixed", "240px 15px", "120px 210px");
+    testGridDefinitionsValues("gridWithMinMaxAndMinMaxContent", "240px 15px", "120px 210px");
+    testGridDefinitionsValues("gridWithFractionFraction", "320px 480px", "225px 375px");
+    testGridDefinitionsValues("gridWithFractionMinMax", "45px 755px", "586px 14px");
+    testGridDefinitionsValues("gridWithCalcCalc", "200px 100px", "150px 75px");
+    testGridDefinitionsValues("gridWithCalcAndFixed", "400px 80px", "88px 150px");
+    testGridDefinitionsValues("gridWithCalcAndMinMax", "190px 80px", "150px 53px");
+    testGridDefinitionsValues("gridWithCalcInsideMinMax", "400px 120px", "150px 175px");
+    testGridDefinitionsValues("gridWithAutoInsideMinMax", "0px 30px", "132px 60px");
+
+    testGridDefinitionsSetJSValues("18px 22px", "66px 70px");
+    testGridDefinitionsSetJSValues("55% 80%", "40% 63%", "440px 640px", "240px 378px");
+    testGridDefinitionsSetJSValues("auto auto", "auto auto", "0px 0px", "0px 0px");
+    testGridDefinitionsSetJSValues("auto 16em 22px", "56% 10em auto", "0px 160px 22px", "336px 100px 0px");
+    testGridDefinitionsSetJSValues("16em minmax(16px, 20px)", "minmax(10%, 15%) auto", "160px 20px", "90px 0px");
+    testGridDefinitionsSetJSValues("16em 2fr", "14fr auto", "160px 640px", "600px 0px");
+    testGridDefinitionsSetJSValues("calc(25px) calc(2em)", "auto calc(10%)", "25px 20px", "0px 60px", "calc(25px) calc(2em)", "auto calc(10%)");
+    // This test failing in Chromium is caused by https://bugs.chromium.org/p/chromium/issues/detail?id=1050968
+    testGridDefinitionsSetJSValues("calc(25px + 40%) minmax(min-content, calc(10% + 12px))", "minmax(calc(75% - 350px), max-content) auto", "345px 92px", "100px 0px", "calc(40% + 25px) minmax(min-content, calc(10% + 12px))", "minmax(calc(75% - 350px), max-content) auto");
+
+    testWrongCSSValue();
+
+    testGridDefinitionsSetBadJSValues("none auto", "none auto");
+    testGridDefinitionsSetBadJSValues("none 16em", "none 56%");
+    testGridDefinitionsSetBadJSValues("none none", "none none");
+    testGridDefinitionsSetBadJSValues("auto none", "auto none");
+    testGridDefinitionsSetBadJSValues("auto none 16em", "auto 18em none");
+    testGridDefinitionsSetBadJSValues("-webkit-fit-content -webkit-fit-content", "-webkit-fit-available -webkit-fit-available");
+    // Negative values are not allowed.
+    testGridDefinitionsSetBadJSValues("-10px minmax(16px, 32px)", "minmax(10%, 15%) -10vw");
+    testGridDefinitionsSetBadJSValues("10px minmax(16px, -1vw)", "minmax(-1%, 15%) 10vw");
+    // Invalid expressions with calc
+    testGridDefinitionsSetBadJSValues("10px calc(16px 30px)", "calc(25px + auto) 2em");
+    testGridDefinitionsSetBadJSValues("minmax(min-content, calc() 250px", "calc(2em(");
+
+    testInherit();
+
+    testDefaultValue()
+
+    testInitial();
+
+    done();
+});
+</script>

@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>CSS Grid Layout Test: getComputedStyle().gridTemplateColumns</title>
+<link rel="author" title="Oriol Brufau" href="mailto:obrufau@igalia.com">
+<link rel="help" href="https://drafts.csswg.org/css-grid/#resolved-track-list" title="7.2.6. Resolved Value of a Track Listing">
+<meta name="assert" content="Checks the resolved value of grid-template-columns on a grid container.">
+<style>
+#target {
+  display: grid;
+  width: 1px;
+  font-size: 1px;
+}
+</style>
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/computed-testcommon.js"></script>
+<div id="target"></div>
+<script>
+test_computed_value("grid-template-columns", "none");
+test_computed_value("grid-template-columns", "1px");
+test_computed_value("grid-template-columns", "1px [a]");
+test_computed_value("grid-template-columns", "1px [a] 2px");
+test_computed_value("grid-template-columns", "[a] 1px");
+test_computed_value("grid-template-columns", "[a] 1px [b]");
+test_computed_value("grid-template-columns", "1px repeat(1, 2px) 3px", "1px 2px 3px");
+test_computed_value("grid-template-columns", "1px repeat(auto-fill, 2px) 3px", "1px 2px 3px");
+test_computed_value("grid-template-columns", "1px repeat(auto-fit, 2px) 3px", "1px 0px 3px");
+test_computed_value("grid-template-columns", "1px [a] repeat(1, 2px 3px) [b] 4px", "1px [a] 2px 3px [b] 4px");
+test_computed_value("grid-template-columns", "1px [a] repeat(auto-fill, 2px 3px) [b] 4px", "1px [a] 2px 3px [b] 4px");
+test_computed_value("grid-template-columns", "1px [a] repeat(auto-fit, 2px 3px) [b] 4px", "1px [a] 0px 0px [b] 4px");
+test_computed_value("grid-template-columns", "1px [a] repeat(1, [b] 2px [c]) [d] 3px", "1px [a b] 2px [c d] 3px");
+test_computed_value("grid-template-columns", "1px [a] repeat(auto-fill, [b] 2px [c]) [d] 3px", "1px [a b] 2px [c d] 3px");
+test_computed_value("grid-template-columns", "1px [a] repeat(auto-fit, [b] 2px [c]) [d] 3px", "1px [a b] 0px [c d] 3px");
+test_computed_value("grid-template-columns", "[a] 1px repeat(1, 2px [b] 3px) 4px [d]", "[a] 1px 2px [b] 3px 4px [d]");
+test_computed_value("grid-template-columns", "[a] 1px repeat(auto-fill, 2px [b] 3px) 4px [d]", "[a] 1px 2px [b] 3px 4px [d]");
+test_computed_value("grid-template-columns", "[a] 1px repeat(auto-fit, 2px [b] 3px) 4px [d]", "[a] 1px 0px [b] 0px 4px [d]");
+test_computed_value("grid-template-columns", "100% [a] repeat(1, [b] 200% [c]) [d] 300%", "1px [a b] 2px [c d] 3px");
+test_computed_value("grid-template-columns", "100% [a] repeat(auto-fill, [b] 200% [c]) [d] 300%", "1px [a b] 2px [c d] 3px");
+test_computed_value("grid-template-columns", "100% [a] repeat(auto-fit, [b] 200% [c]) [d] 300%", "1px [a b] 0px [c d] 3px");
+test_computed_value("grid-template-columns", "[a] 1em repeat(1, 2em [b] 3em) 4em [d]", "[a] 1px 2px [b] 3px 4px [d]");
+test_computed_value("grid-template-columns", "[a] 1em repeat(auto-fill, 2em [b] 3em) 4em [d]", "[a] 1px 2px [b] 3px 4px [d]");
+test_computed_value("grid-template-columns", "[a] 1em repeat(auto-fit, 2em [b] 3em) 4em [d]", "[a] 1px 0px [b] 0px 4px [d]");
+</script>

@@ -1,0 +1,18 @@
+Summary
+
+Harness status: OK
+
+Rerun
+
+Found 7 tests
+
+4 Pass
+3 Fail
+Details
+Result	Test Name	MessagePass	e.style['grid-auto-flow'] = "row" should set the property value	
+Pass	e.style['grid-auto-flow'] = "column" should set the property value	
+Fail	e.style['grid-auto-flow'] = "row dense" should set the property value	
+Fail	e.style['grid-auto-flow'] = "dense row" should set the property value	
+Fail	e.style['grid-auto-flow'] = "dense" should set the property value	
+Pass	e.style['grid-auto-flow'] = "column dense" should set the property value	
+Pass	e.style['grid-auto-flow'] = "dense column" should set the property value	
