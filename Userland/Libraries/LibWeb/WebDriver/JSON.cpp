@@ -12,7 +12,9 @@
 #include <AK/NumericLimits.h>
 #include <AK/Variant.h>
 #include <LibJS/Runtime/Array.h>
+#include <LibJS/Runtime/JSONObject.h>
 #include <LibWeb/DOM/DOMTokenList.h>
+#include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/HTMLCollection.h>
 #include <LibWeb/DOM/NodeList.h>
 #include <LibWeb/DOM/ShadowRoot.h>
@@ -66,9 +68,13 @@ static bool is_collection(JS::Object const& value)
 }
 
 // https://w3c.github.io/webdriver/#dfn-clone-an-object
-static Response clone_an_object(HTML::BrowsingContext const& browsing_context, JS::Object const& value, SeenMap& seen, auto const& clone_algorithm)
+template<typename ResultType, typename CloneAlgorithm>
+static ErrorOr<ResultType, WebDriver::Error> clone_an_object(HTML::BrowsingContext const& browsing_context, JS::Object const& value, SeenMap& seen, CloneAlgorithm const& clone_algorithm)
 {
-    auto& vm = browsing_context.vm();
+    static constexpr bool is_json_value = IsSame<ResultType, JsonValue>;
+
+    auto& realm = browsing_context.active_document()->realm();
+    auto& vm = realm.vm();
 
     // 1. If value is in seen, return error with error code javascript error.
     if (seen.contains(value))
@@ -78,7 +84,7 @@ static Response clone_an_object(HTML::BrowsingContext const& browsing_context, J
     seen.set(value);
 
     // 3. Let result be the value of the first matching statement, matching on value:
-    auto result = TRY(([&]() -> Response {
+    auto result = TRY(([&]() -> ErrorOr<ResultType, WebDriver::Error> {
         // -> a collection
         if (is_collection(value)) {
             // A new Array which length property is equal to the result of getting the property length of value.
@@ -88,12 +94,18 @@ static Response clone_an_object(HTML::BrowsingContext const& browsing_context, J
             if (length > NumericLimits<u32>::max())
                 return WebDriver::Error::from_code(ErrorCode::JavascriptError, "Length of Object too large"sv);
 
-            return JsonValue { JsonArray { length } };
+            if constexpr (is_json_value)
+                return JsonArray { length };
+            else
+                return TRY_OR_JS_ERROR(JS::Array::create(realm, length));
         }
         // -> Otherwise
         else {
             // A new Object.
-            return JsonValue { JsonObject {} };
+            if constexpr (is_json_value)
+                return JsonObject {};
+            else
+                return JS::Object::create(realm, realm.intrinsics().object_prototype());
         }
     }()));
 
@@ -119,10 +131,14 @@ static Response clone_an_object(HTML::BrowsingContext const& browsing_context, J
         // 4. If cloned property result is a success, set a property of result with name name and value equal to cloned
         //    property result's data.
         if (!cloned_property_result.is_error()) {
-            if (result.is_array() && name.is_number())
-                result.as_array().set(name.as_number(), cloned_property_result.value());
-            else if (result.is_object())
-                result.as_object().set(name.to_string(), cloned_property_result.value());
+            if constexpr (is_json_value) {
+                if (result.is_array() && name.is_number())
+                    result.as_array().set(name.as_number(), cloned_property_result.value());
+                else if (result.is_object())
+                    result.as_object().set(name.to_string(), cloned_property_result.value());
+            } else {
+                (void)result->set(name, cloned_property_result.value(), JS::Object::ShouldThrowExceptions::No);
+            }
         }
         // 5. Otherwise, return cloned property result.
         else {
@@ -246,7 +262,7 @@ static Response internal_json_clone(HTML::BrowsingContext const& browsing_contex
 
     // -> Otherwise
     // 1. Let result be clone an object with session value and seen, and internal JSON clone as the clone algorithm.
-    auto result = TRY(clone_an_object(browsing_context, object, seen, internal_json_clone));
+    auto result = TRY(clone_an_object<JsonValue>(browsing_context, object, seen, internal_json_clone));
 
     // 2. Return success with data result.
     return result;
@@ -259,6 +275,66 @@ Response json_clone(HTML::BrowsingContext const& browsing_context, JS::Value val
 
     // To JSON clone given session and value, return the result of internal JSON clone with session, value and an empty List.
     return internal_json_clone(browsing_context, value, seen);
+}
+
+// https://w3c.github.io/webdriver/#dfn-json-deserialize
+static ErrorOr<JS::Value, WebDriver::Error> internal_json_deserialize(HTML::BrowsingContext const& browsing_context, JS::Value value, SeenMap& seen)
+{
+    // 1. If seen is not provided, let seen be an empty List.
+    // 2. Jump to the first appropriate step below:
+    // 3. Matching on value:
+    // -> undefined
+    // -> null
+    // -> type Boolean
+    // -> type Number
+    // -> type String
+    if (value.is_nullish() || value.is_boolean() || value.is_number() || value.is_string()) {
+        // Return success with data value.
+        return value;
+    }
+
+    // -> Object that represents a web element
+    if (represents_a_web_element(value)) {
+        // Return the deserialized web element of value.
+        return deserialize_web_element(browsing_context, value.as_object());
+    }
+
+    // -> Object that represents a shadow root
+    if (represents_a_shadow_root(value)) {
+        // Return the deserialized shadow root of value.
+        return deserialize_shadow_root(browsing_context, value.as_object());
+    }
+
+    // -> Object that represents a web frame
+    if (represents_a_web_frame(value)) {
+        // Return the deserialized web frame of value.
+        return deserialize_web_frame(value.as_object());
+    }
+
+    // -> Object that represents a web window
+    if (represents_a_web_window(value)) {
+        // Return the deserialized web window of value.
+        return deserialize_web_window(value.as_object());
+    }
+
+    // -> instance of Array
+    // -> instance of Object
+    if (value.is_object()) {
+        // Return clone an object algorithm with session, value and seen, and the JSON deserialize algorithm as the
+        // clone algorithm.
+        return clone_an_object<JS::NonnullGCPtr<JS::Object>>(browsing_context, value.as_object(), seen, internal_json_deserialize);
+    }
+
+    return WebDriver::Error::from_code(ErrorCode::JavascriptError, "Unrecognized value type"sv);
+}
+
+// https://w3c.github.io/webdriver/#dfn-json-deserialize
+ErrorOr<JS::Value, WebDriver::Error> json_deserialize(HTML::BrowsingContext const& browsing_context, JsonValue const& value)
+{
+    auto& vm = browsing_context.vm();
+
+    SeenMap seen;
+    return internal_json_deserialize(browsing_context, JS::JSONObject::parse_json_value(vm, value), seen);
 }
 
 }

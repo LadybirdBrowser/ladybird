@@ -14,5 +14,6 @@
 namespace Web::WebDriver {
 
 Response json_clone(HTML::BrowsingContext const&, JS::Value);
+ErrorOr<JS::Value, WebDriver::Error> json_deserialize(HTML::BrowsingContext const&, JsonValue const&);
 
 }
