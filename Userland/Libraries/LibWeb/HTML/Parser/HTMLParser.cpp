@@ -1089,42 +1089,72 @@ AnythingElse:
     process_using_the_rules_for(m_insertion_mode, token);
 }
 
+// https://html.spec.whatwg.org/multipage/parsing.html#parsing-main-inheadnoscript
 void HTMLParser::handle_in_head_noscript(HTMLToken& token)
 {
+    // -> A DOCTYPE token
     if (token.is_doctype()) {
+        // Parse error. Ignore the token.
         log_parse_error();
         return;
     }
 
+    // -> A start tag whose tag name is "html"
     if (token.is_start_tag() && token.tag_name() == HTML::TagNames::html) {
+        // Process the token using the rules for the "in body" insertion mode.
         process_using_the_rules_for(InsertionMode::InBody, token);
         return;
     }
 
+    // -> An end tag whose tag name is "noscript"
     if (token.is_end_tag() && token.tag_name() == HTML::TagNames::noscript) {
+        // Pop the current node (which will be a noscript element) from the stack of open elements;
+        // the new current node will be a head element.
         (void)m_stack_of_open_elements.pop();
+
+        // Switch the insertion mode to "in head".
         m_insertion_mode = InsertionMode::InHead;
         return;
     }
 
-    if (token.is_parser_whitespace() || token.is_comment() || (token.is_start_tag() && token.tag_name().is_one_of(HTML::TagNames::basefont, HTML::TagNames::bgsound, HTML::TagNames::link, HTML::TagNames::meta, HTML::TagNames::noframes, HTML::TagNames::style))) {
+    // -> A character token that is one of U+0009 CHARACTER TABULATION, U+000A LINE FEED (LF), U+000C FORM FEED (FF), U+000D CARRIAGE RETURN (CR), or U+0020 SPACE
+    // -> A comment token
+    // -> A start tag whose tag name is one of: "basefont", "bgsound", "link", "meta", "noframes", "style"
+    if (token.is_parser_whitespace()
+        || token.is_comment()
+        || (token.is_start_tag() && token.tag_name().is_one_of(HTML::TagNames::basefont, HTML::TagNames::bgsound, HTML::TagNames::link, HTML::TagNames::meta, HTML::TagNames::noframes, HTML::TagNames::style))) {
+        // Process the token using the rules for the "in head" insertion mode.
         process_using_the_rules_for(InsertionMode::InHead, token);
         return;
     }
 
+    // -> An end tag whose tag name is "br"
     if (token.is_end_tag() && token.tag_name() == HTML::TagNames::br) {
+        // Act as described in the "anything else" entry below.
         goto AnythingElse;
     }
 
-    if (token.is_start_tag() && token.tag_name().is_one_of(HTML::TagNames::head, HTML::TagNames::noscript)) {
+    // -> A start tag whose tag name is one of: "head", "noscript"
+    // -> Any other end tag
+    if ((token.is_start_tag() && token.tag_name().is_one_of(HTML::TagNames::head, HTML::TagNames::noscript))
+        || token.is_end_tag()) {
+        // Parse error. Ignore the token.
         log_parse_error();
         return;
     }
 
+    // -> Anything else
 AnythingElse:
+    // Parse error.
     log_parse_error();
+
+    // Pop the current node (which will be a noscript element) from the stack of open elements; the new current node will be a head element.
     (void)m_stack_of_open_elements.pop();
+
+    // Switch the insertion mode to "in head".
     m_insertion_mode = InsertionMode::InHead;
+
+    // Reprocess the token.
     process_using_the_rules_for(m_insertion_mode, token);
 }
 
