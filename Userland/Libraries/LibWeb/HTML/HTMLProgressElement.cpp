@@ -127,9 +127,9 @@ void HTMLProgressElement::computed_css_values_changed()
     auto palette = document().page().palette();
     auto accent_color = palette.color(ColorRole::Accent).to_string();
 
-    auto accent_color_property = computed_css_values()->property(CSS::PropertyID::AccentColor);
-    if (accent_color_property->has_color())
-        accent_color = accent_color_property->to_string();
+    auto const& accent_color_property = computed_css_values()->property(CSS::PropertyID::AccentColor);
+    if (accent_color_property.has_color())
+        accent_color = accent_color_property.to_string();
 
     if (m_progress_value_element)
         MUST(m_progress_value_element->style_for_bindings()->set_property(CSS::PropertyID::BackgroundColor, accent_color));

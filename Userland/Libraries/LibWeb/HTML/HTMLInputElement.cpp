@@ -140,7 +140,7 @@ void HTMLInputElement::adjust_computed_style(CSS::StyleProperties& style)
         style.set_property(CSS::PropertyID::Display, CSS::DisplayStyleValue::create(CSS::Display::from_short(CSS::Display::Short::InlineBlock)));
 
     if (type_state() != TypeAttributeState::FileUpload) {
-        if (style.property(CSS::PropertyID::Width)->has_auto())
+        if (style.property(CSS::PropertyID::Width).has_auto())
             style.set_property(CSS::PropertyID::Width, CSS::LengthStyleValue::create(CSS::Length(size(), CSS::Length::Type::Ch)));
     }
 
@@ -1131,9 +1131,9 @@ void HTMLInputElement::computed_css_values_changed()
     auto palette = document().page().palette();
     auto accent_color = palette.color(ColorRole::Accent).to_string();
 
-    auto accent_color_property = computed_css_values()->property(CSS::PropertyID::AccentColor);
-    if (accent_color_property->has_color())
-        accent_color = accent_color_property->to_string();
+    auto const& accent_color_property = computed_css_values()->property(CSS::PropertyID::AccentColor);
+    if (accent_color_property.has_color())
+        accent_color = accent_color_property.to_string();
 
     if (m_slider_progress_element)
         MUST(m_slider_progress_element->style_for_bindings()->set_property(CSS::PropertyID::BackgroundColor, accent_color));

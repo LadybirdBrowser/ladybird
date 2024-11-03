@@ -320,32 +320,32 @@ void NodeWithStyle::apply_style(const CSS::StyleProperties& computed_style)
     //       m_font is used by Length::to_px() when resolving sizes against this layout node.
     //       That's why it has to be set before everything else.
     computed_values.set_font_list(computed_style.computed_font_list());
-    computed_values.set_font_size(computed_style.property(CSS::PropertyID::FontSize)->as_length().length().to_px(*this));
-    computed_values.set_font_weight(round_to<int>(computed_style.property(CSS::PropertyID::FontWeight)->as_number().number()));
+    computed_values.set_font_size(computed_style.property(CSS::PropertyID::FontSize).as_length().length().to_px(*this));
+    computed_values.set_font_weight(round_to<int>(computed_style.property(CSS::PropertyID::FontWeight).as_number().number()));
     computed_values.set_line_height(computed_style.line_height());
 
     computed_values.set_vertical_align(computed_style.vertical_align());
 
     {
-        auto attachments = computed_style.property(CSS::PropertyID::BackgroundAttachment);
-        auto clips = computed_style.property(CSS::PropertyID::BackgroundClip);
-        auto images = computed_style.property(CSS::PropertyID::BackgroundImage);
-        auto origins = computed_style.property(CSS::PropertyID::BackgroundOrigin);
-        auto x_positions = computed_style.property(CSS::PropertyID::BackgroundPositionX);
-        auto y_positions = computed_style.property(CSS::PropertyID::BackgroundPositionY);
-        auto repeats = computed_style.property(CSS::PropertyID::BackgroundRepeat);
-        auto sizes = computed_style.property(CSS::PropertyID::BackgroundSize);
+        auto const& attachments = computed_style.property(CSS::PropertyID::BackgroundAttachment);
+        auto const& clips = computed_style.property(CSS::PropertyID::BackgroundClip);
+        auto const& images = computed_style.property(CSS::PropertyID::BackgroundImage);
+        auto const& origins = computed_style.property(CSS::PropertyID::BackgroundOrigin);
+        auto const& x_positions = computed_style.property(CSS::PropertyID::BackgroundPositionX);
+        auto const& y_positions = computed_style.property(CSS::PropertyID::BackgroundPositionY);
+        auto const& repeats = computed_style.property(CSS::PropertyID::BackgroundRepeat);
+        auto const& sizes = computed_style.property(CSS::PropertyID::BackgroundSize);
 
-        auto count_layers = [](auto maybe_style_value) -> size_t {
-            if (maybe_style_value->is_value_list())
-                return maybe_style_value->as_value_list().size();
+        auto count_layers = [](auto const& maybe_style_value) -> size_t {
+            if (maybe_style_value.is_value_list())
+                return maybe_style_value.as_value_list().size();
             else
                 return 1;
         };
 
-        auto value_for_layer = [](auto& style_value, size_t layer_index) -> RefPtr<CSS::CSSStyleValue const> {
-            if (style_value->is_value_list())
-                return style_value->as_value_list().value_at(layer_index, true);
+        auto value_for_layer = [](auto const& style_value, size_t layer_index) -> RefPtr<CSS::CSSStyleValue const> {
+            if (style_value.is_value_list())
+                return style_value.as_value_list().value_at(layer_index, true);
             return style_value;
         };
 
@@ -467,33 +467,33 @@ void NodeWithStyle::apply_style(const CSS::StyleProperties& computed_style)
     if (auto maybe_font_variation_settings = computed_style.font_variation_settings(); maybe_font_variation_settings.has_value())
         computed_values.set_font_variation_settings(maybe_font_variation_settings.release_value());
 
-    auto border_bottom_left_radius = computed_style.property(CSS::PropertyID::BorderBottomLeftRadius);
-    if (border_bottom_left_radius->is_border_radius()) {
+    auto const& border_bottom_left_radius = computed_style.property(CSS::PropertyID::BorderBottomLeftRadius);
+    if (border_bottom_left_radius.is_border_radius()) {
         computed_values.set_border_bottom_left_radius(
             CSS::BorderRadiusData {
-                border_bottom_left_radius->as_border_radius().horizontal_radius(),
-                border_bottom_left_radius->as_border_radius().vertical_radius() });
+                border_bottom_left_radius.as_border_radius().horizontal_radius(),
+                border_bottom_left_radius.as_border_radius().vertical_radius() });
     }
-    auto border_bottom_right_radius = computed_style.property(CSS::PropertyID::BorderBottomRightRadius);
-    if (border_bottom_right_radius->is_border_radius()) {
+    auto const& border_bottom_right_radius = computed_style.property(CSS::PropertyID::BorderBottomRightRadius);
+    if (border_bottom_right_radius.is_border_radius()) {
         computed_values.set_border_bottom_right_radius(
             CSS::BorderRadiusData {
-                border_bottom_right_radius->as_border_radius().horizontal_radius(),
-                border_bottom_right_radius->as_border_radius().vertical_radius() });
+                border_bottom_right_radius.as_border_radius().horizontal_radius(),
+                border_bottom_right_radius.as_border_radius().vertical_radius() });
     }
-    auto border_top_left_radius = computed_style.property(CSS::PropertyID::BorderTopLeftRadius);
-    if (border_top_left_radius->is_border_radius()) {
+    auto const& border_top_left_radius = computed_style.property(CSS::PropertyID::BorderTopLeftRadius);
+    if (border_top_left_radius.is_border_radius()) {
         computed_values.set_border_top_left_radius(
             CSS::BorderRadiusData {
-                border_top_left_radius->as_border_radius().horizontal_radius(),
-                border_top_left_radius->as_border_radius().vertical_radius() });
+                border_top_left_radius.as_border_radius().horizontal_radius(),
+                border_top_left_radius.as_border_radius().vertical_radius() });
     }
-    auto border_top_right_radius = computed_style.property(CSS::PropertyID::BorderTopRightRadius);
-    if (border_top_right_radius->is_border_radius()) {
+    auto const& border_top_right_radius = computed_style.property(CSS::PropertyID::BorderTopRightRadius);
+    if (border_top_right_radius.is_border_radius()) {
         computed_values.set_border_top_right_radius(
             CSS::BorderRadiusData {
-                border_top_right_radius->as_border_radius().horizontal_radius(),
-                border_top_right_radius->as_border_radius().vertical_radius() });
+                border_top_right_radius.as_border_radius().horizontal_radius(),
+                border_top_right_radius.as_border_radius().vertical_radius() });
     }
     computed_values.set_display(computed_style.display());
 
@@ -669,9 +669,9 @@ void NodeWithStyle::apply_style(const CSS::StyleProperties& computed_style)
     if (auto list_style_type = computed_style.list_style_type(); list_style_type.has_value())
         computed_values.set_list_style_type(list_style_type.value());
 
-    auto list_style_image = computed_style.property(CSS::PropertyID::ListStyleImage);
-    if (list_style_image->is_abstract_image()) {
-        m_list_style_image = list_style_image->as_abstract_image();
+    auto const& list_style_image = computed_style.property(CSS::PropertyID::ListStyleImage);
+    if (list_style_image.is_abstract_image()) {
+        m_list_style_image = list_style_image.as_abstract_image();
         const_cast<CSS::AbstractImageStyleValue&>(*m_list_style_image).load_any_resources(document());
     }
 
@@ -717,12 +717,12 @@ void NodeWithStyle::apply_style(const CSS::StyleProperties& computed_style)
         computed_values.set_transform_box(transform_box.value());
     computed_values.set_transform_origin(computed_style.transform_origin());
 
-    auto transition_delay_property = computed_style.property(CSS::PropertyID::TransitionDelay);
-    if (transition_delay_property->is_time()) {
-        auto& transition_delay = transition_delay_property->as_time();
+    auto const& transition_delay_property = computed_style.property(CSS::PropertyID::TransitionDelay);
+    if (transition_delay_property.is_time()) {
+        auto const& transition_delay = transition_delay_property.as_time();
         computed_values.set_transition_delay(transition_delay.time());
-    } else if (transition_delay_property->is_math()) {
-        auto& transition_delay = transition_delay_property->as_math();
+    } else if (transition_delay_property.is_math()) {
+        auto const& transition_delay = transition_delay_property.as_math();
         computed_values.set_transition_delay(transition_delay.resolve_time().value());
     }
 
@@ -742,14 +742,14 @@ void NodeWithStyle::apply_style(const CSS::StyleProperties& computed_style)
             border.width = 0;
         } else {
             auto resolve_border_width = [&]() -> CSSPixels {
-                auto value = computed_style.property(width_property);
-                if (value->is_math())
-                    return max(CSSPixels { 0 }, value->as_math().resolve_length(*this)->to_px(*this));
-                if (value->is_length())
-                    return value->as_length().length().to_px(*this);
-                if (value->is_keyword()) {
+                auto const& value = computed_style.property(width_property);
+                if (value.is_math())
+                    return max(CSSPixels { 0 }, value.as_math().resolve_length(*this)->to_px(*this));
+                if (value.is_length())
+                    return value.as_length().length().to_px(*this);
+                if (value.is_keyword()) {
                     // https://www.w3.org/TR/css-backgrounds-3/#valdef-line-width-thin
-                    switch (value->to_keyword()) {
+                    switch (value.to_keyword()) {
                     case CSS::Keyword::Thin:
                         return 1;
                     case CSS::Keyword::Medium:
@@ -772,14 +772,14 @@ void NodeWithStyle::apply_style(const CSS::StyleProperties& computed_style)
     do_border_style(computed_values.border_right(), CSS::PropertyID::BorderRightWidth, CSS::PropertyID::BorderRightColor, CSS::PropertyID::BorderRightStyle);
     do_border_style(computed_values.border_bottom(), CSS::PropertyID::BorderBottomWidth, CSS::PropertyID::BorderBottomColor, CSS::PropertyID::BorderBottomStyle);
 
-    if (auto outline_color = computed_style.property(CSS::PropertyID::OutlineColor); outline_color->has_color())
-        computed_values.set_outline_color(outline_color->to_color(*this));
-    if (auto outline_offset = computed_style.property(CSS::PropertyID::OutlineOffset); outline_offset->is_length())
-        computed_values.set_outline_offset(outline_offset->as_length().length());
-    if (auto outline_style = computed_style.outline_style(); outline_style.has_value())
+    if (auto const& outline_color = computed_style.property(CSS::PropertyID::OutlineColor); outline_color.has_color())
+        computed_values.set_outline_color(outline_color.to_color(*this));
+    if (auto const& outline_offset = computed_style.property(CSS::PropertyID::OutlineOffset); outline_offset.is_length())
+        computed_values.set_outline_offset(outline_offset.as_length().length());
+    if (auto const& outline_style = computed_style.outline_style(); outline_style.has_value())
         computed_values.set_outline_style(outline_style.value());
-    if (auto outline_width = computed_style.property(CSS::PropertyID::OutlineWidth); outline_width->is_length())
-        computed_values.set_outline_width(outline_width->as_length().length());
+    if (auto const& outline_width = computed_style.property(CSS::PropertyID::OutlineWidth); outline_width.is_length())
+        computed_values.set_outline_width(outline_width.as_length().length());
 
     computed_values.set_grid_auto_columns(computed_style.grid_auto_columns());
     computed_values.set_grid_auto_rows(computed_style.grid_auto_rows());
@@ -807,39 +807,39 @@ void NodeWithStyle::apply_style(const CSS::StyleProperties& computed_style)
     if (auto y_value = computed_style.length_percentage(CSS::PropertyID::Y); y_value.has_value())
         computed_values.set_y(*y_value);
 
-    auto fill = computed_style.property(CSS::PropertyID::Fill);
-    if (fill->has_color())
-        computed_values.set_fill(fill->to_color(*this));
-    else if (fill->is_url())
-        computed_values.set_fill(fill->as_url().url());
-    auto stroke = computed_style.property(CSS::PropertyID::Stroke);
-    if (stroke->has_color())
-        computed_values.set_stroke(stroke->to_color(*this));
-    else if (stroke->is_url())
-        computed_values.set_stroke(stroke->as_url().url());
-    if (auto stop_color = computed_style.property(CSS::PropertyID::StopColor); stop_color->has_color())
-        computed_values.set_stop_color(stop_color->to_color(*this));
-    auto stroke_width = computed_style.property(CSS::PropertyID::StrokeWidth);
+    auto const& fill = computed_style.property(CSS::PropertyID::Fill);
+    if (fill.has_color())
+        computed_values.set_fill(fill.to_color(*this));
+    else if (fill.is_url())
+        computed_values.set_fill(fill.as_url().url());
+    auto const& stroke = computed_style.property(CSS::PropertyID::Stroke);
+    if (stroke.has_color())
+        computed_values.set_stroke(stroke.to_color(*this));
+    else if (stroke.is_url())
+        computed_values.set_stroke(stroke.as_url().url());
+    if (auto const& stop_color = computed_style.property(CSS::PropertyID::StopColor); stop_color.has_color())
+        computed_values.set_stop_color(stop_color.to_color(*this));
+    auto const& stroke_width = computed_style.property(CSS::PropertyID::StrokeWidth);
     // FIXME: Converting to pixels isn't really correct - values should be in "user units"
     //        https://svgwg.org/svg2-draft/coords.html#TermUserUnits
-    if (stroke_width->is_number())
-        computed_values.set_stroke_width(CSS::Length::make_px(CSSPixels::nearest_value_for(stroke_width->as_number().number())));
-    else if (stroke_width->is_length())
-        computed_values.set_stroke_width(stroke_width->as_length().length());
-    else if (stroke_width->is_percentage())
-        computed_values.set_stroke_width(CSS::LengthPercentage { stroke_width->as_percentage().percentage() });
+    if (stroke_width.is_number())
+        computed_values.set_stroke_width(CSS::Length::make_px(CSSPixels::nearest_value_for(stroke_width.as_number().number())));
+    else if (stroke_width.is_length())
+        computed_values.set_stroke_width(stroke_width.as_length().length());
+    else if (stroke_width.is_percentage())
+        computed_values.set_stroke_width(CSS::LengthPercentage { stroke_width.as_percentage().percentage() });
 
     if (auto mask_type = computed_style.mask_type(); mask_type.has_value())
         computed_values.set_mask_type(*mask_type);
 
-    if (auto mask = computed_style.property(CSS::PropertyID::Mask); mask->is_url())
-        computed_values.set_mask(mask->as_url().url());
+    if (auto const& mask = computed_style.property(CSS::PropertyID::Mask); mask.is_url())
+        computed_values.set_mask(mask.as_url().url());
 
-    auto clip_path = computed_style.property(CSS::PropertyID::ClipPath);
-    if (clip_path->is_url())
-        computed_values.set_clip_path(clip_path->as_url().url());
-    else if (clip_path->is_basic_shape())
-        computed_values.set_clip_path(clip_path->as_basic_shape());
+    auto const& clip_path = computed_style.property(CSS::PropertyID::ClipPath);
+    if (clip_path.is_url())
+        computed_values.set_clip_path(clip_path.as_url().url());
+    else if (clip_path.is_basic_shape())
+        computed_values.set_clip_path(clip_path.as_basic_shape());
 
     if (auto clip_rule = computed_style.clip_rule(); clip_rule.has_value())
         computed_values.set_clip_rule(*clip_rule);
@@ -861,8 +861,8 @@ void NodeWithStyle::apply_style(const CSS::StyleProperties& computed_style)
     if (auto text_anchor = computed_style.text_anchor(); text_anchor.has_value())
         computed_values.set_text_anchor(*text_anchor);
 
-    if (auto column_count = computed_style.property(CSS::PropertyID::ColumnCount); column_count->is_integer())
-        computed_values.set_column_count(CSS::ColumnCount::make_integer(column_count->as_integer().integer()));
+    if (auto const& column_count = computed_style.property(CSS::PropertyID::ColumnCount); column_count.is_integer())
+        computed_values.set_column_count(CSS::ColumnCount::make_integer(column_count.as_integer().integer()));
 
     if (auto column_span = computed_style.column_span(); column_span.has_value())
         computed_values.set_column_span(column_span.value());
@@ -878,31 +878,31 @@ void NodeWithStyle::apply_style(const CSS::StyleProperties& computed_style)
     if (auto table_layout = computed_style.table_layout(); table_layout.has_value())
         computed_values.set_table_layout(table_layout.value());
 
-    auto aspect_ratio = computed_style.property(CSS::PropertyID::AspectRatio);
-    if (aspect_ratio->is_value_list()) {
-        auto& values_list = aspect_ratio->as_value_list().values();
+    auto const& aspect_ratio = computed_style.property(CSS::PropertyID::AspectRatio);
+    if (aspect_ratio.is_value_list()) {
+        auto const& values_list = aspect_ratio.as_value_list().values();
         if (values_list.size() == 2
             && values_list[0]->is_keyword() && values_list[0]->as_keyword().keyword() == CSS::Keyword::Auto
             && values_list[1]->is_ratio()) {
             computed_values.set_aspect_ratio({ true, values_list[1]->as_ratio().ratio() });
         }
-    } else if (aspect_ratio->is_keyword() && aspect_ratio->as_keyword().keyword() == CSS::Keyword::Auto) {
+    } else if (aspect_ratio.is_keyword() && aspect_ratio.as_keyword().keyword() == CSS::Keyword::Auto) {
         computed_values.set_aspect_ratio({ true, {} });
-    } else if (aspect_ratio->is_ratio()) {
+    } else if (aspect_ratio.is_ratio()) {
         // https://drafts.csswg.org/css-sizing-4/#aspect-ratio
         // If the <ratio> is degenerate, the property instead behaves as auto.
-        if (aspect_ratio->as_ratio().ratio().is_degenerate())
+        if (aspect_ratio.as_ratio().ratio().is_degenerate())
             computed_values.set_aspect_ratio({ true, {} });
         else
-            computed_values.set_aspect_ratio({ false, aspect_ratio->as_ratio().ratio() });
+            computed_values.set_aspect_ratio({ false, aspect_ratio.as_ratio().ratio() });
     }
 
-    auto math_shift_value = computed_style.property(CSS::PropertyID::MathShift);
-    if (auto math_shift = keyword_to_math_shift(math_shift_value->to_keyword()); math_shift.has_value())
+    auto const& math_shift_value = computed_style.property(CSS::PropertyID::MathShift);
+    if (auto math_shift = keyword_to_math_shift(math_shift_value.to_keyword()); math_shift.has_value())
         computed_values.set_math_shift(math_shift.value());
 
-    auto math_style_value = computed_style.property(CSS::PropertyID::MathStyle);
-    if (auto math_style = keyword_to_math_style(math_style_value->to_keyword()); math_style.has_value())
+    auto const& math_style_value = computed_style.property(CSS::PropertyID::MathStyle);
+    if (auto math_style = keyword_to_math_style(math_style_value.to_keyword()); math_style.has_value())
         computed_values.set_math_style(math_style.value());
 
     computed_values.set_math_depth(computed_style.math_depth());

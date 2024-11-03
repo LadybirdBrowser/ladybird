@@ -76,8 +76,8 @@ public:
         No,
         Yes,
     };
-    NonnullRefPtr<CSSStyleValue const> property(CSS::PropertyID, WithAnimationsApplied = WithAnimationsApplied::Yes) const;
-    RefPtr<CSSStyleValue const> maybe_null_property(CSS::PropertyID) const;
+    CSSStyleValue const& property(CSS::PropertyID, WithAnimationsApplied = WithAnimationsApplied::Yes) const;
+    CSSStyleValue const* maybe_null_property(CSS::PropertyID) const;
     void revert_property(CSS::PropertyID, StyleProperties const& style_for_revert);
 
     JS::GCPtr<CSS::CSSStyleDeclaration const> animation_name_source() const { return m_data->m_animation_name_source; }
