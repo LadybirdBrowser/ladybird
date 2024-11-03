@@ -131,7 +131,9 @@ Web::WebDriver::Response Session::close_window()
         ScopeGuard guard { [this] { m_windows.remove(m_current_window_handle); m_current_window_handle = "NoSuchWindowPleaseSelectANewOne"_string; } };
 
         // 3. Close the current top-level browsing context.
-        TRY(web_content_connection().close_window());
+        TRY(perform_async_action([&](auto& connection) {
+            return connection.close_window();
+        }));
 
         // 4. If there are no more open top-level browsing contexts, then close the session.
         if (m_windows.size() == 1)

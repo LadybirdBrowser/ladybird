@@ -253,7 +253,10 @@ Web::WebDriver::Response Client::get_current_url(Web::WebDriver::Parameters para
 {
     dbgln_if(WEBDRIVER_DEBUG, "Handling GET /session/<session_id>/url");
     auto session = TRY(find_session_with_id(parameters[0]));
-    return session->web_content_connection().get_current_url();
+
+    return session->perform_async_action([&](auto& connection) {
+        return connection.get_current_url();
+    });
 }
 
 // 10.3 Back, https://w3c.github.io/webdriver/#dfn-back
@@ -262,7 +265,10 @@ Web::WebDriver::Response Client::back(Web::WebDriver::Parameters parameters, Jso
 {
     dbgln_if(WEBDRIVER_DEBUG, "Handling POST /session/<session_id>/back");
     auto session = TRY(find_session_with_id(parameters[0]));
-    return session->web_content_connection().back();
+
+    return session->perform_async_action([&](auto& connection) {
+        return connection.back();
+    });
 }
 
 // 10.4 Forward, https://w3c.github.io/webdriver/#dfn-forward
@@ -271,7 +277,10 @@ Web::WebDriver::Response Client::forward(Web::WebDriver::Parameters parameters, 
 {
     dbgln_if(WEBDRIVER_DEBUG, "Handling POST /session/<session_id>/forward");
     auto session = TRY(find_session_with_id(parameters[0]));
-    return session->web_content_connection().forward();
+
+    return session->perform_async_action([&](auto& connection) {
+        return connection.forward();
+    });
 }
 
 // 10.5 Refresh, https://w3c.github.io/webdriver/#dfn-refresh
@@ -280,7 +289,10 @@ Web::WebDriver::Response Client::refresh(Web::WebDriver::Parameters parameters, 
 {
     dbgln_if(WEBDRIVER_DEBUG, "Handling POST /session/<session_id>/refresh");
     auto session = TRY(find_session_with_id(parameters[0]));
-    return session->web_content_connection().refresh();
+
+    return session->perform_async_action([&](auto& connection) {
+        return connection.refresh();
+    });
 }
 
 // 10.6 Get Title, https://w3c.github.io/webdriver/#dfn-get-title
@@ -289,7 +301,10 @@ Web::WebDriver::Response Client::get_title(Web::WebDriver::Parameters parameters
 {
     dbgln_if(WEBDRIVER_DEBUG, "Handling GET /session/<session_id>/title");
     auto session = TRY(find_session_with_id(parameters[0]));
-    return session->web_content_connection().get_title();
+
+    return session->perform_async_action([&](auto& connection) {
+        return connection.get_title();
+    });
 }
 
 // 11.1 Get Window Handle, https://w3c.github.io/webdriver/#get-window-handle
@@ -350,9 +365,12 @@ Web::WebDriver::Response Client::new_window(Web::WebDriver::Parameters parameter
 {
     dbgln_if(WEBDRIVER_DEBUG, "Handling POST /session/<session_id>/window/new");
     auto session = TRY(find_session_with_id(parameters[0]));
-    auto handle = TRY(session->web_content_connection().new_window(payload));
 
-    constexpr u32 CONNECTION_TIMEOUT_MS = 5000;
+    auto handle = TRY(session->perform_async_action([&](auto& connection) {
+        return connection.new_window(move(payload));
+    }));
+
+    static constexpr u32 CONNECTION_TIMEOUT_MS = 5000;
     auto timeout_fired = false;
     auto timer = Core::Timer::create_single_shot(CONNECTION_TIMEOUT_MS, [&timeout_fired] { timeout_fired = true; });
     timer->start();
@@ -373,7 +391,10 @@ Web::WebDriver::Response Client::switch_to_frame(Web::WebDriver::Parameters para
 {
     dbgln_if(WEBDRIVER_DEBUG, "Handling POST /session/<session_id>/frame");
     auto session = TRY(find_session_with_id(parameters[0]));
-    return session->web_content_connection().switch_to_frame(move(payload));
+
+    return session->perform_async_action([&](auto& connection) {
+        return connection.switch_to_frame(move(payload));
+    });
 }
 
 // 11.7 Switch To Parent Frame, https://w3c.github.io/webdriver/#dfn-switch-to-parent-frame
@@ -382,7 +403,10 @@ Web::WebDriver::Response Client::switch_to_parent_frame(Web::WebDriver::Paramete
 {
     dbgln_if(WEBDRIVER_DEBUG, "Handling POST /session/<session_id>/frame/parent");
     auto session = TRY(find_session_with_id(parameters[0]));
-    return session->web_content_connection().switch_to_parent_frame(move(payload));
+
+    return session->perform_async_action([&](auto& connection) {
+        return connection.switch_to_parent_frame(move(payload));
+    });
 }
 
 // 11.8.1 Get Window Rect, https://w3c.github.io/webdriver/#dfn-get-window-rect
@@ -391,7 +415,10 @@ Web::WebDriver::Response Client::get_window_rect(Web::WebDriver::Parameters para
 {
     dbgln_if(WEBDRIVER_DEBUG, "Handling GET /session/<session_id>/window/rect");
     auto session = TRY(find_session_with_id(parameters[0]));
-    return session->web_content_connection().get_window_rect();
+
+    return session->perform_async_action([&](auto& connection) {
+        return connection.get_window_rect();
+    });
 }
 
 // 11.8.2 Set Window Rect, https://w3c.github.io/webdriver/#dfn-set-window-rect
@@ -529,7 +556,10 @@ Web::WebDriver::Response Client::get_active_element(Web::WebDriver::Parameters p
 {
     dbgln_if(WEBDRIVER_DEBUG, "Handling GET /session/<session_id>/element/active");
     auto session = TRY(find_session_with_id(parameters[0]));
-    return session->web_content_connection().get_active_element();
+
+    return session->perform_async_action([&](auto& connection) {
+        return connection.get_active_element();
+    });
 }
 
 // 12.3.9 Get Element Shadow Root, https://w3c.github.io/webdriver/#get-element-shadow-root
@@ -538,7 +568,10 @@ Web::WebDriver::Response Client::get_element_shadow_root(Web::WebDriver::Paramet
 {
     dbgln_if(WEBDRIVER_DEBUG, "Handling GET /session/<session_id>/element/<element_id>/shadow");
     auto session = TRY(find_session_with_id(parameters[0]));
-    return session->web_content_connection().get_element_shadow_root(move(parameters[1]));
+
+    return session->perform_async_action([&](auto& connection) {
+        return connection.get_element_shadow_root(move(parameters[1]));
+    });
 }
 
 // 12.4.1 Is Element Selected, https://w3c.github.io/webdriver/#dfn-is-element-selected
@@ -547,7 +580,10 @@ Web::WebDriver::Response Client::is_element_selected(Web::WebDriver::Parameters 
 {
     dbgln_if(WEBDRIVER_DEBUG, "Handling GET /session/<session_id>/element/<element_id>/selected");
     auto session = TRY(find_session_with_id(parameters[0]));
-    return session->web_content_connection().is_element_selected(move(parameters[1]));
+
+    return session->perform_async_action([&](auto& connection) {
+        return connection.is_element_selected(move(parameters[1]));
+    });
 }
 
 // 12.4.2 Get Element Attribute, https://w3c.github.io/webdriver/#dfn-get-element-attribute
@@ -556,7 +592,10 @@ Web::WebDriver::Response Client::get_element_attribute(Web::WebDriver::Parameter
 {
     dbgln_if(WEBDRIVER_DEBUG, "Handling GET /session/<session_id>/element/<element_id>/attribute/<name>");
     auto session = TRY(find_session_with_id(parameters[0]));
-    return session->web_content_connection().get_element_attribute(move(parameters[1]), move(parameters[2]));
+
+    return session->perform_async_action([&](auto& connection) {
+        return connection.get_element_attribute(move(parameters[1]), move(parameters[2]));
+    });
 }
 
 // 12.4.3 Get Element Property, https://w3c.github.io/webdriver/#dfn-get-element-property
@@ -565,7 +604,10 @@ Web::WebDriver::Response Client::get_element_property(Web::WebDriver::Parameters
 {
     dbgln_if(WEBDRIVER_DEBUG, "Handling GET /session/<session_id>/element/<element_id>/property/<name>");
     auto session = TRY(find_session_with_id(parameters[0]));
-    return session->web_content_connection().get_element_property(move(parameters[1]), move(parameters[2]));
+
+    return session->perform_async_action([&](auto& connection) {
+        return connection.get_element_property(move(parameters[1]), move(parameters[2]));
+    });
 }
 
 // 12.4.4 Get Element CSS Value, https://w3c.github.io/webdriver/#dfn-get-element-css-value
@@ -574,7 +616,10 @@ Web::WebDriver::Response Client::get_element_css_value(Web::WebDriver::Parameter
 {
     dbgln_if(WEBDRIVER_DEBUG, "Handling GET /session/<session_id>/element/<element_id>/css/<property_name>");
     auto session = TRY(find_session_with_id(parameters[0]));
-    return session->web_content_connection().get_element_css_value(move(parameters[1]), move(parameters[2]));
+
+    return session->perform_async_action([&](auto& connection) {
+        return connection.get_element_css_value(move(parameters[1]), move(parameters[2]));
+    });
 }
 
 // 12.4.5 Get Element Text, https://w3c.github.io/webdriver/#dfn-get-element-text
@@ -583,7 +628,10 @@ Web::WebDriver::Response Client::get_element_text(Web::WebDriver::Parameters par
 {
     dbgln_if(WEBDRIVER_DEBUG, "Handling GET /session/<session_id>/element/<element_id>/text");
     auto session = TRY(find_session_with_id(parameters[0]));
-    return session->web_content_connection().get_element_text(move(parameters[1]));
+
+    return session->perform_async_action([&](auto& connection) {
+        return connection.get_element_text(move(parameters[1]));
+    });
 }
 
 // 12.4.6 Get Element Tag Name, https://w3c.github.io/webdriver/#dfn-get-element-tag-name
@@ -592,7 +640,10 @@ Web::WebDriver::Response Client::get_element_tag_name(Web::WebDriver::Parameters
 {
     dbgln_if(WEBDRIVER_DEBUG, "Handling GET /session/<session_id>/element/<element_id>/name");
     auto session = TRY(find_session_with_id(parameters[0]));
-    return session->web_content_connection().get_element_tag_name(move(parameters[1]));
+
+    return session->perform_async_action([&](auto& connection) {
+        return connection.get_element_tag_name(move(parameters[1]));
+    });
 }
 
 // 12.4.7 Get Element Rect, https://w3c.github.io/webdriver/#dfn-get-element-rect
@@ -601,7 +652,10 @@ Web::WebDriver::Response Client::get_element_rect(Web::WebDriver::Parameters par
 {
     dbgln_if(WEBDRIVER_DEBUG, "Handling GET /session/<session_id>/element/<element_id>/rect");
     auto session = TRY(find_session_with_id(parameters[0]));
-    return session->web_content_connection().get_element_rect(move(parameters[1]));
+
+    return session->perform_async_action([&](auto& connection) {
+        return connection.get_element_rect(move(parameters[1]));
+    });
 }
 
 // 12.4.8 Is Element Enabled, https://w3c.github.io/webdriver/#dfn-is-element-enabled
@@ -610,7 +664,10 @@ Web::WebDriver::Response Client::is_element_enabled(Web::WebDriver::Parameters p
 {
     dbgln_if(WEBDRIVER_DEBUG, "Handling GET /session/<session_id>/element/<element_id>/enabled");
     auto session = TRY(find_session_with_id(parameters[0]));
-    return session->web_content_connection().is_element_enabled(move(parameters[1]));
+
+    return session->perform_async_action([&](auto& connection) {
+        return connection.is_element_enabled(move(parameters[1]));
+    });
 }
 
 // 12.4.9 https://w3c.github.io/webdriver/#dfn-get-computed-role
@@ -619,7 +676,10 @@ Web::WebDriver::Response Client::get_computed_role(Web::WebDriver::Parameters pa
 {
     dbgln_if(WEBDRIVER_DEBUG, "Handling GET /session/<session id>/element/<element id>/computedrole");
     auto session = TRY(find_session_with_id(parameters[0]));
-    return session->web_content_connection().get_computed_role(move(parameters[1]));
+
+    return session->perform_async_action([&](auto& connection) {
+        return connection.get_computed_role(move(parameters[1]));
+    });
 }
 
 // 12.4.10 Get Computed Label, https://w3c.github.io/webdriver/#get-computed-label
@@ -628,7 +688,10 @@ Web::WebDriver::Response Client::get_computed_label(Web::WebDriver::Parameters p
 {
     dbgln_if(WEBDRIVER_DEBUG, "Handling GET /session/<session id>/element/<element id>/computedlabel");
     auto session = TRY(find_session_with_id(parameters[0]));
-    return session->web_content_connection().get_computed_label(move(parameters[1]));
+
+    return session->perform_async_action([&](auto& connection) {
+        return connection.get_computed_label(move(parameters[1]));
+    });
 }
 
 // 12.5.1 Element Click, https://w3c.github.io/webdriver/#element-click
@@ -649,7 +712,10 @@ Web::WebDriver::Response Client::element_clear(Web::WebDriver::Parameters parame
 {
     dbgln_if(WEBDRIVER_DEBUG, "Handling POST /session/<session_id>/element/<element_id>/clear");
     auto session = TRY(find_session_with_id(parameters[0]));
-    return session->web_content_connection().element_clear(move(parameters[1]));
+
+    return session->perform_async_action([&](auto& connection) {
+        return connection.element_clear(move(parameters[1]));
+    });
 }
 
 // 12.5.3 Element Send Keys, https://w3c.github.io/webdriver/#dfn-element-send-keys
@@ -670,7 +736,10 @@ Web::WebDriver::Response Client::get_source(Web::WebDriver::Parameters parameter
 {
     dbgln_if(WEBDRIVER_DEBUG, "Handling GET /session/<session_id>/source");
     auto session = TRY(find_session_with_id(parameters[0]));
-    return session->web_content_connection().get_source();
+
+    return session->perform_async_action([&](auto& connection) {
+        return connection.get_source();
+    });
 }
 
 // 13.2.1 Execute Script, https://w3c.github.io/webdriver/#dfn-execute-script
@@ -703,7 +772,10 @@ Web::WebDriver::Response Client::get_all_cookies(Web::WebDriver::Parameters para
 {
     dbgln_if(WEBDRIVER_DEBUG, "Handling GET /session/<session_id>/cookie");
     auto session = TRY(find_session_with_id(parameters[0]));
-    return session->web_content_connection().get_all_cookies();
+
+    return session->perform_async_action([&](auto& connection) {
+        return connection.get_all_cookies();
+    });
 }
 
 // 14.2 Get Named Cookie, https://w3c.github.io/webdriver/#dfn-get-named-cookie
@@ -712,7 +784,10 @@ Web::WebDriver::Response Client::get_named_cookie(Web::WebDriver::Parameters par
 {
     dbgln_if(WEBDRIVER_DEBUG, "Handling GET /session/<session_id>/cookie/<name>");
     auto session = TRY(find_session_with_id(parameters[0]));
-    return session->web_content_connection().get_named_cookie(move(parameters[1]));
+
+    return session->perform_async_action([&](auto& connection) {
+        return connection.get_named_cookie(move(parameters[1]));
+    });
 }
 
 // 14.3 Add Cookie, https://w3c.github.io/webdriver/#dfn-adding-a-cookie
@@ -721,7 +796,10 @@ Web::WebDriver::Response Client::add_cookie(Web::WebDriver::Parameters parameter
 {
     dbgln_if(WEBDRIVER_DEBUG, "Handling POST /session/<session_id>/cookie");
     auto session = TRY(find_session_with_id(parameters[0]));
-    return session->web_content_connection().add_cookie(payload);
+
+    return session->perform_async_action([&](auto& connection) {
+        return connection.add_cookie(move(payload));
+    });
 }
 
 // 14.4 Delete Cookie, https://w3c.github.io/webdriver/#dfn-delete-cookie
@@ -730,7 +808,10 @@ Web::WebDriver::Response Client::delete_cookie(Web::WebDriver::Parameters parame
 {
     dbgln_if(WEBDRIVER_DEBUG, "Handling DELETE /session/<session_id>/cookie/<name>");
     auto session = TRY(find_session_with_id(parameters[0]));
-    return session->web_content_connection().delete_cookie(move(parameters[1]));
+
+    return session->perform_async_action([&](auto& connection) {
+        return connection.delete_cookie(move(parameters[1]));
+    });
 }
 
 // 14.5 Delete All Cookies, https://w3c.github.io/webdriver/#dfn-delete-all-cookies
@@ -739,7 +820,10 @@ Web::WebDriver::Response Client::delete_all_cookies(Web::WebDriver::Parameters p
 {
     dbgln_if(WEBDRIVER_DEBUG, "Handling DELETE /session/<session_id>/cookie");
     auto session = TRY(find_session_with_id(parameters[0]));
-    return session->web_content_connection().delete_all_cookies();
+
+    return session->perform_async_action([&](auto& connection) {
+        return connection.delete_all_cookies();
+    });
 }
 
 // 15.7 Perform Actions, https://w3c.github.io/webdriver/#perform-actions
