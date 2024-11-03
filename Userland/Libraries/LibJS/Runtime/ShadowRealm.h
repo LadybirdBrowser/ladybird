@@ -42,5 +42,6 @@ ThrowCompletionOr<void> copy_name_and_length(VM&, FunctionObject& function, Func
 ThrowCompletionOr<Value> perform_shadow_realm_eval(VM&, StringView source_text, Realm& caller_realm, Realm& eval_realm);
 ThrowCompletionOr<Value> shadow_realm_import_value(VM&, ByteString specifier_string, ByteString export_name_string, Realm& caller_realm, Realm& eval_realm, ExecutionContext& eval_context);
 ThrowCompletionOr<Value> get_wrapped_value(VM&, Realm& caller_realm, Value);
+NonnullOwnPtr<ExecutionContext> get_shadow_realm_context(Realm& shadow_realm, bool strict_eval);
 
 }
