@@ -1778,10 +1778,11 @@ void HTMLParser::handle_in_body(HTMLToken& token)
         // Parse error.
         log_parse_error();
 
-        // If the stack of open elements has only one node on it, or if the second element on the stack of open elements is not a body element, then ignore the token. (fragment case)
+        // If the stack of open elements has only one node on it, or if the second element on the stack of open elements is not a body element, then ignore the token.
+        // (fragment case or there is a template element on the stack)
         if (m_stack_of_open_elements.elements().size() == 1
             || m_stack_of_open_elements.elements().at(1)->local_name() != HTML::TagNames::body) {
-            VERIFY(m_parsing_fragment);
+            VERIFY(m_parsing_fragment || m_stack_of_open_elements.contains(HTML::TagNames::template_));
             return;
         }
 
