@@ -36,6 +36,7 @@ bool code_point_has_identifier_start_property(u32 code_point);
 bool code_point_has_identifier_continue_property(u32 code_point);
 bool code_point_has_regional_indicator_property(u32 code_point);
 bool code_point_has_variation_selector_property(u32 code_point);
+bool code_point_has_white_space_property(u32 code_point);
 
 bool is_ecma262_property(Property);
 

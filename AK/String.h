@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2018-2022, Andreas Kling <andreas@ladybird.org>
- * Copyright (c) 2023, Tim Flynn <trflynn89@serenityos.org>
+ * Copyright (c) 2023-2024, Tim Flynn <trflynn89@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -144,6 +144,7 @@ public:
 
     ErrorOr<String> trim(Utf8View const& code_points_to_trim, TrimMode mode = TrimMode::Both) const;
     ErrorOr<String> trim(StringView code_points_to_trim, TrimMode mode = TrimMode::Both) const;
+    ErrorOr<String> trim_whitespace(TrimMode mode = TrimMode::Both) const;
     ErrorOr<String> trim_ascii_whitespace(TrimMode mode = TrimMode::Both) const;
 
     ErrorOr<Vector<String>> split_limit(u32 separator, size_t limit, SplitBehavior = SplitBehavior::Nothing) const;

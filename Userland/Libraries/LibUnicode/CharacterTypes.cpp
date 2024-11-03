@@ -231,6 +231,11 @@ bool code_point_has_variation_selector_property(u32 code_point)
     return code_point_has_property(code_point, UCHAR_VARIATION_SELECTOR);
 }
 
+bool code_point_has_white_space_property(u32 code_point)
+{
+    return code_point_has_property(code_point, UCHAR_WHITE_SPACE);
+}
+
 // https://tc39.es/ecma262/#table-binary-unicode-properties
 bool is_ecma262_property(Property property)
 {
