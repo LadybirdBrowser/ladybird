@@ -7,6 +7,7 @@
 #include <AK/Badge.h>
 #include <AK/IDAllocator.h>
 #include <AK/NonnullOwnPtr.h>
+#include <LibCore/ElapsedTimer.h>
 #include <LibCore/EventLoop.h>
 #include <LibCore/Proxy.h>
 #include <LibCore/Socket.h>
@@ -598,7 +599,16 @@ void ConnectionFromClient::ensure_connection(URL::URL const& url, ::RequestServe
     }
 
     if (cache_level == CacheLevel::ResolveOnly) {
-        dbgln("FIXME: EnsureConnection: Implement ResolveOnly cache level");
+        [[maybe_unused]] auto promise = m_resolver->dns.lookup(url.serialized_host().value().to_byte_string(), DNS::Messages::Class::IN, Array { DNS::Messages::ResourceType::A, DNS::Messages::ResourceType::AAAA }.span());
+        if constexpr (REQUESTSERVER_DEBUG) {
+            Core::ElapsedTimer timer;
+            timer.start();
+            promise->when_resolved([url, timer](auto const& results) -> ErrorOr<void> {
+                dbgln("ensure_connection::ResolveOnly({}) OK {} entrie(s) in {}ms", url, results->cached_addresses().size(), timer.elapsed());
+                return {};
+            });
+            promise->when_rejected([url](auto const&) { dbgln("ensure_connection::ResolveOnly({}) rejected", url); });
+        }
     }
 }
 
