@@ -14,7 +14,6 @@
 #include <AK/Time.h>
 #include <AK/Vector.h>
 #include <LibCore/File.h>
-#include <LibJS/Runtime/JSONObject.h>
 #include <LibJS/Runtime/Value.h>
 #include <LibWeb/CSS/CSSStyleValue.h>
 #include <LibWeb/CSS/PropertyID.h>
@@ -2816,41 +2815,6 @@ void WebDriverConnection::find(Web::WebDriver::LocationStrategy location_strateg
     m_element_locator->search_for_element();
 }
 
-// https://w3c.github.io/webdriver/#dfn-json-deserialize
-static ErrorOr<JS::Value, Web::WebDriver::Error> json_deserialize(JS::VM& vm, Web::HTML::BrowsingContext const& browsing_context, JsonValue const& value)
-{
-    // 1. If seen is not provided, let seen be an empty List.
-    // 2. Jump to the first appropriate step below:
-    // 3. Matching on value:
-    // -> undefined
-    // -> null
-    // -> type Boolean
-    // -> type Number
-    // -> type String
-    if (value.is_null() || value.is_bool() || value.is_number() || value.is_string()) {
-        // Return success with data value.
-        return JS::JSONObject::parse_json_value(vm, value);
-    }
-
-    // -> Object that represents a web element
-    if (Web::WebDriver::represents_a_web_element(value)) {
-        // Return the deserialized web element of value.
-        return Web::WebDriver::deserialize_web_element(browsing_context, value.as_object());
-    }
-
-    // FIXME: -> Object that represents a shadow root
-    //     Return the deserialized shadow root of value.
-    // FIXME: -> Object that represents a web frame
-    //     Return the deserialized web frame of value.
-    // FIXME: -> Object that represents a web window
-    //     Return the deserialized web window of value.
-    // FIXME: -> instance of Array
-    // FIXME: -> instance of Object
-    //     Return clone an object algorithm with session, value and seen, and the JSON deserialize algorithm as the clone algorithm.
-    dbgln("FIXME: Implement JSON deserialize for: {}", value);
-    return JS::JSONObject::parse_json_value(vm, value);
-}
-
 // https://w3c.github.io/webdriver/#dfn-extract-the-script-arguments-from-a-request
 ErrorOr<WebDriverConnection::ScriptArguments, Web::WebDriver::Error> WebDriverConnection::extract_the_script_arguments_from_a_request(JS::VM& vm, JsonValue const& payload)
 {
@@ -2866,10 +2830,13 @@ ErrorOr<WebDriverConnection::ScriptArguments, Web::WebDriver::Error> WebDriverCo
     auto const& args = *TRY(Web::WebDriver::get_property<JsonArray const*>(payload, "args"sv));
 
     // 5. Let arguments be the result of calling the JSON deserialize algorithm with arguments args.
-    auto arguments = JS::MarkedVector<JS::Value> { vm.heap() };
+    JS::MarkedVector<JS::Value> arguments { vm.heap() };
+    auto& browsing_context = current_browsing_context();
 
-    TRY(args.try_for_each([&](auto const& arg) -> ErrorOr<void, Web::WebDriver::Error> {
-        arguments.append(TRY(json_deserialize(vm, current_browsing_context(), arg)));
+    TRY(args.try_for_each([&](JsonValue const& arg) -> ErrorOr<void, Web::WebDriver::Error> {
+        auto deserialized = TRY(Web::WebDriver::json_deserialize(browsing_context, arg));
+        arguments.append(deserialized);
+
         return {};
     }));
 
