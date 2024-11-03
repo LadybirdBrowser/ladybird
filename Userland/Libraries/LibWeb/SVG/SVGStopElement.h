@@ -13,6 +13,7 @@
 
 namespace Web::SVG {
 
+// https://svgwg.org/svg2-draft/pservers.html#GradientStops
 class SVGStopElement final : public SVGElement {
     WEB_PLATFORM_OBJECT(SVGStopElement, SVGElement);
     JS_DECLARE_ALLOCATOR(SVGStopElement);
@@ -36,7 +37,6 @@ private:
     virtual void initialize(JS::Realm&) override;
 
     Optional<NumberPercentage> m_offset;
-    Optional<Gfx::Color> m_color;
 };
 
 }

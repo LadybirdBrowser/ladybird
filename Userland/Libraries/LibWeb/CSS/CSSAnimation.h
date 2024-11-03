@@ -20,9 +20,6 @@ class CSSAnimation : public Animations::Animation {
 public:
     static JS::NonnullGCPtr<CSSAnimation> create(JS::Realm&);
 
-    JS::GCPtr<DOM::Element> owning_element() const override { return m_owning_element; }
-    void set_owning_element(JS::GCPtr<DOM::Element> value) { m_owning_element = value; }
-
     FlyString const& animation_name() const { return id(); }
 
     virtual Animations::AnimationClass animation_class() const override;
@@ -32,12 +29,8 @@ private:
     explicit CSSAnimation(JS::Realm&);
 
     virtual void initialize(JS::Realm&) override;
-    virtual void visit_edges(Cell::Visitor&) override;
 
     virtual bool is_css_animation() const override { return true; }
-
-    // https://www.w3.org/TR/css-animations-2/#owning-element-section
-    JS::GCPtr<DOM::Element> m_owning_element;
 };
 
 }

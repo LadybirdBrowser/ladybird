@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2020, Matthew Olsson <mattco@serenityos.org>
+ * Copyright (c) 2024, Andreas Kling <andreas@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -160,10 +161,29 @@ RegExpObject::RegExpObject(Object& prototype)
 {
 }
 
+static RegExpObject::Flags to_flag_bits(StringView flags)
+{
+    RegExpObject::Flags flag_bits = static_cast<RegExpObject::Flags>(0);
+    for (auto ch : flags) {
+        switch (ch) {
+#define __JS_ENUMERATE(FlagName, flagName, flag_name, flag_char) \
+    case #flag_char[0]:                                          \
+        flag_bits |= RegExpObject::Flags::FlagName;              \
+        break;
+            JS_ENUMERATE_REGEXP_FLAGS
+#undef __JS_ENUMERATE
+        default:
+            break;
+        }
+    }
+    return flag_bits;
+}
+
 RegExpObject::RegExpObject(Regex<ECMA262> regex, ByteString pattern, ByteString flags, Object& prototype)
     : Object(ConstructWithPrototypeTag::Tag, prototype)
     , m_pattern(move(pattern))
     , m_flags(move(flags))
+    , m_flag_bits(to_flag_bits(m_flags))
     , m_regex(move(regex))
 {
     VERIFY(m_regex->parser_result.error == regex::Error::NoError);
@@ -228,6 +248,7 @@ ThrowCompletionOr<NonnullGCPtr<RegExpObject>> RegExpObject::regexp_initialize(VM
     m_pattern = move(pattern);
 
     // 17. Set obj.[[OriginalFlags]] to F.
+    m_flag_bits = to_flag_bits(flags);
     m_flags = move(flags);
 
     // 18. Let capturingGroupsCount be CountLeftCapturingParensWithin(parseResult).

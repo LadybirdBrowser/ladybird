@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-2021, Andreas Kling <kling@serenityos.org>
+ * Copyright (c) 2020-2021, Andreas Kling <andreas@ladybird.org>
  * Copyright (c) 2022, Kenneth Myhra <kennethmyhra@serenityos.org>
  * Copyright (c) 2023, Luke Wilde <lukew@serenityos.org>
  *
@@ -84,9 +84,9 @@ private:
     virtual void visit_edges(Cell::Visitor&) override;
     virtual bool must_survive_garbage_collection() const override;
 
-    ErrorOr<MimeSniff::MimeType> get_response_mime_type() const;
-    ErrorOr<Optional<StringView>> get_final_encoding() const;
-    ErrorOr<MimeSniff::MimeType> get_final_mime_type() const;
+    [[nodiscard]] MimeSniff::MimeType get_response_mime_type() const;
+    [[nodiscard]] Optional<StringView> get_final_encoding() const;
+    [[nodiscard]] MimeSniff::MimeType get_final_mime_type() const;
 
     String get_text_response() const;
     void set_document_response();

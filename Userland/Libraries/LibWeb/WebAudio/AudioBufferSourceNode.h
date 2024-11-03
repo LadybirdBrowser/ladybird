@@ -41,6 +41,8 @@ public:
     double loop_start() const;
     WebIDL::ExceptionOr<void> set_loop_end(double);
     double loop_end() const;
+    WebIDL::UnsignedLong number_of_inputs() override { return 0; }
+    WebIDL::UnsignedLong number_of_outputs() override { return 2; }
 
     WebIDL::ExceptionOr<void> start(Optional<double>, Optional<double>, Optional<double>);
 

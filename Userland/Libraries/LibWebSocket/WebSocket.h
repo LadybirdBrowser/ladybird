@@ -22,6 +22,20 @@ enum class ReadyState {
     Closed = 3,
 };
 
+// https://datatracker.ietf.org/doc/html/rfc6455#section-7.4.1
+enum class CloseStatusCode : u16 {
+    Normal = 1000,
+    GoingAway = 1001,
+    ProtocolError = 1002,
+    UnsupportedData = 1003,
+    AbnormalClosure = 1006,
+    InvalidPayload = 1007,
+    PolicyViolation = 1008,
+    MessageTooBig = 1009,
+    MissingExtension = 1010,
+    UnexpectedCondition = 1011,
+};
+
 class WebSocket final : public Core::EventReceiver {
     C_OBJECT(WebSocket)
 public:
@@ -101,6 +115,8 @@ private:
 
     void set_state(InternalState);
 
+    void fail_connection(u16 close_status_code, WebSocket::Error, ByteString const& reason);
+
     ByteString m_subprotocol_in_use { ByteString::empty() };
 
     ByteString m_websocket_key;
@@ -108,6 +124,8 @@ private:
     bool m_has_read_server_handshake_upgrade { false };
     bool m_has_read_server_handshake_connection { false };
     bool m_has_read_server_handshake_accept { false };
+
+    bool m_discard_connection_requested { false };
 
     u16 m_last_close_code { 1005 };
     ByteString m_last_close_message;

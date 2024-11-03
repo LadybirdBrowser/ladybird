@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<link rel="author" title="David Grogan" href="mailto:dgrogan@chromium.org">
+<link rel="help" href="https://drafts.csswg.org/css-flexbox/#intrinsic-sizes">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../resources/check-layout-th.js"></script>
+<meta name="assert"
+  content="Item with width:100% doesn't contribute to max-content size but does get 100px width after final layout. The item also overflows the container." />
+
+<style>
+  .item {
+    /* Remove min-height so we don't have to think about it. */
+    min-height: 0px;
+    flex: 0 0 100px;
+    outline: 1px solid;
+  }
+</style>
+
+<div
+  style="display: flex; flex-flow: column wrap; width: max-content; height: 100px; background: green; position: relative;"
+  data-expected-width="100">
+  <div class="item" style="width: 100px;"></div>
+  <div class="item" style="width: 100%;" data-expected-width="100"
+    data-offset-x="100"></div>
+</div>
+
+<script>
+  checkLayout('body > div');
+</script>

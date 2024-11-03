@@ -1,20 +1,21 @@
 /*
- * Copyright (c) 2022, Andreas Kling <kling@serenityos.org>
+ * Copyright (c) 2022, Andreas Kling <andreas@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
 #pragma once
 
-#include <AK/NonnullRefPtr.h>
 #include <LibCore/Forward.h>
 #include <LibWeb/Platform/Timer.h>
 
 namespace Web::Platform {
 
 class TimerSerenity final : public Timer {
+    JS_CELL(TimerSerenity, Timer);
+
 public:
-    static NonnullRefPtr<TimerSerenity> create();
+    static JS::NonnullGCPtr<TimerSerenity> create(JS::Heap&);
 
     virtual ~TimerSerenity();
 

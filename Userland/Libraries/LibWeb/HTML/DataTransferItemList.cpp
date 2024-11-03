@@ -76,7 +76,7 @@ WebIDL::ExceptionOr<JS::GCPtr<DataTransferItem>> DataTransferItemList::add(Strin
     // method's first argument.
     auto item = m_data_transfer->add_item({
         .kind = HTML::DragDataStoreItem::Kind::Text,
-        .type_string = MUST(Infra::to_ascii_lowercase(type)),
+        .type_string = type.to_ascii_lowercase(),
         .data = MUST(ByteBuffer::copy(data.bytes())),
         .file_name = {},
     });
@@ -100,7 +100,7 @@ JS::GCPtr<DataTransferItem> DataTransferItemList::add(JS::NonnullGCPtr<FileAPI::
     // converted to ASCII lowercase, and whose data is the same as the File's data.
     auto item = m_data_transfer->add_item({
         .kind = HTML::DragDataStoreItem::Kind::File,
-        .type_string = MUST(Infra::to_ascii_lowercase(file->type())),
+        .type_string = file->type().to_ascii_lowercase(),
         .data = MUST(ByteBuffer::copy(file->raw_bytes())),
         .file_name = file->name().to_byte_string(),
     });

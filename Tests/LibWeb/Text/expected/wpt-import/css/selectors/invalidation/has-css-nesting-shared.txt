@@ -1,0 +1,22 @@
+Summary
+
+Harness status: OK
+
+Rerun
+
+Found 12 tests
+
+12 Pass
+Details
+Result	Test Name	MessagePass	add .test to trigger1 - check subject1_1	
+Pass	add .test to trigger1 - check subject1_2	
+Pass	remove .test from trigger1 - check subject1_1	
+Pass	remove .test from trigger1 - check subject1_2	
+Pass	add .test to trigger2 - check subject2_1	
+Pass	add .test to trigger2 - check subject2_2	
+Pass	remove .test from trigger2 - check subject2_1	
+Pass	remove .test from trigger2 - check subject2_2	
+Pass	add .test to trigger3 - check subject3_1	
+Pass	add .test to trigger3 - check subject3_2	
+Pass	remove .test from trigger3 - check subject3_1	
+Pass	remove .test from trigger3 - check subject3_2	

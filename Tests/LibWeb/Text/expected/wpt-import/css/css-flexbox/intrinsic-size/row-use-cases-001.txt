@@ -1,0 +1,17 @@
+Summary
+
+Harness status: OK
+
+Rerun
+
+Found 6 tests
+
+4 Pass
+2 Fail
+Details
+Result	Test Name	MessagePass	left < right	
+Pass	no overflow	
+Pass	same widths	
+Pass	zero width	
+Fail	same heights	
+Fail	no overflow 2	

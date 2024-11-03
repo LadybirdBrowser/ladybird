@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2020, the SerenityOS developers.
- * Copyright (c) 2021-2022, Andreas Kling <kling@serenityos.org>
+ * Copyright (c) 2021-2022, Andreas Kling <andreas@ladybird.org>
  * Copyright (c) 2023, Bastiaan van der Plaat <bastiaan.v.d.plaat@gmail.com>
  *
  * SPDX-License-Identifier: BSD-2-Clause
@@ -92,7 +92,7 @@ WebIDL::UnsignedLong HTMLSelectElement::size() const
 
 WebIDL::ExceptionOr<void> HTMLSelectElement::set_size(WebIDL::UnsignedLong size)
 {
-    return set_attribute(HTML::AttributeNames::size, MUST(String::number(size)));
+    return set_attribute(HTML::AttributeNames::size, String::number(size));
 }
 
 // https://html.spec.whatwg.org/multipage/form-elements.html#dom-select-options
@@ -295,7 +295,6 @@ WebIDL::ExceptionOr<void> HTMLSelectElement::set_value(String const& value)
     for (auto const& option_element : list_of_options())
         option_element->set_selected(option_element->value() == value);
     update_inner_text_element();
-    queue_input_and_change_events();
     return {};
 }
 
@@ -421,19 +420,19 @@ WebIDL::ExceptionOr<void> HTMLSelectElement::show_picker()
 
     // 1. If this is not mutable, then throw an "InvalidStateError" DOMException.
     if (!enabled())
-        return WebIDL::InvalidStateError::create(realm(), "Element is not mutable"_fly_string);
+        return WebIDL::InvalidStateError::create(realm(), "Element is not mutable"_string);
 
     // 2. If this's relevant settings object's origin is not same origin with this's relevant settings object's top-level origin,
     // and this is a select element, then throw a "SecurityError" DOMException.
     if (!relevant_settings_object(*this).origin().is_same_origin(relevant_settings_object(*this).top_level_origin)) {
-        return WebIDL::SecurityError::create(realm(), "Cross origin pickers are not allowed"_fly_string);
+        return WebIDL::SecurityError::create(realm(), "Cross origin pickers are not allowed"_string);
     }
 
     // 3. If this's relevant global object does not have transient activation, then throw a "NotAllowedError" DOMException.
     // FIXME: The global object we get here should probably not need casted to Window to check for transient activation
     auto& global_object = relevant_global_object(*this);
     if (!is<HTML::Window>(global_object) || !static_cast<HTML::Window&>(global_object).has_transient_activation()) {
-        return WebIDL::NotAllowedError::create(realm(), "Too long since user activation to show picker"_fly_string);
+        return WebIDL::NotAllowedError::create(realm(), "Too long since user activation to show picker"_string);
     }
 
     // FIXME: 4. If this is a select element, and this is not being rendered, then throw a "NotSupportedError" DOMException.
@@ -559,7 +558,7 @@ void HTMLSelectElement::update_inner_text_element()
 }
 
 // https://html.spec.whatwg.org/multipage/form-elements.html#selectedness-setting-algorithm
-void HTMLSelectElement::update_selectedness()
+void HTMLSelectElement::update_selectedness(JS::GCPtr<HTML::HTMLOptionElement> last_selected_option)
 {
     if (has_attribute(AttributeNames::multiple))
         return;
@@ -582,9 +581,10 @@ void HTMLSelectElement::update_selectedness()
                 if (!option_element->disabled()) {
                     option_element->set_selected_internal(true);
                     update_inner_text_element();
-                    return;
+                    break;
                 }
             }
+            return;
         }
     }
 
@@ -602,6 +602,8 @@ void HTMLSelectElement::update_selectedness()
         // then set the selectedness of all but the last option element with its selectedness set to true
         // in the list of options in tree order to false.
         for (auto const& option_element : list_of_options()) {
+            if (option_element == last_selected_option)
+                continue;
             if (number_of_selected == 1) {
                 break;
             }

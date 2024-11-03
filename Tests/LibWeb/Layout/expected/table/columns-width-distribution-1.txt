@@ -5,8 +5,8 @@ Viewport <#document> at (0,0) content-size 800x600 children: not-inline
         Box <table.ambox> at (9,9) content-size 782x108 table-box [TFC] children: not-inline
           BlockContainer <(anonymous)> (not painted) children: inline
             TextNode <#text>
-          Box <tbody> at (9,9) content-size 776x104 table-row-group children: not-inline
-            Box <tr> at (11,11) content-size 776x104 table-row children: not-inline
+          Box <tbody> at (11,11) content-size 778x104 table-row-group children: not-inline
+            Box <tr> at (11,11) content-size 778x104 table-row children: not-inline
               BlockContainer <td.mbox-image> at (12,38) content-size 50x50 table-cell [BFC] children: not-inline
                 BlockContainer <div.mbox-image-div> at (12,38) content-size 50x50 children: not-inline
               BlockContainer <td.mbox-text> at (66,12) content-size 722x102 table-cell [BFC] children: inline
@@ -29,8 +29,8 @@ ViewportPaintable (Viewport<#document>) [0,0 800x600]
     PaintableWithLines (BlockContainer<BODY>) [8,8 784x110]
       PaintableWithLines (TableWrapper(anonymous)) [8,8 784x110]
         PaintableBox (Box<TABLE>.ambox) [8,8 784x110]
-          PaintableBox (Box<TBODY>) [9,9 776x104] overflow: [9,9 780x106]
-            PaintableBox (Box<TR>) [11,11 776x104] overflow: [11,11 778x104]
+          PaintableBox (Box<TBODY>) [11,11 778x104]
+            PaintableBox (Box<TR>) [11,11 778x104]
               PaintableWithLines (BlockContainer<TD>.mbox-image) [11,11 52x104]
                 PaintableWithLines (BlockContainer<DIV>.mbox-image-div) [12,38 50x50]
               PaintableWithLines (BlockContainer<TD>.mbox-text) [65,11 724x104]

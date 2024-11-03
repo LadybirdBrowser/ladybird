@@ -1,0 +1,10 @@
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        let canvas = document.createElement("canvas");
+        let ctx = canvas.getContext("2d");
+        let v = document.createElement("video");
+        println(ctx.createPattern(v, 'repeat'));
+        println("PASS (didn't throw!)");
+    });
+</script>

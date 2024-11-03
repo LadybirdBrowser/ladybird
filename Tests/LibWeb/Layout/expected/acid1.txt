@@ -135,7 +135,7 @@ ViewportPaintable (Viewport<#document>) [0,0 800x600]
               PaintableWithLines (BlockContainer<P>) [235,55 139.96875x10]
                 TextPaintable (TextNode<#text>)
               PaintableWithLines (BlockContainer(anonymous)) [235,65 139.96875x0]
-                InlinePaintable (InlineNode<FORM>)
+                PaintableWithLines (InlineNode<FORM>)
               PaintableWithLines (BlockContainer<P>) [235,65 139.96875x19]
                 TextPaintable (TextNode<#text>)
                 RadioButtonPaintable (RadioButton<INPUT>) [263,65 12x12]
@@ -158,10 +158,10 @@ ViewportPaintable (Viewport<#document>) [0,0 800x600]
       PaintableWithLines (BlockContainer(anonymous)) [20,30 480x0]
       PaintableWithLines (BlockContainer<P>) [20,335 480x65]
         TextPaintable (TextNode<#text>)
-        InlinePaintable (InlineNode<A>)
+        PaintableWithLines (InlineNode<A>)
           TextPaintable (TextNode<#text>)
         TextPaintable (TextNode<#text>)
-        InlinePaintable (InlineNode<A>)
+        PaintableWithLines (InlineNode<A>)
           TextPaintable (TextNode<#text>)
         TextPaintable (TextNode<#text>)
       PaintableWithLines (BlockContainer(anonymous)) [20,400 480x0]

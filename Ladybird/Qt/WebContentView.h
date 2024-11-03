@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022-2023, Andreas Kling <kling@serenityos.org>
+ * Copyright (c) 2022-2023, Andreas Kling <andreas@ladybird.org>
  * Copyright (c) 2023, Linus Groh <linusg@serenityos.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
@@ -73,8 +73,6 @@ public:
     virtual bool event(QEvent*) override;
 
     void set_viewport_rect(Gfx::IntRect);
-    void set_window_size(Gfx::IntSize);
-    void set_window_position(Gfx::IntPoint);
     void set_device_pixel_ratio(double);
 
     enum class PaletteMode {

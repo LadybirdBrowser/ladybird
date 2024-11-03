@@ -9,8 +9,11 @@
 #include <AK/NonnullOwnPtr.h>
 #include <AK/RefCounted.h>
 #include <AK/Weakable.h>
+#include <LibCore/EventLoop.h>
 #include <LibCore/Proxy.h>
 #include <LibCore/Socket.h>
+#include <LibRequests/NetworkErrorEnum.h>
+#include <LibTextCodec/Decoder.h>
 #include <LibWebSocket/ConnectionInfo.h>
 #include <LibWebSocket/Message.h>
 #include <RequestServer/ConnectionFromClient.h>
@@ -35,6 +38,7 @@ struct ConnectionFromClient::ActiveRequest {
     bool got_all_headers { false };
     size_t downloaded_so_far { 0 };
     String url;
+    Optional<String> reason_phrase;
     ByteBuffer body;
 
     ActiveRequest(ConnectionFromClient& client, CURLM* multi, CURL* easy, i32 request_id, int writer_fd)
@@ -62,7 +66,7 @@ struct ConnectionFromClient::ActiveRequest {
         long http_status_code = 0;
         auto result = curl_easy_getinfo(easy, CURLINFO_RESPONSE_CODE, &http_status_code);
         VERIFY(result == CURLE_OK);
-        client->async_headers_became_available(request_id, headers, http_status_code);
+        client->async_headers_became_available(request_id, headers, http_status_code, reason_phrase);
     }
 };
 
@@ -71,11 +75,30 @@ size_t ConnectionFromClient::on_header_received(void* buffer, size_t size, size_
     auto* request = static_cast<ActiveRequest*>(user_data);
     size_t total_size = size * nmemb;
     auto header_line = StringView { static_cast<char const*>(buffer), total_size };
+
+    // NOTE: We need to extract the HTTP reason phrase since it can be a custom value.
+    //       Fetching infrastructure needs this value for setting the status message.
+    if (!request->reason_phrase.has_value() && header_line.starts_with("HTTP/"sv)) {
+        if (auto const space_positions = header_line.find_all(" "sv); space_positions.size() > 1) {
+            auto const second_space_offset = space_positions.at(1);
+            auto const reason_phrase_string_view = header_line.substring_view(second_space_offset + 1).trim_whitespace();
+
+            if (!reason_phrase_string_view.is_empty()) {
+                auto decoder = TextCodec::decoder_for_exact_name("ISO-8859-1"sv);
+                VERIFY(decoder.has_value());
+
+                request->reason_phrase = MUST(decoder->to_utf8(reason_phrase_string_view));
+                return total_size;
+            }
+        }
+    }
+
     if (auto colon_index = header_line.find(':'); colon_index.has_value()) {
         auto name = header_line.substring_view(0, colon_index.value()).trim_whitespace();
         auto value = header_line.substring_view(colon_index.value() + 1, header_line.length() - colon_index.value() - 1).trim_whitespace();
         request->headers.set(name, value);
     }
+
     return total_size;
 }
 
@@ -173,8 +196,8 @@ int ConnectionFromClient::on_timeout_callback(void*, long timeout_ms, void* user
     return 0;
 }
 
-ConnectionFromClient::ConnectionFromClient(NonnullOwnPtr<Core::LocalSocket> socket)
-    : IPC::ConnectionFromClient<RequestClientEndpoint, RequestServerEndpoint>(*this, move(socket), s_client_ids.allocate())
+ConnectionFromClient::ConnectionFromClient(IPC::Transport transport)
+    : IPC::ConnectionFromClient<RequestClientEndpoint, RequestServerEndpoint>(*this, move(transport), s_client_ids.allocate())
 {
     s_connections.set(client_id(), *this);
 
@@ -213,6 +236,8 @@ void ConnectionFromClient::die()
 
 Messages::RequestServer::ConnectNewClientResponse ConnectionFromClient::connect_new_client()
 {
+    static_assert(IsSame<IPC::Transport, IPC::TransportSocket>, "Need to handle other IPC transports here");
+
     int socket_fds[2] {};
     if (auto err = Core::System::socketpair(AF_LOCAL, SOCK_STREAM, 0, socket_fds); err.is_error()) {
         dbgln("Failed to create client socketpair: {}", err.error());
@@ -228,7 +253,7 @@ Messages::RequestServer::ConnectNewClientResponse ConnectionFromClient::connect_
     }
     auto client_socket = client_socket_or_error.release_value();
     // Note: A ref is stored in the static s_connections map
-    auto client = adopt_ref(*new ConnectionFromClient(move(client_socket)));
+    auto client = adopt_ref(*new ConnectionFromClient(IPC::Transport(move(client_socket))));
 
     return IPC::File::adopt_fd(socket_fds[1]);
 }
@@ -242,7 +267,7 @@ void ConnectionFromClient::start_request(i32 request_id, ByteString const& metho
 {
     if (!url.is_valid()) {
         dbgln("StartRequest: Invalid URL requested: '{}'", url);
-        async_request_finished(request_id, false, 0);
+        async_request_finished(request_id, 0, Requests::NetworkError::MalformedUrl);
         return;
     }
 
@@ -283,10 +308,11 @@ void ConnectionFromClient::start_request(i32 request_id, ByteString const& metho
     set_option(CURLOPT_ACCEPT_ENCODING, "gzip, deflate, br");
     set_option(CURLOPT_URL, url.to_string().value().to_byte_string().characters());
     set_option(CURLOPT_PORT, url.port_or_default());
+    set_option(CURLOPT_CONNECTTIMEOUT, 90L);
 
     if (method == "GET"sv) {
         set_option(CURLOPT_HTTPGET, 1L);
-    } else if (method == "POST"sv) {
+    } else if (method.is_one_of("POST"sv, "PUT"sv, "PATCH"sv, "DELETE"sv)) {
         request->body = request_body;
         set_option(CURLOPT_POSTFIELDSIZE, request->body.size());
         set_option(CURLOPT_POSTFIELDS, request->body.data());
@@ -319,6 +345,30 @@ void ConnectionFromClient::start_request(i32 request_id, ByteString const& metho
     m_active_requests.set(request_id, move(request));
 }
 
+static Requests::NetworkError map_curl_code_to_network_error(CURLcode const& code)
+{
+    switch (code) {
+    case CURLE_COULDNT_RESOLVE_HOST:
+        return Requests::NetworkError::UnableToResolveHost;
+    case CURLE_COULDNT_RESOLVE_PROXY:
+        return Requests::NetworkError::UnableToResolveProxy;
+    case CURLE_COULDNT_CONNECT:
+        return Requests::NetworkError::UnableToConnect;
+    case CURLE_OPERATION_TIMEDOUT:
+        return Requests::NetworkError::TimeoutReached;
+    case CURLE_TOO_MANY_REDIRECTS:
+        return Requests::NetworkError::TooManyRedirects;
+    case CURLE_SSL_CONNECT_ERROR:
+        return Requests::NetworkError::SSLHandshakeFailed;
+    case CURLE_PEER_FAILED_VERIFICATION:
+        return Requests::NetworkError::SSLVerificationFailed;
+    case CURLE_URL_MALFORMAT:
+        return Requests::NetworkError::MalformedUrl;
+    default:
+        return Requests::NetworkError::Unknown;
+    }
+}
+
 void ConnectionFromClient::check_active_requests()
 {
     int msgs_in_queue = 0;
@@ -331,7 +381,20 @@ void ConnectionFromClient::check_active_requests()
         VERIFY(result == CURLE_OK);
         request->flush_headers_if_needed();
 
-        async_request_finished(request->request_id, msg->data.result == CURLE_OK, request->downloaded_so_far);
+        auto result_code = msg->data.result;
+
+        Optional<Requests::NetworkError> network_error;
+        bool const request_was_successful = result_code == CURLE_OK;
+        if (!request_was_successful) {
+            network_error = map_curl_code_to_network_error(result_code);
+
+            if (network_error.has_value() && network_error.value() == Requests::NetworkError::Unknown) {
+                char const* curl_error_message = curl_easy_strerror(result_code);
+                dbgln("ConnectionFromClient: Unable to map error ({}), message: \"\033[31;1m{}\033[0m\"", static_cast<int>(result_code), curl_error_message);
+            }
+        }
+
+        async_request_finished(request->request_id, request->downloaded_so_far, network_error);
 
         m_active_requests.remove(request->request_id);
     }

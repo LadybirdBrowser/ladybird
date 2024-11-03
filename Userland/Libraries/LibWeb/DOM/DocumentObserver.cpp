@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023, Tim Flynn <trflynn89@serenityos.org>
+ * Copyright (c) 2023-2024, Tim Flynn <trflynn89@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -25,6 +25,8 @@ void DocumentObserver::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_document);
     visitor.visit(m_document_became_inactive);
     visitor.visit(m_document_completely_loaded);
+    visitor.visit(m_document_readiness_observer);
+    visitor.visit(m_document_visibility_state_observer);
 }
 
 void DocumentObserver::finalize()
@@ -35,12 +37,34 @@ void DocumentObserver::finalize()
 
 void DocumentObserver::set_document_became_inactive(Function<void()> callback)
 {
-    m_document_became_inactive = JS::create_heap_function(vm().heap(), move(callback));
+    if (callback)
+        m_document_became_inactive = JS::create_heap_function(vm().heap(), move(callback));
+    else
+        m_document_became_inactive = nullptr;
 }
 
 void DocumentObserver::set_document_completely_loaded(Function<void()> callback)
 {
-    m_document_completely_loaded = JS::create_heap_function(vm().heap(), move(callback));
+    if (callback)
+        m_document_completely_loaded = JS::create_heap_function(vm().heap(), move(callback));
+    else
+        m_document_completely_loaded = nullptr;
+}
+
+void DocumentObserver::set_document_readiness_observer(Function<void(HTML::DocumentReadyState)> callback)
+{
+    if (callback)
+        m_document_readiness_observer = JS::create_heap_function(vm().heap(), move(callback));
+    else
+        m_document_readiness_observer = nullptr;
+}
+
+void DocumentObserver::set_document_visibility_state_observer(Function<void(HTML::VisibilityState)> callback)
+{
+    if (callback)
+        m_document_visibility_state_observer = JS::create_heap_function(vm().heap(), move(callback));
+    else
+        m_document_visibility_state_observer = nullptr;
 }
 
 }

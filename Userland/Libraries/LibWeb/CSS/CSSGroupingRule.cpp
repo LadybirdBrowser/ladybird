@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2021-2024, Sam Atkins <sam@ladybird.org>
- * Copyright (c) 2022, Andreas Kling <kling@serenityos.org>
+ * Copyright (c) 2022, Andreas Kling <andreas@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -14,8 +14,8 @@
 
 namespace Web::CSS {
 
-CSSGroupingRule::CSSGroupingRule(JS::Realm& realm, CSSRuleList& rules)
-    : CSSRule(realm)
+CSSGroupingRule::CSSGroupingRule(JS::Realm& realm, CSSRuleList& rules, Type type)
+    : CSSRule(realm, type)
     , m_rules(rules)
 {
     for (auto& rule : *m_rules)

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2024, Andreas Kling <kling@serenityos.org>
+ * Copyright (c) 2018-2024, Andreas Kling <andreas@ladybird.org>
  * Copyright (c) 2021-2024, Sam Atkins <sam@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
@@ -82,7 +82,7 @@ enum class CascadeOrigin : u8 {
 
 struct MatchingRule {
     JS::GCPtr<DOM::ShadowRoot const> shadow_root;
-    JS::GCPtr<CSSStyleRule const> rule;
+    JS::GCPtr<CSSRule const> rule; // Either CSSStyleRule or CSSNestedDeclarations
     JS::GCPtr<CSSStyleSheet const> sheet;
     size_t style_sheet_index { 0 };
     size_t rule_index { 0 };
@@ -94,6 +94,11 @@ struct MatchingRule {
     bool can_use_fast_matches { false };
     bool must_be_hovered { false };
     bool skip { false };
+
+    // Helpers to deal with the fact that `rule` might be a CSSStyleRule or a CSSNestedDeclarations
+    PropertyOwningCSSStyleDeclaration const& declaration() const;
+    SelectorList const& absolutized_selectors() const;
+    FlyString const& qualified_layer_name() const;
 };
 
 struct FontFaceKey {
@@ -114,7 +119,7 @@ public:
         No,
     };
     static void for_each_property_expanding_shorthands(PropertyID, CSSStyleValue const&, AllowUnresolved, Function<void(PropertyID, CSSStyleValue const&)> const& set_longhand_property);
-    static void set_property_expanding_shorthands(StyleProperties&, PropertyID, CSSStyleValue const&, CSS::CSSStyleDeclaration const*, StyleProperties const& style_for_revert, Important = Important::No);
+    static void set_property_expanding_shorthands(StyleProperties&, PropertyID, CSSStyleValue const&, CSS::CSSStyleDeclaration const*, StyleProperties const& style_for_revert, StyleProperties const& style_for_revert_layer, Important = Important::No);
     static NonnullRefPtr<CSSStyleValue const> get_inherit_value(JS::Realm& initial_value_context_realm, CSS::PropertyID, DOM::Element const*, Optional<CSS::Selector::PseudoElement::Type> = {});
 
     static Optional<String> user_agent_style_sheet_source(StringView name);
@@ -129,10 +134,10 @@ public:
     void push_ancestor(DOM::Element const&);
     void pop_ancestor(DOM::Element const&);
 
-    NonnullRefPtr<StyleProperties> create_document_style() const;
+    StyleProperties create_document_style() const;
 
-    NonnullRefPtr<StyleProperties> compute_style(DOM::Element&, Optional<CSS::Selector::PseudoElement::Type> = {}) const;
-    RefPtr<StyleProperties> compute_pseudo_element_style_if_needed(DOM::Element&, Optional<CSS::Selector::PseudoElement::Type>) const;
+    StyleProperties compute_style(DOM::Element&, Optional<CSS::Selector::PseudoElement::Type> = {}) const;
+    Optional<StyleProperties> compute_pseudo_element_style_if_needed(DOM::Element&, Optional<CSS::Selector::PseudoElement::Type>) const;
 
     Vector<MatchingRule> collect_matching_rules(DOM::Element const&, CascadeOrigin, Optional<CSS::Selector::PseudoElement::Type>, FlyString const& qualified_layer_name = {}) const;
 
@@ -144,7 +149,8 @@ public:
 
     Optional<FontLoader&> load_font_face(ParsedFontFace const&, ESCAPING Function<void(FontLoader const&)> on_load = {}, ESCAPING Function<void()> on_fail = {});
 
-    void load_fonts_from_sheet(CSSStyleSheet const&);
+    void load_fonts_from_sheet(CSSStyleSheet&);
+    void unload_fonts_from_sheet(CSSStyleSheet&);
 
     RefPtr<Gfx::FontCascadeList const> compute_font_for_style_values(DOM::Element const* element, Optional<CSS::Selector::PseudoElement::Type> pseudo_element, CSSStyleValue const& font_family, CSSStyleValue const& font_size, CSSStyleValue const& font_style, CSSStyleValue const& font_weight, CSSStyleValue const& font_stretch, int math_depth = 0) const;
 
@@ -156,6 +162,10 @@ public:
     };
     void collect_animation_into(DOM::Element&, Optional<CSS::Selector::PseudoElement::Type>, JS::NonnullGCPtr<Animations::KeyframeEffect> animation, StyleProperties& style_properties, AnimationRefresh = AnimationRefresh::No) const;
 
+    [[nodiscard]] bool has_has_selectors() const { return m_has_has_selectors; }
+
+    size_t number_of_css_font_faces_with_loading_in_progress() const;
+
 private:
     enum class ComputeStyleMode {
         Normal,
@@ -166,7 +176,7 @@ private:
 
     [[nodiscard]] bool should_reject_with_ancestor_filter(Selector const&) const;
 
-    RefPtr<StyleProperties> compute_style_impl(DOM::Element&, Optional<CSS::Selector::PseudoElement::Type>, ComputeStyleMode) const;
+    Optional<StyleProperties> compute_style_impl(DOM::Element&, Optional<CSS::Selector::PseudoElement::Type>, ComputeStyleMode) const;
     void compute_cascaded_values(StyleProperties&, DOM::Element&, Optional<CSS::Selector::PseudoElement::Type>, bool& did_match_any_pseudo_element_rules, ComputeStyleMode) const;
     static RefPtr<Gfx::FontCascadeList const> find_matching_font_weight_ascending(Vector<MatchingFontCandidate> const& candidates, int target_weight, float font_size_in_pt, bool inclusive);
     static RefPtr<Gfx::FontCascadeList const> find_matching_font_weight_descending(Vector<MatchingFontCandidate> const& candidates, int target_weight, float font_size_in_pt, bool inclusive);
@@ -174,13 +184,14 @@ private:
     void compute_font(StyleProperties&, DOM::Element const*, Optional<CSS::Selector::PseudoElement::Type>) const;
     void compute_math_depth(StyleProperties&, DOM::Element const*, Optional<CSS::Selector::PseudoElement::Type>) const;
     void compute_defaulted_values(StyleProperties&, DOM::Element const*, Optional<CSS::Selector::PseudoElement::Type>) const;
+    void start_needed_transitions(StyleProperties const& old_style, StyleProperties& new_style, DOM::Element&, Optional<Selector::PseudoElement::Type>) const;
     void absolutize_values(StyleProperties&) const;
     void resolve_effective_overflow_values(StyleProperties&) const;
     void transform_box_type_if_needed(StyleProperties&, DOM::Element const&, Optional<CSS::Selector::PseudoElement::Type>) const;
 
     void compute_defaulted_property_value(StyleProperties&, DOM::Element const*, CSS::PropertyID, Optional<CSS::Selector::PseudoElement::Type>) const;
 
-    void set_all_properties(DOM::Element&, Optional<CSS::Selector::PseudoElement::Type>, StyleProperties&, CSSStyleValue const&, DOM::Document&, CSS::CSSStyleDeclaration const*, StyleProperties const& style_for_revert, Important = Important::No) const;
+    void set_all_properties(DOM::Element&, Optional<CSS::Selector::PseudoElement::Type>, StyleProperties&, CSSStyleValue const&, DOM::Document&, CSS::CSSStyleDeclaration const*, StyleProperties const& style_for_revert, StyleProperties const& style_for_revert_layer, Important = Important::No) const;
 
     template<typename Callback>
     void for_each_stylesheet(CascadeOrigin, Callback) const;
@@ -203,7 +214,7 @@ private:
         Vector<LayerMatchingRules> author_rules;
     };
 
-    void cascade_declarations(StyleProperties&, DOM::Element&, Optional<CSS::Selector::PseudoElement::Type>, Vector<MatchingRule> const&, CascadeOrigin, Important) const;
+    void cascade_declarations(StyleProperties&, DOM::Element&, Optional<CSS::Selector::PseudoElement::Type>, Vector<MatchingRule> const&, CascadeOrigin, Important, StyleProperties const& style_for_revert, StyleProperties const& style_for_revert_layer) const;
 
     void build_rule_cache();
     void build_rule_cache_if_needed() const;
@@ -220,12 +231,15 @@ private:
         Vector<MatchingRule> other_rules;
 
         HashMap<FlyString, NonnullRefPtr<Animations::KeyframeEffect::KeyFrameSet>> rules_by_animation_keyframes;
+
+        bool has_has_selectors { false };
     };
 
     NonnullOwnPtr<RuleCache> make_rule_cache_for_cascade_origin(CascadeOrigin);
 
     RuleCache const& rule_cache_for_cascade_origin(CascadeOrigin) const;
 
+    bool m_has_has_selectors { false };
     OwnPtr<RuleCache> m_author_rule_cache;
     OwnPtr<RuleCache> m_user_rule_cache;
     OwnPtr<RuleCache> m_user_agent_rule_cache;
@@ -251,13 +265,18 @@ public:
     Vector<Gfx::UnicodeRange> const& unicode_ranges() const { return m_unicode_ranges; }
     RefPtr<Gfx::Typeface> vector_font() const { return m_vector_font; }
 
-    virtual void resource_did_load() override;
-    virtual void resource_did_fail() override;
-
     RefPtr<Gfx::Font> font_with_point_size(float point_size);
     void start_loading_next_url();
 
+    bool is_loading() const { return resource() && resource()->is_pending(); }
+
 private:
+    // ^ResourceClient
+    virtual void resource_did_load() override;
+    virtual void resource_did_fail() override;
+
+    void resource_did_load_or_fail();
+
     ErrorOr<NonnullRefPtr<Gfx::Typeface>> try_load_font();
 
     StyleComputer& m_style_computer;

@@ -1,0 +1,11 @@
+<script src="../include.js"></script>
+<iframe id="i"></iframe>
+<script>
+    asyncTest((done) => {
+        window.onmessage = function() {
+            println("PASS");
+            done();
+        };
+        i.src = "data:text/html,<script>top.postMessage('done', '*');</sc" + "ript>";
+    });
+</script>

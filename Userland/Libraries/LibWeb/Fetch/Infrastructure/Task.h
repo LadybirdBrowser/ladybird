@@ -9,7 +9,6 @@
 #include <AK/Variant.h>
 #include <LibJS/Forward.h>
 #include <LibJS/Heap/GCPtr.h>
-#include <LibJS/SafeFunction.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/HTML/EventLoop/Task.h>
 

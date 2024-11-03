@@ -1,0 +1,12 @@
+Summary
+
+Harness status: OK
+
+Rerun
+
+Found 2 tests
+
+2 Pass
+Details
+Result	Test Name	MessagePass	e.style['flex-direction'] = "auto" should not set the property value	
+Pass	e.style['flex-direction'] = "column row-reverse" should not set the property value	

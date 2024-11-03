@@ -336,7 +336,7 @@ ThrowCompletionOr<Optional<PropertyDescriptor>> ProxyObject::internal_get_own_pr
 }
 
 // 10.5.6 [[DefineOwnProperty]] ( P, Desc ), https://tc39.es/ecma262/#sec-proxy-object-internal-methods-and-internal-slots-defineownproperty-p-desc
-ThrowCompletionOr<bool> ProxyObject::internal_define_own_property(PropertyKey const& property_key, PropertyDescriptor const& property_descriptor)
+ThrowCompletionOr<bool> ProxyObject::internal_define_own_property(PropertyKey const& property_key, PropertyDescriptor const& property_descriptor, Optional<PropertyDescriptor>*)
 {
     LIMIT_PROXY_RECURSION_DEPTH();
 

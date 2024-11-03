@@ -17,5 +17,7 @@ source_set("Bindings") {
     "OptionConstructor.h",
     "PlatformObject.cpp",
     "PlatformObject.h",
+    "Serializable.h",
+    "Transferable.h",
   ]
 }

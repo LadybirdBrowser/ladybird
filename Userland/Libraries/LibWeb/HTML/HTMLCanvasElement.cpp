@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2020, Andreas Kling <kling@serenityos.org>
+ * Copyright (c) 2018-2020, Andreas Kling <andreas@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -114,7 +114,7 @@ void HTMLCanvasElement::reset_context_to_default_state()
 
 WebIDL::ExceptionOr<void> HTMLCanvasElement::set_width(unsigned value)
 {
-    TRY(set_attribute(HTML::AttributeNames::width, MUST(String::number(value))));
+    TRY(set_attribute(HTML::AttributeNames::width, String::number(value)));
     m_bitmap = nullptr;
     reset_context_to_default_state();
     return {};
@@ -122,13 +122,13 @@ WebIDL::ExceptionOr<void> HTMLCanvasElement::set_width(unsigned value)
 
 WebIDL::ExceptionOr<void> HTMLCanvasElement::set_height(unsigned value)
 {
-    TRY(set_attribute(HTML::AttributeNames::height, MUST(String::number(value))));
+    TRY(set_attribute(HTML::AttributeNames::height, String::number(value)));
     m_bitmap = nullptr;
     reset_context_to_default_state();
     return {};
 }
 
-JS::GCPtr<Layout::Node> HTMLCanvasElement::create_layout_node(NonnullRefPtr<CSS::StyleProperties> style)
+JS::GCPtr<Layout::Node> HTMLCanvasElement::create_layout_node(CSS::StyleProperties style)
 {
     return heap().allocate_without_realm<Layout::CanvasBox>(document(), *this, move(style));
 }
@@ -229,7 +229,7 @@ struct SerializeBitmapResult {
 static ErrorOr<SerializeBitmapResult> serialize_bitmap(Gfx::Bitmap const& bitmap, StringView type, Optional<double> quality)
 {
     // If type is an image format that supports variable quality (such as "image/jpeg"), quality is given, and type is not "image/png", then,
-    // if Type(quality) is Number, and quality is in the range 0.0 to 1.0 inclusive, the user agent must treat quality as the desired quality level.
+    // if quality is a Number in the range 0.0 to 1.0 inclusive, the user agent must treat quality as the desired quality level.
     // Otherwise, the user agent must use its default quality value, as if the quality argument had not been given.
     if (quality.has_value() && !(*quality >= 0.0 && *quality <= 1.0))
         quality = OptionalNone {};
@@ -297,7 +297,7 @@ WebIDL::ExceptionOr<void> HTMLCanvasElement::to_blob(JS::NonnullGCPtr<WebIDL::Ca
         bitmap_result = TRY_OR_THROW_OOM(vm(), m_bitmap->clone());
 
     // 4. Run these steps in parallel:
-    Platform::EventLoopPlugin::the().deferred_invoke([this, callback, bitmap_result, type, quality] {
+    Platform::EventLoopPlugin::the().deferred_invoke(JS::create_heap_function(heap(), [this, callback, bitmap_result, type, quality] {
         // 1. If result is non-null, then set result to a serialization of result as a file with type and quality if given.
         Optional<SerializeBitmapResult> file_result;
         if (bitmap_result) {
@@ -320,7 +320,7 @@ WebIDL::ExceptionOr<void> HTMLCanvasElement::to_blob(JS::NonnullGCPtr<WebIDL::Ca
             if (maybe_error.is_throw_completion())
                 report_exception(maybe_error.throw_completion(), realm());
         });
-    });
+    }));
     return {};
 }
 

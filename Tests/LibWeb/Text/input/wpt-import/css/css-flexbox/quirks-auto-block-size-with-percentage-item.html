@@ -1,0 +1,19 @@
+<!-- quirks mode -->
+<link rel="author" title="Morten Stenshorne" href="mailto:mstensho@chromium.org">
+<link rel="help" href="https://www.w3.org/TR/CSS22/visudet.html#the-height-property">
+<meta name="assert" content="The percentage height resolution quirk isn't applied to flexboxes.">
+
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../../resources/check-layout-th.js"></script>
+
+<!-- Have to wait for onload to fire to ensure the image is loaded. -->
+<body onload="checkLayout('#container')">
+
+<p>There should be a green square to the left of a blue square, and no red.</p>
+<div id="container" style="width:200px; height:456px;">
+  <div style="display:flex; background:blue;" data-expected-height="100">
+    <img style="width:100px; height: 50%;" src="support/1x1-green.png" data-expected-height="100">
+    <div style="width: 50px; height: 100%; background: red;" data-expected-height="0"></div>
+  </div>
+</div>

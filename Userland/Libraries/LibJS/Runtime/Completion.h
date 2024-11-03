@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021, Andreas Kling <kling@serenityos.org>
+ * Copyright (c) 2021, Andreas Kling <andreas@ladybird.org>
  * Copyright (c) 2021-2023, Linus Groh <linusg@serenityos.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
@@ -157,7 +157,7 @@ private:
 namespace AK {
 
 template<>
-class Optional<JS::Completion> {
+class Optional<JS::Completion> : public OptionalBase<JS::Completion> {
     template<typename U>
     friend class Optional;
 
@@ -236,26 +236,6 @@ public:
         clear();
         return released_value;
     }
-
-    JS::Completion value_or(JS::Completion const& fallback) const&
-    {
-        if (has_value())
-            return value();
-        return fallback;
-    }
-
-    [[nodiscard]] JS::Completion value_or(JS::Completion&& fallback) &&
-    {
-        if (has_value())
-            return value();
-        return fallback;
-    }
-
-    JS::Completion const& operator*() const { return value(); }
-    JS::Completion& operator*() { return value(); }
-
-    JS::Completion const* operator->() const { return &value(); }
-    JS::Completion* operator->() { return &value(); }
 
 private:
     JS::Completion m_value { JS::Completion::EmptyTag {} };

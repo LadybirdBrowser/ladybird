@@ -1,0 +1,12 @@
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        let element = document.createElement('div');
+        element.innerText = "";
+        println('Empty string: "' + element.innerHTML + '"');
+        element.innerText = "foo";
+        println('Simple text: "' + element.innerHTML + '"');
+        element.innerText = "\rfoo\nbar\r\nbaz\n\rfoobar\n";
+        println('Text with newlines: "' + element.innerHTML + '"');
+    });
+</script>

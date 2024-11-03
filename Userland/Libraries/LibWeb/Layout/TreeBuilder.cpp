@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022, Andreas Kling <kling@serenityos.org>
+ * Copyright (c) 2018-2022, Andreas Kling <andreas@ladybird.org>
  * Copyright (c) 2022-2023, Sam Atkins <atkinssj@serenityos.org>
  * Copyright (c) 2022, MacDue <macdue@dueutil.tech>
  *
@@ -193,7 +193,7 @@ void TreeBuilder::create_pseudo_element_if_needed(DOM::Element& element, CSS::Se
     auto& document = element.document();
 
     auto pseudo_element_style = element.pseudo_element_computed_css_values(pseudo_element);
-    if (!pseudo_element_style)
+    if (!pseudo_element_style.has_value())
         return;
 
     auto initial_quote_nesting_level = m_quote_nesting_level;
@@ -210,6 +210,22 @@ void TreeBuilder::create_pseudo_element_if_needed(DOM::Element& element, CSS::Se
     auto pseudo_element_node = DOM::Element::create_layout_node_for_display_type(document, pseudo_element_display, *pseudo_element_style, nullptr);
     if (!pseudo_element_node)
         return;
+
+    auto& style_computer = document.style_computer();
+
+    // FIXME: This code actually computes style for element::marker, and shouldn't for element::pseudo::marker
+    if (is<ListItemBox>(*pseudo_element_node)) {
+        auto marker_style = style_computer.compute_style(element, CSS::Selector::PseudoElement::Type::Marker);
+        auto list_item_marker = document.heap().allocate_without_realm<ListItemMarkerBox>(
+            document,
+            pseudo_element_node->computed_values().list_style_type(),
+            pseudo_element_node->computed_values().list_style_position(),
+            0,
+            marker_style);
+        static_cast<ListItemBox&>(*pseudo_element_node).set_marker(list_item_marker);
+        element.set_pseudo_element_node({}, CSS::Selector::PseudoElement::Type::Marker, list_item_marker);
+        pseudo_element_node->append_child(*list_item_marker);
+    }
 
     auto generated_for = Node::GeneratedFor::NotGenerated;
     if (pseudo_element == CSS::Selector::PseudoElement::Type::Before) {
@@ -309,7 +325,7 @@ void TreeBuilder::create_layout_tree(DOM::Node& dom_node, TreeBuilder::Context& 
         if (!layout_node) {
             dom_node.for_each_in_inclusive_subtree([&](auto& node) {
                 node.detach_layout_node({});
-                node.set_paintable(nullptr);
+                node.clear_paintable();
                 if (is<DOM::Element>(node))
                     static_cast<DOM::Element&>(node).clear_pseudo_element_nodes({});
                 return TraversalDecision::Continue;
@@ -325,7 +341,7 @@ void TreeBuilder::create_layout_tree(DOM::Node& dom_node, TreeBuilder::Context& 
 
     auto& document = dom_node.document();
     auto& style_computer = document.style_computer();
-    RefPtr<CSS::StyleProperties> style;
+    Optional<CSS::StyleProperties> style;
     CSS::Display display;
 
     if (is<DOM::Element>(dom_node)) {
@@ -413,7 +429,7 @@ void TreeBuilder::create_layout_tree(DOM::Node& dom_node, TreeBuilder::Context& 
     if (is<ListItemBox>(*layout_node)) {
         auto& element = static_cast<DOM::Element&>(dom_node);
         auto marker_style = style_computer.compute_style(element, CSS::Selector::PseudoElement::Type::Marker);
-        auto list_item_marker = document.heap().allocate_without_realm<ListItemMarkerBox>(document, layout_node->computed_values().list_style_type(), layout_node->computed_values().list_style_position(), calculate_list_item_index(dom_node), *marker_style);
+        auto list_item_marker = document.heap().allocate_without_realm<ListItemMarkerBox>(document, layout_node->computed_values().list_style_type(), layout_node->computed_values().list_style_position(), calculate_list_item_index(dom_node), marker_style);
         static_cast<ListItemBox&>(*layout_node).set_marker(list_item_marker);
         element.set_pseudo_element_node({}, CSS::Selector::PseudoElement::Type::Marker, list_item_marker);
         layout_node->append_child(*list_item_marker);

@@ -19,7 +19,7 @@
 
 namespace Web::CSS {
 
-class StyleProperties : public RefCounted<StyleProperties> {
+class StyleProperties {
 public:
     static constexpr size_t number_of_properties = to_underlying(CSS::last_property_id) + 1;
 
@@ -29,8 +29,9 @@ private:
 
         NonnullRefPtr<Data> clone() const;
 
-        // FIXME: This needs protection from GC!
+        // FIXME: These need protection from GC!
         JS::GCPtr<CSS::CSSStyleDeclaration const> m_animation_name_source;
+        JS::GCPtr<CSS::CSSStyleDeclaration const> m_transition_property_source;
 
         Array<RefPtr<CSSStyleValue const>, number_of_properties> m_property_values;
         Array<u8, ceil_div(number_of_properties, 8uz)> m_property_important {};
@@ -46,9 +47,6 @@ private:
 
 public:
     StyleProperties() = default;
-
-    static NonnullRefPtr<StyleProperties> create() { return adopt_ref(*new StyleProperties); }
-    NonnullRefPtr<StyleProperties> clone() const;
 
     template<typename Callback>
     inline void for_each_property(Callback callback) const
@@ -74,12 +72,19 @@ public:
 
     void set_property(CSS::PropertyID, NonnullRefPtr<CSSStyleValue const> value, Inherited = Inherited::No, Important = Important::No);
     void set_animated_property(CSS::PropertyID, NonnullRefPtr<CSSStyleValue const> value);
-    NonnullRefPtr<CSSStyleValue const> property(CSS::PropertyID) const;
+    enum class WithAnimationsApplied {
+        No,
+        Yes,
+    };
+    NonnullRefPtr<CSSStyleValue const> property(CSS::PropertyID, WithAnimationsApplied = WithAnimationsApplied::Yes) const;
     RefPtr<CSSStyleValue const> maybe_null_property(CSS::PropertyID) const;
     void revert_property(CSS::PropertyID, StyleProperties const& style_for_revert);
 
     JS::GCPtr<CSS::CSSStyleDeclaration const> animation_name_source() const { return m_data->m_animation_name_source; }
     void set_animation_name_source(JS::GCPtr<CSS::CSSStyleDeclaration const> declaration) { m_data->m_animation_name_source = declaration; }
+
+    JS::GCPtr<CSS::CSSStyleDeclaration const> transition_property_source() const { return m_data->m_transition_property_source; }
+    void set_transition_property_source(JS::GCPtr<CSS::CSSStyleDeclaration const> declaration) { m_data->m_transition_property_source = declaration; }
 
     CSS::Size size_value(CSS::PropertyID) const;
     LengthPercentage length_percentage_or_fallback(CSS::PropertyID, LengthPercentage const& fallback) const;
@@ -90,8 +95,8 @@ public:
     Optional<CSS::TextAlign> text_align() const;
     Optional<CSS::TextJustify> text_justify() const;
     Optional<CSS::TextOverflow> text_overflow() const;
-    CSS::Length border_spacing_horizontal() const;
-    CSS::Length border_spacing_vertical() const;
+    CSS::Length border_spacing_horizontal(Layout::Node const&) const;
+    CSS::Length border_spacing_vertical(Layout::Node const&) const;
     Optional<CSS::CaptionSide> caption_side() const;
     CSS::Clip clip() const;
     CSS::Display display() const;
@@ -105,7 +110,11 @@ public:
     ContentDataAndQuoteNestingLevel content(DOM::Element&, u32 initial_quote_nesting_level) const;
     Optional<CSS::ContentVisibility> content_visibility() const;
     Optional<CSS::Cursor> cursor() const;
+    Variant<LengthOrCalculated, NumberOrCalculated> tab_size() const;
     Optional<CSS::WhiteSpace> white_space() const;
+    Optional<CSS::WordBreak> word_break() const;
+    Optional<CSS::LengthOrCalculated> word_spacing() const;
+    Optional<LengthOrCalculated> letter_spacing() const;
     Optional<CSS::LineStyle> line_style(CSS::PropertyID) const;
     Optional<CSS::OutlineStyle> outline_style() const;
     Vector<CSS::TextDecorationLine> text_decoration_line() const;
@@ -125,7 +134,8 @@ public:
     Optional<CSS::AlignItems> align_items() const;
     Optional<CSS::AlignSelf> align_self() const;
     Optional<CSS::Appearance> appearance() const;
-    CSS::BackdropFilter backdrop_filter() const;
+    CSS::Filter backdrop_filter() const;
+    CSS::Filter filter() const;
     float opacity() const;
     Optional<CSS::Visibility> visibility() const;
     Optional<CSS::ImageRendering> image_rendering() const;
@@ -139,6 +149,9 @@ public:
     Optional<CSS::PointerEvents> pointer_events() const;
     Variant<CSS::VerticalAlign, CSS::LengthPercentage> vertical_align() const;
     Optional<CSS::FontVariant> font_variant() const;
+    Optional<FlyString> font_language_override() const;
+    Optional<HashMap<FlyString, IntegerOrCalculated>> font_feature_settings() const;
+    Optional<HashMap<FlyString, NumberOrCalculated>> font_variation_settings() const;
     CSS::GridTrackSizeList grid_auto_columns() const;
     CSS::GridTrackSizeList grid_auto_rows() const;
     CSS::GridTrackSizeList grid_template_columns() const;
@@ -154,16 +167,21 @@ public:
     CSS::ObjectPosition object_position() const;
     Optional<CSS::TableLayout> table_layout() const;
     Optional<CSS::Direction> direction() const;
+    Optional<CSS::UnicodeBidi> unicode_bidi() const;
 
     static Vector<CSS::Transformation> transformations_for_style_value(CSSStyleValue const& value);
     Vector<CSS::Transformation> transformations() const;
     Optional<CSS::TransformBox> transform_box() const;
     CSS::TransformOrigin transform_origin() const;
+    Optional<CSS::Transformation> rotate(Layout::Node const&) const;
 
     Optional<CSS::MaskType> mask_type() const;
     Color stop_color() const;
     float stop_opacity() const;
     float fill_opacity() const;
+    Optional<CSS::StrokeLinecap> stroke_linecap() const;
+    Optional<CSS::StrokeLinejoin> stroke_linejoin() const;
+    NumberOrCalculated stroke_miterlimit() const;
     float stroke_opacity() const;
     Optional<CSS::FillRule> fill_rule() const;
     Optional<CSS::ClipRule> clip_rule() const;

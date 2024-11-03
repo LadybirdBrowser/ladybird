@@ -71,8 +71,8 @@ void generate_table(SourceGenerator generator, StringView name, LookupTable& tab
 {
     generator.set("name", name);
     generator.set("value_type", table.max_code_point > NumericLimits<u16>::max() ? "u32" : "u16");
-    generator.set("first_pointer", MUST(String::number(table.first_pointer)));
-    generator.set("size", MUST(String::number(table.code_points.size())));
+    generator.set("first_pointer", String::number(table.first_pointer));
+    generator.set("size", String::number(table.code_points.size()));
 
     if (table.first_pointer > 0) {
         generator.appendln("static constexpr u32 s_@name@_index_first_pointer = @first_pointer@;");
@@ -96,7 +96,7 @@ ErrorOr<void> generate_header_file(LookupTables& tables, Core::File& file)
     StringBuilder builder;
     SourceGenerator generator { builder };
 
-    generator.set("gb18030_ranges_size", MUST(String::number(tables.gb18030_ranges.size())));
+    generator.set("gb18030_ranges_size", String::number(tables.gb18030_ranges.size()));
 
     generator.append(R"~~~(
 #pragma once
@@ -133,8 +133,8 @@ static constexpr Array<Gb18030RangeEntry, @gb18030_ranges_size@> s_gb18030_range
 void generate_table_accessor(SourceGenerator generator, StringView name, LookupTable& table)
 {
     generator.set("name", name);
-    generator.set("first_pointer", MUST(String::number(table.first_pointer)));
-    generator.set("size", MUST(String::number(table.code_points.size())));
+    generator.set("first_pointer", String::number(table.first_pointer));
+    generator.set("size", String::number(table.code_points.size()));
 
     if (table.first_pointer > 0) {
         generator.append(R"~~~(
@@ -166,8 +166,8 @@ Optional<u32> index_@name@_code_point(u32 pointer)
 void generate_inverse_table_accessor(SourceGenerator generator, StringView name, LookupTable& table)
 {
     generator.set("name", name);
-    generator.set("first_pointer", MUST(String::number(table.first_pointer)));
-    generator.set("size", MUST(String::number(table.code_points.size())));
+    generator.set("first_pointer", String::number(table.first_pointer));
+    generator.set("size", String::number(table.code_points.size()));
 
     // FIXME - Doing a linear search here is really slow, should be generating
     //         some kind of reverse lookup table.

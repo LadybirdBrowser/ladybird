@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022, Andreas Kling <kling@serenityos.org>
+ * Copyright (c) 2018-2022, Andreas Kling <andreas@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -9,7 +9,7 @@
 
 namespace Web::Layout {
 
-BlockContainer::BlockContainer(DOM::Document& document, DOM::Node* node, NonnullRefPtr<CSS::StyleProperties> style)
+BlockContainer::BlockContainer(DOM::Document& document, DOM::Node* node, CSS::StyleProperties style)
     : Box(document, node, move(style))
 {
 }

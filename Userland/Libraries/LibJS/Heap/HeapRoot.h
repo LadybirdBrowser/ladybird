@@ -17,7 +17,6 @@ struct HeapRoot {
         MarkedVector,
         ConservativeVector,
         RegisterPointer,
-        SafeFunction,
         StackPointer,
         VM,
     };

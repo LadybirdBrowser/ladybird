@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-2023, Andreas Kling <kling@serenityos.org>
+ * Copyright (c) 2020-2023, Andreas Kling <andreas@ladybird.org>
  * Copyright (c) 2021-2022, Linus Groh <linusg@serenityos.org>
  * Copyright (c) 2023, Andrew Kaster <akaster@serenityos.org>
  * Copyright (c) 2024, Sam Atkins <sam@ladybird.org>
@@ -52,17 +52,16 @@ PageClient::PageClient(PageHost& owner, u64 id)
     , m_backing_store_manager(*this)
 {
     setup_palette();
+
+    int refresh_interval = 1000 / 60; // FIXME: Account for the actual refresh rate of the display
+    m_paint_refresh_timer = Core::Timer::create_repeating(refresh_interval, [] {
+        Web::HTML::main_thread_event_loop().queue_task_to_update_the_rendering();
+    });
+
+    m_paint_refresh_timer->start();
 }
 
 PageClient::~PageClient() = default;
-
-void PageClient::schedule_repaint()
-{
-    if (m_paint_state != PaintState::Ready) {
-        m_paint_state = PaintState::PaintWhenReady;
-        return;
-    }
-}
 
 bool PageClient::is_ready_to_paint() const
 {
@@ -71,19 +70,16 @@ bool PageClient::is_ready_to_paint() const
 
 void PageClient::ready_to_paint()
 {
-    auto old_paint_state = exchange(m_paint_state, PaintState::Ready);
-
-    if (old_paint_state == PaintState::PaintWhenReady) {
-        // NOTE: Repainting always has to be scheduled from HTML event loop processing steps
-        //       to make sure style and layout are up-to-date.
-        Web::HTML::main_thread_event_loop().schedule();
-    }
+    m_paint_state = PaintState::Ready;
 }
 
 void PageClient::visit_edges(JS::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_page);
+
+    if (m_webdriver)
+        m_webdriver->visit_edges(visitor);
 }
 
 ConnectionFromClient& PageClient::client() const
@@ -196,8 +192,6 @@ void PageClient::process_screenshot_requests()
 
 void PageClient::paint_next_frame()
 {
-    process_screenshot_requests();
-
     auto back_store = m_backing_store_manager.back_store();
     if (!back_store)
         return;
@@ -267,14 +261,14 @@ void PageClient::page_did_request_refresh()
     client().async_did_request_refresh(m_id);
 }
 
-Gfx::IntSize PageClient::page_did_request_resize_window(Gfx::IntSize size)
+void PageClient::page_did_request_resize_window(Gfx::IntSize size)
 {
-    return client().did_request_resize_window(m_id, size);
+    client().async_did_request_resize_window(m_id, size);
 }
 
-Gfx::IntPoint PageClient::page_did_request_reposition_window(Gfx::IntPoint position)
+void PageClient::page_did_request_reposition_window(Gfx::IntPoint position)
 {
-    return client().did_request_reposition_window(m_id, position);
+    client().async_did_request_reposition_window(m_id, position);
 }
 
 void PageClient::page_did_request_restore_window()
@@ -282,19 +276,19 @@ void PageClient::page_did_request_restore_window()
     client().async_did_request_restore_window(m_id);
 }
 
-Gfx::IntRect PageClient::page_did_request_maximize_window()
+void PageClient::page_did_request_maximize_window()
 {
-    return client().did_request_maximize_window(m_id);
+    client().async_did_request_maximize_window(m_id);
 }
 
-Gfx::IntRect PageClient::page_did_request_minimize_window()
+void PageClient::page_did_request_minimize_window()
 {
-    return client().did_request_minimize_window(m_id);
+    client().async_did_request_minimize_window(m_id);
 }
 
-Gfx::IntRect PageClient::page_did_request_fullscreen_window()
+void PageClient::page_did_request_fullscreen_window()
 {
-    return client().did_request_fullscreen_window(m_id);
+    client().async_did_request_fullscreen_window(m_id);
 }
 
 void PageClient::page_did_request_tooltip_override(Web::CSSPixelPoint position, ByteString const& title)
@@ -366,9 +360,9 @@ void PageClient::page_did_finish_loading(URL::URL const& url)
     client().async_did_finish_loading(m_id, url);
 }
 
-void PageClient::page_did_finish_text_test()
+void PageClient::page_did_finish_text_test(String const& text)
 {
-    client().async_did_finish_text_test(m_id);
+    client().async_did_finish_text_test(m_id, text);
 }
 
 void PageClient::page_did_request_context_menu(Web::CSSPixelPoint content_position)
@@ -395,6 +389,9 @@ void PageClient::page_did_request_media_context_menu(Web::CSSPixelPoint content_
 void PageClient::page_did_request_alert(String const& message)
 {
     client().async_did_request_alert(m_id, message);
+
+    if (m_webdriver)
+        m_webdriver->page_did_open_dialog({});
 }
 
 void PageClient::alert_closed()
@@ -405,6 +402,9 @@ void PageClient::alert_closed()
 void PageClient::page_did_request_confirm(String const& message)
 {
     client().async_did_request_confirm(m_id, message);
+
+    if (m_webdriver)
+        m_webdriver->page_did_open_dialog({});
 }
 
 void PageClient::confirm_closed(bool accepted)
@@ -415,6 +415,9 @@ void PageClient::confirm_closed(bool accepted)
 void PageClient::page_did_request_prompt(String const& message, String const& default_)
 {
     client().async_did_request_prompt(m_id, message, default_);
+
+    if (m_webdriver)
+        m_webdriver->page_did_open_dialog({});
 }
 
 void PageClient::page_did_request_set_prompt_text(String const& text)
@@ -479,17 +482,17 @@ void PageClient::page_did_change_favicon(Gfx::Bitmap const& favicon)
 
 Vector<Web::Cookie::Cookie> PageClient::page_did_request_all_cookies(URL::URL const& url)
 {
-    return client().did_request_all_cookies(m_id, url);
+    return client().did_request_all_cookies(url);
 }
 
 Optional<Web::Cookie::Cookie> PageClient::page_did_request_named_cookie(URL::URL const& url, String const& name)
 {
-    return client().did_request_named_cookie(m_id, url, name);
+    return client().did_request_named_cookie(url, name);
 }
 
 String PageClient::page_did_request_cookie(URL::URL const& url, Web::Cookie::Source source)
 {
-    auto response = client().send_sync_but_allow_failure<Messages::WebContentClient::DidRequestCookie>(m_id, move(url), source);
+    auto response = client().send_sync_but_allow_failure<Messages::WebContentClient::DidRequestCookie>(url, source);
     if (!response) {
         dbgln("WebContent client disconnected during DidRequestCookie. Exiting peacefully.");
         exit(0);
@@ -499,7 +502,7 @@ String PageClient::page_did_request_cookie(URL::URL const& url, Web::Cookie::Sou
 
 void PageClient::page_did_set_cookie(URL::URL const& url, Web::Cookie::ParsedCookie const& cookie, Web::Cookie::Source source)
 {
-    auto response = client().send_sync_but_allow_failure<Messages::WebContentClient::DidSetCookie>(m_id, url, cookie, source);
+    auto response = client().send_sync_but_allow_failure<Messages::WebContentClient::DidSetCookie>(url, cookie, source);
     if (!response) {
         dbgln("WebContent client disconnected during DidSetCookie. Exiting peacefully.");
         exit(0);
@@ -508,7 +511,12 @@ void PageClient::page_did_set_cookie(URL::URL const& url, Web::Cookie::ParsedCoo
 
 void PageClient::page_did_update_cookie(Web::Cookie::Cookie cookie)
 {
-    client().async_did_update_cookie(m_id, move(cookie));
+    client().async_did_update_cookie(move(cookie));
+}
+
+void PageClient::page_did_expire_cookies_with_time_offset(AK::Duration offset)
+{
+    client().async_did_expire_cookies_with_time_offset(offset);
 }
 
 void PageClient::page_did_update_resource_count(i32 count_waiting)
@@ -613,17 +621,17 @@ void PageClient::inspector_did_load()
     client().async_inspector_did_load(m_id);
 }
 
-void PageClient::inspector_did_select_dom_node(i32 node_id, Optional<Web::CSS::Selector::PseudoElement::Type> const& pseudo_element)
+void PageClient::inspector_did_select_dom_node(Web::UniqueNodeID node_id, Optional<Web::CSS::Selector::PseudoElement::Type> const& pseudo_element)
 {
     client().async_inspector_did_select_dom_node(m_id, node_id, pseudo_element);
 }
 
-void PageClient::inspector_did_set_dom_node_text(i32 node_id, String const& text)
+void PageClient::inspector_did_set_dom_node_text(Web::UniqueNodeID node_id, String const& text)
 {
     client().async_inspector_did_set_dom_node_text(m_id, node_id, text);
 }
 
-void PageClient::inspector_did_set_dom_node_tag(i32 node_id, String const& tag)
+void PageClient::inspector_did_set_dom_node_tag(Web::UniqueNodeID node_id, String const& tag)
 {
     client().async_inspector_did_set_dom_node_tag(m_id, node_id, tag);
 }
@@ -643,17 +651,17 @@ static Vector<WebView::Attribute> named_node_map_to_vector(JS::NonnullGCPtr<Web:
     return attributes;
 }
 
-void PageClient::inspector_did_add_dom_node_attributes(i32 node_id, JS::NonnullGCPtr<Web::DOM::NamedNodeMap> attributes)
+void PageClient::inspector_did_add_dom_node_attributes(Web::UniqueNodeID node_id, JS::NonnullGCPtr<Web::DOM::NamedNodeMap> attributes)
 {
     client().async_inspector_did_add_dom_node_attributes(m_id, node_id, named_node_map_to_vector(attributes));
 }
 
-void PageClient::inspector_did_replace_dom_node_attribute(i32 node_id, size_t attribute_index, JS::NonnullGCPtr<Web::DOM::NamedNodeMap> replacement_attributes)
+void PageClient::inspector_did_replace_dom_node_attribute(Web::UniqueNodeID node_id, size_t attribute_index, JS::NonnullGCPtr<Web::DOM::NamedNodeMap> replacement_attributes)
 {
     client().async_inspector_did_replace_dom_node_attribute(m_id, node_id, attribute_index, named_node_map_to_vector(replacement_attributes));
 }
 
-void PageClient::inspector_did_request_dom_tree_context_menu(i32 node_id, Web::CSSPixelPoint position, String const& type, Optional<String> const& tag, Optional<size_t> const& attribute_index)
+void PageClient::inspector_did_request_dom_tree_context_menu(Web::UniqueNodeID node_id, Web::CSSPixelPoint position, String const& type, Optional<String> const& tag, Optional<size_t> const& attribute_index)
 {
     client().async_inspector_did_request_dom_tree_context_menu(m_id, node_id, page().css_to_device_point(position).to_type<int>(), type, tag, attribute_index);
 }
@@ -720,10 +728,10 @@ void PageClient::run_javascript(ByteString const& js_source)
     // Let baseURL be settings's API base URL.
     auto base_url = settings.api_base_url();
 
-    // Let script be the result of creating a classic script given scriptSource, settings, baseURL, and the default classic script fetch options.
+    // Let script be the result of creating a classic script given scriptSource, setting's realm, baseURL, and the default classic script fetch options.
     // FIXME: This doesn't pass in "default classic script fetch options"
     // FIXME: What should the filename be here?
-    auto script = Web::HTML::ClassicScript::create("(client connection run_javascript)", js_source, settings, move(base_url));
+    auto script = Web::HTML::ClassicScript::create("(client connection run_javascript)", js_source, settings.realm(), move(base_url));
 
     // Let evaluationStatus be the result of running the classic script script.
     auto evaluation_status = script->run();
@@ -847,7 +855,7 @@ Web::DisplayListPlayerType PageClient::display_list_player_type() const
     }
 }
 
-void PageClient::queue_screenshot_task(Optional<i32> node_id)
+void PageClient::queue_screenshot_task(Optional<Web::UniqueNodeID> node_id)
 {
     m_screenshot_tasks.enqueue({ node_id });
     page().top_level_traversable()->set_needs_display();

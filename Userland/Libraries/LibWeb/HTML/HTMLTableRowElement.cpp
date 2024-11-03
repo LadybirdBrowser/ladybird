@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-2022, Andreas Kling <kling@serenityos.org>
+ * Copyright (c) 2020-2022, Andreas Kling <andreas@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -48,15 +48,15 @@ void HTMLTableRowElement::apply_presentational_hints(CSS::StyleProperties& style
             auto color = parse_legacy_color_value(value);
             if (color.has_value())
                 style.set_property(CSS::PropertyID::BackgroundColor, CSS::CSSColorValue::create_from_color(color.value()));
-            return;
         } else if (name == HTML::AttributeNames::background) {
             if (auto parsed_value = document().parse_url(value); parsed_value.is_valid())
                 style.set_property(CSS::PropertyID::BackgroundImage, CSS::ImageStyleValue::create(parsed_value));
-            return;
+        } else if (name == HTML::AttributeNames::height) {
+            if (auto parsed_value = parse_dimension_value(value))
+                style.set_property(CSS::PropertyID::Height, *parsed_value);
         } else if (name == HTML::AttributeNames::valign) {
             if (auto parsed_value = parse_css_value(CSS::Parser::ParsingContext { document() }, value, CSS::PropertyID::VerticalAlign))
                 style.set_property(CSS::PropertyID::VerticalAlign, parsed_value.release_nonnull());
-            return;
         }
     });
 }
@@ -139,7 +139,7 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<HTMLTableCellElement>> HTMLTableRowElement:
 
     // 1. If index is less than −1 or greater than the number of elements in the cells collection, then throw an "IndexSizeError" DOMException.
     if (index < -1 || index > cells_collection_size)
-        return WebIDL::IndexSizeError::create(realm(), "Index is negative or greater than the number of cells"_fly_string);
+        return WebIDL::IndexSizeError::create(realm(), "Index is negative or greater than the number of cells"_string);
 
     // 2. Let table cell be the result of creating an element given this tr element's node document, td, and the HTML namespace.
     auto& table_cell = static_cast<HTMLTableCellElement&>(*TRY(DOM::create_element(document(), HTML::TagNames::td, Namespace::HTML)));
@@ -164,7 +164,7 @@ WebIDL::ExceptionOr<void> HTMLTableRowElement::delete_cell(i32 index)
 
     // 1. If index is less than −1 or greater than or equal to the number of elements in the cells collection, then throw an "IndexSizeError" DOMException.
     if (index < -1 || index >= cells_collection_size)
-        return WebIDL::IndexSizeError::create(realm(), "Index is negative or greater than or equal to the number of cells"_fly_string);
+        return WebIDL::IndexSizeError::create(realm(), "Index is negative or greater than or equal to the number of cells"_string);
 
     // 2. If index is −1, then remove the last element in the cells collection from its parent, or do nothing if the cells collection is empty.
     if (index == -1) {

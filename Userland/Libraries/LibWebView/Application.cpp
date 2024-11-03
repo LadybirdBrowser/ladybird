@@ -8,6 +8,7 @@
 #include <LibCore/ArgsParser.h>
 #include <LibCore/Environment.h>
 #include <LibCore/StandardPaths.h>
+#include <LibCore/System.h>
 #include <LibCore/TimeZoneWatcher.h>
 #include <LibFileSystem/FileSystem.h>
 #include <LibImageDecoderClient/Client.h>
@@ -55,6 +56,10 @@ Application::~Application()
 
 void Application::initialize(Main::Arguments const& arguments, URL::URL new_tab_page_url)
 {
+    // Increase the open file limit, as the default limits on Linux cause us to run out of file descriptors with around 15 tabs open.
+    if (auto result = Core::System::set_resource_limits(RLIMIT_NOFILE, 8192); result.is_error())
+        warnln("Unable to increase open file limit: {}", result.error());
+
     Vector<ByteString> raw_urls;
     Vector<ByteString> certificates;
     bool new_window = false;
@@ -69,9 +74,11 @@ void Application::initialize(Main::Arguments const& arguments, URL::URL new_tab_
     bool log_all_js_exceptions = false;
     bool enable_idl_tracing = false;
     bool enable_http_cache = false;
+    bool enable_autoplay = false;
     bool expose_internals_object = false;
     bool force_cpu_painting = false;
     bool force_fontconfig = false;
+    bool collect_garbage_on_every_allocation = false;
 
     Core::ArgsParser args_parser;
     args_parser.set_general_help("The Ladybird web browser :^)");
@@ -88,9 +95,11 @@ void Application::initialize(Main::Arguments const& arguments, URL::URL new_tab_
     args_parser.add_option(log_all_js_exceptions, "Log all JavaScript exceptions", "log-all-js-exceptions");
     args_parser.add_option(enable_idl_tracing, "Enable IDL tracing", "enable-idl-tracing");
     args_parser.add_option(enable_http_cache, "Enable HTTP cache", "enable-http-cache");
+    args_parser.add_option(enable_autoplay, "Enable multimedia autoplay", "enable-autoplay");
     args_parser.add_option(expose_internals_object, "Expose internals object", "expose-internals-object");
     args_parser.add_option(force_cpu_painting, "Force CPU painting", "force-cpu-painting");
     args_parser.add_option(force_fontconfig, "Force using fontconfig for font loading", "force-fontconfig");
+    args_parser.add_option(collect_garbage_on_every_allocation, "Collect garbage after every JS heap allocation", "collect-garbage-on-every-allocation", 'g');
     args_parser.add_option(Core::ArgsParser::Option {
         .argument_mode = Core::ArgsParser::OptionArgumentMode::Required,
         .help_string = "Name of the User-Agent preset to use in place of the default User-Agent",
@@ -145,6 +154,8 @@ void Application::initialize(Main::Arguments const& arguments, URL::URL new_tab_
         .expose_internals_object = expose_internals_object ? ExposeInternalsObject::Yes : ExposeInternalsObject::No,
         .force_cpu_painting = force_cpu_painting ? ForceCPUPainting::Yes : ForceCPUPainting::No,
         .force_fontconfig = force_fontconfig ? ForceFontconfig::Yes : ForceFontconfig::No,
+        .enable_autoplay = enable_autoplay ? EnableAutoplay::Yes : EnableAutoplay::No,
+        .collect_garbage_on_every_allocation = collect_garbage_on_every_allocation ? CollectGarbageOnEveryAllocation::Yes : CollectGarbageOnEveryAllocation::No,
     };
 
     create_platform_options(m_chrome_options, m_web_content_options);

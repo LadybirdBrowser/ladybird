@@ -141,10 +141,10 @@ WebIDL::ExceptionOr<void> DOMURL::revoke_object_url(JS::VM& vm, StringView url)
         return {};
 
     // 3. Let origin be the origin of url record.
-    auto origin = url_origin(url_record);
+    auto origin = url_record.origin();
 
     // 4. Let settings be the current settings object.
-    auto& settings = HTML::current_settings_object();
+    auto& settings = HTML::current_principal_settings_object();
 
     // 5. If origin is not same origin with settings’s origin, return.
     if (!origin.is_same_origin(settings.origin()))
@@ -218,7 +218,7 @@ WebIDL::ExceptionOr<String> DOMURL::origin() const
     auto& vm = realm().vm();
 
     // The origin getter steps are to return the serialization of this’s URL’s origin. [HTML]
-    return TRY_OR_THROW_OOM(vm, String::from_byte_string(m_url.serialize_origin()));
+    return TRY_OR_THROW_OOM(vm, String::from_byte_string(m_url.origin().serialize()));
 }
 
 // https://url.spec.whatwg.org/#dom-url-protocol
@@ -478,58 +478,6 @@ void DOMURL::set_hash(String const& hash)
     (void)URL::Parser::basic_parse(input, {}, &m_url, URL::Parser::State::Fragment);
 }
 
-// https://url.spec.whatwg.org/#concept-url-origin
-HTML::Origin url_origin(URL::URL const& url)
-{
-    // FIXME: We should probably have an extended version of URL::URL for LibWeb instead of standalone functions like this.
-
-    // The origin of a URL url is the origin returned by running these steps, switching on url’s scheme:
-    // -> "blob"
-    if (url.scheme() == "blob"sv) {
-        auto url_string = url.to_string().release_value_but_fixme_should_propagate_errors();
-
-        // 1. If url’s blob URL entry is non-null, then return url’s blob URL entry’s environment’s origin.
-        if (auto blob_url_entry = FileAPI::blob_url_store().get(url_string); blob_url_entry.has_value())
-            return blob_url_entry->environment->origin();
-
-        // 2. Let pathURL be the result of parsing the result of URL path serializing url.
-        auto path_url = parse(url.serialize_path());
-
-        // 3. If pathURL is failure, then return a new opaque origin.
-        if (!path_url.is_valid())
-            return HTML::Origin {};
-
-        // 4. If pathURL’s scheme is "http", "https", or "file", then return pathURL’s origin.
-        if (path_url.scheme().is_one_of("http"sv, "https"sv, "file"sv))
-            return url_origin(path_url);
-
-        // 5. Return a new opaque origin.
-        return HTML::Origin {};
-    }
-
-    // -> "ftp"
-    // -> "http"
-    // -> "https"
-    // -> "ws"
-    // -> "wss"
-    if (url.scheme().is_one_of("ftp"sv, "http"sv, "https"sv, "ws"sv, "wss"sv)) {
-        // Return the tuple origin (url’s scheme, url’s host, url’s port, null).
-        return HTML::Origin(url.scheme().to_byte_string(), url.host(), url.port().value_or(0));
-    }
-
-    // -> "file"
-    // AD-HOC: Our resource:// is basically an alias to file://
-    if (url.scheme() == "file"sv || url.scheme() == "resource"sv) {
-        // Unfortunate as it is, this is left as an exercise to the reader. When in doubt, return a new opaque origin.
-        // Note: We must return an origin with the `file://' protocol for `file://' iframes to work from `file://' pages.
-        return HTML::Origin(url.scheme().to_byte_string(), String {}, 0);
-    }
-
-    // -> Otherwise
-    // Return a new opaque origin.
-    return HTML::Origin {};
-}
-
 // https://url.spec.whatwg.org/#concept-domain
 bool host_is_domain(URL::Host const& host)
 {
@@ -582,6 +530,7 @@ URL::URL parse(StringView input, Optional<URL::URL> const& base_url, Optional<St
         url.set_blob_url_entry(URL::BlobURLEntry {
             .type = blob_url_entry->object->type(),
             .byte_buffer = MUST(ByteBuffer::copy(blob_url_entry->object->raw_bytes())),
+            .environment_origin = blob_url_entry->environment->origin(),
         });
     }
 

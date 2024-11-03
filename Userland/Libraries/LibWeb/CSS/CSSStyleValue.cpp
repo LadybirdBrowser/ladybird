@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2023, Andreas Kling <kling@serenityos.org>
+ * Copyright (c) 2018-2023, Andreas Kling <andreas@ladybird.org>
  * Copyright (c) 2021-2024, Sam Atkins <sam@ladybird.org>
  * Copyright (c) 2021, Tobias Christiansen <tobyase@serenityos.org>
  * Copyright (c) 2022-2023, MacDue <macdue@dueutil.tech>
@@ -40,12 +40,14 @@
 #include <LibWeb/CSS/StyleValues/LinearGradientStyleValue.h>
 #include <LibWeb/CSS/StyleValues/MathDepthStyleValue.h>
 #include <LibWeb/CSS/StyleValues/NumberStyleValue.h>
+#include <LibWeb/CSS/StyleValues/OpenTypeTaggedStyleValue.h>
 #include <LibWeb/CSS/StyleValues/PercentageStyleValue.h>
 #include <LibWeb/CSS/StyleValues/PositionStyleValue.h>
 #include <LibWeb/CSS/StyleValues/RadialGradientStyleValue.h>
 #include <LibWeb/CSS/StyleValues/RatioStyleValue.h>
 #include <LibWeb/CSS/StyleValues/RectStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ResolutionStyleValue.h>
+#include <LibWeb/CSS/StyleValues/RotationStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ScrollbarGutterStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ShadowStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ShorthandStyleValue.h>
@@ -244,6 +246,12 @@ NumberStyleValue const& CSSStyleValue::as_number() const
     return static_cast<NumberStyleValue const&>(*this);
 }
 
+OpenTypeTaggedStyleValue const& CSSStyleValue::as_open_type_tagged() const
+{
+    VERIFY(is_open_type_tagged());
+    return static_cast<OpenTypeTaggedStyleValue const&>(*this);
+}
+
 PercentageStyleValue const& CSSStyleValue::as_percentage() const
 {
     VERIFY(is_percentage());
@@ -278,6 +286,12 @@ ResolutionStyleValue const& CSSStyleValue::as_resolution() const
 {
     VERIFY(is_resolution());
     return static_cast<ResolutionStyleValue const&>(*this);
+}
+
+RotationStyleValue const& CSSStyleValue::as_rotation() const
+{
+    VERIFY(is_rotation());
+    return static_cast<RotationStyleValue const&>(*this);
 }
 
 ScrollbarGutterStyleValue const& CSSStyleValue::as_scrollbar_gutter() const
@@ -407,7 +421,7 @@ int CSSStyleValue::to_font_slope() const
     return normal_slope;
 }
 
-int CSSStyleValue::to_font_stretch_width() const
+int CSSStyleValue::to_font_width() const
 {
     int width = Gfx::FontWidth::Normal;
     if (is_keyword()) {

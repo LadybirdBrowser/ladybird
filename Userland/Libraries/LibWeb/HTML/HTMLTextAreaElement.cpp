@@ -2,7 +2,7 @@
  * Copyright (c) 2020, the SerenityOS developers.
  * Copyright (c) 2023, Sam Atkins <atkinssj@serenityos.org>
  * Copyright (c) 2024, Bastiaan van der Plaat <bastiaan.v.d.plaat@gmail.com>
- * Copyright (c) 2024, Jelle Raaijmakers <jelle@gmta.nl>
+ * Copyright (c) 2024, Jelle Raaijmakers <jelle@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -22,6 +22,7 @@
 #include <LibWeb/HTML/Numbers.h>
 #include <LibWeb/Infra/Strings.h>
 #include <LibWeb/Namespace.h>
+#include <LibWeb/Painting/Paintable.h>
 #include <LibWeb/Selection/Selection.h>
 
 namespace Web::HTML {
@@ -74,17 +75,20 @@ void HTMLTextAreaElement::did_receive_focus()
         return;
     m_text_node->invalidate_style(DOM::StyleInvalidationReason::DidReceiveFocus);
 
+    if (auto* paintable = m_text_node->paintable())
+        paintable->set_selected(true);
+
     if (m_placeholder_text_node)
         m_placeholder_text_node->invalidate_style(DOM::StyleInvalidationReason::DidReceiveFocus);
-
-    if (auto cursor = document().cursor_position(); !cursor || m_text_node != cursor->node())
-        document().set_cursor_position(DOM::Position::create(realm(), *m_text_node, 0));
 }
 
 void HTMLTextAreaElement::did_lose_focus()
 {
     if (m_text_node)
         m_text_node->invalidate_style(DOM::StyleInvalidationReason::DidLoseFocus);
+
+    if (auto* paintable = m_text_node->paintable())
+        paintable->set_selected(false);
 
     if (m_placeholder_text_node)
         m_placeholder_text_node->invalidate_style(DOM::StyleInvalidationReason::DidLoseFocus);
@@ -117,6 +121,20 @@ void HTMLTextAreaElement::reset_algorithm()
         m_text_node->set_text_content(m_raw_value);
         update_placeholder_visibility();
     }
+}
+
+// https://w3c.github.io/webdriver/#dfn-clear-algorithm
+void HTMLTextAreaElement::clear_algorithm()
+{
+    // The clear algorithm for textarea elements is to set the dirty value flag back to false,
+    m_dirty_value = false;
+
+    // and set the raw value of element to an empty string.
+    set_raw_value(child_text_content());
+
+    // Unlike their associated reset algorithms, changes made to form controls as part of these algorithms do count as
+    // changes caused by the user (and thus, e.g. do cause input events to fire).
+    queue_firing_input_event();
 }
 
 // https://html.spec.whatwg.org/multipage/forms.html#the-textarea-element:concept-node-clone-ext
@@ -192,7 +210,7 @@ void HTMLTextAreaElement::set_raw_value(String value)
     m_api_value.clear();
 
     if (m_raw_value != old_raw_value)
-        relevant_value_was_changed(m_text_node);
+        relevant_value_was_changed();
 }
 
 // https://html.spec.whatwg.org/multipage/form-elements.html#the-textarea-element:concept-fe-api-value-3
@@ -277,7 +295,7 @@ unsigned HTMLTextAreaElement::cols() const
 {
     // The cols and rows attributes are limited to only positive numbers with fallback. The cols IDL attribute's default value is 20.
     if (auto cols_string = get_attribute(HTML::AttributeNames::cols); cols_string.has_value()) {
-        if (auto cols = parse_non_negative_integer(*cols_string); cols.has_value())
+        if (auto cols = parse_non_negative_integer(*cols_string); cols.has_value() && *cols > 0)
             return *cols;
     }
     return 20;
@@ -285,7 +303,7 @@ unsigned HTMLTextAreaElement::cols() const
 
 WebIDL::ExceptionOr<void> HTMLTextAreaElement::set_cols(unsigned cols)
 {
-    return set_attribute(HTML::AttributeNames::cols, MUST(String::number(cols)));
+    return set_attribute(HTML::AttributeNames::cols, String::number(cols));
 }
 
 // https://html.spec.whatwg.org/multipage/form-elements.html#dom-textarea-rows
@@ -293,7 +311,7 @@ unsigned HTMLTextAreaElement::rows() const
 {
     // The cols and rows attributes are limited to only positive numbers with fallback. The rows IDL attribute's default value is 2.
     if (auto rows_string = get_attribute(HTML::AttributeNames::rows); rows_string.has_value()) {
-        if (auto rows = parse_non_negative_integer(*rows_string); rows.has_value())
+        if (auto rows = parse_non_negative_integer(*rows_string); rows.has_value() && *rows > 0)
             return *rows;
     }
     return 2;
@@ -301,7 +319,7 @@ unsigned HTMLTextAreaElement::rows() const
 
 WebIDL::ExceptionOr<void> HTMLTextAreaElement::set_rows(unsigned rows)
 {
-    return set_attribute(HTML::AttributeNames::rows, MUST(String::number(rows)));
+    return set_attribute(HTML::AttributeNames::rows, String::number(rows));
 }
 
 WebIDL::UnsignedLong HTMLTextAreaElement::selection_start_binding() const
@@ -329,9 +347,10 @@ String HTMLTextAreaElement::selection_direction_binding() const
     return selection_direction().value();
 }
 
-void HTMLTextAreaElement::set_selection_direction_binding(String direction)
+void HTMLTextAreaElement::set_selection_direction_binding(String const& direction)
 {
-    set_selection_direction(direction);
+    // NOTE: The selectionDirection setter never returns an error for textarea elements.
+    MUST(static_cast<FormAssociatedTextControlElement&>(*this).set_selection_direction_binding(direction));
 }
 
 void HTMLTextAreaElement::create_shadow_tree_if_needed()
@@ -433,7 +452,7 @@ void HTMLTextAreaElement::form_associated_element_attribute_changed(FlyString co
     }
 }
 
-void HTMLTextAreaElement::did_edit_text_node(Badge<DOM::Document>)
+void HTMLTextAreaElement::did_edit_text_node()
 {
     VERIFY(m_text_node);
     set_raw_value(m_text_node->data());
@@ -457,18 +476,6 @@ void HTMLTextAreaElement::queue_firing_input_event()
         auto change_event = DOM::Event::create(realm(), HTML::EventNames::input, { .bubbles = true, .composed = true });
         dispatch_event(change_event);
     });
-}
-
-void HTMLTextAreaElement::selection_was_changed(size_t selection_start, size_t selection_end)
-{
-    if (!m_text_node)
-        return;
-
-    if (auto selection = document().get_selection())
-        MUST(selection->set_base_and_extent(*m_text_node, selection_start, *m_text_node, selection_end));
-
-    if (document().cursor_position() && document().cursor_position()->node() == m_text_node)
-        document().set_cursor_position(DOM::Position::create(realm(), *m_text_node, selection_end));
 }
 
 }

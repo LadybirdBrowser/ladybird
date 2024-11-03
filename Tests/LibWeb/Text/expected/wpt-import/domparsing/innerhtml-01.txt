@@ -1,0 +1,13 @@
+Summary
+
+Harness status: OK
+
+Rerun
+
+Found 2 tests
+
+1 Pass
+1 Fail
+Details
+Result	Test Name	MessagePass	innerHTML in XHTML: getting while the document is in an invalid state	
+Fail	innerHTML in XHTML: getting while the document is in an invalid state 1	

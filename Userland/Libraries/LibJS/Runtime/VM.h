@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-2023, Andreas Kling <kling@serenityos.org>
+ * Copyright (c) 2020-2023, Andreas Kling <andreas@ladybird.org>
  * Copyright (c) 2020-2023, Linus Groh <linusg@serenityos.org>
  * Copyright (c) 2021-2022, David Tuin <davidot@serenityos.org>
  * Copyright (c) 2023, networkException <networkexception@serenityos.org>
@@ -42,7 +42,7 @@ public:
     struct CustomData {
         virtual ~CustomData() = default;
 
-        virtual void spin_event_loop_until(JS::SafeFunction<bool()> goal_condition) = 0;
+        virtual void spin_event_loop_until(JS::Handle<JS::HeapFunction<bool()>> goal_condition) = 0;
     };
 
     static ErrorOr<NonnullRefPtr<VM>> create(OwnPtr<CustomData> = {});
@@ -73,6 +73,11 @@ public:
     HashMap<ByteString, GCPtr<PrimitiveString>>& byte_string_cache()
     {
         return m_byte_string_cache;
+    }
+
+    HashMap<Utf16String, GCPtr<PrimitiveString>>& utf16_string_cache()
+    {
+        return m_utf16_string_cache;
     }
 
     PrimitiveString& empty_string() { return *m_empty_string; }
@@ -275,6 +280,7 @@ public:
     Function<ThrowCompletionOr<void>(Object&)> host_ensure_can_add_private_element;
     Function<ThrowCompletionOr<HandledByHost>(ArrayBuffer&, size_t)> host_resize_array_buffer;
     Function<void(StringView)> host_unrecognized_date_string;
+    Function<ThrowCompletionOr<NonnullGCPtr<ShadowRealm>>(Realm&, NonnullOwnPtr<ExecutionContext>, ShadowRealm&)> host_initialize_shadow_realm;
 
     Vector<StackTraceElement> stack_trace() const;
 
@@ -297,6 +303,7 @@ private:
 
     HashMap<String, GCPtr<PrimitiveString>> m_string_cache;
     HashMap<ByteString, GCPtr<PrimitiveString>> m_byte_string_cache;
+    HashMap<Utf16String, GCPtr<PrimitiveString>> m_utf16_string_cache;
 
     Heap m_heap;
 

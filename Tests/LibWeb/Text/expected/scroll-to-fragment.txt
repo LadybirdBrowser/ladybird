@@ -1,1 +1,1 @@
-Take test     The page has been scrolled to y: 563
+The page has been scrolled to y: 563

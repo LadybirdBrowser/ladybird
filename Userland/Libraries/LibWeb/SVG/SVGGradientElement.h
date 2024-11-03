@@ -19,7 +19,6 @@ namespace Web::SVG {
 struct SVGPaintContext {
     Gfx::FloatRect viewport;
     Gfx::FloatRect path_bounding_box;
-    Gfx::AffineTransform transform;
 };
 
 inline Painting::SVGGradientPaintStyle::SpreadMethod to_painting_spread_method(SpreadMethod spread_method)
@@ -93,7 +92,9 @@ private:
     SpreadMethod spread_method_impl(HashTable<SVGGradientElement const*>& seen_gradients) const;
     Optional<Gfx::AffineTransform> gradient_transform_impl(HashTable<SVGGradientElement const*>& seen_gradients) const;
 
+    // https://svgwg.org/svg2-draft/pservers.html#LinearGradientAttributes
     Optional<GradientUnits> m_gradient_units = {};
+
     Optional<SpreadMethod> m_spread_method = {};
     Optional<Gfx::AffineTransform> m_gradient_transform = {};
 };

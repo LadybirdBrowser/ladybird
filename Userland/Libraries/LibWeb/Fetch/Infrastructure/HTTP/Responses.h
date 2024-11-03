@@ -197,9 +197,14 @@ private:
     u64 stale_while_revalidate_lifetime() const;
 
     // Non-standard
+    ByteBuffer m_method;
     UnixDateTime m_response_time;
 
     Optional<Variant<String, StringView>> m_network_error_message;
+
+public:
+    [[nodiscard]] ByteBuffer const& method() const { return m_method; }
+    void set_method(ByteBuffer method) { m_method = method; }
 };
 
 // https://fetch.spec.whatwg.org/#concept-filtered-response

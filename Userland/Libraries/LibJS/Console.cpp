@@ -67,7 +67,7 @@ ThrowCompletionOr<Value> Console::assert_()
     else {
         // 1. Let first be data[0].
         auto& first = data[0];
-        // 2. If Type(first) is not String, then prepend message to data.
+        // 2. If first is not a String, then prepend message to data.
         if (!first.is_string()) {
             data.prepend(message);
         }
@@ -143,7 +143,7 @@ ThrowCompletionOr<Value> Console::log()
 }
 
 // To [create table row] given tabularDataItem, rowIndex, list finalColumns, and optional list properties, perform the following steps:
-static ThrowCompletionOr<NonnullGCPtr<Object>> create_table_row(Realm& realm, Value row_index, Value tabular_data_item, Vector<Value>& final_columns, HashMap<PropertyKey, bool>& visited_columns, HashMap<PropertyKey, bool>& properties)
+static ThrowCompletionOr<NonnullGCPtr<Object>> create_table_row(Realm& realm, Value row_index, Value tabular_data_item, MarkedVector<Value>& final_columns, HashMap<PropertyKey, bool>& visited_columns, HashMap<PropertyKey, bool>& properties)
 {
     auto& vm = realm.vm();
 
@@ -265,10 +265,10 @@ ThrowCompletionOr<Value> Console::table()
         }
 
         // 1. Let `finalRows` be the new list, initially empty
-        Vector<Value> final_rows;
+        MarkedVector<Value> final_rows(vm.heap());
 
         // 2. Let `finalColumns` be the new list, initially empty
-        Vector<Value> final_columns;
+        MarkedVector<Value> final_columns(vm.heap());
 
         HashMap<PropertyKey, bool> visited_columns;
 
@@ -346,7 +346,7 @@ ThrowCompletionOr<Value> Console::trace()
 
     auto& vm = realm().vm();
 
-    // 1. Let trace be some implementation-specific, potentially-interactive representation of the callstack from where this function was called.
+    // 1. Let trace be some implementation-defined, potentially-interactive representation of the callstack from where this function was called.
     Console::Trace trace;
     auto& execution_context_stack = vm.execution_context_stack();
     // NOTE: -2 to skip the console.trace() execution context
@@ -818,7 +818,7 @@ ThrowCompletionOr<MarkedVector<Value>> ConsoleClient::formatter(MarkedVector<Val
     auto find_specifier = [](StringView target) -> Optional<StringView> {
         size_t start_index = 0;
         while (start_index < target.length()) {
-            auto maybe_index = target.find('%');
+            auto maybe_index = target.find('%', start_index);
             if (!maybe_index.has_value())
                 return {};
 
@@ -858,7 +858,7 @@ ThrowCompletionOr<MarkedVector<Value>> ConsoleClient::formatter(MarkedVector<Val
         }
         // 2. If specifier is %d or %i:
         else if (specifier.is_one_of("%d"sv, "%i"sv)) {
-            // 1. If Type(current) is Symbol, let converted be NaN
+            // 1. If current is a Symbol, let converted be NaN
             if (current.is_symbol()) {
                 converted = js_nan();
             }
@@ -869,7 +869,7 @@ ThrowCompletionOr<MarkedVector<Value>> ConsoleClient::formatter(MarkedVector<Val
         }
         // 3. If specifier is %f:
         else if (specifier == "%f"sv) {
-            // 1. If Type(current) is Symbol, let converted be NaN
+            // 1. If current is a Symbol, let converted be NaN
             if (current.is_symbol()) {
                 converted = js_nan();
             }

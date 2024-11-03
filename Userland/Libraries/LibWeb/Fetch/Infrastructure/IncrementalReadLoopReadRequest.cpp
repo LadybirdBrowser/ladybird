@@ -33,7 +33,7 @@ void IncrementalReadLoopReadRequest::on_chunk(JS::Value chunk)
         auto bytes = MUST(ByteBuffer::copy(uint8_array.data()));
         // 2. Set continueAlgorithm to these steps:
         continue_algorithm = JS::create_heap_function(realm.heap(), [bytes = move(bytes), body = m_body, reader = m_reader, task_destination = m_task_destination, process_body_chunk = m_process_body_chunk, process_end_of_body = m_process_end_of_body, process_body_error = m_process_body_error] {
-            HTML::TemporaryExecutionContext execution_context { Bindings::host_defined_environment_settings_object(reader->realm()), HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
+            HTML::TemporaryExecutionContext execution_context { reader->realm(), HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
             // 1. Run processBodyChunk given bytes.
             process_body_chunk->function()(move(bytes));
 

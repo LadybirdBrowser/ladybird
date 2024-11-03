@@ -30,12 +30,18 @@ public:
     static WebIDL::ExceptionOr<JS::NonnullGCPtr<DynamicsCompressorNode>> create(JS::Realm&, JS::NonnullGCPtr<BaseAudioContext>, DynamicsCompressorOptions const& = {});
     static WebIDL::ExceptionOr<JS::NonnullGCPtr<DynamicsCompressorNode>> construct_impl(JS::Realm&, JS::NonnullGCPtr<BaseAudioContext>, DynamicsCompressorOptions const& = {});
 
+    WebIDL::UnsignedLong number_of_inputs() override { return 1; }
+    WebIDL::UnsignedLong number_of_outputs() override { return 1; }
+
     JS::NonnullGCPtr<AudioParam const> threshold() const { return m_threshold; }
     JS::NonnullGCPtr<AudioParam const> knee() const { return m_knee; }
     JS::NonnullGCPtr<AudioParam const> ratio() const { return m_ratio; }
     JS::NonnullGCPtr<AudioParam const> attack() const { return m_attack; }
     JS::NonnullGCPtr<AudioParam const> release() const { return m_release; }
     float reduction() const { return m_reduction; }
+
+    WebIDL::ExceptionOr<void> set_channel_count_mode(Bindings::ChannelCountMode) override;
+    WebIDL::ExceptionOr<void> set_channel_count(WebIDL::UnsignedLong) override;
 
 protected:
     DynamicsCompressorNode(JS::Realm&, JS::NonnullGCPtr<BaseAudioContext>, DynamicsCompressorOptions const& = {});

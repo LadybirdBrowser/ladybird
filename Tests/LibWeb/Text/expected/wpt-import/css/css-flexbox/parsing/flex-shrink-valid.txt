@@ -1,0 +1,14 @@
+Summary
+
+Harness status: OK
+
+Rerun
+
+Found 4 tests
+
+4 Pass
+Details
+Result	Test Name	MessagePass	e.style['flex-shrink'] = "1" should set the property value	
+Pass	e.style['flex-shrink'] = "23.4e5" should set the property value	
+Pass	e.style['flex-shrink'] = "+.678E9" should set the property value	
+Pass	e.style['flex-shrink'] = ".0" should set the property value	

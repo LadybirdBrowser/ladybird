@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2024, Andreas Kling <kling@serenityos.org>
+ * Copyright (c) 2021-2024, Andreas Kling <andreas@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -171,7 +171,7 @@ public:
     BasicBlock& make_block(String name = {})
     {
         if (name.is_empty())
-            name = MUST(String::number(m_next_block++));
+            name = String::number(m_next_block++);
         auto block = BasicBlock::create(m_root_basic_blocks.size(), name);
         if (auto const* context = m_current_unwind_context) {
             if (context->handler().has_value())

@@ -183,7 +183,7 @@ String ProcessManager::generate_html()
             builder.appendff(" - {}", escape_html_entities(*process_handle.title()));
         builder.append("</td>"sv);
         builder.append("<td>"sv);
-        builder.append(MUST(String::number(process.pid)));
+        builder.append(String::number(process.pid));
         builder.append("</td>"sv);
         builder.append("<td>"sv);
         builder.append(human_readable_size(process.memory_usage_bytes));

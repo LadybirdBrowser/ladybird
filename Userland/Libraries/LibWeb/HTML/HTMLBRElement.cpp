@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2021, Andreas Kling <kling@serenityos.org>
+ * Copyright (c) 2018-2021, Andreas Kling <andreas@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -26,7 +26,7 @@ void HTMLBRElement::initialize(JS::Realm& realm)
     WEB_SET_PROTOTYPE_FOR_INTERFACE(HTMLBRElement);
 }
 
-JS::GCPtr<Layout::Node> HTMLBRElement::create_layout_node(NonnullRefPtr<CSS::StyleProperties> style)
+JS::GCPtr<Layout::Node> HTMLBRElement::create_layout_node(CSS::StyleProperties style)
 {
     return heap().allocate_without_realm<Layout::BreakNode>(document(), *this, move(style));
 }

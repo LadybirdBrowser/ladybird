@@ -2,7 +2,7 @@ describe("errors", () => {
     test("called with non-Object", () => {
         expect(() => {
             Iterator.from(Symbol.hasInstance);
-        }).toThrowWithMessage(TypeError, "Symbol(Symbol.hasInstance) is not an object");
+        }).toThrowWithMessage(TypeError, "Symbol(Symbol.hasInstance) is not a string");
     });
 
     test("@@iterator is not callable", () => {

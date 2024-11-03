@@ -22,15 +22,9 @@ Application::Application(Badge<WebView::Application>, Main::Arguments& arguments
 {
 }
 
-void Application::create_platform_arguments(Core::ArgsParser& args_parser)
-{
-    args_parser.add_option(m_enable_qt_networking, "Enable Qt as the backend networking service", "enable-qt-networking");
-}
-
 void Application::create_platform_options(WebView::ChromeOptions&, WebView::WebContentOptions& web_content_options)
 {
     web_content_options.config_path = Settings::the()->directory();
-    web_content_options.use_lagom_networking = m_enable_qt_networking ? WebView::UseLagomNetworking::No : WebView::UseLagomNetworking::Yes;
 }
 
 Application::~Application()

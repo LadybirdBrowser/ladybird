@@ -1,0 +1,5 @@
+// https://www.w3.org/TR/device-memory/#sec-device-memory-js-api
+[SecureContext, Exposed=(Window,Worker)]
+interface mixin NavigatorDeviceMemory {
+    readonly attribute double deviceMemory;
+};

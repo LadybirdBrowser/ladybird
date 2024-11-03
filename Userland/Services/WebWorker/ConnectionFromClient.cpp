@@ -45,8 +45,8 @@ void ConnectionFromClient::request_file(Web::FileRequest request)
         handle_file_return(0, IPC::File::adopt_file(file.release_value()), request_id);
 }
 
-ConnectionFromClient::ConnectionFromClient(NonnullOwnPtr<Core::LocalSocket> socket)
-    : IPC::ConnectionFromClient<WebWorkerClientEndpoint, WebWorkerServerEndpoint>(*this, move(socket), 1)
+ConnectionFromClient::ConnectionFromClient(IPC::Transport transport)
+    : IPC::ConnectionFromClient<WebWorkerClientEndpoint, WebWorkerServerEndpoint>(*this, move(transport), 1)
     , m_page_host(PageHost::create(Web::Bindings::main_thread_vm(), *this))
 {
 }
@@ -63,7 +63,7 @@ Web::Page const& ConnectionFromClient::page() const
     return m_page_host->page();
 }
 
-void ConnectionFromClient::start_dedicated_worker(URL::URL const& url, String const& type, String const&, String const& name, Web::HTML::TransferDataHolder const& implicit_port, Web::HTML::SerializedEnvironmentSettingsObject const& outside_settings)
+void ConnectionFromClient::start_dedicated_worker(URL::URL const& url, Web::Bindings::WorkerType const& type, Web::Bindings::RequestCredentials const&, String const& name, Web::HTML::TransferDataHolder const& implicit_port, Web::HTML::SerializedEnvironmentSettingsObject const& outside_settings)
 {
     m_worker_host = make_ref_counted<DedicatedWorkerHost>(url, type, name);
     // FIXME: Yikes, const_cast to move? Feels like a LibIPC bug.

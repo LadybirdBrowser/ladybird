@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021, Andreas Kling <kling@serenityos.org>
+ * Copyright (c) 2021, Andreas Kling <andreas@ladybird.org>
  * Copyright (c) 2024, Aliaksandr Kalenik <kalenik.aliaksandr@gmail.com>
  *
  * SPDX-License-Identifier: BSD-2-Clause
@@ -97,7 +97,7 @@ void ResizeObserver::disconnect()
     m_active_targets.clear();
 }
 
-void ResizeObserver::invoke_callback(Vector<JS::NonnullGCPtr<ResizeObserverEntry>>& entries) const
+void ResizeObserver::invoke_callback(ReadonlySpan<JS::NonnullGCPtr<ResizeObserverEntry>> entries) const
 {
     auto& callback = *m_callback;
     auto& realm = callback.callback_context->realm();

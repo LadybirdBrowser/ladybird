@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-2021, Andreas Kling <kling@serenityos.org>
+ * Copyright (c) 2020-2021, Andreas Kling <andreas@ladybird.org>
  * Copyright (c) 2020-2022, Linus Groh <linusg@serenityos.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
@@ -139,15 +139,15 @@
     __JS_ENUMERATE(toStringTag, to_string_tag)               \
     __JS_ENUMERATE(dispose, dispose)
 
-#define JS_ENUMERATE_REGEXP_FLAGS                \
-    __JS_ENUMERATE(hasIndices, has_indices, d)   \
-    __JS_ENUMERATE(global, global, g)            \
-    __JS_ENUMERATE(ignoreCase, ignore_case, i)   \
-    __JS_ENUMERATE(multiline, multiline, m)      \
-    __JS_ENUMERATE(dotAll, dot_all, s)           \
-    __JS_ENUMERATE(unicodeSets, unicode_sets, v) \
-    __JS_ENUMERATE(unicode, unicode, u)          \
-    __JS_ENUMERATE(sticky, sticky, y)
+#define JS_ENUMERATE_REGEXP_FLAGS                             \
+    __JS_ENUMERATE(HasIndices, hasIndices, has_indices, d)    \
+    __JS_ENUMERATE(Global, global, global, g)                 \
+    __JS_ENUMERATE(IgnoreCase, ignoreCase, ignore_case, i)    \
+    __JS_ENUMERATE(Multiline, multiline, multiline, m)        \
+    __JS_ENUMERATE(DotAll, dotAll, dot_all, s)                \
+    __JS_ENUMERATE(UnicodeSets, unicodeSets, unicode_sets, v) \
+    __JS_ENUMERATE(Unicode, unicode, unicode, u)              \
+    __JS_ENUMERATE(Sticky, sticky, sticky, y)
 
 namespace JS {
 
@@ -156,6 +156,7 @@ class Accessor;
 struct AsyncGeneratorRequest;
 class BigInt;
 class BoundFunction;
+struct CachedSourceRange;
 class Cell;
 class CellAllocator;
 class ClassExpression;

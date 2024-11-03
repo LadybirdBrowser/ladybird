@@ -1,4 +1,5 @@
 import("//Ladybird/compile_qt_resource_file.gni")
+import("//Ladybird/enable_appkit.gni")
 import("//Ladybird/enable_qt.gni")
 import("//Ladybird/link_qt.gni")
 import("//Ladybird/moc_qt_objects.gni")
@@ -69,7 +70,7 @@ executable("ladybird_executable") {
     "//Userland/Libraries/LibImageDecoderClient",
     "//Userland/Libraries/LibJS",
     "//Userland/Libraries/LibMain",
-    "//Userland/Libraries/LibProtocol",
+    "//Userland/Libraries/LibRequests",
     "//Userland/Libraries/LibURL",
     "//Userland/Libraries/LibWeb",
     "//Userland/Libraries/LibWebView",
@@ -110,10 +111,9 @@ executable("ladybird_executable") {
       ":compile_resource_file",
       ":generate_moc",
     ]
-  } else {
+  } else if (enable_appkit) {
     sources += [
       "AppKit/Application/Application.mm",
-      "AppKit/Application/ApplicationBridge.cpp",
       "AppKit/Application/ApplicationDelegate.mm",
       "AppKit/Application/EventLoopImplementation.mm",
       "AppKit/UI/Event.mm",
@@ -156,10 +156,11 @@ executable("ladybird_executable") {
     data_deps += [
       ":ladybird_copy_cacert",
       ":ladybird_copy_config_resources",
-      ":ladybird_copy_emoji",
       ":ladybird_copy_fonts",
+      ":ladybird_copy_icons_128x128",
       ":ladybird_copy_icons_16x16",
       ":ladybird_copy_icons_32x32",
+      ":ladybird_copy_icons_48x48",
       ":ladybird_copy_icons_browser",
       ":ladybird_copy_themes",
       ":ladybird_copy_web_resources",
@@ -185,7 +186,7 @@ executable("headless-browser") {
     "//Userland/Libraries/LibImageDecoderClient",
     "//Userland/Libraries/LibJS",
     "//Userland/Libraries/LibMain",
-    "//Userland/Libraries/LibProtocol",
+    "//Userland/Libraries/LibRequests",
     "//Userland/Libraries/LibTLS",
     "//Userland/Libraries/LibURL",
     "//Userland/Libraries/LibWeb",
@@ -200,14 +201,10 @@ executable("headless-browser") {
   ]
 }
 
-_emoji = read_file("//Meta/emoji-file-list.txt", "list lines")
-emoji = []
-
-foreach(file, _emoji) {
-  emoji += [ "//Base/res/emoji/" + file ]
-}
-
-fonts = [ "//Base/res/fonts/SerenitySans-Regular.ttf" ]
+fonts = [
+  "//Base/res/fonts/SerenitySans-Regular.ttf",
+  "//Base/res/fonts/NotoEmoji.ttf",
+]
 
 icons_16x16 = [
   "//Base/res/icons/16x16/app-system-monitor.png",
@@ -270,6 +267,7 @@ themes = [
 web_resources = [
   "//Base/res/ladybird/about.html",
   "//Base/res/ladybird/inspector.css",
+  "//Base/res/ladybird/inspector.html",
   "//Base/res/ladybird/inspector.js",
   "//Base/res/ladybird/newtab.html",
 ]
@@ -289,11 +287,6 @@ config_resources = [
 ]
 
 if (current_os != "mac") {
-  copy("ladybird_copy_emoji") {
-    sources = emoji
-    outputs = [ "$root_out_dir/share/Lagom/emoji/{{source_file_part}}" ]
-  }
-
   copy("ladybird_copy_fonts") {
     sources = fonts
     outputs = [ "$root_out_dir/share/Lagom/fonts/{{source_file_part}}" ]
@@ -397,15 +390,14 @@ if (current_os != "mac") {
       "//Userland/Libraries/LibJS",
       "//Userland/Libraries/LibLine",
       "//Userland/Libraries/LibMedia",
-      "//Userland/Libraries/LibProtocol",
       "//Userland/Libraries/LibRIFF",
       "//Userland/Libraries/LibRegex",
+      "//Userland/Libraries/LibRequests",
       "//Userland/Libraries/LibSyntax",
       "//Userland/Libraries/LibTLS",
       "//Userland/Libraries/LibTextCodec",
       "//Userland/Libraries/LibThreading",
       "//Userland/Libraries/LibURL",
-      "//Userland/Libraries/LibVideo",
       "//Userland/Libraries/LibWasm",
       "//Userland/Libraries/LibWeb",
       "//Userland/Libraries/LibWebSocket",
@@ -428,15 +420,14 @@ if (current_os != "mac") {
       "$root_out_dir/lib/liblagom-js.dylib",
       "$root_out_dir/lib/liblagom-line.dylib",
       "$root_out_dir/lib/liblagom-media.dylib",
-      "$root_out_dir/lib/liblagom-protocol.dylib",
       "$root_out_dir/lib/liblagom-regex.dylib",
+      "$root_out_dir/lib/liblagom-requests.dylib",
       "$root_out_dir/lib/liblagom-riff.dylib",
       "$root_out_dir/lib/liblagom-syntax.dylib",
       "$root_out_dir/lib/liblagom-textcodec.dylib",
       "$root_out_dir/lib/liblagom-threading.dylib",
       "$root_out_dir/lib/liblagom-tls.dylib",
       "$root_out_dir/lib/liblagom-url.dylib",
-      "$root_out_dir/lib/liblagom-video.dylib",
       "$root_out_dir/lib/liblagom-wasm.dylib",
       "$root_out_dir/lib/liblagom-web.dylib",
       "$root_out_dir/lib/liblagom-websocket.dylib",
@@ -444,11 +435,6 @@ if (current_os != "mac") {
       "$root_out_dir/lib/liblagom-xml.dylib",
     ]
     outputs = [ "{{bundle_contents_dir}}/lib/{{source_file_part}}" ]
-  }
-
-  bundle_data("ladybird_emoji") {
-    sources = emoji
-    outputs = [ "{{bundle_resources_dir}}/emoji/{{source_file_part}}" ]
   }
 
   bundle_data("ladybird_fonts") {
@@ -464,6 +450,16 @@ if (current_os != "mac") {
   bundle_data("ladybird_icons_32x32") {
     sources = icons_32x32
     outputs = [ "{{bundle_resources_dir}}/icons/32x32/{{source_file_part}}" ]
+  }
+
+  bundle_data("ladybird_icons_48x48") {
+    sources = icons_48x48
+    outputs = [ "{{bundle_resources_dir}}/icons/48x48/{{source_file_part}}" ]
+  }
+
+  bundle_data("ladybird_icons_128x128") {
+    sources = icons_128x128
+    outputs = [ "{{bundle_resources_dir}}/icons/128x128/{{source_file_part}}" ]
   }
 
   bundle_data("ladybird_icons_browser") {
@@ -546,11 +542,12 @@ if (current_os != "mac") {
       ":ladybird_bundle_libs",
       ":ladybird_cacert",
       ":ladybird_config_resources",
-      ":ladybird_emoji",
       ":ladybird_fonts",
       ":ladybird_icon",
+      ":ladybird_icons_128x128",
       ":ladybird_icons_16x16",
       ":ladybird_icons_32x32",
+      ":ladybird_icons_48x48",
       ":ladybird_icons_browser",
       ":ladybird_themes",
       ":ladybird_web_resources",

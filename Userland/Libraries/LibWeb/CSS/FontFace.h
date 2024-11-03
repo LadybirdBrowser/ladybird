@@ -70,12 +70,16 @@ public:
     String line_gap_override() const { return m_line_gap_override; }
     WebIDL::ExceptionOr<void> set_line_gap_override(String const&);
 
+    bool is_css_connected() const { return m_is_css_connected; }
+
     Bindings::FontFaceLoadStatus status() const { return m_status; }
 
-    JS::NonnullGCPtr<JS::Promise> load();
-    JS::NonnullGCPtr<JS::Promise> loaded() const;
+    JS::NonnullGCPtr<WebIDL::Promise> load();
+    JS::NonnullGCPtr<WebIDL::Promise> loaded() const;
 
     void load_font_source();
+
+    JS::NonnullGCPtr<WebIDL::Promise> font_status_promise() { return m_font_status_promise; }
 
 private:
     FontFace(JS::Realm&, JS::NonnullGCPtr<WebIDL::Promise> font_status_promise, Vector<ParsedFontFace::Source> urls, ByteBuffer data, String family, FontFaceDescriptors const& descriptors);

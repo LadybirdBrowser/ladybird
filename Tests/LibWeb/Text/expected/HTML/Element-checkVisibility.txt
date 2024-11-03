@@ -1,4 +1,4 @@
-         display-none visible: false
+display-none visible: false
 content-visibility-parent visible: true
 content-visibility-child visible: false
 opacity-hidden visible: false

@@ -1,0 +1,133 @@
+Viewport <#document> at (0,0) content-size 800x600 children: not-inline
+  BlockContainer <html> at (0,0) content-size 800x252 [BFC] children: not-inline
+    Box <body> at (28,28) content-size 744x196 flex-container(row) [FFC] children: not-inline
+      Box <div.container> at (30,30) content-size 300x30 flex-item [GFC] children: not-inline
+        BlockContainer <(anonymous)> (not painted) [BFC] children: inline
+          TextNode <#text>
+        BlockContainer <div.item> at (30,30) content-size 90x30 [BFC] children: not-inline
+        BlockContainer <(anonymous)> (not painted) [BFC] children: inline
+          TextNode <#text>
+        BlockContainer <div.item> at (135,30) content-size 90x30 [BFC] children: not-inline
+        BlockContainer <(anonymous)> (not painted) [BFC] children: inline
+          TextNode <#text>
+        BlockContainer <div.item> at (240,30) content-size 90x30 [BFC] children: not-inline
+        BlockContainer <(anonymous)> (not painted) [BFC] children: inline
+          TextNode <#text>
+      BlockContainer <(anonymous)> (not painted) [BFC] children: inline
+        TextNode <#text>
+      Box <div.container> at (354,30) content-size 300x30 flex-item [GFC] children: not-inline
+        BlockContainer <(anonymous)> (not painted) [BFC] children: inline
+          TextNode <#text>
+        BlockContainer <div.item> at (354,30) content-size 90x30 [BFC] children: not-inline
+        BlockContainer <(anonymous)> (not painted) [BFC] children: inline
+          TextNode <#text>
+        BlockContainer <div.item> at (459,30) content-size 90x30 [BFC] children: not-inline
+        BlockContainer <(anonymous)> (not painted) [BFC] children: inline
+          TextNode <#text>
+        BlockContainer <div.item> at (564,30) content-size 90x30 [BFC] children: not-inline
+        BlockContainer <(anonymous)> (not painted) [BFC] children: inline
+          TextNode <#text>
+      BlockContainer <(anonymous)> (not painted) [BFC] children: inline
+        TextNode <#text>
+      Box <div.container> at (30,84) content-size 300x30 flex-item [GFC] children: not-inline
+        BlockContainer <(anonymous)> (not painted) [BFC] children: inline
+          TextNode <#text>
+        BlockContainer <div.item> at (30,84) content-size 90x30 [BFC] children: not-inline
+        BlockContainer <(anonymous)> (not painted) [BFC] children: inline
+          TextNode <#text>
+        BlockContainer <div.item> at (135,84) content-size 90x30 [BFC] children: not-inline
+        BlockContainer <(anonymous)> (not painted) [BFC] children: inline
+          TextNode <#text>
+        BlockContainer <div.item> at (240,84) content-size 90x30 [BFC] children: not-inline
+        BlockContainer <(anonymous)> (not painted) [BFC] children: inline
+          TextNode <#text>
+      BlockContainer <(anonymous)> (not painted) [BFC] children: inline
+        TextNode <#text>
+      Box <div.container> at (354,84) content-size 300x30 flex-item [GFC] children: not-inline
+        BlockContainer <(anonymous)> (not painted) [BFC] children: inline
+          TextNode <#text>
+        BlockContainer <div.item> at (354,84) content-size 90x30 [BFC] children: not-inline
+        BlockContainer <(anonymous)> (not painted) [BFC] children: inline
+          TextNode <#text>
+        BlockContainer <div.item> at (459,84) content-size 90x30 [BFC] children: not-inline
+        BlockContainer <(anonymous)> (not painted) [BFC] children: inline
+          TextNode <#text>
+        BlockContainer <div.item> at (564,84) content-size 90x30 [BFC] children: not-inline
+        BlockContainer <(anonymous)> (not painted) [BFC] children: inline
+          TextNode <#text>
+      BlockContainer <(anonymous)> (not painted) [BFC] children: inline
+        TextNode <#text>
+      Box <div.container> at (30,138) content-size 300x30 flex-item [GFC] children: not-inline
+        BlockContainer <(anonymous)> (not painted) [BFC] children: inline
+          TextNode <#text>
+        BlockContainer <div.item> at (30,138) content-size 90x30 [BFC] children: not-inline
+        BlockContainer <(anonymous)> (not painted) [BFC] children: inline
+          TextNode <#text>
+        BlockContainer <div.item> at (135,138) content-size 90x30 [BFC] children: not-inline
+        BlockContainer <(anonymous)> (not painted) [BFC] children: inline
+          TextNode <#text>
+        BlockContainer <div.item> at (240,138) content-size 90x30 [BFC] children: not-inline
+        BlockContainer <(anonymous)> (not painted) [BFC] children: inline
+          TextNode <#text>
+      BlockContainer <(anonymous)> (not painted) [BFC] children: inline
+        TextNode <#text>
+      Box <div.container> at (354,138) content-size 300x30 flex-item [GFC] children: not-inline
+        BlockContainer <(anonymous)> (not painted) [BFC] children: inline
+          TextNode <#text>
+        BlockContainer <div.item> at (354,138) content-size 90x30 [BFC] children: not-inline
+        BlockContainer <(anonymous)> (not painted) [BFC] children: inline
+          TextNode <#text>
+        BlockContainer <div.item> at (459,138) content-size 90x30 [BFC] children: not-inline
+        BlockContainer <(anonymous)> (not painted) [BFC] children: inline
+          TextNode <#text>
+        BlockContainer <div.item> at (564,138) content-size 90x30 [BFC] children: not-inline
+        BlockContainer <(anonymous)> (not painted) [BFC] children: inline
+          TextNode <#text>
+      BlockContainer <(anonymous)> (not painted) [BFC] children: inline
+        TextNode <#text>
+      Box <div.container> at (30,192) content-size 300x30 flex-item [GFC] children: not-inline
+        BlockContainer <(anonymous)> (not painted) [BFC] children: inline
+          TextNode <#text>
+        BlockContainer <div.item> at (30,192) content-size 90x30 [BFC] children: not-inline
+        BlockContainer <(anonymous)> (not painted) [BFC] children: inline
+          TextNode <#text>
+        BlockContainer <div.item> at (135,192) content-size 90x30 [BFC] children: not-inline
+        BlockContainer <(anonymous)> (not painted) [BFC] children: inline
+          TextNode <#text>
+        BlockContainer <div.item> at (240,192) content-size 90x30 [BFC] children: not-inline
+        BlockContainer <(anonymous)> (not painted) [BFC] children: inline
+          TextNode <#text>
+      BlockContainer <(anonymous)> (not painted) [BFC] children: inline
+        TextNode <#text>
+
+ViewportPaintable (Viewport<#document>) [0,0 800x600]
+  PaintableWithLines (BlockContainer<HTML>) [0,0 800x252]
+    PaintableBox (Box<BODY>) [8,8 784x236]
+      PaintableBox (Box<DIV>.container) [28,28 304x34]
+        PaintableWithLines (BlockContainer<DIV>.item) [30,30 90x30]
+        PaintableWithLines (BlockContainer<DIV>.item) [135,30 90x30]
+        PaintableWithLines (BlockContainer<DIV>.item) [240,30 90x30]
+      PaintableBox (Box<DIV>.container) [352,28 304x34]
+        PaintableWithLines (BlockContainer<DIV>.item) [354,30 90x30]
+        PaintableWithLines (BlockContainer<DIV>.item) [459,30 90x30]
+        PaintableWithLines (BlockContainer<DIV>.item) [564,30 90x30]
+      PaintableBox (Box<DIV>.container) [28,82 304x34]
+        PaintableWithLines (BlockContainer<DIV>.item) [30,84 90x30]
+        PaintableWithLines (BlockContainer<DIV>.item) [135,84 90x30]
+        PaintableWithLines (BlockContainer<DIV>.item) [240,84 90x30]
+      PaintableBox (Box<DIV>.container) [352,82 304x34]
+        PaintableWithLines (BlockContainer<DIV>.item) [354,84 90x30]
+        PaintableWithLines (BlockContainer<DIV>.item) [459,84 90x30]
+        PaintableWithLines (BlockContainer<DIV>.item) [564,84 90x30]
+      PaintableBox (Box<DIV>.container) [28,136 304x34]
+        PaintableWithLines (BlockContainer<DIV>.item) [30,138 90x30]
+        PaintableWithLines (BlockContainer<DIV>.item) [135,138 90x30]
+        PaintableWithLines (BlockContainer<DIV>.item) [240,138 90x30]
+      PaintableBox (Box<DIV>.container) [352,136 304x34]
+        PaintableWithLines (BlockContainer<DIV>.item) [354,138 90x30]
+        PaintableWithLines (BlockContainer<DIV>.item) [459,138 90x30]
+        PaintableWithLines (BlockContainer<DIV>.item) [564,138 90x30]
+      PaintableBox (Box<DIV>.container) [28,190 304x34]
+        PaintableWithLines (BlockContainer<DIV>.item) [30,192 90x30]
+        PaintableWithLines (BlockContainer<DIV>.item) [135,192 90x30]
+        PaintableWithLines (BlockContainer<DIV>.item) [240,192 90x30]

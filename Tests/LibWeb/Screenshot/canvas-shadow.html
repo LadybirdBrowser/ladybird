@@ -1,0 +1,30 @@
+<link rel="match" href="reference/canvas-shadow-ref.html" />
+<style>
+    * {
+        margin: 0;
+    }
+
+    body {
+        background-color: white;
+    }
+</style>
+<canvas width=800 height=600></canvas>
+<script>
+    const canvas = document.querySelector("canvas");
+    const ctx = canvas.getContext("2d");
+
+    // Shadow
+    ctx.shadowColor = "LightCoral";
+    ctx.shadowOffsetX = 15;
+    ctx.shadowOffsetY = 15;
+
+    // Filled rectangle
+    ctx.fillStyle = "red";
+    ctx.fillRect(20, 10, 100, 100);
+
+
+    // Stroked rectangle
+    ctx.lineWidth = 4;
+    ctx.strokeStyle = "red";
+    ctx.strokeRect(170, 10, 100, 100);
+</script>

@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2020, the SerenityOS developers.
- * Copyright (c) 2021, Andreas Kling <kling@serenityos.org>
+ * Copyright (c) 2021, Andreas Kling <andreas@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -16,9 +16,11 @@ namespace Web::UIEvents::EventNames {
 
 #define ENUMERATE_UI_EVENTS           \
     __ENUMERATE_UI_EVENT(auxclick)    \
+    __ENUMERATE_UI_EVENT(beforeinput) \
     __ENUMERATE_UI_EVENT(click)       \
     __ENUMERATE_UI_EVENT(contextmenu) \
     __ENUMERATE_UI_EVENT(dblclick)    \
+    __ENUMERATE_UI_EVENT(input)       \
     __ENUMERATE_UI_EVENT(keydown)     \
     __ENUMERATE_UI_EVENT(keypress)    \
     __ENUMERATE_UI_EVENT(keyup)       \

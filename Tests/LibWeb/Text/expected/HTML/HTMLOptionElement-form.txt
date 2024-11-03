@@ -1,4 +1,4 @@
-                  Option element with no parent select returns null: true
+Option element with no parent select returns null: true
 Option element with no parent form returns null: true
 Option element with no parent select returns null: true
 Option element within optgroup with no parent select returns null: true

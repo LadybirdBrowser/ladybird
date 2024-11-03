@@ -18,5 +18,6 @@
         serialize('attr(foo string, "fallback")');
         // FIXME: This should produce `attr(foo string, "fallback")` but doesn't yet.
         serialize('attr(  foo   string  ,   "fallback"  )');
+        serialize('  attr(foo)     attr(bar) attr(baz)  ');
     });
 </script>

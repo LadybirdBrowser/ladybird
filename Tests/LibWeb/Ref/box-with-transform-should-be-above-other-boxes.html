@@ -1,0 +1,19 @@
+<!doctype html>
+<link rel="match" href="reference/box-with-transform-should-be-above-other-boxes-ref.html" />
+<style>
+* { outline: 1px solid black; }
+body { width: 300px; }
+#green {
+    background: rgba(0, 255, 0, 1);
+    position: absolute;
+    width: 30px;
+    height: 30px;
+}
+#orange {
+    background: orange;
+    width: 100px;
+    height: 100px;
+    transform: rotate(0deg);
+    opacity: 1;
+}
+</style><body><div id="green"></div><div id="orange">

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022-2023, Andreas Kling <kling@serenityos.org>
+ * Copyright (c) 2022-2023, Andreas Kling <andreas@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -14,7 +14,6 @@ namespace Web::Painting {
 
 Paintable::Paintable(Layout::Node const& layout_node)
     : m_layout_node(layout_node)
-    , m_browsing_context(const_cast<HTML::BrowsingContext&>(layout_node.browsing_context()))
 {
     auto& computed_values = layout_node.computed_values();
     if (layout_node.is_grid_item() && computed_values.z_index().has_value()) {
@@ -42,7 +41,6 @@ void Paintable::visit_edges(Cell::Visitor& visitor)
     TreeNode::visit_edges(visitor);
     visitor.visit(m_dom_node);
     visitor.visit(m_layout_node);
-    visitor.visit(m_browsing_context);
     if (m_containing_block.has_value())
         visitor.visit(m_containing_block.value());
 }
@@ -51,6 +49,38 @@ bool Paintable::is_visible() const
 {
     auto const& computed_values = this->computed_values();
     return computed_values.visibility() == CSS::Visibility::Visible && computed_values.opacity() != 0;
+}
+
+DOM::Document const& Paintable::document() const
+{
+    return layout_node().document();
+}
+
+DOM::Document& Paintable::document()
+{
+    return layout_node().document();
+}
+
+CSS::Display Paintable::display() const
+{
+    return layout_node().display();
+}
+
+PaintableBox* Paintable::containing_block() const
+{
+    if (!m_containing_block.has_value()) {
+        auto containing_layout_box = m_layout_node->containing_block();
+        if (containing_layout_box)
+            m_containing_block = const_cast<PaintableBox*>(containing_layout_box->paintable_box());
+        else
+            m_containing_block = nullptr;
+    }
+    return *m_containing_block;
+}
+
+CSS::ImmutableComputedValues const& Paintable::computed_values() const
+{
+    return m_layout_node->computed_values();
 }
 
 void Paintable::set_dom_node(JS::GCPtr<DOM::Node> dom_node)
@@ -66,16 +96,6 @@ JS::GCPtr<DOM::Node> Paintable::dom_node()
 JS::GCPtr<DOM::Node const> Paintable::dom_node() const
 {
     return m_dom_node;
-}
-
-HTML::BrowsingContext const& Paintable::browsing_context() const
-{
-    return m_browsing_context;
-}
-
-HTML::BrowsingContext& Paintable::browsing_context()
-{
-    return m_browsing_context;
 }
 
 JS::GCPtr<HTML::Navigable> Paintable::navigable() const
@@ -138,13 +158,6 @@ void Paintable::set_needs_display(InvalidateDisplayList should_invalidate_displa
     if (!containing_block)
         return;
 
-    if (is<Painting::InlinePaintable>(*this)) {
-        auto const& fragments = static_cast<Painting::InlinePaintable const*>(this)->fragments();
-        for (auto const& fragment : fragments) {
-            document.set_needs_display(fragment.absolute_rect(), InvalidateDisplayList::No);
-        }
-    }
-
     if (!is<Painting::PaintableWithLines>(*containing_block))
         return;
     static_cast<Painting::PaintableWithLines const&>(*containing_block).for_each_fragment([&](auto& fragment) {
@@ -159,12 +172,6 @@ CSSPixelPoint Paintable::box_type_agnostic_position() const
         return static_cast<PaintableBox const*>(this)->absolute_position();
 
     VERIFY(is_inline());
-    if (is_inline_paintable()) {
-        auto const& inline_paintable = static_cast<Painting::InlinePaintable const&>(*this);
-        if (!inline_paintable.fragments().is_empty())
-            return inline_paintable.fragments().first().absolute_rect().location();
-        return inline_paintable.bounding_rect().location();
-    }
 
     CSSPixelPoint position;
     if (auto const* block = containing_block(); block && is<Painting::PaintableWithLines>(*block)) {

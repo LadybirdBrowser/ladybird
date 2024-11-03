@@ -13,7 +13,6 @@
 #include <AK/Vector.h>
 #include <LibJS/Heap/HeapFunction.h>
 #include <LibJS/Runtime/Array.h>
-#include <LibTextCodec/Decoder.h>
 #include <LibWeb/Bindings/MainThreadVM.h>
 #include <LibWeb/Crypto/Crypto.h>
 #include <LibWeb/Fetch/FetchMethod.h>
@@ -22,17 +21,21 @@
 #include <LibWeb/HTML/EventLoop/EventLoop.h>
 #include <LibWeb/HTML/EventSource.h>
 #include <LibWeb/HTML/ImageBitmap.h>
+#include <LibWeb/HTML/PromiseRejectionEvent.h>
 #include <LibWeb/HTML/Scripting/ClassicScript.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/Scripting/ExceptionReporter.h>
 #include <LibWeb/HTML/Scripting/Fetching.h>
+#include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
 #include <LibWeb/HTML/StructuredSerialize.h>
+#include <LibWeb/HTML/StructuredSerializeOptions.h>
 #include <LibWeb/HTML/Timer.h>
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/HTML/WindowOrWorkerGlobalScope.h>
 #include <LibWeb/HighResolutionTime/Performance.h>
 #include <LibWeb/HighResolutionTime/SupportedPerformanceTypes.h>
 #include <LibWeb/IndexedDB/IDBFactory.h>
+#include <LibWeb/Infra/Strings.h>
 #include <LibWeb/PerformanceTimeline/EntryTypes.h>
 #include <LibWeb/PerformanceTimeline/PerformanceObserver.h>
 #include <LibWeb/PerformanceTimeline/PerformanceObserverEntryList.h>
@@ -74,6 +77,7 @@ void WindowOrWorkerGlobalScopeMixin::visit_edges(JS::Cell::Visitor& visitor)
         entry.value.visit_edges(visitor);
     visitor.visit(m_registered_event_sources);
     visitor.visit(m_crypto);
+    visitor.ignore(m_outstanding_rejected_promises_weak_set);
 }
 
 void WindowOrWorkerGlobalScopeMixin::finalize()
@@ -115,7 +119,7 @@ WebIDL::ExceptionOr<String> WindowOrWorkerGlobalScopeMixin::btoa(String const& d
     byte_string.ensure_capacity(data.bytes().size());
     for (u32 code_point : Utf8View(data)) {
         if (code_point > 0xff)
-            return WebIDL::InvalidCharacterError::create(realm, "Data contains characters outside the range U+0000 and U+00FF"_fly_string);
+            return WebIDL::InvalidCharacterError::create(realm, "Data contains characters outside the range U+0000 and U+00FF"_string);
         byte_string.append(code_point);
     }
 
@@ -135,13 +139,11 @@ WebIDL::ExceptionOr<String> WindowOrWorkerGlobalScopeMixin::atob(String const& d
 
     // 2. If decodedData is failure, then throw an "InvalidCharacterError" DOMException.
     if (decoded_data.is_error())
-        return WebIDL::InvalidCharacterError::create(realm, "Input string is not valid base64 data"_fly_string);
+        return WebIDL::InvalidCharacterError::create(realm, "Input string is not valid base64 data"_string);
 
     // 3. Return decodedData.
-    // decode_base64() returns a byte buffer. LibJS uses UTF-8 for strings. Use Latin1Decoder to convert bytes 128-255 to UTF-8.
-    auto decoder = TextCodec::decoder_for_exact_name("ISO-8859-1"sv);
-    VERIFY(decoder.has_value());
-    return TRY_OR_THROW_OOM(vm, decoder->to_utf8(decoded_data.value()));
+    // decode_base64() returns a byte buffer. LibJS uses UTF-8 for strings. Use isomorphic decoding to convert bytes to UTF-8.
+    return Infra::isomorphic_decode(decoded_data.value());
 }
 
 // https://html.spec.whatwg.org/multipage/timers-and-user-prompts.html#dom-queuemicrotask
@@ -163,25 +165,26 @@ void WindowOrWorkerGlobalScopeMixin::queue_microtask(WebIDL::CallbackType& callb
 }
 
 // https://html.spec.whatwg.org/multipage/imagebitmap-and-animations.html#dom-createimagebitmap
-JS::NonnullGCPtr<JS::Promise> WindowOrWorkerGlobalScopeMixin::create_image_bitmap(ImageBitmapSource image, Optional<ImageBitmapOptions> options) const
+JS::NonnullGCPtr<WebIDL::Promise> WindowOrWorkerGlobalScopeMixin::create_image_bitmap(ImageBitmapSource image, Optional<ImageBitmapOptions> options) const
 {
     return create_image_bitmap_impl(image, {}, {}, {}, {}, options);
 }
 
 // https://html.spec.whatwg.org/multipage/imagebitmap-and-animations.html#dom-createimagebitmap
-JS::NonnullGCPtr<JS::Promise> WindowOrWorkerGlobalScopeMixin::create_image_bitmap(ImageBitmapSource image, WebIDL::Long sx, WebIDL::Long sy, WebIDL::Long sw, WebIDL::Long sh, Optional<ImageBitmapOptions> options) const
+JS::NonnullGCPtr<WebIDL::Promise> WindowOrWorkerGlobalScopeMixin::create_image_bitmap(ImageBitmapSource image, WebIDL::Long sx, WebIDL::Long sy, WebIDL::Long sw, WebIDL::Long sh, Optional<ImageBitmapOptions> options) const
 {
     return create_image_bitmap_impl(image, sx, sy, sw, sh, options);
 }
 
-JS::NonnullGCPtr<JS::Promise> WindowOrWorkerGlobalScopeMixin::create_image_bitmap_impl(ImageBitmapSource& image, Optional<WebIDL::Long> sx, Optional<WebIDL::Long> sy, Optional<WebIDL::Long> sw, Optional<WebIDL::Long> sh, Optional<ImageBitmapOptions>& options) const
+JS::NonnullGCPtr<WebIDL::Promise> WindowOrWorkerGlobalScopeMixin::create_image_bitmap_impl(ImageBitmapSource& image, Optional<WebIDL::Long> sx, Optional<WebIDL::Long> sy, Optional<WebIDL::Long> sw, Optional<WebIDL::Long> sh, Optional<ImageBitmapOptions>& options) const
 {
+    auto& realm = this_impl().realm();
+
     // 1. If either sw or sh is given and is 0, then return a promise rejected with a RangeError.
     if (sw == 0 || sh == 0) {
-        auto promise = JS::Promise::create(this_impl().realm());
         auto error_message = MUST(String::formatted("{} is an invalid value for {}", sw == 0 ? *sw : *sh, sw == 0 ? "sw"sv : "sh"sv));
-        promise->reject(JS::RangeError::create(this_impl().realm(), move(error_message)));
-        return promise;
+        auto error = JS::RangeError::create(realm, move(error_message));
+        return WebIDL::create_rejected_promise(realm, move(error));
     }
 
     // FIXME:
@@ -192,14 +195,13 @@ JS::NonnullGCPtr<JS::Promise> WindowOrWorkerGlobalScopeMixin::create_image_bitma
     // FIXME: "Check the usability of the image argument" is only defined for CanvasImageSource, let's skip it for other types
     if (image.has<CanvasImageSource>()) {
         if (auto usability = check_usability_of_image(image.get<CanvasImageSource>()); usability.is_error() or usability.value() == CanvasImageSourceUsability::Bad) {
-            auto promise = JS::Promise::create(this_impl().realm());
-            promise->reject(WebIDL::InvalidStateError::create(this_impl().realm(), "image argument is not usable"_string));
-            return promise;
+            auto error = WebIDL::InvalidStateError::create(this_impl().realm(), "image argument is not usable"_string);
+            return WebIDL::create_rejected_promise_from_exception(realm, error);
         }
     }
 
     // 4. Let p be a new promise.
-    auto p = JS::Promise::create(this_impl().realm());
+    auto p = WebIDL::create_promise(realm);
 
     // 5. Let imageBitmap be a new ImageBitmap object.
     auto image_bitmap = ImageBitmap::create(this_impl().realm());
@@ -208,7 +210,7 @@ JS::NonnullGCPtr<JS::Promise> WindowOrWorkerGlobalScopeMixin::create_image_bitma
     image.visit(
         [&](JS::Handle<FileAPI::Blob>& blob) {
             // Run these step in parallel:
-            Platform::EventLoopPlugin::the().deferred_invoke([=]() {
+            Platform::EventLoopPlugin::the().deferred_invoke(JS::create_heap_function(realm.heap(), [=]() {
                 // 1. Let imageData be the result of reading image's data. If an error occurs during reading of the
                 // object, then reject p with an "InvalidStateError" DOMException and abort these steps.
                 // FIXME: I guess this is always fine for us as the data is already read.
@@ -223,7 +225,9 @@ JS::NonnullGCPtr<JS::Promise> WindowOrWorkerGlobalScopeMixin::create_image_bitma
                     // imageData is corrupted in some fatal way such that the image dimensions cannot be obtained
                     // (e.g., a vector graphic with no natural size), then reject p with an "InvalidStateError" DOMException
                     // and abort these steps.
-                    p->reject(WebIDL::InvalidStateError::create(relevant_realm(*p), "image does not contain a supported image format"_string));
+                    auto& realm = relevant_realm(p->promise());
+                    TemporaryExecutionContext context { relevant_realm(p->promise()), TemporaryExecutionContext::CallbacksEnabled::Yes };
+                    WebIDL::reject_promise(realm, *p, WebIDL::InvalidStateError::create(realm, "image does not contain a supported image format"_string));
                 };
 
                 auto on_successful_decode = [image_bitmap = JS::Handle(*image_bitmap), p = JS::Handle(*p)](Web::Platform::DecodedImage& result) -> ErrorOr<void> {
@@ -233,18 +237,24 @@ JS::NonnullGCPtr<JS::Promise> WindowOrWorkerGlobalScopeMixin::create_image_bitma
                     // or is disabled), or, if there is no such image, the first frame of the animation.
                     image_bitmap->set_bitmap(result.frames.take_first().bitmap);
 
+                    auto& realm = relevant_realm(p->promise());
+
                     // 5. Resolve p with imageBitmap.
-                    p->fulfill(image_bitmap);
+                    TemporaryExecutionContext context { relevant_realm(*image_bitmap), TemporaryExecutionContext::CallbacksEnabled::Yes };
+                    WebIDL::resolve_promise(realm, *p, image_bitmap);
                     return {};
                 };
 
                 (void)Web::Platform::ImageCodecPlugin::the().decode_image(image_data, move(on_successful_decode), move(on_failed_decode));
-            });
+            }));
         },
         [&](auto&) {
             dbgln("(STUBBED) createImageBitmap() for non-blob types");
             (void)sx;
             (void)sy;
+            auto error = JS::Error::create(realm, "Not Implemented: createImageBitmap() for non-blob types"sv);
+            TemporaryExecutionContext context { relevant_realm(p->promise()), TemporaryExecutionContext::CallbacksEnabled::Yes };
+            WebIDL::reject_promise(realm, *p, error);
         });
 
     // 7. Return p.
@@ -269,7 +279,7 @@ WebIDL::ExceptionOr<JS::Value> WindowOrWorkerGlobalScopeMixin::structured_clone(
     return deserialized;
 }
 
-JS::NonnullGCPtr<JS::Promise> WindowOrWorkerGlobalScopeMixin::fetch(Fetch::RequestInfo const& input, Fetch::RequestInit const& init) const
+JS::NonnullGCPtr<WebIDL::Promise> WindowOrWorkerGlobalScopeMixin::fetch(Fetch::RequestInfo const& input, Fetch::RequestInit const& init) const
 {
     auto& vm = this_impl().vm();
     return Fetch::fetch(vm, input, init);
@@ -374,9 +384,10 @@ i32 WindowOrWorkerGlobalScopeMixin::run_timer_initialization_steps(TimerHandler 
                     //            done by eval(). That is, module script fetches via import() will behave the same in both contexts.
                 }
 
-                // 7. Let script be the result of creating a classic script given handler, settings object, base URL, and fetch options.
+                // 7. Let script be the result of creating a classic script given handler, realm, base URL, and fetch options.
                 // FIXME: Pass fetch options.
-                auto script = ClassicScript::create(base_url.basename(), source, settings_object, move(base_url));
+                auto basename = base_url.basename();
+                auto script = ClassicScript::create(basename, source, this_impl().realm(), move(base_url));
 
                 // 8. Run the classic script script.
                 (void)script->run();
@@ -404,7 +415,8 @@ i32 WindowOrWorkerGlobalScopeMixin::run_timer_initialization_steps(TimerHandler 
 
     // 11. Let completionStep be an algorithm step which queues a global task on the timer task source given global to run task.
     Function<void()> completion_step = [this, task = move(task)]() mutable {
-        queue_global_task(Task::Source::TimerTask, this_impl(), JS::create_heap_function(this_impl().heap(), [task] {
+        queue_global_task(Task::Source::TimerTask, this_impl(), JS::create_heap_function(this_impl().heap(), [this, task] {
+            HTML::TemporaryExecutionContext execution_context { this_impl().realm(), HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
             task->function()();
         }));
     };
@@ -575,6 +587,7 @@ void WindowOrWorkerGlobalScopeMixin::queue_the_performance_observer_task()
     //    timeline task source.
     queue_global_task(Task::Source::PerformanceTimeline, this_impl(), JS::create_heap_function(this_impl().heap(), [this]() {
         auto& realm = this_impl().realm();
+        HTML::TemporaryExecutionContext execution_context { realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
 
         // 1. Unset performance observer task queued flag of relevantGlobal.
         m_performance_observer_task_queued = false;
@@ -730,7 +743,7 @@ JS::NonnullGCPtr<JS::Object> WindowOrWorkerGlobalScopeMixin::supported_entry_typ
     auto& realm = this_impl().realm();
 
     if (!m_supported_entry_types_array) {
-        Vector<JS::Value> supported_entry_types;
+        JS::MarkedVector<JS::Value> supported_entry_types(vm.heap());
 
 #define __ENUMERATE_SUPPORTED_PERFORMANCE_ENTRY_TYPES(entry_type, cpp_class) \
     supported_entry_types.append(JS::PrimitiveString::create(vm, entry_type));
@@ -746,6 +759,13 @@ JS::NonnullGCPtr<JS::Object> WindowOrWorkerGlobalScopeMixin::supported_entry_typ
 
 // https://html.spec.whatwg.org/multipage/webappapis.html#dom-reporterror
 void WindowOrWorkerGlobalScopeMixin::report_error(JS::Value e)
+{
+    // The reportError(e) method steps are to report an exception e for this.
+    report_an_exception(e);
+}
+
+// https://html.spec.whatwg.org/multipage/webappapis.html#report-an-exception
+void WindowOrWorkerGlobalScopeMixin::report_an_exception(JS::Value const& e)
 {
     auto& target = static_cast<DOM::EventTarget&>(this_impl());
     auto& realm = relevant_realm(target);
@@ -849,6 +869,91 @@ JS::NonnullGCPtr<Crypto::Crypto> WindowOrWorkerGlobalScopeMixin::crypto()
     if (!m_crypto)
         m_crypto = platform_object.heap().allocate<Crypto::Crypto>(realm, realm);
     return JS::NonnullGCPtr { *m_crypto };
+}
+
+void WindowOrWorkerGlobalScopeMixin::push_onto_outstanding_rejected_promises_weak_set(JS::Promise* promise)
+{
+    m_outstanding_rejected_promises_weak_set.append(promise);
+}
+
+bool WindowOrWorkerGlobalScopeMixin::remove_from_outstanding_rejected_promises_weak_set(JS::Promise* promise)
+{
+    return m_outstanding_rejected_promises_weak_set.remove_first_matching([&](JS::Promise* promise_in_set) {
+        return promise == promise_in_set;
+    });
+}
+
+void WindowOrWorkerGlobalScopeMixin::push_onto_about_to_be_notified_rejected_promises_list(JS::NonnullGCPtr<JS::Promise> promise)
+{
+    m_about_to_be_notified_rejected_promises_list.append(JS::make_handle(promise));
+}
+
+bool WindowOrWorkerGlobalScopeMixin::remove_from_about_to_be_notified_rejected_promises_list(JS::NonnullGCPtr<JS::Promise> promise)
+{
+    return m_about_to_be_notified_rejected_promises_list.remove_first_matching([&](auto& promise_in_list) {
+        return promise == promise_in_list;
+    });
+}
+
+// https://html.spec.whatwg.org/multipage/webappapis.html#notify-about-rejected-promises
+void WindowOrWorkerGlobalScopeMixin::notify_about_rejected_promises(Badge<EventLoop>)
+{
+    auto& realm = this_impl().realm();
+
+    // 1. Let list be a copy of settings object's about-to-be-notified rejected promises list.
+    auto list = m_about_to_be_notified_rejected_promises_list;
+
+    // 2. If list is empty, return.
+    if (list.is_empty())
+        return;
+
+    // 3. Clear settings object's about-to-be-notified rejected promises list.
+    m_about_to_be_notified_rejected_promises_list.clear();
+
+    // 4. Let global be settings object's global object.
+    // We need this as an event target for the unhandledrejection event below
+    auto& global = verify_cast<DOM::EventTarget>(this_impl());
+
+    // 5. Queue a global task on the DOM manipulation task source given global to run the following substep:
+    queue_global_task(Task::Source::DOMManipulation, global, JS::create_heap_function(realm.heap(), [this, &global, list = move(list)] {
+        auto& realm = global.realm();
+
+        // 1. For each promise p in list:
+        for (auto const& promise : list) {
+
+            // 1. If p's [[PromiseIsHandled]] internal slot is true, continue to the next iteration of the loop.
+            if (promise->is_handled())
+                continue;
+
+            // 2. Let notHandled be the result of firing an event named unhandledrejection at global, using PromiseRejectionEvent, with the cancelable attribute initialized to true,
+            //    the promise attribute initialized to p, and the reason attribute initialized to the value of p's [[PromiseResult]] internal slot.
+            PromiseRejectionEventInit event_init {
+                {
+                    .bubbles = false,
+                    .cancelable = true,
+                    .composed = false,
+                },
+                // Sadly we can't use .promise and .reason here, as we can't use the designator on the initialization of DOM::EventInit above.
+                /* .promise = */ *promise,
+                /* .reason = */ promise->result(),
+            };
+
+            auto promise_rejection_event = PromiseRejectionEvent::create(realm, HTML::EventNames::unhandledrejection, event_init);
+
+            bool not_handled = global.dispatch_event(*promise_rejection_event);
+
+            // 3. If notHandled is false, then the promise rejection is handled. Otherwise, the promise rejection is not handled.
+
+            // 4. If p's [[PromiseIsHandled]] internal slot is false, add p to settings object's outstanding rejected promises weak set.
+            if (!promise->is_handled())
+                m_outstanding_rejected_promises_weak_set.append(*promise);
+
+            // This algorithm results in promise rejections being marked as handled or not handled. These concepts parallel handled and not handled script errors.
+            // If a rejection is still not handled after this, then the rejection may be reported to a developer console.
+            if (not_handled)
+                HTML::report_exception_to_console(promise->result(), realm, ErrorInPromise::Yes);
+        }
+    }));
 }
 
 }

@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<p name="math"><math name="math">
+<mi>a</mi>
+<mo>+</mo>
+<mi>b</mi>
+</math>
+<p name="svg"><svg width="300" height="100" name="svg">
+<rect width="300" height="100" fill="rgb(0,0,255)"/>
+</svg>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        println(`${document.getElementsByName("math").length} == 1`);
+        println(`${document.getElementsByName("math")[0].tagName} == P`);
+        println(`${document.getElementsByName("svg").length} == 1`);
+        println(`${document.getElementsByName("svg")[0].tagName} == P`);
+    });
+</script>

@@ -10,9 +10,9 @@ Viewport <#document> at (0,0) content-size 800x600 children: not-inline
           TextNode <#text>
 
 ViewportPaintable (Viewport<#document>) [0,0 800x600]
-  PaintableWithLines (BlockContainer<HTML>) [0,0 800x53] overflow: [0,0 800x78]
-    PaintableWithLines (BlockContainer<BODY>) [8,8 784x37] overflow: [8,8 784x70]
-      PaintableBox (Box<DIV>#flex-container) [8,8 784x37] overflow: [8,8 784x70]
+  PaintableWithLines (BlockContainer<HTML>) [0,0 800x53]
+    PaintableWithLines (BlockContainer<BODY>) [8,8 784x37]
+      PaintableBox (Box<DIV>#flex-container) [8,8 784x37]
         PaintableWithLines (BlockContainer<DIV>#absolute) [18,18 50x50]
           PaintableWithLines (BlockContainer<DIV>#orange) [18,18 50x50]
         PaintableWithLines (BlockContainer<DIV>#red) [18,18 9.703125x17]

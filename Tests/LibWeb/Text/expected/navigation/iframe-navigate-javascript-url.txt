@@ -1,1 +1,1 @@
- Hello from iframe navigated using javascript url
+Hello from iframe navigated using javascript url

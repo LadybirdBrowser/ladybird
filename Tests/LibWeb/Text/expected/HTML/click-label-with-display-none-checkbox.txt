@@ -1,1 +1,1 @@
-Label   Checkbox changed
+Checkbox changed

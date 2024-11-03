@@ -1,10 +1,12 @@
 set(FONTS
+    NotoEmoji.ttf
     SerenitySans-Regular.ttf
 )
 list(TRANSFORM FONTS PREPEND "${LADYBIRD_SOURCE_DIR}/Base/res/fonts/")
 
 set(16x16_ICONS
     app-system-monitor.png
+    box.png
     audio-volume-high.png
     audio-volume-muted.png
     close-tab.png
@@ -177,8 +179,6 @@ function(copy_resources_to_build base_directory bundle_target)
 endfunction()
 
 function(install_ladybird_resources destination component)
-    install(FILES ${EMOJI} DESTINATION "${destination}/emoji" COMPONENT ${component})
-    install(FILES ${FONTS} DESTINATION "${destination}/fonts" COMPONENT ${component})
     install(FILES ${16x16_ICONS} DESTINATION "${destination}/icons/16x16" COMPONENT ${component})
     install(FILES ${32x32_ICONS} DESTINATION "${destination}/icons/32x32" COMPONENT ${component})
     install(FILES ${48x48_ICONS} DESTINATION "${destination}/icons/48x48" COMPONENT ${component})

@@ -5,14 +5,12 @@
  */
 
 #include <AK/Debug.h>
-#include <LibJS/Runtime/ConsoleObject.h>
 #include <LibJS/Runtime/Realm.h>
-#include <LibWeb/Bindings/MainThreadVM.h>
 #include <LibWeb/Bindings/WorkerPrototype.h>
+#include <LibWeb/HTML/MessagePort.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
-#include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
+#include <LibWeb/HTML/Scripting/WindowEnvironmentSettingsObject.h>
 #include <LibWeb/HTML/Worker.h>
-#include <LibWeb/WebIDL/ExceptionOr.h>
 
 namespace Web::HTML {
 
@@ -42,6 +40,7 @@ void Worker::visit_edges(Cell::Visitor& visitor)
 }
 
 // https://html.spec.whatwg.org/multipage/workers.html#dom-worker
+// https://whatpr.org/html/9893/workers.html#dom-worker
 WebIDL::ExceptionOr<JS::NonnullGCPtr<Worker>> Worker::create(String const& script_url, WorkerOptions const& options, DOM::Document& document)
 {
     dbgln_if(WEB_WORKER_DEBUG, "WebWorker: Creating worker with script_url = {}", script_url);
@@ -57,8 +56,8 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<Worker>> Worker::create(String const& scrip
     // a policy decision (e.g. if the user agent is configured to not allow the page to start dedicated workers).
     // Technically not a fixme if our policy is not to throw errors :^)
 
-    // 2. Let outside settings be the current settings object.
-    auto& outside_settings = current_settings_object();
+    // 2. Let outside settings be the current principal settings object.
+    auto& outside_settings = current_principal_settings_object();
 
     // 3. Parse the scriptURL argument relative to outside settings.
     auto url = document.parse_url(script_url);
@@ -66,7 +65,7 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<Worker>> Worker::create(String const& scrip
     // 4. If this fails, throw a "SyntaxError" DOMException.
     if (!url.is_valid()) {
         dbgln_if(WEB_WORKER_DEBUG, "WebWorker: Invalid URL loaded '{}'.", script_url);
-        return WebIDL::SyntaxError::create(document.realm(), "url is not valid"_fly_string);
+        return WebIDL::SyntaxError::create(document.realm(), "url is not valid"_string);
     }
 
     // 5. Let worker URL be the resulting URL record.
@@ -132,6 +131,16 @@ WebIDL::ExceptionOr<void> Worker::post_message(JS::Value message, StructuredSeri
     // postMessage(message, options) on the port, with the same arguments, and returned the same return value.
 
     return m_outside_port->post_message(message, options);
+}
+
+// https://html.spec.whatwg.org/multipage/workers.html#dom-worker-postmessage
+WebIDL::ExceptionOr<void> Worker::post_message(JS::Value message, Vector<JS::Handle<JS::Object>> const& transfer)
+{
+    // The postMessage(message, transfer) and postMessage(message, options) methods on Worker objects act as if,
+    // when invoked, they immediately invoked the respective postMessage(message, transfer) and
+    // postMessage(message, options) on the port, with the same arguments, and returned the same return value.
+
+    return m_outside_port->post_message(message, transfer);
 }
 
 #undef __ENUMERATE

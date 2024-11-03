@@ -4,8 +4,8 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/Time.h>
 #include <LibMedia/Audio/Loader.h>
-#include <LibMedia/Audio/Resampler.h>
 #include <LibMedia/Audio/Sample.h>
 #include <LibWeb/Platform/AudioCodecPlugin.h>
 

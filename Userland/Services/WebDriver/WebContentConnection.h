@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022, Tim Flynn <trflynn89@serenityos.org>
+ * Copyright (c) 2022-2024, Tim Flynn <trflynn89@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -7,6 +7,7 @@
 #pragma once
 
 #include <LibIPC/ConnectionFromClient.h>
+#include <LibIPC/Transport.h>
 #include <WebContent/WebDriverClientEndpoint.h>
 #include <WebContent/WebDriverServerEndpoint.h>
 
@@ -18,15 +19,15 @@ class WebContentConnection
     : public IPC::ConnectionFromClient<WebDriverClientEndpoint, WebDriverServerEndpoint> {
     C_OBJECT_ABSTRACT(WebContentConnection)
 public:
-    WebContentConnection(NonnullOwnPtr<Core::LocalSocket> socket);
+    explicit WebContentConnection(IPC::Transport transport);
 
     Function<void()> on_close;
-    Function<void(Web::WebDriver::Response)> on_script_executed;
+    Function<void(Web::WebDriver::Response)> on_driver_execution_complete;
 
 private:
     virtual void die() override;
 
-    virtual void script_executed(Web::WebDriver::Response const&) override;
+    virtual void driver_execution_complete(Web::WebDriver::Response const&) override;
 };
 
 }

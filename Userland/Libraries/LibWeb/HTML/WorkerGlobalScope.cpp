@@ -11,6 +11,7 @@
 #include <LibWeb/HTML/EventHandler.h>
 #include <LibWeb/HTML/EventNames.h>
 #include <LibWeb/HTML/MessageEvent.h>
+#include <LibWeb/HTML/MessagePort.h>
 #include <LibWeb/HTML/Scripting/ClassicScript.h>
 #include <LibWeb/HTML/StructuredSerialize.h>
 #include <LibWeb/HTML/WorkerGlobalScope.h>
@@ -68,8 +69,9 @@ void WorkerGlobalScope::set_internal_port(JS::NonnullGCPtr<MessagePort> port)
 void WorkerGlobalScope::close_a_worker()
 {
     // 1. Discard any tasks that have been added to workerGlobal's relevant agent's event loop's task queues.
-    relevant_settings_object(*this).responsible_event_loop().task_queue().remove_tasks_matching([](HTML::Task const&) {
-        return true;
+    relevant_settings_object(*this).responsible_event_loop().task_queue().remove_tasks_matching([](HTML::Task const& task) {
+        // NOTE: We don't discard tasks with the PostedMessage source, as the spec expects PostMessage() to act as if it is invoked immediately
+        return task.source() != HTML::Task::Source::PostedMessage;
     });
 
     // 2. Set workerGlobal's closing flag to true. (This prevents any further tasks from being queued.)
@@ -77,6 +79,7 @@ void WorkerGlobalScope::close_a_worker()
 }
 
 // https://html.spec.whatwg.org/multipage/workers.html#importing-scripts-and-libraries
+// https://whatpr.org/html/9893/workers.html#importing-scripts-and-libraries
 WebIDL::ExceptionOr<void> WorkerGlobalScope::import_scripts(Vector<String> const& urls, PerformTheFetchHook perform_fetch)
 {
     // The algorithm may optionally be customized by supplying custom perform the fetch hooks,
@@ -85,8 +88,8 @@ WebIDL::ExceptionOr<void> WorkerGlobalScope::import_scripts(Vector<String> const
 
     // FIXME: 1. If worker global scope's type is "module", throw a TypeError exception.
 
-    // 2. Let settings object be the current settings object.
-    auto& settings_object = HTML::current_settings_object();
+    // 2. Let settings object be the current principal settings object.
+    auto& settings_object = HTML::current_principal_settings_object();
 
     // 3. If urls is empty, return.
     if (urls.is_empty())
@@ -103,7 +106,7 @@ WebIDL::ExceptionOr<void> WorkerGlobalScope::import_scripts(Vector<String> const
 
         // 2. If urlRecord is failure, then throw a "SyntaxError" DOMException.
         if (!url_record.is_valid())
-            return WebIDL::SyntaxError::create(realm(), "Invalid URL"_fly_string);
+            return WebIDL::SyntaxError::create(realm(), "Invalid URL"_string);
 
         // 3. Append urlRecord to urlRecords.
         url_records.unchecked_append(url_record);

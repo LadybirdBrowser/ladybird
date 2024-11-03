@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022, Andreas Kling <kling@serenityos.org>
+ * Copyright (c) 2018-2022, Andreas Kling <andreas@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -25,8 +25,6 @@ public:
     Painting::PaintableBox const* paintable_box() const;
     Painting::PaintableBox* paintable_box();
 
-    bool is_body() const;
-
     // https://www.w3.org/TR/css-images-3/#natural-dimensions
     Optional<CSSPixels> natural_width() const { return m_natural_width; }
     Optional<CSSPixels> natural_height() const { return m_natural_height; }
@@ -50,10 +48,6 @@ public:
 
     virtual JS::GCPtr<Painting::Paintable> create_paintable() const override;
 
-    bool is_scroll_container() const;
-
-    bool is_user_scrollable() const;
-
     void add_contained_abspos_child(JS::NonnullGCPtr<Node> child) { m_contained_abspos_children.append(child); }
     void clear_contained_abspos_children() { m_contained_abspos_children.clear(); }
     Vector<JS::NonnullGCPtr<Node>> const& contained_abspos_children() const { return m_contained_abspos_children; }
@@ -61,7 +55,7 @@ public:
     virtual void visit_edges(Cell::Visitor&) override;
 
 protected:
-    Box(DOM::Document&, DOM::Node*, NonnullRefPtr<CSS::StyleProperties>);
+    Box(DOM::Document&, DOM::Node*, CSS::StyleProperties);
     Box(DOM::Document&, DOM::Node*, NonnullOwnPtr<CSS::ComputedValues>);
 
 private:

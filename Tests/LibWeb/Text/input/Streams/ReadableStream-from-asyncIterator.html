@@ -18,13 +18,13 @@
         }
     }
 
-    test(async () => {
+    asyncTest(done => {
         const asyncIterable = {
             [Symbol.asyncIterator]: asyncGenerator,
         };
 
         const readableStream = ReadableStream.from(asyncIterable);
 
-        await readStream(readableStream);
+        readStream(readableStream).then(done);
     });
 </script>

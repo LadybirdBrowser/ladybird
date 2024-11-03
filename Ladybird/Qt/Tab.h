@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022, Andreas Kling <kling@serenityos.org>
+ * Copyright (c) 2022, Andreas Kling <andreas@ladybird.org>
  * Copyright (c) 2022, Matthew Costa <ucosty@gmail.com>
  *
  * SPDX-License-Identifier: BSD-2-Clause
@@ -77,6 +77,8 @@ public:
     void set_preferred_languages(Vector<String> const& preferred_languages);
 
     void set_enable_do_not_track(bool);
+
+    void set_enable_autoplay(bool);
 
     bool url_is_hidden() const { return m_location_edit->url_is_hidden(); }
     void set_url_is_hidden(bool url_is_hidden) { m_location_edit->set_url_is_hidden(url_is_hidden); }

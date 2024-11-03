@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022-2023, Andreas Kling <kling@serenityos.org>
+ * Copyright (c) 2022-2023, Andreas Kling <andreas@ladybird.org>
  * Copyright (c) 2023, Linus Groh <linusg@serenityos.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
@@ -8,9 +8,11 @@
 #include "FontPlugin.h"
 #include <AK/ByteString.h>
 #include <AK/String.h>
+#include <AK/TypeCasts.h>
 #include <LibCore/Resource.h>
 #include <LibCore/StandardPaths.h>
 #include <LibGfx/Font/FontDatabase.h>
+#include <LibGfx/Font/PathFontProvider.h>
 
 #ifdef USE_FONTCONFIG
 #    include <fontconfig/fontconfig.h>
@@ -18,7 +20,7 @@
 
 namespace Ladybird {
 
-FontPlugin::FontPlugin(bool is_layout_test_mode)
+FontPlugin::FontPlugin(bool is_layout_test_mode, Gfx::SystemFontProvider* font_provider)
     : m_is_layout_test_mode(is_layout_test_mode)
 {
 #ifdef USE_FONTCONFIG
@@ -28,9 +30,14 @@ FontPlugin::FontPlugin(bool is_layout_test_mode)
     }
 #endif
 
-    // Load anything we can find in the system's font directories
-    for (auto const& path : Core::StandardPaths::font_directories().release_value_but_fixme_should_propagate_errors())
-        Gfx::FontDatabase::the().load_all_fonts_from_uri(MUST(String::formatted("file://{}", path)));
+    if (!font_provider)
+        font_provider = &static_cast<Gfx::PathFontProvider&>(Gfx::FontDatabase::the().install_system_font_provider(make<Gfx::PathFontProvider>()));
+    if (is<Gfx::PathFontProvider>(*font_provider)) {
+        auto& path_font_provider = static_cast<Gfx::PathFontProvider&>(*font_provider);
+        // Load anything we can find in the system's font directories
+        for (auto const& path : Core::StandardPaths::font_directories().release_value_but_fixme_should_propagate_errors())
+            path_font_provider.load_all_fonts_from_uri(MUST(String::formatted("file://{}", path)));
+    }
 
     update_generic_fonts();
 
@@ -57,11 +64,17 @@ Gfx::Font& FontPlugin::default_fixed_width_font()
 
 RefPtr<Gfx::Font> FontPlugin::default_emoji_font(float point_size)
 {
+    FlyString default_emoji_font_name;
+
+    if (m_is_layout_test_mode) {
+        default_emoji_font_name = "Noto Emoji"_fly_string;
+    } else {
 #ifdef AK_OS_MACOS
-    auto default_emoji_font_name = "Apple Color Emoji"_fly_string;
+        default_emoji_font_name = "Apple Color Emoji"_fly_string;
 #else
-    auto default_emoji_font_name = "Noto Color Emoji"_fly_string;
+        default_emoji_font_name = "Noto Color Emoji"_fly_string;
 #endif
+    }
 
     return Gfx::FontDatabase::the().get(default_emoji_font_name, point_size, 400, Gfx::FontWidth::Normal, 0);
 }

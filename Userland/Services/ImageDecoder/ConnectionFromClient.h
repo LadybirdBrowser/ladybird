@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020, Andreas Kling <kling@serenityos.org>
+ * Copyright (c) 2020, Andreas Kling <andreas@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -10,6 +10,7 @@
 #include <ImageDecoder/Forward.h>
 #include <ImageDecoder/ImageDecoderClientEndpoint.h>
 #include <ImageDecoder/ImageDecoderServerEndpoint.h>
+#include <LibGfx/BitmapSequence.h>
 #include <LibIPC/ConnectionFromClient.h>
 #include <LibThreading/BackgroundAction.h>
 
@@ -28,14 +29,14 @@ public:
         bool is_animated = false;
         u32 loop_count = 0;
         Gfx::FloatPoint scale { 1, 1 };
-        Vector<Optional<NonnullRefPtr<Gfx::Bitmap>>> bitmaps;
+        Gfx::BitmapSequence bitmaps;
         Vector<u32> durations;
     };
 
 private:
     using Job = Threading::BackgroundAction<DecodeResult>;
 
-    explicit ConnectionFromClient(NonnullOwnPtr<Core::LocalSocket>);
+    explicit ConnectionFromClient(IPC::Transport);
 
     virtual Messages::ImageDecoderServer::DecodeImageResponse decode_image(Core::AnonymousBuffer const&, Optional<Gfx::IntSize> const& ideal_size, Optional<ByteString> const& mime_type) override;
     virtual void cancel_decoding(i64 image_id) override;

@@ -17,6 +17,7 @@ JS_DEFINE_ALLOCATOR(KeyAlgorithm);
 JS_DEFINE_ALLOCATOR(RsaKeyAlgorithm);
 JS_DEFINE_ALLOCATOR(RsaHashedKeyAlgorithm);
 JS_DEFINE_ALLOCATOR(EcKeyAlgorithm);
+JS_DEFINE_ALLOCATOR(AesKeyAlgorithm);
 
 template<typename T>
 static JS::ThrowCompletionOr<T*> impl_from(JS::VM& vm, StringView Name)
@@ -181,6 +182,31 @@ JS_DEFINE_NATIVE_FUNCTION(RsaHashedKeyAlgorithm::hash_getter)
         [&](JS::Handle<JS::Object> const& hash) -> JS::Value {
             return hash;
         });
+}
+
+JS::NonnullGCPtr<AesKeyAlgorithm> AesKeyAlgorithm::create(JS::Realm& realm)
+{
+    return realm.heap().allocate<AesKeyAlgorithm>(realm, realm);
+}
+
+AesKeyAlgorithm::AesKeyAlgorithm(JS::Realm& realm)
+    : KeyAlgorithm(realm)
+    , m_length(0)
+{
+}
+
+void AesKeyAlgorithm::initialize(JS::Realm& realm)
+{
+    Base::initialize(realm);
+
+    define_native_accessor(realm, "length", length_getter, {}, JS::Attribute::Enumerable | JS::Attribute::Configurable);
+}
+
+JS_DEFINE_NATIVE_FUNCTION(AesKeyAlgorithm::length_getter)
+{
+    auto* impl = TRY(impl_from<AesKeyAlgorithm>(vm, "AesKeyAlgorithm"sv));
+    auto length = TRY(Bindings::throw_dom_exception_if_needed(vm, [&] { return impl->length(); }));
+    return length;
 }
 
 }

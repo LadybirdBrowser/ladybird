@@ -94,6 +94,12 @@ struct DrawRepeatedImmutableBitmap {
 struct Save { };
 struct Restore { };
 
+struct Translate {
+    Gfx::IntPoint delta;
+
+    void translate_by(Gfx::IntPoint const& offset) { delta.translate_by(offset); }
+};
+
 struct AddClipRect {
     Gfx::IntRect rect;
 
@@ -105,20 +111,13 @@ struct StackingContextTransform {
     Gfx::FloatMatrix4x4 matrix;
 };
 
-struct StackingContextMask {
-    NonnullRefPtr<Gfx::Bitmap> mask_bitmap;
-    Gfx::Bitmap::MaskKind mask_kind;
-};
-
 struct PushStackingContext {
     float opacity;
-    bool is_fixed_position;
+    CSS::ResolvedFilter filter;
     // The bounding box of the source paintable (pre-transform).
     Gfx::IntRect source_paintable_rect;
     // A translation to be applied after the stacking context has been transformed.
-    Gfx::IntPoint post_transform_translation;
     StackingContextTransform transform;
-    Optional<StackingContextMask> mask = {};
     Optional<Gfx::Path> clip_path = {};
 
     void translate_by(Gfx::IntPoint const& offset)
@@ -287,7 +286,7 @@ struct DrawLine {
 struct ApplyBackdropFilter {
     Gfx::IntRect backdrop_region;
     BorderRadiiData border_radii_data;
-    CSS::ResolvedBackdropFilter backdrop_filter;
+    CSS::ResolvedFilter backdrop_filter;
 
     [[nodiscard]] Gfx::IntRect bounding_rect() const { return backdrop_region; }
 
@@ -388,6 +387,31 @@ struct PaintScrollBar {
     }
 };
 
+struct ApplyOpacity {
+    float opacity;
+};
+
+struct ApplyTransform {
+    Gfx::FloatPoint origin;
+    Gfx::FloatMatrix4x4 matrix;
+
+    void translate_by(Gfx::IntPoint const& offset)
+    {
+        origin.translate_by(offset.to_type<float>());
+    }
+};
+
+struct ApplyMaskBitmap {
+    Gfx::IntPoint origin;
+    NonnullRefPtr<Gfx::Bitmap> bitmap;
+    Gfx::Bitmap::MaskKind kind;
+
+    void translate_by(Gfx::IntPoint const& offset)
+    {
+        origin.translate_by(offset);
+    }
+};
+
 using Command = Variant<
     DrawGlyphRun,
     FillRect,
@@ -396,6 +420,7 @@ using Command = Variant<
     DrawRepeatedImmutableBitmap,
     Save,
     Restore,
+    Translate,
     AddClipRect,
     PushStackingContext,
     PopStackingContext,
@@ -419,6 +444,9 @@ using Command = Variant<
     AddRoundedRectClip,
     AddMask,
     PaintNestedDisplayList,
-    PaintScrollBar>;
+    PaintScrollBar,
+    ApplyOpacity,
+    ApplyTransform,
+    ApplyMaskBitmap>;
 
 }

@@ -7,6 +7,7 @@
 #pragma once
 
 #include <AK/Optional.h>
+#include <AK/Span.h>
 #include <AK/Vector.h>
 #include <LibIDL/Types.h>
 #include <LibJS/Runtime/VM.h>
@@ -23,6 +24,6 @@ struct ResolvedOverload {
 };
 
 // https://webidl.spec.whatwg.org/#es-overloads
-JS::ThrowCompletionOr<ResolvedOverload> resolve_overload(JS::VM&, IDL::EffectiveOverloadSet&);
+JS::ThrowCompletionOr<ResolvedOverload> resolve_overload(JS::VM&, IDL::EffectiveOverloadSet&, ReadonlySpan<StringView> interface_dictionaries);
 
 }

@@ -272,7 +272,7 @@ MediaPaintable::DispatchEventOfSameName MediaPaintable::handle_mousedown(Badge<E
     if (button != UIEvents::MouseButton::Primary)
         return DispatchEventOfSameName::Yes;
 
-    auto& media_element = *verify_cast<HTML::HTMLMediaElement>(layout_box().dom_node());
+    auto& media_element = *verify_cast<HTML::HTMLMediaElement>(layout_node_with_style_and_box_metrics().dom_node());
     auto const& cached_layout_boxes = media_element.cached_layout_boxes({});
 
     auto position_adjusted_by_scroll_offset = position;
@@ -294,7 +294,7 @@ MediaPaintable::DispatchEventOfSameName MediaPaintable::handle_mousedown(Badge<E
 
 MediaPaintable::DispatchEventOfSameName MediaPaintable::handle_mouseup(Badge<EventHandler>, CSSPixelPoint position, unsigned button, unsigned)
 {
-    auto& media_element = *verify_cast<HTML::HTMLMediaElement>(layout_box().dom_node());
+    auto& media_element = *verify_cast<HTML::HTMLMediaElement>(layout_node_with_style_and_box_metrics().dom_node());
     auto const& cached_layout_boxes = media_element.cached_layout_boxes({});
 
     auto position_adjusted_by_scroll_offset = position;
@@ -308,7 +308,7 @@ MediaPaintable::DispatchEventOfSameName MediaPaintable::handle_mouseup(Badge<Eve
             break;
 
         case HTML::HTMLMediaElement::MouseTrackingComponent::Volume:
-            browsing_context().page().client().page_did_stop_tooltip_override();
+            document().page().client().page_did_stop_tooltip_override();
             break;
         }
 
@@ -342,7 +342,7 @@ MediaPaintable::DispatchEventOfSameName MediaPaintable::handle_mouseup(Badge<Eve
 
 MediaPaintable::DispatchEventOfSameName MediaPaintable::handle_mousemove(Badge<EventHandler>, CSSPixelPoint position, unsigned, unsigned)
 {
-    auto& media_element = *verify_cast<HTML::HTMLMediaElement>(layout_box().dom_node());
+    auto& media_element = *verify_cast<HTML::HTMLMediaElement>(layout_node_with_style_and_box_metrics().dom_node());
     auto const& cached_layout_boxes = media_element.cached_layout_boxes({});
 
     auto position_adjusted_by_scroll_offset = position;
@@ -361,7 +361,7 @@ MediaPaintable::DispatchEventOfSameName MediaPaintable::handle_mousemove(Badge<E
                 set_volume(media_element, *cached_layout_boxes.volume_scrub_rect, position_adjusted_by_scroll_offset);
 
                 auto volume = static_cast<u8>(media_element.volume() * 100.0);
-                browsing_context().page().client().page_did_request_tooltip_override({ position_adjusted_by_scroll_offset.x(), cached_layout_boxes.volume_scrub_rect->y() + scroll_offset.y() }, ByteString::formatted("{}%", volume));
+                document().page().client().page_did_request_tooltip_override({ position_adjusted_by_scroll_offset.x(), cached_layout_boxes.volume_scrub_rect->y() + scroll_offset.y() }, ByteString::formatted("{}%", volume));
             }
 
             break;

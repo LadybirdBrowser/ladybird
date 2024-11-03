@@ -3,7 +3,7 @@ Viewport <#document> at (0,0) content-size 800x600 children: not-inline
     BlockContainer <body> at (8,8) content-size 784x1568 children: not-inline
       ImageBox <img> at (8,8) content-size 784x1568 children: not-inline
         (SVG-as-image isolated context)
-        Viewport <#document> at (0,0) content-size 784x1568 [BFC] children: inline
+        Viewport <#document> at (0,0) content-size 784x1568 [BFC] children: not-inline
           SVGSVGBox <svg> at (0,0) content-size 784x1568 [SVG] children: inline
             TextNode <#text>
             SVGGeometryBox <rect> at (0,0) content-size 784x1568 children: not-inline

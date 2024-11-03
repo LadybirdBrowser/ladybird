@@ -1,0 +1,77 @@
+Viewport <#document> at (0,0) content-size 800x600 children: not-inline
+  BlockContainer <html> at (0,0) content-size 800x126 [BFC] children: not-inline
+    BlockContainer <body> at (8,8) content-size 784x110 children: inline
+      frag 0 from BlockContainer start: 0, length: 0, rect: [13,10 0x17] baseline: 15.296875
+      frag 1 from TextNode start: 0, length: 13, rect: [18,10 116.171875x17] baseline: 13.296875
+          "Normal button"
+      frag 2 from BlockContainer start: 0, length: 0, rect: [13,31 0x17] baseline: 15.296875
+      frag 3 from TextNode start: 0, length: 20, rect: [18,31 181.203125x17] baseline: 13.296875
+          "No appearance button"
+      frag 4 from CheckBox start: 0, length: 0, rect: [8,50 13x13] baseline: 13
+      frag 5 from TextNode start: 0, length: 15, rect: [21,50 136.296875x17] baseline: 13.296875
+          "Normal checkbox"
+      frag 6 from BlockContainer start: 0, length: 0, rect: [8,80 0x0] baseline: 0
+      frag 7 from TextNode start: 0, length: 22, rect: [8,67 201.328125x17] baseline: 13.296875
+          "No appearance checkbox"
+      frag 8 from RadioButton start: 0, length: 0, rect: [8,85 12x12] baseline: 12
+      frag 9 from TextNode start: 0, length: 12, rect: [20,84 104.203125x17] baseline: 13.296875
+          "Normal radio"
+      frag 10 from BlockContainer start: 0, length: 0, rect: [8,114 0x0] baseline: 0
+      frag 11 from TextNode start: 0, length: 19, rect: [8,101 169.234375x17] baseline: 13.296875
+          "No appearance radio"
+      BlockContainer <input> at (13,10) content-size 0x17 inline-block [BFC] children: not-inline
+        BlockContainer <(anonymous)> at (13,10) content-size 0x17 flex-container(column) [FFC] children: not-inline
+          BlockContainer <(anonymous)> at (13,10) content-size 0x17 flex-item [BFC] children: inline
+            frag 0 from BlockContainer start: 0, length: 0, rect: [13,23 0x0] baseline: 0
+            BlockContainer <span> at (13,23) content-size 0x0 inline-block [BFC] children: inline
+              TextNode <#text>
+      TextNode <#text>
+      BreakNode <br>
+      TextNode <#text>
+      BlockContainer <input> at (13,31) content-size 0x17 inline-block [BFC] children: not-inline
+        BlockContainer <(anonymous)> at (13,31) content-size 0x17 flex-container(column) [FFC] children: not-inline
+          BlockContainer <(anonymous)> at (13,31) content-size 0x17 flex-item [BFC] children: inline
+            frag 0 from BlockContainer start: 0, length: 0, rect: [13,44 0x0] baseline: 0
+            BlockContainer <span> at (13,44) content-size 0x0 inline-block [BFC] children: inline
+              TextNode <#text>
+      TextNode <#text>
+      BreakNode <br>
+      TextNode <#text>
+      CheckBox <input> at (8,50) content-size 13x13 inline-block children: not-inline
+      TextNode <#text>
+      BreakNode <br>
+      TextNode <#text>
+      BlockContainer <input> at (8,80) content-size 0x0 inline-block [BFC] children: not-inline
+      TextNode <#text>
+      BreakNode <br>
+      TextNode <#text>
+      RadioButton <input> at (8,85) content-size 12x12 inline-block children: not-inline
+      TextNode <#text>
+      BreakNode <br>
+      TextNode <#text>
+      BlockContainer <input> at (8,114) content-size 0x0 inline-block [BFC] children: not-inline
+      TextNode <#text>
+      BreakNode <br>
+      TextNode <#text>
+
+ViewportPaintable (Viewport<#document>) [0,0 800x600]
+  PaintableWithLines (BlockContainer<HTML>) [0,0 800x126]
+    PaintableWithLines (BlockContainer<BODY>) [8,8 784x110]
+      PaintableWithLines (BlockContainer<INPUT>) [8,8 10x21]
+        PaintableWithLines (BlockContainer(anonymous)) [13,10 0x17]
+          PaintableWithLines (BlockContainer(anonymous)) [13,10 0x17]
+            PaintableWithLines (BlockContainer<SPAN>) [13,23 0x0]
+      TextPaintable (TextNode<#text>)
+      PaintableWithLines (BlockContainer<INPUT>) [8,29 10x21]
+        PaintableWithLines (BlockContainer(anonymous)) [13,31 0x17]
+          PaintableWithLines (BlockContainer(anonymous)) [13,31 0x17]
+            PaintableWithLines (BlockContainer<SPAN>) [13,44 0x0]
+      TextPaintable (TextNode<#text>)
+      CheckBoxPaintable (CheckBox<INPUT>) [8,50 13x13]
+      TextPaintable (TextNode<#text>)
+      PaintableWithLines (BlockContainer<INPUT>) [8,80 0x0]
+      TextPaintable (TextNode<#text>)
+      RadioButtonPaintable (RadioButton<INPUT>) [8,85 12x12]
+      TextPaintable (TextNode<#text>)
+      PaintableWithLines (BlockContainer<INPUT>) [8,114 0x0]
+      TextPaintable (TextNode<#text>)

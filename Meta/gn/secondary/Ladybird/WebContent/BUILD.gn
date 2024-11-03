@@ -6,10 +6,7 @@ import("//Meta/gn/build/libs/pulse/enable.gni")
 enable_qt_multimedia = !enable_pulseaudio && current_os != "mac"
 
 moc_qt_objects("generate_moc") {
-  sources = [
-    "//Ladybird/Qt/EventLoopImplementationQtEventTarget.h",
-    "//Ladybird/Qt/RequestManagerQt.h",
-  ]
+  sources = [ "//Ladybird/Qt/EventLoopImplementationQtEventTarget.h" ]
 
   if (enable_qt_multimedia) {
     sources += [
@@ -20,10 +17,7 @@ moc_qt_objects("generate_moc") {
 }
 
 link_qt("WebContent_qt") {
-  qt_components = [
-    "Core",
-    "Network",
-  ]
+  qt_components = [ "Core" ]
 
   if (enable_qt_multimedia) {
     qt_components += [ "Multimedia" ]
@@ -38,6 +32,7 @@ executable("WebContent") {
   ]
   deps = [
     "//AK",
+    "//Meta/gn/build/libs/fontconfig",
     "//Meta/gn/build/libs/pulse",
     "//Userland/Libraries/LibCore",
     "//Userland/Libraries/LibFileSystem",
@@ -46,7 +41,7 @@ executable("WebContent") {
     "//Userland/Libraries/LibImageDecoderClient",
     "//Userland/Libraries/LibJS",
     "//Userland/Libraries/LibMain",
-    "//Userland/Libraries/LibProtocol",
+    "//Userland/Libraries/LibRequests",
     "//Userland/Libraries/LibURL",
     "//Userland/Libraries/LibWeb",
     "//Userland/Libraries/LibWebSocket",
@@ -61,6 +56,7 @@ executable("WebContent") {
     "//Ladybird/HelperProcess.cpp",
     "//Ladybird/ImageCodecPlugin.cpp",
     "//Ladybird/Utilities.cpp",
+    "//Userland/Services/WebContent/BackingStoreManager.cpp",
     "//Userland/Services/WebContent/ConnectionFromClient.cpp",
     "//Userland/Services/WebContent/ConsoleGlobalEnvironmentExtensions.cpp",
     "//Userland/Services/WebContent/PageClient.cpp",
@@ -76,10 +72,7 @@ executable("WebContent") {
     sources += [
       "//Ladybird/Qt/EventLoopImplementationQt.cpp",
       "//Ladybird/Qt/EventLoopImplementationQtEventTarget.cpp",
-      "//Ladybird/Qt/RequestManagerQt.cpp",
       "//Ladybird/Qt/StringUtils.cpp",
-      "//Ladybird/Qt/WebSocketImplQt.cpp",
-      "//Ladybird/Qt/WebSocketQt.cpp",
     ]
 
     if (enable_qt_multimedia) {

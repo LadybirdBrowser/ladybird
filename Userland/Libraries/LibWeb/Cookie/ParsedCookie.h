@@ -29,6 +29,7 @@ struct ParsedCookie {
 
 Optional<ParsedCookie> parse_cookie(URL::URL const&, StringView cookie_string);
 bool cookie_contains_invalid_control_character(StringView);
+bool domain_matches(StringView string, StringView domain_string);
 String default_path(URL::URL const&);
 
 }

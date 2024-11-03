@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2020-2021, the SerenityOS developers.
- * Copyright (c) 2021-2023, Sam Atkins <atkinssj@serenityos.org>
+ * Copyright (c) 2021-2024, Sam Atkins <sam@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -14,6 +14,7 @@
 
 namespace Web::CSS::Parser {
 
+// https://drafts.csswg.org/css-syntax/#css-token-stream
 template<typename T>
 class TokenStream {
 public:
@@ -21,14 +22,14 @@ public:
     public:
         explicit StateTransaction(TokenStream<T>& token_stream)
             : m_token_stream(token_stream)
-            , m_saved_iterator_offset(token_stream.m_iterator_offset)
+            , m_saved_index(token_stream.m_index)
         {
         }
 
         ~StateTransaction()
         {
             if (!m_commit)
-                m_token_stream.m_iterator_offset = m_saved_iterator_offset;
+                m_token_stream.m_index = m_saved_index;
         }
 
         StateTransaction create_child() { return StateTransaction(*this); }
@@ -44,13 +45,13 @@ public:
         explicit StateTransaction(StateTransaction& parent)
             : m_parent(&parent)
             , m_token_stream(parent.m_token_stream)
-            , m_saved_iterator_offset(parent.m_token_stream.m_iterator_offset)
+            , m_saved_index(parent.m_token_stream.m_index)
         {
         }
 
         StateTransaction* m_parent { nullptr };
         TokenStream<T>& m_token_stream;
-        int m_saved_iterator_offset { 0 };
+        size_t m_saved_index { 0 };
         bool m_commit { false };
     };
 
@@ -74,60 +75,114 @@ public:
     TokenStream(TokenStream<T> const&) = delete;
     TokenStream(TokenStream<T>&&) = default;
 
+    // https://drafts.csswg.org/css-syntax/#token-stream-next-token
+    [[nodiscard]] T const& next_token() const
+    {
+        // The item of tokens at index.
+        // If that index would be out-of-bounds past the end of the list, it’s instead an <eof-token>.
+        if (m_index < m_tokens.size())
+            return m_tokens[m_index];
+        return m_eof;
+    }
+
+    // https://drafts.csswg.org/css-syntax/#token-stream-empty
+    [[nodiscard]] bool is_empty() const
+    {
+        // A token stream is empty if the next token is an <eof-token>.
+        return next_token().is(Token::Type::EndOfFile);
+    }
+
+    // https://drafts.csswg.org/css-syntax/#token-stream-consume-a-token
+    [[nodiscard]] T const& consume_a_token()
+    {
+        // Let token be the next token. Increment index, then return token.
+        auto& token = next_token();
+        ++m_index;
+        return token;
+    }
+
+    // https://drafts.csswg.org/css-syntax/#token-stream-discard-a-token
+    void discard_a_token()
+    {
+        // If the token stream is not empty, increment index.
+        if (!is_empty())
+            ++m_index;
+    }
+
+    // https://drafts.csswg.org/css-syntax/#token-stream-mark
+    void mark()
+    {
+        // Append index to marked indexes.
+        m_marked_indexes.append(m_index);
+    }
+
+    // https://drafts.csswg.org/css-syntax/#token-stream-restore-a-mark
+    void restore_a_mark()
+    {
+        // Pop from marked indexes, and set index to the popped value.
+        m_index = m_marked_indexes.take_last();
+    }
+
+    // https://drafts.csswg.org/css-syntax/#token-stream-discard-a-mark
+    void discard_a_mark()
+    {
+        // Pop from marked indexes, and do nothing with the popped value.
+        m_marked_indexes.take_last();
+    }
+
+    // https://drafts.csswg.org/css-syntax/#token-stream-discard-whitespace
+    void discard_whitespace()
+    {
+        // While the next token is a <whitespace-token>, discard a token.
+        while (next_token().is(Token::Type::Whitespace))
+            discard_a_token();
+    }
+
     bool has_next_token()
     {
-        return (size_t)(m_iterator_offset + 1) < m_tokens.size();
+        return !is_empty();
     }
 
-    T const& next_token()
-    {
-        if (!has_next_token())
-            return m_eof;
-
-        ++m_iterator_offset;
-
-        return m_tokens.at(m_iterator_offset);
-    }
-
-    T const& peek_token(int offset = 0)
-    {
-        if (!has_next_token())
-            return m_eof;
-
-        return m_tokens.at(m_iterator_offset + offset + 1);
-    }
-
+    // Deprecated, used in older versions of the spec.
     T const& current_token()
     {
-        if ((size_t)m_iterator_offset >= m_tokens.size())
+        if (m_index < 1 || (m_index - 1) >= m_tokens.size())
             return m_eof;
 
-        return m_tokens.at(m_iterator_offset);
+        return m_tokens.at(m_index - 1);
     }
 
+    // Deprecated
+    T const& peek_token(size_t offset = 0)
+    {
+        if (remaining_token_count() <= offset)
+            return m_eof;
+
+        return m_tokens.at(m_index + offset);
+    }
+
+    // Deprecated, was used in older versions of the spec.
     void reconsume_current_input_token()
     {
-        if (m_iterator_offset >= 0)
-            --m_iterator_offset;
+        if (m_index > 0)
+            --m_index;
     }
 
     StateTransaction begin_transaction() { return StateTransaction(*this); }
 
-    void skip_whitespace()
+    size_t remaining_token_count() const
     {
-        while (peek_token().is(Token::Type::Whitespace))
-            next_token();
+        if (m_tokens.size() > m_index)
+            return m_tokens.size() - m_index;
+        return 0;
     }
-
-    size_t token_count() const { return m_tokens.size(); }
-    size_t remaining_token_count() const { return token_count() - m_iterator_offset - 1; }
 
     void dump_all_tokens()
     {
         dbgln("Dumping all tokens:");
         for (size_t i = 0; i < m_tokens.size(); ++i) {
             auto& token = m_tokens[i];
-            if ((i - 1) == (size_t)m_iterator_offset)
+            if (i == m_index)
                 dbgln("-> {}", token.to_debug_string());
             else
                 dbgln("   {}", token.to_debug_string());
@@ -136,12 +191,18 @@ public:
 
     void copy_state(Badge<Parser>, TokenStream<T> const& other)
     {
-        m_iterator_offset = other.m_iterator_offset;
+        m_index = other.m_index;
     }
 
 private:
+    // https://drafts.csswg.org/css-syntax/#token-stream-tokens
     Span<T const> m_tokens;
-    int m_iterator_offset { -1 };
+
+    // https://drafts.csswg.org/css-syntax/#token-stream-index
+    size_t m_index { 0 };
+
+    // https://drafts.csswg.org/css-syntax/#token-stream-marked-indexes
+    Vector<size_t> m_marked_indexes;
 
     T make_eof()
     {

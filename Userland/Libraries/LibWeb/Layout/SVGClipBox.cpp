@@ -12,7 +12,7 @@ namespace Web::Layout {
 
 JS_DEFINE_ALLOCATOR(SVGClipBox);
 
-SVGClipBox::SVGClipBox(DOM::Document& document, SVG::SVGClipPathElement& element, NonnullRefPtr<CSS::StyleProperties> properties)
+SVGClipBox::SVGClipBox(DOM::Document& document, SVG::SVGClipPathElement& element, CSS::StyleProperties properties)
     : SVGBox(document, element, properties)
 {
 }

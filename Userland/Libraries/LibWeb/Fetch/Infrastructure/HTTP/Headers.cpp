@@ -20,6 +20,7 @@
 #include <LibWeb/Fetch/Infrastructure/HTTP/Headers.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/Methods.h>
 #include <LibWeb/Infra/ByteSequences.h>
+#include <LibWeb/Infra/Strings.h>
 #include <LibWeb/Loader/ResourceLoader.h>
 #include <LibWeb/MimeSniff/MimeType.h>
 
@@ -42,11 +43,18 @@ requires(IsSameIgnoringCV<T, u8>) struct CaseInsensitiveBytesTraits : public Tra
     }
 };
 
+Header Header::copy(Header const& header)
+{
+    return Header {
+        .name = MUST(ByteBuffer::copy(header.name)),
+        .value = MUST(ByteBuffer::copy(header.value)),
+    };
+}
 Header Header::from_string_pair(StringView name, StringView value)
 {
     return Header {
-        .name = MUST(ByteBuffer::copy(name.bytes())),
-        .value = MUST(ByteBuffer::copy(value.bytes())),
+        .name = Infra::isomorphic_encode(name),
+        .value = Infra::isomorphic_encode(value),
     };
 }
 
@@ -128,42 +136,31 @@ Optional<Vector<String>> get_decode_and_split_header_value(ReadonlyBytes value)
     // To get, decode, and split a header value value, run these steps:
 
     // 1. Let input be the result of isomorphic decoding value.
-    auto input = StringView { value };
+    auto input = Infra::isomorphic_decode(value);
 
     // 2. Let position be a position variable for input, initially pointing at the start of input.
     auto lexer = GenericLexer { input };
 
-    // 3. Let values be a list of strings, initially empty.
+    // 3. Let values be a list of strings, initially « ».
     Vector<String> values;
 
     // 4. Let temporaryValue be the empty string.
     StringBuilder temporary_value_builder;
 
-    // 5. While position is not past the end of input:
-    while (!lexer.is_eof()) {
+    // 5. While true:
+    while (true) {
         // 1. Append the result of collecting a sequence of code points that are not U+0022 (") or U+002C (,) from input, given position, to temporaryValue.
         // NOTE: The result might be the empty string.
         temporary_value_builder.append(lexer.consume_until(is_any_of("\","sv)));
 
-        // 2. If position is not past the end of input, then:
-        if (!lexer.is_eof()) {
-            // 1. If the code point at position within input is U+0022 ("), then:
-            if (lexer.peek() == '"') {
-                // 1. Append the result of collecting an HTTP quoted string from input, given position, to temporaryValue.
-                temporary_value_builder.append(collect_an_http_quoted_string(lexer));
+        // 2. If position is not past the end of input and the code point at position within input is U+0022 ("):
+        if (!lexer.is_eof() && lexer.peek() == '"') {
+            // 1. Append the result of collecting an HTTP quoted string from input, given position, to temporaryValue.
+            temporary_value_builder.append(collect_an_http_quoted_string(lexer));
 
-                // 2. If position is not past the end of input, then continue.
-                if (!lexer.is_eof())
-                    continue;
-            }
-            // 2. Otherwise:
-            else {
-                // 1. Assert: the code point at position within input is U+002C (,).
-                VERIFY(lexer.peek() == ',');
-
-                // 2. Advance position by 1.
-                lexer.ignore(1);
-            }
+            // 2. If position is not past the end of input, then continue.
+            if (!lexer.is_eof())
+                continue;
         }
 
         // 3. Remove all HTTP tab or space from the start and end of temporaryValue.
@@ -174,10 +171,17 @@ Optional<Vector<String>> get_decode_and_split_header_value(ReadonlyBytes value)
 
         // 5. Set temporaryValue to the empty string.
         temporary_value_builder.clear();
-    }
 
-    // 8. Return values.
-    return values;
+        // 6. If position is past the end of input, then return values.
+        if (lexer.is_eof())
+            return values;
+
+        // 7. Assert: the code point at position within input is U+002C (,).
+        VERIFY(lexer.peek() == ',');
+
+        // 8. Advance position by 1.
+        lexer.ignore(1);
+    }
 }
 
 // https://fetch.spec.whatwg.org/#concept-header-list-append
@@ -369,7 +373,7 @@ Optional<MimeSniff::MimeType> HeaderList::extract_mime_type() const
     // 6. For each value of values:
     for (auto const& value : *values) {
         // 1. Let temporaryMimeType be the result of parsing value.
-        auto temporary_mime_type = MUST(MimeSniff::MimeType::parse(value));
+        auto temporary_mime_type = MimeSniff::MimeType::parse(value);
 
         // 2. If temporaryMimeType is failure or its essence is "*/*", then continue.
         if (!temporary_mime_type.has_value() || temporary_mime_type->essence() == "*/*"sv)
@@ -393,7 +397,7 @@ Optional<MimeSniff::MimeType> HeaderList::extract_mime_type() const
         }
         // 5. Otherwise, if mimeType’s parameters["charset"] does not exist, and charset is non-null, set mimeType’s parameters["charset"] to charset.
         else if (!mime_type->parameters().contains("charset"sv) && charset.has_value()) {
-            MUST(mime_type->set_parameter("charset"_string, charset.release_value()));
+            mime_type->set_parameter("charset"_string, charset.release_value());
         }
     }
 
@@ -527,7 +531,8 @@ bool is_cors_safelisted_request_header(Header const& header)
             return false;
 
         // 2. Let mimeType be the result of parsing the result of isomorphic decoding value.
-        auto mime_type = MimeSniff::MimeType::parse(StringView { value }).release_value_but_fixme_should_propagate_errors();
+        auto decoded = Infra::isomorphic_decode(value);
+        auto mime_type = MimeSniff::MimeType::parse(decoded);
 
         // 3. If mimeType is failure, then return false.
         if (!mime_type.has_value())
@@ -730,6 +735,7 @@ bool is_forbidden_request_header(Header const& header)
         auto parsed_values = get_decode_and_split_header_value(header.value);
 
         // 2. For each method of parsedValues: if the isomorphic encoding of method is a forbidden method, then return true.
+        // Note: The values returned from get_decode_and_split_header_value have already been decoded.
         if (parsed_values.has_value() && any_of(*parsed_values, [](auto method) { return is_forbidden_method(method.bytes()); }))
             return true;
     }
@@ -830,10 +836,10 @@ Variant<Vector<ByteBuffer>, ExtractHeaderParseFailure, Empty> extract_header_lis
 Optional<RangeHeaderValue> parse_single_range_header_value(ReadonlyBytes value)
 {
     // 1. Let data be the isomorphic decoding of value.
-    auto data = StringView { value };
+    auto data = Infra::isomorphic_decode(value);
 
     // 2. If data does not start with "bytes=", then return failure.
-    if (!data.starts_with("bytes="sv))
+    if (!data.starts_with_bytes("bytes="sv))
         return {};
 
     // 3. Let position be a position variable for data, initially pointing at the 6th code point of data.

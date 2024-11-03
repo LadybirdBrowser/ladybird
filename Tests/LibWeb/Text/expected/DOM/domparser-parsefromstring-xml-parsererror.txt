@@ -1,0 +1,21 @@
+<span x:test="testing">1</span> has 1 parseerror
+< span>2</span> has 1 parseerror
+<span :test="testing">3</span> has 1 parseerror
+<span><em>4</span></em> has 1 parseerror
+<span>5 has 1 parseerror
+6</span> has 1 parseerror
+<span>7< /span> has 1 parseerror
+<span>8</ span> has 1 parseerror
+<span novalue>9</span> has 1 parseerror
+<span ="noattr">10</span> has 1 parseerror
+<span ::="test">11</span> has 1 parseerror
+<span xmlns:="urn:x-test:test">12</span> has 1 parseerror
+<span xmlns:xmlns="">13</span> has 1 parseerror
+<span data-test=testing>14</span> has 1 parseerror
+15<span has 1 parseerror
+<8:test xmlns:8="urn:x-test:test">16</8:test> has 1 parseerror
+<span xmlns:p1 xmlns:p2="urn:x-test:test"/>17 has 1 parseerror
+text/xml has 1 parseerror
+application/xml has 1 parseerror
+application/xhtml+xml has 1 parseerror
+image/svg+xml has 1 parseerror

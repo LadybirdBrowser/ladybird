@@ -1,0 +1,15 @@
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const testElement = document.getElementById('target');
+        testElement.style = "";
+
+        testElement.style.transform = 'rotate(atan2(1rem, -1rem))';
+
+        getComputedStyle(testElement).transform;
+
+        println("NO CRASH");
+
+    });
+</script>
+<div id="target"></div>

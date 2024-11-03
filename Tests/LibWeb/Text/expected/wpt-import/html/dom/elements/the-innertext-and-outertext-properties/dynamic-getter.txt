@@ -1,0 +1,17 @@
+Summary
+
+Harness status: OK
+
+Rerun
+
+Found 7 tests
+
+7 Pass
+Details
+Result	Test Name	MessagePass	text-transform applied to child element ("<div id='target'><div id='child'>abc")	
+Pass	text-transform applied to parent element ("<div id='parent'><div id='target'>abc")	
+Pass	display: none applied to child element ("<div id='target'>abc<div id='child'>def")	
+Pass	display: none applied to parent element ("<div id='parent'>invisible<div id='target'>abc")	
+Pass	insert node into sub-tree ("<div id='target'>abc")	
+Pass	remove node from sub-tree ("<div id='target'>abc<div id='remove'>def")	
+Pass	insert whole sub-tree ("<div id='target'>")	

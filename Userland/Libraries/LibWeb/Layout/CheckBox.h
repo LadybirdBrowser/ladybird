@@ -1,12 +1,12 @@
 /*
- * Copyright (c) 2020, Andreas Kling <kling@serenityos.org>
+ * Copyright (c) 2020, Andreas Kling <andreas@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
 #pragma once
 
-#include <LibWeb/HTML/HTMLInputElement.h>
+#include <LibWeb/Forward.h>
 #include <LibWeb/Layout/FormAssociatedLabelableNode.h>
 
 namespace Web::Layout {
@@ -16,7 +16,7 @@ class CheckBox final : public FormAssociatedLabelableNode {
     JS_DECLARE_ALLOCATOR(CheckBox);
 
 public:
-    CheckBox(DOM::Document&, HTML::HTMLInputElement&, NonnullRefPtr<CSS::StyleProperties>);
+    CheckBox(DOM::Document&, HTML::HTMLInputElement&, CSS::StyleProperties);
     virtual ~CheckBox() override;
 
 private:

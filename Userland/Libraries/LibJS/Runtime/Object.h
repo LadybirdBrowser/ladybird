@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-2024, Andreas Kling <kling@serenityos.org>
+ * Copyright (c) 2020-2024, Andreas Kling <andreas@ladybird.org>
  * Copyright (c) 2020-2023, Linus Groh <linusg@serenityos.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
@@ -22,7 +22,6 @@
 #include <LibJS/Runtime/PropertyKey.h>
 #include <LibJS/Runtime/Shape.h>
 #include <LibJS/Runtime/Value.h>
-#include <LibJS/SafeFunction.h>
 
 namespace JS {
 
@@ -139,7 +138,7 @@ public:
     virtual ThrowCompletionOr<bool> internal_is_extensible() const;
     virtual ThrowCompletionOr<bool> internal_prevent_extensions();
     virtual ThrowCompletionOr<Optional<PropertyDescriptor>> internal_get_own_property(PropertyKey const&) const;
-    virtual ThrowCompletionOr<bool> internal_define_own_property(PropertyKey const&, PropertyDescriptor const&);
+    virtual ThrowCompletionOr<bool> internal_define_own_property(PropertyKey const&, PropertyDescriptor const&, Optional<PropertyDescriptor>* precomputed_get_own_property = nullptr);
     virtual ThrowCompletionOr<bool> internal_has_property(PropertyKey const&) const;
     enum class PropertyLookupPhase {
         OwnProperty,

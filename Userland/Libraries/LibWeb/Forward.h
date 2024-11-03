@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-2023, Andreas Kling <kling@serenityos.org>
+ * Copyright (c) 2020-2024, Andreas Kling <andreas@ladybird.org>
  * Copyright (c) 2021-2023, the SerenityOS developers.
  *
  * SPDX-License-Identifier: BSD-2-Clause
@@ -7,22 +7,27 @@
 
 #pragma once
 
+#include <AK/DistinctNumeric.h>
 #include <AK/Variant.h>
+#include <LibIPC/Forward.h>
 #include <LibJS/Forward.h>
 
 namespace Web {
 class DragAndDropEventHandler;
-class EditEventHandler;
 class EventHandler;
-enum class InvalidateDisplayList;
+class InputEventsTarget;
 class LoadRequest;
 class Page;
 class PageClient;
 class PaintContext;
 class Resource;
 class ResourceLoader;
-enum class TraversalDecision;
 class XMLDocumentBuilder;
+
+enum class InvalidateDisplayList;
+enum class TraversalDecision;
+
+AK_TYPEDEF_DISTINCT_NUMERIC_GENERAL(i64, UniqueNodeID, Comparison, Increment, CastToUnderlying);
 }
 
 namespace Web::Painting {
@@ -46,6 +51,7 @@ class KeyframeEffect;
 namespace Web::ARIA {
 class AriaData;
 class ARIAMixin;
+
 enum class StateAndProperties;
 }
 
@@ -102,6 +108,11 @@ class BackgroundRepeatStyleValue;
 class BackgroundSizeStyleValue;
 class BasicShapeStyleValue;
 class BorderRadiusStyleValue;
+class Clip;
+class ConicGradientStyleValue;
+class ContentStyleValue;
+class CounterDefinitionsStyleValue;
+class CounterStyleValue;
 class CSSAnimation;
 class CSSColorValue;
 class CSSConditionRule;
@@ -117,22 +128,18 @@ class CSSLayerBlockRule;
 class CSSLayerStatementRule;
 class CSSMathValue;
 class CSSMediaRule;
+class CSSNestedDeclarations;
 class CSSOKLab;
 class CSSOKLCH;
+class CSSPropertyRule;
 class CSSRGB;
 class CSSRule;
 class CSSRuleList;
 class CSSStyleDeclaration;
 class CSSStyleRule;
 class CSSStyleSheet;
-struct CSSStyleSheetInit;
 class CSSStyleValue;
 class CSSSupportsRule;
-class Clip;
-class ConicGradientStyleValue;
-class ContentStyleValue;
-class CounterStyleValue;
-class CounterDefinitionsStyleValue;
 class CustomIdentStyleValue;
 class Display;
 class DisplayStyleValue;
@@ -178,6 +185,7 @@ class MediaQueryListEvent;
 class Number;
 class NumberOrCalculated;
 class NumberStyleValue;
+class OpenTypeTaggedStyleValue;
 class ParsedFontFace;
 class Percentage;
 class PercentageOrCalculated;
@@ -191,6 +199,7 @@ class RectStyleValue;
 class Resolution;
 class ResolutionOrCalculated;
 class ResolutionStyleValue;
+class RotationStyleValue;
 class Screen;
 class ScreenOrientation;
 class ScrollbarGutterStyleValue;
@@ -202,7 +211,6 @@ class StringStyleValue;
 class StyleComputer;
 class StyleProperties;
 class StyleSheet;
-struct StyleSheetIdentifier;
 class StyleSheetList;
 class StyleValueList;
 class Supports;
@@ -214,8 +222,8 @@ class TimeStyleValue;
 class Transformation;
 class TransformationStyleValue;
 class TransitionStyleValue;
-class URLStyleValue;
 class UnresolvedStyleValue;
+class URLStyleValue;
 class VisualViewport;
 
 enum class Keyword;
@@ -223,18 +231,21 @@ enum class MediaFeatureID;
 enum class PropertyID;
 
 struct BackgroundLayerData;
+struct CSSStyleSheetInit;
+struct StyleSheetIdentifier;
 }
 
 namespace Web::CSS::Parser {
-class Block;
 class ComponentValue;
-class Declaration;
-class DeclarationOrAtRule;
-class Function;
 class Parser;
-class Rule;
 class Token;
 class Tokenizer;
+
+struct AtRule;
+struct Declaration;
+struct Function;
+struct QualifiedRule;
+struct SimpleBlock;
 }
 
 namespace Web::DOM {
@@ -255,12 +266,12 @@ class DocumentType;
 class DOMEventListener;
 class DOMImplementation;
 class DOMTokenList;
+class EditingHostManager;
 class Element;
 class Event;
 class EventHandler;
 class EventTarget;
 class HTMLCollection;
-class HTMLFormControlsCollection;
 class IDLEventListener;
 class LiveNodeList;
 class MutationObserver;
@@ -274,7 +285,6 @@ class ParentNode;
 class Position;
 class ProcessingInstruction;
 class Range;
-class RadioNodeList;
 class RegisteredObserver;
 class ShadowRoot;
 class StaticNodeList;
@@ -294,15 +304,20 @@ class XMLSerializer;
 }
 
 namespace Web::Encoding {
-struct TextDecodeOptions;
 class TextDecoder;
-struct TextDecoderOptions;
 class TextEncoder;
+
+struct TextDecodeOptions;
+struct TextDecoderOptions;
 struct TextEncoderEncodeIntoResult;
 }
 
 namespace Web::EntriesAPI {
 class FileSystemEntry;
+}
+
+namespace Web::EventTiming {
+class PerformanceEventTiming;
 }
 
 namespace Web::Fetch {
@@ -324,8 +339,8 @@ class ConnectionTimingInfo;
 class FetchAlgorithms;
 class FetchController;
 class FetchParams;
-class FetchTimingInfo;
 class FetchRecord;
+class FetchTimingInfo;
 class HeaderList;
 class IncrementalReadLoopReadRequest;
 class Request;
@@ -343,21 +358,24 @@ class FileList;
 
 namespace Web::Geometry {
 class DOMMatrix;
-struct DOMMatrix2DInit;
-struct DOMMatrixInit;
 class DOMMatrixReadOnly;
 class DOMPoint;
-struct DOMPointInit;
 class DOMPointReadOnly;
 class DOMQuad;
 class DOMRect;
 class DOMRectList;
 class DOMRectReadOnly;
+
+struct DOMMatrix2DInit;
+struct DOMMatrixInit;
+struct DOMPointInit;
 }
 
 namespace Web::HTML {
+class AnimationFrameCallbackDriver;
 class AudioTrack;
 class AudioTrackList;
+class BeforeUnloadEvent;
 class BroadcastChannel;
 class BrowsingContext;
 class BrowsingContextGroup;
@@ -379,7 +397,6 @@ class DOMStringMap;
 class DragDataStore;
 class DragEvent;
 class ElementInternals;
-struct EmbedderPolicy;
 class ErrorEvent;
 class EventHandler;
 class EventLoop;
@@ -407,6 +424,7 @@ class HTMLElement;
 class HTMLEmbedElement;
 class HTMLFieldSetElement;
 class HTMLFontElement;
+class HTMLFormControlsCollection;
 class HTMLFormElement;
 class HTMLFrameElement;
 class HTMLFrameSetElement;
@@ -480,28 +498,31 @@ class Navigation;
 class NavigationCurrentEntryChangeEvent;
 class NavigationDestination;
 class NavigationHistoryEntry;
+class NavigationObserver;
 class NavigationTransition;
 class Navigator;
-class Origin;
 class PageTransitionEvent;
 class Path2D;
 class Plugin;
 class PluginArray;
 class PromiseRejectionEvent;
+class RadioNodeList;
 class SelectedFile;
 class ServiceWorkerContainer;
 class ServiceWorkerRegistration;
+class SessionHistoryEntry;
 class SharedResourceRequest;
 class Storage;
 class SubmitEvent;
 class TextMetrics;
 class TextTrack;
+class TextTrackCue;
+class TextTrackCueList;
 class TextTrackList;
 class Timer;
 class TimeRanges;
 class ToggleEvent;
 class TrackEvent;
-struct TransferDataHolder;
 class TraversableNavigable;
 class UserActivation;
 class ValidityState;
@@ -522,18 +543,20 @@ enum class AllowMultipleFiles;
 enum class MediaSeekMode;
 enum class SandboxingFlagSet;
 
-struct CrossOriginOpenerPolicy;
-struct CrossOriginOpenerPolicyEnforcementResult;
+struct EmbedderPolicy;
 struct Environment;
 struct EnvironmentSettingsObject;
 struct NavigationParams;
+struct OpenerPolicy;
+struct OpenerPolicyEnforcementResult;
 struct PolicyContainer;
 struct POSTResource;
 struct ScrollOptions;
 struct ScrollToOptions;
 struct SerializedFormData;
-class SessionHistoryEntry;
+struct StructuredSerializeOptions;
 struct ToggleTaskTracker;
+struct TransferDataHolder;
 }
 
 namespace Web::HighResolutionTime {
@@ -554,6 +577,7 @@ class Internals;
 namespace Web::IntersectionObserver {
 class IntersectionObserver;
 class IntersectionObserverEntry;
+
 struct IntersectionObserverRegistration;
 }
 
@@ -568,6 +592,7 @@ class FlexFormattingContext;
 class FormattingContext;
 class ImageBox;
 class InlineFormattingContext;
+class InlineNode;
 class Label;
 class LabelableNode;
 class LineBox;
@@ -596,6 +621,16 @@ class MathMLElement;
 
 namespace Web::MediaCapabilitiesAPI {
 class MediaCapabilities;
+}
+
+namespace Web::MediaSourceExtensions {
+class BufferedChangeEvent;
+class ManagedMediaSource;
+class ManagedSourceBuffer;
+class MediaSource;
+class MediaSourceHandle;
+class SourceBuffer;
+class SourceBufferList;
 }
 
 namespace Web::MimeSniff {
@@ -632,6 +667,7 @@ namespace Web::PerformanceTimeline {
 class PerformanceEntry;
 class PerformanceObserver;
 class PerformanceObserverEntryList;
+
 struct PerformanceObserverInit;
 }
 
@@ -704,6 +740,7 @@ class SVGEllipseElement;
 class SVGForeignObjectElement;
 class SVGGeometryElement;
 class SVGGraphicsElement;
+class SVGImageElement;
 class SVGLength;
 class SVGLineElement;
 class SVGMaskElement;
@@ -718,10 +755,13 @@ class SVGTitleElement;
 }
 
 namespace Web::UIEvents {
+class CompositionEvent;
+class InputEvent;
 class KeyboardEvent;
 class MouseEvent;
 class PointerEvent;
-class UIEvents;
+class TextEvent;
+class UIEvent;
 }
 
 namespace Web::DOMURL {
@@ -745,9 +785,9 @@ class Table;
 namespace Web::WebAudio {
 class AudioBuffer;
 class AudioBufferSourceNode;
-class AudioDestinationNode;
 class AudioContext;
 class AudioDestinationNode;
+class AudioListener;
 class AudioNode;
 class AudioParam;
 class AudioScheduledSourceNode;
@@ -784,8 +824,20 @@ class ExceptionOr;
 using Promise = JS::PromiseCapability;
 }
 
+namespace Web::WebDriver {
+class HeapTimer;
+
+struct ActionObject;
+struct InputState;
+};
+
 namespace Web::WebSockets {
 class WebSocket;
+}
+
+namespace Web::WebVTT {
+class VTTCue;
+class VTTRegion;
 }
 
 namespace Web::XHR {
@@ -795,5 +847,16 @@ class ProgressEvent;
 class XMLHttpRequest;
 class XMLHttpRequestEventTarget;
 class XMLHttpRequestUpload;
+
 struct FormDataEntry;
+}
+
+namespace IPC {
+
+template<>
+ErrorOr<void> encode(Encoder&, Web::UniqueNodeID const&);
+
+template<>
+ErrorOr<Web::UniqueNodeID> decode(Decoder&);
+
 }

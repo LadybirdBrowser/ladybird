@@ -1,1 +1,0 @@
-@font-face { font-family: "a1"; src: local("xyz"); unicode-range: "U+0-10ffff"; }

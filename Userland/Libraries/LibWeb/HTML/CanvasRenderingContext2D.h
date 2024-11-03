@@ -24,6 +24,7 @@
 #include <LibWeb/HTML/Canvas/CanvasPath.h>
 #include <LibWeb/HTML/Canvas/CanvasPathDrawingStyles.h>
 #include <LibWeb/HTML/Canvas/CanvasRect.h>
+#include <LibWeb/HTML/Canvas/CanvasShadowStyles.h>
 #include <LibWeb/HTML/Canvas/CanvasState.h>
 #include <LibWeb/HTML/Canvas/CanvasText.h>
 #include <LibWeb/HTML/Canvas/CanvasTextDrawingStyles.h>
@@ -41,6 +42,7 @@ class CanvasRenderingContext2D
     , public CanvasState
     , public CanvasTransform<CanvasRenderingContext2D>
     , public CanvasFillStrokeStyles<CanvasRenderingContext2D>
+    , public CanvasShadowStyles<CanvasRenderingContext2D>
     , public CanvasRect
     , public CanvasDrawPath
     , public CanvasText
@@ -75,6 +77,7 @@ public:
     virtual void fill(Path2D& path, StringView fill_rule) override;
 
     virtual WebIDL::ExceptionOr<JS::NonnullGCPtr<ImageData>> create_image_data(int width, int height, Optional<ImageDataSettings> const& settings = {}) const override;
+    virtual WebIDL::ExceptionOr<JS::NonnullGCPtr<ImageData>> create_image_data(ImageData const& image_data) const override;
     virtual WebIDL::ExceptionOr<JS::GCPtr<ImageData>> get_image_data(int x, int y, int width, int height, Optional<ImageDataSettings> const& settings = {}) const override;
     virtual void put_image_data(ImageData const&, float x, float y) override;
 
@@ -97,6 +100,13 @@ public:
 
     virtual float global_alpha() const override;
     virtual void set_global_alpha(float) override;
+
+    virtual float shadow_offset_x() const override;
+    virtual void set_shadow_offset_x(float) override;
+    virtual float shadow_offset_y() const override;
+    virtual void set_shadow_offset_y(float) override;
+    virtual String shadow_color() const override;
+    virtual void set_shadow_color(String) override;
 
     HTMLCanvasElement& canvas_element();
     HTMLCanvasElement const& canvas_element() const;
@@ -130,6 +140,8 @@ private:
     void stroke_internal(Gfx::Path const&);
     void fill_internal(Gfx::Path const&, Gfx::WindingRule);
     void clip_internal(Gfx::Path&, Gfx::WindingRule);
+    void paint_shadow_for_fill_internal(Gfx::Path const&, Gfx::WindingRule);
+    void paint_shadow_for_stroke_internal(Gfx::Path const&);
 
     JS::NonnullGCPtr<HTMLCanvasElement> m_element;
     OwnPtr<Gfx::Painter> m_painter;

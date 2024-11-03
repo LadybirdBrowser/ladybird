@@ -11,9 +11,13 @@ shared_library("AK") {
   output_name = "ak"
 
   public_configs = [ ":ak_headers" ]
-  public_deps = [ ":ak_debug_gen" ]
+  public_deps = [
+    ":ak_backtrace_gen",
+    ":ak_debug_gen",
+  ]
 
-  # FIXME: Split out non-kernel sources to their own set
+  deps = [ "//Meta/gn/build/libs/simdutf" ]
+
   sources = [
     "AllOf.h",
     "AnyOf.h",
@@ -39,6 +43,7 @@ shared_library("AK") {
     "ByteReader.h",
     "ByteString.cpp",
     "ByteString.h",
+    "COWVector.h",
     "CharacterTypes.h",
     "Checked.h",
     "CheckedFormatString.h",
@@ -48,6 +53,7 @@ shared_library("AK") {
     "Concepts.h",
     "ConstrainedStream.cpp",
     "ConstrainedStream.h",
+    "CopyOnWrite.h",
     "CountingStream.cpp",
     "CountingStream.h",
     "DOSPackedTime.cpp",
@@ -63,6 +69,7 @@ shared_library("AK") {
     "DoublyLinkedList.h",
     "Endian.h",
     "EnumBits.h",
+    "Enumerate.h",
     "Error.cpp",
     "Error.h",
     "Find.h",
@@ -108,6 +115,7 @@ shared_library("AK") {
     "LEB128.h",
     "LexicalPath.cpp",
     "LexicalPath.h",
+    "LsanSuppressions.h",
     "Math.h",
     "MaybeOwned.h",
     "MemMem.h",
@@ -127,7 +135,6 @@ shared_library("AK") {
     "Optional.h",
     "OwnPtr.h",
     "Platform.h",
-    "Ptr32.h",
     "Queue.h",
     "QuickSelect.h",
     "QuickSort.h",
@@ -145,6 +152,7 @@ shared_library("AK") {
     "ScopeGuard.h",
     "ScopeLogger.h",
     "ScopedValueRollback.h",
+    "SegmentedVector.h",
     "Singleton.h",
     "SinglyLinkedList.h",
     "SinglyLinkedListSizePolicy.h",
@@ -167,6 +175,7 @@ shared_library("AK") {
     "StringBase.h",
     "StringBuilder.cpp",
     "StringBuilder.h",
+    "StringData.h",
     "StringFloatingPointConversions.cpp",
     "StringFloatingPointConversions.h",
     "StringHash.h",
@@ -176,6 +185,7 @@ shared_library("AK") {
     "StringUtils.h",
     "StringView.cpp",
     "StringView.h",
+    "Swift.h",
     "TemporaryChange.h",
     "Time.cpp",
     "Time.h",
@@ -210,8 +220,6 @@ write_cmake_config("ak_debug_gen") {
   output = "$root_gen_dir/AK/Debug.h"
   values = [
     "AUDIO_DEBUG=",
-    "AWAVLOADER_DEBUG=",
-    "AFLACLOADER_DEBUG=",
     "BINDINGS_GENERATOR_DEBUG=",
     "BMP_DEBUG=",
     "CACHE_DEBUG=",
@@ -221,6 +229,7 @@ write_cmake_config("ak_debug_gen") {
     "CSS_LOADER_DEBUG=",
     "CSS_PARSER_DEBUG=",
     "CSS_TOKENIZER_DEBUG=",
+    "CSS_TRANSITIONS_DEBUG=",
     "EDITOR_DEBUG=",
     "EMOJI_DEBUG=",
     "FILE_WATCHER_DEBUG=",
@@ -243,6 +252,7 @@ write_cmake_config("ak_debug_gen") {
     "LEXER_DEBUG=",
     "LIBWEB_CSS_ANIMATION_DEBUG=",
     "LIBWEB_CSS_DEBUG=",
+    "LIBWEB_WASM_DEBUG=",
     "LINE_EDITOR_DEBUG=",
     "LZMA_DEBUG=",
     "LZW_DEBUG=",
@@ -263,6 +273,7 @@ write_cmake_config("ak_debug_gen") {
     "RSA_PARSE_DEBUG=",
     "SHARED_QUEUE_DEBUG=",
     "SPAM_DEBUG=",
+    "STYLE_INVALIDATION_DEBUG=",
     "SYNTAX_HIGHLIGHTING_DEBUG=",
     "TEXTEDITOR_DEBUG=",
     "TIFF_DEBUG=",
@@ -280,10 +291,27 @@ write_cmake_config("ak_debug_gen") {
     "WEBDRIVER_DEBUG=",
     "WEBDRIVER_ROUTE_DEBUG=",
     "WEBGL_CONTEXT_DEBUG=",
+    "WEBVIEW_PROCESS_DEBUG=",
     "WEB_FETCH_DEBUG=",
     "WEB_WORKER_DEBUG=",
     "WEBP_DEBUG=",
     "WORKER_THREAD_DEBUG=",
     "XML_PARSER_DEBUG=",
   ]
+}
+
+write_cmake_config("ak_backtrace_gen") {
+  input = "Backtrace.h.in"
+  output = "$root_gen_dir/AK/Backtrace.h"
+  if (current_os == "win") {
+    values = [
+      "Backtrace_FOUND=",
+      "Backtrace_HEADER=",
+    ]
+  } else {
+    values = [
+      "Backtrace_FOUND=1",
+      "Backtrace_HEADER=execinfo.h",
+    ]
+  }
 }

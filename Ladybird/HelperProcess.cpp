@@ -42,15 +42,15 @@ static ErrorOr<NonnullRefPtr<ClientType>> launch_server_process(
             options.executable = path;
         }
 
-        auto result = Core::IPCProcess::spawn<ClientType>(move(options), forward<ClientArguments>(client_arguments)...);
+        auto result = WebView::Process::spawn<ClientType>(process_type, move(options), forward<ClientArguments>(client_arguments)...);
 
         if (!result.is_error()) {
-            auto process = result.release_value();
+            auto&& [process, client] = result.release_value();
 
-            if constexpr (requires { process.client->set_pid(pid_t {}); })
-                process.client->set_pid(process.process.pid());
+            if constexpr (requires { client->set_pid(pid_t {}); })
+                client->set_pid(process.pid());
 
-            WebView::Application::the().add_child_process(WebView::Process { process_type, process.client, move(process.process) });
+            WebView::Application::the().add_child_process(move(process));
 
             if (chrome_options.profile_helper_process == process_type) {
                 dbgln();
@@ -59,7 +59,7 @@ static ErrorOr<NonnullRefPtr<ClientType>> launch_server_process(
                 dbgln();
             }
 
-            return move(process.client);
+            return move(client);
         }
 
         if (i == candidate_server_paths.size() - 1) {
@@ -92,8 +92,6 @@ ErrorOr<NonnullRefPtr<WebView::WebContentClient>> launch_web_content_process(
     }
     if (web_content_options.is_layout_test_mode == WebView::IsLayoutTestMode::Yes)
         arguments.append("--layout-test-mode"sv);
-    if (web_content_options.use_lagom_networking == WebView::UseLagomNetworking::Yes)
-        arguments.append("--use-lagom-networking"sv);
     if (web_content_options.log_all_js_exceptions == WebView::LogAllJSExceptions::Yes)
         arguments.append("--log-all-js-exceptions"sv);
     if (web_content_options.enable_idl_tracing == WebView::EnableIDLTracing::Yes)
@@ -106,6 +104,9 @@ ErrorOr<NonnullRefPtr<WebView::WebContentClient>> launch_web_content_process(
         arguments.append("--force-cpu-painting"sv);
     if (web_content_options.force_fontconfig == WebView::ForceFontconfig::Yes)
         arguments.append("--force-fontconfig"sv);
+    if (web_content_options.collect_garbage_on_every_allocation == WebView::CollectGarbageOnEveryAllocation::Yes)
+        arguments.append("--collect-garbage-on-every-allocation"sv);
+
     if (auto server = mach_server_name(); server.has_value()) {
         arguments.append("--mach-server-name"sv);
         arguments.append(server.value());
@@ -132,16 +133,13 @@ ErrorOr<NonnullRefPtr<ImageDecoderClient::Client>> launch_image_decoder_process(
     return launch_server_process<ImageDecoderClient::Client>("ImageDecoder"sv, candidate_image_decoder_paths, arguments);
 }
 
-ErrorOr<NonnullRefPtr<Web::HTML::WebWorkerClient>> launch_web_worker_process(ReadonlySpan<ByteString> candidate_web_worker_paths, RefPtr<Requests::RequestClient> request_client)
+ErrorOr<NonnullRefPtr<Web::HTML::WebWorkerClient>> launch_web_worker_process(ReadonlySpan<ByteString> candidate_web_worker_paths, NonnullRefPtr<Requests::RequestClient> request_client)
 {
     Vector<ByteString> arguments;
-    if (request_client) {
-        auto socket = TRY(connect_new_request_server_client(*request_client));
-        arguments.append("--request-server-socket"sv);
-        arguments.append(ByteString::number(socket.fd()));
-        arguments.append("--use-lagom-networking"sv);
-        return launch_server_process<Web::HTML::WebWorkerClient>("WebWorker"sv, candidate_web_worker_paths, move(arguments));
-    }
+
+    auto socket = TRY(connect_new_request_server_client(*request_client));
+    arguments.append("--request-server-socket"sv);
+    arguments.append(ByteString::number(socket.fd()));
 
     return launch_server_process<Web::HTML::WebWorkerClient>("WebWorker"sv, candidate_web_worker_paths, move(arguments));
 }

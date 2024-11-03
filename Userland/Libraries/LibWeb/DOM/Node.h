@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2023, Andreas Kling <kling@serenityos.org>
+ * Copyright (c) 2018-2024, Andreas Kling <andreas@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -7,6 +7,7 @@
 #pragma once
 
 #include <AK/Badge.h>
+#include <AK/DistinctNumeric.h>
 #include <AK/FlyString.h>
 #include <AK/GenericShorthands.h>
 #include <AK/JsonObjectSerializer.h>
@@ -52,9 +53,13 @@ enum class FragmentSerializationMode {
     Outer,
 };
 
+enum class IsDescendant {
+    No,
+    Yes,
+};
+
 #define ENUMERATE_STYLE_INVALIDATION_REASONS(X)     \
     X(AdoptedStyleSheetsList)                       \
-    X(AnimationEffectSetAssociatedAnimation)        \
     X(CSSFontLoaded)                                \
     X(CSSImportRule)                                \
     X(DidLoseFocus)                                 \
@@ -72,6 +77,7 @@ enum class FragmentSerializationMode {
     X(NodeRemove)                                   \
     X(NodeSetTextContent)                           \
     X(Other)                                        \
+    X(ParentOfInsertedNode)                         \
     X(SetSelectorText)                              \
     X(SettingsChange)                               \
     X(StyleSheetDeleteRule)                         \
@@ -248,6 +254,7 @@ public:
     Painting::Paintable* paintable();
 
     void set_paintable(JS::GCPtr<Painting::Paintable>);
+    void clear_paintable();
 
     void set_layout_node(Badge<Layout::Node>, JS::NonnullGCPtr<Layout::Node>);
     void detach_layout_node(Badge<Layout::TreeBuilder>);
@@ -286,8 +293,8 @@ public:
     bool is_shadow_including_ancestor_of(Node const&) const;
     bool is_shadow_including_inclusive_ancestor_of(Node const&) const;
 
-    i32 unique_id() const { return m_unique_id; }
-    static Node* from_unique_id(i32);
+    [[nodiscard]] UniqueNodeID unique_id() const { return m_unique_id; }
+    static Node* from_unique_id(UniqueNodeID);
 
     WebIDL::ExceptionOr<String> serialize_fragment(DOMParsing::RequireWellFormed, FragmentSerializationMode = FragmentSerializationMode::Inner) const;
 
@@ -751,7 +758,7 @@ protected:
     bool m_needs_style_update { false };
     bool m_child_needs_style_update { false };
 
-    i32 m_unique_id {};
+    UniqueNodeID m_unique_id;
 
     // https://dom.spec.whatwg.org/#registered-observer-list
     // "Nodes have a strong reference to registered observers in their registered observer list." https://dom.spec.whatwg.org/#garbage-collection
@@ -759,7 +766,7 @@ protected:
 
     void build_accessibility_tree(AccessibilityTreeNode& parent);
 
-    ErrorOr<String> name_or_description(NameOrDescription, Document const&, HashTable<i32>&) const;
+    ErrorOr<String> name_or_description(NameOrDescription, Document const&, HashTable<UniqueNodeID>&, IsDescendant = IsDescendant::No) const;
 
 private:
     void queue_tree_mutation_record(Vector<JS::Handle<Node>> added_nodes, Vector<JS::Handle<Node>> removed_nodes, Node* previous_sibling, Node* next_sibling);

@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<form name="fm1" style="display:none">
+  <input value="abc" id="ipt1" />
+  <input id="ipt2" />
+  <input type="radio" id="rd1" checked="checked" />
+  <input type="radio" id="rd2"/>
+  <input type="checkbox" id="cb1" checked="checked" />
+  <input type="checkbox" id="cb2" />
+  <textarea id="ta">abc</textarea>
+  <output id="opt">5</output>
+  <select id="slt1">
+    <option value="1">ITEM1</option>
+    <option value="2">ITEM2</option>
+  </select>
+  <select id="slt2">
+    <option value="1">ITEM1</option>
+    <option value="2" selected>ITEM2</option>
+  </select>
+  <select id="slt3" multiple>
+    <option value="1">ITEM1</option>
+    <option value="2" selected>ITEM2</option>
+    <option value="3" selected>ITEM3</option>
+  </select>
+  <button  id="rst1" type="reset">Reset1</button>
+  <input id="rst2" type="reset" value="Reset2" />
+</form>
+<script>
+    test(() => {
+        document.getElementById("ipt1").value = "123";
+        document.getElementById("ipt2").value = "123";
+        document.getElementById("rd1").checked = false;
+        document.getElementById("rd2").checked = true;
+        document.getElementById("cb1").checked = false;
+        document.getElementById("cb2").checked = true;
+        document.getElementById("ta").value = "123";
+        document.getElementById("opt").textContent = "abc";
+        document.getElementById("slt1").value = "2";
+        document.getElementById("slt2").value = "1";
+        document.getElementById("slt3").options[0].selected = true;
+        document.getElementById("slt3").options[1].selected = false;
+        document.getElementById("slt3").options[2].selected = false;
+        document.getElementById("rst2").click();
+        println(document.getElementById("ipt1").value);
+        println(document.getElementById("ipt2").value);
+        println(document.getElementById("rd1").checked);
+        println(document.getElementById("rd2").checked);
+        println(document.getElementById("cb1").checked);
+        println(document.getElementById("cb2").checked);
+        println(document.getElementById("ta").value);
+        println(document.getElementById("opt").textContent);
+        println(document.getElementById("slt1").value);
+        println(document.getElementById("slt2").value);
+        println(document.getElementById("slt3").options[0].selected);
+        println(document.getElementById("slt3").options[1].selected);
+        println(document.getElementById("slt3").options[2].selected);
+    });
+</script>

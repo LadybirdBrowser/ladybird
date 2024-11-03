@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020, Andreas Kling <kling@serenityos.org>
+ * Copyright (c) 2020, Andreas Kling <andreas@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -32,7 +32,7 @@ class Client final
     IPC_CLIENT_CONNECTION(Client, "/tmp/session/%sid/portal/image"sv);
 
 public:
-    Client(NonnullOwnPtr<Core::LocalSocket>);
+    Client(IPC::Transport);
 
     NonnullRefPtr<Core::Promise<DecodedImage>> decode_image(ReadonlyBytes, Function<ErrorOr<void>(DecodedImage&)> on_resolved, Function<void(Error&)> on_rejected, Optional<Gfx::IntSize> ideal_size = {}, Optional<ByteString> mime_type = {});
 
@@ -41,7 +41,7 @@ public:
 private:
     virtual void die() override;
 
-    virtual void did_decode_image(i64 image_id, bool is_animated, u32 loop_count, Vector<Optional<NonnullRefPtr<Gfx::Bitmap>>> const& bitmaps, Vector<u32> const& durations, Gfx::FloatPoint scale) override;
+    virtual void did_decode_image(i64 image_id, bool is_animated, u32 loop_count, Gfx::BitmapSequence const& bitmap_sequence, Vector<u32> const& durations, Gfx::FloatPoint scale) override;
     virtual void did_fail_to_decode_image(i64 image_id, String const& error_message) override;
 
     HashMap<i64, NonnullRefPtr<Core::Promise<DecodedImage>>> m_pending_decoded_images;

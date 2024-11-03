@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2020, Ali Mohammad Pur <mpfard@serenityos.org>
+ * Copyright (c) 2024, stelar7 <dudedbz@gmail.com>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -11,6 +12,32 @@
 #include <LibCrypto/ASN1/DER.h>
 
 namespace Crypto::PK {
+
+template<class ByteBuffer>
+ErrorOr<ByteBuffer> wrap_in_private_key_info(ByteBuffer key, Span<int> algorithm_identifier)
+{
+    ASN1::Encoder encoder;
+    TRY(encoder.write_constructed(ASN1::Class::Universal, ASN1::Kind::Sequence, [&]() -> ErrorOr<void> {
+        TRY(encoder.write(0x00u)); // version
+
+        // AlgorithmIdentifier
+        TRY(encoder.write_constructed(ASN1::Class::Universal, ASN1::Kind::Sequence, [&]() -> ErrorOr<void> {
+            TRY(encoder.write(algorithm_identifier)); // algorithm
+
+            // FIXME: This assumes we have a NULL parameter, this is not always the case
+            TRY(encoder.write(nullptr)); // parameters
+
+            return {};
+        }));
+
+        // PrivateKey
+        TRY(encoder.write(key));
+
+        return {};
+    }));
+
+    return encoder.finish();
+}
 
 template<typename ExportableKey>
 ErrorOr<ByteBuffer> wrap_in_private_key_info(ExportableKey key, Span<int> algorithm_identifier)
@@ -35,6 +62,31 @@ requires requires(ExportableKey k) {
         // PrivateKey
         auto data = TRY(key.export_as_der());
         TRY(encoder.write(data));
+
+        return {};
+    }));
+
+    return encoder.finish();
+}
+
+template<class ByteBuffer>
+ErrorOr<ByteBuffer> wrap_in_subject_public_key_info(ByteBuffer key, Span<int> algorithm_identifier)
+{
+    ASN1::Encoder encoder;
+    TRY(encoder.write_constructed(ASN1::Class::Universal, ASN1::Kind::Sequence, [&]() -> ErrorOr<void> {
+        // AlgorithmIdentifier
+        TRY(encoder.write_constructed(ASN1::Class::Universal, ASN1::Kind::Sequence, [&]() -> ErrorOr<void> {
+            TRY(encoder.write(algorithm_identifier)); // algorithm
+
+            // FIXME: This assumes we have a NULL parameter, this is not always the case
+            TRY(encoder.write(nullptr)); // parameters
+
+            return {};
+        }));
+
+        // subjectPublicKey
+        auto bitstring = ::Crypto::ASN1::BitStringView(key, 0);
+        TRY(encoder.write(bitstring));
 
         return {};
     }));

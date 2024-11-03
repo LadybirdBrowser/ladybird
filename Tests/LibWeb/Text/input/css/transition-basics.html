@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html>
+<script src="../include.js"></script>
+<style>
+    #box {
+        width: 200px;
+        height: 200px;
+        background-color: red;
+        position: absolute;
+        left: 0;
+        top: 0;
+
+        transition: left 1s linear;
+    }
+
+    #box.move {
+        left: 200px;
+    }
+</style>
+<div id="box"></div>
+<script>
+    asyncTest(async done => {
+        let box = document.getElementById("box");
+        println(`left starts at: ${getComputedStyle(box).left}`);
+        box.classList.add("move");
+        setTimeout(() => {
+            let left = parseFloat(getComputedStyle(box).left);
+            println(`shortly after starting, left is >= 0px? ${left >= 0} and < 200px? ${left < 200}`);
+        }, 1);
+        setTimeout(() => {
+            let left = parseFloat(getComputedStyle(box).left);
+            println(`half-way through, left is > 0px? ${left > 0} and < 200px? ${left < 200}`);
+        }, 500);
+        setTimeout(() => {
+            let left = parseFloat(getComputedStyle(box).left);
+            println(`near the end, left is > 0px? ${left > 0} and < 200px? ${left < 200}`);
+        }, 950);
+        setTimeout(() => {
+            // FIXME: This is a hack to make it recompute the style, otherwise we get 0px for the left value.
+            //        Figure out why!
+            box.style.top = "0px";
+
+            println(`after the transition, left is: ${getComputedStyle(box).left}`);
+            done();
+        }, 1050);
+    });
+</script>
+</html>

@@ -11,5 +11,6 @@
     test(() => {
         const input = document.getElementById("input");
         internals.sendText(input, "hello");
+        println(document.body.innerText);
     });
 </script>

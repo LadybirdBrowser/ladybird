@@ -109,6 +109,8 @@ public:
     u16 const* data() const { return m_code_units.data(); }
     char16_t const* char_data() const { return reinterpret_cast<char16_t const*>(data()); }
 
+    ReadonlySpan<u16> span() const { return m_code_units; }
+
     u16 code_unit_at(size_t index) const;
     u32 code_point_at(size_t index) const;
 

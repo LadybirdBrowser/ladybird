@@ -74,7 +74,7 @@ WebIDL::ExceptionOr<String> TextDecoder::decode(Optional<JS::Handle<WebIDL::Buff
     // FIXME: Implement the streaming stuff.
     auto data_buffer_or_error = WebIDL::get_buffer_source_copy(*input.value()->raw_object());
     if (data_buffer_or_error.is_error())
-        return WebIDL::OperationError::create(realm(), "Failed to copy bytes from ArrayBuffer"_fly_string);
+        return WebIDL::OperationError::create(realm(), "Failed to copy bytes from ArrayBuffer"_string);
     auto& data_buffer = data_buffer_or_error.value();
     auto result = TRY_OR_THROW_OOM(vm(), m_decoder.to_utf8({ data_buffer.data(), data_buffer.size() }));
     if (this->fatal() && result.contains(0xfffd))

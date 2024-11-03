@@ -1,0 +1,18 @@
+Summary
+
+Harness status: OK
+
+Rerun
+
+Found 7 tests
+
+1 Pass
+6 Fail
+Details
+Result	Test Name	MessageFail	e.style['flex-flow'] = "column nowrap" should set the property value	
+Fail	e.style['flex-flow'] = "nowrap column" should set the property value	
+Pass	e.style['flex-flow'] = "wrap row-reverse" should set the property value	
+Fail	e.style['flex-flow'] = "nowrap" should set the property value	
+Fail	e.style['flex-flow'] = "row nowrap" should set the property value	
+Fail	e.style['flex-flow'] = "wrap" should set the property value	
+Fail	e.style['flex-flow'] = "row wrap" should set the property value	

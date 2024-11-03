@@ -13,7 +13,6 @@
 #include <AK/Variant.h>
 #include <LibGfx/Rect.h>
 #include <LibJS/Heap/MarkedVector.h>
-#include <LibJS/SafeFunction.h>
 #include <LibWeb/DOM/DocumentLoadEventDelayer.h>
 #include <LibWeb/HTML/CORSSettingAttribute.h>
 #include <LibWeb/HTML/EventLoop/Task.h>
@@ -89,7 +88,7 @@ public:
     bool paused() const { return m_paused; }
     bool ended() const;
     bool potentially_playing() const;
-    WebIDL::ExceptionOr<JS::NonnullGCPtr<JS::Promise>> play();
+    WebIDL::ExceptionOr<JS::NonnullGCPtr<WebIDL::Promise>> play();
     WebIDL::ExceptionOr<void> pause();
     WebIDL::ExceptionOr<void> toggle_playback();
 
@@ -200,11 +199,11 @@ private:
 
     // https://html.spec.whatwg.org/multipage/media.html#reject-pending-play-promises
     template<typename ErrorType>
-    void reject_pending_play_promises(ReadonlySpan<JS::NonnullGCPtr<WebIDL::Promise>> promises, FlyString const& message)
+    void reject_pending_play_promises(ReadonlySpan<JS::NonnullGCPtr<WebIDL::Promise>> promises, String message)
     {
         auto& realm = this->realm();
 
-        auto error = ErrorType::create(realm, message);
+        auto error = ErrorType::create(realm, move(message));
         reject_pending_play_promises(promises, error);
     }
 

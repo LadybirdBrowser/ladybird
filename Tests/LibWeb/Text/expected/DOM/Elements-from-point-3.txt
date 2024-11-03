@@ -1,1 +1,1 @@
- Some text  Elements at point 30, 20: p < div < body < html   
+p < div < body < html

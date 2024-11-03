@@ -1,6 +1,6 @@
 <script src="../include.js"></script>
 <script>
-    test(async () => {
+    asyncTest(async done => {
         let dataTransfer = new DataTransfer();
         println(`dropEffect: ${dataTransfer.dropEffect}`);
         println(`effectAllowed: ${dataTransfer.effectAllowed}`);
@@ -50,5 +50,7 @@
         if (dataTransferItemList[2] !== undefined) {
             println("FAILED");
         }
+
+        done();
     });
 </script>

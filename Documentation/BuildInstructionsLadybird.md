@@ -13,8 +13,9 @@ CMake 3.25 or newer must be available in $PATH.
 
 ### Debian/Ubuntu:
 
+<!-- Note: If you change something here, please also change it in the `devcontainer/devcontainer.json` file. -->
 ```bash
-sudo apt install autoconf autoconf-archive automake build-essential ccache cmake curl fonts-liberation2 git libavcodec-dev libavformat-dev libgl1-mesa-dev nasm ninja-build pkg-config qt6-base-dev qt6-tools-dev-tools qt6-wayland tar unzip zip
+sudo apt install autoconf autoconf-archive automake build-essential ccache cmake curl fonts-liberation2 git libavcodec-dev libavformat-dev libavutil-dev libgl1-mesa-dev nasm ninja-build pkg-config qt6-base-dev qt6-tools-dev-tools qt6-wayland tar unzip zip
 ```
 
 #### CMake 3.25 or newer:
@@ -83,7 +84,7 @@ sudo pacman -S --needed autoconf-archive automake base-devel ccache cmake curl f
 
 ### Fedora or derivatives:
 ```
-sudo dnf install autoconf-archive automake ccache cmake curl libavcodec-free-devel libavformat-free-devel liberation-sans-fonts libglvnd-devel nasm ninja-build qt6-qtbase-devel qt6-qtmultimedia-devel qt6-qttools-devel qt6-qtwayland-devel tar unzip zip zlib-ng-compat-static
+sudo dnf install autoconf-archive automake ccache cmake curl libavcodec-free-devel libavformat-free-devel liberation-sans-fonts libglvnd-devel nasm ninja-build perl-FindBin perl-IPC-Cmd qt6-qtbase-devel qt6-qtmultimedia-devel qt6-qttools-devel qt6-qtwayland-devel tar unzip zip zlib-ng-compat-static
 ```
 
 ### openSUSE:
@@ -91,6 +92,12 @@ sudo dnf install autoconf-archive automake ccache cmake curl libavcodec-free-dev
 sudo zypper install autoconf-archive automake ccache cmake curl ffmpeg-7-libavcodec-devel ffmpeg-7-libavformat-devel gcc13 gcc13-c++ liberation-fonts libglvnd-devel nasm ninja qt6-base-devel qt6-multimedia-devel qt6-tools-devel qt6-wayland-devel tar unzip zip
 ```
 The build process requires at least python3.7; openSUSE Leap only features Python 3.6 as default, so it is recommendable to install package python311 and create a virtual environment (venv) in this case.
+
+### Void Linux:
+```
+sudo xbps-install -Su # (optional) ensure packages are up to date to avoid "Transaction aborted due to unresolved dependencies."
+sudo xbps-install -S git bash gcc python3 curl cmake zip unzip linux-headers make pkg-config autoconf automake autoconf-archive nasm MesaLib-devel ninja ffmpeg-devel qt6-base-devel qt6-multimedia-devel qt6-tools-devel qt6-wayland-devel
+```
 
 ### NixOS or with Nix:
 
@@ -125,7 +132,7 @@ brew install autoconf autoconf-archive automake ccache cmake ffmpeg nasm ninja p
 
 If you wish to use clang from homebrew instead:
 ```
-brew install llvm
+brew install llvm@18
 ```
 
 If you also plan to use the Qt chrome on macOS:
@@ -133,8 +140,17 @@ If you also plan to use the Qt chrome on macOS:
 brew install qt
 ```
 
+> [!NOTE]
+> It is recommended to add your terminal application (i.e. Terminal.app or iTerm.app) to the system list of developer tools.
+> Doing so will reduce slow startup time of freshly compiled binaries, due to macOS validating the binary on its first run.
+> This can be done in the "Developer Tools" section of the "Privacy & Security" system settings.
+
 ### Windows:
 
+WSL2 is the supported way to build Ladybird on Windows. An experimental native build is being setup but does not fully
+build.
+
+#### WSL2
 - Create a WSL2 environment using one of the Linux distros listed above. Ubuntu or Fedora is recommended.
 
 - Install the required packages for the selected Linux distro in the WSL2 environment.
@@ -143,7 +159,18 @@ WSL1 is known to have issues. If you run into problems, please use WSL2.
 
 MinGW/MSYS2 are not supported.
 
-Native Windows builds are not supported.
+##### Clang-CL (experimental)
+
+> [!NOTE]
+> This only gets the cmake to configure. There is still a lot of work to do in terms of getting it to build.
+
+In order to get pkg-config available for the vcpkg install, you can use Chocolatey to install it.
+To install Chocolatey, see `https://chocolatey.org/install`.
+
+Then Install pkg-config using chocolatey.
+```
+choco install pkgconfiglite -y
+```
 
 ### OpenIndiana:
 
@@ -160,7 +187,7 @@ pkgman install cmake cmd:python3 ninja openal_devel qt6_base_devel qt6_multimedi
 
 ### Android:
 
-On a Unix-like platform, install the prerequisites for that platform and then see the [Android Studio guide](AndroidStudioConfiguration.md).
+On a Unix-like platform, install the prerequisites for that platform and then see the [Android Studio guide](EditorConfiguration/AndroidStudioConfiguration.md).
 Or, download a version of Gradle >= 8.0.0, and run the ``gradlew`` program in ``Ladybird/Android``
 
 ## Build steps
@@ -216,17 +243,29 @@ The section lists out some particular error messages you may run into, and expla
 
 #### Unable to find a build program corresponding to "Ninja"
 
-Solution to try: If you do in fact already have Ninja installed, then first try reinstalling Ninja.
-
-Details: If you see the message *“Unable to find a build program corresponding to "Ninja"”*, it’s likely not an indication that the build tooling can’t actually find Ninja, but instead an indication that the tooling found Ninja but it failed to run successfully.
-
-So, when you do run into that error message, the way to start figuring out what’s actually wrong is to try invoking Ninja manually, like this:
+This error message is a red herring. We use vcpkg to manage our third-party dependencies, and this error is logged when
+something went wrong building those dependencies. The output in your terminal will vary depending on what exactly went
+wrong, but it should look something like:
 
 ```
-ninja -C Build/ladybird
+error: building skia:x64-linux failed with: BUILD_FAILED
+Elapsed time to handle skia:x64-linux: 1.6 s
+
+-- Running vcpkg install - failed
+CMake Error at Toolchain/Tarballs/vcpkg/scripts/buildsystems/vcpkg.cmake:899 (message):
+  vcpkg install failed.  See logs for more information:
+  Build/ladybird/vcpkg-manifest-install.log
+Call Stack (most recent call first):
+  /usr/share/cmake-3.30/Modules/CMakeDetermineSystem.cmake:146 (include)
+  CMakeLists.txt:15 (project)
+
+CMake Error: CMake was unable to find a build program corresponding to "Ninja".  CMAKE_MAKE_PROGRAM is not set.  You probably need to select a different build tool.
+-- Configuring incomplete, errors occurred!  See logs for more information:
+  Build/ladybird/vcpkg-manifest-install.log
 ```
 
-Then, based on what output you get from that, you can troubleshoot the *actual* problem you’re running into — which may involve uninstalling your current Ninja install, and then re-installing it.
+If the error is not immediately clear from the terminal output, be sure to check `Build/ladybird/vcpkg-manifest-install.log`
+for more information.
 
 ### Resource files
 

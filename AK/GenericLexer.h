@@ -6,6 +6,8 @@
 
 #pragma once
 
+#include <AK/NonnullOwnPtr.h>
+#include <AK/RedBlackTree.h>
 #include <AK/Result.h>
 #include <AK/String.h>
 #include <AK/StringView.h>
@@ -227,8 +229,6 @@ protected:
 
 class LineTrackingLexer : public GenericLexer {
 public:
-    using GenericLexer::GenericLexer;
-
     struct Position {
         size_t offset { 0 };
         size_t line { 0 };
@@ -237,20 +237,27 @@ public:
 
     LineTrackingLexer(StringView input, Position start_position)
         : GenericLexer(input)
-        , m_cached_position {
-            .line = start_position.line,
-            .column = start_position.column,
-        }
+        , m_first_line_start_position(start_position)
+        , m_line_start_positions(make<RedBlackTree<size_t, size_t>>())
+    {
+        m_line_start_positions->insert(0, 0);
+        auto first_newline = input.find('\n').map([](auto x) { return x + 1; }).value_or(input.length());
+        m_line_start_positions->insert(first_newline, 1);
+        m_largest_known_line_start_position = first_newline;
+    }
+
+    LineTrackingLexer(StringView input)
+        : LineTrackingLexer(input, { 0, 1, 1 })
     {
     }
 
-    Position cached_position() const { return m_cached_position; }
-    void restore_cached_offset(Position cached_position) { m_cached_position = cached_position; }
     Position position_for(size_t) const;
     Position current_position() const { return position_for(m_index); }
 
 protected:
-    mutable Position m_cached_position;
+    Position m_first_line_start_position;
+    mutable NonnullOwnPtr<RedBlackTree<size_t, size_t>> m_line_start_positions; // offset -> line index
+    mutable size_t m_largest_known_line_start_position { 0 };
 };
 
 constexpr auto is_any_of(StringView values)

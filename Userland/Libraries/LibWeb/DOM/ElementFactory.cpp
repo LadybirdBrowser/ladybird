@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022, Andreas Kling <kling@serenityos.org>
+ * Copyright (c) 2018-2022, Andreas Kling <andreas@ladybird.org>
  * Copyright (c) 2020-2023, Luke Wilde <lukew@serenityos.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
@@ -430,7 +430,7 @@ static JS::NonnullGCPtr<Element> create_html_element(JS::Realm& realm, Document&
     return realm.heap().allocate<HTML::HTMLUnknownElement>(realm, document, move(qualified_name));
 }
 
-static JS::GCPtr<SVG::SVGElement> create_svg_element(JS::Realm& realm, Document& document, QualifiedName qualified_name)
+static JS::NonnullGCPtr<SVG::SVGElement> create_svg_element(JS::Realm& realm, Document& document, QualifiedName qualified_name)
 {
     auto const& local_name = qualified_name.local_name();
 
@@ -492,17 +492,22 @@ static JS::GCPtr<SVG::SVGElement> create_svg_element(JS::Realm& realm, Document&
     if (local_name == SVG::TagNames::image)
         return realm.heap().allocate<SVG::SVGImageElement>(realm, document, move(qualified_name));
 
-    return nullptr;
+    // https://svgwg.org/svg2-draft/types.html#ElementsInTheSVGDOM
+    // Elements in the SVG namespace whose local name does not match an element defined in any
+    // specification supported by the software must nonetheless implement the SVGElement interface.
+    return realm.heap().allocate<SVG::SVGElement>(realm, document, move(qualified_name));
 }
 
-static JS::GCPtr<MathML::MathMLElement> create_mathml_element(JS::Realm& realm, Document& document, QualifiedName qualified_name)
+static JS::NonnullGCPtr<MathML::MathMLElement> create_mathml_element(JS::Realm& realm, Document& document, QualifiedName qualified_name)
 {
-    auto const& local_name = qualified_name.local_name();
+    // https://w3c.github.io/mathml-core/#dom-and-javascript
+    // All the nodes representing MathML elements in the DOM must implement, and expose to scripts,
+    // the following MathMLElement interface.
 
-    if (local_name.is_one_of(MathML::TagNames::annotation, MathML::TagNames::annotation_xml, MathML::TagNames::maction, MathML::TagNames::math, MathML::TagNames::merror, MathML::TagNames::mfrac, MathML::TagNames::mi, MathML::TagNames::mmultiscripts, MathML::TagNames::mn, MathML::TagNames::mo, MathML::TagNames::mover, MathML::TagNames::mpadded, MathML::TagNames::mphantom, MathML::TagNames::mprescripts, MathML::TagNames::mroot, MathML::TagNames::mrow, MathML::TagNames::ms, MathML::TagNames::mspace, MathML::TagNames::msqrt, MathML::TagNames::mstyle, MathML::TagNames::msub, MathML::TagNames::msubsup, MathML::TagNames::msup, MathML::TagNames::mtable, MathML::TagNames::mtd, MathML::TagNames::mtext, MathML::TagNames::mtr, MathML::TagNames::munder, MathML::TagNames::munderover, MathML::TagNames::semantics))
-        return realm.heap().allocate<MathML::MathMLElement>(realm, document, move(qualified_name));
+    // https://w3c.github.io/mathml-core/#mathml-elements-and-attributes
+    // The term MathML element refers to any element in the MathML namespace.
 
-    return nullptr;
+    return realm.heap().allocate<MathML::MathMLElement>(realm, document, move(qualified_name));
 }
 // https://dom.spec.whatwg.org/#concept-create-element
 WebIDL::ExceptionOr<JS::NonnullGCPtr<Element>> create_element(Document& document, FlyString local_name, Optional<FlyString> namespace_, Optional<FlyString> prefix, Optional<String> is_value, bool synchronous_custom_elements_flag)
@@ -577,23 +582,23 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<Element>> create_element(Document& document
 
                 // 5. If result’s attribute list is not empty, then throw a "NotSupportedError" DOMException.
                 if (element->has_attributes())
-                    return JS::throw_completion(WebIDL::NotSupportedError::create(realm, "Synchronously created custom element cannot have attributes"_fly_string));
+                    return JS::throw_completion(WebIDL::NotSupportedError::create(realm, "Synchronously created custom element cannot have attributes"_string));
 
                 // 6. If result has children, then throw a "NotSupportedError" DOMException.
                 if (element->has_children())
-                    return JS::throw_completion(WebIDL::NotSupportedError::create(realm, "Synchronously created custom element cannot have children"_fly_string));
+                    return JS::throw_completion(WebIDL::NotSupportedError::create(realm, "Synchronously created custom element cannot have children"_string));
 
                 // 7. If result’s parent is not null, then throw a "NotSupportedError" DOMException.
                 if (element->parent())
-                    return JS::throw_completion(WebIDL::NotSupportedError::create(realm, "Synchronously created custom element cannot have a parent"_fly_string));
+                    return JS::throw_completion(WebIDL::NotSupportedError::create(realm, "Synchronously created custom element cannot have a parent"_string));
 
                 // 8. If result’s node document is not document, then throw a "NotSupportedError" DOMException.
                 if (&element->document() != &document)
-                    return JS::throw_completion(WebIDL::NotSupportedError::create(realm, "Synchronously created custom element must be in the same document that element creation was invoked in"_fly_string));
+                    return JS::throw_completion(WebIDL::NotSupportedError::create(realm, "Synchronously created custom element must be in the same document that element creation was invoked in"_string));
 
                 // 9. If result’s local name is not equal to localName, then throw a "NotSupportedError" DOMException.
                 if (element->local_name() != local_name)
-                    return JS::throw_completion(WebIDL::NotSupportedError::create(realm, "Synchronously created custom element must have the same local name that element creation was invoked with"_fly_string));
+                    return JS::throw_completion(WebIDL::NotSupportedError::create(realm, "Synchronously created custom element must have the same local name that element creation was invoked with"_string));
 
                 // 10. Set result’s namespace prefix to prefix.
                 element->set_prefix(prefix);
@@ -654,20 +659,16 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<Element>> create_element(Document& document
 
     if (namespace_ == Namespace::SVG) {
         auto element = create_svg_element(realm, document, qualified_name);
-        if (element) {
-            element->set_is_value(move(is_value));
-            element->set_custom_element_state(CustomElementState::Uncustomized);
-            return JS::NonnullGCPtr<Element> { *element };
-        }
+        element->set_is_value(move(is_value));
+        element->set_custom_element_state(CustomElementState::Uncustomized);
+        return element;
     }
 
     if (namespace_ == Namespace::MathML) {
         auto element = create_mathml_element(realm, document, qualified_name);
-        if (element) {
-            element->set_is_value(move(is_value));
-            element->set_custom_element_state(CustomElementState::Uncustomized);
-            return JS::NonnullGCPtr<Element> { *element };
-        }
+        element->set_is_value(move(is_value));
+        element->set_custom_element_state(CustomElementState::Uncustomized);
+        return element;
     }
 
     // 8. Return result.

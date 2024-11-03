@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2024, Andreas Kling <kling@serenityos.org>
+ * Copyright (c) 2021-2024, Andreas Kling <andreas@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -23,6 +23,7 @@ public:
     bool is_empty() const { return m_tasks.is_empty(); }
 
     bool has_runnable_tasks() const;
+    bool has_rendering_tasks() const;
 
     void add(JS::NonnullGCPtr<HTML::Task>);
     JS::GCPtr<HTML::Task> take_first_runnable();

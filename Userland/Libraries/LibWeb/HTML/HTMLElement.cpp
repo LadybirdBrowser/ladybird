@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022, Andreas Kling <kling@serenityos.org>
+ * Copyright (c) 2018-2024, Andreas Kling <andreas@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -9,33 +9,31 @@
 #include <LibWeb/Bindings/ExceptionOrUtils.h>
 #include <LibWeb/Bindings/HTMLElementPrototype.h>
 #include <LibWeb/DOM/Document.h>
+#include <LibWeb/DOM/EditingHostManager.h>
+#include <LibWeb/DOM/ElementFactory.h>
 #include <LibWeb/DOM/IDLEventListener.h>
 #include <LibWeb/DOM/LiveNodeList.h>
+#include <LibWeb/DOM/Position.h>
 #include <LibWeb/DOM/ShadowRoot.h>
 #include <LibWeb/HTML/BrowsingContext.h>
 #include <LibWeb/HTML/CustomElements/CustomElementDefinition.h>
-#include <LibWeb/HTML/DOMStringMap.h>
 #include <LibWeb/HTML/ElementInternals.h>
 #include <LibWeb/HTML/EventHandler.h>
-#include <LibWeb/HTML/Focus.h>
 #include <LibWeb/HTML/HTMLAnchorElement.h>
-#include <LibWeb/HTML/HTMLAreaElement.h>
+#include <LibWeb/HTML/HTMLBRElement.h>
 #include <LibWeb/HTML/HTMLBaseElement.h>
 #include <LibWeb/HTML/HTMLBodyElement.h>
 #include <LibWeb/HTML/HTMLElement.h>
 #include <LibWeb/HTML/HTMLLabelElement.h>
-#include <LibWeb/HTML/NavigableContainer.h>
-#include <LibWeb/HTML/VisibilityState.h>
+#include <LibWeb/HTML/HTMLParagraphElement.h>
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/Infra/CharacterTypes.h>
 #include <LibWeb/Infra/Strings.h>
 #include <LibWeb/Layout/Box.h>
-#include <LibWeb/Layout/BreakNode.h>
 #include <LibWeb/Layout/TextNode.h>
+#include <LibWeb/Namespace.h>
 #include <LibWeb/Painting/PaintableBox.h>
 #include <LibWeb/UIEvents/EventNames.h>
-#include <LibWeb/UIEvents/FocusEvent.h>
-#include <LibWeb/UIEvents/MouseEvent.h>
 #include <LibWeb/UIEvents/PointerEvent.h>
 #include <LibWeb/WebIDL/DOMException.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
@@ -60,16 +58,9 @@ void HTMLElement::initialize(JS::Realm& realm)
 void HTMLElement::visit_edges(Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
-    visitor.visit(m_dataset);
+    HTMLOrSVGElement::visit_edges(visitor);
     visitor.visit(m_labels);
     visitor.visit(m_attached_internals);
-}
-
-JS::NonnullGCPtr<DOMStringMap> HTMLElement::dataset()
-{
-    if (!m_dataset)
-        m_dataset = DOMStringMap::create(*this);
-    return *m_dataset;
 }
 
 // https://html.spec.whatwg.org/multipage/dom.html#dom-dir
@@ -147,13 +138,16 @@ WebIDL::ExceptionOr<void> HTMLElement::set_content_editable(StringView content_e
         MUST(set_attribute(HTML::AttributeNames::contenteditable, "false"_string));
         return {};
     }
-    return WebIDL::SyntaxError::create(realm(), "Invalid contentEditable value, must be 'true', 'false', or 'inherit'"_fly_string);
+    return WebIDL::SyntaxError::create(realm(), "Invalid contentEditable value, must be 'true', 'false', or 'inherit'"_string);
 }
 
+// https://html.spec.whatwg.org/multipage/dom.html#set-the-inner-text-steps
 void HTMLElement::set_inner_text(StringView text)
 {
+    // 1. Let fragment be the rendered text fragment for value given element's node document.
+    // 2. Replace all with fragment within element.
     remove_all_children();
-    MUST(append_child(document().create_text_node(MUST(String::from_utf8(text)))));
+    append_rendered_text_fragment(text);
 
     set_needs_style_update(true);
 }
@@ -165,30 +159,190 @@ WebIDL::ExceptionOr<void> HTMLElement::set_outer_text(String)
     return {};
 }
 
+// https://html.spec.whatwg.org/multipage/dom.html#rendered-text-fragment
+void HTMLElement::append_rendered_text_fragment(StringView input)
+{
+    // FIXME: 1. Let fragment be a new DocumentFragment whose node document is document.
+    //      Instead of creating a DocumentFragment the nodes are appended directly.
+
+    // 2. Let position be a position variable for input, initially pointing at the start of input.
+    // 3. Let text be the empty string.
+    // 4. While position is not past the end of input:
+    while (!input.is_empty()) {
+        // 1. Collect a sequence of code points that are not U+000A LF or U+000D CR from input given position, and set text to the result.
+        auto newline_index = input.find_any_of("\n\r"sv);
+        size_t const sequence_end_index = newline_index.value_or(input.length());
+        StringView const text = input.substring_view(0, sequence_end_index);
+        input = input.substring_view_starting_after_substring(text);
+
+        // 2. If text is not the empty string, then append a new Text node whose data is text and node document is document to fragment.
+        if (!text.is_empty()) {
+            MUST(append_child(document().create_text_node(MUST(String::from_utf8(text)))));
+        }
+
+        // 3. While position is not past the end of input, and the code point at position is either U+000A LF or U+000D CR:
+        while (input.starts_with('\n') || input.starts_with('\r')) {
+            // 1. If the code point at position is U+000D CR and the next code point is U+000A LF, then advance position to the next code point in input.
+            if (input.starts_with("\r\n"sv)) {
+                // 2. Advance position to the next code point in input.
+                input = input.substring_view(2);
+            } else {
+                // 2. Advance position to the next code point in input.
+                input = input.substring_view(1);
+            }
+
+            // 3. Append the result of creating an element given document, br, and the HTML namespace to fragment.
+            auto br_element = DOM::create_element(document(), HTML::TagNames::br, Namespace::HTML).release_value();
+            MUST(append_child(br_element));
+        }
+    }
+}
+
+struct RequiredLineBreakCount {
+    int count { 0 };
+};
+
+// https://html.spec.whatwg.org/multipage/dom.html#rendered-text-collection-steps
+static Vector<Variant<String, RequiredLineBreakCount>> rendered_text_collection_steps(DOM::Node const& node)
+{
+    // 1. Let items be the result of running the rendered text collection steps with each child node of node in tree order, and then concatenating the results to a single list.
+    Vector<Variant<String, RequiredLineBreakCount>> items;
+    node.for_each_child([&](auto const& child) {
+        auto child_items = rendered_text_collection_steps(child);
+        items.extend(move(child_items));
+        return IterationDecision::Continue;
+    });
+
+    // NOTE: Steps are re-ordered here a bit.
+
+    // 3. If node is not being rendered, then return items.
+    //    For the purpose of this step, the following elements must act as described
+    //    if the computed value of the 'display' property is not 'none':
+    //    FIXME: - select elements have an associated non-replaced inline CSS box whose child boxes include only those of optgroup and option element child nodes;
+    //    FIXME: - optgroup elements have an associated non-replaced block-level CSS box whose child boxes include only those of option element child nodes; and
+    //    FIXME: - option element have an associated non-replaced block-level CSS box whose child boxes are as normal for non-replaced block-level CSS boxes.
+    auto* layout_node = node.layout_node();
+    if (!layout_node)
+        return items;
+
+    auto const& computed_values = layout_node->computed_values();
+
+    // 2. If node's computed value of 'visibility' is not 'visible', then return items.
+    if (computed_values.visibility() != CSS::Visibility::Visible)
+        return items;
+
+    // AD-HOC: If node's computed value of 'content-visibility' is 'hidden', then return items.
+    if (computed_values.content_visibility() == CSS::ContentVisibility::Hidden)
+        return items;
+
+    // 4. If node is a Text node, then for each CSS text box produced by node, in content order,
+    //    compute the text of the box after application of the CSS 'white-space' processing rules
+    //    and 'text-transform' rules, set items to the list of the resulting strings, and return items.
+
+    //    FIXME: The CSS 'white-space' processing rules are slightly modified:
+    //           collapsible spaces at the end of lines are always collapsed,
+    //           but they are only removed if the line is the last line of the block,
+    //           or it ends with a br element. Soft hyphens should be preserved. [CSSTEXT]
+
+    if (is<DOM::Text>(node)) {
+        auto const* layout_text_node = verify_cast<Layout::TextNode>(layout_node);
+        items.append(layout_text_node->text_for_rendering());
+        return items;
+    }
+
+    // 5. If node is a br element, then append a string containing a single U+000A LF code point to items.
+    if (is<HTML::HTMLBRElement>(node)) {
+        items.append("\n"_string);
+        return items;
+    }
+
+    auto display = computed_values.display();
+
+    // 6. If node's computed value of 'display' is 'table-cell', and node's CSS box is not the last 'table-cell' box of its enclosing 'table-row' box, then append a string containing a single U+0009 TAB code point to items.
+    if (display.is_table_cell() && node.next_sibling())
+        items.append("\t"_string);
+
+    // 7. If node's computed value of 'display' is 'table-row', and node's CSS box is not the last 'table-row' box of the nearest ancestor 'table' box, then append a string containing a single U+000A LF code point to items.
+    if (display.is_table_row() && node.next_sibling())
+        items.append("\n"_string);
+
+    // 8. If node is a p element, then append 2 (a required line break count) at the beginning and end of items.
+    if (is<HTML::HTMLParagraphElement>(node)) {
+        items.prepend(RequiredLineBreakCount { 2 });
+        items.append(RequiredLineBreakCount { 2 });
+    }
+
+    // 9. If node's used value of 'display' is block-level or 'table-caption', then append 1 (a required line break count) at the beginning and end of items. [CSSDISPLAY]
+    if (display.is_block_outside() || display.is_table_caption()) {
+        items.prepend(RequiredLineBreakCount { 1 });
+        items.append(RequiredLineBreakCount { 1 });
+    }
+
+    // 10. Return items.
+    return items;
+}
+
 // https://html.spec.whatwg.org/multipage/dom.html#get-the-text-steps
 String HTMLElement::get_the_text_steps()
 {
-    // FIXME: Implement this according to spec.
-
-    StringBuilder builder;
-
-    // innerText for element being rendered takes visibility into account, so force a layout and then walk the layout tree.
+    // 1. If element is not being rendered or if the user agent is a non-CSS user agent, then return element's descendant text content.
     document().update_layout();
     if (!layout_node())
-        return text_content().value_or(String {});
+        return descendant_text_content();
 
-    Function<void(Layout::Node const&)> recurse = [&](auto& node) {
-        for (auto* child = node.first_child(); child; child = child->next_sibling()) {
-            if (is<Layout::TextNode>(child))
-                builder.append(verify_cast<Layout::TextNode>(*child).text_for_rendering());
-            if (is<Layout::BreakNode>(child))
-                builder.append('\n');
-            recurse(*child);
+    // 2. Let results be a new empty list.
+    Vector<Variant<String, RequiredLineBreakCount>> results;
+
+    // 3. For each child node node of element:
+    for_each_child([&](Node const& node) {
+        // 1. Let current be the list resulting in running the rendered text collection steps with node.
+        //    Each item in results will either be a string or a positive integer (a required line break count).
+        auto current = rendered_text_collection_steps(node);
+
+        // 2. For each item item in current, append item to results.
+        results.extend(move(current));
+        return IterationDecision::Continue;
+    });
+
+    // 4. Remove any items from results that are the empty string.
+    results.remove_all_matching([](auto& item) {
+        return item.visit(
+            [](String const& string) { return string.is_empty(); },
+            [](RequiredLineBreakCount const&) { return false; });
+    });
+
+    // 5. Remove any runs of consecutive required line break count items at the start or end of results.
+    while (!results.is_empty() && results.first().has<RequiredLineBreakCount>())
+        results.take_first();
+    while (!results.is_empty() && results.last().has<RequiredLineBreakCount>())
+        results.take_last();
+
+    // 6. Replace each remaining run of consecutive required line break count items
+    //    with a string consisting of as many U+000A LF code points as the maximum of the values
+    //    in the required line break count items.
+    for (size_t i = 0; i < results.size(); ++i) {
+        if (!results[i].has<RequiredLineBreakCount>())
+            continue;
+
+        int max_line_breaks = results[i].get<RequiredLineBreakCount>().count;
+        size_t j = i + 1;
+        while (j < results.size() && results[j].has<RequiredLineBreakCount>()) {
+            max_line_breaks = max(max_line_breaks, results[j].get<RequiredLineBreakCount>().count);
+            ++j;
         }
-    };
-    recurse(*layout_node());
 
-    return MUST(builder.to_string());
+        results.remove(i, j - i);
+        results.insert(i, MUST(String::repeated('\n', max_line_breaks)));
+    }
+
+    // 7. Return the concatenation of the string items in results.
+    StringBuilder builder;
+    for (auto& item : results) {
+        item.visit(
+            [&](String const& string) { builder.append(string); },
+            [&](RequiredLineBreakCount const&) {});
+    }
+    return builder.to_string_without_validation();
 }
 
 // https://html.spec.whatwg.org/multipage/dom.html#dom-innertext
@@ -422,26 +576,23 @@ void HTMLElement::attribute_changed(FlyString const& name, Optional<String> cons
 #undef __ENUMERATE
 }
 
-// https://html.spec.whatwg.org/multipage/interaction.html#dom-focus
-void HTMLElement::focus()
+void HTMLElement::attribute_change_steps(FlyString const& local_name, Optional<String> const& old_value, Optional<String> const& value, Optional<FlyString> const& namespace_)
 {
-    // 1. If the element is marked as locked for focus, then return.
-    if (m_locked_for_focus)
-        return;
+    Base::attribute_change_steps(local_name, old_value, value, namespace_);
+    HTMLOrSVGElement::attribute_change_steps(local_name, old_value, value, namespace_);
+}
 
-    // 2. Mark the element as locked for focus.
-    m_locked_for_focus = true;
+WebIDL::ExceptionOr<void> HTMLElement::cloned(Web::DOM::Node& copy, bool clone_children)
+{
+    TRY(Base::cloned(copy, clone_children));
+    TRY(HTMLOrSVGElement::cloned(copy, clone_children));
+    return {};
+}
 
-    // 3. Run the focusing steps for the element.
-    run_focusing_steps(this);
-
-    // FIXME: 4. If the value of the preventScroll dictionary member of options is false,
-    //           then scroll the element into view with scroll behavior "auto",
-    //           block flow direction position set to an implementation-defined value,
-    //           and inline base direction position set to an implementation-defined value.
-
-    // 5. Unmark the element as locked for focus.
-    m_locked_for_focus = false;
+void HTMLElement::inserted()
+{
+    Base::inserted();
+    HTMLOrSVGElement::inserted();
 }
 
 // https://html.spec.whatwg.org/multipage/webappapis.html#fire-a-synthetic-pointer-event
@@ -516,17 +667,11 @@ void HTMLElement::click()
     m_click_in_progress = false;
 }
 
-// https://html.spec.whatwg.org/multipage/interaction.html#dom-blur
-void HTMLElement::blur()
-{
-    // The blur() method, when invoked, should run the unfocusing steps for the element on which the method was called.
-    run_unfocusing_steps(this);
-
-    // User agents may selectively or uniformly ignore calls to this method for usability reasons.
-}
-
 Optional<ARIA::Role> HTMLElement::default_role() const
 {
+    // https://www.w3.org/TR/html-aria/#el-address
+    if (local_name() == TagNames::address)
+        return ARIA::Role::group;
     // https://www.w3.org/TR/html-aria/#el-article
     if (local_name() == TagNames::article)
         return ARIA::Role::article;
@@ -568,7 +713,7 @@ Optional<ARIA::Role> HTMLElement::default_role() const
     }
     // https://www.w3.org/TR/html-aria/#el-hgroup
     if (local_name() == TagNames::hgroup)
-        return ARIA::Role::generic;
+        return ARIA::Role::group;
     // https://www.w3.org/TR/html-aria/#el-i
     if (local_name() == TagNames::i)
         return ARIA::Role::generic;
@@ -578,6 +723,9 @@ Optional<ARIA::Role> HTMLElement::default_role() const
     // https://www.w3.org/TR/html-aria/#el-nav
     if (local_name() == TagNames::nav)
         return ARIA::Role::navigation;
+    // https://www.w3.org/TR/html-aria/#el-s
+    if (local_name() == TagNames::s)
+        return ARIA::Role::deletion;
     // https://www.w3.org/TR/html-aria/#el-samp
     if (local_name() == TagNames::samp)
         return ARIA::Role::generic;
@@ -651,26 +799,26 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<ElementInternals>> HTMLElement::attach_inte
 {
     // 1. If this's is value is not null, then throw a "NotSupportedError" DOMException.
     if (is_value().has_value())
-        return WebIDL::NotSupportedError::create(realm(), "ElementInternals cannot be attached to a customized build-in element"_fly_string);
+        return WebIDL::NotSupportedError::create(realm(), "ElementInternals cannot be attached to a customized build-in element"_string);
 
     // 2. Let definition be the result of looking up a custom element definition given this's node document, its namespace, its local name, and null as the is value.
     auto definition = document().lookup_custom_element_definition(namespace_uri(), local_name(), is_value());
 
     // 3. If definition is null, then throw an "NotSupportedError" DOMException.
     if (!definition)
-        return WebIDL::NotSupportedError::create(realm(), "ElementInternals cannot be attached to an element that is not a custom element"_fly_string);
+        return WebIDL::NotSupportedError::create(realm(), "ElementInternals cannot be attached to an element that is not a custom element"_string);
 
     // 4. If definition's disable internals is true, then throw a "NotSupportedError" DOMException.
     if (definition->disable_internals())
-        return WebIDL::NotSupportedError::create(realm(), "ElementInternals are disabled for this custom element"_fly_string);
+        return WebIDL::NotSupportedError::create(realm(), "ElementInternals are disabled for this custom element"_string);
 
     // 5. If this's attached internals is non-null, then throw an "NotSupportedError" DOMException.
     if (m_attached_internals)
-        return WebIDL::NotSupportedError::create(realm(), "ElementInternals already attached"_fly_string);
+        return WebIDL::NotSupportedError::create(realm(), "ElementInternals already attached"_string);
 
     // 6. If this's custom element state is not "precustomized" or "custom", then throw a "NotSupportedError" DOMException.
     if (!first_is_one_of(custom_element_state(), DOM::CustomElementState::Precustomized, DOM::CustomElementState::Custom))
-        return WebIDL::NotSupportedError::create(realm(), "Custom element is in an invalid state to attach ElementInternals"_fly_string);
+        return WebIDL::NotSupportedError::create(realm(), "Custom element is in an invalid state to attach ElementInternals"_string);
 
     // 7. Set this's attached internals to a new ElementInternals instance whose target element is this.
     auto internals = ElementInternals::create(realm(), *this);
@@ -713,7 +861,29 @@ void HTMLElement::did_receive_focus()
 {
     if (m_content_editable_state != ContentEditableState::True)
         return;
-    document().set_cursor_position(DOM::Position::create(realm(), *this, 0));
+
+    auto editing_host = document().editing_host_manager();
+    editing_host->set_active_contenteditable_element(this);
+
+    DOM::Text* text = nullptr;
+    for_each_in_inclusive_subtree_of_type<DOM::Text>([&](auto& node) {
+        text = &node;
+        return TraversalDecision::Continue;
+    });
+
+    if (!text) {
+        editing_host->set_selection_anchor(*this, 0);
+        return;
+    }
+    editing_host->set_selection_anchor(*text, text->length());
+}
+
+void HTMLElement::did_lose_focus()
+{
+    if (m_content_editable_state != ContentEditableState::True)
+        return;
+
+    document().editing_host_manager()->set_active_contenteditable_element(nullptr);
 }
 
 // https://html.spec.whatwg.org/multipage/interaction.html#dom-accesskeylabel

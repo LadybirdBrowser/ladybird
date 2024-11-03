@@ -77,6 +77,21 @@ void ViewImplementation::server_did_paint(Badge<WebContentClient>, i32 bitmap_id
     client().async_ready_to_paint(page_id());
 }
 
+void ViewImplementation::set_window_position(Gfx::IntPoint position)
+{
+    client().async_set_window_position(m_client_state.page_index, position.to_type<Web::DevicePixels>());
+}
+
+void ViewImplementation::set_window_size(Gfx::IntSize size)
+{
+    client().async_set_window_size(m_client_state.page_index, size.to_type<Web::DevicePixels>());
+}
+
+void ViewImplementation::did_update_window_rect()
+{
+    client().async_did_update_window_rect(m_client_state.page_index);
+}
+
 void ViewImplementation::load(URL::URL const& url)
 {
     m_url = url;
@@ -193,6 +208,15 @@ void ViewImplementation::set_enable_do_not_track(bool enable)
     client().async_set_enable_do_not_track(page_id(), enable);
 }
 
+void ViewImplementation::set_enable_autoplay(bool enable)
+{
+    if (enable) {
+        client().async_set_autoplay_allowed_on_all_websites(page_id());
+    } else {
+        client().async_set_autoplay_allowlist(page_id(), {});
+    }
+}
+
 ByteString ViewImplementation::selected_text()
 {
     return client().get_selected_text(page_id());
@@ -241,7 +265,7 @@ void ViewImplementation::inspect_dom_tree()
     client().async_inspect_dom_tree(page_id());
 }
 
-void ViewImplementation::inspect_dom_node(i32 node_id, Optional<Web::CSS::Selector::PseudoElement::Type> pseudo_element)
+void ViewImplementation::inspect_dom_node(Web::UniqueNodeID node_id, Optional<Web::CSS::Selector::PseudoElement::Type> pseudo_element)
 {
     client().async_inspect_dom_node(page_id(), node_id, move(pseudo_element));
 }
@@ -261,47 +285,47 @@ void ViewImplementation::get_hovered_node_id()
     client().async_get_hovered_node_id(page_id());
 }
 
-void ViewImplementation::set_dom_node_text(i32 node_id, String text)
+void ViewImplementation::set_dom_node_text(Web::UniqueNodeID node_id, String text)
 {
     client().async_set_dom_node_text(page_id(), node_id, move(text));
 }
 
-void ViewImplementation::set_dom_node_tag(i32 node_id, String name)
+void ViewImplementation::set_dom_node_tag(Web::UniqueNodeID node_id, String name)
 {
     client().async_set_dom_node_tag(page_id(), node_id, move(name));
 }
 
-void ViewImplementation::add_dom_node_attributes(i32 node_id, Vector<Attribute> attributes)
+void ViewImplementation::add_dom_node_attributes(Web::UniqueNodeID node_id, Vector<Attribute> attributes)
 {
     client().async_add_dom_node_attributes(page_id(), node_id, move(attributes));
 }
 
-void ViewImplementation::replace_dom_node_attribute(i32 node_id, String name, Vector<Attribute> replacement_attributes)
+void ViewImplementation::replace_dom_node_attribute(Web::UniqueNodeID node_id, String name, Vector<Attribute> replacement_attributes)
 {
     client().async_replace_dom_node_attribute(page_id(), node_id, move(name), move(replacement_attributes));
 }
 
-void ViewImplementation::create_child_element(i32 node_id)
+void ViewImplementation::create_child_element(Web::UniqueNodeID node_id)
 {
     client().async_create_child_element(page_id(), node_id);
 }
 
-void ViewImplementation::create_child_text_node(i32 node_id)
+void ViewImplementation::create_child_text_node(Web::UniqueNodeID node_id)
 {
     client().async_create_child_text_node(page_id(), node_id);
 }
 
-void ViewImplementation::clone_dom_node(i32 node_id)
+void ViewImplementation::clone_dom_node(Web::UniqueNodeID node_id)
 {
     client().async_clone_dom_node(page_id(), node_id);
 }
 
-void ViewImplementation::remove_dom_node(i32 node_id)
+void ViewImplementation::remove_dom_node(Web::UniqueNodeID node_id)
 {
     client().async_remove_dom_node(page_id(), node_id);
 }
 
-void ViewImplementation::get_dom_node_html(i32 node_id)
+void ViewImplementation::get_dom_node_html(Web::UniqueNodeID node_id)
 {
     client().async_get_dom_node_html(page_id(), node_id);
 }
@@ -473,7 +497,7 @@ void ViewImplementation::handle_resize()
 void ViewImplementation::handle_web_content_process_crash()
 {
     dbgln("WebContent process crashed!");
-    dbgln("Consider raising an issue at https://github.com/LadybirdBrowser/ladybird/issues");
+    dbgln("Consider raising an issue at https://github.com/LadybirdBrowser/ladybird/issues/new/choose");
 
     ++m_crash_count;
     constexpr size_t max_reasonable_crash_count = 5U;
@@ -554,7 +578,7 @@ NonnullRefPtr<Core::Promise<LexicalPath>> ViewImplementation::take_screenshot(Sc
     return promise;
 }
 
-NonnullRefPtr<Core::Promise<LexicalPath>> ViewImplementation::take_dom_node_screenshot(i32 node_id)
+NonnullRefPtr<Core::Promise<LexicalPath>> ViewImplementation::take_dom_node_screenshot(Web::UniqueNodeID node_id)
 {
     auto promise = Core::Promise<LexicalPath>::construct();
 

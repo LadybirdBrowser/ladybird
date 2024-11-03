@@ -1,2 +1,2 @@
-   lang "en"    <SPAN id="name" >
+<SPAN id="name" >
 <SPAN id="value" >

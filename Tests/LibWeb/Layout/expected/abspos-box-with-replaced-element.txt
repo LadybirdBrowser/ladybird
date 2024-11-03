@@ -6,7 +6,7 @@ Viewport <#document> at (0,0) content-size 800x600 children: not-inline
         ImageBox <img> at (262,12) content-size 248x26.46875 children: not-inline
 
 ViewportPaintable (Viewport<#document>) [0,0 800x600]
-  PaintableWithLines (BlockContainer<HTML>) [0,0 800x2] overflow: [9,9 502x102]
+  PaintableWithLines (BlockContainer<HTML>) [0,0 800x2]
     PaintableWithLines (BlockContainer<BODY>) [9,9 502x102]
       PaintableWithLines (BlockContainer<DIV>.image-container) [260,10 250x30.46875] overflow: [261,11 249x28.46875]
         ImagePaintable (ImageBox<IMG>) [261,11 250x28.46875]

@@ -18,7 +18,7 @@ class SVGForeignObjectBox final : public BlockContainer {
     JS_DECLARE_ALLOCATOR(SVGForeignObjectBox);
 
 public:
-    SVGForeignObjectBox(DOM::Document&, SVG::SVGForeignObjectElement&, NonnullRefPtr<CSS::StyleProperties>);
+    SVGForeignObjectBox(DOM::Document&, SVG::SVGForeignObjectElement&, CSS::StyleProperties);
     virtual ~SVGForeignObjectBox() override = default;
 
     SVG::SVGForeignObjectElement& dom_node() { return static_cast<SVG::SVGForeignObjectElement&>(*BlockContainer::dom_node()); }

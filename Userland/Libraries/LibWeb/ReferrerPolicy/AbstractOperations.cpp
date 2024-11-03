@@ -146,7 +146,7 @@ Optional<URL::URL> determine_requests_referrer(Fetch::Infrastructure::Request co
     case ReferrerPolicy::StrictOriginWhenCrossOrigin:
         // 1. If the origin of referrerURL and the origin of request’s current URL are the same, then return
         //    referrerURL.
-        if (referrer_url.has_value() && DOMURL::url_origin(*referrer_url).is_same_origin(DOMURL::url_origin(request.current_url())))
+        if (referrer_url.has_value() && referrer_url->origin().is_same_origin(request.current_url().origin()))
             return referrer_url;
 
         // 2. If referrerURL is a potentially trustworthy URL and request’s current URL is not a potentially
@@ -164,7 +164,7 @@ Optional<URL::URL> determine_requests_referrer(Fetch::Infrastructure::Request co
         // 1. If the origin of referrerURL and the origin of request’s current URL are the same, then return
         //    referrerURL.
         if (referrer_url.has_value()
-            && DOMURL::url_origin(*referrer_url).is_same_origin(DOMURL::url_origin(request.current_url()))) {
+            && referrer_url->origin().is_same_origin(request.current_url().origin())) {
             return referrer_url;
         }
 
@@ -175,7 +175,7 @@ Optional<URL::URL> determine_requests_referrer(Fetch::Infrastructure::Request co
         // 1. If the origin of referrerURL and the origin of request’s current URL are the same, then return
         //    referrerURL.
         if (referrer_url.has_value()
-            && DOMURL::url_origin(*referrer_url).is_same_origin(DOMURL::url_origin(request.current_url()))) {
+            && referrer_url->origin().is_same_origin(request.current_url().origin())) {
             return referrer_url;
         }
 

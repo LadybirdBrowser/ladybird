@@ -39,6 +39,25 @@ void HTMLMarqueeElement::apply_presentational_hints(CSS::StyleProperties& style)
             auto color = parse_legacy_color_value(value);
             if (color.has_value())
                 style.set_property(CSS::PropertyID::BackgroundColor, CSS::CSSColorValue::create_from_color(color.value()));
+        } else if (name == HTML::AttributeNames::height) {
+            // https://html.spec.whatwg.org/multipage/rendering.html#the-marquee-element-2:maps-to-the-dimension-property
+            if (auto parsed_value = parse_dimension_value(value)) {
+                style.set_property(CSS::PropertyID::Height, *parsed_value);
+            }
+        } else if (name == HTML::AttributeNames::hspace) {
+            if (auto parsed_value = parse_dimension_value(value)) {
+                style.set_property(CSS::PropertyID::MarginLeft, *parsed_value);
+                style.set_property(CSS::PropertyID::MarginRight, *parsed_value);
+            }
+        } else if (name == HTML::AttributeNames::vspace) {
+            if (auto parsed_value = parse_dimension_value(value)) {
+                style.set_property(CSS::PropertyID::MarginTop, *parsed_value);
+                style.set_property(CSS::PropertyID::MarginBottom, *parsed_value);
+            }
+        } else if (name == HTML::AttributeNames::width) {
+            if (auto parsed_value = parse_dimension_value(value)) {
+                style.set_property(CSS::PropertyID::Width, *parsed_value);
+            }
         }
     });
 }
@@ -57,7 +76,7 @@ WebIDL::UnsignedLong HTMLMarqueeElement::scroll_amount()
 // https://html.spec.whatwg.org/multipage/obsolete.html#dom-marquee-scrollamount
 WebIDL::ExceptionOr<void> HTMLMarqueeElement::set_scroll_amount(WebIDL::UnsignedLong value)
 {
-    return set_attribute(HTML::AttributeNames::scrollamount, MUST(String::number(value)));
+    return set_attribute(HTML::AttributeNames::scrollamount, String::number(value));
 }
 
 // https://html.spec.whatwg.org/multipage/obsolete.html#dom-marquee-scrolldelay
@@ -74,7 +93,7 @@ WebIDL::UnsignedLong HTMLMarqueeElement::scroll_delay()
 // https://html.spec.whatwg.org/multipage/obsolete.html#dom-marquee-scrolldelay
 WebIDL::ExceptionOr<void> HTMLMarqueeElement::set_scroll_delay(WebIDL::UnsignedLong value)
 {
-    return set_attribute(HTML::AttributeNames::scrolldelay, MUST(String::number(value)));
+    return set_attribute(HTML::AttributeNames::scrolldelay, String::number(value));
 }
 
 }

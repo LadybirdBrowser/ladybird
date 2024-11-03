@@ -56,7 +56,7 @@ void AbortSignal::signal_abort(JS::Value reason)
     if (!reason.is_undefined())
         m_abort_reason = reason;
     else
-        m_abort_reason = WebIDL::AbortError::create(realm(), "Aborted without reason"_fly_string).ptr();
+        m_abort_reason = WebIDL::AbortError::create(realm(), "Aborted without reason"_string).ptr();
 
     // 3. Let dependentSignalsToAbort be a new list.
     Vector<JS::Handle<AbortSignal>> dependent_signals_to_abort;
@@ -133,7 +133,7 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<AbortSignal>> AbortSignal::abort(JS::VM& vm
 
     // 2. Set signal’s abort reason to reason if it is given; otherwise to a new "AbortError" DOMException.
     if (reason.is_undefined())
-        reason = WebIDL::AbortError::create(*vm.current_realm(), "Aborted without reason"_fly_string).ptr();
+        reason = WebIDL::AbortError::create(*vm.current_realm(), "Aborted without reason"_string).ptr();
 
     signal->set_reason(reason);
 
@@ -158,7 +158,7 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<AbortSignal>> AbortSignal::timeout(JS::VM& 
     window_or_worker->run_steps_after_a_timeout(milliseconds, [&realm, &global, signal]() {
         // 1. Queue a global task on the timer task source given global to signal abort given signal and a new "TimeoutError" DOMException.
         HTML::queue_global_task(HTML::Task::Source::TimerTask, global, JS::create_heap_function(realm.heap(), [&realm, signal]() mutable {
-            auto reason = WebIDL::TimeoutError::create(realm, "Signal timed out"_fly_string);
+            auto reason = WebIDL::TimeoutError::create(realm, "Signal timed out"_string);
             signal->signal_abort(reason);
         }));
     });

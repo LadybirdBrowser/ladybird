@@ -19,13 +19,13 @@ class WebWorkerClient final
     IPC_CLIENT_CONNECTION(WebWorkerClient, "/tmp/session/%sid/portal/webworker"sv);
 
 public:
-    explicit WebWorkerClient(NonnullOwnPtr<Core::LocalSocket>);
+    explicit WebWorkerClient(IPC::Transport);
 
     virtual void did_close_worker() override;
 
     Function<void()> on_worker_close;
 
-    IPC::File dup_socket();
+    IPC::File clone_transport();
 
 private:
     virtual void die() override;

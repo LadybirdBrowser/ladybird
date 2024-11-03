@@ -97,15 +97,15 @@ namespace Web::CSS::Parser {
 static Optional<RoundingStrategy> parse_rounding_strategy(Vector<ComponentValue> const& tokens)
 {
     auto stream = TokenStream { tokens };
-    stream.skip_whitespace();
+    stream.discard_whitespace();
     if (!stream.has_next_token())
         return {};
 
-    auto& ident = stream.next_token();
+    auto& ident = stream.consume_a_token();
     if (!ident.is(Token::Type::Ident))
         return {};
 
-    stream.skip_whitespace();
+    stream.discard_whitespace();
     if (stream.has_next_token())
         return {};
 
@@ -118,7 +118,7 @@ static Optional<RoundingStrategy> parse_rounding_strategy(Vector<ComponentValue>
 
 OwnPtr<CalculationNode> Parser::parse_math_function(PropertyID property_id, Function const& function)
 {
-    TokenStream stream { function.values() };
+    TokenStream stream { function.value };
     auto arguments = parse_a_comma_separated_list_of_component_values(stream);
 )~~~");
 
@@ -129,7 +129,7 @@ OwnPtr<CalculationNode> Parser::parse_math_function(PropertyID property_id, Func
         auto function_generator = generator.fork();
         function_generator.set("name:lowercase", name);
         function_generator.set("name:titlecase", title_casify(name));
-        function_generator.appendln("    if (function.name().equals_ignoring_ascii_case(\"@name:lowercase@\"sv)) {");
+        function_generator.appendln("    if (function.name.equals_ignoring_ascii_case(\"@name:lowercase@\"sv)) {");
         if (function_data.get_bool("is-variadic"sv).value_or(false)) {
             // Variadic function
             function_generator.append(R"~~~(
@@ -188,8 +188,8 @@ OwnPtr<CalculationNode> Parser::parse_math_function(PropertyID property_id, Func
                 if (parameter.get_bool("required"sv) == true)
                     min_argument_count++;
             });
-            function_generator.set("min_argument_count", MUST(String::number(min_argument_count)));
-            function_generator.set("max_argument_count", MUST(String::number(max_argument_count)));
+            function_generator.set("min_argument_count", String::number(min_argument_count));
+            function_generator.set("max_argument_count", String::number(max_argument_count));
 
             function_generator.append(R"~~~(
         if (arguments.size() < @min_argument_count@ || arguments.size() > @max_argument_count@) {
@@ -209,7 +209,7 @@ OwnPtr<CalculationNode> Parser::parse_math_function(PropertyID property_id, Func
 
                 auto parameter_generator = function_generator.fork();
                 parameter_generator.set("parameter_name", parameter.get_byte_string("name"sv).value());
-                parameter_generator.set("parameter_index", MUST(String::number(parameter_index)));
+                parameter_generator.set("parameter_index", String::number(parameter_index));
 
                 bool parameter_is_calculation;
                 if (parameter_type_string == "<rounding-strategy>") {
@@ -319,7 +319,7 @@ OwnPtr<CalculationNode> Parser::parse_math_function(PropertyID property_id, Func
                 auto parameter_type_string = parameter.get_byte_string("type"sv).value();
 
                 auto parameter_generator = function_generator.fork();
-                parameter_generator.set("parameter_index"sv, MUST(String::number(parameter_index)));
+                parameter_generator.set("parameter_index"sv, String::number(parameter_index));
 
                 if (parameter_type_string == "<rounding-strategy>"sv) {
                     parameter_generator.set("release_value"sv, ""_string);

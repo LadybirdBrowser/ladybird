@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const tests = [
+            { elementName: "hr", attribute: "width", mappedProperty: "width" },
+            { elementName: "marquee", attribute: "hspace", mappedProperty: "marginLeft" },
+            { elementName: "marquee", attribute: "hspace", mappedProperty: "marginRight" },
+            { elementName: "marquee", attribute: "vspace", mappedProperty: "marginTop" },
+            { elementName: "marquee", attribute: "vspace", mappedProperty: "marginBottom" },
+            { elementName: "marquee", attribute: "width", mappedProperty: "width" },
+            { elementName: "marquee", attribute: "height", mappedProperty: "height" },
+            { elementName: "object", attribute: "hspace", mappedProperty: "marginLeft" },
+            { elementName: "object", attribute: "hspace", mappedProperty: "marginRight" },
+            { elementName: "object", attribute: "vspace", mappedProperty: "marginTop" },
+            { elementName: "object", attribute: "vspace", mappedProperty: "marginBottom" },
+            { elementName: "object", attribute: "width", mappedProperty: "width" },
+            { elementName: "object", attribute: "height", mappedProperty: "height" },
+            { elementName: "embed", attribute: "hspace", mappedProperty: "marginLeft" },
+            { elementName: "embed", attribute: "hspace", mappedProperty: "marginRight" },
+            { elementName: "embed", attribute: "vspace", mappedProperty: "marginTop" },
+            { elementName: "embed", attribute: "vspace", mappedProperty: "marginBottom" },
+            { elementName: "embed", attribute: "width", mappedProperty: "width" },
+            { elementName: "embed", attribute: "height", mappedProperty: "height" },
+            { elementName: "tr", attribute: "height", mappedProperty: "height" },
+            { elementName: "col", attribute: "width", mappedProperty: "width" },
+        ];
+        const values = ["100", " 00110 ", "120."];
+
+        for (const { elementName, attribute, mappedProperty } of tests) {
+            const element = document.createElement(elementName);
+            document.body.appendChild(element);
+            const style = document.defaultView.getComputedStyle(element);
+            for (const value of values) {
+                element.setAttribute(attribute, value);
+                println(`Test ${elementName}.${attribute} = "${value}" maps to ${mappedProperty}: ${style[mappedProperty]}`);
+            }
+            element.remove();
+        }
+    });
+</script>

@@ -1,8 +1,8 @@
 /*
- * Copyright (c) 2018-2022, Andreas Kling <kling@serenityos.org>
+ * Copyright (c) 2018-2022, Andreas Kling <andreas@ladybird.org>
  * Copyright (c) 2022, Adam Hodgen <ant1441@gmail.com>
  * Copyright (c) 2023, Bastiaan van der Plaat <bastiaan.v.d.plaat@gmail.com>
- * Copyright (c) 2024, Jelle Raaijmakers <jelle@gmta.nl>
+ * Copyright (c) 2024, Jelle Raaijmakers <jelle@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -59,7 +59,7 @@ class HTMLInputElement final
 public:
     virtual ~HTMLInputElement() override;
 
-    virtual JS::GCPtr<Layout::Node> create_layout_node(NonnullRefPtr<CSS::StyleProperties>) override;
+    virtual JS::GCPtr<Layout::Node> create_layout_node(CSS::StyleProperties) override;
     virtual void adjust_computed_style(CSS::StyleProperties&) override;
 
     enum class TypeAttributeState {
@@ -105,7 +105,11 @@ public:
 
     void did_pick_color(Optional<Color> picked_color, ColorPickerUpdateState state);
 
-    void did_select_files(Span<SelectedFile> selected_files);
+    enum class MultipleHandling {
+        Replace,
+        Append,
+    };
+    void did_select_files(Span<SelectedFile> selected_files, MultipleHandling = MultipleHandling::Replace);
 
     JS::GCPtr<FileAPI::FileList> files();
     void set_files(JS::GCPtr<FileAPI::FileList>);
@@ -147,7 +151,7 @@ public:
     WebIDL::ExceptionOr<void> show_picker();
 
     // ^DOM::EditableTextNodeOwner
-    virtual void did_edit_text_node(Badge<DOM::Document>) override;
+    virtual void did_edit_text_node() override;
 
     // ^EventTarget
     // https://html.spec.whatwg.org/multipage/interaction.html#the-tabindex-attribute:the-input-element
@@ -175,6 +179,7 @@ public:
     bool is_single_line() const;
 
     virtual void reset_algorithm() override;
+    virtual void clear_algorithm() override;
 
     virtual void form_associated_element_was_inserted() override;
     virtual void form_associated_element_was_removed(DOM::Node*) override;
@@ -204,16 +209,21 @@ public:
     bool step_up_or_down_applies() const;
     bool select_applies() const;
     bool selection_or_range_applies() const;
+    bool selection_direction_applies() const;
+    bool has_selectable_text() const;
 
     static bool selection_or_range_applies_for_type_state(TypeAttributeState);
 
-protected:
-    void selection_was_changed(size_t selection_start, size_t selection_end) override;
+    Optional<String> selection_direction_binding() { return selection_direction(); }
+
+    virtual JS::GCPtr<DOM::Text> form_associated_element_to_text_node() override { return m_text_node; }
 
 private:
     HTMLInputElement(DOM::Document&, DOM::QualifiedName);
 
     void type_attribute_changed(TypeAttributeState old_state, TypeAttributeState new_state);
+
+    virtual void apply_presentational_hints(CSS::StyleProperties&) const override;
 
     // ^DOM::Node
     virtual bool is_html_input_element() const final { return true; }
@@ -304,8 +314,9 @@ private:
     JS::GCPtr<DOM::Element> m_file_label;
 
     void update_slider_shadow_tree_elements();
-    JS::GCPtr<DOM::Element> m_slider_thumb;
+    JS::GCPtr<DOM::Element> m_slider_runnable_track;
     JS::GCPtr<DOM::Element> m_slider_progress_element;
+    JS::GCPtr<DOM::Element> m_slider_thumb;
 
     JS::GCPtr<DecodedImageData> image_data() const;
     JS::GCPtr<SharedResourceRequest> m_resource_request;

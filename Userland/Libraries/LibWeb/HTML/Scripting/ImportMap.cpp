@@ -18,7 +18,7 @@ namespace Web::HTML {
 // https://html.spec.whatwg.org/multipage/webappapis.html#parse-an-import-map-string
 WebIDL::ExceptionOr<ImportMap> parse_import_map_string(JS::Realm& realm, ByteString const& input, URL::URL base_url)
 {
-    HTML::TemporaryExecutionContext execution_context { Bindings::host_defined_environment_settings_object(realm) };
+    HTML::TemporaryExecutionContext execution_context { realm };
 
     // 1. Let parsed be the result of parsing a JSON string to an Infra value given input.
     auto parsed = TRY(Infra::parse_json_string_to_javascript_value(realm, input));

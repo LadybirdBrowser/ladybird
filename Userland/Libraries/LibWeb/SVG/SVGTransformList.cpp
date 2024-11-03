@@ -21,7 +21,9 @@ JS::NonnullGCPtr<SVGTransformList> SVGTransformList::create(JS::Realm& realm)
 SVGTransformList::~SVGTransformList() = default;
 
 SVGTransformList::SVGTransformList(JS::Realm& realm)
-    : PlatformObject(realm) {};
+    : PlatformObject(realm)
+{
+}
 
 // https://svgwg.org/svg2-draft/single-page.html#types-__svg__SVGNameList__length
 WebIDL::UnsignedLong SVGTransformList::length()
@@ -42,7 +44,7 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<SVGTransform>> SVGTransformList::get_item(W
 {
     // 1. If index is greater than or equal to the length of the list, then throw an IndexSizeError.
     if (index >= m_transforms.size())
-        return WebIDL::IndexSizeError::create(realm(), "SVGTransformList index out of bounds"_fly_string);
+        return WebIDL::IndexSizeError::create(realm(), "SVGTransformList index out of bounds"_string);
     // 2. Return the element in the list at position index.
     return m_transforms.at(index);
 }

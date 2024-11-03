@@ -1,0 +1,15 @@
+<script src="../include.js"></script>
+<script>
+    asyncTest(done => {
+        const newWindow = window.open("about:blank", "_blank");
+
+        newWindow.addEventListener("beforeunload", () => {
+            println(`window.closed = ${newWindow.closed}`);
+            done();
+        });
+
+        println(`window.closed = ${newWindow.closed}`);
+        newWindow.close();
+        println(`window.closed = ${newWindow.closed}`);
+    });
+</script>

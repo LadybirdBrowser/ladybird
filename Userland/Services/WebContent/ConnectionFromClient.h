@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2023, Andreas Kling <kling@serenityos.org>
+ * Copyright (c) 2018-2023, Andreas Kling <andreas@ladybird.org>
  * Copyright (c) 2021-2023, Linus Groh <linusg@serenityos.org>
  * Copyright (c) 2022, Tim Flynn <trflynn89@serenityos.org>
  *
@@ -42,15 +42,13 @@ public:
 
     void request_file(u64 page_id, Web::FileRequest);
 
-    Optional<int> fd() { return socket().fd(); }
-
     PageHost& page_host() { return *m_page_host; }
     PageHost const& page_host() const { return *m_page_host; }
 
     Function<void(IPC::File const&)> on_image_decoder_connection;
 
 private:
-    explicit ConnectionFromClient(NonnullOwnPtr<Core::LocalSocket>);
+    explicit ConnectionFromClient(JS::Heap&, IPC::Transport);
 
     Optional<PageClient&> page(u64 index, SourceLocation = SourceLocation::current());
     Optional<PageClient const&> page(u64 index, SourceLocation = SourceLocation::current()) const;
@@ -74,22 +72,22 @@ private:
     virtual void debug_request(u64 page_id, ByteString const&, ByteString const&) override;
     virtual void get_source(u64 page_id) override;
     virtual void inspect_dom_tree(u64 page_id) override;
-    virtual void inspect_dom_node(u64 page_id, i32 node_id, Optional<Web::CSS::Selector::PseudoElement::Type> const& pseudo_element) override;
+    virtual void inspect_dom_node(u64 page_id, Web::UniqueNodeID const& node_id, Optional<Web::CSS::Selector::PseudoElement::Type> const& pseudo_element) override;
     virtual void inspect_accessibility_tree(u64 page_id) override;
     virtual void get_hovered_node_id(u64 page_id) override;
 
     virtual void list_style_sheets(u64 page_id) override;
     virtual void request_style_sheet_source(u64 page_id, Web::CSS::StyleSheetIdentifier const& identifier) override;
 
-    virtual void set_dom_node_text(u64 page_id, i32 node_id, String const& text) override;
-    virtual void set_dom_node_tag(u64 page_id, i32 node_id, String const& name) override;
-    virtual void add_dom_node_attributes(u64 page_id, i32 node_id, Vector<WebView::Attribute> const& attributes) override;
-    virtual void replace_dom_node_attribute(u64 page_id, i32 node_id, String const& name, Vector<WebView::Attribute> const& replacement_attributes) override;
-    virtual void create_child_element(u64 page_id, i32 node_id) override;
-    virtual void create_child_text_node(u64 page_id, i32 node_id) override;
-    virtual void clone_dom_node(u64 page_id, i32 node_id) override;
-    virtual void remove_dom_node(u64 page_id, i32 node_id) override;
-    virtual void get_dom_node_html(u64 page_id, i32 node_id) override;
+    virtual void set_dom_node_text(u64 page_id, Web::UniqueNodeID const& node_id, String const& text) override;
+    virtual void set_dom_node_tag(u64 page_id, Web::UniqueNodeID const& node_id, String const& name) override;
+    virtual void add_dom_node_attributes(u64 page_id, Web::UniqueNodeID const& node_id, Vector<WebView::Attribute> const& attributes) override;
+    virtual void replace_dom_node_attribute(u64 page_id, Web::UniqueNodeID const& node_id, String const& name, Vector<WebView::Attribute> const& replacement_attributes) override;
+    virtual void create_child_element(u64 page_id, Web::UniqueNodeID const& node_id) override;
+    virtual void create_child_text_node(u64 page_id, Web::UniqueNodeID const& node_id) override;
+    virtual void clone_dom_node(u64 page_id, Web::UniqueNodeID const& node_id) override;
+    virtual void remove_dom_node(u64 page_id, Web::UniqueNodeID const& node_id) override;
+    virtual void get_dom_node_html(u64 page_id, Web::UniqueNodeID const& node_id) override;
 
     virtual void set_content_filters(u64 page_id, Vector<String> const&) override;
     virtual void set_autoplay_allowed_on_all_websites(u64 page_id) override;
@@ -105,6 +103,7 @@ private:
     virtual void set_device_pixels_per_css_pixel(u64 page_id, float) override;
     virtual void set_window_position(u64 page_id, Web::DevicePixelPoint) override;
     virtual void set_window_size(u64 page_id, Web::DevicePixelSize) override;
+    virtual void did_update_window_rect(u64 page_id) override;
     virtual void handle_file_return(u64 page_id, i32 error, Optional<IPC::File> const& file, i32 request_id) override;
     virtual void set_system_visibility_state(u64 page_id, bool visible) override;
 
@@ -131,7 +130,7 @@ private:
     virtual void enable_inspector_prototype(u64 page_id) override;
 
     virtual void take_document_screenshot(u64 page_id) override;
-    virtual void take_dom_node_screenshot(u64 page_id, i32 node_id) override;
+    virtual void take_dom_node_screenshot(u64 page_id, Web::UniqueNodeID const& node_id) override;
 
     virtual void request_internal_page_info(u64 page_id, WebView::PageInfoType) override;
 
@@ -151,6 +150,7 @@ private:
 
     void report_finished_handling_input_event(u64 page_id, Web::EventResult event_was_handled);
 
+    JS::Heap& m_heap;
     NonnullOwnPtr<PageHost> m_page_host;
 
     HashMap<int, Web::FileRequest> m_requested_files {};
@@ -167,7 +167,7 @@ private:
 
     Queue<QueuedInputEvent> m_input_event_queue;
 
-    RefPtr<Web::Platform::Timer> m_input_event_queue_timer;
+    JS::Handle<Web::Platform::Timer> m_input_event_queue_timer;
 };
 
 }

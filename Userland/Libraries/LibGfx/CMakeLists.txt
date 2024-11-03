@@ -4,6 +4,7 @@ set(SOURCES
     AffineTransform.cpp
     AntiAliasingPainter.cpp
     Bitmap.cpp
+    BitmapSequence.cpp
     CMYKBitmap.cpp
     Color.cpp
     DeltaE.cpp
@@ -14,6 +15,7 @@ set(SOURCES
     Font/Font.cpp
     Font/FontData.cpp
     Font/FontDatabase.cpp
+    Font/PathFontProvider.cpp
     Font/ScaledFont.cpp
     Font/ScaledFontSkia.cpp
     Font/Typeface.cpp

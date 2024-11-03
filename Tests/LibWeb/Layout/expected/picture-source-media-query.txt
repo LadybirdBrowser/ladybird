@@ -14,6 +14,6 @@ Viewport <#document> at (0,0) content-size 800x600 children: not-inline
 ViewportPaintable (Viewport<#document>) [0,0 800x600]
   PaintableWithLines (BlockContainer<HTML>) [0,0 800x416]
     PaintableWithLines (BlockContainer<BODY>) [8,8 784x400]
-      InlinePaintable (InlineNode<PICTURE>)
-        InlinePaintable (InlineNode<SOURCE>)
+      PaintableWithLines (InlineNode<PICTURE>)
+        PaintableWithLines (InlineNode<SOURCE>)
         ImagePaintable (ImageBox<IMG>) [8,8 400x400]

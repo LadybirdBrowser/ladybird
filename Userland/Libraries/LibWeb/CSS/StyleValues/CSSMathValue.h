@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2020, Andreas Kling <kling@serenityos.org>
+ * Copyright (c) 2018-2020, Andreas Kling <andreas@ladybird.org>
  * Copyright (c) 2021, Tobias Christiansen <tobyase@serenityos.org>
  * Copyright (c) 2021-2024, Sam Atkins <sam@ladybird.org>
  * Copyright (c) 2022-2023, MacDue <macdue@dueutil.tech>
@@ -85,6 +85,8 @@ public:
     bool resolves_to_angle() const { return m_resolved_type.matches_angle(); }
     bool resolves_to_angle_percentage() const { return m_resolved_type.matches_angle_percentage(); }
     Optional<Angle> resolve_angle() const;
+    Optional<Angle> resolve_angle(Layout::Node const& layout_node) const;
+    Optional<Angle> resolve_angle(Length::ResolutionContext const& context) const;
     Optional<Angle> resolve_angle_percentage(Angle const& percentage_basis) const;
 
     bool resolves_to_flex() const { return m_resolved_type.matches_flex(); }

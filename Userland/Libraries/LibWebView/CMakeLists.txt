@@ -10,14 +10,12 @@ set(SOURCES
     ProcessHandle.cpp
     Process.cpp
     ProcessManager.cpp
-    RequestServerAdapter.cpp
     SearchEngine.cpp
     SourceHighlighter.cpp
     URL.cpp
     UserAgent.cpp
     ViewImplementation.cpp
     WebContentClient.cpp
-    WebSocketClientAdapter.cpp
     ${PUBLIC_SUFFIX_SOURCES}
 )
 
@@ -48,7 +46,7 @@ set(GENERATED_SOURCES
 )
 
 serenity_lib(LibWebView webview)
-target_link_libraries(LibWebView PRIVATE LibCore LibFileSystem LibGfx LibImageDecoderClient LibIPC LibRequests LibJS LibWeb LibUnicode LibURL)
+target_link_libraries(LibWebView PRIVATE LibCore LibFileSystem LibGfx LibImageDecoderClient LibIPC LibRequests LibJS LibWeb LibUnicode LibURL LibSyntax)
 target_compile_definitions(LibWebView PRIVATE ENABLE_PUBLIC_SUFFIX=$<BOOL:${ENABLE_PUBLIC_SUFFIX_DOWNLOAD}>)
 
 # Third-party
@@ -67,6 +65,4 @@ if (ENABLE_INSTALL_HEADERS)
 
         install(FILES "${CMAKE_CURRENT_BINARY_DIR}/${header}" DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/${subdirectory}")
     endforeach()
-
-    install(FILES "${SERENITY_PROJECT_ROOT}/Userland/Services/RequestServer/ConnectionCache.h" DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/RequestServer")
 endif()

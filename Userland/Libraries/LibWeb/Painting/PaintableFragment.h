@@ -22,7 +22,7 @@ public:
     explicit PaintableFragment(Layout::LineBoxFragment const&);
 
     Layout::Node const& layout_node() const { return m_layout_node; }
-    Paintable const& paintable() const { return *m_layout_node->paintable(); }
+    Paintable const& paintable() const { return *m_layout_node->first_paintable(); }
 
     int start() const { return m_start; }
     int length() const { return m_length; }
@@ -46,6 +46,7 @@ public:
     RefPtr<Gfx::GlyphRun> glyph_run() const { return m_glyph_run; }
 
     CSSPixelRect selection_rect(Gfx::Font const&) const;
+    CSSPixelRect range_rect(Gfx::Font const&, size_t start_offset, size_t end_offset) const;
 
     CSSPixels width() const { return m_size.width(); }
     CSSPixels height() const { return m_size.height(); }

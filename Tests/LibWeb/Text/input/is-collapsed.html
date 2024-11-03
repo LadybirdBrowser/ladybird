@@ -1,0 +1,27 @@
+<script src="include.js"></script>
+<p id="a">Simply selectable</p>
+
+<script>
+    test(() => {
+        var selection = window.getSelection();
+        var range = document.createRange();
+        range.setStart(a.firstChild, 0);
+        range.setEnd(a.firstChild, 1);
+        selection.addRange(range);
+        if (selection.isCollapsed) {
+            println(`FAIL: "${selection}" is not collapsed`);
+            return;
+        }
+        selection.collapseToStart();
+        if (!selection.isCollapsed) {
+            println(`FAIL: "${selection}" is collapsed`);
+            return;
+        }
+        selection.removeAllRanges();
+        if (!selection.isCollapsed) {
+            println(`FAIL: "${selection}" is collapsed`);
+            return;
+        }
+        println("PASS");
+    })
+</script>

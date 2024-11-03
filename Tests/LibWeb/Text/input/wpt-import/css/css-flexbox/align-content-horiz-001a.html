@@ -1,0 +1,182 @@
+<!doctype html>
+<!--
+     Any copyright is dedicated to the Public Domain.
+     http://creativecommons.org/publicdomain/zero/1.0/
+-->
+<!-- Testcase with a series of horizontal flex containers, with 1-3 flex lines,
+     testing each possible value of the 'align-content' property. -->
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <title>CSS Test: Testing 'align-content' in a horizontal flex container</title>
+    <link rel="author" title="Daniel Holbert" href="mailto:dholbert@mozilla.com"/>
+    <link rel="author" title="David Grogan" href="mailto:dgrogan@chromium.org"/>
+    <link rel="help" href="http://www.w3.org/TR/css-flexbox-1/#align-content-property"/>
+    <style>
+      div.flexbox {
+        width: 20px; /* Skinny, to force us to wrap */
+        height: 200px;
+        display: flex;
+        flex-wrap: wrap;
+        margin-right: 2px;
+        float: left;
+        background: lightgray;
+      }
+      div.a {
+        width: 20px;
+        height: 10px;
+        flex: none;
+        background: lightgreen;
+      }
+      div.b {
+        width: 20px;
+        height: auto; /* height comes from contents */
+        flex: none;
+        background: pink;
+      }
+      div.c {
+        width: 20px;
+        height: 40px;
+        flex: none;
+        background: orange;
+      }
+
+      /* Inside of 'b': */
+      div.fixedSizeChild {
+        width: 10px;
+        height: 30px;
+        background: purple;
+      }
+    </style>
+    <script src="../../resources/testharness.js"></script>
+    <script src="../../resources/testharnessreport.js"></script>
+    <script src="../../resources/check-layout-th.js"></script>
+  </head>
+  <body onload="checkLayout('.flexbox div')">
+
+    <!-- default (stretch) -->
+    <div class="flexbox">
+      <div class="a" data-expected-width="20" data-expected-height="10" data-offset-x="8" data-offset-y="8"></div>
+    </div>
+    <div class="flexbox">
+      <div class="a" data-expected-width="20" data-expected-height="10" data-offset-x="30" data-offset-y="8"></div>
+      <div class="b" data-expected-width="20" data-expected-height="110" data-offset-x="30" data-offset-y="98"><div class="fixedSizeChild" data-expected-width="10" data-expected-height="30" data-offset-x="30" data-offset-y="98"></div></div>
+    </div>
+    <div class="flexbox">
+      <div class="a" data-expected-width="20" data-expected-height="10" data-offset-x="52" data-offset-y="8"></div>
+      <div class="b" data-expected-width="20" data-expected-height="70" data-offset-x="52" data-offset-y="58"><div class="fixedSizeChild" data-expected-width="10" data-expected-height="30" data-offset-x="52" data-offset-y="58"></div></div>
+      <div class="c" data-expected-width="20" data-expected-height="40" data-offset-x="52" data-offset-y="128"></div>
+    </div>
+
+    <!-- flex-start -->
+    <div class="flexbox" style="align-content: flex-start">
+      <div class="a" data-expected-width="20" data-expected-height="10" data-offset-x="74" data-offset-y="8"></div>
+    </div>
+    <div class="flexbox" style="align-content: flex-start">
+      <div class="a" data-expected-width="20" data-expected-height="10" data-offset-x="96" data-offset-y="8"></div>
+      <div class="b" data-expected-width="20" data-expected-height="30" data-offset-x="96" data-offset-y="18"><div class="fixedSizeChild" data-expected-width="10" data-expected-height="30" data-offset-x="96" data-offset-y="18"></div></div>
+    </div>
+    <div class="flexbox" style="align-content: flex-start">
+      <div class="a" data-expected-width="20" data-expected-height="10" data-offset-x="118" data-offset-y="8"></div>
+      <div class="b" data-expected-width="20" data-expected-height="30" data-offset-x="118" data-offset-y="18"><div class="fixedSizeChild" data-expected-width="10" data-expected-height="30" data-offset-x="118" data-offset-y="18"></div></div>
+      <div class="c" data-expected-width="20" data-expected-height="40" data-offset-x="118" data-offset-y="48"></div>
+    </div>
+
+    <!-- flex-end -->
+    <div class="flexbox" style="align-content: flex-end">
+      <div class="a" data-expected-width="20" data-expected-height="10" data-offset-x="140" data-offset-y="198"></div>
+    </div>
+    <div class="flexbox" style="align-content: flex-end">
+      <div class="a" data-expected-width="20" data-expected-height="10" data-offset-x="162" data-offset-y="168"></div>
+      <div class="b" data-expected-width="20" data-expected-height="30" data-offset-x="162" data-offset-y="178"><div class="fixedSizeChild" data-expected-width="10" data-expected-height="30" data-offset-x="162" data-offset-y="178"></div></div>
+    </div>
+    <div class="flexbox" style="align-content: flex-end">
+      <div class="a" data-expected-width="20" data-expected-height="10" data-offset-x="184" data-offset-y="128"></div>
+      <div class="b" data-expected-width="20" data-expected-height="30" data-offset-x="184" data-offset-y="138"><div class="fixedSizeChild" data-expected-width="10" data-expected-height="30" data-offset-x="184" data-offset-y="138"></div></div>
+      <div class="c" data-expected-width="20" data-expected-height="40" data-offset-x="184" data-offset-y="168"></div>
+    </div>
+
+    <!-- center -->
+    <div class="flexbox" style="align-content: center">
+      <div class="a" data-expected-width="20" data-expected-height="10" data-offset-x="206" data-offset-y="103"></div>
+    </div>
+    <div class="flexbox" style="align-content: center">
+      <div class="a" data-expected-width="20" data-expected-height="10" data-offset-x="228" data-offset-y="88"></div>
+      <div class="b" data-expected-width="20" data-expected-height="30" data-offset-x="228" data-offset-y="98"><div class="fixedSizeChild" data-expected-width="10" data-expected-height="30" data-offset-x="228" data-offset-y="98"></div></div>
+    </div>
+    <div class="flexbox" style="align-content: center">
+      <div class="a" data-expected-width="20" data-expected-height="10" data-offset-x="250" data-offset-y="68"></div>
+      <div class="b" data-expected-width="20" data-expected-height="30" data-offset-x="250" data-offset-y="78"><div class="fixedSizeChild" data-expected-width="10" data-expected-height="30" data-offset-x="250" data-offset-y="78"></div></div>
+      <div class="c" data-expected-width="20" data-expected-height="40" data-offset-x="250" data-offset-y="108"></div>
+    </div>
+
+    <!-- space-between -->
+    <div class="flexbox" style="align-content: space-between">
+      <div class="a" data-expected-width="20" data-expected-height="10" data-offset-x="272" data-offset-y="8"></div>
+    </div>
+    <div class="flexbox" style="align-content: space-between">
+      <div class="a" data-expected-width="20" data-expected-height="10" data-offset-x="294" data-offset-y="8"></div>
+      <div class="b" data-expected-width="20" data-expected-height="30" data-offset-x="294" data-offset-y="178"><div class="fixedSizeChild" data-expected-width="10" data-expected-height="30" data-offset-x="294" data-offset-y="178"></div></div>
+    </div>
+    <div class="flexbox" style="align-content: space-between">
+      <div class="a" data-expected-width="20" data-expected-height="10" data-offset-x="316" data-offset-y="8"></div>
+      <div class="b" data-expected-width="20" data-expected-height="30" data-offset-x="316" data-offset-y="78"><div class="fixedSizeChild" data-expected-width="10" data-expected-height="30" data-offset-x="316" data-offset-y="78"></div></div>
+      <div class="c" data-expected-width="20" data-expected-height="40" data-offset-x="316" data-offset-y="168"></div>
+    </div>
+
+    <!-- space-around -->
+    <div class="flexbox" style="align-content: space-around">
+      <div class="a" data-expected-width="20" data-expected-height="10" data-offset-x="338" data-offset-y="103"></div>
+    </div>
+    <div class="flexbox" style="align-content: space-around">
+      <div class="a" data-expected-width="20" data-expected-height="10" data-offset-x="360" data-offset-y="48"></div>
+      <div class="b" data-expected-width="20" data-expected-height="30" data-offset-x="360" data-offset-y="138"><div class="fixedSizeChild" data-expected-width="10" data-expected-height="30" data-offset-x="360" data-offset-y="138"></div></div>
+    </div>
+    <div class="flexbox" style="align-content: space-around">
+      <div class="a" data-expected-width="20" data-expected-height="10" data-offset-x="382" data-offset-y="28"></div>
+      <div class="b" data-expected-width="20" data-expected-height="30" data-offset-x="382" data-offset-y="78"><div class="fixedSizeChild" data-expected-width="10" data-expected-height="30" data-offset-x="382" data-offset-y="78"></div></div>
+      <div class="c" data-expected-width="20" data-expected-height="40" data-offset-x="382" data-offset-y="148"></div>
+    </div>
+
+    <!-- space-evenly -->
+    <div class="flexbox" style="align-content: space-evenly">
+      <div class="a" data-expected-width="20" data-expected-height="10" data-offset-x="404" data-offset-y="103"></div>
+    </div>
+    <div class="flexbox" style="align-content: space-evenly">
+      <div class="a" data-expected-width="20" data-expected-height="10" data-offset-x="426" data-offset-y="61"></div>
+      <div class="b" data-expected-width="20" data-expected-height="30" data-offset-x="426" data-offset-y="125"><div class="fixedSizeChild" data-expected-width="10" data-expected-height="30" data-offset-x="426" data-offset-y="125"></div></div>
+    </div>
+    <div class="flexbox" style="align-content: space-evenly">
+      <div class="a" data-expected-width="20" data-expected-height="10" data-offset-x="448" data-offset-y="38"></div>
+      <div class="b" data-expected-width="20" data-expected-height="30" data-offset-x="448" data-offset-y="78"><div class="fixedSizeChild" data-expected-width="10" data-expected-height="30" data-offset-x="448" data-offset-y="78"></div></div>
+      <div class="c" data-expected-width="20" data-expected-height="40" data-offset-x="448" data-offset-y="138"></div>
+    </div>
+
+    <!-- start -->
+    <div class="flexbox" style="align-content: start">
+      <div class="a" data-expected-width="20" data-expected-height="10" data-offset-x="470" data-offset-y="8"></div>
+    </div>
+    <div class="flexbox" style="align-content: start">
+      <div class="a" data-expected-width="20" data-expected-height="10" data-offset-x="492" data-offset-y="8"></div>
+      <div class="b" data-expected-width="20" data-expected-height="30" data-offset-x="492" data-offset-y="18"><div class="fixedSizeChild" data-expected-width="10" data-expected-height="30" data-offset-x="492" data-offset-y="18"></div></div>
+    </div>
+    <div class="flexbox" style="align-content: start">
+      <div class="a" data-expected-width="20" data-expected-height="10" data-offset-x="514" data-offset-y="8"></div>
+      <div class="b" data-expected-width="20" data-expected-height="30" data-offset-x="514" data-offset-y="18"><div class="fixedSizeChild" data-expected-width="10" data-expected-height="30" data-offset-x="514" data-offset-y="18"></div></div>
+      <div class="c" data-expected-width="20" data-expected-height="40" data-offset-x="514" data-offset-y="48"></div>
+    </div>
+
+    <!-- end -->
+    <div class="flexbox" style="align-content: end">
+      <div class="a" data-expected-width="20" data-expected-height="10" data-offset-x="536" data-offset-y="198"></div>
+    </div>
+    <div class="flexbox" style="align-content: end">
+      <div class="a" data-expected-width="20" data-expected-height="10" data-offset-x="558" data-offset-y="168"></div>
+      <div class="b" data-expected-width="20" data-expected-height="30" data-offset-x="558" data-offset-y="178"><div class="fixedSizeChild" data-expected-width="10" data-expected-height="30" data-offset-x="558" data-offset-y="178"></div></div>
+    </div>
+    <div class="flexbox" style="align-content: end">
+      <div class="a" data-expected-width="20" data-expected-height="10" data-offset-x="580" data-offset-y="128"></div>
+      <div class="b" data-expected-width="20" data-expected-height="30" data-offset-x="580" data-offset-y="138"><div class="fixedSizeChild" data-expected-width="10" data-expected-height="30" data-offset-x="580" data-offset-y="138"></div></div>
+      <div class="c" data-expected-width="20" data-expected-height="40" data-offset-x="580" data-offset-y="168"></div>
+    </div>
+  </body>
+</html>

@@ -129,6 +129,113 @@ TEST_CASE(test_AES_CBC_256bit_key_decrypt)
     test_aes_cbc_decrypt(cipher, result, 48);
 }
 
+static void do_roundtrip_cbc_128_nopad(ReadonlyBytes key, ReadonlyBytes iv, ReadonlyBytes expected_plaintext, ReadonlyBytes expected_ciphertext)
+{
+    {
+        Crypto::Cipher::AESCipher::CBCMode cipher(key, 128, Crypto::Cipher::Intent::Encryption, Crypto::Cipher::PaddingMode::ZeroLength);
+        auto actual_ciphertext_buf = cipher.create_aligned_buffer(expected_ciphertext.size() + 1).release_value();
+        actual_ciphertext_buf.zero_fill();
+        auto actual_ciphertext = actual_ciphertext_buf.bytes();
+        cipher.encrypt(expected_plaintext, actual_ciphertext, iv);
+        EXPECT_EQ(actual_ciphertext, expected_ciphertext);
+    }
+    {
+        Crypto::Cipher::AESCipher::CBCMode cipher(key, 128, Crypto::Cipher::Intent::Decryption, Crypto::Cipher::PaddingMode::ZeroLength);
+        auto actual_plaintext_buf = cipher.create_aligned_buffer(expected_plaintext.size() + 17).release_value();
+        actual_plaintext_buf.zero_fill();
+        auto actual_plaintext = actual_plaintext_buf.bytes();
+        cipher.decrypt(expected_ciphertext, actual_plaintext, iv);
+        EXPECT_EQ(actual_plaintext, expected_plaintext);
+    }
+}
+
+TEST_CASE(test_AES_CBC_128bit_key_encrypt_rfc3602_case1)
+{
+    // Test vector taken from https://www.rfc-editor.org/rfc/rfc3602#section-4
+    u8 key_raw[16] {
+        0x06, 0xa9, 0x21, 0x40, 0x36, 0xb8, 0xa1, 0x5b, 0x51, 0x2e, 0x03, 0xd5, 0x34, 0x12, 0x00, 0x06
+    };
+    ReadonlyBytes key(key_raw, sizeof(key_raw));
+    u8 iv_raw[16] {
+        0x3d, 0xaf, 0xba, 0x42, 0x9d, 0x9e, 0xb4, 0x30, 0xb4, 0x22, 0xda, 0x80, 0x2c, 0x9f, 0xac, 0x41
+    };
+    ReadonlyBytes iv(iv_raw, sizeof(iv_raw));
+    ReadonlyBytes plaintext = "Single block msg"_b;
+    u8 ciphertext_raw[16] {
+        0xe3, 0x53, 0x77, 0x9c, 0x10, 0x79, 0xae, 0xb8, 0x27, 0x08, 0x94, 0x2d, 0xbe, 0x77, 0x18, 0x1a
+    };
+    ReadonlyBytes ciphertext(ciphertext_raw, sizeof(ciphertext_raw));
+
+    do_roundtrip_cbc_128_nopad(key, iv, plaintext, ciphertext);
+}
+
+TEST_CASE(test_AES_CBC_128bit_key_encrypt_rfc3602_case2)
+{
+    // Test vector taken from https://www.rfc-editor.org/rfc/rfc3602#section-4
+    u8 key_raw[16] {
+        0xc2, 0x86, 0x69, 0x6d, 0x88, 0x7c, 0x9a, 0xa0, 0x61, 0x1b, 0xbb, 0x3e, 0x20, 0x25, 0xa4, 0x5a
+    };
+    ReadonlyBytes key(key_raw, sizeof(key_raw));
+    u8 iv_raw[16] {
+        0x56, 0x2e, 0x17, 0x99, 0x6d, 0x09, 0x3d, 0x28, 0xdd, 0xb3, 0xba, 0x69, 0x5a, 0x2e, 0x6f, 0x58
+    };
+    ReadonlyBytes iv(iv_raw, sizeof(iv_raw));
+    u8 plaintext_raw[32] {
+        0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f,
+        0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17, 0x18, 0x19, 0x1a, 0x1b, 0x1c, 0x1d, 0x1e, 0x1f
+    };
+    ReadonlyBytes plaintext(plaintext_raw, sizeof(plaintext_raw));
+    u8 ciphertext_raw[32] {
+        0xd2, 0x96, 0xcd, 0x94, 0xc2, 0xcc, 0xcf, 0x8a, 0x3a, 0x86, 0x30, 0x28, 0xb5, 0xe1, 0xdc, 0x0a,
+        0x75, 0x86, 0x60, 0x2d, 0x25, 0x3c, 0xff, 0xf9, 0x1b, 0x82, 0x66, 0xbe, 0xa6, 0xd6, 0x1a, 0xb1
+    };
+    ReadonlyBytes ciphertext(ciphertext_raw, sizeof(ciphertext_raw));
+
+    do_roundtrip_cbc_128_nopad(key, iv, plaintext, ciphertext);
+}
+
+static void do_roundtrip_cbc_128_cms(ReadonlyBytes key, ReadonlyBytes iv, ReadonlyBytes expected_plaintext, ReadonlyBytes expected_ciphertext)
+{
+    {
+        Crypto::Cipher::AESCipher::CBCMode cipher(key, 128, Crypto::Cipher::Intent::Encryption, Crypto::Cipher::PaddingMode::CMS);
+        auto actual_ciphertext_buf = cipher.create_aligned_buffer(expected_ciphertext.size() + 1).release_value();
+        actual_ciphertext_buf.zero_fill();
+        auto actual_ciphertext = actual_ciphertext_buf.bytes();
+        cipher.encrypt(expected_plaintext, actual_ciphertext, iv);
+        EXPECT_EQ(actual_ciphertext, expected_ciphertext);
+    }
+    {
+        Crypto::Cipher::AESCipher::CBCMode cipher(key, 128, Crypto::Cipher::Intent::Decryption, Crypto::Cipher::PaddingMode::CMS);
+        auto actual_plaintext_buf = cipher.create_aligned_buffer(expected_plaintext.size() + 17).release_value();
+        actual_plaintext_buf.zero_fill();
+        auto actual_plaintext = actual_plaintext_buf.bytes();
+        cipher.decrypt(expected_ciphertext, actual_plaintext, iv);
+        EXPECT_EQ(actual_plaintext, expected_plaintext);
+    }
+}
+
+TEST_CASE(test_AES_CBC_128bit_key_encrypt_CMS_aligned)
+{
+    // Test vector taken from https://www.rfc-editor.org/rfc/rfc3602#section-4
+    u8 key_raw[16] {
+        0x06, 0xa9, 0x21, 0x40, 0x36, 0xb8, 0xa1, 0x5b, 0x51, 0x2e, 0x03, 0xd5, 0x34, 0x12, 0x00, 0x06
+    };
+    ReadonlyBytes key(key_raw, sizeof(key_raw));
+    u8 iv_raw[16] {
+        0x3d, 0xaf, 0xba, 0x42, 0x9d, 0x9e, 0xb4, 0x30, 0xb4, 0x22, 0xda, 0x80, 0x2c, 0x9f, 0xac, 0x41
+    };
+    ReadonlyBytes iv(iv_raw, sizeof(iv_raw));
+    ReadonlyBytes plaintext = "Single block msg"_b;
+    u8 ciphertext_raw[32] {
+        0xe3, 0x53, 0x77, 0x9c, 0x10, 0x79, 0xae, 0xb8, 0x27, 0x08, 0x94, 0x2d, 0xbe, 0x77, 0x18, 0x1a,
+        // This additional block just encodes the padding "0x1010101010101010".
+        0xb9, 0x7c, 0x82, 0x5e, 0x1c, 0x78, 0x51, 0x46, 0x54, 0x2d, 0x39, 0x69, 0x41, 0xbc, 0xe5, 0x5d
+    };
+    ReadonlyBytes ciphertext(ciphertext_raw, sizeof(ciphertext_raw));
+
+    do_roundtrip_cbc_128_cms(key, iv, plaintext, ciphertext);
+}
+
 // TODO: Test non-CMS padding options for AES CBC decrypt
 
 TEST_CASE(test_AES_CTR_name)

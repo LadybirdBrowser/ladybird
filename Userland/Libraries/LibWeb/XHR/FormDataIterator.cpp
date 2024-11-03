@@ -8,6 +8,7 @@
 #include <LibJS/Runtime/Iterator.h>
 #include <LibWeb/Bindings/FormDataIteratorPrototype.h>
 #include <LibWeb/Bindings/Intrinsics.h>
+#include <LibWeb/FileAPI/File.h>
 #include <LibWeb/XHR/FormDataIterator.h>
 
 namespace Web::Bindings {

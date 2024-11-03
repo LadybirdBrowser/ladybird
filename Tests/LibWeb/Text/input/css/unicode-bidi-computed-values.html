@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+
+<script>
+    test(() => {
+        const propertyName = "unicode-bidi";
+        const propertyValues = [
+            "normal",
+            "embed",
+            "isolate",
+            "bidi-override",
+            "isolate-override",
+            "plaintext",
+            "bad-value",
+            "bidi-override isolate-override",
+            "normal bad-value",
+            "bad-value normal",
+        ];
+
+        for (const propertyValue of propertyValues) {
+            const element = document.createElement("span");
+            element.style.setProperty(propertyName, propertyValue);
+            document.body.appendChild(element);
+            const computedValue = getComputedStyle(element).getPropertyValue(propertyName);
+            println(computedValue);
+            element.remove();
+        }
+    });
+</script>

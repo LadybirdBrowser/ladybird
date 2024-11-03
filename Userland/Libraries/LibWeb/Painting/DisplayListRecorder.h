@@ -101,28 +101,20 @@ public:
 
     void add_clip_rect(Gfx::IntRect const& rect);
 
-    void translate(int dx, int dy);
     void translate(Gfx::IntPoint delta);
 
-    void set_scroll_frame_id(Optional<i32> id)
-    {
-        state().scroll_frame_id = id;
-    }
-
-    Optional<i32> scroll_frame_id() const
-    {
-        return state().scroll_frame_id;
-    }
+    void push_scroll_frame_id(Optional<i32> id);
+    void pop_scroll_frame_id();
 
     void save();
     void restore();
 
     struct PushStackingContextParams {
         float opacity;
+        CSS::ResolvedFilter filter;
         bool is_fixed_position;
         Gfx::IntRect source_paintable_rect;
         StackingContextTransform transform;
-        Optional<StackingContextMask> mask = {};
         Optional<Gfx::Path> clip_path = {};
     };
     void push_stacking_context(PushStackingContextParams params);
@@ -133,7 +125,7 @@ public:
     void add_rounded_rect_clip(CornerRadii corner_radii, Gfx::IntRect border_rect, CornerClip corner_clip);
     void add_mask(RefPtr<DisplayList> display_list, Gfx::IntRect rect);
 
-    void apply_backdrop_filter(Gfx::IntRect const& backdrop_region, BorderRadiiData const& border_radii_data, CSS::ResolvedBackdropFilter const& backdrop_filter);
+    void apply_backdrop_filter(Gfx::IntRect const& backdrop_region, BorderRadiiData const& border_radii_data, CSS::ResolvedFilter const& backdrop_filter);
 
     void paint_outer_box_shadow_params(PaintBoxShadowParams params);
     void paint_inner_box_shadow_params(PaintBoxShadowParams params);
@@ -147,6 +139,10 @@ public:
 
     void paint_scrollbar(int scroll_frame_id, Gfx::IntRect, CSSPixelFraction scroll_size, bool vertical);
 
+    void apply_opacity(float opacity);
+    void apply_transform(Gfx::FloatPoint origin, Gfx::FloatMatrix4x4);
+    void apply_mask_bitmap(Gfx::IntPoint origin, Gfx::Bitmap const&, Gfx::Bitmap::MaskKind);
+
     DisplayListRecorder(DisplayList&);
     ~DisplayListRecorder();
 
@@ -155,15 +151,7 @@ public:
     void append(Command&& command);
 
 private:
-    struct State {
-        Gfx::AffineTransform translation;
-        Optional<Gfx::IntRect> clip_rect;
-        Optional<i32> scroll_frame_id;
-    };
-    State& state() { return m_state_stack.last(); }
-    State const& state() const { return m_state_stack.last(); }
-
-    Vector<State> m_state_stack;
+    Vector<Optional<i32>> m_scroll_frame_id_stack;
     DisplayList& m_command_list;
 };
 

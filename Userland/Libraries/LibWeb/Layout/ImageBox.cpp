@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022, Andreas Kling <kling@serenityos.org>
+ * Copyright (c) 2018-2022, Andreas Kling <andreas@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -15,7 +15,7 @@ namespace Web::Layout {
 
 JS_DEFINE_ALLOCATOR(ImageBox);
 
-ImageBox::ImageBox(DOM::Document& document, DOM::Element& element, NonnullRefPtr<CSS::StyleProperties> style, ImageProvider const& image_provider)
+ImageBox::ImageBox(DOM::Document& document, DOM::Element& element, CSS::StyleProperties style, ImageProvider const& image_provider)
     : ReplacedBox(document, element, move(style))
     , m_image_provider(image_provider)
 {

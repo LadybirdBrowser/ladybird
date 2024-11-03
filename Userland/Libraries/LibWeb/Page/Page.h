@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-2023, Andreas Kling <kling@serenityos.org>
+ * Copyright (c) 2020-2023, Andreas Kling <andreas@ladybird.org>
  * Copyright (c) 2021-2022, Linus Groh <linusg@serenityos.org>
  * Copyright (c) 2022, Sam Atkins <atkinssj@serenityos.org>
  * Copyright (c) 2023, Shannon Booth <shannon@serenityos.org>
@@ -100,8 +100,8 @@ public:
 
     EventResult handle_drag_and_drop_event(DragEvent::Type, DevicePixelPoint, DevicePixelPoint screen_position, unsigned button, unsigned buttons, unsigned modifiers, Vector<HTML::SelectedFile> files);
 
-    EventResult handle_keydown(UIEvents::KeyCode, unsigned modifiers, u32 code_point);
-    EventResult handle_keyup(UIEvents::KeyCode, unsigned modifiers, u32 code_point);
+    EventResult handle_keydown(UIEvents::KeyCode, unsigned modifiers, u32 code_point, bool repeat);
+    EventResult handle_keyup(UIEvents::KeyCode, unsigned modifiers, u32 code_point, bool repeat);
 
     Gfx::Palette palette() const;
     CSSPixelRect web_exposed_screen_area() const;
@@ -127,6 +127,9 @@ public:
     DevicePixelSize window_size() const { return m_window_size; }
     void set_window_size(DevicePixelSize size) { m_window_size = size; }
 
+    void did_update_window_rect();
+    void set_window_rect_observer(JS::GCPtr<JS::HeapFunction<void(DevicePixelRect)>> window_rect_observer) { m_window_rect_observer = window_rect_observer; }
+
     void did_request_alert(String const& message);
     void alert_closed();
 
@@ -145,8 +148,8 @@ public:
     bool has_pending_dialog() const { return m_pending_dialog != PendingDialog::None; }
     PendingDialog pending_dialog() const { return m_pending_dialog; }
     Optional<String> const& pending_dialog_text() const { return m_pending_dialog_text; }
-    void dismiss_dialog();
-    void accept_dialog();
+    void dismiss_dialog(JS::GCPtr<JS::HeapFunction<void()>> on_dialog_closed = nullptr);
+    void accept_dialog(JS::GCPtr<JS::HeapFunction<void()>> on_dialog_closed = nullptr);
 
     void did_request_color_picker(WeakPtr<HTML::HTMLInputElement> target, Color current_color);
     void color_picker_update(Optional<Color> picked_color, HTML::ColorPickerUpdateState state);
@@ -164,8 +167,8 @@ public:
         Select,
     };
 
-    void register_media_element(Badge<HTML::HTMLMediaElement>, int media_id);
-    void unregister_media_element(Badge<HTML::HTMLMediaElement>, int media_id);
+    void register_media_element(Badge<HTML::HTMLMediaElement>, UniqueNodeID media_id);
+    void unregister_media_element(Badge<HTML::HTMLMediaElement>, UniqueNodeID media_id);
 
     struct MediaContextMenu {
         URL::URL media_url;
@@ -175,7 +178,7 @@ public:
         bool has_user_agent_controls { false };
         bool is_looping { false };
     };
-    void did_request_media_context_menu(i32 media_id, CSSPixelPoint, ByteString const& target, unsigned modifiers, MediaContextMenu);
+    void did_request_media_context_menu(UniqueNodeID media_id, CSSPixelPoint, ByteString const& target, unsigned modifiers, MediaContextMenu);
     WebIDL::ExceptionOr<void> toggle_media_play_state();
     void toggle_media_mute_state();
     WebIDL::ExceptionOr<void> toggle_media_loop_state();
@@ -224,6 +227,8 @@ private:
     FindInPageResult perform_find_in_page_query(FindInPageQuery const&, Optional<SearchDirection> = {});
     void update_find_in_page_selection(Vector<JS::Handle<DOM::Range>> matches);
 
+    void on_pending_dialog_closed();
+
     JS::NonnullGCPtr<PageClient> m_client;
 
     WeakPtr<HTML::Navigable> m_focused_navigable;
@@ -243,18 +248,20 @@ private:
 
     DevicePixelPoint m_window_position {};
     DevicePixelSize m_window_size {};
+    JS::GCPtr<JS::HeapFunction<void(DevicePixelRect)>> m_window_rect_observer;
 
     PendingDialog m_pending_dialog { PendingDialog::None };
     Optional<String> m_pending_dialog_text;
     Optional<Empty> m_pending_alert_response;
     Optional<bool> m_pending_confirm_response;
     Optional<Optional<String>> m_pending_prompt_response;
+    JS::GCPtr<JS::HeapFunction<void()>> m_on_pending_dialog_closed;
 
     PendingNonBlockingDialog m_pending_non_blocking_dialog { PendingNonBlockingDialog::None };
     WeakPtr<HTML::HTMLElement> m_pending_non_blocking_dialog_target;
 
-    Vector<int> m_media_elements;
-    Optional<int> m_media_context_menu_element_id;
+    Vector<UniqueNodeID> m_media_elements;
+    Optional<UniqueNodeID> m_media_context_menu_element_id;
 
     Web::HTML::MuteState m_mute_state { Web::HTML::MuteState::Unmuted };
 
@@ -307,12 +314,12 @@ public:
     virtual void page_did_request_navigate_back() { }
     virtual void page_did_request_navigate_forward() { }
     virtual void page_did_request_refresh() { }
-    virtual Gfx::IntSize page_did_request_resize_window(Gfx::IntSize) { return {}; }
-    virtual Gfx::IntPoint page_did_request_reposition_window(Gfx::IntPoint) { return {}; }
+    virtual void page_did_request_resize_window(Gfx::IntSize) { }
+    virtual void page_did_request_reposition_window(Gfx::IntPoint) { }
     virtual void page_did_request_restore_window() { }
-    virtual Gfx::IntRect page_did_request_maximize_window() { return {}; }
-    virtual Gfx::IntRect page_did_request_minimize_window() { return {}; }
-    virtual Gfx::IntRect page_did_request_fullscreen_window() { return {}; }
+    virtual void page_did_request_maximize_window() { }
+    virtual void page_did_request_minimize_window() { }
+    virtual void page_did_request_fullscreen_window() { }
     virtual void page_did_start_loading(URL::URL const&, bool is_redirect) { (void)is_redirect; }
     virtual void page_did_create_new_document(Web::DOM::Document&) { }
     virtual void page_did_change_active_document_in_top_level_browsing_context(Web::DOM::Document&) { }
@@ -343,6 +350,7 @@ public:
     virtual String page_did_request_cookie(URL::URL const&, Cookie::Source) { return {}; }
     virtual void page_did_set_cookie(URL::URL const&, Cookie::ParsedCookie const&, Cookie::Source) { }
     virtual void page_did_update_cookie(Web::Cookie::Cookie) { }
+    virtual void page_did_expire_cookies_with_time_offset(AK::Duration) { }
     virtual void page_did_update_resource_count(i32) { }
     struct NewWebViewResult {
         JS::GCPtr<Page> page;
@@ -361,7 +369,7 @@ public:
     virtual void page_did_request_file_picker([[maybe_unused]] HTML::FileFilter accepted_file_types, Web::HTML::AllowMultipleFiles) { }
     virtual void page_did_request_select_dropdown([[maybe_unused]] Web::CSSPixelPoint content_position, [[maybe_unused]] Web::CSSPixels minimum_width, [[maybe_unused]] Vector<Web::HTML::SelectItem> items) { }
 
-    virtual void page_did_finish_text_test() { }
+    virtual void page_did_finish_text_test([[maybe_unused]] String const& text) { }
 
     virtual void page_did_change_theme_color(Gfx::Color) { }
 
@@ -372,18 +380,17 @@ public:
     virtual IPC::File request_worker_agent() { return IPC::File {}; }
 
     virtual void inspector_did_load() { }
-    virtual void inspector_did_select_dom_node([[maybe_unused]] i32 node_id, [[maybe_unused]] Optional<CSS::Selector::PseudoElement::Type> const& pseudo_element) { }
-    virtual void inspector_did_set_dom_node_text([[maybe_unused]] i32 node_id, [[maybe_unused]] String const& text) { }
-    virtual void inspector_did_set_dom_node_tag([[maybe_unused]] i32 node_id, [[maybe_unused]] String const& tag) { }
-    virtual void inspector_did_add_dom_node_attributes([[maybe_unused]] i32 node_id, [[maybe_unused]] JS::NonnullGCPtr<DOM::NamedNodeMap> attributes) { }
-    virtual void inspector_did_replace_dom_node_attribute([[maybe_unused]] i32 node_id, [[maybe_unused]] size_t attribute_index, [[maybe_unused]] JS::NonnullGCPtr<DOM::NamedNodeMap> replacement_attributes) { }
-    virtual void inspector_did_request_dom_tree_context_menu([[maybe_unused]] i32 node_id, [[maybe_unused]] CSSPixelPoint position, [[maybe_unused]] String const& type, [[maybe_unused]] Optional<String> const& tag, [[maybe_unused]] Optional<size_t> const& attribute_index) { }
+    virtual void inspector_did_select_dom_node([[maybe_unused]] UniqueNodeID node_id, [[maybe_unused]] Optional<CSS::Selector::PseudoElement::Type> const& pseudo_element) { }
+    virtual void inspector_did_set_dom_node_text([[maybe_unused]] UniqueNodeID node_id, [[maybe_unused]] String const& text) { }
+    virtual void inspector_did_set_dom_node_tag([[maybe_unused]] UniqueNodeID node_id, [[maybe_unused]] String const& tag) { }
+    virtual void inspector_did_add_dom_node_attributes([[maybe_unused]] UniqueNodeID node_id, [[maybe_unused]] JS::NonnullGCPtr<DOM::NamedNodeMap> attributes) { }
+    virtual void inspector_did_replace_dom_node_attribute([[maybe_unused]] UniqueNodeID node_id, [[maybe_unused]] size_t attribute_index, [[maybe_unused]] JS::NonnullGCPtr<DOM::NamedNodeMap> replacement_attributes) { }
+    virtual void inspector_did_request_dom_tree_context_menu([[maybe_unused]] UniqueNodeID node_id, [[maybe_unused]] CSSPixelPoint position, [[maybe_unused]] String const& type, [[maybe_unused]] Optional<String> const& tag, [[maybe_unused]] Optional<size_t> const& attribute_index) { }
     virtual void inspector_did_request_cookie_context_menu([[maybe_unused]] size_t cookie_index, [[maybe_unused]] CSSPixelPoint position) { }
     virtual void inspector_did_request_style_sheet_source([[maybe_unused]] CSS::StyleSheetIdentifier const& identifier) { }
     virtual void inspector_did_execute_console_script([[maybe_unused]] String const& script) { }
     virtual void inspector_did_export_inspector_html([[maybe_unused]] String const& html) { }
 
-    virtual void schedule_repaint() = 0;
     virtual bool is_ready_to_paint() const = 0;
 
     virtual DisplayListPlayerType display_list_player_type() const = 0;

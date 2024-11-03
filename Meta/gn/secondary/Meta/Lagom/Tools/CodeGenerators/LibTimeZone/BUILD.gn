@@ -1,6 +1,0 @@
-import("//Meta/Lagom/Tools/lagom_tool.gni")
-
-lagom_tool("GenerateTimeZoneData") {
-  sources = [ "GenerateTimeZoneData.cpp" ]
-  deps = [ "//Userland/Libraries/LibMain" ]
-}

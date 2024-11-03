@@ -1,0 +1,12 @@
+<script src="../include.js"></script>
+<canvas id="c" width=300 height=300></canvas>
+<script>
+    test(() => {
+        let x = c.getContext("2d");
+        x.fillStyle = 'green';
+        println(x.fillStyle);
+        x.fillStyle = 'rgba(255, 0, 0, ';
+        println(x.fillStyle);
+        c.remove();
+    });
+</script>

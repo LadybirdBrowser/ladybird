@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020, Andreas Kling <kling@serenityos.org>
+ * Copyright (c) 2020, Andreas Kling <andreas@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -124,6 +124,12 @@ class NonnullOwnPtr;
 
 template<typename T>
 class Optional;
+
+template<>
+class Optional<String>;
+
+template<>
+class Optional<FlyString>;
 
 template<typename T>
 class RefPtr;

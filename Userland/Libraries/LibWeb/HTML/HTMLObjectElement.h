@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020, Andreas Kling <kling@serenityos.org>
+ * Copyright (c) 2020, Andreas Kling <andreas@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -56,7 +56,9 @@ private:
 
     virtual void initialize(JS::Realm&) override;
 
-    virtual JS::GCPtr<Layout::Node> create_layout_node(NonnullRefPtr<CSS::StyleProperties>) override;
+    virtual void apply_presentational_hints(CSS::StyleProperties&) const override;
+
+    virtual JS::GCPtr<Layout::Node> create_layout_node(CSS::StyleProperties) override;
 
     bool has_ancestor_media_element_or_object_element_not_showing_fallback_content() const;
 

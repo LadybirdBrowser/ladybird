@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022-2023, Andreas Kling <kling@serenityos.org>
+ * Copyright (c) 2022-2023, Andreas Kling <andreas@ladybird.org>
  * Copyright (c) 2022, Matthew Costa <ucosty@gmail.com>
  * Copyright (c) 2022, Filiph Sandström <filiph.sandstrom@filfatstudios.com>
  * Copyright (c) 2023, Linus Groh <linusg@serenityos.org>
@@ -100,6 +100,12 @@ BrowserWindow::BrowserWindow(Vector<URL::URL> const& initial_urls, IsPopupWindow
     QObject::connect(Settings::the(), &Settings::enable_do_not_track_changed, this, [this](bool enable) {
         for_each_tab([enable](auto& tab) {
             tab.set_enable_do_not_track(enable);
+        });
+    });
+
+    QObject::connect(Settings::the(), &Settings::enable_autoplay_changed, this, [this](bool enable) {
+        for_each_tab([enable](auto& tab) {
+            tab.set_enable_autoplay(enable);
         });
     });
 
@@ -435,6 +441,7 @@ BrowserWindow::BrowserWindow(Vector<URL::URL> const& initial_urls, IsPopupWindow
 
     m_show_line_box_borders_action = new QAction("Show Line Box Borders", this);
     m_show_line_box_borders_action->setCheckable(true);
+    m_show_line_box_borders_action->setIcon(load_icon_from_uri("resource://icons/16x16/box.png"sv));
     debug_menu->addAction(m_show_line_box_borders_action);
     QObject::connect(m_show_line_box_borders_action, &QAction::triggered, this, [this] {
         bool state = m_show_line_box_borders_action->isChecked();
@@ -801,26 +808,6 @@ void BrowserWindow::initialize_tab(Tab* tab)
         (void)modifiers;
     };
 
-    tab->view().on_get_all_cookies = [](auto const& url) {
-        return WebView::Application::cookie_jar().get_all_cookies(url);
-    };
-
-    tab->view().on_get_named_cookie = [](auto const& url, auto const& name) {
-        return WebView::Application::cookie_jar().get_named_cookie(url, name);
-    };
-
-    tab->view().on_get_cookie = [](auto& url, auto source) {
-        return WebView::Application::cookie_jar().get_cookie(url, source);
-    };
-
-    tab->view().on_set_cookie = [](auto& url, auto& cookie, auto source) {
-        WebView::Application::cookie_jar().set_cookie(url, cookie, source);
-    };
-
-    tab->view().on_update_cookie = [](auto const& cookie) {
-        WebView::Application::cookie_jar().update_cookie(cookie);
-    };
-
     m_tabs_container->setTabIcon(m_tabs_container->indexOf(tab), tab->favicon());
     create_close_button_for_tab(tab);
 
@@ -838,6 +825,7 @@ void BrowserWindow::initialize_tab(Tab* tab)
     tab->set_preferred_languages(preferred_languages);
     tab->set_navigator_compatibility_mode(navigator_compatibility_mode());
     tab->set_enable_do_not_track(Settings::the()->enable_do_not_track());
+    tab->set_enable_autoplay(WebView::Application::web_content_options().enable_autoplay == WebView::EnableAutoplay::Yes || Settings::the()->enable_autoplay());
     tab->view().set_preferred_color_scheme(m_preferred_color_scheme);
 }
 
@@ -1180,7 +1168,7 @@ void BrowserWindow::resizeEvent(QResizeEvent* event)
     QWidget::resizeEvent(event);
 
     for_each_tab([&](auto& tab) {
-        tab.view().set_window_size({ frameSize().width() * m_device_pixel_ratio, frameSize().height() * m_device_pixel_ratio });
+        tab.view().set_window_size({ width(), height() });
     });
 }
 
@@ -1189,7 +1177,7 @@ void BrowserWindow::moveEvent(QMoveEvent* event)
     QWidget::moveEvent(event);
 
     for_each_tab([&](auto& tab) {
-        tab.view().set_window_position({ event->pos().x() * m_device_pixel_ratio, event->pos().y() * m_device_pixel_ratio });
+        tab.view().set_window_position({ x(), y() });
     });
 }
 

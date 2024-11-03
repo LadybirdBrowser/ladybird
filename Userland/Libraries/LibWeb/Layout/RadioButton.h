@@ -6,7 +6,7 @@
 
 #pragma once
 
-#include <LibWeb/HTML/HTMLInputElement.h>
+#include <LibWeb/Forward.h>
 #include <LibWeb/Layout/FormAssociatedLabelableNode.h>
 
 namespace Web::Layout {
@@ -16,7 +16,7 @@ class RadioButton final : public FormAssociatedLabelableNode {
     JS_DECLARE_ALLOCATOR(RadioButton);
 
 public:
-    RadioButton(DOM::Document&, HTML::HTMLInputElement&, NonnullRefPtr<CSS::StyleProperties>);
+    RadioButton(DOM::Document&, HTML::HTMLInputElement&, CSS::StyleProperties);
     virtual ~RadioButton() override;
 
 private:

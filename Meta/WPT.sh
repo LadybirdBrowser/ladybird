@@ -4,29 +4,40 @@ set -e
 
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
-LADYBIRD_SOURCE_DIR="$(realpath "${DIR}"/..)"
-WPT_SOURCE_DIR=${WPT_SOURCE_DIR:-"${LADYBIRD_SOURCE_DIR}/Tests/LibWeb/WPT/wpt"}
-WPT_REPOSITORY_URL=${WPT_REPOSITORY_URL:-"https://github.com/web-platform-tests/wpt.git"}
-
 # shellcheck source=/dev/null
 . "${DIR}/shell_include.sh"
 
+ensure_ladybird_source_dir
+
+WPT_SOURCE_DIR=${WPT_SOURCE_DIR:-"${LADYBIRD_SOURCE_DIR}/Tests/LibWeb/WPT/wpt"}
+WPT_REPOSITORY_URL=${WPT_REPOSITORY_URL:-"https://github.com/web-platform-tests/wpt.git"}
+
+BUILD_PRESET=${BUILD_PRESET:-default}
+
+BUILD_DIR=$(get_build_dir "$BUILD_PRESET")
+
 default_binary_path() {
     if [ "$(uname -s)" = "Darwin" ]; then
-        echo "${LADYBIRD_SOURCE_DIR}/Build/ladybird/bin/Ladybird.app/Contents/MacOS/"
+        echo "${BUILD_DIR}/bin/Ladybird.app/Contents/MacOS"
     else
-        echo "${LADYBIRD_SOURCE_DIR}/Build/ladybird/bin/"
+        echo "${BUILD_DIR}/bin"
     fi
 }
+
+ladybird_git_hash() {
+    pushd "${LADYBIRD_SOURCE_DIR}" > /dev/null
+        git rev-parse --short HEAD
+    popd > /dev/null
+}
+
 LADYBIRD_BINARY=${LADYBIRD_BINARY:-"$(default_binary_path)/Ladybird"}
 WEBDRIVER_BINARY=${WEBDRIVER_BINARY:-"$(default_binary_path)/WebDriver"}
 WPT_PROCESSES=${WPT_PROCESSES:-$(get_number_of_processing_units)}
 WPT_CERTIFICATES=(
   "tools/certs/cacert.pem"
-  "${LADYBIRD_SOURCE_DIR}/Build/ladybird/Lagom/cacert.pem"
+  "${BUILD_DIR}/Lagom/cacert.pem"
 )
-WPT_ARGS=( "--binary=${LADYBIRD_BINARY}"
-           "--webdriver-binary=${WEBDRIVER_BINARY}"
+WPT_ARGS=( "--webdriver-binary=${WEBDRIVER_BINARY}"
            "--install-webdriver"
             "--processes=${WPT_PROCESSES}"
            "--webdriver-arg=--force-cpu-painting"
@@ -76,23 +87,39 @@ if [ "$CMD" = "--help" ] || [ "$CMD" = "help" ]; then
     exit 0
 fi
 
+set_logging_flags()
+{
+    [ -n "${1}" ] || usage;
+    [ -n "${2}" ] || usage;
+
+    log_type="${1}"
+    log_name="$(absolutize_path "${2}")"
+
+    WPT_ARGS+=( "${log_type}=${log_name}" )
+}
+
 ARG=$1
-while [[ "$ARG" =~ ^--log(-(raw|unittest|xunit|html|mach|tbpl|grouped|chromium|wptreport|wptscreenshot))?$ ]]; do
+while [[ "$ARG" =~ ^(--headless|(--log(-(raw|unittest|xunit|html|mach|tbpl|grouped|chromium|wptreport|wptscreenshot))?))$ ]]; do
     case "$ARG" in
+        --headless)
+            LADYBIRD_BINARY="$(default_binary_path)/headless-browser"
+            WPT_ARGS+=( "--webdriver-arg=--headless" )
+            ;;
         --log)
-            LOG_TYPE="--log-raw"
+            set_logging_flags "--log-raw" "${2}"
+            shift
             ;;
         *)
-            LOG_TYPE="$ARG"
+            set_logging_flags "${ARG}" "${2}"
+            shift
             ;;
     esac
-    shift
-    LOG_NAME="$(pwd -P)/$1"
-    [ -n "$LOG_NAME" ] || usage;
-    WPT_ARGS+=( "${LOG_TYPE}=${LOG_NAME}" )
+
     shift
     ARG=$1
 done
+
+WPT_ARGS+=( "--binary=${LADYBIRD_BINARY}" )
 TEST_LIST=( "$@" )
 
 exit_if_running_as_root "Do not run WPT.sh as root"
@@ -132,7 +159,8 @@ execute_wpt() {
             fi
             WPT_ARGS+=( "--webdriver-arg=--certificate=${certificate_path}" )
         done
-        QT_QPA_PLATFORM="offscreen" ./wpt run "${WPT_ARGS[@]}" ladybird "${TEST_LIST[@]}"
+        echo QT_QPA_PLATFORM="offscreen" LADYBIRD_GIT_VERSION="$(ladybird_git_hash)" ./wpt run "${WPT_ARGS[@]}" ladybird "${TEST_LIST[@]}"
+        QT_QPA_PLATFORM="offscreen" LADYBIRD_GIT_VERSION="$(ladybird_git_hash)" ./wpt run "${WPT_ARGS[@]}" ladybird "${TEST_LIST[@]}"
     popd > /dev/null
 }
 
@@ -140,6 +168,15 @@ run_wpt() {
     ensure_wpt_repository
     build_ladybird_and_webdriver
     execute_wpt
+}
+
+serve_wpt()
+{
+    ensure_wpt_repository
+
+    pushd "${WPT_SOURCE_DIR}" > /dev/null
+        ./wpt serve
+    popd > /dev/null
 }
 
 compare_wpt() {
@@ -154,13 +191,16 @@ compare_wpt() {
     rm -rf "${METADATA_DIR}"
 }
 
-if [[ "$CMD" =~ ^(update|run|compare)$ ]]; then
+if [[ "$CMD" =~ ^(update|run|serve|compare)$ ]]; then
     case "$CMD" in
         update)
             update_wpt
             ;;
         run)
             run_wpt
+            ;;
+        serve)
+            serve_wpt
             ;;
         compare)
             INPUT_LOG_NAME="$(pwd -P)/$1"

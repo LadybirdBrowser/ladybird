@@ -1,0 +1,29 @@
+<script src="../include.js"></script>
+<script>
+    function dumpAudioParam(param) {
+        println(`${param} current: ${param.value}, default: ${param.defaultValue}, min: ${param.minValue}, max: ${param.maxValue}, rate: ${param.automationRate}`);
+    }
+
+    function dumpListenerParams(listener) {
+        dumpAudioParam(listener.positionX);
+        dumpAudioParam(listener.positionY);
+        dumpAudioParam(listener.positionZ);
+        dumpAudioParam(listener.forwardX);
+        dumpAudioParam(listener.forwardY);
+        dumpAudioParam(listener.forwardZ);
+        dumpAudioParam(listener.upX);
+        dumpAudioParam(listener.upY);
+        dumpAudioParam(listener.upZ);
+    }
+
+    test(() => {
+        const audioContext = new OfflineAudioContext(1, 5000, 44100);
+        dumpListenerParams(audioContext.listener);
+
+        // Modify params
+        audioContext.listener.setPosition(-1, 2.5, -3);
+        audioContext.listener.setOrientation(4, -5, 6, 7, -8, 9);
+
+        dumpListenerParams(audioContext.listener);
+    });
+</script>

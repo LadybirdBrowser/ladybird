@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020, Andreas Kling <kling@serenityos.org>
+ * Copyright (c) 2020, Andreas Kling <andreas@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -16,7 +16,7 @@ class FrameBox final : public ReplacedBox {
     JS_DECLARE_ALLOCATOR(FrameBox);
 
 public:
-    FrameBox(DOM::Document&, DOM::Element&, NonnullRefPtr<CSS::StyleProperties>);
+    FrameBox(DOM::Document&, DOM::Element&, CSS::StyleProperties);
     virtual ~FrameBox() override;
 
     virtual void prepare_for_replaced_layout() override;

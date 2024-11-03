@@ -61,7 +61,7 @@ URL::URL WorkerEnvironmentSettingsObject::api_base_url()
     return m_global_scope->url();
 }
 
-Origin WorkerEnvironmentSettingsObject::origin()
+URL::Origin WorkerEnvironmentSettingsObject::origin()
 {
     // FIXME: Return a unique opaque origin if worker global scope's url's scheme is "data", and inherited origin otherwise.
     return m_origin;

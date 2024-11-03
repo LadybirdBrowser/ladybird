@@ -59,7 +59,7 @@ JS::NonnullGCPtr<DOM::DOMTokenList> SVGAElement::rel_list()
     return *m_rel_list;
 }
 
-JS::GCPtr<Layout::Node> SVGAElement::create_layout_node(NonnullRefPtr<CSS::StyleProperties> style)
+JS::GCPtr<Layout::Node> SVGAElement::create_layout_node(CSS::StyleProperties style)
 {
     return heap().allocate_without_realm<Layout::SVGGraphicsBox>(document(), *this, move(style));
 }

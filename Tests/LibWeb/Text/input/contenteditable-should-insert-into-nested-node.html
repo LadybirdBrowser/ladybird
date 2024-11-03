@@ -1,0 +1,10 @@
+<script src="include.js"></script>
+<div id="editable" contenteditable="true"><p id="text">hello</p></div>
+<script>
+    test(() => {
+        const editable = document.getElementById('editable');
+        internals.sendText(editable, "!!!");
+        const text = document.getElementById('text');
+        println(text.textContent);
+    });
+</script>

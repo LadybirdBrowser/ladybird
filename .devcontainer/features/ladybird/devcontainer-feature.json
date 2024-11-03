@@ -9,6 +9,7 @@
             "proposals": [
                 17,
                 18,
+                19,
                 "trunk"
             ],
             "default": 18,

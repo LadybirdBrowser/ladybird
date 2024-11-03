@@ -1,0 +1,6 @@
+input data=(h) intputType=(insertText)
+input data=(e) intputType=(insertText)
+input data=(l) intputType=(insertText)
+input data=(l) intputType=(insertText)
+input data=(o) intputType=(insertText)
+input data=(null) intputType=(insertParagraph)

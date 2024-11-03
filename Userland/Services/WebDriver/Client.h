@@ -35,7 +35,11 @@ public:
 private:
     Client(NonnullOwnPtr<Core::BufferedTCPSocket>, LaunchBrowserCallbacks, Core::EventReceiver* parent);
 
-    ErrorOr<NonnullRefPtr<Session>, Web::WebDriver::Error> find_session_with_id(StringView session_id);
+    enum class AllowInvalidWindowHandle {
+        No,
+        Yes,
+    };
+    ErrorOr<NonnullRefPtr<Session>, Web::WebDriver::Error> find_session_with_id(StringView session_id, AllowInvalidWindowHandle = AllowInvalidWindowHandle::No);
 
     virtual Web::WebDriver::Response new_session(Web::WebDriver::Parameters parameters, JsonValue payload) override;
     virtual Web::WebDriver::Response delete_session(Web::WebDriver::Parameters parameters, JsonValue payload) override;

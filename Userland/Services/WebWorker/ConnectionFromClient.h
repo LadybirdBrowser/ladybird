@@ -36,12 +36,12 @@ public:
     PageHost const& page_host() const { return *m_page_host; }
 
 private:
-    explicit ConnectionFromClient(NonnullOwnPtr<Core::LocalSocket>);
+    explicit ConnectionFromClient(IPC::Transport);
 
     Web::Page& page();
     Web::Page const& page() const;
 
-    virtual void start_dedicated_worker(URL::URL const& url, String const& type, String const&, String const& name, Web::HTML::TransferDataHolder const&, Web::HTML::SerializedEnvironmentSettingsObject const&) override;
+    virtual void start_dedicated_worker(URL::URL const& url, Web::Bindings::WorkerType const& type, Web::Bindings::RequestCredentials const& credentials, String const& name, Web::HTML::TransferDataHolder const&, Web::HTML::SerializedEnvironmentSettingsObject const&) override;
     virtual void handle_file_return(i32 error, Optional<IPC::File> const& file, i32 request_id) override;
 
     JS::Handle<PageHost> m_page_host;

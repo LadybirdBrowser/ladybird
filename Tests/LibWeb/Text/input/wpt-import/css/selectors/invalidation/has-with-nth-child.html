@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>CSS Selectors Test: :has(:nth-child()) invalidation for sibling change</title>
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<link rel="help" href="https://drafts.csswg.org/selectors/#relational">
+<style>
+  #test-container > div { background-color: green; }
+  #target1:has(.item:nth-child(3)) { background-color: red; }
+  #target2:has(.item:nth-last-child(3)) { background-color: red; }
+  #target3:has(.item:nth-child(3) > .child) { background-color: red; }
+  #target4:has(.item:nth-last-child(3) > .child) { background-color: red; }
+</style>
+<div id="test-container">
+  <div id="target1">
+    <div class="item" id="item1">FAIL if you see this text</div>
+    <div class="item"></div>
+    <div class="item">This text should have a green background</div>
+  </div>
+  <div id="target2">
+    <div class="item">This text should have a green background</div>
+    <div class="item"></div>
+    <div class="item" id="item2">FAIL if you see this text</div>
+  </div>
+  <div id="target3">
+    <div class="item" id="item3">FAIL if you see this text</div>
+    <div class="item"></div>
+    <div class="item">
+      <span class="child">This text should have a green background<span>
+    </div>
+  </div>
+  <div id="target4">
+    <div class="item">
+      <span class="child">This text should have a green background<span>
+    </div>
+    <div class="item"></div>
+    <div class="item" id="item4">FAIL if you see this text</div>
+  </div>
+</div>
+<script>
+  test(() => {
+    assert_equals(getComputedStyle(target1).backgroundColor, "rgb(255, 0, 0)");
+    assert_equals(getComputedStyle(target2).backgroundColor, "rgb(255, 0, 0)");
+    assert_equals(getComputedStyle(target3).backgroundColor, "rgb(255, 0, 0)");
+    assert_equals(getComputedStyle(target4).backgroundColor, "rgb(255, 0, 0)");
+  }, "Initially red");
+
+  test(() => {
+    item1.remove();
+    assert_equals(getComputedStyle(target1).backgroundColor, "rgb(0, 128, 0)");
+  }, ":nth-child() no longer matching after removal");
+
+  test(() => {
+    item2.remove();
+    assert_equals(getComputedStyle(target2).backgroundColor, "rgb(0, 128, 0)");
+  }, ":nth-last-child() no longer matching after removal");
+
+  test(() => {
+    item3.remove();
+    assert_equals(getComputedStyle(target3).backgroundColor, "rgb(0, 128, 0)");
+  }, ":nth-child() in non-subject no longer matching after removal");
+
+  test(() => {
+    item4.remove();
+    assert_equals(getComputedStyle(target4).backgroundColor, "rgb(0, 128, 0)");
+  }, ":nth-last-child() in non-subject no longer matching after removal");
+</script>

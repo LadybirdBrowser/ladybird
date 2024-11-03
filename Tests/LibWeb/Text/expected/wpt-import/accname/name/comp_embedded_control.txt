@@ -1,0 +1,36 @@
+Summary
+
+Harness status: OK
+
+Rerun
+
+Found 26 tests
+
+26 Pass
+Details
+Result	Test Name	MessagePass	checkbox label with embedded textfield	
+Pass	label of embedded textfield inside checkbox label	
+Pass	checkbox label with embedded select:not([size])	
+Pass	label of embedded select:not([size]) inside checkbox label	
+Pass	checkbox label with embedded select[size]	
+Pass	label of embedded select[size] inside checkbox label	
+Pass	checkbox label with embedded combobox (input[type=text])	
+Pass	label of embedded combobox (input[type=text]) inside checkbox label	
+Pass	checkbox label with embedded combobox (span)	
+Pass	label of embedded combobox (span) inside checkbox label	
+Pass	checkbox label with embedded combobox (div)	
+Pass	label of embedded combobox (div) inside checkbox label	
+Pass	checkbox label with embedded listbox>option[aria-selected=true]	
+Pass	label of embedded listbox>option[aria-selected=true] inside checkbox label	
+Pass	checkbox label with embedded input[type=range]	
+Pass	label of embedded input[type=range] inside checkbox label	
+Pass	checkbox label with embedded input[type=number]	
+Pass	label of embedded input[type=number] inside checkbox label	
+Pass	checkbox label with embedded ARIA slider (aria-valuenow)	
+Pass	label of embedded ARIA slider (aria-valuenow) inside checkbox label	
+Pass	checkbox label with embedded ARIA slider (aria-valuetext)	
+Pass	label of embedded ARIA slider (aria-valuetext) inside checkbox label	
+Pass	checkbox label with embedded ARIA spinbutton (aria-valuenow)	
+Pass	label of embedded ARIA spinbutton (aria-valuenow) inside checkbox label	
+Pass	checkbox label with embedded ARIA spinbutton (aria-valuetext)	
+Pass	label of embedded ARIA spinbutton (aria-valuetext) inside checkbox label	

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022, Andreas Kling <kling@serenityos.org>
+ * Copyright (c) 2022, Andreas Kling <andreas@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -22,6 +22,8 @@ public:
     virtual void after_children_paint(PaintContext&, PaintPhase) const override;
 
     Layout::SVGSVGBox const& layout_box() const;
+
+    static void paint_descendants(PaintContext& context, PaintableBox const& paintable, PaintPhase phase);
 
 protected:
     SVGSVGPaintable(Layout::SVGSVGBox const&);

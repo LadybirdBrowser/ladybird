@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022-2023, Andreas Kling <kling@serenityos.org>
+ * Copyright (c) 2022-2023, Andreas Kling <andreas@ladybird.org>
  * Copyright (c) 2023, Linus Groh <linusg@serenityos.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
@@ -20,7 +20,6 @@
 #include <LibCore/Resource.h>
 #include <LibCore/Timer.h>
 #include <LibGfx/Bitmap.h>
-#include <LibGfx/DeprecatedPainter.h>
 #include <LibGfx/Font/FontDatabase.h>
 #include <LibGfx/ImageFormats/PNGWriter.h>
 #include <LibGfx/Palette.h>
@@ -29,7 +28,6 @@
 #include <LibWeb/Crypto/Crypto.h>
 #include <LibWeb/UIEvents/KeyCode.h>
 #include <LibWeb/UIEvents/MouseButton.h>
-#include <LibWeb/Worker/WebWorkerClient.h>
 #include <LibWebView/Application.h>
 #include <LibWebView/WebContentClient.h>
 #include <QApplication>
@@ -135,12 +133,9 @@ WebContentView::WebContentView(QWidget* window, RefPtr<WebView::WebContentClient
     };
 
     on_request_worker_agent = [&]() {
-        RefPtr<Requests::RequestClient> request_server_client {};
-        if (WebView::Application::web_content_options().use_lagom_networking == WebView::UseLagomNetworking::Yes)
-            request_server_client = static_cast<Ladybird::Application*>(QApplication::instance())->request_server_client;
-
-        auto worker_client = MUST(launch_web_worker_process(MUST(get_paths_for_helper_process("WebWorker"sv)), request_server_client));
-        return worker_client->dup_socket();
+        auto& request_server_client = static_cast<Ladybird::Application*>(QApplication::instance())->request_server_client;
+        auto worker_client = MUST(launch_web_worker_process(MUST(get_paths_for_helper_process("WebWorker"sv)), *request_server_client));
+        return worker_client->clone_transport();
     };
 
     m_select_dropdown = new QMenu("Select Dropdown", this);
@@ -247,8 +242,6 @@ static Web::UIEvents::KeyModifier get_modifiers_from_qt_key_event(QKeyEvent cons
         modifiers |= Web::UIEvents::KeyModifier::Mod_Super;
     if (event.modifiers().testFlag(Qt::ShiftModifier))
         modifiers |= Web::UIEvents::KeyModifier::Mod_Shift;
-    if (event.modifiers().testFlag(Qt::AltModifier))
-        modifiers |= Web::UIEvents::KeyModifier::Mod_AltGr;
     if (event.modifiers().testFlag(Qt::KeypadModifier))
         modifiers |= Web::UIEvents::KeyModifier::Mod_Keypad;
     return modifiers;
@@ -267,8 +260,12 @@ static Web::UIEvents::KeyCode get_keycode_from_qt_key_event(QKeyEvent const& eve
         Web::UIEvents::KeyCode serenity_key;
     };
 
+    // FIXME: Qt does not differentiate between left-and-right modifier keys. Unfortunately, it seems like we would have
+    //        to inspect event.nativeScanCode() / event.nativeVirtualKey() to do so, which has platform-dependent values.
+    //        For now, we default to left keys.
+
     // https://doc.qt.io/qt-6/qt.html#Key-enum
-    constexpr Mapping mappings[] = {
+    static constexpr Mapping mappings[] = {
         { Qt::Key_0, Web::UIEvents::Key_0 },
         { Qt::Key_1, Web::UIEvents::Key_1 },
         { Qt::Key_2, Web::UIEvents::Key_2 },
@@ -280,7 +277,7 @@ static Web::UIEvents::KeyCode get_keycode_from_qt_key_event(QKeyEvent const& eve
         { Qt::Key_8, Web::UIEvents::Key_8 },
         { Qt::Key_9, Web::UIEvents::Key_9 },
         { Qt::Key_A, Web::UIEvents::Key_A },
-        { Qt::Key_Alt, Web::UIEvents::Key_Alt },
+        { Qt::Key_Alt, Web::UIEvents::Key_LeftAlt },
         { Qt::Key_Ampersand, Web::UIEvents::Key_Ampersand },
         { Qt::Key_Apostrophe, Web::UIEvents::Key_Apostrophe },
         { Qt::Key_AsciiCircum, Web::UIEvents::Key_Circumflex },
@@ -299,7 +296,7 @@ static Web::UIEvents::KeyCode get_keycode_from_qt_key_event(QKeyEvent const& eve
         { Qt::Key_CapsLock, Web::UIEvents::Key_CapsLock },
         { Qt::Key_Colon, Web::UIEvents::Key_Colon },
         { Qt::Key_Comma, Web::UIEvents::Key_Comma },
-        { Qt::Key_Control, Web::UIEvents::Key_Control },
+        { Qt::Key_Control, Web::UIEvents::Key_LeftControl },
         { Qt::Key_D, Web::UIEvents::Key_D },
         { Qt::Key_Delete, Web::UIEvents::Key_Delete },
         { Qt::Key_Dollar, Web::UIEvents::Key_Dollar },
@@ -337,7 +334,7 @@ static Web::UIEvents::KeyCode get_keycode_from_qt_key_event(QKeyEvent const& eve
         { Qt::Key_Less, Web::UIEvents::Key_LessThan },
         { Qt::Key_M, Web::UIEvents::Key_M },
         { Qt::Key_Menu, Web::UIEvents::Key_Menu },
-        { Qt::Key_Meta, Web::UIEvents::Key_Super },
+        { Qt::Key_Meta, Web::UIEvents::Key_LeftSuper },
         { Qt::Key_Minus, Web::UIEvents::Key_Minus },
         { Qt::Key_N, Web::UIEvents::Key_N },
         { Qt::Key_NumberSign, Web::UIEvents::Key_Hashtag },
@@ -365,8 +362,8 @@ static Web::UIEvents::KeyCode get_keycode_from_qt_key_event(QKeyEvent const& eve
         { Qt::Key_Shift, Web::UIEvents::Key_LeftShift },
         { Qt::Key_Slash, Web::UIEvents::Key_Slash },
         { Qt::Key_Space, Web::UIEvents::Key_Space },
-        { Qt::Key_Super_L, Web::UIEvents::Key_Super },
-        { Qt::Key_Super_R, Web::UIEvents::Key_Super },
+        { Qt::Key_Super_L, Web::UIEvents::Key_LeftSuper },
+        { Qt::Key_Super_R, Web::UIEvents::Key_RightSuper },
         { Qt::Key_SysReq, Web::UIEvents::Key_SysRq },
         { Qt::Key_T, Web::UIEvents::Key_T },
         { Qt::Key_Tab, Web::UIEvents::Key_Tab },
@@ -431,13 +428,10 @@ void WebContentView::mouseReleaseEvent(QMouseEvent* event)
 {
     enqueue_native_event(Web::MouseEvent::Type::MouseUp, *event);
 
-    if (event->button() == Qt::MouseButton::BackButton) {
-        if (on_navigate_back)
-            on_navigate_back();
-    } else if (event->button() == Qt::MouseButton::ForwardButton) {
-        if (on_navigate_forward)
-            on_navigate_forward();
-    }
+    if (event->button() == Qt::MouseButton::BackButton)
+        traverse_the_history_by_delta(-1);
+    else if (event->button() == Qt::MouseButton::ForwardButton)
+        traverse_the_history_by_delta(1);
 }
 
 void WebContentView::wheelEvent(QWheelEvent* event)
@@ -542,16 +536,6 @@ void WebContentView::set_viewport_rect(Gfx::IntRect rect)
     client().async_set_viewport_size(m_client_state.page_index, rect.size().to_type<Web::DevicePixels>());
 }
 
-void WebContentView::set_window_size(Gfx::IntSize size)
-{
-    client().async_set_window_size(m_client_state.page_index, size.to_type<Web::DevicePixels>());
-}
-
-void WebContentView::set_window_position(Gfx::IntPoint position)
-{
-    client().async_set_window_position(m_client_state.page_index, position.to_type<Web::DevicePixels>());
-}
-
 void WebContentView::set_device_pixel_ratio(double device_pixel_ratio)
 {
     m_device_pixel_ratio = device_pixel_ratio;
@@ -650,14 +634,10 @@ void WebContentView::initialize_client(WebView::ViewImplementation::CreateNewCli
     if (create_new_client == CreateNewClient::Yes) {
         m_client_state = {};
 
-        Optional<IPC::File> request_server_socket;
-        if (WebView::Application::web_content_options().use_lagom_networking == WebView::UseLagomNetworking::Yes) {
-            auto& protocol = static_cast<Ladybird::Application*>(QApplication::instance())->request_server_client;
+        auto& request_server_client = static_cast<Ladybird::Application*>(QApplication::instance())->request_server_client;
 
-            // FIXME: Fail to open the tab, rather than crashing the whole application if this fails
-            auto socket = connect_new_request_server_client(*protocol).release_value_but_fixme_should_propagate_errors();
-            request_server_socket = AK::move(socket);
-        }
+        // FIXME: Fail to open the tab, rather than crashing the whole application if this fails
+        auto request_server_socket = connect_new_request_server_client(*request_server_client).release_value_but_fixme_should_propagate_errors();
 
         auto image_decoder = static_cast<Ladybird::Application*>(QApplication::instance())->image_decoder_client();
         auto image_decoder_socket = connect_new_image_decoder_client(*image_decoder).release_value_but_fixme_should_propagate_errors();
@@ -909,15 +889,15 @@ void WebContentView::enqueue_native_event(Web::KeyEvent::Type type, QKeyEvent co
     auto to_web_event = [&]() -> Web::KeyEvent {
         if (event.key() == Qt::Key_Backtab) {
             // Qt transforms Shift+Tab into a "Backtab", so we undo that transformation here.
-            return { type, Web::UIEvents::KeyCode::Key_Tab, Web::UIEvents::Mod_Shift, '\t', make<KeyData>(event) };
+            return { type, Web::UIEvents::KeyCode::Key_Tab, Web::UIEvents::Mod_Shift, '\t', event.isAutoRepeat(), make<KeyData>(event) };
         }
 
         if (event.key() == Qt::Key_Enter || event.key() == Qt::Key_Return) {
             // This ensures consistent behavior between systems that treat Enter as '\n' and '\r\n'
-            return { type, Web::UIEvents::KeyCode::Key_Return, Web::UIEvents::Mod_Shift, '\n', make<KeyData>(event) };
+            return { type, Web::UIEvents::KeyCode::Key_Return, Web::UIEvents::Mod_Shift, '\n', event.isAutoRepeat(), make<KeyData>(event) };
         }
 
-        return { type, keycode, modifiers, code_point, make<KeyData>(event) };
+        return { type, keycode, modifiers, code_point, event.isAutoRepeat(), make<KeyData>(event) };
     };
 
     enqueue_input_event(to_web_event());

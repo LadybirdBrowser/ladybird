@@ -26,6 +26,7 @@ public:
     virtual ~DedicatedWorkerGlobalScope() override;
 
     WebIDL::ExceptionOr<void> post_message(JS::Value message, StructuredSerializeOptions const&);
+    WebIDL::ExceptionOr<void> post_message(JS::Value message, Vector<JS::Handle<JS::Object>> const& transfer);
 
     void set_name(String name) { m_name = move(name); }
     String name() const { return m_name; }

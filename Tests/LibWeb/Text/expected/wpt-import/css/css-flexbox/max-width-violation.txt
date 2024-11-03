@@ -1,0 +1,12 @@
+Summary
+
+Harness status: OK
+
+Rerun
+
+Found 2 tests
+
+2 Pass
+Details
+Result	Test Name	MessagePass	.columns 1	
+Pass	.columns 2	

@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2021, Tim Flynn <trflynn89@serenityos.org>
- * Copyright (c) 2022, Andreas Kling <kling@serenityos.org>
+ * Copyright (c) 2022, Andreas Kling <andreas@ladybird.org>
  * Copyright (c) 2022, Alexander Narsudinov <a.narsudinov@gmail.com>
  *
  * SPDX-License-Identifier: BSD-2-Clause
@@ -65,7 +65,7 @@ Vector<FlyString> NamedNodeMap::supported_property_names() const
     if (associated_element().namespace_uri() == Namespace::HTML) {
         // 1. Let lowercaseName be name, in ASCII lowercase.
         // 2. If lowercaseName is not equal to name, remove name from names.
-        names.remove_all_matching([](auto const& name) { return name != MUST(Infra::to_ascii_lowercase(name)); });
+        names.remove_all_matching([](auto const& name) { return name != name.to_ascii_lowercase(); });
     }
 
     // 3. Return names.
@@ -214,7 +214,7 @@ WebIDL::ExceptionOr<JS::GCPtr<Attr>> NamedNodeMap::set_attribute(Attr& attribute
 {
     // 1. If attr’s element is neither null nor element, throw an "InUseAttributeError" DOMException.
     if ((attribute.owner_element() != nullptr) && (attribute.owner_element() != &associated_element()))
-        return WebIDL::InUseAttributeError::create(realm(), "Attribute must not already be in use"_fly_string);
+        return WebIDL::InUseAttributeError::create(realm(), "Attribute must not already be in use"_string);
 
     // 2. Let oldAttr be the result of getting an attribute given attr’s namespace, attr’s local name, and element.
     size_t old_attribute_index = 0;
@@ -342,7 +342,7 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<Attr>> NamedNodeMap::remove_attribute_node(
     // 1. If this’s attribute list does not contain attr, then throw a "NotFoundError" DOMException.
     auto index = m_attributes.find_first_index(attr);
     if (!index.has_value())
-        return WebIDL::NotFoundError::create(realm(), "Attribute not found"_fly_string);
+        return WebIDL::NotFoundError::create(realm(), "Attribute not found"_string);
 
     // 2. Remove attr.
     remove_attribute_at_index(index.value());

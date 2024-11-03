@@ -1,6 +1,7 @@
 /*
  * Copyright (c) 2021, Luke Wilde <lukew@serenityos.org>
  * Copyright (c) 2022, Linus Groh <linusg@serenityos.org>
+ * Copyright (c) 2024, Shannon Booth <shannon@serenityos.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -8,10 +9,10 @@
 #pragma once
 
 #include <LibJS/Forward.h>
+#include <LibURL/Origin.h>
 #include <LibURL/URL.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/HTML/EventLoop/EventLoop.h>
-#include <LibWeb/HTML/Origin.h>
 #include <LibWeb/HTML/Scripting/ModuleMap.h>
 #include <LibWeb/HTML/Scripting/SerializedEnvironmentSettingsObject.h>
 
@@ -34,7 +35,7 @@ public:
     URL::URL top_level_creation_url;
 
     // https://html.spec.whatwg.org/multipage/webappapis.html#concept-environment-top-level-origin
-    Origin top_level_origin;
+    URL::Origin top_level_origin;
 
     // https://html.spec.whatwg.org/multipage/webappapis.html#concept-environment-target-browsing-context
     JS::GCPtr<BrowsingContext> target_browsing_context;
@@ -63,6 +64,7 @@ public:
 
     // https://html.spec.whatwg.org/multipage/webappapis.html#concept-environment-target-browsing-context
     JS::ExecutionContext& realm_execution_context();
+    JS::ExecutionContext const& realm_execution_context() const;
 
     // https://html.spec.whatwg.org/multipage/webappapis.html#concept-settings-object-module-map
     ModuleMap& module_map();
@@ -77,7 +79,7 @@ public:
     virtual URL::URL api_base_url() = 0;
 
     // https://html.spec.whatwg.org/multipage/webappapis.html#concept-settings-object-origin
-    virtual Origin origin() = 0;
+    virtual URL::Origin origin() = 0;
 
     // A policy container https://html.spec.whatwg.org/multipage/webappapis.html#concept-settings-object-policy-container
     virtual PolicyContainer policy_container() = 0;
@@ -93,32 +95,6 @@ public:
 
     // https://fetch.spec.whatwg.org/#concept-fetch-group
     Vector<JS::NonnullGCPtr<Fetch::Infrastructure::FetchRecord>>& fetch_group() { return m_fetch_group; }
-
-    RunScriptDecision can_run_script();
-    void prepare_to_run_script();
-    void clean_up_after_running_script();
-
-    void prepare_to_run_callback();
-    void clean_up_after_running_callback();
-
-    void push_onto_outstanding_rejected_promises_weak_set(JS::Promise*);
-
-    // Returns true if removed, false otherwise.
-    bool remove_from_outstanding_rejected_promises_weak_set(JS::Promise*);
-
-    void push_onto_about_to_be_notified_rejected_promises_list(JS::NonnullGCPtr<JS::Promise>);
-
-    // Returns true if removed, false otherwise.
-    bool remove_from_about_to_be_notified_rejected_promises_list(JS::NonnullGCPtr<JS::Promise>);
-
-    void notify_about_rejected_promises(Badge<EventLoop>);
-
-    bool is_scripting_enabled() const;
-    bool is_scripting_disabled() const;
-
-    bool module_type_allowed(StringView module_type) const;
-
-    void disallow_further_import_maps();
 
     SerializedEnvironmentSettingsObject serialize();
 
@@ -138,13 +114,6 @@ private:
 
     JS::GCPtr<EventLoop> m_responsible_event_loop;
 
-    // https://html.spec.whatwg.org/multipage/webappapis.html#outstanding-rejected-promises-weak-set
-    // The outstanding rejected promises weak set must not create strong references to any of its members, and implementations are free to limit its size, e.g. by removing old entries from it when new ones are added.
-    Vector<JS::GCPtr<JS::Promise>> m_outstanding_rejected_promises_weak_set;
-
-    // https://html.spec.whatwg.org/multipage/webappapis.html#about-to-be-notified-rejected-promises-list
-    Vector<JS::Handle<JS::Promise>> m_about_to_be_notified_rejected_promises_list;
-
     // https://fetch.spec.whatwg.org/#concept-fetch-record
     // A fetch group holds an ordered list of fetch records
     Vector<JS::NonnullGCPtr<Fetch::Infrastructure::FetchRecord>> m_fetch_group;
@@ -158,11 +127,30 @@ private:
     bool m_discarded { false };
 };
 
+JS::ExecutionContext const& execution_context_of_realm(JS::Realm const&);
+inline JS::ExecutionContext& execution_context_of_realm(JS::Realm& realm) { return const_cast<JS::ExecutionContext&>(execution_context_of_realm(const_cast<JS::Realm const&>(realm))); }
+
+RunScriptDecision can_run_script(JS::Realm const&);
+bool is_scripting_enabled(JS::Realm const&);
+bool is_scripting_disabled(JS::Realm const&);
+void prepare_to_run_script(JS::Realm&);
+void clean_up_after_running_script(JS::Realm const&);
+void prepare_to_run_callback(JS::Realm&);
+void clean_up_after_running_callback(JS::Realm const&);
+ModuleMap& module_map_of_realm(JS::Realm&);
+bool module_type_allowed(JS::Realm const&, StringView module_type);
+void disallow_further_import_maps(JS::Realm&);
+
 EnvironmentSettingsObject& incumbent_settings_object();
 JS::Realm& incumbent_realm();
 JS::Object& incumbent_global_object();
-EnvironmentSettingsObject& current_settings_object();
-JS::Object& current_global_object();
+
+JS::Realm& current_principal_realm();
+EnvironmentSettingsObject& principal_realm_settings_object(JS::Realm&);
+EnvironmentSettingsObject& current_principal_settings_object();
+
+JS::Realm& principal_realm(JS::Realm&);
+JS::Object& current_principal_global_object();
 JS::Realm& relevant_realm(JS::Object const&);
 EnvironmentSettingsObject& relevant_settings_object(JS::Object const&);
 EnvironmentSettingsObject& relevant_settings_object(DOM::Node const&);

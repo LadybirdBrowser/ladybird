@@ -1,0 +1,18 @@
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const str = '\uD83D\uDC36'; // 🐶
+        let t = document.createTextNode(str);
+        println("Before substringData:");
+        for (let i = 0; i < t.length; ++i) {
+            println("[" + i + "]: " + t.data.charCodeAt(i));
+        }
+
+        // Break the surrogate pair
+        const invalidSubstring = t.substringData(0, 1);
+        println("After substringData(0, 1):");
+        for (let i = 0; i < invalidSubstring.length; ++i) {
+            println("[" + i + "]: " + invalidSubstring.charCodeAt(i));
+        }
+    });
+</script>

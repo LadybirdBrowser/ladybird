@@ -1,4 +1,4 @@
-  Testing window.document:
+Testing window.document:
 selectorText initial value: .green-background
 container element backgroundColor initial value: rgb(255, 0, 0)
 selectorText after setting selectorText value to #container: #container

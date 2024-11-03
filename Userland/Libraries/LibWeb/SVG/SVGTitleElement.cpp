@@ -25,7 +25,7 @@ void SVGTitleElement::initialize(JS::Realm& realm)
     WEB_SET_PROTOTYPE_FOR_INTERFACE(SVGTitleElement);
 }
 
-JS::GCPtr<Layout::Node> SVGTitleElement::create_layout_node(NonnullRefPtr<CSS::StyleProperties>)
+JS::GCPtr<Layout::Node> SVGTitleElement::create_layout_node(CSS::StyleProperties)
 {
     return nullptr;
 }

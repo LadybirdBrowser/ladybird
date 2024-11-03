@@ -91,44 +91,44 @@ ViewportPaintable (Viewport<#document>) [0,0 800x600]
     PaintableWithLines (BlockContainer<BODY>) [8,16 784x314] overflow: [8,16 784x330]
       PaintableWithLines (BlockContainer<DIV>) [8,16 784x149]
         PaintableWithLines (BlockContainer<P>) [8,16 784x17]
-          InlinePaintable (InlineNode(anonymous))
+          PaintableWithLines (InlineNode(anonymous))
             TextPaintable (TextNode<#text>)
           TextPaintable (TextNode<#text>)
         PaintableWithLines (BlockContainer<P>) [8,49 784x17]
-          InlinePaintable (InlineNode(anonymous))
+          PaintableWithLines (InlineNode(anonymous))
             TextPaintable (TextNode<#text>)
           TextPaintable (TextNode<#text>)
         PaintableWithLines (BlockContainer<P>) [8,82 784x17]
-          InlinePaintable (InlineNode(anonymous))
+          PaintableWithLines (InlineNode(anonymous))
             TextPaintable (TextNode<#text>)
           TextPaintable (TextNode<#text>)
         PaintableWithLines (BlockContainer<P>) [8,115 784x17]
-          InlinePaintable (InlineNode(anonymous))
+          PaintableWithLines (InlineNode(anonymous))
             TextPaintable (TextNode<#text>)
           TextPaintable (TextNode<#text>)
         PaintableWithLines (BlockContainer<P>) [8,148 784x17]
-          InlinePaintable (InlineNode(anonymous))
+          PaintableWithLines (InlineNode(anonymous))
             TextPaintable (TextNode<#text>)
           TextPaintable (TextNode<#text>)
       PaintableWithLines (BlockContainer<DIV>) [8,181 784x149]
         PaintableWithLines (BlockContainer<P>) [8,181 784x17]
-          InlinePaintable (InlineNode(anonymous))
+          PaintableWithLines (InlineNode(anonymous))
             TextPaintable (TextNode<#text>)
           TextPaintable (TextNode<#text>)
         PaintableWithLines (BlockContainer<P>) [8,214 784x17]
-          InlinePaintable (InlineNode(anonymous))
+          PaintableWithLines (InlineNode(anonymous))
             TextPaintable (TextNode<#text>)
           TextPaintable (TextNode<#text>)
         PaintableWithLines (BlockContainer<P>) [8,247 784x17]
-          InlinePaintable (InlineNode(anonymous))
+          PaintableWithLines (InlineNode(anonymous))
             TextPaintable (TextNode<#text>)
           TextPaintable (TextNode<#text>)
         PaintableWithLines (BlockContainer<P>) [8,280 784x17]
-          InlinePaintable (InlineNode(anonymous))
+          PaintableWithLines (InlineNode(anonymous))
             TextPaintable (TextNode<#text>)
           TextPaintable (TextNode<#text>)
         PaintableWithLines (BlockContainer<P>) [8,313 784x17]
-          InlinePaintable (InlineNode(anonymous))
+          PaintableWithLines (InlineNode(anonymous))
             TextPaintable (TextNode<#text>)
           TextPaintable (TextNode<#text>)
       PaintableWithLines (BlockContainer(anonymous)) [8,346 784x0]

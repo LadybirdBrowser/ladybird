@@ -154,8 +154,11 @@ public:
     }
 
     ByteCode(ByteCode const&) = default;
+    ByteCode(ByteCode&&) = default;
+
     virtual ~ByteCode() = default;
 
+    ByteCode& operator=(ByteCode const&) = default;
     ByteCode& operator=(ByteCode&&) = default;
     ByteCode& operator=(Base&& value)
     {
@@ -555,6 +558,7 @@ StringView execution_result_name(ExecutionResult result);
 StringView opcode_id_name(OpCodeId opcode_id);
 StringView boundary_check_type_name(BoundaryCheckType);
 StringView character_compare_type_name(CharacterCompareType result);
+StringView character_class_name(CharClass ch_class);
 
 class OpCode {
 public:

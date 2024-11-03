@@ -547,7 +547,6 @@ struct MatchInput {
     mutable Vector<size_t> saved_positions;
     mutable Vector<size_t> saved_code_unit_positions;
     mutable Vector<size_t> saved_forks_since_last_save;
-    mutable Vector<u64, 64> checkpoints;
     mutable Optional<size_t> fork_to_replace;
 };
 
@@ -562,6 +561,7 @@ struct MatchState {
     COWVector<Match> matches;
     COWVector<Vector<Match>> capture_group_matches;
     COWVector<u64> repetition_marks;
+    Vector<u64, 64> checkpoints;
 };
 
 }

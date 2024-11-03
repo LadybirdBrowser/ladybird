@@ -1055,7 +1055,7 @@ TEST_CASE(email_address)
 
     EXPECT_EQ(regcomp(&regex, pattern.characters(), REG_EXTENDED), REG_NOERR);
     EXPECT_EQ(regexec(&regex, "emanuel.sprung@gmail.com", 0, NULL, 0), REG_NOERR);
-    EXPECT_EQ(regexec(&regex, "kling@serenityos.org", 0, NULL, 0), REG_NOERR);
+    EXPECT_EQ(regexec(&regex, "andreas@ladybird.org", 0, NULL, 0), REG_NOERR);
 
     regfree(&regex);
 }

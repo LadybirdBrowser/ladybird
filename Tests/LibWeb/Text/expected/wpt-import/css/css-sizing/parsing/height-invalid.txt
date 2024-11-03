@@ -1,0 +1,14 @@
+Summary
+
+Harness status: OK
+
+Rerun
+
+Found 4 tests
+
+4 Pass
+Details
+Result	Test Name	MessagePass	e.style['height'] = "none" should not set the property value	
+Pass	e.style['height'] = "min-content max-content" should not set the property value	
+Pass	e.style['height'] = "-10%" should not set the property value	
+Pass	e.style['height'] = "-0.5em" should not set the property value	

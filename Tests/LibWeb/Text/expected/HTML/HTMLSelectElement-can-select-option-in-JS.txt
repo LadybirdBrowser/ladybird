@@ -1,1 +1,1 @@
-B  PASS
+PASS

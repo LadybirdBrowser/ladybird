@@ -1,0 +1,14 @@
+Summary
+
+Harness status: OK
+
+Rerun
+
+Found 4 tests
+
+4 Pass
+Details
+Result	Test Name	MessagePass	e.style['max-width'] = "auto" should not set the property value	
+Pass	e.style['max-width'] = "min-content max-content" should not set the property value	
+Pass	e.style['max-width'] = "-10%" should not set the property value	
+Pass	e.style['max-width'] = "-0.5em" should not set the property value	

@@ -1,1 +1,1 @@
-  ParentNode.querySelector matches class selectors case-insensitively in quirks mode: true
+ParentNode.querySelector matches class selectors case-insensitively in quirks mode: true

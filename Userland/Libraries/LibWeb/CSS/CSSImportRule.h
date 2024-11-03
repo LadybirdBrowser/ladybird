@@ -1,7 +1,7 @@
 /*
  * Copyright (c) 2021, the SerenityOS developers.
  * Copyright (c) 2021-2022, Sam Atkins <atkinssj@serenityos.org>
- * Copyright (c) 2022, Andreas Kling <kling@serenityos.org>
+ * Copyright (c) 2022, Andreas Kling <andreas@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -35,8 +35,6 @@ public:
     CSSStyleSheet const* loaded_style_sheet() const { return m_style_sheet; }
     CSSStyleSheet* style_sheet_for_bindings() { return m_style_sheet; }
     void set_style_sheet(CSSStyleSheet* style_sheet) { m_style_sheet = style_sheet; }
-
-    virtual Type type() const override { return Type::Import; }
 
 private:
     CSSImportRule(URL::URL, DOM::Document&);

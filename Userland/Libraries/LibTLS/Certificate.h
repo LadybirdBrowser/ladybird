@@ -31,9 +31,13 @@ constexpr static Array<int, 7>
     ecdsa_with_sha256_encryption_oid { 1, 2, 840, 10045, 4, 3, 2 },
     ecdsa_with_sha384_encryption_oid { 1, 2, 840, 10045, 4, 3, 3 },
     ecdsa_with_sha512_encryption_oid { 1, 2, 840, 10045, 4, 3, 4 },
-    ec_public_key_encryption_oid { 1, 2, 840, 10045, 2, 1 };
+    ec_public_key_encryption_oid { 1, 2, 840, 10045, 2, 1 },
+    x25519_oid { 1, 3, 101, 110 },
+    x448_oid { 1, 3, 101, 111 },
+    ed25519_oid { 1, 3, 101, 112 },
+    ed448_oid { 1, 3, 101, 113 };
 
-constexpr static Array<Array<int, 7>, 9> known_algorithm_identifiers {
+constexpr static Array<Array<int, 7>, 10> known_algorithm_identifiers {
     rsa_encryption_oid,
     rsa_md5_encryption_oid,
     rsa_sha1_encryption_oid,
@@ -42,7 +46,8 @@ constexpr static Array<Array<int, 7>, 9> known_algorithm_identifiers {
     rsa_sha512_encryption_oid,
     ecdsa_with_sha256_encryption_oid,
     ecdsa_with_sha384_encryption_oid,
-    ec_public_key_encryption_oid
+    ec_public_key_encryption_oid,
+    x25519_oid
 };
 
 constexpr static Array<int, 7>

@@ -1,0 +1,21 @@
+<script src="include.js"></script>
+<p id="a">Uno</p>
+
+<script>
+    test(() => {
+        var selection = window.getSelection();
+        selection.setBaseAndExtent(a.firstChild, 3, a.firstChild, 3);
+        selection.extend(a.firstChild, 0);
+        if (selection.anchorNode !== a.firstChild
+            || selection.anchorOffset !== 3) {
+            println('FAIL: anchor has moved');
+            return;
+        }
+        if (selection.focusNode !== a.firstChild
+            || selection.focusOffset !== 0) {
+            println('FAIL: focus is not where we expected');
+            return;
+        }
+        println('PASS');
+    })
+</script>

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020, Andreas Kling <kling@serenityos.org>
+ * Copyright (c) 2020, Andreas Kling <andreas@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -93,6 +93,7 @@ namespace JS {
     P(byteLength)                            \
     P(byteOffset)                            \
     P(calendar)                              \
+    P(calendarId)                            \
     P(calendarName)                          \
     P(call)                                  \
     P(callee)                                \

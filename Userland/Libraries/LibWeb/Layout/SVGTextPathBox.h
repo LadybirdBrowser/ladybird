@@ -16,7 +16,7 @@ class SVGTextPathBox final : public SVGGraphicsBox {
     JS_DECLARE_ALLOCATOR(SVGTextPathBox);
 
 public:
-    SVGTextPathBox(DOM::Document&, SVG::SVGTextPathElement&, NonnullRefPtr<CSS::StyleProperties>);
+    SVGTextPathBox(DOM::Document&, SVG::SVGTextPathElement&, CSS::StyleProperties);
     virtual ~SVGTextPathBox() override = default;
 
     SVG::SVGTextPathElement& dom_node() { return static_cast<SVG::SVGTextPathElement&>(SVGGraphicsBox::dom_node()); }

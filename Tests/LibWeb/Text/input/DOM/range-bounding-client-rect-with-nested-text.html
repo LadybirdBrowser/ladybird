@@ -1,0 +1,47 @@
+<!--refer to https://wpt.live/css/cssom-view/range-bounding-client-rect-with-nested-text.html -->
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>All the rectangles for the text nodes must included in getClientRects</title>
+<script src="../include.js"></script>
+<style>
+  .nullDims {
+    width: 0;
+    height: 0;
+  }
+
+  .nullDims > div {
+    position: absolute;
+    left: 10px;
+  }
+</style>
+<div id="container">
+  <div class="nullDims">
+    <div id="first" style="top: 10px">Hello</div>
+  </div>
+  <div class="nullDims">
+    <div id="second" style="top: 40px">Ladybird</div>
+  </div>
+  <div class="nullDims">
+    <div id="third" style="top: 70px">Ladybird again</div>
+  </div>
+  <div class="nullDims">
+    <div id="last" style="top: 100px">World</div>
+  </div>
+</div>
+<script>
+  test(function () {
+    const first = document.getElementById("first");
+    const last = document.getElementById("last");
+    const range = document.createRange();
+    range.setStart(first.firstChild, 0);
+    range.setEnd(last.firstChild, 3);
+
+    const selection = window.getSelection();
+    selection.removeAllRanges();
+    selection.addRange(range);
+    let rects = Array.from(range.getClientRects());
+    println(rects.length);
+    rects = rects.filter(({ width, height }) => width > 0 && height > 0);
+    println(rects.length);
+  })
+</script>

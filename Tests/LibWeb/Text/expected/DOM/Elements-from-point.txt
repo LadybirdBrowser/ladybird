@@ -1,4 +1,4 @@
-  Negative coordinates return empty array: true
+Negative coordinates return empty array: true
 Coordinates outside the viewport return empty array: true
 == Elements at (500, 10) ==
 <DIV id="large-box" >

@@ -115,7 +115,7 @@ String ShorthandStyleValue::to_string() const
             longhand(PropertyID::FontStyle)->to_string(),
             longhand(PropertyID::FontVariant)->to_string(),
             longhand(PropertyID::FontWeight)->to_string(),
-            longhand(PropertyID::FontStretch)->to_string(),
+            longhand(PropertyID::FontWidth)->to_string(),
             longhand(PropertyID::FontSize)->to_string(),
             longhand(PropertyID::LineHeight)->to_string(),
             longhand(PropertyID::FontFamily)->to_string()));

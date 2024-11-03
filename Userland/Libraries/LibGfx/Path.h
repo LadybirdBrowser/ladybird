@@ -39,6 +39,7 @@ public:
     [[nodiscard]] virtual bool is_empty() const = 0;
     virtual Gfx::FloatPoint last_point() const = 0;
     virtual Gfx::FloatRect bounding_box() const = 0;
+    virtual void set_fill_type(Gfx::WindingRule winding_rule) = 0;
     virtual bool contains(FloatPoint point, Gfx::WindingRule) const = 0;
 
     virtual NonnullOwnPtr<PathImpl> clone() const = 0;
@@ -86,6 +87,7 @@ public:
     Gfx::FloatPoint last_point() const { return impl().last_point(); }
     Gfx::FloatRect bounding_box() const { return impl().bounding_box(); }
     bool contains(FloatPoint point, Gfx::WindingRule winding_rule) const { return impl().contains(point, winding_rule); }
+    void set_fill_type(Gfx::WindingRule winding_rule) { impl().set_fill_type(winding_rule); }
 
     Gfx::Path clone() const { return Gfx::Path { impl().clone() }; }
     Gfx::Path copy_transformed(Gfx::AffineTransform const& transform) const { return Gfx::Path { impl().copy_transformed(transform) }; }

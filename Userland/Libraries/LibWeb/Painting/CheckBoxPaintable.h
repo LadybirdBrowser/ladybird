@@ -1,12 +1,12 @@
 /*
- * Copyright (c) 2022, Andreas Kling <kling@serenityos.org>
+ * Copyright (c) 2022, Andreas Kling <andreas@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
 #pragma once
 
-#include <LibWeb/Layout/CheckBox.h>
+#include <LibWeb/Forward.h>
 #include <LibWeb/Painting/LabelablePaintable.h>
 
 namespace Web::Painting {

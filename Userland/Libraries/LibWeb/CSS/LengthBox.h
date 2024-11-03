@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2020, Andreas Kling <kling@serenityos.org>
+ * Copyright (c) 2018-2020, Andreas Kling <andreas@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -26,6 +26,8 @@ public:
     LengthPercentage const& right() const { return m_right; }
     LengthPercentage const& bottom() const { return m_bottom; }
     LengthPercentage const& left() const { return m_left; }
+
+    bool operator==(LengthBox const&) const = default;
 
 private:
     LengthPercentage m_top;

@@ -1,4 +1,4 @@
-   table.tBodies pass
+table.tBodies pass
 table.rows pass
 thead.rows pass
 tr.cells pass

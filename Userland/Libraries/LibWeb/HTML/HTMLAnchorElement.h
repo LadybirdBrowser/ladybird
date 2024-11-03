@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2020, Andreas Kling <kling@serenityos.org>
+ * Copyright (c) 2018-2020, Andreas Kling <andreas@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -43,6 +43,7 @@ private:
 
     virtual bool has_activation_behavior() const override;
     virtual void activation_behavior(Web::DOM::Event const&) override;
+    virtual bool has_download_preference() const;
 
     // ^DOM::Element
     virtual void attribute_changed(FlyString const& name, Optional<String> const& old_value, Optional<String> const& value) override;

@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>CSS Flexbox Test: Flex container with height percentage and dynamic container size</title>
+<link rel="author" title="Oriol Brufau" href="mailto:obrufau@igalia.com">
+<link rel="help" href="http://www.w3.org/TR/css-flexbox-1">
+<meta name="assert" content="Checks that if a flex container has a definite height percentage, but then the height of the container is dynamically changed to be intrinsic, the resolved value of the percentage is correctly updated.">
+<style>
+.container {
+  width: 100px;
+  background: cyan;
+  height: 200px;
+}
+.changed .container {
+  height: auto;
+}
+.flex {
+  display: flex;
+}
+.content {
+  height: 100px;
+  width: 100px;
+}
+</style>
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../../resources/check-layout-th.js"></script>
+
+<div id="log"></div>
+
+<pre>height: 0%</pre>
+
+<div class="container" data-expected-height="100">
+  <div class="flex" style="height: 0%" data-expected-height="100">
+    <div data-expected-height="100">
+      <div class="content"></div>
+    </div>
+  </div>
+</div>
+
+<pre>height: 100%</pre>
+
+<div class="container" data-expected-height="100">
+  <div class="flex" style="height: 100%" data-expected-height="100">
+    <div data-expected-height="100">
+      <div class="content"></div>
+    </div>
+  </div>
+</div>
+
+<pre>height: 200%</pre>
+
+<div class="container" data-expected-height="100">
+  <div class="flex" style="height: 200%" data-expected-height="100">
+    <div data-expected-height="100">
+      <div class="content"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+// Force layout
+document.body.offsetLeft;
+
+// Change 'height' to 'auto'.
+document.body.classList.add("changed");
+
+// Check final layout
+checkLayout('.container');
+</script>

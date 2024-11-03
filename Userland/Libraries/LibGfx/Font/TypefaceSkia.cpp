@@ -35,7 +35,7 @@ ErrorOr<NonnullRefPtr<TypefaceSkia>> TypefaceSkia::load_from_buffer(AK::Readonly
 {
     if (!s_font_manager) {
 #ifdef AK_OS_MACOS
-        if (!Gfx::FontDatabase::the().should_force_fontconfig()) {
+        if (Gfx::FontDatabase::the().system_font_provider_name() != "FontConfig"sv) {
             s_font_manager = SkFontMgr_New_CoreText(nullptr);
         }
 #endif
@@ -114,12 +114,12 @@ void TypefaceSkia::populate_glyph_page(GlyphPage& glyph_page, size_t page_index)
     }
 }
 
-String TypefaceSkia::family() const
+FlyString TypefaceSkia::family() const
 {
     if (!m_family.has_value()) {
         SkString family_name;
         impl().skia_typeface->getFamilyName(&family_name);
-        m_family = String::from_utf8_without_validation(ReadonlyBytes { family_name.c_str(), family_name.size() });
+        m_family = FlyString::from_utf8_without_validation(ReadonlyBytes { family_name.c_str(), family_name.size() });
     }
     return m_family.value();
 }

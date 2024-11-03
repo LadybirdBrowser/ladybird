@@ -49,8 +49,8 @@ public:
     virtual ~WritableStream() = default;
 
     bool locked() const;
-    JS::GCPtr<JS::Object> abort(JS::Value reason);
-    JS::GCPtr<JS::Object> close();
+    JS::GCPtr<WebIDL::Promise> abort(JS::Value reason);
+    JS::GCPtr<WebIDL::Promise> close();
     WebIDL::ExceptionOr<JS::NonnullGCPtr<WritableStreamDefaultWriter>> get_writer();
 
     bool backpressure() const { return m_backpressure; }

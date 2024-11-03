@@ -406,8 +406,8 @@ glassboxdigital.io
 go-mpulse.net
 go2speed.org
 google-analytics.com
-google.com/gen_204\?
-google.com/log\?
+google.com/gen_204?
+google.com/log?
 googleadservices.com
 googleoptimize.com
 googlesyndication.com

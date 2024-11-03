@@ -63,7 +63,6 @@ static std::vector<clang::QualType> get_all_qualified_types(clang::QualType cons
             "JS::RawGCPtr",
             "JS::MarkedVector",
             "JS::Handle",
-            "JS::SafeFunction",
         };
 
         if (gc_relevant_type_names.contains(specialization_name)) {
@@ -88,7 +87,6 @@ enum class OuterType {
     GCPtr,
     RawGCPtr,
     Handle,
-    SafeFunction,
     Ptr,
     Ref,
 };
@@ -116,8 +114,6 @@ static std::optional<QualTypeGCInfo> validate_qualified_type(clang::QualType con
             outer_type = OuterType::RawGCPtr;
         } else if (template_type_name == "JS::Handle") {
             outer_type = OuterType::Handle;
-        } else if (template_type_name == "JS::SafeFunction") {
-            return QualTypeGCInfo { OuterType::SafeFunction, false };
         } else {
             return {};
         }
@@ -212,12 +208,12 @@ bool LibJSGCVisitor::VisitCXXRecordDecl(clang::CXXRecordDecl* record)
             } else if (outer_type == OuterType::GCPtr) {
                 fields_that_need_visiting.push_back(field);
             }
-        } else if (outer_type == OuterType::Handle || outer_type == OuterType::SafeFunction) {
+        } else if (outer_type == OuterType::Handle) {
             if (record_is_cell && m_detect_invalid_function_members) {
                 // FIXME: Change this to an Error when all of the use cases get addressed and remove the plugin argument
                 auto diag_id = diag_engine.getCustomDiagID(clang::DiagnosticsEngine::Warning, "Types inheriting from JS::Cell should not have %0 fields");
                 auto builder = diag_engine.Report(field->getLocation(), diag_id);
-                builder << (outer_type == OuterType::Handle ? "JS::Handle" : "JS::SafeFunction");
+                builder << "JS::Handle";
             }
         }
     }

@@ -6,15 +6,16 @@
 
 #pragma once
 
+#include <LibWeb/Bindings/RequestPrototype.h>
+#include <LibWeb/Bindings/WorkerPrototype.h>
 #include <LibWeb/Forward.h>
-#include <LibWeb/HTML/MessagePort.h>
 #include <LibWeb/Worker/WebWorkerClient.h>
 
 namespace Web::HTML {
 
 struct WorkerOptions {
-    String type { "classic"_string };
-    String credentials { "same-origin"_string };
+    Bindings::WorkerType type { Bindings::WorkerType::Classic };
+    Bindings::RequestCredentials credentials { Bindings::RequestCredentials::SameOrigin };
     String name { String {} };
 };
 

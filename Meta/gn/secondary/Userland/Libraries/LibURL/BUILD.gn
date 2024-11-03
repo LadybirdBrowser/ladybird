@@ -3,6 +3,9 @@ shared_library("LibURL") {
   include_dirs = [ "//Userland/Libraries" ]
   sources = [
     "Forward.h",
+    "Host.h",
+    "Origin.cpp",
+    "Origin.h",
     "Parser.cpp",
     "Parser.h",
     "URL.cpp",
@@ -10,6 +13,7 @@ shared_library("LibURL") {
   ]
   deps = [
     "//AK",
+    "//Userland/Libraries/LibTextCodec",
     "//Userland/Libraries/LibUnicode",
   ]
 }

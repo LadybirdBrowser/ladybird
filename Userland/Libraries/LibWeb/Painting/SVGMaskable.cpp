@@ -18,6 +18,8 @@ namespace Web::Painting {
 template<typename T>
 static T const* first_child_layout_node_of_type(SVG::SVGGraphicsElement const& graphics_element)
 {
+    if (!graphics_element.layout_node())
+        return nullptr;
     return graphics_element.layout_node()->first_child_of_type<T>();
 }
 
@@ -87,18 +89,18 @@ RefPtr<Gfx::Bitmap> SVGMaskable::calculate_mask_of_svg(PaintContext& context, CS
         auto paint_context = context.clone(display_list_recorder);
         paint_context.set_svg_transform(graphics_element.get_transform());
         paint_context.set_draw_svg_geometry_for_clip_path(is<SVGClipPaintable>(paintable));
-        StackingContext::paint_node_as_stacking_context(paintable, paint_context);
+        StackingContext::paint_svg(paint_context, paintable, PaintPhase::Foreground);
         DisplayListPlayerSkia display_list_player { *mask_bitmap };
         display_list_player.execute(display_list);
         return mask_bitmap;
     };
     RefPtr<Gfx::Bitmap> mask_bitmap = {};
     if (auto* mask_box = get_mask_box(graphics_element)) {
-        auto& mask_paintable = static_cast<PaintableBox const&>(*mask_box->paintable());
+        auto& mask_paintable = static_cast<PaintableBox const&>(*mask_box->first_paintable());
         mask_bitmap = paint_mask_or_clip(mask_paintable);
     }
     if (auto* clip_box = get_clip_box(graphics_element)) {
-        auto& clip_paintable = static_cast<PaintableBox const&>(*clip_box->paintable());
+        auto& clip_paintable = static_cast<PaintableBox const&>(*clip_box->first_paintable());
         auto clip_bitmap = paint_mask_or_clip(clip_paintable);
         // Combine the clip-path with the mask (if present).
         if (mask_bitmap && clip_bitmap)

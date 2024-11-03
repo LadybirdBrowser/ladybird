@@ -11,11 +11,14 @@ fill: rgb(0, 0, 0)
 fill-opacity: 1
 fill-rule: nonzero
 font-family: serif
+font-feature-settings: normal
+font-language-override: normal
 font-size: 16px
-font-stretch: normal
 font-style: normal
 font-variant: normal
+font-variation-settings: normal
 font-weight: 400
+font-width: normal
 image-rendering: auto
 letter-spacing: normal
 line-height: normal
@@ -28,8 +31,12 @@ math-style: normal
 pointer-events: auto
 quotes: auto
 stroke: none
+stroke-linecap: butt
+stroke-linejoin: miter
+stroke-miterlimit: 4
 stroke-opacity: 1
 stroke-width: 1px
+tab-size: 8
 text-align: start
 text-anchor: start
 text-decoration-line: none
@@ -39,42 +46,9 @@ text-shadow: none
 text-transform: none
 visibility: visible
 white-space: normal
+word-break: normal
 word-spacing: normal
 word-wrap: normal
--webkit-align-content: normal
--webkit-align-items: normal
--webkit-align-self: auto
--webkit-animation-delay: 0s
--webkit-animation-direction: normal
--webkit-animation-duration: auto
--webkit-animation-fill-mode: none
--webkit-animation-iteration-count: 1
--webkit-animation-name: none
--webkit-animation-play-state: running
--webkit-animation-timing-function: ease
--webkit-appearance: auto
--webkit-background-clip: border-box
--webkit-background-origin: padding-box
--webkit-border-bottom-left-radius: 0px
--webkit-border-bottom-right-radius: 0px
--webkit-border-top-left-radius: 0px
--webkit-border-top-right-radius: 0px
--webkit-box-shadow: none
--webkit-box-sizing: content-box
--webkit-flex-basis: auto
--webkit-flex-direction: row
--webkit-flex-grow: 0
--webkit-flex-shrink: 1
--webkit-flex-wrap: nowrap
--webkit-justify-content: normal
--webkit-mask: none
--webkit-order: 0
--webkit-transform: none
--webkit-transform-origin: 50% 50%
--webkit-transition-delay: 0s
--webkit-transition-duration: 0s
--webkit-transition-property: all
--webkit-transition-timing-function: ease
 align-content: normal
 align-items: normal
 align-self: auto
@@ -132,6 +106,7 @@ counter-set: none
 cx: 0px
 cy: 0px
 display: block
+filter: none
 flex-basis: auto
 flex-direction: row
 flex-grow: 0
@@ -142,15 +117,13 @@ grid-auto-columns: auto
 grid-auto-flow: row
 grid-auto-rows: auto
 grid-column-end: auto
-grid-column-gap: auto
 grid-column-start: auto
 grid-row-end: auto
-grid-row-gap: auto
 grid-row-start: auto
-grid-template-areas: 
-grid-template-columns: 
-grid-template-rows: 
-height: 2584px
+grid-template-areas: none
+grid-template-columns: auto
+grid-template-rows: auto
+height: 2125px
 inline-size: auto
 inset-block-end: auto
 inset-block-start: auto
@@ -197,6 +170,7 @@ padding-top: 0px
 position: static
 r: 0px
 right: auto
+rotate: none
 row-gap: auto
 rx: auto
 ry: auto
@@ -217,6 +191,7 @@ transition-delay: 0s
 transition-duration: 0s
 transition-property: all
 transition-timing-function: ease
+unicode-bidi: normal
 user-select: auto
 vertical-align: baseline
 width: 784px

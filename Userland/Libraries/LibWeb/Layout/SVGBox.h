@@ -16,7 +16,7 @@ class SVGBox : public Box {
     JS_CELL(SVGBox, Box);
 
 public:
-    SVGBox(DOM::Document&, SVG::SVGElement&, NonnullRefPtr<CSS::StyleProperties>);
+    SVGBox(DOM::Document&, SVG::SVGElement&, CSS::StyleProperties);
     virtual ~SVGBox() override = default;
 
     SVG::SVGElement& dom_node() { return verify_cast<SVG::SVGElement>(*Box::dom_node()); }

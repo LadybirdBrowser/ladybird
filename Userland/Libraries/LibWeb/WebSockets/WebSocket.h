@@ -9,6 +9,8 @@
 
 #include <AK/ByteBuffer.h>
 #include <LibCore/EventReceiver.h>
+#include <LibRequests/Forward.h>
+#include <LibRequests/WebSocket.h>
 #include <LibURL/URL.h>
 #include <LibWeb/Bindings/PlatformObject.h>
 #include <LibWeb/DOM/EventTarget.h>
@@ -24,21 +26,11 @@
 
 namespace Web::WebSockets {
 
-class WebSocketClientSocket;
-class WebSocketClientManager;
-
 class WebSocket final : public DOM::EventTarget {
     WEB_PLATFORM_OBJECT(WebSocket, DOM::EventTarget);
     JS_DECLARE_ALLOCATOR(WebSocket);
 
 public:
-    enum class ReadyState : u16 {
-        Connecting = 0,
-        Open = 1,
-        Closing = 2,
-        Closed = 3,
-    };
-
     static WebIDL::ExceptionOr<JS::NonnullGCPtr<WebSocket>> construct_impl(JS::Realm&, String const& url, Optional<Variant<String, Vector<String>>> const& protocols);
 
     virtual ~WebSocket() override;
@@ -53,7 +45,7 @@ public:
     ENUMERATE_WEBSOCKET_EVENT_HANDLERS(__ENUMERATE)
 #undef __ENUMERATE
 
-    ReadyState ready_state() const;
+    Requests::WebSocket::ReadyState ready_state() const;
     String extensions() const;
     WebIDL::ExceptionOr<String> protocol() const;
 
@@ -77,44 +69,7 @@ private:
 
     URL::URL m_url;
     String m_binary_type { "blob"_string };
-    RefPtr<WebSocketClientSocket> m_websocket;
-};
-
-class WebSocketClientSocket : public RefCounted<WebSocketClientSocket> {
-public:
-    virtual ~WebSocketClientSocket();
-
-    struct CertificateAndKey {
-        ByteString certificate;
-        ByteString key;
-    };
-
-    struct Message {
-        ByteBuffer data;
-        bool is_text { false };
-    };
-
-    enum class Error {
-        CouldNotEstablishConnection,
-        ConnectionUpgradeFailed,
-        ServerClosedSocket,
-    };
-
-    virtual Web::WebSockets::WebSocket::ReadyState ready_state() = 0;
-    virtual ByteString subprotocol_in_use() = 0;
-
-    virtual void send(ByteBuffer binary_or_text_message, bool is_text) = 0;
-    virtual void send(StringView text_message) = 0;
-    virtual void close(u16 code = 1005, ByteString reason = {}) = 0;
-
-    Function<void()> on_open;
-    Function<void(Message)> on_message;
-    Function<void(Error)> on_error;
-    Function<void(u16 code, ByteString reason, bool was_clean)> on_close;
-    Function<CertificateAndKey()> on_certificate_requested;
-
-protected:
-    explicit WebSocketClientSocket() = default;
+    RefPtr<Requests::WebSocket> m_websocket;
 };
 
 }

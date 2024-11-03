@@ -1,6 +1,4 @@
-
-    Ladybird is an ongoing project to build an independent web browser from scratch.
-  Events:
+Events:
 selectionchange anchorNode=<#text > anchorOffset=1 type=Caret focusNode=<#text > focusOffset=1 isCollapsed=true
 selectionchange anchorNode=<#text > anchorOffset=1 type=Caret focusNode=<#text > focusOffset=1 isCollapsed=true
 selectionchange anchorNode=<#text > anchorOffset=2 type=Caret focusNode=<#text > focusOffset=2 isCollapsed=true

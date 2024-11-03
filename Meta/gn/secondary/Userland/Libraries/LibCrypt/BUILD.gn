@@ -1,8 +1,0 @@
-group("LibCrypt") {
-  deps = []
-  libs = []
-
-  if (current_os == "linux") {
-    libs += [ "crypt" ]
-  }
-}

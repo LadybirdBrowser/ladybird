@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html>
+<title>CSS Flexbox: Combining 100% heights with min-height: auto should not lead to overflow</title>
+<link rel="author" title="Google LLC" href="https://www.google.com/" />
+<link rel="help" href="https://drafts.csswg.org/css-flexbox/#min-size-auto" />
+<link rel="issue" href="https://bugs.chromium.org/p/chromium/issues/detail?id=927066" />
+
+<style>
+.flexbox {
+    display: flex;
+}
+
+.column {
+    flex-flow: column;
+}
+
+.flexbox span {
+    height: 100%;
+    background: orange;
+    display: block;
+}
+</style>
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../../resources/check-layout-th.js"></script>
+<body onload="checkLayout('.flexbox')">
+<div id=log></div>
+
+<div class="flexbox column" style="height: 100px; width: 100px; background: green">
+    <div style="height: 10px; flex: 0.1;" data-expected-height="10"></div>
+    <div style="height: 100%; display: flex; background: teal; flex: 0.9;" data-expected-height="90">
+        <div style="height: 100%"></div>
+    </div>
+</div>
+
+</body>
+</html>

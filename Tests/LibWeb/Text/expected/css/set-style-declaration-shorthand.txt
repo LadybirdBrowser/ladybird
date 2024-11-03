@@ -1,0 +1,46 @@
+Setting flex: 'none'; becomes...
+  flex-basis: 'auto'
+  flex-grow: '0'
+  flex-shrink: '0'
+  flex: '0 0 auto'
+  e.style.length: 3
+  > [0] flex-grow
+  > [1] flex-shrink
+  > [2] flex-basis
+
+Setting flex: 'auto 1 2'; becomes...
+  flex-basis: 'auto'
+  flex-grow: '1'
+  flex-shrink: '2'
+  flex: '1 2 auto'
+  e.style.length: 3
+  > [0] flex-grow
+  > [1] flex-shrink
+  > [2] flex-basis
+
+Setting flex: ''; becomes...
+  flex-basis: ''
+  flex-grow: ''
+  flex-shrink: ''
+  flex: ''
+  e.style.length: 0
+
+Setting border: '1px solid red'; becomes...
+  border-width: '1px 1px 1px 1px'
+  border-style: 'solid solid solid solid'
+  border-color: 'rgb(255, 0, 0) rgb(255, 0, 0) rgb(255, 0, 0) rgb(255, 0, 0)'
+  border: ''
+  e.style.length: 12
+  > [0] border-top-width
+  > [1] border-right-width
+  > [2] border-bottom-width
+  > [3] border-left-width
+  > [4] border-top-style
+  > [5] border-right-style
+  > [6] border-bottom-style
+  > [7] border-left-style
+  > [8] border-top-color
+  > [9] border-right-color
+  > [10] border-bottom-color
+  > [11] border-left-color
+

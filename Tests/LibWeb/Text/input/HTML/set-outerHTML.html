@@ -3,7 +3,6 @@
 <script>
     test(() => {
         let oldElement = document.getElementById("oldBox");
-        println('');
         println(`${oldElement.id}='${oldElement.innerHTML}'`);
 
         oldElement.outerHTML = '<div id="newBox"><p>Changed box.</p></div>';

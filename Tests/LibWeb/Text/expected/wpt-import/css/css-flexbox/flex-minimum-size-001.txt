@@ -1,0 +1,16 @@
+Summary
+
+Harness status: OK
+
+Rerun
+
+Found 6 tests
+
+6 Pass
+Details
+Result	Test Name	MessagePass	.flexbox, .inline-flexbox 1	
+Pass	.flexbox, .inline-flexbox 2	
+Pass	.flexbox, .inline-flexbox 3	
+Pass	.flexbox, .inline-flexbox 4	
+Pass	.flexbox, .inline-flexbox 5	
+Pass	.flexbox, .inline-flexbox 6	

@@ -19,6 +19,7 @@
 #include <effects/SkDashPathEffect.h>
 #include <effects/SkGradientShader.h>
 #include <effects/SkImageFilters.h>
+#include <effects/SkRuntimeEffect.h>
 #include <gpu/GrDirectContext.h>
 #include <gpu/ganesh/SkSurfaceGanesh.h>
 #include <pathops/SkPathOps.h>
@@ -234,6 +235,128 @@ static SkColor4f to_skia_color4f(Gfx::Color const& color)
     };
 }
 
+static sk_sp<SkImageFilter> to_skia_image_filter(CSS::ResolvedFilter::FilterFunction const& function)
+{
+    // See: https://drafts.fxtf.org/filter-effects-1/#supported-filter-functions
+    return function.visit(
+        [&](CSS::ResolvedFilter::Blur const& blur_filter) {
+            return SkImageFilters::Blur(blur_filter.radius, blur_filter.radius, nullptr);
+        },
+        [&](CSS::ResolvedFilter::Color const& color) {
+            auto amount = color.amount;
+
+            // Matrices are taken from https://drafts.fxtf.org/filter-effects-1/#FilterPrimitiveRepresentation
+            sk_sp<SkColorFilter> color_filter;
+            switch (color.type) {
+            case CSS::FilterOperation::Color::Type::Grayscale: {
+                float matrix[20] = {
+                    0.2126f + 0.7874f * (1 - amount), 0.7152f - 0.7152f * (1 - amount), 0.0722f - 0.0722f * (1 - amount), 0, 0,
+                    0.2126f - 0.2126f * (1 - amount), 0.7152f + 0.2848f * (1 - amount), 0.0722f - 0.0722f * (1 - amount), 0, 0,
+                    0.2126f - 0.2126f * (1 - amount), 0.7152f - 0.7152f * (1 - amount), 0.0722f + 0.9278f * (1 - amount), 0, 0,
+                    0, 0, 0, 1, 0
+                };
+                color_filter = SkColorFilters::Matrix(matrix, SkColorFilters::Clamp::kYes);
+                break;
+            }
+            case CSS::FilterOperation::Color::Type::Brightness: {
+                float matrix[20] = {
+                    amount, 0, 0, 0, 0,
+                    0, amount, 0, 0, 0,
+                    0, 0, amount, 0, 0,
+                    0, 0, 0, 1, 0
+                };
+                color_filter = SkColorFilters::Matrix(matrix, SkColorFilters::Clamp::kNo);
+                break;
+            }
+            case CSS::FilterOperation::Color::Type::Contrast: {
+                float intercept = -(0.5f * amount) + 0.5f;
+                float matrix[20] = {
+                    amount, 0, 0, 0, intercept,
+                    0, amount, 0, 0, intercept,
+                    0, 0, amount, 0, intercept,
+                    0, 0, 0, 1, 0
+                };
+                color_filter = SkColorFilters::Matrix(matrix, SkColorFilters::Clamp::kNo);
+                break;
+            }
+            case CSS::FilterOperation::Color::Type::Invert: {
+                float matrix[20] = {
+                    1 - 2 * amount, 0, 0, 0, amount,
+                    0, 1 - 2 * amount, 0, 0, amount,
+                    0, 0, 1 - 2 * amount, 0, amount,
+                    0, 0, 0, 1, 0
+                };
+                color_filter = SkColorFilters::Matrix(matrix, SkColorFilters::Clamp::kYes);
+                break;
+            }
+            case CSS::FilterOperation::Color::Type::Opacity: {
+                float matrix[20] = {
+                    1, 0, 0, 0, 0,
+                    0, 1, 0, 0, 0,
+                    0, 0, 1, 0, 0,
+                    0, 0, 0, amount, 0
+                };
+                color_filter = SkColorFilters::Matrix(matrix, SkColorFilters::Clamp::kYes);
+                break;
+            }
+            case CSS::FilterOperation::Color::Type::Sepia: {
+                float matrix[20] = {
+                    0.393f + 0.607f * (1 - amount), 0.769f - 0.769f * (1 - amount), 0.189f - 0.189f * (1 - amount), 0, 0,
+                    0.349f - 0.349f * (1 - amount), 0.686f + 0.314f * (1 - amount), 0.168f - 0.168f * (1 - amount), 0, 0,
+                    0.272f - 0.272f * (1 - amount), 0.534f - 0.534f * (1 - amount), 0.131f + 0.869f * (1 - amount), 0, 0,
+                    0, 0, 0, 1, 0
+                };
+                color_filter = SkColorFilters::Matrix(matrix, SkColorFilters::Clamp::kYes);
+                break;
+            }
+            case CSS::FilterOperation::Color::Type::Saturate: {
+                float matrix[20] = {
+                    0.213f + 0.787f * amount, 0.715f - 0.715f * amount, 0.072f - 0.072f * amount, 0, 0,
+                    0.213f - 0.213f * amount, 0.715f + 0.285f * amount, 0.072f - 0.072f * amount, 0, 0,
+                    0.213f - 0.213f * amount, 0.715f - 0.715f * amount, 0.072f + 0.928f * amount, 0, 0,
+                    0, 0, 0, 1, 0
+                };
+                color_filter = SkColorFilters::Matrix(matrix, SkColorFilters::Clamp::kNo);
+                break;
+            }
+            default:
+                VERIFY_NOT_REACHED();
+            }
+
+            return SkImageFilters::ColorFilter(color_filter, nullptr);
+        },
+        [&](CSS::ResolvedFilter::HueRotate const& hue_rotate) {
+            float radians = AK::to_radians(hue_rotate.angle_degrees);
+
+            auto cosA = cos(radians);
+            auto sinA = sin(radians);
+
+            auto a00 = 0.213f + cosA * 0.787f - sinA * 0.213f;
+            auto a01 = 0.715f - cosA * 0.715f - sinA * 0.715f;
+            auto a02 = 0.072f - cosA * 0.072f + sinA * 0.928f;
+            auto a10 = 0.213f - cosA * 0.213f + sinA * 0.143f;
+            auto a11 = 0.715f + cosA * 0.285f + sinA * 0.140f;
+            auto a12 = 0.072f - cosA * 0.072f - sinA * 0.283f;
+            auto a20 = 0.213f - cosA * 0.213f - sinA * 0.787f;
+            auto a21 = 0.715f - cosA * 0.715f + sinA * 0.715f;
+            auto a22 = 0.072f + cosA * 0.928f + sinA * 0.072f;
+
+            float matrix[20] = {
+                a00, a01, a02, 0, 0,
+                a10, a11, a12, 0, 0,
+                a20, a21, a22, 0, 0,
+                0, 0, 0, 1, 0
+            };
+
+            auto color_filter = SkColorFilters::Matrix(matrix, SkColorFilters::Clamp::kNo);
+            return SkImageFilters::ColorFilter(color_filter, nullptr);
+        },
+        [&](CSS::ResolvedFilter::DropShadow const& command) {
+            auto shadow_color = to_skia_color(command.color);
+            return SkImageFilters::DropShadow(command.offset_x, command.offset_y, command.radius, command.radius, shadow_color, nullptr);
+        });
+}
+
 static SkPath to_skia_path(Gfx::Path const& path)
 {
     return static_cast<Gfx::PathImplSkia const&>(path.impl()).sk_path();
@@ -426,36 +549,10 @@ void DisplayListPlayerSkia::restore(Restore const&)
     canvas.restore();
 }
 
-template<Gfx::Bitmap::MaskKind mask_kind, Gfx::StorageFormat storage_format>
-[[maybe_unused]] static SkBitmap alpha_mask_from_bitmap_impl(Gfx::Bitmap const& bitmap)
+void DisplayListPlayerSkia::translate(Translate const& command)
 {
-    SkBitmap alpha_mask;
-    alpha_mask.allocPixels(SkImageInfo::MakeA8(bitmap.width(), bitmap.height()));
-    int width = bitmap.width();
-    int height = bitmap.height();
-    for (int y = 0; y < height; y++) {
-        auto* dst = alpha_mask.getAddr8(0, y);
-        for (int x = 0; x < width; x++, ++dst) {
-            auto color = bitmap.unchecked_get_pixel<storage_format>(x, y);
-            if constexpr (mask_kind == Gfx::Bitmap::MaskKind::Luminance) {
-                *dst = color.alpha() * color.luminosity() / 255;
-            } else if constexpr (mask_kind == Gfx::Bitmap::MaskKind::Alpha) {
-                *dst = color.alpha();
-            }
-        }
-    }
-    return alpha_mask;
-}
-
-[[maybe_unused]] static SkBitmap alpha_mask_from_bitmap(Gfx::Bitmap const& bitmap, Gfx::Bitmap::MaskKind kind)
-{
-    if (bitmap.format() == Gfx::BitmapFormat::BGRA8888) {
-        if (kind == Gfx::Bitmap::MaskKind::Luminance)
-            return alpha_mask_from_bitmap_impl<Gfx::Bitmap::MaskKind::Luminance, Gfx::StorageFormat::BGRA8888>(bitmap);
-        VERIFY(kind == Gfx::Bitmap::MaskKind::Alpha);
-        return alpha_mask_from_bitmap_impl<Gfx::Bitmap::MaskKind::Alpha, Gfx::StorageFormat::BGRA8888>(bitmap);
-    }
-    VERIFY_NOT_REACHED();
+    auto& canvas = surface().canvas();
+    canvas.translate(command.delta.x(), command.delta.y());
 }
 
 void DisplayListPlayerSkia::push_stacking_context(PushStackingContext const& command)
@@ -464,13 +561,38 @@ void DisplayListPlayerSkia::push_stacking_context(PushStackingContext const& com
 
     auto affine_transform = Gfx::extract_2d_affine_transform(command.transform.matrix);
     auto new_transform = Gfx::AffineTransform {}
-                             .set_translation(command.post_transform_translation.to_type<float>())
                              .translate(command.transform.origin)
                              .multiply(affine_transform)
                              .translate(-command.transform.origin);
     auto matrix = to_skia_matrix(new_transform);
 
-    if (command.opacity < 1) {
+    if (!command.filter.is_none()) {
+        sk_sp<SkImageFilter> image_filter;
+        auto append_filter = [&image_filter](auto new_filter) {
+            if (image_filter)
+                image_filter = SkImageFilters::Compose(new_filter, image_filter);
+            else
+                image_filter = new_filter;
+        };
+
+        // Apply filters in order
+        for (auto const& filter_function : command.filter.filters)
+            append_filter(to_skia_image_filter(filter_function));
+
+        // We apply opacity as a color filter here so we only need to save and restore a single layer.
+        if (command.opacity < 1) {
+            append_filter(to_skia_image_filter(CSS::ResolvedFilter::FilterFunction {
+                CSS::ResolvedFilter::Color {
+                    CSS::FilterOperation::Color::Type::Opacity,
+                    command.opacity,
+                },
+            }));
+        }
+
+        SkPaint paint;
+        paint.setImageFilter(image_filter);
+        canvas.saveLayer(nullptr, &paint);
+    } else if (command.opacity < 1) {
         auto source_paintable_rect = to_skia_rect(command.source_paintable_rect);
         SkRect dest;
         matrix.mapRect(&dest, source_paintable_rect);
@@ -479,23 +601,9 @@ void DisplayListPlayerSkia::push_stacking_context(PushStackingContext const& com
         canvas.save();
     }
 
-    if (command.clip_path.has_value()) {
+    if (command.clip_path.has_value())
         canvas.clipPath(to_skia_path(command.clip_path.value()), true);
-    }
 
-    if (command.mask.has_value()) {
-        auto alpha_mask = alpha_mask_from_bitmap(*command.mask.value().mask_bitmap, command.mask.value().mask_kind);
-        SkMatrix mask_matrix;
-        auto mask_position = command.source_paintable_rect.location();
-        mask_matrix.setTranslate(mask_position.x(), mask_position.y());
-        auto shader = alpha_mask.makeShader(SkSamplingOptions(), mask_matrix);
-        canvas.clipShader(shader);
-    }
-
-    if (command.is_fixed_position) {
-        // FIXME: Resetting matrix is not correct when element is nested in a transformed stacking context
-        canvas.resetMatrix();
-    }
     canvas.concat(matrix);
 }
 
@@ -829,43 +937,34 @@ static SkPaint paint_style_to_skia_paint(Painting::SVGGradientPaintStyle const& 
         positions.append(color_stop.position);
     }
 
+    SkMatrix matrix;
+    matrix.setTranslate(bounding_rect.x(), bounding_rect.y());
+    if (auto gradient_transform = paint_style.gradient_transform(); gradient_transform.has_value())
+        matrix = matrix * to_skia_matrix(gradient_transform.value());
+
+    auto tile_mode = to_skia_tile_mode(paint_style.spread_method());
+
+    sk_sp<SkShader> shader;
     if (is<SVGLinearGradientPaintStyle>(paint_style)) {
         auto const& linear_gradient_paint_style = static_cast<SVGLinearGradientPaintStyle const&>(paint_style);
 
-        SkMatrix matrix;
-        auto scale = linear_gradient_paint_style.scale();
-        auto start_point = linear_gradient_paint_style.start_point().scaled(scale);
-        auto end_point = linear_gradient_paint_style.end_point().scaled(scale);
-
-        start_point.translate_by(bounding_rect.location());
-        end_point.translate_by(bounding_rect.location());
-
-        Array<SkPoint, 2> points;
-        points[0] = to_skia_point(start_point);
-        points[1] = to_skia_point(end_point);
-
-        auto shader = SkGradientShader::MakeLinear(points.data(), colors.data(), positions.data(), color_stops.size(), to_skia_tile_mode(paint_style.spread_method()), 0, &matrix);
-        paint.setShader(shader);
+        Array<SkPoint, 2> points {
+            to_skia_point(linear_gradient_paint_style.start_point()),
+            to_skia_point(linear_gradient_paint_style.end_point()),
+        };
+        shader = SkGradientShader::MakeLinear(points.data(), colors.data(), positions.data(), color_stops.size(), tile_mode, 0, &matrix);
     } else if (is<SVGRadialGradientPaintStyle>(paint_style)) {
         auto const& radial_gradient_paint_style = static_cast<SVGRadialGradientPaintStyle const&>(paint_style);
 
-        SkMatrix matrix;
-        auto scale = radial_gradient_paint_style.scale();
+        auto start_center = to_skia_point(radial_gradient_paint_style.start_center());
+        auto end_center = to_skia_point(radial_gradient_paint_style.end_center());
 
-        auto start_center = radial_gradient_paint_style.start_center().scaled(scale);
-        auto end_center = radial_gradient_paint_style.end_center().scaled(scale);
-        auto start_radius = radial_gradient_paint_style.start_radius() * scale;
-        auto end_radius = radial_gradient_paint_style.end_radius() * scale;
+        auto start_radius = radial_gradient_paint_style.start_radius();
+        auto end_radius = radial_gradient_paint_style.end_radius();
 
-        start_center.translate_by(bounding_rect.location());
-        end_center.translate_by(bounding_rect.location());
-
-        auto start_sk_point = to_skia_point(start_center);
-        auto end_sk_point = to_skia_point(end_center);
-
-        auto shader = SkGradientShader::MakeTwoPointConical(start_sk_point, start_radius, end_sk_point, end_radius, colors.data(), positions.data(), color_stops.size(), to_skia_tile_mode(paint_style.spread_method()), 0, &matrix);
-        paint.setShader(shader);
+        shader = SkGradientShader::MakeTwoPointConical(start_center, start_radius, end_center, end_radius, colors.data(), positions.data(), color_stops.size(), tile_mode, 0, &matrix);
     }
+    paint.setShader(shader);
 
     return paint;
 }
@@ -1001,129 +1100,9 @@ void DisplayListPlayerSkia::apply_backdrop_filter(ApplyBackdropFilter const& com
     ScopeGuard guard = [&] { canvas.restore(); };
 
     for (auto const& filter_function : command.backdrop_filter.filters) {
-        // See: https://drafts.fxtf.org/filter-effects-1/#supported-filter-functions
-        filter_function.visit(
-            [&](CSS::ResolvedBackdropFilter::Blur const& blur_filter) {
-                auto blur_image_filter = SkImageFilters::Blur(blur_filter.radius, blur_filter.radius, nullptr);
-                canvas.saveLayer(SkCanvas::SaveLayerRec(nullptr, nullptr, blur_image_filter.get(), 0));
-                canvas.restore();
-            },
-            [&](CSS::ResolvedBackdropFilter::ColorOperation const& color) {
-                auto amount = clamp(color.amount, 0.0f, 1.0f);
-
-                // Matrices are taken from https://drafts.fxtf.org/filter-effects-1/#FilterPrimitiveRepresentation
-                sk_sp<SkColorFilter> color_filter;
-                switch (color.operation) {
-                case CSS::Filter::Color::Operation::Grayscale: {
-                    float matrix[20] = {
-                        0.2126f + 0.7874f * (1 - amount), 0.7152f - 0.7152f * (1 - amount), 0.0722f - 0.0722f * (1 - amount), 0, 0,
-                        0.2126f - 0.2126f * (1 - amount), 0.7152f + 0.2848f * (1 - amount), 0.0722f - 0.0722f * (1 - amount), 0, 0,
-                        0.2126f - 0.2126f * (1 - amount), 0.7152f - 0.7152f * (1 - amount), 0.0722f + 0.9278f * (1 - amount), 0, 0,
-                        0, 0, 0, 1, 0
-                    };
-                    color_filter = SkColorFilters::Matrix(matrix);
-                    break;
-                }
-                case CSS::Filter::Color::Operation::Brightness: {
-                    float matrix[20] = {
-                        amount, 0, 0, 0, 0,
-                        0, amount, 0, 0, 0,
-                        0, 0, amount, 0, 0,
-                        0, 0, 0, 1, 0
-                    };
-                    color_filter = SkColorFilters::Matrix(matrix);
-                    break;
-                }
-                case CSS::Filter::Color::Operation::Contrast: {
-                    float intercept = -(0.5f * amount) + 0.5f;
-                    float matrix[20] = {
-                        amount, 0, 0, 0, intercept,
-                        0, amount, 0, 0, intercept,
-                        0, 0, amount, 0, intercept,
-                        0, 0, 0, 1, 0
-                    };
-                    color_filter = SkColorFilters::Matrix(matrix);
-                    break;
-                }
-                case CSS::Filter::Color::Operation::Invert: {
-                    float matrix[20] = {
-                        1 - 2 * amount, 0, 0, 0, amount,
-                        0, 1 - 2 * amount, 0, 0, amount,
-                        0, 0, 1 - 2 * amount, 0, amount,
-                        0, 0, 0, 1, 0
-                    };
-                    color_filter = SkColorFilters::Matrix(matrix);
-                    break;
-                }
-                case CSS::Filter::Color::Operation::Opacity: {
-                    float matrix[20] = {
-                        1, 0, 0, 0, 0,
-                        0, 1, 0, 0, 0,
-                        0, 0, 1, 0, 0,
-                        0, 0, 0, amount, 0
-                    };
-                    color_filter = SkColorFilters::Matrix(matrix);
-                    break;
-                }
-                case CSS::Filter::Color::Operation::Sepia: {
-                    float matrix[20] = {
-                        0.393f + 0.607f * (1 - amount), 0.769f - 0.769f * (1 - amount), 0.189f - 0.189f * (1 - amount), 0, 0,
-                        0.349f - 0.349f * (1 - amount), 0.686f + 0.314f * (1 - amount), 0.168f - 0.168f * (1 - amount), 0, 0,
-                        0.272f - 0.272f * (1 - amount), 0.534f - 0.534f * (1 - amount), 0.131f + 0.869f * (1 - amount), 0, 0,
-                        0, 0, 0, 1, 0
-                    };
-                    color_filter = SkColorFilters::Matrix(matrix);
-                    break;
-                }
-                case CSS::Filter::Color::Operation::Saturate: {
-                    float matrix[20] = {
-                        0.213f + 0.787f * amount, 0.715f - 0.715f * amount, 0.072f - 0.072f * amount, 0, 0,
-                        0.213f - 0.213f * amount, 0.715f + 0.285f * amount, 0.072f - 0.072f * amount, 0, 0,
-                        0.213f - 0.213f * amount, 0.715f - 0.715f * amount, 0.072f + 0.928f * amount, 0, 0,
-                        0, 0, 0, 1, 0
-                    };
-                    color_filter = SkColorFilters::Matrix(matrix);
-                    break;
-                }
-                default:
-                    VERIFY_NOT_REACHED();
-                }
-
-                auto image_filter = SkImageFilters::ColorFilter(color_filter, nullptr);
-                canvas.saveLayer(SkCanvas::SaveLayerRec(nullptr, nullptr, image_filter.get(), 0));
-                canvas.restore();
-            },
-            [&](CSS::ResolvedBackdropFilter::HueRotate const& hue_rotate) {
-                float radians = AK::to_radians(hue_rotate.angle_degrees);
-
-                auto cosA = cos(radians);
-                auto sinA = sin(radians);
-
-                auto a00 = 0.213f + cosA * 0.787f - sinA * 0.213f;
-                auto a01 = 0.715f - cosA * 0.715f - sinA * 0.715f;
-                auto a02 = 0.072f - cosA * 0.072f + sinA * 0.928f;
-                auto a10 = 0.213f - cosA * 0.213f + sinA * 0.143f;
-                auto a11 = 0.715f + cosA * 0.285f + sinA * 0.140f;
-                auto a12 = 0.072f - cosA * 0.072f - sinA * 0.283f;
-                auto a20 = 0.213f - cosA * 0.213f - sinA * 0.787f;
-                auto a21 = 0.715f - cosA * 0.715f + sinA * 0.715f;
-                auto a22 = 0.072f + cosA * 0.928f + sinA * 0.072f;
-
-                float matrix[20] = {
-                    a00, a01, a02, 0, 0,
-                    a10, a11, a12, 0, 0,
-                    a20, a21, a22, 0, 0,
-                    0, 0, 0, 1, 0
-                };
-
-                auto color_filter = SkColorFilters::Matrix(matrix);
-                auto image_filter = SkImageFilters::ColorFilter(color_filter, nullptr);
-                canvas.saveLayer(SkCanvas::SaveLayerRec(nullptr, nullptr, image_filter.get(), 0));
-                canvas.restore();
-            },
-            [&](CSS::ResolvedBackdropFilter::DropShadow const&) {
-                dbgln("TODO: Implement drop-shadow() filter function!");
-            });
+        auto image_filter = to_skia_image_filter(filter_function);
+        canvas.saveLayer(SkCanvas::SaveLayerRec(nullptr, nullptr, image_filter.get(), 0));
+        canvas.restore();
     }
 }
 
@@ -1284,6 +1263,69 @@ void DisplayListPlayerSkia::paint_scrollbar(PaintScrollBar const& command)
     stroke_paint.setStrokeWidth(1);
     stroke_paint.setColor(to_skia_color(stroke_color));
     canvas.drawRRect(rrect, stroke_paint);
+}
+
+void DisplayListPlayerSkia::apply_opacity(ApplyOpacity const& command)
+{
+    auto& canvas = surface().canvas();
+    SkPaint paint;
+    paint.setAlphaf(command.opacity);
+    canvas.saveLayer(nullptr, &paint);
+}
+
+void DisplayListPlayerSkia::apply_transform(ApplyTransform const& command)
+{
+    auto affine_transform = Gfx::extract_2d_affine_transform(command.matrix);
+    auto new_transform = Gfx::AffineTransform {}
+                             .translate(command.origin)
+                             .multiply(affine_transform)
+                             .translate(-command.origin);
+    auto matrix = to_skia_matrix(new_transform);
+    surface().canvas().concat(matrix);
+}
+
+void DisplayListPlayerSkia::apply_mask_bitmap(ApplyMaskBitmap const& command)
+{
+    auto& canvas = surface().canvas();
+
+    auto sk_bitmap = to_skia_bitmap(*command.bitmap);
+    auto mask_image = SkImages::RasterFromBitmap(sk_bitmap);
+
+    char const* sksl_shader = nullptr;
+    if (command.kind == Gfx::Bitmap::MaskKind::Luminance) {
+        sksl_shader = R"(
+                uniform shader mask_image;
+                half4 main(float2 coord) {
+                    half4 color = mask_image.eval(coord);
+                    half luminance = 0.2126 * color.b + 0.7152 * color.g + 0.0722 * color.r;
+                    return half4(0.0, 0.0, 0.0, color.a * luminance);
+                }
+            )";
+    } else if (command.kind == Gfx::Bitmap::MaskKind::Alpha) {
+        sksl_shader = R"(
+                uniform shader mask_image;
+                half4 main(float2 coord) {
+                    half4 color = mask_image.eval(coord);
+                    return half4(0.0, 0.0, 0.0, color.a);
+                }
+            )";
+    } else {
+        VERIFY_NOT_REACHED();
+    }
+
+    auto [effect, error] = SkRuntimeEffect::MakeForShader(SkString(sksl_shader));
+    if (!effect) {
+        dbgln("SkSL error: {}", error.c_str());
+        VERIFY_NOT_REACHED();
+    }
+
+    SkMatrix mask_matrix;
+    auto mask_position = command.origin;
+    mask_matrix.setTranslate(mask_position.x(), mask_position.y());
+
+    SkRuntimeShaderBuilder builder(effect);
+    builder.child("mask_image") = mask_image->makeShader(SkSamplingOptions(), mask_matrix);
+    canvas.clipShader(builder.makeShader());
 }
 
 bool DisplayListPlayerSkia::would_be_fully_clipped_by_painter(Gfx::IntRect rect) const

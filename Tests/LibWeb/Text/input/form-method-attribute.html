@@ -1,0 +1,23 @@
+<script src="./include.js"></script>
+<script>
+    test(() => {
+        const form = document.createElement('form');
+        const values = [
+            '', undefined, null,
+            'get', 'post', 'dialog',
+            'GeT', 'POST', 'DIAlog',
+            'foo', 'xpost', '5%'
+        ];
+
+        println('form: unset');
+        println(`form.getAttribute('method') == '${form.getAttribute('method')}'`);
+        println(`form.method == '${form.method}'`);
+        for (value of values) {
+            form.setAttribute('method', value);
+            println('');
+            println(`form.setAttribute('method', '${value}')`);
+            println(`form.getAttribute('method') == '${form.getAttribute('method')}'`);
+            println(`form.method == '${form.method}'`);
+        }
+    });
+</script>

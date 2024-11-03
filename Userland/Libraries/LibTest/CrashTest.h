@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2020, Andreas Kling <kling@serenityos.org>
+ * Copyright (c) 2018-2020, Andreas Kling <andreas@ladybird.org>
  * Copyright (c) 2019-2020, Shannon Booth <shannon@serenityos.org>
  * Copyright (c) 2021, Brian Gianforaro <bgianf@serenityos.org>
  *

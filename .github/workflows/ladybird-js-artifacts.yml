@@ -15,7 +15,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-22.04]
+        os: [ubuntu-24.04]
         package_type: [Linux-x86_64]
         os_name: [Linux]
         include:
@@ -24,7 +24,7 @@ jobs:
             os_name: macOS
 
     concurrency:
-      group: ${{ github.workflow }}-${{ matrix.os }}
+      group: ${{ github.workflow }}-${{ matrix.os_name }}
       cancel-in-progress: true
 
     steps:
@@ -54,9 +54,7 @@ jobs:
             -DCMAKE_C_COMPILER=gcc-13 \
             -DCMAKE_CXX_COMPILER=g++-13 \
             -DENABLE_GUI_TARGETS=OFF
-        if: ${{ matrix.os == 'ubuntu-22.04' }}
-        env:
-          CCACHE_DIR: ${{ env.CCACHE_DIR }}
+        if: ${{ matrix.os_name == 'Linux' }}
 
       # FIXME: Add the following flag back when vcpkg supports Universal binaries:
       #        -DCMAKE_OSX_ARCHITECTURES="x86_64;arm64"
@@ -68,7 +66,7 @@ jobs:
             -DCMAKE_BUILD_TYPE=Release \
             -DCMAKE_OSX_DEPLOYMENT_TARGET="11.0" \
             -DENABLE_GUI_TARGETS=OFF
-        if: ${{ matrix.os == 'macos-14' }}
+        if: ${{ matrix.os_name == 'macOS' }}
 
       - name: Build and package js
         working-directory: Build

@@ -1,0 +1,12 @@
+Summary
+
+Harness status: OK
+
+Rerun
+
+Found 2 tests
+
+2 Pass
+Details
+Result	Test Name	MessagePass	Property box-sizing value 'content-box'	
+Pass	Property box-sizing value 'border-box'	

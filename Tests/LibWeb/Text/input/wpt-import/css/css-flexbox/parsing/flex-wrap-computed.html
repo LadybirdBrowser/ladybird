@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS Flexible Box Layout: getComputedStyle().flexWrap</title>
+<link rel="help" href="https://drafts.csswg.org/css-flexbox/#propdef-flex-wrap">
+<meta name="assert" content="flex-wrap computed value is as specified.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../support/computed-testcommon.js"></script>
+</head>
+<body>
+<div id="target"></div>
+<script>
+test_computed_value("flex-wrap", "nowrap");
+test_computed_value("flex-wrap", "wrap");
+test_computed_value("flex-wrap", "wrap-reverse");
+</script>
+</body>
+</html>

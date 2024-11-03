@@ -1,0 +1,15 @@
+<canvas id="c" class="output" width="11" height="11"><p class="fallback">FAIL (fallback content)</p></canvas>
+<script src="../include.js"></script>
+<script>
+    // Adapted from https://wpt.fyi/results/html/canvas/element/pixel-manipulation/2d.imageData.create2.double.html?label=master&product=ladybird
+    test(() => {
+        const canvas = document.getElementById('c')
+        const ctx = canvas.getContext("2d");
+        const imgdata = ctx.createImageData(-10.01, -10.99)
+        if (imgdata.width === 10 && imgdata.height === 10) {
+            println('PASS')
+        } else {
+            println('FAIL')
+        }
+    });
+</script>

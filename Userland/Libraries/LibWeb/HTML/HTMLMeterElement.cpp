@@ -54,7 +54,7 @@ double HTMLMeterElement::value() const
 
 WebIDL::ExceptionOr<void> HTMLMeterElement::set_value(double value)
 {
-    TRY(set_attribute(HTML::AttributeNames::value, MUST(String::number(value))));
+    TRY(set_attribute(HTML::AttributeNames::value, String::number(value)));
     update_meter_value_element();
     return {};
 }
@@ -72,7 +72,7 @@ double HTMLMeterElement::min() const
 
 WebIDL::ExceptionOr<void> HTMLMeterElement::set_min(double value)
 {
-    TRY(set_attribute(HTML::AttributeNames::min, MUST(String::number(value))));
+    TRY(set_attribute(HTML::AttributeNames::min, String::number(value)));
     update_meter_value_element();
     return {};
 }
@@ -93,7 +93,7 @@ double HTMLMeterElement::max() const
 
 WebIDL::ExceptionOr<void> HTMLMeterElement::set_max(double value)
 {
-    TRY(set_attribute(HTML::AttributeNames::max, MUST(String::number(value))));
+    TRY(set_attribute(HTML::AttributeNames::max, String::number(value)));
     update_meter_value_element();
     return {};
 }
@@ -116,7 +116,7 @@ double HTMLMeterElement::low() const
 
 WebIDL::ExceptionOr<void> HTMLMeterElement::set_low(double value)
 {
-    TRY(set_attribute(HTML::AttributeNames::low, MUST(String::number(value))));
+    TRY(set_attribute(HTML::AttributeNames::low, String::number(value)));
     update_meter_value_element();
     return {};
 }
@@ -139,7 +139,7 @@ double HTMLMeterElement::high() const
 
 WebIDL::ExceptionOr<void> HTMLMeterElement::set_high(double value)
 {
-    TRY(set_attribute(HTML::AttributeNames::high, MUST(String::number(value))));
+    TRY(set_attribute(HTML::AttributeNames::high, String::number(value)));
     update_meter_value_element();
     return {};
 }
@@ -162,7 +162,7 @@ double HTMLMeterElement::optimum() const
 
 WebIDL::ExceptionOr<void> HTMLMeterElement::set_optimum(double value)
 {
-    TRY(set_attribute(HTML::AttributeNames::optimum, MUST(String::number(value))));
+    TRY(set_attribute(HTML::AttributeNames::optimum, String::number(value)));
     update_meter_value_element();
     return {};
 }

@@ -2,11 +2,13 @@
 <div id="foo">
     <iframe></iframe>
     <script>
-        setTimeout(function () {
-            foo.remove();
-            // Pass (didn't crash)
-            internals.signalTextTestIsDone();
-        }, 0);
+        asyncTest(done => {
+            setTimeout(function () {
+                foo.remove();
+                // Pass (didn't crash)
+                done();
+            }, 0);
+        });
     </script>
 </div>
 <iframe></iframe>

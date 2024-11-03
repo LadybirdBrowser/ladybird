@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2020, Andreas Kling <kling@serenityos.org>
+ * Copyright (c) 2018-2020, Andreas Kling <andreas@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -9,8 +9,8 @@
 
 namespace Requests {
 
-RequestClient::RequestClient(NonnullOwnPtr<Core::LocalSocket> socket)
-    : IPC::ConnectionToServer<RequestClientEndpoint, RequestServerEndpoint>(*this, move(socket))
+RequestClient::RequestClient(IPC::Transport transport)
+    : IPC::ConnectionToServer<RequestClientEndpoint, RequestServerEndpoint>(*this, move(transport))
 {
 }
 
@@ -68,23 +68,23 @@ bool RequestClient::set_certificate(Badge<Request>, Request& request, ByteString
     return IPCProxy::set_certificate(request.id(), move(certificate), move(key));
 }
 
-void RequestClient::request_finished(i32 request_id, bool success, u64 total_size)
+void RequestClient::request_finished(i32 request_id, u64 total_size, Optional<NetworkError> const& network_error)
 {
     RefPtr<Request> request;
     if ((request = m_requests.get(request_id).value_or(nullptr))) {
-        request->did_finish({}, success, total_size);
+        request->did_finish({}, total_size, network_error);
     }
     m_requests.remove(request_id);
 }
 
-void RequestClient::headers_became_available(i32 request_id, HTTP::HeaderMap const& response_headers, Optional<u32> const& status_code)
+void RequestClient::headers_became_available(i32 request_id, HTTP::HeaderMap const& response_headers, Optional<u32> const& status_code, Optional<String> const& reason_phrase)
 {
     auto request = const_cast<Request*>(m_requests.get(request_id).value_or(nullptr));
     if (!request) {
         warnln("Received headers for non-existent request {}", request_id);
         return;
     }
-    request->did_receive_headers({}, response_headers, status_code);
+    request->did_receive_headers({}, response_headers, status_code, reason_phrase);
 }
 
 void RequestClient::certificate_requested(i32 request_id)

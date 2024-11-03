@@ -22,7 +22,7 @@ struct CrossOriginProperty {
 };
 
 struct CrossOriginKey {
-    FlatPtr current_settings_object;
+    FlatPtr current_principal_settings_object;
     FlatPtr relevant_settings_object;
     JS::PropertyKey property_key;
 };
@@ -39,12 +39,12 @@ struct Traits<Web::HTML::CrossOriginKey> : public DefaultTraits<Web::HTML::Cross
     {
         return pair_int_hash(
             Traits<JS::PropertyKey>::hash(key.property_key),
-            pair_int_hash(ptr_hash(key.current_settings_object), ptr_hash(key.relevant_settings_object)));
+            pair_int_hash(ptr_hash(key.current_principal_settings_object), ptr_hash(key.relevant_settings_object)));
     }
 
     static bool equals(Web::HTML::CrossOriginKey const& a, Web::HTML::CrossOriginKey const& b)
     {
-        return a.current_settings_object == b.current_settings_object
+        return a.current_principal_settings_object == b.current_principal_settings_object
             && a.relevant_settings_object == b.relevant_settings_object
             && Traits<JS::PropertyKey>::equals(a.property_key, b.property_key);
     }

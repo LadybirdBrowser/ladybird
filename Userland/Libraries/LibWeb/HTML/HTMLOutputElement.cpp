@@ -100,4 +100,14 @@ void HTMLOutputElement::reset_algorithm()
     m_default_value_override = {};
 }
 
+// https://w3c.github.io/webdriver/#dfn-clear-algorithm
+void HTMLOutputElement::clear_algorithm()
+{
+    // The clear algorithm for output elements is set the element's value mode flag to default
+    m_default_value_override = default_value();
+
+    // and then to set the element's textContent IDL attribute to an empty string (thus clearing the element's child nodes).
+    string_replace_all({});
+}
+
 }

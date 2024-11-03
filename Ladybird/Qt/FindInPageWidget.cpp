@@ -62,7 +62,11 @@ FindInPageWidget::FindInPageWidget(Tab* tab, WebContentView* content_view)
     m_match_case = new QCheckBox(this);
     m_match_case->setText("Match &Case");
     m_match_case->setChecked(false);
+#if (QT_VERSION > QT_VERSION_CHECK(6, 7, 0))
+    connect(m_match_case, &QCheckBox::checkStateChanged, this, [this] {
+#else
     connect(m_match_case, &QCheckBox::stateChanged, this, [this] {
+#endif
         find_text_changed();
     });
 

@@ -27,10 +27,10 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<WritableStreamDefaultWriter>> WritableStrea
 }
 
 // https://streams.spec.whatwg.org/#default-writer-closed
-JS::GCPtr<JS::Object> WritableStreamDefaultWriter::closed()
+JS::GCPtr<WebIDL::Promise> WritableStreamDefaultWriter::closed()
 {
     // 1. Return this.[[closedPromise]].
-    return m_closed_promise->promise();
+    return m_closed_promise;
 }
 
 // https://streams.spec.whatwg.org/#default-writer-desired-size
@@ -45,29 +45,29 @@ WebIDL::ExceptionOr<Optional<double>> WritableStreamDefaultWriter::desired_size(
 }
 
 // https://streams.spec.whatwg.org/#default-writer-ready
-JS::GCPtr<JS::Object> WritableStreamDefaultWriter::ready()
+JS::GCPtr<WebIDL::Promise> WritableStreamDefaultWriter::ready()
 {
     // 1. Return this.[[readyPromise]].
-    return m_ready_promise->promise();
+    return m_ready_promise;
 }
 
 // https://streams.spec.whatwg.org/#default-writer-abort
-JS::GCPtr<JS::Object> WritableStreamDefaultWriter::abort(JS::Value reason)
+JS::GCPtr<WebIDL::Promise> WritableStreamDefaultWriter::abort(JS::Value reason)
 {
     auto& realm = this->realm();
 
     // 1. If this.[[stream]] is undefined, return a promise rejected with a TypeError exception.
     if (!m_stream) {
         auto exception = JS::TypeError::create(realm, "Cannot abort a writer that has no locked stream"sv);
-        return WebIDL::create_rejected_promise(realm, exception)->promise();
+        return WebIDL::create_rejected_promise(realm, exception);
     }
 
     // 2. Return ! WritableStreamDefaultWriterAbort(this, reason).
-    return writable_stream_default_writer_abort(*this, reason)->promise();
+    return writable_stream_default_writer_abort(*this, reason);
 }
 
 // https://streams.spec.whatwg.org/#default-writer-close
-JS::GCPtr<JS::Object> WritableStreamDefaultWriter::close()
+JS::GCPtr<WebIDL::Promise> WritableStreamDefaultWriter::close()
 {
     auto& realm = this->realm();
 
@@ -76,17 +76,17 @@ JS::GCPtr<JS::Object> WritableStreamDefaultWriter::close()
     // 2. If stream is undefined, return a promise rejected with a TypeError exception.
     if (!m_stream) {
         auto exception = JS::TypeError::create(realm, "Cannot close a writer that has no locked stream"sv);
-        return WebIDL::create_rejected_promise(realm, exception)->promise();
+        return WebIDL::create_rejected_promise(realm, exception);
     }
 
     // 3. If ! WritableStreamCloseQueuedOrInFlight(stream) is true, return a promise rejected with a TypeError exception.
     if (writable_stream_close_queued_or_in_flight(*m_stream)) {
         auto exception = JS::TypeError::create(realm, "Cannot close a stream that is already closed or errored"sv);
-        return WebIDL::create_rejected_promise(realm, exception)->promise();
+        return WebIDL::create_rejected_promise(realm, exception);
     }
 
     // 4. Return ! WritableStreamDefaultWriterClose(this).
-    return writable_stream_default_writer_close(*this)->promise();
+    return writable_stream_default_writer_close(*this);
 }
 
 // https://streams.spec.whatwg.org/#default-writer-release-lock
@@ -106,18 +106,18 @@ void WritableStreamDefaultWriter::release_lock()
 }
 
 // https://streams.spec.whatwg.org/#default-writer-write
-JS::GCPtr<JS::Object> WritableStreamDefaultWriter::write(JS::Value chunk)
+JS::GCPtr<WebIDL::Promise> WritableStreamDefaultWriter::write(JS::Value chunk)
 {
     auto& realm = this->realm();
 
     // 1. If this.[[stream]] is undefined, return a promise rejected with a TypeError exception.
     if (!m_stream) {
         auto exception = JS::TypeError::create(realm, "Cannot write to a writer that has no locked stream"sv);
-        return WebIDL::create_rejected_promise(realm, exception)->promise();
+        return WebIDL::create_rejected_promise(realm, exception);
     }
 
     // 2. Return ! WritableStreamDefaultWriterWrite(this, chunk).
-    return writable_stream_default_writer_write(*this, chunk)->promise();
+    return writable_stream_default_writer_write(*this, chunk);
 }
 
 WritableStreamDefaultWriter::WritableStreamDefaultWriter(JS::Realm& realm)

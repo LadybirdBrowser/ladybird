@@ -27,6 +27,14 @@ Optional<u32> Utf32CodePointIterator::peek(size_t offset) const
     return *new_iterator;
 }
 
+bool Utf32View::operator==(Utf32View const& other) const
+{
+    ReadonlySpan<u32> code_points { m_code_points, m_length };
+    ReadonlySpan<u32> other_code_points { other.m_code_points, other.m_length };
+
+    return code_points == other_code_points;
+}
+
 ErrorOr<void> Formatter<Utf32View>::format(FormatBuilder& builder, Utf32View const& string)
 {
     return builder.builder().try_append(string);

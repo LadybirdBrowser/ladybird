@@ -154,7 +154,7 @@ ViewportPaintable (Viewport<#document>) [0,0 800x600]
                 TextPaintable (TextNode<#text>)
               PaintableWithLines (BlockContainer<TH>) [159.5625,9 76.796875x21]
                 TextPaintable (TextNode<#text>)
-            PaintableBox (Box<TR>) [9,30 227.359375x21] overflow: [9,30 227.359375x42]
+            PaintableBox (Box<TR>) [9,30 227.359375x21]
               PaintableWithLines (BlockContainer<TD>) [9,30 74.046875x21]
                 TextPaintable (TextNode<#text>)
               PaintableWithLines (BlockContainer<TD>) [83.046875,30 76.515625x21]
@@ -173,7 +173,7 @@ ViewportPaintable (Viewport<#document>) [0,0 800x600]
                 TextPaintable (TextNode<#text>)
               PaintableWithLines (BlockContainer<TD>) [159.5625,72 76.796875x21]
                 TextPaintable (TextNode<#text>)
-            PaintableBox (Box<TR>) [9,93 227.359375x21] overflow: [9,93 227.359375x42]
+            PaintableBox (Box<TR>) [9,93 227.359375x21]
               PaintableWithLines (BlockContainer<TD>) [9,93 74.046875x21]
                 TextPaintable (TextNode<#text>)
               PaintableWithLines (BlockContainer<TD>) [83.046875,93 76.515625x21]

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022, Andreas Kling <kling@serenityos.org>
+ * Copyright (c) 2018-2022, Andreas Kling <andreas@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -13,7 +13,7 @@
 #include <LibWeb/DOMURL/DOMURL.h>
 #include <LibWeb/HTML/BrowsingContext.h>
 #include <LibWeb/HTML/BrowsingContextGroup.h>
-#include <LibWeb/HTML/CrossOrigin/CrossOriginOpenerPolicy.h>
+#include <LibWeb/HTML/CrossOrigin/OpenerPolicy.h>
 #include <LibWeb/HTML/DocumentState.h>
 #include <LibWeb/HTML/HTMLAnchorElement.h>
 #include <LibWeb/HTML/HTMLDocument.h>
@@ -59,15 +59,17 @@ bool url_matches_about_srcdoc(URL::URL const& url)
 }
 
 // https://html.spec.whatwg.org/multipage/document-sequences.html#determining-the-origin
-HTML::Origin determine_the_origin(URL::URL const& url, SandboxingFlagSet sandbox_flags, Optional<HTML::Origin> source_origin)
+URL::Origin determine_the_origin(Optional<URL::URL> const& url, SandboxingFlagSet sandbox_flags, Optional<URL::Origin> source_origin)
 {
     // 1. If sandboxFlags has its sandboxed origin browsing context flag set, then return a new opaque origin.
     if (has_flag(sandbox_flags, SandboxingFlagSet::SandboxedOrigin)) {
-        return HTML::Origin {};
+        return URL::Origin {};
     }
 
-    // FIXME: 2. If url is null, then return a new opaque origin.
-    // FIXME: There appears to be no way to get a null URL here, so it might be a spec bug.
+    // 2. If url is null, then return a new opaque origin.
+    if (!url.has_value()) {
+        return URL::Origin {};
+    }
 
     // 3. If url is about:srcdoc, then:
     if (url == "about:srcdoc"sv) {
@@ -79,11 +81,11 @@ HTML::Origin determine_the_origin(URL::URL const& url, SandboxingFlagSet sandbox
     }
 
     // 4. If url matches about:blank and sourceOrigin is non-null, then return sourceOrigin.
-    if (url_matches_about_blank(url) && source_origin.has_value())
+    if (url_matches_about_blank(*url) && source_origin.has_value())
         return source_origin.release_value();
 
     // 5. Return url's origin.
-    return DOMURL::url_origin(url);
+    return url->origin();
 }
 
 // https://html.spec.whatwg.org/multipage/document-sequences.html#creating-a-new-auxiliary-browsing-context
@@ -142,7 +144,7 @@ WebIDL::ExceptionOr<BrowsingContext::BrowsingContextAndDocument> BrowsingContext
     [[maybe_unused]] auto unsafe_context_creation_time = HighResolutionTime::unsafe_shared_current_time();
 
     // 3. Let creatorOrigin be null.
-    Optional<Origin> creator_origin = {};
+    Optional<URL::Origin> creator_origin = {};
 
     // 4. Let creatorBaseURL be null.
     Optional<URL::URL> creator_base_url = {};
@@ -259,10 +261,10 @@ WebIDL::ExceptionOr<BrowsingContext::BrowsingContextAndDocument> BrowsingContext
 
         // 3. If creator's origin is same origin with creator's relevant settings object's top-level origin,
         if (creator->origin().is_same_origin(creator->relevant_settings_object().top_level_origin)) {
-            // then set document's cross-origin opener policy to creator's browsing context's top-level browsing context's active document's cross-origin opener policy.
+            // then set document's opener policy to creator's browsing context's top-level browsing context's active document's opener policy.
             VERIFY(creator->browsing_context());
             VERIFY(creator->browsing_context()->top_level_browsing_context()->active_document());
-            document->set_cross_origin_opener_policy(creator->browsing_context()->top_level_browsing_context()->active_document()->cross_origin_opener_policy());
+            document->set_opener_policy(creator->browsing_context()->top_level_browsing_context()->active_document()->opener_policy());
         }
     }
 
@@ -395,6 +397,11 @@ BrowsingContextGroup* BrowsingContext::group()
     return m_group;
 }
 
+BrowsingContextGroup const* BrowsingContext::group() const
+{
+    return m_group;
+}
+
 void BrowsingContext::set_group(BrowsingContextGroup* group)
 {
     m_group = group;
@@ -505,7 +512,7 @@ SandboxingFlagSet determine_the_creation_sandboxing_flags(BrowsingContext const&
 bool BrowsingContext::has_navigable_been_destroyed() const
 {
     auto navigable = active_document()->navigable();
-    return navigable && navigable->has_been_destroyed();
+    return !navigable || navigable->has_been_destroyed();
 }
 
 }

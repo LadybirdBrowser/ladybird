@@ -705,6 +705,9 @@ TEST_CASE(ECMA262_match)
         { "a$"sv, "a\r\n"sv, true, global_multiline.value() }, // $ should accept all LineTerminators in ECMA262 mode with Multiline.
         { "^a"sv, "\ra"sv, true, global_multiline.value() },
         { "^(.*?):[ \\t]*([^\\r\\n]*)$"sv, "content-length: 488\r\ncontent-type: application/json; charset=utf-8\r\n"sv, true, global_multiline.value() },
+        { "^\\?((&?category=[0-9]+)?(&?shippable=1)?(&?ad_type=demand)?(&?page=[0-9]+)?(&?locations=(r|d)_[0-9]+)?)+$"sv,
+            "?category=54&shippable=1&baby_age=p,0,1,3"sv, false }, // ladybird#968, ?+ should not loop forever.
+        { "([^\\s]+):\\s*([^;]+);"sv, "font-family: 'Inter';"sv, true }, // optimizer bug, blindly accepting inverted char classes [^x] as atomic rewrite opportunities.
     };
     // clang-format on
 
@@ -981,6 +984,7 @@ TEST_CASE(theoretically_infinite_loop)
         "(a*?)*"sv, // Infinitely matching empty substrings, the outer loop should short-circuit.
         "(a*)*?"sv, // Should match exactly nothing.
         "(?:)*?"sv, // Should not generate an infinite fork loop.
+        "(a?)+$"sv, // Infinitely matching empty strings, but with '+' instead of '*'.
     };
     for (auto& pattern : patterns) {
         Regex<ECMA262> re(pattern);
@@ -996,6 +1000,15 @@ BENCHMARK_CASE(fork_performance)
     Regex<ECMA262> re("(?:aa)*");
     auto result = re.match(g_lots_of_a_s);
     EXPECT_EQ(result.success, true);
+}
+
+BENCHMARK_CASE(anchor_performance)
+{
+    Regex<ECMA262> re("^b");
+    for (auto i = 0; i < 100'000; i++) {
+        auto result = re.match(g_lots_of_a_s);
+        EXPECT_EQ(result.success, false);
+    }
 }
 
 TEST_CASE(optimizer_atomic_groups)
@@ -1075,6 +1088,21 @@ TEST_CASE(optimizer_alternation)
         auto result = re.match(test.get<1>());
         EXPECT(result.success);
         EXPECT_EQ(result.matches.first().view.length(), test.get<2>());
+    }
+}
+
+TEST_CASE(start_anchor)
+{
+    // Ensure that a circumflex at the start only matches the start of the line.
+    {
+        Regex<PosixBasic> re("^abc");
+        EXPECT_EQ(re.match("123abcdef"sv, PosixFlags::Global).success, false);
+        EXPECT_EQ(re.match("abc123"sv, PosixFlags::Global).success, true);
+        EXPECT_EQ(re.match("123^abcdef"sv, PosixFlags::Global).success, false);
+        EXPECT_EQ(re.match("^abc123"sv, PosixFlags::Global).success, false);
+
+        // Multiple lines
+        EXPECT_EQ(re.match("123\nabc"sv, PosixFlags::Multiline).success, true);
     }
 }
 

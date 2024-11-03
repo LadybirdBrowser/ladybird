@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022, Andreas Kling <kling@serenityos.org>
+ * Copyright (c) 2022, Andreas Kling <andreas@ladybird.org>
  * Copyright (c) 2021, Tim Flynn <trflynn89@serenityos.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
@@ -1415,4 +1415,28 @@ TEST_CASE(ends_with)
 
     EXPECT(emoji.ends_with(0x1F643));
     EXPECT(!emoji.ends_with(0x1F600));
+}
+
+TEST_CASE(to_ascii_lowercase)
+{
+    EXPECT_EQ("foobar"_string.to_ascii_lowercase(), "foobar"_string);
+    EXPECT_EQ("FooBar"_string.to_ascii_lowercase(), "foobar"_string);
+    EXPECT_EQ("FOOBAR"_string.to_ascii_lowercase(), "foobar"_string);
+
+    // NOTE: We expect to_ascii_lowercase() to return the same underlying string if no changes are needed.
+    auto long_string = "this is a long string that cannot use the short string optimization"_string;
+    auto lowercased = long_string.to_ascii_lowercase();
+    EXPECT_EQ(long_string.bytes().data(), lowercased.bytes().data());
+}
+
+TEST_CASE(to_ascii_uppercase)
+{
+    EXPECT_EQ("foobar"_string.to_ascii_uppercase(), "FOOBAR"_string);
+    EXPECT_EQ("FooBar"_string.to_ascii_uppercase(), "FOOBAR"_string);
+    EXPECT_EQ("FOOBAR"_string.to_ascii_uppercase(), "FOOBAR"_string);
+
+    // NOTE: We expect to_ascii_uppercase() to return the same underlying string if no changes are needed.
+    auto long_string = "THIS IS A LONG STRING THAT CANNOT USE THE SHORT STRING OPTIMIZATION"_string;
+    auto uppercased = long_string.to_ascii_uppercase();
+    EXPECT_EQ(long_string.bytes().data(), uppercased.bytes().data());
 }

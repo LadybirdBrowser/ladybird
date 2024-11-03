@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022, Andreas Kling <kling@serenityos.org>
+ * Copyright (c) 2022, Andreas Kling <andreas@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -62,7 +62,7 @@ public:
 
     RETURNS_NONNULL T* operator->() const { return m_ptr; }
 
-    T& operator*() const { return *m_ptr; }
+    [[nodiscard]] T& operator*() const { return *m_ptr; }
 
     RETURNS_NONNULL T* ptr() const { return m_ptr; }
 
@@ -169,7 +169,7 @@ public:
         return m_ptr;
     }
 
-    T& operator*() const
+    [[nodiscard]] T& operator*() const
     {
         ASSERT(m_ptr);
         return *m_ptr;

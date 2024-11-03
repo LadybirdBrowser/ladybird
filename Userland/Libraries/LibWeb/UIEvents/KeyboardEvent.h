@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2022, Andreas Kling <kling@serenityos.org>
+ * Copyright (c) 2021-2022, Andreas Kling <andreas@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -38,7 +38,7 @@ class KeyboardEvent final : public UIEvent {
 
 public:
     [[nodiscard]] static JS::NonnullGCPtr<KeyboardEvent> create(JS::Realm&, FlyString const& event_name, KeyboardEventInit const& = {});
-    [[nodiscard]] static JS::NonnullGCPtr<KeyboardEvent> create_from_platform_event(JS::Realm&, FlyString const& event_name, KeyCode, unsigned modifiers, u32 code_point);
+    [[nodiscard]] static JS::NonnullGCPtr<KeyboardEvent> create_from_platform_event(JS::Realm&, FlyString const& event_name, KeyCode, unsigned modifiers, u32 code_point, bool repeat);
     static WebIDL::ExceptionOr<JS::NonnullGCPtr<KeyboardEvent>> construct_impl(JS::Realm&, FlyString const& event_name, KeyboardEventInit const&);
 
     virtual ~KeyboardEvent() override;

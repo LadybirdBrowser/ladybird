@@ -38,4 +38,6 @@ NSPoint gfx_point_to_ns_point(Gfx::IntPoint);
 Gfx::Color ns_color_to_gfx_color(NSColor*);
 NSColor* gfx_color_to_ns_color(Gfx::Color);
 
+Gfx::IntPoint compute_origin_relative_to_window(NSWindow*, Gfx::IntPoint);
+
 }

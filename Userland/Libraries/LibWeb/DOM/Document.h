@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2023, Andreas Kling <kling@serenityos.org>
+ * Copyright (c) 2018-2023, Andreas Kling <andreas@ladybird.org>
  * Copyright (c) 2021-2023, Linus Groh <linusg@serenityos.org>
  * Copyright (c) 2023-2024, Shannon Booth <shannon@serenityos.org>
  *
@@ -18,20 +18,21 @@
 #include <LibCore/Forward.h>
 #include <LibJS/Console.h>
 #include <LibJS/Forward.h>
+#include <LibURL/Origin.h>
 #include <LibURL/URL.h>
+#include <LibUnicode/Forward.h>
 #include <LibWeb/CSS/CSSStyleSheet.h>
 #include <LibWeb/CSS/StyleSheetList.h>
 #include <LibWeb/Cookie/Cookie.h>
 #include <LibWeb/DOM/NonElementParentNode.h>
 #include <LibWeb/DOM/ParentNode.h>
 #include <LibWeb/HTML/BrowsingContext.h>
-#include <LibWeb/HTML/CrossOrigin/CrossOriginOpenerPolicy.h>
+#include <LibWeb/HTML/CrossOrigin/OpenerPolicy.h>
 #include <LibWeb/HTML/DocumentReadyState.h>
 #include <LibWeb/HTML/HTMLScriptElement.h>
 #include <LibWeb/HTML/History.h>
 #include <LibWeb/HTML/LazyLoadingElement.h>
 #include <LibWeb/HTML/NavigationType.h>
-#include <LibWeb/HTML/Origin.h>
 #include <LibWeb/HTML/SandboxingFlagSet.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/VisibilityState.h>
@@ -115,8 +116,10 @@ public:
 
     JS::GCPtr<Selection::Selection> get_selection() const;
 
-    String cookie(Cookie::Source = Cookie::Source::NonHttp);
-    void set_cookie(StringView, Cookie::Source = Cookie::Source::NonHttp);
+    WebIDL::ExceptionOr<String> cookie(Cookie::Source = Cookie::Source::NonHttp);
+    WebIDL::ExceptionOr<void> set_cookie(StringView, Cookie::Source = Cookie::Source::NonHttp);
+    bool is_cookie_averse() const;
+    void enable_cookies_on_file_domains(Badge<Internals::Internals>) { m_enable_cookies_on_file_domains = true; }
 
     String fg_color() const;
     void set_fg_color(String const&);
@@ -147,11 +150,11 @@ public:
     String url_string() const { return MUST(m_url.to_string()); }
     String document_uri() const { return url_string(); }
 
-    HTML::Origin origin() const;
-    void set_origin(HTML::Origin const& origin);
+    URL::Origin origin() const;
+    void set_origin(URL::Origin const& origin);
 
-    HTML::CrossOriginOpenerPolicy const& cross_origin_opener_policy() const { return m_cross_origin_opener_policy; }
-    void set_cross_origin_opener_policy(HTML::CrossOriginOpenerPolicy policy) { m_cross_origin_opener_policy = move(policy); }
+    HTML::OpenerPolicy const& opener_policy() const { return m_opener_policy; }
+    void set_opener_policy(HTML::OpenerPolicy policy) { m_opener_policy = move(policy); }
 
     URL::URL parse_url(StringView) const;
 
@@ -161,7 +164,7 @@ public:
     CSS::StyleSheetList& style_sheets();
     CSS::StyleSheetList const& style_sheets() const;
 
-    void for_each_active_css_style_sheet(Function<void(CSS::CSSStyleSheet&)>&& callback) const;
+    void for_each_active_css_style_sheet(Function<void(CSS::CSSStyleSheet&, JS::GCPtr<DOM::ShadowRoot>)>&& callback) const;
 
     CSS::StyleSheetList* style_sheets_for_bindings() { return &style_sheets(); }
 
@@ -346,6 +349,7 @@ public:
     Element const* target_element() const { return m_target_element.ptr(); }
     void set_target_element(Element*);
 
+    void try_to_scroll_to_the_fragment();
     void scroll_to_the_fragment();
     void scroll_to_the_beginning_of_the_document();
 
@@ -370,8 +374,8 @@ public:
     WebIDL::ExceptionOr<JS::GCPtr<HTML::WindowProxy>> open(StringView url, StringView name, StringView features);
     WebIDL::ExceptionOr<void> close();
 
-    HTML::Window* default_view() { return m_window.ptr(); }
-    HTML::Window const* default_view() const { return m_window.ptr(); }
+    JS::GCPtr<HTML::WindowProxy const> default_view() const;
+    JS::GCPtr<HTML::WindowProxy> default_view();
 
     String const& content_type() const { return m_content_type; }
     void set_content_type(String content_type) { m_content_type = move(content_type); }
@@ -426,6 +430,7 @@ public:
 
     bool hidden() const;
     StringView visibility_state() const;
+    HTML::VisibilityState visibility_state_value() const { return m_visibility_state; }
 
     // https://html.spec.whatwg.org/multipage/interaction.html#update-the-visibility-state
     void update_the_visibility_state(HTML::VisibilityState);
@@ -560,12 +565,16 @@ public:
     void set_previous_document_unload_timing(DocumentUnloadTimingInfo const& previous_document_unload_timing) { m_previous_document_unload_timing = previous_document_unload_timing; }
 
     // https://w3c.github.io/editing/docs/execCommand/
-    bool exec_command(String command_id, bool show_ui, String value);
-    bool query_command_enabled(String command_id);
-    bool query_command_indeterm(String command_id);
-    bool query_command_state(String command_id);
-    bool query_command_supported(String command_id);
-    String query_command_value(String command_id);
+    bool exec_command(String const& command, bool show_ui, String const& value);
+    bool query_command_enabled(String const& command);
+    bool query_command_indeterm(String const& command);
+    bool query_command_state(String const& command);
+    bool query_command_supported(String const& command);
+    String query_command_value(String const& command);
+
+    // https://w3c.github.io/selection-api/#dfn-has-scheduled-selectionchange-event
+    bool has_scheduled_selectionchange_event() const { return m_has_scheduled_selectionchange_event; }
+    void set_scheduled_selectionchange_event(bool value) { m_has_scheduled_selectionchange_event = value; }
 
     bool is_allowed_to_use_feature(PolicyControlledFeature) const;
 
@@ -576,6 +585,8 @@ public:
     void make_active();
 
     void set_salvageable(bool value) { m_salvageable = value; }
+
+    void make_unsalvageable(String reason);
 
     HTML::ListOfAvailableImages& list_of_available_images();
     HTML::ListOfAvailableImages const& list_of_available_images() const;
@@ -621,7 +632,6 @@ public:
     void append_pending_animation_event(PendingAnimationEvent const&);
     void update_animations_and_send_events(Optional<double> const& timestamp);
     void remove_replaced_animations();
-    void ensure_animation_timer();
 
     Vector<JS::NonnullGCPtr<Animations::Animation>> get_animations();
 
@@ -647,7 +657,7 @@ public:
     WebIDL::ExceptionOr<void> set_design_mode(String const&);
 
     Element const* element_from_point(double x, double y);
-    Vector<JS::NonnullGCPtr<Element>> elements_from_point(double x, double y);
+    JS::MarkedVector<JS::NonnullGCPtr<Element>> elements_from_point(double x, double y);
     JS::GCPtr<Element const> scrolling_element() const;
 
     void set_needs_to_resolve_paint_only_properties() { m_needs_to_resolve_paint_only_properties = true; }
@@ -668,6 +678,7 @@ public:
     void register_shadow_root(Badge<DOM::ShadowRoot>, DOM::ShadowRoot&);
     void unregister_shadow_root(Badge<DOM::ShadowRoot>, DOM::ShadowRoot&);
     void for_each_shadow_root(Function<void(DOM::ShadowRoot&)>&& callback);
+    void for_each_shadow_root(Function<void(DOM::ShadowRoot&)>&& callback) const;
 
     void add_an_element_to_the_top_layer(JS::NonnullGCPtr<Element>);
     void request_an_element_to_be_remove_from_the_top_layer(JS::NonnullGCPtr<Element>);
@@ -689,16 +700,11 @@ public:
     void set_console_client(JS::GCPtr<JS::ConsoleClient> console_client) { m_console_client = console_client; }
     JS::GCPtr<JS::ConsoleClient> console_client() const { return m_console_client; }
 
-    JS::GCPtr<DOM::Position> cursor_position() const { return m_cursor_position; }
-    void set_cursor_position(JS::NonnullGCPtr<DOM::Position>);
-    bool increment_cursor_position_offset();
-    bool decrement_cursor_position_offset();
-    bool increment_cursor_position_to_next_word();
-    bool decrement_cursor_position_to_previous_word();
+    InputEventsTarget* active_input_events_target();
+    JS::GCPtr<DOM::Position> cursor_position() const;
 
     bool cursor_blink_state() const { return m_cursor_blink_state; }
 
-    void user_did_edit_document_text(Badge<EditEventHandler>);
     // Cached pointer to the last known node navigable.
     // If this document is currently the "active document" of the cached navigable, the cache is still valid.
     JS::GCPtr<HTML::Navigable> cached_navigable();
@@ -719,6 +725,25 @@ public:
     RefPtr<Painting::DisplayList> record_display_list(PaintConfig);
 
     void invalidate_display_list();
+
+    Unicode::Segmenter& grapheme_segmenter() const;
+    Unicode::Segmenter& word_segmenter() const;
+
+    struct StepsToFireBeforeunloadResult {
+        bool unload_prompt_shown { false };
+        bool unload_prompt_canceled { false };
+    };
+    StepsToFireBeforeunloadResult steps_to_fire_beforeunload(bool unload_prompt_shown);
+
+    [[nodiscard]] WebIDL::CallbackType* onreadystatechange();
+    void set_onreadystatechange(WebIDL::CallbackType*);
+
+    [[nodiscard]] WebIDL::CallbackType* onvisibilitychange();
+    void set_onvisibilitychange(WebIDL::CallbackType*);
+
+    void reset_cursor_blink_cycle();
+
+    JS::NonnullGCPtr<EditingHostManager> editing_host_manager() const { return *m_editing_host_manager; }
 
 protected:
     virtual void initialize(JS::Realm&) override;
@@ -746,10 +771,6 @@ private:
     Element* find_a_potential_indicated_element(FlyString const& fragment) const;
 
     void dispatch_events_for_animation_if_necessary(JS::NonnullGCPtr<Animations::Animation>);
-
-    void reset_cursor_blink_cycle();
-
-    void make_unsalvageable(String reason);
 
     JS::NonnullGCPtr<Page> m_page;
     OwnPtr<CSS::StyleComputer> m_style_computer;
@@ -862,13 +883,13 @@ private:
     Optional<URL::URL> m_about_base_url;
 
     // https://html.spec.whatwg.org/multipage/dom.html#concept-document-coop
-    HTML::CrossOriginOpenerPolicy m_cross_origin_opener_policy;
+    HTML::OpenerPolicy m_opener_policy;
 
     // https://html.spec.whatwg.org/multipage/dom.html#the-document's-referrer
     String m_referrer;
 
     // https://dom.spec.whatwg.org/#concept-document-origin
-    HTML::Origin m_origin;
+    URL::Origin m_origin;
 
     JS::GCPtr<HTMLCollection> m_applets;
     JS::GCPtr<HTMLCollection> m_anchors;
@@ -985,9 +1006,11 @@ private:
     // https://dom.spec.whatwg.org/#document-allow-declarative-shadow-roots
     bool m_allow_declarative_shadow_roots { false };
 
+    // https://w3c.github.io/selection-api/#dfn-has-scheduled-selectionchange-event
+    bool m_has_scheduled_selectionchange_event { false };
+
     JS::GCPtr<JS::ConsoleClient> m_console_client;
 
-    JS::GCPtr<DOM::Position> m_cursor_position;
     RefPtr<Core::Timer> m_cursor_blink_timer;
     bool m_cursor_blink_state { false };
 
@@ -996,8 +1019,15 @@ private:
 
     bool m_needs_repaint { false };
 
+    bool m_enable_cookies_on_file_domains { false };
+
     Optional<PaintConfig> m_cached_display_list_paint_config;
     RefPtr<Painting::DisplayList> m_cached_display_list;
+
+    mutable OwnPtr<Unicode::Segmenter> m_grapheme_segmenter;
+    mutable OwnPtr<Unicode::Segmenter> m_word_segmenter;
+
+    JS::NonnullGCPtr<EditingHostManager> m_editing_host_manager;
 };
 
 template<>

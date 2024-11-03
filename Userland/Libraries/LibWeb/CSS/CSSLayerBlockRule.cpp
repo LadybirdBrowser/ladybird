@@ -25,7 +25,7 @@ FlyString CSSLayerBlockRule::next_unique_anonymous_layer_name()
 }
 
 CSSLayerBlockRule::CSSLayerBlockRule(JS::Realm& realm, FlyString name, CSSRuleList& rules)
-    : CSSGroupingRule(realm, rules)
+    : CSSGroupingRule(realm, rules, Type::LayerBlock)
     , m_name(move(name))
 {
     if (m_name.is_empty()) {

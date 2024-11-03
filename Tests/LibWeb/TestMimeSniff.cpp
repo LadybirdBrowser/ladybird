@@ -6,41 +6,42 @@
  */
 
 #include <LibTest/TestCase.h>
+#include <LibWeb/MimeSniff/MimeType.h>
 
 #include <LibWeb/MimeSniff/Resource.h>
 
 TEST_CASE(determine_computed_mime_type_given_no_sniff_is_set)
 {
-    auto mime_type = MUST(Web::MimeSniff::MimeType::create("text"_string, "html"_string));
-    auto computed_mime_type = MUST(Web::MimeSniff::Resource::sniff("\x00"sv.bytes(), Web::MimeSniff::SniffingConfiguration { .supplied_type = mime_type, .no_sniff = true }));
+    auto mime_type = Web::MimeSniff::MimeType::create("text"_string, "html"_string);
+    auto computed_mime_type = Web::MimeSniff::Resource::sniff("\x00"sv.bytes(), Web::MimeSniff::SniffingConfiguration { .supplied_type = mime_type, .no_sniff = true });
 
-    EXPECT_EQ("text/html"sv, MUST(computed_mime_type.serialized()));
+    EXPECT_EQ("text/html"sv, computed_mime_type.serialized());
 
     // Cover the edge case in the context-specific sniffing algorithm.
-    computed_mime_type = MUST(Web::MimeSniff::Resource::sniff("\x00"sv.bytes(), Web::MimeSniff::SniffingConfiguration {
-                                                                                    .sniffing_context = Web::MimeSniff::SniffingContext::Image,
-                                                                                    .supplied_type = mime_type,
-                                                                                    .no_sniff = true,
-                                                                                }));
+    computed_mime_type = Web::MimeSniff::Resource::sniff("\x00"sv.bytes(), Web::MimeSniff::SniffingConfiguration {
+                                                                               .sniffing_context = Web::MimeSniff::SniffingContext::Image,
+                                                                               .supplied_type = mime_type,
+                                                                               .no_sniff = true,
+                                                                           });
 
-    EXPECT_EQ("text/html"sv, MUST(computed_mime_type.serialized()));
+    EXPECT_EQ("text/html"sv, computed_mime_type.serialized());
 }
 
 TEST_CASE(determine_computed_mime_type_given_no_sniff_is_unset)
 {
-    auto supplied_type = MUST(Web::MimeSniff::MimeType::create("text"_string, "html"_string));
-    auto computed_mime_type = MUST(Web::MimeSniff::Resource::sniff("\x00"sv.bytes(), Web::MimeSniff::SniffingConfiguration { .supplied_type = supplied_type }));
+    auto supplied_type = Web::MimeSniff::MimeType::create("application"_string, "x-this-is-a-test"_string);
+    auto computed_mime_type = Web::MimeSniff::Resource::sniff("\x00"sv.bytes(), Web::MimeSniff::SniffingConfiguration { .supplied_type = supplied_type });
 
-    EXPECT_EQ("application/octet-stream"sv, MUST(computed_mime_type.serialized()));
+    EXPECT_EQ("application/x-this-is-a-test"sv, computed_mime_type.serialized());
 }
 
 TEST_CASE(determine_computed_mime_type_given_xml_mime_type_as_supplied_type)
 {
     auto xml_mime_type = "application/rss+xml"sv;
-    auto supplied_type = MUST(Web::MimeSniff::MimeType::parse(xml_mime_type)).release_value();
-    auto computed_mime_type = MUST(Web::MimeSniff::Resource::sniff("\x00"sv.bytes(), Web::MimeSniff::SniffingConfiguration { .supplied_type = supplied_type }));
+    auto supplied_type = Web::MimeSniff::MimeType::parse(xml_mime_type).release_value();
+    auto computed_mime_type = Web::MimeSniff::Resource::sniff("\x00"sv.bytes(), Web::MimeSniff::SniffingConfiguration { .supplied_type = supplied_type });
 
-    EXPECT_EQ(xml_mime_type, MUST(computed_mime_type.serialized()));
+    EXPECT_EQ(xml_mime_type, computed_mime_type.serialized());
 }
 
 static void set_image_type_mappings(HashMap<StringView, Vector<StringView>>& mime_type_to_headers_map)
@@ -84,11 +85,11 @@ TEST_CASE(determine_computed_mime_type_given_supplied_type_that_is_an_apache_bug
 
     // Cover all Apache bug MIME types.
     for (auto const& apache_bug_mime_type : apache_bug_mime_types) {
-        auto supplied_type = MUST(Web::MimeSniff::MimeType::parse(apache_bug_mime_type)).release_value();
-        auto computed_mime_type = MUST(Web::MimeSniff::Resource::sniff("Hello world!"sv.bytes(),
-            Web::MimeSniff::SniffingConfiguration { .scheme = "http"sv, .supplied_type = supplied_type }));
+        auto supplied_type = Web::MimeSniff::MimeType::parse(apache_bug_mime_type).release_value();
+        auto computed_mime_type = Web::MimeSniff::Resource::sniff("Hello world!"sv.bytes(),
+            Web::MimeSniff::SniffingConfiguration { .scheme = "http"sv, .supplied_type = supplied_type });
 
-        EXPECT_EQ("text/plain"sv, MUST(computed_mime_type.serialized()));
+        EXPECT_EQ("text/plain"sv, computed_mime_type.serialized());
     }
 
     // Cover all code paths in "rules for distinguishing if a resource is text or binary".
@@ -97,17 +98,30 @@ TEST_CASE(determine_computed_mime_type_given_supplied_type_that_is_an_apache_bug
 
     set_text_plain_type_mappings(mime_type_to_headers_map);
 
-    auto supplied_type = MUST(Web::MimeSniff::MimeType::create("text"_string, "plain"_string));
+    auto supplied_type = Web::MimeSniff::MimeType::create("text"_string, "plain"_string);
     for (auto const& mime_type_to_headers : mime_type_to_headers_map) {
         auto mime_type = mime_type_to_headers.key;
 
         for (auto const& header : mime_type_to_headers.value) {
-            auto computed_mime_type = MUST(Web::MimeSniff::Resource::sniff(header.bytes(),
-                Web::MimeSniff::SniffingConfiguration { .scheme = "http"sv, .supplied_type = supplied_type }));
+            auto computed_mime_type = Web::MimeSniff::Resource::sniff(header.bytes(),
+                Web::MimeSniff::SniffingConfiguration { .scheme = "http"sv, .supplied_type = supplied_type });
 
-            EXPECT_EQ(mime_type, MUST(computed_mime_type.serialized()));
+            EXPECT_EQ(mime_type, computed_mime_type.serialized());
         }
     }
+}
+
+TEST_CASE(determine_computed_mime_type_given_xml_or_html_supplied_type)
+{
+    // With HTML supplied type.
+    auto config = Web::MimeSniff::SniffingConfiguration { .supplied_type = Web::MimeSniff::MimeType::create("text"_string, "html"_string) };
+    auto computed_mime_type = Web::MimeSniff::Resource::sniff(""sv.bytes(), config);
+    EXPECT_EQ("text/html"sv, computed_mime_type.serialized());
+
+    // With XML supplied type.
+    config = Web::MimeSniff::SniffingConfiguration { .supplied_type = Web::MimeSniff::MimeType::create("text"_string, "xml"_string) };
+    computed_mime_type = Web::MimeSniff::Resource::sniff(""sv.bytes(), config);
+    EXPECT_EQ("text/xml"sv, computed_mime_type.serialized());
 }
 
 TEST_CASE(determine_computed_mime_type_in_both_none_and_browsing_sniffing_context)
@@ -152,11 +166,11 @@ TEST_CASE(determine_computed_mime_type_in_both_none_and_browsing_sniffing_contex
         for (auto const& header : mime_type_to_headers.value) {
 
             // Test in a non-specific sniffing context.
-            auto computed_mime_type = MUST(Web::MimeSniff::Resource::sniff(header.bytes()));
+            auto computed_mime_type = Web::MimeSniff::Resource::sniff(header.bytes());
             EXPECT_EQ(mime_type, computed_mime_type.essence());
 
             // Test sniffing in a browsing context.
-            computed_mime_type = MUST(Web::MimeSniff::Resource::sniff(header.bytes(), Web::MimeSniff::SniffingConfiguration { .sniffing_context = Web::MimeSniff::SniffingContext::Browsing }));
+            computed_mime_type = Web::MimeSniff::Resource::sniff(header.bytes(), Web::MimeSniff::SniffingConfiguration { .sniffing_context = Web::MimeSniff::SniffingContext::Browsing });
             EXPECT_EQ(mime_type, computed_mime_type.essence());
         }
     }
@@ -165,14 +179,14 @@ TEST_CASE(determine_computed_mime_type_in_both_none_and_browsing_sniffing_contex
 TEST_CASE(compute_mime_type_given_unknown_supplied_type)
 {
     Array<Web::MimeSniff::MimeType, 3> unknown_supplied_types = {
-        MUST(Web::MimeSniff::MimeType::create("unknown"_string, "unknown"_string)),
-        MUST(Web::MimeSniff::MimeType::create("application"_string, "unknown"_string)),
-        MUST(Web::MimeSniff::MimeType::create("*"_string, "*"_string))
+        Web::MimeSniff::MimeType::create("unknown"_string, "unknown"_string),
+        Web::MimeSniff::MimeType::create("application"_string, "unknown"_string),
+        Web::MimeSniff::MimeType::create("*"_string, "*"_string)
     };
     auto header_bytes = "<HTML>"sv.bytes();
 
     for (auto const& unknown_supplied_type : unknown_supplied_types) {
-        auto computed_mime_type = MUST(Web::MimeSniff::Resource::sniff(header_bytes, Web::MimeSniff::SniffingConfiguration { .supplied_type = unknown_supplied_type }));
+        auto computed_mime_type = Web::MimeSniff::Resource::sniff(header_bytes, Web::MimeSniff::SniffingConfiguration { .supplied_type = unknown_supplied_type });
         EXPECT_EQ("text/html"sv, computed_mime_type.essence());
     }
 }
@@ -181,10 +195,10 @@ TEST_CASE(determine_computed_mime_type_in_image_sniffing_context)
 {
     // Cover case where supplied type is an XML MIME type.
     auto mime_type = "application/rss+xml"sv;
-    auto supplied_type = MUST(Web::MimeSniff::MimeType::parse(mime_type)).release_value();
-    auto computed_mime_type = MUST(Web::MimeSniff::Resource::sniff(""sv.bytes(), Web::MimeSniff::SniffingConfiguration { .sniffing_context = Web::MimeSniff::SniffingContext::Image, .supplied_type = supplied_type }));
+    auto supplied_type = Web::MimeSniff::MimeType::parse(mime_type).release_value();
+    auto computed_mime_type = Web::MimeSniff::Resource::sniff(""sv.bytes(), Web::MimeSniff::SniffingConfiguration { .sniffing_context = Web::MimeSniff::SniffingContext::Image, .supplied_type = supplied_type });
 
-    EXPECT_EQ(mime_type, MUST(computed_mime_type.serialized()));
+    EXPECT_EQ(mime_type, computed_mime_type.serialized());
 
     HashMap<StringView, Vector<StringView>> mime_type_to_headers_map;
 
@@ -197,15 +211,15 @@ TEST_CASE(determine_computed_mime_type_in_image_sniffing_context)
         mime_type = mime_type_to_headers.key;
 
         for (auto const& header : mime_type_to_headers.value) {
-            computed_mime_type = MUST(Web::MimeSniff::Resource::sniff(header.bytes(), Web::MimeSniff::SniffingConfiguration { .sniffing_context = Web::MimeSniff::SniffingContext::Image }));
+            computed_mime_type = Web::MimeSniff::Resource::sniff(header.bytes(), Web::MimeSniff::SniffingConfiguration { .sniffing_context = Web::MimeSniff::SniffingContext::Image });
             EXPECT_EQ(mime_type, computed_mime_type.essence());
         }
     }
 
     // Cover case where we aren't dealing with an image MIME type.
     mime_type = "text/html"sv;
-    supplied_type = MUST(Web::MimeSniff::MimeType::parse("text/html"sv)).release_value();
-    computed_mime_type = MUST(Web::MimeSniff::Resource::sniff(""sv.bytes(), Web::MimeSniff::SniffingConfiguration { .sniffing_context = Web::MimeSniff::SniffingContext::Image, .supplied_type = supplied_type }));
+    supplied_type = Web::MimeSniff::MimeType::parse("text/html"sv).release_value();
+    computed_mime_type = Web::MimeSniff::Resource::sniff(""sv.bytes(), Web::MimeSniff::SniffingConfiguration { .sniffing_context = Web::MimeSniff::SniffingContext::Image, .supplied_type = supplied_type });
 
     EXPECT_EQ(mime_type, computed_mime_type.essence());
 }
@@ -214,13 +228,13 @@ TEST_CASE(determine_computed_mime_type_in_audio_or_video_sniffing_context)
 {
     // Cover case where supplied type is an XML MIME type.
     auto mime_type = "application/rss+xml"sv;
-    auto supplied_type = MUST(Web::MimeSniff::MimeType::parse(mime_type)).release_value();
-    auto computed_mime_type = MUST(Web::MimeSniff::Resource::sniff(""sv.bytes(), Web::MimeSniff::SniffingConfiguration {
-                                                                                     .sniffing_context = Web::MimeSniff::SniffingContext::AudioOrVideo,
-                                                                                     .supplied_type = supplied_type,
-                                                                                 }));
+    auto supplied_type = Web::MimeSniff::MimeType::parse(mime_type).release_value();
+    auto computed_mime_type = Web::MimeSniff::Resource::sniff(""sv.bytes(), Web::MimeSniff::SniffingConfiguration {
+                                                                                .sniffing_context = Web::MimeSniff::SniffingContext::AudioOrVideo,
+                                                                                .supplied_type = supplied_type,
+                                                                            });
 
-    EXPECT_EQ(mime_type, MUST(computed_mime_type.serialized()));
+    EXPECT_EQ(mime_type, computed_mime_type.serialized());
     HashMap<StringView, Vector<StringView>> mime_type_to_headers_map;
 
     set_audio_or_video_type_mappings(mime_type_to_headers_map);
@@ -232,18 +246,18 @@ TEST_CASE(determine_computed_mime_type_in_audio_or_video_sniffing_context)
         auto mime_type = mime_type_to_headers.key;
 
         for (auto const& header : mime_type_to_headers.value) {
-            auto computed_mime_type = MUST(Web::MimeSniff::Resource::sniff(header.bytes(), Web::MimeSniff::SniffingConfiguration { .sniffing_context = Web::MimeSniff::SniffingContext::AudioOrVideo }));
+            auto computed_mime_type = Web::MimeSniff::Resource::sniff(header.bytes(), Web::MimeSniff::SniffingConfiguration { .sniffing_context = Web::MimeSniff::SniffingContext::AudioOrVideo });
             EXPECT_EQ(mime_type, computed_mime_type.essence());
         }
     }
 
     // Cover case where we aren't dealing with an audio or video MIME type.
     mime_type = "text/html"sv;
-    supplied_type = MUST(Web::MimeSniff::MimeType::parse("text/html"sv)).release_value();
-    computed_mime_type = MUST(Web::MimeSniff::Resource::sniff(""sv.bytes(), Web::MimeSniff::SniffingConfiguration {
-                                                                                .sniffing_context = Web::MimeSniff::SniffingContext::AudioOrVideo,
-                                                                                .supplied_type = supplied_type,
-                                                                            }));
+    supplied_type = Web::MimeSniff::MimeType::parse("text/html"sv).release_value();
+    computed_mime_type = Web::MimeSniff::Resource::sniff(""sv.bytes(), Web::MimeSniff::SniffingConfiguration {
+                                                                           .sniffing_context = Web::MimeSniff::SniffingContext::AudioOrVideo,
+                                                                           .supplied_type = supplied_type,
+                                                                       });
 
     EXPECT_EQ(mime_type, computed_mime_type.essence());
 }
@@ -275,8 +289,8 @@ TEST_CASE(determine_computed_mime_type_when_trying_to_match_mp4_signature)
         auto mime_type = mime_type_to_headers.key;
 
         for (auto const& header : mime_type_to_headers.value) {
-            auto computed_mime_type = MUST(Web::MimeSniff::Resource::sniff(header.bytes(), Web::MimeSniff::SniffingConfiguration { .sniffing_context = Web::MimeSniff::SniffingContext::AudioOrVideo }));
-            EXPECT_EQ(mime_type, MUST(computed_mime_type.serialized()));
+            auto computed_mime_type = Web::MimeSniff::Resource::sniff(header.bytes(), Web::MimeSniff::SniffingConfiguration { .sniffing_context = Web::MimeSniff::SniffingContext::AudioOrVideo });
+            EXPECT_EQ(mime_type, computed_mime_type.serialized());
         }
     }
 }
@@ -285,13 +299,13 @@ TEST_CASE(determine_computed_mime_type_in_a_font_context)
 {
     // Cover case where supplied type is an XML MIME type.
     auto mime_type = "application/rss+xml"sv;
-    auto supplied_type = MUST(Web::MimeSniff::MimeType::parse(mime_type)).release_value();
-    auto computed_mime_type = MUST(Web::MimeSniff::Resource::sniff(""sv.bytes(), Web::MimeSniff::SniffingConfiguration {
-                                                                                     .sniffing_context = Web::MimeSniff::SniffingContext::Font,
-                                                                                     .supplied_type = supplied_type,
-                                                                                 }));
+    auto supplied_type = Web::MimeSniff::MimeType::parse(mime_type).release_value();
+    auto computed_mime_type = Web::MimeSniff::Resource::sniff(""sv.bytes(), Web::MimeSniff::SniffingConfiguration {
+                                                                                .sniffing_context = Web::MimeSniff::SniffingContext::Font,
+                                                                                .supplied_type = supplied_type,
+                                                                            });
 
-    EXPECT_EQ(mime_type, MUST(computed_mime_type.serialized()));
+    EXPECT_EQ(mime_type, computed_mime_type.serialized());
 
     HashMap<StringView, Vector<StringView>> mime_type_to_headers_map;
     mime_type_to_headers_map.set("application/octet-stream"sv, { "\x00"sv });
@@ -306,30 +320,30 @@ TEST_CASE(determine_computed_mime_type_in_a_font_context)
         auto mime_type = mime_type_to_headers.key;
 
         for (auto const& header : mime_type_to_headers.value) {
-            auto computed_mime_type = MUST(Web::MimeSniff::Resource::sniff(header.bytes(), Web::MimeSniff::SniffingConfiguration { .sniffing_context = Web::MimeSniff::SniffingContext::Font }));
+            auto computed_mime_type = Web::MimeSniff::Resource::sniff(header.bytes(), Web::MimeSniff::SniffingConfiguration { .sniffing_context = Web::MimeSniff::SniffingContext::Font });
             EXPECT_EQ(mime_type, computed_mime_type.essence());
         }
     }
 
     // Cover case where we aren't dealing with a font MIME type.
     mime_type = "text/html"sv;
-    supplied_type = MUST(Web::MimeSniff::MimeType::parse("text/html"sv)).release_value();
-    computed_mime_type = MUST(Web::MimeSniff::Resource::sniff(""sv.bytes(), Web::MimeSniff::SniffingConfiguration {
-                                                                                .sniffing_context = Web::MimeSniff::SniffingContext::Font,
-                                                                                .supplied_type = supplied_type,
-                                                                            }));
+    supplied_type = Web::MimeSniff::MimeType::parse("text/html"sv).release_value();
+    computed_mime_type = Web::MimeSniff::Resource::sniff(""sv.bytes(), Web::MimeSniff::SniffingConfiguration {
+                                                                           .sniffing_context = Web::MimeSniff::SniffingContext::Font,
+                                                                           .supplied_type = supplied_type,
+                                                                       });
 
     EXPECT_EQ(mime_type, computed_mime_type.essence());
 }
 
 TEST_CASE(determine_computed_mime_type_given_text_or_binary_context)
 {
-    auto supplied_type = MUST(Web::MimeSniff::MimeType::create("text"_string, "plain"_string));
-    auto computed_mime_type = MUST(Web::MimeSniff::Resource::sniff("\x00"sv.bytes(), Web::MimeSniff::SniffingConfiguration {
-                                                                                         .sniffing_context = Web::MimeSniff::SniffingContext::TextOrBinary,
-                                                                                         .supplied_type = supplied_type,
-                                                                                     }));
-    EXPECT_EQ("application/octet-stream"sv, MUST(computed_mime_type.serialized()));
+    auto supplied_type = Web::MimeSniff::MimeType::create("text"_string, "plain"_string);
+    auto computed_mime_type = Web::MimeSniff::Resource::sniff("\x00"sv.bytes(), Web::MimeSniff::SniffingConfiguration {
+                                                                                    .sniffing_context = Web::MimeSniff::SniffingContext::TextOrBinary,
+                                                                                    .supplied_type = supplied_type,
+                                                                                });
+    EXPECT_EQ("application/octet-stream"sv, computed_mime_type.serialized());
 }
 
 TEST_CASE(determine_minimised_mime_type)
@@ -360,7 +374,7 @@ TEST_CASE(determine_minimised_mime_type)
     mime_type_to_minimised_mime_type_map.set("application/zip"sv, ""sv);
 
     for (auto const& mime_type_to_minimised_mime_type : mime_type_to_minimised_mime_type_map) {
-        auto mime_type = MUST(Web::MimeSniff::MimeType::parse(mime_type_to_minimised_mime_type.key)).release_value();
+        auto mime_type = Web::MimeSniff::MimeType::parse(mime_type_to_minimised_mime_type.key).release_value();
         EXPECT_EQ(mime_type_to_minimised_mime_type.value, Web::MimeSniff::minimise_a_supported_mime_type(mime_type));
     }
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2023, Andreas Kling <kling@serenityos.org>
+ * Copyright (c) 2018-2023, Andreas Kling <andreas@ladybird.org>
  * Copyright (c) 2021, Tobias Christiansen <tobyase@serenityos.org>
  * Copyright (c) 2021-2023, Sam Atkins <atkinssj@serenityos.org>
  * Copyright (c) 2022-2023, MacDue <macdue@dueutil.tech>
@@ -28,6 +28,14 @@ ImageStyleValue::ImageStyleValue(URL::URL const& url)
 
 ImageStyleValue::~ImageStyleValue() = default;
 
+void ImageStyleValue::visit_edges(JS::Cell::Visitor& visitor) const
+{
+    // FIXME: visit_edges in non-GC allocated classes is confusing pattern.
+    //        Consider making CSSStyleValue to be GC allocated instead.
+    visitor.visit(m_resource_request);
+    visitor.visit(m_timer);
+}
+
 void ImageStyleValue::load_any_resources(DOM::Document& document)
 {
     if (m_resource_request)
@@ -53,9 +61,9 @@ void ImageStyleValue::load_any_resources(DOM::Document& document)
 
             auto image_data = m_resource_request->image_data();
             if (image_data->is_animated() && image_data->frame_count() > 1) {
-                m_timer = Platform::Timer::create();
+                m_timer = Platform::Timer::create(m_document->heap());
                 m_timer->set_interval(image_data->frame_duration(0));
-                m_timer->on_timeout = [this] { animate(); };
+                m_timer->on_timeout = JS::create_heap_function(m_document->heap(), [this] { animate(); });
                 m_timer->start();
             }
         },

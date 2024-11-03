@@ -78,7 +78,7 @@ WebIDL::UnsignedLong AudioBuffer::number_of_channels() const
 WebIDL::ExceptionOr<JS::NonnullGCPtr<JS::Float32Array>> AudioBuffer::get_channel_data(WebIDL::UnsignedLong channel) const
 {
     if (channel >= m_channels.size())
-        return WebIDL::IndexSizeError::create(realm(), "Channel index is out of range"_fly_string);
+        return WebIDL::IndexSizeError::create(realm(), "Channel index is out of range"_string);
 
     return m_channels[channel];
 }

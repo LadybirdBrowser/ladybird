@@ -113,7 +113,7 @@ ErrorOr<void> MarkupGenerator::object_to_html(Object const& object, StringBuilde
         if (!first)
             TRY(html_output.try_append(TRY(wrap_string_in_style(", "sv, StyleType::Punctuation))));
         first = false;
-        TRY(html_output.try_append(TRY(wrap_string_in_style(TRY(String::number(entry.index())), StyleType::Number))));
+        TRY(html_output.try_append(TRY(wrap_string_in_style(String::number(entry.index()), StyleType::Number))));
         TRY(html_output.try_append(TRY(wrap_string_in_style(": "sv, StyleType::Punctuation))));
         // FIXME: Exception check
         TRY(value_to_html(object.get(entry.index()).release_value(), html_output, seen_objects));

@@ -1,1 +1,1 @@
-   ?q=some:query
+?q=some:query

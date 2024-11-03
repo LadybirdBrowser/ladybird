@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2022-2023, Sam Atkins <atkinssj@serenityos.org>
+ * Copyright (c) 2024, Glenn Skrzypczak <glenn.skrzypczak@gmail.com>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -56,7 +57,7 @@ Optional<Resolution::Type> Resolution::unit_from_name(StringView name)
         return Type::Dpi;
     } else if (name.equals_ignoring_ascii_case("dpcm"sv)) {
         return Type::Dpcm;
-    } else if (name.equals_ignoring_ascii_case("dppx"sv)) {
+    } else if (name.equals_ignoring_ascii_case("dppx"sv) || name.equals_ignoring_ascii_case("x"sv)) {
         return Type::Dppx;
     }
     return {};

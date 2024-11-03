@@ -30,6 +30,7 @@
 #include <LibWeb/Painting/GradientData.h>
 #include <LibWeb/Painting/PaintBoxShadowParams.h>
 #include <LibWeb/Painting/ScrollFrame.h>
+#include <LibWeb/Painting/ScrollState.h>
 
 namespace Web::Painting {
 
@@ -49,6 +50,7 @@ private:
     virtual void draw_repeated_immutable_bitmap(DrawRepeatedImmutableBitmap const&) = 0;
     virtual void save(Save const&) = 0;
     virtual void restore(Restore const&) = 0;
+    virtual void translate(Translate const&) = 0;
     virtual void add_clip_rect(AddClipRect const&) = 0;
     virtual void push_stacking_context(PushStackingContext const&) = 0;
     virtual void pop_stacking_context(PopStackingContext const&) = 0;
@@ -73,6 +75,9 @@ private:
     virtual void add_mask(AddMask const&) = 0;
     virtual void paint_nested_display_list(PaintNestedDisplayList const&) = 0;
     virtual void paint_scrollbar(PaintScrollBar const&) = 0;
+    virtual void apply_opacity(ApplyOpacity const&) = 0;
+    virtual void apply_transform(ApplyTransform const&) = 0;
+    virtual void apply_mask_bitmap(ApplyMaskBitmap const&) = 0;
     virtual bool would_be_fully_clipped_by_painter(Gfx::IntRect) const = 0;
 };
 
@@ -92,9 +97,8 @@ public:
 
     AK::SegmentedVector<CommandListItem, 512> const& commands() const { return m_commands; }
 
-    void set_scroll_state(Vector<RefPtr<ScrollFrame>> scroll_state) { m_scroll_state = move(scroll_state); }
-
-    Vector<RefPtr<ScrollFrame>> const& scroll_state() const { return m_scroll_state; }
+    void set_scroll_state(ScrollState scroll_state) { m_scroll_state = move(scroll_state); }
+    ScrollState const& scroll_state() const { return m_scroll_state; }
 
     void set_device_pixels_per_css_pixel(double device_pixels_per_css_pixel) { m_device_pixels_per_css_pixel = device_pixels_per_css_pixel; }
     double device_pixels_per_css_pixel() const { return m_device_pixels_per_css_pixel; }
@@ -103,7 +107,7 @@ private:
     DisplayList() = default;
 
     AK::SegmentedVector<CommandListItem, 512> m_commands;
-    Vector<RefPtr<ScrollFrame>> m_scroll_state;
+    ScrollState m_scroll_state;
     double m_device_pixels_per_css_pixel;
 };
 

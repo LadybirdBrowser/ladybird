@@ -6,14 +6,14 @@
 
 #pragma once
 
+#include <LibURL/Origin.h>
 #include <LibWeb/Forward.h>
-#include <LibWeb/HTML/Origin.h>
 
 namespace Web::Fetch::Infrastructure {
 
 // https://fetch.spec.whatwg.org/#network-partition-key
 struct NetworkPartitionKey {
-    HTML::Origin top_level_origin;
+    URL::Origin top_level_origin;
     // FIXME: See https://github.com/whatwg/fetch/issues/1035
     //     This is the document origin in other browsers
     void* second_key = nullptr;
@@ -32,6 +32,6 @@ class AK::Traits<Web::Fetch::Infrastructure::NetworkPartitionKey> : public Defau
 public:
     static unsigned hash(Web::Fetch::Infrastructure::NetworkPartitionKey const& partition_key)
     {
-        return ::AK::Traits<Web::HTML::Origin>::hash(partition_key.top_level_origin);
+        return ::AK::Traits<URL::Origin>::hash(partition_key.top_level_origin);
     }
 };

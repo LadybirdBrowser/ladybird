@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<title>CSS Test: Absolutely positioned children of flexboxes</title>
+<link rel="author" title="Google Inc." href="http://www.google.com/">
+<link rel="help" href="https://drafts.csswg.org/css-flexbox/#abspos-items">
+<meta name="flags" content="dom">
+<meta name="assert" content="Checks that we correctly handle when a flex item
+becomes absolutely positioned">
+<style>
+#flex {
+  display: flex;
+  position: relative;
+  background: red;
+  width: 500px;
+  height: 200px;
+}
+
+#item {
+  background: green;
+  left: 0;
+  right: 0;
+  top: 0;
+  bottom: 0;
+}
+</style>
+
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../resources/check-layout-th.js"></script>
+
+<script>
+function update() {
+  var item = document.getElementById("item");
+  item.offsetHeight;
+  item.style.position = "absolute";
+  item.offsetHeight;
+  checkLayout("#flex");
+}
+</script>
+
+<body onload="update();">
+
+<div id="flex">
+  <div id="item" data-expected-width="500"></div>
+</div>

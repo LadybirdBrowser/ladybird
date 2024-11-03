@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020, Andreas Kling <kling@serenityos.org>
+ * Copyright (c) 2020, Andreas Kling <andreas@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -47,7 +47,7 @@ private:
 
     virtual void apply_presentational_hints(CSS::StyleProperties&) const override;
 
-    virtual JS::GCPtr<Layout::Node> create_layout_node(NonnullRefPtr<CSS::StyleProperties>) override;
+    virtual JS::GCPtr<Layout::Node> create_layout_node(CSS::StyleProperties) override;
 
     enum class HasOrCreatedContext {
         No,

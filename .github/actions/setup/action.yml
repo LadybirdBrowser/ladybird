@@ -13,6 +13,14 @@ inputs:
 runs:
   using: "composite"
   steps:
+    - uses: actions/setup-python@v5
+      with:
+        python-version: 3.12
+        cache: 'pip'
+    - name: 'Install Python dependencies'
+      shell: bash
+      run: pip install pyyaml requests six
+
     - name: 'Install Dependencies'
       if: ${{ inputs.os == 'Linux' }}
       shell: bash
@@ -20,14 +28,12 @@ runs:
         set -e
 
         wget -O - https://apt.llvm.org/llvm-snapshot.gpg.key | sudo apt-key add -
-        sudo add-apt-repository 'deb http://apt.llvm.org/jammy/ llvm-toolchain-jammy-18 main'
+        sudo add-apt-repository 'deb http://apt.llvm.org/noble/ llvm-toolchain-noble-18 main'
 
-        sudo add-apt-repository ppa:ubuntu-toolchain-r/test
-
-        sudo apt-get update
-        sudo apt-get install autoconf autoconf-archive automake build-essential ccache clang-18 clang++-18 cmake curl fonts-liberation2 \
-            gcc-13 g++-13 libavcodec-dev libavformat-dev libegl1-mesa-dev libgl1-mesa-dev libpulse-dev libssl-dev libstdc++-13-dev lld-18 \
-            nasm ninja-build qt6-base-dev qt6-tools-dev-tools tar unzip zip
+        sudo apt-get update -y
+        sudo apt-get install -y autoconf autoconf-archive automake build-essential ccache clang-18 clang++-18 cmake curl fonts-liberation2 \
+            gcc-13 g++-13 libavcodec-dev libavformat-dev libavutil-dev libegl1-mesa-dev libgl1-mesa-dev libpulse-dev libssl-dev \
+            libstdc++-13-dev lld-18 nasm ninja-build qt6-base-dev qt6-tools-dev-tools tar unzip zip
 
         sudo update-alternatives --install /usr/bin/clang clang /usr/bin/clang-18 100
         sudo update-alternatives --install /usr/bin/clang++ clang++ /usr/bin/clang++-18 100
@@ -39,18 +45,11 @@ runs:
         rm ./wabt-1.0.35-ubuntu-20.04.tar.gz
         echo "${{ github.workspace }}/wabt-1.0.35/bin" >> $GITHUB_PATH
 
-    - name: 'Install Python dependencies'
-      if: ${{ inputs.os == 'Linux' }}
-      shell: bash
-      run: |
-        python3 -m pip install --upgrade pip
-        pip3 install requests six
-
-    - name: 'Switch to latest Xcode beta'
+    - name: 'Select latest Xcode'
       if: ${{ inputs.os == 'macOS' || inputs.os == 'Android' }}
       uses: maxim-lobanov/setup-xcode@v1
       with:
-        xcode-version: latest
+        xcode-version: latest-stable
 
     - name: 'Install Dependencies'
       if: ${{ inputs.os == 'macOS' || inputs.os == 'Android' }}
@@ -58,7 +57,7 @@ runs:
       run: |
         set -e
         brew update
-        brew install autoconf autoconf-archive automake bash ccache coreutils ffmpeg llvm@18 nasm ninja qt unzip wabt pyyaml
+        brew install autoconf autoconf-archive automake bash ccache coreutils ffmpeg llvm@18 nasm ninja qt unzip wabt
 
     - name: 'Install vcpkg'
       shell: bash

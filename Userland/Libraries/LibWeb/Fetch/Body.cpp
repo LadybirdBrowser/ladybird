@@ -55,7 +55,7 @@ bool BodyMixin::body_used() const
 }
 
 // https://fetch.spec.whatwg.org/#dom-body-arraybuffer
-WebIDL::ExceptionOr<JS::NonnullGCPtr<JS::Promise>> BodyMixin::array_buffer() const
+WebIDL::ExceptionOr<JS::NonnullGCPtr<WebIDL::Promise>> BodyMixin::array_buffer() const
 {
     auto& vm = Bindings::main_thread_vm();
     auto& realm = *vm.current_realm();
@@ -65,7 +65,7 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<JS::Promise>> BodyMixin::array_buffer() con
 }
 
 // https://fetch.spec.whatwg.org/#dom-body-blob
-WebIDL::ExceptionOr<JS::NonnullGCPtr<JS::Promise>> BodyMixin::blob() const
+WebIDL::ExceptionOr<JS::NonnullGCPtr<WebIDL::Promise>> BodyMixin::blob() const
 {
     auto& vm = Bindings::main_thread_vm();
     auto& realm = *vm.current_realm();
@@ -75,7 +75,7 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<JS::Promise>> BodyMixin::blob() const
 }
 
 // https://fetch.spec.whatwg.org/#dom-body-bytes
-WebIDL::ExceptionOr<JS::NonnullGCPtr<JS::Promise>> BodyMixin::bytes() const
+WebIDL::ExceptionOr<JS::NonnullGCPtr<WebIDL::Promise>> BodyMixin::bytes() const
 {
     auto& vm = Bindings::main_thread_vm();
     auto& realm = *vm.current_realm();
@@ -85,7 +85,7 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<JS::Promise>> BodyMixin::bytes() const
 }
 
 // https://fetch.spec.whatwg.org/#dom-body-formdata
-WebIDL::ExceptionOr<JS::NonnullGCPtr<JS::Promise>> BodyMixin::form_data() const
+WebIDL::ExceptionOr<JS::NonnullGCPtr<WebIDL::Promise>> BodyMixin::form_data() const
 {
     auto& vm = Bindings::main_thread_vm();
     auto& realm = *vm.current_realm();
@@ -95,7 +95,7 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<JS::Promise>> BodyMixin::form_data() const
 }
 
 // https://fetch.spec.whatwg.org/#dom-body-json
-WebIDL::ExceptionOr<JS::NonnullGCPtr<JS::Promise>> BodyMixin::json() const
+WebIDL::ExceptionOr<JS::NonnullGCPtr<WebIDL::Promise>> BodyMixin::json() const
 {
     auto& vm = Bindings::main_thread_vm();
     auto& realm = *vm.current_realm();
@@ -105,7 +105,7 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<JS::Promise>> BodyMixin::json() const
 }
 
 // https://fetch.spec.whatwg.org/#dom-body-text
-WebIDL::ExceptionOr<JS::NonnullGCPtr<JS::Promise>> BodyMixin::text() const
+WebIDL::ExceptionOr<JS::NonnullGCPtr<WebIDL::Promise>> BodyMixin::text() const
 {
     auto& vm = Bindings::main_thread_vm();
     auto& realm = *vm.current_realm();
@@ -126,7 +126,7 @@ WebIDL::ExceptionOr<JS::Value> package_data(JS::Realm& realm, ByteBuffer bytes, 
     case PackageDataType::Blob: {
         // Return a Blob whose contents are bytes and type attribute is mimeType.
         // NOTE: If extracting the mime type returns failure, other browsers set it to an empty string - not sure if that's spec'd.
-        auto mime_type_string = mime_type.has_value() ? MUST(mime_type->serialized()) : String {};
+        auto mime_type_string = mime_type.has_value() ? mime_type->serialized() : String {};
         return FileAPI::Blob::create(realm, move(bytes), move(mime_type_string));
     }
     case PackageDataType::Uint8Array: {
@@ -175,7 +175,7 @@ WebIDL::ExceptionOr<JS::Value> package_data(JS::Realm& realm, ByteBuffer bytes, 
 }
 
 // https://fetch.spec.whatwg.org/#concept-body-consume-body
-WebIDL::ExceptionOr<JS::NonnullGCPtr<JS::Promise>> consume_body(JS::Realm& realm, BodyMixin const& object, PackageDataType type)
+WebIDL::ExceptionOr<JS::NonnullGCPtr<WebIDL::Promise>> consume_body(JS::Realm& realm, BodyMixin const& object, PackageDataType type)
 {
     // 1. If object is unusable, then return a promise rejected with a TypeError.
     if (object.is_unusable()) {
@@ -187,22 +187,22 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<JS::Promise>> consume_body(JS::Realm& realm
     auto promise = WebIDL::create_promise(realm);
 
     // 3. Let errorSteps given error be to reject promise with error.
-    // NOTE: `promise` and `realm` is protected by JS::SafeFunction.
+    // NOTE: `promise` and `realm` is protected by JS::HeapFunction.
     auto error_steps = JS::create_heap_function(realm.heap(), [promise, &realm](JS::Value error) {
         // AD-HOC: An execution context is required for Promise's reject function.
-        HTML::TemporaryExecutionContext execution_context { Bindings::host_defined_environment_settings_object(realm) };
+        HTML::TemporaryExecutionContext execution_context { realm };
         WebIDL::reject_promise(realm, promise, error);
     });
 
     // 4. Let successSteps given a byte sequence data be to resolve promise with the result of running convertBytesToJSValue
     //    with data. If that threw an exception, then run errorSteps with that exception.
-    // NOTE: `promise`, `realm` and `object` is protected by JS::SafeFunction.
+    // NOTE: `promise`, `realm` and `object` is protected by JS::HeapFunction.
     // FIXME: Refactor this to the new version of the spec introduced with https://github.com/whatwg/fetch/commit/464326e8eb6a602122c030cd40042480a3c0e265
     auto success_steps = JS::create_heap_function(realm.heap(), [promise, &realm, &object, type](ByteBuffer data) {
         auto& vm = realm.vm();
 
         // AD-HOC: An execution context is required for Promise's reject function and JSON.parse.
-        HTML::TemporaryExecutionContext execution_context { Bindings::host_defined_environment_settings_object(realm) };
+        HTML::TemporaryExecutionContext execution_context { realm };
 
         auto value_or_error = Bindings::throw_dom_exception_if_needed(vm, [&]() -> WebIDL::ExceptionOr<JS::Value> {
             return package_data(realm, data, type, object.mime_type_impl());
@@ -229,7 +229,7 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<JS::Promise>> consume_body(JS::Realm& realm
     }
 
     // 7. Return promise.
-    return JS::NonnullGCPtr { verify_cast<JS::Promise>(*promise->promise().ptr()) };
+    return promise;
 }
 
 }

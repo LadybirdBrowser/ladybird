@@ -8,18 +8,18 @@ you are welcome to ask on [Discord](../README.md#get-in-touch-and-participate).
 * [Build Instructions](BuildInstructionsLadybird.md)
 * [Advanced Build Instructions](AdvancedBuildInstructions.md)
 * [Troubleshooting](Troubleshooting.md)
-* [Running Tests](RunningTests.md)
-* [Setting Up Self-Hosted Runners](SelfHostedRunners.md)
+* [Testing](Testing.md)
 * [Profiling the Build](BuildProfilingInstructions.md)
 
 ## Configuring Editors
-* [CLion](CLionConfiguration.md)
-* [Emacs](EmacsConfiguration.md)
-* [Helix](HelixConfiguration.md)
-* [NVim](NvimConfiguration.md)
-* [Qt Creator](QtCreatorConfiguration.md)
-* [Vim](VimConfiguration.md)
-* [VS Code](VSCodeConfiguration.md)
+* [Android Studio](EditorConfiguration/AndroidStudioConfiguration.md)
+* [CLion](EditorConfiguration/CLionConfiguration.md)
+* [Emacs](EditorConfiguration/EmacsConfiguration.md)
+* [Helix](EditorConfiguration/HelixConfiguration.md)
+* [NVim](EditorConfiguration/NvimConfiguration.md)
+* [Qt Creator](EditorConfiguration/QtCreatorConfiguration.md)
+* [Vim](EditorConfiguration/VimConfiguration.md)
+* [VS Code](EditorConfiguration/VSCodeConfiguration.md)
 
 ## Development
 * [How to Contribute](../CONTRIBUTING.md)
@@ -31,10 +31,9 @@ you are welcome to ask on [Discord](../README.md#get-in-touch-and-participate).
 * [String Formatting](StringFormatting.md)
 
 ## Browser/LibWeb
-* [Ladybird Browser Build Instructions](BuildInstructionsLadybird.md)
-* [General Architecture](Browser/ProcessArchitecture.md)
-* [LibWeb: From Loading to Painting](Browser/LibWebFromLoadingToPainting.md)
-* [LibWeb: Browsing Contexts and Navigables](Browser/BrowsingContextsAndNavigables.md)
-* [How to Add an IDL File](Browser/AddNewIDLFile.md)
+* [General Architecture](ProcessArchitecture.md)
+* [LibWeb: From Loading to Painting](LibWebFromLoadingToPainting.md)
+* [LibWeb: Browsing Contexts and Navigables](BrowsingContextsAndNavigables.md)
+* [How to Add an IDL File](AddNewIDLFile.md)
 * [LibWeb Code Style & Patterns](Browser/Patterns.md)
-* [CSS Generated Files](Browser/CSSGeneratedFiles.md)
+* [CSS Generated Files](CSSGeneratedFiles.md)

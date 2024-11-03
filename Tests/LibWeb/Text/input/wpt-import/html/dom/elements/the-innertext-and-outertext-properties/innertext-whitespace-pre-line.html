@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<title>innerText with white-space:pre-line</title>
+<link rel="help" href="https://bugzilla.mozilla.org/show_bug.cgi?id=1923829">
+<script src="../../../../resources/testharness.js"></script>
+<script src="../../../../resources/testharnessreport.js"></script>
+
+<div id="a" style="white-space: pre-line">one&#10;two&#10;three&#10;four</div>
+
+<div id="b" style="white-space: pre">one&#10;two&#10;three&#10;four</div>
+
+<div id="c" style="white-space: pre-line">
+ one
+  two
+    <!-- comment -->
+   three
+    four
+</div>
+
+<div id="d" style="white-space: pre">
+ one
+  two
+    <!-- comment -->
+   three
+    four
+</div>
+
+<script>
+test(() => {
+  assert_equals(a.innerText, b.innerText);
+}, "innerText should be the same for the pre-line and pre examples");
+
+test(() => {
+  function collapseWhitespace(s) {
+    return s.replace(/  +/g, ' ')     // collapse runs of spaces
+            .replace(/ $/mg, '')      // strip trailing spaces
+            .replace(/^ /mg, '')      // strip leading spaces
+            .replace(/\n\n+/g, '\n')  // collapse runs of newlines
+            .replace(/^\n/, '');      // remove any initial newline
+  }
+  assert_equals(c.innerText, collapseWhitespace(d.innerText));
+}, "innerText has collapsed whitespace but preserved newlines with pre-line");
+</script>

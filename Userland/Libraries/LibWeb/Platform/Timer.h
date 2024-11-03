@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022, Andreas Kling <kling@serenityos.org>
+ * Copyright (c) 2022, Andreas Kling <andreas@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -7,15 +7,17 @@
 #pragma once
 
 #include <AK/RefCounted.h>
-#include <LibJS/SafeFunction.h>
+#include <LibJS/Heap/Cell.h>
 
 namespace Web::Platform {
 
-class Timer : public RefCounted<Timer> {
+class Timer : public JS::Cell {
+    JS_CELL(Timer, JS::Cell);
+
 public:
-    static NonnullRefPtr<Timer> create();
-    static NonnullRefPtr<Timer> create_repeating(int interval_ms, JS::SafeFunction<void()>&& timeout_handler);
-    static NonnullRefPtr<Timer> create_single_shot(int interval_ms, JS::SafeFunction<void()>&& timeout_handler);
+    static JS::NonnullGCPtr<Timer> create(JS::Heap&);
+    static JS::NonnullGCPtr<Timer> create_repeating(JS::Heap&, int interval_ms, JS::GCPtr<JS::HeapFunction<void()>> timeout_handler);
+    static JS::NonnullGCPtr<Timer> create_single_shot(JS::Heap&, int interval_ms, JS::GCPtr<JS::HeapFunction<void()>> timeout_handler);
 
     virtual ~Timer();
 
@@ -34,7 +36,10 @@ public:
     virtual bool is_single_shot() const = 0;
     virtual void set_single_shot(bool) = 0;
 
-    JS::SafeFunction<void()> on_timeout;
+    JS::GCPtr<JS::HeapFunction<void()>> on_timeout;
+
+protected:
+    virtual void visit_edges(JS::Cell::Visitor&) override;
 };
 
 }

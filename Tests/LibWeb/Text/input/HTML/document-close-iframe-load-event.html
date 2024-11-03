@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    asyncTest(done => {
+        const iframe = document.createElement('iframe');
+        document.body.appendChild(iframe);
+        iframe.contentDocument.open();
+        iframe.onload = () => {
+            println("Onload event fired");
+            iframe.remove();
+            done();
+        };
+        iframe.contentDocument.close();
+    });
+</script>

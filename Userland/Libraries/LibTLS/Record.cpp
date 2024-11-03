@@ -217,6 +217,8 @@ void TLSv12::update_packet(ByteBuffer& packet)
                         // get a block to encrypt into
                         auto view = ct.bytes().slice(header_size + iv_size, length);
                         cbc.encrypt(buffer, view, iv);
+                        // Note: 'view' is dropped without checking 'view.size()'.
+                        // This is okay because TLSv12::expand_key sets PaddingMode::RFC5246, which never adds a block.
                     });
 
                 // store the correct ciphertext length into the packet

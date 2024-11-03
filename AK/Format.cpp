@@ -25,6 +25,10 @@
 #    include <android/log.h>
 #endif
 
+#if defined(AK_OS_WINDOWS)
+#    include <io.h>
+#endif
+
 namespace AK {
 
 class FormatParser : public GenericLexer {
@@ -1200,6 +1204,11 @@ void vdbg(StringView fmtstr, TypeErasedFormatParams& params, bool newline)
             }
 #    endif
         }
+#else
+        auto process_name = process_name_for_logging();
+        if (!process_name.is_empty()) {
+            builder.appendff("{}: ", process_name);
+        }
 #endif
     }
 
@@ -1213,6 +1222,8 @@ void vdbg(StringView fmtstr, TypeErasedFormatParams& params, bool newline)
 
 #ifdef AK_OS_ANDROID
     __android_log_write(ANDROID_LOG_DEBUG, s_log_tag_name, string.characters_without_null_termination());
+#elif defined(AK_OS_WINDOWS)
+    [[maybe_unused]] auto rc = _write(_fileno(stderr), string.characters_without_null_termination(), string.length());
 #else
     [[maybe_unused]] auto rc = write(STDERR_FILENO, string.characters_without_null_termination(), string.length());
 #endif

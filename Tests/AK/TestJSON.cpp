@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2020, Andreas Kling <kling@serenityos.org>
+ * Copyright (c) 2018-2020, Andreas Kling <andreas@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -126,6 +126,34 @@ TEST_CASE(json_64_bit_value)
 
     JsonValue big_json_value_copy = big_json_value;
     EXPECT(big_json_value.equals(big_json_value_copy));
+}
+
+TEST_CASE(json_64_bit_value_coerced_to_32_bit)
+{
+    {
+        auto min = NumericLimits<i64>::min();
+        auto max = NumericLimits<i64>::max();
+
+        auto json = TRY_OR_FAIL(JsonValue::from_string(String::number(min)));
+        EXPECT_EQ(json.get_integer<i64>(), min);
+        EXPECT(!json.is_integer<i32>());
+
+        json = TRY_OR_FAIL(JsonValue::from_string(String::number(max)));
+        EXPECT_EQ(json.get_integer<i64>(), max);
+        EXPECT(!json.is_integer<i32>());
+    }
+    {
+        auto min = NumericLimits<u64>::min();
+        auto max = NumericLimits<u64>::max();
+
+        auto json = TRY_OR_FAIL(JsonValue::from_string(String::number(min)));
+        EXPECT_EQ(json.get_integer<u64>(), min);
+        EXPECT_EQ(json.get_integer<u32>(), min);
+
+        json = TRY_OR_FAIL(JsonValue::from_string(String::number(max)));
+        EXPECT_EQ(json.get_integer<u64>(), max);
+        EXPECT(!json.is_integer<u32>());
+    }
 }
 
 TEST_CASE(json_duplicate_keys)

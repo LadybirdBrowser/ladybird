@@ -1,0 +1,57 @@
+import("//Meta/gn/build/vcpkg.gni")
+
+declare_args() {
+  # Whether to use vcpkg for dependency management
+  use_vcpkg = true
+}
+
+declare_args() {
+  # Location to find installed third_party headers and libraries
+  third_party_prefix = "/usr"
+  if (use_vcpkg) {
+    third_party_prefix = "${vcpkg_install_root}/${vcpkg_triplet}"
+  }
+}
+
+declare_args() {
+  # Library directory for third_party libraries
+  third_party_lib_dir = third_party_prefix + "/lib"
+
+  # Include directory for third_party headers
+  third_party_include_dir = third_party_prefix + "/include"
+}
+
+template("third_party_dependency") {
+  config("${target_name}_config") {
+    forward_variables_from(invoker, "*")
+    visibility = [ ":${target_name}" ]
+    include_dirs = [ "$third_party_include_dir" ]
+    if (defined(third_party_includes)) {
+      foreach(dir, third_party_includes) {
+        include_dirs += [ "$third_party_include_dir/$dir" ]
+      }
+    }
+    lib_dirs = [ "$third_party_lib_dir" ]
+    not_needed([
+                 "enable",
+                 "extra_public_configs",
+               ])
+  }
+
+  group(target_name) {
+    forward_variables_from(invoker,
+                           [
+                             "enable",
+                             "extra_public_configs",
+                           ])
+    if (!defined(enable) || enable) {
+      public_configs = [ ":${target_name}_config" ]
+      if (use_vcpkg) {
+        deps = [ "//Meta/gn/build/libs:install_vcpkg_manifest" ]
+      }
+    }
+    if (defined(extra_public_configs)) {
+      public_configs += extra_public_configs
+    }
+  }
+}

@@ -1,3 +1,5 @@
+import("//Meta/gn/build/libs/vulkan/enable.gni")
+
 # These are the minimal set of sources needed to build the code generators. We separate them to allow
 # LibCore to depend on generated sources.
 shared_library("minimal") {
@@ -8,8 +10,6 @@ shared_library("minimal") {
   sources = [
     "ArgsParser.cpp",
     "ArgsParser.h",
-    "ConfigFile.cpp",
-    "ConfigFile.h",
     "DirIterator.cpp",
     "DirIterator.h",
     "Directory.cpp",
@@ -21,8 +21,6 @@ shared_library("minimal") {
     "File.cpp",
     "File.h",
     "Forward.h",
-    "SessionManagement.cpp",
-    "SessionManagement.h",
     "StandardPaths.cpp",
     "StandardPaths.h",
     "System.cpp",
@@ -42,9 +40,10 @@ source_set("sources") {
     "AnonymousBuffer.h",
     "Command.cpp",
     "Command.h",
+    "ConfigFile.cpp",
+    "ConfigFile.h",
     "DateTime.cpp",
     "DateTime.h",
-    "Debounce.h",
     "DeferredInvocationContext.h",
     "ElapsedTimer.cpp",
     "ElapsedTimer.h",
@@ -58,14 +57,10 @@ source_set("sources") {
     "EventLoopImplementationUnix.h",
     "EventReceiver.cpp",
     "EventReceiver.h",
-    "LockFile.cpp",
-    "LockFile.h",
     "MappedFile.cpp",
     "MappedFile.h",
     "MimeData.cpp",
     "MimeData.h",
-    "NetworkJob.cpp",
-    "NetworkJob.h",
     "NetworkResponse.h",
     "Notifier.cpp",
     "Notifier.h",
@@ -73,17 +68,14 @@ source_set("sources") {
     "Platform/ProcessStatistics.h",
     "Process.cpp",
     "Process.h",
-    "ProcessStatisticsReader.cpp",
-    "ProcessStatisticsReader.h",
     "Promise.h",
     "Proxy.h",
     "Resource.cpp",
+    "Resource.h",
     "ResourceImplementation.cpp",
     "ResourceImplementationFile.cpp",
-    "SOCKSProxyClient.cpp",
-    "SOCKSProxyClient.h",
-    "SecretString.cpp",
-    "SecretString.h",
+    "SessionManagement.cpp",
+    "SessionManagement.h",
     "SharedCircularQueue.h",
     "Socket.cpp",
     "Socket.h",
@@ -99,18 +91,9 @@ source_set("sources") {
     "Timer.h",
     "UDPServer.cpp",
     "UDPServer.h",
-    "UmaskScope.h",
   ]
   if (current_os != "android") {
     sources += [
-      "Account.cpp",
-      "Account.h",
-      "FilePermissionsMask.cpp",
-      "FilePermissionsMask.h",
-      "GetPassword.cpp",
-      "GetPassword.h",
-      "Group.cpp",
-      "Group.h",
       "LocalServer.cpp",
       "LocalServer.h",
     ]
@@ -150,6 +133,51 @@ source_set("filewatcher") {
   }
 }
 
+source_set("timezonewatcher") {
+  include_dirs = [ "//Userland/Libraries" ]
+  sources = [ "TimeZoneWatcher.h" ]
+  deps = [ "//AK" ]
+  frameworks = []
+  if (current_os == "linux") {
+    sources += [ "TimeZoneWatcherLinux.cpp" ]
+  } else if (current_os == "mac") {
+    sources += [ "TimeZoneWatcherMacOS.mm" ]
+    frameworks += [
+      "CoreFoundation.framework",
+      "CoreServices.framework",
+      "Foundation.framework",
+    ]
+  } else {
+    sources += [ "TimeZoneWatcherUnimplemented.cpp" ]
+  }
+}
+
+source_set("metal") {
+  if (current_os == "mac") {
+    include_dirs = [ "//Userland/Libraries" ]
+    deps = [ "//AK" ]
+    sources = [
+      "IOSurface.cpp",
+      "MetalContext.mm",
+    ]
+    frameworks = [
+      "IOSurface.framework",
+      "Metal.framework",
+    ]
+  }
+}
+
+source_set("vulkan") {
+  if (enable_vulkan) {
+    include_dirs = [ "//Userland/Libraries" ]
+    deps = [
+      "//AK",
+      "//Meta/gn/build/libs/vulkan",
+    ]
+    sources = [ "VulkanContext.cpp" ]
+  }
+}
+
 shared_library("LibCore") {
   libs = []
 
@@ -159,16 +187,22 @@ shared_library("LibCore") {
   if (current_os == "linux") {
     libs += [ "rt" ]
   }
+  if (current_os == "android") {
+    libs += [ "log" ]
+  }
 
   output_name = "core"
 
   deps = [
     ":filewatcher",
+    ":metal",
     ":sources",
+    ":timezonewatcher",
+    ":vulkan",
     "//Meta/gn/build/libs/crypt",
     "//Meta/gn/build/libs/pthread",
-    "//Userland/Libraries/LibTimeZone",
     "//Userland/Libraries/LibURL",
+    "//Userland/Libraries/LibUnicode",
   ]
 
   public_deps = [ ":minimal" ]

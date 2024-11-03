@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2024, Andreas Kling <kling@serenityos.org>
+ * Copyright (c) 2021-2024, Andreas Kling <andreas@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -86,6 +86,15 @@ Task const* TaskQueue::last_added_task() const
     if (m_tasks.is_empty())
         return nullptr;
     return m_tasks.last();
+}
+
+bool TaskQueue::has_rendering_tasks() const
+{
+    for (auto const& task : m_tasks) {
+        if (task->source() == Task::Source::Rendering)
+            return true;
+    }
+    return false;
 }
 
 }

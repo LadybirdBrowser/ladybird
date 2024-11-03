@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<style>
+    @layer A, B, C;
+    @layer A {
+        #target {
+            color: red;
+        }
+    }
+    @layer B {
+        #target {
+            color: blue;
+        }
+    }
+    @layer C {
+        #target {
+            color: revert;
+        }
+    }
+</style>
+<script src="../include.js"></script>
+<div id="target"></div>
+<div id="initial"></div>
+<script>
+    test(() => {
+        const target = document.getElementById("target");
+        const initial = document.getElementById("target");
+        const expected = getComputedStyle(initial).color;
+        const actual = getComputedStyle(target).color;
+        if (expected === actual) {
+            println('PASS, revert skipped the layers');
+        } else {
+            println(`FAIL: got ${actual}, expected ${expected}`);
+        }
+    });
+</script>

@@ -1,0 +1,36 @@
+<script src="../include.js"></script>
+<script>
+test(() => {
+  const context = new (window.AudioContext || window.webkitAudioContext)();
+  const validModes = ['clamped-max', 'explicit'];
+  const invalidMode = 'max';
+
+  // Test valid channelCountMode values via constructor
+  validModes.forEach(mode => {
+      const node = new DynamicsCompressorNode(context, { channelCountMode: mode });
+      println(node.channelCountMode);
+  });
+
+  // Test invalid channelCountMode via constructor
+  try {
+      new DynamicsCompressorNode(context, { channelCountMode: invalidMode });
+  } catch (error) {
+      println(error.name);
+  }
+
+  // Test valid channelCountMode values via setter
+  validModes.forEach(mode => {
+      const node = new DynamicsCompressorNode(context);
+      node.channelCountMode = mode;
+      println(node.channelCountMode);
+  });
+
+  // Test invalid channelCountMode via setter
+  try {
+      const node = new DynamicsCompressorNode(context);
+      node.channelCountMode = invalidMode;
+  } catch (error) {
+      println(error.name);
+  }
+});
+</script>

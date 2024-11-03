@@ -11,7 +11,6 @@
 #include <AK/Optional.h>
 #include <LibGfx/Forward.h>
 #include <LibGfx/Point.h>
-#include <LibGfx/Rect.h>
 
 namespace Gfx {
 

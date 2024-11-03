@@ -1,4 +1,4 @@
-  [object SVGSVGElement]
+[object SVGSVGElement]
 [object SVGAnimatedRect]
 null
 null

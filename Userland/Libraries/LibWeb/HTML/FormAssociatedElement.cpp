@@ -1,13 +1,17 @@
 /*
- * Copyright (c) 2021, Andreas Kling <kling@serenityos.org>
- * Copyright (c) 2024, Jelle Raaijmakers <jelle@gmta.nl>
+ * Copyright (c) 2021, Andreas Kling <andreas@ladybird.org>
+ * Copyright (c) 2024, Jelle Raaijmakers <jelle@ladybird.org>
  * Copyright (c) 2024, Tim Ledbetter <tim.ledbetter@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibUnicode/CharacterTypes.h>
+#include <LibUnicode/Segmenter.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Event.h>
+#include <LibWeb/DOM/Position.h>
+#include <LibWeb/DOM/SelectionchangeEventDispatching.h>
 #include <LibWeb/HTML/FormAssociatedElement.h>
 #include <LibWeb/HTML/HTMLButtonElement.h>
 #include <LibWeb/HTML/HTMLFieldSetElement.h>
@@ -17,6 +21,7 @@
 #include <LibWeb/HTML/HTMLSelectElement.h>
 #include <LibWeb/HTML/HTMLTextAreaElement.h>
 #include <LibWeb/HTML/Parser/HTMLParser.h>
+#include <LibWeb/Painting/Paintable.h>
 
 namespace Web::HTML {
 
@@ -166,6 +171,14 @@ void FormAssociatedElement::reset_form_owner()
     }
 }
 
+// https://w3c.github.io/webdriver/#dfn-clear-algorithm
+void FormAssociatedElement::clear_algorithm()
+{
+    // When the clear algorithm is invoked for an element that does not define its own clear algorithm, its reset
+    // algorithm must be invoked instead.
+    reset_algorithm();
+}
+
 // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#dom-fs-formaction
 String FormAssociatedElement::form_action() const
 {
@@ -188,7 +201,7 @@ WebIDL::ExceptionOr<void> FormAssociatedElement::set_form_action(String const& v
 }
 
 // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#concept-textarea/input-relevant-value
-void FormAssociatedTextControlElement::relevant_value_was_changed(JS::GCPtr<DOM::Text> text_node)
+void FormAssociatedTextControlElement::relevant_value_was_changed()
 {
     auto the_relevant_value = relevant_value();
     auto relevant_value_length = the_relevant_value.code_points().length();
@@ -215,13 +228,8 @@ void FormAssociatedTextControlElement::relevant_value_was_changed(JS::GCPtr<DOM:
 
     // 2. Otherwise, the element must have a text entry cursor position position. If it is now past
     //    the end of the relevant value, set it to the end of the relevant value.
-    auto& document = form_associated_element_to_html_element().document();
-    auto const current_cursor_position = document.cursor_position();
-    if (current_cursor_position && text_node
-        && current_cursor_position->node() == text_node
-        && current_cursor_position->offset() > relevant_value_length) {
-        document.set_cursor_position(DOM::Position::create(document.realm(), *text_node, relevant_value_length));
-    }
+    if (m_selection_start > relevant_value_length)
+        m_selection_start = relevant_value_length;
 }
 
 // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#dom-textarea/input-select
@@ -232,8 +240,7 @@ WebIDL::ExceptionOr<void> FormAssociatedTextControlElement::select()
     auto& html_element = form_associated_element_to_html_element();
     if (is<HTMLInputElement>(html_element)) {
         auto& input_element = static_cast<HTMLInputElement&>(html_element);
-        // FIXME: implement "or the corresponding control has no selectable text"
-        if (!input_element.select_applies())
+        if (!input_element.select_applies() || !input_element.has_selectable_text())
             return {};
     }
 
@@ -256,13 +263,12 @@ Optional<WebIDL::UnsignedLong> FormAssociatedTextControlElement::selection_start
     // 2. If there is no selection, return the code unit offset within the relevant value to the character that
     //    immediately follows the text entry cursor.
     if (m_selection_start == m_selection_end) {
-        if (auto cursor = form_associated_element_to_html_element().document().cursor_position())
-            return cursor->offset();
+        return m_selection_start;
     }
 
     // 3. Return the code unit offset within the relevant value to the character that immediately follows the start of
     //    the selection.
-    return m_selection_start;
+    return m_selection_start < m_selection_end ? m_selection_start : m_selection_end;
 }
 
 // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#textFieldSelection:dom-textarea/input-selectionstart-2
@@ -274,7 +280,7 @@ WebIDL::ExceptionOr<void> FormAssociatedTextControlElement::set_selection_start(
     if (is<HTMLInputElement>(html_element)) {
         auto& input_element = static_cast<HTMLInputElement&>(html_element);
         if (!input_element.selection_or_range_applies())
-            return WebIDL::InvalidStateError::create(html_element.realm(), "setSelectionStart does not apply to this input type"_fly_string);
+            return WebIDL::InvalidStateError::create(html_element.realm(), "setSelectionStart does not apply to this input type"_string);
     }
 
     // 2. Let end be the value of this element's selectionEnd attribute.
@@ -305,13 +311,12 @@ Optional<WebIDL::UnsignedLong> FormAssociatedTextControlElement::selection_end()
     // 2. If there is no selection, return the code unit offset within the relevant value to the
     //    character that immediately follows the text entry cursor.
     if (m_selection_start == m_selection_end) {
-        if (auto cursor = form_associated_element_to_html_element().document().cursor_position())
-            return cursor->offset();
+        return m_selection_start;
     }
 
     // 3. Return the code unit offset within the relevant value to the character that immediately
     //    follows the end of the selection.
-    return m_selection_end;
+    return m_selection_start < m_selection_end ? m_selection_end : m_selection_start;
 }
 
 // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#textFieldSelection:dom-textarea/input-selectionend-3
@@ -323,7 +328,7 @@ WebIDL::ExceptionOr<void> FormAssociatedTextControlElement::set_selection_end(Op
     if (is<HTMLInputElement>(html_element)) {
         auto& input_element = static_cast<HTMLInputElement&>(html_element);
         if (!input_element.selection_or_range_applies())
-            return WebIDL::InvalidStateError::create(html_element.realm(), "setSelectionEnd does not apply to this input type"_fly_string);
+            return WebIDL::InvalidStateError::create(html_element.realm(), "setSelectionEnd does not apply to this input type"_string);
     }
 
     // 2. Set the selection range with the value of this element's selectionStart attribute, the
@@ -367,6 +372,22 @@ void FormAssociatedTextControlElement::set_selection_direction(Optional<String> 
     m_selection_direction = string_to_selection_direction(direction);
 }
 
+// https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#dom-textarea/input-selectiondirection
+WebIDL::ExceptionOr<void> FormAssociatedTextControlElement::set_selection_direction_binding(Optional<String> direction)
+{
+    // 1. If this element is an input element, and selectionDirection does not apply to this element,
+    //    throw an "InvalidStateError" DOMException.
+    auto const& html_element = form_associated_element_to_html_element();
+    if (is<HTMLInputElement>(html_element)) {
+        auto const& input_element = static_cast<HTMLInputElement const&>(html_element);
+        if (!input_element.selection_direction_applies())
+            return WebIDL::InvalidStateError::create(input_element.realm(), "selectionDirection does not apply to element"_string);
+    }
+
+    set_the_selection_range(m_selection_start, m_selection_end, string_to_selection_direction(direction));
+    return {};
+}
+
 // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#dom-textarea/input-setrangetext
 WebIDL::ExceptionOr<void> FormAssociatedTextControlElement::set_range_text(String const& replacement)
 {
@@ -380,7 +401,7 @@ WebIDL::ExceptionOr<void> FormAssociatedTextControlElement::set_range_text(Strin
     //    throw an "InvalidStateError" DOMException.
     auto& html_element = form_associated_element_to_html_element();
     if (is<HTMLInputElement>(html_element) && !static_cast<HTMLInputElement&>(html_element).selection_or_range_applies())
-        return WebIDL::InvalidStateError::create(html_element.realm(), "setRangeText does not apply to this input type"_fly_string);
+        return WebIDL::InvalidStateError::create(html_element.realm(), "setRangeText does not apply to this input type"_string);
 
     // 2. Set this element's dirty value flag to true.
     set_dirty_value_flag(true);
@@ -391,7 +412,7 @@ WebIDL::ExceptionOr<void> FormAssociatedTextControlElement::set_range_text(Strin
 
     // 4. If start is greater than end, then throw an "IndexSizeError" DOMException.
     if (start > end)
-        return WebIDL::IndexSizeError::create(html_element.realm(), "The start argument must be less than or equal to the end argument"_fly_string);
+        return WebIDL::IndexSizeError::create(html_element.realm(), "The start argument must be less than or equal to the end argument"_string);
 
     // 5. If start is greater than the length of the relevant value of the text control, then set it to the length of the relevant value of the text control.
     auto the_relevant_value = relevant_value();
@@ -500,7 +521,7 @@ WebIDL::ExceptionOr<void> FormAssociatedTextControlElement::set_selection_range(
     //    element, throw an "InvalidStateError" DOMException.
     auto& html_element = form_associated_element_to_html_element();
     if (is<HTMLInputElement>(html_element) && !static_cast<HTMLInputElement&>(html_element).selection_or_range_applies())
-        return WebIDL::InvalidStateError::create(html_element.realm(), "setSelectionRange does not apply to this input type"_fly_string);
+        return WebIDL::InvalidStateError::create(html_element.realm(), "setSelectionRange does not apply to this input type"_string);
 
     // 2. Set the selection range with start, end, and direction.
     set_the_selection_range(start, end, string_to_selection_direction(direction));
@@ -560,10 +581,244 @@ void FormAssociatedTextControlElement::set_the_selection_range(Optional<WebIDL::
             });
         }
 
-        // AD-HOC: Notify the element that the selection was changed, so it can perform
-        //         element-specific updates.
-        selection_was_changed(m_selection_start, m_selection_end);
+        selection_was_changed();
     }
+}
+
+void FormAssociatedTextControlElement::handle_insert(String const& data)
+{
+    auto text_node = form_associated_element_to_text_node();
+    if (!text_node || !text_node->is_editable())
+        return;
+
+    String data_for_insertion = data;
+    // FIXME: Cut by UTF-16 code units instead of raw bytes
+    if (auto max_length = text_node->max_length(); max_length.has_value()) {
+        auto remaining_length = *max_length - text_node->data().code_points().length();
+        if (remaining_length < data.code_points().length()) {
+            data_for_insertion = MUST(data.substring_from_byte_offset(0, remaining_length));
+        }
+    }
+    auto selection_start = this->selection_start();
+    auto selection_end = this->selection_end();
+    if (!selection_start.has_value() || !selection_end.has_value()) {
+        return;
+    }
+    MUST(set_range_text(data_for_insertion, selection_start.value(), selection_end.value(), Bindings::SelectionMode::End));
+
+    text_node->invalidate_style(DOM::StyleInvalidationReason::EditingInsertion);
+    text_node->editable_text_node_owner()->did_edit_text_node();
+}
+
+void FormAssociatedTextControlElement::handle_delete(DeleteDirection direction)
+{
+    auto text_node = form_associated_element_to_text_node();
+    if (!text_node || !text_node->is_editable())
+        return;
+    auto selection_start = this->selection_start();
+    auto selection_end = this->selection_end();
+    if (!selection_start.has_value() || !selection_end.has_value()) {
+        return;
+    }
+    if (selection_start == selection_end) {
+        if (direction == DeleteDirection::Backward) {
+            if (selection_start.value() > 0) {
+                MUST(set_range_text(String {}, selection_start.value() - 1, selection_end.value(), Bindings::SelectionMode::End));
+            }
+        } else {
+            if (selection_start.value() < text_node->data().code_points().length()) {
+                MUST(set_range_text(String {}, selection_start.value(), selection_end.value() + 1, Bindings::SelectionMode::End));
+            }
+        }
+        return;
+    }
+    MUST(set_range_text(String {}, selection_start.value(), selection_end.value(), Bindings::SelectionMode::End));
+}
+
+void FormAssociatedTextControlElement::handle_return_key()
+{
+    auto& html_element = form_associated_element_to_html_element();
+    if (is<HTMLInputElement>(html_element)) {
+        auto& input_element = static_cast<HTMLInputElement&>(html_element);
+        if (auto* form = input_element.form()) {
+            form->implicitly_submit_form().release_value_but_fixme_should_propagate_errors();
+            return;
+        }
+        input_element.commit_pending_changes();
+    }
+}
+
+void FormAssociatedTextControlElement::collapse_selection_to_offset(size_t position)
+{
+    m_selection_start = position;
+    m_selection_end = position;
+}
+
+void FormAssociatedTextControlElement::selection_was_changed()
+{
+    auto& element = form_associated_element_to_html_element();
+    if (is<HTML::HTMLInputElement>(element)) {
+        schedule_a_selectionchange_event(static_cast<HTML::HTMLInputElement&>(element), element.document());
+    } else if (is<HTML::HTMLTextAreaElement>(element)) {
+        schedule_a_selectionchange_event(static_cast<HTML::HTMLTextAreaElement&>(element), element.document());
+    } else {
+        VERIFY_NOT_REACHED();
+    }
+
+    auto text_node = form_associated_element_to_text_node();
+    if (!text_node)
+        return;
+    auto* text_paintable = text_node->paintable();
+    if (!text_paintable)
+        return;
+    if (m_selection_start == m_selection_end) {
+        text_paintable->set_selected(false);
+        text_paintable->set_selection_state(Painting::Paintable::SelectionState::None);
+        text_node->document().reset_cursor_blink_cycle();
+    } else {
+        text_paintable->set_selected(true);
+        text_paintable->set_selection_state(Painting::Paintable::SelectionState::StartAndEnd);
+    }
+    text_paintable->set_needs_display();
+}
+
+void FormAssociatedTextControlElement::select_all()
+{
+    auto text_node = form_associated_element_to_text_node();
+    if (!text_node)
+        return;
+    set_the_selection_range(0, text_node->length());
+    selection_was_changed();
+}
+
+void FormAssociatedTextControlElement::set_selection_anchor(JS::NonnullGCPtr<DOM::Node> anchor_node, size_t anchor_offset)
+{
+    auto text_node = form_associated_element_to_text_node();
+    if (!text_node || anchor_node != text_node)
+        return;
+    collapse_selection_to_offset(anchor_offset);
+    selection_was_changed();
+}
+
+void FormAssociatedTextControlElement::set_selection_focus(JS::NonnullGCPtr<DOM::Node> focus_node, size_t focus_offset)
+{
+    auto text_node = form_associated_element_to_text_node();
+    if (!text_node || focus_node != text_node)
+        return;
+    m_selection_end = focus_offset;
+    selection_was_changed();
+}
+
+void FormAssociatedTextControlElement::move_cursor_to_start(CollapseSelection collapse)
+{
+    auto text_node = form_associated_element_to_text_node();
+    if (!text_node)
+        return;
+    if (collapse == CollapseSelection::Yes) {
+        collapse_selection_to_offset(0);
+    } else {
+        m_selection_end = 0;
+    }
+    selection_was_changed();
+}
+
+void FormAssociatedTextControlElement::move_cursor_to_end(CollapseSelection collapse)
+{
+    auto text_node = form_associated_element_to_text_node();
+    if (!text_node)
+        return;
+    if (collapse == CollapseSelection::Yes) {
+        collapse_selection_to_offset(text_node->length());
+    } else {
+        m_selection_end = text_node->length();
+    }
+    selection_was_changed();
+}
+
+void FormAssociatedTextControlElement::increment_cursor_position_offset(CollapseSelection collapse)
+{
+    auto const text_node = form_associated_element_to_text_node();
+    if (!text_node)
+        return;
+    if (auto offset = text_node->grapheme_segmenter().next_boundary(m_selection_end); offset.has_value()) {
+        if (collapse == CollapseSelection::Yes) {
+            collapse_selection_to_offset(*offset);
+        } else {
+            m_selection_end = *offset;
+        }
+    }
+    selection_was_changed();
+}
+
+void FormAssociatedTextControlElement::decrement_cursor_position_offset(CollapseSelection collapse)
+{
+    auto const text_node = form_associated_element_to_text_node();
+    if (!text_node)
+        return;
+    if (auto offset = text_node->grapheme_segmenter().previous_boundary(m_selection_end); offset.has_value()) {
+        if (collapse == CollapseSelection::Yes) {
+            collapse_selection_to_offset(*offset);
+        } else {
+            m_selection_end = *offset;
+        }
+    }
+    selection_was_changed();
+}
+
+void FormAssociatedTextControlElement::increment_cursor_position_to_next_word(CollapseSelection collapse)
+{
+    auto const text_node = form_associated_element_to_text_node();
+    if (!text_node)
+        return;
+
+    while (true) {
+        if (auto offset = text_node->word_segmenter().next_boundary(m_selection_end); offset.has_value()) {
+            auto word = text_node->data().code_points().substring_view(m_selection_end, *offset - m_selection_end);
+            if (collapse == CollapseSelection::Yes) {
+                collapse_selection_to_offset(*offset);
+            } else {
+                m_selection_end = *offset;
+            }
+            if (Unicode::Segmenter::should_continue_beyond_word(word))
+                continue;
+        }
+        break;
+    }
+
+    selection_was_changed();
+}
+
+void FormAssociatedTextControlElement::decrement_cursor_position_to_previous_word(CollapseSelection collapse)
+{
+    auto const text_node = form_associated_element_to_text_node();
+    if (!text_node)
+        return;
+
+    while (true) {
+        if (auto offset = text_node->word_segmenter().previous_boundary(m_selection_end); offset.has_value()) {
+            auto word = text_node->data().code_points().substring_view(m_selection_end, m_selection_end - *offset);
+            if (collapse == CollapseSelection::Yes) {
+                collapse_selection_to_offset(*offset);
+            } else {
+                m_selection_end = *offset;
+            }
+            if (Unicode::Segmenter::should_continue_beyond_word(word))
+                continue;
+        }
+        break;
+    }
+
+    selection_was_changed();
+}
+
+JS::GCPtr<DOM::Position> FormAssociatedTextControlElement::cursor_position() const
+{
+    auto const node = form_associated_element_to_text_node();
+    if (!node)
+        return nullptr;
+    if (m_selection_start == m_selection_end)
+        return DOM::Position::create(node->realm(), const_cast<DOM::Text&>(*node), m_selection_start);
+    return nullptr;
 }
 
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023, Tim Flynn <trflynn89@serenityos.org>
+ * Copyright (c) 2023-2024, Tim Flynn <trflynn89@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -16,7 +16,7 @@ namespace JS {
 
 JS_DEFINE_ALLOCATOR(IteratorConstructor);
 
-// 3.1.1.1 The Iterator Constructor, https://tc39.es/proposal-iterator-helpers/#sec-iterator-constructor
+// 27.1.3.1 The Iterator Constructor, https://tc39.es/ecma262/#sec-iterator-constructor
 IteratorConstructor::IteratorConstructor(Realm& realm)
     : Base(realm.vm().names.Iterator.as_string(), realm.intrinsics().function_prototype())
 {
@@ -28,7 +28,7 @@ void IteratorConstructor::initialize(Realm& realm)
 
     auto& vm = this->vm();
 
-    // 3.1.1.2.1 Iterator.prototype, https://tc39.es/proposal-iterator-helpers/#sec-iterator.prototype
+    // 27.1.3.2.2 Iterator.prototype Iterator.prototype, https://tc39.es/ecma262/#sec-iterator.prototype
     define_direct_property(vm.names.prototype, realm.intrinsics().iterator_prototype(), 0);
 
     u8 attr = Attribute::Writable | Attribute::Configurable;
@@ -37,7 +37,7 @@ void IteratorConstructor::initialize(Realm& realm)
     define_direct_property(vm.names.length, Value(0), Attribute::Configurable);
 }
 
-// 3.1.1.1.1 Iterator ( ), https://tc39.es/proposal-iterator-helpers/#sec-iterator
+// 27.1.3.1.1 Iterator ( ), https://tc39.es/ecma262/#sec-iterator
 ThrowCompletionOr<Value> IteratorConstructor::call()
 {
     auto& vm = this->vm();
@@ -46,7 +46,7 @@ ThrowCompletionOr<Value> IteratorConstructor::call()
     return vm.throw_completion<TypeError>(ErrorType::ConstructorWithoutNew, "Iterator");
 }
 
-// 3.1.1.1.1 Iterator ( ), https://tc39.es/proposal-iterator-helpers/#sec-iterator
+// 27.1.3.1.1 Iterator ( ), https://tc39.es/ecma262/#sec-iterator
 ThrowCompletionOr<NonnullGCPtr<Object>> IteratorConstructor::construct(FunctionObject& new_target)
 {
     auto& vm = this->vm();
@@ -59,15 +59,15 @@ ThrowCompletionOr<NonnullGCPtr<Object>> IteratorConstructor::construct(FunctionO
     return TRY(ordinary_create_from_constructor<Iterator>(vm, new_target, &Intrinsics::iterator_prototype));
 }
 
-// 3.1.1.2.2 Iterator.from ( O ), https://tc39.es/proposal-iterator-helpers/#sec-iterator.from
+// 27.1.3.2.1 Iterator.from ( O ), https://tc39.es/ecma262/#sec-iterator.from
 JS_DEFINE_NATIVE_FUNCTION(IteratorConstructor::from)
 {
     auto& realm = *vm.current_realm();
 
     auto object = vm.argument(0);
 
-    // 1. Let iteratorRecord be ? GetIteratorFlattenable(O, iterate-strings).
-    auto iterator_record = TRY(get_iterator_flattenable(vm, object, StringHandling::IterateStrings));
+    // 1. Let iteratorRecord be ? GetIteratorFlattenable(O, iterate-string-primitives).
+    auto iterator_record = TRY(get_iterator_flattenable(vm, object, PrimitiveHandling::IterateStringPrimitives));
 
     // 2. Let hasInstance be ? OrdinaryHasInstance(%Iterator%, iteratorRecord.[[Iterator]]).
     auto has_instance = TRY(ordinary_has_instance(vm, iterator_record->iterator, realm.intrinsics().iterator_constructor()));
@@ -80,7 +80,7 @@ JS_DEFINE_NATIVE_FUNCTION(IteratorConstructor::from)
 
     // 4. Let wrapper be OrdinaryObjectCreate(%WrapForValidIteratorPrototype%, « [[Iterated]] »).
     // 5. Set wrapper.[[Iterated]] to iteratorRecord.
-    auto wrapper = Iterator::create(realm, realm.intrinsics().wrap_for_valid_iterator_prototype(), move(iterator_record));
+    auto wrapper = Iterator::create(realm, realm.intrinsics().wrap_for_valid_iterator_prototype(), iterator_record);
 
     // 6. Return wrapper.
     return wrapper;

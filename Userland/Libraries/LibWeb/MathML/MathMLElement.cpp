@@ -20,17 +20,29 @@ MathMLElement::MathMLElement(DOM::Document& document, DOM::QualifiedName qualifi
 {
 }
 
+void MathMLElement::attribute_change_steps(FlyString const& local_name, Optional<String> const& old_value, Optional<String> const& value, Optional<FlyString> const& namespace_)
+{
+    Base::attribute_change_steps(local_name, old_value, value, namespace_);
+    HTMLOrSVGElement::attribute_change_steps(local_name, old_value, value, namespace_);
+}
+
+WebIDL::ExceptionOr<void> MathMLElement::cloned(DOM::Node& node, bool clone_children)
+{
+    TRY(Base::cloned(node, clone_children));
+    TRY(HTMLOrSVGElement::cloned(node, clone_children));
+    return {};
+}
+
+void MathMLElement::inserted()
+{
+    Base::inserted();
+    HTMLOrSVGElement::inserted();
+}
+
 void MathMLElement::initialize(JS::Realm& realm)
 {
     Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(MathMLElement);
-}
-
-JS::NonnullGCPtr<HTML::DOMStringMap> MathMLElement::dataset()
-{
-    if (!m_dataset)
-        m_dataset = HTML::DOMStringMap::create(*this);
-    return *m_dataset;
 }
 
 Optional<ARIA::Role> MathMLElement::default_role() const
@@ -41,20 +53,10 @@ Optional<ARIA::Role> MathMLElement::default_role() const
     return {};
 }
 
-void MathMLElement::focus()
-{
-    dbgln("(STUBBED) MathMLElement::focus()");
-}
-
-void MathMLElement::blur()
-{
-    dbgln("(STUBBED) MathMLElement::blur()");
-}
-
 void MathMLElement::visit_edges(JS::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
-    visitor.visit(m_dataset);
+    HTMLOrSVGElement::visit_edges(visitor);
 }
 
 }

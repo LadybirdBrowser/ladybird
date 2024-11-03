@@ -39,19 +39,17 @@
             cancel() {},
         });
 
-
         const reader = transformStream.readable.getReader();
-        reader.read().then(function processText({done, value}) {
-            if (done)
+        reader.read().then(function processText(result) {
+            if (result.done) {
+                done();
                 return;
+            }
 
-            println(value);
+            println(result.value);
             reader.read().then(processText);
-        }).then(() => {
-            done();
         });
 
         stream.pipeThrough(transformStream);
-
     });
 </script>

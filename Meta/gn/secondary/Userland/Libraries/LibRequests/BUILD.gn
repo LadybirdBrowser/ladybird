@@ -1,0 +1,45 @@
+import("//Meta/gn/build/compiled_action.gni")
+
+compiled_action("RequestClientEndpoint") {
+  tool = "//Meta/Lagom/Tools/CodeGenerators/IPCCompiler"
+  inputs = [ "//Userland/Services/RequestServer/RequestClient.ipc" ]
+  outputs = [ "$root_gen_dir/RequestServer/RequestClientEndpoint.h" ]
+  args = [
+    rebase_path(inputs[0], root_build_dir),
+    "-o",
+    rebase_path(outputs[0], root_build_dir),
+  ]
+}
+
+compiled_action("RequestServerEndpoint") {
+  tool = "//Meta/Lagom/Tools/CodeGenerators/IPCCompiler"
+  inputs = [ "//Userland/Services/RequestServer/RequestServer.ipc" ]
+  outputs = [ "$root_gen_dir/RequestServer/RequestServerEndpoint.h" ]
+  args = [
+    rebase_path(inputs[0], root_build_dir),
+    "-o",
+    rebase_path(outputs[0], root_build_dir),
+  ]
+}
+
+shared_library("LibRequests") {
+  output_name = "requests"
+  include_dirs = [
+    "//Userland/Libraries",
+    "//Userland/Services",
+  ]
+  deps = [
+    ":RequestClientEndpoint",
+    ":RequestServerEndpoint",
+    "//AK",
+    "//Userland/Libraries/LibCore",
+    "//Userland/Libraries/LibIPC",
+  ]
+  sources = [
+    "Request.cpp",
+    "RequestClient.cpp",
+    "WebSocket.cpp",
+  ]
+  sources += get_target_outputs(":RequestClientEndpoint") +
+             get_target_outputs(":RequestServerEndpoint")
+}

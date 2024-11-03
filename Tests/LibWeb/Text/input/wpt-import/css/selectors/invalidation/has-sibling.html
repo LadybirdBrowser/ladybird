@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>CSS Selector Invalidation: :has() with sibling combinator argument</title>
+<link rel="author" title="Antti Koivisto" href="mailto:antti@apple.com">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<link rel="help" href="https://drafts.csswg.org/selectors/#relational">
+<style>
+div, main { color: grey }
+#subject:has(~ .test) { color: red }
+#subject:has(+ .test) { color: green }
+#subject:has(~ div .test) { color: blue }
+#subject:has(~ div > .test) { color: purple }
+#subject:has(+ div .test) { color: yellow }
+#subject:has(+ div > .test) { color: pink }
+</style>
+
+<main id=main>
+    <div id=subject></div>
+    <div id=first_sibling>
+        <div id=first_sibling_child>
+            <div id=first_sibling_descendant></div>
+        </div>
+    </div>
+    <div id=second_sibling></div>
+    <div id=third_sibling>
+        <div id=third_sibling_child>
+            <div id=third_sibling_descendant></div>
+        </div>
+    </div>
+</main>
+<script>
+
+const grey = 'rgb(128, 128, 128)';
+const red = 'rgb(255, 0, 0)';
+const green = 'rgb(0, 128, 0)';
+const blue = 'rgb(0, 0, 255)';
+const yellow = 'rgb(255, 255, 0)';
+const purple = 'rgb(128, 0, 128)';
+const pink = 'rgb(255, 192, 203)';
+
+function testColor(test_name, color) {
+    test(function() {
+        assert_equals(getComputedStyle(subject).color, color);
+    }, test_name);
+}
+
+function testClassChange(element, expectedColor)
+{
+    element.classList.add('test');
+    testColor(`add .test to ${element.id}`, expectedColor);
+    element.classList.remove('test');
+    testColor(`remove .test from ${element.id}`, grey);
+}
+
+function testElementInsertionBefore(beforeElement, expectedColor)
+{
+    const newElement = document.createElement('div');
+    newElement.classList.add('test')
+
+    beforeElement.before(newElement);
+    testColor(`insert element div.test before ${beforeElement.id}`, expectedColor);
+
+    newElement.remove();
+    testColor(`remove element div.test before ${beforeElement.id}`, grey);
+}
+
+function testElementInsertionAfter(afterElement, expectedColor)
+{
+    const newElement = document.createElement('div');
+    newElement.classList.add('test')
+
+    afterElement.after(newElement);
+    testColor(`insert element div.test after ${afterElement.id}`, expectedColor);
+
+    newElement.remove();
+    testColor(`remove element div.test after ${afterElement.id}`, grey);
+}
+
+function testTreeInsertionBefore(beforeElement, expectedColor)
+{
+    const newElement = document.createElement('div');
+    const newChild = document.createElement('div');
+    newChild.classList.add('test');
+    newElement.appendChild(newChild);
+
+    beforeElement.before(newElement);
+    testColor(`insert tree div>div.test before ${beforeElement.id}`, expectedColor);
+
+    newElement.remove();
+    testColor(`remove tree div>div.test before ${beforeElement.id}`, grey);
+}
+
+function testTreeInsertionAfter(afterElement, expectedColor)
+{
+    const newElement = document.createElement('div');
+    const newChild = document.createElement('div');
+    newChild.classList.add('test');
+    newElement.appendChild(newChild);
+
+    afterElement.after(newElement);
+    testColor(`insert tree div>div.test after ${afterElement.id}`, expectedColor);
+
+    newElement.remove();
+    testColor(`remove tree div>div.test after ${afterElement.id}`, grey);
+}
+
+testColor('initial_color', grey);
+
+testClassChange(first_sibling, green);
+testClassChange(second_sibling, red);
+testClassChange(third_sibling, red);
+testClassChange(first_sibling_child, pink);
+testClassChange(first_sibling_descendant, yellow);
+testClassChange(third_sibling_child, purple);
+testClassChange(third_sibling_descendant, blue);
+
+testElementInsertionBefore(first_sibling, green);
+testElementInsertionBefore(second_sibling, red);
+testElementInsertionBefore(third_sibling, red);
+testElementInsertionBefore(first_sibling_child, pink);
+testElementInsertionBefore(first_sibling_descendant, yellow);
+testElementInsertionBefore(third_sibling_child, purple);
+testElementInsertionBefore(third_sibling_descendant, blue);
+
+testElementInsertionAfter(first_sibling, red);
+testElementInsertionAfter(second_sibling, red);
+testElementInsertionAfter(third_sibling, red);
+testElementInsertionAfter(first_sibling_child, pink);
+testElementInsertionAfter(first_sibling_descendant, yellow);
+testElementInsertionAfter(third_sibling_child, purple);
+testElementInsertionAfter(third_sibling_descendant, blue);
+
+testTreeInsertionBefore(first_sibling, pink);
+testTreeInsertionBefore(second_sibling, purple);
+testTreeInsertionBefore(third_sibling, purple);
+testTreeInsertionBefore(first_sibling_child, yellow);
+testTreeInsertionBefore(first_sibling_descendant, yellow);
+testTreeInsertionBefore(third_sibling_child, blue);
+testTreeInsertionBefore(third_sibling_descendant, blue);
+
+testTreeInsertionAfter(first_sibling, purple);
+testTreeInsertionAfter(second_sibling, purple);
+testTreeInsertionAfter(third_sibling, purple);
+testTreeInsertionAfter(first_sibling_child, yellow);
+testTreeInsertionAfter(first_sibling_descendant, yellow);
+testTreeInsertionAfter(third_sibling_child, blue);
+testTreeInsertionAfter(third_sibling_descendant, blue);
+</script>

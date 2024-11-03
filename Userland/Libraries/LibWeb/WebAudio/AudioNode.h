@@ -18,6 +18,12 @@ namespace Web::WebAudio {
 // https://webaudio.github.io/web-audio-api/#AudioNodeOptions
 struct AudioNodeOptions {
     Optional<WebIDL::UnsignedLong> channel_count;
+    Optional<Bindings::ChannelCountMode> channel_count_mode;
+    Optional<Bindings::ChannelInterpretation> channel_interpretation;
+};
+
+struct AudioNodeDefaultOptions {
+    WebIDL::UnsignedLong channel_count;
     Bindings::ChannelCountMode channel_count_mode;
     Bindings::ChannelInterpretation channel_interpretation;
 };
@@ -48,14 +54,21 @@ public:
         return m_context;
     }
 
-    WebIDL::UnsignedLong number_of_inputs();
-    WebIDL::UnsignedLong number_of_outputs();
-    WebIDL::ExceptionOr<void> set_channel_count(WebIDL::UnsignedLong);
-    WebIDL::UnsignedLong channel_count();
-    WebIDL::ExceptionOr<void> set_channel_count_mode(Bindings::ChannelCountMode);
+    // https://webaudio.github.io/web-audio-api/#dom-audionode-numberofinputs
+    virtual WebIDL::UnsignedLong number_of_inputs() = 0;
+    // https://webaudio.github.io/web-audio-api/#dom-audionode-numberofoutputs
+    virtual WebIDL::UnsignedLong number_of_outputs() = 0;
+
+    // https://webaudio.github.io/web-audio-api/#dom-audionode-channelcount
+    virtual WebIDL::ExceptionOr<void> set_channel_count(WebIDL::UnsignedLong);
+    virtual WebIDL::UnsignedLong channel_count() const { return m_channel_count; }
+
+    virtual WebIDL::ExceptionOr<void> set_channel_count_mode(Bindings::ChannelCountMode);
     Bindings::ChannelCountMode channel_count_mode();
     WebIDL::ExceptionOr<void> set_channel_interpretation(Bindings::ChannelInterpretation);
     Bindings::ChannelInterpretation channel_interpretation();
+
+    WebIDL::ExceptionOr<void> initialize_audio_node_options(AudioNodeOptions const& given_options, AudioNodeDefaultOptions const& default_options);
 
 protected:
     AudioNode(JS::Realm&, JS::NonnullGCPtr<BaseAudioContext>);
@@ -65,6 +78,7 @@ protected:
 
 private:
     JS::NonnullGCPtr<BaseAudioContext> m_context;
+    WebIDL::UnsignedLong m_channel_count { 2 };
     Bindings::ChannelCountMode m_channel_count_mode { Bindings::ChannelCountMode::Max };
     Bindings::ChannelInterpretation m_channel_interpretation { Bindings::ChannelInterpretation::Speakers };
 };

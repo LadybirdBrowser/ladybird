@@ -47,12 +47,11 @@ void ClippableAndScrollable::apply_clip(PaintContext& context) const
 
     auto& display_list_recorder = context.display_list_recorder();
     display_list_recorder.save();
-    auto saved_scroll_frame_id = display_list_recorder.scroll_frame_id();
     for (auto const& clip_rect : clip_rects) {
         Optional<i32> clip_scroll_frame_id;
         if (clip_rect.enclosing_scroll_frame)
             clip_scroll_frame_id = clip_rect.enclosing_scroll_frame->id();
-        display_list_recorder.set_scroll_frame_id(clip_scroll_frame_id);
+        display_list_recorder.push_scroll_frame_id(clip_scroll_frame_id);
         auto rect = context.rounded_device_rect(clip_rect.rect).to_type<int>();
         auto corner_radii = clip_rect.corner_radii.as_corners(context);
         if (corner_radii.has_any_radius()) {
@@ -60,8 +59,8 @@ void ClippableAndScrollable::apply_clip(PaintContext& context) const
         } else {
             display_list_recorder.add_clip_rect(rect);
         }
+        display_list_recorder.pop_scroll_frame_id();
     }
-    display_list_recorder.set_scroll_frame_id(saved_scroll_frame_id);
 }
 
 void ClippableAndScrollable::restore_clip(PaintContext& context) const

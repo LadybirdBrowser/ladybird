@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-2023, Andreas Kling <kling@serenityos.org>
+ * Copyright (c) 2020-2023, Andreas Kling <andreas@ladybird.org>
  * Copyright (c) 2021-2024, Sam Atkins <sam@ladybird.org>
  * Copyright (c) 2021-2023, Linus Groh <linusg@serenityos.org>
  * Copyright (c) 2022, Tobias Christiansen <tobyase@serenityos.org>
@@ -53,11 +53,12 @@
 
 namespace WebContent {
 
-ConnectionFromClient::ConnectionFromClient(NonnullOwnPtr<Core::LocalSocket> socket)
-    : IPC::ConnectionFromClient<WebContentClientEndpoint, WebContentServerEndpoint>(*this, move(socket), 1)
+ConnectionFromClient::ConnectionFromClient(JS::Heap& heap, IPC::Transport transport)
+    : IPC::ConnectionFromClient<WebContentClientEndpoint, WebContentServerEndpoint>(*this, move(transport), 1)
+    , m_heap(heap)
     , m_page_host(PageHost::create(*this))
 {
-    m_input_event_queue_timer = Web::Platform::Timer::create_single_shot(0, [this] { process_next_input_event(); });
+    m_input_event_queue_timer = Web::Platform::Timer::create_single_shot(m_heap, 0, JS::create_heap_function(heap, [this] { process_next_input_event(); }));
 }
 
 ConnectionFromClient::~ConnectionFromClient() = default;
@@ -189,9 +190,9 @@ void ConnectionFromClient::process_next_input_event()
         [&](Web::KeyEvent const& event) {
             switch (event.type) {
             case Web::KeyEvent::Type::KeyDown:
-                return page->page().handle_keydown(event.key, event.modifiers, event.code_point);
+                return page->page().handle_keydown(event.key, event.modifiers, event.code_point, event.repeat);
             case Web::KeyEvent::Type::KeyUp:
-                return page->page().handle_keyup(event.key, event.modifiers, event.code_point);
+                return page->page().handle_keyup(event.key, event.modifiers, event.code_point, event.repeat);
             }
             VERIFY_NOT_REACHED();
         },
@@ -324,8 +325,7 @@ void ConnectionFromClient::debug_request(u64 page_id, ByteString const& request,
     if (request == "dump-style-sheets") {
         if (auto* doc = page->page().top_level_browsing_context().active_document()) {
             for (auto& sheet : doc->style_sheets().sheets()) {
-                if (auto result = Web::dump_sheet(sheet); result.is_error())
-                    dbgln("Failed to dump style sheets: {}", result.error());
+                Web::dump_sheet(sheet);
             }
         }
         return;
@@ -343,7 +343,7 @@ void ConnectionFromClient::debug_request(u64 page_id, ByteString const& request,
                     auto styles = doc->style_computer().compute_style(*static_cast<Web::DOM::Element*>(element));
                     dbgln("+ Element {}", element->debug_description());
                     for (size_t i = 0; i < Web::CSS::StyleProperties::number_of_properties; ++i) {
-                        auto property = styles->maybe_null_property(static_cast<Web::CSS::PropertyID>(i));
+                        auto property = styles.maybe_null_property(static_cast<Web::CSS::PropertyID>(i));
                         dbgln("|  {} = {}", Web::CSS::string_from_property_id(static_cast<Web::CSS::PropertyID>(i)), property ? property->to_string() : ""_string);
                     }
                     dbgln("---");
@@ -433,7 +433,7 @@ void ConnectionFromClient::get_source(u64 page_id)
 {
     if (auto page = this->page(page_id); page.has_value()) {
         if (auto* doc = page->page().top_level_browsing_context().active_document())
-            async_did_get_source(page_id, doc->url(), doc->source().to_byte_string());
+            async_did_get_source(page_id, doc->url(), doc->base_url(), doc->source());
     }
 }
 
@@ -445,7 +445,7 @@ void ConnectionFromClient::inspect_dom_tree(u64 page_id)
     }
 }
 
-void ConnectionFromClient::inspect_dom_node(u64 page_id, i32 node_id, Optional<Web::CSS::Selector::PseudoElement::Type> const& pseudo_element)
+void ConnectionFromClient::inspect_dom_node(u64 page_id, Web::UniqueNodeID const& node_id, Optional<Web::CSS::Selector::PseudoElement::Type> const& pseudo_element)
 {
     auto page = this->page(page_id);
     if (!page.has_value())
@@ -460,7 +460,7 @@ void ConnectionFromClient::inspect_dom_node(u64 page_id, i32 node_id, Optional<W
         return Web::TraversalDecision::Continue;
     });
 
-    Web::DOM::Node* node = Web::DOM::Node::from_unique_id(node_id);
+    auto* node = Web::DOM::Node::from_unique_id(node_id);
     // Note: Nodes without layout (aka non-visible nodes, don't have style computed)
     if (!node || !node->layout_node()) {
         async_did_inspect_dom_node(page_id, false, {}, {}, {}, {}, {}, {});
@@ -471,7 +471,7 @@ void ConnectionFromClient::inspect_dom_node(u64 page_id, i32 node_id, Optional<W
 
     if (node->is_element()) {
         auto& element = verify_cast<Web::DOM::Element>(*node);
-        if (!element.computed_css_values()) {
+        if (!element.computed_css_values().has_value()) {
             async_did_inspect_dom_node(page_id, false, {}, {}, {}, {}, {}, {});
             return;
         }
@@ -582,7 +582,7 @@ void ConnectionFromClient::inspect_dom_node(u64 page_id, i32 node_id, Optional<W
 
             auto pseudo_element_style = element.pseudo_element_computed_css_values(pseudo_element.value());
             ByteString computed_values = serialize_json(*pseudo_element_style);
-            ByteString resolved_values = serialize_json(*element.resolved_css_values(pseudo_element.value()));
+            ByteString resolved_values = serialize_json(element.resolved_css_values(pseudo_element.value()));
             ByteString custom_properties_json = serialize_custom_properties_json(element, pseudo_element);
             ByteString node_box_sizing_json = serialize_node_box_sizing_json(pseudo_element_node.ptr());
             ByteString fonts_json = serialize_fonts_json(*pseudo_element_style);
@@ -619,7 +619,7 @@ void ConnectionFromClient::get_hovered_node_id(u64 page_id)
     if (!page.has_value())
         return;
 
-    i32 node_id = 0;
+    Web::UniqueNodeID node_id = 0;
 
     if (auto* document = page->page().top_level_browsing_context().active_document()) {
         if (auto* hovered_node = document->hovered_node())
@@ -645,13 +645,12 @@ void ConnectionFromClient::request_style_sheet_source(u64 page_id, Web::CSS::Sty
         return;
 
     if (auto* document = page->page().top_level_browsing_context().active_document()) {
-        auto stylesheet = document->get_style_sheet_source(identifier);
-        if (stylesheet.has_value())
-            async_did_request_style_sheet_source(page_id, identifier, stylesheet.value());
+        if (auto stylesheet = document->get_style_sheet_source(identifier); stylesheet.has_value())
+            async_did_get_style_sheet_source(page_id, identifier, document->base_url(), stylesheet.value());
     }
 }
 
-void ConnectionFromClient::set_dom_node_text(u64 page_id, i32 node_id, String const& text)
+void ConnectionFromClient::set_dom_node_text(u64 page_id, Web::UniqueNodeID const& node_id, String const& text)
 {
     auto* dom_node = Web::DOM::Node::from_unique_id(node_id);
     if (!dom_node || (!dom_node->is_text() && !dom_node->is_comment())) {
@@ -665,7 +664,7 @@ void ConnectionFromClient::set_dom_node_text(u64 page_id, i32 node_id, String co
     async_did_finish_editing_dom_node(page_id, character_data.unique_id());
 }
 
-void ConnectionFromClient::set_dom_node_tag(u64 page_id, i32 node_id, String const& name)
+void ConnectionFromClient::set_dom_node_tag(u64 page_id, Web::UniqueNodeID const& node_id, String const& name)
 {
     auto* dom_node = Web::DOM::Node::from_unique_id(node_id);
     if (!dom_node || !dom_node->is_element() || !dom_node->parent()) {
@@ -689,7 +688,7 @@ void ConnectionFromClient::set_dom_node_tag(u64 page_id, i32 node_id, String con
     async_did_finish_editing_dom_node(page_id, new_element->unique_id());
 }
 
-void ConnectionFromClient::add_dom_node_attributes(u64 page_id, i32 node_id, Vector<WebView::Attribute> const& attributes)
+void ConnectionFromClient::add_dom_node_attributes(u64 page_id, Web::UniqueNodeID const& node_id, Vector<WebView::Attribute> const& attributes)
 {
     auto* dom_node = Web::DOM::Node::from_unique_id(node_id);
     if (!dom_node || !dom_node->is_element()) {
@@ -707,7 +706,7 @@ void ConnectionFromClient::add_dom_node_attributes(u64 page_id, i32 node_id, Vec
     async_did_finish_editing_dom_node(page_id, element.unique_id());
 }
 
-void ConnectionFromClient::replace_dom_node_attribute(u64 page_id, i32 node_id, String const& name, Vector<WebView::Attribute> const& replacement_attributes)
+void ConnectionFromClient::replace_dom_node_attribute(u64 page_id, Web::UniqueNodeID const& node_id, String const& name, Vector<WebView::Attribute> const& replacement_attributes)
 {
     auto* dom_node = Web::DOM::Node::from_unique_id(node_id);
     if (!dom_node || !dom_node->is_element()) {
@@ -732,7 +731,7 @@ void ConnectionFromClient::replace_dom_node_attribute(u64 page_id, i32 node_id, 
     async_did_finish_editing_dom_node(page_id, element.unique_id());
 }
 
-void ConnectionFromClient::create_child_element(u64 page_id, i32 node_id)
+void ConnectionFromClient::create_child_element(u64 page_id, Web::UniqueNodeID const& node_id)
 {
     auto* dom_node = Web::DOM::Node::from_unique_id(node_id);
     if (!dom_node) {
@@ -746,7 +745,7 @@ void ConnectionFromClient::create_child_element(u64 page_id, i32 node_id)
     async_did_finish_editing_dom_node(page_id, element->unique_id());
 }
 
-void ConnectionFromClient::create_child_text_node(u64 page_id, i32 node_id)
+void ConnectionFromClient::create_child_text_node(u64 page_id, Web::UniqueNodeID const& node_id)
 {
     auto* dom_node = Web::DOM::Node::from_unique_id(node_id);
     if (!dom_node) {
@@ -760,7 +759,7 @@ void ConnectionFromClient::create_child_text_node(u64 page_id, i32 node_id)
     async_did_finish_editing_dom_node(page_id, text_node->unique_id());
 }
 
-void ConnectionFromClient::clone_dom_node(u64 page_id, i32 node_id)
+void ConnectionFromClient::clone_dom_node(u64 page_id, Web::UniqueNodeID const& node_id)
 {
     auto* dom_node = Web::DOM::Node::from_unique_id(node_id);
     if (!dom_node || !dom_node->parent_node()) {
@@ -774,7 +773,7 @@ void ConnectionFromClient::clone_dom_node(u64 page_id, i32 node_id)
     async_did_finish_editing_dom_node(page_id, dom_node_clone->unique_id());
 }
 
-void ConnectionFromClient::remove_dom_node(u64 page_id, i32 node_id)
+void ConnectionFromClient::remove_dom_node(u64 page_id, Web::UniqueNodeID const& node_id)
 {
     auto page = this->page(page_id);
     if (!page.has_value())
@@ -801,7 +800,7 @@ void ConnectionFromClient::remove_dom_node(u64 page_id, i32 node_id)
     async_did_finish_editing_dom_node(page_id, previous_dom_node->unique_id());
 }
 
-void ConnectionFromClient::get_dom_node_html(u64 page_id, i32 node_id)
+void ConnectionFromClient::get_dom_node_html(u64 page_id, Web::UniqueNodeID const& node_id)
 {
     auto* dom_node = Web::DOM::Node::from_unique_id(node_id);
     if (!dom_node)
@@ -831,7 +830,7 @@ void ConnectionFromClient::take_document_screenshot(u64 page_id)
     page->queue_screenshot_task({});
 }
 
-void ConnectionFromClient::take_dom_node_screenshot(u64 page_id, i32 node_id)
+void ConnectionFromClient::take_dom_node_screenshot(u64 page_id, Web::UniqueNodeID const& node_id)
 {
     auto page = this->page(page_id);
     if (!page.has_value())
@@ -891,12 +890,12 @@ static void append_paint_tree(Web::Page& page, StringBuilder& builder)
         builder.append("(no layout tree)"sv);
         return;
     }
-    if (!layout_root->paintable()) {
+    if (!layout_root->first_paintable()) {
         builder.append("(no paint tree)"sv);
         return;
     }
 
-    Web::dump_tree(builder, *layout_root->paintable());
+    Web::dump_tree(builder, *layout_root->first_paintable());
 }
 
 static void append_gc_graph(StringBuilder& builder)
@@ -1082,6 +1081,12 @@ void ConnectionFromClient::set_window_size(u64 page_id, Web::DevicePixelSize siz
 {
     if (auto page = this->page(page_id); page.has_value())
         page->set_window_size(size);
+}
+
+void ConnectionFromClient::did_update_window_rect(u64 page_id)
+{
+    if (auto page = this->page(page_id); page.has_value())
+        page->page().did_update_window_rect();
 }
 
 Messages::WebContentServer::GetLocalStorageEntriesResponse ConnectionFromClient::get_local_storage_entries(u64 page_id)

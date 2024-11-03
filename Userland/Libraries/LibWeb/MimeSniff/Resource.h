@@ -32,8 +32,8 @@ struct SniffingConfiguration {
 // https://mimesniff.spec.whatwg.org/#resource
 class Resource {
 public:
-    static ErrorOr<Resource> create(ReadonlyBytes data, SniffingConfiguration configuration = {});
-    static ErrorOr<MimeType> sniff(ReadonlyBytes data, SniffingConfiguration configuration = {});
+    static Resource create(ReadonlyBytes data, SniffingConfiguration configuration = {});
+    static MimeType sniff(ReadonlyBytes data, SniffingConfiguration configuration = {});
 
     ~Resource();
 
@@ -44,15 +44,15 @@ private:
     Resource(ReadonlyBytes data, bool no_sniff, MimeType&& default_computed_mime_type);
 
     void read_the_resource_header(ReadonlyBytes data);
-    ErrorOr<void> supplied_mime_type_detection_algorithm(StringView scheme, Optional<MimeType> supplied_type);
-    ErrorOr<void> mime_type_sniffing_algorithm();
+    void supplied_mime_type_detection_algorithm(StringView scheme, Optional<MimeType> supplied_type);
+    void mime_type_sniffing_algorithm();
 
-    ErrorOr<void> rules_for_distinguishing_if_a_resource_is_text_or_binary();
+    void rules_for_distinguishing_if_a_resource_is_text_or_binary();
 
-    ErrorOr<void> context_specific_sniffing_algorithm(SniffingContext sniffing_context);
-    ErrorOr<void> rules_for_sniffing_images_specifically();
-    ErrorOr<void> rules_for_sniffing_audio_or_video_specifically();
-    ErrorOr<void> rules_for_sniffing_fonts_specifically();
+    void context_specific_sniffing_algorithm(SniffingContext sniffing_context);
+    void rules_for_sniffing_images_specifically();
+    void rules_for_sniffing_audio_or_video_specifically();
+    void rules_for_sniffing_fonts_specifically();
 
     // https://mimesniff.spec.whatwg.org/#supplied-mime-type
     // A supplied MIME type, the MIME type determined by the supplied MIME type detection algorithm.

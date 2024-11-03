@@ -1,0 +1,21 @@
+Viewport <#document> at (0,0) content-size 800x600 children: not-inline
+  BlockContainer <html> at (1,1) content-size 798x220 [BFC] children: not-inline
+    BlockContainer <body> at (10,10) content-size 780x202 children: not-inline
+      Box <div.grid> at (11,111) content-size 200x100 positioned [GFC] children: not-inline
+        BlockContainer <div.abspos-item-with-grid-area> at (12,112) content-size 50x50 positioned [BFC] children: inline
+          frag 0 from TextNode start: 0, length: 1, rect: [12,112 14.265625x17] baseline: 13.296875
+              "A"
+          TextNode <#text>
+        BlockContainer <div.abspos-item-with-auto-placement> at (12,12) content-size 50x50 positioned [BFC] children: inline
+          frag 0 from TextNode start: 0, length: 1, rect: [12,12 9.34375x17] baseline: 13.296875
+              "B"
+          TextNode <#text>
+
+ViewportPaintable (Viewport<#document>) [0,0 800x600]
+  PaintableWithLines (BlockContainer<HTML>) [0,0 800x222]
+    PaintableWithLines (BlockContainer<BODY>) [9,9 782x204]
+      PaintableBox (Box<DIV>.grid) [10,10 202x202]
+        PaintableWithLines (BlockContainer<DIV>.abspos-item-with-grid-area) [11,111 52x52]
+          TextPaintable (TextNode<#text>)
+        PaintableWithLines (BlockContainer<DIV>.abspos-item-with-auto-placement) [11,11 52x52]
+          TextPaintable (TextNode<#text>)

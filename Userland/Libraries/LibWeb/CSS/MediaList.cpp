@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2021-2023, Sam Atkins <atkinssj@serenityos.org>
- * Copyright (c) 2022-2023, Andreas Kling <kling@serenityos.org>
+ * Copyright (c) 2022-2023, Andreas Kling <andreas@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -100,9 +100,8 @@ bool MediaList::evaluate(HTML::Window const& window)
 
 bool MediaList::matches() const
 {
-    if (m_media.is_empty()) {
+    if (m_media.is_empty())
         return true;
-    }
 
     for (auto& media : m_media) {
         if (media->matches())

@@ -1,17 +1,17 @@
 /*
- * Copyright (c) 2020-2021, Andreas Kling <kling@serenityos.org>
+ * Copyright (c) 2020-2021, Andreas Kling <andreas@ladybird.org>
  * Copyright (c) 2023, Sam Atkins <atkinssj@serenityos.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibURL/Origin.h>
 #include <LibWeb/Bindings/HTMLIFrameElementPrototype.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Event.h>
 #include <LibWeb/HTML/BrowsingContext.h>
 #include <LibWeb/HTML/HTMLIFrameElement.h>
 #include <LibWeb/HTML/Navigable.h>
-#include <LibWeb/HTML/Origin.h>
 #include <LibWeb/HTML/Parser/HTMLParser.h>
 #include <LibWeb/Layout/FrameBox.h>
 
@@ -32,7 +32,7 @@ void HTMLIFrameElement::initialize(JS::Realm& realm)
     WEB_SET_PROTOTYPE_FOR_INTERFACE(HTMLIFrameElement);
 }
 
-JS::GCPtr<Layout::Node> HTMLIFrameElement::create_layout_node(NonnullRefPtr<CSS::StyleProperties> style)
+JS::GCPtr<Layout::Node> HTMLIFrameElement::create_layout_node(CSS::StyleProperties style)
 {
     return heap().allocate_without_realm<Layout::FrameBox>(document(), *this, move(style));
 }
@@ -59,7 +59,7 @@ void HTMLIFrameElement::inserted()
     HTMLElement::inserted();
 
     // When an iframe element element is inserted into a document whose browsing context is non-null, the user agent must run these steps:
-    if (in_a_document_tree() && document().browsing_context()) {
+    if (in_a_document_tree() && document().browsing_context() && document().is_fully_active()) {
         // 1. Create a new child navigable for element.
         MUST(create_new_child_navigable(JS::create_heap_function(realm().heap(), [this] {
             // 3. Process the iframe attributes for element, with initialInsertion set to true.
@@ -76,12 +76,6 @@ void HTMLIFrameElement::process_the_iframe_attributes(bool initial_insertion)
 {
     if (!content_navigable())
         return;
-
-    // Make sure applying of history step caused by potential sync navigation to "about:blank"
-    // is finished. Otherwise, it might interrupt navigation caused by changing src or srcdoc.
-    if (!initial_insertion && !content_navigable_initialized()) {
-        main_thread_event_loop().spin_processing_tasks_with_source_until(Task::Source::NavigationAndTraversal, [this] { return content_navigable_initialized(); });
-    }
 
     // 1. If element's srcdoc attribute is specified, then:
     if (has_attribute(HTML::AttributeNames::srcdoc)) {

@@ -729,7 +729,7 @@ DecodeResult from_base64(VM& vm, StringView string, Alphabet alphabet, LastChunk
                 ch = '+';
             }
             // iii. Else if char is "_", then
-            else if (ch == '-') {
+            else if (ch == '_') {
                 // 1. Set char to "/".
                 ch = '/';
             }

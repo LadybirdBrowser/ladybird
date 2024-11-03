@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2023, Andreas Kling <kling@serenityos.org>
+ * Copyright (c) 2018-2023, Andreas Kling <andreas@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -61,7 +61,7 @@ public:
     String current_src() const;
 
     // https://html.spec.whatwg.org/multipage/embedded-content.html#dom-img-decode
-    [[nodiscard]] WebIDL::ExceptionOr<JS::NonnullGCPtr<JS::Promise>> decode() const;
+    [[nodiscard]] WebIDL::ExceptionOr<JS::NonnullGCPtr<WebIDL::Promise>> decode() const;
 
     virtual Optional<ARIA::Role> default_role() const override;
 
@@ -123,7 +123,7 @@ private:
     // https://html.spec.whatwg.org/multipage/embedded-content.html#the-img-element:dimension-attributes
     virtual bool supports_dimension_attributes() const override { return true; }
 
-    virtual JS::GCPtr<Layout::Node> create_layout_node(NonnullRefPtr<CSS::StyleProperties>) override;
+    virtual JS::GCPtr<Layout::Node> create_layout_node(CSS::StyleProperties) override;
 
     virtual void did_set_viewport_rect(CSSPixelRect const&) override;
 

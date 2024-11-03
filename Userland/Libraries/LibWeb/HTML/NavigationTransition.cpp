@@ -5,23 +5,23 @@
  */
 
 #include <LibJS/Heap/Heap.h>
-#include <LibJS/Runtime/Promise.h>
 #include <LibJS/Runtime/Realm.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Bindings/NavigationTransitionPrototype.h>
 #include <LibWeb/HTML/NavigationHistoryEntry.h>
 #include <LibWeb/HTML/NavigationTransition.h>
+#include <LibWeb/WebIDL/Promise.h>
 
 namespace Web::HTML {
 
 JS_DEFINE_ALLOCATOR(NavigationTransition);
 
-JS::NonnullGCPtr<NavigationTransition> NavigationTransition::create(JS::Realm& realm, Bindings::NavigationType navigation_type, JS::NonnullGCPtr<NavigationHistoryEntry> from_entry, JS::GCPtr<JS::Promise> finished_promise)
+JS::NonnullGCPtr<NavigationTransition> NavigationTransition::create(JS::Realm& realm, Bindings::NavigationType navigation_type, JS::NonnullGCPtr<NavigationHistoryEntry> from_entry, JS::NonnullGCPtr<WebIDL::Promise> finished_promise)
 {
     return realm.heap().allocate<NavigationTransition>(realm, realm, navigation_type, from_entry, finished_promise);
 }
 
-NavigationTransition::NavigationTransition(JS::Realm& realm, Bindings::NavigationType navigation_type, JS::NonnullGCPtr<NavigationHistoryEntry> from_entry, JS::GCPtr<JS::Promise> finished_promise)
+NavigationTransition::NavigationTransition(JS::Realm& realm, Bindings::NavigationType navigation_type, JS::NonnullGCPtr<NavigationHistoryEntry> from_entry, JS::NonnullGCPtr<WebIDL::Promise> finished_promise)
     : Bindings::PlatformObject(realm)
     , m_navigation_type(navigation_type)
     , m_from_entry(from_entry)

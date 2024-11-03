@@ -1,21 +1,14 @@
 shared_library("LibJS") {
   output_name = "js"
-  include_dirs = [
-    "//Userland/Libraries",
-
-    # FIXME: Why does LibSyntax need to depend on WindowServer headers?
-    "//Userland",
-  ]
+  include_dirs = [ "//Userland/Libraries" ]
   cflags_cc = [ "-fno-omit-frame-pointer" ]
   deps = [
     "//AK",
     "//Userland/Libraries/LibCore",
     "//Userland/Libraries/LibCrypto",
     "//Userland/Libraries/LibFileSystem",
-    "//Userland/Libraries/LibLocale",
     "//Userland/Libraries/LibRegex",
     "//Userland/Libraries/LibSyntax",
-    "//Userland/Libraries/LibTimeZone",
     "//Userland/Libraries/LibUnicode",
   ]
 
@@ -90,6 +83,7 @@ shared_library("LibJS") {
     "Runtime/BoundFunction.cpp",
     "Runtime/Completion.cpp",
     "Runtime/ConsoleObject.cpp",
+    "Runtime/ConsoleObjectPrototype.cpp",
     "Runtime/DataView.cpp",
     "Runtime/DataViewConstructor.cpp",
     "Runtime/DataViewPrototype.cpp",
@@ -169,6 +163,7 @@ shared_library("LibJS") {
     "Runtime/IteratorPrototype.cpp",
     "Runtime/JSONObject.cpp",
     "Runtime/JobCallback.cpp",
+    "Runtime/KeyedCollections.cpp",
     "Runtime/Map.cpp",
     "Runtime/MapConstructor.cpp",
     "Runtime/MapIterator.cpp",
@@ -268,6 +263,7 @@ shared_library("LibJS") {
     "Runtime/TypedArray.cpp",
     "Runtime/TypedArrayConstructor.cpp",
     "Runtime/TypedArrayPrototype.cpp",
+    "Runtime/Uint8Array.cpp",
     "Runtime/Utf16String.cpp",
     "Runtime/VM.cpp",
     "Runtime/Value.cpp",

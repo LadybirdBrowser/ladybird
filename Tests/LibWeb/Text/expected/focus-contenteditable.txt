@@ -1,1 +1,1 @@
-  contenteditable is focused
+contenteditable is focused

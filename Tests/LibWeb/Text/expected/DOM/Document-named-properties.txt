@@ -1,4 +1,4 @@
- Submit         <FORM >
+<FORM >
 document.bob === document.forms[0]: true
 <BUTTON id="fred" >
 img element with name 'foo' and id 'bar':

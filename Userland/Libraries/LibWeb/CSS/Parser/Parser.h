@@ -16,16 +16,12 @@
 #include <LibWeb/CSS/GeneralEnclosed.h>
 #include <LibWeb/CSS/MediaQuery.h>
 #include <LibWeb/CSS/ParsedFontFace.h>
-#include <LibWeb/CSS/Parser/Block.h>
 #include <LibWeb/CSS/Parser/ComponentValue.h>
-#include <LibWeb/CSS/Parser/Declaration.h>
-#include <LibWeb/CSS/Parser/DeclarationOrAtRule.h>
 #include <LibWeb/CSS/Parser/Dimension.h>
-#include <LibWeb/CSS/Parser/Function.h>
 #include <LibWeb/CSS/Parser/ParsingContext.h>
-#include <LibWeb/CSS/Parser/Rule.h>
 #include <LibWeb/CSS/Parser/TokenStream.h>
 #include <LibWeb/CSS/Parser/Tokenizer.h>
+#include <LibWeb/CSS/Parser/Types.h>
 #include <LibWeb/CSS/PropertyID.h>
 #include <LibWeb/CSS/Ratio.h>
 #include <LibWeb/CSS/Selector.h>
@@ -91,35 +87,34 @@ private:
     // "Parse a stylesheet" is intended to be the normal parser entry point, for parsing stylesheets.
     struct ParsedStyleSheet {
         Optional<URL::URL> location;
-        Vector<NonnullRefPtr<Rule>> rules;
+        Vector<Rule> rules;
     };
     template<typename T>
     ParsedStyleSheet parse_a_stylesheet(TokenStream<T>&, Optional<URL::URL> location);
 
-    // "Parse a list of rules" is intended for the content of at-rules such as @media. It differs from "Parse a stylesheet" in the handling of <CDO-token> and <CDC-token>.
+    // "Parse a stylesheet’s contents" is intended for use by the CSSStyleSheet replace() method, and similar, which parse text into the contents of an existing stylesheet.
     template<typename T>
-    Vector<NonnullRefPtr<Rule>> parse_a_list_of_rules(TokenStream<T>&);
+    Vector<Rule> parse_a_stylesheets_contents(TokenStream<T>&);
+
+    // "Parse a block’s contents" is intended for parsing the contents of any block in CSS (including things like the style attribute),
+    // and APIs such as the CSSStyleDeclaration cssText attribute.
+    template<typename T>
+    Vector<RuleOrListOfDeclarations> parse_a_blocks_contents(TokenStream<T>&);
 
     // "Parse a rule" is intended for use by the CSSStyleSheet#insertRule method, and similar functions which might exist, which parse text into a single rule.
     template<typename T>
-    RefPtr<Rule> parse_a_rule(TokenStream<T>&);
+    Optional<Rule> parse_a_rule(TokenStream<T>&);
 
     // "Parse a declaration" is used in @supports conditions. [CSS3-CONDITIONAL]
     template<typename T>
     Optional<Declaration> parse_a_declaration(TokenStream<T>&);
 
-    template<typename T>
-    Vector<DeclarationOrAtRule> parse_a_style_blocks_contents(TokenStream<T>&);
-
-    // "Parse a list of declarations" is for the contents of a style attribute, which parses text into the contents of a single style rule.
-    template<typename T>
-    Vector<DeclarationOrAtRule> parse_a_list_of_declarations(TokenStream<T>&);
-
     // "Parse a component value" is for things that need to consume a single value, like the parsing rules for attr().
     template<typename T>
     Optional<ComponentValue> parse_a_component_value(TokenStream<T>&);
 
-    // "Parse a list of component values" is for the contents of presentational attributes, which parse text into a single declaration’s value, or for parsing a stand-alone selector [SELECT] or list of Media Queries [MEDIAQ], as in Selectors API or the media HTML attribute.
+    // "Parse a list of component values" is for the contents of presentational attributes, which parse text into a single declaration’s value,
+    // or for parsing a stand-alone selector [SELECT] or list of Media Queries [MEDIAQ], as in Selectors API or the media HTML attribute.
     template<typename T>
     Vector<ComponentValue> parse_a_list_of_component_values(TokenStream<T>&);
 
@@ -140,32 +135,36 @@ private:
 
     Optional<Selector::SimpleSelector::ANPlusBPattern> parse_a_n_plus_b_pattern(TokenStream<ComponentValue>&);
 
-    enum class TopLevel {
+    template<typename T>
+    [[nodiscard]] Vector<Rule> consume_a_stylesheets_contents(TokenStream<T>&);
+    enum class Nested {
         No,
-        Yes
+        Yes,
     };
     template<typename T>
-    [[nodiscard]] Vector<NonnullRefPtr<Rule>> consume_a_list_of_rules(TokenStream<T>&, TopLevel);
+    Optional<AtRule> consume_an_at_rule(TokenStream<T>&, Nested nested = Nested::No);
+    struct InvalidRuleError { };
     template<typename T>
-    [[nodiscard]] NonnullRefPtr<Rule> consume_an_at_rule(TokenStream<T>&);
+    Variant<Empty, QualifiedRule, InvalidRuleError> consume_a_qualified_rule(TokenStream<T>&, Optional<Token::Type> stop_token = {}, Nested = Nested::No);
     template<typename T>
-    RefPtr<Rule> consume_a_qualified_rule(TokenStream<T>&);
+    Vector<RuleOrListOfDeclarations> consume_a_block(TokenStream<T>&);
     template<typename T>
-    [[nodiscard]] Vector<DeclarationOrAtRule> consume_a_style_blocks_contents(TokenStream<T>&);
+    Vector<RuleOrListOfDeclarations> consume_a_blocks_contents(TokenStream<T>&);
     template<typename T>
-    [[nodiscard]] Vector<DeclarationOrAtRule> consume_a_list_of_declarations(TokenStream<T>&);
+    Optional<Declaration> consume_a_declaration(TokenStream<T>&, Nested = Nested::No);
     template<typename T>
-    Optional<Declaration> consume_a_declaration(TokenStream<T>&);
+    void consume_the_remnants_of_a_bad_declaration(TokenStream<T>&, Nested);
+    template<typename T>
+    [[nodiscard]] Vector<ComponentValue> consume_a_list_of_component_values(TokenStream<T>&, Optional<Token::Type> stop_token = {}, Nested = Nested::No);
     template<typename T>
     [[nodiscard]] ComponentValue consume_a_component_value(TokenStream<T>&);
     template<typename T>
-    NonnullRefPtr<Block> consume_a_simple_block(TokenStream<T>&);
+    SimpleBlock consume_a_simple_block(TokenStream<T>&);
     template<typename T>
-    NonnullRefPtr<Function> consume_a_function(TokenStream<T>&);
+    Function consume_a_function(TokenStream<T>&);
+    // TODO: consume_a_unicode_range_value()
 
     Optional<GeneralEnclosed> parse_general_enclosed(TokenStream<ComponentValue>&);
-
-    JS::GCPtr<CSSFontFaceRule> parse_font_face_rule(TokenStream<ComponentValue>&);
 
     template<typename T>
     Vector<ParsedFontFace::Source> parse_font_face_src(TokenStream<T>&);
@@ -176,15 +175,21 @@ private:
     };
     Optional<FlyString> parse_layer_name(TokenStream<ComponentValue>&, AllowBlankLayerName);
 
-    JS::GCPtr<CSSRule> convert_to_rule(NonnullRefPtr<Rule>);
-    JS::GCPtr<CSSKeyframesRule> convert_to_keyframes_rule(Rule&);
-    JS::GCPtr<CSSImportRule> convert_to_import_rule(Rule&);
-    JS::GCPtr<CSSRule> convert_to_layer_rule(Rule&);
-    JS::GCPtr<CSSMediaRule> convert_to_media_rule(Rule&);
-    JS::GCPtr<CSSNamespaceRule> convert_to_namespace_rule(Rule&);
-    JS::GCPtr<CSSSupportsRule> convert_to_supports_rule(Rule&);
+    bool is_valid_in_the_current_context(Declaration&);
+    bool is_valid_in_the_current_context(AtRule&);
+    bool is_valid_in_the_current_context(QualifiedRule&);
+    JS::GCPtr<CSSRule> convert_to_rule(Rule const&, Nested);
+    JS::GCPtr<CSSStyleRule> convert_to_style_rule(QualifiedRule const&, Nested);
+    JS::GCPtr<CSSFontFaceRule> convert_to_font_face_rule(AtRule const&);
+    JS::GCPtr<CSSKeyframesRule> convert_to_keyframes_rule(AtRule const&);
+    JS::GCPtr<CSSImportRule> convert_to_import_rule(AtRule const&);
+    JS::GCPtr<CSSRule> convert_to_layer_rule(AtRule const&, Nested);
+    JS::GCPtr<CSSMediaRule> convert_to_media_rule(AtRule const&, Nested);
+    JS::GCPtr<CSSNamespaceRule> convert_to_namespace_rule(AtRule const&);
+    JS::GCPtr<CSSSupportsRule> convert_to_supports_rule(AtRule const&, Nested);
+    JS::GCPtr<CSSPropertyRule> convert_to_property_rule(AtRule const& rule);
 
-    PropertyOwningCSSStyleDeclaration* convert_to_style_declaration(Vector<DeclarationOrAtRule> const& declarations);
+    PropertyOwningCSSStyleDeclaration* convert_to_style_declaration(Vector<Declaration> const&);
     Optional<StyleProperty> convert_to_style_property(Declaration const&);
 
     Optional<Dimension> parse_dimension(ComponentValue const&);
@@ -197,6 +202,7 @@ private:
     Optional<LengthOrCalculated> parse_length(TokenStream<ComponentValue>&);
     Optional<LengthPercentage> parse_length_percentage(TokenStream<ComponentValue>&);
     Optional<NumberOrCalculated> parse_number(TokenStream<ComponentValue>&);
+    Optional<NumberPercentage> parse_number_percentage(TokenStream<ComponentValue>&);
     Optional<ResolutionOrCalculated> parse_resolution(TokenStream<ComponentValue>&);
     Optional<TimeOrCalculated> parse_time(TokenStream<ComponentValue>&);
     Optional<TimePercentage> parse_time_percentage(TokenStream<ComponentValue>&);
@@ -215,6 +221,7 @@ private:
     Optional<URL::URL> parse_url_function(TokenStream<ComponentValue>&);
     RefPtr<CSSStyleValue> parse_url_value(TokenStream<ComponentValue>&);
 
+    Optional<ShapeRadius> parse_shape_radius(TokenStream<ComponentValue>&);
     RefPtr<CSSStyleValue> parse_basic_shape_value(TokenStream<ComponentValue>&);
 
     template<typename TElement>
@@ -226,7 +233,7 @@ private:
     RefPtr<CSSStyleValue> parse_conic_gradient_function(TokenStream<ComponentValue>&);
     RefPtr<CSSStyleValue> parse_radial_gradient_function(TokenStream<ComponentValue>&);
 
-    ParseErrorOr<NonnullRefPtr<CSSStyleValue>> parse_css_value(PropertyID, TokenStream<ComponentValue>&);
+    ParseErrorOr<NonnullRefPtr<CSSStyleValue>> parse_css_value(PropertyID, TokenStream<ComponentValue>&, Optional<String> original_source_text = {});
     RefPtr<CSSStyleValue> parse_css_value_for_property(PropertyID, TokenStream<ComponentValue>&);
     struct PropertyAndValue {
         PropertyID property;
@@ -245,8 +252,13 @@ private:
     RefPtr<CSSStyleValue> parse_rgb_color_value(TokenStream<ComponentValue>&);
     RefPtr<CSSStyleValue> parse_hsl_color_value(TokenStream<ComponentValue>&);
     RefPtr<CSSStyleValue> parse_hwb_color_value(TokenStream<ComponentValue>&);
+    Optional<Array<RefPtr<CSSStyleValue>, 4>> parse_lab_like_color_value(TokenStream<ComponentValue>&, StringView);
+    RefPtr<CSSStyleValue> parse_lab_color_value(TokenStream<ComponentValue>&);
     RefPtr<CSSStyleValue> parse_oklab_color_value(TokenStream<ComponentValue>&);
+    Optional<Array<RefPtr<CSSStyleValue>, 4>> parse_lch_like_color_value(TokenStream<ComponentValue>&, StringView);
+    RefPtr<CSSStyleValue> parse_lch_color_value(TokenStream<ComponentValue>&);
     RefPtr<CSSStyleValue> parse_oklch_color_value(TokenStream<ComponentValue>&);
+    RefPtr<CSSStyleValue> parse_color_function(TokenStream<ComponentValue>&);
     RefPtr<CSSStyleValue> parse_color_value(TokenStream<ComponentValue>&);
     RefPtr<CSSStyleValue> parse_counter_value(TokenStream<ComponentValue>&);
     enum class AllowReversed {
@@ -256,7 +268,7 @@ private:
     RefPtr<CSSStyleValue> parse_counter_definitions_value(TokenStream<ComponentValue>&, AllowReversed, i32 default_value_if_not_reversed);
     RefPtr<CSSStyleValue> parse_rect_value(TokenStream<ComponentValue>&);
     RefPtr<CSSStyleValue> parse_ratio_value(TokenStream<ComponentValue>&);
-    RefPtr<CSSStyleValue> parse_string_value(TokenStream<ComponentValue>&);
+    RefPtr<StringStyleValue> parse_string_value(TokenStream<ComponentValue>&);
     RefPtr<CSSStyleValue> parse_image_value(TokenStream<ComponentValue>&);
     RefPtr<CSSStyleValue> parse_paint_value(TokenStream<ComponentValue>&);
     enum class PositionParsingMode {
@@ -265,6 +277,7 @@ private:
     };
     RefPtr<PositionStyleValue> parse_position_value(TokenStream<ComponentValue>&, PositionParsingMode = PositionParsingMode::Normal);
     RefPtr<CSSStyleValue> parse_filter_value_list_value(TokenStream<ComponentValue>&);
+    RefPtr<StringStyleValue> parse_opentype_tag_value(TokenStream<ComponentValue>&);
 
     RefPtr<CSSStyleValue> parse_dimension_value(TokenStream<ComponentValue>&);
     RefPtr<CSSStyleValue> parse_angle_value(TokenStream<ComponentValue>&);
@@ -285,7 +298,7 @@ private:
     template<typename ParseFunction>
     RefPtr<CSSStyleValue> parse_comma_separated_value_list(TokenStream<ComponentValue>&, ParseFunction);
     RefPtr<CSSStyleValue> parse_simple_comma_separated_value_list(PropertyID, TokenStream<ComponentValue>&);
-    RefPtr<CSSStyleValue> parse_all_as_single_none_value(TokenStream<ComponentValue>&);
+    RefPtr<CSSStyleValue> parse_all_as_single_keyword_value(TokenStream<ComponentValue>&, Keyword);
 
     RefPtr<CSSStyleValue> parse_aspect_ratio_value(TokenStream<ComponentValue>&);
     RefPtr<CSSStyleValue> parse_background_value(TokenStream<ComponentValue>&);
@@ -305,6 +318,9 @@ private:
     RefPtr<CSSStyleValue> parse_flex_flow_value(TokenStream<ComponentValue>&);
     RefPtr<CSSStyleValue> parse_font_value(TokenStream<ComponentValue>&);
     RefPtr<CSSStyleValue> parse_font_family_value(TokenStream<ComponentValue>&);
+    RefPtr<CSSStyleValue> parse_font_language_override_value(TokenStream<ComponentValue>&);
+    RefPtr<CSSStyleValue> parse_font_feature_settings_value(TokenStream<ComponentValue>&);
+    RefPtr<CSSStyleValue> parse_font_variation_settings_value(TokenStream<ComponentValue>&);
     RefPtr<CSSStyleValue> parse_list_style_value(TokenStream<ComponentValue>&);
     RefPtr<CSSStyleValue> parse_math_depth_value(TokenStream<ComponentValue>&);
     RefPtr<CSSStyleValue> parse_overflow_value(TokenStream<ComponentValue>&);
@@ -321,6 +337,7 @@ private:
     RefPtr<CSSStyleValue> parse_single_shadow_value(TokenStream<ComponentValue>&, AllowInsetKeyword);
     RefPtr<CSSStyleValue> parse_text_decoration_value(TokenStream<ComponentValue>&);
     RefPtr<CSSStyleValue> parse_text_decoration_line_value(TokenStream<ComponentValue>&);
+    RefPtr<CSSStyleValue> parse_rotate_value(TokenStream<ComponentValue>&);
     RefPtr<CSSStyleValue> parse_easing_value(TokenStream<ComponentValue>&);
     RefPtr<CSSStyleValue> parse_transform_value(TokenStream<ComponentValue>&);
     RefPtr<CSSStyleValue> parse_transform_origin_value(TokenStream<ComponentValue>&);
@@ -366,13 +383,15 @@ private:
     bool substitute_attr_function(DOM::Element& element, FlyString const& property_name, Function const& attr_function, Vector<ComponentValue>& dest);
 
     static bool has_ignored_vendor_prefix(StringView);
+    static bool is_generic_font_family(Keyword);
 
     struct PropertiesAndCustomProperties {
         Vector<StyleProperty> properties;
         HashMap<FlyString, StyleProperty> custom_properties;
     };
 
-    PropertiesAndCustomProperties extract_properties(Vector<DeclarationOrAtRule> const&);
+    PropertiesAndCustomProperties extract_properties(Vector<RuleOrListOfDeclarations> const&);
+    void extract_property(Declaration const&, Parser::PropertiesAndCustomProperties&);
 
     ParsingContext m_context;
 

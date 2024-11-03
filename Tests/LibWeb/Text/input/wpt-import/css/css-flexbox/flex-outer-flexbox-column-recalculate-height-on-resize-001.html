@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html>
+<title>CSS Flexbox: height resizing with flex-direction: column</title>
+<link rel="help" href="https://drafts.csswg.org/css-flexbox/#flex-direction-property">
+<link rel="help" href="https://crbug.com/527039">
+<meta name="assert" content="This test checks that resizing the height of a layout with two nested flexboxes using 'flex-direction: column' correctly recalculates the outer box's height." />
+
+<style>
+body,
+html {
+  height: 100%;
+}
+
+.OuterFlexbox {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.InnerFlexbox {
+  display: flex;
+  flex-direction: column;
+  max-height: 100%;
+  outline: 1px blue solid;
+}
+
+.InnerFlexbox-body {
+  flex: 1 1 auto;
+  overflow-y: hidden;
+}
+</style>
+
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../../resources/check-layout-th.js"></script>
+
+<body onload="update()">
+
+<div class="OuterFlexbox" data-expected-height="250">
+  <div class="InnerFlexbox" data-expected-height="250">
+       <div class="InnerFlexbox-body" data-expected-height="250">
+         <ul>
+           <li>Suspendisse eu nunc lectus. Curabitur.</li>
+           <li>Suspendisse eu nunc lectus. Curabitur.</li>
+           <li>Suspendisse eu nunc lectus. Curabitur.</li>
+           <li>Suspendisse eu nunc lectus. Curabitur.</li>
+           <li>Suspendisse eu nunc lectus. Curabitur.</li>
+           <li>Suspendisse eu nunc lectus. Curabitur.</li>
+           <li>Suspendisse eu nunc lectus. Curabitur.</li>
+           <li>Suspendisse eu nunc lectus. Curabitur.</li>
+           <li>Suspendisse eu nunc lectus. Curabitur.</li>
+           <li>Suspendisse eu nunc lectus. Curabitur.</li>
+           <li>Suspendisse eu nunc lectus. Curabitur.</li>
+           <li>Suspendisse eu nunc lectus. Curabitur.</li>
+           <li>Suspendisse eu nunc lectus. Curabitur.</li>
+           <li>Suspendisse eu nunc lectus. Curabitur.</li>
+           <li>Suspendisse eu nunc lectus. Curabitur.</li>
+         </ul>
+       </div>
+  </div>
+</div>
+
+<script>
+function update() {
+  document.body.offsetHeight;
+  document.body.style.height = '50px';
+  document.body.offsetHeight;
+  document.body.style.height = '250px';
+  document.body.offsetHeight;
+  checkLayout('.OuterFlexbox');
+}
+</script>
+</body>
+</html>

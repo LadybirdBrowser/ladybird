@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2021-2022, Sam Atkins <atkinssj@serenityos.org>
- * Copyright (c) 2022, Andreas Kling <kling@serenityos.org>
+ * Copyright (c) 2022, Andreas Kling <andreas@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -22,8 +22,6 @@ public:
     [[nodiscard]] static JS::NonnullGCPtr<CSSMediaRule> create(JS::Realm&, MediaList& media_queries, CSSRuleList&);
 
     virtual ~CSSMediaRule() = default;
-
-    virtual Type type() const override { return Type::Media; }
 
     virtual String condition_text() const override;
     virtual bool condition_matches() const override { return m_media->matches(); }

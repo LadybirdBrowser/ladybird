@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022, Andreas Kling <kling@serenityos.org>
+ * Copyright (c) 2018-2022, Andreas Kling <andreas@ladybird.org>
  * Copyright (c) 2021, Tobias Christiansen <tobyase@serenityos.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
@@ -16,7 +16,7 @@ class ListItemMarkerBox final : public Box {
     JS_DECLARE_ALLOCATOR(ListItemMarkerBox);
 
 public:
-    explicit ListItemMarkerBox(DOM::Document&, CSS::ListStyleType, CSS::ListStylePosition, size_t index, NonnullRefPtr<CSS::StyleProperties>);
+    explicit ListItemMarkerBox(DOM::Document&, CSS::ListStyleType, CSS::ListStylePosition, size_t index, CSS::StyleProperties);
     virtual ~ListItemMarkerBox() override;
 
     Optional<ByteString> const& text() const { return m_text; }

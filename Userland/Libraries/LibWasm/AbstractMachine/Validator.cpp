@@ -2109,8 +2109,8 @@ VALIDATE_INSTRUCTION(call_indirect)
     TRY(validate(args.type));
 
     auto& table = m_context.tables[args.table.value()];
-    if (!table.element_type().is_reference())
-        return Errors::invalid("table element type for call.indirect"sv, "a reference type"sv, table.element_type());
+    if (table.element_type().kind() != ValueType::FunctionReference)
+        return Errors::invalid("table element type for call.indirect"sv, "a function reference"sv, table.element_type());
 
     auto& type = m_context.types[args.type.value()];
 

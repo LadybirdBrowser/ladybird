@@ -92,6 +92,14 @@ public:
 
     RSAPrivateKey() = default;
 
+    static RSAPrivateKey from_crt(Integer n, Integer e, Integer p, Integer q, Integer dp, Integer dq, Integer qinv)
+    {
+        auto phi = p.minus(1).multiplied_by(q.minus(1));
+        auto d = NumberTheory::ModularInverse(e, phi);
+
+        return { n, d, e, p, q, dp, dq, qinv };
+    }
+
     Integer const& modulus() const { return m_modulus; }
     Integer const& private_exponent() const { return m_private_exponent; }
     Integer const& public_exponent() const { return m_public_exponent; }
@@ -155,13 +163,11 @@ public:
             p = NumberTheory::random_big_prime(bits / 2);
             q = NumberTheory::random_big_prime(bits / 2);
             lambda = NumberTheory::LCM(p.minus(1), q.minus(1));
-            dbgln("checking combination p={}, q={}, lambda={}", p, q, lambda.length());
         } while (!(NumberTheory::GCD(e, lambda) == 1));
 
         auto n = p.multiplied_by(q);
 
         auto d = NumberTheory::ModularInverse(e, lambda);
-        dbgln("Your keys are Pub(n={}, e={}) and Priv(n={}, d={}, p={}, q={})", n, e, n, d, p, q);
         RSAKeyPair<PublicKeyType, PrivateKeyType> keys {
             { n, e },
             { n, d, e, p, q }
@@ -221,6 +227,9 @@ public:
 
     PrivateKeyType const& private_key() const { return m_private_key; }
     PublicKeyType const& public_key() const { return m_public_key; }
+
+    void set_public_key(PublicKeyType const& key) { m_public_key = key; }
+    void set_private_key(PrivateKeyType const& key) { m_private_key = key; }
 };
 
 class RSA_PKCS1_EME : public RSA {

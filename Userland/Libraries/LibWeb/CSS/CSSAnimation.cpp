@@ -26,11 +26,11 @@ Optional<int> CSSAnimation::class_specific_composite_order(JS::NonnullGCPtr<Anim
 
     // The existance of an owning element determines the animation class, so both animations should have their owning
     // element in the same state
-    VERIFY(!m_owning_element == !other->m_owning_element);
+    VERIFY(!owning_element() == !other->owning_element());
 
     // Within the set of CSS Animations with an owning element, two animations A and B are sorted in composite order
     // (first to last) as follows:
-    if (m_owning_element) {
+    if (owning_element()) {
         // 1. If the owning element of A and B differs, sort A and B by tree order of their corresponding owning elements.
         //    With regard to pseudo-elements, the sort order is as follows:
         //    - element
@@ -40,7 +40,7 @@ Optional<int> CSSAnimation::class_specific_composite_order(JS::NonnullGCPtr<Anim
         //      codepoints that make up each selector
         //    - ::after
         //    - element children
-        if (m_owning_element.ptr() != other->m_owning_element.ptr()) {
+        if (owning_element().ptr() != other->owning_element().ptr()) {
             // FIXME: Sort by tree order
             return {};
         }
@@ -57,7 +57,7 @@ Optional<int> CSSAnimation::class_specific_composite_order(JS::NonnullGCPtr<Anim
 
 Animations::AnimationClass CSSAnimation::animation_class() const
 {
-    if (m_owning_element)
+    if (owning_element())
         return Animations::AnimationClass::CSSAnimationWithOwningElement;
     return Animations::AnimationClass::CSSAnimationWithoutOwningElement;
 }
@@ -77,12 +77,6 @@ void CSSAnimation::initialize(JS::Realm& realm)
 {
     Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(CSSAnimation);
-}
-
-void CSSAnimation::visit_edges(Cell::Visitor& visitor)
-{
-    Base::visit_edges(visitor);
-    visitor.visit(m_owning_element);
 }
 
 }

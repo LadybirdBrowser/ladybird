@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022, Andreas Kling <kling@serenityos.org>
+ * Copyright (c) 2022, Andreas Kling <andreas@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -233,7 +233,7 @@ JS::ThrowCompletionOr<bool> PlatformObject::internal_set(JS::PropertyKey const& 
             return true;
         }
 
-        // 2. If O implements an interface with a named property setter and Type(P) is String, then:
+        // 2. If O implements an interface with a named property setter and P is a String, then:
         if (m_legacy_platform_object_flags->has_named_property_setter && property_name.is_string()) {
             // 1. Invoke the named property setter on O with P and V.
             TRY(throw_dom_exception_if_needed(vm, [&] { return invoke_named_property_setter(MUST(String::from_byte_string(property_name.as_string())), value); }));
@@ -253,10 +253,12 @@ JS::ThrowCompletionOr<bool> PlatformObject::internal_set(JS::PropertyKey const& 
 }
 
 // https://webidl.spec.whatwg.org/#legacy-platform-object-defineownproperty
-JS::ThrowCompletionOr<bool> PlatformObject::internal_define_own_property(JS::PropertyKey const& property_name, JS::PropertyDescriptor const& property_descriptor)
+JS::ThrowCompletionOr<bool> PlatformObject::internal_define_own_property(JS::PropertyKey const& property_name, JS::PropertyDescriptor const& property_descriptor, Optional<JS::PropertyDescriptor>* precomputed_get_own_property)
 {
+    Optional<JS::PropertyDescriptor> get_own_property_result = {};
+
     if (!m_legacy_platform_object_flags.has_value() || m_legacy_platform_object_flags->has_global_interface_extended_attribute)
-        return Base::internal_define_own_property(property_name, property_descriptor);
+        return Base::internal_define_own_property(property_name, property_descriptor, precomputed_get_own_property);
 
     auto& vm = this->vm();
 
@@ -277,7 +279,7 @@ JS::ThrowCompletionOr<bool> PlatformObject::internal_define_own_property(JS::Pro
         return true;
     }
 
-    // 2. If O supports named properties, O does not implement an interface with the [Global] extended attribute, Type(P) is String, and P is not an unforgeable property name of O, then:
+    // 2. If O supports named properties, O does not implement an interface with the [Global] extended attribute, P is a String, and P is not an unforgeable property name of O, then:
     // FIXME: Check if P is not an unforgeable property name of O
     if (m_legacy_platform_object_flags->supports_named_properties && !m_legacy_platform_object_flags->has_global_interface_extended_attribute && property_name.is_string()) {
         auto const property_name_as_string = MUST(FlyString::from_deprecated_fly_string(property_name.as_string()));
@@ -287,7 +289,14 @@ JS::ThrowCompletionOr<bool> PlatformObject::internal_define_own_property(JS::Pro
 
         // 2. If O implements an interface with the [LegacyOverrideBuiltIns] extended attribute or O does not have an own property named P, then:
         // NOTE: Own property lookup has to be done manually instead of using Object::has_own_property, as that would use the overridden internal_get_own_property.
-        if (m_legacy_platform_object_flags->has_legacy_override_built_ins_interface_extended_attribute || !TRY(Object::internal_get_own_property(property_name)).has_value()) {
+        if (!m_legacy_platform_object_flags->has_legacy_override_built_ins_interface_extended_attribute) {
+            // AD-HOC: Avoid computing the [[GetOwnProperty]] multiple times.
+            if (!precomputed_get_own_property) {
+                get_own_property_result = TRY(Object::internal_get_own_property(property_name));
+                precomputed_get_own_property = &get_own_property_result;
+            }
+        }
+        if (m_legacy_platform_object_flags->has_legacy_override_built_ins_interface_extended_attribute || precomputed_get_own_property->has_value()) {
             // 1. If creating is false and O does not implement an interface with a named property setter, then return false.
             if (!creating && !m_legacy_platform_object_flags->has_named_property_setter)
                 return false;
@@ -308,7 +317,7 @@ JS::ThrowCompletionOr<bool> PlatformObject::internal_define_own_property(JS::Pro
     }
 
     // 3. Return ! OrdinaryDefineOwnProperty(O, P, Desc).
-    return Object::internal_define_own_property(property_name, property_descriptor);
+    return Object::internal_define_own_property(property_name, property_descriptor, precomputed_get_own_property);
 }
 
 // https://webidl.spec.whatwg.org/#legacy-platform-object-delete
@@ -405,7 +414,7 @@ JS::ThrowCompletionOr<JS::MarkedVector<JS::Value>> PlatformObject::internal_own_
     if (m_legacy_platform_object_flags->supports_indexed_properties) {
         for (u64 index = 0; index <= NumericLimits<u32>::max(); ++index) {
             if (is_supported_property_index(index))
-                keys.append(JS::PrimitiveString::create(vm, MUST(String::number(index))));
+                keys.append(JS::PrimitiveString::create(vm, String::number(index)));
             else
                 break;
         }

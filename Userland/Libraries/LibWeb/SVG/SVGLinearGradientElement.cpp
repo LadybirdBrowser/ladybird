@@ -118,6 +118,7 @@ Optional<Painting::PaintStyle> SVGLinearGradientElement::to_gfx_paint_style(SVGP
     // FIXME: Resolve percentages properly
     Gfx::FloatPoint start_point {};
     Gfx::FloatPoint end_point {};
+
     // https://svgwg.org/svg2-draft/pservers.html#LinearGradientElementGradientUnitsAttribute
     if (units == GradientUnits::ObjectBoundingBox) {
         // If gradientUnits="objectBoundingBox", the user coordinate system for attributes ‘x1’, ‘y1’, ‘x2’ and ‘y2’
@@ -134,11 +135,11 @@ Optional<Painting::PaintStyle> SVGLinearGradientElement::to_gfx_paint_style(SVGP
         // is referenced (i.e., the user coordinate system for the element referencing the gradient element via a
         // fill or stroke property) and then applying the transform specified by attribute ‘gradientTransform’.
         // Percentages represent values relative to the current SVG viewport.
-        start_point = Gfx::FloatPoint {
+        start_point = {
             start_x().resolve_relative_to(paint_context.viewport.width()),
             start_y().resolve_relative_to(paint_context.viewport.height()),
         };
-        end_point = Gfx::FloatPoint {
+        end_point = {
             end_x().resolve_relative_to(paint_context.viewport.width()),
             end_y().resolve_relative_to(paint_context.viewport.height()),
         };

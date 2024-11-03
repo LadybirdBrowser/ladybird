@@ -1,2 +1,2 @@
-hello students  outerHTML: <div id="foo"><b>hello students</b></div>
+outerHTML: <div id="foo"><b>hello students</b></div>
 innerHTML: <b>hello students</b>

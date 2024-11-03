@@ -1,1 +1,1 @@
-    Slot directionality: ltr
+Slot directionality: ltr

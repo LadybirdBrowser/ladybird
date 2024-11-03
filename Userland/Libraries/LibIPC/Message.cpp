@@ -5,10 +5,7 @@
  */
 
 #include <AK/Checked.h>
-#include <LibCore/Socket.h>
-#include <LibCore/System.h>
 #include <LibIPC/Message.h>
-#include <sched.h>
 
 namespace IPC {
 
@@ -38,7 +35,7 @@ ErrorOr<void> MessageBuffer::append_file_descriptor(int fd)
     return {};
 }
 
-ErrorOr<void> MessageBuffer::transfer_message(Core::LocalSocket& socket)
+ErrorOr<void> MessageBuffer::transfer_message(Transport& transport)
 {
     Checked<MessageSizeType> checked_message_size { m_data.size() };
     checked_message_size -= sizeof(MessageSizeType);
@@ -58,49 +55,7 @@ ErrorOr<void> MessageBuffer::transfer_message(Core::LocalSocket& socket)
         }
     }
 
-    ReadonlyBytes bytes_to_write { m_data.span() };
-
-    while (!bytes_to_write.is_empty()) {
-        ErrorOr<ssize_t> maybe_nwritten = 0;
-        if (num_fds_to_transfer > 0) {
-            maybe_nwritten = socket.send_message(bytes_to_write, 0, raw_fds);
-            if (!maybe_nwritten.is_error())
-                num_fds_to_transfer = 0;
-        } else {
-            maybe_nwritten = socket.write_some(bytes_to_write);
-        }
-
-        if (maybe_nwritten.is_error()) {
-            if (auto error = maybe_nwritten.release_error(); error.is_errno() && (error.code() == EAGAIN || error.code() == EWOULDBLOCK)) {
-                Vector<struct pollfd, 1> pollfds;
-                if (pollfds.is_empty())
-                    pollfds.append({ .fd = socket.fd().value(), .events = POLLOUT, .revents = 0 });
-
-                ErrorOr<int> result { 0 };
-                do {
-                    constexpr u32 POLL_TIMEOUT_MS = 100;
-                    result = Core::System::poll(pollfds, POLL_TIMEOUT_MS);
-                } while (result.is_error() && result.error().code() == EINTR);
-
-                if (!result.is_error() && result.value() != 0)
-                    continue;
-
-                switch (error.code()) {
-                case EPIPE:
-                    return Error::from_string_literal("IPC::transfer_message: Disconnected from peer");
-                case EAGAIN:
-                    return Error::from_string_literal("IPC::transfer_message: Timed out waiting for socket to become writable");
-                default:
-                    return Error::from_syscall("IPC::transfer_message write"sv, -error.code());
-                }
-            } else {
-                return error;
-            }
-        }
-
-        bytes_to_write = bytes_to_write.slice(maybe_nwritten.value());
-    }
-
+    TRY(transport.transfer(m_data.span(), raw_fds));
     return {};
 }
 

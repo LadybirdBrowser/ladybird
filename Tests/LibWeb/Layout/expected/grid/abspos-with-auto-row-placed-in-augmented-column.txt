@@ -1,0 +1,50 @@
+Viewport <#document> at (0,0) content-size 800x600 children: not-inline
+  BlockContainer <html> at (0,0) content-size 800x286 [BFC] children: not-inline
+    BlockContainer <body> at (8,8) content-size 784x270 children: not-inline
+      Box <div.grid-container> at (58,58) content-size 170x170 positioned [GFC] children: not-inline
+        BlockContainer <(anonymous)> (not painted) [BFC] children: inline
+          TextNode <#text>
+        BlockContainer <div.grid-item> at (58,58) content-size 50x50 [BFC] children: inline
+          frag 0 from TextNode start: 0, length: 1, rect: [58,58 6.34375x17] baseline: 13.296875
+              "1"
+          TextNode <#text>
+        BlockContainer <(anonymous)> (not painted) [BFC] children: inline
+          TextNode <#text>
+        BlockContainer <div.grid-item> at (128,58) content-size 100x50 [BFC] children: inline
+          frag 0 from TextNode start: 0, length: 1, rect: [128,58 8.8125x17] baseline: 13.296875
+              "2"
+          TextNode <#text>
+        BlockContainer <(anonymous)> (not painted) [BFC] children: inline
+          TextNode <#text>
+        BlockContainer <div.grid-item> at (58,128) content-size 50x100 [BFC] children: inline
+          frag 0 from TextNode start: 0, length: 1, rect: [58,128 9.09375x17] baseline: 13.296875
+              "3"
+          TextNode <#text>
+        BlockContainer <(anonymous)> (not painted) [BFC] children: inline
+          TextNode <#text>
+        BlockContainer <div.grid-item> at (128,128) content-size 100x100 [BFC] children: inline
+          frag 0 from TextNode start: 0, length: 1, rect: [128,128 7.75x17] baseline: 13.296875
+              "4"
+          TextNode <#text>
+        BlockContainer <(anonymous)> (not painted) [BFC] children: inline
+          TextNode <#text>
+        BlockContainer <div.abspos-box> at (228,8) content-size 50x270 positioned [BFC] children: not-inline
+        BlockContainer <(anonymous)> (not painted) [BFC] children: inline
+          TextNode <#text>
+      BlockContainer <(anonymous)> at (8,278) content-size 784x0 children: inline
+        TextNode <#text>
+
+ViewportPaintable (Viewport<#document>) [0,0 800x600]
+  PaintableWithLines (BlockContainer<HTML>) [0,0 800x286]
+    PaintableWithLines (BlockContainer<BODY>) [8,8 784x270]
+      PaintableBox (Box<DIV>.grid-container) [8,8 270x270]
+        PaintableWithLines (BlockContainer<DIV>.grid-item) [58,58 50x50]
+          TextPaintable (TextNode<#text>)
+        PaintableWithLines (BlockContainer<DIV>.grid-item) [128,58 100x50]
+          TextPaintable (TextNode<#text>)
+        PaintableWithLines (BlockContainer<DIV>.grid-item) [58,128 50x100]
+          TextPaintable (TextNode<#text>)
+        PaintableWithLines (BlockContainer<DIV>.grid-item) [128,128 100x100]
+          TextPaintable (TextNode<#text>)
+        PaintableWithLines (BlockContainer<DIV>.abspos-box) [228,8 50x270]
+      PaintableWithLines (BlockContainer(anonymous)) [8,278 784x0]

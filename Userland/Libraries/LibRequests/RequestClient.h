@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2020, Andreas Kling <kling@serenityos.org>
+ * Copyright (c) 2018-2020, Andreas Kling <andreas@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -24,7 +24,7 @@ class RequestClient final
     IPC_CLIENT_CONNECTION(RequestClient, "/tmp/session/%sid/portal/request"sv)
 
 public:
-    explicit RequestClient(NonnullOwnPtr<Core::LocalSocket>);
+    explicit RequestClient(IPC::Transport);
     virtual ~RequestClient() override;
 
     RefPtr<Request> start_request(ByteString const& method, URL::URL const&, HTTP::HeaderMap const& request_headers = {}, ReadonlyBytes request_body = {}, Core::ProxyData const& = {});
@@ -40,9 +40,9 @@ private:
     virtual void die() override;
 
     virtual void request_started(i32, IPC::File const&) override;
-    virtual void request_finished(i32, bool, u64) override;
+    virtual void request_finished(i32, u64, Optional<NetworkError> const&) override;
     virtual void certificate_requested(i32) override;
-    virtual void headers_became_available(i32, HTTP::HeaderMap const&, Optional<u32> const&) override;
+    virtual void headers_became_available(i32, HTTP::HeaderMap const&, Optional<u32> const&, Optional<String> const&) override;
 
     virtual void websocket_connected(i64 websocket_id) override;
     virtual void websocket_received(i64 websocket_id, bool, ByteBuffer const&) override;

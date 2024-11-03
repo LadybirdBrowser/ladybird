@@ -3,8 +3,8 @@ Viewport <#document> at (0,0) content-size 800x600 children: not-inline
     BlockContainer <body> at (8,8) content-size 784x204 children: not-inline
       TableWrapper <(anonymous)> at (8,8) content-size 498.1875x204 [BFC] children: not-inline
         Box <table> at (9,9) content-size 496.1875x202 table-box [TFC] children: not-inline
-          Box <tbody> at (9,9) content-size 488.1875x198 table-row-group children: not-inline
-            Box <tr> at (11,11) content-size 488.1875x198 table-row children: not-inline
+          Box <tbody> at (11,11) content-size 492.1875x198 table-row-group children: not-inline
+            Box <tr> at (11,11) content-size 492.1875x198 table-row children: not-inline
               BlockContainer <td> at (71,71) content-size 26.640625x17 table-cell [BFC] children: inline
                 frag 0 from TextNode start: 0, length: 3, rect: [71,71 26.640625x17] baseline: 13.296875
                     "top"
@@ -25,8 +25,8 @@ ViewportPaintable (Viewport<#document>) [0,0 800x600]
     PaintableWithLines (BlockContainer<BODY>) [8,8 784x204]
       PaintableWithLines (TableWrapper(anonymous)) [8,8 498.1875x204]
         PaintableBox (Box<TABLE>) [8,8 498.1875x204]
-          PaintableBox (Box<TBODY>) [9,9 488.1875x198] overflow: [9,9 494.1875x200]
-            PaintableBox (Box<TR>) [11,11 488.1875x198] overflow: [11,11 492.1875x198]
+          PaintableBox (Box<TBODY>) [11,11 492.1875x198]
+            PaintableBox (Box<TR>) [11,11 492.1875x198]
               PaintableWithLines (BlockContainer<TD>) [11,11 146.640625x198]
                 TextPaintable (TextNode<#text>)
               PaintableWithLines (BlockContainer<TD>) [159.640625,11 165.4375x198]

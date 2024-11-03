@@ -4,7 +4,7 @@ on: [ push, pull_request ]
 
 jobs:
   lint:
-    runs-on: ubuntu-22.04
+    runs-on: macos-14
     if: always() && github.repository == 'LadybirdBrowser/ladybird'
 
     steps:
@@ -15,23 +15,20 @@ jobs:
         run: |
           set -e
 
-          wget -O - https://apt.llvm.org/llvm-snapshot.gpg.key | sudo apt-key add -
-          sudo add-apt-repository 'deb http://apt.llvm.org/jammy/ llvm-toolchain-jammy-18 main'
+          brew install curl flake8 llvm@18 ninja shellcheck swift-format unzip
 
-          sudo add-apt-repository ppa:ubuntu-toolchain-r/test
-
-          sudo apt-get update
-          sudo apt-get install clang-format-18 generate-ninja
+          # Note: gn isn't available in homebrew :(
+          # Corresponds to https://gn.googlesource.com/gn/+/225e90c5025bf74f41dbee60d9cde4512c846fe7
+          curl -L -o gn-mac-arm64.zip "https://chrome-infra-packages.appspot.com/dl/gn/gn/mac-arm64/+/786UV5-XW0Bz6QnRFxKtnzTSVq0ta5AU1KXRJs-ZNwcC"
+          unzip gn-mac-arm64.zip -d ${{ github.workspace }}/bin
+          chmod +x ${{ github.workspace }}/bin/gn
+          echo "${{ github.workspace }}/bin" >> $GITHUB_PATH
+          echo -n "gn version: "
+          ${{ github.workspace}}/bin/gn --version
 
       - name: Install JS Dependencies
         shell: bash
-        run: sudo npm install -g prettier@2.7.1
-
-      - name: Install Python Dependencies
-        shell: bash
-        run: |
-          python3 -m pip install --upgrade pip
-          pip3 install flake8
+        run: npm install -g prettier@2.7.1
 
       - name: Lint
         run: ${{ github.workspace }}/Meta/lint-ci.sh

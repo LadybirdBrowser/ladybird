@@ -95,7 +95,7 @@ EventResult DragAndDropEventHandler::handle_drag_start(
     //        The file's contents and name.
     for (auto& file : files) {
         auto contents = file.take_contents();
-        auto mime_type = MUST(MimeSniff::Resource::sniff(contents));
+        auto mime_type = MimeSniff::Resource::sniff(contents);
 
         m_drag_data_store->add_item({
             .kind = HTML::DragDataStoreItem::Kind::File,

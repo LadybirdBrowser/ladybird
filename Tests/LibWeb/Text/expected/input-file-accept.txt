@@ -1,4 +1,4 @@
-Select file...file1 Select files...4 files selected. Select file...file1.cpp Select files...2 files selected.   input1:
+input1:
 file1: text/plain: Contents for file1
 input2:
 file1: text/plain: Contents for file1

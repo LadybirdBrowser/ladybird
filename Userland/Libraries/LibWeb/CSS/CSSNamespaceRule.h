@@ -23,7 +23,6 @@ public:
     FlyString const& namespace_uri() const { return m_namespace_uri; }
     void set_prefix(FlyString value) { m_prefix = move(value); }
     FlyString const& prefix() const { return m_prefix; }
-    virtual Type type() const override { return Type::Namespace; }
 
 private:
     CSSNamespaceRule(JS::Realm&, Optional<FlyString> prefix, FlyString namespace_uri);

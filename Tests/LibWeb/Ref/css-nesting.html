@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<link rel="match" href="reference/css-nesting-ref.html" />
+<!-- Adapted from http://wpt.live/css/css-nesting/nesting-basic.html -->
+<style>
+    .test {
+        background-color: red;
+        width: 30px;
+        height: 30px;
+        margin-bottom: 10px;
+        display: grid;
+    }
+
+    .test-1 {
+        & > div {
+            background-color: green;
+        }
+    }
+
+    .test-2 {
+        & > div {
+            background-color: green;
+        }
+    }
+
+    .test-3 {
+        & .test-3-child {
+            background-color: green;
+        }
+    }
+
+    span > b {
+        .test-4 section & {
+            display: inline-block;
+            background-color: green;
+            width: 100%;
+            height: 100%;
+        }
+
+        .test-4 section > & {
+            background-color: red;
+        }
+    }
+
+    .test-6 {
+        &.test {
+            background-color: green;
+        }
+    }
+
+    .test-7, .t7- {
+        & + .test-7-child, &.t7-- {
+            background-color: green;
+        }
+    }
+
+    .test-8 {
+        & {
+            background-color: green;
+        }
+    }
+
+    .test-9 {
+        &:is(.t9-, &.t9--) {
+            background-color: green;
+        }
+    }
+
+    /* & at top level counts as :scope, i.e. the root element here */
+    & .test-12 {
+        background-color: green;
+    }
+    & > .test-12 {
+        background-color: red !important;
+    }
+</style>
+<body>
+<div class="test test-1"><div></div></div>
+<div class="test test-2"><div></div></div>
+<div class="test test-3"><div class="test-3-child"></div></div>
+<div class="test test-4">
+    <section>
+        <span><b></b></span>
+    </section>
+</div>
+<div class="test test-6"><div></div></div>
+<div class="test t7- t7--"><div class="test-7-child"></div></div>
+<div class="test test-8"><div></div></div>
+<div class="test test-9 t9-- t9-"><div></div></div>
+<div class="test test-12"></div>
+</body>

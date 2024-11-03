@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022, Andreas Kling <kling@serenityos.org>
+ * Copyright (c) 2022, Andreas Kling <andreas@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -40,7 +40,7 @@ public:
         return m_clip_path_units.value_or(ClipPathUnits::UserSpaceOnUse);
     }
 
-    virtual JS::GCPtr<Layout::Node> create_layout_node(NonnullRefPtr<CSS::StyleProperties>) override;
+    virtual JS::GCPtr<Layout::Node> create_layout_node(CSS::StyleProperties) override;
 
 private:
     SVGClipPathElement(DOM::Document&, DOM::QualifiedName);

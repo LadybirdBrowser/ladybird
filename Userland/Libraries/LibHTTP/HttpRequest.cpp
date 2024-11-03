@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2020, Andreas Kling <kling@serenityos.org>
+ * Copyright (c) 2018-2020, Andreas Kling <andreas@ladybird.org>
  * Copyright (c) 2022, the SerenityOS developers.
  *
  * SPDX-License-Identifier: BSD-2-Clause
@@ -8,7 +8,6 @@
 #include <AK/Base64.h>
 #include <AK/StringBuilder.h>
 #include <LibHTTP/HttpRequest.h>
-#include <LibHTTP/Job.h>
 #include <LibURL/Parser.h>
 
 namespace HTTP {

@@ -21,7 +21,7 @@ enum class XMLScriptingSupport {
     Enabled,
 };
 
-ErrorOr<ByteString> resolve_xml_resource(XML::SystemID const&, Optional<XML::PublicID> const&);
+ErrorOr<Variant<ByteString, Vector<XML::MarkupDeclaration>>> resolve_xml_resource(XML::SystemID const&, Optional<XML::PublicID> const&);
 
 class XMLDocumentBuilder final : public XML::Listener {
 public:
@@ -31,6 +31,7 @@ public:
 
 private:
     virtual void set_source(ByteString) override;
+    virtual void set_doctype(XML::Doctype) override;
     virtual void element_start(XML::Name const& name, HashMap<XML::Name, ByteString> const& attributes) override;
     virtual void element_end(XML::Name const& name) override;
     virtual void text(StringView data) override;

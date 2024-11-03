@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html>
+<title>CSS Flexbox: Ensure proper formatting with display: inline-flex</title>
+<link rel="help" href="https://www.w3.org/TR/css-flexbox-1/#flex-containers">
+<link rel="help" href="https://www.w3.org/TR/css-flexbox-1/#flex-property">
+<meta name="assert" content="This test checks that inline-flex generates a flex container box that is inline-level when placed in flow layout.">
+<style>
+#testcase > div {
+    height: 50px;
+    width: 50px;
+    background-color: green;
+    outline: 2px solid darkgreen;
+}
+#testcase > div > div {
+    flex: 1;
+}
+</style>
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../../resources/check-layout-th.js"></script>
+<body onload="checkLayout('#testcase')">
+<div id=log></div>
+<p>This test passes if the three green boxes are on the same horizontal line.</p>
+
+<div id="testcase" style="position: relative">
+<div data-offset-y="0" data-offset-x="0" data-expected-width="50" data-expected-height="50" style="display: inline-block">
+</div><div data-offset-y="0" data-offset-x="50" data-expected-width="50" data-expected-height="50" style="display: inline-flex;">
+    <div data-expected-width="25"></div>
+    <div data-expected-width="25"></div>
+</div><div data-offset-y="0" data-offset-x="100" data-expected-width="50" data-expected-height="50" style="display: inline-block"></div>
+</div>
+</body>
+</html>

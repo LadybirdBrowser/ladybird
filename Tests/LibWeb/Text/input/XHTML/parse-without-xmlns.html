@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<meta charset=utf-8>
+<script src="../include.js"></script>
+<script>
+  const parser = new DOMParser();
+  const parse = parser.parseFromString.bind(parser);
+
+  // Adapted from https://wpt.live/html/the-xhtml-syntax/parsing-xhtml-documents/xhtml-mathml-dtd-entity-1.htm
+  test(() => {
+    const source = `<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "foo"><html><head></head><body id='test'>hello</body></html>`
+    const doc = parse(source, 'application/xhtml+xml')
+    const root = doc.getElementById('test')
+    try {
+        const text = root.firstChild.data
+        println("PASS")
+    } catch (err) {
+        println("FAIL - " + err)
+    }
+  })
+</script>

@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<title>CSS Flexbox: percentage max width when using 'flex-direction: column'</title>
+<link rel="help" href="https://drafts.csswg.org/css-flexbox/#flex-direction-property">
+<link rel="help" href="https://drafts.csswg.org/css-sizing-3/#percentage-sizing">
+<link rel="help" href="https://crbug.com/675333">
+<meta name="assert" content="This test checks that an item's percentage max-width is correctly resolved when using 'flex-direction: column'">
+<link rel="stylesheet" href="support/flexbox.css">
+
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../../resources/check-layout-th.js"></script>
+
+<body onload="checkLayout('.flexbox')">
+
+<p>Both bars should be the same width</p>
+<div class="flexbox column" style="width: 400px;">
+  <div data-expected-width="200" style="margin-left: 50%; width: 50%; background: green;">
+    Content
+  </div>
+</div>
+
+<div class="flexbox column" style="width: 400px;">
+  <div data-expected-width="200" style="margin-left: 50%; max-width: 50%; background: blue;">
+    Content
+  </div>
+</div>

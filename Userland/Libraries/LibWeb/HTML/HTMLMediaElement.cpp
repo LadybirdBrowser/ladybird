@@ -186,7 +186,7 @@ Bindings::CanPlayTypeResult HTMLMediaElement::can_play_type(StringView type) con
     if (type == "application/octet-stream"sv)
         return Bindings::CanPlayTypeResult::Empty;
 
-    auto mime_type = MUST(MimeSniff::MimeType::parse(type));
+    auto mime_type = MimeSniff::MimeType::parse(type);
 
     if (mime_type.has_value() && mime_type->type() == "video"sv) {
         if (mime_type->subtype() == "webm"sv)
@@ -195,19 +195,16 @@ Bindings::CanPlayTypeResult HTMLMediaElement::can_play_type(StringView type) con
     }
 
     if (mime_type.has_value() && mime_type->type() == "audio"sv) {
+        if (mime_type->subtype() == "flac"sv)
+            return Bindings::CanPlayTypeResult::Probably;
+        if (mime_type->subtype() == "mp3"sv)
+            return Bindings::CanPlayTypeResult::Probably;
         // "Maybe" because we support mp3, but "mpeg" can also refer to MP1 and MP2.
         if (mime_type->subtype() == "mpeg"sv)
             return Bindings::CanPlayTypeResult::Maybe;
-        if (mime_type->subtype() == "mp3"sv)
+        if (mime_type->subtype() == "ogg"sv)
             return Bindings::CanPlayTypeResult::Probably;
         if (mime_type->subtype() == "wav"sv)
-            return Bindings::CanPlayTypeResult::Probably;
-        if (mime_type->subtype() == "flac"sv)
-            return Bindings::CanPlayTypeResult::Probably;
-        // "Maybe" because we support Ogg Vorbis, but "ogg" can contain other codecs
-        if (mime_type->subtype() == "ogg"sv)
-            return Bindings::CanPlayTypeResult::Maybe;
-        if (mime_type->subtype() == "qoa"sv)
             return Bindings::CanPlayTypeResult::Probably;
         return Bindings::CanPlayTypeResult::Maybe;
     }
@@ -337,7 +334,7 @@ void HTMLMediaElement::set_duration(double duration)
         paintable->set_needs_display();
 }
 
-WebIDL::ExceptionOr<JS::NonnullGCPtr<JS::Promise>> HTMLMediaElement::play()
+WebIDL::ExceptionOr<JS::NonnullGCPtr<WebIDL::Promise>> HTMLMediaElement::play()
 {
     auto& realm = this->realm();
 
@@ -358,7 +355,7 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<JS::Promise>> HTMLMediaElement::play()
     TRY(play_element());
 
     // 5. Return promise.
-    return JS::NonnullGCPtr { verify_cast<JS::Promise>(*promise->promise()) };
+    return promise;
 }
 
 // https://html.spec.whatwg.org/multipage/media.html#dom-media-pause
@@ -378,7 +375,7 @@ WebIDL::ExceptionOr<void> HTMLMediaElement::pause()
 WebIDL::ExceptionOr<void> HTMLMediaElement::toggle_playback()
 {
     // AD-HOC: An execution context is required for Promise creation hooks.
-    TemporaryExecutionContext execution_context { document().relevant_settings_object() };
+    TemporaryExecutionContext execution_context { realm() };
 
     if (potentially_playing())
         TRY(pause());
@@ -398,7 +395,7 @@ WebIDL::ExceptionOr<void> HTMLMediaElement::set_volume(double volume)
     // set to the new value. If the new value is outside the range 0.0 to 1.0 inclusive, then, on setting, an
     // "IndexSizeError" DOMException must be thrown instead.
     if (volume < 0.0 || volume > 1.0)
-        return WebIDL::IndexSizeError::create(realm(), "Volume must be in the range 0.0 to 1.0, inclusive"_fly_string);
+        return WebIDL::IndexSizeError::create(realm(), "Volume must be in the range 0.0 to 1.0, inclusive"_string);
 
     m_volume = volume;
     volume_or_muted_attribute_changed();
@@ -551,7 +548,7 @@ WebIDL::ExceptionOr<void> HTMLMediaElement::load_element()
 
             // 2. Take pending play promises and reject pending play promises with the result and an "AbortError" DOMException.
             auto promises = take_pending_play_promises();
-            reject_pending_play_promises<WebIDL::AbortError>(promises, "Media playback was aborted"_fly_string);
+            reject_pending_play_promises<WebIDL::AbortError>(promises, "Media playback was aborted"_string);
         }
 
         // 7. If seeking is true, set it to false.
@@ -865,7 +862,7 @@ WebIDL::ExceptionOr<void> HTMLMediaElement::select_resource()
             });
 
             // 7. Wait for the task queued by the previous step to have executed.
-            HTML::main_thread_event_loop().spin_until([&]() { return ran_media_element_task; });
+            HTML::main_thread_event_loop().spin_until(JS::create_heap_function(heap(), [&]() { return ran_media_element_task; }));
         };
 
         // 1. ⌛ If the src attribute's value is the empty string, then end the synchronous section, and jump down to the failed with attribute step below.
@@ -1293,7 +1290,7 @@ WebIDL::ExceptionOr<void> HTMLMediaElement::handle_media_source_failure(Span<JS:
     dispatch_event(DOM::Event::create(realm, HTML::EventNames::error));
 
     // 6. Reject pending play promises with promises and a "NotSupportedError" DOMException.
-    reject_pending_play_promises<WebIDL::NotSupportedError>(promises, "Media is not supported"_fly_string);
+    reject_pending_play_promises<WebIDL::NotSupportedError>(promises, "Media is not supported"_string);
 
     // 7. Set the element's delaying-the-load-event flag to false. This stops delaying the load event.
     m_delaying_the_load_event.clear();
@@ -1519,7 +1516,7 @@ WebIDL::ExceptionOr<void> HTMLMediaElement::pause_element()
             dispatch_event(DOM::Event::create(realm, HTML::EventNames::pause));
 
             // 3. Reject pending play promises with promises and an "AbortError" DOMException.
-            reject_pending_play_promises<WebIDL::AbortError>(promises, "Media playback was paused"_fly_string);
+            reject_pending_play_promises<WebIDL::AbortError>(promises, "Media playback was paused"_string);
         });
 
         // 4. Set the official playback position to the current playback position.
@@ -1583,7 +1580,7 @@ void HTMLMediaElement::seek_element(double playback_position, MediaSeekMode seek
     //     available, and, if it is, until it has decoded enough data to play back that position.
     m_seek_in_progress = true;
     on_seek(playback_position, seek_mode);
-    HTML::main_thread_event_loop().spin_until([&]() { return !m_seek_in_progress; });
+    HTML::main_thread_event_loop().spin_until(JS::create_heap_function(heap(), [&]() { return !m_seek_in_progress; }));
 
     // FIXME: 13. Await a stable state. The synchronous section consists of all the remaining steps of this algorithm. (Steps in the
     //            synchronous section are marked with ⌛.)
@@ -1771,7 +1768,7 @@ void HTMLMediaElement::reached_end_of_media_playback()
 
             // 3. Take pending play promises and reject pending play promises with the result and an "AbortError" DOMException.
             auto promises = take_pending_play_promises();
-            reject_pending_play_promises<WebIDL::AbortError>(promises, "Media playback has ended"_fly_string);
+            reject_pending_play_promises<WebIDL::AbortError>(promises, "Media playback has ended"_string);
         }
     });
 
@@ -1889,7 +1886,7 @@ void HTMLMediaElement::resolve_pending_play_promises(ReadonlySpan<JS::NonnullGCP
     auto& realm = this->realm();
 
     // AD-HOC: An execution context is required for Promise resolving hooks.
-    TemporaryExecutionContext execution_context { document().relevant_settings_object() };
+    TemporaryExecutionContext execution_context { realm };
 
     // To resolve pending play promises for a media element with a list of promises promises, the user agent
     // must resolve each promise in promises with undefined.
@@ -1903,7 +1900,7 @@ void HTMLMediaElement::reject_pending_play_promises(ReadonlySpan<JS::NonnullGCPt
     auto& realm = this->realm();
 
     // AD-HOC: An execution context is required for Promise rejection hooks.
-    TemporaryExecutionContext execution_context { document().relevant_settings_object() };
+    TemporaryExecutionContext execution_context { realm };
 
     // To reject pending play promises for a media element with a list of promise promises and an exception name
     // error, the user agent must reject each promise in promises with error.

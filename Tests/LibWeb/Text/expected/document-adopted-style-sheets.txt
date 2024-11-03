@@ -1,4 +1,4 @@
-  color with no adopted style sheets: rgb(0, 0, 0)
+color with no adopted style sheets: rgb(0, 0, 0)
 document.adoptedStyleSheets.length=(1)
 add style sheet using Array.prototype.push(): rgb(255, 0, 0)
 document.adoptedStyleSheets.length=(0)

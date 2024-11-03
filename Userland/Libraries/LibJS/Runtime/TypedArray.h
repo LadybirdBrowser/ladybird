@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020, Andreas Kling <kling@serenityos.org>
+ * Copyright (c) 2020, Andreas Kling <andreas@ladybird.org>
  * Copyright (c) 2021-2023, Linus Groh <linusg@serenityos.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
@@ -268,7 +268,7 @@ public:
     }
 
     // 10.4.5.3 [[DefineOwnProperty]] ( P, Desc ), https://tc39.es/ecma262/#sec-integer-indexed-exotic-objects-defineownproperty-p-desc
-    virtual ThrowCompletionOr<bool> internal_define_own_property(PropertyKey const& property_key, PropertyDescriptor const& property_descriptor) override
+    virtual ThrowCompletionOr<bool> internal_define_own_property(PropertyKey const& property_key, PropertyDescriptor const& property_descriptor, Optional<PropertyDescriptor>* precomputed_get_own_property = nullptr) override
     {
         VERIFY(property_key.is_valid());
 
@@ -313,7 +313,7 @@ public:
         }
 
         // 2. Return ! OrdinaryDefineOwnProperty(O, P, Desc).
-        return Object::internal_define_own_property(property_key, property_descriptor);
+        return Object::internal_define_own_property(property_key, property_descriptor, precomputed_get_own_property);
     }
 
     // 10.4.5.4 [[Get]] ( P, Receiver ), 10.4.5.4 [[Get]] ( P, Receiver )
@@ -425,7 +425,7 @@ public:
             // b. For each integer i such that 0 ≤ i < length, in ascending order, do
             for (size_t i = 0; i < length; ++i) {
                 // i. Append ! ToString(𝔽(i)) to keys.
-                keys.append(PrimitiveString::create(vm, MUST(String::number(i))));
+                keys.append(PrimitiveString::create(vm, String::number(i)));
             }
         }
 

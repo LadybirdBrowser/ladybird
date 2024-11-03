@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2023, Andreas Kling <kling@serenityos.org>
+ * Copyright (c) 2018-2023, Andreas Kling <andreas@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -110,7 +110,7 @@ void HTMLImageElement::form_associated_element_attribute_changed(FlyString const
     }
 }
 
-JS::GCPtr<Layout::Node> HTMLImageElement::create_layout_node(NonnullRefPtr<CSS::StyleProperties> style)
+JS::GCPtr<Layout::Node> HTMLImageElement::create_layout_node(CSS::StyleProperties style)
 {
     return heap().allocate_without_realm<Layout::ImageBox>(document(), *this, move(style), *this);
 }
@@ -191,7 +191,7 @@ unsigned HTMLImageElement::width() const
 
 WebIDL::ExceptionOr<void> HTMLImageElement::set_width(unsigned width)
 {
-    return set_attribute(HTML::AttributeNames::width, MUST(String::number(width)));
+    return set_attribute(HTML::AttributeNames::width, String::number(width));
 }
 
 // https://html.spec.whatwg.org/multipage/embedded-content.html#dom-img-height
@@ -220,7 +220,7 @@ unsigned HTMLImageElement::height() const
 
 WebIDL::ExceptionOr<void> HTMLImageElement::set_height(unsigned height)
 {
-    return set_attribute(HTML::AttributeNames::height, MUST(String::number(height)));
+    return set_attribute(HTML::AttributeNames::height, String::number(height));
 }
 
 // https://html.spec.whatwg.org/multipage/embedded-content.html#dom-img-naturalwidth
@@ -282,7 +282,7 @@ String HTMLImageElement::current_src() const
 }
 
 // https://html.spec.whatwg.org/multipage/embedded-content.html#dom-img-decode
-WebIDL::ExceptionOr<JS::NonnullGCPtr<JS::Promise>> HTMLImageElement::decode() const
+WebIDL::ExceptionOr<JS::NonnullGCPtr<WebIDL::Promise>> HTMLImageElement::decode() const
 {
     auto& realm = this->realm();
 
@@ -295,8 +295,8 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<JS::Promise>> HTMLImageElement::decode() co
             if (this->document().is_fully_active())
                 return false;
 
-            auto exception = WebIDL::EncodingError::create(realm, "Node document not fully active"_fly_string);
-            HTML::TemporaryExecutionContext context(HTML::relevant_settings_object(*this));
+            auto exception = WebIDL::EncodingError::create(realm, "Node document not fully active"_string);
+            HTML::TemporaryExecutionContext context(realm);
             WebIDL::reject_promise(realm, promise, exception);
             return true;
         };
@@ -305,8 +305,8 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<JS::Promise>> HTMLImageElement::decode() co
             if (this->current_request().state() != ImageRequest::State::Broken)
                 return false;
 
-            auto exception = WebIDL::EncodingError::create(realm, "Current request state is broken"_fly_string);
-            HTML::TemporaryExecutionContext context(HTML::relevant_settings_object(*this));
+            auto exception = WebIDL::EncodingError::create(realm, "Current request state is broken"_string);
+            HTML::TemporaryExecutionContext context(realm);
             WebIDL::reject_promise(realm, promise, exception);
             return true;
         };
@@ -323,12 +323,12 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<JS::Promise>> HTMLImageElement::decode() co
             return;
 
         // 2.2 Otherwise, in parallel wait for one of the following cases to occur, and perform the corresponding actions:
-        Platform::EventLoopPlugin::the().deferred_invoke([this, promise, &realm, reject_if_document_not_fully_active, reject_if_current_request_state_broken] {
-            Platform::EventLoopPlugin::the().spin_until([&] {
+        Platform::EventLoopPlugin::the().deferred_invoke(JS::create_heap_function(heap(), [this, promise, &realm, reject_if_document_not_fully_active, reject_if_current_request_state_broken] {
+            Platform::EventLoopPlugin::the().spin_until(JS::create_heap_function(heap(), [&] {
                 auto state = this->current_request().state();
 
                 return !this->document().is_fully_active() || state == ImageRequest::State::Broken || state == ImageRequest::State::CompletelyAvailable;
-            });
+            }));
 
             // 2.2.1 This img element's node document stops being fully active
             // 2.2.1 Reject promise with an "EncodingError" DOMException.
@@ -354,13 +354,13 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<JS::Promise>> HTMLImageElement::decode() co
                 // (Typically, this would only be violated in low-memory situations that require evicting decoded image data, or when the image is too large
                 // to keep in decoded form for this period of time.)
 
-                HTML::TemporaryExecutionContext context(HTML::relevant_settings_object(*this));
+                HTML::TemporaryExecutionContext context(realm);
                 WebIDL::resolve_promise(realm, promise, JS::js_undefined());
             }
-        });
+        }));
     }));
 
-    return JS::NonnullGCPtr { verify_cast<JS::Promise>(*promise->promise()) };
+    return promise;
 }
 
 Optional<ARIA::Role> HTMLImageElement::default_role() const

@@ -1,0 +1,5 @@
+left starts at: 0px
+shortly after starting, left is >= 0px? true and < 200px? true
+half-way through, left is > 0px? true and < 200px? true
+near the end, left is > 0px? true and < 200px? true
+after the transition, left is: 200px

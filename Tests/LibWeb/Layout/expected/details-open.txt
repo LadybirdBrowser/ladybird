@@ -26,6 +26,6 @@ ViewportPaintable (Viewport<#document>) [0,0 800x600]
           TextPaintable (TextNode<#text>)
           MarkerPaintable (ListItemMarkerBox(anonymous)) [8,8 12x17]
         PaintableWithLines (BlockContainer<SLOT>) [8,25 784x17]
-          InlinePaintable (InlineNode<SPAN>)
+          PaintableWithLines (InlineNode<SPAN>)
             TextPaintable (TextNode<#text>)
       PaintableWithLines (BlockContainer(anonymous)) [8,42 784x0]

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022, Andreas Kling <kling@serenityos.org>
+ * Copyright (c) 2022, Andreas Kling <andreas@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -129,9 +129,6 @@ struct LayoutState {
         CSSPixels inset_right { 0 };
         CSSPixels inset_top { 0 };
         CSSPixels inset_bottom { 0 };
-
-        // Used for calculating the static position of an abspos block-level box.
-        CSSPixels vertical_offset_of_parent_block_container { 0 };
 
         Vector<LineBox> line_boxes;
 

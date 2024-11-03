@@ -3,11 +3,13 @@
  * Copyright (c) 2022, networkException <networkexception@serenityos.org>
  * Copyright (c) 2023, Kenneth Myhra <kennethmyhra@serenityos.org>
  * Copyright (c) 2023, Sam Atkins <atkinssj@serenityos.org>
+ * Copyright (c) 2024, Andreas Kling <andreas@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
 #include <AK/CharacterTypes.h>
+#include <AK/FlyString.h>
 #include <AK/GenericLexer.h>
 #include <AK/String.h>
 #include <AK/Utf16View.h>
@@ -140,6 +142,29 @@ ErrorOr<String> to_ascii_uppercase(StringView string)
         string_builder.append_code_point(code_point);
     }
     return string_builder.to_string();
+}
+
+// https://infra.spec.whatwg.org/#isomorphic-encode
+ByteBuffer isomorphic_encode(StringView input)
+{
+    ByteBuffer buf = {};
+    for (auto code_point : Utf8View { input }) {
+        // VERIFY(code_point <= 0xFF);
+        if (code_point > 0xFF)
+            dbgln("FIXME: Trying to isomorphic encode a string with code points > U+00FF.");
+        buf.append((u8)code_point);
+    }
+    return buf;
+}
+
+// https://infra.spec.whatwg.org/#isomorphic-decode
+String isomorphic_decode(ReadonlyBytes input)
+{
+    StringBuilder builder(input.size());
+    for (u8 code_point : input) {
+        builder.append_code_point(code_point);
+    }
+    return builder.to_string_without_validation();
 }
 
 }

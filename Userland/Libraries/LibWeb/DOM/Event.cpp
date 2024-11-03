@@ -1,7 +1,7 @@
 /*
  * Copyright (c) 2020, the SerenityOS developers.
  * Copyright (c) 2021, Luke Wilde <lukew@serenityos.org>
- * Copyright (c) 2022, Andreas Kling <kling@serenityos.org>
+ * Copyright (c) 2022, Andreas Kling <andreas@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -143,12 +143,6 @@ void Event::init_event(String const& type, bool bubbles, bool cancelable)
 
     // 2. Initialize this with type, bubbles, and cancelable.
     initialize_event(type, bubbles, cancelable);
-}
-
-// https://dom.spec.whatwg.org/#dom-event-timestamp
-double Event::time_stamp() const
-{
-    return m_time_stamp;
 }
 
 // https://dom.spec.whatwg.org/#dom-event-composedpath

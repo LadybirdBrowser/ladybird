@@ -1,0 +1,305 @@
+Summary
+
+Harness status: OK
+
+Rerun
+
+Found 295 tests
+
+295 Pass
+Details
+Result	Test Name	MessagePass	Initial color	
+Pass	add .test to previous_sibling	
+Pass	remove .test from previous_sibling	
+Pass	add .test to previous_sibling_child	
+Pass	remove .test from previous_sibling_child	
+Pass	add .test to previous_sibling_descendant	
+Pass	remove .test from previous_sibling_descendant	
+Pass	add .test to subject	
+Pass	remove .test from subject	
+Pass	add .test to next_sibling	
+Pass	remove .test from next_sibling	
+Pass	add .test to next_sibling_child	
+Pass	remove .test from next_sibling_child	
+Pass	add .test to next_sibling_descendant	
+Pass	remove .test from next_sibling_descendant	
+Pass	insert element div.test before previous_sibling	
+Pass	remove the class 'test' from the element inserted before previous_sibling	
+Pass	add the class 'test' again to the element inserted before previous_sibling	
+Pass	remove element div.test before previous_sibling	
+Pass	insert element div before previous_sibling	
+Pass	add the class 'test' to the element inserted again before previous_sibling	
+Pass	remove the class 'test' from the element inserted again before previous_sibling	
+Pass	remove element div before previous_sibling	
+Pass	insert element div[test_attr] before previous_sibling	
+Pass	remove element div[test_attr] before previous_sibling	
+Pass	insert element div.test before previous_sibling_child	
+Pass	remove the class 'test' from the element inserted before previous_sibling_child	
+Pass	add the class 'test' again to the element inserted before previous_sibling_child	
+Pass	remove element div.test before previous_sibling_child	
+Pass	insert element div before previous_sibling_child	
+Pass	add the class 'test' to the element inserted again before previous_sibling_child	
+Pass	remove the class 'test' from the element inserted again before previous_sibling_child	
+Pass	remove element div before previous_sibling_child	
+Pass	insert element div[test_attr] before previous_sibling_child	
+Pass	remove element div[test_attr] before previous_sibling_child	
+Pass	insert element div.test before previous_sibling_descendant	
+Pass	remove the class 'test' from the element inserted before previous_sibling_descendant	
+Pass	add the class 'test' again to the element inserted before previous_sibling_descendant	
+Pass	remove element div.test before previous_sibling_descendant	
+Pass	insert element div before previous_sibling_descendant	
+Pass	add the class 'test' to the element inserted again before previous_sibling_descendant	
+Pass	remove the class 'test' from the element inserted again before previous_sibling_descendant	
+Pass	remove element div before previous_sibling_descendant	
+Pass	insert element div[test_attr] before previous_sibling_descendant	
+Pass	remove element div[test_attr] before previous_sibling_descendant	
+Pass	insert element div.test before subject	
+Pass	remove the class 'test' from the element inserted before subject	
+Pass	add the class 'test' again to the element inserted before subject	
+Pass	remove element div.test before subject	
+Pass	insert element div before subject	
+Pass	add the class 'test' to the element inserted again before subject	
+Pass	remove the class 'test' from the element inserted again before subject	
+Pass	remove element div before subject	
+Pass	insert element div[test_attr] before subject	
+Pass	remove element div[test_attr] before subject	
+Pass	insert element div.test before next_sibling	
+Pass	remove the class 'test' from the element inserted before next_sibling	
+Pass	add the class 'test' again to the element inserted before next_sibling	
+Pass	remove element div.test before next_sibling	
+Pass	insert element div before next_sibling	
+Pass	add the class 'test' to the element inserted again before next_sibling	
+Pass	remove the class 'test' from the element inserted again before next_sibling	
+Pass	remove element div before next_sibling	
+Pass	insert element div[test_attr] before next_sibling	
+Pass	remove element div[test_attr] before next_sibling	
+Pass	insert element div.test before next_sibling_child	
+Pass	remove the class 'test' from the element inserted before next_sibling_child	
+Pass	add the class 'test' again to the element inserted before next_sibling_child	
+Pass	remove element div.test before next_sibling_child	
+Pass	insert element div before next_sibling_child	
+Pass	add the class 'test' to the element inserted again before next_sibling_child	
+Pass	remove the class 'test' from the element inserted again before next_sibling_child	
+Pass	remove element div before next_sibling_child	
+Pass	insert element div[test_attr] before next_sibling_child	
+Pass	remove element div[test_attr] before next_sibling_child	
+Pass	insert element div.test before next_sibling_descendant	
+Pass	remove the class 'test' from the element inserted before next_sibling_descendant	
+Pass	add the class 'test' again to the element inserted before next_sibling_descendant	
+Pass	remove element div.test before next_sibling_descendant	
+Pass	insert element div before next_sibling_descendant	
+Pass	add the class 'test' to the element inserted again before next_sibling_descendant	
+Pass	remove the class 'test' from the element inserted again before next_sibling_descendant	
+Pass	remove element div before next_sibling_descendant	
+Pass	insert element div[test_attr] before next_sibling_descendant	
+Pass	remove element div[test_attr] before next_sibling_descendant	
+Pass	insert element div.test after previous_sibling	
+Pass	remove the class 'test' from the element inserted after previous_sibling	
+Pass	add the class 'test' again to the element inserted after previous_sibling	
+Pass	remove element div.test after previous_sibling	
+Pass	insert element div after previous_sibling	
+Pass	add the class 'test' to the element inserted again after previous_sibling	
+Pass	remove the class 'test' from the element inserted again after previous_sibling	
+Pass	remove element div after previous_sibling	
+Pass	insert element div[test_attr] after previous_sibling	
+Pass	remove element div[test_attr] after previous_sibling	
+Pass	insert element div.test after previous_sibling_child	
+Pass	remove the class 'test' from the element inserted after previous_sibling_child	
+Pass	add the class 'test' again to the element inserted after previous_sibling_child	
+Pass	remove element div.test after previous_sibling_child	
+Pass	insert element div after previous_sibling_child	
+Pass	add the class 'test' to the element inserted again after previous_sibling_child	
+Pass	remove the class 'test' from the element inserted again after previous_sibling_child	
+Pass	remove element div after previous_sibling_child	
+Pass	insert element div[test_attr] after previous_sibling_child	
+Pass	remove element div[test_attr] after previous_sibling_child	
+Pass	insert element div.test after previous_sibling_descendant	
+Pass	remove the class 'test' from the element inserted after previous_sibling_descendant	
+Pass	add the class 'test' again to the element inserted after previous_sibling_descendant	
+Pass	remove element div.test after previous_sibling_descendant	
+Pass	insert element div after previous_sibling_descendant	
+Pass	add the class 'test' to the element inserted again after previous_sibling_descendant	
+Pass	remove the class 'test' from the element inserted again after previous_sibling_descendant	
+Pass	remove element div after previous_sibling_descendant	
+Pass	insert element div[test_attr] after previous_sibling_descendant	
+Pass	remove element div[test_attr] after previous_sibling_descendant	
+Pass	insert element div.test after subject	
+Pass	remove the class 'test' from the element inserted after subject	
+Pass	add the class 'test' again to the element inserted after subject	
+Pass	remove element div.test after subject	
+Pass	insert element div after subject	
+Pass	add the class 'test' to the element inserted again after subject	
+Pass	remove the class 'test' from the element inserted again after subject	
+Pass	remove element div after subject	
+Pass	insert element div[test_attr] after subject	
+Pass	remove element div[test_attr] after subject	
+Pass	insert element div.test after next_sibling	
+Pass	remove the class 'test' from the element inserted after next_sibling	
+Pass	add the class 'test' again to the element inserted after next_sibling	
+Pass	remove element div.test after next_sibling	
+Pass	insert element div after next_sibling	
+Pass	add the class 'test' to the element inserted again after next_sibling	
+Pass	remove the class 'test' from the element inserted again after next_sibling	
+Pass	remove element div after next_sibling	
+Pass	insert element div[test_attr] after next_sibling	
+Pass	remove element div[test_attr] after next_sibling	
+Pass	insert element div.test after next_sibling_child	
+Pass	remove the class 'test' from the element inserted after next_sibling_child	
+Pass	add the class 'test' again to the element inserted after next_sibling_child	
+Pass	remove element div.test after next_sibling_child	
+Pass	insert element div after next_sibling_child	
+Pass	add the class 'test' to the element inserted again after next_sibling_child	
+Pass	remove the class 'test' from the element inserted again after next_sibling_child	
+Pass	remove element div after next_sibling_child	
+Pass	insert element div[test_attr] after next_sibling_child	
+Pass	remove element div[test_attr] after next_sibling_child	
+Pass	insert element div.test after next_sibling_descendant	
+Pass	remove the class 'test' from the element inserted after next_sibling_descendant	
+Pass	add the class 'test' again to the element inserted after next_sibling_descendant	
+Pass	remove element div.test after next_sibling_descendant	
+Pass	insert element div after next_sibling_descendant	
+Pass	add the class 'test' to the element inserted again after next_sibling_descendant	
+Pass	remove the class 'test' from the element inserted again after next_sibling_descendant	
+Pass	remove element div after next_sibling_descendant	
+Pass	insert element div[test_attr] after next_sibling_descendant	
+Pass	remove element div[test_attr] after next_sibling_descendant	
+Pass	insert tree div>div.test before previous_sibling	
+Pass	remove the class 'test' from the element in the tree inserted before previous_sibling	
+Pass	add the class 'test' again to the element in the tree inserted before previous_sibling	
+Pass	remove tree div>div.test before previous_sibling	
+Pass	insert tree div>div before previous_sibling	
+Pass	add the class 'test' to the element in the tree inserted again before previous_sibling	
+Pass	remove the class 'test' from the element in the tree inserted again before previous_sibling	
+Pass	remove tree div>div before previous_sibling	
+Pass	insert element div>div[test_attr] before previous_sibling	
+Pass	remove element div>div[test_attr] before previous_sibling	
+Pass	insert tree div>div.test before previous_sibling_child	
+Pass	remove the class 'test' from the element in the tree inserted before previous_sibling_child	
+Pass	add the class 'test' again to the element in the tree inserted before previous_sibling_child	
+Pass	remove tree div>div.test before previous_sibling_child	
+Pass	insert tree div>div before previous_sibling_child	
+Pass	add the class 'test' to the element in the tree inserted again before previous_sibling_child	
+Pass	remove the class 'test' from the element in the tree inserted again before previous_sibling_child	
+Pass	remove tree div>div before previous_sibling_child	
+Pass	insert element div>div[test_attr] before previous_sibling_child	
+Pass	remove element div>div[test_attr] before previous_sibling_child	
+Pass	insert tree div>div.test before previous_sibling_descendant	
+Pass	remove the class 'test' from the element in the tree inserted before previous_sibling_descendant	
+Pass	add the class 'test' again to the element in the tree inserted before previous_sibling_descendant	
+Pass	remove tree div>div.test before previous_sibling_descendant	
+Pass	insert tree div>div before previous_sibling_descendant	
+Pass	add the class 'test' to the element in the tree inserted again before previous_sibling_descendant	
+Pass	remove the class 'test' from the element in the tree inserted again before previous_sibling_descendant	
+Pass	remove tree div>div before previous_sibling_descendant	
+Pass	insert element div>div[test_attr] before previous_sibling_descendant	
+Pass	remove element div>div[test_attr] before previous_sibling_descendant	
+Pass	insert tree div>div.test before subject	
+Pass	remove the class 'test' from the element in the tree inserted before subject	
+Pass	add the class 'test' again to the element in the tree inserted before subject	
+Pass	remove tree div>div.test before subject	
+Pass	insert tree div>div before subject	
+Pass	add the class 'test' to the element in the tree inserted again before subject	
+Pass	remove the class 'test' from the element in the tree inserted again before subject	
+Pass	remove tree div>div before subject	
+Pass	insert element div>div[test_attr] before subject	
+Pass	remove element div>div[test_attr] before subject	
+Pass	insert tree div>div.test before next_sibling	
+Pass	remove the class 'test' from the element in the tree inserted before next_sibling	
+Pass	add the class 'test' again to the element in the tree inserted before next_sibling	
+Pass	remove tree div>div.test before next_sibling	
+Pass	insert tree div>div before next_sibling	
+Pass	add the class 'test' to the element in the tree inserted again before next_sibling	
+Pass	remove the class 'test' from the element in the tree inserted again before next_sibling	
+Pass	remove tree div>div before next_sibling	
+Pass	insert element div>div[test_attr] before next_sibling	
+Pass	remove element div>div[test_attr] before next_sibling	
+Pass	insert tree div>div.test before next_sibling_child	
+Pass	remove the class 'test' from the element in the tree inserted before next_sibling_child	
+Pass	add the class 'test' again to the element in the tree inserted before next_sibling_child	
+Pass	remove tree div>div.test before next_sibling_child	
+Pass	insert tree div>div before next_sibling_child	
+Pass	add the class 'test' to the element in the tree inserted again before next_sibling_child	
+Pass	remove the class 'test' from the element in the tree inserted again before next_sibling_child	
+Pass	remove tree div>div before next_sibling_child	
+Pass	insert element div>div[test_attr] before next_sibling_child	
+Pass	remove element div>div[test_attr] before next_sibling_child	
+Pass	insert tree div>div.test before next_sibling_descendant	
+Pass	remove the class 'test' from the element in the tree inserted before next_sibling_descendant	
+Pass	add the class 'test' again to the element in the tree inserted before next_sibling_descendant	
+Pass	remove tree div>div.test before next_sibling_descendant	
+Pass	insert tree div>div before next_sibling_descendant	
+Pass	add the class 'test' to the element in the tree inserted again before next_sibling_descendant	
+Pass	remove the class 'test' from the element in the tree inserted again before next_sibling_descendant	
+Pass	remove tree div>div before next_sibling_descendant	
+Pass	insert element div>div[test_attr] before next_sibling_descendant	
+Pass	remove element div>div[test_attr] before next_sibling_descendant	
+Pass	insert tree div>div.test after previous_sibling	
+Pass	remove the class 'test' from the element in the tree inserted after previous_sibling	
+Pass	add the class 'test' again to the element in the tree inserted after previous_sibling	
+Pass	remove tree div>div.test after previous_sibling	
+Pass	insert tree div>div after previous_sibling	
+Pass	add the class 'test' to the element in the tree inserted again after previous_sibling	
+Pass	remove the class 'test' from the element in the tree inserted again after previous_sibling	
+Pass	remove tree div>div after previous_sibling	
+Pass	insert element div>div[test_attr] after previous_sibling	
+Pass	remove element div>div[test_attr] after previous_sibling	
+Pass	insert tree div>div.test after previous_sibling_child	
+Pass	remove the class 'test' from the element in the tree inserted after previous_sibling_child	
+Pass	add the class 'test' again to the element in the tree inserted after previous_sibling_child	
+Pass	remove tree div>div.test after previous_sibling_child	
+Pass	insert tree div>div after previous_sibling_child	
+Pass	add the class 'test' to the element in the tree inserted again after previous_sibling_child	
+Pass	remove the class 'test' from the element in the tree inserted again after previous_sibling_child	
+Pass	remove tree div>div after previous_sibling_child	
+Pass	insert element div>div[test_attr] after previous_sibling_child	
+Pass	remove element div>div[test_attr] after previous_sibling_child	
+Pass	insert tree div>div.test after previous_sibling_descendant	
+Pass	remove the class 'test' from the element in the tree inserted after previous_sibling_descendant	
+Pass	add the class 'test' again to the element in the tree inserted after previous_sibling_descendant	
+Pass	remove tree div>div.test after previous_sibling_descendant	
+Pass	insert tree div>div after previous_sibling_descendant	
+Pass	add the class 'test' to the element in the tree inserted again after previous_sibling_descendant	
+Pass	remove the class 'test' from the element in the tree inserted again after previous_sibling_descendant	
+Pass	remove tree div>div after previous_sibling_descendant	
+Pass	insert element div>div[test_attr] after previous_sibling_descendant	
+Pass	remove element div>div[test_attr] after previous_sibling_descendant	
+Pass	insert tree div>div.test after subject	
+Pass	remove the class 'test' from the element in the tree inserted after subject	
+Pass	add the class 'test' again to the element in the tree inserted after subject	
+Pass	remove tree div>div.test after subject	
+Pass	insert tree div>div after subject	
+Pass	add the class 'test' to the element in the tree inserted again after subject	
+Pass	remove the class 'test' from the element in the tree inserted again after subject	
+Pass	remove tree div>div after subject	
+Pass	insert element div>div[test_attr] after subject	
+Pass	remove element div>div[test_attr] after subject	
+Pass	insert tree div>div.test after next_sibling	
+Pass	remove the class 'test' from the element in the tree inserted after next_sibling	
+Pass	add the class 'test' again to the element in the tree inserted after next_sibling	
+Pass	remove tree div>div.test after next_sibling	
+Pass	insert tree div>div after next_sibling	
+Pass	add the class 'test' to the element in the tree inserted again after next_sibling	
+Pass	remove the class 'test' from the element in the tree inserted again after next_sibling	
+Pass	remove tree div>div after next_sibling	
+Pass	insert element div>div[test_attr] after next_sibling	
+Pass	remove element div>div[test_attr] after next_sibling	
+Pass	insert tree div>div.test after next_sibling_child	
+Pass	remove the class 'test' from the element in the tree inserted after next_sibling_child	
+Pass	add the class 'test' again to the element in the tree inserted after next_sibling_child	
+Pass	remove tree div>div.test after next_sibling_child	
+Pass	insert tree div>div after next_sibling_child	
+Pass	add the class 'test' to the element in the tree inserted again after next_sibling_child	
+Pass	remove the class 'test' from the element in the tree inserted again after next_sibling_child	
+Pass	remove tree div>div after next_sibling_child	
+Pass	insert element div>div[test_attr] after next_sibling_child	
+Pass	remove element div>div[test_attr] after next_sibling_child	
+Pass	insert tree div>div.test after next_sibling_descendant	
+Pass	remove the class 'test' from the element in the tree inserted after next_sibling_descendant	
+Pass	add the class 'test' again to the element in the tree inserted after next_sibling_descendant	
+Pass	remove tree div>div.test after next_sibling_descendant	
+Pass	insert tree div>div after next_sibling_descendant	
+Pass	add the class 'test' to the element in the tree inserted again after next_sibling_descendant	
+Pass	remove the class 'test' from the element in the tree inserted again after next_sibling_descendant	
+Pass	remove tree div>div after next_sibling_descendant	
+Pass	insert element div>div[test_attr] after next_sibling_descendant	
+Pass	remove element div>div[test_attr] after next_sibling_descendant	

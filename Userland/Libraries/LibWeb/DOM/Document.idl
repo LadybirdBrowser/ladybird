@@ -48,7 +48,7 @@ interface Document : Node {
     readonly attribute DOMString inputEncoding;
     readonly attribute DOMString contentType;
 
-    readonly attribute Window? defaultView;
+    readonly attribute WindowProxy? defaultView;
 
     [CEReactions] Document open(optional DOMString unused1, optional DOMString unused2);
     WindowProxy? open(USVString url, DOMString name, DOMString features);
@@ -149,6 +149,10 @@ interface Document : Node {
     boolean queryCommandState(DOMString commandId);
     boolean queryCommandSupported(DOMString commandId);
     DOMString queryCommandValue(DOMString commandId);
+
+    // special event handler IDL attributes that only apply to Document objects
+    [LegacyLenientThis] attribute EventHandler onreadystatechange;
+    attribute EventHandler onvisibilitychange;
 };
 
 dictionary ElementCreationOptions {

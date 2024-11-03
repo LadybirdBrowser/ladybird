@@ -54,10 +54,12 @@ static bool has_overload_with_argument_type_or_subtype_matching(IDL::EffectiveOv
 }
 
 // https://webidl.spec.whatwg.org/#es-overloads
-JS::ThrowCompletionOr<ResolvedOverload> resolve_overload(JS::VM& vm, IDL::EffectiveOverloadSet& overloads)
+JS::ThrowCompletionOr<ResolvedOverload> resolve_overload(JS::VM& vm, IDL::EffectiveOverloadSet& overloads, ReadonlySpan<StringView> dictionary_types)
 {
-    // FIXME: The vast majority of this algorithm can be (and must be, in order to resolve the dictionary
-    //  related FIXMEs below) evaluated at code-generation time.
+    auto is_dictionary = [&dictionary_types](IDL::Type const& type) {
+        return dictionary_types.contains_slow(type.name());
+    };
+
     // 1. Let maxarg be the length of the longest type list of the entries in S.
     // 2. Let n be the size of args.
     // 3. Initialize argcount to be min(maxarg, n).
@@ -135,17 +137,20 @@ JS::ThrowCompletionOr<ResolvedOverload> resolve_overload(JS::VM& vm, IDL::Effect
         // NOTE: This is the one case we can't use `has_overload_with_argument_type_or_subtype_matching()` because we also need to look
         //       for dictionary types in the flattened members.
         else if ((value.is_undefined() || value.is_null())
-            && overloads.has_overload_with_matching_argument_at_index(i, [](IDL::Type const& type, auto) {
+            && overloads.has_overload_with_matching_argument_at_index(i, [&is_dictionary](IDL::Type const& type, auto) {
                    if (type.is_nullable())
                        return true;
-                   // FIXME: - a dictionary type
+                   if (is_dictionary(type))
+                       return true;
+
                    // FIXME: - an annotated type whose inner type is one of the above types
                    if (type.is_union()) {
                        auto flattened_members = type.as_union().flattened_member_types();
                        for (auto const& member : flattened_members) {
                            if (member->is_nullable())
                                return true;
-                           // FIXME: - a dictionary type
+                           if (is_dictionary(type))
+                               return true;
                            // FIXME: - an annotated type whose inner type is one of the above types
                        }
                        return false;
@@ -270,10 +275,11 @@ JS::ThrowCompletionOr<ResolvedOverload> resolve_overload(JS::VM& vm, IDL::Effect
         //     - a union type, nullable union type, or annotated union type that has one of the above types in its flattened member types
         //     then remove from S all other entries.
         else if (value.is_object()
-            && has_overload_with_argument_type_or_subtype_matching(overloads, i, [](IDL::Type const& type) {
-                   dbgln("FIXME: a callback interface type");
-                   dbgln("FIXME: a dictionary type");
-                   dbgln("FIXME: a record type");
+            && has_overload_with_argument_type_or_subtype_matching(overloads, i, [&is_dictionary](IDL::Type const& type) {
+                   if (is_dictionary(type))
+                       return true;
+                   // FIXME: a callback interface type
+                   // FIXME: a record type
                    return type.is_object();
                })) {
             overloads.remove_all_other_entries();

@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2020, Luke Wilde <lukew@serenityos.org>
- * Copyright (c) 2022, Andreas Kling <kling@serenityos.org>
+ * Copyright (c) 2022, Andreas Kling <andreas@ladybird.org>
  * Copyright (c) 2023, Shannon Booth <shannon@serenityos.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
@@ -36,7 +36,7 @@ WebIDL::ExceptionOr<JS::GCPtr<Element>> ParentNode::query_selector(StringView se
 
     // 2. If s is failure, then throw a "SyntaxError" DOMException.
     if (!maybe_selectors.has_value())
-        return WebIDL::SyntaxError::create(realm(), "Failed to parse selector"_fly_string);
+        return WebIDL::SyntaxError::create(realm(), "Failed to parse selector"_string);
 
     auto selectors = maybe_selectors.value();
 
@@ -68,7 +68,7 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<NodeList>> ParentNode::query_selector_all(S
 
     // 2. If s is failure, then throw a "SyntaxError" DOMException.
     if (!maybe_selectors.has_value())
-        return WebIDL::SyntaxError::create(realm(), "Failed to parse selector"_fly_string);
+        return WebIDL::SyntaxError::create(realm(), "Failed to parse selector"_string);
 
     auto selectors = maybe_selectors.value();
 
@@ -139,7 +139,7 @@ JS::NonnullGCPtr<HTMLCollection> ParentNode::get_elements_by_tag_name(FlyString 
 
     // 2. Otherwise, if root’s node document is an HTML document, return a HTMLCollection rooted at root, whose filter matches the following descendant elements:
     if (root().document().document_type() == Document::Type::HTML) {
-        FlyString qualified_name_in_ascii_lowercase = MUST(Infra::to_ascii_lowercase(qualified_name));
+        FlyString qualified_name_in_ascii_lowercase = qualified_name.to_ascii_lowercase();
         return HTMLCollection::create(*this, HTMLCollection::Scope::Descendants, [qualified_name, qualified_name_in_ascii_lowercase](Element const& element) {
             // - Whose namespace is the HTML namespace and whose qualified name is qualifiedName, in ASCII lowercase.
             if (element.namespace_uri() == Namespace::HTML)

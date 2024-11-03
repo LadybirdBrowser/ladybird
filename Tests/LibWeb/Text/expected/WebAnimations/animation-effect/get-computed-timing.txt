@@ -1,4 +1,4 @@
-   num properties: 13
+num properties: 13
 delay: 10
 endDelay: 20
 fill: forwards

@@ -1,0 +1,9 @@
+beforeinput data=(r) intputType=(insertText)
+beforeinput data=(a) intputType=(insertText)
+beforeinput data=(e) intputType=(insertText)
+beforeinput data=(b) intputType=(insertText)
+beforeinput data=(e) intputType=(insertText)
+beforeinput data=(c) intputType=(insertText)
+beforeinput data=(e) intputType=(insertText)
+beforeinput data=(null) intputType=(insertParagraph)
+Text in input: reee

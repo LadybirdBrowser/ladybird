@@ -2,7 +2,7 @@
  * Copyright (c) 2020, Matthew Olsson <mattco@serenityos.org>
  * Copyright (c) 2021-2022, Sam Atkins <atkinssj@serenityos.org>
  * Copyright (c) 2023, MacDue <macdue@dueutil.tech>
- * Copyright (c) 2023, Andreas Kling <kling@serenityos.org>
+ * Copyright (c) 2023, Andreas Kling <andreas@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -149,6 +149,9 @@ void SVGGraphicsElement::apply_presentational_hints(CSS::StyleProperties& style)
         NamedPropertyID(CSS::PropertyID::Fill),
         // FIXME: The `stroke` attribute and CSS `stroke` property are not the same! But our support is limited enough that they are equivalent for now.
         NamedPropertyID(CSS::PropertyID::Stroke),
+        NamedPropertyID(CSS::PropertyID::StrokeLinecap),
+        NamedPropertyID(CSS::PropertyID::StrokeLinejoin),
+        NamedPropertyID(CSS::PropertyID::StrokeMiterlimit),
         NamedPropertyID(CSS::PropertyID::StrokeWidth),
         NamedPropertyID(CSS::PropertyID::FillRule),
         NamedPropertyID(CSS::PropertyID::FillOpacity),
@@ -232,6 +235,27 @@ Optional<float> SVGGraphicsElement::fill_opacity() const
     if (!layout_node())
         return {};
     return layout_node()->computed_values().fill_opacity();
+}
+
+Optional<CSS::StrokeLinecap> SVGGraphicsElement::stroke_linecap() const
+{
+    if (!layout_node())
+        return {};
+    return layout_node()->computed_values().stroke_linecap();
+}
+
+Optional<CSS::StrokeLinejoin> SVGGraphicsElement::stroke_linejoin() const
+{
+    if (!layout_node())
+        return {};
+    return layout_node()->computed_values().stroke_linejoin();
+}
+
+Optional<CSS::NumberOrCalculated> SVGGraphicsElement::stroke_miterlimit() const
+{
+    if (!layout_node())
+        return {};
+    return layout_node()->computed_values().stroke_miterlimit();
 }
 
 Optional<float> SVGGraphicsElement::stroke_opacity() const

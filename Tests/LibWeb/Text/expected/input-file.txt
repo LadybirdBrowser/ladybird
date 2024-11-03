@@ -1,4 +1,4 @@
-Select file...file1 Select files...4 files selected.   input1:
+input1:
 file1 (index iteration): text/plain: Contents for file1
 file1 (for..of iteration): text/plain: Contents for file1
 input2:

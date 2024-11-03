@@ -29,10 +29,24 @@ public:
     Utf16Data const& string() const;
     Utf16View view() const;
 
+    [[nodiscard]] u32 hash() const
+    {
+        if (!m_has_hash) {
+            m_hash = compute_hash();
+            m_has_hash = true;
+        }
+        return m_hash;
+    }
+    [[nodiscard]] bool operator==(Utf16StringImpl const& other) const { return string() == other.string(); }
+
 private:
     Utf16StringImpl() = default;
     explicit Utf16StringImpl(Utf16Data string);
 
+    [[nodiscard]] u32 compute_hash() const;
+
+    mutable bool m_has_hash { false };
+    mutable u32 m_hash { 0 };
     Utf16Data m_string;
 };
 
@@ -57,10 +71,27 @@ public:
     size_t length_in_code_units() const;
     bool is_empty() const;
 
+    [[nodiscard]] u32 hash() const { return m_string->hash(); }
+    [[nodiscard]] bool operator==(Utf16String const& other) const
+    {
+        if (m_string == other.m_string)
+            return true;
+        return *m_string == *other.m_string;
+    }
+
 private:
     explicit Utf16String(NonnullRefPtr<Detail::Utf16StringImpl>);
 
     NonnullRefPtr<Detail::Utf16StringImpl> m_string;
+};
+
+}
+
+namespace AK {
+
+template<>
+struct Traits<JS::Utf16String> : public DefaultTraits<JS::Utf16String> {
+    static unsigned hash(JS::Utf16String const& s) { return s.hash(); }
 };
 
 }

@@ -67,6 +67,9 @@ public:
     bool enable_do_not_track();
     void set_enable_do_not_track(bool enable);
 
+    bool enable_autoplay();
+    void set_enable_autoplay(bool enable);
+
     bool show_menubar();
     void set_show_menubar(bool show_menubar);
 
@@ -76,6 +79,7 @@ signals:
     void search_engine_changed(WebView::SearchEngine engine);
     void preferred_languages_changed(QStringList const& languages);
     void enable_do_not_track_changed(bool enable);
+    void enable_autoplay_changed(bool enable);
 
 protected:
     Settings();

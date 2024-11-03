@@ -9,8 +9,8 @@
             encodeURI("<script>new IntersectionObserver(function() { }, { })<" + "/script>");
         iframe.onload = function () {
             iframe.remove();
-            done();
             println("PASS if we didn't crash!");
+            done();
         };
     });
 </script>

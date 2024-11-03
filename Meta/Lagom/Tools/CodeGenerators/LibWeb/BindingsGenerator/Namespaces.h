@@ -28,6 +28,7 @@ static constexpr Array libweb_interface_namespaces = {
     "Internals"sv,
     "IntersectionObserver"sv,
     "MathML"sv,
+    "MediaSourceExtensions"sv,
     "NavigationTiming"sv,
     "RequestIdleCallback"sv,
     "ResizeObserver"sv,

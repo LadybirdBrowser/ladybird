@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020, Andreas Kling <kling@serenityos.org>
+ * Copyright (c) 2020, Andreas Kling <andreas@ladybird.org>
  * Copyright (c) 2022, Sam Atkins <atkinssj@serenityos.org>
  * Copyright (c) 2024, Tim Ledbetter <timledbetter@gmail.com>
  *
@@ -48,6 +48,8 @@ void Page::visit_edges(JS::Cell::Visitor& visitor)
     Base::visit_edges(visitor);
     visitor.visit(m_top_level_traversable);
     visitor.visit(m_client);
+    visitor.visit(m_window_rect_observer);
+    visitor.visit(m_on_pending_dialog_closed);
 }
 
 HTML::Navigable& Page::focused_navigable()
@@ -216,14 +218,14 @@ EventResult Page::handle_drag_and_drop_event(DragEvent::Type type, DevicePixelPo
     return top_level_traversable()->event_handler().handle_drag_and_drop_event(type, device_to_css_point(position), device_to_css_point(screen_position), button, buttons, modifiers, move(files));
 }
 
-EventResult Page::handle_keydown(UIEvents::KeyCode key, unsigned modifiers, u32 code_point)
+EventResult Page::handle_keydown(UIEvents::KeyCode key, unsigned modifiers, u32 code_point, bool repeat)
 {
-    return focused_navigable().event_handler().handle_keydown(key, modifiers, code_point);
+    return focused_navigable().event_handler().handle_keydown(key, modifiers, code_point, repeat);
 }
 
-EventResult Page::handle_keyup(UIEvents::KeyCode key, unsigned modifiers, u32 code_point)
+EventResult Page::handle_keyup(UIEvents::KeyCode key, unsigned modifiers, u32 code_point, bool repeat)
 {
-    return focused_navigable().event_handler().handle_keyup(key, modifiers, code_point);
+    return focused_navigable().event_handler().handle_keyup(key, modifiers, code_point, repeat);
 }
 
 void Page::set_top_level_traversable(JS::NonnullGCPtr<HTML::TraversableNavigable> navigable)
@@ -253,17 +255,23 @@ JS::NonnullGCPtr<HTML::TraversableNavigable> Page::top_level_traversable() const
     return *m_top_level_traversable;
 }
 
+void Page::did_update_window_rect()
+{
+    if (m_window_rect_observer)
+        m_window_rect_observer->function()({ window_position(), window_size() });
+}
+
 template<typename ResponseType>
 static ResponseType spin_event_loop_until_dialog_closed(PageClient& client, Optional<ResponseType>& response, SourceLocation location = SourceLocation::current())
 {
-    auto& event_loop = Web::HTML::current_settings_object().responsible_event_loop();
+    auto& event_loop = Web::HTML::current_principal_settings_object().responsible_event_loop();
 
     ScopeGuard guard { [&] { event_loop.set_execution_paused(false); } };
     event_loop.set_execution_paused(true);
 
-    Web::Platform::EventLoopPlugin::the().spin_until([&]() {
+    Web::Platform::EventLoopPlugin::the().spin_until(JS::create_heap_function(event_loop.heap(), [&]() {
         return response.has_value() || !client.is_connection_open();
-    });
+    }));
 
     if (!client.is_connection_open()) {
         dbgln("WebContent client disconnected during {}. Exiting peacefully.", location.function_name());
@@ -287,9 +295,8 @@ void Page::did_request_alert(String const& message)
 void Page::alert_closed()
 {
     if (m_pending_dialog == PendingDialog::Alert) {
-        m_pending_dialog = PendingDialog::None;
         m_pending_alert_response = Empty {};
-        m_pending_dialog_text.clear();
+        on_pending_dialog_closed();
     }
 }
 
@@ -307,9 +314,8 @@ bool Page::did_request_confirm(String const& message)
 void Page::confirm_closed(bool accepted)
 {
     if (m_pending_dialog == PendingDialog::Confirm) {
-        m_pending_dialog = PendingDialog::None;
         m_pending_confirm_response = accepted;
-        m_pending_dialog_text.clear();
+        on_pending_dialog_closed();
     }
 }
 
@@ -327,14 +333,15 @@ Optional<String> Page::did_request_prompt(String const& message, String const& d
 void Page::prompt_closed(Optional<String> response)
 {
     if (m_pending_dialog == PendingDialog::Prompt) {
-        m_pending_dialog = PendingDialog::None;
         m_pending_prompt_response = move(response);
-        m_pending_dialog_text.clear();
+        on_pending_dialog_closed();
     }
 }
 
-void Page::dismiss_dialog()
+void Page::dismiss_dialog(JS::GCPtr<JS::HeapFunction<void()>> on_dialog_closed)
 {
+    m_on_pending_dialog_closed = on_dialog_closed;
+
     switch (m_pending_dialog) {
     case PendingDialog::None:
         break;
@@ -348,8 +355,10 @@ void Page::dismiss_dialog()
     }
 }
 
-void Page::accept_dialog()
+void Page::accept_dialog(JS::GCPtr<JS::HeapFunction<void()>> on_dialog_closed)
 {
+    m_on_pending_dialog_closed = on_dialog_closed;
+
     switch (m_pending_dialog) {
     case PendingDialog::None:
         break;
@@ -358,6 +367,17 @@ void Page::accept_dialog()
     case PendingDialog::Prompt:
         m_client->page_did_request_accept_dialog();
         break;
+    }
+}
+
+void Page::on_pending_dialog_closed()
+{
+    m_pending_dialog = PendingDialog::None;
+    m_pending_dialog_text.clear();
+
+    if (m_on_pending_dialog_closed) {
+        m_on_pending_dialog_closed->function()();
+        m_on_pending_dialog_closed = nullptr;
     }
 }
 
@@ -432,19 +452,19 @@ void Page::select_dropdown_closed(Optional<u32> const& selected_item_id)
     }
 }
 
-void Page::register_media_element(Badge<HTML::HTMLMediaElement>, int media_id)
+void Page::register_media_element(Badge<HTML::HTMLMediaElement>, UniqueNodeID media_id)
 {
     m_media_elements.append(media_id);
 }
 
-void Page::unregister_media_element(Badge<HTML::HTMLMediaElement>, int media_id)
+void Page::unregister_media_element(Badge<HTML::HTMLMediaElement>, UniqueNodeID media_id)
 {
     m_media_elements.remove_all_matching([&](auto candidate_id) {
         return candidate_id == media_id;
     });
 }
 
-void Page::did_request_media_context_menu(i32 media_id, CSSPixelPoint position, ByteString const& target, unsigned modifiers, MediaContextMenu menu)
+void Page::did_request_media_context_menu(UniqueNodeID media_id, CSSPixelPoint position, ByteString const& target, unsigned modifiers, MediaContextMenu menu)
 {
     m_media_context_menu_element_id = media_id;
     client().page_did_request_media_context_menu(position, target, modifiers, move(menu));
@@ -457,7 +477,7 @@ WebIDL::ExceptionOr<void> Page::toggle_media_play_state()
         return {};
 
     // AD-HOC: An execution context is required for Promise creation hooks.
-    HTML::TemporaryExecutionContext execution_context { media_element->document().relevant_settings_object() };
+    HTML::TemporaryExecutionContext execution_context { media_element->realm() };
 
     if (media_element->potentially_playing())
         TRY(media_element->pause());
@@ -474,7 +494,7 @@ void Page::toggle_media_mute_state()
         return;
 
     // AD-HOC: An execution context is required for Promise creation hooks.
-    HTML::TemporaryExecutionContext execution_context { media_element->document().relevant_settings_object() };
+    HTML::TemporaryExecutionContext execution_context { media_element->realm() };
 
     media_element->set_muted(!media_element->muted());
 }
@@ -486,7 +506,7 @@ WebIDL::ExceptionOr<void> Page::toggle_media_loop_state()
         return {};
 
     // AD-HOC: An execution context is required for Promise creation hooks.
-    HTML::TemporaryExecutionContext execution_context { media_element->document().relevant_settings_object() };
+    HTML::TemporaryExecutionContext execution_context { media_element->realm() };
 
     if (media_element->has_attribute(HTML::AttributeNames::loop))
         media_element->remove_attribute(HTML::AttributeNames::loop);
@@ -502,7 +522,7 @@ WebIDL::ExceptionOr<void> Page::toggle_media_controls_state()
     if (!media_element)
         return {};
 
-    HTML::TemporaryExecutionContext execution_context { media_element->document().relevant_settings_object() };
+    HTML::TemporaryExecutionContext execution_context { media_element->realm() };
 
     if (media_element->has_attribute(HTML::AttributeNames::controls))
         media_element->remove_attribute(HTML::AttributeNames::controls);

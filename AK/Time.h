@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2020, Andreas Kling <kling@serenityos.org>
+ * Copyright (c) 2018-2020, Andreas Kling <andreas@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -12,7 +12,11 @@
 #include <AK/Checked.h>
 #include <AK/Platform.h>
 #include <AK/Types.h>
-#include <sys/time.h>
+#if defined(AK_OS_WINDOWS)
+#    include <winsock2.h>
+#else
+#    include <sys/time.h>
+#endif
 #include <time.h>
 
 namespace AK {

@@ -24,7 +24,7 @@ void SVGTSpanElement::initialize(JS::Realm& realm)
     WEB_SET_PROTOTYPE_FOR_INTERFACE(SVGTSpanElement);
 }
 
-JS::GCPtr<Layout::Node> SVGTSpanElement::create_layout_node(NonnullRefPtr<CSS::StyleProperties> style)
+JS::GCPtr<Layout::Node> SVGTSpanElement::create_layout_node(CSS::StyleProperties style)
 {
     // Text must be within an SVG <text> element.
     if (shadow_including_first_ancestor_of_type<SVGTextElement>())

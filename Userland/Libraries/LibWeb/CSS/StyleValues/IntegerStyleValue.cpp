@@ -10,7 +10,7 @@ namespace Web::CSS {
 
 String IntegerStyleValue::to_string() const
 {
-    return MUST(String::number(m_value));
+    return String::number(m_value);
 }
 
 }

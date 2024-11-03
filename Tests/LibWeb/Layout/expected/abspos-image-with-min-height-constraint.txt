@@ -4,6 +4,6 @@ Viewport <#document> at (0,0) content-size 800x600 children: not-inline
       ImageBox <img#zero-dimensions-but-min-percentages> at (8,8) content-size 800x600 positioned children: not-inline
 
 ViewportPaintable (Viewport<#document>) [0,0 800x600] overflow: [0,0 808x608]
-  PaintableWithLines (BlockContainer<HTML>) [0,0 800x16] overflow: [0,0 808x608]
-    PaintableWithLines (BlockContainer<BODY>) [8,8 784x0] overflow: [8,8 800x600]
+  PaintableWithLines (BlockContainer<HTML>) [0,0 800x16]
+    PaintableWithLines (BlockContainer<BODY>) [8,8 784x0]
       ImagePaintable (ImageBox<IMG>#zero-dimensions-but-min-percentages) [8,8 800x600]

@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS Flexible Box Layout Module Level 1: flex-flow sets longhands</title>
+<link rel="help" href="https://drafts.csswg.org/css-flexbox/#propdef-flex-flow">
+<meta name="assert" content="flex-flow supports the full grammar '<flex-direction> || <flex-wrap>'.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../support/shorthand-testcommon.js"></script>
+</head>
+<body>
+<script>
+test_shorthand_value('flex-flow', 'nowrap column', {
+  'flex-direction': 'column',
+  'flex-wrap': 'nowrap'
+});
+
+test_shorthand_value('flex-flow', 'wrap row-reverse', {
+  'flex-direction': 'row-reverse',
+  'flex-wrap': 'wrap'
+});
+</script>
+</body>
+</html>

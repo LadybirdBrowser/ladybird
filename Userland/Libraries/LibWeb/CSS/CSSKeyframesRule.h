@@ -28,8 +28,6 @@ public:
 
     virtual ~CSSKeyframesRule() = default;
 
-    virtual Type type() const override { return Type::Keyframes; }
-
     auto const& css_rules() const { return m_rules; }
     FlyString const& name() const { return m_name; }
     [[nodiscard]] WebIDL::UnsignedLong length() const;

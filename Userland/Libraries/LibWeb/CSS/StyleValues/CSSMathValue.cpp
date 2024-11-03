@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2020, Andreas Kling <kling@serenityos.org>
+ * Copyright (c) 2018-2020, Andreas Kling <andreas@ladybird.org>
  * Copyright (c) 2021, Tobias Christiansen <tobyase@serenityos.org>
  * Copyright (c) 2021-2024, Sam Atkins <sam@ladybird.org>
  * Copyright (c) 2022-2023, MacDue <macdue@dueutil.tech>
@@ -40,10 +40,25 @@ static double resolve_value(CSSMathValue::CalculationResult::Value value, Option
         [](Angle const& angle) { return angle.to_degrees(); },
         [](Flex const& flex) { return flex.to_fr(); },
         [](Frequency const& frequency) { return frequency.to_hertz(); },
-        [&context](Length const& length) { return length.to_px(*context).to_double(); },
         [](Percentage const& percentage) { return percentage.value(); },
         [](Resolution const& resolution) { return resolution.to_dots_per_pixel(); },
-        [](Time const& time) { return time.to_seconds(); });
+        [](Time const& time) { return time.to_seconds(); },
+        [&context](Length const& length) {
+            // Handle some common cases first, so we can resolve more without a context
+            if (length.is_auto())
+                return 0.0;
+
+            if (length.is_absolute())
+                return length.absolute_length_to_px().to_double();
+
+            // If we dont have a context, we cant resolve the length, so return NAN
+            if (!context.has_value()) {
+                dbgln("Failed to resolve length, likely due to calc() being used with relative units and a property not taking it into account");
+                return Number(Number::Type::Number, NAN).value();
+            }
+
+            return length.to_px(*context).to_double();
+        });
 }
 
 static Optional<CSSNumericType> add_the_types(Vector<NonnullOwnPtr<CalculationNode>> const& nodes, PropertyID property_id)
@@ -2390,6 +2405,12 @@ void CSSMathValue::CalculationResult::add_or_subtract_internal(SumOperation op, 
             }
         },
         [&](Length const& length) {
+            if (!context.has_value()) {
+                dbgln("CSSMathValue::CalculationResult::add_or_subtract_internal: Length without context");
+                m_value = Length::make_px(0);
+                return;
+            }
+
             auto this_px = length.to_px(*context);
             if (other.m_value.has<Length>()) {
                 auto other_px = other.m_value.get<Length>().to_px(*context);
@@ -2625,6 +2646,20 @@ bool CSSMathValue::equals(CSSStyleValue const& other) const
 Optional<Angle> CSSMathValue::resolve_angle() const
 {
     auto result = m_calculation->resolve({}, {});
+
+    if (result.value().has<Angle>())
+        return result.value().get<Angle>();
+    return {};
+}
+
+Optional<Angle> CSSMathValue::resolve_angle(Layout::Node const& layout_node) const
+{
+    return resolve_angle(Length::ResolutionContext::for_layout_node(layout_node));
+}
+
+Optional<Angle> CSSMathValue::resolve_angle(Length::ResolutionContext const& context) const
+{
+    auto result = m_calculation->resolve(context, {});
 
     if (result.value().has<Angle>())
         return result.value().get<Angle>();

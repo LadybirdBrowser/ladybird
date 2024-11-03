@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2023, Andreas Kling <kling@serenityos.org>
+ * Copyright (c) 2018-2023, Andreas Kling <andreas@ladybird.org>
  * Copyright (c) 2021, the SerenityOS developers.
  * Copyright (c) 2021, Sam Atkins <atkinssj@serenityos.org>
  * Copyright (c) 2023, Srikavin Ramkumar <me@srikavin.me>
@@ -86,7 +86,7 @@ private:
         URL::URL base_url;
         // origin
         //      An origin
-        HTML::Origin origin;
+        URL::Origin origin;
         // environment
         //      An environment
         JS::GCPtr<HTML::EnvironmentSettingsObject> environment;
@@ -139,6 +139,8 @@ private:
             Icon = 1 << 5,
         };
     };
+
+    JS::GCPtr<Fetch::Infrastructure::FetchController> m_fetch_controller;
 
     JS::GCPtr<CSS::CSSStyleSheet> m_loaded_style_sheet;
 

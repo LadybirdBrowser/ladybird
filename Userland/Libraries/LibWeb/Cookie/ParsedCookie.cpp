@@ -468,6 +468,30 @@ Optional<UnixDateTime> parse_date_time(StringView date_string)
     return parsed_cookie_date;
 }
 
+// https://www.ietf.org/archive/id/draft-ietf-httpbis-rfc6265bis-15.html#section-5.1.3
+bool domain_matches(StringView string, StringView domain_string)
+{
+    // A string domain-matches a given domain string if at least one of the following conditions hold:
+
+    // * The domain string and the string are identical. (Note that both the domain string and the string will have been
+    //   canonicalized to lower case at this point.)
+    if (string == domain_string)
+        return true;
+
+    // * All of the following conditions hold:
+    //   - The domain string is a suffix of the string.
+    if (!string.ends_with(domain_string))
+        return false;
+    //   - The last character of the string that is not included in the domain string is a %x2E (".") character.
+    if (string[string.length() - domain_string.length() - 1] != '.')
+        return false;
+    //   - The string is a host name (i.e., not an IP address).
+    if (AK::IPv4Address::from_string(string).has_value())
+        return false;
+
+    return true;
+}
+
 // https://www.ietf.org/archive/id/draft-ietf-httpbis-rfc6265bis-15.html#section-5.1.4
 String default_path(URL::URL const& url)
 {

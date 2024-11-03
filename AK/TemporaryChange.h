@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2020, Andreas Kling <kling@serenityos.org>
+ * Copyright (c) 2018-2020, Andreas Kling <andreas@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -15,11 +15,11 @@ class TemporaryChange {
 public:
     TemporaryChange(T& variable, T value)
         : m_variable(variable)
-        , m_old_value(variable)
+        , m_old_value(move(variable))
     {
-        m_variable = value;
+        m_variable = move(value);
     }
-    ~TemporaryChange() { m_variable = m_old_value; }
+    ~TemporaryChange() { m_variable = move(m_old_value); }
 
 private:
     T& m_variable;

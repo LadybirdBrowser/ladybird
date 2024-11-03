@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<link rel="help" href="https://github.com/w3c/csswg-drafts/issues/7639">
+<style>
+.target {
+  display: flex;
+  inline-size: 200px;
+  position: relative;
+  line-height: 0;
+  margin: 40px;
+  padding: 10px;
+  writing-mode: vertical-rl;
+}
+.target > div {
+  background: hotpink;
+  font-size: 20px;
+}
+.multicol {
+  columns: 3;
+  column-fill: auto;
+  padding: 10px;
+  border: solid 10px;
+}
+.multicol > div {
+  break-inside: avoid;
+  break-before: column;
+  break-after: column;
+}
+span {
+  display: inline-block;
+  width: 1em;
+  height: 1em;
+  outline: solid cyan 3px;
+  outline-offset: -3px;
+}
+</style>
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../resources/check-layout-th.js"></script>
+<body onload="checkLayout('.target > *')">
+
+<!-- Three columns, largest in the middle. -->
+<div class="target" style="align-items: first baseline;">
+  <div data-offset-x="105"><span></span></div>
+  <div class="multicol" data-offset-x="10">
+    <div style="font-size: 10px;">
+      <span></span><br><span></span><br><span></span>
+    </div>
+    <div style="font-size: 30px;">
+      <span></span><br><span></span><br><span></span>
+    </div>
+    <div style="font-size: 20px;">
+      <span></span><br><span></span><br><span></span>
+    </div>
+  </div>
+</div>
+
+<div class="target" style="align-items: last baseline;">
+  <div data-offset-x="35"><span></span></div>
+  <div class="multicol" data-offset-x="10">
+    <div style="font-size: 10px;">
+      <span></span><br><span></span><br><span></span>
+    </div>
+    <div style="font-size: 30px;">
+      <span></span><br><span></span><br><span></span>
+    </div>
+    <div style="font-size: 20px;">
+      <span></span><br><span></span><br><span></span>
+    </div>
+  </div>
+</div>
+
+<!-- Start spanning element. -->
+<div class="target" style="align-items: first baseline;">
+  <div data-offset-x="140"><span></span></div>
+  <div class="multicol" data-offset-x="10">
+    <div style="column-span: all; background: orange;">
+      <span></span><br><span></span>
+    </div>
+    <div style="font-size: 10px;">
+      <span></span><br><span></span><br><span></span>
+    </div>
+    <div style="font-size: 30px;">
+      <span></span><br><span></span><br><span></span>
+    </div>
+    <div style="font-size: 20px;">
+      <span></span><br><span></span><br><span></span>
+    </div>
+  </div>
+</div>
+
+<div class="target" style="align-items: last baseline;">
+  <div data-offset-x="35"><span></span></div>
+  <div class="multicol" data-offset-x="10">
+    <div style="column-span: all; background: orange;">
+      <span></span><br><span></span>
+    </div>
+    <div style="font-size: 10px;">
+      <span></span><br><span></span><br><span></span>
+    </div>
+    <div style="font-size: 30px;">
+      <span></span><br><span></span><br><span></span>
+    </div>
+    <div style="font-size: 20px;">
+      <span></span><br><span></span><br><span></span>
+    </div>
+  </div>
+</div>
+
+<!-- End spanning element. -->
+<div class="target" style="align-items: first baseline;">
+  <div data-offset-x="145"><span></span></div>
+  <div class="multicol" data-offset-x="10">
+    <div style="font-size: 10px;">
+      <span></span><br><span></span><br><span></span>
+    </div>
+    <div style="font-size: 30px;">
+      <span></span><br><span></span><br><span></span>
+    </div>
+    <div style="font-size: 20px;">
+      <span></span><br><span></span><br><span></span>
+    </div>
+    <div style="column-span: all; background: orange;">
+      <span></span><br><span></span>
+    </div>
+  </div>
+</div>
+
+<div class="target" style="align-items: last baseline;">
+  <div data-offset-x="30"><span></span></div>
+  <div class="multicol" data-offset-x="10">
+    <div style="font-size: 10px;">
+      <span></span><br><span></span><br><span></span>
+    </div>
+    <div style="font-size: 30px;">
+      <span></span><br><span></span><br><span></span>
+    </div>
+    <div style="font-size: 20px;">
+      <span></span><br><span></span><br><span></span>
+    </div>
+    <div style="column-span: all; background: orange;">
+      <span></span><br><span></span>
+    </div>
+  </div>
+</div>

@@ -13,15 +13,6 @@
 
 namespace Web::DOM {
 
-static CSS::StyleSheetList& relevant_style_sheet_list_for_node(DOM::Node& node)
-{
-    auto& root_node = node.root();
-    if (is<DOM::ShadowRoot>(root_node))
-        return static_cast<DOM::ShadowRoot&>(root_node).style_sheets();
-
-    return node.document().style_sheets();
-}
-
 // The user agent must run the "update a style block" algorithm whenever one of the following conditions occur:
 // FIXME: The element is popped off the stack of open elements of an HTML parser or XML parser.
 //
@@ -32,7 +23,7 @@ static CSS::StyleSheetList& relevant_style_sheet_list_for_node(DOM::Node& node)
 // The element is not on the stack of open elements of an HTML parser or XML parser, and it becomes connected or disconnected.
 //
 // https://html.spec.whatwg.org/multipage/semantics.html#update-a-style-block
-void StyleElementUtils::update_a_style_block(DOM::Element& style_element, JS::GCPtr<DOM::Node> old_parent_if_removed_from)
+void StyleElementUtils::update_a_style_block(DOM::Element& style_element)
 {
     // OPTIMIZATION: Skip parsing CSS if we're in the middle of parsing a HTML fragment.
     //               The style block will be parsed upon insertion into a proper document.
@@ -43,13 +34,8 @@ void StyleElementUtils::update_a_style_block(DOM::Element& style_element, JS::GC
     // 2. If element has an associated CSS style sheet, remove the CSS style sheet in question.
 
     if (m_associated_css_style_sheet) {
-        // NOTE: If we're here in response to a node being removed from the tree, we need to remove the stylesheet from the style scope
-        //       of the old parent, not the style scope of the node itself, since it's too late to find it that way!
-        if (old_parent_if_removed_from) {
-            relevant_style_sheet_list_for_node(*old_parent_if_removed_from).remove_a_css_style_sheet(*m_associated_css_style_sheet);
-        } else {
-            style_element.document_or_shadow_root_style_sheets().remove_a_css_style_sheet(*m_associated_css_style_sheet);
-        }
+        m_style_sheet_list->remove_a_css_style_sheet(*m_associated_css_style_sheet);
+        m_style_sheet_list = nullptr;
 
         // FIXME: This should probably be handled by StyleSheet::set_owner_node().
         m_associated_css_style_sheet = nullptr;
@@ -76,7 +62,8 @@ void StyleElementUtils::update_a_style_block(DOM::Element& style_element, JS::GC
     m_associated_css_style_sheet = sheet;
 
     // 6. Create a CSS style sheet with the following properties...
-    style_element.document_or_shadow_root_style_sheets().create_a_css_style_sheet(
+    m_style_sheet_list = style_element.document_or_shadow_root_style_sheets();
+    m_style_sheet_list->create_a_css_style_sheet(
         "text/css"_string,
         &style_element,
         style_element.attribute(HTML::AttributeNames::media).value_or({}),
@@ -89,6 +76,12 @@ void StyleElementUtils::update_a_style_block(DOM::Element& style_element, JS::GC
         nullptr,
         nullptr,
         *sheet);
+}
+
+void StyleElementUtils::visit_edges(JS::Cell::Visitor& visitor)
+{
+    visitor.visit(m_associated_css_style_sheet);
+    visitor.visit(m_style_sheet_list);
 }
 
 }

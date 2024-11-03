@@ -7,6 +7,7 @@
 #pragma once
 
 namespace URL {
+class Origin;
 class URL;
 class Parser;
 

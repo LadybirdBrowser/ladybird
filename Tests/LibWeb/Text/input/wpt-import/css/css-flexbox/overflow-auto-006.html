@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html>
+<title>CSS Flexbox: Height with overflow: auto.</title>
+<link href="support/flexbox.css" rel="stylesheet">
+<link rel="help" href="https://www.w3.org/TR/css-flexbox-1/#flex-direction-property">
+<link rel="help" href="https://www.w3.org/TR/css-overflow-4/#classic-scrollbars">
+<meta name="assert" content="This test ensures that flexbox with 'flex-direction: row|row-reverse' and a flex item child with 'overflow: auto' has the proper height."/>
+<style>
+.flexbox {
+    border: 5px solid green;
+    position: relative;
+    width: 50px;
+}
+
+.inline-flexbox {
+    border: 5px solid green;
+    position: relative;
+    height: 50px;
+}
+
+.overflow {
+    border: 1px solid red;
+    overflow: auto;
+    min-width: 0;
+    min-height: 0;
+}
+
+.vertical {
+    writing-mode: vertical-rl;
+}
+</style>
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../../resources/check-layout-th.js"></script>
+<body onload="checkLayout('.flexbox, .inline-flexbox')">
+<div id=log></div>
+<div class="flexbox to-be-checked" check-height check-accounts-scrollbar>
+  <div class="overflow"><div style="width: 100px; height: 20px"></div></div>
+</div>
+
+<div class="flexbox row-reverse to-be-checked" check-height check-accounts-scrollbar>
+  <div class="overflow"><div style="width: 100px; height: 20px"></div></div>
+</div>
+
+<div class="flexbox to-be-checked" check-height check-accounts-scrollbar>
+  <div class="overflow align-self-baseline"><div style="width: 100px; height: 20px"></div></div>
+</div>
+
+<div class="flexbox row-reverse to-be-checked" check-height check-accounts-scrollbar>
+  <div class="overflow align-self-baseline"><div style="width: 100px; height: 20px"></div></div>
+</div>
+
+<div class="flexbox vertical to-be-checked" check-height>
+  <div class="overflow align-self-baseline"><div style="width: 100px; height: 20px"></div></div>
+</div>
+
+<div class="flexbox row-reverse vertical to-be-checked" check-height>
+  <div class="overflow align-self-baseline"><div style="width: 100px; height: 20px"></div></div>
+</div>
+
+<div class="inline-flexbox column vertical to-be-checked" check-width check-accounts-scrollbar>
+  <div class="overflow"><div style="width: 20px; height: 100px"></div></div>
+</div>
+
+<div class="inline-flexbox column-reverse vertical to-be-checked" check-width check-accounts-scrollbar>
+  <div class="overflow"><div style="width: 20px; height: 100px"></div></div>
+</div>
+
+<div class="inline-flexbox column vertical to-be-checked" check-width>
+  <div class="overflow align-self-baseline"><div style="width: 20px; height: 100px"></div></div>
+</div>
+
+<div class="inline-flexbox column-reverse vertical to-be-checked" check-width>
+  <div class="overflow align-self-baseline"><div style="width: 20px; height: 100px"></div></div>
+</div>
+
+<!-- This div is only for measuring scrollbar size -->
+<div id="measure" style="height: 100px; width: 100px; display: inline-block; overflow: auto;">
+  <div style="min-height: 300px;"></div>
+</div>
+
+<script>
+  var measure = document.getElementById('measure');
+  var scrollbarSize = measure.offsetWidth - measure.clientWidth;
+
+  var nodes = document.getElementsByClassName("to-be-checked");
+  for (var i = 0; i < nodes.length; i++) {
+    var node = nodes[i];
+
+    // Here, the things contributing height are:
+    //
+    // (a) each innermost div contributes an explicit height: 20px value.
+    // (b) the .overflow div contributes 2px of border (1px top + bottom),
+    //     plus the height of its scrollbar from overflow:auto.
+    // (c) the .flexbox div contributes 10px of border (5px top + bottom).
+    //
+    // So, the total height is 20px + 2px + 10px + scrollbarHeight,
+    // which simplifies to 32px + scrollbarHeight.
+    //
+    // Analogously, the same logic applies for nodes where width is tested.
+    var size =  32;
+    if (node.hasAttribute("check-height")) {
+      var height = node.hasAttribute("check-accounts-scrollbar") ? scrollbarSize : 0;
+      node.setAttribute("data-expected-height", size + height);
+    } else {
+      var width = node.hasAttribute("check-accounts-scrollbar") ? scrollbarSize : 0;
+      node.setAttribute("data-expected-width", size + width);
+    }
+  }
+</script>
+</body>
+</html>

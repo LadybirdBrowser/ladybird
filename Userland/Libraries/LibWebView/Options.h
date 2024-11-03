@@ -40,6 +40,11 @@ enum class DisableSQLDatabase {
     Yes,
 };
 
+enum class EnableAutoplay {
+    No,
+    Yes,
+};
+
 struct ChromeOptions {
     Vector<URL::URL> urls;
     Vector<ByteString> raw_urls;
@@ -56,11 +61,6 @@ struct ChromeOptions {
 };
 
 enum class IsLayoutTestMode {
-    No,
-    Yes,
-};
-
-enum class UseLagomNetworking {
     No,
     Yes,
 };
@@ -95,19 +95,25 @@ enum class ForceFontconfig {
     Yes,
 };
 
+enum class CollectGarbageOnEveryAllocation {
+    No,
+    Yes,
+};
+
 struct WebContentOptions {
     String command_line;
     String executable_path;
     Optional<ByteString> config_path {};
     Optional<StringView> user_agent_preset {};
     IsLayoutTestMode is_layout_test_mode { IsLayoutTestMode::No };
-    UseLagomNetworking use_lagom_networking { UseLagomNetworking::Yes };
     LogAllJSExceptions log_all_js_exceptions { LogAllJSExceptions::No };
     EnableIDLTracing enable_idl_tracing { EnableIDLTracing::No };
     EnableHTTPCache enable_http_cache { EnableHTTPCache::No };
     ExposeInternalsObject expose_internals_object { ExposeInternalsObject::No };
     ForceCPUPainting force_cpu_painting { ForceCPUPainting::No };
     ForceFontconfig force_fontconfig { ForceFontconfig::No };
+    EnableAutoplay enable_autoplay { EnableAutoplay::No };
+    CollectGarbageOnEveryAllocation collect_garbage_on_every_allocation { CollectGarbageOnEveryAllocation::No };
 };
 
 }

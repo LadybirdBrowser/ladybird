@@ -20,14 +20,14 @@ void WebWorkerClient::did_close_worker()
         on_worker_close();
 }
 
-WebWorkerClient::WebWorkerClient(NonnullOwnPtr<Core::LocalSocket> socket)
-    : IPC::ConnectionToServer<WebWorkerClientEndpoint, WebWorkerServerEndpoint>(*this, move(socket))
+WebWorkerClient::WebWorkerClient(IPC::Transport transport)
+    : IPC::ConnectionToServer<WebWorkerClientEndpoint, WebWorkerServerEndpoint>(*this, move(transport))
 {
 }
 
-IPC::File WebWorkerClient::dup_socket()
+IPC::File WebWorkerClient::clone_transport()
 {
-    return MUST(IPC::File::clone_fd(socket().fd().value()));
+    return MUST(m_transport.clone_for_transfer());
 }
 
 }

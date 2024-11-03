@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2023, Andreas Kling <kling@serenityos.org>
+ * Copyright (c) 2018-2023, Andreas Kling <andreas@ladybird.org>
  * Copyright (c) 2021, Tobias Christiansen <tobyase@serenityos.org>
  * Copyright (c) 2021-2024, Sam Atkins <sam@ladybird.org>
  * Copyright (c) 2022-2023, MacDue <macdue@dueutil.tech>
@@ -117,12 +117,14 @@ public:
         Math,
         MathDepth,
         Number,
+        OpenTypeTagged,
         Percentage,
         Position,
         RadialGradient,
         Ratio,
         Rect,
         Resolution,
+        Rotation,
         ScrollbarGutter,
         Shadow,
         Shorthand,
@@ -260,6 +262,10 @@ public:
     NumberStyleValue const& as_number() const;
     NumberStyleValue& as_number() { return const_cast<NumberStyleValue&>(const_cast<CSSStyleValue const&>(*this).as_number()); }
 
+    bool is_open_type_tagged() const { return type() == Type::OpenTypeTagged; }
+    OpenTypeTaggedStyleValue const& as_open_type_tagged() const;
+    OpenTypeTaggedStyleValue& as_open_type_tagged() { return const_cast<OpenTypeTaggedStyleValue&>(const_cast<CSSStyleValue const&>(*this).as_open_type_tagged()); }
+
     bool is_percentage() const { return type() == Type::Percentage; }
     PercentageStyleValue const& as_percentage() const;
     PercentageStyleValue& as_percentage() { return const_cast<PercentageStyleValue&>(const_cast<CSSStyleValue const&>(*this).as_percentage()); }
@@ -283,6 +289,10 @@ public:
     bool is_resolution() const { return type() == Type::Resolution; }
     ResolutionStyleValue const& as_resolution() const;
     ResolutionStyleValue& as_resolution() { return const_cast<ResolutionStyleValue&>(const_cast<CSSStyleValue const&>(*this).as_resolution()); }
+
+    bool is_rotation() const { return type() == Type::Rotation; }
+    RotationStyleValue const& as_rotation() const;
+    RotationStyleValue& as_rotation() { return const_cast<RotationStyleValue&>(const_cast<CSSStyleValue const&>(*this).as_rotation()); }
 
     bool is_scrollbar_gutter() const { return type() == Type::ScrollbarGutter; }
     ScrollbarGutterStyleValue const& as_scrollbar_gutter() const;
@@ -344,7 +354,7 @@ public:
 
     [[nodiscard]] int to_font_weight() const;
     [[nodiscard]] int to_font_slope() const;
-    [[nodiscard]] int to_font_stretch_width() const;
+    [[nodiscard]] int to_font_width() const;
 
     virtual bool equals(CSSStyleValue const& other) const = 0;
 

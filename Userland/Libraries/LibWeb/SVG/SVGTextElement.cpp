@@ -23,7 +23,7 @@ void SVGTextElement::initialize(JS::Realm& realm)
     WEB_SET_PROTOTYPE_FOR_INTERFACE(SVGTextElement);
 }
 
-JS::GCPtr<Layout::Node> SVGTextElement::create_layout_node(NonnullRefPtr<CSS::StyleProperties> style)
+JS::GCPtr<Layout::Node> SVGTextElement::create_layout_node(CSS::StyleProperties style)
 {
     return heap().allocate_without_realm<Layout::SVGTextBox>(document(), *this, move(style));
 }

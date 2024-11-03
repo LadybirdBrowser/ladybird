@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2018-2024, Andreas Kling <andreas@ladybird.org>
- * Copyright (c) 2021-2024, Sam Atkins <atkinssj@serenityos.org>
+ * Copyright (c) 2021-2024, Sam Atkins <sam@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -23,9 +23,11 @@
 #include <LibWeb/CSS/StyleValues/LengthStyleValue.h>
 #include <LibWeb/CSS/StyleValues/MathDepthStyleValue.h>
 #include <LibWeb/CSS/StyleValues/NumberStyleValue.h>
+#include <LibWeb/CSS/StyleValues/OpenTypeTaggedStyleValue.h>
 #include <LibWeb/CSS/StyleValues/PercentageStyleValue.h>
 #include <LibWeb/CSS/StyleValues/PositionStyleValue.h>
 #include <LibWeb/CSS/StyleValues/RectStyleValue.h>
+#include <LibWeb/CSS/StyleValues/RotationStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ScrollbarGutterStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ShadowStyleValue.h>
 #include <LibWeb/CSS/StyleValues/StringStyleValue.h>
@@ -40,22 +42,16 @@ namespace Web::CSS {
 NonnullRefPtr<StyleProperties::Data> StyleProperties::Data::clone() const
 {
     auto clone = adopt_ref(*new StyleProperties::Data);
+    clone->m_animation_name_source = m_animation_name_source;
+    clone->m_transition_property_source = m_transition_property_source;
     clone->m_property_values = m_property_values;
-    clone->m_animated_property_values = m_animated_property_values;
     clone->m_property_important = m_property_important;
     clone->m_property_inherited = m_property_inherited;
+    clone->m_animated_property_values = m_animated_property_values;
+    clone->m_math_depth = m_math_depth;
     clone->m_font_list = m_font_list;
     clone->m_line_height = m_line_height;
-    clone->m_animation_name_source = m_animation_name_source;
-    clone->m_math_depth = m_math_depth;
     return clone;
-}
-
-NonnullRefPtr<StyleProperties> StyleProperties::clone() const
-{
-    auto cloned = adopt_ref(*new StyleProperties);
-    cloned->m_data = m_data;
-    return cloned;
 }
 
 bool StyleProperties::is_property_important(CSS::PropertyID property_id) const
@@ -112,10 +108,12 @@ void StyleProperties::reset_animated_properties()
     m_data->m_animated_property_values.clear();
 }
 
-NonnullRefPtr<CSSStyleValue const> StyleProperties::property(CSS::PropertyID property_id) const
+NonnullRefPtr<CSSStyleValue const> StyleProperties::property(CSS::PropertyID property_id, WithAnimationsApplied return_animated_value) const
 {
-    if (auto animated_value = m_data->m_animated_property_values.get(property_id).value_or(nullptr))
-        return *animated_value;
+    if (return_animated_value == WithAnimationsApplied::Yes) {
+        if (auto animated_value = m_data->m_animated_property_values.get(property_id).value_or(nullptr))
+            return *animated_value;
+    }
 
     // By the time we call this method, all properties have values assigned.
     return *m_data->m_property_values[to_underlying(property_id)];
@@ -322,6 +320,31 @@ float StyleProperties::fill_opacity() const
     return resolve_opacity_value(*value);
 }
 
+Optional<CSS::StrokeLinecap> StyleProperties::stroke_linecap() const
+{
+    auto value = property(CSS::PropertyID::StrokeLinecap);
+    return keyword_to_stroke_linecap(value->to_keyword());
+}
+
+Optional<CSS::StrokeLinejoin> StyleProperties::stroke_linejoin() const
+{
+    auto value = property(CSS::PropertyID::StrokeLinejoin);
+    return keyword_to_stroke_linejoin(value->to_keyword());
+}
+
+NumberOrCalculated StyleProperties::stroke_miterlimit() const
+{
+    auto value = property(CSS::PropertyID::StrokeMiterlimit);
+
+    if (value->is_math()) {
+        auto const& math_value = value->as_math();
+        VERIFY(math_value.resolves_to_number());
+        return NumberOrCalculated { math_value };
+    }
+
+    return NumberOrCalculated { value->as_number().number() };
+}
+
 float StyleProperties::stroke_opacity() const
 {
     auto value = property(CSS::PropertyID::StrokeOpacity);
@@ -398,20 +421,24 @@ Optional<CSS::ImageRendering> StyleProperties::image_rendering() const
     return keyword_to_image_rendering(value->to_keyword());
 }
 
-CSS::Length StyleProperties::border_spacing_horizontal() const
+CSS::Length StyleProperties::border_spacing_horizontal(Layout::Node const& layout_node) const
 {
     auto value = property(CSS::PropertyID::BorderSpacing);
     if (value->is_length())
         return value->as_length().length();
+    if (value->is_math())
+        return value->as_math().resolve_length(layout_node).value_or(CSS::Length(0, CSS::Length::Type::Px));
     auto const& list = value->as_value_list();
     return list.value_at(0, false)->as_length().length();
 }
 
-CSS::Length StyleProperties::border_spacing_vertical() const
+CSS::Length StyleProperties::border_spacing_vertical(Layout::Node const& layout_node) const
 {
     auto value = property(CSS::PropertyID::BorderSpacing);
     if (value->is_length())
         return value->as_length().length();
+    if (value->is_math())
+        return value->as_math().resolve_length(layout_node).value_or(CSS::Length(0, CSS::Length::Type::Px));
     auto const& list = value->as_value_list();
     return list.value_at(1, false)->as_length().length();
 }
@@ -514,12 +541,51 @@ Vector<CSS::Transformation> StyleProperties::transformations() const
     return transformations_for_style_value(property(CSS::PropertyID::Transform));
 }
 
+Optional<CSS::Transformation> StyleProperties::rotate(Layout::Node const& layout_node) const
+{
+    auto value = property(CSS::PropertyID::Rotate);
+    if (!value->is_rotation())
+        return {};
+    auto& rotation = value->as_rotation();
+
+    auto resolve_angle = [&layout_node](CSSStyleValue const& value) -> Optional<Angle> {
+        if (value.is_angle())
+            return value.as_angle().angle();
+        if (value.is_math() && value.as_math().resolves_to_angle())
+            return value.as_math().resolve_angle(layout_node);
+        return {};
+    };
+
+    auto resolve_number = [&](CSSStyleValue const& value) -> Optional<double> {
+        if (value.is_number())
+            return value.as_number().number();
+        if (value.is_math() && value.as_math().resolves_to_number())
+            return value.as_math().resolve_number();
+        return {};
+    };
+
+    auto x = resolve_number(rotation.rotation_x()).value_or(0);
+    auto y = resolve_number(rotation.rotation_y()).value_or(0);
+    auto z = resolve_number(rotation.rotation_z()).value_or(0);
+    auto angle = resolve_angle(rotation.angle()).value_or(Angle::make_degrees(0));
+
+    Vector<TransformValue> values;
+    values.append({ Number(Number::Type::Number, x) });
+    values.append({ Number(Number::Type::Number, y) });
+    values.append({ Number(Number::Type::Number, z) });
+    values.append({ angle });
+
+    return CSS::Transformation(CSS::TransformFunction::Rotate3d, move(values));
+}
+
 static Optional<LengthPercentage> length_percentage_for_style_value(CSSStyleValue const& value)
 {
     if (value.is_length())
         return value.as_length().length();
     if (value.is_percentage())
         return value.as_percentage().percentage();
+    if (value.is_math())
+        return LengthPercentage { const_cast<CSSMathValue&>(value.as_math()) };
     return {};
 }
 
@@ -599,12 +665,20 @@ Optional<CSS::Appearance> StyleProperties::appearance() const
     return appearance;
 }
 
-CSS::BackdropFilter StyleProperties::backdrop_filter() const
+CSS::Filter StyleProperties::backdrop_filter() const
 {
     auto value = property(CSS::PropertyID::BackdropFilter);
     if (value->is_filter_value_list())
-        return BackdropFilter(value->as_filter_value_list());
-    return BackdropFilter::make_none();
+        return Filter(value->as_filter_value_list());
+    return Filter::make_none();
+}
+
+CSS::Filter StyleProperties::filter() const
+{
+    auto value = property(CSS::PropertyID::Filter);
+    if (value->is_filter_value_list())
+        return Filter(value->as_filter_value_list());
+    return Filter::make_none();
 }
 
 Optional<CSS::Positioning> StyleProperties::position() const
@@ -669,10 +743,67 @@ Optional<CSS::PointerEvents> StyleProperties::pointer_events() const
     return keyword_to_pointer_events(value->to_keyword());
 }
 
+Variant<LengthOrCalculated, NumberOrCalculated> StyleProperties::tab_size() const
+{
+    auto value = property(CSS::PropertyID::TabSize);
+    if (value->is_math()) {
+        auto const& math_value = value->as_math();
+        if (math_value.resolves_to_length()) {
+            return LengthOrCalculated { math_value };
+        }
+        if (math_value.resolves_to_number()) {
+            return NumberOrCalculated { math_value };
+        }
+    }
+
+    if (value->is_length())
+        return LengthOrCalculated { value->as_length().length() };
+
+    return NumberOrCalculated { value->as_number().number() };
+}
+
+Optional<CSS::WordBreak> StyleProperties::word_break() const
+{
+    auto value = property(CSS::PropertyID::WordBreak);
+    return keyword_to_word_break(value->to_keyword());
+}
+
+Optional<CSS::LengthOrCalculated> StyleProperties::word_spacing() const
+{
+    auto value = property(CSS::PropertyID::WordSpacing);
+    if (value->is_math()) {
+        auto& math_value = value->as_math();
+        if (math_value.resolves_to_length()) {
+            return LengthOrCalculated { math_value };
+        }
+    }
+
+    if (value->is_length())
+        return LengthOrCalculated { value->as_length().length() };
+
+    return {};
+}
+
 Optional<CSS::WhiteSpace> StyleProperties::white_space() const
 {
     auto value = property(CSS::PropertyID::WhiteSpace);
     return keyword_to_white_space(value->to_keyword());
+}
+
+Optional<LengthOrCalculated> StyleProperties::letter_spacing() const
+{
+    auto value = property(CSS::PropertyID::LetterSpacing);
+    if (value->is_math()) {
+        auto const& math_value = value->as_math();
+        if (math_value.resolves_to_length()) {
+            return LengthOrCalculated { math_value };
+        }
+    }
+
+    if (value->is_length())
+        return LengthOrCalculated { value->as_length().length() };
+
+    return {};
 }
 
 Optional<CSS::LineStyle> StyleProperties::line_style(CSS::PropertyID property_id) const
@@ -997,6 +1128,68 @@ Optional<CSS::FontVariant> StyleProperties::font_variant() const
     return keyword_to_font_variant(value->to_keyword());
 }
 
+Optional<FlyString> StyleProperties::font_language_override() const
+{
+    auto value = property(CSS::PropertyID::FontLanguageOverride);
+    if (value->is_string())
+        return value->as_string().string_value();
+    return {};
+}
+
+Optional<HashMap<FlyString, IntegerOrCalculated>> StyleProperties::font_feature_settings() const
+{
+    auto value = property(PropertyID::FontFeatureSettings);
+
+    if (value->is_keyword())
+        return {}; // normal
+
+    if (value->is_value_list()) {
+        auto const& feature_tags = value->as_value_list().values();
+        HashMap<FlyString, IntegerOrCalculated> result;
+        result.ensure_capacity(feature_tags.size());
+        for (auto const& tag_value : feature_tags) {
+            auto const& feature_tag = tag_value->as_open_type_tagged();
+
+            if (feature_tag.value()->is_integer()) {
+                result.set(feature_tag.tag(), feature_tag.value()->as_integer().value());
+            } else {
+                VERIFY(feature_tag.value()->is_math());
+                result.set(feature_tag.tag(), IntegerOrCalculated { feature_tag.value()->as_math() });
+            }
+        }
+        return result;
+    }
+
+    return {};
+}
+
+Optional<HashMap<FlyString, NumberOrCalculated>> StyleProperties::font_variation_settings() const
+{
+    auto value = property(CSS::PropertyID::FontVariationSettings);
+
+    if (value->is_keyword())
+        return {}; // normal
+
+    if (value->is_value_list()) {
+        auto const& axis_tags = value->as_value_list().values();
+        HashMap<FlyString, NumberOrCalculated> result;
+        result.ensure_capacity(axis_tags.size());
+        for (auto const& tag_value : axis_tags) {
+            auto const& axis_tag = tag_value->as_open_type_tagged();
+
+            if (axis_tag.value()->is_number()) {
+                result.set(axis_tag.tag(), axis_tag.value()->as_number().value());
+            } else {
+                VERIFY(axis_tag.value()->is_math());
+                result.set(axis_tag.tag(), NumberOrCalculated { axis_tag.value()->as_math() });
+            }
+        }
+        return result;
+    }
+
+    return {};
+}
+
 CSS::GridTrackSizeList StyleProperties::grid_auto_columns() const
 {
     auto value = property(CSS::PropertyID::GridAutoColumns);
@@ -1102,6 +1295,12 @@ Optional<CSS::Direction> StyleProperties::direction() const
 {
     auto value = property(CSS::PropertyID::Direction);
     return keyword_to_direction(value->to_keyword());
+}
+
+Optional<CSS::UnicodeBidi> StyleProperties::unicode_bidi() const
+{
+    auto value = property(CSS::PropertyID::UnicodeBidi);
+    return keyword_to_unicode_bidi(value->to_keyword());
 }
 
 Optional<CSS::MaskType> StyleProperties::mask_type() const

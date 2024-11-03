@@ -38,7 +38,7 @@ WebIDL::ExceptionOr<Infrastructure::BodyWithType> safely_extract_body(JS::Realm&
 // https://fetch.spec.whatwg.org/#concept-bodyinit-extract
 WebIDL::ExceptionOr<Infrastructure::BodyWithType> extract_body(JS::Realm& realm, BodyInitOrReadableBytes const& object, bool keepalive)
 {
-    HTML::TemporaryExecutionContext execution_context { Bindings::host_defined_environment_settings_object(realm), HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
+    HTML::TemporaryExecutionContext execution_context { realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
 
     auto& vm = realm.vm();
 
@@ -145,8 +145,8 @@ WebIDL::ExceptionOr<Infrastructure::BodyWithType> extract_body(JS::Realm& realm,
 
     // 12. If action is non-null, then run these steps in parallel:
     if (action) {
-        Platform::EventLoopPlugin::the().deferred_invoke([&realm, stream, action = move(action)] {
-            HTML::TemporaryExecutionContext execution_context { Bindings::host_defined_environment_settings_object(realm), HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
+        Platform::EventLoopPlugin::the().deferred_invoke(JS::create_heap_function(realm.heap(), [&realm, stream, action = move(action)] {
+            HTML::TemporaryExecutionContext execution_context { realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
 
             // 1. Run action.
             auto bytes = action();
@@ -162,7 +162,7 @@ WebIDL::ExceptionOr<Infrastructure::BodyWithType> extract_body(JS::Realm& realm,
 
             // When running action is done, close stream.
             stream->close();
-        });
+        }));
     }
 
     // 13. Let body be a body whose stream is stream, source is source, and length is length.

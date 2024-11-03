@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022, Andreas Kling <kling@serenityos.org>
+ * Copyright (c) 2022, Andreas Kling <andreas@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -18,7 +18,7 @@ class SVGForeignObjectElement final : public SVGGraphicsElement {
 public:
     virtual ~SVGForeignObjectElement() override;
 
-    virtual JS::GCPtr<Layout::Node> create_layout_node(NonnullRefPtr<CSS::StyleProperties>) override;
+    virtual JS::GCPtr<Layout::Node> create_layout_node(CSS::StyleProperties) override;
 
     JS::NonnullGCPtr<SVG::SVGAnimatedLength> x();
     JS::NonnullGCPtr<SVG::SVGAnimatedLength> y();

@@ -13,5 +13,5 @@ ViewportPaintable (Viewport<#document>) [0,0 800x600]
     PaintableWithLines (BlockContainer<BODY>) [9,9 502x103]
       PaintableWithLines (BlockContainer<DIV>.a) [10,10 500x101]
         PaintableWithLines (BlockContainer<DIV>.b) [71,51 378x19]
-          InlinePaintable (InlineNode<SPAN>)
+          PaintableWithLines (InlineNode<SPAN>)
             TextPaintable (TextNode<#text>)

@@ -29,6 +29,15 @@ public:
 
     Gfx::Rect<CSSPixels> bounding_box() const;
 
+    // FIXME: This is a hack for images used as CanvasImageSource. Do something more elegant.
+    RefPtr<Gfx::Bitmap> bitmap() const
+    {
+        auto bitmap = current_image_bitmap();
+        if (!bitmap)
+            return nullptr;
+        return bitmap->bitmap();
+    }
+
     // ^Layout::ImageProvider
     virtual bool is_image_available() const override;
     virtual Optional<CSSPixels> intrinsic_width() const override;
@@ -48,7 +57,7 @@ protected:
     void fetch_the_document(URL::URL const& url);
 
 private:
-    virtual JS::GCPtr<Layout::Node> create_layout_node(NonnullRefPtr<CSS::StyleProperties>) override;
+    virtual JS::GCPtr<Layout::Node> create_layout_node(CSS::StyleProperties) override;
     void animate();
 
     JS::GCPtr<SVG::SVGAnimatedLength> m_x;

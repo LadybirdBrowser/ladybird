@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2021, Andreas Kling <kling@serenityos.org>
+ * Copyright (c) 2018-2021, Andreas Kling <andreas@ladybird.org>
  * Copyright (c) 2021, Gunnar Beutner <gbeutner@serenityos.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
@@ -202,6 +202,17 @@ public:
         MUST(try_ensure_capacity(new_capacity));
     }
 
+    void set_size(size_t new_size, ZeroFillNewElements zero_fill_new_elements = ZeroFillNewElements::No)
+    {
+        ASSERT(new_size <= capacity());
+
+        if (zero_fill_new_elements == ZeroFillNewElements::Yes) {
+            __builtin_memset(data() + m_size, 0, new_size - m_size);
+        }
+
+        m_size = new_size;
+    }
+
     ErrorOr<void> try_resize(size_t new_size, ZeroFillNewElements zero_fill_new_elements = ZeroFillNewElements::No)
     {
         if (new_size <= m_size) {
@@ -210,11 +221,8 @@ public:
         }
         TRY(try_ensure_capacity(new_size));
 
-        if (zero_fill_new_elements == ZeroFillNewElements::Yes) {
-            __builtin_memset(data() + m_size, 0, new_size - m_size);
-        }
+        set_size(new_size, zero_fill_new_elements);
 
-        m_size = new_size;
         return {};
     }
 

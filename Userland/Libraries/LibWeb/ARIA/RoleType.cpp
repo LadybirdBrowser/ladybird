@@ -15,6 +15,7 @@ RoleType::RoleType(AriaData const& data)
 {
 }
 
+// https://w3c.github.io/aria/#global_states
 constexpr StateAndProperties supported_state_array[] = {
     StateAndProperties::AriaBusy,
     StateAndProperties::AriaCurrent,
@@ -23,10 +24,14 @@ constexpr StateAndProperties supported_state_array[] = {
     StateAndProperties::AriaHidden,
     StateAndProperties::AriaInvalid
 };
+// https://w3c.github.io/aria/#global_states
 constexpr StateAndProperties supported_properties_array[] = {
     StateAndProperties::AriaAtomic,
+    StateAndProperties::AriaBrailleLabel,
+    StateAndProperties::AriaBrailleRoleDescription,
     StateAndProperties::AriaControls,
     StateAndProperties::AriaDescribedBy,
+    StateAndProperties::AriaDescription,
     StateAndProperties::AriaDetails,
     StateAndProperties::AriaDropEffect,
     StateAndProperties::AriaFlowTo,

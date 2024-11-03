@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023, Andreas Kling <kling@serenityos.org>
+ * Copyright (c) 2023, Andreas Kling <andreas@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -11,7 +11,6 @@
 #include <LibGfx/Size.h>
 #include <LibJS/Heap/Handle.h>
 #include <LibJS/Heap/HeapFunction.h>
-#include <LibJS/SafeFunction.h>
 #include <LibURL/URL.h>
 #include <LibWeb/Forward.h>
 

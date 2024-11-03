@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-2022, Andreas Kling <kling@serenityos.org>
+ * Copyright (c) 2020-2022, Andreas Kling <andreas@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -11,7 +11,7 @@ namespace Web::Layout {
 
 JS_DEFINE_ALLOCATOR(CanvasBox);
 
-CanvasBox::CanvasBox(DOM::Document& document, HTML::HTMLCanvasElement& element, NonnullRefPtr<CSS::StyleProperties> style)
+CanvasBox::CanvasBox(DOM::Document& document, HTML::HTMLCanvasElement& element, CSS::StyleProperties style)
     : ReplacedBox(document, element, move(style))
 {
 }

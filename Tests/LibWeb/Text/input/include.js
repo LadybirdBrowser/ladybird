@@ -1,5 +1,6 @@
 var __outputElement = null;
 let __alreadyCalledTest = false;
+let __originalURL = null;
 function __preventMultipleTestFunctions() {
     if (__alreadyCalledTest) {
         throw new Error("You must only call test() or asyncTest() once per page");
@@ -10,7 +11,22 @@ function __preventMultipleTestFunctions() {
 if (globalThis.internals === undefined) {
     internals = {
         signalTextTestIsDone: function () {},
+        spoofCurrentURL: function (url) {},
     };
+}
+
+function __finishTest() {
+    if (__originalURL) {
+        internals.spoofCurrentURL(__originalURL);
+    }
+    internals.signalTextTestIsDone(__outputElement.innerText);
+}
+
+function spoofCurrentURL(url) {
+    if (__originalURL === null) {
+        __originalURL = document.location.href;
+    }
+    internals.spoofCurrentURL(url);
 }
 
 function println(s) {
@@ -36,6 +52,20 @@ function timeout(ms) {
     return promise;
 }
 
+const __testErrorHandlerController = new AbortController();
+window.addEventListener(
+    "error",
+    event => {
+        println(`Uncaught Error In Test: ${event.message}`);
+        __finishTest();
+    },
+    { signal: __testErrorHandlerController.signal }
+);
+
+function removeTestErrorHandler() {
+    __testErrorHandlerController.abort();
+}
+
 document.addEventListener("DOMContentLoaded", function () {
     __outputElement = document.createElement("pre");
     __outputElement.setAttribute("id", "out");
@@ -46,14 +76,14 @@ function test(f) {
     __preventMultipleTestFunctions();
     document.addEventListener("DOMContentLoaded", f);
     window.addEventListener("load", () => {
-        internals.signalTextTestIsDone();
+        __finishTest();
     });
 }
 
 function asyncTest(f) {
     const done = () => {
         __preventMultipleTestFunctions();
-        internals.signalTextTestIsDone();
+        __finishTest();
     };
     document.addEventListener("DOMContentLoaded", () => {
         f(done);
@@ -64,7 +94,7 @@ function promiseTest(f) {
     document.addEventListener("DOMContentLoaded", () => {
         f().then(() => {
             __preventMultipleTestFunctions();
-            internals.signalTextTestIsDone();
+            __finishTest();
         });
     });
 }

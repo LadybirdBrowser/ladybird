@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021, Andreas Kling <kling@serenityos.org>
+ * Copyright (c) 2021, Andreas Kling <andreas@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -50,7 +50,7 @@ String HTMLHyperlinkElementUtils::origin() const
         return String {};
 
     // 3. Return the serialization of this element's url's origin.
-    return MUST(String::from_byte_string(m_url->serialize_origin()));
+    return MUST(String::from_byte_string(m_url->origin().serialize()));
 }
 
 // https://html.spec.whatwg.org/multipage/links.html#dom-hyperlink-protocol
@@ -244,7 +244,7 @@ String HTMLHyperlinkElementUtils::port() const
         return String {};
 
     // 4. Return url's port, serialized.
-    return MUST(String::number(url->port().value()));
+    return String::number(url->port().value());
 }
 
 // https://html.spec.whatwg.org/multipage/links.html#dom-hyperlink-port

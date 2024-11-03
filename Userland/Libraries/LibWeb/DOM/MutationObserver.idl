@@ -4,19 +4,16 @@
 // https://dom.spec.whatwg.org/#interface-mutationobserver
 [Exposed=Window]
 interface MutationObserver {
-
     constructor(MutationCallback callback);
 
     undefined observe(Node target, optional MutationObserverInit options = {});
     undefined disconnect();
     sequence<MutationRecord> takeRecords();
-
 };
 
 callback MutationCallback = undefined (sequence<MutationRecord> mutations, MutationObserver observer);
 
 dictionary MutationObserverInit {
-
     boolean childList = false;
     boolean attributes;
     boolean characterData;
@@ -24,5 +21,4 @@ dictionary MutationObserverInit {
     boolean attributeOldValue;
     boolean characterDataOldValue;
     sequence<DOMString> attributeFilter;
-
 };

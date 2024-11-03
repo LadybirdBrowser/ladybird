@@ -1,0 +1,30 @@
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        let testCases = [
+            // src
+            // - local()
+            "@font-face { font-family: 'a1'; src: local('xyz'); }",
+
+            // font-feature-settings is sorted by tag
+            "@font-face { font-family: 'b1'; font-feature-settings: 'bbbb' 0, 'aaaa', 'zzzz' 1, 'yyyy' 3; }",
+            // font-feature-settings deduplicates tags, keeping the last value
+            "@font-face { font-family: 'b2'; font-feature-settings: 'aaaa', 'aaaa' 0, 'aaaa' 3; }",
+
+            // font-width
+            "@font-face { font-family: 'c1'; font-width: extra-condensed; }",
+            "@font-face { font-family: 'c2'; font-width: 50%; }",
+            // - font-stretch is a legacy alias for font-width
+            "@font-face { font-family: 'c3'; font-stretch: extra-condensed; }",
+            "@font-face { font-family: 'c4'; font-stretch: 50%; }",
+        ];
+        for (let testCase of testCases) {
+            let style = document.createElement("style");
+            style.innerText = testCase;
+            document.head.appendChild(style);
+            let sheet = style.sheet;
+            println(sheet.cssRules[0].cssText);
+            style.remove();
+        }
+    });
+</script>

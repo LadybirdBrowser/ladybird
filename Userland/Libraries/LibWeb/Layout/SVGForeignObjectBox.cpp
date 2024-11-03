@@ -12,7 +12,7 @@ namespace Web::Layout {
 
 JS_DEFINE_ALLOCATOR(SVGForeignObjectBox);
 
-SVGForeignObjectBox::SVGForeignObjectBox(DOM::Document& document, SVG::SVGForeignObjectElement& element, NonnullRefPtr<CSS::StyleProperties> properties)
+SVGForeignObjectBox::SVGForeignObjectBox(DOM::Document& document, SVG::SVGForeignObjectElement& element, CSS::StyleProperties properties)
     : BlockContainer(document, &element, properties)
 {
 }

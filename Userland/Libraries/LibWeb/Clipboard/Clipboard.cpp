@@ -44,7 +44,7 @@ void Clipboard::initialize(JS::Realm& realm)
 static String os_specific_well_known_format(StringView mime_type_string)
 {
     // NOTE: Here we always takes the Linux case, and defer to the chrome layer to handle OS specific implementations.
-    auto mime_type = MUST(MimeSniff::MimeType::parse(mime_type_string));
+    auto mime_type = MimeSniff::MimeType::parse(mime_type_string);
 
     // 1. Let wellKnownFormat be an empty string.
     String well_known_format {};
@@ -142,7 +142,7 @@ static bool check_clipboard_write_permission(JS::Realm& realm)
 }
 
 // https://w3c.github.io/clipboard-apis/#dom-clipboard-writetext
-JS::NonnullGCPtr<JS::Promise> Clipboard::write_text(String data)
+JS::NonnullGCPtr<WebIDL::Promise> Clipboard::write_text(String data)
 {
     // 1. Let realm be this's relevant realm.
     auto& realm = HTML::relevant_realm(*this);
@@ -151,7 +151,7 @@ JS::NonnullGCPtr<JS::Promise> Clipboard::write_text(String data)
     auto promise = WebIDL::create_promise(realm);
 
     // 3. Run the following steps in parallel:
-    Platform::EventLoopPlugin::the().deferred_invoke([&realm, promise, data = move(data)]() mutable {
+    Platform::EventLoopPlugin::the().deferred_invoke(JS::create_heap_function(realm.heap(), [&realm, promise, data = move(data)]() mutable {
         // 1. Let r be the result of running check clipboard write permission.
         auto result = check_clipboard_write_permission(realm);
 
@@ -160,8 +160,8 @@ JS::NonnullGCPtr<JS::Promise> Clipboard::write_text(String data)
             // 1. Queue a global task on the permission task source, given realm’s global object, to reject p with
             //    "NotAllowedError" DOMException in realm.
             queue_global_task(HTML::Task::Source::Permissions, realm.global_object(), JS::create_heap_function(realm.heap(), [&realm, promise]() mutable {
-                HTML::TemporaryExecutionContext execution_context { Bindings::host_defined_environment_settings_object(realm) };
-                WebIDL::reject_promise(realm, promise, WebIDL::NotAllowedError::create(realm, "Clipboard writing is only allowed through user activation"_fly_string));
+                HTML::TemporaryExecutionContext execution_context { realm };
+                WebIDL::reject_promise(realm, promise, WebIDL::NotAllowedError::create(realm, "Clipboard writing is only allowed through user activation"_string));
             }));
 
             // 2. Abort these steps.
@@ -188,13 +188,13 @@ JS::NonnullGCPtr<JS::Promise> Clipboard::write_text(String data)
             write_blobs_and_option_to_clipboard(realm, item_list, move(option));
 
             // 6. Resolve p.
-            HTML::TemporaryExecutionContext execution_context { Bindings::host_defined_environment_settings_object(realm) };
+            HTML::TemporaryExecutionContext execution_context { realm };
             WebIDL::resolve_promise(realm, promise, JS::js_undefined());
         }));
-    });
+    }));
 
     // 4. Return p.
-    return JS::NonnullGCPtr { verify_cast<JS::Promise>(*promise->promise()) };
+    return promise;
 }
 
 }

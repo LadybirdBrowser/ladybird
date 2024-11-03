@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022, Andreas Kling <kling@serenityos.org>
+ * Copyright (c) 2022, Andreas Kling <andreas@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -38,6 +38,8 @@ void InlineLevelIterator::enter_node_with_box_model_metrics(Layout::NodeWithStyl
     used_values.border_left = computed_values.border_left().width;
     used_values.padding_left = computed_values.padding().left().to_px(node, m_containing_block_used_values.content_width());
 
+    used_values.border_top = computed_values.border_top().width;
+    used_values.border_bottom = computed_values.border_bottom().width;
     used_values.padding_bottom = computed_values.padding().bottom().to_px(node, m_containing_block_used_values.content_width());
     used_values.padding_top = computed_values.padding().top().to_px(node, m_containing_block_used_values.content_width());
 
@@ -239,7 +241,61 @@ Optional<InlineLevelIterator::Item> InlineLevelIterator::next_without_lookahead(
             };
         }
 
-        auto glyph_run = Gfx::shape_text({ 0, 0 }, chunk.view, chunk.font, text_type);
+        auto x = 0.0f;
+        if (chunk.has_breaking_tab) {
+            CSSPixels accumulated_width;
+
+            // make sure to account for any fragments that take up a portion of the measured tab stop distance
+            auto fragments = m_containing_block_used_values.line_boxes.last().fragments();
+            for (auto const& frag : fragments) {
+                accumulated_width += frag.width();
+            }
+
+            // https://drafts.csswg.org/css-text/#tab-size-property
+            auto tab_size = text_node.computed_values().tab_size();
+            auto resolution_context = CSS::Length::ResolutionContext::for_layout_node(text_node);
+            CSSPixels tab_width;
+            tab_width = tab_size.visit(
+                [&](CSS::LengthOrCalculated const& t) -> CSSPixels {
+                    auto value = t.resolved(resolution_context);
+                    return value.to_px(text_node);
+                },
+                [&](CSS::NumberOrCalculated const& n) -> CSSPixels {
+                    auto tab_number = n.resolved(text_node);
+                    auto computed_letter_spacing = text_node.computed_values().letter_spacing();
+                    auto computed_word_spacing = text_node.computed_values().word_spacing();
+
+                    auto letter_spacing = computed_letter_spacing.resolved(resolution_context).to_px(text_node);
+                    auto word_spacing = computed_word_spacing.resolved(resolution_context).to_px(text_node);
+
+                    return CSSPixels::nearest_value_for(tab_number * (chunk.font->glyph_width(' ') + word_spacing.to_float() + letter_spacing.to_float()));
+                });
+
+            // https://drafts.csswg.org/css-text/#white-space-phase-2
+            // if fragments have added to the width, calculate the net distance to the next tab stop, otherwise the shift will just be the tab width
+            auto tab_stop_dist = accumulated_width > 0 ? (ceil((accumulated_width / tab_width)) * tab_width) - accumulated_width : tab_width;
+            auto ch_width = chunk.font->glyph_width('0');
+
+            // If this distance is less than 0.5ch, then the subsequent tab stop is used instead
+            if (tab_stop_dist < ch_width * 0.5)
+                tab_stop_dist += tab_width;
+
+            // account for consecutive tabs
+            auto num_of_tabs = 0;
+            for (auto code_point : chunk.view) {
+                if (code_point != '\t')
+                    break;
+                num_of_tabs++;
+            }
+            tab_stop_dist = tab_stop_dist * num_of_tabs;
+
+            // remove tabs, we don't want to render them when we shape the text
+            chunk.view = chunk.view.substring_view(num_of_tabs);
+            x = tab_stop_dist.to_float();
+        }
+
+        auto glyph_run = Gfx::shape_text({ x, 0 }, chunk.view, chunk.font, text_type);
+
         CSSPixels chunk_width = CSSPixels::nearest_value_for(glyph_run->width());
 
         // NOTE: We never consider `content: ""` to be collapsible whitespace.
@@ -357,7 +413,7 @@ void InlineLevelIterator::enter_text_node(Layout::TextNode const& text_node)
         .do_respect_linebreaks = do_respect_linebreaks,
         .is_first_chunk = true,
         .is_last_chunk = false,
-        .chunk_iterator = TextNode::ChunkIterator { text_node.text_for_rendering(), do_wrap_lines, do_respect_linebreaks, text_node.computed_values().font_list() },
+        .chunk_iterator = TextNode::ChunkIterator { text_node, do_wrap_lines, do_respect_linebreaks },
     };
 }
 

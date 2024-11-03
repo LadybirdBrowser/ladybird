@@ -1,0 +1,45 @@
+Summary
+
+Harness status: OK
+
+Rerun
+
+Found 35 tests
+
+35 Pass
+Details
+Result	Test Name	MessagePass	.x:has(.a) matches expected elements	
+Pass	.x:has(.a > .b) matches expected elements	
+Pass	.x:has(.a .b) matches expected elements	
+Pass	.x:has(.a + .b) matches expected elements	
+Pass	.x:has(.a ~ .b) matches expected elements	
+Pass	.x:has(> .a) matches expected elements	
+Pass	.x:has(> .a > .b) matches expected elements	
+Pass	.x:has(> .a .b) matches expected elements	
+Pass	.x:has(> .a + .b) matches expected elements	
+Pass	.x:has(> .a ~ .b) matches expected elements	
+Pass	.x:has(+ .a) matches expected elements	
+Pass	.x:has(+ .a > .b) matches expected elements	
+Pass	.x:has(+ .a .b) matches expected elements	
+Pass	.x:has(+ .a + .b) matches expected elements	
+Pass	.x:has(+ .a ~ .b) matches expected elements	
+Pass	.x:has(~ .a) matches expected elements	
+Pass	.x:has(~ .a > .b) matches expected elements	
+Pass	.x:has(~ .a .b) matches expected elements	
+Pass	.x:has(~ .a + .b) matches expected elements	
+Pass	.x:has(~ .a + .b > .c) matches expected elements	
+Pass	.x:has(~ .a + .b .c) matches expected elements	
+Pass	.x:has(.d .e) matches expected elements	
+Pass	.x:has(.d .e) .f matches expected elements	
+Pass	.x:has(> .d) matches expected elements	
+Pass	.x:has(> .d) .f matches expected elements	
+Pass	.x:has(~ .d ~ .e) matches expected elements	
+Pass	.x:has(~ .d ~ .e) ~ .f matches expected elements	
+Pass	.x:has(+ .d ~ .e) matches expected elements	
+Pass	.x:has(+ .d ~ .e) ~ .f matches expected elements	
+Pass	.y:has(> .g .h) matches expected elements	
+Pass	.y:has(.g .h) matches expected elements	
+Pass	.y:has(> .g .h) .i matches expected elements	
+Pass	.y:has(.g .h) .i matches expected elements	
+Pass	.d .x:has(.e) matches expected elements	
+Pass	.d ~ .x:has(~ .e) matches expected elements	

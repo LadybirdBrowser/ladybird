@@ -17,6 +17,7 @@
 #include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
 #include <LibWeb/HTML/StructuredSerialize.h>
 #include <LibWeb/Infra/Strings.h>
+#include <LibWeb/MimeSniff/MimeType.h>
 #include <LibWeb/Streams/AbstractOperations.h>
 #include <LibWeb/Streams/ReadableStreamDefaultReader.h>
 #include <LibWeb/WebIDL/AbstractOperations.h>
@@ -197,17 +198,17 @@ JS::NonnullGCPtr<Blob> Blob::create(JS::Realm& realm, Optional<Vector<BlobPart>>
     auto type = String {};
     // 3. If the type member of the options argument is not the empty string, run the following sub-steps:
     if (options.has_value() && !options->type.is_empty()) {
-        // 1. If the type member is provided and is not the empty string, let t be set to the type dictionary member.
+        // FIXME: 1. If the type member is provided and is not the empty string, let t be set to the type dictionary member.
         //    If t contains any characters outside the range U+0020 to U+007E, then set t to the empty string and return from these substeps.
-        //    NOTE: t is set to empty string at declaration.
-        if (!options->type.is_empty()) {
-            if (is_basic_latin(options->type))
-                type = options->type;
-        }
+        // FIXME: 2. Convert every character in t to ASCII lowercase.
 
-        // 2. Convert every character in t to ASCII lowercase.
-        if (!type.is_empty())
-            type = MUST(Infra::to_ascii_lowercase(type));
+        // NOTE: The spec is out of date, and we are supposed to call into the MimeType parser here.
+        if (!options->type.is_empty()) {
+            auto maybe_parsed_type = Web::MimeSniff::MimeType::parse(options->type);
+
+            if (maybe_parsed_type.has_value())
+                type = maybe_parsed_type->serialized();
+        }
     }
 
     // 4. Return a Blob object referring to bytes as its associated byte sequence, with its size set to the length of bytes, and its type set to the value of t from the substeps above.
@@ -291,7 +292,7 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<Blob>> Blob::slice_blob(Optional<i64> start
         }
         // 2. Convert every character in relativeContentType to ASCII lowercase.
         else {
-            relative_content_type = TRY_OR_THROW_OOM(vm, Infra::to_ascii_lowercase(content_type.value()));
+            relative_content_type = content_type.value().to_ascii_lowercase();
         }
     }
 
@@ -334,17 +335,17 @@ JS::NonnullGCPtr<Streams::ReadableStream> Blob::get_stream()
 
             // 2. Queue a global task on the file reading task source given blob’s relevant global object to perform the following steps:
             HTML::queue_global_task(HTML::Task::Source::FileReading, realm.global_object(), JS::create_heap_function(heap(), [stream, bytes = move(bytes)]() {
-                // NOTE: Using an TemporaryExecutionContext here results in a crash in the method HTML::incumbent_settings_object()
+                // NOTE: Using an TemporaryExecutionContext here results in a crash in the method HTML::incumbent_realm()
                 //       since we end up in a state where we have no execution context + an event loop with an empty incumbent
-                //       settings object stack. We still need an execution context therefore we push the realm's execution context
-                //       onto the realm's VM, and we need an incumbent settings object which is pushed onto the incumbent settings
-                //       object stack by EnvironmentSettings::prepare_to_run_callback().
+                //       realm stack. We still need an execution context therefore we push the realm's execution context
+                //       onto the realm's VM, and we need an incumbent realm which is pushed onto the incumbent realm stack
+                //       by HTML::prepare_to_run_callback().
                 auto& realm = stream->realm();
                 auto& environment_settings = Bindings::host_defined_environment_settings_object(realm);
                 realm.vm().push_execution_context(environment_settings.realm_execution_context());
-                environment_settings.prepare_to_run_callback();
-                ScopeGuard const guard = [&environment_settings, &realm] {
-                    environment_settings.clean_up_after_running_callback();
+                HTML::prepare_to_run_callback(realm);
+                ScopeGuard const guard = [&realm] {
+                    HTML::clean_up_after_running_callback(realm);
                     realm.vm().pop_execution_context();
                 };
 
@@ -376,7 +377,7 @@ JS::NonnullGCPtr<Streams::ReadableStream> Blob::get_stream()
 }
 
 // https://w3c.github.io/FileAPI/#dom-blob-text
-JS::NonnullGCPtr<JS::Promise> Blob::text()
+JS::NonnullGCPtr<WebIDL::Promise> Blob::text()
 {
     auto& realm = this->realm();
     auto& vm = realm.vm();
@@ -406,7 +407,7 @@ JS::NonnullGCPtr<JS::Promise> Blob::text()
 }
 
 // https://w3c.github.io/FileAPI/#dom-blob-arraybuffer
-JS::NonnullGCPtr<JS::Promise> Blob::array_buffer()
+JS::NonnullGCPtr<WebIDL::Promise> Blob::array_buffer()
 {
     auto& realm = this->realm();
 
@@ -433,7 +434,7 @@ JS::NonnullGCPtr<JS::Promise> Blob::array_buffer()
 }
 
 // https://w3c.github.io/FileAPI/#dom-blob-bytes
-JS::NonnullGCPtr<JS::Promise> Blob::bytes()
+JS::NonnullGCPtr<WebIDL::Promise> Blob::bytes()
 {
     auto& realm = this->realm();
 

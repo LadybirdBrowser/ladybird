@@ -29,7 +29,10 @@ class BiquadFilterNode : public AudioNode {
 public:
     virtual ~BiquadFilterNode() override;
 
-    WebIDL::ExceptionOr<void> set_type(Bindings::BiquadFilterType);
+    WebIDL::UnsignedLong number_of_inputs() override { return 1; }
+    WebIDL::UnsignedLong number_of_outputs() override { return 1; }
+
+    void set_type(Bindings::BiquadFilterType);
     Bindings::BiquadFilterType type() const;
     JS::NonnullGCPtr<AudioParam> frequency() const;
     JS::NonnullGCPtr<AudioParam> detune() const;

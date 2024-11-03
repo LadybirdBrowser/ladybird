@@ -24,6 +24,9 @@ struct PointerEventInit : public MouseEventInit {
     Optional<double> azimuth_angle;
     String pointer_type;
     bool is_primary { false };
+    WebIDL::Long persistent_device_id { 0 };
+    AK::Vector<JS::Handle<PointerEvent>> coalesced_events;
+    AK::Vector<JS::Handle<PointerEvent>> predicted_events;
 };
 
 // https://w3c.github.io/pointerevents/#pointerevent-interface
@@ -49,6 +52,9 @@ public:
     double azimuth_angle() const { return m_azimuth_angle; }
     String const& pointer_type() const { return m_pointer_type; }
     bool is_primary() const { return m_is_primary; }
+    WebIDL::Long persistent_device_id() const { return m_persistent_device_id; }
+    AK::ReadonlySpan<JS::NonnullGCPtr<PointerEvent>> get_coalesced_events() const { return m_coalesced_events; }
+    AK::ReadonlySpan<JS::NonnullGCPtr<PointerEvent>> get_predicted_events() const { return m_predicted_events; }
 
     // https://w3c.github.io/pointerevents/#dom-pointerevent-pressure
     // For hardware and platforms that do not support pressure, the value MUST be 0.5 when in the active buttons state and 0 otherwise.
@@ -58,6 +64,7 @@ protected:
     PointerEvent(JS::Realm&, FlyString const& type, PointerEventInit const&, double page_x, double page_y, double offset_x, double offset_y);
 
     virtual void initialize(JS::Realm&) override;
+    virtual void visit_edges(Cell::Visitor&) override;
 
 private:
     virtual bool is_pointer_event() const final { return true; }
@@ -119,6 +126,16 @@ private:
     // Indicates if the pointer represents the primary pointer of this pointer type
     // https://w3c.github.io/pointerevents/#dom-pointerevent-isprimary
     bool m_is_primary { false };
+
+    // A unique identifier for the pointing device.
+    // https://w3c.github.io/pointerevents/#dom-pointerevent-persistentdeviceid
+    WebIDL::Long m_persistent_device_id { 0 };
+
+    // https://w3c.github.io/pointerevents/#dom-pointerevent-getcoalescedevents
+    AK::Vector<JS::NonnullGCPtr<PointerEvent>> m_coalesced_events;
+
+    // https://w3c.github.io/pointerevents/#dom-pointerevent-getpredictedevents
+    AK::Vector<JS::NonnullGCPtr<PointerEvent>> m_predicted_events;
 };
 
 }

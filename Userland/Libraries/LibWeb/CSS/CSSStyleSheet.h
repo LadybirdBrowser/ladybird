@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019-2021, Andreas Kling <kling@serenityos.org>
+ * Copyright (c) 2019-2021, Andreas Kling <andreas@ladybird.org>
  * Copyright (c) 2024, Tim Ledbetter <timledbetter@gmail.com>
  *
  * SPDX-License-Identifier: BSD-2-Clause
@@ -18,6 +18,7 @@
 namespace Web::CSS {
 
 class CSSImportRule;
+class FontLoader;
 
 struct CSSStyleSheetInit {
     Optional<String> base_url {};
@@ -52,11 +53,11 @@ public:
     WebIDL::ExceptionOr<void> remove_rule(Optional<WebIDL::UnsignedLong> index);
     WebIDL::ExceptionOr<void> delete_rule(unsigned index);
 
-    JS::NonnullGCPtr<JS::Promise> replace(String text);
+    JS::NonnullGCPtr<WebIDL::Promise> replace(String text);
     WebIDL::ExceptionOr<void> replace_sync(StringView text);
 
     void for_each_effective_rule(TraversalOrder, Function<void(CSSRule const&)> const& callback) const;
-    void for_each_effective_style_rule(Function<void(CSSStyleRule const&)> const& callback) const;
+    void for_each_effective_style_producing_rule(Function<void(CSSRule const&)> const& callback) const;
     // Returns whether the match state of any media queries changed after evaluation.
     bool evaluate_media_queries(HTML::Window const&);
     void for_each_effective_keyframes_at_rule(Function<void(CSSKeyframesRule const&)> const& callback) const;
@@ -84,6 +85,12 @@ public:
     void set_source_text(String);
     Optional<String> source_text(Badge<DOM::Document>) const;
 
+    void add_associated_font_loader(WeakPtr<FontLoader const> font_loader)
+    {
+        m_associated_font_loaders.append(font_loader);
+    }
+    bool has_associated_font_loader(FontLoader& font_loader) const;
+
 private:
     CSSStyleSheet(JS::Realm&, CSSRuleList&, MediaList&, Optional<URL::URL> location);
 
@@ -110,6 +117,8 @@ private:
     bool m_constructed { false };
     bool m_disallow_modification { false };
     Optional<bool> m_did_match;
+
+    Vector<WeakPtr<FontLoader const>> m_associated_font_loaders;
 };
 
 }

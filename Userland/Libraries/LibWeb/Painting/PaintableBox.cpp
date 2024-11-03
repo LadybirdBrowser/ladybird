@@ -1,6 +1,7 @@
 /*
- * Copyright (c) 2022-2023, Andreas Kling <kling@serenityos.org>
+ * Copyright (c) 2022-2023, Andreas Kling <andreas@ladybird.org>
  * Copyright (c) 2022-2023, Sam Atkins <atkinssj@serenityos.org>
+ * Copyright (c) 2024, Aliaksandr Kalenik <kalenik.aliaksandr@gmail.com>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -11,10 +12,12 @@
 #include <LibUnicode/CharacterTypes.h>
 #include <LibWeb/CSS/SystemColor.h>
 #include <LibWeb/DOM/Document.h>
+#include <LibWeb/DOM/Position.h>
 #include <LibWeb/DOM/Range.h>
 #include <LibWeb/HTML/HTMLHtmlElement.h>
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/Layout/BlockContainer.h>
+#include <LibWeb/Layout/InlineNode.h>
 #include <LibWeb/Layout/Viewport.h>
 #include <LibWeb/Painting/BackgroundPainting.h>
 #include <LibWeb/Painting/PaintableBox.h>
@@ -34,12 +37,27 @@ JS::NonnullGCPtr<PaintableWithLines> PaintableWithLines::create(Layout::BlockCon
     return block_container.heap().allocate_without_realm<PaintableWithLines>(block_container);
 }
 
+JS::NonnullGCPtr<PaintableWithLines> PaintableWithLines::create(Layout::InlineNode const& inline_node, size_t line_index)
+{
+    return inline_node.heap().allocate_without_realm<PaintableWithLines>(inline_node, line_index);
+}
+
 JS::NonnullGCPtr<PaintableBox> PaintableBox::create(Layout::Box const& layout_box)
 {
     return layout_box.heap().allocate_without_realm<PaintableBox>(layout_box);
 }
 
+JS::NonnullGCPtr<PaintableBox> PaintableBox::create(Layout::InlineNode const& layout_box)
+{
+    return layout_box.heap().allocate_without_realm<PaintableBox>(layout_box);
+}
+
 PaintableBox::PaintableBox(Layout::Box const& layout_box)
+    : Paintable(layout_box)
+{
+}
+
+PaintableBox::PaintableBox(Layout::InlineNode const& layout_box)
     : Paintable(layout_box)
 {
 }
@@ -50,6 +68,12 @@ PaintableBox::~PaintableBox()
 
 PaintableWithLines::PaintableWithLines(Layout::BlockContainer const& layout_box)
     : PaintableBox(layout_box)
+{
+}
+
+PaintableWithLines::PaintableWithLines(Layout::InlineNode const& inline_node, size_t line_index)
+    : PaintableBox(inline_node)
+    , m_line_index(line_index)
 {
 }
 
@@ -112,7 +136,7 @@ void PaintableBox::set_scroll_offset(CSSPixelPoint offset)
     // the user agent must run these steps:
 
     // 1. Let doc be the element’s node document.
-    auto& document = layout_box().document();
+    auto& document = layout_node().document();
 
     // FIXME: 2. If the element is a snap container, run the steps to update snapchanging targets for the element with
     //           the element’s eventual snap target in the block axis as newBlockTarget and the element’s eventual snap
@@ -125,7 +149,7 @@ void PaintableBox::set_scroll_offset(CSSPixelPoint offset)
         return;
 
     // 4. Append the element to doc’s pending scroll event targets.
-    document.pending_scroll_event_targets().append(*layout_box().dom_node());
+    document.pending_scroll_event_targets().append(*layout_node_with_style_and_box_metrics().dom_node());
 
     set_needs_display(InvalidateDisplayList::No);
 }
@@ -143,7 +167,9 @@ void PaintableBox::set_offset(CSSPixelPoint offset)
 void PaintableBox::set_content_size(CSSPixelSize size)
 {
     m_content_size = size;
-    layout_box().did_set_content_size();
+    if (is<Layout::Box>(Paintable::layout_node())) {
+        static_cast<Layout::Box&>(layout_node_with_style_and_box_metrics()).did_set_content_size();
+    }
 }
 
 CSSPixelPoint PaintableBox::offset() const
@@ -197,7 +223,7 @@ CSSPixelRect PaintableBox::absolute_paint_rect() const
 Optional<CSSPixelRect> PaintableBox::get_clip_rect() const
 {
     auto clip = computed_values().clip();
-    if (clip.is_rect() && layout_box().is_absolutely_positioned()) {
+    if (clip.is_rect() && layout_node_with_style_and_box_metrics().is_absolutely_positioned()) {
         auto border_box = absolute_border_box_rect();
         return clip.to_rect().resolved(layout_node(), border_box);
     }
@@ -238,9 +264,12 @@ void PaintableBox::after_paint(PaintContext& context, [[maybe_unused]] PaintPhas
 bool PaintableBox::is_scrollable(ScrollDirection direction) const
 {
     auto overflow = direction == ScrollDirection::Horizontal ? computed_values().overflow_x() : computed_values().overflow_y();
-    auto scrollable_overflow_size = direction == ScrollDirection::Horizontal ? scrollable_overflow_rect()->width() : scrollable_overflow_rect()->height();
+    auto scrollable_overflow_rect = this->scrollable_overflow_rect();
+    if (!scrollable_overflow_rect.has_value())
+        return false;
+    auto scrollable_overflow_size = direction == ScrollDirection::Horizontal ? scrollable_overflow_rect->width() : scrollable_overflow_rect->height();
     auto scrollport_size = direction == ScrollDirection::Horizontal ? absolute_padding_box_rect().width() : absolute_padding_box_rect().height();
-    if (is_viewport() || overflow == CSS::Overflow::Auto)
+    if ((is_viewport() && overflow != CSS::Overflow::Hidden) || overflow == CSS::Overflow::Auto)
         return scrollable_overflow_size > scrollport_size;
     return overflow == CSS::Overflow::Scroll;
 }
@@ -280,25 +309,28 @@ Optional<PaintableBox::ScrollbarData> PaintableBox::compute_scrollbar_data(Scrol
         return {};
     }
 
+    bool is_horizontal = direction == ScrollDirection::Horizontal;
+
     auto padding_rect = absolute_padding_box_rect();
     auto scrollable_overflow_rect = this->scrollable_overflow_rect().value();
-    auto scroll_overflow_size = direction == ScrollDirection::Horizontal ? scrollable_overflow_rect.width() : scrollable_overflow_rect.height();
-    auto scrollport_size = direction == ScrollDirection::Horizontal ? padding_rect.width() : padding_rect.height();
+    auto scroll_overflow_size = is_horizontal ? scrollable_overflow_rect.width() : scrollable_overflow_rect.height();
+    auto scrollport_size = is_horizontal ? padding_rect.width() : padding_rect.height();
     if (scroll_overflow_size == 0)
         return {};
 
-    auto min_thumb_length = min(scrollport_size, 24);
-    auto thumb_length = max(scrollport_size * (scrollport_size / scroll_overflow_size), min_thumb_length);
+    auto scrollbar_rect_length = is_horizontal ? scrollport_size - scrollbar_thumb_thickness : scrollport_size;
+
+    auto min_thumb_length = min(scrollbar_rect_length, 24);
+    auto thumb_length = max(scrollbar_rect_length * (scrollport_size / scroll_overflow_size), min_thumb_length);
 
     CSSPixelFraction scroll_size = 0;
     if (scroll_overflow_size > scrollport_size)
-        scroll_size = (scrollport_size - thumb_length) / (scroll_overflow_size - scrollport_size);
+        scroll_size = (scrollbar_rect_length - thumb_length) / (scroll_overflow_size - scrollport_size);
     CSSPixelRect rect;
-    if (direction == ScrollDirection::Vertical) {
+    if (is_horizontal)
+        rect = { padding_rect.left(), padding_rect.bottom() - scrollbar_thumb_thickness, thumb_length, scrollbar_thumb_thickness };
+    else
         rect = { padding_rect.right() - scrollbar_thumb_thickness, padding_rect.top(), scrollbar_thumb_thickness, thumb_length };
-    } else {
-        rect = { padding_rect.left() - scrollbar_thumb_thickness, padding_rect.bottom() - scrollbar_thumb_thickness, thumb_length, scrollbar_thumb_thickness };
-    }
 
     return PaintableBox::ScrollbarData { rect, scroll_size };
 }
@@ -360,7 +392,7 @@ void PaintableBox::paint(PaintContext& context, PaintPhase phase) const
         }
     }
 
-    if (phase == PaintPhase::Overlay && layout_box().document().inspected_layout_node() == &layout_box()) {
+    if (phase == PaintPhase::Overlay && layout_node().document().inspected_layout_node() == &layout_node_with_style_and_box_metrics()) {
         auto content_rect = absolute_rect();
 
         auto margin_box = box_model().margin_box();
@@ -387,10 +419,10 @@ void PaintableBox::paint(PaintContext& context, PaintPhase phase) const
         auto& font = Platform::FontPlugin::the().default_font();
 
         StringBuilder builder;
-        if (layout_box().dom_node())
-            builder.append(layout_box().dom_node()->debug_description());
+        if (layout_node_with_style_and_box_metrics().dom_node())
+            builder.append(layout_node_with_style_and_box_metrics().dom_node()->debug_description());
         else
-            builder.append(layout_box().debug_description());
+            builder.append(layout_node_with_style_and_box_metrics().debug_description());
         builder.appendff(" {}x{} @ {},{}", border_rect.width(), border_rect.height(), border_rect.x(), border_rect.y());
         auto size_text = MUST(builder.to_string());
         auto size_text_rect = border_rect;
@@ -401,7 +433,7 @@ void PaintableBox::paint(PaintContext& context, PaintPhase phase) const
         auto size_text_device_rect = context.enclosing_device_rect(size_text_rect).to_type<int>();
         context.display_list_recorder().fill_rect(size_text_device_rect, context.palette().color(Gfx::ColorRole::Tooltip));
         context.display_list_recorder().draw_rect(size_text_device_rect, context.palette().threed_shadow1());
-        context.display_list_recorder().draw_text(size_text_device_rect, size_text, font, Gfx::TextAlignment::Center, context.palette().color(Gfx::ColorRole::TooltipText));
+        context.display_list_recorder().draw_text(size_text_device_rect, size_text, font.with_size(font.point_size() * context.device_pixels_per_css_pixel()), Gfx::TextAlignment::Center, context.palette().color(Gfx::ColorRole::TooltipText));
     }
 }
 
@@ -442,10 +474,10 @@ void PaintableBox::paint_backdrop_filter(PaintContext& context) const
 void PaintableBox::paint_background(PaintContext& context) const
 {
     // If the body's background properties were propagated to the root element, do no re-paint the body's background.
-    if (layout_box().is_body() && document().html_element()->should_use_body_background_properties())
+    if (layout_node_with_style_and_box_metrics().is_body() && document().html_element()->should_use_body_background_properties())
         return;
 
-    Painting::paint_background(context, layout_box(), computed_values().image_rendering(), m_resolved_background, normalized_border_radii_data());
+    Painting::paint_background(context, *this, computed_values().image_rendering(), m_resolved_background, normalized_border_radii_data());
 }
 
 void PaintableBox::paint_box_shadow(PaintContext& context) const
@@ -474,15 +506,15 @@ BorderRadiiData PaintableBox::normalized_border_radii_data(ShrinkRadiiForBorders
 void PaintableBox::apply_scroll_offset(PaintContext& context, PaintPhase) const
 {
     if (scroll_frame_id().has_value()) {
-        context.display_list_recorder().save();
-        context.display_list_recorder().set_scroll_frame_id(scroll_frame_id().value());
+        context.display_list_recorder().push_scroll_frame_id(scroll_frame_id().value());
     }
 }
 
 void PaintableBox::reset_scroll_offset(PaintContext& context, PaintPhase) const
 {
-    if (scroll_frame_id().has_value())
-        context.display_list_recorder().restore();
+    if (scroll_frame_id().has_value()) {
+        context.display_list_recorder().pop_scroll_frame_id();
+    }
 }
 
 void PaintableBox::apply_clip_overflow_rect(PaintContext& context, PaintPhase phase) const
@@ -512,11 +544,15 @@ void paint_cursor_if_needed(PaintContext& context, TextPaintable const& paintabl
     if (!document.cursor_blink_state())
         return;
 
-    if (document.cursor_position()->node() != paintable.dom_node())
+    auto cursor_position = document.cursor_position();
+    if (!cursor_position || !cursor_position->node())
+        return;
+
+    if (cursor_position->node() != paintable.dom_node())
         return;
 
     // NOTE: This checks if the cursor is before the start or after the end of the fragment. If it is at the end, after all text, it should still be painted.
-    if (document.cursor_position()->offset() < (unsigned)fragment.start() || document.cursor_position()->offset() > (unsigned)(fragment.start() + fragment.length()))
+    if (cursor_position->offset() < (unsigned)fragment.start() || cursor_position->offset() > (unsigned)(fragment.start() + fragment.length()))
         return;
 
     if (!fragment.layout_node().dom_node() || !fragment.layout_node().dom_node()->is_editable())
@@ -684,7 +720,7 @@ void PaintableWithLines::paint(PaintContext& context, PaintPhase phase) const
         }
 
         if (own_scroll_frame_id().has_value()) {
-            context.display_list_recorder().set_scroll_frame_id(own_scroll_frame_id().value());
+            context.display_list_recorder().push_scroll_frame_id(own_scroll_frame_id().value());
         }
     }
 
@@ -713,6 +749,10 @@ void PaintableWithLines::paint(PaintContext& context, PaintPhase phase) const
 
     if (should_clip_overflow) {
         context.display_list_recorder().restore();
+
+        if (own_scroll_frame_id().has_value()) {
+            context.display_list_recorder().pop_scroll_frame_id();
+        }
     }
 }
 
@@ -772,25 +812,22 @@ Paintable::DispatchEventOfSameName PaintableBox::handle_mousemove(Badge<EventHan
 
 bool PaintableBox::handle_mousewheel(Badge<EventHandler>, CSSPixelPoint, unsigned, unsigned, int wheel_delta_x, int wheel_delta_y)
 {
-    if (!layout_box().is_user_scrollable())
+    if (!is_scrollable()) {
         return false;
-
-    // TODO: Vertical and horizontal scroll overflow should be handled seperately.
-    if (!has_scrollable_overflow())
-        return false;
+    }
 
     scroll_by(wheel_delta_x, wheel_delta_y);
     return true;
 }
 
-Layout::BlockContainer const& PaintableWithLines::layout_box() const
+Layout::NodeWithStyleAndBoxModelMetrics const& PaintableWithLines::layout_node_with_style_and_box_metrics() const
 {
-    return static_cast<Layout::BlockContainer const&>(PaintableBox::layout_box());
+    return static_cast<Layout::NodeWithStyleAndBoxModelMetrics const&>(PaintableBox::layout_node_with_style_and_box_metrics());
 }
 
-Layout::BlockContainer& PaintableWithLines::layout_box()
+Layout::NodeWithStyleAndBoxModelMetrics& PaintableWithLines::layout_node_with_style_and_box_metrics()
 {
-    return static_cast<Layout::BlockContainer&>(PaintableBox::layout_box());
+    return static_cast<Layout::NodeWithStyleAndBoxModelMetrics&>(PaintableBox::layout_node_with_style_and_box_metrics());
 }
 
 TraversalDecision PaintableBox::hit_test_scrollbars(CSSPixelPoint position, Function<TraversalDecision(HitTestResult)> const& callback) const
@@ -818,7 +855,7 @@ TraversalDecision PaintableBox::hit_test(CSSPixelPoint position, HitTestType typ
     if (hit_test_scrollbars(position_adjusted_by_scroll_offset, callback) == TraversalDecision::Break)
         return TraversalDecision::Break;
 
-    if (layout_box().is_viewport()) {
+    if (layout_node_with_style_and_box_metrics().is_viewport()) {
         auto& viewport_paintable = const_cast<ViewportPaintable&>(static_cast<ViewportPaintable const&>(*this));
         viewport_paintable.build_stacking_context_tree_if_needed();
         viewport_paintable.document().update_paint_and_hit_testing_properties_if_needed();
@@ -870,7 +907,20 @@ TraversalDecision PaintableWithLines::hit_test(CSSPixelPoint position, HitTestTy
     auto position_adjusted_by_scroll_offset = position;
     position_adjusted_by_scroll_offset.translate_by(-cumulative_offset_of_enclosing_scroll_frame());
 
-    if (!layout_box().children_are_inline() || m_fragments.is_empty()) {
+    // TextCursor hit testing mode should be able to place cursor in contenteditable elements even if they are empty
+    auto is_editable = layout_node_with_style_and_box_metrics().dom_node() && layout_node_with_style_and_box_metrics().dom_node()->is_editable();
+    if (is_editable && m_fragments.is_empty() && !has_children() && type == HitTestType::TextCursor) {
+        HitTestResult const hit_test_result {
+            .paintable = const_cast<PaintableWithLines&>(*this),
+            .index_in_node = 0,
+            .vertical_distance = 0,
+            .horizontal_distance = 0,
+        };
+        if (callback(hit_test_result) == TraversalDecision::Break)
+            return TraversalDecision::Break;
+    }
+
+    if (!layout_node_with_style_and_box_metrics().children_are_inline() || m_fragments.is_empty()) {
         return PaintableBox::hit_test(position, type, callback);
     }
 
@@ -960,9 +1010,6 @@ void PaintableBox::set_needs_display(InvalidateDisplayList should_invalidate_dis
 
 Optional<CSSPixelRect> PaintableBox::get_masking_area() const
 {
-    // FIXME: Support clip-paths with transforms.
-    if (!combined_css_transform().is_identity_or_translation())
-        return {};
     auto clip_path = computed_values().clip_path();
     // FIXME: Support other clip sources.
     if (!clip_path.has_value() || !clip_path->is_basic_shape())
@@ -1098,7 +1145,7 @@ void PaintableBox::resolve_paint_properties()
     CSSPixelRect background_rect;
     Color background_color = computed_values.background_color();
     auto const* background_layers = &computed_values.background_layers();
-    if (layout_box().is_root_element()) {
+    if (layout_node_with_style_and_box_metrics().is_root_element()) {
         background_rect = navigable()->viewport_rect();
 
         // Section 2.11.2: If the computed value of background-image on the root element is none and its background-color is transparent,
@@ -1118,7 +1165,7 @@ void PaintableBox::resolve_paint_properties()
 
     m_resolved_background.layers.clear();
     if (background_layers) {
-        m_resolved_background = resolve_background_layers(*background_layers, layout_box(), background_color, background_rect, normalized_border_radii_data());
+        m_resolved_background = resolve_background_layers(*background_layers, *this, background_color, background_rect, normalized_border_radii_data());
     };
 }
 

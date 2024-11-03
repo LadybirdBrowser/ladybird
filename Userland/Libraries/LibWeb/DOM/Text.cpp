@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022, Andreas Kling <kling@serenityos.org>
+ * Copyright (c) 2018-2022, Andreas Kling <andreas@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -44,7 +44,7 @@ void Text::visit_edges(Cell::Visitor& visitor)
 WebIDL::ExceptionOr<JS::NonnullGCPtr<Text>> Text::construct_impl(JS::Realm& realm, String const& data)
 {
     // The new Text(data) constructor steps are to set this’s data to data and this’s node document to current global object’s associated Document.
-    auto& window = verify_cast<HTML::Window>(HTML::current_global_object());
+    auto& window = verify_cast<HTML::Window>(HTML::current_principal_global_object());
     return realm.heap().allocate<Text>(realm, window.associated_document(), data);
 }
 
@@ -66,7 +66,7 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<Text>> Text::split_text(size_t offset)
 
     // 2. If offset is greater than length, then throw an "IndexSizeError" DOMException.
     if (offset > length)
-        return WebIDL::IndexSizeError::create(realm(), "Split offset is greater than length"_fly_string);
+        return WebIDL::IndexSizeError::create(realm(), "Split offset is greater than length"_string);
 
     // 3. Let count be length minus offset.
     auto count = length - offset;

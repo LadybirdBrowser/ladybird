@@ -1,4 +1,4 @@
-   Cannot finish an animation with no effective playback rate
+Cannot finish an animation with no effective playback rate
 Cannot finish an animation with an infinite effect end
 finish() updates animation's pending playback rate
 finish() updates currentTime of animation with positive playback rate

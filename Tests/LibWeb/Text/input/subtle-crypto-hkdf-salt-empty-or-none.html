@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<script>
+    asyncTest(async done => {
+        var subtle = self.crypto.subtle;
+        var key = await subtle.importKey("raw", new Uint8Array([]), { name: "HKDF" }, false, [
+            "deriveKey",
+            "deriveBits",
+        ]);
+        // Test the subtle difference between an empty salt (0 bytes) and an absent salt (which defaults to hashLen many bytes, each of value 0).
+        // Inspired by https://datatracker.ietf.org/doc/html/rfc5869/#appendix-A.6 and A.7
+        var algorithmEmptySalt = {
+            name: "HKDF",
+            salt: new Uint8Array([]),
+            info: new Uint8Array([]),
+            hash: "SHA-1",
+        };
+        var bitsEmptySalt = await subtle.deriveBits(algorithmEmptySalt, key, 42 * 8);
+        console.log(new Uint8Array(bitsEmptySalt));
+        println(new Uint8Array(bitsEmptySalt));
+        var algorithmAbsentSalt = {
+            name: "HKDF",
+            salt: null,
+            info: new Uint8Array([]),
+            hash: "SHA-1",
+        };
+        subtle.deriveBits(algorithmAbsentSalt, key, 42 * 8).then(
+            async bitsAbsentSalt => {
+                println(new Uint8Array(bitsAbsentSalt));
+                done();
+            },
+            async err => {
+                println("Absent salt rejected! " + err);
+                done();
+            }
+        );
+    });
+</script>

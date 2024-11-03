@@ -27,7 +27,7 @@ public:
     JS::ThrowCompletionOr<void> define(String const& name, WebIDL::CallbackType* constructor, ElementDefinitionOptions options);
     Variant<JS::Handle<WebIDL::CallbackType>, JS::Value> get(String const& name) const;
     Optional<String> get_name(JS::Handle<WebIDL::CallbackType> const& constructor) const;
-    WebIDL::ExceptionOr<JS::NonnullGCPtr<JS::Promise>> when_defined(String const& name);
+    WebIDL::ExceptionOr<JS::NonnullGCPtr<WebIDL::Promise>> when_defined(String const& name);
     void upgrade(JS::NonnullGCPtr<DOM::Node> root) const;
 
     JS::GCPtr<CustomElementDefinition> get_definition_with_name_and_local_name(String const& name, String const& local_name) const;
@@ -48,7 +48,7 @@ private:
 
     // https://html.spec.whatwg.org/multipage/custom-elements.html#when-defined-promise-map
     // Every CustomElementRegistry also has a when-defined promise map, mapping valid custom element names to promises. It is used to implement the whenDefined() method.
-    OrderedHashMap<String, JS::NonnullGCPtr<JS::Promise>> m_when_defined_promise_map;
+    OrderedHashMap<String, JS::NonnullGCPtr<WebIDL::Promise>> m_when_defined_promise_map;
 };
 
 }

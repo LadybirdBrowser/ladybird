@@ -152,7 +152,7 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<Infrastructure::FetchController>> fetch(JS:
         // - request’s unsafe-request flag is not set or request’s header list is empty
         && (!request.unsafe_request() || request.header_list()->is_empty())) {
         // 1. Assert: request’s origin is same origin with request’s client’s origin.
-        VERIFY(request.origin().has<HTML::Origin>() && request.origin().get<HTML::Origin>().is_same_origin(request.client()->origin()));
+        VERIFY(request.origin().has<URL::Origin>() && request.origin().get<URL::Origin>().is_same_origin(request.client()->origin()));
 
         // 2. Let onPreloadedResponseAvailable be an algorithm that runs the following step given a response
         //    response: set fetchParams’s preloaded response candidate to response.
@@ -332,15 +332,15 @@ WebIDL::ExceptionOr<JS::GCPtr<PendingResponse>> main_fetch(JS::Realm& realm, Inf
         request->current_url().set_scheme("https"_string);
     }
 
-    JS::SafeFunction<WebIDL::ExceptionOr<JS::NonnullGCPtr<PendingResponse>>()> get_response = [&realm, &vm, &fetch_params, request]() -> WebIDL::ExceptionOr<JS::NonnullGCPtr<PendingResponse>> {
+    auto get_response = JS::create_heap_function(vm.heap(), [&realm, &vm, &fetch_params, request]() -> WebIDL::ExceptionOr<JS::NonnullGCPtr<PendingResponse>> {
         dbgln_if(WEB_FETCH_DEBUG, "Fetch: Running 'main fetch' get_response() function");
 
         // -> fetchParams’s preloaded response candidate is not null
         if (!fetch_params.preloaded_response_candidate().has<Empty>()) {
             // 1. Wait until fetchParams’s preloaded response candidate is not "pending".
-            HTML::main_thread_event_loop().spin_until([&] {
+            HTML::main_thread_event_loop().spin_until(JS::create_heap_function(vm.heap(), [&] {
                 return !fetch_params.preloaded_response_candidate().has<Infrastructure::FetchParams::PreloadedResponseCandidatePendingTag>();
-            });
+            }));
 
             // 2. Assert: fetchParams’s preloaded response candidate is a response.
             VERIFY(fetch_params.preloaded_response_candidate().has<JS::NonnullGCPtr<Infrastructure::Response>>());
@@ -353,7 +353,7 @@ WebIDL::ExceptionOr<JS::GCPtr<PendingResponse>> main_fetch(JS::Realm& realm, Inf
         // -> request’s current URL’s scheme is "data"
         // -> request’s mode is "navigate" or "websocket"
         else if (
-            (request->origin().has<HTML::Origin>() && DOMURL::url_origin(request->current_url()).is_same_origin(request->origin().get<HTML::Origin>()) && request->response_tainting() == Infrastructure::Request::ResponseTainting::Basic)
+            (request->origin().has<URL::Origin>() && request->current_url().origin().is_same_origin(request->origin().get<URL::Origin>()) && request->response_tainting() == Infrastructure::Request::ResponseTainting::Basic)
             || request->current_url().scheme() == "data"sv
             || (request->mode() == Infrastructure::Request::Mode::Navigate || request->mode() == Infrastructure::Request::Mode::WebSocket)) {
             // 1. Set request’s response tainting to "basic".
@@ -426,13 +426,13 @@ WebIDL::ExceptionOr<JS::GCPtr<PendingResponse>> main_fetch(JS::Realm& realm, Inf
             // 2. Return the result of running HTTP fetch given fetchParams.
             return http_fetch(realm, fetch_params);
         }
-    };
+    });
 
     if (recursive == Recursive::Yes) {
         // 12. If response is null, then set response to the result of running the steps corresponding to the first
         //     matching statement:
         auto pending_response = !response
-            ? TRY(get_response())
+            ? TRY(get_response->function()())
             : PendingResponse::create(vm, request, *response);
 
         // 13. If recursive is true, then return response.
@@ -440,12 +440,12 @@ WebIDL::ExceptionOr<JS::GCPtr<PendingResponse>> main_fetch(JS::Realm& realm, Inf
     }
 
     // 11. If recursive is false, then run the remaining steps in parallel.
-    Platform::EventLoopPlugin::the().deferred_invoke([&realm, &vm, &fetch_params, request, response, get_response = move(get_response)] {
+    Platform::EventLoopPlugin::the().deferred_invoke(JS::create_heap_function(realm.heap(), [&realm, &vm, &fetch_params, request, response, get_response] {
         // 12. If response is null, then set response to the result of running the steps corresponding to the first
         //     matching statement:
         auto pending_response = PendingResponse::create(vm, request, Infrastructure::Response::create(vm));
         if (!response) {
-            auto pending_response_or_error = get_response();
+            auto pending_response_or_error = get_response->function()();
             if (pending_response_or_error.is_error())
                 return;
             pending_response = pending_response_or_error.release_value();
@@ -589,7 +589,7 @@ WebIDL::ExceptionOr<JS::GCPtr<PendingResponse>> main_fetch(JS::Realm& realm, Inf
                 fetch_response_handover(realm, fetch_params, *response);
             }
         });
-    });
+    }));
 
     return JS::GCPtr<PendingResponse> {};
 }
@@ -723,7 +723,7 @@ void fetch_response_handover(JS::Realm& realm, Infrastructure::FetchParams const
     }
     // 7. Otherwise:
     else {
-        HTML::TemporaryExecutionContext const execution_context { Bindings::host_defined_environment_settings_object(realm), HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
+        HTML::TemporaryExecutionContext const execution_context { realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
 
         // 1. Let transformStream be a new TransformStream.
         auto transform_stream = realm.heap().allocate<Streams::TransformStream>(realm, realm);
@@ -836,7 +836,7 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<PendingResponse>> scheme_fetch(JS::Realm& r
         auto full_length = blob->size();
 
         // 6. Let serializedFullLength be fullLength, serialized and isomorphic encoded.
-        auto serialized_full_length = TRY_OR_THROW_OOM(vm, String::number(full_length));
+        auto serialized_full_length = String::number(full_length);
 
         // 7. Let type be blob’s type.
         auto const& type = blob->type();
@@ -901,7 +901,7 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<PendingResponse>> scheme_fetch(JS::Realm& r
             return PendingResponse::create(vm, request, Infrastructure::Response::network_error(vm, "Failed to process 'data:' URL"sv));
 
         // 3. Let mimeType be dataURLStruct’s MIME type, serialized.
-        auto const& mime_type = MUST(data_url_struct.value().mime_type.serialized());
+        auto const& mime_type = data_url_struct.value().mime_type.serialized();
 
         // 4. Return a new response whose status message is `OK`, header list is « (`Content-Type`, mimeType) », and
         //    body is dataURLStruct’s body as a body.
@@ -919,7 +919,7 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<PendingResponse>> scheme_fetch(JS::Realm& r
     else if (request->current_url().scheme() == "file"sv || request->current_url().scheme() == "resource"sv) {
         // For now, unfortunate as it is, file: URLs are left as an exercise for the reader.
         // When in doubt, return a network error.
-        if (request->origin().has<HTML::Origin>() && (request->origin().get<HTML::Origin>().is_opaque() || request->origin().get<HTML::Origin>().scheme() == "file"sv || request->origin().get<HTML::Origin>().scheme() == "resource"sv))
+        if (request->origin().has<URL::Origin>() && (request->origin().get<URL::Origin>().is_opaque() || request->origin().get<URL::Origin>().scheme() == "file"sv || request->origin().get<URL::Origin>().scheme() == "resource"sv))
             return TRY(nonstandard_resource_loader_file_or_http_network_fetch(realm, fetch_params));
         else
             return PendingResponse::create(vm, request, Infrastructure::Response::network_error(vm, "Request with 'file:' or 'resource:' URL blocked"sv));
@@ -1200,8 +1200,8 @@ WebIDL::ExceptionOr<JS::GCPtr<PendingResponse>> http_redirect_fetch(JS::Realm& r
     //    locationURL’s origin, then return a network error.
     if (request->mode() == Infrastructure::Request::Mode::CORS
         && location_url.includes_credentials()
-        && request->origin().has<HTML::Origin>()
-        && !request->origin().get<HTML::Origin>().is_same_origin(DOMURL::url_origin(location_url))) {
+        && request->origin().has<URL::Origin>()
+        && !request->origin().get<URL::Origin>().is_same_origin(location_url.origin())) {
         return PendingResponse::create(vm, request, Infrastructure::Response::network_error(vm, "Request with 'cors' mode and different URL and request origin must not include credentials in redirect URL"sv));
     }
 
@@ -1244,7 +1244,7 @@ WebIDL::ExceptionOr<JS::GCPtr<PendingResponse>> http_redirect_fetch(JS::Realm& r
     // 13. If request’s current URL’s origin is not same origin with locationURL’s origin, then for each headerName of
     //     CORS non-wildcard request-header name, delete headerName from request’s header list.
     // NOTE: I.e., the moment another origin is seen after the initial request, the `Authorization` header is removed.
-    if (!DOMURL::url_origin(request->current_url()).is_same_origin(DOMURL::url_origin(location_url))) {
+    if (!request->current_url().origin().is_same_origin(location_url.origin())) {
         static constexpr Array cors_non_wildcard_request_header_names {
             "Authorization"sv
         };
@@ -1301,21 +1301,10 @@ WebIDL::ExceptionOr<JS::GCPtr<PendingResponse>> http_redirect_fetch(JS::Realm& r
     return main_fetch(realm, fetch_params, recursive);
 }
 
-class CachedResponse : public RefCounted<CachedResponse> {
-public:
-    HTTP::HeaderMap headers;
-    ByteBuffer body;
-    Infrastructure::Response::BodyInfo body_info;
-    ByteBuffer method;
-    Infrastructure::Status status;
-    URL::URL url;
-    UnixDateTime current_age;
-};
-
 class CachePartition : public RefCounted<CachePartition> {
 public:
     // https://httpwg.org/specs/rfc9111.html#constructing.responses.from.caches
-    JS::GCPtr<Infrastructure::Response> select_response(JS::Realm& realm, URL::URL const& url, ReadonlyBytes method, Vector<Infrastructure::Header> const& headers) const
+    JS::GCPtr<Infrastructure::Response> select_response(URL::URL const& url, ReadonlyBytes method, Vector<Infrastructure::Header> const& headers, Vector<JS::GCPtr<Infrastructure::Response>>& initial_set_of_stored_responses) const
     {
         // When presented with a request, a cache MUST NOT reuse a stored response unless:
 
@@ -1325,10 +1314,10 @@ public:
             dbgln("\033[31;1mHTTP CACHE MISS!\033[0m {}", url);
             return {};
         }
-        auto const& cached_response = *it->value;
+        auto const& cached_response = it->value;
 
         // - the request method associated with the stored response allows it to be used for the presented request, and
-        if (method != cached_response.method) {
+        if (method != cached_response->method()) {
             dbgln("\033[31;1mHTTP CACHE MISS!\033[0m (Bad method) {}", url);
             return {};
         }
@@ -1337,75 +1326,70 @@ public:
         (void)headers;
 
         // FIXME: - the stored response does not contain the no-cache directive (Section 5.2.2.4), unless it is successfully validated (Section 4.3), and
-        //          the stored response is one of the following:
+
+        initial_set_of_stored_responses.append(cached_response);
+
+        // FIXME: - the stored response is one of the following:
         //          + fresh (see Section 4.2), or
         //          + allowed to be served stale (see Section 4.2.4), or
         //          + successfully validated (see Section 4.3).
 
         dbgln("\033[32;1mHTTP CACHE HIT!\033[0m {}", url);
 
-        auto [body, _] = MUST(extract_body(realm, ReadonlyBytes(cached_response.body)));
-        auto response = Infrastructure::Response::create(realm.vm());
-        response->set_body(body);
-        response->set_body_info(cached_response.body_info);
-        response->set_status(cached_response.status);
-        for (auto& [name, value] : cached_response.headers.headers()) {
-            response->header_list()->append(Infrastructure::Header::from_string_pair(name, value));
-        }
-        return response;
+        return cached_response;
     }
 
-    void store_response(Infrastructure::Request const& http_request, Infrastructure::Response const& response)
+    void store_response(JS::Realm& realm, Infrastructure::Request const& http_request, Infrastructure::Response const& response)
     {
         if (!is_cacheable(http_request, response))
             return;
 
-        auto cached_response = adopt_ref(*new CachedResponse);
-        store_header_and_trailer_fields(response, cached_response->headers);
-        cached_response->body = response.body()->source().get<ByteBuffer>();
-        cached_response->body_info = response.body_info();
-        cached_response->method = MUST(ByteBuffer::copy(http_request.method()));
-        cached_response->status = response.status();
-        cached_response->url = http_request.current_url();
-        cached_response->current_age = UnixDateTime::now();
+        auto cached_response = Infrastructure::Response::create(realm.vm());
+
+        store_header_and_trailer_fields(response, *cached_response->header_list());
+        cached_response->set_body(response.body()->clone(realm));
+        cached_response->set_body_info(response.body_info());
+        cached_response->set_method(MUST(ByteBuffer::copy(http_request.method())));
+        cached_response->set_status(response.status());
+        cached_response->url_list().append(http_request.current_url());
         m_cache.set(http_request.current_url(), move(cached_response));
     }
 
     // https://httpwg.org/specs/rfc9111.html#freshening.responses
-    void freshen_stored_responses_upon_validation(Infrastructure::Request const& http_request, Infrastructure::Response const& response)
+    void freshen_stored_responses_upon_validation(Infrastructure::Response const& response, Vector<JS::GCPtr<Infrastructure::Response>>& initial_set_of_stored_responses)
     {
-        auto it = m_cache.find(http_request.current_url());
-        if (it == m_cache.end())
-            return;
+        // When a cache receives a 304 (Not Modified) response, it needs to identify stored
+        // responses that are suitable for updating with the new information provided, and then do so.
 
-        // For each stored response identified, the cache MUST update its header fields
-        // with the header fields provided in the 304 (Not Modified) response, as per Section 3.2.
-        auto& cached_response = *it->value;
-        update_stored_header_fields(response, cached_response.headers);
-    }
+        // The initial set of stored responses to update are those that could have been
+        // chosen for that request — i.e., those that meet the requirements in Section 4,
+        // except the last requirement to be fresh, able to be served stale, or just validated.
+        for (auto stored_response : initial_set_of_stored_responses) {
+            // Then, that initial set of stored responses is further filtered by the first match of:
 
-private:
-    // https://httpwg.org/specs/rfc9111.html#update
-    void update_stored_header_fields(Infrastructure::Response const& response, HTTP::HeaderMap& headers)
-    {
-        for (auto& header : *response.header_list()) {
-            auto name = StringView(header.name);
-            if (name.is_one_of_ignoring_ascii_case(
-                    "Connection"sv,
-                    "Proxy-Connection"sv,
-                    "Keep-Alive"sv,
-                    "TE"sv,
-                    "Transfer-Encoding"sv,
-                    "Upgrade"sv,
-                    "Content-Length"sv)) {
-                continue;
-            }
-            headers.set(ByteString::copy(header.name), ByteString::copy(header.value));
+            // - FIXME: If the new response contains one or more strong validators (see Section 8.8.1 of [HTTP]),
+            //   then each of those strong validators identifies a selected representation for update.
+            //   All the stored responses in the initial set with one of those same strong validators
+            //   are identified for update.
+            //   If none of the initial set contains at least one of the same strong validators,
+            //   then the cache MUST NOT use the new response to update any stored responses.
+            // - FIXME: If the new response contains no strong validators but does contain one or more weak validators,
+            //   and those validators correspond to one of the initial set's stored responses,
+            //   then the most recent of those matching stored responses is identified for update.
+            // - FIXME: If the new response does not include any form of validator (such as where a client generates an
+            //   `If-Modified-Since` request from a source other than the `Last-Modified` response header field),
+            //   and there is only one stored response in the initial set, and that stored response also lacks a validator,
+            //   then that stored response is identified for update.
+
+            // For each stored response identified, the cache MUST update its header fields
+            // with the header fields provided in the 304 (Not Modified) response, as per Section 3.2.
+            update_stored_header_fields(response, stored_response->header_list());
         }
     }
 
+private:
     // https://httpwg.org/specs/rfc9111.html#storing.fields
-    void store_header_and_trailer_fields(Infrastructure::Response const& response, HTTP::HeaderMap& headers)
+    bool is_exempted_for_storage(StringView header_name)
     {
         // Caches MUST include all received response header fields — including unrecognized ones — when storing a response;
         // this assures that new HTTP header fields can be successfully deployed. However, the following exceptions are made:
@@ -1423,18 +1407,86 @@ private:
         //          unless the cache incorporates the identity of the proxy into the cache key.
         //          Effectively, this is limited to Proxy-Authenticate (Section 11.7.1 of [HTTP]), Proxy-Authentication-Info (Section 11.7.3 of [HTTP]), and Proxy-Authorization (Section 11.7.2 of [HTTP]).
 
+        return header_name.is_one_of_ignoring_ascii_case(
+            "Connection"sv,
+            "Proxy-Connection"sv,
+            "Keep-Alive"sv,
+            "TE"sv,
+            "Transfer-Encoding"sv,
+            "Upgrade"sv);
+    }
+
+    // https://httpwg.org/specs/rfc9111.html#update
+    bool is_exempted_for_updating(StringView header_name)
+    {
+        // Caches are required to update a stored response's header fields from another
+        // (typically newer) response in several situations; for example, see Sections 3.4, 4.3.4, and 4.3.5.
+
+        // When doing so, the cache MUST add each header field in the provided response to the stored response,
+        // replacing field values that are already present, with the following exceptions:
+
+        // - Header fields excepted from storage in Section 3.1,
+        return is_exempted_for_storage(header_name)
+            // - Header fields that the cache's stored response depends upon, as described below,
+            || false
+            // - Header fields that are automatically processed and removed by the recipient, as described below, and
+            || false
+            // - The Content-Length header field.
+            || header_name.equals_ignoring_ascii_case("Content-Length"sv);
+
+        // In some cases, caches (especially in user agents) store the results of processing
+        // the received response, rather than the response itself, and updating header fields
+        // that affect that processing can result in inconsistent behavior and security issues.
+        // Caches in this situation MAY omit these header fields from updating stored responses
+        // on an exceptional basis but SHOULD limit such omission to those fields necessary to
+        // assure integrity of the stored response.
+
+        // For example, a browser might decode the content coding of a response while it is being received,
+        // creating a disconnect between the data it has stored and the response's original metadata.
+        // Updating that stored metadata with a different Content-Encoding header field would be problematic.
+        // Likewise, a browser might store a post-parse HTML tree rather than the content received in the response;
+        // updating the Content-Type header field would not be workable in this case because any assumptions about
+        // the format made in parsing would now be invalid.
+
+        // Furthermore, some fields are automatically processed and removed by the HTTP implementation,
+        // such as the Content-Range header field. Implementations MAY automatically omit such header fields from updates,
+        // even when the processing does not actually occur.
+
+        // Note that the Content-* prefix is not a signal that a header field is omitted from update; it is a convention for MIME header fields, not HTTP.
+    }
+
+    // https://httpwg.org/specs/rfc9111.html#update
+    void update_stored_header_fields(Infrastructure::Response const& response, Infrastructure::HeaderList& headers)
+    {
         for (auto& header : *response.header_list()) {
             auto name = StringView(header.name);
-            if (name.is_one_of_ignoring_ascii_case(
-                    "Connection"sv,
-                    "Proxy-Connection"sv,
-                    "Keep-Alive"sv,
-                    "TE"sv,
-                    "Transfer-Encoding"sv,
-                    "Upgrade"sv)) {
+
+            if (is_exempted_for_updating(name))
                 continue;
-            }
-            headers.set(ByteString::copy(header.name), ByteString::copy(header.value));
+
+            headers.delete_(header.name);
+        }
+
+        for (auto& header : *response.header_list()) {
+            auto name = StringView(header.name);
+
+            if (is_exempted_for_updating(name))
+                continue;
+
+            headers.append(Infrastructure::Header::copy(header));
+        }
+    }
+
+    // https://httpwg.org/specs/rfc9111.html#storing.fields
+    void store_header_and_trailer_fields(Infrastructure::Response const& response, Web::Fetch::Infrastructure::HeaderList& headers)
+    {
+        for (auto& header : *response.header_list()) {
+            auto name = StringView(header.name);
+
+            if (is_exempted_for_storage(name))
+                continue;
+
+            headers.append(Infrastructure::Header::copy(header));
         }
     }
 
@@ -1485,7 +1537,7 @@ private:
         return true;
     }
 
-    HashMap<URL::URL, NonnullRefPtr<CachedResponse>> m_cache;
+    HashMap<URL::URL, JS::GCPtr<Infrastructure::Response>> m_cache;
 };
 
 class HTTPCache {
@@ -1546,6 +1598,7 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<PendingResponse>> http_network_or_cache_fet
 
     // 5. Let storedResponse be null.
     JS::GCPtr<Infrastructure::Response> stored_response;
+    Vector<JS::GCPtr<Infrastructure::Response>> initial_set_of_stored_responses;
 
     // 6. Let httpCache be null.
     // (Typeless until we actually implement it, needed for checks below)
@@ -1627,7 +1680,7 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<PendingResponse>> http_network_or_cache_fet
         // 8. If contentLength is non-null, then set contentLengthHeaderValue to contentLength, serialized and
         //    isomorphic encoded.
         if (content_length.has_value())
-            content_length_header_value = MUST(ByteBuffer::copy(TRY_OR_THROW_OOM(vm, String::number(*content_length)).bytes()));
+            content_length_header_value = MUST(ByteBuffer::copy(String::number(*content_length).bytes()));
 
         // 9. If contentLengthHeaderValue is non-null, then append (`Content-Length`, contentLengthHeaderValue) to
         //    httpRequest’s header list.
@@ -1839,7 +1892,7 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<PendingResponse>> http_network_or_cache_fet
             //    validation, as per the "Constructing Responses from Caches" chapter of HTTP Caching [HTTP-CACHING],
             //    if any.
             // NOTE: As mandated by HTTP, this still takes the `Vary` header into account.
-            stored_response = http_cache->select_response(realm, http_request->current_url(), http_request->method(), *http_request->header_list());
+            stored_response = http_cache->select_response(http_request->current_url(), http_request->method(), *http_request->header_list(), initial_set_of_stored_responses);
             // 2. If storedResponse is non-null, then:
             if (stored_response) {
                 // 1. If cache mode is "default", storedResponse is a stale-while-revalidate response,
@@ -1867,9 +1920,9 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<PendingResponse>> http_network_or_cache_fet
                     revalidate_request->set_service_workers_mode(Infrastructure::Request::ServiceWorkersMode::None);
 
                     // 7. In parallel, run main fetch given a new fetch params whose request is revalidateRequest.
-                    Platform::EventLoopPlugin::the().deferred_invoke([&vm, &realm, revalidate_request, fetch_params = JS::NonnullGCPtr(fetch_params)] {
+                    Platform::EventLoopPlugin::the().deferred_invoke(JS::create_heap_function(realm.heap(), [&vm, &realm, revalidate_request, fetch_params = JS::NonnullGCPtr(fetch_params)] {
                         (void)main_fetch(realm, Infrastructure::FetchParams::create(vm, revalidate_request, fetch_params->timing_info()));
-                    });
+                    }));
                 }
                 // 2. Otherwise:
                 else {
@@ -1923,7 +1976,7 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<PendingResponse>> http_network_or_cache_fet
 
     auto returned_pending_response = PendingResponse::create(vm, request);
 
-    pending_forward_response->when_loaded([&realm, &vm, &fetch_params, request, response, stored_response, http_request, returned_pending_response, is_authentication_fetch, is_new_connection_fetch, revalidating_flag, include_credentials, response_was_null = !response, http_cache](JS::NonnullGCPtr<Infrastructure::Response> resolved_forward_response) mutable {
+    pending_forward_response->when_loaded([&realm, &vm, &fetch_params, request, response, stored_response, initial_set_of_stored_responses, http_request, returned_pending_response, is_authentication_fetch, is_new_connection_fetch, revalidating_flag, include_credentials, response_was_null = !response, http_cache](JS::NonnullGCPtr<Infrastructure::Response> resolved_forward_response) mutable {
         dbgln_if(WEB_FETCH_DEBUG, "Fetch: Running 'HTTP-network-or-cache fetch' pending_forward_response load callback");
         if (response_was_null) {
             auto forward_response = resolved_forward_response;
@@ -1945,7 +1998,7 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<PendingResponse>> http_network_or_cache_fet
                 // 1. Update storedResponse’s header list using forwardResponse’s header list, as per the "Freshening
                 //    Stored Responses upon Validation" chapter of HTTP Caching.
                 // NOTE: This updates the stored response in cache as well.
-                http_cache->freshen_stored_responses_upon_validation(*http_request, *forward_response);
+                http_cache->freshen_stored_responses_upon_validation(*forward_response, initial_set_of_stored_responses);
 
                 // 2. Set response to storedResponse.
                 response = stored_response;
@@ -1965,7 +2018,7 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<PendingResponse>> http_network_or_cache_fet
                 //       sometimes known as "negative caching".
                 // NOTE: The associated body info is stored in the cache alongside the response.
                 if (http_cache)
-                    http_cache->store_response(*http_request, *forward_response);
+                    http_cache->store_response(realm, *http_request, *forward_response);
             }
         }
 
@@ -2179,7 +2232,7 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<PendingResponse>> nonstandard_resource_load
     //        user-agent-defined limit (or not). However, we will need to fully use stream operations throughout the
     //        fetch process to enable this (e.g. Body::fully_read must use streams for this to work).
     if (request->buffer_policy() == Infrastructure::Request::BufferPolicy::DoNotBufferResponse) {
-        HTML::TemporaryExecutionContext execution_context { Bindings::host_defined_environment_settings_object(realm), HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
+        HTML::TemporaryExecutionContext execution_context { realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
 
         // 12. Let stream be a new ReadableStream.
         auto stream = realm.heap().allocate<Streams::ReadableStream>(realm, realm);
@@ -2207,7 +2260,8 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<PendingResponse>> nonstandard_resource_load
         // 13. Set up stream with byte reading support with pullAlgorithm set to pullAlgorithm, cancelAlgorithm set to cancelAlgorithm.
         Streams::set_up_readable_stream_controller_with_byte_reading_support(stream, pull_algorithm, cancel_algorithm);
 
-        auto on_headers_received = [&vm, request, pending_response, stream](auto const& response_headers, Optional<u32> status_code) {
+        auto on_headers_received = JS::create_heap_function(vm.heap(), [&vm, request, pending_response, stream](HTTP::HeaderMap const& response_headers, Optional<u32> status_code, Optional<String> const& reason_phrase) {
+            (void)request;
             if (pending_response->is_resolved()) {
                 // RequestServer will send us the response headers twice, the second time being for HTTP trailers. This
                 // fetch algorithm is not interested in trailers, so just drop them here.
@@ -2216,7 +2270,9 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<PendingResponse>> nonstandard_resource_load
 
             auto response = Infrastructure::Response::create(vm);
             response->set_status(status_code.value_or(200));
-            // FIXME: Set response status message
+
+            if (reason_phrase.has_value())
+                response->set_status_message(MUST(ByteBuffer::copy(reason_phrase.value().bytes())));
 
             if constexpr (WEB_FETCH_DEBUG) {
                 dbgln("Fetch: ResourceLoader load for '{}' {}: (status {})",
@@ -2237,11 +2293,11 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<PendingResponse>> nonstandard_resource_load
             // 17. Return response.
             // NOTE: Typically response’s body’s stream is still being enqueued to after returning.
             pending_response->resolve(response);
-        };
+        });
 
         // 16. Run these steps in parallel:
         //    FIXME: 1. Run these steps, but abort when fetchParams is canceled:
-        auto on_data_received = [fetched_data_receiver](auto bytes) {
+        auto on_data_received = JS::create_heap_function(vm.heap(), [fetched_data_receiver](ReadonlyBytes bytes) {
             // 1. If one or more bytes have been transmitted from response’s message body, then:
             if (!bytes.is_empty()) {
                 // 1. Let bytes be the transmitted bytes.
@@ -2258,10 +2314,10 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<PendingResponse>> nonstandard_resource_load
                 // FIXME: 8. If the size of buffer is larger than an upper limit chosen by the user agent, ask the user agent
                 //           to suspend the ongoing fetch.
             }
-        };
+        });
 
-        auto on_complete = [&vm, &realm, pending_response, stream](auto success, auto error_message) {
-            HTML::TemporaryExecutionContext execution_context { Bindings::host_defined_environment_settings_object(realm), HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
+        auto on_complete = JS::create_heap_function(vm.heap(), [&vm, &realm, pending_response, stream](bool success, Optional<StringView> error_message) {
+            HTML::TemporaryExecutionContext execution_context { realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
 
             // 16.1.1.2. Otherwise, if the bytes transmission for response’s message body is done normally and stream is readable,
             //           then close stream, and abort these in-parallel steps.
@@ -2279,11 +2335,12 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<PendingResponse>> nonstandard_resource_load
                 if (!pending_response->is_resolved())
                     pending_response->resolve(Infrastructure::Response::network_error(vm, error));
             }
-        };
+        });
 
-        ResourceLoader::the().load_unbuffered(load_request, move(on_headers_received), move(on_data_received), move(on_complete));
+        ResourceLoader::the().load_unbuffered(load_request, on_headers_received, on_data_received, on_complete);
     } else {
-        auto on_load_success = [&realm, &vm, request, pending_response](auto data, auto& response_headers, auto status_code) {
+        auto on_load_success = JS::create_heap_function(vm.heap(), [&realm, &vm, request, pending_response](ReadonlyBytes data, HTTP::HeaderMap const& response_headers, Optional<u32> status_code, Optional<String> const& reason_phrase) {
+            (void)request;
             dbgln_if(WEB_FETCH_DEBUG, "Fetch: ResourceLoader load for '{}' complete", request->url());
             if constexpr (WEB_FETCH_DEBUG)
                 log_response(status_code, response_headers, data);
@@ -2295,11 +2352,15 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<PendingResponse>> nonstandard_resource_load
                 auto header = Infrastructure::Header::from_string_pair(name, value);
                 response->header_list()->append(move(header));
             }
-            // FIXME: Set response status message
-            pending_response->resolve(response);
-        };
 
-        auto on_load_error = [&realm, &vm, request, pending_response](auto& error, auto status_code, auto data, auto& response_headers) {
+            if (reason_phrase.has_value())
+                response->set_status_message(MUST(ByteBuffer::copy(reason_phrase.value().bytes())));
+
+            pending_response->resolve(response);
+        });
+
+        auto on_load_error = JS::create_heap_function(vm.heap(), [&realm, &vm, request, pending_response](ByteString const& error, Optional<u32> status_code, Optional<String> const& reason_phrase, ReadonlyBytes data, HTTP::HeaderMap const& response_headers) {
+            (void)request;
             dbgln_if(WEB_FETCH_DEBUG, "Fetch: ResourceLoader load for '{}' failed: {} (status {})", request->url(), error, status_code.value_or(0));
             if constexpr (WEB_FETCH_DEBUG)
                 log_response(status_code, response_headers, data);
@@ -2316,12 +2377,14 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<PendingResponse>> nonstandard_resource_load
                     auto header = Infrastructure::Header::from_string_pair(name, value);
                     response->header_list()->append(move(header));
                 }
-                // FIXME: Set response status message
+
+                if (reason_phrase.has_value())
+                    response->set_status_message(MUST(ByteBuffer::copy(reason_phrase.value().bytes())));
             }
             pending_response->resolve(response);
-        };
+        });
 
-        ResourceLoader::the().load(load_request, move(on_load_success), move(on_load_error));
+        ResourceLoader::the().load(load_request, on_load_success, on_load_error);
     }
 
     return pending_response;
@@ -2578,7 +2641,7 @@ void set_sec_fetch_site_header(Infrastructure::Request& request)
     if (!header_value.equals_ignoring_ascii_case("none"sv)) {
         for (auto& url : request.url_list()) {
             // 1. If url is same origin with r’s origin, continue.
-            if (DOMURL::url_origin(url).is_same_origin(DOMURL::url_origin(request.current_url())))
+            if (url.origin().is_same_origin(request.current_url().origin()))
                 continue;
 
             // 2. Set header’s value to cross-site.

@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<style>
+    @media all {
+        div:is(#target) {
+            color: rgb(0, 128, 0);
+        }
+    }
+</style>
+<script src="../include.js"></script>
+<div id="target">This text should look green</div>
+<script>
+    test(() => {
+        let target = document.getElementById("target");
+        println(`Color is: "${getComputedStyle(target).color}", should be "rgb(0, 128, 0)"`);
+    });
+</script>

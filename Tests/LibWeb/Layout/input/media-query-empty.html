@@ -1,0 +1,15 @@
+<style>
+div { display: none; }
+@media {
+    div.first { display: block; }
+}
+@media{
+    div.second { display: block; }
+}
+@media ,, {
+    div.invalid { display: block; }
+}
+</style>
+<div class="first">First</div>
+<div class="second">Second</div>
+<div class="invalid">Invalid</div>

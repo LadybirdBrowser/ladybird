@@ -7,7 +7,7 @@ Viewport <#document> at (0,0) content-size 800x600 children: not-inline
         frag 0 from ImageBox start: 0, length: 0, rect: [8,8 150x150] baseline: 150
         ImageBox <img.replaced> at (8,8) content-size 150x150 children: not-inline
           (SVG-as-image isolated context)
-          Viewport <#document> at (0,0) content-size 150x150 [BFC] children: inline
+          Viewport <#document> at (0,0) content-size 150x150 [BFC] children: not-inline
             SVGSVGBox <svg> at (0,0) content-size 150x150 [SVG] children: not-inline
               SVGGeometryBox <path> at (0,0) content-size 150x150 children: not-inline
         TextNode <#text>

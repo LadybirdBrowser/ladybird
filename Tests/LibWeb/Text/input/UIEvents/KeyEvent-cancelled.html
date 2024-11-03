@@ -1,0 +1,46 @@
+<input id="input" />
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        let input = document.getElementById("input");
+        input.value = "You can't change me!";
+
+        input.focus();
+        input.select();
+
+        let shouldCancelKeyDown = false;
+        let shouldCancelKeyPress = false;
+
+        input.addEventListener("keydown", e => {
+            println(`keydown ${e.key}`);
+
+            if (shouldCancelKeyDown) {
+                println("cancel keydown");
+                e.preventDefault();
+            }
+        });
+        input.addEventListener("keypress", e => {
+            println(`keypress ${e.key}`);
+
+            if (shouldCancelKeyPress) {
+                println("cancel keypress");
+                e.preventDefault();
+            }
+        });
+
+        shouldCancelKeyDown = true;
+        shouldCancelKeyPress = false;
+        internals.sendText(input, "A");
+        println(input.value);
+
+        shouldCancelKeyDown = false;
+        shouldCancelKeyPress = true;
+        internals.sendText(input, "B");
+        println(input.value);
+
+        shouldCancelKeyDown = false;
+        shouldCancelKeyPress = false;
+        internals.sendText(input, "C");
+        println(input.value);
+    });
+</script>

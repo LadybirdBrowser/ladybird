@@ -1,4 +1,4 @@
-      HTMLFormControlsCollection
+HTMLFormControlsCollection
 2
 -------------------
 form.namedItem("formcontrol")

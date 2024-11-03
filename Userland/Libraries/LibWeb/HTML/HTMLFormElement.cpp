@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2021, Andreas Kling <kling@serenityos.org>
+ * Copyright (c) 2018-2021, Andreas Kling <andreas@ladybird.org>
  * Copyright (c) 2023, Kenneth Myhra <kennethmyhra@serenityos.org>
  * Copyright (c) 2023, Luke Wilde <lukew@serenityos.org>
  *
@@ -14,7 +14,6 @@
 #include <LibWeb/DOM/DOMTokenList.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Event.h>
-#include <LibWeb/DOM/HTMLFormControlsCollection.h>
 #include <LibWeb/DOMURL/DOMURL.h>
 #include <LibWeb/HTML/BrowsingContext.h>
 #include <LibWeb/HTML/EventNames.h>
@@ -22,6 +21,7 @@
 #include <LibWeb/HTML/HTMLButtonElement.h>
 #include <LibWeb/HTML/HTMLDialogElement.h>
 #include <LibWeb/HTML/HTMLFieldSetElement.h>
+#include <LibWeb/HTML/HTMLFormControlsCollection.h>
 #include <LibWeb/HTML/HTMLFormElement.h>
 #include <LibWeb/HTML/HTMLImageElement.h>
 #include <LibWeb/HTML/HTMLInputElement.h>
@@ -29,6 +29,7 @@
 #include <LibWeb/HTML/HTMLOutputElement.h>
 #include <LibWeb/HTML/HTMLSelectElement.h>
 #include <LibWeb/HTML/HTMLTextAreaElement.h>
+#include <LibWeb/HTML/RadioNodeList.h>
 #include <LibWeb/HTML/SubmitEvent.h>
 #include <LibWeb/Infra/CharacterTypes.h>
 #include <LibWeb/Infra/Strings.h>
@@ -342,7 +343,7 @@ WebIDL::ExceptionOr<void> HTMLFormElement::request_submit(JS::GCPtr<Element> sub
 
         // 2. If submitter's form owner is not this form element, then throw a "NotFoundError" DOMException.
         if (form_associated_element->form() != this)
-            return WebIDL::NotFoundError::create(realm(), "The submitter is not owned by this form element"_fly_string);
+            return WebIDL::NotFoundError::create(realm(), "The submitter is not owned by this form element"_string);
     }
     // 2. Otherwise, set submitter to this form element.
     else {
@@ -516,11 +517,11 @@ static bool is_form_control(DOM::Element const& element, HTMLFormElement const& 
 }
 
 // https://html.spec.whatwg.org/multipage/forms.html#dom-form-elements
-JS::NonnullGCPtr<DOM::HTMLFormControlsCollection> HTMLFormElement::elements() const
+JS::NonnullGCPtr<HTMLFormControlsCollection> HTMLFormElement::elements() const
 {
     if (!m_elements) {
         auto& root = verify_cast<ParentNode>(const_cast<HTMLFormElement*>(this)->root());
-        m_elements = DOM::HTMLFormControlsCollection::create(root, DOM::HTMLCollection::Scope::Descendants, [this](Element const& element) {
+        m_elements = HTMLFormControlsCollection::create(root, DOM::HTMLCollection::Scope::Descendants, [this](Element const& element) {
             return is_form_control(element, *this);
         });
     }
@@ -563,23 +564,6 @@ Vector<JS::NonnullGCPtr<DOM::Element>> HTMLFormElement::get_submittable_elements
     });
 
     return submittable_elements;
-}
-
-// https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#dom-fs-method
-StringView HTMLFormElement::method() const
-{
-    // The method and enctype IDL attributes must reflect the respective content attributes of the same name, limited to only known values.
-    // FIXME: This should probably be `Reflect` in the IDL.
-    auto method_state = method_state_from_form_element(*this);
-    switch (method_state) {
-    case MethodAttributeState::GET:
-        return "get"sv;
-    case MethodAttributeState::POST:
-        return "post"sv;
-    case MethodAttributeState::Dialog:
-        return "dialog"sv;
-    }
-    VERIFY_NOT_REACHED();
 }
 
 // https://html.spec.whatwg.org/multipage/forms.html#dom-form-rellist
@@ -902,7 +886,7 @@ void HTMLFormElement::plan_to_navigate_to(URL::URL url, Variant<Empty, String, P
     }
 
     // 4. Queue an element task on the DOM manipulation task source given the form element and the following steps:
-    // NOTE: `this`, `actual_resource` and `target_navigable` are protected by JS::SafeFunction.
+    // NOTE: `this`, `actual_resource` and `target_navigable` are protected by JS::HeapFunction.
     queue_an_element_task(Task::Source::DOMManipulation, [this, url, post_resource, target_navigable, history_handling, referrer_policy, user_involvement]() {
         // 1. Set the form's planned navigation to null.
         m_planned_navigation = {};
@@ -1038,7 +1022,7 @@ JS::Value HTMLFormElement::named_item_value(FlyString const& name) const
     // 1. Let candidates be a live RadioNodeList object containing all the listed elements, whose form owner is the form
     //    element, that have either an id attribute or a name attribute equal to name, with the exception of input
     //    elements whose type attribute is in the Image Button state, in tree order.
-    auto candidates = DOM::RadioNodeList::create(realm, root, DOM::LiveNodeList::Scope::Descendants, [this, name](auto& node) -> bool {
+    auto candidates = RadioNodeList::create(realm, root, DOM::LiveNodeList::Scope::Descendants, [this, name](auto& node) -> bool {
         if (!is<DOM::Element>(node))
             return false;
         auto const& element = static_cast<DOM::Element const&>(node);
@@ -1055,7 +1039,7 @@ JS::Value HTMLFormElement::named_item_value(FlyString const& name) const
     //    whose form owner is the form element, that have either an id attribute or a name attribute equal to name,
     //    in tree order.
     if (candidates->length() == 0) {
-        candidates = DOM::RadioNodeList::create(realm, root, DOM::LiveNodeList::Scope::Descendants, [this, name](auto& node) -> bool {
+        candidates = RadioNodeList::create(realm, root, DOM::LiveNodeList::Scope::Descendants, [this, name](auto& node) -> bool {
             if (!is<HTMLImageElement>(node))
                 return false;
 

@@ -1,7 +1,7 @@
 /*
  * Copyright (c) 2022, Florent Castelli <florent.castelli@gmail.com>
  * Copyright (c) 2022, Linus Groh <linusg@serenityos.org>
- * Copyright (c) 2022-2024, Tim Flynn <trflynn89@serenityos.org>
+ * Copyright (c) 2022-2024, Tim Flynn <trflynn89@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -9,15 +9,17 @@
 #pragma once
 
 #include <AK/ByteString.h>
-#include <AK/Function.h>
 #include <AK/HashMap.h>
 #include <AK/String.h>
 #include <LibGfx/Rect.h>
 #include <LibIPC/ConnectionToServer.h>
+#include <LibIPC/Transport.h>
 #include <LibJS/Forward.h>
 #include <LibJS/Heap/MarkedVector.h>
 #include <LibWeb/Forward.h>
+#include <LibWeb/HTML/VisibilityState.h>
 #include <LibWeb/WebDriver/ElementLocationStrategies.h>
+#include <LibWeb/WebDriver/ExecuteScript.h>
 #include <LibWeb/WebDriver/Response.h>
 #include <LibWeb/WebDriver/TimeoutsConfiguration.h>
 #include <WebContent/Forward.h>
@@ -25,6 +27,8 @@
 #include <WebContent/WebDriverServerEndpoint.h>
 
 namespace WebContent {
+
+class ElementLocator;
 
 class WebDriverConnection final
     : public IPC::ConnectionToServer<WebDriverClientEndpoint, WebDriverServerEndpoint> {
@@ -34,8 +38,12 @@ public:
     static ErrorOr<NonnullRefPtr<WebDriverConnection>> connect(Web::PageClient& page_client, ByteString const& webdriver_ipc_path);
     virtual ~WebDriverConnection() = default;
 
+    void visit_edges(JS::Cell::Visitor&);
+
+    void page_did_open_dialog(Badge<PageClient>);
+
 private:
-    WebDriverConnection(NonnullOwnPtr<Core::LocalSocket> socket, Web::PageClient& page_client);
+    WebDriverConnection(IPC::Transport transport, Web::PageClient& page_client);
 
     virtual void die() override { }
 
@@ -84,7 +92,7 @@ private:
     virtual Messages::WebDriverClient::GetComputedLabelResponse get_computed_label(String const& element_id) override;
     virtual Messages::WebDriverClient::ElementClickResponse element_click(String const& element_id) override;
     virtual Messages::WebDriverClient::ElementClearResponse element_clear(String const& element_id) override;
-    virtual Messages::WebDriverClient::ElementSendKeysResponse element_send_keys(String const& element_id) override;
+    virtual Messages::WebDriverClient::ElementSendKeysResponse element_send_keys(String const& element_id, JsonValue const& payload) override;
     virtual Messages::WebDriverClient::GetSourceResponse get_source() override;
     virtual Messages::WebDriverClient::ExecuteScriptResponse execute_script(JsonValue const& payload) override;
     virtual Messages::WebDriverClient::ExecuteAsyncScriptResponse execute_async_script(JsonValue const& payload) override;
@@ -93,7 +101,7 @@ private:
     virtual Messages::WebDriverClient::AddCookieResponse add_cookie(JsonValue const& payload) override;
     virtual Messages::WebDriverClient::DeleteCookieResponse delete_cookie(String const& name) override;
     virtual Messages::WebDriverClient::DeleteAllCookiesResponse delete_all_cookies() override;
-    virtual Messages::WebDriverClient::PerformActionsResponse perform_actions() override;
+    virtual Messages::WebDriverClient::PerformActionsResponse perform_actions(JsonValue const& payload) override;
     virtual Messages::WebDriverClient::ReleaseActionsResponse release_actions() override;
     virtual Messages::WebDriverClient::DismissAlertResponse dismiss_alert() override;
     virtual Messages::WebDriverClient::AcceptAlertResponse accept_alert() override;
@@ -101,34 +109,47 @@ private:
     virtual Messages::WebDriverClient::SendAlertTextResponse send_alert_text(JsonValue const& payload) override;
     virtual Messages::WebDriverClient::TakeScreenshotResponse take_screenshot() override;
     virtual Messages::WebDriverClient::TakeElementScreenshotResponse take_element_screenshot(String const& element_id) override;
-    virtual Messages::WebDriverClient::PrintPageResponse print_page() override;
+    virtual Messages::WebDriverClient::PrintPageResponse print_page(JsonValue const& payload) override;
     virtual Messages::WebDriverClient::EnsureTopLevelBrowsingContextIsOpenResponse ensure_top_level_browsing_context_is_open() override;
 
+    void set_current_browsing_context(Web::HTML::BrowsingContext&);
     Web::HTML::BrowsingContext& current_browsing_context() { return *m_current_browsing_context; }
-    JS::GCPtr<Web::HTML::BrowsingContext> current_parent_browsing_context();
-    JS::GCPtr<Web::HTML::BrowsingContext> current_top_level_browsing_context();
+    JS::GCPtr<Web::HTML::BrowsingContext> current_parent_browsing_context() { return m_current_parent_browsing_context; }
+
+    void set_current_top_level_browsing_context(Web::HTML::BrowsingContext&);
+    JS::GCPtr<Web::HTML::BrowsingContext> current_top_level_browsing_context() { return m_current_top_level_browsing_context; }
 
     ErrorOr<void, Web::WebDriver::Error> ensure_current_browsing_context_is_open();
     ErrorOr<void, Web::WebDriver::Error> ensure_current_top_level_browsing_context_is_open();
 
-    ErrorOr<void, Web::WebDriver::Error> handle_any_user_prompts();
-    void restore_the_window();
-    Gfx::IntRect maximize_the_window();
-    Gfx::IntRect iconify_the_window();
+    Web::WebDriver::Response element_click_impl(String const& element_id);
+    Web::WebDriver::Response element_send_keys_impl(String const& element_id, ByteString const& text);
 
-    ErrorOr<void, Web::WebDriver::Error> wait_for_navigation_to_complete();
+    void handle_any_user_prompts(Function<void()> on_dialog_closed);
+    ErrorOr<void, Web::WebDriver::Error> deprecated_handle_any_user_prompts();
+
+    void maximize_the_window();
+    void iconify_the_window(JS::NonnullGCPtr<JS::HeapFunction<void()>>);
+    void restore_the_window(JS::NonnullGCPtr<JS::HeapFunction<void()>>);
+    void wait_for_visibility_state(JS::NonnullGCPtr<JS::HeapFunction<void()>>, Web::HTML::VisibilityState);
+
+    using OnNavigationComplete = JS::NonnullGCPtr<JS::HeapFunction<void(Web::WebDriver::Response)>>;
+    void wait_for_navigation_to_complete(OnNavigationComplete);
 
     Gfx::IntPoint calculate_absolute_position_of_element(JS::NonnullGCPtr<Web::Geometry::DOMRect> rect);
     Gfx::IntRect calculate_absolute_rect_of_element(Web::DOM::Element const& element);
 
-    using StartNodeGetter = Function<ErrorOr<Web::DOM::ParentNode*, Web::WebDriver::Error>()>;
-    ErrorOr<JsonArray, Web::WebDriver::Error> find(StartNodeGetter&& start_node_getter, Web::WebDriver::LocationStrategy using_, StringView value);
+    using GetStartNode = JS::NonnullGCPtr<JS::HeapFunction<ErrorOr<JS::NonnullGCPtr<Web::DOM::ParentNode>, Web::WebDriver::Error>()>>;
+    using OnFindComplete = JS::NonnullGCPtr<JS::HeapFunction<void(Web::WebDriver::Response)>>;
+    void find(Web::WebDriver::LocationStrategy, ByteString, GetStartNode, OnFindComplete);
 
     struct ScriptArguments {
         ByteString script;
         JS::MarkedVector<JS::Value> arguments;
     };
-    static ErrorOr<ScriptArguments, Web::WebDriver::Error> extract_the_script_arguments_from_a_request(JS::VM&, JsonValue const& payload);
+    ErrorOr<ScriptArguments, Web::WebDriver::Error> extract_the_script_arguments_from_a_request(JS::VM&, JsonValue const& payload);
+    void handle_script_response(Web::WebDriver::ExecuteScriptResultSerialized);
+
     void delete_cookies(Optional<StringView> const& name = {});
 
     // https://w3c.github.io/webdriver/#dfn-page-load-strategy
@@ -144,7 +165,25 @@ private:
     Web::WebDriver::TimeoutsConfiguration m_timeouts_configuration;
 
     // https://w3c.github.io/webdriver/#dfn-current-browsing-context
-    JS::Handle<Web::HTML::BrowsingContext> m_current_browsing_context;
+    JS::GCPtr<Web::HTML::BrowsingContext> m_current_browsing_context;
+
+    // https://w3c.github.io/webdriver/#dfn-current-parent-browsing-context
+    JS::GCPtr<Web::HTML::BrowsingContext> m_current_parent_browsing_context;
+
+    // https://w3c.github.io/webdriver/#dfn-current-top-level-browsing-context
+    JS::GCPtr<Web::HTML::BrowsingContext> m_current_top_level_browsing_context;
+
+    size_t m_pending_window_rect_requests { 0 };
+    bool m_has_pending_script_execution { false };
+
+    friend class ElementLocator;
+    JS::GCPtr<ElementLocator> m_element_locator;
+
+    JS::GCPtr<JS::Cell> m_action_executor;
+
+    JS::GCPtr<Web::DOM::DocumentObserver> m_document_observer;
+    JS::GCPtr<Web::HTML::NavigationObserver> m_navigation_observer;
+    JS::GCPtr<Web::WebDriver::HeapTimer> m_navigation_timer;
 };
 
 }

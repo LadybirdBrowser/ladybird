@@ -4,11 +4,9 @@
 // https://dom.spec.whatwg.org/#domimplementation
 [Exposed=Window]
 interface DOMImplementation {
-
+    [NewObject] DocumentType createDocumentType(DOMString qualifiedName, DOMString publicId, DOMString systemId);
     [NewObject] XMLDocument createDocument([FlyString] DOMString? namespace, [LegacyNullToEmptyString] DOMString qualifiedName, optional DocumentType? doctype = null);
     [NewObject] Document createHTMLDocument(optional DOMString title);
-    [NewObject] DocumentType createDocumentType(DOMString qualifiedName, DOMString publicId, DOMString systemId);
 
-    boolean hasFeature();
-
+    boolean hasFeature(); // useless; always returns true
 };

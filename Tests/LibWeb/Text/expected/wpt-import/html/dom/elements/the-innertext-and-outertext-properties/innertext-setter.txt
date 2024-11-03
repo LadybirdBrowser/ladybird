@@ -1,0 +1,136 @@
+Summary
+
+Harness status: OK
+
+Rerun
+
+Found 126 tests
+
+126 Pass
+Details
+Result	Test Name	MessagePass	Simplest possible test	
+Pass	Simplest possible test, detached	
+Pass	Newlines convert to <br> in non-white-space:pre elements	
+Pass	Newlines convert to <br> in non-white-space:pre elements, detached	
+Pass	Newlines convert to <br> in <pre> element	
+Pass	Newlines convert to <br> in <pre> element, detached	
+Pass	Newlines convert to <br> in <textarea> element	
+Pass	Newlines convert to <br> in <textarea> element, detached	
+Pass	Newlines convert to <br> in white-space:pre element	
+Pass	Newlines convert to <br> in white-space:pre element, detached	
+Pass	CRs convert to <br> in non-white-space:pre elements	
+Pass	CRs convert to <br> in non-white-space:pre elements, detached	
+Pass	CRs convert to <br> in <pre> element	
+Pass	CRs convert to <br> in <pre> element, detached	
+Pass	Newline/CR pair converts to <br> in non-white-space:pre element	
+Pass	Newline/CR pair converts to <br> in non-white-space:pre element, detached	
+Pass	Newline/newline pair converts to two <br>s in non-white-space:pre element	
+Pass	Newline/newline pair converts to two <br>s in non-white-space:pre element, detached	
+Pass	CR/CR pair converts to two <br>s in non-white-space:pre element	
+Pass	CR/CR pair converts to two <br>s in non-white-space:pre element, detached	
+Pass	CRs convert to <br> in white-space:pre element	
+Pass	CRs convert to <br> in white-space:pre element, detached	
+Pass	< preserved	
+Pass	< preserved, detached	
+Pass	> preserved	
+Pass	> preserved, detached	
+Pass	& preserved	
+Pass	& preserved, detached	
+Pass	" preserved	
+Pass	" preserved, detached	
+Pass	' preserved	
+Pass	' preserved, detached	
+Pass	innerText not supported on SVG elements	
+Pass	innerText not supported on SVG elements, detached	
+Pass	innerText not supported on MathML elements	
+Pass	innerText not supported on MathML elements, detached	
+Pass	Null characters preserved	
+Pass	Null characters preserved, detached	
+Pass	Tabs preserved	
+Pass	Tabs preserved, detached	
+Pass	Leading whitespace preserved	
+Pass	Leading whitespace preserved, detached	
+Pass	Trailing whitespace preserved	
+Pass	Trailing whitespace preserved, detached	
+Pass	Whitespace not compressed	
+Pass	Whitespace not compressed, detached	
+Pass	Existing text deleted	
+Pass	Existing text deleted, detached	
+Pass	Existing <br> deleted	
+Pass	Existing <br> deleted, detached	
+Pass	Assigning the empty string	
+Pass	Assigning the empty string, detached	
+Pass	Assigning null	
+Pass	Assigning null, detached	
+Pass	Assigning undefined	
+Pass	Assigning undefined, detached	
+Pass	Start with CR	
+Pass	Start with CR, detached	
+Pass	Start with LF	
+Pass	Start with LF, detached	
+Pass	Start with CRLF	
+Pass	Start with CRLF, detached	
+Pass	End with CR	
+Pass	End with CR, detached	
+Pass	End with LF	
+Pass	End with LF, detached	
+Pass	End with CRLF	
+Pass	End with CRLF, detached	
+Pass	innerText on <area> element	
+Pass	innerText on <area> element, detached	
+Pass	innerText on <base> element	
+Pass	innerText on <base> element, detached	
+Pass	innerText on <basefont> element	
+Pass	innerText on <basefont> element, detached	
+Pass	innerText on <bgsound> element	
+Pass	innerText on <bgsound> element, detached	
+Pass	innerText on <br> element	
+Pass	innerText on <br> element, detached	
+Pass	innerText on <col> element	
+Pass	innerText on <col> element, detached	
+Pass	innerText on <embed> element	
+Pass	innerText on <embed> element, detached	
+Pass	innerText on <frame> element	
+Pass	innerText on <frame> element, detached	
+Pass	innerText on <hr> element	
+Pass	innerText on <hr> element, detached	
+Pass	innerText on <image> element	
+Pass	innerText on <image> element, detached	
+Pass	innerText on <img> element	
+Pass	innerText on <img> element, detached	
+Pass	innerText on <input> element	
+Pass	innerText on <input> element, detached	
+Pass	innerText on <keygen> element	
+Pass	innerText on <keygen> element, detached	
+Pass	innerText on <link> element	
+Pass	innerText on <link> element, detached	
+Pass	innerText on <menuitem> element	
+Pass	innerText on <menuitem> element, detached	
+Pass	innerText on <meta> element	
+Pass	innerText on <meta> element, detached	
+Pass	innerText on <param> element	
+Pass	innerText on <param> element, detached	
+Pass	innerText on <source> element	
+Pass	innerText on <source> element, detached	
+Pass	innerText on <track> element	
+Pass	innerText on <track> element, detached	
+Pass	innerText on <wbr> element	
+Pass	innerText on <wbr> element, detached	
+Pass	innerText on <colgroup> element	
+Pass	innerText on <colgroup> element, detached	
+Pass	innerText on <frameset> element	
+Pass	innerText on <frameset> element, detached	
+Pass	innerText on <head> element	
+Pass	innerText on <head> element, detached	
+Pass	innerText on <html> element	
+Pass	innerText on <html> element, detached	
+Pass	innerText on <table> element	
+Pass	innerText on <table> element, detached	
+Pass	innerText on <tbody> element	
+Pass	innerText on <tbody> element, detached	
+Pass	innerText on <tfoot> element	
+Pass	innerText on <tfoot> element, detached	
+Pass	innerText on <thead> element	
+Pass	innerText on <thead> element, detached	
+Pass	innerText on <tr> element	
+Pass	innerText on <tr> element, detached	

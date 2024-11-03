@@ -26,7 +26,7 @@
 namespace Web::Fetch {
 
 // https://fetch.spec.whatwg.org/#dom-global-fetch
-JS::NonnullGCPtr<JS::Promise> fetch(JS::VM& vm, RequestInfo const& input, RequestInit const& init)
+JS::NonnullGCPtr<WebIDL::Promise> fetch(JS::VM& vm, RequestInfo const& input, RequestInit const& init)
 {
     auto& realm = *vm.current_realm();
 
@@ -39,7 +39,7 @@ JS::NonnullGCPtr<JS::Promise> fetch(JS::VM& vm, RequestInfo const& input, Reques
     if (exception_or_request_object.is_exception()) {
         auto throw_completion = Bindings::dom_exception_to_throw_completion(vm, exception_or_request_object.exception());
         WebIDL::reject_promise(realm, promise_capability, *throw_completion.value());
-        return verify_cast<JS::Promise>(*promise_capability->promise().ptr());
+        return promise_capability;
     }
     auto request_object = exception_or_request_object.release_value();
 
@@ -52,7 +52,7 @@ JS::NonnullGCPtr<JS::Promise> fetch(JS::VM& vm, RequestInfo const& input, Reques
         abort_fetch(realm, promise_capability, request, nullptr, request_object->signal()->reason());
 
         // 2. Return p.
-        return verify_cast<JS::Promise>(*promise_capability->promise().ptr());
+        return promise_capability;
     }
 
     // 5. Let globalObject be request’s client’s global object.
@@ -87,7 +87,7 @@ JS::NonnullGCPtr<JS::Promise> fetch(JS::VM& vm, RequestInfo const& input, Reques
             return;
 
         // AD-HOC: An execution context is required for Promise functions.
-        HTML::TemporaryExecutionContext execution_context { Bindings::host_defined_environment_settings_object(relevant_realm) };
+        HTML::TemporaryExecutionContext execution_context { relevant_realm };
 
         // 2. If response’s aborted flag is set, then:
         if (response->aborted()) {
@@ -143,14 +143,14 @@ JS::NonnullGCPtr<JS::Promise> fetch(JS::VM& vm, RequestInfo const& input, Reques
         controller->abort(relevant_realm, request_object->signal()->reason());
 
         // AD-HOC: An execution context is required for Promise functions.
-        HTML::TemporaryExecutionContext execution_context { Bindings::host_defined_environment_settings_object(relevant_realm) };
+        HTML::TemporaryExecutionContext execution_context { relevant_realm };
 
         // 4. Abort the fetch() call with p, request, responseObject, and requestObject’s signal’s abort reason.
         abort_fetch(relevant_realm, *promise_capability, request, response_object, request_object->signal()->reason());
     });
 
     // 13. Return p.
-    return verify_cast<JS::Promise>(*promise_capability->promise().ptr());
+    return promise_capability;
 }
 
 // https://fetch.spec.whatwg.org/#abort-fetch

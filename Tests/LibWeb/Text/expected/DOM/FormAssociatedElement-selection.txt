@@ -1,5 +1,4 @@
-Well hello friends  some
-text   text-input selectionStart: 0 selectionEnd: 0 selectionDirection: none
+text-input selectionStart: 0 selectionEnd: 0 selectionDirection: none
 date-input selectionStart: null selectionEnd: null selectionDirection: null
 textarea selectionStart: 0 selectionEnd: 0 selectionDirection: none
 text-input selectionStart: 18 selectionEnd: 18 selectionDirection: none
@@ -16,4 +15,5 @@ select event fired: 6 6
 text-input selectionStart: 6 selectionEnd: 6 selectionDirection: forward
 select event fired: 6 6
 text-input selectionStart: 6 selectionEnd: 6 selectionDirection: backward
+select event fired: 6 6
 textarea selectionStart: 0 selectionEnd: 9 selectionDirection: none

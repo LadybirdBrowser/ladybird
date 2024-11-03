@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2020, Stephan Unverwerth <s.unverwerth@serenityos.org>
- * Copyright (c) 2023, Andreas Kling <kling@serenityos.org>
+ * Copyright (c) 2023, Andreas Kling <andreas@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -85,7 +85,7 @@ public:
     virtual float width(StringView) const = 0;
     virtual float width(Utf8View const&) const = 0;
 
-    virtual String family() const = 0;
+    virtual FlyString family() const = 0;
 
     virtual NonnullRefPtr<Font> with_size(float point_size) const = 0;
 

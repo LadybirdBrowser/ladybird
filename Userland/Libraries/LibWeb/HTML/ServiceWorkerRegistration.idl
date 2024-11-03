@@ -1,5 +1,6 @@
 #import <DOM/EventTarget.idl>
 #import <DOM/EventHandler.idl>
+#import <HTML/ServiceWorker.idl>
 
 // https://w3c.github.io/ServiceWorker/#serviceworkerregistration-interface
 [SecureContext, Exposed=(Window,Worker)]

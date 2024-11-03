@@ -8,6 +8,10 @@
                     resolve();
                 });
             },
+
+            close() {
+                done();
+            }
         });
 
         function sendMessage(message) {
@@ -19,7 +23,6 @@
 
             writer.ready.then(() => {
                 writer.close();
-                done();
             });
         }
 

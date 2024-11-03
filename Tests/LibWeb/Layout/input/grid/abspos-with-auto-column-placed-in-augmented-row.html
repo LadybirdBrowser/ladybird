@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<style>
+  .grid-container {
+    display: grid;
+    grid-template-columns: 50px 100px;
+    grid-template-rows: 50px 100px;
+    position: relative;
+    background-color: #ccc;
+    padding: 50px;
+    gap: 20px;
+    width: fit-content;
+  }
+  .grid-item {
+    background-color: #4caf50;
+  }
+  .abspos-box {
+    position: absolute;
+    top: 0px;
+    left: 0px;
+    bottom: 0px;
+    right: 0px;
+    width: 100%;
+    height: 100%;
+    background-color: red;
+    grid-row: 3;
+  }
+</style>
+<div class="grid-container">
+  <div class="grid-item">1</div>
+  <div class="grid-item">2</div>
+  <div class="grid-item">3</div>
+  <div class="grid-item">4</div>
+  <div class="abspos-box"></div>
+</div>

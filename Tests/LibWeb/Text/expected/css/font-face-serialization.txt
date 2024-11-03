@@ -1,0 +1,7 @@
+@font-face { font-family: "a1"; src: local("xyz"); unicode-range: "U+0-10ffff"; }
+@font-face { font-family: "b1"; unicode-range: "U+0-10ffff"; font-feature-settings: "aaaa", "bbbb" 0, "yyyy" 3, "zzzz"; }
+@font-face { font-family: "b2"; unicode-range: "U+0-10ffff"; font-feature-settings: "aaaa" 3; }
+@font-face { font-family: "c1"; unicode-range: "U+0-10ffff"; font-width: 62.5%; }
+@font-face { font-family: "c2"; unicode-range: "U+0-10ffff"; font-width: 50%; }
+@font-face { font-family: "c3"; unicode-range: "U+0-10ffff"; font-width: 62.5%; }
+@font-face { font-family: "c4"; unicode-range: "U+0-10ffff"; font-width: 50%; }

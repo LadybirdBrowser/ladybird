@@ -78,7 +78,7 @@ void VideoTrack::initialize(JS::Realm& realm)
     WEB_SET_PROTOTYPE_FOR_INTERFACE(VideoTrack);
 
     auto id = s_video_track_id_allocator.allocate();
-    m_id = MUST(String::number(id));
+    m_id = String::number(id);
 }
 
 void VideoTrack::visit_edges(Cell::Visitor& visitor)

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023, Andreas Kling <kling@serenityos.org>
+ * Copyright (c) 2023, Andreas Kling <andreas@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -8,10 +8,10 @@
 
 #include <AK/HashMap.h>
 #include <LibJS/Heap/Cell.h>
+#include <LibURL/Origin.h>
 #include <LibURL/URL.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/HTML/CORSSettingAttribute.h>
-#include <LibWeb/HTML/Origin.h>
 
 namespace Web::HTML {
 
@@ -24,7 +24,7 @@ public:
     struct Key {
         URL::URL url;
         HTML::CORSSettingAttribute mode;
-        Optional<HTML::Origin> origin;
+        Optional<URL::Origin> origin;
 
         [[nodiscard]] bool operator==(Key const& other) const;
         [[nodiscard]] u32 hash() const;

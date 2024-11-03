@@ -172,9 +172,9 @@ bool Request::has_redirect_tainted_origin() const
         }
 
         // 2. If url’s origin is not same origin with lastURL’s origin and request’s origin is not same origin with lastURL’s origin, then return true.
-        auto const* request_origin = m_origin.get_pointer<HTML::Origin>();
-        if (!DOMURL::url_origin(url).is_same_origin(DOMURL::url_origin(*last_url))
-            && (request_origin == nullptr || !request_origin->is_same_origin(DOMURL::url_origin(*last_url)))) {
+        auto const* request_origin = m_origin.get_pointer<URL::Origin>();
+        if (!url.origin().is_same_origin(last_url->origin())
+            && (request_origin == nullptr || !request_origin->is_same_origin(last_url->origin()))) {
             return true;
         }
 
@@ -194,7 +194,7 @@ String Request::serialize_origin() const
         return "null"_string;
 
     // 2. Return request’s origin, serialized.
-    return MUST(String::from_byte_string(m_origin.get<HTML::Origin>().serialize()));
+    return MUST(String::from_byte_string(m_origin.get<URL::Origin>().serialize()));
 }
 
 // https://fetch.spec.whatwg.org/#byte-serializing-a-request-origin
@@ -272,14 +272,14 @@ void Request::add_range_header(u64 first, Optional<u64> const& last)
     auto range_value = MUST(ByteBuffer::copy("bytes"sv.bytes()));
 
     // 3. Serialize and isomorphic encode first, and append the result to rangeValue.
-    range_value.append(MUST(String::number(first)).bytes());
+    range_value.append(String::number(first).bytes());
 
     // 4. Append 0x2D (-) to rangeValue.
     range_value.append('-');
 
     // 5. If last is given, then serialize and isomorphic encode it, and append the result to rangeValue.
     if (last.has_value())
-        range_value.append(MUST(String::number(*last)).bytes());
+        range_value.append(String::number(*last).bytes());
 
     // 6. Append (`Range`, rangeValue) to request’s header list.
     auto header = Header {
@@ -321,14 +321,14 @@ void Request::add_origin_header()
             case ReferrerPolicy::ReferrerPolicy::StrictOriginWhenCrossOrigin:
                 // If request’s origin is a tuple origin, its scheme is "https", and request’s current URL’s scheme is
                 // not "https", then set serializedOrigin to `null`.
-                if (m_origin.has<HTML::Origin>() && m_origin.get<HTML::Origin>().scheme() == "https"sv && current_url().scheme() != "https"sv)
+                if (m_origin.has<URL::Origin>() && m_origin.get<URL::Origin>().scheme() == "https"sv && current_url().scheme() != "https"sv)
                     serialized_origin = MUST(ByteBuffer::copy("null"sv.bytes()));
                 break;
             // -> "same-origin"
             case ReferrerPolicy::ReferrerPolicy::SameOrigin:
                 // If request’s origin is not same origin with request’s current URL’s origin, then set serializedOrigin
                 // to `null`.
-                if (m_origin.has<HTML::Origin>() && !m_origin.get<HTML::Origin>().is_same_origin(DOMURL::url_origin(current_url())))
+                if (m_origin.has<URL::Origin>() && !m_origin.get<URL::Origin>().is_same_origin(current_url().origin()))
                     serialized_origin = MUST(ByteBuffer::copy("null"sv.bytes()));
                 break;
             // -> Otherwise
@@ -364,11 +364,11 @@ bool Request::cross_origin_embedder_policy_allows_credentials() const
 
     // 4. If request’s origin is same origin with request’s current URL’s origin and request does not have a redirect-tainted origin, then return true.
     // 5. Return false.
-    auto const* request_origin = m_origin.get_pointer<HTML::Origin>();
+    auto const* request_origin = m_origin.get_pointer<URL::Origin>();
     if (request_origin == nullptr)
         return false;
 
-    return request_origin->is_same_origin(DOMURL::url_origin(current_url())) && !has_redirect_tainted_origin();
+    return request_origin->is_same_origin(current_url().origin()) && !has_redirect_tainted_origin();
 }
 
 StringView request_destination_to_string(Request::Destination destination)

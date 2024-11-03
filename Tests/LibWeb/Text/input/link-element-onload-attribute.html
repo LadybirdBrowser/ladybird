@@ -1,11 +1,13 @@
 <script src="include.js"></script>
 <script>
-    test(() => {
+    asyncTest(done => {
+        globalThis.done = done;
+
         let link = document.createElement("link");
         link.setAttribute("rel", "preload");
         link.setAttribute("href", "valid.css");
         link.setAttribute("as", "style");
-        link.setAttribute("onload", "println('link element onload')");
+        link.setAttribute("onload", "println('link element onload'); done();");
         document.head.appendChild(link);
     });
 </script>

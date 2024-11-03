@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023, Tim Flynn <trflynn89@serenityos.org>
+ * Copyright (c) 2023-2024, Tim Flynn <trflynn89@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -12,7 +12,7 @@ namespace JS {
 
 JS_DEFINE_ALLOCATOR(WrapForValidIteratorPrototype);
 
-// 3.1.1.2.2.1 The %WrapForValidIteratorPrototype% Object, https://tc39.es/proposal-iterator-helpers/#sec-wrapforvaliditeratorprototype-object
+// 27.1.3.2.1.1 The %WrapForValidIteratorPrototype% Object, https://tc39.es/ecma262/#sec-%wrapforvaliditeratorprototype%-object
 WrapForValidIteratorPrototype::WrapForValidIteratorPrototype(Realm& realm)
     : PrototypeObject(realm.intrinsics().iterator_prototype())
 {
@@ -28,7 +28,7 @@ void WrapForValidIteratorPrototype::initialize(Realm& realm)
     define_native_function(realm, vm.names.return_, return_, 0, attr);
 }
 
-// 3.1.1.2.2.1.1 %WrapForValidIteratorPrototype%.next ( ), https://tc39.es/proposal-iterator-helpers/#sec-wrapforvaliditeratorprototype.next
+// 27.1.3.2.1.1.1 %WrapForValidIteratorPrototype%.next ( ), https://tc39.es/ecma262/#sec-%wrapforvaliditeratorprototype%.next
 JS_DEFINE_NATIVE_FUNCTION(WrapForValidIteratorPrototype::next)
 {
     // 1. Let O be this value.
@@ -42,7 +42,7 @@ JS_DEFINE_NATIVE_FUNCTION(WrapForValidIteratorPrototype::next)
     return TRY(call(vm, iterator_record.next_method, iterator_record.iterator));
 }
 
-// 3.1.1.2.2.1.2 %WrapForValidIteratorPrototype%.return ( ), https://tc39.es/proposal-iterator-helpers/#sec-wrapforvaliditeratorprototype.return
+// 27.1.3.2.1.1.2 %WrapForValidIteratorPrototype%.return ( ), https://tc39.es/ecma262/#sec-%wrapforvaliditeratorprototype%.return
 JS_DEFINE_NATIVE_FUNCTION(WrapForValidIteratorPrototype::return_)
 {
     // 1. Let O be this value.

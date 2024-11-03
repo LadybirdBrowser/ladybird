@@ -10,7 +10,6 @@
 #include <AK/Function.h>
 #include <AK/OwnPtr.h>
 #include <AK/Types.h>
-#include <LibCore/Socket.h>
 #include <LibIPC/ConnectionFromClient.h>
 #include <LibIPC/Forward.h>
 #include <LibIPC/MultiServer.h>
@@ -33,7 +32,7 @@ public:
     Function<void(Vector<URL::URL> const&)> on_new_window;
 
 private:
-    UIProcessConnectionFromClient(NonnullOwnPtr<Core::LocalSocket>, int client_id);
+    UIProcessConnectionFromClient(IPC::Transport, int client_id);
 
     virtual void create_new_tab(Vector<ByteString> const& urls) override;
     virtual void create_new_window(Vector<ByteString> const& urls) override;
@@ -49,7 +48,7 @@ public:
         ExitProcess,
     };
 
-    static ErrorOr<ChromeProcess> create();
+    ChromeProcess() = default;
     ~ChromeProcess();
 
     ErrorOr<ProcessDisposition> connect(Vector<ByteString> const& raw_urls, NewWindow new_window);
@@ -58,8 +57,6 @@ public:
     Function<void(Vector<URL::URL> const&)> on_new_window;
 
 private:
-    ChromeProcess() = default;
-
     ErrorOr<void> connect_as_client(ByteString const& socket_path, Vector<ByteString> const& raw_urls, NewWindow new_window);
     ErrorOr<void> connect_as_server(ByteString const& socket_path);
 

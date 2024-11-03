@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020, Andreas Kling <kling@serenityos.org>
+ * Copyright (c) 2020, Andreas Kling <andreas@ladybird.org>
  * Copyright (c) 2023, Aliaksandr Kalenik <kalenik.aliaksandr@gmail.com>
  * Copyright (c) 2023, Sam Atkins <atkinssj@serenityos.org>
  *
@@ -91,11 +91,11 @@ static WebIDL::ExceptionOr<JS::NonnullGCPtr<DOM::Document>> load_html_document(H
     //    causes a load event to be fired.
     else {
         // FIXME: Parse as we receive the document data, instead of waiting for the whole document to be fetched first.
-        auto process_body = JS::create_heap_function(document->heap(), [document, url = navigation_params.response->url().value()](ByteBuffer data) {
-            Platform::EventLoopPlugin::the().deferred_invoke([document = document, data = move(data), url = url] {
-                auto parser = HTML::HTMLParser::create_with_uncertain_encoding(document, data);
+        auto process_body = JS::create_heap_function(document->heap(), [document, url = navigation_params.response->url().value(), mime_type = navigation_params.response->header_list()->extract_mime_type()](ByteBuffer data) {
+            Platform::EventLoopPlugin::the().deferred_invoke(JS::create_heap_function(document->heap(), [document = document, data = move(data), url = url, mime_type] {
+                auto parser = HTML::HTMLParser::create_with_uncertain_encoding(document, data, mime_type);
                 parser->run(url);
-            });
+            }));
         });
 
         auto process_body_error = JS::create_heap_function(document->heap(), [](JS::Value) {
@@ -146,14 +146,14 @@ static WebIDL::ExceptionOr<JS::NonnullGCPtr<DOM::Document>> load_xml_document(HT
     if (auto maybe_encoding = type.parameters().get("charset"sv); maybe_encoding.has_value())
         content_encoding = maybe_encoding.value();
 
-    auto process_body = JS::create_heap_function(document->heap(), [document, url = navigation_params.response->url().value(), content_encoding = move(content_encoding)](ByteBuffer data) {
+    auto process_body = JS::create_heap_function(document->heap(), [document, url = navigation_params.response->url().value(), content_encoding = move(content_encoding), mime = type](ByteBuffer data) {
         Optional<TextCodec::Decoder&> decoder;
         // The actual HTTP headers and other metadata, not the headers as mutated or implied by the algorithms given in this specification,
         // are the ones that must be used when determining the character encoding according to the rules given in the above specifications.
         if (content_encoding.has_value())
             decoder = TextCodec::decoder_for(*content_encoding);
         if (!decoder.has_value()) {
-            auto encoding = HTML::run_encoding_sniffing_algorithm(document, data);
+            auto encoding = HTML::run_encoding_sniffing_algorithm(document, data, mime);
             decoder = TextCodec::decoder_for(encoding);
         }
         VERIFY(decoder.has_value());
@@ -226,8 +226,8 @@ static WebIDL::ExceptionOr<JS::NonnullGCPtr<DOM::Document>> load_text_document(H
     //    document's relevant global object to have the parser to process the implied EOF character, which eventually causes a
     //    load event to be fired.
     // FIXME: Parse as we receive the document data, instead of waiting for the whole document to be fetched first.
-    auto process_body = JS::create_heap_function(document->heap(), [document, url = navigation_params.response->url().value()](ByteBuffer data) {
-        auto encoding = run_encoding_sniffing_algorithm(document, data);
+    auto process_body = JS::create_heap_function(document->heap(), [document, url = navigation_params.response->url().value(), mime = type](ByteBuffer data) {
+        auto encoding = run_encoding_sniffing_algorithm(document, data, mime);
         dbgln_if(HTML_PARSER_DEBUG, "The encoding sniffing algorithm returned encoding '{}'", encoding);
 
         auto parser = HTML::HTMLParser::create_for_scripting(document);

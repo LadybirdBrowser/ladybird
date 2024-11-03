@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2020, Andreas Kling <kling@serenityos.org>
+ * Copyright (c) 2018-2020, Andreas Kling <andreas@ladybird.org>
  * Copyright (c) 2021, Tobias Christiansen <tobyase@serenityos.org>
  * Copyright (c) 2021-2023, Sam Atkins <atkinssj@serenityos.org>
  * Copyright (c) 2022-2023, MacDue <macdue@dueutil.tech>
@@ -10,25 +10,26 @@
 #pragma once
 
 #include <LibWeb/CSS/Angle.h>
+#include <LibWeb/CSS/CalculatedOr.h>
 #include <LibWeb/CSS/Length.h>
 #include <LibWeb/CSS/Number.h>
 #include <LibWeb/CSS/PercentageOr.h>
 
 namespace Web::CSS {
 
-namespace Filter {
+namespace FilterOperation {
 
 struct Blur {
-    Optional<Length> radius {};
+    Optional<LengthOrCalculated> radius;
     float resolved_radius(Layout::Node const&) const;
     bool operator==(Blur const&) const = default;
 };
 
 struct DropShadow {
-    Length offset_x;
-    Length offset_y;
-    Optional<Length> radius {};
-    Optional<Color> color {};
+    LengthOrCalculated offset_x;
+    LengthOrCalculated offset_y;
+    Optional<LengthOrCalculated> radius;
+    Optional<Color> color;
     bool operator==(DropShadow const&) const = default;
 };
 
@@ -36,14 +37,14 @@ struct HueRotate {
     struct Zero {
         bool operator==(Zero const&) const = default;
     };
-    using AngleOrZero = Variant<Angle, Zero>;
-    Optional<AngleOrZero> angle {};
-    float angle_degrees() const;
+    using AngleOrZero = Variant<AngleOrCalculated, Zero>;
+    Optional<AngleOrZero> angle;
+    float angle_degrees(Layout::Node const&) const;
     bool operator==(HueRotate const&) const = default;
 };
 
 struct Color {
-    enum class Operation {
+    enum class Type {
         Brightness,
         Contrast,
         Grayscale,
@@ -59,7 +60,7 @@ struct Color {
 
 };
 
-using FilterFunction = Variant<Filter::Blur, Filter::DropShadow, Filter::HueRotate, Filter::Color>;
+using FilterFunction = Variant<FilterOperation::Blur, FilterOperation::DropShadow, FilterOperation::HueRotate, FilterOperation::Color>;
 
 class FilterValueListStyleValue final : public StyleValueWithDefaultOperators<FilterValueListStyleValue> {
 public:

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2022, Andreas Kling <kling@serenityos.org>
+ * Copyright (c) 2021-2022, Andreas Kling <andreas@ladybird.org>
  * Copyright (c) 2023, Luke Wilde <lukew@serenityos.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
@@ -61,7 +61,7 @@ private:
 
     mutable u64 m_cached_dom_tree_version { 0 };
     mutable Vector<JS::NonnullGCPtr<Element>> m_cached_elements;
-    mutable OwnPtr<HashMap<FlyString, JS::NonnullGCPtr<Element>>> m_cached_name_to_element_mappings;
+    mutable OwnPtr<OrderedHashMap<FlyString, JS::NonnullGCPtr<Element>>> m_cached_name_to_element_mappings;
 
     JS::NonnullGCPtr<ParentNode> m_root;
     Function<bool(Element const&)> m_filter;

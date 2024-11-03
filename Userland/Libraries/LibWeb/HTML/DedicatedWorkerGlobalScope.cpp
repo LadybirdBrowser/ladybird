@@ -11,6 +11,7 @@
 #include <LibWeb/HTML/EventHandler.h>
 #include <LibWeb/HTML/EventNames.h>
 #include <LibWeb/HTML/MessageEvent.h>
+#include <LibWeb/HTML/MessagePort.h>
 
 namespace Web::HTML {
 
@@ -28,8 +29,6 @@ void DedicatedWorkerGlobalScope::initialize_web_interfaces_impl()
 {
     auto& realm = this->realm();
     add_dedicated_worker_exposed_interfaces(*this);
-
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(DedicatedWorkerGlobalScope);
 
     DedicatedWorkerGlobalScopeGlobalMixin::initialize(realm, *this);
 
@@ -49,12 +48,22 @@ void DedicatedWorkerGlobalScope::finalize()
     WindowOrWorkerGlobalScopeMixin::finalize();
 }
 
+// https://html.spec.whatwg.org/multipage/workers.html#dom-dedicatedworkerglobalscope-postmessage-options
 WebIDL::ExceptionOr<void> DedicatedWorkerGlobalScope::post_message(JS::Value message, StructuredSerializeOptions const& options)
 {
     // The postMessage(message, transfer) and postMessage(message, options) methods on DedicatedWorkerGlobalScope objects act as if,
     // when invoked, it immediately invoked the respective postMessage(message, transfer) and postMessage(message, options)
     // on the port, with the same arguments, and returned the same return value.
     return m_internal_port->post_message(message, options);
+}
+
+// https://html.spec.whatwg.org/multipage/workers.html#dom-dedicatedworkerglobalscope-postmessage
+WebIDL::ExceptionOr<void> DedicatedWorkerGlobalScope::post_message(JS::Value message, Vector<JS::Handle<JS::Object>> const& transfer)
+{
+    // The postMessage(message, transfer) and postMessage(message, options) methods on DedicatedWorkerGlobalScope objects act as if,
+    // when invoked, it immediately invoked the respective postMessage(message, transfer) and postMessage(message, options)
+    // on the port, with the same arguments, and returned the same return value.
+    return m_internal_port->post_message(message, transfer);
 }
 
 #undef __ENUMERATE

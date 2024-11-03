@@ -19,9 +19,9 @@ class ReadableStreamGenericReaderMixin {
 public:
     virtual ~ReadableStreamGenericReaderMixin() = default;
 
-    JS::GCPtr<JS::Promise> closed();
+    JS::GCPtr<WebIDL::Promise> closed();
 
-    JS::NonnullGCPtr<JS::Promise> cancel(JS::Value reason);
+    JS::NonnullGCPtr<WebIDL::Promise> cancel(JS::Value reason);
 
     JS::GCPtr<ReadableStream> stream() const { return m_stream; }
     void set_stream(JS::GCPtr<ReadableStream> stream) { m_stream = stream; }

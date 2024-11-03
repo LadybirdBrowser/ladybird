@@ -1,0 +1,32 @@
+<input id="input" />
+<script src="../include.js"></script>
+<script>
+    const FUNCTIONAL_KEYS = [
+        "CapsLock",
+        "Escape",
+        "Return",
+        "Space",
+        "Tab",
+        "LeftAlt",
+        "RightAlt",
+        "LeftControl",
+        "RightControl",
+        "LeftShift",
+        "RightShift",
+        "LeftSuper",
+        "RightSuper",
+    ];
+
+    test(() => {
+        let input = document.getElementById("input");
+
+        input.addEventListener("keydown", e => {
+            println(`key=${e.key} code=${e.code}`);
+            e.preventDefault();
+        });
+
+        FUNCTIONAL_KEYS.forEach(key => {
+            internals.sendKey(input, key);
+        });
+    });
+</script>

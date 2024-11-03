@@ -20,7 +20,7 @@ JS::NonnullGCPtr<CSSKeyframesRule> CSSKeyframesRule::create(JS::Realm& realm, Fl
 }
 
 CSSKeyframesRule::CSSKeyframesRule(JS::Realm& realm, FlyString name, JS::NonnullGCPtr<CSSRuleList> keyframes)
-    : CSSRule(realm)
+    : CSSRule(realm, Type::Keyframes)
     , m_name(move(name))
     , m_rules(move(keyframes))
 {

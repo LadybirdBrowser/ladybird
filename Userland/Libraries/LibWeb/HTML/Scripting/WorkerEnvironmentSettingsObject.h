@@ -31,7 +31,7 @@ public:
     JS::GCPtr<DOM::Document> responsible_document() override { return nullptr; }
     String api_url_character_encoding() override { return m_api_url_character_encoding; }
     URL::URL api_base_url() override;
-    Origin origin() override;
+    URL::Origin origin() override;
     PolicyContainer policy_container() override;
     CanUseCrossOriginIsolatedAPIs cross_origin_isolated_capability() override;
 
@@ -39,7 +39,7 @@ private:
     virtual void visit_edges(JS::Cell::Visitor&) override;
 
     String m_api_url_character_encoding;
-    HTML::Origin m_origin;
+    URL::Origin m_origin;
 
     JS::NonnullGCPtr<WorkerGlobalScope> m_global_scope;
 };

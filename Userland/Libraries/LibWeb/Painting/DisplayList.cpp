@@ -37,7 +37,7 @@ void DisplayListPlayer::execute(DisplayList& display_list)
 
         if (command.has<PaintScrollBar>()) {
             auto& paint_scroll_bar = command.get<PaintScrollBar>();
-            auto const& scroll_offset = scroll_state[paint_scroll_bar.scroll_frame_id]->own_offset();
+            auto scroll_offset = scroll_state.own_offset_for_frame_with_id(paint_scroll_bar.scroll_frame_id);
             if (paint_scroll_bar.vertical) {
                 auto offset = scroll_offset.y() * paint_scroll_bar.scroll_size;
                 paint_scroll_bar.rect.translate_by(0, -offset.to_int() * device_pixels_per_css_pixel);
@@ -48,7 +48,8 @@ void DisplayListPlayer::execute(DisplayList& display_list)
         }
 
         if (scroll_frame_id.has_value()) {
-            auto const& scroll_offset = scroll_state[scroll_frame_id.value()]->cumulative_offset().to_type<double>().scaled(device_pixels_per_css_pixel).to_type<int>();
+            auto cumulative_offset = scroll_state.cumulative_offset_for_frame_with_id(scroll_frame_id.value());
+            auto scroll_offset = cumulative_offset.to_type<double>().scaled(device_pixels_per_css_pixel).to_type<int>();
             command.visit(
                 [&](auto& command) {
                     if constexpr (requires { command.translate_by(scroll_offset); }) {
@@ -76,6 +77,7 @@ void DisplayListPlayer::execute(DisplayList& display_list)
         else HANDLE_COMMAND(AddClipRect, add_clip_rect)
         else HANDLE_COMMAND(Save, save)
         else HANDLE_COMMAND(Restore, restore)
+        else HANDLE_COMMAND(Translate, translate)
         else HANDLE_COMMAND(PushStackingContext, push_stacking_context)
         else HANDLE_COMMAND(PopStackingContext, pop_stacking_context)
         else HANDLE_COMMAND(PaintLinearGradient, paint_linear_gradient)
@@ -99,6 +101,9 @@ void DisplayListPlayer::execute(DisplayList& display_list)
         else HANDLE_COMMAND(AddMask, add_mask)
         else HANDLE_COMMAND(PaintScrollBar, paint_scrollbar)
         else HANDLE_COMMAND(PaintNestedDisplayList, paint_nested_display_list)
+        else HANDLE_COMMAND(ApplyOpacity, apply_opacity)
+        else HANDLE_COMMAND(ApplyTransform, apply_transform)
+        else HANDLE_COMMAND(ApplyMaskBitmap, apply_mask_bitmap)
         else VERIFY_NOT_REACHED();
         // clang-format on
     }

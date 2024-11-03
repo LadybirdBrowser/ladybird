@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-2024, Andreas Kling <kling@serenityos.org>
+ * Copyright (c) 2020-2024, Andreas Kling <andreas@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -15,6 +15,7 @@
 #include <LibCore/Resource.h>
 #include <LibCore/SystemServerTakeover.h>
 #include <LibGfx/Font/FontDatabase.h>
+#include <LibGfx/Font/PathFontProvider.h>
 #include <LibIPC/ConnectionFromClient.h>
 #include <LibJS/Bytecode/Interpreter.h>
 #include <LibMain/Main.h>
@@ -28,14 +29,12 @@
 #include <LibWeb/PermissionsPolicy/AutoplayAllowlist.h>
 #include <LibWeb/Platform/AudioCodecPluginAgnostic.h>
 #include <LibWeb/Platform/EventLoopPluginSerenity.h>
-#include <LibWebView/RequestServerAdapter.h>
 #include <WebContent/ConnectionFromClient.h>
 #include <WebContent/PageClient.h>
 #include <WebContent/WebDriverConnection.h>
 
 #if defined(HAVE_QT)
 #    include <Ladybird/Qt/EventLoopImplementationQt.h>
-#    include <Ladybird/Qt/RequestManagerQt.h>
 #    include <QCoreApplication>
 
 #    if defined(HAVE_QT_MULTIMEDIA)
@@ -49,7 +48,7 @@
 
 static ErrorOr<void> load_content_filters(StringView config_path);
 static ErrorOr<void> load_autoplay_allowlist(StringView config_path);
-static ErrorOr<void> initialize_lagom_networking(int request_server_socket);
+static ErrorOr<void> initialize_resource_loader(JS::Heap&, int request_server_socket);
 static ErrorOr<void> initialize_image_decoder(int image_decoder_socket);
 static ErrorOr<void> reinitialize_image_decoder(IPC::File const& image_decoder_socket);
 
@@ -100,13 +99,13 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
     int image_decoder_socket { -1 };
     bool is_layout_test_mode = false;
     bool expose_internals_object = false;
-    bool use_lagom_networking = false;
     bool wait_for_debugger = false;
     bool log_all_js_exceptions = false;
     bool enable_idl_tracing = false;
     bool enable_http_cache = false;
     bool force_cpu_painting = false;
     bool force_fontconfig = false;
+    bool collect_garbage_on_every_allocation = false;
 
     Core::ArgsParser args_parser;
     args_parser.add_option(command_line, "Chrome process command line", "command-line", 0, "command_line");
@@ -116,7 +115,6 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
     args_parser.add_option(image_decoder_socket, "File descriptor of the socket for the ImageDecoder connection", "image-decoder-socket", 'i', "image_decoder_socket");
     args_parser.add_option(is_layout_test_mode, "Is layout test mode", "layout-test-mode");
     args_parser.add_option(expose_internals_object, "Expose internals object", "expose-internals-object");
-    args_parser.add_option(use_lagom_networking, "Enable Lagom servers for networking", "use-lagom-networking");
     args_parser.add_option(certificates, "Path to a certificate file", "certificate", 'C', "certificate");
     args_parser.add_option(wait_for_debugger, "Wait for debugger", "wait-for-debugger");
     args_parser.add_option(mach_server_name, "Mach server name", "mach-server-name", 0, "mach_server_name");
@@ -125,6 +123,7 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
     args_parser.add_option(enable_http_cache, "Enable HTTP cache", "enable-http-cache");
     args_parser.add_option(force_cpu_painting, "Force CPU painting", "force-cpu-painting");
     args_parser.add_option(force_fontconfig, "Force using fontconfig for font loading", "force-fontconfig");
+    args_parser.add_option(collect_garbage_on_every_allocation, "Collect garbage after every JS heap allocation", "collect-garbage-on-every-allocation");
 
     args_parser.parse(arguments);
 
@@ -132,11 +131,11 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
         Core::Process::wait_for_debugger_and_break();
     }
 
+    auto& font_provider = static_cast<Gfx::PathFontProvider&>(Gfx::FontDatabase::the().install_system_font_provider(make<Gfx::PathFontProvider>()));
     if (force_fontconfig) {
-        Gfx::FontDatabase::the().set_force_fontconfig(true);
+        font_provider.set_name_but_fixme_should_create_custom_system_font_provider("FontConfig"_string);
     }
-
-    Gfx::FontDatabase::the().load_all_fonts_from_uri("resource://fonts"sv);
+    font_provider.load_all_fonts_from_uri("resource://fonts"sv);
 
     // Layout test mode implies internals object is exposed and the Skia CPU backend is used
     if (is_layout_test_mode) {
@@ -166,20 +165,18 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
     }
 #endif
 
-#if defined(HAVE_QT)
-    if (!use_lagom_networking)
-        Web::ResourceLoader::initialize(Ladybird::RequestManagerQt::create(certificates));
-    else
-#endif
-        TRY(initialize_lagom_networking(request_server_socket));
-
     TRY(initialize_image_decoder(image_decoder_socket));
 
     Web::HTML::Window::set_internals_object_exposed(expose_internals_object);
 
-    Web::Platform::FontPlugin::install(*new Ladybird::FontPlugin(is_layout_test_mode));
+    Web::Platform::FontPlugin::install(*new Ladybird::FontPlugin(is_layout_test_mode, &font_provider));
 
     TRY(Web::Bindings::initialize_main_thread_vm(Web::HTML::EventLoop::Type::Window));
+
+    if (collect_garbage_on_every_allocation)
+        Web::Bindings::main_thread_vm().heap().set_should_collect_on_every_allocation(true);
+
+    TRY(initialize_resource_loader(Web::Bindings::main_thread_vm().heap(), request_server_socket));
 
     if (log_all_js_exceptions) {
         JS::g_log_all_js_exceptions = true;
@@ -197,8 +194,10 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
     if (maybe_autoplay_allowlist_error.is_error())
         dbgln("Failed to load autoplay allowlist: {}", maybe_autoplay_allowlist_error.error());
 
+    static_assert(IsSame<IPC::Transport, IPC::TransportSocket>, "Need to handle other IPC transports here");
+
     auto webcontent_socket = TRY(Core::take_over_socket_from_system_server("WebContent"sv));
-    auto webcontent_client = TRY(WebContent::ConnectionFromClient::try_create(move(webcontent_socket)));
+    auto webcontent_client = TRY(WebContent::ConnectionFromClient::try_create(Web::Bindings::main_thread_vm().heap(), IPC::Transport(move(webcontent_socket))));
 
     webcontent_client->on_image_decoder_connection = [&](auto& socket_file) {
         auto maybe_error = reinitialize_image_decoder(socket_file);
@@ -257,23 +256,26 @@ static ErrorOr<void> load_autoplay_allowlist(StringView config_path)
     return {};
 }
 
-ErrorOr<void> initialize_lagom_networking(int request_server_socket)
+ErrorOr<void> initialize_resource_loader(JS::Heap& heap, int request_server_socket)
 {
+    static_assert(IsSame<IPC::Transport, IPC::TransportSocket>, "Need to handle other IPC transports here");
+
     auto socket = TRY(Core::LocalSocket::adopt_fd(request_server_socket));
     TRY(socket->set_blocking(true));
 
-    auto new_client = TRY(try_make_ref_counted<Requests::RequestClient>(move(socket)));
+    auto request_client = TRY(try_make_ref_counted<Requests::RequestClient>(IPC::Transport(move(socket))));
+    Web::ResourceLoader::initialize(heap, move(request_client));
 
-    Web::ResourceLoader::initialize(TRY(WebView::RequestServerAdapter::try_create(move(new_client))));
     return {};
 }
 
 ErrorOr<void> initialize_image_decoder(int image_decoder_socket)
 {
+    static_assert(IsSame<IPC::Transport, IPC::TransportSocket>, "Need to handle other IPC transports here");
     auto socket = TRY(Core::LocalSocket::adopt_fd(image_decoder_socket));
     TRY(socket->set_blocking(true));
 
-    auto new_client = TRY(try_make_ref_counted<ImageDecoderClient::Client>(move(socket)));
+    auto new_client = TRY(try_make_ref_counted<ImageDecoderClient::Client>(IPC::Transport(move(socket))));
 
     Web::Platform::ImageCodecPlugin::install(*new Ladybird::ImageCodecPlugin(move(new_client)));
 
@@ -282,10 +284,12 @@ ErrorOr<void> initialize_image_decoder(int image_decoder_socket)
 
 ErrorOr<void> reinitialize_image_decoder(IPC::File const& image_decoder_socket)
 {
+    static_assert(IsSame<IPC::Transport, IPC::TransportSocket>, "Need to handle other IPC transports here");
+
     auto socket = TRY(Core::LocalSocket::adopt_fd(image_decoder_socket.take_fd()));
     TRY(socket->set_blocking(true));
 
-    auto new_client = TRY(try_make_ref_counted<ImageDecoderClient::Client>(move(socket)));
+    auto new_client = TRY(try_make_ref_counted<ImageDecoderClient::Client>(IPC::Transport(move(socket))));
 
     static_cast<Ladybird::ImageCodecPlugin&>(Web::Platform::ImageCodecPlugin::the()).set_client(move(new_client));
 

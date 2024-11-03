@@ -25,7 +25,7 @@ void SVGMetadataElement::initialize(JS::Realm& realm)
     WEB_SET_PROTOTYPE_FOR_INTERFACE(SVGMetadataElement);
 }
 
-JS::GCPtr<Layout::Node> SVGMetadataElement::create_layout_node(NonnullRefPtr<CSS::StyleProperties>)
+JS::GCPtr<Layout::Node> SVGMetadataElement::create_layout_node(CSS::StyleProperties)
 {
     return nullptr;
 }

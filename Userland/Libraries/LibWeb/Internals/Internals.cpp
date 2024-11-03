@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023, Andreas Kling <kling@serenityos.org>
+ * Copyright (c) 2023, Andreas Kling <andreas@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -10,7 +10,7 @@
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Event.h>
 #include <LibWeb/DOM/EventTarget.h>
-#include <LibWeb/HTML/BrowsingContext.h>
+#include <LibWeb/DOMURL/DOMURL.h>
 #include <LibWeb/HTML/HTMLElement.h>
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/Internals/Internals.h>
@@ -46,9 +46,9 @@ Page& Internals::internals_page() const
     return internals_window().page();
 }
 
-void Internals::signal_text_test_is_done()
+void Internals::signal_text_test_is_done(String const& text)
 {
-    internals_page().client().page_did_finish_text_test();
+    internals_page().client().page_did_finish_text_test(text);
 }
 
 void Internals::gc()
@@ -73,31 +73,39 @@ JS::Object* Internals::hit_test(double x, double y)
     return nullptr;
 }
 
-void Internals::send_text(HTML::HTMLElement& target, String const& text)
+void Internals::send_text(HTML::HTMLElement& target, String const& text, WebIDL::UnsignedShort modifiers)
 {
     auto& page = internals_page();
     target.focus();
 
     for (auto code_point : text.code_points())
-        page.handle_keydown(UIEvents::code_point_to_key_code(code_point), 0, code_point);
+        page.handle_keydown(UIEvents::code_point_to_key_code(code_point), modifiers, code_point, false);
 }
 
-void Internals::send_key(HTML::HTMLElement& target, String const& key_name)
+void Internals::send_key(HTML::HTMLElement& target, String const& key_name, WebIDL::UnsignedShort modifiers)
 {
     auto key_code = UIEvents::key_code_from_string(key_name);
     target.focus();
 
-    internals_page().handle_keydown(key_code, 0, 0);
+    internals_page().handle_keydown(key_code, modifiers, 0, false);
 }
 
 void Internals::commit_text()
 {
-    internals_page().handle_keydown(UIEvents::Key_Return, 0, 0);
+    internals_page().handle_keydown(UIEvents::Key_Return, 0, 0, false);
 }
 
 void Internals::click(double x, double y)
 {
     click(x, y, UIEvents::MouseButton::Primary);
+}
+
+void Internals::doubleclick(double x, double y)
+{
+    auto& page = internals_page();
+
+    auto position = page.css_to_device_point({ x, y });
+    page.handle_doubleclick(position, position, UIEvents::MouseButton::Primary, 0, 0);
 }
 
 void Internals::middle_click(double x, double y)
@@ -136,6 +144,20 @@ WebIDL::ExceptionOr<bool> Internals::dispatch_user_activated_event(DOM::EventTar
     return target.dispatch_event(event);
 }
 
+void Internals::spoof_current_url(String const& url_string)
+{
+    auto url = DOMURL::parse(url_string);
+
+    VERIFY(url.is_valid());
+
+    auto origin = url.origin();
+
+    auto& window = internals_window();
+    window.associated_document().set_url(url);
+    window.associated_document().set_origin(origin);
+    HTML::relevant_settings_object(window.associated_document()).creation_url = url;
+}
+
 JS::NonnullGCPtr<InternalAnimationTimeline> Internals::create_internal_animation_timeline()
 {
     auto& realm = this->realm();
@@ -167,6 +189,22 @@ void Internals::simulate_drop(double x, double y)
 
     auto position = page.css_to_device_point({ x, y });
     page.handle_drag_and_drop_event(DragEvent::Type::Drop, position, position, UIEvents::MouseButton::Primary, 0, 0, {});
+}
+
+void Internals::enable_cookies_on_file_domains()
+{
+    internals_window().associated_document().enable_cookies_on_file_domains({});
+}
+
+void Internals::expire_cookies_with_time_offset(WebIDL::LongLong seconds)
+{
+    internals_page().client().page_did_expire_cookies_with_time_offset(AK::Duration::from_seconds(seconds));
+}
+
+String Internals::get_computed_label(DOM::Element& element)
+{
+    auto& active_document = internals_window().associated_document();
+    return MUST(element.accessible_name(active_document));
 }
 
 }

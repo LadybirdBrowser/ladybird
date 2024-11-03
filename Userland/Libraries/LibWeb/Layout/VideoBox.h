@@ -27,7 +27,7 @@ public:
     virtual JS::GCPtr<Painting::Paintable> create_paintable() const override;
 
 private:
-    VideoBox(DOM::Document&, DOM::Element&, NonnullRefPtr<CSS::StyleProperties>);
+    VideoBox(DOM::Document&, DOM::Element&, CSS::StyleProperties);
 
     // ^Document::ViewportClient
     virtual void did_set_viewport_rect(CSSPixelRect const&) final;

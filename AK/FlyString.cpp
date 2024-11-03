@@ -50,6 +50,8 @@ FlyString FlyString::from_utf8_without_validation(ReadonlyBytes string)
 
 FlyString::FlyString(String const& string)
 {
+    ASSERT(!string.is_invalid());
+
     if (string.is_short_string()) {
         m_data = string;
         return;
@@ -171,6 +173,54 @@ int FlyString::operator<=>(FlyString const& other) const
 ErrorOr<void> Formatter<FlyString>::format(FormatBuilder& builder, FlyString const& fly_string)
 {
     return Formatter<StringView>::format(builder, fly_string.bytes_as_string_view());
+}
+
+FlyString FlyString::to_ascii_lowercase() const
+{
+    bool const has_ascii_uppercase = [&] {
+        for (u8 const byte : bytes()) {
+            if (AK::is_ascii_upper_alpha(byte))
+                return true;
+        }
+        return false;
+    }();
+
+    if (!has_ascii_uppercase)
+        return *this;
+
+    Vector<u8> lowercase_bytes;
+    lowercase_bytes.ensure_capacity(bytes().size());
+    for (u8 const byte : bytes()) {
+        if (AK::is_ascii_upper_alpha(byte))
+            lowercase_bytes.unchecked_append(AK::to_ascii_lowercase(byte));
+        else
+            lowercase_bytes.unchecked_append(byte);
+    }
+    return String::from_utf8_without_validation(lowercase_bytes);
+}
+
+FlyString FlyString::to_ascii_uppercase() const
+{
+    bool const has_ascii_lowercase = [&] {
+        for (u8 const byte : bytes()) {
+            if (AK::is_ascii_lower_alpha(byte))
+                return true;
+        }
+        return false;
+    }();
+
+    if (!has_ascii_lowercase)
+        return *this;
+
+    Vector<u8> uppercase_bytes;
+    uppercase_bytes.ensure_capacity(bytes().size());
+    for (u8 const byte : bytes()) {
+        if (AK::is_ascii_lower_alpha(byte))
+            uppercase_bytes.unchecked_append(AK::to_ascii_uppercase(byte));
+        else
+            uppercase_bytes.unchecked_append(byte);
+    }
+    return String::from_utf8_without_validation(uppercase_bytes);
 }
 
 bool FlyString::equals_ignoring_ascii_case(FlyString const& other) const

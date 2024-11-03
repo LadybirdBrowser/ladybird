@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<link rel="help" href="https://drafts.csswg.org/css-flexbox-1/#flex-baselines">
+<style>
+.target {
+  display: flex;
+  position: relative;
+  line-height: 0;
+  font-size: 20px;
+  inline-size: 200px;
+  margin-block: 10px;
+  padding: 10px;
+  border: solid 3px;
+  writing-mode: vertical-rl;
+}
+
+.inner {
+  display: flex;
+  border: solid 5px;
+  padding: 10px;
+  gap: 10px;
+}
+
+span {
+  display: inline-block;
+  width: 1em;
+  height: 1em;
+  outline: solid cyan 3px;
+  outline-offset: -3px;
+}
+</style>
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../resources/check-layout-th.js"></script>
+<body onload="checkLayout('.target > *')">
+
+<div class="target" style="align-items: first baseline;">
+  <div data-offset-x="110"><span></span></div>
+  <div class="inner" style="inline-size: 140px; flex-wrap: wrap;" data-offset-x="10">
+    <div style="font-size: 10px;"><span></span></div>
+    <div style="font-size: 30px; margin-block: 10px; align-self: first baseline;"><span></span></div>
+    <div style="font-size: 50px;"><span></span></div>
+    <div style="font-size: 60px;"><span></span></div>
+    <div style="font-size: 40px; margin-block: 10px; align-self: first baseline;"><span></span></div>
+    <div style="font-size: 20px;"><span></span></div>
+  </div>
+</div>
+
+<div class="target" style="align-items: first baseline;">
+  <div data-offset-x="110"><span></span></div>
+  <div class="inner" style="inline-size: 140px; flex-wrap: wrap;" data-offset-x="10">
+    <div style="font-size: 10px;"><span></span></div>
+    <div style="font-size: 30px; margin-block: 10px; align-self: last baseline;"><span></span></div>
+    <div style="font-size: 50px;"><span></span></div>
+    <div style="font-size: 60px;"><span></span></div>
+    <div style="font-size: 40px; margin-block: 10px; align-self: last baseline;"><span></span></div>
+    <div style="font-size: 20px;"><span></span></div>
+  </div>
+</div>
+
+<div class="target" style="align-items: first baseline;">
+  <div data-offset-x="105"><span></span></div>
+  <div class="inner" style="inline-size: 140px; flex-wrap: wrap-reverse;" data-offset-x="10">
+    <div style="font-size: 10px;"><span></span></div>
+    <div style="font-size: 30px; margin-block: 10px; align-self: first baseline;"><span></span></div>
+    <div style="font-size: 50px;"><span></span></div>
+    <div style="font-size: 60px;"><span></span></div>
+    <div style="font-size: 40px; margin-block: 10px; align-self: first baseline;"><span></span></div>
+    <div style="font-size: 20px;"><span></span></div>
+  </div>
+</div>
+
+<div class="target" style="align-items: first baseline;">
+  <div data-offset-x="105"><span></span></div>
+  <div class="inner" style="inline-size: 140px; flex-wrap: wrap-reverse;" data-offset-x="10">
+    <div style="font-size: 10px;"><span></span></div>
+    <div style="font-size: 30px; margin-block: 10px; align-self: last baseline;"><span></span></div>
+    <div style="font-size: 50px;"><span></span></div>
+    <div style="font-size: 60px;"><span></span></div>
+    <div style="font-size: 40px; margin-block: 10px; align-self: last baseline;"><span></span></div>
+    <div style="font-size: 20px;"><span></span></div>
+  </div>
+</div>
+
+<div class="target" style="align-items: last baseline;">
+  <div data-offset-x="45"><span></span></div>
+  <div class="inner" style="inline-size: 140px; flex-wrap: wrap;" data-offset-x="10">
+    <div style="font-size: 10px;"><span></span></div>
+    <div style="font-size: 30px; margin-block: 10px; align-self: first baseline;"><span></span></div>
+    <div style="font-size: 50px;"><span></span></div>
+    <div style="font-size: 60px;"><span></span></div>
+    <div style="font-size: 40px; margin-block: 10px; align-self: first baseline;"><span></span></div>
+    <div style="font-size: 20px;"><span></span></div>
+  </div>
+</div>
+
+<div class="target" style="align-items: last baseline;">
+  <div data-offset-x="45"><span></span></div>
+  <div class="inner" style="inline-size: 140px; flex-wrap: wrap;" data-offset-x="10">
+    <div style="font-size: 10px;"><span></span></div>
+    <div style="font-size: 30px; margin-block: 10px; align-self: last baseline;"><span></span></div>
+    <div style="font-size: 50px;"><span></span></div>
+    <div style="font-size: 60px;"><span></span></div>
+    <div style="font-size: 40px; margin-block: 10px; align-self: last baseline;"><span></span></div>
+    <div style="font-size: 20px;"><span></span></div>
+  </div>
+</div>
+
+<div class="target" style="align-items: last baseline;">
+  <div data-offset-x="40"><span></span></div>
+  <div class="inner" style="inline-size: 140px; flex-wrap: wrap-reverse;" data-offset-x="10">
+    <div style="font-size: 10px;"><span></span></div>
+    <div style="font-size: 30px; margin-block: 10px; align-self: first baseline;"><span></span></div>
+    <div style="font-size: 50px;"><span></span></div>
+    <div style="font-size: 60px;"><span></span></div>
+    <div style="font-size: 40px; margin-block: 10px; align-self: first baseline;"><span></span></div>
+    <div style="font-size: 20px;"><span></span></div>
+  </div>
+</div>
+
+<div class="target" style="align-items: last baseline;">
+  <div data-offset-x="40"><span></span></div>
+  <div class="inner" style="inline-size: 140px; flex-wrap: wrap-reverse;" data-offset-x="10">
+    <div style="font-size: 10px;"><span></span></div>
+    <div style="font-size: 30px; margin-block: 10px; align-self: last baseline;"><span></span></div>
+    <div style="font-size: 50px;"><span></span></div>
+    <div style="font-size: 60px;"><span></span></div>
+    <div style="font-size: 40px; margin-block: 10px; align-self: last baseline;"><span></span></div>
+    <div style="font-size: 20px;"><span></span></div>
+  </div>
+</div>

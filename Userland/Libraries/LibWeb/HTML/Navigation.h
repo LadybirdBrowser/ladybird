@@ -39,9 +39,8 @@ struct NavigationReloadOptions : public NavigationOptions {
 
 // https://html.spec.whatwg.org/multipage/nav-history-apis.html#navigationresult
 struct NavigationResult {
-    // FIXME: Are we supposed to return a PromiseCapability (WebIDL::Promise) here?
-    JS::NonnullGCPtr<JS::Object> committed;
-    JS::NonnullGCPtr<JS::Object> finished;
+    JS::NonnullGCPtr<WebIDL::Promise> committed;
+    JS::NonnullGCPtr<WebIDL::Promise> finished;
 };
 
 // https://html.spec.whatwg.org/multipage/nav-history-apis.html#navigation-api-method-tracker

@@ -21,7 +21,7 @@ public:
     HTML::FormAssociatedElement& dom_node() { return dynamic_cast<HTML::FormAssociatedElement&>(LabelableNode::dom_node()); }
 
 protected:
-    FormAssociatedLabelableNode(DOM::Document& document, HTML::FormAssociatedElement& element, NonnullRefPtr<CSS::StyleProperties> style)
+    FormAssociatedLabelableNode(DOM::Document& document, HTML::FormAssociatedElement& element, CSS::StyleProperties style)
         : LabelableNode(document, element.form_associated_element_to_html_element(), move(style))
     {
     }

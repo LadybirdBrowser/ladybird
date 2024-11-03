@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2023, Andreas Kling <kling@serenityos.org>
+ * Copyright (c) 2018-2023, Andreas Kling <andreas@ladybird.org>
  * Copyright (c) 2021-2023, Sam Atkins <atkinssj@serenityos.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
@@ -11,7 +11,6 @@
 #include <LibWeb/CSS/StyleValues/BackgroundSizeStyleValue.h>
 #include <LibWeb/CSS/StyleValues/BorderRadiusStyleValue.h>
 #include <LibWeb/CSS/StyleValues/CSSKeywordValue.h>
-#include <LibWeb/CSS/StyleValues/EdgeStyleValue.h>
 #include <LibWeb/CSS/StyleValues/IntegerStyleValue.h>
 #include <LibWeb/CSS/StyleValues/LengthStyleValue.h>
 #include <LibWeb/CSS/StyleValues/MathDepthStyleValue.h>
@@ -23,7 +22,6 @@
 #include <LibWeb/CSS/StyleValues/URLStyleValue.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/Dump.h>
-#include <LibWeb/HTML/BrowsingContext.h>
 #include <LibWeb/HTML/HTMLHtmlElement.h>
 #include <LibWeb/Layout/BlockContainer.h>
 #include <LibWeb/Layout/FormattingContext.h>
@@ -31,15 +29,12 @@
 #include <LibWeb/Layout/TableWrapper.h>
 #include <LibWeb/Layout/TextNode.h>
 #include <LibWeb/Layout/Viewport.h>
-#include <LibWeb/Page/Page.h>
-#include <LibWeb/Painting/InlinePaintable.h>
 #include <LibWeb/Platform/FontPlugin.h>
 
 namespace Web::Layout {
 
 Node::Node(DOM::Document& document, DOM::Node* node)
     : m_dom_node(node ? *node : document)
-    , m_browsing_context(*document.browsing_context())
     , m_anonymous(node == nullptr)
 {
     if (node)
@@ -52,9 +47,10 @@ void Node::visit_edges(Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_dom_node);
-    visitor.visit(m_paintable);
+    for (auto const& paintable : m_paintable) {
+        visitor.visit(JS::GCPtr { &paintable });
+    }
     visitor.visit(m_pseudo_element_generator);
-    visitor.visit(m_browsing_context);
     TreeNode::visit_edges(visitor);
 }
 
@@ -152,6 +148,9 @@ bool Node::establishes_stacking_context() const
     if (!has_style())
         return false;
 
+    if (is_svg_box() || is_svg_svg_box())
+        return false;
+
     // We make a stacking context for the viewport. Painting and hit testing starts from here.
     if (is_viewport())
         return true;
@@ -184,11 +183,13 @@ bool Node::establishes_stacking_context() const
     if (parent() && parent()->display().is_grid_inside() && computed_values().z_index().has_value())
         return true;
 
+    // https://drafts.fxtf.org/filter-effects/#FilterProperty
     // https://drafts.fxtf.org/filter-effects-2/#backdrop-filter-operation
-    // A computed value of other than none results in the creation of both a stacking context [CSS21] and a Containing Block for absolute and fixed position descendants,
-    // unless the element it applies to is a document root element in the current browsing context.
+    // A computed value of other than none results in the creation of both a stacking context
+    // [CSS21] and a Containing Block for absolute and fixed position descendants, unless the
+    // element it applies to is a document root element in the current browsing context.
     // Spec Note: This rule works in the same way as for the filter property.
-    if (!computed_values().backdrop_filter().is_none())
+    if (!computed_values().backdrop_filter().is_none() || !computed_values().filter().is_none())
         return true;
 
     // Element with any of the following properties with value other than none:
@@ -202,16 +203,6 @@ bool Node::establishes_stacking_context() const
         return true;
 
     return computed_values().opacity() < 1.0f;
-}
-
-HTML::BrowsingContext const& Node::browsing_context() const
-{
-    return *m_browsing_context;
-}
-
-HTML::BrowsingContext& Node::browsing_context()
-{
-    return *m_browsing_context;
 }
 
 JS::GCPtr<HTML::Navigable> Node::navigable() const
@@ -270,12 +261,12 @@ bool Node::is_sticky_position() const
     return position == CSS::Positioning::Sticky;
 }
 
-NodeWithStyle::NodeWithStyle(DOM::Document& document, DOM::Node* node, NonnullRefPtr<CSS::StyleProperties> computed_style)
+NodeWithStyle::NodeWithStyle(DOM::Document& document, DOM::Node* node, CSS::StyleProperties computed_style)
     : Node(document, node)
     , m_computed_values(make<CSS::ComputedValues>())
 {
     m_has_style = true;
-    apply_style(*computed_style);
+    apply_style(computed_style);
 }
 
 NodeWithStyle::NodeWithStyle(DOM::Document& document, DOM::Node* node, NonnullOwnPtr<CSS::ComputedValues> computed_values)
@@ -469,8 +460,13 @@ void NodeWithStyle::apply_style(const CSS::StyleProperties& computed_style)
 
     if (auto maybe_font_variant = computed_style.font_variant(); maybe_font_variant.has_value())
         computed_values.set_font_variant(maybe_font_variant.release_value());
+    if (auto maybe_font_language_override = computed_style.font_language_override(); maybe_font_language_override.has_value())
+        computed_values.set_font_language_override(maybe_font_language_override.release_value());
+    if (auto maybe_font_feature_settings = computed_style.font_feature_settings(); maybe_font_feature_settings.has_value())
+        computed_values.set_font_feature_settings(maybe_font_feature_settings.release_value());
+    if (auto maybe_font_variation_settings = computed_style.font_variation_settings(); maybe_font_variation_settings.has_value())
+        computed_values.set_font_variation_settings(maybe_font_variation_settings.release_value());
 
-    // FIXME: BorderXRadius properties are now BorderRadiusStyleValues, so make use of that.
     auto border_bottom_left_radius = computed_style.property(CSS::PropertyID::BorderBottomLeftRadius);
     if (border_bottom_left_radius->is_border_radius()) {
         computed_values.set_border_bottom_left_radius(
@@ -518,34 +514,39 @@ void NodeWithStyle::apply_style(const CSS::StyleProperties& computed_style)
     computed_values.set_order(computed_style.order());
     computed_values.set_clip(computed_style.clip());
 
-    if (computed_style.backdrop_filter().has_filters()) {
-        CSS::ResolvedBackdropFilter resolved_backdrop_filter;
-        for (auto& filter : computed_style.backdrop_filter().filters()) {
+    auto resolve_filter = [this](CSS::Filter const& computed_filter) -> CSS::ResolvedFilter {
+        CSS::ResolvedFilter resolved_filter;
+        for (auto const& filter : computed_filter.filters()) {
             filter.visit(
-                [&](CSS::Filter::Blur const& blur) {
-                    resolved_backdrop_filter.filters.append(CSS::ResolvedBackdropFilter::Blur {
+                [&](CSS::FilterOperation::Blur const& blur) {
+                    resolved_filter.filters.append(CSS::ResolvedFilter::Blur {
                         .radius = blur.resolved_radius(*this) });
                 },
-                [&](CSS::Filter::DropShadow const& drop_shadow) {
+                [&](CSS::FilterOperation::DropShadow const& drop_shadow) {
+                    auto context = CSS::Length::ResolutionContext::for_layout_node(*this);
                     // The default value for omitted values is missing length values set to 0
                     // and the missing used color is taken from the color property.
-                    resolved_backdrop_filter.filters.append(CSS::ResolvedBackdropFilter::DropShadow {
-                        .offset_x = drop_shadow.offset_x.to_px(*this).to_double(),
-                        .offset_y = drop_shadow.offset_y.to_px(*this).to_double(),
-                        .radius = drop_shadow.radius.has_value() ? drop_shadow.radius->to_px(*this).to_double() : 0.0,
+                    resolved_filter.filters.append(CSS::ResolvedFilter::DropShadow {
+                        .offset_x = drop_shadow.offset_x.resolved(context).to_px(*this).to_double(),
+                        .offset_y = drop_shadow.offset_y.resolved(context).to_px(*this).to_double(),
+                        .radius = drop_shadow.radius.has_value() ? drop_shadow.radius->resolved(context).to_px(*this).to_double() : 0.0,
                         .color = drop_shadow.color.has_value() ? *drop_shadow.color : this->computed_values().color() });
                 },
-                [&](CSS::Filter::Color const& color_operation) {
-                    resolved_backdrop_filter.filters.append(CSS::ResolvedBackdropFilter::ColorOperation {
-                        .operation = color_operation.operation,
+                [&](CSS::FilterOperation::Color const& color_operation) {
+                    resolved_filter.filters.append(CSS::ResolvedFilter::Color {
+                        .type = color_operation.operation,
                         .amount = color_operation.resolved_amount() });
                 },
-                [&](CSS::Filter::HueRotate const& hue_rotate) {
-                    resolved_backdrop_filter.filters.append(CSS::ResolvedBackdropFilter::HueRotate { .angle_degrees = hue_rotate.angle_degrees() });
+                [&](CSS::FilterOperation::HueRotate const& hue_rotate) {
+                    resolved_filter.filters.append(CSS::ResolvedFilter::HueRotate { .angle_degrees = hue_rotate.angle_degrees(*this) });
                 });
         }
-        computed_values.set_backdrop_filter(resolved_backdrop_filter);
-    }
+        return resolved_filter;
+    };
+    if (computed_style.backdrop_filter().has_filters())
+        computed_values.set_backdrop_filter(resolve_filter(computed_style.backdrop_filter()));
+    if (computed_style.filter().has_filters())
+        computed_values.set_filter(resolve_filter(computed_style.filter()));
 
     auto justify_content = computed_style.justify_content();
     if (justify_content.has_value())
@@ -597,16 +598,31 @@ void NodeWithStyle::apply_style(const CSS::StyleProperties& computed_style)
     if (auto text_overflow = computed_style.text_overflow(); text_overflow.has_value())
         computed_values.set_text_overflow(text_overflow.release_value());
 
+    auto tab_size = computed_style.tab_size();
+    computed_values.set_tab_size(tab_size);
+
     auto white_space = computed_style.white_space();
     if (white_space.has_value())
         computed_values.set_white_space(white_space.value());
+
+    auto word_break = computed_style.word_break();
+    if (word_break.has_value())
+        computed_values.set_word_break(word_break.value());
+
+    auto word_spacing = computed_style.word_spacing();
+    if (word_spacing.has_value())
+        computed_values.set_word_spacing(word_spacing.value());
+
+    auto letter_spacing = computed_style.letter_spacing();
+    if (letter_spacing.has_value())
+        computed_values.set_letter_spacing(letter_spacing.value());
 
     auto float_ = computed_style.float_();
     if (float_.has_value())
         computed_values.set_float(float_.value());
 
-    computed_values.set_border_spacing_horizontal(computed_style.border_spacing_horizontal());
-    computed_values.set_border_spacing_vertical(computed_style.border_spacing_vertical());
+    computed_values.set_border_spacing_horizontal(computed_style.border_spacing_horizontal(*this));
+    computed_values.set_border_spacing_vertical(computed_style.border_spacing_vertical(*this));
 
     auto caption_side = computed_style.caption_side();
     if (caption_side.has_value())
@@ -692,6 +708,9 @@ void NodeWithStyle::apply_style(const CSS::StyleProperties& computed_style)
     computed_values.set_padding(computed_style.length_box(CSS::PropertyID::PaddingLeft, CSS::PropertyID::PaddingTop, CSS::PropertyID::PaddingRight, CSS::PropertyID::PaddingBottom, CSS::Length::make_px(0)));
 
     computed_values.set_box_shadow(computed_style.box_shadow(*this));
+
+    if (auto rotate_value = computed_style.rotate(*this); rotate_value.has_value())
+        computed_values.set_rotate(rotate_value.value());
 
     computed_values.set_transformations(computed_style.transformations());
     if (auto transform_box = computed_style.transform_box(); transform_box.has_value())
@@ -829,6 +848,13 @@ void NodeWithStyle::apply_style(const CSS::StyleProperties& computed_style)
         computed_values.set_fill_rule(*fill_rule);
 
     computed_values.set_fill_opacity(computed_style.fill_opacity());
+    if (auto stroke_linecap = computed_style.stroke_linecap(); stroke_linecap.has_value())
+        computed_values.set_stroke_linecap(stroke_linecap.value());
+    if (auto stroke_linejoin = computed_style.stroke_linejoin(); stroke_linejoin.has_value())
+        computed_values.set_stroke_linejoin(stroke_linejoin.value());
+
+    computed_values.set_stroke_miterlimit(computed_style.stroke_miterlimit());
+
     computed_values.set_stroke_opacity(computed_style.stroke_opacity());
     computed_values.set_stop_opacity(computed_style.stop_opacity());
 
@@ -863,7 +889,12 @@ void NodeWithStyle::apply_style(const CSS::StyleProperties& computed_style)
     } else if (aspect_ratio->is_keyword() && aspect_ratio->as_keyword().keyword() == CSS::Keyword::Auto) {
         computed_values.set_aspect_ratio({ true, {} });
     } else if (aspect_ratio->is_ratio()) {
-        computed_values.set_aspect_ratio({ false, aspect_ratio->as_ratio().ratio() });
+        // https://drafts.csswg.org/css-sizing-4/#aspect-ratio
+        // If the <ratio> is degenerate, the property instead behaves as auto.
+        if (aspect_ratio->as_ratio().ratio().is_degenerate())
+            computed_values.set_aspect_ratio({ true, {} });
+        else
+            computed_values.set_aspect_ratio({ false, aspect_ratio->as_ratio().ratio() });
     }
 
     auto math_shift_value = computed_style.property(CSS::PropertyID::MathShift);
@@ -887,6 +918,9 @@ void NodeWithStyle::apply_style(const CSS::StyleProperties& computed_style)
 
     if (auto direction = computed_style.direction(); direction.has_value())
         computed_values.set_direction(direction.value());
+
+    if (auto unicode_bidi = computed_style.unicode_bidi(); unicode_bidi.has_value())
+        computed_values.set_unicode_bidi(unicode_bidi.value());
 
     if (auto scrollbar_width = computed_style.scrollbar_width(); scrollbar_width.has_value())
         computed_values.set_scrollbar_width(scrollbar_width.value());
@@ -1014,9 +1048,45 @@ void NodeWithStyle::transfer_table_box_computed_values_to_wrapper_computed_value
     reset_table_box_computed_values_used_by_wrapper_to_init_values();
 }
 
-void Node::set_paintable(JS::GCPtr<Painting::Paintable> paintable)
+bool NodeWithStyle::is_body() const
 {
-    m_paintable = move(paintable);
+    return dom_node() && dom_node() == document().body();
+}
+
+static bool overflow_value_makes_box_a_scroll_container(CSS::Overflow overflow)
+{
+    switch (overflow) {
+    case CSS::Overflow::Clip:
+    case CSS::Overflow::Visible:
+        return false;
+    case CSS::Overflow::Auto:
+    case CSS::Overflow::Hidden:
+    case CSS::Overflow::Scroll:
+        return true;
+    }
+    VERIFY_NOT_REACHED();
+}
+
+bool NodeWithStyle::is_scroll_container() const
+{
+    // NOTE: This isn't in the spec, but we want the viewport to behave like a scroll container.
+    if (is_viewport())
+        return true;
+
+    return overflow_value_makes_box_a_scroll_container(computed_values().overflow_x())
+        || overflow_value_makes_box_a_scroll_container(computed_values().overflow_y());
+}
+
+void Node::add_paintable(JS::GCPtr<Painting::Paintable> paintable)
+{
+    if (!paintable)
+        return;
+    m_paintable.append(*paintable);
+}
+
+void Node::clear_paintables()
+{
+    m_paintable.clear();
 }
 
 JS::GCPtr<Painting::Paintable> Node::create_paintable() const

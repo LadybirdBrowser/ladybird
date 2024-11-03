@@ -16,7 +16,7 @@ JS_DEFINE_ALLOCATOR(PeriodicWave);
 // https://webaudio.github.io/web-audio-api/#dom-periodicwave-periodicwave
 WebIDL::ExceptionOr<JS::NonnullGCPtr<PeriodicWave>> PeriodicWave::construct_impl(JS::Realm& realm, JS::NonnullGCPtr<BaseAudioContext>, PeriodicWaveOptions const&)
 {
-    return WebIDL::NotSupportedError::create(realm, "FIXME: Implement PeriodicWave::construct_impl"_fly_string);
+    return WebIDL::NotSupportedError::create(realm, "FIXME: Implement PeriodicWave::construct_impl"_string);
 }
 
 PeriodicWave::~PeriodicWave() = default;

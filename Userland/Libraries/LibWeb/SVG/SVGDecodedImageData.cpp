@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023, Andreas Kling <kling@serenityos.org>
+ * Copyright (c) 2023, Andreas Kling <andreas@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -38,10 +38,10 @@ ErrorOr<JS::NonnullGCPtr<SVGDecodedImageData>> SVGDecodedImageData::create(JS::R
     auto navigation_params = navigable->heap().allocate_without_realm<HTML::NavigationParams>();
     navigation_params->navigable = navigable;
     navigation_params->response = response;
-    navigation_params->origin = HTML::Origin {};
+    navigation_params->origin = URL::Origin {};
     navigation_params->policy_container = HTML::PolicyContainer {};
     navigation_params->final_sandboxing_flag_set = HTML::SandboxingFlagSet {};
-    navigation_params->cross_origin_opener_policy = HTML::CrossOriginOpenerPolicy {};
+    navigation_params->opener_policy = HTML::OpenerPolicy {};
 
     // FIXME: Use Navigable::navigate() instead of manually replacing the navigable's document.
     auto document = DOM::Document::create_and_initialize(DOM::Document::Type::HTML, "text/html"_string, navigation_params).release_value_but_fixme_should_propagate_errors();
@@ -133,8 +133,8 @@ Optional<CSSPixels> SVGDecodedImageData::intrinsic_width() const
 {
     // https://www.w3.org/TR/SVG2/coords.html#SizingSVGInCSS
     m_document->update_style();
-    auto const* root_element_style = m_root_element->computed_css_values();
-    VERIFY(root_element_style);
+    auto const root_element_style = m_root_element->computed_css_values();
+    VERIFY(root_element_style.has_value());
     auto const& width_value = root_element_style->size_value(CSS::PropertyID::Width);
     if (width_value.is_length() && width_value.length().is_absolute())
         return width_value.length().absolute_length_to_px();
@@ -145,8 +145,8 @@ Optional<CSSPixels> SVGDecodedImageData::intrinsic_height() const
 {
     // https://www.w3.org/TR/SVG2/coords.html#SizingSVGInCSS
     m_document->update_style();
-    auto const* root_element_style = m_root_element->computed_css_values();
-    VERIFY(root_element_style);
+    auto const root_element_style = m_root_element->computed_css_values();
+    VERIFY(root_element_style.has_value());
     auto const& height_value = root_element_style->size_value(CSS::PropertyID::Height);
     if (height_value.is_length() && height_value.length().is_absolute())
         return height_value.length().absolute_length_to_px();

@@ -1,0 +1,14 @@
+<script src="../include.js"></script>
+<script>
+    asyncTest(done => {
+        const xhr = new XMLHttpRequest();
+        const data = "PASS";
+        const url = URL.createObjectURL(new Blob([data]));
+        xhr.open("GET", url);
+        xhr.onload = function () {
+            println(xhr.responseText);
+            done();
+        };
+        xhr.send();
+    });
+</script>

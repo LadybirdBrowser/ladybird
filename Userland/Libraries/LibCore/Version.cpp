@@ -5,29 +5,28 @@
  */
 
 #include <AK/String.h>
+#include <LibCore/Environment.h>
 #include <LibCore/Version.h>
-
-#ifdef AK_OS_SERENITY
-#    include <sys/utsname.h>
-#endif
 
 namespace Core::Version {
 
 ErrorOr<String> read_long_version_string()
 {
-#ifdef AK_OS_SERENITY
-    struct utsname uts;
-    int rc = uname(&uts);
-    if ((rc) < 0) {
-        return Error::from_syscall("uname"sv, rc);
-    }
-    auto const* version = uts.release;
-    auto const* git_hash = uts.version;
+    auto validate_git_hash = [](auto hash) {
+        if (hash.length() < 4 || hash.length() > 40)
+            return false;
+        for (auto ch : hash) {
+            if (!is_ascii_hex_digit(ch))
+                return false;
+        }
+        return true;
+    };
 
-    return String::formatted("Version {} revision {}", version, git_hash);
-#else
+    auto maybe_git_hash = Core::Environment::get("LADYBIRD_GIT_VERSION"sv);
+
+    if (maybe_git_hash.has_value() && validate_git_hash(maybe_git_hash.value()))
+        return MUST(String::formatted("Version 1.0-{}", maybe_git_hash.value()));
     return "Version 1.0"_string;
-#endif
 }
 
 }

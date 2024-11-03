@@ -1,2 +1,2 @@
-   Failure
+Failure
 Success

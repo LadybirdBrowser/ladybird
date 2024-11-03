@@ -17,8 +17,6 @@ enum FontFaceSetLoadStatus { "loading", "loaded" };
 // https://drafts.csswg.org/css-font-loading/#fontfaceset
 [Exposed=(Window,Worker)]
 interface FontFaceSet : EventTarget {
-    constructor(sequence<FontFace> initialFaces);
-
     setlike<FontFace>;
     FontFaceSet add(FontFace font);
     boolean delete(FontFace font);

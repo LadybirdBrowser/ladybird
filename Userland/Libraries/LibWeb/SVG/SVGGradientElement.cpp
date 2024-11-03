@@ -83,28 +83,39 @@ Optional<Gfx::AffineTransform> SVGGradientElement::gradient_transform_impl(HashT
 // The gradient transform, appropriately scaled and combined with the paint transform.
 Gfx::AffineTransform SVGGradientElement::gradient_paint_transform(SVGPaintContext const& paint_context) const
 {
-    auto transform = gradient_transform().value_or(Gfx::AffineTransform {});
-    if (gradient_units() == GradientUnits::ObjectBoundingBox) {
-        // Adjust transform to take place in the coordinate system defined by the bounding box:
-        return Gfx::AffineTransform { paint_context.transform }
-            .translate(paint_context.path_bounding_box.location())
-            .scale(paint_context.path_bounding_box.width(), paint_context.path_bounding_box.height())
-            .multiply(transform);
+    Gfx::AffineTransform gradient_paint_transform;
+    auto const& bounding_box = paint_context.path_bounding_box;
+
+    if (gradient_units() == SVGUnits::ObjectBoundingBox) {
+        // Scale points from 0..1 to bounding box coordinates:
+        gradient_paint_transform.scale(bounding_box.width(), bounding_box.height());
+    } else {
+        // Translate points from viewport to bounding box coordinates:
+        gradient_paint_transform.translate(paint_context.viewport.location() - bounding_box.location());
     }
-    return Gfx::AffineTransform { paint_context.transform }.multiply(transform);
+
+    if (auto transform = gradient_transform(); transform.has_value())
+        gradient_paint_transform.multiply(transform.value());
+
+    return gradient_paint_transform;
 }
 
 void SVGGradientElement::add_color_stops(Painting::SVGGradientPaintStyle& paint_style) const
 {
+    auto largest_offset = 0.0f;
     for_each_color_stop([&](auto& stop) {
         // https://svgwg.org/svg2-draft/pservers.html#StopNotes
         // Gradient offset values less than 0 (or less than 0%) are rounded up to 0%.
         // Gradient offset values greater than 1 (or greater than 100%) are rounded down to 100%.
         float stop_offset = AK::clamp(stop.stop_offset().value(), 0.0f, 1.0f);
-        // FIXME: Each gradient offset value is required to be equal to or greater than the previous gradient
+
+        // Each gradient offset value is required to be equal to or greater than the previous gradient
         // stop's offset value. If a given gradient stop's offset value is not equal to or greater than all
         // previous offset values, then the offset value is adjusted to be equal to the largest of all previous
         // offset values.
+        stop_offset = AK::max(stop_offset, largest_offset);
+        largest_offset = stop_offset;
+
         paint_style.add_color_stop(stop_offset, stop.stop_color().with_opacity(stop.stop_opacity()));
     });
 }

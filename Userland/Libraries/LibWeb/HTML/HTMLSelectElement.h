@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2020, the SerenityOS developers.
- * Copyright (c) 2021-2022, Andreas Kling <kling@serenityos.org>
+ * Copyright (c) 2021-2022, Andreas Kling <andreas@ladybird.org>
  * Copyright (c) 2022, Luke Wilde <lukew@serenityos.org>
  * Copyright (c) 2023, Bastiaan van der Plaat <bastiaan.v.d.plaat@gmail.com>
  *
@@ -92,7 +92,7 @@ public:
 
     void did_select_item(Optional<u32> const& id);
 
-    void update_selectedness();
+    void update_selectedness(JS::GCPtr<HTMLOptionElement> last_selected_option = nullptr);
 
 private:
     HTMLSelectElement(DOM::Document&, DOM::QualifiedName);

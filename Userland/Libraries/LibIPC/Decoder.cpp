@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020, Andreas Kling <kling@serenityos.org>
+ * Copyright (c) 2020, Andreas Kling <andreas@ladybird.org>
  * Copyright (c) 2023, Tim Flynn <trflynn89@serenityos.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
@@ -91,9 +91,20 @@ ErrorOr<URL::URL> decode(Decoder& decoder)
     url.set_blob_url_entry(URL::BlobURLEntry {
         .type = TRY(decoder.decode<String>()),
         .byte_buffer = TRY(decoder.decode<ByteBuffer>()),
+        .environment_origin = TRY(decoder.decode<URL::Origin>()),
     });
 
     return url;
+}
+
+template<>
+ErrorOr<URL::Origin> decode(Decoder& decoder)
+{
+    auto scheme = TRY(decoder.decode<ByteString>());
+    auto host = TRY(decoder.decode<URL::Host>());
+    auto port = TRY(decoder.decode<Optional<u16>>());
+
+    return URL::Origin { move(scheme), move(host), port };
 }
 
 template<>

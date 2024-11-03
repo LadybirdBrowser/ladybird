@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2020, Andreas Kling <kling@serenityos.org>
+ * Copyright (c) 2018-2020, Andreas Kling <andreas@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -15,7 +15,7 @@ class ReplacedBox : public Box {
     JS_CELL(ReplacedBox, Box);
 
 public:
-    ReplacedBox(DOM::Document&, DOM::Element&, NonnullRefPtr<CSS::StyleProperties>);
+    ReplacedBox(DOM::Document&, DOM::Element&, CSS::StyleProperties);
     virtual ~ReplacedBox() override;
 
     DOM::Element const& dom_node() const { return verify_cast<DOM::Element>(*Node::dom_node()); }
@@ -27,10 +27,6 @@ public:
 
 private:
     virtual bool is_replaced_box() const final { return true; }
-
-    Optional<CSSPixels> m_intrinsic_width;
-    Optional<CSSPixels> m_intrinsic_height;
-    Optional<float> m_intrinsic_aspect_ratio;
 };
 
 template<>

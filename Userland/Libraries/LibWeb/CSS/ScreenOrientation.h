@@ -20,7 +20,7 @@ class ScreenOrientation final : public DOM::EventTarget {
 public:
     [[nodiscard]] static JS::NonnullGCPtr<ScreenOrientation> create(JS::Realm&);
 
-    WebIDL::ExceptionOr<JS::NonnullGCPtr<JS::Promise>> lock(Bindings::OrientationLockType);
+    WebIDL::ExceptionOr<JS::NonnullGCPtr<WebIDL::Promise>> lock(Bindings::OrientationLockType);
     void unlock();
     Bindings::OrientationType type() const;
     WebIDL::UnsignedShort angle() const;

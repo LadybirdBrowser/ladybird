@@ -362,7 +362,7 @@ static auto parse(StringView contents)
         contents,
         {
             .preserve_comments = true,
-            .resolve_external_resource = [&](XML::SystemID const& system_id, Optional<XML::PublicID> const&) -> ErrorOr<ByteString> {
+            .resolve_external_resource = [&](XML::SystemID const& system_id, Optional<XML::PublicID> const&) -> ErrorOr<Variant<ByteString, Vector<XML::MarkupDeclaration>>> {
                 auto base = URL::create_with_file_scheme(s_path);
                 auto url = URL::Parser::basic_parse(system_id.system_literal, base);
                 if (!url.is_valid())

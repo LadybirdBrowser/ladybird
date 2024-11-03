@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2024, Andreas Kling <kling@serenityos.org>
+ * Copyright (c) 2021-2024, Andreas Kling <andreas@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -9,7 +9,6 @@
 #include <AK/DistinctNumeric.h>
 #include <LibJS/Heap/Cell.h>
 #include <LibJS/Heap/CellAllocator.h>
-#include <LibJS/SafeFunction.h>
 #include <LibWeb/Forward.h>
 
 namespace Web::HTML {
@@ -62,6 +61,9 @@ public:
 
         // https://html.spec.whatwg.org/multipage/server-sent-events.html#remote-event-task-source
         RemoteEvent,
+
+        // https://html.spec.whatwg.org/multipage/webappapis.html#rendering-task-source
+        Rendering,
 
         // !!! IMPORTANT: Keep this field last!
         // This serves as the base value of all unique task sources.

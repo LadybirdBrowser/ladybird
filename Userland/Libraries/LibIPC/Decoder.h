@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020, Andreas Kling <kling@serenityos.org>
+ * Copyright (c) 2020, Andreas Kling <andreas@ladybird.org>
  * Copyright (c) 2023, Tim Flynn <trflynn89@serenityos.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
@@ -23,6 +23,7 @@
 #include <LibIPC/File.h>
 #include <LibIPC/Forward.h>
 #include <LibIPC/Message.h>
+#include <LibURL/Origin.h>
 #include <LibURL/URL.h>
 
 namespace IPC {
@@ -103,6 +104,9 @@ ErrorOr<UnixDateTime> decode(Decoder&);
 
 template<>
 ErrorOr<URL::URL> decode(Decoder&);
+
+template<>
+ErrorOr<URL::Origin> decode(Decoder&);
 
 template<>
 ErrorOr<File> decode(Decoder&);

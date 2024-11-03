@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020, Andreas Kling <kling@serenityos.org>
+ * Copyright (c) 2020, Andreas Kling <andreas@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -68,7 +68,7 @@ public:
     void for_each_client(Function<void(ResourceClient&)>);
 
     void did_load(Badge<ResourceLoader>, ReadonlyBytes data, HTTP::HeaderMap const&, Optional<u32> status_code);
-    void did_fail(Badge<ResourceLoader>, ByteString const& error, Optional<u32> status_code);
+    void did_fail(Badge<ResourceLoader>, ByteString const& error, ReadonlyBytes data, HTTP::HeaderMap const&, Optional<u32> status_code);
 
 protected:
     explicit Resource(Type, LoadRequest const&);

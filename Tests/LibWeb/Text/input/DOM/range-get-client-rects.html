@@ -1,0 +1,19 @@
+<!--refer to https://wpt.live/css/cssom-view/DOMRectList.html -->
+<body>
+<div id="x">x</div>
+<script src="../include.js"></script>
+<script>
+    function print_class_string(object) {
+        println({}.toString.call(object));
+    }
+    test(() => {
+        const x = document.getElementById("x");
+        const range = document.createRange();
+        range.selectNodeContents(x);
+        const domRectList = range.getClientRects();
+        print_class_string(domRectList);
+        print_class_string(domRectList.item(0));
+    });
+</script>
+
+</body>

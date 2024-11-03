@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<link rel="author" title="David Grogan" href="mailto:dgrogan@chromium.org">
+<link rel="help" href="https://drafts.csswg.org/css-flexbox/#intrinsic-sizes">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<link rel="stylesheet" type="text/css" href="/fonts/ahem.css" />
+<meta name="assert"
+  content="Requested use cases from our issue tracker that were duplicated or included in the bug report for the new algorithm. These are intentionally not very reduced from their original form with liberal pass conditions." />
+
+<style>
+  section.bugreport {
+    outline: 1px solid grey;
+    margin-bottom: 25px;
+    padding: 3px;
+  }
+
+  #bug423112 .container {
+    border: 1px solid lightgrey;
+    margin: 20px;
+    padding: 8px;
+    display: flex;
+    flex-flow: column;
+  }
+
+  #bug423112 .h-box {
+    display: flex;
+    flex-flow: row;
+    flex: none;
+    justify-content: flex-start;
+    align-items: stretch;
+  }
+
+  #bug423112 .auto {
+    flex: 0 0 auto;
+  }
+
+  #bug423112 .none {
+    flex: none;
+  }
+
+  #bug423112 .gap1-fails {
+    flex: 0 0 5px;
+  }
+
+  #bug423112 .gap2-fails {
+    flex: 0 0 30px;
+  }
+
+  #bug423112 .word {
+    display: inline-block;
+    height: 10px;
+    width: 35px;
+    background: orange;
+  }
+
+  #bug464210 .FlexOuterContainer {
+    border: 3px solid black;
+    display: flex;
+    margin: 1em;
+  }
+
+  #bug464210 .FlexInnerContainer {
+    border: 3px solid red;
+    display: flex;
+    flex: 0 0 auto;
+  }
+
+  #bug464210 .FlexItem {
+    background: rgba(0, 0, 0, .2);
+    flex: 0 0 100px;
+  }
+
+  #bug533627c3 .outer {
+    display: flex;
+    padding: 10px;
+  }
+
+  #bug533627c3 .middle,
+  #bug533627c3 .middle2 {
+    display: flex;
+    flex-shrink: 0;
+    background: red;
+    padding: 10px;
+  }
+
+  #bug533627c3 .inner {
+    flex-basis: 258px;
+    flex-shrink: 0;
+    display: flex;
+    flex-grow: 0;
+    background: green;
+  }
+
+  #bug533627c3 .inner2 {
+    width: 258px;
+    flex-shrink: 0;
+    display: flex;
+    flex-grow: 0;
+    background: green;
+  }
+
+  #bug441768 div {
+    display: flex;
+  }
+
+  #bug1144312 .grid-y {
+    flex-direction: column;
+    flex-wrap: wrap;
+  }
+
+  #bug1144312 .grid-x {
+    flex-direction: row
+  }
+
+  #bug1144312 .grid-x>* {
+    flex-basis: 0
+  }
+
+  #bug1144312 [class*=grid] {
+    display: flex;
+    gap: 1px
+  }
+
+  #bug1144312 .grid-y {
+    background: lightblue
+  }
+
+  #bug1144312 .grid-y:not(:first-child) {
+    margin-top: 1.5rem
+  }
+
+  #bug1144312 [class*=grid]>* {
+    flex-grow: 1;
+    border: 3px solid blue;
+    padding: 1px;
+  }
+
+  #bug1144312 .nowrap div {
+    border-color: purple
+  }
+
+  #bug1144312 .nowrap {
+    background: Thistle;
+    flex-wrap: nowrap;
+  }
+
+  #bug1144312 div {
+    font: 12px/1 Ahem;
+  }
+
+</style>
+
+<section id="bug423112" class="bugreport">
+  <p>https://bugs.chromium.org/p/chromium/issues/detail?id=423112</p>
+  <div class="container">
+    <div class="h-box">
+      <div class="h-box">
+        <input type="checkbox" class="none">
+        <div class="gap2-fails"></div>
+        <span class="none" id="left-item">
+          first checkbox example
+        </span>
+      </div>
+      <div class="h-box">
+        <input type="checkbox" class="none" id="right-item">
+        <div class="gap2-fails"></div>
+        <span class="auto">
+          second checkbox example
+        </span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="bug464210" class="bugreport">
+  <p>https://bugs.chromium.org/p/chromium/issues/detail?id=464210</p>
+  <div class="FlexOuterContainer">
+    <div class="FlexInnerContainer">
+      <div class="FlexItem">MMMMM</div>
+      <div id="right-item" class="FlexItem">MMMMM</div>
+    </div>
+  </div>
+</section>
+
+<section id="bug533627c3" class="bugreport">
+  <p>https://bugs.chromium.org/p/chromium/issues/detail?id=533627#c3</p>
+  <div class="outer">
+    <div class="middle">
+      <div class="inner">
+        hello
+      </div>
+    </div>
+  </div>
+  <div class="outer">
+    <div class="middle2">
+      <div class="inner2">
+        hello
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="bug441768" class="bugreport">
+  <p>https://bugs.chromium.org/p/chromium/issues/detail?id=441768 author wants
+    below blue block to have 0 width</p>
+  <div>
+    <!-- shipping: .middle has flex-basis=200px (from its max-content), and
+      used min-width=200px (from min-content) -->
+    <!-- author wants .middle flex-basis = 0, so author wants .middle
+      max-content = 0 -->
+    <!-- that means author also needs min-content = 0 -->
+    <!-- so width:200 item needs to contribute flex-basis to both min and max
+    -->
+    <div style="height: 100px; background: blue; align-self: flex-start;"
+      class="middle">
+      <div style="width: 200px; flex: 0;"></div>
+    </div>
+  </div>
+</section>
+
+<section id="bug1144312" class="bugreport">
+  <p>https://bugs.chromium.org/p/chromium/issues/detail?id=1144312</p>
+  <!-- This case needs max-content to use flex fractions. -->
+  <div class="grid-y" id="top">
+    <!-- broke: grid-x intrinsic sizes are ("95", "154") -->
+    <!-- works: grid-x intrinsic sizes are ("165", "283") -->
+    <!-- broke: grid-x main inner size = 146-->
+    <!-- works: grid-x main inner size = 275-->
+    <!-- to determine its vertical flex basis, grid-x lays out with width set to max content*. Then, both of its items have flex basis 0 and same grow factor, so they get flexed to each have approximately half of first item's max-width. This makes "phantom whitespace" wrap, which makes it too tall.
+    * this doesn't happen in the nowrap case, which stretches grid-x's width. -->
+    <div class="grid-x">
+      <!-- while laying out grid-x to get its flex-basis:
+        when laying out the two items for cross sizes:
+        broke: 1st gets 78px fixed inline size, returns height 48px
+        works: 1st gets 137px fixed inline size, returns height 28px
+        broke: 2nd gets 67px fixed inline size, returns height 8px
+        works: 2nd gets 137px fixed inline size, returns height 8px
+      -->
+      <div>phantom whitespace</div>
+      <div></div>
+    </div>
+  </div>
+
+  <div class="grid-y" id="middle">
+    <div>
+      <div class="grid-x">
+        <div>also phantom whitespace</div>
+        <div></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="grid-y nowrap" id="bottom">
+    <div class="grid-x">
+      <div>no more phantom whitespace</div>
+      <div></div>
+    </div>
+  </div>
+</section>
+
+<section id="bug1154243" class="bugreport">
+  <p>https://bugs.chromium.org/p/chromium/issues/detail?id=1154243</p>
+  <div
+    style="display: flex; width: min-content; border: 2px solid blue; font: 12px/1 Ahem;"
+    id="container">
+    <!-- shipping: min-content width of container is sum of min-contents (2x
+         the width of the word "content")
+    author needs: each `flex: 0 0 auto` item contributes flex-basis to
+    container min-content because they can't shrink from their flex bases
+    -->
+    <div style="flex-shrink: 0">Test content</div>
+    <div style="background: yellow; flex-shrink: 0" id="right">Test content
+    </div>
+  </div>
+</section>
+
+<script>
+  test(_ => {
+    let left = bug423112.querySelector("#left-item");
+    let right = bug423112.querySelector("#right-item");
+    assert_less_than_equal(left.getBoundingClientRect().right, right.getBoundingClientRect().left);
+  }, "left < right");
+
+  test(_ => {
+    const container = bug464210.querySelector(".FlexInnerContainer");
+    const right = bug464210.querySelector("#right-item");
+    assert_less_than_equal(right.getBoundingClientRect().right, container.getBoundingClientRect().right);
+  }, "no overflow");
+
+  test(_ => {
+    const middle = bug533627c3.querySelector(".middle");
+    const middle2 = bug533627c3.querySelector(".middle2");
+    assert_equals(middle.offsetWidth, middle2.offsetWidth);
+  }, "same widths");
+
+  test(_ => {
+    const middle = bug441768.querySelector(".middle");
+    assert_equals(middle.offsetWidth, 0);
+  }, "zero width");
+
+  test(_ => {
+    const top = bug1144312.querySelector("#top");
+    const middle = bug1144312.querySelector("#middle");
+    const bottom = bug1144312.querySelector("#bottom");
+    assert_equals(top.offsetHeight, bottom.offsetHeight);
+    assert_equals(middle.offsetHeight, bottom.offsetHeight);
+  }, "same heights");
+
+  test(_ => {
+    const container = bug1154243.querySelector("#container");
+    const right = bug1154243.querySelector("#right");
+    assert_less_than_equal(right.getBoundingClientRect().right, container.getBoundingClientRect().right)
+  }, "no overflow 2");
+
+</script>

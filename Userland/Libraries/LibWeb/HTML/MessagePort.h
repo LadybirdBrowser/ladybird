@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021, Andreas Kling <kling@serenityos.org>
+ * Copyright (c) 2021, Andreas Kling <andreas@ladybird.org>
  * Copyright (c) 2023, Andrew Kaster <akaster@serenityos.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
@@ -10,6 +10,8 @@
 #include <AK/RefCounted.h>
 #include <AK/Weakable.h>
 #include <LibCore/Socket.h>
+#include <LibIPC/File.h>
+#include <LibIPC/Transport.h>
 #include <LibWeb/Bindings/Transferable.h>
 #include <LibWeb/DOM/EventTarget.h>
 #include <LibWeb/Forward.h>
@@ -20,11 +22,6 @@ namespace Web::HTML {
     E(onmessage, HTML::EventNames::message)      \
     E(onmessageerror, HTML::EventNames::messageerror)
 
-// https://html.spec.whatwg.org/multipage/web-messaging.html#structuredserializeoptions
-struct StructuredSerializeOptions {
-    Vector<JS::Handle<JS::Object>> transfer;
-};
-
 // https://html.spec.whatwg.org/multipage/web-messaging.html#message-ports
 class MessagePort final : public DOM::EventTarget
     , public Bindings::Transferable {
@@ -34,10 +31,14 @@ class MessagePort final : public DOM::EventTarget
 public:
     [[nodiscard]] static JS::NonnullGCPtr<MessagePort> create(JS::Realm&);
 
+    static void for_each_message_port(Function<void(MessagePort&)>);
+
     virtual ~MessagePort() override;
 
     // https://html.spec.whatwg.org/multipage/web-messaging.html#entangle
     void entangle_with(MessagePort&);
+
+    void disentangle();
 
     // https://html.spec.whatwg.org/multipage/web-messaging.html#dom-messageport-postmessage
     WebIDL::ExceptionOr<void> post_message(JS::Value message, Vector<JS::Handle<JS::Object>> const& transfer);
@@ -69,14 +70,13 @@ private:
     virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Cell::Visitor&) override;
 
-    bool is_entangled() const { return static_cast<bool>(m_socket); }
-    void disentangle();
+    bool is_entangled() const;
 
     WebIDL::ExceptionOr<void> message_port_post_message_steps(JS::GCPtr<MessagePort> target_port, JS::Value message, StructuredSerializeOptions const& options);
     void post_message_task_steps(SerializedTransferRecord&);
     void post_port_message(SerializedTransferRecord);
-    ErrorOr<void> send_message_on_socket(SerializedTransferRecord const&);
-    void read_from_socket();
+    ErrorOr<void> send_message_on_transport(SerializedTransferRecord const&);
+    void read_from_transport();
 
     enum class ParseDecision {
         NotEnoughData,
@@ -90,7 +90,7 @@ private:
     // https://html.spec.whatwg.org/multipage/web-messaging.html#has-been-shipped
     bool m_has_been_shipped { false };
 
-    OwnPtr<Core::LocalSocket> m_socket;
+    Optional<IPC::Transport> m_transport;
 
     enum class SocketState : u8 {
         Header,

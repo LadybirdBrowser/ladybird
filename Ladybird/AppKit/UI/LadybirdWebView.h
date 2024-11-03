@@ -65,6 +65,9 @@
 - (WebView::ViewImplementation&)view;
 - (String const&)handle;
 
+- (void)setWindowPosition:(Gfx::IntPoint)position;
+- (void)setWindowSize:(Gfx::IntSize)size;
+
 - (void)handleResize;
 - (void)handleDevicePixelRatioChange;
 - (void)handleScroll;
@@ -85,6 +88,8 @@
 - (float)zoomLevel;
 
 - (void)debugRequest:(ByteString const&)request argument:(ByteString const&)argument;
+
+- (void)setEnableAutoplay:(BOOL)enabled;
 
 - (void)viewSource;
 

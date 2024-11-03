@@ -1,1 +1,1 @@
-   hovered bg: rgb(0, 128, 0)
+hovered bg: rgb(0, 128, 0)

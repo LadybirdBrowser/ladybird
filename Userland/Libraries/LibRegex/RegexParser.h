@@ -58,6 +58,7 @@ public:
 
         struct {
             Optional<ByteString> pure_substring_search;
+            bool only_start_of_line = false;
         } optimization_data {};
     };
 

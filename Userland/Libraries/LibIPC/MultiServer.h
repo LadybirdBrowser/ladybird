@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021, Andreas Kling <kling@serenityos.org>
+ * Copyright (c) 2021, Andreas Kling <andreas@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -37,7 +37,7 @@ private:
         m_server->on_accept = [&](auto client_socket) {
             auto client_id = ++m_next_client_id;
 
-            auto client = IPC::new_client_connection<ConnectionFromClientType>(move(client_socket), client_id);
+            auto client = IPC::new_client_connection<ConnectionFromClientType>(IPC::Transport(move(client_socket)), client_id);
             if (on_new_client)
                 on_new_client(*client);
         };

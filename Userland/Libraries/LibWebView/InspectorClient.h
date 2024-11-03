@@ -52,7 +52,7 @@ private:
 
     String generate_dom_tree(JsonObject const&);
     String generate_accessibility_tree(JsonObject const&);
-    void select_node(i32 node_id);
+    void select_node(Web::UniqueNodeID);
 
     void load_cookies();
 
@@ -72,20 +72,20 @@ private:
     ViewImplementation& m_content_web_view;
     ViewImplementation& m_inspector_web_view;
 
-    Optional<i32> m_body_node_id;
-    Optional<i32> m_pending_selection;
+    Optional<Web::UniqueNodeID> m_body_node_id;
+    Optional<Web::UniqueNodeID> m_pending_selection;
 
     bool m_inspector_loaded { false };
     bool m_dom_tree_loaded { false };
 
     struct ContextMenuData {
-        i32 dom_node_id { 0 };
+        Web::UniqueNodeID dom_node_id;
         Optional<String> tag;
         Optional<Attribute> attribute;
     };
     Optional<ContextMenuData> m_context_menu_data;
 
-    HashMap<int, Vector<Attribute>> m_dom_node_attributes;
+    HashMap<Web::UniqueNodeID, Vector<Attribute>> m_dom_node_attributes;
 
     Vector<Web::Cookie::Cookie> m_cookies;
     Optional<size_t> m_cookie_context_menu_index;

@@ -1,0 +1,22 @@
+<input id="input1" />
+<input id="input2" />
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        let input1 = document.getElementById("input1");
+        let input2 = document.getElementById("input2");
+
+        input1.addEventListener("keydown", e => {
+            println(`input1 keydown ${e.key}`);
+        });
+        input2.addEventListener("keydown", e => {
+            println(`input2 keydown ${e.key}`);
+        });
+
+        internals.sendKey(input1, "Tab");
+        printElement(document.activeElement);
+
+        internals.sendKey(input2, "Tab");
+        printElement(document.activeElement);
+    });
+</script>

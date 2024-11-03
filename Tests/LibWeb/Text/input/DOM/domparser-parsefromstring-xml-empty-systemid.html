@@ -1,0 +1,9 @@
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        var doc = new DOMParser().parseFromString('<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" ""><html><div id="test"/></html>', 'application/xhtml+xml');
+        if (doc.getElementById('test')) {
+            println('PASSED');
+        }
+    });
+</script>

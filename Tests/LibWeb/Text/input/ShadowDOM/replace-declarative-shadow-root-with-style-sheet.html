@@ -1,0 +1,9 @@
+<div id="hmmst"><template shadowrootmode="open"><div><style></style></div></template></div>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        hmmst.attachShadow({ mode: "open" });
+        println("PASS (didn't crash)");
+        hmmst.remove();
+    });
+</script>

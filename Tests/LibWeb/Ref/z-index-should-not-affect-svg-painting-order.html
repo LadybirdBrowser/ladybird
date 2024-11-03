@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<link rel="match" href="reference/z-index-should-not-affect-svg-painting-order-ref.html" />
+<style>
+svg {
+    width: 400px;
+    height: 400px;
+    border: 1px solid black;
+}
+
+#rect1 {
+    fill: red;
+    transform: translate(50px, 50px);
+    z-index: 2;
+}
+
+#rect2 {
+    fill: blue;
+    transform: translate(100px, 100px);
+    z-index: 1;
+}
+</style>
+<svg width="400" height="400">
+    <rect id="rect1" width="200" height="200"></rect>
+    <rect id="rect2" width="200" height="200"></rect>
+</svg>

@@ -27,7 +27,6 @@ source_set("DOM") {
     "EventDispatcher.cpp",
     "EventTarget.cpp",
     "HTMLCollection.cpp",
-    "HTMLFormControlsCollection.cpp",
     "IDLEventListener.cpp",
     "LiveNodeList.cpp",
     "MutationObserver.cpp",
@@ -43,7 +42,6 @@ source_set("DOM") {
     "Position.cpp",
     "ProcessingInstruction.cpp",
     "QualifiedName.cpp",
-    "RadioNodeList.cpp",
     "Range.cpp",
     "ShadowRoot.cpp",
     "Slot.cpp",
@@ -53,6 +51,7 @@ source_set("DOM") {
     "StyleElementUtils.cpp",
     "Text.cpp",
     "TreeWalker.cpp",
+    "Utils.cpp",
     "XMLDocument.cpp",
   ]
 }

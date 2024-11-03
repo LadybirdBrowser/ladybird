@@ -226,8 +226,8 @@ static Web::UIEvents::KeyCode ns_key_code_to_key_code(unsigned short key_code, W
     case kVK_ANSI_Semicolon: return Web::UIEvents::KeyCode::Key_Semicolon;
     case kVK_ANSI_Slash: return Web::UIEvents::KeyCode::Key_Slash;
     case kVK_CapsLock: return Web::UIEvents::KeyCode::Key_CapsLock;
-    case kVK_Command: return Web::UIEvents::KeyCode::Key_Super;
-    case kVK_Control: return Web::UIEvents::KeyCode::Key_Control;
+    case kVK_Command: return Web::UIEvents::KeyCode::Key_LeftSuper;
+    case kVK_Control: return Web::UIEvents::KeyCode::Key_LeftControl;
     case kVK_Delete: return Web::UIEvents::KeyCode::Key_Backspace;
     case kVK_DownArrow: return Web::UIEvents::KeyCode::Key_Down;
     case kVK_End: return Web::UIEvents::KeyCode::Key_End;
@@ -247,16 +247,16 @@ static Web::UIEvents::KeyCode ns_key_code_to_key_code(unsigned short key_code, W
     case kVK_ForwardDelete: return Web::UIEvents::KeyCode::Key_Delete;
     case kVK_Home: return Web::UIEvents::KeyCode::Key_Home;
     case kVK_LeftArrow: return Web::UIEvents::KeyCode::Key_Left;
-    case kVK_Option: return Web::UIEvents::KeyCode::Key_Alt;
+    case kVK_Option: return Web::UIEvents::KeyCode::Key_LeftAlt;
     case kVK_PageDown: return Web::UIEvents::KeyCode::Key_PageDown;
     case kVK_PageUp: return Web::UIEvents::KeyCode::Key_PageUp;
     case kVK_Return: return Web::UIEvents::KeyCode::Key_Return;
     case kVK_RightArrow: return Web::UIEvents::KeyCode::Key_Right;
-    case kVK_RightCommand: return Web::UIEvents::KeyCode::Key_Super; // FIXME: We do not distinguish left-vs-right.
-    case kVK_RightControl: return Web::UIEvents::KeyCode::Key_Control; // FIXME: We do not distinguish left-vs-right.
-    case kVK_RightOption: return Web::UIEvents::KeyCode::Key_Alt; // FIXME: We do not distinguish left-vs-right.
+    case kVK_RightCommand: return Web::UIEvents::KeyCode::Key_RightSuper;
+    case kVK_RightControl: return Web::UIEvents::KeyCode::Key_RightControl;
+    case kVK_RightOption: return Web::UIEvents::KeyCode::Key_RightAlt;
     case kVK_RightShift: return Web::UIEvents::KeyCode::Key_RightShift;
-    case kVK_Shift: return Web::UIEvents::KeyCode::Key_Shift;
+    case kVK_Shift: return Web::UIEvents::KeyCode::Key_LeftShift;
     case kVK_Space: return Web::UIEvents::KeyCode::Key_Space;
     case kVK_Tab: return Web::UIEvents::KeyCode::Key_Tab;
     case kVK_UpArrow: return Web::UIEvents::KeyCode::Key_Up;
@@ -297,18 +297,25 @@ Web::KeyEvent ns_event_to_key_event(Web::KeyEvent::Type type, NSEvent* event)
 {
     auto modifiers = ns_modifiers_to_key_modifiers(event.modifierFlags);
     auto key_code = ns_key_code_to_key_code(event.keyCode, modifiers);
-
-    auto const* utf8 = [event.characters UTF8String];
-    Utf8View utf8_view { StringView { utf8, strlen(utf8) } };
+    auto repeat = false;
 
     // FIXME: WebContent should really support multi-code point key events.
-    auto code_point = utf8_view.is_empty() ? 0u : *utf8_view.begin();
+    u32 code_point = 0;
+
+    if (event.type == NSEventTypeKeyDown || event.type == NSEventTypeKeyUp) {
+        auto const* utf8 = [event.characters UTF8String];
+        Utf8View utf8_view { StringView { utf8, strlen(utf8) } };
+
+        code_point = utf8_view.is_empty() ? 0u : *utf8_view.begin();
+
+        repeat = event.isARepeat;
+    }
 
     // NSEvent assigns PUA code points to to functional keys, e.g. arrow keys. Do not propagate them.
     if (code_point >= 0xE000 && code_point <= 0xF8FF)
         code_point = 0;
 
-    return { type, key_code, modifiers, code_point, make<KeyData>(event) };
+    return { type, key_code, modifiers, code_point, repeat, make<KeyData>(event) };
 }
 
 NSEvent* key_event_to_ns_event(Web::KeyEvent const& event)

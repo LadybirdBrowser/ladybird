@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-2021, Andreas Kling <kling@serenityos.org>
+ * Copyright (c) 2020-2021, Andreas Kling <andreas@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -9,8 +9,8 @@
 
 namespace ImageDecoderClient {
 
-Client::Client(NonnullOwnPtr<Core::LocalSocket> socket)
-    : IPC::ConnectionToServer<ImageDecoderClientEndpoint, ImageDecoderServerEndpoint>(*this, move(socket))
+Client::Client(IPC::Transport transport)
+    : IPC::ConnectionToServer<ImageDecoderClientEndpoint, ImageDecoderServerEndpoint>(*this, move(transport))
 {
 }
 
@@ -57,8 +57,9 @@ NonnullRefPtr<Core::Promise<DecodedImage>> Client::decode_image(ReadonlyBytes en
     return promise;
 }
 
-void Client::did_decode_image(i64 image_id, bool is_animated, u32 loop_count, Vector<Optional<NonnullRefPtr<Gfx::Bitmap>>> const& bitmaps, Vector<u32> const& durations, Gfx::FloatPoint scale)
+void Client::did_decode_image(i64 image_id, bool is_animated, u32 loop_count, Gfx::BitmapSequence const& bitmap_sequence, Vector<u32> const& durations, Gfx::FloatPoint scale)
 {
+    auto const& bitmaps = bitmap_sequence.bitmaps;
     VERIFY(!bitmaps.is_empty());
 
     auto maybe_promise = m_pending_decoded_images.take(image_id);

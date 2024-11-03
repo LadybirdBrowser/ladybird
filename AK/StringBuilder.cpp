@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2021, Andreas Kling <kling@serenityos.org>
+ * Copyright (c) 2018-2021, Andreas Kling <andreas@ladybird.org>
  * Copyright (c) 2023, Liav A. <liavalb@hotmail.co.il>
  *
  * SPDX-License-Identifier: BSD-2-Clause
@@ -16,6 +16,8 @@
 #include <AK/UnicodeUtils.h>
 #include <AK/Utf16View.h>
 #include <AK/Utf32View.h>
+
+#include <simdutf.h>
 
 namespace AK {
 
@@ -224,12 +226,69 @@ void StringBuilder::append_code_point(u32 code_point)
 
 ErrorOr<void> StringBuilder::try_append(Utf16View const& utf16_view)
 {
-    for (size_t i = 0; i < utf16_view.length_in_code_units();) {
-        auto code_point = utf16_view.code_point_at(i);
-        TRY(try_append_code_point(code_point));
+    if (utf16_view.is_empty())
+        return {};
 
-        i += (code_point > 0xffff ? 2 : 1);
+    auto maximum_utf8_length = UnicodeUtils::maximum_utf8_length_from_utf16(utf16_view.span());
+
+    // Possibly over-allocate a little to ensure we don't have to allocate later.
+    TRY(will_append(maximum_utf8_length));
+
+    Utf16View remaining_view = utf16_view;
+    for (;;) {
+        auto uninitialized_data_pointer = static_cast<char*>(m_buffer.end_pointer());
+
+        // Fast path.
+        auto result = [&]() {
+            switch (remaining_view.endianness()) {
+            case Endianness::Host:
+                return simdutf::convert_utf16_to_utf8_with_errors(remaining_view.char_data(), remaining_view.length_in_code_units(), uninitialized_data_pointer);
+            case Endianness::Big:
+                return simdutf::convert_utf16be_to_utf8_with_errors(remaining_view.char_data(), remaining_view.length_in_code_units(), uninitialized_data_pointer);
+            case Endianness::Little:
+                return simdutf::convert_utf16le_to_utf8_with_errors(remaining_view.char_data(), remaining_view.length_in_code_units(), uninitialized_data_pointer);
+            }
+            VERIFY_NOT_REACHED();
+        }();
+        if (result.error == simdutf::SUCCESS) {
+            auto bytes_just_written = result.count;
+            m_buffer.set_size(m_buffer.size() + bytes_just_written);
+            break;
+        }
+
+        // Slow path. Found unmatched surrogate code unit.
+        auto first_invalid_code_unit = result.count;
+        ASSERT(first_invalid_code_unit < remaining_view.length_in_code_units());
+
+        // Unfortunately, `simdutf` does not tell us how many bytes it just wrote in case of an error, so we have to calculate it ourselves.
+        auto bytes_just_written = [&]() {
+            switch (remaining_view.endianness()) {
+            case Endianness::Host:
+                return simdutf::utf8_length_from_utf16(remaining_view.char_data(), first_invalid_code_unit);
+            case Endianness::Big:
+                return simdutf::utf8_length_from_utf16be(remaining_view.char_data(), first_invalid_code_unit);
+            case Endianness::Little:
+                return simdutf::utf8_length_from_utf16le(remaining_view.char_data(), first_invalid_code_unit);
+            }
+            VERIFY_NOT_REACHED();
+        }();
+
+        do {
+            auto code_unit = remaining_view.code_unit_at(first_invalid_code_unit++);
+
+            // Invalid surrogate code units are U+D800 - U+DFFF, so they are always encoded using 3 bytes.
+            ASSERT(code_unit >= 0xD800 && code_unit <= 0xDFFF);
+            ASSERT(m_buffer.size() + bytes_just_written + 3 < m_buffer.capacity());
+            uninitialized_data_pointer[bytes_just_written++] = (((code_unit >> 12) & 0x0f) | 0xe0);
+            uninitialized_data_pointer[bytes_just_written++] = (((code_unit >> 6) & 0x3f) | 0x80);
+            uninitialized_data_pointer[bytes_just_written++] = (((code_unit >> 0) & 0x3f) | 0x80);
+        } while (first_invalid_code_unit < remaining_view.length_in_code_units() && Utf16View::is_low_surrogate(remaining_view.data()[first_invalid_code_unit]));
+
+        // Code unit might no longer be invalid, retry on the remaining data.
+        m_buffer.set_size(m_buffer.size() + bytes_just_written);
+        remaining_view = remaining_view.substring_view(first_invalid_code_unit);
     }
+
     return {};
 }
 

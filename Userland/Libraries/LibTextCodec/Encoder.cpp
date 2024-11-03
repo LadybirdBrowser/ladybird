@@ -22,6 +22,37 @@ EUCJPEncoder s_euc_jp_encoder;
 ISO2022JPEncoder s_iso_2022_jp_encoder;
 ShiftJISEncoder s_shift_jis_encoder;
 EUCKREncoder s_euc_kr_encoder;
+
+// s_{encoding}_index is generated from https://encoding.spec.whatwg.org/indexes.json
+// Found separately in https://encoding.spec.whatwg.org/index-{encoding}.txt
+SingleByteEncoder s_ibm866_encoder { s_ibm866_index };
+SingleByteEncoder s_latin2_encoder { s_iso_8859_2_index };
+SingleByteEncoder s_latin3_encoder { s_iso_8859_3_index };
+SingleByteEncoder s_latin4_encoder { s_iso_8859_4_index };
+SingleByteEncoder s_latin_cyrillic_encoder { s_iso_8859_5_index };
+SingleByteEncoder s_latin_arabic_encoder { s_iso_8859_6_index };
+SingleByteEncoder s_latin_greek_encoder { s_iso_8859_7_index };
+SingleByteEncoder s_latin_hebrew_encoder { s_iso_8859_8_index };
+SingleByteEncoder s_latin6_encoder { s_iso_8859_10_index };
+SingleByteEncoder s_latin7_encoder { s_iso_8859_13_index };
+SingleByteEncoder s_latin8_encoder { s_iso_8859_14_index };
+SingleByteEncoder s_latin9_encoder { s_iso_8859_15_index };
+SingleByteEncoder s_latin10_encoder { s_iso_8859_16_index };
+SingleByteEncoder s_centraleurope_encoder { s_windows_1250_index };
+SingleByteEncoder s_cyrillic_encoder { s_windows_1251_index };
+SingleByteEncoder s_hebrew_encoder { s_windows_1255_index };
+SingleByteEncoder s_koi8r_encoder { s_koi8_r_index };
+SingleByteEncoder s_koi8u_encoder { s_koi8_u_index };
+SingleByteEncoder s_mac_roman_encoder { s_macintosh_index };
+SingleByteEncoder s_windows874_encoder { s_windows_874_index };
+SingleByteEncoder s_windows1252_encoder { s_windows_1252_index };
+SingleByteEncoder s_windows1253_encoder { s_windows_1253_index };
+SingleByteEncoder s_turkish_encoder { s_windows_1254_index };
+SingleByteEncoder s_windows1256_encoder { s_windows_1256_index };
+SingleByteEncoder s_windows1257_encoder { s_windows_1257_index };
+SingleByteEncoder s_windows1258_encoder { s_windows_1258_index };
+SingleByteEncoder s_mac_cyrillic_encoder { s_x_mac_cyrillic_index };
+
 }
 
 Optional<Encoder&> encoder_for_exact_name(StringView encoding)
@@ -42,6 +73,60 @@ Optional<Encoder&> encoder_for_exact_name(StringView encoding)
         return s_gb18030_encoder;
     if (encoding.equals_ignoring_ascii_case("gbk"sv))
         return s_gbk_encoder;
+    if (encoding.equals_ignoring_ascii_case("ibm866"sv))
+        return s_ibm866_encoder;
+    if (encoding.equals_ignoring_ascii_case("iso-8859-2"sv))
+        return s_latin2_encoder;
+    if (encoding.equals_ignoring_ascii_case("iso-8859-3"sv))
+        return s_latin3_encoder;
+    if (encoding.equals_ignoring_ascii_case("iso-8859-4"sv))
+        return s_latin4_encoder;
+    if (encoding.equals_ignoring_ascii_case("iso-8859-5"sv))
+        return s_latin_cyrillic_encoder;
+    if (encoding.equals_ignoring_ascii_case("iso-8859-6"sv))
+        return s_latin_arabic_encoder;
+    if (encoding.equals_ignoring_ascii_case("iso-8859-7"sv))
+        return s_latin_greek_encoder;
+    if (encoding.is_one_of_ignoring_ascii_case("iso-8859-8"sv, "iso-8859-8-i"sv))
+        return s_latin_hebrew_encoder;
+    if (encoding.equals_ignoring_ascii_case("iso-8859-10"sv))
+        return s_latin6_encoder;
+    if (encoding.equals_ignoring_ascii_case("iso-8859-13"sv))
+        return s_latin7_encoder;
+    if (encoding.equals_ignoring_ascii_case("iso-8859-14"sv))
+        return s_latin8_encoder;
+    if (encoding.equals_ignoring_ascii_case("iso-8859-15"sv))
+        return s_latin9_encoder;
+    if (encoding.equals_ignoring_ascii_case("iso-8859-16"sv))
+        return s_latin10_encoder;
+    if (encoding.equals_ignoring_ascii_case("koi8-r"sv))
+        return s_koi8r_encoder;
+    if (encoding.equals_ignoring_ascii_case("koi8-u"sv))
+        return s_koi8u_encoder;
+    if (encoding.equals_ignoring_ascii_case("macintosh"sv))
+        return s_mac_roman_encoder;
+    if (encoding.equals_ignoring_ascii_case("windows-874"sv))
+        return s_windows874_encoder;
+    if (encoding.equals_ignoring_ascii_case("windows-1250"sv))
+        return s_centraleurope_encoder;
+    if (encoding.equals_ignoring_ascii_case("windows-1251"sv))
+        return s_cyrillic_encoder;
+    if (encoding.equals_ignoring_ascii_case("windows-1252"sv))
+        return s_windows1252_encoder;
+    if (encoding.equals_ignoring_ascii_case("windows-1253"sv))
+        return s_windows1253_encoder;
+    if (encoding.equals_ignoring_ascii_case("windows-1254"sv))
+        return s_turkish_encoder;
+    if (encoding.equals_ignoring_ascii_case("windows-1255"sv))
+        return s_hebrew_encoder;
+    if (encoding.equals_ignoring_ascii_case("windows-1256"sv))
+        return s_windows1256_encoder;
+    if (encoding.equals_ignoring_ascii_case("windows-1257"sv))
+        return s_windows1257_encoder;
+    if (encoding.equals_ignoring_ascii_case("windows-1258"sv))
+        return s_windows1258_encoder;
+    if (encoding.equals_ignoring_ascii_case("x-mac-cyrillic"sv))
+        return s_mac_cyrillic_encoder;
     dbgln("TextCodec: No encoder implemented for encoding '{}'", encoding);
     return {};
 }
@@ -548,6 +633,36 @@ ErrorOr<void> GB18030Encoder::process(Utf8View input, Function<ErrorOr<void>(u8)
         TRY(on_byte(static_cast<u8>(byte4 + 0x30)));
     }
 
+    return {};
+}
+
+// https://encoding.spec.whatwg.org/#single-byte-encoder
+template<Integral ArrayType>
+ErrorOr<void> SingleByteEncoder<ArrayType>::process(Utf8View input, Function<ErrorOr<void>(u8)> on_byte, Function<ErrorOr<void>(u32)> on_error)
+{
+    for (u32 const code_point : input) {
+        if (code_point < 0x80) {
+            // 2. If code point is an ASCII code point, return a byte whose value is code point.
+            TRY(on_byte(static_cast<u8>(code_point)));
+        } else {
+            Optional<u8> pointer = {};
+            for (u8 i = 0; i < m_translation_table.size(); i++) {
+                if (m_translation_table[i] == code_point) {
+                    // 3. Let pointer be the index pointer for code point in index single-byte.
+                    pointer = i;
+                    break;
+                }
+            }
+            if (pointer.has_value()) {
+                // 5. Return a byte whose value is pointer + 0x80.
+                TRY(on_byte(pointer.value() + 0x80));
+            } else {
+                // 4. If pointer is null, return error with code point.
+                TRY(on_error(code_point));
+            }
+        }
+    }
+    // 1. If code point is end-of-queue, return finished.
     return {};
 }
 

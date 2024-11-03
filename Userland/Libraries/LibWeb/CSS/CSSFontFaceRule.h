@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2022, Sam Atkins <atkinssj@serenityos.org>
- * Copyright (c) 2022, Andreas Kling <kling@serenityos.org>
+ * Copyright (c) 2022, Andreas Kling <andreas@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -20,8 +20,6 @@ public:
     [[nodiscard]] static JS::NonnullGCPtr<CSSFontFaceRule> create(JS::Realm&, ParsedFontFace&&);
 
     virtual ~CSSFontFaceRule() override = default;
-
-    virtual Type type() const override { return Type::FontFace; }
 
     ParsedFontFace const& font_face() const { return m_font_face; }
     CSSStyleDeclaration* style();

@@ -1,7 +1,7 @@
 /*
  * Copyright (c) 2022, Florent Castelli <florent.castelli@gmail.com>
  * Copyright (c) 2022, Linus Groh <linusg@serenityos.org>
- * Copyright (c) 2022, Tim Flynn <trflynn89@serenityos.org>
+ * Copyright (c) 2022-2024, Tim Flynn <trflynn89@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -9,12 +9,12 @@
 #pragma once
 
 #include <AK/Error.h>
-#include <AK/JsonValue.h>
 #include <AK/RefCounted.h>
 #include <AK/RefPtr.h>
+#include <AK/ScopeGuard.h>
 #include <AK/String.h>
+#include <LibCore/EventLoop.h>
 #include <LibCore/Promise.h>
-#include <LibWeb/WebDriver/Capabilities.h>
 #include <LibWeb/WebDriver/Error.h>
 #include <LibWeb/WebDriver/Response.h>
 #include <WebDriver/WebContentConnection.h>
@@ -49,16 +49,31 @@ public:
         return m_current_window_handle;
     }
 
+    bool has_window_handle(StringView handle) const { return m_windows.contains(handle); }
+
     ErrorOr<void> start(LaunchBrowserCallbacks const&);
     Web::WebDriver::Response close_window();
     Web::WebDriver::Response switch_to_window(StringView);
     Web::WebDriver::Response get_window_handles() const;
+    ErrorOr<void, Web::WebDriver::Error> ensure_current_window_handle_is_valid() const;
 
-    enum class ScriptMode {
-        Sync,
-        Async,
-    };
-    Web::WebDriver::Response execute_script(JsonValue, ScriptMode) const;
+    template<typename Action>
+    Web::WebDriver::Response perform_async_action(Action&& action)
+    {
+        Optional<Web::WebDriver::Response> response;
+        auto& connection = web_content_connection();
+
+        ScopeGuard guard { [&]() { connection.on_driver_execution_complete = nullptr; } };
+        connection.on_driver_execution_complete = [&](auto result) { response = move(result); };
+
+        TRY(action(connection));
+
+        Core::EventLoop::current().spin_until([&]() {
+            return response.has_value();
+        });
+
+        return response.release_value();
+    }
 
 private:
     using ServerPromise = Core::Promise<ErrorOr<void>>;

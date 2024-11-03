@@ -10,6 +10,7 @@
 #include <AK/Endian.h>
 #include <AK/MemoryStream.h>
 #include <AK/Optional.h>
+#include <AK/Time.h>
 #include <AK/Types.h>
 #include <LibCore/SharedCircularQueue.h>
 #include <LibMedia/Audio/Loader.h>

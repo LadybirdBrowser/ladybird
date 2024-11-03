@@ -1,0 +1,4 @@
+declare_args() {
+  # Select whether to build with ffmpeg support in LibMedia
+  enable_ffmpeg = true
+}

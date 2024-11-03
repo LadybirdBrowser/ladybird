@@ -298,9 +298,9 @@ void EventSource::reestablish_the_connection()
     }));
 
     // 2. Wait a delay equal to the reconnection time of the event source.
-    HTML::main_thread_event_loop().spin_until([&, delay_start = MonotonicTime::now()]() {
+    HTML::main_thread_event_loop().spin_until(JS::create_heap_function(heap(), [&, delay_start = MonotonicTime::now()]() {
         return (MonotonicTime::now() - delay_start) >= m_reconnection_time;
-    });
+    }));
 
     // 3. Optionally, wait some more. In particular, if the previous attempt failed, then user agents might introduce
     //    an exponential backoff delay to avoid overloading a potentially already overloaded server. Alternatively, if
@@ -309,7 +309,7 @@ void EventSource::reestablish_the_connection()
 
     // 4. Wait until the aforementioned task has run, if it has not yet run.
     if (!initial_task_has_run) {
-        HTML::main_thread_event_loop().spin_until([&]() { return initial_task_has_run; });
+        HTML::main_thread_event_loop().spin_until(JS::create_heap_function(heap(), [&]() { return initial_task_has_run; }));
     }
 
     // 5. Queue a task to run the following steps:
@@ -449,7 +449,7 @@ void EventSource::dispatch_the_event()
     //    the value of the event type buffer.
     MessageEventInit init {};
     init.data = JS::PrimitiveString::create(vm(), data_buffer);
-    init.origin = MUST(String::from_byte_string(m_url.serialize_origin()));
+    init.origin = MUST(String::from_byte_string(m_url.origin().serialize()));
     init.last_event_id = last_event_id;
 
     auto type = m_event_type.is_empty() ? HTML::EventNames::message : m_event_type;

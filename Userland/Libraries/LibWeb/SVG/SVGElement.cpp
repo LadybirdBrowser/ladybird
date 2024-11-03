@@ -11,7 +11,6 @@
 #include <LibWeb/CSS/StyleProperties.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/ShadowRoot.h>
-#include <LibWeb/HTML/DOMStringMap.h>
 #include <LibWeb/SVG/SVGElement.h>
 #include <LibWeb/SVG/SVGSVGElement.h>
 #include <LibWeb/SVG/SVGUseElement.h>
@@ -32,15 +31,8 @@ void SVGElement::initialize(JS::Realm& realm)
 void SVGElement::visit_edges(Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
-    visitor.visit(m_dataset);
+    HTMLOrSVGElement::visit_edges(visitor);
     visitor.visit(m_class_name_animated_string);
-}
-
-JS::NonnullGCPtr<HTML::DOMStringMap> SVGElement::dataset()
-{
-    if (!m_dataset)
-        m_dataset = HTML::DOMStringMap::create(*this);
-    return *m_dataset;
 }
 
 void SVGElement::attribute_changed(FlyString const& name, Optional<String> const& old_value, Optional<String> const& value)
@@ -50,9 +42,23 @@ void SVGElement::attribute_changed(FlyString const& name, Optional<String> const
     update_use_elements_that_reference_this();
 }
 
+void SVGElement::attribute_change_steps(FlyString const& local_name, Optional<String> const& old_value, Optional<String> const& value, Optional<FlyString> const& namespace_)
+{
+    Base::attribute_change_steps(local_name, old_value, value, namespace_);
+    HTMLOrSVGElement::attribute_change_steps(local_name, old_value, value, namespace_);
+}
+
+WebIDL::ExceptionOr<void> SVGElement::cloned(DOM::Node& copy, bool clone_children)
+{
+    TRY(Base::cloned(copy, clone_children));
+    TRY(HTMLOrSVGElement::cloned(copy, clone_children));
+    return {};
+}
+
 void SVGElement::inserted()
 {
     Base::inserted();
+    HTMLOrSVGElement::inserted();
 
     update_use_elements_that_reference_this();
 }
@@ -106,16 +112,6 @@ void SVGElement::remove_from_use_element_that_reference_this()
     });
 }
 
-void SVGElement::focus()
-{
-    dbgln("(STUBBED) SVGElement::focus()");
-}
-
-void SVGElement::blur()
-{
-    dbgln("(STUBBED) SVGElement::blur()");
-}
-
 // https://svgwg.org/svg2-draft/types.html#__svg__SVGElement__classNames
 JS::NonnullGCPtr<SVGAnimatedString> SVGElement::class_name()
 {
@@ -139,7 +135,7 @@ JS::NonnullGCPtr<SVGAnimatedLength> SVGElement::svg_animated_length_for_property
 {
     // FIXME: Create a proper animated value when animations are supported.
     auto make_length = [&] {
-        if (auto const* style = computed_css_values(); style) {
+        if (auto const style = computed_css_values(); style.has_value()) {
             if (auto length = style->length_percentage(property); length.has_value())
                 return SVGLength::from_length_percentage(realm(), *length);
         }

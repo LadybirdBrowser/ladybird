@@ -1,1 +1,1 @@
-Label   Text input focused
+Text input focused

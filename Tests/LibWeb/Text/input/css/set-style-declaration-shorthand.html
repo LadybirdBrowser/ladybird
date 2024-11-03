@@ -1,0 +1,38 @@
+<script src="../include.js"></script>
+<script>
+    function testFlexValue(value) {
+        let e = document.createElement("div");
+        e.style.flex = value;
+        println("Setting flex: '" + value + "'; becomes...");
+        println("  flex-basis: '" + e.style.flexBasis + "'");
+        println("  flex-grow: '" + e.style.flexGrow + "'");
+        println("  flex-shrink: '" + e.style.flexShrink + "'");
+        println("  flex: '" + e.style.flex + "'");
+        println("  e.style.length: " + e.style.length);
+        for (let p = 0; p < e.style.length; ++p) {
+            println("  > [" + p + "] " + e.style[p]);
+        }
+        println("");
+    }
+    function testBorderValue(value) {
+        let e = document.createElement("div");
+        e.style.border = value;
+        println("Setting border: '" + value + "'; becomes...");
+        println("  border-width: '" + e.style.getPropertyValue('border-width') + "'");
+        println("  border-style: '" + e.style.borderStyle + "'");
+        println("  border-color: '" + e.style.borderColor + "'");
+        println("  border: '" + e.style.border + "'");
+        println("  e.style.length: " + e.style.length);
+        for (let p = 0; p < e.style.length; ++p) {
+            println("  > [" + p + "] " + e.style[p]);
+        }
+        println("");
+    }
+    test(() => {
+        testFlexValue("none");
+        testFlexValue("auto 1 2");
+        testFlexValue("");
+
+        testBorderValue("1px solid red");
+    });
+</script>

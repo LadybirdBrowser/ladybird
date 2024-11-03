@@ -75,12 +75,12 @@ WebIDL::ExceptionOr<void> PerformanceObserver::observe(PerformanceObserverInit& 
     // 2. If this's observer type is "single" and options's entryTypes member is present, then throw an "InvalidModificationError".
     else if (m_observer_type == ObserverType::Single) {
         if (options.entry_types.has_value())
-            return WebIDL::InvalidModificationError::create(realm, "Cannot change a PerformanceObserver from observing a single type to observing multiple types"_fly_string);
+            return WebIDL::InvalidModificationError::create(realm, "Cannot change a PerformanceObserver from observing a single type to observing multiple types"_string);
     }
     // 3. If this's observer type is "multiple" and options's type member is present, then throw an "InvalidModificationError".
     else if (m_observer_type == ObserverType::Multiple) {
         if (options.type.has_value())
-            return WebIDL::InvalidModificationError::create(realm, "Cannot change a PerformanceObserver from observing multiple types to observing a single type"_fly_string);
+            return WebIDL::InvalidModificationError::create(realm, "Cannot change a PerformanceObserver from observing multiple types to observing a single type"_string);
     }
 
     // 5. Set this's requires dropped entries to true.

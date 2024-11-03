@@ -1,0 +1,11 @@
+import("//Meta/gn/build/libs/third_party.gni")
+
+third_party_dependency("woff2") {
+  third_party_includes = [ "woff2" ]
+  libs = [
+    "woff2common",
+    "brotlidec",
+    "brotlicommon",
+    "woff2dec",
+  ]
+}

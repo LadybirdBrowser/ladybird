@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020, Andreas Kling <kling@serenityos.org>
+ * Copyright (c) 2020, Andreas Kling <andreas@ladybird.org>
  * Copyright (c) 2023, Luke Wilde <lukew@serenityos.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
@@ -22,7 +22,7 @@ class Performance final : public DOM::EventTarget {
 public:
     virtual ~Performance() override;
 
-    double now() const { return static_cast<double>(m_timer.elapsed_time().to_nanoseconds()) / 1e6; }
+    double now() const;
     double time_origin() const;
 
     WebIDL::ExceptionOr<JS::NonnullGCPtr<UserTiming::PerformanceMark>> mark(String const& mark_name, UserTiming::PerformanceMarkOptions const& mark_options = {});

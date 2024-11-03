@@ -62,29 +62,6 @@ JS::ThrowCompletionOr<JS::Value> WorkerDebugConsoleClient::printer(JS::Console::
 
     auto output = TRY(generically_format_values(arguments.get<JS::MarkedVector<JS::Value>>()));
     m_console->output_debug_message(log_level, output);
-
-    switch (log_level) {
-    case JS::Console::LogLevel::Debug:
-        dbgln("{}\033[36;1m{}\033[0m", indent, output);
-        break;
-    case JS::Console::LogLevel::Error:
-    case JS::Console::LogLevel::Assert:
-        dbgln("{}\033[31;1m{}\033[0m", indent, output);
-        break;
-    case JS::Console::LogLevel::Info:
-        dbgln("{}(i) {}", indent, output);
-        break;
-    case JS::Console::LogLevel::Log:
-        dbgln("{}{}", indent, output);
-        break;
-    case JS::Console::LogLevel::Warn:
-    case JS::Console::LogLevel::CountReset:
-        dbgln("{}\033[33;1m{}\033[0m", indent, output);
-        break;
-    default:
-        dbgln("{}{}", indent, output);
-        break;
-    }
     return JS::js_undefined();
 }
 

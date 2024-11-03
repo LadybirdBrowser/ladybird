@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022, Andreas Kling <kling@serenityos.org>
+ * Copyright (c) 2018-2022, Andreas Kling <andreas@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -52,15 +52,15 @@ WebIDL::ExceptionOr<String> CharacterData::substring_data(size_t offset, size_t 
 
     // 2. If offset is greater than length, then throw an "IndexSizeError" DOMException.
     if (offset > length)
-        return WebIDL::IndexSizeError::create(realm(), "Substring offset out of range."_fly_string);
+        return WebIDL::IndexSizeError::create(realm(), "Substring offset out of range."_string);
 
     // 3. If offset plus count is greater than length, return a string whose value is the code units from the offsetth code unit
     //    to the end of node’s data, and then return.
     if (offset + count > length)
-        return MUST(utf16_view.substring_view(offset).to_utf8());
+        return MUST(utf16_view.substring_view(offset).to_utf8(Utf16View::AllowInvalidCodeUnits::Yes));
 
     // 4. Return a string whose value is the code units from the offsetth code unit to the offset+countth code unit in node’s data.
-    return MUST(utf16_view.substring_view(offset, count).to_utf8());
+    return MUST(utf16_view.substring_view(offset, count).to_utf8(Utf16View::AllowInvalidCodeUnits::Yes));
 }
 
 // https://dom.spec.whatwg.org/#concept-cd-replace
@@ -74,7 +74,7 @@ WebIDL::ExceptionOr<void> CharacterData::replace_data(size_t offset, size_t coun
 
     // 2. If offset is greater than length, then throw an "IndexSizeError" DOMException.
     if (offset > length)
-        return WebIDL::IndexSizeError::create(realm(), "Replacement offset out of range."_fly_string);
+        return WebIDL::IndexSizeError::create(realm(), "Replacement offset out of range."_string);
 
     // 3. If offset plus count is greater than length, then set count to length minus offset.
     if (offset + count > length)
@@ -112,8 +112,11 @@ WebIDL::ExceptionOr<void> CharacterData::replace_data(size_t offset, size_t coun
 
     // 11. For each live range whose end node is node and end offset is greater than offset plus count, increase its end offset by data’s length and decrease it by count.
     for (auto& range : Range::live_ranges()) {
-        if (range->end_container() == this && range->end_offset() > (offset + count))
-            TRY(range->set_end(*range->end_container(), range->end_offset() + data.bytes().size() - count));
+        if (range->end_container() == this && range->end_offset() > (offset + count)) {
+            // AD-HOC: Clamp offset to the end of the data if it's too large.
+            auto new_offset = min(range->end_offset() + data.bytes().size() - count, m_data.bytes().size());
+            TRY(range->set_end(*range->end_container(), new_offset));
+        }
     }
 
     // 12. If node’s parent is non-null, then run the children changed steps for node’s parent.
@@ -157,20 +160,20 @@ WebIDL::ExceptionOr<void> CharacterData::delete_data(size_t offset, size_t count
     return replace_data(offset, count, String {});
 }
 
-Unicode::Segmenter& CharacterData::grapheme_segmenter()
+Unicode::Segmenter& CharacterData::grapheme_segmenter() const
 {
     if (!m_grapheme_segmenter) {
-        m_grapheme_segmenter = Unicode::Segmenter::create(Unicode::SegmenterGranularity::Grapheme);
+        m_grapheme_segmenter = document().grapheme_segmenter().clone();
         m_grapheme_segmenter->set_segmented_text(m_data);
     }
 
     return *m_grapheme_segmenter;
 }
 
-Unicode::Segmenter& CharacterData::word_segmenter()
+Unicode::Segmenter& CharacterData::word_segmenter() const
 {
     if (!m_word_segmenter) {
-        m_word_segmenter = Unicode::Segmenter::create(Unicode::SegmenterGranularity::Word);
+        m_word_segmenter = document().word_segmenter().clone();
         m_word_segmenter->set_segmented_text(m_data);
     }
 

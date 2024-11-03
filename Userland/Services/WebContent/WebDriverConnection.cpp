@@ -3,15 +3,17 @@
  * Copyright (c) 2022-2023, Sam Atkins <atkinssj@serenityos.org>
  * Copyright (c) 2022, Tobias Christiansen <tobyase@serenityos.org>
  * Copyright (c) 2022, Linus Groh <linusg@serenityos.org>
- * Copyright (c) 2022-2024, Tim Flynn <trflynn89@serenityos.org>
+ * Copyright (c) 2022-2024, Tim Flynn <trflynn89@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
 #include <AK/JsonObject.h>
 #include <AK/JsonValue.h>
+#include <AK/LexicalPath.h>
 #include <AK/Time.h>
 #include <AK/Vector.h>
+#include <LibCore/File.h>
 #include <LibJS/Runtime/JSONObject.h>
 #include <LibJS/Runtime/Value.h>
 #include <LibWeb/CSS/CSSStyleValue.h>
@@ -19,13 +21,15 @@
 #include <LibWeb/CSS/StyleProperties.h>
 #include <LibWeb/Cookie/Cookie.h>
 #include <LibWeb/Cookie/ParsedCookie.h>
+#include <LibWeb/Crypto/Crypto.h>
 #include <LibWeb/DOM/Document.h>
+#include <LibWeb/DOM/DocumentObserver.h>
 #include <LibWeb/DOM/Element.h>
 #include <LibWeb/DOM/Event.h>
-#include <LibWeb/DOM/NodeFilter.h>
-#include <LibWeb/DOM/NodeIterator.h>
+#include <LibWeb/DOM/Position.h>
 #include <LibWeb/DOM/ShadowRoot.h>
 #include <LibWeb/Geometry/DOMRect.h>
+#include <LibWeb/HTML/AnimationFrameCallbackDriver.h>
 #include <LibWeb/HTML/AttributeNames.h>
 #include <LibWeb/HTML/BrowsingContext.h>
 #include <LibWeb/HTML/Focus.h>
@@ -37,18 +41,40 @@
 #include <LibWeb/HTML/HTMLOptGroupElement.h>
 #include <LibWeb/HTML/HTMLOptionElement.h>
 #include <LibWeb/HTML/HTMLSelectElement.h>
+#include <LibWeb/HTML/HTMLTextAreaElement.h>
+#include <LibWeb/HTML/NavigationObserver.h>
+#include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
+#include <LibWeb/HTML/SelectedFile.h>
 #include <LibWeb/HTML/TraversableNavigable.h>
+#include <LibWeb/HTML/WindowProxy.h>
 #include <LibWeb/Page/Page.h>
 #include <LibWeb/Platform/EventLoopPlugin.h>
 #include <LibWeb/Platform/Timer.h>
 #include <LibWeb/UIEvents/EventNames.h>
 #include <LibWeb/UIEvents/MouseEvent.h>
+#include <LibWeb/WebDriver/Actions.h>
 #include <LibWeb/WebDriver/ElementReference.h>
-#include <LibWeb/WebDriver/ExecuteScript.h>
+#include <LibWeb/WebDriver/HeapTimer.h>
+#include <LibWeb/WebDriver/InputState.h>
+#include <LibWeb/WebDriver/Properties.h>
 #include <LibWeb/WebDriver/Screenshot.h>
 #include <WebContent/WebDriverConnection.h>
 
 namespace WebContent {
+
+#define WEBDRIVER_TRY(expression)                                                                    \
+    ({                                                                                               \
+        /* Ignore -Wshadow to allow nesting the macro. */                                            \
+        AK_IGNORE_DIAGNOSTIC("-Wshadow",                                                             \
+            auto&& _temporary_result = (expression));                                                \
+        static_assert(!::AK::Detail::IsLvalueReference<decltype(_temporary_result.release_value())>, \
+            "Do not return a reference from a fallible expression");                                 \
+        if (_temporary_result.is_error()) [[unlikely]] {                                             \
+            async_driver_execution_complete({ _temporary_result.release_error() });                  \
+            return;                                                                                  \
+        }                                                                                            \
+        _temporary_result.release_value();                                                           \
+    })
 
 // https://w3c.github.io/webdriver/#dfn-serialized-cookie
 static JsonValue serialize_cookie(Web::Cookie::Cookie const& cookie)
@@ -97,7 +123,7 @@ static ErrorOr<void, Web::WebDriver::Error> ensure_browsing_context_is_open(JS::
 }
 
 // https://w3c.github.io/webdriver/#dfn-scrolls-into-view
-static ErrorOr<void> scroll_element_into_view(Web::DOM::Element& element)
+static void scroll_element_into_view(Web::DOM::Element& element)
 {
     // 1. Let options be the following ScrollIntoViewOptions:
     Web::DOM::ScrollIntoViewOptions options {};
@@ -109,58 +135,16 @@ static ErrorOr<void> scroll_element_into_view(Web::DOM::Element& element)
     options.inline_ = Web::Bindings::ScrollLogicalPosition::Nearest;
 
     // 2. Run Function.[[Call]](scrollIntoView, options) with element as the this value.
-    TRY(element.scroll_into_view(options));
-
-    return {};
-}
-
-template<typename PropertyType = ByteString>
-static ErrorOr<PropertyType, Web::WebDriver::Error> get_property(JsonValue const& payload, StringView key)
-{
-    if (!payload.is_object())
-        return Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::InvalidArgument, "Payload is not a JSON object");
-
-    auto property = payload.as_object().get(key);
-
-    if (!property.has_value())
-        return Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::InvalidArgument, ByteString::formatted("No property called '{}' present", key));
-
-    if constexpr (IsSame<PropertyType, ByteString>) {
-        if (!property->is_string())
-            return Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::InvalidArgument, ByteString::formatted("Property '{}' is not a String", key));
-        return property->as_string();
-    } else if constexpr (IsSame<PropertyType, bool>) {
-        if (!property->is_bool())
-            return Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::InvalidArgument, ByteString::formatted("Property '{}' is not a Boolean", key));
-        return property->as_bool();
-    } else if constexpr (IsSame<PropertyType, u32>) {
-        if (auto maybe_u32 = property->get_u32(); maybe_u32.has_value())
-            return *maybe_u32;
-        return Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::InvalidArgument, ByteString::formatted("Property '{}' is not a Number", key));
-    } else if constexpr (IsSame<PropertyType, JsonArray const*>) {
-        if (!property->is_array())
-            return Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::InvalidArgument, ByteString::formatted("Property '{}' is not an Array", key));
-        return &property->as_array();
-    } else if constexpr (IsSame<PropertyType, JsonObject const*>) {
-        if (!property->is_object())
-            return Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::InvalidArgument, ByteString::formatted("Property '{}' is not an Object", key));
-        return &property->as_object();
-    } else {
-        static_assert(DependentFalse<PropertyType>, "get_property invoked with unknown property type");
-        VERIFY_NOT_REACHED();
-    }
+    (void)element.scroll_into_view(options);
 }
 
 // https://w3c.github.io/webdriver/#dfn-container
 static Optional<Web::DOM::Element&> container_for_element(Web::DOM::Element& element)
 {
     auto first_element_reached_by_traversing_the_tree_in_reverse_order = [](Web::DOM::Element& element, auto filter) -> Optional<Web::DOM::Element&> {
-        auto node_iterator = element.document().create_node_iterator(element, to_underlying(Web::DOM::NodeFilter::WhatToShow::SHOW_ALL), nullptr);
-
-        auto current_node = node_iterator->previous_node();
-        while (current_node.has_value() && current_node.value() != nullptr && current_node.value()->is_element()) {
-            if (filter(current_node.value()))
-                return static_cast<Web::DOM::Element&>(*current_node.release_value());
+        for (auto* current = element.previous_element_in_pre_order(); current; current = current->previous_element_in_pre_order()) {
+            if (filter(*current))
+                return *current;
         }
 
         return {};
@@ -173,10 +157,10 @@ static Optional<Web::DOM::Element&> container_for_element(Web::DOM::Element& ele
     if (is<Web::HTML::HTMLOptionElement>(element) || is<Web::HTML::HTMLOptGroupElement>(element)) {
         // The element’s element context, which is determined by:
         // 1. Let datalist parent be the first datalist element reached by traversing the tree in reverse order from element, or undefined if the root of the tree is reached.
-        auto datalist_parent = first_element_reached_by_traversing_the_tree_in_reverse_order(element, [](auto& node) { return is<Web::HTML::HTMLDataListElement>(*node); });
+        auto datalist_parent = first_element_reached_by_traversing_the_tree_in_reverse_order(element, [](auto& node) { return is<Web::HTML::HTMLDataListElement>(node); });
 
         // 2. Let select parent be the first select element reached by traversing the tree in reverse order from element, or undefined if the root of the tree is reached.
-        auto select_parent = first_element_reached_by_traversing_the_tree_in_reverse_order(element, [](auto& node) { return is<Web::HTML::HTMLSelectElement>(*node); });
+        auto select_parent = first_element_reached_by_traversing_the_tree_in_reverse_order(element, [](auto& node) { return is<Web::HTML::HTMLSelectElement>(node); });
 
         // 3. If datalist parent is undefined, the element context is select parent. Otherwise, the element context is datalist parent.
         if (!datalist_parent.has_value())
@@ -210,6 +194,8 @@ static bool fire_an_event(FlyString name, Optional<Web::DOM::Element&> target)
 
 ErrorOr<NonnullRefPtr<WebDriverConnection>> WebDriverConnection::connect(Web::PageClient& page_client, ByteString const& webdriver_ipc_path)
 {
+    static_assert(IsSame<IPC::Transport, IPC::TransportSocket>, "Need to handle other IPC transports here");
+
     dbgln_if(WEBDRIVER_DEBUG, "Trying to connect to {}", webdriver_ipc_path);
     auto socket = TRY(Core::LocalSocket::connect(webdriver_ipc_path));
 
@@ -217,13 +203,25 @@ ErrorOr<NonnullRefPtr<WebDriverConnection>> WebDriverConnection::connect(Web::Pa
     page_client.page().set_should_block_pop_ups(false);
 
     dbgln_if(WEBDRIVER_DEBUG, "Connected to WebDriver");
-    return adopt_nonnull_ref_or_enomem(new (nothrow) WebDriverConnection(move(socket), page_client));
+    return adopt_nonnull_ref_or_enomem(new (nothrow) WebDriverConnection(IPC::Transport(move(socket)), page_client));
 }
 
-WebDriverConnection::WebDriverConnection(NonnullOwnPtr<Core::LocalSocket> socket, Web::PageClient& page_client)
-    : IPC::ConnectionToServer<WebDriverClientEndpoint, WebDriverServerEndpoint>(*this, move(socket))
-    , m_current_browsing_context(page_client.page().top_level_browsing_context())
+WebDriverConnection::WebDriverConnection(IPC::Transport transport, Web::PageClient& page_client)
+    : IPC::ConnectionToServer<WebDriverClientEndpoint, WebDriverServerEndpoint>(*this, move(transport))
 {
+    set_current_top_level_browsing_context(page_client.page().top_level_browsing_context());
+}
+
+void WebDriverConnection::visit_edges(JS::Cell::Visitor& visitor)
+{
+    visitor.visit(m_current_browsing_context);
+    visitor.visit(m_current_parent_browsing_context);
+    visitor.visit(m_current_top_level_browsing_context);
+    visitor.visit(m_element_locator);
+    visitor.visit(m_action_executor);
+    visitor.visit(m_document_observer);
+    visitor.visit(m_navigation_observer);
+    visitor.visit(m_navigation_timer);
 }
 
 // https://w3c.github.io/webdriver/#dfn-close-the-session
@@ -270,11 +268,15 @@ Messages::WebDriverClient::GetTimeoutsResponse WebDriverConnection::get_timeouts
 // 9.2 Set Timeouts, https://w3c.github.io/webdriver/#dfn-set-timeouts
 Messages::WebDriverClient::SetTimeoutsResponse WebDriverConnection::set_timeouts(JsonValue const& payload)
 {
+    // FIXME: Spec issue: As written, the spec replaces the timeouts configuration with the newly provided values. But
+    //        all other implementations update the existing configuration with any new values instead. WPT relies on
+    //        this behavior, and sends us one timeout value at time.
+    //        https://github.com/w3c/webdriver/issues/1596
+
     // 1. Let timeouts be the result of trying to JSON deserialize as a timeouts configuration the request’s parameters.
-    auto timeouts = TRY(Web::WebDriver::json_deserialize_as_a_timeouts_configuration(payload));
+    TRY(Web::WebDriver::json_deserialize_as_a_timeouts_configuration_into(payload, m_timeouts_configuration));
 
     // 2. Make the session timeouts the new timeouts.
-    m_timeouts_configuration = move(timeouts);
 
     // 3. Return success with data null.
     return JsonValue {};
@@ -296,29 +298,38 @@ Messages::WebDriverClient::NavigateToResponse WebDriverConnection::navigate_to(J
     // FIXME: 3. If url is not an absolute URL or is not an absolute URL with fragment or not a local scheme, return error with error code invalid argument.
 
     // 4. Handle any user prompts and return its value if it is an error.
-    TRY(handle_any_user_prompts());
+    handle_any_user_prompts([this, url = move(url)]() {
+        // 5. Let current URL be the current top-level browsing context’s active document’s URL.
+        auto const& current_url = current_top_level_browsing_context()->active_document()->url();
 
-    // 5. Let current URL be the current top-level browsing context’s active document’s URL.
-    auto const& current_url = current_top_level_browsing_context()->active_document()->url();
+        // FIXME: 6. If current URL and url do not have the same absolute URL:
+        // FIXME:     a. If timer has not been started, start a timer. If this algorithm has not completed before timer reaches the session’s session page load timeout in milliseconds, return an error with error code timeout.
 
-    // FIXME: 6. If current URL and url do not have the same absolute URL:
-    // FIXME:     a. If timer has not been started, start a timer. If this algorithm has not completed before timer reaches the session’s session page load timeout in milliseconds, return an error with error code timeout.
+        // 7. Navigate the current top-level browsing context to url.
+        current_top_level_browsing_context()->page().load(url);
 
-    // 7. Navigate the current top-level browsing context to url.
-    current_top_level_browsing_context()->page().load(url);
+        auto navigation_complete = JS::create_heap_function(current_top_level_browsing_context()->heap(), [this](Web::WebDriver::Response result) {
+            // 9. Set the current browsing context with the current top-level browsing context.
+            set_current_browsing_context(*current_top_level_browsing_context());
 
-    // 8. If url is special except for file and current URL and URL do not have the same absolute URL:
-    if (url.is_special() && url.scheme() != "file"sv && current_url != url) {
-        // a. Try to wait for navigation to complete.
-        TRY(wait_for_navigation_to_complete());
+            // FIXME: 10. If the current top-level browsing context contains a refresh state pragma directive of time 1 second or less, wait until the refresh timeout has elapsed, a new navigate has begun, and return to the first step of this algorithm.
 
-        // FIXME: b. Try to run the post-navigation checks.
-    }
+            async_driver_execution_complete(move(result));
+        });
 
-    // 9. Set the current browsing context with the current top-level browsing context.
-    m_current_browsing_context = *current_top_level_browsing_context();
+        // 8. If url is special except for file and current URL and URL do not have the same absolute URL:
+        // AD-HOC: We wait for the navigation to complete regardless of whether the current URL differs from the provided
+        //         URL. Even if they're the same, the navigation queues a tasks that we must await, otherwise subsequent
+        //         endpoint invocations will attempt to operate on the wrong page.
+        if (url.is_special() && url.scheme() != "file"sv) {
+            // a. Try to wait for navigation to complete.
+            wait_for_navigation_to_complete(navigation_complete);
 
-    // FIXME: 10. If the current top-level browsing context contains a refresh state pragma directive of time 1 second or less, wait until the refresh timeout has elapsed, a new navigate has begun, and return to the first step of this algorithm.
+            // FIXME: b. Try to run the post-navigation checks.
+        } else {
+            navigation_complete->function()(JsonValue {});
+        }
+    });
 
     // 11. Return success with data null.
     return JsonValue {};
@@ -333,7 +344,7 @@ Messages::WebDriverClient::GetCurrentUrlResponse WebDriverConnection::get_curren
     TRY(ensure_current_top_level_browsing_context_is_open());
 
     // 2. Handle any user prompts and return its value if it is an error.
-    TRY(handle_any_user_prompts());
+    TRY(deprecated_handle_any_user_prompts());
 
     // 3. Let url be the serialization of the current top-level browsing context’s active document’s document URL.
     auto url = current_top_level_browsing_context()->active_document()->url().to_byte_string();
@@ -349,7 +360,7 @@ Messages::WebDriverClient::BackResponse WebDriverConnection::back()
     TRY(ensure_current_top_level_browsing_context_is_open());
 
     // 2. Handle any user prompts and return its value if it is an error.
-    TRY(handle_any_user_prompts());
+    TRY(deprecated_handle_any_user_prompts());
 
     // 3. Traverse the history by a delta –1 for the current browsing context.
     current_browsing_context().page().client().page_did_request_navigate_back();
@@ -368,7 +379,7 @@ Messages::WebDriverClient::ForwardResponse WebDriverConnection::forward()
     TRY(ensure_current_top_level_browsing_context_is_open());
 
     // 2. Handle any user prompts and return its value if it is an error.
-    TRY(handle_any_user_prompts());
+    TRY(deprecated_handle_any_user_prompts());
 
     // 3. Traverse the history by a delta 1 for the current browsing context.
     current_browsing_context().page().client().page_did_request_navigate_forward();
@@ -387,7 +398,7 @@ Messages::WebDriverClient::RefreshResponse WebDriverConnection::refresh()
     TRY(ensure_current_top_level_browsing_context_is_open());
 
     // 2. Handle any user prompts and return its value if it is an error.
-    TRY(handle_any_user_prompts());
+    TRY(deprecated_handle_any_user_prompts());
 
     // 3. Initiate an overridden reload of the current top-level browsing context’s active document.
     current_top_level_browsing_context()->page().client().page_did_request_refresh();
@@ -397,7 +408,7 @@ Messages::WebDriverClient::RefreshResponse WebDriverConnection::refresh()
     // FIXME:     2. Try to run the post-navigation checks.
 
     // 5. Set the current browsing context with current top-level browsing context.
-    m_current_browsing_context = *current_top_level_browsing_context();
+    set_current_browsing_context(*current_top_level_browsing_context());
 
     // 6. Return success with data null.
     return JsonValue {};
@@ -410,7 +421,7 @@ Messages::WebDriverClient::GetTitleResponse WebDriverConnection::get_title()
     TRY(ensure_current_top_level_browsing_context_is_open());
 
     // 2. Handle any user prompts and return its value if it is an error.
-    TRY(handle_any_user_prompts());
+    TRY(deprecated_handle_any_user_prompts());
 
     // 3. Let title be the initial value of the title IDL attribute of the current top-level browsing context's active document.
     auto title = current_top_level_browsing_context()->active_document()->title();
@@ -422,7 +433,11 @@ Messages::WebDriverClient::GetTitleResponse WebDriverConnection::get_title()
 // 11.1 Get Window Handle, https://w3c.github.io/webdriver/#get-window-handle
 Messages::WebDriverClient::GetWindowHandleResponse WebDriverConnection::get_window_handle()
 {
-    return current_top_level_browsing_context()->top_level_traversable()->window_handle();
+    // 1. If session's current top-level browsing context is no longer open, return error with error code no such window.
+    TRY(ensure_current_top_level_browsing_context_is_open());
+
+    // 2. Return success with data being the window handle associated with session's current top-level browsing context.
+    return JsonValue { current_top_level_browsing_context()->top_level_traversable()->window_handle() };
 }
 
 // 11.2 Close Window, https://w3c.github.io/webdriver/#dfn-close-window
@@ -432,7 +447,7 @@ Messages::WebDriverClient::CloseWindowResponse WebDriverConnection::close_window
     TRY(ensure_current_top_level_browsing_context_is_open());
 
     // 2. Handle any user prompts and return its value if it is an error.
-    TRY(handle_any_user_prompts());
+    TRY(deprecated_handle_any_user_prompts());
 
     // 3. Close the current top-level browsing context.
     current_top_level_browsing_context()->top_level_traversable()->close_top_level_traversable();
@@ -455,7 +470,7 @@ Messages::WebDriverClient::SwitchToWindowResponse WebDriverConnection::switch_to
             continue;
 
         if (handle == traversable->window_handle()) {
-            m_current_browsing_context = traversable->active_browsing_context();
+            set_current_top_level_browsing_context(*traversable->active_browsing_context());
             found_matching_context = true;
             break;
         }
@@ -472,7 +487,7 @@ Messages::WebDriverClient::SwitchToWindowResponse WebDriverConnection::switch_to
 }
 
 // 11.5 New Window, https://w3c.github.io/webdriver/#dfn-new-window
-Messages::WebDriverClient::NewWindowResponse WebDriverConnection::new_window(JsonValue const&)
+Messages::WebDriverClient::NewWindowResponse WebDriverConnection::new_window(JsonValue const& payload)
 {
     // 1. If the implementation does not support creating new top-level browsing contexts, return error with error code unsupported operation.
 
@@ -480,9 +495,16 @@ Messages::WebDriverClient::NewWindowResponse WebDriverConnection::new_window(Jso
     TRY(ensure_current_top_level_browsing_context_is_open());
 
     // 3. Handle any user prompts and return its value if it is an error.
-    TRY(handle_any_user_prompts());
+    TRY(deprecated_handle_any_user_prompts());
 
-    // FIXME: 4. Let type hint be the result of getting the property "type" from the parameters argument.
+    // 4. Let type hint be the result of getting the property "type" from the parameters argument.
+    if (!payload.is_object())
+        return Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::InvalidArgument, "Payload is not a JSON object");
+
+    // FIXME: Actually use this value to decide between an OS window or tab.
+    auto type_hint = payload.as_object().get("type"sv);
+    if (type_hint.has_value() && !type_hint->is_null() && !type_hint->is_string())
+        return Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::InvalidArgument, "Payload property `type` is not null or a string"sv);
 
     // 5. Create a new top-level browsing context by running the window open steps with url set to "about:blank",
     //    target set to the empty string, and features set to "noopener" and the user agent configured to create a new
@@ -492,10 +514,14 @@ Messages::WebDriverClient::NewWindowResponse WebDriverConnection::new_window(Jso
     //    is "window", and the implementation supports multiple browsing contexts in separate OS windows, the
     //    created browsing context should be in a new OS window. In all other cases the details of how the browsing
     //    context is presented to the user are implementation defined.
-    auto [navigable, window_type] = current_browsing_context().top_level_traversable()->choose_a_navigable("_blank"sv, Web::HTML::TokenizedFeature::NoOpener::Yes, Web::HTML::ActivateTab::No);
+    auto* active_window = current_browsing_context().active_window();
+    VERIFY(active_window);
+
+    Web::HTML::TemporaryExecutionContext execution_context { active_window->document()->realm() };
+    auto [target_navigable, no_opener, window_type] = MUST(active_window->window_open_steps_internal("about:blank"sv, ""sv, "noopener"sv));
 
     // 6. Let handle be the associated window handle of the newly created window.
-    auto handle = navigable->traversable_navigable()->window_handle();
+    auto handle = target_navigable->traversable_navigable()->window_handle();
 
     // 7. Let type be "tab" if the newly created window shares an OS-level window with the current browsing context, or "window" otherwise.
     auto type = "tab"sv;
@@ -526,10 +552,14 @@ Messages::WebDriverClient::SwitchToFrameResponse WebDriverConnection::switch_to_
 
     // -> id is null
     if (id.is_null()) {
-        // FIXME: 1. If session's current top-level browsing context is no longer open, return error with error code no such window.
-        // FIXME: 2. Try to handle any user prompts with session.
-        // FIXME: 3. Set the current browsing context with session and session's current top-level browsing context.
-        dbgln("FIXME: WebDriverConnection::switch_to_frame(id=null)");
+        // 1. If session's current top-level browsing context is no longer open, return error with error code no such window.
+        TRY(ensure_current_top_level_browsing_context_is_open());
+
+        // 2. Try to handle any user prompts with session.
+        TRY(deprecated_handle_any_user_prompts());
+
+        // 3. Set the current browsing context with session and session's current top-level browsing context.
+        set_current_browsing_context(*current_top_level_browsing_context());
     }
 
     // -> id is a Number object
@@ -546,20 +576,20 @@ Messages::WebDriverClient::SwitchToFrameResponse WebDriverConnection::switch_to_
 
     // -> id represents a web element
     else if (id.is_object()) {
-        auto element_id = id.as_object().get_byte_string("value"sv).release_value();
+        auto element_id = Web::WebDriver::extract_web_element_reference(id.as_object());
 
         // 1. If session's current browsing context is no longer open, return error with error code no such window.
         TRY(ensure_current_browsing_context_is_open());
 
         // 2. Try to handle any user prompts with session.
-        TRY(handle_any_user_prompts());
+        TRY(deprecated_handle_any_user_prompts());
 
         // 3. Let element be the result of trying to get a known element with session and id.
-        auto* element = TRY(Web::WebDriver::get_known_connected_element(element_id));
+        auto element = TRY(Web::WebDriver::get_known_element(current_browsing_context(), element_id));
 
         // 4. If element is not a frame or iframe element, return error with error code no such frame.
-        bool is_frame = is<Web::HTML::HTMLFrameElement>(element);
-        bool is_iframe = is<Web::HTML::HTMLIFrameElement>(element);
+        bool is_frame = is<Web::HTML::HTMLFrameElement>(*element);
+        bool is_iframe = is<Web::HTML::HTMLIFrameElement>(*element);
 
         if (!is_frame && !is_iframe)
             return Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::NoSuchFrame, "element is not a frame"sv);
@@ -567,10 +597,10 @@ Messages::WebDriverClient::SwitchToFrameResponse WebDriverConnection::switch_to_
         // 5. Set the current browsing context with session and element's content navigable's active browsing context.
         if (is_frame) {
             // FIXME: Should HTMLFrameElement also be a NavigableContainer?
-            m_current_browsing_context = *element->navigable()->active_browsing_context();
+            set_current_browsing_context(*element->navigable()->active_browsing_context());
         } else {
             auto& navigable_container = static_cast<Web::HTML::NavigableContainer&>(*element);
-            m_current_browsing_context = navigable_container.content_navigable()->active_browsing_context();
+            set_current_browsing_context(*navigable_container.content_navigable()->active_browsing_context());
         }
     }
 
@@ -598,12 +628,12 @@ Messages::WebDriverClient::SwitchToParentFrameResponse WebDriverConnection::swit
     TRY(ensure_browsing_context_is_open(parent_browsing_context));
 
     // 3. Try to handle any user prompts with session.
-    TRY(handle_any_user_prompts());
+    TRY(deprecated_handle_any_user_prompts());
 
     // 4. If session's current parent browsing context is not null, set the current browsing context with session and
     //    current parent browsing context.
     if (parent_browsing_context)
-        m_current_browsing_context = *parent_browsing_context;
+        set_current_browsing_context(*current_parent_browsing_context());
 
     // FIXME: 5. Update any implementation-specific state that would result from the user selecting session's current browsing context for interaction, without altering OS-level focus.
 
@@ -618,7 +648,7 @@ Messages::WebDriverClient::GetWindowRectResponse WebDriverConnection::get_window
     TRY(ensure_current_top_level_browsing_context_is_open());
 
     // 2. Handle any user prompts and return its value if it is an error.
-    TRY(handle_any_user_prompts());
+    TRY(deprecated_handle_any_user_prompts());
 
     // 3. Return success with data set to the WindowRect object for the current top-level browsing context.
     return serialize_rect(compute_window_rect(current_top_level_browsing_context()->page()));
@@ -632,10 +662,11 @@ Messages::WebDriverClient::SetWindowRectResponse WebDriverConnection::set_window
 
     auto const& properties = payload.as_object();
 
-    auto resolve_property = [](auto name, auto const& property, i32 min, i32 max) -> ErrorOr<Optional<i32>, Web::WebDriver::Error> {
+    auto resolve_property = [](auto name, auto const& property, double min, double max) -> ErrorOr<Optional<double>, Web::WebDriver::Error> {
         if (property.is_null())
-            return Optional<i32> {};
-        auto value = property.template get_integer<i32>();
+            return OptionalNone {};
+
+        auto value = property.get_double_with_precision_loss();
         if (!value.has_value())
             return Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::InvalidArgument, ByteString::formatted("Property '{}' is not a Number", name));
         if (*value < min)
@@ -672,36 +703,35 @@ Messages::WebDriverClient::SetWindowRectResponse WebDriverConnection::set_window
     TRY(ensure_current_top_level_browsing_context_is_open());
 
     // 9. Handle any user prompts and return its value if it is an error.
-    TRY(handle_any_user_prompts());
+    handle_any_user_prompts([this, x, y, width, height]() {
+        // FIXME: 10. Fully exit fullscreen.
 
-    // FIXME: 10. Fully exit fullscreen.
+        // 11. Restore the window.
+        restore_the_window(JS::create_heap_function(current_top_level_browsing_context()->heap(), [this, x, y, width, height]() {
+            auto& page = current_top_level_browsing_context()->page();
 
-    // 11. Restore the window.
-    restore_the_window();
+            // 11. If width and height are not null:
+            if (width.has_value() && height.has_value()) {
+                // a. Set the width, in CSS pixels, of the operating system window containing the current top-level browsing context, including any browser chrome and externally drawn window decorations to a value that is as close as possible to width.
+                // b. Set the height, in CSS pixels, of the operating system window containing the current top-level browsing context, including any browser chrome and externally drawn window decorations to a value that is as close as possible to height.
+                page.client().page_did_request_resize_window({ *width, *height });
+                ++m_pending_window_rect_requests;
+            }
 
-    Gfx::IntRect window_rect;
+            // 12. If x and y are not null:
+            if (x.has_value() && y.has_value()) {
+                // a. Run the implementation-specific steps to set the position of the operating system level window containing the current top-level browsing context to the position given by the x and y coordinates.
+                page.client().page_did_request_reposition_window({ *x, *y });
+                ++m_pending_window_rect_requests;
+            }
 
-    // 11. If width and height are not null:
-    if (width.has_value() && height.has_value()) {
-        // a. Set the width, in CSS pixels, of the operating system window containing the current top-level browsing context, including any browser chrome and externally drawn window decorations to a value that is as close as possible to width.
-        // b. Set the height, in CSS pixels, of the operating system window containing the current top-level browsing context, including any browser chrome and externally drawn window decorations to a value that is as close as possible to height.
-        auto size = current_top_level_browsing_context()->page().client().page_did_request_resize_window({ *width, *height });
-        window_rect.set_size(size);
-    } else {
-        window_rect.set_size(current_top_level_browsing_context()->page().window_size().to_type<int>());
-    }
-
-    // 12. If x and y are not null:
-    if (x.has_value() && y.has_value()) {
-        // a. Run the implementation-specific steps to set the position of the operating system level window containing the current top-level browsing context to the position given by the x and y coordinates.
-        auto position = current_top_level_browsing_context()->page().client().page_did_request_reposition_window({ *x, *y });
-        window_rect.set_location(position);
-    } else {
-        window_rect.set_location(current_top_level_browsing_context()->page().window_position().to_type<int>());
-    }
+            if (m_pending_window_rect_requests == 0)
+                async_driver_execution_complete(serialize_rect(compute_window_rect(page)));
+        }));
+    });
 
     // 14. Return success with data set to the WindowRect object for the current top-level browsing context.
-    return serialize_rect(window_rect);
+    return JsonValue {};
 }
 
 // 11.8.3 Maximize Window, https://w3c.github.io/webdriver/#dfn-maximize-window
@@ -713,18 +743,18 @@ Messages::WebDriverClient::MaximizeWindowResponse WebDriverConnection::maximize_
     TRY(ensure_current_top_level_browsing_context_is_open());
 
     // 3. Handle any user prompts and return its value if it is an error.
-    TRY(handle_any_user_prompts());
+    handle_any_user_prompts([this]() {
+        // FIXME: 4. Fully exit fullscreen.
 
-    // FIXME: 4. Fully exit fullscreen.
-
-    // 5. Restore the window.
-    restore_the_window();
-
-    // 6. Maximize the window of the current top-level browsing context.
-    auto window_rect = maximize_the_window();
+        // 5. Restore the window.
+        restore_the_window(JS::create_heap_function(current_top_level_browsing_context()->heap(), [this]() {
+            // 6. Maximize the window of the current top-level browsing context.
+            maximize_the_window();
+        }));
+    });
 
     // 7. Return success with data set to the WindowRect object for the current top-level browsing context.
-    return serialize_rect(window_rect);
+    return JsonValue {};
 }
 
 // 11.8.4 Minimize Window, https://w3c.github.io/webdriver/#minimize-window
@@ -736,15 +766,18 @@ Messages::WebDriverClient::MinimizeWindowResponse WebDriverConnection::minimize_
     TRY(ensure_current_top_level_browsing_context_is_open());
 
     // 3. Handle any user prompts and return its value if it is an error.
-    TRY(handle_any_user_prompts());
+    handle_any_user_prompts([this]() {
+        // FIXME: 4. Fully exit fullscreen.
 
-    // FIXME: 4. Fully exit fullscreen.
-
-    // 5. Iconify the window.
-    auto window_rect = iconify_the_window();
+        // 5. Iconify the window.
+        iconify_the_window(JS::create_heap_function(current_top_level_browsing_context()->heap(), [this]() {
+            auto& page = current_top_level_browsing_context()->page();
+            async_driver_execution_complete(serialize_rect(compute_window_rect(page)));
+        }));
+    });
 
     // 6. Return success with data set to the WindowRect object for the current top-level browsing context.
-    return serialize_rect(window_rect);
+    return JsonValue {};
 }
 
 // 11.8.5 Fullscreen Window, https://w3c.github.io/webdriver/#dfn-fullscreen-window
@@ -756,18 +789,19 @@ Messages::WebDriverClient::FullscreenWindowResponse WebDriverConnection::fullscr
     TRY(ensure_current_top_level_browsing_context_is_open());
 
     // 3. Handle any user prompts and return its value if it is an error.
-    TRY(handle_any_user_prompts());
-
-    // 4. Restore the window.
-    restore_the_window();
-
-    // 5. FIXME: Call fullscreen an element with the current top-level browsing context’s active document’s document element.
-    //           As described in https://fullscreen.spec.whatwg.org/#fullscreen-an-element
-    //    NOTE: What we do here is basically `requestFullscreen(options)` with options["navigationUI"]="show"
-    auto rect = current_top_level_browsing_context()->page().client().page_did_request_fullscreen_window();
+    handle_any_user_prompts([this]() {
+        // 4. Restore the window.
+        restore_the_window(JS::create_heap_function(current_top_level_browsing_context()->heap(), [this]() {
+            // 5. FIXME: Call fullscreen an element with the current top-level browsing context’s active document’s document element.
+            //           As described in https://fullscreen.spec.whatwg.org/#fullscreen-an-element
+            //    NOTE: What we do here is basically `requestFullscreen(options)` with options["navigationUI"]="show"
+            current_top_level_browsing_context()->page().client().page_did_request_fullscreen_window();
+            ++m_pending_window_rect_requests;
+        }));
+    });
 
     // 6. Return success with data set to the WindowRect object for the current top-level browsing context.
-    return serialize_rect(rect);
+    return JsonValue {};
 }
 
 // Extension Consume User Activation, https://html.spec.whatwg.org/multipage/interaction.html#user-activation-user-agent-automation
@@ -791,155 +825,174 @@ Messages::WebDriverClient::ConsumeUserActivationResponse WebDriverConnection::co
     return consume;
 }
 
+static Web::WebDriver::Response extract_first_element(Web::WebDriver::Response result)
+{
+    auto array = TRY(result);
+    VERIFY(array.is_array());
+
+    if (!array.as_array().is_empty())
+        return array.as_array().take(0);
+
+    return Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::NoSuchElement, "The requested element does not exist"sv);
+}
+
 // 12.3.2 Find Element, https://w3c.github.io/webdriver/#dfn-find-element
 Messages::WebDriverClient::FindElementResponse WebDriverConnection::find_element(JsonValue const& payload)
 {
-    // 1. Let location strategy be the result of getting a property called "using".
-    auto location_strategy_string = TRY(get_property(payload, "using"sv));
+    // 1. Let location strategy be the result of getting a property named "using" from parameters.
+    auto location_strategy_string = TRY(Web::WebDriver::get_property(payload, "using"sv));
     auto location_strategy = Web::WebDriver::location_strategy_from_string(location_strategy_string);
 
-    // 2. If location strategy is not present as a keyword in the table of location strategies, return error with error code invalid argument.
+    // 2. If location strategy is not present as a keyword in the table of location strategies, return error with error
+    //    code invalid argument.
     if (!location_strategy.has_value())
         return Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::InvalidArgument, ByteString::formatted("Location strategy '{}' is invalid", location_strategy_string));
 
-    // 3. Let selector be the result of getting a property called "value".
+    // 3. Let selector be the result of getting a property named "value" from parameters.
     // 4. If selector is undefined, return error with error code invalid argument.
-    auto selector = TRY(get_property(payload, "value"sv));
+    auto selector = TRY(Web::WebDriver::get_property(payload, "value"sv));
 
-    // 5. If the current browsing context is no longer open, return error with error code no such window.
+    // 5. If session's current browsing context is no longer open, return error with error code no such window.
     TRY(ensure_current_browsing_context_is_open());
 
-    // 6. Handle any user prompts and return its value if it is an error.
-    TRY(handle_any_user_prompts());
+    // 6. Try to handle any user prompts with session.
+    handle_any_user_prompts([this, location_strategy, selector = move(selector)]() mutable {
+        auto get_start_node = JS::create_heap_function(current_browsing_context().heap(), [this]() -> ErrorOr<JS::NonnullGCPtr<Web::DOM::ParentNode>, Web::WebDriver::Error> {
+            // 7. Let start node be session's current browsing context's document element.
+            auto* start_node = current_browsing_context().active_document();
 
-    auto start_node_getter = [this]() -> StartNodeGetter::ReturnType {
-        // 7. Let start node be the current browsing context’s document element.
-        auto* start_node = current_browsing_context().active_document();
+            // 8. If start node is null, return error with error code no such element.
+            if (!start_node)
+                return Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::NoSuchElement, "document element does not exist"sv);
 
-        // 8. If start node is null, return error with error code no such element.
-        if (!start_node)
-            return Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::NoSuchElement, "document element does not exist"sv);
+            return *start_node;
+        });
 
-        return start_node;
-    };
+        // 9. Let result be the result of trying to Find with session, start node, location strategy, and selector.
+        find(*location_strategy, move(selector), get_start_node, JS::create_heap_function(current_browsing_context().heap(), [this](Web::WebDriver::Response result) {
+            // 10. If result is empty, return error with error code no such element. Otherwise, return the first element of result.
+            async_driver_execution_complete(extract_first_element(move(result)));
+        }));
+    });
 
-    // 9. Let result be the result of trying to Find with start node, location strategy, and selector.
-    auto result = TRY(find(move(start_node_getter), *location_strategy, selector));
-
-    // 10. If result is empty, return error with error code no such element. Otherwise, return the first element of result.
-    if (result.is_empty())
-        return Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::NoSuchElement, "The requested element does not exist"sv);
-
-    return result.take(0);
+    return JsonValue {};
 }
 
 // 12.3.3 Find Elements, https://w3c.github.io/webdriver/#dfn-find-elements
 Messages::WebDriverClient::FindElementsResponse WebDriverConnection::find_elements(JsonValue const& payload)
 {
-    // 1. Let location strategy be the result of getting a property called "using".
-    auto location_strategy_string = TRY(get_property(payload, "using"sv));
+    // 1. Let location strategy be the result of getting a property named "using" from parameters.
+    auto location_strategy_string = TRY(Web::WebDriver::get_property(payload, "using"sv));
     auto location_strategy = Web::WebDriver::location_strategy_from_string(location_strategy_string);
 
-    // 2. If location strategy is not present as a keyword in the table of location strategies, return error with error code invalid argument.
+    // 2. If location strategy is not present as a keyword in the table of location strategies, return error with error
+    //    code invalid argument.
     if (!location_strategy.has_value())
         return Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::InvalidArgument, ByteString::formatted("Location strategy '{}' is invalid", location_strategy_string));
 
-    // 3. Let selector be the result of getting a property called "value".
+    // 3. Let selector be the result of getting a property named "value" from parameters.
     // 4. If selector is undefined, return error with error code invalid argument.
-    auto selector = TRY(get_property(payload, "value"sv));
+    auto selector = TRY(Web::WebDriver::get_property(payload, "value"sv));
 
-    // 5. If the current browsing context is no longer open, return error with error code no such window.
+    // 5. If session's current browsing context is no longer open, return error with error code no such window.
     TRY(ensure_current_browsing_context_is_open());
 
-    // 6. Handle any user prompts and return its value if it is an error.
-    TRY(handle_any_user_prompts());
+    // 6. Try to handle any user prompts with session.
+    handle_any_user_prompts([this, location_strategy, selector = move(selector)]() mutable {
+        auto get_start_node = JS::create_heap_function(current_browsing_context().heap(), [this]() -> ErrorOr<JS::NonnullGCPtr<Web::DOM::ParentNode>, Web::WebDriver::Error> {
+            // 7. Let start node be session's current browsing context's document element.
+            auto* start_node = current_browsing_context().active_document();
 
-    auto start_node_getter = [this]() -> StartNodeGetter::ReturnType {
-        // 7. Let start node be the current browsing context’s document element.
-        auto* start_node = current_browsing_context().active_document();
+            // 8. If start node is null, return error with error code no such element.
+            if (!start_node)
+                return Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::NoSuchElement, "document element does not exist"sv);
 
-        // 8. If start node is null, return error with error code no such element.
-        if (!start_node)
-            return Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::NoSuchElement, "document element does not exist"sv);
+            return *start_node;
+        });
 
-        return start_node;
-    };
+        // 9. Return the result of trying to Find with session, start node, location strategy, and selector.
+        find(*location_strategy, move(selector), get_start_node, JS::create_heap_function(current_browsing_context().heap(), [this](Web::WebDriver::Response result) {
+            async_driver_execution_complete(move(result));
+        }));
+    });
 
-    // 9. Return the result of trying to Find with start node, location strategy, and selector.
-    return TRY(find(move(start_node_getter), *location_strategy, selector));
+    return JsonValue {};
 }
 
 // 12.3.4 Find Element From Element, https://w3c.github.io/webdriver/#dfn-find-element-from-element
 Messages::WebDriverClient::FindElementFromElementResponse WebDriverConnection::find_element_from_element(JsonValue const& payload, String const& element_id)
 {
-    // 1. Let location strategy be the result of getting a property called "using".
-    auto location_strategy_string = TRY(get_property(payload, "using"sv));
+    // 1. Let location strategy be the result of getting a property named "using" from parameters.
+    auto location_strategy_string = TRY(Web::WebDriver::get_property(payload, "using"sv));
     auto location_strategy = Web::WebDriver::location_strategy_from_string(location_strategy_string);
 
     // 2. If location strategy is not present as a keyword in the table of location strategies, return error with error code invalid argument.
     if (!location_strategy.has_value())
         return Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::InvalidArgument, ByteString::formatted("Location strategy '{}' is invalid", location_strategy_string));
 
-    // 3. Let selector be the result of getting a property called "value".
+    // 3. Let selector be the result of getting a property named "value" from parameters.
     // 4. If selector is undefined, return error with error code invalid argument.
-    auto selector = TRY(get_property(payload, "value"sv));
+    auto selector = TRY(Web::WebDriver::get_property(payload, "value"sv));
 
-    // 5. If the current browsing context is no longer open, return error with error code no such window.
+    // 5. If session's current browsing context is no longer open, return error with error code no such window.
     TRY(ensure_current_browsing_context_is_open());
 
-    // 6. Handle any user prompts and return its value if it is an error.
-    TRY(handle_any_user_prompts());
+    // 6. Try to handle any user prompts with session.
+    handle_any_user_prompts([this, element_id, location_strategy, selector = move(selector)]() mutable {
+        auto get_start_node = JS::create_heap_function(current_browsing_context().heap(), [this, element_id]() -> ErrorOr<JS::NonnullGCPtr<Web::DOM::ParentNode>, Web::WebDriver::Error> {
+            // 7. Let start node be the result of trying to get a known element with session and URL variables["element id"].
+            return Web::WebDriver::get_known_element(current_browsing_context(), element_id);
+        });
 
-    auto start_node_getter = [&]() -> StartNodeGetter::ReturnType {
-        // 7. Let start node be the result of trying to get a known connected element with url variable element id.
-        return TRY(Web::WebDriver::get_known_connected_element(element_id));
-    };
+        // 8. Let result be the value of trying to Find with session, start node, location strategy, and selector.
+        find(*location_strategy, move(selector), get_start_node, JS::create_heap_function(current_browsing_context().heap(), [this](Web::WebDriver::Response result) {
+            // 9. If result is empty, return error with error code no such element. Otherwise, return the first element of result.
+            async_driver_execution_complete(extract_first_element(move(result)));
+        }));
+    });
 
-    // 8. Let result be the value of trying to Find with start node, location strategy, and selector.
-    auto result = TRY(find(move(start_node_getter), *location_strategy, selector));
-
-    // 9. If result is empty, return error with error code no such element. Otherwise, return the first element of result.
-    if (result.is_empty())
-        return Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::NoSuchElement, "The requested element does not exist"sv);
-
-    return result.take(0);
+    return JsonValue {};
 }
 
 // 12.3.5 Find Elements From Element, https://w3c.github.io/webdriver/#dfn-find-elements-from-element
 Messages::WebDriverClient::FindElementsFromElementResponse WebDriverConnection::find_elements_from_element(JsonValue const& payload, String const& element_id)
 {
-    // 1. Let location strategy be the result of getting a property called "using".
-    auto location_strategy_string = TRY(get_property(payload, "using"sv));
+    // 1. Let location strategy be the result of getting a property named "using" from parameters.
+    auto location_strategy_string = TRY(Web::WebDriver::get_property(payload, "using"sv));
     auto location_strategy = Web::WebDriver::location_strategy_from_string(location_strategy_string);
 
     // 2. If location strategy is not present as a keyword in the table of location strategies, return error with error code invalid argument.
     if (!location_strategy.has_value())
         return Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::InvalidArgument, ByteString::formatted("Location strategy '{}' is invalid", location_strategy_string));
 
-    // 3. Let selector be the result of getting a property called "value".
+    // 3. Let selector be the result of getting a property named "value" from parameters.
     // 4. If selector is undefined, return error with error code invalid argument.
-    auto selector = TRY(get_property(payload, "value"sv));
+    auto selector = TRY(Web::WebDriver::get_property(payload, "value"sv));
 
-    // 5. If the current browsing context is no longer open, return error with error code no such window.
+    // 5. If session's current browsing context is no longer open, return error with error code no such window.
     TRY(ensure_current_browsing_context_is_open());
 
-    // 6. Handle any user prompts and return its value if it is an error.
-    TRY(handle_any_user_prompts());
+    // 6. Try to handle any user prompts with session.
+    handle_any_user_prompts([this, element_id, location_strategy, selector = move(selector)]() mutable {
+        auto get_start_node = JS::create_heap_function(current_browsing_context().heap(), [this, element_id]() -> ErrorOr<JS::NonnullGCPtr<Web::DOM::ParentNode>, Web::WebDriver::Error> {
+            // 7. Let start node be the result of trying to get a known element with session and URL variables["element id"].
+            return Web::WebDriver::get_known_element(current_browsing_context(), element_id);
+        });
 
-    auto start_node_getter = [&]() -> StartNodeGetter::ReturnType {
-        // 7. Let start node be the result of trying to get a known connected element with url variable element id.
-        return TRY(Web::WebDriver::get_known_connected_element(element_id));
-    };
+        // 8. Return the result of trying to Find with session, start node, location strategy, and selector.
+        find(*location_strategy, move(selector), get_start_node, JS::create_heap_function(current_browsing_context().heap(), [this](Web::WebDriver::Response result) {
+            async_driver_execution_complete(move(result));
+        }));
+    });
 
-    // 8. Return the result of trying to Find with start node, location strategy, and selector.
-    return TRY(find(move(start_node_getter), *location_strategy, selector));
+    return JsonValue {};
 }
 
 // 12.3.6 Find Element From Shadow Root, https://w3c.github.io/webdriver/#find-element-from-shadow-root
 Messages::WebDriverClient::FindElementFromShadowRootResponse WebDriverConnection::find_element_from_shadow_root(JsonValue const& payload, String const& shadow_id)
 {
     // 1. Let location strategy be the result of getting a property called "using".
-    auto location_strategy_string = TRY(get_property(payload, "using"sv));
+    auto location_strategy_string = TRY(Web::WebDriver::get_property(payload, "using"sv));
     auto location_strategy = Web::WebDriver::location_strategy_from_string(location_strategy_string);
 
     // 2. If location strategy is not present as a keyword in the table of location strategies, return error with error code invalid argument.
@@ -948,34 +1001,33 @@ Messages::WebDriverClient::FindElementFromShadowRootResponse WebDriverConnection
 
     // 3. Let selector be the result of getting a property called "value".
     // 4. If selector is undefined, return error with error code invalid argument.
-    auto selector = TRY(get_property(payload, "value"sv));
+    auto selector = TRY(Web::WebDriver::get_property(payload, "value"sv));
 
-    // 5. If the current browsing context is no longer open, return error with error code no such window.
+    // 5. If the ssession's current browsing context is no longer open, return error with error code no such window.
     TRY(ensure_current_browsing_context_is_open());
 
     // 6. Handle any user prompts and return its value if it is an error.
-    TRY(handle_any_user_prompts());
+    handle_any_user_prompts([this, shadow_id, location_strategy, selector = move(selector)]() mutable {
+        auto get_start_node = JS::create_heap_function(current_browsing_context().heap(), [this, shadow_id]() -> ErrorOr<JS::NonnullGCPtr<Web::DOM::ParentNode>, Web::WebDriver::Error> {
+            // 7. Let start node be the result of trying to get a known shadow root with session and URL variables["shadow id"].
+            return Web::WebDriver::get_known_shadow_root(current_browsing_context(), shadow_id);
+        });
 
-    auto start_node_getter = [&]() -> StartNodeGetter::ReturnType {
-        // 7. Let start node be the result of trying to get a known shadow root with url variable shadow id.
-        return TRY(Web::WebDriver::get_known_shadow_root(shadow_id));
-    };
+        // 8. Let result be the value of trying to Find with session, start node, location strategy, and selector.
+        find(*location_strategy, move(selector), get_start_node, JS::create_heap_function(current_browsing_context().heap(), [this](Web::WebDriver::Response result) {
+            // 9. If result is empty, return error with error code no such element. Otherwise, return the first element of result.
+            async_driver_execution_complete(extract_first_element(move(result)));
+        }));
+    });
 
-    // 8. Let result be the value of trying to Find with start node, location strategy, and selector.
-    auto result = TRY(find(move(start_node_getter), *location_strategy, selector));
-
-    // 9. If result is empty, return error with error code no such element. Otherwise, return the first element of result.
-    if (result.is_empty())
-        return Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::NoSuchElement, "The requested element does not exist"sv);
-
-    return result.take(0);
+    return JsonValue {};
 }
 
 // 12.3.7 Find Elements From Shadow Root, https://w3c.github.io/webdriver/#find-elements-from-shadow-root
 Messages::WebDriverClient::FindElementsFromShadowRootResponse WebDriverConnection::find_elements_from_shadow_root(JsonValue const& payload, String const& shadow_id)
 {
     // 1. Let location strategy be the result of getting a property called "using".
-    auto location_strategy_string = TRY(get_property(payload, "using"sv));
+    auto location_strategy_string = TRY(Web::WebDriver::get_property(payload, "using"sv));
     auto location_strategy = Web::WebDriver::location_strategy_from_string(location_strategy_string);
 
     // 2. If location strategy is not present as a keyword in the table of location strategies, return error with error code invalid argument.
@@ -984,21 +1036,25 @@ Messages::WebDriverClient::FindElementsFromShadowRootResponse WebDriverConnectio
 
     // 3. Let selector be the result of getting a property called "value".
     // 4. If selector is undefined, return error with error code invalid argument.
-    auto selector = TRY(get_property(payload, "value"sv));
+    auto selector = TRY(Web::WebDriver::get_property(payload, "value"sv));
 
-    // 5. If the current browsing context is no longer open, return error with error code no such window.
+    // 5. If session's current browsing context is no longer open, return error with error code no such window.
     TRY(ensure_current_browsing_context_is_open());
 
     // 6. Handle any user prompts and return its value if it is an error.
-    TRY(handle_any_user_prompts());
+    handle_any_user_prompts([this, shadow_id, location_strategy, selector = move(selector)]() mutable {
+        auto get_start_node = JS::create_heap_function(current_browsing_context().heap(), [this, shadow_id]() -> ErrorOr<JS::NonnullGCPtr<Web::DOM::ParentNode>, Web::WebDriver::Error> {
+            // 7. Let start node be the result of trying to get a known shadow root with session and URL variables["shadow id"].
+            return Web::WebDriver::get_known_shadow_root(current_browsing_context(), shadow_id);
+        });
 
-    auto start_node_getter = [&]() -> StartNodeGetter::ReturnType {
-        // 7. Let start node be the result of trying to get a known shadow root with url variable shadow id.
-        return TRY(Web::WebDriver::get_known_shadow_root(shadow_id));
-    };
+        // 8. Return the result of trying to Find with session, start node, location strategy, and selector.
+        find(*location_strategy, move(selector), get_start_node, JS::create_heap_function(current_browsing_context().heap(), [this](Web::WebDriver::Response result) {
+            async_driver_execution_complete(move(result));
+        }));
+    });
 
-    // 8. Return the result of trying to Find with start node, location strategy, and selector.
-    return TRY(find(move(start_node_getter), *location_strategy, selector));
+    return JsonValue {};
 }
 
 // 12.3.8 Get Active Element, https://w3c.github.io/webdriver/#get-active-element
@@ -1008,7 +1064,7 @@ Messages::WebDriverClient::GetActiveElementResponse WebDriverConnection::get_act
     TRY(ensure_current_browsing_context_is_open());
 
     // 2. Handle any user prompts and return its value if it is an error.
-    TRY(handle_any_user_prompts());
+    TRY(deprecated_handle_any_user_prompts());
 
     // 3. Let active element be the active element of the current browsing context’s document element.
     auto* active_element = current_browsing_context().active_document()->active_element();
@@ -1016,7 +1072,7 @@ Messages::WebDriverClient::GetActiveElementResponse WebDriverConnection::get_act
     // 4. If active element is a non-null element, return success with data set to web element reference object for active element.
     //    Otherwise, return error with error code no such element.
     if (active_element)
-        return ByteString::number(active_element->unique_id());
+        return ByteString::number(active_element->unique_id().value());
 
     return Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::NoSuchElement, "The current document does not have an active element"sv);
 }
@@ -1024,14 +1080,14 @@ Messages::WebDriverClient::GetActiveElementResponse WebDriverConnection::get_act
 // 12.3.9 Get Element Shadow Root, https://w3c.github.io/webdriver/#get-element-shadow-root
 Messages::WebDriverClient::GetElementShadowRootResponse WebDriverConnection::get_element_shadow_root(String const& element_id)
 {
-    // 1. If the current browsing context is no longer open, return error with error code no such window.
+    // 1. If session's current browsing context is no longer open, return error with error code no such window.
     TRY(ensure_current_browsing_context_is_open());
 
     // 2. Handle any user prompts and return its value if it is an error.
-    TRY(handle_any_user_prompts());
+    TRY(deprecated_handle_any_user_prompts());
 
-    // 3. Let element be the result of trying to get a known connected element with url variable element id.
-    auto* element = TRY(Web::WebDriver::get_known_connected_element(element_id));
+    // 3. Let element be the result of trying to get a known element with session and URL variables[element id].
+    auto element = TRY(Web::WebDriver::get_known_element(current_browsing_context(), element_id));
 
     // 4. Let shadow root be element's shadow root.
     auto shadow_root = element->shadow_root();
@@ -1040,8 +1096,8 @@ Messages::WebDriverClient::GetElementShadowRootResponse WebDriverConnection::get
     if (!shadow_root)
         return Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::NoSuchShadowRoot, ByteString::formatted("Element with ID '{}' does not have a shadow root", element_id));
 
-    // 6. Let serialized be the shadow root reference object for shadow root.
-    auto serialized = Web::WebDriver::shadow_root_reference_object(*shadow_root);
+    // 6. Let serialized be the shadow root reference object for session and shadow root.
+    auto serialized = Web::WebDriver::shadow_root_reference_object(current_browsing_context(), *shadow_root);
 
     // 7. Return success with data serialized.
     return serialized;
@@ -1054,10 +1110,10 @@ Messages::WebDriverClient::IsElementSelectedResponse WebDriverConnection::is_ele
     TRY(ensure_current_browsing_context_is_open());
 
     // 2. Handle any user prompts and return its value if it is an error.
-    TRY(handle_any_user_prompts());
+    TRY(deprecated_handle_any_user_prompts());
 
     // 3. Let element be the result of trying to get a known connected element with url variable element id.
-    auto* element = TRY(Web::WebDriver::get_known_connected_element(element_id));
+    auto element = TRY(Web::WebDriver::get_known_element(current_browsing_context(), element_id));
 
     // 4. Let selected be the value corresponding to the first matching statement:
     bool selected = false;
@@ -1090,10 +1146,10 @@ Messages::WebDriverClient::GetElementAttributeResponse WebDriverConnection::get_
     TRY(ensure_current_browsing_context_is_open());
 
     // 2. Handle any user prompts and return its value if it is an error.
-    TRY(handle_any_user_prompts());
+    TRY(deprecated_handle_any_user_prompts());
 
     // 3. Let element be the result of trying to get a known connected element with url variable element id.
-    auto* element = TRY(Web::WebDriver::get_known_connected_element(element_id));
+    auto element = TRY(Web::WebDriver::get_known_element(current_browsing_context(), element_id));
 
     // 4. Let result be the result of the first matching condition:
     Optional<ByteString> result;
@@ -1124,14 +1180,16 @@ Messages::WebDriverClient::GetElementPropertyResponse WebDriverConnection::get_e
     TRY(ensure_current_browsing_context_is_open());
 
     // 2. Handle any user prompts and return its value if it is an error.
-    TRY(handle_any_user_prompts());
+    TRY(deprecated_handle_any_user_prompts());
 
     // 3. Let element be the result of trying to get a known connected element with url variable element id.
-    auto* element = TRY(Web::WebDriver::get_known_connected_element(element_id));
+    auto element = TRY(Web::WebDriver::get_known_element(current_browsing_context(), element_id));
 
     Optional<ByteString> result;
 
     // 4. Let property be the result of calling the Object.[[GetProperty]](name) on element.
+    Web::HTML::TemporaryExecutionContext execution_context { current_browsing_context().active_document()->realm() };
+
     if (auto property_or_error = element->get(name.to_byte_string()); !property_or_error.is_throw_completion()) {
         auto property = property_or_error.release_value();
 
@@ -1155,10 +1213,10 @@ Messages::WebDriverClient::GetElementCssValueResponse WebDriverConnection::get_e
     TRY(ensure_current_browsing_context_is_open());
 
     // 2. Handle any user prompts and return its value if it is an error.
-    TRY(handle_any_user_prompts());
+    TRY(deprecated_handle_any_user_prompts());
 
     // 3. Let element be the result of trying to get a known connected element with url variable element id.
-    auto* element = TRY(Web::WebDriver::get_known_connected_element(element_id));
+    auto element = TRY(Web::WebDriver::get_known_element(current_browsing_context(), element_id));
 
     // 4. Let computed value be the result of the first matching condition:
     ByteString computed_value;
@@ -1167,7 +1225,7 @@ Messages::WebDriverClient::GetElementCssValueResponse WebDriverConnection::get_e
     if (!current_browsing_context().active_document()->is_xml_document()) {
         // computed value of parameter property name from element’s style declarations. property name is obtained from url variables.
         if (auto property = Web::CSS::property_id_from_string(name); property.has_value()) {
-            if (auto* computed_values = element->computed_css_values())
+            if (auto computed_values = element->computed_css_values(); computed_values.has_value())
                 computed_value = computed_values->property(property.value())->to_string().to_byte_string();
         }
     }
@@ -1188,10 +1246,10 @@ Messages::WebDriverClient::GetElementTextResponse WebDriverConnection::get_eleme
     TRY(ensure_current_browsing_context_is_open());
 
     // 2. Handle any user prompts and return its value if it is an error.
-    TRY(handle_any_user_prompts());
+    TRY(deprecated_handle_any_user_prompts());
 
     // 3. Let element be the result of trying to get a known connected element with url variable element id.
-    auto* element = TRY(Web::WebDriver::get_known_connected_element(element_id));
+    auto element = TRY(Web::WebDriver::get_known_element(current_browsing_context(), element_id));
 
     // 4. Let rendered text be the result of performing implementation-specific steps whose result is exactly the same as the result of a Function.[[Call]](null, element) with bot.dom.getVisibleText as the this value.
     auto rendered_text = element->text_content();
@@ -1207,10 +1265,10 @@ Messages::WebDriverClient::GetElementTagNameResponse WebDriverConnection::get_el
     TRY(ensure_current_browsing_context_is_open());
 
     // 2. Handle any user prompts and return its value if it is an error.
-    TRY(handle_any_user_prompts());
+    TRY(deprecated_handle_any_user_prompts());
 
     // 3. Let element be the result of trying to get a known connected element with url variable element id.
-    auto* element = TRY(Web::WebDriver::get_known_connected_element(element_id));
+    auto element = TRY(Web::WebDriver::get_known_element(current_browsing_context(), element_id));
 
     // 4. Let qualified name be the result of getting element’s tagName IDL attribute.
     auto qualified_name = element->tag_name();
@@ -1226,10 +1284,10 @@ Messages::WebDriverClient::GetElementRectResponse WebDriverConnection::get_eleme
     TRY(ensure_current_browsing_context_is_open());
 
     // 2. Handle any user prompts and return its value if it is an error.
-    TRY(handle_any_user_prompts());
+    TRY(deprecated_handle_any_user_prompts());
 
     // 3. Let element be the result of trying to get a known connected element with url variable element id.
-    auto* element = TRY(Web::WebDriver::get_known_connected_element(element_id));
+    auto element = TRY(Web::WebDriver::get_known_element(current_browsing_context(), element_id));
 
     // 4. Calculate the absolute position of element and let it be coordinates.
     // 5. Let rect be element’s bounding rectangle.
@@ -1257,10 +1315,10 @@ Messages::WebDriverClient::IsElementEnabledResponse WebDriverConnection::is_elem
     TRY(ensure_current_browsing_context_is_open());
 
     // 2. Handle any user prompts and return its value if it is an error.
-    TRY(handle_any_user_prompts());
+    TRY(deprecated_handle_any_user_prompts());
 
     // 3. Let element be the result of trying to get a known connected element with url variable element id.
-    auto* element = TRY(Web::WebDriver::get_known_connected_element(element_id));
+    auto element = TRY(Web::WebDriver::get_known_element(current_browsing_context(), element_id));
 
     // 4. Let enabled be a boolean initially set to true if the current browsing context’s active document’s type is not "xml".
     // 5. Otherwise, let enabled to false and jump to the last step of this algorithm.
@@ -1283,10 +1341,10 @@ Messages::WebDriverClient::GetComputedRoleResponse WebDriverConnection::get_comp
     TRY(ensure_current_top_level_browsing_context_is_open());
 
     // 2. Handle any user prompts and return its value if it is an error.
-    TRY(handle_any_user_prompts());
+    TRY(deprecated_handle_any_user_prompts());
 
     // 3. Let element be the result of trying to get a known connected element with url variable element id.
-    auto* element = TRY(Web::WebDriver::get_known_connected_element(element_id));
+    auto element = TRY(Web::WebDriver::get_known_element(current_browsing_context(), element_id));
 
     // 4. Let role be the result of computing the WAI-ARIA role of element.
     auto role = element->role_or_default();
@@ -1304,10 +1362,10 @@ Messages::WebDriverClient::GetComputedLabelResponse WebDriverConnection::get_com
     TRY(ensure_current_browsing_context_is_open());
 
     // 2. Handle any user prompts and return its value if it is an error.
-    TRY(handle_any_user_prompts());
+    TRY(deprecated_handle_any_user_prompts());
 
     // 3. Let element be the result of trying to get a known element with url variable element id.
-    auto* element = TRY(Web::WebDriver::get_known_connected_element(element_id));
+    auto element = TRY(Web::WebDriver::get_known_element(current_browsing_context(), element_id));
 
     // 4. Let label be the result of a Accessible Name and Description Computation for the Accessible Name of the element.
     auto label = element->accessible_name(element->document()).release_value_but_fixme_should_propagate_errors();
@@ -1323,10 +1381,17 @@ Messages::WebDriverClient::ElementClickResponse WebDriverConnection::element_cli
     TRY(ensure_current_browsing_context_is_open());
 
     // 2. Handle any user prompts and return its value if it is an error.
-    TRY(handle_any_user_prompts());
+    handle_any_user_prompts([this, element_id]() {
+        WEBDRIVER_TRY(element_click_impl(element_id));
+    });
 
+    return JsonValue {};
+}
+
+Web::WebDriver::Response WebDriverConnection::element_click_impl(String const& element_id)
+{
     // 3. Let element be the result of trying to get a known element with element id.
-    auto* element = TRY(Web::WebDriver::get_known_connected_element(element_id));
+    auto element = TRY(Web::WebDriver::get_known_element(current_browsing_context(), element_id));
 
     // 4. If the element is an input element in the file upload state return error with error code invalid argument.
     if (is<Web::HTML::HTMLInputElement>(*element)) {
@@ -1340,13 +1405,34 @@ Messages::WebDriverClient::ElementClickResponse WebDriverConnection::element_cli
 
     // 5. Scroll into view the element’s container.
     auto element_container = container_for_element(*element);
-    auto scroll_or_error = scroll_element_into_view(*element_container);
-    if (scroll_or_error.is_error())
-        return Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::UnknownError, scroll_or_error.error().string_literal());
+    scroll_element_into_view(*element_container);
 
-    // FIXME: 6. If element’s container is still not in view, return error with error code element not interactable.
+    auto paint_tree = Web::WebDriver::pointer_interactable_tree(current_browsing_context(), *element_container);
 
-    // FIXME: 7. If element’s container is obscured by another element, return error with error code element click intercepted.
+    // 6. If element’s container is still not in view, return error with error code element not interactable.
+    if (!Web::WebDriver::is_element_in_view(paint_tree, *element_container))
+        return Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::ElementNotInteractable, "Could not bring element into view"sv);
+
+    // 7. If element’s container is obscured by another element, return error with error code element click intercepted.
+    if (Web::WebDriver::is_element_obscured(paint_tree, *element_container))
+        return Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::ElementClickIntercepted, "Element is obscured by another element"sv);
+
+    auto on_complete = JS::create_heap_function(current_browsing_context().heap(), [this](Web::WebDriver::Response result) {
+        // 9. Wait until the user agent event loop has spun enough times to process the DOM events generated by the
+        //    previous step.
+        m_action_executor = nullptr;
+
+        // FIXME: 10. Perform implementation-defined steps to allow any navigations triggered by the click to start.
+
+        // 11. Try to wait for navigation to complete.
+        wait_for_navigation_to_complete(JS::create_heap_function(current_browsing_context().heap(), [this, result = move(result)](Web::WebDriver::Response navigation_result) mutable {
+            WEBDRIVER_TRY(navigation_result);
+
+            // FIXME: 12. Try to run the post-navigation checks.
+
+            async_driver_execution_complete(move(result));
+        }));
+    });
 
     // 8. Matching on element:
     // -> option element
@@ -1391,360 +1477,370 @@ Messages::WebDriverClient::ElementClickResponse WebDriverConnection::element_cli
                 fire_an_event<Web::DOM::Event>(Web::HTML::EventNames::change, parent_node);
             }
         }
+
         // 7. Fire a mouseUp event at parent node.
         fire_an_event<Web::UIEvents::MouseEvent>(Web::UIEvents::EventNames::mouseup, parent_node);
 
         // 8. Fire a click event at parent node.
         fire_an_event<Web::UIEvents::MouseEvent>(Web::UIEvents::EventNames::click, parent_node);
+
+        Web::HTML::queue_a_task(Web::HTML::Task::Source::Unspecified, nullptr, nullptr, JS::create_heap_function(current_browsing_context().heap(), [on_complete]() {
+            on_complete->function()(JsonValue {});
+        }));
     }
     // -> Otherwise
     else {
-        // FIXME: 1. Let input state be the result of get the input state given current session and current top-level browsing context.
+        // 1. Let input state be the result of get the input state given current session and current top-level
+        //    browsing context.
+        auto& input_state = Web::WebDriver::get_input_state(*current_top_level_browsing_context());
 
-        // FIXME: 2. Let actions options be a new actions options with the is element origin steps set to represents a web element, and the get element origin steps set to get a WebElement origin.
+        // 2. Let actions options be a new actions options with the is element origin steps set to represents a web
+        //    element, and the get element origin steps set to get a WebElement origin.
+        Web::WebDriver::ActionsOptions actions_options {
+            .is_element_origin = &Web::WebDriver::represents_a_web_element,
+            .get_element_origin = &Web::WebDriver::get_web_element_origin,
+        };
 
-        // FIXME: 3. Let input id be a the result of generating a UUID.
+        // 3. Let input id be a the result of generating a UUID.
+        auto input_id = MUST(Web::Crypto::generate_random_uuid());
 
-        // FIXME: 4. Let source be the result of create an input source with input state, and "pointer".
+        // 4. Let source be the result of create an input source with input state, and "pointer".
+        auto source = Web::WebDriver::create_input_source(input_state, Web::WebDriver::InputSourceType::Pointer, Web::WebDriver::PointerInputSource::Subtype::Mouse);
 
-        // FIXME: 5. Add an input source with input state, input id and source.
+        // 5. Add an input source with input state, input id and source.
+        Web::WebDriver::add_input_source(input_state, input_id, move(source));
 
-        // FIXME: 6. Let click point be the element’s in-view center point.
+        // 6. Let click point be the element’s in-view center point.
+        // FIXME: Spec-issue: This parameter is unused. Note that it would not correct to set the mouse move action
+        //        position to this click point. The [0,0] specified below is ultimately interpreted as an offset from
+        //        the element's center position.
+        //        https://github.com/w3c/webdriver/issues/1563
 
-        // FIXME: 7. Let pointer move action be an action object constructed with arguments input id, "pointer", and "pointerMove".
+        // 7. Let pointer move action be an action object constructed with arguments input id, "pointer", and "pointerMove".
+        Web::WebDriver::ActionObject pointer_move_action { input_id, Web::WebDriver::InputSourceType::Pointer, Web::WebDriver::ActionObject::Subtype::PointerMove };
 
-        // FIXME: 8. Set a property x to 0 on pointer move action.
+        // 8. Set a property x to 0 on pointer move action.
+        // 9. Set a property y to 0 on pointer move action.
+        pointer_move_action.pointer_move_fields().position = { 0, 0 };
 
-        // FIXME: 9. Set a property y to 0 on pointer move action.
+        // 10. Set a property origin to element on pointer move action.
+        auto origin = Web::WebDriver::get_or_create_a_web_element_reference(current_browsing_context(), *element);
+        pointer_move_action.pointer_move_fields().origin = MUST(String::from_byte_string(origin));
 
-        // FIXME: 10. Set a property origin to element on pointer move action.
+        // 11. Let pointer down action be an action object constructed with arguments input id, "pointer", and "pointerDown".
+        Web::WebDriver::ActionObject pointer_down_action { input_id, Web::WebDriver::InputSourceType::Pointer, Web::WebDriver::ActionObject::Subtype::PointerDown };
 
-        // FIXME: 11. Let pointer down action be an action object constructed with arguments input id, "pointer", and "pointerDown".
+        // 12. Set a property button to 0 on pointer down action.
+        pointer_down_action.pointer_up_down_fields().button = Web::UIEvents::button_code_to_mouse_button(0);
 
-        // FIXME: 12. Set a property button to 0 on pointer down action.
+        // 13. Let pointer up action be an action object constructed with arguments input id, "pointer", and "pointerUp" as arguments.
+        Web::WebDriver::ActionObject pointer_up_action { input_id, Web::WebDriver::InputSourceType::Pointer, Web::WebDriver::ActionObject::Subtype::PointerUp };
 
-        // FIXME: 13. Let pointer up action be an action object constructed with arguments input id, "mouse", and "pointerUp" as arguments.
+        // 14. Set a property button to 0 on pointer up action.
+        pointer_up_action.pointer_up_down_fields().button = Web::UIEvents::button_code_to_mouse_button(0);
 
-        // FIXME: 14. Set a property button to 0 on pointer up action.
+        // 15. Let actions be the list «pointer move action, pointer down action, pointer up action».
+        Vector actions { move(pointer_move_action), move(pointer_down_action), move(pointer_up_action) };
 
-        // FIXME: 15. Let actions be the list «pointer move action, pointer down action, pointer move action».
+        // 16. Dispatch a list of actions with input state, actions, current browsing context, and actions options.
+        m_action_executor = Web::WebDriver::dispatch_list_of_actions(input_state, move(actions), current_browsing_context(), move(actions_options), JS::create_heap_function(current_browsing_context().heap(), [on_complete, &input_state, input_id = move(input_id)](Web::WebDriver::Response result) {
+            // 17. Remove an input source with input state and input id.
+            Web::WebDriver::remove_input_source(input_state, input_id);
 
-        // FIXME: 16. Dispatch a list of actions with input state, actions, current browsing context, and actions options.
-
-        // FIXME: 17. Remove an input source with input state and input id.
+            on_complete->function()(move(result));
+        }));
     }
 
-    // FIXME: 9. Wait until the user agent event loop has spun enough times to process the DOM events generated by the previous step.
-    // FIXME: 10. Perform implementation-defined steps to allow any navigations triggered by the click to start.
-    // FIXME: 11. Try to wait for navigation to complete.
-    // FIXME: 12. Try to run the post-navigation checks.
-    // FIXME: 13. Return success with data null.
-
-    return Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::UnsupportedOperation, "Click not implemented"sv);
+    // 13. Return success with data null.
+    return JsonValue {};
 }
 
 // 12.5.2 Element Clear, https://w3c.github.io/webdriver/#dfn-element-clear
-Messages::WebDriverClient::ElementClearResponse WebDriverConnection::element_clear(String const&)
+Messages::WebDriverClient::ElementClearResponse WebDriverConnection::element_clear(String const& element_id)
 {
-    dbgln("FIXME: WebDriverConnection::element_clear()");
+    // https://w3c.github.io/webdriver/#dfn-clear-a-content-editable-element
+    auto clear_content_editable_element = [&](Web::DOM::Element& element) {
+        // 1. If element's innerHTML IDL attribute is an empty string do nothing and return.
+        if (auto result = element.inner_html(); result.is_error() || result.value().is_empty())
+            return;
 
-    // FIXME: 1. If element's innerHTML IDL attribute is an empty string do nothing and return.
+        // 2. Run the focusing steps for element.
+        Web::HTML::run_focusing_steps(&element);
 
-    // FIXME: 2. Run the focusing steps for element.
+        // 3. Set element's innerHTML IDL attribute to an empty string.
+        (void)element.set_inner_html({});
 
-    // FIXME: 3. Set element's innerHTML IDL attribute to an empty string.
+        // 4. Run the unfocusing steps for the element.
+        Web::HTML::run_unfocusing_steps(&element);
+    };
 
-    // FIXME: 4. Run the unfocusing steps for the element.
+    // https://w3c.github.io/webdriver/#dfn-clear-a-resettable-element
+    auto clear_resettable_element = [&](Web::DOM::Element& element) {
+        VERIFY(is<Web::HTML::FormAssociatedElement>(element));
+        auto& form_associated_element = dynamic_cast<Web::HTML::FormAssociatedElement&>(element);
 
-    // To clear a resettable element:
+        // 1. Let empty be the result of the first matching condition:
+        auto empty = [&]() {
+            // -> element is an input element whose type attribute is in the File Upload state
+            //    True if the list of selected files has a length of 0, and false otherwise
+            if (is<Web::HTML::HTMLInputElement>(element)) {
+                auto& input_element = static_cast<Web::HTML::HTMLInputElement&>(element);
 
-    // FIXME: 1. Let empty be the result of the first matching condition:
+                if (input_element.type_state() == Web::HTML::HTMLInputElement::TypeAttributeState::FileUpload)
+                    return input_element.files()->length() == 0;
+            }
 
-    {
-        // -> element is an input element whose type attribute is in the File Upload state
-        // True if the list of selected files has a length of 0, and false otherwise.
-        // -> otherwise
-        // True if its value IDL attribute is an empty string, and false otherwise.
-    }
+            // -> otherwise
+            //    True if its value IDL attribute is an empty string, and false otherwise.
+            return form_associated_element.value().is_empty();
+        }();
 
-    // FIXME: 2. If element is a candidate for constraint validation it satisfies its constraints, and empty is true, abort these substeps.
+        // 2. If element is a candidate for constraint validation it satisfies its constraints, and empty is true,
+        //    abort these substeps.
+        // FIXME: Implement constraint validation.
+        if (empty)
+            return;
 
-    // FIXME: 3. Invoke the focusing steps for element.
+        // 3. Invoke the focusing steps for element.
+        Web::HTML::run_focusing_steps(&element);
 
-    // FIXME: 4. Invoke the clear algorithm for element.
+        // 4. Invoke the clear algorithm for element.
+        form_associated_element.clear_algorithm();
 
-    // FIXME: 5. Invoke the unfocusing steps for the element.
+        // 5. Invoke the unfocusing steps for the element.
+        Web::HTML::run_unfocusing_steps(&element);
+    };
 
-    // The remote end steps, given session, URL variables and parameters are:
+    // 1. If session's current browsing context is no longer open, return error with error code no such window.
+    TRY(ensure_current_browsing_context_is_open());
 
-    // FIXME: 1. If session's current browsing context is no longer open, return error with error code no such window.
+    // 2. Try to handle any user prompts with session.
+    TRY(deprecated_handle_any_user_prompts());
 
-    // FIXME: 2. Try to handle any user prompts with session.
+    // 3. Let element be the result of trying to get a known element with session and element id.
+    auto element = TRY(Web::WebDriver::get_known_element(current_browsing_context(), element_id));
 
-    // FIXME: 3. Let element be the result of trying to get a known element with session and element id.
+    // 4. If element is not editable, return an error with error code invalid element state.
+    if (!Web::WebDriver::is_element_editable(*element))
+        return Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::InvalidElementState, "Element is not editable"sv);
 
-    // FIXME: 4. If element is not editable, return an error with error code invalid element state.
-
-    // FIXME: 5. Scroll into view the element.
+    // 5. Scroll into view the element.
+    scroll_element_into_view(*element);
 
     // FIXME: 6. Let timeout be session's session timeouts' implicit wait timeout.
-
     // FIXME: 7. Let timer be a new timer.
-
     // FIXME: 8. If timeout is not null:
-
     {
         // FIXME: 1. Start the timer with timer and timeout.
     }
-
     // FIXME: 9. Wait for element to become interactable, or timer's timeout fired flag to be set, whichever occurs first.
 
-    // FIXME: 10. If element is not interactable, return error with error code element not interactable.
+    // 10. If element is not interactable, return error with error code element not interactable.
+    if (!Web::WebDriver::is_element_interactable(current_browsing_context(), *element))
+        return Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::ElementNotInteractable, "Element is not interactable"sv);
 
-    // FIXME: 11. Run the substeps of the first matching statement:
-
-    {
-        // -> element is a mutable form control element
-
+    // 11. Run the substeps of the first matching statement:
+    // -> element is a mutable form control element
+    if (Web::WebDriver::is_element_mutable_form_control(*element)) {
         // Invoke the steps to clear a resettable element.
-
-        // -> element is a mutable element
-
+        clear_resettable_element(*element);
+    }
+    // -> element is a mutable element
+    else if (Web::WebDriver::is_element_mutable(*element)) {
         // Invoke the steps to clear a content editable element.
-
-        // -> otherwise
-
+        clear_content_editable_element(*element);
+    }
+    // -> otherwise
+    else {
         // Return error with error code invalid element state.
+        return Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::InvalidElementState, "Element is not editable"sv);
     }
 
-    // FIXME: 12. Return success with data null.
-
+    // 12. Return success with data null.
     return JsonValue {};
 }
 
 // 12.5.3 Element Send Keys, https://w3c.github.io/webdriver/#dfn-element-send-keys
-Messages::WebDriverClient::ElementSendKeysResponse WebDriverConnection::element_send_keys(String const&)
+Messages::WebDriverClient::ElementSendKeysResponse WebDriverConnection::element_send_keys(String const& element_id, JsonValue const& payload)
 {
-    dbgln("FIXME: WebDriverConnection::element_send_keys()");
+    // 1. Let text be the result of getting a property named "text" from parameters.
+    // 2. If text is not a String, return an error with error code invalid argument.
+    auto text = TRY(Web::WebDriver::get_property(payload, "text"sv));
 
-    // FIXME: 1. If source is not a key input source return error with error code invalid argument.
+    // 3. If session's current browsing context is no longer open, return error with error code no such window.
+    TRY(ensure_current_browsing_context_is_open());
 
-    // FIXME: 2. Let actions options be a new actions options with the is element origin steps set to represents a web element, and the get element origin steps set to get a WebElement origin.
+    // 4. Try to handle any user prompts with session.
+    handle_any_user_prompts([this, element_id, text = move(text)]() {
+        WEBDRIVER_TRY(element_send_keys_impl(element_id, text));
+    });
 
-    // FIXME: 3. For each entry key in the lexically sorted keys of undo actions:
+    return JsonValue {};
+}
 
-    {
-        // FIXME: 1. Let action be the value of undo actions equal to the key entry key.
+Web::WebDriver::Response WebDriverConnection::element_send_keys_impl(String const& element_id, ByteString const& text)
+{
+    // 5. Let element be the result of trying to get a known element with session and URL variables[element id].
+    auto element = TRY(Web::WebDriver::get_known_element(current_browsing_context(), element_id));
 
-        // FIXME: 2. If action is not an action object with type "key" and subtype "keyUp", return error with error code invalid argument.
+    // 6. Let file be true if element is input element in the file upload state, or false otherwise.
+    auto file = is<Web::HTML::HTMLInputElement>(*element) && static_cast<Web::HTML::HTMLInputElement&>(*element).type_state() == Web::HTML::HTMLInputElement::TypeAttributeState::FileUpload;
 
-        // FIXME: 3. Let actions be the list «action»
-
-        // FIXME: 4. Dispatch a list of actions with input state, actions, browsing context, and actions options.
-    }
-
-    // To dispatch the events for a typeable string given input state, input id, source, text, and browsing context:
-
-    // FIXME: 1. Let actions options be a new actions options with the is element origin steps set to represents a web element, and the get element origin steps set to get a WebElement origin.
-
-    // FIXME: 2. For each char of text:
-
-    {
-        // FIXME: 1. Let global key state be the result of get the global key state with input state.
-
-        // FIXME: 2. Let actions be the list «action».
-
-        // FIXME: 3. Dispatch a list of actions with input state, actions, and browsing context.
-    }
-
-    // FIXME: 3. If char is not a shifted character and the shifted state of source is true:
-
-    {
-        // FIXME: 1. Let action be an action object constructed with input id, "key", and "keyUp", and set its value property to U+E008 ("left shift").
-
-        // FIXME: 2. Let tick actions be the list «action».
-
-        // FIXME: 3. Dispatch a list of actions with input state, actions, browsing context, and actions options.
-    }
-
-    // FIXME: 4. Let keydown action be an action object constructed with arguments input id, "key", and "keyDown".
-
-    // FIXME: 5. Set the value property of keydown action to char.
-
-    // FIXME: 6. Let keyup action be a copy of keydown action with the subtype property changed to "keyUp".
-
-    // FIXME: 7. Let actions be the list «keydown action, keyup action».
-
-    // FIXME: 8. Dispatch a list of actions with input state, actions, browsing context, and actions options.
-
-    // To dispatch actions for a string given input state, input id, source, text, browsing context, and actions options:
-
-    // FIXME: 1. Let clusters be an array created by breaking text into extended grapheme clusters.
-
-    // FIXME: 2. Let undo actions be an empty map.
-
-    // FIXME: 3. Let current typeable text be an empty list.
-
-    // FIXME: 4. For each cluster corresponding to an indexed property in clusters run the substeps of the first matching statement:
-
-    {
-        // -> cluster is the null key
-
-        {
-            // FIXME: 1. Dispatch the events for a typeable string with input state, input id, source, current typeable text, and browsing context. Empty current typeable text.
-
-            // FIXME: 2. Try to clear the modifier key state with input state, input id, source, undo actions and browsing context.
-
-            // FIXME: 3. Clear undo actions.
-        }
-
-        // -> cluster is a modifier key
-
-        {
-            // FIXME: 1. Dispatch the events for a typeable string with input state, input id, source, current typeable text, and browsing context.
-
-            // FIXME: 2. Emptycurrent typeable text.
-
-            // FIXME: 3. Let keydown action be an action object constructed with arguments input id, "key", and "keyDown".
-
-            // FIXME: 4. Set the value property of keydown action to cluster.
-
-            // FIXME: 5. Let actions be the list «keydown action»
-
-            // FIXME: 6. Dispatch a list of actions with input state, actions, browsing context, and actions options.
-
-            // FIXME: 7. Add an entry to undo actions with key cluster and value being a copy of keydown action with the subtype property modified to "keyUp".
-        }
-
-        // -> cluster is typeable
-
-        {
-            // Append cluster to current typeable text.
-        }
-
-        // -> otherwise
-
-        {
-            // FIXME: 1. Dispatch the events for a typeable string with input state, input id, source, current typeable text, and browsing context.
-
-            // FIXME: 2. Empty current typeable text.
-
-            // FIXME: 3. Dispatch a composition event with arguments "compositionstart", undefined, and browsing context.
-
-            // FIXME: 4. Dispatch a composition event with arguments "compositionupdate", cluster, and browsing context.
-
-            // FIXME: 5. Dispatch a composition event with arguments "compositionend", cluster, and browsing context.
-        }
-    }
-
-    // FIXME: 5. Dispatch the events for a typeable string with input state, input id and source, current typeable text, and browsing context.
-
-    // FIXME: 6. Try to clear the modifier key state with input state, input id, source, undo actions, and browsing context.
-
-    // The remote end steps, given session, URL variables and parameters are:
-
-    // FIXME: 1. Let text be the result of getting a property named "text" from parameters.
-
-    // FIXME: 2. If text is not a String, return an error with error code invalid argument.
-
-    // FIXME: 3. If session's current browsing context is no longer open, return error with error code no such window.
-
-    // FIXME: 4. Try to handle any user prompts with session.
-
-    // FIXME: 5. Let element be the result of trying to get a known element with session and URL variables[element id].
-
-    // FIXME: 6. Let file be true if element is input element in the file upload state, or false otherwise.
-
-    // FIXME: 7. If file is false or the session's strict file interactability, is true run the following substeps:
-
-    {
-        // FIXME: 1. Scroll into view the element.
+    // 7. If file is false or the session's strict file interactability, is true run the following substeps:
+    if (!file || m_strict_file_interactability) {
+        // 1. Scroll into view the element.
+        scroll_element_into_view(*element);
 
         // FIXME: 2. Let timeout be session's session timeouts' implicit wait timeout.
-
         // FIXME: 3. Let timer be a new timer.
-
         // FIXME: 4. If timeout is not null:
-
         {
             // FIXME: 1. Start the timer with timer and timeout.
         }
-
         // FIXME: 5. Wait for element to become keyboard-interactable, or timer's timeout fired flag to be set, whichever occurs first.
 
-        // FIXME: 6. If element is not keyboard-interactable, return error with error code element not interactable.
+        // 6. If element is not keyboard-interactable, return error with error code element not interactable.
+        if (!Web::WebDriver::is_element_keyboard_interactable(*element))
+            return Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::ElementNotInteractable, "Element is not keyboard-interactable"sv);
 
-        // FIXME: 7. If element is not the active element run the focusing steps for the element.
+        // 7. If element is not the active element run the focusing steps for the element.
+        if (!element->is_active())
+            Web::HTML::run_focusing_steps(element);
     }
 
-    // FIXME: 8. Run the substeps of the first matching condition:
+    // 8. Run the substeps of the first matching condition:
 
     // -> file is true
+    if (file) {
+        auto& input_element = static_cast<Web::HTML::HTMLInputElement&>(*element);
 
-    {
-        // FIXME: 1. Let files be the result of splitting text on the newline (\n) character.
+        // 1. Let files be the result of splitting text on the newline (\n) character.
+        auto files = text.split('\n');
 
-        // FIXME: 2. If files is of 0 length, return an error with error code invalid argument.
+        // 2. If files is of 0 length, return an error with error code invalid argument.
+        if (files.is_empty())
+            return Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::InvalidArgument, "File list is empty"sv);
 
-        // FIXME: 3. Let multiple equal the result of calling hasAttribute() with "multiple" on element.
+        // 3. Let multiple equal the result of calling hasAttribute() with "multiple" on element.
+        auto multiple = input_element.has_attribute(Web::HTML::AttributeNames::multiple);
 
-        // FIXME: 4. if multiple is false and the length of files is not equal to 1, return an error with error code invalid argument.
+        // 4. if multiple is false and the length of files is not equal to 1, return an error with error code invalid argument.
+        if (!multiple && files.size() != 1)
+            return Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::InvalidArgument, "Element does not accept multiple files"sv);
 
-        // FIXME: 5. Verify that each file given by the user exists. If any do not, return error with error code invalid argument.
+        // 5. Verify that each file given by the user exists. If any do not, return error with error code invalid argument.
+        // 6. Complete implementation specific steps equivalent to setting the selected files on the input element. If
+        //    multiple is true files are be appended to element's selected files.
+        auto create_selected_file = [](auto const& path) -> ErrorOr<Web::HTML::SelectedFile> {
+            auto file = TRY(Core::File::open(path, Core::File::OpenMode::Read));
+            auto contents = TRY(file->read_until_eof());
 
-        // FIXME: 6. Complete implementation specific steps equivalent to setting the selected files on the input element. If multiple is true files are be appended to element's selected files.
+            return Web::HTML::SelectedFile { LexicalPath::basename(path), move(contents) };
+        };
 
-        // FIXME: 7. Fire these events in order on element:
+        Vector<Web::HTML::SelectedFile> selected_files;
+        selected_files.ensure_capacity(files.size());
 
-        // FIXME: 1. input
+        for (auto const& path : files) {
+            auto selected_file = create_selected_file(path);
+            if (selected_file.is_error())
+                return Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::InvalidArgument, ByteString::formatted("'{}' does not exist", path));
 
-        // FIXME: 2. change
+            selected_files.unchecked_append(selected_file.release_value());
+        }
 
-        // FIXME: 8. Return success with data null.
+        input_element.did_select_files(selected_files, Web::HTML::HTMLInputElement::MultipleHandling::Append);
+
+        // 7. Fire these events in order on element:
+        //     1. input
+        //     2. change
+        // NOTE: These events are fired by `did_select_files` as an element task. So instead of firing them here, we spin
+        //       the event loop once before informing the client that the action is complete.
+        Web::HTML::queue_a_task(Web::HTML::Task::Source::Unspecified, nullptr, nullptr, JS::create_heap_function(current_browsing_context().heap(), [this]() {
+            async_driver_execution_complete(JsonValue {});
+        }));
+
+        // 8. Return success with data null.
+        return JsonValue {};
     }
-
     // -> element is a non-typeable form control
+    else if (Web::WebDriver::is_element_non_typeable_form_control(*element)) {
+        // 1. If element does not have an own property named value return an error with error code element not interactable
+        if (!is<Web::HTML::HTMLInputElement>(*element))
+            return Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::ElementNotInteractable, "Element does not have a property named 'value'"sv);
 
-    {
-        // FIXME: 1. If element does not have an own property named value return an error with error code element not interactable
+        auto& input_element = static_cast<Web::HTML::HTMLInputElement&>(*element);
 
-        // FIXME: 2. If element is not mutable return an error with error code element not interactable.
+        // 2. If element is not mutable return an error with error code element not interactable.
+        if (input_element.is_mutable())
+            return Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::ElementNotInteractable, "Element is immutable"sv);
 
-        // FIXME: 3. Set a property value to text on element.
+        // 3. Set a property value to text on element.
+        MUST(input_element.set_value(MUST(String::from_byte_string(text))));
 
         // FIXME: 4. If element is suffering from bad input return an error with error code invalid argument.
 
-        // FIXME: 5. Return success with data null.
+        // 5. Return success with data null.
+        async_driver_execution_complete(JsonValue {});
+        return JsonValue {};
     }
-
-    // -> elementis content editable
-
-    {
+    // -> element is content editable
+    else if (is<Web::HTML::HTMLElement>(*element) && static_cast<Web::HTML::HTMLElement&>(*element).is_content_editable()) {
         // If element does not currently have focus, set the text insertion caret after any child content.
+        auto* document = current_browsing_context().active_document();
+        document->set_focused_element(element);
     }
-
     // -> otherwise
+    else if (is<Web::HTML::FormAssociatedTextControlElement>(*element)) {
+        Optional<Web::HTML::FormAssociatedTextControlElement&> target;
 
-    {
-        // FIXME: 1. If element does not currently have focus, let current text length be the length of element's API value.
+        if (is<Web::HTML::HTMLInputElement>(*element))
+            target = static_cast<Web::HTML::HTMLInputElement&>(*element);
+        else if (is<Web::HTML::HTMLTextAreaElement>(*element))
+            target = static_cast<Web::HTML::HTMLTextAreaElement&>(*element);
 
-        // FIXME: 2. Set the text insertion caret using set selection range using current text length for both the start and end parameters.
+        // NOTE: The spec doesn't dictate this, but these steps only make sense for form-associated text elements.
+        if (target.has_value()) {
+            // 1. If element does not currently have focus, let current text length be the length of element's API value.
+            Optional<Web::WebIDL::UnsignedLong> current_text_length;
+
+            if (element->is_focused()) {
+                auto api_value = target->relevant_value();
+
+                // FIXME: This should be a UTF-16 code unit length, but `set_the_selection_range` is also currently
+                //        implemented in terms of code point length.
+                current_text_length = api_value.code_points().length();
+            }
+
+            // 2. Set the text insertion caret using set selection range using current text length for both the start
+            //    and end parameters.
+            (void)target->set_selection_range(current_text_length, current_text_length, {});
+        }
     }
 
-    // FIXME: 9. Let input state be the result of get the input state with session and session's current top-level browsing context.
+    // 9. Let input state be the result of get the input state with session and session's current top-level browsing context.
+    auto& input_state = Web::WebDriver::get_input_state(*current_top_level_browsing_context());
 
-    // FIXME: 10. Let input id be a the result of generating a UUID.
+    // 10. Let input id be a the result of generating a UUID.
+    auto input_id = MUST(Web::Crypto::generate_random_uuid());
 
-    // FIXME: 11. Let source be the result of create an input source with input state, and "key".
+    // 11. Let source be the result of create an input source with input state, and "key".
+    auto source = Web::WebDriver::create_input_source(input_state, Web::WebDriver::InputSourceType::Key, {});
 
-    // FIXME: 12. Add an input source with input state, input id and source.
+    // 12. Add an input source with input state, input id and source.
+    Web::WebDriver::add_input_source(input_state, input_id, move(source));
 
-    // FIXME: 13. Dispatch actions for a string with arguments input state, input id, and source, text, and session's current browsing context.
+    // 13. Dispatch actions for a string with arguments input state, input id, and source, text, and session's current browsing context.
+    m_action_executor = Web::WebDriver::dispatch_actions_for_a_string(input_state, input_id, source, text, current_browsing_context(), JS::create_heap_function(current_browsing_context().heap(), [this, &input_state, input_id](Web::WebDriver::Response result) {
+        m_action_executor = nullptr;
 
-    // FIXME: 14. Remove an input source with input state and input id.
+        // 14. Remove an input source with input state and input id.
+        Web::WebDriver::remove_input_source(input_state, input_id);
 
-    // FIXME: 15. Return success with data null.
+        async_driver_execution_complete(move(result));
+    }));
 
+    // 15. Return success with data null.
     return JsonValue {};
 }
 
@@ -1755,7 +1851,7 @@ Messages::WebDriverClient::GetSourceResponse WebDriverConnection::get_source()
     TRY(ensure_current_browsing_context_is_open());
 
     // 2. Handle any user prompts and return its value if it is an error.
-    TRY(handle_any_user_prompts());
+    TRY(deprecated_handle_any_user_prompts());
 
     auto* document = current_browsing_context().active_document();
     Optional<ByteString> source;
@@ -1785,40 +1881,18 @@ Messages::WebDriverClient::ExecuteScriptResponse WebDriverConnection::execute_sc
     TRY(ensure_current_browsing_context_is_open());
 
     // 3. Handle any user prompts, and return its value if it is an error.
-    TRY(handle_any_user_prompts());
+    handle_any_user_prompts([this, body = move(body), arguments = move(arguments)]() mutable {
+        m_has_pending_script_execution = true;
 
-    // 4. Let timeout be session's session timeouts' script timeout.
-    auto timeout_ms = m_timeouts_configuration.script_timeout;
+        // 4. Let timeout be session's session timeouts' script timeout.
+        auto timeout_ms = m_timeouts_configuration.script_timeout;
 
-    // This handles steps 5 to 9 and produces the appropriate result type for the following steps.
-    Web::WebDriver::execute_script(current_browsing_context(), move(body), move(arguments), timeout_ms, JS::create_heap_function(vm.heap(), [&](Web::WebDriver::ExecuteScriptResultSerialized result) {
-        dbgln_if(WEBDRIVER_DEBUG, "Executing script returned: {}", result.value);
-        Web::WebDriver::Response response;
-
-        switch (result.type) {
-        // 10. If promise is still pending and the session script timeout is reached, return error with error code script timeout.
-        case Web::WebDriver::ExecuteScriptResultType::Timeout:
-            response = Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::ScriptTimeoutError, "Script timed out");
-            break;
-        // 11. Upon fulfillment of promise with value v, let result be a JSON clone of v, and return success with data result.
-        case Web::WebDriver::ExecuteScriptResultType::PromiseResolved:
-            response = move(result.value);
-            break;
-        // 12. Upon rejection of promise with reason r, let result be a JSON clone of r, and return error with error code javascript error and data result.
-        case Web::WebDriver::ExecuteScriptResultType::PromiseRejected:
-        case Web::WebDriver::ExecuteScriptResultType::JavaScriptError:
-            response = Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::JavascriptError, "Script returned an error", move(result.value));
-            break;
-        case Web::WebDriver::ExecuteScriptResultType::BrowsingContextDiscarded:
-            response = Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::StaleElementReference, "Browsing context has been discarded", move(result.value));
-            break;
-        case Web::WebDriver::ExecuteScriptResultType::StaleElement:
-            response = Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::StaleElementReference, "Referenced element has become stale", move(result.value));
-            break;
-        }
-
-        async_script_executed(move(response));
-    }));
+        // This handles steps 5 to 9 and produces the appropriate result type for the following steps.
+        Web::WebDriver::execute_script(current_browsing_context(), move(body), move(arguments), timeout_ms, JS::create_heap_function(current_browsing_context().heap(), [this](Web::WebDriver::ExecuteScriptResultSerialized result) {
+            dbgln_if(WEBDRIVER_DEBUG, "Executing script returned: {}", result.value);
+            handle_script_response(move(result));
+        }));
+    });
 
     return JsonValue {};
 }
@@ -1836,42 +1910,52 @@ Messages::WebDriverClient::ExecuteAsyncScriptResponse WebDriverConnection::execu
     TRY(ensure_current_browsing_context_is_open());
 
     // 3. Handle any user prompts, and return its value if it is an error.
-    TRY(handle_any_user_prompts());
+    handle_any_user_prompts([this, body = move(body), arguments = move(arguments)]() mutable {
+        m_has_pending_script_execution = true;
 
-    // 4. Let timeout be session's session timeouts' script timeout.
-    auto timeout_ms = m_timeouts_configuration.script_timeout;
+        // 4. Let timeout be session's session timeouts' script timeout.
+        auto timeout_ms = m_timeouts_configuration.script_timeout;
 
-    // This handles steps 5 to 9 and produces the appropriate result type for the following steps.
-    Web::WebDriver::execute_async_script(current_browsing_context(), move(body), move(arguments), timeout_ms, JS::create_heap_function(vm.heap(), [&](Web::WebDriver::ExecuteScriptResultSerialized result) {
-        dbgln_if(WEBDRIVER_DEBUG, "Executing async script returned: {}", result.value);
-        Web::WebDriver::Response response;
+        // This handles steps 5 to 9 and produces the appropriate result type for the following steps.
+        Web::WebDriver::execute_async_script(current_browsing_context(), move(body), move(arguments), timeout_ms, JS::create_heap_function(current_browsing_context().heap(), [&](Web::WebDriver::ExecuteScriptResultSerialized result) {
+            dbgln_if(WEBDRIVER_DEBUG, "Executing async script returned: {}", result.value);
+            handle_script_response(move(result));
+        }));
+    });
 
+    return JsonValue {};
+}
+
+void WebDriverConnection::handle_script_response(Web::WebDriver::ExecuteScriptResultSerialized result)
+{
+    if (!m_has_pending_script_execution)
+        return;
+    m_has_pending_script_execution = false;
+
+    auto response = [&]() -> Web::WebDriver::Response {
         switch (result.type) {
         // 10. If promise is still pending and the session script timeout is reached, return error with error code script timeout.
         case Web::WebDriver::ExecuteScriptResultType::Timeout:
-            response = Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::ScriptTimeoutError, "Script timed out");
-            break;
+            return Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::ScriptTimeoutError, "Script timed out");
+
         // 11. Upon fulfillment of promise with value v, let result be a JSON clone of v, and return success with data result.
         case Web::WebDriver::ExecuteScriptResultType::PromiseResolved:
-            response = move(result.value);
-            break;
+            return move(result.value);
+
         // 12. Upon rejection of promise with reason r, let result be a JSON clone of r, and return error with error code javascript error and data result.
         case Web::WebDriver::ExecuteScriptResultType::PromiseRejected:
         case Web::WebDriver::ExecuteScriptResultType::JavaScriptError:
-            response = Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::JavascriptError, "Script returned an error", move(result.value));
-            break;
+            return Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::JavascriptError, "Script returned an error", move(result.value));
         case Web::WebDriver::ExecuteScriptResultType::BrowsingContextDiscarded:
-            response = Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::StaleElementReference, "Browsing context has been discarded", move(result.value));
-            break;
+            return Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::StaleElementReference, "Browsing context has been discarded", move(result.value));
         case Web::WebDriver::ExecuteScriptResultType::StaleElement:
-            response = Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::StaleElementReference, "Referenced element has become stale", move(result.value));
-            break;
+            return Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::StaleElementReference, "Referenced element has become stale", move(result.value));
         }
 
-        async_script_executed(move(response));
-    }));
+        VERIFY_NOT_REACHED();
+    }();
 
-    return JsonValue {};
+    async_driver_execution_complete(move(response));
 }
 
 // 14.1 Get All Cookies, https://w3c.github.io/webdriver/#dfn-get-all-cookies
@@ -1881,7 +1965,7 @@ Messages::WebDriverClient::GetAllCookiesResponse WebDriverConnection::get_all_co
     TRY(ensure_current_browsing_context_is_open());
 
     // 2. Handle any user prompts, and return its value if it is an error.
-    TRY(handle_any_user_prompts());
+    TRY(deprecated_handle_any_user_prompts());
 
     // 3. Let cookies be a new JSON List.
     JsonArray cookies;
@@ -1908,7 +1992,7 @@ Messages::WebDriverClient::GetNamedCookieResponse WebDriverConnection::get_named
     TRY(ensure_current_browsing_context_is_open());
 
     // 2. Handle any user prompts, and return its value if it is an error.
-    TRY(handle_any_user_prompts());
+    TRY(deprecated_handle_any_user_prompts());
 
     // 3. If the url variable name is equal to a cookie’s cookie name amongst all associated cookies of the current browsing context’s active document, return success with the serialized cookie as data.
     auto* document = current_browsing_context().active_document();
@@ -1926,7 +2010,7 @@ Messages::WebDriverClient::GetNamedCookieResponse WebDriverConnection::get_named
 Messages::WebDriverClient::AddCookieResponse WebDriverConnection::add_cookie(JsonValue const& payload)
 {
     // 1. Let data be the result of getting a property named cookie from the parameters argument.
-    auto const& data = *TRY(get_property<JsonObject const*>(payload, "cookie"sv));
+    auto const& data = *TRY(Web::WebDriver::get_property<JsonObject const*>(payload, "cookie"sv));
 
     // 2. If data is not a JSON Object with all the required (non-optional) JSON keys listed in the table for cookie conversion, return error with error code invalid argument.
     // NOTE: This validation is performed in subsequent steps.
@@ -1935,57 +2019,72 @@ Messages::WebDriverClient::AddCookieResponse WebDriverConnection::add_cookie(Jso
     TRY(ensure_current_browsing_context_is_open());
 
     // 4. Handle any user prompts, and return its value if it is an error.
-    TRY(handle_any_user_prompts());
+    TRY(deprecated_handle_any_user_prompts());
 
-    // FIXME: 5. If the current browsing context’s document element is a cookie-averse Document object, return error with error code invalid cookie domain.
+    auto* document = current_browsing_context().active_document();
 
-    // 6. If cookie name or cookie value is null, cookie domain is not equal to the current browsing context’s active document’s domain, cookie secure only or cookie HTTP only are not boolean types, or cookie expiry time is not an integer type, or it less than 0 or greater than the maximum safe integer, return error with error code invalid argument.
-    // NOTE: This validation is either performed in subsequent steps, or is performed by the CookieJar (namely domain matching).
+    // 5. If the current browsing context’s document element is a cookie-averse Document object, return error with
+    //    error code invalid cookie domain.
+    if (document->is_cookie_averse())
+        return Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::InvalidCookieDomain, "Document is cookie-averse"sv);
+
+    // 6. If cookie name or cookie value is null, cookie domain is not equal to the current browsing context’s active
+    //    document’s domain, cookie secure only or cookie HTTP only are not boolean types, or cookie expiry time is not
+    //    an integer type, or it less than 0 or greater than the maximum safe integer, return error with error code
+    //    invalid argument.
+    // NOTE: This validation is either performed in subsequent steps.
 
     // 7. Create a cookie in the cookie store associated with the active document’s address using cookie name name, cookie value value, and an attribute-value list of the following cookie concepts listed in the table for cookie conversion from data:
     Web::Cookie::ParsedCookie cookie {};
-    cookie.name = MUST(String::from_byte_string(TRY(get_property(data, "name"sv))));
-    cookie.value = MUST(String::from_byte_string(TRY(get_property(data, "value"sv))));
+    cookie.name = MUST(String::from_byte_string(TRY(Web::WebDriver::get_property(data, "name"sv))));
+    cookie.value = MUST(String::from_byte_string(TRY(Web::WebDriver::get_property(data, "value"sv))));
 
     // Cookie path
     //     The value if the entry exists, otherwise "/".
     if (data.has("path"sv))
-        cookie.path = MUST(String::from_byte_string(TRY(get_property(data, "path"sv))));
+        cookie.path = MUST(String::from_byte_string(TRY(Web::WebDriver::get_property(data, "path"sv))));
     else
         cookie.path = "/"_string;
 
     // Cookie domain
     //     The value if the entry exists, otherwise the current browsing context’s active document’s URL domain.
     // NOTE: The otherwise case is handled by the CookieJar
-    if (data.has("domain"sv))
-        cookie.domain = MUST(String::from_byte_string(TRY(get_property(data, "domain"sv))));
+    if (data.has("domain"sv)) {
+        cookie.domain = MUST(String::from_byte_string(TRY(Web::WebDriver::get_property(data, "domain"sv))));
+
+        // FIXME: Spec issue: We must return InvalidCookieDomain for invalid domains, rather than InvalidArgument.
+        // https://github.com/w3c/webdriver/issues/1570
+        if (!Web::Cookie::domain_matches(*cookie.domain, document->domain()))
+            return Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::InvalidCookieDomain, "Cookie domain does not match document domain"sv);
+    }
 
     // Cookie secure only
     //     The value if the entry exists, otherwise false.
     if (data.has("secure"sv))
-        cookie.secure_attribute_present = TRY(get_property<bool>(data, "secure"sv));
+        cookie.secure_attribute_present = TRY(Web::WebDriver::get_property<bool>(data, "secure"sv));
 
     // Cookie HTTP only
     //     The value if the entry exists, otherwise false.
     if (data.has("httpOnly"sv))
-        cookie.http_only_attribute_present = TRY(get_property<bool>(data, "httpOnly"sv));
+        cookie.http_only_attribute_present = TRY(Web::WebDriver::get_property<bool>(data, "httpOnly"sv));
 
     // Cookie expiry time
     //     The value if the entry exists, otherwise leave unset to indicate that this is a session cookie.
     if (data.has("expiry"sv)) {
-        // NOTE: less than 0 or greater than safe integer are handled by the JSON parser
-        auto expiry = TRY(get_property<u32>(data, "expiry"sv));
+        auto expiry = TRY(Web::WebDriver::get_property<i64>(data, "expiry"sv));
         cookie.expiry_time_from_expires_attribute = UnixDateTime::from_seconds_since_epoch(expiry);
     }
 
     // Cookie same site
     //     The value if the entry exists, otherwise leave unset to indicate that no same site policy is defined.
     if (data.has("sameSite"sv)) {
-        auto same_site = TRY(get_property(data, "sameSite"sv));
+        auto same_site = TRY(Web::WebDriver::get_property(data, "sameSite"sv));
         cookie.same_site_attribute = Web::Cookie::same_site_from_string(same_site);
+
+        if (cookie.same_site_attribute == Web::Cookie::SameSite::Default)
+            return Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::InvalidArgument, "Invalid same-site attribute"sv);
     }
 
-    auto* document = current_browsing_context().active_document();
     current_browsing_context().page().client().page_did_set_cookie(document->url(), cookie, Web::Cookie::Source::Http);
 
     // If there is an error during this step, return error with error code unable to set cookie.
@@ -2002,7 +2101,7 @@ Messages::WebDriverClient::DeleteCookieResponse WebDriverConnection::delete_cook
     TRY(ensure_current_browsing_context_is_open());
 
     // 2. Handle any user prompts, and return its value if it is an error.
-    TRY(handle_any_user_prompts());
+    TRY(deprecated_handle_any_user_prompts());
 
     // 3. Delete cookies using the url variable name parameter as the filter argument.
     delete_cookies(name);
@@ -2018,7 +2117,7 @@ Messages::WebDriverClient::DeleteAllCookiesResponse WebDriverConnection::delete_
     TRY(ensure_current_browsing_context_is_open());
 
     // 2. Handle any user prompts, and return its value if it is an error.
-    TRY(handle_any_user_prompts());
+    TRY(deprecated_handle_any_user_prompts());
 
     // 3. Delete cookies, giving no filtering argument.
     delete_cookies();
@@ -2028,19 +2127,37 @@ Messages::WebDriverClient::DeleteAllCookiesResponse WebDriverConnection::delete_
 }
 
 // 15.7 Perform Actions, https://w3c.github.io/webdriver/#perform-actions
-Messages::WebDriverClient::PerformActionsResponse WebDriverConnection::perform_actions()
+Messages::WebDriverClient::PerformActionsResponse WebDriverConnection::perform_actions(JsonValue const& payload)
 {
-    // FIXME: 1. Let input state be the result of get the input state with session and session's current top-level browsing context.
+    // 4. If session's current browsing context is no longer open, return error with error code no such window.
+    // NOTE: We do this first so we can assume the current top-level browsing context below is non-null.
+    TRY(ensure_current_browsing_context_is_open());
 
-    // FIXME: 2.Let actions options be a new actions options with the is element origin steps set to represents a web element, and the get element origin steps set to get a WebElement origin.
+    // 1. Let input state be the result of get the input state with session and session's current top-level browsing context.
+    auto& input_state = Web::WebDriver::get_input_state(*current_top_level_browsing_context());
 
-    // FIXME: 3.Let actions by tick be the result of trying to extract an action sequence with input state, parameters, and actions options.
+    // 2. Let actions options be a new actions options with the is element origin steps set to represents a web element,
+    //    and the get element origin steps set to get a WebElement origin.
+    Web::WebDriver::ActionsOptions actions_options {
+        .is_element_origin = &Web::WebDriver::represents_a_web_element,
+        .get_element_origin = &Web::WebDriver::get_web_element_origin,
+    };
 
-    // FIXME: 4. If session's current browsing context is no longer open, return error with error code no such window.
+    // 3. Let actions by tick be the result of trying to extract an action sequence with input state, parameters, and
+    //    actions options.
+    auto actions_by_tick = TRY(Web::WebDriver::extract_an_action_sequence(input_state, payload, actions_options));
 
-    // FIXME: 5. Try to handle any user prompts with session.
+    // 5. Try to handle any user prompts with session.
+    handle_any_user_prompts([this, &input_state, actions_options = move(actions_options), actions_by_tick = move(actions_by_tick)]() mutable {
+        // 6. Dispatch actions with input state, actions by tick, current browsing context, and actions options. If this
+        //    results in an error return that error.
+        auto on_complete = JS::create_heap_function(current_browsing_context().heap(), [this](Web::WebDriver::Response result) {
+            m_action_executor = nullptr;
+            async_driver_execution_complete(move(result));
+        });
 
-    // FIXME: 6. Dispatch actions with input state, actions by tick, current browsing context, and actions options. If this results in an error return that error.
+        m_action_executor = Web::WebDriver::dispatch_actions(input_state, move(actions_by_tick), current_browsing_context(), move(actions_options), on_complete);
+    });
 
     // 7. Return success with data null.
     return JsonValue {};
@@ -2052,15 +2169,25 @@ Messages::WebDriverClient::ReleaseActionsResponse WebDriverConnection::release_a
     // 1. If the current browsing context is no longer open, return error with error code no such window.
     TRY(ensure_current_browsing_context_is_open());
 
-    // FIXME: 2. Let input state be the result of get the input state with current session and current top-level browsing context.
+    // 2. Let input state be the result of get the input state with current session and current top-level browsing context.
+    auto& input_state = Web::WebDriver::get_input_state(*current_top_level_browsing_context());
 
-    // FIXME: 3. Let actions options be a new actions options with the is element origin steps set to represents a web element, and the get element origin steps set to get a WebElement origin.
+    // 3. Let actions options be a new actions options with the is element origin steps set to represents a web element,
+    //    and the get element origin steps set to get a WebElement origin.
+    Web::WebDriver::ActionsOptions actions_options {
+        .is_element_origin = &Web::WebDriver::represents_a_web_element,
+        .get_element_origin = &Web::WebDriver::get_web_element_origin,
+    };
 
-    // FIXME: 4. Let undo actions be input state’s input cancel list in reverse order.
+    // 4. Let undo actions be input state’s input cancel list in reverse order.
+    auto undo_actions = input_state.input_cancel_list;
+    undo_actions.reverse();
 
-    // FIXME: 5. Try to dispatch tick actions with arguments undo actions, 0, current browsing context, and actions options.
+    // 5. Try to dispatch tick actions with arguments undo actions, 0, current browsing context, and actions options.
+    TRY(Web::WebDriver::dispatch_tick_actions(input_state, undo_actions, AK::Duration::zero(), current_browsing_context(), actions_options));
 
-    // FIXME: 6. Reset the input state with current session and current top-level browsing context.
+    // 6. Reset the input state with current session and current top-level browsing context.
+    Web::WebDriver::reset_input_state(*current_top_level_browsing_context());
 
     // 7. Return success with data null.
     return JsonValue {};
@@ -2077,7 +2204,9 @@ Messages::WebDriverClient::DismissAlertResponse WebDriverConnection::dismiss_ale
         return Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::NoSuchAlert, "No user dialog is currently open"sv);
 
     // 3. Dismiss the current user prompt.
-    current_browsing_context().page().dismiss_dialog();
+    current_browsing_context().page().dismiss_dialog(JS::create_heap_function(current_browsing_context().heap(), [this]() {
+        async_driver_execution_complete(JsonValue {});
+    }));
 
     // 4. Return success with data null.
     return JsonValue {};
@@ -2094,7 +2223,9 @@ Messages::WebDriverClient::AcceptAlertResponse WebDriverConnection::accept_alert
         return Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::NoSuchAlert, "No user dialog is currently open"sv);
 
     // 3. Accept the current user prompt.
-    current_browsing_context().page().accept_dialog();
+    current_browsing_context().page().accept_dialog(JS::create_heap_function(current_browsing_context().heap(), [this]() {
+        async_driver_execution_complete(JsonValue {});
+    }));
 
     // 4. Return success with data null.
     return JsonValue {};
@@ -2124,7 +2255,7 @@ Messages::WebDriverClient::SendAlertTextResponse WebDriverConnection::send_alert
 {
     // 1. Let text be the result of getting the property "text" from parameters.
     // 2. If text is not a String, return error with error code invalid argument.
-    auto text = TRY(get_property(payload, "text"sv));
+    auto text = TRY(Web::WebDriver::get_property(payload, "text"sv));
 
     // 3. If the current top-level browsing context is no longer open, return error with error code no such window.
     TRY(ensure_current_top_level_browsing_context_is_open());
@@ -2163,94 +2294,118 @@ Messages::WebDriverClient::SendAlertTextResponse WebDriverConnection::send_alert
 // 17.1 Take Screenshot, https://w3c.github.io/webdriver/#take-screenshot
 Messages::WebDriverClient::TakeScreenshotResponse WebDriverConnection::take_screenshot()
 {
-    // 1. If the current top-level browsing context is no longer open, return error with error code no such window.
+    // 1. If session's current top-level browsing context is no longer open, return error with error code no such window.
     TRY(ensure_current_top_level_browsing_context_is_open());
 
-    // 2. When the user agent is next to run the animation frame callbacks:
-    //     a. Let root rect be the current top-level browsing context’s document element’s rectangle.
-    //     b. Let screenshot result be the result of trying to call draw a bounding box from the framebuffer, given root rect as an argument.
-    //     c. Let canvas be a canvas element of screenshot result’s data.
-    //     d. Let encoding result be the result of trying encoding a canvas as Base64 canvas.
-    //     e. Let encoded string be encoding result’s data.
     auto* document = current_top_level_browsing_context()->active_document();
-    auto root_rect = calculate_absolute_rect_of_element(*document->document_element());
+    auto window = document->window();
 
-    auto encoded_string = TRY(Web::WebDriver::capture_element_screenshot(
-        [&](auto const& rect, auto& bitmap) {
-            auto backing_store = Web::Painting::BitmapBackingStore(bitmap);
-            current_top_level_browsing_context()->page().client().paint(rect.template to_type<Web::DevicePixels>(), backing_store);
-        },
-        current_top_level_browsing_context()->page(),
-        *document->document_element(),
-        root_rect));
+    // 2. When the user agent is next to run the animation frame callbacks:
+    (void)window->animation_frame_callback_driver().add(JS::create_heap_function(document->heap(), [this, document](double) mutable {
+        // a. Let root rect be session's current top-level browsing context's document element's rectangle.
+        auto root_rect = calculate_absolute_rect_of_element(*document->document_element());
 
-    // 3. Return success with data encoded string.
-    return encoded_string;
+        // b. Let screenshot result be the result of trying to call draw a bounding box from the framebuffer, given root rect as an argument.
+        // c. Let canvas be a canvas element of screenshot result's data.
+        auto canvas = WEBDRIVER_TRY(Web::WebDriver::draw_bounding_box_from_the_framebuffer(*current_top_level_browsing_context(), *document->document_element(), root_rect));
+
+        // d. Let encoding result be the result of trying encoding a canvas as Base64 canvas.
+        // e. Let encoded string be encoding result's data.
+        auto encoded_string = Web::WebDriver::encode_canvas_element(canvas);
+
+        // 3. Return success with data encoded string.
+        async_driver_execution_complete(move(encoded_string));
+    }));
+
+    return JsonValue {};
 }
 
 // 17.2 Take Element Screenshot, https://w3c.github.io/webdriver/#dfn-take-element-screenshot
 Messages::WebDriverClient::TakeElementScreenshotResponse WebDriverConnection::take_element_screenshot(String const& element_id)
 {
-    // 1. If the current top-level browsing context is no longer open, return error with error code no such window.
-    TRY(ensure_current_top_level_browsing_context_is_open());
+    // 1. If session's current browsing context is no longer open, return error with error code no such window.
+    TRY(ensure_current_browsing_context_is_open());
 
-    // 2. Handle any user prompts and return its value if it is an error.
-    TRY(handle_any_user_prompts());
+    // 2. Try to handle any user prompts with session.
+    handle_any_user_prompts([this, element_id]() {
+        auto* document = current_browsing_context().active_document();
+        auto window = document->window();
 
-    // 3. Let element be the result of trying to get a known connected element with url variable element id.
-    auto* element = TRY(Web::WebDriver::get_known_connected_element(element_id));
+        // 3. Let element be the result of trying to get a known element with session and URL variables["element id"].
+        auto element = WEBDRIVER_TRY(Web::WebDriver::get_known_element(current_browsing_context(), element_id));
 
-    // 4. Scroll into view the element.
-    (void)scroll_element_into_view(*element);
+        // 4. Scroll into view the element.
+        scroll_element_into_view(element);
 
-    // 5. When the user agent is next to run the animation frame callbacks:
-    //     a. Let element rect be element’s rectangle.
-    //     b. Let screenshot result be the result of trying to call draw a bounding box from the framebuffer, given element rect as an argument.
-    //     c. Let canvas be a canvas element of screenshot result’s data.
-    //     d. Let encoding result be the result of trying encoding a canvas as Base64 canvas.
-    //     e. Let encoded string be encoding result’s data.
-    auto element_rect = calculate_absolute_rect_of_element(*element);
+        // 5. When the user agent is next to run the animation frame callbacks:
+        (void)window->animation_frame_callback_driver().add(JS::create_heap_function(document->heap(), [this, element](double) {
+            // a. Let element rect be element's rectangle.
+            auto element_rect = calculate_absolute_rect_of_element(element);
 
-    auto encoded_string = TRY(Web::WebDriver::capture_element_screenshot(
-        [&](auto const& rect, auto& bitmap) {
-            auto backing_store = Web::Painting::BitmapBackingStore(bitmap);
-            current_top_level_browsing_context()->page().client().paint(rect.template to_type<Web::DevicePixels>(), backing_store);
-        },
-        current_top_level_browsing_context()->page(),
-        *element,
-        element_rect));
+            // b. Let screenshot result be the result of trying to call draw a bounding box from the framebuffer, given element rect as an argument.
+            // c. Let canvas be a canvas element of screenshot result's data.
+            auto canvas = WEBDRIVER_TRY(Web::WebDriver::draw_bounding_box_from_the_framebuffer(current_browsing_context(), element, element_rect));
 
-    // 6. Return success with data encoded string.
-    return encoded_string;
+            // d. Let encoding result be the result of trying encoding a canvas as Base64 canvas.
+            // e. Let encoded string be encoding result's data.
+            auto encoded_string = Web::WebDriver::encode_canvas_element(canvas);
+
+            // 6. Return success with data encoded string.
+            async_driver_execution_complete(move(encoded_string));
+        }));
+    });
+
+    return JsonValue {};
 }
 
 // 18.1 Print Page, https://w3c.github.io/webdriver/#dfn-print-page
-Messages::WebDriverClient::PrintPageResponse WebDriverConnection::print_page()
+Messages::WebDriverClient::PrintPageResponse WebDriverConnection::print_page(JsonValue const& payload)
 {
-    // FIXME: Actually implement this :^)
+    dbgln("FIXME: WebDriverConnection::print_page({})", payload);
     return Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::UnsupportedOperation, "Print not implemented"sv);
+}
+
+// https://w3c.github.io/webdriver/#dfn-set-the-current-browsing-context
+void WebDriverConnection::set_current_browsing_context(Web::HTML::BrowsingContext& browsing_context)
+{
+    // 1. Set session's current browsing context to context.
+    m_current_browsing_context = browsing_context;
+
+    // 2. Set the session's current parent browsing context to the parent browsing context of context, if that context
+    //    exists, or null otherwise.
+    if (auto navigable = browsing_context.active_document()->navigable(); navigable && navigable->parent())
+        m_current_parent_browsing_context = navigable->parent()->active_browsing_context();
+    else
+        m_current_parent_browsing_context = nullptr;
+}
+
+// https://w3c.github.io/webdriver/#dfn-set-the-current-browsing-context
+void WebDriverConnection::set_current_top_level_browsing_context(Web::HTML::BrowsingContext& browsing_context)
+{
+    // 1. Assert: context is a top-level browsing context.
+    VERIFY(browsing_context.is_top_level());
+
+    if (m_current_top_level_browsing_context)
+        m_current_top_level_browsing_context->page().set_window_rect_observer({});
+
+    // 2. Set session's current top-level browsing context to context.
+    m_current_top_level_browsing_context = browsing_context;
+
+    if (m_current_top_level_browsing_context) {
+        m_current_top_level_browsing_context->page().set_window_rect_observer(JS::create_heap_function(m_current_top_level_browsing_context->heap(), [this](Web::DevicePixelRect rect) {
+            if (m_pending_window_rect_requests > 0 && --m_pending_window_rect_requests == 0)
+                async_driver_execution_complete(serialize_rect(rect.to_type<int>()));
+        }));
+    }
+
+    // 3. Set the current browsing context with session and context.
+    set_current_browsing_context(browsing_context);
 }
 
 Messages::WebDriverClient::EnsureTopLevelBrowsingContextIsOpenResponse WebDriverConnection::ensure_top_level_browsing_context_is_open()
 {
     TRY(ensure_current_top_level_browsing_context_is_open());
     return JsonValue {};
-}
-
-// https://w3c.github.io/webdriver/#dfn-current-parent-browsing-context
-JS::GCPtr<Web::HTML::BrowsingContext> WebDriverConnection::current_parent_browsing_context()
-{
-    auto current_navigable = current_browsing_context().active_document()->navigable();
-    if (!current_navigable || !current_navigable->parent())
-        return {};
-
-    return current_navigable->parent()->active_browsing_context();
-}
-
-// https://w3c.github.io/webdriver/#dfn-current-top-level-browsing-context
-JS::GCPtr<Web::HTML::BrowsingContext> WebDriverConnection::current_top_level_browsing_context()
-{
-    return current_browsing_context().top_level_browsing_context();
 }
 
 ErrorOr<void, Web::WebDriver::Error> WebDriverConnection::ensure_current_browsing_context_is_open()
@@ -2264,7 +2419,64 @@ ErrorOr<void, Web::WebDriver::Error> WebDriverConnection::ensure_current_top_lev
 }
 
 // https://w3c.github.io/webdriver/#dfn-handle-any-user-prompts
-ErrorOr<void, Web::WebDriver::Error> WebDriverConnection::handle_any_user_prompts()
+void WebDriverConnection::handle_any_user_prompts(Function<void()> on_dialog_closed)
+{
+    auto& page = current_browsing_context().page();
+    auto& heap = current_browsing_context().heap();
+
+    // 1. If there is no current user prompt, abort these steps and return success.
+    if (!page.has_pending_dialog()) {
+        on_dialog_closed();
+        return;
+    }
+
+    // 2. Perform the following substeps based on the current session’s user prompt handler:
+    switch (m_unhandled_prompt_behavior) {
+    // -> dismiss state
+    case Web::WebDriver::UnhandledPromptBehavior::Dismiss:
+        // Dismiss the current user prompt.
+        page.dismiss_dialog(JS::create_heap_function(heap, move(on_dialog_closed)));
+        break;
+
+    // -> accept state
+    case Web::WebDriver::UnhandledPromptBehavior::Accept:
+        // Accept the current user prompt.
+        page.accept_dialog(JS::create_heap_function(heap, move(on_dialog_closed)));
+        break;
+
+    // -> dismiss and notify state
+    case Web::WebDriver::UnhandledPromptBehavior::DismissAndNotify:
+        // Dismiss the current user prompt.
+        page.dismiss_dialog(JS::create_heap_function(heap, [this]() {
+            // Return an annotated unexpected alert open error.
+            async_driver_execution_complete(Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::UnexpectedAlertOpen, "A user dialog is open"sv));
+        }));
+        break;
+
+    // -> accept and notify state
+    case Web::WebDriver::UnhandledPromptBehavior::AcceptAndNotify:
+        // Accept the current user prompt.
+        page.accept_dialog(JS::create_heap_function(heap, [this]() {
+            // Return an annotated unexpected alert open error.
+            async_driver_execution_complete(Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::UnexpectedAlertOpen, "A user dialog is open"sv));
+        }));
+        break;
+
+    // -> ignore state
+    case Web::WebDriver::UnhandledPromptBehavior::Ignore:
+        // Return an annotated unexpected alert open error.
+        async_driver_execution_complete(Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::UnexpectedAlertOpen, "A user dialog is open"sv));
+        break;
+    }
+
+    // 3. Return success.
+}
+
+// https://w3c.github.io/webdriver/#dfn-handle-any-user-prompts
+// FIXME: Handling of user prompts must become completely asynchronous, as we must wait for the UI process to close the
+//        dialog widget and inform WebContent of the result. Thus, all endpoints which handle user prompts must also be
+//        become async.
+ErrorOr<void, Web::WebDriver::Error> WebDriverConnection::deprecated_handle_any_user_prompts()
 {
     // 1. If there is no current user prompt, abort these steps and return success.
     if (!current_browsing_context().page().has_pending_dialog())
@@ -2310,173 +2522,355 @@ ErrorOr<void, Web::WebDriver::Error> WebDriverConnection::handle_any_user_prompt
     return {};
 }
 
-// https://w3c.github.io/webdriver/#dfn-waiting-for-the-navigation-to-complete
-ErrorOr<void, Web::WebDriver::Error> WebDriverConnection::wait_for_navigation_to_complete()
+// https://w3c.github.io/webdriver/#dfn-wait-for-navigation-to-complete
+// FIXME: Update this AO to the latest spec steps.
+void WebDriverConnection::wait_for_navigation_to_complete(OnNavigationComplete on_complete)
 {
     // 1. If the current session has a page loading strategy of none, return success with data null.
-    if (m_page_load_strategy == Web::WebDriver::PageLoadStrategy::None)
-        return {};
+    if (m_page_load_strategy == Web::WebDriver::PageLoadStrategy::None) {
+        on_complete->function()(JsonValue {});
+        return;
+    }
 
     // 2. If the current browsing context is no longer open, return success with data null.
-    if (ensure_browsing_context_is_open(current_browsing_context()).is_error())
-        return {};
+    if (ensure_browsing_context_is_open(current_browsing_context()).is_error()) {
+        on_complete->function()(JsonValue {});
+        return;
+    }
 
-    // 3. Start a timer. If this algorithm has not completed before timer reaches the session’s session page load timeout in milliseconds, return an error with error code timeout.
-    auto page_load_timeout_fired = false;
-    auto timer = Core::Timer::create_single_shot(m_timeouts_configuration.page_load_timeout, [&] {
-        page_load_timeout_fired = true;
+    auto& realm = current_browsing_context().active_document()->realm();
+    auto navigable = current_browsing_context().active_document()->navigable();
+
+    if (!navigable || navigable->ongoing_navigation().has<Empty>()) {
+        on_complete->function()(JsonValue {});
+        return;
+    }
+
+    auto reset_observers = [](auto& self) {
+        if (self.m_navigation_observer) {
+            self.m_navigation_observer->set_navigation_complete({});
+            self.m_navigation_observer = nullptr;
+        }
+        if (self.m_document_observer) {
+            self.m_document_observer->set_document_readiness_observer({});
+            self.m_document_observer = nullptr;
+        }
+    };
+
+    // 3. Start a timer. If this algorithm has not completed before timer reaches the session’s session page load timeout
+    //    in milliseconds, return an error with error code timeout.
+    m_navigation_timer = realm.heap().allocate<Web::WebDriver::HeapTimer>(realm);
+
+    // 4. If there is an ongoing attempt to navigate the current browsing context that has not yet matured, wait for
+    //    navigation to mature.
+    m_navigation_observer = realm.heap().allocate<Web::HTML::NavigationObserver>(realm, realm, *navigable);
+
+    m_navigation_observer->set_navigation_complete([this, &realm, reset_observers]() {
+        reset_observers(*this);
+
+        // 5. Let readiness target be the document readiness state associated with the current session’s page loading
+        //    strategy, which can be found in the table of page load strategies.
+        auto readiness_target = [this]() {
+            switch (m_page_load_strategy) {
+            case Web::WebDriver::PageLoadStrategy::Normal:
+                return Web::HTML::DocumentReadyState::Complete;
+            case Web::WebDriver::PageLoadStrategy::Eager:
+                return Web::HTML::DocumentReadyState::Interactive;
+            default:
+                VERIFY_NOT_REACHED();
+            };
+        }();
+
+        // 6. Wait for the current browsing context’s document readiness state to reach readiness target,
+        //    or for the session page load timeout to pass, whichever occurs sooner.
+        if (auto* document = current_browsing_context().active_document(); document->readiness() != readiness_target) {
+            m_document_observer = realm.heap().allocate<Web::DOM::DocumentObserver>(realm, realm, *document);
+
+            m_document_observer->set_document_readiness_observer([this, readiness_target](Web::HTML::DocumentReadyState readiness) {
+                if (readiness == readiness_target)
+                    m_navigation_timer->stop_and_fire_timeout_handler();
+            });
+        } else {
+            m_navigation_timer->stop_and_fire_timeout_handler();
+        }
     });
-    timer->start();
 
-    // 4. If there is an ongoing attempt to navigate the current browsing context that has not yet matured, wait for navigation to mature.
-    Web::Platform::EventLoopPlugin::the().spin_until([&] {
-        return page_load_timeout_fired || current_browsing_context().top_level_traversable()->ongoing_navigation() == Empty {};
-    });
+    m_navigation_timer->start(m_timeouts_configuration.page_load_timeout.value_or(300'000), JS::create_heap_function(realm.heap(), [this, on_complete, reset_observers]() {
+        reset_observers(*this);
 
-    // 5. Let readiness target be the document readiness state associated with the current session’s page loading strategy, which can be found in the table of page load strategies.
-    auto readiness_target = [this]() {
-        switch (m_page_load_strategy) {
-        case Web::WebDriver::PageLoadStrategy::Normal:
-            return Web::HTML::DocumentReadyState::Complete;
-        case Web::WebDriver::PageLoadStrategy::Eager:
-            return Web::HTML::DocumentReadyState::Interactive;
-        default:
-            VERIFY_NOT_REACHED();
-        };
-    }();
+        auto did_time_out = m_navigation_timer->is_timed_out();
+        m_navigation_timer = nullptr;
 
-    // 6. Wait for the current browsing context’s document readiness state to reach readiness target,
-    //    or for the session page load timeout to pass, whichever occurs sooner.
-    Web::Platform::EventLoopPlugin::the().spin_until([&]() {
-        return page_load_timeout_fired || page_load_timeout_fired || current_browsing_context().active_document()->readiness() == readiness_target;
-    });
+        // 7. If the previous step completed by the session page load timeout being reached and the browser does
+        //    not have an active user prompt, return error with error code timeout.
+        if (did_time_out && !current_browsing_context().active_document()->page().has_pending_dialog()) {
+            on_complete->function()(Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::Timeout, "Navigation timed out"sv));
+            return;
+        }
 
-    // 7. If the previous step completed by the session page load timeout being reached and the browser does not have an active user prompt, return error with error code timeout.
-    if (page_load_timeout_fired && !current_browsing_context().page().has_pending_dialog())
-        return Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::Timeout, "Navigation timed out"sv);
-
-    // 8. Return success with data null.
-    return {};
+        // 8. Return success with data null.
+        on_complete->function()(JsonValue {});
+    }));
 }
 
-// https://w3c.github.io/webdriver/#dfn-restore-the-window
-void WebDriverConnection::restore_the_window()
+void WebDriverConnection::page_did_open_dialog(Badge<PageClient>)
 {
-    // To restore the window, given an operating system level window with an associated top-level browsing context, run implementation-specific steps to restore or unhide the window to the visible screen.
-    current_top_level_browsing_context()->page().client().page_did_request_restore_window();
+    // OPTMIZATION: If a dialog is opened while we are awaiting a specific document readiness state, that state will
+    //              never be reached, as the dialog will block the HTML event loop from any further processing. Instead
+    //              of waiting for the session's page load timeout to expire, unblock the waiter immediately. This also
+    //              seems to match how other browsers behave.
+    if (m_navigation_timer)
+        m_navigation_timer->stop_and_fire_timeout_handler();
 
-    // Do not return from this operation until the visibility state of the top-level browsing context’s active document has reached the visible state, or until the operation times out.
-    // FIXME: It isn't clear which timeout should be used here.
-    auto page_load_timeout_fired = false;
-    auto timer = Core::Timer::create_single_shot(m_timeouts_configuration.page_load_timeout, [&] {
-        page_load_timeout_fired = true;
-    });
-    timer->start();
-
-    Web::Platform::EventLoopPlugin::the().spin_until([&]() {
-        auto state = current_top_level_browsing_context()->top_level_traversable()->system_visibility_state();
-        return page_load_timeout_fired || state == Web::HTML::VisibilityState::Visible;
-    });
+    // https://w3c.github.io/webdriver/#dfn-execute-a-function-body
+    // If at any point during the algorithm a user prompt appears, immediately return Completion { [[Type]]: normal,
+    // [[Value]]: null, [[Target]]: empty }, but continue to run the other steps of this algorithm in parallel.
+    if (m_has_pending_script_execution) {
+        m_has_pending_script_execution = false;
+        async_driver_execution_complete(JsonValue {});
+    }
 }
 
 // https://w3c.github.io/webdriver/#dfn-maximize-the-window
-Gfx::IntRect WebDriverConnection::maximize_the_window()
+void WebDriverConnection::maximize_the_window()
 {
-    // To maximize the window, given an operating system level window with an associated top-level browsing context, run the implementation-specific steps to transition the operating system level window into the maximized window state.
-    auto rect = current_top_level_browsing_context()->page().client().page_did_request_maximize_window();
-
+    // To maximize the window, given an operating system level window with an associated top-level browsing context, run
+    // the implementation-specific steps to transition the operating system level window into the maximized window state.
     // Return when the window has completed the transition, or within an implementation-defined timeout.
-    return rect;
+    current_top_level_browsing_context()->page().client().page_did_request_maximize_window();
+    ++m_pending_window_rect_requests;
 }
 
 // https://w3c.github.io/webdriver/#dfn-iconify-the-window
-Gfx::IntRect WebDriverConnection::iconify_the_window()
+void WebDriverConnection::iconify_the_window(JS::NonnullGCPtr<JS::HeapFunction<void()>> on_complete)
 {
-    // To iconify the window, given an operating system level window with an associated top-level browsing context, run implementation-specific steps to iconify, minimize, or hide the window from the visible screen.
-    auto rect = current_top_level_browsing_context()->page().client().page_did_request_minimize_window();
+    // To iconify the window, given an operating system level window with an associated top-level browsing context, run
+    // implementation-specific steps to iconify, minimize, or hide the window from the visible screen.
+    current_top_level_browsing_context()->page().client().page_did_request_minimize_window();
 
-    // Do not return from this operation until the visibility state of the top-level browsing context’s active document has reached the hidden state, or until the operation times out.
-    // FIXME: It isn't clear which timeout should be used here.
-    auto page_load_timeout_fired = false;
-    auto timer = Core::Timer::create_single_shot(m_timeouts_configuration.page_load_timeout, [&] {
-        page_load_timeout_fired = true;
-    });
-    timer->start();
-
-    Web::Platform::EventLoopPlugin::the().spin_until([&]() {
-        auto state = current_top_level_browsing_context()->top_level_traversable()->system_visibility_state();
-        return page_load_timeout_fired || state == Web::HTML::VisibilityState::Hidden;
-    });
-
-    return rect;
+    // Do not return from this operation until the visibility state of the top-level browsing context’s active document
+    // has reached the hidden state, or until the operation times out.
+    wait_for_visibility_state(on_complete, Web::HTML::VisibilityState::Hidden);
 }
 
-// https://w3c.github.io/webdriver/#dfn-find
-ErrorOr<JsonArray, Web::WebDriver::Error> WebDriverConnection::find(StartNodeGetter&& start_node_getter, Web::WebDriver::LocationStrategy using_, StringView value)
+// https://w3c.github.io/webdriver/#dfn-restore-the-window
+void WebDriverConnection::restore_the_window(JS::NonnullGCPtr<JS::HeapFunction<void()>> on_complete)
 {
-    // 1. Let end time be the current time plus the session implicit wait timeout.
-    auto end_time = MonotonicTime::now() + AK::Duration::from_milliseconds(static_cast<i64>(m_timeouts_configuration.implicit_wait_timeout));
+    // To restore the window, given an operating system level window with an associated top-level browsing context, run
+    // implementation-specific steps to restore or unhide the window to the visible screen.
+    current_top_level_browsing_context()->page().client().page_did_request_restore_window();
 
-    // 2. Let location strategy be equal to using.
-    auto location_strategy = using_;
+    // Do not return from this operation until the visibility state of the top-level browsing context’s active document
+    // has reached the visible state, or until the operation times out.
+    wait_for_visibility_state(on_complete, Web::HTML::VisibilityState::Visible);
+}
 
-    // 3. Let selector be equal to value.
-    auto selector = value;
+void WebDriverConnection::wait_for_visibility_state(JS::NonnullGCPtr<JS::HeapFunction<void()>> on_complete, Web::HTML::VisibilityState target_visibility_state)
+{
+    static constexpr auto VISIBILITY_STATE_TIMEOUT_MS = 5'000;
 
-    ErrorOr<JS::GCPtr<Web::DOM::NodeList>, Web::WebDriver::Error> maybe_elements { nullptr };
+    auto* document = current_top_level_browsing_context()->active_document();
+    auto& realm = document->realm();
 
-    auto try_to_find_element = [&]() -> decltype(maybe_elements) {
-        // 4. Let elements returned be the result of trying to call the relevant element location strategy with arguments start node, and selector.
-        auto elements = Web::WebDriver::invoke_location_strategy(location_strategy, *TRY(start_node_getter()), selector);
+    if (document->visibility_state_value() == target_visibility_state) {
+        on_complete->function()();
+        return;
+    }
 
-        // 5. If a DOMException, SyntaxError, XPathException, or other error occurs during the execution of the element location strategy, return error invalid selector.
-        if (elements.is_error())
-            return Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::InvalidSelector, ByteString::formatted("The location strategy could not finish: {}", elements.error().message));
+    auto timer = realm.heap().allocate<Web::WebDriver::HeapTimer>(realm);
+    m_document_observer = realm.heap().allocate<Web::DOM::DocumentObserver>(realm, realm, *document);
 
-        return elements.release_value();
-    };
-
-    Web::Platform::EventLoopPlugin::the().spin_until([&]() {
-        maybe_elements = try_to_find_element();
-        if (maybe_elements.is_error())
-            return true;
-
-        // 6. If elements returned is empty and the current time is less than end time return to step 4. Otherwise, continue to the next step.
-        return maybe_elements.value()->length() != 0 || MonotonicTime::now() >= end_time;
+    m_document_observer->set_document_visibility_state_observer([timer, target_visibility_state](Web::HTML::VisibilityState visibility_state) {
+        if (visibility_state == target_visibility_state)
+            timer->stop_and_fire_timeout_handler();
     });
 
-    auto elements = TRY(maybe_elements);
-    VERIFY(elements);
+    timer->start(VISIBILITY_STATE_TIMEOUT_MS, JS::create_heap_function(realm.heap(), [this, on_complete]() {
+        m_document_observer->set_document_visibility_state_observer({});
+        m_document_observer = nullptr;
 
-    // 7. Let result be an empty JSON List.
-    JsonArray result;
-    result.ensure_capacity(elements->length());
+        on_complete->function()();
+    }));
+}
 
-    // 8. For each element in elements returned, append the web element reference object for element, to result.
-    for (size_t i = 0; i < elements->length(); ++i)
-        TRY(result.append(Web::WebDriver::web_element_reference_object(*elements->item(i))));
+class ElementLocator final : public JS::Cell {
+    JS_CELL(ElementLocator, JS::Cell);
+    JS_DECLARE_ALLOCATOR(ElementLocator);
 
-    // 9. Return success with data result.
-    return result;
+public:
+    ElementLocator(
+        Web::HTML::BrowsingContext const& browsing_context,
+        Web::WebDriver::LocationStrategy location_strategy,
+        ByteString selector,
+        WebDriverConnection::GetStartNode get_start_node,
+        WebDriverConnection::OnFindComplete on_complete,
+        JS::NonnullGCPtr<Web::WebDriver::HeapTimer> timer)
+        : m_browsing_context(browsing_context)
+        , m_location_strategy(location_strategy)
+        , m_selector(move(selector))
+        , m_get_start_node(get_start_node)
+        , m_on_complete(on_complete)
+        , m_timer(timer)
+    {
+    }
+
+    void search_for_element()
+    {
+        if (auto result = perform_search(); result.has_value()) {
+            m_on_complete->function()(result.release_value());
+            return;
+        }
+
+        if (m_timer->is_timed_out())
+            return;
+
+        Web::HTML::queue_a_task(Web::HTML::Task::Source::Unspecified, nullptr, nullptr, JS::create_heap_function(heap(), [this]() {
+            search_for_element();
+        }));
+    }
+
+private:
+    Optional<Web::WebDriver::Response> perform_search()
+    {
+        // 1. Set elements returned to the result of trying to call the relevant element location strategy with arguments
+        //    start node, and selector.
+        auto maybe_elements = Web::WebDriver::invoke_location_strategy(m_location_strategy, TRY(m_get_start_node->function()()), m_selector);
+
+        // 2. If a DOMException, SyntaxError, XPathException, or other error occurs during the execution of the element
+        //    location strategy, return error invalid selector.
+        if (maybe_elements.is_error())
+            return Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::InvalidSelector, ByteString::formatted("The location strategy could not finish: {}", maybe_elements.error().message));
+
+        if (auto elements = maybe_elements.release_value(); elements->length() > 0) {
+            // 8. Let result be an empty List.
+            JsonArray result;
+            result.ensure_capacity(elements->length());
+
+            // 9. For each element in elements returned, append the web element reference object for session and element,
+            //    to result.
+            for (size_t i = 0; i < elements->length(); ++i)
+                result.must_append(Web::WebDriver::web_element_reference_object(m_browsing_context, *elements->item(i)));
+
+            // 10. Return success with data result.
+            return JsonValue { move(result) };
+        }
+
+        return {};
+    }
+
+    virtual void visit_edges(Cell::Visitor& visitor) override
+    {
+        Base::visit_edges(visitor);
+        visitor.visit(m_browsing_context);
+        visitor.visit(m_get_start_node);
+        visitor.visit(m_on_complete);
+        visitor.visit(m_timer);
+    }
+
+    JS::NonnullGCPtr<Web::HTML::BrowsingContext const> m_browsing_context;
+
+    Web::WebDriver::LocationStrategy m_location_strategy;
+    ByteString m_selector;
+
+    WebDriverConnection::GetStartNode m_get_start_node;
+    WebDriverConnection::OnFindComplete m_on_complete;
+
+    JS::NonnullGCPtr<Web::WebDriver::HeapTimer> m_timer;
+};
+
+JS_DEFINE_ALLOCATOR(ElementLocator);
+
+// https://w3c.github.io/webdriver/#dfn-find
+void WebDriverConnection::find(Web::WebDriver::LocationStrategy location_strategy, ByteString selector, GetStartNode get_start_node, OnFindComplete on_complete)
+{
+    auto& realm = current_browsing_context().active_document()->realm();
+
+    // 1. Let location strategy be equal to using.
+    // 2. Let selector be equal to value.
+
+    // 3. Let timeout be session's session timeouts' implicit wait timeout.
+    auto timeout = m_timeouts_configuration.implicit_wait_timeout;
+
+    // 4. Let timer be a new timer.
+    auto timer = realm.heap().allocate<Web::WebDriver::HeapTimer>(realm);
+
+    auto wrapped_on_complete = JS::create_heap_function(realm.heap(), [this, on_complete, timer](Web::WebDriver::Response result) {
+        m_element_locator = nullptr;
+        timer->stop();
+
+        on_complete->function()(move(result));
+    });
+
+    // 5. If timeout is not null:
+    if (timeout.has_value()) {
+        // 1. Start the timer with timer and timeout.
+        timer->start(*timeout, JS::create_heap_function(realm.heap(), [wrapped_on_complete]() {
+            wrapped_on_complete->function()({ JsonArray {} });
+        }));
+    }
+
+    // 6. Let elements returned be an empty List.
+    // 7. While elements returned is empty and timer's timeout fired flag is not set:
+    m_element_locator = realm.heap().allocate<ElementLocator>(realm, current_browsing_context(), location_strategy, move(selector), get_start_node, wrapped_on_complete, timer);
+    m_element_locator->search_for_element();
+}
+
+// https://w3c.github.io/webdriver/#dfn-json-deserialize
+static ErrorOr<JS::Value, Web::WebDriver::Error> json_deserialize(JS::VM& vm, Web::HTML::BrowsingContext const& browsing_context, JsonValue const& value)
+{
+    // 1. If seen is not provided, let seen be an empty List.
+    // 2. Jump to the first appropriate step below:
+    // 3. Matching on value:
+    // -> undefined
+    // -> null
+    // -> type Boolean
+    // -> type Number
+    // -> type String
+    if (value.is_null() || value.is_bool() || value.is_number() || value.is_string()) {
+        // Return success with data value.
+        return JS::JSONObject::parse_json_value(vm, value);
+    }
+
+    // -> Object that represents a web element
+    if (Web::WebDriver::represents_a_web_element(value)) {
+        // Return the deserialized web element of value.
+        return Web::WebDriver::deserialize_web_element(browsing_context, value.as_object());
+    }
+
+    // FIXME: -> Object that represents a shadow root
+    //     Return the deserialized shadow root of value.
+    // FIXME: -> Object that represents a web frame
+    //     Return the deserialized web frame of value.
+    // FIXME: -> Object that represents a web window
+    //     Return the deserialized web window of value.
+    // FIXME: -> instance of Array
+    // FIXME: -> instance of Object
+    //     Return clone an object algorithm with session, value and seen, and the JSON deserialize algorithm as the clone algorithm.
+    dbgln("FIXME: Implement JSON deserialize for: {}", value);
+    return JS::JSONObject::parse_json_value(vm, value);
 }
 
 // https://w3c.github.io/webdriver/#dfn-extract-the-script-arguments-from-a-request
 ErrorOr<WebDriverConnection::ScriptArguments, Web::WebDriver::Error> WebDriverConnection::extract_the_script_arguments_from_a_request(JS::VM& vm, JsonValue const& payload)
 {
+    // Creating JSON objects below requires an execution context.
+    Web::HTML::TemporaryExecutionContext execution_context { current_browsing_context().active_document()->realm() };
+
     // 1. Let script be the result of getting a property named script from the parameters.
     // 2. If script is not a String, return error with error code invalid argument.
-    auto script = TRY(get_property(payload, "script"sv));
+    auto script = TRY(Web::WebDriver::get_property(payload, "script"sv));
 
     // 3. Let args be the result of getting a property named args from the parameters.
     // 4. If args is not an Array return error with error code invalid argument.
-    auto const& args = *TRY(get_property<JsonArray const*>(payload, "args"sv));
+    auto const& args = *TRY(Web::WebDriver::get_property<JsonArray const*>(payload, "args"sv));
 
     // 5. Let arguments be the result of calling the JSON deserialize algorithm with arguments args.
     auto arguments = JS::MarkedVector<JS::Value> { vm.heap() };
 
-    args.for_each([&](auto const& arg) {
-        arguments.append(JS::JSONObject::parse_json_value(vm, arg));
-    });
+    TRY(args.try_for_each([&](auto const& arg) -> ErrorOr<void, Web::WebDriver::Error> {
+        arguments.append(TRY(json_deserialize(vm, current_browsing_context(), arg)));
+        return {};
+    }));
 
     // 6. Return success with data script and arguments.
     return ScriptArguments { move(script), move(arguments) };

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022, Andreas Kling <kling@serenityos.org>
+ * Copyright (c) 2018-2022, Andreas Kling <andreas@ladybird.org>
  * Copyright (c) 2023, MacDue <macdue@dueutil.tech>
  *
  * SPDX-License-Identifier: BSD-2-Clause
@@ -65,10 +65,9 @@ void SVGPathPaintable::paint(PaintContext& context, PaintPhase phase) const
     auto const* svg_node = layout_box().first_ancestor_of_type<Layout::SVGSVGBox>();
     auto svg_element_rect = svg_node->paintable_box()->absolute_rect();
 
-    // FIXME: This should not be trucated to an int.
     DisplayListRecorderStateSaver save_painter { context.display_list_recorder() };
 
-    auto offset = context.floored_device_point(svg_element_rect.location()).to_type<int>().to_type<float>();
+    auto offset = context.rounded_device_point(svg_element_rect.location()).to_type<int>().to_type<float>();
     auto maybe_view_box = svg_node->dom_node().view_box();
 
     auto paint_transform = computed_transforms().svg_to_device_pixels_transform(context);
@@ -84,13 +83,10 @@ void SVGPathPaintable::paint(PaintContext& context, PaintPhase phase) const
         return copy;
     };
 
-    // Note: This is assuming .x_scale() == .y_scale() (which it does currently).
-    auto viewbox_scale = paint_transform.x_scale();
-
     auto svg_viewport = [&] {
         if (maybe_view_box.has_value())
             return Gfx::FloatRect { maybe_view_box->min_x, maybe_view_box->min_y, maybe_view_box->width, maybe_view_box->height };
-        return Gfx::FloatRect { { 0, 0 }, svg_element_rect.size().to_type<float>() };
+        return Gfx::FloatRect { {}, svg_element_rect.size().to_type<float>() };
     }();
 
     if (context.draw_svg_geometry_for_clip_path()) {
@@ -110,7 +106,6 @@ void SVGPathPaintable::paint(PaintContext& context, PaintPhase phase) const
     SVG::SVGPaintContext paint_context {
         .viewport = svg_viewport,
         .path_bounding_box = computed_path()->bounding_box(),
-        .transform = paint_transform
     };
 
     auto fill_opacity = graphics_element.fill_opacity().value_or(1);
@@ -132,9 +127,13 @@ void SVGPathPaintable::paint(PaintContext& context, PaintPhase phase) const
         });
     }
 
+    auto stroke_linecap = graphics_element.stroke_linecap().value_or(CSS::StrokeLinecap::Butt);
+    (void)stroke_linecap; // FIXME: Use
+
     auto stroke_opacity = graphics_element.stroke_opacity().value_or(1);
 
     // Note: This is assuming .x_scale() == .y_scale() (which it does currently).
+    auto viewbox_scale = paint_transform.x_scale();
     float stroke_thickness = graphics_element.stroke_width().value_or(1) * viewbox_scale;
 
     if (auto paint_style = graphics_element.stroke_paint_style(paint_context); paint_style.has_value()) {

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2020, Andreas Kling <kling@serenityos.org>
+ * Copyright (c) 2018-2020, Andreas Kling <andreas@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -181,6 +181,9 @@ public:
         u8 a_u8 = clamp(lroundf(a * 255.0f), 0, 255);
         return Color(r_u8, g_u8, b_u8, a_u8);
     }
+
+    static Color from_lab(float L, float a, float b, float alpha = 1.0f);
+    static Color from_xyz50(float x, float y, float z, float alpha = 1.0f);
 
     // https://bottosson.github.io/posts/oklab/
     static constexpr Color from_oklab(float L, float a, float b, float alpha = 1.0f)
@@ -446,7 +449,12 @@ public:
         return m_value == other.m_value;
     }
 
-    String to_string() const;
+    enum class HTMLCompatibleSerialization {
+        No,
+        Yes,
+    };
+
+    [[nodiscard]] String to_string(HTMLCompatibleSerialization = HTMLCompatibleSerialization::No) const;
     String to_string_without_alpha() const;
 
     ByteString to_byte_string() const;

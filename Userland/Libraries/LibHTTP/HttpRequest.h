@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2020, Andreas Kling <kling@serenityos.org>
+ * Copyright (c) 2018-2020, Andreas Kling <andreas@ladybird.org>
  * Copyright (c) 2022, the SerenityOS developers.
  *
  * SPDX-License-Identifier: BSD-2-Clause
@@ -9,6 +9,7 @@
 
 #include <AK/ByteBuffer.h>
 #include <AK/ByteString.h>
+#include <AK/Noncopyable.h>
 #include <AK/Optional.h>
 #include <AK/Vector.h>
 #include <LibCore/Forward.h>
@@ -63,6 +64,8 @@ public:
 
     HttpRequest() = default;
     ~HttpRequest() = default;
+
+    AK_MAKE_DEFAULT_MOVABLE(HttpRequest);
 
     ByteString const& resource() const { return m_resource; }
     HeaderMap const& headers() const { return m_headers; }

@@ -1,6 +1,7 @@
 shared_library("LibDiff") {
   include_dirs = [ "//Userland/Libraries" ]
   sources = [
+    "Applier.cpp",
     "Format.cpp",
     "Generator.cpp",
     "Hunks.cpp",

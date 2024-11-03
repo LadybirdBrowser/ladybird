@@ -14,11 +14,12 @@
 #include <LibCore/System.h>
 #include <LibCore/TCPServer.h>
 #include <LibMain/Main.h>
+#include <LibWeb/WebDriver/Capabilities.h>
 #include <WebDriver/Client.h>
 
 static Vector<ByteString> certificates;
 
-static ErrorOr<pid_t> launch_process(StringView application, ReadonlySpan<char const*> arguments)
+static ErrorOr<pid_t> launch_process(StringView application, ReadonlySpan<ByteString> arguments)
 {
     auto paths = TRY(get_paths_for_helper_process(application));
 
@@ -32,11 +33,11 @@ static ErrorOr<pid_t> launch_process(StringView application, ReadonlySpan<char c
     return result;
 }
 
-static ErrorOr<pid_t> launch_browser(ByteString const& socket_path, bool use_qt_networking, bool force_cpu_painting)
+static Vector<ByteString> create_arguments(ByteString const& socket_path, bool force_cpu_painting)
 {
-    auto arguments = Vector {
-        "--webdriver-content-path",
-        socket_path.characters(),
+    Vector<ByteString> arguments {
+        "--webdriver-content-path"sv,
+        socket_path,
     };
 
     Vector<ByteString> certificate_args;
@@ -45,29 +46,26 @@ static ErrorOr<pid_t> launch_browser(ByteString const& socket_path, bool use_qt_
         arguments.append(certificate_args.last().view().characters_without_null_termination());
     }
 
-    arguments.append("--allow-popups");
-    arguments.append("--force-new-process");
-    if (use_qt_networking)
-        arguments.append("--enable-qt-networking");
+    arguments.append("--allow-popups"sv);
+    arguments.append("--force-new-process"sv);
+    arguments.append("--enable-autoplay"sv);
     if (force_cpu_painting)
-        arguments.append("--force-cpu-painting");
+        arguments.append("--force-cpu-painting"sv);
 
-    arguments.append("about:blank");
+    arguments.append("about:blank"sv);
+    return arguments;
+}
 
+static ErrorOr<pid_t> launch_browser(ByteString const& socket_path, bool force_cpu_painting)
+{
+    auto arguments = create_arguments(socket_path, force_cpu_painting);
     return launch_process("Ladybird"sv, arguments.span());
 }
 
-static ErrorOr<pid_t> launch_headless_browser(ByteString const& socket_path)
+static ErrorOr<pid_t> launch_headless_browser(ByteString const& socket_path, bool force_cpu_painting)
 {
-    auto resources = ByteString::formatted("{}/res", s_ladybird_resource_root);
-    return launch_process("headless-browser"sv,
-        Array {
-            "--resources",
-            resources.characters(),
-            "--webdriver-content-path",
-            socket_path.characters(),
-            "about:blank",
-        });
+    auto arguments = create_arguments(socket_path, force_cpu_painting);
+    return launch_process("headless-browser"sv, arguments.span());
 }
 
 ErrorOr<int> serenity_main(Main::Arguments arguments)
@@ -76,15 +74,15 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
 
     auto listen_address = "0.0.0.0"sv;
     int port = 8000;
-    bool enable_qt_networking = false;
     bool force_cpu_painting = false;
+    bool headless = false;
 
     Core::ArgsParser args_parser;
     args_parser.add_option(listen_address, "IP address to listen on", "listen-address", 'l', "listen_address");
     args_parser.add_option(port, "Port to listen on", "port", 'p', "port");
     args_parser.add_option(certificates, "Path to a certificate file", "certificate", 'C', "certificate");
-    args_parser.add_option(enable_qt_networking, "Launch browser with Qt networking enabled", "enable-qt-networking");
     args_parser.add_option(force_cpu_painting, "Launch browser with GPU painting disabled", "force-cpu-painting");
+    args_parser.add_option(headless, "Launch browser without a graphical interface", "headless");
     args_parser.parse(arguments);
 
     auto ipv4_address = IPv4Address::from_string(listen_address);
@@ -99,6 +97,8 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
     }
 
     platform_init();
+
+    Web::WebDriver::set_default_interface_mode(headless ? Web::WebDriver::InterfaceMode::Headless : Web::WebDriver::InterfaceMode::Graphical);
 
     auto webdriver_socket_path = ByteString::formatted("{}/webdriver", TRY(Core::StandardPaths::runtime_directory()));
     TRY(Core::Directory::create(webdriver_socket_path, Core::Directory::CreateDirectories::Yes));
@@ -121,10 +121,14 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
         }
 
         auto launch_browser_callback = [&](ByteString const& socket_path) {
-            return launch_browser(socket_path, enable_qt_networking, force_cpu_painting);
+            return launch_browser(socket_path, force_cpu_painting);
         };
 
-        auto maybe_client = WebDriver::Client::try_create(maybe_buffered_socket.release_value(), { move(launch_browser_callback), launch_headless_browser }, server);
+        auto launch_headless_browser_callback = [&](ByteString const& socket_path) {
+            return launch_headless_browser(socket_path, force_cpu_painting);
+        };
+
+        auto maybe_client = WebDriver::Client::try_create(maybe_buffered_socket.release_value(), { move(launch_browser_callback), move(launch_headless_browser_callback) }, server);
         if (maybe_client.is_error()) {
             warnln("Could not create a WebDriver client: {}", maybe_client.error());
             return;

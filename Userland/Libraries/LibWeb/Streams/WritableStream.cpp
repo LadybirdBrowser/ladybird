@@ -58,39 +58,39 @@ bool WritableStream::locked() const
 }
 
 // https://streams.spec.whatwg.org/#ws-close
-JS::GCPtr<JS::Object> WritableStream::close()
+JS::GCPtr<WebIDL::Promise> WritableStream::close()
 {
     auto& realm = this->realm();
 
     // 1. If ! IsWritableStreamLocked(this) is true, return a promise rejected with a TypeError exception.
     if (is_writable_stream_locked(*this)) {
         auto exception = JS::TypeError::create(realm, "Cannot close a locked stream"sv);
-        return WebIDL::create_rejected_promise(realm, exception)->promise();
+        return WebIDL::create_rejected_promise(realm, exception);
     }
 
     // 2. If ! WritableStreamCloseQueuedOrInFlight(this) is true, return a promise rejected with a TypeError exception.
     if (writable_stream_close_queued_or_in_flight(*this)) {
         auto exception = JS::TypeError::create(realm, "Cannot close a stream that is already closed or errored"sv);
-        return WebIDL::create_rejected_promise(realm, exception)->promise();
+        return WebIDL::create_rejected_promise(realm, exception);
     }
 
     // 3. Return ! WritableStreamClose(this).
-    return writable_stream_close(*this)->promise();
+    return writable_stream_close(*this);
 }
 
 // https://streams.spec.whatwg.org/#ws-abort
-JS::GCPtr<JS::Object> WritableStream::abort(JS::Value reason)
+JS::GCPtr<WebIDL::Promise> WritableStream::abort(JS::Value reason)
 {
     auto& realm = this->realm();
 
     // 1. If ! IsWritableStreamLocked(this) is true, return a promise rejected with a TypeError exception.
     if (is_writable_stream_locked(*this)) {
         auto exception = JS::TypeError::create(realm, "Cannot abort a locked stream"sv);
-        return WebIDL::create_rejected_promise(realm, exception)->promise();
+        return WebIDL::create_rejected_promise(realm, exception);
     }
 
     // 2. Return ! WritableStreamAbort(this, reason).
-    return writable_stream_abort(*this, reason)->promise();
+    return writable_stream_abort(*this, reason);
 }
 
 // https://streams.spec.whatwg.org/#ws-get-writer

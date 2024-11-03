@@ -1,4 +1,5 @@
 include(fontconfig)
+include(pulseaudio)
 
 set(WEBCONTENT_SOURCE_DIR ${LADYBIRD_SOURCE_DIR}/Userland/Services/WebContent/)
 
@@ -17,44 +18,37 @@ set(WEBCONTENT_SOURCES
 )
 
 if (ANDROID)
-    add_library(webcontent SHARED
+    add_library(webcontentservice SHARED
         ${WEBCONTENT_SOURCES}
         ../Android/src/main/cpp/WebContentService.cpp
         ../Android/src/main/cpp/WebContentServiceJNI.cpp
         ../Android/src/main/cpp/LadybirdServiceBaseJNI.cpp
         ../Android/src/main/cpp/JNIHelpers.cpp
     )
-    target_link_libraries(webcontent PRIVATE android)
+    target_link_libraries(webcontentservice PRIVATE android)
 else()
-    add_library(webcontent STATIC ${WEBCONTENT_SOURCES})
-    set_target_properties(webcontent PROPERTIES AUTOMOC OFF AUTORCC OFF AUTOUIC OFF)
+    add_library(webcontentservice STATIC ${WEBCONTENT_SOURCES})
+    set_target_properties(webcontentservice PROPERTIES AUTOMOC OFF AUTORCC OFF AUTOUIC OFF)
 endif()
 
-target_include_directories(webcontent PUBLIC $<BUILD_INTERFACE:${LADYBIRD_SOURCE_DIR}/Userland/Services/>)
-target_include_directories(webcontent PUBLIC $<BUILD_INTERFACE:${LADYBIRD_SOURCE_DIR}/Userland/>)
-target_include_directories(webcontent PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/..>)
+target_include_directories(webcontentservice PUBLIC $<BUILD_INTERFACE:${LADYBIRD_SOURCE_DIR}/Userland/Services/>)
+target_include_directories(webcontentservice PUBLIC $<BUILD_INTERFACE:${LADYBIRD_SOURCE_DIR}/Userland/>)
+target_include_directories(webcontentservice PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/..>)
 
-target_link_libraries(webcontent PUBLIC LibCore LibFileSystem LibGfx LibIPC LibJS LibMain LibMedia LibWeb LibWebSocket LibRequests LibWebView LibImageDecoderClient)
-
-if (HAVE_PULSEAUDIO)
-    target_compile_definitions(webcontent PUBLIC HAVE_PULSEAUDIO=1)
-endif()
+target_link_libraries(webcontentservice PUBLIC LibCore LibFileSystem LibGfx LibIPC LibJS LibMain LibMedia LibWeb LibWebSocket LibRequests LibWebView LibImageDecoderClient)
 
 if (HAS_FONTCONFIG)
-    target_link_libraries(webcontent PRIVATE Fontconfig::Fontconfig)
+    target_link_libraries(webcontentservice PRIVATE Fontconfig::Fontconfig)
 endif()
 
 if (ENABLE_QT)
     qt_add_executable(WebContent
         ../Qt/EventLoopImplementationQt.cpp
         ../Qt/EventLoopImplementationQtEventTarget.cpp
-        ../Qt/RequestManagerQt.cpp
         ../Qt/StringUtils.cpp
-        ../Qt/WebSocketQt.cpp
-        ../Qt/WebSocketImplQt.cpp
         main.cpp
     )
-    target_link_libraries(WebContent PRIVATE Qt::Core Qt::Network)
+    target_link_libraries(WebContent PRIVATE Qt::Core)
     target_compile_definitions(WebContent PRIVATE HAVE_QT=1)
 
     if (NOT HAVE_PULSEAUDIO)
@@ -72,14 +66,14 @@ else()
     add_executable(WebContent main.cpp)
 endif()
 
-target_link_libraries(WebContent PRIVATE webcontent LibURL)
+target_link_libraries(WebContent PRIVATE webcontentservice LibURL)
 
-target_sources(webcontent PUBLIC FILE_SET ladybird TYPE HEADERS
+target_sources(webcontentservice PUBLIC FILE_SET ladybird TYPE HEADERS
     BASE_DIRS ${LADYBIRD_SOURCE_DIR}
     FILES ../FontPlugin.h
           ../ImageCodecPlugin.h
 )
-target_sources(webcontent PUBLIC FILE_SET server TYPE HEADERS
+target_sources(webcontentservice PUBLIC FILE_SET server TYPE HEADERS
     BASE_DIRS ${LADYBIRD_SOURCE_DIR}/Userland/Services
     FILES ${WEBCONTENT_SOURCE_DIR}/ConnectionFromClient.h
           ${WEBCONTENT_SOURCE_DIR}/ConsoleGlobalEnvironmentExtensions.h

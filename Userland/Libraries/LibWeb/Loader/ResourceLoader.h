@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022, Andreas Kling <kling@serenityos.org>
+ * Copyright (c) 2018-2022, Andreas Kling <andreas@ladybird.org>
  * Copyright (c) 2022, Dex♪ <dexes.ttp@gmail.com>
  *
  * SPDX-License-Identifier: BSD-2-Clause
@@ -9,83 +9,36 @@
 
 #include <AK/ByteString.h>
 #include <AK/Function.h>
-#include <AK/HashMap.h>
+#include <AK/HashTable.h>
 #include <LibCore/EventReceiver.h>
-#include <LibCore/Proxy.h>
-#include <LibJS/SafeFunction.h>
-#include <LibRequests/Request.h>
+#include <LibRequests/Forward.h>
 #include <LibURL/URL.h>
 #include <LibWeb/Loader/Resource.h>
 #include <LibWeb/Loader/UserAgent.h>
-#include <LibWeb/Page/Page.h>
 
 namespace Web {
-
-namespace WebSockets {
-class WebSocketClientSocket;
-}
-
-class ResourceLoaderConnectorRequest : public RefCounted<ResourceLoaderConnectorRequest> {
-public:
-    virtual ~ResourceLoaderConnectorRequest();
-
-    struct CertificateAndKey {
-        ByteString certificate;
-        ByteString key;
-    };
-
-    // Configure the request such that the entirety of the response data is buffered. The callback receives that data and
-    // the response headers all at once. Using this method is mutually exclusive with `set_unbuffered_data_received_callback`.
-    virtual void set_buffered_request_finished_callback(Requests::Request::BufferedRequestFinished) = 0;
-
-    // Configure the request such that the response data is provided unbuffered as it is received. Using this method is
-    // mutually exclusive with `set_buffered_request_finished_callback`.
-    virtual void set_unbuffered_request_callbacks(Requests::Request::HeadersReceived, Requests::Request::DataReceived, Requests::Request::RequestFinished) = 0;
-
-    virtual bool stop() = 0;
-
-    Function<void(Optional<u64> total_size, u64 downloaded_size)> on_progress;
-    Function<CertificateAndKey()> on_certificate_requested;
-
-protected:
-    explicit ResourceLoaderConnectorRequest();
-};
-
-class ResourceLoaderConnector : public RefCounted<ResourceLoaderConnector> {
-public:
-    virtual ~ResourceLoaderConnector();
-
-    virtual void prefetch_dns(URL::URL const&) = 0;
-    virtual void preconnect(URL::URL const&) = 0;
-
-    virtual RefPtr<ResourceLoaderConnectorRequest> start_request(ByteString const& method, URL::URL const&, HTTP::HeaderMap const& request_headers = {}, ReadonlyBytes request_body = {}, Core::ProxyData const& = {}) = 0;
-    virtual RefPtr<Web::WebSockets::WebSocketClientSocket> websocket_connect(const URL::URL&, ByteString const& origin, Vector<ByteString> const& protocols) = 0;
-
-protected:
-    explicit ResourceLoaderConnector();
-};
 
 class ResourceLoader : public Core::EventReceiver {
     C_OBJECT_ABSTRACT(ResourceLoader)
 public:
-    static void initialize(RefPtr<ResourceLoaderConnector>);
+    static void initialize(JS::Heap&, NonnullRefPtr<Requests::RequestClient>);
     static ResourceLoader& the();
 
     RefPtr<Resource> load_resource(Resource::Type, LoadRequest&);
 
-    using SuccessCallback = JS::SafeFunction<void(ReadonlyBytes, HTTP::HeaderMap const& response_headers, Optional<u32> status_code)>;
-    using ErrorCallback = JS::SafeFunction<void(ByteString const&, Optional<u32> status_code, ReadonlyBytes payload, HTTP::HeaderMap const& response_headers)>;
-    using TimeoutCallback = JS::SafeFunction<void()>;
+    using SuccessCallback = JS::HeapFunction<void(ReadonlyBytes, HTTP::HeaderMap const& response_headers, Optional<u32> status_code, Optional<String> const& reason_phrase)>;
+    using ErrorCallback = JS::HeapFunction<void(ByteString const&, Optional<u32> status_code, Optional<String> const& reason_phrase, ReadonlyBytes payload, HTTP::HeaderMap const& response_headers)>;
+    using TimeoutCallback = JS::HeapFunction<void()>;
 
-    void load(LoadRequest&, SuccessCallback success_callback, ErrorCallback error_callback = nullptr, Optional<u32> timeout = {}, TimeoutCallback timeout_callback = nullptr);
+    void load(LoadRequest&, JS::Handle<SuccessCallback> success_callback, JS::Handle<ErrorCallback> error_callback = nullptr, Optional<u32> timeout = {}, JS::Handle<TimeoutCallback> timeout_callback = nullptr);
 
-    using OnHeadersReceived = JS::SafeFunction<void(HTTP::HeaderMap const& response_headers, Optional<u32> status_code)>;
-    using OnDataReceived = JS::SafeFunction<void(ReadonlyBytes data)>;
-    using OnComplete = JS::SafeFunction<void(bool success, Optional<StringView> error_message)>;
+    using OnHeadersReceived = JS::HeapFunction<void(HTTP::HeaderMap const& response_headers, Optional<u32> status_code, Optional<String> const& reason_phrase)>;
+    using OnDataReceived = JS::HeapFunction<void(ReadonlyBytes data)>;
+    using OnComplete = JS::HeapFunction<void(bool success, Optional<StringView> error_message)>;
 
-    void load_unbuffered(LoadRequest&, OnHeadersReceived, OnDataReceived, OnComplete);
+    void load_unbuffered(LoadRequest&, JS::Handle<OnHeadersReceived>, JS::Handle<OnDataReceived>, JS::Handle<OnComplete>);
 
-    ResourceLoaderConnector& connector() { return *m_connector; }
+    Requests::RequestClient& request_client() { return *m_request_client; }
 
     void prefetch_dns(URL::URL const&);
     void preconnect(URL::URL const&);
@@ -120,18 +73,21 @@ public:
     void clear_cache();
     void evict_from_cache(LoadRequest const&);
 
-private:
-    ResourceLoader(NonnullRefPtr<ResourceLoaderConnector>);
-    static ErrorOr<NonnullRefPtr<ResourceLoader>> try_create(NonnullRefPtr<ResourceLoaderConnector>);
+    JS::Heap& heap() { return m_heap; }
 
-    RefPtr<ResourceLoaderConnectorRequest> start_network_request(LoadRequest const&);
+private:
+    explicit ResourceLoader(JS::Heap&, NonnullRefPtr<Requests::RequestClient>);
+
+    RefPtr<Requests::Request> start_network_request(LoadRequest const&);
     void handle_network_response_headers(LoadRequest const&, HTTP::HeaderMap const&);
-    void finish_network_request(NonnullRefPtr<ResourceLoaderConnectorRequest> const&);
+    void finish_network_request(NonnullRefPtr<Requests::Request> const&);
 
     int m_pending_loads { 0 };
 
-    HashTable<NonnullRefPtr<ResourceLoaderConnectorRequest>> m_active_requests;
-    NonnullRefPtr<ResourceLoaderConnector> m_connector;
+    JS::Heap& m_heap;
+    NonnullRefPtr<Requests::RequestClient> m_request_client;
+    HashTable<NonnullRefPtr<Requests::Request>> m_active_requests;
+
     String m_user_agent;
     String m_platform;
     Vector<String> m_preferred_languages = { "en"_string };

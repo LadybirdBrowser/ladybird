@@ -1,6 +1,7 @@
 set(SOURCES
-    URL.cpp
+    Origin.cpp
     Parser.cpp
+    URL.cpp
 )
 
 serenity_lib(LibURL url)

@@ -1,0 +1,24 @@
+<script src="../include.js"></script>
+<style>
+    #input {
+        width: 100px;
+        height: 100px;
+        border: 1px solid black;
+    }
+</style>
+<div id="input" contenteditable="true"></div>
+<script>
+    test(() => {
+        const input = document.getElementById("input");
+        input.addEventListener("beforeinput", (e) => {
+            println(`beforeinput data=(${e.data}) intputType=(${e.inputType})`);
+            if (e.data !== 'r' && e.data !== 'e') {
+                e.preventDefault();
+                return;
+            }
+        });
+        internals.sendText(input, "raebece");
+        internals.commitText();
+        println(`Text in input: ${input.textContent}`);
+    });
+</script>

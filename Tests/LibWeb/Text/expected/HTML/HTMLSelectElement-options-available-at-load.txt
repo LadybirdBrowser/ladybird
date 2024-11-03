@@ -1,1 +1,1 @@
-Option 1  PASS (correct value)
+PASS (correct value)

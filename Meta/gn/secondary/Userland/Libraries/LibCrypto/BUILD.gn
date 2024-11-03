@@ -5,7 +5,6 @@ shared_library("LibCrypto") {
   deps = [
     "//AK",
     "//Userland/Libraries/LibCore",
-    "//Userland/Libraries/LibFileSystem",
   ]
   sources = [
     "AEAD/ChaCha20Poly1305.cpp",
@@ -26,6 +25,7 @@ shared_library("LibCrypto") {
     "BigInt/UnsignedBigInteger.cpp",
     "Checksum/Adler32.cpp",
     "Checksum/CRC32.cpp",
+    "Checksum/cksum.cpp",
     "Cipher/AES.cpp",
     "Cipher/ChaCha20.cpp",
     "Curves/Curve25519.cpp",

@@ -1,0 +1,3 @@
+// https://w3c.github.io/media-source/#dom-mediasourcehandle
+[Transferable, Exposed=(Window,DedicatedWorker)]
+interface MediaSourceHandle {};

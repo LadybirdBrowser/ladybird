@@ -1,0 +1,14 @@
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const canvas = document.createElement("canvas");
+        const context = canvas.getContext("2d");
+        const existing_image_data = context.createImageData(75, 75);
+        const image_data = context.createImageData(existing_image_data);
+        if (image_data.width === 75 && image_data.height === 75) {
+            println('PASS')
+        } else {
+            println('FAIL')
+        }
+    });
+</script>

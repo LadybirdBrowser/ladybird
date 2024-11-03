@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2021, Andreas Kling <kling@serenityos.org>
+ * Copyright (c) 2018-2021, Andreas Kling <andreas@ladybird.org>
  * Copyright (c) 2023, Kenneth Myhra <kennethmyhra@serenityos.org>
  * Copyright (c) 2023, Luke Wilde <lukew@serenityos.org>
  *
@@ -11,7 +11,6 @@
 #include <AK/Time.h>
 #include <LibWeb/ARIA/Roles.h>
 #include <LibWeb/HTML/HTMLElement.h>
-#include <LibWeb/HTML/HTMLInputElement.h>
 #include <LibWeb/HTML/Navigable.h>
 
 namespace Web::HTML {
@@ -76,7 +75,7 @@ public:
 
     Vector<JS::NonnullGCPtr<DOM::Element>> get_submittable_elements();
 
-    JS::NonnullGCPtr<DOM::HTMLFormControlsCollection> elements() const;
+    JS::NonnullGCPtr<HTMLFormControlsCollection> elements() const;
     unsigned length() const;
 
     WebIDL::ExceptionOr<bool> check_validity();
@@ -89,7 +88,6 @@ public:
     bool constructing_entry_list() const { return m_constructing_entry_list; }
     void set_constructing_entry_list(bool value) { m_constructing_entry_list = value; }
 
-    StringView method() const;
     WebIDL::ExceptionOr<void> set_method(String const&);
 
     JS::NonnullGCPtr<DOM::DOMTokenList> rel_list();
@@ -138,7 +136,7 @@ private:
     };
     HashMap<FlyString, PastNameEntry> mutable m_past_names_map;
 
-    JS::GCPtr<DOM::HTMLFormControlsCollection> mutable m_elements;
+    JS::GCPtr<HTMLFormControlsCollection> mutable m_elements;
 
     bool m_constructing_entry_list { false };
 

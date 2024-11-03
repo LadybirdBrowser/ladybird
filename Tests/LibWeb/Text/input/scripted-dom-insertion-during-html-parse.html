@@ -2,5 +2,7 @@
 <script src="include.js"></script>
 <script>
     document.body.appendChild(document.createTextNode("PASS"));
-    test(() => {});
+    test(() => {
+        println(document.body.innerText);
+    });
 </script>

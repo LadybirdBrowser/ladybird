@@ -8,6 +8,7 @@
 
 #include <LibIPC/Forward.h>
 #include <LibURL/URL.h>
+#include <LibWeb/Forward.h>
 
 namespace Web::CSS {
 
@@ -19,7 +20,7 @@ struct StyleSheetIdentifier {
         UserAgent,
         UserStyle,
     } type;
-    Optional<i32> dom_element_unique_id {};
+    Optional<UniqueNodeID> dom_element_unique_id {};
     Optional<String> url {};
 };
 

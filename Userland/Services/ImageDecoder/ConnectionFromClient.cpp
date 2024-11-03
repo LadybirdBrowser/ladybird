@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020, Andreas Kling <kling@serenityos.org>
+ * Copyright (c) 2020, Andreas Kling <andreas@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -17,8 +17,8 @@ namespace ImageDecoder {
 static HashMap<int, RefPtr<ConnectionFromClient>> s_connections;
 static IDAllocator s_client_ids;
 
-ConnectionFromClient::ConnectionFromClient(NonnullOwnPtr<Core::LocalSocket> socket)
-    : IPC::ConnectionFromClient<ImageDecoderClientEndpoint, ImageDecoderServerEndpoint>(*this, move(socket), s_client_ids.allocate())
+ConnectionFromClient::ConnectionFromClient(IPC::Transport transport)
+    : IPC::ConnectionFromClient<ImageDecoderClientEndpoint, ImageDecoderServerEndpoint>(*this, move(transport), s_client_ids.allocate())
 {
     s_connections.set(client_id(), *this);
 }
@@ -55,7 +55,7 @@ ErrorOr<IPC::File> ConnectionFromClient::connect_new_client()
 
     auto client_socket = client_socket_or_error.release_value();
     // Note: A ref is stored in the static s_connections map
-    auto client = adopt_ref(*new ConnectionFromClient(move(client_socket)));
+    auto client = adopt_ref(*new ConnectionFromClient(IPC::Transport(move(client_socket))));
 
     return IPC::File::adopt_fd(socket_fds[1]);
 }
@@ -104,6 +104,8 @@ static ErrorOr<ConnectionFromClient::DecodeResult> decode_image_to_details(Core:
     result.is_animated = decoder->is_animated();
     result.loop_count = decoder->loop_count();
 
+    Vector<Optional<NonnullRefPtr<Gfx::Bitmap>>> bitmaps;
+
     if (auto maybe_metadata = decoder->metadata(); maybe_metadata.has_value() && is<Gfx::ExifMetadata>(*maybe_metadata)) {
         auto const& exif = static_cast<Gfx::ExifMetadata const&>(maybe_metadata.value());
         if (exif.x_resolution().has_value() && exif.y_resolution().has_value()) {
@@ -116,10 +118,12 @@ static ErrorOr<ConnectionFromClient::DecodeResult> decode_image_to_details(Core:
         }
     }
 
-    decode_image_to_bitmaps_and_durations_with_decoder(*decoder, move(ideal_size), result.bitmaps, result.durations);
+    decode_image_to_bitmaps_and_durations_with_decoder(*decoder, move(ideal_size), bitmaps, result.durations);
 
-    if (result.bitmaps.is_empty())
+    if (bitmaps.is_empty())
         return Error::from_string_literal("Could not decode image");
+
+    result.bitmaps = Gfx::BitmapSequence { bitmaps };
 
     return result;
 }

@@ -1,6 +1,8 @@
 <script src="../include.js"></script>
 <script>
     test(() => {
+        removeTestErrorHandler()
+
         window.onerror = (message, filename, lineno, colno, error) => {
             println(`message = ${message}`);
             println(`lineno = ${lineno}`);

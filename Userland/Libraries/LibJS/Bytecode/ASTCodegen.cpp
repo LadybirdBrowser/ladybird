@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2024, Andreas Kling <kling@serenityos.org>
+ * Copyright (c) 2021-2024, Andreas Kling <andreas@ladybird.org>
  * Copyright (c) 2021, Linus Groh <linusg@serenityos.org>
  * Copyright (c) 2021, Gunnar Beutner <gbeutner@serenityos.org>
  * Copyright (c) 2021, Marcin Gasperowicz <xnooga@gmail.com>
@@ -1712,9 +1712,11 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> CallExpression::generat
 
     Optional<ScopedOperand> original_callee;
     auto this_value = generator.add_constant(js_undefined());
+    Bytecode::Op::CallType call_type = Bytecode::Op::CallType::Call;
 
     if (is<NewExpression>(this)) {
         original_callee = TRY(m_callee->generate_bytecode(generator)).value();
+        call_type = Bytecode::Op::CallType::Construct;
     } else if (is<MemberExpression>(*m_callee)) {
         auto& member_expression = static_cast<MemberExpression const&>(*m_callee);
         auto base_and_value = TRY(get_base_and_value_from_member_expression(generator, member_expression));
@@ -1733,6 +1735,9 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> CallExpression::generat
         // NOTE: If the identifier refers to a known "local" or "global", we know it can't be
         //       a `with` binding, so we can skip this.
         auto& identifier = static_cast<Identifier const&>(*m_callee);
+        if (identifier.string() == "eval"sv) {
+            call_type = Bytecode::Op::CallType::DirectEval;
+        }
         if (identifier.is_local()) {
             auto local = generator.local(identifier.local_variable_index());
             if (!generator.is_local_initialized(local.operand().index())) {
@@ -1758,15 +1763,6 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> CallExpression::generat
     //       to avoid overwriting it while evaluating arguments.
     auto callee = generator.copy_if_needed_to_preserve_evaluation_order(original_callee.value());
 
-    Bytecode::Op::CallType call_type;
-    if (is<NewExpression>(*this)) {
-        call_type = Bytecode::Op::CallType::Construct;
-    } else if (m_callee->is_identifier() && static_cast<Identifier const&>(*m_callee).string() == "eval"sv) {
-        call_type = Bytecode::Op::CallType::DirectEval;
-    } else {
-        call_type = Bytecode::Op::CallType::Call;
-    }
-
     Optional<Bytecode::StringTableIndex> expression_string_index;
     if (auto expression_string = this->expression_string(); expression_string.has_value())
         expression_string_index = generator.intern_string(expression_string.release_value());
@@ -1784,15 +1780,41 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> CallExpression::generat
             auto argument_value = TRY(argument.value->generate_bytecode(generator)).value();
             argument_operands.append(generator.copy_if_needed_to_preserve_evaluation_order(argument_value));
         }
-        generator.emit_with_extra_operand_slots<Bytecode::Op::Call>(
-            argument_operands.size(),
-            call_type,
-            dst,
-            callee,
-            this_value,
-            argument_operands,
-            expression_string_index,
-            builtin);
+        if (builtin.has_value()) {
+            VERIFY(call_type == Op::CallType::Call);
+            generator.emit_with_extra_operand_slots<Bytecode::Op::CallBuiltin>(
+                argument_operands.size(),
+                dst,
+                callee,
+                this_value,
+                argument_operands,
+                builtin.value(),
+                expression_string_index);
+        } else if (call_type == Op::CallType::Construct) {
+            generator.emit_with_extra_operand_slots<Bytecode::Op::CallConstruct>(
+                argument_operands.size(),
+                dst,
+                callee,
+                this_value,
+                argument_operands,
+                expression_string_index);
+        } else if (call_type == Op::CallType::DirectEval) {
+            generator.emit_with_extra_operand_slots<Bytecode::Op::CallDirectEval>(
+                argument_operands.size(),
+                dst,
+                callee,
+                this_value,
+                argument_operands,
+                expression_string_index);
+        } else {
+            generator.emit_with_extra_operand_slots<Bytecode::Op::Call>(
+                argument_operands.size(),
+                dst,
+                callee,
+                this_value,
+                argument_operands,
+                expression_string_index);
+        }
     }
 
     return dst;
@@ -2330,7 +2352,8 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> IfStatement::generate_b
 
     auto& true_block = generator.make_block();
     auto& false_block = generator.make_block();
-    auto& end_block = generator.make_block();
+    // NOTE: if there is no 'else' block the end block is the same as the false block
+    auto& end_block = m_alternate ? generator.make_block() : false_block;
 
     Optional<ScopedOperand> completion;
     if (generator.must_propagate_completion()) {
@@ -2347,25 +2370,19 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> IfStatement::generate_b
     generator.switch_to_basic_block(true_block);
     auto consequent = TRY(m_consequent->generate_bytecode(generator, completion));
     if (!generator.is_current_block_terminated()) {
-        if (generator.must_propagate_completion()) {
-            if (consequent.has_value())
-                generator.emit<Bytecode::Op::Mov>(*completion, *consequent);
-        }
+        if (generator.must_propagate_completion() && consequent.has_value())
+            generator.emit<Bytecode::Op::Mov>(*completion, *consequent);
         generator.emit<Bytecode::Op::Jump>(Bytecode::Label { end_block });
     }
 
-    generator.switch_to_basic_block(false_block);
-
-    Optional<ScopedOperand> alternate;
     if (m_alternate) {
-        alternate = TRY(m_alternate->generate_bytecode(generator, completion));
-    }
-    if (!generator.is_current_block_terminated()) {
-        if (generator.must_propagate_completion()) {
-            if (alternate.has_value())
+        generator.switch_to_basic_block(false_block);
+        auto alternate = TRY(m_alternate->generate_bytecode(generator, completion));
+        if (!generator.is_current_block_terminated()) {
+            if (generator.must_propagate_completion() && alternate.has_value())
                 generator.emit<Bytecode::Op::Mov>(*completion, *alternate);
+            generator.emit<Bytecode::Op::Jump>(Bytecode::Label { end_block });
         }
-        generator.emit<Bytecode::Op::Jump>(Bytecode::Label { end_block });
     }
 
     generator.switch_to_basic_block(end_block);

@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<link rel="help" href="https://crbug.com/1097654" />
+<link rel="stylesheet" type="text/css" href="/fonts/ahem.css" />
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<style>
+#target {
+  font: 20px/1 Ahem;
+  display: flex;
+  flex-direction: column;
+  border: 2px solid black;
+  width: 100px;
+  height: 100px;
+}
+</style>
+<div id=target>X</div>
+<script>
+test(function(t) {
+  const target = document.getElementById('target');
+  assert_equals(target, document.elementFromPoint(30, 10));
+}, 'Hit-testing within an anonymous flex-item should return the flexbox as the hittest result.');
+</script>
+

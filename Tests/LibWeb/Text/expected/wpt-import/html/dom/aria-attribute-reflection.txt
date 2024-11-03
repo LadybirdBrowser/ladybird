@@ -1,0 +1,51 @@
+Summary
+
+Harness status: OK
+
+Rerun
+
+Found 41 tests
+
+41 Pass
+Details
+Result	Test Name	MessagePass	role attribute reflects.	
+Pass	aria-atomic attribute reflects.	
+Pass	aria-autocomplete attribute reflects.	
+Pass	aria-braillelabel attribute reflects.	
+Pass	aria-brailleroledescription attribute reflects.	
+Pass	aria-busy attribute reflects.	
+Pass	aria-checked attribute reflects.	
+Pass	aria-colcount attribute reflects.	
+Pass	aria-colindex attribute reflects.	
+Pass	aria-colspan attribute reflects.	
+Pass	aria-current attribute reflects.	
+Pass	aria-disabled attribute reflects.	
+Pass	aria-expanded attribute reflects.	
+Pass	aria-haspopup attribute reflects.	
+Pass	aria-hidden attribute reflects.	
+Pass	aria-invalid attribute reflects.	
+Pass	aria-keyshortcuts attribute reflects.	
+Pass	aria-label attribute reflects.	
+Pass	aria-level attribute reflects.	
+Pass	aria-live attribute reflects.	
+Pass	aria-modal attribute reflects.	
+Pass	aria-multiline attribute reflects.	
+Pass	aria-multiselectable attribute reflects.	
+Pass	aria-orientation attribute reflects.	
+Pass	aria-placeholder attribute reflects.	
+Pass	aria-posinset attribute reflects.	
+Pass	aria-pressed attribute reflects.	
+Pass	aria-readonly attribute reflects.	
+Pass	aria-relevant attribute reflects.	
+Pass	aria-required attribute reflects.	
+Pass	aria-roledescription attribute reflects.	
+Pass	aria-rowcount attribute reflects.	
+Pass	aria-rowindex attribute reflects.	
+Pass	aria-rowspan attribute reflects.	
+Pass	aria-selected attribute reflects.	
+Pass	aria-setsize attribute reflects.	
+Pass	aria-sort attribute reflects.	
+Pass	aria-valuemax attribute reflects.	
+Pass	aria-valuemin attribute reflects.	
+Pass	aria-valuenow attribute reflects.	
+Pass	aria-valuetext attribute reflects.	

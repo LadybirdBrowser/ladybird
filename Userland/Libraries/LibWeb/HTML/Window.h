@@ -16,7 +16,6 @@
 #include <LibWeb/Bindings/WindowGlobalMixin.h>
 #include <LibWeb/DOM/EventTarget.h>
 #include <LibWeb/Forward.h>
-#include <LibWeb/HTML/AnimationFrameCallbackDriver.h>
 #include <LibWeb/HTML/CrossOrigin/CrossOriginPropertyDescriptorMap.h>
 #include <LibWeb/HTML/GlobalEventHandlers.h>
 #include <LibWeb/HTML/MimeType.h>
@@ -24,6 +23,7 @@
 #include <LibWeb/HTML/Plugin.h>
 #include <LibWeb/HTML/Scripting/ImportMap.h>
 #include <LibWeb/HTML/ScrollOptions.h>
+#include <LibWeb/HTML/StructuredSerializeOptions.h>
 #include <LibWeb/HTML/WindowEventHandlers.h>
 #include <LibWeb/HTML/WindowOrWorkerGlobalScope.h>
 #include <LibWeb/RequestIdleCallback/IdleRequest.h>
@@ -100,8 +100,14 @@ public:
     bool import_maps_allowed() const { return m_import_maps_allowed; }
     void set_import_maps_allowed(bool import_maps_allowed) { m_import_maps_allowed = import_maps_allowed; }
 
-    WebIDL::ExceptionOr<JS::GCPtr<WindowProxy>> open_impl(StringView url, StringView target, StringView features);
-    bool has_animation_frame_callbacks() const { return m_animation_frame_callback_driver.has_callbacks(); }
+    WebIDL::ExceptionOr<JS::GCPtr<WindowProxy>> window_open_steps(StringView url, StringView target, StringView features);
+
+    struct OpenedWindow {
+        JS::GCPtr<Navigable> navigable;
+        TokenizedFeature::NoOpener no_opener { TokenizedFeature::NoOpener::No };
+        Navigable::WindowType window_type { Navigable::WindowType::ExistingOrNone };
+    };
+    WebIDL::ExceptionOr<OpenedWindow> window_open_steps_internal(StringView url, StringView target, StringView features);
 
     DOM::Event* current_event() { return m_current_event.ptr(); }
     DOM::Event const* current_event() const { return m_current_event.ptr(); }
@@ -115,8 +121,6 @@ public:
     WebIDL::ExceptionOr<JS::NonnullGCPtr<Storage>> session_storage();
 
     void start_an_idle_period();
-
-    AnimationFrameCallbackDriver& animation_frame_callback_driver() { return m_animation_frame_callback_driver; }
 
     // https://html.spec.whatwg.org/multipage/interaction.html#sticky-activation
     bool has_sticky_activation() const;
@@ -202,7 +206,10 @@ public:
     i32 outer_height() const;
     double device_pixel_ratio() const;
 
-    WebIDL::UnsignedLong request_animation_frame(WebIDL::CallbackType&);
+    AnimationFrameCallbackDriver& animation_frame_callback_driver();
+    bool has_animation_frame_callbacks();
+
+    WebIDL::UnsignedLong request_animation_frame(JS::NonnullGCPtr<WebIDL::CallbackType>);
     void cancel_animation_frame(WebIDL::UnsignedLong handle);
 
     u32 request_idle_callback(WebIDL::CallbackType&, RequestIdleCallback::IdleRequestOptions const&);
@@ -280,7 +287,7 @@ private:
     // Each Window object is associated with a unique instance of a CustomElementRegistry object, allocated when the Window object is created.
     JS::GCPtr<CustomElementRegistry> m_custom_element_registry;
 
-    AnimationFrameCallbackDriver m_animation_frame_callback_driver;
+    JS::GCPtr<AnimationFrameCallbackDriver> m_animation_frame_callback_driver;
 
     // https://w3c.github.io/requestidlecallback/#dfn-list-of-idle-request-callbacks
     Vector<NonnullRefPtr<IdleCallback>> m_idle_request_callbacks;

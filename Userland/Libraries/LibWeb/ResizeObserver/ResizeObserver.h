@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021, Andreas Kling <kling@serenityos.org>
+ * Copyright (c) 2021, Andreas Kling <andreas@ladybird.org>
  * Copyright (c) 2024, Aliaksandr Kalenik <kalenik.aliaksandr@gmail.com>
  *
  * SPDX-License-Identifier: BSD-2-Clause
@@ -31,7 +31,7 @@ public:
     void unobserve(DOM::Element& target);
     void disconnect();
 
-    void invoke_callback(Vector<JS::NonnullGCPtr<ResizeObserverEntry>>& entries) const;
+    void invoke_callback(ReadonlySpan<JS::NonnullGCPtr<ResizeObserverEntry>> entries) const;
 
     Vector<JS::NonnullGCPtr<ResizeObservation>>& observation_targets() { return m_observation_targets; }
     Vector<JS::NonnullGCPtr<ResizeObservation>>& active_targets() { return m_active_targets; }

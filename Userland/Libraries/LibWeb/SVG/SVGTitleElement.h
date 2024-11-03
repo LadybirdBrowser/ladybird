@@ -19,7 +19,7 @@ private:
 
     virtual void initialize(JS::Realm&) override;
 
-    virtual JS::GCPtr<Layout::Node> create_layout_node(NonnullRefPtr<CSS::StyleProperties>) override;
+    virtual JS::GCPtr<Layout::Node> create_layout_node(CSS::StyleProperties) override;
     virtual void children_changed() override;
 };
 

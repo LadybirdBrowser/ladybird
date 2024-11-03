@@ -16,8 +16,8 @@ interface HTMLButtonElement : HTMLElement {
     [CEReactions, Reflect] attribute boolean disabled;
     readonly attribute HTMLFormElement? form;
     [CEReactions] attribute USVString formAction;
-    [CEReactions, Reflect=formenctype] attribute DOMString formEnctype;
-    [CEReactions, Reflect=formmethod] attribute DOMString formMethod;
+    [CEReactions, Reflect=formenctype, Enumerated=FormEnctypeAttribute] attribute DOMString formEnctype;
+    [CEReactions, Reflect=formmethod, Enumerated=FormMethodAttribute] attribute DOMString formMethod;
     [CEReactions, Reflect=formnovalidate] attribute boolean formNoValidate;
     [CEReactions, Reflect=formtarget] attribute DOMString formTarget;
     [CEReactions, Reflect] attribute DOMString name;

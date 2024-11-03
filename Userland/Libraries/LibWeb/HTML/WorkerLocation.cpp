@@ -26,7 +26,7 @@ WebIDL::ExceptionOr<String> WorkerLocation::origin() const
 {
     auto& vm = realm().vm();
     // The origin getter steps are to return the serialization of this's WorkerGlobalScope object's url's origin.
-    return TRY_OR_THROW_OOM(vm, String::from_byte_string(m_global_scope->url().serialize_origin()));
+    return TRY_OR_THROW_OOM(vm, String::from_byte_string(m_global_scope->url().origin().serialize()));
 }
 
 // https://html.spec.whatwg.org/multipage/workers.html#dom-workerlocation-protocol
@@ -78,8 +78,6 @@ WebIDL::ExceptionOr<String> WorkerLocation::hostname() const
 // https://html.spec.whatwg.org/multipage/workers.html#dom-workerlocation-port
 WebIDL::ExceptionOr<String> WorkerLocation::port() const
 {
-    auto& vm = realm().vm();
-
     // The port getter steps are:
     // 1. Let port be this's WorkerGlobalScope object's url's port.
     auto const& port = m_global_scope->url().port();
@@ -88,7 +86,7 @@ WebIDL::ExceptionOr<String> WorkerLocation::port() const
     if (!port.has_value())
         return String {};
     // 3. Return port, serialized.
-    return TRY_OR_THROW_OOM(vm, String::number(port.value()));
+    return String::number(port.value());
 }
 
 // https://html.spec.whatwg.org/multipage/workers.html#dom-workerlocation-pathname

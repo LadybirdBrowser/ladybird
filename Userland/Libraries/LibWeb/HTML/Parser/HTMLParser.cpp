@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-2024, Andreas Kling <kling@serenityos.org>
+ * Copyright (c) 2020-2024, Andreas Kling <andreas@ladybird.org>
  * Copyright (c) 2021, Luke Wilde <lukew@serenityos.org>
  * Copyright (c) 2023-2024, Shannon Booth <shannon@serenityos.org>
  *
@@ -177,7 +177,7 @@ void HTMLParser::run(HTMLTokenizer::StopAtInsertionPoint stop_at_insertion_point
     for (;;) {
         // FIXME: Find a better way to say that we come from Document::close() and want to process EOF.
         if (!m_tokenizer.is_eof_inserted() && m_tokenizer.is_insertion_point_reached())
-            return;
+            break;
 
         auto optional_token = m_tokenizer.next_token(stop_at_insertion_point);
         if (!optional_token.has_value())
@@ -231,6 +231,8 @@ void HTMLParser::run(const URL::URL& url, HTMLTokenizer::StopAtInsertionPoint st
 // https://html.spec.whatwg.org/multipage/parsing.html#the-end
 void HTMLParser::the_end(JS::NonnullGCPtr<DOM::Document> document, JS::GCPtr<HTMLParser> parser)
 {
+    auto& heap = document->heap();
+
     // Once the user agent stops parsing the document, the user agent must run the following steps:
 
     // NOTE: This is a static method because the spec sometimes wants us to "act as if the user agent had stopped
@@ -281,10 +283,10 @@ void HTMLParser::the_end(JS::NonnullGCPtr<DOM::Document> document, JS::GCPtr<HTM
     while (!document->scripts_to_execute_when_parsing_has_finished().is_empty()) {
         // 1. Spin the event loop until the first script in the list of scripts that will execute when the document has finished parsing
         //    has its "ready to be parser-executed" flag set and the parser's Document has no style sheet that is blocking scripts.
-        main_thread_event_loop().spin_until([&] {
+        main_thread_event_loop().spin_until(JS::create_heap_function(heap, [&] {
             return document->scripts_to_execute_when_parsing_has_finished().first()->is_ready_to_be_parser_executed()
                 && !document->has_a_style_sheet_that_is_blocking_scripts();
-        });
+        }));
 
         // 2. Execute the first script in the list of scripts that will execute when the document has finished parsing.
         document->scripts_to_execute_when_parsing_has_finished().first()->execute_script();
@@ -294,7 +296,7 @@ void HTMLParser::the_end(JS::NonnullGCPtr<DOM::Document> document, JS::GCPtr<HTM
     }
 
     // 6. Queue a global task on the DOM manipulation task source given the Document's relevant global object to run the following substeps:
-    queue_global_task(HTML::Task::Source::DOMManipulation, *document, JS::create_heap_function(document->heap(), [document = document] {
+    queue_global_task(HTML::Task::Source::DOMManipulation, *document, JS::create_heap_function(heap, [document = document] {
         // 1. Set the Document's load timing info's DOM content loaded event start time to the current high resolution time given the Document's relevant global object.
         document->load_timing_info().dom_content_loaded_event_start_time = HighResolutionTime::current_high_resolution_time(relevant_global_object(*document));
 
@@ -312,14 +314,14 @@ void HTMLParser::the_end(JS::NonnullGCPtr<DOM::Document> document, JS::GCPtr<HTM
     }));
 
     // 7. Spin the event loop until the set of scripts that will execute as soon as possible and the list of scripts that will execute in order as soon as possible are empty.
-    main_thread_event_loop().spin_until([&] {
+    main_thread_event_loop().spin_until(JS::create_heap_function(heap, [&] {
         return document->scripts_to_execute_as_soon_as_possible().is_empty();
-    });
+    }));
 
     // 8. Spin the event loop until there is nothing that delays the load event in the Document.
-    main_thread_event_loop().spin_until([&] {
+    main_thread_event_loop().spin_until(JS::create_heap_function(heap, [&] {
         return !document->anything_is_delaying_the_load_event();
-    });
+    }));
 
     // 9. Queue a global task on the DOM manipulation task source given the Document's relevant global object to run the following steps:
     queue_global_task(HTML::Task::Source::DOMManipulation, *document, JS::create_heap_function(document->heap(), [document = document] {
@@ -2940,9 +2942,9 @@ void HTMLParser::handle_text(HTMLToken& token)
                     if (m_document->has_a_style_sheet_that_is_blocking_scripts() || the_script->is_ready_to_be_parser_executed() == false) {
                         // spin the event loop until the parser's Document has no style sheet that is blocking scripts
                         // and the script's ready to be parser-executed becomes true.
-                        main_thread_event_loop().spin_until([&] {
+                        main_thread_event_loop().spin_until(JS::create_heap_function(heap(), [&] {
                             return !m_document->has_a_style_sheet_that_is_blocking_scripts() && the_script->is_ready_to_be_parser_executed();
-                        });
+                        }));
                     }
 
                     // 6. If this parser has been aborted in the meantime, return.
@@ -4373,11 +4375,11 @@ JS::NonnullGCPtr<HTMLParser> HTMLParser::create_for_scripting(DOM::Document& doc
     return document.heap().allocate_without_realm<HTMLParser>(document);
 }
 
-JS::NonnullGCPtr<HTMLParser> HTMLParser::create_with_uncertain_encoding(DOM::Document& document, ByteBuffer const& input)
+JS::NonnullGCPtr<HTMLParser> HTMLParser::create_with_uncertain_encoding(DOM::Document& document, ByteBuffer const& input, Optional<MimeSniff::MimeType> maybe_mime_type)
 {
     if (document.has_encoding())
         return document.heap().allocate_without_realm<HTMLParser>(document, input, document.encoding().value().to_byte_string());
-    auto encoding = run_encoding_sniffing_algorithm(document, input);
+    auto encoding = run_encoding_sniffing_algorithm(document, input, maybe_mime_type);
     dbgln_if(HTML_PARSER_DEBUG, "The encoding sniffing algorithm returned encoding '{}'", encoding);
     return document.heap().allocate_without_realm<HTMLParser>(document, input, encoding);
 }
@@ -4767,23 +4769,22 @@ RefPtr<CSS::CSSStyleValue> parse_nonzero_dimension_value(StringView string)
 }
 
 // https://html.spec.whatwg.org/multipage/common-microsyntaxes.html#rules-for-parsing-a-legacy-colour-value
-Optional<Color> parse_legacy_color_value(StringView string)
+Optional<Color> parse_legacy_color_value(StringView string_view)
 {
-    // 1. Let input be the string being parsed
-    ByteString input = MUST(ByteString::from_utf8(string));
-
-    // 2. If input is the empty string, then return an error.
-    if (input.is_empty())
+    // 1. If input is the empty string, then return failure.
+    if (string_view.is_empty())
         return {};
 
-    // 3. Strip leading and trailing ASCII whitespace from input.
+    ByteString input = string_view;
+
+    // 2. Strip leading and trailing ASCII whitespace from input.
     input = input.trim(Infra::ASCII_WHITESPACE);
 
-    // 4. If input is an ASCII case-insensitive match for the string "transparent", then return an error.
+    // 3. If input is an ASCII case-insensitive match for "transparent", then return failure.
     if (Infra::is_ascii_case_insensitive_match(input, "transparent"sv))
         return {};
 
-    // 5. If input is an ASCII case-insensitive match for one of the named colors, then return the simple color corresponding to that keyword. [CSSCOLOR]
+    // 4. If input is an ASCII case-insensitive match for one of the named colors, then return the CSS color corresponding to that keyword. [CSSCOLOR]
     if (auto const color = Color::from_named_css_color_string(input); color.has_value())
         return color;
 
@@ -4795,9 +4796,9 @@ Optional<Color> parse_legacy_color_value(StringView string)
         return nibble - 'A' + 10;
     };
 
-    // 6. If input's code point length is four, and the first character in input is U+0023 (#), and the last three characters of input are all ASCII hex digits, then:
+    // 5. If input's code point length is four, and the first character in input is U+0023 (#), and the last three characters of input are all ASCII hex digits, then:
     if (input.length() == 4 && input[0] == '#' && is_ascii_hex_digit(input[1]) && is_ascii_hex_digit(input[2]) && is_ascii_hex_digit(input[3])) {
-        // 1. Let result be a simple color.
+        // 1. Let result be a CSS color.
         Color result;
         result.set_alpha(0xFF);
 
@@ -4814,7 +4815,7 @@ Optional<Color> parse_legacy_color_value(StringView string)
         return result;
     }
 
-    // 7. Replace any code points greater than U+FFFF in input (i.e., any characters that are not in the basic multilingual plane) with the two-character string "00".
+    // 6. Replace any code points greater than U+FFFF in input (i.e., any characters that are not in the basic multilingual plane) with "00".
     auto replace_non_basic_multilingual_code_points = [](StringView string) -> ByteString {
         StringBuilder builder;
         for (auto code_point : Utf8View { string }) {
@@ -4827,15 +4828,15 @@ Optional<Color> parse_legacy_color_value(StringView string)
     };
     input = replace_non_basic_multilingual_code_points(input);
 
-    // 8. If input's code point length is greater than 128, truncate input, leaving only the first 128 characters.
+    // 7. If input's code point length is greater than 128, truncate input, leaving only the first 128 characters.
     if (input.length() > 128)
         input = input.substring(0, 128);
 
-    // 9. If the first character in input is a U+0023 NUMBER SIGN character (#), remove it.
+    // 8. If the first character in input is U+0023 (#), then remove it.
     if (input[0] == '#')
         input = input.substring(1);
 
-    // 10. Replace any character in input that is not an ASCII hex digit with the character U+0030 DIGIT ZERO (0).
+    // 9. Replace any character in input that is not an ASCII hex digit with U+0030 (0).
     auto replace_non_ascii_hex = [](StringView string) -> ByteString {
         StringBuilder builder;
         for (auto code_point : Utf8View { string }) {
@@ -4848,20 +4849,20 @@ Optional<Color> parse_legacy_color_value(StringView string)
     };
     input = replace_non_ascii_hex(input);
 
-    // 11. While input's code point length is zero or not a multiple of three, append a U+0030 DIGIT ZERO (0) character to input.
+    // 10. While input's code point length is zero or not a multiple of three, append U+0030 (0) to input.
     StringBuilder builder;
     builder.append(input);
     while (builder.length() == 0 || (builder.length() % 3 != 0))
         builder.append_code_point('0');
     input = builder.to_byte_string();
 
-    // 12. Split input into three strings of equal code point length, to obtain three components. Let length be the code point length that all of those components have (one third the code point length of input).
+    // 11. Split input into three strings of equal code point length, to obtain three components. Let length be the code point length that all of those components have (one third the code point length of input).
     auto length = input.length() / 3;
     auto first_component = input.substring_view(0, length);
     auto second_component = input.substring_view(length, length);
     auto third_component = input.substring_view(length * 2, length);
 
-    // 13. If length is greater than 8, then remove the leading length-8 characters in each component, and let length be 8.
+    // 12. If length is greater than 8, then remove the leading length-8 characters in each component, and let length be 8.
     if (length > 8) {
         first_component = first_component.substring_view(length - 8);
         second_component = second_component.substring_view(length - 8);
@@ -4869,7 +4870,7 @@ Optional<Color> parse_legacy_color_value(StringView string)
         length = 8;
     }
 
-    // 14. While length is greater than two and the first character in each component is a U+0030 DIGIT ZERO (0) character, remove that character and reduce length by one.
+    // 13. While length is greater than two and the first character in each component is U+0030 (0), remove that character and reduce length by one.
     while (length > 2 && first_component[0] == '0' && second_component[0] == '0' && third_component[0] == '0') {
         --length;
         first_component = first_component.substring_view(1);
@@ -4877,7 +4878,7 @@ Optional<Color> parse_legacy_color_value(StringView string)
         third_component = third_component.substring_view(1);
     }
 
-    // 15. If length is still greater than two, truncate each component, leaving only the first two characters in each.
+    // 14. If length is still greater than two, truncate each component, leaving only the first two characters in each.
     if (length > 2) {
         first_component = first_component.substring_view(0, 2);
         second_component = second_component.substring_view(0, 2);
@@ -4893,20 +4894,20 @@ Optional<Color> parse_legacy_color_value(StringView string)
         return nib1 << 4 | nib2;
     };
 
-    // 16. Let result be a simple color.
+    // 15. Let result be a CSS color.
     Color result;
     result.set_alpha(0xFF);
 
-    // 17. Interpret the first component as a hexadecimal number; let the red component of result be the resulting number.
+    // 16. Interpret the first component as a hexadecimal number; let the red component of result be the resulting number.
     result.set_red(to_hex(first_component));
 
-    // 18. Interpret the second component as a hexadecimal number; let the green component of result be the resulting number.
+    // 17. Interpret the second component as a hexadecimal number; let the green component of result be the resulting number.
     result.set_green(to_hex(second_component));
 
-    // 19. Interpret the third component as a hexadecimal number; let the blue component of result be the resulting number.
+    // 18. Interpret the third component as a hexadecimal number; let the blue component of result be the resulting number.
     result.set_blue(to_hex(third_component));
 
-    // 20. Return result.
+    // 19. Return result.
     return result;
 }
 

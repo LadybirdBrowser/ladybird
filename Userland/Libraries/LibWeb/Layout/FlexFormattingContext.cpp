@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2024, Andreas Kling <kling@serenityos.org>
+ * Copyright (c) 2021-2024, Andreas Kling <andreas@ladybird.org>
  * Copyright (c) 2021, Tobias Christiansen <tobyase@serenityos.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
@@ -587,6 +587,13 @@ void FlexFormattingContext::determine_flex_base_size_and_hypothetical_main_size(
             return get_pixel_height(child_box, size);
         }
 
+        // AD-HOC: If we're sizing the flex container under a min-content constraint in the main axis,
+        //         flex items resolve percentages in the main axis to 0.
+        if (m_available_space_for_items->main.is_min_content()
+            && computed_main_size(item.box).contains_percentage()) {
+            return CSSPixels(0);
+        }
+
         // B. If the flex item has ...
         //    - an intrinsic aspect ratio,
         //    - a used flex basis of content, and
@@ -821,9 +828,6 @@ void FlexFormattingContext::collect_flex_items_into_flex_lines()
         line_main_size += main_gap();
     }
     m_flex_lines.append(move(line));
-
-    if (flex_container().computed_values().flex_wrap() == CSS::FlexWrap::WrapReverse)
-        m_flex_lines.reverse();
 }
 
 // https://drafts.csswg.org/css-flexbox-1/#resolve-flexible-lengths
@@ -1510,13 +1514,17 @@ void FlexFormattingContext::align_all_flex_items_along_the_cross_axis()
     }
 }
 
-// https://www.w3.org/TR/css-flexbox-1/#algo-line-align
+// https://drafts.csswg.org/css-flexbox-1/#algo-line-align
 void FlexFormattingContext::align_all_flex_lines()
 {
+    // Align all flex lines per align-content.
+
     if (m_flex_lines.is_empty())
         return;
 
-    // FIXME: Support reverse
+    bool wrap_reverse = flex_container().computed_values().flex_wrap() == CSS::FlexWrap::WrapReverse;
+    bool place_items_backwards = false;
+    bool iterate_lines_backwards = false;
 
     CSSPixels cross_size_of_flex_container = inner_cross_size(m_flex_container_state);
 
@@ -1527,74 +1535,117 @@ void FlexFormattingContext::align_all_flex_lines()
         for (auto& item : flex_line.items) {
             item.cross_offset += center_of_line;
         }
-    } else {
+        return;
+    }
 
-        CSSPixels sum_of_flex_line_cross_sizes = 0;
-        for (auto& line : m_flex_lines)
-            sum_of_flex_line_cross_sizes += line.cross_size;
+    CSSPixels sum_of_flex_line_cross_sizes = 0;
+    for (auto& line : m_flex_lines)
+        sum_of_flex_line_cross_sizes += line.cross_size;
 
-        // CSS-FLEXBOX-2: Account for gap between flex lines.
-        sum_of_flex_line_cross_sizes += cross_gap() * (m_flex_lines.size() - 1);
+    // CSS-FLEXBOX-2: Account for gap between flex lines.
+    sum_of_flex_line_cross_sizes += cross_gap() * (m_flex_lines.size() - 1);
 
-        CSSPixels start_of_current_line = 0;
-        CSSPixels gap_size = 0;
-        switch (flex_container().computed_values().align_content()) {
-        case CSS::AlignContent::FlexStart:
+    CSSPixels start_of_current_line = 0;
+    CSSPixels gap_size = 0;
+    switch (flex_container().computed_values().align_content()) {
+    case CSS::AlignContent::Start:
+        start_of_current_line = 0;
+        iterate_lines_backwards = wrap_reverse;
+        break;
+    case CSS::AlignContent::End:
+        start_of_current_line = cross_size_of_flex_container;
+        place_items_backwards = true;
+        iterate_lines_backwards = !wrap_reverse;
+        break;
+    case CSS::AlignContent::FlexStart:
+        if (wrap_reverse) {
+            start_of_current_line = cross_size_of_flex_container;
+            place_items_backwards = true;
+        } else {
             start_of_current_line = 0;
-            break;
-        case CSS::AlignContent::FlexEnd:
-            start_of_current_line = cross_size_of_flex_container - sum_of_flex_line_cross_sizes;
-            break;
-        case CSS::AlignContent::Center:
+        }
+        break;
+    case CSS::AlignContent::FlexEnd:
+        iterate_lines_backwards = true;
+        if (wrap_reverse) {
+            start_of_current_line = 0;
+        } else {
+            start_of_current_line = cross_size_of_flex_container;
+            place_items_backwards = true;
+        }
+        break;
+    case CSS::AlignContent::Center:
+        iterate_lines_backwards = wrap_reverse;
+        start_of_current_line = (cross_size_of_flex_container / 2) - (sum_of_flex_line_cross_sizes / 2);
+        break;
+    case CSS::AlignContent::SpaceBetween: {
+        if (wrap_reverse) {
+            start_of_current_line = cross_size_of_flex_container;
+            place_items_backwards = true;
+        } else {
+            start_of_current_line = 0;
+        }
+
+        auto leftover_free_space = cross_size_of_flex_container - sum_of_flex_line_cross_sizes;
+        auto leftover_flex_lines_size = m_flex_lines.size();
+        if (leftover_free_space >= 0 && leftover_flex_lines_size > 1) {
+            int gap_count = leftover_flex_lines_size - 1;
+            gap_size = leftover_free_space / gap_count;
+        }
+        break;
+    }
+    case CSS::AlignContent::SpaceAround: {
+        iterate_lines_backwards = wrap_reverse;
+        auto leftover_free_space = cross_size_of_flex_container - sum_of_flex_line_cross_sizes;
+        if (leftover_free_space < 0) {
+            // If the leftover free-space is negative this value is identical to center.
             start_of_current_line = (cross_size_of_flex_container / 2) - (sum_of_flex_line_cross_sizes / 2);
             break;
-        case CSS::AlignContent::SpaceBetween: {
+        }
+
+        gap_size = leftover_free_space / m_flex_lines.size();
+
+        // The spacing between the first/last lines and the flex container edges is half the size of the spacing between flex lines.
+        start_of_current_line = gap_size / 2;
+        break;
+    }
+    case CSS::AlignContent::SpaceEvenly: {
+        iterate_lines_backwards = wrap_reverse;
+        auto leftover_free_space = cross_size_of_flex_container - sum_of_flex_line_cross_sizes;
+        if (leftover_free_space < 0) {
+            // If the leftover free-space is negative this value is identical to center.
+            start_of_current_line = (cross_size_of_flex_container / 2) - (sum_of_flex_line_cross_sizes / 2);
+            break;
+        }
+
+        gap_size = leftover_free_space / (m_flex_lines.size() + 1);
+
+        // The spacing between the first/last lines and the flex container edges is the size of the spacing between flex lines.
+        start_of_current_line = gap_size;
+        break;
+    }
+
+    case CSS::AlignContent::Normal:
+    case CSS::AlignContent::Stretch:
+        if (wrap_reverse) {
+            start_of_current_line = cross_size_of_flex_container;
+            place_items_backwards = true;
+        } else {
             start_of_current_line = 0;
+        }
+        break;
+    }
 
-            auto leftover_free_space = cross_size_of_flex_container - sum_of_flex_line_cross_sizes;
-            auto leftover_flex_lines_size = m_flex_lines.size();
-            if (leftover_free_space >= 0 && leftover_flex_lines_size > 1) {
-                int gap_count = leftover_flex_lines_size - 1;
-                gap_size = leftover_free_space / gap_count;
+    auto place_items = [&](FlexLine& flex_line) {
+        if (place_items_backwards) {
+            CSSPixels center_of_current_line = start_of_current_line - (flex_line.cross_size / 2);
+            for (auto& item : flex_line.items) {
+                item.cross_offset += center_of_current_line;
             }
-            break;
-        }
-        case CSS::AlignContent::SpaceAround: {
-            auto leftover_free_space = cross_size_of_flex_container - sum_of_flex_line_cross_sizes;
-            if (leftover_free_space < 0) {
-                // If the leftover free-space is negative this value is identical to center.
-                start_of_current_line = (cross_size_of_flex_container / 2) - (sum_of_flex_line_cross_sizes / 2);
-                break;
-            }
-
-            gap_size = leftover_free_space / m_flex_lines.size();
-
-            // The spacing between the first/last lines and the flex container edges is half the size of the spacing between flex lines.
-            start_of_current_line = gap_size / 2;
-            break;
-        }
-        case CSS::AlignContent::SpaceEvenly: {
-            auto leftover_free_space = cross_size_of_flex_container - sum_of_flex_line_cross_sizes;
-            if (leftover_free_space < 0) {
-                // If the leftover free-space is negative this value is identical to center.
-                start_of_current_line = (cross_size_of_flex_container / 2) - (sum_of_flex_line_cross_sizes / 2);
-                break;
-            }
-
-            gap_size = leftover_free_space / (m_flex_lines.size() + 1);
-
-            // The spacing between the first/last lines and the flex container edges is the size of the spacing between flex lines.
-            start_of_current_line = gap_size;
-            break;
-        }
-
-        case CSS::AlignContent::Normal:
-        case CSS::AlignContent::Stretch:
-            start_of_current_line = 0;
-            break;
-        }
-
-        for (auto& flex_line : m_flex_lines) {
+            start_of_current_line -= flex_line.cross_size + gap_size;
+            // CSS-FLEXBOX-2: Account for gap between flex lines.
+            start_of_current_line -= cross_gap();
+        } else {
             CSSPixels center_of_current_line = start_of_current_line + (flex_line.cross_size / 2);
             for (auto& item : flex_line.items) {
                 item.cross_offset += center_of_current_line;
@@ -1602,6 +1653,16 @@ void FlexFormattingContext::align_all_flex_lines()
             start_of_current_line += flex_line.cross_size + gap_size;
             // CSS-FLEXBOX-2: Account for gap between flex lines.
             start_of_current_line += cross_gap();
+        }
+    };
+
+    if (iterate_lines_backwards) {
+        for (auto& flex_line : m_flex_lines.in_reverse()) {
+            place_items(flex_line);
+        }
+    } else {
+        for (auto& flex_line : m_flex_lines) {
+            place_items(flex_line);
         }
     }
 }

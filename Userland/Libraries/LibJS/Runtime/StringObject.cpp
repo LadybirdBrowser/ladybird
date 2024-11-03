@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020, Andreas Kling <kling@serenityos.org>
+ * Copyright (c) 2020, Andreas Kling <andreas@ladybird.org>
  * Copyright (c) 2021-2023, Linus Groh <linusg@serenityos.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
@@ -113,7 +113,7 @@ ThrowCompletionOr<Optional<PropertyDescriptor>> StringObject::internal_get_own_p
 }
 
 // 10.4.3.2 [[DefineOwnProperty]] ( P, Desc ), https://tc39.es/ecma262/#sec-string-exotic-objects-defineownproperty-p-desc
-ThrowCompletionOr<bool> StringObject::internal_define_own_property(PropertyKey const& property_key, PropertyDescriptor const& property_descriptor)
+ThrowCompletionOr<bool> StringObject::internal_define_own_property(PropertyKey const& property_key, PropertyDescriptor const& property_descriptor, Optional<PropertyDescriptor>* precomputed_get_own_property)
 {
     VERIFY(property_key.is_valid());
 
@@ -130,7 +130,7 @@ ThrowCompletionOr<bool> StringObject::internal_define_own_property(PropertyKey c
     }
 
     // 3. Return ! OrdinaryDefineOwnProperty(S, P, Desc).
-    return Object::internal_define_own_property(property_key, property_descriptor);
+    return Object::internal_define_own_property(property_key, property_descriptor, precomputed_get_own_property);
 }
 
 // 10.4.3.3 [[OwnPropertyKeys]] ( ), https://tc39.es/ecma262/#sec-string-exotic-objects-ownpropertykeys
@@ -152,14 +152,14 @@ ThrowCompletionOr<MarkedVector<Value>> StringObject::internal_own_property_keys(
     // 5. For each integer i starting with 0 such that i < len, in ascending order, do
     for (size_t i = 0; i < length; ++i) {
         // a. Add ! ToString(𝔽(i)) as the last element of keys.
-        keys.append(PrimitiveString::create(vm, MUST(String::number(i))));
+        keys.append(PrimitiveString::create(vm, String::number(i)));
     }
 
     // 6. For each own property key P of O such that P is an array index and ! ToIntegerOrInfinity(P) ≥ len, in ascending numeric index order, do
     for (auto& entry : indexed_properties()) {
         if (entry.index() >= length) {
             // a. Add P as the last element of keys.
-            keys.append(PrimitiveString::create(vm, MUST(String::number(entry.index()))));
+            keys.append(PrimitiveString::create(vm, String::number(entry.index())));
         }
     }
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020, Andreas Kling <kling@serenityos.org>
+ * Copyright (c) 2020, Andreas Kling <andreas@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -120,9 +120,11 @@ void Resource::did_load(Badge<ResourceLoader>, ReadonlyBytes data, HTTP::HeaderM
     });
 }
 
-void Resource::did_fail(Badge<ResourceLoader>, ByteString const& error, Optional<u32> status_code)
+void Resource::did_fail(Badge<ResourceLoader>, ByteString const& error, ReadonlyBytes data, HTTP::HeaderMap const& headers, Optional<u32> status_code)
 {
     m_error = error;
+    m_encoded_data = ByteBuffer::copy(data).release_value_but_fixme_should_propagate_errors();
+    m_response_headers = headers;
     m_status_code = move(status_code);
     m_state = State::Failed;
 
@@ -157,7 +159,7 @@ void ResourceClient::set_resource(Resource* resource)
         // This ensures that these callbacks always happen in a consistent way, instead of being invoked
         // synchronously in some cases, and asynchronously in others.
         if (resource->is_loaded() || resource->is_failed()) {
-            Platform::EventLoopPlugin::the().deferred_invoke([weak_this = make_weak_ptr(), strong_resource = NonnullRefPtr { *m_resource }] {
+            Platform::EventLoopPlugin::the().deferred_invoke(JS::create_heap_function(ResourceLoader::the().heap(), [weak_this = make_weak_ptr(), strong_resource = NonnullRefPtr { *m_resource }] {
                 if (!weak_this)
                     return;
 
@@ -175,7 +177,7 @@ void ResourceClient::set_resource(Resource* resource)
                     weak_this->resource_did_fail();
                     return;
                 }
-            });
+            }));
         }
     }
 }

@@ -1,0 +1,18 @@
+Summary
+
+Harness status: OK
+
+Rerun
+
+Found 8 tests
+
+8 Pass
+Details
+Result	Test Name	MessagePass	e.style['flex-basis'] = "1px" should set the property value	
+Pass	e.style['flex-basis'] = "calc(2em + 3ex)" should set the property value	
+Pass	e.style['flex-basis'] = "400%" should set the property value	
+Pass	e.style['flex-basis'] = "auto" should set the property value	
+Pass	e.style['flex-basis'] = "fit-content" should set the property value	
+Pass	e.style['flex-basis'] = "min-content" should set the property value	
+Pass	e.style['flex-basis'] = "max-content" should set the property value	
+Pass	e.style['flex-basis'] = "content" should set the property value	

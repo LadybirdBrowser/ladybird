@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020, Andreas Kling <kling@serenityos.org>
+ * Copyright (c) 2020, Andreas Kling <andreas@ladybird.org>
  * Copyright (c) 2020-2022, Linus Groh <linusg@serenityos.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
@@ -45,25 +45,7 @@ ThrowCompletionOr<NonnullGCPtr<Array>> Array::create(Realm& realm, u64 length, O
 }
 
 // 7.3.18 CreateArrayFromList ( elements ), https://tc39.es/ecma262/#sec-createarrayfromlist
-NonnullGCPtr<Array> Array::create_from(Realm& realm, Vector<Value> const& elements)
-{
-    // 1. Let array be ! ArrayCreate(0).
-    auto array = MUST(Array::create(realm, 0));
-
-    // 2. Let n be 0.
-    // 3. For each element e of elements, do
-    for (u32 n = 0; n < elements.size(); ++n) {
-        // a. Perform ! CreateDataPropertyOrThrow(array, ! ToString(𝔽(n)), e).
-        MUST(array->create_data_property_or_throw(n, elements[n]));
-
-        // b. Set n to n + 1.
-    }
-
-    // 4. Return array.
-    return array;
-}
-
-NonnullGCPtr<Array> Array::create_from(Realm& realm, ReadonlySpan<Value> const& elements)
+NonnullGCPtr<Array> Array::create_from(Realm& realm, ReadonlySpan<Value> elements)
 {
     // 1. Let array be ! ArrayCreate(0).
     auto array = MUST(Array::create(realm, 0));
@@ -295,7 +277,7 @@ ThrowCompletionOr<Optional<PropertyDescriptor>> Array::internal_get_own_property
 }
 
 // 10.4.2.1 [[DefineOwnProperty]] ( P, Desc ), https://tc39.es/ecma262/#sec-array-exotic-objects-defineownproperty-p-desc
-ThrowCompletionOr<bool> Array::internal_define_own_property(PropertyKey const& property_key, PropertyDescriptor const& property_descriptor)
+ThrowCompletionOr<bool> Array::internal_define_own_property(PropertyKey const& property_key, PropertyDescriptor const& property_descriptor, Optional<PropertyDescriptor>* precomputed_get_own_property)
 {
     auto& vm = this->vm();
 
@@ -321,7 +303,7 @@ ThrowCompletionOr<bool> Array::internal_define_own_property(PropertyKey const& p
             return false;
 
         // h. Let succeeded be ! OrdinaryDefineOwnProperty(A, P, Desc).
-        auto succeeded = MUST(Object::internal_define_own_property(property_key, property_descriptor));
+        auto succeeded = MUST(Object::internal_define_own_property(property_key, property_descriptor, precomputed_get_own_property));
 
         // i. If succeeded is false, return false.
         if (!succeeded)
@@ -337,7 +319,7 @@ ThrowCompletionOr<bool> Array::internal_define_own_property(PropertyKey const& p
     }
 
     // 3. Return ? OrdinaryDefineOwnProperty(A, P, Desc).
-    return Object::internal_define_own_property(property_key, property_descriptor);
+    return Object::internal_define_own_property(property_key, property_descriptor, precomputed_get_own_property);
 }
 
 // NON-STANDARD: Used to reject deletes to ephemeral (non-configurable) length property

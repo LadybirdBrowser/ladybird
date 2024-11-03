@@ -49,7 +49,7 @@ void Body::visit_edges(Cell::Visitor& visitor)
 // https://fetch.spec.whatwg.org/#concept-body-clone
 JS::NonnullGCPtr<Body> Body::clone(JS::Realm& realm)
 {
-    HTML::TemporaryExecutionContext execution_context { Bindings::host_defined_environment_settings_object(realm), HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
+    HTML::TemporaryExecutionContext execution_context { realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
 
     // To clone a body body, run these steps:
     // 1. Let « out1, out2 » be the result of teeing body’s stream.
@@ -93,21 +93,21 @@ void Body::fully_read(JS::Realm& realm, Web::Fetch::Infrastructure::Body::Proces
     m_source.visit(
         [&](ByteBuffer const& byte_buffer) {
             if (auto result = success_steps(byte_buffer); result.is_error())
-                error_steps(WebIDL::UnknownError::create(realm, "Out-of-memory"_fly_string));
+                error_steps(WebIDL::UnknownError::create(realm, "Out-of-memory"_string));
         },
         [&](JS::Handle<FileAPI::Blob> const& blob) {
             if (auto result = success_steps(blob->raw_bytes()); result.is_error())
-                error_steps(WebIDL::UnknownError::create(realm, "Out-of-memory"_fly_string));
+                error_steps(WebIDL::UnknownError::create(realm, "Out-of-memory"_string));
         },
         [&](Empty) {
-            error_steps(WebIDL::DOMException::create(realm, "DOMException"_fly_string, "Reading from Blob, FormData or null source is not yet implemented"_fly_string));
+            error_steps(WebIDL::DOMException::create(realm, "DOMException"_fly_string, "Reading from Blob, FormData or null source is not yet implemented"_string));
         });
 }
 
 // https://fetch.spec.whatwg.org/#body-incrementally-read
 void Body::incrementally_read(ProcessBodyChunkCallback process_body_chunk, ProcessEndOfBodyCallback process_end_of_body, ProcessBodyErrorCallback process_body_error, TaskDestination task_destination)
 {
-    HTML::TemporaryExecutionContext const execution_context { Bindings::host_defined_environment_settings_object(m_stream->realm()), HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
+    HTML::TemporaryExecutionContext const execution_context { m_stream->realm(), HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
 
     VERIFY(task_destination.has<JS::NonnullGCPtr<JS::Object>>());
     // FIXME: 1. If taskDestination is null, then set taskDestination to the result of starting a new parallel queue.

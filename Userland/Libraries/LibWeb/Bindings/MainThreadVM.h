@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2022, Andreas Kling <kling@serenityos.org>
+ * Copyright (c) 2021-2022, Andreas Kling <andreas@ladybird.org>
  * Copyright (c) 2021-2023, Luke Wilde <lukew@serenityos.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
@@ -38,7 +38,7 @@ struct CustomElementReactionsStack {
 struct WebEngineCustomData final : public JS::VM::CustomData {
     virtual ~WebEngineCustomData() override = default;
 
-    virtual void spin_event_loop_until(JS::SafeFunction<bool()> goal_condition) override;
+    virtual void spin_event_loop_until(JS::Handle<JS::HeapFunction<bool()>> goal_condition) override;
 
     JS::Handle<HTML::EventLoop> event_loop;
 
@@ -66,15 +66,15 @@ struct WebEngineCustomData final : public JS::VM::CustomData {
 };
 
 struct WebEngineCustomJobCallbackData final : public JS::JobCallback::CustomData {
-    WebEngineCustomJobCallbackData(HTML::EnvironmentSettingsObject& incumbent_settings, OwnPtr<JS::ExecutionContext> active_script_context)
-        : incumbent_settings(incumbent_settings)
+    WebEngineCustomJobCallbackData(JS::Realm& incumbent_realm, OwnPtr<JS::ExecutionContext> active_script_context)
+        : incumbent_realm(incumbent_realm)
         , active_script_context(move(active_script_context))
     {
     }
 
     virtual ~WebEngineCustomJobCallbackData() override = default;
 
-    JS::NonnullGCPtr<HTML::EnvironmentSettingsObject> incumbent_settings;
+    JS::NonnullGCPtr<JS::Realm> incumbent_realm;
     OwnPtr<JS::ExecutionContext> active_script_context;
 };
 

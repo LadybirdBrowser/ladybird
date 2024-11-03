@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020, Andreas Kling <kling@serenityos.org>
+ * Copyright (c) 2020, Andreas Kling <andreas@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -84,7 +84,7 @@ public:
     static void did_destroy_impl(Badge<StringImpl>, StringImpl&);
 
     template<typename... Ts>
-    [[nodiscard]] ALWAYS_INLINE constexpr bool is_one_of(Ts... strings) const
+    [[nodiscard]] ALWAYS_INLINE constexpr bool is_one_of(Ts&&... strings) const
     {
         return (... || this->operator==(forward<Ts>(strings)));
     }

@@ -36,14 +36,14 @@ void AudioScheduledSourceNode::set_onended(JS::GCPtr<WebIDL::CallbackType> value
 WebIDL::ExceptionOr<void> AudioScheduledSourceNode::start(double when)
 {
     (void)when;
-    return WebIDL::NotSupportedError::create(realm(), "FIXME: Implement AudioScheduledSourceNode::start"_fly_string);
+    return WebIDL::NotSupportedError::create(realm(), "FIXME: Implement AudioScheduledSourceNode::start"_string);
 }
 
 // https://webaudio.github.io/web-audio-api/#dom-audioscheduledsourcenode-stop
 WebIDL::ExceptionOr<void> AudioScheduledSourceNode::stop(double when)
 {
     (void)when;
-    return WebIDL::NotSupportedError::create(realm(), "FIXME: Implement AudioScheduledSourceNode::stop"_fly_string);
+    return WebIDL::NotSupportedError::create(realm(), "FIXME: Implement AudioScheduledSourceNode::stop"_string);
 }
 
 void AudioScheduledSourceNode::initialize(JS::Realm& realm)

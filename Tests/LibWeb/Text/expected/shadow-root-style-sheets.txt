@@ -1,2 +1,2 @@
-  shadow.styleSheets.length=1
+shadow.styleSheets.length=1
 document.styleSheets.length=0

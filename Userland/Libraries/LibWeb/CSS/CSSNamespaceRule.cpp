@@ -17,7 +17,7 @@ namespace Web::CSS {
 JS_DEFINE_ALLOCATOR(CSSNamespaceRule);
 
 CSSNamespaceRule::CSSNamespaceRule(JS::Realm& realm, Optional<FlyString> prefix, FlyString namespace_uri)
-    : CSSRule(realm)
+    : CSSRule(realm, Type::Namespace)
     , m_namespace_uri(move(namespace_uri))
     , m_prefix(prefix.value_or(""_fly_string))
 {

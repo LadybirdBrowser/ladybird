@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2021, Tim Flynn <trflynn89@serenityos.org>
- * Copyright (c) 2022, Andreas Kling <kling@serenityos.org>
+ * Copyright (c) 2022, Andreas Kling <andreas@ladybird.org>
  * Copyright (c) 2022, Alexander Narsudinov <a.narsudinov@gmail.com>
  * Copyright (c) 2023, Luke Wilde <lukew@serenityos.org>
  *

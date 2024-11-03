@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020, Andreas Kling <kling@serenityos.org>
+ * Copyright (c) 2020, Andreas Kling <andreas@ladybird.org>
  * Copyright (c) 2021, kleines Filmröllchen <filmroellchen@serenityos.org>
  * Copyright (c) 2023, Tim Flynn <trflynn89@serenityos.org>
  *
@@ -20,6 +20,7 @@
 #include <LibCore/System.h>
 #include <LibIPC/Encoder.h>
 #include <LibIPC/File.h>
+#include <LibURL/Origin.h>
 #include <LibURL/URL.h>
 
 namespace IPC {
@@ -110,6 +111,17 @@ ErrorOr<void> encode(Encoder& encoder, URL::URL const& value)
 
     TRY(encoder.encode(blob.type));
     TRY(encoder.encode(blob.byte_buffer));
+    TRY(encoder.encode(blob.environment_origin));
+
+    return {};
+}
+
+template<>
+ErrorOr<void> encode(Encoder& encoder, URL::Origin const& origin)
+{
+    TRY(encoder.encode<ByteString>(origin.scheme()));
+    TRY(encoder.encode(origin.host()));
+    TRY(encoder.encode(origin.port()));
 
     return {};
 }

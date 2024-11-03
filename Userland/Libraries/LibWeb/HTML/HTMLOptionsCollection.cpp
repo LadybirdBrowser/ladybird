@@ -88,7 +88,7 @@ WebIDL::ExceptionOr<void> HTMLOptionsCollection::set_value_of_indexed_property(u
     }
 
     if (!unconverted_option.is_object() || !is<HTMLOptionElement>(unconverted_option.as_object())) {
-        return WebIDL::TypeMismatchError::create(realm(), "The value provided is not an HTMLOptionElement"_fly_string);
+        return WebIDL::TypeMismatchError::create(realm(), "The value provided is not an HTMLOptionElement"_string);
     }
 
     auto& option = static_cast<HTMLOptionElement&>(unconverted_option.as_object());
@@ -133,11 +133,11 @@ WebIDL::ExceptionOr<void> HTMLOptionsCollection::add(HTMLOptionOrOptGroupElement
 
     // 1. If element is an ancestor of the select element on which the HTMLOptionsCollection is rooted, then throw a "HierarchyRequestError" DOMException.
     if (resolved_element->is_ancestor_of(root()))
-        return WebIDL::HierarchyRequestError::create(realm(), "The provided element is an ancestor of the root select element."_fly_string);
+        return WebIDL::HierarchyRequestError::create(realm(), "The provided element is an ancestor of the root select element."_string);
 
     // 2. If before is an element, but that element isn't a descendant of the select element on which the HTMLOptionsCollection is rooted, then throw a "NotFoundError" DOMException.
     if (before_element && !before_element->is_descendant_of(root()))
-        return WebIDL::NotFoundError::create(realm(), "The 'before' element is not a descendant of the root select element."_fly_string);
+        return WebIDL::NotFoundError::create(realm(), "The 'before' element is not a descendant of the root select element."_string);
 
     // 3. If element and before are the same element, then return.
     if (before_element && (resolved_element.ptr() == before_element.ptr()))

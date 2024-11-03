@@ -4,7 +4,6 @@
 // https://dom.spec.whatwg.org/#interface-nodeiterator
 [Exposed=Window]
 interface NodeIterator {
-
     [SameObject] readonly attribute Node root;
     readonly attribute Node referenceNode;
     readonly attribute boolean pointerBeforeReferenceNode;
@@ -15,5 +14,4 @@ interface NodeIterator {
     Node? previousNode();
 
     undefined detach();
-
 };

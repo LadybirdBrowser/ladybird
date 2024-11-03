@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<title>innerText/outerText getter test with dynamic style changes</title>
+<script src="../../../../resources/testharness.js"></script>
+<script src="../../../../resources/testharnessreport.js"></script>
+<div id="container"></div>
+<script>
+let container = document.querySelector('#container');
+
+function testText(html, expectedPlain, msg, mutate) {
+  test(function() {
+    container.innerHTML = html;
+
+    // Cause a flush of style and layout
+    document.body.offsetTop;
+
+    mutate();
+
+    var e = document.getElementById('target');
+    if (!e) {
+      e = container.firstChild;
+    }
+    assert_equals(e.innerText, expectedPlain, "innerText");
+    assert_equals(e.outerText, expectedPlain, "outerText");
+    container.textContext = '';
+  }, msg + ' (' + format_value(html) + ')');
+}
+
+function setStyle(id, attr, value) {
+  let el = document.getElementById(id);
+  if (el) {
+    el.style[attr] = value;
+  }
+}
+
+testText("<div id='target'><div id='child'>abc", "ABC",
+         "text-transform applied to child element", function() {
+           setStyle("child", "text-transform", "uppercase");
+         });
+testText("<div id='parent'><div id='target'>abc", "ABC",
+         "text-transform applied to parent element", function() {
+           setStyle("parent", "text-transform", "uppercase");
+         });
+
+testText("<div id='target'>abc<div id='child'>def", "abc",
+         "display: none applied to child element", function() {
+           setStyle("child", "display", "none");
+         });
+testText("<div id='parent'>invisible<div id='target'>abc", "abc",
+         "display: none applied to parent element", function() {
+           setStyle("parent", "display", "none");
+         });
+
+testText("<div id='target'>abc", "abc\ndef",
+         "insert node into sub-tree", function() {
+           let el = document.getElementById("target");
+           if (el) {
+             let c = document.createTextNode("def");
+             let d = document.createElement("div");
+             d.appendChild(c);
+             el.appendChild(d);
+           }
+         });
+
+testText("<div id='target'>abc<div id='remove'>def", "abc",
+         "remove node from sub-tree", function() {
+           let el = document.getElementById("target");
+           let victim = document.getElementById("remove");
+           if (el && victim) {
+             el.removeChild(victim);
+           }
+         });
+
+testText("<div id='target'>", "abcdef",
+         "insert whole sub-tree", function() {
+           var el = document.getElementById("target");
+           if (el) {
+             var def = document.createTextNode("def");
+             var s = document.createElement("span");
+             s.appendChild(def);
+
+             var abc = document.createTextNode("abc");
+             var d = document.createElement("div");
+             d.appendChild(abc);
+             d.appendChild(s);
+             el.appendChild(d);
+           }
+         });
+</script>

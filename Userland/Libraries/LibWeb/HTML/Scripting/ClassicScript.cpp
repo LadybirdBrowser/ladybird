@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2023, Andreas Kling <kling@serenityos.org>
+ * Copyright (c) 2021-2023, Andreas Kling <andreas@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -11,6 +11,7 @@
 #include <LibWeb/HTML/Scripting/ClassicScript.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/Scripting/ExceptionReporter.h>
+#include <LibWeb/HTML/WindowOrWorkerGlobalScope.h>
 #include <LibWeb/WebIDL/DOMException.h>
 
 namespace Web::HTML {
@@ -18,39 +19,38 @@ namespace Web::HTML {
 JS_DEFINE_ALLOCATOR(ClassicScript);
 
 // https://html.spec.whatwg.org/multipage/webappapis.html#creating-a-classic-script
-JS::NonnullGCPtr<ClassicScript> ClassicScript::create(ByteString filename, StringView source, EnvironmentSettingsObject& environment_settings_object, URL::URL base_url, size_t source_line_number, MutedErrors muted_errors)
+// https://whatpr.org/html/9893/webappapis.html#creating-a-classic-script
+JS::NonnullGCPtr<ClassicScript> ClassicScript::create(ByteString filename, StringView source, JS::Realm& realm, URL::URL base_url, size_t source_line_number, MutedErrors muted_errors)
 {
-    auto& vm = environment_settings_object.realm().vm();
+    auto& vm = realm.vm();
 
-    // 1. If muted errors was not provided, let it be false. (NOTE: This is taken care of by the default argument.)
-
-    // 2. If muted errors is true, then set baseURL to about:blank.
+    // 1. If muted errors is true, then set baseURL to about:blank.
     if (muted_errors == MutedErrors::Yes)
         base_url = "about:blank"sv;
 
-    // 3. If scripting is disabled for settings, then set source to the empty string.
-    if (environment_settings_object.is_scripting_disabled())
+    // 2. If scripting is disabled for realm, then set source to the empty string.
+    if (is_scripting_disabled(realm))
         source = ""sv;
 
-    // 4. Let script be a new classic script that this algorithm will subsequently initialize.
-    auto script = vm.heap().allocate_without_realm<ClassicScript>(move(base_url), move(filename), environment_settings_object);
+    // 3. Let script be a new classic script that this algorithm will subsequently initialize.
+    // 4. Set script's realm to realm.
+    // 5. Set script's base URL to baseURL.
+    auto script = vm.heap().allocate_without_realm<ClassicScript>(move(base_url), move(filename), realm);
 
-    // 5. Set script's settings object to settings. (NOTE: This was already done when constructing.)
+    // FIXME: 6. Set script's fetch options to options.
 
-    // 6. Set script's base URL to baseURL. (NOTE: This was already done when constructing.)
-
-    // FIXME: 7. Set script's fetch options to options.
-
-    // 8. Set script's muted errors to muted errors.
+    // 7. Set script's muted errors to muted errors.
     script->m_muted_errors = muted_errors;
 
-    // 9. Set script's parse error and error to rethrow to null.
+    // 8. Set script's parse error and error to rethrow to null.
     script->set_parse_error(JS::js_null());
     script->set_error_to_rethrow(JS::js_null());
 
-    // 10. Let result be ParseScript(source, settings's Realm, script).
+    // FIXME: 9. Record classic script creation time given script and sourceURLForWindowScripts .
+
+    // 10. Let result be ParseScript(source, realm, script).
     auto parse_timer = Core::ElapsedTimer::start_new();
-    auto result = JS::Script::parse(source, environment_settings_object.realm(), script->filename(), script, source_line_number);
+    auto result = JS::Script::parse(source, realm, script->filename(), script, source_line_number);
     dbgln_if(HTML_SCRIPT_DEBUG, "ClassicScript: Parsed {} in {}ms", script->filename(), parse_timer.elapsed());
 
     // 11. If result is a list of errors, then:
@@ -59,7 +59,7 @@ JS::NonnullGCPtr<ClassicScript> ClassicScript::create(ByteString filename, Strin
         dbgln_if(HTML_SCRIPT_DEBUG, "ClassicScript: Failed to parse: {}", parse_error.to_string());
 
         // 1. Set script's parse error and its error to rethrow to result[0].
-        script->set_parse_error(JS::SyntaxError::create(environment_settings_object.realm(), parse_error.to_string()));
+        script->set_parse_error(JS::SyntaxError::create(realm, parse_error.to_string()));
         script->set_error_to_rethrow(script->parse_error());
 
         // 2. Return script.
@@ -74,17 +74,18 @@ JS::NonnullGCPtr<ClassicScript> ClassicScript::create(ByteString filename, Strin
 }
 
 // https://html.spec.whatwg.org/multipage/webappapis.html#run-a-classic-script
-JS::Completion ClassicScript::run(RethrowErrors rethrow_errors, JS::GCPtr<JS::Environment> lexical_environment_override)
+// https://whatpr.org/html/9893/webappapis.html#run-a-classic-script
+JS::Completion ClassicScript::run(RethrowErrors rethrow_errors)
 {
-    // 1. Let settings be the settings object of script.
-    auto& settings = settings_object();
+    // 1. Let realm be the realm of script.
+    auto& realm = this->realm();
 
-    // 2. Check if we can run script with settings. If this returns "do not run" then return NormalCompletion(empty).
-    if (settings.can_run_script() == RunScriptDecision::DoNotRun)
+    // 2. Check if we can run script with realm. If this returns "do not run" then return NormalCompletion(empty).
+    if (can_run_script(realm) == RunScriptDecision::DoNotRun)
         return JS::normal_completion({});
 
-    // 3. Prepare to run script given settings.
-    settings.prepare_to_run_script();
+    // 3. Prepare to run script given realm.
+    prepare_to_run_script(realm);
 
     // 4. Let evaluationStatus be null.
     JS::Completion evaluation_status;
@@ -96,7 +97,7 @@ JS::Completion ClassicScript::run(RethrowErrors rethrow_errors, JS::GCPtr<JS::En
         auto timer = Core::ElapsedTimer::start_new();
 
         // 6. Otherwise, set evaluationStatus to ScriptEvaluation(script's record).
-        evaluation_status = vm().bytecode_interpreter().run(*m_script_record, lexical_environment_override);
+        evaluation_status = vm().bytecode_interpreter().run(*m_script_record);
 
         // FIXME: If ScriptEvaluation does not complete because the user agent has aborted the running script, leave evaluationStatus as null.
 
@@ -107,8 +108,8 @@ JS::Completion ClassicScript::run(RethrowErrors rethrow_errors, JS::GCPtr<JS::En
     if (evaluation_status.is_abrupt()) {
         // 1. If rethrow errors is true and script's muted errors is false, then:
         if (rethrow_errors == RethrowErrors::Yes && m_muted_errors == MutedErrors::No) {
-            // 1. Clean up after running script with settings.
-            settings.clean_up_after_running_script();
+            // 1. Clean up after running script with realm.
+            clean_up_after_running_script(realm);
 
             // 2. Rethrow evaluationStatus.[[Value]].
             return JS::throw_completion(*evaluation_status.value());
@@ -116,28 +117,30 @@ JS::Completion ClassicScript::run(RethrowErrors rethrow_errors, JS::GCPtr<JS::En
 
         // 2. If rethrow errors is true and script's muted errors is true, then:
         if (rethrow_errors == RethrowErrors::Yes && m_muted_errors == MutedErrors::Yes) {
-            // 1. Clean up after running script with settings.
-            settings.clean_up_after_running_script();
+            // 1. Clean up after running script with realm.
+            clean_up_after_running_script(realm);
 
             // 2. Throw a "NetworkError" DOMException.
-            return throw_completion(WebIDL::NetworkError::create(settings.realm(), "Script error."_fly_string));
+            return throw_completion(WebIDL::NetworkError::create(realm, "Script error."_string));
         }
 
         // 3. Otherwise, rethrow errors is false. Perform the following steps:
         VERIFY(rethrow_errors == RethrowErrors::No);
 
-        // 1. Report the exception given by evaluationStatus.[[Value]] for script.
-        report_exception(evaluation_status, settings_object().realm());
+        // 1. Report an exception given by evaluationStatus.[[Value]] for realms's global object.
+        auto* window_or_worker = dynamic_cast<WindowOrWorkerGlobalScopeMixin*>(&realm.global_object());
+        VERIFY(window_or_worker);
+        window_or_worker->report_an_exception(*evaluation_status.value());
 
-        // 2. Clean up after running script with settings.
-        settings.clean_up_after_running_script();
+        // 2. Clean up after running script with realm.
+        clean_up_after_running_script(realm);
 
         // 3. Return evaluationStatus.
         return evaluation_status;
     }
 
-    // 8. Clean up after running script with settings.
-    settings.clean_up_after_running_script();
+    // 8. Clean up after running script with realm.
+    clean_up_after_running_script(realm);
 
     // 9. If evaluationStatus is a normal completion, then return evaluationStatus.
     VERIFY(!evaluation_status.is_abrupt());
@@ -147,8 +150,8 @@ JS::Completion ClassicScript::run(RethrowErrors rethrow_errors, JS::GCPtr<JS::En
     //            Return Completion { [[Type]]: throw, [[Value]]: a new "QuotaExceededError" DOMException, [[Target]]: empty }.
 }
 
-ClassicScript::ClassicScript(URL::URL base_url, ByteString filename, EnvironmentSettingsObject& environment_settings_object)
-    : Script(move(base_url), move(filename), environment_settings_object)
+ClassicScript::ClassicScript(URL::URL base_url, ByteString filename, JS::Realm& realm)
+    : Script(move(base_url), move(filename), realm)
 {
 }
 

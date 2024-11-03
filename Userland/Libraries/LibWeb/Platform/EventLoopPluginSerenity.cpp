@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022, Andreas Kling <kling@serenityos.org>
+ * Copyright (c) 2022, Andreas Kling <andreas@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -14,20 +14,24 @@ namespace Web::Platform {
 EventLoopPluginSerenity::EventLoopPluginSerenity() = default;
 EventLoopPluginSerenity::~EventLoopPluginSerenity() = default;
 
-void EventLoopPluginSerenity::spin_until(JS::SafeFunction<bool()> goal_condition)
+void EventLoopPluginSerenity::spin_until(JS::Handle<JS::HeapFunction<bool()>> goal_condition)
 {
-    Core::EventLoop::current().spin_until(move(goal_condition));
+    Core::EventLoop::current().spin_until([goal_condition = move(goal_condition)]() {
+        return goal_condition->function()();
+    });
 }
 
-void EventLoopPluginSerenity::deferred_invoke(JS::SafeFunction<void()> function)
+void EventLoopPluginSerenity::deferred_invoke(JS::Handle<JS::HeapFunction<void()>> function)
 {
     VERIFY(function);
-    Core::deferred_invoke(move(function));
+    Core::deferred_invoke([function = move(function)]() {
+        function->function()();
+    });
 }
 
-NonnullRefPtr<Timer> EventLoopPluginSerenity::create_timer()
+JS::NonnullGCPtr<Timer> EventLoopPluginSerenity::create_timer(JS::Heap& heap)
 {
-    return TimerSerenity::create();
+    return TimerSerenity::create(heap);
 }
 
 void EventLoopPluginSerenity::quit()

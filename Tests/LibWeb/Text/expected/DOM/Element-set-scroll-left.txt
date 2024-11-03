@@ -1,2 +1,2 @@
-  Item 1Item 2Item 3Item 4Item 5Item 6Item 7Item 8Item 9Item 10Item 11Item 12    scrollWidth: 1430
+scrollWidth: 1430
 scrollLeft: 1130

@@ -13,7 +13,6 @@ table {
 <script>
     test(() => {
         const c = document.getElementById("c");
-        println("");
 
         for (let n = c; n; n = n.offsetParent) {
             println("nodeName: " + n.nodeName);

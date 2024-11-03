@@ -1,7 +1,7 @@
 /*
  * Copyright (C) 2016 Apple Inc. All rights reserved.
  * Copyright (c) 2021, Gunnar Beutner <gbeutner@serenityos.org>
- * Copyright (c) 2018-2023, Andreas Kling <kling@serenityos.org>
+ * Copyright (c) 2018-2023, Andreas Kling <andreas@ladybird.org>
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions

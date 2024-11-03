@@ -1,0 +1,38 @@
+<input id="input" />
+<script src="../include.js"></script>
+<script>
+    const NUMPAD_KEYS = [
+        "0",
+        "1",
+        "2",
+        "3",
+        "4",
+        "5",
+        "6",
+        "7",
+        "8",
+        "9",
+        "+",
+        ",",
+        ".",
+        "/",
+        "*",
+        "-",
+        "=",
+        "#",
+        "(",
+        ")",
+    ];
+
+    test(() => {
+        let input = document.getElementById("input");
+
+        input.addEventListener("keydown", e => {
+            println(`key="${e.key}" code=${e.code}`);
+        });
+
+        NUMPAD_KEYS.forEach(key => {
+            internals.sendText(input, key, internals.MOD_KEYPAD);
+        });
+    });
+</script>

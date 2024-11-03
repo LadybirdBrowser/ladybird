@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022, Andreas Kling <kling@serenityos.org>
+ * Copyright (c) 2018-2022, Andreas Kling <andreas@ladybird.org>
  * Copyright (c) 2022, Nico Weber <thakis@chromium.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
@@ -277,10 +277,10 @@
 #endif
 
 #if defined(AK_OS_WINDOWS)
-#    define CLOCK_MONOTONIC_COARSE CLOCK_MONOTONIC
+#    define MSG_NOSIGNAL 0
 #endif
 
-#if defined(AK_OS_BSD_GENERIC) && !defined(AK_OS_FREEBSD) || defined(AK_OS_HAIKU)
+#if defined(AK_OS_BSD_GENERIC) && !defined(AK_OS_FREEBSD) || defined(AK_OS_HAIKU) || defined(AK_OS_WINDOWS)
 #    define CLOCK_MONOTONIC_COARSE CLOCK_MONOTONIC
 #    define CLOCK_REALTIME_COARSE CLOCK_REALTIME
 #endif

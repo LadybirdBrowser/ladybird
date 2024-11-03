@@ -27,7 +27,7 @@ void SVGStyleElement::initialize(JS::Realm& realm)
 void SVGStyleElement::visit_edges(Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
-    visitor.visit(m_style_element_utils.sheet());
+    m_style_element_utils.visit_edges(visitor);
 }
 
 void SVGStyleElement::children_changed()
@@ -44,7 +44,7 @@ void SVGStyleElement::inserted()
 
 void SVGStyleElement::removed_from(Node* old_parent)
 {
-    m_style_element_utils.update_a_style_block(*this, old_parent);
+    m_style_element_utils.update_a_style_block(*this);
     Base::removed_from(old_parent);
 }
 

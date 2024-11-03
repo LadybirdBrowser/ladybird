@@ -1,0 +1,22 @@
+<script src="include.js"></script>
+<p id="p1">Well hello</p>
+<p id="p2">friends</p>
+
+<script>
+    test(() => {
+        var selection = window.getSelection();
+        selection.setBaseAndExtent(p1.firstChild, 0, p1.firstChild, 0);
+        selection.extend(p2.firstChild, 4);
+        if (selection.anchorNode !== p1.firstChild
+            || selection.anchorOffset !== 0) {
+            println('FAIL: anchor has moved');
+            return;
+        }
+        if (selection.focusNode !== p2.firstChild
+            || selection.focusOffset !== 4) {
+            println('FAIL: focus is not where we expected');
+            return;
+        }
+        println('PASS');
+    })
+</script>

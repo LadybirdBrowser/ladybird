@@ -3,5 +3,7 @@
         const textarea = document.getElementById('textarea');
         internals.sendText(textarea, 'Hello World!');
         internals.commitText();
+
+        println(textarea.value);
     });
 </script>

@@ -5,7 +5,7 @@
 </style>
 <script src="include.js"></script>
 <script>
-    test(() => {
+    asyncTest(done => {
         let link = document.createElement("link");
         link.setAttribute("rel", "stylesheet");
         link.setAttribute("href", "body-background-color-red.css");
@@ -14,6 +14,7 @@
 
         window.onload = function () {
             println("document background: " + getComputedStyle(document.body).backgroundColor);
+            done();
         };
     });
 </script>

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022, Andreas Kling <kling@serenityos.org>
+ * Copyright (c) 2022, Andreas Kling <andreas@ladybird.org>
  * Copyright (c) 2023, Linus Groh <linusg@serenityos.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
@@ -50,6 +50,10 @@ public:
 
     void server_did_paint(Badge<WebContentClient>, i32 bitmap_id, Gfx::IntSize size);
 
+    void set_window_position(Gfx::IntPoint);
+    void set_window_size(Gfx::IntSize);
+    void did_update_window_rect();
+
     void load(URL::URL const&);
     void load_html(StringView);
     void load_empty_document();
@@ -73,6 +77,8 @@ public:
 
     void set_enable_do_not_track(bool);
 
+    void set_enable_autoplay(bool);
+
     ByteString selected_text();
     Optional<String> selected_text_with_whitespace_collapsed();
     void select_all();
@@ -84,20 +90,20 @@ public:
     void get_source();
 
     void inspect_dom_tree();
-    void inspect_dom_node(i32 node_id, Optional<Web::CSS::Selector::PseudoElement::Type> pseudo_element);
+    void inspect_dom_node(Web::UniqueNodeID node_id, Optional<Web::CSS::Selector::PseudoElement::Type> pseudo_element);
     void inspect_accessibility_tree();
     void clear_inspected_dom_node();
     void get_hovered_node_id();
 
-    void set_dom_node_text(i32 node_id, String text);
-    void set_dom_node_tag(i32 node_id, String name);
-    void add_dom_node_attributes(i32 node_id, Vector<Attribute> attributes);
-    void replace_dom_node_attribute(i32 node_id, String name, Vector<Attribute> replacement_attributes);
-    void create_child_element(i32 node_id);
-    void create_child_text_node(i32 node_id);
-    void clone_dom_node(i32 node_id);
-    void remove_dom_node(i32 node_id);
-    void get_dom_node_html(i32 node_id);
+    void set_dom_node_text(Web::UniqueNodeID node_id, String text);
+    void set_dom_node_tag(Web::UniqueNodeID node_id, String name);
+    void add_dom_node_attributes(Web::UniqueNodeID node_id, Vector<Attribute> attributes);
+    void replace_dom_node_attribute(Web::UniqueNodeID node_id, String name, Vector<Attribute> replacement_attributes);
+    void create_child_element(Web::UniqueNodeID node_id);
+    void create_child_text_node(Web::UniqueNodeID node_id);
+    void clone_dom_node(Web::UniqueNodeID node_id);
+    void remove_dom_node(Web::UniqueNodeID node_id);
+    void get_dom_node_html(Web::UniqueNodeID node_id);
 
     void list_style_sheets();
     void request_style_sheet_source(Web::CSS::StyleSheetIdentifier const&);
@@ -138,7 +144,7 @@ public:
         Full,
     };
     NonnullRefPtr<Core::Promise<LexicalPath>> take_screenshot(ScreenshotType);
-    NonnullRefPtr<Core::Promise<LexicalPath>> take_dom_node_screenshot(i32);
+    NonnullRefPtr<Core::Promise<LexicalPath>> take_dom_node_screenshot(Web::UniqueNodeID);
     virtual void did_receive_screenshot(Badge<WebContentClient>, Gfx::ShareableBitmap const&);
 
     NonnullRefPtr<Core::Promise<String>> request_internal_page_info(PageInfoType);
@@ -171,9 +177,6 @@ public:
     Function<void(URL::URL const&, bool)> on_load_start;
     Function<void(URL::URL const&)> on_load_finish;
     Function<void(ByteString const& path, i32)> on_request_file;
-    Function<void()> on_navigate_back;
-    Function<void()> on_navigate_forward;
-    Function<void()> on_refresh;
     Function<void(Gfx::Bitmap const&)> on_favicon_change;
     Function<void(Gfx::StandardCursor)> on_cursor_change;
     Function<void(Gfx::IntPoint, ByteString const&)> on_request_tooltip_override;
@@ -186,48 +189,43 @@ public:
     Function<void(String const& message)> on_request_set_prompt_text;
     Function<void()> on_request_accept_dialog;
     Function<void()> on_request_dismiss_dialog;
-    Function<void(URL::URL const&, ByteString const&)> on_received_source;
+    Function<void(URL::URL const&, URL::URL const&, String const&)> on_received_source;
     Function<void(ByteString const&)> on_received_dom_tree;
     Function<void(Optional<DOMNodeProperties>)> on_received_dom_node_properties;
     Function<void(ByteString const&)> on_received_accessibility_tree;
     Function<void(Vector<Web::CSS::StyleSheetIdentifier>)> on_received_style_sheet_list;
     Function<void(Web::CSS::StyleSheetIdentifier const&)> on_inspector_requested_style_sheet_source;
-    Function<void(Web::CSS::StyleSheetIdentifier const&, String const&)> on_received_style_sheet_source;
-    Function<void(i32 node_id)> on_received_hovered_node_id;
-    Function<void(Optional<i32> const& node_id)> on_finshed_editing_dom_node;
+    Function<void(Web::CSS::StyleSheetIdentifier const&, URL::URL const&, String const&)> on_received_style_sheet_source;
+    Function<void(Web::UniqueNodeID)> on_received_hovered_node_id;
+    Function<void(Optional<Web::UniqueNodeID> const& node_id)> on_finshed_editing_dom_node;
     Function<void(String const&)> on_received_dom_node_html;
     Function<void(i32 message_id)> on_received_console_message;
     Function<void(i32 start_index, Vector<ByteString> const& message_types, Vector<ByteString> const& messages)> on_received_console_messages;
-    Function<Vector<Web::Cookie::Cookie>(URL::URL const& url)> on_get_all_cookies;
-    Function<Optional<Web::Cookie::Cookie>(URL::URL const& url, String const& name)> on_get_named_cookie;
-    Function<String(URL::URL const& url, Web::Cookie::Source source)> on_get_cookie;
-    Function<void(URL::URL const& url, Web::Cookie::ParsedCookie const& cookie, Web::Cookie::Source source)> on_set_cookie;
-    Function<void(Web::Cookie::Cookie const& cookie)> on_update_cookie;
     Function<void(i32 count_waiting)> on_resource_status_change;
     Function<void()> on_restore_window;
-    Function<Gfx::IntPoint(Gfx::IntPoint)> on_reposition_window;
-    Function<Gfx::IntSize(Gfx::IntSize)> on_resize_window;
-    Function<Gfx::IntRect()> on_maximize_window;
-    Function<Gfx::IntRect()> on_minimize_window;
-    Function<Gfx::IntRect()> on_fullscreen_window;
+    Function<void(Gfx::IntPoint)> on_reposition_window;
+    Function<void(Gfx::IntSize)> on_resize_window;
+    Function<void()> on_maximize_window;
+    Function<void()> on_minimize_window;
+    Function<void()> on_fullscreen_window;
     Function<void(Color current_color)> on_request_color_picker;
     Function<void(Web::HTML::FileFilter const& accepted_file_types, Web::HTML::AllowMultipleFiles)> on_request_file_picker;
     Function<void(Gfx::IntPoint content_position, i32 minimum_width, Vector<Web::HTML::SelectItem> items)> on_request_select_dropdown;
     Function<void(Web::KeyEvent const&)> on_finish_handling_key_event;
     Function<void(Web::DragEvent const&)> on_finish_handling_drag_event;
-    Function<void()> on_text_test_finish;
+    Function<void(String const&)> on_text_test_finish;
     Function<void(size_t current_match_index, Optional<size_t> const& total_match_count)> on_find_in_page;
     Function<void(Gfx::Color)> on_theme_color_change;
     Function<void(String const&, String const&, String const&)> on_insert_clipboard_entry;
     Function<void(Web::HTML::AudioPlayState)> on_audio_play_state_changed;
     Function<void(bool, bool)> on_navigation_buttons_state_changed;
     Function<void()> on_inspector_loaded;
-    Function<void(i32, Optional<Web::CSS::Selector::PseudoElement::Type> const&)> on_inspector_selected_dom_node;
-    Function<void(i32, String const&)> on_inspector_set_dom_node_text;
-    Function<void(i32, String const&)> on_inspector_set_dom_node_tag;
-    Function<void(i32, Vector<Attribute> const&)> on_inspector_added_dom_node_attributes;
-    Function<void(i32, size_t, Vector<Attribute> const&)> on_inspector_replaced_dom_node_attribute;
-    Function<void(i32, Gfx::IntPoint, String const&, Optional<String> const&, Optional<size_t> const&)> on_inspector_requested_dom_tree_context_menu;
+    Function<void(Web::UniqueNodeID, Optional<Web::CSS::Selector::PseudoElement::Type> const&)> on_inspector_selected_dom_node;
+    Function<void(Web::UniqueNodeID, String const&)> on_inspector_set_dom_node_text;
+    Function<void(Web::UniqueNodeID, String const&)> on_inspector_set_dom_node_tag;
+    Function<void(Web::UniqueNodeID, Vector<Attribute> const&)> on_inspector_added_dom_node_attributes;
+    Function<void(Web::UniqueNodeID, size_t, Vector<Attribute> const&)> on_inspector_replaced_dom_node_attribute;
+    Function<void(Web::UniqueNodeID, Gfx::IntPoint, String const&, Optional<String> const&, Optional<size_t> const&)> on_inspector_requested_dom_tree_context_menu;
     Function<void(size_t, Gfx::IntPoint)> on_inspector_requested_cookie_context_menu;
     Function<void(String const&)> on_inspector_executed_console_script;
     Function<void(String const&)> on_inspector_exported_inspector_html;

@@ -60,10 +60,10 @@ public:
     bool pending() const { return m_pending_play_task == TaskState::Scheduled || m_pending_pause_task == TaskState::Scheduled; }
 
     // https://www.w3.org/TR/web-animations-1/#dom-animation-ready
-    JS::NonnullGCPtr<JS::Object> ready() const { return *current_ready_promise()->promise(); }
+    JS::NonnullGCPtr<WebIDL::Promise> ready() const { return current_ready_promise(); }
 
     // https://www.w3.org/TR/web-animations-1/#dom-animation-finished
-    JS::NonnullGCPtr<JS::Object> finished() const { return *current_finished_promise()->promise(); }
+    JS::NonnullGCPtr<WebIDL::Promise> finished() const { return current_finished_promise(); }
     bool is_finished() const { return m_is_finished; }
 
     JS::GCPtr<WebIDL::CallbackType> onfinish();
@@ -101,7 +101,8 @@ public:
     virtual bool is_css_animation() const { return false; }
     virtual bool is_css_transition() const { return false; }
 
-    virtual JS::GCPtr<DOM::Element> owning_element() const { return {}; }
+    JS::GCPtr<DOM::Element> owning_element() const { return m_owning_element; }
+    void set_owning_element(JS::GCPtr<DOM::Element> value) { m_owning_element = value; }
 
     virtual AnimationClass animation_class() const { return AnimationClass::None; }
     virtual Optional<int> class_specific_composite_order(JS::NonnullGCPtr<Animation>) const { return {}; }
@@ -191,6 +192,9 @@ private:
 
     // https://www.w3.org/TR/web-animations-1/#pending-pause-task
     TaskState m_pending_pause_task { TaskState::None };
+
+    // https://www.w3.org/TR/css-animations-2/#owning-element-section
+    JS::GCPtr<DOM::Element> m_owning_element;
 
     Optional<HTML::TaskID> m_pending_finish_microtask_id;
 

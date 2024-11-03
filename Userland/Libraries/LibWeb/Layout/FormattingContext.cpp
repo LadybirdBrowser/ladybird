@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-2022, Andreas Kling <kling@serenityos.org>
+ * Copyright (c) 2020-2022, Andreas Kling <andreas@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -14,6 +14,7 @@
 #include <LibWeb/Layout/SVGFormattingContext.h>
 #include <LibWeb/Layout/SVGSVGBox.h>
 #include <LibWeb/Layout/TableFormattingContext.h>
+#include <LibWeb/Layout/TextNode.h>
 #include <LibWeb/Layout/Viewport.h>
 
 namespace Web::Layout {
@@ -135,6 +136,10 @@ Optional<FormattingContext::Type> FormattingContext::formatting_context_type_cre
 
     if (display.is_grid_inside())
         return Type::Grid;
+
+    if (display.is_math_inside())
+        // HACK: Instead of crashing, create a dummy formatting context that does nothing.
+        return Type::InternalDummy;
 
     if (creates_block_formatting_context(box))
         return Type::Block;
@@ -1174,52 +1179,6 @@ CSSPixelRect FormattingContext::content_box_rect_in_static_position_ancestor_coo
     VERIFY_NOT_REACHED();
 }
 
-// https://www.w3.org/TR/css-position-3/#staticpos-rect
-StaticPositionRect FormattingContext::calculate_static_position_rect(Box const& box) const
-{
-    // NOTE: This is very ad-hoc.
-    // The purpose of this function is to calculate the approximate position that `box`
-    // would have had if it were position:static.
-
-    CSSPixels x = 0;
-    CSSPixels y = 0;
-
-    VERIFY(box.parent());
-    if (box.parent()->children_are_inline()) {
-        // We're an abspos box with inline siblings. This is gonna get messy!
-        if (auto* sibling = box.previous_sibling()) {
-            // Hard case: there's a previous sibling. This means there's already inline content
-            // preceding the hypothetical static position of `box` within its containing block.
-            // If we had been position:static, that inline content would have been wrapped in
-            // anonymous block box, so now we get to imagine what the world might have looked like
-            // in that scenario..
-            // Basically, we find its last associated line box fragment and place `box` under it.
-            // FIXME: I'm 100% sure this can be smarter, better and faster.
-            LineBoxFragment const* last_fragment = nullptr;
-            auto& cb_state = m_state.get(*sibling->containing_block());
-            for (auto& line_box : cb_state.line_boxes) {
-                for (auto& fragment : line_box.fragments()) {
-                    if (&fragment.layout_node() == sibling)
-                        last_fragment = &fragment;
-                }
-            }
-            if (last_fragment) {
-                y = last_fragment->offset().y() + last_fragment->height();
-            }
-        } else {
-            // Easy case: no previous sibling, we're at the top of the containing block.
-        }
-    } else {
-        auto const& box_state = m_state.get(box);
-        // We're among block siblings, Y can be calculated easily.
-        y = box_state.vertical_offset_of_parent_block_container;
-    }
-    auto offset_to_static_parent = content_box_rect_in_static_position_ancestor_coordinate_space(box, *box.containing_block());
-    StaticPositionRect static_position_rect;
-    static_position_rect.rect = { offset_to_static_parent.location().translated(x, y), { 0, 0 } };
-    return static_position_rect;
-}
-
 void FormattingContext::layout_absolutely_positioned_element(Box const& box, AvailableSpace const& available_space)
 {
     if (box.is_svg_box()) {
@@ -1464,7 +1423,6 @@ CSSPixels FormattingContext::calculate_min_content_width(Layout::Box const& box)
     auto& box_state = throwaway_state.get_mutable(box);
     box_state.width_constraint = SizeConstraint::MinContent;
     box_state.set_indefinite_content_width();
-    box_state.set_indefinite_content_height();
 
     auto context = const_cast<FormattingContext*>(this)->create_independent_formatting_context_if_needed(throwaway_state, LayoutMode::IntrinsicSizing, box);
     if (!context) {
@@ -1472,7 +1430,10 @@ CSSPixels FormattingContext::calculate_min_content_width(Layout::Box const& box)
     }
 
     auto available_width = AvailableSize::make_min_content();
-    auto available_height = AvailableSize::make_indefinite();
+    auto available_height = box_state.has_definite_height()
+        ? AvailableSize::make_definite(box_state.content_height())
+        : AvailableSize::make_indefinite();
+
     context->run(AvailableSpace(available_width, available_height));
 
     cache.min_content_width = context->automatic_content_width();
@@ -1502,7 +1463,6 @@ CSSPixels FormattingContext::calculate_max_content_width(Layout::Box const& box)
     auto& box_state = throwaway_state.get_mutable(box);
     box_state.width_constraint = SizeConstraint::MaxContent;
     box_state.set_indefinite_content_width();
-    box_state.set_indefinite_content_height();
 
     auto context = const_cast<FormattingContext*>(this)->create_independent_formatting_context_if_needed(throwaway_state, LayoutMode::IntrinsicSizing, box);
     if (!context) {
@@ -1510,7 +1470,10 @@ CSSPixels FormattingContext::calculate_max_content_width(Layout::Box const& box)
     }
 
     auto available_width = AvailableSize::make_max_content();
-    auto available_height = AvailableSize::make_indefinite();
+    auto available_height = box_state.has_definite_height()
+        ? AvailableSize::make_definite(box_state.content_height())
+        : AvailableSize::make_indefinite();
+
     context->run(AvailableSpace(available_width, available_height));
 
     cache.max_content_width = context->automatic_content_width();
@@ -1642,7 +1605,7 @@ CSSPixels FormattingContext::calculate_inner_width(Layout::Box const& box, Avail
         return max(inner_width, 0);
     }
 
-    return width.resolved(box, width_of_containing_block).to_px(box);
+    return width.to_px(box, width_of_containing_block);
 }
 
 CSSPixels FormattingContext::calculate_inner_height(Layout::Box const& box, AvailableSize const& available_height, CSS::Size const& height) const
@@ -1660,7 +1623,7 @@ CSSPixels FormattingContext::calculate_inner_height(Layout::Box const& box, Avai
         return max(inner_height, 0);
     }
 
-    return height.resolved(box, height_of_containing_block).to_px(box);
+    return height.to_px(box, height_of_containing_block);
 }
 
 CSSPixels FormattingContext::containing_block_width_for(NodeWithStyleAndBoxModelMetrics const& node) const
@@ -2031,15 +1994,12 @@ bool FormattingContext::should_treat_max_width_as_none(Box const& box, Available
         if (!m_state.get(*box.non_anonymous_containing_block()).has_definite_width())
             return true;
     }
-    if (box.children_are_inline()) {
-        if (max_width.is_fit_content() && available_width.is_intrinsic_sizing_constraint())
-            return true;
-        if (max_width.is_max_content() && available_width.is_max_content())
-            return true;
-        if (max_width.is_min_content() && available_width.is_min_content())
-            return true;
-    }
-
+    if (max_width.is_fit_content() && available_width.is_intrinsic_sizing_constraint())
+        return true;
+    if (max_width.is_max_content() && available_width.is_max_content())
+        return true;
+    if (max_width.is_min_content() && available_width.is_min_content())
+        return true;
     return false;
 }
 

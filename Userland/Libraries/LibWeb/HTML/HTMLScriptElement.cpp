@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2021, Andreas Kling <kling@serenityos.org>
+ * Copyright (c) 2018-2021, Andreas Kling <andreas@ladybird.org>
  * Copyright (c) 2022, networkException <networkexception@serenityos.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
@@ -86,7 +86,7 @@ void HTMLScriptElement::execute_script()
     // https://html.spec.whatwg.org/multipage/document-lifecycle.html#read-html
     // Before any script execution occurs, the user agent must wait for scripts may run for the newly-created document to be true for document.
     if (!m_document->ready_to_run_scripts())
-        main_thread_event_loop().spin_until([&] { return m_document->ready_to_run_scripts(); });
+        main_thread_event_loop().spin_until(JS::create_heap_function(heap(), [&] { return m_document->ready_to_run_scripts(); }));
 
     // 1. Let document be el's node document.
     JS::NonnullGCPtr<DOM::Document> document = this->document();
@@ -159,6 +159,7 @@ void HTMLScriptElement::execute_script()
 }
 
 // https://html.spec.whatwg.org/multipage/scripting.html#prepare-a-script
+// https://whatpr.org/html/9893/scripting.html#prepare-a-script
 void HTMLScriptElement::prepare_script()
 {
     // 1. If el's already started is true, then return.
@@ -217,7 +218,7 @@ void HTMLScriptElement::prepare_script()
     }
 
     // 9. If the script block's type string is a JavaScript MIME type essence match,
-    if (MimeSniff::is_javascript_mime_type_essence_match(MUST(script_block_type.trim(Infra::ASCII_WHITESPACE)))) {
+    if (MimeSniff::is_javascript_mime_type_essence_match(script_block_type)) {
         // then set el's type to "classic".
         m_script_type = ScriptType::Classic;
     }
@@ -433,9 +434,9 @@ void HTMLScriptElement::prepare_script()
         // 2. Switch on el's type:
         // -> "classic"
         if (m_script_type == ScriptType::Classic) {
-            // 1. Let script be the result of creating a classic script using source text, settings object, base URL, and options.
+            // 1. Let script be the result of creating a classic script using source text, settings object's realm, base URL, and options.
             // FIXME: Pass options.
-            auto script = ClassicScript::create(m_document->url().to_byte_string(), source_text, settings_object, base_url, m_source_line_number);
+            auto script = ClassicScript::create(m_document->url().to_byte_string(), source_text, settings_object.realm(), base_url, m_source_line_number);
 
             // 2. Mark as ready el given script.
             mark_as_ready(Result(move(script)));

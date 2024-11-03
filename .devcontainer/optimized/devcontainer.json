@@ -7,5 +7,5 @@
 // getting you into your development environment faster!
 {
     "name": "Ladybird (Pre-Built Image)",
-    "image": "ghcr.io/ladybirdwebbrowser/ladybird-devcontainer:base"
+    "image": "ghcr.io/ladybirdbrowser/ladybird-devcontainer:base"
 }

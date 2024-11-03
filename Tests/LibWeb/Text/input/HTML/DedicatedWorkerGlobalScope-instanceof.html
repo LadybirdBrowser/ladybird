@@ -1,0 +1,15 @@
+<script src="../include.js"></script>
+<script>
+    asyncTest(done => {
+        const worker = new Worker("DedicatedWorkerGlobalScope-instanceof-worker.js");
+        worker.onmessage = function (event) {
+            if (event.data.result === true) {
+                println("PASS");
+            } else {
+                println("FAIL");
+            }
+            done();
+        };
+        worker.postMessage("run");
+    });
+</script>

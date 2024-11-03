@@ -6,6 +6,7 @@ on:
   push:
     paths:
       - '.devcontainer/**'
+      - 'vcpkg.json'
   schedule:
     # https://crontab.guru/#0_0_*_*_1
     - cron:  '0 0 * * 1'

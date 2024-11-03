@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2020, Andreas Kling <kling@serenityos.org>
+ * Copyright (c) 2018-2020, Andreas Kling <andreas@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -7,10 +7,7 @@
 #pragma once
 
 #include <AK/HashMap.h>
-#include <LibCore/SharedCircularQueue.h>
 #include <LibIPC/ConnectionFromClient.h>
-#include <LibThreading/MutexProtected.h>
-#include <LibThreading/ThreadPool.h>
 #include <LibWebSocket/WebSocket.h>
 #include <RequestServer/Forward.h>
 #include <RequestServer/RequestClientEndpoint.h>
@@ -33,7 +30,7 @@ public:
     void did_request_certificates(Badge<Request>, Request&);
 
 private:
-    explicit ConnectionFromClient(NonnullOwnPtr<Core::LocalSocket>);
+    explicit ConnectionFromClient(IPC::Transport);
 
     virtual Messages::RequestServer::ConnectNewClientResponse connect_new_client() override;
     virtual Messages::RequestServer::IsSupportedProtocolResponse is_supported_protocol(ByteString const&) override;

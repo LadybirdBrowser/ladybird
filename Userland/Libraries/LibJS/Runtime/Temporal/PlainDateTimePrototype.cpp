@@ -38,6 +38,7 @@ void PlainDateTimePrototype::initialize(Realm& realm)
     define_direct_property(vm.well_known_symbol_to_string_tag(), PrimitiveString::create(vm, "Temporal.PlainDateTime"_string), Attribute::Configurable);
 
     define_native_accessor(realm, vm.names.calendar, calendar_getter, {}, Attribute::Configurable);
+    define_native_accessor(realm, vm.names.calendarId, calendar_id_getter, {}, Attribute::Configurable);
     define_native_accessor(realm, vm.names.year, year_getter, {}, Attribute::Configurable);
     define_native_accessor(realm, vm.names.month, month_getter, {}, Attribute::Configurable);
     define_native_accessor(realm, vm.names.monthCode, month_code_getter, {}, Attribute::Configurable);
@@ -804,6 +805,18 @@ JS_DEFINE_NATIVE_FUNCTION(PlainDateTimePrototype::get_iso_fields)
 
     // 14. Return fields.
     return fields;
+}
+
+// 5.3.3 get Temporal.PlainDateTime.prototype.calendarId, https://tc39.es/proposal-temporal/#sec-get-temporal.plaindatetime.prototype.calendarid
+JS_DEFINE_NATIVE_FUNCTION(PlainDateTimePrototype::calendar_id_getter)
+{
+    // 1. Let dateTime be the this value.
+    // 2. Perform ? RequireInternalSlot(dateTime, [[InitializedTemporalDateTime]]).
+    auto temporal_date = TRY(typed_this_object(vm));
+
+    // 3. Return dateTime.[[Calendar]].
+    auto& calendar = static_cast<Calendar&>(temporal_date->calendar());
+    return PrimitiveString::create(vm, calendar.identifier());
 }
 
 }

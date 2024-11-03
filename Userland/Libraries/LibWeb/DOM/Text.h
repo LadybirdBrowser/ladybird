@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2020, Andreas Kling <kling@serenityos.org>
+ * Copyright (c) 2018-2020, Andreas Kling <andreas@ladybird.org>
  * Copyright (c) 2023, Sam Atkins <atkinssj@serenityos.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
@@ -16,7 +16,7 @@ namespace Web::DOM {
 class EditableTextNodeOwner {
 public:
     virtual ~EditableTextNodeOwner() = default;
-    virtual void did_edit_text_node(Badge<Document>) = 0;
+    virtual void did_edit_text_node() = 0;
 };
 
 class Text

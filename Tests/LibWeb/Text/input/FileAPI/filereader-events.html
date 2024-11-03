@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    asyncTest(async (done) => {
+        let testsDone = 0;
+
+        const eventTestDone = (events, expect) => {
+            println(events === expect ? "PASS" : "FAIL");
+            if (++testsDone == 2) {
+                done();
+            }
+        };
+
+        const runEventTest = (blob, expect) => {
+            let reader = new FileReader();
+            let events = "";
+            reader.onloadstart = () => events += "loadstart";
+            reader.onprogress = () => events += ", progress";
+            reader.onload = () => events += ", load";
+            reader.onloadend = () => { events += ", loadend"; eventTestDone(events, expect); };
+            reader.readAsText(blob);
+        };
+
+        runEventTest(new Blob(["someRandomData"]), "loadstart, progress, load, loadend");
+        runEventTest(new Blob([]), "loadstart, load, loadend");
+    });
+</script>

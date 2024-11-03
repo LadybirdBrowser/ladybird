@@ -1,0 +1,60 @@
+Summary
+
+Harness status: OK
+
+Rerun
+
+Found 50 tests
+
+50 Pass
+Details
+Result	Test Name	MessagePass	span[role=button] with text/element/text nodes, no space	
+Pass	div[role=heading] with text/element/text nodes, no space	
+Pass	button with text/element/text nodes, no space	
+Pass	heading with text/element/text nodes, no space	
+Pass	link with text/element/text nodes, no space	
+Pass	span[role=button] with text/comment/text nodes, no space	
+Pass	div[role=heading] with text/comment/text nodes, no space	
+Pass	button with text/comment/text nodes, no space	
+Pass	heading with text/comment/text nodes, no space	
+Pass	link with text/comment/text nodes, no space	
+Pass	span[role=button] with text/comment/text nodes, with space	
+Pass	div[role=heading] with text/comment/text nodes, with space	
+Pass	button with text/comment/text nodes, with space	
+Pass	heading with text/comment/text nodes, with space	
+Pass	link with text/comment/text nodes, with space	
+Pass	span[role=button] with text node, with tab char	
+Pass	div[role=heading] with text node, with tab char	
+Pass	button with text node, with tab char	
+Pass	heading with text node, with tab char	
+Pass	link with text node, with tab char	
+Pass	span[role=button] with text node, with non-breaking space	
+Pass	div[role=heading] with text node, with non-breaking space	
+Pass	button with text node, with non-breaking space	
+Pass	heading with text node, with non-breaking space	
+Pass	link with text node, with non-breaking space	
+Pass	span[role=button] with text node, with extra non-breaking space	
+Pass	div[role=heading] with text node, with extra non-breaking space	
+Pass	button with text node, with extra non-breaking space	
+Pass	heading with text node, with extra non-breaking space	
+Pass	link with text node, with extra non-breaking space	
+Pass	span[role=button] with text node, with leading/trailing non-breaking space	
+Pass	div[role=heading] with text node, with leading/trailing non-breaking space	
+Pass	button with text node, with leading/trailing non-breaking space	
+Pass	heading with text node, with leading/trailing non-breaking space	
+Pass	link with text node, with leading/trailing non-breaking space	
+Pass	span[role=button] with text node, with mixed space and non-breaking space	
+Pass	div[role=heading] with text node, with mixed space and non-breaking space	
+Pass	button with text node, with mixed space and non-breaking space	
+Pass	heading with text node, with mixed space and non-breaking space	
+Pass	link with text node, with mixed space and non-breaking space	
+Pass	span[role=button] with text node, with deeply nested space	
+Pass	div[role=heading] with text node, with deeply nested space	
+Pass	button with text node, with deeply nested space	
+Pass	heading with text node, with deeply nested space	
+Pass	link with text node, with deeply nested space	
+Pass	span[role=button] with text node, with single line break	
+Pass	div[role=heading] with text node, with single line break	
+Pass	button with text node, with single line break	
+Pass	heading with text node, with single line break	
+Pass	link with text node, with single line break	

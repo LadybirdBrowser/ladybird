@@ -10,14 +10,6 @@
 #    cmakedefine01 AUDIO_DEBUG
 #endif
 
-#ifndef AWAVLOADER_DEBUG
-#    cmakedefine01 AWAVLOADER_DEBUG
-#endif
-
-#ifndef AFLACLOADER_DEBUG
-#    cmakedefine01 AFLACLOADER_DEBUG
-#endif
-
 #ifndef BMP_DEBUG
 #    cmakedefine01 BMP_DEBUG
 #endif
@@ -52,6 +44,10 @@
 
 #ifndef CSS_TOKENIZER_DEBUG
 #    cmakedefine01 CSS_TOKENIZER_DEBUG
+#endif
+
+#ifndef CSS_TRANSITIONS_DEBUG
+#    cmakedefine01 CSS_TRANSITIONS_DEBUG
 #endif
 
 #ifndef EDITOR_DEBUG

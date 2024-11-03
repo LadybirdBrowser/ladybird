@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2023, Andreas Kling <kling@serenityos.org>
+ * Copyright (c) 2018-2023, Andreas Kling <andreas@ladybird.org>
  * Copyright (c) 2021, the SerenityOS developers.
  * Copyright (c) 2021, Sam Atkins <atkinssj@serenityos.org>
  * Copyright (c) 2023, Srikavin Ramkumar <me@srikavin.me>
@@ -19,6 +19,7 @@
 #include <LibWeb/DOM/ShadowRoot.h>
 #include <LibWeb/Fetch/Fetching/Fetching.h>
 #include <LibWeb/Fetch/Infrastructure/FetchAlgorithms.h>
+#include <LibWeb/Fetch/Infrastructure/FetchController.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/Requests.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/Responses.h>
 #include <LibWeb/HTML/EventNames.h>
@@ -136,7 +137,7 @@ void HTMLLinkElement::attribute_changed(FlyString const& name, Optional<String> 
     if (name == HTML::AttributeNames::rel) {
         m_relationship = 0;
         // Keywords are always ASCII case-insensitive, and must be compared as such.
-        auto lowercased_value = MUST(Infra::to_ascii_lowercase(value.value_or(String {})));
+        auto lowercased_value = value.value_or(String {}).to_ascii_lowercase();
         // To determine which link types apply to a link, a, area, or form element,
         // the element's rel attribute must be split on ASCII whitespace.
         // The resulting tokens are the keywords for the link types that apply to that element.
@@ -364,7 +365,9 @@ void HTMLLinkElement::default_fetch_and_process_linked_resource()
         process_linked_resource(success, response, body_bytes);
     };
 
-    Fetch::Fetching::fetch(realm(), *request, Fetch::Infrastructure::FetchAlgorithms::create(vm(), move(fetch_algorithms_input))).release_value_but_fixme_should_propagate_errors();
+    if (m_fetch_controller)
+        m_fetch_controller->abort(realm(), {});
+    m_fetch_controller = MUST(Fetch::Fetching::fetch(realm(), *request, Fetch::Infrastructure::FetchAlgorithms::create(vm(), move(fetch_algorithms_input))));
 }
 
 // https://html.spec.whatwg.org/multipage/links.html#link-type-stylesheet:process-the-linked-resource
@@ -610,6 +613,7 @@ WebIDL::ExceptionOr<void> HTMLLinkElement::load_fallback_favicon_if_needed(JS::N
 void HTMLLinkElement::visit_edges(Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
+    visitor.visit(m_fetch_controller);
     visitor.visit(m_loaded_style_sheet);
     visitor.visit(m_rel_list);
 }

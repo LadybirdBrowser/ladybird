@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2022, Andreas Kling <kling@serenityos.org>
+ * Copyright (c) 2021-2022, Andreas Kling <andreas@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -33,6 +33,7 @@ public:
     bool is_collapsed() const;
     unsigned range_count() const;
     String type() const;
+    String direction() const;
     WebIDL::ExceptionOr<JS::GCPtr<DOM::Range>> get_range_at(unsigned index);
     void add_range(JS::NonnullGCPtr<DOM::Range>);
     WebIDL::ExceptionOr<void> remove_range(JS::NonnullGCPtr<DOM::Range>);
@@ -56,6 +57,15 @@ public:
 
     // Non-standard accessor for the selection's document.
     JS::NonnullGCPtr<DOM::Document> document() const;
+
+    // Non-standard
+    JS::GCPtr<DOM::Position> cursor_position() const;
+
+    // Non-standard
+    void move_offset_to_next_character(bool collapse_selection);
+    void move_offset_to_previous_character(bool collapse_selection);
+    void move_offset_to_next_word(bool collapse_selection);
+    void move_offset_to_previous_word(bool collapse_selection);
 
 private:
     Selection(JS::NonnullGCPtr<JS::Realm>, JS::NonnullGCPtr<DOM::Document>);

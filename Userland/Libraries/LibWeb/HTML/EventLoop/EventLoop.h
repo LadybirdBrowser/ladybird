@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021, Andreas Kling <kling@serenityos.org>
+ * Copyright (c) 2021, Andreas Kling <andreas@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -10,7 +10,6 @@
 #include <AK/WeakPtr.h>
 #include <LibCore/Forward.h>
 #include <LibJS/Forward.h>
-#include <LibJS/SafeFunction.h>
 #include <LibWeb/HTML/EventLoop/TaskQueue.h>
 
 namespace Web::HTML {
@@ -39,9 +38,10 @@ public:
     TaskQueue& microtask_queue() { return *m_microtask_queue; }
     TaskQueue const& microtask_queue() const { return *m_microtask_queue; }
 
-    void spin_until(JS::SafeFunction<bool()> goal_condition);
-    void spin_processing_tasks_with_source_until(Task::Source, JS::SafeFunction<bool()> goal_condition);
+    void spin_until(JS::NonnullGCPtr<JS::HeapFunction<bool()>> goal_condition);
+    void spin_processing_tasks_with_source_until(Task::Source, JS::NonnullGCPtr<JS::HeapFunction<bool()>> goal_condition);
     void process();
+    void queue_task_to_update_the_rendering();
 
     // https://html.spec.whatwg.org/multipage/browsing-the-web.html#termination-nesting-level
     size_t termination_nesting_level() const { return m_termination_nesting_level; }
@@ -61,10 +61,10 @@ public:
 
     Vector<JS::Handle<HTML::Window>> same_loop_windows() const;
 
-    void push_onto_backup_incumbent_settings_object_stack(Badge<EnvironmentSettingsObject>, EnvironmentSettingsObject& environment_settings_object);
-    void pop_backup_incumbent_settings_object_stack(Badge<EnvironmentSettingsObject>);
-    EnvironmentSettingsObject& top_of_backup_incumbent_settings_object_stack();
-    bool is_backup_incumbent_settings_object_stack_empty() const { return m_backup_incumbent_settings_object_stack.is_empty(); }
+    void push_onto_backup_incumbent_realm_stack(JS::Realm&);
+    void pop_backup_incumbent_realm_stack();
+    JS::Realm& top_of_backup_incumbent_realm_stack();
+    bool is_backup_incumbent_realm_stack_empty() const { return m_backup_incumbent_realm_stack.is_empty(); }
 
     void register_environment_settings_object(Badge<EnvironmentSettingsObject>, EnvironmentSettingsObject&);
     void unregister_environment_settings_object(Badge<EnvironmentSettingsObject>, EnvironmentSettingsObject&);
@@ -80,6 +80,8 @@ private:
 
     virtual void visit_edges(Visitor&) override;
 
+    void update_the_rendering();
+
     Type m_type { Type::Window };
 
     JS::GCPtr<TaskQueue> m_task_queue;
@@ -93,7 +95,7 @@ private:
     // https://html.spec.whatwg.org/multipage/webappapis.html#last-idle-period-start-time
     double m_last_idle_period_start_time { 0 };
 
-    RefPtr<Platform::Timer> m_system_event_loop_timer;
+    JS::GCPtr<Platform::Timer> m_system_event_loop_timer;
 
     // https://html.spec.whatwg.org/#performing-a-microtask-checkpoint
     bool m_performing_a_microtask_checkpoint { false };
@@ -105,7 +107,8 @@ private:
     Vector<RawPtr<EnvironmentSettingsObject>> m_related_environment_settings_objects;
 
     // https://html.spec.whatwg.org/multipage/webappapis.html#backup-incumbent-settings-object-stack
-    Vector<JS::NonnullGCPtr<EnvironmentSettingsObject>> m_backup_incumbent_settings_object_stack;
+    // https://whatpr.org/html/9893/webappapis.html#backup-incumbent-realm-stack
+    Vector<JS::NonnullGCPtr<JS::Realm>> m_backup_incumbent_realm_stack;
 
     // https://html.spec.whatwg.org/multipage/browsing-the-web.html#termination-nesting-level
     size_t m_termination_nesting_level { 0 };
@@ -113,6 +116,10 @@ private:
     bool m_execution_paused { false };
 
     bool m_skip_event_loop_processing_steps { false };
+
+    bool m_is_running_rendering_task { false };
+
+    JS::GCPtr<JS::HeapFunction<void()>> m_rendering_task_function;
 };
 
 EventLoop& main_thread_event_loop();

@@ -8,7 +8,6 @@
 #include <AK/Types.h>
 #include <LibCore/ArgsParser.h>
 #include <LibCore/ElapsedTimer.h>
-#include <LibCore/System.h>
 #include <LibFileSystem/FileSystem.h>
 #include <LibMain/Main.h>
 #include <LibMedia/Audio/Loader.h>
@@ -27,10 +26,6 @@ ErrorOr<int> serenity_main(Main::Arguments args)
     args_parser.add_positional_argument(path, "Path to audio file", "path");
     args_parser.add_option(sample_count, "How many samples to load at maximum", "sample-count", 's', "samples");
     args_parser.parse(args);
-
-    TRY(Core::System::unveil(TRY(FileSystem::absolute_path(path)), "r"sv));
-    TRY(Core::System::unveil(nullptr, nullptr));
-    TRY(Core::System::pledge("stdio recvfd rpath"));
 
     auto maybe_loader = Audio::Loader::create(path);
     if (maybe_loader.is_error()) {

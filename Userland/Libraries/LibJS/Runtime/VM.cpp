@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-2023, Andreas Kling <kling@serenityos.org>
+ * Copyright (c) 2020-2023, Andreas Kling <andreas@ladybird.org>
  * Copyright (c) 2020-2023, Linus Groh <linusg@serenityos.org>
  * Copyright (c) 2021-2022, David Tuin <davidot@serenityos.org>
  *
@@ -731,7 +731,7 @@ struct [[gnu::packed]] NativeStackFrame {
 };
 #endif
 
-static Optional<UnrealizedSourceRange> get_source_range(ExecutionContext const* context)
+static RefPtr<CachedSourceRange> get_source_range(ExecutionContext const* context)
 {
     // native function
     if (!context->executable)
@@ -740,7 +740,14 @@ static Optional<UnrealizedSourceRange> get_source_range(ExecutionContext const* 
     if (!context->program_counter.has_value())
         return {};
 
-    return context->executable->source_range_at(context->program_counter.value());
+    if (!context->cached_source_range
+        || context->cached_source_range->program_counter != context->program_counter.value()) {
+        auto unrealized_source_range = context->executable->source_range_at(context->program_counter.value());
+        context->cached_source_range = adopt_ref(*new CachedSourceRange(
+            context->program_counter.value(),
+            move(unrealized_source_range)));
+    }
+    return context->cached_source_range;
 }
 
 Vector<StackTraceElement> VM::stack_trace() const
@@ -750,7 +757,7 @@ Vector<StackTraceElement> VM::stack_trace() const
         auto* context = m_execution_context_stack[i];
         stack_trace.append({
             .execution_context = context,
-            .source_range = get_source_range(context).value_or({}),
+            .source_range = get_source_range(context),
         });
     }
 

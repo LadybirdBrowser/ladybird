@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-2022, Andreas Kling <kling@serenityos.org>
+ * Copyright (c) 2020-2022, Andreas Kling <andreas@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -407,24 +407,48 @@ void BlockFormattingContext::compute_width_for_block_level_replaced_element_in_n
     box_state.padding_right = padding_right;
 }
 
-void BlockFormattingContext::compute_height(Box const& box, AvailableSpace const& available_space, FormattingContext const* box_formatting_context)
+void BlockFormattingContext::resolve_used_height_if_not_treated_as_auto(Box const& box, AvailableSpace const& available_space)
 {
-    auto const& computed_values = box.computed_values();
-    auto& box_used_values = m_state.get_mutable(box);
+    if (should_treat_height_as_auto(box, available_space)) {
+        return;
+    }
 
-    // Then work out what the height is, based on box type and CSS properties.
+    auto const& computed_values = box.computed_values();
+    auto& box_state = m_state.get_mutable(box);
+
+    auto height = calculate_inner_height(box, available_space.height, box.computed_values().height());
+
+    if (!should_treat_max_height_as_none(box, available_space.height)) {
+        if (!computed_values.max_height().is_auto()) {
+            auto max_height = calculate_inner_height(box, available_space.height, computed_values.max_height());
+            height = min(height, max_height);
+        }
+    }
+    if (!computed_values.min_height().is_auto()) {
+        height = max(height, calculate_inner_height(box, available_space.height, computed_values.min_height()));
+    }
+
+    box_state.set_content_height(height);
+    box_state.set_has_definite_height(true);
+}
+
+void BlockFormattingContext::resolve_used_height_if_treated_as_auto(Box const& box, AvailableSpace const& available_space, FormattingContext const* box_formatting_context)
+{
+    if (!should_treat_height_as_auto(box, available_space)) {
+        return;
+    }
+
+    auto const& computed_values = box.computed_values();
+    auto& box_state = m_state.get_mutable(box);
+
     CSSPixels height = 0;
     if (box_is_sized_as_replaced_element(box)) {
         height = compute_height_for_replaced_element(box, available_space);
     } else {
-        if (should_treat_height_as_auto(box, available_space)) {
-            if (box_formatting_context) {
-                height = box_formatting_context->automatic_content_height();
-            } else {
-                height = compute_auto_height_for_block_level_element(box, m_state.get(box).available_inner_space_or_constraints_from(available_space));
-            }
+        if (box_formatting_context) {
+            height = box_formatting_context->automatic_content_height();
         } else {
-            height = calculate_inner_height(box, available_space.height, computed_values.height());
+            height = compute_auto_height_for_block_level_element(box, m_state.get(box).available_inner_space_or_constraints_from(available_space));
         }
     }
 
@@ -446,8 +470,6 @@ void BlockFormattingContext::compute_height(Box const& box, AvailableSpace const
         // https://quirks.spec.whatwg.org/#the-html-element-fills-the-viewport-quirk
         // FIXME: Handle vertical writing mode.
 
-        auto& box_state = m_state.get_mutable(box);
-
         // 1. Let margins be sum of the used values of the margin-left and margin-right properties of element
         //    if element has a vertical writing mode, otherwise let margins be the sum of the used values of
         //    the margin-top and margin-bottom properties of element.
@@ -461,10 +483,10 @@ void BlockFormattingContext::compute_height(Box const& box, AvailableSpace const
         height = max(size, height);
 
         // NOTE: The height of the root element when affected by this quirk is considered to be definite.
-        box_used_values.set_has_definite_height(true);
+        box_state.set_has_definite_height(true);
     }
 
-    box_used_values.set_content_height(height);
+    box_state.set_content_height(height);
 }
 
 void BlockFormattingContext::layout_inline_children(BlockContainer const& block_container, AvailableSpace const& available_space)
@@ -578,13 +600,50 @@ CSSPixels BlockFormattingContext::compute_auto_height_for_block_level_element(Bo
     return 0;
 }
 
+static CSSPixels containing_block_height_to_resolve_percentage_in_quirks_mode(Box const& box, LayoutState const& state)
+{
+    // https://quirks.spec.whatwg.org/#the-percentage-height-calculation-quirk
+    auto const* containing_block = box.containing_block();
+    while (containing_block) {
+        // 1. Let element be the nearest ancestor containing block of element, if there is one.
+        //    Otherwise, return the initial containing block.
+        if (containing_block->is_viewport()) {
+            return state.get(*containing_block).content_height();
+        }
+
+        // 2. If element has a computed value of the display property that is table-cell, then return a
+        //    UA-defined value.
+        if (containing_block->display().is_table_cell()) {
+            // FIXME: Likely UA-defined value should not be 0.
+            return 0;
+        }
+
+        // 3. If element has a computed value of the height property that is not auto, then return element.
+        if (!containing_block->computed_values().height().is_auto()) {
+            return state.get(*containing_block).content_height();
+        }
+
+        // 4. If element has a computed value of the position property that is absolute, or if element is a
+        //    not a block container or a table wrapper box, then return element.
+        if (containing_block->is_absolutely_positioned() || !is<BlockContainer>(*containing_block) || is<TableWrapper>(*containing_block)) {
+            return state.get(*containing_block).content_height();
+        }
+
+        // 5. Jump to the first step.
+        containing_block = containing_block->containing_block();
+    }
+    VERIFY_NOT_REACHED();
+}
+
 void BlockFormattingContext::layout_block_level_box(Box const& box, BlockContainer const& block_container, CSSPixels& bottom_of_lowest_margin_box, AvailableSpace const& available_space)
 {
     auto& box_state = m_state.get_mutable(box);
 
     if (box.is_absolutely_positioned()) {
-        box_state.vertical_offset_of_parent_block_container = m_y_offset_of_current_block_container.value();
-        box_state.set_static_position_rect(calculate_static_position_rect(box));
+        StaticPositionRect static_position;
+        auto offset_to_static_parent = content_box_rect_in_static_position_ancestor_coordinate_space(box, *box.containing_block());
+        static_position.rect = { offset_to_static_parent.location().translated(0, m_y_offset_of_current_block_container.value()), { 0, 0 } };
+        box_state.set_static_position_rect(static_position);
         return;
     }
 
@@ -616,7 +675,7 @@ void BlockFormattingContext::layout_block_level_box(Box const& box, BlockContain
 
     // NOTE: In quirks mode, the html element's height matches the viewport so it can be treated as definite
     if (box_state.has_definite_height() || box_is_html_element_in_quirks_mode) {
-        compute_height(box, available_space);
+        resolve_used_height_if_treated_as_auto(box, available_space);
     }
 
     auto independent_formatting_context = create_independent_formatting_context_if_needed(m_state, m_layout_mode, box);
@@ -650,9 +709,28 @@ void BlockFormattingContext::layout_block_level_box(Box const& box, BlockContain
 
     place_block_level_element_in_normal_flow_horizontally(box, available_space);
 
+    AvailableSpace available_space_for_height_resolution = available_space;
+    auto is_grid_or_flex_container = box.display().is_grid_inside() || box.display().is_flex_inside();
+    auto is_table_box = box.display().is_table_row() || box.display().is_table_row_group() || box.display().is_table_header_group() || box.display().is_table_footer_group() || box.display().is_table_cell() || box.display().is_table_caption();
+    // NOTE: Spec doesn't mention this but quirk application needs to be skipped for grid and flex containers.
+    //       See https://github.com/w3c/csswg-drafts/issues/5545
+    if (box.document().in_quirks_mode() && box.computed_values().height().is_percentage() && !is_table_box && !is_grid_or_flex_container) {
+        // In quirks mode, for the purpose of calculating the height of an element, if the
+        // computed value of the position property of element is relative or static, the specified value
+        // for the height property of element is a <percentage>, and element does not have a computed
+        // value of the display property that is table-row, table-row-group, table-header-group,
+        // table-footer-group, table-cell or table-caption, the containing block of element must be
+        // calculated using the following algorithm, aborting on the first step that returns a value:
+        auto height = containing_block_height_to_resolve_percentage_in_quirks_mode(box, m_state);
+        available_space_for_height_resolution.height = AvailableSize::make_definite(height);
+    }
+
+    resolve_used_height_if_not_treated_as_auto(box, available_space_for_height_resolution);
+
     // NOTE: Flex containers with `auto` height are treated as `max-content`, so we can compute their height early.
-    if (box.is_replaced_box() || box.display().is_flex_inside())
-        compute_height(box, available_space);
+    if (box.is_replaced_box() || box.display().is_flex_inside()) {
+        resolve_used_height_if_treated_as_auto(box, available_space_for_height_resolution);
+    }
 
     // Before we insert the children of a list item we need to know the location of the marker.
     // If we do not do this then left-floating elements inside the list item will push the marker to the right,
@@ -701,7 +779,7 @@ void BlockFormattingContext::layout_block_level_box(Box const& box, BlockContain
     // Tables already set their height during the independent formatting context run. When multi-line text cells are involved, using different
     // available space here than during the independent formatting context run can result in different line breaks and thus a different height.
     if (!box.display().is_table_inside()) {
-        compute_height(box, available_space, independent_formatting_context);
+        resolve_used_height_if_treated_as_auto(box, available_space_for_height_resolution, independent_formatting_context);
     }
 
     if (independent_formatting_context || !margins_collapse_through(box, m_state)) {
@@ -939,12 +1017,15 @@ void BlockFormattingContext::layout_floating_box(Box const& box, BlockContainer 
 
     compute_width(box, available_space);
 
+    resolve_used_height_if_not_treated_as_auto(box, available_space);
+
     // NOTE: Flex containers with `auto` height are treated as `max-content`, so we can compute their height early.
-    if (box.is_replaced_box() || box.display().is_flex_inside())
-        compute_height(box, available_space);
+    if (box.is_replaced_box() || box.display().is_flex_inside()) {
+        resolve_used_height_if_treated_as_auto(box, available_space);
+    }
 
     auto independent_formatting_context = layout_inside(box, m_layout_mode, box_state.available_inner_space_or_constraints_from(available_space));
-    compute_height(box, available_space, independent_formatting_context);
+    resolve_used_height_if_treated_as_auto(box, available_space, independent_formatting_context);
 
     // First we place the box normally (to get the right y coordinate.)
     // If we have a LineBuilder, we're in the middle of inline layout, otherwise this is block layout.

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-2021, Andreas Kling <kling@serenityos.org>
+ * Copyright (c) 2020-2021, Andreas Kling <andreas@ladybird.org>
  * Copyright (c) 2020-2023, Linus Groh <linusg@serenityos.org>
  * Copyright (c) 2022, David Tuin <davidot@serenityos.org>
  *
@@ -599,7 +599,7 @@ namespace AK {
 static_assert(sizeof(JS::Value) == sizeof(double));
 
 template<>
-class Optional<JS::Value> {
+class Optional<JS::Value> : public OptionalBase<JS::Value> {
     template<typename U>
     friend class Optional;
 
@@ -701,26 +701,6 @@ public:
         clear();
         return released_value;
     }
-
-    JS::Value value_or(JS::Value const& fallback) const&
-    {
-        if (has_value())
-            return value();
-        return fallback;
-    }
-
-    [[nodiscard]] JS::Value value_or(JS::Value&& fallback) &&
-    {
-        if (has_value())
-            return value();
-        return fallback;
-    }
-
-    JS::Value const& operator*() const { return value(); }
-    JS::Value& operator*() { return value(); }
-
-    JS::Value const* operator->() const { return &value(); }
-    JS::Value* operator->() { return &value(); }
 
 private:
     JS::Value m_value;

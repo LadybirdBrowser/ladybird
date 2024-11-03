@@ -75,10 +75,10 @@ public:
     virtual ~ReadableStream() override;
 
     bool locked() const;
-    JS::NonnullGCPtr<JS::Object> cancel(JS::Value reason);
+    JS::NonnullGCPtr<WebIDL::Promise> cancel(JS::Value reason);
     WebIDL::ExceptionOr<ReadableStreamReader> get_reader(ReadableStreamGetReaderOptions const& = {});
     WebIDL::ExceptionOr<JS::NonnullGCPtr<ReadableStream>> pipe_through(ReadableWritablePair transform, StreamPipeOptions const& = {});
-    JS::NonnullGCPtr<JS::Object> pipe_to(WritableStream& destination, StreamPipeOptions const& = {});
+    JS::NonnullGCPtr<WebIDL::Promise> pipe_to(WritableStream& destination, StreamPipeOptions const& = {});
     WebIDL::ExceptionOr<ReadableStreamPair> tee();
 
     void close();

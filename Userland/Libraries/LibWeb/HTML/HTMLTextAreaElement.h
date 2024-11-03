@@ -2,7 +2,7 @@
  * Copyright (c) 2020, the SerenityOS developers.
  * Copyright (c) 2022, Luke Wilde <lukew@serenityos.org>
  * Copyright (c) 2024, Bastiaan van der Plaat <bastiaan.v.d.plaat@gmail.com>
- * Copyright (c) 2024, Jelle Raaijmakers <jelle@gmta.nl>
+ * Copyright (c) 2024, Jelle Raaijmakers <jelle@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -38,7 +38,7 @@ public:
     }
 
     // ^DOM::EditableTextNodeOwner
-    virtual void did_edit_text_node(Badge<DOM::Document>) override;
+    virtual void did_edit_text_node() override;
 
     // ^EventTarget
     // https://html.spec.whatwg.org/multipage/interaction.html#the-tabindex-attribute:the-textarea-element
@@ -63,6 +63,7 @@ public:
     virtual bool is_labelable() const override { return true; }
 
     virtual void reset_algorithm() override;
+    virtual void clear_algorithm() override;
 
     virtual WebIDL::ExceptionOr<void> cloned(Node&, bool) override;
 
@@ -118,12 +119,11 @@ public:
 
     // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#dom-textarea/input-selectiondirection
     String selection_direction_binding() const;
-    void set_selection_direction_binding(String direction);
+    void set_selection_direction_binding(String const& direction);
 
     void set_dirty_value_flag(Badge<FormAssociatedElement>, bool flag) { m_dirty_value = flag; }
 
-protected:
-    void selection_was_changed(size_t selection_start, size_t selection_end) override;
+    virtual JS::GCPtr<DOM::Text> form_associated_element_to_text_node() override { return m_text_node; }
 
 private:
     HTMLTextAreaElement(DOM::Document&, DOM::QualifiedName);

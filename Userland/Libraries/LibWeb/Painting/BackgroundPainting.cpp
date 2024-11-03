@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2020, Andreas Kling <kling@serenityos.org>
+ * Copyright (c) 2018-2020, Andreas Kling <andreas@ladybird.org>
  * Copyright (c) 2021-2023, Sam Atkins <atkinssj@serenityos.org>
  * Copyright (c) 2022, MacDue <macdue@dueutil.tech>
  *
@@ -8,9 +8,9 @@
 
 #include <LibWeb/CSS/Sizing.h>
 #include <LibWeb/Layout/Node.h>
+#include <LibWeb/Layout/TextNode.h>
 #include <LibWeb/Layout/Viewport.h>
 #include <LibWeb/Painting/BackgroundPainting.h>
-#include <LibWeb/Painting/InlinePaintable.h>
 #include <LibWeb/Painting/PaintableBox.h>
 
 namespace Web::Painting {
@@ -41,12 +41,6 @@ static RefPtr<DisplayList> compute_text_clip_paths(PaintContext& context, Painta
                 if (is<Layout::TextNode>(fragment.layout_node()))
                     add_text_clip_path(fragment);
             }
-        } else if (is<InlinePaintable>(paintable)) {
-            auto const& inline_paintable = static_cast<InlinePaintable const&>(paintable);
-            for (auto const& fragment : inline_paintable.fragments()) {
-                if (is<Layout::TextNode>(fragment.layout_node()))
-                    add_text_clip_path(fragment);
-            }
         }
         return TraversalDecision::Continue;
     });
@@ -54,17 +48,17 @@ static RefPtr<DisplayList> compute_text_clip_paths(PaintContext& context, Painta
     return text_clip_paths;
 }
 
-static BackgroundBox get_box(CSS::BackgroundBox box_clip, BackgroundBox border_box, auto const& layout_node)
+static BackgroundBox get_box(CSS::BackgroundBox box_clip, BackgroundBox border_box, auto const& paintable_box)
 {
     auto box = border_box;
     switch (box_clip) {
     case CSS::BackgroundBox::ContentBox: {
-        auto& padding = layout_node.box_model().padding;
+        auto& padding = paintable_box.box_model().padding;
         box.shrink(padding.top, padding.right, padding.bottom, padding.left);
         [[fallthrough]];
     }
     case CSS::BackgroundBox::PaddingBox: {
-        auto& border = layout_node.box_model().border;
+        auto& border = paintable_box.box_model().border;
         box.shrink(border.top, border.right, border.bottom, border.left);
         [[fallthrough]];
     }
@@ -75,13 +69,13 @@ static BackgroundBox get_box(CSS::BackgroundBox box_clip, BackgroundBox border_b
 }
 
 // https://www.w3.org/TR/css-backgrounds-3/#backgrounds
-void paint_background(PaintContext& context, Layout::NodeWithStyleAndBoxModelMetrics const& layout_node, CSS::ImageRendering image_rendering, ResolvedBackground resolved_background, BorderRadiiData const& border_radii)
+void paint_background(PaintContext& context, PaintableBox const& paintable_box, CSS::ImageRendering image_rendering, ResolvedBackground resolved_background, BorderRadiiData const& border_radii)
 {
     auto& display_list_recorder = context.display_list_recorder();
 
     DisplayListRecorderStateSaver state { display_list_recorder };
     if (resolved_background.needs_text_clip) {
-        auto display_list = compute_text_clip_paths(context, *layout_node.paintable(), resolved_background.background_rect.location());
+        auto display_list = compute_text_clip_paths(context, paintable_box, resolved_background.background_rect.location());
         auto rect = context.rounded_device_rect(resolved_background.background_rect);
         display_list_recorder.add_mask(move(display_list), rect.to_type<int>());
     }
@@ -108,10 +102,10 @@ void paint_background(PaintContext& context, Layout::NodeWithStyleAndBoxModelMet
         DevicePixels right { 0 };
     } clip_shrink;
 
-    auto border_top = layout_node.computed_values().border_top();
-    auto border_bottom = layout_node.computed_values().border_bottom();
-    auto border_left = layout_node.computed_values().border_left();
-    auto border_right = layout_node.computed_values().border_right();
+    auto border_top = paintable_box.computed_values().border_top();
+    auto border_bottom = paintable_box.computed_values().border_bottom();
+    auto border_left = paintable_box.computed_values().border_left();
+    auto border_right = paintable_box.computed_values().border_right();
 
     if (border_top.color.alpha() == 255 && border_bottom.color.alpha() == 255
         && border_left.color.alpha() == 255 && border_right.color.alpha() == 255) {
@@ -126,7 +120,7 @@ void paint_background(PaintContext& context, Layout::NodeWithStyleAndBoxModelMet
         DisplayListRecorderStateSaver state { display_list_recorder };
 
         // Clip
-        auto clip_box = get_box(layer.clip, border_box, layout_node);
+        auto clip_box = get_box(layer.clip, border_box, paintable_box);
 
         CSSPixelRect const& css_clip_rect = clip_box.rect;
         auto clip_rect = context.rounded_device_rect(css_clip_rect);
@@ -145,15 +139,12 @@ void paint_background(PaintContext& context, Layout::NodeWithStyleAndBoxModelMet
 
         switch (layer.attachment) {
         case CSS::BackgroundAttachment::Fixed:
-            background_positioning_area.set_location(layout_node.root().navigable()->viewport_scroll_offset());
+            background_positioning_area.set_location(paintable_box.layout_node().root().navigable()->viewport_scroll_offset());
             break;
         case CSS::BackgroundAttachment::Local:
-            if (is<Layout::Box>(layout_node)) {
-                auto const* paintable_box = static_cast<Layout::Box const&>(layout_node).paintable_box();
-                if (paintable_box && !paintable_box->is_viewport()) {
-                    auto scroll_offset = paintable_box->scroll_offset();
-                    background_positioning_area.translate_by(-scroll_offset.x(), -scroll_offset.y());
-                }
+            if (!paintable_box.is_viewport()) {
+                auto scroll_offset = paintable_box.scroll_offset();
+                background_positioning_area.translate_by(-scroll_offset.x(), -scroll_offset.y());
             }
             break;
         case CSS::BackgroundAttachment::Scroll:
@@ -250,7 +241,7 @@ void paint_background(PaintContext& context, Layout::NodeWithStyleAndBoxModelMet
         CSSPixels initial_image_x = image_rect.x();
         CSSPixels image_y = image_rect.y();
 
-        image.resolve_for_size(layout_node, image_rect.size());
+        image.resolve_for_size(paintable_box.layout_node_with_style_and_box_metrics(), image_rect.size());
 
         auto for_each_image_device_rect = [&](auto callback) {
             while (image_y < css_clip_rect.bottom()) {
@@ -301,7 +292,7 @@ void paint_background(PaintContext& context, Layout::NodeWithStyleAndBoxModelMet
     }
 }
 
-ResolvedBackground resolve_background_layers(Vector<CSS::BackgroundLayerData> const& layers, Layout::NodeWithStyleAndBoxModelMetrics const& layout_node, Color background_color, CSSPixelRect const& border_rect, BorderRadiiData const& border_radii)
+ResolvedBackground resolve_background_layers(Vector<CSS::BackgroundLayerData> const& layers, PaintableBox const& paintable_box, Color background_color, CSSPixelRect const& border_rect, BorderRadiiData const& border_radii)
 {
     auto layer_is_paintable = [&](auto& layer) {
         return layer.background_image && layer.background_image->is_paintable();
@@ -314,23 +305,23 @@ ResolvedBackground resolve_background_layers(Vector<CSS::BackgroundLayerData> co
 
     auto color_box = border_box;
     if (!layers.is_empty())
-        color_box = get_box(layers.last().clip, border_box, layout_node);
+        color_box = get_box(layers.last().clip, border_box, paintable_box);
 
     Vector<ResolvedBackgroundLayerData> resolved_layers;
     for (auto const& layer : layers) {
         if (!layer_is_paintable(layer))
             continue;
 
-        auto background_positioning_area = get_box(layer.origin, border_box, layout_node).rect;
+        auto background_positioning_area = get_box(layer.origin, border_box, paintable_box).rect;
         auto const& image = *layer.background_image;
 
         Optional<CSSPixels> specified_width {};
         Optional<CSSPixels> specified_height {};
         if (layer.size_type == CSS::BackgroundSize::LengthPercentage) {
             if (!layer.size_x.is_auto())
-                specified_width = layer.size_x.to_px(layout_node, background_positioning_area.width());
+                specified_width = layer.size_x.to_px(paintable_box.layout_node(), background_positioning_area.width());
             if (!layer.size_y.is_auto())
-                specified_height = layer.size_y.to_px(layout_node, background_positioning_area.height());
+                specified_height = layer.size_y.to_px(paintable_box.layout_node(), background_positioning_area.height());
         }
         auto concrete_image_size = CSS::run_default_sizing_algorithm(
             specified_width, specified_height,
@@ -400,8 +391,8 @@ ResolvedBackground resolve_background_layers(Vector<CSS::BackgroundLayerData> co
         CSSPixels space_x = background_positioning_area.width() - image_rect.width();
         CSSPixels space_y = background_positioning_area.height() - image_rect.height();
 
-        CSSPixels offset_x = layer.position_offset_x.to_px(layout_node, space_x);
-        CSSPixels offset_y = layer.position_offset_y.to_px(layout_node, space_y);
+        CSSPixels offset_x = layer.position_offset_x.to_px(paintable_box.layout_node(), space_x);
+        CSSPixels offset_y = layer.position_offset_y.to_px(paintable_box.layout_node(), space_y);
 
         resolved_layers.append({ .background_image = layer.background_image,
             .attachment = layer.attachment,
