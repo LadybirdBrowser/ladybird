@@ -31,10 +31,7 @@ public:
         virtual void visit_edges(Cell::Visitor&) { }
     };
 
-    static ThrowCompletionOr<NonnullGCPtr<Realm>> create(VM&);
     static ThrowCompletionOr<NonnullOwnPtr<ExecutionContext>> initialize_host_defined_realm(VM&, Function<Object*(Realm&)> create_global_object, Function<Object*(Realm&)> create_global_this_value);
-
-    void set_global_object(Object* global_object, Object* this_value);
 
     [[nodiscard]] Object& global_object() const { return *m_global_object; }
     [[nodiscard]] GlobalEnvironment& global_environment() const { return *m_global_environment; }
