@@ -95,9 +95,8 @@ ThrowCompletionOr<void> copy_name_and_length(VM& vm, FunctionObject& function, F
 // 3.1.3 PerformShadowRealmEval ( sourceText: a String, callerRealm: a Realm Record, evalRealm: a Realm Record, ), https://tc39.es/proposal-shadowrealm/#sec-performshadowrealmeval
 ThrowCompletionOr<Value> perform_shadow_realm_eval(VM& vm, StringView source_text, Realm& caller_realm, Realm& eval_realm)
 {
-    // FIXME: Needs to be updated to latest ECMA-262. See: https://github.com/tc39/proposal-shadowrealm/issues/367
-    // 1. Perform ? HostEnsureCanCompileStrings(callerRealm, evalRealm).
-    TRY(vm.host_ensure_can_compile_strings(eval_realm));
+    // 1. Perform ? HostEnsureCanCompileStrings(evalRealm, « », sourceText, false).
+    TRY(vm.host_ensure_can_compile_strings(eval_realm, {}, source_text, EvalMode::Indirect));
 
     // 2. Perform the following substeps in an implementation-defined order, possibly interleaving parsing and error detection:
 

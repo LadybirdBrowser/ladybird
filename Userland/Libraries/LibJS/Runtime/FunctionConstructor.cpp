@@ -142,8 +142,8 @@ ThrowCompletionOr<NonnullGCPtr<ECMAScriptFunctionObject>> FunctionConstructor::c
     // 10. Let currentRealm be the current Realm Record.
     auto& realm = *vm.current_realm();
 
-    // FIXME: 11. Perform ? HostEnsureCanCompileStrings(currentRealm, parameterStrings, bodyString, false).
-    TRY(vm.host_ensure_can_compile_strings(current_realm));
+    // 11. Perform ? HostEnsureCanCompileStrings(currentRealm, parameterStrings, bodyString, false).
+    TRY(vm.host_ensure_can_compile_strings(realm, parameter_strings, body_string, EvalMode::Indirect));
 
     // 12. Let P be the empty String.
     String parameters_string;
