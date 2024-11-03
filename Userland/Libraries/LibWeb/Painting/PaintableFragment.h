@@ -15,7 +15,6 @@
 namespace Web::Painting {
 
 class PaintableFragment {
-    friend class InlinePaintable;
     friend class PaintableWithLines;
 
 public:
@@ -32,14 +31,8 @@ public:
     void set_offset(CSSPixelPoint offset) { m_offset = offset; }
     CSSPixelSize size() const { return m_size; }
 
-    BorderRadiiData const& border_radii_data() const { return m_border_radii_data; }
-    void set_border_radii_data(BorderRadiiData const& border_radii_data) { m_border_radii_data = border_radii_data; }
-
     Vector<ShadowData> const& shadows() const { return m_shadows; }
     void set_shadows(Vector<ShadowData>&& shadows) { m_shadows = shadows; }
-
-    ResolvedBackground const& resolved_background() const { return m_resolved_background; }
-    void set_resolved_background(ResolvedBackground resolved_background) { m_resolved_background = resolved_background; }
 
     CSSPixelRect const absolute_rect() const;
 
@@ -63,11 +56,9 @@ private:
     CSSPixels m_baseline;
     int m_start;
     int m_length;
-    Painting::BorderRadiiData m_border_radii_data;
     RefPtr<Gfx::GlyphRun> m_glyph_run;
     CSS::WritingMode m_writing_mode;
     Vector<ShadowData> m_shadows;
-    ResolvedBackground m_resolved_background;
 };
 
 }
