@@ -5,8 +5,12 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibWeb/DOM/Element.h>
+#include <LibWeb/DOM/HTMLCollection.h>
 #include <LibWeb/DOM/ParentNode.h>
+#include <LibWeb/DOM/StaticNodeList.h>
 #include <LibWeb/WebDriver/ElementLocationStrategies.h>
+#include <LibWeb/WebDriver/ElementReference.h>
 
 namespace Web::WebDriver {
 
@@ -24,21 +28,86 @@ static ErrorOr<JS::NonnullGCPtr<DOM::NodeList>, Error> locate_element_by_css_sel
 }
 
 // https://w3c.github.io/webdriver/#link-text
-static ErrorOr<JS::NonnullGCPtr<DOM::NodeList>, Error> locate_element_by_link_text(DOM::ParentNode&, StringView)
+static ErrorOr<JS::NonnullGCPtr<DOM::NodeList>, Error> locate_element_by_link_text(DOM::ParentNode& start_node, StringView selector)
 {
-    return Error::from_code(ErrorCode::UnsupportedOperation, "Not implemented: locate element by link text"sv);
+    auto& realm = start_node.realm();
+
+    // 1. Let elements be the result of calling querySelectorAll() with start node as this and "a" as the argument. If
+    //    this throws an exception, return error with error code unknown error.
+    auto elements = start_node.query_selector_all("a"sv);
+    if (elements.is_exception())
+        return Error::from_code(ErrorCode::UnknownError, "querySelectorAll() failed"sv);
+
+    // 2. Let result be an empty NodeList.
+    Vector<JS::Handle<DOM::Node>> result;
+
+    // 3. For each element in elements:
+    for (size_t i = 0; i < elements.value()->length(); ++i) {
+        auto& element = const_cast<DOM::Node&>(*elements.value()->item(i));
+
+        // 1. Let rendered text be the value that would be returned via a call to Get Element Text for element.
+        auto rendered_text = element_rendered_text(element);
+
+        // 2. Let trimmed text be the result of removing all whitespace from the start and end of the string rendered text.
+        auto trimmed_text = MUST(rendered_text.trim_whitespace());
+
+        // 3. If trimmed text equals selector, append element to result.
+        if (trimmed_text == selector)
+            result.append(element);
+    }
+
+    // 4. Return success with data result.
+    return DOM::StaticNodeList::create(realm, move(result));
 }
 
 // https://w3c.github.io/webdriver/#partial-link-text
-static ErrorOr<JS::NonnullGCPtr<DOM::NodeList>, Error> locate_element_by_partial_link_text(DOM::ParentNode&, StringView)
+static ErrorOr<JS::NonnullGCPtr<DOM::NodeList>, Error> locate_element_by_partial_link_text(DOM::ParentNode& start_node, StringView selector)
 {
-    return Error::from_code(ErrorCode::UnsupportedOperation, "Not implemented: locate element by partial link text"sv);
+    auto& realm = start_node.realm();
+
+    // 1. Let elements be the result of calling querySelectorAll() with start node as this and "a" as the argument. If
+    //    this throws an exception, return error with error code unknown error.
+    auto elements = start_node.query_selector_all("a"sv);
+    if (elements.is_exception())
+        return Error::from_code(ErrorCode::UnknownError, "querySelectorAll() failed"sv);
+
+    // 2. Let result be an empty NodeList.
+    Vector<JS::Handle<DOM::Node>> result;
+
+    // 3. For each element in elements:
+    for (size_t i = 0; i < elements.value()->length(); ++i) {
+        auto& element = const_cast<DOM::Node&>(*elements.value()->item(i));
+
+        // 1. Let rendered text be the value that would be returned via a call to Get Element Text for element.
+        auto rendered_text = element_rendered_text(element);
+
+        // 2. If rendered text contains selector, append element to result.
+        if (rendered_text.contains(selector))
+            result.append(element);
+    }
+
+    // 4. Return success with data result.
+    return DOM::StaticNodeList::create(realm, move(result));
 }
 
 // https://w3c.github.io/webdriver/#tag-name
-static ErrorOr<JS::NonnullGCPtr<DOM::NodeList>, Error> locate_element_by_tag_name(DOM::ParentNode&, StringView)
+static JS::NonnullGCPtr<DOM::NodeList> locate_element_by_tag_name(DOM::ParentNode& start_node, StringView selector)
 {
-    return Error::from_code(ErrorCode::UnsupportedOperation, "Not implemented: locate element by tag name"sv);
+    auto& realm = start_node.realm();
+
+    // To find a web element with the Tag Name strategy return success with data set to the result of calling
+    // getElementsByTagName() with start node as this and selector as the argument.
+    auto elements = start_node.get_elements_by_tag_name(MUST(FlyString::from_utf8(selector)));
+
+    // FIXME: Having to convert this to a NodeList is a bit awkward.
+    Vector<JS::Handle<DOM::Node>> result;
+
+    for (size_t i = 0; i < elements->length(); ++i) {
+        auto* element = elements->item(i);
+        result.append(*element);
+    }
+
+    return DOM::StaticNodeList::create(realm, move(result));
 }
 
 // https://w3c.github.io/webdriver/#xpath
