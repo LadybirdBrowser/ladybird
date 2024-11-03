@@ -6236,19 +6236,19 @@ RefPtr<CSSStyleValue> Parser::parse_easing_value(TokenStream<ComponentValue>& to
     if (part.is(Token::Type::Ident)) {
         auto name = part.token().ident();
         auto maybe_simple_easing = [&] -> RefPtr<EasingStyleValue> {
-            if (name == "linear"sv)
-                return EasingStyleValue::create(EasingStyleValue::Linear {});
-            if (name == "ease"sv)
+            if (name.equals_ignoring_ascii_case("linear"sv))
+                return EasingStyleValue::create(EasingStyleValue::Linear::identity());
+            if (name.equals_ignoring_ascii_case("ease"sv))
                 return EasingStyleValue::create(EasingStyleValue::CubicBezier::ease());
-            if (name == "ease-in"sv)
+            if (name.equals_ignoring_ascii_case("ease-in"sv))
                 return EasingStyleValue::create(EasingStyleValue::CubicBezier::ease_in());
-            if (name == "ease-out"sv)
+            if (name.equals_ignoring_ascii_case("ease-out"sv))
                 return EasingStyleValue::create(EasingStyleValue::CubicBezier::ease_out());
-            if (name == "ease-in-out"sv)
+            if (name.equals_ignoring_ascii_case("ease-in-out"sv))
                 return EasingStyleValue::create(EasingStyleValue::CubicBezier::ease_in_out());
-            if (name == "step-start"sv)
+            if (name.equals_ignoring_ascii_case("step-start"sv))
                 return EasingStyleValue::create(EasingStyleValue::Steps::step_start());
-            if (name == "step-end"sv)
+            if (name.equals_ignoring_ascii_case("step-end"sv))
                 return EasingStyleValue::create(EasingStyleValue::Steps::step_end());
             return {};
         }();
@@ -6271,33 +6271,38 @@ RefPtr<CSSStyleValue> Parser::parse_easing_value(TokenStream<ComponentValue>& to
         argument.remove_all_matching([](auto& value) { return value.is(Token::Type::Whitespace); });
 
     auto name = part.function().name;
-    if (name == "linear"sv) {
+    if (name.equals_ignoring_ascii_case("linear"sv)) {
+        // linear() = linear( [ <number> && <percentage>{0,2} ]# )
         Vector<EasingStyleValue::Linear::Stop> stops;
         for (auto const& argument : comma_separated_arguments) {
-            if (argument.is_empty() || argument.size() > 2)
-                return nullptr;
+            TokenStream argument_tokens { argument };
 
-            Optional<double> offset;
-            Optional<double> position;
+            Optional<double> output;
+            Optional<double> first_input;
+            Optional<double> second_input;
 
-            for (auto const& part : argument) {
-                if (part.is(Token::Type::Number)) {
-                    if (offset.has_value())
-                        return nullptr;
-                    offset = part.token().number_value();
-                } else if (part.is(Token::Type::Percentage)) {
-                    if (position.has_value())
-                        return nullptr;
-                    position = part.token().percentage();
-                } else {
-                    return nullptr;
-                };
+            if (argument_tokens.next_token().is(Token::Type::Number))
+                output = argument_tokens.consume_a_token().token().number_value();
+
+            if (argument_tokens.next_token().is(Token::Type::Percentage)) {
+                first_input = argument_tokens.consume_a_token().token().percentage() / 100;
+                if (argument_tokens.next_token().is(Token::Type::Percentage)) {
+                    second_input = argument_tokens.consume_a_token().token().percentage() / 100;
+                }
             }
 
-            if (!offset.has_value())
+            if (argument_tokens.next_token().is(Token::Type::Number)) {
+                if (output.has_value())
+                    return nullptr;
+                output = argument_tokens.consume_a_token().token().number_value();
+            }
+
+            if (argument_tokens.has_next_token() || !output.has_value())
                 return nullptr;
 
-            stops.append({ offset.value(), move(position) });
+            stops.append({ output.value(), first_input, first_input.has_value() });
+            if (second_input.has_value())
+                stops.append({ output.value(), second_input, true });
         }
 
         if (stops.is_empty())
@@ -6307,7 +6312,7 @@ RefPtr<CSSStyleValue> Parser::parse_easing_value(TokenStream<ComponentValue>& to
         return EasingStyleValue::create(EasingStyleValue::Linear { move(stops) });
     }
 
-    if (name == "cubic-bezier") {
+    if (name.equals_ignoring_ascii_case("cubic-bezier"sv)) {
         if (comma_separated_arguments.size() != 4)
             return nullptr;
 
@@ -6332,7 +6337,7 @@ RefPtr<CSSStyleValue> Parser::parse_easing_value(TokenStream<ComponentValue>& to
         return EasingStyleValue::create(bezier);
     }
 
-    if (name == "steps") {
+    if (name.equals_ignoring_ascii_case("steps"sv)) {
         if (comma_separated_arguments.is_empty() || comma_separated_arguments.size() > 2)
             return nullptr;
 

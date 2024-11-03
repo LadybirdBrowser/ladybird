@@ -14,6 +14,13 @@
 
 namespace Web::CSS {
 
+// https://drafts.csswg.org/css-easing-1/#valdef-easing-function-linear
+EasingStyleValue::Linear EasingStyleValue::Linear::identity()
+{
+    static Linear linear { { { 0, {}, false }, { 1, {}, false } } };
+    return linear;
+}
+
 // NOTE: Magic cubic bezier values from https://www.w3.org/TR/css-easing-1/#valdef-cubic-bezier-easing-function-ease
 
 EasingStyleValue::CubicBezier EasingStyleValue::CubicBezier::ease()
@@ -57,30 +64,154 @@ bool EasingStyleValue::CubicBezier::operator==(Web::CSS::EasingStyleValue::Cubic
     return x1 == other.x1 && y1 == other.y1 && x2 == other.x2 && y2 == other.y2;
 }
 
-double EasingStyleValue::Linear::evaluate_at(double input_progress, bool) const
+// https://drafts.csswg.org/css-easing/#linear-canonicalization
+EasingStyleValue::Linear::Linear(Vector<EasingStyleValue::Linear::Stop> stops)
 {
-    return input_progress;
+    // To canonicalize a linear() function’s control points, perform the following:
+
+    // 1. If the first control point lacks an input progress value, set its input progress value to 0.
+    if (!stops.first().input.has_value())
+        stops.first().input = 0;
+
+    // 2. If the last control point lacks an input progress value, set its input progress value to 1.
+    if (!stops.last().input.has_value())
+        stops.last().input = 1;
+
+    // 3. If any control point has an input progress value that is less than
+    // the input progress value of any preceding control point,
+    // set its input progress value to the largest input progress value of any preceding control point.
+    double largest_input = 0;
+    for (auto stop : stops) {
+        if (stop.input.has_value()) {
+            if (stop.input.value() < largest_input) {
+                stop.input = largest_input;
+            } else {
+                largest_input = stop.input.value();
+            }
+        }
+    }
+
+    // 4. If any control point still lacks an input progress value,
+    // then for each contiguous run of such control points,
+    // set their input progress values so that they are evenly spaced
+    // between the preceding and following control points with input progress values.
+    Optional<size_t> run_start_idx;
+    for (size_t idx = 0; idx < stops.size(); idx++) {
+        auto stop = stops[idx];
+        if (stop.input.has_value() && run_start_idx.has_value()) {
+            // Note: this stop is immediately after a run
+            //       set inputs of [start, idx-1] stops to be evenly spaced between start-1 and idx
+            auto start_input = stops[run_start_idx.value() - 1].input.value();
+            auto end_input = stops[idx].input.value();
+            auto run_stop_count = idx - run_start_idx.value() + 1;
+            auto delta = (end_input - start_input) / run_stop_count;
+            for (size_t run_idx = 0; run_idx < run_stop_count; run_idx++) {
+                stops[run_idx + run_start_idx.value() - 1].input = start_input + delta * run_idx;
+            }
+            run_start_idx = {};
+        } else if (!stop.input.has_value() && !run_start_idx.has_value()) {
+            // Note: this stop is the start of a run
+            run_start_idx = idx;
+        }
+    }
+
+    this->stops = move(stops);
 }
 
+// https://drafts.csswg.org/css-easing/#linear-easing-function-output
+double EasingStyleValue::Linear::evaluate_at(double input_progress, bool before_flag) const
+{
+    // To calculate linear easing output progress for a given linear easing function func,
+    // an input progress value inputProgress, and an optional before flag (defaulting to false),
+    // perform the following:
+
+    // 1. Let points be func’s control points.
+    // 2. If points holds only a single item, return the output progress value of that item.
+    if (stops.size() == 1)
+        return stops[0].output;
+
+    // 3. If inputProgress matches the input progress value of the first point in points,
+    // and the before flag is true, return the first point’s output progress value.
+    if (input_progress == stops[0].input.value() && before_flag)
+        return stops[0].output;
+
+    // 4. If inputProgress matches the input progress value of at least one point in points,
+    // return the output progress value of the last such point.
+    auto maybe_match = stops.last_matching([&](auto& stop) { return input_progress == stop.input.value(); });
+    if (maybe_match.has_value())
+        return maybe_match->output;
+
+    // 5. Otherwise, find two control points in points, A and B, which will be used for interpolation:
+    Stop A;
+    Stop B;
+
+    if (input_progress < stops[0].input.value()) {
+        // 1. If inputProgress is smaller than any input progress value in points,
+        // let A and B be the first two items in points.
+        // If A and B have the same input progress value, return A’s output progress value.
+        A = stops[0];
+        B = stops[1];
+        if (A.input == B.input)
+            return A.output;
+    } else if (input_progress > stops.last().input.value()) {
+        // 2. If inputProgress is larger than any input progress value in points,
+        // let A and B be the last two items in points.
+        // If A and B have the same input progress value, return B’s output progress value.
+        A = stops[stops.size() - 2];
+        B = stops[stops.size() - 1];
+        if (A.input == B.input)
+            return B.output;
+    } else {
+        // 3. Otherwise, let A be the last control point whose input progress value is smaller than inputProgress,
+        // and let B be the first control point whose input progress value is larger than inputProgress.
+        A = stops.last_matching([&](auto& stop) { return stop.input.value() < input_progress; }).value();
+        B = stops.first_matching([&](auto& stop) { return stop.input.value() > input_progress; }).value();
+    }
+
+    // 6. Linearly interpolate (or extrapolate) inputProgress along the line defined by A and B, and return the result.
+    auto factor = (input_progress - A.input.value()) / (B.input.value() - A.input.value());
+    return A.output + factor * (B.output - A.output);
+}
+
+// https://drafts.csswg.org/css-easing/#linear-easing-function-serializing
 String EasingStyleValue::Linear::to_string() const
 {
-    StringBuilder builder;
-    builder.append("linear"sv);
-    if (!stops.is_empty()) {
-        builder.append('(');
+    // The linear keyword is serialized as itself.
+    if (*this == identity())
+        return "linear"_string;
 
-        bool first = true;
-        for (auto const& stop : stops) {
-            if (!first)
-                builder.append(", "sv);
+    // To serialize a linear() function:
+    // 1. Let s be the string "linear(".
+    StringBuilder builder;
+    builder.append("linear("sv);
+
+    // 2. Serialize each control point of the function,
+    // concatenate the results using the separator ", ",
+    // and append the result to s.
+    bool first = true;
+    for (auto stop : stops) {
+        if (first) {
             first = false;
-            builder.appendff("{}"sv, stop.offset);
-            if (stop.position.has_value())
-                builder.appendff(" {}"sv, stop.position.value());
+        } else {
+            builder.append(", "sv);
         }
 
-        builder.append(')');
+        // To serialize a linear() control point:
+        // 1. Let s be the serialization, as a <number>, of the control point’s output progress value.
+        builder.appendff("{}", stop.output);
+
+        // 2. If the control point originally lacked an input progress value, return s.
+        // 3. Otherwise, append " " (U+0020 SPACE) to s,
+        // then serialize the control point’s input progress value as a <percentage> and append it to s.
+        if (stop.had_explicit_input) {
+            builder.appendff(" {}%", stop.input.value() * 100);
+        }
+
+        // 4. Return s.
     }
+
+    // 4. Append ")" to s, and return it.
+    builder.append(')');
     return MUST(builder.to_string());
 }
 
