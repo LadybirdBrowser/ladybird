@@ -37,6 +37,11 @@ enum class HandledByHost {
     Unhandled,
 };
 
+enum class EvalMode {
+    Direct,
+    Indirect
+};
+
 class VM : public RefCounted<VM> {
 public:
     struct CustomData {
@@ -276,7 +281,7 @@ public:
     Function<void(FinalizationRegistry&)> host_enqueue_finalization_registry_cleanup_job;
     Function<void(NonnullGCPtr<HeapFunction<ThrowCompletionOr<Value>()>>, Realm*)> host_enqueue_promise_job;
     Function<JS::NonnullGCPtr<JobCallback>(FunctionObject&)> host_make_job_callback;
-    Function<ThrowCompletionOr<void>(Realm&)> host_ensure_can_compile_strings;
+    Function<ThrowCompletionOr<void>(Realm&, ReadonlySpan<String>, StringView, EvalMode)> host_ensure_can_compile_strings;
     Function<ThrowCompletionOr<void>(Object&)> host_ensure_can_add_private_element;
     Function<ThrowCompletionOr<HandledByHost>(ArrayBuffer&, size_t)> host_resize_array_buffer;
     Function<void(StringView)> host_unrecognized_date_string;

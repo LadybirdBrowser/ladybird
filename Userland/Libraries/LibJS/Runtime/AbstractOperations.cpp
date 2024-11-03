@@ -511,13 +511,14 @@ ThrowCompletionOr<Value> perform_eval(VM& vm, Value x, CallerMode strict_caller,
     // 2. If Type(x) is not String, return x.
     if (!x.is_string())
         return x;
+    auto& code_string = x.as_string();
 
     // 3. Let evalRealm be the current Realm Record.
     auto& eval_realm = *vm.running_execution_context().realm;
 
     // 4. NOTE: In the case of a direct eval, evalRealm is the realm of both the caller of eval and of the eval function itself.
-    // 5. Perform ? HostEnsureCanCompileStrings(evalRealm).
-    TRY(vm.host_ensure_can_compile_strings(eval_realm));
+    // 5. Perform ? HostEnsureCanCompileStrings(evalRealm, « », x, direct).
+    TRY(vm.host_ensure_can_compile_strings(eval_realm, {}, code_string.utf8_string_view(), direct));
 
     // 6. Let inFunction be false.
     bool in_function = false;
@@ -571,8 +572,6 @@ ThrowCompletionOr<Value> perform_eval(VM& vm, Value x, CallerMode strict_caller,
     //     f. If inMethod is false, and body Contains SuperProperty, throw a SyntaxError exception.
     //     g. If inDerivedConstructor is false, and body Contains SuperCall, throw a SyntaxError exception.
     //     h. If inClassFieldInitializer is true, and ContainsArguments of body is true, throw a SyntaxError exception.
-    auto& code_string = x.as_string();
-
     Parser::EvalInitialState initial_state {
         .in_eval_function_context = in_function,
         .allow_super_property_lookup = in_method,
