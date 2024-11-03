@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+
+<body></body>
+<script src="../../include.js"></script>
+<script>
+    test(() => {
+        const easings = [
+            "linear",
+            "linear(0, 1)",
+            "linear(0, 0.5, 1)",
+            "linear(0 0%, 0.5 10%, 1 100%)",
+            "linear(0% 0, 10% 0.5, 100% 1)",
+            "linear(0% 0, 1 100%)",
+            "linear(0 0% 50%, 1 50% 100%)",
+            "linear(0.5 0% 100%)",
+            // FIXME: "linear(-1, 2)"
+            "ease",
+            "ease-in",
+            "ease-out",
+            "ease-in-out",
+            "cubic-bezier(0, 0, 0, 0)",
+            "cubic-bezier(1, 1, 1, 1)",
+            "cubic-bezier(1, 1000, 1, 1000)",
+            // FIXME: "step-start",
+            "step-end",
+            "steps(1000)",
+            "steps(10, jump-start)",
+            "steps(10, jump-end)",
+            "steps(10, jump-none)",
+            "steps(10, jump-both)",
+            // FIXME: "steps(10, start)",
+            "steps(10, end)",
+        ];
+
+        for (const easing of easings) {
+            const target = document.createElement('div');
+            document.body.appendChild(target);
+            println(easing);
+            const animation = target.animate(
+                { opacity: ['0', '1'] },
+                {
+                    duration: 100,
+                    fill: 'forwards',
+                    easing: easing,
+                });
+            const computed_style = getComputedStyle(target);
+            for (let time = 0; time <= 100; time += 10) {
+                animation.currentTime = time;
+                println(`${time}: ${parseFloat(computed_style.opacity).toFixed(2)}`);
+            }
+            target.remove();
+        }
+    });
+</script>

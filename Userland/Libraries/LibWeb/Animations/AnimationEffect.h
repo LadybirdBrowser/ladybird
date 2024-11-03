@@ -178,7 +178,7 @@ protected:
     JS::GCPtr<Animation> m_associated_animation {};
 
     // https://www.w3.org/TR/web-animations-1/#time-transformations
-    CSS::EasingStyleValue::Function m_timing_function { CSS::EasingStyleValue::Linear {} };
+    CSS::EasingStyleValue::Function m_timing_function { CSS::EasingStyleValue::Linear::identity() };
 
     // Used for calculating transitions in StyleComputer
     Phase m_previous_phase { Phase::Idle };

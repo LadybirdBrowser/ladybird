@@ -994,6 +994,8 @@ void StyleComputer::collect_animation_into(DOM::Element& element, Optional<CSS::
 
     auto& keyframes = effect->key_frame_set()->keyframes_by_key;
 
+    // FIXME: Support progress values outside [0-1]
+    output_progress = clamp(output_progress.value(), 0, 1);
     auto key = static_cast<u64>(output_progress.value() * 100.0 * Animations::KeyframeEffect::AnimationKeyFrameKeyScaleFactor);
     auto matching_keyframe_it = keyframes.find_largest_not_above_iterator(key);
     if (matching_keyframe_it.is_end()) {

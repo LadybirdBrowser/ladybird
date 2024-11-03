@@ -186,12 +186,12 @@ public:
     }
 
     template<typename TUnaryPredicate>
-    Optional<VisibleType&> last_matching(TUnaryPredicate const& predicate)
+    Optional<VisibleType const&> last_matching(TUnaryPredicate const& predicate) const
     requires(!contains_reference)
     {
         for (ssize_t i = size() - 1; i >= 0; --i) {
             if (predicate(at(i))) {
-                return at(i);
+                return Optional<VisibleType const&>(at(i));
             }
         }
         return {};

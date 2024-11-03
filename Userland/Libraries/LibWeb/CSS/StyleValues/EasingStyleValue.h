@@ -17,9 +17,15 @@ namespace Web::CSS {
 class EasingStyleValue final : public StyleValueWithDefaultOperators<EasingStyleValue> {
 public:
     struct Linear {
+        static Linear identity();
+
         struct Stop {
-            double offset;
-            Optional<double> position;
+            double output;
+            Optional<double> input;
+
+            // "NOTE: Serialization relies on whether or not an input progress value was originally supplied,
+            // so that information should be retained in the internal representation."
+            bool had_explicit_input;
 
             bool operator==(Stop const&) const = default;
         };
@@ -30,6 +36,8 @@ public:
 
         double evaluate_at(double input_progress, bool before_flag) const;
         String to_string() const;
+
+        Linear(Vector<Stop> stops);
     };
 
     struct CubicBezier {
