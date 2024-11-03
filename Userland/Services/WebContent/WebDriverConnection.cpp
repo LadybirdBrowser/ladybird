@@ -1322,11 +1322,12 @@ Messages::WebDriverClient::GetElementTextResponse WebDriverConnection::get_eleme
         // 3. Let element be the result of trying to get a known connected element with url variable element id.
         auto element = WEBDRIVER_TRY(Web::WebDriver::get_known_element(current_browsing_context(), element_id));
 
-        // 4. Let rendered text be the result of performing implementation-specific steps whose result is exactly the same as the result of a Function.[[Call]](null, element) with bot.dom.getVisibleText as the this value.
-        auto rendered_text = element->text_content();
+        // 4. Let rendered text be the result of performing implementation-specific steps whose result is exactly the
+        //    same as the result of a Function.[[Call]](null, element) with bot.dom.getVisibleText as the this value.
+        auto rendered_text = Web::WebDriver::element_rendered_text(element);
 
         // 5. Return success with data rendered text.
-        async_driver_execution_complete({ rendered_text.value_or(String {}).to_byte_string() });
+        async_driver_execution_complete({ rendered_text.to_byte_string() });
     });
 
     return JsonValue {};
