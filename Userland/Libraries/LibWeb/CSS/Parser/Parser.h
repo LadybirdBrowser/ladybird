@@ -247,7 +247,7 @@ private:
     OwnPtr<CalculationNode> parse_math_function(PropertyID, Function const&);
     OwnPtr<CalculationNode> parse_a_calc_function_node(Function const&);
     RefPtr<CSSStyleValue> parse_keyword_value(TokenStream<ComponentValue>&);
-    RefPtr<CSSStyleValue> parse_hue_value(TokenStream<ComponentValue>&);
+    RefPtr<CSSStyleValue> parse_hue_none_value(TokenStream<ComponentValue>&);
     RefPtr<CSSStyleValue> parse_solidus_and_alpha_value(TokenStream<ComponentValue>&);
     RefPtr<CSSStyleValue> parse_rgb_color_value(TokenStream<ComponentValue>&);
     RefPtr<CSSStyleValue> parse_hsl_color_value(TokenStream<ComponentValue>&);
@@ -290,6 +290,7 @@ private:
     RefPtr<CSSStyleValue> parse_length_percentage_value(TokenStream<ComponentValue>&);
     RefPtr<CSSStyleValue> parse_number_value(TokenStream<ComponentValue>&);
     RefPtr<CSSStyleValue> parse_number_percentage_value(TokenStream<ComponentValue>& tokens);
+    RefPtr<CSSStyleValue> parse_number_percentage_none_value(TokenStream<ComponentValue>& tokens);
     RefPtr<CSSStyleValue> parse_percentage_value(TokenStream<ComponentValue>& tokens);
     RefPtr<CSSStyleValue> parse_resolution_value(TokenStream<ComponentValue>&);
     RefPtr<CSSStyleValue> parse_time_value(TokenStream<ComponentValue>&);

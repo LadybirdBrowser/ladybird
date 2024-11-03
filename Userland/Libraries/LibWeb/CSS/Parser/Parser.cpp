@@ -2388,6 +2388,7 @@ RefPtr<CSSStyleValue> Parser::parse_number_value(TokenStream<ComponentValue>& to
 
 RefPtr<CSSStyleValue> Parser::parse_number_percentage_value(TokenStream<ComponentValue>& tokens)
 {
+    // Parses [<percentage> | <number>] (which is equivalent to [<alpha-value>])
     auto peek_token = tokens.next_token();
     if (peek_token.is(Token::Type::Number)) {
         tokens.discard_a_token(); // number
@@ -2400,6 +2401,33 @@ RefPtr<CSSStyleValue> Parser::parse_number_percentage_value(TokenStream<Componen
     if (auto calc = parse_calculated_value(peek_token); calc && calc->resolves_to_number_percentage()) {
         tokens.discard_a_token(); // calc
         return calc;
+    }
+
+    return nullptr;
+}
+
+RefPtr<CSSStyleValue> Parser::parse_number_percentage_none_value(TokenStream<ComponentValue>& tokens)
+{
+    // Parses [<percentage> | <number> | none] (which is equivalent to [<alpha-value> | none])
+    auto peek_token = tokens.next_token();
+    if (peek_token.is(Token::Type::Number)) {
+        tokens.discard_a_token(); // number
+        return NumberStyleValue::create(peek_token.token().number().value());
+    }
+    if (peek_token.is(Token::Type::Percentage)) {
+        tokens.discard_a_token(); // percentage
+        return PercentageStyleValue::create(Percentage(peek_token.token().percentage()));
+    }
+    if (auto calc = parse_calculated_value(peek_token); calc && calc->resolves_to_number_percentage()) {
+        tokens.discard_a_token(); // calc
+        return calc;
+    }
+    if (peek_token.is(Token::Type::Ident)) {
+        auto keyword = keyword_from_string(peek_token.token().ident());
+        if (keyword.has_value() && keyword.value() == Keyword::None) {
+            tokens.discard_a_token(); // keyword none
+            return CSSKeywordValue::create(keyword.value());
+        }
     }
 
     return nullptr;
@@ -2646,29 +2674,48 @@ RefPtr<CSSStyleValue> Parser::parse_rect_value(TokenStream<ComponentValue>& toke
 }
 
 // https://www.w3.org/TR/css-color-4/#typedef-hue
-RefPtr<CSSStyleValue> Parser::parse_hue_value(TokenStream<ComponentValue>& tokens)
+RefPtr<CSSStyleValue> Parser::parse_hue_none_value(TokenStream<ComponentValue>& tokens)
 {
-    // <hue> = <number> | <angle>
-    if (auto number = parse_number_value(tokens))
-        return number;
-    if (auto angle = parse_angle_value(tokens))
-        return angle;
+    // Parses [<hue> | none]
+    //   <hue> = <number> | <angle>
+
+    auto peek_token = tokens.next_token();
+    if (peek_token.is(Token::Type::Number)) {
+        tokens.discard_a_token(); // number
+        return NumberStyleValue::create(peek_token.token().number().value());
+    }
+    if (auto calc = parse_calculated_value(peek_token); calc && (calc->resolves_to_number() || calc->resolves_to_angle())) {
+        tokens.discard_a_token(); // calc number/angle
+        return calc;
+    }
+    if (auto dimension = parse_dimension(peek_token); dimension.has_value() && dimension->is_angle()) {
+        tokens.discard_a_token(); // angle
+        return AngleStyleValue::create(dimension->angle());
+    }
+    if (peek_token.is(Token::Type::Ident)) {
+        auto keyword = keyword_from_string(peek_token.token().ident());
+        if (keyword.has_value() && keyword.value() == Keyword::None) {
+            tokens.discard_a_token(); // keyword none
+            return CSSKeywordValue::create(keyword.value());
+        }
+    }
 
     return nullptr;
 }
 
+// https://www.w3.org/TR/css-color-4/#typedef-color-alpha-value
 RefPtr<CSSStyleValue> Parser::parse_solidus_and_alpha_value(TokenStream<ComponentValue>& tokens)
 {
     // [ / [<alpha-value> | none] ]?
+    // <alpha-value> = <number> | <percentage>
     // Common to the modern-syntax color functions.
-    // TODO: Parse `none`
 
     auto transaction = tokens.begin_transaction();
     tokens.discard_whitespace();
     if (!tokens.consume_a_token().is_delim('/'))
         return {};
     tokens.discard_whitespace();
-    auto alpha = parse_number_percentage_value(tokens);
+    auto alpha = parse_number_percentage_none_value(tokens);
     if (!alpha)
         return {};
     tokens.discard_whitespace();
@@ -2692,7 +2739,6 @@ RefPtr<CSSStyleValue> Parser::parse_rgb_color_value(TokenStream<ComponentValue>&
     // <modern-rgba-syntax> = rgba(
     //     [ <number> | <percentage> | none]{3}
     //     [ / [<alpha-value> | none] ]?  )
-    // TODO: Handle none values
 
     auto transaction = outer_tokens.begin_transaction();
     outer_tokens.discard_whitespace();
@@ -2709,7 +2755,7 @@ RefPtr<CSSStyleValue> Parser::parse_rgb_color_value(TokenStream<ComponentValue>&
     auto inner_tokens = TokenStream { function_token.function().value };
     inner_tokens.discard_whitespace();
 
-    red = parse_number_percentage_value(inner_tokens);
+    red = parse_number_percentage_none_value(inner_tokens);
     if (!red)
         return {};
 
@@ -2720,6 +2766,10 @@ RefPtr<CSSStyleValue> Parser::parse_rgb_color_value(TokenStream<ComponentValue>&
         //   <percentage>#{3} , <alpha-value>?
         //   | <number>#{3} , <alpha-value>?
         // So, r/g/b can be numbers or percentages, as long as they're all the same type.
+
+        // We accepted the 'none' keyword when parsing the red value, but it's not allowed in the legacy syntax.
+        if (red->is_keyword())
+            return {};
 
         inner_tokens.discard_a_token(); // comma
         inner_tokens.discard_whitespace();
@@ -2770,12 +2820,12 @@ RefPtr<CSSStyleValue> Parser::parse_rgb_color_value(TokenStream<ComponentValue>&
         // Modern syntax
         //   [ <number> | <percentage> | none]{3}  [ / [<alpha-value> | none] ]?
 
-        green = parse_number_percentage_value(inner_tokens);
+        green = parse_number_percentage_none_value(inner_tokens);
         if (!green)
             return {};
         inner_tokens.discard_whitespace();
 
-        blue = parse_number_percentage_value(inner_tokens);
+        blue = parse_number_percentage_none_value(inner_tokens);
         if (!blue)
             return {};
         inner_tokens.discard_whitespace();
@@ -2811,7 +2861,6 @@ RefPtr<CSSStyleValue> Parser::parse_hsl_color_value(TokenStream<ComponentValue>&
     //     [ / [<alpha-value> | none] ]? )
     // <legacy-hsl-syntax> = hsl( <hue>, <percentage>, <percentage>, <alpha-value>? )
     // <legacy-hsla-syntax> = hsla( <hue>, <percentage>, <percentage>, <alpha-value>? )
-    // TODO: Handle none values
 
     auto transaction = outer_tokens.begin_transaction();
     outer_tokens.discard_whitespace();
@@ -2828,7 +2877,7 @@ RefPtr<CSSStyleValue> Parser::parse_hsl_color_value(TokenStream<ComponentValue>&
     auto inner_tokens = TokenStream { function_token.function().value };
     inner_tokens.discard_whitespace();
 
-    h = parse_hue_value(inner_tokens);
+    h = parse_hue_none_value(inner_tokens);
     if (!h)
         return {};
 
@@ -2837,6 +2886,11 @@ RefPtr<CSSStyleValue> Parser::parse_hsl_color_value(TokenStream<ComponentValue>&
     if (legacy_syntax) {
         // Legacy syntax
         //   <hue>, <percentage>, <percentage>, <alpha-value>?
+
+        // We accepted the 'none' keyword when parsing the h value, but it's not allowed in the legacy syntax.
+        if (h->is_keyword())
+            return {};
+
         (void)inner_tokens.consume_a_token(); // comma
         inner_tokens.discard_whitespace();
 
@@ -2876,12 +2930,12 @@ RefPtr<CSSStyleValue> Parser::parse_hsl_color_value(TokenStream<ComponentValue>&
         //   [<percentage> | <number> | none]
         //   [ / [<alpha-value> | none] ]?
 
-        s = parse_number_percentage_value(inner_tokens);
+        s = parse_number_percentage_none_value(inner_tokens);
         if (!s)
             return {};
         inner_tokens.discard_whitespace();
 
-        l = parse_number_percentage_value(inner_tokens);
+        l = parse_number_percentage_none_value(inner_tokens);
         if (!l)
             return {};
         inner_tokens.discard_whitespace();
@@ -2924,17 +2978,17 @@ RefPtr<CSSStyleValue> Parser::parse_hwb_color_value(TokenStream<ComponentValue>&
     auto inner_tokens = TokenStream { function_token.function().value };
     inner_tokens.discard_whitespace();
 
-    h = parse_hue_value(inner_tokens);
+    h = parse_hue_none_value(inner_tokens);
     if (!h)
         return {};
     inner_tokens.discard_whitespace();
 
-    w = parse_number_percentage_value(inner_tokens);
+    w = parse_number_percentage_none_value(inner_tokens);
     if (!w)
         return {};
     inner_tokens.discard_whitespace();
 
-    b = parse_number_percentage_value(inner_tokens);
+    b = parse_number_percentage_none_value(inner_tokens);
     if (!b)
         return {};
     inner_tokens.discard_whitespace();
@@ -2975,17 +3029,17 @@ Optional<Array<RefPtr<CSSStyleValue>, 4>> Parser::parse_lab_like_color_value(Tok
     auto inner_tokens = TokenStream { function_token.function().value };
     inner_tokens.discard_whitespace();
 
-    l = parse_number_percentage_value(inner_tokens);
+    l = parse_number_percentage_none_value(inner_tokens);
     if (!l)
         return OptionalNone {};
     inner_tokens.discard_whitespace();
 
-    a = parse_number_percentage_value(inner_tokens);
+    a = parse_number_percentage_none_value(inner_tokens);
     if (!a)
         return OptionalNone {};
     inner_tokens.discard_whitespace();
 
-    b = parse_number_percentage_value(inner_tokens);
+    b = parse_number_percentage_none_value(inner_tokens);
     if (!b)
         return OptionalNone {};
     inner_tokens.discard_whitespace();
@@ -3062,17 +3116,17 @@ Optional<Array<RefPtr<CSSStyleValue>, 4>> Parser::parse_lch_like_color_value(Tok
     auto inner_tokens = TokenStream { function_token.function().value };
     inner_tokens.discard_whitespace();
 
-    auto l = parse_number_percentage_value(inner_tokens);
+    auto l = parse_number_percentage_none_value(inner_tokens);
     if (!l)
         return OptionalNone {};
     inner_tokens.discard_whitespace();
 
-    auto c = parse_number_percentage_value(inner_tokens);
+    auto c = parse_number_percentage_none_value(inner_tokens);
     if (!c)
         return OptionalNone {};
     inner_tokens.discard_whitespace();
 
-    auto h = parse_hue_value(inner_tokens);
+    auto h = parse_hue_none_value(inner_tokens);
     if (!h)
         return OptionalNone {};
     inner_tokens.discard_whitespace();
