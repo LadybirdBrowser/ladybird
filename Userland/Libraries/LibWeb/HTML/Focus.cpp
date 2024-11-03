@@ -204,12 +204,11 @@ void run_focusing_steps(DOM::Node* new_focus_target, DOM::Node* fallback_target,
         new_focus_target = fallback_target;
     }
 
-    // 3. If new focus target is a navigable container with non-null nested browsing context,
-    //    then set new focus target to the nested browsing context's active document.
+    // 3. If new focus target is a navigable container with non-null content navigable, then set new focus target to the content navigable's active document.
     if (is<HTML::NavigableContainer>(*new_focus_target)) {
         auto& navigable_container = static_cast<HTML::NavigableContainer&>(*new_focus_target);
-        if (auto* nested_browsing_context = navigable_container.nested_browsing_context())
-            new_focus_target = nested_browsing_context->active_document();
+        if (auto content_navigable = navigable_container.content_navigable())
+            new_focus_target = content_navigable->active_document();
     }
 
     // FIXME: 4. If new focus target is a focusable area and its DOM anchor is inert, then return.
