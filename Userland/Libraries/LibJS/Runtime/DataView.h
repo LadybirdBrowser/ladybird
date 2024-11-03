@@ -24,7 +24,7 @@ public:
 
     ArrayBuffer* viewed_array_buffer() const { return m_viewed_array_buffer; }
     ByteLength const& byte_length() const { return m_byte_length; }
-    size_t byte_offset() const { return m_byte_offset; }
+    u32 byte_offset() const { return m_byte_offset; }
 
 private:
     DataView(ArrayBuffer*, ByteLength byte_length, size_t byte_offset, Object& prototype);

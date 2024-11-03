@@ -1,0 +1,9 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>Helper that posts its parent a TypeError</title>
+
+<script>
+window.doIt = () => {
+  parent.postMessage(new TypeError("!!"), "*");
+};
+</script>

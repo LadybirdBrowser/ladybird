@@ -1,0 +1,162 @@
+Summary
+
+Harness status: OK
+
+Rerun
+
+Found 150 tests
+
+124 Pass
+25 Fail
+1 Optional Feature Unsupported
+Details
+Result	Test Name	MessagePass	primitive undefined	
+Pass	primitive null	
+Pass	primitive true	
+Pass	primitive false	
+Pass	primitive string, empty string	
+Pass	primitive string, lone high surrogate	
+Pass	primitive string, lone low surrogate	
+Pass	primitive string, NUL	
+Pass	primitive string, astral character	
+Pass	primitive number, 0.2	
+Pass	primitive number, 0	
+Pass	primitive number, -0	
+Pass	primitive number, NaN	
+Pass	primitive number, Infinity	
+Pass	primitive number, -Infinity	
+Pass	primitive number, 9007199254740992	
+Pass	primitive number, -9007199254740992	
+Pass	primitive number, 9007199254740994	
+Pass	primitive number, -9007199254740994	
+Pass	primitive BigInt, 0n	
+Pass	primitive BigInt, -0n	
+Pass	primitive BigInt, -9007199254740994000n	
+Pass	primitive BigInt, -9007199254740994000900719925474099400090071992547409940009007199254740994000n	
+Pass	Array primitives	
+Pass	Object primitives	
+Pass	Boolean true	
+Pass	Boolean false	
+Pass	Array Boolean objects	
+Pass	Object Boolean objects	
+Pass	String empty string	
+Pass	String lone high surrogate	
+Pass	String lone low surrogate	
+Pass	String NUL	
+Pass	String astral character	
+Pass	Array String objects	
+Pass	Object String objects	
+Pass	Number 0.2	
+Pass	Number 0	
+Pass	Number -0	
+Pass	Number NaN	
+Pass	Number Infinity	
+Pass	Number -Infinity	
+Pass	Number 9007199254740992	
+Pass	Number -9007199254740992	
+Pass	Number 9007199254740994	
+Pass	Number -9007199254740994	
+Pass	BigInt -9007199254740994n	
+Pass	Array Number objects	
+Pass	Object Number objects	
+Pass	Date 0	
+Pass	Date -0	
+Pass	Date -8.64e15	
+Pass	Date 8.64e15	
+Pass	Array Date objects	
+Pass	Object Date objects	
+Pass	RegExp flags and lastIndex	
+Pass	RegExp sticky flag	
+Pass	RegExp unicode flag	
+Pass	RegExp empty	
+Pass	RegExp slash	
+Pass	RegExp new line	
+Pass	Array RegExp object, RegExp flags and lastIndex	
+Pass	Array RegExp object, RegExp sticky flag	
+Pass	Array RegExp object, RegExp unicode flag	
+Pass	Array RegExp object, RegExp empty	
+Pass	Array RegExp object, RegExp slash	
+Pass	Array RegExp object, RegExp new line	
+Pass	Object RegExp object, RegExp flags and lastIndex	
+Pass	Object RegExp object, RegExp sticky flag	
+Pass	Object RegExp object, RegExp unicode flag	
+Pass	Object RegExp object, RegExp empty	
+Pass	Object RegExp object, RegExp slash	
+Pass	Object RegExp object, RegExp new line	
+Pass	Empty Error object	
+Pass	Error object	
+Pass	EvalError object	
+Pass	RangeError object	
+Pass	ReferenceError object	
+Pass	SyntaxError object	
+Pass	TypeError object	
+Pass	URIError object	
+Pass	Blob basic	
+Pass	Blob unpaired high surrogate (invalid utf-8)	
+Pass	Blob unpaired low surrogate (invalid utf-8)	
+Pass	Blob paired surrogates (invalid utf-8)	
+Pass	Blob empty	
+Pass	Blob NUL	
+Pass	Array Blob object, Blob basic	
+Pass	Array Blob object, Blob unpaired high surrogate (invalid utf-8)	
+Pass	Array Blob object, Blob unpaired low surrogate (invalid utf-8)	
+Pass	Array Blob object, Blob paired surrogates (invalid utf-8)	
+Pass	Array Blob object, Blob empty	
+Pass	Array Blob object, Blob NUL	
+Pass	Array Blob object, two Blobs	
+Pass	Object Blob object, Blob basic	
+Pass	Object Blob object, Blob unpaired high surrogate (invalid utf-8)	
+Pass	Object Blob object, Blob unpaired low surrogate (invalid utf-8)	
+Pass	Object Blob object, Blob paired surrogates (invalid utf-8)	
+Pass	Object Blob object, Blob empty	
+Pass	Object Blob object, Blob NUL	
+Pass	File basic	
+Pass	FileList empty	
+Pass	Array FileList object, FileList empty	
+Pass	Object FileList object, FileList empty	
+Fail	ImageData 1x1 transparent black	
+Fail	ImageData 1x1 non-transparent non-black	
+Fail	Array ImageData object, ImageData 1x1 transparent black	
+Fail	Array ImageData object, ImageData 1x1 non-transparent non-black	
+Fail	Object ImageData object, ImageData 1x1 transparent black	
+Fail	Object ImageData object, ImageData 1x1 non-transparent non-black	
+Pass	Array sparse	
+Pass	Array with non-index property	
+Pass	Object with index property and length	
+Fail	Array with circular reference	
+Fail	Object with circular reference	
+Fail	Array with identical property values	
+Fail	Object with identical property values	
+Pass	Object with property on prototype	
+Pass	Object with non-enumerable property	
+Pass	Object with non-writable property	
+Pass	Object with non-configurable property	
+Pass	Object with a getter that throws	
+Fail	ImageBitmap 1x1 transparent black	
+Fail	ImageBitmap 1x1 non-transparent non-black	
+Fail	Array ImageBitmap object, ImageBitmap 1x1 transparent black	
+Fail	Array ImageBitmap object, ImageBitmap 1x1 transparent non-black	
+Fail	Object ImageBitmap object, ImageBitmap 1x1 transparent black	
+Fail	Object ImageBitmap object, ImageBitmap 1x1 transparent non-black	
+Pass	ObjectPrototype must lose its exotic-ness when cloned	
+Pass	Serializing a non-serializable platform object fails	
+Pass	An object whose interface is deleted from the global must still deserialize	
+Pass	A subclass instance will deserialize as its closest serializable superclass	
+Fail	Resizable ArrayBuffer	
+Fail	Growable SharedArrayBuffer	
+Pass	Length-tracking TypedArray	
+Pass	Length-tracking DataView	
+Pass	Serializing OOB TypedArray throws	
+Pass	Serializing OOB DataView throws	
+Fail	ArrayBuffer	
+Fail	MessagePort	
+Fail	A detached ArrayBuffer cannot be transferred	
+Pass	A detached platform object cannot be transferred	
+Pass	Transferring a non-transferable platform object fails	
+Fail	An object whose interface is deleted from the global object must still be received	
+Optional Feature Unsupported	A subclass instance will be received as its closest transferable superclass	ReadableStream isn't transferable
+Fail	Resizable ArrayBuffer is transferable	
+Fail	Length-tracking TypedArray is transferable	
+Fail	Length-tracking DataView is transferable	
+Pass	Transferring OOB TypedArray throws	
+Pass	Transferring OOB DataView throws	
