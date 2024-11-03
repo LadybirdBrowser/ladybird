@@ -35,7 +35,7 @@ ThrowCompletionOr<Value> GeneratorFunctionConstructor::call()
     return TRY(construct(*this));
 }
 
-// 27.3.1.1 GeneratorFunction ( p1, p2, … , pn, body ), https://tc39.es/ecma262/#sec-generatorfunction
+// 27.3.1.1 GeneratorFunction ( ...parameterArgs, bodyArg ), https://tc39.es/ecma262/#sec-generatorfunction
 ThrowCompletionOr<NonnullGCPtr<Object>> GeneratorFunctionConstructor::construct(FunctionObject& new_target)
 {
     auto& vm = this->vm();
@@ -43,13 +43,12 @@ ThrowCompletionOr<NonnullGCPtr<Object>> GeneratorFunctionConstructor::construct(
     // 1. Let C be the active function object.
     auto* constructor = vm.active_function_object();
 
-    // 2. Let args be the argumentsList that was passed to this function by [[Call]] or [[Construct]].
-    MarkedVector<Value> args(heap());
-    for (auto argument : vm.running_execution_context().arguments)
-        args.append(argument);
+    // 2. If bodyArg is not present, set bodyArg to the empty String.
+    // NOTE: This does that, as well as the string extraction done inside of CreateDynamicFunction
+    auto extracted = TRY(extract_parameter_arguments_and_body(vm, vm.running_execution_context().arguments));
 
-    // 3. Return ? CreateDynamicFunction(C, NewTarget, generator, args).
-    return *TRY(FunctionConstructor::create_dynamic_function(vm, *constructor, &new_target, FunctionKind::Generator, args));
+    // 3. Return ? CreateDynamicFunction(C, NewTarget, generator, parameterArgs, bodyArg).
+    return TRY(FunctionConstructor::create_dynamic_function(vm, *constructor, &new_target, FunctionKind::Generator, extracted.parameters, extracted.body));
 }
 
 }
