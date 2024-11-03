@@ -148,9 +148,9 @@ private:
     };
     JS::NonnullGCPtr<DOM::Element> insert_foreign_element(HTMLToken const&, Optional<FlyString> const& namespace_, OnlyAddToElementStack);
     JS::NonnullGCPtr<DOM::Element> insert_html_element(HTMLToken const&);
-    DOM::Element& current_node();
-    DOM::Element& adjusted_current_node();
-    DOM::Element& node_before_current_node();
+    [[nodiscard]] JS::GCPtr<DOM::Element> current_node();
+    [[nodiscard]] JS::GCPtr<DOM::Element> adjusted_current_node();
+    [[nodiscard]] JS::GCPtr<DOM::Element> node_before_current_node();
     void insert_character(u32 data);
     void insert_comment(HTMLToken&);
     void reconstruct_the_active_formatting_elements();
