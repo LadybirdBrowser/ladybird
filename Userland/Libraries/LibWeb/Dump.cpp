@@ -325,10 +325,8 @@ void dump_tree(StringBuilder& builder, Layout::Node const& layout_node, bool sho
 
         if (is<Layout::FrameBox>(box)) {
             auto const& frame_box = static_cast<Layout::FrameBox const&>(box);
-            if (auto* nested_browsing_context = frame_box.dom_node().nested_browsing_context()) {
-                if (auto* document = nested_browsing_context->active_document()) {
-                    builder.appendff(" (url: {})", document->url());
-                }
+            if (auto const* document = frame_box.dom_node().content_document_without_origin_check()) {
+                builder.appendff(" (url: {})", document->url());
             }
         }
 

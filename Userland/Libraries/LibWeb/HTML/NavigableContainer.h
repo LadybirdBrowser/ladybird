@@ -24,19 +24,6 @@ public:
     JS::GCPtr<Navigable> content_navigable() { return m_content_navigable; }
     JS::GCPtr<Navigable const> content_navigable() const { return m_content_navigable.ptr(); }
 
-    BrowsingContext* nested_browsing_context()
-    {
-        if (m_content_navigable)
-            return m_content_navigable->active_browsing_context();
-        return nullptr;
-    }
-    BrowsingContext const* nested_browsing_context() const
-    {
-        if (m_content_navigable)
-            return m_content_navigable->active_browsing_context();
-        return nullptr;
-    }
-
     const DOM::Document* content_document() const;
     DOM::Document const* content_document_without_origin_check() const;
 
