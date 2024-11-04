@@ -142,6 +142,13 @@ ErrorOr<NonnullRefPtr<Core::LocalServer>> Session::create_server(NonnullRefPtr<S
             if (m_windows.is_empty())
                 m_client->close_session(session_id());
         };
+
+        web_content_connection->async_set_page_load_strategy(m_page_load_strategy);
+        web_content_connection->async_set_strict_file_interactability(m_strict_file_interactiblity);
+        web_content_connection->async_set_unhandled_prompt_behavior(m_unhandled_prompt_behavior);
+        if (m_timeouts_configuration.has_value())
+            web_content_connection->async_set_timeouts(*m_timeouts_configuration);
+
         m_windows.set(window_handle, Session::Window { window_handle, move(web_content_connection) });
 
         if (m_current_window_handle.is_empty())
