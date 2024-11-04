@@ -566,6 +566,7 @@ class Performance;
 }
 
 namespace Web::IndexedDB {
+class Database;
 class IDBFactory;
 class IDBOpenDBRequest;
 class IDBRequest;
