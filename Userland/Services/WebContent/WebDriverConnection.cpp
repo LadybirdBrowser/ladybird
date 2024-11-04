@@ -631,22 +631,14 @@ Messages::WebDriverClient::SwitchToFrameResponse WebDriverConnection::switch_to_
             auto element = WEBDRIVER_TRY(Web::WebDriver::get_known_element(current_browsing_context(), element_id));
 
             // 4. If element is not a frame or iframe element, return error with error code no such frame.
-            bool is_frame = is<Web::HTML::HTMLFrameElement>(*element);
-            bool is_iframe = is<Web::HTML::HTMLIFrameElement>(*element);
-
-            if (!is_frame && !is_iframe) {
+            if (!is<Web::HTML::HTMLFrameElement>(*element) && !is<Web::HTML::HTMLIFrameElement>(*element)) {
                 async_driver_execution_complete(Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::NoSuchFrame, "element is not a frame"sv));
                 return;
             }
 
             // 5. Set the current browsing context with session and element's content navigable's active browsing context.
-            if (is_frame) {
-                // FIXME: Should HTMLFrameElement also be a NavigableContainer?
-                set_current_browsing_context(*element->navigable()->active_browsing_context());
-            } else {
-                auto& navigable_container = static_cast<Web::HTML::NavigableContainer&>(*element);
-                set_current_browsing_context(*navigable_container.content_navigable()->active_browsing_context());
-            }
+            auto& navigable_container = static_cast<Web::HTML::NavigableContainer&>(*element);
+            set_current_browsing_context(*navigable_container.content_navigable()->active_browsing_context());
 
             async_driver_execution_complete(JsonValue {});
         });
