@@ -69,6 +69,7 @@ add_cxx_compile_options(-Wcast-qual)
 add_cxx_compile_options(-Wformat=2)
 add_cxx_compile_options(-Wimplicit-fallthrough)
 add_cxx_compile_options(-Wmissing-declarations)
+add_cxx_compile_options(-Wmissing-field-initializers)
 add_cxx_compile_options(-Wsuggest-override)
 
 add_cxx_compile_options(-Wno-invalid-offsetof)
