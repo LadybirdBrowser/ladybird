@@ -3,8 +3,8 @@
 // https://w3c.github.io/IndexedDB/#idbrequest
 [Exposed=(Window,Worker)]
 interface IDBRequest : EventTarget {
-    [FIXME] readonly attribute any result;
-    [FIXME] readonly attribute DOMException? error;
+    readonly attribute any result;
+    readonly attribute DOMException? error;
     [FIXME] readonly attribute (IDBObjectStore or IDBIndex or IDBCursor)? source;
     [FIXME] readonly attribute IDBTransaction? transaction;
     [FIXME] readonly attribute IDBRequestReadyState readyState;

@@ -27,6 +27,13 @@ void IDBRequest::initialize(JS::Realm& realm)
     WEB_SET_PROTOTYPE_FOR_INTERFACE(IDBRequest);
 }
 
+void IDBRequest::visit_edges(Visitor& visitor)
+{
+    Base::visit_edges(visitor);
+    visitor.visit(m_error);
+    visitor.visit(m_result);
+}
+
 // https://w3c.github.io/IndexedDB/#dom-idbrequest-onsuccess
 void IDBRequest::set_onsuccess(WebIDL::CallbackType* event_handler)
 {
