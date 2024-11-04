@@ -76,6 +76,6 @@ struct BodyWithType {
     Optional<ByteBuffer> type;
 };
 
-WebIDL::ExceptionOr<GC::Ref<Body>> byte_sequence_as_body(JS::Realm&, ReadonlyBytes);
+GC::Ref<Body> byte_sequence_as_body(JS::Realm&, ReadonlyBytes);
 
 }
