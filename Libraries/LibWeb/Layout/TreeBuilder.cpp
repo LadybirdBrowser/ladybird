@@ -254,6 +254,7 @@ void TreeBuilder::create_pseudo_element_if_needed(DOM::Element& element, CSS::Se
 
     element.set_pseudo_element_node({}, pseudo_element, pseudo_element_node);
     insert_node_into_inline_or_block_ancestor(*pseudo_element_node, pseudo_element_display, mode);
+    pseudo_element_node->mutable_computed_values().set_content(pseudo_element_content);
 }
 
 static bool is_ignorable_whitespace(Layout::Node const& node)

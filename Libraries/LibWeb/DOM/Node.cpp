@@ -2333,17 +2333,20 @@ ErrorOr<String> Node::name_or_description(NameOrDescription target, Document con
         if ((role.has_value() && ARIA::allows_name_from_content(role.value())) || is_descendant == IsDescendant::Yes) {
             // i. Set the accumulated text to the empty string.
             total_accumulated_text.clear();
-            // ii. Check for CSS generated textual content associated with the current node and include it in the accumulated text. The CSS :before and :after pseudo elements [CSS2] can provide textual content for elements that have a content model.
-            auto before = element->get_pseudo_element_node(CSS::Selector::PseudoElement::Type::Before);
-            auto after = element->get_pseudo_element_node(CSS::Selector::PseudoElement::Type::After);
-            // - For :before pseudo elements, User agents MUST prepend CSS textual content, without a space, to the textual content of the current node.
-            if (before)
-                TRY(Node::prepend_without_space(total_accumulated_text, before->computed_values().content().data));
-
-            // - For :after pseudo elements, User agents MUST append CSS textual content, without a space, to the textual content of the current node.
-            if (after)
-                TRY(Node::append_without_space(total_accumulated_text, after->computed_values().content().data));
-
+            // ii. Name From Generated Content: Check for CSS generated textual content associated with the current node and include
+            // it in the accumulated text. The CSS ::before and ::after pseudo elements [CSS2] can provide textual content for
+            // elements that have a content model.
+            // a. For ::before pseudo elements, User agents MUST prepend CSS textual content, without a space, to the textual
+            // content of the current node.
+            // b. For ::after pseudo elements, User agents MUST append CSS textual content, without a space, to the textual content
+            // of the current node. NOTE: The code for handling the ::after pseudo elements case is further below,
+            // following the “iii. For each child node of the current node” code.
+            if (auto before = element->get_pseudo_element_node(CSS::Selector::PseudoElement::Type::Before)) {
+                if (before->computed_values().content().alt_text.has_value())
+                    total_accumulated_text.append(before->computed_values().content().alt_text.release_value());
+                else
+                    total_accumulated_text.append(before->computed_values().content().data);
+            }
             // iii. For each child node of the current node:
             element->for_each_child([&total_accumulated_text, current_node, target, &document, &visited_nodes](
                                         DOM::Node const& child_node) mutable {
@@ -2377,9 +2380,15 @@ ErrorOr<String> Node::name_or_description(NameOrDescription target, Document con
 
                 return IterationDecision::Continue;
             });
+            // NOTE: See step ii.b above.
+            if (auto after = element->get_pseudo_element_node(CSS::Selector::PseudoElement::Type::After)) {
+                if (after->computed_values().content().alt_text.has_value())
+                    total_accumulated_text.append(after->computed_values().content().alt_text.release_value());
+                else
+                    total_accumulated_text.append(after->computed_values().content().data);
+            }
             // v. Return the accumulated text if it is not the empty string ("").
-            if (!total_accumulated_text.is_empty())
-                return total_accumulated_text.to_string();
+            return total_accumulated_text.to_string();
             // Important: Each node in the subtree is consulted only once. If text has been collected from a descendant, but is referenced by another IDREF in some descendant node, then that second, or subsequent, reference is not followed. This is done to avoid infinite loops.
         }
     }

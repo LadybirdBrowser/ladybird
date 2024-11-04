@@ -330,7 +330,7 @@ struct ContentData {
 
     // FIXME: Data is a list of identifiers, strings and image values.
     String data {};
-    String alt_text {};
+    Optional<String> alt_text {};
 };
 
 struct CounterData {
