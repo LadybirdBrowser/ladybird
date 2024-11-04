@@ -74,9 +74,7 @@ struct PNGLoadingContext {
 ErrorOr<NonnullOwnPtr<ImageDecoderPlugin>> PNGImageDecoderPlugin::create(ReadonlyBytes bytes)
 {
     auto decoder = adopt_own(*new PNGImageDecoderPlugin(bytes));
-    if (!TRY(decoder->initialize()))
-        return Error::from_string_literal("PNG load error");
-
+    TRY(decoder->initialize());
     return decoder;
 }
 
@@ -126,21 +124,21 @@ ErrorOr<Optional<ReadonlyBytes>> PNGImageDecoderPlugin::icc_data()
     return OptionalNone {};
 }
 
-ErrorOr<bool> PNGImageDecoderPlugin::initialize()
+ErrorOr<void> PNGImageDecoderPlugin::initialize()
 {
     png_structp png_ptr = png_create_read_struct(PNG_LIBPNG_VER_STRING, nullptr, nullptr, nullptr);
     if (!png_ptr)
-        return false;
+        return Error::from_string_view("Failed to allocate read struct"sv);
 
     png_infop info_ptr = png_create_info_struct(png_ptr);
     if (!info_ptr) {
         png_destroy_read_struct(&png_ptr, nullptr, nullptr);
-        return false;
+        return Error::from_string_view("Failed to allocate info struct"sv);
     }
 
-    if (setjmp(png_jmpbuf(png_ptr))) {
+    if (auto error_value = setjmp(png_jmpbuf(png_ptr)); error_value) {
         png_destroy_read_struct(&png_ptr, &info_ptr, nullptr);
-        return false;
+        return Error::from_errno(error_value);
     }
 
     png_set_read_fn(png_ptr, &m_context->data, [](png_structp png_ptr, png_bytep data, png_size_t length) {
@@ -184,9 +182,8 @@ ErrorOr<bool> PNGImageDecoderPlugin::initialize()
     int compression_type = 0;
     u8* profile_data = nullptr;
     u32 profile_len = 0;
-    if (png_get_iCCP(png_ptr, info_ptr, &profile_name, &compression_type, &profile_data, &profile_len)) {
+    if (png_get_iCCP(png_ptr, info_ptr, &profile_name, &compression_type, &profile_data, &profile_len))
         m_context->icc_profile = TRY(ByteBuffer::copy(profile_data, profile_len));
-    }
 
     png_read_update_info(png_ptr, info_ptr);
     m_context->frame_count = TRY(m_context->read_frames(png_ptr, info_ptr));
@@ -194,17 +191,14 @@ ErrorOr<bool> PNGImageDecoderPlugin::initialize()
     u8* exif_data = nullptr;
     u32 exif_length = 0;
     int const num_exif_chunks = png_get_eXIf_1(png_ptr, info_ptr, &exif_length, &exif_data);
-    if (num_exif_chunks > 0) {
+    if (num_exif_chunks > 0)
         m_context->exif_metadata = TRY(TIFFImageDecoderPlugin::read_exif_metadata({ exif_data, exif_length }));
-    }
 
-    if (m_context->exif_metadata) {
-        if (auto result = m_context->apply_exif_orientation(); result.is_error())
-            dbgln("Could not apply eXIf chunk orientation for PNG: {}", result.error());
-    }
+    if (m_context->exif_metadata)
+        TRY(m_context->apply_exif_orientation());
 
     png_destroy_read_struct(&png_ptr, &info_ptr, nullptr);
-    return true;
+    return {};
 }
 
 ErrorOr<void> PNGLoadingContext::apply_exif_orientation()
