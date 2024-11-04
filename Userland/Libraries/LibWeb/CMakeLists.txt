@@ -501,6 +501,7 @@ set(SOURCES
     Infra/ByteSequences.cpp
     Infra/JSON.cpp
     Infra/Strings.cpp
+    IndexedDB/Internal/Database.cpp
     IndexedDB/IDBFactory.cpp
     IndexedDB/IDBOpenDBRequest.cpp
     IndexedDB/IDBRequest.cpp
