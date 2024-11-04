@@ -68,7 +68,7 @@ void ImportMapParseResult::register_import_map(Window& global)
 {
     // 1. If result's error to rethrow is not null, then report the exception given by result's error to rethrow and return.
     if (m_error_to_rethrow.has_value()) {
-        auto completion = Web::Bindings::dom_exception_to_throw_completion(global.vm(), m_error_to_rethrow.value());
+        auto completion = Web::Bindings::exception_to_throw_completion(global.vm(), m_error_to_rethrow.value());
         HTML::report_exception(completion, global.realm());
         return;
     }

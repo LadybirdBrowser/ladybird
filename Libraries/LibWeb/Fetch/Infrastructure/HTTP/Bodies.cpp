@@ -101,7 +101,7 @@ void Body::fully_read(JS::Realm& realm, Web::Fetch::Infrastructure::Body::Proces
     HTML::TemporaryExecutionContext execution_context { realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
     auto reader_or_exception = Streams::acquire_readable_stream_default_reader(*m_stream);
     if (reader_or_exception.is_exception()) {
-        auto throw_completion = Bindings::dom_exception_to_throw_completion(realm.vm(), reader_or_exception.release_error());
+        auto throw_completion = Bindings::exception_to_throw_completion(realm.vm(), reader_or_exception.release_error());
         error_steps(throw_completion.release_value().value());
         return;
     }

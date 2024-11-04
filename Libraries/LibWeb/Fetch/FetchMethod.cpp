@@ -36,7 +36,7 @@ GC::Ref<WebIDL::Promise> fetch(JS::VM& vm, RequestInfo const& input, RequestInit
     //    as arguments. If this throws an exception, reject p with it and return p.
     auto exception_or_request_object = Request::construct_impl(realm, input, init);
     if (exception_or_request_object.is_exception()) {
-        auto throw_completion = Bindings::dom_exception_to_throw_completion(vm, exception_or_request_object.exception());
+        auto throw_completion = Bindings::exception_to_throw_completion(vm, exception_or_request_object.exception());
         WebIDL::reject_promise(realm, promise_capability, *throw_completion.value());
         return promise_capability;
     }

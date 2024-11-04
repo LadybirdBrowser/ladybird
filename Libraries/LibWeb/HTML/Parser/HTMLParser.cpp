@@ -1055,7 +1055,7 @@ void HTMLParser::handle_in_head(HTMLToken& token)
                 //    If an exception is thrown, then catch it, report the exception, insert an element at the adjusted insertion location with template, and return.
                 auto result = declarative_shadow_host_element.attach_a_shadow_root(mode, clonable, serializable, delegates_focus, Bindings::SlotAssignmentMode::Named);
                 if (result.is_error()) {
-                    report_exception(Bindings::dom_exception_to_throw_completion(vm(), result.release_error()), realm());
+                    report_exception(Bindings::exception_to_throw_completion(vm(), result.release_error()), realm());
                     insert_an_element_at_the_adjusted_insertion_location(template_);
                     return;
                 }

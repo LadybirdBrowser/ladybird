@@ -701,7 +701,7 @@ GC::Ref<WebIDL::Promise> compile_potential_webassembly_response(JS::VM& vm, GC::
         // 8. Consume response’s body as an ArrayBuffer, and let bodyPromise be the result.
         auto body_promise_or_error = response_object.array_buffer();
         if (body_promise_or_error.is_error()) {
-            auto throw_completion = Bindings::dom_exception_to_throw_completion(realm.vm(), body_promise_or_error.release_error());
+            auto throw_completion = Bindings::exception_to_throw_completion(realm.vm(), body_promise_or_error.release_error());
             WebIDL::reject_promise(realm, return_value, *throw_completion.value());
             return JS::js_undefined();
         }
