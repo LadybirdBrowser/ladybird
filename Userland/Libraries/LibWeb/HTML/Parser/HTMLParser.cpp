@@ -122,7 +122,7 @@ static bool is_mathml_text_integration_point(DOM::Element const& element)
     // - A MathML mn element
     // - A MathML ms element
     // - A MathML mtext element
-    return element.tag_name().is_one_of(MathML::TagNames::mi, MathML::TagNames::mo, MathML::TagNames::mn, MathML::TagNames::ms, MathML::TagNames::mtext);
+    return element.local_name().is_one_of(MathML::TagNames::mi, MathML::TagNames::mo, MathML::TagNames::mn, MathML::TagNames::ms, MathML::TagNames::mtext);
 }
 
 // https://html.spec.whatwg.org/multipage/parsing.html#html-integration-point
@@ -132,7 +132,7 @@ static bool is_html_integration_point(DOM::Element const& element)
     // - A MathML annotation-xml element whose start tag token had an attribute with the name "encoding" whose value was an ASCII case-insensitive match for the string "text/html"
     // - A MathML annotation-xml element whose start tag token had an attribute with the name "encoding" whose value was an ASCII case-insensitive match for the string "application/xhtml+xml"
     if (element.namespace_uri() == Namespace::MathML
-        && element.tag_name() == MathML::TagNames::annotation_xml) {
+        && element.local_name() == MathML::TagNames::annotation_xml) {
         auto encoding = element.attribute("encoding"_fly_string);
         if (encoding.has_value() && (encoding->equals_ignoring_ascii_case("text/html"sv) || encoding->equals_ignoring_ascii_case("application/xhtml+xml"sv)))
             return true;
@@ -141,8 +141,10 @@ static bool is_html_integration_point(DOM::Element const& element)
     // - An SVG foreignObject element
     // - An SVG desc element
     // - An SVG title element
-    if (element.tag_name().is_one_of(SVG::TagNames::foreignObject, SVG::TagNames::desc, SVG::TagNames::title))
+    if (element.namespace_uri() == Namespace::SVG
+        && element.local_name().is_one_of(SVG::TagNames::foreignObject, SVG::TagNames::desc, SVG::TagNames::title)) {
         return true;
+    }
 
     return false;
 }
@@ -204,7 +206,7 @@ void HTMLParser::run(HTMLTokenizer::StopAtInsertionPoint stop_at_insertion_point
             || adjusted_current_node()->namespace_uri() == Namespace::HTML
             || (is_mathml_text_integration_point(*adjusted_current_node()) && token.is_start_tag() && token.tag_name() != MathML::TagNames::mglyph && token.tag_name() != MathML::TagNames::malignmark)
             || (is_mathml_text_integration_point(*adjusted_current_node()) && token.is_character())
-            || (adjusted_current_node()->namespace_uri() == Namespace::MathML && adjusted_current_node()->tag_name() == MathML::TagNames::annotation_xml && token.is_start_tag() && token.tag_name() == SVG::TagNames::svg)
+            || (adjusted_current_node()->namespace_uri() == Namespace::MathML && adjusted_current_node()->local_name() == MathML::TagNames::annotation_xml && token.is_start_tag() && token.tag_name() == SVG::TagNames::svg)
             || (is_html_integration_point(*adjusted_current_node()) && (token.is_start_tag() || token.is_character()))
             || token.is_end_of_file()) {
             // -> If the stack of open elements is empty
@@ -4230,7 +4232,7 @@ void HTMLParser::process_using_the_rules_for_foreign_content(HTMLToken& token)
     }
 
     // -> An end tag whose tag name is "script", if the current node is an SVG script element
-    if (token.is_end_tag() && current_node()->namespace_uri() == Namespace::SVG && current_node()->tag_name() == SVG::TagNames::script) {
+    if (token.is_end_tag() && current_node()->namespace_uri() == Namespace::SVG && current_node()->local_name() == SVG::TagNames::script) {
     ScriptEndTag:
         // Pop the current node off the stack of open elements.
         auto& script_element = verify_cast<SVG::SVGScriptElement>(*m_stack_of_open_elements.pop());
