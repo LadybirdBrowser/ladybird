@@ -58,12 +58,12 @@ public:
     // https://drafts.csswg.org/cssom-1/#serialize-a-css-rule
     virtual String serialized() const = 0;
 
+    virtual void clear_caches();
+
 protected:
     explicit CSSRule(JS::Realm&, Type);
 
     virtual void visit_edges(Cell::Visitor&) override;
-
-    virtual void clear_caches();
 
     [[nodiscard]] FlyString const& parent_layer_internal_qualified_name() const
     {

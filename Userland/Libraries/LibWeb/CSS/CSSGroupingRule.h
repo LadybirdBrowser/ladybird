@@ -35,6 +35,7 @@ protected:
 
     virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Cell::Visitor&) override;
+    virtual void clear_caches() override;
 
 private:
     JS::NonnullGCPtr<CSSRuleList> m_rules;
