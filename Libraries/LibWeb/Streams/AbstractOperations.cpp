@@ -315,16 +315,18 @@ GC::Ref<WebIDL::Promise> readable_stream_pipe_to(ReadableStream& source, Writabl
         WebIDL::resolve_promise(realm, promise, JS::js_undefined());
     });
 
-    auto success_steps = GC::create_function(realm.heap(), [promise, &realm, writer](ByteBuffer) {
+    auto success_steps = GC::create_function(realm.heap(), [promise, &realm, reader, writer](ByteBuffer) {
         // Make sure we close the acquired writer.
         WebIDL::resolve_promise(realm, writable_stream_default_writer_close(*writer), JS::js_undefined());
+        readable_stream_default_reader_release(*reader);
 
         WebIDL::resolve_promise(realm, promise, JS::js_undefined());
     });
 
-    auto failure_steps = GC::create_function(realm.heap(), [promise, &realm, writer](JS::Value error) {
+    auto failure_steps = GC::create_function(realm.heap(), [promise, &realm, reader, writer](JS::Value error) {
         // Make sure we close the acquired writer.
         WebIDL::resolve_promise(realm, writable_stream_default_writer_close(*writer), JS::js_undefined());
+        readable_stream_default_reader_release(*reader);
 
         WebIDL::reject_promise(realm, promise, error);
     });
