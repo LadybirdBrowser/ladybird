@@ -2347,6 +2347,18 @@ ErrorOr<String> Node::name_or_description(NameOrDescription target, Document con
             // iii. For each child node of the current node:
             element->for_each_child([&total_accumulated_text, current_node, target, &document, &visited_nodes](
                                         DOM::Node const& child_node) mutable {
+                if (!child_node.is_element() && !child_node.is_text())
+                    return IterationDecision::Continue;
+                bool should_add_space = true;
+                const_cast<DOM::Document&>(document).update_layout();
+                auto const* layout_node = child_node.layout_node();
+                if (layout_node) {
+                    auto display = layout_node->display();
+                    if (display.is_inline_outside() && display.is_flow_inside()) {
+                        should_add_space = false;
+                    }
+                }
+
                 if (visited_nodes.contains(child_node.unique_id()))
                     return IterationDecision::Continue;
 
@@ -2356,6 +2368,10 @@ ErrorOr<String> Node::name_or_description(NameOrDescription target, Document con
                 // b. Compute the text alternative of the current node beginning with step 2. Set the result to that text alternative.
                 auto result = MUST(current_node->name_or_description(target, document, visited_nodes, IsDescendant::Yes));
 
+                // Append a space character and the result of each step above to the total accumulated text.
+                // AD-HOC: Doing the space-adding here is in a different order from what the spec states.
+                if (should_add_space)
+                    total_accumulated_text.append(' ');
                 // c. Append the result to the accumulated text.
                 total_accumulated_text.append(result);
 
@@ -2368,11 +2384,13 @@ ErrorOr<String> Node::name_or_description(NameOrDescription target, Document con
         }
     }
 
-    // G. Otherwise, if the current node is a Text node, return its textual contents.
+    // G. Text Node: Otherwise, if the current node is a Text Node, return its textual contents.
     if (is_text()) {
-        auto const* text_node = static_cast<DOM::Text const*>(this);
-        return text_node->data();
+        if (layout_node() && layout_node()->is_text_node())
+            return verify_cast<Layout::TextNode>(layout_node())->text_for_rendering();
+        return text_content().value();
     }
+
     // TODO: H. Otherwise, if the current node is a descendant of an element whose Accessible Name or Accessible Description is being computed, and contains descendants, proceed to 2F.i.
 
     // I. Otherwise, if the current node has a Tooltip attribute, return its value.
@@ -2385,8 +2403,6 @@ ErrorOr<String> Node::name_or_description(NameOrDescription target, Document con
         if (tooltip.has_value() && !tooltip->is_empty())
             return tooltip.release_value();
     }
-    // Append the result of each step above, with a space, to the total accumulated text.
-    //
     // After all steps are completed, the total accumulated text is used as the accessible name or accessible description of the element that initiated the computation.
     return total_accumulated_text.to_string();
 }
