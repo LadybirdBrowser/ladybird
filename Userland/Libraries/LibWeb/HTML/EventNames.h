@@ -116,6 +116,7 @@ namespace Web::HTML::EventNames {
     __ENUMERATE_HTML_EVENT(unhandledrejection)       \
     __ENUMERATE_HTML_EVENT(unload)                   \
     __ENUMERATE_HTML_EVENT(upgradeneeded)            \
+    __ENUMERATE_HTML_EVENT(versionchange)            \
     __ENUMERATE_HTML_EVENT(visibilitychange)         \
     __ENUMERATE_HTML_EVENT(volumechange)             \
     __ENUMERATE_HTML_EVENT(waiting)                  \
