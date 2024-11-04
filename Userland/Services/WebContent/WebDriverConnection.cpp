@@ -659,6 +659,7 @@ Messages::WebDriverClient::SwitchToParentFrameResponse WebDriverConnection::swit
         TRY(ensure_current_browsing_context_is_open());
 
         // 2. Return success with data null.
+        async_driver_execution_complete(JsonValue {});
         return JsonValue {};
     }
 
