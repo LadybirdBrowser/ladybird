@@ -44,12 +44,12 @@ public:
     bool has_in_scope(const DOM::Element&) const;
 
     bool contains(const DOM::Element&) const;
-    bool contains(FlyString const& tag_name) const;
+    [[nodiscard]] bool contains_template_element() const;
 
     auto const& elements() const { return m_elements; }
     auto& elements() { return m_elements; }
 
-    void pop_until_an_element_with_tag_name_has_been_popped(FlyString const&);
+    void pop_until_an_element_with_tag_name_has_been_popped(FlyString const& local_name);
 
     JS::GCPtr<DOM::Element> topmost_special_node_below(DOM::Element const&);
 
