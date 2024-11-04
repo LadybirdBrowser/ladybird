@@ -10,7 +10,9 @@
 #include <LibWeb/DOM/Event.h>
 #include <LibWeb/HTML/EventNames.h>
 #include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
+#include <LibWeb/IndexedDB/IDBDatabase.h>
 #include <LibWeb/IndexedDB/IDBFactory.h>
+#include <LibWeb/IndexedDB/Internal/Algorithms.h>
 #include <LibWeb/Platform/EventLoopPlugin.h>
 #include <LibWeb/StorageAPI/StorageKey.h>
 
@@ -56,10 +58,35 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<IDBOpenDBRequest>> IDBFactory::open(String 
     Platform::EventLoopPlugin::the().deferred_invoke(JS::create_heap_function(realm.heap(), [&realm, storage_key, name, version, request] {
         HTML::TemporaryExecutionContext context(realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes);
 
-        (void)storage_key;
-        (void)name;
-        (void)version;
-        (void)request;
+        // 1. Let result be the result of opening a database connection, with storageKey, name, version if given and undefined otherwise, and request.
+        auto result = open_a_database_connection(realm, storage_key.value(), name, version, request);
+
+        // 2. Queue a task to run these steps:
+        HTML::queue_a_task(HTML::Task::Source::DatabaseAccess, nullptr, nullptr, JS::create_heap_function(realm.heap(), [&realm, &request, result = move(result)]() mutable {
+            // 1. If result is an error, then:
+            if (result.is_error()) {
+                // 1. Set request’s result to undefined.
+                request->set_result(JS::js_undefined());
+
+                // 2. Set request’s error to result.
+                request->set_error(result.exception().get<JS::NonnullGCPtr<WebIDL::DOMException>>());
+
+                // 3. Set request’s done flag to true.
+                request->set_done(true);
+
+                // 4. Fire an event named error at request with its bubbles and cancelable attributes initialized to true.
+                request->dispatch_event(DOM::Event::create(realm, HTML::EventNames::error));
+            } else {
+                // 1. Set request’s result to result.
+                request->set_result(result.release_value());
+
+                // 2. Set request’s done flag to true.
+                request->set_done(true);
+
+                // 3. Fire an event named success at request.
+                request->dispatch_event(DOM::Event::create(realm, HTML::EventNames::success));
+            }
+        }));
     }));
 
     // 6. Return a new IDBOpenDBRequest object for request.
