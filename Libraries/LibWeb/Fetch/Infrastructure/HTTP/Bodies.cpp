@@ -134,10 +134,10 @@ void Body::incrementally_read_loop(Streams::ReadableStreamDefaultReader& reader,
 }
 
 // https://fetch.spec.whatwg.org/#byte-sequence-as-a-body
-WebIDL::ExceptionOr<GC::Ref<Body>> byte_sequence_as_body(JS::Realm& realm, ReadonlyBytes bytes)
+GC::Ref<Body> byte_sequence_as_body(JS::Realm& realm, ReadonlyBytes bytes)
 {
     // To get a byte sequence bytes as a body, return the body of the result of safely extracting bytes.
-    auto [body, _] = TRY(safely_extract_body(realm, bytes));
+    auto [body, _] = safely_extract_body(realm, bytes);
     return body;
 }
 
