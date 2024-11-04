@@ -6,13 +6,13 @@
 
 #pragma once
 
-#include <LibWeb/HTML/HTMLElement.h>
+#include <LibWeb/HTML/NavigableContainer.h>
 
 namespace Web::HTML {
 
 // NOTE: This element is marked as obsolete, but is still listed as required by the specification.
-class HTMLFrameElement final : public HTMLElement {
-    WEB_PLATFORM_OBJECT(HTMLFrameElement, HTMLElement);
+class HTMLFrameElement final : public NavigableContainer {
+    WEB_PLATFORM_OBJECT(HTMLFrameElement, NavigableContainer);
     JS_DECLARE_ALLOCATOR(HTMLFrameElement);
 
 public:
@@ -24,7 +24,12 @@ private:
     virtual void initialize(JS::Realm&) override;
 
     // ^DOM::Element
+    virtual void inserted() override;
+    virtual void removed_from(Node*) override;
+    virtual void attribute_changed(FlyString const& name, Optional<String> const& old_value, Optional<String> const& value) override;
     virtual i32 default_tab_index_value() const override;
+
+    void process_the_frame_attributes(bool initial_insertion = false);
 };
 
 }

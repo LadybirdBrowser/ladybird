@@ -12,8 +12,8 @@ interface HTMLFrameElement : HTMLElement {
     [CEReactions, Reflect=frameborder] attribute DOMString frameBorder;
     [CEReactions, Reflect=longdesc, URL] attribute USVString longDesc;
     [CEReactions, Reflect=noresize] attribute boolean noResize;
-    [FIXME] readonly attribute Document? contentDocument;
-    [FIXME] readonly attribute WindowProxy? contentWindow;
+    readonly attribute Document? contentDocument;
+    readonly attribute WindowProxy? contentWindow;
 
     [CEReactions, LegacyNullToEmptyString, Reflect=marginheight] attribute DOMString marginHeight;
     [CEReactions, LegacyNullToEmptyString, Reflect=marginwidth] attribute DOMString marginWidth;
