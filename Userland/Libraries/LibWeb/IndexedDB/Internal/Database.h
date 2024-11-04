@@ -37,6 +37,10 @@ public:
         return connections;
     }
 
+    [[nodiscard]] static Optional<JS::Handle<Database>> for_key_and_name(StorageAPI::StorageKey&, String&);
+    [[nodiscard]] static ErrorOr<JS::Handle<Database>> create_for_key_and_name(JS::Realm&, StorageAPI::StorageKey&, String&);
+    [[nodiscard]] static ErrorOr<void> delete_for_key_and_name(StorageAPI::StorageKey&, String&);
+
     [[nodiscard]] static JS::NonnullGCPtr<Database> create(JS::Realm&, String const&);
     virtual ~Database();
 
