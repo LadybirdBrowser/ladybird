@@ -182,7 +182,7 @@ public:
         dbgln("Dumping all tokens:");
         for (size_t i = 0; i < m_tokens.size(); ++i) {
             auto& token = m_tokens[i];
-            if (i == m_index)
+            if (i == m_index - 1)
                 dbgln("-> {}", token.to_debug_string());
             else
                 dbgln("   {}", token.to_debug_string());
