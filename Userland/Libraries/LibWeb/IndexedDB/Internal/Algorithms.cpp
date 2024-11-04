@@ -5,8 +5,10 @@
  */
 
 #include <LibJS/Runtime/VM.h>
+#include <LibWeb/DOM/EventDispatcher.h>
 #include <LibWeb/HTML/EventNames.h>
 #include <LibWeb/IndexedDB/IDBRequest.h>
+#include <LibWeb/IndexedDB/IDBVersionChangeEvent.h>
 #include <LibWeb/IndexedDB/Internal/Algorithms.h>
 #include <LibWeb/IndexedDB/Internal/ConnectionQueueHandler.h>
 #include <LibWeb/IndexedDB/Internal/Database.h>
@@ -67,6 +69,9 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<IDBDatabase>> open_a_database_connection(JS
         //    queue a task to fire a version change event named versionchange at entry with db’s version and version.
         for (auto& entry : open_connections) {
             if (!entry->close_pending()) {
+                HTML::queue_a_task(HTML::Task::Source::DatabaseAccess, nullptr, nullptr, JS::create_heap_function(realm.vm().heap(), [&realm, entry, db, version]() {
+                    fire_a_version_change_event(realm, HTML::EventNames::versionchange, *entry, db->version(), version);
+                }));
             }
         }
 
@@ -76,6 +81,9 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<IDBDatabase>> open_a_database_connection(JS
         //    queue a task to fire a version change event named blocked at request with db’s version and version.
         for (auto& entry : open_connections) {
             if (entry->state() != IDBDatabase::ConnectionState::Closed) {
+                HTML::queue_a_task(HTML::Task::Source::DatabaseAccess, nullptr, nullptr, JS::create_heap_function(realm.vm().heap(), [&realm, entry, db, version]() {
+                    fire_a_version_change_event(realm, HTML::EventNames::blocked, *entry, db->version(), version);
+                }));
             }
         }
 
@@ -105,6 +113,32 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<IDBDatabase>> open_a_database_connection(JS
 
     // 11. Return connection.
     return connection;
+}
+
+bool fire_a_version_change_event(JS::Realm& realm, FlyString const& event_name, JS::NonnullGCPtr<DOM::EventTarget> target, u64 old_version, Optional<u64> new_version)
+{
+    IDBVersionChangeEventInit event_init = {};
+    // 4. Set event’s oldVersion attribute to oldVersion.
+    event_init.old_version = old_version;
+    // 5. Set event’s newVersion attribute to newVersion.
+    event_init.new_version = new_version;
+
+    // 1. Let event be the result of creating an event using IDBVersionChangeEvent.
+    // 2. Set event’s type attribute to e.
+    auto event = IDBVersionChangeEvent::create(realm, event_name, event_init);
+
+    // 3. Set event’s bubbles and cancelable attributes to false.
+    event->set_bubbles(false);
+    event->set_cancelable(false);
+
+    // 6. Let legacyOutputDidListenersThrowFlag be false.
+    auto legacy_output_did_listeners_throw_flag = false;
+
+    // 7. Dispatch event at target with legacyOutputDidListenersThrowFlag.
+    DOM::EventDispatcher::dispatch(target, *event, legacy_output_did_listeners_throw_flag);
+
+    // 8. Return legacyOutputDidListenersThrowFlag.
+    return legacy_output_did_listeners_throw_flag;
 }
 
 }
