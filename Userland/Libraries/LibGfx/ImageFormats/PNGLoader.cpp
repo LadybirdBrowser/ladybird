@@ -6,52 +6,14 @@
  */
 
 #include <AK/Vector.h>
-#include <LibGfx/DeprecatedPainter.h>
 #include <LibGfx/ImageFormats/ExifOrientedBitmap.h>
 #include <LibGfx/ImageFormats/PNGLoader.h>
 #include <LibGfx/ImageFormats/TIFFLoader.h>
 #include <LibGfx/ImageFormats/TIFFMetadata.h>
+#include <LibGfx/Painter.h>
 #include <png.h>
 
 namespace Gfx {
-
-struct AnimationFrame {
-    RefPtr<Bitmap> bitmap;
-    int x_offset { 0 };
-    int y_offset { 0 };
-    int width { 0 };
-    int height { 0 };
-    int delay_den { 0 };
-    int delay_num { 0 };
-    u8 blend_op { 0 };
-    u8 dispose_op { 0 };
-
-    AnimationFrame(RefPtr<Bitmap> bitmap, int x_offset, int y_offset, int width, int height, int delay_den, int delay_num, u8 blend_op, u8 dispose_op)
-        : bitmap(move(bitmap))
-        , x_offset(x_offset)
-        , y_offset(y_offset)
-        , width(width)
-        , height(height)
-        , delay_den(delay_den)
-        , delay_num(delay_num)
-        , blend_op(blend_op)
-        , dispose_op(dispose_op)
-    {
-    }
-
-    [[nodiscard]] int duration_ms() const
-    {
-        if (delay_num == 0)
-            return 1;
-        u32 const denominator = delay_den != 0 ? static_cast<u32>(delay_den) : 100u;
-        auto unsigned_duration_ms = (delay_num * 1000) / denominator;
-        if (unsigned_duration_ms > INT_MAX)
-            return INT_MAX;
-        return static_cast<int>(unsigned_duration_ms);
-    }
-
-    [[nodiscard]] IntRect rect() const { return { x_offset, y_offset, width, height }; }
-};
 
 struct PNGLoadingContext {
     ReadonlyBytes data;
@@ -61,11 +23,6 @@ struct PNGLoadingContext {
     Vector<ImageFrameDescriptor> frame_descriptors;
     Optional<ByteBuffer> icc_profile;
     OwnPtr<ExifMetadata> exif_metadata;
-
-    Vector<AnimationFrame> animation_frames;
-    Vector<u8*> row_pointers;
-    Vector<u8> image_data;
-    RefPtr<Gfx::Bitmap> decoded_frame_bitmap;
 
     ErrorOr<size_t> read_frames(png_structp, png_infop);
     ErrorOr<void> apply_exif_orientation();
@@ -226,41 +183,17 @@ ErrorOr<void> PNGLoadingContext::apply_exif_orientation()
     return {};
 }
 
-static ErrorOr<NonnullRefPtr<Bitmap>> render_animation_frame(AnimationFrame const& prev_animation_frame, AnimationFrame const& animation_frame, Bitmap const& decoded_frame_bitmap)
-{
-    auto rendered_bitmap = TRY(prev_animation_frame.bitmap->clone());
-    DeprecatedPainter painter(rendered_bitmap);
-
-    auto frame_rect = animation_frame.rect();
-    switch (prev_animation_frame.dispose_op) {
-    case PNG_DISPOSE_OP_BACKGROUND:
-        painter.clear_rect(rendered_bitmap->rect(), Color::NamedColor::Transparent);
-        break;
-    case PNG_DISPOSE_OP_PREVIOUS:
-        painter.blit(frame_rect.location(), decoded_frame_bitmap, frame_rect, 1.0f, false);
-        break;
-    default:
-        break;
-    }
-    switch (animation_frame.blend_op) {
-    case PNG_BLEND_OP_SOURCE:
-        painter.blit(frame_rect.location(), decoded_frame_bitmap, decoded_frame_bitmap.rect(), 1.0f, false);
-        break;
-    case PNG_BLEND_OP_OVER:
-        painter.blit(frame_rect.location(), decoded_frame_bitmap, decoded_frame_bitmap.rect(), 1.0f, true);
-        break;
-    default:
-        break;
-    }
-    return rendered_bitmap;
-}
-
 ErrorOr<size_t> PNGLoadingContext::read_frames(png_structp png_ptr, png_infop info_ptr)
 {
     if (png_get_acTL(png_ptr, info_ptr, &frame_count, &loop_count)) {
         // acTL chunk present: This is an APNG.
 
         png_set_acTL(png_ptr, info_ptr, frame_count, loop_count);
+
+        // Conceptually, at the beginning of each play the output buffer must be completely initialized to a fully transparent black rectangle, with width and height dimensions from the `IHDR` chunk.
+        auto output_buffer = TRY(Bitmap::create(BitmapFormat::BGRA8888, AlphaType::Unpremultiplied, size));
+        auto painter = Painter::create(output_buffer);
+        Vector<u8*> row_pointers;
 
         for (size_t frame_index = 0; frame_index < frame_count; ++frame_index) {
             png_read_frame_head(png_ptr, info_ptr);
@@ -273,32 +206,67 @@ ErrorOr<size_t> PNGLoadingContext::read_frames(png_structp png_ptr, png_infop in
             u8 dispose_op = PNG_DISPOSE_OP_NONE;
             u8 blend_op = PNG_BLEND_OP_SOURCE;
 
+            auto duration_ms = [&]() -> int {
+                if (delay_num == 0)
+                    return 1;
+                u32 const denominator = delay_den != 0 ? static_cast<u32>(delay_den) : 100u;
+                auto unsigned_duration_ms = (delay_num * 1000) / denominator;
+                if (unsigned_duration_ms > INT_MAX)
+                    return INT_MAX;
+                return static_cast<int>(unsigned_duration_ms);
+            };
+
             if (png_get_valid(png_ptr, info_ptr, PNG_INFO_fcTL)) {
                 png_get_next_frame_fcTL(png_ptr, info_ptr, &width, &height, &x, &y, &delay_num, &delay_den, &dispose_op, &blend_op);
             } else {
                 width = png_get_image_width(png_ptr, info_ptr);
                 height = png_get_image_height(png_ptr, info_ptr);
             }
+            auto frame_rect = FloatRect { x, y, width, height };
 
-            decoded_frame_bitmap = TRY(Bitmap::create(BitmapFormat::BGRA8888, AlphaType::Unpremultiplied, IntSize { static_cast<int>(width), static_cast<int>(height) }));
-
+            auto decoded_frame_bitmap = TRY(Bitmap::create(BitmapFormat::BGRA8888, AlphaType::Unpremultiplied, IntSize { static_cast<int>(width), static_cast<int>(height) }));
             row_pointers.resize(height);
             for (u32 i = 0; i < height; ++i) {
                 row_pointers[i] = decoded_frame_bitmap->scanline_u8(i);
             }
-
             png_read_image(png_ptr, row_pointers.data());
 
-            auto animation_frame = AnimationFrame(nullptr, x, y, width, height, delay_den, delay_num, blend_op, dispose_op);
+            RefPtr<Bitmap> prev_output_buffer;
+            if (dispose_op == PNG_DISPOSE_OP_PREVIOUS) // Only actually clone if it's necessary
+                prev_output_buffer = TRY(output_buffer->clone());
 
-            if (frame_index == 0) {
-                animation_frame.bitmap = decoded_frame_bitmap;
-                frame_descriptors.append({ decoded_frame_bitmap, animation_frame.duration_ms() });
-            } else {
-                animation_frame.bitmap = TRY(render_animation_frame(animation_frames.last(), animation_frame, *decoded_frame_bitmap));
-                frame_descriptors.append({ animation_frame.bitmap, animation_frame.duration_ms() });
+            switch (blend_op) {
+            case PNG_BLEND_OP_SOURCE:
+                // All color components of the frame, including alpha, overwrite the current contents of the frame's output buffer region.
+                painter->clear_rect(frame_rect, Gfx::Color::Transparent);
+                painter->draw_bitmap(frame_rect, *decoded_frame_bitmap, decoded_frame_bitmap->rect(), Gfx::ScalingMode::NearestNeighbor, 1.0f);
+                break;
+            case PNG_BLEND_OP_OVER:
+                // The frame should be composited onto the output buffer based on its alpha, using a simple OVER operation as described in the "Alpha Channel Processing" section of the PNG specification.
+                painter->draw_bitmap(frame_rect, *decoded_frame_bitmap, decoded_frame_bitmap->rect(), ScalingMode::NearestNeighbor, 1.0f);
+                break;
+            default:
+                VERIFY_NOT_REACHED();
             }
-            animation_frames.append(move(animation_frame));
+
+            frame_descriptors.append({ TRY(output_buffer->clone()), duration_ms() });
+
+            switch (dispose_op) {
+            case PNG_DISPOSE_OP_NONE:
+                // No disposal is done on this frame before rendering the next; the contents of the output buffer are left as is.
+                break;
+            case PNG_DISPOSE_OP_BACKGROUND:
+                // The frame's region of the output buffer is to be cleared to fully transparent black before rendering the next frame.
+                painter->clear_rect(frame_rect, Gfx::Color::Transparent);
+                break;
+            case PNG_DISPOSE_OP_PREVIOUS:
+                // The frame's region of the output buffer is to be reverted to the previous contents before rendering the next frame.
+                painter->clear_rect(frame_rect, Gfx::Color::Transparent);
+                painter->draw_bitmap(frame_rect, *prev_output_buffer, IntRect { x, y, width, height }, Gfx::ScalingMode::NearestNeighbor, 1.0f);
+                break;
+            default:
+                VERIFY_NOT_REACHED();
+            }
         }
     } else {
         // This is a single-frame PNG.
@@ -306,7 +274,8 @@ ErrorOr<size_t> PNGLoadingContext::read_frames(png_structp png_ptr, png_infop in
         frame_count = 1;
         loop_count = 0;
 
-        decoded_frame_bitmap = TRY(Bitmap::create(BitmapFormat::BGRA8888, AlphaType::Unpremultiplied, size));
+        auto decoded_frame_bitmap = TRY(Bitmap::create(BitmapFormat::BGRA8888, AlphaType::Unpremultiplied, size));
+        Vector<u8*> row_pointers;
         row_pointers.resize(size.height());
         for (int i = 0; i < size.height(); ++i)
             row_pointers[i] = decoded_frame_bitmap->scanline_u8(i);
