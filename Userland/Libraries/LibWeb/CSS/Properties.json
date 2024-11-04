@@ -2803,12 +2803,8 @@
     "animation-type": "none",
     "inherited": true,
     "initial": "horizontal-tb",
-    "valid-identifiers": [
-      "horizontal-tb",
-      "vertical-rl",
-      "vertical-lr",
-      "sideways-rl",
-      "sideways-lr"
+    "valid-types": [
+      "writing-mode"
     ]
   },
   "x": {
