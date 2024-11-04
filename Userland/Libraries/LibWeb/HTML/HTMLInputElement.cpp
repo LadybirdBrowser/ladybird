@@ -1187,11 +1187,12 @@ void HTMLInputElement::did_receive_focus()
 
 void HTMLInputElement::did_lose_focus()
 {
-    if (m_text_node)
+    if (m_text_node) {
         m_text_node->invalidate_style(DOM::StyleInvalidationReason::DidLoseFocus);
 
-    if (auto* paintable = m_text_node->paintable())
-        paintable->set_selected(false);
+        if (auto* paintable = m_text_node->paintable())
+            paintable->set_selected(false);
+    }
 
     if (m_placeholder_text_node)
         m_placeholder_text_node->invalidate_style(DOM::StyleInvalidationReason::DidLoseFocus);
