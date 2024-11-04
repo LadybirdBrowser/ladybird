@@ -571,6 +571,7 @@ class IDBFactory;
 class IDBDatabase;
 class IDBOpenDBRequest;
 class IDBRequest;
+class IDBVersionChangeEvent;
 }
 
 namespace Web::Internals {

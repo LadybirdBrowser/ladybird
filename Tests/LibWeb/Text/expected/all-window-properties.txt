@@ -199,6 +199,7 @@ IDBDatabase
 IDBFactory
 IDBOpenDBRequest
 IDBRequest
+IDBVersionChangeEvent
 IdleDeadline
 Image
 ImageBitmap
