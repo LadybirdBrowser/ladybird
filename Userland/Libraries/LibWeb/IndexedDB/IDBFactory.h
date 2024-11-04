@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2024, Shannon Booth <shannon@serenityos.org>
+ * Copyright (c) 2024, stelar7 <dudedbz@gmail.com>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -7,6 +8,7 @@
 #pragma once
 
 #include <LibWeb/Bindings/PlatformObject.h>
+#include <LibWeb/IndexedDB/IDBOpenDBRequest.h>
 
 namespace Web::IndexedDB {
 
@@ -17,6 +19,8 @@ class IDBFactory : public Bindings::PlatformObject {
 
 public:
     virtual ~IDBFactory() override;
+
+    WebIDL::ExceptionOr<JS::NonnullGCPtr<IDBOpenDBRequest>> open(String const& name, Optional<u64> version);
 
 protected:
     explicit IDBFactory(JS::Realm&);

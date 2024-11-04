@@ -1,8 +1,7 @@
 // https://w3c.github.io/IndexedDB/#idbfactory
 [Exposed=(Window,Worker)]
 interface IDBFactory {
-    [FIXME, NewObject] IDBOpenDBRequest open(DOMString name,
-                                             optional [EnforceRange] unsigned long long version);
+    [NewObject] IDBOpenDBRequest open(DOMString name, optional [EnforceRange] unsigned long long version);
     [FIXME, NewObject] IDBOpenDBRequest deleteDatabase(DOMString name);
 
     [FIXME] Promise<sequence<IDBDatabaseInfo>> databases();
