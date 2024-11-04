@@ -292,7 +292,7 @@ void wait_for_all(JS::Realm& realm, Vector<GC::Ref<Promise>> const& promises, Fu
 
 GC::Ref<Promise> create_rejected_promise_from_exception(JS::Realm& realm, Exception exception)
 {
-    auto throw_completion = Bindings::dom_exception_to_throw_completion(realm.vm(), move(exception));
+    auto throw_completion = Bindings::exception_to_throw_completion(realm.vm(), move(exception));
     return WebIDL::create_rejected_promise(realm, *throw_completion.value());
 }
 

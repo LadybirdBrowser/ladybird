@@ -423,7 +423,7 @@ public:
 
                 // 2. If cloneResult is an abrupt completion,
                 if (clone_result.is_exception()) {
-                    auto completion = Bindings::dom_exception_to_throw_completion(m_realm->vm(), clone_result.release_error());
+                    auto completion = Bindings::exception_to_throw_completion(m_realm->vm(), clone_result.release_error());
 
                     // 1. Perform ! ReadableStreamDefaultControllerError(branch1.[[controller]], cloneResult.[[Value]]).
                     readable_stream_default_controller_error(controller1, completion.value().value());
@@ -734,7 +734,7 @@ public:
 
                 // 2. If cloneResult is an abrupt completion,
                 if (clone_result.is_exception()) {
-                    auto completion = Bindings::dom_exception_to_throw_completion(m_realm->vm(), clone_result.release_error());
+                    auto completion = Bindings::exception_to_throw_completion(m_realm->vm(), clone_result.release_error());
 
                     // 1. Perform ! ReadableByteStreamControllerError(branch1.[[controller]], cloneResult.[[Value]]).
                     readable_byte_stream_controller_error(controller1, completion.value().value());
@@ -898,7 +898,7 @@ public:
 
                 // 2. If cloneResult is an abrupt completion,
                 if (clone_result.is_exception()) {
-                    auto completion = Bindings::dom_exception_to_throw_completion(m_realm->vm(), clone_result.release_error());
+                    auto completion = Bindings::exception_to_throw_completion(m_realm->vm(), clone_result.release_error());
 
                     // 1. Perform ! ReadableByteStreamControllerError(byobBranch.[[controller]], cloneResult.[[Value]]).
                     readable_byte_stream_controller_error(byob_controller, completion.value().value());
@@ -1857,7 +1857,7 @@ void readable_byte_stream_controller_pull_into(ReadableByteStreamController& con
     // 8. If bufferResult is an abrupt completion,
     if (buffer_result.is_exception()) {
         // 1. Perform readIntoRequest’s error steps, given bufferResult.[[Value]].
-        auto throw_completion = Bindings::dom_exception_to_throw_completion(vm, buffer_result.exception());
+        auto throw_completion = Bindings::exception_to_throw_completion(vm, buffer_result.exception());
         read_into_request.on_error(*throw_completion.release_value());
 
         // 2. Return.
@@ -4863,7 +4863,7 @@ void set_up_transform_stream_default_controller_from_transformer(TransformStream
 
         // 2. If result is an abrupt completion, return a promise rejected with result.[[Value]].
         if (result.is_error()) {
-            auto throw_completion = Bindings::dom_exception_to_throw_completion(vm, result.exception());
+            auto throw_completion = Bindings::exception_to_throw_completion(vm, result.exception());
             return WebIDL::create_rejected_promise(realm, *throw_completion.release_value());
         }
 
@@ -4951,7 +4951,7 @@ WebIDL::ExceptionOr<void> transform_stream_default_controller_enqueue(TransformS
 
     // 5. If enqueueResult is an abrupt completion,
     if (enqueue_result.is_error()) {
-        auto throw_completion = Bindings::dom_exception_to_throw_completion(vm, enqueue_result.exception());
+        auto throw_completion = Bindings::exception_to_throw_completion(vm, enqueue_result.exception());
 
         // 1. Perform ! TransformStreamErrorWritableAndUnblockWrite(stream, enqueueResult.[[Value]]).
         transform_stream_error_writable_and_unblock_write(*stream, throw_completion.value().value());
