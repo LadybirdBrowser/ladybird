@@ -11,10 +11,10 @@
 #include "Session.h"
 #include "Client.h"
 #include <AK/JsonObject.h>
-#include <AK/JsonValue.h>
 #include <LibCore/LocalServer.h>
 #include <LibCore/StandardPaths.h>
 #include <LibCore/System.h>
+#include <LibWeb/WebDriver/TimeoutsConfiguration.h>
 #include <unistd.h>
 
 namespace WebDriver {
@@ -50,6 +50,60 @@ Session::~Session()
     if (m_web_content_socket_path.has_value()) {
         MUST(Core::System::unlink(*m_web_content_socket_path));
         m_web_content_socket_path = {};
+    }
+}
+
+// Step 12 of https://w3c.github.io/webdriver/#dfn-new-sessions
+void Session::initialize_from_capabilities(JsonObject& capabilities)
+{
+    auto& connection = web_content_connection();
+
+    // 1. Let strategy be the result of getting property "pageLoadStrategy" from capabilities.
+    auto strategy = capabilities.get_byte_string("pageLoadStrategy"sv);
+
+    // 2. If strategy is a string, set the current session’s page loading strategy to strategy. Otherwise, set the page loading strategy to normal and set a property of capabilities with name "pageLoadStrategy" and value "normal".
+    if (strategy.has_value()) {
+        m_page_load_strategy = Web::WebDriver::page_load_strategy_from_string(*strategy);
+        connection.async_set_page_load_strategy(m_page_load_strategy);
+    } else {
+        capabilities.set("pageLoadStrategy"sv, "normal"sv);
+    }
+
+    // 3. Let strictFileInteractability be the result of getting property "strictFileInteractability" from capabilities.
+    auto strict_file_interactiblity = capabilities.get_bool("strictFileInteractability"sv);
+
+    // 4. If strictFileInteractability is a boolean, set the current session’s strict file interactability to strictFileInteractability. Otherwise set the current session’s strict file interactability to false.
+    if (strict_file_interactiblity.has_value()) {
+        m_strict_file_interactiblity = *strict_file_interactiblity;
+        connection.async_set_strict_file_interactability(m_strict_file_interactiblity);
+    } else {
+        capabilities.set("strictFileInteractability"sv, false);
+    }
+
+    // FIXME: 5. Let proxy be the result of getting property "proxy" from capabilities and run the substeps of the first matching statement:
+    // FIXME:     proxy is a proxy configuration object
+    // FIXME:         Take implementation-defined steps to set the user agent proxy using the extracted proxy configuration. If the defined proxy cannot be configured return error with error code session not created.
+    // FIXME:     Otherwise
+    // FIXME:         Set a property of capabilities with name "proxy" and a value that is a new JSON Object.
+
+    // 6. If capabilities has a property with the key "timeouts":
+    if (auto timeouts = capabilities.get_object("timeouts"sv); timeouts.has_value()) {
+        // a. Let timeouts be the result of trying to JSON deserialize as a timeouts configuration the value of the "timeouts" property.
+        // NOTE: This happens on the remote end.
+
+        // b. Make the session timeouts the new timeouts.
+        MUST(set_timeouts(*timeouts));
+    } else {
+        // 7. Set a property on capabilities with name "timeouts" and value that of the JSON deserialization of the session timeouts.
+        capabilities.set("timeouts"sv, Web::WebDriver::timeouts_object({}));
+    }
+
+    // 8. Apply changes to the user agent for any implementation-defined capabilities selected during the capabilities processing step.
+    if (auto behavior = capabilities.get_byte_string("unhandledPromptBehavior"sv); behavior.has_value()) {
+        m_unhandled_prompt_behavior = Web::WebDriver::unhandled_prompt_behavior_from_string(*behavior);
+        connection.async_set_unhandled_prompt_behavior(m_unhandled_prompt_behavior);
+    } else {
+        capabilities.set("unhandledPromptBehavior"sv, "dismiss and notify"sv);
     }
 }
 
@@ -121,6 +175,12 @@ ErrorOr<void> Session::start(LaunchBrowserCallbacks const& callbacks)
 
     m_started = true;
     return {};
+}
+
+Web::WebDriver::Response Session::set_timeouts(JsonValue payload)
+{
+    m_timeouts_configuration = TRY(web_content_connection().set_timeouts(move(payload)));
+    return JsonValue {};
 }
 
 // 11.2 Close Window, https://w3c.github.io/webdriver/#dfn-close-window

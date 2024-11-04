@@ -279,7 +279,8 @@ Messages::WebDriverClient::SetTimeoutsResponse WebDriverConnection::set_timeouts
     // 2. Make the session timeouts the new timeouts.
 
     // 3. Return success with data null.
-    return JsonValue {};
+    // NOTE: We return the current timeouts configuration so the client may store them for new sessions.
+    return Web::WebDriver::timeouts_object(m_timeouts_configuration);
 }
 
 // 10.1 Navigate To, https://w3c.github.io/webdriver/#navigate-to

@@ -9,12 +9,14 @@
 #pragma once
 
 #include <AK/Error.h>
+#include <AK/JsonValue.h>
 #include <AK/RefCounted.h>
 #include <AK/RefPtr.h>
 #include <AK/ScopeGuard.h>
 #include <AK/String.h>
 #include <LibCore/EventLoop.h>
 #include <LibCore/Promise.h>
+#include <LibWeb/WebDriver/Capabilities.h>
 #include <LibWeb/WebDriver/Error.h>
 #include <LibWeb/WebDriver/Response.h>
 #include <WebDriver/WebContentConnection.h>
@@ -28,6 +30,8 @@ class Session : public RefCounted<Session> {
 public:
     Session(unsigned session_id, NonnullRefPtr<Client> client, Web::WebDriver::LadybirdOptions options);
     ~Session();
+
+    void initialize_from_capabilities(JsonObject&);
 
     unsigned session_id() const { return m_id; }
 
@@ -52,6 +56,8 @@ public:
     bool has_window_handle(StringView handle) const { return m_windows.contains(handle); }
 
     ErrorOr<void> start(LaunchBrowserCallbacks const&);
+
+    Web::WebDriver::Response set_timeouts(JsonValue);
     Web::WebDriver::Response close_window();
     Web::WebDriver::Response switch_to_window(StringView);
     Web::WebDriver::Response get_window_handles() const;
@@ -92,6 +98,11 @@ private:
     Optional<pid_t> m_browser_pid;
 
     RefPtr<Core::LocalServer> m_web_content_server;
+
+    Web::WebDriver::PageLoadStrategy m_page_load_strategy { Web::WebDriver::PageLoadStrategy::Normal };
+    Web::WebDriver::UnhandledPromptBehavior m_unhandled_prompt_behavior { Web::WebDriver::UnhandledPromptBehavior::DismissAndNotify };
+    Optional<JsonValue> m_timeouts_configuration;
+    bool m_strict_file_interactiblity { false };
 };
 
 }
