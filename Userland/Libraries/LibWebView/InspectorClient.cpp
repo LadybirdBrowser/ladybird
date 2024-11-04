@@ -313,7 +313,7 @@ void InspectorClient::reset()
     static constexpr auto script = "inspector.reset();"sv;
     m_inspector_web_view.run_javascript(script);
 
-    m_body_node_id.clear();
+    m_body_or_frameset_node_id.clear();
     m_pending_selection.clear();
     m_dom_tree_loaded = false;
 
@@ -331,8 +331,8 @@ void InspectorClient::select_hovered_node()
 
 void InspectorClient::select_default_node()
 {
-    if (m_body_node_id.has_value())
-        select_node(*m_body_node_id);
+    if (m_body_or_frameset_node_id.has_value())
+        select_node(*m_body_or_frameset_node_id);
 }
 
 void InspectorClient::clear_selection()
@@ -633,8 +633,8 @@ String InspectorClient::generate_dom_tree(JsonObject const& dom_tree)
             return;
         }
 
-        if (name.equals_ignoring_ascii_case("BODY"sv))
-            m_body_node_id = node_id;
+        if (name.equals_ignoring_ascii_case("BODY"sv) || name.equals_ignoring_ascii_case("FRAMESET"sv))
+            m_body_or_frameset_node_id = node_id;
 
         auto tag = name.to_lowercase();
 

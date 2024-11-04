@@ -72,7 +72,7 @@ private:
     ViewImplementation& m_content_web_view;
     ViewImplementation& m_inspector_web_view;
 
-    Optional<Web::UniqueNodeID> m_body_node_id;
+    Optional<Web::UniqueNodeID> m_body_or_frameset_node_id;
     Optional<Web::UniqueNodeID> m_pending_selection;
 
     bool m_inspector_loaded { false };
