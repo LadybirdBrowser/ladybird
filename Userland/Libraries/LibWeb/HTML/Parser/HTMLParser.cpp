@@ -2675,7 +2675,6 @@ void HTMLParser::handle_in_body(HTMLToken& token)
         // Adjust foreign attributes for the token. (This fixes the use of namespaced attributes, in particular XLink in SVG.)
         adjust_foreign_attributes(token);
 
-        // FIXME: We are not setting the 'onlyAddToElementStack' flag here.
         // Insert a foreign element for the token, with SVG namespace and false.
         (void)insert_foreign_element(token, Namespace::SVG, OnlyAddToElementStack::No);
 
