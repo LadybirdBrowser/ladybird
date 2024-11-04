@@ -327,10 +327,10 @@ PNGImageDecoderPlugin::~PNGImageDecoderPlugin() = default;
 
 bool PNGImageDecoderPlugin::sniff(ReadonlyBytes data)
 {
-    Array<u8, 8> png_signature { 0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a };
-    if (data.size() < png_signature.size())
+    auto constexpr png_signature_size_in_bytes = 8;
+    if (data.size() < png_signature_size_in_bytes)
         return false;
-    return data.slice(0, png_signature.size()) == ReadonlyBytes(png_signature.data(), png_signature.size());
+    return png_sig_cmp(data.data(), 0, png_signature_size_in_bytes) == 0;
 }
 
 Optional<Metadata const&> PNGImageDecoderPlugin::metadata()
