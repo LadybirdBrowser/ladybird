@@ -338,7 +338,7 @@ void Page::prompt_closed(Optional<String> response)
     }
 }
 
-void Page::dismiss_dialog(JS::GCPtr<JS::HeapFunction<void()>> on_dialog_closed)
+void Page::dismiss_dialog(JS::NonnullGCPtr<JS::HeapFunction<void()>> on_dialog_closed)
 {
     m_on_pending_dialog_closed = on_dialog_closed;
 
@@ -355,7 +355,7 @@ void Page::dismiss_dialog(JS::GCPtr<JS::HeapFunction<void()>> on_dialog_closed)
     }
 }
 
-void Page::accept_dialog(JS::GCPtr<JS::HeapFunction<void()>> on_dialog_closed)
+void Page::accept_dialog(JS::NonnullGCPtr<JS::HeapFunction<void()>> on_dialog_closed)
 {
     m_on_pending_dialog_closed = on_dialog_closed;
 
