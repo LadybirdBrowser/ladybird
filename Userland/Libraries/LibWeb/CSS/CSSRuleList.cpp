@@ -189,13 +189,18 @@ bool CSSRuleList::evaluate_media_queries(HTML::Window const& window)
                 any_media_queries_changed_match_state = true;
             break;
         }
+        case CSSRule::Type::Style: {
+            auto& style_rule = verify_cast<CSSStyleRule>(*rule);
+            if (style_rule.css_rules().evaluate_media_queries(window))
+                any_media_queries_changed_match_state = true;
+            break;
+        }
         case CSSRule::Type::FontFace:
         case CSSRule::Type::Keyframe:
         case CSSRule::Type::Keyframes:
         case CSSRule::Type::LayerStatement:
         case CSSRule::Type::Namespace:
         case CSSRule::Type::NestedDeclarations:
-        case CSSRule::Type::Style:
         case CSSRule::Type::Property:
             break;
         }
