@@ -1,0 +1,18 @@
+<head>
+    <script src="../include.js"></script>
+    <script>
+        asyncTest(done => {
+            let frame = document.getElementById("frame");
+
+            frame.addEventListener("load", e => {
+                println(`frame load: ${e.target.src.split("/").pop()}`);
+                done();
+            });
+
+            frame.src = "../../data/blank.html";
+        });
+    </script>
+</head>
+<frameset>
+    <frame id="frame" />
+</frameset>
