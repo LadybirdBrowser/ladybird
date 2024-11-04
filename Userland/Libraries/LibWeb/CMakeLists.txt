@@ -504,6 +504,7 @@ set(SOURCES
     IndexedDB/Internal/Database.cpp
     IndexedDB/IDBFactory.cpp
     IndexedDB/IDBOpenDBRequest.cpp
+    IndexedDB/IDBDatabase.cpp
     IndexedDB/IDBRequest.cpp
     Internals/Inspector.cpp
     Internals/InternalAnimationTimeline.cpp

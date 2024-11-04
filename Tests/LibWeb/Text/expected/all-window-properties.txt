@@ -195,6 +195,7 @@ HTMLVideoElement
 HashChangeEvent
 Headers
 History
+IDBDatabase
 IDBFactory
 IDBOpenDBRequest
 IDBRequest

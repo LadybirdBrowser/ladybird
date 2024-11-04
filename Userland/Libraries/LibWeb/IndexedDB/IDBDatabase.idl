@@ -1,0 +1,31 @@
+#import <DOM/EventTarget.idl>
+#import <DOM/EventHandler.idl>
+
+[Exposed=(Window,Worker)]
+interface IDBDatabase : EventTarget {
+    readonly attribute DOMString name;
+    readonly attribute unsigned long long version;
+    readonly attribute DOMStringList objectStoreNames;
+
+    [FIXME, NewObject] IDBTransaction transaction((DOMString or sequence<DOMString>) storeNames, optional IDBTransactionMode mode = "readonly", optional IDBTransactionOptions options = {});
+    [FIXME] undefined close();
+    [FIXME, NewObject] IDBObjectStore createObjectStore(DOMString name, optional IDBObjectStoreParameters options = {});
+    [FIXME] undefined deleteObjectStore(DOMString name);
+
+    // Event handlers:
+    attribute EventHandler onabort;
+    attribute EventHandler onclose;
+    attribute EventHandler onerror;
+    attribute EventHandler onversionchange;
+};
+
+enum IDBTransactionDurability { "default", "strict", "relaxed" };
+
+dictionary IDBTransactionOptions {
+    IDBTransactionDurability durability = "default";
+};
+
+dictionary IDBObjectStoreParameters {
+    (DOMString or sequence<DOMString>)? keyPath = null;
+    boolean autoIncrement = false;
+};
