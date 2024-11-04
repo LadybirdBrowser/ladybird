@@ -135,7 +135,6 @@ WebIDL::ExceptionOr<Infrastructure::BodyWithType> extract_body(JS::Realm& realm,
         }));
 
     // 11. If source is a byte sequence, then set action to a step that returns source and length to source’s length.
-    // For now, do it synchronously.
     if (source.has<ByteBuffer>()) {
         action = [source = MUST(ByteBuffer::copy(source.get<ByteBuffer>()))]() mutable {
             return move(source);
