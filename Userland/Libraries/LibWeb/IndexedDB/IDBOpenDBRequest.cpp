@@ -27,6 +27,11 @@ void IDBOpenDBRequest::initialize(JS::Realm& realm)
     WEB_SET_PROTOTYPE_FOR_INTERFACE(IDBOpenDBRequest);
 }
 
+JS::NonnullGCPtr<IDBOpenDBRequest> IDBOpenDBRequest::create(JS::Realm& realm)
+{
+    return realm.heap().allocate<IDBOpenDBRequest>(realm, realm);
+}
+
 // https://w3c.github.io/IndexedDB/#dom-idbopendbrequest-onblocked
 void IDBOpenDBRequest::set_onblocked(WebIDL::CallbackType* event_handler)
 {

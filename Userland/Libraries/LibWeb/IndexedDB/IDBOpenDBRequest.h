@@ -1,6 +1,7 @@
 /*
  * Copyright (c) 2024, Shannon Booth <shannon@serenityos.org>
  * Copyright (c) 2024, Jamie Mansfield <jmansfield@cadixdev.org>
+ * Copyright (c) 2024, stelar7 <dudedbz@gmail.com>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -18,6 +19,8 @@ class IDBOpenDBRequest : public IDBRequest {
 
 public:
     virtual ~IDBOpenDBRequest();
+
+    [[nodiscard]] static JS::NonnullGCPtr<IDBOpenDBRequest> create(JS::Realm&);
 
     void set_onblocked(WebIDL::CallbackType*);
     WebIDL::CallbackType* onblocked();
