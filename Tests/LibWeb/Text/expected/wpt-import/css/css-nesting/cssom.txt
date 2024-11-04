@@ -6,7 +6,8 @@ Rerun
 
 Found 13 tests
 
-13 Fail
+1 Pass
+12 Fail
 Details
 Result	Test Name	MessageFail	CSSStyleRule is a CSSGroupingRule	
 Fail	Simple CSSOM manipulation of subrules	
@@ -20,4 +21,4 @@ Fail	Simple CSSOM manipulation of subrules 7
 Fail	Simple CSSOM manipulation of subrules 8	
 Fail	Simple CSSOM manipulation of subrules 9	
 Fail	Simple CSSOM manipulation of subrules 10	
-Fail	Mutating the selectorText of outer rule invalidates inner rules	
+Pass	Mutating the selectorText of outer rule invalidates inner rules	

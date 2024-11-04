@@ -34,6 +34,13 @@ void CSSGroupingRule::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_rules);
 }
 
+void CSSGroupingRule::clear_caches()
+{
+    Base::clear_caches();
+    for (auto& rule : *m_rules)
+        rule->clear_caches();
+}
+
 WebIDL::ExceptionOr<u32> CSSGroupingRule::insert_rule(StringView rule, u32 index)
 {
     TRY(m_rules->insert_a_css_rule(rule, index));
