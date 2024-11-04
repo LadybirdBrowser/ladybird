@@ -32,7 +32,7 @@ public:
 private:
     explicit PNGImageDecoderPlugin(ReadonlyBytes);
 
-    ErrorOr<bool> initialize();
+    ErrorOr<void> initialize();
 
     OwnPtr<PNGLoadingContext> m_context;
 };
