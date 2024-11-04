@@ -1,0 +1,20 @@
+<head>
+    <script src="../include.js"></script>
+    <script>
+        asyncTest(done => {
+            let frameset = document.getElementById("frameset");
+
+            let frame = document.createElement("frame");
+            frameset.appendChild(frame);
+            frame.remove();
+
+            // Attempting to load the frame will happen in a task on the event loop, so defer completing this test until
+            // the event loop has spun once.
+            setTimeout(() => {
+                println("PASS! (Didn't crash)");
+                done();
+            })
+        });
+    </script>
+</head>
+<frameset id="frameset"></frameset>
