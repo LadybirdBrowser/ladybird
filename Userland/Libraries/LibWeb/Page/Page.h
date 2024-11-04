@@ -148,8 +148,8 @@ public:
     bool has_pending_dialog() const { return m_pending_dialog != PendingDialog::None; }
     PendingDialog pending_dialog() const { return m_pending_dialog; }
     Optional<String> const& pending_dialog_text() const { return m_pending_dialog_text; }
-    void dismiss_dialog(JS::GCPtr<JS::HeapFunction<void()>> on_dialog_closed = nullptr);
-    void accept_dialog(JS::GCPtr<JS::HeapFunction<void()>> on_dialog_closed = nullptr);
+    void dismiss_dialog(JS::NonnullGCPtr<JS::HeapFunction<void()>> on_dialog_closed);
+    void accept_dialog(JS::NonnullGCPtr<JS::HeapFunction<void()>> on_dialog_closed);
 
     void did_request_color_picker(WeakPtr<HTML::HTMLInputElement> target, Color current_color);
     void color_picker_update(Optional<Color> picked_color, HTML::ColorPickerUpdateState state);
