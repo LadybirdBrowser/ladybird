@@ -7,6 +7,7 @@
 #include <LibWeb/DOM/Element.h>
 #include <LibWeb/HTML/Parser/HTMLParser.h>
 #include <LibWeb/HTML/Parser/StackOfOpenElements.h>
+#include <LibWeb/Namespace.h>
 
 namespace Web::HTML {
 
@@ -105,10 +106,12 @@ bool StackOfOpenElements::contains(const DOM::Element& element) const
     return false;
 }
 
-bool StackOfOpenElements::contains(FlyString const& tag_name) const
+bool StackOfOpenElements::contains_template_element() const
 {
-    for (auto& element_on_stack : m_elements) {
-        if (element_on_stack->local_name() == tag_name)
+    for (auto const& element : m_elements) {
+        if (element->namespace_uri() != Namespace::HTML)
+            continue;
+        if (element->local_name() == HTML::TagNames::template_)
             return true;
     }
     return false;
@@ -116,7 +119,7 @@ bool StackOfOpenElements::contains(FlyString const& tag_name) const
 
 void StackOfOpenElements::pop_until_an_element_with_tag_name_has_been_popped(FlyString const& tag_name)
 {
-    while (m_elements.last()->local_name() != tag_name)
+    while (m_elements.last()->namespace_uri() != Namespace::HTML || m_elements.last()->local_name() != tag_name)
         (void)pop();
     (void)pop();
 }

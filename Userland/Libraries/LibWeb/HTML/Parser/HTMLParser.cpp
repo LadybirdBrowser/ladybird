@@ -771,7 +771,7 @@ JS::NonnullGCPtr<DOM::Element> HTMLParser::create_element_for(HTMLToken const& t
         auto& html_element = form_associated_element->form_associated_element_to_html_element();
 
         if (m_form_element.ptr()
-            && !m_stack_of_open_elements.contains(HTML::TagNames::template_)
+            && !m_stack_of_open_elements.contains_template_element()
             && (!form_associated_element->is_listed() || !html_element.has_attribute(HTML::AttributeNames::form))
             && &intended_parent.root() == &m_form_element->root()) {
             form_associated_element->set_form(m_form_element.ptr());
@@ -1056,7 +1056,7 @@ void HTMLParser::handle_in_head(HTMLToken& token)
     // -> An end tag whose tag name is "template"
     if (token.is_end_tag() && token.tag_name() == HTML::TagNames::template_) {
         // If there is no template element on the stack of open elements, then this is a parse error; ignore the token.
-        if (!m_stack_of_open_elements.contains(HTML::TagNames::template_)) {
+        if (!m_stack_of_open_elements.contains_template_element()) {
             log_parse_error();
             return;
         }
@@ -1768,7 +1768,7 @@ void HTMLParser::handle_in_body(HTMLToken& token)
         log_parse_error();
 
         // If there is a template element on the stack of open elements, then ignore the token.
-        if (m_stack_of_open_elements.contains(HTML::TagNames::template_))
+        if (m_stack_of_open_elements.contains_template_element())
             return;
 
         // Otherwise, for each attribute on the token, check to see if the attribute is already present on the top element of the stack of open elements.
@@ -1806,7 +1806,7 @@ void HTMLParser::handle_in_body(HTMLToken& token)
         // (fragment case or there is a template element on the stack)
         if (m_stack_of_open_elements.elements().size() == 1
             || m_stack_of_open_elements.elements().at(1)->local_name() != HTML::TagNames::body
-            || m_stack_of_open_elements.contains(HTML::TagNames::template_)) {
+            || m_stack_of_open_elements.contains_template_element()) {
             return;
         }
 
@@ -1832,7 +1832,7 @@ void HTMLParser::handle_in_body(HTMLToken& token)
         // (fragment case or there is a template element on the stack)
         if (m_stack_of_open_elements.elements().size() == 1
             || m_stack_of_open_elements.elements().at(1)->local_name() != HTML::TagNames::body) {
-            VERIFY(m_parsing_fragment || m_stack_of_open_elements.contains(HTML::TagNames::template_));
+            VERIFY(m_parsing_fragment || m_stack_of_open_elements.contains_template_element());
             return;
         }
 
@@ -1986,7 +1986,7 @@ void HTMLParser::handle_in_body(HTMLToken& token)
     // -> A start tag whose tag name is "form"
     if (token.is_start_tag() && token.tag_name() == HTML::TagNames::form) {
         // If the form element pointer is not null, and there is no template element on the stack of open elements, then this is a parse error; ignore the token.
-        if (m_form_element.ptr() && !m_stack_of_open_elements.contains(HTML::TagNames::template_)) {
+        if (m_form_element.ptr() && !m_stack_of_open_elements.contains_template_element()) {
             log_parse_error();
             return;
         }
@@ -1998,7 +1998,7 @@ void HTMLParser::handle_in_body(HTMLToken& token)
 
         // Insert an HTML element for the token, and, if there is no template element on the stack of open elements, set the form element pointer to point to the element created.
         auto element = insert_html_element(token);
-        if (!m_stack_of_open_elements.contains(HTML::TagNames::template_))
+        if (!m_stack_of_open_elements.contains_template_element())
             m_form_element = verify_cast<HTMLFormElement>(*element);
         return;
     }
@@ -2163,7 +2163,7 @@ void HTMLParser::handle_in_body(HTMLToken& token)
     // -> An end tag whose tag name is "form"
     if (token.is_end_tag() && token.tag_name() == HTML::TagNames::form) {
         // If there is no template element on the stack of open elements, then run these substeps:
-        if (!m_stack_of_open_elements.contains(HTML::TagNames::template_)) {
+        if (!m_stack_of_open_elements.contains_template_element()) {
             // 1. Let node be the element that the form element pointer is set to, or null if it is not set to an element.
             auto node = m_form_element;
 
@@ -3521,7 +3521,7 @@ void HTMLParser::handle_in_table(HTMLToken& token)
 
         // If there is a template element on the stack of open elements,
         // or if the form element pointer is not null, ignore the token.
-        if (m_form_element.ptr() || m_stack_of_open_elements.contains(HTML::TagNames::template_)) {
+        if (m_form_element.ptr() || m_stack_of_open_elements.contains_template_element()) {
             return;
         }
 
@@ -3939,7 +3939,7 @@ void HTMLParser::handle_in_template(HTMLToken& token)
     // -> An end-of-file token
     if (token.is_end_of_file()) {
         // If there is no template element on the stack of open elements, then stop parsing. (fragment case)
-        if (!m_stack_of_open_elements.contains(HTML::TagNames::template_)) {
+        if (!m_stack_of_open_elements.contains_template_element()) {
             VERIFY(m_parsing_fragment);
             stop_parsing();
             return;
@@ -4315,6 +4315,9 @@ void HTMLParser::reset_the_insertion_mode_appropriately()
         } else {
             node = m_stack_of_open_elements.elements().at(i).ptr();
         }
+
+        if (node->namespace_uri() != Namespace::HTML)
+            continue;
 
         if (node->local_name() == HTML::TagNames::select) {
             if (!last) {
