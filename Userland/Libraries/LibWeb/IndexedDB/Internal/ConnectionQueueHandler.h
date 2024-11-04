@@ -14,7 +14,21 @@
 
 namespace Web::IndexedDB {
 
-using ConnectionQueue = AK::Vector<JS::Handle<IDBRequest>>;
+class ConnectionQueue : public AK::Vector<JS::Handle<IDBRequest>> {
+public:
+    bool all_previous_requests_processed(JS::NonnullGCPtr<IDBRequest> const& request) const
+    {
+        for (auto const& entry : *this) {
+            if (entry == request)
+                return true;
+            if (!entry->processed())
+                return false;
+        }
+
+        return true;
+    }
+};
+
 using ConnectionMap = HashMap<StorageAPI::StorageKey, HashMap<String, ConnectionQueue>>;
 
 // https://w3c.github.io/IndexedDB/#connection-queues
