@@ -3834,80 +3834,132 @@ void HTMLParser::handle_in_column_group(HTMLToken& token)
     process_using_the_rules_for(m_insertion_mode, token);
 }
 
+// https://html.spec.whatwg.org/multipage/parsing.html#parsing-main-intemplate
 void HTMLParser::handle_in_template(HTMLToken& token)
 {
+    // -> A character token
+    // -> A comment token
+    // -> A DOCTYPE token
     if (token.is_character() || token.is_comment() || token.is_doctype()) {
+        // Process the token using the rules for the "in body" insertion mode.
         process_using_the_rules_for(InsertionMode::InBody, token);
         return;
     }
 
+    // -> A start tag whose tag name is one of: "base", "basefont", "bgsound", "link", "meta", "noframes", "script", "style", "template", "title"
     if (token.is_start_tag() && token.tag_name().is_one_of(HTML::TagNames::base, HTML::TagNames::basefont, HTML::TagNames::bgsound, HTML::TagNames::link, HTML::TagNames::meta, HTML::TagNames::noframes, HTML::TagNames::script, HTML::TagNames::style, HTML::TagNames::template_, HTML::TagNames::title)) {
         process_using_the_rules_for(InsertionMode::InHead, token);
         return;
     }
 
+    // -> An end tag whose tag name is "template"
     if (token.is_end_tag() && token.tag_name() == HTML::TagNames::template_) {
         process_using_the_rules_for(InsertionMode::InHead, token);
         return;
     }
 
+    // -> A start tag whose tag name is one of: "caption", "colgroup", "tbody", "tfoot", "thead"
     if (token.is_start_tag() && token.tag_name().is_one_of(HTML::TagNames::caption, HTML::TagNames::colgroup, HTML::TagNames::tbody, HTML::TagNames::tfoot, HTML::TagNames::thead)) {
+        // Pop the current template insertion mode off the stack of template insertion modes.
         m_stack_of_template_insertion_modes.take_last();
+
+        // Push "in table" onto the stack of template insertion modes so that it is the new current template insertion mode.
         m_stack_of_template_insertion_modes.append(InsertionMode::InTable);
+
+        // Switch the insertion mode to "in table", and reprocess the token.
         m_insertion_mode = InsertionMode::InTable;
         process_using_the_rules_for(m_insertion_mode, token);
         return;
     }
 
+    // -> A start tag whose tag name is "col"
     if (token.is_start_tag() && token.tag_name() == HTML::TagNames::col) {
+        // Pop the current template insertion mode off the stack of template insertion modes.
         m_stack_of_template_insertion_modes.take_last();
+
+        // Push "in column group" onto the stack of template insertion modes so that it is the new current template insertion mode.
         m_stack_of_template_insertion_modes.append(InsertionMode::InColumnGroup);
+
+        // Switch the insertion mode to "in column group", and reprocess the token.
         m_insertion_mode = InsertionMode::InColumnGroup;
         process_using_the_rules_for(m_insertion_mode, token);
         return;
     }
 
+    // -> A start tag whose tag name is "tr"
     if (token.is_start_tag() && token.tag_name() == HTML::TagNames::tr) {
+        // Pop the current template insertion mode off the stack of template insertion modes.
         m_stack_of_template_insertion_modes.take_last();
+
+        // Push "in table body" onto the stack of template insertion modes so that it is the new current template insertion mode.
         m_stack_of_template_insertion_modes.append(InsertionMode::InTableBody);
+
+        // Switch the insertion mode to "in table body", and reprocess the token.
         m_insertion_mode = InsertionMode::InTableBody;
         process_using_the_rules_for(m_insertion_mode, token);
         return;
     }
 
+    // -> A start tag whose tag name is one of: "td", "th"
     if (token.is_start_tag() && token.tag_name().is_one_of(HTML::TagNames::td, HTML::TagNames::th)) {
+        // Pop the current template insertion mode off the stack of template insertion modes.
         m_stack_of_template_insertion_modes.take_last();
+
+        // Push "in row" onto the stack of template insertion modes so that it is the new current template insertion mode.
         m_stack_of_template_insertion_modes.append(InsertionMode::InRow);
+
+        // Switch the insertion mode to "in row", and reprocess the token.
         m_insertion_mode = InsertionMode::InRow;
         process_using_the_rules_for(m_insertion_mode, token);
         return;
     }
 
+    // -> Any other start tag
     if (token.is_start_tag()) {
+        // Pop the current template insertion mode off the stack of template insertion modes.
         m_stack_of_template_insertion_modes.take_last();
+
+        // Push "in body" onto the stack of template insertion modes so that it is the new current template insertion mode.
         m_stack_of_template_insertion_modes.append(InsertionMode::InBody);
+
+        // Switch the insertion mode to "in body", and reprocess the token.
         m_insertion_mode = InsertionMode::InBody;
         process_using_the_rules_for(m_insertion_mode, token);
         return;
     }
 
+    // -> Any other end tag
     if (token.is_end_tag()) {
+        // Parse error. Ignore the token.
         log_parse_error();
         return;
     }
 
+    // -> An end-of-file token
     if (token.is_end_of_file()) {
+        // If there is no template element on the stack of open elements, then stop parsing. (fragment case)
         if (!m_stack_of_open_elements.contains(HTML::TagNames::template_)) {
             VERIFY(m_parsing_fragment);
             stop_parsing();
             return;
         }
 
+        // Otherwise, this is a parse error.
         log_parse_error();
+
+        // Pop elements from the stack of open elements until a template element has been popped from the stack.
         m_stack_of_open_elements.pop_until_an_element_with_tag_name_has_been_popped(HTML::TagNames::template_);
+
+        // Clear the list of active formatting elements up to the last marker.
         m_list_of_active_formatting_elements.clear_up_to_the_last_marker();
+
+        // Pop the current template insertion mode off the stack of template insertion modes.
         m_stack_of_template_insertion_modes.take_last();
+
+        // Reset the insertion mode appropriately.
         reset_the_insertion_mode_appropriately();
+
+        // Reprocess the token.
         process_using_the_rules_for(m_insertion_mode, token);
     }
 }
