@@ -1,7 +1,7 @@
 /*
  * Copyright (c) 2018-2022, Andreas Kling <andreas@ladybird.org>
  * Copyright (c) 2020-2021, the SerenityOS developers.
- * Copyright (c) 2021-2023, Sam Atkins <atkinssj@serenityos.org>
+ * Copyright (c) 2021-2024, Sam Atkins <sam@ladybird.org>
  * Copyright (c) 2021, Tobias Christiansen <tobyase@serenityos.org>
  * Copyright (c) 2022, MacDue <macdue@dueutil.tech>
  *
@@ -10,6 +10,7 @@
 
 #include <AK/Debug.h>
 #include <LibWeb/CSS/CSSMediaRule.h>
+#include <LibWeb/CSS/CSSNestedDeclarations.h>
 #include <LibWeb/CSS/CalculatedOr.h>
 #include <LibWeb/CSS/MediaList.h>
 #include <LibWeb/CSS/MediaQuery.h>
@@ -627,10 +628,21 @@ JS::GCPtr<CSSMediaRule> Parser::convert_to_media_rule(AtRule const& rule, Nested
     auto media_list = MediaList::create(m_context.realm(), move(media_query_list));
 
     JS::MarkedVector<CSSRule*> child_rules { m_context.realm().heap() };
-    rule.for_each_as_rule_list([&](auto& rule) {
-        if (auto child_rule = convert_to_rule(rule, nested))
-            child_rules.append(child_rule);
-    });
+    for (auto const& child : rule.child_rules_and_lists_of_declarations) {
+        child.visit(
+            [&](Rule const& rule) {
+                if (auto child_rule = convert_to_rule(rule, nested))
+                    child_rules.append(child_rule);
+            },
+            [&](Vector<Declaration> const& declarations) {
+                auto* declaration = convert_to_style_declaration(declarations);
+                if (!declaration) {
+                    dbgln_if(CSS_PARSER_DEBUG, "CSSParser: nested declarations invalid; discarding.");
+                    return;
+                }
+                child_rules.append(CSSNestedDeclarations::create(m_context.realm(), *declaration));
+            });
+    }
     auto rule_list = CSSRuleList::create(m_context.realm(), child_rules);
     return CSSMediaRule::create(m_context.realm(), media_list, rule_list);
 }
