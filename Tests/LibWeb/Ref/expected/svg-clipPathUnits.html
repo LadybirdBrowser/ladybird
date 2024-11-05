@@ -1,0 +1,24 @@
+<svg width="200" viewBox="0 0 100 100">
+  <link rel="match" href="../expected/svg-maskContentUnits-ref.html" />
+  <clipPath id="myClip1" clipPathUnits="userSpaceOnUse">
+    <circle cx="50" cy="50" r="35" />
+  </clipPath>
+
+  <clipPath id="myClip2" clipPathUnits="objectBoundingBox">
+    <circle cx=".5" cy=".5" r=".35" />
+  </clipPath>
+
+  <!-- Some reference rect to materialized to clip path -->
+  <rect id="r1" x="0" y="0" width="45" height="45" />
+  <rect id="r2" x="0" y="55" width="45" height="45" />
+  <rect id="r3" x="55" y="55" width="45" height="45" />
+  <rect id="r4" x="55" y="0" width="45" height="45" />
+
+  <!-- The first 3 rect are clipped with userSpaceOnUse units -->
+  <use clip-path="url(#myClip1)" href="#r1" fill="red" />
+  <use clip-path="url(#myClip1)" href="#r2" fill="red" />
+  <use clip-path="url(#myClip1)" href="#r3" fill="red" />
+
+  <!-- The last rect is clipped with objectBoundingBox units -->
+  <use clip-path="url(#myClip2)" href="#r4" fill="red" />
+</svg>

@@ -1,0 +1,12 @@
+<!doctype html>
+<link rel="match" href="../expected/svg-use-defined-earlier.html" />
+<div>
+  <svg width="100" height="100">
+    <use xlink:href="#later-reference"></use>
+  </svg>
+</div>
+<svg style="display: none">
+  <symbol id="later-reference">
+    <rect x="0" y="0" width="64" height="64" fill="green" />
+  </symbol>
+</svg>

@@ -1,0 +1,12 @@
+<link rel="match" href="../expected/canvas-unpremultiplied-image-ref.html" />
+<script type="module">
+const canvas = document.querySelector('#canvas');
+canvas.width = 100;
+canvas.height = 100;
+const ctx = canvas.getContext('2d');
+
+const img = new Image();
+img.addEventListener('load', () => ctx.drawImage(img, 25, 25, 50, 50));
+img.src = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVQIW2P43wAAAoEBgD2oaNcAAAAASUVORK5CYII=';
+</script>
+<canvas id="canvas" style="background-color: #f00"></canvas>

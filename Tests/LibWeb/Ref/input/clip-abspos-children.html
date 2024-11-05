@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<link rel="match" href="../expected/clip-abspos-children-ref.html" />
+<style type="text/css">
+    * {
+        background-color: white;
+    }
+    body {
+        border: 1px solid black;
+        outline: 1px solid black;
+    }
+    .outer {
+        position: absolute;
+        clip: rect(0px, auto, auto, 0px);
+    }
+    .inner {
+        position: absolute;
+    }
+    svg {
+        width: 100px;
+        height: 100px;
+        fill: red;
+    }
+</style><div class="outer"><div class="inner"><svg viewBox="0 0 1 1"><rect x=0 y=0 width=1 height=1></rect><svg>

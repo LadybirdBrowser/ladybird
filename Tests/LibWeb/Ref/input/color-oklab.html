@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<link rel="match" href="../expected/color-oklab-ref.html" />
+<style>
+    div {
+        width: 200px;
+        height: 20px;
+    }
+    #d1 { background-color: oklab(51.975% -0.1403 0.10768); }
+    #d2 { background-color: oklab(50% 0.05 0); }
+    #d3 { background-color: oklab(51.975% -35.075% 26.92%); }
+    #d4 { background-color: oklab(none none none / none); }
+    #d5 { background-color: oklab(none 0 10 / 60%); }
+    #d6 { background-color: oklab(120 0 none / 50%); }
+    #d7 { background-color: oklab(120 0 10 / none); }
+</style>
+<div id="d1">1</div>
+<div id="d2">2</div>
+<div id="d3">3</div>
+<div id="d4">4</div>
+<div id="d5">5</div>
+<div id="d6">6</div>
+<div id="d7">7</div>

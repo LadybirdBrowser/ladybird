@@ -1,0 +1,46 @@
+<link rel="match" href="../expected/canvas-text-ref.html" />
+<html>
+  <head>
+    <style>
+      canvas {
+        border: 1px solid black;
+        image-rendering: pixelated;
+      }
+    </style>
+  </head>
+  <body>
+    <script>
+      const canvas = document.createElement("canvas");
+      canvas.width = 600;
+      canvas.height = 280;
+      document.body.appendChild(canvas);
+
+      const ctx = canvas.getContext("2d");
+      ctx.font = "48px serif";
+
+      ctx.save();
+      ctx.translate(20, 250);
+      ctx.rotate(-Math.PI*0.2);
+      ctx.fillText("Rotated Text!", 10, 40);
+      ctx.restore();
+
+      ctx.strokeText("Stroke Text!", 10, 50);
+
+      const gradient = ctx.createLinearGradient(280, 20, 580, 120);
+      gradient.addColorStop(0,"red");
+      gradient.addColorStop(0.15,"yellow");
+      gradient.addColorStop(0.3,"green");
+      gradient.addColorStop(0.45,"aqua");
+      gradient.addColorStop(0.6,"blue");
+      gradient.addColorStop(0.7,"fuchsia");
+      gradient.addColorStop(1,"red");
+
+      ctx.fillStyle = gradient;
+      ctx.fillText("Gradient Text!", 260, 150);
+
+      ctx.fillStyle = "red";
+      ctx.fillText("Squished Text", 50, 120, 100);
+
+    </script>
+  </body>
+</html>

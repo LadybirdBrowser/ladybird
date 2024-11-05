@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<link rel="match" href="../expected/scrollable-contains-iframe-ref.html" />
+<style>
+    * {
+        scrollbar-width: none;
+    }
+
+    #scrollable {
+        width: 80%;
+        height: 300px;
+        border: 1px solid #000;
+        overflow: scroll;
+    }
+
+    iframe {
+        width: 300px;
+        height: 300px;
+    }
+</style>
+<div id="scrollable">
+    <div style="height: 200px"></div>
+    <iframe srcdoc="iframe nested into scrollable"></iframe>
+</div>
+<script>
+    const scrollContainer = document.getElementById("scrollable");
+    scrollContainer.scrollTop = 200;
+</script>

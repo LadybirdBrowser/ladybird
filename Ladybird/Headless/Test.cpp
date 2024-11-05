@@ -80,17 +80,20 @@ static ErrorOr<void> collect_dump_tests(Vector<Test>& tests, StringView path, St
     return {};
 }
 
-static ErrorOr<void> collect_ref_tests(Vector<Test>& tests, StringView path)
+static ErrorOr<void> collect_ref_tests(Vector<Test>& tests, StringView path, StringView trail)
 {
-    TRY(Core::Directory::for_each_entry(path, Core::DirIterator::SkipDots, [&](Core::DirectoryEntry const& entry, Core::Directory const&) -> ErrorOr<IterationDecision> {
-        if (entry.type == Core::DirectoryEntry::Type::Directory)
-            return IterationDecision::Continue;
+    Core::DirIterator it(ByteString::formatted("{}/input/{}", path, trail), Core::DirIterator::Flags::SkipDots);
+    while (it.has_next()) {
+        auto name = it.next_path();
+        auto input_path = TRY(FileSystem::real_path(ByteString::formatted("{}/input/{}/{}", path, trail, name)));
 
-        auto input_path = TRY(FileSystem::real_path(ByteString::formatted("{}/{}", path, entry.name)));
+        if (FileSystem::is_directory(input_path)) {
+            TRY(collect_ref_tests(tests, path, ByteString::formatted("{}/{}", trail, name)));
+            continue;
+        }
+
         tests.append({ TestMode::Ref, input_path, {}, {} });
-
-        return IterationDecision::Continue;
-    }));
+    }
 
     return {};
 }
@@ -374,9 +377,9 @@ ErrorOr<void> run_tests(Core::AnonymousBuffer const& theme, Gfx::IntSize window_
 
     TRY(collect_dump_tests(tests, ByteString::formatted("{}/Layout", app.test_root_path), "."sv, TestMode::Layout));
     TRY(collect_dump_tests(tests, ByteString::formatted("{}/Text", app.test_root_path), "."sv, TestMode::Text));
-    TRY(collect_ref_tests(tests, ByteString::formatted("{}/Ref", app.test_root_path)));
+    TRY(collect_ref_tests(tests, ByteString::formatted("{}/Ref", app.test_root_path), "."sv));
 #if !defined(AK_OS_MACOS)
-    TRY(collect_ref_tests(tests, ByteString::formatted("{}/Screenshot", app.test_root_path)));
+    TRY(collect_ref_tests(tests, ByteString::formatted("{}/Screenshot", app.test_root_path), "."sv));
 #endif
 
     tests.remove_all_matching([&](auto const& test) {

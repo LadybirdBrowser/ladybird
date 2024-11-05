@@ -1,0 +1,36 @@
+<!doctype html>
+<link rel="match" href="../expected/css-transform-box-ref.html" />
+<style>
+    svg {
+        width: 400px;
+        height: 400px;
+        border: 1px solid #d9d9d9;
+    }
+
+    .box {
+        stroke-width: 4;
+        transform-origin: 20% 20%;
+        transform: scale(1.5);
+    }
+    div.box {
+        width: 40px;
+        height: 40px;
+        border: solid black;
+        border-width: 10px 20px 30px 40px;
+        margin: 80px;
+    }
+</style>
+<div class="box" style="transform-box: content-box">Hi</div>
+<div class="box" style="transform-box: border-box">Hi</div>
+<svg id="svg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+    <!-- NOTE: We don't currently calculate the fill or stroke boxes for SVG elements, so the test will need to be
+               rebaselined once we do! -->
+    <rect class="box" style="transform-box: fill-box" x="10" y="10" width="10" height="10" stroke="black" fill="yellow" />
+    <circle fill="red" r="1" cx="15" cy="15" />
+
+    <rect class="box" style="transform-box: stroke-box" x="10" y="40" width="10" height="10" stroke="black" fill="cyan" />
+    <circle fill="red" r="1" cx="15" cy="45" />
+
+    <rect class="box" style="transform-box: view-box" x="10" y="70" width="10" height="10" stroke="black" fill="green" />
+    <circle fill="red" r="1" cx="15" cy="75" />
+</svg>

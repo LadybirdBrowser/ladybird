@@ -1,0 +1,50 @@
+<link rel="match" href="../expected/scrollable-box-with-nested-stacking-context-ref.html" />
+<style>
+    * {
+        scrollbar-width: none;
+    }
+
+    #scrollable-box {
+        width: 300px;
+        height: 500px;
+        overflow: auto;
+        position: relative;
+        border: 2px solid black;
+    }
+
+    .content {
+        height: 1000px;
+        background-color: lightblue;
+    }
+
+    .abspos {
+        position: absolute;
+        bottom: 0px;
+        right: 0px;
+        width: 150px;
+        height: 50px;
+        background-color: coral;
+        z-index: 1000;
+        display: flex;
+    }
+
+    .box {
+        background-color: magenta;
+        width: 100px;
+        height: 100px;
+        position: relative;
+        top: 0px;
+        left: 0px;
+    }
+</style>
+<div id="scrollable-box">
+    <div class="content">
+        Lots of scrollable content here!
+        <div class="box">box</div>
+    </div>
+    <div class="abspos"><div class="box">box</div></div>
+</div>
+<script>
+    const scrollContainer = document.getElementById("scrollable-box");
+    scrollContainer.scrollTop = 500;
+</script>

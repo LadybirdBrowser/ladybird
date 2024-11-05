@@ -1,9 +1,0 @@
-<svg width="100" height="100" xmlns="http://www.w3.org/2000/svg">
-  <link rel="match" href="reference/svg-file-matches-html-file.html" />
-  <defs>
-    <g id="10">
-      <rect width="50" height="50" fill="#555555"></rect>
-    </g>
-  </defs>
-  <use href="#10" x="25" y="25"></use>
-</svg>

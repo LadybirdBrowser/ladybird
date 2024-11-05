@@ -1,0 +1,19 @@
+<!doctype html>
+<link rel="match" href="../expected/css-quotes-ref.html" />
+<style>
+    div::before {
+        content: open-quote "Well, hello friends!" close-quote;
+    }
+    .a {
+        quotes: none;
+    }
+    .b {
+        quotes: auto;
+    }
+    .c {
+        quotes: "/* " " */";
+    }
+</style>
+<div class="a"></div>
+<div class="b"></div>
+<div class="c"></div>

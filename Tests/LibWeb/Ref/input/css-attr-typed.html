@@ -1,0 +1,27 @@
+<!doctype html>
+<link rel="match" href="../expected/css-attr-typed-ref.html" />
+<style>
+    div {
+        width: 100px;
+        height: 20px;
+        border: 1px solid black;
+    }
+    .string::before {
+        content: attr(foo string);
+    }
+    .length {
+        width: attr(foo length);
+    }
+    .px {
+        width: attr(foo px);
+    }
+    .color {
+        background-color: attr(foo color);
+    }
+</style>
+<div class="string" foo="WHF!"></div>
+<div class="string" foo=""></div>
+<div class="length" foo="200px"></div>
+<div class="px" foo="200"></div>
+<div class="color" foo="lime"></div>
+<div class="color" foo="#00ff00"></div>

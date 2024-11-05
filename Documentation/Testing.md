@@ -158,7 +158,7 @@ are identical. These are ideal for testing visual effects such as background ima
 difficult to recreate the effect in the reference page, (such as for SVG or canvas,) consider using a Screenshot test
 instead.
 
-Each Ref test includes a special `<link rel="match" href="reference/my-test-ref.html" />` tag, which the test runner
+Each Ref test includes a special `<link rel="match" href="../expected/my-test-ref.html" />` tag, which the test runner
 uses to locate the reference page. In this way, multiple tests can use the same reference.
 
 ### Screenshot
@@ -167,5 +167,5 @@ Screenshot tests can be thought of as a subtype of Ref tests, where the referenc
 to a screenshot of the expected output. In general, try to avoid using them if a regular Ref test would do, as they are
 sensitive to small rendering changes, and won't work on all platforms.
 
-Like Ref tests, they require a `<link rel="match" href="reference/my-test-ref.html" />` tag to indicate the reference
+Like Ref tests, they require a `<link rel="match" href="../expected/my-test-ref.html" />` tag to indicate the reference
 page to use.

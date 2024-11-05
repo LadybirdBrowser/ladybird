@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<link rel="match" href="../expected/overflow-hidden-4-ref.html" />
+<style>
+* {
+    outline: black solid 1px;
+}
+.outer {
+    background: pink;
+    width: 100px;
+    height: 100px;
+    overflow: hidden;
+}
+.middle {
+    transform: perspective(1200px);
+    background: orange;
+}
+.inner {
+    width: 300px;
+    height: 300px;
+    background: magenta;
+    overflow: hidden;
+}
+.red {
+    background: red;
+    width: 300px;
+    height: 300px;
+}
+</style><body><div class="outer"><div class="middle"><div class="inner"><div class="red">

@@ -1,0 +1,15 @@
+<link rel="match" href="../expected/svg-stroke-paintstyle-with-opacity-ref.html" />
+<style>
+  body {
+    background-color: white;
+  }
+</style>
+<svg height="150" width="400">
+  <defs>
+    <linearGradient id="grad" x1="0" y1="0" x2="70%" y2="0">
+      <stop offset="0" stop-color="red"/>
+      <stop offset="1" stop-color="blue"/>
+    </linearGradient>
+  </defs>
+  <rect x="115" y="15" width="170" height="110" stroke="url(#grad)" stroke-opacity="0.3" stroke-width="10" fill="none" />
+</svg>

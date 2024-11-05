@@ -1,0 +1,34 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <link rel="match" href="../expected/inline-node-ref.html" />
+    <meta charset="UTF-8">
+    <title>Inline Node styling test</title>
+    <style>
+        body {
+            line-height: 200%;
+        }
+
+        .highlight {
+            background-color: orange;
+            border-radius: 6px;
+        }
+
+        .bg-highlight {
+            background: magenta;
+            color: white;
+            border-radius: 6px;
+        }
+
+        .br-highlight {
+            border: 2px solid green;
+            border-radius: 6px;
+            box-shadow: 4px 4px 4px darkgreen;
+        }
+    </style>
+</head>
+<body>
+    Hello world <span class="highlight">this is some text</span> not in a box. <span class="bg-highlight">This text has a background</span> and <span class="br-highlight">this text has a shadow!</span>
+</body>
+</html>

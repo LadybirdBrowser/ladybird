@@ -1,0 +1,21 @@
+<link rel="match" href="../expected/svg-clip-path-and-mask-ref.html" />
+<style>
+  body {
+    background-color: white;
+  }
+</style>
+<svg height="200" viewBox="0 0 100 100">
+	<mask id="mask">
+	<circle cx="60" cy="35" r="35" fill="white"/>
+</mask>
+
+<clipPath id="clip">
+	<circle cx="40" cy="35" r="35" />
+</clipPath>
+
+<path
+	id="heart"
+	d="M10,30 A20,20,0,0,1,50,30 A20,20,0,0,1,90,30 Q90,60,50,90 Q10,60,10,30 Z" />
+
+<use clip-path="url(#clip)" mask="url(#mask)" href="#heart" fill="red" />
+</svg>

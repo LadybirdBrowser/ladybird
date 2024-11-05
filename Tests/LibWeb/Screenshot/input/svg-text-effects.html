@@ -1,0 +1,31 @@
+<link rel="match" href="../expected/svg-text-effects-ref.html" />
+<svg height="200" width="350" xmlns="http://www.w3.org/2000/svg">
+  <style>
+    .text {
+      font: italic 40px serif;
+    }
+
+    .thakis {
+      font: bold 70px sans-serif;
+    }
+
+    body {
+      background-color: white;
+    }
+  </style>
+  <linearGradient id="gradient">
+    <stop offset="0%" stop-color="rgba(255, 0, 0, 1)"/>
+    <stop offset="10%" stop-color="rgba(255, 154, 0, 1)"/>
+    <stop offset="20%" stop-color="rgba(208, 222, 33, 1)"/>
+    <stop offset="30%" stop-color="rgba(79, 220, 74, 1)"/>
+    <stop offset="40%" stop-color="rgba(63, 218, 216, 1)"/>
+    <stop offset="50%" stop-color="rgba(47, 201, 226, 1)"/>
+    <stop offset="60%" stop-color="rgba(28, 127, 238, 1)"/>
+    <stop offset="70%" stop-color="rgba(95, 21, 242, 1)"/>
+    <stop offset="80%" stop-color="rgba(186, 12, 248, 1)"/>
+    <stop offset="90%" stop-color="rgba(251, 7, 217, 1)"/>
+    <stop offset="100%" stop-color="rgba(255, 0, 0, 1)"/>
+</linearGradient>
+<text x="20" y="105" class="text" transform="rotate(-10 50 100)">There you go :^)</text>
+<text x="90" y="220" class="thakis" fill="url(#gradient)" transform="rotate(-10 50 100) skewY(-10)">thakis</text>
+</svg>

@@ -1,0 +1,188 @@
+<link rel="match" href="../expected/svg-radialGradient-ref.html" />
+<style>
+  * {
+    margin: 0;
+  }
+  body {
+    background-color: white;
+  }
+  svg {
+    margin-right: calc(100% - 400px)
+  }
+</style>
+<!-- spreadMethod=pad -->
+<svg width="400" height="300" version="1.1" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <radialGradient id="baseGrad">
+      <stop offset="0%" stop-color="red" />
+      <stop offset="40%" stop-color="purple" />
+      <stop offset="100%" stop-color="cyan" />
+    </radialGradient>
+    <!-- Start circle inside end circle -->
+    <radialGradient href="#baseGrad" id="test0" gradientUnits="userSpaceOnUse" cx="200" cy="150" r="100" fx="158" fy="93" fr="10">
+    </radialGradient>
+  </defs>
+  <rect x="0" y="0" width="400" height="300" fill="url(#test0)"></rect>
+</svg>
+<svg width="400" height="300" version="1.1" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+  <!-- Start circle outside end circle -->
+  <radialGradient href="#baseGrad" id="test1" gradientUnits="userSpaceOnUse" cx="200" cy="150" r="100" fx="370" fy="44" fr="10">
+    </radialGradient>
+  </defs>
+  <rect x="0" y="0" width="400" height="300" fill="url(#test1)"></rect>
+</svg>
+<svg width="400" height="300" version="1.1" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+  <!-- Start circle radius == end circle radius -->
+  <radialGradient href="#baseGrad" id="test2" gradientUnits="userSpaceOnUse" cx="200" cy="150" r="10" fx="40" fy="225" fr="10">
+    </radialGradient>
+  </defs>
+  <rect x="0" y="0" width="400" height="300" fill="url(#test2)"></rect>
+</svg>
+<svg width="400" height="300" version="1.1" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+  <!-- Start circle larger than end circle (inside end circle) -->
+  <radialGradient href="#baseGrad" id="test3" gradientUnits="userSpaceOnUse" cx="200" cy="150" r="30" fx="200" fy="182" fr="70">
+    </radialGradient>
+  </defs>
+  <rect x="0" y="0" width="400" height="300" fill="url(#test3)"></rect>
+</svg>
+<svg width="400" height="300" version="1.1" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+  <!-- Start circle larger than end circle (outside end circle) -->
+  <radialGradient href="#baseGrad" id="test4" gradientUnits="userSpaceOnUse" cx="200" cy="150" r="30" fx="242" fy="150" fr="70">
+    </radialGradient>
+  </defs>
+  <rect x="0" y="0" width="400" height="300" fill="url(#test4)"></rect>
+</svg>
+<svg width="400" height="300" version="1.1" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+  <!-- Start circle radius == 0 (inside end circle) -->
+  <radialGradient href="#baseGrad" id="test5" gradientUnits="userSpaceOnUse" cx="200" cy="150" r="120" fx="144" fy="186" fr="0">
+    </radialGradient>
+  </defs>
+  <rect x="0" y="0" width="400" height="300" fill="url(#test5)"></rect>
+</svg>
+<svg width="400" height="300" version="1.1" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+  <!-- Start circle radius == 0 (outside end circle) -->
+  <radialGradient href="#baseGrad" id="test6" gradientUnits="userSpaceOnUse" cx="200" cy="150" r="120" fx="23" fy="40" fr="0">
+    </radialGradient>
+  </defs>
+  <rect x="0" y="0" width="400" height="300" fill="url(#test6)"></rect>
+</svg>
+<!-- spreadMethod=reflect -->
+<svg width="400" height="300" version="1.1" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <!-- Start circle inside end circle -->
+    <radialGradient href="#test0" id="reflectTest0" spreadMethod="reflect">
+    </radialGradient>
+  </defs>
+  <rect x="0" y="0" width="400" height="300" fill="url(#reflectTest0)"></rect>
+</svg>
+<svg width="400" height="300" version="1.1" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+  <!-- Start circle outside end circle -->
+  <radialGradient href="#test1" id="reflectTest1" spreadMethod="reflect">
+  </radialGradient>
+  </defs>
+  <rect x="0" y="0" width="400" height="300" fill="url(#reflectTest1)"></rect>
+</svg>
+<svg width="400" height="300" version="1.1" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+  <!-- Start circle radius == end circle radius -->
+  <radialGradient href="#test2" id="reflectTest2" spreadMethod="reflect">
+  </radialGradient>
+  </defs>
+  <rect x="0" y="0" width="400" height="300" fill="url(#reflectTest2)"></rect>
+</svg>
+<svg width="400" height="300" version="1.1" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+  <!-- Start circle larger than end circle (inside end circle) -->
+  <radialGradient href="#test3" id="reflectTest3" spreadMethod="reflect">
+  </radialGradient>
+  </defs>
+  <rect x="0" y="0" width="400" height="300" fill="url(#reflectTest3)"></rect>
+</svg>
+<svg width="400" height="300" version="1.1" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+  <!-- Start circle larger than end circle (outside end circle) -->
+  <radialGradient href="#test4" id="reflectTest4" spreadMethod="reflect">
+  </radialGradient>
+  </defs>
+  <rect x="0" y="0" width="400" height="300" fill="url(#reflectTest4)"></rect>
+</svg>
+<svg width="400" height="300" version="1.1" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+  <!-- Start circle radius == 0 (inside end circle) -->
+  <radialGradient href="#test5" id="reflectTest5" spreadMethod="reflect">
+  </radialGradient>
+  </defs>
+  <rect x="0" y="0" width="400" height="300" fill="url(#reflectTest5)"></rect>
+</svg>
+<svg width="400" height="300" version="1.1" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+  <!-- Start circle radius == 0 (outside end circle) -->
+  <radialGradient href="#test6" id="reflectTest6" spreadMethod="reflect">
+  </radialGradient>
+  </defs>
+  <rect x="0" y="0" width="400" height="300" fill="url(#reflectTest6)"></rect>
+</svg>
+<!-- spreadMethod=repeat -->
+<svg width="400" height="300" version="1.1" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <!-- Start circle inside end circle -->
+    <radialGradient href="#test0" id="repeatTest0" spreadMethod="repeat">
+    </radialGradient>
+  </defs>
+  <rect x="0" y="0" width="400" height="300" fill="url(#repeatTest0)"></rect>
+</svg>
+<svg width="400" height="300" version="1.1" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+  <!-- Start circle outside end circle -->
+  <radialGradient href="#test1" id="repeatTest1" spreadMethod="repeat">
+  </radialGradient>
+  </defs>
+  <rect x="0" y="0" width="400" height="300" fill="url(#repeatTest1)"></rect>
+</svg>
+<svg width="400" height="300" version="1.1" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+  <!-- Start circle radius == end circle radius -->
+  <radialGradient href="#test2" id="repeatTest2" spreadMethod="repeat">
+  </radialGradient>
+  </defs>
+  <rect x="0" y="0" width="400" height="300" fill="url(#repeatTest2)"></rect>
+</svg>
+<svg width="400" height="300" version="1.1" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+  <!-- Start circle larger than end circle (inside end circle) -->
+  <radialGradient href="#test3" id="repeatTest3" spreadMethod="repeat">
+  </radialGradient>
+  </defs>
+  <rect x="0" y="0" width="400" height="300" fill="url(#repeatTest3)"></rect>
+</svg>
+<svg width="400" height="300" version="1.1" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+  <!-- Start circle larger than end circle (outside end circle) -->
+  <radialGradient href="#test4" id="repeatTest4" spreadMethod="repeat">
+  </radialGradient>
+  </defs>
+  <rect x="0" y="0" width="400" height="300" fill="url(#repeatTest4)"></rect>
+</svg>
+<svg width="400" height="300" version="1.1" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+  <!-- Start circle radius == 0 (inside end circle) -->
+  <radialGradient href="#test5" id="repeatTest5" spreadMethod="repeat">
+  </radialGradient>
+  </defs>
+  <rect x="0" y="0" width="400" height="300" fill="url(#repeatTest5)"></rect>
+</svg>
+<svg width="400" height="300" version="1.1" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+  <!-- Start circle radius == 0 (outside end circle) -->
+  <radialGradient href="#test6" id="repeatTest6" spreadMethod="repeat">
+  </radialGradient>
+  </defs>
+  <rect x="0" y="0" width="400" height="300" fill="url(#repeatTest6)"></rect>
+</svg>
