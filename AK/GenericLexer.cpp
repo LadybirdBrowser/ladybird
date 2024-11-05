@@ -16,9 +16,6 @@ namespace AK {
 // Consume a number of characters
 StringView GenericLexer::consume(size_t count)
 {
-    if (count == 0)
-        return {};
-
     size_t start = m_index;
     size_t length = min(count, m_input.length() - m_index);
     m_index += length;
@@ -29,9 +26,6 @@ StringView GenericLexer::consume(size_t count)
 // Consume the rest of the input
 StringView GenericLexer::consume_all()
 {
-    if (is_eof())
-        return {};
-
     auto rest = m_input.substring_view(m_index, m_input.length() - m_index);
     m_index = m_input.length();
     return rest;
@@ -48,8 +42,6 @@ StringView GenericLexer::consume_line()
     consume_specific('\r');
     consume_specific('\n');
 
-    if (length == 0)
-        return {};
     return m_input.substring_view(start, length);
 }
 
@@ -61,8 +53,6 @@ StringView GenericLexer::consume_until(char stop)
         m_index++;
     size_t length = m_index - start;
 
-    if (length == 0)
-        return {};
     return m_input.substring_view(start, length);
 }
 
@@ -74,8 +64,6 @@ StringView GenericLexer::consume_until(char const* stop)
         m_index++;
     size_t length = m_index - start;
 
-    if (length == 0)
-        return {};
     return m_input.substring_view(start, length);
 }
 
@@ -87,8 +75,6 @@ StringView GenericLexer::consume_until(StringView stop)
         m_index++;
     size_t length = m_index - start;
 
-    if (length == 0)
-        return {};
     return m_input.substring_view(start, length);
 }
 
