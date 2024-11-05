@@ -1,0 +1,13 @@
+Summary
+
+Harness status: OK
+
+Rerun
+
+Found 2 tests
+
+1 Pass
+1 Fail
+Details
+Result	Test Name	MessageFail	.before 1	
+Pass	.after 2	

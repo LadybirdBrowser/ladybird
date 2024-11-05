@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>CSS Grid Layout Test: Changes on Default-Alignment may affect grid item's width</title>
+<link rel="author" title="Javier Fernandez Garcia-Boente" href="mailto:jfernandez@igalia.com">
+<link rel="help" href="https://drafts.csswg.org/css-grid-1/#row-align">
+<link rel="help" href="https://drafts.csswg.org/css-grid-1/#grid-item-sizing">
+<link rel="help" href="https://drafts.csswg.org/css-align-3/#propdef-justify-items">
+<link rel="help" href="https://drafts.csswg.org/css-align/#valdef-justify-self-stretch">
+<link rel="help" href="https://drafts.csswg.org/css-align/#valdef-justify-self-normal">
+<meta name="assert" content="Changing the grid item's justify-items value from 'start' to 'stretch' causes replaced items to shrink.">
+<link rel="stylesheet" type="text/css" href="../../../fonts/ahem.css" />
+<style>
+.grid {
+  position: relative;
+  display: inline-grid;
+  grid-template-columns: 80px;
+  grid-template-rows: 100px;
+  font: 20px/1 Ahem;
+  background: grey;
+  justify-items: start;
+}
+#item {
+  background: blue;
+  justify-self: auto;
+}
+</style>
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../resources/check-layout-th.js"></script>
+<script src="support/style-change.js"></script>
+<script>
+setup({ explicit_done: true });
+function runTest() {
+  evaluateStyleChangeMultiple('before', {
+    item: {
+      'data-expected-width': 100,
+      'data-expected-height': 100,
+    },
+  });
+  grid.style.justifyItems = 'stretch';
+  evaluateStyleChangeMultiple('after', {
+    item: {
+      'data-expected-width': 80,
+      'data-expected-height': 80,
+    },
+  });
+  done();
+}
+</script>
+<body onload="document.fonts.ready.then(() => { runTest(); })">
+<div class="grid" id="grid">
+  <img id="item" src="support/100x100-green.png"></img>
+</div>
+</body>
