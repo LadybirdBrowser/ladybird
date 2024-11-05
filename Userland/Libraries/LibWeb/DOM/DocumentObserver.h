@@ -32,6 +32,9 @@ public:
     [[nodiscard]] JS::GCPtr<JS::HeapFunction<void(HTML::VisibilityState)>> document_visibility_state_observer() const { return m_document_visibility_state_observer; }
     void set_document_visibility_state_observer(Function<void(HTML::VisibilityState)>);
 
+    [[nodiscard]] JS::GCPtr<JS::HeapFunction<void(bool)>> document_page_showing_observer() const { return m_document_page_showing_observer; }
+    void set_document_page_showing_observer(Function<void(bool)>);
+
 private:
     explicit DocumentObserver(JS::Realm&, DOM::Document&);
 
@@ -43,6 +46,7 @@ private:
     JS::GCPtr<JS::HeapFunction<void()>> m_document_completely_loaded;
     JS::GCPtr<JS::HeapFunction<void(HTML::DocumentReadyState)>> m_document_readiness_observer;
     JS::GCPtr<JS::HeapFunction<void(HTML::VisibilityState)>> m_document_visibility_state_observer;
+    JS::GCPtr<JS::HeapFunction<void(bool)>> m_document_page_showing_observer;
 };
 
 }

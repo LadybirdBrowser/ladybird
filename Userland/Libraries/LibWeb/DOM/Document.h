@@ -426,7 +426,7 @@ public:
     void decrement_number_of_things_delaying_the_load_event(Badge<DocumentLoadEventDelayer>);
 
     bool page_showing() const { return m_page_showing; }
-    void set_page_showing(bool value) { m_page_showing = value; }
+    void set_page_showing(bool);
 
     bool hidden() const;
     StringView visibility_state() const;
