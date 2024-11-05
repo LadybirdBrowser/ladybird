@@ -59,6 +59,7 @@ public:
     bool dump_gc_graph { false };
     bool is_layout_test_mode { false };
     size_t test_concurrency { 1 };
+    ByteString python_executable_path;
     ByteString test_root_path;
     ByteString test_glob;
     bool test_dry_run { false };

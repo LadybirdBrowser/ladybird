@@ -18,6 +18,8 @@ namespace Ladybird {
 Application::Application(Badge<WebView::Application>, Main::Arguments&)
     : resources_folder(s_ladybird_resource_root)
     , test_concurrency(Core::System::hardware_concurrency())
+    , python_executable_path("python3")
+
 {
 }
 
@@ -33,6 +35,7 @@ void Application::create_platform_arguments(Core::ArgsParser& args_parser)
     args_parser.add_option(dump_layout_tree, "Dump layout tree and exit", "dump-layout-tree", 'd');
     args_parser.add_option(dump_text, "Dump text and exit", "dump-text", 'T');
     args_parser.add_option(test_concurrency, "Maximum number of tests to run at once", "test-concurrency", 'j', "jobs");
+    args_parser.add_option(python_executable_path, "Path to python3", "python-executable", 'P', "path");
     args_parser.add_option(test_root_path, "Run tests in path", "run-tests", 'R', "test-root-path");
     args_parser.add_option(test_glob, "Only run tests matching the given glob", "filter", 'f', "glob");
     args_parser.add_option(test_dry_run, "List the tests that would be run, without running them", "dry-run");
