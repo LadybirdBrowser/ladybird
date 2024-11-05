@@ -2217,6 +2217,7 @@ Optional<Gfx::UnicodeRange> Parser::parse_unicode_range(StringView text)
 
     // 3. Consume as many hex digits from text as possible.
     //    then consume as many U+003F QUESTION MARK (?) code points as possible.
+    auto start_position = lexer.tell();
     auto hex_digits = lexer.consume_while(is_ascii_hex_digit);
     auto question_marks = lexer.consume_while([](auto it) { return it == '?'; });
     //    If zero code points were consumed, or more than six code points were consumed,
@@ -2226,7 +2227,7 @@ Optional<Gfx::UnicodeRange> Parser::parse_unicode_range(StringView text)
         dbgln_if(CSS_PARSER_DEBUG, "CSSParser: <urange> start value had {} digits/?s, expected between 1 and 6.", consumed_code_points);
         return {};
     }
-    StringView start_value_code_points { hex_digits.characters_without_null_termination(), consumed_code_points };
+    StringView start_value_code_points = text.substring_view(start_position, consumed_code_points);
 
     //    If any U+003F QUESTION MARK (?) code points were consumed, then:
     if (question_marks.length() > 0) {
