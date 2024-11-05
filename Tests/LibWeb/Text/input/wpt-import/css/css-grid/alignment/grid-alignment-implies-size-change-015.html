@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>CSS Grid Layout Test: Changes on Default-Alignment may affect grid item's height</title>
+<link rel="author" title="Javier Fernandez Garcia-Boente" href="mailto:jfernandez@igalia.com">
+<link rel="help" href="https://drafts.csswg.org/css-grid-1/#column-align">
+<link rel="help" href="https://drafts.csswg.org/css-grid-1/#grid-item-sizing">
+<link rel="help" href="https://drafts.csswg.org/css-align-3/#propdef-align-items">
+<link rel="help" href="https://drafts.csswg.org/css-align/#valdef-align-self-start">
+<link rel="help" href="https://drafts.csswg.org/css-align/#valdef-align-self-normal">
+<meta name="assert" content="Changing the grid item's align-items value from 'start' to 'normal' causes no effect on replaced items.">
+<link rel="stylesheet" type="text/css" href="../../../fonts/ahem.css" />
+<style>
+.grid {
+  position: relative;
+  display: inline-grid;
+  grid-template-columns: 100px;
+  grid-template-rows: 200px;
+  font: 20px/1 Ahem;
+  background: grey;
+  align-items: start;
+}
+#item {
+  background: blue;
+  align-self: auto;
+}
+</style>
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../resources/check-layout-th.js"></script>
+<script src="support/style-change.js"></script>
+<script>
+setup({ explicit_done: true });
+function runTest() {
+  evaluateStyleChange(item, "before", "data-expected-height", 100);
+  grid.style.alignItems = "normal";
+  evaluateStyleChange(item, "after", "data-expected-height", 100);
+  done();
+}
+</script>
+<body onload="document.fonts.ready.then(() => { runTest(); })">
+<div class="grid" id="grid">
+  <img data-expected-width="100" id="item" src="support/100x100-green.png"></img>
+</div>
+</body>

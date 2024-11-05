@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>CSS Grid Layout Test: Self-Alignment and stretch on auto-sized tracks</title>
+<link rel="author" title="Javier Fernandez Garcia-Boente" href="mailto:jfernandez@igalia.com">
+<link rel="help" href="https://drafts.csswg.org/css-grid-1/#alignment">
+<link rel="help" href="https://drafts.csswg.org/css-align-3/#propdef-align-self">
+<link rel="help" href="https://drafts.csswg.org/css-align-3/#propdef-justify-self">
+<link rel="help" href="https://drafts.csswg.org/css-align/#valdef-justify-self-stretch">
+<link rel="help" href="https://drafts.csswg.org/css-align/#valdef-align-self-stretch">
+<meta name="assert" content="Orthogonal grid items with 'stretch' value for align-self and/or justify-self are stretched along the column and/or row axis respectively; they will be sized as fit-content otherwise.">
+<link rel="stylesheet" type="text/css" href="../../../fonts/ahem.css" />
+<style>
+.grid {
+  position: relative;
+  display: inline-grid;
+  font: 20px/1 Ahem;
+  background: grey;
+  width: 250px;
+  height: 250px;
+}
+.grid > div { writing-mode: vertical-lr; }
+.firstRowFirstColumn {
+  grid-row: 1;
+  grid-column: 1;
+  background: green;
+  justify-self: stretch;
+  align-self: start;
+}
+.firstRowSecondColumn {
+  grid-row: 1;
+  grid-column: 2;
+  background: blue;
+  justify-self: start;
+  align-self: stretch;
+}
+.secondRowFirstColumn {
+  grid-row: 2;
+  grid-column: 1;
+  background: yellow;
+  justify-self: start;
+  align-self: start;
+}
+.secondRowSecondColumn {
+  grid-row: 2;
+  grid-column: 2;
+  background: red;
+  justify-self: stretch;
+  align-self: stretch;
+}
+</style>
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../resources/check-layout-th.js"></script>
+<script type="text/javascript">
+  setup({ explicit_done: true });
+</script>
+<body onload="document.fonts.ready.then(() => { checkLayout('.grid'); })">
+<div class="grid">
+  <div data-offset-x="0"   data-offset-y="0"   data-expected-width="125" data-expected-height="80"  class="firstRowFirstColumn">XX X</div>
+  <div data-offset-x="125" data-offset-y="0"   data-expected-width="20"  data-expected-height="125" class="firstRowSecondColumn">XX X</div>
+  <div data-offset-x="0"   data-offset-y="125" data-expected-width="20"  data-expected-height="80"  class="secondRowFirstColumn">XX X</div>
+  <div data-offset-x="125" data-offset-y="125" data-expected-width="125" data-expected-height="125" class="secondRowSecondColumn">XX X</div>
+</div>

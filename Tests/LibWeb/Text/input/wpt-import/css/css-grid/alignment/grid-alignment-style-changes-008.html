@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>CSS Grid Layout Test: Changing the Self-Alignment properties to interfere in Baseline Alignment</title>
+<link rel="author" title="Javier Fernandez Garcia-Boente" href="mailto:jfernandez@igalia.com">
+<link rel="help" href="https://drafts.csswg.org/css-grid-1/#grid-align">
+<link rel="help" href="https://drafts.csswg.org/css-align-3/#self-alignment">
+<link rel="help" href="https://drafts.csswg.org/css-align-3/#justify-self-property">
+<link rel="help" href="https://drafts.csswg.org/css-align/#typedef-baseline-position">
+<meta name="assert" content="Changing the 'justify-self' property's value of a grid item to 'baseline' will include such item into a baseline context, which implies recomputing all the baseline offsets and aligning the items in such context.">
+<link rel="stylesheet" type="text/css" href="../../../fonts/ahem.css" />
+<style>
+#container {
+  position: relative;
+  display: inline-grid;
+  grid: 50px 50px 50px / 100px;
+  background: grey;
+  justify-items: baseline;
+  font-family: Ahem;
+  text-orientation: sideways;
+  line-height: 1;
+}
+#container > div { writing-mode: vertical-lr; }
+#item1 {
+  font-size: 20px;
+  background: blue;
+}
+#item2 {
+  font-size: 40px;
+  background: green;
+  justify-self: center;
+}
+#item3 {
+  font-size: 30px;
+  background: red;
+}
+</style>
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../resources/check-layout-th.js"></script>
+<script src="support/style-change.js"></script>
+<script>
+setup({ explicit_done: true });
+function runTest() {
+    let before = {
+        item1: {"data-offset-x": 2  },
+        item2: {"data-offset-x": 30 },
+        item3: {"data-offset-x": 0  }
+    };
+
+    let after = {
+        item1: {"data-offset-x": 4 },
+        item2: {"data-offset-x": 0 },
+        item3: {"data-offset-x": 2 }
+    };
+
+    evaluateStyleChangeMultiple("before", before);
+    item2.style.justifySelf = "baseline";
+    evaluateStyleChangeMultiple("after", after);
+    done();
+}
+</script>
+<body onload="document.fonts.ready.then(() => { runTest(); })">
+    <div id="container">
+        <div id="item1" data-expected-width="20" data-expected-height="50" data-offset-y="0">É</div>
+        <div id="item2" data-expected-width="40" data-expected-height="50" data-offset-y="50">É</div>
+        <div id="item3" data-expected-width="30" data-expected-height="50" data-offset-y="100">É</div>
+    </div>
+    <div id="log"></div>
+</body>
