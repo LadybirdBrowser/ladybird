@@ -342,7 +342,7 @@ double EasingStyleValue::Steps::evaluate_at(double input_progress, bool before_f
     //    - jump-start,
     //    - jump-both,
     //    increment current step by one.
-    if (position == Steps::Position::JumpStart || position == Steps::Position::JumpBoth)
+    if (position == Steps::Position::JumpStart || position == Steps::Position::Start || position == Steps::Position::JumpBoth)
         current_step += 1;
 
     // 3. If both of the following conditions are true:
