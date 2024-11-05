@@ -555,7 +555,7 @@ CanvasRenderingContext2D::PreparedText CanvasRenderingContext2D::prepare_text(By
     Gfx::FloatPoint anchor { 0, 0 };
     auto physical_alignment = Gfx::TextAlignment::CenterLeft;
 
-    auto glyph_run = Gfx::shape_text(anchor, replaced_text.code_points(), *font, Gfx::GlyphRun::TextType::Ltr);
+    auto glyph_run = Gfx::shape_text(anchor, 0, replaced_text.code_points(), *font, Gfx::GlyphRun::TextType::Ltr);
 
     // 8. Let result be an array constructed by iterating over each glyph in the inline box from left to right (if any), adding to the array, for each glyph, the shape of the glyph as it is in the inline box, positioned on a coordinate space using CSS pixels with its origin is at the anchor point.
     PreparedText prepared_text { glyph_run, physical_alignment, { 0, 0, static_cast<int>(glyph_run->width()), static_cast<int>(height) } };

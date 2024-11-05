@@ -1,0 +1,31 @@
+Viewport <#document> at (0,0) content-size 800x600 children: not-inline
+  BlockContainer <html> at (0,0) content-size 800x120 [BFC] children: not-inline
+    BlockContainer <body> at (8,8) content-size 784x104 children: not-inline
+      BlockContainer <div> at (8,8) content-size 784x52 children: inline
+        frag 0 from TextNode start: 0, length: 5, rect: [8,8 121.359375x52] baseline: 40.390625
+            "12345"
+        TextNode <#text>
+      BlockContainer <(anonymous)> at (8,60) content-size 784x0 children: inline
+        TextNode <#text>
+      BlockContainer <div> at (8,60) content-size 784x52 children: inline
+        frag 0 from TextNode start: 0, length: 1, rect: [93,60 28.03125x52] baseline: 40.390625
+            "a"
+        BlockContainer <span> at (8,60) content-size 85.0625x52 floating [BFC] children: inline
+          frag 0 from TextNode start: 0, length: 2, rect: [8,60 85.0625x52] baseline: 40.390625
+              "aa"
+          TextNode <#text>
+        TextNode <#text>
+      BlockContainer <(anonymous)> at (8,112) content-size 784x0 children: inline
+        TextNode <#text>
+
+ViewportPaintable (Viewport<#document>) [0,0 800x600]
+  PaintableWithLines (BlockContainer<HTML>) [0,0 800x120]
+    PaintableWithLines (BlockContainer<BODY>) [8,8 784x104]
+      PaintableWithLines (BlockContainer<DIV>) [8,8 784x52]
+        TextPaintable (TextNode<#text>)
+      PaintableWithLines (BlockContainer(anonymous)) [8,60 784x0]
+      PaintableWithLines (BlockContainer<DIV>) [8,60 784x52]
+        PaintableWithLines (BlockContainer<SPAN>) [8,60 85.0625x52]
+          TextPaintable (TextNode<#text>)
+        TextPaintable (TextNode<#text>)
+      PaintableWithLines (BlockContainer(anonymous)) [8,112 784x0]

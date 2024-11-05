@@ -220,7 +220,7 @@ void DisplayListRecorder::draw_text(Gfx::IntRect const& rect, String raw_text, G
     if (rect.is_empty())
         return;
 
-    auto glyph_run = Gfx::shape_text({}, raw_text.code_points(), font, Gfx::GlyphRun::TextType::Ltr);
+    auto glyph_run = Gfx::shape_text({}, 0, raw_text.code_points(), font, Gfx::GlyphRun::TextType::Ltr);
     float baseline_x = 0;
     if (alignment == Gfx::TextAlignment::CenterLeft) {
         baseline_x = rect.x();

@@ -12,7 +12,7 @@
 
 namespace Gfx {
 
-RefPtr<GlyphRun> shape_text(FloatPoint baseline_start, Utf8View string, Gfx::Font const& font, GlyphRun::TextType text_type)
+RefPtr<GlyphRun> shape_text(FloatPoint baseline_start, float letter_spacing, Utf8View string, Gfx::Font const& font, GlyphRun::TextType text_type)
 {
     hb_buffer_t* buffer = hb_buffer_create();
     ScopeGuard destroy_buffer = [&]() { hb_buffer_destroy(buffer); };
@@ -38,6 +38,11 @@ RefPtr<GlyphRun> shape_text(FloatPoint baseline_start, Utf8View string, Gfx::Fon
             + FloatPoint { positions[i].x_offset, positions[i].y_offset } / text_shaping_resolution;
         glyph_run.append({ position, glyph_info[i].codepoint });
         point += FloatPoint { positions[i].x_advance, positions[i].y_advance } / text_shaping_resolution;
+
+        // don't apply spacing to last glyph
+        // https://drafts.csswg.org/css-text/#example-7880704e
+        if (i != (glyph_count - 1))
+            point.translate_by(letter_spacing, 0);
     }
 
     return adopt_ref(*new Gfx::GlyphRun(move(glyph_run), font, text_type, point.x()));
@@ -45,7 +50,7 @@ RefPtr<GlyphRun> shape_text(FloatPoint baseline_start, Utf8View string, Gfx::Fon
 
 float measure_text_width(Utf8View const& string, Gfx::Font const& font)
 {
-    auto glyph_run = shape_text({}, string, font, GlyphRun::TextType::Common);
+    auto glyph_run = shape_text({}, 0, string, font, GlyphRun::TextType::Common);
     return glyph_run->width();
 }
 
