@@ -76,6 +76,7 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
 
     if (!app->test_root_path.is_empty()) {
         app->test_root_path = LexicalPath::absolute_path(TRY(FileSystem::current_working_directory()), app->test_root_path);
+        TRY(app->launch_test_fixtures());
         TRY(Ladybird::run_tests(theme, window_size));
 
         return 0;
