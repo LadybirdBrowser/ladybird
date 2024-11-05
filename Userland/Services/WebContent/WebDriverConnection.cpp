@@ -429,19 +429,68 @@ Messages::WebDriverClient::BackResponse WebDriverConnection::back()
 // 10.4 Forward, https://w3c.github.io/webdriver/#dfn-forward
 Messages::WebDriverClient::ForwardResponse WebDriverConnection::forward()
 {
-    // 1. If the current top-level browsing context is no longer open, return error with error code no such window.
+    // 1. If session's current top-level browsing context is no longer open, return error with error code no such window.
     TRY(ensure_current_top_level_browsing_context_is_open());
 
-    // 2. Handle any user prompts and return its value if it is an error.
+    // 2. Try to handle any user prompts with session.
     handle_any_user_prompts([this]() {
-        // 3. Traverse the history by a delta 1 for the current browsing context.
-        current_browsing_context().page().client().page_did_request_navigate_forward();
+        auto& realm = current_top_level_browsing_context()->active_document()->realm();
 
-        // FIXME: 4. If the previous step completed results in a pageHide event firing, wait until pageShow event fires or for the session page load timeout milliseconds to pass, whichever occurs sooner.
-        // FIXME: 5. If the previous step completed by the session page load timeout being reached, and user prompts have been handled, return error with error code timeout.
+        // 3. Let timeout be session' session timeouts page load timeout.
+        auto timeout = m_timeouts_configuration.page_load_timeout;
 
-        // 6. Return success with data null.
-        async_driver_execution_complete(JsonValue {});
+        // 4. Let timer be a new timer.
+        auto timer = realm.heap().allocate<Web::WebDriver::HeapTimer>(realm);
+
+        auto on_complete = JS::create_heap_function(realm.heap(), [this, timer]() {
+            timer->stop();
+
+            if (m_document_observer) {
+                m_document_observer->set_document_page_showing_observer({});
+                m_document_observer = nullptr;
+            }
+
+            // 8. If timer' timeout fired flag is set:
+            if (timer->is_timed_out()) {
+                // 1. Handle any user prompts.
+                handle_any_user_prompts([this]() {
+                    // 2. Return error with error code timeout.
+                    async_driver_execution_complete(Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::Timeout, "Navigation timed out"sv));
+                });
+
+                return;
+            }
+
+            // 9. Return success with data null.
+            async_driver_execution_complete(JsonValue {});
+        });
+
+        // 5. If timeout is not null:
+        if (timeout.has_value()) {
+            // 1. Start the timer with timer and timeout.
+            timer->start(*timeout, on_complete);
+        }
+
+        // 6. Traverse the history by a delta 1 for session's current browsing context.
+        current_top_level_browsing_context()->top_level_traversable()->traverse_the_history_by_delta(1);
+
+        // 7. If the previous step completed results in a pageHide event firing, wait until pageShow event fires or
+        //    timer' timeout fired flag to be set, whichever occurs first.
+        current_top_level_browsing_context()->top_level_traversable()->append_session_history_traversal_steps(JS::create_heap_function(realm.heap(), [this, timer, on_complete]() {
+            if (timer->is_timed_out())
+                return;
+
+            if (auto* document = current_top_level_browsing_context()->active_document(); document->page_showing()) {
+                on_complete->function()();
+            } else {
+                auto& realm = document->realm();
+
+                m_document_observer = realm.heap().allocate<Web::DOM::DocumentObserver>(realm, realm, *document);
+                m_document_observer->set_document_page_showing_observer([on_complete](auto) {
+                    on_complete->function()();
+                });
+            }
+        }));
     });
 
     return JsonValue {};
