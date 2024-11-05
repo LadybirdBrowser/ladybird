@@ -193,14 +193,14 @@ Web::WebDriver::Response Session::set_timeouts(JsonValue payload)
 // 11.2 Close Window, https://w3c.github.io/webdriver/#dfn-close-window
 Web::WebDriver::Response Session::close_window()
 {
+    // 3. Close the current top-level browsing context.
+    TRY(perform_async_action([&](auto& connection) {
+        return connection.close_window();
+    }));
+
     {
         // Defer removing the window handle from this session until after we know we are done with its connection.
         ScopeGuard guard { [this] { m_windows.remove(m_current_window_handle); m_current_window_handle = "NoSuchWindowPleaseSelectANewOne"_string; } };
-
-        // 3. Close the current top-level browsing context.
-        TRY(perform_async_action([&](auto& connection) {
-            return connection.close_window();
-        }));
 
         // 4. If there are no more open top-level browsing contexts, then close the session.
         if (m_windows.size() == 1)
