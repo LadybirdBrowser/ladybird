@@ -166,6 +166,8 @@ void HTMLInputElement::set_checked(bool checked, ChangeSource change_source)
     m_checked = checked;
 
     invalidate_style(DOM::StyleInvalidationReason::HTMLInputElementSetChecked);
+    if (auto* paintable = this->paintable())
+        paintable->set_needs_display();
 }
 
 void HTMLInputElement::set_checked_binding(bool checked)
