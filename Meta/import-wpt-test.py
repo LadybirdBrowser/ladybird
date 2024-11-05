@@ -66,6 +66,8 @@ def modify_sources(files):
         with open(file, 'r') as f:
             page_source = f.read()
 
+        page_source = page_source.replace('/fonts/ahem.css', '../' * parent_folder_count + 'fonts/ahem.css')
+
         # Iterate all scripts and overwrite the src attribute
         for i, src_value in enumerate(src_values):
             if src_value.startswith('/'):
