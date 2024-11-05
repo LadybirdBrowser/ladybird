@@ -109,8 +109,6 @@ private:
     virtual void page_did_layout() override;
     virtual void page_did_change_title(ByteString const&) override;
     virtual void page_did_change_url(URL::URL const&) override;
-    virtual void page_did_request_navigate_back() override;
-    virtual void page_did_request_navigate_forward() override;
     virtual void page_did_request_refresh() override;
     virtual void page_did_request_resize_window(Gfx::IntSize) override;
     virtual void page_did_request_reposition_window(Gfx::IntPoint) override;
