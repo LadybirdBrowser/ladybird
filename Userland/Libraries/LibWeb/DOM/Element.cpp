@@ -2934,6 +2934,10 @@ Optional<String> Element::lang() const
 
         // 5. Otherwise
         //      - If there is a pragma-set default language set, then that is the language of the node.
+        if (document().pragma_set_default_language().has_value()) {
+            return document().pragma_set_default_language();
+        }
+
         //      - If there is no pragma-set default language set, then language information from a higher-level protocol (such as HTTP),
         //        if any, must be used as the final fallback language instead.
         //      - In the absence of any such language information, and in cases where the higher-level protocol reports multiple languages,

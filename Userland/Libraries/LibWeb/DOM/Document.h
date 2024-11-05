@@ -380,6 +380,9 @@ public:
     String const& content_type() const { return m_content_type; }
     void set_content_type(String content_type) { m_content_type = move(content_type); }
 
+    Optional<String> const& pragma_set_default_language() const { return m_pragma_set_default_language; }
+    void set_pragma_set_default_language(String language) { m_pragma_set_default_language = move(language); }
+
     bool has_encoding() const { return m_encoding.has_value(); }
     Optional<String> const& encoding() const { return m_encoding; }
     String encoding_or_default() const { return m_encoding.value_or("UTF-8"_string); }
@@ -822,6 +825,7 @@ private:
 
     HTML::DocumentReadyState m_readiness { HTML::DocumentReadyState::Loading };
     String m_content_type { "application/xml"_string };
+    Optional<String> m_pragma_set_default_language;
     Optional<String> m_encoding;
 
     bool m_ready_for_post_load_tasks { false };
