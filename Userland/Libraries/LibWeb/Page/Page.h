@@ -311,8 +311,6 @@ public:
     virtual void paint(DevicePixelRect const&, Painting::BackingStore&, PaintOptions = {}) = 0;
     virtual void page_did_change_title(ByteString const&) { }
     virtual void page_did_change_url(URL::URL const&) { }
-    virtual void page_did_request_navigate_back() { }
-    virtual void page_did_request_navigate_forward() { }
     virtual void page_did_request_refresh() { }
     virtual void page_did_request_resize_window(Gfx::IntSize) { }
     virtual void page_did_request_reposition_window(Gfx::IntPoint) { }

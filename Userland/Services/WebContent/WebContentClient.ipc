@@ -22,8 +22,6 @@ endpoint WebContentClient
 {
     did_start_loading(u64 page_id, URL::URL url, bool is_redirect) =|
     did_finish_loading(u64 page_id, URL::URL url) =|
-    did_request_navigate_back(u64 page_id) =|
-    did_request_navigate_forward(u64 page_id) =|
     did_request_refresh(u64 page_id) =|
     did_paint(u64 page_id, Gfx::IntRect content_rect, i32 bitmap_id) =|
     did_request_cursor_change(u64 page_id, i32 cursor_type) =|

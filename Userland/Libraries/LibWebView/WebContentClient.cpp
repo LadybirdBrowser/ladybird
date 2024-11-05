@@ -100,18 +100,6 @@ void WebContentClient::did_find_in_page(u64 page_id, size_t current_match_index,
     }
 }
 
-void WebContentClient::did_request_navigate_back(u64 page_id)
-{
-    if (auto view = view_for_page_id(page_id); view.has_value())
-        view->traverse_the_history_by_delta(-1);
-}
-
-void WebContentClient::did_request_navigate_forward(u64 page_id)
-{
-    if (auto view = view_for_page_id(page_id); view.has_value())
-        view->traverse_the_history_by_delta(1);
-}
-
 void WebContentClient::did_request_refresh(u64 page_id)
 {
     if (auto view = view_for_page_id(page_id); view.has_value())
