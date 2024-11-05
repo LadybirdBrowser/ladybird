@@ -2409,25 +2409,29 @@ Messages::WebDriverClient::TakeScreenshotResponse WebDriverConnection::take_scre
     // 1. If session's current top-level browsing context is no longer open, return error with error code no such window.
     TRY(ensure_current_top_level_browsing_context_is_open());
 
-    auto* document = current_top_level_browsing_context()->active_document();
-    auto window = document->window();
+    // FIXME: Spec issue: We must handle user prompts in this endpoint, just like we do in Take Element Screenshot.
+    // https://github.com/w3c/webdriver/issues/1678
+    handle_any_user_prompts([this]() {
+        auto* document = current_top_level_browsing_context()->active_document();
+        auto window = document->window();
 
-    // 2. When the user agent is next to run the animation frame callbacks:
-    (void)window->animation_frame_callback_driver().add(JS::create_heap_function(document->heap(), [this, document](double) mutable {
-        // a. Let root rect be session's current top-level browsing context's document element's rectangle.
-        auto root_rect = calculate_absolute_rect_of_element(*document->document_element());
+        // 2. When the user agent is next to run the animation frame callbacks:
+        (void)window->animation_frame_callback_driver().add(JS::create_heap_function(document->heap(), [this, document](double) mutable {
+            // a. Let root rect be session's current top-level browsing context's document element's rectangle.
+            auto root_rect = calculate_absolute_rect_of_element(*document->document_element());
 
-        // b. Let screenshot result be the result of trying to call draw a bounding box from the framebuffer, given root rect as an argument.
-        // c. Let canvas be a canvas element of screenshot result's data.
-        auto canvas = WEBDRIVER_TRY(Web::WebDriver::draw_bounding_box_from_the_framebuffer(*current_top_level_browsing_context(), *document->document_element(), root_rect));
+            // b. Let screenshot result be the result of trying to call draw a bounding box from the framebuffer, given root rect as an argument.
+            // c. Let canvas be a canvas element of screenshot result's data.
+            auto canvas = WEBDRIVER_TRY(Web::WebDriver::draw_bounding_box_from_the_framebuffer(*current_top_level_browsing_context(), *document->document_element(), root_rect));
 
-        // d. Let encoding result be the result of trying encoding a canvas as Base64 canvas.
-        // e. Let encoded string be encoding result's data.
-        auto encoded_string = Web::WebDriver::encode_canvas_element(canvas);
+            // d. Let encoding result be the result of trying encoding a canvas as Base64 canvas.
+            // e. Let encoded string be encoding result's data.
+            auto encoded_string = Web::WebDriver::encode_canvas_element(canvas);
 
-        // 3. Return success with data encoded string.
-        async_driver_execution_complete(move(encoded_string));
-    }));
+            // 3. Return success with data encoded string.
+            async_driver_execution_complete(move(encoded_string));
+        }));
+    });
 
     return JsonValue {};
 }
