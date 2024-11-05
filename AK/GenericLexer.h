@@ -184,8 +184,6 @@ public:
             ++m_index;
         size_t length = m_index - start;
 
-        if (length == 0)
-            return {};
         return m_input.substring_view(start, length);
     }
 
@@ -198,8 +196,6 @@ public:
             ++m_index;
         size_t length = m_index - start;
 
-        if (length == 0)
-            return {};
         return m_input.substring_view(start, length);
     }
 
