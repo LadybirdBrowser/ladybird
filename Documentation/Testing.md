@@ -118,7 +118,7 @@ You can import certain Web Platform Tests (WPT) tests into your Ladybird clone 
 ./Meta/WPT.sh import html/dom/aria-attribute-reflection.html
 ```
 
-That is, you give `./Meta/WPT.sh import` the path part of any `http://wpt.live/` URL for a WPT test you want to import. It will then download both that test and any of its JavaScript scripts, copy those to the `Tests/LibWeb/Text/input/wpt-import` directory, run the test, and then in the `Tests/LibWeb/Text/expected/wpt-import` directory, it will create a file with the expected results from the test.
+That is, you give `./Meta/WPT.sh import` the path part of any `http://wpt.live/` URL for a WPT test you want to import. It will then download both that test and any of its JavaScript scripts, copy those to the `Tests/LibWeb/<test-type>/input/wpt-import` directory, run the test, and then in the `Tests/LibWeb/<test-type>/expected/wpt-import` directory, it will create a file with the expected results from the test.
 
 
 ## Writing tests
