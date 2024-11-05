@@ -460,7 +460,13 @@ Messages::WebDriverClient::CloseWindowResponse WebDriverConnection::close_window
     // 2. Handle any user prompts and return its value if it is an error.
     handle_any_user_prompts([this]() {
         // 3. Close the current top-level browsing context.
-        current_top_level_browsing_context()->top_level_traversable()->close_top_level_traversable();
+        // FIXME: Spec issue: Closing browsing contexts is no longer a spec concept, we must instead close the top-level
+        //        traversable. We must also do so asynchronously, as the implementation will spin the event loop in some
+        //        steps. If a user dialog is open in another window within this agent, the event loop will be paused, and
+        //        those spins will hang. So we must return control to the client, who can deal with the dialog.
+        Web::HTML::queue_a_task(Web::HTML::Task::Source::Unspecified, nullptr, nullptr, JS::create_heap_function(current_top_level_browsing_context()->heap(), [this]() {
+            current_top_level_browsing_context()->top_level_traversable()->close_top_level_traversable();
+        }));
 
         async_driver_execution_complete(JsonValue {});
     });
