@@ -14,6 +14,7 @@
 #include <LibWeb/HTML/HTMLOutputElement.h>
 #include <LibWeb/HTML/HTMLSelectElement.h>
 #include <LibWeb/HTML/HTMLTextAreaElement.h>
+#include <LibWeb/Layout/FieldSetBox.h>
 
 namespace Web::HTML {
 
@@ -75,6 +76,16 @@ GC::Ptr<DOM::HTMLCollection> const& HTMLFieldSetElement::elements()
         });
     }
     return m_elements;
+}
+
+Layout::FieldSetBox* HTMLFieldSetElement::layout_node()
+{
+    return static_cast<Layout::FieldSetBox*>(Node::layout_node());
+}
+
+JS::GCPtr<Layout::Node> HTMLFieldSetElement::create_layout_node(CSS::StyleProperties style)
+{
+    return heap().allocate<Layout::FieldSetBox>(document(), *this, style);
 }
 
 }

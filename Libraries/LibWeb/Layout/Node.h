@@ -115,6 +115,8 @@ public:
     virtual bool is_replaced_box() const { return false; }
     virtual bool is_list_item_box() const { return false; }
     virtual bool is_list_item_marker_box() const { return false; }
+    virtual bool is_fieldset_box() const { return false; }
+    virtual bool is_legend_box() const { return false; }
     virtual bool is_table_wrapper() const { return false; }
     virtual bool is_node_with_style_and_box_model_metrics() const { return false; }
 

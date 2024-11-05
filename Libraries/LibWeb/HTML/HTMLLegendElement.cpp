@@ -8,6 +8,7 @@
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/HTML/HTMLFieldSetElement.h>
 #include <LibWeb/HTML/HTMLLegendElement.h>
+#include <LibWeb/Layout/LegendBox.h>
 
 namespace Web::HTML {
 
@@ -37,6 +38,21 @@ HTMLFormElement* HTMLLegendElement::form()
 
     // Otherwise, it must return null.
     return nullptr;
+}
+
+JS::GCPtr<Layout::Node> HTMLLegendElement::create_layout_node(CSS::StyleProperties style)
+{
+    return heap().allocate<Layout::LegendBox>(document(), *this, move(style));
+}
+
+Layout::LegendBox* HTMLLegendElement::layout_node()
+{
+    return static_cast<Layout::LegendBox*>(Node::layout_node());
+}
+
+Layout::LegendBox const* HTMLLegendElement::layout_node() const
+{
+    return static_cast<Layout::LegendBox const*>(Node::layout_node());
 }
 
 }

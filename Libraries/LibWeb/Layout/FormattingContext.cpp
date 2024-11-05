@@ -111,6 +111,12 @@ bool FormattingContext::creates_block_formatting_context(Box const& box)
 
     // FIXME: column-span: all should always create a new formatting context, even when the column-span: all element isn't contained by a multicol container (Spec change, Chrome bug).
 
+    // https://html.spec.whatwg.org/#the-fieldset-and-legend-elements
+    if (box.is_fieldset_box())
+        // The fieldset element, when it generates a CSS box, is expected to act as follows:
+        // The element is expected to establish a new block formatting context.
+        return true;
+
     return false;
 }
 
