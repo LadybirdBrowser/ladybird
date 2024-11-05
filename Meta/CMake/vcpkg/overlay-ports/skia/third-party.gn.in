@@ -1,0 +1,25 @@
+# While propagating "libs", gn would omit duplicate items,
+# possibly breaking linking order of static libraries.
+# "ldflags" are propagated literally, via "all_dependent_configs".
+config("vcpkg_@gn_group@") {
+  if(is_debug) {
+    defines = [ @gn_defines_DEBUG@ ]
+    include_dirs = [ @gn_include_dirs_DEBUG@ ]
+  } else {
+    defines = [ @gn_defines_RELEASE@ ]
+    include_dirs = [ @gn_include_dirs_RELEASE@ ]
+  }
+}
+config("vcpkg_@gn_group@_link_libraries") {
+  if(is_debug) {
+    lib_dirs = [ @gn_lib_dirs_DEBUG@ ]
+    ldflags = [ @gn_ldflags_DEBUG@ ]
+  } else {
+    lib_dirs = [ @gn_lib_dirs_RELEASE@ ]
+    ldflags = [ @gn_ldflags_RELEASE@ ]
+  }
+}
+group("@gn_group@") {
+  public_configs = [ ":vcpkg_@gn_group@" ]
+  all_dependent_configs = [ ":vcpkg_@gn_group@_link_libraries" ]
+}
