@@ -104,7 +104,7 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
             ->when_resolved([&](auto& result) {
                 outln("Resolved {}:", request.name);
                 HashTable<DNS::Messages::ResourceType> types;
-                auto& recs = result->records();
+                auto recs = result->records();
                 for (auto& record : recs)
                     types.set(record.type);
 
