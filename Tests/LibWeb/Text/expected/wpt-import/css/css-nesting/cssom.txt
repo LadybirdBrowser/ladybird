@@ -1,0 +1,23 @@
+Summary
+
+Harness status: OK
+
+Rerun
+
+Found 13 tests
+
+13 Fail
+Details
+Result	Test Name	MessageFail	CSSStyleRule is a CSSGroupingRule	
+Fail	Simple CSSOM manipulation of subrules	
+Fail	Simple CSSOM manipulation of subrules 1	
+Fail	Simple CSSOM manipulation of subrules 2	
+Fail	Simple CSSOM manipulation of subrules 3	
+Fail	Simple CSSOM manipulation of subrules 4	
+Fail	Simple CSSOM manipulation of subrules 5	
+Fail	Simple CSSOM manipulation of subrules 6	
+Fail	Simple CSSOM manipulation of subrules 7	
+Fail	Simple CSSOM manipulation of subrules 8	
+Fail	Simple CSSOM manipulation of subrules 9	
+Fail	Simple CSSOM manipulation of subrules 10	
+Fail	Mutating the selectorText of outer rule invalidates inner rules	
