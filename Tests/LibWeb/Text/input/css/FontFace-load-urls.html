@@ -5,7 +5,7 @@
         // FIXME: Surely there's a better way to get this font URL
         let fontUrl = new URL(location.href);
         fontUrl.search = "";
-        fontUrl += "/../../../../Ref/assets/HashSans.woff";
+        fontUrl += "/../../../../Assets/HashSans.woff";
 
         const hashSans = new FontFace("Hash Sans", `url(${fontUrl})`);
         println(`hashSans.family: ${hashSans.family}`);

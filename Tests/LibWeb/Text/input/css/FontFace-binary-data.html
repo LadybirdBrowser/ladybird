@@ -21,7 +21,7 @@
                 println(`zeroBytesFace.family: ${zeroBytesFace.family}`); // "Empty Font"
             });
 
-        const fontData = await fetch("../../../Ref/assets/HashSans.woff").then(
+        const fontData = await fetch("../../../Assets/HashSans.woff").then(
             response => response.arrayBuffer(),
             (reason) => {
                 println(`FAILED to fetch font from local file ${reason}`);
