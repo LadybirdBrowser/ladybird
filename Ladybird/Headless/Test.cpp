@@ -70,7 +70,7 @@ static ErrorOr<void> collect_dump_tests(Vector<Test>& tests, StringView path, St
             continue;
         }
 
-        if (!name.ends_with(".html"sv) && !name.ends_with(".svg"sv) && !name.ends_with(".xhtml"sv))
+        if (!name.ends_with(".html"sv) && !name.ends_with(".svg"sv) && !name.ends_with(".xhtml"sv) && !name.ends_with(".xht"sv))
             continue;
 
         auto expectation_path = ByteString::formatted("{}/expected/{}/{}.txt", path, trail, LexicalPath::title(name));
