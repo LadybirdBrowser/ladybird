@@ -138,13 +138,10 @@
       }
     },
     {
-      "name": "Fuzzers_CI",
-      "inherits": [
-        "vcpkg_ci",
-        "default"
-      ],
+      "name": "Fuzzers",
+      "inherits": "default",
       "displayName": "Fuzzers Config",
-      "description": "Fuzzers build with GitHub Actions cache",
+      "description": "Fuzzers build",
       "binaryDir": "${fileDir}/Build/fuzzers",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "",
@@ -152,6 +149,15 @@
         "ENABLE_FUZZERS_LIBFUZZER": "ON",
         "ENABLE_ADDRESS_SANITIZER": "ON"
       }
+    },
+    {
+      "name": "Fuzzers_CI",
+      "inherits": [
+        "vcpkg_ci",
+        "Fuzzers"
+      ],
+      "displayName": "Fuzzers CI Config",
+      "description": "Fuzzers build with GitHub Actions cache"
     }
   ],
   "buildPresets": [
