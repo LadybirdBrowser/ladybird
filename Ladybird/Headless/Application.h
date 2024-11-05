@@ -24,6 +24,8 @@ class Application : public WebView::Application {
     WEB_VIEW_APPLICATION(Application)
 
 public:
+    ~Application();
+
     static Application& the()
     {
         return static_cast<Application&>(WebView::Application::the());
@@ -33,6 +35,7 @@ public:
     virtual void create_platform_options(WebView::ChromeOptions&, WebView::WebContentOptions&) override;
 
     ErrorOr<void> launch_services();
+    ErrorOr<void> launch_test_fixtures();
 
     static Requests::RequestClient& request_client() { return *the().m_request_client; }
     static ImageDecoderClient::Client& image_decoder_client() { return *the().m_image_decoder_client; }

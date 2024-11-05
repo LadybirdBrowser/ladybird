@@ -1,6 +1,7 @@
 set(SOURCES
     ${LADYBIRD_SOURCES}
     Application.cpp
+    Fixture.cpp
     HeadlessWebView.cpp
     Test.cpp
     main.cpp

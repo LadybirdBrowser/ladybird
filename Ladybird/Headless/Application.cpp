@@ -5,6 +5,7 @@
  */
 
 #include <Ladybird/Headless/Application.h>
+#include <Ladybird/Headless/Fixture.h>
 #include <Ladybird/Headless/HeadlessWebView.h>
 #include <Ladybird/HelperProcess.h>
 #include <Ladybird/Utilities.h>
@@ -18,6 +19,12 @@ Application::Application(Badge<WebView::Application>, Main::Arguments&)
     : resources_folder(s_ladybird_resource_root)
     , test_concurrency(Core::System::hardware_concurrency())
 {
+}
+
+Application::~Application()
+{
+    for (auto& fixture : Fixture::all())
+        fixture->teardown();
 }
 
 void Application::create_platform_arguments(Core::ArgsParser& args_parser)
@@ -69,6 +76,19 @@ ErrorOr<void> Application::launch_services()
     auto image_decoder_paths = TRY(get_paths_for_helper_process("ImageDecoder"sv));
     m_image_decoder_client = TRY(launch_image_decoder_process(image_decoder_paths));
 
+    return {};
+}
+
+ErrorOr<void> Application::launch_test_fixtures()
+{
+    Fixture::initialize_fixtures();
+
+    // FIXME: Add option to only run specific fixtures from command line by name
+    //        And an option to not run any fixtures at all
+    for (auto& fixture : Fixture::all()) {
+        if (auto result = fixture->setup(); result.is_error())
+            return result;
+    }
     return {};
 }
 
