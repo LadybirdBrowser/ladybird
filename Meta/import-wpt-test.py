@@ -8,12 +8,30 @@ from pathlib import Path
 from urllib.parse import urljoin
 from urllib.request import urlopen
 from collections import namedtuple
+from enum import Enum
 
 wpt_base_url = 'https://wpt.live/'
-wpt_import_path = 'Tests/LibWeb/Text/input/wpt-import'
-wpt_expected_path = 'Tests/LibWeb/Text/expected/wpt-import'
+
+
+class TestType(Enum):
+    TEXT = 1, 'Tests/LibWeb/Text/input/wpt-import', 'Tests/LibWeb/Text/expected/wpt-import'
+    REF = 2, 'Tests/LibWeb/Ref/input/wpt-import', 'Tests/LibWeb/Ref/expected/wpt-import'
+
+    def __new__(cls, *args, **kwds):
+        obj = object.__new__(cls)
+        obj._value_ = args[0]
+        return obj
+
+    def __init__(self, _: str, input_path: str, expected_path: str):
+        self.input_path = input_path
+        self.expected_path = expected_path
+
+
 PathMapping = namedtuple('PathMapping', ['source', 'destination'])
 
+test_type = TestType.TEXT
+raw_reference_path = None  # As specified in the test HTML
+reference_path = None  # With parent directories
 src_values = []
 
 
@@ -26,30 +44,52 @@ class ScriptSrcValueFinder(HTMLParser):
                 src_values.append(attr_dict["src"])
 
 
+class TestTypeIdentifier(HTMLParser):
+    """Identifies what kind of test the page is, and stores it in self.test_type
+    For reference tests, the URL of the reference page is saved as self.reference_path
+    """
+
+    def __init__(self, url):
+        super().__init__()
+        self.url = url
+        self.test_type = TestType.TEXT
+        self.reference_path = None
+
+    def handle_starttag(self, tag, attrs):
+        if tag == "link":
+            attr_dict = dict(attrs)
+            if attr_dict["rel"] == "match":
+                self.test_type = TestType.REF
+                self.reference_path = attr_dict["href"]
+
+
 def map_to_path(sources, is_resource=True, resource_path=None):
     if is_resource:
         # Add it as a sibling path if it's a relative resource
         sibling_location = Path(resource_path).parent.__str__()
-        sibling_import_path = wpt_import_path + '/' + sibling_location
+        sibling_import_path = test_type.input_path + '/' + sibling_location
 
         def remapper(x):
             if x.startswith('/'):
-                return wpt_import_path + x
+                return test_type.input_path + x
             return sibling_import_path + '/' + x
 
         filepaths = list(map(remapper, sources))
         filepaths = list(map(lambda x: Path(x), filepaths))
     else:
-        # Add the wpt_import_path to the sources if root files
+        # Add the test_type.input_path to the sources if root files
         def remapper(x):
-            return wpt_import_path + '/' + x
+            if x.startswith('/'):
+                return test_type.input_path + x
+            return test_type.input_path + '/' + x
 
         filepaths = list(map(lambda x: Path(remapper(x)), sources))
 
     # Map to source and destination
     def path_mapper(x):
-        output_path = wpt_base_url + x.__str__().replace(wpt_import_path, '')
+        output_path = wpt_base_url + x.__str__().replace(test_type.input_path, '')
         return PathMapping(output_path, x.absolute())
+
     filepaths = list(map(path_mapper, filepaths))
 
     return filepaths
@@ -58,8 +98,13 @@ def map_to_path(sources, is_resource=True, resource_path=None):
 def modify_sources(files):
     for file in files:
         # Get the distance to the wpt-imports folder
-        folder_index = str(file).find(wpt_import_path)
-        non_prefixed_path = str(file)[folder_index + len(wpt_import_path):]
+        folder_index = str(file).find(test_type.input_path)
+        if folder_index == -1:
+            folder_index = str(file).find(test_type.expected_path)
+            non_prefixed_path = str(file)[folder_index + len(test_type.expected_path):]
+        else:
+            non_prefixed_path = str(file)[folder_index + len(test_type.input_path):]
+
         parent_folder_count = len(Path(non_prefixed_path).parent.parts) - 1
         parent_folder_path = '../' * parent_folder_count
 
@@ -73,8 +118,14 @@ def modify_sources(files):
             if src_value.startswith('/'):
                 new_src_value = parent_folder_path + src_value[1::]
                 page_source = page_source.replace(src_value, new_src_value)
-                with open(file, 'w') as f:
-                    f.write(str(page_source))
+
+        # Look for mentions of the reference page, and update their href
+        if raw_reference_path is not None:
+            new_reference_path = parent_folder_path + '../../expected/wpt-import/' + reference_path[::]
+            page_source = page_source.replace(raw_reference_path, new_reference_path)
+
+        with open(file, 'w') as f:
+            f.write(str(page_source))
 
 
 def download_files(filepaths):
@@ -106,8 +157,12 @@ def download_files(filepaths):
 
 
 def create_expectation_files(files):
+    # Ref tests don't have an expectation text file
+    if test_type == TestType.REF:
+        return
+
     for file in files:
-        new_path = str(file.destination).replace(wpt_import_path, wpt_expected_path)
+        new_path = str(file.destination).replace(test_type.input_path, test_type.expected_path)
         new_path = new_path.rsplit(".", 1)[0] + '.txt'
 
         expected_file = Path(new_path)
@@ -127,13 +182,31 @@ def main():
     url_to_import = sys.argv[1]
     resource_path = '/'.join(Path(url_to_import).parts[2::])
 
-    main_file = [resource_path]
-    main_paths = map_to_path(main_file, False)
-    files_to_modify = download_files(main_paths)
-    create_expectation_files(main_paths)
-
     with urlopen(url_to_import) as response:
         page = response.read().decode("utf-8")
+
+    global test_type, reference_path, raw_reference_path
+    identifier = TestTypeIdentifier(url_to_import)
+    identifier.feed(page)
+    test_type = identifier.test_type
+    raw_reference_path = identifier.reference_path
+    print(f"Identified {url_to_import} as type {test_type}, ref {raw_reference_path}")
+
+    main_file = [resource_path]
+    main_paths = map_to_path(main_file, False)
+
+    if test_type == TestType.REF and raw_reference_path is None:
+        raise RuntimeError('Failed to file reference path in ref test')
+
+    if raw_reference_path is not None:
+        reference_path = Path(resource_path).parent.joinpath(raw_reference_path).__str__()
+        main_paths.append(PathMapping(
+            wpt_base_url + '/' + reference_path,
+            Path(test_type.expected_path + '/' + reference_path).absolute()
+        ))
+
+    files_to_modify = download_files(main_paths)
+    create_expectation_files(main_paths)
 
     parser = ScriptSrcValueFinder()
     parser.feed(page)
