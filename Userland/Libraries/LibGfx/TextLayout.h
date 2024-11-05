@@ -64,7 +64,7 @@ private:
     float m_width { 0 };
 };
 
-RefPtr<GlyphRun> shape_text(FloatPoint baseline_start, Utf8View string, Gfx::Font const& font, GlyphRun::TextType);
+RefPtr<GlyphRun> shape_text(FloatPoint baseline_start, float letter_spacing, Utf8View string, Gfx::Font const& font, GlyphRun::TextType);
 float measure_text_width(Utf8View const& string, Gfx::Font const& font);
 
 }

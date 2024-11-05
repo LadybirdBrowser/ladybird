@@ -241,6 +241,10 @@ Optional<InlineLevelIterator::Item> InlineLevelIterator::next_without_lookahead(
             };
         }
 
+        auto resolution_context = CSS::Length::ResolutionContext::for_layout_node(text_node);
+        auto letter_spacing = text_node.computed_values().letter_spacing().resolved(resolution_context).to_px(text_node);
+        auto word_spacing = text_node.computed_values().word_spacing().resolved(resolution_context).to_px(text_node);
+
         auto x = 0.0f;
         if (chunk.has_breaking_tab) {
             CSSPixels accumulated_width;
@@ -262,11 +266,6 @@ Optional<InlineLevelIterator::Item> InlineLevelIterator::next_without_lookahead(
                 },
                 [&](CSS::NumberOrCalculated const& n) -> CSSPixels {
                     auto tab_number = n.resolved(text_node);
-                    auto computed_letter_spacing = text_node.computed_values().letter_spacing();
-                    auto computed_word_spacing = text_node.computed_values().word_spacing();
-
-                    auto letter_spacing = computed_letter_spacing.resolved(resolution_context).to_px(text_node);
-                    auto word_spacing = computed_word_spacing.resolved(resolution_context).to_px(text_node);
 
                     return CSSPixels::nearest_value_for(tab_number * (chunk.font->glyph_width(' ') + word_spacing.to_float() + letter_spacing.to_float()));
                 });
@@ -294,7 +293,7 @@ Optional<InlineLevelIterator::Item> InlineLevelIterator::next_without_lookahead(
             x = tab_stop_dist.to_float();
         }
 
-        auto glyph_run = Gfx::shape_text({ x, 0 }, chunk.view, chunk.font, text_type);
+        auto glyph_run = Gfx::shape_text({ x, 0 }, letter_spacing.to_float(), chunk.view, chunk.font, text_type);
 
         CSSPixels chunk_width = CSSPixels::nearest_value_for(glyph_run->width());
 
