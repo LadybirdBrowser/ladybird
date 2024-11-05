@@ -3045,6 +3045,19 @@ bool Document::anything_is_delaying_the_load_event() const
     return false;
 }
 
+void Document::set_page_showing(bool page_showing)
+{
+    if (m_page_showing == page_showing)
+        return;
+
+    m_page_showing = page_showing;
+
+    for (auto document_observer : m_document_observers) {
+        if (document_observer->document_page_showing_observer())
+            document_observer->document_page_showing_observer()->function()(m_page_showing);
+    }
+}
+
 void Document::invalidate_stacking_context_tree()
 {
     if (auto* paintable_box = this->paintable_box())
