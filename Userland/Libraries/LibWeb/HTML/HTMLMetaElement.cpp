@@ -5,6 +5,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/GenericLexer.h>
 #include <LibWeb/Bindings/HTMLMetaElementPrototype.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/CSS/Parser/Parser.h>
@@ -121,6 +122,37 @@ void HTMLMetaElement::inserted()
             // For meta elements with an http-equiv attribute in the X-UA-Compatible state, the content attribute must have a value that is an ASCII case-insensitive match for the string "IE=edge".
             // User agents are required to ignore this pragma.
             break;
+        case HttpEquivAttributeState::ContentLanguage: {
+            // https://html.spec.whatwg.org/multipage/semantics.html#attr-meta-http-equiv-content-language
+            // 1. If the meta element has no content attribute, then return.
+            if (!has_attribute(AttributeNames::content))
+                break;
+
+            // 2. If the element's content attribute contains a U+002C COMMA character (,) then return.
+            auto content = get_attribute_value(AttributeNames::content);
+            if (content.contains(","sv))
+                break;
+
+            // 3. Let input be the value of the element's content attribute.
+            // 4. Let position point at the first character of input.
+            GenericLexer lexer { content };
+
+            // 5. Skip ASCII whitespace within input given position.
+            lexer.ignore_while(Web::Infra::is_ascii_whitespace);
+
+            // 6. Collect a sequence of code points that are not ASCII whitespace from input given position.
+            // 7. Let candidate be the string that resulted from the previous step.
+            auto candidate = lexer.consume_until(Web::Infra::is_ascii_whitespace);
+
+            // 8. If candidate is the empty string, return.
+            if (candidate.is_empty())
+                break;
+
+            // 9. Set the pragma-set default language to candidate.
+            auto language = String::from_utf8_without_validation(candidate.bytes());
+            document().set_pragma_set_default_language(language);
+            break;
+        }
         default:
             dbgln("FIXME: Implement '{}' http-equiv state", get_attribute_value(AttributeNames::http_equiv));
             break;
