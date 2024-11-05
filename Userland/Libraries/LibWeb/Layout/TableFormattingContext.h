@@ -168,6 +168,13 @@ private:
         void collect_column_group_conflicting_edges(Vector<ConflictingEdge>&, Cell const&, ConflictingSide) const;
         void collect_table_box_conflicting_edges(Vector<ConflictingEdge>&, Cell const&, ConflictingSide) const;
 
+        JS::GCPtr<Node const> get_col_element(size_t index) const
+        {
+            if (index >= m_col_elements_by_index.size())
+                return {};
+            return m_col_elements_by_index[index];
+        }
+
         struct RowGroupInfo {
             JS::GCPtr<Node const> row_group;
             size_t start_index;
