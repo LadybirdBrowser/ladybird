@@ -7,16 +7,31 @@
 #pragma once
 
 #include <AK/Function.h>
+#include <AK/Noncopyable.h>
 #include <AK/WeakPtr.h>
 #include <LibCore/Forward.h>
 #include <LibJS/Forward.h>
+#include <LibJS/Heap/GCPtr.h>
 #include <LibWeb/HTML/EventLoop/TaskQueue.h>
+#include <LibWeb/HighResolutionTime/DOMHighResTimeStamp.h>
 
 namespace Web::HTML {
 
 class EventLoop : public JS::Cell {
     JS_CELL(EventLoop, JS::Cell);
     JS_DECLARE_ALLOCATOR(EventLoop);
+
+    struct PauseHandle {
+        PauseHandle(EventLoop&, JS::Object const& global, HighResolutionTime::DOMHighResTimeStamp);
+        ~PauseHandle();
+
+        AK_MAKE_NONCOPYABLE(PauseHandle);
+        AK_MAKE_NONMOVABLE(PauseHandle);
+
+        JS::NonnullGCPtr<EventLoop> event_loop;
+        JS::NonnullGCPtr<JS::Object const> global;
+        HighResolutionTime::DOMHighResTimeStamp const time_before_pause;
+    };
 
 public:
     enum class Type {
@@ -71,8 +86,8 @@ public:
 
     double compute_deadline() const;
 
-    // https://html.spec.whatwg.org/multipage/webappapis.html#pause
-    void set_execution_paused(bool execution_paused) { m_execution_paused = execution_paused; }
+    [[nodiscard]] PauseHandle pause();
+    void unpause(Badge<PauseHandle>, JS::Object const& global, HighResolutionTime::DOMHighResTimeStamp);
     bool execution_paused() const { return m_execution_paused; }
 
 private:

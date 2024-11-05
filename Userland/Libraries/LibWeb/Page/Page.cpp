@@ -6,7 +6,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <AK/ScopeGuard.h>
 #include <AK/SourceLocation.h>
 #include <LibIPC/Decoder.h>
 #include <LibIPC/Encoder.h>
@@ -265,9 +264,7 @@ template<typename ResponseType>
 static ResponseType spin_event_loop_until_dialog_closed(PageClient& client, Optional<ResponseType>& response, SourceLocation location = SourceLocation::current())
 {
     auto& event_loop = Web::HTML::current_principal_settings_object().responsible_event_loop();
-
-    ScopeGuard guard { [&] { event_loop.set_execution_paused(false); } };
-    event_loop.set_execution_paused(true);
+    auto pause_handle = event_loop.pause();
 
     Web::Platform::EventLoopPlugin::the().spin_until(JS::create_heap_function(event_loop.heap(), [&]() {
         return response.has_value() || !client.is_connection_open();

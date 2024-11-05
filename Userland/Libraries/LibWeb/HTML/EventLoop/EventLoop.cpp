@@ -605,4 +605,46 @@ double EventLoop::compute_deadline() const
     return deadline;
 }
 
+EventLoop::PauseHandle::PauseHandle(EventLoop& event_loop, JS::Object const& global, HighResolutionTime::DOMHighResTimeStamp time_before_pause)
+    : event_loop(event_loop)
+    , global(global)
+    , time_before_pause(time_before_pause)
+{
+}
+
+EventLoop::PauseHandle::~PauseHandle()
+{
+    event_loop->unpause({}, *global, time_before_pause);
+}
+
+// https://html.spec.whatwg.org/multipage/webappapis.html#pause
+EventLoop::PauseHandle EventLoop::pause()
+{
+    // 1. Let global be the current global object.
+    auto& global = current_principal_global_object();
+
+    // 2. Let timeBeforePause be the current high resolution time given global.
+    auto time_before_pause = HighResolutionTime::current_high_resolution_time(global);
+
+    // 3. If necessary, update the rendering or user interface of any Document or navigable to reflect the current state.
+    if (!m_is_running_rendering_task)
+        update_the_rendering();
+
+    // 4. Wait until the condition goal is met. While a user agent has a paused task, the corresponding event loop must
+    //    not run further tasks, and any script in the currently running task must block. User agents should remain
+    //    responsive to user input while paused, however, albeit in a reduced capacity since the event loop will not be
+    //    doing anything.
+    m_execution_paused = true;
+
+    return PauseHandle { *this, global, time_before_pause };
+}
+
+void EventLoop::unpause(Badge<PauseHandle>, JS::Object const& global, HighResolutionTime::DOMHighResTimeStamp time_before_pause)
+{
+    m_execution_paused = false;
+
+    // FIXME: 5. Record pause duration given the duration from timeBeforePause to the current high resolution time given global.
+    [[maybe_unused]] auto pause_duration = HighResolutionTime::current_high_resolution_time(global) - time_before_pause;
+}
+
 }
