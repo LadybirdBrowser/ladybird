@@ -43,7 +43,7 @@ TableGrid TableGrid::calculate_row_column_grid(Box const& box, Vector<Cell>& cel
                     rowspan = node.row_span();
                 }
 
-                if (x_width < x_current + colspan && y_current == 0)
+                if (x_width < x_current + colspan)
                     x_width = x_current + colspan;
                 if (y_height < y_current + rowspan)
                     y_height = y_current + rowspan;
