@@ -37,7 +37,6 @@ Pull requests are approved and merged by a group of maintainers. The current gro
 - [Sam Atkins (@AtkinsSJ)](https://github.com/AtkinsSJ)
 - [Tim Flynn (@trflynn89)](https://github.com/trflynn89)
 - [Tim Ledbetter (@tcl3)](https://github.com/tcl3)
-- [Tim Schumacher (@timschumi)](https://github.com/timschumi)
 
 ## Human language policy
 
