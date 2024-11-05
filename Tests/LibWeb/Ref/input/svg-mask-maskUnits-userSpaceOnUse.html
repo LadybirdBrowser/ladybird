@@ -1,0 +1,13 @@
+<link rel="match" href="../expected/simple-svg-mask-ref.html" />
+<svg width="120" viewBox="-10 -10 120 120">
+  <defs>
+    <mask id="myMask" maskUnits="userSpaceOnUse">
+      <!-- Everything under a white pixel will be visible -->
+      <rect x="0" y="0" width="100" height="100" fill="white" />
+      <!-- Everything under a black pixel will be invisible -->
+      <rect x="0" y="0" width="50" height="100" fill="black" />
+    </mask>
+  </defs>
+  <rect x="-10" y="-10" width="120" height="120" fill="blue" />
+  <rect x="10" y="10" width="80" height="80" fill="red" mask="url(#myMask)" />
+</svg>

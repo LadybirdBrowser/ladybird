@@ -1,0 +1,33 @@
+<link rel="match" href="../expected/sticky-positioned-box-with-border-ref.html" />
+<style>
+    * {
+        scrollbar-width: none;
+    }
+    html,
+    body {
+        margin: 0;
+    }
+    .sticky {
+        position: sticky;
+        top: 0;
+        left: 0;
+        right: 0;
+        background-color: cyan;
+        border-top: 20px solid magenta;
+        padding: 0.5em;
+    }
+    #scrollable {
+        width: 300px;
+        height: 200px;
+        overflow: auto;
+        position: relative;
+        border: 1px solid black;
+    }
+</style>
+<div id="scrollable">
+    <div style="height: 10000px"><div class="sticky">I'm sticky</div></div>
+</div>
+<script>
+    const scrollable = document.getElementById("scrollable");
+    scrollable.scrollTop = 5000;
+</script>

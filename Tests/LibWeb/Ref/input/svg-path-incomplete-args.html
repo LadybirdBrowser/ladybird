@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<link rel="match" href="../expected/svg-path-incomplete-args-ref.html" />
+<div>
+    <svg width="800" height="100">
+        <g stroke="black">
+            <path d="invalid" />
+        </g>
+        <text x="0" y="50" font-size="1em">This should be drawn</text>
+    </svg>
+</div>
+<div>
+    <svg width="100" height="100">
+        <g stroke="black">
+            <path d="M 0 50 A 30 20, 0, 0 0, 90 50 this elliptical arc should be drawn" />        
+            <path stroke-width="5" d="M 50 0 V 50 this vertical line should be drawn" />        
+        </g>
+    </svg>
+</div>
+<div>
+    <svg width="100" height="100">
+        <!--This won't be drawn since paths should start with an M command-->
+        <path stroke="black" d="V10" />
+    </svg>
+</div>
+<div>
+    <svg width="100" height="100">
+        <path stroke="black" d="M" />
+    </svg>
+</div>
+<div>
+    <svg width="100" height="100">
+        <path stroke="black" d="M 0" />
+    </svg>
+</div>
+<div>
+    <svg width="100" height="100">
+        <path stroke="black" d="M 0 50 VH 10" />
+    </svg>
+</div>
+<div>
+    <svg width="100" height="100">
+        <path stroke="black" d="M 0 50 L 10" />
+    </svg>
+</div>
+<div>
+    <svg width="100" height="100">
+        <path stroke="black" stroke-width="5" fill="transparent" d="M 10 10 C 20" />
+    </svg>
+</div>
+<div>
+    <svg width="100" height="100">
+        <path stroke="black" stroke-width="5" fill="transparent" d="M 10 10 C 20 20, 40 20" />
+    </svg>
+</div>
+<div>
+    <svg width="100" height="100">
+        <path stroke="black" stroke-width="5" fill="transparent" d="M 10 10 C 20 20, 40 20, 50" />
+    </svg>
+</div>
+<div>
+    <svg width="100" height="100">
+        <path stroke="black" stroke-width="5" d="M 0 50 L 10" />
+    </svg>
+</div>
+<div>
+    <svg width="100" height="100">
+        <path stroke="black" d="M 0 50 A" />
+    </svg>
+</div>
+<div>
+    <svg width="100" height="100">
+        <path stroke="black" d="M 0 50 A 30" />
+    </svg>
+</div>
+<div>
+    <svg width="100" height="100">
+        <path stroke="black" d="M 0 50 A 30 20," />
+    </svg>
+</div>
+<div>
+    <svg width="100" height="100">
+        <path stroke="black" d="M 0 50 A 30 20, 0" />
+    </svg>
+</div>
+<div>
+    <svg width="100" height="100">
+        <path d="M 0 50 A 30 20, 0, 0" />
+    </svg>
+</div>
+<div>
+    <svg width="100" height="100">
+        <path stroke="black" d="M 0 50 A 30 20, 0, 0 0" />
+    </svg>
+</div>
+<div>
+    <svg width="100" height="100">
+        <path stroke="black" d="M 0 50 A 30 20, 0, 0 0, 90" />
+    </svg>
+</div>

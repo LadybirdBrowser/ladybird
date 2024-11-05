@@ -1,0 +1,60 @@
+<link rel="match" href="../expected/svg-gradient-spreadMethod-ref.html" />
+<style>
+  * {
+    margin: 0;
+  }
+  body {
+    background-color: white;
+  }
+</style>
+<svg width="220" height="590" version="1.1" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="LinearPad" x1="33%" x2="67%">
+      <stop offset="0%" stop-color="fuchsia" />
+      <stop offset="100%" stop-color="orange" />
+    </linearGradient>
+    <linearGradient id="LinearReflect" spreadMethod="reflect" x1="33%" x2="67%">
+      <stop offset="0%" stop-color="fuchsia" />
+      <stop offset="100%" stop-color="orange" />
+    </linearGradient>
+    <linearGradient id="LinearRepeat" spreadMethod="repeat" x1="33%" x2="67%">
+      <stop offset="0%" stop-color="fuchsia" />
+      <stop offset="100%" stop-color="orange" />
+    </linearGradient>
+    <radialGradient id="RadialPad" cx="0.5" cy="0.5" r="0.4" fx="0.75" fy="0.75" spreadMethod="pad">
+      <stop offset="0%" stop-color="red" />
+      <stop offset="100%" stop-color="blue" />
+    </radialGradient>
+    <radialGradient id="RadialRepeat" cx="0.5" cy="0.5" r="0.4" fx="0.75" fy="0.75" spreadMethod="repeat">
+      <stop offset="0%" stop-color="red" />
+      <stop offset="100%" stop-color="blue" />
+    </radialGradient>
+    <radialGradient id="RadialReflect" cx="0.5" cy="0.5" r="0.4" fx="0.75" fy="0.75" spreadMethod="reflect">
+      <stop offset="0%" stop-color="red" />
+      <stop offset="100%" stop-color="blue" />
+    </radialGradient>
+    <radialGradient id="RadialPadFocalOffCenter" cx="75%" cy="25%" r="33%" fx="64%" fy="18%" fr="17%">
+      <stop offset="0%" stop-color="fuchsia" />
+      <stop offset="100%" stop-color="orange" />
+    </radialGradient>
+    <radialGradient id="RadialReflectFocalOffCenter" spreadMethod="reflect" cx="75%" cy="25%" r="33%" fx="64%" fy="18%"
+      fr="17%">
+      <stop offset="0%" stop-color="fuchsia" />
+      <stop offset="100%" stop-color="orange" />
+    </radialGradient>
+    <radialGradient id="RadialRepeatFocalOffCenter" spreadMethod="repeat" cx="75%" cy="25%" r="33%" fx="64%" fy="18%"
+      fr="17%">
+      <stop offset="0%" stop-color="fuchsia" />
+      <stop offset="100%" stop-color="orange" />
+    </radialGradient>
+  </defs>
+  <rect x="10" y="10" width="100" height="100" fill="url(#RadialPad)" />
+  <rect x="10" y="120" width="100" height="100" fill="url(#RadialRepeat)" />
+  <rect x="120" y="120" width="100" height="100" fill="url(#RadialReflect)" />
+  <rect x="10" y="230" width="200" height="40" fill="url(#LinearPad)" />
+  <rect x="10" y="280" width="200" height="40" fill="url(#LinearReflect)" />
+  <rect x="10" y="330" width="200" height="40" fill="url(#LinearRepeat)" />
+  <rect fill="url(#RadialPadFocalOffCenter)" x="10" y="380" width="100" height="100" />
+  <rect fill="url(#RadialReflectFocalOffCenter)" x="10" y="490" width="100" height="100" />
+  <rect fill="url(#RadialRepeatFocalOffCenter)" x="120" y="490" width="100" height="100" />
+</svg>

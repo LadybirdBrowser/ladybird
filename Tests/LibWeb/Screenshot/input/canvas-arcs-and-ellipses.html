@@ -1,0 +1,37 @@
+<link rel="match" href="../expected/canvas-arcs-and-ellipses-ref.html" />
+<style>
+  canvas {
+    border: 1px solid black;
+    image-rendering: pixelated;
+  }
+</style>
+<canvas id="canvas" width="550" height="325"></canvas>
+<script>
+  const canvas = document.getElementById("canvas")
+
+  const context = canvas.getContext("2d");
+  context.beginPath();
+  context.arc(59, 55, 38, 5.3849570248895775, 2.9421639085067177);
+  context.stroke();
+  context.fill();
+
+  context.beginPath();
+  context.ellipse(20,20,15,8,1.2273132071162383,4.1926143018618225,2.8853539230051624);
+  context.stroke();
+  context.fill();
+
+  for (let i = 0; i < 2; i++) {
+    for (let j = -5; j <= 5; j++) {
+      context.beginPath();
+      let x = 25 + (j + 5) * 50;
+      let y = 150 + i * 50;
+      let radius = 20;
+      let startAngle = 0;
+      let endAngle = (Math.PI * j) / 2;
+      let counterclockwise = i == 1;
+
+      context.arc(x, y, radius, startAngle, endAngle, counterclockwise);
+      context.stroke();
+    }
+  }
+</script>

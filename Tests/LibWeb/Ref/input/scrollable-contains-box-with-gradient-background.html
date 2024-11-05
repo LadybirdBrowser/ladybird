@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<link rel="match" href="../expected/scrollable-contains-box-with-gradient-background-ref.html" />
+<style type="text/css">
+    * {
+        scrollbar-width: none;
+    }
+
+    .box {
+        width: 180px;
+        height: 64px;
+        background: linear-gradient(rgb(109, 152, 204), rgb(138, 100, 229));
+        border-radius: 100px;
+    }
+
+    #scrollable {
+        width: 200px;
+        height: 200px;
+        overflow: scroll;
+        border: 10px solid orchid;
+    }
+</style>
+<div id="scrollable">
+    <div style="height: 100px"></div>
+    <div class="box"></div>
+    <div style="height: 200px"></div>
+</div>
+<script>
+    const scrollContainer = document.getElementById("scrollable");
+    scrollContainer.scrollTop = 100;
+</script>

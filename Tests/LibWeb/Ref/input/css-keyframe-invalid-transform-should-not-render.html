@@ -1,0 +1,22 @@
+<!doctype html>
+<link rel="match" href="../expected/css-keyframe-invalid-transform-should-not-render-ref.html" />
+<style>
+    #foo {
+        width: 100px;
+        height: 100px;
+        background-color: blue;
+        animation: anim 1s;
+    }
+    @keyframes anim {
+        from {
+            transform: scale(0);
+        }
+        to {
+            transform: scale(0);
+        }
+    }
+</style>
+<div id="foo"></div>
+<script>
+    document.getElementById("foo").getAnimations()[0].currentTime = 500;
+</script>

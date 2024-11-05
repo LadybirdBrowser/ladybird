@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<head>
+    <link rel="match" href="../expected/scrollable-contains-rotated-boxes-ref.html" />
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            height: 1000px;
+        }
+        #scroll-container {
+            width: 300px;
+            height: 300px;
+            overflow-y: scroll;
+            background-color: #fff;
+        }
+        .rotated-box {
+            width: 100px;
+            height: 100px;
+            margin: 10px;
+            background-color: #3498db;
+            transform: rotate(90deg);
+            overflow: hidden;
+        }
+        .nested-box {
+            width: 200px;
+            height: 200px;
+            background-color: crimson;
+        }
+    </style>
+</head>
+<body>
+    <div id="scroll-container">
+        <div class="rotated-box"><div class="nested-box"></div></div>
+        <div class="rotated-box"><div class="nested-box"></div></div>
+        <div class="rotated-box"><div class="nested-box"></div></div>
+        <div class="rotated-box"><div class="nested-box"></div></div>
+        <div class="rotated-box"><div class="nested-box"></div></div>
+        <div class="rotated-box"><div class="nested-box"></div></div>
+        <div class="rotated-box"><div class="nested-box"></div></div>
+    </div>
+</body>
+<script>
+    const scrollContainer = document.getElementById("scroll-container");
+    scrollContainer.scrollTop = 100;
+</script>

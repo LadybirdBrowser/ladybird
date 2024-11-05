@@ -1,0 +1,19 @@
+<link rel="match" href="../expected/meter-ref.html" />
+<style>
+    * {
+      margin: 0;
+    }
+    body {
+      background-color: white;
+    }
+</style>
+<meter value="0.5">50%</meter>
+<meter value="4" max="10">4/10</meter>
+<meter min="1" value="3" max="10">grade 3</meter>
+<meter low="4" value="1" max="10"></meter>
+<meter low="4" high="6" value="9" max="10"></meter>
+<meter low="4" high="6" value="9" max="10" optimum="1"></meter>
+<meter low="4" value="1" high="5" min="3" max="10" optimum="10"></meter>
+<meter low="4" value="3" high="5" min="1" max="2" optimum="10"></meter>
+<meter min="1" low="2" high="5" optimum="7" max="10" value="6"></meter>
+<meter min="1" low="2" high="5" optimum="7" max="10" value="8"></meter>
