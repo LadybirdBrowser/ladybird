@@ -1,0 +1,188 @@
+<!doctype html>
+<title>Simple CSSOM manipulation of subrules</title>
+<link rel="author" title="Steinar H. Gunderson" href="mailto:sesse@chromium.org">
+<link rel="help" href="https://drafts.csswg.org/css-nesting-1/">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+
+<style id="ss"></style>
+
+<script>
+  test(() => {
+    assert_equals(CSSStyleRule.__proto__, CSSGroupingRule);
+  }, "CSSStyleRule is a CSSGroupingRule");
+
+  test(() => {
+    let [ss] = document.styleSheets;
+    assert_equals(ss.cssRules.length, 0);
+    ss.insertRule('.a { color: red; }');
+    assert_equals(ss.cssRules.length, 1);
+    assert_equals(ss.cssRules[0].cssText, '.a { color: red; }');
+
+    // Test inserting sub-cssRules, at various positions.
+    ss.cssRules[0].insertRule('& .b { color: green; }');
+    ss.cssRules[0].insertRule('& .c { color: blue; }', 1);
+    ss.cssRules[0].insertRule('& .d { color: hotpink; }', 1);
+    assert_equals(ss.cssRules[0].cssText,
+`.a {
+  color: red;
+  & .b { color: green; }
+  & .d { color: hotpink; }
+  & .c { color: blue; }
+}`, 'inserting should work');
+
+    // Test deleting a rule.
+    ss.cssRules[0].deleteRule(1);
+    assert_equals(ss.cssRules[0].cssText,
+`.a {
+  color: red;
+  & .b { color: green; }
+  & .c { color: blue; }
+}`, 'deleting should work');
+  });
+
+  // Test that out-of-bounds throws exceptions and does not affect the stylesheet.
+  const sampleSheetText =
+`.a {
+  color: red;
+  & .b { color: green; }
+  & .c { color: blue; }
+}`;
+
+  test(() => {
+    document.getElementById('ss').innerHTML = sampleSheetText;
+    let [ss] = document.styleSheets;
+    assert_throws_dom('IndexSizeError', () => { ss.cssRules[0].insertRule('& .broken {}', 3); });
+    assert_equals(ss.cssRules[0].cssText, sampleSheetText, 'unchanged after no-insert');
+  });
+
+  test(() => {
+    document.getElementById('ss').innerHTML = sampleSheetText;
+    let [ss] = document.styleSheets;
+    assert_throws_dom('IndexSizeError', () => { ss.cssRules[0].insertRule('& .broken {}', -1); });
+    assert_equals(ss.cssRules[0].cssText, sampleSheetText, 'unchanged after no-insert');
+  });
+
+  test(() => {
+    document.getElementById('ss').innerHTML = sampleSheetText;
+    let [ss] = document.styleSheets;
+    assert_throws_dom('IndexSizeError', () => { ss.cssRules[0].deleteRule(5); });
+    assert_equals(ss.cssRules[0].cssText, sampleSheetText, 'unchanged after no-delete');
+  });
+
+  test(() => {
+    document.getElementById('ss').innerHTML = sampleSheetText;
+    let [ss] = document.styleSheets;
+    assert_equals(ss.cssRules[0].cssRules[2], undefined, 'subscript out-of-bounds returns undefined');
+    assert_equals(ss.cssRules[0].cssRules.item(2), null, 'item() out-of-bounds returns null');
+    assert_equals(ss.cssRules[0].cssText, sampleSheetText, 'unchanged after no-access');
+  });
+
+  // Test that inserting an invalid rule throws an exception.
+  test(() => {
+    document.getElementById('ss').innerHTML = sampleSheetText;
+    let [ss] = document.styleSheets;
+    let exception;
+    assert_throws_dom('SyntaxError', () => { ss.cssRules[0].insertRule('% {}'); });
+    assert_equals(ss.cssRules[0].cssText, sampleSheetText, 'unchanged after invalid rule');
+  });
+
+  // Test that we can get out single rule through .cssRules.
+  test(() => {
+    document.getElementById('ss').innerHTML = sampleSheetText;
+    let [ss] = document.styleSheets;
+    assert_equals(ss.cssRules[0].cssRules[1].cssText, '& .c { color: blue; }');
+  });
+
+  // Test that we can insert a @supports rule, that it serializes in the right place
+  // and has the right parent. Note that the indentation is broken per-spec.
+  test(() => {
+    document.getElementById('ss').innerHTML = sampleSheetText;
+    let [ss] = document.styleSheets;
+    ss.cssRules[0].insertRule('@supports selector(&) { & div { font-size: 10px; }}', 1);
+    assert_equals(ss.cssRules[0].cssText,
+`.a {
+  color: red;
+  & .b { color: green; }
+  @supports selector(&) {
+  & div { font-size: 10px; }
+}
+  & .c { color: blue; }
+}`, '@supports is added');
+
+    assert_equals(ss.cssRules[0].cssRules[1].parentRule, ss.cssRules[0]);
+    ss.cssRules[0].deleteRule(1);
+    assert_equals(ss.cssRules[0].cssText, sampleSheetText);
+  });
+
+  // Nested rules are not part of declaration lists, and thus should not
+  // be possible to insert with .style.
+  test(() => {
+    document.getElementById('ss').innerHTML = sampleSheetText;
+    let [ss] = document.styleSheets;
+    ss.cssRules[0].style = 'color: olivedrab; &.d { color: peru; }';
+    assert_equals(ss.cssRules[0].cssText,
+`.a {
+  color: olivedrab;
+  & .b { color: green; }
+  & .c { color: blue; }
+}`, 'color is changed, new rule is ignored');
+  });
+
+  test(() => {
+    document.getElementById('ss').innerHTML = sampleSheetText;
+    let [ss] = document.styleSheets;
+    ss.cssRules[0].cssRules[0].selectorText = 'div.b .c &';  // Allowed
+    ss.cssRules[0].cssRules[1].selectorText = '.c div.b &, div &';  // Allowed.
+    ss.cssRules[0].insertRule('div & {}'); // Allowed.
+    assert_equals(ss.cssRules[0].cssText,
+`.a {
+  color: red;
+  div & { }
+  div.b .c & { color: green; }
+  .c div.b &, div & { color: blue; }
+}`, 'selectorText and insertRule');
+  });
+
+  // Rules that are dropped in forgiving parsing but that contain &,
+  // must still be serialized out as they were.
+  test(() => {
+    const text = '.a { :is(!& .foo, .b) { color: green; } }';
+    document.getElementById('ss').innerHTML = text;
+    let [ss] = document.styleSheets;
+    assert_equals(ss.cssRules[0].cssText,
+`.a {
+  :is(!& .foo, .b) { color: green; }
+}`, 'invalid rule containing ampersand is kept in serialization');
+  });
+
+  test((t) => {
+    let main = document.createElement('main');
+    main.innerHTML = `
+      <style>
+        .a {
+          & { z-index:1; }
+          & #inner1 { z-index:1; }
+          .stuff, :is(&) #inner2 { z-index:1; }
+        }
+      </style>
+      <div id="outer" class="b">
+        <div id="inner1"></div>
+        <div id="inner2"></div>
+      </div>
+    `;
+    document.documentElement.append(main);
+    t.add_cleanup(() => main.remove());
+
+    assert_equals(getComputedStyle(outer).zIndex, 'auto');
+    assert_equals(getComputedStyle(inner1).zIndex, 'auto');
+    assert_equals(getComputedStyle(inner2).zIndex, 'auto');
+
+    // .a => .b
+    main.firstElementChild.sheet.cssRules[0].selectorText = '.b';
+
+    assert_equals(getComputedStyle(outer).zIndex, '1');
+    assert_equals(getComputedStyle(inner1).zIndex, '1');
+    assert_equals(getComputedStyle(inner2).zIndex, '1');
+  }, 'Mutating the selectorText of outer rule invalidates inner rules');
+</script>
