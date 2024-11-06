@@ -2227,7 +2227,8 @@ ErrorOr<String> Node::name_or_description(NameOrDescription target, Document con
                 // b. Compute the text alternative of the current node beginning with step 2. Set the result to that text alternative.
                 auto result = TRY(node->name_or_description(target, document, visited_nodes));
                 // c. Append the result, with a space, to the accumulated text.
-                TRY(Node::append_with_space(total_accumulated_text, result));
+                total_accumulated_text.append(' ');
+                total_accumulated_text.append(result);
             }
             // iii. Return the accumulated text.
             return total_accumulated_text.to_string();
@@ -2388,7 +2389,8 @@ ErrorOr<String> Node::name_or_description(NameOrDescription target, Document con
                     total_accumulated_text.append(after->computed_values().content().data);
             }
             // v. Return the accumulated text if it is not the empty string ("").
-            return total_accumulated_text.to_string();
+            if (!total_accumulated_text.is_empty())
+                return total_accumulated_text.to_string();
             // Important: Each node in the subtree is consulted only once. If text has been collected from a descendant, but is referenced by another IDREF in some descendant node, then that second, or subsequent, reference is not followed. This is done to avoid infinite loops.
         }
     }
