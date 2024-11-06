@@ -517,7 +517,7 @@ static inline bool matches_pseudo_class(CSS::Selector::SimpleSelector::PseudoCla
         if (step_size == 0 && offset == 0)
             return false; // "If both a and b are equal to zero, the pseudo-class represents no element in the document tree."
 
-        auto const* parent = element.parent_element();
+        auto const* parent = element.parent();
         if (!parent)
             return false;
 
