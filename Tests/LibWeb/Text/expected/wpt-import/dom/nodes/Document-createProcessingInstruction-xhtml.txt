@@ -1,0 +1,22 @@
+Summary
+
+Harness status: OK
+
+Rerun
+
+Found 12 tests
+
+12 Pass
+Details
+Result	Test Name	MessagePass	Document.createProcessingInstruction in XML documents	
+Pass	Should throw an INVALID_CHARACTER_ERR for target "A" and data "?>".	
+Pass	Should throw an INVALID_CHARACTER_ERR for target "·A" and data "x".	
+Pass	Should throw an INVALID_CHARACTER_ERR for target "×A" and data "x".	
+Pass	Should throw an INVALID_CHARACTER_ERR for target "A×" and data "x".	
+Pass	Should throw an INVALID_CHARACTER_ERR for target "\\A" and data "x".	
+Pass	Should throw an INVALID_CHARACTER_ERR for target "\f" and data "x".	
+Pass	Should throw an INVALID_CHARACTER_ERR for target 0 and data "x".	
+Pass	Should throw an INVALID_CHARACTER_ERR for target "0" and data "x".	
+Pass	Should get a ProcessingInstruction for target "xml:fail" and data "x".	
+Pass	Should get a ProcessingInstruction for target "A·A" and data "x".	
+Pass	Should get a ProcessingInstruction for target "a0" and data "x".	
