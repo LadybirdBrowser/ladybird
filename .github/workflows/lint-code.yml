@@ -28,7 +28,7 @@ jobs:
 
       - name: Install JS Dependencies
         shell: bash
-        run: npm install -g prettier@2.7.1
+        run: npm install -g prettier@3.3.3
 
       - name: Lint
         run: ${{ github.workspace }}/Meta/lint-ci.sh

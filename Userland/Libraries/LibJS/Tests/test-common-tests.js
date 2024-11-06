@@ -63,8 +63,10 @@ test("toHaveLength", () => {
     expect([1]).toHaveLength(1);
     expect({ length: 1 }).toHaveLength(1);
 
-    expect("a\
-b").toHaveLength(2);
+    expect(
+        "a\
+b"
+    ).toHaveLength(2);
 
     expect(() => {
         expect(1).toHaveLength();
