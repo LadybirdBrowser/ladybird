@@ -1374,33 +1374,32 @@ Messages::WebDriverClient::GetElementPropertyResponse WebDriverConnection::get_e
 // 12.4.4 Get Element CSS Value, https://w3c.github.io/webdriver/#dfn-get-element-css-value
 Messages::WebDriverClient::GetElementCssValueResponse WebDriverConnection::get_element_css_value(String const& element_id, String const& name)
 {
-    // 1. If the current browsing context is no longer open, return error with error code no such window.
+    // 1. If session's current browsing context is no longer open, return error with error code no such window.
     TRY(ensure_current_browsing_context_is_open());
 
-    // 2. Handle any user prompts and return its value if it is an error.
+    // 2. Try to handle any user prompts with session.
     handle_any_user_prompts([this, element_id, name]() {
-        // 3. Let element be the result of trying to get a known connected element with url variable element id.
+        // 3. Let element be the result of trying to get a known element with URL variables["element id"].
         auto element = WEBDRIVER_TRY(Web::WebDriver::get_known_element(current_browsing_context(), element_id));
 
         // 4. Let computed value be the result of the first matching condition:
-        ByteString computed_value;
+        String computed_value;
 
-        // -> current browsing context’s active document’s type is not "xml"
-        if (!current_browsing_context().active_document()->is_xml_document()) {
-            // computed value of parameter property name from element’s style declarations. property name is obtained from url variables.
+        // -> session's current browsing context's active document's type is not "xml"
+        if (auto* document = current_browsing_context().active_document(); !document->is_xml_document()) {
+            document->update_style();
+
+            // computed value of parameter URL variables["property name"] from element's style declarations.
             if (auto property = Web::CSS::property_id_from_string(name); property.has_value()) {
                 if (auto computed_values = element->computed_css_values(); computed_values.has_value())
-                    computed_value = computed_values->property(property.value())->to_string().to_byte_string();
+                    computed_value = computed_values->property(property.value())->to_string();
             }
         }
         // -> Otherwise
-        else {
-            // "" (empty string)
-            computed_value = ByteString::empty();
-        }
+        //     "" (empty string)
 
         // 5. Return success with data computed value.
-        async_driver_execution_complete({ computed_value });
+        async_driver_execution_complete({ computed_value.to_byte_string() });
     });
 
     return JsonValue {};
