@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>CSS Selectors Invalidation: :has() invalidation basic</title>
+<link rel="author" title="Byungwoo Lee" href="mailto:blee@igalia.com">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<link rel="help" href="https://drafts.csswg.org/selectors/#relational">
+<style>
+div, main { color: grey }
+.subject:has(> .child) { color: red }
+.subject:has(.descendant) { color: green }
+.subject:has([attrname=descendant]) { color: blue }
+.subject:has(#div_descendant) { color: yellow }
+.subject:has(descendant) { color: yellowgreen }
+</style>
+<main id=main>
+  <div id=div_subject class="subject">
+    <div id=div_child>
+      <div id=div_grandchild></div>
+    </div>
+  </div>
+</main>
+<script>
+  let grey = 'rgb(128, 128, 128)';
+  let red = 'rgb(255, 0, 0)';
+  let green = 'rgb(0, 128, 0)';
+  let blue = 'rgb(0, 0, 255)';
+  let yellow = 'rgb(255, 255, 0)';
+  let yellowgreen = 'rgb(154, 205, 50)';
+
+  function test_div(test_name, el, color) {
+    test(function() {
+      assert_equals(getComputedStyle(el).color, color);
+    }, test_name + ': div#' + el.id + '.color');
+  }
+
+  test_div('initial_color', div_subject, grey);
+  test_div('initial_color', div_child, grey);
+  test_div('initial_color', div_grandchild, grey);
+
+  div_child.classList.add('child');
+  test_div('add .child to #div_child', div_subject, red);
+  div_child.classList.remove('child');
+  test_div('remove .child from #div_child', div_subject, grey);
+
+  div_grandchild.classList.add('child');
+  test_div('add .child to #div_grandchild', div_subject, grey);
+  div_grandchild.classList.remove('child');
+  test_div('remove .child from #div_grandchild', div_subject, grey);
+
+  div_child.classList.add('descendant');
+  test_div('add .descendant to #div_child', div_subject, green);
+  div_child.classList.remove('descendant');
+  test_div('remove .descendant from #div_child', div_subject, grey);
+
+  div_grandchild.classList.add('descendant');
+  test_div('add .descendant to #div_grandchild', div_subject, green);
+  div_grandchild.classList.remove('descendant');
+  test_div('remove .descendant from #div_grandchild', div_subject, grey);
+
+  div_grandchild.setAttribute('attrname', 'descendant');
+  test_div('set descendant to #div_grandchild[attrname]', div_subject, blue);
+  div_grandchild.setAttribute('attrname', '');
+  test_div('clear #div_grandchild[attrname]', div_subject, grey);
+
+  div_grandchild.id = 'div_descendant';
+  test_div('change #div_grandchild to #div_descendant', div_subject, yellow);
+  div_descendant.id = 'div_grandchild';
+  test_div('change #div_descendant to #div_grandchild', div_subject, grey);
+
+  {
+    const descendant = document.createElement('descendant');
+    div_subject.appendChild(descendant);
+    test_div('add descendant to #div_subject', div_subject, yellowgreen);
+    div_subject.removeChild(descendant);
+    test_div('remove descendant from #div_subject', div_subject, grey);
+  }
+
+  {
+    const div = document.createElement('div');
+    const descendant = document.createElement('descendant');
+    div.appendChild(descendant);
+    div_subject.appendChild(div);
+    test_div('add "div > descendant" to #div_subject', div_subject, yellowgreen);
+    div_subject.removeChild(div);
+    test_div('remove "div > descendant" from #div_subject', div_subject, grey);
+  }
+
+  {
+    const child = document.createElement('div');
+    child.classList.add('child');
+    div_subject.appendChild(child);
+    test_div('add div.child to #div_subject', div_subject, red);
+    div_subject.removeChild(child);
+    test_div('remove div.child from #div_subject', div_subject, grey);
+  }
+
+  {
+    const descendant = document.createElement('div');
+    descendant.classList.add('descendant');
+    const div = document.createElement('div');
+    div.appendChild(descendant);
+    div_subject.appendChild(div);
+    test_div('add "div > div.descendant" to #div_subject', div_subject, green);
+    div_subject.removeChild(div);
+    test_div('remove "div > div.descendant" from #div_subject', div_subject, grey);
+  }
+
+  {
+    const child = document.createElement('div');
+    child.id = 'div_descendant';
+    div_subject.appendChild(child);
+    test_div('add div#div_descendant to #div_subject', div_subject, yellow);
+    div_subject.removeChild(child);
+    test_div('remove div#div_descendant from #div_subject', div_subject, grey);
+  }
+
+  {
+    const descendant = document.createElement('div');
+    descendant.id = 'div_descendant';
+    const div = document.createElement('div');
+    div.appendChild(descendant);
+    div_subject.appendChild(div);
+    test_div('add "div#div_descendant" to #div_subject', div_subject, yellow);
+    div_subject.removeChild(div);
+    test_div('remove "div#div_descendant" from #div_subject', div_subject, grey);
+  }
+
+  {
+    const child = document.createElement('div');
+    child.setAttribute('attrname', 'descendant');
+    div_subject.appendChild(child);
+    test_div('add div[attrname] to #div_subject', div_subject, blue);
+    div_subject.removeChild(child);
+    test_div('remove div[attrname] from #div_subject', div_subject, grey);
+  }
+
+  {
+    const descendant = document.createElement('div');
+    descendant.setAttribute('attrname', 'descendant');
+    const div = document.createElement('div');
+    div.appendChild(descendant);
+    div_subject.appendChild(div);
+    test_div('add "div > div[attrname]" to #div_subject', div_subject, blue);
+    div_subject.removeChild(div);
+    test_div('remove "div > div[attrname]" from #div_subject', div_subject, grey);
+  }
+
+</script>

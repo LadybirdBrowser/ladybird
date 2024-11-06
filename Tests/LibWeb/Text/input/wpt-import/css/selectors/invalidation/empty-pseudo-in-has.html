@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<meta charset="utf-8" />
+<title>CSS Selectors Invalidation: :empty in :has() argument</title>
+<link rel="author" title="Byungwoo Lee" href="blee@igalia.com">
+<link rel="help" href="https://drafts.csswg.org/selectors/#relational">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<style>
+  #subject { color: red }
+  #subject:has(:empty) { color: green }
+  #subject:has(:not(:empty)) { color: blue }
+</style>
+<div id="subject"></div>
+<script>
+const red = 'rgb(255, 0, 0)';
+const green = 'rgb(0, 128, 0)';
+const blue = 'rgb(0, 0, 255)';
+
+function testColor(test_name, color) {
+  test(function() {
+      assert_equals(getComputedStyle(subject).color, color);
+  }, test_name);
+}
+
+testColor("Empty #subject", red);
+
+let child = document.createElement("div");
+child.id = "child";
+subject.appendChild(child);
+
+testColor("Insert div#child to #subject", green);
+
+child.appendChild(document.createElement("div"));
+
+testColor("Insert div to div.#child", blue);
+
+child.replaceChildren();
+testColor("Remove div from div.#child", green);
+
+child.textContent = "Test";
+testColor("Insert text into div.#child", blue);
+
+child.textContent = "";
+testColor("Remove text from div.#child", green);
+</script>

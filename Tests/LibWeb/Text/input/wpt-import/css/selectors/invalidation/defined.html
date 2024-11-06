@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>CSS Selectors Invalidation: :defined</title>
+    <link rel="help" href="https://drafts.csswg.org/selectors-4/#the-defined-pseudo">
+    <meta name="assert" content="This tests that the :defined selector is effective">
+    <link rel="help" href="https://html.spec.whatwg.org/multipage/semantics-other.html#selector-defined">
+    <script src="../../../resources/testharness.js"></script>
+    <script src="../../../resources/testharnessreport.js"></script>
+    <style>
+      #container {
+        color: gray;
+      }
+
+      #a1:defined {
+        color: blue;
+      }
+      :defined + #b1 {
+        color: green;
+      }
+      :defined > #c1 {
+        color: red;
+      }
+      div + :defined + * #d1 {
+        color: yellow;
+      }
+  </style>
+  </head>
+  <body>
+    <section id="container">
+      <elucidate-late id="a1"></elucidate-late>
+      <div id="b1"></div>
+      <elucidate-late>
+        <div id="c1"></div>
+      </elucidate-late>
+      <div>
+        <div id="d1"></div>
+      </div>
+    </section>
+
+    <script>
+      const gray = "rgb(128, 128, 128)";
+      const blue = "rgb(0, 0, 255)";
+      const green = "rgb(0, 128, 0)";
+      const red = "rgb(255, 0, 0)";
+      const yellow = "rgb(255, 255, 0)";
+
+      function assertGray(a, b, c, d) {
+        assert_equals(getComputedStyle(a).color, gray);
+        assert_equals(getComputedStyle(b).color, gray);
+        assert_equals(getComputedStyle(c).color, gray);
+        assert_equals(getComputedStyle(d).color, gray);
+      }
+
+      function assertColorful(a, b, c, d) {
+        assert_equals(getComputedStyle(a).color, blue);
+        assert_equals(getComputedStyle(b).color, green);
+        assert_equals(getComputedStyle(c).color, red);
+        assert_equals(getComputedStyle(d).color, yellow);
+      }
+
+      class ElucidateLate extends HTMLElement {
+        constructor() {
+          super();
+        }
+      }
+
+      test(() => {
+        assertGray(a1, b1, c1, d1);
+        customElements.define('elucidate-late', ElucidateLate);
+        assertColorful(a1, b1, c1, d1);
+      }, ":defined selector is effective");
+
+    </script>
+  </body>
+</html>

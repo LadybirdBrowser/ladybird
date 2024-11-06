@@ -1,0 +1,16 @@
+Summary
+
+Harness status: OK
+
+Rerun
+
+Found 6 tests
+
+6 Pass
+Details
+Result	Test Name	MessagePass	Empty #subject	
+Pass	Insert div#child to #subject	
+Pass	Insert div to div.#child	
+Pass	Remove div from div.#child	
+Pass	Insert text into div.#child	
+Pass	Remove text from div.#child	

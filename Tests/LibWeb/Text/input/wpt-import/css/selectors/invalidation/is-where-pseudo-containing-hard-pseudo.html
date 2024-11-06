@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<title>CSS Selectors Invalidation: :is and :where selectors containing "hard" selectors</title>
+<link rel="author" title="David Shin" href="dshin@mozilla.com">
+<link rel="help" href="https://drafts.csswg.org/selectors/#logical-combination">
+<link rel="help" href="https://bugzilla.mozilla.org/show_bug.cgi?id=1874042">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<style>
+.container {
+  color: grey;
+}
+
+#subject1:is(.other-match, :has(.descendant)) {
+  color: red;
+}
+
+#subject1:is(.parent > .other-match, .parent > :has(.descendant)) {
+  color: orangered;
+}
+
+#subject2:where(.other-match, :has(.descendant)) {
+  color: darkred;
+}
+
+#subject2:where(.parent > .other-match, .parent > :has(.descendant)) {
+  color: pink;
+}
+
+#subject3:is(.other-match, :nth-child(1000 of .another-match)) {
+  color: green;
+}
+
+#subject3:is(.parent > .other-match, .parent > :nth-child(1000 of .another-match)) {
+  color: lightgreen;
+}
+
+#subject4:where(.other-match, :nth-child(1000 of .another-match)) {
+  color: darkgreen;
+}
+
+#subject4:where(.parent > .other-match, .parent > :nth-child(1000 of .another-match)) {
+  color: yellowgreen;
+}
+</style>
+<div id="par">
+  <div id="subject1" class="container"></div>
+  <div id="subject2" class="container"></div>
+  <div id="subject3" class="container another-match"></div>
+  <div id="subject4" class="container another-match"></div>
+</div>
+<script>
+const colors = {
+  grey: "rgb(128, 128, 128)",
+  red: "rgb(255, 0, 0)",
+  orangered: "rgb(255, 69, 0)",
+  darkred: "rgb(139, 0, 0)",
+  pink: "rgb(255, 192, 203)",
+  green: "rgb(0, 128, 0)",
+  lightgreen: "rgb(144, 238, 144)",
+  darkgreen: "rgb(0, 100, 0)",
+  yellowgreen: "rgb(154, 205, 50)"
+};
+
+function testClassChange(subject, before, after, afterParent) {
+  const cls = "other-match";
+  const parentCls = "parent";
+  const beforeColor = colors[before];
+
+  test(() => {
+    assert_equals(getComputedStyle(subject).color, beforeColor);
+  }, subject.id + " initial color is " + before);
+
+  subject.classList.add(cls);
+  const afterColor = colors[after];
+  test(() => {
+    assert_equals(getComputedStyle(subject).color, afterColor);
+  }, subject.id + " is " + after + " when ." + cls + " added");
+
+  par.classList.add(parentCls);
+  const afterParentColor = colors[afterParent];
+  test(() => {
+    assert_equals(getComputedStyle(subject).color, afterParentColor);
+  }, subject.id + " is " + afterParent + " when ." + parentCls + " added to parent");
+
+  par.classList.remove(parentCls);
+  test(() => {
+    assert_equals(getComputedStyle(subject).color, afterColor);
+  }, subject.id + " is " + afterParent + " when ." + parentCls + " removed from parent");
+
+  subject.classList.remove(cls);
+  test(() => {
+    assert_equals(getComputedStyle(subject).color, beforeColor);
+  }, subject.id + " is " + after + " when ." + cls + " removed");
+}
+
+testClassChange(subject1, "grey", "red", "orangered");
+testClassChange(subject2, "grey", "darkred", "pink");
+testClassChange(subject3, "grey", "green", "lightgreen");
+testClassChange(subject4, "grey", "darkgreen", "yellowgreen");
+</script>

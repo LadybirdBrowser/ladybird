@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>CSS Selectors Invalidation: :is()</title>
+    <link rel="author" title="Victoria Su" href="mailto:victoriaytsu@google.com">
+    <link rel="help" href="https://drafts.csswg.org/selectors-4/#matches">
+    <meta name="assert" content="This tests that the :is() selector is effective">
+    <script src="../../../resources/testharness.js"></script>
+    <script src="../../../resources/testharnessreport.js"></script>
+    <style>
+      .b {
+        color: yellow;
+      }
+      /*Simple selector arguments */
+      .a :is(.b, .c) {
+        color: red;
+      }
+      /*Compound selector arguments */
+      .a :is(.c#d, .e) {
+        color: green;
+      }
+      /* Complex selector arguments */
+      .a .g>.b {
+        color: black;
+      }
+      .a :is(.e+.f, .g>.b, .h) {
+        color: blue;
+      }
+      .g>.b {
+        color: black;
+      }
+      .a .h {
+        color: black;
+      }
+      /* Nested */
+      .a+.c>.e {
+        color: black;
+      }
+      .c>.a+.e {
+        color: black;
+      }
+      .a+:is(.b+.f, :is(.c>.e, .g)) {
+        color: red;
+      }
+      .c>.e {
+        color: black;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="a1">
+      <div class="b" id="b1">
+        Red
+      </div>
+      <div class="c" id="c1">
+        Red
+      </div>
+      <div class="c" id="d">
+        Green
+      </div>
+      <div class="e" id="e1">
+        Green
+      </div>
+      <div class="f" id="f1">
+        Blue
+      </div>
+      <div class="g">
+        <div class="b" id="b2">
+          Blue
+          <div class="b" id="b3">
+            Red
+          </div>
+        </div>
+      </div>
+      <div class="h" id="h1">
+        Blue
+      </div>
+    </div>
+    <div class="c" id="c2">
+      <div id="a2"></div>
+      <div class="e" id="e2">
+        Red
+      </div>
+    </div>
+    <script>
+      document.body.offsetTop;
+
+      var black = "rgb(0, 0, 0)";
+      var blue = "rgb(0, 0, 255)";
+      var green = "rgb(0, 128, 0)";
+      var red = "rgb(255, 0, 0)";
+      var yellow = "rgb(255, 255, 0)";
+
+      test(() => {
+        assert_equals(getComputedStyle(b1).color, yellow);
+        assert_equals(getComputedStyle(b2).color, black);
+        assert_equals(getComputedStyle(b3).color, yellow);
+        assert_equals(getComputedStyle(c1).color, black);
+        assert_equals(getComputedStyle(d).color, black);
+        assert_equals(getComputedStyle(e1).color, black);
+        assert_equals(getComputedStyle(e2).color, black);
+        assert_equals(getComputedStyle(f1).color, black);
+        assert_equals(getComputedStyle(h1).color, black);
+      }, "Preconditions.");
+
+      test(() => {
+        a1.className = "a";
+        assert_equals(getComputedStyle(b1).color, red);
+        assert_equals(getComputedStyle(b3).color, red);
+        assert_equals(getComputedStyle(c1).color, red);
+      }, "Invalidate :is() for simple selector arguments.");
+
+      test(() => {
+        a1.className = "a";
+        assert_equals(getComputedStyle(d).color, green);
+      }, "Invalidate :is() for compound selector arguments.");
+
+      test(() => {
+        a1.className = "a";
+        assert_equals(getComputedStyle(b2).color, blue);
+        assert_equals(getComputedStyle(b3).color, red);
+        assert_equals(getComputedStyle(f1).color, blue);
+      }, "Invalidate :is() for complex selector arguments.");
+
+      test(() => {
+        a1.className = "a";
+        assert_equals(getComputedStyle(e2).color, black);
+        a2.className = "a";
+        assert_equals(getComputedStyle(e2).color, red);
+      }, "Invalidate nested :is().");
+
+      test(() => {
+        a1.className = "a";
+        assert_equals(getComputedStyle(b2).color, blue);
+        assert_equals(getComputedStyle(h1).color, blue);
+      }, "Test specificity of :is().");
+    </script>
+  </body>
+</html>

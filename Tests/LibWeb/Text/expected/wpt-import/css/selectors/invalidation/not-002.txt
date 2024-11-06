@@ -1,0 +1,16 @@
+Summary
+
+Harness status: OK
+
+Rerun
+
+Found 6 tests
+
+6 Pass
+Details
+Result	Test Name	MessagePass	Preconditions.	
+Pass	Invalidate :not() for simple selector arguments.	
+Pass	Invalidate :not() for compound selector arguments.	
+Pass	Invalidate :not() for complex selector arguments.	
+Pass	Invalidate nested :is() inside :not().	
+Pass	Test specificity of :not().	

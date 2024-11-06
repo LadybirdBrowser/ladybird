@@ -1,0 +1,17 @@
+Summary
+
+Harness status: OK
+
+Rerun
+
+Found 7 tests
+
+7 Pass
+Details
+Result	Test Name	MessagePass	Adjacent with universal selector	
+Pass	Indirect adjacent with universal selector	
+Pass	Indirect adjacent with two adjacent selectors	
+Pass	Adjacent class	
+Pass	Adjacent universal	
+Pass	Sibling subtree through an indirect adjacent combinator	
+Pass	Sibling descendant through a universal selector	

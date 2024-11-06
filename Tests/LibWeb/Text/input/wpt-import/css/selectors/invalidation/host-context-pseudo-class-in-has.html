@@ -1,0 +1,56 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>CSS Test: Invalidation for :host-context() inside :has()</title>
+<link rel="author" title="Byungwoo" href="mailto:blee@igalia.com">
+<link rel="help" href="https://drafts.csswg.org/selectors/#relational">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<div id="host_parent"><div id="host"></div></div>
+<script>
+  var shadow = host.attachShadow({ mode: 'open' });
+  shadow.innerHTML = `
+    <style>
+      .subject {
+        color: red;
+      }
+      .subject:has(:is(:host-context(.a) > .foo .bar)) { color: green }
+      .subject:has(:is(:host-context(.a) .bar)) { color: blue }
+    </style>
+    <div class="foo">
+      <div id="subject1" class="subject">
+        <div class="bar"></div>
+      </div>
+    </div>
+    <div>
+      <div class="foo">
+        <div id="subject2" class="subject">
+          <div class="bar"></div>
+        </div>
+      </div>
+    </div>
+  `;
+
+  const red = "rgb(255, 0, 0)";
+  const green = "rgb(0, 128, 0)";
+  const blue = "rgb(0, 0, 255)";
+
+  function checkColor(test_name, subject_id, subject_color) {
+    test(function() {
+      let subject = shadow.querySelector("#" + subject_id);
+      assert_equals(getComputedStyle(subject).color, subject_color);
+    }, test_name + ": Check #" + subject_id + " color");
+  }
+
+  checkColor("Before adding 'a' to #host_parent", "subject1", red);
+  checkColor("Before adding 'a' to #host_parent", "subject2", red);
+
+  host_parent.classList.add('a');
+
+  checkColor("After adding 'a' to #host_parent", "subject1", green);
+  checkColor("After adding 'a' to #host_parent", "subject2", blue);
+
+  host_parent.classList.remove('a');
+
+  checkColor("After removing 'a' from #host_parent", "subject1", red);
+  checkColor("After removing 'a' from #host_parent", "subject2", red);
+</script>

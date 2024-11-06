@@ -1,0 +1,31 @@
+Summary
+
+Harness status: OK
+
+Rerun
+
+Found 21 tests
+
+21 Pass
+Details
+Result	Test Name	MessagePass	Initially red	
+Pass	sibling selector enclosed by :is() no longer matching after removal (1)	
+Pass	sibling selector enclosed by :is() no longer matching after removal (2)	
+Pass	sibling selector enclosed by :is() no longer matching after removal (3)	
+Pass	sibling selector enclosed by :is() no longer matching after removal (4)	
+Pass	sibling selector in non-subject enclosed by :is() no longer matching after removal (1)	
+Pass	sibling selector in non-subject enclosed by :is() no longer matching after removal (2)	
+Pass	sibling selector in non-subject enclosed by :is() no longer matching after removal (3)	
+Pass	sibling selector in non-subject enclosed by :is() no longer matching after removal (4)	
+Pass	sibling selector in non-subject enclosed by :is() no longer matching after removal (5)	
+Pass	:nth-child() enclosed by :is() no longer matching after removal (1)	
+Pass	:nth-child() enclosed by :is() no longer matching after removal (2)	
+Pass	:nth-last-child() enclosed by :is() no longer matching after removal (1)	
+Pass	:nth-last-child() enclosed by :is() no longer matching after removal (2)	
+Pass	:nth-child() in non-subject enclosed by :is() no longer matching after removal (1)	
+Pass	:nth-child() in non-subject enclosed by :is() no longer matching after removal (2)	
+Pass	:nth-last-child() in non-subject enclosed by :is() no longer matching after removal (1)	
+Pass	:nth-last-child() in non-subject enclosed by :is() no longer matching after removal (2)	
+Pass	sibling selector in parent selector enclosed by :is() no longer matching after removal	
+Pass	sibling selector in parent selector non-subject position enclosed by :is() no longer matching after removal (1)	
+Pass	sibling selector in parent selector non-subject position enclosed by :is() no longer matching after removal (2)	

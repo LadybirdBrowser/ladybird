@@ -1,0 +1,17 @@
+Summary
+
+Harness status: OK
+
+Rerun
+
+Found 6 tests
+
+4 Pass
+2 Fail
+Details
+Result	Test Name	MessagePass	Before adding 'a' to #host_parent: Check #subject1 color	
+Pass	Before adding 'a' to #host_parent: Check #subject2 color	
+Fail	After adding 'a' to #host_parent: Check #subject1 color	
+Fail	After adding 'a' to #host_parent: Check #subject2 color	
+Pass	After removing 'a' from #host_parent: Check #subject1 color	
+Pass	After removing 'a' from #host_parent: Check #subject2 color	

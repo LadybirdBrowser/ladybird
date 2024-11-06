@@ -1,0 +1,41 @@
+Summary
+
+Harness status: OK
+
+Rerun
+
+Found 31 tests
+
+31 Pass
+Details
+Result	Test Name	MessagePass	initial_color: div#div_subject.color	
+Pass	initial_color: div#div_child.color	
+Pass	initial_color: div#div_grandchild.color	
+Pass	add .child to #div_child: div#div_subject.color	
+Pass	remove .child from #div_child: div#div_subject.color	
+Pass	add .child to #div_grandchild: div#div_subject.color	
+Pass	remove .child from #div_grandchild: div#div_subject.color	
+Pass	add .descendant to #div_child: div#div_subject.color	
+Pass	remove .descendant from #div_child: div#div_subject.color	
+Pass	add .descendant to #div_grandchild: div#div_subject.color	
+Pass	remove .descendant from #div_grandchild: div#div_subject.color	
+Pass	set descendant to #div_grandchild[attrname]: div#div_subject.color	
+Pass	clear #div_grandchild[attrname]: div#div_subject.color	
+Pass	change #div_grandchild to #div_descendant: div#div_subject.color	
+Pass	change #div_descendant to #div_grandchild: div#div_subject.color	
+Pass	add descendant to #div_subject: div#div_subject.color	
+Pass	remove descendant from #div_subject: div#div_subject.color	
+Pass	add "div > descendant" to #div_subject: div#div_subject.color	
+Pass	remove "div > descendant" from #div_subject: div#div_subject.color	
+Pass	add div.child to #div_subject: div#div_subject.color	
+Pass	remove div.child from #div_subject: div#div_subject.color	
+Pass	add "div > div.descendant" to #div_subject: div#div_subject.color	
+Pass	remove "div > div.descendant" from #div_subject: div#div_subject.color	
+Pass	add div#div_descendant to #div_subject: div#div_subject.color	
+Pass	remove div#div_descendant from #div_subject: div#div_subject.color	
+Pass	add "div#div_descendant" to #div_subject: div#div_subject.color	
+Pass	remove "div#div_descendant" from #div_subject: div#div_subject.color	
+Pass	add div[attrname] to #div_subject: div#div_subject.color	
+Pass	remove div[attrname] from #div_subject: div#div_subject.color	
+Pass	add "div > div[attrname]" to #div_subject: div#div_subject.color	
+Pass	remove "div > div[attrname]" from #div_subject: div#div_subject.color	

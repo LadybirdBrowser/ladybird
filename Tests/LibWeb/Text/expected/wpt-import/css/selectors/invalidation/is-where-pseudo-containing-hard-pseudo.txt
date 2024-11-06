@@ -1,0 +1,30 @@
+Summary
+
+Harness status: OK
+
+Rerun
+
+Found 20 tests
+
+20 Pass
+Details
+Result	Test Name	MessagePass	subject1 initial color is grey	
+Pass	subject1 is red when .other-match added	
+Pass	subject1 is orangered when .parent added to parent	
+Pass	subject1 is orangered when .parent removed from parent	
+Pass	subject1 is red when .other-match removed	
+Pass	subject2 initial color is grey	
+Pass	subject2 is darkred when .other-match added	
+Pass	subject2 is pink when .parent added to parent	
+Pass	subject2 is pink when .parent removed from parent	
+Pass	subject2 is darkred when .other-match removed	
+Pass	subject3 initial color is grey	
+Pass	subject3 is green when .other-match added	
+Pass	subject3 is lightgreen when .parent added to parent	
+Pass	subject3 is lightgreen when .parent removed from parent	
+Pass	subject3 is green when .other-match removed	
+Pass	subject4 initial color is grey	
+Pass	subject4 is darkgreen when .other-match added	
+Pass	subject4 is yellowgreen when .parent added to parent	
+Pass	subject4 is yellowgreen when .parent removed from parent	
+Pass	subject4 is darkgreen when .other-match removed	

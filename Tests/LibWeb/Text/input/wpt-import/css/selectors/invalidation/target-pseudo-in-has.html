@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<meta charset="utf-8" />
+<title>CSS Selectors Invalidation: :target pseudo-class in :has() argument</title>
+<link rel="help" href="https://drafts.csswg.org/selectors/#relational">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<style>
+  #parent1 { color: grey; }
+  #parent1:has(:target) { color: green; }
+
+  #parent2 { color: blue; }
+  #parent2:has(:not(:target)) { color: grey; }
+  #parent2:has(:target) { color: green; }
+
+  #parent3 { color: green; }
+  #parent3:not(:has(:target)) { color: grey; }
+</style>
+<a href="#fragment">link to #fragment</a>
+<a href="#fragment2">link to #fragment2</a>
+<a href="#fragment3">link to #fragment3</a>
+<a href="#">link to #</a>
+<div id="parent1">
+  1:
+  <span id="fragment">Must be green when containing :target</span>
+</div>
+<div id="parent2">
+  2:
+  <span id="fragment2">Must be green when containing :target</span>
+</div>
+<div id="parent3">
+  3:
+  <span id="fragment3">Must be green when containing :target</span>
+</div>
+<script>
+  const GREEN = "rgb(0, 128, 0)";
+  const GREY = "rgb(128, 128, 128)";
+  const BLUE = "rgb(0, 0, 255)";
+
+  async function navigateFragment(fragment) {
+    return new Promise(resolve => {
+      let hashChanged = (e) => {
+        if (location.hash.substring(1) === fragment) {
+          resolve();
+          window.removeEventListener("hashchange", hashChanged);
+        }
+      };
+      window.addEventListener("hashchange", hashChanged);
+      fragmentLink(fragment).click();
+    });
+  }
+
+  function fragmentLink(fragment) {
+    return document.querySelector(`a[href="#${fragment}"]`);
+  }
+
+  promise_test(async () => {
+    const fragment = document.querySelector("#fragment");
+    const fragment2 = document.querySelector("#fragment2");
+    const fragment3 = document.querySelector("#fragment3");
+
+    location.hash = "";
+
+    assert_equals(getComputedStyle(parent1).color, GREY, "parent1 should be grey without :target");
+    assert_equals(getComputedStyle(parent2).color, GREY, "parent2 should be grey without :target");
+    assert_equals(getComputedStyle(parent3).color, GREY, "parent3 should be grey without :target");
+
+    await navigateFragment("fragment");
+
+    assert_true(fragment.matches(":target"));
+    assert_equals(getComputedStyle(parent1).color, GREEN, "parent1 should be green on fragment click");
+    assert_equals(getComputedStyle(parent2).color, GREY, "parent2 should be grey without :target");
+    assert_equals(getComputedStyle(parent3).color, GREY, "parent3 should be grey without :target");
+
+    await navigateFragment("fragment2");
+
+    assert_true(fragment2.matches(":target"));
+    assert_equals(getComputedStyle(parent1).color, GREY, "parent1 should be grey without :target");
+    assert_equals(getComputedStyle(parent2).color, GREEN, "parent2 should be green on fragment click");
+    assert_equals(getComputedStyle(parent3).color, GREY, "parent3 should be grey without :target");
+
+    fragment2.remove();
+    assert_equals(getComputedStyle(parent2).color, BLUE, "parent2 should be blue after removing only child");
+
+    parent2.append(fragment2);
+
+    // Skip to check parent2 color since there is nothing in the spec mentioning DOM mutations affecting the target element.
+    // - https://html.spec.whatwg.org/multipage/browsing-the-web.html#scroll-to-fragid
+
+    await navigateFragment("fragment3");
+
+    assert_true(fragment3.matches(":target"));
+    assert_equals(getComputedStyle(parent1).color, GREY, "parent1 should be grey without :target");
+    assert_equals(getComputedStyle(parent2).color, GREY, "parent2 should be grey without :target");
+    assert_equals(getComputedStyle(parent3).color, GREEN, "parent3 should be green on fragment click");
+
+    await navigateFragment("");
+
+    assert_equals(location.hash, "");
+    assert_equals(getComputedStyle(parent1).color, GREY, "parent1 should be grey without :target");
+    assert_equals(getComputedStyle(parent2).color, GREY, "parent2 should be grey without :target");
+    assert_equals(getComputedStyle(parent3).color, GREY, "parent3 should be grey without :target");
+  });
+</script>
