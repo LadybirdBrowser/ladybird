@@ -1,0 +1,289 @@
+.grid {
+  display: grid;
+  background-color: grey;
+}
+
+.inline-grid {
+  display: inline-grid;
+  background-color: grey;
+}
+
+.firstRowFirstColumn {
+  background-color: blue;
+  grid-column: 1;
+  grid-row: 1;
+}
+
+.onlyFirstRowOnlyFirstColumn {
+  background-color: blue;
+  grid-column: 1 / 2;
+  grid-row: 1 / 2;
+}
+
+.firstRowSecondColumn {
+  background-color: lime;
+  grid-column: 2;
+  grid-row: 1;
+}
+
+.onlyFirstRowOnlySecondColumn {
+  background-color: lime;
+  grid-column: 2 / 3;
+  grid-row: 1 / 2;
+}
+
+.firstRowThirdColumn {
+  background-color: magenta;
+  grid-column: 3;
+  grid-row: 1;
+}
+
+.firstRowFourthColumn {
+  background-color: green;
+  grid-column: 4;
+  grid-row: 1;
+}
+
+.secondRowFirstColumn {
+  background-color: purple;
+  grid-column: 1;
+  grid-row: 2;
+}
+
+.onlySecondRowOnlyFirstColumn {
+  background-color: purple;
+  grid-column: 1 / 2;
+  grid-row: 2 / 3;
+}
+
+.secondRowSecondColumn {
+  background-color: orange;
+  grid-column: 2;
+  grid-row: 2;
+}
+
+.onlySecondRowOnlySecondColumn {
+  background-color: orange;
+  grid-column: 2 / 3;
+  grid-row: 2 / 3;
+}
+
+.endSecondRowEndSecondColumn {
+  background-color: orange;
+  grid-column-end: 3;
+  grid-row-end: 3;
+}
+
+.secondRowThirdColumn {
+  background-color: navy;
+  grid-column: 3;
+  grid-row: 2;
+}
+
+.secondRowFourthColumn {
+  background-color: pink;
+  grid-column: 4;
+  grid-row: 2;
+}
+
+.thirdRowFirstColumn {
+  background-color: green;
+  grid-column: 1;
+  grid-row: 3;
+}
+
+.thirdRowSecondColumn {
+  background-color: red;
+  grid-column: 2;
+  grid-row: 3;
+}
+
+.thirdRowThirdColumn {
+  background-color: salmon;
+  grid-column: 3;
+  grid-row: 3;
+}
+
+.firstAutoRowSecondAutoColumn {
+  grid-row: 1 / auto;
+  grid-column: 2 / auto;
+}
+
+.autoLastRowAutoLastColumn {
+  grid-row: auto / -1;
+  grid-column: auto / -1;
+}
+
+.autoSecondRowAutoFirstColumn {
+  grid-row: auto / 2;
+  grid-column: auto / 1;
+}
+
+.firstRowBothColumn {
+  grid-row: 1;
+  grid-column: 1 / -1;
+}
+
+.secondRowBothColumn {
+  grid-row: 2;
+  grid-column: 1 / -1;
+}
+
+.bothRowFirstColumn {
+  grid-row: 1 / -1;
+  grid-column: 1;
+}
+
+.bothRowSecondColumn {
+  grid-row: 1 / -1;
+  grid-column: 2;
+}
+
+.bothRowBothColumn {
+  grid-row: 1 / -1;
+  grid-column: 1 / -1;
+}
+
+/* Auto column / row. */
+.autoRowAutoColumn {
+  background-color: pink;
+  grid-column: auto;
+  grid-row: auto;
+}
+
+.firstRowAutoColumn {
+  background-color: blue;
+  grid-column: auto;
+  grid-row: 1;
+}
+
+.secondRowAutoColumn {
+  background-color: purple;
+  grid-column: auto;
+  grid-row: 2;
+}
+
+.thirdRowAutoColumn {
+  background-color: navy;
+  grid-column: auto;
+  grid-row: 3;
+}
+
+.autoRowFirstColumn {
+  background-color: lime;
+  grid-column: 1;
+  grid-row: auto;
+}
+
+.autoRowSecondColumn {
+  background-color: orange;
+  grid-column: 2;
+  grid-row: auto;
+}
+
+.autoRowThirdColumn {
+  background-color: magenta;
+  grid-column: 3;
+  grid-row: auto;
+}
+
+.autoRowAutoColumnSpanning2 {
+  background-color: maroon;
+  grid-column: span 2;
+  grid-row: auto;
+}
+
+.autoRowSpanning2AutoColumn {
+  background-color: aqua;
+  grid-column: auto;
+  grid-row: span 2;
+}
+
+.autoRowSpanning2AutoColumnSpanning3 {
+  background-color: olive;
+  grid-column: span 3;
+  grid-row: span 2;
+}
+
+.autoRowSpanning3AutoColumnSpanning2 {
+  background-color: indigo;
+  grid-column: span 2;
+  grid-row: span 3;
+}
+
+.autoRowFirstColumnSpanning2 {
+  background-color: maroon;
+  grid-column: 1 / span 2;
+  grid-row: auto;
+}
+
+.autoRowSecondColumnSpanning2 {
+  background-color: olive;
+  grid-column: 2 / span 2;
+  grid-row: auto;
+}
+
+.firstRowSpanning2AutoColumn {
+  background-color: maroon;
+  grid-column: auto;
+  grid-row: 1 / span 2;
+  height: 100%;
+}
+
+.secondRowSpanning2AutoColumn {
+  background-color: olive;
+  grid-column: auto;
+  grid-row: 2 / span 2;
+  height: 100%;
+}
+
+/* Grid element flow. */
+.gridAutoFlowColumnSparse {
+  grid-auto-flow: column;
+}
+
+.gridAutoFlowColumnDense {
+  grid-auto-flow: column dense;
+}
+
+.gridAutoFlowRowSparse {
+  grid-auto-flow: row;
+}
+
+.gridAutoFlowRowDense {
+  grid-auto-flow: row dense;
+}
+
+/* This rule makes sure the container is smaller than any grid items to avoid distributing any extra logical space to them. */
+.constrainedContainer {
+  width: 10px;
+  height: 10px;
+}
+
+.unconstrainedContainer {
+  width: 1000px;
+  height: 1000px;
+}
+
+.sizedToGridArea {
+  font: 10px/1 Ahem;
+  /* Make us fit our grid area. */
+  width: 100%;
+  height: 100%;
+}
+
+.verticalRL {
+  writing-mode: vertical-rl;
+}
+.verticalLR {
+  writing-mode: vertical-lr;
+}
+.horizontalTB {
+  writing-mode: horizontal-tb;
+}
+.directionRTL {
+  direction: rtl;
+}
+.directionLTR {
+  direction: ltr;
+}
