@@ -6,6 +6,6 @@ Rerun
 
 Found 1 tests
 
-1 Fail
+1 Pass
 Details
-Result	Test Name	MessageFail	Test :has() invalidation with :defined pseudo-class	
+Result	Test Name	MessagePass	Test :has() invalidation with :defined pseudo-class	

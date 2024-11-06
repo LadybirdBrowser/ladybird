@@ -2093,7 +2093,7 @@ JS::ThrowCompletionOr<void> Element::upgrade_element(JS::NonnullGCPtr<HTML::Cust
     m_custom_element_definition = custom_element_definition;
 
     // 3. Set element's custom element state to "failed".
-    m_custom_element_state = CustomElementState::Failed;
+    set_custom_element_state(CustomElementState::Failed);
 
     // 4. For each attribute in element's attribute list, in order, enqueue a custom element callback reaction with element, callback name "attributeChangedCallback",
     //    and an argument list containing attribute's local name, null, attribute's value, and attribute's namespace.
@@ -2130,7 +2130,7 @@ JS::ThrowCompletionOr<void> Element::upgrade_element(JS::NonnullGCPtr<HTML::Cust
             return JS::throw_completion(WebIDL::NotSupportedError::create(realm, "Custom element definition disables shadow DOM and the custom element has a shadow root"_string));
 
         // 2. Set element's custom element state to "precustomized".
-        m_custom_element_state = CustomElementState::Precustomized;
+        set_custom_element_state(CustomElementState::Precustomized);
 
         // 3. Let constructResult be the result of constructing C, with no arguments.
         auto construct_result_optional = TRY(WebIDL::construct(constructor));
@@ -2168,7 +2168,7 @@ JS::ThrowCompletionOr<void> Element::upgrade_element(JS::NonnullGCPtr<HTML::Cust
     //           2. If element is disabled, then enqueue a custom element callback reaction with element, callback name "formDisabledCallback" and « true ».
 
     // 10. Set element's custom element state to "custom".
-    m_custom_element_state = CustomElementState::Custom;
+    set_custom_element_state(CustomElementState::Custom);
 
     return {};
 }
@@ -2198,11 +2198,19 @@ bool Element::is_custom() const
     return m_custom_element_state == CustomElementState::Custom;
 }
 
+void Element::set_custom_element_state(CustomElementState state)
+{
+    if (m_custom_element_state == state)
+        return;
+    m_custom_element_state = state;
+    invalidate_style(StyleInvalidationReason::CustomElementStateChange);
+}
+
 // https://html.spec.whatwg.org/multipage/dom.html#html-element-constructors
 void Element::setup_custom_element_from_constructor(HTML::CustomElementDefinition& custom_element_definition, Optional<String> const& is_value)
 {
     // 7.6. Set element's custom element state to "custom".
-    m_custom_element_state = CustomElementState::Custom;
+    set_custom_element_state(CustomElementState::Custom);
 
     // 7.7. Set element's custom element definition to definition.
     m_custom_element_definition = custom_element_definition;
