@@ -6,8 +6,8 @@ Rerun
 
 Found 54 tests
 
-30 Pass
-24 Fail
+46 Pass
+8 Fail
 Details
 Result	Test Name	MessagePass	Expected HTML element to match :first-child with matches, querySelector(), and querySelectorAll()	
 Pass	Expected HTML element to match :last-child with matches, querySelector(), and querySelectorAll()	
@@ -15,14 +15,14 @@ Pass	Expected HTML element to match :only-child with matches, querySelector(), a
 Pass	Expected HTML element to match :first-of-type with matches, querySelector(), and querySelectorAll()	
 Pass	Expected HTML element to match :last-of-type with matches, querySelector(), and querySelectorAll()	
 Pass	Expected HTML element to match :only-of-type with matches, querySelector(), and querySelectorAll()	
-Fail	Expected HTML element to match :nth-child(1) with matches, querySelector(), and querySelectorAll()	
-Fail	Expected HTML element to match :nth-child(n) with matches, querySelector(), and querySelectorAll()	
-Fail	Expected HTML element to match :nth-last-child(1) with matches, querySelector(), and querySelectorAll()	
-Fail	Expected HTML element to match :nth-last-child(n) with matches, querySelector(), and querySelectorAll()	
-Fail	Expected HTML element to match :nth-of-type(1) with matches, querySelector(), and querySelectorAll()	
-Fail	Expected HTML element to match :nth-of-type(n) with matches, querySelector(), and querySelectorAll()	
-Fail	Expected HTML element to match :nth-last-of-type(1) with matches, querySelector(), and querySelectorAll()	
-Fail	Expected HTML element to match :nth-last-of-type(n) with matches, querySelector(), and querySelectorAll()	
+Pass	Expected HTML element to match :nth-child(1) with matches, querySelector(), and querySelectorAll()	
+Pass	Expected HTML element to match :nth-child(n) with matches, querySelector(), and querySelectorAll()	
+Pass	Expected HTML element to match :nth-last-child(1) with matches, querySelector(), and querySelectorAll()	
+Pass	Expected HTML element to match :nth-last-child(n) with matches, querySelector(), and querySelectorAll()	
+Pass	Expected HTML element to match :nth-of-type(1) with matches, querySelector(), and querySelectorAll()	
+Pass	Expected HTML element to match :nth-of-type(n) with matches, querySelector(), and querySelectorAll()	
+Pass	Expected HTML element to match :nth-last-of-type(1) with matches, querySelector(), and querySelectorAll()	
+Pass	Expected HTML element to match :nth-last-of-type(n) with matches, querySelector(), and querySelectorAll()	
 Pass	Expected HTML element to not match :nth-child(2) with matches, querySelector(), and querySelectorAll()	
 Pass	Expected HTML element to not match :nth-last-child(2) with matches, querySelector(), and querySelectorAll()	
 Pass	Expected HTML element to not match :nth-of-type(2) with matches, querySelector(), and querySelectorAll()	
@@ -51,14 +51,14 @@ Pass	Expected DIV element to match :only-child with matches, querySelector(), an
 Pass	Expected DIV element to match :first-of-type with matches, querySelector(), and querySelectorAll()	
 Pass	Expected DIV element to match :last-of-type with matches, querySelector(), and querySelectorAll()	
 Pass	Expected DIV element to match :only-of-type with matches, querySelector(), and querySelectorAll()	
-Fail	Expected DIV element to match :nth-child(1) with matches, querySelector(), and querySelectorAll()	
-Fail	Expected DIV element to match :nth-child(n) with matches, querySelector(), and querySelectorAll()	
-Fail	Expected DIV element to match :nth-last-child(1) with matches, querySelector(), and querySelectorAll()	
-Fail	Expected DIV element to match :nth-last-child(n) with matches, querySelector(), and querySelectorAll()	
-Fail	Expected DIV element to match :nth-of-type(1) with matches, querySelector(), and querySelectorAll()	
-Fail	Expected DIV element to match :nth-of-type(n) with matches, querySelector(), and querySelectorAll()	
-Fail	Expected DIV element to match :nth-last-of-type(1) with matches, querySelector(), and querySelectorAll()	
-Fail	Expected DIV element to match :nth-last-of-type(n) with matches, querySelector(), and querySelectorAll()	
+Pass	Expected DIV element to match :nth-child(1) with matches, querySelector(), and querySelectorAll()	
+Pass	Expected DIV element to match :nth-child(n) with matches, querySelector(), and querySelectorAll()	
+Pass	Expected DIV element to match :nth-last-child(1) with matches, querySelector(), and querySelectorAll()	
+Pass	Expected DIV element to match :nth-last-child(n) with matches, querySelector(), and querySelectorAll()	
+Pass	Expected DIV element to match :nth-of-type(1) with matches, querySelector(), and querySelectorAll()	
+Pass	Expected DIV element to match :nth-of-type(n) with matches, querySelector(), and querySelectorAll()	
+Pass	Expected DIV element to match :nth-last-of-type(1) with matches, querySelector(), and querySelectorAll()	
+Pass	Expected DIV element to match :nth-last-of-type(n) with matches, querySelector(), and querySelectorAll()	
 Pass	Expected DIV element to not match :nth-child(2) with matches, querySelector(), and querySelectorAll()	
 Pass	Expected DIV element to not match :nth-last-child(2) with matches, querySelector(), and querySelectorAll()	
 Pass	Expected DIV element to not match :nth-of-type(2) with matches, querySelector(), and querySelectorAll()	
