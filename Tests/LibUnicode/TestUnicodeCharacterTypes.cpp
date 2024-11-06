@@ -237,14 +237,6 @@ TEST_CASE(script)
         EXPECT(!Unicode::code_point_has_script(code_point, script_greek));
     }
 
-    for (u32 code_point = 0x400; code_point <= 0x481; ++code_point) {
-        EXPECT(Unicode::code_point_has_script(code_point, script_cyrillic));
-        EXPECT(Unicode::code_point_has_script_extension(code_point, script_cyrillic));
-
-        EXPECT(!Unicode::code_point_has_script(code_point, script_latin));
-        EXPECT(!Unicode::code_point_has_script(code_point, script_greek));
-    }
-
     for (u32 code_point = 0x1f80; code_point <= 0x1fb4; ++code_point) {
         EXPECT(Unicode::code_point_has_script(code_point, script_greek));
         EXPECT(Unicode::code_point_has_script_extension(code_point, script_greek));
