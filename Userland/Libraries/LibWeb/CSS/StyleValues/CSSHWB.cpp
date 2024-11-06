@@ -13,13 +13,13 @@ namespace Web::CSS {
 Color CSSHWB::to_color(Optional<Layout::NodeWithStyle const&>) const
 {
     auto const h_val = resolve_hue(m_properties.h).value_or(0);
-    auto const w_val = clamp(resolve_with_reference_value(m_properties.w, 100.0).value_or(0), 0, 100) / 100.0;
-    auto const b_val = clamp(resolve_with_reference_value(m_properties.b, 100.0).value_or(0), 0, 100) / 100.0;
+    auto const w_val = clamp(resolve_with_reference_value(m_properties.w, 100.0).value_or(0), 0, 100) / 100.0f;
+    auto const b_val = clamp(resolve_with_reference_value(m_properties.b, 100.0).value_or(0), 0, 100) / 100.0f;
     auto const alpha_val = resolve_alpha(m_properties.alpha).value_or(1);
 
-    if (w_val + b_val >= 1.0) {
-        auto to_byte = [](double value) {
-            return round_to<u8>(clamp(value * 255.0, 0.0, 255.0));
+    if (w_val + b_val >= 1.0f) {
+        auto to_byte = [](float value) {
+            return round_to<u8>(clamp(value * 255.0f, 0.0f, 255.0f));
         };
         u8 gray = to_byte(w_val / (w_val + b_val));
         return Color(gray, gray, gray, to_byte(alpha_val));

@@ -44,7 +44,7 @@ Color CSSRGB::to_color(Optional<Layout::NodeWithStyle const&>) const
     auto resolve_alpha_to_u8 = [](CSSStyleValue const& style_value) -> Optional<u8> {
         auto alpha_0_1 = resolve_alpha(style_value);
         if (alpha_0_1.has_value())
-            return llround(clamp(alpha_0_1.value() * 255.0, 0.0, 255.0));
+            return llround(clamp(alpha_0_1.value() * 255.0f, 0.0f, 255.0f));
         return {};
     };
 
