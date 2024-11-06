@@ -1425,16 +1425,18 @@ Messages::WebDriverClient::GetElementTextResponse WebDriverConnection::get_eleme
 // 12.4.6 Get Element Tag Name, https://w3c.github.io/webdriver/#dfn-get-element-tag-name
 Messages::WebDriverClient::GetElementTagNameResponse WebDriverConnection::get_element_tag_name(String const& element_id)
 {
-    // 1. If the current browsing context is no longer open, return error with error code no such window.
+    // 1. If session's current browsing context is no longer open, return error with error code no such window.
     TRY(ensure_current_browsing_context_is_open());
 
-    // 2. Handle any user prompts and return its value if it is an error.
+    // 2. Try to handle any user prompts with session.
     handle_any_user_prompts([this, element_id]() {
-        // 3. Let element be the result of trying to get a known connected element with url variable element id.
+        // 3. Let element be the result of trying to get a known element with URL variables["element id"].
         auto element = WEBDRIVER_TRY(Web::WebDriver::get_known_element(current_browsing_context(), element_id));
 
-        // 4. Let qualified name be the result of getting element’s tagName IDL attribute.
-        auto qualified_name = element->tag_name();
+        // 4. Let qualified name be the result of getting element's tagName IDL attribute.
+        // FIXME: Spec-issue: The tagName attribute is uppercase, but lowercase is used in other engines.
+        //        https://github.com/web-platform-tests/wpt/issues/16830
+        auto qualified_name = element->local_name();
 
         // 5. Return success with data qualified name.
         async_driver_execution_complete({ qualified_name.to_string().to_byte_string() });
