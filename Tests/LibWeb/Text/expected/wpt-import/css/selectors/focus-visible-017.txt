@@ -1,0 +1,12 @@
+Summary
+
+Harness status: OK
+
+Rerun
+
+Found 2 tests
+
+2 Pass
+Details
+Result	Test Name	MessagePass	":focus-visible" should be a valid selector	
+Pass	By default initial programatic focus matches ':focus-visible', so the element shows a focus ring with 'outline-style: auto'	

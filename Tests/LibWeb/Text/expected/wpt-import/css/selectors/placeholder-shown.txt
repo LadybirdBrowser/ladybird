@@ -1,0 +1,17 @@
+Summary
+
+Harness status: OK
+
+Rerun
+
+Found 7 tests
+
+7 Pass
+Details
+Result	Test Name	MessagePass	CSS Selectors Test: :placeholder-shown matching	
+Pass	CSS Selectors Test: :placeholder-shown matching 1	
+Pass	CSS Selectors Test: :placeholder-shown matching 2	
+Pass	CSS Selectors Test: :placeholder-shown matching 3	
+Pass	CSS Selectors Test: :placeholder-shown matching 4	
+Pass	CSS Selectors Test: :placeholder-shown matching 5	
+Pass	CSS Selectors Test: :placeholder-shown matching 6	

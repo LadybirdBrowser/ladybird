@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>CSS Test (Selectors): Keyboard focus enables :focus-visible</title>
+  <link rel="author" title="Alice Boxhall" href="aboxhall@chromium.org" />
+  <link rel="help" href="https://drafts.csswg.org/selectors-4/#the-focus-visible-pseudo" />
+  <script src="../../resources/testharness.js"></script>
+  <script src="../../resources/testharnessreport.js"></script>
+  <script src="/html/interaction/focus/the-autofocus-attribute/resources/utils.js"></script>
+  <style>
+    @supports not selector(:focus-visible) {
+      #button:focus {
+        outline: red solid 5px;
+        background-color: red;
+      }
+    }
+
+    :focus-visible {
+      outline: green solid 5px;
+    }
+
+    #button:focus:not(:focus-visible) {
+      background-color: red;
+      outline: 0;
+    }
+  </style>
+</head>
+<body>
+  This test checks that any element focused via an <code>autofocus</code> attribute will have <code>:focus-visible</code> matching enabled.
+  <ul id="instructions">
+    <li>If the button that says "I will be focused automatically" has a red background, then the test result is FAILURE. If it has a green outline, then the test result is SUCCESS.</li>
+  </ul>
+  <br />
+  <button id="button" autofocus tabindex="-1">I will be focused automatically.</button>
+  <script>
+    promise_test(async function() {
+      await waitUntilStableAutofocusState();
+      assert_equals(document.activeElement, button, "Should have correct focused element");
+      assert_equals(getComputedStyle(button).outlineColor, "rgb(0, 128, 0)", `outlineColor for ${button.tagName}#${button.id} should be green`);
+      assert_not_equals(getComputedStyle(button).backgroundColor, "rgb(255, 0, 0)", `backgroundColor for ${button.tagName}#${button.id} should NOT be red`);
+    }, "Autofocus should match :focus-visible");
+  </script>
+</body>
+</html>

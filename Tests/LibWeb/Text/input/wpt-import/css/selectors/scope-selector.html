@@ -1,0 +1,37 @@
+<!doctype html>
+<link rel='help' href='https://drafts.csswg.org/selectors-4/#the-scope-pseudo'>
+<meta name='description' content=':scope should match when context object is a ShadowRoot or a DocumentFragment'>
+<script src='../../resources/testharness.js'></script>
+<script src='../../resources/testharnessreport.js'></script>
+<div id='shadowHost'></div>
+<script>
+'use strict'
+const shadowHost = document.getElementById("shadowHost");
+const shadowRoot = shadowHost.attachShadow({mode:'open'})
+shadowRoot.appendChild(document.createElement("div"));
+
+test (() => {
+  assert_equals(shadowRoot.querySelectorAll(':scope > div').length, 0, 'should not match in shadow root');
+});
+
+const documentFragment = document.createDocumentFragment();
+documentFragment.appendChild(document.createElement("div"));
+
+test(() => {
+  assert_equals(documentFragment.querySelectorAll(':scope > div').length, 0, 'should not match in document fragment');
+});
+
+test(() => {
+  assert_equals(shadowRoot.firstChild.querySelector(':scope'), null, 'should return null');
+  assert_equals(shadowRoot.firstChild.querySelectorAll(':scope').length, 0, 'should return 0');
+
+  assert_equals(shadowRoot.querySelector(':scope'), null, 'should return null');
+  assert_equals(shadowRoot.querySelectorAll(':scope').length, 0, 'should return 0');
+
+  assert_equals(documentFragment.querySelector(':scope'), null, 'should return null');
+  assert_equals(documentFragment.querySelectorAll(':scope').length, 0, 'should return 0');
+
+  assert_equals(document.querySelector(':scope'), document.documentElement, 'should return the document element');
+  assert_equals(document.querySelectorAll(':scope').length, 1, 'should return 1');
+}, 'querySelector() with ":scope" should return the document element, if present in the subtree');
+</script>

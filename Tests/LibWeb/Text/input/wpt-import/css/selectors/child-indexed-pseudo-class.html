@@ -1,0 +1,55 @@
+<!doctype html>
+<meta charset=utf-8>
+<title>Matching of child-indexed pseudo-classes</title>
+<link rel="author" title="Emilio Cobos Álvarez" href="mailto:ecoal95@gmail.com">
+<link rel="help" href="https://drafts.csswg.org/selectors-4/#child-index">
+<script src=../../resources/testharness.js></script>
+<script src=../../resources/testharnessreport.js></script>
+<script>
+var check = function(element, selectors, qsRoot) {
+  for (var i = 0; i < selectors.length; ++i) {
+    var selector = selectors[i][0];
+    var expected = selectors[i][1];
+    test(function() {
+      assert_equals(expected, element.matches(selector));
+
+      if (qsRoot) {
+        assert_equals(expected, element === qsRoot.querySelector(selector));
+        var qsa = qsRoot.querySelectorAll(selector);
+        assert_equals(expected, !!qsa.length && element === qsa[0]);
+      }
+    }, "Expected " + element.tagName + " element to " +
+         (expected ? "match " : "not match ") + selector + " with matches" +
+         (qsRoot ? ", querySelector(), and querySelectorAll()" : ""));
+  }
+}
+
+var rootOfSubtreeSelectors = [
+  [ ":first-child", true ],
+  [ ":last-child", true ],
+  [ ":only-child", true ],
+  [ ":first-of-type", true ],
+  [ ":last-of-type", true ],
+  [ ":only-of-type", true ],
+  [ ":nth-child(1)", true ],
+  [ ":nth-child(n)", true ],
+  [ ":nth-last-child(1)", true ],
+  [ ":nth-last-child(n)", true ],
+  [ ":nth-of-type(1)", true ],
+  [ ":nth-of-type(n)", true ],
+  [ ":nth-last-of-type(1)", true ],
+  [ ":nth-last-of-type(n)", true ],
+  [ ":nth-child(2)", false ],
+  [ ":nth-last-child(2)", false],
+  [ ":nth-of-type(2)", false ],
+  [ ":nth-last-of-type(2)", false],
+];
+
+check(document.documentElement, rootOfSubtreeSelectors, document);
+check(document.createElement('div'), rootOfSubtreeSelectors);
+
+var fragment = document.createDocumentFragment();
+var div = document.createElement('div');
+fragment.appendChild(div);
+check(div, rootOfSubtreeSelectors, fragment);
+</script>

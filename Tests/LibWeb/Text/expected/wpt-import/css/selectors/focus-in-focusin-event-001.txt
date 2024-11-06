@@ -1,0 +1,13 @@
+Summary
+
+Harness status: OK
+
+Rerun
+
+Found 3 tests
+
+3 Pass
+Details
+Result	Test Name	MessagePass	Checks that ':focus' pseudo-class matches inside 'focusin' event handler	
+Pass	Checks that ':focus-visible' pseudo-class matches inside 'focusin' event handler	
+Pass	Checks that ':focus-within' pseudo-class matches inside 'focusin' event handler	

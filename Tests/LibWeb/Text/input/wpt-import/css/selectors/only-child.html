@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS Selectors :only-child</title>
+<link rel="help" href="https://drafts.csswg.org/selectors-4/#the-only-child-pseudo">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<!--
+  See also child-indexed-pseudo-class.html.
+-->
+<body>
+
+<div>
+  <div id="target1">Whitespace nodes should be ignored.</div>
+</div>
+
+<div>
+  <div id="target2">A comment node should be ignored.</div>
+  <!-- -->
+</div>
+
+<div>
+  <div id="target3">Non-whitespace text node should be ignored.</div>
+  .
+</div>
+
+<div>
+  <blockquote></blockquote>
+  <div id="target4" data-expected="false">There is another child element.</div>
+</div>
+
+<div>
+  <div id="target5"></div>
+</div>
+
+<script>
+for (let i = 1; i <= 4; ++i) {
+  let target = document.querySelector(`#target${i}`);
+  test(() => {
+    if (target.dataset.expected == 'false')
+      assert_false(target.matches(':only-child'));
+    else
+      assert_true(target.matches(':only-child'));
+  }, target.textContent);
+}
+
+test(() => {
+  const target = document.querySelector('#target5');
+  assert_true(target.matches(':only-child'));
+
+  const another = target.parentNode.appendChild(document.createElement('div'));
+  assert_false(target.matches(':only-child'));
+  assert_false(another.matches(':only-child'));
+
+  another.remove();
+  assert_true(target.matches(':only-child'));
+}, 'Dynamic addition and removal');
+
+</script>
+

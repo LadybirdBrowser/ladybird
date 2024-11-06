@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<title>CSS Selectors Test: :placeholder-shown matching</title>
+<link rel="help" href="https://drafts.csswg.org/selectors/#placeholder">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<style>
+  :not(:placeholder-shown) + #t1,
+  :placeholder-shown + #t2,
+  :placeholder-shown + #t3,
+  :placeholder-shown + #t4,
+  :not(:placeholder-shown) + #t5,
+  :not(:placeholder-shown) + #t6,
+  :not(:placeholder-shown) + #t7 {
+    color: green;
+  }
+</style>
+<input type="text"><span id="t1">Should be green</span>
+<input type="text" placeholder><span id="t2">Should be green</span>
+<input type="text" placeholder=""><span id="t3">Should be green</span>
+<input type="text" placeholder="placeholder"><span id="t4">Should be green</span>
+<input type="text" placeholder value="value"><span id="t5">Should be green</span>
+<input type="text" placeholder="" value="value"><span id="t6">Should be green</span>
+<input type="text" placeholder="placeholder" value="value"><span id="t7">Should be green</span>
+<script>
+  const green = "rgb(0, 128, 0)";
+
+  test(() => assert_equals(getComputedStyle(t1).color, green,
+                           "No placeholder attribute"));
+  test(() => assert_equals(getComputedStyle(t2).color, green,
+                           "Placeholder attribute without value"));
+  test(() => assert_equals(getComputedStyle(t3).color, green,
+                           "Placeholder attribute - empty string"));
+  test(() => assert_equals(getComputedStyle(t4).color, green,
+                           "Placeholder attribute - non-empty string"));
+  test(() => assert_equals(getComputedStyle(t5).color, green,
+                           "Placeholder attribute without value - input text"));
+  test(() => assert_equals(getComputedStyle(t6).color, green,
+                           "Placeholder attribute - empty string - input text"));
+  test(() => assert_equals(getComputedStyle(t7).color, green,
+                           "Placeholder attribute - non-empty string - input text"));
+</script>

@@ -1,0 +1,15 @@
+Summary
+
+Harness status: OK
+
+Rerun
+
+Found 4 tests
+
+3 Pass
+1 Fail
+Details
+Result	Test Name	MessagePass	rules include webkit-prefixed pseudo-element should be cascaded	
+Fail	webkit-prefixed pseudo-element selectors should be accessible from CSSOM	
+Pass	qS and qSA shouldn't throw exception	
+Pass	webkit-prefix without dash is invalid	

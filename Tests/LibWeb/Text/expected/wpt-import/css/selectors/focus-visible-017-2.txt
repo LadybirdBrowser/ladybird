@@ -1,0 +1,48 @@
+Summary
+
+Harness status: OK
+
+Rerun
+
+Found 38 tests
+
+38 Pass
+Details
+Result	Test Name	MessagePass	":focus-visible" should be a valid selector	
+Pass	By default initial programatic focus matches ':focus-visible', so the element ABBR shows a focus ring with 'outline-style: auto'	
+Pass	By default initial programatic focus matches ':focus-visible', so the element ADDRESS shows a focus ring with 'outline-style: auto'	
+Pass	By default initial programatic focus matches ':focus-visible', so the element BDI shows a focus ring with 'outline-style: auto'	
+Pass	By default initial programatic focus matches ':focus-visible', so the element BLOCKQUOTE shows a focus ring with 'outline-style: auto'	
+Pass	By default initial programatic focus matches ':focus-visible', so the element CODE shows a focus ring with 'outline-style: auto'	
+Pass	By default initial programatic focus matches ':focus-visible', so the element DD shows a focus ring with 'outline-style: auto'	
+Pass	By default initial programatic focus matches ':focus-visible', so the element SUMMARY shows a focus ring with 'outline-style: auto'	
+Pass	By default initial programatic focus matches ':focus-visible', so the element DETAILS shows a focus ring with 'outline-style: auto'	
+Pass	By default initial programatic focus matches ':focus-visible', so the element DIV shows a focus ring with 'outline-style: auto'	
+Pass	By default initial programatic focus matches ':focus-visible', so the element DL shows a focus ring with 'outline-style: auto'	
+Pass	By default initial programatic focus matches ':focus-visible', so the element DT shows a focus ring with 'outline-style: auto'	
+Pass	By default initial programatic focus matches ':focus-visible', so the element EM shows a focus ring with 'outline-style: auto'	
+Pass	By default initial programatic focus matches ':focus-visible', so the element LEGEND shows a focus ring with 'outline-style: auto'	
+Pass	By default initial programatic focus matches ':focus-visible', so the element FIGCAPTION shows a focus ring with 'outline-style: auto'	
+Pass	By default initial programatic focus matches ':focus-visible', so the element FIGURE shows a focus ring with 'outline-style: auto'	
+Pass	By default initial programatic focus matches ':focus-visible', so the element FORM shows a focus ring with 'outline-style: auto'	
+Pass	By default initial programatic focus matches ':focus-visible', so the element HR shows a focus ring with 'outline-style: auto'	
+Pass	By default initial programatic focus matches ':focus-visible', so the element IMG shows a focus ring with 'outline-style: auto'	
+Pass	By default initial programatic focus matches ':focus-visible', so the element LABEL shows a focus ring with 'outline-style: auto'	
+Pass	By default initial programatic focus matches ':focus-visible', so the element LI shows a focus ring with 'outline-style: auto'	
+Pass	By default initial programatic focus matches ':focus-visible', so the element MARK shows a focus ring with 'outline-style: auto'	
+Pass	By default initial programatic focus matches ':focus-visible', so the element METER shows a focus ring with 'outline-style: auto'	
+Pass	By default initial programatic focus matches ':focus-visible', so the element OL shows a focus ring with 'outline-style: auto'	
+Pass	By default initial programatic focus matches ':focus-visible', so the element PRE shows a focus ring with 'outline-style: auto'	
+Pass	By default initial programatic focus matches ':focus-visible', so the element PROGRESS shows a focus ring with 'outline-style: auto'	
+Pass	By default initial programatic focus matches ':focus-visible', so the element P shows a focus ring with 'outline-style: auto'	
+Pass	By default initial programatic focus matches ':focus-visible', so the element SMALL shows a focus ring with 'outline-style: auto'	
+Pass	By default initial programatic focus matches ':focus-visible', so the element S shows a focus ring with 'outline-style: auto'	
+Pass	By default initial programatic focus matches ':focus-visible', so the element STRONG shows a focus ring with 'outline-style: auto'	
+Pass	By default initial programatic focus matches ':focus-visible', so the element SUB shows a focus ring with 'outline-style: auto'	
+Pass	By default initial programatic focus matches ':focus-visible', so the element SUP shows a focus ring with 'outline-style: auto'	
+Pass	By default initial programatic focus matches ':focus-visible', so the element CAPTION shows a focus ring with 'outline-style: auto'	
+Pass	By default initial programatic focus matches ':focus-visible', so the element TABLE shows a focus ring with 'outline-style: auto'	
+Pass	By default initial programatic focus matches ':focus-visible', so the element TD shows a focus ring with 'outline-style: auto'	
+Pass	By default initial programatic focus matches ':focus-visible', so the element TIME shows a focus ring with 'outline-style: auto'	
+Pass	By default initial programatic focus matches ':focus-visible', so the element UL shows a focus ring with 'outline-style: auto'	
+Pass	By default initial programatic focus matches ':focus-visible', so the element U shows a focus ring with 'outline-style: auto'	

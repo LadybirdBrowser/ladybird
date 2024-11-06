@@ -1,0 +1,14 @@
+Summary
+
+Harness status: OK
+
+Rerun
+
+Found 3 tests
+
+2 Pass
+1 Fail
+Details
+Result	Test Name	MessagePass	:nth-of-type selectors matching takes element namespace into account (http://www.w3.org/1999/xhtml)	
+Pass	:nth-of-type selectors matching takes element namespace into account (http://dummy1/)	
+Fail	:nth-of-type selectors matching takes element namespace into account (http://dummy2/)	

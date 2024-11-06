@@ -1,0 +1,13 @@
+Summary
+
+Harness status: OK
+
+Rerun
+
+Found 2 tests
+
+1 Pass
+1 Fail
+Details
+Result	Test Name	MessagePass	":focus-visible" should be a valid selector	
+Fail	:focus-visible doesn't match on ShadowRoot	

@@ -1,0 +1,14 @@
+Summary
+
+Harness status: OK
+
+Rerun
+
+Found 4 tests
+
+4 Pass
+Details
+Result	Test Name	MessagePass	:enabeld should match to enabled controls	
+Pass	:disabled should match to enabled controls	
+Pass	:not(:enabeld) should match to disabled controls and non-controls	
+Pass	:not(:disabled) should match to enabled controls and non-controls	
