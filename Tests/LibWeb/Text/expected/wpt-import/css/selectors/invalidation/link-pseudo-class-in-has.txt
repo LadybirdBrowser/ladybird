@@ -6,8 +6,7 @@ Rerun
 
 Found 2 tests
 
-1 Pass
-1 Fail
+2 Pass
 Details
 Result	Test Name	MessagePass	:any-link & :link pseudo-class invalidation with an HTML link	
-Fail	:any-link & :link pseudo-class invalidation with an SVG link	
+Pass	:any-link & :link pseudo-class invalidation with an SVG link	
