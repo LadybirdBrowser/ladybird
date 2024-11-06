@@ -6,27 +6,27 @@ Rerun
 
 Found 40 tests
 
-8 Pass
-32 Fail
+23 Pass
+17 Fail
 Details
 Result	Test Name	MessagePass	Test getting grid-template-columns and grid-template-rows set through CSS for element 'gridWithFixedElement' : grid-template-columns = '7px 11px', grid-template-rows = '17px 2px'	
-Fail	Test getting grid-template-columns and grid-template-rows set through CSS for element 'gridWithPercentElement' : grid-template-columns = '400px 800px', grid-template-rows = '150px 450px'	
+Pass	Test getting grid-template-columns and grid-template-rows set through CSS for element 'gridWithPercentElement' : grid-template-columns = '400px 800px', grid-template-rows = '150px 450px'	
 Fail	Test getting grid-template-columns and grid-template-rows set through CSS for element 'gridWithPercentWithoutSize' : grid-template-columns = '3.5px 7px', grid-template-rows = '4px 12px'	
-Fail	Test getting grid-template-columns and grid-template-rows set through CSS for element 'gridWithAutoElement' : grid-template-columns = '0px 17px', grid-template-rows = '0px 3px'	
-Fail	Test getting grid-template-columns and grid-template-rows set through CSS for element 'gridWithEMElement' : grid-template-columns = '100px 120px', grid-template-rows = '150px 170px'	
-Fail	Test getting grid-template-columns and grid-template-rows set through CSS for element 'gridWithThreeItems' : grid-template-columns = '15px 0px 100px', grid-template-rows = '120px 18px 0px'	
+Pass	Test getting grid-template-columns and grid-template-rows set through CSS for element 'gridWithAutoElement' : grid-template-columns = '0px 17px', grid-template-rows = '0px 3px'	
+Pass	Test getting grid-template-columns and grid-template-rows set through CSS for element 'gridWithEMElement' : grid-template-columns = '100px 120px', grid-template-rows = '150px 170px'	
+Pass	Test getting grid-template-columns and grid-template-rows set through CSS for element 'gridWithThreeItems' : grid-template-columns = '15px 0px 100px', grid-template-rows = '120px 18px 0px'	
 Fail	Test getting grid-template-columns and grid-template-rows set through CSS for element 'gridWithFitContentAndFitAvailable' : grid-template-columns = 'none', grid-template-rows = 'none'	
-Fail	Test getting grid-template-columns and grid-template-rows set through CSS for element 'gridWithMinMaxContent' : grid-template-columns = '0px 0px', grid-template-rows = '0px 0px'	
-Fail	Test getting grid-template-columns and grid-template-rows set through CSS for element 'gridWithMinMaxContentWithChildrenElement' : grid-template-columns = '7px 17px', grid-template-rows = '16px 3px'	
-Fail	Test getting grid-template-columns and grid-template-rows set through CSS for element 'gridWithMinMaxAndFixed' : grid-template-columns = '240px 15px', grid-template-rows = '120px 210px'	
-Fail	Test getting grid-template-columns and grid-template-rows set through CSS for element 'gridWithMinMaxAndMinMaxContent' : grid-template-columns = '240px 15px', grid-template-rows = '120px 210px'	
-Fail	Test getting grid-template-columns and grid-template-rows set through CSS for element 'gridWithFractionFraction' : grid-template-columns = '320px 480px', grid-template-rows = '225px 375px'	
-Fail	Test getting grid-template-columns and grid-template-rows set through CSS for element 'gridWithFractionMinMax' : grid-template-columns = '45px 755px', grid-template-rows = '586px 14px'	
-Fail	Test getting grid-template-columns and grid-template-rows set through CSS for element 'gridWithCalcCalc' : grid-template-columns = '200px 100px', grid-template-rows = '150px 75px'	
-Fail	Test getting grid-template-columns and grid-template-rows set through CSS for element 'gridWithCalcAndFixed' : grid-template-columns = '400px 80px', grid-template-rows = '88px 150px'	
-Fail	Test getting grid-template-columns and grid-template-rows set through CSS for element 'gridWithCalcAndMinMax' : grid-template-columns = '190px 80px', grid-template-rows = '150px 53px'	
-Fail	Test getting grid-template-columns and grid-template-rows set through CSS for element 'gridWithCalcInsideMinMax' : grid-template-columns = '400px 120px', grid-template-rows = '150px 175px'	
-Fail	Test getting grid-template-columns and grid-template-rows set through CSS for element 'gridWithAutoInsideMinMax' : grid-template-columns = '0px 30px', grid-template-rows = '132px 60px'	
+Pass	Test getting grid-template-columns and grid-template-rows set through CSS for element 'gridWithMinMaxContent' : grid-template-columns = '0px 0px', grid-template-rows = '0px 0px'	
+Pass	Test getting grid-template-columns and grid-template-rows set through CSS for element 'gridWithMinMaxContentWithChildrenElement' : grid-template-columns = '7px 17px', grid-template-rows = '16px 3px'	
+Pass	Test getting grid-template-columns and grid-template-rows set through CSS for element 'gridWithMinMaxAndFixed' : grid-template-columns = '240px 15px', grid-template-rows = '120px 210px'	
+Pass	Test getting grid-template-columns and grid-template-rows set through CSS for element 'gridWithMinMaxAndMinMaxContent' : grid-template-columns = '240px 15px', grid-template-rows = '120px 210px'	
+Pass	Test getting grid-template-columns and grid-template-rows set through CSS for element 'gridWithFractionFraction' : grid-template-columns = '320px 480px', grid-template-rows = '225px 375px'	
+Pass	Test getting grid-template-columns and grid-template-rows set through CSS for element 'gridWithFractionMinMax' : grid-template-columns = '45px 755px', grid-template-rows = '586px 14px'	
+Pass	Test getting grid-template-columns and grid-template-rows set through CSS for element 'gridWithCalcCalc' : grid-template-columns = '200px 100px', grid-template-rows = '150px 75px'	
+Pass	Test getting grid-template-columns and grid-template-rows set through CSS for element 'gridWithCalcAndFixed' : grid-template-columns = '400px 80px', grid-template-rows = '88px 150px'	
+Pass	Test getting grid-template-columns and grid-template-rows set through CSS for element 'gridWithCalcAndMinMax' : grid-template-columns = '190px 80px', grid-template-rows = '150px 53px'	
+Pass	Test getting grid-template-columns and grid-template-rows set through CSS for element 'gridWithCalcInsideMinMax' : grid-template-columns = '400px 120px', grid-template-rows = '150px 175px'	
+Pass	Test getting grid-template-columns and grid-template-rows set through CSS for element 'gridWithAutoInsideMinMax' : grid-template-columns = '0px 30px', grid-template-rows = '132px 60px'	
 Pass	Test getting and setting grid-template-rows and grid-template-columns through JS: grid-template-columns = '18px 22px', element.style.gridTemplateColumns = '18px 22px', grid-template-rows = '66px 70px', element.style.gridTemplateRows = '66px 70px'	
 Pass	Test getting and setting grid-template-rows and grid-template-columns through JS: grid-template-columns = '440px 640px', element.style.gridTemplateColumns = '55% 80%', grid-template-rows = '240px 378px', element.style.gridTemplateRows = '40% 63%'	
 Pass	Test getting and setting grid-template-rows and grid-template-columns through JS: grid-template-columns = '0px 0px', element.style.gridTemplateColumns = 'auto auto', grid-template-rows = '0px 0px', element.style.gridTemplateRows = 'auto auto'	
