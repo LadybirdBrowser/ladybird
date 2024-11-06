@@ -8,4 +8,5 @@ Userland/Libraries/LibJS/Tests/modules/top-level-dispose.mjs
 Userland/Libraries/LibJS/Tests/using-declaration.js
 Userland/Libraries/LibJS/Tests/using-for-loops.js
 
+Tests/LibWeb/Ref/input/wpt-import
 Tests/LibWeb/Text/input/wpt-import
