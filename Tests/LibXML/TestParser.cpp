@@ -41,3 +41,9 @@ TEST_CASE(predefined_character_reference)
     auto const& content = node.children[0]->content.get<XML::Node::Text>();
     EXPECT_EQ(content.builder.string_view(), "Well hello &, <, >, ', and \"!");
 }
+
+TEST_CASE(unicode_name)
+{
+    XML::Parser parser("<div 中文=\"\"></div>"sv);
+    TRY_OR_FAIL(parser.parse());
+}
