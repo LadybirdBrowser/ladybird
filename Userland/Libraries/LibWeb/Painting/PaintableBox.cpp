@@ -561,8 +561,9 @@ void paint_cursor_if_needed(PaintContext& context, TextPaintable const& paintabl
     auto fragment_rect = fragment.absolute_rect();
 
     auto text = fragment.string_view();
+    auto utf8_view = Utf8View(text).unicode_substring_view(0, document.cursor_position()->offset() - fragment.start());
     CSSPixelRect cursor_rect {
-        fragment_rect.x() + CSSPixels::nearest_value_for(paintable.layout_node().first_available_font().width(text.substring_view(0, document.cursor_position()->offset() - fragment.start()))),
+        fragment_rect.x() + CSSPixels::nearest_value_for(paintable.layout_node().first_available_font().width(utf8_view)),
         fragment_rect.top(),
         1,
         fragment_rect.height()
