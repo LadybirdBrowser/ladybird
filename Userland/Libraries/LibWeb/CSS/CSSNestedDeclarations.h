@@ -23,14 +23,18 @@ public:
 
     CSSStyleDeclaration* style();
 
+    CSSStyleRule const& parent_style_rule() const;
+
 private:
     CSSNestedDeclarations(JS::Realm&, PropertyOwningCSSStyleDeclaration&);
 
     virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Cell::Visitor&) override;
     virtual String serialized() const override;
+    virtual void clear_caches() override;
 
     JS::NonnullGCPtr<PropertyOwningCSSStyleDeclaration> m_declaration;
+    JS::GCPtr<CSSStyleRule const> mutable m_parent_style_rule;
 };
 
 template<>

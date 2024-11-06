@@ -111,7 +111,7 @@ SelectorList const& MatchingRule::absolutized_selectors() const
     if (rule->type() == CSSRule::Type::Style)
         return static_cast<CSSStyleRule const&>(*rule).absolutized_selectors();
     if (rule->type() == CSSRule::Type::NestedDeclarations)
-        return static_cast<CSSStyleRule const&>(*rule->parent_rule()).absolutized_selectors();
+        return static_cast<CSSNestedDeclarations const&>(*rule).parent_style_rule().absolutized_selectors();
     VERIFY_NOT_REACHED();
 }
 
@@ -120,7 +120,7 @@ FlyString const& MatchingRule::qualified_layer_name() const
     if (rule->type() == CSSRule::Type::Style)
         return static_cast<CSSStyleRule const&>(*rule).qualified_layer_name();
     if (rule->type() == CSSRule::Type::NestedDeclarations)
-        return static_cast<CSSStyleRule const&>(*rule->parent_rule()).qualified_layer_name();
+        return static_cast<CSSNestedDeclarations const&>(*rule).parent_style_rule().qualified_layer_name();
     VERIFY_NOT_REACHED();
 }
 
@@ -2462,7 +2462,7 @@ NonnullOwnPtr<StyleComputer::RuleCache> StyleComputer::make_rule_cache_for_casca
                 if (rule.type() == CSSRule::Type::Style)
                     return static_cast<CSSStyleRule const&>(rule).absolutized_selectors();
                 if (rule.type() == CSSRule::Type::NestedDeclarations)
-                    return static_cast<CSSStyleRule const&>(*rule.parent_rule()).absolutized_selectors();
+                    return static_cast<CSSNestedDeclarations const&>(rule).parent_style_rule().absolutized_selectors();
                 VERIFY_NOT_REACHED();
             }();
             for (CSS::Selector const& selector : absolutized_selectors) {
