@@ -59,6 +59,7 @@ enum class IsDescendant {
 };
 
 #define ENUMERATE_STYLE_INVALIDATION_REASONS(X)     \
+    X(ActiveElementChange)                          \
     X(AdoptedStyleSheetsList)                       \
     X(CSSFontLoaded)                                \
     X(CSSImportRule)                                \
@@ -68,6 +69,8 @@ enum class IsDescendant {
     X(EditingInsertion)                             \
     X(ElementAttributeChange)                       \
     X(ElementSetShadowRoot)                         \
+    X(FocusedElementChange)                         \
+    X(HTMLHyperlinkElementHrefChange)               \
     X(HTMLInputElementSetChecked)                   \
     X(HTMLObjectElementUpdateLayoutAndChildObjects) \
     X(HTMLSelectElementSetIsOpen)                   \
@@ -84,7 +87,8 @@ enum class IsDescendant {
     X(StyleSheetDeleteRule)                         \
     X(StyleSheetInsertRule)                         \
     X(StyleSheetListAddSheet)                       \
-    X(StyleSheetListRemoveSheet)
+    X(StyleSheetListRemoveSheet)                    \
+    X(TargetElementChange)
 
 enum class StyleInvalidationReason {
 #define __ENUMERATE_STYLE_INVALIDATION_REASON(reason) reason,

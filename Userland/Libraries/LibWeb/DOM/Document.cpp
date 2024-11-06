@@ -2045,16 +2045,18 @@ void Document::set_focused_element(Element* element)
     if (m_focused_element.ptr() == element)
         return;
 
-    if (m_focused_element) {
-        m_focused_element->did_lose_focus();
-        m_focused_element->set_needs_style_update(true);
-    }
+    JS::GCPtr<Element> old_focused_element = move(m_focused_element);
+
+    if (old_focused_element)
+        old_focused_element->did_lose_focus();
 
     m_focused_element = element;
 
+    if (auto* invalidation_target = find_common_ancestor(old_focused_element, m_focused_element) ?: this)
+        invalidation_target->invalidate_style(StyleInvalidationReason::FocusedElementChange);
+
     if (m_focused_element) {
         m_focused_element->did_receive_focus();
-        m_focused_element->set_needs_style_update(true);
     }
 
     if (paintable())
@@ -2078,7 +2080,11 @@ void Document::set_active_element(Element* element)
     if (m_active_element.ptr() == element)
         return;
 
+    JS::GCPtr<Node> old_active_element = move(m_active_element);
     m_active_element = element;
+
+    if (auto* invalidation_target = find_common_ancestor(old_active_element, m_active_element) ?: this)
+        invalidation_target->invalidate_style(StyleInvalidationReason::TargetElementChange);
 
     if (paintable())
         paintable()->set_needs_display();
@@ -2089,13 +2095,11 @@ void Document::set_target_element(Element* element)
     if (m_target_element.ptr() == element)
         return;
 
-    if (m_target_element)
-        m_target_element->set_needs_style_update(true);
-
+    JS::GCPtr<Element> old_target_element = move(m_target_element);
     m_target_element = element;
 
-    if (m_target_element)
-        m_target_element->set_needs_style_update(true);
+    if (auto* invalidation_target = find_common_ancestor(old_target_element, m_target_element) ?: this)
+        invalidation_target->invalidate_style(StyleInvalidationReason::TargetElementChange);
 
     if (paintable())
         paintable()->set_needs_display();

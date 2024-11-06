@@ -6,6 +6,6 @@ Rerun
 
 Found 1 tests
 
-1 Fail
+1 Pass
 Details
-Result	Test Name	MessageFail	CSS Selectors Invalidation: :target pseudo-class in :has() argument	
+Result	Test Name	MessagePass	CSS Selectors Invalidation: :target pseudo-class in :has() argument	
