@@ -1337,35 +1337,30 @@ Messages::WebDriverClient::GetElementAttributeResponse WebDriverConnection::get_
 // 12.4.3 Get Element Property, https://w3c.github.io/webdriver/#dfn-get-element-property
 Messages::WebDriverClient::GetElementPropertyResponse WebDriverConnection::get_element_property(String const& element_id, String const& name)
 {
-    // 1. If the current browsing context is no longer open, return error with error code no such window.
+    // 1. If session's current browsing context is no longer open, return error with error code no such window.
     TRY(ensure_current_browsing_context_is_open());
 
-    // 2. Handle any user prompts and return its value if it is an error.
+    // 2. Try to handle any user prompts with session.
     handle_any_user_prompts([this, element_id, name]() {
-        // 3. Let element be the result of trying to get a known connected element with url variable element id.
+        Web::WebDriver::Response result { JsonValue {} };
+
+        // 3. Let element be the result of trying to get a known element with session and URL variables' element id.
         auto element = WEBDRIVER_TRY(Web::WebDriver::get_known_element(current_browsing_context(), element_id));
 
-        Optional<ByteString> result;
-
-        // 4. Let property be the result of calling the Object.[[GetProperty]](name) on element.
+        // 4. Let name URL variables["name"].
+        // 5. Let property be the result of calling the Object.[[GetProperty]](name) on element.
         Web::HTML::TemporaryExecutionContext execution_context { current_browsing_context().active_document()->realm() };
 
         if (auto property_or_error = element->get(name.to_byte_string()); !property_or_error.is_throw_completion()) {
             auto property = property_or_error.release_value();
 
-            // 5. Let result be the value of property if not undefined, or null.
-            if (!property.is_undefined()) {
-                if (auto string_or_error = property.to_byte_string(element->vm()); !string_or_error.is_error())
-                    result = string_or_error.release_value();
-            }
+            // 6. Let result be the value of property if not undefined, or null.
+            if (!property.is_undefined())
+                result = Web::WebDriver::json_clone(current_browsing_context(), property);
         }
 
-        // 6. Return success with data result.
-        if (result.has_value()) {
-            async_driver_execution_complete({ result.release_value() });
-            return;
-        }
-        async_driver_execution_complete(JsonValue {});
+        // 7. Return success with data result.
+        async_driver_execution_complete(move(result));
     });
 
     return JsonValue {};
