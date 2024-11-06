@@ -1,0 +1,19 @@
+Summary
+
+Harness status: OK
+
+Rerun
+
+Found 9 tests
+
+9 Pass
+Details
+Result	Test Name	MessagePass	Whitespace nodes should be ignored.	
+Pass	Thre is another child element of the same type.	
+Pass	There is a prior child element of another type.	
+Pass	A previous element of the parent should not affect.	
+Pass	The parent element of the same type should not affect.	
+Pass	A child of the previous element should not affect.	
+Pass	The second child element of the same type should not match.	
+Pass	The second child element of the same type should not match, the first child has case-different tag name.	
+Pass	Dynamic insertion and removal	

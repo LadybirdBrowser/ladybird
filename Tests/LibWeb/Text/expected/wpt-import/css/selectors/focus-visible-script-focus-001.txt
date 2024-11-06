@@ -1,0 +1,12 @@
+Summary
+
+Harness status: OK
+
+Rerun
+
+Found 2 tests
+
+2 Pass
+Details
+Result	Test Name	MessagePass	":focus-visible" should be a valid selector	
+Pass	Script focus without any previous user interaction matches :focus-visible	

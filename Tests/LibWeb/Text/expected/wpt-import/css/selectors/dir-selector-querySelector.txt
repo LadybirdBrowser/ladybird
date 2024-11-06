@@ -1,0 +1,15 @@
+Summary
+
+Harness status: OK
+
+Rerun
+
+Found 4 tests
+
+3 Pass
+1 Fail
+Details
+Result	Test Name	MessageFail	:dir() allows any ident value but strings other than ltr/rtl don't match	Failed to parse selector
+Pass	:dir() requires exactly an ident argument	
+Pass	:dir() works in compound selectors	
+Pass	:dir() works in complex selectors	

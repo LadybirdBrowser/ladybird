@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>Selectors Level 4: focus</title>
+<link rel="author" title="Manuel Rego Casasnovas" href="mailto:rego@igalia.com">
+<link rel="help" href="https://drafts.csswg.org/selectors-4/#focus-pseudo">
+<link rel="help" href="https://html.spec.whatwg.org/multipage/interaction.html#focus-fixup-rule">
+<meta name="assert" content="Checks ':focus' pseudo-class after 'display: none'.">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<div id="wrapper">
+  <input id="input">
+</div>
+<script>
+  "use strict";
+
+  const wrapper = document.getElementById("wrapper");
+  const input = document.getElementById("input");
+
+  async_test((t) => {
+    input.focus();
+    window.requestAnimationFrame(() => {
+      t.step(() => assert_true(input.matches(":focus"),
+                               "Check input matches ':focus' after being focused"));
+
+      input.style.display = "none";
+      window.requestAnimationFrame(() => {
+        t.step(() => assert_false(input.matches(":focus"),
+                                  "Check input doesn't match ':focus' after getting 'display: none'"));
+        input.style.display = "inline";
+        t.done();
+      });
+    });
+  }, "Test ':focus' after 'display:none' on input");
+
+  async_test((t) => {
+    input.focus();
+    window.requestAnimationFrame(() => {
+      t.step(() => assert_true(input.matches(":focus"),
+                               "Check input matches ':focus' after being focused"));
+
+      wrapper.style.display = "none";
+      window.requestAnimationFrame(() => {
+        t.step(() => assert_false(input.matches(":focus"),
+                                  "Check input doesn't match ':focus' after parent got 'display: none'"));
+        wrapper.style.display = "block";
+        t.done();
+      });
+    });
+  }, "Test ':focus' after 'display:none' on input's parent");
+</script>

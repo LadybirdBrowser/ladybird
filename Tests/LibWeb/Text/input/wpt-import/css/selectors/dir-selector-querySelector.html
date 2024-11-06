@@ -1,0 +1,71 @@
+<!doctype html>
+<html>
+<head>
+  <link rel="help" href="http://www.w3.org/TR/selectors4/#dir-pseudo">
+  <script src="../../resources/testharness.js"></script>
+  <script src="../../resources/testharnessreport.js"></script>
+</head>
+
+<body>
+  <div id=outer>
+    <div id=div1></div>
+    <div id=div2 dir=ltr>
+      <div id=div2_1></div>
+      <div id=div2_2 dir=ltr></div>
+      <div id=div2_3 dir=rtl></div>
+    </div>
+    <div id=div3 dir=rtl>
+      <div id=div3_1>
+        <div id=div3_1_1></div>
+      </div>
+      <div id=div3_2 dir=ltr></div>
+      <div id=div3_3 dir=rtl></div>
+    </div>
+    <div id=div4 dir=lol></div>
+    <div id=div5 dir=auto></div>
+  </div>
+</body>
+
+<script>
+test(() => {
+  assert_equals(document.querySelector(":dir(lol)"), null);
+  assert_equals(document.querySelector(":dir(lol )"), null);
+  assert_equals(document.querySelector(":dir( auto)"), null);
+  assert_equals(document.querySelector(":dir(\nauto\t)"), null);
+}, ":dir() allows any ident value but strings other than ltr/rtl don't match");
+
+test(() => {
+  assert_throws_dom("SYNTAX_ERR", () => { document.querySelector(":dir()"); });
+  assert_throws_dom("SYNTAX_ERR", () => { document.querySelector(":dir(ltr, rtl)"); });
+  assert_throws_dom("SYNTAX_ERR", () => { document.querySelector(":dir('ltr')"); });
+}, ":dir() requires exactly an ident argument");
+
+test(() => {
+  assert_equals(document.querySelector(":dir(rtl)"), div2_3);
+  assert_equals(document.querySelector("*:dir(rtl)"), div2_3);
+  assert_equals(document.querySelector("div:dir(ltr)"), outer);
+  assert_equals(document.querySelector("div:dir(ltr):dir(ltr)"), outer);
+  assert_equals(document.querySelector(":dir(rtl)#div3_3"), div3_3);
+  assert_equals(document.querySelector(":nth-child(2):dir(rtl)"), null);
+  assert_equals(document.querySelector(":nth-child(3):dir(rtl)"), div2_3);
+  assert_equals(document.querySelector(":nth-child(4):dir(ltr)"), div4);
+  assert_equals(document.querySelector(":nth-last-child(3):dir(rtl)"), div3);
+}, ":dir() works in compound selectors");
+
+test(() => {
+  assert_equals(document.querySelector("#div2 :dir(ltr)"), div2_1);
+  assert_equals(document.querySelector(":dir(rtl) div"), div3_1);
+  assert_equals(document.querySelector("div + :dir(ltr)"), div2);
+  assert_equals(document.querySelector(":dir(ltr) + :dir(rtl)"), div2_3);
+  assert_equals(document.querySelector(":dir(rtl) :dir(rtl)"), div3_1);
+  assert_equals(document.querySelector(":dir(rtl) + :dir(ltr)"), div3_2);
+  assert_equals(document.querySelector(":dir(rtl) ~ :dir(rtl)"), div3_3);
+  assert_equals(document.querySelector(":dir(rtl) :dir(ltr)"), div3_2);
+  assert_equals(document.querySelector("* :dir(rtl) *"), div3_1);
+  assert_equals(document.querySelector("div :dir(rtl) div"), div3_1);
+  assert_equals(document.querySelector(":dir(ltr) :dir(rtl) + :dir(ltr)"), div3_2);
+  assert_equals(document.querySelector(":dir(ltr) + :dir(rtl) + * + *"), div5);
+  assert_equals(document.querySelector(":dir(rtl) > * > :dir(rtl)"), div3_1_1);
+}, ":dir() works in complex selectors");
+</script>
+</html>

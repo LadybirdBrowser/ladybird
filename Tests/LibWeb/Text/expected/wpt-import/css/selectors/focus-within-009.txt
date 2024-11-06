@@ -1,0 +1,23 @@
+Summary
+
+Harness status: OK
+
+Rerun
+
+Found 12 tests
+
+1 Pass
+11 Fail
+Details
+Result	Test Name	MessagePass	Initial State	
+Fail	Focus 'target1'	
+Fail	Focus 'target2'	
+Fail	Focus 'target1' again	
+Fail	Focus 'target2' again	
+Fail	Focus 'target1' once again	
+Fail	Detach 'container1' from the document	
+Fail	Try to focus 'target1'	
+Fail	Focus 'target2' once again	
+Fail	Attach 'container1' in 'container2'	
+Fail	Focus 'target1' for the last time	
+Fail	Move 'target1' in 'container2'	

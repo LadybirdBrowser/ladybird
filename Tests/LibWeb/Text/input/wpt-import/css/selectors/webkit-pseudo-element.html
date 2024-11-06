@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<title>WebKit-prefixed pseudo-elements</title>
+<link rel="author" title="Xidorn Quan" href="https://www.upsuper.org">
+<link rel="author" title="Mozilla" href="https://www.mozilla.org">
+<link rel="help" href="https://drafts.csswg.org/selectors-4/#compat">
+<meta name="assert" content="WebKit-prefixed pseudo-elements should always be valid">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<style id="style">
+#test {
+  color: rgb(255, 0, 0);
+}
+span::-webkit-something-invalid, #test, ::-WeBkIt-sOmEtHiNg-NoNeXiSt123, ::-webkit-\ escaped {
+  color: rgb(0, 255, 0);
+}
+::-webkitfoo, #test {
+  color: rgb(255, 0, 0);
+}
+</style>
+<body>
+<div id="test"></div>
+<script>
+  test(() => {
+    let elem = document.getElementById("test");
+    assert_equals(getComputedStyle(elem).color, "rgb(0, 255, 0)");
+  }, "rules include webkit-prefixed pseudo-element should be cascaded");
+
+  test(() => {
+    let sheet = document.getElementById("style").sheet;
+    assert_equals(sheet.cssRules[1].selectorText,
+                  "span::-webkit-something-invalid, " +
+                  "#test, ::-webkit-something-nonexist123, " +
+                  "::-webkit-\\ escaped");
+  }, "webkit-prefixed pseudo-element selectors should be accessible from CSSOM");
+
+  test(() => {
+    document.querySelector("span::-webkit-something-invalid");
+    document.querySelectorAll("span::-webkit-something-invalid");
+  }, "qS and qSA shouldn't throw exception");
+
+  test(() => {
+    let sheet = document.getElementById("style").sheet;
+    assert_equals(sheet.cssRules.length, 2);
+    assert_throws_dom("SyntaxError", () => document.querySelector("span::-webkitfoo"));
+    assert_throws_dom("SyntaxError", () => document.querySelectorAll("span::-webkitfoo"));
+  }, "webkit-prefix without dash is invalid");
+</script>
+</body>

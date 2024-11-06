@@ -1,0 +1,30 @@
+Summary
+
+Harness status: OK
+
+Rerun
+
+Found 20 tests
+
+20 Pass
+Details
+Result	Test Name	MessagePass	input element whose type attribute is in the telephone state	
+Pass	input element whose type attribute is in the telephone state in a RTL block	
+Pass	input element whose type attribute is in the password state	
+Pass	input element whose type attribute is in the text state	
+Pass	input element whose type attribute is in the search state	
+Pass	input element whose type attribute is in the url state	
+Pass	input element whose type attribute is in the email state	
+Pass	input element whose type attribute is in the submit state	
+Pass	input element whose type attribute is in the reset state	
+Pass	input element whose type attribute is in the button state	
+Pass	input element whose type attribute is in the hidden state	
+Pass	dynamic changes to type of input elements affect whether value is used for dir=auto	
+Pass	input element whose type attribute is in the date state	
+Pass	input element whose type attribute is in the time state	
+Pass	input element whose type attribute is in the number state	
+Pass	input element whose type attribute is in the range state	
+Pass	input element whose type attribute is in the color state	
+Pass	input element whose type attribute is in the checkbox state	
+Pass	input element whose type attribute is in the radio state	
+Pass	input element whose type attribute is in the image state	

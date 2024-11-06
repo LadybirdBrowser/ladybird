@@ -1,0 +1,93 @@
+<!doctype html>
+<html>
+<head>
+  <link rel="help" href="http://www.w3.org/TR/selectors4/#dir-pseudo">
+  <script src="../../resources/testharness.js"></script>
+  <script src="../../resources/testharnessreport.js"></script>
+  <style>
+    #div4_1 {
+      direction: rtl;
+    }
+  </style>
+</head>
+
+<!-- &#1514; is the Hebrew letter tav, i.e. RTL -->
+<body>
+  <div id=testDivs>
+    <div id=div1 dir=auto>
+      <div id=div1_1>a</div>
+    </div>
+    <div id=div2 dir=auto>
+      <div id=div2_1>&#1514;</div>
+    </div>
+    <div id=div3 dir=auto>
+      <div id=div3_1 dir=rtl>&#1514;</div>
+      <div id=div3_2>a</div>
+    </div>
+    <div id=div4 dir=auto>
+      <div id=div4_1>
+        <div id=div4_1_1>a</div>
+      </div>
+    </div>
+  </div>
+</body>
+
+<script>
+function test_directionality(message, element, expected) {
+  test(() => {
+    var isLTR = document.querySelector("#" + element.id + ":dir(ltr)") == element;
+    var isRTL = document.querySelector("#" + element.id + ":dir(rtl)") == element;
+    if (expected == "ltr") {
+      assert_true(isLTR);
+      assert_false(isRTL);
+    } else {
+      assert_false(isLTR);
+      assert_true(isRTL);
+    }
+  }, message + " directionality of element " + element.id + " is " + expected);
+}
+
+test_directionality("Initial ", div1, "ltr");
+test_directionality("Initial ", div1_1, "ltr");
+test_directionality("Initial ", div2, "rtl");
+test_directionality("Initial ", div2_1, "rtl");
+test_directionality("Initial ", div3, "ltr");
+test_directionality("Initial ", div3_1, "rtl");
+test_directionality("Initial ", div3_2, "ltr");
+test_directionality("Initial ", div4, "ltr");
+test_directionality("Initial ", div4_1, "ltr");
+test_directionality("Initial ", div4_1_1, "ltr");
+
+div1_1.innerText = "\u05EA";
+div1_1.offsetTop;
+test_directionality("Updated ", div1, "rtl");
+test_directionality("Updated ", div1_1, "rtl");
+
+div1_1.dir = "ltr";
+div1_1.offsetTop;
+test_directionality("Updated ", div1, "ltr");
+test_directionality("Updated ", div1_1, "ltr");
+
+div1_1.innerText = "a";
+div1_1.offsetTop;
+test_directionality("Reupdated ", div1, "ltr");
+test_directionality("Reupdated ", div1_1, "ltr");
+
+div2_1.remove();
+div2.offsetTop;
+test_directionality("Updated ", div2, "ltr");
+
+div3_1.dir = "";
+div3_1.offsetTop;
+test_directionality("Updated ", div3, "rtl");
+div3.appendChild(div3_1);
+div3.offsetTop;
+test_directionality("Updated ", div3, "ltr");
+
+div4_1_1.innerText = "\u05EA";
+div4_1_1.offsetTop;
+test_directionality("Updated ", div4, "rtl");
+test_directionality("Updated ", div4_1, "rtl");
+test_directionality("Updated ", div4_1_1, "rtl");
+</script>
+</html>

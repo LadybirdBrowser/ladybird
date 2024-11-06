@@ -1,0 +1,30 @@
+Summary
+
+Harness status: OK
+
+Rerun
+
+Found 20 tests
+
+20 Pass
+Details
+Result	Test Name	MessagePass	:not(#a) matches expected elements	
+Pass	:not(#a #d) matches expected elements	
+Pass	:not(#b div) matches expected elements	
+Pass	:not(div div) matches expected elements	
+Pass	:not(div + div) matches expected elements	
+Pass	:not(main > div) matches expected elements	
+Pass	:not(#a, #b) matches expected elements	
+Pass	:not(#f, main > div) matches expected elements	
+Pass	:not(div + div + div, div + div > div) matches expected elements	
+Pass	:not(div:nth-child(1)) matches expected elements	
+Pass	:not(:not(div)) matches expected elements	
+Pass	:not(:not(:not(div))) matches expected elements	
+Pass	:not(div, span) matches expected elements	
+Pass	:not(span, p) matches expected elements	
+Pass	:not(#unknown, .unknown) matches expected elements	
+Pass	:not(#unknown > div, span) matches expected elements	
+Pass	:not(#unknown ~ div, span) matches expected elements	
+Pass	:not(:hover div) matches expected elements	
+Pass	:not(:link div) matches expected elements	
+Pass	:not(:visited div) matches expected elements	

@@ -1,0 +1,32 @@
+Summary
+
+Harness status: OK
+
+Rerun
+
+Found 22 tests
+
+22 Pass
+Details
+Result	Test Name	MessagePass	Initial directionality of element div1 is ltr	
+Pass	Initial directionality of element div1_1 is ltr	
+Pass	Initial directionality of element div2 is rtl	
+Pass	Initial directionality of element div2_1 is rtl	
+Pass	Initial directionality of element div3 is ltr	
+Pass	Initial directionality of element div3_1 is rtl	
+Pass	Initial directionality of element div3_2 is ltr	
+Pass	Initial directionality of element div4 is ltr	
+Pass	Initial directionality of element div4_1 is ltr	
+Pass	Initial directionality of element div4_1_1 is ltr	
+Pass	Updated directionality of element div1 is rtl	
+Pass	Updated directionality of element div1_1 is rtl	
+Pass	Updated directionality of element div1 is ltr	
+Pass	Updated directionality of element div1_1 is ltr	
+Pass	Reupdated directionality of element div1 is ltr	
+Pass	Reupdated directionality of element div1_1 is ltr	
+Pass	Updated directionality of element div2 is ltr	
+Pass	Updated directionality of element div3 is rtl	
+Pass	Updated directionality of element div3 is ltr	
+Pass	Updated directionality of element div4 is rtl	
+Pass	Updated directionality of element div4_1 is rtl	
+Pass	Updated directionality of element div4_1_1 is rtl	

@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<meta charset="utf-8" />
+<title>CSS Test (Selectors): By default programatic focus matches :focus-visible and it shows an auto focus ring</title>
+<link rel="author" title="Manuel Rego Casasnovas" href="mailto:rego@igalia.com">
+<link rel="help" href="https://drafts.csswg.org/selectors-4/#the-focus-visible-pseudo" />
+<link rel="help" href="https://html.spec.whatwg.org/#phrasing-content-3" />
+<meta name="timeout" content="long">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../support/parsing-testcommon.js"></script>
+<style>
+  #warning {
+    display: none;
+    background: red;
+  }
+
+  @supports not selector(:focus-visible) {
+    #instructions {
+      display: none;
+    }
+
+    #warning {
+      display: block;
+    }
+  }
+</style>
+
+<p>This test checks that by default, if using JavaScript to focus an element triggers <code>:focus-visible</code> matching, then the element should show a focus ring with <code>outline-style: auto</code>.</p>
+<ol id="instructions">
+  <li>Focus the following elements with the keyaboard navigation (pressing TAB), if the elements show a focus ring with <code>outline-style: auto</code>, then the test result is SUCCESS.</li>
+</ol>
+<p id="warning">Your user-agent does not support <code>:focus-visible</code> pseudo-class, please SKIP this test.</p>
+
+<abbr tabindex="0">abbr</abbr>
+<address tabindex="0">address</address>
+<a href="#">a</a>
+<bdi tabindex="0">bdi</bdi>
+<blockquote tabindex="0">blockquote</blockquote>
+<code tabindex="0">code</code>
+<dd tabindex="0">dd</dd>
+<details open><summary tabindex="0">summary</summary></details>
+<details tabindex="0"></details>
+<div tabindex="0">div</div>
+<dl tabindex="0">dl</dl>
+<dt tabindex="0">dt</dt>
+<em tabindex="0">em</em>
+<fieldset><legend tabindex="0">legend</legend></fieldset>
+<figcaption tabindex="0">figcaption</figcaption>
+<figure tabindex="0">figure</figure>
+<form tabindex="0">form</form>
+<hr tabindex="0" />
+<img tabindex="0" src="/images/green.png" />
+<label tabindex="0">label</label>
+<li tabindex="0">li</li>
+<mark tabindex="0">mark</mark>
+<meter tabindex="0"></meter>
+<ol tabindex="0">ol</ol>
+<pre tabindex="0">pre</pre>
+<progress tabindex="0"></progress>
+<p tabindex="0">p</p>
+<small tabindex="0">small</small>
+<s tabindex="0">s</s>
+<strong tabindex="0">strong</strong>
+<sub tabindex="0">sub</sub>
+<sup tabindex="0">sup</sup>
+<table><caption tabindex="0">caption</caption></table>
+<table tabindex="0"><td>table</td></table>
+<table><td tabindex="0">td</td></table>
+<time tabindex="0">time</time>
+<ul tabindex="0">ul</ul>
+<u tabindex="0">u</u>
+
+<script>
+  setup({ explicit_done: true });
+
+  // Check that :focus-visible is supported.
+  test_valid_selector(':focus-visible');
+
+  const elements = document.querySelectorAll("[tabindex]");
+  for (let i = 0; i < elements.length; i++) {
+    const target = elements[i];
+    promise_test(() => {
+      return new Promise(resolve => {
+        target.addEventListener("focus", resolve);
+        target.focus();
+        if (i == (elements.length - 1))
+          done();
+      }).then(() => {
+        assert_equals(getComputedStyle(target).outlineStyle, "auto", `outline-style for ${target.tagName} should be auto`);
+      });
+    }, `By default initial programatic focus matches ':focus-visible', so the element ${target.tagName} shows a focus ring with 'outline-style: auto'`);
+  }
+</script>

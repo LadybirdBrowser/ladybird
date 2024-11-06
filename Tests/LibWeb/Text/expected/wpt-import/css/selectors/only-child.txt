@@ -1,0 +1,15 @@
+Summary
+
+Harness status: OK
+
+Rerun
+
+Found 5 tests
+
+5 Pass
+Details
+Result	Test Name	MessagePass	Whitespace nodes should be ignored.	
+Pass	A comment node should be ignored.	
+Pass	Non-whitespace text node should be ignored.	
+Pass	There is another child element.	
+Pass	Dynamic addition and removal	
