@@ -1,0 +1,6 @@
+.test{span{color:red}span{color:green}}
+
+/*
+ * There needs to be some text here, or the bug
+ * will not manifest for unrelated reasons.
+ */

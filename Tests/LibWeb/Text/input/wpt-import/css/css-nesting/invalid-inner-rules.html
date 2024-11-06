@@ -1,0 +1,56 @@
+<!doctype html>
+<title>Simple CSSOM manipulation of subrules</title>
+<link rel="author" title="Steinar H. Gunderson" href="mailto:sesse@chromium.org">
+<link rel="help" href="https://drafts.csswg.org/css-nesting-1/">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+
+<style id="ss">
+div {
+  /* This is not a conditional rule, and thus cannot be in nesting context. */
+  @font-face {
+    &.a { font-size: 10px; }
+  }
+
+  @media screen {
+    &.a { color: red; }
+
+    /* Same. */
+    @font-face {
+      &.a { font-size: 10px; }
+    }
+  }
+}
+</style>
+
+<script>
+  test(() => {
+    let [ss] = document.styleSheets;
+    assert_equals(ss.cssRules.length, 1);
+
+    // The @font-face rule should be ignored.
+    assert_equals(ss.cssRules[0].cssText,
+`div {
+  @media screen {
+  &.a { color: red; }
+}
+}`);
+  });
+
+  test(() => {
+    let [ss] = document.styleSheets;
+    assert_equals(ss.cssRules.length, 1);
+    assert_throws_dom('HierarchyRequestError',
+      () => { ss.cssRules[0].cssRules[0].insertRule('@font-face {}', 0); });
+    assert_throws_dom('HierarchyRequestError',
+      () => { ss.cssRules[0].insertRule('@font-face {}', 0); });
+
+    // The @font-face rules should be ignored (again).
+    assert_equals(ss.cssRules[0].cssText,
+`div {
+  @media screen {
+  &.a { color: red; }
+}
+}`);
+  });
+</script>

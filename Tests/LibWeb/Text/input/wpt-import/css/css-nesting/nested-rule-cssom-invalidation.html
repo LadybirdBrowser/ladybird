@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<title>CSS Nesting: Style invalidates after CSSOM mutations to nested rules</title>
+<link rel="help" href="https://drafts.csswg.org/css-nesting-1/#nested-style-rule">
+<link rel="help" href="https://drafts.csswg.org/css-nesting-1/#nested-group-rules">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+
+<style id=set_parent_selector_text_style>
+  .set_parent_selector_text {
+    div {
+      color: red;
+    }
+    .a1 {
+      color: green;
+    }
+  }
+</style>
+<div class=set_parent_selector_text>
+  <div class=a1>A1</div>
+  <div class=a2>A2</div>
+</div>
+<script>
+  test(() => {
+    let a1 = document.querySelector('.set_parent_selector_text > .a1');
+    let a2 = document.querySelector('.set_parent_selector_text > .a2');
+    assert_equals(getComputedStyle(a1).color, 'rgb(0, 128, 0)');
+    assert_equals(getComputedStyle(a2).color, 'rgb(255, 0, 0)');
+
+    let rules = set_parent_selector_text_style.sheet.cssRules;
+    assert_equals(rules.length, 1);
+    assert_equals(rules[0].cssRules.length, 2);
+
+    let a_rule = rules[0].cssRules[1];
+    assert_equals(a_rule.selectorText, '& .a1');
+    a_rule.selectorText = '.a2';
+
+    assert_equals(getComputedStyle(a1).color, 'rgb(255, 0, 0)');
+    assert_equals(getComputedStyle(a2).color, 'rgb(0, 128, 0)');
+  }, 'Nested rule responds to parent selector text change');
+</script>
+

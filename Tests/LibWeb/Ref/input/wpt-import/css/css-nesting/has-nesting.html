@@ -1,0 +1,21 @@
+<!doctype html>
+<title>Nested has shouldn't match</title>
+<link rel="help" href="https://drafts.csswg.org/selectors/#relational">
+<link rel="help" href="https://bugzilla.mozilla.org/show_bug.cgi?id=1864647">
+<link rel="help" href="https://github.com/w3c/csswg-drafts/issues/9600">
+<link rel="match" href="../../../../expected/wpt-import/css/css-nesting/has-nesting-ref.html">
+<style>
+ul { background: green }
+
+li:has(strong) {
+  display: none;
+
+  :has(> &) {
+    background: red;
+  }
+}
+</style>
+<ul>
+  <li><strong>Foo</strong></li>
+  <li>Bar</li>
+</ul>

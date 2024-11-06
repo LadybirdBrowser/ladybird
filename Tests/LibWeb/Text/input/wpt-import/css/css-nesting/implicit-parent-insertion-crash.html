@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<body>
+<title>Use-after-free when inserting implicit parent selector</title>
+<link rel="help" href="https://crbug.com/1380313">
+<style>
+:root {
+  :lang(en), :lang(en) {
+  }
+}
+</style>
+<div lang="en"></div>
+<script>
+  // Allocate a large chunk of memory, to trigger a GC.
+  new Int32Array(536870911);
+</script>
+

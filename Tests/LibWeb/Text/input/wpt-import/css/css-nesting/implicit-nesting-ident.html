@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<title>CSS Nesting: Implicit nesting (ident)</title>
+<link rel="help" href="https://drafts.csswg.org/css-nesting-1/">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<style>
+  #main {
+    div {
+      color: green;
+    }
+  }
+</style>
+<div id=main>
+  <div id=target>
+    Green
+  </div>
+</main>
+<script>
+  test(() => {
+    assert_equals(getComputedStyle(target).color, 'rgb(0, 128, 0)');
+  }, 'Nested rule starting with tag');
+</script>

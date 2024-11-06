@@ -1,0 +1,34 @@
+<!doctype html>
+<title>CSS Selectors nested invalidation with :has()</title>
+<link rel="author" title="Steinar H. Gunderson" href="mailto:sesse@chromium.org">
+<link rel="help" href="https://drafts.csswg.org/css-nesting-1/">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+
+<style>
+  .a {
+    color: red;
+    :has(&) {
+      color: green;
+    }
+  }
+</style>
+
+<div id="container">
+  Test passes if color is green.
+  <div>
+    <div id="child"></div>
+  </div>
+</div>
+
+<script>
+  test(() => {
+    let container = document.getElementById('container');
+    let child = document.getElementById('child');
+    assert_equals(getComputedStyle(container).color, 'rgb(0, 0, 0)');
+    assert_equals(getComputedStyle(child).color, 'rgb(0, 0, 0)');
+    child.classList.add('a');
+    assert_equals(getComputedStyle(container).color, 'rgb(0, 128, 0)');
+    assert_equals(getComputedStyle(child).color, 'rgb(255, 0, 0)');
+  });
+</script>

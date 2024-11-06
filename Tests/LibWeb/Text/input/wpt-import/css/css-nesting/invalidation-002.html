@@ -1,0 +1,33 @@
+<!doctype html>
+<title>CSS Selectors nested invalidation on changed child</title>
+<link rel="author" title="Steinar H. Gunderson" href="mailto:sesse@chromium.org">
+<link rel="help" href="https://drafts.csswg.org/css-nesting-1/">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+
+<style>
+  .a {
+    color: green;
+  }
+  .a {
+    & .b {
+      color: red;
+    }
+  }
+</style>
+
+<div id="container" class="a">
+  <div id="child" class="b">
+    Test passes if color is green.
+  </div>
+</div>
+
+<script>
+  test(() => {
+    let container = document.getElementById('container');
+    let child = document.getElementById('child');
+    assert_equals(getComputedStyle(child).color, 'rgb(255, 0, 0)');
+    child.classList.remove('b');
+    assert_equals(getComputedStyle(child).color, 'rgb(0, 128, 0)');
+  });
+</script>

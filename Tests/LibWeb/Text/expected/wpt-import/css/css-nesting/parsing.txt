@@ -1,0 +1,43 @@
+Summary
+
+Harness status: OK
+
+Rerun
+
+Found 32 tests
+
+31 Pass
+1 Fail
+Details
+Result	Test Name	MessagePass	.foo { & { color: green; }}	
+Pass	.foo { &.bar { color: green; }}	
+Pass	.foo { & .bar { color: green; }}	
+Pass	.foo { & > .bar { color: green; }}	
+Pass	.foo { > .bar { color: green; }}	
+Pass	.foo { > & .bar { color: green; }}	
+Pass	.foo { + .bar & { color: green; }}	
+Pass	.foo { + .bar, .foo, > .baz { color: green; }}	
+Pass	.foo { .foo { color: green; }}	
+Pass	.foo { .test > & .bar { color: green; }}	
+Pass	.foo { .foo, .foo & { color: green; }}	
+Pass	.foo { .foo, .bar { color: green; }}	
+Pass	.foo { :is(.bar, .baz) { color: green; }}	
+Pass	.foo { &:is(.bar, .baz) { color: green; }}	
+Pass	.foo { :is(.bar, &.baz) { color: green; }}	
+Pass	.foo { &:is(.bar, &.baz) { color: green; }}	
+Pass	.foo { div& { color: green; }}	
+Fail	INVALID: .foo { &div { color: green; }}	
+Pass	.foo { .class& { color: green; }}	
+Pass	.foo { &.class { color: green; }}	
+Pass	.foo { [attr]& { color: green; }}	
+Pass	.foo { &[attr] { color: green; }}	
+Pass	.foo { #id& { color: green; }}	
+Pass	.foo { &#id { color: green; }}	
+Pass	.foo { :hover& { color: green; }}	
+Pass	.foo { &:hover { color: green; }}	
+Pass	.foo { :is(div)& { color: green; }}	
+Pass	.foo { &:is(div) { color: green; }}	
+Pass	.foo { & .bar & .baz & .qux { color: green; }}	
+Pass	.foo { && { color: green; }}	
+Pass	.foo { & > section, & > article { color: green; }}	
+Pass	.foo, .bar { & + .baz, &.qux { color: green; }}	
