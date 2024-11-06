@@ -1302,36 +1302,33 @@ Messages::WebDriverClient::IsElementSelectedResponse WebDriverConnection::is_ele
 // 12.4.2 Get Element Attribute, https://w3c.github.io/webdriver/#dfn-get-element-attribute
 Messages::WebDriverClient::GetElementAttributeResponse WebDriverConnection::get_element_attribute(String const& element_id, String const& name)
 {
-    // 1. If the current browsing context is no longer open, return error with error code no such window.
+    // 1. If session's current browsing context is no longer open, return error with error code no such window.
     TRY(ensure_current_browsing_context_is_open());
 
-    // 2. Handle any user prompts and return its value if it is an error.
+    // 2. Try to handle any user prompts with session.
     handle_any_user_prompts([this, element_id, name]() {
-        // 3. Let element be the result of trying to get a known connected element with url variable element id.
+        // 3. Let element be the result of trying to get a known element with session and URL variables' element id.
         auto element = WEBDRIVER_TRY(Web::WebDriver::get_known_element(current_browsing_context(), element_id));
 
-        // 4. Let result be the result of the first matching condition:
-        Optional<ByteString> result;
+        // 4. Let name be URL variables["name"].
+        // 5. Let result be the result of the first matching condition:
+        String result {};
 
         // -> If name is a boolean attribute
         if (Web::HTML::is_boolean_attribute(name)) {
-            // "true" (string) if the element has the attribute, otherwise null.
+            // "true" (string) if the element hasAttribute() with name, otherwise null.
             if (element->has_attribute(name))
-                result = "true"sv;
+                result = "true"_string;
         }
         // -> Otherwise
         else {
             // The result of getting an attribute by name name.
             if (auto attr = element->get_attribute(name); attr.has_value())
-                result = attr->to_byte_string();
+                result = attr.release_value();
         }
 
         // 5. Return success with data result.
-        if (result.has_value()) {
-            async_driver_execution_complete({ result.release_value() });
-            return;
-        }
-        async_driver_execution_complete(JsonValue {});
+        async_driver_execution_complete({ result.to_byte_string() });
     });
 
     return JsonValue {};

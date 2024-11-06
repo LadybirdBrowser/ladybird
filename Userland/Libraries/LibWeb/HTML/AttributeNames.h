@@ -60,6 +60,8 @@ namespace AttributeNames {
     __ENUMERATE_HTML_ATTRIBUTE(datetime)                   \
     __ENUMERATE_HTML_ATTRIBUTE(declare)                    \
     __ENUMERATE_HTML_ATTRIBUTE(default_)                   \
+    __ENUMERATE_HTML_ATTRIBUTE(defaultchecked)             \
+    __ENUMERATE_HTML_ATTRIBUTE(defaultselected)            \
     __ENUMERATE_HTML_ATTRIBUTE(defer)                      \
     __ENUMERATE_HTML_ATTRIBUTE(dir)                        \
     __ENUMERATE_HTML_ATTRIBUTE(direction)                  \
@@ -67,6 +69,7 @@ namespace AttributeNames {
     __ENUMERATE_HTML_ATTRIBUTE(disabled)                   \
     __ENUMERATE_HTML_ATTRIBUTE(download)                   \
     __ENUMERATE_HTML_ATTRIBUTE(enctype)                    \
+    __ENUMERATE_HTML_ATTRIBUTE(ended)                      \
     __ENUMERATE_HTML_ATTRIBUTE(event)                      \
     __ENUMERATE_HTML_ATTRIBUTE(face)                       \
     __ENUMERATE_HTML_ATTRIBUTE(fetchpriority)              \
@@ -90,9 +93,11 @@ namespace AttributeNames {
     __ENUMERATE_HTML_ATTRIBUTE(id)                         \
     __ENUMERATE_HTML_ATTRIBUTE(imagesizes)                 \
     __ENUMERATE_HTML_ATTRIBUTE(imagesrcset)                \
+    __ENUMERATE_HTML_ATTRIBUTE(indeterminate)              \
     __ENUMERATE_HTML_ATTRIBUTE(inert)                      \
     __ENUMERATE_HTML_ATTRIBUTE(integrity)                  \
     __ENUMERATE_HTML_ATTRIBUTE(is)                         \
+    __ENUMERATE_HTML_ATTRIBUTE(iscontenteditable)          \
     __ENUMERATE_HTML_ATTRIBUTE(ismap)                      \
     __ENUMERATE_HTML_ATTRIBUTE(itemscope)                  \
     __ENUMERATE_HTML_ATTRIBUTE(kind)                       \
@@ -212,6 +217,7 @@ namespace AttributeNames {
     __ENUMERATE_HTML_ATTRIBUTE(open)                       \
     __ENUMERATE_HTML_ATTRIBUTE(optimum)                    \
     __ENUMERATE_HTML_ATTRIBUTE(pattern)                    \
+    __ENUMERATE_HTML_ATTRIBUTE(paused)                     \
     __ENUMERATE_HTML_ATTRIBUTE(ping)                       \
     __ENUMERATE_HTML_ATTRIBUTE(placeholder)                \
     __ENUMERATE_HTML_ATTRIBUTE(playsinline)                \
@@ -232,6 +238,7 @@ namespace AttributeNames {
     __ENUMERATE_HTML_ATTRIBUTE(scrollamount)               \
     __ENUMERATE_HTML_ATTRIBUTE(scrolldelay)                \
     __ENUMERATE_HTML_ATTRIBUTE(scrolling)                  \
+    __ENUMERATE_HTML_ATTRIBUTE(seeking)                    \
     __ENUMERATE_HTML_ATTRIBUTE(selected)                   \
     __ENUMERATE_HTML_ATTRIBUTE(shadowrootclonable)         \
     __ENUMERATE_HTML_ATTRIBUTE(shadowrootdelegatesfocus)   \
@@ -265,6 +272,7 @@ namespace AttributeNames {
     __ENUMERATE_HTML_ATTRIBUTE(vlink)                      \
     __ENUMERATE_HTML_ATTRIBUTE(vspace)                     \
     __ENUMERATE_HTML_ATTRIBUTE(width)                      \
+    __ENUMERATE_HTML_ATTRIBUTE(willvalidate)               \
     __ENUMERATE_HTML_ATTRIBUTE(wrap)
 
 #define __ENUMERATE_HTML_ATTRIBUTE(name) extern FlyString name;
