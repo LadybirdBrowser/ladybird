@@ -62,6 +62,7 @@ enum class IsDescendant {
     X(AdoptedStyleSheetsList)                       \
     X(CSSFontLoaded)                                \
     X(CSSImportRule)                                \
+    X(CustomElementStateChange)                     \
     X(DidLoseFocus)                                 \
     X(DidReceiveFocus)                              \
     X(EditingInsertion)                             \

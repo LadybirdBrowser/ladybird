@@ -369,7 +369,7 @@ public:
     Optional<String> const& is_value() const { return m_is_value; }
     void set_is_value(Optional<String> const& is) { m_is_value = is; }
 
-    void set_custom_element_state(CustomElementState value) { m_custom_element_state = value; }
+    void set_custom_element_state(CustomElementState);
     void setup_custom_element_from_constructor(HTML::CustomElementDefinition& custom_element_definition, Optional<String> const& is_value);
 
     void scroll(HTML::ScrollToOptions);
