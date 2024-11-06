@@ -607,7 +607,7 @@ void FormAssociatedTextControlElement::handle_insert(String const& data)
     MUST(set_range_text(data_for_insertion, selection_start.value(), selection_end.value(), Bindings::SelectionMode::End));
 
     text_node->invalidate_style(DOM::StyleInvalidationReason::EditingInsertion);
-    text_node->editable_text_node_owner()->did_edit_text_node();
+    did_edit_text_node();
 }
 
 void FormAssociatedTextControlElement::handle_delete(DeleteDirection direction)

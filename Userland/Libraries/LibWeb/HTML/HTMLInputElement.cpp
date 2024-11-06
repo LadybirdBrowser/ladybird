@@ -850,7 +850,6 @@ void HTMLInputElement::create_text_input_shadow_tree()
 
     m_placeholder_text_node = heap().allocate<DOM::Text>(realm(), document(), String {});
     m_placeholder_text_node->set_data(placeholder());
-    m_placeholder_text_node->set_editable_text_node_owner(Badge<HTMLInputElement> {}, *this);
     MUST(m_placeholder_element->append_child(*m_placeholder_text_node));
 
     // https://www.w3.org/TR/css-ui-4/#input-rules
@@ -871,7 +870,6 @@ void HTMLInputElement::create_text_input_shadow_tree()
     } else {
         handle_readonly_attribute(attribute(HTML::AttributeNames::readonly));
     }
-    m_text_node->set_editable_text_node_owner(Badge<HTMLInputElement> {}, *this);
     if (type_state() == TypeAttributeState::Password)
         m_text_node->set_is_password_input({}, true);
     handle_maxlength_attribute();

@@ -50,7 +50,6 @@ namespace Web::HTML {
 class HTMLInputElement final
     : public HTMLElement
     , public FormAssociatedTextControlElement
-    , public DOM::EditableTextNodeOwner
     , public Layout::ImageProvider {
     WEB_PLATFORM_OBJECT(HTMLInputElement, HTMLElement);
     JS_DECLARE_ALLOCATOR(HTMLInputElement);
@@ -150,9 +149,6 @@ public:
 
     WebIDL::ExceptionOr<void> show_picker();
 
-    // ^DOM::EditableTextNodeOwner
-    virtual void did_edit_text_node() override;
-
     // ^EventTarget
     // https://html.spec.whatwg.org/multipage/interaction.html#the-tabindex-attribute:the-input-element
     // https://html.spec.whatwg.org/multipage/interaction.html#focusable-area
@@ -218,6 +214,8 @@ public:
 
     Optional<String> selection_direction_binding() { return selection_direction(); }
 
+    // ^FormAssociatedTextControlElement
+    virtual void did_edit_text_node() override;
     virtual JS::GCPtr<DOM::Text> form_associated_element_to_text_node() override { return m_text_node; }
 
 private:
