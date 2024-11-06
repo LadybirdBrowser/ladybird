@@ -184,8 +184,6 @@ TEST_CASE(split_view)
     Function<bool(char)> predicate = [](char ch) { return ch == 'x' || ch == '_'; };
     EXPECT_EQ(test_string_view.split_view_if(predicate), Vector({ "a"sv, "b"sv, "c"sv, "d"sv }));
     EXPECT_EQ(test_string_view.split_view_if(predicate, SplitBehavior::KeepEmpty), Vector({ "a"sv, ""sv, "b"sv, "c"sv, "d"sv }));
-    EXPECT_EQ(test_string_view.split_view_if(predicate), Vector({ "a"sv, "b"sv, "c"sv, "d"sv }));
-    EXPECT_EQ(test_string_view.split_view_if(predicate, SplitBehavior::KeepEmpty), Vector({ "a"sv, ""sv, "b"sv, "c"sv, "d"sv }));
 
     test_string_view = "a,,,b"sv;
     EXPECT_EQ(test_string_view.split_view(","sv, SplitBehavior::KeepEmpty), Vector({ "a"sv, ""sv, ""sv, "b"sv }));
