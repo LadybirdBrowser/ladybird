@@ -222,11 +222,18 @@ def main():
         raise RuntimeError('Failed to file reference path in ref test')
 
     if raw_reference_path is not None:
-        reference_path = Path(resource_path).parent.joinpath(raw_reference_path).__str__()
-        main_paths.append(PathMapping(
-            wpt_base_url + '/' + reference_path,
-            Path(test_type.expected_path + '/' + reference_path).absolute()
-        ))
+        if raw_reference_path.startswith('/'):
+            reference_path = raw_reference_path
+            main_paths.append(PathMapping(
+                wpt_base_url + raw_reference_path,
+                Path(test_type.expected_path + raw_reference_path).absolute()
+            ))
+        else:
+            reference_path = Path(resource_path).parent.joinpath(raw_reference_path).__str__()
+            main_paths.append(PathMapping(
+                wpt_base_url + '/' + reference_path,
+                Path(test_type.expected_path + '/' + reference_path).absolute()
+            ))
 
     files_to_modify = download_files(main_paths)
     create_expectation_files(main_paths)
