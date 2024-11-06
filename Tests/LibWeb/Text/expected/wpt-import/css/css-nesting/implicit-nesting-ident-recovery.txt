@@ -1,0 +1,12 @@
+Summary
+
+Harness status: OK
+
+Rerun
+
+Found 2 tests
+
+2 Pass
+Details
+Result	Test Name	MessagePass	Unknown declaration does not consume subsequent declaration	
+Pass	Unknown declaration with blocks does not consume subsequent declaration	

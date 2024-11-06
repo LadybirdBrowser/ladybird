@@ -1,0 +1,26 @@
+Summary
+
+Harness status: OK
+
+Rerun
+
+Found 15 tests
+
+4 Pass
+11 Fail
+Details
+Result	Test Name	MessageFail	Declarations are serialized on one line, rules on two.	
+Fail	Mixed declarations/rules are on two lines.	
+Fail	Implicit rule is serialized	
+Fail	Implicit rule not removed	
+Fail	Implicit + empty hover rule	
+Fail	Implicit like rule not in first position	
+Fail	Two implicit-like rules	
+Fail	Implicit like rule after decls	
+Fail	Implicit like rule after decls, missing closing braces	
+Fail	Implicit like rule with other selectors	
+Fail	Implicit-like rule in style rule	
+Pass	Empty conditional rule	
+Pass	Empty style rule	
+Pass	Empty conditional inside style rule	
+Pass	Empty style inside conditional	

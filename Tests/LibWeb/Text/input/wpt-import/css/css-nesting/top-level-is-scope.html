@@ -1,0 +1,30 @@
+<!doctype html>
+<title>Top-level & is treated like :scope</title>
+<link rel="author" title="Steinar H. Gunderson" href="mailto:sesse@chromium.org">
+<link rel="help" href="https://drafts.csswg.org/css-nesting-1/">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+
+<div id="p">
+  <div class="match" id="level1">
+    <div class="match" id="level2"></div>
+  </div>
+</div>
+
+<script>
+  test(() => {
+    let matched = [];
+    for (const elem of p.querySelectorAll('& .match')) {
+      matched.push(elem.getAttribute('id'));
+    }
+    assert_array_equals(matched, ['level1', 'level2']);
+  }, '& as direct ancestor');
+
+  test(() => {
+    let matched = [];
+    for (const elem of p.querySelectorAll('& > .match')) {
+      matched.push(elem.getAttribute('id'));
+    }
+    assert_array_equals(matched, ['level1']);
+  }, '& matches scoped element only, not everything');
+</script>

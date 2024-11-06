@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<title>Nest-containing in forgiving parsing</title>
+<link rel="author" title="Steinar H. Gunderson" href="mailto:sesse@chromium.org">
+<link rel="help" href="https://drafts.csswg.org/css-nesting-1/">
+<link rel="match" href="../../../../expected/wpt-import/css/css-nesting/nest-containing-forgiving-ref.html">
+<style>
+  .test {
+    background-color: red;
+    width: 100px;
+    height: 100px;
+    display: grid;
+  }
+
+  .does-not-exist {
+    :is(.test-1, !&) {
+      background-color: green;
+    }
+  }
+
+  .does-not-exist {
+    :is(.test-2, :unknown(div,&)) {
+      background-color: green;
+    }
+  }
+
+  body * + * {
+    margin-top: 8px;
+  }
+</style>
+<body>
+  <p>Tests pass if <strong>block is green</strong></p>
+  <div class="test test-1"></div>
+  <div class="test test-2"></div>
+</body>

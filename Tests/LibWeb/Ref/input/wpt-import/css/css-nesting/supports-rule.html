@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<title>@supports with nesting</title>
+<link rel="author" title="Matthieu Dubet" href="mailto:m_dubet@apple.com">
+<link rel="help" href="https://drafts.csswg.org/css-nesting-1/">
+<link rel="match" href="../../../../expected/wpt-import/css/css-nesting/supports-rule-ref.html">
+<style>
+  .test {
+    background-color: red;
+    width: 100px;
+    height: 100px;
+    display: grid;
+  }
+
+  @supports(not selector(> .test-1)) {
+    .test-1 {
+      background-color: green;
+    }
+  }
+
+  .test {
+    > .test-2 {
+      background-color: green;
+    }
+    @supports (selector(> .test-2)) {
+      > .test-2 {
+        background-color: red;
+      }
+    }
+  }
+
+  .test-3 {
+    @supports (selector(&)) {
+      & {
+        background-color: green;
+      }
+    }
+  }
+
+  @supports(selector(&)) {
+    .test-4 {
+      background-color: green;
+    }
+  }
+
+  body * + * {
+    margin-top: 8px;
+  }
+</style>
+<body>
+  <p>Tests pass if <strong>block is green</strong></p>
+  <div class="test test-1"></div>
+  <div class="test"><div class="test-2"></div></div>
+  <div class="test test-3"></div>
+  <div class="test test-4"></div>
+</body>

@@ -1,0 +1,17 @@
+<!doctype html>
+<title>CSS Nesting bug: Block ignored after lack of whitespace</title>
+<link rel="help" href="https://crbug.com/362674384">
+<link rel="stylesheet" href="block-skipping.css">  <!-- Bug only manifests in external stylesheets. -->
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+
+<div class="test">
+  <span id="target">Test passes if this text is green.</span>
+</div>
+
+<script>
+test(() => {
+  assert_equals(getComputedStyle(target).color, 'rgb(0, 128, 0)');
+});
+</script>
+

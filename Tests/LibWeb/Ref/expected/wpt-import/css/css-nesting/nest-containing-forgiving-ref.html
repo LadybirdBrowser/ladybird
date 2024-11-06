@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<title>Nest-containing in forgiving parsing</title>
+<style>
+  .test {
+    background-color: green;
+    width: 100px;
+    height: 100px;
+    display: grid;
+  }
+
+  body * + * {
+    margin-top: 8px;
+  }
+</style>
+<body>
+  <p>Tests pass if <strong>block is green</strong></p>
+  <div class="test"></div>
+  <div class="test"></div>
+</body>

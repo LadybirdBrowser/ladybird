@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<title>@supports needs to be consistent with actual nesting support</title>
+<link rel="author" title="Steinar H. Gunderson" href="mailto:sesse@chromium.org">
+<link rel="help" href="https://crbug.com/1414012">
+<link rel="match" href="../../../../expected/wpt-import/css/css-nesting/supports-is-consistent-ref.html">
+<style>
+  /* This test is expected to pass even if the browser does not support nesting. */
+  @supports selector(&) {
+    p {
+      color: red;
+      & { color: inherit; }
+    }
+  }
+</style>
+<body>
+  <p>Test passes if this text is not red</p>
+</body>
