@@ -6,7 +6,7 @@ Rerun
 
 Found 2 tests
 
-2 Fail
+2 Pass
 Details
-Result	Test Name	MessageFail	Adding multiple nodes at once should invalidate :first-child correctly.	
-Fail	Adding multiple nodes at once should invalidate :last-child correctly.	
+Result	Test Name	MessagePass	Adding multiple nodes at once should invalidate :first-child correctly.	
+Pass	Adding multiple nodes at once should invalidate :last-child correctly.	
