@@ -71,7 +71,7 @@ Optional<float> CSSColorValue::resolve_with_reference_value(CSSStyleValue const&
 {
     // <percentage> | <number> | none
     auto normalize_percentage = [one_hundred_percent_value](Percentage const& percentage) {
-        return percentage.as_fraction() * one_hundred_percent_value;
+        return static_cast<float>(percentage.as_fraction()) * one_hundred_percent_value;
     };
 
     if (style_value.is_percentage())
