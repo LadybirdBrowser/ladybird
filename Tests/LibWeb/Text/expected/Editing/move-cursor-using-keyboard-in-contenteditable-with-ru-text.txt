@@ -1,0 +1,7 @@
+selection anchorOffset: 6 focusOffset: 6
+> Pressing Left key
+selection anchorOffset: 5 focusOffset: 5
+> Pressing Left key
+selection anchorOffset: 4 focusOffset: 4
+> Pressing Right key
+selection anchorOffset: 5 focusOffset: 5

@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    #editable {
+        border: 2px solid #333;
+        padding: 20px;
+        max-width: 600px;
+        min-height: 200px;
+        background-color: #f9f9f9;
+    }
+</style>
+<div id="editable" contenteditable="true">привет</div>
+<script>
+    test(() => {
+        const editable = document.getElementById("editable");
+        // Focusing of contenteditable should move the cursor to the end of the text in it
+        editable.focus();
+
+        const selection = window.getSelection();
+        println(`selection anchorOffset: ${selection.anchorOffset} focusOffset: ${selection.focusOffset}`);
+
+        println("> Pressing Left key");
+        internals.sendKey(editable, "Left", 0);
+        println(`selection anchorOffset: ${selection.anchorOffset} focusOffset: ${selection.focusOffset}`);
+
+        println("> Pressing Left key");
+        internals.sendKey(editable, "Left", 0);
+        println(`selection anchorOffset: ${selection.anchorOffset} focusOffset: ${selection.focusOffset}`);
+
+        println("> Pressing Right key");
+        internals.sendKey(editable, "Right", 0);
+        println(`selection anchorOffset: ${selection.anchorOffset} focusOffset: ${selection.focusOffset}`);
+    });
+</script>
