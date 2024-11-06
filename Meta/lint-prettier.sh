@@ -30,8 +30,8 @@ if (( ${#files[@]} )); then
         exit 1
     fi
 
-    if ! prettier --version | grep -q '\b2\.' ; then
-        echo "You are using '$(prettier --version)', which appears to not be prettier 2."
+    if ! prettier --version | grep -q '\b3\.' ; then
+        echo "You are using '$(prettier --version)', which appears to not be prettier 3."
         exit 1
     fi
 

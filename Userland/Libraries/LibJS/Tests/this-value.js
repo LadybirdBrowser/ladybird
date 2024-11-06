@@ -177,7 +177,7 @@ describe("functions on created objects", () => {
 
             expect(obj2.func()).toBe(obj2);
             expect(obj2.arrow()).toBe(customThisValue);
-        }.bind(customThisValue)());
+        }).bind(customThisValue)();
     });
 });
 
