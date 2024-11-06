@@ -31,12 +31,14 @@ void HTMLHyperlinkElementUtils::set_the_url()
     auto href_content_attribute = hyperlink_element_utils_href();
     if (!href_content_attribute.has_value()) {
         m_url = {};
+        hyperlink_element_utils_element().invalidate_style(DOM::StyleInvalidationReason::HTMLHyperlinkElementHrefChange);
         return;
     }
 
     // 2. Otherwise, parse this element's href content attribute value relative to this element's node document.
     //    If parsing is successful, set this element's url to the result; otherwise, set this element's url to null.
     m_url = hyperlink_element_utils_document().parse_url(*href_content_attribute);
+    hyperlink_element_utils_element().invalidate_style(DOM::StyleInvalidationReason::HTMLHyperlinkElementHrefChange);
 }
 
 // https://html.spec.whatwg.org/multipage/links.html#dom-hyperlink-origin

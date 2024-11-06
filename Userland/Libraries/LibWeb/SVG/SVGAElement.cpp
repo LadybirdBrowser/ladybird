@@ -37,6 +37,9 @@ void SVGAElement::visit_edges(Cell::Visitor& visitor)
 void SVGAElement::attribute_changed(FlyString const& name, Optional<String> const& old_value, Optional<String> const& value)
 {
     Base::attribute_changed(name, old_value, value);
+    if (name == SVG::AttributeNames::href) {
+        invalidate_style(DOM::StyleInvalidationReason::HTMLHyperlinkElementHrefChange);
+    }
     if (name == HTML::AttributeNames::rel) {
         if (m_rel_list)
             m_rel_list->associated_attribute_changed(value.value_or(String {}));
