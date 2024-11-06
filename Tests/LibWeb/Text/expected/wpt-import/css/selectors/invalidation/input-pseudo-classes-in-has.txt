@@ -1,0 +1,20 @@
+Summary
+
+Harness status: OK
+
+Rerun
+
+Found 10 tests
+
+10 Fail
+Details
+Result	Test Name	MessageFail	:checked & :indeterminate invalidation on <input>	
+Fail	:indeterminate invalidation on <progress>	
+Fail	:disabled invalidation	
+Fail	:read-only invalidation	
+Fail	:valid invalidation	
+Fail	:default invalidation with input[type=radio]	
+Fail	:required invalidation	
+Fail	:out-of-range invalidation	
+Fail	:placeholder-shown invalidation	
+Fail	:default invalidation with input[type=checkbox] and assignment to .checked	

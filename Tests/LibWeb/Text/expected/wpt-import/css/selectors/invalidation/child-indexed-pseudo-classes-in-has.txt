@@ -1,0 +1,76 @@
+Summary
+
+Harness status: OK
+
+Rerun
+
+Found 66 tests
+
+66 Pass
+Details
+Result	Test Name	MessagePass	Initial colors: #only_child	
+Pass	Initial colors: #first_child	
+Pass	Initial colors: #last_child	
+Pass	Initial colors: #nth_child_3n_1	
+Pass	Initial colors: #nth_child_3n_2	
+Pass	Initial colors: #nth_child_3n	
+Pass	Prepend #div1.green: #only_child	
+Pass	Prepend #div1.green: #first_child	
+Pass	Prepend #div1.green: #last_child	
+Pass	Prepend #div1.green: #nth_child_3n_1	
+Pass	Prepend #div1.green: #nth_child_3n_2	
+Pass	Prepend #div1.green: #nth_child_3n	
+Pass	Prepend #div2.yellow: #only_child	
+Pass	Prepend #div2.yellow: #first_child	
+Pass	Prepend #div2.yellow: #last_child	
+Pass	Prepend #div2.yellow: #nth_child_3n_1	
+Pass	Prepend #div2.yellow: #nth_child_3n_2	
+Pass	Prepend #div2.yellow: #nth_child_3n	
+Pass	Prepend #div3.orange: #only_child	
+Pass	Prepend #div3.orange: #first_child	
+Pass	Prepend #div3.orange: #last_child	
+Pass	Prepend #div3.orange: #nth_child_3n_1	
+Pass	Prepend #div3.orange: #nth_child_3n_2	
+Pass	Prepend #div3.orange: #nth_child_3n	
+Pass	Prepend #div4: #only_child	
+Pass	Prepend #div4: #first_child	
+Pass	Prepend #div4: #last_child	
+Pass	Prepend #div4: #nth_child_3n_1	
+Pass	Prepend #div4: #nth_child_3n_2	
+Pass	Prepend #div4: #nth_child_3n	
+Pass	Prepend #div5: #only_child	
+Pass	Prepend #div5: #first_child	
+Pass	Prepend #div5: #last_child	
+Pass	Prepend #div5: #nth_child_3n_1	
+Pass	Prepend #div5: #nth_child_3n_2	
+Pass	Prepend #div5: #nth_child_3n	
+Pass	Remove #div1: #only_child	
+Pass	Remove #div1: #first_child	
+Pass	Remove #div1: #last_child	
+Pass	Remove #div1: #nth_child_3n_1	
+Pass	Remove #div1: #nth_child_3n_2	
+Pass	Remove #div1: #nth_child_3n	
+Pass	Remove #div2: #only_child	
+Pass	Remove #div2: #first_child	
+Pass	Remove #div2: #last_child	
+Pass	Remove #div2: #nth_child_3n_1	
+Pass	Remove #div2: #nth_child_3n_2	
+Pass	Remove #div2: #nth_child_3n	
+Pass	Remove #div3: #only_child	
+Pass	Remove #div3: #first_child	
+Pass	Remove #div3: #last_child	
+Pass	Remove #div3: #nth_child_3n_1	
+Pass	Remove #div3: #nth_child_3n_2	
+Pass	Remove #div3: #nth_child_3n	
+Pass	Remove #div4: #only_child	
+Pass	Remove #div4: #first_child	
+Pass	Remove #div4: #last_child	
+Pass	Remove #div4: #nth_child_3n_1	
+Pass	Remove #div4: #nth_child_3n_2	
+Pass	Remove #div4: #nth_child_3n	
+Pass	Remove #div5: #only_child	
+Pass	Remove #div5: #first_child	
+Pass	Remove #div5: #last_child	
+Pass	Remove #div5: #nth_child_3n_1	
+Pass	Remove #div5: #nth_child_3n_2	
+Pass	Remove #div5: #nth_child_3n	

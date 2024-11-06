@@ -1,0 +1,27 @@
+<!-- Quirks mode -->
+<meta charset="utf-8">
+<title>Invalidation of style due to a dynamic stylesheet change in quirks mode</title>
+<link rel="help" href="https://html.spec.whatwg.org/#case-sensitivity-of-selectors">
+<link rel="help" href="https://bugzilla.mozilla.org/show_bug.cgi?id=1433589">
+<link rel="author" title="Emilio Cobos Álvarez" href="mailto:emilio@crisal.io">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<style>
+  #foo {
+    width: 100px;
+    height: 100px;
+    background: red;
+  }
+</style>
+Should see a green square below.
+<div id="foo"></div>
+<script>
+test(function() {
+  let foo = document.getElementById('foo');
+  assert_equals(getComputedStyle(foo).backgroundColor, "rgb(255, 0, 0)");
+  let style = document.createElement('style');
+  style.textContent = "#FoO { background: green; }";
+  document.body.appendChild(style);
+  assert_equals(getComputedStyle(foo).backgroundColor, "rgb(0, 128, 0)");
+}, "Style should've changed to a green background");
+</script>

@@ -1,0 +1,12 @@
+Summary
+
+Harness status: OK
+
+Rerun
+
+Found 2 tests
+
+2 Fail
+Details
+Result	Test Name	MessageFail	::part():dir() invalidation	
+Fail	::part():dir() invalidation from setAttribute	

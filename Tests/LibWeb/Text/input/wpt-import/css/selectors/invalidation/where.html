@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>CSS Selectors Invalidation: :where()</title>
+    <link rel="author" title="Victoria Su" href="mailto:victoriaytsu@google.com">
+    <link rel="help" href="https://drafts.csswg.org/selectors-4/#zero-matches">
+    <meta name="assert" content="This tests that the :where() selector is effective">
+    <script src="../../../resources/testharness.js"></script>
+    <script src="../../../resources/testharnessreport.js"></script>
+    <style>
+      * {
+        color: black;
+      }
+      .b {
+        color: yellow;
+      }
+      /*Simple selector arguments */
+      :where(.b, .c) {
+        color: red;
+      }
+      /*Compound selector arguments */
+      .a~:where(.c#d, .e) {
+        color: green;
+      }
+      /* Complex selector arguments */
+      .h {
+        color: red;
+      }
+      :where(.a~.h, .a~.h+.f) {
+        color: yellow;
+      }
+      /* Nested */
+      :where(.a>:where(.g+.h, .b)~.i) {
+        color: blue;
+      }
+      :where(:is(.a~.h)) {
+        color: yellow;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="a1">
+      <div class="g">
+      </div>
+      <div class="h">
+      </div>
+      <div class="i" id="i1">
+        Blue
+      </div>
+    </div>
+    <div class="b" id="b1">
+      Yellow
+    </div>
+    <div class="c" id="c1">
+      Red
+    </div>
+    <div class="c" id="d">
+      Green
+    </div>
+    <div class="h" id="h1">
+      Red
+    </div>
+    <div class="f" id="f1">
+      Yellow
+    </div>
+    <script>
+      document.body.offsetTop;
+
+      var black = "rgb(0, 0, 0)";
+      var green = "rgb(0, 128, 0)";
+      var red = "rgb(255, 0, 0)";
+      var yellow = "rgb(255, 255, 0)";
+      var blue = "rgb(0, 0, 255)";
+
+      test(() => {
+        assert_equals(getComputedStyle(b1).color, yellow);
+        assert_equals(getComputedStyle(c1).color, red);
+        assert_equals(getComputedStyle(d).color, red);
+        assert_equals(getComputedStyle(h1).color, red);
+        assert_equals(getComputedStyle(f1).color, black);
+        assert_equals(getComputedStyle(i1).color, black);
+      }, "Preconditions.");
+
+      test(() => {
+        a1.className = "a";
+        assert_equals(getComputedStyle(b1).color, yellow);
+        assert_equals(getComputedStyle(c1).color, red);
+      }, "Invalidate :where() for simple selector arguments.");
+
+      test(() => {
+        a1.className = "a";
+        assert_equals(getComputedStyle(d).color, green);
+      }, "Invalidate :where() for compound selector arguments.");
+
+      test(() => {
+        a1.className = "a";
+        assert_equals(getComputedStyle(h1).color, red);
+        assert_equals(getComputedStyle(f1).color, yellow);
+      }, "Invalidate :where() for complex selector arguments.");
+
+      test(() => {
+        a1.className = "a";
+        assert_equals(getComputedStyle(i1).color, blue);
+      }, "Invalidate nested :where().");
+
+    </script>
+  </body>
+</html>

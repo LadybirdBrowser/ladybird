@@ -1,0 +1,63 @@
+<!doctype html>
+<title>::part():dir() invalidation</title>
+<link rel="author" title="Keith Cirkel" href="mailto:wpt@keithcirkel.co.uk" />
+<link rel="help" href="https://drafts.csswg.org/css-shadow-parts/#part" />
+<link rel="help" href="https://github.com/whatwg/html/pull/8467" />
+<style>
+  my-element::part(inner) {
+    background-color: #ff0000;
+  }
+  my-element::part(inner):dir(ltr) {
+    background-color: #00ff00;
+  }
+  my-element::part(inner):dir(rtl) {
+    background-color: #0000ff;
+  }
+</style>
+<body>
+  <my-element id="subject"></my-element>
+  <script src="../../../resources/testharness.js"></script>
+  <script src="../../../resources/testharnessreport.js"></script>
+  <script>
+    const RED = "rgb(255, 0, 0)";
+    const GREEN = "rgb(0, 255, 0)";
+    const BLUE = "rgb(0, 0, 255)";
+    customElements.define(
+      "my-element",
+      class MyElement extends HTMLElement {
+        connectedCallback() {
+          this.attachShadow({
+            mode: "open",
+          }).innerHTML = `<div part="inner">Test</div>`;
+          this.elementInternals = this.attachInternals();
+        }
+
+        get inner() {
+          return this.shadowRoot.querySelector("[part=inner]");
+        }
+      },
+    );
+
+    test((t) => {
+      t.add_cleanup(() => {
+        subject.inner.lang = null;
+      });
+      assert_equals(getComputedStyle(subject.inner).backgroundColor, GREEN);
+      subject.inner.dir = "rtl";
+      assert_equals(getComputedStyle(subject.inner).backgroundColor, BLUE);
+      subject.inner.dir = "ltr";
+      assert_equals(getComputedStyle(subject.inner).backgroundColor, GREEN);
+    }, "::part():dir() invalidation");
+
+    test((t) => {
+      t.add_cleanup(() => {
+        subject.removeAttribute("dir");
+      });
+      assert_equals(getComputedStyle(subject.inner).backgroundColor, GREEN);
+      subject.inner.setAttribute("dir", "rtl");
+      assert_equals(getComputedStyle(subject.inner).backgroundColor, BLUE);
+      subject.inner.removeAttribute("dir");
+      assert_equals(getComputedStyle(subject.inner).backgroundColor, GREEN);
+    }, "::part():dir() invalidation from setAttribute");
+  </script>
+</body>

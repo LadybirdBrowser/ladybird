@@ -1,0 +1,37 @@
+Summary
+
+Harness status: OK
+
+Rerun
+
+Found 26 tests
+
+1 Pass
+25 Fail
+Details
+Result	Test Name	MessageFail	Initial color	
+Fail	Add .descendant to #shadow_child	
+Fail	Remove .descendant from #shadow_child	
+Fail	Add .descendant to #shadow_descendant	
+Fail	Add .ancestor to #shadow_child:has(.descendant)	
+Fail	Remove .ancestor from #shadow_child:has(.descendant)	
+Pass	Add .child to #shadow_child:has(.descendant)	
+Fail	Remove .child from #shadow_child:has(.descendant)	
+Fail	Remove .descendant from #shadow_descendant	
+Fail	Add .child to #shadow_child	
+Fail	Add .grand_child to #shadow_descendant	
+Fail	Add .host_context to #host	
+Fail	Add .descendant to #shadow_descendant.grand_child	
+Fail	Remove .descendant from #shadow_descendant.grand_child	
+Fail	Remove .grand_child from #shadow_descendant	
+Fail	Remove .child from #shadow_child	
+Fail	Add .child to #shadow_descendant	
+Fail	Remove .child from #shadow_descendant	
+Fail	Insert #first_child.descendant to shadow root	
+Fail	Remove #first_child.descendant from shadow root	
+Fail	Insert #last_child.descendant to shadow root	
+Fail	Remove #last_child.descendant from shadow root	
+Fail	Insert #child_in_middle.descendant before #shadow_child	
+Fail	Remove #child_in_middle.descendant from shadow root	
+Fail	Insert #grand_child.descendant before #shadow_descendant	
+Fail	Remove #grand_child.descendant from shadow tree	

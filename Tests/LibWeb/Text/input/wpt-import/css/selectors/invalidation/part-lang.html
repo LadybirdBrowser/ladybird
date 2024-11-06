@@ -1,0 +1,73 @@
+<!doctype html>
+<title>::part():lang() invalidation</title>
+<link rel="author" title="Keith Cirkel" href="mailto:wpt@keithcirkel.co.uk" />
+<link rel="help" href="https://drafts.csswg.org/css-shadow-parts/#part" />
+<link rel="help" href="https://github.com/whatwg/html/pull/8467" />
+<style>
+  my-element::part(inner) {
+    background-color: #ff0000;
+  }
+  my-element::part(inner):lang(en) {
+    background-color: #00ffff;
+  }
+  my-element::part(inner):lang(en-GB) {
+    background-color: #00ff00;
+  }
+  my-element::part(inner):lang(fr) {
+    background-color: #0000ff;
+  }
+</style>
+<body>
+  <my-element id="subject" lang="en"></my-element>
+  <script src="../../../resources/testharness.js"></script>
+  <script src="../../../resources/testharnessreport.js"></script>
+  <script>
+    const RED = "rgb(255, 0, 0)";
+    const GREEN = "rgb(0, 255, 0)";
+    const BLUE = "rgb(0, 0, 255)";
+    const AQUA = "rgb(0, 255, 255)";
+    customElements.define(
+      "my-element",
+      class MyElement extends HTMLElement {
+        connectedCallback() {
+          this.attachShadow({
+            mode: "open",
+          }).innerHTML = `<div part="inner">Test</div>`;
+          this.elementInternals = this.attachInternals();
+        }
+
+        get inner() {
+          return this.shadowRoot.querySelector("[part=inner]");
+        }
+      },
+    );
+
+    test((t) => {
+      t.add_cleanup(() => {
+        subject.inner.removeAttribute("lang");
+      });
+      assert_equals(getComputedStyle(subject.inner).backgroundColor, AQUA);
+      subject.inner.lang = "en-GB";
+      assert_equals(getComputedStyle(subject.inner).backgroundColor, GREEN);
+      subject.inner.lang = "fr";
+      assert_equals(getComputedStyle(subject.inner).backgroundColor, BLUE);
+      subject.inner.lang = "en";
+      assert_equals(getComputedStyle(subject.inner).backgroundColor, AQUA);
+    }, "::part():lang() invalidation");
+
+    test((t) => {
+      t.add_cleanup(() => {
+        subject.inner.removeAttribute("lang");
+      });
+      assert_equals(getComputedStyle(subject.inner).backgroundColor, AQUA);
+      subject.inner.setAttribute("lang", "en-GB");
+      assert_equals(getComputedStyle(subject.inner).backgroundColor, GREEN);
+      subject.inner.setAttribute("lang", "en");
+      assert_equals(getComputedStyle(subject.inner).backgroundColor, AQUA);
+      subject.inner.setAttribute("lang", "fr");
+      assert_equals(getComputedStyle(subject.inner).backgroundColor, BLUE);
+      subject.inner.removeAttribute("lang");
+      assert_equals(getComputedStyle(subject.inner).backgroundColor, AQUA);
+    }, "::part():lang() invalidation from setAttribute");
+  </script>
+</body>

@@ -1,0 +1,112 @@
+Summary
+
+Harness status: OK
+
+Rerun
+
+Found 102 tests
+
+102 Pass
+Details
+Result	Test Name	MessagePass	Initial colors: #only_of_type	
+Pass	Initial colors: #first_of_type	
+Pass	Initial colors: #last_of_type	
+Pass	Initial colors: #nth_of_type_3n_1	
+Pass	Initial colors: #nth_of_type_3n_2	
+Pass	Initial colors: #nth_of_type_3n	
+Pass	Prepend span (1): #only_of_type	
+Pass	Prepend span (1): #first_of_type	
+Pass	Prepend span (1): #last_of_type	
+Pass	Prepend span (1): #nth_of_type_3n_1	
+Pass	Prepend span (1): #nth_of_type_3n_2	
+Pass	Prepend span (1): #nth_of_type_3n	
+Pass	Prepend #div1.green: #only_of_type	
+Pass	Prepend #div1.green: #first_of_type	
+Pass	Prepend #div1.green: #last_of_type	
+Pass	Prepend #div1.green: #nth_of_type_3n_1	
+Pass	Prepend #div1.green: #nth_of_type_3n_2	
+Pass	Prepend #div1.green: #nth_of_type_3n	
+Pass	Prepend span (2): #only_of_type	
+Pass	Prepend span (2): #first_of_type	
+Pass	Prepend span (2): #last_of_type	
+Pass	Prepend span (2): #nth_of_type_3n_1	
+Pass	Prepend span (2): #nth_of_type_3n_2	
+Pass	Prepend span (2): #nth_of_type_3n	
+Pass	Prepend #div2.yellow: #only_of_type	
+Pass	Prepend #div2.yellow: #first_of_type	
+Pass	Prepend #div2.yellow: #last_of_type	
+Pass	Prepend #div2.yellow: #nth_of_type_3n_1	
+Pass	Prepend #div2.yellow: #nth_of_type_3n_2	
+Pass	Prepend #div2.yellow: #nth_of_type_3n	
+Pass	Prepend span (3): #only_of_type	
+Pass	Prepend span (3): #first_of_type	
+Pass	Prepend span (3): #last_of_type	
+Pass	Prepend span (3): #nth_of_type_3n_1	
+Pass	Prepend span (3): #nth_of_type_3n_2	
+Pass	Prepend span (3): #nth_of_type_3n	
+Pass	Prepend #div3.orange: #only_of_type	
+Pass	Prepend #div3.orange: #first_of_type	
+Pass	Prepend #div3.orange: #last_of_type	
+Pass	Prepend #div3.orange: #nth_of_type_3n_1	
+Pass	Prepend #div3.orange: #nth_of_type_3n_2	
+Pass	Prepend #div3.orange: #nth_of_type_3n	
+Pass	Prepend span (4): #only_of_type	
+Pass	Prepend span (4): #first_of_type	
+Pass	Prepend span (4): #last_of_type	
+Pass	Prepend span (4): #nth_of_type_3n_1	
+Pass	Prepend span (4): #nth_of_type_3n_2	
+Pass	Prepend span (4): #nth_of_type_3n	
+Pass	Prepend #div4: #only_of_type	
+Pass	Prepend #div4: #first_of_type	
+Pass	Prepend #div4: #last_of_type	
+Pass	Prepend #div4: #nth_of_type_3n_1	
+Pass	Prepend #div4: #nth_of_type_3n_2	
+Pass	Prepend #div4: #nth_of_type_3n	
+Pass	Prepend span (5): #only_of_type	
+Pass	Prepend span (5): #first_of_type	
+Pass	Prepend span (5): #last_of_type	
+Pass	Prepend span (5): #nth_of_type_3n_1	
+Pass	Prepend span (5): #nth_of_type_3n_2	
+Pass	Prepend span (5): #nth_of_type_3n	
+Pass	Prepend #div5: #only_of_type	
+Pass	Prepend #div5: #first_of_type	
+Pass	Prepend #div5: #last_of_type	
+Pass	Prepend #div5: #nth_of_type_3n_1	
+Pass	Prepend #div5: #nth_of_type_3n_2	
+Pass	Prepend #div5: #nth_of_type_3n	
+Pass	Prepend span (6): #only_of_type	
+Pass	Prepend span (6): #first_of_type	
+Pass	Prepend span (6): #last_of_type	
+Pass	Prepend span (6): #nth_of_type_3n_1	
+Pass	Prepend span (6): #nth_of_type_3n_2	
+Pass	Prepend span (6): #nth_of_type_3n	
+Pass	Remove #div1: #only_of_type	
+Pass	Remove #div1: #first_of_type	
+Pass	Remove #div1: #last_of_type	
+Pass	Remove #div1: #nth_of_type_3n_1	
+Pass	Remove #div1: #nth_of_type_3n_2	
+Pass	Remove #div1: #nth_of_type_3n	
+Pass	Remove #div2: #only_of_type	
+Pass	Remove #div2: #first_of_type	
+Pass	Remove #div2: #last_of_type	
+Pass	Remove #div2: #nth_of_type_3n_1	
+Pass	Remove #div2: #nth_of_type_3n_2	
+Pass	Remove #div2: #nth_of_type_3n	
+Pass	Remove #div3: #only_of_type	
+Pass	Remove #div3: #first_of_type	
+Pass	Remove #div3: #last_of_type	
+Pass	Remove #div3: #nth_of_type_3n_1	
+Pass	Remove #div3: #nth_of_type_3n_2	
+Pass	Remove #div3: #nth_of_type_3n	
+Pass	Remove #div4: #only_of_type	
+Pass	Remove #div4: #first_of_type	
+Pass	Remove #div4: #last_of_type	
+Pass	Remove #div4: #nth_of_type_3n_1	
+Pass	Remove #div4: #nth_of_type_3n_2	
+Pass	Remove #div4: #nth_of_type_3n	
+Pass	Remove #div5: #only_of_type	
+Pass	Remove #div5: #first_of_type	
+Pass	Remove #div5: #last_of_type	
+Pass	Remove #div5: #nth_of_type_3n_1	
+Pass	Remove #div5: #nth_of_type_3n_2	
+Pass	Remove #div5: #nth_of_type_3n	

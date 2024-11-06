@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>CSS Selectors Invalidation: :any-link</title>
+    <link rel="author" title="Victoria Su" href="mailto:victoriaytsu@google.com">
+    <link rel="help" href="https://drafts.csswg.org/selectors-4/#the-any-link-pseudo">
+    <meta name="assert" content="This tests that the :any-link selector is effective">
+    <script src="../../../resources/testharness.js"></script>
+    <script src="../../../resources/testharnessreport.js"></script>
+    <style>
+      #link { background-color: red }
+      #link:any-link { background-color: green }
+      #link + div { color: pink }
+    </style>
+    <a id="link">This link should have a green background.</a>
+    <div>
+        <div></div>
+        <div></div>
+        <div></div>
+        <div></div>
+    </div>
+    <script>
+      test(function() {
+        var red = "rgb(255, 0, 0)";
+        var green = "rgb(0, 128, 0)";
+
+        assert_equals(getComputedStyle(link).backgroundColor, red);
+
+        link.href = "not-visited.html";
+
+        assert_equals(getComputedStyle(link).backgroundColor, green);
+      }, "Style was recalculated for the :any-link pseudo class.");
+
+    </script>
+  </head>
+</html>

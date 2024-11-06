@@ -1,0 +1,470 @@
+Summary
+
+Harness status: OK
+
+Rerun
+
+Found 460 tests
+
+460 Pass
+Details
+Result	Test Name	MessagePass	[ .red:has(#descendant:not(.a_has_scope .b)) ] #has_scope.classList.add('red') : check matches (true)	
+Pass	[ .red:has(#descendant:not(.a_has_scope .b)) ] #has_scope.classList.add('red') : check #has_scope color	
+Pass	[ .red:has(#descendant:not(.a_has_scope .b)) ] #parent.classList.add('a_has_scope') : check matches (false)	
+Pass	[ .red:has(#descendant:not(.a_has_scope .b)) ] #parent.classList.add('a_has_scope') : check #has_scope color	
+Pass	[ .red:has(#descendant:not(.a_has_scope .b)) ] #parent.classList.remove('a_has_scope') : check matches (true)	
+Pass	[ .red:has(#descendant:not(.a_has_scope .b)) ] #parent.classList.remove('a_has_scope') : check #has_scope color	
+Pass	[ .red:has(#descendant:not(.a_has_scope .b)) ] #has_scope.classList.add('a_has_scope') : check matches (false)	
+Pass	[ .red:has(#descendant:not(.a_has_scope .b)) ] #has_scope.classList.add('a_has_scope') : check #has_scope color	
+Pass	[ .red:has(#descendant:not(.a_has_scope .b)) ] #has_scope.classList.remove('a_has_scope') : check matches (true)	
+Pass	[ .red:has(#descendant:not(.a_has_scope .b)) ] #has_scope.classList.remove('a_has_scope') : check #has_scope color	
+Pass	[ .red:has(#descendant:not(.a_has_scope .b)) ] #child.classList.add('a_has_scope') : check matches (false)	
+Pass	[ .red:has(#descendant:not(.a_has_scope .b)) ] #child.classList.add('a_has_scope') : check #has_scope color	
+Pass	[ .red:has(#descendant:not(.a_has_scope .b)) ] #child.classList.remove('a_has_scope') : check matches (true)	
+Pass	[ .red:has(#descendant:not(.a_has_scope .b)) ] #child.classList.remove('a_has_scope') : check #has_scope color	
+Pass	[ .red:has(#descendant:not(.a_has_scope .b)) ] #has_scope.classList.remove('red') : check matches (false)	
+Pass	[ .red:has(#descendant:not(.a_has_scope .b)) ] #has_scope.classList.remove('red') : check #has_scope color	
+Pass	[ .orangered:has(#descendant:not(.a_descendant .b)) #descendant ] #has_scope.classList.add('orangered') : check matches (true)	
+Pass	[ .orangered:has(#descendant:not(.a_descendant .b)) #descendant ] #has_scope.classList.add('orangered') : check #descendant color	
+Pass	[ .orangered:has(#descendant:not(.a_descendant .b)) #descendant ] #parent.classList.add('a_descendant') : check matches (false)	
+Pass	[ .orangered:has(#descendant:not(.a_descendant .b)) #descendant ] #parent.classList.add('a_descendant') : check #descendant color	
+Pass	[ .orangered:has(#descendant:not(.a_descendant .b)) #descendant ] #parent.classList.remove('a_descendant') : check matches (true)	
+Pass	[ .orangered:has(#descendant:not(.a_descendant .b)) #descendant ] #parent.classList.remove('a_descendant') : check #descendant color	
+Pass	[ .orangered:has(#descendant:not(.a_descendant .b)) #descendant ] #has_scope.classList.add('a_descendant') : check matches (false)	
+Pass	[ .orangered:has(#descendant:not(.a_descendant .b)) #descendant ] #has_scope.classList.add('a_descendant') : check #descendant color	
+Pass	[ .orangered:has(#descendant:not(.a_descendant .b)) #descendant ] #has_scope.classList.remove('a_descendant') : check matches (true)	
+Pass	[ .orangered:has(#descendant:not(.a_descendant .b)) #descendant ] #has_scope.classList.remove('a_descendant') : check #descendant color	
+Pass	[ .orangered:has(#descendant:not(.a_descendant .b)) #descendant ] #child.classList.add('a_descendant') : check matches (false)	
+Pass	[ .orangered:has(#descendant:not(.a_descendant .b)) #descendant ] #child.classList.add('a_descendant') : check #descendant color	
+Pass	[ .orangered:has(#descendant:not(.a_descendant .b)) #descendant ] #child.classList.remove('a_descendant') : check matches (true)	
+Pass	[ .orangered:has(#descendant:not(.a_descendant .b)) #descendant ] #child.classList.remove('a_descendant') : check #descendant color	
+Pass	[ .orangered:has(#descendant:not(.a_descendant .b)) #descendant ] #has_scope.classList.remove('orangered') : check matches (false)	
+Pass	[ .orangered:has(#descendant:not(.a_descendant .b)) #descendant ] #has_scope.classList.remove('orangered') : check #descendant color	
+Pass	[ .darkred:has(#descendant:not(.a_indirect_next .b)) ~ #indirect_next ] #has_scope.classList.add('darkred') : check matches (true)	
+Pass	[ .darkred:has(#descendant:not(.a_indirect_next .b)) ~ #indirect_next ] #has_scope.classList.add('darkred') : check #indirect_next color	
+Pass	[ .darkred:has(#descendant:not(.a_indirect_next .b)) ~ #indirect_next ] #parent.classList.add('a_indirect_next') : check matches (false)	
+Pass	[ .darkred:has(#descendant:not(.a_indirect_next .b)) ~ #indirect_next ] #parent.classList.add('a_indirect_next') : check #indirect_next color	
+Pass	[ .darkred:has(#descendant:not(.a_indirect_next .b)) ~ #indirect_next ] #parent.classList.remove('a_indirect_next') : check matches (true)	
+Pass	[ .darkred:has(#descendant:not(.a_indirect_next .b)) ~ #indirect_next ] #parent.classList.remove('a_indirect_next') : check #indirect_next color	
+Pass	[ .darkred:has(#descendant:not(.a_indirect_next .b)) ~ #indirect_next ] #has_scope.classList.add('a_indirect_next') : check matches (false)	
+Pass	[ .darkred:has(#descendant:not(.a_indirect_next .b)) ~ #indirect_next ] #has_scope.classList.add('a_indirect_next') : check #indirect_next color	
+Pass	[ .darkred:has(#descendant:not(.a_indirect_next .b)) ~ #indirect_next ] #has_scope.classList.remove('a_indirect_next') : check matches (true)	
+Pass	[ .darkred:has(#descendant:not(.a_indirect_next .b)) ~ #indirect_next ] #has_scope.classList.remove('a_indirect_next') : check #indirect_next color	
+Pass	[ .darkred:has(#descendant:not(.a_indirect_next .b)) ~ #indirect_next ] #child.classList.add('a_indirect_next') : check matches (false)	
+Pass	[ .darkred:has(#descendant:not(.a_indirect_next .b)) ~ #indirect_next ] #child.classList.add('a_indirect_next') : check #indirect_next color	
+Pass	[ .darkred:has(#descendant:not(.a_indirect_next .b)) ~ #indirect_next ] #child.classList.remove('a_indirect_next') : check matches (true)	
+Pass	[ .darkred:has(#descendant:not(.a_indirect_next .b)) ~ #indirect_next ] #child.classList.remove('a_indirect_next') : check #indirect_next color	
+Pass	[ .darkred:has(#descendant:not(.a_indirect_next .b)) ~ #indirect_next ] #has_scope.classList.remove('darkred') : check matches (false)	
+Pass	[ .darkred:has(#descendant:not(.a_indirect_next .b)) ~ #indirect_next ] #has_scope.classList.remove('darkred') : check #indirect_next color	
+Pass	[ .pink:has(#descendant:not(.a_indirect_next_child .b)) ~ #indirect_next #indirect_next_child ] #has_scope.classList.add('pink') : check matches (true)	
+Pass	[ .pink:has(#descendant:not(.a_indirect_next_child .b)) ~ #indirect_next #indirect_next_child ] #has_scope.classList.add('pink') : check #indirect_next_child color	
+Pass	[ .pink:has(#descendant:not(.a_indirect_next_child .b)) ~ #indirect_next #indirect_next_child ] #parent.classList.add('a_indirect_next_child') : check matches (false)	
+Pass	[ .pink:has(#descendant:not(.a_indirect_next_child .b)) ~ #indirect_next #indirect_next_child ] #parent.classList.add('a_indirect_next_child') : check #indirect_next_child color	
+Pass	[ .pink:has(#descendant:not(.a_indirect_next_child .b)) ~ #indirect_next #indirect_next_child ] #parent.classList.remove('a_indirect_next_child') : check matches (true)	
+Pass	[ .pink:has(#descendant:not(.a_indirect_next_child .b)) ~ #indirect_next #indirect_next_child ] #parent.classList.remove('a_indirect_next_child') : check #indirect_next_child color	
+Pass	[ .pink:has(#descendant:not(.a_indirect_next_child .b)) ~ #indirect_next #indirect_next_child ] #has_scope.classList.add('a_indirect_next_child') : check matches (false)	
+Pass	[ .pink:has(#descendant:not(.a_indirect_next_child .b)) ~ #indirect_next #indirect_next_child ] #has_scope.classList.add('a_indirect_next_child') : check #indirect_next_child color	
+Pass	[ .pink:has(#descendant:not(.a_indirect_next_child .b)) ~ #indirect_next #indirect_next_child ] #has_scope.classList.remove('a_indirect_next_child') : check matches (true)	
+Pass	[ .pink:has(#descendant:not(.a_indirect_next_child .b)) ~ #indirect_next #indirect_next_child ] #has_scope.classList.remove('a_indirect_next_child') : check #indirect_next_child color	
+Pass	[ .pink:has(#descendant:not(.a_indirect_next_child .b)) ~ #indirect_next #indirect_next_child ] #child.classList.add('a_indirect_next_child') : check matches (false)	
+Pass	[ .pink:has(#descendant:not(.a_indirect_next_child .b)) ~ #indirect_next #indirect_next_child ] #child.classList.add('a_indirect_next_child') : check #indirect_next_child color	
+Pass	[ .pink:has(#descendant:not(.a_indirect_next_child .b)) ~ #indirect_next #indirect_next_child ] #child.classList.remove('a_indirect_next_child') : check matches (true)	
+Pass	[ .pink:has(#descendant:not(.a_indirect_next_child .b)) ~ #indirect_next #indirect_next_child ] #child.classList.remove('a_indirect_next_child') : check #indirect_next_child color	
+Pass	[ .pink:has(#descendant:not(.a_indirect_next_child .b)) ~ #indirect_next #indirect_next_child ] #has_scope.classList.remove('pink') : check matches (false)	
+Pass	[ .pink:has(#descendant:not(.a_indirect_next_child .b)) ~ #indirect_next #indirect_next_child ] #has_scope.classList.remove('pink') : check #indirect_next_child color	
+Pass	[ .green:has(#descendant:not(.p + .c_has_scope ~ .d .e)) ] #has_scope.classList.add('green') : check matches (true)	
+Pass	[ .green:has(#descendant:not(.p + .c_has_scope ~ .d .e)) ] #has_scope.classList.add('green') : check #has_scope color	
+Pass	[ .green:has(#descendant:not(.p + .c_has_scope ~ .d .e)) ] #parent_previous.classList.add('c_has_scope') : check matches (false)	
+Pass	[ .green:has(#descendant:not(.p + .c_has_scope ~ .d .e)) ] #parent_previous.classList.add('c_has_scope') : check #has_scope color	
+Pass	[ .green:has(#descendant:not(.p + .c_has_scope ~ .d .e)) ] insert/remove .invalid before #parent_previous) : (insertion) check matches (true)	
+Pass	[ .green:has(#descendant:not(.p + .c_has_scope ~ .d .e)) ] insert/remove .invalid before #parent_previous) : (insertion) check #has_scope color	
+Pass	[ .green:has(#descendant:not(.p + .c_has_scope ~ .d .e)) ] insert/remove .invalid before #parent_previous) : (removal) check matches (false)	
+Pass	[ .green:has(#descendant:not(.p + .c_has_scope ~ .d .e)) ] insert/remove .invalid before #parent_previous) : (removal) check #has_scope color	
+Pass	[ .green:has(#descendant:not(.p + .c_has_scope ~ .d .e)) ] #parent_previous.classList.remove('c_has_scope') : check matches (true)	
+Pass	[ .green:has(#descendant:not(.p + .c_has_scope ~ .d .e)) ] #parent_previous.classList.remove('c_has_scope') : check #has_scope color	
+Pass	[ .green:has(#descendant:not(.p + .c_has_scope ~ .d .e)) ] insert/remove .c_has_scope before #parent_previous) : (insertion) check matches (false)	
+Pass	[ .green:has(#descendant:not(.p + .c_has_scope ~ .d .e)) ] insert/remove .c_has_scope before #parent_previous) : (insertion) check #has_scope color	
+Pass	[ .green:has(#descendant:not(.p + .c_has_scope ~ .d .e)) ] insert/remove .c_has_scope before #parent_previous) : (removal) check matches (true)	
+Pass	[ .green:has(#descendant:not(.p + .c_has_scope ~ .d .e)) ] insert/remove .c_has_scope before #parent_previous) : (removal) check #has_scope color	
+Pass	[ .green:has(#descendant:not(.p + .c_has_scope ~ .d .e)) ] #previous.classList.add('c_has_scope') : check matches (false)	
+Pass	[ .green:has(#descendant:not(.p + .c_has_scope ~ .d .e)) ] #previous.classList.add('c_has_scope') : check #has_scope color	
+Pass	[ .green:has(#descendant:not(.p + .c_has_scope ~ .d .e)) ] insert/remove .invalid before #previous) : (insertion) check matches (true)	
+Pass	[ .green:has(#descendant:not(.p + .c_has_scope ~ .d .e)) ] insert/remove .invalid before #previous) : (insertion) check #has_scope color	
+Pass	[ .green:has(#descendant:not(.p + .c_has_scope ~ .d .e)) ] insert/remove .invalid before #previous) : (removal) check matches (false)	
+Pass	[ .green:has(#descendant:not(.p + .c_has_scope ~ .d .e)) ] insert/remove .invalid before #previous) : (removal) check #has_scope color	
+Pass	[ .green:has(#descendant:not(.p + .c_has_scope ~ .d .e)) ] #previous.classList.remove('c_has_scope') : check matches (true)	
+Pass	[ .green:has(#descendant:not(.p + .c_has_scope ~ .d .e)) ] #previous.classList.remove('c_has_scope') : check #has_scope color	
+Pass	[ .green:has(#descendant:not(.p + .c_has_scope ~ .d .e)) ] insert/remove .c_has_scope before #previous) : (insertion) check matches (false)	
+Pass	[ .green:has(#descendant:not(.p + .c_has_scope ~ .d .e)) ] insert/remove .c_has_scope before #previous) : (insertion) check #has_scope color	
+Pass	[ .green:has(#descendant:not(.p + .c_has_scope ~ .d .e)) ] insert/remove .c_has_scope before #previous) : (removal) check matches (true)	
+Pass	[ .green:has(#descendant:not(.p + .c_has_scope ~ .d .e)) ] insert/remove .c_has_scope before #previous) : (removal) check #has_scope color	
+Pass	[ .green:has(#descendant:not(.p + .c_has_scope ~ .d .e)) ] #child_previous.classList.add('c_has_scope') : check matches (false)	
+Pass	[ .green:has(#descendant:not(.p + .c_has_scope ~ .d .e)) ] #child_previous.classList.add('c_has_scope') : check #has_scope color	
+Pass	[ .green:has(#descendant:not(.p + .c_has_scope ~ .d .e)) ] insert/remove .invalid before #child_previous) : (insertion) check matches (true)	
+Pass	[ .green:has(#descendant:not(.p + .c_has_scope ~ .d .e)) ] insert/remove .invalid before #child_previous) : (insertion) check #has_scope color	
+Pass	[ .green:has(#descendant:not(.p + .c_has_scope ~ .d .e)) ] insert/remove .invalid before #child_previous) : (removal) check matches (false)	
+Pass	[ .green:has(#descendant:not(.p + .c_has_scope ~ .d .e)) ] insert/remove .invalid before #child_previous) : (removal) check #has_scope color	
+Pass	[ .green:has(#descendant:not(.p + .c_has_scope ~ .d .e)) ] #child_previous.classList.remove('c_has_scope') : check matches (true)	
+Pass	[ .green:has(#descendant:not(.p + .c_has_scope ~ .d .e)) ] #child_previous.classList.remove('c_has_scope') : check #has_scope color	
+Pass	[ .green:has(#descendant:not(.p + .c_has_scope ~ .d .e)) ] insert/remove .c_has_scope before #child_previous) : (insertion) check matches (false)	
+Pass	[ .green:has(#descendant:not(.p + .c_has_scope ~ .d .e)) ] insert/remove .c_has_scope before #child_previous) : (insertion) check #has_scope color	
+Pass	[ .green:has(#descendant:not(.p + .c_has_scope ~ .d .e)) ] insert/remove .c_has_scope before #child_previous) : (removal) check matches (true)	
+Pass	[ .green:has(#descendant:not(.p + .c_has_scope ~ .d .e)) ] insert/remove .c_has_scope before #child_previous) : (removal) check #has_scope color	
+Pass	[ .green:has(#descendant:not(.p + .c_has_scope ~ .d .e)) ] #has_scope.classList.remove('green') : check matches (false)	
+Pass	[ .green:has(#descendant:not(.p + .c_has_scope ~ .d .e)) ] #has_scope.classList.remove('green') : check #has_scope color	
+Pass	[ .lightgreen:has(#descendant:not(.p + .c_descendant ~ .d .e)) #descendant ] #has_scope.classList.add('lightgreen') : check matches (true)	
+Pass	[ .lightgreen:has(#descendant:not(.p + .c_descendant ~ .d .e)) #descendant ] #has_scope.classList.add('lightgreen') : check #descendant color	
+Pass	[ .lightgreen:has(#descendant:not(.p + .c_descendant ~ .d .e)) #descendant ] #parent_previous.classList.add('c_descendant') : check matches (false)	
+Pass	[ .lightgreen:has(#descendant:not(.p + .c_descendant ~ .d .e)) #descendant ] #parent_previous.classList.add('c_descendant') : check #descendant color	
+Pass	[ .lightgreen:has(#descendant:not(.p + .c_descendant ~ .d .e)) #descendant ] insert/remove .invalid before #parent_previous) : (insertion) check matches (true)	
+Pass	[ .lightgreen:has(#descendant:not(.p + .c_descendant ~ .d .e)) #descendant ] insert/remove .invalid before #parent_previous) : (insertion) check #descendant color	
+Pass	[ .lightgreen:has(#descendant:not(.p + .c_descendant ~ .d .e)) #descendant ] insert/remove .invalid before #parent_previous) : (removal) check matches (false)	
+Pass	[ .lightgreen:has(#descendant:not(.p + .c_descendant ~ .d .e)) #descendant ] insert/remove .invalid before #parent_previous) : (removal) check #descendant color	
+Pass	[ .lightgreen:has(#descendant:not(.p + .c_descendant ~ .d .e)) #descendant ] #parent_previous.classList.remove('c_descendant') : check matches (true)	
+Pass	[ .lightgreen:has(#descendant:not(.p + .c_descendant ~ .d .e)) #descendant ] #parent_previous.classList.remove('c_descendant') : check #descendant color	
+Pass	[ .lightgreen:has(#descendant:not(.p + .c_descendant ~ .d .e)) #descendant ] insert/remove .c_descendant before #parent_previous) : (insertion) check matches (false)	
+Pass	[ .lightgreen:has(#descendant:not(.p + .c_descendant ~ .d .e)) #descendant ] insert/remove .c_descendant before #parent_previous) : (insertion) check #descendant color	
+Pass	[ .lightgreen:has(#descendant:not(.p + .c_descendant ~ .d .e)) #descendant ] insert/remove .c_descendant before #parent_previous) : (removal) check matches (true)	
+Pass	[ .lightgreen:has(#descendant:not(.p + .c_descendant ~ .d .e)) #descendant ] insert/remove .c_descendant before #parent_previous) : (removal) check #descendant color	
+Pass	[ .lightgreen:has(#descendant:not(.p + .c_descendant ~ .d .e)) #descendant ] #previous.classList.add('c_descendant') : check matches (false)	
+Pass	[ .lightgreen:has(#descendant:not(.p + .c_descendant ~ .d .e)) #descendant ] #previous.classList.add('c_descendant') : check #descendant color	
+Pass	[ .lightgreen:has(#descendant:not(.p + .c_descendant ~ .d .e)) #descendant ] insert/remove .invalid before #previous) : (insertion) check matches (true)	
+Pass	[ .lightgreen:has(#descendant:not(.p + .c_descendant ~ .d .e)) #descendant ] insert/remove .invalid before #previous) : (insertion) check #descendant color	
+Pass	[ .lightgreen:has(#descendant:not(.p + .c_descendant ~ .d .e)) #descendant ] insert/remove .invalid before #previous) : (removal) check matches (false)	
+Pass	[ .lightgreen:has(#descendant:not(.p + .c_descendant ~ .d .e)) #descendant ] insert/remove .invalid before #previous) : (removal) check #descendant color	
+Pass	[ .lightgreen:has(#descendant:not(.p + .c_descendant ~ .d .e)) #descendant ] #previous.classList.remove('c_descendant') : check matches (true)	
+Pass	[ .lightgreen:has(#descendant:not(.p + .c_descendant ~ .d .e)) #descendant ] #previous.classList.remove('c_descendant') : check #descendant color	
+Pass	[ .lightgreen:has(#descendant:not(.p + .c_descendant ~ .d .e)) #descendant ] insert/remove .c_descendant before #previous) : (insertion) check matches (false)	
+Pass	[ .lightgreen:has(#descendant:not(.p + .c_descendant ~ .d .e)) #descendant ] insert/remove .c_descendant before #previous) : (insertion) check #descendant color	
+Pass	[ .lightgreen:has(#descendant:not(.p + .c_descendant ~ .d .e)) #descendant ] insert/remove .c_descendant before #previous) : (removal) check matches (true)	
+Pass	[ .lightgreen:has(#descendant:not(.p + .c_descendant ~ .d .e)) #descendant ] insert/remove .c_descendant before #previous) : (removal) check #descendant color	
+Pass	[ .lightgreen:has(#descendant:not(.p + .c_descendant ~ .d .e)) #descendant ] #child_previous.classList.add('c_descendant') : check matches (false)	
+Pass	[ .lightgreen:has(#descendant:not(.p + .c_descendant ~ .d .e)) #descendant ] #child_previous.classList.add('c_descendant') : check #descendant color	
+Pass	[ .lightgreen:has(#descendant:not(.p + .c_descendant ~ .d .e)) #descendant ] insert/remove .invalid before #child_previous) : (insertion) check matches (true)	
+Pass	[ .lightgreen:has(#descendant:not(.p + .c_descendant ~ .d .e)) #descendant ] insert/remove .invalid before #child_previous) : (insertion) check #descendant color	
+Pass	[ .lightgreen:has(#descendant:not(.p + .c_descendant ~ .d .e)) #descendant ] insert/remove .invalid before #child_previous) : (removal) check matches (false)	
+Pass	[ .lightgreen:has(#descendant:not(.p + .c_descendant ~ .d .e)) #descendant ] insert/remove .invalid before #child_previous) : (removal) check #descendant color	
+Pass	[ .lightgreen:has(#descendant:not(.p + .c_descendant ~ .d .e)) #descendant ] #child_previous.classList.remove('c_descendant') : check matches (true)	
+Pass	[ .lightgreen:has(#descendant:not(.p + .c_descendant ~ .d .e)) #descendant ] #child_previous.classList.remove('c_descendant') : check #descendant color	
+Pass	[ .lightgreen:has(#descendant:not(.p + .c_descendant ~ .d .e)) #descendant ] insert/remove .c_descendant before #child_previous) : (insertion) check matches (false)	
+Pass	[ .lightgreen:has(#descendant:not(.p + .c_descendant ~ .d .e)) #descendant ] insert/remove .c_descendant before #child_previous) : (insertion) check #descendant color	
+Pass	[ .lightgreen:has(#descendant:not(.p + .c_descendant ~ .d .e)) #descendant ] insert/remove .c_descendant before #child_previous) : (removal) check matches (true)	
+Pass	[ .lightgreen:has(#descendant:not(.p + .c_descendant ~ .d .e)) #descendant ] insert/remove .c_descendant before #child_previous) : (removal) check #descendant color	
+Pass	[ .lightgreen:has(#descendant:not(.p + .c_descendant ~ .d .e)) #descendant ] #has_scope.classList.remove('lightgreen') : check matches (false)	
+Pass	[ .lightgreen:has(#descendant:not(.p + .c_descendant ~ .d .e)) #descendant ] #has_scope.classList.remove('lightgreen') : check #descendant color	
+Pass	[ .darkgreen:has(#descendant:not(.p + .c_indirect_next ~ .d .e)) ~ #indirect_next ] #has_scope.classList.add('darkgreen') : check matches (true)	
+Pass	[ .darkgreen:has(#descendant:not(.p + .c_indirect_next ~ .d .e)) ~ #indirect_next ] #has_scope.classList.add('darkgreen') : check #indirect_next color	
+Pass	[ .darkgreen:has(#descendant:not(.p + .c_indirect_next ~ .d .e)) ~ #indirect_next ] #parent_previous.classList.add('c_indirect_next') : check matches (false)	
+Pass	[ .darkgreen:has(#descendant:not(.p + .c_indirect_next ~ .d .e)) ~ #indirect_next ] #parent_previous.classList.add('c_indirect_next') : check #indirect_next color	
+Pass	[ .darkgreen:has(#descendant:not(.p + .c_indirect_next ~ .d .e)) ~ #indirect_next ] insert/remove .invalid before #parent_previous) : (insertion) check matches (true)	
+Pass	[ .darkgreen:has(#descendant:not(.p + .c_indirect_next ~ .d .e)) ~ #indirect_next ] insert/remove .invalid before #parent_previous) : (insertion) check #indirect_next color	
+Pass	[ .darkgreen:has(#descendant:not(.p + .c_indirect_next ~ .d .e)) ~ #indirect_next ] insert/remove .invalid before #parent_previous) : (removal) check matches (false)	
+Pass	[ .darkgreen:has(#descendant:not(.p + .c_indirect_next ~ .d .e)) ~ #indirect_next ] insert/remove .invalid before #parent_previous) : (removal) check #indirect_next color	
+Pass	[ .darkgreen:has(#descendant:not(.p + .c_indirect_next ~ .d .e)) ~ #indirect_next ] #parent_previous.classList.remove('c_indirect_next') : check matches (true)	
+Pass	[ .darkgreen:has(#descendant:not(.p + .c_indirect_next ~ .d .e)) ~ #indirect_next ] #parent_previous.classList.remove('c_indirect_next') : check #indirect_next color	
+Pass	[ .darkgreen:has(#descendant:not(.p + .c_indirect_next ~ .d .e)) ~ #indirect_next ] insert/remove .c_indirect_next before #parent_previous) : (insertion) check matches (false)	
+Pass	[ .darkgreen:has(#descendant:not(.p + .c_indirect_next ~ .d .e)) ~ #indirect_next ] insert/remove .c_indirect_next before #parent_previous) : (insertion) check #indirect_next color	
+Pass	[ .darkgreen:has(#descendant:not(.p + .c_indirect_next ~ .d .e)) ~ #indirect_next ] insert/remove .c_indirect_next before #parent_previous) : (removal) check matches (true)	
+Pass	[ .darkgreen:has(#descendant:not(.p + .c_indirect_next ~ .d .e)) ~ #indirect_next ] insert/remove .c_indirect_next before #parent_previous) : (removal) check #indirect_next color	
+Pass	[ .darkgreen:has(#descendant:not(.p + .c_indirect_next ~ .d .e)) ~ #indirect_next ] #previous.classList.add('c_indirect_next') : check matches (false)	
+Pass	[ .darkgreen:has(#descendant:not(.p + .c_indirect_next ~ .d .e)) ~ #indirect_next ] #previous.classList.add('c_indirect_next') : check #indirect_next color	
+Pass	[ .darkgreen:has(#descendant:not(.p + .c_indirect_next ~ .d .e)) ~ #indirect_next ] insert/remove .invalid before #previous) : (insertion) check matches (true)	
+Pass	[ .darkgreen:has(#descendant:not(.p + .c_indirect_next ~ .d .e)) ~ #indirect_next ] insert/remove .invalid before #previous) : (insertion) check #indirect_next color	
+Pass	[ .darkgreen:has(#descendant:not(.p + .c_indirect_next ~ .d .e)) ~ #indirect_next ] insert/remove .invalid before #previous) : (removal) check matches (false)	
+Pass	[ .darkgreen:has(#descendant:not(.p + .c_indirect_next ~ .d .e)) ~ #indirect_next ] insert/remove .invalid before #previous) : (removal) check #indirect_next color	
+Pass	[ .darkgreen:has(#descendant:not(.p + .c_indirect_next ~ .d .e)) ~ #indirect_next ] #previous.classList.remove('c_indirect_next') : check matches (true)	
+Pass	[ .darkgreen:has(#descendant:not(.p + .c_indirect_next ~ .d .e)) ~ #indirect_next ] #previous.classList.remove('c_indirect_next') : check #indirect_next color	
+Pass	[ .darkgreen:has(#descendant:not(.p + .c_indirect_next ~ .d .e)) ~ #indirect_next ] insert/remove .c_indirect_next before #previous) : (insertion) check matches (false)	
+Pass	[ .darkgreen:has(#descendant:not(.p + .c_indirect_next ~ .d .e)) ~ #indirect_next ] insert/remove .c_indirect_next before #previous) : (insertion) check #indirect_next color	
+Pass	[ .darkgreen:has(#descendant:not(.p + .c_indirect_next ~ .d .e)) ~ #indirect_next ] insert/remove .c_indirect_next before #previous) : (removal) check matches (true)	
+Pass	[ .darkgreen:has(#descendant:not(.p + .c_indirect_next ~ .d .e)) ~ #indirect_next ] insert/remove .c_indirect_next before #previous) : (removal) check #indirect_next color	
+Pass	[ .darkgreen:has(#descendant:not(.p + .c_indirect_next ~ .d .e)) ~ #indirect_next ] #child_previous.classList.add('c_indirect_next') : check matches (false)	
+Pass	[ .darkgreen:has(#descendant:not(.p + .c_indirect_next ~ .d .e)) ~ #indirect_next ] #child_previous.classList.add('c_indirect_next') : check #indirect_next color	
+Pass	[ .darkgreen:has(#descendant:not(.p + .c_indirect_next ~ .d .e)) ~ #indirect_next ] insert/remove .invalid before #child_previous) : (insertion) check matches (true)	
+Pass	[ .darkgreen:has(#descendant:not(.p + .c_indirect_next ~ .d .e)) ~ #indirect_next ] insert/remove .invalid before #child_previous) : (insertion) check #indirect_next color	
+Pass	[ .darkgreen:has(#descendant:not(.p + .c_indirect_next ~ .d .e)) ~ #indirect_next ] insert/remove .invalid before #child_previous) : (removal) check matches (false)	
+Pass	[ .darkgreen:has(#descendant:not(.p + .c_indirect_next ~ .d .e)) ~ #indirect_next ] insert/remove .invalid before #child_previous) : (removal) check #indirect_next color	
+Pass	[ .darkgreen:has(#descendant:not(.p + .c_indirect_next ~ .d .e)) ~ #indirect_next ] #child_previous.classList.remove('c_indirect_next') : check matches (true)	
+Pass	[ .darkgreen:has(#descendant:not(.p + .c_indirect_next ~ .d .e)) ~ #indirect_next ] #child_previous.classList.remove('c_indirect_next') : check #indirect_next color	
+Pass	[ .darkgreen:has(#descendant:not(.p + .c_indirect_next ~ .d .e)) ~ #indirect_next ] insert/remove .c_indirect_next before #child_previous) : (insertion) check matches (false)	
+Pass	[ .darkgreen:has(#descendant:not(.p + .c_indirect_next ~ .d .e)) ~ #indirect_next ] insert/remove .c_indirect_next before #child_previous) : (insertion) check #indirect_next color	
+Pass	[ .darkgreen:has(#descendant:not(.p + .c_indirect_next ~ .d .e)) ~ #indirect_next ] insert/remove .c_indirect_next before #child_previous) : (removal) check matches (true)	
+Pass	[ .darkgreen:has(#descendant:not(.p + .c_indirect_next ~ .d .e)) ~ #indirect_next ] insert/remove .c_indirect_next before #child_previous) : (removal) check #indirect_next color	
+Pass	[ .darkgreen:has(#descendant:not(.p + .c_indirect_next ~ .d .e)) ~ #indirect_next ] #has_scope.classList.remove('darkgreen') : check matches (false)	
+Pass	[ .darkgreen:has(#descendant:not(.p + .c_indirect_next ~ .d .e)) ~ #indirect_next ] #has_scope.classList.remove('darkgreen') : check #indirect_next color	
+Pass	[ .yellowgreen:has(#descendant:not(.p + .c_indirect_next_child ~ .d .e)) ~ #indirect_next #indirect_next_child ] #has_scope.classList.add('yellowgreen') : check matches (true)	
+Pass	[ .yellowgreen:has(#descendant:not(.p + .c_indirect_next_child ~ .d .e)) ~ #indirect_next #indirect_next_child ] #has_scope.classList.add('yellowgreen') : check #indirect_next_child color	
+Pass	[ .yellowgreen:has(#descendant:not(.p + .c_indirect_next_child ~ .d .e)) ~ #indirect_next #indirect_next_child ] #parent_previous.classList.add('c_indirect_next_child') : check matches (false)	
+Pass	[ .yellowgreen:has(#descendant:not(.p + .c_indirect_next_child ~ .d .e)) ~ #indirect_next #indirect_next_child ] #parent_previous.classList.add('c_indirect_next_child') : check #indirect_next_child color	
+Pass	[ .yellowgreen:has(#descendant:not(.p + .c_indirect_next_child ~ .d .e)) ~ #indirect_next #indirect_next_child ] insert/remove .invalid before #parent_previous) : (insertion) check matches (true)	
+Pass	[ .yellowgreen:has(#descendant:not(.p + .c_indirect_next_child ~ .d .e)) ~ #indirect_next #indirect_next_child ] insert/remove .invalid before #parent_previous) : (insertion) check #indirect_next_child color	
+Pass	[ .yellowgreen:has(#descendant:not(.p + .c_indirect_next_child ~ .d .e)) ~ #indirect_next #indirect_next_child ] insert/remove .invalid before #parent_previous) : (removal) check matches (false)	
+Pass	[ .yellowgreen:has(#descendant:not(.p + .c_indirect_next_child ~ .d .e)) ~ #indirect_next #indirect_next_child ] insert/remove .invalid before #parent_previous) : (removal) check #indirect_next_child color	
+Pass	[ .yellowgreen:has(#descendant:not(.p + .c_indirect_next_child ~ .d .e)) ~ #indirect_next #indirect_next_child ] #parent_previous.classList.remove('c_indirect_next_child') : check matches (true)	
+Pass	[ .yellowgreen:has(#descendant:not(.p + .c_indirect_next_child ~ .d .e)) ~ #indirect_next #indirect_next_child ] #parent_previous.classList.remove('c_indirect_next_child') : check #indirect_next_child color	
+Pass	[ .yellowgreen:has(#descendant:not(.p + .c_indirect_next_child ~ .d .e)) ~ #indirect_next #indirect_next_child ] insert/remove .c_indirect_next_child before #parent_previous) : (insertion) check matches (false)	
+Pass	[ .yellowgreen:has(#descendant:not(.p + .c_indirect_next_child ~ .d .e)) ~ #indirect_next #indirect_next_child ] insert/remove .c_indirect_next_child before #parent_previous) : (insertion) check #indirect_next_child color	
+Pass	[ .yellowgreen:has(#descendant:not(.p + .c_indirect_next_child ~ .d .e)) ~ #indirect_next #indirect_next_child ] insert/remove .c_indirect_next_child before #parent_previous) : (removal) check matches (true)	
+Pass	[ .yellowgreen:has(#descendant:not(.p + .c_indirect_next_child ~ .d .e)) ~ #indirect_next #indirect_next_child ] insert/remove .c_indirect_next_child before #parent_previous) : (removal) check #indirect_next_child color	
+Pass	[ .yellowgreen:has(#descendant:not(.p + .c_indirect_next_child ~ .d .e)) ~ #indirect_next #indirect_next_child ] #previous.classList.add('c_indirect_next_child') : check matches (false)	
+Pass	[ .yellowgreen:has(#descendant:not(.p + .c_indirect_next_child ~ .d .e)) ~ #indirect_next #indirect_next_child ] #previous.classList.add('c_indirect_next_child') : check #indirect_next_child color	
+Pass	[ .yellowgreen:has(#descendant:not(.p + .c_indirect_next_child ~ .d .e)) ~ #indirect_next #indirect_next_child ] insert/remove .invalid before #previous) : (insertion) check matches (true)	
+Pass	[ .yellowgreen:has(#descendant:not(.p + .c_indirect_next_child ~ .d .e)) ~ #indirect_next #indirect_next_child ] insert/remove .invalid before #previous) : (insertion) check #indirect_next_child color	
+Pass	[ .yellowgreen:has(#descendant:not(.p + .c_indirect_next_child ~ .d .e)) ~ #indirect_next #indirect_next_child ] insert/remove .invalid before #previous) : (removal) check matches (false)	
+Pass	[ .yellowgreen:has(#descendant:not(.p + .c_indirect_next_child ~ .d .e)) ~ #indirect_next #indirect_next_child ] insert/remove .invalid before #previous) : (removal) check #indirect_next_child color	
+Pass	[ .yellowgreen:has(#descendant:not(.p + .c_indirect_next_child ~ .d .e)) ~ #indirect_next #indirect_next_child ] #previous.classList.remove('c_indirect_next_child') : check matches (true)	
+Pass	[ .yellowgreen:has(#descendant:not(.p + .c_indirect_next_child ~ .d .e)) ~ #indirect_next #indirect_next_child ] #previous.classList.remove('c_indirect_next_child') : check #indirect_next_child color	
+Pass	[ .yellowgreen:has(#descendant:not(.p + .c_indirect_next_child ~ .d .e)) ~ #indirect_next #indirect_next_child ] insert/remove .c_indirect_next_child before #previous) : (insertion) check matches (false)	
+Pass	[ .yellowgreen:has(#descendant:not(.p + .c_indirect_next_child ~ .d .e)) ~ #indirect_next #indirect_next_child ] insert/remove .c_indirect_next_child before #previous) : (insertion) check #indirect_next_child color	
+Pass	[ .yellowgreen:has(#descendant:not(.p + .c_indirect_next_child ~ .d .e)) ~ #indirect_next #indirect_next_child ] insert/remove .c_indirect_next_child before #previous) : (removal) check matches (true)	
+Pass	[ .yellowgreen:has(#descendant:not(.p + .c_indirect_next_child ~ .d .e)) ~ #indirect_next #indirect_next_child ] insert/remove .c_indirect_next_child before #previous) : (removal) check #indirect_next_child color	
+Pass	[ .yellowgreen:has(#descendant:not(.p + .c_indirect_next_child ~ .d .e)) ~ #indirect_next #indirect_next_child ] #child_previous.classList.add('c_indirect_next_child') : check matches (false)	
+Pass	[ .yellowgreen:has(#descendant:not(.p + .c_indirect_next_child ~ .d .e)) ~ #indirect_next #indirect_next_child ] #child_previous.classList.add('c_indirect_next_child') : check #indirect_next_child color	
+Pass	[ .yellowgreen:has(#descendant:not(.p + .c_indirect_next_child ~ .d .e)) ~ #indirect_next #indirect_next_child ] insert/remove .invalid before #child_previous) : (insertion) check matches (true)	
+Pass	[ .yellowgreen:has(#descendant:not(.p + .c_indirect_next_child ~ .d .e)) ~ #indirect_next #indirect_next_child ] insert/remove .invalid before #child_previous) : (insertion) check #indirect_next_child color	
+Pass	[ .yellowgreen:has(#descendant:not(.p + .c_indirect_next_child ~ .d .e)) ~ #indirect_next #indirect_next_child ] insert/remove .invalid before #child_previous) : (removal) check matches (false)	
+Pass	[ .yellowgreen:has(#descendant:not(.p + .c_indirect_next_child ~ .d .e)) ~ #indirect_next #indirect_next_child ] insert/remove .invalid before #child_previous) : (removal) check #indirect_next_child color	
+Pass	[ .yellowgreen:has(#descendant:not(.p + .c_indirect_next_child ~ .d .e)) ~ #indirect_next #indirect_next_child ] #child_previous.classList.remove('c_indirect_next_child') : check matches (true)	
+Pass	[ .yellowgreen:has(#descendant:not(.p + .c_indirect_next_child ~ .d .e)) ~ #indirect_next #indirect_next_child ] #child_previous.classList.remove('c_indirect_next_child') : check #indirect_next_child color	
+Pass	[ .yellowgreen:has(#descendant:not(.p + .c_indirect_next_child ~ .d .e)) ~ #indirect_next #indirect_next_child ] insert/remove .c_indirect_next_child before #child_previous) : (insertion) check matches (false)	
+Pass	[ .yellowgreen:has(#descendant:not(.p + .c_indirect_next_child ~ .d .e)) ~ #indirect_next #indirect_next_child ] insert/remove .c_indirect_next_child before #child_previous) : (insertion) check #indirect_next_child color	
+Pass	[ .yellowgreen:has(#descendant:not(.p + .c_indirect_next_child ~ .d .e)) ~ #indirect_next #indirect_next_child ] insert/remove .c_indirect_next_child before #child_previous) : (removal) check matches (true)	
+Pass	[ .yellowgreen:has(#descendant:not(.p + .c_indirect_next_child ~ .d .e)) ~ #indirect_next #indirect_next_child ] insert/remove .c_indirect_next_child before #child_previous) : (removal) check #indirect_next_child color	
+Pass	[ .yellowgreen:has(#descendant:not(.p + .c_indirect_next_child ~ .d .e)) ~ #indirect_next #indirect_next_child ] #has_scope.classList.remove('yellowgreen') : check matches (false)	
+Pass	[ .yellowgreen:has(#descendant:not(.p + .c_indirect_next_child ~ .d .e)) ~ #indirect_next #indirect_next_child ] #has_scope.classList.remove('yellowgreen') : check #indirect_next_child color	
+Pass	[ .blue:has(~ #indirect_next:not(.p + .f_has_scope ~ .g)) ] #has_scope.classList.add('blue') : check matches (true)	
+Pass	[ .blue:has(~ #indirect_next:not(.p + .f_has_scope ~ .g)) ] #has_scope.classList.add('blue') : check #has_scope color	
+Pass	[ .blue:has(~ #indirect_next:not(.p + .f_has_scope ~ .g)) ] #previous.classList.add('f_has_scope') : check matches (false)	
+Pass	[ .blue:has(~ #indirect_next:not(.p + .f_has_scope ~ .g)) ] #previous.classList.add('f_has_scope') : check #has_scope color	
+Pass	[ .blue:has(~ #indirect_next:not(.p + .f_has_scope ~ .g)) ] #previous.classList.remove('f_has_scope') : check matches (true)	
+Pass	[ .blue:has(~ #indirect_next:not(.p + .f_has_scope ~ .g)) ] #previous.classList.remove('f_has_scope') : check #has_scope color	
+Pass	[ .blue:has(~ #indirect_next:not(.p + .f_has_scope ~ .g)) ] insert/remove .f_has_scope before #previous) : (insertion) check matches (false)	
+Pass	[ .blue:has(~ #indirect_next:not(.p + .f_has_scope ~ .g)) ] insert/remove .f_has_scope before #previous) : (insertion) check #has_scope color	
+Pass	[ .blue:has(~ #indirect_next:not(.p + .f_has_scope ~ .g)) ] insert/remove .f_has_scope before #previous) : (removal) check matches (true)	
+Pass	[ .blue:has(~ #indirect_next:not(.p + .f_has_scope ~ .g)) ] insert/remove .f_has_scope before #previous) : (removal) check #has_scope color	
+Pass	[ .blue:has(~ #indirect_next:not(.p + .f_has_scope ~ .g)) ] #has_scope.classList.add('f_has_scope') : check matches (false)	
+Pass	[ .blue:has(~ #indirect_next:not(.p + .f_has_scope ~ .g)) ] #has_scope.classList.add('f_has_scope') : check #has_scope color	
+Pass	[ .blue:has(~ #indirect_next:not(.p + .f_has_scope ~ .g)) ] #has_scope.classList.remove('f_has_scope') : check matches (true)	
+Pass	[ .blue:has(~ #indirect_next:not(.p + .f_has_scope ~ .g)) ] #has_scope.classList.remove('f_has_scope') : check #has_scope color	
+Pass	[ .blue:has(~ #indirect_next:not(.p + .f_has_scope ~ .g)) ] #direct_next.classList.add('f_has_scope') : check matches (false)	
+Pass	[ .blue:has(~ #indirect_next:not(.p + .f_has_scope ~ .g)) ] #direct_next.classList.add('f_has_scope') : check #has_scope color	
+Pass	[ .blue:has(~ #indirect_next:not(.p + .f_has_scope ~ .g)) ] #direct_next.classList.remove('f_has_scope') : check matches (true)	
+Pass	[ .blue:has(~ #indirect_next:not(.p + .f_has_scope ~ .g)) ] #direct_next.classList.remove('f_has_scope') : check #has_scope color	
+Pass	[ .blue:has(~ #indirect_next:not(.p + .f_has_scope ~ .g)) ] insert/remove .f_has_scope before #direct_next) : (insertion) check matches (false)	
+Pass	[ .blue:has(~ #indirect_next:not(.p + .f_has_scope ~ .g)) ] insert/remove .f_has_scope before #direct_next) : (insertion) check #has_scope color	
+Pass	[ .blue:has(~ #indirect_next:not(.p + .f_has_scope ~ .g)) ] insert/remove .f_has_scope before #direct_next) : (removal) check matches (true)	
+Pass	[ .blue:has(~ #indirect_next:not(.p + .f_has_scope ~ .g)) ] insert/remove .f_has_scope before #direct_next) : (removal) check #has_scope color	
+Pass	[ .blue:has(~ #indirect_next:not(.p + .f_has_scope ~ .g)) ] #has_scope.classList.remove('blue') : check matches (false)	
+Pass	[ .blue:has(~ #indirect_next:not(.p + .f_has_scope ~ .g)) ] #has_scope.classList.remove('blue') : check #has_scope color	
+Pass	[ .skyblue:has(~ #indirect_next:not(.p + .f_descendant ~ .g)) #descendant ] #has_scope.classList.add('skyblue') : check matches (true)	
+Pass	[ .skyblue:has(~ #indirect_next:not(.p + .f_descendant ~ .g)) #descendant ] #has_scope.classList.add('skyblue') : check #descendant color	
+Pass	[ .skyblue:has(~ #indirect_next:not(.p + .f_descendant ~ .g)) #descendant ] #previous.classList.add('f_descendant') : check matches (false)	
+Pass	[ .skyblue:has(~ #indirect_next:not(.p + .f_descendant ~ .g)) #descendant ] #previous.classList.add('f_descendant') : check #descendant color	
+Pass	[ .skyblue:has(~ #indirect_next:not(.p + .f_descendant ~ .g)) #descendant ] #previous.classList.remove('f_descendant') : check matches (true)	
+Pass	[ .skyblue:has(~ #indirect_next:not(.p + .f_descendant ~ .g)) #descendant ] #previous.classList.remove('f_descendant') : check #descendant color	
+Pass	[ .skyblue:has(~ #indirect_next:not(.p + .f_descendant ~ .g)) #descendant ] insert/remove .f_descendant before #previous) : (insertion) check matches (false)	
+Pass	[ .skyblue:has(~ #indirect_next:not(.p + .f_descendant ~ .g)) #descendant ] insert/remove .f_descendant before #previous) : (insertion) check #descendant color	
+Pass	[ .skyblue:has(~ #indirect_next:not(.p + .f_descendant ~ .g)) #descendant ] insert/remove .f_descendant before #previous) : (removal) check matches (true)	
+Pass	[ .skyblue:has(~ #indirect_next:not(.p + .f_descendant ~ .g)) #descendant ] insert/remove .f_descendant before #previous) : (removal) check #descendant color	
+Pass	[ .skyblue:has(~ #indirect_next:not(.p + .f_descendant ~ .g)) #descendant ] #has_scope.classList.add('f_descendant') : check matches (false)	
+Pass	[ .skyblue:has(~ #indirect_next:not(.p + .f_descendant ~ .g)) #descendant ] #has_scope.classList.add('f_descendant') : check #descendant color	
+Pass	[ .skyblue:has(~ #indirect_next:not(.p + .f_descendant ~ .g)) #descendant ] #has_scope.classList.remove('f_descendant') : check matches (true)	
+Pass	[ .skyblue:has(~ #indirect_next:not(.p + .f_descendant ~ .g)) #descendant ] #has_scope.classList.remove('f_descendant') : check #descendant color	
+Pass	[ .skyblue:has(~ #indirect_next:not(.p + .f_descendant ~ .g)) #descendant ] #direct_next.classList.add('f_descendant') : check matches (false)	
+Pass	[ .skyblue:has(~ #indirect_next:not(.p + .f_descendant ~ .g)) #descendant ] #direct_next.classList.add('f_descendant') : check #descendant color	
+Pass	[ .skyblue:has(~ #indirect_next:not(.p + .f_descendant ~ .g)) #descendant ] #direct_next.classList.remove('f_descendant') : check matches (true)	
+Pass	[ .skyblue:has(~ #indirect_next:not(.p + .f_descendant ~ .g)) #descendant ] #direct_next.classList.remove('f_descendant') : check #descendant color	
+Pass	[ .skyblue:has(~ #indirect_next:not(.p + .f_descendant ~ .g)) #descendant ] insert/remove .f_descendant before #direct_next) : (insertion) check matches (false)	
+Pass	[ .skyblue:has(~ #indirect_next:not(.p + .f_descendant ~ .g)) #descendant ] insert/remove .f_descendant before #direct_next) : (insertion) check #descendant color	
+Pass	[ .skyblue:has(~ #indirect_next:not(.p + .f_descendant ~ .g)) #descendant ] insert/remove .f_descendant before #direct_next) : (removal) check matches (true)	
+Pass	[ .skyblue:has(~ #indirect_next:not(.p + .f_descendant ~ .g)) #descendant ] insert/remove .f_descendant before #direct_next) : (removal) check #descendant color	
+Pass	[ .skyblue:has(~ #indirect_next:not(.p + .f_descendant ~ .g)) #descendant ] #has_scope.classList.remove('skyblue') : check matches (false)	
+Pass	[ .skyblue:has(~ #indirect_next:not(.p + .f_descendant ~ .g)) #descendant ] #has_scope.classList.remove('skyblue') : check #descendant color	
+Pass	[ .lightblue:has(~ #indirect_next:not(.p + .f_indirect_next ~ .g)) ~ #indirect_next ] #has_scope.classList.add('lightblue') : check matches (true)	
+Pass	[ .lightblue:has(~ #indirect_next:not(.p + .f_indirect_next ~ .g)) ~ #indirect_next ] #has_scope.classList.add('lightblue') : check #indirect_next color	
+Pass	[ .lightblue:has(~ #indirect_next:not(.p + .f_indirect_next ~ .g)) ~ #indirect_next ] #previous.classList.add('f_indirect_next') : check matches (false)	
+Pass	[ .lightblue:has(~ #indirect_next:not(.p + .f_indirect_next ~ .g)) ~ #indirect_next ] #previous.classList.add('f_indirect_next') : check #indirect_next color	
+Pass	[ .lightblue:has(~ #indirect_next:not(.p + .f_indirect_next ~ .g)) ~ #indirect_next ] insert/remove .invalid before #previous) : (insertion) check matches (true)	
+Pass	[ .lightblue:has(~ #indirect_next:not(.p + .f_indirect_next ~ .g)) ~ #indirect_next ] insert/remove .invalid before #previous) : (insertion) check #indirect_next color	
+Pass	[ .lightblue:has(~ #indirect_next:not(.p + .f_indirect_next ~ .g)) ~ #indirect_next ] insert/remove .invalid before #previous) : (removal) check matches (false)	
+Pass	[ .lightblue:has(~ #indirect_next:not(.p + .f_indirect_next ~ .g)) ~ #indirect_next ] insert/remove .invalid before #previous) : (removal) check #indirect_next color	
+Pass	[ .lightblue:has(~ #indirect_next:not(.p + .f_indirect_next ~ .g)) ~ #indirect_next ] #previous.classList.remove('f_indirect_next') : check matches (true)	
+Pass	[ .lightblue:has(~ #indirect_next:not(.p + .f_indirect_next ~ .g)) ~ #indirect_next ] #previous.classList.remove('f_indirect_next') : check #indirect_next color	
+Pass	[ .lightblue:has(~ #indirect_next:not(.p + .f_indirect_next ~ .g)) ~ #indirect_next ] insert/remove .f_indirect_next before #previous) : (insertion) check matches (false)	
+Pass	[ .lightblue:has(~ #indirect_next:not(.p + .f_indirect_next ~ .g)) ~ #indirect_next ] insert/remove .f_indirect_next before #previous) : (insertion) check #indirect_next color	
+Pass	[ .lightblue:has(~ #indirect_next:not(.p + .f_indirect_next ~ .g)) ~ #indirect_next ] insert/remove .f_indirect_next before #previous) : (removal) check matches (true)	
+Pass	[ .lightblue:has(~ #indirect_next:not(.p + .f_indirect_next ~ .g)) ~ #indirect_next ] insert/remove .f_indirect_next before #previous) : (removal) check #indirect_next color	
+Pass	[ .lightblue:has(~ #indirect_next:not(.p + .f_indirect_next ~ .g)) ~ #indirect_next ] #has_scope.classList.add('f_indirect_next') : check matches (false)	
+Pass	[ .lightblue:has(~ #indirect_next:not(.p + .f_indirect_next ~ .g)) ~ #indirect_next ] #has_scope.classList.add('f_indirect_next') : check #indirect_next color	
+Pass	[ .lightblue:has(~ #indirect_next:not(.p + .f_indirect_next ~ .g)) ~ #indirect_next ] #has_scope.classList.remove('f_indirect_next') : check matches (true)	
+Pass	[ .lightblue:has(~ #indirect_next:not(.p + .f_indirect_next ~ .g)) ~ #indirect_next ] #has_scope.classList.remove('f_indirect_next') : check #indirect_next color	
+Pass	[ .lightblue:has(~ #indirect_next:not(.p + .f_indirect_next ~ .g)) ~ #indirect_next ] #direct_next.classList.add('f_indirect_next') : check matches (false)	
+Pass	[ .lightblue:has(~ #indirect_next:not(.p + .f_indirect_next ~ .g)) ~ #indirect_next ] #direct_next.classList.add('f_indirect_next') : check #indirect_next color	
+Pass	[ .lightblue:has(~ #indirect_next:not(.p + .f_indirect_next ~ .g)) ~ #indirect_next ] insert/remove .invalid before #direct_next) : (insertion) check matches (true)	
+Pass	[ .lightblue:has(~ #indirect_next:not(.p + .f_indirect_next ~ .g)) ~ #indirect_next ] insert/remove .invalid before #direct_next) : (insertion) check #indirect_next color	
+Pass	[ .lightblue:has(~ #indirect_next:not(.p + .f_indirect_next ~ .g)) ~ #indirect_next ] insert/remove .invalid before #direct_next) : (removal) check matches (false)	
+Pass	[ .lightblue:has(~ #indirect_next:not(.p + .f_indirect_next ~ .g)) ~ #indirect_next ] insert/remove .invalid before #direct_next) : (removal) check #indirect_next color	
+Pass	[ .lightblue:has(~ #indirect_next:not(.p + .f_indirect_next ~ .g)) ~ #indirect_next ] #direct_next.classList.remove('f_indirect_next') : check matches (true)	
+Pass	[ .lightblue:has(~ #indirect_next:not(.p + .f_indirect_next ~ .g)) ~ #indirect_next ] #direct_next.classList.remove('f_indirect_next') : check #indirect_next color	
+Pass	[ .lightblue:has(~ #indirect_next:not(.p + .f_indirect_next ~ .g)) ~ #indirect_next ] insert/remove .f_indirect_next before #direct_next) : (insertion) check matches (false)	
+Pass	[ .lightblue:has(~ #indirect_next:not(.p + .f_indirect_next ~ .g)) ~ #indirect_next ] insert/remove .f_indirect_next before #direct_next) : (insertion) check #indirect_next color	
+Pass	[ .lightblue:has(~ #indirect_next:not(.p + .f_indirect_next ~ .g)) ~ #indirect_next ] insert/remove .f_indirect_next before #direct_next) : (removal) check matches (true)	
+Pass	[ .lightblue:has(~ #indirect_next:not(.p + .f_indirect_next ~ .g)) ~ #indirect_next ] insert/remove .f_indirect_next before #direct_next) : (removal) check #indirect_next color	
+Pass	[ .lightblue:has(~ #indirect_next:not(.p + .f_indirect_next ~ .g)) ~ #indirect_next ] #has_scope.classList.remove('lightblue') : check matches (false)	
+Pass	[ .lightblue:has(~ #indirect_next:not(.p + .f_indirect_next ~ .g)) ~ #indirect_next ] #has_scope.classList.remove('lightblue') : check #indirect_next color	
+Pass	[ .darkblue:has(~ #indirect_next:not(.p + .f_indirect_next_child ~ .g)) ~ #indirect_next #indirect_next_child ] #has_scope.classList.add('darkblue') : check matches (true)	
+Pass	[ .darkblue:has(~ #indirect_next:not(.p + .f_indirect_next_child ~ .g)) ~ #indirect_next #indirect_next_child ] #has_scope.classList.add('darkblue') : check #indirect_next_child color	
+Pass	[ .darkblue:has(~ #indirect_next:not(.p + .f_indirect_next_child ~ .g)) ~ #indirect_next #indirect_next_child ] #previous.classList.add('f_indirect_next_child') : check matches (false)	
+Pass	[ .darkblue:has(~ #indirect_next:not(.p + .f_indirect_next_child ~ .g)) ~ #indirect_next #indirect_next_child ] #previous.classList.add('f_indirect_next_child') : check #indirect_next_child color	
+Pass	[ .darkblue:has(~ #indirect_next:not(.p + .f_indirect_next_child ~ .g)) ~ #indirect_next #indirect_next_child ] insert/remove .invalid before #previous) : (insertion) check matches (true)	
+Pass	[ .darkblue:has(~ #indirect_next:not(.p + .f_indirect_next_child ~ .g)) ~ #indirect_next #indirect_next_child ] insert/remove .invalid before #previous) : (insertion) check #indirect_next_child color	
+Pass	[ .darkblue:has(~ #indirect_next:not(.p + .f_indirect_next_child ~ .g)) ~ #indirect_next #indirect_next_child ] insert/remove .invalid before #previous) : (removal) check matches (false)	
+Pass	[ .darkblue:has(~ #indirect_next:not(.p + .f_indirect_next_child ~ .g)) ~ #indirect_next #indirect_next_child ] insert/remove .invalid before #previous) : (removal) check #indirect_next_child color	
+Pass	[ .darkblue:has(~ #indirect_next:not(.p + .f_indirect_next_child ~ .g)) ~ #indirect_next #indirect_next_child ] #previous.classList.remove('f_indirect_next_child') : check matches (true)	
+Pass	[ .darkblue:has(~ #indirect_next:not(.p + .f_indirect_next_child ~ .g)) ~ #indirect_next #indirect_next_child ] #previous.classList.remove('f_indirect_next_child') : check #indirect_next_child color	
+Pass	[ .darkblue:has(~ #indirect_next:not(.p + .f_indirect_next_child ~ .g)) ~ #indirect_next #indirect_next_child ] insert/remove .f_indirect_next_child before #previous) : (insertion) check matches (false)	
+Pass	[ .darkblue:has(~ #indirect_next:not(.p + .f_indirect_next_child ~ .g)) ~ #indirect_next #indirect_next_child ] insert/remove .f_indirect_next_child before #previous) : (insertion) check #indirect_next_child color	
+Pass	[ .darkblue:has(~ #indirect_next:not(.p + .f_indirect_next_child ~ .g)) ~ #indirect_next #indirect_next_child ] insert/remove .f_indirect_next_child before #previous) : (removal) check matches (true)	
+Pass	[ .darkblue:has(~ #indirect_next:not(.p + .f_indirect_next_child ~ .g)) ~ #indirect_next #indirect_next_child ] insert/remove .f_indirect_next_child before #previous) : (removal) check #indirect_next_child color	
+Pass	[ .darkblue:has(~ #indirect_next:not(.p + .f_indirect_next_child ~ .g)) ~ #indirect_next #indirect_next_child ] #has_scope.classList.add('f_indirect_next_child') : check matches (false)	
+Pass	[ .darkblue:has(~ #indirect_next:not(.p + .f_indirect_next_child ~ .g)) ~ #indirect_next #indirect_next_child ] #has_scope.classList.add('f_indirect_next_child') : check #indirect_next_child color	
+Pass	[ .darkblue:has(~ #indirect_next:not(.p + .f_indirect_next_child ~ .g)) ~ #indirect_next #indirect_next_child ] #has_scope.classList.remove('f_indirect_next_child') : check matches (true)	
+Pass	[ .darkblue:has(~ #indirect_next:not(.p + .f_indirect_next_child ~ .g)) ~ #indirect_next #indirect_next_child ] #has_scope.classList.remove('f_indirect_next_child') : check #indirect_next_child color	
+Pass	[ .darkblue:has(~ #indirect_next:not(.p + .f_indirect_next_child ~ .g)) ~ #indirect_next #indirect_next_child ] #direct_next.classList.add('f_indirect_next_child') : check matches (false)	
+Pass	[ .darkblue:has(~ #indirect_next:not(.p + .f_indirect_next_child ~ .g)) ~ #indirect_next #indirect_next_child ] #direct_next.classList.add('f_indirect_next_child') : check #indirect_next_child color	
+Pass	[ .darkblue:has(~ #indirect_next:not(.p + .f_indirect_next_child ~ .g)) ~ #indirect_next #indirect_next_child ] insert/remove .invalid before #direct_next) : (insertion) check matches (true)	
+Pass	[ .darkblue:has(~ #indirect_next:not(.p + .f_indirect_next_child ~ .g)) ~ #indirect_next #indirect_next_child ] insert/remove .invalid before #direct_next) : (insertion) check #indirect_next_child color	
+Pass	[ .darkblue:has(~ #indirect_next:not(.p + .f_indirect_next_child ~ .g)) ~ #indirect_next #indirect_next_child ] insert/remove .invalid before #direct_next) : (removal) check matches (false)	
+Pass	[ .darkblue:has(~ #indirect_next:not(.p + .f_indirect_next_child ~ .g)) ~ #indirect_next #indirect_next_child ] insert/remove .invalid before #direct_next) : (removal) check #indirect_next_child color	
+Pass	[ .darkblue:has(~ #indirect_next:not(.p + .f_indirect_next_child ~ .g)) ~ #indirect_next #indirect_next_child ] #direct_next.classList.remove('f_indirect_next_child') : check matches (true)	
+Pass	[ .darkblue:has(~ #indirect_next:not(.p + .f_indirect_next_child ~ .g)) ~ #indirect_next #indirect_next_child ] #direct_next.classList.remove('f_indirect_next_child') : check #indirect_next_child color	
+Pass	[ .darkblue:has(~ #indirect_next:not(.p + .f_indirect_next_child ~ .g)) ~ #indirect_next #indirect_next_child ] insert/remove .f_indirect_next_child before #direct_next) : (insertion) check matches (false)	
+Pass	[ .darkblue:has(~ #indirect_next:not(.p + .f_indirect_next_child ~ .g)) ~ #indirect_next #indirect_next_child ] insert/remove .f_indirect_next_child before #direct_next) : (insertion) check #indirect_next_child color	
+Pass	[ .darkblue:has(~ #indirect_next:not(.p + .f_indirect_next_child ~ .g)) ~ #indirect_next #indirect_next_child ] insert/remove .f_indirect_next_child before #direct_next) : (removal) check matches (true)	
+Pass	[ .darkblue:has(~ #indirect_next:not(.p + .f_indirect_next_child ~ .g)) ~ #indirect_next #indirect_next_child ] insert/remove .f_indirect_next_child before #direct_next) : (removal) check #indirect_next_child color	
+Pass	[ .darkblue:has(~ #indirect_next:not(.p + .f_indirect_next_child ~ .g)) ~ #indirect_next #indirect_next_child ] #has_scope.classList.remove('darkblue') : check matches (false)	
+Pass	[ .darkblue:has(~ #indirect_next:not(.p + .f_indirect_next_child ~ .g)) ~ #indirect_next #indirect_next_child ] #has_scope.classList.remove('darkblue') : check #indirect_next_child color	
+Pass	[ .yellow:has(~ #indirect_next:not(.h_has_scope .i)) ] #has_scope.classList.add('yellow') : check matches (true)	
+Pass	[ .yellow:has(~ #indirect_next:not(.h_has_scope .i)) ] #has_scope.classList.add('yellow') : check #has_scope color	
+Pass	[ .yellow:has(~ #indirect_next:not(.h_has_scope .i)) ] #parent.classList.add('h_has_scope') : check matches (false)	
+Pass	[ .yellow:has(~ #indirect_next:not(.h_has_scope .i)) ] #parent.classList.add('h_has_scope') : check #has_scope color	
+Pass	[ .yellow:has(~ #indirect_next:not(.h_has_scope .i)) ] #parent.classList.remove('h_has_scope') : check matches (true)	
+Pass	[ .yellow:has(~ #indirect_next:not(.h_has_scope .i)) ] #parent.classList.remove('h_has_scope') : check #has_scope color	
+Pass	[ .yellow:has(~ #indirect_next:not(.h_has_scope .i)) ] #has_scope.classList.remove('yellow') : check matches (false)	
+Pass	[ .yellow:has(~ #indirect_next:not(.h_has_scope .i)) ] #has_scope.classList.remove('yellow') : check #has_scope color	
+Pass	[ .ivory:has(~ #indirect_next:not(.h_descendant .i)) #descendant ] #has_scope.classList.add('ivory') : check matches (true)	
+Pass	[ .ivory:has(~ #indirect_next:not(.h_descendant .i)) #descendant ] #has_scope.classList.add('ivory') : check #descendant color	
+Pass	[ .ivory:has(~ #indirect_next:not(.h_descendant .i)) #descendant ] #parent.classList.add('h_descendant') : check matches (false)	
+Pass	[ .ivory:has(~ #indirect_next:not(.h_descendant .i)) #descendant ] #parent.classList.add('h_descendant') : check #descendant color	
+Pass	[ .ivory:has(~ #indirect_next:not(.h_descendant .i)) #descendant ] #parent.classList.remove('h_descendant') : check matches (true)	
+Pass	[ .ivory:has(~ #indirect_next:not(.h_descendant .i)) #descendant ] #parent.classList.remove('h_descendant') : check #descendant color	
+Pass	[ .ivory:has(~ #indirect_next:not(.h_descendant .i)) #descendant ] #has_scope.classList.remove('ivory') : check matches (false)	
+Pass	[ .ivory:has(~ #indirect_next:not(.h_descendant .i)) #descendant ] #has_scope.classList.remove('ivory') : check #descendant color	
+Pass	[ .greenyellow:has(~ #indirect_next:not(.h_indirect_next .i)) ~ #indirect_next ] #has_scope.classList.add('greenyellow') : check matches (true)	
+Pass	[ .greenyellow:has(~ #indirect_next:not(.h_indirect_next .i)) ~ #indirect_next ] #has_scope.classList.add('greenyellow') : check #indirect_next color	
+Pass	[ .greenyellow:has(~ #indirect_next:not(.h_indirect_next .i)) ~ #indirect_next ] #parent.classList.add('h_indirect_next') : check matches (false)	
+Pass	[ .greenyellow:has(~ #indirect_next:not(.h_indirect_next .i)) ~ #indirect_next ] #parent.classList.add('h_indirect_next') : check #indirect_next color	
+Pass	[ .greenyellow:has(~ #indirect_next:not(.h_indirect_next .i)) ~ #indirect_next ] #parent.classList.remove('h_indirect_next') : check matches (true)	
+Pass	[ .greenyellow:has(~ #indirect_next:not(.h_indirect_next .i)) ~ #indirect_next ] #parent.classList.remove('h_indirect_next') : check #indirect_next color	
+Pass	[ .greenyellow:has(~ #indirect_next:not(.h_indirect_next .i)) ~ #indirect_next ] #has_scope.classList.remove('greenyellow') : check matches (false)	
+Pass	[ .greenyellow:has(~ #indirect_next:not(.h_indirect_next .i)) ~ #indirect_next ] #has_scope.classList.remove('greenyellow') : check #indirect_next color	
+Pass	[ .khaki:has(~ #indirect_next:not(.h_indirect_next_child .i)) ~ #indirect_next #indirect_next_child ] #has_scope.classList.add('khaki') : check matches (true)	
+Pass	[ .khaki:has(~ #indirect_next:not(.h_indirect_next_child .i)) ~ #indirect_next #indirect_next_child ] #has_scope.classList.add('khaki') : check #indirect_next_child color	
+Pass	[ .khaki:has(~ #indirect_next:not(.h_indirect_next_child .i)) ~ #indirect_next #indirect_next_child ] #parent.classList.add('h_indirect_next_child') : check matches (false)	
+Pass	[ .khaki:has(~ #indirect_next:not(.h_indirect_next_child .i)) ~ #indirect_next #indirect_next_child ] #parent.classList.add('h_indirect_next_child') : check #indirect_next_child color	
+Pass	[ .khaki:has(~ #indirect_next:not(.h_indirect_next_child .i)) ~ #indirect_next #indirect_next_child ] #parent.classList.remove('h_indirect_next_child') : check matches (true)	
+Pass	[ .khaki:has(~ #indirect_next:not(.h_indirect_next_child .i)) ~ #indirect_next #indirect_next_child ] #parent.classList.remove('h_indirect_next_child') : check #indirect_next_child color	
+Pass	[ .khaki:has(~ #indirect_next:not(.h_indirect_next_child .i)) ~ #indirect_next #indirect_next_child ] #has_scope.classList.remove('khaki') : check matches (false)	
+Pass	[ .khaki:has(~ #indirect_next:not(.h_indirect_next_child .i)) ~ #indirect_next #indirect_next_child ] #has_scope.classList.remove('khaki') : check #indirect_next_child color	
+Pass	[ .purple:has(~ #indirect_next:not(.p + .j_has_scope ~ .k .l)) ] #has_scope.classList.add('purple') : check matches (true)	
+Pass	[ .purple:has(~ #indirect_next:not(.p + .j_has_scope ~ .k .l)) ] #has_scope.classList.add('purple') : check #has_scope color	
+Pass	[ .purple:has(~ #indirect_next:not(.p + .j_has_scope ~ .k .l)) ] #parent_previous.classList.add('j_has_scope') : check matches (false)	
+Pass	[ .purple:has(~ #indirect_next:not(.p + .j_has_scope ~ .k .l)) ] #parent_previous.classList.add('j_has_scope') : check #has_scope color	
+Pass	[ .purple:has(~ #indirect_next:not(.p + .j_has_scope ~ .k .l)) ] insert/remove .invalid before #parent_previous) : (insertion) check matches (true)	
+Pass	[ .purple:has(~ #indirect_next:not(.p + .j_has_scope ~ .k .l)) ] insert/remove .invalid before #parent_previous) : (insertion) check #has_scope color	
+Pass	[ .purple:has(~ #indirect_next:not(.p + .j_has_scope ~ .k .l)) ] insert/remove .invalid before #parent_previous) : (removal) check matches (false)	
+Pass	[ .purple:has(~ #indirect_next:not(.p + .j_has_scope ~ .k .l)) ] insert/remove .invalid before #parent_previous) : (removal) check #has_scope color	
+Pass	[ .purple:has(~ #indirect_next:not(.p + .j_has_scope ~ .k .l)) ] #parent_previous.classList.remove('j_has_scope') : check matches (true)	
+Pass	[ .purple:has(~ #indirect_next:not(.p + .j_has_scope ~ .k .l)) ] #parent_previous.classList.remove('j_has_scope') : check #has_scope color	
+Pass	[ .purple:has(~ #indirect_next:not(.p + .j_has_scope ~ .k .l)) ] insert/remove .j_has_scope before #parent_previous) : (insertion) check matches (false)	
+Pass	[ .purple:has(~ #indirect_next:not(.p + .j_has_scope ~ .k .l)) ] insert/remove .j_has_scope before #parent_previous) : (insertion) check #has_scope color	
+Pass	[ .purple:has(~ #indirect_next:not(.p + .j_has_scope ~ .k .l)) ] insert/remove .j_has_scope before #parent_previous) : (removal) check matches (true)	
+Pass	[ .purple:has(~ #indirect_next:not(.p + .j_has_scope ~ .k .l)) ] insert/remove .j_has_scope before #parent_previous) : (removal) check #has_scope color	
+Pass	[ .purple:has(~ #indirect_next:not(.p + .j_has_scope ~ .k .l)) ] #has_scope.classList.remove('purple') : check matches (false)	
+Pass	[ .purple:has(~ #indirect_next:not(.p + .j_has_scope ~ .k .l)) ] #has_scope.classList.remove('purple') : check #has_scope color	
+Pass	[ .violet:has(~ #indirect_next:not(.p + .j_descendant ~ .k .l)) #descendant ] #has_scope.classList.add('violet') : check matches (true)	
+Pass	[ .violet:has(~ #indirect_next:not(.p + .j_descendant ~ .k .l)) #descendant ] #has_scope.classList.add('violet') : check #descendant color	
+Pass	[ .violet:has(~ #indirect_next:not(.p + .j_descendant ~ .k .l)) #descendant ] #parent_previous.classList.add('j_descendant') : check matches (false)	
+Pass	[ .violet:has(~ #indirect_next:not(.p + .j_descendant ~ .k .l)) #descendant ] #parent_previous.classList.add('j_descendant') : check #descendant color	
+Pass	[ .violet:has(~ #indirect_next:not(.p + .j_descendant ~ .k .l)) #descendant ] insert/remove .invalid before #parent_previous) : (insertion) check matches (true)	
+Pass	[ .violet:has(~ #indirect_next:not(.p + .j_descendant ~ .k .l)) #descendant ] insert/remove .invalid before #parent_previous) : (insertion) check #descendant color	
+Pass	[ .violet:has(~ #indirect_next:not(.p + .j_descendant ~ .k .l)) #descendant ] insert/remove .invalid before #parent_previous) : (removal) check matches (false)	
+Pass	[ .violet:has(~ #indirect_next:not(.p + .j_descendant ~ .k .l)) #descendant ] insert/remove .invalid before #parent_previous) : (removal) check #descendant color	
+Pass	[ .violet:has(~ #indirect_next:not(.p + .j_descendant ~ .k .l)) #descendant ] #parent_previous.classList.remove('j_descendant') : check matches (true)	
+Pass	[ .violet:has(~ #indirect_next:not(.p + .j_descendant ~ .k .l)) #descendant ] #parent_previous.classList.remove('j_descendant') : check #descendant color	
+Pass	[ .violet:has(~ #indirect_next:not(.p + .j_descendant ~ .k .l)) #descendant ] insert/remove .j_descendant before #parent_previous) : (insertion) check matches (false)	
+Pass	[ .violet:has(~ #indirect_next:not(.p + .j_descendant ~ .k .l)) #descendant ] insert/remove .j_descendant before #parent_previous) : (insertion) check #descendant color	
+Pass	[ .violet:has(~ #indirect_next:not(.p + .j_descendant ~ .k .l)) #descendant ] insert/remove .j_descendant before #parent_previous) : (removal) check matches (true)	
+Pass	[ .violet:has(~ #indirect_next:not(.p + .j_descendant ~ .k .l)) #descendant ] insert/remove .j_descendant before #parent_previous) : (removal) check #descendant color	
+Pass	[ .violet:has(~ #indirect_next:not(.p + .j_descendant ~ .k .l)) #descendant ] #has_scope.classList.remove('violet') : check matches (false)	
+Pass	[ .violet:has(~ #indirect_next:not(.p + .j_descendant ~ .k .l)) #descendant ] #has_scope.classList.remove('violet') : check #descendant color	
+Pass	[ .orchid:has(~ #indirect_next:not(.p + .j_indirect_next ~ .k .l)) ~ #indirect_next ] #has_scope.classList.add('orchid') : check matches (true)	
+Pass	[ .orchid:has(~ #indirect_next:not(.p + .j_indirect_next ~ .k .l)) ~ #indirect_next ] #has_scope.classList.add('orchid') : check #indirect_next color	
+Pass	[ .orchid:has(~ #indirect_next:not(.p + .j_indirect_next ~ .k .l)) ~ #indirect_next ] #parent_previous.classList.add('j_indirect_next') : check matches (false)	
+Pass	[ .orchid:has(~ #indirect_next:not(.p + .j_indirect_next ~ .k .l)) ~ #indirect_next ] #parent_previous.classList.add('j_indirect_next') : check #indirect_next color	
+Pass	[ .orchid:has(~ #indirect_next:not(.p + .j_indirect_next ~ .k .l)) ~ #indirect_next ] insert/remove .invalid before #parent_previous) : (insertion) check matches (true)	
+Pass	[ .orchid:has(~ #indirect_next:not(.p + .j_indirect_next ~ .k .l)) ~ #indirect_next ] insert/remove .invalid before #parent_previous) : (insertion) check #indirect_next color	
+Pass	[ .orchid:has(~ #indirect_next:not(.p + .j_indirect_next ~ .k .l)) ~ #indirect_next ] insert/remove .invalid before #parent_previous) : (removal) check matches (false)	
+Pass	[ .orchid:has(~ #indirect_next:not(.p + .j_indirect_next ~ .k .l)) ~ #indirect_next ] insert/remove .invalid before #parent_previous) : (removal) check #indirect_next color	
+Pass	[ .orchid:has(~ #indirect_next:not(.p + .j_indirect_next ~ .k .l)) ~ #indirect_next ] #parent_previous.classList.remove('j_indirect_next') : check matches (true)	
+Pass	[ .orchid:has(~ #indirect_next:not(.p + .j_indirect_next ~ .k .l)) ~ #indirect_next ] #parent_previous.classList.remove('j_indirect_next') : check #indirect_next color	
+Pass	[ .orchid:has(~ #indirect_next:not(.p + .j_indirect_next ~ .k .l)) ~ #indirect_next ] insert/remove .j_indirect_next before #parent_previous) : (insertion) check matches (false)	
+Pass	[ .orchid:has(~ #indirect_next:not(.p + .j_indirect_next ~ .k .l)) ~ #indirect_next ] insert/remove .j_indirect_next before #parent_previous) : (insertion) check #indirect_next color	
+Pass	[ .orchid:has(~ #indirect_next:not(.p + .j_indirect_next ~ .k .l)) ~ #indirect_next ] insert/remove .j_indirect_next before #parent_previous) : (removal) check matches (true)	
+Pass	[ .orchid:has(~ #indirect_next:not(.p + .j_indirect_next ~ .k .l)) ~ #indirect_next ] insert/remove .j_indirect_next before #parent_previous) : (removal) check #indirect_next color	
+Pass	[ .orchid:has(~ #indirect_next:not(.p + .j_indirect_next ~ .k .l)) ~ #indirect_next ] #has_scope.classList.remove('orchid') : check matches (false)	
+Pass	[ .orchid:has(~ #indirect_next:not(.p + .j_indirect_next ~ .k .l)) ~ #indirect_next ] #has_scope.classList.remove('orchid') : check #indirect_next color	
+Pass	[ .plum:has(~ #indirect_next:not(.p + .j_indirect_next_child ~ .k .l)) ~ #indirect_next #indirect_next_child ] #has_scope.classList.add('plum') : check matches (true)	
+Pass	[ .plum:has(~ #indirect_next:not(.p + .j_indirect_next_child ~ .k .l)) ~ #indirect_next #indirect_next_child ] #has_scope.classList.add('plum') : check #indirect_next_child color	
+Pass	[ .plum:has(~ #indirect_next:not(.p + .j_indirect_next_child ~ .k .l)) ~ #indirect_next #indirect_next_child ] #parent_previous.classList.add('j_indirect_next_child') : check matches (false)	
+Pass	[ .plum:has(~ #indirect_next:not(.p + .j_indirect_next_child ~ .k .l)) ~ #indirect_next #indirect_next_child ] #parent_previous.classList.add('j_indirect_next_child') : check #indirect_next_child color	
+Pass	[ .plum:has(~ #indirect_next:not(.p + .j_indirect_next_child ~ .k .l)) ~ #indirect_next #indirect_next_child ] insert/remove .invalid before #parent_previous) : (insertion) check matches (true)	
+Pass	[ .plum:has(~ #indirect_next:not(.p + .j_indirect_next_child ~ .k .l)) ~ #indirect_next #indirect_next_child ] insert/remove .invalid before #parent_previous) : (insertion) check #indirect_next_child color	
+Pass	[ .plum:has(~ #indirect_next:not(.p + .j_indirect_next_child ~ .k .l)) ~ #indirect_next #indirect_next_child ] insert/remove .invalid before #parent_previous) : (removal) check matches (false)	
+Pass	[ .plum:has(~ #indirect_next:not(.p + .j_indirect_next_child ~ .k .l)) ~ #indirect_next #indirect_next_child ] insert/remove .invalid before #parent_previous) : (removal) check #indirect_next_child color	
+Pass	[ .plum:has(~ #indirect_next:not(.p + .j_indirect_next_child ~ .k .l)) ~ #indirect_next #indirect_next_child ] #parent_previous.classList.remove('j_indirect_next_child') : check matches (true)	
+Pass	[ .plum:has(~ #indirect_next:not(.p + .j_indirect_next_child ~ .k .l)) ~ #indirect_next #indirect_next_child ] #parent_previous.classList.remove('j_indirect_next_child') : check #indirect_next_child color	
+Pass	[ .plum:has(~ #indirect_next:not(.p + .j_indirect_next_child ~ .k .l)) ~ #indirect_next #indirect_next_child ] insert/remove .j_indirect_next_child before #parent_previous) : (insertion) check matches (false)	
+Pass	[ .plum:has(~ #indirect_next:not(.p + .j_indirect_next_child ~ .k .l)) ~ #indirect_next #indirect_next_child ] insert/remove .j_indirect_next_child before #parent_previous) : (insertion) check #indirect_next_child color	
+Pass	[ .plum:has(~ #indirect_next:not(.p + .j_indirect_next_child ~ .k .l)) ~ #indirect_next #indirect_next_child ] insert/remove .j_indirect_next_child before #parent_previous) : (removal) check matches (true)	
+Pass	[ .plum:has(~ #indirect_next:not(.p + .j_indirect_next_child ~ .k .l)) ~ #indirect_next #indirect_next_child ] insert/remove .j_indirect_next_child before #parent_previous) : (removal) check #indirect_next_child color	
+Pass	[ .plum:has(~ #indirect_next:not(.p + .j_indirect_next_child ~ .k .l)) ~ #indirect_next #indirect_next_child ] #has_scope.classList.remove('plum') : check matches (false)	
+Pass	[ .plum:has(~ #indirect_next:not(.p + .j_indirect_next_child ~ .k .l)) ~ #indirect_next #indirect_next_child ] #has_scope.classList.remove('plum') : check #indirect_next_child color	
+Pass	[ .orange:has(#descendant:not(.m:not(.n) .o)) ] #has_scope.classList.add('orange') : check matches (true)	
+Pass	[ .orange:has(#descendant:not(.m:not(.n) .o)) ] #has_scope.classList.add('orange') : check #has_scope color	
+Pass	[ .orange:has(#descendant:not(.m:not(.n) .o)) ] #parent.classList.add('m') : check matches (false)	
+Pass	[ .orange:has(#descendant:not(.m:not(.n) .o)) ] #parent.classList.add('m') : check #has_scope color	
+Pass	[ .orange:has(#descendant:not(.m:not(.n) .o)) ] #parent.classList.add('n') : check matches (true)	
+Pass	[ .orange:has(#descendant:not(.m:not(.n) .o)) ] #parent.classList.add('n') : check #has_scope color	
+Pass	[ .orange:has(#descendant:not(.m:not(.n) .o)) ] #parent.classList.remove('n') : check matches (false)	
+Pass	[ .orange:has(#descendant:not(.m:not(.n) .o)) ] #parent.classList.remove('n') : check #has_scope color	
+Pass	[ .orange:has(#descendant:not(.m:not(.n) .o)) ] #parent.classList.remove('m') : check matches (true)	
+Pass	[ .orange:has(#descendant:not(.m:not(.n) .o)) ] #parent.classList.remove('m') : check #has_scope color	
+Pass	[ .orange:has(#descendant:not(.m:not(.n) .o)) ] #has_scope.classList.add('m') : check matches (false)	
+Pass	[ .orange:has(#descendant:not(.m:not(.n) .o)) ] #has_scope.classList.add('m') : check #has_scope color	
+Pass	[ .orange:has(#descendant:not(.m:not(.n) .o)) ] #has_scope.classList.add('n') : check matches (true)	
+Pass	[ .orange:has(#descendant:not(.m:not(.n) .o)) ] #has_scope.classList.add('n') : check #has_scope color	
+Pass	[ .orange:has(#descendant:not(.m:not(.n) .o)) ] #has_scope.classList.remove('n') : check matches (false)	
+Pass	[ .orange:has(#descendant:not(.m:not(.n) .o)) ] #has_scope.classList.remove('n') : check #has_scope color	
+Pass	[ .orange:has(#descendant:not(.m:not(.n) .o)) ] #has_scope.classList.remove('m') : check matches (true)	
+Pass	[ .orange:has(#descendant:not(.m:not(.n) .o)) ] #has_scope.classList.remove('m') : check #has_scope color	
+Pass	[ .orange:has(#descendant:not(.m:not(.n) .o)) ] #child.classList.add('m') : check matches (false)	
+Pass	[ .orange:has(#descendant:not(.m:not(.n) .o)) ] #child.classList.add('m') : check #has_scope color	
+Pass	[ .orange:has(#descendant:not(.m:not(.n) .o)) ] #child.classList.add('n') : check matches (true)	
+Pass	[ .orange:has(#descendant:not(.m:not(.n) .o)) ] #child.classList.add('n') : check #has_scope color	
+Pass	[ .orange:has(#descendant:not(.m:not(.n) .o)) ] #child.classList.remove('n') : check matches (false)	
+Pass	[ .orange:has(#descendant:not(.m:not(.n) .o)) ] #child.classList.remove('n') : check #has_scope color	
+Pass	[ .orange:has(#descendant:not(.m:not(.n) .o)) ] #child.classList.remove('m') : check matches (true)	
+Pass	[ .orange:has(#descendant:not(.m:not(.n) .o)) ] #child.classList.remove('m') : check #has_scope color	
+Pass	[ .orange:has(#descendant:not(.m:not(.n) .o)) ] #has_scope.classList.remove('orange') : check matches (false)	
+Pass	[ .orange:has(#descendant:not(.m:not(.n) .o)) ] #has_scope.classList.remove('orange') : check #has_scope color	
