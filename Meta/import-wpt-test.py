@@ -9,6 +9,7 @@ from urllib.parse import urljoin
 from urllib.request import urlopen
 from collections import namedtuple
 from enum import Enum
+import re
 
 wpt_base_url = 'https://wpt.live/'
 
@@ -35,13 +36,37 @@ reference_path = None  # With parent directories
 src_values = []
 
 
-class ScriptSrcValueFinder(HTMLParser):
+class LinkedResourceFinder(HTMLParser):
+    def __init__(self):
+        super().__init__()
+        self._tag_stack_ = []
+        self._match_css_url_ = re.compile(r"url\(\"?(?P<url>[^\")]+)\"?\)")
+        self._match_css_import_string_ = re.compile(r"@import\s+\"(?P<url>[^\")]+)\"")
 
     def handle_starttag(self, tag, attrs):
+        self._tag_stack_.append(tag)
         if tag == "script":
             attr_dict = dict(attrs)
             if "src" in attr_dict:
                 src_values.append(attr_dict["src"])
+        if tag == "link":
+            attr_dict = dict(attrs)
+            if attr_dict["rel"] == "stylesheet":
+                src_values.append(attr_dict["href"])
+
+    def handle_endtag(self, tag):
+        self._tag_stack_.pop()
+
+    def handle_data(self, data):
+        if self._tag_stack_ and self._tag_stack_[-1] == "style":
+            # Look for uses of url()
+            url_iterator = self._match_css_url_.finditer(data)
+            for match in url_iterator:
+                src_values.append(match.group("url"))
+            # Look for @imports that use plain strings - we already found the url() ones
+            import_iterator = self._match_css_import_string_.finditer(data)
+            for match in import_iterator:
+                src_values.append(match.group("url"))
 
 
 class TestTypeIdentifier(HTMLParser):
@@ -110,8 +135,6 @@ def modify_sources(files):
 
         with open(file, 'r') as f:
             page_source = f.read()
-
-        page_source = page_source.replace('/fonts/ahem.css', '../' * parent_folder_count + 'fonts/ahem.css')
 
         # Iterate all scripts and overwrite the src attribute
         for i, src_value in enumerate(src_values):
@@ -208,7 +231,7 @@ def main():
     files_to_modify = download_files(main_paths)
     create_expectation_files(main_paths)
 
-    parser = ScriptSrcValueFinder()
+    parser = LinkedResourceFinder()
     parser.feed(page)
 
     modify_sources(files_to_modify)
