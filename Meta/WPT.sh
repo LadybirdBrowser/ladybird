@@ -131,6 +131,8 @@ for i in "${!TEST_LIST[@]}"; do
     item="${TEST_LIST[i]}"
     item="${item#"$WPT_SOURCE_DIR"/}"
     item="${item#*Tests/LibWeb/WPT/wpt/}"
+    item="${item#http://wpt.live/}"
+    item="${item#https://wpt.live/}"
     TEST_LIST[i]="$item"
 done
 
@@ -193,6 +195,12 @@ serve_wpt()
 
 import_wpt()
 {
+    for i in "${!INPUT_PATHS[@]}"; do
+        item="${INPUT_PATHS[i]}"
+        item="${item#http://wpt.live/}"
+        item="${item#https://wpt.live/}"
+        INPUT_PATHS[i]="$item"
+    done
     pushd "${LADYBIRD_SOURCE_DIR}" > /dev/null
         ./Meta/ladybird.sh build headless-browser
         for path in "${INPUT_PATHS[@]}"; do
