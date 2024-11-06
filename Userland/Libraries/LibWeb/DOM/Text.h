@@ -13,12 +13,6 @@
 
 namespace Web::DOM {
 
-class EditableTextNodeOwner {
-public:
-    virtual ~EditableTextNodeOwner() = default;
-    virtual void did_edit_text_node() = 0;
-};
-
 class Text
     : public CharacterData
     , public SlottableMixin {
@@ -38,10 +32,6 @@ public:
 
     Optional<size_t> max_length() const { return m_max_length; }
     void set_max_length(Optional<size_t> max_length) { m_max_length = move(max_length); }
-
-    template<DerivedFrom<EditableTextNodeOwner> T>
-    void set_editable_text_node_owner(Badge<T>, Element& owner_element) { m_owner = &owner_element; }
-    EditableTextNodeOwner* editable_text_node_owner();
 
     WebIDL::ExceptionOr<JS::NonnullGCPtr<Text>> split_text(size_t offset);
     String whole_text();

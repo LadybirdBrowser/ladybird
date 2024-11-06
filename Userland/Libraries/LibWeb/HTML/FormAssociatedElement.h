@@ -170,6 +170,8 @@ public:
     bool has_scheduled_selectionchange_event() const { return m_has_scheduled_selectionchange_event; }
     void set_scheduled_selectionchange_event(bool value) { m_has_scheduled_selectionchange_event = value; }
 
+    virtual void did_edit_text_node() = 0;
+
     virtual JS::GCPtr<DOM::Text> form_associated_element_to_text_node() = 0;
     virtual JS::GCPtr<DOM::Text const> form_associated_element_to_text_node() const { return const_cast<FormAssociatedTextControlElement&>(*this).form_associated_element_to_text_node(); }
 

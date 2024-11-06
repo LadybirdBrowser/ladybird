@@ -370,7 +370,6 @@ void HTMLTextAreaElement::create_shadow_tree_if_needed()
 
     m_placeholder_text_node = heap().allocate<DOM::Text>(realm(), document(), String {});
     m_placeholder_text_node->set_data(get_attribute_value(HTML::AttributeNames::placeholder));
-    m_placeholder_text_node->set_editable_text_node_owner(Badge<HTMLTextAreaElement> {}, *this);
     MUST(m_placeholder_element->append_child(*m_placeholder_text_node));
 
     m_inner_text_element = MUST(DOM::create_element(document(), HTML::TagNames::div, Namespace::HTML));
@@ -378,7 +377,6 @@ void HTMLTextAreaElement::create_shadow_tree_if_needed()
 
     m_text_node = heap().allocate<DOM::Text>(realm(), document(), String {});
     handle_readonly_attribute(attribute(HTML::AttributeNames::readonly));
-    m_text_node->set_editable_text_node_owner(Badge<HTMLTextAreaElement> {}, *this);
     // NOTE: If `children_changed()` was called before now, `m_raw_value` will hold the text content.
     //       Otherwise, it will get filled in whenever that does get called.
     m_text_node->set_text_content(m_raw_value);

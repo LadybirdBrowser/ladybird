@@ -48,15 +48,6 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<Text>> Text::construct_impl(JS::Realm& real
     return realm.heap().allocate<Text>(realm, window.associated_document(), data);
 }
 
-EditableTextNodeOwner* Text::editable_text_node_owner()
-{
-    if (!m_owner)
-        return nullptr;
-    EditableTextNodeOwner* owner = dynamic_cast<EditableTextNodeOwner*>(m_owner.ptr());
-    VERIFY(owner);
-    return owner;
-}
-
 // https://dom.spec.whatwg.org/#dom-text-splittext
 // https://dom.spec.whatwg.org/#concept-text-split
 WebIDL::ExceptionOr<JS::NonnullGCPtr<Text>> Text::split_text(size_t offset)

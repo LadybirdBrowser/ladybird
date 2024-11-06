@@ -20,8 +20,7 @@ namespace Web::HTML {
 
 class HTMLTextAreaElement final
     : public HTMLElement
-    , public FormAssociatedTextControlElement
-    , public DOM::EditableTextNodeOwner {
+    , public FormAssociatedTextControlElement {
     WEB_PLATFORM_OBJECT(HTMLTextAreaElement, HTMLElement);
     JS_DECLARE_ALLOCATOR(HTMLTextAreaElement);
     FORM_ASSOCIATED_ELEMENT(HTMLElement, HTMLTextAreaElement)
@@ -36,9 +35,6 @@ public:
         static String const textarea = "textarea"_string;
         return textarea;
     }
-
-    // ^DOM::EditableTextNodeOwner
-    virtual void did_edit_text_node() override;
 
     // ^EventTarget
     // https://html.spec.whatwg.org/multipage/interaction.html#the-tabindex-attribute:the-textarea-element
@@ -126,6 +122,8 @@ public:
 
     void set_dirty_value_flag(Badge<FormAssociatedElement>, bool flag) { m_dirty_value = flag; }
 
+    // ^FormAssociatedTextControlElement
+    virtual void did_edit_text_node() override;
     virtual JS::GCPtr<DOM::Text> form_associated_element_to_text_node() override { return m_text_node; }
 
 private:
