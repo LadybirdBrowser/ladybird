@@ -51,10 +51,10 @@ public:
         for (size_t i = 0; i < m_cached_records.size();) {
             auto& record = m_cached_records[i];
             if (record.expiration.has_value() && record.expiration.value() < now) {
-                dbgln("DNS: Removing expired record for {}", m_name.to_string());
+                dbgln_if(DNS_DEBUG, "DNS: Removing expired record for {}", m_name.to_string());
                 m_cached_records.remove(i);
             } else {
-                dbgln("DNS: Keeping record for {} (expires in {})", m_name.to_string(), record.expiration.has_value() ? record.expiration.value().to_string() : "never"_string);
+                dbgln_if(DNS_DEBUG, "DNS: Keeping record for {} (expires in {})", m_name.to_string(), record.expiration.has_value() ? record.expiration.value().to_string() : "never"_string);
                 ++i;
             }
         }
@@ -157,7 +157,7 @@ public:
     {
         auto result = lookup_in_cache(name, class_, desired_types);
         VERIFY(!result.is_null());
-        dbgln("DNS::expect({}) -> OK", name);
+        dbgln_if(DNS_DEBUG, "DNS::expect({}) -> OK", name);
         return *result;
     }
 
@@ -204,7 +204,7 @@ public:
         if (!has_connection()) {
             // Use system resolver
             // FIXME: Use an underlying resolver instead.
-            dbgln("Not ready to resolve, using system resolver and skipping cache for {}", name);
+            dbgln_if(DNS_DEBUG, "Not ready to resolve, using system resolver and skipping cache for {}", name);
             auto record_or_error = Core::Socket::resolve_host(name, Core::Socket::SocketType::Stream);
             if (record_or_error.is_error()) {
                 promise->reject(record_or_error.release_error());
@@ -305,7 +305,7 @@ public:
             return nullptr;
         });
         if (cached_entry) {
-            dbgln("DNS::lookup({}) -> Already in cache", name);
+            dbgln_if(DNS_DEBUG, "DNS::lookup({}) -> Already in cache", name);
             return cached_entry.release_nonnull();
         }
 
@@ -364,7 +364,7 @@ private:
             auto message_or_err = parse_one_message();
             if (message_or_err.is_error()) {
                 if (!message_or_err.error().is_errno() || message_or_err.error().code() != EAGAIN)
-                    dbgln("Failed to receive message: {}", message_or_err.error());
+                    dbgln("DNS: Failed to receive message: {}", message_or_err.error());
                 break;
             }
 
@@ -386,7 +386,7 @@ private:
                 return {};
             });
             if (result.is_error()) {
-                dbgln("Received a message with no pending lookup: {}", result.error());
+                dbgln_if(DNS_DEBUG, "DNS: Received a message with no pending lookup: {}", result.error());
                 continue;
             }
         }
@@ -401,7 +401,7 @@ private:
             TemporaryChange change(m_attempting_restart, true);
             auto create_result = m_create_socket();
             if (create_result.is_error()) {
-                dbgln("Failed to create socket: {}", create_result.error());
+                dbgln_if(DNS_DEBUG, "DNS: Failed to create socket: {}", create_result.error());
                 return false;
             }
 

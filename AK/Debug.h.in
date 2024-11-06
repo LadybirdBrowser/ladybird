@@ -50,6 +50,10 @@
 #    cmakedefine01 CSS_TRANSITIONS_DEBUG
 #endif
 
+#ifndef DNS_DEBUG
+#    cmakedefine01 DNS_DEBUG
+#endif
+
 #ifndef EDITOR_DEBUG
 #    cmakedefine01 EDITOR_DEBUG
 #endif
