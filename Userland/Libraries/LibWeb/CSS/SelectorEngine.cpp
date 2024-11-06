@@ -31,6 +31,7 @@
 #include <LibWeb/HTML/HTMLTextAreaElement.h>
 #include <LibWeb/Infra/Strings.h>
 #include <LibWeb/Namespace.h>
+#include <LibWeb/SVG/SVGAElement.h>
 
 namespace Web::SelectorEngine {
 
@@ -151,7 +152,7 @@ static inline bool matches_has_pseudo_class(CSS::Selector const& selector, Optio
 static inline bool matches_link_pseudo_class(DOM::Element const& element)
 {
     // All a elements that have an href attribute, and all area elements that have an href attribute, must match one of :link and :visited.
-    if (!is<HTML::HTMLAnchorElement>(element) && !is<HTML::HTMLAreaElement>(element))
+    if (!is<HTML::HTMLAnchorElement>(element) && !is<HTML::HTMLAreaElement>(element) && !is<SVG::SVGAElement>(element))
         return false;
     return element.has_attribute(HTML::AttributeNames::href);
 }
