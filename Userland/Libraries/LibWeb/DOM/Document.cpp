@@ -1740,9 +1740,13 @@ JS::NonnullGCPtr<Comment> Document::create_comment(String const& data)
 // https://dom.spec.whatwg.org/#dom-document-createprocessinginstruction
 WebIDL::ExceptionOr<JS::NonnullGCPtr<ProcessingInstruction>> Document::create_processing_instruction(String const& target, String const& data)
 {
-    // FIXME: 1. If target does not match the Name production, then throw an "InvalidCharacterError" DOMException.
+    // 1. If target does not match the Name production, then throw an "InvalidCharacterError" DOMException.
+    if (!is_valid_name(target))
+        return WebIDL::InvalidCharacterError::create(realm(), "Invalid character in target name."_string);
 
-    // FIXME: 2. If data contains the string "?>", then throw an "InvalidCharacterError" DOMException.
+    // 2. If data contains the string "?>", then throw an "InvalidCharacterError" DOMException.
+    if (data.contains("?>"sv))
+        return WebIDL::InvalidCharacterError::create(realm(), "String may not contain '?>'"_string);
 
     // 3. Return a new ProcessingInstruction node, with target set to target, data set to data, and node document set to this.
     return heap().allocate<ProcessingInstruction>(realm(), *this, data, target);
