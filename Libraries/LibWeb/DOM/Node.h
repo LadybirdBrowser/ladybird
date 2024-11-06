@@ -795,10 +795,6 @@ private:
     void remove_child_impl(JS::NonnullGCPtr<Node>);
 
     static Optional<StringView> first_valid_id(StringView, Document const&);
-    static ErrorOr<void> append_without_space(StringBuilder, StringView const&);
-    static ErrorOr<void> append_with_space(StringBuilder, StringView const&);
-    static ErrorOr<void> prepend_without_space(StringBuilder, StringView const&);
-    static ErrorOr<void> prepend_with_space(StringBuilder, StringView const&);
 
     JS::GCPtr<Node> m_parent;
     JS::GCPtr<Node> m_first_child;

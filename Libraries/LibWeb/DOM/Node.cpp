@@ -2472,62 +2472,6 @@ Optional<StringView> Node::first_valid_id(StringView value, Document const& docu
     return {};
 }
 
-// https://www.w3.org/TR/accname-1.2/#mapping_additional_nd_te
-ErrorOr<void> Node::append_without_space(StringBuilder x, StringView const& result)
-{
-    // - If X is empty, copy the result to X.
-    // - If X is non-empty, copy the result to the end of X.
-    TRY(x.try_append(result));
-    return {};
-}
-
-// https://www.w3.org/TR/accname-1.2/#mapping_additional_nd_te
-ErrorOr<void> Node::append_with_space(StringBuilder x, StringView const& result)
-{
-    // - If X is empty, copy the result to X.
-    if (x.is_empty()) {
-        TRY(x.try_append(result));
-    } else {
-        // - If X is non-empty, add a space to the end of X and then copy the result to X after the space.
-        TRY(x.try_append(" "sv));
-        TRY(x.try_append(result));
-    }
-    return {};
-}
-
-// https://www.w3.org/TR/accname-1.2/#mapping_additional_nd_te
-ErrorOr<void> Node::prepend_without_space(StringBuilder x, StringView const& result)
-{
-    // - If X is empty, copy the result to X.
-    if (x.is_empty()) {
-        x.append(result);
-    } else {
-        // - If X is non-empty, copy the result to the start of X.
-        auto temp = TRY(x.to_string());
-        x.clear();
-        TRY(x.try_append(result));
-        TRY(x.try_append(temp));
-    }
-    return {};
-}
-
-// https://www.w3.org/TR/accname-1.2/#mapping_additional_nd_te
-ErrorOr<void> Node::prepend_with_space(StringBuilder x, StringView const& result)
-{
-    // - If X is empty, copy the result to X.
-    if (x.is_empty()) {
-        TRY(x.try_append(result));
-    } else {
-        // - If X is non-empty, copy the result to the start of X, and add a space after the copy.
-        auto temp = TRY(x.to_string());
-        x.clear();
-        TRY(x.try_append(result));
-        TRY(x.try_append(" "sv));
-        TRY(x.try_append(temp));
-    }
-    return {};
-}
-
 void Node::add_registered_observer(RegisteredObserver& registered_observer)
 {
     if (!m_registered_observer_list)
