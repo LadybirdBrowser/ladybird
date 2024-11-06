@@ -1,0 +1,70 @@
+Summary
+
+Harness status: OK
+
+Rerun
+
+Found 60 tests
+
+60 Pass
+Details
+Result	Test Name	MessagePass	aria button name from content, inline	
+Pass	aria heading name from content, inline	
+Pass	aria link name from content, inline	
+Pass	aria button name from content, block	
+Pass	aria heading name from content, block	
+Pass	aria link name from content, block	
+Pass	button name from content	
+Pass	heading name from content	
+Pass	link name from content	
+Pass	button name from content with ::before	
+Pass	heading name from content with ::before	
+Pass	link name from content with ::before	
+Pass	button name from content with ::after	
+Pass	heading name from content with ::after	
+Pass	link name from content with ::after	
+Pass	button name from content with ::before and ::after	
+Pass	heading name from content with ::before and ::after	
+Pass	link name from content with ::before and ::after	
+Pass	button name from content no space joiners ::before and ::after	
+Pass	heading name from content no space joiners ::before and ::after	
+Pass	link name from content no space joiners ::before and ::after	
+Pass	button name from content with ::before and ::after in rtl	
+Pass	heading name from content with ::before and ::after in rtl	
+Pass	link name from content with ::before and ::after in rtl	
+Pass	button name from fallback content with ::before and ::after	
+Pass	heading name from fallback content with ::before and ::after	
+Pass	link name from fallback content with ::before and ::after	
+Pass	button name from fallback content mixing attr() and strings with ::before and ::after	
+Pass	heading name from fallback content mixing attr() and strings with ::before and ::after	
+Pass	link name from fallback content mixing attr() and strings with ::before and ::after	
+Pass	primitive radio input with ::before containing empty alternative text	
+Pass	primitive radio input with ::before containing empty alternative text for an image	
+Pass	button name from content for each child	
+Pass	heading name from content for each child	
+Pass	link name from content for each child	
+Pass	button name from content for each child including image	
+Pass	heading name from content for each child including image	
+Pass	link name from content for each child including image	
+Pass	button name from content for each child including nested image	
+Pass	heading name from content for each child including nested image	
+Pass	link name from content for each child including nested image	
+Pass	heading name from content for each child including nested button with nested image	
+Pass	heading name from content for each child including nested link with nested image	
+Pass	heading name from content for each child including nested link using aria-label with nested image	
+Pass	heading name from content for each child including nested link using aria-labelledby with nested image	
+Pass	heading name from content for each child including two nested links using aria-labelledby with nested image	
+Pass	link name from content for each child including nested image (referenced elsewhere via labelledby)	
+Pass	button name from content for each child (no space, inline)	
+Pass	heading name from content for each child (no space, inline)	
+Pass	link name from content for each child (no space, inline)	
+Pass	button name from content for each child (no space, display:block)	
+Pass	heading name from content for each child (no space, display:block)	
+Pass	link name from content for each child (no space, display:block)	
+Pass	button name from content for each child (no space, display:inline-block)	
+Pass	heading name from content for each child (no space, display:inline-block)	
+Pass	link name from content for each child (no space, display:inline-block)	
+Pass	heading name from content with text-transform:none	
+Pass	heading name from content with text-transform:uppercase	
+Pass	heading name from content with text-transform:capitalize	
+Pass	heading name from content with text-transform:lowercase	
