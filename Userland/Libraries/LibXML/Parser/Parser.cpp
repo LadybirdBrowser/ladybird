@@ -545,16 +545,30 @@ ErrorOr<Name, ParseError> Parser::parse_name()
     auto rule = enter_rule();
 
     // Name ::= NameStartChar (NameChar)*
-    auto start = TRY(expect(s_name_start_characters, "a NameStartChar"sv));
+
+    // FIXME: This is a hacky workaround to read code points instead of bytes.
+    // Replace this once we have a unicode-aware lexer.
+    auto start = m_lexer.tell();
+    StringView remaining = m_lexer.input().substring_view(start);
+    Utf8View view { remaining };
+    auto code_points = view.begin();
+    if (code_points.done() || !s_name_start_characters.contains(*code_points)) {
+        if (m_options.treat_errors_as_fatal)
+            return parse_error(m_lexer.current_position(), Expectation { "a NameStartChar"sv });
+    }
+
+    m_lexer.ignore(code_points.underlying_code_point_length_in_bytes());
+    ++code_points;
+
     auto accept = accept_rule();
 
-    auto rest = m_lexer.consume_while(s_name_characters);
-    StringBuilder builder;
-    builder.append(start);
-    builder.append(rest);
+    while (!code_points.done() && s_name_characters.contains(*code_points)) {
+        m_lexer.ignore(code_points.underlying_code_point_length_in_bytes());
+        ++code_points;
+    }
 
     rollback.disarm();
-    return builder.to_byte_string();
+    return remaining.substring_view(0, m_lexer.tell() - start);
 }
 
 // 2.8.28. doctypedecl, https://www.w3.org/TR/2006/REC-xml11-20060816/#NT-doctypedecl
