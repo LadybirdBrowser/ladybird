@@ -202,6 +202,7 @@ History
 IDBCursor
 IDBDatabase
 IDBFactory
+IDBIndex
 IDBOpenDBRequest
 IDBRequest
 IDBVersionChangeEvent
