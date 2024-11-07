@@ -40,8 +40,11 @@ WebIDL::ExceptionOr<GC::Ref<IDBDatabase>> open_a_database_connection(JS::Realm& 
     }));
 
     // 4. Let db be the database named name in storageKey, or null otherwise.
-    auto maybe_db = Database::for_key_and_name(storage_key, name);
     GC::Ptr<Database> db;
+    auto maybe_db = Database::for_key_and_name(storage_key, name);
+    if (maybe_db.has_value()) {
+        db = maybe_db.value();
+    }
 
     // 5. If version is undefined, let version be 1 if db is null, or db’s version otherwise.
     auto version = maybe_version.value_or(maybe_db.has_value() ? maybe_db.value()->version() : 1);
