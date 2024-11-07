@@ -21,10 +21,10 @@
 #include <LibWeb/Forward.h>
 #include <LibWeb/HTML/ActivateTab.h>
 #include <LibWebView/ViewImplementation.h>
-#include <QAbstractScrollArea>
 #include <QMenu>
 #include <QTimer>
 #include <QUrl>
+#include <QWidget>
 
 class QKeyEvent;
 class QLineEdit;
@@ -42,7 +42,7 @@ namespace Ladybird {
 class Tab;
 
 class WebContentView final
-    : public QAbstractScrollArea
+    : public QWidget
     , public WebView::ViewImplementation {
     Q_OBJECT
 public:

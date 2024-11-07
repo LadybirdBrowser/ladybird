@@ -49,11 +49,8 @@ namespace Ladybird {
 bool is_using_dark_system_theme(QWidget&);
 
 WebContentView::WebContentView(QWidget* window, RefPtr<WebView::WebContentClient> parent_client, size_t page_index)
-    : QAbstractScrollArea(window)
+    : QWidget(window)
 {
-    setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
-    setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
-
     m_client_state.client = parent_client;
     m_client_state.page_index = page_index;
 
@@ -64,9 +61,6 @@ WebContentView::WebContentView(QWidget* window, RefPtr<WebView::WebContentClient
     setFocusPolicy(Qt::FocusPolicy::StrongFocus);
 
     m_device_pixel_ratio = devicePixelRatio();
-
-    verticalScrollBar()->setSingleStep(24);
-    horizontalScrollBar()->setSingleStep(24);
 
     QObject::connect(qGuiApp, &QGuiApplication::screenRemoved, [this](QScreen*) {
         update_screen_rects();
@@ -89,7 +83,7 @@ WebContentView::WebContentView(QWidget* window, RefPtr<WebView::WebContentClient
     initialize_client((parent_client == nullptr) ? CreateNewClient::Yes : CreateNewClient::No);
 
     on_ready_to_paint = [this]() {
-        viewport()->update();
+        update();
     };
 
     on_cursor_change = [this](auto cursor) {
@@ -491,7 +485,7 @@ void WebContentView::focusOutEvent(QFocusEvent*)
 
 void WebContentView::paintEvent(QPaintEvent*)
 {
-    QPainter painter(viewport());
+    QPainter painter(this);
     painter.scale(1 / m_device_pixel_ratio, 1 / m_device_pixel_ratio);
 
     Gfx::Bitmap const* bitmap = nullptr;
@@ -525,7 +519,7 @@ void WebContentView::paintEvent(QPaintEvent*)
 
 void WebContentView::resizeEvent(QResizeEvent* event)
 {
-    QAbstractScrollArea::resizeEvent(event);
+    QWidget::resizeEvent(event);
     update_viewport_size();
     handle_resize();
 }
@@ -546,8 +540,8 @@ void WebContentView::set_device_pixel_ratio(double device_pixel_ratio)
 
 void WebContentView::update_viewport_size()
 {
-    auto scaled_width = int(viewport()->width() * m_device_pixel_ratio);
-    auto scaled_height = int(viewport()->height() * m_device_pixel_ratio);
+    auto scaled_width = int(width() * m_device_pixel_ratio);
+    auto scaled_height = int(height() * m_device_pixel_ratio);
     Gfx::IntRect rect(0, 0, scaled_width, scaled_height);
 
     set_viewport_rect(rect);
@@ -561,13 +555,13 @@ void WebContentView::update_zoom()
 
 void WebContentView::showEvent(QShowEvent* event)
 {
-    QAbstractScrollArea::showEvent(event);
+    QWidget::showEvent(event);
     client().async_set_system_visibility_state(m_client_state.page_index, true);
 }
 
 void WebContentView::hideEvent(QHideEvent* event)
 {
-    QAbstractScrollArea::hideEvent(event);
+    QWidget::hideEvent(event);
     client().async_set_system_visibility_state(m_client_state.page_index, false);
 }
 
@@ -767,7 +761,7 @@ bool WebContentView::event(QEvent* event)
 
     if (event->type() == QEvent::PaletteChange) {
         update_palette();
-        return QAbstractScrollArea::event(event);
+        return QWidget::event(event);
     }
 
     if (event->type() == QEvent::ShortcutOverride) {
@@ -775,7 +769,7 @@ bool WebContentView::event(QEvent* event)
         return true;
     }
 
-    return QAbstractScrollArea::event(event);
+    return QWidget::event(event);
 }
 
 void WebContentView::enqueue_native_event(Web::MouseEvent::Type type, QSinglePointEvent const& event)
@@ -807,9 +801,9 @@ void WebContentView::enqueue_native_event(Web::MouseEvent::Type type, QSinglePoi
             float delta_x = -static_cast<float>(angle_delta.x()) / 120.0f;
             float delta_y = static_cast<float>(angle_delta.y()) / 120.0f;
 
+            static constexpr float scroll_step_size = 24;
             auto step_x = delta_x * static_cast<float>(QApplication::wheelScrollLines()) * m_device_pixel_ratio;
             auto step_y = delta_y * static_cast<float>(QApplication::wheelScrollLines()) * m_device_pixel_ratio;
-            auto scroll_step_size = static_cast<float>(verticalScrollBar()->singleStep());
 
             wheel_delta_x = static_cast<int>(step_x * scroll_step_size);
             wheel_delta_y = static_cast<int>(step_y * scroll_step_size);
@@ -910,10 +904,10 @@ void WebContentView::finish_handling_key_event(Web::KeyEvent const& key_event)
 
     switch (key_event.type) {
     case Web::KeyEvent::Type::KeyDown:
-        QAbstractScrollArea::keyPressEvent(&event);
+        QWidget::keyPressEvent(&event);
         break;
     case Web::KeyEvent::Type::KeyUp:
-        QAbstractScrollArea::keyReleaseEvent(&event);
+        QWidget::keyReleaseEvent(&event);
         break;
     }
 
