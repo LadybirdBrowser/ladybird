@@ -14,6 +14,9 @@ It is recommended you read the README and FAQs in case they already answer any q
 
 The [Discord server](https://discord.gg/nvfjVJ4Svh) is the preferred way to get in contact with the maintainers and community.
 
+## Getting familiar with browser engineering in general
+If you’ve never worked on browser-engine code before, and you’re not sure where to begin — one great place to get started is by reading the book [Web Browser Engineering](https://browser.engineering/). It explains how browser engines in general work, and how they’re built — by walking you through real code for actually building all the parts of a basic but complete browser engine (networking code, HTML parsing, layout engine, JavaScript handling, and more), in a couple thousand lines of Python.
+
 ## Building the code
 Ladybird must be built from source during this pre-alpha stage of development, and currently natively supports Linux and macOS; running it on Windows requires WSL.
 
