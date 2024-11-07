@@ -516,6 +516,7 @@ set(SOURCES
     IndexedDB/IDBFactory.cpp
     IndexedDB/IDBOpenDBRequest.cpp
     IndexedDB/IDBIndex.cpp
+    IndexedDB/IDBKeyRange.cpp
     IndexedDB/IDBObjectStore.cpp
     IndexedDB/IDBRequest.cpp
     IndexedDB/IDBTransaction.cpp

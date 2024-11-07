@@ -1,0 +1,14 @@
+[Exposed=(Window,Worker)]
+interface IDBKeyRange {
+    [FIXME] readonly attribute any lower;
+    [FIXME] readonly attribute any upper;
+    [FIXME] readonly attribute boolean lowerOpen;
+    [FIXME] readonly attribute boolean upperOpen;
+
+    [FIXME, NewObject] static IDBKeyRange only(any value);
+    [FIXME, NewObject] static IDBKeyRange lowerBound(any lower, optional boolean open = false);
+    [FIXME, NewObject] static IDBKeyRange upperBound(any upper, optional boolean open = false);
+    [FIXME, NewObject] static IDBKeyRange bound(any lower, any upper, optional boolean lowerOpen = false, optional boolean upperOpen = false);
+
+    [FIXME] boolean includes(any key);
+};
