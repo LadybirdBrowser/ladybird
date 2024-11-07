@@ -1,8 +1,15 @@
 include_guard()
 
+include(fontconfig)
+
 find_package(unofficial-skia CONFIG)
 if(unofficial-skia_FOUND)
     set(SKIA_TARGET unofficial::skia::skia)
+    if (HAS_FONTCONFIG)
+        set(CMAKE_CXX_LINK_GROUP_USING_no_as_needed_SUPPORTED TRUE)
+        set(CMAKE_CXX_LINK_GROUP_USING_no_as_needed "LINKER:--push-state,--no-as-needed" "LINKER:--pop-state")
+        set_property(TARGET unofficial::skia::skia APPEND PROPERTY INTERFACE_LINK_LIBRARIES "$<LINK_GROUP:no_as_needed,Fontconfig::Fontconfig>")
+    endif()
 else()
     find_package(PkgConfig)
 
