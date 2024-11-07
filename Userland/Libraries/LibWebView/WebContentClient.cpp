@@ -119,14 +119,6 @@ void WebContentClient::did_request_cursor_change(u64 page_id, i32 cursor_type)
     }
 }
 
-void WebContentClient::did_layout(u64 page_id, Gfx::IntSize content_size)
-{
-    if (auto view = view_for_page_id(page_id); view.has_value()) {
-        if (view->on_did_layout)
-            view->on_did_layout(content_size);
-    }
-}
-
 void WebContentClient::did_change_title(u64 page_id, ByteString const& title)
 {
     if (auto process = WebView::Application::the().find_process(m_process_handle.pid); process.has_value())
