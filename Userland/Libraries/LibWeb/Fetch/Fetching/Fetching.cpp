@@ -12,6 +12,7 @@
 #include <AK/ScopeGuard.h>
 #include <LibJS/Runtime/Completion.h>
 #include <LibWeb/Bindings/MainThreadVM.h>
+#include <LibWeb/Bindings/PrincipalHostDefined.h>
 #include <LibWeb/Cookie/Cookie.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOMURL/DOMURL.h>

@@ -8,6 +8,7 @@
 #include <LibJS/Runtime/NativeFunction.h>
 #include <LibWeb/Bindings/HTMLDialogElementPrototype.h>
 #include <LibWeb/Bindings/Intrinsics.h>
+#include <LibWeb/Bindings/PrincipalHostDefined.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Event.h>
 #include <LibWeb/DOM/IDLEventListener.h>

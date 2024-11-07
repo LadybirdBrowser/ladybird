@@ -13,6 +13,7 @@
 #include <LibWeb/Bindings/BlobPrototype.h>
 #include <LibWeb/Bindings/ExceptionOrUtils.h>
 #include <LibWeb/Bindings/Intrinsics.h>
+#include <LibWeb/Bindings/PrincipalHostDefined.h>
 #include <LibWeb/FileAPI/Blob.h>
 #include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
 #include <LibWeb/HTML/StructuredSerialize.h>

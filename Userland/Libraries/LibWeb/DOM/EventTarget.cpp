@@ -15,6 +15,7 @@
 #include <LibJS/Runtime/VM.h>
 #include <LibWeb/Bindings/EventTargetPrototype.h>
 #include <LibWeb/Bindings/MainThreadVM.h>
+#include <LibWeb/Bindings/PrincipalHostDefined.h>
 #include <LibWeb/DOM/AbortSignal.h>
 #include <LibWeb/DOM/DOMEventListener.h>
 #include <LibWeb/DOM/Document.h>

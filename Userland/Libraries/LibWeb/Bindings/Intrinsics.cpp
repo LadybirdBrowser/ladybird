@@ -9,6 +9,7 @@
 #include <LibJS/Runtime/NativeFunction.h>
 #include <LibJS/Runtime/Object.h>
 #include <LibWeb/Bindings/Intrinsics.h>
+#include <LibWeb/Bindings/PrincipalHostDefined.h>
 
 namespace Web::Bindings {
 
@@ -26,6 +27,12 @@ void Intrinsics::visit_edges(JS::Cell::Visitor& visitor)
 bool Intrinsics::is_exposed(StringView name) const
 {
     return m_constructors.contains(name) || m_prototypes.contains(name) || m_namespaces.contains(name);
+}
+
+Intrinsics& host_defined_intrinsics(JS::Realm& realm)
+{
+    VERIFY(realm.host_defined());
+    return verify_cast<Bindings::PrincipalHostDefined>(*realm.host_defined()).intrinsics;
 }
 
 }
