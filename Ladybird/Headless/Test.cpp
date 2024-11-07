@@ -48,7 +48,7 @@ static ErrorOr<void> load_test_config(StringView test_root_path)
     for (auto const& group : config->groups()) {
         if (group == "Skipped"sv) {
             for (auto& key : config->keys(group))
-                s_skipped_tests.append(LexicalPath::join(test_root_path, key).string());
+                s_skipped_tests.append(TRY(FileSystem::real_path(LexicalPath::join(test_root_path, key).string())));
         } else {
             warnln("Unknown group '{}' in config {}", group, config_path);
         }
