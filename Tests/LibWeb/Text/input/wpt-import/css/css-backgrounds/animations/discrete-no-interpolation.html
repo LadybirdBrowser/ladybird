@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<link rel=author href="mailto:jarhar@chromium.org">
+<link rel=help href="https://github.com/w3c/csswg-drafts/issues/4441">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../support/interpolation-testcommon.js"></script>
+
+<body>
+<script>
+test_no_interpolation({
+  property: 'background-attachment',
+  from: 'initial',
+  to: 'fixed'
+});
+
+test_no_interpolation({
+  property: 'background-blend-mode',
+  from: 'initial',
+  to: 'overlay'
+});
+
+test_no_interpolation({
+  property: 'background-clip',
+  from: 'initial',
+  to: 'content-box'
+});
+
+test_no_interpolation({
+  property: 'background-origin',
+  from: 'initial',
+  to: 'border-box'
+});
+
+test_no_interpolation({
+  property: 'background-repeat',
+  from: 'initial',
+  to: 'round'
+});
+
+test_no_interpolation({
+  property: 'border-image-repeat',
+  from: 'initial',
+  to: 'round'
+});
+</script>

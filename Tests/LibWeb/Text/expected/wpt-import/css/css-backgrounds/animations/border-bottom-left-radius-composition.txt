@@ -1,0 +1,32 @@
+Summary
+
+Harness status: OK
+
+Rerun
+
+Found 21 tests
+
+2 Pass
+19 Fail
+Details
+Result	Test Name	MessageFail	Compositing: property <border-bottom-left-radius> underlying [40px 40px] from add [60px 60px] to add [160px 160px] at (-0.25) should be [75px]	
+Fail	Compositing: property <border-bottom-left-radius> underlying [40px 40px] from add [60px 60px] to add [160px 160px] at (0) should be [100px]	
+Fail	Compositing: property <border-bottom-left-radius> underlying [40px 40px] from add [60px 60px] to add [160px 160px] at (0.25) should be [125px]	
+Fail	Compositing: property <border-bottom-left-radius> underlying [40px 40px] from add [60px 60px] to add [160px 160px] at (0.5) should be [150px]	
+Fail	Compositing: property <border-bottom-left-radius> underlying [40px 40px] from add [60px 60px] to add [160px 160px] at (0.75) should be [175px]	
+Fail	Compositing: property <border-bottom-left-radius> underlying [40px 40px] from add [60px 60px] to add [160px 160px] at (1) should be [200px]	
+Fail	Compositing: property <border-bottom-left-radius> underlying [40px 40px] from add [60px 60px] to add [160px 160px] at (1.25) should be [225px]	
+Fail	Compositing: property <border-bottom-left-radius> underlying [40px 140px] from replace [100px 120px] to add [160px 60px] at (-0.25) should be [75px 100px]	
+Pass	Compositing: property <border-bottom-left-radius> underlying [40px 140px] from replace [100px 120px] to add [160px 60px] at (0) should be [100px 120px]	
+Fail	Compositing: property <border-bottom-left-radius> underlying [40px 140px] from replace [100px 120px] to add [160px 60px] at (0.25) should be [125px 140px]	
+Fail	Compositing: property <border-bottom-left-radius> underlying [40px 140px] from replace [100px 120px] to add [160px 60px] at (0.5) should be [150px 160px]	
+Fail	Compositing: property <border-bottom-left-radius> underlying [40px 140px] from replace [100px 120px] to add [160px 60px] at (0.75) should be [175px 180px]	
+Fail	Compositing: property <border-bottom-left-radius> underlying [40px 140px] from replace [100px 120px] to add [160px 60px] at (1) should be [200px]	
+Fail	Compositing: property <border-bottom-left-radius> underlying [40px 140px] from replace [100px 120px] to add [160px 60px] at (1.25) should be [225px 220px]	
+Fail	Compositing: property <border-bottom-left-radius> underlying [40px 60px] from add [60px 140px] to replace [200px 120px] at (-0.25) should be [75px 220px]	
+Fail	Compositing: property <border-bottom-left-radius> underlying [40px 60px] from add [60px 140px] to replace [200px 120px] at (0) should be [100px 200px]	
+Fail	Compositing: property <border-bottom-left-radius> underlying [40px 60px] from add [60px 140px] to replace [200px 120px] at (0.25) should be [125px 180px]	
+Fail	Compositing: property <border-bottom-left-radius> underlying [40px 60px] from add [60px 140px] to replace [200px 120px] at (0.5) should be [150px 160px]	
+Fail	Compositing: property <border-bottom-left-radius> underlying [40px 60px] from add [60px 140px] to replace [200px 120px] at (0.75) should be [175px 140px]	
+Pass	Compositing: property <border-bottom-left-radius> underlying [40px 60px] from add [60px 140px] to replace [200px 120px] at (1) should be [200px 120px]	
+Fail	Compositing: property <border-bottom-left-radius> underlying [40px 60px] from add [60px 140px] to replace [200px 120px] at (1.25) should be [225px 100px]	

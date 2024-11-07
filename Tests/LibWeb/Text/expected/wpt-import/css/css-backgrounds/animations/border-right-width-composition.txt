@@ -1,0 +1,31 @@
+Summary
+
+Harness status: OK
+
+Rerun
+
+Found 20 tests
+
+1 Pass
+19 Fail
+Details
+Result	Test Name	MessageFail	Compositing: property <border-right-width> underlying [50px] from add [100px] to add [200px] at (-0.3) should be [120px]	
+Fail	Compositing: property <border-right-width> underlying [50px] from add [100px] to add [200px] at (0) should be [150px]	
+Fail	Compositing: property <border-right-width> underlying [50px] from add [100px] to add [200px] at (0.5) should be [200px]	
+Fail	Compositing: property <border-right-width> underlying [50px] from add [100px] to add [200px] at (1) should be [250px]	
+Fail	Compositing: property <border-right-width> underlying [50px] from add [100px] to add [200px] at (1.5) should be [300px]	
+Fail	Compositing: property <border-right-width> underlying [100px] from add [10px] to add [2px] at (-0.5) should be [114px]	
+Fail	Compositing: property <border-right-width> underlying [100px] from add [10px] to add [2px] at (0) should be [110px]	
+Fail	Compositing: property <border-right-width> underlying [100px] from add [10px] to add [2px] at (0.5) should be [106px]	
+Fail	Compositing: property <border-right-width> underlying [100px] from add [10px] to add [2px] at (1) should be [102px]	
+Fail	Compositing: property <border-right-width> underlying [100px] from add [10px] to add [2px] at (1.5) should be [98px]	
+Fail	Compositing: property <border-right-width> underlying [10em] from add [100px] to add [20em] at (-0.3) should be [calc(130px + 4em)]	
+Fail	Compositing: property <border-right-width> underlying [10em] from add [100px] to add [20em] at (0) should be [calc(100px + 10em)]	
+Fail	Compositing: property <border-right-width> underlying [10em] from add [100px] to add [20em] at (0.5) should be [calc(50px + 20em)]	
+Fail	Compositing: property <border-right-width> underlying [10em] from add [100px] to add [20em] at (1) should be [30em]	
+Fail	Compositing: property <border-right-width> underlying [10em] from add [100px] to add [20em] at (1.5) should be [calc(-50px + 40em)]	
+Fail	Compositing: property <border-right-width> underlying [50px] from add [100px] to replace [200px] at (-0.3) should be [135px]	
+Fail	Compositing: property <border-right-width> underlying [50px] from add [100px] to replace [200px] at (0) should be [150px]	
+Fail	Compositing: property <border-right-width> underlying [50px] from add [100px] to replace [200px] at (0.5) should be [175px]	
+Pass	Compositing: property <border-right-width> underlying [50px] from add [100px] to replace [200px] at (1) should be [200px]	
+Fail	Compositing: property <border-right-width> underlying [50px] from add [100px] to replace [200px] at (1.5) should be [225px]	

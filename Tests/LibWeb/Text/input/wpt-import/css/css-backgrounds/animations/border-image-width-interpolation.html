@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<meta charset="UTF-8">
+<title>border-image-width interpolation</title>
+<link rel="help" href="https://drafts.csswg.org/css-backgrounds-3/#border-image-width">
+<meta name="assert" content="border-image-width supports animation by computed value">
+
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../support/interpolation-testcommon.js"></script>
+
+<style>
+.parent {
+  border-image-width: 100px;
+}
+.target {
+  width: 80px;
+  height: 80px;
+  background-color: black;
+  display: inline-block;
+  border: 10px;
+  border-image-source: linear-gradient(45deg, red, blue, green);
+  border-image-width: 10px;
+}
+.expected {
+  background-color: green;
+  margin-right: 2px;
+}
+</style>
+
+<body></body>
+
+<script>
+test_interpolation({
+  property: 'border-image-width',
+  from: neutralKeyframe,
+  to: '20px',
+}, [
+  {at: -0.3, expect:   '7px'},
+  {at: 0,    expect:  '10px'},
+  {at: 0.3,  expect:  '13px'},
+  {at: 0.6,  expect:  '16px'},
+  {at: 1,    expect:  '20px'},
+  {at: 1.5,  expect:  '25px'},
+  {at: 5,    expect:  '60px'},
+  {at: 10,   expect: '110px'},
+]);
+test_no_interpolation({
+  property: 'border-image-width',
+  from: 'initial',
+  to: '20px',
+});
+test_interpolation({
+  property: 'border-image-width',
+  from: 'inherit',
+  to: '20px',
+}, [
+  {at: -0.3, expect: '124px'},
+  {at: 0,    expect: '100px'},
+  {at: 0.3,  expect:  '76px'},
+  {at: 0.6,  expect:  '52px'},
+  {at: 1,    expect:  '20px'},
+  {at: 1.5,  expect:   '0px'},
+  {at: 5,    expect:   '0px'},
+  {at: 10,   expect:   '0px'},
+]);
+test_no_interpolation({
+  property: 'border-image-width',
+  from: 'unset',
+  to: '20px',
+});
+test_interpolation({
+  property: 'border-image-width',
+  from: '0px',
+  to: '20px'
+}, [
+  {at: -0.3, expect:   '0px'}, // CSS border-image-width can't be negative.
+  {at: 0,    expect:   '0px'},
+  {at: 0.3,  expect:   '6px'},
+  {at: 0.6,  expect:  '12px'},
+  {at: 1,    expect:  '20px'},
+  {at: 1.5,  expect:  '30px'},
+  {at: 5,    expect: '100px'},
+  {at: 10,   expect: '200px'}
+]);
+test_interpolation({
+  property: 'border-image-width',
+  from: '0%',
+  to: '20%'
+}, [
+  {at: -0.3, expect:   '0%'}, // CSS border-image-width can't be negative.
+  {at: 0,    expect:   '0%'},
+  {at: 0.3,  expect:   '6%'},
+  {at: 0.6,  expect:  '12%'},
+  {at: 1,    expect:  '20%'},
+  {at: 1.5,  expect:  '30%'},
+  {at: 5,    expect: '100%'},
+  {at: 10,   expect: '200%'}
+]);
+test_interpolation({
+  property: 'border-image-width',
+  from: '0',
+  to: '20'
+}, [
+  {at: -0.3, expect:   '0'}, // CSS border-image-width can't be negative.
+  {at: 0,    expect:   '0'},
+  {at: 0.3,  expect:   '6'},
+  {at: 0.6,  expect:  '12'},
+  {at: 1,    expect:  '20'},
+  {at: 1.5,  expect:  '30'},
+  {at: 5,    expect: '100'},
+  {at: 10,   expect: '200'}
+]);
+test_interpolation({
+  property: 'border-image-width',
+  from: '10px 20% 30 40px',
+  to: '80px 70% 60 50px'
+}, [
+  {at: -0.3, expect:   '0px   5%  21  37px'}, // CSS border-image-width can't be negative.
+  {at: 0,    expect:  '10px  20%  30  40px'},
+  {at: 0.3,  expect:  '31px  35%  39  43px'},
+  {at: 0.6,  expect:  '52px  50%  48  46px'},
+  {at: 1,    expect:  '80px  70%  60  50px'},
+  {at: 1.5,  expect: '115px  95%  75  55px'},
+  {at: 5,    expect: '360px 270% 180  90px'},
+  {at: 10,   expect: '710px 520% 330 140px'}
+]);
+test_interpolation({
+  property: 'border-image-width',
+  from: '10%',
+  to: '20px'
+}, [
+  // Percentages are relative to the size of the border image area, which is 120px.
+  {at: -0.3, expect: 'calc(13% + -6px)'}, // Should be parsed as 16px - 6px = 10px
+  {at: 0,    expect: '10%'},              // Should be parsed as 12px
+  {at: 0.3,  expect: 'calc(7% + 6px)'},   // Should be parsed as 8px + 6px = 14px
+  {at: 0.6,  expect: 'calc(4% + 12px)'},  // Should be parsed as 5px + 12px = 17px
+  {at: 1,    expect: 'calc(0% + 20px)'},
+  {at: 1.5,  expect: 'calc(-5% + 30px)'}, // Should be parsed as -6px + 30px = 24px
+]);
+test_interpolation({
+  property: 'border-image-width',
+  from: '10px',
+  to: '20%'
+}, [
+  // Percentages are relative to the size of the border image area, which is 120px.
+  {at: -0.3, expect: 'calc(13px + -6%)'}, // Should be parsed as 13px - 7px = 6px
+  {at: 0,    expect: 'calc(0% + 10px)'},
+  {at: 0.3,  expect: 'calc(7px + 6%)'},   // Should be parsed as 7px + 7px = 14px
+  {at: 0.6,  expect: 'calc(4px + 12%)'},  // Should be parsed as 4px + 14px = 18px
+  {at: 1,    expect: '20%'},              // Should be parsed as 24px
+  {at: 1.5,  expect: 'calc(-5px + 30%)'}, // Should be parsed as -5px + 36px = 31px
+]);
+
+test_interpolation({
+  property: 'border-image-width',
+  from: '10px auto auto 20',
+  to: '110px auto auto 120'
+}, [
+  {at: -0.3, expect: '  0px auto auto   0'},
+  {at: 0,    expect: ' 10px auto auto  20'},
+  {at: 0.3,  expect: ' 40px auto auto  50'},
+  {at: 0.6,  expect: ' 70px auto auto  80'},
+  {at: 1,    expect: '110px auto auto 120'},
+  {at: 1.5,  expect: '160px auto auto 170'},
+]);
+
+test_no_interpolation({
+  property: 'border-image-width',
+  from: '10px auto auto 20',
+  to: '110px auto 120 auto'
+});
+test_no_interpolation({
+  property: 'border-image-width',
+  from: '10px',
+  to: '20'
+});
+test_no_interpolation({
+  property: 'border-image-width',
+  from: '10',
+  to: '20px'
+});
+test_no_interpolation({
+  property: 'border-image-width',
+  from: '10%',
+  to: '20'
+});
+test_no_interpolation({
+  property: 'border-image-width',
+  from: '10',
+  to: '20%'
+});
+</script>
