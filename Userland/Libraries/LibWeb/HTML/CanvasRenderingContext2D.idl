@@ -27,6 +27,10 @@ dictionary CanvasRenderingContext2DSettings {
 
 enum ImageSmoothingQuality { "low", "medium", "high" };
 
+// FIXME: This should be in CanvasPathDrawingStyles.idl but then it is not exported
+enum CanvasLineCap { "butt", "round", "square" };
+enum CanvasLineJoin { "round", "bevel", "miter" };
+
 // FIXME: This should be in CanvasTextDrawingStyles.idl but then it is not exported
 enum CanvasTextAlign { "start", "end", "left", "right", "center" };
 enum CanvasTextBaseline { "top", "hanging", "middle", "alphabetic", "ideographic", "bottom" };

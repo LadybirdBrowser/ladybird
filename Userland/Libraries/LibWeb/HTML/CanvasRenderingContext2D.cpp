@@ -272,6 +272,8 @@ void CanvasRenderingContext2D::stroke_internal(Gfx::Path const& path)
 
     auto& state = drawing_state();
 
+    // FIXME: Honor state's line_cap, line_join, miter_limit, dash_list, and line_dash_offset.
+
     if (auto color = state.stroke_style.as_color(); color.has_value()) {
         painter->stroke_path(path, color->with_opacity(state.global_alpha), state.line_width);
     } else {
