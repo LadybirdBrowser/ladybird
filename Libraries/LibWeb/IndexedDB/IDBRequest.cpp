@@ -1,11 +1,11 @@
 /*
  * Copyright (c) 2024, Shannon Booth <shannon@serenityos.org>
  * Copyright (c) 2024, Jamie Mansfield <jmansfield@cadixdev.org>
+ * Copyright (c) 2024, stelar7 <dudedbz@gmail.com>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/Bindings/IDBRequestPrototype.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/HTML/EventNames.h>
 #include <LibWeb/IndexedDB/IDBRequest.h>
@@ -56,6 +56,13 @@ void IDBRequest::set_onerror(WebIDL::CallbackType* event_handler)
 WebIDL::CallbackType* IDBRequest::onerror()
 {
     return event_handler_attribute(HTML::EventNames::error);
+}
+
+// https://w3c.github.io/IndexedDB/#dom-idbrequest-readystate
+[[nodiscard]] Bindings::IDBRequestReadyState IDBRequest::ready_state() const
+{
+    // The readyState getter steps are to return "pending" if this's done flag is false, and "done" otherwise.
+    return m_done ? Bindings::IDBRequestReadyState::Done : Bindings::IDBRequestReadyState::Pending;
 }
 
 }

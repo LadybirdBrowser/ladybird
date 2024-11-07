@@ -1,12 +1,14 @@
 /*
  * Copyright (c) 2024, Shannon Booth <shannon@serenityos.org>
  * Copyright (c) 2024, Jamie Mansfield <jmansfield@cadixdev.org>
+ * Copyright (c) 2024, stelar7 <dudedbz@gmail.com>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
 #pragma once
 
+#include <LibWeb/Bindings/IDBRequestPrototype.h>
 #include <LibWeb/DOM/EventTarget.h>
 
 namespace Web::IndexedDB {
@@ -25,6 +27,8 @@ public:
     [[nodiscard]] bool done() const { return m_done; }
     [[nodiscard]] bool processed() const { return m_processed; }
     [[nodiscard]] IDBRequestSource source() const { return m_source; }
+
+    [[nodiscard]] Bindings::IDBRequestReadyState ready_state() const;
 
     void set_done(bool done) { m_done = done; }
     void set_result(JS::Value result) { m_result = result; }
