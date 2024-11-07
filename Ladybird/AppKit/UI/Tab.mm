@@ -95,7 +95,7 @@ static constexpr CGFloat const WINDOW_HEIGHT = 800;
 
         auto* stack_view = [NSStackView stackViewWithViews:@[
             self.search_panel,
-            self.web_view.enclosingScrollView,
+            self.web_view,
         ]];
 
         [stack_view setOrientation:NSUserInterfaceLayoutOrientationVertical];

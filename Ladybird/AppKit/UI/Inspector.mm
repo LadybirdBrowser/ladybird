@@ -129,7 +129,7 @@ static constexpr NSInteger CONTEXT_MENU_DELETE_COOKIE_TAG = 4;
             [NSMenu popUpContextMenu:strong_self.cookie_context_menu withEvent:event forView:strong_self.web_view];
         };
 
-        [self setContentView:self.web_view.enclosingScrollView];
+        [self setContentView:self.web_view];
         [self setTitle:@"Inspector"];
         [self setIsVisible:YES];
     }

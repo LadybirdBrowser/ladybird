@@ -40,7 +40,7 @@ static Web::UIEvents::KeyModifier ns_modifiers_to_key_modifiers(NSEventModifierF
     return static_cast<Web::UIEvents::KeyModifier>(modifiers);
 }
 
-Web::MouseEvent ns_event_to_mouse_event(Web::MouseEvent::Type type, NSEvent* event, NSView* view, NSScrollView* scroll_view, Web::UIEvents::MouseButton button)
+Web::MouseEvent ns_event_to_mouse_event(Web::MouseEvent::Type type, NSEvent* event, NSView* view, Web::UIEvents::MouseButton button)
 {
     auto position = [view convertPoint:event.locationInWindow fromView:nil];
     auto device_position = ns_point_to_gfx_point(position).to_type<Web::DevicePixels>();
@@ -62,8 +62,10 @@ Web::MouseEvent ns_event_to_mouse_event(Web::MouseEvent::Type type, NSEvent* eve
         CGFloat delta_y = -[event scrollingDeltaY];
 
         if (![event hasPreciseScrollingDeltas]) {
-            delta_x *= scroll_view.horizontalLineScroll;
-            delta_y *= scroll_view.verticalLineScroll;
+            static constexpr CGFloat imprecise_scroll_multiplier = 24;
+
+            delta_x *= imprecise_scroll_multiplier;
+            delta_y *= imprecise_scroll_multiplier;
         }
 
         wheel_delta_x = static_cast<int>(delta_x);
