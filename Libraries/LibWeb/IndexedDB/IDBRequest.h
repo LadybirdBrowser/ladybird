@@ -23,12 +23,12 @@ public:
     virtual ~IDBRequest() override;
 
     [[nodiscard]] JS::Value result() const { return m_result; }
-    [[nodiscard]] GC::Ptr<WebIDL::DOMException> error() const { return m_error; }
     [[nodiscard]] bool done() const { return m_done; }
     [[nodiscard]] bool processed() const { return m_processed; }
     [[nodiscard]] IDBRequestSource source() const { return m_source; }
 
     [[nodiscard]] Bindings::IDBRequestReadyState ready_state() const;
+    [[nodiscard]] WebIDL::ExceptionOr<GC::Ptr<WebIDL::DOMException>> error() const;
 
     void set_done(bool done) { m_done = done; }
     void set_result(JS::Value result) { m_result = result; }

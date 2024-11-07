@@ -65,4 +65,15 @@ WebIDL::CallbackType* IDBRequest::onerror()
     return m_done ? Bindings::IDBRequestReadyState::Done : Bindings::IDBRequestReadyState::Pending;
 }
 
+// https://w3c.github.io/IndexedDB/#dom-idbrequest-error
+[[nodiscard]] WebIDL::ExceptionOr<GC::Ptr<WebIDL::DOMException>> IDBRequest::error() const
+{
+    // 1. If this's done flag is false, then throw an "InvalidStateError" DOMException.
+    if (!m_done)
+        return WebIDL::InvalidStateError::create(realm(), "The request is not done"_string);
+
+    // 2. Otherwise, return this's error, or null if no error occurred.
+    return m_error;
+}
+
 }
