@@ -27,7 +27,7 @@ jobs:
             clang_plugins: true
 
           - os_name: 'macOS'
-            os: macos-14
+            os: macos-15
             fuzzer: 'NO_FUZZ'
             toolchain: 'Clang'
             clang_plugins: false
