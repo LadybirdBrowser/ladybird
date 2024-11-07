@@ -10,11 +10,13 @@
 
 #include <LibWeb/Bindings/IDBRequestPrototype.h>
 #include <LibWeb/DOM/EventTarget.h>
+#include <LibWeb/IndexedDB/IDBTransaction.h>
 
 namespace Web::IndexedDB {
 
 using IDBRequestSource = Variant<Empty, GC::Ref<IDBObjectStore>, GC::Ref<IDBIndex>, GC::Ref<IDBCursor>>;
 
+// https://w3c.github.io/IndexedDB/#request-api
 class IDBRequest : public DOM::EventTarget {
     WEB_PLATFORM_OBJECT(IDBRequest, DOM::EventTarget);
     GC_DECLARE_ALLOCATOR(IDBRequest);
@@ -25,6 +27,7 @@ public:
     [[nodiscard]] bool done() const { return m_done; }
     [[nodiscard]] bool processed() const { return m_processed; }
     [[nodiscard]] IDBRequestSource source() const { return m_source; }
+    [[nodiscard]] GC::Ptr<IDBTransaction> transaction() const { return m_transaction; }
 
     [[nodiscard]] Bindings::IDBRequestReadyState ready_state() const;
     [[nodiscard]] WebIDL::ExceptionOr<GC::Ptr<WebIDL::DOMException>> error() const;
@@ -35,6 +38,7 @@ public:
     void set_error(GC::Ptr<WebIDL::DOMException> error) { m_error = error; }
     void set_processed(bool processed) { m_processed = processed; }
     void set_source(IDBRequestSource source) { m_source = source; }
+    void set_transaction(GC::Ref<IDBTransaction> transaction) { m_transaction = transaction; }
 
     void set_onsuccess(WebIDL::CallbackType*);
     WebIDL::CallbackType* onsuccess();
@@ -57,7 +61,8 @@ private:
     GC::Ptr<WebIDL::DOMException> m_error;
     // A request has a source object.
     IDBRequestSource m_source;
-    // FIXME: A request has a transaction which is initially null.
+    // A request has a transaction which is initially null.
+    GC::Ptr<IDBTransaction> m_transaction;
 };
 
 }

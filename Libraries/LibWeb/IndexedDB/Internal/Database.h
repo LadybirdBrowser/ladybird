@@ -25,6 +25,8 @@ public:
     u64 version() const { return m_version; }
     String name() const { return m_name; }
 
+    void set_upgrade_transaction(GC::Ptr<IDBTransaction> transaction) { m_upgrade_transaction = transaction; }
+
     void associate(GC::Ref<IDBDatabase> connection) { m_associated_connections.append(connection); }
     ReadonlySpan<GC::Ref<IDBDatabase>> associated_connections() { return m_associated_connections; }
     Vector<GC::Root<IDBDatabase>> associated_connections_except(IDBDatabase& connection)
@@ -66,7 +68,8 @@ private:
     // A database has a version. When a database is first created, its version is 0 (zero).
     u64 m_version { 0 };
 
-    // FIXME: A database has at most one associated upgrade transaction, which is either null or an upgrade transaction, and is initially null.
+    // A database has at most one associated upgrade transaction, which is either null or an upgrade transaction, and is initially null.
+    GC::Ptr<IDBTransaction> m_upgrade_transaction;
 };
 
 }
