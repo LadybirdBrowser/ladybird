@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<button id="button" accesskey="W">Button!</button>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        if (button.accessKey != 'W') {
+            println("FAIL (button.accessKey != 'W')");
+        } else if (window.navigator.platform.includes('macOS') && button.accessKeyLabel != '⌃⌥W') {
+            println("FAIL (button.accessKeyLabel != '⌃⌥W')");
+        } else if (button.accessKeyLabel != "Alt+Shift+W") {
+            println("FAIL (button.accessKeyLabel != 'Alt+Shift+W')");
+        } else {
+            println("PASS");
+        }
+    });
+</script>

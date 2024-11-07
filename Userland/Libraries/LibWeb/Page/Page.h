@@ -40,6 +40,7 @@
 #include <LibWeb/HTML/TokenizedFeatures.h>
 #include <LibWeb/HTML/WebViewHints.h>
 #include <LibWeb/Loader/FileRequest.h>
+#include <LibWeb/Page/AccessKeys.h>
 #include <LibWeb/Page/EventResult.h>
 #include <LibWeb/Page/InputEvent.h>
 #include <LibWeb/PixelUnits.h>
@@ -184,6 +185,9 @@ public:
     WebIDL::ExceptionOr<void> toggle_media_loop_state();
     WebIDL::ExceptionOr<void> toggle_media_controls_state();
 
+    AccessKeys& access_keys() { return m_access_keys; }
+    AccessKeys const& access_keys() const { return m_access_keys; }
+
     HTML::MuteState page_mute_state() const { return m_mute_state; }
     void toggle_page_mute_state();
 
@@ -213,7 +217,7 @@ public:
     Optional<FindInPageQuery> last_find_in_page_query() const { return m_last_find_in_page_query; }
 
 private:
-    explicit Page(JS::NonnullGCPtr<PageClient>);
+    explicit Page(JS::VM&, JS::NonnullGCPtr<PageClient>);
     virtual void visit_edges(Visitor&) override;
 
     JS::GCPtr<HTML::HTMLMediaElement> media_context_menu_element();
@@ -275,6 +279,8 @@ private:
     size_t m_find_in_page_match_index { 0 };
     Optional<FindInPageQuery> m_last_find_in_page_query;
     URL::URL m_last_find_in_page_url;
+
+    AccessKeys m_access_keys;
 };
 
 struct PaintOptions {

@@ -153,7 +153,7 @@ namespace Web::UIEvents {
     __ENUMERATE_KEY_CODE(Menu, "Menu", 0xAB)
 
 enum KeyCode : u8 {
-#define __ENUMERATE_KEY_CODE(name, ui_name, code) Key_##name = code,
+#define __ENUMERATE_KEY_CODE(name, ui_name, code) /* NOLINT(misc-confusable-identifiers) */ Key_##name = code,
     ENUMERATE_KEY_CODES
 #undef __ENUMERATE_KEY_CODE
 };
@@ -183,9 +183,11 @@ enum KeyModifier {
 #if defined(AK_OS_MACOS)
     Mod_PlatformCtrl = Mod_Super,
     Mod_PlatformWordJump = Mod_Alt,
+    Mod_PlatformAccessKey = Mod_Ctrl | Mod_Alt,
 #else
     Mod_PlatformCtrl = Mod_Ctrl,
     Mod_PlatformWordJump = Mod_Ctrl,
+    Mod_PlatformAccessKey = Mod_Alt | Mod_Shift,
 #endif
 };
 

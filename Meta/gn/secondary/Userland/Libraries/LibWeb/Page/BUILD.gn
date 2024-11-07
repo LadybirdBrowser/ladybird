@@ -2,6 +2,8 @@ source_set("Page") {
   configs += [ "//Userland/Libraries/LibWeb:configs" ]
   deps = [ "//Userland/Libraries/LibWeb:all_generated" ]
   sources = [
+    "AccessKeys.cpp",
+    "AccessKeyNames.cpp",
     "DragAndDropEventHandler.cpp",
     "EventHandler.cpp",
     "InputEvent.cpp",

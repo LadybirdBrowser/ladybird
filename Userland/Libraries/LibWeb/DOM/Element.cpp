@@ -509,6 +509,36 @@ void Element::attribute_changed(FlyString const& name, Optional<String> const&, 
             m_dir = Dir::Auto;
         else
             m_dir = {};
+    } else if (name == HTML::AttributeNames::accesskey) {
+        // https://html.spec.whatwg.org/multipage/interaction.html#the-accesskey-attribute
+
+        // An element's assigned access key is a key combination derived from the element's accesskey content attribute. Initially, an element must not have an assigned access key.
+        // Whenever an element's accesskey attribute is set, changed, or removed, the user agent must update the element's assigned access key by running the following steps:
+        // 1. If the element has no accesskey attribute, then skip to the fallback step below.
+        if (!value_or_empty.is_empty()) {
+            // 2. Otherwise, split the attribute's value on ASCII whitespace, and let keys be the resulting tokens.
+            auto keys = MUST(value_or_empty.split(' '));
+
+            // 3. For each value in keys in turn, in the order the tokens appeared in the attribute's value, run the following substeps:
+            for (auto const& key : keys) {
+                auto value = Utf8View { key };
+
+                // a. If the value is not a string exactly one code point in length, then skip the remainder of these steps for this value.
+                if (value.length() != 1)
+                    continue;
+
+                // b. If the value does not correspond to a key on the system's keyboard, then skip the remainder of these steps for this value.
+                // c. If the user agent can find a mix of zero or more modifier keys that, combined with the key that corresponds to the value given in the attribute, can be used as the access key, then the user agent may assign that combination of keys as the element's assigned access key and return.
+                if (auto key = AccessKeys::find_by_codepoint(*value.begin()); key.has_value()) {
+                    document().page().access_keys().assign(*this, key.value());
+                    return;
+                }
+            }
+        }
+
+        // 4. Fallback: Optionally, the user agent may assign a key combination of its choosing as the element's assigned access key and then return.
+        // 5. If this step is reached, the element has no assigned access key.
+        document().page().access_keys().unassign(*this);
     }
 }
 
@@ -1121,6 +1151,15 @@ void Element::children_changed()
 {
     Node::children_changed();
     set_needs_style_update(true);
+}
+
+void Element::adopted_from(Document& old_document)
+{
+    Node::adopted_from(old_document);
+
+    // https://html.spec.whatwg.org/multipage/interaction.html#assigned-access-key
+    // "the user agent should not change the element's assigned access key unless [..] the element is moved to another Document."
+    old_document.page().access_keys().unassign(*this);
 }
 
 void Element::set_pseudo_element_node(Badge<Layout::TreeBuilder>, CSS::Selector::PseudoElement::Type pseudo_element, JS::GCPtr<Layout::NodeWithStyle> pseudo_element_node)

@@ -584,6 +584,8 @@ set(SOURCES
     NavigationTiming/EntryNames.cpp
     NavigationTiming/PerformanceNavigation.cpp
     NavigationTiming/PerformanceTiming.cpp
+    Page/AccessKeys.cpp
+    Page/AccessKeyNames.cpp
     Page/DragAndDropEventHandler.cpp
     Page/EventHandler.cpp
     Page/InputEvent.cpp

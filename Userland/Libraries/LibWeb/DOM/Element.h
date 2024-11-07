@@ -428,6 +428,7 @@ protected:
     virtual void inserted() override;
     virtual void removed_from(Node*) override;
     virtual void children_changed() override;
+    virtual void adopted_from(Document&) override;
     virtual i32 default_tab_index_value() const;
 
     virtual void computed_css_values_changed() { }

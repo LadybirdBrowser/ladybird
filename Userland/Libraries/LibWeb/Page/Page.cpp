@@ -32,11 +32,12 @@ JS_DEFINE_ALLOCATOR(Page);
 
 JS::NonnullGCPtr<Page> Page::create(JS::VM& vm, JS::NonnullGCPtr<PageClient> page_client)
 {
-    return vm.heap().allocate_without_realm<Page>(page_client);
+    return vm.heap().allocate_without_realm<Page>(vm, page_client);
 }
 
-Page::Page(JS::NonnullGCPtr<PageClient> client)
+Page::Page(JS::VM& vm, JS::NonnullGCPtr<PageClient> client)
     : m_client(client)
+    , m_access_keys(vm.heap())
 {
 }
 

@@ -1080,6 +1080,14 @@ EventResult EventHandler::handle_keydown(UIEvents::KeyCode key, u32 modifiers, u
         break;
     }
 
+    if ((modifiers & UIEvents::Mod_PlatformAccessKey) == UIEvents::Mod_PlatformAccessKey) {
+        if (auto access_key = AccessKeys::find_by_keycode(key); access_key.has_value()) {
+            if (document->page().access_keys().trigger_action(access_key.value())) {
+                return EventResult::Handled;
+            }
+        }
+    }
+
     return EventResult::Accepted;
 }
 

@@ -47,6 +47,7 @@
 #include <LibWeb/MathML/TagNames.h>
 #include <LibWeb/Namespace.h>
 #include <LibWeb/NavigationTiming/EntryNames.h>
+#include <LibWeb/Page/AccessKeyNames.h>
 #include <LibWeb/PerformanceTimeline/EntryTypes.h>
 #include <LibWeb/Platform/EventLoopPlugin.h>
 #include <LibWeb/SVG/AttributeNames.h>
@@ -100,6 +101,7 @@ ErrorOr<void> initialize_main_thread_vm(HTML::EventLoop::Type type)
 
     // These strings could potentially live on the VM similar to CommonPropertyNames.
     DOM::MutationType::initialize_strings();
+    HTML::AccessKeyNames::initialize_strings();
     HTML::AttributeNames::initialize_strings();
     HTML::CustomElementReactionNames::initialize_strings();
     HTML::EventNames::initialize_strings();

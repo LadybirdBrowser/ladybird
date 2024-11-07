@@ -889,7 +889,12 @@ void HTMLElement::did_lose_focus()
 // https://html.spec.whatwg.org/multipage/interaction.html#dom-accesskeylabel
 String HTMLElement::access_key_label() const
 {
-    dbgln("FIXME: Implement HTMLElement::access_key_label()");
+    // The accessKeyLabel IDL attribute must return a string that represents the element's assigned access key, if any.
+    if (auto access_key = document().page().access_keys().assigned_access_key(*this); access_key.has_value()) {
+        return AccessKeys::label(*access_key);
+    }
+
+    // If the element does not have one, then the IDL attribute must return the empty string.
     return String {};
 }
 
