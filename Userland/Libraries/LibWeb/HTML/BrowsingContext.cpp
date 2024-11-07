@@ -5,6 +5,7 @@
  */
 
 #include <LibWeb/Bindings/MainThreadVM.h>
+#include <LibWeb/Bindings/PrincipalHostDefined.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/ElementFactory.h>
 #include <LibWeb/DOM/Event.h>

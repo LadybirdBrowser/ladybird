@@ -13,7 +13,6 @@
 #include <LibJS/Heap/Cell.h>
 #include <LibJS/Heap/Heap.h>
 #include <LibJS/Runtime/VM.h>
-#include <LibWeb/Bindings/PrincipalHostDefined.h>
 
 #define WEB_SET_PROTOTYPE_FOR_INTERFACE_WITH_CUSTOM_NAME(interface_class, interface_name)                  \
     do {                                                                                                   \
@@ -82,10 +81,7 @@ private:
     JS::NonnullGCPtr<JS::Realm> m_realm;
 };
 
-[[nodiscard]] inline Intrinsics& host_defined_intrinsics(JS::Realm& realm)
-{
-    return *verify_cast<PrincipalHostDefined>(realm.host_defined())->intrinsics;
-}
+Intrinsics& host_defined_intrinsics(JS::Realm& realm);
 
 template<typename T>
 [[nodiscard]] JS::Object& ensure_web_namespace(JS::Realm& realm, FlyString const& namespace_name)

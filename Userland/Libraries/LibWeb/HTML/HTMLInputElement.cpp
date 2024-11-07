@@ -13,6 +13,7 @@
 #include <LibJS/Runtime/Date.h>
 #include <LibJS/Runtime/NativeFunction.h>
 #include <LibWeb/Bindings/HTMLInputElementPrototype.h>
+#include <LibWeb/Bindings/PrincipalHostDefined.h>
 #include <LibWeb/CSS/StyleValues/CSSKeywordValue.h>
 #include <LibWeb/CSS/StyleValues/DisplayStyleValue.h>
 #include <LibWeb/CSS/StyleValues/LengthStyleValue.h>

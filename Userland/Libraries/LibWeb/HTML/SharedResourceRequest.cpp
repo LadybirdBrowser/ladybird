@@ -6,6 +6,7 @@
 
 #include <AK/HashTable.h>
 #include <LibGfx/Bitmap.h>
+#include <LibWeb/Bindings/PrincipalHostDefined.h>
 #include <LibWeb/Fetch/Fetching/Fetching.h>
 #include <LibWeb/Fetch/Infrastructure/FetchAlgorithms.h>
 #include <LibWeb/Fetch/Infrastructure/FetchController.h>
