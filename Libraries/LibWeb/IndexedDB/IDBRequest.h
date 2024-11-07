@@ -11,6 +11,8 @@
 
 namespace Web::IndexedDB {
 
+using IDBRequestSource = Variant<Empty, GC::Ref<IDBObjectStore>, GC::Ref<IDBIndex>, GC::Ref<IDBCursor>>;
+
 class IDBRequest : public DOM::EventTarget {
     WEB_PLATFORM_OBJECT(IDBRequest, DOM::EventTarget);
     GC_DECLARE_ALLOCATOR(IDBRequest);
@@ -22,11 +24,13 @@ public:
     [[nodiscard]] GC::Ptr<WebIDL::DOMException> error() const { return m_error; }
     [[nodiscard]] bool done() const { return m_done; }
     [[nodiscard]] bool processed() const { return m_processed; }
+    [[nodiscard]] IDBRequestSource source() const { return m_source; }
 
     void set_done(bool done) { m_done = done; }
     void set_result(JS::Value result) { m_result = result; }
     void set_error(GC::Ptr<WebIDL::DOMException> error) { m_error = error; }
     void set_processed(bool processed) { m_processed = processed; }
+    void set_source(IDBRequestSource source) { m_source = source; }
 
     void set_onsuccess(WebIDL::CallbackType*);
     WebIDL::CallbackType* onsuccess();
@@ -47,7 +51,8 @@ private:
     // A request has a result and an error
     JS::Value m_result;
     GC::Ptr<WebIDL::DOMException> m_error;
-    // FIXME: A request has a source object.
+    // A request has a source object.
+    IDBRequestSource m_source;
     // FIXME: A request has a transaction which is initially null.
 };
 
