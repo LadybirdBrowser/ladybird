@@ -18,6 +18,7 @@
 #include <LibWeb/HTML/Parser/HTMLEncodingDetection.h>
 #include <LibWeb/HTML/Parser/HTMLParser.h>
 #include <LibWeb/Loader/GeneratedPagesLoader.h>
+#include <LibWeb/MimeSniff/Resource.h>
 #include <LibWeb/Namespace.h>
 #include <LibWeb/Platform/EventLoopPlugin.h>
 #include <LibWeb/XML/XMLDocumentBuilder.h>
@@ -398,10 +399,15 @@ JS::GCPtr<DOM::Document> load_document(HTML::NavigationParams const& navigation_
     // and origin initiatorOrigin, perform the following steps. They return a Document or null.
 
     // 1. Let type be the computed type of navigationParams's response.
-    auto extracted_mime_type = navigation_params.response->header_list()->extract_mime_type();
-    if (!extracted_mime_type.has_value())
-        return nullptr;
-    auto type = extracted_mime_type.release_value();
+    auto supplied_type = navigation_params.response->header_list()->extract_mime_type();
+    auto type = MimeSniff::Resource::sniff(
+        navigation_params.response->body()->source().visit(
+            [](Empty) { return ReadonlyBytes {}; },
+            [](ByteBuffer const& buffer) { return ReadonlyBytes { buffer }; },
+            [](JS::Handle<FileAPI::Blob> const& blob) { return blob->raw_bytes(); }),
+        MimeSniff::SniffingConfiguration {
+            .sniffing_context = MimeSniff::SniffingContext::Browsing,
+            .supplied_type = move(supplied_type) });
 
     VERIFY(navigation_params.response->body());
 
