@@ -13,6 +13,7 @@
 #include <LibJS/Runtime/VM.h>
 #include <LibWeb/DOM/EventDispatcher.h>
 #include <LibWeb/HTML/EventNames.h>
+#include <LibWeb/IndexedDB/IDBDatabase.h>
 #include <LibWeb/IndexedDB/IDBRequest.h>
 #include <LibWeb/IndexedDB/IDBVersionChangeEvent.h>
 #include <LibWeb/IndexedDB/Internal/Algorithms.h>
@@ -264,6 +265,21 @@ ErrorOr<Key> convert_a_value_to_a_key(JS::Realm& realm, JS::Value input, Vector<
     // - Otherwise
     // 1. Return invalid.
     return Error::from_string_literal("Unknown key type");
+}
+
+// https://w3c.github.io/IndexedDB/#close-a-database-connection
+void close_a_database_connection(IDBDatabase& connection, bool forced)
+{
+    // 1. Set connection’s close pending flag to true.
+    connection.set_close_pending(true);
+
+    // FIXME: 2. If the forced flag is true, then for each transaction created using connection run abort a transaction with transaction and newly created "AbortError" DOMException.
+    // FIXME: 3. Wait for all transactions created using connection to complete. Once they are complete, connection is closed.
+    connection.set_state(IDBDatabase::ConnectionState::Closed);
+
+    // 4. If the forced flag is true, then fire an event named close at connection.
+    if (forced)
+        connection.dispatch_event(DOM::Event::create(connection.realm(), HTML::EventNames::close));
 }
 
 }
