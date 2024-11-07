@@ -73,7 +73,7 @@ WebIDL::ExceptionOr<GC::Ref<IDBDatabase>> open_a_database_connection(JS::Realm& 
         // 1. Let openConnections be the set of all connections, except connection, associated with db.
         auto open_connections = db->associated_connections_except(connection);
 
-        // FIXME: 2. For each entry of openConnections that does not have its close pending flag set to true,
+        // 2. For each entry of openConnections that does not have its close pending flag set to true,
         //    queue a task to fire a version change event named versionchange at entry with db’s version and version.
         for (auto& entry : open_connections) {
             if (!entry->close_pending()) {
@@ -85,7 +85,7 @@ WebIDL::ExceptionOr<GC::Ref<IDBDatabase>> open_a_database_connection(JS::Realm& 
 
         // FIXME: 3. Wait for all of the events to be fired.
 
-        // FIXME: 4. If any of the connections in openConnections are still not closed,
+        // 4. If any of the connections in openConnections are still not closed,
         //    queue a task to fire a version change event named blocked at request with db’s version and version.
         for (auto& entry : open_connections) {
             if (entry->state() != IDBDatabase::ConnectionState::Closed) {
