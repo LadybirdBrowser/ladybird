@@ -39,8 +39,27 @@ static T interpolate_raw(T from, T to, float delta)
     }
 }
 
-ValueComparingRefPtr<CSSStyleValue const> interpolate_property(DOM::Element& element, PropertyID property_id, CSSStyleValue const& from, CSSStyleValue const& to, float delta)
+static NonnullRefPtr<CSSStyleValue const> with_keyword_values_resolved(DOM::Element& element, PropertyID property_id, CSSStyleValue const& value)
 {
+    if (!value.is_keyword())
+        return value;
+    switch (value.as_keyword().keyword()) {
+    case CSS::Keyword::Initial:
+    case CSS::Keyword::Unset:
+        return property_initial_value(element.realm(), property_id);
+    case CSS::Keyword::Inherit:
+        return CSS::StyleComputer::get_inherit_value(element.realm(), property_id, &element);
+    default:
+        break;
+    }
+    return value;
+}
+
+ValueComparingRefPtr<CSSStyleValue const> interpolate_property(DOM::Element& element, PropertyID property_id, CSSStyleValue const& a_from, CSSStyleValue const& a_to, float delta)
+{
+    auto from = with_keyword_values_resolved(element, property_id, a_from);
+    auto to = with_keyword_values_resolved(element, property_id, a_to);
+
     auto animation_type = animation_type_from_longhand_property(property_id);
     switch (animation_type) {
     case AnimationType::ByComputedValue:
