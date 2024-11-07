@@ -15,6 +15,7 @@
 #include <LibWeb/HTML/EventNames.h>
 #include <LibWeb/IndexedDB/IDBDatabase.h>
 #include <LibWeb/IndexedDB/IDBRequest.h>
+#include <LibWeb/IndexedDB/IDBTransaction.h>
 #include <LibWeb/IndexedDB/IDBVersionChangeEvent.h>
 #include <LibWeb/IndexedDB/Internal/Algorithms.h>
 #include <LibWeb/IndexedDB/Internal/ConnectionQueueHandler.h>
@@ -106,9 +107,8 @@ WebIDL::ExceptionOr<GC::Ref<IDBDatabase>> open_a_database_connection(JS::Realm& 
             return true;
         }));
 
-        // FIXME: 6. Run upgrade a database using connection, version and request.
-        // NOTE: upgrade a database sets this flag, so we set it manually temporarily.
-        request->set_processed(true);
+        // 6. Run upgrade a database using connection, version and request.
+        upgrade_a_database(realm, connection, version, request);
 
         // 7. If connection was closed, return a newly created "AbortError" DOMException and abort these steps.
         if (connection->state() == IDBDatabase::ConnectionState::Closed) {
@@ -280,6 +280,59 @@ void close_a_database_connection(IDBDatabase& connection, bool forced)
     // 4. If the forced flag is true, then fire an event named close at connection.
     if (forced)
         connection.dispatch_event(DOM::Event::create(connection.realm(), HTML::EventNames::close));
+}
+
+void upgrade_a_database(JS::Realm& realm, GC::Ref<IDBDatabase> connection, u64 version, GC::Ref<IDBRequest> request)
+{
+    // 1. Let db be connection’s database.
+    auto db = connection->associated_database();
+
+    // 2. Let transaction be a new upgrade transaction with connection used as connection.
+    auto transaction = IDBTransaction::create(realm, connection);
+
+    // FIXME: 3. Set transaction’s scope to connection’s object store set.
+
+    // 4. Set db’s upgrade transaction to transaction.
+    db->set_upgrade_transaction(transaction);
+
+    // 5. Set transaction’s state to inactive.
+    transaction->set_state(IDBTransaction::TransactionState::Inactive);
+
+    // FIXME: 6. Start transaction.
+
+    // 7. Let old version be db’s version.
+    auto old_version = db->version();
+
+    // 8. Set db’s version to version. This change is considered part of the transaction, and so if the transaction is aborted, this change is reverted.
+    db->set_version(version);
+
+    // 9. Set request’s processed flag to true.
+    request->set_processed(true);
+
+    // 10. Queue a task to run these steps:
+    HTML::queue_a_task(HTML::Task::Source::DatabaseAccess, nullptr, nullptr, GC::create_function(realm.vm().heap(), [&realm, request, connection, transaction, old_version, version]() {
+        // 1. Set request’s result to connection.
+        request->set_result(connection);
+
+        // 2. Set request’s transaction to transaction.
+        request->set_transaction(transaction);
+
+        // 3. Set request’s done flag to true.
+        request->set_done(true);
+
+        // 4. Set transaction’s state to active.
+        transaction->set_state(IDBTransaction::TransactionState::Active);
+
+        // 5. Let didThrow be the result of firing a version change event named upgradeneeded at request with old version and version.
+        [[maybe_unused]] auto did_throw = fire_a_version_change_event(realm, HTML::EventNames::upgradeneeded, request, old_version, version);
+
+        // 6. Set transaction’s state to inactive.
+        transaction->set_state(IDBTransaction::TransactionState::Inactive);
+
+        // FIXME: 7. If didThrow is true, run abort a transaction with transaction and a newly created "AbortError" DOMException.
+    }));
+
+    // FIXME: 11. Wait for transaction to finish.
 }
 
 }

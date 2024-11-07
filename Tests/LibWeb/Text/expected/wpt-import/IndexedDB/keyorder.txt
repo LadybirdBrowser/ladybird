@@ -9,27 +9,27 @@ Found 24 tests
 12 Pass
 12 Fail
 Details
-Result	Test Name	MessageFail	Database readback sort - String < Array	Cannot access property "transaction" on undefined object "db"
+Result	Test Name	MessageFail	Database readback sort - String < Array	undefined is not a function (evaluated from 'db.createObjectStore')
 Pass	IDBKey.cmp sorted - String < Array	
-Fail	Database readback sort - float < String	Cannot access property "transaction" on undefined object "db"
+Fail	Database readback sort - float < String	undefined is not a function (evaluated from 'db.createObjectStore')
 Pass	IDBKey.cmp sorted - float < String	
-Fail	Database readback sort - float < Date	Cannot access property "transaction" on undefined object "db"
+Fail	Database readback sort - float < Date	undefined is not a function (evaluated from 'db.createObjectStore')
 Pass	IDBKey.cmp sorted - float < Date	
-Fail	Database readback sort - float < Date < String < Array	Cannot access property "transaction" on undefined object "db"
+Fail	Database readback sort - float < Date < String < Array	undefined is not a function (evaluated from 'db.createObjectStore')
 Pass	IDBKey.cmp sorted - float < Date < String < Array	
-Fail	Database readback sort - Date(1 sec ago) < Date(now) < Date(1 minute in future)	Cannot access property "transaction" on undefined object "db"
+Fail	Database readback sort - Date(1 sec ago) < Date(now) < Date(1 minute in future)	undefined is not a function (evaluated from 'db.createObjectStore')
 Pass	IDBKey.cmp sorted - Date(1 sec ago) < Date(now) < Date(1 minute in future)	
-Fail	Database readback sort - -1.1 < 1 < 1.01337 < 1.013373 < 2	Cannot access property "transaction" on undefined object "db"
+Fail	Database readback sort - -1.1 < 1 < 1.01337 < 1.013373 < 2	undefined is not a function (evaluated from 'db.createObjectStore')
 Pass	IDBKey.cmp sorted - -1.1 < 1 < 1.01337 < 1.013373 < 2	
-Fail	Database readback sort - -Infinity < -0.01 < 0 < Infinity	Cannot access property "transaction" on undefined object "db"
+Fail	Database readback sort - -Infinity < -0.01 < 0 < Infinity	undefined is not a function (evaluated from 'db.createObjectStore')
 Pass	IDBKey.cmp sorted - -Infinity < -0.01 < 0 < Infinity	
-Fail	Database readback sort - "" < "a" < "ab" < "b" < "ba"	Cannot access property "transaction" on undefined object "db"
+Fail	Database readback sort - "" < "a" < "ab" < "b" < "ba"	undefined is not a function (evaluated from 'db.createObjectStore')
 Pass	IDBKey.cmp sorted - "" < "a" < "ab" < "b" < "ba"	
-Fail	Database readback sort - Arrays	Cannot access property "transaction" on undefined object "db"
+Fail	Database readback sort - Arrays	undefined is not a function (evaluated from 'db.createObjectStore')
 Pass	IDBKey.cmp sorted - Arrays	
-Fail	Database readback sort - Array.length: 10,000 < Array.length: 10,001	Cannot access property "transaction" on undefined object "db"
+Fail	Database readback sort - Array.length: 10,000 < Array.length: 10,001	undefined is not a function (evaluated from 'db.createObjectStore')
 Pass	IDBKey.cmp sorted - Array.length: 10,000 < Array.length: 10,001	
-Fail	Database readback sort - Infinity inside arrays	Cannot access property "transaction" on undefined object "db"
+Fail	Database readback sort - Infinity inside arrays	undefined is not a function (evaluated from 'db.createObjectStore')
 Pass	IDBKey.cmp sorted - Infinity inside arrays	
-Fail	Database readback sort - Test different stuff at once	Cannot access property "transaction" on undefined object "db"
+Fail	Database readback sort - Test different stuff at once	undefined is not a function (evaluated from 'db.createObjectStore')
 Pass	IDBKey.cmp sorted - Test different stuff at once	

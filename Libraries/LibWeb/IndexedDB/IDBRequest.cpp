@@ -32,6 +32,7 @@ void IDBRequest::visit_edges(Visitor& visitor)
     Base::visit_edges(visitor);
     visitor.visit(m_error);
     visitor.visit(m_result);
+    visitor.visit(m_transaction);
 }
 
 // https://w3c.github.io/IndexedDB/#dom-idbrequest-onsuccess
