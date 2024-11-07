@@ -581,6 +581,7 @@ class IDBIndex;
 class IDBObjectStore;
 class IDBOpenDBRequest;
 class IDBRequest;
+class IDBTransaction;
 class IDBVersionChangeEvent;
 }
 

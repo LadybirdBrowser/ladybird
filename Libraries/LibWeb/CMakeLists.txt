@@ -518,6 +518,7 @@ set(SOURCES
     IndexedDB/IDBIndex.cpp
     IndexedDB/IDBObjectStore.cpp
     IndexedDB/IDBRequest.cpp
+    IndexedDB/IDBTransaction.cpp
     IndexedDB/IDBVersionChangeEvent.cpp
     Internals/Inspector.cpp
     Internals/InternalAnimationTimeline.cpp

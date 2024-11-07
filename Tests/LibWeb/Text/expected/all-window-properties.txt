@@ -206,6 +206,7 @@ IDBIndex
 IDBObjectStore
 IDBOpenDBRequest
 IDBRequest
+IDBTransaction
 IDBVersionChangeEvent
 IdleDeadline
 Image
