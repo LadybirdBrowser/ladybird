@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html>
+<title>currentColor in nested color-mix() with transition</title>
+<link rel="help" href="https://drafts.csswg.org/css-color/#currentcolor-color">
+<style>
+    #parent {
+      color: white;
+      background-color:
+          color-mix(in srgb,
+                    color-mix(in srgb, black, currentColor),
+                    black);
+      height: 200px;
+      width: 200px;
+    }
+    #child {
+      background-color: inherit;
+      transition: background-color;
+      height: 100px;
+      width: 100px;
+    }
+</style>
+<div id="parent">
+  <div id="child"></div>
+</div>
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="/web-animations/testcommon.js"></script>
+<script>
+async function runTest() {
+  promise_test(async t => {
+    await waitForNextFrame();
+    const child = document.getElementById('child');
+    const parent = document.getElementById('parent');
+    let parentBG = getComputedStyle(parent).backgroundColor;
+    let childBG = getComputedStyle(child).backgroundColor;
+
+    assert_equals(parentBG, "color(srgb 0.25 0.25 0.25)");
+    assert_equals(childBG, "color(srgb 0.25 0.25 0.25)");
+
+    // Style change triggers a CSS transition. Wait for the
+    // transition to start.
+    await waitForNextFrame();
+    child.style = 'color:black';
+    await Promise.all(document.getAnimations().map(a => a.ready));
+
+    parentBG = getComputedStyle(parent).backgroundColor;
+    childBG = getComputedStyle(child).backgroundColor;
+    assert_equals(parentBG, "color(srgb 0.25 0.25 0.25)");
+    assert_equals(childBG, "color(srgb 0 0 0)");
+  }, 'Transition with currentColor in color-mix');
+}
+window.onload = runTest();
+</script>

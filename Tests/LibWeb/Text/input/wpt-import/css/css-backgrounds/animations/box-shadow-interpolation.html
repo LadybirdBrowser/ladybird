@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<meta charset="UTF-8">
+<link rel="help" href="https://drafts.csswg.org/css-backgrounds-3/#box-shadow">
+<meta name="test" content="box-shadow supports animation">
+
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../support/interpolation-testcommon.js"></script>
+
+<style>
+.parent {
+  box-shadow: 30px 10px 30px 10px black;
+}
+.target {
+  display: inline-block;
+  width: 60px;
+  height: 60px;
+  font-size: 3px;
+  border: 2px solid;
+  margin-right: 20px;
+  margin-bottom: 30px;
+  color: green;
+  box-shadow: 10px 30px 10px 30px black;
+}
+.expected {
+  margin-right: 40px;
+}
+</style>
+<body>
+<script>
+test_interpolation({
+  property: 'box-shadow',
+  from: neutralKeyframe,
+  to: '20px 20px 20px 20px black',
+}, [
+  {at: -0.3, expect: 'rgb(0, 0, 0) 7px 33px 7px 33px'},
+  {at: 0, expect: 'rgb(0, 0, 0) 10px 30px 10px 30px'},
+  {at: 0.3, expect: 'rgb(0, 0, 0) 13px 27px 13px 27px'},
+  {at: 0.6, expect: 'rgb(0, 0, 0) 16px 24px 16px 24px'},
+  {at: 1, expect: 'rgb(0, 0, 0) 20px 20px 20px 20px'},
+  {at: 1.5, expect: 'rgb(0, 0, 0) 25px 15px 25px 15px'},
+]);
+
+test_interpolation({
+  property: 'box-shadow',
+  from: 'initial',
+  to: '20px 20px 20px 20px black',
+}, [
+  {at: -0.3, expect: 'rgba(0, 0, 0, 0) -6px -6px 0px -6px'},
+  {at: 0, expect: 'rgba(0, 0, 0, 0) 0px 0px 0px 0px'},
+  {at: 0.3, expect: 'rgba(0, 0, 0, 0.3) 6px 6px 6px 6px'},
+  {at: 0.6, expect: 'rgba(0, 0, 0, 0.6) 12px 12px 12px 12px'},
+  {at: 1, expect: 'rgb(0, 0, 0) 20px 20px 20px 20px'},
+  {at: 1.5, expect: 'rgb(0, 0, 0) 30px 30px 30px 30px'},
+]);
+
+test_interpolation({
+  property: 'box-shadow',
+  from: 'inherit',
+  to: '20px 20px 20px 20px black',
+}, [
+  {at: -0.3, expect: 'rgb(0, 0, 0) 33px 7px 33px 7px'},
+  {at: 0, expect: 'rgb(0, 0, 0) 30px 10px 30px 10px'},
+  {at: 0.3, expect: 'rgb(0, 0, 0) 27px 13px 27px 13px'},
+  {at: 0.6, expect: 'rgb(0, 0, 0) 24px 16px 24px 16px'},
+  {at: 1, expect: 'rgb(0, 0, 0) 20px 20px 20px 20px'},
+  {at: 1.5, expect: 'rgb(0, 0, 0) 15px 25px 15px 25px'},
+]);
+
+test_interpolation({
+  property: 'box-shadow',
+  from: 'unset',
+  to: '20px 20px 20px 20px black',
+}, [
+  {at: -0.3, expect: 'rgba(0, 0, 0, 0) -6px -6px 0px -6px'},
+  {at: 0, expect: 'rgba(0, 0, 0, 0) 0px 0px 0px 0px'},
+  {at: 0.3, expect: 'rgba(0, 0, 0, 0.3) 6px 6px 6px 6px'},
+  {at: 0.6, expect: 'rgba(0, 0, 0, 0.6) 12px 12px 12px 12px'},
+  {at: 1, expect: 'rgb(0, 0, 0) 20px 20px 20px 20px'},
+  {at: 1.5, expect: 'rgb(0, 0, 0) 30px 30px 30px 30px'},
+]);
+
+// Test basic functionality, and clipping blur at 0
+test_interpolation({
+  property: 'box-shadow',
+  from: '15px 10px 5px 6px black',
+  to: '-15px -10px 25px -4px orange',
+}, [
+  {at: -0.3, expect: 'rgb(0, 0, 0) 24px 16px 0px 9px'},
+  {at: 0, expect: 'rgb(0, 0, 0) 15px 10px 5px 6px'},
+  {at: 0.3, expect: 'rgb(77, 50, 0) 6px 4px 11px 3px'},
+  {at: 0.6, expect: 'rgb(153, 99, 0) -3px -2px 17px 0px'},
+  {at: 1, expect: 'rgb(255, 165, 0) -15px -10px 25px -4px'},
+  {at: 1.5, expect: 'rgb(255, 248, 0) -30px -20px 35px -9px'},
+]);
+
+test_interpolation({
+  property: 'box-shadow',
+  from: '0px 0px 0px 0px black',
+  to: '1px 1px 1px 1px black',
+}, [
+  {at: -0.3, expect: 'rgb(0, 0, 0) -0.3px -0.3px 0px -0.3px'},
+  {at: 0, expect: 'rgb(0, 0, 0) 0px 0px 0px 0px'},
+  {at: 0.3, expect: 'rgb(0, 0, 0) 0.3px 0.3px 0.3px 0.3px'},
+  {at: 0.6, expect: 'rgb(0, 0, 0) 0.6px 0.6px 0.6px 0.6px'},
+  {at: 1, expect: 'rgb(0, 0, 0) 1px 1px 1px 1px'},
+  {at: 1.5, expect: 'rgb(0, 0, 0) 1.5px 1.5px 1.5px 1.5px'},
+]);
+
+// Test with color as first value.
+test_interpolation({
+  property: 'box-shadow',
+  from: 'black 15px 10px 5px 6px',
+  to: 'orange -15px -10px 25px -4px',
+}, [
+  {at: -0.3, expect: 'rgb(0, 0, 0) 24px 16px 0px 9px'},
+  {at: 0, expect: 'rgb(0, 0, 0) 15px 10px 5px 6px'},
+  {at: 0.3, expect: 'rgb(77, 50, 0) 6px 4px 11px 3px'},
+  {at: 0.6, expect: 'rgb(153, 99, 0) -3px -2px 17px 0px'},
+  {at: 1, expect: 'rgb(255, 165, 0) -15px -10px 25px -4px'},
+  {at: 1.5, expect: 'rgb(255, 248, 0) -30px -20px 35px -9px'},
+]);
+
+test_interpolation({
+  property: 'box-shadow',
+  from: '15px 10px 5px 6px black inset',
+  to: '-15px -10px 25px -4px orange inset',
+}, [
+  {at: -0.3, expect: 'rgb(0, 0, 0) 24px 16px 0px 9px inset'},
+  {at: 0, expect: 'rgb(0, 0, 0) 15px 10px 5px 6px inset'},
+  {at: 0.3, expect: 'rgb(77, 50, 0) 6px 4px 11px 3px inset'},
+  {at: 0.6, expect: 'rgb(153, 99, 0) -3px -2px 17px 0px inset'},
+  {at: 1, expect: 'rgb(255, 165, 0) -15px -10px 25px -4px inset'},
+  {at: 1.5, expect: 'rgb(255, 248, 0) -30px -20px 35px -9px inset'},
+]);
+
+test_interpolation({
+  property: 'box-shadow',
+  from: '15px 10px 5px 6px black',
+  to: '-15px -10px 25px -4px',
+}, [
+  {at: -0.3, expect: 'rgb(0, 0, 0) 24px 16px 0px 9px'},
+  {at: 0, expect: 'rgb(0, 0, 0) 15px 10px 5px 6px'},
+  {at: 0.3, expect: 'rgb(0, 38, 0) 6px 4px 11px 3px'},
+  {at: 0.6, expect: 'rgb(0, 77, 0) -3px -2px 17px 0px'},
+  {at: 1, expect: 'rgb(0, 128, 0) -15px -10px 25px -4px'},
+  {at: 1.5, expect: 'rgb(0, 192, 0) -30px -20px 35px -9px'},
+]);
+
+test_interpolation({
+  property: 'box-shadow',
+  from: '10px 10px 10px 10px black',
+  to: '10px 10px 10px 10px currentColor',
+}, [
+  {at: -0.3, expect: 'rgb(0, 0, 0) 10px 10px 10px 10px'},
+  {at: 0, expect: 'rgb(0, 0, 0) 10px 10px 10px 10px'},
+  {at: 0.3, expect: 'rgb(0, 38, 0) 10px 10px 10px 10px'},
+  {at: 0.6, expect: 'rgb(0, 77, 0) 10px 10px 10px 10px'},
+  {at: 1, expect: 'rgb(0, 128, 0) 10px 10px 10px 10px'},
+  {at: 1.5, expect: 'rgb(0, 192, 0) 10px 10px 10px 10px'},
+]);
+
+// Test padding shorter lists
+test_interpolation({
+  property: 'box-shadow',
+  from: '10px 20px rgba(255, 255, 0, 0.5), inset 5px 10em #008000',
+  to: 'none',
+}, [
+  {at: -0.3, expect: 'rgba(255, 255, 0, 0.65) 13px 26px 0px 0px, rgb(0, 166, 0) 6.5px 39px 0px 0px inset'},
+  {at: 0, expect: 'rgba(255, 255, 0, 0.5) 10px 20px 0px 0px, rgb(0, 128, 0) 5px 30px 0px 0px inset'},
+  {at: 0.3, expect: 'rgba(255, 255, 0, 0.353) 7px 14px 0px 0px, rgba(0, 128, 0, 0.7) 3.5px 21px 0px 0px inset'},
+  {at: 0.6, expect: 'rgba(255, 255, 0, 0.2) 4px 8px 0px 0px, rgba(0, 128, 0, 0.4) 2px 12px 0px 0px inset'},
+  {at: 1, expect: 'rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px inset'},
+  {at: 1.5, expect: 'rgba(0, 0, 0, 0) -5px -10px 0px 0px, rgba(0, 0, 0, 0) -2.5px -15px 0px 0px inset'},
+]);
+
+// Test calc with comparison functions
+test_interpolation({
+  property: 'box-shadow',
+  from: 'inset 0 0 0 0 black',
+  to: 'inset 0 0 0 calc(max(10em, 20px) / 2) black',
+}, [
+  {at: -0.3, expect: 'rgb(0, 0, 0) 0px 0px 0px -4.5px inset'},
+  {at: 0, expect: 'rgb(0, 0, 0) 0px 0px 0px 0px inset'},
+  {at: 0.3, expect: 'rgb(0, 0, 0) 0px 0px 0px 4.5px inset'},
+  {at: 0.6, expect: 'rgb(0, 0, 0) 0px 0px 0px 9px inset'},
+  {at: 1, expect: 'rgb(0, 0, 0) 0px 0px 0px 15px inset'},
+  {at: 1.5, expect: 'rgb(0, 0, 0) 0px 0px 0px 22.5px inset'},
+]);
+
+// Test unmatched inset
+test_no_interpolation({
+  property: 'box-shadow',
+  from: '10px 20px yellow, 5px 10px green',
+  to: 'inset 5px 10px green, 15px 20px blue'
+});
+
+// Test CSS color 4 color types
+test_interpolation({
+  property: 'box-shadow',
+  from: '10px 10px 10px 10px rgb(0 0 0)',
+  to: '10px 10px 10px 10px color(srgb 1 1 1)',
+}, [
+{at: -0.3, expect: '10px 10px 10px 10px oklab(0 0 0)'},
+  {at: 0, expect: '10px 10px 10px 10px oklab(0 0 0)'},
+  {at: 0.3, expect: '10px 10px 10px 10px oklab(0.3 0 0)'},
+  {at: 0.6, expect: '10px 10px 10px 10px oklab(0.6 0 0)'},
+  {at: 1, expect: '10px 10px 10px 10px oklab(1 0 0)'},
+  {at: 1.5, expect: '10px 10px 10px 10px oklab(1 0 0)'},
+]);
+
+test_interpolation({
+  property: 'box-shadow',
+  from: '10px 10px 10px 10px color(srgb 0 0 0)',
+  to: '10px 10px 10px 10px rgb(255 255 255)',
+}, [
+{at: -0.3, expect: '10px 10px 10px 10px oklab(0 0 0)'},
+  {at: 0, expect: '10px 10px 10px 10px oklab(0 0 0)'},
+  {at: 0.3, expect: '10px 10px 10px 10px oklab(0.3 0 0)'},
+  {at: 0.6, expect: '10px 10px 10px 10px oklab(0.6 0 0)'},
+  {at: 1, expect: '10px 10px 10px 10px oklab(1 0 0)'},
+  {at: 1.5, expect: '10px 10px 10px 10px oklab(1 0 0)'},
+]);
+
+test_interpolation({
+  property: 'box-shadow',
+  from: '10px 10px 10px 10px color(srgb 0 0 0)',
+  to: '10px 10px 10px 10px color(srgb 1 1 1)',
+}, [
+{at: -0.3, expect: '10px 10px 10px 10px oklab(0 0 0)'},
+  {at: 0, expect: '10px 10px 10px 10px oklab(0 0 0)'},
+  {at: 0.3, expect: '10px 10px 10px 10px oklab(0.3 0 0)'},
+  {at: 0.6, expect: '10px 10px 10px 10px oklab(0.6 0 0)'},
+  {at: 1, expect: '10px 10px 10px 10px oklab(1 0 0)'},
+  {at: 1.5, expect: '10px 10px 10px 10px oklab(1 0 0)'},
+]);
+</script>
+</body>
