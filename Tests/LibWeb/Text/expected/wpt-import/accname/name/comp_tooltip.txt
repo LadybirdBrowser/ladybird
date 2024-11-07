@@ -1,0 +1,33 @@
+Summary
+
+Harness status: OK
+
+Rerun
+
+Found 23 tests
+
+23 Pass
+Details
+Result	Test Name	MessagePass	link with img with tooltip label	
+Pass	link with text with tooltip label and no contents	
+Pass	link with text with tooltip label and contents	
+Pass	div with text with tooltip label	
+Pass	img with tooltip label without alt	
+Pass	img with tooltip label with empty alt	
+Pass	img with tooltip label with alt	
+Pass	img with tooltip label without title	
+Pass	select with tooltip label	
+Pass	button with tooltip label	
+Pass	checkbox input with tooltip label	
+Pass	radio input with tooltip label	
+Pass	text input with placeholder and tooltip label	
+Pass	password input with placeholder and tooltip label	
+Pass	number input with placeholder and tooltip label	
+Pass	search input with placeholder and tooltip label	
+Pass	tel input with placeholder and tooltip label	
+Pass	email input with placeholder and tooltip label	
+Pass	url input with placeholder and tooltip label	
+Pass	textarea with placeholder and tooltip label	
+Pass	abbr with tooltip label	
+Pass	summary with tooltip label and contents	
+Pass	iframe with tooltip label	

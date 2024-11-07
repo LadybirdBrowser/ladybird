@@ -34,6 +34,7 @@
 #include <LibWeb/DOM/StaticNodeList.h>
 #include <LibWeb/HTML/CustomElements/CustomElementReactionNames.h>
 #include <LibWeb/HTML/HTMLAnchorElement.h>
+#include <LibWeb/HTML/HTMLImageElement.h>
 #include <LibWeb/HTML/HTMLInputElement.h>
 #include <LibWeb/HTML/HTMLSelectElement.h>
 #include <LibWeb/HTML/HTMLSlotElement.h>
@@ -2188,6 +2189,7 @@ ErrorOr<String> Node::name_or_description(NameOrDescription target, Document con
 
     if (is_element()) {
         auto const* element = static_cast<DOM::Element const*>(this);
+        auto role = element->role_or_default();
         // 2. Compute the text alternative for the current node:
         // A. If the current node is hidden and is not directly referenced by aria-labelledby or aria-describedby, nor directly referenced by a native host language text alternative element (e.g. label in HTML) or attribute, return the empty string.
         // FIXME: Check for references
@@ -2312,11 +2314,22 @@ ErrorOr<String> Node::name_or_description(NameOrDescription target, Document con
             // - Otherwise, return the value of aria-label.
             return element->aria_label().value();
         }
-        // TODO: D. Otherwise, if the current node's native markup provides an attribute (e.g. title) or element (e.g. HTML label) that defines a text alternative,
-        //      return that alternative in the form of a flat string as defined by the host language, unless the element is marked as presentational (role="presentation" or role="none").
+
+        // E. Host Language Label: Otherwise, if the current node's native markup provides an attribute (e.g. alt) or
+        // element (e.g. HTML label or SVG title) that defines a text alternative, return that alternative in the form
+        // of a flat string as defined by the host language, unless the element is marked as presentational
+        // (role="presentation" or role="none").
+        if (role != ARIA::Role::presentation && role != ARIA::Role::none) {
+            if (is<HTML::HTMLImageElement>(*element)) {
+                if (auto alt = element->get_attribute(HTML::AttributeNames::alt); alt.has_value())
+                    return alt.release_value();
+            }
+            // TODO: Add handling for SVGTitleElement, and also confirm (through existing WPT test cases) whether
+            // HTMLLabelElement is already handled (by the code for step C. “Embedded Control” above) in conformance
+            // with the spec requirements — and if not, then add handling for it here.
+        }
 
         // F. Otherwise, if the current node's role allows name from content, or if the current node is referenced by aria-labelledby, aria-describedby, or is a native host language text alternative element (e.g. label in HTML), or is a descendant of a native host language text alternative element:
-        auto role = element->role_or_default();
         if ((role.has_value() && ARIA::allows_name_from_content(role.value())) || is_descendant == IsDescendant::Yes) {
             // i. Set the accumulated text to the empty string.
             total_accumulated_text.clear();
@@ -2348,8 +2361,9 @@ ErrorOr<String> Node::name_or_description(NameOrDescription target, Document con
 
                 return IterationDecision::Continue;
             });
-            // iv. Return the accumulated text.
-            return total_accumulated_text.to_string();
+            // v. Return the accumulated text if it is not the empty string ("").
+            if (!total_accumulated_text.is_empty())
+                return total_accumulated_text.to_string();
             // Important: Each node in the subtree is consulted only once. If text has been collected from a descendant, but is referenced by another IDREF in some descendant node, then that second, or subsequent, reference is not followed. This is done to avoid infinite loops.
         }
     }
