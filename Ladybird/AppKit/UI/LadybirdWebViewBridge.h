@@ -32,12 +32,7 @@ public:
     float inverse_device_pixel_ratio() const { return 1.0f / m_device_pixel_ratio; }
 
     void set_system_visibility_state(bool is_visible);
-
-    enum class ForResize {
-        Yes,
-        No,
-    };
-    void set_viewport_rect(Gfx::IntRect, ForResize = ForResize::No);
+    void set_viewport_rect(Gfx::IntRect);
 
     void update_palette();
     void set_preferred_color_scheme(Web::CSS::PreferredColorScheme);

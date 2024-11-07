@@ -46,7 +46,7 @@ static constexpr CGFloat const WINDOW_HEIGHT = 400;
             [strong_self updateStatistics];
         });
 
-        [self setContentView:self.web_view.enclosingScrollView];
+        [self setContentView:self.web_view];
         [self setTitle:@"Task Manager"];
         [self setIsVisible:YES];
 

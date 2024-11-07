@@ -28,34 +28,14 @@
 
     if (self) {
         self.web_view = web_view;
+
         if (self.web_view == nil)
             self.web_view = [[LadybirdWebView alloc] init:nil];
 
-        [self.web_view setPostsBoundsChangedNotifications:YES];
-
-        auto* scroll_view = [[NSScrollView alloc] init];
-        [scroll_view setHasVerticalScroller:NO];
-        [scroll_view setHasHorizontalScroller:NO];
-        [scroll_view setLineScroll:24];
-
-        [scroll_view setContentView:self.web_view];
-        [scroll_view setDocumentView:[[NSView alloc] init]];
-
-        [[NSNotificationCenter defaultCenter]
-            addObserver:self
-               selector:@selector(onContentScroll:)
-                   name:NSViewBoundsDidChangeNotification
-                 object:[scroll_view contentView]];
+        [self.web_view setClipsToBounds:YES];
     }
 
     return self;
-}
-
-#pragma mark - Private methods
-
-- (void)onContentScroll:(NSNotification*)notification
-{
-    [self.web_view handleScroll];
 }
 
 #pragma mark - NSWindow

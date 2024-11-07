@@ -14,7 +14,7 @@
 
 namespace Ladybird {
 
-Web::MouseEvent ns_event_to_mouse_event(Web::MouseEvent::Type, NSEvent*, NSView*, NSScrollView*, Web::UIEvents::MouseButton);
+Web::MouseEvent ns_event_to_mouse_event(Web::MouseEvent::Type, NSEvent*, NSView*, Web::UIEvents::MouseButton);
 
 Web::DragEvent ns_event_to_drag_event(Web::DragEvent::Type, id<NSDraggingInfo>, NSView*);
 Vector<URL::URL> drag_event_url_list(Web::DragEvent const&);

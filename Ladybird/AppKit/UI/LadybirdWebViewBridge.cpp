@@ -51,16 +51,12 @@ void WebViewBridge::set_system_visibility_state(bool is_visible)
     client().async_set_system_visibility_state(m_client_state.page_index, is_visible);
 }
 
-void WebViewBridge::set_viewport_rect(Gfx::IntRect viewport_rect, ForResize for_resize)
+void WebViewBridge::set_viewport_rect(Gfx::IntRect viewport_rect)
 {
     viewport_rect.set_size(scale_for_device(viewport_rect.size(), m_device_pixel_ratio));
     m_viewport_size = viewport_rect.size();
 
-    client().async_set_viewport_size(m_client_state.page_index, m_viewport_size.to_type<Web::DevicePixels>());
-
-    if (for_resize == ForResize::Yes) {
-        handle_resize();
-    }
+    handle_resize();
 }
 
 void WebViewBridge::update_palette()

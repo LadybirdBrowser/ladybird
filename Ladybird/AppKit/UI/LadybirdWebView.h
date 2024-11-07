@@ -48,7 +48,7 @@
 
 @end
 
-@interface LadybirdWebView : NSClipView <NSMenuDelegate>
+@interface LadybirdWebView : NSView <NSMenuDelegate>
 
 - (instancetype)init:(id<LadybirdWebViewObserver>)observer;
 - (instancetype)initAsChild:(id<LadybirdWebViewObserver>)observer
@@ -70,7 +70,6 @@
 
 - (void)handleResize;
 - (void)handleDevicePixelRatioChange;
-- (void)handleScroll;
 - (void)handleVisibility:(BOOL)is_visible;
 
 - (void)setPreferredColorScheme:(Web::CSS::PreferredColorScheme)color_scheme;
