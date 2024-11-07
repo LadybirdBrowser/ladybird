@@ -25,7 +25,6 @@ endpoint WebContentClient
     did_request_refresh(u64 page_id) =|
     did_paint(u64 page_id, Gfx::IntRect content_rect, i32 bitmap_id) =|
     did_request_cursor_change(u64 page_id, i32 cursor_type) =|
-    did_layout(u64 page_id, Gfx::IntSize content_size) =|
     did_change_title(u64 page_id, ByteString title) =|
     did_change_url(u64 page_id, URL::URL url) =|
     did_request_tooltip_override(u64 page_id, Gfx::IntPoint position, ByteString title) =|
