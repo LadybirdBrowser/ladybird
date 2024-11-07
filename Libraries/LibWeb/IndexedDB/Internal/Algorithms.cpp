@@ -146,7 +146,7 @@ bool fire_a_version_change_event(JS::Realm& realm, FlyString const& event_name, 
     auto legacy_output_did_listeners_throw_flag = false;
 
     // 7. Dispatch event at target with legacyOutputDidListenersThrowFlag.
-    DOM::EventDispatcher::dispatch(target, *event, legacy_output_did_listeners_throw_flag);
+    DOM::EventDispatcher::dispatch(target, *event, false, legacy_output_did_listeners_throw_flag);
 
     // 8. Return legacyOutputDidListenersThrowFlag.
     return legacy_output_did_listeners_throw_flag;
