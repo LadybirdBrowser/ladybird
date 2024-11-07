@@ -13,6 +13,22 @@
       "platform": "windows"
     },
     {
+      "name": "ffmpeg",
+      "platform": "!android",
+      "features": [
+        "avcodec",
+        "avformat",
+        "dav1d",
+        "openh264",
+        "opus",
+        "webp",
+        "theora",
+        "vorbis",
+        "vpx",
+        "zlib"
+      ]
+    },
+    {
       "name": "fontconfig",
       "platform": "linux | freebsd | openbsd | osx | windows"
     },
@@ -96,6 +112,10 @@
     {
       "name": "curl",
       "version": "8.10.1#0"
+    },
+    {
+      "name": "ffmpeg",
+      "version": "6.1.1#11"
     },
     {
       "name": "fontconfig",
