@@ -18,9 +18,11 @@ FindInPageWidget::FindInPageWidget(Tab* tab, WebContentView* content_view)
     , m_content_view(content_view)
 {
     setFocusPolicy(Qt::FocusPolicy::StrongFocus);
+    setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Fixed);
 
     auto* layout = new QHBoxLayout(this);
     setLayout(layout);
+
     layout->setContentsMargins(5, 5, 5, 5);
     layout->setAlignment(Qt::AlignmentFlag::AlignLeft);
 
