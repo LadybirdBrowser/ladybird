@@ -1,3 +1,5 @@
+include_guard()
+
 if (NOT APPLE)
     find_package(VulkanHeaders CONFIG QUIET)
     find_package(Vulkan QUIET)
