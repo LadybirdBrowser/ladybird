@@ -10,6 +10,7 @@
 #include <LibWeb/DOM/EventTarget.h>
 #include <LibWeb/HTML/DOMStringList.h>
 #include <LibWeb/IndexedDB/IDBRequest.h>
+#include <LibWeb/IndexedDB/Internal/Algorithms.h>
 #include <LibWeb/IndexedDB/Internal/Database.h>
 #include <LibWeb/StorageAPI/StorageKey.h>
 
@@ -35,6 +36,7 @@ public:
 
     void set_version(u64 version) { m_version = version; }
     void set_close_pending(bool close_pending) { m_close_pending = close_pending; }
+    void set_state(ConnectionState state) { m_state = state; }
 
     [[nodiscard]] GC::Ref<HTML::DOMStringList> object_store_names() { return m_object_store_names; }
     [[nodiscard]] String name() const { return m_name; }
@@ -42,6 +44,13 @@ public:
     [[nodiscard]] bool close_pending() const { return m_close_pending; }
     [[nodiscard]] ConnectionState state() const { return m_state; }
     [[nodiscard]] GC::Ref<Database> associated_database() { return m_associated_database; }
+
+    // https://w3c.github.io/IndexedDB/#dom-idbdatabase-close
+    void close()
+    {
+        // 1. Run close a database connection with this connection.
+        close_a_database_connection(*this);
+    }
 
     void set_onabort(WebIDL::CallbackType*);
     WebIDL::CallbackType* onabort();

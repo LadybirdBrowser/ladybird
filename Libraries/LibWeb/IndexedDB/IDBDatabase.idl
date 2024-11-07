@@ -8,7 +8,7 @@ interface IDBDatabase : EventTarget {
     readonly attribute DOMStringList objectStoreNames;
 
     [FIXME, NewObject] IDBTransaction transaction((DOMString or sequence<DOMString>) storeNames, optional IDBTransactionMode mode = "readonly", optional IDBTransactionOptions options = {});
-    [FIXME] undefined close();
+    undefined close();
     [FIXME, NewObject] IDBObjectStore createObjectStore(DOMString name, optional IDBObjectStoreParameters options = {});
     [FIXME] undefined deleteObjectStore(DOMString name);
 
