@@ -1243,11 +1243,75 @@
     ]
   },
   "font-variant": {
+    "inherited": true,
+    "initial": "normal",
+    "longhands": [
+      "font-variant-alternates",
+      "font-variant-caps",
+      "font-variant-east-asian",
+      "font-variant-emoji",
+      "font-variant-ligatures",
+      "font-variant-numeric",
+      "font-variant-position"
+    ],
+    "valid-types": [
+      "string"
+    ]
+  },
+  "font-variant-alternates": {
     "animation-type": "discrete",
     "inherited": true,
     "initial": "normal",
     "valid-types": [
-      "font-variant"
+      "font-variant-alternates"
+    ]
+  },
+  "font-variant-caps": {
+    "animation-type": "discrete",
+    "inherited": true,
+    "initial": "normal",
+    "valid-types": [
+      "font-variant-caps"
+    ]
+  },
+  "font-variant-east-asian": {
+    "animation-type": "discrete",
+    "inherited": true,
+    "initial": "normal",
+    "valid-types": [
+      "font-variant-east-asian"
+    ]
+  },
+  "font-variant-emoji": {
+    "animation-type": "discrete",
+    "inherited": true,
+    "initial": "normal",
+    "valid-types": [
+      "font-variant-emoji"
+    ]
+  },
+  "font-variant-ligatures": {
+    "animation-type": "discrete",
+    "inherited": true,
+    "initial": "normal",
+    "valid-types": [
+      "font-variant-ligatures"
+    ]
+  },
+  "font-variant-numeric": {
+    "animation-type": "discrete",
+    "inherited": true,
+    "initial": "normal",
+    "valid-types": [
+      "font-variant-numeric"
+    ]
+  },
+  "font-variant-position": {
+    "animation-type": "discrete",
+    "inherited": true,
+    "initial": "normal",
+    "valid-types": [
+      "font-variant-position"
     ]
   },
   "font-variation-settings": {
