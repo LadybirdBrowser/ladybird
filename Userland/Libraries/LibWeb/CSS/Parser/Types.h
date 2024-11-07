@@ -10,6 +10,7 @@
 #include <AK/Function.h>
 #include <AK/Variant.h>
 #include <AK/Vector.h>
+#include <LibWeb/CSS/Parser/Token.h>
 #include <LibWeb/CSS/StyleProperty.h>
 #include <LibWeb/Forward.h>
 
