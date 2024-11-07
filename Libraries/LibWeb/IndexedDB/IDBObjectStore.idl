@@ -1,0 +1,32 @@
+#import <IndexedDB/IDBRequest.idl>
+#import <IndexedDB/IDBIndex.idl>
+#import <IndexedDB/IDBCursor.idl>
+
+[Exposed=(Window,Worker)]
+interface IDBObjectStore {
+    [FIXME] attribute DOMString name;
+    [FIXME] readonly attribute any keyPath;
+    [FIXME] readonly attribute DOMStringList indexNames;
+    [FIXME, SameObject] readonly attribute IDBTransaction transaction;
+    [FIXME] readonly attribute boolean autoIncrement;
+    
+    [FIXME, NewObject] IDBRequest put(any value, optional any key);
+    [FIXME, NewObject] IDBRequest add(any value, optional any key);
+    [FIXME, NewObject] IDBRequest delete(any query);
+    [FIXME, NewObject] IDBRequest clear();
+    [FIXME, NewObject] IDBRequest get(any query);
+    [FIXME, NewObject] IDBRequest getKey(any query);
+    [FIXME, NewObject] IDBRequest getAll(optional any query, optional [EnforceRange] unsigned long count);
+    [FIXME, NewObject] IDBRequest getAllKeys(optional any query, optional [EnforceRange] unsigned long count);
+    [FIXME, NewObject] IDBRequest count(optional any query);
+    [FIXME, NewObject] IDBRequest openCursor(optional any query, optional IDBCursorDirection direction = "next");
+    [FIXME, NewObject] IDBRequest openKeyCursor(optional any query, optional IDBCursorDirection direction = "next");
+    [FIXME] IDBIndex index(DOMString name);
+    [FIXME, NewObject] IDBIndex createIndex(DOMString name, (DOMString or sequence<DOMString>) keyPath, optional IDBIndexParameters options = {});
+    [FIXME] undefined deleteIndex(DOMString name);
+};
+
+dictionary IDBIndexParameters {
+    boolean unique = false;
+    boolean multiEntry = false;
+};
