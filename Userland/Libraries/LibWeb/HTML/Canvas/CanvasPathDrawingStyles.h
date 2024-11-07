@@ -31,10 +31,52 @@ public:
         return my_drawing_state().line_width;
     }
 
+    // https://html.spec.whatwg.org/multipage/canvas.html#dom-context-2d-linecap
+    void set_line_cap(Bindings::CanvasLineCap line_cap)
+    {
+        // On setting, the current value must be changed to the new value.
+        my_drawing_state().line_cap = line_cap;
+    }
+    Bindings::CanvasLineCap line_cap() const
+    {
+        // On getting, it must return the current value.
+        return my_drawing_state().line_cap;
+    }
+
+    // https://html.spec.whatwg.org/multipage/canvas.html#dom-context-2d-linejoin
+    void set_line_join(Bindings::CanvasLineJoin line_join)
+    {
+        // On setting, the current value must be changed to the new value.
+        my_drawing_state().line_join = line_join;
+    }
+    Bindings::CanvasLineJoin line_join() const
+    {
+        // On getting, it must return the current value.
+        return my_drawing_state().line_join;
+    }
+
+    // https://html.spec.whatwg.org/multipage/canvas.html#dom-context-2d-miterlimit
+    void set_miter_limit(float miter_limit)
+    {
+        // On setting, zero, negative, infinite, and NaN values must be ignored, leaving the value unchanged;
+        if (miter_limit <= 0 || !isfinite(miter_limit))
+            return;
+        // other values must change the current value to the new value.
+        my_drawing_state().miter_limit = miter_limit;
+    }
+    float miter_limit() const
+    {
+        // On getting, it must return the current value.
+        return my_drawing_state().miter_limit;
+    }
+
     // https://html.spec.whatwg.org/multipage/canvas.html#dom-context-2d-setlinedash
     void set_line_dash(Vector<double> segments)
     {
-        // 1. If any value in segments is not finite (e.g. an Infinity or a NaN value), or if any value is negative (less than zero), then return (without throwing an exception; user agents could show a message on a developer console, though, as that would be helpful for debugging).
+        // The setLineDash(segments) method, when invoked, must run these steps:
+
+        // 1. If any value in segments is not finite (e.g. an Infinity or a NaN value), or if any value is negative (less than zero), then return
+        //    (without throwing an exception; user agents could show a message on a developer console, though, as that would be helpful for debugging).
         for (auto const& segment : segments) {
             if (!isfinite(segment) || segment < 0)
                 return;
@@ -51,7 +93,23 @@ public:
     // https://html.spec.whatwg.org/multipage/canvas.html#dom-context-2d-getlinedash
     Vector<double> get_line_dash()
     {
+        // When the getLineDash() method is invoked, it must return a sequence whose values are the values of the object's dash list, in the same order.
         return my_drawing_state().dash_list;
+    }
+
+    // https://html.spec.whatwg.org/multipage/canvas.html#dom-context-2d-linedashoffset
+    void set_line_dash_offset(float line_dash_offset)
+    {
+        // On setting, infinite and NaN values must be ignored, leaving the value unchanged;
+        if (!isfinite(line_dash_offset))
+            return;
+        // other values must change the current value to the new value.
+        my_drawing_state().line_dash_offset = line_dash_offset;
+    }
+    float line_dash_offset() const
+    {
+        // On getting, it must return the current value.
+        return my_drawing_state().line_dash_offset;
     }
 
 protected:
