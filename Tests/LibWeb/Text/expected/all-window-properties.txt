@@ -203,6 +203,7 @@ IDBCursor
 IDBDatabase
 IDBFactory
 IDBIndex
+IDBObjectStore
 IDBOpenDBRequest
 IDBRequest
 IDBVersionChangeEvent
