@@ -578,6 +578,7 @@ class IDBCursor;
 class IDBDatabase;
 class IDBFactory;
 class IDBIndex;
+class IDBKeyRange;
 class IDBObjectStore;
 class IDBOpenDBRequest;
 class IDBRequest;
