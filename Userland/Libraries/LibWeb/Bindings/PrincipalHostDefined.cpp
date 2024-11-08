@@ -15,9 +15,8 @@ namespace Web::Bindings {
 
 void PrincipalHostDefined::visit_edges(JS::Cell::Visitor& visitor)
 {
-    JS::Realm::HostDefined::visit_edges(visitor);
+    HostDefined::visit_edges(visitor);
     visitor.visit(environment_settings_object);
-    visitor.visit(intrinsics);
     visitor.visit(page);
 }
 

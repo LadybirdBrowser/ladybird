@@ -589,13 +589,13 @@ ErrorOr<void> initialize_main_thread_vm(HTML::EventLoop::Type type)
         };
 
         // 8. Set realm.[[HostDefined]] to settings.
-        realm.set_host_defined(make<Bindings::SyntheticHostDefined>(move(settings)));
+        realm.set_host_defined(make<Bindings::SyntheticHostDefined>(move(settings), realm.heap().allocate<Bindings::Intrinsics>(realm, realm)));
 
         // 9. Set realm.[[GlobalObject]] to globalObject.
         realm.set_global_object(global_object);
 
         // 10. Set realm.[[GlobalEnv]] to NewGlobalEnvironment(globalObject, globalObject).
-        realm.set_global_environment(realm.vm().heap().allocate_without_realm<JS::GlobalEnvironment>(global_object, global_object));
+        realm.set_global_environment(realm.heap().allocate_without_realm<JS::GlobalEnvironment>(global_object, global_object));
 
         // 11. Perform ? SetDefaultGlobalBindings(realm).
         set_default_global_bindings(realm);

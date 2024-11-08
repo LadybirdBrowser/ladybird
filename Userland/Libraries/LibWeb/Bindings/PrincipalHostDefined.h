@@ -9,14 +9,15 @@
 #include <AK/TypeCasts.h>
 #include <LibJS/Heap/GCPtr.h>
 #include <LibJS/Runtime/Realm.h>
+#include <LibWeb/Bindings/HostDefined.h>
 #include <LibWeb/Forward.h>
 
 namespace Web::Bindings {
 
-struct PrincipalHostDefined : public JS::Realm::HostDefined {
+struct PrincipalHostDefined : public HostDefined {
     PrincipalHostDefined(JS::NonnullGCPtr<HTML::EnvironmentSettingsObject> eso, JS::NonnullGCPtr<Intrinsics> intrinsics, JS::NonnullGCPtr<Page> page)
-        : environment_settings_object(eso)
-        , intrinsics(intrinsics)
+        : HostDefined(intrinsics)
+        , environment_settings_object(eso)
         , page(page)
     {
     }
@@ -24,7 +25,6 @@ struct PrincipalHostDefined : public JS::Realm::HostDefined {
     virtual void visit_edges(JS::Cell::Visitor& visitor) override;
 
     JS::NonnullGCPtr<HTML::EnvironmentSettingsObject> environment_settings_object;
-    JS::NonnullGCPtr<Intrinsics> intrinsics;
     JS::NonnullGCPtr<Page> page;
 };
 
