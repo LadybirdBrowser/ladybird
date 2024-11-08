@@ -17,18 +17,19 @@ class CSSTransition;
 
 namespace Web::Animations {
 
-// https://www.w3.org/TR/web-animations-1/#dictdef-keyframeanimationoptions
+// https://drafts.csswg.org/web-animations-1/#dictdef-keyframeanimationoptions
 struct KeyframeAnimationOptions : public KeyframeEffectOptions {
     FlyString id { ""_fly_string };
     Optional<JS::GCPtr<AnimationTimeline>> timeline;
 };
 
-// https://www.w3.org/TR/web-animations-1/#dictdef-getanimationsoptions
+// https://drafts.csswg.org/web-animations-1/#dictdef-getanimationsoptions
 struct GetAnimationsOptions {
     bool subtree { false };
+    Optional<String> pseudo_element {};
 };
 
-// https://www.w3.org/TR/web-animations-1/#animatable
+// https://drafts.csswg.org/web-animations-1/#animatable
 class Animatable {
 public:
     struct TransitionAttributes {
@@ -40,8 +41,8 @@ public:
     virtual ~Animatable() = default;
 
     WebIDL::ExceptionOr<JS::NonnullGCPtr<Animation>> animate(Optional<JS::Handle<JS::Object>> keyframes, Variant<Empty, double, KeyframeAnimationOptions> options = {});
-    Vector<JS::NonnullGCPtr<Animation>> get_animations(GetAnimationsOptions options = {});
-    Vector<JS::NonnullGCPtr<Animation>> get_animations_internal(GetAnimationsOptions options = {});
+    WebIDL::ExceptionOr<Vector<JS::NonnullGCPtr<Animation>>> get_animations(Optional<GetAnimationsOptions> options = {});
+    WebIDL::ExceptionOr<Vector<JS::NonnullGCPtr<Animation>>> get_animations_internal(Optional<GetAnimationsOptions> options = {});
 
     void associate_with_animation(JS::NonnullGCPtr<Animation>);
     void disassociate_with_animation(JS::NonnullGCPtr<Animation>);

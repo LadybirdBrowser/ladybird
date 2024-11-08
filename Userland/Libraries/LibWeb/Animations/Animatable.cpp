@@ -9,6 +9,7 @@
 #include <LibWeb/Animations/Animatable.h>
 #include <LibWeb/Animations/Animation.h>
 #include <LibWeb/Animations/DocumentTimeline.h>
+#include <LibWeb/Animations/PseudoElementParsing.h>
 #include <LibWeb/CSS/CSSTransition.h>
 #include <LibWeb/CSS/StyleValues/EasingStyleValue.h>
 #include <LibWeb/CSS/StyleValues/TimeStyleValue.h>
@@ -58,42 +59,54 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<Animation>> Animatable::animate(Optional<JS
     return animation;
 }
 
-// https://www.w3.org/TR/web-animations-1/#dom-animatable-getanimations
-Vector<JS::NonnullGCPtr<Animation>> Animatable::get_animations(GetAnimationsOptions options)
+// https://drafts.csswg.org/web-animations-1/#dom-animatable-getanimations
+WebIDL::ExceptionOr<Vector<JS::NonnullGCPtr<Animation>>> Animatable::get_animations(Optional<GetAnimationsOptions> options)
 {
     verify_cast<DOM::Element>(*this).document().update_style();
     return get_animations_internal(options);
 }
 
-Vector<JS::NonnullGCPtr<Animation>> Animatable::get_animations_internal(GetAnimationsOptions options)
+WebIDL::ExceptionOr<Vector<JS::NonnullGCPtr<Animation>>> Animatable::get_animations_internal(Optional<GetAnimationsOptions> options)
 {
-    // Returns the set of relevant animations for this object, or, if an options parameter is passed with subtree set to
-    // true, returns the set of relevant animations for a subtree for this object.
+    // 1. Let object be the object on which this method was called.
 
-    // The returned list is sorted using the composite order described for the associated animations of effects in
-    // §5.4.2 The effect stack.
-    if (!m_is_sorted_by_composite_order) {
-        quick_sort(m_associated_animations, [](JS::NonnullGCPtr<Animation>& a, JS::NonnullGCPtr<Animation>& b) {
-            auto& a_effect = verify_cast<KeyframeEffect>(*a->effect());
-            auto& b_effect = verify_cast<KeyframeEffect>(*b->effect());
-            return KeyframeEffect::composite_order(a_effect, b_effect) < 0;
-        });
-        m_is_sorted_by_composite_order = true;
+    // 2. Let pseudoElement be the result of pseudo-element parsing applied to pseudoElement of options, or null if options is not passed.
+    // FIXME: Currently only DOM::Element includes Animatable, but that might not always be true.
+    Optional<CSS::Selector::PseudoElement> pseudo_element;
+    if (options.has_value() && options->pseudo_element.has_value()) {
+        auto& realm = static_cast<DOM::Element&>(*this).realm();
+        pseudo_element = TRY(pseudo_element_parsing(realm, options->pseudo_element));
     }
 
+    // 3. If pseudoElement is not null, then let target be the pseudo-element identified by pseudoElement with object as the originating element.
+    //    Otherwise, let target be object.
+    // FIXME: We can't refer to pseudo-elements directly, and they also can't be animated yet.
+    (void)pseudo_element;
+    JS::NonnullGCPtr target { *static_cast<DOM::Element*>(this) };
+
+    // 4. If options is passed with subtree set to true, then return the set of relevant animations for a subtree of target.
+    //    Otherwise, return the set of relevant animations for target.
     Vector<JS::NonnullGCPtr<Animation>> relevant_animations;
     for (auto const& animation : m_associated_animations) {
         if (animation->is_relevant())
             relevant_animations.append(*animation);
     }
 
-    if (options.subtree) {
-        JS::NonnullGCPtr target { *static_cast<DOM::Element*>(this) };
-        target->for_each_child_of_type<DOM::Element>([&](auto& child) {
-            relevant_animations.extend(child.get_animations(options));
+    if (options.has_value() && options->subtree) {
+        Optional<WebIDL::Exception> exception;
+        TRY(target->for_each_child_of_type_fallible<DOM::Element>([&](auto& child) -> WebIDL::ExceptionOr<IterationDecision> {
+            relevant_animations.extend(TRY(child.get_animations(options)));
             return IterationDecision::Continue;
-        });
+        }));
     }
+
+    // The returned list is sorted using the composite order described for the associated animations of effects in
+    // §5.4.2 The effect stack.
+    quick_sort(relevant_animations, [](JS::NonnullGCPtr<Animation>& a, JS::NonnullGCPtr<Animation>& b) {
+        auto& a_effect = verify_cast<KeyframeEffect>(*a->effect());
+        auto& b_effect = verify_cast<KeyframeEffect>(*b->effect());
+        return KeyframeEffect::composite_order(a_effect, b_effect) < 0;
+    });
 
     return relevant_animations;
 }

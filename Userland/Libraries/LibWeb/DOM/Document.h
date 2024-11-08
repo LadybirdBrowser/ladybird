@@ -636,7 +636,7 @@ public:
     void update_animations_and_send_events(Optional<double> const& timestamp);
     void remove_replaced_animations();
 
-    Vector<JS::NonnullGCPtr<Animations::Animation>> get_animations();
+    WebIDL::ExceptionOr<Vector<JS::NonnullGCPtr<Animations::Animation>>> get_animations();
 
     bool ready_to_run_scripts() const { return m_ready_to_run_scripts; }
     void set_ready_to_run_scripts() { m_ready_to_run_scripts = true; }

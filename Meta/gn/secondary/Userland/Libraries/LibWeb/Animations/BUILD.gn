@@ -16,5 +16,7 @@ source_set("Animations") {
     "DocumentTimeline.h",
     "KeyframeEffect.cpp",
     "KeyframeEffect.h",
+    "PseudoElementParsing.cpp",
+    "PseudoElementParsing.h",
   ]
 }

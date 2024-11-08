@@ -4695,13 +4695,13 @@ void Document::remove_replaced_animations()
     }
 }
 
-Vector<JS::NonnullGCPtr<Animations::Animation>> Document::get_animations()
+WebIDL::ExceptionOr<Vector<JS::NonnullGCPtr<Animations::Animation>>> Document::get_animations()
 {
     Vector<JS::NonnullGCPtr<Animations::Animation>> relevant_animations;
-    for_each_child_of_type<Element>([&](auto& child) {
-        relevant_animations.extend(child.get_animations({ .subtree = true }));
+    TRY(for_each_child_of_type_fallible<Element>([&](auto& child) -> WebIDL::ExceptionOr<IterationDecision> {
+        relevant_animations.extend(TRY(child.get_animations(Animations::GetAnimationsOptions { .subtree = true })));
         return IterationDecision::Continue;
-    });
+    }));
     return relevant_animations;
 }
 

@@ -1579,12 +1579,16 @@ void StyleComputer::compute_cascaded_values(StyleProperties& style, DOM::Element
         }
     }
 
-    auto animations = element.get_animations_internal({ .subtree = false });
-    for (auto& animation : animations) {
-        if (auto effect = animation->effect(); effect && effect->is_keyframe_effect()) {
-            auto& keyframe_effect = *static_cast<Animations::KeyframeEffect*>(effect.ptr());
-            if (keyframe_effect.pseudo_element_type() == pseudo_element)
-                collect_animation_into(element, pseudo_element, keyframe_effect, style);
+    auto animations = element.get_animations_internal(Animations::GetAnimationsOptions { .subtree = false });
+    if (animations.is_exception()) {
+        dbgln("Error getting animations for element {}", element.debug_description());
+    } else {
+        for (auto& animation : animations.value()) {
+            if (auto effect = animation->effect(); effect && effect->is_keyframe_effect()) {
+                auto& keyframe_effect = *static_cast<Animations::KeyframeEffect*>(effect.ptr());
+                if (keyframe_effect.pseudo_element_type() == pseudo_element)
+                    collect_animation_into(element, pseudo_element, keyframe_effect, style);
+            }
         }
     }
 

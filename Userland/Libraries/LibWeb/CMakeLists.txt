@@ -10,6 +10,7 @@ set(SOURCES
     Animations/AnimationTimeline.cpp
     Animations/DocumentTimeline.cpp
     Animations/KeyframeEffect.cpp
+    Animations/PseudoElementParsing.cpp
     ARIA/AriaData.cpp
     ARIA/ARIAMixin.cpp
     ARIA/Roles.cpp
