@@ -623,12 +623,7 @@ static NSString* const TOOLBAR_TAB_OVERVIEW_IDENTIFIER = @"ToolbarTabOverviewIde
     self.location_toolbar_item_width = [[[self.location_toolbar_item view] widthAnchor] constraintEqualToConstant:width];
     self.location_toolbar_item_width.active = YES;
 
-    if (![[self window] inLiveResize]) {
-        [[[self tab] web_view] handleResize];
-    }
-
-    auto size = Ladybird::ns_size_to_gfx_size([[self tab] frame].size);
-    [[[self tab] web_view] setWindowSize:size];
+    [[[self tab] web_view] handleResize];
 }
 
 - (void)windowDidChangeBackingProperties:(NSNotification*)notification

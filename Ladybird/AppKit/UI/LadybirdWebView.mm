@@ -196,6 +196,9 @@ struct HideCursor {
 
 - (void)handleResize
 {
+    auto size = Ladybird::ns_size_to_gfx_size([[self window] frame].size);
+    [self setWindowSize:size];
+
     [self updateViewportRect];
     [self updateStatusLabelPosition];
 }
