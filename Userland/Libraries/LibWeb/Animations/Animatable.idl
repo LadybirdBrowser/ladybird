@@ -1,19 +1,20 @@
 #import <Animations/Animation.idl>
 #import <Animations/KeyframeEffect.idl>
 
-// https://www.w3.org/TR/web-animations-1/#the-animatable-interface-mixin
+// https://drafts.csswg.org/web-animations-1/#the-animatable-interface-mixin
 interface mixin Animatable {
     Animation animate(object? keyframes, optional (unrestricted double or KeyframeAnimationOptions) options = {});
     sequence<Animation> getAnimations(optional GetAnimationsOptions options = {});
 };
 
-// https://www.w3.org/TR/web-animations-1/#dictdef-keyframeanimationoptions
+// https://drafts.csswg.org/web-animations-1/#dictdef-keyframeanimationoptions
 dictionary KeyframeAnimationOptions : KeyframeEffectOptions {
     DOMString id = "";
     AnimationTimeline? timeline;
 };
 
-// https://www.w3.org/TR/web-animations-1/#dictdef-getanimationsoptions
+// https://drafts.csswg.org/web-animations-1/#dictdef-getanimationsoptions
 dictionary GetAnimationsOptions {
     boolean subtree = false;
+    CSSOMString? pseudoElement = null;
 };

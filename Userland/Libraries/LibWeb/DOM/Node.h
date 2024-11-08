@@ -637,6 +637,18 @@ public:
         return const_cast<Node*>(this)->template for_each_child_of_type<U>(move(callback));
     }
 
+    template<typename U, typename Callback>
+    WebIDL::ExceptionOr<void> for_each_child_of_type_fallible(Callback callback)
+    {
+        for (auto* node = first_child(); node; node = node->next_sibling()) {
+            if (is<U>(node)) {
+                if (TRY(callback(verify_cast<U>(*node))) == IterationDecision::Break)
+                    return {};
+            }
+        }
+        return {};
+    }
+
     template<typename U>
     U const* next_sibling_of_type() const
     {

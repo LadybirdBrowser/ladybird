@@ -60,7 +60,7 @@ public:
 
     void for_each_css_style_sheet(Function<void(CSS::CSSStyleSheet&)>&& callback) const;
 
-    Vector<JS::NonnullGCPtr<Animations::Animation>> get_animations();
+    WebIDL::ExceptionOr<Vector<JS::NonnullGCPtr<Animations::Animation>>> get_animations();
 
     virtual void finalize() override;
 

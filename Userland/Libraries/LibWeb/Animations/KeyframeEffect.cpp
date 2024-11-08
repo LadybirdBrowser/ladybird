@@ -8,6 +8,7 @@
 #include <LibJS/Runtime/Iterator.h>
 #include <LibWeb/Animations/Animation.h>
 #include <LibWeb/Animations/KeyframeEffect.h>
+#include <LibWeb/Animations/PseudoElementParsing.h>
 #include <LibWeb/Bindings/KeyframeEffectPrototype.h>
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/CSS/StyleComputer.h>
@@ -783,42 +784,13 @@ Optional<String> KeyframeEffect::pseudo_element() const
     return MUST(String::formatted("::{}", m_target_pseudo_selector->name()));
 }
 
-// https://www.w3.org/TR/web-animations-1/#dom-keyframeeffect-pseudoelement
-WebIDL::ExceptionOr<void> KeyframeEffect::set_pseudo_element(Optional<String> pseudo_element)
+// https://drafts.csswg.org/web-animations-1/#dom-keyframeeffect-pseudoelement
+WebIDL::ExceptionOr<void> KeyframeEffect::set_pseudo_element(Optional<String> value)
 {
-    auto& realm = this->realm();
-
-    // On setting, sets the target pseudo-selector of the animation effect to the provided value after applying the
-    // following exceptions:
-
-    // FIXME:
-    // - If one of the legacy Selectors Level 2 single-colon selectors (':before', ':after', ':first-letter', or
-    //   ':first-line') is specified, the target pseudo-selector must be set to the equivalent two-colon selector
-    //   (e.g. '::before').
-    if (pseudo_element.has_value()) {
-        auto value = pseudo_element.value();
-
-        if (value == ":before" || value == ":after" || value == ":first-letter" || value == ":first-line") {
-            m_target_pseudo_selector = CSS::Selector::PseudoElement::from_string(MUST(value.substring_from_byte_offset(1)));
-            return {};
-        }
-    }
-
-    // - If the provided value is not null and is an invalid <pseudo-element-selector>, the user agent must throw a
-    //   DOMException with error name SyntaxError and leave the target pseudo-selector of this animation effect
-    //   unchanged.
-    if (pseudo_element.has_value()) {
-        if (pseudo_element->starts_with_bytes("::"sv)) {
-            if (auto value = CSS::Selector::PseudoElement::from_string(MUST(pseudo_element->substring_from_byte_offset(2))); value.has_value()) {
-                m_target_pseudo_selector = value;
-                return {};
-            }
-        }
-
-        return WebIDL::SyntaxError::create(realm, MUST(String::formatted("Invalid pseudo-element selector: \"{}\"", pseudo_element.value())));
-    }
-
-    m_target_pseudo_selector = {};
+    // On setting, sets the target pseudo-selector of the animation effect to the result of
+    // pseudo-element parsing on the provided value, defined as the following:
+    // NOTE: The actual definition is in pseudo_element_parsing().
+    m_target_pseudo_selector = TRY(pseudo_element_parsing(realm(), value));
     return {};
 }
 
