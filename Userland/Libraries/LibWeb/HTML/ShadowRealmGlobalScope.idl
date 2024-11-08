@@ -1,5 +1,9 @@
+#import <HTML/UniversalGlobalScope.idl>
+
 // https://whatpr.org/html/9893/webappapis.html#shadowrealmglobalscope
 [Global, Exposed=ShadowRealm]
 interface ShadowRealmGlobalScope : EventTarget {
     readonly attribute ShadowRealmGlobalScope self;
 };
+
+ShadowRealmGlobalScope includes UniversalGlobalScope;

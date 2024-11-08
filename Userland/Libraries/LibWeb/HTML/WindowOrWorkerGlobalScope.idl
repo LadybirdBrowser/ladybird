@@ -6,9 +6,6 @@
 #import <HTML/MessagePort.idl>
 #import <IndexedDB/IDBFactory.idl>
 
-// FIXME: Support VoidFunction in the IDL parser
-callback VoidFunction = undefined ();
-
 // https://html.spec.whatwg.org/#timerhandler
 typedef (DOMString or Function) TimerHandler;
 
@@ -21,25 +18,15 @@ interface mixin WindowOrWorkerGlobalScope {
     // https://html.spec.whatwg.org/multipage/webappapis.html#dom-reporterror
     undefined reportError(any e);
 
-    // base64 utility methods
-    DOMString btoa(DOMString data);
-    ByteString atob(DOMString data);
-
     // timers
     long setTimeout(TimerHandler handler, optional long timeout = 0, any... arguments);
     undefined clearTimeout(optional long id = 0);
     long setInterval(TimerHandler handler, optional long timeout = 0, any... arguments);
     undefined clearInterval(optional long id = 0);
 
-    // microtask queuing
-    undefined queueMicrotask(VoidFunction callback);
-
     // ImageBitmap
     Promise<ImageBitmap> createImageBitmap(ImageBitmapSource image, optional ImageBitmapOptions options = {});
     Promise<ImageBitmap> createImageBitmap(ImageBitmapSource image, long sx, long sy, long sw, long sh, optional ImageBitmapOptions options = {});
-
-    // structured cloning
-    any structuredClone(any value, optional StructuredSerializeOptions options = {});
 
     // https://fetch.spec.whatwg.org/#fetch-method
     [NewObject] Promise<Response> fetch(RequestInfo input, optional RequestInit init = {});
