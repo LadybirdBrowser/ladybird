@@ -125,10 +125,18 @@ void CSSStyleRule::set_selector_text(StringView selector_text)
     clear_caches();
 
     // 1. Run the parse a group of selectors algorithm on the given value.
-    auto parsed_selectors = parse_selector(Parser::ParsingContext { realm() }, selector_text);
+    Optional<SelectorList> parsed_selectors;
+    if (parent_style_rule()) {
+        // AD-HOC: If we're a nested style rule, then we need to parse the selector as relative and then adapt it with implicit &s.
+        parsed_selectors = parse_selector_for_nested_style_rule(Parser::ParsingContext { realm() }, selector_text);
+    } else {
+        parsed_selectors = parse_selector(Parser::ParsingContext { realm() }, selector_text);
+    }
 
     // 2. If the algorithm returns a non-null value replace the associated group of selectors with the returned value.
     if (parsed_selectors.has_value()) {
+        // NOTE: If we have a parent style rule, we need to update the selectors to add any implicit `&`s
+
         m_selectors = parsed_selectors.release_value();
         if (auto* sheet = parent_style_sheet()) {
             if (auto style_sheet_list = sheet->style_sheet_list()) {
@@ -169,15 +177,8 @@ SelectorList const& CSSStyleRule::absolutized_selectors() const
     // "When used in the selector of a nested style rule, the nesting selector represents the elements matched by the parent rule.
     // When used in any other context, it represents the same elements as :scope in that context (unless otherwise defined)."
     // https://drafts.csswg.org/css-nesting-1/#nest-selector
-    CSSStyleRule const* parent_style_rule = nullptr;
-    for (auto* parent = parent_rule(); parent; parent = parent->parent_rule()) {
-        if (parent->type() == CSSStyleRule::Type::Style) {
-            parent_style_rule = static_cast<CSSStyleRule const*>(parent);
-            break;
-        }
-    }
     Selector::SimpleSelector parent_selector;
-    if (parent_style_rule) {
+    if (auto const* parent_style_rule = this->parent_style_rule()) {
         // TODO: If there's only 1, we don't have to use `:is()` for it
         parent_selector = {
             .type = Selector::SimpleSelector::Type::PseudoClass,
@@ -205,6 +206,15 @@ void CSSStyleRule::clear_caches()
 {
     Base::clear_caches();
     m_cached_absolutized_selectors.clear();
+}
+
+CSSStyleRule const* CSSStyleRule::parent_style_rule() const
+{
+    for (auto* parent = parent_rule(); parent; parent = parent->parent_rule()) {
+        if (parent->type() == CSSStyleRule::Type::Style)
+            return static_cast<CSSStyleRule const*>(parent);
+    }
+    return nullptr;
 }
 
 }

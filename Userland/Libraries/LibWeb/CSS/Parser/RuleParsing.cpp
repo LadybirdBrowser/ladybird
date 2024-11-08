@@ -98,39 +98,8 @@ JS::GCPtr<CSSStyleRule> Parser::convert_to_style_rule(QualifiedRule const& quali
     }
 
     SelectorList selectors = maybe_selectors.release_value();
-    if (nested == Nested::Yes) {
-        // "Nested style rules differ from non-nested rules in the following ways:
-        // - A nested style rule accepts a <relative-selector-list> as its prelude (rather than just a <selector-list>).
-        //   Any relative selectors are relative to the elements represented by the nesting selector.
-        // - If a selector in the <relative-selector-list> does not start with a combinator but does contain the nesting
-        //   selector, it is interpreted as a non-relative selector."
-        // https://drafts.csswg.org/css-nesting-1/#syntax
-        // NOTE: We already parsed the selectors as a <relative-selector-list>
-
-        // Nested relative selectors get a `&` inserted at the beginning.
-        // This is, handily, how the spec wants them serialized:
-        // "When serializing a relative selector in a nested style rule, the selector must be absolutized,
-        // with the implied nesting selector inserted."
-        // - https://drafts.csswg.org/css-nesting-1/#cssom
-
-        SelectorList new_list;
-        new_list.ensure_capacity(selectors.size());
-        for (auto const& selector : selectors) {
-            auto first_combinator = selector->compound_selectors().first().combinator;
-            if (!first_is_one_of(first_combinator, Selector::Combinator::None, Selector::Combinator::Descendant)
-                || !selector->contains_the_nesting_selector()) {
-                new_list.append(selector->relative_to(Selector::SimpleSelector { .type = Selector::SimpleSelector::Type::Nesting }));
-            } else if (first_combinator == Selector::Combinator::Descendant) {
-                // Replace leading descendant combinator (whitespace) with none, because we're not actually relative.
-                auto copied_compound_selectors = selector->compound_selectors();
-                copied_compound_selectors.first().combinator = Selector::Combinator::None;
-                new_list.append(Selector::create(move(copied_compound_selectors)));
-            } else {
-                new_list.append(selector);
-            }
-        }
-        selectors = move(new_list);
-    }
+    if (nested == Nested::Yes)
+        selectors = adapt_nested_relative_selector_list(selectors);
 
     auto* declaration = convert_to_style_declaration(qualified_rule.declarations);
     if (!declaration) {

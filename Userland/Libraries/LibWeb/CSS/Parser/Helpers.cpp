@@ -54,6 +54,17 @@ Optional<CSS::SelectorList> parse_selector(CSS::Parser::ParsingContext const& co
     return CSS::Parser::Parser::create(context, selector_text).parse_as_selector();
 }
 
+Optional<CSS::SelectorList> parse_selector_for_nested_style_rule(CSS::Parser::ParsingContext const& context, StringView selector_text)
+{
+    auto parser = CSS::Parser::Parser::create(context, selector_text);
+
+    auto maybe_selectors = parser.parse_as_relative_selector(CSS::Parser::Parser::SelectorParsingMode::Standard);
+    if (!maybe_selectors.has_value())
+        return {};
+
+    return adapt_nested_relative_selector_list(*maybe_selectors);
+}
+
 Optional<CSS::Selector::PseudoElement> parse_pseudo_element_selector(CSS::Parser::ParsingContext const& context, StringView selector_text)
 {
     return CSS::Parser::Parser::create(context, selector_text).parse_as_pseudo_element_selector();

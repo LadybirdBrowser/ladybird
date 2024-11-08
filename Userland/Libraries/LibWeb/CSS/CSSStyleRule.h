@@ -42,6 +42,8 @@ private:
     virtual void clear_caches() override;
     virtual String serialized() const override;
 
+    CSSStyleRule const* parent_style_rule() const;
+
     SelectorList m_selectors;
     mutable Optional<SelectorList> m_cached_absolutized_selectors;
     JS::NonnullGCPtr<PropertyOwningCSSStyleDeclaration> m_declaration;
