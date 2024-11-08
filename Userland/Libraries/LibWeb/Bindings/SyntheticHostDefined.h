@@ -7,14 +7,16 @@
 #pragma once
 
 #include <LibJS/Runtime/Realm.h>
+#include <LibWeb/Bindings/HostDefined.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/HTML/Scripting/SyntheticRealmSettings.h>
 
 namespace Web::Bindings {
 
-struct SyntheticHostDefined : public JS::Realm::HostDefined {
-    SyntheticHostDefined(HTML::SyntheticRealmSettings synthetic_realm_settings)
-        : synthetic_realm_settings(move(synthetic_realm_settings))
+struct SyntheticHostDefined : public HostDefined {
+    SyntheticHostDefined(HTML::SyntheticRealmSettings synthetic_realm_settings, JS::NonnullGCPtr<Intrinsics> intrinsics)
+        : HostDefined(intrinsics)
+        , synthetic_realm_settings(move(synthetic_realm_settings))
     {
     }
 

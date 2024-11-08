@@ -22,6 +22,7 @@ set(SOURCES
     Bindings/MainThreadVM.cpp
     Bindings/OptionConstructor.cpp
     Bindings/PlatformObject.cpp
+    Bindings/HostDefined.cpp
     Bindings/PrincipalHostDefined.cpp
     Bindings/SyntheticHostDefined.cpp
     Clipboard/Clipboard.cpp

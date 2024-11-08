@@ -10,6 +10,7 @@
 #include <LibJS/Runtime/Object.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Bindings/PrincipalHostDefined.h>
+#include <LibWeb/Bindings/SyntheticHostDefined.h>
 
 namespace Web::Bindings {
 
@@ -32,7 +33,7 @@ bool Intrinsics::is_exposed(StringView name) const
 Intrinsics& host_defined_intrinsics(JS::Realm& realm)
 {
     VERIFY(realm.host_defined());
-    return verify_cast<Bindings::PrincipalHostDefined>(*realm.host_defined()).intrinsics;
+    return verify_cast<Bindings::HostDefined>(*realm.host_defined()).intrinsics;
 }
 
 }
