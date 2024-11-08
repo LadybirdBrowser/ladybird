@@ -91,6 +91,8 @@ protected:
 private:
     virtual bool is_html_element() const final { return true; }
 
+    virtual void adjust_computed_style(CSS::StyleProperties&) override;
+
     // ^HTML::GlobalEventHandlers
     virtual JS::GCPtr<DOM::EventTarget> global_event_handlers_to_event_target(FlyString const&) override { return *this; }
     virtual void did_receive_focus() override;

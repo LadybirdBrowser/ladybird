@@ -131,6 +131,7 @@ private:
     virtual bool supports_dimension_attributes() const override { return true; }
 
     virtual JS::GCPtr<Layout::Node> create_layout_node(CSS::StyleProperties) override;
+    virtual void adjust_computed_style(CSS::StyleProperties&) override;
 
     virtual void did_set_viewport_rect(CSSPixelRect const&) override;
 

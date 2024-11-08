@@ -8,6 +8,7 @@
 #include <LibGfx/Bitmap.h>
 #include <LibWeb/Bindings/HTMLVideoElementPrototype.h>
 #include <LibWeb/Bindings/Intrinsics.h>
+#include <LibWeb/CSS/StyleValues/DisplayStyleValue.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/Fetch/Fetching/Fetching.h>
 #include <LibWeb/Fetch/Infrastructure/FetchAlgorithms.h>
@@ -65,6 +66,13 @@ void HTMLVideoElement::attribute_changed(FlyString const& name, Optional<String>
 JS::GCPtr<Layout::Node> HTMLVideoElement::create_layout_node(CSS::StyleProperties style)
 {
     return heap().allocate_without_realm<Layout::VideoBox>(document(), *this, move(style));
+}
+
+void HTMLVideoElement::adjust_computed_style(CSS::StyleProperties& style)
+{
+    // https://drafts.csswg.org/css-display-3/#unbox
+    if (style.display().is_contents())
+        style.set_property(CSS::PropertyID::Display, CSS::DisplayStyleValue::create(CSS::Display::from_short(CSS::Display::Short::None)));
 }
 
 Layout::VideoBox* HTMLVideoElement::layout_node()

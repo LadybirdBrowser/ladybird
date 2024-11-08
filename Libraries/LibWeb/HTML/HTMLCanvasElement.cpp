@@ -14,6 +14,7 @@
 #include <LibWeb/Bindings/HTMLCanvasElementPrototype.h>
 #include <LibWeb/CSS/StyleComputer.h>
 #include <LibWeb/CSS/StyleValues/CSSKeywordValue.h>
+#include <LibWeb/CSS/StyleValues/DisplayStyleValue.h>
 #include <LibWeb/CSS/StyleValues/RatioStyleValue.h>
 #include <LibWeb/CSS/StyleValues/StyleValueList.h>
 #include <LibWeb/DOM/Document.h>
@@ -132,6 +133,13 @@ WebIDL::ExceptionOr<void> HTMLCanvasElement::set_height(unsigned value)
 JS::GCPtr<Layout::Node> HTMLCanvasElement::create_layout_node(CSS::StyleProperties style)
 {
     return heap().allocate_without_realm<Layout::CanvasBox>(document(), *this, move(style));
+}
+
+void HTMLCanvasElement::adjust_computed_style(CSS::StyleProperties& style)
+{
+    // https://drafts.csswg.org/css-display-3/#unbox
+    if (style.display().is_contents())
+        style.set_property(CSS::PropertyID::Display, CSS::DisplayStyleValue::create(CSS::Display::from_short(CSS::Display::Short::None)));
 }
 
 HTMLCanvasElement::HasOrCreatedContext HTMLCanvasElement::create_2d_context()

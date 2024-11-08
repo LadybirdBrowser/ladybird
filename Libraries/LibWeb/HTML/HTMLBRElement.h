@@ -18,6 +18,7 @@ public:
     virtual ~HTMLBRElement() override;
 
     virtual JS::GCPtr<Layout::Node> create_layout_node(CSS::StyleProperties) override;
+    virtual void adjust_computed_style(CSS::StyleProperties&) override;
 
 private:
     virtual bool is_html_br_element() const override { return true; }

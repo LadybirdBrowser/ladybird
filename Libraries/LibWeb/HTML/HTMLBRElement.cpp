@@ -5,6 +5,7 @@
  */
 
 #include <LibWeb/Bindings/HTMLBRElementPrototype.h>
+#include <LibWeb/CSS/StyleValues/DisplayStyleValue.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/HTML/HTMLBRElement.h>
 #include <LibWeb/Layout/BreakNode.h>
@@ -29,6 +30,13 @@ void HTMLBRElement::initialize(JS::Realm& realm)
 JS::GCPtr<Layout::Node> HTMLBRElement::create_layout_node(CSS::StyleProperties style)
 {
     return heap().allocate_without_realm<Layout::BreakNode>(document(), *this, move(style));
+}
+
+void HTMLBRElement::adjust_computed_style(CSS::StyleProperties& style)
+{
+    // https://drafts.csswg.org/css-display-3/#unbox
+    if (style.display().is_contents())
+        style.set_property(CSS::PropertyID::Display, CSS::DisplayStyleValue::create(CSS::Display::from_short(CSS::Display::Short::None)));
 }
 
 }

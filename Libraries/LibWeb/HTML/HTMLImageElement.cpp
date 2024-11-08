@@ -11,6 +11,7 @@
 #include <LibWeb/Bindings/HTMLImageElementPrototype.h>
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/CSS/StyleComputer.h>
+#include <LibWeb/CSS/StyleValues/DisplayStyleValue.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Event.h>
 #include <LibWeb/Fetch/Fetching/Fetching.h>
@@ -114,6 +115,13 @@ void HTMLImageElement::form_associated_element_attribute_changed(FlyString const
 JS::GCPtr<Layout::Node> HTMLImageElement::create_layout_node(CSS::StyleProperties style)
 {
     return heap().allocate_without_realm<Layout::ImageBox>(document(), *this, move(style), *this);
+}
+
+void HTMLImageElement::adjust_computed_style(CSS::StyleProperties& style)
+{
+    // https://drafts.csswg.org/css-display-3/#unbox
+    if (style.display().is_contents())
+        style.set_property(CSS::PropertyID::Display, CSS::DisplayStyleValue::create(CSS::Display::from_short(CSS::Display::Short::None)));
 }
 
 RefPtr<Gfx::ImmutableBitmap> HTMLImageElement::immutable_bitmap() const

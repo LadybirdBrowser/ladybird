@@ -31,6 +31,8 @@ public:
     virtual void inserted() override;
     virtual void removed_from(DOM::Node*) override;
 
+    virtual void adjust_computed_style(CSS::StyleProperties&) override;
+
     // https://html.spec.whatwg.org/multipage/forms.html#category-label
     virtual bool is_labelable() const override { return true; }
 

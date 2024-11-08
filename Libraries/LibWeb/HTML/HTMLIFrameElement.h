@@ -24,6 +24,7 @@ public:
     virtual ~HTMLIFrameElement() override;
 
     virtual JS::GCPtr<Layout::Node> create_layout_node(CSS::StyleProperties) override;
+    virtual void adjust_computed_style(CSS::StyleProperties&) override;
 
     void set_current_navigation_was_lazy_loaded(bool value);
 

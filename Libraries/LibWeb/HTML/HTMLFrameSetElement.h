@@ -24,6 +24,8 @@ public:
 private:
     HTMLFrameSetElement(DOM::Document&, DOM::QualifiedName);
 
+    virtual void adjust_computed_style(CSS::StyleProperties&) override;
+
     virtual void initialize(JS::Realm&) override;
     virtual void attribute_changed(FlyString const&, Optional<String> const& old_value, Optional<String> const&) override;
 
