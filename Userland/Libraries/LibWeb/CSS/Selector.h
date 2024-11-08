@@ -267,6 +267,8 @@ private:
 
 String serialize_a_group_of_selectors(SelectorList const& selectors);
 
+SelectorList adapt_nested_relative_selector_list(SelectorList const&);
+
 }
 
 namespace AK {
