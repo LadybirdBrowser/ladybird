@@ -294,7 +294,7 @@ void CFEventLoopManager::register_notifier(Core::Notifier& notifier)
     CFSocketSetSocketFlags(socket, sockopt);
 
     auto* source = CFSocketCreateRunLoopSource(kCFAllocatorDefault, socket, 0);
-    CFRunLoopAddSource(CFRunLoopGetCurrent(), source, kCFRunLoopDefaultMode);
+    CFRunLoopAddSource(CFRunLoopGetCurrent(), source, kCFRunLoopCommonModes);
 
     CFRelease(socket);
 
@@ -304,7 +304,7 @@ void CFEventLoopManager::register_notifier(Core::Notifier& notifier)
 void CFEventLoopManager::unregister_notifier(Core::Notifier& notifier)
 {
     if (auto source = ThreadData::the().notifiers.take(&notifier); source.has_value()) {
-        CFRunLoopRemoveSource(CFRunLoopGetCurrent(), *source, kCFRunLoopDefaultMode);
+        CFRunLoopRemoveSource(CFRunLoopGetCurrent(), *source, kCFRunLoopCommonModes);
         CFRelease(*source);
     }
 }
