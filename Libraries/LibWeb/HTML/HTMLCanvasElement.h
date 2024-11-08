@@ -35,8 +35,8 @@ public:
     WebIDL::ExceptionOr<void> set_width(unsigned);
     WebIDL::ExceptionOr<void> set_height(unsigned);
 
-    String to_data_url(StringView type, Optional<double> quality);
-    WebIDL::ExceptionOr<void> to_blob(JS::NonnullGCPtr<WebIDL::CallbackType> callback, StringView type, Optional<double> quality);
+    String to_data_url(StringView type, JS::Value quality);
+    WebIDL::ExceptionOr<void> to_blob(JS::NonnullGCPtr<WebIDL::CallbackType> callback, StringView type, JS::Value quality);
 
     void present();
 
