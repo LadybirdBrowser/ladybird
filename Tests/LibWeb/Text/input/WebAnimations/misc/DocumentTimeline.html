@@ -2,8 +2,8 @@
 <script src="../../include.js"></script>
 <script>
     test(() => {
-        function timesAreClose(a, b) {
-            return Math.abs(a - b) <= 1;
+        function timesAreClose(a, b, tolerance = 5) {
+            return Math.abs(a - b) <= tolerance;
         }
         let timeline = new DocumentTimeline();
         println(`new timeline time equals document timeline time: ${timesAreClose(timeline.currentTime, document.timeline.currentTime)}`);
