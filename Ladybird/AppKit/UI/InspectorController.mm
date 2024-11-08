@@ -55,9 +55,7 @@
 
 - (void)windowDidResize:(NSNotification*)notification
 {
-    if (![[self window] inLiveResize]) {
-        [[[self inspector] web_view] handleResize];
-    }
+    [[[self inspector] web_view] handleResize];
 }
 
 - (void)windowDidChangeBackingProperties:(NSNotification*)notification
