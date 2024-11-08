@@ -6,8 +6,7 @@ Rerun
 
 Found 32 tests
 
-31 Pass
-1 Fail
+32 Pass
 Details
 Result	Test Name	MessagePass	.foo { & { color: green; }}	
 Pass	.foo { &.bar { color: green; }}	
@@ -26,7 +25,7 @@ Pass	.foo { &:is(.bar, .baz) { color: green; }}
 Pass	.foo { :is(.bar, &.baz) { color: green; }}	
 Pass	.foo { &:is(.bar, &.baz) { color: green; }}	
 Pass	.foo { div& { color: green; }}	
-Fail	INVALID: .foo { &div { color: green; }}	
+Pass	INVALID: .foo { &div { color: green; }}	
 Pass	.foo { .class& { color: green; }}	
 Pass	.foo { &.class { color: green; }}	
 Pass	.foo { [attr]& { color: green; }}	
