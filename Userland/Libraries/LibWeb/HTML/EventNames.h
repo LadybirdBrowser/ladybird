@@ -23,6 +23,7 @@ namespace Web::HTML::EventNames {
     __ENUMERATE_HTML_EVENT(animationstart)           \
     __ENUMERATE_HTML_EVENT(afterprint)               \
     __ENUMERATE_HTML_EVENT(beforeprint)              \
+    __ENUMERATE_HTML_EVENT(beforetoggle)             \
     __ENUMERATE_HTML_EVENT(beforeunload)             \
     __ENUMERATE_HTML_EVENT(blocked)                  \
     __ENUMERATE_HTML_EVENT(blur)                     \

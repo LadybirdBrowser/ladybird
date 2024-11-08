@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2020, the SerenityOS developers.
+ * Copyright (c) 2024, Sam Atkins <sam@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -8,6 +9,7 @@
 
 #include <LibWeb/ARIA/Roles.h>
 #include <LibWeb/HTML/HTMLElement.h>
+#include <LibWeb/HTML/ToggleTaskTracker.h>
 
 namespace Web::HTML {
 
@@ -38,6 +40,8 @@ private:
     virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Cell::Visitor&) override;
 
+    void queue_a_dialog_toggle_event_task(String old_state, String new_state);
+
     void close_the_dialog(Optional<String> result);
 
     void run_dialog_focusing_steps();
@@ -45,6 +49,9 @@ private:
     String m_return_value;
     bool m_is_modal { false };
     JS::GCPtr<CloseWatcher> m_close_watcher;
+
+    // https://html.spec.whatwg.org/multipage/interactive-elements.html#dialog-toggle-task-tracker
+    Optional<ToggleTaskTracker> m_dialog_toggle_task_tracker;
 };
 
 }
