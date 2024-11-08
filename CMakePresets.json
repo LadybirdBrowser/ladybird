@@ -88,6 +88,18 @@
       "toolset": "ClangCL"
     },
     {
+      "name": "Distribution",
+      "inherits": "default",
+      "displayName": "Distribution Config",
+      "description": "Distribution build with static libraries using Ninja generator",
+      "binaryDir": "${fileDir}/Build/distribution",
+      "cacheVariables": {
+        "BUILD_SHARED_LIBS": "OFF",
+        "CMAKE_BUILD_TYPE": "Release",
+        "VCPKG_OVERLAY_TRIPLETS": "${fileDir}/Meta/CMake/vcpkg/distribution-triplets"
+      }
+    },
+    {
       "name": "Debug",
       "inherits": "default",
       "displayName": "Debug Config",
@@ -125,6 +137,15 @@
         "default"
       ],
       "displayName": "Non-Sanitizer CI Config"
+    },
+    {
+      "name": "Distribution_CI",
+      "inherits": [
+        "vcpkg_ci",
+        "Distribution"
+      ],
+      "displayName": "Distribution CI Config",
+      "description": "Distribution build with GitHub Actions cache"
     },
     {
       "name": "Sanitizer_CI",
