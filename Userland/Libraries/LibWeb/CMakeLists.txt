@@ -483,6 +483,7 @@ set(SOURCES
     HTML/TokenizedFeatures.cpp
     HTML/TrackEvent.cpp
     HTML/TraversableNavigable.cpp
+    HTML/UniversalGlobalScope.cpp
     HTML/UserActivation.cpp
     HTML/VideoTrack.cpp
     HTML/VideoTrackList.cpp

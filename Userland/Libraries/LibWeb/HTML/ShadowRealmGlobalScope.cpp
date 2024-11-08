@@ -26,14 +26,16 @@ JS::NonnullGCPtr<ShadowRealmGlobalScope> ShadowRealmGlobalScope::create(JS::Real
 
 void ShadowRealmGlobalScope::initialize(JS::Realm&)
 {
-    // FIXME: This does not work as we do not have any intrinsics in the [HostDefined] of a shadow realm. Figure out how this _should_ work.
-    // Base::initialize(realm);
-    // WEB_SET_PROTOTYPE_FOR_INTERFACE(ShadowRealmGlobalScope);
 }
 
 void ShadowRealmGlobalScope::initialize_web_interfaces()
 {
+    auto& realm = this->realm();
+
+    WEB_SET_PROTOTYPE_FOR_INTERFACE(ShadowRealmGlobalScope);
+
     add_shadow_realm_exposed_interfaces(*this);
+    Bindings::ShadowRealmGlobalScopeGlobalMixin::initialize(realm, *this);
 }
 
 void ShadowRealmGlobalScope::visit_edges(Cell::Visitor& visitor)

@@ -36,12 +36,8 @@ public:
     WebIDL::ExceptionOr<String> origin() const;
     bool is_secure_context() const;
     bool cross_origin_isolated() const;
-    WebIDL::ExceptionOr<String> btoa(String const& data) const;
-    WebIDL::ExceptionOr<String> atob(String const& data) const;
-    void queue_microtask(WebIDL::CallbackType&);
     JS::NonnullGCPtr<WebIDL::Promise> create_image_bitmap(ImageBitmapSource image, Optional<ImageBitmapOptions> options = {}) const;
     JS::NonnullGCPtr<WebIDL::Promise> create_image_bitmap(ImageBitmapSource image, WebIDL::Long sx, WebIDL::Long sy, WebIDL::Long sw, WebIDL::Long sh, Optional<ImageBitmapOptions> options = {}) const;
-    WebIDL::ExceptionOr<JS::Value> structured_clone(JS::Value, StructuredSerializeOptions const&) const;
     JS::NonnullGCPtr<WebIDL::Promise> fetch(Fetch::RequestInfo const&, Fetch::RequestInit const&) const;
 
     i32 set_timeout(TimerHandler, i32 timeout, JS::MarkedVector<JS::Value> arguments);

@@ -1,10 +1,11 @@
 #import <CSS/FontFaceSet.idl>
 #import <DOM/EventTarget.idl>
 #import <DOM/EventHandler.idl>
+#import <HTML/MessagePort.idl>
+#import <HTML/UniversalGlobalScope.idl>
 #import <HTML/WindowOrWorkerGlobalScope.idl>
 #import <HTML/WorkerLocation.idl>
 #import <HTML/WorkerNavigator.idl>
-#import <HTML/MessagePort.idl>
 
 // https://html.spec.whatwg.org/multipage/workers.html#workerglobalscope
 [Exposed=Worker]
@@ -22,5 +23,6 @@ interface WorkerGlobalScope : EventTarget {
     attribute EventHandler onunhandledrejection;
 };
 
-WorkerGlobalScope includes WindowOrWorkerGlobalScope;
 WorkerGlobalScope includes FontFaceSource;
+WorkerGlobalScope includes UniversalGlobalScope;
+WorkerGlobalScope includes WindowOrWorkerGlobalScope;

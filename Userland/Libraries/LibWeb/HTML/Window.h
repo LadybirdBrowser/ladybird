@@ -24,6 +24,7 @@
 #include <LibWeb/HTML/Scripting/ImportMap.h>
 #include <LibWeb/HTML/ScrollOptions.h>
 #include <LibWeb/HTML/StructuredSerializeOptions.h>
+#include <LibWeb/HTML/UniversalGlobalScope.h>
 #include <LibWeb/HTML/WindowEventHandlers.h>
 #include <LibWeb/HTML/WindowOrWorkerGlobalScope.h>
 #include <LibWeb/RequestIdleCallback/IdleRequest.h>
@@ -49,6 +50,7 @@ class Window final
     , public GlobalEventHandlers
     , public WindowEventHandlers
     , public WindowOrWorkerGlobalScopeMixin
+    , public UniversalGlobalScopeMixin
     , public Bindings::WindowGlobalMixin {
     WEB_PLATFORM_OBJECT(Window, DOM::EventTarget);
     JS_DECLARE_ALLOCATOR(Window);
@@ -58,17 +60,17 @@ public:
 
     ~Window();
 
-    using WindowOrWorkerGlobalScopeMixin::atob;
-    using WindowOrWorkerGlobalScopeMixin::btoa;
+    using UniversalGlobalScopeMixin::atob;
+    using UniversalGlobalScopeMixin::btoa;
+    using UniversalGlobalScopeMixin::queue_microtask;
+    using UniversalGlobalScopeMixin::structured_clone;
     using WindowOrWorkerGlobalScopeMixin::clear_interval;
     using WindowOrWorkerGlobalScopeMixin::clear_timeout;
     using WindowOrWorkerGlobalScopeMixin::create_image_bitmap;
     using WindowOrWorkerGlobalScopeMixin::fetch;
-    using WindowOrWorkerGlobalScopeMixin::queue_microtask;
     using WindowOrWorkerGlobalScopeMixin::report_error;
     using WindowOrWorkerGlobalScopeMixin::set_interval;
     using WindowOrWorkerGlobalScopeMixin::set_timeout;
-    using WindowOrWorkerGlobalScopeMixin::structured_clone;
 
     // ^DOM::EventTarget
     virtual bool dispatch_event(DOM::Event&) override;

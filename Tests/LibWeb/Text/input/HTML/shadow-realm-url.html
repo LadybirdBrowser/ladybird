@@ -1,0 +1,8 @@
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const realm = new ShadowRealm();
+        const result = realm.evaluate(`() => new URL('https://example.com/path?name=value').hostname`)();
+        println(`Shadow realm evaluation returned: ${result}`);
+    });
+</script>

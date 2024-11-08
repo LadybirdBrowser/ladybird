@@ -13,6 +13,7 @@
 #include <LibWeb/DOM/EventTarget.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/HTML/Scripting/Fetching.h>
+#include <LibWeb/HTML/UniversalGlobalScope.h>
 #include <LibWeb/HTML/WindowOrWorkerGlobalScope.h>
 #include <LibWeb/HTML/WorkerLocation.h>
 #include <LibWeb/HTML/WorkerNavigator.h>
@@ -33,7 +34,8 @@ namespace Web::HTML {
 // user agent runs the run a worker algorithm.
 class WorkerGlobalScope
     : public DOM::EventTarget
-    , public WindowOrWorkerGlobalScopeMixin {
+    , public WindowOrWorkerGlobalScopeMixin
+    , public UniversalGlobalScopeMixin {
     WEB_PLATFORM_OBJECT(WorkerGlobalScope, DOM::EventTarget);
     JS_DECLARE_ALLOCATOR(WorkerGlobalScope);
 
@@ -44,17 +46,17 @@ public:
     virtual Bindings::PlatformObject& this_impl() override { return *this; }
     virtual Bindings::PlatformObject const& this_impl() const override { return *this; }
 
-    using WindowOrWorkerGlobalScopeMixin::atob;
-    using WindowOrWorkerGlobalScopeMixin::btoa;
+    using UniversalGlobalScopeMixin::atob;
+    using UniversalGlobalScopeMixin::btoa;
+    using UniversalGlobalScopeMixin::queue_microtask;
+    using UniversalGlobalScopeMixin::structured_clone;
     using WindowOrWorkerGlobalScopeMixin::clear_interval;
     using WindowOrWorkerGlobalScopeMixin::clear_timeout;
     using WindowOrWorkerGlobalScopeMixin::create_image_bitmap;
     using WindowOrWorkerGlobalScopeMixin::fetch;
     using WindowOrWorkerGlobalScopeMixin::performance;
-    using WindowOrWorkerGlobalScopeMixin::queue_microtask;
     using WindowOrWorkerGlobalScopeMixin::set_interval;
     using WindowOrWorkerGlobalScopeMixin::set_timeout;
-    using WindowOrWorkerGlobalScopeMixin::structured_clone;
 
     // Following methods are from the WorkerGlobalScope IDL definition
     // https://html.spec.whatwg.org/multipage/workers.html#the-workerglobalscope-common-interface

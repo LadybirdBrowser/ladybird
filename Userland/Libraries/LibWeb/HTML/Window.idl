@@ -9,6 +9,7 @@
 #import <HTML/History.idl>
 #import <HTML/Navigation.idl>
 #import <HTML/Navigator.idl>
+#import <HTML/UniversalGlobalScope.idl>
 #import <HTML/WindowLocalStorage.idl>
 #import <HTML/WindowOrWorkerGlobalScope.idl>
 #import <HTML/WindowSessionStorage.idl>
@@ -115,6 +116,7 @@ interface Window : EventTarget {
 };
 Window includes AnimationFrameProvider;
 Window includes GlobalEventHandlers;
+Window includes UniversalGlobalScope;
 Window includes WindowEventHandlers;
 Window includes WindowLocalStorage;
 Window includes WindowSessionStorage;
