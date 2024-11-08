@@ -600,6 +600,9 @@ ErrorOr<void> initialize_main_thread_vm(HTML::EventLoop::Type type)
         // 11. Perform ? SetDefaultGlobalBindings(realm).
         set_default_global_bindings(realm);
 
+        // NOTE: This needs to be done after initialization so that the realm has an intrinsics in its [[HostDefined]]
+        global_object->initialize_web_interfaces();
+
         // 12. Return NormalCompletion(unused).
         return {};
     };
