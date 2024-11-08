@@ -49,8 +49,7 @@ jobs:
 
       - name: Create build directory Ubuntu
         run: |
-          cmake --preset CI -B Build \
-            -DCMAKE_BUILD_TYPE=Release \
+          cmake --preset Distribution_CI \
             -DCMAKE_C_COMPILER=gcc-13 \
             -DCMAKE_CXX_COMPILER=g++-13 \
             -DENABLE_GUI_TARGETS=OFF
@@ -62,14 +61,13 @@ jobs:
       #        See: https://github.com/microsoft/vcpkg/discussions/19454
       - name: Create build directory macOS
         run: |
-          cmake --preset CI -B Build \
-            -DCMAKE_BUILD_TYPE=Release \
+          cmake --preset Distribution_CI \
             -DCMAKE_OSX_DEPLOYMENT_TARGET="11.0" \
             -DENABLE_GUI_TARGETS=OFF
         if: ${{ matrix.os_name == 'macOS' }}
 
       - name: Build and package js
-        working-directory: Build
+        working-directory: Build/distribution
         run: |
           ninja js
           cpack
@@ -85,5 +83,5 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: ladybird-js-${{ matrix.package_type }}
-          path: Build/ladybird-js*.tar.gz
+          path: Build/distribution/ladybird-js*.tar.gz
           retention-days: 7

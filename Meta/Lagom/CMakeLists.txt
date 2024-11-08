@@ -581,12 +581,7 @@ if (BUILD_TESTING)
     )
 endif()
 
-# FIXME: When we are using CMake >= 3.21, the library installations can be replaced with RUNTIME_DEPENDENCIES.
-#        https://cmake.org/cmake/help/latest/command/install.html
-include(get_linked_lagom_libraries.cmake)
-get_linked_lagom_libraries(js js_libraries)
-
-install(TARGETS js ${js_libraries} COMPONENT js)
+install(TARGETS js COMPONENT js)
 
 set(CPACK_GENERATOR "TGZ")
 set(CPACK_STRIP_FILES TRUE)
