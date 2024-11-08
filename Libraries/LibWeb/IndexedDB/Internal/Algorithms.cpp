@@ -79,15 +79,23 @@ WebIDL::ExceptionOr<GC::Ref<IDBDatabase>> open_a_database_connection(JS::Realm& 
 
         // 2. For each entry of openConnections that does not have its close pending flag set to true,
         //    queue a task to fire a version change event named versionchange at entry with db’s version and version.
+        u32 events_to_fire = open_connections.size();
+        u32 events_fired = 0;
         for (auto& entry : open_connections) {
             if (!entry->close_pending()) {
-                HTML::queue_a_task(HTML::Task::Source::DatabaseAccess, nullptr, nullptr, GC::create_function(realm.vm().heap(), [&realm, entry, db, version]() {
+                HTML::queue_a_task(HTML::Task::Source::DatabaseAccess, nullptr, nullptr, GC::create_function(realm.vm().heap(), [&realm, entry, db, version, &events_fired]() {
                     fire_a_version_change_event(realm, HTML::EventNames::versionchange, *entry, db->version(), version);
+                    events_fired++;
                 }));
+            } else {
+                events_fired++;
             }
         }
 
-        // FIXME: 3. Wait for all of the events to be fired.
+        // 3. Wait for all of the events to be fired.
+        HTML::main_thread_event_loop().spin_until(GC::create_function(realm.vm().heap(), [&events_to_fire, &events_fired]() {
+            return events_fired == events_to_fire;
+        }));
 
         // 4. If any of the connections in openConnections are still not closed,
         //    queue a task to fire a version change event named blocked at request with db’s version and version.
