@@ -760,8 +760,10 @@ static inline bool matches(CSS::Selector::SimpleSelector const& component, Optio
         // Pseudo-element matching/not-matching is handled in the top level matches().
         return true;
     case CSS::Selector::SimpleSelector::Type::Nesting:
-        // We should only try to match selectors that have been absolutized!
-        VERIFY_NOT_REACHED();
+        // Nesting either behaves like :is(), or like :scope.
+        // :is() is handled already, by us replacing it with :is() directly, so if we
+        // got here, it's :scope.
+        return matches_pseudo_class(CSS::Selector::SimpleSelector::PseudoClassSelector { .type = CSS::PseudoClass::Scope }, style_sheet_for_rule, element, shadow_host, scope, selector_kind);
     }
     VERIFY_NOT_REACHED();
 }
