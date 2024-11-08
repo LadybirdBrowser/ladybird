@@ -10,7 +10,7 @@ For more information, motivation, philosophy, and inspiration, see the LLVM docu
 
 # Creating a gn build
 
-To create a GN build, you need to have GN installed. You can install it via homebrew on macOS, or via your package manager on Linux.
+To create a GN build, you need to have GN installed. It's available in some Linux package managers, but if not, or on other OSes, see below.
 On Ubuntu 22.04, the main package repos do not have an up to date enough package for GN, so you will need to build it from source or get a binary from Google.
 
 The easiest way to build GN from source is to use our [Toolchain/BuildGN.sh](../../Toolchain/BuildGN.sh) script, which will
