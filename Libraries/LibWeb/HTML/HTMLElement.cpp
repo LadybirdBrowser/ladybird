@@ -8,6 +8,7 @@
 #include <LibWeb/ARIA/Roles.h>
 #include <LibWeb/Bindings/ExceptionOrUtils.h>
 #include <LibWeb/Bindings/HTMLElementPrototype.h>
+#include <LibWeb/CSS/StyleValues/DisplayStyleValue.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/EditingHostManager.h>
 #include <LibWeb/DOM/ElementFactory.h>
@@ -905,6 +906,15 @@ WebIDL::ExceptionOr<void> HTMLElement::set_popover(Optional<String> value)
 
     remove_attribute(HTML::AttributeNames::popover);
     return {};
+}
+
+void HTMLElement::adjust_computed_style(CSS::StyleProperties& style)
+{
+    // https://drafts.csswg.org/css-display-3/#unbox
+    if (local_name() == HTML::TagNames::wbr) {
+        if (style.display().is_contents())
+            style.set_property(CSS::PropertyID::Display, CSS::DisplayStyleValue::create(CSS::Display::from_short(CSS::Display::Short::None)));
+    }
 }
 
 void HTMLElement::did_receive_focus()

@@ -8,6 +8,7 @@
 
 #include <LibWeb/Bindings/HTMLProgressElementPrototype.h>
 #include <LibWeb/CSS/StyleProperties.h>
+#include <LibWeb/CSS/StyleValues/DisplayStyleValue.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/ElementFactory.h>
 #include <LibWeb/DOM/ShadowRoot.h>
@@ -96,6 +97,13 @@ void HTMLProgressElement::inserted()
 void HTMLProgressElement::removed_from(DOM::Node*)
 {
     set_shadow_root(nullptr);
+}
+
+void HTMLProgressElement::adjust_computed_style(CSS::StyleProperties& style)
+{
+    // https://drafts.csswg.org/css-display-3/#unbox
+    if (style.display().is_contents())
+        style.set_property(CSS::PropertyID::Display, CSS::DisplayStyleValue::create(CSS::Display::from_short(CSS::Display::Short::None)));
 }
 
 void HTMLProgressElement::create_shadow_tree_if_needed()

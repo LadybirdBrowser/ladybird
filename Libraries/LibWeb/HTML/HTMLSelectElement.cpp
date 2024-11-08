@@ -66,6 +66,10 @@ void HTMLSelectElement::visit_edges(Cell::Visitor& visitor)
 
 void HTMLSelectElement::adjust_computed_style(CSS::StyleProperties& style)
 {
+    // https://drafts.csswg.org/css-display-3/#unbox
+    if (style.display().is_contents())
+        style.set_property(CSS::PropertyID::Display, CSS::DisplayStyleValue::create(CSS::Display::from_short(CSS::Display::Short::None)));
+
     // AD-HOC: We rewrite `display: inline` to `display: inline-block`.
     //         This is required for the internal shadow tree to work correctly in layout.
     if (style.display().is_inline_outside() && style.display().is_flow_inside())

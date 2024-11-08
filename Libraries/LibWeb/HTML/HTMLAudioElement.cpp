@@ -5,6 +5,7 @@
  */
 
 #include <LibWeb/Bindings/HTMLAudioElementPrototype.h>
+#include <LibWeb/CSS/StyleValues/DisplayStyleValue.h>
 #include <LibWeb/HTML/AudioTrack.h>
 #include <LibWeb/HTML/AudioTrackList.h>
 #include <LibWeb/HTML/HTMLAudioElement.h>
@@ -31,6 +32,13 @@ void HTMLAudioElement::initialize(JS::Realm& realm)
 JS::GCPtr<Layout::Node> HTMLAudioElement::create_layout_node(CSS::StyleProperties style)
 {
     return heap().allocate_without_realm<Layout::AudioBox>(document(), *this, move(style));
+}
+
+void HTMLAudioElement::adjust_computed_style(CSS::StyleProperties& style)
+{
+    // https://drafts.csswg.org/css-display-3/#unbox
+    if (style.display().is_contents())
+        style.set_property(CSS::PropertyID::Display, CSS::DisplayStyleValue::create(CSS::Display::from_short(CSS::Display::Short::None)));
 }
 
 Layout::AudioBox* HTMLAudioElement::layout_node()
