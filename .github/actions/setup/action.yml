@@ -32,7 +32,7 @@ runs:
 
         sudo apt-get update -y
         sudo apt-get install -y autoconf autoconf-archive automake build-essential ccache clang-18 clang++-18 cmake curl fonts-liberation2 \
-            gcc-13 g++-13 libavcodec-dev libavformat-dev libavutil-dev libegl1-mesa-dev libgl1-mesa-dev libpulse-dev libssl-dev \
+            gcc-13 g++-13 libegl1-mesa-dev libgl1-mesa-dev libpulse-dev libssl-dev \
             libstdc++-13-dev lld-18 nasm ninja-build qt6-base-dev qt6-tools-dev-tools tar unzip zip
 
         sudo update-alternatives --install /usr/bin/clang clang /usr/bin/clang-18 100
@@ -57,7 +57,7 @@ runs:
       run: |
         set -e
         brew update
-        brew install autoconf autoconf-archive automake bash ccache coreutils ffmpeg llvm@18 nasm ninja qt unzip wabt
+        brew install autoconf autoconf-archive automake bash ccache coreutils llvm@18 nasm ninja qt unzip wabt
 
     - name: 'Install vcpkg'
       shell: bash
