@@ -72,7 +72,7 @@ Response encode_canvas_element(HTML::HTMLCanvasElement& canvas)
 
     // 3. Let file be a serialization of the canvas element’s bitmap as a file, using "image/png" as an argument.
     // 4. Let data url be a data: URL representing file. [RFC2397]
-    auto data_url = canvas.to_data_url("image/png"sv, {});
+    auto data_url = canvas.to_data_url("image/png"sv, JS::js_undefined());
 
     // 5. Let index be the index of "," in data url.
     auto index = data_url.find_byte_offset(',');

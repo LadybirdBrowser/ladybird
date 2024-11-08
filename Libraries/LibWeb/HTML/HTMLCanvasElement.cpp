@@ -238,19 +238,18 @@ struct SerializeBitmapResult {
 };
 
 // https://html.spec.whatwg.org/multipage/canvas.html#a-serialisation-of-the-bitmap-as-a-file
-static ErrorOr<SerializeBitmapResult> serialize_bitmap(Gfx::Bitmap const& bitmap, StringView type, Optional<double> quality)
+static ErrorOr<SerializeBitmapResult> serialize_bitmap(Gfx::Bitmap const& bitmap, StringView type, JS::Value quality)
 {
     // If type is an image format that supports variable quality (such as "image/jpeg"), quality is given, and type is not "image/png", then,
     // if quality is a Number in the range 0.0 to 1.0 inclusive, the user agent must treat quality as the desired quality level.
     // Otherwise, the user agent must use its default quality value, as if the quality argument had not been given.
-    if (quality.has_value() && !(*quality >= 0.0 && *quality <= 1.0))
-        quality = OptionalNone {};
+    bool valid_quality = quality.is_number() && quality.as_double() >= 0.0 && quality.as_double() <= 1.0;
 
     if (type.equals_ignoring_ascii_case("image/jpeg"sv)) {
         AllocatingMemoryStream file;
         Gfx::JPEGWriter::Options jpeg_options;
-        if (quality.has_value())
-            jpeg_options.quality = static_cast<int>(quality.value() * 100);
+        if (valid_quality)
+            jpeg_options.quality = static_cast<int>(quality.as_double() * 100);
         TRY(Gfx::JPEGWriter::encode(file, bitmap, jpeg_options));
         return SerializeBitmapResult { TRY(file.read_until_eof()), "image/jpeg"sv };
     }
@@ -261,7 +260,7 @@ static ErrorOr<SerializeBitmapResult> serialize_bitmap(Gfx::Bitmap const& bitmap
 }
 
 // https://html.spec.whatwg.org/multipage/canvas.html#dom-canvas-todataurl
-String HTMLCanvasElement::to_data_url(StringView type, Optional<double> quality)
+String HTMLCanvasElement::to_data_url(StringView type, JS::Value quality)
 {
     // It is possible the the canvas doesn't have a associated bitmap so create one
     if (!m_surface) {
@@ -296,7 +295,7 @@ String HTMLCanvasElement::to_data_url(StringView type, Optional<double> quality)
 }
 
 // https://html.spec.whatwg.org/multipage/canvas.html#dom-canvas-toblob
-WebIDL::ExceptionOr<void> HTMLCanvasElement::to_blob(JS::NonnullGCPtr<WebIDL::CallbackType> callback, StringView type, Optional<double> quality)
+WebIDL::ExceptionOr<void> HTMLCanvasElement::to_blob(JS::NonnullGCPtr<WebIDL::CallbackType> callback, StringView type, JS::Value quality)
 {
     // It is possible the the canvas doesn't have a associated bitmap so create one
     if (!m_surface) {
