@@ -127,6 +127,10 @@ Parser::ParseErrorOr<Optional<Selector::CompoundSelector>> Parser::parse_compoun
         auto component = TRY(parse_simple_selector(tokens));
         if (!component.has_value())
             break;
+        if (component->type == Selector::SimpleSelector::Type::TagName && !simple_selectors.is_empty()) {
+            // Tag-name selectors can only go at the beginning of a compound selector.
+            return ParseError::SyntaxError;
+        }
         simple_selectors.append(component.release_value());
     }
 
