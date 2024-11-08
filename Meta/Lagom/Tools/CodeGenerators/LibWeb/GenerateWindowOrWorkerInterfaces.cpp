@@ -14,7 +14,7 @@
 #include <LibIDL/Types.h>
 #include <LibMain/Main.h>
 
-static ErrorOr<void> add_to_interface_sets(IDL::Interface&, Vector<IDL::Interface&>& intrinsics, Vector<IDL::Interface&>& window_exposed, Vector<IDL::Interface&>& dedicated_worker_exposed, Vector<IDL::Interface&>& shared_worker_exposed);
+static ErrorOr<void> add_to_interface_sets(IDL::Interface&, Vector<IDL::Interface&>& intrinsics, Vector<IDL::Interface&>& window_exposed, Vector<IDL::Interface&>& dedicated_worker_exposed, Vector<IDL::Interface&>& shared_worker_exposed, Vector<IDL::Interface&>& shadow_realm_exposed);
 static ByteString s_error_string;
 
 struct LegacyConstructor {
@@ -367,6 +367,7 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
     Vector<IDL::Interface&> window_exposed;
     Vector<IDL::Interface&> dedicated_worker_exposed;
     Vector<IDL::Interface&> shared_worker_exposed;
+    Vector<IDL::Interface&> shadow_realm_exposed;
     // TODO: service_worker_exposed
 
     for (size_t i = 0; i < paths.size(); ++i) {
@@ -378,7 +379,7 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
             return Error::from_string_view(s_error_string.view());
         }
 
-        TRY(add_to_interface_sets(interface, intrinsics, window_exposed, dedicated_worker_exposed, shared_worker_exposed));
+        TRY(add_to_interface_sets(interface, intrinsics, window_exposed, dedicated_worker_exposed, shared_worker_exposed, shadow_realm_exposed));
         parsers.append(move(parser));
     }
 
@@ -387,11 +388,13 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
     TRY(generate_exposed_interface_header("Window"sv, output_path));
     TRY(generate_exposed_interface_header("DedicatedWorker"sv, output_path));
     TRY(generate_exposed_interface_header("SharedWorker"sv, output_path));
+    TRY(generate_exposed_interface_header("ShadowRealm"sv, output_path));
     // TODO: ServiceWorkerExposed.h
 
     TRY(generate_exposed_interface_implementation("Window"sv, output_path, window_exposed));
     TRY(generate_exposed_interface_implementation("DedicatedWorker"sv, output_path, dedicated_worker_exposed));
     TRY(generate_exposed_interface_implementation("SharedWorker"sv, output_path, shared_worker_exposed));
+    TRY(generate_exposed_interface_implementation("ShadowRealm"sv, output_path, shadow_realm_exposed));
     // TODO: ServiceWorkerExposed.cpp
 
     return 0;
@@ -404,8 +407,9 @@ enum ExposedTo {
     ServiceWorker = 0x4,
     AudioWorklet = 0x8,
     Window = 0x10,
-    AllWorkers = 0xF, // FIXME: Is "AudioWorklet" a Worker? We'll assume it is for now
-    All = 0x1F,
+    ShadowRealm = 0x20,
+    AllWorkers = DedicatedWorker | SharedWorker | ServiceWorker | AudioWorklet, // FIXME: Is "AudioWorklet" a Worker? We'll assume it is for now (here, and line below)
+    All = AllWorkers | Window | ShadowRealm
 };
 AK_ENUM_BITWISE_OPERATORS(ExposedTo);
 
@@ -436,6 +440,8 @@ static ErrorOr<ExposedTo> parse_exposure_set(IDL::Interface& interface)
         return ExposedTo::ServiceWorker;
     if (exposed == "AudioWorklet"sv)
         return ExposedTo::AudioWorklet;
+    if (exposed == "ShadowRealm"sv)
+        return ExposedTo::ShadowRealm;
 
     if (exposed[0] == '(') {
         ExposedTo whom = Nobody;
@@ -453,6 +459,8 @@ static ErrorOr<ExposedTo> parse_exposure_set(IDL::Interface& interface)
                 whom |= ExposedTo::ServiceWorker;
             } else if (candidate == "AudioWorklet"sv) {
                 whom |= ExposedTo::AudioWorklet;
+            } else if (candidate == "ShadowRealm"sv) {
+                whom |= ExposedTo::ShadowRealm;
             } else {
                 s_error_string = ByteString::formatted("Unknown Exposed attribute candidate {} in {} in {}", candidate, exposed, interface.name);
                 return Error::from_string_view(s_error_string.view());
@@ -469,7 +477,7 @@ static ErrorOr<ExposedTo> parse_exposure_set(IDL::Interface& interface)
     return Error::from_string_view(s_error_string.view());
 }
 
-ErrorOr<void> add_to_interface_sets(IDL::Interface& interface, Vector<IDL::Interface&>& intrinsics, Vector<IDL::Interface&>& window_exposed, Vector<IDL::Interface&>& dedicated_worker_exposed, Vector<IDL::Interface&>& shared_worker_exposed)
+ErrorOr<void> add_to_interface_sets(IDL::Interface& interface, Vector<IDL::Interface&>& intrinsics, Vector<IDL::Interface&>& window_exposed, Vector<IDL::Interface&>& dedicated_worker_exposed, Vector<IDL::Interface&>& shared_worker_exposed, Vector<IDL::Interface&>& shadow_realm_exposed)
 {
     // TODO: Add service worker exposed and audio worklet exposed
     auto whom = TRY(parse_exposure_set(interface));
@@ -484,6 +492,9 @@ ErrorOr<void> add_to_interface_sets(IDL::Interface& interface, Vector<IDL::Inter
 
     if (whom & ExposedTo::SharedWorker)
         shared_worker_exposed.append(interface);
+
+    if (whom & ExposedTo::ShadowRealm)
+        shadow_realm_exposed.append(interface);
 
     return {};
 }

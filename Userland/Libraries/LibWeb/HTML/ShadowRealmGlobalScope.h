@@ -28,6 +28,8 @@ public:
         return *this;
     }
 
+    void initialize_web_interfaces();
+
 protected:
     explicit ShadowRealmGlobalScope(JS::Realm&);
 

@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibWeb/Bindings/ShadowRealmExposedInterfaces.h>
 #include <LibWeb/Bindings/ShadowRealmGlobalScopePrototype.h>
 #include <LibWeb/HTML/ShadowRealmGlobalScope.h>
 
@@ -28,6 +29,11 @@ void ShadowRealmGlobalScope::initialize(JS::Realm&)
     // FIXME: This does not work as we do not have any intrinsics in the [HostDefined] of a shadow realm. Figure out how this _should_ work.
     // Base::initialize(realm);
     // WEB_SET_PROTOTYPE_FOR_INTERFACE(ShadowRealmGlobalScope);
+}
+
+void ShadowRealmGlobalScope::initialize_web_interfaces()
+{
+    add_shadow_realm_exposed_interfaces(*this);
 }
 
 void ShadowRealmGlobalScope::visit_edges(Cell::Visitor& visitor)
