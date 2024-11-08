@@ -179,8 +179,11 @@ u32 Selector::specificity() const
                 // ignore the universal selector
                 break;
             case SimpleSelector::Type::Nesting:
-                // We should have replaced this already
-                VERIFY_NOT_REACHED();
+                // "The specificity of the nesting selector is equal to the largest specificity among the complex selectors in the parent style rule’s selector list (identical to the behavior of :is()), or zero if no such selector list exists."
+                // - https://drafts.csswg.org/css-nesting/#ref-for-specificity
+                // The parented case is handled by replacing & with :is().
+                // So if we got here, the specificity is 0.
+                break;
             }
         }
     }

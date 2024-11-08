@@ -6,6 +6,6 @@ Rerun
 
 Found 1 tests
 
-1 Fail
+1 Pass
 Details
-Result	Test Name	MessageFail	CSS Nesting: Specificity of top-level '&'	
+Result	Test Name	MessagePass	CSS Nesting: Specificity of top-level '&'	

@@ -177,28 +177,25 @@ SelectorList const& CSSStyleRule::absolutized_selectors() const
     // "When used in the selector of a nested style rule, the nesting selector represents the elements matched by the parent rule.
     // When used in any other context, it represents the same elements as :scope in that context (unless otherwise defined)."
     // https://drafts.csswg.org/css-nesting-1/#nest-selector
-    Selector::SimpleSelector parent_selector;
     if (auto const* parent_style_rule = this->parent_style_rule()) {
         // TODO: If there's only 1, we don't have to use `:is()` for it
-        parent_selector = {
+        Selector::SimpleSelector parent_selector = {
             .type = Selector::SimpleSelector::Type::PseudoClass,
             .value = Selector::SimpleSelector::PseudoClassSelector {
                 .type = PseudoClass::Is,
                 .argument_selector_list = parent_style_rule->absolutized_selectors(),
             },
         };
+        SelectorList absolutized_selectors;
+        for (auto const& selector : selectors())
+            absolutized_selectors.append(selector->absolutized(parent_selector));
+        m_cached_absolutized_selectors = move(absolutized_selectors);
     } else {
-        parent_selector = {
-            .type = Selector::SimpleSelector::Type::PseudoClass,
-            .value = Selector::SimpleSelector::PseudoClassSelector { .type = PseudoClass::Scope },
-        };
+        // NOTE: We can't actually replace & with :scope, because & has to have 0 specificity.
+        //       So we leave it, and treat & like :scope during matching.
+        m_cached_absolutized_selectors = m_selectors;
     }
 
-    SelectorList absolutized_selectors;
-    for (auto const& selector : selectors())
-        absolutized_selectors.append(selector->absolutized(parent_selector));
-
-    m_cached_absolutized_selectors = move(absolutized_selectors);
     return m_cached_absolutized_selectors.value();
 }
 
