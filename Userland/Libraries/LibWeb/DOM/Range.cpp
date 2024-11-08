@@ -1258,7 +1258,7 @@ JS::NonnullGCPtr<Geometry::DOMRect> Range::get_bounding_client_rect()
 // https://html.spec.whatwg.org/multipage/dynamic-markup-insertion.html#dom-range-createcontextualfragment
 WebIDL::ExceptionOr<JS::NonnullGCPtr<DocumentFragment>> Range::create_contextual_fragment(String const& string)
 {
-    // FIXME: Let compliantString be the result of invoking the Get Trusted Type compliant string algorithm with TrustedHTML, this's relevant global object, string, and "Range createContextualFragment".
+    // FIXME: 1. Let compliantString be the result of invoking the Get Trusted Type compliant string algorithm with TrustedHTML, this's relevant global object, string, "Range createContextualFragment", and "script".
 
     // 2. Let node be this's start node.
     JS::NonnullGCPtr<Node> node = *start_container();
