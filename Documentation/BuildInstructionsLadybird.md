@@ -2,7 +2,7 @@
 
 ## Build Prerequisites
 
-Qt6 development packages, FFmpeg, nasm, additional build tools, and a C++23 capable compiler like g++-13 or clang-17 are required.
+Qt6 development packages, nasm, additional build tools, and a C++23 capable compiler like g++-13 or clang-17 are required.
 
 CMake 3.25 or newer must be available in $PATH.
 
@@ -15,7 +15,7 @@ CMake 3.25 or newer must be available in $PATH.
 
 <!-- Note: If you change something here, please also change it in the `devcontainer/devcontainer.json` file. -->
 ```bash
-sudo apt install autoconf autoconf-archive automake build-essential ccache cmake curl fonts-liberation2 git libavcodec-dev libavformat-dev libavutil-dev libgl1-mesa-dev nasm ninja-build pkg-config qt6-base-dev qt6-tools-dev-tools qt6-wayland tar unzip zip
+sudo apt install autoconf autoconf-archive automake build-essential ccache cmake curl fonts-liberation2 git libgl1-mesa-dev nasm ninja-build pkg-config qt6-base-dev qt6-tools-dev-tools qt6-wayland tar unzip zip
 ```
 
 #### CMake 3.25 or newer:
@@ -79,24 +79,24 @@ sudo apt install qt6-multimedia-dev
 ### Arch Linux/Manjaro:
 
 ```
-sudo pacman -S --needed autoconf-archive automake base-devel ccache cmake curl ffmpeg libgl nasm ninja qt6-base qt6-multimedia qt6-tools qt6-wayland ttf-liberation tar unzip zip
+sudo pacman -S --needed autoconf-archive automake base-devel ccache cmake curl libgl nasm ninja qt6-base qt6-multimedia qt6-tools qt6-wayland ttf-liberation tar unzip zip
 ```
 
 ### Fedora or derivatives:
 ```
-sudo dnf install autoconf-archive automake ccache cmake curl libavcodec-free-devel libavformat-free-devel liberation-sans-fonts libglvnd-devel nasm ninja-build perl-FindBin perl-IPC-Cmd qt6-qtbase-devel qt6-qtmultimedia-devel qt6-qttools-devel qt6-qtwayland-devel tar unzip zip zlib-ng-compat-static
+sudo dnf install autoconf-archive automake ccache cmake curl liberation-sans-fonts libglvnd-devel nasm ninja-build perl-FindBin perl-IPC-Cmd qt6-qtbase-devel qt6-qtmultimedia-devel qt6-qttools-devel qt6-qtwayland-devel tar unzip zip zlib-ng-compat-static
 ```
 
 ### openSUSE:
 ```
-sudo zypper install autoconf-archive automake ccache cmake curl ffmpeg-7-libavcodec-devel ffmpeg-7-libavformat-devel gcc13 gcc13-c++ liberation-fonts libglvnd-devel nasm ninja qt6-base-devel qt6-multimedia-devel qt6-tools-devel qt6-wayland-devel tar unzip zip
+sudo zypper install autoconf-archive automake ccache cmake curl gcc13 gcc13-c++ liberation-fonts libglvnd-devel nasm ninja qt6-base-devel qt6-multimedia-devel qt6-tools-devel qt6-wayland-devel tar unzip zip
 ```
 The build process requires at least python3.7; openSUSE Leap only features Python 3.6 as default, so it is recommendable to install package python311 and create a virtual environment (venv) in this case.
 
 ### Void Linux:
 ```
 sudo xbps-install -Su # (optional) ensure packages are up to date to avoid "Transaction aborted due to unresolved dependencies."
-sudo xbps-install -S git bash gcc python3 curl cmake zip unzip linux-headers make pkg-config autoconf automake autoconf-archive nasm MesaLib-devel ninja ffmpeg-devel qt6-base-devel qt6-multimedia-devel qt6-tools-devel qt6-wayland-devel
+sudo xbps-install -S git bash gcc python3 curl cmake zip unzip linux-headers make pkg-config autoconf automake autoconf-archive nasm MesaLib-devel ninja qt6-base-devel qt6-multimedia-devel qt6-tools-devel qt6-wayland-devel
 ```
 
 ### NixOS or with Nix:
@@ -127,7 +127,7 @@ Xcode 14 versions before 14.3 might crash while building ladybird. Xcode 14.3 or
 
 ```
 xcode-select --install
-brew install autoconf autoconf-archive automake ccache cmake ffmpeg nasm ninja pkg-config
+brew install autoconf autoconf-archive automake ccache cmake nasm ninja pkg-config
 ```
 
 If you wish to use clang from homebrew instead:
