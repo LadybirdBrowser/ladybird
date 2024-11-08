@@ -1711,7 +1711,7 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> CallExpression::generat
     Optional<Bytecode::Builtin> builtin;
 
     Optional<ScopedOperand> original_callee;
-    auto this_value = generator.add_constant(js_undefined());
+    auto original_this_value = generator.add_constant(js_undefined());
     Bytecode::Op::CallType call_type = Bytecode::Op::CallType::Call;
 
     if (is<NewExpression>(this)) {
@@ -1721,13 +1721,13 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> CallExpression::generat
         auto& member_expression = static_cast<MemberExpression const&>(*m_callee);
         auto base_and_value = TRY(get_base_and_value_from_member_expression(generator, member_expression));
         original_callee = base_and_value.value;
-        this_value = base_and_value.base;
+        original_this_value = base_and_value.base;
         builtin = Bytecode::get_builtin(member_expression);
     } else if (is<OptionalChain>(*m_callee)) {
         auto& optional_chain = static_cast<OptionalChain const&>(*m_callee);
         original_callee = generator.allocate_register();
-        this_value = generator.allocate_register();
-        TRY(generate_optional_chain(generator, optional_chain, *original_callee, this_value));
+        original_this_value = generator.allocate_register();
+        TRY(generate_optional_chain(generator, optional_chain, *original_callee, original_this_value));
     } else if (is<Identifier>(*m_callee)) {
         // If the original_callee is an identifier, we may need to extract a `this` value.
         // This is important when we're inside a `with` statement and calling a method on
@@ -1748,10 +1748,10 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> CallExpression::generat
             original_callee = m_callee->generate_bytecode(generator).value();
         } else {
             original_callee = generator.allocate_register();
-            this_value = generator.allocate_register();
+            original_this_value = generator.allocate_register();
             generator.emit<Bytecode::Op::GetCalleeAndThisFromEnvironment>(
                 *original_callee,
-                this_value,
+                original_this_value,
                 generator.intern_identifier(identifier.string()));
         }
     } else {
@@ -1759,8 +1759,10 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> CallExpression::generat
         original_callee = TRY(m_callee->generate_bytecode(generator)).value();
     }
 
-    // NOTE: If the callee isn't already a temporary, we copy it to a new register
-    //       to avoid overwriting it while evaluating arguments.
+    // NOTE: If the callee/this value isn't already a temporary, we copy them to new registers
+    //       to avoid overwriting them while evaluating arguments.
+    // Example: foo.bar(Object.getPrototypeOf(foo).bar = null, foo = null)
+    auto this_value = generator.copy_if_needed_to_preserve_evaluation_order(original_this_value);
     auto callee = generator.copy_if_needed_to_preserve_evaluation_order(original_callee.value());
 
     Optional<Bytecode::StringTableIndex> expression_string_index;
