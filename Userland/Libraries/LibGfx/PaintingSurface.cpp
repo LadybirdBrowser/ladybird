@@ -5,6 +5,7 @@
  */
 
 #include <LibGfx/Bitmap.h>
+#include <LibGfx/ImmutableBitmap.h>
 #include <LibGfx/PaintingSurface.h>
 
 #include <core/SkColorSpace.h>
@@ -91,13 +92,13 @@ PaintingSurface::PaintingSurface(NonnullOwnPtr<Impl>&& impl)
 
 PaintingSurface::~PaintingSurface() = default;
 
-RefPtr<Bitmap> PaintingSurface::create_snapshot() const
+NonnullRefPtr<ImmutableBitmap> PaintingSurface::create_snapshot() const
 {
     auto bitmap = Gfx::Bitmap::create(Gfx::BitmapFormat::BGRA8888, Gfx::AlphaType::Premultiplied, size()).value();
     auto image_info = SkImageInfo::Make(bitmap->width(), bitmap->height(), kBGRA_8888_SkColorType, kPremul_SkAlphaType);
     SkPixmap const pixmap(image_info, bitmap->begin(), bitmap->pitch());
     sk_surface().readPixels(pixmap, 0, 0);
-    return bitmap;
+    return ImmutableBitmap::create(bitmap);
 }
 
 void PaintingSurface::read_into_bitmap(Gfx::Bitmap& bitmap)

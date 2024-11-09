@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2023, MacDue <macdue@dueutil.tech>
+ * Copyright (c) 2024, Aliaksandr Kalenik <kalenik.aliaksandr@gmail.com>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -130,7 +131,10 @@ WebIDL::ExceptionOr<JS::GCPtr<CanvasPattern>> CanvasPattern::create(JS::Realm& r
     auto bitmap = image.visit(
         [](JS::Handle<HTMLImageElement> const& source) -> RefPtr<Gfx::Bitmap> { return *source->bitmap(); },
         [](JS::Handle<SVG::SVGImageElement> const& source) -> RefPtr<Gfx::Bitmap> { return *source->bitmap(); },
-        [](JS::Handle<HTMLCanvasElement> const& source) -> RefPtr<Gfx::Bitmap> { return source->surface()->create_snapshot(); },
+        [](JS::Handle<HTMLCanvasElement> const& source) -> RefPtr<Gfx::Bitmap> {
+            auto snapshot = source->surface()->create_snapshot();
+            return snapshot->bitmap();
+        },
         [](JS::Handle<HTMLVideoElement> const& source) -> RefPtr<Gfx::Bitmap> { return *source->bitmap(); },
         [](JS::Handle<ImageBitmap> const& source) -> RefPtr<Gfx::Bitmap> { return *source->bitmap(); });
 

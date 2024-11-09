@@ -2,6 +2,7 @@
  * Copyright (c) 2020-2024, Andreas Kling <andreas@ladybird.org>
  * Copyright (c) 2021-2022, Linus Groh <linusg@serenityos.org>
  * Copyright (c) 2023, MacDue <macdue@dueutil.tech>
+ * Copyright (c) 2024, Aliaksandr Kalenik <kalenik.aliaksandr@gmail.com>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -125,7 +126,10 @@ WebIDL::ExceptionOr<void> CanvasRenderingContext2D::draw_image_internal(CanvasIm
     auto bitmap = image.visit(
         [](JS::Handle<HTMLImageElement> const& source) -> RefPtr<Gfx::Bitmap> { return *source->bitmap(); },
         [](JS::Handle<SVG::SVGImageElement> const& source) -> RefPtr<Gfx::Bitmap> { return *source->bitmap(); },
-        [](JS::Handle<HTMLCanvasElement> const& source) -> RefPtr<Gfx::Bitmap> { return source->surface()->create_snapshot(); },
+        [](JS::Handle<HTMLCanvasElement> const& source) -> RefPtr<Gfx::Bitmap> {
+            auto snapshot = source->surface()->create_snapshot();
+            return snapshot->bitmap();
+        },
         [](JS::Handle<HTMLVideoElement> const& source) -> RefPtr<Gfx::Bitmap> { return *source->bitmap(); },
         [](JS::Handle<ImageBitmap> const& source) -> RefPtr<Gfx::Bitmap> { return *source->bitmap(); });
     if (!bitmap)
@@ -389,10 +393,10 @@ WebIDL::ExceptionOr<JS::GCPtr<ImageData>> CanvasRenderingContext2D::get_image_da
     // NOTE: We don't attempt to create the underlying bitmap here; if it doesn't exist, it's like copying only transparent black pixels (which is a no-op).
     if (!canvas_element().surface())
         return image_data;
-    auto const bitmap = canvas_element().surface()->create_snapshot();
+    auto const snapshot = canvas_element().surface()->create_snapshot();
+    auto const& bitmap = snapshot->bitmap();
 
     // 5. Let the source rectangle be the rectangle whose corners are the four points (sx, sy), (sx+sw, sy), (sx+sw, sy+sh), (sx, sy+sh).
-    //<<<<<<< HEAD
     auto source_rect = Gfx::Rect { x, y, abs_width, abs_height };
 
     // NOTE: The spec doesn't seem to define this behavior, but MDN does and the WPT tests
@@ -401,17 +405,17 @@ WebIDL::ExceptionOr<JS::GCPtr<ImageData>> CanvasRenderingContext2D::get_image_da
     if (width < 0 || height < 0) {
         source_rect = source_rect.translated(min(width, 0), min(height, 0));
     }
-    auto source_rect_intersected = source_rect.intersected(bitmap->rect());
+    auto source_rect_intersected = source_rect.intersected(bitmap.rect());
 
     // 6. Set the pixel values of imageData to be the pixels of this's output bitmap in the area specified by the source rectangle in the bitmap's coordinate space units, converted from this's color space to imageData's colorSpace using 'relative-colorimetric' rendering intent.
     // NOTE: Internally we must use premultiplied alpha, but ImageData should hold unpremultiplied alpha. This conversion
     //       might result in a loss of precision, but is according to spec.
     //       See: https://html.spec.whatwg.org/multipage/canvas.html#premultiplied-alpha-and-the-2d-rendering-context
-    ASSERT(bitmap->alpha_type() == Gfx::AlphaType::Premultiplied);
+    ASSERT(bitmap.alpha_type() == Gfx::AlphaType::Premultiplied);
     ASSERT(image_data->bitmap().alpha_type() == Gfx::AlphaType::Unpremultiplied);
 
     auto painter = Gfx::Painter::create(image_data->bitmap());
-    painter->draw_bitmap(image_data->bitmap().rect().to_type<float>(), *bitmap, source_rect_intersected, Gfx::ScalingMode::NearestNeighbor, drawing_state().global_alpha);
+    painter->draw_bitmap(image_data->bitmap().rect().to_type<float>(), bitmap, source_rect_intersected, Gfx::ScalingMode::NearestNeighbor, drawing_state().global_alpha);
 
     // 7. Set the pixels values of imageData for areas of the source rectangle that are outside of the output bitmap to transparent black.
     // NOTE: No-op, already done during creation.

@@ -46,7 +46,7 @@ JS::ThrowCompletionOr<JS::GCPtr<WebGLRenderingContext>> WebGLRenderingContext::c
     }
 
     VERIFY(canvas_element.surface());
-    auto context = OpenGLContext::create(*canvas_element.surface()->create_snapshot());
+    auto context = OpenGLContext::create(*canvas_element.surface());
 
     if (!context) {
         fire_webgl_context_creation_error(canvas_element);
