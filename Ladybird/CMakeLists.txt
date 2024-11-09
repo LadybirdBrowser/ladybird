@@ -132,7 +132,6 @@ else()
 endif()
 
 add_subdirectory(Headless)
-add_subdirectory(WebContent)
 add_subdirectory(WebWorker)
 
 set(ladybird_helper_processes ImageDecoder RequestServer WebContent WebWorker)
