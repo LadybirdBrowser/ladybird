@@ -872,7 +872,7 @@ public:
 
         // 1. Queue a microtask to perform the following steps:
         HTML::queue_a_microtask(nullptr, JS::create_heap_function(m_realm->heap(), [this, chunk = chunk_view]() {
-            HTML::TemporaryExecutionContext execution_context { m_realm };
+            HTML::TemporaryExecutionContext execution_context { m_realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
 
             auto byob_controller = m_byob_branch->controller()->get<JS::NonnullGCPtr<ReadableByteStreamController>>();
             auto other_controller = m_other_branch->controller()->get<JS::NonnullGCPtr<ReadableByteStreamController>>();
