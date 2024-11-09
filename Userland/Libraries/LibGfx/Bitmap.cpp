@@ -18,9 +18,6 @@
 #include <LibGfx/Bitmap.h>
 #include <LibGfx/ImageFormats/ImageDecoder.h>
 #include <LibGfx/ShareableBitmap.h>
-#include <LibIPC/Decoder.h>
-#include <LibIPC/Encoder.h>
-#include <LibIPC/File.h>
 #include <errno.h>
 
 namespace Gfx {
@@ -278,53 +275,6 @@ bool Bitmap::visually_equals(Bitmap const& other) const
     }
 
     return true;
-}
-
-}
-
-namespace IPC {
-
-template<>
-ErrorOr<void> encode(Encoder& encoder, AK::NonnullRefPtr<Gfx::Bitmap> const& bitmap)
-{
-    Core::AnonymousBuffer buffer;
-    if (bitmap->anonymous_buffer().is_valid()) {
-        buffer = bitmap->anonymous_buffer();
-    } else {
-        buffer = MUST(Core::AnonymousBuffer::create_with_size(bitmap->size_in_bytes()));
-        memcpy(buffer.data<void>(), bitmap->scanline(0), bitmap->size_in_bytes());
-    }
-    TRY(encoder.encode(TRY(IPC::File::clone_fd(buffer.fd()))));
-    TRY(encoder.encode(static_cast<u32>(bitmap->format())));
-    TRY(encoder.encode(static_cast<u32>(bitmap->alpha_type())));
-    TRY(encoder.encode(bitmap->size_in_bytes()));
-    TRY(encoder.encode(bitmap->pitch()));
-    TRY(encoder.encode(bitmap->size()));
-    return {};
-}
-
-template<>
-ErrorOr<AK::NonnullRefPtr<Gfx::Bitmap>> decode(Decoder& decoder)
-{
-    auto anon_file = TRY(decoder.decode<IPC::File>());
-
-    auto raw_bitmap_format = TRY(decoder.decode<u32>());
-    if (!Gfx::is_valid_bitmap_format(raw_bitmap_format))
-        return Error::from_string_literal("IPC: Invalid Gfx::ShareableBitmap format");
-    auto bitmap_format = static_cast<Gfx::BitmapFormat>(raw_bitmap_format);
-
-    auto raw_alpha_type = TRY(decoder.decode<u32>());
-    if (!Gfx::is_valid_alpha_type(raw_alpha_type))
-        return Error::from_string_literal("IPC: Invalid Gfx::ShareableBitmap alpha type");
-    auto alpha_type = static_cast<Gfx::AlphaType>(raw_alpha_type);
-
-    auto size_in_bytes = TRY(decoder.decode<size_t>());
-    auto pitch = TRY(decoder.decode<size_t>());
-    auto size = TRY(decoder.decode<Gfx::IntSize>());
-    auto* data = TRY(Core::System::mmap(nullptr, round_up_to_power_of_two(size_in_bytes, PAGE_SIZE), PROT_READ | PROT_WRITE, MAP_SHARED, anon_file.fd(), 0));
-    return Gfx::Bitmap::create_wrapper(bitmap_format, alpha_type, size, pitch, data, [data, size_in_bytes] {
-        MUST(Core::System::munmap(data, size_in_bytes));
-    });
 }
 
 }
