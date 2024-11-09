@@ -132,7 +132,6 @@ else()
 endif()
 
 add_subdirectory(Headless)
-add_subdirectory(RequestServer)
 add_subdirectory(WebContent)
 add_subdirectory(WebWorker)
 

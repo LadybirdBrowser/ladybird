@@ -1,2 +1,3 @@
 add_subdirectory(ImageDecoder)
+add_subdirectory(RequestServer)
 add_subdirectory(WebDriver)
