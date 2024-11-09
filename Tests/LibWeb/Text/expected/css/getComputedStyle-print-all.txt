@@ -96,7 +96,7 @@ clear: none
 clip: auto
 clip-path: none
 column-count: auto
-column-gap: auto
+column-gap: normal
 column-span: none
 column-width: auto
 content: normal
@@ -172,7 +172,7 @@ position: static
 r: 0px
 right: auto
 rotate: none
-row-gap: auto
+row-gap: normal
 rx: auto
 ry: auto
 scrollbar-gutter: auto

@@ -185,9 +185,9 @@ private:
     bool has_gaps(GridDimension const dimension) const
     {
         if (dimension == GridDimension::Column) {
-            return !grid_container().computed_values().column_gap().is_auto();
+            return !grid_container().computed_values().column_gap().has<CSS::NormalGap>();
         } else {
-            return !grid_container().computed_values().row_gap().is_auto();
+            return !grid_container().computed_values().row_gap().has<CSS::NormalGap>();
         }
     }
 

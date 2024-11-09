@@ -6,24 +6,24 @@ Rerun
 
 Found 18 tests
 
-5 Pass
-13 Fail
+16 Pass
+2 Fail
 Details
-Result	Test Name	MessageFail	Default column-gap is 'normal'	
+Result	Test Name	MessagePass	Default column-gap is 'normal'	
 Pass	column-gap accepts pixels	
 Pass	column-gap accepts em	
 Pass	column-gap accepts vw	
 Pass	column-gap accepts percentage	
 Fail	column-gap accepts calc()	
 Fail	column-gap accepts calc() mixing fixed and percentage values	
-Fail	Initial column-gap is 'normal'	
-Fail	Initial column-gap is 'normal' 2	
-Fail	Initial inherited column-gap is 'normal'	
+Pass	Initial column-gap is 'normal'	
+Pass	Initial column-gap is 'normal' 2	
+Pass	Initial inherited column-gap is 'normal'	
 Pass	column-gap is inheritable	
-Fail	Negative column-gap is invalid	
-Fail	'max-content' column-gap is invalid	
-Fail	'none' column-gap is invalid	
-Fail	column-gap with multiple values is invalid	
-Fail	Angle column-gap is invalid	
-Fail	Resolution column-gap is invalid	
-Fail	Time column-gap is invalid	
+Pass	Negative column-gap is invalid	
+Pass	'max-content' column-gap is invalid	
+Pass	'none' column-gap is invalid	
+Pass	column-gap with multiple values is invalid	
+Pass	Angle column-gap is invalid	
+Pass	Resolution column-gap is invalid	
+Pass	Time column-gap is invalid	

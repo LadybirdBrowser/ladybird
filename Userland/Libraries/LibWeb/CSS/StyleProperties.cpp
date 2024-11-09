@@ -127,6 +127,26 @@ CSSStyleValue const* StyleProperties::maybe_null_property(CSS::PropertyID proper
     return m_data->m_property_values[to_underlying(property_id)];
 }
 
+Variant<LengthPercentage, NormalGap> StyleProperties::gap_value(CSS::PropertyID id) const
+{
+    auto const& value = property(id);
+    if (value.is_keyword()) {
+        VERIFY(value.as_keyword().keyword() == CSS::Keyword::Normal);
+        return NormalGap {};
+    }
+
+    if (value.is_math())
+        return LengthPercentage { const_cast<CSSMathValue&>(value.as_math()) };
+
+    if (value.is_percentage())
+        return LengthPercentage { value.as_percentage().percentage() };
+
+    if (value.is_length())
+        return LengthPercentage { value.as_length().length() };
+
+    VERIFY_NOT_REACHED();
+}
+
 CSS::Size StyleProperties::size_value(CSS::PropertyID id) const
 {
     auto const& value = property(id);

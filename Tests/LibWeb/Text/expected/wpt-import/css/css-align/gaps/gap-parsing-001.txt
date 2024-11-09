@@ -6,10 +6,10 @@ Rerun
 
 Found 26 tests
 
-10 Pass
-16 Fail
+21 Pass
+5 Fail
 Details
-Result	Test Name	MessageFail	Default gap is 'normal'	
+Result	Test Name	MessagePass	Default gap is 'normal'	
 Pass	gap accepts pixels	
 Pass	gap accepts pixels 2	
 Pass	gap accepts pixels combined with percentage	
@@ -22,16 +22,16 @@ Pass	gap accepts percentage 2
 Fail	gap accepts calc()	
 Fail	gap accepts calc() mixing fixed and percentage values	
 Fail	gap accepts calc() 2	
-Fail	Initial gap is 'normal'	
-Fail	Initial gap is 'normal' 2	
-Fail	Initial inherited gap is 'normal'	
+Pass	Initial gap is 'normal'	
+Pass	Initial gap is 'normal' 2	
+Pass	Initial inherited gap is 'normal'	
 Pass	gap is inheritable	
-Fail	Negative gap is invalid	
-Fail	'max-content' gap is invalid	
-Fail	'none' gap is invalid	
-Fail	Angle gap is invalid	
-Fail	Resolution gap is invalid	
-Fail	Time gap is invalid	
-Fail	gap with three values is invalid	
+Pass	Negative gap is invalid	
+Pass	'max-content' gap is invalid	
+Pass	'none' gap is invalid	
+Pass	Angle gap is invalid	
+Pass	Resolution gap is invalid	
+Pass	Time gap is invalid	
+Pass	gap with three values is invalid	
 Fail	gap with slash is invalid	
 Fail	gap with one wrong value is invalid	

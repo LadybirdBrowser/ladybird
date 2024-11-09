@@ -874,13 +874,13 @@
   "column-gap": {
     "animation-type": "by-computed-value",
     "inherited": false,
-    "initial": "auto",
+    "initial": "normal",
     "valid-types": [
       "length [0,∞]",
       "percentage [0,∞]"
     ],
     "valid-identifiers": [
-      "auto"
+      "normal"
     ],
     "percentages-resolve-to": "length"
   },
@@ -1284,14 +1284,14 @@
   },
   "gap": {
     "inherited": false,
-    "initial": "auto",
+    "initial": "normal",
     "valid-types": [
       "length [0,∞]",
       "percentage [0,∞]"
     ],
     "max-values": 2,
     "valid-identifiers": [
-      "auto"
+      "normal"
     ],
     "percentages-resolve-to": "length",
     "longhands": [
@@ -2311,13 +2311,13 @@
   "row-gap": {
     "animation-type": "by-computed-value",
     "inherited": false,
-    "initial": "auto",
+    "initial": "normal",
     "valid-types": [
       "length [0,∞]",
       "percentage [0,∞]"
     ],
     "valid-identifiers": [
-      "auto"
+      "normal"
     ],
     "percentages-resolve-to": "length"
   },

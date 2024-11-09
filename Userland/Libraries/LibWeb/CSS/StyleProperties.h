@@ -87,6 +87,7 @@ public:
     void set_transition_property_source(JS::GCPtr<CSS::CSSStyleDeclaration const> declaration) { m_data->m_transition_property_source = declaration; }
 
     CSS::Size size_value(CSS::PropertyID) const;
+    [[nodiscard]] Variant<LengthPercentage, NormalGap> gap_value(CSS::PropertyID) const;
     LengthPercentage length_percentage_or_fallback(CSS::PropertyID, LengthPercentage const& fallback) const;
     Optional<LengthPercentage> length_percentage(CSS::PropertyID) const;
     LengthBox length_box(CSS::PropertyID left_id, CSS::PropertyID top_id, CSS::PropertyID right_id, CSS::PropertyID bottom_id, const CSS::Length& default_value) const;
