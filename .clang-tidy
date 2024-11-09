@@ -46,7 +46,7 @@ Checks: >
   -readability-uppercase-literal-suffix,
   -readability-use-anyofallof,
 WarningsAsErrors: ''
-HeaderFilterRegex: 'AK|Userland|Tests'
+HeaderFilterRegex: 'AK|Libraries|Services|Tests|Utilities'
 FormatStyle: none
 CheckOptions:
   - key: bugprone-dangling-handle.HandleClasses

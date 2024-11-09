@@ -9,7 +9,7 @@ set(SOURCES
 
 add_executable(headless-browser ${SOURCES})
 target_include_directories(headless-browser PRIVATE ${CMAKE_CURRENT_BINARY_DIR})
-target_include_directories(headless-browser PRIVATE ${LADYBIRD_SOURCE_DIR}/Userland/)
+target_include_directories(headless-browser PRIVATE ${LADYBIRD_SOURCE_DIR})
 target_link_libraries(headless-browser PRIVATE ${LADYBIRD_LIBS} LibDiff)
 
 if (BUILD_TESTING)

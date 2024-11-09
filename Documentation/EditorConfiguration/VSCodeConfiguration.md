@@ -59,11 +59,9 @@ following ``c_cpp_properties.json`` to circumvent some errors. Even with the con
             "includePath": [
                 "${workspaceFolder}",
                 "${workspaceFolder}/Build/release/",
-                "${workspaceFolder}/Build/release/Userland",
-                "${workspaceFolder}/Build/release/Userland/Libraries",
+                "${workspaceFolder}/Build/release/Libraries",
                 "${workspaceFolder}/Build/release/Services",
-                "${workspaceFolder}/Userland",
-                "${workspaceFolder}/Userland/Libraries",
+                "${workspaceFolder}/Libraries",
                 "${workspaceFolder}/Services"
             ],
             "defines": [
@@ -82,11 +80,9 @@ following ``c_cpp_properties.json`` to circumvent some errors. Even with the con
                 "path": [
                     "${workspaceFolder}",
                     "${workspaceFolder}/Build/release/",
-                    "${workspaceFolder}/Build/release/Userland",
-                    "${workspaceFolder}/Build/release/Userland/Libraries",
+                    "${workspaceFolder}/Build/release/Libraries",
                     "${workspaceFolder}/Build/release/Services",
-                    "${workspaceFolder}/Userland",
-                    "${workspaceFolder}/Userland/Libraries",
+                    "${workspaceFolder}/Libraries",
                     "${workspaceFolder}/Services"
                 ],
                 "limitSymbolsToIncludedHeaders": true,

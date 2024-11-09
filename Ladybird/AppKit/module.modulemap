@@ -13,7 +13,7 @@ module Ladybird [system] {
     }
 
     explicit module WebViewApplication {
-        header "../../Userland/Libraries/LibWebView/Application.h"
+        header "../../Libraries/LibWebView/Application.h"
         export *
     }
 }

@@ -22,12 +22,10 @@ First, make sure you have a working toolchain and can build and run Ladybird. Go
 * Edit the `ladybird.includes` file to list the following lines:
     ```
     ./
-    Userland/
-    Userland/Libraries/
+    Libraries/
     Services/
     Build/release/
-    Build/release/Userland/
-    Build/release/Userland/Libraries/
+    Build/release/Libraries/
     Build/release/Services/
     AK/
     ```

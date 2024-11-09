@@ -14,10 +14,7 @@ if [ "$#" -eq "1" ]; then
             '*.cpp' \
             '*.h' \
             '*.mm' \
-            ':!:Base' \
-            ':!:Userland/Libraries/LibCodeComprehension/Cpp/Tests/*' \
-            ':!:Userland/Libraries/LibCpp/Tests/parser/*' \
-            ':!:Userland/Libraries/LibCpp/Tests/preprocessor/*'
+            ':!:Base'
     )
 else
     files=()

@@ -73,7 +73,7 @@ Nobody is perfect, and sometimes we mess things up. That said, here are some goo
 * Wrap your commit messages at 72 characters.
 * The first line of the commit message is the subject line, and must have the format "Category: Brief description of what's being changed". The category should be the name of a library, application, service, utility, etc.
   * Examples: `LibMedia`, `WebContent`, `CI`, `AK`, `RequestServer`, `js`
-  * Don't use a category like "`Userland`" or "`Utilities`", except for generic changes that affect a large portion of code within these directories.
+  * Don't use a category like "`Libraries`" or "`Utilities`", except for generic changes that affect a large portion of code within these directories.
   * Don't use specific component names, e.g. C++ class names, as the category either - mention them in the summary instead. E.g. `LibGUI: Brief description of what's being changed in FooWidget` rather than `FooWidget: Brief description of what's being changed`
   * Several categories may be combined with `+`, e.g. `LibJS+LibWeb+Browser: ...`
 * Write the commit message subject line in the imperative mood ("Foo: Change the way dates work", not "Foo: Changed the way dates work").

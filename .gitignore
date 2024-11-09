@@ -40,8 +40,8 @@ local.properties
 # We can't build from cmd.exe anyway
 gradlew.bat
 
-Userland/Libraries/LibWasm/Tests/Fixtures/SpecTests
-Userland/Libraries/LibWasm/Tests/Spec
+Libraries/LibWasm/Tests/Fixtures/SpecTests
+Libraries/LibWasm/Tests/Spec
 
 Tests/LibWeb/WPT/wpt
 Tests/LibWeb/WPT/metadata
