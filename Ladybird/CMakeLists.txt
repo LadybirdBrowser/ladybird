@@ -135,7 +135,6 @@ add_subdirectory(Headless)
 add_subdirectory(ImageDecoder)
 add_subdirectory(RequestServer)
 add_subdirectory(WebContent)
-add_subdirectory(WebDriver)
 add_subdirectory(WebWorker)
 
 set(ladybird_helper_processes ImageDecoder RequestServer WebContent WebWorker)
