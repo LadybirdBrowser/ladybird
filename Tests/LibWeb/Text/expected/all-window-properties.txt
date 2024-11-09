@@ -107,6 +107,7 @@ FileList
 FileReader
 FileSystemEntry
 FinalizationRegistry
+Float16Array
 Float32Array
 Float64Array
 FocusEvent
