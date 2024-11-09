@@ -28,11 +28,8 @@ public:
     IntRect rect() const { return m_bitmap->rect(); }
     IntSize size() const { return m_bitmap->size(); }
 
-    size_t id() const { return m_id; }
-
 private:
     NonnullRefPtr<Bitmap> m_bitmap;
-    size_t m_id;
 
     explicit ImmutableBitmap(NonnullRefPtr<Bitmap> bitmap);
 };
