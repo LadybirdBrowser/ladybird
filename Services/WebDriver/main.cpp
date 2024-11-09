@@ -5,7 +5,6 @@
  */
 
 #include <AK/Platform.h>
-#include <Ladybird/Utilities.h>
 #include <LibCore/ArgsParser.h>
 #include <LibCore/Directory.h>
 #include <LibCore/EventLoop.h>
@@ -15,6 +14,7 @@
 #include <LibCore/TCPServer.h>
 #include <LibMain/Main.h>
 #include <LibWeb/WebDriver/Capabilities.h>
+#include <UI/Utilities.h>
 #include <WebDriver/Client.h>
 
 static Vector<ByteString> certificates;

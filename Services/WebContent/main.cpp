@@ -5,9 +5,6 @@
  */
 
 #include <AK/LexicalPath.h>
-#include <Ladybird/FontPlugin.h>
-#include <Ladybird/ImageCodecPlugin.h>
-#include <Ladybird/Utilities.h>
 #include <LibCore/ArgsParser.h>
 #include <LibCore/EventLoop.h>
 #include <LibCore/LocalServer.h>
@@ -29,16 +26,19 @@
 #include <LibWeb/PermissionsPolicy/AutoplayAllowlist.h>
 #include <LibWeb/Platform/AudioCodecPluginAgnostic.h>
 #include <LibWeb/Platform/EventLoopPluginSerenity.h>
+#include <UI/FontPlugin.h>
+#include <UI/ImageCodecPlugin.h>
+#include <UI/Utilities.h>
 #include <WebContent/ConnectionFromClient.h>
 #include <WebContent/PageClient.h>
 #include <WebContent/WebDriverConnection.h>
 
 #if defined(HAVE_QT)
-#    include <Ladybird/Qt/EventLoopImplementationQt.h>
 #    include <QCoreApplication>
+#    include <UI/Qt/EventLoopImplementationQt.h>
 
 #    if defined(HAVE_QT_MULTIMEDIA)
-#        include <Ladybird/Qt/AudioCodecPluginQt.h>
+#        include <UI/Qt/AudioCodecPluginQt.h>
 #    endif
 #endif
 

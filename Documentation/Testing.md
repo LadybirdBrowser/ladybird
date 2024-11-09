@@ -12,9 +12,9 @@ Tests of internal C++ code go in their own `TestFoo.cpp` file in `Tests/LibWeb`.
 > To reproduce a CI failure, see the section on [Running with Sanitizers](#running-with-sanitizers).
 
 The easiest way to run tests is to use the `ladybird.sh` script. The LibWeb tests are registered with CMake as a test in
-`Ladybird/CMakeLists.txt`. Using the built-in test filtering, you can run all tests with `Meta/ladybird.sh test` or run
+`UI/CMakeLists.txt`. Using the built-in test filtering, you can run all tests with `Meta/ladybird.sh test` or run
 just the LibWeb tests with `Meta/ladybird.sh test LibWeb`. The second way is to invoke the headless browser test runner
-directly. See the invocation in `Ladybird/CMakeLists.txt` for the expected command line arguments.
+directly. See the invocation in `UI/CMakeLists.txt` for the expected command line arguments.
 
 A third way is to invoke `ctest` directly. The simplest method is to use the `default` preset from ``CMakePresets.json``:
 

@@ -12,11 +12,11 @@ Ensure that your system has the following tools available:
 
 ## Opening the project
 
-After opening the ``ladybird`` directory in Android Studio (NOT the Ladybird/Android directory!)
+After opening the ``ladybird`` directory in Android Studio (NOT the UI/Android directory!)
 there should be a pop-up in the bottom left indicating that an Android Gradle project was detected
-in ``Ladybird/Android``.
+in ``UI/Android``.
 
-In the top left of the screen in the Project view, navigate to ``Ladybird/Android``. Or, click the
+In the top left of the screen in the Project view, navigate to ``UI/Android``. Or, click the
 highlighted text in the notification for that path. Open the ``settings.gradle.kts`` file. At the
 top of the file should be a banner that says ``Code Insight unavailable (related Gradle project not
 linked).`` Click the ``Link Gradle project`` text on the right side of the banner. After the IDE

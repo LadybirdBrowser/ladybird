@@ -1,9 +1,9 @@
 include(fontconfig)
 
 set(WEBWORKER_SOURCES
-    ${LADYBIRD_SOURCE_DIR}/Ladybird/FontPlugin.cpp
-    ${LADYBIRD_SOURCE_DIR}/Ladybird/HelperProcess.cpp
-    ${LADYBIRD_SOURCE_DIR}/Ladybird/Utilities.cpp
+    ${LADYBIRD_SOURCE_DIR}/UI/FontPlugin.cpp
+    ${LADYBIRD_SOURCE_DIR}/UI/HelperProcess.cpp
+    ${LADYBIRD_SOURCE_DIR}/UI/Utilities.cpp
     ConnectionFromClient.cpp
     DedicatedWorkerHost.cpp
     PageHost.cpp
@@ -26,9 +26,9 @@ endif()
 
 if (ENABLE_QT)
     qt_add_executable(WebWorker
-        ${LADYBIRD_SOURCE_DIR}/Ladybird/Qt/EventLoopImplementationQt.cpp
-        ${LADYBIRD_SOURCE_DIR}/Ladybird/Qt/EventLoopImplementationQtEventTarget.cpp
-        ${LADYBIRD_SOURCE_DIR}/Ladybird/Qt/StringUtils.cpp
+        ${LADYBIRD_SOURCE_DIR}/UI/Qt/EventLoopImplementationQt.cpp
+        ${LADYBIRD_SOURCE_DIR}/UI/Qt/EventLoopImplementationQtEventTarget.cpp
+        ${LADYBIRD_SOURCE_DIR}/UI/Qt/StringUtils.cpp
         main.cpp
     )
     target_link_libraries(WebWorker PRIVATE Qt::Core)

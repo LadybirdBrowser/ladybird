@@ -1,5 +1,5 @@
 set(SOURCES
-    ${LADYBIRD_SOURCE_DIR}/Ladybird/Utilities.cpp
+    ${LADYBIRD_SOURCE_DIR}/UI/Utilities.cpp
     Client.cpp
     Session.cpp
     WebContentConnection.cpp

@@ -191,7 +191,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: libweb-test-artifacts-${{ inputs.os_name }}
-          path: ${{ github.workspace }}/Build/Ladybird/test-dumps
+          path: ${{ github.workspace }}/Build/UI/test-dumps
           retention-days: 7
           if-no-files-found: ignore
 

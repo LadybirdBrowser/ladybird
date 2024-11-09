@@ -4,9 +4,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <Ladybird/FontPlugin.h>
-#include <Ladybird/HelperProcess.h>
-#include <Ladybird/Utilities.h>
 #include <LibCore/ArgsParser.h>
 #include <LibCore/EventLoop.h>
 #include <LibCore/LocalServer.h>
@@ -22,11 +19,14 @@
 #include <LibWeb/Platform/EventLoopPlugin.h>
 #include <LibWeb/Platform/EventLoopPluginSerenity.h>
 #include <LibWeb/WebSockets/WebSocket.h>
+#include <UI/FontPlugin.h>
+#include <UI/HelperProcess.h>
+#include <UI/Utilities.h>
 #include <WebWorker/ConnectionFromClient.h>
 
 #if defined(HAVE_QT)
-#    include <Ladybird/Qt/EventLoopImplementationQt.h>
 #    include <QCoreApplication>
+#    include <UI/Qt/EventLoopImplementationQt.h>
 #endif
 
 static ErrorOr<void> initialize_resource_loader(JS::Heap&, int request_server_socket);

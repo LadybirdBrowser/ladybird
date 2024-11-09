@@ -188,7 +188,7 @@ pkgman install cmake cmd:python3 ninja openal_devel qt6_base_devel qt6_multimedi
 ### Android:
 
 On a Unix-like platform, install the prerequisites for that platform and then see the [Android Studio guide](EditorConfiguration/AndroidStudioConfiguration.md).
-Or, download a version of Gradle >= 8.0.0, and run the ``gradlew`` program in ``Ladybird/Android``
+Or, download a version of Gradle >= 8.0.0, and run the ``gradlew`` program in ``UI/Android``
 
 ## Build steps
 
@@ -281,7 +281,7 @@ The script Meta/ladybird.sh and the default preset in CMakePresets.json both def
 `Build/release`. For distribution purposes, or when building multiple configurations, it may be useful to create a custom
 CMake build directory.
 
-The install rules in Ladybird/cmake/InstallRules.cmake define which binaries and libraries will be
+The install rules in UI/cmake/InstallRules.cmake define which binaries and libraries will be
 installed into the configured CMAKE_PREFIX_PATH or path passed to ``cmake --install``.
 
 Note that when using a custom build directory rather than Meta/ladybird.sh, the user may need to provide
