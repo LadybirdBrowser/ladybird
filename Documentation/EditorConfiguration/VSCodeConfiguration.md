@@ -61,10 +61,10 @@ following ``c_cpp_properties.json`` to circumvent some errors. Even with the con
                 "${workspaceFolder}/Build/release/",
                 "${workspaceFolder}/Build/release/Userland",
                 "${workspaceFolder}/Build/release/Userland/Libraries",
-                "${workspaceFolder}/Build/release/Userland/Services",
+                "${workspaceFolder}/Build/release/Services",
                 "${workspaceFolder}/Userland",
                 "${workspaceFolder}/Userland/Libraries",
-                "${workspaceFolder}/Userland/Services"
+                "${workspaceFolder}/Services"
             ],
             "defines": [
                 "DEBUG"
@@ -84,10 +84,10 @@ following ``c_cpp_properties.json`` to circumvent some errors. Even with the con
                     "${workspaceFolder}/Build/release/",
                     "${workspaceFolder}/Build/release/Userland",
                     "${workspaceFolder}/Build/release/Userland/Libraries",
-                    "${workspaceFolder}/Build/release/Userland/Services",
+                    "${workspaceFolder}/Build/release/Services",
                     "${workspaceFolder}/Userland",
                     "${workspaceFolder}/Userland/Libraries",
-                    "${workspaceFolder}/Userland/Services"
+                    "${workspaceFolder}/Services"
                 ],
                 "limitSymbolsToIncludedHeaders": true,
                 "databaseFilename": "${workspaceFolder}/Build/release/"
@@ -290,7 +290,7 @@ The following three example tasks should suffice in most situations, and allow y
 #### Mac
 If you want to run the debugger, first place the content below in `.vscode/launch.json` in the root of the project.
 
-```json 
+```json
 {
     "version": "0.2.0",
     "configurations": [
@@ -310,7 +310,7 @@ then run Ladybird with the debug preset and with the `--debug-process WebContent
 CC=$(brew --prefix llvm)/bin/clang CXX=$(brew --prefix llvm)/bin/clang++ BUILD_PRESET=Debug ./Meta/ladybird.sh run ladybird --debug-process WebContent
 ```
 
-Running Ladybird in this way will pause execution until a debugger is attached. You can then run the debugger by going to the **Run and Debug** menu and selecting the **Attach to WebContent** configuration. 
+Running Ladybird in this way will pause execution until a debugger is attached. You can then run the debugger by going to the **Run and Debug** menu and selecting the **Attach to WebContent** configuration.
 
 #### Linux
 For Linux, the `launch.json` will instead be the file below.

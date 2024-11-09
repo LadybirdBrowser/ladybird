@@ -34,12 +34,12 @@ compile_ipc(UIProcessClient.ipc UIProcessClientEndpoint.h)
 
 set(GENERATED_SOURCES
     ${GENERATED_SOURCES}
-    ../../Services/RequestServer/RequestClientEndpoint.h
-    ../../Services/RequestServer/RequestServerEndpoint.h
-    ../../Services/WebContent/WebContentClientEndpoint.h
-    ../../Services/WebContent/WebContentServerEndpoint.h
-    ../../Services/WebContent/WebDriverClientEndpoint.h
-    ../../Services/WebContent/WebDriverServerEndpoint.h
+    ../../../Services/RequestServer/RequestClientEndpoint.h
+    ../../../Services/RequestServer/RequestServerEndpoint.h
+    ../../../Services/WebContent/WebContentClientEndpoint.h
+    ../../../Services/WebContent/WebContentServerEndpoint.h
+    ../../../Services/WebContent/WebDriverClientEndpoint.h
+    ../../../Services/WebContent/WebDriverServerEndpoint.h
     NativeStyleSheetSource.cpp
     UIProcessClientEndpoint.h
     UIProcessServerEndpoint.h

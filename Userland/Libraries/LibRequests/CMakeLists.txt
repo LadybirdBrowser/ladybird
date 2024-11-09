@@ -6,8 +6,8 @@ set(SOURCES
 )
 
 set(GENERATED_SOURCES
-    ../../Services/RequestServer/RequestClientEndpoint.h
-    ../../Services/RequestServer/RequestServerEndpoint.h
+    ../../../Services/RequestServer/RequestClientEndpoint.h
+    ../../../Services/RequestServer/RequestServerEndpoint.h
 )
 
 serenity_lib(LibRequests requests)

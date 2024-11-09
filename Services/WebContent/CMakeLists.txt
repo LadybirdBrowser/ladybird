@@ -30,7 +30,7 @@ else()
 endif()
 
 target_include_directories(webcontentservice PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/../..>)
-target_include_directories(webcontentservice PUBLIC $<BUILD_INTERFACE:${LADYBIRD_SOURCE_DIR}/Userland/Services/>)
+target_include_directories(webcontentservice PUBLIC $<BUILD_INTERFACE:${LADYBIRD_SOURCE_DIR}/Services/>)
 target_include_directories(webcontentservice PUBLIC $<BUILD_INTERFACE:${LADYBIRD_SOURCE_DIR}/Userland/>)
 
 target_link_libraries(webcontentservice PUBLIC LibCore LibFileSystem LibGfx LibIPC LibJS LibMain LibMedia LibWeb LibWebSocket LibRequests LibWebView LibImageDecoderClient)
@@ -72,7 +72,7 @@ target_sources(webcontentservice PUBLIC FILE_SET ladybird TYPE HEADERS
           ${LADYBIRD_SOURCE_DIR}/Ladybird/ImageCodecPlugin.h
 )
 target_sources(webcontentservice PUBLIC FILE_SET server TYPE HEADERS
-    BASE_DIRS ${LADYBIRD_SOURCE_DIR}/Userland/Services
+    BASE_DIRS ${LADYBIRD_SOURCE_DIR}/Services
     FILES ConnectionFromClient.h
           ConsoleGlobalEnvironmentExtensions.h
           Forward.h
