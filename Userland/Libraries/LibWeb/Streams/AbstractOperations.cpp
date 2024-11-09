@@ -4255,7 +4255,7 @@ JS::NonnullGCPtr<WebIDL::Promise> writable_stream_default_writer_write(WritableS
     auto controller = stream->controller();
 
     // 4. Let chunkSize be ! WritableStreamDefaultControllerGetChunkSize(controller, chunk).
-    auto chunk_size = writable_stream_default_controller_get_chunk_size(*controller, chunk);
+    // NOTE: See FIXME below
 
     // 5. If stream is not equal to writer.[[stream]], return a promise rejected with a TypeError exception.
     if (stream.ptr() != writer.stream().ptr()) {
@@ -4279,6 +4279,11 @@ JS::NonnullGCPtr<WebIDL::Promise> writable_stream_default_writer_write(WritableS
     // 9. If state is "erroring", return a promise rejected with stream.[[storedError]].
     if (state == WritableStream::State::Erroring)
         return WebIDL::create_rejected_promise(realm, stream->stored_error());
+
+    // 4. Let chunkSize be ! WritableStreamDefaultControllerGetChunkSize(controller, chunk).
+    // FIXME: This is out of order due to a spec bug: https://github.com/whatwg/streams/issues/1331
+    //        An abort clears the strategySizeAlgorithm, so we need to move this past the "erroring" check
+    auto chunk_size = writable_stream_default_controller_get_chunk_size(*controller, chunk);
 
     // 10. Assert: state is "writable".
     VERIFY(state == WritableStream::State::Writable);
