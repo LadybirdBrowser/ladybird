@@ -280,15 +280,12 @@ ErrorOr<void> MessagePort::send_message_on_transport(SerializedTransferRecord co
 
 void MessagePort::post_port_message(SerializedTransferRecord serialize_with_transfer_result)
 {
-    // FIXME: Use the correct task source?
-    queue_global_task(Task::Source::PostedMessage, relevant_global_object(*this), JS::create_heap_function(heap(), [this, serialize_with_transfer_result = move(serialize_with_transfer_result)]() mutable {
-        if (!m_transport.has_value() || !m_transport->is_open())
-            return;
-        if (auto result = send_message_on_transport(serialize_with_transfer_result); result.is_error()) {
-            dbgln("Failed to post message: {}", result.error());
-            disentangle();
-        }
-    }));
+    if (!m_transport.has_value() || !m_transport->is_open())
+        return;
+    if (auto result = send_message_on_transport(serialize_with_transfer_result); result.is_error()) {
+        dbgln("Failed to post message: {}", result.error());
+        disentangle();
+    }
 }
 
 ErrorOr<MessagePort::ParseDecision> MessagePort::parse_message()
@@ -324,7 +321,11 @@ ErrorOr<MessagePort::ParseDecision> MessagePort::parse_message()
 
         m_buffered_data.remove(0, HEADER_SIZE + m_socket_incoming_message_size);
 
-        post_message_task_steps(serialized_transfer_record);
+        // Note: this is step 7 of message_port_post_message_steps:
+        // 7. Add a task that runs the following steps to the port message queue of targetPort:
+        queue_global_task(Task::Source::PostedMessage, relevant_global_object(*this), JS::create_heap_function(heap(), [this, serialized_transfer_record = move(serialized_transfer_record)]() mutable {
+            this->post_message_task_steps(serialized_transfer_record);
+        }));
 
         break;
     }
