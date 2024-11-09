@@ -177,11 +177,11 @@ configure_file(../../AK/Debug.h.in AK/Debug.h @ONLY)
 include_directories(../../)
 include_directories(../../Userland/)
 include_directories(../../Userland/Libraries/)
-include_directories(../../Userland/Services)
+include_directories(../../Services)
 include_directories(${CMAKE_BINARY_DIR})
 include_directories(${CMAKE_CURRENT_BINARY_DIR})
 include_directories(${CMAKE_CURRENT_BINARY_DIR}/Userland/Libraries)
-include_directories(${CMAKE_CURRENT_BINARY_DIR}/Userland/Services)
+include_directories(${CMAKE_CURRENT_BINARY_DIR}/Services)
 
 # install rules, think about moving to its own helper cmake file
 include(CMakePackageConfigHelpers)
@@ -234,7 +234,7 @@ function(lagom_lib target_name fs_name)
         target_include_directories(${target_name} INTERFACE
             $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/Services>
             $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/Userland/Libraries>
-            $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/Userland/Services>
+            $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/Services>
         )
     endif()
     add_lagom_library_install_rules(${target_name} ALIAS_NAME ${library})
@@ -425,12 +425,12 @@ if (HAIKU)
     target_link_libraries(LibCore PRIVATE network)
 endif()
 
-compile_ipc(${SERENITY_PROJECT_ROOT}/Userland/Services/RequestServer/RequestClient.ipc Userland/Services/RequestServer/RequestClientEndpoint.h)
-compile_ipc(${SERENITY_PROJECT_ROOT}/Userland/Services/RequestServer/RequestServer.ipc Userland/Services/RequestServer/RequestServerEndpoint.h)
-compile_ipc(${SERENITY_PROJECT_ROOT}/Userland/Services/WebContent/WebContentServer.ipc Userland/Services/WebContent/WebContentServerEndpoint.h)
-compile_ipc(${SERENITY_PROJECT_ROOT}/Userland/Services/WebContent/WebContentClient.ipc Userland/Services/WebContent/WebContentClientEndpoint.h)
-compile_ipc(${SERENITY_PROJECT_ROOT}/Userland/Services/WebContent/WebDriverClient.ipc Userland/Services/WebContent/WebDriverClientEndpoint.h)
-compile_ipc(${SERENITY_PROJECT_ROOT}/Userland/Services/WebContent/WebDriverServer.ipc Userland/Services/WebContent/WebDriverServerEndpoint.h)
+compile_ipc(${SERENITY_PROJECT_ROOT}/Services/RequestServer/RequestClient.ipc Services/RequestServer/RequestClientEndpoint.h)
+compile_ipc(${SERENITY_PROJECT_ROOT}/Services/RequestServer/RequestServer.ipc Services/RequestServer/RequestServerEndpoint.h)
+compile_ipc(${SERENITY_PROJECT_ROOT}/Services/WebContent/WebContentServer.ipc Services/WebContent/WebContentServerEndpoint.h)
+compile_ipc(${SERENITY_PROJECT_ROOT}/Services/WebContent/WebContentClient.ipc Services/WebContent/WebContentClientEndpoint.h)
+compile_ipc(${SERENITY_PROJECT_ROOT}/Services/WebContent/WebDriverClient.ipc Services/WebContent/WebDriverClientEndpoint.h)
+compile_ipc(${SERENITY_PROJECT_ROOT}/Services/WebContent/WebDriverServer.ipc Services/WebContent/WebDriverServerEndpoint.h)
 
 foreach(lib IN LISTS lagom_standard_libraries)
     add_serenity_subdirectory("Userland/Libraries/Lib${lib}")

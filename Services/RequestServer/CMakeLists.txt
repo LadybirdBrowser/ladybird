@@ -23,7 +23,7 @@ find_package(CURL REQUIRED)
 add_executable(RequestServer main.cpp)
 
 target_include_directories(requestserverservice PRIVATE ${CMAKE_CURRENT_BINARY_DIR}/../..)
-target_include_directories(requestserverservice PRIVATE ${LADYBIRD_SOURCE_DIR}/Userland/Services/)
+target_include_directories(requestserverservice PRIVATE ${LADYBIRD_SOURCE_DIR}/Services/)
 
 target_link_libraries(RequestServer PRIVATE requestserverservice)
 target_link_libraries(requestserverservice PUBLIC LibCore LibMain LibCrypto LibFileSystem LibIPC LibMain LibTLS LibWebView LibWebSocket LibURL LibTextCodec LibThreading CURL::libcurl)

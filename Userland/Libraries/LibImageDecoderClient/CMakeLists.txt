@@ -3,13 +3,13 @@ set(SOURCES
 )
 
 if (NOT SERENITYOS)
-    compile_ipc(../../Services/ImageDecoder/ImageDecoderClient.ipc ../../Services/ImageDecoder/ImageDecoderClientEndpoint.h)
-    compile_ipc(../../Services/ImageDecoder/ImageDecoderServer.ipc ../../Services/ImageDecoder/ImageDecoderServerEndpoint.h)
+    compile_ipc(../../../Services/ImageDecoder/ImageDecoderClient.ipc ../../../Services/ImageDecoder/ImageDecoderClientEndpoint.h)
+    compile_ipc(../../../Services/ImageDecoder/ImageDecoderServer.ipc ../../../Services/ImageDecoder/ImageDecoderServerEndpoint.h)
 endif()
 
 set(GENERATED_SOURCES
-    ../../Services/ImageDecoder/ImageDecoderClientEndpoint.h
-    ../../Services/ImageDecoder/ImageDecoderServerEndpoint.h
+    ../../../Services/ImageDecoder/ImageDecoderClientEndpoint.h
+    ../../../Services/ImageDecoder/ImageDecoderServerEndpoint.h
 )
 
 serenity_lib(LibImageDecoderClient imagedecoderclient)

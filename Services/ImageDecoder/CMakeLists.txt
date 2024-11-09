@@ -20,7 +20,7 @@ endif()
 add_executable(ImageDecoder main.cpp)
 
 target_include_directories(imagedecoderservice PRIVATE ${CMAKE_CURRENT_BINARY_DIR}/../..)
-target_include_directories(imagedecoderservice PRIVATE ${LADYBIRD_SOURCE_DIR}/Userland/Services/)
+target_include_directories(imagedecoderservice PRIVATE ${LADYBIRD_SOURCE_DIR}/Services/)
 
 target_link_libraries(ImageDecoder PRIVATE imagedecoderservice LibCore LibMain)
 target_link_libraries(imagedecoderservice PRIVATE LibCore LibGfx LibIPC LibImageDecoderClient LibMain LibThreading)

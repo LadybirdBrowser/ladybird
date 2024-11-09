@@ -24,11 +24,11 @@ First, make sure you have a working toolchain and can build and run Ladybird. Go
     ./
     Userland/
     Userland/Libraries/
-    Userland/Services/
+    Services/
     Build/release/
     Build/release/Userland/
     Build/release/Userland/Libraries/
-    Build/release/Userland/Services/
+    Build/release/Services/
     AK/
     ```
 
