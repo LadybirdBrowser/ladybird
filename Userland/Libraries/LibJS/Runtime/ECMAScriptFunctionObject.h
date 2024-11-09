@@ -18,6 +18,7 @@ namespace JS {
 
 template<typename T>
 void async_block_start(VM&, T const& async_body, PromiseCapability const&, ExecutionContext&);
+#define async_block_start_statement async_block_start<NonnullRefPtr<Statement const>>
 
 template<typename T>
 void async_function_start(VM&, PromiseCapability const&, T const& async_function_body);
