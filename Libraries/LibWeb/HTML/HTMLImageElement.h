@@ -40,6 +40,13 @@ public:
 
     virtual void form_associated_element_attribute_changed(FlyString const& name, Optional<String> const& value) override;
 
+    Optional<String> alternative_text() const override
+    {
+        if (auto alt = get_attribute(HTML::AttributeNames::alt); alt.has_value())
+            return alt.release_value();
+        return {};
+    }
+
     String alt() const { return get_attribute_value(HTML::AttributeNames::alt); }
     String src() const { return get_attribute_value(HTML::AttributeNames::src); }
 

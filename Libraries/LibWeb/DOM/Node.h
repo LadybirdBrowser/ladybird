@@ -200,6 +200,8 @@ public:
 
     String base_uri() const;
 
+    virtual Optional<String> alternative_text() const;
+
     String descendant_text_content() const;
     Optional<String> text_content() const;
     void set_text_content(Optional<String> const&);

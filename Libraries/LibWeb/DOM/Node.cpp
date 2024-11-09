@@ -147,6 +147,11 @@ const HTML::HTMLElement* Node::enclosing_html_element_with_attribute(FlyString c
     return nullptr;
 }
 
+Optional<String> Node::alternative_text() const
+{
+    return {};
+}
+
 // https://dom.spec.whatwg.org/#concept-descendant-text-content
 String Node::descendant_text_content() const
 {
@@ -2320,11 +2325,8 @@ ErrorOr<String> Node::name_or_description(NameOrDescription target, Document con
         // element (e.g. HTML label or SVG title) that defines a text alternative, return that alternative in the form
         // of a flat string as defined by the host language, unless the element is marked as presentational
         // (role="presentation" or role="none").
-        if (role != ARIA::Role::presentation && role != ARIA::Role::none) {
-            if (is<HTML::HTMLImageElement>(*element)) {
-                if (auto alt = element->get_attribute(HTML::AttributeNames::alt); alt.has_value())
-                    return alt.release_value();
-            }
+        if (role != ARIA::Role::presentation && role != ARIA::Role::none && is<HTML::HTMLImageElement>(*element)) {
+            return element->alternative_text().release_value();
             // TODO: Add handling for SVGTitleElement, and also confirm (through existing WPT test cases) whether
             // HTMLLabelElement is already handled (by the code for step C. “Embedded Control” above) in conformance
             // with the spec requirements — and if not, then add handling for it here.
