@@ -67,14 +67,6 @@ StringView LineBoxFragment::text() const
     return verify_cast<TextNode>(layout_node()).text_for_rendering().bytes_as_string_view().substring_view(m_start, m_length);
 }
 
-CSSPixelRect const LineBoxFragment::absolute_rect() const
-{
-    CSSPixelRect rect { {}, size() };
-    rect.set_location(m_layout_node->containing_block()->paintable_box()->absolute_position());
-    rect.translate_by(offset());
-    return rect;
-}
-
 bool LineBoxFragment::is_atomic_inline() const
 {
     return layout_node().is_replaced_box() || (layout_node().display().is_inline_outside() && !layout_node().display().is_flow_inside());
