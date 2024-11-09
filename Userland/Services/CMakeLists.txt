@@ -1,1 +1,2 @@
+add_subdirectory(ImageDecoder)
 add_subdirectory(WebDriver)
