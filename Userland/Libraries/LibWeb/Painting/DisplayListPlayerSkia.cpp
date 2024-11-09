@@ -366,17 +366,6 @@ void DisplayListPlayerSkia::draw_painting_surface(DrawPaintingSurface const& com
     canvas.drawImageRect(image, src_rect, dst_rect, to_skia_sampling_options(command.scaling_mode), &paint, SkCanvas::kStrict_SrcRectConstraint);
 }
 
-void DisplayListPlayerSkia::draw_scaled_bitmap(DrawScaledBitmap const& command)
-{
-    auto src_rect = to_skia_rect(command.src_rect);
-    auto dst_rect = to_skia_rect(command.dst_rect);
-    auto bitmap = to_skia_bitmap(command.bitmap);
-    auto image = SkImages::RasterFromBitmap(bitmap);
-    auto& canvas = surface().canvas();
-    SkPaint paint;
-    canvas.drawImageRect(image, src_rect, dst_rect, to_skia_sampling_options(command.scaling_mode), &paint, SkCanvas::kStrict_SrcRectConstraint);
-}
-
 void DisplayListPlayerSkia::draw_scaled_immutable_bitmap(DrawScaledImmutableBitmap const& command)
 {
     auto src_rect = to_skia_rect(command.src_rect);

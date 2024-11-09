@@ -168,18 +168,6 @@ void DisplayListRecorder::draw_rect(Gfx::IntRect const& rect, Color color, bool 
         .rough = rough });
 }
 
-void DisplayListRecorder::draw_scaled_bitmap(Gfx::IntRect const& dst_rect, Gfx::Bitmap const& bitmap, Gfx::IntRect const& src_rect, Gfx::ScalingMode scaling_mode)
-{
-    if (dst_rect.is_empty())
-        return;
-    append(DrawScaledBitmap {
-        .dst_rect = dst_rect,
-        .bitmap = bitmap,
-        .src_rect = src_rect,
-        .scaling_mode = scaling_mode,
-    });
-}
-
 void DisplayListRecorder::draw_painting_surface(Gfx::IntRect const& dst_rect, NonnullRefPtr<Gfx::PaintingSurface> surface, Gfx::IntRect const& src_rect, Gfx::ScalingMode scaling_mode)
 {
     if (dst_rect.is_empty())
