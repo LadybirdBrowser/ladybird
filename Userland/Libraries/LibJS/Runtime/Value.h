@@ -148,6 +148,7 @@ public:
     ThrowCompletionOr<bool> is_array(VM&) const;
     bool is_function() const;
     bool is_constructor() const;
+    bool is_error() const;
     ThrowCompletionOr<bool> is_regexp(VM&) const;
 
     bool is_nan() const

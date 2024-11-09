@@ -311,6 +311,7 @@ namespace JS {
     P(is)                                    \
     P(isArray)                               \
     P(isDisjointFrom)                        \
+    P(isError)                               \
     P(isExtensible)                          \
     P(isFinite)                              \
     P(isFrozen)                              \

@@ -257,6 +257,15 @@ Array& Value::as_array()
     return static_cast<Array&>(as_object());
 }
 
+// 20.5.8.2 IsError ( argument ), https://tc39.es/proposal-is-error/#sec-iserror
+bool Value::is_error() const
+{
+    // 1. If argument is not an Object, return false.
+    // 2. If argument has an [[ErrorData]] internal slot, return true.
+    // 3. Return false.
+    return is_object() && is<Error>(as_object());
+}
+
 // 7.2.3 IsCallable ( argument ), https://tc39.es/ecma262/#sec-iscallable
 bool Value::is_function() const
 {
