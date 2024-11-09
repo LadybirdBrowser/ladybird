@@ -92,15 +92,6 @@ PaintingSurface::PaintingSurface(NonnullOwnPtr<Impl>&& impl)
 
 PaintingSurface::~PaintingSurface() = default;
 
-NonnullRefPtr<ImmutableBitmap> PaintingSurface::create_snapshot() const
-{
-    auto bitmap = Gfx::Bitmap::create(Gfx::BitmapFormat::BGRA8888, Gfx::AlphaType::Premultiplied, size()).value();
-    auto image_info = SkImageInfo::Make(bitmap->width(), bitmap->height(), kBGRA_8888_SkColorType, kPremul_SkAlphaType);
-    SkPixmap const pixmap(image_info, bitmap->begin(), bitmap->pitch());
-    sk_surface().readPixels(pixmap, 0, 0);
-    return ImmutableBitmap::create(bitmap);
-}
-
 void PaintingSurface::read_into_bitmap(Gfx::Bitmap& bitmap)
 {
     auto color_type = to_skia_color_type(bitmap.format());
@@ -128,6 +119,12 @@ SkCanvas& PaintingSurface::canvas() const
 SkSurface& PaintingSurface::sk_surface() const
 {
     return *m_impl->surface;
+}
+
+template<>
+sk_sp<SkImage> PaintingSurface::sk_image_snapshot() const
+{
+    return m_impl->surface->makeImageSnapshot();
 }
 
 void PaintingSurface::flush() const

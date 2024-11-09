@@ -134,7 +134,7 @@ WebIDL::ExceptionOr<void> CanvasRenderingContext2D::draw_image_internal(CanvasIm
             auto surface = source->surface();
             if (!surface)
                 return {};
-            return source->surface()->create_snapshot();
+            return Gfx::ImmutableBitmap::create_snapshot_from_painting_surface(*surface);
         },
         [](JS::Handle<HTMLVideoElement> const& source) -> RefPtr<Gfx::ImmutableBitmap> { return Gfx::ImmutableBitmap::create(*source->bitmap()); },
         [](JS::Handle<ImageBitmap> const& source) -> RefPtr<Gfx::ImmutableBitmap> {
@@ -401,7 +401,7 @@ WebIDL::ExceptionOr<JS::GCPtr<ImageData>> CanvasRenderingContext2D::get_image_da
     // NOTE: We don't attempt to create the underlying bitmap here; if it doesn't exist, it's like copying only transparent black pixels (which is a no-op).
     if (!canvas_element().surface())
         return image_data;
-    auto const snapshot = canvas_element().surface()->create_snapshot();
+    auto const snapshot = Gfx::ImmutableBitmap::create_snapshot_from_painting_surface(*canvas_element().surface());
 
     // 5. Let the source rectangle be the rectangle whose corners are the four points (sx, sy), (sx+sw, sy), (sx+sw, sy+sh), (sx, sy+sh).
     auto source_rect = Gfx::Rect { x, y, abs_width, abs_height };

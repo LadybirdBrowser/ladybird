@@ -131,7 +131,7 @@ WebIDL::ExceptionOr<JS::GCPtr<CanvasPattern>> CanvasPattern::create(JS::Realm& r
     auto bitmap = image.visit(
         [](JS::Handle<HTMLImageElement> const& source) -> RefPtr<Gfx::ImmutableBitmap> { return source->immutable_bitmap(); },
         [](JS::Handle<SVG::SVGImageElement> const& source) -> RefPtr<Gfx::ImmutableBitmap> { return source->current_image_bitmap(); },
-        [](JS::Handle<HTMLCanvasElement> const& source) -> RefPtr<Gfx::ImmutableBitmap> { return source->surface()->create_snapshot(); },
+        [](JS::Handle<HTMLCanvasElement> const& source) -> RefPtr<Gfx::ImmutableBitmap> { return Gfx::ImmutableBitmap::create_snapshot_from_painting_surface(*source->surface()); },
         [](JS::Handle<HTMLVideoElement> const& source) -> RefPtr<Gfx::ImmutableBitmap> { return Gfx::ImmutableBitmap::create(*source->bitmap()); },
         [](JS::Handle<ImageBitmap> const& source) -> RefPtr<Gfx::ImmutableBitmap> { return Gfx::ImmutableBitmap::create(*source->bitmap()); });
 

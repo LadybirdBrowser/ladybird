@@ -5,6 +5,7 @@
  */
 
 #include <LibGfx/ImmutableBitmap.h>
+#include <LibGfx/PaintingSurface.h>
 
 #include <core/SkBitmap.h>
 #include <core/SkImage.h>
@@ -14,7 +15,7 @@ namespace Gfx {
 struct ImmutableBitmapImpl {
     sk_sp<SkImage> sk_image;
     SkBitmap sk_bitmap;
-    RefPtr<Gfx::Bitmap> gfx_bitmap;
+    Variant<NonnullRefPtr<Gfx::Bitmap>, NonnullRefPtr<Gfx::PaintingSurface>, Empty> source;
 };
 
 int ImmutableBitmap::width() const
@@ -49,15 +50,14 @@ SkImage const* ImmutableBitmap::sk_image() const
 
 RefPtr<Gfx::Bitmap const> ImmutableBitmap::bitmap() const
 {
-    return m_impl->gfx_bitmap;
+    // FIXME: Implement for PaintingSurface
+    return m_impl->source.get<NonnullRefPtr<Gfx::Bitmap>>();
 }
 
 Color ImmutableBitmap::get_pixel(int x, int y) const
 {
-    if (m_impl->gfx_bitmap) {
-        return m_impl->gfx_bitmap->get_pixel(x, y);
-    }
-    VERIFY_NOT_REACHED();
+    // FIXME: Implement for PaintingSurface
+    return m_impl->source.get<NonnullRefPtr<Gfx::Bitmap>>()->get_pixel(x, y);
 }
 
 static SkColorType to_skia_color_type(Gfx::BitmapFormat format)
@@ -96,7 +96,15 @@ NonnullRefPtr<ImmutableBitmap> ImmutableBitmap::create(NonnullRefPtr<Bitmap> bit
     impl.sk_bitmap.installPixels(info, const_cast<void*>(static_cast<void const*>(bitmap->scanline(0))), bitmap->pitch());
     impl.sk_bitmap.setImmutable();
     impl.sk_image = impl.sk_bitmap.asImage();
-    impl.gfx_bitmap = bitmap;
+    impl.source = bitmap;
+    return adopt_ref(*new ImmutableBitmap(make<ImmutableBitmapImpl>(impl)));
+}
+
+NonnullRefPtr<ImmutableBitmap> ImmutableBitmap::create_snapshot_from_painting_surface(NonnullRefPtr<PaintingSurface> painting_surface)
+{
+    ImmutableBitmapImpl impl;
+    impl.sk_image = painting_surface->sk_image_snapshot<sk_sp<SkImage>>();
+    impl.source = painting_surface;
     return adopt_ref(*new ImmutableBitmap(make<ImmutableBitmapImpl>(impl)));
 }
 

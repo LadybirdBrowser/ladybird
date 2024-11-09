@@ -31,7 +31,6 @@ public:
     static NonnullRefPtr<PaintingSurface> wrap_metal_surface(Gfx::MetalTexture&, RefPtr<SkiaBackendContext>);
 #endif
 
-    NonnullRefPtr<ImmutableBitmap> create_snapshot() const;
     void read_into_bitmap(Bitmap&);
 
     IntSize size() const;
@@ -39,6 +38,9 @@ public:
 
     SkCanvas& canvas() const;
     SkSurface& sk_surface() const;
+
+    template<typename T>
+    T sk_image_snapshot() const;
 
     void flush() const;
 
