@@ -1012,6 +1012,13 @@ ErrorOr<void> Formatter<long double>::format(FormatBuilder& builder, long double
     return builder.put_f80(value, base, upper_case, m_use_separator, m_align, m_width.value(), m_precision.value(), m_fill, m_sign_mode, real_number_display_mode);
 }
 
+ErrorOr<void> Formatter<f16>::format(FormatBuilder& builder, f16 value)
+{
+    // FIXME: Create a proper put_f16() implementation
+    Formatter<double> formatter { *this };
+    return TRY(formatter.format(builder, static_cast<double>(value)));
+}
+
 ErrorOr<void> Formatter<double>::format(FormatBuilder& builder, double value)
 {
     u8 base;

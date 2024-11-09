@@ -143,6 +143,17 @@ struct NumericLimits<long double> {
     static constexpr size_t digits() { return __LDBL_MANT_DIG__; }
 };
 
+template<>
+struct NumericLimits<f16> {
+    static constexpr f16 lowest() { return -__FLT16_MAX__; }
+    static constexpr f16 min_normal() { return __FLT16_MIN__; }
+    static constexpr f16 min_denormal() { return __FLT16_DENORM_MIN__; }
+    static constexpr f16 max() { return __FLT16_MAX__; }
+    static constexpr f16 epsilon() { return __FLT16_EPSILON__; }
+    static constexpr bool is_signed() { return true; }
+    static constexpr size_t digits() { return __FLT16_MANT_DIG__; }
+};
+
 }
 
 #if USING_AK_GLOBALLY

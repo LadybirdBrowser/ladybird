@@ -552,6 +552,17 @@ struct Formatter<long double> : StandardFormatter {
 };
 
 template<>
+struct Formatter<f16> : StandardFormatter {
+    Formatter() = default;
+    explicit Formatter(StandardFormatter formatter)
+        : StandardFormatter(formatter)
+    {
+    }
+
+    ErrorOr<void> format(FormatBuilder&, f16 value);
+};
+
+template<>
 struct Formatter<nullptr_t> : Formatter<FlatPtr> {
     ErrorOr<void> format(FormatBuilder& builder, nullptr_t)
     {
