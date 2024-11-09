@@ -15,7 +15,6 @@
 #include <LibGfx/Color.h>
 #include <LibGfx/Forward.h>
 #include <LibGfx/Rect.h>
-#include <LibIPC/Forward.h>
 
 namespace Gfx {
 
@@ -342,15 +341,5 @@ ALWAYS_INLINE void Bitmap::set_pixel(int x, int y, Color color)
         VERIFY_NOT_REACHED();
     }
 }
-
-}
-
-namespace IPC {
-
-template<>
-ErrorOr<void> encode(Encoder&, AK::NonnullRefPtr<Gfx::Bitmap> const&);
-
-template<>
-ErrorOr<AK::NonnullRefPtr<Gfx::Bitmap>> decode(Decoder&);
 
 }
