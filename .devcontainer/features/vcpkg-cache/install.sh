@@ -23,15 +23,15 @@ export VCPKG_BINARY_SOURCES="clear;files,${CACHE_DIR},readwrite"
 
 # Check options to see which versions we should build
 if [ "${RELEASE_TRIPLET}" = "true" ]; then
-    "./${VCPKG_ROOT}/vcpkg" install --overlay-triplets="${PWD}/Meta/CMake/vcpkg/release-triplets"
+    "${VCPKG_ROOT}/vcpkg" install --overlay-triplets="${PWD}/Meta/CMake/vcpkg/release-triplets"
 fi
 
 if [ "${DEBUG_TRIPLET}" = "true" ]; then
-    "./${VCPKG_ROOT}/vcpkg" install --overlay-triplets="${PWD}/Meta/CMake/vcpkg/debug-triplets"
+    "${VCPKG_ROOT}/vcpkg" install --overlay-triplets="${PWD}/Meta/CMake/vcpkg/debug-triplets"
 fi
 
 if [ "${SANITIZER_TRIPLET}" = "true" ]; then
-    "./${VCPKG_ROOT}/vcpkg" install --overlay-triplets="${PWD}/Meta/CMake/vcpkg/sanitizer-triplets"
+    "${VCPKG_ROOT}/vcpkg" install --overlay-triplets="${PWD}/Meta/CMake/vcpkg/sanitizer-triplets"
 fi
 
 # Clean up to reduce layer size
