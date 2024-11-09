@@ -381,18 +381,13 @@ void DisplayListPlayerSkia::draw_scaled_immutable_bitmap(DrawScaledImmutableBitm
 {
     auto src_rect = to_skia_rect(command.src_rect);
     auto dst_rect = to_skia_rect(command.dst_rect);
-    auto bitmap = to_skia_bitmap(command.bitmap->bitmap());
-    auto image = SkImages::RasterFromBitmap(bitmap);
     auto& canvas = surface().canvas();
     SkPaint paint;
-    canvas.drawImageRect(image, src_rect, dst_rect, to_skia_sampling_options(command.scaling_mode), &paint, SkCanvas::kStrict_SrcRectConstraint);
+    canvas.drawImageRect(command.bitmap->sk_image(), src_rect, dst_rect, to_skia_sampling_options(command.scaling_mode), &paint, SkCanvas::kStrict_SrcRectConstraint);
 }
 
 void DisplayListPlayerSkia::draw_repeated_immutable_bitmap(DrawRepeatedImmutableBitmap const& command)
 {
-    auto bitmap = to_skia_bitmap(command.bitmap->bitmap());
-    auto image = SkImages::RasterFromBitmap(bitmap);
-
     SkMatrix matrix;
     auto dst_rect = command.dst_rect.to_type<float>();
     auto src_size = command.bitmap->size().to_type<float>();
@@ -402,7 +397,7 @@ void DisplayListPlayerSkia::draw_repeated_immutable_bitmap(DrawRepeatedImmutable
 
     auto tile_mode_x = command.repeat.x ? SkTileMode::kRepeat : SkTileMode::kDecal;
     auto tile_mode_y = command.repeat.y ? SkTileMode::kRepeat : SkTileMode::kDecal;
-    auto shader = image->makeShader(tile_mode_x, tile_mode_y, sampling_options, matrix);
+    auto shader = command.bitmap->sk_image()->makeShader(tile_mode_x, tile_mode_y, sampling_options, matrix);
 
     SkPaint paint;
     paint.setShader(shader);

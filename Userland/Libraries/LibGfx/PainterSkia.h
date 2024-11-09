@@ -20,7 +20,7 @@ public:
 
     virtual void clear_rect(Gfx::FloatRect const&, Color) override;
     virtual void fill_rect(Gfx::FloatRect const&, Color) override;
-    virtual void draw_bitmap(Gfx::FloatRect const& dst_rect, Gfx::Bitmap const& src_bitmap, Gfx::IntRect const& src_rect, Gfx::ScalingMode, float global_alpha) override;
+    virtual void draw_bitmap(Gfx::FloatRect const& dst_rect, Gfx::ImmutableBitmap const& src_bitmap, Gfx::IntRect const& src_rect, Gfx::ScalingMode, float global_alpha) override;
     virtual void stroke_path(Gfx::Path const&, Gfx::Color, float thickness) override;
     virtual void stroke_path(Gfx::Path const&, Gfx::PaintStyle const&, float thickness, float global_alpha) override;
     virtual void fill_path(Gfx::Path const&, Gfx::Color, Gfx::WindingRule) override;

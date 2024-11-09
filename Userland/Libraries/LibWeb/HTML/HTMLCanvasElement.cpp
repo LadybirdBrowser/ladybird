@@ -269,7 +269,9 @@ String HTMLCanvasElement::to_data_url(StringView type, Optional<double> quality)
 
     // 3. Let file be a serialization of this canvas element's bitmap as a file, passing type and quality if given.
     auto snapshot = m_surface->create_snapshot();
-    auto file = serialize_bitmap(snapshot->bitmap(), type, move(quality));
+    auto bitmap = MUST(Gfx::Bitmap::create(Gfx::BitmapFormat::BGRA8888, Gfx::AlphaType::Premultiplied, m_surface->size()));
+    m_surface->read_into_bitmap(*bitmap);
+    auto file = serialize_bitmap(bitmap, type, move(quality));
 
     // 4. If file is null then return "data:,".
     if (file.is_error()) {
@@ -301,8 +303,8 @@ WebIDL::ExceptionOr<void> HTMLCanvasElement::to_blob(JS::NonnullGCPtr<WebIDL::Ca
     // 3. If this canvas element's bitmap has pixels (i.e., neither its horizontal dimension nor its vertical dimension is zero),
     //    then set result to a copy of this canvas element's bitmap.
     if (m_surface) {
-        auto snapshot = m_surface->create_snapshot();
-        bitmap_result = snapshot->bitmap();
+        bitmap_result = MUST(Gfx::Bitmap::create(Gfx::BitmapFormat::BGRA8888, Gfx::AlphaType::Premultiplied, m_surface->size()));
+        m_surface->read_into_bitmap(*bitmap_result);
     }
 
     // 4. Run these steps in parallel:

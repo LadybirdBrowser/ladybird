@@ -169,7 +169,7 @@ Optional<Gfx::Color> ImageStyleValue::color_if_single_pixel_bitmap() const
 {
     if (auto const* b = bitmap(m_current_frame_index)) {
         if (b->width() == 1 && b->height() == 1)
-            return b->bitmap().get_pixel(0, 0);
+            return b->get_pixel(0, 0);
     }
     return {};
 }

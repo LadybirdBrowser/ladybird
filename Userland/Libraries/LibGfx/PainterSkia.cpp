@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2024, Andreas Kling <andreas@ladybird.org>
+ * Copyright (c) 2024, Aliaksandr Kalenik <kalenik.aliaksandr@gmail.com>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -7,6 +8,7 @@
 #define AK_DONT_REPLACE_STD
 
 #include <AK/OwnPtr.h>
+#include <LibGfx/ImmutableBitmap.h>
 #include <LibGfx/PainterSkia.h>
 #include <LibGfx/PathSkia.h>
 
@@ -27,35 +29,6 @@
 #include <pathops/SkPathOps.h>
 
 namespace Gfx {
-
-static SkColorType to_skia_color_type(Gfx::BitmapFormat format)
-{
-    switch (format) {
-    case Gfx::BitmapFormat::Invalid:
-        return kUnknown_SkColorType;
-    case Gfx::BitmapFormat::BGRA8888:
-    case Gfx::BitmapFormat::BGRx8888:
-        return kBGRA_8888_SkColorType;
-    case Gfx::BitmapFormat::RGBA8888:
-        return kRGBA_8888_SkColorType;
-    case Gfx::BitmapFormat::RGBx8888:
-        return kRGB_888x_SkColorType;
-    default:
-        return kUnknown_SkColorType;
-    }
-}
-
-static SkAlphaType to_skia_alpha_type(Gfx::AlphaType alpha_type)
-{
-    switch (alpha_type) {
-    case AlphaType::Premultiplied:
-        return kPremul_SkAlphaType;
-    case AlphaType::Unpremultiplied:
-        return kUnpremul_SkAlphaType;
-    default:
-        VERIFY_NOT_REACHED();
-    }
-}
 
 struct PainterSkia::Impl {
     RefPtr<Gfx::PaintingSurface> painting_surface;
@@ -134,17 +107,13 @@ static SkSamplingOptions to_skia_sampling_options(Gfx::ScalingMode scaling_mode)
     }
 }
 
-void PainterSkia::draw_bitmap(Gfx::FloatRect const& dst_rect, Gfx::Bitmap const& src_bitmap, Gfx::IntRect const& src_rect, Gfx::ScalingMode scaling_mode, float global_alpha)
+void PainterSkia::draw_bitmap(Gfx::FloatRect const& dst_rect, Gfx::ImmutableBitmap const& src_bitmap, Gfx::IntRect const& src_rect, Gfx::ScalingMode scaling_mode, float global_alpha)
 {
-    SkBitmap sk_bitmap;
-    SkImageInfo info = SkImageInfo::Make(src_bitmap.width(), src_bitmap.height(), to_skia_color_type(src_bitmap.format()), to_skia_alpha_type(src_bitmap.alpha_type()));
-    sk_bitmap.installPixels(info, const_cast<void*>(static_cast<void const*>(src_bitmap.scanline(0))), src_bitmap.pitch());
-
     SkPaint paint;
     paint.setAlpha(static_cast<u8>(global_alpha * 255));
 
     impl().canvas()->drawImageRect(
-        sk_bitmap.asImage(),
+        src_bitmap.sk_image(),
         to_skia_rect(src_rect),
         to_skia_rect(dst_rect),
         to_skia_sampling_options(scaling_mode),

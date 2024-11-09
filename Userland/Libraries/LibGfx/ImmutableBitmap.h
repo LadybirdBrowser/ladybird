@@ -7,31 +7,41 @@
 #pragma once
 
 #include <AK/Forward.h>
+#include <AK/NonnullOwnPtr.h>
 #include <AK/RefCounted.h>
 #include <LibGfx/Bitmap.h>
 #include <LibGfx/Forward.h>
 #include <LibGfx/Rect.h>
 
+class SkImage;
+
 namespace Gfx {
+
+struct ImmutableBitmapImpl;
 
 class ImmutableBitmap final : public RefCounted<ImmutableBitmap> {
 public:
     static NonnullRefPtr<ImmutableBitmap> create(NonnullRefPtr<Bitmap> bitmap);
 
-    ~ImmutableBitmap() = default;
+    ~ImmutableBitmap();
 
-    Bitmap const& bitmap() const { return *m_bitmap; }
+    int width() const;
+    int height() const;
+    IntRect rect() const;
+    IntSize size() const;
 
-    size_t width() const { return m_bitmap->width(); }
-    size_t height() const { return m_bitmap->height(); }
+    Gfx::AlphaType alpha_type() const;
 
-    IntRect rect() const { return m_bitmap->rect(); }
-    IntSize size() const { return m_bitmap->size(); }
+    SkImage const* sk_image() const;
+
+    Color get_pixel(int x, int y) const;
+
+    RefPtr<Bitmap const> bitmap() const;
 
 private:
-    NonnullRefPtr<Bitmap> m_bitmap;
+    NonnullOwnPtr<ImmutableBitmapImpl> m_impl;
 
-    explicit ImmutableBitmap(NonnullRefPtr<Bitmap> bitmap);
+    explicit ImmutableBitmap(NonnullOwnPtr<ImmutableBitmapImpl> bitmap);
 };
 
 }

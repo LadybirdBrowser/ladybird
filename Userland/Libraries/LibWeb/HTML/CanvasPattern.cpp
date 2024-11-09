@@ -46,8 +46,8 @@ void CanvasPatternPaintStyle::paint(Gfx::IntRect physical_bounding_box, PaintFun
 
     // 6. The resulting bitmap is what is to be rendered, with the same origin and same scale.
 
-    auto const bitmap_width = m_bitmap->width();
-    auto const bitmap_height = m_bitmap->height();
+    auto const bitmap_width = m_immutable_bitmap->width();
+    auto const bitmap_height = m_immutable_bitmap->height();
 
     paint([=, this](auto point) {
         point.translate_by(physical_bounding_box.location());
@@ -78,8 +78,8 @@ void CanvasPatternPaintStyle::paint(Gfx::IntRect physical_bounding_box, PaintFun
                 VERIFY_NOT_REACHED();
             }
         }();
-        if (m_bitmap->rect().contains(point))
-            return m_bitmap->get_pixel(point);
+        if (m_immutable_bitmap->rect().contains(point))
+            return m_immutable_bitmap->get_pixel(point.x(), point.y());
         return Gfx::Color();
     });
 }
@@ -129,14 +129,11 @@ WebIDL::ExceptionOr<JS::GCPtr<CanvasPattern>> CanvasPattern::create(JS::Realm& r
 
     // Note: Bitmap won't be null here, as if it were it would have "bad" usability.
     auto bitmap = image.visit(
-        [](JS::Handle<HTMLImageElement> const& source) -> RefPtr<Gfx::Bitmap> { return *source->bitmap(); },
-        [](JS::Handle<SVG::SVGImageElement> const& source) -> RefPtr<Gfx::Bitmap> { return *source->bitmap(); },
-        [](JS::Handle<HTMLCanvasElement> const& source) -> RefPtr<Gfx::Bitmap> {
-            auto snapshot = source->surface()->create_snapshot();
-            return snapshot->bitmap();
-        },
-        [](JS::Handle<HTMLVideoElement> const& source) -> RefPtr<Gfx::Bitmap> { return *source->bitmap(); },
-        [](JS::Handle<ImageBitmap> const& source) -> RefPtr<Gfx::Bitmap> { return *source->bitmap(); });
+        [](JS::Handle<HTMLImageElement> const& source) -> RefPtr<Gfx::ImmutableBitmap> { return source->immutable_bitmap(); },
+        [](JS::Handle<SVG::SVGImageElement> const& source) -> RefPtr<Gfx::ImmutableBitmap> { return source->current_image_bitmap(); },
+        [](JS::Handle<HTMLCanvasElement> const& source) -> RefPtr<Gfx::ImmutableBitmap> { return source->surface()->create_snapshot(); },
+        [](JS::Handle<HTMLVideoElement> const& source) -> RefPtr<Gfx::ImmutableBitmap> { return Gfx::ImmutableBitmap::create(*source->bitmap()); },
+        [](JS::Handle<ImageBitmap> const& source) -> RefPtr<Gfx::ImmutableBitmap> { return Gfx::ImmutableBitmap::create(*source->bitmap()); });
 
     // 6. Let pattern be a new CanvasPattern object with the image image and the repetition behavior given by repetition.
     auto pattern = TRY_OR_THROW_OOM(realm.vm(), CanvasPatternPaintStyle::create(*bitmap, *repetition_value));
