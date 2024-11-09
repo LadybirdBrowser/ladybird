@@ -10,7 +10,7 @@
 #include <LibWasm/Types.h>
 #include <string.h>
 
-TEST_ROOT("Userland/Libraries/LibWasm/Tests");
+TEST_ROOT("Libraries/LibWasm/Tests");
 
 TESTJS_GLOBAL_FUNCTION(read_binary_wasm_file, readBinaryWasmFile)
 {

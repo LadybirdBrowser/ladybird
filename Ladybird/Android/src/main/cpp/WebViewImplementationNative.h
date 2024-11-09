@@ -6,7 +6,7 @@
 
 #pragma once
 
-#include <Userland/Libraries/LibWebView/ViewImplementation.h>
+#include <LibWebView/ViewImplementation.h>
 #include <android/bitmap.h>
 #include <jni.h>
 

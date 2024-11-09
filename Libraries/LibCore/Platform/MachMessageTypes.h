@@ -8,6 +8,7 @@
 #pragma once
 
 #include <AK/Platform.h>
+#include <AK/Types.h>
 
 #if !defined(AK_OS_MACH)
 #    error "This file is only available on Mach platforms"

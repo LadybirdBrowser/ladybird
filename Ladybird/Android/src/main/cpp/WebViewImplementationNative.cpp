@@ -6,11 +6,11 @@
 
 #include "WebViewImplementationNative.h"
 #include "JNIHelpers.h"
+#include <LibGfx/Bitmap.h>
+#include <LibGfx/DeprecatedPainter.h>
+#include <LibWeb/Crypto/Crypto.h>
+#include <LibWebView/ViewImplementation.h>
 #include <LibWebView/WebContentClient.h>
-#include <Userland/Libraries/LibGfx/Bitmap.h>
-#include <Userland/Libraries/LibGfx/DeprecatedPainter.h>
-#include <Userland/Libraries/LibWeb/Crypto/Crypto.h>
-#include <Userland/Libraries/LibWebView/ViewImplementation.h>
 #include <android/bitmap.h>
 #include <jni.h>
 

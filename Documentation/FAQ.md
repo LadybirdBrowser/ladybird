@@ -50,7 +50,7 @@ Here’s a short timeline:
 
   > _I'd like to have rich text, and we might as well use HTML for that. :^)_
 
-  LibHTML eventually became [LibWeb](https://github.com/LadybirdBrowser/ladybird/tree/master/Userland/Libraries/LibWeb) — which in turn eventually grew into being the core part of the browser engine and browser to which, on 4 July 2022, [the name _Ladybird_ was given](https://www.youtube.com/watch?v=X38MTKHt3_I&t=29s).
+  LibHTML eventually became [LibWeb](https://github.com/LadybirdBrowser/ladybird/tree/master/Libraries/LibWeb) — which in turn eventually grew into being the core part of the browser engine and browser to which, on 4 July 2022, [the name _Ladybird_ was given](https://www.youtube.com/watch?v=X38MTKHt3_I&t=29s).
 
 - 2022 July: Renamed _Ladybird_ by Andreas in [“Let's make a Linux GUI for the SerenityOS browser”](https://youtu.be/X38MTKHt3_I) live-coding video.
 - 2022 Sept: Spun off from SerenityOS to separate project: [“A new cross-platform browser project”](https://awesomekling.substack.com/p/ladybird-a-new-cross-platform-browser-project) announcement.

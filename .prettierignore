@@ -1,12 +1,12 @@
-Userland/Libraries/LibJS/Tests/invalid-lhs-in-assignment.js
-Userland/Libraries/LibJS/Tests/unicode-identifier-escape.js
-Userland/Libraries/LibJS/Tests/modules/failing.mjs
+Libraries/LibJS/Tests/invalid-lhs-in-assignment.js
+Libraries/LibJS/Tests/unicode-identifier-escape.js
+Libraries/LibJS/Tests/modules/failing.mjs
 
 # FIXME: Remove once prettier is updated to support using declarations.
-Userland/Libraries/LibJS/Tests/builtins/DisposableStack/DisposableStack.prototype.@@dispose.js
-Userland/Libraries/LibJS/Tests/modules/top-level-dispose.mjs
-Userland/Libraries/LibJS/Tests/using-declaration.js
-Userland/Libraries/LibJS/Tests/using-for-loops.js
+Libraries/LibJS/Tests/builtins/DisposableStack/DisposableStack.prototype.@@dispose.js
+Libraries/LibJS/Tests/modules/top-level-dispose.mjs
+Libraries/LibJS/Tests/using-declaration.js
+Libraries/LibJS/Tests/using-for-loops.js
 
 Tests/LibWeb/Ref/input/wpt-import
 Tests/LibWeb/Text/input/wpt-import

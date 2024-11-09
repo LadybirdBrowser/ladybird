@@ -1,4 +1,4 @@
-serenity_install_sources("Userland/Libraries/LibTest")
+serenity_install_sources("Libraries/LibTest")
 
 set(SOURCES
     TestSuite.cpp

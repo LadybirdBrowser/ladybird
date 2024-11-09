@@ -18,9 +18,9 @@ these files navigate to the `Project` tool window, right-click the `Build` folde
 
 ## Include headers and source files for code insight
 
-To get proper code insight mark the folders `AK` and `Userland` by right-clicking on them and selecting `Mark Directory as | Project Sources and Headers`.
+To get proper code insight mark the folders `AK` and `Libraries` by right-clicking on them and selecting `Mark Directory as | Project Sources and Headers`.
 
-A symptom of this not being configured correctly is CLion giving a warning for every single file: 
+A symptom of this not being configured correctly is CLion giving a warning for every single file:
 > The file does not belong to any project target, code insight features might not work properly.
 
 ## Code Generation Settings
@@ -46,7 +46,7 @@ CMake could not locate one.
 
 This error typically arises when CLion is not configured to use the correct build directory.
 
-**Solution**: Ensure that CLion's build directory is set to the correct build directory for the selected profile.  
+**Solution**: Ensure that CLion's build directory is set to the correct build directory for the selected profile.
 Navigate to `Settings -> Build, Execution, Deployment -> CMake` and in your selected profile, set the `Build directory` according to the profile:
 - Default -> "`Build/ladybird`"
 - Debug -> "`Build/ladybird-debug`"

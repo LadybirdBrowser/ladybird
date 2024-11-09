@@ -78,7 +78,7 @@ We separate CSS rules by their cascade origin. The two origins we're concerned w
 
 The cascade origin determines the processing order for rules. The "user-agent" style is the least important, so it gets processed first. Then author style is added on top of that.
 
-Note: the user-agent style is a built-in CSS style sheet that lives in the LibWeb source code [here](https://github.com/LadybirdBrowser/ladybird/blob/master/Userland/Libraries/LibWeb/CSS/Default.css).
+Note: the user-agent style is a built-in CSS style sheet that lives in the LibWeb source code [here](https://github.com/LadybirdBrowser/ladybird/blob/master/Libraries/LibWeb/CSS/Default.css).
 
 The end product of style computation is a fully populated StyleProperties object. It has a CSSStyleValue for each CSS::PropertyID. In spec parlance, these are the *computed* values. (Note that these are not the same as you get from `getComputedStyle()`, that API returns the *resolved* values.)
 

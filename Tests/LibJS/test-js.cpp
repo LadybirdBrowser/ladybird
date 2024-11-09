@@ -15,7 +15,7 @@
 #include <stdlib.h>
 #include <time.h>
 
-TEST_ROOT("Userland/Libraries/LibJS/Tests");
+TEST_ROOT("Libraries/LibJS/Tests");
 
 TESTJS_PROGRAM_FLAG(test262_parser_tests, "Run test262 parser tests", "test262-parser-tests", 0);
 

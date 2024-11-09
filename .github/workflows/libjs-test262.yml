@@ -115,7 +115,7 @@ jobs:
       - name: Run test-wasm
         working-directory: libjs-test262
         run: |
-          Build/bin/test-wasm --per-file Build/Lagom/Userland/Libraries/LibWasm/Tests > ../libjs-data/wasm/per-file-master.json || true
+          Build/bin/test-wasm --per-file Build/Lagom/Libraries/LibWasm/Tests > ../libjs-data/wasm/per-file-master.json || true
           jq -nc -f /dev/stdin <<-EOF --slurpfile previous ../libjs-data/wasm/results.json --slurpfile details ../libjs-data/wasm/per-file-master.json > wasm-new-results.json
             \$details[0] as \$details | \$previous[0] + [{
               "commit_timestamp": $(git -C .. log -1 --format=%ct),

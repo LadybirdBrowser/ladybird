@@ -94,7 +94,7 @@ set(LADYBIRD_LIBS AK LibCore LibFileSystem LibGfx LibImageDecoderClient LibIPC L
 target_link_libraries(${LADYBIRD_TARGET} PRIVATE ${LADYBIRD_LIBS})
 
 target_include_directories(${LADYBIRD_TARGET} ${CMAKE_CURRENT_BINARY_DIR})
-target_include_directories(${LADYBIRD_TARGET} ${LADYBIRD_SOURCE_DIR}/Userland/)
+target_include_directories(${LADYBIRD_TARGET} ${LADYBIRD_SOURCE_DIR})
 target_include_directories(${LADYBIRD_TARGET} ${LADYBIRD_SOURCE_DIR}/Services/)
 
 function(set_helper_process_properties)

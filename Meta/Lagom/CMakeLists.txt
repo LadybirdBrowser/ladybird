@@ -174,13 +174,12 @@ set(CMAKE_MODULE_LINKER_FLAGS "${CMAKE_MODULE_LINKER_FLAGS} ${LINKER_FLAGS}")
 
 configure_file(../../AK/Debug.h.in AK/Debug.h @ONLY)
 
-include_directories(../../)
-include_directories(../../Userland/)
-include_directories(../../Userland/Libraries/)
+include_directories(../..)
+include_directories(../../Libraries)
 include_directories(../../Services)
 include_directories(${CMAKE_BINARY_DIR})
 include_directories(${CMAKE_CURRENT_BINARY_DIR})
-include_directories(${CMAKE_CURRENT_BINARY_DIR}/Userland/Libraries)
+include_directories(${CMAKE_CURRENT_BINARY_DIR}/Libraries)
 include_directories(${CMAKE_CURRENT_BINARY_DIR}/Services)
 
 # install rules, think about moving to its own helper cmake file
@@ -233,7 +232,7 @@ function(lagom_lib target_name fs_name)
     if (ENABLE_INSTALL_HEADERS)
         target_include_directories(${target_name} INTERFACE
             $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/Services>
-            $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/Userland/Libraries>
+            $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/Libraries>
             $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/Services>
         )
     endif()
@@ -241,7 +240,7 @@ function(lagom_lib target_name fs_name)
     if (ENABLE_INSTALL_HEADERS)
         # FIXME: Move this to serenity_install_headers
         install(
-            DIRECTORY "${SERENITY_PROJECT_ROOT}/Userland/Libraries/Lib${library}"
+            DIRECTORY "${SERENITY_PROJECT_ROOT}/Libraries/Lib${library}"
             COMPONENT Lagom_Development
             DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
             FILES_MATCHING PATTERN "*.h"
@@ -335,22 +334,22 @@ install(TARGETS LibC LibCrypt NoCoverage EXPORT LagomTargets)
 add_serenity_subdirectory(AK)
 
 # LibCoreMinimal
-add_serenity_subdirectory(Userland/Libraries/LibCore)
+add_serenity_subdirectory(Libraries/LibCore)
 if (${CMAKE_SYSTEM_NAME} MATCHES "NetBSD")
     # NetBSD has its shm_open and shm_unlink functions in librt so we need to link that
     target_link_libraries(LibCoreMinimal PRIVATE rt)
 endif()
 
 # LibMain
-add_serenity_subdirectory(Userland/Libraries/LibMain)
+add_serenity_subdirectory(Libraries/LibMain)
 
 # LibFileSystem
 # This is needed even if Lagom is not enabled because it is depended upon by code generators.
-add_serenity_subdirectory(Userland/Libraries/LibFileSystem)
+add_serenity_subdirectory(Libraries/LibFileSystem)
 
 # LibIDL
 # This is used by the BindingsGenerator so needs to always be built.
-add_serenity_subdirectory(Userland/Libraries/LibIDL)
+add_serenity_subdirectory(Libraries/LibIDL)
 
 # Manually install AK headers
 if (ENABLE_INSTALL_HEADERS)
@@ -433,7 +432,7 @@ compile_ipc(${SERENITY_PROJECT_ROOT}/Services/WebContent/WebDriverClient.ipc Ser
 compile_ipc(${SERENITY_PROJECT_ROOT}/Services/WebContent/WebDriverServer.ipc Services/WebContent/WebDriverServerEndpoint.h)
 
 foreach(lib IN LISTS lagom_standard_libraries)
-    add_serenity_subdirectory("Userland/Libraries/Lib${lib}")
+    add_serenity_subdirectory("Libraries/Lib${lib}")
 endforeach()
 
 if (ENABLE_FUZZERS)
@@ -486,7 +485,7 @@ lagom_utility(xzcat SOURCES ../../Utilities/xzcat.cpp LIBS LibCompress LibMain)
 include(CTest)
 if (BUILD_TESTING)
     # LibTest
-    file(GLOB LIBTEST_SOURCES CONFIGURE_DEPENDS "../../Userland/Libraries/LibTest/*.cpp")
+    file(GLOB LIBTEST_SOURCES CONFIGURE_DEPENDS "../../Libraries/LibTest/*.cpp")
     list(FILTER LIBTEST_SOURCES EXCLUDE REGEX ".*Main.cpp$")
     add_library(
         LibTest
@@ -497,7 +496,7 @@ if (BUILD_TESTING)
     add_library(
         LibTestMain
         OBJECT
-        "${SERENITY_PROJECT_ROOT}/Userland/Libraries/LibTest/TestMain.cpp"
+        "${SERENITY_PROJECT_ROOT}/Libraries/LibTest/TestMain.cpp"
     )
     target_link_libraries(LibTest PUBLIC GenericClangPlugin)
     target_link_libraries(LibTestMain PUBLIC GenericClangPlugin)
@@ -554,7 +553,7 @@ if (BUILD_TESTING)
     # test-js
     add_executable(test-js
         ../../Tests/LibJS/test-js.cpp
-        ../../Userland/Libraries/LibTest/JavaScriptTestRunnerMain.cpp)
+        ../../Libraries/LibTest/JavaScriptTestRunnerMain.cpp)
     target_link_libraries(test-js AK LibCore LibFileSystem LibTest LibJS)
     add_test(
         NAME JS
@@ -569,7 +568,7 @@ if (BUILD_TESTING)
     # test-wasm
     add_executable(test-wasm
         ../../Tests/LibWasm/test-wasm.cpp
-        ../../Userland/Libraries/LibTest/JavaScriptTestRunnerMain.cpp)
+        ../../Libraries/LibTest/JavaScriptTestRunnerMain.cpp)
     target_link_libraries(test-wasm AK LibCore LibFileSystem LibTest LibWasm LibJS LibCrypto)
     set(wasm_test_root "${SERENITY_PROJECT_ROOT}")
     if (INCLUDE_WASM_SPEC_TESTS)
@@ -577,7 +576,7 @@ if (BUILD_TESTING)
     endif()
     add_test(
         NAME Wasm
-        COMMAND test-wasm --show-progress=false "${wasm_test_root}/Userland/Libraries/LibWasm/Tests"
+        COMMAND test-wasm --show-progress=false "${wasm_test_root}/Libraries/LibWasm/Tests"
     )
 endif()
 

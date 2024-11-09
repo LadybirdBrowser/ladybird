@@ -24,4 +24,4 @@ if [ -z "$LADYBIRD_SOURCE_DIR" ] ; then
 fi
 
 # shellcheck disable=SC2086 # Word splitting is intentional here
-find AK Base Documentation Meta Tests Userland -path Tests/LibWeb/WPT/wpt -prune -o -type f -name '*.md' -print0 | xargs -0 "${MARKDOWN_CHECK_BINARY}" -b "${LADYBIRD_SOURCE_DIR}/Base" $EXTRA_MARKDOWN_CHECK_ARGS README.md CONTRIBUTING.md
+find AK Base Documentation Libraries Meta Tests -path Tests/LibWeb/WPT/wpt -prune -o -type f -name '*.md' -print0 | xargs -0 "${MARKDOWN_CHECK_BINARY}" -b "${LADYBIRD_SOURCE_DIR}/Base" $EXTRA_MARKDOWN_CHECK_ARGS README.md CONTRIBUTING.md

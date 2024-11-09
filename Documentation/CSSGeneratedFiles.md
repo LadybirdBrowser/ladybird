@@ -1,8 +1,8 @@
 # CSS Generated Files
 
 We generate a significant amount of CSS-related code, taking in one or more .json files in
-[`Userland/Libraries/LibWeb/CSS`](../Userland/Libraries/LibWeb/CSS) and producing C++ code from them, located in
-`Build/<build-preset>/Lagom/Userland/Libraries/LibWeb/CSS/`.
+[`Libraries/LibWeb/CSS`](../Libraries/LibWeb/CSS) and producing C++ code from them, located in
+`Build/<build-preset>/Lagom/Libraries/LibWeb/CSS/`.
 It's likely that you'll need to work with these if you add or modify a CSS property or its values.
 
 The generators are found in [`Meta/Lagom/Tools/CodeGenerators/LibWeb`](../Meta/Lagom/Tools/CodeGenerators/LibWeb).
@@ -173,7 +173,7 @@ Parameter definitions have the following properties:
 
 | Field      | Description                                  |
 |------------|----------------------------------------------|
-| `type`     | String. Accepted type for the parameter.     | 
+| `type`     | String. Accepted type for the parameter.     |
 | `required` | Boolean. Whether this parameter is required. |
 
 The generated code provides:
