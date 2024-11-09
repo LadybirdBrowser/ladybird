@@ -27,6 +27,9 @@ void ErrorConstructor::initialize(Realm& realm)
     define_direct_property(vm.names.prototype, realm.intrinsics().error_prototype(), 0);
 
     define_direct_property(vm.names.length, Value(1), Attribute::Configurable);
+
+    u8 attr = Attribute::Writable | Attribute::Configurable;
+    define_native_function(realm, vm.names.isError, is_error, 1, attr);
 }
 
 // 20.5.1.1 Error ( message [ , options ] ), https://tc39.es/ecma262/#sec-error-message
@@ -119,5 +122,14 @@ ThrowCompletionOr<NonnullGCPtr<Object>> ErrorConstructor::construct(FunctionObje
 
 JS_ENUMERATE_NATIVE_ERRORS
 #undef __JS_ENUMERATE
+
+// 20.5.2.1 Error.isError ( arg ), https://tc39.es/proposal-is-error/#sec-error.iserror
+JS_DEFINE_NATIVE_FUNCTION(ErrorConstructor::is_error)
+{
+    auto arg = vm.argument(0);
+
+    // 1. Return IsError(arg).
+    return Value(arg.is_error());
+}
 
 }

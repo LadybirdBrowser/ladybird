@@ -26,6 +26,8 @@ private:
     explicit ErrorConstructor(Realm&);
 
     virtual bool has_constructor() const override { return true; }
+
+    JS_DECLARE_NATIVE_FUNCTION(is_error);
 };
 
 #define DECLARE_NATIVE_ERROR_CONSTRUCTOR(ClassName, snake_name, PrototypeName, ConstructorName)         \
