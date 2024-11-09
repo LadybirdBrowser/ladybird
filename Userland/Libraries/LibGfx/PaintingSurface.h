@@ -31,7 +31,7 @@ public:
     static NonnullRefPtr<PaintingSurface> wrap_metal_surface(Gfx::MetalTexture&, RefPtr<SkiaBackendContext>);
 #endif
 
-    RefPtr<Bitmap> create_snapshot() const;
+    NonnullRefPtr<ImmutableBitmap> create_snapshot() const;
     void read_into_bitmap(Bitmap&);
 
     IntSize size() const;
