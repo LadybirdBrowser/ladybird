@@ -20,12 +20,12 @@ namespace Web::Layout {
 
 CSSPixels FlexFormattingContext::get_pixel_width(Box const& box, CSS::Size const& size) const
 {
-    return calculate_inner_width(box, containing_block_width_as_available_size(box), size);
+    return calculate_inner_width(box, m_available_space->width, size);
 }
 
 CSSPixels FlexFormattingContext::get_pixel_height(Box const& box, CSS::Size const& size) const
 {
-    return calculate_inner_height(box, containing_block_height_as_available_size(box), size);
+    return calculate_inner_height(box, m_available_space->height, size);
 }
 
 FlexFormattingContext::FlexFormattingContext(LayoutState& state, LayoutMode layout_mode, Box const& flex_container, FormattingContext* parent)
@@ -50,6 +50,8 @@ CSSPixels FlexFormattingContext::automatic_content_height() const
 void FlexFormattingContext::run(AvailableSpace const& available_space)
 {
     // This implements https://www.w3.org/TR/css-flexbox-1/#layout-algorithm
+
+    m_available_space = available_space;
 
     // 1. Generate anonymous flex items
     generate_anonymous_flex_items();

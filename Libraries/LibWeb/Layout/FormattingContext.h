@@ -101,9 +101,6 @@ public:
     [[nodiscard]] CSSPixels containing_block_width_for(NodeWithStyleAndBoxModelMetrics const&) const;
     [[nodiscard]] CSSPixels containing_block_height_for(NodeWithStyleAndBoxModelMetrics const&) const;
 
-    [[nodiscard]] AvailableSize containing_block_width_as_available_size(NodeWithStyleAndBoxModelMetrics const&) const;
-    [[nodiscard]] AvailableSize containing_block_height_as_available_size(NodeWithStyleAndBoxModelMetrics const&) const;
-
     [[nodiscard]] CSSPixels calculate_stretch_fit_width(Box const&, AvailableSize const&) const;
     [[nodiscard]] CSSPixels calculate_stretch_fit_height(Box const&, AvailableSize const&) const;
 

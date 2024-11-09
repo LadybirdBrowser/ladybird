@@ -235,6 +235,7 @@ private:
         AvailableSpace space;
     };
     Optional<AxisAgnosticAvailableSpace> m_available_space_for_items;
+    Optional<AvailableSpace> m_available_space;
 };
 
 }
