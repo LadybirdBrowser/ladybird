@@ -268,7 +268,7 @@ String HTMLCanvasElement::to_data_url(StringView type, Optional<double> quality)
         return "data:,"_string;
 
     // 3. Let file be a serialization of this canvas element's bitmap as a file, passing type and quality if given.
-    auto snapshot = m_surface->create_snapshot();
+    auto snapshot = Gfx::ImmutableBitmap::create_snapshot_from_painting_surface(*m_surface);
     auto bitmap = MUST(Gfx::Bitmap::create(Gfx::BitmapFormat::BGRA8888, Gfx::AlphaType::Premultiplied, m_surface->size()));
     m_surface->read_into_bitmap(*bitmap);
     auto file = serialize_bitmap(bitmap, type, move(quality));
