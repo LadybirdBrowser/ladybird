@@ -71,7 +71,6 @@ void DisplayListPlayer::execute(DisplayList& display_list)
         // clang-format off
         HANDLE_COMMAND(DrawGlyphRun, draw_glyph_run)
         else HANDLE_COMMAND(FillRect, fill_rect)
-        else HANDLE_COMMAND(DrawScaledBitmap, draw_scaled_bitmap)
         else HANDLE_COMMAND(DrawPaintingSurface, draw_painting_surface)
         else HANDLE_COMMAND(DrawScaledImmutableBitmap, draw_scaled_immutable_bitmap)
         else HANDLE_COMMAND(DrawRepeatedImmutableBitmap, draw_repeated_immutable_bitmap)

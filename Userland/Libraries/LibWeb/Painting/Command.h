@@ -58,16 +58,6 @@ struct FillRect {
     void translate_by(Gfx::IntPoint const& offset) { rect.translate_by(offset); }
 };
 
-struct DrawScaledBitmap {
-    Gfx::IntRect dst_rect;
-    NonnullRefPtr<Gfx::Bitmap> bitmap;
-    Gfx::IntRect src_rect;
-    Gfx::ScalingMode scaling_mode;
-
-    [[nodiscard]] Gfx::IntRect bounding_rect() const { return dst_rect; }
-    void translate_by(Gfx::IntPoint const& offset) { dst_rect.translate_by(offset); }
-};
-
 struct DrawPaintingSurface {
     Gfx::IntRect dst_rect;
     NonnullRefPtr<Gfx::PaintingSurface> surface;
@@ -427,7 +417,6 @@ struct ApplyMaskBitmap {
 using Command = Variant<
     DrawGlyphRun,
     FillRect,
-    DrawScaledBitmap,
     DrawPaintingSurface,
     DrawScaledImmutableBitmap,
     DrawRepeatedImmutableBitmap,
