@@ -89,6 +89,7 @@ endif()
 include(CTest) # for BUILD_TESTING option, default ON
 
 if (ENABLE_GUI_TARGETS)
+    add_subdirectory(Userland/Services)
     add_subdirectory(Ladybird)
 endif()
 
