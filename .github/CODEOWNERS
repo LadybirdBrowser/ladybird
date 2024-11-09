@@ -13,4 +13,4 @@
 /Userland/Libraries/LibXML @alimpfard
 /Services/RequestServer @alimpfard
 /Services/WebDriver @trflynn89
-/Userland/Utilities/wasm.cpp @alimpfard
+/Utilities/wasm.cpp @alimpfard

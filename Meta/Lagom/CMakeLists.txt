@@ -446,20 +446,20 @@ if (ENABLE_FUZZERS OR ENABLE_COMPILER_EXPLORER_BUILD OR ANDROID OR IOS)
 endif()
 
 # Lagom Utilities
-lagom_utility(abench SOURCES ../../Userland/Utilities/abench.cpp LIBS LibMain LibFileSystem LibMedia)
+lagom_utility(abench SOURCES ../../Utilities/abench.cpp LIBS LibMain LibFileSystem LibMedia)
 
 if (ENABLE_GUI_TARGETS)
-    lagom_utility(animation SOURCES ../../Userland/Utilities/animation.cpp LIBS LibGfx LibMain)
-    lagom_utility(icc SOURCES ../../Userland/Utilities/icc.cpp LIBS LibGfx LibMain LibURL)
-    lagom_utility(image SOURCES ../../Userland/Utilities/image.cpp LIBS LibGfx LibMain)
+    lagom_utility(animation SOURCES ../../Utilities/animation.cpp LIBS LibGfx LibMain)
+    lagom_utility(icc SOURCES ../../Utilities/icc.cpp LIBS LibGfx LibMain LibURL)
+    lagom_utility(image SOURCES ../../Utilities/image.cpp LIBS LibGfx LibMain)
 endif()
 
-lagom_utility(js SOURCES ../../Userland/Utilities/js.cpp LIBS LibCrypto LibJS LibLine LibUnicode LibMain LibTextCodec Threads::Threads)
+lagom_utility(js SOURCES ../../Utilities/js.cpp LIBS LibCrypto LibJS LibLine LibUnicode LibMain LibTextCodec Threads::Threads)
 
-lagom_utility(gzip SOURCES ../../Userland/Utilities/gzip.cpp LIBS LibCompress LibMain)
-lagom_utility(lzcat SOURCES ../../Userland/Utilities/lzcat.cpp LIBS LibCompress LibMain)
+lagom_utility(gzip SOURCES ../../Utilities/gzip.cpp LIBS LibCompress LibMain)
+lagom_utility(lzcat SOURCES ../../Utilities/lzcat.cpp LIBS LibCompress LibMain)
 
-lagom_utility(tar SOURCES ../../Userland/Utilities/tar.cpp LIBS LibArchive LibCompress LibFileSystem LibMain)
+lagom_utility(tar SOURCES ../../Utilities/tar.cpp LIBS LibArchive LibCompress LibFileSystem LibMain)
 lagom_utility(test262-runner SOURCES ../../Tests/LibJS/test262-runner.cpp LIBS LibJS LibFileSystem)
 
 if (CMAKE_SYSTEM_NAME STREQUAL "Linux")
@@ -479,9 +479,9 @@ if (ASSERT_FAIL_HAS_INT OR EMSCRIPTEN)
     target_compile_definitions(test262-runner PRIVATE ASSERT_FAIL_HAS_INT)
 endif()
 
-lagom_utility(wasm SOURCES ../../Userland/Utilities/wasm.cpp LIBS LibFileSystem LibWasm LibLine LibMain LibJS)
-lagom_utility(xml SOURCES ../../Userland/Utilities/xml.cpp LIBS LibFileSystem LibMain LibXML LibURL)
-lagom_utility(xzcat SOURCES ../../Userland/Utilities/xzcat.cpp LIBS LibCompress LibMain)
+lagom_utility(wasm SOURCES ../../Utilities/wasm.cpp LIBS LibFileSystem LibWasm LibLine LibMain LibJS)
+lagom_utility(xml SOURCES ../../Utilities/xml.cpp LIBS LibFileSystem LibMain LibXML LibURL)
+lagom_utility(xzcat SOURCES ../../Utilities/xzcat.cpp LIBS LibCompress LibMain)
 
 include(CTest)
 if (BUILD_TESTING)
