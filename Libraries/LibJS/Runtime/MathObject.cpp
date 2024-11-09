@@ -56,6 +56,7 @@ void MathObject::initialize(Realm& realm)
     define_native_function(realm, vm.names.cbrt, cbrt, 1, attr);
     define_native_function(realm, vm.names.atan2, atan2, 2, attr);
     define_native_function(realm, vm.names.fround, fround, 1, attr);
+    define_native_function(realm, vm.names.f16round, f16round, 1, attr);
     define_native_function(realm, vm.names.hypot, hypot, 2, attr);
     define_native_function(realm, vm.names.imul, imul, 2, attr);
     define_native_function(realm, vm.names.log, log, 1, attr, Bytecode::Builtin::MathLog);
@@ -511,6 +512,26 @@ JS_DEFINE_NATIVE_FUNCTION(MathObject::fround)
     // 5. Let n64 be the result of converting n32 to a value in IEEE 754-2019 binary64 format.
     // 6. Return the ECMAScript Number value corresponding to n64.
     return Value((float)number.as_double());
+}
+
+// 3.1 Math.f16round ( x ), https://tc39.es/proposal-float16array/#sec-math.f16round
+JS_DEFINE_NATIVE_FUNCTION(MathObject::f16round)
+{
+    // 1. Let n be ? ToNumber(x).
+    auto number = TRY(vm.argument(0).to_number(vm));
+
+    // 2. If n is NaN, return NaN.
+    if (number.is_nan())
+        return js_nan();
+
+    // 3. If n is one of +0𝔽, -0𝔽, +∞𝔽, or -∞𝔽, return n.
+    if (number.as_double() == 0 || number.is_infinity())
+        return number;
+
+    // 4. Let n16 be the result of converting n to IEEE 754-2019 binary16 format using roundTiesToEven mode.
+    // 5. Let n64 be the result of converting n16 to IEEE 754-2019 binary64 format.
+    // 6. Return the ECMAScript Number value corresponding to n64.
+    return Value(static_cast<f16>(number.as_double()));
 }
 
 // 21.3.2.18 Math.hypot ( ...args ), https://tc39.es/ecma262/#sec-math.hypot

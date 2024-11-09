@@ -24,6 +24,7 @@ private:
 
     JS_DECLARE_NATIVE_FUNCTION(get_big_int_64);
     JS_DECLARE_NATIVE_FUNCTION(get_big_uint_64);
+    JS_DECLARE_NATIVE_FUNCTION(get_float_16);
     JS_DECLARE_NATIVE_FUNCTION(get_float_32);
     JS_DECLARE_NATIVE_FUNCTION(get_float_64);
     JS_DECLARE_NATIVE_FUNCTION(get_int_8);
@@ -34,6 +35,7 @@ private:
     JS_DECLARE_NATIVE_FUNCTION(get_uint_32);
     JS_DECLARE_NATIVE_FUNCTION(set_big_int_64);
     JS_DECLARE_NATIVE_FUNCTION(set_big_uint_64);
+    JS_DECLARE_NATIVE_FUNCTION(set_float_16);
     JS_DECLARE_NATIVE_FUNCTION(set_float_32);
     JS_DECLARE_NATIVE_FUNCTION(set_float_64);
     JS_DECLARE_NATIVE_FUNCTION(set_int_8);

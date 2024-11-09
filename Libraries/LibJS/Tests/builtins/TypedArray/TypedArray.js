@@ -6,6 +6,7 @@ const TYPED_ARRAYS = [
     Int8Array,
     Int16Array,
     Int32Array,
+    Float16Array,
     Float32Array,
     Float64Array,
 ];
@@ -185,8 +186,9 @@ test("typed array from TypedArray element cast", () => {
         [0x100, 0xff],
         [0x100, 0xff],
         [0x100, 0xff],
+        [0x100, 0xff],
     ];
-    const u8Expected = [0xff, 0xff, 0xff, 0xff, -1, 0xff, 0xff, 0xff, 0xff];
+    const u8Expected = [0xff, 0xff, 0xff, 0xff, -1, 0xff, 0xff, 0xff, 0xff, 0xff];
 
     TYPED_ARRAYS.forEach((T, i) => {
         const newArrFromU32 = new T(u32Array);

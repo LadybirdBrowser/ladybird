@@ -171,11 +171,12 @@ inline size_t array_buffer_byte_length(ArrayBuffer const& array_buffer, ArrayBuf
 }
 
 // 25.1.3.14 RawBytesToNumeric ( type, rawBytes, isLittleEndian ), https://tc39.es/ecma262/#sec-rawbytestonumeric
+// 5 RawBytesToNumeric ( type, rawBytes, isLittleEndian ), https://tc39.es/proposal-float16array/#sec-rawbytestonumeric
 template<typename T>
 static Value raw_bytes_to_numeric(VM& vm, Bytes raw_value, bool is_little_endian)
 {
     // 1. Let elementSize be the Element Size value specified in Table 70 for Element Type type.
-    //    NOTE: Used in step 6, but not needed with our implementation of that step.
+    //    NOTE: Used in step 7, but not needed with our implementation of that step.
 
     // 2. If isLittleEndian is false, reverse the order of the elements of rawBytes.
     if (!is_little_endian) {
@@ -184,8 +185,23 @@ static Value raw_bytes_to_numeric(VM& vm, Bytes raw_value, bool is_little_endian
             swap(raw_value[i], raw_value[raw_value.size() - 1 - i]);
     }
 
-    // 3. If type is Float32, then
     using UnderlyingBufferDataType = Conditional<IsSame<ClampedU8, T>, u8, T>;
+
+    // 3. If type is Float16, then
+    if constexpr (IsSame<UnderlyingBufferDataType, f16>) {
+        // a. Let value be the byte elements of rawBytes concatenated and interpreted as a little-endian bit string encoding of an IEEE 754-2019 binary16 value.
+        f16 value;
+        raw_value.copy_to({ &value, sizeof(f16) });
+
+        // b. If value is an IEEE 754-2019 binary16 NaN value, return the NaN Number value.
+        if (isnan(static_cast<double>(value)))
+            return js_nan();
+
+        // c. Return the Number value that corresponds to value.
+        return Value(value);
+    }
+
+    // 4. If type is Float32, then
     if constexpr (IsSame<UnderlyingBufferDataType, float>) {
         // a. Let value be the byte elements of rawBytes concatenated and interpreted as a little-endian bit string encoding of an IEEE 754-2019 binary32 value.
         float value;
@@ -199,7 +215,7 @@ static Value raw_bytes_to_numeric(VM& vm, Bytes raw_value, bool is_little_endian
         return Value(value);
     }
 
-    // 4. If type is Float64, then
+    // 5. If type is Float64, then
     if constexpr (IsSame<UnderlyingBufferDataType, double>) {
         // a. Let value be the byte elements of rawBytes concatenated and interpreted as a little-endian bit string encoding of an IEEE 754-2019 binary64 value.
         double value;
@@ -217,16 +233,16 @@ static Value raw_bytes_to_numeric(VM& vm, Bytes raw_value, bool is_little_endian
     if constexpr (!IsIntegral<UnderlyingBufferDataType>)
         VERIFY_NOT_REACHED();
 
-    // 5. If IsUnsignedElementType(type) is true, then
+    // 6. If IsUnsignedElementType(type) is true, then
     //     a. Let intValue be the byte elements of rawBytes concatenated and interpreted as a bit string encoding of an unsigned little-endian binary number.
-    // 6. Else,
+    // 7. Else,
     //     a. Let intValue be the byte elements of rawBytes concatenated and interpreted as a bit string encoding of a binary little-endian two's complement number of bit length elementSize × 8.
     //
     // NOTE: The signed/unsigned logic above is implemented in step 7 by the IsSigned<> check, and in step 8 by JS::Value constructor overloads.
     UnderlyingBufferDataType int_value = 0;
     raw_value.copy_to({ &int_value, sizeof(UnderlyingBufferDataType) });
 
-    // 7. If IsBigIntElementType(type) is true, return the BigInt value that corresponds to intValue.
+    // 8. If IsBigIntElementType(type) is true, return the BigInt value that corresponds to intValue.
     if constexpr (sizeof(UnderlyingBufferDataType) == 8) {
         if constexpr (IsSigned<UnderlyingBufferDataType>) {
             static_assert(IsSame<UnderlyingBufferDataType, i64>);
@@ -236,7 +252,7 @@ static Value raw_bytes_to_numeric(VM& vm, Bytes raw_value, bool is_little_endian
             return BigInt::create(vm, Crypto::SignedBigInteger { Crypto::UnsignedBigInteger { int_value } });
         }
     }
-    // 8. Otherwise, return the Number value that corresponds to intValue.
+    // 9. Otherwise, return the Number value that corresponds to intValue.
     else {
         return Value(int_value);
     }
@@ -289,6 +305,7 @@ Value ArrayBuffer::get_value(size_t byte_index, [[maybe_unused]] bool is_typed_a
 }
 
 // 25.1.3.17 NumericToRawBytes ( type, value, isLittleEndian ), https://tc39.es/ecma262/#sec-numerictorawbytes
+// 6 NumericToRawBytes ( type, value, isLittleEndian ), https://tc39.es/proposal-float16array/#sec-numerictorawbytes
 template<typename T>
 static void numeric_to_raw_bytes(VM& vm, Value value, bool is_little_endian, Bytes raw_bytes)
 {
@@ -302,6 +319,12 @@ static void numeric_to_raw_bytes(VM& vm, Value value, bool is_little_endian, Byt
         for (size_t i = 0; i < sizeof(UnderlyingBufferDataType) / 2; ++i)
             swap(raw_bytes[i], raw_bytes[sizeof(UnderlyingBufferDataType) - 1 - i]);
     };
+    if constexpr (IsSame<UnderlyingBufferDataType, f16>) {
+        auto raw_value = static_cast<f16>(MUST(value.to_double(vm)));
+        ReadonlyBytes { &raw_value, sizeof(f16) }.copy_to(raw_bytes);
+        flip_if_needed();
+        return;
+    }
     if constexpr (IsSame<UnderlyingBufferDataType, float>) {
         float raw_value = MUST(value.to_double(vm));
         ReadonlyBytes { &raw_value, sizeof(float) }.copy_to(raw_bytes);

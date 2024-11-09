@@ -71,6 +71,7 @@
     __JS_ENUMERATE(Int16Array, int16_array, Int16ArrayPrototype, Int16ArrayConstructor, i16)                                    \
     __JS_ENUMERATE(Int32Array, int32_array, Int32ArrayPrototype, Int32ArrayConstructor, i32)                                    \
     __JS_ENUMERATE(BigInt64Array, big_int64_array, BigInt64ArrayPrototype, BigInt64ArrayConstructor, i64)                       \
+    __JS_ENUMERATE(Float16Array, float16_array, Float16ArrayPrototype, Float16ArrayConstructor, f16)                            \
     __JS_ENUMERATE(Float32Array, float32_array, Float32ArrayPrototype, Float32ArrayConstructor, float)                          \
     __JS_ENUMERATE(Float64Array, float64_array, Float64ArrayPrototype, Float64ArrayConstructor, double)
 

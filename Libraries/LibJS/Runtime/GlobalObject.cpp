@@ -143,6 +143,7 @@ void set_default_global_bindings(Realm& realm)
     global.define_intrinsic_accessor(vm.names.Error, attr, [](auto& realm) -> Value { return realm.intrinsics().error_constructor(); });
     global.define_intrinsic_accessor(vm.names.EvalError, attr, [](auto& realm) -> Value { return realm.intrinsics().eval_error_constructor(); });
     global.define_intrinsic_accessor(vm.names.FinalizationRegistry, attr, [](auto& realm) -> Value { return realm.intrinsics().finalization_registry_constructor(); });
+    global.define_intrinsic_accessor(vm.names.Float16Array, attr, [](auto& realm) -> Value { return realm.intrinsics().float16_array_constructor(); });
     global.define_intrinsic_accessor(vm.names.Float32Array, attr, [](auto& realm) -> Value { return realm.intrinsics().float32_array_constructor(); });
     global.define_intrinsic_accessor(vm.names.Float64Array, attr, [](auto& realm) -> Value { return realm.intrinsics().float64_array_constructor(); });
     global.define_intrinsic_accessor(vm.names.Function, attr, [](auto& realm) -> Value { return realm.intrinsics().function_constructor(); });

@@ -8,6 +8,7 @@ const TYPED_ARRAYS = [
     Int16Array,
     Int32Array,
     BigInt64Array,
+    Float16Array,
     Float32Array,
     Float64Array,
 ];

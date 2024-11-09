@@ -8,6 +8,7 @@ const TYPED_ARRAYS = [
     { array: Int16Array, expected: 6 },
     { array: Int32Array, expected: 12 },
     { array: BigInt64Array, expected: 24 },
+    { array: Float16Array, expected: 6 },
     { array: Float32Array, expected: 12 },
     { array: Float64Array, expected: 24 },
 ];
