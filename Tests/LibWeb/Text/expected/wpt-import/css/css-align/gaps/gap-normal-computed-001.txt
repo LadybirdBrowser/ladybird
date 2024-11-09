@@ -1,0 +1,16 @@
+Summary
+
+Harness status: OK
+
+Rerun
+
+Found 6 tests
+
+6 Fail
+Details
+Result	Test Name	MessageFail	colum-gap:normal computes to normal on multicol elements	
+Fail	row-gap:normal computes to normal on multicol elements	
+Fail	colum-gap:normal computes to normal on grid	
+Fail	row-gap:normal computes to normal on grid	
+Fail	colum-gap:normal (main axis) computes to normal on flexbox	
+Fail	row-gap:normal (cross axis) computes to normal on flexbox	

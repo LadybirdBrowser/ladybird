@@ -1,0 +1,14 @@
+Summary
+
+Harness status: OK
+
+Rerun
+
+Found 3 tests
+
+2 Pass
+1 Fail
+Details
+Result	Test Name	MessagePass	grid-row-gap is a legacy name alias for row-gap	
+Pass	grid-column-gap is a legacy name alias for column-gap	
+Fail	grid-gap is a legacy name alias for gap	
