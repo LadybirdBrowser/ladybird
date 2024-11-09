@@ -2,10 +2,10 @@ include(fontconfig)
 include(pulseaudio)
 
 set(SOURCES
-    ${LADYBIRD_SOURCE_DIR}/Ladybird/FontPlugin.cpp
-    ${LADYBIRD_SOURCE_DIR}/Ladybird/HelperProcess.cpp
-    ${LADYBIRD_SOURCE_DIR}/Ladybird/ImageCodecPlugin.cpp
-    ${LADYBIRD_SOURCE_DIR}/Ladybird/Utilities.cpp
+    ${LADYBIRD_SOURCE_DIR}/UI/FontPlugin.cpp
+    ${LADYBIRD_SOURCE_DIR}/UI/HelperProcess.cpp
+    ${LADYBIRD_SOURCE_DIR}/UI/ImageCodecPlugin.cpp
+    ${LADYBIRD_SOURCE_DIR}/UI/Utilities.cpp
     ConnectionFromClient.cpp
     ConsoleGlobalEnvironmentExtensions.cpp
     BackingStoreManager.cpp
@@ -17,10 +17,10 @@ set(SOURCES
 
 if (ANDROID)
     add_library(webcontentservice SHARED
-        ${LADYBIRD_SOURCE_DIR}/Ladybird/Android/src/main/cpp/WebContentService.cpp
-        ${LADYBIRD_SOURCE_DIR}/Ladybird/Android/src/main/cpp/WebContentServiceJNI.cpp
-        ${LADYBIRD_SOURCE_DIR}/Ladybird/Android/src/main/cpp/LadybirdServiceBaseJNI.cpp
-        ${LADYBIRD_SOURCE_DIR}/Ladybird/Android/src/main/cpp/JNIHelpers.cpp
+        ${LADYBIRD_SOURCE_DIR}/UI/Android/src/main/cpp/WebContentService.cpp
+        ${LADYBIRD_SOURCE_DIR}/UI/Android/src/main/cpp/WebContentServiceJNI.cpp
+        ${LADYBIRD_SOURCE_DIR}/UI/Android/src/main/cpp/LadybirdServiceBaseJNI.cpp
+        ${LADYBIRD_SOURCE_DIR}/UI/Android/src/main/cpp/JNIHelpers.cpp
         ${SOURCES}
     )
     target_link_libraries(webcontentservice PRIVATE android)
@@ -41,9 +41,9 @@ endif()
 
 if (ENABLE_QT)
     qt_add_executable(WebContent
-        ${LADYBIRD_SOURCE_DIR}/Ladybird/Qt/EventLoopImplementationQt.cpp
-        ${LADYBIRD_SOURCE_DIR}/Ladybird/Qt/EventLoopImplementationQtEventTarget.cpp
-        ${LADYBIRD_SOURCE_DIR}/Ladybird/Qt/StringUtils.cpp
+        ${LADYBIRD_SOURCE_DIR}/UI/Qt/EventLoopImplementationQt.cpp
+        ${LADYBIRD_SOURCE_DIR}/UI/Qt/EventLoopImplementationQtEventTarget.cpp
+        ${LADYBIRD_SOURCE_DIR}/UI/Qt/StringUtils.cpp
         main.cpp
     )
     target_link_libraries(WebContent PRIVATE Qt::Core)
@@ -53,8 +53,8 @@ if (ENABLE_QT)
         find_package(Qt6 REQUIRED COMPONENTS Multimedia)
 
         target_sources(WebContent PRIVATE
-            ${LADYBIRD_SOURCE_DIR}/Ladybird/Qt/AudioCodecPluginQt.cpp
-            ${LADYBIRD_SOURCE_DIR}/Ladybird/Qt/AudioThread.cpp
+            ${LADYBIRD_SOURCE_DIR}/UI/Qt/AudioCodecPluginQt.cpp
+            ${LADYBIRD_SOURCE_DIR}/UI/Qt/AudioThread.cpp
         )
 
         target_link_libraries(WebContent PRIVATE Qt::Multimedia)
@@ -68,8 +68,8 @@ target_link_libraries(WebContent PRIVATE webcontentservice LibURL)
 
 target_sources(webcontentservice PUBLIC FILE_SET ladybird TYPE HEADERS
     BASE_DIRS ${LADYBIRD_SOURCE_DIR}
-    FILES ${LADYBIRD_SOURCE_DIR}/Ladybird/FontPlugin.h
-          ${LADYBIRD_SOURCE_DIR}/Ladybird/ImageCodecPlugin.h
+    FILES ${LADYBIRD_SOURCE_DIR}/UI/FontPlugin.h
+          ${LADYBIRD_SOURCE_DIR}/UI/ImageCodecPlugin.h
 )
 target_sources(webcontentservice PUBLIC FILE_SET server TYPE HEADERS
     BASE_DIRS ${LADYBIRD_SOURCE_DIR}/Services

@@ -91,7 +91,7 @@ jobs:
       # === BUILD ===
 
       - name: Build and Test
-        working-directory: ${{ github.workspace }}/Ladybird/Android
+        working-directory: ${{ github.workspace }}/UI/Android
         run: ./gradlew connectedAndroidTest
         env:
           GRADLE_OPTS: '-Xmx3072m'

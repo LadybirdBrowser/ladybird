@@ -4,7 +4,7 @@ if (VCPKG_TARGET_ANDROID)
     # If we are building for Android, we must load vcpkg_android.cmake before the project() declaration.
     # This ensures that the CMAKE_TOOLCHAIN_FILE is set correctly.
     # (we cannot set CMAKE_TOOLCHAIN_FILE from Gradle, unfortunately, so this is the only place we can do it.)
-    include("Ladybird/Android/vcpkg_android.cmake")
+    include("UI/Android/vcpkg_android.cmake")
 endif()
 
 # Pass additional information to vcpkg toolchain files if we are using vcpkg.
@@ -28,7 +28,7 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 set(LADYBIRD_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}")
 list(APPEND CMAKE_MODULE_PATH "${LADYBIRD_SOURCE_DIR}/Meta/CMake")
 
-include(Ladybird/cmake/EnableLagom.cmake)
+include(UI/cmake/EnableLagom.cmake)
 include(use_linker)
 include(lagom_options NO_POLICY_SCOPE)
 include(lagom_compile_options)
@@ -90,7 +90,7 @@ include(CTest) # for BUILD_TESTING option, default ON
 
 if (ENABLE_GUI_TARGETS)
     add_subdirectory(Services)
-    add_subdirectory(Ladybird)
+    add_subdirectory(UI)
 endif()
 
 add_custom_target(lint-shell-scripts
