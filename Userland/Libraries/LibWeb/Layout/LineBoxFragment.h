@@ -24,7 +24,6 @@ public:
     Node const& layout_node() const { return m_layout_node; }
     int start() const { return m_start; }
     int length() const { return m_length; }
-    CSSPixelRect const absolute_rect() const;
 
     CSSPixelPoint offset() const;
     CSSPixels inline_offset() const { return m_inline_offset; }
