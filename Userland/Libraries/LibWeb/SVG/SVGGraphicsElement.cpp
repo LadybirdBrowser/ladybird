@@ -316,4 +316,10 @@ JS::NonnullGCPtr<SVGAnimatedTransformList> SVGGraphicsElement::transform() const
     return SVGAnimatedTransformList::create(realm(), base_val, anim_val);
 }
 
+JS::GCPtr<Geometry::DOMMatrix> SVGGraphicsElement::get_screen_ctm()
+{
+    dbgln("(STUBBED) SVGGraphicsElement::get_screen_ctm(). Called on: {}", debug_description());
+    return Geometry::DOMMatrix::create(realm());
+}
+
 }

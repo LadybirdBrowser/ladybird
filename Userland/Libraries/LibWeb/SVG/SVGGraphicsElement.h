@@ -63,6 +63,8 @@ public:
     JS::NonnullGCPtr<Geometry::DOMRect> get_b_box(Optional<SVGBoundingBoxOptions>);
     JS::NonnullGCPtr<SVGAnimatedTransformList> transform() const;
 
+    JS::GCPtr<Geometry::DOMMatrix> get_screen_ctm();
+
 protected:
     SVGGraphicsElement(DOM::Document&, DOM::QualifiedName);
 

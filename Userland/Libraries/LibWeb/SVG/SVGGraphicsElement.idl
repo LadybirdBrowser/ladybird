@@ -15,5 +15,5 @@ interface SVGGraphicsElement : SVGElement {
 
     DOMRect getBBox(optional SVGBoundingBoxOptions options = {});
     [FIXME] DOMMatrix? getCTM();
-    [FIXME] DOMMatrix? getScreenCTM();
+    DOMMatrix? getScreenCTM();
 };
