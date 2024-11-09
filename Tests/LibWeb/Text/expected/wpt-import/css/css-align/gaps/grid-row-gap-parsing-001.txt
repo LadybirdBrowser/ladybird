@@ -6,24 +6,24 @@ Rerun
 
 Found 18 tests
 
-5 Pass
-13 Fail
+16 Pass
+2 Fail
 Details
-Result	Test Name	MessageFail	Default grid-row-gap is 'normal'	
+Result	Test Name	MessagePass	Default grid-row-gap is 'normal'	
 Pass	grid-row-gap accepts pixels	
 Pass	grid-row-gap accepts em	
 Pass	grid-row-gap accepts vw	
 Pass	grid-row-gap accepts percentage	
 Fail	grid-row-gap accepts calc()	
 Fail	grid-row-gap accepts calc() mixing fixed and percentage values	
-Fail	Initial grid-row-gap is 'normal'	
-Fail	Initial grid-row-gap is 'normal' 2	
-Fail	Initial inherited grid-row-gap is 'normal'	
+Pass	Initial grid-row-gap is 'normal'	
+Pass	Initial grid-row-gap is 'normal' 2	
+Pass	Initial inherited grid-row-gap is 'normal'	
 Pass	grid-row-gap is inheritable	
-Fail	Negative grid-row-gap is invalid	
-Fail	'max-content' grid-row-gap is invalid	
-Fail	'none' grid-row-gap is invalid	
-Fail	grid-row-gap with multiple values is invalid	
-Fail	Angle grid-row-gap is invalid	
-Fail	Resolution grid-row-gap is invalid	
-Fail	Time grid-row-gap is invalid	
+Pass	Negative grid-row-gap is invalid	
+Pass	'max-content' grid-row-gap is invalid	
+Pass	'none' grid-row-gap is invalid	
+Pass	grid-row-gap with multiple values is invalid	
+Pass	Angle grid-row-gap is invalid	
+Pass	Resolution grid-row-gap is invalid	
+Pass	Time grid-row-gap is invalid	

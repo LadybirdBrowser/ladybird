@@ -2292,18 +2292,25 @@ double FlexFormattingContext::FlexLine::sum_of_scaled_flex_shrink_factor_of_unfr
     return sum;
 }
 
+static CSSPixels gap_to_px(Variant<CSS::LengthPercentage, CSS::NormalGap> const& gap, Layout::Node const& grid_container, CSSPixels reference_value)
+{
+    return gap.visit(
+        [](CSS::NormalGap) { return CSSPixels(0); },
+        [&](auto const& gap) { return gap.to_px(grid_container, reference_value); });
+}
+
 CSSPixels FlexFormattingContext::main_gap() const
 {
     auto const& computed_values = flex_container().computed_values();
-    auto gap = is_row_layout() ? computed_values.column_gap() : computed_values.row_gap();
-    return gap.to_px(flex_container(), inner_main_size(m_flex_container_state));
+    auto const& gap = is_row_layout() ? computed_values.column_gap() : computed_values.row_gap();
+    return gap_to_px(gap, flex_container(), inner_main_size(m_flex_container_state));
 }
 
 CSSPixels FlexFormattingContext::cross_gap() const
 {
     auto const& computed_values = flex_container().computed_values();
     auto gap = is_row_layout() ? computed_values.row_gap() : computed_values.column_gap();
-    return gap.to_px(flex_container(), inner_cross_size(m_flex_container_state));
+    return gap_to_px(gap, flex_container(), inner_cross_size(m_flex_container_state));
 }
 
 }

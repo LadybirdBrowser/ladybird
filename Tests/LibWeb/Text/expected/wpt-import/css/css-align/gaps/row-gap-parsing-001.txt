@@ -6,24 +6,24 @@ Rerun
 
 Found 18 tests
 
-5 Pass
-13 Fail
+16 Pass
+2 Fail
 Details
-Result	Test Name	MessageFail	Default row-gap is 'normal'	
+Result	Test Name	MessagePass	Default row-gap is 'normal'	
 Pass	row-gap accepts pixels	
 Pass	row-gap accepts em	
 Pass	row-gap accepts vw	
 Pass	row-gap accepts percentage	
 Fail	row-gap accepts calc()	
 Fail	row-gap accepts calc() mixing fixed and percentage values	
-Fail	Initial row-gap is 'normal'	
-Fail	Initial row-gap is 'normal' 2	
-Fail	Initial inherited row-gap is 'normal'	
+Pass	Initial row-gap is 'normal'	
+Pass	Initial row-gap is 'normal' 2	
+Pass	Initial inherited row-gap is 'normal'	
 Pass	row-gap is inheritable	
-Fail	Negative row-gap is invalid	
-Fail	'max-content' row-gap is invalid	
-Fail	'none' row-gap is invalid	
-Fail	row-gap with multiple values is invalid	
-Fail	Angle row-gap is invalid	
-Fail	Resolution row-gap is invalid	
-Fail	Time row-gap is invalid	
+Pass	Negative row-gap is invalid	
+Pass	'max-content' row-gap is invalid	
+Pass	'none' row-gap is invalid	
+Pass	row-gap with multiple values is invalid	
+Pass	Angle row-gap is invalid	
+Pass	Resolution row-gap is invalid	
+Pass	Time row-gap is invalid	

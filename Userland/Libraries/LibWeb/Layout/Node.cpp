@@ -869,8 +869,8 @@ void NodeWithStyle::apply_style(const CSS::StyleProperties& computed_style)
 
     computed_values.set_column_width(computed_style.size_value(CSS::PropertyID::ColumnWidth));
 
-    computed_values.set_column_gap(computed_style.size_value(CSS::PropertyID::ColumnGap));
-    computed_values.set_row_gap(computed_style.size_value(CSS::PropertyID::RowGap));
+    computed_values.set_column_gap(computed_style.gap_value(CSS::PropertyID::ColumnGap));
+    computed_values.set_row_gap(computed_style.gap_value(CSS::PropertyID::RowGap));
 
     if (auto border_collapse = computed_style.border_collapse(); border_collapse.has_value())
         computed_values.set_border_collapse(border_collapse.value());
