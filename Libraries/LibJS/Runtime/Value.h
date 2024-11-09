@@ -223,6 +223,11 @@ public:
         }
     }
 
+    explicit Value(f16 value)
+        : Value(static_cast<double>(value))
+    {
+    }
+
     // NOTE: A couple of integral types are excluded here:
     // - i32 has its own dedicated Value constructor
     // - i64 cannot safely be cast to a double

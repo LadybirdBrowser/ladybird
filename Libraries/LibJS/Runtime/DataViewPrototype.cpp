@@ -26,6 +26,7 @@ void DataViewPrototype::initialize(Realm& realm)
 
     define_native_function(realm, vm.names.getBigInt64, get_big_int_64, 1, attr);
     define_native_function(realm, vm.names.getBigUint64, get_big_uint_64, 1, attr);
+    define_native_function(realm, vm.names.getFloat16, get_float_16, 1, attr);
     define_native_function(realm, vm.names.getFloat32, get_float_32, 1, attr);
     define_native_function(realm, vm.names.getFloat64, get_float_64, 1, attr);
     define_native_function(realm, vm.names.getInt8, get_int_8, 1, attr);
@@ -36,6 +37,7 @@ void DataViewPrototype::initialize(Realm& realm)
     define_native_function(realm, vm.names.getUint32, get_uint_32, 1, attr);
     define_native_function(realm, vm.names.setBigInt64, set_big_int_64, 2, attr);
     define_native_function(realm, vm.names.setBigUint64, set_big_uint_64, 2, attr);
+    define_native_function(realm, vm.names.setFloat16, set_float_16, 2, attr);
     define_native_function(realm, vm.names.setFloat32, set_float_32, 2, attr);
     define_native_function(realm, vm.names.setFloat64, set_float_64, 2, attr);
     define_native_function(realm, vm.names.setInt8, set_int_8, 2, attr);
@@ -236,6 +238,15 @@ JS_DEFINE_NATIVE_FUNCTION(DataViewPrototype::get_big_uint_64)
     return get_view_value<u64>(vm, vm.argument(0), vm.argument(1));
 }
 
+// 7.1 DataView.prototype.getFloat16 ( byteOffset [ , littleEndian ] ), https://tc39.es/proposal-float16array/#sec-dataview.prototype.getfloat16
+JS_DEFINE_NATIVE_FUNCTION(DataViewPrototype::get_float_16)
+{
+    // 1. Let v be the this value.
+    // 2. If littleEndian is not present, set littleEndian to false.
+    // 3. Return ? GetViewValue(v, byteOffset, littleEndian, Float16).
+    return get_view_value<f16>(vm, vm.argument(0), vm.argument(1));
+}
+
 // 25.3.4.7 DataView.prototype.getFloat32 ( byteOffset [ , littleEndian ] ), https://tc39.es/ecma262/#sec-dataview.prototype.getfloat32
 JS_DEFINE_NATIVE_FUNCTION(DataViewPrototype::get_float_32)
 {
@@ -320,6 +331,15 @@ JS_DEFINE_NATIVE_FUNCTION(DataViewPrototype::set_big_uint_64)
     // 1. Let v be the this value.
     // 2. Return ? SetViewValue(v, byteOffset, littleEndian, BigUint64, value).
     return set_view_value<u64>(vm, vm.argument(0), vm.argument(2), vm.argument(1));
+}
+
+// 7.2 DataView.prototype.setFloat16 ( byteOffset, value [ , littleEndian ] ), https://tc39.es/proposal-float16array/#sec-dataview.prototype.setfloat16
+JS_DEFINE_NATIVE_FUNCTION(DataViewPrototype::set_float_16)
+{
+    // 1. Let v be the this value.
+    // 2. If littleEndian is not present, set littleEndian to false.
+    // 3. Return ? SetViewValue(v, byteOffset, littleEndian, Float16, value).
+    return set_view_value<f16>(vm, vm.argument(0), vm.argument(2), vm.argument(1));
 }
 
 // 25.3.4.17 DataView.prototype.setFloat32 ( byteOffset, value [ , littleEndian ] ), https://tc39.es/ecma262/#sec-dataview.prototype.setfloat32

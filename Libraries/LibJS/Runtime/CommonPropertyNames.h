@@ -223,6 +223,7 @@ namespace JS {
     P(fromEpochSeconds)                      \
     P(fromHex)                               \
     P(fround)                                \
+    P(f16round)                              \
     P(gc)                                    \
     P(get)                                   \
     P(getBigInt64)                           \
@@ -232,6 +233,7 @@ namespace JS {
     P(getCollations)                         \
     P(getDate)                               \
     P(getDay)                                \
+    P(getFloat16)                            \
     P(getFloat32)                            \
     P(getFloat64)                            \
     P(getFullYear)                           \
@@ -464,6 +466,7 @@ namespace JS {
     P(setBigInt64)                           \
     P(setBigUint64)                          \
     P(setDate)                               \
+    P(setFloat16)                            \
     P(setFloat32)                            \
     P(setFloat64)                            \
     P(setFromBase64)                         \

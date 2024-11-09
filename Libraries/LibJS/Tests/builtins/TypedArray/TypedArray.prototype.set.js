@@ -6,6 +6,7 @@ const TYPED_ARRAYS = [
     { array: Int8Array, maxUnsignedInteger: 2 ** 7 - 1 },
     { array: Int16Array, maxUnsignedInteger: 2 ** 15 - 1 },
     { array: Int32Array, maxUnsignedInteger: 2 ** 31 - 1 },
+    { array: Float16Array, maxUnsignedInteger: 2 ** 11 - 1 },
     { array: Float32Array, maxUnsignedInteger: 2 ** 24 - 1 },
     { array: Float64Array, maxUnsignedInteger: Number.MAX_SAFE_INTEGER },
 ];
