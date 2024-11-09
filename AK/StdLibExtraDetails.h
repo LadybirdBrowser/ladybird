@@ -350,6 +350,8 @@ template<>
 inline constexpr bool __IsFloatingPoint<double> = true;
 template<>
 inline constexpr bool __IsFloatingPoint<long double> = true;
+template<>
+inline constexpr bool __IsFloatingPoint<f16> = true;
 
 template<typename T>
 inline constexpr bool IsFloatingPoint = __IsFloatingPoint<RemoveCV<T>>;
