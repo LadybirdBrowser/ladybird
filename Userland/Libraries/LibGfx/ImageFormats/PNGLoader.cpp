@@ -10,6 +10,7 @@
 #include <LibGfx/ImageFormats/PNGLoader.h>
 #include <LibGfx/ImageFormats/TIFFLoader.h>
 #include <LibGfx/ImageFormats/TIFFMetadata.h>
+#include <LibGfx/ImmutableBitmap.h>
 #include <LibGfx/Painter.h>
 #include <png.h>
 
@@ -239,11 +240,11 @@ ErrorOr<size_t> PNGLoadingContext::read_frames(png_structp png_ptr, png_infop in
             case PNG_BLEND_OP_SOURCE:
                 // All color components of the frame, including alpha, overwrite the current contents of the frame's output buffer region.
                 painter->clear_rect(frame_rect, Gfx::Color::Transparent);
-                painter->draw_bitmap(frame_rect, *decoded_frame_bitmap, decoded_frame_bitmap->rect(), Gfx::ScalingMode::NearestNeighbor, 1.0f);
+                painter->draw_bitmap(frame_rect, Gfx::ImmutableBitmap::create(*decoded_frame_bitmap), decoded_frame_bitmap->rect(), Gfx::ScalingMode::NearestNeighbor, 1.0f);
                 break;
             case PNG_BLEND_OP_OVER:
                 // The frame should be composited onto the output buffer based on its alpha, using a simple OVER operation as described in the "Alpha Channel Processing" section of the PNG specification.
-                painter->draw_bitmap(frame_rect, *decoded_frame_bitmap, decoded_frame_bitmap->rect(), ScalingMode::NearestNeighbor, 1.0f);
+                painter->draw_bitmap(frame_rect, Gfx::ImmutableBitmap::create(*decoded_frame_bitmap), decoded_frame_bitmap->rect(), ScalingMode::NearestNeighbor, 1.0f);
                 break;
             default:
                 VERIFY_NOT_REACHED();
@@ -262,7 +263,7 @@ ErrorOr<size_t> PNGLoadingContext::read_frames(png_structp png_ptr, png_infop in
             case PNG_DISPOSE_OP_PREVIOUS:
                 // The frame's region of the output buffer is to be reverted to the previous contents before rendering the next frame.
                 painter->clear_rect(frame_rect, Gfx::Color::Transparent);
-                painter->draw_bitmap(frame_rect, *prev_output_buffer, IntRect { x, y, width, height }, Gfx::ScalingMode::NearestNeighbor, 1.0f);
+                painter->draw_bitmap(frame_rect, Gfx::ImmutableBitmap::create(*prev_output_buffer), IntRect { x, y, width, height }, Gfx::ScalingMode::NearestNeighbor, 1.0f);
                 break;
             default:
                 VERIFY_NOT_REACHED();

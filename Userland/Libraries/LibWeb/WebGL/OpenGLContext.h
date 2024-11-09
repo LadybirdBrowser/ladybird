@@ -15,7 +15,7 @@ class OpenGLContext {
 public:
     static OwnPtr<OpenGLContext> create(Gfx::PaintingSurface&);
 
-    virtual void present(Gfx::Bitmap const&) = 0;
+    virtual void present() = 0;
     void clear_buffer_to_default_values();
 
     virtual GLenum gl_get_error() = 0;

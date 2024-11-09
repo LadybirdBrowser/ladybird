@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2018-2023, Andreas Kling <andreas@ladybird.org>
+ * Copyright (c) 2024, Aliaksandr Kalenik <kalenik.aliaksandr@gmail.com>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -118,13 +119,6 @@ JS::GCPtr<Layout::Node> HTMLImageElement::create_layout_node(CSS::StylePropertie
 RefPtr<Gfx::ImmutableBitmap> HTMLImageElement::immutable_bitmap() const
 {
     return current_image_bitmap();
-}
-
-RefPtr<Gfx::Bitmap const> HTMLImageElement::bitmap() const
-{
-    if (auto immutable_bitmap = this->immutable_bitmap())
-        return immutable_bitmap->bitmap();
-    return {};
 }
 
 bool HTMLImageElement::is_image_available() const

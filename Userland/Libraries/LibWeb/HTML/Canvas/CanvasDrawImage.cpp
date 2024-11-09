@@ -13,10 +13,20 @@ namespace Web::HTML {
 static void default_source_size(CanvasImageSource const& image, float& source_width, float& source_height)
 {
     image.visit(
+        [&source_width, &source_height](JS::Handle<HTMLImageElement> const& source) {
+            if (source->immutable_bitmap()) {
+                source_width = source->immutable_bitmap()->width();
+                source_height = source->immutable_bitmap()->height();
+            } else {
+                // FIXME: This is very janky and not correct.
+                source_width = source->width();
+                source_height = source->height();
+            }
+        },
         [&source_width, &source_height](JS::Handle<SVG::SVGImageElement> const& source) {
-            if (source->bitmap()) {
-                source_width = source->bitmap()->width();
-                source_height = source->bitmap()->height();
+            if (source->current_image_bitmap()) {
+                source_width = source->current_image_bitmap()->width();
+                source_height = source->current_image_bitmap()->height();
             } else {
                 // FIXME: This is very janky and not correct.
                 source_width = source->width()->anim_val()->value();

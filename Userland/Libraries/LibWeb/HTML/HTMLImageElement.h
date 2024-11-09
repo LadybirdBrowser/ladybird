@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2018-2023, Andreas Kling <andreas@ladybird.org>
+ * Copyright (c) 2024, Aliaksandr Kalenik <kalenik.aliaksandr@gmail.com>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -43,7 +44,6 @@ public:
     String src() const { return get_attribute_value(HTML::AttributeNames::src); }
 
     RefPtr<Gfx::ImmutableBitmap> immutable_bitmap() const;
-    RefPtr<Gfx::Bitmap const> bitmap() const;
 
     unsigned width() const;
     WebIDL::ExceptionOr<void> set_width(unsigned);

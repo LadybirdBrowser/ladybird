@@ -52,7 +52,9 @@ ErrorOr<JS::NonnullGCPtr<HTML::HTMLCanvasElement>, WebDriver::Error> draw_boundi
     //    - Height: paint height
     Gfx::IntRect paint_rect { rect.x(), rect.y(), paint_width, paint_height };
 
-    auto backing_store = Web::Painting::BitmapBackingStore(canvas.surface()->create_snapshot()->bitmap());
+    auto bitmap = MUST(Gfx::Bitmap::create(Gfx::BitmapFormat::BGRA8888, Gfx::AlphaType::Premultiplied, canvas.surface()->size()));
+    canvas.surface()->read_into_bitmap(*bitmap);
+    auto backing_store = Web::Painting::BitmapBackingStore(bitmap);
     browsing_context.page().client().paint(paint_rect.to_type<Web::DevicePixels>(), backing_store);
 
     // 7. Return success with canvas.

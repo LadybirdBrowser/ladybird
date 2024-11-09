@@ -21,7 +21,7 @@ public:
         NoRepeat
     };
 
-    static ErrorOr<NonnullRefPtr<CanvasPatternPaintStyle>> create(Gfx::Bitmap const& bitmap, Repetition repetition)
+    static ErrorOr<NonnullRefPtr<CanvasPatternPaintStyle>> create(Gfx::ImmutableBitmap const& bitmap, Repetition repetition)
     {
         return adopt_nonnull_ref_or_enomem(new (nothrow) CanvasPatternPaintStyle(bitmap, repetition));
     }
@@ -29,13 +29,13 @@ public:
     virtual void paint(Gfx::IntRect physical_bounding_box, PaintFunction paint) const override;
 
 private:
-    CanvasPatternPaintStyle(Gfx::Bitmap const& bitmap, Repetition repetition)
-        : m_bitmap(bitmap)
+    CanvasPatternPaintStyle(Gfx::ImmutableBitmap const& immutable_bitmap, Repetition repetition)
+        : m_immutable_bitmap(immutable_bitmap)
         , m_repetition(repetition)
     {
     }
 
-    NonnullRefPtr<Gfx::Bitmap const> m_bitmap;
+    NonnullRefPtr<Gfx::ImmutableBitmap> m_immutable_bitmap;
     Repetition m_repetition { Repetition::Repeat };
 };
 

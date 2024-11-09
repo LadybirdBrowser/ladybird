@@ -53,7 +53,7 @@ void WebGLRenderingContextBase::present()
     // FIXME: Is this the operation it means?
     m_context->gl_flush();
 
-    m_context->present(canvas_element().surface()->create_snapshot()->bitmap());
+    m_context->present();
 
     // "By default, after compositing the contents of the drawing buffer shall be cleared to their default values, as shown in the table above.
     // This default behavior can be changed by setting the preserveDrawingBuffer attribute of the WebGLContextAttributes object.
