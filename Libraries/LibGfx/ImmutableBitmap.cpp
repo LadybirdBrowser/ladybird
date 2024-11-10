@@ -6,6 +6,7 @@
 
 #include <LibGfx/ImmutableBitmap.h>
 #include <LibGfx/PaintingSurface.h>
+#include <LibGfx/SkiaUtils.h>
 
 #include <core/SkBitmap.h>
 #include <core/SkImage.h>
@@ -58,23 +59,6 @@ Color ImmutableBitmap::get_pixel(int x, int y) const
 {
     // FIXME: Implement for PaintingSurface
     return m_impl->source.get<NonnullRefPtr<Gfx::Bitmap>>()->get_pixel(x, y);
-}
-
-static SkColorType to_skia_color_type(Gfx::BitmapFormat format)
-{
-    switch (format) {
-    case Gfx::BitmapFormat::Invalid:
-        return kUnknown_SkColorType;
-    case Gfx::BitmapFormat::BGRA8888:
-    case Gfx::BitmapFormat::BGRx8888:
-        return kBGRA_8888_SkColorType;
-    case Gfx::BitmapFormat::RGBA8888:
-        return kRGBA_8888_SkColorType;
-    case Gfx::BitmapFormat::RGBx8888:
-        return kRGB_888x_SkColorType;
-    default:
-        return kUnknown_SkColorType;
-    }
 }
 
 static SkAlphaType to_skia_alpha_type(Gfx::AlphaType alpha_type)

@@ -73,6 +73,7 @@ set(SOURCES
 set(SWIFT_EXCLUDE_HEADERS
     MetalContext.h
     VulkanContext.h
+    SkiaUtils.h
 )
 
 if (APPLE)
