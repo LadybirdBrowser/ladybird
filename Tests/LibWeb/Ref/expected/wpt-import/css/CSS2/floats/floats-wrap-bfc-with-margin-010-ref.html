@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<title>CSS Test Reference</title>
+<link rel="author" title="Oriol Brufau" href="obrufau@igalia.com">
+<style>
+body {
+  position: relative;
+}
+.wrapper {
+  position: absolute;
+  width: 100px;
+  border: 5px solid;
+  top: 75px;
+}
+.float {
+  position: absolute;
+  width: 50px;
+  height: 50px;
+  left: 0;
+  top: 0;
+  background: cyan;
+}
+.bfc {
+  position: absolute;
+  height: 50px;
+  background: green;
+}
+</style>
+<div class="wrapper" style="left: 10px; height: 50px">
+  <div class="float"></div>
+  <div class="bfc" style="width: 50px; left: 0; top: -75px"></div>
+</div>
+<div class="wrapper" style="left: 140px; height: 50px">
+  <div class="float"></div>
+  <div class="bfc" style="width: 75px; left: 0; top: -75px"></div>
+</div>
+<div class="wrapper" style="left: 270px; height: 50px">
+  <div class="float"></div>
+  <div class="bfc" style="width: 50px; left: 50px; top: -25px"></div>
+</div>
+<div class="wrapper" style="left: 400px; height: 100px">
+  <div class="float"></div>
+  <div class="bfc" style="width: 75px; left: 0px; top: 50px"></div>
+</div>

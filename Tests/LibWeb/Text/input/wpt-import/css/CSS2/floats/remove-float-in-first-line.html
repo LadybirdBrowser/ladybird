@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<title>Removing floats in ::first-line should not crash</title>
+<link rel="author" href="kojii@chromium.org">
+<link rel="help" href="https://crbug.com/1100900">
+<meta name="assert" content="Removing floats in ::first-line should not crash">
+<style>
+#container {
+  display: flow-root;
+}
+#container::first-line {
+  background: orange;
+}
+#float {
+  float: left;
+}
+</style>
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<body>
+  <div id="container">text<span id="float"></span></div>
+</body>
+<script>
+test(() => {
+  document.body.offsetTop;
+  let float = document.getElementById('float');
+  float.remove();
+  let container = document.getElementById('container');
+  container.style.color = 'blue';
+}, 'No crash or DCHECK failure');
+</script>

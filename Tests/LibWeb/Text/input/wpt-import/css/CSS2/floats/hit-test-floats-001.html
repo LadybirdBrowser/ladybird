@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<link rel="help" href="https://crbug.com/977856">
+<link rel="help" href="http://www.w3.org/TR/CSS21/visuren.html#floats" />
+<link rel="author" title="Koji Ishii" href="mailto:kojii@chromium.org">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<div style="width: 270px">
+  <img width="260" height="68">
+  <div style="float: left">
+    <a id="target" href="#">Link</a>
+  </div>
+  <br style="clear: both">
+</div>
+<script>
+test(() => {
+  let target = document.getElementById('target');
+  let bounds = target.getBoundingClientRect();
+  let element = document.elementFromPoint(bounds.x + 1, bounds.y + 1);
+  assert_equals(element, target);
+});
+</script>

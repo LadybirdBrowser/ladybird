@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<title>CSS Test: Float followed by a BFC root with a negative margin-top</title>
+<link rel="author" title="Oriol Brufau" href="obrufau@igalia.com">
+<link rel="help" href="https://drafts.csswg.org/css2/#floats">
+<link rel="match" href="../../../../../expected/wpt-import/css/CSS2/floats/floats-wrap-bfc-with-margin-010-ref.html">
+<meta name="assert" content="
+  If the negative margin places the BFC root entirely above the float,
+  then they don't overlap so we are done.
+  If the negative margin is not enough to prevent them from overlapping,
+  then the BFC root needs to be placed adjacent to the float if there
+  is enough available space, or be cleared below the float.">
+<style>
+.wrapper {
+  float: left;
+  width: 100px;
+  border: 5px solid;
+  margin: 75px 10px;
+}
+.float {
+  float: left;
+  width: 50px;
+  height: 50px;
+  background: cyan;
+}
+.bfc {
+  overflow: hidden;
+  height: 50px;
+  background: green;
+}
+</style>
+<div class="wrapper">
+  <div class="float"></div>
+  <div class="bfc" style="margin-top: -75px; width: 50px"></div>
+</div>
+<div class="wrapper">
+  <div class="float"></div>
+  <div class="bfc" style="margin-top: -75px; width: 75px"></div>
+</div>
+<div class="wrapper">
+  <div class="float"></div>
+  <div class="bfc" style="margin-top: -25px; width: 50px"></div>
+</div>
+<div class="wrapper">
+  <div class="float"></div>
+  <div class="bfc" style="margin-top: -25px; width: 75px"></div>
+</div>

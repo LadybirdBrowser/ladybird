@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<title>A zero-width new formatting context should fit in a zero-width layout opportunity between floats, above a 100% wide float</title>
+<link rel="author" title="Morten Stenshorne" href="mstensho@chromium.org">
+<link rel="help" href="https://www.w3.org/TR/CSS22/visuren.html#float-position" title="9.5.1 Positioning the float: the 'float' property">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../resources/check-layout-th.js"></script>
+<div id="container" style="position:relative; width:200px;">
+  <div style="float:left; width:100px; height:200px;"></div>
+  <div style="float:right; width:100px; height:200px;"></div>
+  <div style="float:right; width:100%; height:10px;"></div>
+  <div data-offset-x="100" data-offset-y="0" style="overflow:hidden; width:0; height:200px;"></div>
+</div>
+<script>
+  checkLayout("#container");
+</script>

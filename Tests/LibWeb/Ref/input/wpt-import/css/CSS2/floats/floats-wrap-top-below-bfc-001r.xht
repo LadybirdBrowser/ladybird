@@ -1,0 +1,26 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head>
+<title>CSS Test: Test for wrapping around floats whose top is below the top of what must wrap around them</title>
+<link rel="author" title="L. David Baron" href="https://dbaron.org/" />
+<link rel="author" title="Mozilla Corporation" href="http://mozilla.com/" />
+<link rel="help" href="http://www.w3.org/TR/CSS21/visuren.html#floats" />
+<link rel="match" href="../../../../../expected/wpt-import/css/CSS2/floats/floats-wrap-top-below-001r-ref.xht"/>
+<link rel="mismatch" href="floats-wrap-top-below-001r-notref.xht"/>
+<meta name="assert" content="The border box of a table, a block-level replaced element, or an element in the normal flow that establishes a new block formatting context (such as an element with 'overflow' other than 'visible') must not overlap any floats in the same block formatting context as the element itself." />
+<style type="text/css">
+
+body { width: 400px; border: medium solid; }
+div { float: right; clear: right; }
+span { display: block; overflow: hidden; width: 200px; height: 50px; background: aqua; margin-left: auto; }
+
+</style>
+</head>
+<body>
+
+<div style="width: 50px; height: 75px;"></div>
+<div style="width: 100px; height: 75px;"></div>
+<span></span>
+<span></span>
+
+
+
+</body></html>

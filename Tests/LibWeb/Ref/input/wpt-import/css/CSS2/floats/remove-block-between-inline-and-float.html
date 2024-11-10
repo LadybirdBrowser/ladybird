@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<title>Removing block between inline and float should put the two on the same line</title>
+<link rel="author" title="Morten Stenshorne" href="mstensho@chromium.org">
+<link rel="help" href="https://www.w3.org/TR/CSS22/visuren.html#floats" title="9.5 Floats">
+<link rel="match" href="../../../../../expected/wpt-import/css/CSS2/floats/../../reference/ref-filled-green-200px-square.html">
+<p>Test passes if there is a filled green square and <strong>no red</strong>.</p>
+<!-- This is a block with block children, so inlines need to be wrapped inside
+     anonymous blocks. A float and out-of-flow positioned box is neutral here,
+     in that it can either live among block children OR among inline
+     children. If it is (or becomes) sibling of an inline child, though, it
+     should be wrapped inside the same anonymous block as the inline, or layout
+     will be wrong. -->
+<div style="width:200px; background:red;">
+  <div style="height:50px; background:green;"></div>
+  <div style="display:inline-block; vertical-align:top; width:100px; height:150px; background:green;"></div>
+  <div id="removeMe" style="height:100px;"></div>
+  <div style="float:left; width:100px; height:150px; background:green;"></div>
+</div>
+<script>
+  document.body.offsetTop; // Trigger layout.
+  document.getElementById("removeMe").style.display = "none";
+</script>

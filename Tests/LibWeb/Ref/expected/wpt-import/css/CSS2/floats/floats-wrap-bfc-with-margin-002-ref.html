@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html class="reftest-wait">
+<meta charset="utf-8">
+<title>CSS Reference Case</title>
+<link rel="author" title="Daniel Holbert" href="mailto:dholbert@mozilla.com">
+<script>
+  const MARGIN_VALS = [-16, -15, -10, -1, 0];
+  const HORIZ_SIDES = ["left", "right"]; // Used for 'float:*' and 'margin-*'.
+  const DIRECTION_VALS = ["ltr", "rtl"];
+
+  function newDivWithClassAndParent(className, parent) {
+    let elem = document.createElement("div");
+    if (className) {
+      elem.classList.add(className);
+    }
+    parent.appendChild(elem);
+    return elem;
+  }
+  function generateGroup(directionVal, floatVal, marginPropSuffix) {
+    let group = newDivWithClassAndParent("group", document.body);
+    group.style.direction = directionVal;
+    const marginPropName = "margin-" + marginPropSuffix;
+
+    for (let v of MARGIN_VALS) {
+      // In this test, none of the MARGIN_VALS are expected to
+      // make us wrap.
+      let container = newDivWithClassAndParent("container", group);
+      if ((floatVal == "right") != (directionVal == "rtl")) {
+        // In the corresponding piece of the testcase, the float is floated to
+        // the inline-end side (for the given writing-mode). We use a
+        // "row-reverse" flex container as our mockup for that here.
+        container.style.flexDirection = "row-reverse";
+      }
+
+      let float = newDivWithClassAndParent("float", container);
+      float.style.cssFloat = floatVal;
+
+      let bfc = newDivWithClassAndParent("bfc", container);
+    }
+  }
+  function go() {
+    for (let directionVal of DIRECTION_VALS) {
+      for (let floatVal of HORIZ_SIDES) {
+        for (let marginPropSuffix of HORIZ_SIDES) {
+          generateGroup(directionVal, floatVal, marginPropSuffix);
+        }
+      }
+    }
+    // Note: the "reftest-wait" usage here isn't strictly necessary; it just
+    // helps ensure that we actually make it through all of the above JS and
+    // populate this document with the content that we want to render.
+    // (Specifically: if we e.g. throw a JS exception somewhere early in both
+    // the testcase and reference case, then the "reftest-wait" class will
+    // never be removed; and that will cause the test run to be classified
+    // as a failure, rather than a trivial "pass" with a visual comparison of
+    // two blank documents.)
+    document.documentElement.removeAttribute("class");
+  }
+</script>
+<style>
+.group {
+  width: 500px;
+  border: 1px solid black;
+}
+.container {
+  display: inline-flex;
+  align-content: start;
+  vertical-align: top;
+  width: 30px;
+  height: 40px;
+  /* This border and margin are just cosmetic, to avoid overlap between
+   * adjacent containers within a row. */
+  border: 1px solid gray;
+  margin-left: 30px;
+}
+
+.float {
+  width: 7px;
+  height: 8px;
+  background: fuchsia;
+  border: 1px solid purple;
+  margin: 1px 3px 1px 2px;
+}
+.bfc {
+  display: flow-root;
+  background: aqua;
+  height: 15px;
+  border: 1px solid blue;
+  /* We use "flex: 1" (on a flex item) to mock up the fill-available-space
+   * block-layout behavior in the testcase. */
+  flex: 1 auto;
+}
+</style>
+<body onload="go()">
+</body>
+</html>

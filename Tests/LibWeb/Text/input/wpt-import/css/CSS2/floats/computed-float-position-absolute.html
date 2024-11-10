@@ -1,0 +1,28 @@
+<!doctype html>
+<link rel="help" href="https://drafts.csswg.org/css2/visuren.html" />
+<title>The computed value of float with absolute positioning when there is no box should be "none"</title>
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<style>
+
+div[id] {
+	position: absolute;
+	float: left;
+}
+
+</style>
+
+<div id="test1" style="display: none"></div>
+<div id="test2" style="display: contents"></div>
+<div style="display: none"><div id="test3"></div></div>
+
+<script>
+promise_test(
+	t => {
+		return new Promise(test => addEventListener('load', e=>test()))
+		.then(test => assert_equals(getComputedStyle(test1)['float'], "none", "[display:none] Invalid gCS(test1)['float'];"))
+		.then(test => assert_equals(getComputedStyle(test2)['float'], "none", "[display:contents] Invalid gCS(test2)['float'];"))
+		.then(test => assert_equals(getComputedStyle(test3)['float'], "none", "[in a display:none] Invalid gCS(test3)['float'];"))
+	}
+);
+</script>
