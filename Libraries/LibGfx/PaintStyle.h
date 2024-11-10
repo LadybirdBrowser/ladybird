@@ -57,62 +57,6 @@ private:
     Color m_color;
 };
 
-class BitmapPaintStyle : public PaintStyle {
-public:
-    static ErrorOr<NonnullRefPtr<BitmapPaintStyle>> create(Bitmap const& bitmap, IntPoint offset = {})
-    {
-        return adopt_nonnull_ref_or_enomem(new (nothrow) BitmapPaintStyle(bitmap, offset));
-    }
-
-    virtual Color sample_color(IntPoint point) const override
-    {
-        point += m_offset;
-        if (m_bitmap->rect().contains(point))
-            return m_bitmap->get_pixel(point);
-        return Color();
-    }
-
-private:
-    BitmapPaintStyle(Bitmap const& bitmap, IntPoint offset)
-        : m_bitmap(bitmap)
-        , m_offset(offset)
-    {
-    }
-
-    NonnullRefPtr<Bitmap const> m_bitmap;
-    IntPoint m_offset;
-};
-
-class RepeatingBitmapPaintStyle : public Gfx::PaintStyle {
-public:
-    static ErrorOr<NonnullRefPtr<RepeatingBitmapPaintStyle>> create(Gfx::Bitmap const& bitmap, Gfx::IntPoint steps, Color fallback)
-    {
-        return adopt_nonnull_ref_or_enomem(new (nothrow) RepeatingBitmapPaintStyle(bitmap, steps, fallback));
-    }
-
-    virtual Color sample_color(Gfx::IntPoint point) const override
-    {
-        point.set_x(point.x() % m_steps.x());
-        point.set_y(point.y() % m_steps.y());
-        if (point.x() < 0 || point.y() < 0 || point.x() >= m_bitmap->width() || point.y() >= m_bitmap->height())
-            return m_fallback;
-        auto px = m_bitmap->get_pixel(point);
-        return px;
-    }
-
-private:
-    RepeatingBitmapPaintStyle(Gfx::Bitmap const& bitmap, Gfx::IntPoint steps, Color fallback)
-        : m_bitmap(bitmap)
-        , m_steps(steps)
-        , m_fallback(fallback)
-    {
-    }
-
-    NonnullRefPtr<Gfx::Bitmap const> m_bitmap;
-    Gfx::IntPoint m_steps;
-    Color m_fallback;
-};
-
 class GradientPaintStyle : public PaintStyle {
 public:
     ErrorOr<void> add_color_stop(float position, Color color, Optional<float> transition_hint = {})
@@ -141,67 +85,6 @@ public:
 private:
     Vector<ColorStop, 4> m_color_stops;
     Optional<float> m_repeat_length;
-};
-
-// These paint styles are based on the CSS gradients. They are relative to the painted
-// shape and support premultiplied alpha.
-
-class LinearGradientPaintStyle final : public GradientPaintStyle {
-public:
-    static ErrorOr<ErrorOr<NonnullRefPtr<LinearGradientPaintStyle>>> create(float angle = 0.0f)
-    {
-        return adopt_nonnull_ref_or_enomem(new (nothrow) LinearGradientPaintStyle(angle));
-    }
-
-private:
-    virtual void paint(IntRect physical_bounding_box, PaintFunction paint) const override;
-
-    LinearGradientPaintStyle(float angle)
-        : m_angle(angle)
-    {
-    }
-
-    float m_angle { 0.0f };
-};
-
-class ConicGradientPaintStyle final : public GradientPaintStyle {
-public:
-    static ErrorOr<NonnullRefPtr<ConicGradientPaintStyle>> create(IntPoint center, float start_angle = 0.0f)
-    {
-        return adopt_nonnull_ref_or_enomem(new (nothrow) ConicGradientPaintStyle(center, start_angle));
-    }
-
-private:
-    virtual void paint(IntRect physical_bounding_box, PaintFunction paint) const override;
-
-    ConicGradientPaintStyle(IntPoint center, float start_angle)
-        : m_center(center)
-        , m_start_angle(start_angle)
-    {
-    }
-
-    IntPoint m_center;
-    float m_start_angle { 0.0f };
-};
-
-class RadialGradientPaintStyle final : public GradientPaintStyle {
-public:
-    static ErrorOr<NonnullRefPtr<RadialGradientPaintStyle>> create(IntPoint center, IntSize size)
-    {
-        return adopt_nonnull_ref_or_enomem(new (nothrow) RadialGradientPaintStyle(center, size));
-    }
-
-private:
-    virtual void paint(IntRect physical_bounding_box, PaintFunction paint) const override;
-
-    RadialGradientPaintStyle(IntPoint center, IntSize size)
-        : m_center(center)
-        , m_size(size)
-    {
-    }
-
-    IntPoint m_center;
-    IntSize m_size;
 };
 
 // The following paint styles implement the gradients required for the HTML canvas.

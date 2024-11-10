@@ -194,29 +194,6 @@ private:
     TransformFunction m_transform_function;
 };
 
-static auto create_linear_gradient(IntRect const& physical_rect, ReadonlySpan<ColorStop> color_stops, float angle, Optional<float> repeat_length)
-{
-    float normalized_angle = normalized_gradient_angle_radians(angle);
-    float sin_angle, cos_angle;
-    AK::sincos(normalized_angle, sin_angle, cos_angle);
-
-    // Full length of the gradient
-    auto gradient_length = calculate_gradient_length(physical_rect.size(), sin_angle, cos_angle);
-    IntPoint offset { cos_angle * (gradient_length / 2), sin_angle * (gradient_length / 2) };
-    auto center = physical_rect.translated(-physical_rect.location()).center();
-    auto start_point = center - offset;
-    // Rotate gradient line to be horizontal
-    auto rotated_start_point_x = start_point.x() * cos_angle - start_point.y() * -sin_angle;
-
-    GradientLine gradient_line(gradient_length, color_stops, repeat_length);
-    return Gradient {
-        move(gradient_line),
-        [=](int x, int y) {
-            return (x * cos_angle - (physical_rect.height() - y) * -sin_angle) - rotated_start_point_x;
-        }
-    };
-}
-
 static auto create_conic_gradient(ReadonlySpan<ColorStop> color_stops, FloatPoint center_point, float start_angle, Optional<float> repeat_length, AlphaType alpha_type = AlphaType::Premultiplied)
 {
     // FIXME: Do we need/want sub-degree accuracy for the gradient line?
@@ -240,64 +217,6 @@ static auto create_conic_gradient(ReadonlySpan<ColorStop> color_stops, FloatPoin
             return should_floor_angles ? floor(loc) : loc;
         }
     };
-}
-
-static auto create_radial_gradient(IntRect const& physical_rect, ReadonlySpan<ColorStop> color_stops, IntPoint center, IntSize size, Optional<float> repeat_length, Optional<float> rotation_angle = {})
-{
-    // A conservative guesstimate on how many colors we need to generate:
-    auto max_dimension = max(physical_rect.width(), physical_rect.height());
-    auto max_visible_gradient = max(max_dimension / 2, min(size.width(), max_dimension));
-    GradientLine gradient_line(max_visible_gradient, color_stops, repeat_length);
-    auto center_point = FloatPoint { center }.translated(0.5, 0.5);
-    AffineTransform rotation_transform;
-    if (rotation_angle.has_value()) {
-        auto angle_as_radians = AK::to_radians(rotation_angle.value());
-        rotation_transform.rotate_radians(angle_as_radians);
-    }
-
-    return Gradient {
-        move(gradient_line),
-        [=](int x, int y) {
-            // FIXME: See if there's a more efficient calculation we do there :^)
-            auto point = FloatPoint(x, y) - center_point;
-
-            if (rotation_angle.has_value())
-                point.transform_by(rotation_transform);
-
-            auto gradient_x = point.x() / size.width();
-            auto gradient_y = point.y() / size.height();
-            return AK::sqrt(gradient_x * gradient_x + gradient_y * gradient_y) * max_visible_gradient;
-        }
-    };
-}
-
-static FloatPoint pixel_center(IntPoint point)
-{
-    return point.to_type<float>().translated(0.5f, 0.5f);
-}
-
-// TODO: Figure out how to handle scale() here... Not important while not supported by fill_path()
-
-void LinearGradientPaintStyle::paint(IntRect physical_bounding_box, PaintFunction paint) const
-{
-    VERIFY(color_stops().size() > 2);
-    auto linear_gradient = create_linear_gradient(physical_bounding_box, color_stops(), m_angle, repeat_length());
-    paint(linear_gradient.sample_function());
-}
-
-void ConicGradientPaintStyle::paint(IntRect physical_bounding_box, PaintFunction paint) const
-{
-    VERIFY(color_stops().size() > 2);
-    (void)physical_bounding_box;
-    auto conic_gradient = create_conic_gradient(color_stops(), pixel_center(m_center), m_start_angle, repeat_length());
-    paint(conic_gradient.sample_function());
-}
-
-void RadialGradientPaintStyle::paint(IntRect physical_bounding_box, PaintFunction paint) const
-{
-    VERIFY(color_stops().size() > 2);
-    auto radial_gradient = create_radial_gradient(physical_bounding_box, color_stops(), m_center, m_size, repeat_length());
-    paint(radial_gradient.sample_function());
 }
 
 // The following implements the gradient fill/stoke styles for the HTML canvas: https://html.spec.whatwg.org/multipage/canvas.html#fill-and-stroke-styles
