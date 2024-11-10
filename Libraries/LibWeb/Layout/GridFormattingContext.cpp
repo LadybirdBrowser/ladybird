@@ -1849,9 +1849,6 @@ CSSPixelRect GridFormattingContext::get_grid_area_rect(GridItem const& grid_item
 
         auto resolved_span = grid_item.span(dimension) * 2;
         auto gap_adjusted_position = grid_item.gap_adjusted_position(dimension);
-        if (gap_adjusted_position + resolved_span > tracks_and_gaps.size()) {
-            resolved_span = tracks_and_gaps.size() - gap_adjusted_position;
-        }
 
         int start = gap_adjusted_position;
         int end = start + resolved_span;
