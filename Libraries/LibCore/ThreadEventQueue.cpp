@@ -35,7 +35,7 @@ struct ThreadEventQueue::Private {
     };
 
     Threading::Mutex mutex;
-    Vector<QueuedEvent, 128> queued_events;
+    Vector<QueuedEvent> queued_events;
     Vector<NonnullRefPtr<Promise<NonnullRefPtr<EventReceiver>>>, 16> pending_promises;
     bool warned_promise_count { false };
 };
