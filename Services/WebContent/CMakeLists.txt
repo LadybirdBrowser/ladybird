@@ -40,12 +40,7 @@ if (HAS_FONTCONFIG)
 endif()
 
 if (ENABLE_QT)
-    qt_add_executable(WebContent
-        ${LADYBIRD_SOURCE_DIR}/UI/Qt/EventLoopImplementationQt.cpp
-        ${LADYBIRD_SOURCE_DIR}/UI/Qt/EventLoopImplementationQtEventTarget.cpp
-        ${LADYBIRD_SOURCE_DIR}/UI/Qt/StringUtils.cpp
-        main.cpp
-    )
+    qt_add_executable(WebContent main.cpp)
     target_link_libraries(WebContent PRIVATE Qt::Core)
     target_compile_definitions(WebContent PRIVATE HAVE_QT=1)
 

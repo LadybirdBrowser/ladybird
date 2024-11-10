@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2024, Tim Flynn <trflynn89@serenityos.org>
+ * Copyright (c) 2023-2024, Tim Flynn <trflynn89@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -9,6 +9,7 @@
 #include <LibMain/Main.h>
 #include <LibWebView/Application.h>
 #include <LibWebView/ChromeProcess.h>
+#include <LibWebView/EventLoop/EventLoopImplementationMacOS.h>
 #include <LibWebView/URL.h>
 #include <LibWebView/ViewImplementation.h>
 #include <LibWebView/WebContentClient.h>
@@ -18,7 +19,6 @@
 
 #import <Application/Application.h>
 #import <Application/ApplicationDelegate.h>
-#import <Application/EventLoopImplementation.h>
 #import <Interface/Tab.h>
 #import <Interface/TabController.h>
 
@@ -48,7 +48,7 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
 
     Application* application = [Application sharedApplication];
 
-    Core::EventLoopManager::install(*new Ladybird::CFEventLoopManager);
+    Core::EventLoopManager::install(*new WebView::EventLoopManagerMacOS);
     [application setupWebViewApplication:arguments newTabPageURL:Browser::default_new_tab_url];
 
     platform_init();

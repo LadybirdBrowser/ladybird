@@ -12,13 +12,16 @@
 #include <LibCore/Notifier.h>
 #include <LibCore/System.h>
 #include <LibCore/ThreadEventQueue.h>
-#include <UI/Qt/EventLoopImplementationQt.h>
-#include <UI/Qt/EventLoopImplementationQtEventTarget.h>
+#include <LibWebView/EventLoop/EventLoopImplementationQt.h>
+#include <LibWebView/EventLoop/EventLoopImplementationQtEventTarget.h>
 
 #include <QCoreApplication>
+#include <QEvent>
+#include <QEventLoop>
+#include <QSocketNotifier>
 #include <QTimer>
 
-namespace Ladybird {
+namespace WebView {
 
 struct ThreadData;
 static thread_local ThreadData* s_thread_data;
@@ -34,6 +37,20 @@ struct ThreadData {
     }
 
     HashMap<Core::Notifier*, NonnullOwnPtr<QSocketNotifier>> notifiers;
+};
+
+class QtEventLoopManagerEvent final : public QEvent {
+public:
+    static QEvent::Type process_event_queue_event_type()
+    {
+        static auto const type = static_cast<QEvent::Type>(QEvent::registerEventType());
+        return type;
+    }
+
+    QtEventLoopManagerEvent(QEvent::Type type)
+        : QEvent(type)
+    {
+    }
 };
 
 class SignalHandlers : public RefCounted<SignalHandlers> {
@@ -165,6 +182,7 @@ static void dispatch_signal(int signal_number)
 }
 
 EventLoopImplementationQt::EventLoopImplementationQt()
+    : m_event_loop(make<QEventLoop>())
 {
 }
 
@@ -174,7 +192,7 @@ int EventLoopImplementationQt::exec()
 {
     if (is_main_loop())
         return QCoreApplication::exec();
-    return m_event_loop.exec();
+    return m_event_loop->exec();
 }
 
 size_t EventLoopImplementationQt::pump(PumpMode mode)
@@ -184,7 +202,7 @@ size_t EventLoopImplementationQt::pump(PumpMode mode)
     if (is_main_loop())
         QCoreApplication::processEvents(qt_mode);
     else
-        m_event_loop.processEvents(qt_mode);
+        m_event_loop->processEvents(qt_mode);
     result += Core::ThreadEventQueue::current().process();
     return result;
 }
@@ -194,13 +212,13 @@ void EventLoopImplementationQt::quit(int code)
     if (is_main_loop())
         QCoreApplication::exit(code);
     else
-        m_event_loop.exit(code);
+        m_event_loop->exit(code);
 }
 
 void EventLoopImplementationQt::wake()
 {
     if (!is_main_loop())
-        m_event_loop.wakeUp();
+        m_event_loop->wakeUp();
 }
 
 void EventLoopImplementationQt::post_event(Core::EventReceiver& receiver, NonnullOwnPtr<Core::Event>&& event)

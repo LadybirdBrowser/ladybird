@@ -19,6 +19,20 @@ set(SOURCES
     ${PUBLIC_SUFFIX_SOURCES}
 )
 
+if (ENABLE_QT)
+    list(APPEND SOURCES
+        EventLoop/EventLoopImplementationQt.cpp
+        EventLoop/EventLoopImplementationQtEventTarget.cpp
+    )
+
+    set(CMAKE_AUTOMOC ON)
+    find_package(Qt6 REQUIRED COMPONENTS Core)
+elseif (APPLE)
+    list(APPEND SOURCES
+        EventLoop/EventLoopImplementationMacOS.mm
+    )
+endif()
+
 set(GENERATED_SOURCES ${CURRENT_LIB_GENERATED})
 
 embed_as_string(
@@ -52,6 +66,12 @@ target_compile_definitions(LibWebView PRIVATE ENABLE_PUBLIC_SUFFIX=$<BOOL:${ENAB
 # Third-party
 find_package(SQLite3 REQUIRED)
 target_link_libraries(LibWebView PRIVATE SQLite::SQLite3)
+
+if (ENABLE_QT)
+    target_link_libraries(LibWebView PRIVATE Qt::Core)
+elseif (APPLE)
+    target_link_libraries(LibWebView PRIVATE "-framework Cocoa")
+endif()
 
 if (ENABLE_INSTALL_HEADERS)
     foreach(header ${GENERATED_SOURCES})

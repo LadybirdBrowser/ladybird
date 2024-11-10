@@ -34,8 +34,8 @@
 #include <WebContent/WebDriverConnection.h>
 
 #if defined(HAVE_QT)
+#    include <LibWebView/EventLoop/EventLoopImplementationQt.h>
 #    include <QCoreApplication>
-#    include <UI/Qt/EventLoopImplementationQt.h>
 
 #    if defined(HAVE_QT_MULTIMEDIA)
 #        include <UI/Qt/AudioCodecPluginQt.h>
@@ -71,7 +71,7 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
 #if defined(HAVE_QT)
     QCoreApplication app(arguments.argc, arguments.argv);
 
-    Core::EventLoopManager::install(*new Ladybird::EventLoopManagerQt);
+    Core::EventLoopManager::install(*new WebView::EventLoopManagerQt);
 #endif
     Core::EventLoop event_loop;
 
