@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<link rel="help" href="https://www.w3.org/TR/CSS22/visuren.html#bfc-next-to-float" title="9.5 Floats">
+<meta name="assert" content="Although the 'clear' property isn't specified in this test, a new formatting context that doesn't fit below a float that would otherwise be adjoining will need to separate its margin from the float, so that it doesn't affect the float. This is very similar to clearance.">
+<link rel="match" href="../../../../../expected/wpt-import/css/CSS2/floats/../../reference/ref-filled-green-100px-square.xht">
+<p>Test passes if there is a filled green square and <strong>no red</strong>.</p>
+<div style="display: flow-root; width: 100px; background: red; position: relative;">
+  <div>
+    <div style="float: right; width: 50px; height: 30px; background: green;"></div>
+    <div>
+      <div style="overflow: hidden; width: 100px; height: 70px; margin-top: 100px; background: green;"></div>
+    </div>
+    <div style="position: absolute; width: 50px; height: 30px; top: 0; left: 0; background: green;"></div>
+  </div>
+</div>

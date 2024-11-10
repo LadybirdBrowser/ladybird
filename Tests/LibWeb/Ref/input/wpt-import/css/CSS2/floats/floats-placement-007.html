@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>Test the inline-block does not overlap with the float-left element.</title>
+<link rel="author" title="Ting-Yu Lin" href="mailto:tlin@mozilla.com">
+<link rel="author" title="Mozilla" href="https://www.mozilla.org/">
+<link rel="help" href="https://bugzilla.mozilla.org/show_bug.cgi?id=1805597">
+<link rel="match" href="../../../../../expected/wpt-import/css/CSS2/floats/../../reference/ref-filled-green-100px-square.xht">
+<style>
+.container {
+  width: 100px;
+  height: 100px;
+  background-color: red;
+  direction: rtl;
+}
+
+.inline-block {
+  display: inline-block;
+  width: 50px;
+  height: 100px;
+  background-color: green;
+}
+.float-left {
+  float: left;
+  width: 50px;
+  height: 100px;
+  background-color: green;
+}
+.float-right {
+  width: 30px;
+  height: 50px;
+  clear: both;
+  float: right;
+}
+</style>
+
+<p>Test passes if there is a filled green square and <strong>no red</strong>.</p>
+<div class="container">
+  <div class="inline-block"></div><div class="float-left"></div><div class="float-right"></div>
+</div>

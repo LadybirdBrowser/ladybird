@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<link rel="author" title="Morten Stenshorne" href="mailto:mstensho@chromium.org">
+<link rel="help" href="http://crbug.com/332396356">
+<link rel="match" href="../../../../../expected/wpt-import/css/CSS2/floats/../../reference/ref-filled-green-100px-square.xht">
+<style>
+  .half {
+    display: inline-block;
+    vertical-align: top;
+    width: 50px;
+    height: 100px;
+    background: green;
+  }
+</style>
+<p>Test passes if there is a filled green square and <strong>no red</strong>.</p>
+<div style="width:100px; height:100px; background:red;">
+  <span>
+    <div class="half"></div><div id="trouble"></div><div class="half"></div>
+  </span>
+</div>
+<script>
+  document.body.offsetTop;
+  trouble.style.cssFloat = "left";
+</script>

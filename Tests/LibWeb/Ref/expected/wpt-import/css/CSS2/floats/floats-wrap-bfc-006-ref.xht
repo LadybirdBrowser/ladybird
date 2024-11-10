@@ -1,0 +1,177 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en-US"><head>
+	<title>CSS Test: Test for flow around floats (reference)</title>
+	<link rel="author" title="L. David Baron" href="https://dbaron.org/" />
+	<link rel="author" title="Mozilla Corporation" href="http://mozilla.com/" />
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta http-equiv="Content-Style-Type" content="text/css" />
+	<style type="text/css">
+
+	body { font-size: 16px; }
+
+	table { margin: 0; border-spacing: 0; }
+	caption, td, th { padding: 0; vertical-align: top; text-align: left; }
+
+	.capref { background: yellow; }
+	.tabref { background: purple; }
+
+	</style>
+</head>
+<body>
+
+<table width="300" style="background: aqua"><tbody><tr><td>
+    <div style="float:left; clear:left; background:blue; width:150px; height:1px"></div>
+    <div style="float:left; clear:left; background:blue; width:145px; height:1px"></div>
+    <div style="float:left; clear:left; background:blue; width:140px; height:1px"></div>
+    <div style="float:left; clear:left; background:blue; width:135px; height:1px"></div>
+    <div style="float:left; clear:left; background:blue; width:130px; height:1px"></div>
+    <div style="float:left; clear:left; background:blue; width:125px; height:1px"></div>
+    <div style="float:left; clear:left; background:blue; width:120px; height:1px"></div>
+    <div style="float:left; clear:left; background:blue; width:115px; height:1px"></div>
+    <div style="float:left; clear:left; background:blue; width:110px; height:1px"></div>
+    <div style="float:left; clear:left; background:blue; width:105px; height:1px"></div>
+    <div style="float:left; clear:left; background:blue; width:100px; height:1px"></div>
+    <div style="float:left; clear:left; background:blue; width:95px; height:1px"></div>
+    <div style="float:left; clear:left; background:blue; width:90px; height:1px"></div>
+    <div style="float:left; clear:left; background:blue; width:85px; height:1px"></div>
+    <div style="float:left; clear:left; background:blue; width:80px; height:1px"></div>
+    <div style="float:left; clear:left; background:blue; width:75px; height:1px"></div>
+    <div style="float:left; clear:left; background:blue; width:70px; height:1px"></div>
+
+    <div style="float:right; height: 30px; width: 100px; margin-right: 130px;" class="capref">Caption</div>
+
+    <div style="float:left; clear:left; background:blue; width:65px; height:1px"></div>
+    <div style="float:left; clear:left; background:blue; width:60px; height:1px"></div>
+    <div style="float:left; clear:left; background:blue; width:55px; height:1px"></div>
+    <div style="float:left; clear:left; background:blue; width:50px; height:1px"></div>
+    <div style="float:left; clear:left; background:blue; width:45px; height:1px"></div>
+    <div style="float:left; clear:left; background:blue; width:40px; height:1px"></div>
+    <div style="float:left; clear:left; background:blue; width:35px; height:1px"></div>
+    <div style="float:left; clear:left; background:blue; width:30px; height:1px"></div>
+    <div style="float:left; clear:left; background:blue; width:25px; height:1px"></div>
+    <div style="float:left; clear:left; background:blue; width:20px; height:1px"></div>
+    <div style="float:left; clear:left; background:blue; width:15px; height:1px"></div>
+    <div style="float:left; clear:left; background:blue; width:10px; height:1px"></div>
+    <div style="float:left; clear:left; background:blue; width:5px; height:1px"></div>
+
+    <div style="float:right; clear: right; height: 30px; width: 230px;" class="tabref">Cell</div>
+
+</td></tr></tbody></table>
+
+<table width="300" style="background: aqua"><tbody><tr><td>
+    <div style="float:left; clear:left; background:blue; width:150px; height:1px"></div>
+    <div style="float:left; clear:left; background:blue; width:145px; height:1px"></div>
+    <div style="float:left; clear:left; background:blue; width:140px; height:1px"></div>
+    <div style="float:left; clear:left; background:blue; width:135px; height:1px"></div>
+    <div style="float:left; clear:left; background:blue; width:130px; height:1px"></div>
+    <div style="float:left; clear:left; background:blue; width:125px; height:1px"></div>
+    <div style="float:left; clear:left; background:blue; width:120px; height:1px"></div>
+    <div style="float:left; clear:left; background:blue; width:115px; height:1px"></div>
+    <div style="float:left; clear:left; background:blue; width:110px; height:1px"></div>
+
+    <div style="float:right; height: 30px; width: 190px;" class="capref">Caption</div>
+
+    <div style="float:left; clear:left; background:blue; width:105px; height:1px"></div>
+    <div style="float:left; clear:left; background:blue; width:100px; height:1px"></div>
+    <div style="float:left; clear:left; background:blue; width:95px; height:1px"></div>
+    <div style="float:left; clear:left; background:blue; width:90px; height:1px"></div>
+    <div style="float:left; clear:left; background:blue; width:85px; height:1px"></div>
+    <div style="float:left; clear:left; background:blue; width:80px; height:1px"></div>
+    <div style="float:left; clear:left; background:blue; width:75px; height:1px"></div>
+    <div style="float:left; clear:left; background:blue; width:70px; height:1px"></div>
+    <div style="float:left; clear:left; background:blue; width:65px; height:1px"></div>
+    <div style="float:left; clear:left; background:blue; width:60px; height:1px"></div>
+    <div style="float:left; clear:left; background:blue; width:55px; height:1px"></div>
+    <div style="float:left; clear:left; background:blue; width:50px; height:1px"></div>
+    <div style="float:left; clear:left; background:blue; width:45px; height:1px"></div>
+    <div style="float:left; clear:left; background:blue; width:40px; height:1px"></div>
+    <div style="float:left; clear:left; background:blue; width:35px; height:1px"></div>
+    <div style="float:left; clear:left; background:blue; width:30px; height:1px"></div>
+    <div style="float:left; clear:left; background:blue; width:25px; height:1px"></div>
+    <div style="float:left; clear:left; background:blue; width:20px; height:1px"></div>
+    <div style="float:left; clear:left; background:blue; width:15px; height:1px"></div>
+    <div style="float:left; clear:left; background:blue; width:10px; height:1px"></div>
+    <div style="float:left; clear:left; background:blue; width:5px; height:1px"></div>
+
+    <div style="float:right; clear: right; height: 30px; width: 100px; margin-right: 90px;" class="tabref">Cell</div>
+
+</td></tr></tbody></table>
+
+<table width="300" style="background: aqua"><tbody><tr><td>
+    <div style="float:left; clear:left; background:blue; width:150px; height:1px"></div>
+    <div style="float:left; clear:left; background:blue; width:145px; height:1px"></div>
+    <div style="float:left; clear:left; background:blue; width:140px; height:1px"></div>
+    <div style="float:left; clear:left; background:blue; width:135px; height:1px"></div>
+    <div style="float:left; clear:left; background:blue; width:130px; height:1px"></div>
+    <div style="float:left; clear:left; background:blue; width:125px; height:1px"></div>
+    <div style="float:left; clear:left; background:blue; width:120px; height:1px"></div>
+    <div style="float:left; clear:left; background:blue; width:115px; height:1px"></div>
+    <div style="float:left; clear:left; background:blue; width:110px; height:1px"></div>
+    <div style="float:left; clear:left; background:blue; width:105px; height:1px"></div>
+    <div style="float:left; clear:left; background:blue; width:100px; height:1px"></div>
+    <div style="float:left; clear:left; background:blue; width:95px; height:1px"></div>
+    <div style="float:left; clear:left; background:blue; width:90px; height:1px"></div>
+    <div style="float:left; clear:left; background:blue; width:85px; height:1px"></div>
+    <div style="float:left; clear:left; background:blue; width:80px; height:1px"></div>
+    <div style="float:left; clear:left; background:blue; width:75px; height:1px"></div>
+    <div style="float:left; clear:left; background:blue; width:70px; height:1px"></div>
+
+    <div style="float:right; clear: right; height: 30px; width: 227px;margin-right:3px;" class="tabref">Cell</div>
+
+    <div style="float:left; clear:left; background:blue; width:65px; height:1px"></div>
+    <div style="float:left; clear:left; background:blue; width:60px; height:1px"></div>
+    <div style="float:left; clear:left; background:blue; width:55px; height:1px"></div>
+    <div style="float:left; clear:left; background:blue; width:50px; height:1px"></div>
+    <div style="float:left; clear:left; background:blue; width:45px; height:1px"></div>
+    <div style="float:left; clear:left; background:blue; width:40px; height:1px"></div>
+    <div style="float:left; clear:left; background:blue; width:35px; height:1px"></div>
+    <div style="float:left; clear:left; background:blue; width:30px; height:1px"></div>
+    <div style="float:left; clear:left; background:blue; width:25px; height:1px"></div>
+    <div style="float:left; clear:left; background:blue; width:20px; height:1px"></div>
+    <div style="float:left; clear:left; background:blue; width:15px; height:1px"></div>
+    <div style="float:left; clear:left; background:blue; width:10px; height:1px"></div>
+    <div style="float:left; clear:left; background:blue; width:5px; height:1px"></div>
+
+    <div style="float:right; clear: right; height: 30px; width: 100px;margin-right:130px;" class="capref">Caption</div>
+</td></tr></tbody></table>
+
+<table width="300" style="background: aqua"><tbody><tr><td>
+    <div style="float:left; clear:left; background:blue; width:150px; height:1px"></div>
+    <div style="float:left; clear:left; background:blue; width:145px; height:1px"></div>
+    <div style="float:left; clear:left; background:blue; width:140px; height:1px"></div>
+    <div style="float:left; clear:left; background:blue; width:135px; height:1px"></div>
+    <div style="float:left; clear:left; background:blue; width:130px; height:1px"></div>
+    <div style="float:left; clear:left; background:blue; width:125px; height:1px"></div>
+    <div style="float:left; clear:left; background:blue; width:120px; height:1px"></div>
+    <div style="float:left; clear:left; background:blue; width:115px; height:1px"></div>
+    <div style="float:left; clear:left; background:blue; width:110px; height:1px"></div>
+    <div style="float:left; clear:left; background:blue; width:105px; height:1px"></div>
+
+    <div style="float:right; clear: right; height: 30px; width: 100px; margin-right:95px;" class="tabref">Cell</div>
+
+    <div style="float:left; clear:left; background:blue; width:100px; height:1px"></div>
+    <div style="float:left; clear:left; background:blue; width:95px; height:1px"></div>
+    <div style="float:left; clear:left; background:blue; width:90px; height:1px"></div>
+    <div style="float:left; clear:left; background:blue; width:85px; height:1px"></div>
+    <div style="float:left; clear:left; background:blue; width:80px; height:1px"></div>
+    <div style="float:left; clear:left; background:blue; width:75px; height:1px"></div>
+    <div style="float:left; clear:left; background:blue; width:70px; height:1px"></div>
+    <div style="float:left; clear:left; background:blue; width:65px; height:1px"></div>
+    <div style="float:left; clear:left; background:blue; width:60px; height:1px"></div>
+    <div style="float:left; clear:left; background:blue; width:55px; height:1px"></div>
+    <div style="float:left; clear:left; background:blue; width:50px; height:1px"></div>
+    <div style="float:left; clear:left; background:blue; width:45px; height:1px"></div>
+    <div style="float:left; clear:left; background:blue; width:40px; height:1px"></div>
+    <div style="float:left; clear:left; background:blue; width:35px; height:1px"></div>
+    <div style="float:left; clear:left; background:blue; width:30px; height:1px"></div>
+    <div style="float:left; clear:left; background:blue; width:25px; height:1px"></div>
+    <div style="float:left; clear:left; background:blue; width:20px; height:1px"></div>
+    <div style="float:left; clear:left; background:blue; width:15px; height:1px"></div>
+    <div style="float:left; clear:left; background:blue; width:10px; height:1px"></div>
+    <div style="float:left; clear:left; background:blue; width:5px; height:1px"></div>
+
+    <div style="float:right; clear: right; height: 30px; width: 192px; margin-right:3px;" class="capref">Caption</div>
+</td></tr></tbody></table>
+
+
+
+</body></html>

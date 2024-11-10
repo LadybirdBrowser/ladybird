@@ -1,0 +1,33 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en-US"><head>
+	<title>CSS Test: Test for flow around floats</title>
+	<link rel="author" title="L. David Baron" href="https://dbaron.org/" />
+	<link rel="author" title="Mozilla Corporation" href="http://mozilla.com/" />
+	<link rel="help" href="http://www.w3.org/TR/CSS21/visuren.html#floats" />
+	<link rel="match" href="../../../../../expected/wpt-import/css/CSS2/floats/floats-wrap-bfc-001-right-table-ref.xht"/>
+	<meta name="assert" content="The border box of a table, a block-level replaced element, or an element in the normal flow that establishes a new block formatting context (such as an element with 'overflow' other than 'visible') must not overlap any floats in the same block formatting context as the element itself." />
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta http-equiv="Content-Style-Type" content="text/css" />
+	<style type="text/css">
+
+	table { margin: 0; border-spacing: 0; }
+	td, th { padding: 0; }
+
+	span { display: inline-block; vertical-align: bottom; }
+
+	</style>
+</head>
+<body>
+
+<table width="300" style="background: aqua"><tbody><tr><td>
+
+  <div style="float:right; background:blue; width: 100px; height: 100px"></div>
+
+  <table style="background: yellow"><tbody><tr><td>
+    <span style="width: 150px; height: 50px; background: purple"></span>
+  </td></tr></tbody></table>
+
+</td></tr></tbody></table>
+
+
+
+</body></html>

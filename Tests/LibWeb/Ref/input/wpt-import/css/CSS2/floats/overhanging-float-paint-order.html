@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<link rel="help" href="https://drafts.csswg.org/css2/visuren.html#float-position">
+<link rel="help" href="https://drafts.csswg.org/css2/zindex.html">
+<link rel="match" href="../../../../../expected/wpt-import/css/CSS2/floats/overhanging-float-paint-order-ref.html">
+<style>
+#first-container {
+  width: 100px;
+  height: 60px;
+}
+
+#red-first-float {
+  width: 100px;
+  height: 60px;
+  background-color: red;
+  float: left;
+}
+
+#container {
+  width: 100px;
+  height: 80px;
+}
+
+#blue-second-float-overhanging {
+  width: 100px;
+  height: 60px;
+  background-color: blue;
+  float: left;
+  margin-top: -20px;
+}
+
+#green-third-float {
+  width: 100px;
+  height: 80px;
+  background-color: green;
+  float: left;
+  margin-top: -100px;
+}
+</style>
+<div id="red-first-float"></div>
+<div id="container">
+  <div id="blue-second-float-overhanging"></div>
+  <div id="green-third-float"></div>
+</div>

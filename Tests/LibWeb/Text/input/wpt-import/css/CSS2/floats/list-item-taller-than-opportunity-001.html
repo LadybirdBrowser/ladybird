@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<title>List item taller than the first opportunity should not crash</title>
+<link rel="author" title="Koji Ishii" href="mailto:kojii@chromium.org">
+<link rel="help" href="https://www.w3.org/TR/CSS22/visuren.html#float-position" title="9.5.1 Positioning the float: the 'float' property">
+<link rel="help" href="http://crbug.com/967997">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<body>
+  <div style="float: left; width: 5px; height: 5px;"></div>
+  <div style="clear: left; float: left; width: 10px; height: 5px;"></div>
+  <ul>
+    <li></li>
+  </ul>
+<script>
+test(() => {}, "Layout should not crash");
+</script>
+</body>

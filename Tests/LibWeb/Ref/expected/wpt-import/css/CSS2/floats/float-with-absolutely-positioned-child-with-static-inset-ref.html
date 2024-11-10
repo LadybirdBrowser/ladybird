@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<link rel="author" title="Martin Robinson" href="mrobinson@igalia.com">
+<link rel="help" href="https://drafts.csswg.org/css2/visuren.html#float-position">
+<meta name="assert" content="An absolutely positioned child of a float with a static inset should be positioned the same as a non-positioned child of that float." />
+
+<style>
+#float {
+    float: right;
+    width: 250px;
+}
+
+#abs-child {
+    background: green;
+    width: 100px;
+    height: 100px;
+}
+
+#abs-grandchild {
+    background: darkgreen;
+    width: 50px;
+    height: 50px;
+}
+</style>
+
+<body>
+    <div id="float">
+        <div id="abs-child">
+            <div id="abs-grandchild"></div>
+        </div>
+    </div>
+</body>
+</html>

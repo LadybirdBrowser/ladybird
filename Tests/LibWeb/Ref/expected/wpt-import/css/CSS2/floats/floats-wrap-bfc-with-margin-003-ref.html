@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html class="reftest-wait">
+<meta charset="utf-8">
+<title>CSS Reference Case</title>
+<link rel="author" title="Daniel Holbert" href="mailto:dholbert@mozilla.com">
+<script>
+  const MARGIN_VALS = [15, 22, 28];
+  const HORIZ_SIDES = ["left", "right"]; // Used for 'float:*' and 'margin-*'.
+  const DIRECTION_VALS = ["ltr", "rtl"];
+  // This comes from .float width + horizontal border and padding:
+  const FLOAT_MARGIN_BOX_WIDTH = 14;
+  // This comes from 30 (container) - 14 (float mbox width) - 2 (bfc border):
+  const AVAIL_WIDTH_NO_WRAPPING = 14;
+
+  function newDivWithClassAndParent(className, parent) {
+    let elem = document.createElement("div");
+    if (className) {
+      elem.classList.add(className);
+    }
+    parent.appendChild(elem);
+    return elem;
+  }
+  function generateGroup(directionVal, floatVal, marginPropSuffix) {
+    let group = newDivWithClassAndParent("group", document.body);
+    group.style.direction = directionVal;
+    const marginPropName = "margin-" + marginPropSuffix;
+
+    for (let v of MARGIN_VALS) {
+      const isMarginSideFloatSide = (marginPropSuffix == floatVal);
+      // initial-char comparison to match [l]eft/[l]tr and [r]ight/[r]tl:
+      const isMarginSideLineStartSide = (marginPropSuffix[0] == directionVal[0]);
+      const isFloatSideLineStartSide = (floatVal[0] == directionVal[0]);
+
+      let container = newDivWithClassAndParent("container", group);
+      if (!isFloatSideLineStartSide) {
+        // In the corresponding piece of the testcase, the float is floated to
+        // the inline-end side (for the given writing-mode). We use a
+        // "row-reverse" flex container as our mockup for that here.
+        container.style.flexDirection = "row-reverse";
+      }
+
+      let float = newDivWithClassAndParent("float", container);
+      let bfc = newDivWithClassAndParent("bfc", container);
+
+      // Set the actual margin value that we're testing here, based on which
+      // case this group is in. See comment in testcase for explanation of the
+      // three cases.
+      let marginValToUse;
+      if (isMarginSideFloatSide) {
+        // Case (A): in the testcase, the margin simply overlaps the float.
+        // In our mockup here, they don't actually overlap; so we subtract
+        // the portion that overlaps in the testcase, which is the float's
+        // margin-box width:
+        marginValToUse = v - FLOAT_MARGIN_BOX_WIDTH;
+      } else if (isMarginSideLineStartSide) {
+        // Case (B): we push the BFC down below the float (which we emulate
+        // here with a wrapped flexbox), and we use the full specified margin:
+        container.style.flexWrap = "wrap";
+        marginValToUse = v;
+      } else {
+        // Case (C): we let the BFC be smooshed against the float, and the
+        // margin effectively behaves as if it were clamped to the available
+        // space (so we just clamp it to that value here).
+        marginValToUse = AVAIL_WIDTH_NO_WRAPPING;
+      }
+      bfc.style[marginPropName] = marginValToUse + "px";
+    }
+  }
+  function go() {
+    for (let directionVal of DIRECTION_VALS) {
+      for (let floatVal of HORIZ_SIDES) {
+        for (let marginPropSuffix of HORIZ_SIDES) {
+          generateGroup(directionVal, floatVal, marginPropSuffix);
+        }
+      }
+    }
+    // Note: the "reftest-wait" usage here isn't strictly necessary; it just
+    // helps ensure that we actually make it through all of the above JS and
+    // populate this document with the content that we want to render.
+    // (Specifically: if we e.g. throw a JS exception somewhere early in both
+    // the testcase and reference case, then the "reftest-wait" class will
+    // never be removed; and that will cause the test run to be classified
+    // as a failure, rather than a trivial "pass" with a visual comparison of
+    // two blank documents.)
+    document.documentElement.removeAttribute("class");
+  }
+</script>
+<style>
+.group {
+  width: 300px;
+  border: 1px solid black;
+}
+.container {
+  display: inline-flex;
+  align-content: start;
+  vertical-align: top;
+  width: 30px;
+  height: 40px;
+  /* This border and margin are just cosmetic, to avoid overlap between
+   * adjacent containers within a row. */
+  border: 1px solid gray;
+  margin-left: 30px;
+}
+
+.float {
+  width: 7px;
+  height: 8px;
+  background: fuchsia;
+  border: 1px solid purple;
+  margin: 1px 3px 1px 2px;
+}
+.bfc {
+  display: flow-root;
+  background: aqua;
+  height: 15px;
+  border: 1px solid blue;
+  /* We use "flex: 1" (on a flex item) to mock up the fill-available-space
+   * block-layout behavior in the testcase. */
+  flex: 1 auto;
+}
+</style>
+<body onload="go()">
+</body>
+</html>

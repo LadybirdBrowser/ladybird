@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<title>Floated table that becomes wider than its specified width, due to wide contents</title>
+<link rel="author" title="Morten Stenshorne" href="mstensho@chromium.org">
+<link rel="help" href="https://www.w3.org/TR/CSS22/visudet.html#float-width" title="10.3.5 Floating, non-replaced elements">
+<link rel="help" href="https://www.w3.org/TR/CSS22/tables.html#auto-table-layout" title="17.5.2.2 Automatic table layout">
+<link rel="match" href="../../../../../expected/wpt-import/css/CSS2/floats/../../reference/ref-filled-green-200px-square.html">
+<p>Test passes if there is a filled green square and <strong>no red</strong>.</p>
+<div style="width:200px; height:200px; background:red;">
+  <div style="width:300px;">
+    <div style="float:left; width:200px; height:100px; margin-right:10px; background:green;"></div>
+    <div style="float:left; display:table; width:50px; height:10px; background:green;">
+      <div style="width:200px; height:100px;"></div>
+    </div>
+  </div>
+</div>

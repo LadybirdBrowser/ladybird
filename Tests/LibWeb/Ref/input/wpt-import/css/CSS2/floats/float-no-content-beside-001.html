@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<meta charset=utf-8>
+<title>CSS Floats — narrow containing block</title>
+<meta name=assert content="If a shortened line box is too small to contain any content, then the line box is shifted downward">
+<link rel=help href="https://www.w3.org/TR/CSS2/visuren.html#floats">
+<link rel=match href="../../../../../expected/wpt-import/css/CSS2/floats/float-no-content-beside-001-ref.html">
+<link rel=author title="Jonathan Kew" href="jkew@mozilla.com">
+<style>
+p { width: 10em; border: solid aqua; }
+span { float: left; width: 5em; height: 5em; border: solid blue; }
+</style>
+
+<div>Test passes if all three examples render the same:</div>
+
+<p><span></span>Supercalifragilisticexpialidocious</p>
+
+<br style="clear:both">
+
+<p><span></span> Supercalifragilisticexpialidocious</p>
+
+<br style="clear:both">
+
+<p><span></span><br>Supercalifragilisticexpialidocious</p>
