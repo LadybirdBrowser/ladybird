@@ -663,9 +663,9 @@ ThrowCompletionOr<void> Object::define_field(ClassFieldDefinition const& field)
     auto init_value = js_undefined();
 
     // 3. If initializer is not empty, then
-    if (!initializer.is_null()) {
+    if (initializer) {
         // a. Let initValue be ? Call(initializer, receiver).
-        init_value = TRY(call(vm, initializer.cell(), this));
+        init_value = TRY(call(vm, initializer, this));
     }
     // 4. Else, let initValue be undefined.
 

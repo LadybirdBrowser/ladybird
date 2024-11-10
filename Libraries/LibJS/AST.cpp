@@ -227,7 +227,7 @@ ThrowCompletionOr<ClassElement::ClassValue> ClassField::class_element_evaluation
     auto& realm = *vm.current_realm();
 
     auto property_key_or_private_name = TRY(class_key_to_property_name(vm, *m_key, property_key));
-    Handle<ECMAScriptFunctionObject> initializer {};
+    GCPtr<ECMAScriptFunctionObject> initializer;
     if (m_initializer) {
         auto copy_initializer = m_initializer;
         auto name = property_key_or_private_name.visit(
@@ -370,7 +370,7 @@ ThrowCompletionOr<ECMAScriptFunctionObject*> ClassExpression::create_class_const
 
     ConservativeVector<PrivateElement> static_private_methods(vm.heap());
     ConservativeVector<PrivateElement> instance_private_methods(vm.heap());
-    Vector<ClassFieldDefinition> instance_fields;
+    ConservativeVector<ClassFieldDefinition> instance_fields(vm.heap());
     Vector<StaticElement> static_elements;
 
     for (size_t element_index = 0; element_index < m_elements.size(); element_index++) {
