@@ -59,6 +59,20 @@ ErrorOr<String> String::from_utf8(StringView view)
     return result;
 }
 
+String String::from_utf16_with_replacement_character(Utf16View const& utf16_view, WithBOMHandling with_bom_handling)
+{
+    StringBuilder builder;
+    if (with_bom_handling == WithBOMHandling::Yes && utf16_view.has_bom()) {
+        for (auto code_point : utf16_view.substring_view(1))
+            builder.append_code_point(code_point);
+    } else {
+        for (auto code_point : utf16_view)
+            builder.append_code_point(code_point);
+    }
+
+    return builder.to_string_without_validation();
+}
+
 ErrorOr<String> String::from_utf16(Utf16View const& utf16)
 {
     if (!utf16.validate())

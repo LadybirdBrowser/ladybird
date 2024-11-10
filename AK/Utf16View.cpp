@@ -363,6 +363,15 @@ bool Utf16View::equals_ignoring_case(Utf16View const& other) const
     return true;
 }
 
+bool Utf16View::has_bom() const
+{
+    if (span().is_empty())
+        return false;
+
+    auto code_unit = host_code_unit(span()[0], m_endianness);
+    return code_unit == 0xFFFE || code_unit == 0xFEFF;
+}
+
 Utf16CodePointIterator& Utf16CodePointIterator::operator++()
 {
     size_t code_units = length_in_code_units();
