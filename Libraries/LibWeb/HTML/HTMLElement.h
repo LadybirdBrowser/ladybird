@@ -97,7 +97,7 @@ private:
     virtual void did_lose_focus() override;
 
     [[nodiscard]] String get_the_text_steps();
-    void append_rendered_text_fragment(StringView input);
+    JS::NonnullGCPtr<DOM::DocumentFragment> rendered_text_fragment(StringView input);
 
     JS::GCPtr<DOM::NodeList> m_labels;
 
