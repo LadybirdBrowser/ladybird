@@ -145,9 +145,10 @@ WebIDL::ExceptionOr<void> HTMLElement::set_content_editable(StringView content_e
 void HTMLElement::set_inner_text(StringView text)
 {
     // 1. Let fragment be the rendered text fragment for value given element's node document.
+    auto fragment = rendered_text_fragment(text);
+
     // 2. Replace all with fragment within element.
-    remove_all_children();
-    append_rendered_text_fragment(text);
+    replace_all(fragment);
 
     set_needs_style_update(true);
 }
@@ -160,10 +161,11 @@ WebIDL::ExceptionOr<void> HTMLElement::set_outer_text(String)
 }
 
 // https://html.spec.whatwg.org/multipage/dom.html#rendered-text-fragment
-void HTMLElement::append_rendered_text_fragment(StringView input)
+JS::NonnullGCPtr<DOM::DocumentFragment> HTMLElement::rendered_text_fragment(StringView input)
 {
-    // FIXME: 1. Let fragment be a new DocumentFragment whose node document is document.
-    //      Instead of creating a DocumentFragment the nodes are appended directly.
+    // 1. Let fragment be a new DocumentFragment whose node document is document.
+    //    Instead of creating a DocumentFragment the nodes are appended directly.
+    auto fragment = heap().allocate<DOM::DocumentFragment>(realm(), document());
 
     // 2. Let position be a position variable for input, initially pointing at the start of input.
     // 3. Let text be the empty string.
@@ -177,7 +179,7 @@ void HTMLElement::append_rendered_text_fragment(StringView input)
 
         // 2. If text is not the empty string, then append a new Text node whose data is text and node document is document to fragment.
         if (!text.is_empty()) {
-            MUST(append_child(document().create_text_node(MUST(String::from_utf8(text)))));
+            MUST(fragment->append_child(document().create_text_node(MUST(String::from_utf8(text)))));
         }
 
         // 3. While position is not past the end of input, and the code point at position is either U+000A LF or U+000D CR:
@@ -193,9 +195,12 @@ void HTMLElement::append_rendered_text_fragment(StringView input)
 
             // 3. Append the result of creating an element given document, br, and the HTML namespace to fragment.
             auto br_element = DOM::create_element(document(), HTML::TagNames::br, Namespace::HTML).release_value();
-            MUST(append_child(br_element));
+            MUST(fragment->append_child(br_element));
         }
     }
+
+    // 5. Return fragment.
+    return fragment;
 }
 
 struct RequiredLineBreakCount {
