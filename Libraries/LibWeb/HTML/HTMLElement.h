@@ -45,7 +45,7 @@ public:
     void set_inner_text(StringView);
 
     [[nodiscard]] String outer_text();
-    WebIDL::ExceptionOr<void> set_outer_text(String);
+    WebIDL::ExceptionOr<void> set_outer_text(String const&);
 
     int offset_top() const;
     int offset_left() const;

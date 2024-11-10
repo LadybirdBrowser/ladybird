@@ -153,10 +153,55 @@ void HTMLElement::set_inner_text(StringView text)
     set_needs_style_update(true);
 }
 
-// https://html.spec.whatwg.org/multipage/dom.html#the-innertext-idl-attribute:dom-outertext-2
-WebIDL::ExceptionOr<void> HTMLElement::set_outer_text(String)
+// https://html.spec.whatwg.org/multipage/dom.html#merge-with-the-next-text-node
+static void merge_with_the_next_text_node(DOM::Text& node)
 {
-    dbgln("FIXME: Implement HTMLElement::set_outer_text()");
+    // 1. Let next be node's next sibling.
+    auto next = node.next_sibling();
+
+    // 2. If next is not a Text node, then return.
+    if (!is<DOM::Text>(next))
+        return;
+
+    // 3. Replace data with node, node's data's length, 0, and next's data.
+    MUST(node.replace_data(node.length_in_utf16_code_units(), 0, static_cast<DOM::Text const&>(*next).data()));
+
+    // 4. Remove next.
+    next->remove();
+}
+
+// https://html.spec.whatwg.org/multipage/dom.html#the-innertext-idl-attribute:dom-outertext-2
+WebIDL::ExceptionOr<void> HTMLElement::set_outer_text(String const& value)
+{
+    // 1. If this's parent is null, then throw a "NoModificationAllowedError" DOMException.
+    if (!parent())
+        return WebIDL::NoModificationAllowedError::create(realm(), "setOuterText: parent is null"_string);
+
+    // 2. Let next be this's next sibling.
+    auto* next = next_sibling();
+
+    // 3. Let previous be this's previous sibling.
+    auto* previous = previous_sibling();
+
+    // 4. Let fragment be the rendered text fragment for the given value given this's node document.
+    auto fragment = rendered_text_fragment(value);
+
+    // 5. If fragment has no children, then append a new Text node whose data is the empty string and node document is this's node document to fragment.
+    if (!fragment->has_children())
+        MUST(fragment->append_child(document().create_text_node(String {})));
+
+    // 6. Replace this with fragment within this's parent.
+    MUST(parent()->replace_child(fragment, *this));
+
+    // 7. If next is non-null and next's previous sibling is a Text node, then merge with the next text node given next's previous sibling.
+    if (next && is<DOM::Text>(next->previous_sibling()))
+        merge_with_the_next_text_node(static_cast<DOM::Text&>(*next->previous_sibling()));
+
+    // 8. If previous is a Text node, then merge with the next text node given previous.
+    if (is<DOM::Text>(previous))
+        merge_with_the_next_text_node(static_cast<DOM::Text&>(*previous));
+
+    set_needs_style_update(true);
     return {};
 }
 
