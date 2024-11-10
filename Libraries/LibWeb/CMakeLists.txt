@@ -28,6 +28,9 @@ set(SOURCES
     Bindings/SyntheticHostDefined.cpp
     Clipboard/Clipboard.cpp
     Clipboard/ClipboardEvent.cpp
+    CredentialManagement/Credential.cpp
+    CredentialManagement/CredentialsContainer.cpp
+    CredentialManagement/FederatedCredential.cpp
     Crypto/Crypto.cpp
     Crypto/CryptoAlgorithms.cpp
     Crypto/CryptoBindings.cpp
