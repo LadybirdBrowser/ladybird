@@ -12,13 +12,13 @@
 #include <LibCore/StandardPaths.h>
 #include <LibGfx/Font/FontDatabase.h>
 #include <LibGfx/Font/PathFontProvider.h>
-#include <UI/FontPlugin.h>
+#include <LibWebView/Plugins/FontPlugin.h>
 
 #ifdef USE_FONTCONFIG
 #    include <fontconfig/fontconfig.h>
 #endif
 
-namespace Ladybird {
+namespace WebView {
 
 FontPlugin::FontPlugin(bool is_layout_test_mode, Gfx::SystemFontProvider* font_provider)
     : m_is_layout_test_mode(is_layout_test_mode)

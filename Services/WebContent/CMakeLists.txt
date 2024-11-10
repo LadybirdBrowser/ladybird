@@ -1,10 +1,7 @@
-include(fontconfig)
 include(pulseaudio)
 
 set(SOURCES
-    ${LADYBIRD_SOURCE_DIR}/UI/FontPlugin.cpp
     ${LADYBIRD_SOURCE_DIR}/UI/HelperProcess.cpp
-    ${LADYBIRD_SOURCE_DIR}/UI/ImageCodecPlugin.cpp
     ${LADYBIRD_SOURCE_DIR}/UI/Utilities.cpp
     ConnectionFromClient.cpp
     ConsoleGlobalEnvironmentExtensions.cpp
@@ -35,10 +32,6 @@ target_include_directories(webcontentservice PUBLIC $<BUILD_INTERFACE:${LADYBIRD
 
 target_link_libraries(webcontentservice PUBLIC LibCore LibFileSystem LibGfx LibIPC LibJS LibMain LibMedia LibWeb LibWebSocket LibRequests LibWebView LibImageDecoderClient)
 
-if (HAS_FONTCONFIG)
-    target_link_libraries(webcontentservice PRIVATE Fontconfig::Fontconfig)
-endif()
-
 if (ENABLE_QT)
     qt_add_executable(WebContent main.cpp)
     target_link_libraries(WebContent PRIVATE Qt::Core)
@@ -61,11 +54,6 @@ endif()
 
 target_link_libraries(WebContent PRIVATE webcontentservice LibURL)
 
-target_sources(webcontentservice PUBLIC FILE_SET ladybird TYPE HEADERS
-    BASE_DIRS ${LADYBIRD_SOURCE_DIR}
-    FILES ${LADYBIRD_SOURCE_DIR}/UI/FontPlugin.h
-          ${LADYBIRD_SOURCE_DIR}/UI/ImageCodecPlugin.h
-)
 target_sources(webcontentservice PUBLIC FILE_SET server TYPE HEADERS
     BASE_DIRS ${LADYBIRD_SOURCE_DIR}/Services
     FILES ConnectionFromClient.h

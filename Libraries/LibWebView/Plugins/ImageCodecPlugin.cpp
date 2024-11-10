@@ -8,10 +8,10 @@
 #include <LibGfx/Bitmap.h>
 #include <LibGfx/ImageFormats/ImageDecoder.h>
 #include <LibImageDecoderClient/Client.h>
-#include <UI/ImageCodecPlugin.h>
+#include <LibWebView/Plugins/ImageCodecPlugin.h>
 #include <UI/Utilities.h>
 
-namespace Ladybird {
+namespace WebView {
 
 ImageCodecPlugin::ImageCodecPlugin(NonnullRefPtr<ImageDecoderClient::Client> client)
     : m_client(move(client))

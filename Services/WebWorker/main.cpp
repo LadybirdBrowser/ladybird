@@ -19,7 +19,7 @@
 #include <LibWeb/Platform/EventLoopPlugin.h>
 #include <LibWeb/Platform/EventLoopPluginSerenity.h>
 #include <LibWeb/WebSockets/WebSocket.h>
-#include <UI/FontPlugin.h>
+#include <LibWebView/Plugins/FontPlugin.h>
 #include <UI/HelperProcess.h>
 #include <UI/Utilities.h>
 #include <WebWorker/ConnectionFromClient.h>
@@ -60,7 +60,7 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
 
     Web::Platform::EventLoopPlugin::install(*new Web::Platform::EventLoopPluginSerenity);
 
-    Web::Platform::FontPlugin::install(*new Ladybird::FontPlugin(false));
+    Web::Platform::FontPlugin::install(*new WebView::FontPlugin(false));
 
     TRY(Web::Bindings::initialize_main_thread_vm(Web::HTML::EventLoop::Type::Worker));
 

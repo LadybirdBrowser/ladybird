@@ -11,7 +11,7 @@
 #include <LibGfx/Font/FontDatabase.h>
 #include <LibWeb/Platform/FontPlugin.h>
 
-namespace Ladybird {
+namespace WebView {
 
 class FontPlugin final : public Web::Platform::FontPlugin {
 public:
