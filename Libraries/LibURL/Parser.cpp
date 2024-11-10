@@ -881,7 +881,18 @@ URL Parser::basic_parse(StringView raw_input, Optional<URL> const& base_url, URL
     bool inside_brackets = false;
     bool password_token_seen = false;
 
-    Utf8View input(processed_input);
+    auto scalar_value_input = ({
+        // To convert a string into a scalar value string, replace any surrogates with U+FFFD.
+        StringBuilder scalar_value_builder;
+        auto utf8_view = Utf8View { processed_input };
+        for (u32 code_point : utf8_view) {
+            if (is_unicode_surrogate(code_point))
+                code_point = 0xFFFD;
+            scalar_value_builder.append_code_point(code_point);
+        }
+        scalar_value_builder.to_string_without_validation();
+    });
+    auto input = Utf8View { scalar_value_input };
 
     // 8. Let pointer be a pointer for input.
     Utf8CodePointIterator iterator = input.begin();
