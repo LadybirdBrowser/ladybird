@@ -37,7 +37,7 @@ public:
 
     virtual Optional<CSSPixelRect> get_masking_area() const;
     virtual Optional<Gfx::Bitmap::MaskKind> get_mask_type() const { return {}; }
-    virtual RefPtr<Gfx::Bitmap> calculate_mask(PaintContext&, CSSPixelRect const&) const { return {}; }
+    virtual RefPtr<Gfx::ImmutableBitmap> calculate_mask(PaintContext&, CSSPixelRect const&) const { return {}; }
 
     Layout::NodeWithStyleAndBoxModelMetrics& layout_node_with_style_and_box_metrics() { return static_cast<Layout::NodeWithStyleAndBoxModelMetrics&>(Paintable::layout_node()); }
     Layout::NodeWithStyleAndBoxModelMetrics const& layout_node_with_style_and_box_metrics() const { return static_cast<Layout::NodeWithStyleAndBoxModelMetrics const&>(Paintable::layout_node()); }

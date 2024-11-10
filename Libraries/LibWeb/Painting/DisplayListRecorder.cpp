@@ -406,7 +406,7 @@ void DisplayListRecorder::apply_transform(Gfx::FloatPoint origin, Gfx::FloatMatr
     });
 }
 
-void DisplayListRecorder::apply_mask_bitmap(Gfx::IntPoint origin, Gfx::Bitmap const& bitmap, Gfx::Bitmap::MaskKind kind)
+void DisplayListRecorder::apply_mask_bitmap(Gfx::IntPoint origin, Gfx::ImmutableBitmap const& bitmap, Gfx::Bitmap::MaskKind kind)
 {
     append(ApplyMaskBitmap {
         .origin = origin,

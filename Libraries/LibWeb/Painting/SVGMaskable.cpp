@@ -73,7 +73,7 @@ Optional<Gfx::Bitmap::MaskKind> SVGMaskable::get_mask_type_of_svg() const
     return {};
 }
 
-RefPtr<Gfx::Bitmap> SVGMaskable::calculate_mask_of_svg(PaintContext& context, CSSPixelRect const& masking_area) const
+RefPtr<Gfx::ImmutableBitmap> SVGMaskable::calculate_mask_of_svg(PaintContext& context, CSSPixelRect const& masking_area) const
 {
     auto const& graphics_element = verify_cast<SVG::SVGGraphicsElement const>(*dom_node_of_svg());
     auto mask_rect = context.enclosing_device_rect(masking_area);
@@ -108,7 +108,7 @@ RefPtr<Gfx::Bitmap> SVGMaskable::calculate_mask_of_svg(PaintContext& context, CS
         if (!mask_bitmap)
             mask_bitmap = clip_bitmap;
     }
-    return mask_bitmap;
+    return Gfx::ImmutableBitmap::create(*mask_bitmap);
 }
 
 }
