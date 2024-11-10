@@ -141,7 +141,7 @@ public:
 
     void apply_opacity(float opacity);
     void apply_transform(Gfx::FloatPoint origin, Gfx::FloatMatrix4x4);
-    void apply_mask_bitmap(Gfx::IntPoint origin, Gfx::Bitmap const&, Gfx::Bitmap::MaskKind);
+    void apply_mask_bitmap(Gfx::IntPoint origin, Gfx::ImmutableBitmap const&, Gfx::Bitmap::MaskKind);
 
     DisplayListRecorder(DisplayList&);
     ~DisplayListRecorder();

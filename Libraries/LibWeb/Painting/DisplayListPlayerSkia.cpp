@@ -239,40 +239,6 @@ static SkRRect to_skia_rrect(auto const& rect, CornerRadii const& corner_radii)
     return rrect;
 }
 
-static SkColorType to_skia_color_type(Gfx::BitmapFormat format)
-{
-    switch (format) {
-    case Gfx::BitmapFormat::Invalid:
-        return kUnknown_SkColorType;
-    case Gfx::BitmapFormat::BGRA8888:
-    case Gfx::BitmapFormat::BGRx8888:
-        return kBGRA_8888_SkColorType;
-    case Gfx::BitmapFormat::RGBA8888:
-        return kRGBA_8888_SkColorType;
-    case Gfx::BitmapFormat::RGBx8888:
-        return kRGB_888x_SkColorType;
-    default:
-        return kUnknown_SkColorType;
-    }
-}
-
-static SkBitmap to_skia_bitmap(Gfx::Bitmap const& bitmap)
-{
-    SkColorType color_type = to_skia_color_type(bitmap.format());
-    SkAlphaType alpha_type = bitmap.alpha_type() == Gfx::AlphaType::Premultiplied ? kPremul_SkAlphaType : kUnpremul_SkAlphaType;
-    SkImageInfo image_info = SkImageInfo::Make(bitmap.width(), bitmap.height(), color_type, alpha_type);
-    SkBitmap sk_bitmap;
-    sk_bitmap.setInfo(image_info);
-
-    if (!sk_bitmap.installPixels(image_info, const_cast<Gfx::ARGB32*>(bitmap.begin()), bitmap.width() * 4)) {
-        VERIFY_NOT_REACHED();
-    }
-
-    sk_bitmap.setImmutable();
-
-    return sk_bitmap;
-}
-
 static SkMatrix to_skia_matrix(Gfx::AffineTransform const& affine_transform)
 {
     SkScalar affine[6];
@@ -1151,8 +1117,7 @@ void DisplayListPlayerSkia::apply_mask_bitmap(ApplyMaskBitmap const& command)
 {
     auto& canvas = surface().canvas();
 
-    auto sk_bitmap = to_skia_bitmap(*command.bitmap);
-    auto mask_image = SkImages::RasterFromBitmap(sk_bitmap);
+    auto const* mask_image = command.bitmap->sk_image();
 
     char const* sksl_shader = nullptr;
     if (command.kind == Gfx::Bitmap::MaskKind::Luminance) {

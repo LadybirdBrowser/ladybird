@@ -405,7 +405,7 @@ struct ApplyTransform {
 
 struct ApplyMaskBitmap {
     Gfx::IntPoint origin;
-    NonnullRefPtr<Gfx::Bitmap> bitmap;
+    NonnullRefPtr<Gfx::ImmutableBitmap> bitmap;
     Gfx::Bitmap::MaskKind kind;
 
     void translate_by(Gfx::IntPoint const& offset)
