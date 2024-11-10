@@ -11,6 +11,7 @@
 
 #include <AK/JsonObject.h>
 #include <AK/QuickSort.h>
+#include <LibCore/EventLoop.h>
 #include <LibGfx/Bitmap.h>
 #include <LibGfx/Font/FontDatabase.h>
 #include <LibGfx/SystemTheme.h>
@@ -354,7 +355,10 @@ void ConnectionFromClient::debug_request(u64 page_id, ByteString const& request,
     }
 
     if (request == "collect-garbage") {
-        Web::Bindings::main_thread_vm().heap().collect_garbage(JS::Heap::CollectionType::CollectGarbage, true);
+        // NOTE: We use deferred_invoke here to ensure that GC runs with as little on the stack as possible.
+        Core::deferred_invoke([] {
+            Web::Bindings::main_thread_vm().heap().collect_garbage(JS::Heap::CollectionType::CollectGarbage, true);
+        });
         return;
     }
 
