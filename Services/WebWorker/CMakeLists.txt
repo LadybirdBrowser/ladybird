@@ -25,13 +25,7 @@ if (HAS_FONTCONFIG)
 endif()
 
 if (ENABLE_QT)
-    qt_add_executable(WebWorker
-        ${LADYBIRD_SOURCE_DIR}/UI/Qt/EventLoopImplementationQt.cpp
-        ${LADYBIRD_SOURCE_DIR}/UI/Qt/EventLoopImplementationQtEventTarget.cpp
-        ${LADYBIRD_SOURCE_DIR}/UI/Qt/StringUtils.cpp
-        main.cpp
-    )
-    target_link_libraries(WebWorker PRIVATE Qt::Core)
+    qt_add_executable(WebWorker main.cpp)
     target_link_libraries(WebWorker PRIVATE webworkerservice LibWebSocket)
     target_compile_definitions(WebWorker PRIVATE HAVE_QT=1)
 else()

@@ -7,17 +7,14 @@
 #pragma once
 
 #include <AK/Badge.h>
-#include <AK/HashMap.h>
 #include <AK/NonnullOwnPtr.h>
-#include <AK/OwnPtr.h>
 #include <LibCore/EventLoopImplementation.h>
 
-#include <QEvent>
-#include <QEventLoop>
-#include <QSocketNotifier>
-#include <QTimer>
+class QEvent;
+class QEventLoop;
+class QSocketNotifier;
 
-namespace Ladybird {
+namespace WebView {
 
 class EventLoopImplementationQt;
 class EventLoopImplementationQtEventTarget;
@@ -50,20 +47,6 @@ private:
     int m_signal_socket_fds[2] = { -1, -1 };
 };
 
-class QtEventLoopManagerEvent final : public QEvent {
-public:
-    static QEvent::Type process_event_queue_event_type()
-    {
-        static auto const type = static_cast<QEvent::Type>(QEvent::registerEventType());
-        return type;
-    }
-
-    QtEventLoopManagerEvent(QEvent::Type type)
-        : QEvent(type)
-    {
-    }
-};
-
 class EventLoopImplementationQt final : public Core::EventLoopImplementation {
 public:
     static NonnullOwnPtr<EventLoopImplementationQt> create() { return adopt_own(*new EventLoopImplementationQt); }
@@ -89,7 +72,7 @@ private:
     EventLoopImplementationQt();
     bool is_main_loop() const { return m_main_loop; }
 
-    QEventLoop m_event_loop;
+    NonnullOwnPtr<QEventLoop> m_event_loop;
     bool m_main_loop { false };
 };
 

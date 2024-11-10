@@ -12,12 +12,12 @@
 #include <LibMain/Main.h>
 #include <LibWebView/Application.h>
 #include <LibWebView/ChromeProcess.h>
+#include <LibWebView/EventLoop/EventLoopImplementationQt.h>
 #include <LibWebView/ProcessManager.h>
 #include <LibWebView/URL.h>
 #include <UI/HelperProcess.h>
 #include <UI/Qt/Application.h>
 #include <UI/Qt/BrowserWindow.h>
-#include <UI/Qt/EventLoopImplementationQt.h>
 #include <UI/Qt/Settings.h>
 #include <UI/Qt/WebContentView.h>
 #include <UI/Utilities.h>
@@ -64,11 +64,11 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
 {
     AK::set_rich_debug_enabled(true);
 
-    Core::EventLoopManager::install(*new Ladybird::EventLoopManagerQt);
+    Core::EventLoopManager::install(*new WebView::EventLoopManagerQt);
 
     auto app = Ladybird::Application::create(arguments, ak_url_from_qstring(Ladybird::Settings::the()->new_tab_page()));
 
-    static_cast<Ladybird::EventLoopImplementationQt&>(Core::EventLoop::current().impl()).set_main_loop();
+    static_cast<WebView::EventLoopImplementationQt&>(Core::EventLoop::current().impl()).set_main_loop();
     TRY(handle_attached_debugger());
 
     platform_init();

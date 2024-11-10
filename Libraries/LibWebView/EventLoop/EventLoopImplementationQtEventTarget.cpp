@@ -4,9 +4,10 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <UI/Qt/EventLoopImplementationQtEventTarget.h>
+#include <LibWebView/EventLoop/EventLoopImplementationQt.h>
+#include <LibWebView/EventLoop/EventLoopImplementationQtEventTarget.h>
 
-namespace Ladybird {
+namespace WebView {
 
 bool EventLoopImplementationQtEventTarget::event(QEvent* event)
 {

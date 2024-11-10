@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023, Tim Flynn <trflynn89@serenityos.org>
+ * Copyright (c) 2023-2024, Tim Flynn <trflynn89@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -11,8 +11,8 @@
 #include <LibCore/Event.h>
 #include <LibCore/Notifier.h>
 #include <LibCore/ThreadEventQueue.h>
+#include <LibWebView/EventLoop/EventLoopImplementationMacOS.h>
 
-#import <Application/EventLoopImplementation.h>
 #import <Cocoa/Cocoa.h>
 #import <CoreFoundation/CoreFoundation.h>
 
@@ -20,7 +20,7 @@
 #include <sys/time.h>
 #include <sys/types.h>
 
-namespace Ladybird {
+namespace WebView {
 
 struct ThreadData {
     static ThreadData& the()
@@ -201,12 +201,12 @@ static void post_application_event()
     [NSApp postEvent:event atStart:NO];
 }
 
-NonnullOwnPtr<Core::EventLoopImplementation> CFEventLoopManager::make_implementation()
+NonnullOwnPtr<Core::EventLoopImplementation> EventLoopManagerMacOS::make_implementation()
 {
-    return CFEventLoopImplementation::create();
+    return EventLoopImplementationMacOS::create();
 }
 
-intptr_t CFEventLoopManager::register_timer(Core::EventReceiver& receiver, int interval_milliseconds, bool should_reload, Core::TimerShouldFireWhenNotVisible should_fire_when_not_visible)
+intptr_t EventLoopManagerMacOS::register_timer(Core::EventReceiver& receiver, int interval_milliseconds, bool should_reload, Core::TimerShouldFireWhenNotVisible should_fire_when_not_visible)
 {
     auto& thread_data = ThreadData::the();
 
@@ -240,7 +240,7 @@ intptr_t CFEventLoopManager::register_timer(Core::EventReceiver& receiver, int i
     return timer_id;
 }
 
-void CFEventLoopManager::unregister_timer(intptr_t timer_id)
+void EventLoopManagerMacOS::unregister_timer(intptr_t timer_id)
 {
     auto& thread_data = ThreadData::the();
     thread_data.timer_id_allocator.deallocate(static_cast<int>(timer_id));
@@ -269,7 +269,7 @@ static void socket_notifier(CFSocketRef socket, CFSocketCallBackType notificatio
     post_application_event();
 }
 
-void CFEventLoopManager::register_notifier(Core::Notifier& notifier)
+void EventLoopManagerMacOS::register_notifier(Core::Notifier& notifier)
 {
     auto notification_type = kCFSocketNoCallBack;
 
@@ -301,7 +301,7 @@ void CFEventLoopManager::register_notifier(Core::Notifier& notifier)
     ThreadData::the().notifiers.set(&notifier, source);
 }
 
-void CFEventLoopManager::unregister_notifier(Core::Notifier& notifier)
+void EventLoopManagerMacOS::unregister_notifier(Core::Notifier& notifier)
 {
     if (auto source = ThreadData::the().notifiers.take(&notifier); source.has_value()) {
         CFRunLoopRemoveSource(CFRunLoopGetCurrent(), *source, kCFRunLoopCommonModes);
@@ -309,7 +309,7 @@ void CFEventLoopManager::unregister_notifier(Core::Notifier& notifier)
     }
 }
 
-void CFEventLoopManager::did_post_event()
+void EventLoopManagerMacOS::did_post_event()
 {
     post_application_event();
 }
@@ -328,7 +328,7 @@ static void handle_signal(CFFileDescriptorRef f, CFOptionFlags callback_types, v
     signal_handlers->dispatch();
 }
 
-int CFEventLoopManager::register_signal(int signal_number, Function<void(int)> handler)
+int EventLoopManagerMacOS::register_signal(int signal_number, Function<void(int)> handler)
 {
     VERIFY(signal_number != 0);
     auto& info = *signals_info();
@@ -343,7 +343,7 @@ int CFEventLoopManager::register_signal(int signal_number, Function<void(int)> h
     }
 }
 
-void CFEventLoopManager::unregister_signal(int handler_id)
+void EventLoopManagerMacOS::unregister_signal(int handler_id)
 {
     VERIFY(handler_id != 0);
     int remove_signal_number = 0;
@@ -360,18 +360,18 @@ void CFEventLoopManager::unregister_signal(int handler_id)
         info.signal_handlers.remove(remove_signal_number);
 }
 
-NonnullOwnPtr<CFEventLoopImplementation> CFEventLoopImplementation::create()
+NonnullOwnPtr<EventLoopImplementationMacOS> EventLoopImplementationMacOS::create()
 {
-    return adopt_own(*new CFEventLoopImplementation);
+    return adopt_own(*new EventLoopImplementationMacOS);
 }
 
-int CFEventLoopImplementation::exec()
+int EventLoopImplementationMacOS::exec()
 {
     [NSApp run];
     return m_exit_code;
 }
 
-size_t CFEventLoopImplementation::pump(PumpMode mode)
+size_t EventLoopImplementationMacOS::pump(PumpMode mode)
 {
     auto* wait_until = mode == PumpMode::WaitForEvents ? [NSDate distantFuture] : [NSDate distantPast];
 
@@ -392,18 +392,18 @@ size_t CFEventLoopImplementation::pump(PumpMode mode)
     return 0;
 }
 
-void CFEventLoopImplementation::quit(int exit_code)
+void EventLoopImplementationMacOS::quit(int exit_code)
 {
     m_exit_code = exit_code;
     [NSApp stop:nil];
 }
 
-void CFEventLoopImplementation::wake()
+void EventLoopImplementationMacOS::wake()
 {
     CFRunLoopWakeUp(CFRunLoopGetCurrent());
 }
 
-void CFEventLoopImplementation::post_event(Core::EventReceiver& receiver, NonnullOwnPtr<Core::Event>&& event)
+void EventLoopImplementationMacOS::post_event(Core::EventReceiver& receiver, NonnullOwnPtr<Core::Event>&& event)
 {
     m_thread_event_queue.post_event(receiver, move(event));
 

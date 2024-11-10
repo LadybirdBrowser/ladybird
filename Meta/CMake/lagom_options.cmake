@@ -14,3 +14,9 @@ serenity_option(LAGOM_TOOLS_ONLY OFF CACHE BOOL "Don't build libraries, utilitie
 serenity_option(ENABLE_LAGOM_CCACHE ON CACHE BOOL "Enable ccache for Lagom builds")
 serenity_option(LAGOM_USE_LINKER "" CACHE STRING "The linker to use (e.g. lld, mold) instead of the system default")
 serenity_option(ENABLE_LAGOM_COVERAGE_COLLECTION OFF CACHE STRING "Enable code coverage instrumentation for lagom binaries in clang")
+
+if (ANDROID OR APPLE)
+    serenity_option(ENABLE_QT OFF CACHE BOOL "Build ladybird application using Qt GUI")
+else()
+    serenity_option(ENABLE_QT ON CACHE BOOL "Build ladybird application using Qt GUI")
+endif()

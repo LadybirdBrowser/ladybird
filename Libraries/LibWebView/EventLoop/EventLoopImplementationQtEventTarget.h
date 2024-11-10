@@ -6,11 +6,10 @@
 
 #pragma once
 
-#include <UI/Qt/EventLoopImplementationQt.h>
-
 #include <QEvent>
+#include <QObject>
 
-namespace Ladybird {
+namespace WebView {
 
 class EventLoopImplementationQtEventTarget final : public QObject {
     Q_OBJECT
