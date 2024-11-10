@@ -134,7 +134,7 @@ size_t ConnectionFromClient::on_header_received(void* buffer, size_t size, size_
                 auto decoder = TextCodec::decoder_for_exact_name("ISO-8859-1"sv);
                 VERIFY(decoder.has_value());
 
-                request->reason_phrase = MUST(decoder->to_utf8(reason_phrase_string_view));
+                request->reason_phrase = MUST(decoder->to_utf8(reason_phrase_string_view, String::WithBOMHandling::Yes, TextCodec::Decoder::ErrorMode::Replacement));
                 return total_size;
             }
         }

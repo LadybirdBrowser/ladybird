@@ -14,7 +14,7 @@ OptionalString decode_to_utf8(StringView text, StringView encoding)
     auto decoder = TextCodec::decoder_for(encoding);
     if (!decoder.has_value())
         return std::nullopt;
-    auto decoded_or_error = decoder.value().to_utf8(text);
+    auto decoded_or_error = decoder.value().to_utf8(text, String::WithBOMHandling::Yes, TextCodec::Decoder::ErrorMode::Replacement);
     if (decoded_or_error.is_error())
         return std::nullopt;
     return decoded_or_error.release_value();

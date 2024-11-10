@@ -1,0 +1,20 @@
+Summary
+
+Harness status: OK
+
+Rerun
+
+Found 10 tests
+
+10 Pass
+Details
+Result	Test Name	MessagePass	utf-16le - lone surrogate lead	
+Pass	utf-16le - lone surrogate lead (fatal flag set)	
+Pass	utf-16le - lone surrogate trail	
+Pass	utf-16le - lone surrogate trail (fatal flag set)	
+Pass	utf-16le - unmatched surrogate lead	
+Pass	utf-16le - unmatched surrogate lead (fatal flag set)	
+Pass	utf-16le - unmatched surrogate trail	
+Pass	utf-16le - unmatched surrogate trail (fatal flag set)	
+Pass	utf-16le - swapped surrogate pair	
+Pass	utf-16le - swapped surrogate pair (fatal flag set)	

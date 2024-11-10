@@ -24,7 +24,7 @@ TEST_CASE(test_utf8_decode)
     EXPECT(processed_code_points.size() == 1);
     EXPECT(processed_code_points[0] == 0x1F600);
 
-    EXPECT(MUST(decoder.to_utf8(test_string)) == test_string);
+    EXPECT(MUST(decoder.to_utf8(test_string, String::WithBOMHandling::Yes, TextCodec::Decoder::ErrorMode::Replacement)) == test_string);
 }
 
 TEST_CASE(test_utf16be_decode)
@@ -45,7 +45,7 @@ TEST_CASE(test_utf16be_decode)
     EXPECT(processed_code_points[2] == 0x6B);
     EXPECT(processed_code_points[3] == 0x1F600);
 
-    auto utf8 = MUST(decoder.to_utf8(test_string));
+    auto utf8 = MUST(decoder.to_utf8(test_string, String::WithBOMHandling::Yes, TextCodec::Decoder::ErrorMode::Replacement));
     EXPECT_EQ(utf8, "säk😀"sv);
 }
 
@@ -67,6 +67,6 @@ TEST_CASE(test_utf16le_decode)
     EXPECT(processed_code_points[2] == 0x6B);
     EXPECT(processed_code_points[3] == 0x1F600);
 
-    auto utf8 = MUST(decoder.to_utf8(test_string));
+    auto utf8 = MUST(decoder.to_utf8(test_string, String::WithBOMHandling::Yes, TextCodec::Decoder::ErrorMode::Replacement));
     EXPECT_EQ(utf8, "säk😀"sv);
 }
