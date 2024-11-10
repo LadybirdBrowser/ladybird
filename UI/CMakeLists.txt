@@ -1,14 +1,5 @@
 include(cmake/ResourceFiles.cmake)
 
-set(LADYBIRD_SOURCES
-    ${CMAKE_CURRENT_SOURCE_DIR}/HelperProcess.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/Utilities.cpp
-)
-set(LADYBIRD_HEADERS
-    HelperProcess.h
-    Utilities.h
-)
-
 function(create_ladybird_bundle target_name)
     set_target_properties(${target_name} PROPERTIES
         OUTPUT_NAME "Ladybird"
@@ -64,24 +55,11 @@ elseif(ANDROID)
    add_subdirectory(Android)
 else()
     # TODO: Check for other GUI frameworks here when we move them in-tree
-    #       For now, we can export a static library of common files for chromes to link to
-    add_library(ladybird STATIC ${LADYBIRD_SOURCES})
+    return()
 endif()
 
 if (NOT TARGET ladybird)
     message(FATAL_ERROR "UI Framework selection must declare a ladybird target")
-endif()
-
-if (APPLE)
-    target_sources(ladybird PRIVATE MachPortServer.cpp)
-    target_link_libraries(ladybird PRIVATE LibThreading)
-endif()
-
-if (ENABLE_INSTALL_HEADERS)
-    target_sources(ladybird PUBLIC FILE_SET ladybird TYPE HEADERS
-        BASE_DIRS ${LADYBIRD_SOURCE_DIR}
-        FILES ${LADYBIRD_HEADERS}
-    )
 endif()
 
 if (TARGET ladybird_impl)
@@ -104,12 +82,6 @@ function(set_helper_process_properties)
         set_target_properties(${targets} PROPERTIES RUNTIME_OUTPUT_DIRECTORY "$<TARGET_FILE_DIR:ladybird>")
     else()
         set_target_properties(${targets} PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/${IN_BUILD_PREFIX}${CMAKE_INSTALL_LIBEXECDIR}")
-
-        if (NOT CMAKE_INSTALL_LIBEXECDIR STREQUAL "libexec")
-            set_source_files_properties(Utilities.cpp PROPERTIES COMPILE_DEFINITIONS LADYBIRD_LIBEXECDIR="${CMAKE_INSTALL_LIBEXECDIR}")
-            set_source_files_properties(Utilities.cpp TARGET_DIRECTORY ladybird PROPERTIES COMPILE_DEFINITIONS LADYBIRD_LIBEXECDIR="${CMAKE_INSTALL_LIBEXECDIR}")
-            set_source_files_properties(Utilities.cpp TARGET_DIRECTORY ${targets} PROPERTIES COMPILE_DEFINITIONS LADYBIRD_LIBEXECDIR="${CMAKE_INSTALL_LIBEXECDIR}")
-        endif()
     endif()
 endfunction()
 

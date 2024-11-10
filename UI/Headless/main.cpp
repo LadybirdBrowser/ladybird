@@ -21,10 +21,10 @@
 #include <LibGfx/ImageFormats/PNGWriter.h>
 #include <LibGfx/SystemTheme.h>
 #include <LibURL/URL.h>
+#include <LibWebView/Utilities.h>
 #include <UI/Headless/Application.h>
 #include <UI/Headless/HeadlessWebView.h>
 #include <UI/Headless/Test.h>
-#include <UI/Utilities.h>
 
 static ErrorOr<NonnullRefPtr<Core::Timer>> load_page_for_screenshot_and_exit(Core::EventLoop& event_loop, Ladybird::HeadlessWebView& view, URL::URL const& url, int screenshot_timeout)
 {
@@ -61,7 +61,7 @@ static ErrorOr<NonnullRefPtr<Core::Timer>> load_page_for_screenshot_and_exit(Cor
 
 ErrorOr<int> serenity_main(Main::Arguments arguments)
 {
-    platform_init();
+    WebView::platform_init();
 
     auto app = Ladybird::Application::create(arguments, "about:newtab"sv);
     TRY(app->launch_services());

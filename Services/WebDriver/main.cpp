@@ -14,14 +14,14 @@
 #include <LibCore/TCPServer.h>
 #include <LibMain/Main.h>
 #include <LibWeb/WebDriver/Capabilities.h>
-#include <UI/Utilities.h>
+#include <LibWebView/Utilities.h>
 #include <WebDriver/Client.h>
 
 static Vector<ByteString> certificates;
 
 static ErrorOr<pid_t> launch_process(StringView application, ReadonlySpan<ByteString> arguments)
 {
-    auto paths = TRY(get_paths_for_helper_process(application));
+    auto paths = TRY(WebView::get_paths_for_helper_process(application));
 
     ErrorOr<pid_t> result = -1;
     for (auto const& path : paths) {
@@ -96,7 +96,7 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
         return 1;
     }
 
-    platform_init();
+    WebView::platform_init();
 
     Web::WebDriver::set_default_interface_mode(headless ? Web::WebDriver::InterfaceMode::Headless : Web::WebDriver::InterfaceMode::Graphical);
 

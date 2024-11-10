@@ -1,6 +1,4 @@
 set(WEBWORKER_SOURCES
-    ${LADYBIRD_SOURCE_DIR}/UI/HelperProcess.cpp
-    ${LADYBIRD_SOURCE_DIR}/UI/Utilities.cpp
     ConnectionFromClient.cpp
     DedicatedWorkerHost.cpp
     PageHost.cpp

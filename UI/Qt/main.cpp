@@ -13,17 +13,17 @@
 #include <LibWebView/Application.h>
 #include <LibWebView/ChromeProcess.h>
 #include <LibWebView/EventLoop/EventLoopImplementationQt.h>
+#include <LibWebView/HelperProcess.h>
 #include <LibWebView/ProcessManager.h>
 #include <LibWebView/URL.h>
-#include <UI/HelperProcess.h>
+#include <LibWebView/Utilities.h>
 #include <UI/Qt/Application.h>
 #include <UI/Qt/BrowserWindow.h>
 #include <UI/Qt/Settings.h>
 #include <UI/Qt/WebContentView.h>
-#include <UI/Utilities.h>
 
 #if defined(AK_OS_MACOS)
-#    include <UI/MachPortServer.h>
+#    include <LibWebView/MachPortServer.h>
 #endif
 
 namespace Ladybird {
@@ -71,7 +71,7 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
     static_cast<WebView::EventLoopImplementationQt&>(Core::EventLoop::current().impl()).set_main_loop();
     TRY(handle_attached_debugger());
 
-    platform_init();
+    WebView::platform_init();
 
     WebView::ChromeProcess chrome_process;
 
@@ -100,22 +100,23 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
     };
 
 #if defined(AK_OS_MACOS)
-    auto mach_port_server = make<Ladybird::MachPortServer>();
-    set_mach_server_name(mach_port_server->server_port_name());
+    auto mach_port_server = make<WebView::MachPortServer>();
+    WebView::set_mach_server_name(mach_port_server->server_port_name());
+
     mach_port_server->on_receive_child_mach_port = [&app](auto pid, auto port) {
         app->set_process_mach_port(pid, move(port));
     };
-    mach_port_server->on_receive_backing_stores = [](Ladybird::MachPortServer::BackingStoresMessage message) {
+    mach_port_server->on_receive_backing_stores = [](WebView::MachPortServer::BackingStoresMessage message) {
         if (auto view = WebView::WebContentClient::view_for_pid_and_page_id(message.pid, message.page_id); view.has_value())
             view->did_allocate_iosurface_backing_stores(message.front_backing_store_id, move(message.front_backing_store_port), message.back_backing_store_id, move(message.back_backing_store_port));
     };
 #endif
 
-    copy_default_config_files(Ladybird::Settings::the()->directory());
+    WebView::copy_default_config_files(Ladybird::Settings::the()->directory());
 
     // FIXME: Create an abstraction to re-spawn the RequestServer and re-hook up its client hooks to each tab on crash
-    auto request_server_paths = TRY(get_paths_for_helper_process("RequestServer"sv));
-    auto requests_client = TRY(launch_request_server_process(request_server_paths, s_ladybird_resource_root));
+    auto request_server_paths = TRY(WebView::get_paths_for_helper_process("RequestServer"sv));
+    auto requests_client = TRY(WebView::launch_request_server_process(request_server_paths, WebView::s_ladybird_resource_root));
     app->request_server_client = move(requests_client);
 
     TRY(app->initialize_image_decoder());

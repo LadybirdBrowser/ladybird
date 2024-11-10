@@ -7,10 +7,10 @@
 #include <LibGfx/Bitmap.h>
 #include <LibGfx/ShareableBitmap.h>
 #include <LibWeb/Crypto/Crypto.h>
+#include <LibWebView/HelperProcess.h>
+#include <LibWebView/Utilities.h>
 #include <UI/Headless/Application.h>
 #include <UI/Headless/HeadlessWebView.h>
-#include <UI/HelperProcess.h>
-#include <UI/Utilities.h>
 
 namespace Ladybird {
 
@@ -32,8 +32,8 @@ HeadlessWebView::HeadlessWebView(Core::AnonymousBuffer theme, Gfx::IntSize viewp
     };
 
     on_request_worker_agent = []() {
-        auto web_worker_paths = MUST(get_paths_for_helper_process("WebWorker"sv));
-        auto worker_client = MUST(launch_web_worker_process(web_worker_paths, Application::request_client()));
+        auto web_worker_paths = MUST(WebView::get_paths_for_helper_process("WebWorker"sv));
+        auto worker_client = MUST(WebView::launch_web_worker_process(web_worker_paths, Application::request_client()));
 
         return worker_client->clone_transport();
     };
@@ -143,11 +143,11 @@ NonnullOwnPtr<HeadlessWebView> HeadlessWebView::create_child(HeadlessWebView con
 void HeadlessWebView::initialize_client(CreateNewClient create_new_client)
 {
     if (create_new_client == CreateNewClient::Yes) {
-        auto request_server_socket = connect_new_request_server_client(Application::request_client()).release_value_but_fixme_should_propagate_errors();
-        auto image_decoder_socket = connect_new_image_decoder_client(Application::image_decoder_client()).release_value_but_fixme_should_propagate_errors();
+        auto request_server_socket = WebView::connect_new_request_server_client(Application::request_client()).release_value_but_fixme_should_propagate_errors();
+        auto image_decoder_socket = WebView::connect_new_image_decoder_client(Application::image_decoder_client()).release_value_but_fixme_should_propagate_errors();
 
-        auto web_content_paths = get_paths_for_helper_process("WebContent"sv).release_value_but_fixme_should_propagate_errors();
-        m_client_state.client = launch_web_content_process(*this, web_content_paths, move(image_decoder_socket), move(request_server_socket)).release_value_but_fixme_should_propagate_errors();
+        auto web_content_paths = WebView::get_paths_for_helper_process("WebContent"sv).release_value_but_fixme_should_propagate_errors();
+        m_client_state.client = WebView::launch_web_content_process(*this, web_content_paths, move(image_decoder_socket), move(request_server_socket)).release_value_but_fixme_should_propagate_errors();
     } else {
         m_client_state.client->register_view(m_client_state.page_index, *this);
     }
