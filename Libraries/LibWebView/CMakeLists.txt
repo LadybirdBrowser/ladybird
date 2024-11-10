@@ -1,4 +1,5 @@
-include(${SerenityOS_SOURCE_DIR}/Meta/CMake/public_suffix.cmake)
+include(fontconfig)
+include(public_suffix)
 
 set(SOURCES
     Application.cpp
@@ -7,8 +8,10 @@ set(SOURCES
     CookieJar.cpp
     Database.cpp
     InspectorClient.cpp
-    ProcessHandle.cpp
+    Plugins/FontPlugin.cpp
+    Plugins/ImageCodecPlugin.cpp
     Process.cpp
+    ProcessHandle.cpp
     ProcessManager.cpp
     SearchEngine.cpp
     SourceHighlighter.cpp
@@ -71,6 +74,10 @@ if (ENABLE_QT)
     target_link_libraries(LibWebView PRIVATE Qt::Core)
 elseif (APPLE)
     target_link_libraries(LibWebView PRIVATE "-framework Cocoa")
+endif()
+
+if (HAS_FONTCONFIG)
+    target_link_libraries(LibWebView PRIVATE Fontconfig::Fontconfig)
 endif()
 
 if (ENABLE_INSTALL_HEADERS)

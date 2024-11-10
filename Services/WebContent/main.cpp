@@ -26,8 +26,8 @@
 #include <LibWeb/PermissionsPolicy/AutoplayAllowlist.h>
 #include <LibWeb/Platform/AudioCodecPluginAgnostic.h>
 #include <LibWeb/Platform/EventLoopPluginSerenity.h>
-#include <UI/FontPlugin.h>
-#include <UI/ImageCodecPlugin.h>
+#include <LibWebView/Plugins/FontPlugin.h>
+#include <LibWebView/Plugins/ImageCodecPlugin.h>
 #include <UI/Utilities.h>
 #include <WebContent/ConnectionFromClient.h>
 #include <WebContent/PageClient.h>
@@ -169,7 +169,7 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
 
     Web::HTML::Window::set_internals_object_exposed(expose_internals_object);
 
-    Web::Platform::FontPlugin::install(*new Ladybird::FontPlugin(is_layout_test_mode, &font_provider));
+    Web::Platform::FontPlugin::install(*new WebView::FontPlugin(is_layout_test_mode, &font_provider));
 
     TRY(Web::Bindings::initialize_main_thread_vm(Web::HTML::EventLoop::Type::Window));
 
@@ -277,7 +277,7 @@ ErrorOr<void> initialize_image_decoder(int image_decoder_socket)
 
     auto new_client = TRY(try_make_ref_counted<ImageDecoderClient::Client>(IPC::Transport(move(socket))));
 
-    Web::Platform::ImageCodecPlugin::install(*new Ladybird::ImageCodecPlugin(move(new_client)));
+    Web::Platform::ImageCodecPlugin::install(*new WebView::ImageCodecPlugin(move(new_client)));
 
     return {};
 }
@@ -291,7 +291,7 @@ ErrorOr<void> reinitialize_image_decoder(IPC::File const& image_decoder_socket)
 
     auto new_client = TRY(try_make_ref_counted<ImageDecoderClient::Client>(IPC::Transport(move(socket))));
 
-    static_cast<Ladybird::ImageCodecPlugin&>(Web::Platform::ImageCodecPlugin::the()).set_client(move(new_client));
+    static_cast<WebView::ImageCodecPlugin&>(Web::Platform::ImageCodecPlugin::the()).set_client(move(new_client));
 
     return {};
 }

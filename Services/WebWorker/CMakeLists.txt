@@ -1,7 +1,4 @@
-include(fontconfig)
-
 set(WEBWORKER_SOURCES
-    ${LADYBIRD_SOURCE_DIR}/UI/FontPlugin.cpp
     ${LADYBIRD_SOURCE_DIR}/UI/HelperProcess.cpp
     ${LADYBIRD_SOURCE_DIR}/UI/Utilities.cpp
     ConnectionFromClient.cpp
@@ -19,10 +16,6 @@ target_include_directories(webworkerservice PRIVATE ${LADYBIRD_SOURCE_DIR})
 target_include_directories(webworkerservice PRIVATE ${LADYBIRD_SOURCE_DIR}/Services/)
 
 target_link_libraries(webworkerservice PUBLIC LibCore LibFileSystem LibGfx LibIPC LibJS LibRequests LibWeb LibWebView LibUnicode LibImageDecoderClient LibMain LibURL)
-
-if (HAS_FONTCONFIG)
-    target_link_libraries(webworkerservice PRIVATE Fontconfig::Fontconfig)
-endif()
 
 if (ENABLE_QT)
     qt_add_executable(WebWorker main.cpp)
