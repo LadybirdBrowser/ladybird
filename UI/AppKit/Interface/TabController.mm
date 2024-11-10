@@ -9,6 +9,7 @@
 #include <LibWebView/SearchEngine.h>
 #include <LibWebView/URL.h>
 #include <LibWebView/UserAgent.h>
+#include <LibWebView/ViewImplementation.h>
 
 #import <Application/ApplicationDelegate.h>
 #import <Interface/LadybirdWebView.h>
@@ -359,7 +360,9 @@ static NSString* const TOOLBAR_TAB_OVERVIEW_IDENTIFIER = @"ToolbarTabOverviewIde
 
 - (void)dumpGCGraph:(id)sender
 {
-    [self debugRequest:"dump-gc-graph" argument:""];
+    auto& view_impl = [[[self tab] web_view] view];
+    auto gc_graph_path = view_impl.dump_gc_graph();
+    warnln("\033[33;1mDumped GC-graph into {}\033[0m", gc_graph_path);
 }
 
 - (void)clearCache:(id)sender
