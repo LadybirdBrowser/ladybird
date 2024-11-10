@@ -254,3 +254,9 @@ test("substitution with capture group", () => {
     expect("A".replace(/(A)/, "$10")).toBe("A0");
     expect("A".replace(/(A)/, "$2")).toBe("$2");
 });
+
+test("Replace with unpaired surrogate", () => {
+    expect("$".replace("$", "\ud83d")).toBe("\ud83d");
+    expect("$ab".replace("$", "\ud83d")).toBe("\ud83dab");
+    expect("\ud83d$ab".replace("\ud83d$", "ab")).toBe("abab");
+});

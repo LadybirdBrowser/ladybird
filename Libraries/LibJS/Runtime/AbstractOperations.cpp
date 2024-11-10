@@ -1401,7 +1401,7 @@ ThrowCompletionOr<String> get_substitution(VM& vm, Utf16View const& matched, Utf
     }
 
     // 6. Return result.
-    return MUST(Utf16View { result }.to_utf8());
+    return MUST(Utf16View { result }.to_utf8(Utf16View::AllowInvalidCodeUnits::Yes));
 }
 
 // 2.1.2 AddDisposableResource ( disposable, V, hint [ , method ] ), https://tc39.es/proposal-explicit-resource-management/#sec-adddisposableresource-disposable-v-hint-disposemethod
