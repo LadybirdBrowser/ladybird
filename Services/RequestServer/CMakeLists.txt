@@ -10,7 +10,6 @@ if (ANDROID)
     add_library(requestserverservice SHARED
         ${LADYBIRD_SOURCE_DIR}/UI/Android/src/main/cpp/RequestServerService.cpp
         ${LADYBIRD_SOURCE_DIR}/UI/Android/src/main/cpp/LadybirdServiceBaseJNI.cpp
-        ${LADYBIRD_SOURCE_DIR}/UI/Utilities.cpp
         ${SOURCES}
     )
 else()

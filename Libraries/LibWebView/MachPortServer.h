@@ -6,18 +6,17 @@
 
 #pragma once
 
+#include <AK/Atomic.h>
 #include <AK/Platform.h>
+#include <AK/String.h>
+#include <LibCore/MachPort.h>
+#include <LibThreading/Thread.h>
 
 #if !defined(AK_OS_MACH)
 #    error "This file is only for Mach kernel-based OS's"
 #endif
 
-#include <AK/Atomic.h>
-#include <AK/String.h>
-#include <LibCore/MachPort.h>
-#include <LibThreading/Thread.h>
-
-namespace Ladybird {
+namespace WebView {
 
 class MachPortServer {
 

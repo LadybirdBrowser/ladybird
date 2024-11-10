@@ -19,9 +19,9 @@
 #include <LibWeb/Platform/EventLoopPlugin.h>
 #include <LibWeb/Platform/EventLoopPluginSerenity.h>
 #include <LibWeb/WebSockets/WebSocket.h>
+#include <LibWebView/HelperProcess.h>
 #include <LibWebView/Plugins/FontPlugin.h>
-#include <UI/HelperProcess.h>
-#include <UI/Utilities.h>
+#include <LibWebView/Utilities.h>
 #include <WebWorker/ConnectionFromClient.h>
 
 #if defined(HAVE_QT)
@@ -56,7 +56,7 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
 #endif
     Core::EventLoop event_loop;
 
-    platform_init();
+    WebView::platform_init();
 
     Web::Platform::EventLoopPlugin::install(*new Web::Platform::EventLoopPluginSerenity);
 

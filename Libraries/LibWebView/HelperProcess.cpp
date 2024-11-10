@@ -7,8 +7,10 @@
 #include <AK/Enumerate.h>
 #include <LibCore/Process.h>
 #include <LibWebView/Application.h>
-#include <UI/HelperProcess.h>
-#include <UI/Utilities.h>
+#include <LibWebView/HelperProcess.h>
+#include <LibWebView/Utilities.h>
+
+namespace WebView {
 
 template<typename ClientType, typename... ClientArguments>
 static ErrorOr<NonnullRefPtr<ClientType>> launch_server_process(
@@ -190,4 +192,6 @@ ErrorOr<IPC::File> connect_new_image_decoder_client(ImageDecoderClient::Client& 
     TRY(socket.clear_close_on_exec());
 
     return socket;
+}
+
 }

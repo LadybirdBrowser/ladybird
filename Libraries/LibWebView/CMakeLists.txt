@@ -7,6 +7,7 @@ set(SOURCES
     ChromeProcess.cpp
     CookieJar.cpp
     Database.cpp
+    HelperProcess.cpp
     InspectorClient.cpp
     Plugins/FontPlugin.cpp
     Plugins/ImageCodecPlugin.cpp
@@ -17,10 +18,15 @@ set(SOURCES
     SourceHighlighter.cpp
     URL.cpp
     UserAgent.cpp
+    Utilities.cpp
     ViewImplementation.cpp
     WebContentClient.cpp
     ${PUBLIC_SUFFIX_SOURCES}
 )
+
+if (APPLE)
+    list(APPEND SOURCES MachPortServer.cpp)
+endif()
 
 if (ENABLE_QT)
     list(APPEND SOURCES
@@ -49,6 +55,10 @@ embed_as_string(
 compile_ipc(UIProcessServer.ipc UIProcessServerEndpoint.h)
 compile_ipc(UIProcessClient.ipc UIProcessClientEndpoint.h)
 
+if (NOT APPLE AND NOT CMAKE_INSTALL_LIBEXECDIR STREQUAL "libexec")
+    set_source_files_properties(Utilities.cpp PROPERTIES COMPILE_DEFINITIONS LADYBIRD_LIBEXECDIR="${CMAKE_INSTALL_LIBEXECDIR}")
+endif()
+
 set(GENERATED_SOURCES
     ${GENERATED_SOURCES}
     ../../Services/RequestServer/RequestClientEndpoint.h
@@ -65,6 +75,10 @@ set(GENERATED_SOURCES
 serenity_lib(LibWebView webview)
 target_link_libraries(LibWebView PRIVATE LibCore LibFileSystem LibGfx LibImageDecoderClient LibIPC LibRequests LibJS LibWeb LibUnicode LibURL LibSyntax)
 target_compile_definitions(LibWebView PRIVATE ENABLE_PUBLIC_SUFFIX=$<BOOL:${ENABLE_PUBLIC_SUFFIX_DOWNLOAD}>)
+
+if (APPLE)
+    target_link_libraries(LibWebView PRIVATE LibThreading)
+endif()
 
 # Third-party
 find_package(SQLite3 REQUIRED)

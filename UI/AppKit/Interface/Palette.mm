@@ -8,7 +8,6 @@
 #include <LibCore/Resource.h>
 #include <LibGfx/Palette.h>
 #include <LibGfx/SystemTheme.h>
-#include <UI/Utilities.h>
 
 #import <Cocoa/Cocoa.h>
 #import <Interface/Palette.h>

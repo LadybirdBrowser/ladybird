@@ -16,6 +16,8 @@
 #include <LibWebView/ViewImplementation.h>
 #include <LibWebView/WebContentClient.h>
 
+namespace WebView {
+
 ErrorOr<NonnullRefPtr<WebView::WebContentClient>> launch_web_content_process(
     WebView::ViewImplementation& view,
     ReadonlySpan<ByteString> candidate_web_content_paths,
@@ -28,3 +30,5 @@ ErrorOr<NonnullRefPtr<Requests::RequestClient>> launch_request_server_process(Re
 
 ErrorOr<IPC::File> connect_new_request_server_client(Requests::RequestClient&);
 ErrorOr<IPC::File> connect_new_image_decoder_client(ImageDecoderClient::Client&);
+
+}

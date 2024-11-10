@@ -10,9 +10,9 @@
 #include <LibImageDecoderClient/Client.h>
 #include <LibRequests/RequestClient.h>
 #include <LibWebView/Application.h>
+#include <LibWebView/HelperProcess.h>
+#include <LibWebView/Utilities.h>
 #include <LibWebView/WebContentClient.h>
-#include <UI/HelperProcess.h>
-#include <UI/Utilities.h>
 #include <Utilities/Conversions.h>
 
 #import <Application/Application.h>
@@ -70,16 +70,16 @@ ApplicationBridge::ApplicationBridge(Badge<WebView::Application>, Main::Argument
 
 - (ErrorOr<void>)launchRequestServer
 {
-    auto request_server_paths = TRY(get_paths_for_helper_process("RequestServer"sv));
-    m_request_server_client = TRY(launch_request_server_process(request_server_paths, s_ladybird_resource_root));
+    auto request_server_paths = TRY(WebView::get_paths_for_helper_process("RequestServer"sv));
+    m_request_server_client = TRY(WebView::launch_request_server_process(request_server_paths, WebView::s_ladybird_resource_root));
 
     return {};
 }
 
 static ErrorOr<NonnullRefPtr<ImageDecoderClient::Client>> launch_new_image_decoder()
 {
-    auto image_decoder_paths = TRY(get_paths_for_helper_process("ImageDecoder"sv));
-    return launch_image_decoder_process(image_decoder_paths);
+    auto image_decoder_paths = TRY(WebView::get_paths_for_helper_process("ImageDecoder"sv));
+    return WebView::launch_image_decoder_process(image_decoder_paths);
 }
 
 - (ErrorOr<void>)launchImageDecoder
@@ -120,19 +120,19 @@ static ErrorOr<NonnullRefPtr<ImageDecoderClient::Client>> launch_new_image_decod
 - (ErrorOr<NonnullRefPtr<WebView::WebContentClient>>)launchWebContent:(Ladybird::WebViewBridge&)web_view_bridge
 {
     // FIXME: Fail to open the tab, rather than crashing the whole application if this fails
-    auto request_server_socket = TRY(connect_new_request_server_client(*m_request_server_client));
-    auto image_decoder_socket = TRY(connect_new_image_decoder_client(*m_image_decoder_client));
+    auto request_server_socket = TRY(WebView::connect_new_request_server_client(*m_request_server_client));
+    auto image_decoder_socket = TRY(WebView::connect_new_image_decoder_client(*m_image_decoder_client));
 
-    auto web_content_paths = TRY(get_paths_for_helper_process("WebContent"sv));
-    auto web_content = TRY(launch_web_content_process(web_view_bridge, web_content_paths, move(image_decoder_socket), move(request_server_socket)));
+    auto web_content_paths = TRY(WebView::get_paths_for_helper_process("WebContent"sv));
+    auto web_content = TRY(WebView::launch_web_content_process(web_view_bridge, web_content_paths, move(image_decoder_socket), move(request_server_socket)));
 
     return web_content;
 }
 
 - (ErrorOr<IPC::File>)launchWebWorker
 {
-    auto web_worker_paths = TRY(get_paths_for_helper_process("WebWorker"sv));
-    auto worker_client = TRY(launch_web_worker_process(web_worker_paths, *m_request_server_client));
+    auto web_worker_paths = TRY(WebView::get_paths_for_helper_process("WebWorker"sv));
+    auto worker_client = TRY(WebView::launch_web_worker_process(web_worker_paths, *m_request_server_client));
 
     return worker_client->clone_transport();
 }

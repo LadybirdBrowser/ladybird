@@ -13,16 +13,18 @@
 #include <LibCore/ResourceImplementationFile.h>
 #include <LibCore/System.h>
 #include <LibFileSystem/FileSystem.h>
-#include <UI/Utilities.h>
+#include <LibWebView/Utilities.h>
 
 #define TOKENCAT(x, y) x##y
 #define STRINGIFY(x) TOKENCAT(x, sv)
 
+namespace WebView {
+
 // This is expected to be set from the build scripts, if a packager desires
 #if defined(LADYBIRD_LIBEXECDIR)
-constexpr auto libexec_path = STRINGIFY(LADYBIRD_LIBEXECDIR);
+static constexpr auto libexec_path = STRINGIFY(LADYBIRD_LIBEXECDIR);
 #else
-constexpr auto libexec_path = "libexec"sv;
+static constexpr auto libexec_path = "libexec"sv;
 #endif
 
 ByteString s_ladybird_resource_root;
@@ -111,4 +113,6 @@ ErrorOr<Vector<ByteString>> get_paths_for_helper_process(StringView process_name
     TRY(paths.try_append(ByteString::formatted("./{}", process_name)));
     // NOTE: Add platform-specific paths here
     return paths;
+}
+
 }

@@ -11,7 +11,6 @@
 #include <LibGfx/ShareableBitmap.h>
 #include <LibURL/URL.h>
 #include <LibWebView/ViewImplementation.h>
-#include <UI/Utilities.h>
 
 #import <Application/ApplicationDelegate.h>
 #import <Interface/Inspector.h>

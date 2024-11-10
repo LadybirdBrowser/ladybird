@@ -7,16 +7,16 @@
 #include <LibCore/AnonymousBuffer.h>
 #include <LibCore/ArgsParser.h>
 #include <LibCore/System.h>
+#include <LibWebView/HelperProcess.h>
+#include <LibWebView/Utilities.h>
 #include <UI/Headless/Application.h>
 #include <UI/Headless/Fixture.h>
 #include <UI/Headless/HeadlessWebView.h>
-#include <UI/HelperProcess.h>
-#include <UI/Utilities.h>
 
 namespace Ladybird {
 
 Application::Application(Badge<WebView::Application>, Main::Arguments&)
-    : resources_folder(s_ladybird_resource_root)
+    : resources_folder(WebView::s_ladybird_resource_root)
     , test_concurrency(Core::System::hardware_concurrency())
     , python_executable_path("python3")
 
@@ -73,11 +73,11 @@ void Application::create_platform_options(WebView::ChromeOptions& chrome_options
 
 ErrorOr<void> Application::launch_services()
 {
-    auto request_server_paths = TRY(get_paths_for_helper_process("RequestServer"sv));
-    m_request_client = TRY(launch_request_server_process(request_server_paths, resources_folder));
+    auto request_server_paths = TRY(WebView::get_paths_for_helper_process("RequestServer"sv));
+    m_request_client = TRY(WebView::launch_request_server_process(request_server_paths, resources_folder));
 
-    auto image_decoder_paths = TRY(get_paths_for_helper_process("ImageDecoder"sv));
-    m_image_decoder_client = TRY(launch_image_decoder_process(image_decoder_paths));
+    auto image_decoder_paths = TRY(WebView::get_paths_for_helper_process("ImageDecoder"sv));
+    m_image_decoder_client = TRY(WebView::launch_image_decoder_process(image_decoder_paths));
 
     return {};
 }

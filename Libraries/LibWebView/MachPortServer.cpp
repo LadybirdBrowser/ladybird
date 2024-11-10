@@ -7,9 +7,9 @@
 #include <AK/Debug.h>
 #include <LibCore/Platform/MachMessageTypes.h>
 #include <LibCore/Platform/ProcessStatisticsMach.h>
-#include <UI/MachPortServer.h>
+#include <LibWebView/MachPortServer.h>
 
-namespace Ladybird {
+namespace WebView {
 
 MachPortServer::MachPortServer()
     : m_thread(Threading::Thread::construct([this]() -> intptr_t { thread_loop(); return 0; }, "MachPortServer"sv))

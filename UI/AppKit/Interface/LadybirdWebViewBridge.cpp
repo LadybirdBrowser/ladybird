@@ -11,8 +11,6 @@
 #include <LibWeb/Crypto/Crypto.h>
 #include <LibWebView/Application.h>
 #include <LibWebView/UserAgent.h>
-#include <UI/HelperProcess.h>
-#include <UI/Utilities.h>
 
 #import <Interface/Palette.h>
 

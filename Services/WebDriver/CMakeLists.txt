@@ -1,5 +1,4 @@
 set(SOURCES
-    ${LADYBIRD_SOURCE_DIR}/UI/Utilities.cpp
     Client.cpp
     Session.cpp
     WebContentConnection.cpp

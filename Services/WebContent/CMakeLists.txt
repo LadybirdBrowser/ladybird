@@ -1,8 +1,6 @@
 include(pulseaudio)
 
 set(SOURCES
-    ${LADYBIRD_SOURCE_DIR}/UI/HelperProcess.cpp
-    ${LADYBIRD_SOURCE_DIR}/UI/Utilities.cpp
     ConnectionFromClient.cpp
     ConsoleGlobalEnvironmentExtensions.cpp
     BackingStoreManager.cpp

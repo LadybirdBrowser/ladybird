@@ -10,12 +10,12 @@
 #include <LibWebView/Application.h>
 #include <LibWebView/ChromeProcess.h>
 #include <LibWebView/EventLoop/EventLoopImplementationMacOS.h>
+#include <LibWebView/MachPortServer.h>
 #include <LibWebView/URL.h>
+#include <LibWebView/Utilities.h>
 #include <LibWebView/ViewImplementation.h>
 #include <LibWebView/WebContentClient.h>
 #include <UI/DefaultSettings.h>
-#include <UI/MachPortServer.h>
-#include <UI/Utilities.h>
 
 #import <Application/Application.h>
 #import <Application/ApplicationDelegate.h>
@@ -51,7 +51,7 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
     Core::EventLoopManager::install(*new WebView::EventLoopManagerMacOS);
     [application setupWebViewApplication:arguments newTabPageURL:Browser::default_new_tab_url];
 
-    platform_init();
+    WebView::platform_init();
 
     WebView::ChromeProcess chrome_process;
 
@@ -72,12 +72,13 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
         open_urls_from_client(raw_urls, WebView::NewWindow::Yes);
     };
 
-    auto mach_port_server = make<Ladybird::MachPortServer>();
-    set_mach_server_name(mach_port_server->server_port_name());
+    auto mach_port_server = make<WebView::MachPortServer>();
+    WebView::set_mach_server_name(mach_port_server->server_port_name());
+
     mach_port_server->on_receive_child_mach_port = [&](auto pid, auto port) {
         WebView::Application::the().set_process_mach_port(pid, move(port));
     };
-    mach_port_server->on_receive_backing_stores = [](Ladybird::MachPortServer::BackingStoresMessage message) {
+    mach_port_server->on_receive_backing_stores = [](WebView::MachPortServer::BackingStoresMessage message) {
         if (auto view = WebView::WebContentClient::view_for_pid_and_page_id(message.pid, message.page_id); view.has_value())
             view->did_allocate_iosurface_backing_stores(message.front_backing_store_id, move(message.front_backing_store_port), message.back_backing_store_id, move(message.back_backing_store_port));
     };

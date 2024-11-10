@@ -5,13 +5,13 @@
  */
 
 #include <LibCore/ArgsParser.h>
+#include <LibWebView/HelperProcess.h>
 #include <LibWebView/URL.h>
-#include <UI/HelperProcess.h>
+#include <LibWebView/Utilities.h>
 #include <UI/Qt/Application.h>
 #include <UI/Qt/Settings.h>
 #include <UI/Qt/StringUtils.h>
 #include <UI/Qt/TaskManagerWindow.h>
-#include <UI/Utilities.h>
 
 #include <QFileDialog>
 #include <QFileOpenEvent>
@@ -56,8 +56,8 @@ bool Application::event(QEvent* event)
 
 static ErrorOr<NonnullRefPtr<ImageDecoderClient::Client>> launch_new_image_decoder()
 {
-    auto paths = TRY(get_paths_for_helper_process("ImageDecoder"sv));
-    return launch_image_decoder_process(paths);
+    auto paths = TRY(WebView::get_paths_for_helper_process("ImageDecoder"sv));
+    return WebView::launch_image_decoder_process(paths);
 }
 
 ErrorOr<void> Application::initialize_image_decoder()

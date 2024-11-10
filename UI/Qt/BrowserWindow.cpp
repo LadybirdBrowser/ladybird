@@ -25,7 +25,6 @@
 #include <UI/Qt/TabBar.h>
 #include <UI/Qt/TaskManagerWindow.h>
 #include <UI/Qt/WebContentView.h>
-#include <UI/Utilities.h>
 
 #include <QAction>
 #include <QActionGroup>
