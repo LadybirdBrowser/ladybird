@@ -1067,3 +1067,9 @@ TEST_CASE(test_avif_frame_out_of_bounds)
     auto frame1 = TRY_OR_FAIL(plugin_decoder->frame(0));
     EXPECT(plugin_decoder->frame(1).is_error());
 }
+
+TEST_CASE(test_avif_missing_pixi_property)
+{
+    auto file = TRY_OR_FAIL(Core::MappedFile::map(TEST_INPUT("avif/missing-pixi-property.avif"sv)));
+    EXPECT(Gfx::AVIFImageDecoderPlugin::sniff(file->bytes()));
+}

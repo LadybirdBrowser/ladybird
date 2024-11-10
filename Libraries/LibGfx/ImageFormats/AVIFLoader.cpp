@@ -68,6 +68,11 @@ static ErrorOr<void> decode_avif_header(AVIFLoadingContext& context)
         if (context.decoder == nullptr) {
             return Error::from_string_literal("failed to allocate AVIF decoder");
         }
+
+        // This makes the decoder not error if an item in the file is missing the mandatory pixi property.
+        // Reason for this is that older versions of ImageMagick do not set this property, which leads to
+        // broken web content if the error is not ignored.
+        context.decoder->strictFlags &= ~AVIF_STRICT_PIXI_REQUIRED;
     }
 
     avifResult result = avifDecoderSetIOMemory(context.decoder, context.data.data(), context.data.size());
