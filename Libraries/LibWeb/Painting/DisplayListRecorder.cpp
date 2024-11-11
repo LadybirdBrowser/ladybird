@@ -243,10 +243,10 @@ void DisplayListRecorder::draw_text_run(Gfx::IntPoint baseline_start, Gfx::Glyph
         return;
     append(DrawGlyphRun {
         .glyph_run = glyph_run,
-        .color = color,
+        .scale = scale,
         .rect = rect,
         .translation = baseline_start.to_type<float>(),
-        .scale = scale,
+        .color = color,
         .orientation = orientation,
     });
 }

@@ -39,10 +39,10 @@ class DisplayList;
 
 struct DrawGlyphRun {
     NonnullRefPtr<Gfx::GlyphRun> glyph_run;
-    Color color;
+    double scale { 1 };
     Gfx::IntRect rect;
     Gfx::FloatPoint translation;
-    double scale { 1 };
+    Color color;
     Gfx::Orientation orientation { Gfx::Orientation::Horizontal };
 
     [[nodiscard]] Gfx::IntRect bounding_rect() const { return rect; }

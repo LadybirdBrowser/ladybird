@@ -704,10 +704,10 @@ void DisplayListPlayerSkia::paint_text_shadow(PaintTextShadow const& command)
     canvas.saveLayer(SkCanvas::SaveLayerRec(nullptr, &blur_paint, nullptr, 0));
     draw_glyph_run({
         .glyph_run = command.glyph_run,
-        .color = command.color,
+        .scale = command.glyph_run_scale,
         .rect = command.text_rect,
         .translation = command.draw_location.to_type<float>() + command.text_rect.location().to_type<float>(),
-        .scale = command.glyph_run_scale,
+        .color = command.color,
     });
     canvas.restore();
 }
