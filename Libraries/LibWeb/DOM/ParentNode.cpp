@@ -23,68 +23,59 @@ namespace Web::DOM {
 
 JS_DEFINE_ALLOCATOR(ParentNode);
 
-// https://dom.spec.whatwg.org/#dom-parentnode-queryselector
-WebIDL::ExceptionOr<JS::GCPtr<Element>> ParentNode::query_selector(StringView selector_text)
+enum class ReturnMatches {
+    First,
+    All,
+};
+// https://dom.spec.whatwg.org/#scope-match-a-selectors-string
+static WebIDL::ExceptionOr<Variant<JS::GCPtr<Element>, JS::NonnullGCPtr<NodeList>>> scope_match_a_selectors_string(ParentNode& node, StringView selector_text, ReturnMatches return_matches)
 {
-    // The querySelector(selectors) method steps are to return the first result of running scope-match a selectors string selectors against this,
-    // if the result is not an empty list; otherwise null.
-
-    // https://dom.spec.whatwg.org/#scope-match-a-selectors-string
     // To scope-match a selectors string selectors against a node, run these steps:
     // 1. Let s be the result of parse a selector selectors.
-    auto maybe_selectors = parse_selector(CSS::Parser::ParsingContext(*this), selector_text);
+    auto maybe_selectors = parse_selector(CSS::Parser::ParsingContext { node }, selector_text);
 
     // 2. If s is failure, then throw a "SyntaxError" DOMException.
     if (!maybe_selectors.has_value())
-        return WebIDL::SyntaxError::create(realm(), "Failed to parse selector"_string);
+        return WebIDL::SyntaxError::create(node.realm(), "Failed to parse selector"_string);
 
     auto selectors = maybe_selectors.value();
 
     // 3. Return the result of match a selector against a tree with s and node’s root using scoping root node.
-    JS::GCPtr<Element> result;
+    JS::GCPtr<Element> single_result;
+    Vector<JS::Handle<Node>> results;
     // FIXME: This should be shadow-including. https://drafts.csswg.org/selectors-4/#match-a-selector-against-a-tree
-    for_each_in_subtree_of_type<Element>([&](auto& element) {
+    node.for_each_in_subtree_of_type<Element>([&](auto& element) {
         for (auto& selector : selectors) {
-            if (SelectorEngine::matches(selector, {}, element, nullptr, {}, this)) {
-                result = &element;
-                return TraversalDecision::Break;
+            if (SelectorEngine::matches(selector, {}, element, nullptr, {}, node)) {
+                if (return_matches == ReturnMatches::First) {
+                    single_result = &element;
+                    return TraversalDecision::Break;
+                }
+                results.append(element);
             }
         }
         return TraversalDecision::Continue;
     });
 
-    return result;
+    if (return_matches == ReturnMatches::First)
+        return { single_result };
+
+    return { StaticNodeList::create(node.realm(), move(results)) };
+}
+
+// https://dom.spec.whatwg.org/#dom-parentnode-queryselector
+WebIDL::ExceptionOr<JS::GCPtr<Element>> ParentNode::query_selector(StringView selector_text)
+{
+    // The querySelector(selectors) method steps are to return the first result of running scope-match a selectors string selectors against this,
+    // if the result is not an empty list; otherwise null.
+    return TRY(scope_match_a_selectors_string(*this, selector_text, ReturnMatches::First)).get<JS::GCPtr<Element>>();
 }
 
 // https://dom.spec.whatwg.org/#dom-parentnode-queryselectorall
 WebIDL::ExceptionOr<JS::NonnullGCPtr<NodeList>> ParentNode::query_selector_all(StringView selector_text)
 {
     // The querySelectorAll(selectors) method steps are to return the static result of running scope-match a selectors string selectors against this.
-
-    // https://dom.spec.whatwg.org/#scope-match-a-selectors-string
-    // To scope-match a selectors string selectors against a node, run these steps:
-    // 1. Let s be the result of parse a selector selectors.
-    auto maybe_selectors = parse_selector(CSS::Parser::ParsingContext(*this), selector_text);
-
-    // 2. If s is failure, then throw a "SyntaxError" DOMException.
-    if (!maybe_selectors.has_value())
-        return WebIDL::SyntaxError::create(realm(), "Failed to parse selector"_string);
-
-    auto selectors = maybe_selectors.value();
-
-    // 3. Return the result of match a selector against a tree with s and node’s root using scoping root node.
-    Vector<JS::Handle<Node>> elements;
-    // FIXME: This should be shadow-including. https://drafts.csswg.org/selectors-4/#match-a-selector-against-a-tree
-    for_each_in_subtree_of_type<Element>([&](auto& element) {
-        for (auto& selector : selectors) {
-            if (SelectorEngine::matches(selector, {}, element, nullptr, {}, this)) {
-                elements.append(&element);
-            }
-        }
-        return TraversalDecision::Continue;
-    });
-
-    return StaticNodeList::create(realm(), move(elements));
+    return TRY(scope_match_a_selectors_string(*this, selector_text, ReturnMatches::All)).get<JS::NonnullGCPtr<NodeList>>();
 }
 
 JS::GCPtr<Element> ParentNode::first_element_child()
