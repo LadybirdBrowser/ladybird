@@ -14,11 +14,11 @@ namespace Web::HTML {
 
 struct SelectItemOption {
     u32 id { 0 };
-    String label {};
-    String value {};
     bool selected { false };
     bool disabled { false };
     JS::GCPtr<HTMLOptionElement> option_element {};
+    String label {};
+    String value {};
 };
 
 struct SelectItemOptionGroup {

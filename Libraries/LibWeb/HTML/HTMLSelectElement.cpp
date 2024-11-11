@@ -389,7 +389,7 @@ void HTMLSelectElement::show_the_picker_if_applicable()
             for (auto const& child : opt_group_element.children_as_vector()) {
                 if (is<HTMLOptionElement>(*child)) {
                     auto& option_element = verify_cast<HTMLOptionElement>(*child);
-                    option_group_items.append(SelectItemOption { id_counter++, strip_newlines(option_element.text_content()), option_element.value(), option_element.selected(), option_element.disabled(), option_element });
+                    option_group_items.append(SelectItemOption { id_counter++, option_element.selected(), option_element.disabled(), option_element, strip_newlines(option_element.text_content()), option_element.value() });
                 }
             }
             m_select_items.append(SelectItemOptionGroup { opt_group_element.get_attribute(AttributeNames::label).value_or(String {}), option_group_items });
@@ -397,7 +397,7 @@ void HTMLSelectElement::show_the_picker_if_applicable()
 
         if (is<HTMLOptionElement>(*child)) {
             auto& option_element = verify_cast<HTMLOptionElement>(*child);
-            m_select_items.append(SelectItemOption { id_counter++, strip_newlines(option_element.text_content()), option_element.value(), option_element.selected(), option_element.disabled(), option_element });
+            m_select_items.append(SelectItemOption { id_counter++, option_element.selected(), option_element.disabled(), option_element, strip_newlines(option_element.text_content()), option_element.value() });
         }
 
         if (is<HTMLHRElement>(*child))

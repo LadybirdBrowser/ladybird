@@ -27,7 +27,7 @@ ErrorOr<Web::HTML::SelectItemOption> IPC::decode(Decoder& decoder)
     auto value = TRY(decoder.decode<String>());
     auto selected = TRY(decoder.decode<bool>());
     auto disabled = TRY(decoder.decode<bool>());
-    return Web::HTML::SelectItemOption { id, move(label), move(value), selected, disabled };
+    return Web::HTML::SelectItemOption { id, selected, disabled, {}, move(label), move(value) };
 }
 
 template<>
