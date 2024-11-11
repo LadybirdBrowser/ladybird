@@ -61,6 +61,7 @@ static std::vector<clang::QualType> get_all_qualified_types(clang::QualType cons
             "JS::GCPtr",
             "JS::NonnullGCPtr",
             "JS::RawGCPtr",
+            "JS::RawNonnullGCPtr",
             "JS::MarkedVector",
             "JS::Handle",
         };
@@ -110,7 +111,7 @@ static std::optional<QualTypeGCInfo> validate_qualified_type(clang::QualType con
         OuterType outer_type;
         if (template_type_name == "JS::GCPtr" || template_type_name == "JS::NonnullGCPtr") {
             outer_type = OuterType::GCPtr;
-        } else if (template_type_name == "JS::RawGCPtr") {
+        } else if (template_type_name == "JS::RawGCPtr" || template_type_name == "JS::RawNonnullGCPtr") {
             outer_type = OuterType::RawGCPtr;
         } else if (template_type_name == "JS::Handle") {
             outer_type = OuterType::Handle;
