@@ -152,7 +152,7 @@ public:
 
         for_each_cell_among_possible_pointers(m_all_live_heap_blocks, possible_pointers, [&](Cell* cell, FlatPtr) {
             if (m_node_being_visited)
-                m_node_being_visited->edges.set(reinterpret_cast<FlatPtr>(&cell));
+                m_node_being_visited->edges.set(reinterpret_cast<FlatPtr>(cell));
 
             if (m_graph.get(reinterpret_cast<FlatPtr>(&cell)).has_value())
                 return;
