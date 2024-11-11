@@ -8,11 +8,13 @@
 
 #include <LibJS/Runtime/Realm.h>
 #include <LibWeb/IndexedDB/IDBRequest.h>
+#include <LibWeb/IndexedDB/Internal/Key.h>
 #include <LibWeb/StorageAPI/StorageKey.h>
 
 namespace Web::IndexedDB {
 
 WebIDL::ExceptionOr<GC::Ref<IDBDatabase>> open_a_database_connection(JS::Realm&, StorageAPI::StorageKey, String, Optional<u64>, GC::Ref<IDBRequest>);
 bool fire_a_version_change_event(JS::Realm&, FlyString const&, GC::Ref<DOM::EventTarget>, u64, Optional<u64>);
+ErrorOr<Key> convert_a_value_to_a_key(JS::Realm&, JS::Value, Vector<JS::Value> = {});
 
 }
