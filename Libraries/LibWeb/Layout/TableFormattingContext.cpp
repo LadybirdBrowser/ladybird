@@ -46,7 +46,7 @@ CSSPixels TableFormattingContext::run_caption_layout(CSS::CaptionSide phase)
         auto const& child_box = static_cast<Box const&>(*child);
         // FIXME: Since caption only has inline children, BlockFormattingContext doesn't resolve the vertical metrics.
         //        We need to do it manually here.
-        caption_context->resolve_vertical_box_model_metrics(child_box);
+        caption_context->resolve_vertical_box_model_metrics(child_box, m_available_space->width.to_px_or_zero());
         auto const& caption_state = m_state.get(child_box);
         if (phase == CSS::CaptionSide::Top) {
             m_state.get_mutable(table_box()).set_content_y(caption_state.content_height() + caption_state.margin_box_bottom());
