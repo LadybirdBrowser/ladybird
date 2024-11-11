@@ -106,7 +106,7 @@ public:
 
     bool can_skip_is_anonymous_text_run(Box&);
 
-    void compute_inset(NodeWithStyleAndBoxModelMetrics const&);
+    void compute_inset(NodeWithStyleAndBoxModelMetrics const&, CSSPixelSize containing_block_size);
 
 protected:
     FormattingContext(Type, LayoutMode, LayoutState&, Box const&, FormattingContext* parent = nullptr);

@@ -793,7 +793,8 @@ void BlockFormattingContext::layout_block_level_box(Box const& box, BlockContain
     m_margin_state.add_margin(box_state.margin_bottom);
     m_margin_state.update_block_waiting_for_final_y_position();
 
-    compute_inset(box);
+    auto const& block_container_state = m_state.get(block_container);
+    compute_inset(box, content_box_rect(block_container_state).size());
 
     // Now that our children are formatted we place the ListItemBox with the left space we remembered.
     if (is<ListItemBox>(box)) {
@@ -1012,7 +1013,8 @@ void BlockFormattingContext::layout_floating_box(Box const& box, BlockContainer 
     auto& box_state = m_state.get_mutable(box);
     auto const& computed_values = box.computed_values();
 
-    resolve_vertical_box_model_metrics(box, m_state.get(block_container).content_width());
+    auto const& block_container_state = m_state.get(block_container);
+    resolve_vertical_box_model_metrics(box, block_container_state.content_width());
 
     compute_width(box, available_space);
 
@@ -1166,7 +1168,7 @@ void BlockFormattingContext::layout_floating_box(Box const& box, BlockContainer 
     if (line_builder)
         line_builder->recalculate_available_space();
 
-    compute_inset(box);
+    compute_inset(box, content_box_rect(block_container_state).size());
 
     if (independent_formatting_context)
         independent_formatting_context->parent_context_did_dimension_child_root_box();
