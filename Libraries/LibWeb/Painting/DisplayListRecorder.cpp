@@ -325,13 +325,13 @@ void DisplayListRecorder::paint_inner_box_shadow_params(PaintBoxShadowParams par
 void DisplayListRecorder::paint_text_shadow(int blur_radius, Gfx::IntRect bounding_rect, Gfx::IntRect text_rect, Gfx::GlyphRun const& glyph_run, double glyph_run_scale, Color color, Gfx::IntPoint draw_location)
 {
     append(PaintTextShadow {
-        .blur_radius = blur_radius,
-        .shadow_bounding_rect = bounding_rect,
-        .text_rect = text_rect,
         .glyph_run = glyph_run,
         .glyph_run_scale = glyph_run_scale,
-        .color = color,
-        .draw_location = draw_location });
+        .shadow_bounding_rect = bounding_rect,
+        .text_rect = text_rect,
+        .draw_location = draw_location,
+        .blur_radius = blur_radius,
+        .color = color });
 }
 
 void DisplayListRecorder::fill_rect_with_rounded_corners(Gfx::IntRect const& rect, Color color, Gfx::CornerRadius top_left_radius, Gfx::CornerRadius top_right_radius, Gfx::CornerRadius bottom_right_radius, Gfx::CornerRadius bottom_left_radius)
