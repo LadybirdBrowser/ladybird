@@ -3561,7 +3561,7 @@ NonnullRefPtr<OptionalChain const> Parser::parse_optional_chain(NonnullRefPtr<Ex
             default:
                 if (match_identifier_name()) {
                     auto start = position();
-                    auto identifier = consume();
+                    auto identifier = consume_and_allow_division();
                     chain.append(OptionalChain::MemberReference {
                         create_ast_node<Identifier>({ m_source_code, start, position() }, identifier.DeprecatedFlyString_value()),
                         OptionalChain::Mode::Optional,
@@ -3587,7 +3587,7 @@ NonnullRefPtr<OptionalChain const> Parser::parse_optional_chain(NonnullRefPtr<Ex
                 });
             } else if (match_identifier_name()) {
                 auto start = position();
-                auto identifier = consume();
+                auto identifier = consume_and_allow_division();
                 chain.append(OptionalChain::MemberReference {
                     create_ast_node<Identifier>({ m_source_code, start, position() }, identifier.DeprecatedFlyString_value()),
                     OptionalChain::Mode::NotOptional,
