@@ -158,13 +158,13 @@ struct PaintInnerBoxShadow {
 };
 
 struct PaintTextShadow {
-    int blur_radius;
-    Gfx::IntRect shadow_bounding_rect;
-    Gfx::IntRect text_rect;
     NonnullRefPtr<Gfx::GlyphRun> glyph_run;
     double glyph_run_scale { 1 };
-    Color color;
+    Gfx::IntRect shadow_bounding_rect;
+    Gfx::IntRect text_rect;
     Gfx::IntPoint draw_location;
+    int blur_radius;
+    Color color;
 
     [[nodiscard]] Gfx::IntRect bounding_rect() const { return { draw_location, shadow_bounding_rect.size() }; }
     void translate_by(Gfx::IntPoint const& offset) { draw_location.translate_by(offset); }
