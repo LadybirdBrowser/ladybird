@@ -294,7 +294,7 @@ void InlineFormattingContext::generate_line_boxes()
         }
         case InlineLevelIterator::Item::Type::Element: {
             auto& box = verify_cast<Layout::Box>(*item.node);
-            compute_inset(box);
+            compute_inset(box, content_box_rect(m_containing_block_used_values).size());
             if (containing_block().computed_values().white_space() != CSS::WhiteSpace::Nowrap) {
                 auto minimum_space_needed_on_line = item.border_box_width();
                 if (item.margin_start < 0)

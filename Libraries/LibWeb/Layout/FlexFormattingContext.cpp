@@ -176,7 +176,7 @@ void FlexFormattingContext::run(AvailableSpace const& available_space)
             if (auto independent_formatting_context = layout_inside(item.box, LayoutMode::Normal, item.used_values.available_inner_space_or_constraints_from(m_available_space_for_items->space)))
                 independent_formatting_context->parent_context_did_dimension_child_root_box();
 
-            compute_inset(item.box);
+            compute_inset(item.box, content_box_rect(m_flex_container_state).size());
         }
     }
 }

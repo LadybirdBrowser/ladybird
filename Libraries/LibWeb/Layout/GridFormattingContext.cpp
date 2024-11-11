@@ -2060,8 +2060,9 @@ void GridFormattingContext::run(AvailableSpace const& available_space)
     for (auto& grid_item : m_grid_items) {
         auto& grid_item_box_state = m_state.get_mutable(grid_item.box);
         CSSPixelPoint margin_offset = { grid_item_box_state.margin_box_left(), grid_item_box_state.margin_box_top() };
-        grid_item_box_state.offset = get_grid_area_rect(grid_item).top_left() + margin_offset;
-        compute_inset(grid_item.box);
+        auto const grid_area_rect = get_grid_area_rect(grid_item);
+        grid_item_box_state.offset = grid_area_rect.top_left() + margin_offset;
+        compute_inset(grid_item.box, grid_area_rect.size());
 
         auto available_space_for_children = AvailableSpace(AvailableSize::make_definite(grid_item_box_state.content_width()), AvailableSize::make_definite(grid_item_box_state.content_height()));
         if (auto independent_formatting_context = layout_inside(grid_item.box, LayoutMode::Normal, available_space_for_children))

@@ -1328,7 +1328,7 @@ void FormattingContext::compute_height_for_absolutely_positioned_replaced_elemen
 }
 
 // https://www.w3.org/TR/css-position-3/#relpos-insets
-void FormattingContext::compute_inset(NodeWithStyleAndBoxModelMetrics const& box)
+void FormattingContext::compute_inset(NodeWithStyleAndBoxModelMetrics const& box, CSSPixelSize containing_block_size)
 {
     if (box.computed_values().position() != CSS::Positioning::Relative)
         return;
@@ -1363,8 +1363,8 @@ void FormattingContext::compute_inset(NodeWithStyleAndBoxModelMetrics const& box
     auto const& computed_values = box.computed_values();
 
     // FIXME: Respect the containing block's writing-mode.
-    resolve_two_opposing_insets(computed_values.inset().left(), computed_values.inset().right(), box_state.inset_left, box_state.inset_right, containing_block_width_for(box));
-    resolve_two_opposing_insets(computed_values.inset().top(), computed_values.inset().bottom(), box_state.inset_top, box_state.inset_bottom, containing_block_height_for(box));
+    resolve_two_opposing_insets(computed_values.inset().left(), computed_values.inset().right(), box_state.inset_left, box_state.inset_right, containing_block_size.width());
+    resolve_two_opposing_insets(computed_values.inset().top(), computed_values.inset().bottom(), box_state.inset_top, box_state.inset_bottom, containing_block_size.height());
 }
 
 // https://drafts.csswg.org/css-sizing-3/#fit-content-size
