@@ -167,4 +167,36 @@ String isomorphic_decode(ReadonlyBytes input)
     return builder.to_string_without_validation();
 }
 
+// https://infra.spec.whatwg.org/#code-unit-less-than
+bool code_unit_less_than(StringView a, StringView b)
+{
+    // 1. If b is a code unit prefix of a, then return false.
+    if (is_code_unit_prefix(b, a))
+        return false;
+
+    // 2. If a is a code unit prefix of b, then return true.
+    if (is_code_unit_prefix(a, b))
+        return true;
+
+    auto code_units_a = MUST(utf8_to_utf16(a));
+    auto code_units_b = MUST(utf8_to_utf16(b));
+
+    auto view_a = Utf16View(code_units_a);
+    auto view_b = Utf16View(code_units_b);
+
+    // 3. Let n be the smallest index such that the nth code unit of a is different from the nth code unit of b.
+    //    (There has to be such an index, since neither string is a prefix of the other.)
+    size_t n = 0;
+    size_t min_length = min(view_a.length_in_code_units(), view_b.length_in_code_units());
+    while (n < min_length && view_a.code_unit_at(n) == view_b.code_unit_at(n))
+        ++n;
+
+    // 4. If the nth code unit of a is less than the nth code unit of b, then return true.
+    if (view_a.code_unit_at(n) < view_b.code_unit_at(n))
+        return true;
+
+    // 5. Return false.
+    return false;
+}
+
 }

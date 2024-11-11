@@ -22,5 +22,6 @@ ErrorOr<String> to_ascii_lowercase(StringView string);
 ErrorOr<String> to_ascii_uppercase(StringView string);
 ByteBuffer isomorphic_encode(StringView input);
 String isomorphic_decode(ReadonlyBytes input);
+bool code_unit_less_than(StringView a, StringView b);
 
 }
