@@ -1640,21 +1640,6 @@ CSSPixels FormattingContext::containing_block_width_for(NodeWithStyleAndBoxModel
     VERIFY_NOT_REACHED();
 }
 
-CSSPixels FormattingContext::containing_block_height_for(NodeWithStyleAndBoxModelMetrics const& node) const
-{
-    auto const& used_values = m_state.get(node);
-
-    switch (used_values.height_constraint) {
-    case SizeConstraint::MinContent:
-        return 0;
-    case SizeConstraint::MaxContent:
-        return CSSPixels::max();
-    case SizeConstraint::None:
-        return used_values.containing_block_used_values()->content_height();
-    }
-    VERIFY_NOT_REACHED();
-}
-
 // https://drafts.csswg.org/css-sizing-3/#stretch-fit-size
 CSSPixels FormattingContext::calculate_stretch_fit_width(Box const& box, AvailableSize const& available_width) const
 {
@@ -1829,46 +1814,6 @@ CSSPixelRect FormattingContext::margin_box_rect(LayoutState::UsedValues const& u
     };
 }
 
-CSSPixelRect FormattingContext::margin_box_rect(Box const& box) const
-{
-    return margin_box_rect(m_state.get(box));
-}
-
-CSSPixelRect FormattingContext::border_box_rect(LayoutState::UsedValues const& used_values) const
-{
-    return {
-        used_values.offset.translated(-used_values.border_box_left(), -used_values.border_box_top()),
-        {
-            used_values.border_box_left() + used_values.content_width() + used_values.border_box_right(),
-            used_values.border_box_top() + used_values.content_height() + used_values.border_box_bottom(),
-        },
-    };
-}
-
-CSSPixelRect FormattingContext::border_box_rect(Box const& box) const
-{
-    return border_box_rect(m_state.get(box));
-}
-
-CSSPixelRect FormattingContext::border_box_rect_in_ancestor_coordinate_space(LayoutState::UsedValues const& used_values, Box const& ancestor_box) const
-{
-    auto rect = border_box_rect(used_values);
-    if (&used_values.node() == &ancestor_box)
-        return rect;
-    for (auto const* current = used_values.containing_block_used_values(); current; current = current->containing_block_used_values()) {
-        if (&current->node() == &ancestor_box)
-            return rect;
-        rect.translate_by(current->offset);
-    }
-    // If we get here, ancestor_box was not a containing block ancestor of `box`!
-    VERIFY_NOT_REACHED();
-}
-
-CSSPixelRect FormattingContext::border_box_rect_in_ancestor_coordinate_space(Box const& box, Box const& ancestor_box) const
-{
-    return border_box_rect_in_ancestor_coordinate_space(m_state.get(box), ancestor_box);
-}
-
 CSSPixelRect FormattingContext::content_box_rect(Box const& box) const
 {
     return content_box_rect(m_state.get(box));
@@ -1891,11 +1836,6 @@ CSSPixelRect FormattingContext::content_box_rect_in_ancestor_coordinate_space(La
     }
     // If we get here, ancestor_box was not a containing block ancestor of `box`!
     VERIFY_NOT_REACHED();
-}
-
-CSSPixelRect FormattingContext::content_box_rect_in_ancestor_coordinate_space(Box const& box, Box const& ancestor_box) const
-{
-    return content_box_rect_in_ancestor_coordinate_space(m_state.get(box), ancestor_box);
 }
 
 CSSPixelRect FormattingContext::margin_box_rect_in_ancestor_coordinate_space(LayoutState::UsedValues const& used_values, Box const& ancestor_box) const
