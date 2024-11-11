@@ -1041,7 +1041,7 @@ void StyleComputer::collect_animation_into(DOM::Element& element, Optional<CSS::
                 [&](RefPtr<CSSStyleValue const> value) -> RefPtr<CSSStyleValue const> {
                     if (value->is_unresolved())
                         return Parser::Parser::resolve_unresolved_style_value(Parser::ParsingContext { element.document() }, element, pseudo_element, it.key, value->as_unresolved());
-                    return value;
+                    return compute_property_value(element, it.key, value.release_nonnull());
                 });
         };
 
@@ -2382,6 +2382,23 @@ Optional<StyleProperties> StyleComputer::compute_style_impl(DOM::Element& elemen
     }
 
     return style;
+}
+
+NonnullRefPtr<CSSStyleValue const> StyleComputer::compute_property_value(DOM::Element& element, CSS::PropertyID property_id, NonnullRefPtr<CSSStyleValue const> value) const
+{
+    if (value->is_initial()) {
+        return property_initial_value(document().realm(), property_id);
+    }
+    if (value->is_inherit()) {
+        return get_inherit_value(document().realm(), property_id, &element);
+    }
+    if (value->is_unset()) {
+        if (is_inherited_property(property_id)) {
+            return get_inherit_value(document().realm(), property_id, &element);
+        }
+        return property_initial_value(document().realm(), property_id);
+    }
+    return value;
 }
 
 void StyleComputer::build_rule_cache_if_needed() const

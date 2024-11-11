@@ -138,6 +138,7 @@ public:
 
     StyleProperties compute_style(DOM::Element&, Optional<CSS::Selector::PseudoElement::Type> = {}) const;
     Optional<StyleProperties> compute_pseudo_element_style_if_needed(DOM::Element&, Optional<CSS::Selector::PseudoElement::Type>) const;
+    NonnullRefPtr<CSSStyleValue const> compute_property_value(DOM::Element&, CSS::PropertyID, NonnullRefPtr<CSSStyleValue const>) const;
 
     Vector<MatchingRule> collect_matching_rules(DOM::Element const&, CascadeOrigin, Optional<CSS::Selector::PseudoElement::Type>, FlyString const& qualified_layer_name = {}) const;
 
