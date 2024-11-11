@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2023, Andreas Kling <andreas@ladybird.org>
+ * Copyright (c) 2018-2024, Andreas Kling <andreas@ladybird.org>
  * Copyright (c) 2022, Dex♪ <dexes.ttp@gmail.com>
  *
  * SPDX-License-Identifier: BSD-2-Clause
@@ -426,8 +426,15 @@ void ResourceLoader::load(LoadRequest& request, JS::Handle<SuccessCallback> succ
 
         auto on_buffered_request_finished = [this, success_callback, error_callback, request, &protocol_request = *protocol_request](auto, auto const& network_error, auto& response_headers, auto status_code, auto const& reason_phrase, ReadonlyBytes payload) mutable {
             handle_network_response_headers(request, response_headers);
-            finish_network_request(protocol_request);
 
+            // NOTE: We finish the network request *after* invoking callbacks, otherwise a nested
+            //       event loop inside a callback may cause this function object to be destroyed
+            //       while we're still calling it.
+            ScopeGuard cleanup = [&] {
+                deferred_invoke([this, protocol_request = NonnullRefPtr(protocol_request)] {
+                    finish_network_request(move(protocol_request));
+                });
+            };
             if (network_error.has_value() || (status_code.has_value() && *status_code >= 400 && *status_code <= 599 && (payload.is_empty() || !request.is_main_resource()))) {
                 StringBuilder error_builder;
                 if (network_error.has_value())
@@ -554,15 +561,16 @@ void ResourceLoader::handle_network_response_headers(LoadRequest const& request,
     }
 }
 
-void ResourceLoader::finish_network_request(NonnullRefPtr<Requests::Request> const& protocol_request)
+void ResourceLoader::finish_network_request(NonnullRefPtr<Requests::Request> protocol_request)
 {
     --m_pending_loads;
     if (on_load_counter_change)
         on_load_counter_change();
 
-    Platform::EventLoopPlugin::the().deferred_invoke(JS::create_heap_function(m_heap, [this, protocol_request] {
-        m_active_requests.remove(protocol_request);
-    }));
+    deferred_invoke([this, protocol_request = move(protocol_request)] {
+        auto did_remove = m_active_requests.remove(protocol_request);
+        VERIFY(did_remove);
+    });
 }
 
 void ResourceLoader::clear_cache()

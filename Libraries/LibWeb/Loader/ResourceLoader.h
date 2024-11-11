@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022, Andreas Kling <andreas@ladybird.org>
+ * Copyright (c) 2018-2024, Andreas Kling <andreas@ladybird.org>
  * Copyright (c) 2022, Dex♪ <dexes.ttp@gmail.com>
  *
  * SPDX-License-Identifier: BSD-2-Clause
@@ -80,7 +80,7 @@ private:
 
     RefPtr<Requests::Request> start_network_request(LoadRequest const&);
     void handle_network_response_headers(LoadRequest const&, HTTP::HeaderMap const&);
-    void finish_network_request(NonnullRefPtr<Requests::Request> const&);
+    void finish_network_request(NonnullRefPtr<Requests::Request>);
 
     int m_pending_loads { 0 };
 
