@@ -4,6 +4,12 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibJS/Runtime/AbstractOperations.h>
+#include <LibJS/Runtime/Array.h>
+#include <LibJS/Runtime/ArrayBuffer.h>
+#include <LibJS/Runtime/DataView.h>
+#include <LibJS/Runtime/Date.h>
+#include <LibJS/Runtime/TypedArray.h>
 #include <LibJS/Runtime/VM.h>
 #include <LibWeb/DOM/EventDispatcher.h>
 #include <LibWeb/HTML/EventNames.h>
@@ -13,6 +19,7 @@
 #include <LibWeb/IndexedDB/Internal/ConnectionQueueHandler.h>
 #include <LibWeb/IndexedDB/Internal/Database.h>
 #include <LibWeb/StorageAPI/StorageKey.h>
+#include <LibWeb/WebIDL/AbstractOperations.h>
 
 namespace Web::IndexedDB {
 
@@ -139,6 +146,124 @@ bool fire_a_version_change_event(JS::Realm& realm, FlyString const& event_name, 
 
     // 8. Return legacyOutputDidListenersThrowFlag.
     return legacy_output_did_listeners_throw_flag;
+}
+
+// https://w3c.github.io/IndexedDB/#convert-value-to-key
+ErrorOr<Key> convert_a_value_to_a_key(JS::Realm& realm, JS::Value input, Vector<JS::Value> seen)
+{
+    // 1. If seen was not given, then let seen be a new empty set.
+    // NOTE: This is handled by the caller.
+
+    // 2. If seen contains input, then return invalid.
+    if (seen.contains_slow(input))
+        return Error::from_string_literal("Already seen key");
+
+    // 3. Jump to the appropriate step below:
+
+    // - If Type(input) is Number
+    if (input.is_number()) {
+
+        // 1. If input is NaN then return invalid.
+        if (input.is_nan())
+            return Error::from_string_literal("NaN key");
+
+        // 2. Otherwise, return a new key with type number and value input.
+        return Key::create_number(input.as_double());
+    }
+
+    // - If input is a Date (has a [[DateValue]] internal slot)
+    if (input.is_object() && is<JS::Date>(input.as_object())) {
+
+        // 1. Let ms be the value of input’s [[DateValue]] internal slot.
+        auto& date = static_cast<JS::Date&>(input.as_object());
+        auto ms = date.date_value();
+
+        // 2. If ms is NaN then return invalid.
+        if (isnan(ms))
+            return Error::from_string_literal("NaN key");
+
+        // 3. Otherwise, return a new key with type date and value ms.
+        return Key::create_date(ms);
+    }
+
+    // - If Type(input) is String
+    if (input.is_string()) {
+
+        // 1. Return a new key with type string and value input.
+        return Key::create_string(input.as_string().utf8_string());
+    }
+
+    // - If input is a buffer source type
+    if (input.is_object() && (is<JS::TypedArrayBase>(input.as_object()) || is<JS::ArrayBuffer>(input.as_object()) || is<JS::DataView>(input.as_object()))) {
+
+        // 1. Let bytes be the result of getting a copy of the bytes held by the buffer source input. Rethrow any exceptions.
+        auto data_buffer = TRY(WebIDL::get_buffer_source_copy(input.as_object()));
+
+        // 2. Return a new key with type binary and value bytes.
+        return Key::create_binary(data_buffer);
+    }
+
+    // - If input is an Array exotic object
+    if (input.is_object() && is<JS::Array>(input.as_object())) {
+
+        // 1. Let len be ? ToLength( ? Get(input, "length")).
+        auto maybe_length = length_of_array_like(realm.vm(), input.as_object());
+        if (maybe_length.is_error())
+            return Error::from_string_literal("Failed to get length of array-like object");
+
+        auto length = maybe_length.release_value();
+
+        // 2. Append input to seen.
+        seen.append(input);
+
+        // 3. Let keys be a new empty list.
+        Vector<Key> keys;
+
+        // 4. Let index be 0.
+        u64 index = 0;
+
+        // 5. While index is less than len:
+        while (index < length) {
+            // 1. Let hop be ? HasOwnProperty(input, index).
+            auto maybe_hop = input.as_object().has_own_property(index);
+            if (maybe_hop.is_error())
+                return Error::from_string_literal("Failed to check if array-like object has property");
+
+            auto hop = maybe_hop.release_value();
+
+            // 2. If hop is false, return invalid.
+            if (!hop)
+                return Error::from_string_literal("Array-like object has no property");
+
+            // 3. Let entry be ? Get(input, index).
+            auto maybe_entry = input.as_object().get(index);
+            if (maybe_entry.is_error())
+                return Error::from_string_literal("Failed to get property of array-like object");
+
+            // 4. Let key be the result of converting a value to a key with arguments entry and seen.
+            auto maybe_key = convert_a_value_to_a_key(realm, maybe_entry.release_value(), seen);
+
+            // 5. ReturnIfAbrupt(key).
+            // 6. If key is invalid abort these steps and return invalid.
+            if (maybe_key.is_error())
+                return maybe_key.release_error();
+
+            auto key = maybe_key.release_value();
+
+            // 7. Append key to keys.
+            keys.append(key);
+
+            // 8. Increase index by 1.
+            index++;
+        }
+
+        // 6. Return a new array key with value keys.
+        return Key::create_array(keys);
+    }
+
+    // - Otherwise
+    // 1. Return invalid.
+    return Error::from_string_literal("Unknown key type");
 }
 
 }
