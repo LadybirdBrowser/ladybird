@@ -504,7 +504,7 @@ ErrorOr<void> run_tests(Core::AnonymousBuffer const& theme, Gfx::IntSize window_
     for (auto const& non_passing_test : non_passing_tests)
         outln("{}: {}", test_result_to_string(non_passing_test.result), non_passing_test.test.input_path);
 
-    if (app.log_slowest_tests) {
+    if (app.verbose) {
         auto tests_to_print = min(10uz, tests.size());
         outln("\nSlowest {} tests:", tests_to_print);
 

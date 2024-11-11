@@ -64,7 +64,7 @@ public:
     ByteString test_glob;
     bool test_dry_run { false };
     bool rebaseline { false };
-    bool log_slowest_tests { false };
+    bool verbose { false };
     int per_test_timeout_in_seconds { 30 };
 
 private:
