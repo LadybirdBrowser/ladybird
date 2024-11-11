@@ -6,7 +6,7 @@ interface IDBFactory {
 
     [FIXME] Promise<sequence<IDBDatabaseInfo>> databases();
 
-    [FIXME] short cmp(any first, any second);
+    short cmp(any first, any second);
 };
 
 dictionary IDBDatabaseInfo {
