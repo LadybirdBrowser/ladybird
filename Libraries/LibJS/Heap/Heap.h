@@ -22,7 +22,7 @@
 #include <LibJS/Heap/HeapRoot.h>
 #include <LibJS/Heap/Internals.h>
 #include <LibJS/Heap/MarkedVector.h>
-#include <LibJS/Runtime/WeakContainer.h>
+#include <LibJS/Heap/WeakContainer.h>
 
 namespace JS {
 
