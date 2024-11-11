@@ -2029,12 +2029,9 @@ void GridFormattingContext::run(AvailableSpace const& available_space)
 
     resolve_track_spacing(GridDimension::Row);
 
-    auto const& containing_block_state = m_state.get(*grid_container().containing_block());
-    auto height_of_containing_block = containing_block_state.content_height();
-    auto height_of_container_block_as_available_size = AvailableSize::make_definite(height_of_containing_block);
     CSSPixels min_height = 0;
     if (!grid_computed_values.min_height().is_auto())
-        min_height = calculate_inner_height(grid_container(), height_of_container_block_as_available_size, grid_computed_values.min_height());
+        min_height = calculate_inner_height(grid_container(), available_space.height, grid_computed_values.min_height());
 
     // If automatic grid container height is less than min-height, we need to re-run the track sizing algorithm
     if (m_automatic_content_height < min_height) {
