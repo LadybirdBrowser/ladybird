@@ -1074,11 +1074,11 @@ Vector<ShadowData> StyleProperties::shadow(PropertyID property_id, Layout::Node 
         if (!maybe_spread_distance.has_value())
             return {};
         return ShadowData {
-            value.color()->to_color(verify_cast<Layout::NodeWithStyle>(layout_node)),
             maybe_offset_x.release_value(),
             maybe_offset_y.release_value(),
             maybe_blur_radius.release_value(),
             maybe_spread_distance.release_value(),
+            value.color()->to_color(verify_cast<Layout::NodeWithStyle>(layout_node)),
             value.placement()
         };
     };

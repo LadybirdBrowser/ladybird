@@ -313,11 +313,11 @@ struct TransformOrigin {
 };
 
 struct ShadowData {
-    Color color {};
     CSS::Length offset_x { Length::make_px(0) };
     CSS::Length offset_y { Length::make_px(0) };
     CSS::Length blur_radius { Length::make_px(0) };
     CSS::Length spread_distance { Length::make_px(0) };
+    Color color {};
     CSS::ShadowPlacement placement { CSS::ShadowPlacement::Outer };
 };
 
