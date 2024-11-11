@@ -50,7 +50,6 @@ public:
     FormattingContext const* parent() const { return m_parent; }
 
     Type type() const { return m_type; }
-    bool is_block_formatting_context() const { return type() == Type::Block; }
 
     virtual bool inhibits_floating() const { return false; }
 
@@ -82,24 +81,16 @@ public:
     virtual CSSPixels greatest_child_width(Box const&) const;
 
     [[nodiscard]] CSSPixelRect absolute_content_rect(Box const&) const;
-    [[nodiscard]] CSSPixelRect absolute_content_rect(LayoutState::UsedValues const&) const;
-    [[nodiscard]] CSSPixelRect margin_box_rect(Box const&) const;
     [[nodiscard]] CSSPixelRect margin_box_rect_in_ancestor_coordinate_space(Box const&, Box const& ancestor_box) const;
     [[nodiscard]] CSSPixelRect margin_box_rect(LayoutState::UsedValues const&) const;
     [[nodiscard]] CSSPixelRect margin_box_rect_in_ancestor_coordinate_space(LayoutState::UsedValues const&, Box const& ancestor_box) const;
-    [[nodiscard]] CSSPixelRect border_box_rect(Box const&) const;
-    [[nodiscard]] CSSPixelRect border_box_rect(LayoutState::UsedValues const&) const;
-    [[nodiscard]] CSSPixelRect border_box_rect_in_ancestor_coordinate_space(Box const&, Box const& ancestor_box) const;
-    [[nodiscard]] CSSPixelRect border_box_rect_in_ancestor_coordinate_space(LayoutState::UsedValues const&, Box const& ancestor_box) const;
     [[nodiscard]] CSSPixelRect content_box_rect(Box const&) const;
     [[nodiscard]] CSSPixelRect content_box_rect(LayoutState::UsedValues const&) const;
-    [[nodiscard]] CSSPixelRect content_box_rect_in_ancestor_coordinate_space(Box const&, Box const& ancestor_box) const;
     [[nodiscard]] CSSPixelRect content_box_rect_in_ancestor_coordinate_space(LayoutState::UsedValues const&, Box const& ancestor_box) const;
     [[nodiscard]] CSSPixels box_baseline(Box const&) const;
     [[nodiscard]] CSSPixelRect content_box_rect_in_static_position_ancestor_coordinate_space(Box const&, Box const& ancestor_box) const;
 
     [[nodiscard]] CSSPixels containing_block_width_for(NodeWithStyleAndBoxModelMetrics const&) const;
-    [[nodiscard]] CSSPixels containing_block_height_for(NodeWithStyleAndBoxModelMetrics const&) const;
 
     [[nodiscard]] CSSPixels calculate_stretch_fit_width(Box const&, AvailableSize const&) const;
     [[nodiscard]] CSSPixels calculate_stretch_fit_height(Box const&, AvailableSize const&) const;
