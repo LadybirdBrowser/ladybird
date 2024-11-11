@@ -505,7 +505,6 @@ void Document::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_document_observers);
     visitor.visit(m_pending_scroll_event_targets);
     visitor.visit(m_pending_scrollend_event_targets);
-    visitor.visit(m_intersection_observers);
     visitor.visit(m_resize_observers);
 
     visitor.visit(m_shared_resource_requests);
@@ -4037,7 +4036,14 @@ void Document::run_the_update_intersection_observations_steps(HighResolutionTime
     // 1. Let observer list be a list of all IntersectionObservers whose root is in the DOM tree of document.
     //    For the top-level browsing context, this includes implicit root observers.
     // 2. For each observer in observer list:
-    for (auto& observer : m_intersection_observers) {
+
+    // NOTE: We make a copy of the intersection observers list to avoid modifying it while iterating.
+    JS::MarkedVector<JS::NonnullGCPtr<IntersectionObserver::IntersectionObserver>> intersection_observers(heap());
+    intersection_observers.ensure_capacity(m_intersection_observers.size());
+    for (auto& observer : m_intersection_observers)
+        intersection_observers.append(observer);
+
+    for (auto& observer : intersection_observers) {
         // 1. Let rootBounds be observer’s root intersection rectangle.
         auto root_bounds = observer->root_intersection_rectangle();
 
