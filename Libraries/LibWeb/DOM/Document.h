@@ -939,8 +939,8 @@ private:
 
     JS::GCPtr<CSS::VisualViewport> m_visual_viewport;
 
-    // NOTE: Not in the spec per say, but Document must be able to access all IntersectionObservers whose root is in the document.
-    OrderedHashTable<JS::NonnullGCPtr<IntersectionObserver::IntersectionObserver>> m_intersection_observers;
+    // NOTE: Not in the spec per se, but Document must be able to access all IntersectionObservers whose root is in the document.
+    IGNORE_GC OrderedHashTable<JS::NonnullGCPtr<IntersectionObserver::IntersectionObserver>> m_intersection_observers;
 
     // https://www.w3.org/TR/intersection-observer/#document-intersectionobservertaskqueued
     // Each document has an IntersectionObserverTaskQueued flag which is initialized to false.
