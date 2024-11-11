@@ -19,6 +19,8 @@ RemoveSemicolon: true
 RequiresClausePosition: WithFollowing
 RequiresExpressionIndentation: OuterScope
 SpaceAfterTemplateKeyword: false
+PointerAlignment: Left
+ReferenceAlignment: Left
 
 ---
 Language: ObjC
