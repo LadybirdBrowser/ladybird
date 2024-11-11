@@ -50,7 +50,7 @@ public:
 
     void layout_block_level_box(Box const&, BlockContainer const&, CSSPixels& bottom_of_lowest_margin_box, AvailableSpace const&);
 
-    void resolve_vertical_box_model_metrics(Box const&);
+    void resolve_vertical_box_model_metrics(Box const&, CSSPixels width_of_containing_block);
 
     enum class DidIntroduceClearance {
         Yes,

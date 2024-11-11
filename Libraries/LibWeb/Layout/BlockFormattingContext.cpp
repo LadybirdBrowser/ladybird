@@ -651,7 +651,7 @@ void BlockFormattingContext::layout_block_level_box(Box const& box, BlockContain
     if (is<ListItemMarkerBox>(box))
         return;
 
-    resolve_vertical_box_model_metrics(box);
+    resolve_vertical_box_model_metrics(box, m_state.get(block_container).content_width());
 
     if (box.is_floating()) {
         auto const y = m_y_offset_of_current_block_container.value();
@@ -848,11 +848,10 @@ void BlockFormattingContext::layout_block_level_children(BlockContainer const& b
     }
 }
 
-void BlockFormattingContext::resolve_vertical_box_model_metrics(Box const& box)
+void BlockFormattingContext::resolve_vertical_box_model_metrics(Box const& box, CSSPixels width_of_containing_block)
 {
     auto& box_state = m_state.get_mutable(box);
     auto const& computed_values = box.computed_values();
-    auto width_of_containing_block = containing_block_width_for(box);
 
     box_state.margin_top = computed_values.margin().top().to_px(box, width_of_containing_block);
     box_state.margin_bottom = computed_values.margin().bottom().to_px(box, width_of_containing_block);
@@ -1006,14 +1005,14 @@ void BlockFormattingContext::layout_viewport(AvailableSpace const& available_spa
     }
 }
 
-void BlockFormattingContext::layout_floating_box(Box const& box, BlockContainer const&, AvailableSpace const& available_space, CSSPixels y, LineBuilder* line_builder)
+void BlockFormattingContext::layout_floating_box(Box const& box, BlockContainer const& block_container, AvailableSpace const& available_space, CSSPixels y, LineBuilder* line_builder)
 {
     VERIFY(box.is_floating());
 
     auto& box_state = m_state.get_mutable(box);
     auto const& computed_values = box.computed_values();
 
-    resolve_vertical_box_model_metrics(box);
+    resolve_vertical_box_model_metrics(box, m_state.get(block_container).content_width());
 
     compute_width(box, available_space);
 
