@@ -190,6 +190,10 @@ private:
 template<typename T>
 using RawGCPtr = GCPtr<T>;
 
+// Non-Owning NonnullGCPtr
+template<typename T>
+using RawNonnullGCPtr = NonnullGCPtr<T>;
+
 template<typename T, typename U>
 inline bool operator==(GCPtr<T> const& a, GCPtr<U> const& b)
 {
