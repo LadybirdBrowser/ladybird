@@ -2216,23 +2216,26 @@ ErrorOr<String> Node::name_or_description(NameOrDescription target, Document con
     if (is_element()) {
         auto const* element = static_cast<DOM::Element const*>(this);
         auto role = element->role_or_default();
-        bool is_referenced = false;
-        auto id = element->id();
-        if (id.has_value()) {
-            this->root().for_each_in_inclusive_subtree_of_type<HTML::HTMLElement>([&](auto& element) {
-                auto aria_data = MUST(Web::ARIA::AriaData::build_data(element));
-                if (aria_data->aria_labelled_by_or_default().contains_slow(id.value())) {
-                    is_referenced = true;
-                    return TraversalDecision::Break;
-                }
-                return TraversalDecision::Continue;
-            });
-        }
         // 2. Compute the text alternative for the current node:
-        // A. If the current node is hidden and is not directly referenced by aria-labelledby or aria-describedby, nor directly referenced by a native host language text alternative element (e.g. label in HTML) or attribute, return the empty string.
-        // FIXME: Check for references
-        if (element->aria_hidden() == "true")
-            return String {};
+
+        // A. Hidden Not Referenced: If the current node is hidden and is:
+        // i. Not part of an aria-labelledby or aria-describedby traversal, where the node directly referenced by that
+        // relation was hidden.
+        // ii. Nor part of a native host language text alternative element (e.g. label in HTML) or attribute traversal,
+        // where the root of that traversal was hidden.
+        // Return the empty string.
+        // NOTE: Nodes with CSS properties display:none, visibility:hidden, visibility:collapse or
+        // content-visibility:hidden: They are considered hidden, as they match the guidelines "not perceivable" and
+        // "explicitly hidden".
+        //
+        // AD-HOC: We don’t implement this step here — because strictly implementing this would cause us to return early
+        // whenever encountering a node (element, actually) that “is hidden and is not directly referenced by
+        // aria-labelledby or aria-describedby”, without traversing down through that element’s subtree to see if it has
+        // (1) any descendant elements that are directly referenced and/or (2) any un-hidden nodes. So we instead (in
+        // substep G below) traverse upward through ancestor nodes of every text node, and check in that way to do the
+        // equivalent of what this step seems to have been intended to do.
+        // https://github.com/w3c/aria/issues/2387
+
         // B. Otherwise:
         // - if computing a name, and the current node has an aria-labelledby attribute that contains at least one valid IDREF, and the current node is not already part of an aria-labelledby traversal,
         //   process its IDREFs in the order they occur:
@@ -2260,6 +2263,7 @@ ErrorOr<String> Node::name_or_description(NameOrDescription target, Document con
                 // AD-HOC: The “For each IDREF” substep in the spec doesn’t seem to explicitly require the following
                 // check for an aria-label value; but the “div group explicitly labelledby self and heading” subtest at
                 // https://wpt.fyi/results/accname/name/comp_labelledby.html won’t pass unless we do this check.
+                // https://github.com/w3c/aria/issues/2388
                 if (target == NameOrDescription::Name && node->aria_label().has_value() && !node->aria_label()->is_empty() && !node->aria_label()->bytes_as_string_view().is_whitespace()) {
                     total_accumulated_text.append(' ');
                     total_accumulated_text.append(node->aria_label().value());
@@ -2275,6 +2279,13 @@ ErrorOr<String> Node::name_or_description(NameOrDescription target, Document con
                 total_accumulated_text.append(result);
             }
             // iii. Return the accumulated text.
+            // AD-HOC: This substep in the spec doesn’t seem to explicitly require the following check for an aria-label
+            // value; but the “button's hidden referenced name (visibility:hidden) with hidden aria-labelledby traversal
+            // falls back to aria-label” subtest at https://wpt.fyi/results/accname/name/comp_labelledby.html won’t pass
+            // unless we do this check.
+            // https://github.com/w3c/aria/issues/2388
+            if (total_accumulated_text.string_view().is_whitespace() && target == NameOrDescription::Name && element->aria_label().has_value() && !element->aria_label()->is_empty() && !element->aria_label()->bytes_as_string_view().is_whitespace())
+                return element->aria_label().release_value();
             return total_accumulated_text.to_string();
         }
         // C. Embedded Control: Otherwise, if the current node is a control embedded
@@ -2297,6 +2308,7 @@ ErrorOr<String> Node::name_or_description(NameOrDescription target, Document con
                     // it ancestor <label> must instead be skipped and not included. The HTML-AAM spec seems to maybe
                     // be trying to achieve that result by expressing specific steps for each particular type of form
                     // control. But what all that reduces/optimizes/simplifies down to is just, “skip over self”.
+                    // https://github.com/w3c/aria/issues/2389
                     if (node == this)
                         continue;
                     if (node->is_element()) {
@@ -2427,8 +2439,10 @@ ErrorOr<String> Node::name_or_description(NameOrDescription target, Document con
                     return alt.release_value();
         }
 
-        // F. Otherwise, if the current node's role allows name from content, or if the current node is referenced by aria-labelledby, aria-describedby, or is a native host language text alternative element (e.g. label in HTML), or is a descendant of a native host language text alternative element:
-        if ((role.has_value() && ARIA::allows_name_from_content(role.value())) || is_referenced || is_descendant == IsDescendant::Yes) {
+        // F. Name From Content: Otherwise, if the current node's role allows name from content, or if the current node
+        // is referenced by aria-labelledby, aria-describedby, or is a native host language text alternative element
+        // (e.g. label in HTML), or is a descendant of a native host language text alternative element:
+        if ((role.has_value() && ARIA::allows_name_from_content(role.value())) || element->is_referenced() || is_descendant == IsDescendant::Yes) {
             // i. Set the accumulated text to the empty string.
             total_accumulated_text.clear();
             // ii. Name From Generated Content: Check for CSS generated textual content associated with the current node and include
@@ -2500,13 +2514,24 @@ ErrorOr<String> Node::name_or_description(NameOrDescription target, Document con
     }
 
     // G. Text Node: Otherwise, if the current node is a Text Node, return its textual contents.
-    if (is_text()) {
+    // AD-HOC: The spec doesn’t require ascending through the parent node and ancestor nodes of every text node we
+    // reach — the way we’re doing there. But we implement it this way because the spec algorithm as written doesn’t
+    // appear to achieve what it seems to be intended to achieve. Specifically, the spec algorithm as written doesn’t
+    // cause traversal through element subtrees in way that’s necessary to check for descendants that are referenced by
+    // aria-labelledby or aria-describedby and/or un-hidden. See the comment for substep A above.
+    if (is_text() && (!parent_element() || (parent_element()->is_referenced() || !parent_element()->is_hidden() || !parent_element()->has_hidden_ancestor() || parent_element()->has_referenced_and_hidden_ancestor()))) {
         if (layout_node() && layout_node()->is_text_node())
             return verify_cast<Layout::TextNode>(layout_node())->text_for_rendering();
-        return text_content().value();
+        return text_content().release_value();
     }
 
-    // TODO: H. Otherwise, if the current node is a descendant of an element whose Accessible Name or Accessible Description is being computed, and contains descendants, proceed to 2F.i.
+    // H. Otherwise, if the current node is a descendant of an element whose Accessible Name or Accessible Description
+    // is being computed, and contains descendants, proceed to 2F.i.
+    // AD-HOC: We don’t implement this step here — because is essentially unreachable code in the spec algorithm.
+    // We could never get here without descending through every subtree of an element whose Accessible Name or
+    // Accessible Description is being computed. And in our implementation of substep F about, we’re anyway already
+    // recursively descending through all the child nodes of every element whose Accessible Name or Accessible
+    // Description is being computed, in a way that never leads to this substep H every being hit.
 
     // I. Otherwise, if the current node has a Tooltip attribute, return its value.
     // https://www.w3.org/TR/accname-1.2/#dfn-tooltip-attribute

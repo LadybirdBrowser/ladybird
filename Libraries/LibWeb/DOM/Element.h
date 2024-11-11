@@ -348,6 +348,12 @@ public:
 
     virtual bool include_in_accessibility_tree() const override;
 
+    bool is_hidden() const;
+    bool has_hidden_ancestor() const;
+
+    bool is_referenced() const;
+    bool has_referenced_and_hidden_ancestor() const;
+
     void enqueue_a_custom_element_upgrade_reaction(HTML::CustomElementDefinition& custom_element_definition);
     void enqueue_a_custom_element_callback_reaction(FlyString const& callback_name, GC::MarkedVector<JS::Value> arguments);
 

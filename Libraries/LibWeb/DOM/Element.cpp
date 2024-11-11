@@ -1874,6 +1874,54 @@ void Element::invalidate_style_after_attribute_change(FlyString const& attribute
     invalidate_style(StyleInvalidationReason::ElementAttributeChange);
 }
 
+bool Element::is_hidden() const
+{
+    if (layout_node() == nullptr)
+        return true;
+    if (layout_node()->computed_values().visibility() == CSS::Visibility::Hidden || layout_node()->computed_values().visibility() == CSS::Visibility::Collapse || layout_node()->computed_values().content_visibility() == CSS::ContentVisibility::Hidden)
+        return true;
+    for (ParentNode const* self_or_ancestor = this; self_or_ancestor; self_or_ancestor = self_or_ancestor->parent_or_shadow_host()) {
+        if (self_or_ancestor->is_element() && static_cast<DOM::Element const*>(self_or_ancestor)->aria_hidden() == "true")
+            return true;
+    }
+    return false;
+}
+
+bool Element::has_hidden_ancestor() const
+{
+    for (ParentNode const* self_or_ancestor = this; self_or_ancestor; self_or_ancestor = self_or_ancestor->parent_or_shadow_host()) {
+        if (self_or_ancestor->is_element() && static_cast<DOM::Element const*>(self_or_ancestor)->is_hidden())
+            return true;
+    }
+    return false;
+}
+
+bool Element::is_referenced() const
+{
+    bool is_referenced = false;
+    if (id().has_value()) {
+        root().for_each_in_subtree_of_type<HTML::HTMLElement>([&](auto& element) {
+            auto aria_data = MUST(Web::ARIA::AriaData::build_data(element));
+            if (aria_data->aria_labelled_by_or_default().contains_slow(id().value())) {
+                is_referenced = true;
+                return TraversalDecision::Break;
+            }
+            return TraversalDecision::Continue;
+        });
+    }
+    return is_referenced;
+}
+
+bool Element::has_referenced_and_hidden_ancestor() const
+{
+    for (auto const* ancestor = parent_or_shadow_host(); ancestor; ancestor = ancestor->parent_or_shadow_host()) {
+        if (ancestor->is_element())
+            if (auto const* element = static_cast<DOM::Element const*>(ancestor); element->is_referenced() && element->is_hidden())
+                return true;
+    }
+    return false;
+}
+
 // https://www.w3.org/TR/wai-aria-1.2/#tree_exclusion
 bool Element::exclude_from_accessibility_tree() const
 {
