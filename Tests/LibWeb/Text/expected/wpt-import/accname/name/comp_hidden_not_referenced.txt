@@ -1,0 +1,15 @@
+Summary
+
+Harness status: OK
+
+Rerun
+
+Found 5 tests
+
+5 Pass
+Details
+Result	Test Name	MessagePass	button containing a rendered, unreferenced element that is aria-hidden=true, an unreferenced element with the hidden host language attribute, and an unreferenced element that is unconditionally rendered	
+Pass	button labelled by element that is aria-hidden=true	
+Pass	button labelled by element with the hidden host language attribute	
+Pass	link labelled by elements with assorted visibility and a11y tree exposure	
+Pass	heading with name from content, containing element that is visibility:hidden with nested content that is visibility:visible	
