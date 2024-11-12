@@ -11,9 +11,9 @@
 #include <AK/NonnullOwnPtr.h>
 #include <AK/RefPtr.h>
 #include <AK/Vector.h>
-#include <LibGfx/Size.h>
 #include <LibImageDecoderClient/Client.h>
 #include <LibRequests/RequestClient.h>
+#include <LibWeb/PixelUnits.h>
 #include <LibWebView/Application.h>
 
 namespace Ladybird {
@@ -40,7 +40,7 @@ public:
     static Requests::RequestClient& request_client() { return *the().m_request_client; }
     static ImageDecoderClient::Client& image_decoder_client() { return *the().m_image_decoder_client; }
 
-    HeadlessWebView& create_web_view(Core::AnonymousBuffer theme, Gfx::IntSize window_size);
+    HeadlessWebView& create_web_view(Core::AnonymousBuffer theme, Web::DevicePixelSize window_size);
     HeadlessWebView& create_child_web_view(HeadlessWebView const&, u64 page_index);
     void destroy_web_views();
 

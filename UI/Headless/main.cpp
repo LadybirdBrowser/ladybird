@@ -72,7 +72,7 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
     auto theme = TRY(Gfx::load_system_theme(theme_path.string()));
 
     // FIXME: Allow passing the window size as an argument.
-    static constexpr Gfx::IntSize window_size { 800, 600 };
+    static constexpr Web::DevicePixelSize window_size { 800, 600 };
 
     if (!app->test_root_path.is_empty()) {
         app->test_root_path = LexicalPath::absolute_path(TRY(FileSystem::current_working_directory()), app->test_root_path);

@@ -16,7 +16,7 @@ namespace Ladybird {
 
 static Web::DevicePixelRect const screen_rect { 0, 0, 1920, 1080 };
 
-HeadlessWebView::HeadlessWebView(Core::AnonymousBuffer theme, Gfx::IntSize viewport_size)
+HeadlessWebView::HeadlessWebView(Core::AnonymousBuffer theme, Web::DevicePixelSize viewport_size)
     : m_theme(move(theme))
     , m_viewport_size(viewport_size)
     , m_test_promise(TestPromise::construct())
@@ -121,7 +121,7 @@ HeadlessWebView::HeadlessWebView(Core::AnonymousBuffer theme, Gfx::IntSize viewp
     };
 }
 
-NonnullOwnPtr<HeadlessWebView> HeadlessWebView::create(Core::AnonymousBuffer theme, Gfx::IntSize window_size)
+NonnullOwnPtr<HeadlessWebView> HeadlessWebView::create(Core::AnonymousBuffer theme, Web::DevicePixelSize window_size)
 {
     auto view = adopt_own(*new HeadlessWebView(move(theme), window_size));
     view->initialize_client(CreateNewClient::Yes);
