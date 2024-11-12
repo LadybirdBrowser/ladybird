@@ -45,21 +45,30 @@ HeadlessWebView::HeadlessWebView(Core::AnonymousBuffer theme, Web::DevicePixelSi
     };
 
     on_resize_window = [this](auto size) {
-        client().async_set_window_size(m_client_state.page_index, size.template to_type<Web::DevicePixels>());
+        m_viewport_size = size.template to_type<Web::DevicePixels>();
+
+        client().async_set_window_size(m_client_state.page_index, m_viewport_size);
+        client().async_set_viewport_size(m_client_state.page_index, m_viewport_size);
 
         client().async_did_update_window_rect(m_client_state.page_index);
     };
 
     on_maximize_window = [this]() {
+        m_viewport_size = screen_rect.size();
+
         client().async_set_window_position(m_client_state.page_index, screen_rect.location());
         client().async_set_window_size(m_client_state.page_index, screen_rect.size());
+        client().async_set_viewport_size(m_client_state.page_index, screen_rect.size());
 
         client().async_did_update_window_rect(m_client_state.page_index);
     };
 
     on_fullscreen_window = [this]() {
+        m_viewport_size = screen_rect.size();
+
         client().async_set_window_position(m_client_state.page_index, screen_rect.location());
         client().async_set_window_size(m_client_state.page_index, screen_rect.size());
+        client().async_set_viewport_size(m_client_state.page_index, screen_rect.size());
 
         client().async_did_update_window_rect(m_client_state.page_index);
     };
