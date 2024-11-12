@@ -16,8 +16,8 @@
 #include <LibCore/Forward.h>
 #include <LibCore/Promise.h>
 #include <LibGfx/Forward.h>
-#include <LibGfx/Size.h>
 #include <LibURL/Forward.h>
+#include <LibWeb/PixelUnits.h>
 
 namespace Ladybird {
 
@@ -78,7 +78,7 @@ struct TestCompletion {
 
 using TestPromise = Core::Promise<TestCompletion>;
 
-ErrorOr<void> run_tests(Core::AnonymousBuffer const& theme, Gfx::IntSize window_size);
+ErrorOr<void> run_tests(Core::AnonymousBuffer const& theme, Web::DevicePixelSize window_size);
 void run_dump_test(HeadlessWebView&, Test&, URL::URL const&, int timeout_in_milliseconds);
 
 }

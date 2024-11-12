@@ -384,7 +384,7 @@ static void run_test(HeadlessWebView& view, Test& test, Application& app)
     view.load("about:blank"sv);
 }
 
-ErrorOr<void> run_tests(Core::AnonymousBuffer const& theme, Gfx::IntSize window_size)
+ErrorOr<void> run_tests(Core::AnonymousBuffer const& theme, Web::DevicePixelSize window_size)
 {
     auto& app = Application::the();
     TRY(load_test_config(app.test_root_path));

@@ -95,7 +95,7 @@ ErrorOr<void> Application::launch_test_fixtures()
     return {};
 }
 
-HeadlessWebView& Application::create_web_view(Core::AnonymousBuffer theme, Gfx::IntSize window_size)
+HeadlessWebView& Application::create_web_view(Core::AnonymousBuffer theme, Web::DevicePixelSize window_size)
 {
     auto web_view = HeadlessWebView::create(move(theme), window_size);
     m_web_views.append(move(web_view));
