@@ -1118,6 +1118,7 @@ inline ThrowCompletionOr<Value> get_global(Interpreter& interpreter, IdentifierT
             auto value = binding_object.get_direct(cache.property_offset.value());
             if (value.is_accessor())
                 return TRY(call(vm, value.as_accessor().getter(), js_undefined()));
+            return value;
         }
 
         // OPTIMIZATION: For global lexical bindings, if the global declarative environment hasn't changed,
