@@ -254,7 +254,11 @@ protected:
     };
     virtual void initialize_client(CreateNewClient = CreateNewClient::Yes) { }
 
-    void handle_web_content_process_crash();
+    enum class LoadErrorPage {
+        No,
+        Yes,
+    };
+    void handle_web_content_process_crash(LoadErrorPage = LoadErrorPage::Yes);
 
     struct SharedBitmap {
         i32 id { -1 };

@@ -494,7 +494,7 @@ void ViewImplementation::handle_resize()
     client().async_set_viewport_size(page_id(), this->viewport_size());
 }
 
-void ViewImplementation::handle_web_content_process_crash()
+void ViewImplementation::handle_web_content_process_crash(LoadErrorPage load_error_page)
 {
     dbgln("WebContent process crashed!");
     dbgln("Consider raising an issue at https://github.com/LadybirdBrowser/ladybird/issues/new/choose");
@@ -515,19 +515,22 @@ void ViewImplementation::handle_web_content_process_crash()
     m_backup_bitmap = nullptr;
 
     handle_resize();
-    StringBuilder builder;
-    builder.append("<html><head><title>Crashed: "sv);
-    builder.append(escape_html_entities(m_url.to_byte_string()));
-    builder.append("</title></head><body>"sv);
-    builder.append("<h1>Web page crashed"sv);
-    if (!m_url.host().has<Empty>()) {
-        builder.appendff(" on {}", escape_html_entities(m_url.serialized_host().release_value_but_fixme_should_propagate_errors()));
+
+    if (load_error_page == LoadErrorPage::Yes) {
+        StringBuilder builder;
+        builder.append("<html><head><title>Crashed: "sv);
+        builder.append(escape_html_entities(m_url.to_byte_string()));
+        builder.append("</title></head><body>"sv);
+        builder.append("<h1>Web page crashed"sv);
+        if (!m_url.host().has<Empty>()) {
+            builder.appendff(" on {}", escape_html_entities(m_url.serialized_host().release_value_but_fixme_should_propagate_errors()));
+        }
+        builder.append("</h1>"sv);
+        auto escaped_url = escape_html_entities(m_url.to_byte_string());
+        builder.appendff("The web page <a href=\"{}\">{}</a> has crashed.<br><br>You can reload the page to try again.", escaped_url, escaped_url);
+        builder.append("</body></html>"sv);
+        load_html(builder.to_byte_string());
     }
-    builder.append("</h1>"sv);
-    auto escaped_url = escape_html_entities(m_url.to_byte_string());
-    builder.appendff("The web page <a href=\"{}\">{}</a> has crashed.<br><br>You can reload the page to try again.", escaped_url, escaped_url);
-    builder.append("</body></html>"sv);
-    load_html(builder.to_byte_string());
 }
 
 static ErrorOr<LexicalPath> save_screenshot(Gfx::ShareableBitmap const& bitmap)
