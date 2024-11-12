@@ -20,8 +20,7 @@ JS_DEFINE_ALLOCATOR(AsyncFunctionDriverWrapper);
 NonnullGCPtr<Promise> AsyncFunctionDriverWrapper::create(Realm& realm, GeneratorObject* generator_object)
 {
     auto top_level_promise = Promise::create(realm);
-    // Note: This generates a handle to itself, which it clears upon completing its execution
-    //       The top_level_promise is also kept alive by this Wrapper
+    // Note: The top_level_promise is also kept alive by this Wrapper
     auto wrapper = realm.heap().allocate<AsyncFunctionDriverWrapper>(realm, realm, *generator_object, *top_level_promise);
     // Prime the generator:
     // This runs until the first `await value;`
@@ -34,7 +33,6 @@ AsyncFunctionDriverWrapper::AsyncFunctionDriverWrapper(Realm& realm, NonnullGCPt
     : Promise(realm.intrinsics().promise_prototype())
     , m_generator_object(generator_object)
     , m_top_level_promise(top_level_promise)
-    , m_self_handle(make_handle(*this))
 {
 }
 
@@ -140,10 +138,6 @@ void AsyncFunctionDriverWrapper::continue_async_execution(VM& vm, Value value, b
             auto promise_value = TRY(result.get(vm, vm.names.value));
 
             if (TRY(result.get(vm, vm.names.done)).to_boolean()) {
-
-                // We should not execute anymore, so we are safe to allow ourselves to be GC'd.
-                m_self_handle = {};
-
                 // When returning a promise, we need to unwrap it.
                 if (promise_value.is_object() && is<Promise>(promise_value.as_object())) {
                     auto& returned_promise = static_cast<Promise&>(promise_value.as_object());
@@ -175,9 +169,6 @@ void AsyncFunctionDriverWrapper::continue_async_execution(VM& vm, Value value, b
 
     if (result.is_throw_completion()) {
         m_top_level_promise->reject(result.throw_completion().value().value_or(js_undefined()));
-
-        // We should not execute anymore, so we are safe to allow our selfs to be GC'd
-        m_self_handle = {};
     }
 
     // For the initial execution, the execution context will be popped for us later on by ECMAScriptFunctionObject.

@@ -38,7 +38,6 @@ private:
     NonnullGCPtr<GeneratorObject> m_generator_object;
     NonnullGCPtr<Promise> m_top_level_promise;
     GCPtr<Promise> m_current_promise { nullptr };
-    Handle<AsyncFunctionDriverWrapper> m_self_handle;
     OwnPtr<ExecutionContext> m_suspended_execution_context;
 };
 
