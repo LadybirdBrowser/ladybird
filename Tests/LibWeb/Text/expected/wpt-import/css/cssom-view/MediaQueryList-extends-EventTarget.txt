@@ -1,0 +1,18 @@
+Summary
+
+Harness status: OK
+
+Rerun
+
+Found 7 tests
+
+6 Pass
+1 Fail
+Details
+Result	Test Name	MessageFail	onchange adds listener	
+Pass	onchange removes listener	
+Pass	listeners for "change" type are called	
+Pass	listeners with different type are not called	
+Pass	addEventListener "once" option is respected	
+Pass	removeEventListener removes listener	
+Pass	dispatchEvent works as expected	

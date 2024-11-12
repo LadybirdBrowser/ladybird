@@ -1,0 +1,11 @@
+Summary
+
+Harness status: OK
+
+Rerun
+
+Found 1 tests
+
+1 Pass
+Details
+Result	Test Name	MessagePass	scrolling an element with no CSS layout box should have no effect	

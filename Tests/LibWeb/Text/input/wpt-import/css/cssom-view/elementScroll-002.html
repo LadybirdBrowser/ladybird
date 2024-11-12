@@ -1,0 +1,58 @@
+<!doctype html>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>cssom-view - elementScroll - 002</title>
+<link rel="help" href="https://drafts.csswg.org/cssom-view/#dom-element-scrolltop">
+<link rel="help" href="https://drafts.csswg.org/cssom-view/#dom-element-scrollleft">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<div id="scroller1" style="height: 100px; width: 100px; overflow: scroll; background: red;">
+    <div style="background: green; margin-top: 100px; margin-left: 100px; width: 100px; height: 100px;"></div>
+</div>
+<div id="scroller2" style="height: 100px; width: 100px; overflow: hidden; background: red;">
+    <div style="background: green; margin-top: 100px; padding-left: 100px; width: 100px; height: 100px;"></div>
+</div>
+<div id="scroller3" style="height: 100px; width: 100px; overflow: scroll; background: red;">
+    <div style="background: green; padding-top: 100px; margin-left: 100px; width: 100px; height: 100px;"></div>
+</div>
+<div id="scroller4" style="height: 100px; width: 100px; overflow: hidden; background: red;">
+    <div style="background: green; padding-top: 100px; padding-left: 100px; width: 100px; height: 100px;"></div>
+</div>
+<script>
+    test(function () {
+        var scroller1 = document.getElementById("scroller1");
+
+        scroller1.scrollTop = 100;
+        scroller1.scrollLeft = 100;
+        assert_equals(scroller1.scrollTop, 100, "changed scrollTop should be 100");
+        assert_equals(scroller1.scrollLeft, 100, "changed scrollLeft should be 100");
+
+    }, "simple scroll with style: 'margin' and 'overflow: scroll'");
+    test(function () {
+        var scroller2 = document.getElementById("scroller2");
+
+        scroller2.scrollTop = 100;
+        scroller2.scrollLeft = 100;
+        assert_equals(scroller2.scrollTop, 100, "changed scrollTop should be 100");
+        assert_equals(scroller2.scrollLeft, 100, "changed scrollLeft should be 100");
+
+    }, "simple scroll with style: 'margin' and 'overflow: hidden'");
+    test(function () {
+        var scroller3 = document.getElementById("scroller3");
+
+        scroller3.scrollTop = 100;
+        scroller3.scrollLeft = 100;
+        assert_equals(scroller3.scrollTop, 100, "changed scrollTop should be 100");
+        assert_equals(scroller3.scrollLeft, 100, "changed scrollLeft should be 100");
+
+    }, "simple scroll with style: 'padding' and 'overflow: scroll'");
+    test(function () {
+        var scroller4 = document.getElementById("scroller4");
+
+        scroller4.scrollTop = 100;
+        scroller4.scrollLeft = 100;
+        assert_equals(scroller4.scrollTop, 100, "changed scrollTop should be 100");
+        assert_equals(scroller4.scrollLeft, 100, "changed scrollLeft should be 100");
+
+    }, "simple scroll with style: 'padding' and 'overflow: hidden'");
+</script>

@@ -1,0 +1,12 @@
+Summary
+
+Harness status: OK
+
+Rerun
+
+Found 2 tests
+
+2 Fail
+Details
+Result	Test Name	MessageFail	{Element,Range}.prototype.getBoundingClientRect on SVG <tspan>, Element	
+Fail	{Element,Range}.prototype.getBoundingClientRect on SVG <tspan>, Range	

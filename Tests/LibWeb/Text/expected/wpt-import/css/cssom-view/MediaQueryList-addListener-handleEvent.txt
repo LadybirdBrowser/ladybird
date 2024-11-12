@@ -1,0 +1,17 @@
+Summary
+
+Harness status: OK
+
+Rerun
+
+Found 6 tests
+
+3 Pass
+3 Fail
+Details
+Result	Test Name	MessageFail	calls handleEvent method of event listener	
+Pass	looks up handleEvent method on every event dispatch	
+Pass	doesn't look up handleEvent method on callable event listeners	
+Pass	rethrows errors when getting handleEvent	
+Fail	throws if handleEvent is falsy and not callable	
+Fail	throws if handleEvent is thruthy and not callable	

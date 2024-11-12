@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<meta charset=utf-8>
+<title>cssom-view - Scrolling element with no layout box</title>
+<link rel="help" href="https://drafts.csswg.org/cssom-view/#dom-element-scroll">
+<link rel="help" href="https://drafts.csswg.org/cssom-view/#css-layout-box">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+
+<div style="display: none">
+  <div id="elem"></div>
+</div>
+
+<script>
+test(() => {
+  const elem = document.getElementById('elem');
+  elem.scroll(1, 2);
+
+  assert_equals(elem.scrollTop, 0, "scrollTop should be unchanged");
+  assert_equals(elem.scrollLeft, 0, "scrollLeft should be unchanged");
+}, "scrolling an element with no CSS layout box should have no effect");
+</script>

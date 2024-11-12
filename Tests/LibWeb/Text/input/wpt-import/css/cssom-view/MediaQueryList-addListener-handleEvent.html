@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<meta name="flags" content="dom">
+<title>CSS Test: CSSOM View MediaQueryList::addListener with handleEvent</title>
+<link rel="help" href="https://dom.spec.whatwg.org/#callbackdef-eventlistener">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="resources/matchMedia.js"></script>
+<div id="log"></div>
+<script>
+"use strict";
+setup({ allow_uncaught_exception: true });
+
+promise_test(async t => {
+    const mql = await createMQL(t);
+
+    let _this;
+    let _event;
+    const listener = {
+        handleEvent(event) {
+            _this = this;
+            _event = event;
+        },
+    };
+
+    mql.addListener(listener);
+    triggerMQLEvent(mql);
+    await waitForChangesReported();
+
+    assert_equals(_this, listener);
+    assert_equals(_event.media, mql.media);
+    assert_equals(_event.matches, mql.matches);
+}, "calls handleEvent method of event listener");
+
+promise_test(async t => {
+    const mql = await createMQL(t);
+
+    let calls = 0;
+    mql.addListener({
+        get handleEvent() {
+            calls++;
+            return function() {};
+        },
+    });
+    assert_equals(calls, 0);
+
+    triggerMQLEvent(mql);
+    await waitForChangesReported();
+    assert_equals(calls, 1);
+
+    triggerMQLEvent(mql);
+    await waitForChangesReported();
+    assert_equals(calls, 2);
+}, "looks up handleEvent method on every event dispatch");
+
+promise_test(async t => {
+    const mql = await createMQL(t);
+
+    let calls = 0;
+    const listener = () => {
+        calls++;
+    };
+
+    Object.defineProperty(listener, "handleEvent", {
+        get: t.unreached_func("handleEvent method should not be looked up on functions"),
+    });
+    mql.addListener(listener);
+
+    triggerMQLEvent(mql);
+    await waitForChangesReported();
+    assert_equals(calls, 1);
+}, "doesn't look up handleEvent method on callable event listeners");
+
+const uncaught_error_test = async (t, mql, getHandleEvent) => {
+    const eventWatcher = new EventWatcher(t, window, "error", waitForChangesReported);
+    const errorPromise = eventWatcher.wait_for("error");
+
+    let calls = 0;
+    const listener = {
+        get handleEvent() {
+            calls++;
+            return getHandleEvent();
+        },
+    };
+
+    try {
+        mql.addListener(listener);
+        triggerMQLEvent(mql);
+
+        const event = await errorPromise;
+        throw event.error;
+    } finally {
+        assert_equals(calls, 1, "handleEvent property was not looked up");
+    }
+};
+
+promise_test(async t => {
+    const error = { name: "test" };
+    const mql = await createMQL(t);
+
+    return promise_rejects_exactly(t, error,
+        uncaught_error_test(t, mql, () => { throw error; }));
+}, "rethrows errors when getting handleEvent");
+
+promise_test(async t => {
+    const mql = await createMQL(t);
+    const global = getWindow(mql);
+    return promise_rejects_js(t, global.TypeError,
+                              uncaught_error_test(t, mql, () => false));
+}, "throws if handleEvent is falsy and not callable");
+
+promise_test(async t => {
+    const mql = await createMQL(t);
+    const global = getWindow(mql);
+    return promise_rejects_js(t, global.TypeError,
+                              uncaught_error_test(t, mql, () => "str"));
+}, "throws if handleEvent is thruthy and not callable");
+</script>

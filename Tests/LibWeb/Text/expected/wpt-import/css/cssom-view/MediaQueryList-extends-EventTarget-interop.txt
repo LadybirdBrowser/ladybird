@@ -1,0 +1,18 @@
+Summary
+
+Harness status: OK
+
+Rerun
+
+Found 8 tests
+
+8 Pass
+Details
+Result	Test Name	MessagePass	dispatchEvent triggers listener added with addListener	
+Pass	listener added with addListener and addEventListener is called once	
+Pass	listener added with addListener and addEventListener (capture) is called twice	
+Pass	removeEventListener removes listener added with addListener	
+Pass	removeEventListener (capture) doesn't remove listener added with addListener	
+Pass	removeListener removes listener added with addEventListener	
+Pass	removeListener doesn't remove listener added with addEventListener (capture)	
+Pass	capturing event listener fires before non-capturing listener at target	
