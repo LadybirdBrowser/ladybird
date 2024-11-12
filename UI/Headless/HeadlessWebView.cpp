@@ -53,6 +53,14 @@ HeadlessWebView::HeadlessWebView(Core::AnonymousBuffer theme, Web::DevicePixelSi
         client().async_did_update_window_rect(m_client_state.page_index);
     };
 
+    on_restore_window = [this]() {
+        client().async_set_system_visibility_state(m_client_state.page_index, true);
+    };
+
+    on_minimize_window = [this]() {
+        client().async_set_system_visibility_state(m_client_state.page_index, false);
+    };
+
     on_maximize_window = [this]() {
         m_viewport_size = screen_rect.size();
 
