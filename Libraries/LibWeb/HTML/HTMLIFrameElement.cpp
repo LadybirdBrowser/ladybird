@@ -66,17 +66,26 @@ void HTMLIFrameElement::inserted()
 {
     HTMLElement::inserted();
 
-    // When an iframe element element is inserted into a document whose browsing context is non-null, the user agent must run these steps:
-    if (in_a_document_tree() && document().browsing_context() && document().is_fully_active()) {
-        // 1. Create a new child navigable for element.
-        MUST(create_new_child_navigable(JS::create_heap_function(realm().heap(), [this] {
-            // 3. Process the iframe attributes for element, with initialInsertion set to true.
-            process_the_iframe_attributes(true);
-            set_content_navigable_initialized();
-        })));
+    // The iframe HTML element insertion steps, given insertedNode, are:
+    // 1. If insertedNode's shadow-including root's browsing context is null, then return.
+    if (!is<DOM::Document>(shadow_including_root()))
+        return;
 
-        // FIXME: 2. If element has a sandbox attribute, then parse the sandboxing directive given the attribute's value and element's iframe sandboxing flag set.
-    }
+    DOM::Document& document = verify_cast<DOM::Document>(shadow_including_root());
+
+    // NOTE: The check for "not fully active" is to prevent a crash on the dom/nodes/node-appendchild-crash.html WPT test.
+    if (!document.browsing_context() || !document.is_fully_active())
+        return;
+
+    // 2. Create a new child navigable for insertedNode.
+    MUST(create_new_child_navigable(JS::create_heap_function(realm().heap(), [this] {
+        // FIXME: 3. If insertedNode has a sandbox attribute, then parse the sandboxing directive given the attribute's
+        //           value and insertedNode's iframe sandboxing flag set.
+
+        // 4. Process the iframe attributes for insertedNode, with initialInsertion set to true.
+        process_the_iframe_attributes(true);
+        set_content_navigable_initialized();
+    })));
 }
 
 // https://html.spec.whatwg.org/multipage/iframe-embed-object.html#process-the-iframe-attributes
