@@ -97,21 +97,37 @@ private:
 template<>
 inline bool Node::fast_is<ShadowRoot>() const { return node_type() == to_underlying(NodeType::DOCUMENT_FRAGMENT_NODE) && is_shadow_root(); }
 
+// https://dom.spec.whatwg.org/#concept-shadow-including-tree-order
+// In shadow-including tree order is shadow-including preorder, depth-first traversal of a node tree.
+// Shadow-including preorder, depth-first traversal of a node tree tree is preorder, depth-first traversal
+// of tree, with for each shadow host encountered in tree, shadow-including preorder, depth-first traversal
+// of that element’s shadow root’s node tree just after it is encountered.
+
+// https://dom.spec.whatwg.org/#concept-shadow-including-descendant
+// An object A is a shadow-including descendant of an object B, if A is a descendant of B, or A’s root is a
+// shadow root and A’s root’s host is a shadow-including inclusive descendant of B.
+
+// https://dom.spec.whatwg.org/#concept-shadow-including-inclusive-descendant
+// A shadow-including inclusive descendant is an object or one of its shadow-including descendants.
+
 template<typename Callback>
 inline TraversalDecision Node::for_each_shadow_including_inclusive_descendant(Callback callback)
 {
     if (callback(*this) == TraversalDecision::Break)
         return TraversalDecision::Break;
-    for (auto* child = first_child(); child; child = child->next_sibling()) {
-        if (child->is_element()) {
-            if (auto shadow_root = static_cast<Element*>(child)->shadow_root()) {
-                if (shadow_root->for_each_shadow_including_inclusive_descendant(callback) == TraversalDecision::Break)
-                    return TraversalDecision::Break;
-            }
+
+    if (is_element()) {
+        if (auto shadow_root = static_cast<Element*>(this)->shadow_root()) {
+            if (shadow_root->for_each_shadow_including_inclusive_descendant(callback) == TraversalDecision::Break)
+                return TraversalDecision::Break;
         }
+    }
+
+    for (auto* child = first_child(); child; child = child->next_sibling()) {
         if (child->for_each_shadow_including_inclusive_descendant(callback) == TraversalDecision::Break)
             return TraversalDecision::Break;
     }
+
     return TraversalDecision::Continue;
 }
 
@@ -119,12 +135,6 @@ template<typename Callback>
 inline TraversalDecision Node::for_each_shadow_including_descendant(Callback callback)
 {
     for (auto* child = first_child(); child; child = child->next_sibling()) {
-        if (child->is_element()) {
-            if (JS::GCPtr<ShadowRoot> shadow_root = static_cast<Element*>(child)->shadow_root()) {
-                if (shadow_root->for_each_shadow_including_inclusive_descendant(callback) == TraversalDecision::Break)
-                    return TraversalDecision::Break;
-            }
-        }
         if (child->for_each_shadow_including_inclusive_descendant(callback) == TraversalDecision::Break)
             return TraversalDecision::Break;
     }
