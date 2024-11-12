@@ -243,7 +243,7 @@ ThrowCompletionOr<ClassElement::ClassValue> ClassField::class_element_evaluation
         FunctionParsingInsights parsing_insights;
         parsing_insights.uses_this_from_environment = true;
         parsing_insights.uses_this = true;
-        initializer = make_handle(*ECMAScriptFunctionObject::create(realm, "field", ByteString::empty(), *function_code, {}, 0, {}, vm.lexical_environment(), vm.running_execution_context().private_environment, FunctionKind::Normal, true, parsing_insights, false, property_key_or_private_name));
+        initializer = ECMAScriptFunctionObject::create(realm, "field", ByteString::empty(), *function_code, {}, 0, {}, vm.lexical_environment(), vm.running_execution_context().private_environment, FunctionKind::Normal, true, parsing_insights, false, property_key_or_private_name);
         initializer->make_method(target);
     }
 
@@ -366,12 +366,12 @@ ThrowCompletionOr<ECMAScriptFunctionObject*> ClassExpression::create_class_const
 
     prototype->define_direct_property(vm.names.constructor, class_constructor, Attribute::Writable | Attribute::Configurable);
 
-    using StaticElement = Variant<ClassFieldDefinition, Handle<ECMAScriptFunctionObject>>;
+    using StaticElement = Variant<ClassFieldDefinition, JS::NonnullGCPtr<ECMAScriptFunctionObject>>;
 
     ConservativeVector<PrivateElement> static_private_methods(vm.heap());
     ConservativeVector<PrivateElement> instance_private_methods(vm.heap());
     ConservativeVector<ClassFieldDefinition> instance_fields(vm.heap());
-    Vector<StaticElement> static_elements;
+    ConservativeVector<StaticElement> static_elements(vm.heap());
 
     for (size_t element_index = 0; element_index < m_elements.size(); element_index++) {
         auto const& element = m_elements[element_index];
@@ -411,7 +411,7 @@ ThrowCompletionOr<ECMAScriptFunctionObject*> ClassExpression::create_class_const
             VERIFY(element_value.has<Completion>() && element_value.get<Completion>().value().has_value());
             auto& element_object = element_value.get<Completion>().value()->as_object();
             VERIFY(is<ECMAScriptFunctionObject>(element_object));
-            static_elements.append(make_handle(static_cast<ECMAScriptFunctionObject*>(&element_object)));
+            static_elements.append(NonnullGCPtr { static_cast<ECMAScriptFunctionObject&>(element_object) });
         }
     }
 
