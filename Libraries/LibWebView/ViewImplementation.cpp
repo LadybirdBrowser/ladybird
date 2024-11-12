@@ -496,7 +496,7 @@ void ViewImplementation::handle_resize()
 
 void ViewImplementation::handle_web_content_process_crash(LoadErrorPage load_error_page)
 {
-    dbgln("WebContent process crashed!");
+    dbgln("\033[31;1mWebContent process crashed!\033[0m Last page loaded: {}", m_url);
     dbgln("Consider raising an issue at https://github.com/LadybirdBrowser/ladybird/issues/new/choose");
 
     ++m_crash_count;
