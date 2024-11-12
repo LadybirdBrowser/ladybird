@@ -34,6 +34,7 @@ enum class TestResult {
     Fail,
     Skipped,
     Timeout,
+    Crashed,
 };
 
 static constexpr StringView test_result_to_string(TestResult result)
@@ -47,6 +48,8 @@ static constexpr StringView test_result_to_string(TestResult result)
         return "Skipped"sv;
     case TestResult::Timeout:
         return "Timeout"sv;
+    case TestResult::Crashed:
+        return "Crashed"sv;
     }
     VERIFY_NOT_REACHED();
 }

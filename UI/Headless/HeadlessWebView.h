@@ -7,6 +7,7 @@
 #pragma once
 
 #include <AK/Badge.h>
+#include <AK/Function.h>
 #include <AK/RefPtr.h>
 #include <LibCore/Forward.h>
 #include <LibCore/Promise.h>
@@ -30,6 +31,8 @@ public:
 
     TestPromise& test_promise() { return *m_test_promise; }
     void on_test_complete(TestCompletion);
+
+    Function<void()> on_web_content_crashed;
 
 private:
     HeadlessWebView(Core::AnonymousBuffer theme, Gfx::IntSize viewport_size);

@@ -98,6 +98,13 @@ static ErrorOr<void> collect_ref_tests(Vector<Test>& tests, StringView path, Str
     return {};
 }
 
+static void clear_test_callbacks(HeadlessWebView& view)
+{
+    view.on_load_finish = {};
+    view.on_text_test_finish = {};
+    view.on_web_content_crashed = {};
+}
+
 void run_dump_test(HeadlessWebView& view, Test& test, URL::URL const& url, int timeout_in_milliseconds)
 {
     auto timer = Core::Timer::create_single_shot(timeout_in_milliseconds, [&view, &test]() {
@@ -160,15 +167,20 @@ void run_dump_test(HeadlessWebView& view, Test& test, URL::URL const& url, int t
     };
 
     auto on_test_complete = [&view, &test, timer, handle_completed_test]() {
+        clear_test_callbacks(view);
         timer->stop();
-
-        view.on_load_finish = {};
-        view.on_text_test_finish = {};
 
         if (auto result = handle_completed_test(); result.is_error())
             view.on_test_complete({ test, TestResult::Fail });
         else
             view.on_test_complete({ test, result.value() });
+    };
+
+    view.on_web_content_crashed = [&view, &test, timer]() {
+        clear_test_callbacks(view);
+        timer->stop();
+
+        view.on_test_complete({ test, TestResult::Crashed });
     };
 
     if (test.mode == TestMode::Layout) {
@@ -257,15 +269,20 @@ static void run_ref_test(HeadlessWebView& view, Test& test, URL::URL const& url,
     };
 
     auto on_test_complete = [&view, &test, timer, handle_completed_test]() {
+        clear_test_callbacks(view);
         timer->stop();
-
-        view.on_load_finish = {};
-        view.on_text_test_finish = {};
 
         if (auto result = handle_completed_test(); result.is_error())
             view.on_test_complete({ test, TestResult::Fail });
         else
             view.on_test_complete({ test, result.value() });
+    };
+
+    view.on_web_content_crashed = [&view, &test, timer]() {
+        clear_test_callbacks(view);
+        timer->stop();
+
+        view.on_test_complete({ test, TestResult::Crashed });
     };
 
     view.on_load_finish = [&view, &test, on_test_complete = move(on_test_complete)](auto const&) {
@@ -418,6 +435,7 @@ ErrorOr<void> run_tests(Core::AnonymousBuffer const& theme, Gfx::IntSize window_
     size_t pass_count = 0;
     size_t fail_count = 0;
     size_t timeout_count = 0;
+    size_t crashed_count = 0;
     size_t skipped_count = 0;
 
     bool is_tty = isatty(STDOUT_FILENO);
@@ -473,6 +491,9 @@ ErrorOr<void> run_tests(Core::AnonymousBuffer const& theme, Gfx::IntSize window_
             case TestResult::Timeout:
                 ++timeout_count;
                 break;
+            case TestResult::Crashed:
+                ++crashed_count;
+                break;
             case TestResult::Skipped:
                 ++skipped_count;
                 break;
@@ -497,9 +518,9 @@ ErrorOr<void> run_tests(Core::AnonymousBuffer const& theme, Gfx::IntSize window_
     if (is_tty)
         outln("\33[2K\rDone!");
 
-    outln("==================================================");
-    outln("Pass: {}, Fail: {}, Skipped: {}, Timeout: {}", pass_count, fail_count, skipped_count, timeout_count);
-    outln("==================================================");
+    outln("==========================================================");
+    outln("Pass: {}, Fail: {}, Skipped: {}, Timeout: {}, Crashed: {}", pass_count, fail_count, skipped_count, timeout_count, crashed_count);
+    outln("==========================================================");
 
     for (auto const& non_passing_test : non_passing_tests) {
         if (non_passing_test.result == TestResult::Skipped && !app.verbose)
