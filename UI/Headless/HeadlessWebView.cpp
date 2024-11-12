@@ -168,9 +168,12 @@ void HeadlessWebView::initialize_client(CreateNewClient create_new_client)
         client().async_connect_to_webdriver(m_client_state.page_index, *web_driver_ipc_path);
 
     m_client_state.client->on_web_content_process_crash = [this] {
-        warnln("\033[31;1mWebContent Crashed!!\033[0m");
-        warnln("    Last page loaded: {}", url());
-        VERIFY_NOT_REACHED();
+        Core::deferred_invoke([this] {
+            handle_web_content_process_crash(LoadErrorPage::No);
+
+            if (on_web_content_crashed)
+                on_web_content_crashed();
+        });
     };
 }
 
