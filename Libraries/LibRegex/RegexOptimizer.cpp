@@ -510,7 +510,6 @@ enum class AtomicRewritePreconditionResult {
 static AtomicRewritePreconditionResult block_satisfies_atomic_rewrite_precondition(ByteCode const& bytecode, Block const& repeated_block, Block const& following_block)
 {
     Vector<Vector<CompareTypeAndValuePair>> repeated_values;
-    HashTable<size_t> active_capture_groups;
     MatchState state;
     auto has_seen_actionable_opcode = false;
     for (state.instruction_position = repeated_block.start; state.instruction_position < repeated_block.end;) {
@@ -536,12 +535,6 @@ static AtomicRewritePreconditionResult block_satisfies_atomic_rewrite_preconditi
         case OpCodeId::Restore:
         case OpCodeId::GoBack:
             return AtomicRewritePreconditionResult::NotSatisfied;
-        case OpCodeId::SaveRightCaptureGroup:
-            active_capture_groups.set(static_cast<OpCode_SaveRightCaptureGroup const&>(opcode).id());
-            break;
-        case OpCodeId::SaveLeftCaptureGroup:
-            active_capture_groups.set(static_cast<OpCode_SaveLeftCaptureGroup const&>(opcode).id());
-            break;
         case OpCodeId::ForkJump:
         case OpCodeId::ForkReplaceJump:
         case OpCodeId::JumpNonEmpty:
@@ -556,7 +549,6 @@ static AtomicRewritePreconditionResult block_satisfies_atomic_rewrite_preconditi
         state.instruction_position += opcode.size();
     }
     dbgln_if(REGEX_DEBUG, "Found {} entries in reference", repeated_values.size());
-    dbgln_if(REGEX_DEBUG, "Found {} active capture groups", active_capture_groups.size());
 
     bool following_block_has_at_least_one_compare = false;
     // Find the first compare in the following block, it must NOT match any of the values in `repeated_values'.
@@ -565,13 +557,6 @@ static AtomicRewritePreconditionResult block_satisfies_atomic_rewrite_preconditi
         final_instruction = state.instruction_position;
         auto& opcode = bytecode.get_opcode(state);
         switch (opcode.opcode_id()) {
-        // Note: These have to exist since we're effectively repeating the following block as well
-        case OpCodeId::SaveRightCaptureGroup:
-            active_capture_groups.set(static_cast<OpCode_SaveRightCaptureGroup const&>(opcode).id());
-            break;
-        case OpCodeId::SaveLeftCaptureGroup:
-            active_capture_groups.set(static_cast<OpCode_SaveLeftCaptureGroup const&>(opcode).id());
-            break;
         case OpCodeId::Compare: {
             following_block_has_at_least_one_compare = true;
             // We found a compare, let's see what it has.
@@ -580,8 +565,7 @@ static AtomicRewritePreconditionResult block_satisfies_atomic_rewrite_preconditi
                 break;
 
             if (any_of(compares, [&](auto& compare) {
-                    return compare.type == CharacterCompareType::AnyChar
-                        || (compare.type == CharacterCompareType::Reference && active_capture_groups.contains(compare.value));
+                    return compare.type == CharacterCompareType::AnyChar || compare.type == CharacterCompareType::Reference;
                 }))
                 return AtomicRewritePreconditionResult::NotSatisfied;
 
