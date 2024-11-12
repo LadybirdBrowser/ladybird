@@ -1,0 +1,11 @@
+Summary
+
+Harness status: OK
+
+Rerun
+
+Found 1 tests
+
+1 Fail
+Details
+Result	Test Name	MessageFail	MediaQueryList.changed is correct for all lists in the document even during a change event handler	

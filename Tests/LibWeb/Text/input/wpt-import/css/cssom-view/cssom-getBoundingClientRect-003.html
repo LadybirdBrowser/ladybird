@@ -1,0 +1,34 @@
+<!doctype html>
+<title>{Element,Range}.prototype.getBoundingClientRect on SVG &lt;tspan&gt;</title>
+<link rel="stylesheet" type="text/css" href="../../fonts/ahem.css">
+<link rel="help" href="https://drafts.csswg.org/cssom-view/#dom-element-getboundingclientrect">
+<link rel="help" href="https://drafts.csswg.org/cssom-view/#dom-range-getboundingclientrect">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<svg>
+  <text y="180" font-size="100" font-family="Ahem"
+        fill="lightblue">X<tspan fill="blue">XX</tspan></text>
+</svg>
+<script>
+  function check(object) {
+    let rect = object.getBoundingClientRect();
+    assert_equals(rect.left, 108, 'left');
+    assert_equals(rect.top, 108, 'top');
+    assert_equals(rect.width, 200, 'width');
+    assert_equals(rect.height, 100, 'height');
+  }
+  async_test(t => {
+    window.addEventListener("load", t.step_func_done(() => {
+      let tspan = document.querySelector('tspan');
+      check(tspan);
+    }));
+  }, document.title + ', Element');
+  async_test(t => {
+    window.addEventListener("load", t.step_func_done(() => {
+      let tspan = document.querySelector('tspan');
+      let range = new Range();
+      range.selectNode(tspan);
+      check(range);
+    }));
+  }, document.title + ', Range');
+</script>

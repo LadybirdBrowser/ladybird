@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<meta charset=utf-8>
+<link rel="help" href="https://drafts.csswg.org/cssom-view/#run-the-resize-steps"/>
+<script src=../../resources/testharness.js></script>
+<script src=../../resources/testharnessreport.js></script>
+<script>
+promise_test(async t => {
+  let gotResizeEvent = false;
+
+  on_event(window, 'resize', () => gotResizeEvent = true);
+
+  await new Promise(resolve  => requestAnimationFrame(resolve));
+  await new Promise(resolve  => requestAnimationFrame(resolve));
+
+  assert_false(gotResizeEvent, 'resize event should not be fired');
+}, 'resize events are not fired on the initial layout');
+</script>

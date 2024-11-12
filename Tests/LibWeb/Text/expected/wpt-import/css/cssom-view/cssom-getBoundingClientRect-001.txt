@@ -1,0 +1,12 @@
+Summary
+
+Harness status: OK
+
+Rerun
+
+Found 2 tests
+
+2 Pass
+Details
+Result	Test Name	MessagePass	getBoundingClientRect() should return a DOMRect where height=bottom-top	
+Pass	getBoundingClientRect() should return a DOMRect where width=right-left	

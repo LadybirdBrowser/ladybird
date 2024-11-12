@@ -1,0 +1,11 @@
+Summary
+
+Harness status: OK
+
+Rerun
+
+Found 1 tests
+
+1 Pass
+Details
+Result	Test Name	MessagePass	Checking whether dynamic changes to visibility interact correctly with table anonymous boxes	

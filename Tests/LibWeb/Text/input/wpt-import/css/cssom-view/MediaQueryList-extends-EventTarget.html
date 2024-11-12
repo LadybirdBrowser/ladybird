@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<meta name="flags" content="dom">
+<title>CSS Test: CSSOM View MediaQueryList extends EventTarget</title>
+<link rel="help" href="https://www.w3.org/TR/cssom-view-1/#the-mediaquerylist-interface">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="resources/matchMedia.js"></script>
+<div id="log"></div>
+<script>
+"use strict";
+
+promise_test(async t => {
+    const mql = await createMQL(t);
+
+    let _event;
+    mql.onchange = event => {
+        _event = event;
+    };
+
+    triggerMQLEvent(mql);
+    await waitForChangesReported();
+    assert_equals(_event.media, mql.media);
+    assert_equals(_event.matches, mql.matches);
+}, "onchange adds listener");
+
+promise_test(async t => {
+    const mql = await createMQL(t);
+
+    let calls = 0;
+    mql.onchange = () => {
+        calls++;
+    };
+
+    triggerMQLEvent(mql);
+    await waitForChangesReported();
+    assert_equals(calls, 1);
+
+    mql.onchange = null;
+
+    triggerMQLEvent(mql);
+    await waitForChangesReported();
+    assert_equals(calls, 1);
+}, "onchange removes listener");
+
+promise_test(async t => {
+    const mql = await createMQL(t);
+
+    let calls = 0;
+    mql.addEventListener("change", {
+        handleEvent() {
+            calls++;
+        },
+    });
+
+    triggerMQLEvent(mql);
+    await waitForChangesReported();
+    assert_equals(calls, 1);
+}, 'listeners for "change" type are called');
+
+promise_test(async t => {
+    const mql = await createMQL(t);
+    mql.addEventListener("matches", t.unreached_func("should not be called"));
+
+    triggerMQLEvent(mql);
+    await waitForChangesReported();
+}, 'listeners with different type are not called');
+
+promise_test(async t => {
+    const mql = await createMQL(t);
+
+    let calls = 0;
+    mql.addEventListener("change", {
+        handleEvent() {
+            calls++;
+        },
+    }, {once: true});
+
+    triggerMQLEvent(mql);
+    await waitForChangesReported();
+    assert_equals(calls, 1);
+
+    triggerMQLEvent(mql);
+    await waitForChangesReported();
+    assert_equals(calls, 1);
+}, 'addEventListener "once" option is respected');
+
+promise_test(async t => {
+    const mql = await createMQL(t);
+    const listener = t.unreached_func("should not be called");
+
+    mql.addEventListener("change", listener);
+    mql.removeEventListener("change", listener);
+
+    triggerMQLEvent(mql);
+    await waitForChangesReported();
+}, "removeEventListener removes listener");
+
+test(() => {
+    const mql = window.matchMedia("all");
+
+    let receivedEvent;
+    mql.addEventListener("custom", event => {
+        receivedEvent = event;
+        event.preventDefault();
+    }, true);
+
+    const dispatchedEvent = new CustomEvent("custom", {
+        cancelable: true,
+        detail: {},
+    });
+
+    const defaultAction = mql.dispatchEvent(dispatchedEvent);
+
+    assert_equals(receivedEvent, dispatchedEvent);
+    assert_false(defaultAction);
+}, "dispatchEvent works as expected");
+</script>

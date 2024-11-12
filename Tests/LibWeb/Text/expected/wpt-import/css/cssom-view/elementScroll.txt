@@ -1,0 +1,18 @@
+Summary
+
+Harness status: OK
+
+Rerun
+
+Found 8 tests
+
+8 Pass
+Details
+Result	Test Name	MessagePass	Element scrollTop/Left getter/setter test	
+Pass	Element scroll test (two arguments)	
+Pass	Element scroll test (one argument)	
+Pass	Element scrollTo test (two arguments)	
+Pass	Element scrollTo test (one argument)	
+Pass	Element scrollBy test (two arguments)	
+Pass	Element scrollBy test (one argument)	
+Pass	Element scroll maximum test	
