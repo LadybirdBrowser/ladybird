@@ -28,7 +28,6 @@ Storage::Storage(JS::Realm& realm)
         .has_indexed_property_setter = true,
         .has_named_property_setter = true,
         .has_named_property_deleter = true,
-        .has_legacy_override_built_ins_interface_extended_attribute = true,
         .indexed_property_setter_has_identifier = true,
         .named_property_setter_has_identifier = true,
         .named_property_deleter_has_identifier = true,
