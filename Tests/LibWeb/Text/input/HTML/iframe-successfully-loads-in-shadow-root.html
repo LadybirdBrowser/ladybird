@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    asyncTest((done) => {
+        const div = document.createElement("div");
+        const shadowRoot = div.attachShadow({ mode: "closed" });
+
+        const iframe = document.createElement("iframe");
+
+        window.addEventListener("message", (messageEvent) => {
+            println(`Received a message: '${messageEvent.data}'`);
+            println(`Was it from the shadow root iframe? ${messageEvent.source === iframe.contentWindow}`);
+            done();
+        });
+
+        iframe.srcdoc = `
+            \u003cscript\u003e
+                window.parent.postMessage("Hello from iframe in the shadow root of the just inserted div!");
+            \u003c/script\u003e
+        `;
+        shadowRoot.appendChild(iframe);
+
+        document.body.appendChild(div);
+    });
+</script>
