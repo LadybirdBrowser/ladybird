@@ -66,7 +66,11 @@ public:
 
     virtual ReadonlySpan<FlatPtr> possible_values() const override
     {
-        return ReadonlySpan<FlatPtr> { reinterpret_cast<FlatPtr const*>(this->data()), this->size() };
+        static_assert(sizeof(T) >= sizeof(FlatPtr));
+        return ReadonlySpan<FlatPtr> {
+            reinterpret_cast<FlatPtr const*>(this->data()),
+            this->size() * sizeof(T) / sizeof(FlatPtr),
+        };
     }
 };
 
