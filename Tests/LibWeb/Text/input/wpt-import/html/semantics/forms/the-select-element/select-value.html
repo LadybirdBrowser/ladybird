@@ -1,0 +1,56 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>HTMLSelectElement.value</title>
+<link rel="help" href="https://html.spec.whatwg.org/multipage/forms.html#dom-select-value">
+<script src="../../../../resources/testharness.js"></script>
+<script src="../../../../resources/testharnessreport.js"></script>
+<div id=log></div>
+
+<select id=sel1>
+  <option value=0></option>
+  <option selected value=1></option>
+</select>
+
+<select id=sel2>
+  <optgroup>
+    <option value=0></option>
+  </optgroup>
+  <optgroup></optgroup>
+  <optgroup>
+    <option></option>
+    <option value=1></option>
+    <option selected value=2></option>
+  </optgroup>
+</select>
+
+<select id=sel3>
+  <option selected value=1></option>
+</select>
+
+<select id=sel4></select>
+
+<script>
+test(function() {
+  var select = document.getElementById('sel1');
+  assert_equals(select.value, '1');
+}, 'options');
+
+test(function() {
+  var select = document.getElementById('sel2');
+  assert_equals(select.value, '2');
+}, 'optgroups');
+
+test(function() {
+  var select = document.getElementById('sel3');
+  var option = select.options[0];
+  var div = document.createElement('div');
+  select.appendChild(div);
+  div.appendChild(option);
+  assert_equals(select.value, '');
+}, 'option is child of div');
+
+test(function() {
+  var select = document.getElementById('sel4');
+  assert_equals(select.value, '');
+}, 'no options');
+</script>

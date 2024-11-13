@@ -1,0 +1,23 @@
+Summary
+
+Harness status: OK
+
+Rerun
+
+Found 13 tests
+
+13 Pass
+Details
+Result	Test Name	MessagePass	get empty	
+Pass	get default	
+Pass	get disabled	
+Pass	get unselected	
+Pass	set empty (HTMLSelectElement)	
+Pass	set empty (HTMLOptionsCollection)	
+Pass	set (HTMLSelectElement)	
+Pass	set (HTMLOptionsCollection)	
+Pass	set and reset (HTMLSelectElement)	
+Pass	set and reset (HTMLOptionsCollection)	
+Pass	get display:none	
+Pass	reset to display:none	
+Pass	set selectedIndex=-1	

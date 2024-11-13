@@ -1,0 +1,21 @@
+Summary
+
+Harness status: OK
+
+Rerun
+
+Found 11 tests
+
+11 Fail
+Details
+Result	Test Name	MessageFail	Test that HTMLselect with no options has empty string for value and null for selectedOption	
+Fail	Test value and selectedOption with HTMLOptionElement element option parts	
+Fail	Test value and selectedOption when value is null	
+Fail	Test value and selectedOption when value is undefined	
+Fail	Test value with non-HTMLOptionElement elements labeled as parts	
+Fail	Test that value and selectedOption are updated when options are removed	
+Fail	Test that slotted-in selected-value part is updated to value of select	
+Fail	Test that option parts in a slotted-in listbox are reflected in the value property	
+Fail	Test that value and selectedOption are correctly updated	
+Fail	Test that HTMLOption.selected updates select.value and select.selectedOption	
+Fail	Test that HTMLOption.value updates select.value	

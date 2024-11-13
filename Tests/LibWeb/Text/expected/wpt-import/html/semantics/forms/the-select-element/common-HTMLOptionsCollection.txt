@@ -1,0 +1,19 @@
+Summary
+
+Harness status: OK
+
+Rerun
+
+Found 8 tests
+
+6 Pass
+2 Fail
+Details
+Result	Test Name	MessagePass	On getting, the length attribute must return the number of nodes represented by the collection.	
+Pass	Changing the length adds new nodes; The number of new nodes = new length minus old length	
+Fail	New nodes have no value	Cannot access property "value" on undefined object "selly[i]"
+Pass	Setting a length equal to existing length changes nothing	
+Pass	Setting a length lower than the old length trims nodes from the end	
+Pass	Setting element to null by index removed the element	
+Fail	Setting element by index should correctly append and replace elements	Cannot access property "value" on undefined object "selly[i]"
+Pass	Changing the length adds new nodes; The new nodes will not copy select's prefix	

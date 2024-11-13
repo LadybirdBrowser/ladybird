@@ -1,0 +1,23 @@
+Summary
+
+Harness status: OK
+
+Rerun
+
+Found 12 tests
+
+9 Pass
+3 Fail
+Details
+Result	Test Name	MessagePass	No children, no value	
+Pass	No children, empty value	
+Pass	No children, value	
+Fail	No children, namespaced value	
+Pass	Single child, no value	
+Pass	Single child, empty value	
+Pass	Single child, value	
+Fail	Single child, namespaced value	
+Pass	Two children, no value	
+Pass	Two children, empty value	
+Pass	Two children, value	
+Fail	Two children, namespaced value	

@@ -1,0 +1,16 @@
+Summary
+
+Harness status: OK
+
+Rerun
+
+Found 6 tests
+
+6 Fail
+Details
+Result	Test Name	MessageFail	Placeholder label options within a select	
+Fail	Placeholder label-like options within optgroup	undefined is not a function (evaluated from 'select.checkValidity')
+Fail	Validation on selects with display size set as more than one	undefined is not a function (evaluated from 'select.checkValidity')
+Fail	Validation on selects with multiple set	undefined is not a function (evaluated from 'select.checkValidity')
+Fail	Validation on selects with non-empty disabled option	undefined is not a function (evaluated from 'select.checkValidity')
+Fail	Remove and add back the placeholder label option	undefined is not a function (evaluated from 'select.checkValidity')

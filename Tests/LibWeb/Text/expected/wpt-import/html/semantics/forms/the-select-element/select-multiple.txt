@@ -1,0 +1,14 @@
+Summary
+
+Harness status: OK
+
+Rerun
+
+Found 3 tests
+
+2 Pass
+1 Fail
+Details
+Result	Test Name	MessagePass	multiple selected options exist, both set from markup	
+Pass	multiple selected options exist, one set from script	
+Fail	Removing multiple attribute reduces the number of selected OPTIONs to 1	

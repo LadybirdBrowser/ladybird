@@ -1,0 +1,12 @@
+Summary
+
+Harness status: OK
+
+Rerun
+
+Found 2 tests
+
+2 Pass
+Details
+Result	Test Name	MessagePass	test that HTMLSelectElement.add method can add option element	
+Pass	test that HierarchyRequestError exception must be thrown when element is an ancestor of the element into which it is to be inserted	
