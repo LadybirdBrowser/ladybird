@@ -6,11 +6,10 @@ Rerun
 
 Found 5 tests
 
-1 Pass
-4 Fail
+5 Pass
 Details
 Result	Test Name	MessagePass	The last selected OPTION should win; Inserted by parser	
-Fail	The last selected OPTION should win; Inserted by DOM API	
-Fail	The last selected OPTION should win; Inserted by jQuery append()	
-Fail	The last selected OPTION should win; Inserted by innerHTML	
-Fail	If an OPTION says it is selected, it should be selected after it is inserted.	
+Pass	The last selected OPTION should win; Inserted by DOM API	
+Pass	The last selected OPTION should win; Inserted by jQuery append()	
+Pass	The last selected OPTION should win; Inserted by innerHTML	
+Pass	If an OPTION says it is selected, it should be selected after it is inserted.	

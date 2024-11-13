@@ -6,8 +6,8 @@ Rerun
 
 Found 3 tests
 
-3 Fail
+3 Pass
 Details
-Result	Test Name	MessageFail	ask for reset on node remove, non multiple.	
-Fail	ask for reset on node insert, non multiple.	
-Fail	change selectedness of option, non multiple.	
+Result	Test Name	MessagePass	ask for reset on node remove, non multiple.	
+Pass	ask for reset on node insert, non multiple.	
+Pass	change selectedness of option, non multiple.	

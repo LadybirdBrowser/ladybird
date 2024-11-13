@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2020, the SerenityOS developers.
- * Copyright (c) 2022, Andreas Kling <andreas@ladybird.org>
+ * Copyright (c) 2022-2024, Andreas Kling <andreas@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -15,11 +15,14 @@
 #include <LibWeb/HTML/HTMLOptionElement.h>
 #include <LibWeb/HTML/HTMLScriptElement.h>
 #include <LibWeb/HTML/HTMLSelectElement.h>
+#include <LibWeb/HighResolutionTime/TimeOrigin.h>
 #include <LibWeb/Infra/Strings.h>
 
 namespace Web::HTML {
 
 JS_DEFINE_ALLOCATOR(HTMLOptionElement);
+
+static u64 m_next_selectedness_update_index = 1;
 
 HTMLOptionElement::HTMLOptionElement(DOM::Document& document, DOM::QualifiedName qualified_name)
     : HTMLElement(document, move(qualified_name))
@@ -42,13 +45,13 @@ void HTMLOptionElement::attribute_changed(FlyString const& name, Optional<String
         if (!value.has_value()) {
             // Whenever an option element's selected attribute is removed, if its dirtiness is false, its selectedness must be set to false.
             if (!m_dirty)
-                m_selected = false;
+                set_selected_internal(false);
         } else {
             // Except where otherwise specified, when the element is created, its selectedness must be set to true
             // if the element has a selected attribute. Whenever an option element's selected attribute is added,
             // if its dirtiness is false, its selectedness must be set to true.
             if (!m_dirty)
-                m_selected = true;
+                set_selected_internal(true);
         }
     }
 }
@@ -65,6 +68,8 @@ void HTMLOptionElement::set_selected(bool selected)
 void HTMLOptionElement::set_selected_internal(bool selected)
 {
     m_selected = selected;
+    if (selected)
+        m_selectedness_update_index = m_next_selectedness_update_index++;
 }
 
 // https://html.spec.whatwg.org/multipage/form-elements.html#dom-option-value
@@ -139,7 +144,7 @@ void HTMLOptionElement::ask_for_a_reset()
 {
     // If an option element in the list of options asks for a reset, then run that select element's selectedness setting algorithm.
     if (auto* select = first_ancestor_of_type<HTMLSelectElement>()) {
-        select->update_selectedness(this);
+        select->update_selectedness();
     }
 }
 
@@ -175,6 +180,37 @@ Optional<ARIA::Role> HTMLOptionElement::default_role() const
     // https://www.w3.org/TR/html-aria/#el-option
     // TODO: Only an option element that is in a list of options or that represents a suggestion in a datalist should return option
     return ARIA::Role::option;
+}
+
+void HTMLOptionElement::inserted()
+{
+    Base::inserted();
+
+    set_selected_internal(selected());
+
+    // 1. The option HTML element insertion steps, given insertedNode, are:
+    //    If insertedNode's parent is a select element,
+    //    or insertedNode's parent is an optgroup element whose parent is a select element,
+    //    then run that select element's selectedness setting algorithm.
+    if (is<HTMLSelectElement>(*parent()))
+        static_cast<HTMLSelectElement&>(*parent()).update_selectedness();
+    else if (is<HTMLOptGroupElement>(parent()) && parent()->parent() && is<HTMLSelectElement>(*parent()->parent()))
+        static_cast<HTMLSelectElement&>(*parent()->parent()).update_selectedness();
+}
+
+void HTMLOptionElement::removed_from(Node* old_parent)
+{
+    Base::removed_from(old_parent);
+
+    // The option HTML element removing steps, given removedNode and oldParent, are:
+    // 1. If oldParent is a select element, or oldParent is an optgroup element whose parent is a select element,
+    //    then run that select element's selectedness setting algorithm.
+    if (old_parent) {
+        if (is<HTMLSelectElement>(*old_parent))
+            static_cast<HTMLSelectElement&>(*old_parent).update_selectedness();
+        else if (is<HTMLOptGroupElement>(*old_parent) && old_parent->parent_element() && is<HTMLSelectElement>(old_parent->parent_element()))
+            static_cast<HTMLSelectElement&>(*old_parent->parent_element()).update_selectedness();
+    }
 }
 
 }

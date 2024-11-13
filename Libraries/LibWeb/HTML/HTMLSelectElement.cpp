@@ -211,7 +211,7 @@ void HTMLSelectElement::reset_algorithm()
     // The reset algorithm for select elements is to go through all the option elements in the element's list of options,
     for (auto const& option_element : list_of_options()) {
         // set their selectedness to true if the option element has a selected attribute, and false otherwise,
-        option_element->m_selected = option_element->has_attribute(AttributeNames::selected);
+        option_element->set_selected_internal(option_element->has_attribute(AttributeNames::selected));
         // set their dirtiness to false,
         option_element->m_dirty = false;
         // and then have the option elements ask for a reset.
@@ -241,13 +241,13 @@ void HTMLSelectElement::set_selected_index(WebIDL::Long index)
     // if any, must have its selectedness set to true and its dirtiness set to true.
     auto options = list_of_options();
     for (auto& option : options)
-        option->m_selected = false;
+        option->set_selected_internal(false);
 
     if (index < 0 || index >= static_cast<int>(options.size()))
         return;
 
     auto& selected_option = options[index];
-    selected_option->m_selected = true;
+    selected_option->set_selected_internal(true);
     selected_option->m_dirty = true;
 }
 
@@ -256,6 +256,12 @@ i32 HTMLSelectElement::default_tab_index_value() const
 {
     // See the base function for the spec comments.
     return 0;
+}
+
+void HTMLSelectElement::children_changed()
+{
+    Base::children_changed();
+    update_selectedness();
 }
 
 // https://html.spec.whatwg.org/multipage/form-elements.html#dom-select-type
@@ -562,7 +568,7 @@ void HTMLSelectElement::update_inner_text_element()
 }
 
 // https://html.spec.whatwg.org/multipage/form-elements.html#selectedness-setting-algorithm
-void HTMLSelectElement::update_selectedness(JS::GCPtr<HTML::HTMLOptionElement> last_selected_option)
+void HTMLSelectElement::update_selectedness()
 {
     if (has_attribute(AttributeNames::multiple))
         return;
@@ -605,14 +611,22 @@ void HTMLSelectElement::update_selectedness(JS::GCPtr<HTML::HTMLOptionElement> l
     if (number_of_selected >= 2) {
         // then set the selectedness of all but the last option element with its selectedness set to true
         // in the list of options in tree order to false.
+        JS::GCPtr<HTML::HTMLOptionElement> last_selected_option;
+        u64 last_selected_option_update_index = 0;
+
         for (auto const& option_element : list_of_options()) {
-            if (option_element == last_selected_option)
+            if (!option_element->selected())
                 continue;
-            if (number_of_selected == 1) {
-                break;
+            if (!last_selected_option
+                || option_element->selectedness_update_index() > last_selected_option_update_index) {
+                last_selected_option = option_element;
+                last_selected_option_update_index = option_element->selectedness_update_index();
             }
-            option_element->set_selected_internal(false);
-            --number_of_selected;
+        }
+
+        for (auto const& option_element : list_of_options()) {
+            if (option_element != last_selected_option)
+                option_element->set_selected_internal(false);
         }
     }
     update_inner_text_element();

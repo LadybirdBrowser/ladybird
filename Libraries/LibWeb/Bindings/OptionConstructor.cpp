@@ -77,7 +77,7 @@ JS::ThrowCompletionOr<JS::NonnullGCPtr<JS::Object>> OptionConstructor::construct
     }
 
     // 6. If selected is true, then set option's selectedness to true; otherwise set its selectedness to false (even if defaultSelected is true).
-    option_element->m_selected = vm.argument(3).to_boolean();
+    option_element->set_selected_internal(vm.argument(3).to_boolean());
 
     // 7. Return option.
     return option_element;
