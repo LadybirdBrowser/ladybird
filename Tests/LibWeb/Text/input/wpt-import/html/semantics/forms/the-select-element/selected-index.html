@@ -1,0 +1,143 @@
+<!doctype html>
+<meta charset=utf-8>
+<title>HTMLSelectElement selectedIndex</title>
+<script src="../../../../resources/testharness.js"></script>
+<script src="../../../../resources/testharnessreport.js"></script>
+<div id=log></div>
+
+<form id=form>
+  <select id=empty></select>
+
+  <select id=default>
+    <option></option>
+    <option></option>
+    <option></option>
+    <option></option>
+    <option></option>
+  </select>
+
+  <select id=disabled>
+    <option disabled></option>
+    <option></option>
+  </select>
+
+  <select id=selected>
+    <option></option>
+    <option selected></option>
+  </select>
+
+  <select id=display-none>
+    <option style="display:none"></option>
+    <option></option>
+  </select>
+
+  <select id=minus-one>
+    <option value=1>1</option>
+    <option value=2>2</option>
+  </select>
+</form>
+
+<script>
+function assertSelectedIndex(select, value) {
+  assert_equals(select.selectedIndex, value);
+  assert_equals(select.options.selectedIndex, value);
+}
+
+function assertSelectValue(select, value) {
+  assert_equals(select.value, value);
+}
+
+test(function () {
+  var select = document.getElementById('empty');
+  assertSelectedIndex(select, -1);
+}, "get empty");
+
+test(function () {
+  var select = document.getElementById('default');
+  assertSelectedIndex(select, 0);
+}, "get default");
+
+test(function () {
+  var select = document.getElementById('disabled');
+  assertSelectedIndex(select, 1);
+}, "get disabled");
+
+test(function () {
+  var select = document.getElementById('selected');
+  assertSelectedIndex(select, 1);
+}, "get unselected");
+
+test(function () {
+  var select = document.getElementById('empty');
+  select.selectedIndex = 1;
+  assertSelectedIndex(select, -1);
+}, "set empty (HTMLSelectElement)");
+
+test(function () {
+  var select = document.getElementById('empty');
+  select.options.selectedIndex = 1;
+  assertSelectedIndex(select, -1);
+}, "set empty (HTMLOptionsCollection)");
+
+test(function () {
+  var select = document.getElementById('default');
+  assertSelectedIndex(select, 0);
+  select.selectedIndex = 2;
+  assertSelectedIndex(select, 2);
+  this.add_cleanup(() => { select.selectedIndex = 0; });
+}, "set (HTMLSelectElement)");
+
+test(function () {
+  var select = document.getElementById('default');
+  assertSelectedIndex(select, 0);
+  select.options.selectedIndex = 2;
+  assertSelectedIndex(select, 2);
+  this.add_cleanup(() => { select.selectedIndex = 0; });
+}, "set (HTMLOptionsCollection)");
+
+test(function () {
+  var select = document.getElementById('selected');
+  var form = document.getElementById('form');
+  assertSelectedIndex(select, 1);
+  select.selectedIndex = 0;
+  assertSelectedIndex(select, 0);
+  form.reset();
+  assertSelectedIndex(select, 1);
+}, "set and reset (HTMLSelectElement)");
+
+test(function () {
+  var select = document.getElementById('selected');
+  var form = document.getElementById('form');
+  assertSelectedIndex(select, 1);
+  select.options.selectedIndex = 0;
+  assertSelectedIndex(select, 0);
+  form.reset();
+  assertSelectedIndex(select, 1);
+}, "set and reset (HTMLOptionsCollection)");
+
+test(function () {
+  var select = document.getElementById('display-none');
+  assertSelectedIndex(select, 0);
+}, "get display:none");
+
+test(function () {
+  var select = document.getElementById('display-none');
+  select.offsetTop; // force rendering
+  assertSelectedIndex(select, 0);
+  select.options[1].selected = true;
+  assertSelectedIndex(select, 1);
+  select.options[1].selected = false;
+  assertSelectedIndex(select, 0);
+}, "reset to display:none");
+
+test(function() {
+  var select = document.getElementById("minus-one");
+  assertSelectedIndex(select, 0);
+
+  select.selectedIndex = -1;
+
+  assertSelectedIndex(select, -1);
+  assertSelectValue(select, "");
+
+}, "set selectedIndex=-1");
+</script>

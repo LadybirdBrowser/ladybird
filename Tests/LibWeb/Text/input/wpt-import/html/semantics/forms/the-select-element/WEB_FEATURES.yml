@@ -1,0 +1,9 @@
+features:
+- name: constraint-validation
+  files:
+  - select-setcustomvalidity.html
+  - select-validity.html
+  - select-willvalidate-readonly-attribute.html
+- name: show-picker-select
+  files:
+  - show-picker-*

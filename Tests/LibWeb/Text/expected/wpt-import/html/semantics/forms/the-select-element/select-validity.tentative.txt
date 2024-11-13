@@ -1,0 +1,12 @@
+Summary
+
+Harness status: OK
+
+Rerun
+
+Found 2 tests
+
+2 Fail
+Details
+Result	Test Name	MessageFail	Validation for placeholder option	
+Fail	Check form not submitted for invalid select	undefined is not a function (evaluated from 'select2.checkValidity')

@@ -1,0 +1,97 @@
+<!doctype html>
+<meta charset=utf-8>
+<title>HTMLSelectElement ask for reset</title>
+<link rel="author" title="Dongie Agnir" href="dongie.agnir@gmail.com">
+<script src="../../../../resources/testharness.js"></script>
+<script src="../../../../resources/testharnessreport.js"></script>
+<div id=log></div>
+<script>
+test(function() {
+  var select = makeSelect(5);
+
+  select.children[4].selected = true;
+  unselectedExcept(select, 4);
+
+  select.children[4].remove();
+  unselectedExcept(select, 0); // remove selected node, should default to first
+
+  select.children[3].selected = true;
+
+  select.children[0].remove();
+  unselectedExcept(select, 2); // last node still selected
+
+  select.size = 2;
+  select.children[2].remove();
+
+  unselectedExcept(select, null);
+}, "ask for reset on node remove, non multiple.");
+
+test(function() {
+  var select = makeSelect(3);
+  select.children[1].selected = true;
+
+  // insert selected option, should remain selected
+  var opt4 = document.createElement("option");
+  opt4.selected = true;
+  select.appendChild(opt4);
+  unselectedExcept(select, 3);
+
+  // insert unselected, 3 should remain selected
+  var opt5 = document.createElement("option");
+  select.appendChild(opt5);
+  unselectedExcept(select, 3);
+}, "ask for reset on node insert, non multiple.");
+
+test(function() {
+  var select = makeSelect(3);
+
+  var options = select.children;
+
+  // select options from first to last
+  for (var i = 0; i < options.length; ++i) {
+    options[i].selected = true;
+    unselectedExcept(select, i);
+  }
+
+  // select options from last to first
+  for (var i = options.length - 1; i >= 0; --i) {
+    options[i].selected = true;
+    unselectedExcept(select, i);
+  }
+
+  options[2].selected = true;
+  options[2].selected = false; // none selected
+  unselectedExcept(select, 0);
+
+  // disable first so option at index 1 is first eligible
+  options[0].disabled = true;
+  options[2].selected = true;
+  options[2].selected = false; // none selected
+  unselectedExcept(select, 1);
+
+  select.size = 2;
+  options[1].selected = false;
+  unselectedExcept(select, null); // size > 1 so should not default to any
+}, "change selectedness of option, non multiple.");
+
+
+function unselectedExcept(sel, opt) {
+  for (var i = 0; i < sel.children.length; ++i) {
+    if (i != opt) {
+      assert_false(sel.children[i].selected, "option should not be selected.");
+    }
+    if (opt != null) {
+      assert_true(sel.children[opt].selected, "option should be selected.");
+    }
+  }
+}
+
+function makeSelect(n) {
+  var sel = document.createElement("select");
+  for (var i = 0; i < n; ++i) {
+    opt = document.createElement("option");
+    sel.appendChild(opt);
+  }
+  return sel;
+}
+</script>

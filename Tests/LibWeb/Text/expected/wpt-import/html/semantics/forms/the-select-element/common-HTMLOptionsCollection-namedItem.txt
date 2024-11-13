@@ -1,0 +1,16 @@
+Summary
+
+Harness status: OK
+
+Rerun
+
+Found 6 tests
+
+6 Pass
+Details
+Result	Test Name	MessagePass	if only one item has a *name* or id value matching the parameter, return that object and stop	
+Pass	if only one item has a name or *id* value matching the parameter, return that object and stop	
+Pass	if no item has a name or id value matching the parameter, return null and stop	
+Pass	if multiple items have a name or *id* value matching the parameter, return the first object and stop	
+Pass	if multiple items have a *name* or id value matching the parameter, return the first object and stop	
+Pass	if multiple items have a *name* or *id* value matching the parameter, return the first object and stop	

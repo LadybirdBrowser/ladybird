@@ -1,0 +1,15 @@
+<!doctype html>
+<meta charset=EUC-JP>
+<title>Test for the backslash sign in option.text</title>
+<script src=../../../../resources/testharness.js></script>
+<script src=../../../../resources/testharnessreport.js></script>
+<div id=log></div>
+<select id=test><option>\</option></select>
+<script>
+test(function() {
+  var select = document.getElementById("test");
+  var option = select.firstChild;
+  assert_equals(option.text, "\\");
+  assert_equals(option.textContent, "\\");
+});
+</script>

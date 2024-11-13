@@ -1,0 +1,14 @@
+Summary
+
+Harness status: OK
+
+Rerun
+
+Found 3 tests
+
+1 Pass
+2 Fail
+Details
+Result	Test Name	MessageFail	Validate Enter, Up/Down Arrow, and Space keyboard accessibility support for <select>	
+Pass	Firing a synthetic event at a select's option doesn't crash	
+Fail	Validate Enter, Up/Down Arrow keyboard accessibility support for disabled <select>	

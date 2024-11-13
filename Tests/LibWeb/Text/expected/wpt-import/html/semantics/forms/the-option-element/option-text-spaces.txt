@@ -1,0 +1,60 @@
+Summary
+
+Harness status: OK
+
+Rerun
+
+Found 50 tests
+
+50 Pass
+Details
+Result	Test Name	MessagePass	HTMLOptionElement.text	
+Pass	option.text should strip leading space characters (" ")	
+Pass	option.text should strip leading space characters ("\t")	
+Pass	option.text should strip leading space characters ("\n")	
+Pass	option.text should strip leading space characters ("\f")	
+Pass	option.text should strip leading space characters ("\r")	
+Pass	option.text should strip trailing space characters (" ")	
+Pass	option.text should strip trailing space characters ("\t")	
+Pass	option.text should strip trailing space characters ("\n")	
+Pass	option.text should strip trailing space characters ("\f")	
+Pass	option.text should strip trailing space characters ("\r")	
+Pass	option.text should strip leading and trailing space characters (" ")	
+Pass	option.text should strip leading and trailing space characters ("\t")	
+Pass	option.text should strip leading and trailing space characters ("\n")	
+Pass	option.text should strip leading and trailing space characters ("\f")	
+Pass	option.text should strip leading and trailing space characters ("\r")	
+Pass	option.text should replace single internal space characters (" ")	
+Pass	option.text should replace single internal space characters ("\t")	
+Pass	option.text should replace single internal space characters ("\n")	
+Pass	option.text should replace single internal space characters ("\f")	
+Pass	option.text should replace single internal space characters ("\r")	
+Pass	option.text should replace multiple internal space characters (" ", " ")	
+Pass	option.text should replace multiple internal space characters (" ", "\t")	
+Pass	option.text should replace multiple internal space characters (" ", "\n")	
+Pass	option.text should replace multiple internal space characters (" ", "\f")	
+Pass	option.text should replace multiple internal space characters (" ", "\r")	
+Pass	option.text should replace multiple internal space characters ("\t", " ")	
+Pass	option.text should replace multiple internal space characters ("\t", "\t")	
+Pass	option.text should replace multiple internal space characters ("\t", "\n")	
+Pass	option.text should replace multiple internal space characters ("\t", "\f")	
+Pass	option.text should replace multiple internal space characters ("\t", "\r")	
+Pass	option.text should replace multiple internal space characters ("\n", " ")	
+Pass	option.text should replace multiple internal space characters ("\n", "\t")	
+Pass	option.text should replace multiple internal space characters ("\n", "\n")	
+Pass	option.text should replace multiple internal space characters ("\n", "\f")	
+Pass	option.text should replace multiple internal space characters ("\n", "\r")	
+Pass	option.text should replace multiple internal space characters ("\f", " ")	
+Pass	option.text should replace multiple internal space characters ("\f", "\t")	
+Pass	option.text should replace multiple internal space characters ("\f", "\n")	
+Pass	option.text should replace multiple internal space characters ("\f", "\f")	
+Pass	option.text should replace multiple internal space characters ("\f", "\r")	
+Pass	option.text should replace multiple internal space characters ("\r", " ")	
+Pass	option.text should replace multiple internal space characters ("\r", "\t")	
+Pass	option.text should replace multiple internal space characters ("\r", "\n")	
+Pass	option.text should replace multiple internal space characters ("\r", "\f")	
+Pass	option.text should replace multiple internal space characters ("\r", "\r")	
+Pass	option.text should leave leading NBSP alone.	
+Pass	option.text should leave trailing NBSP alone.	
+Pass	option.text should leave a single internal NBSP alone.	
+Pass	option.text should leave two internal NBSPs alone.	

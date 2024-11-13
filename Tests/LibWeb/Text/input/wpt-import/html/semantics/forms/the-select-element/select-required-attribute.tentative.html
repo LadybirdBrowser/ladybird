@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<title>HTMLselectElement Test: required attribute</title>
+<link rel="author" title="Ionel Popescu" href="mailto:iopopesc@microsoft.com">
+<script src="../../../../resources/testharness.js"></script>
+<script src="../../../../resources/testharnessreport.js"></script>
+
+<style>
+  select:required {
+    border: 3px dashed rgb(255, 0, 0);
+  }
+
+  select:optional {
+    border: 1px solid rgb(128, 128, 128);
+  }
+
+  select, ::picker(select) {
+    appearance: base-select;
+  }
+</style>
+
+<select id="select0" required>
+  <option>one</option>
+  <option>two</option>
+  <option>three</option>
+</select>
+
+<select id="select1">
+  <option>one</option>
+  <option>two</option>
+  <option>three</option>
+</select>
+
+<select id="select2">
+  <option>one</option>
+  <option>two</option>
+  <option>three</option>
+</select>
+
+<script>
+function checkRequired(style) {
+  assert_equals(style.borderWidth, '3px');
+  assert_equals(style.borderStyle, 'dashed');
+  assert_equals(style.borderColor, 'rgb(255, 0, 0)');
+}
+
+function checkOptional(style) {
+  assert_equals(style.borderWidth, '1px');
+  assert_equals(style.borderStyle, 'solid');
+  assert_equals(style.borderColor, 'rgb(128, 128, 128)');
+}
+
+test(() => {
+  const select0 = document.getElementById("select0");
+  const select1 = document.getElementById("select1");
+  const select2 = document.getElementById("select2");
+
+  checkRequired(window.getComputedStyle(select0));
+  checkOptional(window.getComputedStyle(select1));
+  checkOptional(window.getComputedStyle(select2));
+  select2.required = true;
+  checkRequired(window.getComputedStyle(select2));
+}, "Test required attribute");
+
+</script>

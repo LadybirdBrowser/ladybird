@@ -1,0 +1,14 @@
+Summary
+
+Harness status: OK
+
+Rerun
+
+Found 3 tests
+
+1 Pass
+2 Fail
+Details
+Result	Test Name	MessagePass	if before and node are the same element nothing should be done	
+Fail	add method should add option elements correctly	Cannot access property "value" on undefined object "selly[i]"
+Fail	add method should add option groups correctly	Cannot access property "value" on undefined object "selly[i]"

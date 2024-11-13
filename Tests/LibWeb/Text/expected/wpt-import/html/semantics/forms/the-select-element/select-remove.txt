@@ -1,0 +1,14 @@
+Summary
+
+Harness status: OK
+
+Rerun
+
+Found 4 tests
+
+4 Pass
+Details
+Result	Test Name	MessagePass	select.remove(n) should work	
+Pass	select.options.remove(n) should work	
+Pass	remove() should work on select elements.	
+Pass	Element#remove() should work on select elements.	
