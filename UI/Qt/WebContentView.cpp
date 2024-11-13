@@ -20,11 +20,9 @@
 #include <LibGfx/Palette.h>
 #include <LibGfx/Rect.h>
 #include <LibGfx/SystemTheme.h>
-#include <LibWeb/Crypto/Crypto.h>
 #include <LibWeb/UIEvents/KeyCode.h>
 #include <LibWeb/UIEvents/MouseButton.h>
 #include <LibWebView/Application.h>
-#include <LibWebView/HelperProcess.h>
 #include <LibWebView/WebContentClient.h>
 #include <UI/Qt/Application.h>
 #include <UI/Qt/StringUtils.h>
@@ -619,36 +617,10 @@ void WebContentView::update_screen_rects()
 
 void WebContentView::initialize_client(WebView::ViewImplementation::CreateNewClient create_new_client)
 {
-    if (create_new_client == CreateNewClient::Yes) {
-        m_client_state = {};
-
-        // FIXME: Fail to open the tab, rather than crashing the whole application if these fail.
-        auto request_server_socket = WebView::connect_new_request_server_client().release_value_but_fixme_should_propagate_errors();
-        auto image_decoder_socket = WebView::connect_new_image_decoder_client().release_value_but_fixme_should_propagate_errors();
-
-        m_client_state.client = launch_web_content_process(*this, AK::move(image_decoder_socket), AK::move(request_server_socket)).release_value_but_fixme_should_propagate_errors();
-    } else {
-        m_client_state.client->register_view(m_client_state.page_index, *this);
-    }
-
-    m_client_state.client->on_web_content_process_crash = [this] {
-        Core::deferred_invoke([this] {
-            handle_web_content_process_crash();
-        });
-    };
-
-    m_client_state.client_handle = Web::Crypto::generate_random_uuid().release_value_but_fixme_should_propagate_errors();
-    client().async_set_window_handle(m_client_state.page_index, m_client_state.client_handle);
-
-    client().async_set_device_pixels_per_css_pixel(m_client_state.page_index, m_device_pixel_ratio);
-
-    set_system_visibility_state(m_system_visibility_state);
+    ViewImplementation::initialize_client(create_new_client);
 
     update_palette();
     update_screen_rects();
-
-    if (auto webdriver_content_ipc_path = WebView::Application::chrome_options().webdriver_content_ipc_path; webdriver_content_ipc_path.has_value())
-        client().async_connect_to_webdriver(m_client_state.page_index, *webdriver_content_ipc_path);
 }
 
 void WebContentView::update_cursor(Gfx::StandardCursor cursor)

@@ -10,8 +10,11 @@
 #include <LibCore/StandardPaths.h>
 #include <LibCore/Timer.h>
 #include <LibGfx/ImageFormats/PNGWriter.h>
+#include <LibWeb/Crypto/Crypto.h>
 #include <LibWeb/Infra/Strings.h>
 #include <LibWebView/Application.h>
+#include <LibWebView/HelperProcess.h>
+#include <LibWebView/UserAgent.h>
 #include <LibWebView/ViewImplementation.h>
 
 #ifdef AK_OS_MACOS
@@ -498,6 +501,45 @@ void ViewImplementation::did_allocate_iosurface_backing_stores(i32 front_id, Cor
 void ViewImplementation::handle_resize()
 {
     client().async_set_viewport_size(page_id(), this->viewport_size());
+}
+
+void ViewImplementation::initialize_client(CreateNewClient create_new_client)
+{
+    if (create_new_client == CreateNewClient::Yes) {
+        m_client_state = {};
+
+        // FIXME: Fail to open the tab, rather than crashing the whole application if these fail.
+        auto request_server_socket = connect_new_request_server_client().release_value_but_fixme_should_propagate_errors();
+        auto image_decoder_socket = connect_new_image_decoder_client().release_value_but_fixme_should_propagate_errors();
+
+        m_client_state.client = launch_web_content_process(*this, AK::move(image_decoder_socket), AK::move(request_server_socket)).release_value_but_fixme_should_propagate_errors();
+    } else {
+        m_client_state.client->register_view(m_client_state.page_index, *this);
+    }
+
+    m_client_state.client->on_web_content_process_crash = [this] {
+        Core::deferred_invoke([this] {
+            handle_web_content_process_crash();
+
+            if (on_web_content_crashed)
+                on_web_content_crashed();
+        });
+    };
+
+    m_client_state.client_handle = MUST(Web::Crypto::generate_random_uuid());
+    client().async_set_window_handle(m_client_state.page_index, m_client_state.client_handle);
+
+    client().async_set_device_pixels_per_css_pixel(m_client_state.page_index, m_device_pixel_ratio);
+    client().async_set_system_visibility_state(m_client_state.page_index, m_system_visibility_state);
+
+    if (auto webdriver_content_ipc_path = Application::chrome_options().webdriver_content_ipc_path; webdriver_content_ipc_path.has_value())
+        client().async_connect_to_webdriver(m_client_state.page_index, *webdriver_content_ipc_path);
+
+    if (Application::chrome_options().allow_popups == AllowPopups::Yes)
+        client().async_debug_request(m_client_state.page_index, "block-pop-ups"sv, "off"sv);
+
+    if (auto const& user_agent_preset = Application::web_content_options().user_agent_preset; user_agent_preset.has_value())
+        client().async_debug_request(m_client_state.page_index, "spoof-user-agent"sv, *user_agents.get(*user_agent_preset));
 }
 
 void ViewImplementation::handle_web_content_process_crash(LoadErrorPage load_error_page)
