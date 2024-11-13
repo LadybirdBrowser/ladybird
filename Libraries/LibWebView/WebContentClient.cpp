@@ -9,6 +9,7 @@
 #include "ViewImplementation.h"
 #include <LibWeb/Cookie/ParsedCookie.h>
 #include <LibWebView/CookieJar.h>
+#include <LibWebView/HelperProcess.h>
 
 namespace WebView {
 
@@ -667,8 +668,8 @@ void WebContentClient::inspector_did_export_inspector_html(u64 page_id, String c
 Messages::WebContentClient::RequestWorkerAgentResponse WebContentClient::request_worker_agent(u64 page_id)
 {
     if (auto view = view_for_page_id(page_id); view.has_value()) {
-        if (view->on_request_worker_agent)
-            return view->on_request_worker_agent();
+        auto worker_client = MUST(WebView::launch_web_worker_process());
+        return worker_client->clone_transport();
     }
 
     return IPC::File {};

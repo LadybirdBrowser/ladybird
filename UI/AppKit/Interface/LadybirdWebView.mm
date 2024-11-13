@@ -12,7 +12,6 @@
 #include <LibURL/URL.h>
 #include <LibWeb/HTML/SelectedFile.h>
 #include <LibWebView/Application.h>
-#include <LibWebView/HelperProcess.h>
 #include <LibWebView/SearchEngine.h>
 #include <LibWebView/SourceHighlighter.h>
 #include <LibWebView/URL.h>
@@ -343,11 +342,6 @@ static void copy_data_to_clipboard(StringView data, NSPasteboardType pasteboard_
         }
 
         return [self.observer onCreateNewTab:{} activateTab:activate_tab];
-    };
-
-    m_web_view_bridge->on_request_worker_agent = []() {
-        auto worker_client = MUST(WebView::launch_web_worker_process());
-        return worker_client->clone_transport();
     };
 
     m_web_view_bridge->on_activate_tab = [weak_self]() {
