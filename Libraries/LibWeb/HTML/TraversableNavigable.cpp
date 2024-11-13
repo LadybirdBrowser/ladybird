@@ -26,7 +26,7 @@ JS_DEFINE_ALLOCATOR(TraversableNavigable);
 
 TraversableNavigable::TraversableNavigable(JS::NonnullGCPtr<Page> page)
     : Navigable(page)
-    , m_session_history_traversal_queue(vm().heap().allocate_without_realm<SessionHistoryTraversalQueue>())
+    , m_session_history_traversal_queue(vm().heap().allocate<SessionHistoryTraversalQueue>())
 {
 #ifdef AK_OS_MACOS
     auto display_list_player_type = page->client().display_list_player_type();
@@ -94,7 +94,7 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<TraversableNavigable>> TraversableNavigable
     }
 
     // 4. Let documentState be a new document state, with
-    auto document_state = vm.heap().allocate_without_realm<DocumentState>();
+    auto document_state = vm.heap().allocate<DocumentState>();
 
     // document: document
     document_state->set_document(document);
@@ -112,7 +112,7 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<TraversableNavigable>> TraversableNavigable
     document_state->set_about_base_url(document->about_base_url());
 
     // 5. Let traversable be a new traversable navigable.
-    auto traversable = vm.heap().allocate_without_realm<TraversableNavigable>(page);
+    auto traversable = vm.heap().allocate<TraversableNavigable>(page);
 
     // 6. Initialize the navigable traversable given documentState.
     TRY_OR_THROW_OOM(vm, traversable->initialize_navigable(document_state, nullptr));
@@ -514,7 +514,7 @@ TraversableNavigable::HistoryStepResult TraversableNavigable::apply_the_history_
             auto target_entry = navigable->current_session_history_entry();
 
             // 3. Let changingNavigableContinuation be a changing navigable continuation state with:
-            auto changing_navigable_continuation = vm.heap().allocate_without_realm<ChangingNavigableContinuationState>();
+            auto changing_navigable_continuation = vm.heap().allocate<ChangingNavigableContinuationState>();
             changing_navigable_continuation->displayed_document = displayed_entry->document();
             changing_navigable_continuation->target_entry = target_entry;
             changing_navigable_continuation->navigable = navigable;

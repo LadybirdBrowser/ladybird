@@ -55,7 +55,7 @@ ThrowCompletionOr<void> SyntheticModule::link(VM& vm)
     // Note: This must be true because we use a reference.
 
     // 3. Let env be NewModuleEnvironment(realm.[[GlobalEnv]]).
-    auto environment = vm.heap().allocate_without_realm<ModuleEnvironment>(&realm().global_environment());
+    auto environment = vm.heap().allocate<ModuleEnvironment>(&realm().global_environment());
 
     // 4. Set module.[[Environment]] to env.
     set_environment(environment);
@@ -143,7 +143,7 @@ NonnullGCPtr<SyntheticModule> SyntheticModule::create_default_export_synthetic_m
     };
 
     // 2. Return CreateSyntheticModule("default", closure, realm)
-    return realm.heap().allocate_without_realm<SyntheticModule>(Vector<DeprecatedFlyString> { "default" }, move(closure), realm, filename);
+    return realm.heap().allocate<SyntheticModule>(Vector<DeprecatedFlyString> { "default" }, move(closure), realm, filename);
 }
 
 // 1.4 ParseJSONModule ( source ), https://tc39.es/proposal-json-modules/#sec-parse-json-module

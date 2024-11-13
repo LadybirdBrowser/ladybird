@@ -16,7 +16,7 @@ JS_DEFINE_ALLOCATOR(Timer);
 JS::NonnullGCPtr<Timer> Timer::create(JS::Object& window_or_worker_global_scope, i32 milliseconds, Function<void()> callback, i32 id)
 {
     auto heap_function_callback = JS::create_heap_function(window_or_worker_global_scope.heap(), move(callback));
-    return window_or_worker_global_scope.heap().allocate_without_realm<Timer>(window_or_worker_global_scope, milliseconds, heap_function_callback, id);
+    return window_or_worker_global_scope.heap().allocate<Timer>(window_or_worker_global_scope, milliseconds, heap_function_callback, id);
 }
 
 Timer::Timer(JS::Object& window_or_worker_global_scope, i32 milliseconds, JS::NonnullGCPtr<JS::HeapFunction<void()>> callback, i32 id)

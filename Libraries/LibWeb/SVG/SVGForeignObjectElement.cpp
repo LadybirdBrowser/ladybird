@@ -49,7 +49,7 @@ void SVGForeignObjectElement::visit_edges(Cell::Visitor& visitor)
 
 JS::GCPtr<Layout::Node> SVGForeignObjectElement::create_layout_node(CSS::StyleProperties style)
 {
-    return heap().allocate_without_realm<Layout::SVGForeignObjectBox>(document(), *this, move(style));
+    return heap().allocate<Layout::SVGForeignObjectBox>(document(), *this, move(style));
 }
 
 void SVGForeignObjectElement::apply_presentational_hints(CSS::StyleProperties& style) const

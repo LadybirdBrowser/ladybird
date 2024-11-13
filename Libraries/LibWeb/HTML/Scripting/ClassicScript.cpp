@@ -35,7 +35,7 @@ JS::NonnullGCPtr<ClassicScript> ClassicScript::create(ByteString filename, Strin
     // 3. Let script be a new classic script that this algorithm will subsequently initialize.
     // 4. Set script's realm to realm.
     // 5. Set script's base URL to baseURL.
-    auto script = vm.heap().allocate_without_realm<ClassicScript>(move(base_url), move(filename), realm);
+    auto script = vm.heap().allocate<ClassicScript>(move(base_url), move(filename), realm);
 
     // FIXME: 6. Set script's fetch options to options.
 

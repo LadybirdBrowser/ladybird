@@ -237,7 +237,7 @@ JS::GCPtr<SVGElement> SVGUseElement::animated_instance_root() const
 
 JS::GCPtr<Layout::Node> SVGUseElement::create_layout_node(CSS::StyleProperties style)
 {
-    return heap().allocate_without_realm<Layout::SVGGraphicsBox>(document(), *this, move(style));
+    return heap().allocate<Layout::SVGGraphicsBox>(document(), *this, move(style));
 }
 
 }

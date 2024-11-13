@@ -42,7 +42,7 @@ void SVGTextPathElement::visit_edges(Cell::Visitor& visitor)
 
 JS::GCPtr<Layout::Node> SVGTextPathElement::create_layout_node(CSS::StyleProperties style)
 {
-    return heap().allocate_without_realm<Layout::SVGTextPathBox>(document(), *this, move(style));
+    return heap().allocate<Layout::SVGTextPathBox>(document(), *this, move(style));
 }
 
 };

@@ -35,7 +35,7 @@ public:
     template<typename T, typename... Args>
     NonnullGCPtr<T> create(Args&&... args)
     {
-        auto object = heap().allocate_without_realm<T>(forward<Args>(args)...);
+        auto object = heap().allocate<T>(forward<Args>(args)...);
         static_cast<Cell*>(object)->initialize(*this);
         return *object;
     }

@@ -26,7 +26,7 @@ JS::NonnullGCPtr<FetchParams> FetchParams::create(JS::VM& vm, JS::NonnullGCPtr<R
 {
     auto algorithms = Infrastructure::FetchAlgorithms::create(vm, {});
     auto controller = Infrastructure::FetchController::create(vm);
-    return vm.heap().allocate_without_realm<FetchParams>(request, algorithms, controller, timing_info);
+    return vm.heap().allocate<FetchParams>(request, algorithms, controller, timing_info);
 }
 
 void FetchParams::visit_edges(JS::Cell::Visitor& visitor)

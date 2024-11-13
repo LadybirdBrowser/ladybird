@@ -13,7 +13,7 @@ JS_DEFINE_ALLOCATOR(CanvasPaintable);
 
 JS::NonnullGCPtr<CanvasPaintable> CanvasPaintable::create(Layout::CanvasBox const& layout_box)
 {
-    return layout_box.heap().allocate_without_realm<CanvasPaintable>(layout_box);
+    return layout_box.heap().allocate<CanvasPaintable>(layout_box);
 }
 
 CanvasPaintable::CanvasPaintable(Layout::CanvasBox const& layout_box)

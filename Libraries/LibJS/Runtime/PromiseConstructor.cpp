@@ -46,10 +46,10 @@ static ThrowCompletionOr<Value> perform_promise_common(VM& vm, IteratorRecord& i
     VERIFY(promise_resolve.is_function());
 
     // 1. Let values be a new empty List.
-    auto values = vm.heap().allocate_without_realm<PromiseValueList>();
+    auto values = vm.heap().allocate<PromiseValueList>();
 
     // 2. Let remainingElementsCount be the Record { [[Value]]: 1 }.
-    auto remaining_elements_count = vm.heap().allocate_without_realm<RemainingElements>(1);
+    auto remaining_elements_count = vm.heap().allocate<RemainingElements>(1);
 
     // 3. Let index be 0.
     size_t index = 0;

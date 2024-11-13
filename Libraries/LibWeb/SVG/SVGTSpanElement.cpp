@@ -28,7 +28,7 @@ JS::GCPtr<Layout::Node> SVGTSpanElement::create_layout_node(CSS::StyleProperties
 {
     // Text must be within an SVG <text> element.
     if (shadow_including_first_ancestor_of_type<SVGTextElement>())
-        return heap().allocate_without_realm<Layout::SVGTextBox>(document(), *this, move(style));
+        return heap().allocate<Layout::SVGTextBox>(document(), *this, move(style));
     return {};
 }
 

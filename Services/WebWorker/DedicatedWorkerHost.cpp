@@ -49,7 +49,7 @@ void DedicatedWorkerHost::run(JS::NonnullGCPtr<Web::Page> page, Web::HTML::Trans
             // FIXME: Proper support for both SharedWorkerGlobalScope and DedicatedWorkerGlobalScope
             if (is_shared)
                 TODO();
-            return Web::Bindings::main_thread_vm().heap().allocate_without_realm<Web::HTML::DedicatedWorkerGlobalScope>(realm, page);
+            return Web::Bindings::main_thread_vm().heap().allocate<Web::HTML::DedicatedWorkerGlobalScope>(realm, page);
         },
         nullptr);
 
@@ -62,7 +62,7 @@ void DedicatedWorkerHost::run(JS::NonnullGCPtr<Web::Page> page, Web::HTML::Trans
     auto inner_settings = Web::HTML::WorkerEnvironmentSettingsObject::setup(page, move(realm_execution_context), outside_settings_snapshot, unsafe_worker_creation_time);
 
     auto& console_object = *inner_settings->realm().intrinsics().console_object();
-    m_console = console_object.heap().allocate_without_realm<Web::HTML::WorkerDebugConsoleClient>(console_object.console());
+    m_console = console_object.heap().allocate<Web::HTML::WorkerDebugConsoleClient>(console_object.console());
     VERIFY(m_console);
     console_object.console().set_client(*m_console);
 

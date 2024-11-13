@@ -14,7 +14,7 @@ JS_DEFINE_ALLOCATOR(SessionHistoryTraversalQueueEntry);
 
 JS::NonnullGCPtr<SessionHistoryTraversalQueueEntry> SessionHistoryTraversalQueueEntry::create(JS::VM& vm, JS::NonnullGCPtr<JS::HeapFunction<void()>> steps, JS::GCPtr<HTML::Navigable> target_navigable)
 {
-    return vm.heap().allocate_without_realm<SessionHistoryTraversalQueueEntry>(steps, target_navigable);
+    return vm.heap().allocate<SessionHistoryTraversalQueueEntry>(steps, target_navigable);
 }
 
 void SessionHistoryTraversalQueueEntry::visit_edges(JS::Cell::Visitor& visitor)

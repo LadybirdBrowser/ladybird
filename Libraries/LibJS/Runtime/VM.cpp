@@ -68,21 +68,21 @@ VM::VM(OwnPtr<CustomData> custom_data, ErrorMessages error_messages)
 {
     m_bytecode_interpreter = make<Bytecode::Interpreter>(*this);
 
-    m_empty_string = m_heap.allocate_without_realm<PrimitiveString>(String {});
+    m_empty_string = m_heap.allocate<PrimitiveString>(String {});
 
     typeof_strings = {
-        .number = m_heap.allocate_without_realm<PrimitiveString>("number"),
-        .undefined = m_heap.allocate_without_realm<PrimitiveString>("undefined"),
-        .object = m_heap.allocate_without_realm<PrimitiveString>("object"),
-        .string = m_heap.allocate_without_realm<PrimitiveString>("string"),
-        .symbol = m_heap.allocate_without_realm<PrimitiveString>("symbol"),
-        .boolean = m_heap.allocate_without_realm<PrimitiveString>("boolean"),
-        .bigint = m_heap.allocate_without_realm<PrimitiveString>("bigint"),
-        .function = m_heap.allocate_without_realm<PrimitiveString>("function"),
+        .number = m_heap.allocate<PrimitiveString>("number"),
+        .undefined = m_heap.allocate<PrimitiveString>("undefined"),
+        .object = m_heap.allocate<PrimitiveString>("object"),
+        .string = m_heap.allocate<PrimitiveString>("string"),
+        .symbol = m_heap.allocate<PrimitiveString>("symbol"),
+        .boolean = m_heap.allocate<PrimitiveString>("boolean"),
+        .bigint = m_heap.allocate<PrimitiveString>("bigint"),
+        .function = m_heap.allocate<PrimitiveString>("function"),
     };
 
     for (size_t i = 0; i < single_ascii_character_strings.size(); ++i)
-        m_single_ascii_character_strings[i] = m_heap.allocate_without_realm<PrimitiveString>(single_ascii_character_strings[i]);
+        m_single_ascii_character_strings[i] = m_heap.allocate<PrimitiveString>(single_ascii_character_strings[i]);
 
     // Default hook implementations. These can be overridden by the host, for example, LibWeb overrides the default hooks to place promise jobs on the microtask queue.
     host_promise_rejection_tracker = [this](Promise& promise, Promise::RejectionOperation operation) {

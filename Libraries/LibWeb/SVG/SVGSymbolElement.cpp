@@ -76,7 +76,7 @@ bool SVGSymbolElement::is_direct_child_of_use_shadow_tree() const
 
 JS::GCPtr<Layout::Node> SVGSymbolElement::create_layout_node(CSS::StyleProperties style)
 {
-    return heap().allocate_without_realm<Layout::SVGGraphicsBox>(document(), *this, move(style));
+    return heap().allocate<Layout::SVGGraphicsBox>(document(), *this, move(style));
 }
 
 }

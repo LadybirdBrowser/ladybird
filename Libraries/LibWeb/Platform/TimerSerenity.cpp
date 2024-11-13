@@ -13,7 +13,7 @@ namespace Web::Platform {
 
 JS::NonnullGCPtr<TimerSerenity> TimerSerenity::create(JS::Heap& heap)
 {
-    return heap.allocate_without_realm<TimerSerenity>();
+    return heap.allocate<TimerSerenity>();
 }
 
 TimerSerenity::TimerSerenity()

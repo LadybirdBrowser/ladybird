@@ -1362,7 +1362,7 @@ JS::NonnullGCPtr<JS::Cell> dispatch_actions(InputState& input_state, Vector<Vect
 
     // 4. Let actions result be the result of dispatch actions inner with input state, actions by tick, browsing
     //    context, and actions options.
-    auto action_executor = browsing_context.heap().allocate_without_realm<ActionExecutor>(input_state, move(actions_by_tick), browsing_context, move(actions_options), on_complete);
+    auto action_executor = browsing_context.heap().allocate<ActionExecutor>(input_state, move(actions_by_tick), browsing_context, move(actions_options), on_complete);
     action_executor->process_next_tick();
 
     // 5. Dequeue input state's actions queue.

@@ -13,7 +13,7 @@ JS_DEFINE_ALLOCATOR(SVGSVGPaintable);
 
 JS::NonnullGCPtr<SVGSVGPaintable> SVGSVGPaintable::create(Layout::SVGSVGBox const& layout_box)
 {
-    return layout_box.heap().allocate_without_realm<SVGSVGPaintable>(layout_box);
+    return layout_box.heap().allocate<SVGSVGPaintable>(layout_box);
 }
 
 SVGSVGPaintable::SVGSVGPaintable(Layout::SVGSVGBox const& layout_box)

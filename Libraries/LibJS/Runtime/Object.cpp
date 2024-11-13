@@ -39,7 +39,7 @@ NonnullGCPtr<Object> Object::create(Realm& realm, Object* prototype)
 
 NonnullGCPtr<Object> Object::create_prototype(Realm& realm, Object* prototype)
 {
-    auto shape = realm.heap().allocate_without_realm<Shape>(realm);
+    auto shape = realm.heap().allocate<Shape>(realm);
     if (prototype)
         shape->set_prototype_without_transition(prototype);
     return realm.create<Object>(shape);
@@ -54,13 +54,13 @@ Object::Object(GlobalObjectTag, Realm& realm, MayInterfereWithIndexedPropertyAcc
     : m_may_interfere_with_indexed_property_access(may_interfere_with_indexed_property_access == MayInterfereWithIndexedPropertyAccess::Yes)
 {
     // This is the global object
-    m_shape = heap().allocate_without_realm<Shape>(realm);
+    m_shape = heap().allocate<Shape>(realm);
 }
 
 Object::Object(ConstructWithoutPrototypeTag, Realm& realm, MayInterfereWithIndexedPropertyAccess may_interfere_with_indexed_property_access)
     : m_may_interfere_with_indexed_property_access(may_interfere_with_indexed_property_access == MayInterfereWithIndexedPropertyAccess::Yes)
 {
-    m_shape = heap().allocate_without_realm<Shape>(realm);
+    m_shape = heap().allocate<Shape>(realm);
 }
 
 Object::Object(Realm& realm, Object* prototype, MayInterfereWithIndexedPropertyAccess may_interfere_with_indexed_property_access)

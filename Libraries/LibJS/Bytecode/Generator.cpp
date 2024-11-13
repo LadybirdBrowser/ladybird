@@ -422,7 +422,7 @@ CodeGenerationErrorOr<NonnullGCPtr<Executable>> Generator::compile(VM& vm, ASTNo
         label.set_address(block_offsets.get(block).value());
     }
 
-    auto executable = vm.heap().allocate_without_realm<Executable>(
+    auto executable = vm.heap().allocate<Executable>(
         move(bytecode),
         move(generator.m_identifier_table),
         move(generator.m_string_table),

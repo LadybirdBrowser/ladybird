@@ -64,7 +64,7 @@ Promise::ResolvingFunctions Promise::create_resolving_functions()
     auto& realm = *vm.current_realm();
 
     // 1. Let alreadyResolved be the Record { [[Value]]: false }.
-    auto already_resolved = vm.heap().allocate_without_realm<AlreadyResolved>();
+    auto already_resolved = vm.heap().allocate<AlreadyResolved>();
 
     // 2. Let stepsResolve be the algorithm steps defined in Promise Resolve Functions.
     // 3. Let lengthResolve be the number of non-optional parameters of the function definition in Promise Resolve Functions.

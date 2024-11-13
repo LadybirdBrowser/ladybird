@@ -216,7 +216,7 @@ void TreeBuilder::create_pseudo_element_if_needed(DOM::Element& element, CSS::Se
     // FIXME: This code actually computes style for element::marker, and shouldn't for element::pseudo::marker
     if (is<ListItemBox>(*pseudo_element_node)) {
         auto marker_style = style_computer.compute_style(element, CSS::Selector::PseudoElement::Type::Marker);
-        auto list_item_marker = document.heap().allocate_without_realm<ListItemMarkerBox>(
+        auto list_item_marker = document.heap().allocate<ListItemMarkerBox>(
             document,
             pseudo_element_node->computed_values().list_style_type(),
             pseudo_element_node->computed_values().list_style_position(),
@@ -242,7 +242,7 @@ void TreeBuilder::create_pseudo_element_if_needed(DOM::Element& element, CSS::Se
     // FIXME: Handle images, and multiple values
     if (pseudo_element_content.type == CSS::ContentData::Type::String) {
         auto text = document.realm().create<DOM::Text>(document, pseudo_element_content.data);
-        auto text_node = document.heap().allocate_without_realm<Layout::TextNode>(document, *text);
+        auto text_node = document.heap().allocate<Layout::TextNode>(document, *text);
         text_node->set_generated_for(generated_for, element);
 
         push_parent(*pseudo_element_node);
@@ -357,9 +357,9 @@ void TreeBuilder::create_layout_tree(DOM::Node& dom_node, TreeBuilder::Context& 
         // TODO: Implement changing element contents with the `content` property.
         if (context.layout_svg_mask_or_clip_path) {
             if (is<SVG::SVGMaskElement>(dom_node))
-                layout_node = document.heap().allocate_without_realm<Layout::SVGMaskBox>(document, static_cast<SVG::SVGMaskElement&>(dom_node), *style);
+                layout_node = document.heap().allocate<Layout::SVGMaskBox>(document, static_cast<SVG::SVGMaskElement&>(dom_node), *style);
             else if (is<SVG::SVGClipPathElement>(dom_node))
-                layout_node = document.heap().allocate_without_realm<Layout::SVGClipBox>(document, static_cast<SVG::SVGClipPathElement&>(dom_node), *style);
+                layout_node = document.heap().allocate<Layout::SVGClipBox>(document, static_cast<SVG::SVGClipPathElement&>(dom_node), *style);
             else
                 VERIFY_NOT_REACHED();
             // Only layout direct uses of SVG masks/clipPaths.
@@ -370,9 +370,9 @@ void TreeBuilder::create_layout_tree(DOM::Node& dom_node, TreeBuilder::Context& 
     } else if (is<DOM::Document>(dom_node)) {
         style = style_computer.create_document_style();
         display = style->display();
-        layout_node = document.heap().allocate_without_realm<Layout::Viewport>(static_cast<DOM::Document&>(dom_node), *style);
+        layout_node = document.heap().allocate<Layout::Viewport>(static_cast<DOM::Document&>(dom_node), *style);
     } else if (is<DOM::Text>(dom_node)) {
-        layout_node = document.heap().allocate_without_realm<Layout::TextNode>(document, static_cast<DOM::Text&>(dom_node));
+        layout_node = document.heap().allocate<Layout::TextNode>(document, static_cast<DOM::Text&>(dom_node));
         display = CSS::Display(CSS::DisplayOutside::Inline, CSS::DisplayInside::Flow);
     }
 
@@ -430,7 +430,7 @@ void TreeBuilder::create_layout_tree(DOM::Node& dom_node, TreeBuilder::Context& 
     if (is<ListItemBox>(*layout_node)) {
         auto& element = static_cast<DOM::Element&>(dom_node);
         auto marker_style = style_computer.compute_style(element, CSS::Selector::PseudoElement::Type::Marker);
-        auto list_item_marker = document.heap().allocate_without_realm<ListItemMarkerBox>(document, layout_node->computed_values().list_style_type(), layout_node->computed_values().list_style_position(), calculate_list_item_index(dom_node), marker_style);
+        auto list_item_marker = document.heap().allocate<ListItemMarkerBox>(document, layout_node->computed_values().list_style_type(), layout_node->computed_values().list_style_position(), calculate_list_item_index(dom_node), marker_style);
         static_cast<ListItemBox&>(*layout_node).set_marker(list_item_marker);
         element.set_pseudo_element_node({}, CSS::Selector::PseudoElement::Type::Marker, list_item_marker);
         layout_node->append_child(*list_item_marker);
@@ -505,10 +505,10 @@ void TreeBuilder::create_layout_tree(DOM::Node& dom_node, TreeBuilder::Context& 
         mutable_flex_computed_values.set_flex_direction(CSS::FlexDirection::Column);
         mutable_flex_computed_values.set_height(CSS::Size::make_percentage(CSS::Percentage(100)));
         mutable_flex_computed_values.set_min_height(parent.computed_values().min_height());
-        auto flex_wrapper = parent.heap().template allocate_without_realm<BlockContainer>(parent.document(), nullptr, move(flex_computed_values));
+        auto flex_wrapper = parent.heap().template allocate<BlockContainer>(parent.document(), nullptr, move(flex_computed_values));
 
         auto content_box_computed_values = parent.computed_values().clone_inherited_values();
-        auto content_box_wrapper = parent.heap().template allocate_without_realm<BlockContainer>(parent.document(), nullptr, move(content_box_computed_values));
+        auto content_box_wrapper = parent.heap().template allocate<BlockContainer>(parent.document(), nullptr, move(content_box_computed_values));
         content_box_wrapper->set_children_are_inline(parent.children_are_inline());
 
         Vector<JS::Handle<Node>> sequence;
@@ -705,7 +705,7 @@ static void wrap_in_anonymous(Vector<JS::Handle<Node>>& sequence, Node* nearest_
     auto& parent = *sequence.first()->parent();
     auto computed_values = parent.computed_values().clone_inherited_values();
     static_cast<CSS::MutableComputedValues&>(*computed_values).set_display(display);
-    auto wrapper = parent.heap().template allocate_without_realm<WrapperBoxType>(parent.document(), nullptr, move(computed_values));
+    auto wrapper = parent.heap().template allocate<WrapperBoxType>(parent.document(), nullptr, move(computed_values));
     for (auto& child : sequence) {
         parent.remove_child(*child);
         wrapper->append_child(*child);
@@ -793,7 +793,7 @@ Vector<JS::Handle<Box>> TreeBuilder::generate_missing_parents(NodeWithStyle& roo
         auto wrapper_computed_values = table_box->computed_values().clone_inherited_values();
         table_box->transfer_table_box_computed_values_to_wrapper_computed_values(*wrapper_computed_values);
 
-        auto wrapper = parent.heap().allocate_without_realm<TableWrapper>(parent.document(), nullptr, move(wrapper_computed_values));
+        auto wrapper = parent.heap().allocate<TableWrapper>(parent.document(), nullptr, move(wrapper_computed_values));
 
         parent.remove_child(*table_box);
         wrapper->append_child(*table_box);
@@ -828,7 +828,7 @@ static void fixup_row(Box& row_box, TableGrid const& table_grid, size_t row_inde
         mutable_computed_values.set_display(Web::CSS::Display { CSS::DisplayInternal::TableCell });
         // Ensure that the cell (with zero content height) will have the same height as the row by setting vertical-align to middle.
         mutable_computed_values.set_vertical_align(CSS::VerticalAlign::Middle);
-        auto cell_box = row_box.heap().template allocate_without_realm<BlockContainer>(row_box.document(), nullptr, move(computed_values));
+        auto cell_box = row_box.heap().template allocate<BlockContainer>(row_box.document(), nullptr, move(computed_values));
         row_box.append_child(cell_box);
     }
 }

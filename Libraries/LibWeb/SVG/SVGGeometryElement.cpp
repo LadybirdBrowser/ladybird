@@ -24,7 +24,7 @@ void SVGGeometryElement::initialize(JS::Realm& realm)
 
 JS::GCPtr<Layout::Node> SVGGeometryElement::create_layout_node(CSS::StyleProperties style)
 {
-    return heap().allocate_without_realm<Layout::SVGGeometryBox>(document(), *this, move(style));
+    return heap().allocate<Layout::SVGGeometryBox>(document(), *this, move(style));
 }
 
 float SVGGeometryElement::get_total_length()

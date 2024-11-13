@@ -398,17 +398,17 @@ JS::GCPtr<Layout::Node> Element::create_layout_node(CSS::StyleProperties style)
 JS::GCPtr<Layout::NodeWithStyle> Element::create_layout_node_for_display_type(DOM::Document& document, CSS::Display const& display, CSS::StyleProperties style, Element* element)
 {
     if (display.is_table_inside() || display.is_table_row_group() || display.is_table_header_group() || display.is_table_footer_group() || display.is_table_row())
-        return document.heap().allocate_without_realm<Layout::Box>(document, element, move(style));
+        return document.heap().allocate<Layout::Box>(document, element, move(style));
 
     if (display.is_list_item())
-        return document.heap().allocate_without_realm<Layout::ListItemBox>(document, element, move(style));
+        return document.heap().allocate<Layout::ListItemBox>(document, element, move(style));
 
     if (display.is_table_cell())
-        return document.heap().allocate_without_realm<Layout::BlockContainer>(document, element, move(style));
+        return document.heap().allocate<Layout::BlockContainer>(document, element, move(style));
 
     if (display.is_table_column() || display.is_table_column_group() || display.is_table_caption()) {
         // FIXME: This is just an incorrect placeholder until we improve table layout support.
-        return document.heap().allocate_without_realm<Layout::BlockContainer>(document, element, move(style));
+        return document.heap().allocate<Layout::BlockContainer>(document, element, move(style));
     }
 
     if (display.is_math_inside()) {
@@ -416,30 +416,30 @@ JS::GCPtr<Layout::NodeWithStyle> Element::create_layout_node_for_display_type(DO
         // MathML elements with a computed display value equal to block math or inline math control box generation
         // and layout according to their tag name, as described in the relevant sections.
         // FIXME: Figure out what kind of node we should make for them. For now, we'll stick with a generic Box.
-        return document.heap().allocate_without_realm<Layout::BlockContainer>(document, element, move(style));
+        return document.heap().allocate<Layout::BlockContainer>(document, element, move(style));
     }
 
     if (display.is_inline_outside()) {
         if (display.is_flow_root_inside())
-            return document.heap().allocate_without_realm<Layout::BlockContainer>(document, element, move(style));
+            return document.heap().allocate<Layout::BlockContainer>(document, element, move(style));
         if (display.is_flow_inside())
-            return document.heap().allocate_without_realm<Layout::InlineNode>(document, element, move(style));
+            return document.heap().allocate<Layout::InlineNode>(document, element, move(style));
         if (display.is_flex_inside())
-            return document.heap().allocate_without_realm<Layout::Box>(document, element, move(style));
+            return document.heap().allocate<Layout::Box>(document, element, move(style));
         if (display.is_grid_inside())
-            return document.heap().allocate_without_realm<Layout::Box>(document, element, move(style));
+            return document.heap().allocate<Layout::Box>(document, element, move(style));
         dbgln_if(LIBWEB_CSS_DEBUG, "FIXME: Support display: {}", display.to_string());
-        return document.heap().allocate_without_realm<Layout::InlineNode>(document, element, move(style));
+        return document.heap().allocate<Layout::InlineNode>(document, element, move(style));
     }
 
     if (display.is_flex_inside() || display.is_grid_inside())
-        return document.heap().allocate_without_realm<Layout::Box>(document, element, move(style));
+        return document.heap().allocate<Layout::Box>(document, element, move(style));
 
     if (display.is_flow_inside() || display.is_flow_root_inside() || display.is_contents())
-        return document.heap().allocate_without_realm<Layout::BlockContainer>(document, element, move(style));
+        return document.heap().allocate<Layout::BlockContainer>(document, element, move(style));
 
     dbgln("FIXME: CSS display '{}' not implemented yet.", display.to_string());
-    return document.heap().allocate_without_realm<Layout::InlineNode>(document, element, move(style));
+    return document.heap().allocate<Layout::InlineNode>(document, element, move(style));
 }
 
 void Element::run_attribute_change_steps(FlyString const& local_name, Optional<String> const& old_value, Optional<String> const& value, Optional<FlyString> const& namespace_)

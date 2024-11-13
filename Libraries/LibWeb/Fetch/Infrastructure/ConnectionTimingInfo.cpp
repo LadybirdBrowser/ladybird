@@ -16,7 +16,7 @@ ConnectionTimingInfo::ConnectionTimingInfo() = default;
 
 JS::NonnullGCPtr<ConnectionTimingInfo> ConnectionTimingInfo::create(JS::VM& vm)
 {
-    return vm.heap().allocate_without_realm<ConnectionTimingInfo>();
+    return vm.heap().allocate<ConnectionTimingInfo>();
 }
 
 }

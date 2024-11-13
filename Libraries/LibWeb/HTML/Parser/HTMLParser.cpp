@@ -4526,21 +4526,21 @@ Vector<JS::Handle<DOM::Node>> HTMLParser::parse_html_fragment(DOM::Element& cont
 
 JS::NonnullGCPtr<HTMLParser> HTMLParser::create_for_scripting(DOM::Document& document)
 {
-    return document.heap().allocate_without_realm<HTMLParser>(document);
+    return document.heap().allocate<HTMLParser>(document);
 }
 
 JS::NonnullGCPtr<HTMLParser> HTMLParser::create_with_uncertain_encoding(DOM::Document& document, ByteBuffer const& input, Optional<MimeSniff::MimeType> maybe_mime_type)
 {
     if (document.has_encoding())
-        return document.heap().allocate_without_realm<HTMLParser>(document, input, document.encoding().value().to_byte_string());
+        return document.heap().allocate<HTMLParser>(document, input, document.encoding().value().to_byte_string());
     auto encoding = run_encoding_sniffing_algorithm(document, input, maybe_mime_type);
     dbgln_if(HTML_PARSER_DEBUG, "The encoding sniffing algorithm returned encoding '{}'", encoding);
-    return document.heap().allocate_without_realm<HTMLParser>(document, input, encoding);
+    return document.heap().allocate<HTMLParser>(document, input, encoding);
 }
 
 JS::NonnullGCPtr<HTMLParser> HTMLParser::create(DOM::Document& document, StringView input, StringView encoding)
 {
-    return document.heap().allocate_without_realm<HTMLParser>(document, input, encoding);
+    return document.heap().allocate<HTMLParser>(document, input, encoding);
 }
 
 enum class AttributeMode {

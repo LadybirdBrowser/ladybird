@@ -26,7 +26,7 @@ Result<NonnullGCPtr<Script>, Vector<ParserError>> Script::parse(StringView sourc
         return parser.errors();
 
     // 3. Return Script Record { [[Realm]]: realm, [[ECMAScriptCode]]: script, [[HostDefined]]: hostDefined }.
-    return realm.heap().allocate_without_realm<Script>(realm, filename, move(script), host_defined);
+    return realm.heap().allocate<Script>(realm, filename, move(script), host_defined);
 }
 
 Script::Script(Realm& realm, StringView filename, NonnullRefPtr<Program> parse_node, HostDefined* host_defined)

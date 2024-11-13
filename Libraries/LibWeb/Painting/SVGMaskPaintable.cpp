@@ -12,7 +12,7 @@ JS_DEFINE_ALLOCATOR(SVGMaskPaintable);
 
 JS::NonnullGCPtr<SVGMaskPaintable> SVGMaskPaintable::create(Layout::SVGMaskBox const& layout_box)
 {
-    return layout_box.heap().allocate_without_realm<SVGMaskPaintable>(layout_box);
+    return layout_box.heap().allocate<SVGMaskPaintable>(layout_box);
 }
 
 SVGMaskPaintable::SVGMaskPaintable(Layout::SVGMaskBox const& layout_box)

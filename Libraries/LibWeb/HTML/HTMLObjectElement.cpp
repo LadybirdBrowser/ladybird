@@ -147,7 +147,7 @@ JS::GCPtr<Layout::Node> HTMLObjectElement::create_layout_node(CSS::StyleProperti
         return nullptr;
     case Representation::Image:
         if (image_data())
-            return heap().allocate_without_realm<Layout::ImageBox>(document(), *this, move(style), *this);
+            return heap().allocate<Layout::ImageBox>(document(), *this, move(style), *this);
         break;
     default:
         break;

@@ -15,7 +15,7 @@ JS_DEFINE_ALLOCATOR(BigInt);
 
 NonnullGCPtr<BigInt> BigInt::create(VM& vm, Crypto::SignedBigInteger big_integer)
 {
-    return vm.heap().allocate_without_realm<BigInt>(move(big_integer));
+    return vm.heap().allocate<BigInt>(move(big_integer));
 }
 
 BigInt::BigInt(Crypto::SignedBigInteger big_integer)

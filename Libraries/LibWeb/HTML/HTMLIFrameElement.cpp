@@ -35,7 +35,7 @@ void HTMLIFrameElement::initialize(JS::Realm& realm)
 
 JS::GCPtr<Layout::Node> HTMLIFrameElement::create_layout_node(CSS::StyleProperties style)
 {
-    return heap().allocate_without_realm<Layout::FrameBox>(document(), *this, move(style));
+    return heap().allocate<Layout::FrameBox>(document(), *this, move(style));
 }
 
 void HTMLIFrameElement::adjust_computed_style(CSS::StyleProperties& style)

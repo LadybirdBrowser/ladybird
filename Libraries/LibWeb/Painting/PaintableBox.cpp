@@ -34,22 +34,22 @@ namespace Web::Painting {
 
 JS::NonnullGCPtr<PaintableWithLines> PaintableWithLines::create(Layout::BlockContainer const& block_container)
 {
-    return block_container.heap().allocate_without_realm<PaintableWithLines>(block_container);
+    return block_container.heap().allocate<PaintableWithLines>(block_container);
 }
 
 JS::NonnullGCPtr<PaintableWithLines> PaintableWithLines::create(Layout::InlineNode const& inline_node, size_t line_index)
 {
-    return inline_node.heap().allocate_without_realm<PaintableWithLines>(inline_node, line_index);
+    return inline_node.heap().allocate<PaintableWithLines>(inline_node, line_index);
 }
 
 JS::NonnullGCPtr<PaintableBox> PaintableBox::create(Layout::Box const& layout_box)
 {
-    return layout_box.heap().allocate_without_realm<PaintableBox>(layout_box);
+    return layout_box.heap().allocate<PaintableBox>(layout_box);
 }
 
 JS::NonnullGCPtr<PaintableBox> PaintableBox::create(Layout::InlineNode const& layout_box)
 {
-    return layout_box.heap().allocate_without_realm<PaintableBox>(layout_box);
+    return layout_box.heap().allocate<PaintableBox>(layout_box);
 }
 
 PaintableBox::PaintableBox(Layout::Box const& layout_box)

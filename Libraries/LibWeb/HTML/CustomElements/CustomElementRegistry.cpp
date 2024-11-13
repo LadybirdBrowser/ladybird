@@ -52,7 +52,7 @@ static JS::ThrowCompletionOr<JS::NonnullGCPtr<WebIDL::CallbackType>> convert_val
         return vm.throw_completion<JS::TypeError>(JS::ErrorType::NotAFunction, value.to_string_without_side_effects());
 
     // 2. Return the IDL callback function type value that represents a reference to the same object that V represents, with the incumbent settings object as the callback context.
-    return vm.heap().allocate_without_realm<WebIDL::CallbackType>(value.as_object(), HTML::incumbent_settings_object());
+    return vm.heap().allocate<WebIDL::CallbackType>(value.as_object(), HTML::incumbent_settings_object());
 }
 
 // https://webidl.spec.whatwg.org/#es-sequence

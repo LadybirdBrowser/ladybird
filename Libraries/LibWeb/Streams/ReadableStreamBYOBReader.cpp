@@ -171,7 +171,7 @@ JS::NonnullGCPtr<WebIDL::Promise> ReadableStreamBYOBReader::read(JS::Handle<WebI
     //        Resolve promise with «[ "value" → chunk, "done" → true ]».
     //    error steps, given e
     //        Reject promise with e.
-    auto read_into_request = heap().allocate_without_realm<BYOBReaderReadIntoRequest>(realm, promise_capability);
+    auto read_into_request = heap().allocate<BYOBReaderReadIntoRequest>(realm, promise_capability);
 
     // 10. Perform ! ReadableStreamBYOBReaderRead(this, view, options["min"], readIntoRequest).
     readable_stream_byob_reader_read(*this, *view, options.min, *read_into_request);

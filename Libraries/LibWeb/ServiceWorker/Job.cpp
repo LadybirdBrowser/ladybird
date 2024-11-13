@@ -39,7 +39,7 @@ JS_DEFINE_ALLOCATOR(Job);
 // https://w3c.github.io/ServiceWorker/#create-job-algorithm
 JS::NonnullGCPtr<Job> Job::create(JS::VM& vm, Job::Type type, StorageAPI::StorageKey storage_key, URL::URL scope_url, URL::URL script_url, JS::GCPtr<WebIDL::Promise> promise, JS::GCPtr<HTML::EnvironmentSettingsObject> client)
 {
-    return vm.heap().allocate_without_realm<Job>(type, move(storage_key), move(scope_url), move(script_url), promise, client);
+    return vm.heap().allocate<Job>(type, move(storage_key), move(scope_url), move(script_url), promise, client);
 }
 
 Job::Job(Job::Type type, StorageAPI::StorageKey storage_key, URL::URL scope_url, URL::URL script_url, JS::GCPtr<WebIDL::Promise> promise, JS::GCPtr<HTML::EnvironmentSettingsObject> client)
@@ -151,7 +151,7 @@ class UpdateAlgorithmState : JS::Cell {
 public:
     static JS::NonnullGCPtr<UpdateAlgorithmState> create(JS::VM& vm)
     {
-        return vm.heap().allocate_without_realm<UpdateAlgorithmState>();
+        return vm.heap().allocate<UpdateAlgorithmState>();
     }
 
     OrderedHashMap<URL::URL, JS::NonnullGCPtr<Fetch::Infrastructure::Response>>& updated_resource_map() { return m_map; }

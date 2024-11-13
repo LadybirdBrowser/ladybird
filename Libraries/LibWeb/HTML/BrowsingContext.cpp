@@ -139,7 +139,7 @@ WebIDL::ExceptionOr<BrowsingContext::BrowsingContextAndDocument> BrowsingContext
     auto& vm = group->vm();
 
     // 1. Let browsingContext be a new browsing context.
-    JS::NonnullGCPtr<BrowsingContext> browsing_context = *vm.heap().allocate_without_realm<BrowsingContext>(page);
+    JS::NonnullGCPtr<BrowsingContext> browsing_context = *vm.heap().allocate<BrowsingContext>(page);
 
     // 2. Let unsafeContextCreationTime be the unsafe shared current time.
     [[maybe_unused]] auto unsafe_context_creation_time = HighResolutionTime::unsafe_shared_current_time();

@@ -55,7 +55,7 @@ JS::NonnullGCPtr<DOM::Document> create_document_for_inline_content(JS::GCPtr<HTM
     //    about base URL: null
     auto response = Fetch::Infrastructure::Response::create(vm);
     response->url_list().append(URL::URL("about:error")); // AD-HOC: https://github.com/whatwg/html/issues/9122
-    auto navigation_params = vm.heap().allocate_without_realm<HTML::NavigationParams>();
+    auto navigation_params = vm.heap().allocate<HTML::NavigationParams>();
     navigation_params->id = navigation_id;
     navigation_params->navigable = navigable;
     navigation_params->request = nullptr;

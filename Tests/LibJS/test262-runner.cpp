@@ -222,7 +222,7 @@ static Result<void, TestError> run_test(StringView source, StringView filepath, 
         *vm,
         [&](JS::Realm& realm_) -> JS::GlobalObject* {
             realm = &realm_;
-            global_object = vm->heap().allocate_without_realm<JS::Test262::GlobalObject>(realm_);
+            global_object = vm->heap().allocate<JS::Test262::GlobalObject>(realm_);
             return global_object;
         },
         nullptr));

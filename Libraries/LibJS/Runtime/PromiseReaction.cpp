@@ -14,7 +14,7 @@ JS_DEFINE_ALLOCATOR(PromiseReaction);
 
 NonnullGCPtr<PromiseReaction> PromiseReaction::create(VM& vm, Type type, GCPtr<PromiseCapability> capability, GCPtr<JobCallback> handler)
 {
-    return vm.heap().allocate_without_realm<PromiseReaction>(type, capability, move(handler));
+    return vm.heap().allocate<PromiseReaction>(type, capability, move(handler));
 }
 
 PromiseReaction::PromiseReaction(Type type, GCPtr<PromiseCapability> capability, GCPtr<JobCallback> handler)

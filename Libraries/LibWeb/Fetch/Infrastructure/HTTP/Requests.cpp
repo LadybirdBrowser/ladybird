@@ -37,7 +37,7 @@ void Request::visit_edges(JS::Cell::Visitor& visitor)
 
 JS::NonnullGCPtr<Request> Request::create(JS::VM& vm)
 {
-    return vm.heap().allocate_without_realm<Request>(HeaderList::create(vm));
+    return vm.heap().allocate<Request>(HeaderList::create(vm));
 }
 
 // https://fetch.spec.whatwg.org/#concept-request-url

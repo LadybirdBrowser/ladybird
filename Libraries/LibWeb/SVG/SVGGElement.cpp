@@ -28,7 +28,7 @@ void SVGGElement::initialize(JS::Realm& realm)
 
 JS::GCPtr<Layout::Node> SVGGElement::create_layout_node(CSS::StyleProperties style)
 {
-    return heap().allocate_without_realm<Layout::SVGGraphicsBox>(document(), *this, move(style));
+    return heap().allocate<Layout::SVGGraphicsBox>(document(), *this, move(style));
 }
 
 }

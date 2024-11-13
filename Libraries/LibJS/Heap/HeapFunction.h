@@ -19,7 +19,7 @@ class HeapFunction final : public Cell {
 public:
     static NonnullGCPtr<HeapFunction> create(Heap& heap, Function<T> function)
     {
-        return heap.allocate_without_realm<HeapFunction>(move(function));
+        return heap.allocate<HeapFunction>(move(function));
     }
 
     virtual ~HeapFunction() override = default;

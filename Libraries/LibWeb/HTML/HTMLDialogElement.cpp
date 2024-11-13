@@ -215,7 +215,7 @@ WebIDL::ExceptionOr<void> HTMLDialogElement::show_modal()
             return JS::js_undefined();
         },
         0, "", &realm());
-    auto cancel_callback = realm().heap().allocate_without_realm<WebIDL::CallbackType>(*cancel_callback_function, Bindings::principal_host_defined_environment_settings_object(realm()));
+    auto cancel_callback = realm().heap().allocate<WebIDL::CallbackType>(*cancel_callback_function, Bindings::principal_host_defined_environment_settings_object(realm()));
     m_close_watcher->add_event_listener_without_options(HTML::EventNames::cancel, DOM::IDLEventListener::create(realm(), cancel_callback));
     // - closeAction being to close the dialog given this and null.
     auto close_callback_function = JS::NativeFunction::create(
@@ -225,7 +225,7 @@ WebIDL::ExceptionOr<void> HTMLDialogElement::show_modal()
             return JS::js_undefined();
         },
         0, "", &realm());
-    auto close_callback = realm().heap().allocate_without_realm<WebIDL::CallbackType>(*close_callback_function, Bindings::principal_host_defined_environment_settings_object(realm()));
+    auto close_callback = realm().heap().allocate<WebIDL::CallbackType>(*close_callback_function, Bindings::principal_host_defined_environment_settings_object(realm()));
     m_close_watcher->add_event_listener_without_options(HTML::EventNames::close, DOM::IDLEventListener::create(realm(), close_callback));
 
     // FIXME: 16. Set this's previously focused element to the focused element.
