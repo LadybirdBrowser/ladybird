@@ -105,6 +105,8 @@ struct Translate {
 struct AddClipRect {
     Gfx::IntRect rect;
 
+    [[nodiscard]] Gfx::IntRect bounding_rect() const { return rect; }
+    bool is_clip_or_mask() const { return true; }
     void translate_by(Gfx::IntPoint const& offset) { rect.translate_by(offset); }
 };
 
@@ -349,6 +351,7 @@ struct AddRoundedRectClip {
     CornerClip corner_clip;
 
     [[nodiscard]] Gfx::IntRect bounding_rect() const { return border_rect; }
+    bool is_clip_or_mask() const { return true; }
 
     void translate_by(Gfx::IntPoint const& offset) { border_rect.translate_by(offset); }
 };
@@ -358,6 +361,7 @@ struct AddMask {
     Gfx::IntRect rect;
 
     [[nodiscard]] Gfx::IntRect bounding_rect() const { return rect; }
+    bool is_clip_or_mask() const { return true; }
 
     void translate_by(Gfx::IntPoint const& offset)
     {
