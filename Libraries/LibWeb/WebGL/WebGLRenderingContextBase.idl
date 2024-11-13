@@ -517,6 +517,7 @@ interface mixin WebGLRenderingContextBase {
 
     const GLenum RGBA4 = 0x8056;
     const GLenum RGB5_A1 = 0x8057;
+    const GLenum RGBA8 = 0x8058;
     const GLenum RGB565 = 0x8D62;
     const GLenum DEPTH_COMPONENT16 = 0x81A5;
     const GLenum STENCIL_INDEX8 = 0x8D48;
