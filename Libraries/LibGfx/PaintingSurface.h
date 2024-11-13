@@ -32,6 +32,7 @@ public:
 #endif
 
     void read_into_bitmap(Bitmap&);
+    void write_from_bitmap(Bitmap&);
 
     IntSize size() const;
     IntRect rect() const;
