@@ -392,6 +392,7 @@ WeakRef
 WeakSet
 WebGLBuffer
 WebGLContextEvent
+WebGLFramebuffer
 WebGLObject
 WebGLRenderingContext
 WebKitCSSMatrix
