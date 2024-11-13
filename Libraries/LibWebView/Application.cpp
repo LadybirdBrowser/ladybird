@@ -18,7 +18,6 @@
 #include <LibWebView/HelperProcess.h>
 #include <LibWebView/URL.h>
 #include <LibWebView/UserAgent.h>
-#include <LibWebView/Utilities.h>
 #include <LibWebView/WebContentClient.h>
 
 namespace WebView {
@@ -180,16 +179,13 @@ ErrorOr<void> Application::launch_services()
 ErrorOr<void> Application::launch_request_server()
 {
     // FIXME: Create an abstraction to re-spawn the RequestServer and re-hook up its client hooks to each tab on crash
-    auto paths = TRY(get_paths_for_helper_process("RequestServer"sv));
-    m_request_server_client = TRY(launch_request_server_process(paths));
-
+    m_request_server_client = TRY(launch_request_server_process());
     return {};
 }
 
 ErrorOr<void> Application::launch_image_decoder_server()
 {
-    auto paths = TRY(get_paths_for_helper_process("ImageDecoder"sv));
-    m_image_decoder_client = TRY(launch_image_decoder_process(paths));
+    m_image_decoder_client = TRY(launch_image_decoder_process());
 
     m_image_decoder_client->on_death = [this]() {
         m_image_decoder_client = nullptr;

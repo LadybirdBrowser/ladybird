@@ -16,7 +16,6 @@
 #include <LibWebView/SearchEngine.h>
 #include <LibWebView/SourceHighlighter.h>
 #include <LibWebView/URL.h>
-#include <LibWebView/Utilities.h>
 
 #import <Application/Application.h>
 #import <Application/ApplicationDelegate.h>
@@ -347,7 +346,7 @@ static void copy_data_to_clipboard(StringView data, NSPasteboardType pasteboard_
     };
 
     m_web_view_bridge->on_request_worker_agent = []() {
-        auto worker_client = MUST(WebView::launch_web_worker_process(MUST(WebView::get_paths_for_helper_process("WebWorker"sv))));
+        auto worker_client = MUST(WebView::launch_web_worker_process());
         return worker_client->clone_transport();
     };
 

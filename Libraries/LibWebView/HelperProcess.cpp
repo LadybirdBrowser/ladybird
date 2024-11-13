@@ -15,12 +15,13 @@ namespace WebView {
 template<typename ClientType, typename... ClientArguments>
 static ErrorOr<NonnullRefPtr<ClientType>> launch_server_process(
     StringView server_name,
-    ReadonlySpan<ByteString> candidate_server_paths,
     Vector<ByteString> arguments,
     ClientArguments&&... client_arguments)
 {
     auto process_type = WebView::process_type_from_name(server_name);
     auto const& chrome_options = WebView::Application::chrome_options();
+
+    auto candidate_server_paths = TRY(get_paths_for_helper_process(server_name));
 
     if (chrome_options.profile_helper_process == process_type) {
         arguments.prepend({
@@ -75,7 +76,6 @@ static ErrorOr<NonnullRefPtr<ClientType>> launch_server_process(
 
 ErrorOr<NonnullRefPtr<WebView::WebContentClient>> launch_web_content_process(
     WebView::ViewImplementation& view,
-    ReadonlySpan<ByteString> candidate_web_content_paths,
     IPC::File image_decoder_socket,
     Optional<IPC::File> request_server_socket)
 {
@@ -121,10 +121,10 @@ ErrorOr<NonnullRefPtr<WebView::WebContentClient>> launch_web_content_process(
     arguments.append("--image-decoder-socket"sv);
     arguments.append(ByteString::number(image_decoder_socket.fd()));
 
-    return launch_server_process<WebView::WebContentClient>("WebContent"sv, candidate_web_content_paths, move(arguments), view);
+    return launch_server_process<WebView::WebContentClient>("WebContent"sv, move(arguments), view);
 }
 
-ErrorOr<NonnullRefPtr<ImageDecoderClient::Client>> launch_image_decoder_process(ReadonlySpan<ByteString> candidate_image_decoder_paths)
+ErrorOr<NonnullRefPtr<ImageDecoderClient::Client>> launch_image_decoder_process()
 {
     Vector<ByteString> arguments;
     if (auto server = mach_server_name(); server.has_value()) {
@@ -132,10 +132,10 @@ ErrorOr<NonnullRefPtr<ImageDecoderClient::Client>> launch_image_decoder_process(
         arguments.append(server.value());
     }
 
-    return launch_server_process<ImageDecoderClient::Client>("ImageDecoder"sv, candidate_image_decoder_paths, arguments);
+    return launch_server_process<ImageDecoderClient::Client>("ImageDecoder"sv, arguments);
 }
 
-ErrorOr<NonnullRefPtr<Web::HTML::WebWorkerClient>> launch_web_worker_process(ReadonlySpan<ByteString> candidate_web_worker_paths)
+ErrorOr<NonnullRefPtr<Web::HTML::WebWorkerClient>> launch_web_worker_process()
 {
     Vector<ByteString> arguments;
 
@@ -143,10 +143,10 @@ ErrorOr<NonnullRefPtr<Web::HTML::WebWorkerClient>> launch_web_worker_process(Rea
     arguments.append("--request-server-socket"sv);
     arguments.append(ByteString::number(socket.fd()));
 
-    return launch_server_process<Web::HTML::WebWorkerClient>("WebWorker"sv, candidate_web_worker_paths, move(arguments));
+    return launch_server_process<Web::HTML::WebWorkerClient>("WebWorker"sv, move(arguments));
 }
 
-ErrorOr<NonnullRefPtr<Requests::RequestClient>> launch_request_server_process(ReadonlySpan<ByteString> candidate_request_server_paths)
+ErrorOr<NonnullRefPtr<Requests::RequestClient>> launch_request_server_process()
 {
     Vector<ByteString> arguments;
 
@@ -163,7 +163,7 @@ ErrorOr<NonnullRefPtr<Requests::RequestClient>> launch_request_server_process(Re
         arguments.append(server.value());
     }
 
-    return launch_server_process<Requests::RequestClient>("RequestServer"sv, candidate_request_server_paths, move(arguments));
+    return launch_server_process<Requests::RequestClient>("RequestServer"sv, move(arguments));
 }
 
 ErrorOr<IPC::File> connect_new_request_server_client()
