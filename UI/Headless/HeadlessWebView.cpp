@@ -30,11 +30,6 @@ HeadlessWebView::HeadlessWebView(Core::AnonymousBuffer theme, Web::DevicePixelSi
         return web_view.handle();
     };
 
-    on_request_worker_agent = []() {
-        auto worker_client = MUST(WebView::launch_web_worker_process());
-        return worker_client->clone_transport();
-    };
-
     on_reposition_window = [this](auto position) {
         client().async_set_window_position(m_client_state.page_index, position.template to_type<Web::DevicePixels>());
 

@@ -126,11 +126,6 @@ WebContentView::WebContentView(QWidget* window, RefPtr<WebView::WebContentClient
         finish_handling_drag_event(event);
     };
 
-    on_request_worker_agent = [&]() {
-        auto worker_client = MUST(WebView::launch_web_worker_process());
-        return worker_client->clone_transport();
-    };
-
     m_select_dropdown = new QMenu("Select Dropdown", this);
     QObject::connect(m_select_dropdown, &QMenu::aboutToHide, this, [this]() {
         if (!m_select_dropdown->activeAction())
