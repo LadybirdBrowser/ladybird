@@ -83,10 +83,7 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
             view->did_allocate_iosurface_backing_stores(message.front_backing_store_id, move(message.front_backing_store_port), message.back_backing_store_id, move(message.back_backing_store_port));
     };
 
-    // FIXME: Create an abstraction to re-spawn the RequestServer and re-hook up its client hooks to each tab on crash
-    TRY([application launchRequestServer]);
-
-    TRY([application launchImageDecoder]);
+    TRY([application launchServices]);
 
     auto* delegate = [[ApplicationDelegate alloc] init];
     [NSApp setDelegate:delegate];

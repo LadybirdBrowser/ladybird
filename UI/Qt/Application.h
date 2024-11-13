@@ -7,9 +7,6 @@
 #pragma once
 
 #include <AK/Function.h>
-#include <AK/HashTable.h>
-#include <LibImageDecoderClient/Client.h>
-#include <LibRequests/RequestClient.h>
 #include <LibURL/URL.h>
 #include <LibWebView/Application.h>
 #include <UI/Qt/BrowserWindow.h>
@@ -30,10 +27,6 @@ public:
     virtual bool event(QEvent* event) override;
 
     Function<void(URL::URL)> on_open_file;
-    RefPtr<Requests::RequestClient> request_server_client;
-
-    NonnullRefPtr<ImageDecoderClient::Client> image_decoder_client() const { return *m_image_decoder_client; }
-    ErrorOr<void> initialize_image_decoder();
 
     BrowserWindow& new_window(Vector<URL::URL> const& initial_urls, BrowserWindow::IsPopupWindow is_popup_window = BrowserWindow::IsPopupWindow::No, Tab* parent_tab = nullptr, Optional<u64> page_index = {});
 
@@ -50,8 +43,6 @@ private:
 
     TaskManagerWindow* m_task_manager_window { nullptr };
     BrowserWindow* m_active_window { nullptr };
-
-    RefPtr<ImageDecoderClient::Client> m_image_decoder_client;
 };
 
 }

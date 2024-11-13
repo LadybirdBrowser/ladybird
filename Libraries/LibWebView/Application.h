@@ -13,7 +13,9 @@
 #include <AK/Swift.h>
 #include <LibCore/EventLoop.h>
 #include <LibCore/Forward.h>
+#include <LibImageDecoderClient/Client.h>
 #include <LibMain/Main.h>
+#include <LibRequests/RequestClient.h>
 #include <LibURL/URL.h>
 #include <LibWebView/Options.h>
 #include <LibWebView/Process.h>
@@ -34,9 +36,14 @@ public:
     static ChromeOptions const& chrome_options() { return the().m_chrome_options; }
     static WebContentOptions const& web_content_options() { return the().m_web_content_options; }
 
+    static Requests::RequestClient& request_server_client() { return *the().m_request_server_client; }
+    static ImageDecoderClient::Client& image_decoder_client() { return *the().m_image_decoder_client; }
+
     static CookieJar& cookie_jar() { return *the().m_cookie_jar; }
 
     Core::EventLoop& event_loop() { return m_event_loop; }
+
+    ErrorOr<void> launch_services();
 
     void add_child_process(Process&&);
 
@@ -74,10 +81,16 @@ protected:
 private:
     void initialize(Main::Arguments const& arguments, URL::URL new_tab_page_url);
 
+    ErrorOr<void> launch_request_server();
+    ErrorOr<void> launch_image_decoder_server();
+
     static Application* s_the;
 
     ChromeOptions m_chrome_options;
     WebContentOptions m_web_content_options;
+
+    RefPtr<Requests::RequestClient> m_request_server_client;
+    RefPtr<ImageDecoderClient::Client> m_image_decoder_client;
 
     RefPtr<Database> m_database;
     OwnPtr<CookieJar> m_cookie_jar;

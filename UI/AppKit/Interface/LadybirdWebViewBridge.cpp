@@ -10,7 +10,9 @@
 #include <LibIPC/File.h>
 #include <LibWeb/Crypto/Crypto.h>
 #include <LibWebView/Application.h>
+#include <LibWebView/HelperProcess.h>
 #include <LibWebView/UserAgent.h>
+#include <LibWebView/Utilities.h>
 
 #import <Interface/Palette.h>
 
@@ -143,11 +145,16 @@ Gfx::IntPoint WebViewBridge::to_widget_position(Gfx::IntPoint content_position) 
 
 void WebViewBridge::initialize_client(CreateNewClient create_new_client)
 {
-    VERIFY(on_request_web_content);
-
     if (create_new_client == CreateNewClient::Yes) {
         m_client_state = {};
-        m_client_state.client = on_request_web_content();
+
+        auto request_server_socket = WebView::connect_new_request_server_client().release_value_but_fixme_should_propagate_errors();
+        auto image_decoder_socket = WebView::connect_new_image_decoder_client().release_value_but_fixme_should_propagate_errors();
+
+        auto candidate_web_content_paths = WebView::get_paths_for_helper_process("WebContent"sv).release_value_but_fixme_should_propagate_errors();
+        auto new_client = launch_web_content_process(*this, candidate_web_content_paths, AK::move(image_decoder_socket), AK::move(request_server_socket)).release_value_but_fixme_should_propagate_errors();
+
+        m_client_state.client = new_client;
     } else {
         m_client_state.client->register_view(m_client_state.page_index, *this);
     }

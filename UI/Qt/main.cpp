@@ -114,12 +114,7 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
 
     WebView::copy_default_config_files(Ladybird::Settings::the()->directory());
 
-    // FIXME: Create an abstraction to re-spawn the RequestServer and re-hook up its client hooks to each tab on crash
-    auto request_server_paths = TRY(WebView::get_paths_for_helper_process("RequestServer"sv));
-    auto requests_client = TRY(WebView::launch_request_server_process(request_server_paths, WebView::s_ladybird_resource_root));
-    app->request_server_client = move(requests_client);
-
-    TRY(app->initialize_image_decoder());
+    TRY(app->launch_services());
 
     chrome_process.on_new_window = [&](auto const& urls) {
         app->new_window(urls);

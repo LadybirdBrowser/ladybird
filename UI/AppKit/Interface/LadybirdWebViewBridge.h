@@ -50,7 +50,6 @@ public:
     };
     Optional<Paintable> paintable();
 
-    Function<NonnullRefPtr<WebView::WebContentClient>()> on_request_web_content;
     Function<void()> on_zoom_level_changed;
 
 private:

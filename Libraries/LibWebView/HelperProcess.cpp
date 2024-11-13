@@ -135,24 +135,24 @@ ErrorOr<NonnullRefPtr<ImageDecoderClient::Client>> launch_image_decoder_process(
     return launch_server_process<ImageDecoderClient::Client>("ImageDecoder"sv, candidate_image_decoder_paths, arguments);
 }
 
-ErrorOr<NonnullRefPtr<Web::HTML::WebWorkerClient>> launch_web_worker_process(ReadonlySpan<ByteString> candidate_web_worker_paths, NonnullRefPtr<Requests::RequestClient> request_client)
+ErrorOr<NonnullRefPtr<Web::HTML::WebWorkerClient>> launch_web_worker_process(ReadonlySpan<ByteString> candidate_web_worker_paths)
 {
     Vector<ByteString> arguments;
 
-    auto socket = TRY(connect_new_request_server_client(*request_client));
+    auto socket = TRY(connect_new_request_server_client());
     arguments.append("--request-server-socket"sv);
     arguments.append(ByteString::number(socket.fd()));
 
     return launch_server_process<Web::HTML::WebWorkerClient>("WebWorker"sv, candidate_web_worker_paths, move(arguments));
 }
 
-ErrorOr<NonnullRefPtr<Requests::RequestClient>> launch_request_server_process(ReadonlySpan<ByteString> candidate_request_server_paths, StringView serenity_resource_root)
+ErrorOr<NonnullRefPtr<Requests::RequestClient>> launch_request_server_process(ReadonlySpan<ByteString> candidate_request_server_paths)
 {
     Vector<ByteString> arguments;
 
-    if (!serenity_resource_root.is_empty()) {
+    if (!s_ladybird_resource_root.is_empty()) {
         arguments.append("--serenity-resource-root"sv);
-        arguments.append(serenity_resource_root);
+        arguments.append(s_ladybird_resource_root);
     }
 
     for (auto const& certificate : WebView::Application::chrome_options().certificates)
@@ -166,9 +166,9 @@ ErrorOr<NonnullRefPtr<Requests::RequestClient>> launch_request_server_process(Re
     return launch_server_process<Requests::RequestClient>("RequestServer"sv, candidate_request_server_paths, move(arguments));
 }
 
-ErrorOr<IPC::File> connect_new_request_server_client(Requests::RequestClient& client)
+ErrorOr<IPC::File> connect_new_request_server_client()
 {
-    auto new_socket = client.send_sync_but_allow_failure<Messages::RequestServer::ConnectNewClient>();
+    auto new_socket = Application::request_server_client().send_sync_but_allow_failure<Messages::RequestServer::ConnectNewClient>();
     if (!new_socket)
         return Error::from_string_literal("Failed to connect to RequestServer");
 
@@ -178,9 +178,9 @@ ErrorOr<IPC::File> connect_new_request_server_client(Requests::RequestClient& cl
     return socket;
 }
 
-ErrorOr<IPC::File> connect_new_image_decoder_client(ImageDecoderClient::Client& client)
+ErrorOr<IPC::File> connect_new_image_decoder_client()
 {
-    auto new_socket = client.send_sync_but_allow_failure<Messages::ImageDecoderServer::ConnectNewClients>(1);
+    auto new_socket = Application::image_decoder_client().send_sync_but_allow_failure<Messages::ImageDecoderServer::ConnectNewClients>(1);
     if (!new_socket)
         return Error::from_string_literal("Failed to connect to ImageDecoder");
 

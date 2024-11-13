@@ -15,8 +15,10 @@
 #include <LibWebView/Application.h>
 #include <LibWebView/CookieJar.h>
 #include <LibWebView/Database.h>
+#include <LibWebView/HelperProcess.h>
 #include <LibWebView/URL.h>
 #include <LibWebView/UserAgent.h>
+#include <LibWebView/Utilities.h>
 #include <LibWebView/WebContentClient.h>
 
 namespace WebView {
@@ -166,6 +168,51 @@ void Application::initialize(Main::Arguments const& arguments, URL::URL new_tab_
     } else {
         m_cookie_jar = CookieJar::create();
     }
+}
+
+ErrorOr<void> Application::launch_services()
+{
+    TRY(launch_request_server());
+    TRY(launch_image_decoder_server());
+    return {};
+}
+
+ErrorOr<void> Application::launch_request_server()
+{
+    // FIXME: Create an abstraction to re-spawn the RequestServer and re-hook up its client hooks to each tab on crash
+    auto paths = TRY(get_paths_for_helper_process("RequestServer"sv));
+    m_request_server_client = TRY(launch_request_server_process(paths));
+
+    return {};
+}
+
+ErrorOr<void> Application::launch_image_decoder_server()
+{
+    auto paths = TRY(get_paths_for_helper_process("ImageDecoder"sv));
+    m_image_decoder_client = TRY(launch_image_decoder_process(paths));
+
+    m_image_decoder_client->on_death = [this]() {
+        m_image_decoder_client = nullptr;
+
+        if (auto result = launch_image_decoder_server(); result.is_error()) {
+            dbgln("Failed to restart image decoder: {}", result.error());
+            VERIFY_NOT_REACHED();
+        }
+
+        auto client_count = WebContentClient::client_count();
+        auto new_sockets = m_image_decoder_client->send_sync_but_allow_failure<Messages::ImageDecoderServer::ConnectNewClients>(client_count);
+        if (!new_sockets || new_sockets->sockets().is_empty()) {
+            dbgln("Failed to connect {} new clients to ImageDecoder", client_count);
+            VERIFY_NOT_REACHED();
+        }
+
+        WebContentClient::for_each_client([sockets = new_sockets->take_sockets()](WebContentClient& client) mutable {
+            client.async_connect_to_image_decoder(sockets.take_last());
+            return IterationDecision::Continue;
+        });
+    };
+
+    return {};
 }
 
 int Application::execute()
