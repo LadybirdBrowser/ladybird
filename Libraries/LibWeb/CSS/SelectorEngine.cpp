@@ -764,6 +764,9 @@ static inline bool matches(CSS::Selector::SimpleSelector const& component, Optio
         // :is() is handled already, by us replacing it with :is() directly, so if we
         // got here, it's :scope.
         return matches_pseudo_class(CSS::Selector::SimpleSelector::PseudoClassSelector { .type = CSS::PseudoClass::Scope }, style_sheet_for_rule, element, shadow_host, scope, selector_kind);
+    case CSS::Selector::SimpleSelector::Type::Invalid:
+        // Invalid selectors never match
+        return false;
     }
     VERIFY_NOT_REACHED();
 }
