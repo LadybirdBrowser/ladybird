@@ -390,6 +390,7 @@ VisualViewport
 WeakMap
 WeakRef
 WeakSet
+WebGLBuffer
 WebGLContextEvent
 WebGLObject
 WebGLRenderingContext

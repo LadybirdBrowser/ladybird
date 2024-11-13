@@ -11,7 +11,7 @@
 namespace Web::WebGL {
 
 class WebGLObject : public Bindings::PlatformObject {
-    WEB_PLATFORM_OBJECT(WebGLRenderingContextBase, Bindings::PlatformObject);
+    WEB_PLATFORM_OBJECT(WebGLObject, Bindings::PlatformObject);
 
 public:
     virtual ~WebGLObject();
