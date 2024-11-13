@@ -779,6 +779,7 @@ set(SOURCES
     WebGL/OpenGLContext.cpp
     WebGL/WebGLContextAttributes.cpp
     WebGL/WebGLContextEvent.cpp
+    WebGL/WebGLObject.cpp
     WebGL/WebGLRenderingContext.cpp
     WebGL/WebGLRenderingContextBase.cpp
     WebIDL/AbstractOperations.cpp

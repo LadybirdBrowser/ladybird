@@ -372,6 +372,7 @@ standard_idl_files = [
   "//Userland/Libraries/LibWeb/WebAudio/OscillatorNode.idl",
   "//Userland/Libraries/LibWeb/WebAudio/PeriodicWave.idl",
   "//Userland/Libraries/LibWeb/WebGL/WebGLContextEvent.idl",
+  "//Userland/Libraries/LibWeb/WebGL/WebGLObject.idl",
   "//Userland/Libraries/LibWeb/WebGL/WebGLRenderingContext.idl",
   "//Userland/Libraries/LibWeb/WebIDL/DOMException.idl",
   "//Userland/Libraries/LibWeb/WebSockets/WebSocket.idl",
