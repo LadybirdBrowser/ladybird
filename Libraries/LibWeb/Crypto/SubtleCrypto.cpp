@@ -830,12 +830,12 @@ SupportedAlgorithmsMap supported_algorithms()
     // FIXME: define_an_algorithm<AesKw, AesDerivedKeyParams>("get key length"_string, "AES-KW"_string);
 
     // https://w3c.github.io/webcrypto/#hmac-registration
-    // FIXME: define_an_algorithm<HMAC>("sign"_string, "HMAC"_string);
-    // FIXME: define_an_algorithm<HMAC>("verify"_string, "HMAC"_string);
-    // FIXME: define_an_algorithm<HMAC, HmacKeyGenParams>("generateKey"_string, "HMAC"_string);
-    // FIXME: define_an_algorithm<HMAC, HmacImportParams>("importKey"_string, "HMAC"_string);
-    // FIXME: define_an_algorithm<HMAC>("exportKey"_string, "HMAC"_string);
-    // FIXME: define_an_algorithm<HMAC, HmacImportParams>("get key length"_string, "HMAC"_string);
+    define_an_algorithm<HMAC>("sign"_string, "HMAC"_string);
+    define_an_algorithm<HMAC>("verify"_string, "HMAC"_string);
+    define_an_algorithm<HMAC, HmacKeyGenParams>("generateKey"_string, "HMAC"_string);
+    define_an_algorithm<HMAC, HmacImportParams>("importKey"_string, "HMAC"_string);
+    define_an_algorithm<HMAC>("exportKey"_string, "HMAC"_string);
+    define_an_algorithm<HMAC, HmacImportParams>("get key length"_string, "HMAC"_string);
 
     // https://w3c.github.io/webcrypto/#sha-registration
     define_an_algorithm<SHA>("digest"_string, "SHA-1"_string);

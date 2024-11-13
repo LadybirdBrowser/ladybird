@@ -1,6 +1,7 @@
 /*
  * Copyright (c) 2024, Andrew Kaster <akaster@serenityos.org>
  * Copyright (c) 2024, stelar7 <dudedbz@gmail.com>
+ * Copyright (c) 2024, Jelle Raaijmakers <jelle@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -17,6 +18,7 @@
 #include <LibWeb/Crypto/CryptoKey.h>
 #include <LibWeb/WebIDL/Buffers.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
+#include <LibWeb/WebIDL/Types.h>
 
 namespace Web::Crypto {
 
@@ -260,6 +262,40 @@ struct AesDerivedKeyParams : public AlgorithmParams {
     static JS::ThrowCompletionOr<NonnullOwnPtr<AlgorithmParams>> from_value(JS::VM&, JS::Value);
 };
 
+// https://w3c.github.io/webcrypto/#hmac-importparams
+struct HmacImportParams : public AlgorithmParams {
+    virtual ~HmacImportParams() override;
+
+    HmacImportParams(String name, HashAlgorithmIdentifier hash, Optional<WebIDL::UnsignedLong> length)
+        : AlgorithmParams(move(name))
+        , hash(move(hash))
+        , length(length)
+    {
+    }
+
+    HashAlgorithmIdentifier hash;
+    Optional<WebIDL::UnsignedLong> length;
+
+    static JS::ThrowCompletionOr<NonnullOwnPtr<AlgorithmParams>> from_value(JS::VM&, JS::Value);
+};
+
+// https://w3c.github.io/webcrypto/#hmac-keygen-params
+struct HmacKeyGenParams : public AlgorithmParams {
+    virtual ~HmacKeyGenParams() override;
+
+    HmacKeyGenParams(String name, HashAlgorithmIdentifier hash, Optional<WebIDL::UnsignedLong> length)
+        : AlgorithmParams(move(name))
+        , hash(move(hash))
+        , length(length)
+    {
+    }
+
+    HashAlgorithmIdentifier hash;
+    Optional<WebIDL::UnsignedLong> length;
+
+    static JS::ThrowCompletionOr<NonnullOwnPtr<AlgorithmParams>> from_value(JS::VM&, JS::Value);
+};
+
 class AlgorithmMethods {
 public:
     virtual ~AlgorithmMethods();
@@ -484,6 +520,24 @@ public:
 
 private:
     explicit X25519(JS::Realm& realm)
+        : AlgorithmMethods(realm)
+    {
+    }
+};
+
+class HMAC : public AlgorithmMethods {
+public:
+    virtual WebIDL::ExceptionOr<JS::NonnullGCPtr<JS::ArrayBuffer>> sign(AlgorithmParams const&, JS::NonnullGCPtr<CryptoKey>, ByteBuffer const&) override;
+    virtual WebIDL::ExceptionOr<JS::Value> verify(AlgorithmParams const&, JS::NonnullGCPtr<CryptoKey>, ByteBuffer const&, ByteBuffer const&) override;
+    virtual WebIDL::ExceptionOr<Variant<JS::NonnullGCPtr<CryptoKey>, JS::NonnullGCPtr<CryptoKeyPair>>> generate_key(AlgorithmParams const&, bool, Vector<Bindings::KeyUsage> const&) override;
+    virtual WebIDL::ExceptionOr<JS::NonnullGCPtr<CryptoKey>> import_key(AlgorithmParams const&, Bindings::KeyFormat, CryptoKey::InternalKeyData, bool, Vector<Bindings::KeyUsage> const&) override;
+    virtual WebIDL::ExceptionOr<JS::NonnullGCPtr<JS::Object>> export_key(Bindings::KeyFormat, JS::NonnullGCPtr<CryptoKey>) override;
+    virtual WebIDL::ExceptionOr<JS::Value> get_key_length(AlgorithmParams const&) override;
+
+    static NonnullOwnPtr<AlgorithmMethods> create(JS::Realm& realm) { return adopt_own(*new HMAC(realm)); }
+
+private:
+    explicit HMAC(JS::Realm& realm)
         : AlgorithmMethods(realm)
     {
     }

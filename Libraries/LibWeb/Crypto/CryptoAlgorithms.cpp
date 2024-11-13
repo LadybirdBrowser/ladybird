@@ -302,9 +302,10 @@ static WebIDL::ExceptionOr<void> validate_jwk_key_ops(JS::Realm& realm, Bindings
     return {};
 }
 
-static WebIDL::ExceptionOr<ByteBuffer> generate_aes_key(JS::VM& vm, u16 const size_in_bits)
+static WebIDL::ExceptionOr<ByteBuffer> generate_random_key(JS::VM& vm, u16 const size_in_bits)
 {
     auto key_buffer = TRY_OR_THROW_OOM(vm, ByteBuffer::create_uninitialized(size_in_bits / 8));
+    // FIXME: Use a cryptographically secure random generator
     fill_with_random(key_buffer);
     return key_buffer;
 }
@@ -604,6 +605,48 @@ JS::ThrowCompletionOr<NonnullOwnPtr<AlgorithmParams>> EcdhKeyDerivePrams::from_v
     auto& key = verify_cast<CryptoKey>(*key_object);
 
     return adopt_own<AlgorithmParams>(*new EcdhKeyDerivePrams { name, key });
+}
+
+HmacImportParams::~HmacImportParams() = default;
+
+JS::ThrowCompletionOr<NonnullOwnPtr<AlgorithmParams>> HmacImportParams::from_value(JS::VM& vm, JS::Value value)
+{
+    auto& object = value.as_object();
+
+    auto name_value = TRY(object.get("name"));
+    auto name = TRY(name_value.to_string(vm));
+
+    auto hash_value = TRY(object.get("hash"));
+    auto hash = TRY(hash_algorithm_identifier_from_value(vm, hash_value));
+
+    auto maybe_length = Optional<WebIDL::UnsignedLong> {};
+    if (MUST(object.has_property("length"))) {
+        auto length_value = TRY(object.get("length"));
+        maybe_length = TRY(length_value.to_u32(vm));
+    }
+
+    return adopt_own<AlgorithmParams>(*new HmacImportParams { name, hash, maybe_length });
+}
+
+HmacKeyGenParams::~HmacKeyGenParams() = default;
+
+JS::ThrowCompletionOr<NonnullOwnPtr<AlgorithmParams>> HmacKeyGenParams::from_value(JS::VM& vm, JS::Value value)
+{
+    auto& object = value.as_object();
+
+    auto name_value = TRY(object.get("name"));
+    auto name = TRY(name_value.to_string(vm));
+
+    auto hash_value = TRY(object.get("hash"));
+    auto hash = TRY(hash_algorithm_identifier_from_value(vm, hash_value));
+
+    auto maybe_length = Optional<WebIDL::UnsignedLong> {};
+    if (MUST(object.has_property("length"))) {
+        auto length_value = TRY(object.get("length"));
+        maybe_length = TRY(length_value.to_u32(vm));
+    }
+
+    return adopt_own<AlgorithmParams>(*new HmacKeyGenParams { name, hash, maybe_length });
 }
 
 // https://w3c.github.io/webcrypto/#rsa-oaep-operations
@@ -1395,7 +1438,7 @@ WebIDL::ExceptionOr<Variant<JS::NonnullGCPtr<CryptoKey>, JS::NonnullGCPtr<Crypto
     }
 
     // 3. Generate an AES key of length equal to the length member of normalizedAlgorithm.
-    auto key_buffer = TRY(generate_aes_key(m_realm->vm(), bits));
+    auto key_buffer = TRY(generate_random_key(m_realm->vm(), bits));
 
     // 4. If the key generation step fails, then throw an OperationError.
     // Note: Cannot happen in our implementation; and if we OOM, then allocating the Exception is probably going to crash anyway.
@@ -1721,7 +1764,7 @@ WebIDL::ExceptionOr<Variant<JS::NonnullGCPtr<CryptoKey>, JS::NonnullGCPtr<Crypto
 
     // 3. Generate an AES key of length equal to the length member of normalizedAlgorithm.
     // 4. If the key generation step fails, then throw an OperationError.
-    auto key_buffer = TRY(generate_aes_key(m_realm->vm(), bits));
+    auto key_buffer = TRY(generate_random_key(m_realm->vm(), bits));
 
     // 5. Let key be a new CryptoKey object representing the generated AES key.
     auto key = CryptoKey::create(m_realm, CryptoKey::InternalKeyData { key_buffer });
@@ -2144,7 +2187,7 @@ WebIDL::ExceptionOr<Variant<JS::NonnullGCPtr<CryptoKey>, JS::NonnullGCPtr<Crypto
 
     // 3. Generate an AES key of length equal to the length member of normalizedAlgorithm.
     // 4. If the key generation step fails, then throw an OperationError.
-    auto key_buffer = TRY(generate_aes_key(m_realm->vm(), bits));
+    auto key_buffer = TRY(generate_random_key(m_realm->vm(), bits));
 
     // 5. Let key be a new CryptoKey object representing the generated AES key.
     auto key = CryptoKey::create(m_realm, CryptoKey::InternalKeyData { key_buffer });
@@ -2815,8 +2858,7 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<JS::ArrayBuffer>> X25519::derive_bits(Algor
 
     // Otherwise: Return an octet string containing the first length bits of secret.
     auto slice = TRY_OR_THROW_OOM(realm.vm(), secret.slice(0, length / 8));
-    auto result = TRY_OR_THROW_OOM(realm.vm(), ByteBuffer::copy(slice));
-    return JS::ArrayBuffer::create(realm, move(result));
+    return JS::ArrayBuffer::create(realm, move(slice));
 }
 
 WebIDL::ExceptionOr<Variant<JS::NonnullGCPtr<CryptoKey>, JS::NonnullGCPtr<CryptoKeyPair>>> X25519::generate_key([[maybe_unused]] AlgorithmParams const& params, bool extractable, Vector<Bindings::KeyUsage> const& key_usages)
@@ -3208,7 +3250,8 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<JS::Object>> X25519::export_key(Bindings::K
         // 6. Set the key_ops attribute of jwk to the usages attribute of key.
         auto key_ops = Vector<String> {};
         auto key_usages = verify_cast<JS::Array>(key->usages());
-        for (auto i = 0; i < 10; ++i) {
+        auto key_usages_length = MUST(MUST(key_usages->get(vm.names.length)).to_length(vm));
+        for (auto i = 0u; i < key_usages_length; ++i) {
             auto usage = key_usages->get(i);
             if (!usage.has_value())
                 break;
@@ -3246,6 +3289,429 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<JS::Object>> X25519::export_key(Bindings::K
 
     // 4. Return result.
     return JS::NonnullGCPtr { *result };
+}
+
+static WebIDL::ExceptionOr<ByteBuffer> hmac_calculate_message_digest(JS::Realm& realm, JS::GCPtr<KeyAlgorithm> hash, ReadonlyBytes key, ReadonlyBytes message)
+{
+    auto calculate_digest = [&]<typename T>() -> ByteBuffer {
+        ::Crypto::Authentication::HMAC<T> hmac(key);
+        auto digest = hmac.process(message);
+        return MUST(ByteBuffer::copy(digest.bytes()));
+    };
+    auto hash_name = hash->name();
+    if (hash_name.equals_ignoring_ascii_case("SHA-1"sv))
+        return calculate_digest.operator()<::Crypto::Hash::SHA1>();
+    if (hash_name.equals_ignoring_ascii_case("SHA-256"sv))
+        return calculate_digest.operator()<::Crypto::Hash::SHA256>();
+    if (hash_name.equals_ignoring_ascii_case("SHA-384"sv))
+        return calculate_digest.operator()<::Crypto::Hash::SHA384>();
+    if (hash_name.equals_ignoring_ascii_case("SHA-512"sv))
+        return calculate_digest.operator()<::Crypto::Hash::SHA512>();
+    return WebIDL::NotSupportedError::create(realm, "Invalid algorithm"_string);
+}
+
+static WebIDL::ExceptionOr<WebIDL::UnsignedLong> hmac_hash_block_size(JS::Realm& realm, HashAlgorithmIdentifier hash)
+{
+    auto hash_name = TRY(hash.name(realm.vm()));
+    if (hash_name.equals_ignoring_ascii_case("SHA-1"sv))
+        return ::Crypto::Hash::SHA1::digest_size();
+    if (hash_name.equals_ignoring_ascii_case("SHA-256"sv))
+        return ::Crypto::Hash::SHA256::digest_size();
+    if (hash_name.equals_ignoring_ascii_case("SHA-384"sv))
+        return ::Crypto::Hash::SHA384::digest_size();
+    if (hash_name.equals_ignoring_ascii_case("SHA-512"sv))
+        return ::Crypto::Hash::SHA512::digest_size();
+    return WebIDL::NotSupportedError::create(realm, MUST(String::formatted("Invalid hash function '{}'", hash_name)));
+}
+
+// https://w3c.github.io/webcrypto/#hmac-operations
+WebIDL::ExceptionOr<JS::NonnullGCPtr<JS::ArrayBuffer>> HMAC::sign(AlgorithmParams const&, JS::NonnullGCPtr<CryptoKey> key, ByteBuffer const& message)
+{
+    // 1. Let mac be the result of performing the MAC Generation operation described in Section 4 of
+    //    [FIPS-198-1] using the key represented by [[handle]] internal slot of key, the hash
+    //    function identified by the hash attribute of the [[algorithm]] internal slot of key and
+    //    message as the input data text.
+    auto const& key_data = key->handle().get<ByteBuffer>();
+    auto const& algorithm = verify_cast<HmacKeyAlgorithm>(*key->algorithm());
+    auto mac = TRY(hmac_calculate_message_digest(m_realm, algorithm.hash(), key_data.bytes(), message.bytes()));
+
+    // 2. Return the result of creating an ArrayBuffer containing mac.
+    return JS::ArrayBuffer::create(m_realm, move(mac));
+}
+
+// https://w3c.github.io/webcrypto/#hmac-operations
+WebIDL::ExceptionOr<JS::Value> HMAC::verify(AlgorithmParams const&, JS::NonnullGCPtr<CryptoKey> key, ByteBuffer const& signature, ByteBuffer const& message)
+{
+    // 1. Let mac be the result of performing the MAC Generation operation described in Section 4 of
+    //    [FIPS-198-1] using the key represented by [[handle]] internal slot of key, the hash
+    //    function identified by the hash attribute of the [[algorithm]] internal slot of key and
+    //    message as the input data text.
+    auto const& key_data = key->handle().get<ByteBuffer>();
+    auto const& algorithm = verify_cast<HmacKeyAlgorithm>(*key->algorithm());
+    auto mac = TRY(hmac_calculate_message_digest(m_realm, algorithm.hash(), key_data.bytes(), message.bytes()));
+
+    // 2. Return true if mac is equal to signature and false otherwise.
+    return mac == signature;
+}
+
+// https://w3c.github.io/webcrypto/#hmac-operations
+WebIDL::ExceptionOr<Variant<JS::NonnullGCPtr<CryptoKey>, JS::NonnullGCPtr<CryptoKeyPair>>> HMAC::generate_key(AlgorithmParams const& params, bool extractable, Vector<Bindings::KeyUsage> const& usages)
+{
+    // 1. If usages contains any entry which is not "sign" or "verify", then throw a SyntaxError.
+    for (auto const& usage : usages) {
+        if (usage != Bindings::KeyUsage::Sign && usage != Bindings::KeyUsage::Verify)
+            return WebIDL::SyntaxError::create(m_realm, MUST(String::formatted("Invalid key usage '{}'", idl_enum_to_string(usage))));
+    }
+
+    // 2. If the length member of normalizedAlgorithm is not present:
+    auto const& normalized_algorithm = static_cast<HmacKeyGenParams const&>(params);
+    WebIDL::UnsignedLong length;
+    if (!normalized_algorithm.length.has_value()) {
+        // Let length be the block size in bits of the hash function identified by the hash member
+        // of normalizedAlgorithm.
+        length = TRY(hmac_hash_block_size(m_realm, normalized_algorithm.hash));
+    }
+
+    // Otherwise, if the length member of normalizedAlgorithm is non-zero:
+    else if (normalized_algorithm.length.value() != 0) {
+        // Let length be equal to the length member of normalizedAlgorithm.
+        length = normalized_algorithm.length.value();
+    }
+
+    // Otherwise:
+    else {
+        // throw an OperationError.
+        return WebIDL::OperationError::create(m_realm, "Invalid length"_string);
+    }
+
+    // 3. Generate a key of length length bits.
+    auto key_data = MUST(generate_random_key(m_realm->vm(), length));
+
+    // 4. If the key generation step fails, then throw an OperationError.
+    // NOTE: Currently key generation must succeed
+
+    // 5. Let key be a new CryptoKey object representing the generated key.
+    auto key = CryptoKey::create(m_realm, move(key_data));
+
+    // 6. Let algorithm be a new HmacKeyAlgorithm.
+    auto algorithm = HmacKeyAlgorithm::create(m_realm);
+
+    // 7. Set the name attribute of algorithm to "HMAC".
+    algorithm->set_name("HMAC"_string);
+
+    // 8. Let hash be a new KeyAlgorithm.
+    auto hash = KeyAlgorithm::create(m_realm);
+
+    // 9. Set the name attribute of hash to equal the name member of the hash member of normalizedAlgorithm.
+    hash->set_name(TRY(normalized_algorithm.hash.name(m_realm->vm())));
+
+    // 10. Set the hash attribute of algorithm to hash.
+    algorithm->set_hash(hash);
+
+    // 11. Set the [[type]] internal slot of key to "secret".
+    key->set_type(Bindings::KeyType::Secret);
+
+    // 12. Set the [[algorithm]] internal slot of key to algorithm.
+    key->set_algorithm(algorithm);
+
+    // 13. Set the [[extractable]] internal slot of key to be extractable.
+    key->set_extractable(extractable);
+
+    // 14. Set the [[usages]] internal slot of key to be usages.
+    key->set_usages(usages);
+
+    // 15. Return key.
+    return Variant<JS::NonnullGCPtr<CryptoKey>, JS::NonnullGCPtr<CryptoKeyPair>> { key };
+}
+
+// https://w3c.github.io/webcrypto/#hmac-operations
+WebIDL::ExceptionOr<JS::NonnullGCPtr<CryptoKey>> HMAC::import_key(Web::Crypto::AlgorithmParams const& params, Bindings::KeyFormat key_format, CryptoKey::InternalKeyData key_data, bool extractable, Vector<Bindings::KeyUsage> const& usages)
+{
+    auto& vm = m_realm->vm();
+    auto const& normalized_algorithm = static_cast<HmacImportParams const&>(params);
+
+    // 1. Let keyData be the key data to be imported.
+    // 2. If usages contains an entry which is not "sign" or "verify", then throw a SyntaxError.
+    for (auto const& usage : usages) {
+        if (usage != Bindings::KeyUsage::Sign && usage != Bindings::KeyUsage::Verify)
+            return WebIDL::SyntaxError::create(m_realm, MUST(String::formatted("Invalid key usage '{}'", idl_enum_to_string(usage))));
+    }
+
+    // 3. Let hash be a new KeyAlgorithm.
+    auto hash = KeyAlgorithm::create(m_realm);
+
+    // 4. If format is "raw":
+    AK::ByteBuffer data;
+    if (key_format == Bindings::KeyFormat::Raw) {
+        // 4.1. Let data be the octet string contained in keyData.
+        data = key_data.get<ByteBuffer>();
+
+        // 4.2. Set hash to equal the hash member of normalizedAlgorithm.
+        hash->set_name(TRY(normalized_algorithm.hash.name(vm)));
+    }
+
+    // If format is "jwk":
+    else if (key_format == Bindings::KeyFormat::Jwk) {
+        // 1. If keyData is a JsonWebKey dictionary:
+        //    Let jwk equal keyData.
+        //    Otherwise:
+        //    Throw a DataError.
+        if (!key_data.has<Bindings::JsonWebKey>())
+            return WebIDL::DataError::create(m_realm, "Data is not a JsonWebKey dictionary"_string);
+        auto jwk = key_data.get<Bindings::JsonWebKey>();
+
+        // 2. If the kty field of jwk is not "oct", then throw a DataError.
+        if (jwk.kty != "oct"sv)
+            return WebIDL::DataError::create(m_realm, "Invalid key type"_string);
+
+        // 3. If jwk does not meet the requirements of Section 6.4 of JSON Web Algorithms [JWA],
+        //    then throw a DataError.
+        // 4. Let data be the octet string obtained by decoding the k field of jwk.
+        data = TRY(parse_jwk_symmetric_key(m_realm, jwk));
+
+        // 5. Set the hash to equal the hash member of normalizedAlgorithm.
+        hash->set_name(TRY(normalized_algorithm.hash.name(vm)));
+
+        // 6. If the name attribute of hash is "SHA-1":
+        auto hash_name = hash->name();
+        if (hash_name.equals_ignoring_ascii_case("SHA-1"sv)) {
+            // If the alg field of jwk is present and is not "HS1", then throw a DataError.
+            if (jwk.alg.has_value() && jwk.alg != "HS1"sv)
+                return WebIDL::DataError::create(m_realm, "Invalid algorithm"_string);
+        }
+
+        // If the name attribute of hash is "SHA-256":
+        else if (hash_name.equals_ignoring_ascii_case("SHA-256"sv)) {
+            // If the alg field of jwk is present and is not "HS256", then throw a DataError.
+            if (jwk.alg.has_value() && jwk.alg != "HS256"sv)
+                return WebIDL::DataError::create(m_realm, "Invalid algorithm"_string);
+        }
+
+        // If the name attribute of hash is "SHA-384":
+        else if (hash_name.equals_ignoring_ascii_case("SHA-384"sv)) {
+            // If the alg field of jwk is present and is not "HS384", then throw a DataError.
+            if (jwk.alg.has_value() && jwk.alg != "HS384"sv)
+                return WebIDL::DataError::create(m_realm, "Invalid algorithm"_string);
+        }
+
+        // If the name attribute of hash is "SHA-512":
+        else if (hash_name.equals_ignoring_ascii_case("SHA-512"sv)) {
+            // If the alg field of jwk is present and is not "HS512", then throw a DataError.
+            if (jwk.alg.has_value() && jwk.alg != "HS512"sv)
+                return WebIDL::DataError::create(m_realm, "Invalid algorithm"_string);
+        }
+
+        // FIXME: Otherwise, if the name attribute of hash is defined in another applicable specification:
+        else {
+            // FIXME: Perform any key import steps defined by other applicable specifications, passing format,
+            //        jwk and hash and obtaining hash.
+            dbgln("Hash algorithm '{}' not supported", hash_name);
+            return WebIDL::DataError::create(m_realm, "Invalid algorithm"_string);
+        }
+
+        // 7. If usages is non-empty and the use field of jwk is present and is not "sign", then
+        //    throw a DataError.
+        if (!usages.is_empty() && jwk.use.has_value() && jwk.use != "sign"sv)
+            return WebIDL::DataError::create(m_realm, "Invalid use in JsonWebKey"_string);
+
+        // 8. If the key_ops field of jwk is present, and is invalid according to the requirements
+        //    of JSON Web Key [JWK] or does not contain all of the specified usages values, then
+        //    throw a DataError.
+        TRY(validate_jwk_key_ops(m_realm, jwk, usages));
+
+        // 9. If the ext field of jwk is present and has the value false and extractable is true,
+        //    then throw a DataError.
+        if (jwk.ext.has_value() && !*jwk.ext && extractable)
+            return WebIDL::DataError::create(m_realm, "Invalid ext field"_string);
+    }
+
+    // Otherwise:
+    else {
+        // throw a NotSupportedError.
+        return WebIDL::NotSupportedError::create(m_realm, "Invalid key format"_string);
+    }
+
+    // 5. Let length be equivalent to the length, in octets, of data, multiplied by 8.
+    auto length = data.size() * 8;
+
+    // 6. If length is zero then throw a DataError.
+    if (length == 0)
+        return WebIDL::DataError::create(m_realm, "No data provided"_string);
+
+    // 7. If the length member of normalizedAlgorithm is present:
+    if (normalized_algorithm.length.has_value()) {
+        // If the length member of normalizedAlgorithm is greater than length:
+        auto normalized_algorithm_length = normalized_algorithm.length.value();
+        if (normalized_algorithm_length > length) {
+            // throw a DataError.
+            return WebIDL::DataError::create(m_realm, "Invalid data size"_string);
+        }
+
+        // If the length member of normalizedAlgorithm, is less than or equal to length minus eight:
+        if (normalized_algorithm_length <= length - 8) {
+            // throw a DataError.
+            return WebIDL::DataError::create(m_realm, "Invalid data size"_string);
+        }
+
+        // Otherwise:
+        // Set length equal to the length member of normalizedAlgorithm.
+        length = normalized_algorithm_length;
+    }
+
+    // 8. Let key be a new CryptoKey object representing an HMAC key with the first length bits of data.
+    auto length_in_bytes = length / 8;
+    if (data.size() > length_in_bytes)
+        data = MUST(data.slice(0, length_in_bytes));
+    auto key = CryptoKey::create(m_realm, move(data));
+
+    // 9. Set the [[type]] internal slot of key to "secret".
+    key->set_type(Bindings::KeyType::Secret);
+
+    // 10. Let algorithm be a new HmacKeyAlgorithm.
+    auto algorithm = HmacKeyAlgorithm::create(m_realm);
+
+    // 11. Set the name attribute of algorithm to "HMAC".
+    algorithm->set_name("HMAC"_string);
+
+    // 12. Set the length attribute of algorithm to length.
+    algorithm->set_length(length);
+
+    // 13. Set the hash attribute of algorithm to hash.
+    algorithm->set_hash(hash);
+
+    // 14. Set the [[algorithm]] internal slot of key to algorithm.
+    key->set_algorithm(algorithm);
+
+    // 15. Return key.
+    return key;
+}
+
+// https://w3c.github.io/webcrypto/#hmac-operations
+WebIDL::ExceptionOr<JS::NonnullGCPtr<JS::Object>> HMAC::export_key(Bindings::KeyFormat format, JS::NonnullGCPtr<CryptoKey> key)
+{
+    auto& vm = m_realm->vm();
+
+    // 1. If the underlying cryptographic key material represented by the [[handle]] internal slot
+    //    of key cannot be accessed, then throw an OperationError.
+    // NOTE: In our impl this is always accessible
+
+    // 2. Let bits be the raw bits of the key represented by [[handle]] internal slot of key.
+    // 3. Let data be an octet string containing bits.
+    auto data = key->handle().get<ByteBuffer>();
+
+    // 4. If format is "raw":
+    JS::GCPtr<JS::Object> result;
+    if (format == Bindings::KeyFormat::Raw) {
+        // Let result be the result of creating an ArrayBuffer containing data.
+        result = JS::ArrayBuffer::create(m_realm, data);
+    }
+
+    // If format is "jwk":
+    else if (format == Bindings::KeyFormat::Jwk) {
+        // Let jwk be a new JsonWebKey dictionary.
+        Bindings::JsonWebKey jwk {};
+
+        // Set the kty attribute of jwk to the string "oct".
+        jwk.kty = "oct"_string;
+
+        // Set the k attribute of jwk to be a string containing data, encoded according to Section
+        // 6.4 of JSON Web Algorithms [JWA].
+        jwk.k = MUST(encode_base64url(data, AK::OmitPadding::Yes));
+
+        // Let algorithm be the [[algorithm]] internal slot of key.
+        auto const& algorithm = verify_cast<HmacKeyAlgorithm>(*key->algorithm());
+
+        // Let hash be the hash attribute of algorithm.
+        auto hash = algorithm.hash();
+
+        // If the name attribute of hash is "SHA-1":
+        auto hash_name = hash->name();
+        if (hash_name.equals_ignoring_ascii_case("SHA-1"sv)) {
+            // Set the alg attribute of jwk to the string "HS1".
+            jwk.alg = "HS1"_string;
+        }
+        // If the name attribute of hash is "SHA-256":
+        else if (hash_name.equals_ignoring_ascii_case("SHA-256"sv)) {
+            // Set the alg attribute of jwk to the string "HS256".
+            jwk.alg = "HS256"_string;
+        }
+        // If the name attribute of hash is "SHA-384":
+        else if (hash_name.equals_ignoring_ascii_case("SHA-384"sv)) {
+            // Set the alg attribute of jwk to the string "HS384".
+            jwk.alg = "HS384"_string;
+        }
+        // If the name attribute of hash is "SHA-512":
+        else if (hash_name.equals_ignoring_ascii_case("SHA-512"sv)) {
+            // Set the alg attribute of jwk to the string "HS512".
+            jwk.alg = "HS512"_string;
+        }
+
+        // FIXME: Otherwise, the name attribute of hash is defined in another applicable
+        //        specification:
+        else {
+            // FIXME: Perform any key export steps defined by other applicable specifications,
+            //        passing format and key and obtaining alg.
+            // FIXME: Set the alg attribute of jwk to alg.
+            dbgln("Hash algorithm '{}' not supported", hash_name);
+            return WebIDL::DataError::create(m_realm, "Invalid algorithm"_string);
+        }
+
+        // Set the key_ops attribute of jwk to equal the usages attribute of key.
+        auto key_usages = verify_cast<JS::Array>(key->usages());
+        auto key_usages_length = MUST(MUST(key_usages->get(vm.names.length)).to_length(vm));
+        for (auto i = 0u; i < key_usages_length; ++i) {
+            auto usage = key_usages->get(i);
+            if (!usage.has_value())
+                break;
+
+            auto usage_string = TRY(usage.value().to_string(vm));
+            jwk.key_ops->append(usage_string);
+        }
+
+        // Set the ext attribute of jwk to equal the [[extractable]] internal slot of key.
+        jwk.ext = key->extractable();
+
+        // Let result be the result of converting jwk to an ECMAScript Object, as defined by [WebIDL].
+        result = TRY(jwk.to_object(m_realm));
+    }
+
+    // Otherwise:
+    else {
+        // throw a NotSupportedError.
+        return WebIDL::NotSupportedError::create(m_realm, "Invalid key format"_string);
+    }
+
+    // 5. Return result.
+    return JS::NonnullGCPtr { *result };
+}
+
+// https://w3c.github.io/webcrypto/#hmac-operations
+WebIDL::ExceptionOr<JS::Value> HMAC::get_key_length(AlgorithmParams const& params)
+{
+    auto const& normalized_derived_key_algorithm = static_cast<HmacImportParams const&>(params);
+    WebIDL::UnsignedLong length;
+
+    // 1. If the length member of normalizedDerivedKeyAlgorithm is not present:
+    if (!normalized_derived_key_algorithm.length.has_value()) {
+        // Let length be the block size in bits of the hash function identified by the hash member of
+        // normalizedDerivedKeyAlgorithm.
+        length = TRY(hmac_hash_block_size(m_realm, normalized_derived_key_algorithm.hash));
+    }
+
+    // Otherwise, if the length member of normalizedDerivedKeyAlgorithm is non-zero:
+    else if (normalized_derived_key_algorithm.length.value() > 0) {
+        // Let length be equal to the length member of normalizedDerivedKeyAlgorithm.
+        length = normalized_derived_key_algorithm.length.value();
+    }
+
+    // Otherwise:
+    else {
+        // throw a TypeError.
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Invalid key length"sv };
+    }
+
+    // 2. Return length.
+    return JS::Value(length);
 }
 
 }
