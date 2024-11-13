@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<link rel="match" href="../expected/clip-offscreen-ref.html" />
+<style>
+    .wrapper {
+        border: 1px solid black;
+        height: 50px;
+        position: absolute;
+        top: -100px;
+        overflow: auto;
+    }
+</style>
+<div class="wrapper">
+    <div>
+        01) Overflow<br/>
+        02) Overflow<br/>
+        03) Overflow<br/>
+        04) Overflow<br/>
+        05) Overflow<br/>
+        06) Overflow<br/>
+        07) Overflow<br/>
+        08) Overflow<br/>
+        09) Overflow<br/>
+        10) Overflow<br/>
+    </div>
+</div>
+
+<div class="wrapper" style="left: 200px; border-radius: 10px">
+    <div>
+        01) Border-radius overflow<br/>
+        02) Border-radius overflow<br/>
+        03) Border-radius overflow<br/>
+        04) Border-radius overflow<br/>
+        05) Border-radius overflow<br/>
+        06) Border-radius overflow<br/>
+        07) Border-radius overflow<br/>
+        08) Border-radius overflow<br/>
+        09) Border-radius overflow<br/>
+        10) Border-radius overflow<br/>
+    </div>
+</div>
+
+<div class="wrapper" style="left: 400px; clip-path: polygon(65px 0px, 35px 80px, 105px 30px, 25px 30px, 95px 80px)">
+    <div>
+        01) Masked overflow<br/>
+        02) Masked overflow<br/>
+        03) Masked overflow<br/>
+        04) Masked overflow<br/>
+        05) Masked overflow<br/>
+        06) Masked overflow<br/>
+        07) Masked overflow<br/>
+        08) Masked overflow<br/>
+        09) Masked overflow<br/>
+        10) Masked overflow<br/>
+    </div>
+</div>
+
+(This space intentionally left blank)
