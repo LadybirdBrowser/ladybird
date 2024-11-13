@@ -6,8 +6,6 @@
 
 #include <LibGfx/Bitmap.h>
 #include <LibGfx/ShareableBitmap.h>
-#include <LibWeb/Crypto/Crypto.h>
-#include <LibWebView/HelperProcess.h>
 #include <UI/Headless/Application.h>
 #include <UI/Headless/HeadlessWebView.h>
 
@@ -153,39 +151,12 @@ NonnullOwnPtr<HeadlessWebView> HeadlessWebView::create_child(HeadlessWebView con
 
 void HeadlessWebView::initialize_client(CreateNewClient create_new_client)
 {
-    if (create_new_client == CreateNewClient::Yes) {
-        auto request_server_socket = WebView::connect_new_request_server_client().release_value_but_fixme_should_propagate_errors();
-        auto image_decoder_socket = WebView::connect_new_image_decoder_client().release_value_but_fixme_should_propagate_errors();
-
-        m_client_state.client = WebView::launch_web_content_process(*this, move(image_decoder_socket), move(request_server_socket)).release_value_but_fixme_should_propagate_errors();
-    } else {
-        m_client_state.client->register_view(m_client_state.page_index, *this);
-    }
-
-    m_client_state.client_handle = MUST(Web::Crypto::generate_random_uuid());
-    client().async_set_window_handle(m_client_state.page_index, m_client_state.client_handle);
+    ViewImplementation::initialize_client(create_new_client);
 
     client().async_update_system_theme(m_client_state.page_index, m_theme);
     client().async_set_viewport_size(m_client_state.page_index, viewport_size());
     client().async_set_window_size(m_client_state.page_index, viewport_size());
     client().async_update_screen_rects(m_client_state.page_index, { screen_rect }, 0);
-
-    set_system_visibility_state(m_system_visibility_state);
-
-    if (Application::chrome_options().allow_popups == WebView::AllowPopups::Yes)
-        client().async_debug_request(m_client_state.page_index, "block-pop-ups"sv, "off"sv);
-
-    if (auto const& web_driver_ipc_path = Application::chrome_options().webdriver_content_ipc_path; web_driver_ipc_path.has_value())
-        client().async_connect_to_webdriver(m_client_state.page_index, *web_driver_ipc_path);
-
-    m_client_state.client->on_web_content_process_crash = [this] {
-        Core::deferred_invoke([this] {
-            handle_web_content_process_crash(LoadErrorPage::No);
-
-            if (on_web_content_crashed)
-                on_web_content_crashed();
-        });
-    };
 }
 
 void HeadlessWebView::clear_content_filters()

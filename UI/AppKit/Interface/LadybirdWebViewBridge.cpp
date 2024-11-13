@@ -8,10 +8,7 @@
 #include <LibGfx/Font/FontDatabase.h>
 #include <LibGfx/Rect.h>
 #include <LibIPC/File.h>
-#include <LibWeb/Crypto/Crypto.h>
 #include <LibWebView/Application.h>
-#include <LibWebView/HelperProcess.h>
-#include <LibWebView/UserAgent.h>
 
 #import <Interface/Palette.h>
 
@@ -144,44 +141,14 @@ Gfx::IntPoint WebViewBridge::to_widget_position(Gfx::IntPoint content_position) 
 
 void WebViewBridge::initialize_client(CreateNewClient create_new_client)
 {
-    if (create_new_client == CreateNewClient::Yes) {
-        m_client_state = {};
+    ViewImplementation::initialize_client(create_new_client);
 
-        auto request_server_socket = WebView::connect_new_request_server_client().release_value_but_fixme_should_propagate_errors();
-        auto image_decoder_socket = WebView::connect_new_image_decoder_client().release_value_but_fixme_should_propagate_errors();
-
-        m_client_state.client = launch_web_content_process(*this, AK::move(image_decoder_socket), AK::move(request_server_socket)).release_value_but_fixme_should_propagate_errors();
-    } else {
-        m_client_state.client->register_view(m_client_state.page_index, *this);
-    }
-
-    m_client_state.client->on_web_content_process_crash = [this] {
-        Core::deferred_invoke([this] {
-            handle_web_content_process_crash();
-        });
-    };
-
-    m_client_state.client_handle = MUST(Web::Crypto::generate_random_uuid());
-    client().async_set_window_handle(m_client_state.page_index, m_client_state.client_handle);
-
-    client().async_set_device_pixels_per_css_pixel(m_client_state.page_index, m_device_pixel_ratio);
     client().async_set_preferred_color_scheme(m_client_state.page_index, m_preferred_color_scheme);
-
-    set_system_visibility_state(m_system_visibility_state);
     update_palette();
 
     if (!m_screen_rects.is_empty()) {
         // FIXME: Update the screens again if they ever change.
         client().async_update_screen_rects(m_client_state.page_index, m_screen_rects, 0);
-    }
-
-    if (auto const& webdriver_content_ipc_path = WebView::Application::chrome_options().webdriver_content_ipc_path; webdriver_content_ipc_path.has_value()) {
-        client().async_connect_to_webdriver(m_client_state.page_index, *webdriver_content_ipc_path);
-    }
-
-    if (auto const& user_agent_preset = WebView::Application::web_content_options().user_agent_preset; user_agent_preset.has_value()) {
-        auto user_agent = *WebView::user_agents.get(*user_agent_preset);
-        client().async_debug_request(m_client_state.page_index, "spoof-user-agent"sv, user_agent);
     }
 }
 

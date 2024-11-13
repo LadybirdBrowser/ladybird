@@ -230,6 +230,7 @@ public:
     Function<void(size_t, Gfx::IntPoint)> on_inspector_requested_cookie_context_menu;
     Function<void(String const&)> on_inspector_executed_console_script;
     Function<void(String const&)> on_inspector_exported_inspector_html;
+    Function<void()> on_web_content_crashed;
 
     virtual Web::DevicePixelSize viewport_size() const = 0;
     virtual Gfx::IntPoint to_content_position(Gfx::IntPoint widget_position) const = 0;
@@ -253,7 +254,7 @@ protected:
         No,
         Yes,
     };
-    virtual void initialize_client(CreateNewClient = CreateNewClient::Yes) { }
+    virtual void initialize_client(CreateNewClient = CreateNewClient::Yes);
 
     enum class LoadErrorPage {
         No,
