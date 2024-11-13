@@ -26,8 +26,8 @@ public:
     bool matches() const;
     bool evaluate();
 
-    void add_listener(DOM::IDLEventListener*);
-    void remove_listener(DOM::IDLEventListener*);
+    void add_listener(JS::GCPtr<DOM::IDLEventListener>);
+    void remove_listener(JS::GCPtr<DOM::IDLEventListener>);
 
     void set_onchange(WebIDL::CallbackType*);
     WebIDL::CallbackType* onchange();

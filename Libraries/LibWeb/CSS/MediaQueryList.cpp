@@ -80,7 +80,7 @@ bool MediaQueryList::evaluate()
 }
 
 // https://www.w3.org/TR/cssom-view/#dom-mediaquerylist-addlistener
-void MediaQueryList::add_listener(DOM::IDLEventListener* listener)
+void MediaQueryList::add_listener(JS::GCPtr<DOM::IDLEventListener> listener)
 {
     // 1. If listener is null, terminate these steps.
     if (!listener)
@@ -94,7 +94,7 @@ void MediaQueryList::add_listener(DOM::IDLEventListener* listener)
 }
 
 // https://www.w3.org/TR/cssom-view/#dom-mediaquerylist-removelistener
-void MediaQueryList::remove_listener(DOM::IDLEventListener* listener)
+void MediaQueryList::remove_listener(JS::GCPtr<DOM::IDLEventListener> listener)
 {
     // 1. Remove an event listener from the associated list of event listeners, whose type is change, callback is listener, and capture is false.
     // NOTE: While the spec doesn't technically use remove_event_listener and instead manipulates the list directly, every major engine uses remove_event_listener.
