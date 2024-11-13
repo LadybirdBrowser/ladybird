@@ -1,0 +1,51 @@
+Summary
+
+Harness status: OK
+
+Rerun
+
+Found 41 tests
+
+41 Pass
+Details
+Result	Test Name	MessagePass	setup	
+Pass	HMAC with SHA-1 verification	
+Pass	HMAC with SHA-256 verification	
+Pass	HMAC with SHA-384 verification	
+Pass	HMAC with SHA-512 verification	
+Pass	HMAC with SHA-1 verification with altered signature after call	
+Pass	HMAC with SHA-256 verification with altered signature after call	
+Pass	HMAC with SHA-384 verification with altered signature after call	
+Pass	HMAC with SHA-512 verification with altered signature after call	
+Pass	HMAC with SHA-1 with altered plaintext after call	
+Pass	HMAC with SHA-256 with altered plaintext after call	
+Pass	HMAC with SHA-384 with altered plaintext after call	
+Pass	HMAC with SHA-512 with altered plaintext after call	
+Pass	HMAC with SHA-1 no verify usage	
+Pass	HMAC with SHA-256 no verify usage	
+Pass	HMAC with SHA-384 no verify usage	
+Pass	HMAC with SHA-512 no verify usage	
+Pass	HMAC with SHA-1 round trip	
+Pass	HMAC with SHA-256 round trip	
+Pass	HMAC with SHA-384 round trip	
+Pass	HMAC with SHA-512 round trip	
+Pass	HMAC with SHA-1 signing with wrong algorithm name	
+Pass	HMAC with SHA-256 signing with wrong algorithm name	
+Pass	HMAC with SHA-384 signing with wrong algorithm name	
+Pass	HMAC with SHA-512 signing with wrong algorithm name	
+Pass	HMAC with SHA-1 verifying with wrong algorithm name	
+Pass	HMAC with SHA-256 verifying with wrong algorithm name	
+Pass	HMAC with SHA-384 verifying with wrong algorithm name	
+Pass	HMAC with SHA-512 verifying with wrong algorithm name	
+Pass	HMAC with SHA-1 verification failure due to wrong plaintext	
+Pass	HMAC with SHA-256 verification failure due to wrong plaintext	
+Pass	HMAC with SHA-384 verification failure due to wrong plaintext	
+Pass	HMAC with SHA-512 verification failure due to wrong plaintext	
+Pass	HMAC with SHA-1 verification failure due to wrong signature	
+Pass	HMAC with SHA-256 verification failure due to wrong signature	
+Pass	HMAC with SHA-384 verification failure due to wrong signature	
+Pass	HMAC with SHA-512 verification failure due to wrong signature	
+Pass	HMAC with SHA-1 verification failure due to short signature	
+Pass	HMAC with SHA-256 verification failure due to short signature	
+Pass	HMAC with SHA-384 verification failure due to short signature	
+Pass	HMAC with SHA-512 verification failure due to short signature	
