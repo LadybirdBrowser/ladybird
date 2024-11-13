@@ -1,0 +1,17 @@
+Summary
+
+Harness status: OK
+
+Rerun
+
+Found 7 tests
+
+7 Pass
+Details
+Result	Test Name	MessagePass	Writable stream: throwing strategy.size getter	
+Pass	reject any non-function value for strategy.size	
+Pass	Writable stream: throwing strategy.highWaterMark getter	
+Pass	Writable stream: invalid strategy.highWaterMark	
+Pass	Writable stream: throwing strategy.size method	
+Pass	Writable stream: invalid strategy.size return value	
+Pass	Writable stream: invalid size beats invalid highWaterMark	
