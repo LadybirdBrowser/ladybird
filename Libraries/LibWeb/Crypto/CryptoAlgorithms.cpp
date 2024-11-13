@@ -34,6 +34,17 @@
 
 namespace Web::Crypto {
 
+static JS::ThrowCompletionOr<HashAlgorithmIdentifier> hash_algorithm_identifier_from_value(JS::VM& vm, JS::Value hash_value)
+{
+    if (hash_value.is_string()) {
+        auto hash_string = TRY(hash_value.to_string(vm));
+        return HashAlgorithmIdentifier { hash_string };
+    }
+
+    auto hash_object = TRY(hash_value.to_object(vm));
+    return HashAlgorithmIdentifier { hash_object };
+}
+
 // https://w3c.github.io/webcrypto/#concept-usage-intersection
 static Vector<Bindings::KeyUsage> usage_intersection(ReadonlySpan<Bindings::KeyUsage> a, ReadonlySpan<Bindings::KeyUsage> b)
 {
@@ -337,7 +348,7 @@ JS::ThrowCompletionOr<NonnullOwnPtr<AlgorithmParams>> HKDFParams::from_value(JS:
     auto name = TRY(name_value.to_string(vm));
 
     auto hash_value = TRY(object.get("hash"));
-    auto hash = TRY(hash_value.to_string(vm));
+    auto hash = TRY(hash_algorithm_identifier_from_value(vm, hash_value));
 
     auto salt_value = TRY(object.get("salt"));
     if (!salt_value.is_object() || !(is<JS::TypedArrayBase>(salt_value.as_object()) || is<JS::ArrayBuffer>(salt_value.as_object()) || is<JS::DataView>(salt_value.as_object())))
@@ -372,7 +383,7 @@ JS::ThrowCompletionOr<NonnullOwnPtr<AlgorithmParams>> PBKDF2Params::from_value(J
     auto iterations = TRY(iterations_value.to_u32(vm));
 
     auto hash_value = TRY(object.get("hash"));
-    auto hash = TRY(hash_value.to_string(vm));
+    auto hash = TRY(hash_algorithm_identifier_from_value(vm, hash_value));
 
     return adopt_own<AlgorithmParams>(*new PBKDF2Params { name, salt, iterations, hash });
 }
@@ -421,16 +432,9 @@ JS::ThrowCompletionOr<NonnullOwnPtr<AlgorithmParams>> RsaHashedKeyGenParams::fro
     public_exponent = static_cast<JS::Uint8Array&>(public_exponent_value.as_object());
 
     auto hash_value = TRY(object.get("hash"));
-    auto hash = Variant<Empty, HashAlgorithmIdentifier> { Empty {} };
-    if (hash_value.is_string()) {
-        auto hash_string = TRY(hash_value.to_string(vm));
-        hash = HashAlgorithmIdentifier { hash_string };
-    } else {
-        auto hash_object = TRY(hash_value.to_object(vm));
-        hash = HashAlgorithmIdentifier { hash_object };
-    }
+    auto hash = TRY(hash_algorithm_identifier_from_value(vm, hash_value));
 
-    return adopt_own<AlgorithmParams>(*new RsaHashedKeyGenParams { name, modulus_length, big_integer_from_api_big_integer(public_exponent), hash.get<HashAlgorithmIdentifier>() });
+    return adopt_own<AlgorithmParams>(*new RsaHashedKeyGenParams { name, modulus_length, big_integer_from_api_big_integer(public_exponent), hash });
 }
 
 RsaHashedImportParams::~RsaHashedImportParams() = default;
@@ -443,16 +447,9 @@ JS::ThrowCompletionOr<NonnullOwnPtr<AlgorithmParams>> RsaHashedImportParams::fro
     auto name = TRY(name_value.to_string(vm));
 
     auto hash_value = TRY(object.get("hash"));
-    auto hash = Variant<Empty, HashAlgorithmIdentifier> { Empty {} };
-    if (hash_value.is_string()) {
-        auto hash_string = TRY(hash_value.to_string(vm));
-        hash = HashAlgorithmIdentifier { hash_string };
-    } else {
-        auto hash_object = TRY(hash_value.to_object(vm));
-        hash = HashAlgorithmIdentifier { hash_object };
-    }
+    auto hash = TRY(hash_algorithm_identifier_from_value(vm, hash_value));
 
-    return adopt_own<AlgorithmParams>(*new RsaHashedImportParams { name, hash.get<HashAlgorithmIdentifier>() });
+    return adopt_own<AlgorithmParams>(*new RsaHashedImportParams { name, hash });
 }
 
 RsaOaepParams::~RsaOaepParams() = default;
@@ -487,16 +484,9 @@ JS::ThrowCompletionOr<NonnullOwnPtr<AlgorithmParams>> EcdsaParams::from_value(JS
     auto name = TRY(name_value.to_string(vm));
 
     auto hash_value = TRY(object.get("hash"));
-    auto hash = Variant<Empty, HashAlgorithmIdentifier> { Empty {} };
-    if (hash_value.is_string()) {
-        auto hash_string = TRY(hash_value.to_string(vm));
-        hash = HashAlgorithmIdentifier { hash_string };
-    } else {
-        auto hash_object = TRY(hash_value.to_object(vm));
-        hash = HashAlgorithmIdentifier { hash_object };
-    }
+    auto hash = TRY(hash_algorithm_identifier_from_value(vm, hash_value));
 
-    return adopt_own<AlgorithmParams>(*new EcdsaParams { name, hash.get<HashAlgorithmIdentifier>() });
+    return adopt_own<AlgorithmParams>(*new EcdsaParams { name, hash });
 }
 
 EcKeyGenParams::~EcKeyGenParams() = default;
