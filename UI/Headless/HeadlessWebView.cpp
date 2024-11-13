@@ -8,7 +8,6 @@
 #include <LibGfx/ShareableBitmap.h>
 #include <LibWeb/Crypto/Crypto.h>
 #include <LibWebView/HelperProcess.h>
-#include <LibWebView/Utilities.h>
 #include <UI/Headless/Application.h>
 #include <UI/Headless/HeadlessWebView.h>
 
@@ -32,9 +31,7 @@ HeadlessWebView::HeadlessWebView(Core::AnonymousBuffer theme, Web::DevicePixelSi
     };
 
     on_request_worker_agent = []() {
-        auto web_worker_paths = MUST(WebView::get_paths_for_helper_process("WebWorker"sv));
-        auto worker_client = MUST(WebView::launch_web_worker_process(web_worker_paths));
-
+        auto worker_client = MUST(WebView::launch_web_worker_process());
         return worker_client->clone_transport();
     };
 
@@ -165,8 +162,7 @@ void HeadlessWebView::initialize_client(CreateNewClient create_new_client)
         auto request_server_socket = WebView::connect_new_request_server_client().release_value_but_fixme_should_propagate_errors();
         auto image_decoder_socket = WebView::connect_new_image_decoder_client().release_value_but_fixme_should_propagate_errors();
 
-        auto web_content_paths = WebView::get_paths_for_helper_process("WebContent"sv).release_value_but_fixme_should_propagate_errors();
-        m_client_state.client = WebView::launch_web_content_process(*this, web_content_paths, move(image_decoder_socket), move(request_server_socket)).release_value_but_fixme_should_propagate_errors();
+        m_client_state.client = WebView::launch_web_content_process(*this, move(image_decoder_socket), move(request_server_socket)).release_value_but_fixme_should_propagate_errors();
     } else {
         m_client_state.client->register_view(m_client_state.page_index, *this);
     }

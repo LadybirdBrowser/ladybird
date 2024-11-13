@@ -25,7 +25,6 @@
 #include <LibWeb/UIEvents/MouseButton.h>
 #include <LibWebView/Application.h>
 #include <LibWebView/HelperProcess.h>
-#include <LibWebView/Utilities.h>
 #include <LibWebView/WebContentClient.h>
 #include <UI/Qt/Application.h>
 #include <UI/Qt/StringUtils.h>
@@ -128,7 +127,7 @@ WebContentView::WebContentView(QWidget* window, RefPtr<WebView::WebContentClient
     };
 
     on_request_worker_agent = [&]() {
-        auto worker_client = MUST(WebView::launch_web_worker_process(MUST(WebView::get_paths_for_helper_process("WebWorker"sv))));
+        auto worker_client = MUST(WebView::launch_web_worker_process());
         return worker_client->clone_transport();
     };
 
@@ -632,10 +631,7 @@ void WebContentView::initialize_client(WebView::ViewImplementation::CreateNewCli
         auto request_server_socket = WebView::connect_new_request_server_client().release_value_but_fixme_should_propagate_errors();
         auto image_decoder_socket = WebView::connect_new_image_decoder_client().release_value_but_fixme_should_propagate_errors();
 
-        auto candidate_web_content_paths = WebView::get_paths_for_helper_process("WebContent"sv).release_value_but_fixme_should_propagate_errors();
-        auto new_client = launch_web_content_process(*this, candidate_web_content_paths, AK::move(image_decoder_socket), AK::move(request_server_socket)).release_value_but_fixme_should_propagate_errors();
-
-        m_client_state.client = new_client;
+        m_client_state.client = launch_web_content_process(*this, AK::move(image_decoder_socket), AK::move(request_server_socket)).release_value_but_fixme_should_propagate_errors();
     } else {
         m_client_state.client->register_view(m_client_state.page_index, *this);
     }
