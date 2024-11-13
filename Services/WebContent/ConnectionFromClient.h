@@ -105,7 +105,7 @@ private:
     virtual void set_window_size(u64 page_id, Web::DevicePixelSize) override;
     virtual void did_update_window_rect(u64 page_id) override;
     virtual void handle_file_return(u64 page_id, i32 error, Optional<IPC::File> const& file, i32 request_id) override;
-    virtual void set_system_visibility_state(u64 page_id, bool visible) override;
+    virtual void set_system_visibility_state(u64 page_id, Web::HTML::VisibilityState) override;
 
     virtual void js_console_input(u64 page_id, ByteString const&) override;
     virtual void run_javascript(u64 page_id, ByteString const&) override;

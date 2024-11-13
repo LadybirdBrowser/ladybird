@@ -1135,14 +1135,10 @@ void ConnectionFromClient::request_file(u64 page_id, Web::FileRequest file_reque
     async_did_request_file(page_id, path, id);
 }
 
-void ConnectionFromClient::set_system_visibility_state(u64 page_id, bool visible)
+void ConnectionFromClient::set_system_visibility_state(u64 page_id, Web::HTML::VisibilityState visibility_state)
 {
-    if (auto page = this->page(page_id); page.has_value()) {
-        page->page().top_level_traversable()->set_system_visibility_state(
-            visible
-                ? Web::HTML::VisibilityState::Visible
-                : Web::HTML::VisibilityState::Hidden);
-    }
+    if (auto page = this->page(page_id); page.has_value())
+        page->page().top_level_traversable()->set_system_visibility_state(visibility_state);
 }
 
 void ConnectionFromClient::js_console_input(u64 page_id, ByteString const& js_source)

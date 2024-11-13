@@ -31,7 +31,6 @@ public:
     void set_device_pixel_ratio(float device_pixel_ratio);
     float inverse_device_pixel_ratio() const { return 1.0f / m_device_pixel_ratio; }
 
-    void set_system_visibility_state(bool is_visible);
     void set_viewport_rect(Gfx::IntRect);
 
     void update_palette();

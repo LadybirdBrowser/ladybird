@@ -54,11 +54,11 @@ HeadlessWebView::HeadlessWebView(Core::AnonymousBuffer theme, Web::DevicePixelSi
     };
 
     on_restore_window = [this]() {
-        client().async_set_system_visibility_state(m_client_state.page_index, true);
+        set_system_visibility_state(Web::HTML::VisibilityState::Visible);
     };
 
     on_minimize_window = [this]() {
-        client().async_set_system_visibility_state(m_client_state.page_index, false);
+        set_system_visibility_state(Web::HTML::VisibilityState::Hidden);
     };
 
     on_maximize_window = [this]() {
@@ -173,10 +173,11 @@ void HeadlessWebView::initialize_client(CreateNewClient create_new_client)
     client().async_set_window_handle(m_client_state.page_index, m_client_state.client_handle);
 
     client().async_update_system_theme(m_client_state.page_index, m_theme);
-    client().async_set_system_visibility_state(m_client_state.page_index, true);
     client().async_set_viewport_size(m_client_state.page_index, viewport_size());
     client().async_set_window_size(m_client_state.page_index, viewport_size());
     client().async_update_screen_rects(m_client_state.page_index, { screen_rect }, 0);
+
+    set_system_visibility_state(Web::HTML::VisibilityState::Visible);
 
     if (Application::chrome_options().allow_popups == WebView::AllowPopups::Yes)
         client().async_debug_request(m_client_state.page_index, "block-pop-ups"sv, "off"sv);

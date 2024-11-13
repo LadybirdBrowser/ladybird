@@ -557,13 +557,13 @@ void WebContentView::update_zoom()
 void WebContentView::showEvent(QShowEvent* event)
 {
     QWidget::showEvent(event);
-    client().async_set_system_visibility_state(m_client_state.page_index, true);
+    set_system_visibility_state(Web::HTML::VisibilityState::Visible);
 }
 
 void WebContentView::hideEvent(QHideEvent* event)
 {
     QWidget::hideEvent(event);
-    client().async_set_system_visibility_state(m_client_state.page_index, false);
+    set_system_visibility_state(Web::HTML::VisibilityState::Hidden);
 }
 
 static Core::AnonymousBuffer make_system_theme_from_qt_palette(QWidget& widget, WebContentView::PaletteMode mode)

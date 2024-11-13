@@ -44,11 +44,6 @@ void WebViewBridge::set_device_pixel_ratio(float device_pixel_ratio)
     client().async_set_device_pixels_per_css_pixel(m_client_state.page_index, m_device_pixel_ratio * m_zoom_level);
 }
 
-void WebViewBridge::set_system_visibility_state(bool is_visible)
-{
-    client().async_set_system_visibility_state(m_client_state.page_index, is_visible);
-}
-
 void WebViewBridge::set_viewport_rect(Gfx::IntRect viewport_rect)
 {
     viewport_rect.set_size(scale_for_device(viewport_rect.size(), m_device_pixel_ratio));
