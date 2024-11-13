@@ -26,6 +26,6 @@ void ServiceWorkerRegistration::initialize(JS::Realm& realm)
 
 JS::NonnullGCPtr<ServiceWorkerRegistration> ServiceWorkerRegistration::create(JS::Realm& realm)
 {
-    return realm.heap().allocate<ServiceWorkerRegistration>(realm, realm);
+    return realm.create<ServiceWorkerRegistration>(realm);
 }
 }

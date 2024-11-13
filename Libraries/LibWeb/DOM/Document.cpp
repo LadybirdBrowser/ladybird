@@ -374,12 +374,12 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<Document>> Document::construct_impl(JS::Rea
 
 JS::NonnullGCPtr<Document> Document::create(JS::Realm& realm, URL::URL const& url)
 {
-    return realm.heap().allocate<Document>(realm, realm, url);
+    return realm.create<Document>(realm, url);
 }
 
 JS::NonnullGCPtr<Document> Document::create_for_fragment_parsing(JS::Realm& realm)
 {
-    return realm.heap().allocate<Document>(realm, realm, "about:blank"sv, TemporaryDocumentForFragmentParsing::Yes);
+    return realm.create<Document>(realm, "about:blank"sv, TemporaryDocumentForFragmentParsing::Yes);
 }
 
 Document::Document(JS::Realm& realm, const URL::URL& url, TemporaryDocumentForFragmentParsing temporary_document_for_fragment_parsing)
@@ -429,9 +429,9 @@ void Document::initialize(JS::Realm& realm)
     Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(Document);
 
-    m_selection = heap().allocate<Selection::Selection>(realm, realm, *this);
+    m_selection = realm.create<Selection::Selection>(realm, *this);
 
-    m_list_of_available_images = heap().allocate<HTML::ListOfAvailableImages>(realm);
+    m_list_of_available_images = realm.create<HTML::ListOfAvailableImages>();
 
     page().client().page_did_create_new_document(*this);
 }
@@ -1709,12 +1709,12 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<Element>> Document::create_element_ns(Optio
 
 JS::NonnullGCPtr<DocumentFragment> Document::create_document_fragment()
 {
-    return heap().allocate<DocumentFragment>(realm(), *this);
+    return realm().create<DocumentFragment>(*this);
 }
 
 JS::NonnullGCPtr<Text> Document::create_text_node(String const& data)
 {
-    return heap().allocate<Text>(realm(), *this, data);
+    return realm().create<Text>(*this, data);
 }
 
 // https://dom.spec.whatwg.org/#dom-document-createcdatasection
@@ -1729,12 +1729,12 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<CDATASection>> Document::create_cdata_secti
         return WebIDL::InvalidCharacterError::create(realm(), "String may not contain ']]>'"_string);
 
     // 3. Return a new CDATASection node with its data set to data and node document set to this.
-    return heap().allocate<CDATASection>(realm(), *this, data);
+    return realm().create<CDATASection>(*this, data);
 }
 
 JS::NonnullGCPtr<Comment> Document::create_comment(String const& data)
 {
-    return heap().allocate<Comment>(realm(), *this, data);
+    return realm().create<Comment>(*this, data);
 }
 
 // https://dom.spec.whatwg.org/#dom-document-createprocessinginstruction
@@ -1749,7 +1749,7 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<ProcessingInstruction>> Document::create_pr
         return WebIDL::InvalidCharacterError::create(realm(), "String may not contain '?>'"_string);
 
     // 3. Return a new ProcessingInstruction node, with target set to target, data set to data, and node document set to this.
-    return heap().allocate<ProcessingInstruction>(realm(), *this, data, target);
+    return realm().create<ProcessingInstruction>(*this, data, target);
 }
 
 JS::NonnullGCPtr<Range> Document::create_range()
@@ -3986,7 +3986,7 @@ void Document::queue_an_intersection_observer_entry(IntersectionObserver::Inters
     auto& realm = this->realm();
 
     // 1. Construct an IntersectionObserverEntry, passing in time, rootBounds, boundingClientRect, intersectionRect, isIntersecting, and target.
-    auto entry = realm.heap().allocate<IntersectionObserver::IntersectionObserverEntry>(realm, realm, time, root_bounds, bounding_client_rect, intersection_rect, is_intersecting, intersection_ratio, target);
+    auto entry = realm.create<IntersectionObserver::IntersectionObserverEntry>(realm, time, root_bounds, bounding_client_rect, intersection_rect, is_intersecting, intersection_ratio, target);
 
     // 2. Append it to observer’s internal [[QueuedEntries]] slot.
     observer.queue_entry({}, entry);

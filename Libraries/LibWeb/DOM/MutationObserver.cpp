@@ -17,7 +17,7 @@ JS_DEFINE_ALLOCATOR(TransientRegisteredObserver);
 
 WebIDL::ExceptionOr<JS::NonnullGCPtr<MutationObserver>> MutationObserver::construct_impl(JS::Realm& realm, JS::GCPtr<WebIDL::CallbackType> callback)
 {
-    return realm.heap().allocate<MutationObserver>(realm, realm, callback);
+    return realm.create<MutationObserver>(realm, callback);
 }
 
 // https://dom.spec.whatwg.org/#dom-mutationobserver-mutationobserver

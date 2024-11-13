@@ -16,7 +16,7 @@ JS_DEFINE_ALLOCATOR(EditingHostManager);
 
 JS::NonnullGCPtr<EditingHostManager> EditingHostManager::create(JS::Realm& realm, JS::NonnullGCPtr<Document> document)
 {
-    return realm.heap().allocate<EditingHostManager>(realm, document);
+    return realm.create<EditingHostManager>(document);
 }
 
 EditingHostManager::EditingHostManager(JS::NonnullGCPtr<Document> document)
@@ -47,7 +47,7 @@ void EditingHostManager::handle_insert(String const& data)
 
     if (!is<DOM::Text>(*node)) {
         auto& realm = node->realm();
-        auto text = realm.heap().allocate<DOM::Text>(realm, node->document(), data);
+        auto text = realm.create<DOM::Text>(node->document(), data);
         MUST(node->append_child(*text));
         MUST(selection->collapse(*text, 1));
         return;

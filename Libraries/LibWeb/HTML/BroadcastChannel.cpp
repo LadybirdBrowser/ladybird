@@ -16,7 +16,7 @@ JS_DEFINE_ALLOCATOR(BroadcastChannel);
 
 JS::NonnullGCPtr<BroadcastChannel> BroadcastChannel::construct_impl(JS::Realm& realm, FlyString const& name)
 {
-    return realm.heap().allocate<BroadcastChannel>(realm, realm, name);
+    return realm.create<BroadcastChannel>(realm, name);
 }
 
 BroadcastChannel::BroadcastChannel(JS::Realm& realm, FlyString const& name)

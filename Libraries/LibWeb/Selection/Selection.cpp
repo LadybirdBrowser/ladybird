@@ -19,7 +19,7 @@ JS_DEFINE_ALLOCATOR(Selection);
 
 JS::NonnullGCPtr<Selection> Selection::create(JS::NonnullGCPtr<JS::Realm> realm, JS::NonnullGCPtr<DOM::Document> document)
 {
-    return realm->heap().allocate<Selection>(realm, realm, document);
+    return realm->create<Selection>(realm, document);
 }
 
 Selection::Selection(JS::NonnullGCPtr<JS::Realm> realm, JS::NonnullGCPtr<DOM::Document> document)

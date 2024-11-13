@@ -21,7 +21,7 @@ JS_DEFINE_ALLOCATOR(DataTransferItem);
 
 JS::NonnullGCPtr<DataTransferItem> DataTransferItem::create(JS::Realm& realm, JS::NonnullGCPtr<DataTransfer> data_transfer, size_t item_index)
 {
-    return realm.heap().allocate<DataTransferItem>(realm, realm, data_transfer, item_index);
+    return realm.create<DataTransferItem>(realm, data_transfer, item_index);
 }
 
 DataTransferItem::DataTransferItem(JS::Realm& realm, JS::NonnullGCPtr<DataTransfer> data_transfer, size_t item_index)

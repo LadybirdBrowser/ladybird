@@ -535,7 +535,7 @@ void WindowOrWorkerGlobalScopeMixin::queue_the_performance_observer_task()
                 entries_as_gc_ptrs.append(*entry);
 
             // 5. Let observerEntryList be a new PerformanceObserverEntryList, with its entry list set to entries.
-            auto observer_entry_list = realm.heap().allocate<PerformanceTimeline::PerformanceObserverEntryList>(realm, realm, move(entries_as_gc_ptrs));
+            auto observer_entry_list = realm.create<PerformanceTimeline::PerformanceObserverEntryList>(realm, move(entries_as_gc_ptrs));
 
             // 6. Let droppedEntriesCount be null.
             Optional<u64> dropped_entries_count;
@@ -642,17 +642,16 @@ JS::NonnullGCPtr<HighResolutionTime::Performance> WindowOrWorkerGlobalScopeMixin
 {
     auto& realm = this_impl().realm();
     if (!m_performance)
-        m_performance = this_impl().heap().allocate<HighResolutionTime::Performance>(realm, realm);
+        m_performance = realm.create<HighResolutionTime::Performance>(realm);
     return JS::NonnullGCPtr { *m_performance };
 }
 
 JS::NonnullGCPtr<IndexedDB::IDBFactory> WindowOrWorkerGlobalScopeMixin::indexed_db()
 {
-    auto& vm = this_impl().vm();
     auto& realm = this_impl().realm();
 
     if (!m_indexed_db)
-        m_indexed_db = vm.heap().allocate<IndexedDB::IDBFactory>(realm, realm);
+        m_indexed_db = realm.create<IndexedDB::IDBFactory>(realm);
     return *m_indexed_db;
 }
 
@@ -790,7 +789,7 @@ JS::NonnullGCPtr<Crypto::Crypto> WindowOrWorkerGlobalScopeMixin::crypto()
     auto& realm = platform_object.realm();
 
     if (!m_crypto)
-        m_crypto = platform_object.heap().allocate<Crypto::Crypto>(realm, realm);
+        m_crypto = realm.create<Crypto::Crypto>(realm);
     return JS::NonnullGCPtr { *m_crypto };
 }
 

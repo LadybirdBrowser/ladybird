@@ -211,7 +211,7 @@ NonnullGCPtr<IteratorRecord> create_async_from_sync_iterator(VM& vm, NonnullGCPt
     auto next_method = MUST(async_iterator->get(vm.names.next));
 
     // 4. Let iteratorRecord be the Iterator Record { [[Iterator]]: asyncIterator, [[NextMethod]]: nextMethod, [[Done]]: false }.
-    auto iterator_record = vm.heap().allocate<IteratorRecord>(realm, realm, async_iterator, next_method, false);
+    auto iterator_record = realm.create<IteratorRecord>(realm, async_iterator, next_method, false);
 
     // 5. Return iteratorRecord.
     return iterator_record;

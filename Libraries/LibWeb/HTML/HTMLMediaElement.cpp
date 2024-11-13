@@ -56,10 +56,10 @@ void HTMLMediaElement::initialize(JS::Realm& realm)
     Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(HTMLMediaElement);
 
-    m_audio_tracks = realm.heap().allocate<AudioTrackList>(realm, realm);
-    m_video_tracks = realm.heap().allocate<VideoTrackList>(realm, realm);
-    m_text_tracks = realm.heap().allocate<TextTrackList>(realm, realm);
-    m_document_observer = realm.heap().allocate<DOM::DocumentObserver>(realm, realm, document());
+    m_audio_tracks = realm.create<AudioTrackList>(realm);
+    m_video_tracks = realm.create<VideoTrackList>(realm);
+    m_text_tracks = realm.create<TextTrackList>(realm);
+    m_document_observer = realm.create<DOM::DocumentObserver>(realm, document());
 
     // https://html.spec.whatwg.org/multipage/media.html#playing-the-media-resource:media-element-82
     m_document_observer->set_document_became_inactive([this]() {
@@ -134,7 +134,6 @@ void HTMLMediaElement::removed_from(DOM::Node* node)
 void HTMLMediaElement::set_decoder_error(String error_message)
 {
     auto& realm = this->realm();
-    auto& vm = realm.vm();
 
     // -> If the media data is corrupted
     // Fatal errors in decoding the media data that occur after the user agent has established whether the current media
@@ -148,7 +147,7 @@ void HTMLMediaElement::set_decoder_error(String error_message)
         m_fetch_controller->stop_fetch();
 
     // 2. Set the error attribute to the result of creating a MediaError with MEDIA_ERR_DECODE.
-    m_error = vm.heap().allocate<MediaError>(realm, realm, MediaError::Code::Decode, move(error_message));
+    m_error = realm.create<MediaError>(realm, MediaError::Code::Decode, move(error_message));
 
     // 3. Set the element's networkState attribute to the NETWORK_IDLE value.
     m_network_state = NetworkState::Idle;
@@ -166,13 +165,12 @@ void HTMLMediaElement::set_decoder_error(String error_message)
 JS::NonnullGCPtr<TimeRanges> HTMLMediaElement::buffered() const
 {
     auto& realm = this->realm();
-    auto& vm = realm.vm();
 
     // FIXME: The buffered attribute must return a new static normalized TimeRanges object that represents the ranges of the
     //        media resource, if any, that the user agent has buffered, at the time the attribute is evaluated. Users agents
     //        must accurately determine the ranges available, even for media streams where this can only be determined by
     //        tedious inspection.
-    return vm.heap().allocate<TimeRanges>(realm, realm);
+    return realm.create<TimeRanges>(realm);
 }
 
 // https://html.spec.whatwg.org/multipage/media.html#dom-navigator-canplaytype
@@ -781,7 +779,6 @@ void HTMLMediaElement::children_changed()
 WebIDL::ExceptionOr<void> HTMLMediaElement::select_resource()
 {
     auto& realm = this->realm();
-    auto& vm = realm.vm();
 
     // 1. Set the element's networkState attribute to the NETWORK_NO_SOURCE value.
     m_network_state = NetworkState::NoSource;
@@ -919,7 +916,7 @@ WebIDL::ExceptionOr<void> HTMLMediaElement::select_resource()
         // NOTE: We do not bother with maintaining this pointer. We inspect the DOM tree on the fly, rather than dealing
         //       with the headache of auto-updating this pointer as the DOM changes.
 
-        m_source_element_selector = vm.heap().allocate<SourceElementSelector>(realm, *this, *candidate);
+        m_source_element_selector = realm.create<SourceElementSelector>(*this, *candidate);
         TRY(m_source_element_selector->process_candidate());
 
         break;
@@ -1099,7 +1096,6 @@ bool HTMLMediaElement::verify_response(JS::NonnullGCPtr<Fetch::Infrastructure::R
 WebIDL::ExceptionOr<void> HTMLMediaElement::process_media_data(Function<void(String)> failure_callback)
 {
     auto& realm = this->realm();
-    auto& vm = realm.vm();
 
     auto audio_loader = Audio::Loader::create(m_media_data.bytes());
     auto playback_manager = Media::PlaybackManager::from_data(m_media_data);
@@ -1122,7 +1118,7 @@ WebIDL::ExceptionOr<void> HTMLMediaElement::process_media_data(Function<void(Str
     // -> If the media resource is found to have an audio track
     if (!audio_loader.is_error()) {
         // 1. Create an AudioTrack object to represent the audio track.
-        audio_track = vm.heap().allocate<AudioTrack>(realm, realm, *this, audio_loader.release_value());
+        audio_track = realm.create<AudioTrack>(realm, *this, audio_loader.release_value());
 
         // 2. Update the media element's audioTracks attribute's AudioTrackList object with the new AudioTrack object.
         m_audio_tracks->add_track({}, *audio_track);
@@ -1154,7 +1150,7 @@ WebIDL::ExceptionOr<void> HTMLMediaElement::process_media_data(Function<void(Str
     // -> If the media resource is found to have a video track
     if (!playback_manager.is_error()) {
         // 1. Create a VideoTrack object to represent the video track.
-        video_track = vm.heap().allocate<VideoTrack>(realm, realm, *this, playback_manager.release_value());
+        video_track = realm.create<VideoTrack>(realm, *this, playback_manager.release_value());
 
         // 2. Update the media element's videoTracks attribute's VideoTrackList object with the new VideoTrack object.
         m_video_tracks->add_track({}, *video_track);
@@ -1272,10 +1268,9 @@ WebIDL::ExceptionOr<void> HTMLMediaElement::process_media_data(Function<void(Str
 WebIDL::ExceptionOr<void> HTMLMediaElement::handle_media_source_failure(Span<JS::NonnullGCPtr<WebIDL::Promise>> promises, String error_message)
 {
     auto& realm = this->realm();
-    auto& vm = realm.vm();
 
     // 1. Set the error attribute to the result of creating a MediaError with MEDIA_ERR_SRC_NOT_SUPPORTED.
-    m_error = vm.heap().allocate<MediaError>(realm, realm, MediaError::Code::SrcNotSupported, move(error_message));
+    m_error = realm.create<MediaError>(realm, MediaError::Code::SrcNotSupported, move(error_message));
 
     // 2. Forget the media element's media-resource-specific tracks.
     forget_media_resource_specific_tracks();

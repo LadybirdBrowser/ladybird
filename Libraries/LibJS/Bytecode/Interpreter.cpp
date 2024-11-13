@@ -1742,7 +1742,7 @@ inline ThrowCompletionOr<Object*> get_object_property_iterator(VM& vm, Value val
             }
         },
         1, vm.names.next);
-    return vm.heap().allocate<IteratorRecord>(realm, realm, object, callback, false).ptr();
+    return realm.create<IteratorRecord>(realm, object, callback, false).ptr();
 }
 
 ByteString Instruction::to_byte_string(Bytecode::Executable const& executable) const

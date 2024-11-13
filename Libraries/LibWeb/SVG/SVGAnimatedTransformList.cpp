@@ -14,7 +14,7 @@ JS_DEFINE_ALLOCATOR(SVGAnimatedTransformList);
 
 JS::NonnullGCPtr<SVGAnimatedTransformList> SVGAnimatedTransformList::create(JS::Realm& realm, JS::NonnullGCPtr<SVGTransformList> base_val, JS::NonnullGCPtr<SVGTransformList> anim_val)
 {
-    return realm.heap().allocate<SVGAnimatedTransformList>(realm, realm, base_val, anim_val);
+    return realm.create<SVGAnimatedTransformList>(realm, base_val, anim_val);
 }
 
 SVGAnimatedTransformList::SVGAnimatedTransformList(JS::Realm& realm, JS::NonnullGCPtr<SVGTransformList> base_val, JS::NonnullGCPtr<SVGTransformList> anim_val)

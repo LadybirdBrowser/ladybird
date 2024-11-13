@@ -413,7 +413,7 @@ JS_DEFINE_NATIVE_FUNCTION(IteratorPrototype::flat_map)
     // 4. Let iterated be ? GetIteratorDirect(O).
     auto iterated = TRY(get_iterator_direct(vm, object));
 
-    auto flat_map_iterator = vm.heap().allocate<FlatMapIterator>(realm);
+    auto flat_map_iterator = realm.create<FlatMapIterator>();
 
     // 5. Let closure be a new Abstract Closure with no parameters that captures iterated and mapper and performs the following steps when called:
     auto closure = JS::create_heap_function(realm.heap(), [flat_map_iterator, mapper = NonnullGCPtr { mapper.as_function() }](VM& vm, IteratorHelper& iterator) mutable -> ThrowCompletionOr<Value> {

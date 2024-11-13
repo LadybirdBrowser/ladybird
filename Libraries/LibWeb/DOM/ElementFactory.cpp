@@ -281,153 +281,153 @@ static JS::NonnullGCPtr<Element> create_html_element(JS::Realm& realm, Document&
     FlyString tag_name = qualified_name.local_name();
 
     if (tag_name == HTML::TagNames::a)
-        return realm.heap().allocate<HTML::HTMLAnchorElement>(realm, document, move(qualified_name));
+        return realm.create<HTML::HTMLAnchorElement>(document, move(qualified_name));
     if (tag_name == HTML::TagNames::area)
-        return realm.heap().allocate<HTML::HTMLAreaElement>(realm, document, move(qualified_name));
+        return realm.create<HTML::HTMLAreaElement>(document, move(qualified_name));
     if (tag_name == HTML::TagNames::audio)
-        return realm.heap().allocate<HTML::HTMLAudioElement>(realm, document, move(qualified_name));
+        return realm.create<HTML::HTMLAudioElement>(document, move(qualified_name));
     if (tag_name == HTML::TagNames::base)
-        return realm.heap().allocate<HTML::HTMLBaseElement>(realm, document, move(qualified_name));
+        return realm.create<HTML::HTMLBaseElement>(document, move(qualified_name));
     if (tag_name == HTML::TagNames::body)
-        return realm.heap().allocate<HTML::HTMLBodyElement>(realm, document, move(qualified_name));
+        return realm.create<HTML::HTMLBodyElement>(document, move(qualified_name));
     if (tag_name == HTML::TagNames::br)
-        return realm.heap().allocate<HTML::HTMLBRElement>(realm, document, move(qualified_name));
+        return realm.create<HTML::HTMLBRElement>(document, move(qualified_name));
     if (tag_name == HTML::TagNames::button)
-        return realm.heap().allocate<HTML::HTMLButtonElement>(realm, document, move(qualified_name));
+        return realm.create<HTML::HTMLButtonElement>(document, move(qualified_name));
     if (tag_name == HTML::TagNames::canvas)
-        return realm.heap().allocate<HTML::HTMLCanvasElement>(realm, document, move(qualified_name));
+        return realm.create<HTML::HTMLCanvasElement>(document, move(qualified_name));
     if (tag_name == HTML::TagNames::data)
-        return realm.heap().allocate<HTML::HTMLDataElement>(realm, document, move(qualified_name));
+        return realm.create<HTML::HTMLDataElement>(document, move(qualified_name));
     if (tag_name == HTML::TagNames::datalist)
-        return realm.heap().allocate<HTML::HTMLDataListElement>(realm, document, move(qualified_name));
+        return realm.create<HTML::HTMLDataListElement>(document, move(qualified_name));
     if (tag_name == HTML::TagNames::details)
-        return realm.heap().allocate<HTML::HTMLDetailsElement>(realm, document, move(qualified_name));
+        return realm.create<HTML::HTMLDetailsElement>(document, move(qualified_name));
     if (tag_name == HTML::TagNames::dialog)
-        return realm.heap().allocate<HTML::HTMLDialogElement>(realm, document, move(qualified_name));
+        return realm.create<HTML::HTMLDialogElement>(document, move(qualified_name));
     if (tag_name == HTML::TagNames::dir)
-        return realm.heap().allocate<HTML::HTMLDirectoryElement>(realm, document, move(qualified_name));
+        return realm.create<HTML::HTMLDirectoryElement>(document, move(qualified_name));
     if (tag_name == HTML::TagNames::div)
-        return realm.heap().allocate<HTML::HTMLDivElement>(realm, document, move(qualified_name));
+        return realm.create<HTML::HTMLDivElement>(document, move(qualified_name));
     if (tag_name == HTML::TagNames::dl)
-        return realm.heap().allocate<HTML::HTMLDListElement>(realm, document, move(qualified_name));
+        return realm.create<HTML::HTMLDListElement>(document, move(qualified_name));
     if (tag_name == HTML::TagNames::embed)
-        return realm.heap().allocate<HTML::HTMLEmbedElement>(realm, document, move(qualified_name));
+        return realm.create<HTML::HTMLEmbedElement>(document, move(qualified_name));
     if (tag_name == HTML::TagNames::fieldset)
-        return realm.heap().allocate<HTML::HTMLFieldSetElement>(realm, document, move(qualified_name));
+        return realm.create<HTML::HTMLFieldSetElement>(document, move(qualified_name));
     if (tag_name == HTML::TagNames::font)
-        return realm.heap().allocate<HTML::HTMLFontElement>(realm, document, move(qualified_name));
+        return realm.create<HTML::HTMLFontElement>(document, move(qualified_name));
     if (tag_name == HTML::TagNames::form)
-        return realm.heap().allocate<HTML::HTMLFormElement>(realm, document, move(qualified_name));
+        return realm.create<HTML::HTMLFormElement>(document, move(qualified_name));
     if (tag_name == HTML::TagNames::frame)
-        return realm.heap().allocate<HTML::HTMLFrameElement>(realm, document, move(qualified_name));
+        return realm.create<HTML::HTMLFrameElement>(document, move(qualified_name));
     if (tag_name == HTML::TagNames::frameset)
-        return realm.heap().allocate<HTML::HTMLFrameSetElement>(realm, document, move(qualified_name));
+        return realm.create<HTML::HTMLFrameSetElement>(document, move(qualified_name));
     if (tag_name == HTML::TagNames::head)
-        return realm.heap().allocate<HTML::HTMLHeadElement>(realm, document, move(qualified_name));
+        return realm.create<HTML::HTMLHeadElement>(document, move(qualified_name));
     if (tag_name.is_one_of(HTML::TagNames::h1, HTML::TagNames::h2, HTML::TagNames::h3, HTML::TagNames::h4, HTML::TagNames::h5, HTML::TagNames::h6))
-        return realm.heap().allocate<HTML::HTMLHeadingElement>(realm, document, move(qualified_name));
+        return realm.create<HTML::HTMLHeadingElement>(document, move(qualified_name));
     if (tag_name == HTML::TagNames::hr)
-        return realm.heap().allocate<HTML::HTMLHRElement>(realm, document, move(qualified_name));
+        return realm.create<HTML::HTMLHRElement>(document, move(qualified_name));
     if (tag_name == HTML::TagNames::html)
-        return realm.heap().allocate<HTML::HTMLHtmlElement>(realm, document, move(qualified_name));
+        return realm.create<HTML::HTMLHtmlElement>(document, move(qualified_name));
     if (tag_name == HTML::TagNames::iframe)
-        return realm.heap().allocate<HTML::HTMLIFrameElement>(realm, document, move(qualified_name));
+        return realm.create<HTML::HTMLIFrameElement>(document, move(qualified_name));
     if (tag_name == HTML::TagNames::img)
-        return realm.heap().allocate<HTML::HTMLImageElement>(realm, document, move(qualified_name));
+        return realm.create<HTML::HTMLImageElement>(document, move(qualified_name));
     if (tag_name == HTML::TagNames::input)
-        return realm.heap().allocate<HTML::HTMLInputElement>(realm, document, move(qualified_name));
+        return realm.create<HTML::HTMLInputElement>(document, move(qualified_name));
     if (tag_name == HTML::TagNames::label)
-        return realm.heap().allocate<HTML::HTMLLabelElement>(realm, document, move(qualified_name));
+        return realm.create<HTML::HTMLLabelElement>(document, move(qualified_name));
     if (tag_name == HTML::TagNames::legend)
-        return realm.heap().allocate<HTML::HTMLLegendElement>(realm, document, move(qualified_name));
+        return realm.create<HTML::HTMLLegendElement>(document, move(qualified_name));
     if (tag_name == HTML::TagNames::li)
-        return realm.heap().allocate<HTML::HTMLLIElement>(realm, document, move(qualified_name));
+        return realm.create<HTML::HTMLLIElement>(document, move(qualified_name));
     if (tag_name == HTML::TagNames::link)
-        return realm.heap().allocate<HTML::HTMLLinkElement>(realm, document, move(qualified_name));
+        return realm.create<HTML::HTMLLinkElement>(document, move(qualified_name));
     if (tag_name == HTML::TagNames::map)
-        return realm.heap().allocate<HTML::HTMLMapElement>(realm, document, move(qualified_name));
+        return realm.create<HTML::HTMLMapElement>(document, move(qualified_name));
     if (tag_name == HTML::TagNames::marquee)
-        return realm.heap().allocate<HTML::HTMLMarqueeElement>(realm, document, move(qualified_name));
+        return realm.create<HTML::HTMLMarqueeElement>(document, move(qualified_name));
     if (tag_name == HTML::TagNames::menu)
-        return realm.heap().allocate<HTML::HTMLMenuElement>(realm, document, move(qualified_name));
+        return realm.create<HTML::HTMLMenuElement>(document, move(qualified_name));
     if (tag_name == HTML::TagNames::meta)
-        return realm.heap().allocate<HTML::HTMLMetaElement>(realm, document, move(qualified_name));
+        return realm.create<HTML::HTMLMetaElement>(document, move(qualified_name));
     if (tag_name == HTML::TagNames::meter)
-        return realm.heap().allocate<HTML::HTMLMeterElement>(realm, document, move(qualified_name));
+        return realm.create<HTML::HTMLMeterElement>(document, move(qualified_name));
     if (tag_name.is_one_of(HTML::TagNames::ins, HTML::TagNames::del))
-        return realm.heap().allocate<HTML::HTMLModElement>(realm, document, move(qualified_name));
+        return realm.create<HTML::HTMLModElement>(document, move(qualified_name));
     if (tag_name == HTML::TagNames::object)
-        return realm.heap().allocate<HTML::HTMLObjectElement>(realm, document, move(qualified_name));
+        return realm.create<HTML::HTMLObjectElement>(document, move(qualified_name));
     if (tag_name == HTML::TagNames::ol)
-        return realm.heap().allocate<HTML::HTMLOListElement>(realm, document, move(qualified_name));
+        return realm.create<HTML::HTMLOListElement>(document, move(qualified_name));
     if (tag_name == HTML::TagNames::optgroup)
-        return realm.heap().allocate<HTML::HTMLOptGroupElement>(realm, document, move(qualified_name));
+        return realm.create<HTML::HTMLOptGroupElement>(document, move(qualified_name));
     if (tag_name == HTML::TagNames::option)
-        return realm.heap().allocate<HTML::HTMLOptionElement>(realm, document, move(qualified_name));
+        return realm.create<HTML::HTMLOptionElement>(document, move(qualified_name));
     if (tag_name == HTML::TagNames::output)
-        return realm.heap().allocate<HTML::HTMLOutputElement>(realm, document, move(qualified_name));
+        return realm.create<HTML::HTMLOutputElement>(document, move(qualified_name));
     if (tag_name == HTML::TagNames::p)
-        return realm.heap().allocate<HTML::HTMLParagraphElement>(realm, document, move(qualified_name));
+        return realm.create<HTML::HTMLParagraphElement>(document, move(qualified_name));
     if (tag_name == HTML::TagNames::param)
-        return realm.heap().allocate<HTML::HTMLParamElement>(realm, document, move(qualified_name));
+        return realm.create<HTML::HTMLParamElement>(document, move(qualified_name));
     if (tag_name == HTML::TagNames::picture)
-        return realm.heap().allocate<HTML::HTMLPictureElement>(realm, document, move(qualified_name));
+        return realm.create<HTML::HTMLPictureElement>(document, move(qualified_name));
     // NOTE: The obsolete elements "listing" and "xmp" are explicitly mapped to HTMLPreElement in the specification.
     if (tag_name.is_one_of(HTML::TagNames::pre, HTML::TagNames::listing, HTML::TagNames::xmp))
-        return realm.heap().allocate<HTML::HTMLPreElement>(realm, document, move(qualified_name));
+        return realm.create<HTML::HTMLPreElement>(document, move(qualified_name));
     if (tag_name == HTML::TagNames::progress)
-        return realm.heap().allocate<HTML::HTMLProgressElement>(realm, document, move(qualified_name));
+        return realm.create<HTML::HTMLProgressElement>(document, move(qualified_name));
     if (tag_name.is_one_of(HTML::TagNames::blockquote, HTML::TagNames::q))
-        return realm.heap().allocate<HTML::HTMLQuoteElement>(realm, document, move(qualified_name));
+        return realm.create<HTML::HTMLQuoteElement>(document, move(qualified_name));
     if (tag_name == HTML::TagNames::script)
-        return realm.heap().allocate<HTML::HTMLScriptElement>(realm, document, move(qualified_name));
+        return realm.create<HTML::HTMLScriptElement>(document, move(qualified_name));
     if (tag_name == HTML::TagNames::select)
-        return realm.heap().allocate<HTML::HTMLSelectElement>(realm, document, move(qualified_name));
+        return realm.create<HTML::HTMLSelectElement>(document, move(qualified_name));
     if (tag_name == HTML::TagNames::slot)
-        return realm.heap().allocate<HTML::HTMLSlotElement>(realm, document, move(qualified_name));
+        return realm.create<HTML::HTMLSlotElement>(document, move(qualified_name));
     if (tag_name == HTML::TagNames::source)
-        return realm.heap().allocate<HTML::HTMLSourceElement>(realm, document, move(qualified_name));
+        return realm.create<HTML::HTMLSourceElement>(document, move(qualified_name));
     if (tag_name == HTML::TagNames::span)
-        return realm.heap().allocate<HTML::HTMLSpanElement>(realm, document, move(qualified_name));
+        return realm.create<HTML::HTMLSpanElement>(document, move(qualified_name));
     if (tag_name == HTML::TagNames::style)
-        return realm.heap().allocate<HTML::HTMLStyleElement>(realm, document, move(qualified_name));
+        return realm.create<HTML::HTMLStyleElement>(document, move(qualified_name));
     if (tag_name == HTML::TagNames::summary)
-        return realm.heap().allocate<HTML::HTMLSummaryElement>(realm, document, move(qualified_name));
+        return realm.create<HTML::HTMLSummaryElement>(document, move(qualified_name));
     if (tag_name == HTML::TagNames::caption)
-        return realm.heap().allocate<HTML::HTMLTableCaptionElement>(realm, document, move(qualified_name));
+        return realm.create<HTML::HTMLTableCaptionElement>(document, move(qualified_name));
     if (tag_name.is_one_of(Web::HTML::TagNames::td, Web::HTML::TagNames::th))
-        return realm.heap().allocate<HTML::HTMLTableCellElement>(realm, document, move(qualified_name));
+        return realm.create<HTML::HTMLTableCellElement>(document, move(qualified_name));
     if (tag_name.is_one_of(HTML::TagNames::colgroup, HTML::TagNames::col))
-        return realm.heap().allocate<HTML::HTMLTableColElement>(realm, document, move(qualified_name));
+        return realm.create<HTML::HTMLTableColElement>(document, move(qualified_name));
     if (tag_name == HTML::TagNames::table)
-        return realm.heap().allocate<HTML::HTMLTableElement>(realm, document, move(qualified_name));
+        return realm.create<HTML::HTMLTableElement>(document, move(qualified_name));
     if (tag_name == HTML::TagNames::tr)
-        return realm.heap().allocate<HTML::HTMLTableRowElement>(realm, document, move(qualified_name));
+        return realm.create<HTML::HTMLTableRowElement>(document, move(qualified_name));
     if (tag_name.is_one_of(HTML::TagNames::tbody, HTML::TagNames::thead, HTML::TagNames::tfoot))
-        return realm.heap().allocate<HTML::HTMLTableSectionElement>(realm, document, move(qualified_name));
+        return realm.create<HTML::HTMLTableSectionElement>(document, move(qualified_name));
     if (tag_name == HTML::TagNames::template_)
-        return realm.heap().allocate<HTML::HTMLTemplateElement>(realm, document, move(qualified_name));
+        return realm.create<HTML::HTMLTemplateElement>(document, move(qualified_name));
     if (tag_name == HTML::TagNames::textarea)
-        return realm.heap().allocate<HTML::HTMLTextAreaElement>(realm, document, move(qualified_name));
+        return realm.create<HTML::HTMLTextAreaElement>(document, move(qualified_name));
     if (tag_name == HTML::TagNames::time)
-        return realm.heap().allocate<HTML::HTMLTimeElement>(realm, document, move(qualified_name));
+        return realm.create<HTML::HTMLTimeElement>(document, move(qualified_name));
     if (tag_name == HTML::TagNames::title)
-        return realm.heap().allocate<HTML::HTMLTitleElement>(realm, document, move(qualified_name));
+        return realm.create<HTML::HTMLTitleElement>(document, move(qualified_name));
     if (tag_name == HTML::TagNames::track)
-        return realm.heap().allocate<HTML::HTMLTrackElement>(realm, document, move(qualified_name));
+        return realm.create<HTML::HTMLTrackElement>(document, move(qualified_name));
     if (tag_name == HTML::TagNames::ul)
-        return realm.heap().allocate<HTML::HTMLUListElement>(realm, document, move(qualified_name));
+        return realm.create<HTML::HTMLUListElement>(document, move(qualified_name));
     if (tag_name == HTML::TagNames::video)
-        return realm.heap().allocate<HTML::HTMLVideoElement>(realm, document, move(qualified_name));
+        return realm.create<HTML::HTMLVideoElement>(document, move(qualified_name));
     if (tag_name.is_one_of(
             HTML::TagNames::article, HTML::TagNames::section, HTML::TagNames::nav, HTML::TagNames::aside, HTML::TagNames::hgroup, HTML::TagNames::header, HTML::TagNames::footer, HTML::TagNames::address, HTML::TagNames::dt, HTML::TagNames::dd, HTML::TagNames::figure, HTML::TagNames::figcaption, HTML::TagNames::main, HTML::TagNames::em, HTML::TagNames::strong, HTML::TagNames::small, HTML::TagNames::s, HTML::TagNames::cite, HTML::TagNames::dfn, HTML::TagNames::abbr, HTML::TagNames::ruby, HTML::TagNames::rt, HTML::TagNames::rp, HTML::TagNames::code, HTML::TagNames::var, HTML::TagNames::samp, HTML::TagNames::kbd, HTML::TagNames::sub, HTML::TagNames::sup, HTML::TagNames::i, HTML::TagNames::b, HTML::TagNames::u, HTML::TagNames::mark, HTML::TagNames::bdi, HTML::TagNames::bdo, HTML::TagNames::wbr, HTML::TagNames::noscript,
             // Obsolete
             HTML::TagNames::acronym, HTML::TagNames::basefont, HTML::TagNames::big, HTML::TagNames::center, HTML::TagNames::nobr, HTML::TagNames::noembed, HTML::TagNames::noframes, HTML::TagNames::plaintext, HTML::TagNames::rb, HTML::TagNames::rtc, HTML::TagNames::strike, HTML::TagNames::tt))
-        return realm.heap().allocate<HTML::HTMLElement>(realm, document, move(qualified_name));
+        return realm.create<HTML::HTMLElement>(document, move(qualified_name));
     if (HTML::is_valid_custom_element_name(qualified_name.local_name()))
-        return realm.heap().allocate<HTML::HTMLElement>(realm, document, move(qualified_name));
+        return realm.create<HTML::HTMLElement>(document, move(qualified_name));
 
-    return realm.heap().allocate<HTML::HTMLUnknownElement>(realm, document, move(qualified_name));
+    return realm.create<HTML::HTMLUnknownElement>(document, move(qualified_name));
 }
 
 static JS::NonnullGCPtr<SVG::SVGElement> create_svg_element(JS::Realm& realm, Document& document, QualifiedName qualified_name)
@@ -435,67 +435,67 @@ static JS::NonnullGCPtr<SVG::SVGElement> create_svg_element(JS::Realm& realm, Do
     auto const& local_name = qualified_name.local_name();
 
     if (local_name == SVG::TagNames::svg)
-        return realm.heap().allocate<SVG::SVGSVGElement>(realm, document, move(qualified_name));
+        return realm.create<SVG::SVGSVGElement>(document, move(qualified_name));
     // FIXME: Support SVG's mixedCase tag names properly.
     if (local_name.equals_ignoring_ascii_case(SVG::TagNames::clipPath))
-        return realm.heap().allocate<SVG::SVGClipPathElement>(realm, document, move(qualified_name));
+        return realm.create<SVG::SVGClipPathElement>(document, move(qualified_name));
     if (local_name == SVG::TagNames::circle)
-        return realm.heap().allocate<SVG::SVGCircleElement>(realm, document, move(qualified_name));
+        return realm.create<SVG::SVGCircleElement>(document, move(qualified_name));
     if (local_name.equals_ignoring_ascii_case(SVG::TagNames::defs))
-        return realm.heap().allocate<SVG::SVGDefsElement>(realm, document, move(qualified_name));
+        return realm.create<SVG::SVGDefsElement>(document, move(qualified_name));
     if (local_name == SVG::TagNames::desc)
-        return realm.heap().allocate<SVG::SVGDescElement>(realm, document, move(qualified_name));
+        return realm.create<SVG::SVGDescElement>(document, move(qualified_name));
     if (local_name == SVG::TagNames::ellipse)
-        return realm.heap().allocate<SVG::SVGEllipseElement>(realm, document, move(qualified_name));
+        return realm.create<SVG::SVGEllipseElement>(document, move(qualified_name));
     if (local_name.equals_ignoring_ascii_case(SVG::TagNames::foreignObject))
-        return realm.heap().allocate<SVG::SVGForeignObjectElement>(realm, document, move(qualified_name));
+        return realm.create<SVG::SVGForeignObjectElement>(document, move(qualified_name));
     if (local_name == SVG::TagNames::line)
-        return realm.heap().allocate<SVG::SVGLineElement>(realm, document, move(qualified_name));
+        return realm.create<SVG::SVGLineElement>(document, move(qualified_name));
     if (local_name == SVG::TagNames::linearGradient)
-        return realm.heap().allocate<SVG::SVGLinearGradientElement>(realm, document, move(qualified_name));
+        return realm.create<SVG::SVGLinearGradientElement>(document, move(qualified_name));
     if (local_name == SVG::TagNames::mask)
-        return realm.heap().allocate<SVG::SVGMaskElement>(realm, document, move(qualified_name));
+        return realm.create<SVG::SVGMaskElement>(document, move(qualified_name));
     if (local_name == SVG::TagNames::metadata)
-        return realm.heap().allocate<SVG::SVGMetadataElement>(realm, document, move(qualified_name));
+        return realm.create<SVG::SVGMetadataElement>(document, move(qualified_name));
     if (local_name == SVG::TagNames::path)
-        return realm.heap().allocate<SVG::SVGPathElement>(realm, document, move(qualified_name));
+        return realm.create<SVG::SVGPathElement>(document, move(qualified_name));
     if (local_name == SVG::TagNames::polygon)
-        return realm.heap().allocate<SVG::SVGPolygonElement>(realm, document, move(qualified_name));
+        return realm.create<SVG::SVGPolygonElement>(document, move(qualified_name));
     if (local_name == SVG::TagNames::polyline)
-        return realm.heap().allocate<SVG::SVGPolylineElement>(realm, document, move(qualified_name));
+        return realm.create<SVG::SVGPolylineElement>(document, move(qualified_name));
     if (local_name == SVG::TagNames::radialGradient)
-        return realm.heap().allocate<SVG::SVGRadialGradientElement>(realm, document, move(qualified_name));
+        return realm.create<SVG::SVGRadialGradientElement>(document, move(qualified_name));
     if (local_name == SVG::TagNames::rect)
-        return realm.heap().allocate<SVG::SVGRectElement>(realm, document, move(qualified_name));
+        return realm.create<SVG::SVGRectElement>(document, move(qualified_name));
     if (local_name == SVG::TagNames::g)
-        return realm.heap().allocate<SVG::SVGGElement>(realm, document, move(qualified_name));
+        return realm.create<SVG::SVGGElement>(document, move(qualified_name));
     if (local_name == SVG::TagNames::stop)
-        return realm.heap().allocate<SVG::SVGStopElement>(realm, document, move(qualified_name));
+        return realm.create<SVG::SVGStopElement>(document, move(qualified_name));
     if (local_name == SVG::TagNames::style)
-        return realm.heap().allocate<SVG::SVGStyleElement>(realm, document, move(qualified_name));
+        return realm.create<SVG::SVGStyleElement>(document, move(qualified_name));
     if (local_name == SVG::TagNames::symbol)
-        return realm.heap().allocate<SVG::SVGSymbolElement>(realm, document, move(qualified_name));
+        return realm.create<SVG::SVGSymbolElement>(document, move(qualified_name));
     if (local_name == SVG::TagNames::text)
-        return realm.heap().allocate<SVG::SVGTextElement>(realm, document, move(qualified_name));
+        return realm.create<SVG::SVGTextElement>(document, move(qualified_name));
     if (local_name == SVG::TagNames::textPath)
-        return realm.heap().allocate<SVG::SVGTextPathElement>(realm, document, move(qualified_name));
+        return realm.create<SVG::SVGTextPathElement>(document, move(qualified_name));
     if (local_name == SVG::TagNames::title)
-        return realm.heap().allocate<SVG::SVGTitleElement>(realm, document, move(qualified_name));
+        return realm.create<SVG::SVGTitleElement>(document, move(qualified_name));
     if (local_name == SVG::TagNames::tspan)
-        return realm.heap().allocate<SVG::SVGTSpanElement>(realm, document, move(qualified_name));
+        return realm.create<SVG::SVGTSpanElement>(document, move(qualified_name));
     if (local_name == SVG::TagNames::use)
-        return realm.heap().allocate<SVG::SVGUseElement>(realm, document, move(qualified_name));
+        return realm.create<SVG::SVGUseElement>(document, move(qualified_name));
     if (local_name == SVG::TagNames::script)
-        return realm.heap().allocate<SVG::SVGScriptElement>(realm, document, move(qualified_name));
+        return realm.create<SVG::SVGScriptElement>(document, move(qualified_name));
     if (local_name == SVG::TagNames::a)
-        return realm.heap().allocate<SVG::SVGAElement>(realm, document, move(qualified_name));
+        return realm.create<SVG::SVGAElement>(document, move(qualified_name));
     if (local_name == SVG::TagNames::image)
-        return realm.heap().allocate<SVG::SVGImageElement>(realm, document, move(qualified_name));
+        return realm.create<SVG::SVGImageElement>(document, move(qualified_name));
 
     // https://svgwg.org/svg2-draft/types.html#ElementsInTheSVGDOM
     // Elements in the SVG namespace whose local name does not match an element defined in any
     // specification supported by the software must nonetheless implement the SVGElement interface.
-    return realm.heap().allocate<SVG::SVGElement>(realm, document, move(qualified_name));
+    return realm.create<SVG::SVGElement>(document, move(qualified_name));
 }
 
 static JS::NonnullGCPtr<MathML::MathMLElement> create_mathml_element(JS::Realm& realm, Document& document, QualifiedName qualified_name)
@@ -507,7 +507,7 @@ static JS::NonnullGCPtr<MathML::MathMLElement> create_mathml_element(JS::Realm& 
     // https://w3c.github.io/mathml-core/#mathml-elements-and-attributes
     // The term MathML element refers to any element in the MathML namespace.
 
-    return realm.heap().allocate<MathML::MathMLElement>(realm, document, move(qualified_name));
+    return realm.create<MathML::MathMLElement>(document, move(qualified_name));
 }
 // https://dom.spec.whatwg.org/#concept-create-element
 WebIDL::ExceptionOr<JS::NonnullGCPtr<Element>> create_element(Document& document, FlyString local_name, Optional<FlyString> namespace_, Optional<FlyString> prefix, Optional<String> is_value, bool synchronous_custom_elements_flag)
@@ -617,7 +617,7 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<Element>> create_element(Document& document
 
                 // 2. Set result to a new element that implements the HTMLUnknownElement interface, with no attributes, namespace set to the HTML namespace, namespace prefix set to prefix,
                 //    local name set to localName, custom element state set to "failed", custom element definition set to null, is value set to null, and node document set to document.
-                JS::NonnullGCPtr<Element> element = realm.heap().allocate<HTML::HTMLUnknownElement>(realm, document, QualifiedName { local_name, prefix, Namespace::HTML });
+                JS::NonnullGCPtr<Element> element = realm.create<HTML::HTMLUnknownElement>(document, QualifiedName { local_name, prefix, Namespace::HTML });
                 element->set_custom_element_state(CustomElementState::Failed);
                 return element;
             }
@@ -628,7 +628,7 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<Element>> create_element(Document& document
         // 2. Otherwise:
         // 1. Set result to a new element that implements the HTMLElement interface, with no attributes, namespace set to the HTML namespace, namespace prefix set to prefix,
         //    local name set to localName, custom element state set to "undefined", custom element definition set to null, is value set to null, and node document set to document.
-        auto element = realm.heap().allocate<HTML::HTMLElement>(realm, document, QualifiedName { local_name, prefix, Namespace::HTML });
+        auto element = realm.create<HTML::HTMLElement>(document, QualifiedName { local_name, prefix, Namespace::HTML });
         element->set_custom_element_state(CustomElementState::Undefined);
 
         // 2. Enqueue a custom element upgrade reaction given result and definition.
@@ -677,7 +677,7 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<Element>> create_element(Document& document
     // https://dom.spec.whatwg.org/#concept-element-interface
     // The element interface for any name and namespace is Element, unless stated otherwise.
     dbgln("Potential FIXME: Creating unknown generic element '{}' in namespace '{}'", local_name, namespace_);
-    auto element = realm.heap().allocate<DOM::Element>(realm, document, move(qualified_name));
+    auto element = realm.create<DOM::Element>(document, move(qualified_name));
     element->set_is_value(move(is_value));
     element->set_custom_element_state(CustomElementState::Uncustomized);
     return element;

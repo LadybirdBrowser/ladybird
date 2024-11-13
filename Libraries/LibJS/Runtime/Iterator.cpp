@@ -21,7 +21,7 @@ JS_DEFINE_ALLOCATOR(IteratorRecord);
 
 NonnullGCPtr<Iterator> Iterator::create(Realm& realm, Object& prototype, NonnullGCPtr<IteratorRecord> iterated)
 {
-    return realm.heap().allocate<Iterator>(realm, prototype, move(iterated));
+    return realm.create<Iterator>(prototype, move(iterated));
 }
 
 Iterator::Iterator(Object& prototype, NonnullGCPtr<IteratorRecord> iterated)
@@ -31,7 +31,7 @@ Iterator::Iterator(Object& prototype, NonnullGCPtr<IteratorRecord> iterated)
 }
 
 Iterator::Iterator(Object& prototype)
-    : Iterator(prototype, prototype.heap().allocate<IteratorRecord>(prototype.shape().realm(), prototype.shape().realm(), nullptr, js_undefined(), false))
+    : Iterator(prototype, prototype.shape().realm().create<IteratorRecord>(prototype.shape().realm(), nullptr, js_undefined(), false))
 {
 }
 
@@ -44,7 +44,7 @@ ThrowCompletionOr<NonnullGCPtr<IteratorRecord>> get_iterator_direct(VM& vm, Obje
     // 2. Let iteratorRecord be Record { [[Iterator]]: obj, [[NextMethod]]: nextMethod, [[Done]]: false }.
     // 3. Return iteratorRecord.
     auto& realm = *vm.current_realm();
-    return vm.heap().allocate<IteratorRecord>(realm, realm, object, next_method, false);
+    return realm.create<IteratorRecord>(realm, object, next_method, false);
 }
 
 // 7.4.3 GetIteratorFromMethod ( obj, method ), https://tc39.es/ecma262/#sec-getiteratorfrommethod
@@ -62,7 +62,7 @@ ThrowCompletionOr<NonnullGCPtr<IteratorRecord>> get_iterator_from_method(VM& vm,
 
     // 4. Let iteratorRecord be the Iterator Record { [[Iterator]]: iterator, [[NextMethod]]: nextMethod, [[Done]]: false }.
     auto& realm = *vm.current_realm();
-    auto iterator_record = vm.heap().allocate<IteratorRecord>(realm, realm, iterator.as_object(), next_method, false);
+    auto iterator_record = realm.create<IteratorRecord>(realm, iterator.as_object(), next_method, false);
 
     // 5. Return iteratorRecord.
     return iterator_record;

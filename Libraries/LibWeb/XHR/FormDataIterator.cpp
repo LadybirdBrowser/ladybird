@@ -16,7 +16,7 @@ namespace Web::Bindings {
 template<>
 void Intrinsics::create_web_prototype_and_constructor<FormDataIteratorPrototype>(JS::Realm& realm)
 {
-    auto prototype = heap().allocate<FormDataIteratorPrototype>(realm, realm);
+    auto prototype = realm.create<FormDataIteratorPrototype>(realm);
     m_prototypes.set("FormDataIterator"_fly_string, prototype);
 }
 
@@ -28,7 +28,7 @@ JS_DEFINE_ALLOCATOR(FormDataIterator);
 
 JS::NonnullGCPtr<FormDataIterator> FormDataIterator::create(FormData const& form_data, JS::Object::PropertyKind iterator_kind)
 {
-    return form_data.heap().allocate<FormDataIterator>(form_data.realm(), form_data, iterator_kind);
+    return form_data.realm().create<FormDataIterator>(form_data, iterator_kind);
 }
 
 FormDataIterator::FormDataIterator(Web::XHR::FormData const& form_data, JS::Object::PropertyKind iterator_kind)

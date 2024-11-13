@@ -47,7 +47,7 @@ JS_DEFINE_ALLOCATOR(ResolvedCSSStyleDeclaration);
 
 JS::NonnullGCPtr<ResolvedCSSStyleDeclaration> ResolvedCSSStyleDeclaration::create(DOM::Element& element, Optional<Selector::PseudoElement::Type> pseudo_element)
 {
-    return element.realm().heap().allocate<ResolvedCSSStyleDeclaration>(element.realm(), element, move(pseudo_element));
+    return element.realm().create<ResolvedCSSStyleDeclaration>(element, move(pseudo_element));
 }
 
 ResolvedCSSStyleDeclaration::ResolvedCSSStyleDeclaration(DOM::Element& element, Optional<CSS::Selector::PseudoElement::Type> pseudo_element)

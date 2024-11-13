@@ -15,7 +15,7 @@ JS_DEFINE_ALLOCATOR(NumberFormatFunction);
 // 15.5.2 Number Format Functions, https://tc39.es/ecma402/#sec-number-format-functions
 NonnullGCPtr<NumberFormatFunction> NumberFormatFunction::create(Realm& realm, NumberFormat& number_format)
 {
-    return realm.heap().allocate<NumberFormatFunction>(realm, number_format, realm.intrinsics().function_prototype());
+    return realm.create<NumberFormatFunction>(number_format, realm.intrinsics().function_prototype());
 }
 
 NumberFormatFunction::NumberFormatFunction(NumberFormat& number_format, Object& prototype)

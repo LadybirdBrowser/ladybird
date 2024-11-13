@@ -710,7 +710,7 @@ static void generate_to_cpp(SourceGenerator& generator, ParameterType& parameter
     if (!@js_name@@js_suffix@.is_object() || !(is<JS::TypedArrayBase>(@js_name@@js_suffix@.as_object()) || is<JS::ArrayBuffer>(@js_name@@js_suffix@.as_object()) || is<JS::DataView>(@js_name@@js_suffix@.as_object())))
         return vm.throw_completion<JS::TypeError>(JS::ErrorType::NotAnObjectOfType, "@parameter.type.name@");
 
-    @cpp_name@ = JS::make_handle(vm.heap().allocate<WebIDL::BufferSource>(realm, @js_name@@js_suffix@.as_object()));
+    @cpp_name@ = JS::make_handle(realm.create<WebIDL::BufferSource>(@js_name@@js_suffix@.as_object()));
 )~~~");
 
         if (optional) {
@@ -724,7 +724,7 @@ static void generate_to_cpp(SourceGenerator& generator, ParameterType& parameter
     if (!@js_name@@js_suffix@.is_object() || !(is<JS::TypedArrayBase>(@js_name@@js_suffix@.as_object()) || is<JS::DataView>(@js_name@@js_suffix@.as_object())))
         return vm.throw_completion<JS::TypeError>(JS::ErrorType::NotAnObjectOfType, "@parameter.type.name@");
 
-    auto @cpp_name@ = JS::make_handle(vm.heap().allocate<WebIDL::ArrayBufferView>(realm, @js_name@@js_suffix@.as_object()));
+    auto @cpp_name@ = JS::make_handle(realm.create<WebIDL::ArrayBufferView>(@js_name@@js_suffix@.as_object()));
 )~~~");
         if (optional) {
             scoped_generator.append(R"~~~(
@@ -1227,7 +1227,7 @@ static void generate_to_cpp(SourceGenerator& generator, ParameterType& parameter
         if (any_of(types, [](auto const& type) { return type->name() == "BufferSource"; }) && !includes_object) {
             union_generator.append(R"~~~(
             if (is<JS::ArrayBuffer>(@js_name@@js_suffix@_object) || is<JS::DataView>(@js_name@@js_suffix@_object) || is<JS::TypedArrayBase>(@js_name@@js_suffix@_object)) {
-                JS::NonnullGCPtr<WebIDL::BufferSource> source_object = vm.heap().allocate<WebIDL::BufferSource>(realm, @js_name@@js_suffix@_object);
+                JS::NonnullGCPtr<WebIDL::BufferSource> source_object = realm.create<WebIDL::BufferSource>(@js_name@@js_suffix@_object);
                 return JS::make_handle(source_object);
             }
 )~~~");
@@ -2496,7 +2496,7 @@ static void generate_html_constructor(SourceGenerator& generator, IDL::Construct
         // 3. Set element's namespace to the HTML namespace.
         // 4. Set element's namespace prefix to null.
         // 5. Set element's local name to definition's local name.
-        auto element = realm.heap().allocate<@fully_qualified_name@>(realm, window.associated_document(), DOM::QualifiedName { definition->local_name(), {}, Namespace::HTML });
+        auto element = realm.create<@fully_qualified_name@>(window.associated_document(), DOM::QualifiedName { definition->local_name(), {}, Namespace::HTML });
 
         // https://webidl.spec.whatwg.org/#internally-create-a-new-object-implementing-the-interface
         // Important steps from "internally create a new object implementing the interface"

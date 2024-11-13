@@ -39,7 +39,7 @@ JS::GCPtr<CSSRule> CSSStyleDeclaration::parent_rule() const
 
 JS::NonnullGCPtr<PropertyOwningCSSStyleDeclaration> PropertyOwningCSSStyleDeclaration::create(JS::Realm& realm, Vector<StyleProperty> properties, HashMap<FlyString, StyleProperty> custom_properties)
 {
-    return realm.heap().allocate<PropertyOwningCSSStyleDeclaration>(realm, realm, move(properties), move(custom_properties));
+    return realm.create<PropertyOwningCSSStyleDeclaration>(realm, move(properties), move(custom_properties));
 }
 
 PropertyOwningCSSStyleDeclaration::PropertyOwningCSSStyleDeclaration(JS::Realm& realm, Vector<StyleProperty> properties, HashMap<FlyString, StyleProperty> custom_properties)
@@ -69,7 +69,7 @@ String PropertyOwningCSSStyleDeclaration::item(size_t index) const
 JS::NonnullGCPtr<ElementInlineCSSStyleDeclaration> ElementInlineCSSStyleDeclaration::create(DOM::Element& element, Vector<StyleProperty> properties, HashMap<FlyString, StyleProperty> custom_properties)
 {
     auto& realm = element.realm();
-    return realm.heap().allocate<ElementInlineCSSStyleDeclaration>(realm, element, move(properties), move(custom_properties));
+    return realm.create<ElementInlineCSSStyleDeclaration>(element, move(properties), move(custom_properties));
 }
 
 ElementInlineCSSStyleDeclaration::ElementInlineCSSStyleDeclaration(DOM::Element& element, Vector<StyleProperty> properties, HashMap<FlyString, StyleProperty> custom_properties)

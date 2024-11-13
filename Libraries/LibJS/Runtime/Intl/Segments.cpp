@@ -20,7 +20,7 @@ NonnullGCPtr<Segments> Segments::create(Realm& realm, Unicode::Segmenter const& 
     // 3. Set segments.[[SegmentsSegmenter]] to segmenter.
     // 4. Set segments.[[SegmentsString]] to string.
     // 5. Return segments.
-    return realm.heap().allocate<Segments>(realm, realm, segmenter, move(string));
+    return realm.create<Segments>(realm, segmenter, move(string));
 }
 
 // 18.5 Segments Objects, https://tc39.es/ecma402/#sec-segments-objects

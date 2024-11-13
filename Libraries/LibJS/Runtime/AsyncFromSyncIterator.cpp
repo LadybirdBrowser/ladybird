@@ -15,7 +15,7 @@ JS_DEFINE_ALLOCATOR(AsyncFromSyncIterator);
 
 NonnullGCPtr<AsyncFromSyncIterator> AsyncFromSyncIterator::create(Realm& realm, NonnullGCPtr<IteratorRecord> sync_iterator_record)
 {
-    return realm.heap().allocate<AsyncFromSyncIterator>(realm, realm, sync_iterator_record);
+    return realm.create<AsyncFromSyncIterator>(realm, sync_iterator_record);
 }
 
 AsyncFromSyncIterator::AsyncFromSyncIterator(Realm& realm, NonnullGCPtr<IteratorRecord> sync_iterator_record)

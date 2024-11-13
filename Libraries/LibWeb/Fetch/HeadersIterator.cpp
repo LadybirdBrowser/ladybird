@@ -15,7 +15,7 @@ namespace Web::Bindings {
 template<>
 void Intrinsics::create_web_prototype_and_constructor<HeadersIteratorPrototype>(JS::Realm& realm)
 {
-    auto prototype = heap().allocate<HeadersIteratorPrototype>(realm, realm);
+    auto prototype = realm.create<HeadersIteratorPrototype>(realm);
     m_prototypes.set("HeadersIterator"_fly_string, prototype);
 }
 
@@ -27,7 +27,7 @@ JS_DEFINE_ALLOCATOR(HeadersIterator);
 
 JS::NonnullGCPtr<HeadersIterator> HeadersIterator::create(Headers const& headers, JS::Object::PropertyKind iteration_kind)
 {
-    return headers.heap().allocate<HeadersIterator>(headers.realm(), headers, iteration_kind);
+    return headers.realm().create<HeadersIterator>(headers, iteration_kind);
 }
 
 HeadersIterator::HeadersIterator(Headers const& headers, JS::Object::PropertyKind iteration_kind)

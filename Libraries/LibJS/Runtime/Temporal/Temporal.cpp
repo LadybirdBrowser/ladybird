@@ -38,7 +38,7 @@ void Temporal::initialize(Realm& realm)
     define_direct_property(vm.well_known_symbol_to_string_tag(), PrimitiveString::create(vm, "Temporal"_string), Attribute::Configurable);
 
     u8 attr = Attribute::Writable | Attribute::Configurable;
-    define_direct_property(vm.names.Now, heap().allocate<Now>(realm, realm), attr);
+    define_direct_property(vm.names.Now, realm.create<Now>(realm), attr);
     define_intrinsic_accessor(vm.names.Calendar, attr, [](auto& realm) -> Value { return realm.intrinsics().temporal_calendar_constructor(); });
     define_intrinsic_accessor(vm.names.Duration, attr, [](auto& realm) -> Value { return realm.intrinsics().temporal_duration_constructor(); });
     define_intrinsic_accessor(vm.names.Instant, attr, [](auto& realm) -> Value { return realm.intrinsics().temporal_instant_constructor(); });

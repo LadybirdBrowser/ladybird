@@ -15,7 +15,7 @@ JS_DEFINE_ALLOCATOR(UserActivation);
 
 WebIDL::ExceptionOr<JS::NonnullGCPtr<UserActivation>> UserActivation::construct_impl(JS::Realm& realm)
 {
-    return realm.heap().allocate<UserActivation>(realm, realm);
+    return realm.create<UserActivation>(realm);
 }
 
 UserActivation::UserActivation(JS::Realm& realm)

@@ -754,7 +754,7 @@ void KeyboardEvent::init_keyboard_event(String const& type, bool bubbles, bool c
 
 JS::NonnullGCPtr<KeyboardEvent> KeyboardEvent::create(JS::Realm& realm, FlyString const& event_name, KeyboardEventInit const& event_init)
 {
-    return realm.heap().allocate<KeyboardEvent>(realm, realm, event_name, event_init);
+    return realm.create<KeyboardEvent>(realm, event_name, event_init);
 }
 
 WebIDL::ExceptionOr<JS::NonnullGCPtr<KeyboardEvent>> KeyboardEvent::construct_impl(JS::Realm& realm, FlyString const& event_name, KeyboardEventInit const& event_init)

@@ -54,7 +54,7 @@ EventTarget::~EventTarget() = default;
 WebIDL::ExceptionOr<JS::NonnullGCPtr<EventTarget>> EventTarget::construct_impl(JS::Realm& realm)
 {
     // The new EventTarget() constructor steps are to do nothing.
-    return realm.heap().allocate<EventTarget>(realm, realm);
+    return realm.create<EventTarget>(realm);
 }
 
 void EventTarget::initialize(JS::Realm& realm)

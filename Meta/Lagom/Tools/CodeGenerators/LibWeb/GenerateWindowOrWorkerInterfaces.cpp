@@ -103,7 +103,7 @@ namespace Web::Bindings {
 template<>
 void Intrinsics::create_web_namespace<@namespace_class@>(JS::Realm& realm)
 {
-    auto namespace_object = heap().allocate<@namespace_class@>(realm, realm);
+    auto namespace_object = realm.create<@namespace_class@>(realm);
     m_namespaces.set("@interface_name@"_fly_string, namespace_object);
 
     [[maybe_unused]] static constexpr u8 attr = JS::Attribute::Writable | JS::Attribute::Configurable;)~~~");
@@ -139,16 +139,16 @@ void Intrinsics::create_web_prototype_and_constructor<@prototype_class@>(JS::Rea
         if (!named_properties_class.is_empty()) {
             gen.set("named_properties_class", named_properties_class);
             gen.append(R"~~~(
-    auto named_properties_object = heap().allocate<@named_properties_class@>(realm, realm);
+    auto named_properties_object = realm.create<@named_properties_class@>(realm);
     m_prototypes.set("@named_properties_class@"_fly_string, named_properties_object);
 
 )~~~");
         }
         gen.append(R"~~~(
-    auto prototype = heap().allocate<@prototype_class@>(realm, realm);
+    auto prototype = realm.create<@prototype_class@>(realm);
     m_prototypes.set("@interface_name@"_fly_string, prototype);
 
-    auto constructor = heap().allocate<@constructor_class@>(realm, realm);
+    auto constructor = realm.create<@constructor_class@>(realm);
     m_constructors.set("@interface_name@"_fly_string, constructor);
 
     prototype->define_direct_property(vm.names.constructor, constructor.ptr(), JS::Attribute::Writable | JS::Attribute::Configurable);
@@ -159,7 +159,7 @@ void Intrinsics::create_web_prototype_and_constructor<@prototype_class@>(JS::Rea
             gen.set("legacy_interface_name", legacy_constructor->name);
             gen.set("legacy_constructor_class", legacy_constructor->constructor_class);
             gen.append(R"~~~(
-    auto legacy_constructor = heap().allocate<@legacy_constructor_class@>(realm, realm);
+    auto legacy_constructor = realm.create<@legacy_constructor_class@>(realm);
     m_constructors.set("@legacy_interface_name@"_fly_string, legacy_constructor);
 
     legacy_constructor->define_direct_property(vm.names.name, JS::PrimitiveString::create(vm, "@legacy_interface_name@"_string), JS::Attribute::Configurable);)~~~");

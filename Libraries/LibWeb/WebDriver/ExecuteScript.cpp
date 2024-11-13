@@ -91,7 +91,7 @@ void execute_script(HTML::BrowsingContext const& browsing_context, ByteString bo
     auto& vm = document->vm();
 
     // 5. Let timer be a new timer.
-    auto timer = vm.heap().allocate<HeapTimer>(realm);
+    auto timer = realm.create<HeapTimer>();
 
     // 6. If timeout is not null:
     if (timeout_ms.has_value()) {
@@ -148,7 +148,7 @@ void execute_async_script(HTML::BrowsingContext const& browsing_context, ByteStr
     auto& vm = document->vm();
 
     // 5. Let timer be a new timer.
-    auto timer = vm.heap().allocate<HeapTimer>(realm);
+    auto timer = realm.create<HeapTimer>();
 
     // 6. If timeout is not null:
     if (timeout_ms.has_value()) {

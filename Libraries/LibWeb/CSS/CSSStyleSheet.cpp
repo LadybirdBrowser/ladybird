@@ -25,7 +25,7 @@ JS_DEFINE_ALLOCATOR(CSSStyleSheet);
 
 JS::NonnullGCPtr<CSSStyleSheet> CSSStyleSheet::create(JS::Realm& realm, CSSRuleList& rules, MediaList& media, Optional<URL::URL> location)
 {
-    return realm.heap().allocate<CSSStyleSheet>(realm, realm, rules, media, move(location));
+    return realm.create<CSSStyleSheet>(realm, rules, media, move(location));
 }
 
 // https://drafts.csswg.org/cssom/#dom-cssstylesheet-cssstylesheet

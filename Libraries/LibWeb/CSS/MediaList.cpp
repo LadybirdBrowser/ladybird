@@ -17,7 +17,7 @@ JS_DEFINE_ALLOCATOR(MediaList);
 
 JS::NonnullGCPtr<MediaList> MediaList::create(JS::Realm& realm, Vector<NonnullRefPtr<MediaQuery>>&& media)
 {
-    return realm.heap().allocate<MediaList>(realm, realm, move(media));
+    return realm.create<MediaList>(realm, move(media));
 }
 
 MediaList::MediaList(JS::Realm& realm, Vector<NonnullRefPtr<MediaQuery>>&& media)

@@ -32,7 +32,7 @@ JS::NonnullGCPtr<WorkerEnvironmentSettingsObject> WorkerEnvironmentSettingsObjec
 
     // 4. Let settings object be a new environment settings object whose algorithms are defined as follows:
     // NOTE: See the functions defined for this class.
-    auto settings_object = realm->heap().allocate<WorkerEnvironmentSettingsObject>(*realm, move(execution_context), worker);
+    auto settings_object = realm->create<WorkerEnvironmentSettingsObject>(move(execution_context), worker);
     settings_object->target_browsing_context = nullptr;
     settings_object->m_origin = move(inherited_origin);
 
@@ -44,7 +44,7 @@ JS::NonnullGCPtr<WorkerEnvironmentSettingsObject> WorkerEnvironmentSettingsObjec
     // FIXME: 7. Otherwise, set settings object's top-level origin to an implementation-defined value.
 
     // 8. Set realm's [[HostDefined]] field to settings object.
-    auto intrinsics = realm->heap().allocate<Bindings::Intrinsics>(*realm, *realm);
+    auto intrinsics = realm->create<Bindings::Intrinsics>(*realm);
     auto host_defined = make<Bindings::PrincipalHostDefined>(settings_object, intrinsics, page);
     realm->set_host_defined(move(host_defined));
 

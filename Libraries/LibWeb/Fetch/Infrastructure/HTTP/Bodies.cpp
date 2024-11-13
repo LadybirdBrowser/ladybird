@@ -127,7 +127,7 @@ void Body::incrementally_read_loop(Streams::ReadableStreamDefaultReader& reader,
 {
     auto& realm = reader.realm();
     // 1. Let readRequest be the following read request:
-    auto read_request = realm.heap().allocate<IncrementalReadLoopReadRequest>(realm, *this, reader, task_destination, process_body_chunk, process_end_of_body, process_body_error);
+    auto read_request = realm.create<IncrementalReadLoopReadRequest>(*this, reader, task_destination, process_body_chunk, process_end_of_body, process_body_error);
 
     // 2. Read a chunk from reader given readRequest.
     reader.read_a_chunk(read_request);

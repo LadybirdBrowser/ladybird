@@ -14,12 +14,12 @@ JS_DEFINE_ALLOCATOR(DOMException);
 
 JS::NonnullGCPtr<DOMException> DOMException::create(JS::Realm& realm, FlyString name, String message)
 {
-    return realm.heap().allocate<DOMException>(realm, realm, move(name), move(message));
+    return realm.create<DOMException>(realm, move(name), move(message));
 }
 
 JS::NonnullGCPtr<DOMException> DOMException::construct_impl(JS::Realm& realm, String message, FlyString name)
 {
-    return realm.heap().allocate<DOMException>(realm, realm, move(name), move(message));
+    return realm.create<DOMException>(realm, move(name), move(message));
 }
 
 DOMException::DOMException(JS::Realm& realm, FlyString name, String message)

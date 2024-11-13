@@ -14,7 +14,7 @@ JS_DEFINE_ALLOCATOR(IDLEventListener);
 
 JS::NonnullGCPtr<IDLEventListener> IDLEventListener::create(JS::Realm& realm, JS::NonnullGCPtr<WebIDL::CallbackType> callback)
 {
-    return realm.heap().allocate<IDLEventListener>(realm, realm, move(callback));
+    return realm.create<IDLEventListener>(realm, move(callback));
 }
 
 IDLEventListener::IDLEventListener(JS::Realm& realm, JS::NonnullGCPtr<WebIDL::CallbackType> callback)

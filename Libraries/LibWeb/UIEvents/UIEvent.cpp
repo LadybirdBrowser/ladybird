@@ -14,12 +14,12 @@ JS_DEFINE_ALLOCATOR(UIEvent);
 
 JS::NonnullGCPtr<UIEvent> UIEvent::create(JS::Realm& realm, FlyString const& event_name)
 {
-    return realm.heap().allocate<UIEvent>(realm, realm, event_name);
+    return realm.create<UIEvent>(realm, event_name);
 }
 
 WebIDL::ExceptionOr<JS::NonnullGCPtr<UIEvent>> UIEvent::construct_impl(JS::Realm& realm, FlyString const& event_name, UIEventInit const& event_init)
 {
-    return realm.heap().allocate<UIEvent>(realm, realm, event_name, event_init);
+    return realm.create<UIEvent>(realm, event_name, event_init);
 }
 
 UIEvent::UIEvent(JS::Realm& realm, FlyString const& event_name)

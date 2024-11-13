@@ -727,7 +727,7 @@ void fetch_response_handover(JS::Realm& realm, Infrastructure::FetchParams const
         HTML::TemporaryExecutionContext const execution_context { realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
 
         // 1. Let transformStream be a new TransformStream.
-        auto transform_stream = realm.heap().allocate<Streams::TransformStream>(realm, realm);
+        auto transform_stream = realm.create<Streams::TransformStream>(realm);
 
         // 2. Let identityTransformAlgorithm be an algorithm which, given chunk, enqueues chunk in transformStream.
         auto identity_transform_algorithm = JS::create_heap_function(realm.heap(), [&realm, transform_stream](JS::Value chunk) -> JS::NonnullGCPtr<WebIDL::Promise> {
@@ -2236,8 +2236,8 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<PendingResponse>> nonstandard_resource_load
         HTML::TemporaryExecutionContext execution_context { realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
 
         // 12. Let stream be a new ReadableStream.
-        auto stream = realm.heap().allocate<Streams::ReadableStream>(realm, realm);
-        auto fetched_data_receiver = realm.heap().allocate<FetchedDataReceiver>(realm, fetch_params, stream);
+        auto stream = realm.create<Streams::ReadableStream>(realm);
+        auto fetched_data_receiver = realm.create<FetchedDataReceiver>(fetch_params, stream);
 
         // 10. Let pullAlgorithm be the followings steps:
         auto pull_algorithm = JS::create_heap_function(realm.heap(), [&realm, fetched_data_receiver]() {

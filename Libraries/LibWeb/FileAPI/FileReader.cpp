@@ -55,7 +55,7 @@ void FileReader::visit_edges(JS::Cell::Visitor& visitor)
 
 JS::NonnullGCPtr<FileReader> FileReader::create(JS::Realm& realm)
 {
-    return realm.heap().allocate<FileReader>(realm, realm);
+    return realm.create<FileReader>(realm);
 }
 
 JS::NonnullGCPtr<FileReader> FileReader::construct_impl(JS::Realm& realm)

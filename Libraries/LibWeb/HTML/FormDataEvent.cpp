@@ -14,7 +14,7 @@ JS_DEFINE_ALLOCATOR(FormDataEvent);
 
 WebIDL::ExceptionOr<JS::NonnullGCPtr<FormDataEvent>> FormDataEvent::construct_impl(JS::Realm& realm, FlyString const& event_name, FormDataEventInit const& event_init)
 {
-    return realm.heap().allocate<FormDataEvent>(realm, realm, event_name, event_init);
+    return realm.create<FormDataEvent>(realm, event_name, event_init);
 }
 
 FormDataEvent::FormDataEvent(JS::Realm& realm, FlyString const& event_name, FormDataEventInit const& event_init)

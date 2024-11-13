@@ -59,7 +59,7 @@ JS_DEFINE_ALLOCATOR(DOMTokenList);
 JS::NonnullGCPtr<DOMTokenList> DOMTokenList::create(Element& associated_element, FlyString associated_attribute)
 {
     auto& realm = associated_element.realm();
-    return realm.heap().allocate<DOMTokenList>(realm, associated_element, move(associated_attribute));
+    return realm.create<DOMTokenList>(associated_element, move(associated_attribute));
 }
 
 // https://dom.spec.whatwg.org/#ref-for-domtokenlist%E2%91%A0%E2%91%A2

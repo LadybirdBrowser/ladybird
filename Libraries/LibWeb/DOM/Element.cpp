@@ -699,7 +699,7 @@ WebIDL::ExceptionOr<void> Element::attach_a_shadow_root(Bindings::ShadowRootMode
     }
 
     // 5. Let shadow be a new shadow root whose node document is element’s node document, host is this, and mode is mode.
-    auto shadow = heap().allocate<ShadowRoot>(realm(), document(), *this, mode);
+    auto shadow = realm().create<ShadowRoot>(document(), *this, mode);
 
     // 6. Set shadow’s delegates focus to delegatesFocus".
     shadow->set_delegates_focus(delegates_focus);
@@ -1547,7 +1547,7 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<DOM::DocumentFragment>> Element::parse_frag
     auto new_children = algorithm(*this, markup, HTML::HTMLParser::AllowDeclarativeShadowRoots::No);
 
     // 4. Let fragment be a new DocumentFragment whose node document is context's node document.
-    auto fragment = realm().heap().allocate<DOM::DocumentFragment>(realm(), document());
+    auto fragment = realm().create<DOM::DocumentFragment>(document());
 
     // 5. Append each Node in new children to fragment (in tree order).
     for (auto& child : new_children) {
@@ -1721,7 +1721,7 @@ WebIDL::ExceptionOr<JS::GCPtr<Element>> Element::insert_adjacent_element(String 
 WebIDL::ExceptionOr<void> Element::insert_adjacent_text(String const& where, String const& data)
 {
     // 1. Let text be a new Text node whose data is data and node document is this’s node document.
-    auto text = heap().allocate<DOM::Text>(realm(), document(), data);
+    auto text = realm().create<DOM::Text>(document(), data);
 
     // 2. Run insert adjacent, given this, where, and text.
     // Spec Note: This method returns nothing because it existed before we had a chance to design it.

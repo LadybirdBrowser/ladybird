@@ -14,7 +14,7 @@ JS_DEFINE_ALLOCATOR(DragEvent);
 
 JS::NonnullGCPtr<DragEvent> DragEvent::create(JS::Realm& realm, FlyString const& event_name, DragEventInit const& event_init, double page_x, double page_y, double offset_x, double offset_y)
 {
-    return realm.heap().allocate<DragEvent>(realm, realm, event_name, event_init, page_x, page_y, offset_x, offset_y);
+    return realm.create<DragEvent>(realm, event_name, event_init, page_x, page_y, offset_x, offset_y);
 }
 
 WebIDL::ExceptionOr<JS::NonnullGCPtr<DragEvent>> DragEvent::construct_impl(JS::Realm& realm, FlyString const& event_name, DragEventInit const& event_init)

@@ -18,12 +18,12 @@ JS_DEFINE_ALLOCATOR(CryptoKeyPair);
 
 JS::NonnullGCPtr<CryptoKey> CryptoKey::create(JS::Realm& realm, InternalKeyData key_data)
 {
-    return realm.heap().allocate<CryptoKey>(realm, realm, move(key_data));
+    return realm.create<CryptoKey>(realm, move(key_data));
 }
 
 JS::NonnullGCPtr<CryptoKey> CryptoKey::create(JS::Realm& realm)
 {
-    return realm.heap().allocate<CryptoKey>(realm, realm);
+    return realm.create<CryptoKey>(realm);
 }
 
 CryptoKey::CryptoKey(JS::Realm& realm, InternalKeyData key_data)
@@ -82,7 +82,7 @@ String CryptoKey::algorithm_name() const
 
 JS::NonnullGCPtr<CryptoKeyPair> CryptoKeyPair::create(JS::Realm& realm, JS::NonnullGCPtr<CryptoKey> public_key, JS::NonnullGCPtr<CryptoKey> private_key)
 {
-    return realm.heap().allocate<CryptoKeyPair>(realm, realm, public_key, private_key);
+    return realm.create<CryptoKeyPair>(realm, public_key, private_key);
 }
 
 CryptoKeyPair::CryptoKeyPair(JS::Realm& realm, JS::NonnullGCPtr<CryptoKey> public_key, JS::NonnullGCPtr<CryptoKey> private_key)

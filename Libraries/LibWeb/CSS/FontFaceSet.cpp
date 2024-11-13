@@ -37,7 +37,7 @@ JS::NonnullGCPtr<FontFaceSet> FontFaceSet::construct_impl(JS::Realm& realm, Vect
     for (auto const& face : initial_faces)
         set_entries->set_add(face);
 
-    return realm.heap().allocate<FontFaceSet>(realm, realm, ready_promise, set_entries);
+    return realm.create<FontFaceSet>(realm, ready_promise, set_entries);
 }
 
 JS::NonnullGCPtr<FontFaceSet> FontFaceSet::create(JS::Realm& realm)

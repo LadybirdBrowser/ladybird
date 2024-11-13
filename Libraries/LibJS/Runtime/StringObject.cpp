@@ -28,7 +28,7 @@ NonnullGCPtr<StringObject> StringObject::create(Realm& realm, PrimitiveString& p
     // 7. Let length be the length of value.
     // 8. Perform ! DefinePropertyOrThrow(S, "length", PropertyDescriptor { [[Value]]: 𝔽(length), [[Writable]]: false, [[Enumerable]]: false, [[Configurable]]: false }).
     // 9. Return S.
-    return realm.heap().allocate<StringObject>(realm, primitive_string, prototype);
+    return realm.create<StringObject>(primitive_string, prototype);
 }
 
 StringObject::StringObject(PrimitiveString& string, Object& prototype)

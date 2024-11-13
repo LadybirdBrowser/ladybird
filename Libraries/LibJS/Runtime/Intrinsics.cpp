@@ -198,33 +198,33 @@ ThrowCompletionOr<void> Intrinsics::initialize_intrinsics(Realm& realm)
     m_iterator_result_object_value_offset = m_iterator_result_object_shape->lookup(vm.names.value.to_string_or_symbol()).value().offset;
     m_iterator_result_object_done_offset = m_iterator_result_object_shape->lookup(vm.names.done.to_string_or_symbol()).value().offset;
 
-    // Normally Heap::allocate() takes care of this, but these are allocated via allocate_without_realm().
+    // Normally Realm::create() takes care of this, but these are allocated via Heap::allocate_without_realm().
     m_function_prototype->initialize(realm);
     m_object_prototype->initialize(realm);
 
 #define __JS_ENUMERATE(ClassName, snake_name) \
     VERIFY(!m_##snake_name##_prototype);      \
-    m_##snake_name##_prototype = heap().allocate<ClassName##Prototype>(realm, realm);
+    m_##snake_name##_prototype = realm.create<ClassName##Prototype>(realm);
     JS_ENUMERATE_ITERATOR_PROTOTYPES
 #undef __JS_ENUMERATE
 
     // These must be initialized separately as they have no companion constructor
-    m_async_from_sync_iterator_prototype = heap().allocate<AsyncFromSyncIteratorPrototype>(realm, realm);
-    m_async_generator_prototype = heap().allocate<AsyncGeneratorPrototype>(realm, realm);
-    m_generator_prototype = heap().allocate<GeneratorPrototype>(realm, realm);
-    m_intl_segments_prototype = heap().allocate<Intl::SegmentsPrototype>(realm, realm);
-    m_wrap_for_valid_iterator_prototype = heap().allocate<WrapForValidIteratorPrototype>(realm, realm);
+    m_async_from_sync_iterator_prototype = realm.create<AsyncFromSyncIteratorPrototype>(realm);
+    m_async_generator_prototype = realm.create<AsyncGeneratorPrototype>(realm);
+    m_generator_prototype = realm.create<GeneratorPrototype>(realm);
+    m_intl_segments_prototype = realm.create<Intl::SegmentsPrototype>(realm);
+    m_wrap_for_valid_iterator_prototype = realm.create<WrapForValidIteratorPrototype>(realm);
 
     // These must be initialized before allocating...
     // - AggregateErrorPrototype, which uses ErrorPrototype as its prototype
     // - AggregateErrorConstructor, which uses ErrorConstructor as its prototype
     // - AsyncFunctionConstructor, which uses FunctionConstructor as its prototype
-    m_error_prototype = heap().allocate<ErrorPrototype>(realm, realm);
-    m_error_constructor = heap().allocate<ErrorConstructor>(realm, realm);
-    m_function_constructor = heap().allocate<FunctionConstructor>(realm, realm);
+    m_error_prototype = realm.create<ErrorPrototype>(realm);
+    m_error_constructor = realm.create<ErrorConstructor>(realm);
+    m_function_constructor = realm.create<FunctionConstructor>(realm);
 
     // Not included in JS_ENUMERATE_NATIVE_OBJECTS due to missing distinct prototype
-    m_proxy_constructor = heap().allocate<ProxyConstructor>(realm, realm);
+    m_proxy_constructor = realm.create<ProxyConstructor>(realm);
 
     // Global object functions
     m_eval_function = NativeFunction::create(realm, GlobalObject::eval, 1, vm.names.eval, &realm);
@@ -239,7 +239,7 @@ ThrowCompletionOr<void> Intrinsics::initialize_intrinsics(Realm& realm)
     m_escape_function = NativeFunction::create(realm, GlobalObject::escape, 1, vm.names.escape, &realm);
     m_unescape_function = NativeFunction::create(realm, GlobalObject::unescape, 1, vm.names.unescape, &realm);
 
-    m_object_constructor = heap().allocate<ObjectConstructor>(realm, realm);
+    m_object_constructor = realm.create<ObjectConstructor>(realm);
 
     // 10.2.4.1 %ThrowTypeError% ( ), https://tc39.es/ecma262/#sec-%throwtypeerror%
     m_throw_type_error_function = NativeFunction::create(
@@ -292,11 +292,11 @@ JS_ENUMERATE_TYPED_ARRAYS
         VERIFY(!m_##snake_namespace##snake_name##_prototype);                                                                                            \
         VERIFY(!m_##snake_namespace##snake_name##_constructor);                                                                                          \
         if constexpr (IsTypedArrayConstructor<Namespace::ConstructorName>) {                                                                             \
-            m_##snake_namespace##snake_name##_prototype = heap().allocate<Namespace::PrototypeName>(m_realm, *typed_array_prototype());                  \
-            m_##snake_namespace##snake_name##_constructor = heap().allocate<Namespace::ConstructorName>(m_realm, m_realm, *typed_array_constructor());   \
+            m_##snake_namespace##snake_name##_prototype = m_realm->create<Namespace::PrototypeName>(*typed_array_prototype());                           \
+            m_##snake_namespace##snake_name##_constructor = m_realm->create<Namespace::ConstructorName>(m_realm, *typed_array_constructor());            \
         } else {                                                                                                                                         \
-            m_##snake_namespace##snake_name##_prototype = heap().allocate<Namespace::PrototypeName>(m_realm, m_realm);                                   \
-            m_##snake_namespace##snake_name##_constructor = heap().allocate<Namespace::ConstructorName>(m_realm, m_realm);                               \
+            m_##snake_namespace##snake_name##_prototype = m_realm->create<Namespace::PrototypeName>(m_realm);                                            \
+            m_##snake_namespace##snake_name##_constructor = m_realm->create<Namespace::ConstructorName>(m_realm);                                        \
         }                                                                                                                                                \
                                                                                                                                                          \
         /* FIXME: Add these special cases to JS_ENUMERATE_NATIVE_OBJECTS */                                                                              \
@@ -351,12 +351,12 @@ JS_ENUMERATE_TEMPORAL_OBJECTS
 
 #undef __JS_ENUMERATE_INNER
 
-#define __JS_ENUMERATE(ClassName, snake_name)                                       \
-    NonnullGCPtr<ClassName> Intrinsics::snake_name##_object()                       \
-    {                                                                               \
-        if (!m_##snake_name##_object)                                               \
-            m_##snake_name##_object = heap().allocate<ClassName>(m_realm, m_realm); \
-        return *m_##snake_name##_object;                                            \
+#define __JS_ENUMERATE(ClassName, snake_name)                              \
+    NonnullGCPtr<ClassName> Intrinsics::snake_name##_object()              \
+    {                                                                      \
+        if (!m_##snake_name##_object)                                      \
+            m_##snake_name##_object = m_realm->create<ClassName>(m_realm); \
+        return *m_##snake_name##_object;                                   \
     }
 JS_ENUMERATE_BUILTIN_NAMESPACE_OBJECTS
 #undef __JS_ENUMERATE

@@ -113,7 +113,7 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<AudioBufferSourceNode>> AudioBufferSourceNo
     // When the constructor is called with a BaseAudioContext c and an option object option, the user agent
     // MUST initialize the AudioNode this, with context and options as arguments.
 
-    auto node = realm.vm().heap().allocate<AudioBufferSourceNode>(realm, realm, context, options);
+    auto node = realm.create<AudioBufferSourceNode>(realm, context, options);
     return node;
 }
 

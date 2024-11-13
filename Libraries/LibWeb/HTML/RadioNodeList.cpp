@@ -16,7 +16,7 @@ JS_DEFINE_ALLOCATOR(RadioNodeList);
 
 JS::NonnullGCPtr<RadioNodeList> RadioNodeList::create(JS::Realm& realm, DOM::Node const& root, Scope scope, Function<bool(DOM::Node const&)> filter)
 {
-    return realm.heap().allocate<RadioNodeList>(realm, realm, root, scope, move(filter));
+    return realm.create<RadioNodeList>(realm, root, scope, move(filter));
 }
 
 RadioNodeList::RadioNodeList(JS::Realm& realm, DOM::Node const& root, Scope scope, Function<bool(DOM::Node const&)> filter)

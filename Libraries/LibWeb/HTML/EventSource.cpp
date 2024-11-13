@@ -37,7 +37,7 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<EventSource>> EventSource::construct_impl(J
     auto& vm = realm.vm();
 
     // 1. Let ev be a new EventSource object.
-    auto event_source = realm.heap().allocate<EventSource>(realm, realm);
+    auto event_source = realm.create<EventSource>(realm);
 
     // 2. Let settings be ev's relevant settings object.
     auto& settings = relevant_settings_object(event_source);

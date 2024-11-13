@@ -20,7 +20,7 @@ JS_DEFINE_ALLOCATOR(AudioContext);
 // https://webaudio.github.io/web-audio-api/#dom-audiocontext-audiocontext
 WebIDL::ExceptionOr<JS::NonnullGCPtr<AudioContext>> AudioContext::construct_impl(JS::Realm& realm, AudioContextOptions const& context_options)
 {
-    return realm.heap().allocate<AudioContext>(realm, realm, context_options);
+    return realm.create<AudioContext>(realm, context_options);
 }
 
 AudioContext::AudioContext(JS::Realm& realm, AudioContextOptions const& context_options)

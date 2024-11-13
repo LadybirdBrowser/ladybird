@@ -18,7 +18,7 @@ JS_DEFINE_ALLOCATOR(CloseWatcherManager);
 
 JS::NonnullGCPtr<CloseWatcherManager> CloseWatcherManager::create(JS::Realm& realm)
 {
-    return realm.heap().allocate<CloseWatcherManager>(realm, realm);
+    return realm.create<CloseWatcherManager>(realm);
 }
 
 CloseWatcherManager::CloseWatcherManager(JS::Realm& realm)

@@ -19,7 +19,7 @@ JS_DEFINE_ALLOCATOR(DocumentTimeline);
 
 JS::NonnullGCPtr<DocumentTimeline> DocumentTimeline::create(JS::Realm& realm, DOM::Document& document, HighResolutionTime::DOMHighResTimeStamp origin_time)
 {
-    auto timeline = realm.heap().allocate<DocumentTimeline>(realm, realm, document, origin_time);
+    auto timeline = realm.create<DocumentTimeline>(realm, document, origin_time);
     auto current_time = document.last_animation_frame_timestamp();
     if (!current_time.has_value()) {
         // The document hasn't processed an animation frame yet, so just use the exact current time

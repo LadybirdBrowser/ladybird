@@ -40,7 +40,7 @@ void ServiceWorkerContainer::visit_edges(Cell::Visitor& visitor)
 
 JS::NonnullGCPtr<ServiceWorkerContainer> ServiceWorkerContainer::create(JS::Realm& realm)
 {
-    return realm.heap().allocate<ServiceWorkerContainer>(realm, realm);
+    return realm.create<ServiceWorkerContainer>(realm);
 }
 
 // https://w3c.github.io/ServiceWorker/#navigator-service-worker-register

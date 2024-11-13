@@ -45,13 +45,13 @@ JS::NonnullGCPtr<Range> Range::create(HTML::Window& window)
 JS::NonnullGCPtr<Range> Range::create(Document& document)
 {
     auto& realm = document.realm();
-    return realm.heap().allocate<Range>(realm, document);
+    return realm.create<Range>(document);
 }
 
 JS::NonnullGCPtr<Range> Range::create(Node& start_container, WebIDL::UnsignedLong start_offset, Node& end_container, WebIDL::UnsignedLong end_offset)
 {
     auto& realm = start_container.realm();
-    return realm.heap().allocate<Range>(realm, start_container, start_offset, end_container, end_offset);
+    return realm.create<Range>(start_container, start_offset, end_container, end_offset);
 }
 
 WebIDL::ExceptionOr<JS::NonnullGCPtr<Range>> Range::construct_impl(JS::Realm& realm)
@@ -442,12 +442,12 @@ WebIDL::ExceptionOr<void> Range::select_node_contents(Node& node)
 
 JS::NonnullGCPtr<Range> Range::clone_range() const
 {
-    return heap().allocate<Range>(shape().realm(), const_cast<Node&>(*m_start_container), m_start_offset, const_cast<Node&>(*m_end_container), m_end_offset);
+    return shape().realm().create<Range>(const_cast<Node&>(*m_start_container), m_start_offset, const_cast<Node&>(*m_end_container), m_end_offset);
 }
 
 JS::NonnullGCPtr<Range> Range::inverted() const
 {
-    return heap().allocate<Range>(shape().realm(), const_cast<Node&>(*m_end_container), m_end_offset, const_cast<Node&>(*m_start_container), m_start_offset);
+    return shape().realm().create<Range>(const_cast<Node&>(*m_end_container), m_end_offset, const_cast<Node&>(*m_start_container), m_start_offset);
 }
 
 JS::NonnullGCPtr<Range> Range::normalized() const
@@ -607,7 +607,7 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<DocumentFragment>> Range::extract_contents(
 WebIDL::ExceptionOr<JS::NonnullGCPtr<DocumentFragment>> Range::extract()
 {
     // 1. Let fragment be a new DocumentFragment node whose node document is range’s start node’s node document.
-    auto fragment = heap().allocate<DOM::DocumentFragment>(realm(), const_cast<Document&>(start_container()->document()));
+    auto fragment = realm().create<DOM::DocumentFragment>(const_cast<Document&>(start_container()->document()));
 
     // 2. If range is collapsed, then return fragment.
     if (collapsed())
@@ -936,7 +936,7 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<DocumentFragment>> Range::clone_contents()
 WebIDL::ExceptionOr<JS::NonnullGCPtr<DocumentFragment>> Range::clone_the_contents()
 {
     // 1. Let fragment be a new DocumentFragment node whose node document is range’s start node’s node document.
-    auto fragment = heap().allocate<DOM::DocumentFragment>(realm(), const_cast<Document&>(start_container()->document()));
+    auto fragment = realm().create<DOM::DocumentFragment>(const_cast<Document&>(start_container()->document()));
 
     // 2. If range is collapsed, then return fragment.
     if (collapsed())

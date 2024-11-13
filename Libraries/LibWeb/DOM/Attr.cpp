@@ -20,17 +20,17 @@ JS_DEFINE_ALLOCATOR(Attr);
 
 JS::NonnullGCPtr<Attr> Attr::create(Document& document, FlyString local_name, String value, Element* owner_element)
 {
-    return document.heap().allocate<Attr>(document.realm(), document, QualifiedName(move(local_name), Optional<FlyString> {}, Optional<FlyString> {}), move(value), owner_element);
+    return document.realm().create<Attr>(document, QualifiedName(move(local_name), Optional<FlyString> {}, Optional<FlyString> {}), move(value), owner_element);
 }
 
 JS::NonnullGCPtr<Attr> Attr::create(Document& document, QualifiedName qualified_name, String value, Element* owner_element)
 {
-    return document.heap().allocate<Attr>(document.realm(), document, move(qualified_name), move(value), owner_element);
+    return document.realm().create<Attr>(document, move(qualified_name), move(value), owner_element);
 }
 
 JS::NonnullGCPtr<Attr> Attr::clone(Document& document)
 {
-    return *heap().allocate<Attr>(realm(), document, m_qualified_name, m_value, nullptr);
+    return realm().create<Attr>(document, m_qualified_name, m_value, nullptr);
 }
 
 Attr::Attr(Document& document, QualifiedName qualified_name, String value, Element* owner_element)

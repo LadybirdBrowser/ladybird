@@ -29,7 +29,7 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<Memory>> Memory::construct_impl(JS::Realm& 
     if (!address.has_value())
         return vm.throw_completion<JS::TypeError>("Wasm Memory allocation failed"sv);
 
-    auto memory_object = vm.heap().allocate<Memory>(realm, realm, *address);
+    auto memory_object = realm.create<Memory>(realm, *address);
     cache.abstract_machine().store().get(*address)->successful_grow_hook = [memory_object] {
         MUST(memory_object->reset_the_memory_buffer());
     };

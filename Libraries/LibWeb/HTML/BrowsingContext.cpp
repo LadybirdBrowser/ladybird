@@ -179,7 +179,7 @@ WebIDL::ExceptionOr<BrowsingContext::BrowsingContextAndDocument> BrowsingContext
     auto realm_execution_context = Bindings::create_a_new_javascript_realm(
         Bindings::main_thread_vm(),
         [&](JS::Realm& realm) -> JS::Object* {
-            auto window_proxy = realm.heap().allocate<WindowProxy>(realm, realm);
+            auto window_proxy = realm.create<WindowProxy>(realm);
             browsing_context->set_window_proxy(window_proxy);
 
             // - For the global object, create a new Window object.

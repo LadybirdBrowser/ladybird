@@ -21,7 +21,7 @@ NonnullGCPtr<SegmentIterator> SegmentIterator::create(Realm& realm, Unicode::Seg
     // 4. Set iterator.[[IteratedString]] to string.
     // 5. Set iterator.[[IteratedStringNextSegmentCodeUnitIndex]] to 0.
     // 6. Return iterator.
-    return realm.heap().allocate<SegmentIterator>(realm, realm, segmenter, string, segments);
+    return realm.create<SegmentIterator>(realm, segmenter, string, segments);
 }
 
 // 18.6 Segment Iterator Objects, https://tc39.es/ecma402/#sec-segment-iterator-objects

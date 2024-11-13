@@ -16,7 +16,7 @@ JS_DEFINE_ALLOCATOR(Storage);
 
 JS::NonnullGCPtr<Storage> Storage::create(JS::Realm& realm)
 {
-    return realm.heap().allocate<Storage>(realm, realm);
+    return realm.create<Storage>(realm);
 }
 
 Storage::Storage(JS::Realm& realm)

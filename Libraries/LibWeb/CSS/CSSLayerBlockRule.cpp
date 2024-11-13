@@ -15,7 +15,7 @@ JS_DEFINE_ALLOCATOR(CSSLayerBlockRule);
 
 JS::NonnullGCPtr<CSSLayerBlockRule> CSSLayerBlockRule::create(JS::Realm& realm, FlyString name, CSSRuleList& rules)
 {
-    return realm.heap().allocate<CSSLayerBlockRule>(realm, realm, move(name), rules);
+    return realm.create<CSSLayerBlockRule>(realm, move(name), rules);
 }
 
 FlyString CSSLayerBlockRule::next_unique_anonymous_layer_name()

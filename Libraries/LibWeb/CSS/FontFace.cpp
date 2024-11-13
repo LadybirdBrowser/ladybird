@@ -107,7 +107,7 @@ JS::NonnullGCPtr<FontFace> FontFace::construct_impl(JS::Realm& realm, String fam
     if (buffer.is_empty() && sources.is_empty())
         WebIDL::reject_promise(realm, promise, WebIDL::SyntaxError::create(realm, "FontFace constructor: Invalid font source"_string));
 
-    auto font = realm.heap().allocate<FontFace>(realm, realm, promise, move(sources), move(buffer), move(family), descriptors);
+    auto font = realm.create<FontFace>(realm, promise, move(sources), move(buffer), move(family), descriptors);
 
     // 1. (continued) Return font face. If font face’s status is "error", terminate this algorithm;
     //    otherwise, complete the rest of these steps asynchronously.

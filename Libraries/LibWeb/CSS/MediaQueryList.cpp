@@ -19,7 +19,7 @@ JS_DEFINE_ALLOCATOR(MediaQueryList);
 
 JS::NonnullGCPtr<MediaQueryList> MediaQueryList::create(DOM::Document& document, Vector<NonnullRefPtr<MediaQuery>>&& media)
 {
-    return document.heap().allocate<MediaQueryList>(document.realm(), document, move(media));
+    return document.realm().create<MediaQueryList>(document, move(media));
 }
 
 MediaQueryList::MediaQueryList(DOM::Document& document, Vector<NonnullRefPtr<MediaQuery>>&& media)

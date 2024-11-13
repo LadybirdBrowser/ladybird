@@ -30,7 +30,7 @@ JS::NonnullGCPtr<SharedResourceRequest> SharedResourceRequest::get_or_create(JS:
     auto& shared_resource_requests = document->shared_resource_requests();
     if (auto it = shared_resource_requests.find(url); it != shared_resource_requests.end())
         return *it->value;
-    auto request = realm.heap().allocate<SharedResourceRequest>(realm, page, url, *document);
+    auto request = realm.create<SharedResourceRequest>(page, url, *document);
     shared_resource_requests.set(url, request);
     return request;
 }

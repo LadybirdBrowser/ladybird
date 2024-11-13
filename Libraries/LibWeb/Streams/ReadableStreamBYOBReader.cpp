@@ -34,7 +34,7 @@ void ReadableStreamBYOBReader::initialize(JS::Realm& realm)
 // https://streams.spec.whatwg.org/#byob-reader-constructor
 WebIDL::ExceptionOr<JS::NonnullGCPtr<ReadableStreamBYOBReader>> ReadableStreamBYOBReader::construct_impl(JS::Realm& realm, JS::NonnullGCPtr<ReadableStream> stream)
 {
-    auto reader = realm.heap().allocate<ReadableStreamBYOBReader>(realm, realm);
+    auto reader = realm.create<ReadableStreamBYOBReader>(realm);
 
     // 1. Perform ? SetUpReadableStreamBYOBReader(this, stream).
     TRY(set_up_readable_stream_byob_reader(reader, *stream));

@@ -1034,7 +1034,7 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<Node>> Node::clone_node(Document* document,
     } else if (is<DocumentType>(this)) {
         // DocumentType
         auto document_type = verify_cast<DocumentType>(this);
-        auto document_type_copy = heap().allocate<DocumentType>(realm(), *document);
+        auto document_type_copy = realm().create<DocumentType>(*document);
 
         // Set copy’s name, public ID, and system ID to those of node.
         document_type_copy->set_name(document_type->name());
@@ -1053,26 +1053,26 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<Node>> Node::clone_node(Document* document,
         auto& text = static_cast<Text&>(*this);
 
         // Set copy’s data to that of node.
-        auto text_copy = heap().allocate<Text>(realm(), *document, text.data());
+        auto text_copy = realm().create<Text>(*document, text.data());
         copy = move(text_copy);
     } else if (is<Comment>(this)) {
         // Comment
         auto comment = verify_cast<Comment>(this);
 
         // Set copy’s data to that of node.
-        auto comment_copy = heap().allocate<Comment>(realm(), *document, comment->data());
+        auto comment_copy = realm().create<Comment>(*document, comment->data());
         copy = move(comment_copy);
     } else if (is<ProcessingInstruction>(this)) {
         // ProcessingInstruction
         auto processing_instruction = verify_cast<ProcessingInstruction>(this);
 
         // Set copy’s target and data to those of node.
-        auto processing_instruction_copy = heap().allocate<ProcessingInstruction>(realm(), *document, processing_instruction->data(), processing_instruction->target());
+        auto processing_instruction_copy = realm().create<ProcessingInstruction>(*document, processing_instruction->data(), processing_instruction->target());
         copy = processing_instruction_copy;
     }
     // Otherwise, Do nothing.
     else if (is<DocumentFragment>(this)) {
-        copy = heap().allocate<DocumentFragment>(realm(), *document);
+        copy = realm().create<DocumentFragment>(*document);
     }
 
     // FIXME: 4. Set copy’s node document and document to copy, if copy is a document, and set copy’s node document to document otherwise.
@@ -1551,7 +1551,7 @@ void Node::string_replace_all(String const& string)
 
     // 2. If string is not the empty string, then set node to a new Text node whose data is string and node document is parent’s node document.
     if (!string.is_empty())
-        node = heap().allocate<Text>(realm(), document(), string);
+        node = realm().create<Text>(document(), string);
 
     // 3. Replace all with node within parent.
     replace_all(node);
@@ -1588,7 +1588,7 @@ WebIDL::ExceptionOr<void> Node::unsafely_set_html(Element& context_element, Stri
     auto new_children = HTML::HTMLParser::parse_html_fragment(context_element, html, HTML::HTMLParser::AllowDeclarativeShadowRoots::Yes);
 
     // 2. Let fragment be a new DocumentFragment whose node document is contextElement’s node document.
-    auto fragment = heap().allocate<DocumentFragment>(realm(), context_element.document());
+    auto fragment = realm().create<DocumentFragment>(context_element.document());
 
     // 3. For each node in newChildren, append node to fragment.
     for (auto& child : new_children)

@@ -15,7 +15,7 @@ JS_DEFINE_ALLOCATOR(AnimatedBitmapDecodedImageData);
 
 ErrorOr<JS::NonnullGCPtr<AnimatedBitmapDecodedImageData>> AnimatedBitmapDecodedImageData::create(JS::Realm& realm, Vector<Frame>&& frames, size_t loop_count, bool animated)
 {
-    return realm.heap().allocate<AnimatedBitmapDecodedImageData>(realm, move(frames), loop_count, animated);
+    return realm.create<AnimatedBitmapDecodedImageData>(move(frames), loop_count, animated);
 }
 
 AnimatedBitmapDecodedImageData::AnimatedBitmapDecodedImageData(Vector<Frame>&& frames, size_t loop_count, bool animated)

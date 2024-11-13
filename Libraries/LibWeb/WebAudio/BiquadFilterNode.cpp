@@ -83,8 +83,7 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<BiquadFilterNode>> BiquadFilterNode::constr
 {
     // When the constructor is called with a BaseAudioContext c and an option object option, the user agent
     // MUST initialize the AudioNode this, with context and options as arguments.
-
-    auto node = realm.vm().heap().allocate<BiquadFilterNode>(realm, realm, context, options);
+    auto node = realm.create<BiquadFilterNode>(realm, context, options);
 
     // Default options for channel count and interpretation
     // https://webaudio.github.io/web-audio-api/#BiquadFilterNode

@@ -284,7 +284,7 @@ inline JSFileResult TestRunner::run_file_test(ByteString const& test_path)
         *g_vm,
         [&](JS::Realm& realm_) -> JS::GlobalObject* {
             realm = &realm_;
-            global_object = g_vm->heap().allocate<TestRunnerGlobalObject>(*realm, *realm);
+            global_object = realm->create<TestRunnerGlobalObject>(*realm);
             return global_object;
         },
         nullptr));

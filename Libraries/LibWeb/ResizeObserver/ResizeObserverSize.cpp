@@ -24,7 +24,7 @@ void ResizeObserverSize::initialize(JS::Realm& realm)
 JS::NonnullGCPtr<ResizeObserverSize> ResizeObserverSize::calculate_box_size(JS::Realm& realm, DOM::Element& target, Bindings::ResizeObserverBoxOptions observed_box)
 {
     // 1. Let computedSize be a new ResizeObserverSize object.
-    auto computed_size = realm.heap().allocate<ResizeObserverSize>(realm, realm);
+    auto computed_size = realm.create<ResizeObserverSize>(realm);
 
     // FIXME: 2. If target is an SVGGraphicsElement that does not have an associated CSS layout box:
     // Otherwise:

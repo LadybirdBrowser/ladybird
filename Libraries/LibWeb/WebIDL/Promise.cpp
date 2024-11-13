@@ -254,7 +254,7 @@ void wait_for_all(JS::Realm& realm, Vector<JS::NonnullGCPtr<Promise>> const& pro
     // 8. Let result be a list containing total null values.
     // Handled in WaitForAllResults
 
-    auto results = realm.heap().allocate<WaitForAllResults>(realm, JS::create_heap_function(realm.heap(), move(success_steps)), total);
+    auto results = realm.create<WaitForAllResults>(JS::create_heap_function(realm.heap(), move(success_steps)), total);
 
     // 9. For each promise of promises:
     for (auto const& promise : promises) {

@@ -15,7 +15,7 @@ JS_DEFINE_ALLOCATOR(CSSLayerStatementRule);
 
 JS::NonnullGCPtr<CSSLayerStatementRule> CSSLayerStatementRule::create(JS::Realm& realm, Vector<FlyString> name_list)
 {
-    return realm.heap().allocate<CSSLayerStatementRule>(realm, realm, move(name_list));
+    return realm.create<CSSLayerStatementRule>(realm, move(name_list));
 }
 
 CSSLayerStatementRule::CSSLayerStatementRule(JS::Realm& realm, Vector<FlyString> name_list)

@@ -19,7 +19,7 @@ JS_DEFINE_ALLOCATOR(VisualViewport);
 
 JS::NonnullGCPtr<VisualViewport> VisualViewport::create(DOM::Document& document)
 {
-    return document.heap().allocate<VisualViewport>(document.realm(), document);
+    return document.realm().create<VisualViewport>(document);
 }
 
 VisualViewport::VisualViewport(DOM::Document& document)

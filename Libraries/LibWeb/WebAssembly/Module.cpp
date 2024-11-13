@@ -30,7 +30,7 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<Module>> Module::construct_impl(JS::Realm& 
     auto stable_bytes = stable_bytes_or_error.release_value();
 
     auto compiled_module = TRY(Detail::compile_a_webassembly_module(vm, move(stable_bytes)));
-    return vm.heap().allocate<Module>(realm, realm, move(compiled_module));
+    return realm.create<Module>(realm, move(compiled_module));
 }
 
 Module::Module(JS::Realm& realm, NonnullRefPtr<Detail::CompiledWebAssemblyModule> compiled_module)

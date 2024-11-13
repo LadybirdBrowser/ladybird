@@ -25,7 +25,7 @@ JS_DEFINE_ALLOCATOR(CSSImportRule);
 JS::NonnullGCPtr<CSSImportRule> CSSImportRule::create(URL::URL url, DOM::Document& document)
 {
     auto& realm = document.realm();
-    return realm.heap().allocate<CSSImportRule>(realm, move(url), document);
+    return realm.create<CSSImportRule>(move(url), document);
 }
 
 CSSImportRule::CSSImportRule(URL::URL url, DOM::Document& document)

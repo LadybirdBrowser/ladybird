@@ -20,7 +20,7 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<ResizeObserverEntry>> ResizeObserverEntry::
 {
     // 1. Let this be a new ResizeObserverEntry.
     // 2. Set this.target slot to target.
-    auto resize_observer_entry = realm.heap().allocate<ResizeObserverEntry>(realm, realm, target);
+    auto resize_observer_entry = realm.create<ResizeObserverEntry>(realm, target);
 
     // 3. Set this.borderBoxSize slot to result of calculating box size given target and observedBox of "border-box".
     auto border_box_size = ResizeObserverSize::calculate_box_size(realm, target, Bindings::ResizeObserverBoxOptions::BorderBox);

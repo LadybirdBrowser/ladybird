@@ -29,7 +29,7 @@ void IDBOpenDBRequest::initialize(JS::Realm& realm)
 
 JS::NonnullGCPtr<IDBOpenDBRequest> IDBOpenDBRequest::create(JS::Realm& realm)
 {
-    return realm.heap().allocate<IDBOpenDBRequest>(realm, realm);
+    return realm.create<IDBOpenDBRequest>(realm);
 }
 
 // https://w3c.github.io/IndexedDB/#dom-idbopendbrequest-onblocked

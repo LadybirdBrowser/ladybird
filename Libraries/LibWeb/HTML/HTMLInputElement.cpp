@@ -91,12 +91,11 @@ void HTMLInputElement::visit_edges(Cell::Visitor& visitor)
 // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#dom-cva-validity
 JS::NonnullGCPtr<ValidityState const> HTMLInputElement::validity() const
 {
-    auto& vm = this->vm();
     auto& realm = this->realm();
 
     dbgln("FIXME: Implement validity attribute getter");
 
-    return vm.heap().allocate<ValidityState>(realm, realm);
+    return realm.create<ValidityState>(realm);
 }
 
 JS::GCPtr<Layout::Node> HTMLInputElement::create_layout_node(CSS::StyleProperties style)
@@ -815,18 +814,18 @@ void HTMLInputElement::update_shadow_tree()
 
 void HTMLInputElement::create_button_input_shadow_tree()
 {
-    auto shadow_root = heap().allocate<DOM::ShadowRoot>(realm(), document(), *this, Bindings::ShadowRootMode::Closed);
+    auto shadow_root = realm().create<DOM::ShadowRoot>(document(), *this, Bindings::ShadowRootMode::Closed);
     set_shadow_root(shadow_root);
     auto text_container = MUST(DOM::create_element(document(), HTML::TagNames::span, Namespace::HTML));
     MUST(text_container->set_attribute(HTML::AttributeNames::style, "display: inline-block; pointer-events: none;"_string));
-    m_text_node = heap().allocate<DOM::Text>(realm(), document(), value());
+    m_text_node = realm().create<DOM::Text>(document(), value());
     MUST(text_container->append_child(*m_text_node));
     MUST(shadow_root->append_child(*text_container));
 }
 
 void HTMLInputElement::create_text_input_shadow_tree()
 {
-    auto shadow_root = heap().allocate<DOM::ShadowRoot>(realm(), document(), *this, Bindings::ShadowRootMode::Closed);
+    auto shadow_root = realm().create<DOM::ShadowRoot>(document(), *this, Bindings::ShadowRootMode::Closed);
     set_shadow_root(shadow_root);
 
     auto initial_value = m_value;
@@ -853,7 +852,7 @@ void HTMLInputElement::create_text_input_shadow_tree()
     )~~~"_string));
     MUST(element->append_child(*m_placeholder_element));
 
-    m_placeholder_text_node = heap().allocate<DOM::Text>(realm(), document(), String {});
+    m_placeholder_text_node = realm().create<DOM::Text>(document(), String {});
     m_placeholder_text_node->set_data(placeholder());
     MUST(m_placeholder_element->append_child(*m_placeholder_text_node));
 
@@ -868,7 +867,7 @@ void HTMLInputElement::create_text_input_shadow_tree()
     )~~~"_string));
     MUST(element->append_child(*m_inner_text_element));
 
-    m_text_node = heap().allocate<DOM::Text>(realm(), document(), move(initial_value));
+    m_text_node = realm().create<DOM::Text>(document(), move(initial_value));
     if (type_state() == TypeAttributeState::FileUpload) {
         // NOTE: file upload state is mutable, but we don't allow the text node to be modifed
         m_text_node->set_always_editable(false);
@@ -942,7 +941,7 @@ void HTMLInputElement::create_text_input_shadow_tree()
 
 void HTMLInputElement::create_color_input_shadow_tree()
 {
-    auto shadow_root = heap().allocate<DOM::ShadowRoot>(realm(), document(), *this, Bindings::ShadowRootMode::Closed);
+    auto shadow_root = realm().create<DOM::ShadowRoot>(document(), *this, Bindings::ShadowRootMode::Closed);
 
     auto color = value_sanitization_algorithm(m_value);
 
@@ -981,7 +980,7 @@ void HTMLInputElement::create_file_input_shadow_tree()
 {
     auto& realm = this->realm();
 
-    auto shadow_root = heap().allocate<DOM::ShadowRoot>(realm, document(), *this, Bindings::ShadowRootMode::Closed);
+    auto shadow_root = realm.create<DOM::ShadowRoot>(document(), *this, Bindings::ShadowRootMode::Closed);
 
     m_file_button = DOM::create_element(document(), HTML::TagNames::button, Namespace::HTML).release_value_but_fixme_should_propagate_errors();
     m_file_label = DOM::create_element(document(), HTML::TagNames::label, Namespace::HTML).release_value_but_fixme_should_propagate_errors();
@@ -1026,7 +1025,7 @@ void HTMLInputElement::update_file_input_shadow_tree()
 
 void HTMLInputElement::create_range_input_shadow_tree()
 {
-    auto shadow_root = heap().allocate<DOM::ShadowRoot>(realm(), document(), *this, Bindings::ShadowRootMode::Closed);
+    auto shadow_root = realm().create<DOM::ShadowRoot>(document(), *this, Bindings::ShadowRootMode::Closed);
     set_shadow_root(shadow_root);
 
     m_slider_runnable_track = MUST(DOM::create_element(document(), HTML::TagNames::div, Namespace::HTML));

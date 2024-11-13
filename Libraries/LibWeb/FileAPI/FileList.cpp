@@ -16,7 +16,7 @@ JS_DEFINE_ALLOCATOR(FileList);
 
 JS::NonnullGCPtr<FileList> FileList::create(JS::Realm& realm)
 {
-    return realm.heap().allocate<FileList>(realm, realm);
+    return realm.create<FileList>(realm);
 }
 
 FileList::FileList(JS::Realm& realm)

@@ -26,7 +26,7 @@ IDBDatabase::~IDBDatabase() = default;
 
 JS::NonnullGCPtr<IDBDatabase> IDBDatabase::create(JS::Realm& realm, Database& db)
 {
-    return realm.heap().allocate<IDBDatabase>(realm, realm, db);
+    return realm.create<IDBDatabase>(realm, db);
 }
 
 void IDBDatabase::initialize(JS::Realm& realm)

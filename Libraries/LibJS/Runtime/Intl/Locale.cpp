@@ -19,7 +19,7 @@ JS_DEFINE_ALLOCATOR(Locale);
 
 NonnullGCPtr<Locale> Locale::create(Realm& realm, NonnullGCPtr<Locale> source_locale, String locale_tag)
 {
-    auto locale = realm.heap().allocate<Locale>(realm, realm.intrinsics().intl_locale_prototype());
+    auto locale = realm.create<Locale>(realm.intrinsics().intl_locale_prototype());
 
     locale->set_locale(move(locale_tag));
     locale->m_calendar = source_locale->m_calendar;

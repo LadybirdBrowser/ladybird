@@ -24,7 +24,7 @@ JS_DEFINE_ALLOCATOR(Navigator);
 
 JS::NonnullGCPtr<Navigator> Navigator::create(JS::Realm& realm)
 {
-    return realm.heap().allocate<Navigator>(realm, realm);
+    return realm.create<Navigator>(realm);
 }
 
 Navigator::Navigator(JS::Realm& realm)
@@ -73,28 +73,28 @@ void Navigator::visit_edges(Cell::Visitor& visitor)
 JS::NonnullGCPtr<MimeTypeArray> Navigator::mime_types()
 {
     if (!m_mime_type_array)
-        m_mime_type_array = heap().allocate<MimeTypeArray>(realm(), realm());
+        m_mime_type_array = realm().create<MimeTypeArray>(realm());
     return *m_mime_type_array;
 }
 
 JS::NonnullGCPtr<PluginArray> Navigator::plugins()
 {
     if (!m_plugin_array)
-        m_plugin_array = heap().allocate<PluginArray>(realm(), realm());
+        m_plugin_array = realm().create<PluginArray>(realm());
     return *m_plugin_array;
 }
 
 JS::NonnullGCPtr<Clipboard::Clipboard> Navigator::clipboard()
 {
     if (!m_clipboard)
-        m_clipboard = heap().allocate<Clipboard::Clipboard>(realm(), realm());
+        m_clipboard = realm().create<Clipboard::Clipboard>(realm());
     return *m_clipboard;
 }
 
 JS::NonnullGCPtr<UserActivation> Navigator::user_activation()
 {
     if (!m_user_activation)
-        m_user_activation = heap().allocate<UserActivation>(realm(), realm());
+        m_user_activation = realm().create<UserActivation>(realm());
     return *m_user_activation;
 }
 
@@ -120,14 +120,14 @@ Optional<FlyString> Navigator::do_not_track() const
 JS::NonnullGCPtr<ServiceWorkerContainer> Navigator::service_worker()
 {
     if (!m_service_worker_container)
-        m_service_worker_container = heap().allocate<ServiceWorkerContainer>(realm(), realm());
+        m_service_worker_container = realm().create<ServiceWorkerContainer>(realm());
     return *m_service_worker_container;
 }
 
 JS::NonnullGCPtr<MediaCapabilitiesAPI::MediaCapabilities> Navigator::media_capabilities()
 {
     if (!m_media_capabilities)
-        m_media_capabilities = heap().allocate<MediaCapabilitiesAPI::MediaCapabilities>(realm(), realm());
+        m_media_capabilities = realm().create<MediaCapabilitiesAPI::MediaCapabilities>(realm());
     return *m_media_capabilities;
 }
 

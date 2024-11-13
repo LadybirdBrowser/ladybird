@@ -21,7 +21,7 @@ JS_DEFINE_ALLOCATOR(Event);
 // https://dom.spec.whatwg.org/#concept-event-create
 JS::NonnullGCPtr<Event> Event::create(JS::Realm& realm, FlyString const& event_name, EventInit const& event_init)
 {
-    auto event = realm.heap().allocate<Event>(realm, realm, event_name, event_init);
+    auto event = realm.create<Event>(realm, event_name, event_init);
     // 4. Initialize event’s isTrusted attribute to true.
     event->m_is_trusted = true;
     return event;
@@ -29,7 +29,7 @@ JS::NonnullGCPtr<Event> Event::create(JS::Realm& realm, FlyString const& event_n
 
 WebIDL::ExceptionOr<JS::NonnullGCPtr<Event>> Event::construct_impl(JS::Realm& realm, FlyString const& event_name, EventInit const& event_init)
 {
-    return realm.heap().allocate<Event>(realm, realm, event_name, event_init);
+    return realm.create<Event>(realm, event_name, event_init);
 }
 
 // https://dom.spec.whatwg.org/#inner-event-creation-steps

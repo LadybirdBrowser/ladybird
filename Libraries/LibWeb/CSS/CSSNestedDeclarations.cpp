@@ -15,7 +15,7 @@ JS_DEFINE_ALLOCATOR(CSSNestedDeclarations);
 
 JS::NonnullGCPtr<CSSNestedDeclarations> CSSNestedDeclarations::create(JS::Realm& realm, PropertyOwningCSSStyleDeclaration& declaration)
 {
-    return realm.heap().allocate<CSSNestedDeclarations>(realm, realm, declaration);
+    return realm.create<CSSNestedDeclarations>(realm, declaration);
 }
 
 CSSNestedDeclarations::CSSNestedDeclarations(JS::Realm& realm, PropertyOwningCSSStyleDeclaration& declaration)

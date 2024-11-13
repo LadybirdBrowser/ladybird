@@ -456,7 +456,7 @@ JS::Value to_js_value(JS::VM& vm, Wasm::Value& wasm_value, Wasm::ValueType type)
     auto& realm = *vm.current_realm();
     switch (type.kind()) {
     case Wasm::ValueType::I64:
-        return realm.heap().allocate<JS::BigInt>(realm, ::Crypto::SignedBigInteger { wasm_value.to<i64>() });
+        return realm.create<JS::BigInt>(::Crypto::SignedBigInteger { wasm_value.to<i64>() });
     case Wasm::ValueType::I32:
         return JS::Value(wasm_value.to<i32>());
     case Wasm::ValueType::F64:
@@ -512,7 +512,7 @@ JS::NonnullGCPtr<WebIDL::Promise> asynchronously_compile_webassembly_module(JS::
         auto module_or_error = Detail::compile_a_webassembly_module(vm, move(bytes));
 
         // 2. Queue a task to perform the following steps. If taskSource was provided, queue the task on that task source.
-        HTML::queue_a_task(task_source, nullptr, nullptr, JS::create_heap_function(vm.heap(), [&vm, &realm, promise, module_or_error = move(module_or_error)]() mutable {
+        HTML::queue_a_task(task_source, nullptr, nullptr, JS::create_heap_function(vm.heap(), [&realm, promise, module_or_error = move(module_or_error)]() mutable {
             HTML::TemporaryExecutionContext context(realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes);
             auto& realm = HTML::relevant_realm(*promise->promise());
 
@@ -525,10 +525,10 @@ JS::NonnullGCPtr<WebIDL::Promise> asynchronously_compile_webassembly_module(JS::
             else {
                 // 1. Construct a WebAssembly module object from module and bytes, and let moduleObject be the result.
                 // FIXME: Save bytes to the Module instance instead of moving into compile_a_webassembly_module
-                auto module_object = vm.heap().allocate<Module>(realm, realm, module_or_error.release_value());
+                auto module_object = realm.create<Module>(realm, module_or_error.release_value());
 
                 // 2. Resolve promise with moduleObject.
-                WebIDL::resolve_promise(*vm.current_realm(), promise, module_object);
+                WebIDL::resolve_promise(realm, promise, module_object);
             }
         }));
     }));
@@ -570,7 +570,7 @@ JS::NonnullGCPtr<WebIDL::Promise> asynchronously_instantiate_webassembly_module(
         // 2. Let instanceObject be a new Instance.
         // 3. Initialize instanceObject from module and instance. If this throws an exception, catch it, reject promise with the exception, and terminate these substeps.
         // FIXME: Investigate whether we are doing all the proper steps for "initialize an instance object"
-        auto instance_object = vm.heap().allocate<Instance>(realm, realm, move(instance));
+        auto instance_object = realm.create<Instance>(realm, move(instance));
 
         // 4. Resolve promise with instanceObject.
         WebIDL::resolve_promise(realm, promise, instance_object);

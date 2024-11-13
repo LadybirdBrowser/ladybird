@@ -15,7 +15,7 @@ JS_DEFINE_ALLOCATOR(SVGLength);
 
 JS::NonnullGCPtr<SVGLength> SVGLength::create(JS::Realm& realm, u8 unit_type, float value)
 {
-    return realm.heap().allocate<SVGLength>(realm, realm, unit_type, value);
+    return realm.create<SVGLength>(realm, unit_type, value);
 }
 
 JS::NonnullGCPtr<SVGLength> SVGLength::from_length_percentage(JS::Realm& realm, CSS::LengthPercentage const& length_percentage)

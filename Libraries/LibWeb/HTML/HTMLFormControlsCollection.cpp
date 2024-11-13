@@ -18,7 +18,7 @@ JS_DEFINE_ALLOCATOR(HTMLFormControlsCollection);
 
 JS::NonnullGCPtr<HTMLFormControlsCollection> HTMLFormControlsCollection::create(DOM::ParentNode& root, Scope scope, Function<bool(DOM::Element const&)> filter)
 {
-    return root.heap().allocate<HTMLFormControlsCollection>(root.realm(), root, scope, move(filter));
+    return root.realm().create<HTMLFormControlsCollection>(root, scope, move(filter));
 }
 
 HTMLFormControlsCollection::HTMLFormControlsCollection(DOM::ParentNode& root, Scope scope, Function<bool(DOM::Element const&)> filter)

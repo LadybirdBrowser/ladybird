@@ -211,7 +211,7 @@ JS::NonnullGCPtr<DOM::DocumentFragment> HTMLElement::rendered_text_fragment(Stri
 {
     // 1. Let fragment be a new DocumentFragment whose node document is document.
     //    Instead of creating a DocumentFragment the nodes are appended directly.
-    auto fragment = heap().allocate<DOM::DocumentFragment>(realm(), document());
+    auto fragment = realm().create<DOM::DocumentFragment>(document());
 
     // 2. Let position be a position variable for input, initially pointing at the start of input.
     // 3. Let text be the empty string.

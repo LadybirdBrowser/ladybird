@@ -14,7 +14,7 @@ JS_DEFINE_ALLOCATOR(TextEvent);
 
 JS::NonnullGCPtr<TextEvent> TextEvent::create(JS::Realm& realm, FlyString const& event_name)
 {
-    return realm.heap().allocate<TextEvent>(realm, realm, event_name);
+    return realm.create<TextEvent>(realm, event_name);
 }
 
 TextEvent::TextEvent(JS::Realm& realm, FlyString const& event_name)

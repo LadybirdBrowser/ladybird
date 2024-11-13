@@ -12,7 +12,7 @@ JS_DEFINE_ALLOCATOR(WeakSet);
 
 NonnullGCPtr<WeakSet> WeakSet::create(Realm& realm)
 {
-    return realm.heap().allocate<WeakSet>(realm, realm.intrinsics().weak_set_prototype());
+    return realm.create<WeakSet>(realm.intrinsics().weak_set_prototype());
 }
 
 WeakSet::WeakSet(Object& prototype)

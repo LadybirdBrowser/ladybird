@@ -15,7 +15,7 @@ JS_DEFINE_ALLOCATOR(FileSystemEntry);
 
 JS::NonnullGCPtr<FileSystemEntry> FileSystemEntry::create(JS::Realm& realm, EntryType entry_type, ByteString name)
 {
-    return realm.heap().allocate<FileSystemEntry>(realm, realm, entry_type, name);
+    return realm.create<FileSystemEntry>(realm, entry_type, name);
 }
 
 FileSystemEntry::FileSystemEntry(JS::Realm& realm, EntryType entry_type, ByteString name)

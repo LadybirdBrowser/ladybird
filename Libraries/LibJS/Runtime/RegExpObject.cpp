@@ -148,12 +148,12 @@ ThrowCompletionOr<ByteString> parse_regex_pattern(VM& vm, StringView pattern, bo
 
 NonnullGCPtr<RegExpObject> RegExpObject::create(Realm& realm)
 {
-    return realm.heap().allocate<RegExpObject>(realm, realm.intrinsics().regexp_prototype());
+    return realm.create<RegExpObject>(realm.intrinsics().regexp_prototype());
 }
 
 NonnullGCPtr<RegExpObject> RegExpObject::create(Realm& realm, Regex<ECMA262> regex, ByteString pattern, ByteString flags)
 {
-    return realm.heap().allocate<RegExpObject>(realm, move(regex), move(pattern), move(flags), realm.intrinsics().regexp_prototype());
+    return realm.create<RegExpObject>(move(regex), move(pattern), move(flags), realm.intrinsics().regexp_prototype());
 }
 
 RegExpObject::RegExpObject(Object& prototype)

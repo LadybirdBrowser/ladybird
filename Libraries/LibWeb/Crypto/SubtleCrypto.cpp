@@ -43,7 +43,7 @@ JS_DEFINE_ALLOCATOR(SubtleCrypto);
 
 JS::NonnullGCPtr<SubtleCrypto> SubtleCrypto::create(JS::Realm& realm)
 {
-    return realm.heap().allocate<SubtleCrypto>(realm, realm);
+    return realm.create<SubtleCrypto>(realm);
 }
 
 SubtleCrypto::SubtleCrypto(JS::Realm& realm)

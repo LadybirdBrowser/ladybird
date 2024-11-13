@@ -15,7 +15,7 @@ JS_DEFINE_ALLOCATOR(CollatorCompareFunction);
 
 NonnullGCPtr<CollatorCompareFunction> CollatorCompareFunction::create(Realm& realm, Collator& collator)
 {
-    return realm.heap().allocate<CollatorCompareFunction>(realm, realm, collator);
+    return realm.create<CollatorCompareFunction>(realm, collator);
 }
 
 CollatorCompareFunction::CollatorCompareFunction(Realm& realm, Collator& collator)

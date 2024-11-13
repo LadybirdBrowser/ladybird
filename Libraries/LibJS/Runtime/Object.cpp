@@ -31,10 +31,10 @@ static HashMap<GCPtr<Object const>, HashMap<DeprecatedFlyString, Object::Intrins
 NonnullGCPtr<Object> Object::create(Realm& realm, Object* prototype)
 {
     if (!prototype)
-        return realm.heap().allocate<Object>(realm, realm.intrinsics().empty_object_shape());
+        return realm.create<Object>(realm.intrinsics().empty_object_shape());
     if (prototype == realm.intrinsics().object_prototype())
-        return realm.heap().allocate<Object>(realm, realm.intrinsics().new_object_shape());
-    return realm.heap().allocate<Object>(realm, ConstructWithPrototypeTag::Tag, *prototype);
+        return realm.create<Object>(realm.intrinsics().new_object_shape());
+    return realm.create<Object>(ConstructWithPrototypeTag::Tag, *prototype);
 }
 
 NonnullGCPtr<Object> Object::create_prototype(Realm& realm, Object* prototype)
@@ -42,12 +42,12 @@ NonnullGCPtr<Object> Object::create_prototype(Realm& realm, Object* prototype)
     auto shape = realm.heap().allocate_without_realm<Shape>(realm);
     if (prototype)
         shape->set_prototype_without_transition(prototype);
-    return realm.heap().allocate<Object>(realm, shape);
+    return realm.create<Object>(shape);
 }
 
 NonnullGCPtr<Object> Object::create_with_premade_shape(Shape& shape)
 {
-    return shape.heap().allocate<Object>(shape.realm(), shape);
+    return shape.realm().create<Object>(shape);
 }
 
 Object::Object(GlobalObjectTag, Realm& realm, MayInterfereWithIndexedPropertyAccess may_interfere_with_indexed_property_access)

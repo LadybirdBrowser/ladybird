@@ -15,7 +15,7 @@ namespace Web::Bindings {
 template<>
 void Intrinsics::create_web_prototype_and_constructor<URLSearchParamsIteratorPrototype>(JS::Realm& realm)
 {
-    auto prototype = heap().allocate<URLSearchParamsIteratorPrototype>(realm, realm);
+    auto prototype = realm.create<URLSearchParamsIteratorPrototype>(realm);
     m_prototypes.set("URLSearchParamsIterator"_fly_string, prototype);
 }
 
@@ -27,7 +27,7 @@ JS_DEFINE_ALLOCATOR(URLSearchParamsIterator);
 
 WebIDL::ExceptionOr<JS::NonnullGCPtr<URLSearchParamsIterator>> URLSearchParamsIterator::create(URLSearchParams const& url_search_params, JS::Object::PropertyKind iteration_kind)
 {
-    return url_search_params.heap().allocate<URLSearchParamsIterator>(url_search_params.realm(), url_search_params, iteration_kind);
+    return url_search_params.realm().create<URLSearchParamsIterator>(url_search_params, iteration_kind);
 }
 
 URLSearchParamsIterator::URLSearchParamsIterator(URLSearchParams const& url_search_params, JS::Object::PropertyKind iteration_kind)

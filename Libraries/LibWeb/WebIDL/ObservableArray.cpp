@@ -14,7 +14,7 @@ JS_DEFINE_ALLOCATOR(ObservableArray);
 JS::NonnullGCPtr<ObservableArray> ObservableArray::create(JS::Realm& realm)
 {
     auto prototype = realm.intrinsics().array_prototype();
-    return realm.heap().allocate<ObservableArray>(realm, prototype);
+    return realm.create<ObservableArray>(prototype);
 }
 
 ObservableArray::ObservableArray(Object& prototype)

@@ -16,7 +16,7 @@ JS_DEFINE_ALLOCATOR(ElementInternals);
 
 JS::NonnullGCPtr<ElementInternals> ElementInternals::create(JS::Realm& realm, HTMLElement& target_element)
 {
-    return realm.heap().allocate<ElementInternals>(realm, realm, target_element);
+    return realm.create<ElementInternals>(realm, target_element);
 }
 
 ElementInternals::ElementInternals(JS::Realm& realm, HTMLElement& target_element)

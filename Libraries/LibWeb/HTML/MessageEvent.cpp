@@ -17,7 +17,7 @@ JS_DEFINE_ALLOCATOR(MessageEvent);
 
 JS::NonnullGCPtr<MessageEvent> MessageEvent::create(JS::Realm& realm, FlyString const& event_name, MessageEventInit const& event_init)
 {
-    return realm.heap().allocate<MessageEvent>(realm, realm, event_name, event_init);
+    return realm.create<MessageEvent>(realm, event_name, event_init);
 }
 
 WebIDL::ExceptionOr<JS::NonnullGCPtr<MessageEvent>> MessageEvent::construct_impl(JS::Realm& realm, FlyString const& event_name, MessageEventInit const& event_init)

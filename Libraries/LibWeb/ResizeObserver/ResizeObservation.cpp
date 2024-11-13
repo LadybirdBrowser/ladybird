@@ -16,7 +16,7 @@ JS_DEFINE_ALLOCATOR(ResizeObservation);
 
 WebIDL::ExceptionOr<JS::NonnullGCPtr<ResizeObservation>> ResizeObservation::create(JS::Realm& realm, DOM::Element& target, Bindings::ResizeObserverBoxOptions observed_box)
 {
-    return realm.heap().allocate<ResizeObservation>(realm, realm, target, observed_box);
+    return realm.create<ResizeObservation>(realm, target, observed_box);
 }
 
 ResizeObservation::ResizeObservation(JS::Realm& realm, DOM::Element& target, Bindings::ResizeObserverBoxOptions observed_box)
@@ -24,7 +24,7 @@ ResizeObservation::ResizeObservation(JS::Realm& realm, DOM::Element& target, Bin
     , m_target(target)
     , m_observed_box(observed_box)
 {
-    auto computed_size = realm.heap().allocate<ResizeObserverSize>(realm, realm);
+    auto computed_size = realm.create<ResizeObserverSize>(realm);
     m_last_reported_sizes.append(computed_size);
 }
 

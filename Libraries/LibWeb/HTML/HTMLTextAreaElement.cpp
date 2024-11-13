@@ -362,7 +362,7 @@ void HTMLTextAreaElement::create_shadow_tree_if_needed()
     if (shadow_root())
         return;
 
-    auto shadow_root = heap().allocate<DOM::ShadowRoot>(realm(), document(), *this, Bindings::ShadowRootMode::Closed);
+    auto shadow_root = realm().create<DOM::ShadowRoot>(document(), *this, Bindings::ShadowRootMode::Closed);
     set_shadow_root(shadow_root);
 
     auto element = MUST(DOM::create_element(document(), HTML::TagNames::div, Namespace::HTML));
@@ -372,14 +372,14 @@ void HTMLTextAreaElement::create_shadow_tree_if_needed()
     m_placeholder_element->set_use_pseudo_element(CSS::Selector::PseudoElement::Type::Placeholder);
     MUST(element->append_child(*m_placeholder_element));
 
-    m_placeholder_text_node = heap().allocate<DOM::Text>(realm(), document(), String {});
+    m_placeholder_text_node = realm().create<DOM::Text>(document(), String {});
     m_placeholder_text_node->set_data(get_attribute_value(HTML::AttributeNames::placeholder));
     MUST(m_placeholder_element->append_child(*m_placeholder_text_node));
 
     m_inner_text_element = MUST(DOM::create_element(document(), HTML::TagNames::div, Namespace::HTML));
     MUST(element->append_child(*m_inner_text_element));
 
-    m_text_node = heap().allocate<DOM::Text>(realm(), document(), String {});
+    m_text_node = realm().create<DOM::Text>(document(), String {});
     handle_readonly_attribute(attribute(HTML::AttributeNames::readonly));
     // NOTE: If `children_changed()` was called before now, `m_raw_value` will hold the text content.
     //       Otherwise, it will get filled in whenever that does get called.

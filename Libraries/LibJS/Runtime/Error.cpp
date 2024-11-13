@@ -36,7 +36,7 @@ SourceRange const& TracebackFrame::source_range() const
 
 NonnullGCPtr<Error> Error::create(Realm& realm)
 {
-    return realm.heap().allocate<Error>(realm, realm.intrinsics().error_prototype());
+    return realm.create<Error>(realm.intrinsics().error_prototype());
 }
 
 NonnullGCPtr<Error> Error::create(Realm& realm, String message)
@@ -160,7 +160,7 @@ String Error::stack_string(CompactTraceback compact) const
     JS_DEFINE_ALLOCATOR(ClassName);                                                                        \
     NonnullGCPtr<ClassName> ClassName::create(Realm& realm)                                                \
     {                                                                                                      \
-        return realm.heap().allocate<ClassName>(realm, realm.intrinsics().snake_name##_prototype());       \
+        return realm.create<ClassName>(realm.intrinsics().snake_name##_prototype());                       \
     }                                                                                                      \
                                                                                                            \
     NonnullGCPtr<ClassName> ClassName::create(Realm& realm, String message)                                \

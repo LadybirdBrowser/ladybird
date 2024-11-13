@@ -20,7 +20,7 @@ JS_DEFINE_ALLOCATOR(NamedNodeMap);
 JS::NonnullGCPtr<NamedNodeMap> NamedNodeMap::create(Element& element)
 {
     auto& realm = element.realm();
-    return realm.heap().allocate<NamedNodeMap>(realm, element);
+    return realm.create<NamedNodeMap>(element);
 }
 
 NamedNodeMap::NamedNodeMap(Element& element)

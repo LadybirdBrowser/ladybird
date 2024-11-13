@@ -16,7 +16,7 @@ JS_DEFINE_ALLOCATOR(VTTCue);
 WebIDL::ExceptionOr<JS::NonnullGCPtr<VTTCue>> VTTCue::construct_impl(JS::Realm& realm, double start_time, double end_time, String const& text)
 {
     // 1. Create a new WebVTT cue. Let cue be that WebVTT cue.
-    auto cue = realm.heap().allocate<VTTCue>(realm, realm, nullptr);
+    auto cue = realm.create<VTTCue>(realm, nullptr);
 
     // 2. Let cue’s text track cue start time be the value of the startTime argument.
     cue->m_start_time = start_time;

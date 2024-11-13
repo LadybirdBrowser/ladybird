@@ -38,7 +38,7 @@ static HashTable<JS::RawGCPtr<MessagePort>>& all_message_ports()
 
 JS::NonnullGCPtr<MessagePort> MessagePort::create(JS::Realm& realm)
 {
-    return realm.heap().allocate<MessagePort>(realm, realm);
+    return realm.create<MessagePort>(realm);
 }
 
 MessagePort::MessagePort(JS::Realm& realm)

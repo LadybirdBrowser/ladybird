@@ -33,7 +33,7 @@ WebIDL::UnsignedLong AudioDestinationNode::max_channel_count()
 
 JS::NonnullGCPtr<AudioDestinationNode> AudioDestinationNode::construct_impl(JS::Realm& realm, JS::NonnullGCPtr<BaseAudioContext> context)
 {
-    return realm.heap().allocate<AudioDestinationNode>(realm, realm, context);
+    return realm.create<AudioDestinationNode>(realm, context);
 }
 
 void AudioDestinationNode::initialize(JS::Realm& realm)

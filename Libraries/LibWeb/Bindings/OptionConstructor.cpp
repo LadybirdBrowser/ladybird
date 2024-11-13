@@ -57,7 +57,7 @@ JS::ThrowCompletionOr<JS::NonnullGCPtr<JS::Object>> OptionConstructor::construct
     if (vm.argument_count() > 0) {
         auto text = TRY(vm.argument(0).to_string(vm));
         if (!text.is_empty()) {
-            auto new_text_node = vm.heap().allocate<DOM::Text>(realm, document, text);
+            auto new_text_node = realm.create<DOM::Text>(document, text);
             MUST(option_element->append_child(*new_text_node));
         }
     }

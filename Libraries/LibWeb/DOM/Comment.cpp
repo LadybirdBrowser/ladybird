@@ -22,7 +22,7 @@ Comment::Comment(Document& document, String const& data)
 WebIDL::ExceptionOr<JS::NonnullGCPtr<Comment>> Comment::construct_impl(JS::Realm& realm, String const& data)
 {
     auto& window = verify_cast<HTML::Window>(realm.global_object());
-    return realm.heap().allocate<Comment>(realm, window.associated_document(), data);
+    return realm.create<Comment>(window.associated_document(), data);
 }
 
 void Comment::initialize(JS::Realm& realm)

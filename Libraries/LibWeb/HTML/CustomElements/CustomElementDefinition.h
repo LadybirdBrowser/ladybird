@@ -25,7 +25,7 @@ class CustomElementDefinition : public JS::Cell {
 
     static JS::NonnullGCPtr<CustomElementDefinition> create(JS::Realm& realm, String const& name, String const& local_name, WebIDL::CallbackType& constructor, Vector<String>&& observed_attributes, LifecycleCallbacksStorage&& lifecycle_callbacks, bool form_associated, bool disable_internals, bool disable_shadow)
     {
-        return realm.heap().allocate<CustomElementDefinition>(realm, name, local_name, constructor, move(observed_attributes), move(lifecycle_callbacks), form_associated, disable_internals, disable_shadow);
+        return realm.create<CustomElementDefinition>(name, local_name, constructor, move(observed_attributes), move(lifecycle_callbacks), form_associated, disable_internals, disable_shadow);
     }
 
     ~CustomElementDefinition() = default;

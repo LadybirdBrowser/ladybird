@@ -14,7 +14,7 @@ JS_DEFINE_ALLOCATOR(MediaSource);
 
 WebIDL::ExceptionOr<JS::NonnullGCPtr<MediaSource>> MediaSource::construct_impl(JS::Realm& realm)
 {
-    return realm.heap().allocate<MediaSource>(realm, realm);
+    return realm.create<MediaSource>(realm);
 }
 
 MediaSource::MediaSource(JS::Realm& realm)

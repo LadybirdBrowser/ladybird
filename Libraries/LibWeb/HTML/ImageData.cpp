@@ -32,7 +32,7 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<ImageData>> ImageData::create(JS::Realm& re
     auto data = TRY(JS::Uint8ClampedArray::create(realm, sw * sh * 4));
     auto bitmap = TRY_OR_THROW_OOM(vm, Gfx::Bitmap::create_wrapper(Gfx::BitmapFormat::RGBA8888, Gfx::AlphaType::Unpremultiplied, Gfx::IntSize(sw, sh), sw * sizeof(u32), data->data().data()));
 
-    return realm.heap().allocate<ImageData>(realm, realm, bitmap, data);
+    return realm.create<ImageData>(realm, bitmap, data);
 }
 
 WebIDL::ExceptionOr<JS::NonnullGCPtr<ImageData>> ImageData::construct_impl(JS::Realm& realm, u32 sw, u32 sh, Optional<ImageDataSettings> const& settings)
@@ -76,7 +76,7 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<ImageData>> ImageData::create(JS::Realm& re
     // 7. Initialize this given sw, sh, settings set to settings, and source set to data.
     auto bitmap = TRY_OR_THROW_OOM(vm, Gfx::Bitmap::create_wrapper(Gfx::BitmapFormat::RGBA8888, Gfx::AlphaType::Unpremultiplied, Gfx::IntSize(sw, height), sw * sizeof(u32), uint8_clamped_array_data.data().data()));
 
-    return realm.heap().allocate<ImageData>(realm, realm, bitmap, uint8_clamped_array_data);
+    return realm.create<ImageData>(realm, bitmap, uint8_clamped_array_data);
 }
 
 WebIDL::ExceptionOr<JS::NonnullGCPtr<ImageData>> ImageData::construct_impl(JS::Realm& realm, JS::Handle<WebIDL::BufferSource> const& data, u32 sw, Optional<u32> sh, Optional<ImageDataSettings> const& settings)

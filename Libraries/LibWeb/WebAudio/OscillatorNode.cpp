@@ -26,7 +26,7 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<OscillatorNode>> OscillatorNode::construct_
 {
     // FIXME: Invoke "Initialize the AudioNode" steps.
     TRY(verify_valid_type(realm, options.type));
-    auto node = realm.vm().heap().allocate<OscillatorNode>(realm, realm, context, options);
+    auto node = realm.create<OscillatorNode>(realm, context, options);
     return node;
 }
 

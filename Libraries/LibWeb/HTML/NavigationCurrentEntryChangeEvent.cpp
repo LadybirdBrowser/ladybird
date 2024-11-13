@@ -17,7 +17,7 @@ JS_DEFINE_ALLOCATOR(NavigationCurrentEntryChangeEvent);
 
 JS::NonnullGCPtr<NavigationCurrentEntryChangeEvent> NavigationCurrentEntryChangeEvent::construct_impl(JS::Realm& realm, FlyString const& event_name, NavigationCurrentEntryChangeEventInit const& event_init)
 {
-    return realm.heap().allocate<NavigationCurrentEntryChangeEvent>(realm, realm, event_name, event_init);
+    return realm.create<NavigationCurrentEntryChangeEvent>(realm, event_name, event_init);
 }
 
 NavigationCurrentEntryChangeEvent::NavigationCurrentEntryChangeEvent(JS::Realm& realm, FlyString const& event_name, NavigationCurrentEntryChangeEventInit const& event_init)

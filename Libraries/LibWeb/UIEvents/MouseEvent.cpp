@@ -125,7 +125,7 @@ void MouseEvent::init_mouse_event(String const& type, bool bubbles, bool cancela
 
 JS::NonnullGCPtr<MouseEvent> MouseEvent::create(JS::Realm& realm, FlyString const& event_name, MouseEventInit const& event_init, double page_x, double page_y, double offset_x, double offset_y)
 {
-    return realm.heap().allocate<MouseEvent>(realm, realm, event_name, event_init, page_x, page_y, offset_x, offset_y);
+    return realm.create<MouseEvent>(realm, event_name, event_init, page_x, page_y, offset_x, offset_y);
 }
 
 WebIDL::ExceptionOr<JS::NonnullGCPtr<MouseEvent>> MouseEvent::construct_impl(JS::Realm& realm, FlyString const& event_name, MouseEventInit const& event_init)

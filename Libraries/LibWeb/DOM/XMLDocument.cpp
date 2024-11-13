@@ -13,7 +13,7 @@ JS_DEFINE_ALLOCATOR(XMLDocument);
 
 JS::NonnullGCPtr<XMLDocument> XMLDocument::create(JS::Realm& realm, URL::URL const& url)
 {
-    return realm.heap().allocate<XMLDocument>(realm, realm, url);
+    return realm.create<XMLDocument>(realm, url);
 }
 
 XMLDocument::XMLDocument(JS::Realm& realm, URL::URL const& url)

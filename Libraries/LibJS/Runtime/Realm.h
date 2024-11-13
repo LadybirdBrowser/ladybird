@@ -14,6 +14,7 @@
 #include <LibJS/Bytecode/Builtins.h>
 #include <LibJS/Heap/Cell.h>
 #include <LibJS/Heap/CellAllocator.h>
+#include <LibJS/Heap/Heap.h>
 #include <LibJS/Runtime/Intrinsics.h>
 #include <LibJS/Runtime/Value.h>
 
@@ -30,6 +31,14 @@ public:
 
         virtual void visit_edges(Cell::Visitor&) { }
     };
+
+    template<typename T, typename... Args>
+    NonnullGCPtr<T> create(Args&&... args)
+    {
+        auto object = heap().allocate_without_realm<T>(forward<Args>(args)...);
+        static_cast<Cell*>(object)->initialize(*this);
+        return *object;
+    }
 
     static ThrowCompletionOr<NonnullOwnPtr<ExecutionContext>> initialize_host_defined_realm(VM&, Function<Object*(Realm&)> create_global_object, Function<Object*(Realm&)> create_global_this_value);
 

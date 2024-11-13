@@ -14,7 +14,7 @@ JS_DEFINE_ALLOCATOR(WebGLContextEvent);
 
 JS::NonnullGCPtr<WebGLContextEvent> WebGLContextEvent::create(JS::Realm& realm, FlyString const& event_name, WebGLContextEventInit const& event_init)
 {
-    return realm.heap().allocate<WebGLContextEvent>(realm, realm, event_name, event_init);
+    return realm.create<WebGLContextEvent>(realm, event_name, event_init);
 }
 
 WebIDL::ExceptionOr<JS::NonnullGCPtr<WebGLContextEvent>> WebGLContextEvent::construct_impl(JS::Realm& realm, FlyString const& event_name, WebGLContextEventInit const& event_init)

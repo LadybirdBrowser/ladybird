@@ -24,7 +24,7 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<DynamicsCompressorNode>> DynamicsCompressor
 WebIDL::ExceptionOr<JS::NonnullGCPtr<DynamicsCompressorNode>> DynamicsCompressorNode::construct_impl(JS::Realm& realm, JS::NonnullGCPtr<BaseAudioContext> context, DynamicsCompressorOptions const& options)
 {
     // Create the node and allocate memory
-    auto node = realm.vm().heap().allocate<DynamicsCompressorNode>(realm, realm, context, options);
+    auto node = realm.create<DynamicsCompressorNode>(realm, context, options);
 
     // Default options for channel count and interpretation
     // https://webaudio.github.io/web-audio-api/#DynamicsCompressorNode

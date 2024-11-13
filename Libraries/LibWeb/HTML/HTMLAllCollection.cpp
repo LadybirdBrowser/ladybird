@@ -34,7 +34,7 @@ JS_DEFINE_ALLOCATOR(HTMLAllCollection);
 
 JS::NonnullGCPtr<HTMLAllCollection> HTMLAllCollection::create(DOM::ParentNode& root, Scope scope, Function<bool(DOM::Element const&)> filter)
 {
-    return root.heap().allocate<HTMLAllCollection>(root.realm(), root, scope, move(filter));
+    return root.realm().create<HTMLAllCollection>(root, scope, move(filter));
 }
 
 HTMLAllCollection::HTMLAllCollection(DOM::ParentNode& root, Scope scope, Function<bool(DOM::Element const&)> filter)

@@ -40,7 +40,7 @@ void WindowEnvironmentSettingsObject::setup(Page& page, URL::URL const& creation
 
     // 3. Let settings object be a new environment settings object whose algorithms are defined as follows:
     // NOTE: See the functions defined for this class.
-    auto settings_object = realm->heap().allocate<WindowEnvironmentSettingsObject>(*realm, window, move(execution_context));
+    auto settings_object = realm->create<WindowEnvironmentSettingsObject>(window, move(execution_context));
 
     // 4. If reservedEnvironment is non-null, then:
     if (reserved_environment) {
@@ -73,7 +73,7 @@ void WindowEnvironmentSettingsObject::setup(Page& page, URL::URL const& creation
 
     // 7. Set realm's [[HostDefined]] field to settings object.
     // Non-Standard: We store the ESO next to the web intrinsics in a custom HostDefined object
-    auto intrinsics = realm->heap().allocate<Bindings::Intrinsics>(*realm, *realm);
+    auto intrinsics = realm->create<Bindings::Intrinsics>(*realm);
     auto host_defined = make<Bindings::PrincipalHostDefined>(settings_object, intrinsics, page);
     realm->set_host_defined(move(host_defined));
 

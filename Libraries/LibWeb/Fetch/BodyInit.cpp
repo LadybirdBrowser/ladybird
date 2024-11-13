@@ -55,7 +55,7 @@ WebIDL::ExceptionOr<Infrastructure::BodyWithType> extract_body(JS::Realm& realm,
     }
     // 4. Otherwise, set stream to a new ReadableStream object, and set up stream with byte reading support.
     else {
-        stream = realm.heap().allocate<Streams::ReadableStream>(realm, realm);
+        stream = realm.create<Streams::ReadableStream>(realm);
         Streams::set_up_readable_stream_controller_with_byte_reading_support(*stream);
     }
 

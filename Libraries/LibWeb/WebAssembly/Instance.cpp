@@ -28,7 +28,7 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<Instance>> Instance::construct_impl(JS::Rea
     auto& vm = realm.vm();
 
     auto module_instance = TRY(Detail::instantiate_module(vm, module.compiled_module()->module, import_object));
-    return vm.heap().allocate<Instance>(realm, realm, move(module_instance));
+    return realm.create<Instance>(realm, move(module_instance));
 }
 
 Instance::Instance(JS::Realm& realm, NonnullOwnPtr<Wasm::ModuleInstance> module_instance)
@@ -59,7 +59,7 @@ void Instance::initialize(JS::Realm& realm)
             [&](Wasm::MemoryAddress const& address) {
                 Optional<JS::GCPtr<Memory>> object = m_memory_instances.get(address);
                 if (!object.has_value()) {
-                    object = heap().allocate<Memory>(realm, realm, address);
+                    object = realm.create<Memory>(realm, address);
                     m_memory_instances.set(address, *object);
                 }
 
@@ -68,7 +68,7 @@ void Instance::initialize(JS::Realm& realm)
             [&](Wasm::TableAddress const& address) {
                 Optional<JS::GCPtr<Table>> object = m_table_instances.get(address);
                 if (!object.has_value()) {
-                    object = heap().allocate<Table>(realm, realm, address);
+                    object = realm.create<Table>(realm, address);
                     m_table_instances.set(address, *object);
                 }
 
