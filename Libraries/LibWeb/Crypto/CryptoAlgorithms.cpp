@@ -1,11 +1,13 @@
 /*
  * Copyright (c) 2024, Andrew Kaster <akaster@serenityos.org>
  * Copyright (c) 2024, stelar7 <dudedbz@gmail.com>
+ * Copyright (c) 2024, Jelle Raaijmakers <jelle@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
 #include <AK/Base64.h>
+#include <AK/HashTable.h>
 #include <AK/QuickSort.h>
 #include <LibCrypto/ASN1/ASN1.h>
 #include <LibCrypto/ASN1/DER.h>
@@ -249,6 +251,55 @@ static WebIDL::ExceptionOr<ByteBuffer> parse_jwk_symmetric_key(JS::Realm& realm,
         return WebIDL::DataError::create(realm, "JWK has no 'k' field"_string);
     }
     return base64_url_bytes_decode(realm, *jwk.k);
+}
+
+// https://www.rfc-editor.org/rfc/rfc7517#section-4.3
+static WebIDL::ExceptionOr<void> validate_jwk_key_ops(JS::Realm& realm, Bindings::JsonWebKey const& jwk, Vector<Bindings::KeyUsage> const& usages)
+{
+    // Use of the "key_ops" member is OPTIONAL, unless the application requires its presence.
+    if (!jwk.key_ops.has_value())
+        return {};
+    auto key_operations = *jwk.key_ops;
+
+    // Duplicate key operation values MUST NOT be present in the array
+    HashTable<String> seen_operations;
+    for (auto const& key_operation : key_operations) {
+        if (seen_operations.set(key_operation) != HashSetResult::InsertedNewEntry)
+            return WebIDL::DataError::create(realm, MUST(String::formatted("Duplicate key operation: {}", key_operation)));
+    }
+
+    // Multiple unrelated key operations SHOULD NOT be specified for a key because of the potential
+    // vulnerabilities associated with using the same key with multiple algorithms.  Thus, the
+    // combinations "sign" with "verify", "encrypt" with "decrypt", and "wrapKey" with "unwrapKey"
+    // are permitted, but other combinations SHOULD NOT be used.
+    auto is_used_for_signing = seen_operations.contains("sign"sv) || seen_operations.contains("verify"sv);
+    auto is_used_for_encryption = seen_operations.contains("encrypt"sv) || seen_operations.contains("decrypt"sv);
+    auto is_used_for_wrapping = seen_operations.contains("wrapKey"sv) || seen_operations.contains("unwrapKey"sv);
+    auto number_of_operation_types = is_used_for_signing + is_used_for_encryption + is_used_for_wrapping;
+    if (number_of_operation_types > 1)
+        return WebIDL::DataError::create(realm, "Multiple unrelated key operations are specified"_string);
+
+    // The "use" and "key_ops" JWK members SHOULD NOT be used together; however, if both are used,
+    // the information they convey MUST be consistent. Applications should specify which of these
+    // members they use, if either is to be used by the application.
+    if (jwk.use.has_value()) {
+        for (auto const& key_operation : key_operations) {
+            if (key_operation == "deriveKey"sv || key_operation == "deriveBits"sv)
+                continue;
+            if (jwk.use == "sig"sv && key_operation != "sign"sv && key_operation != "verify"sv)
+                return WebIDL::DataError::create(realm, "use=sig but key_ops does not contain 'sign' or 'verify'"_string);
+            if (jwk.use == "enc"sv && (key_operation == "sign"sv || key_operation == "verify"sv))
+                return WebIDL::DataError::create(realm, "use=enc but key_ops contains 'sign' or 'verify'"_string);
+        }
+    }
+
+    // NOTE: This validation happens in multiple places in the spec, so it is here for convenience.
+    for (auto const& usage : usages) {
+        if (!seen_operations.contains(Bindings::idl_enum_to_string(usage)))
+            return WebIDL::DataError::create(realm, MUST(String::formatted("Missing key_ops usage: {}", Bindings::idl_enum_to_string(usage))));
+    }
+
+    return {};
 }
 
 static WebIDL::ExceptionOr<ByteBuffer> generate_aes_key(JS::VM& vm, u16 const size_in_bits)
@@ -853,13 +904,7 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<CryptoKey>> RSAOAEP::import_key(Web::Crypto
 
         // 6. If the key_ops field of jwk is present, and is invalid according to the requirements of JSON Web Key [JWK]
         //    or does not contain all of the specified usages values, then throw a DataError.
-        if (jwk.key_ops.has_value()) {
-            for (auto const& usage : usages) {
-                if (!jwk.key_ops->contains_slow(Bindings::idl_enum_to_string(usage)))
-                    return WebIDL::DataError::create(m_realm, MUST(String::formatted("Missing key_ops field: {}", Bindings::idl_enum_to_string(usage))));
-            }
-        }
-        // FIXME: Validate jwk.key_ops against requirements in https://www.rfc-editor.org/rfc/rfc7517#section-4.3
+        TRY(validate_jwk_key_ops(realm, jwk, usages));
 
         // 7. If the ext field of jwk is present and has the value false and extractable is true, then throw a DataError.
         if (jwk.ext.has_value() && !*jwk.ext && extractable)
@@ -1295,14 +1340,10 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<CryptoKey>> AesCbc::import_key(AlgorithmPar
         if (!key_usages.is_empty() && jwk.use.has_value() && *jwk.use != "enc"_string)
             return WebIDL::DataError::create(m_realm, "Invalid use field"_string);
 
-        //    7. If the key_ops field of jwk is present, and is invalid according to the requirements of JSON Web Key [JWK] or does not contain all of the specified usages values, then throw a DataError.
-        if (jwk.key_ops.has_value()) {
-            for (auto const& usage : key_usages) {
-                if (!jwk.key_ops->contains_slow(Bindings::idl_enum_to_string(usage)))
-                    return WebIDL::DataError::create(m_realm, MUST(String::formatted("Missing key_ops field: {}", Bindings::idl_enum_to_string(usage))));
-            }
-        }
-        // FIXME: Validate jwk.key_ops against requirements in https://www.rfc-editor.org/rfc/rfc7517#section-4.3
+        //    7. If the key_ops field of jwk is present, and is invalid according to the
+        //       requirements of JSON Web Key [JWK] or does not contain all of the specified usages
+        //       values, then throw a DataError.
+        TRY(validate_jwk_key_ops(m_realm, jwk, key_usages));
 
         //    8. If the ext field of jwk is present and has the value false and extractable is true, then throw a DataError.
         if (jwk.ext.has_value() && !*jwk.ext && extractable)
@@ -1545,13 +1586,7 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<CryptoKey>> AesCtr::import_key(AlgorithmPar
 
         // 7. If the key_ops field of jwk is present, and is invalid according to the requirements of JSON Web Key [JWK]
         //    or does not contain all of the specified usages values, then throw a DataError.
-        // FIXME: Validate jwk.key_ops against requirements in https://www.rfc-editor.org/rfc/rfc7517#section-4.3
-        if (jwk.key_ops.has_value()) {
-            for (auto const& usage : key_usages) {
-                if (!jwk.key_ops->contains_slow(Bindings::idl_enum_to_string(usage)))
-                    return WebIDL::DataError::create(m_realm, MUST(String::formatted("Missing key_ops field: {}", Bindings::idl_enum_to_string(usage))));
-            }
-        }
+        TRY(validate_jwk_key_ops(m_realm, jwk, key_usages));
 
         // 8. If the ext field of jwk is present and has the value false and extractable is true, then throw a DataError.
         if (jwk.ext.has_value() && !*jwk.ext && extractable)
@@ -1868,13 +1903,7 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<CryptoKey>> AesGcm::import_key(AlgorithmPar
 
         // 7. If the key_ops field of jwk is present, and is invalid according to the requirements of JSON Web Key [JWK]
         //    or does not contain all of the specified usages values, then throw a DataError.
-        // FIXME: Validate jwk.key_ops against requirements in https://www.rfc-editor.org/rfc/rfc7517#section-4.3
-        if (jwk.key_ops.has_value()) {
-            for (auto const& usage : key_usages) {
-                if (!jwk.key_ops->contains_slow(Bindings::idl_enum_to_string(usage)))
-                    return WebIDL::DataError::create(m_realm, MUST(String::formatted("Missing key_ops field: {}", Bindings::idl_enum_to_string(usage))));
-            }
-        }
+        TRY(validate_jwk_key_ops(m_realm, jwk, key_usages));
 
         // 8. If the ext field of jwk is present and has the value false and extractable is true, then throw a DataError.
         if (jwk.ext.has_value() && !*jwk.ext && extractable)
@@ -2987,12 +3016,7 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<CryptoKey>> X25519::import_key([[maybe_unus
 
         // 7. If the key_ops field of jwk is present, and is invalid according to the requirements of JSON Web Key [JWK],
         //    or it does not contain all of the specified usages values, then throw a DataError.
-        if (jwk.key_ops.has_value()) {
-            for (auto const& usage : usages) {
-                if (!jwk.key_ops->contains_slow(Bindings::idl_enum_to_string(usage)))
-                    return WebIDL::DataError::create(m_realm, MUST(String::formatted("Missing key_ops field: {}", Bindings::idl_enum_to_string(usage))));
-            }
-        }
+        TRY(validate_jwk_key_ops(m_realm, jwk, usages));
 
         // 8. If the ext field of jwk is present and has the value false and extractable is true, then throw a DataError.
         if (jwk.ext.has_value() && !jwk.ext.value() && extractable)
