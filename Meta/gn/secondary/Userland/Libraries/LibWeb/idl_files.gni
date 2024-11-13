@@ -376,6 +376,7 @@ standard_idl_files = [
   "//Userland/Libraries/LibWeb/WebGL/WebGLFramebuffer.idl",
   "//Userland/Libraries/LibWeb/WebGL/WebGLObject.idl",
   "//Userland/Libraries/LibWeb/WebGL/WebGLProgram.idl",
+  "//Userland/Libraries/LibWeb/WebGL/WebGLRenderbuffer.idl",
   "//Userland/Libraries/LibWeb/WebGL/WebGLRenderingContext.idl",
   "//Userland/Libraries/LibWeb/WebIDL/DOMException.idl",
   "//Userland/Libraries/LibWeb/WebSockets/WebSocket.idl",
