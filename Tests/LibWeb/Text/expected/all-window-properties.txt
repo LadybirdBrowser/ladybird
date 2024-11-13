@@ -395,6 +395,7 @@ WebGLContextEvent
 WebGLFramebuffer
 WebGLObject
 WebGLProgram
+WebGLRenderbuffer
 WebGLRenderingContext
 WebKitCSSMatrix
 WebSocket
