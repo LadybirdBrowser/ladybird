@@ -20,7 +20,7 @@ JS::NonnullGCPtr<FetchAlgorithms> FetchAlgorithms::create(JS::VM& vm, Input inpu
     auto process_response = JS::create_heap_function(vm.heap(), move(input.process_response));
     auto process_response_end_of_body = JS::create_heap_function(vm.heap(), move(input.process_response_end_of_body));
     auto process_response_consume_body = JS::create_heap_function(vm.heap(), move(input.process_response_consume_body));
-    return vm.heap().allocate_without_realm<FetchAlgorithms>(
+    return vm.heap().allocate<FetchAlgorithms>(
         process_request_body_chunk_length,
         process_request_end_of_body,
         process_early_hints_response,

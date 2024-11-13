@@ -20,7 +20,7 @@ FetchController::FetchController() = default;
 
 JS::NonnullGCPtr<FetchController> FetchController::create(JS::VM& vm)
 {
-    return vm.heap().allocate_without_realm<FetchController>();
+    return vm.heap().allocate<FetchController>();
 }
 
 void FetchController::visit_edges(JS::Cell::Visitor& visitor)

@@ -4201,7 +4201,7 @@ void Document::start_intersection_observing_a_lazy_loading_element(Element& elem
         // Spec Note: This allows for fetching the image during scrolling, when it does not yet — but is about to — intersect the viewport.
         auto options = IntersectionObserver::IntersectionObserverInit {};
 
-        auto wrapped_callback = realm.heap().allocate_without_realm<WebIDL::CallbackType>(callback, Bindings::principal_host_defined_environment_settings_object(realm));
+        auto wrapped_callback = realm.heap().allocate<WebIDL::CallbackType>(callback, Bindings::principal_host_defined_environment_settings_object(realm));
         m_lazy_load_intersection_observer = IntersectionObserver::IntersectionObserver::construct_impl(realm, wrapped_callback, options).release_value_but_fixme_should_propagate_errors();
     }
 

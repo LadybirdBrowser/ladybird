@@ -35,7 +35,7 @@ ErrorOr<JS::NonnullGCPtr<SVGDecodedImageData>> SVGDecodedImageData::create(JS::R
     JS::NonnullGCPtr<HTML::Navigable> navigable = page->top_level_traversable();
     auto response = Fetch::Infrastructure::Response::create(navigable->vm());
     response->url_list().append(url);
-    auto navigation_params = navigable->heap().allocate_without_realm<HTML::NavigationParams>();
+    auto navigation_params = navigable->heap().allocate<HTML::NavigationParams>();
     navigation_params->navigable = navigable;
     navigation_params->response = response;
     navigation_params->origin = URL::Origin {};

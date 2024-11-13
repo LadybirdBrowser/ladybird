@@ -49,7 +49,7 @@ EnvironmentSettingsObject::~EnvironmentSettingsObject()
 void EnvironmentSettingsObject::initialize(JS::Realm& realm)
 {
     Base::initialize(realm);
-    m_module_map = realm.heap().allocate_without_realm<ModuleMap>();
+    m_module_map = realm.heap().allocate<ModuleMap>();
 }
 
 void EnvironmentSettingsObject::visit_edges(Cell::Visitor& visitor)

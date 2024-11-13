@@ -246,7 +246,7 @@ Result<NonnullGCPtr<SourceTextModule>, Vector<ParserError>> SourceTextModule::pa
     //          [[HostDefined]]: hostDefined, [[ECMAScriptCode]]: body, [[Context]]: empty, [[ImportMeta]]: empty,
     //          [[RequestedModules]]: requestedModules, [[ImportEntries]]: importEntries, [[LocalExportEntries]]: localExportEntries,
     //          [[IndirectExportEntries]]: indirectExportEntries, [[StarExportEntries]]: starExportEntries, [[DFSIndex]]: empty, [[DFSAncestorIndex]]: empty }.
-    return realm.heap().allocate_without_realm<SourceTextModule>(
+    return realm.heap().allocate<SourceTextModule>(
         realm,
         filename,
         host_defined,
@@ -359,7 +359,7 @@ ThrowCompletionOr<void> SourceTextModule::initialize_environment(VM& vm)
     // Note: This must be true because we use a reference.
 
     // 5. Let env be NewModuleEnvironment(realm.[[GlobalEnv]]).
-    auto environment = vm.heap().allocate_without_realm<ModuleEnvironment>(&realm().global_environment());
+    auto environment = vm.heap().allocate<ModuleEnvironment>(&realm().global_environment());
 
     // 6. Set module.[[Environment]] to env.
     set_environment(environment);

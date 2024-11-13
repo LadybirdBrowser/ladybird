@@ -394,7 +394,7 @@ NonnullGCPtr<DeclarativeEnvironment> new_declarative_environment(Environment& en
     // 1. Let env be a new Declarative Environment Record containing no bindings.
     // 2. Set env.[[OuterEnv]] to E.
     // 3. Return env.
-    return heap.allocate_without_realm<DeclarativeEnvironment>(&environment);
+    return heap.allocate<DeclarativeEnvironment>(&environment);
 }
 
 // 9.1.2.3 NewObjectEnvironment ( O, W, E ), https://tc39.es/ecma262/#sec-newobjectenvironment
@@ -407,7 +407,7 @@ NonnullGCPtr<ObjectEnvironment> new_object_environment(Object& object, bool is_w
     // 3. Set env.[[IsWithEnvironment]] to W.
     // 4. Set env.[[OuterEnv]] to E.
     // 5. Return env.
-    return heap.allocate_without_realm<ObjectEnvironment>(object, is_with_environment ? ObjectEnvironment::IsWithEnvironment::Yes : ObjectEnvironment::IsWithEnvironment::No, environment);
+    return heap.allocate<ObjectEnvironment>(object, is_with_environment ? ObjectEnvironment::IsWithEnvironment::Yes : ObjectEnvironment::IsWithEnvironment::No, environment);
 }
 
 // 9.1.2.4 NewFunctionEnvironment ( F, newTarget ), https://tc39.es/ecma262/#sec-newfunctionenvironment
@@ -416,7 +416,7 @@ NonnullGCPtr<FunctionEnvironment> new_function_environment(ECMAScriptFunctionObj
     auto& heap = function.heap();
 
     // 1. Let env be a new function Environment Record containing no bindings.
-    auto env = heap.allocate_without_realm<FunctionEnvironment>(function.environment());
+    auto env = heap.allocate<FunctionEnvironment>(function.environment());
 
     // 2. Set env.[[FunctionObject]] to F.
     env->set_function_object(function);
@@ -443,7 +443,7 @@ NonnullGCPtr<PrivateEnvironment> new_private_environment(VM& vm, PrivateEnvironm
 {
     // 1. Let names be a new empty List.
     // 2. Return the PrivateEnvironment Record { [[OuterPrivateEnvironment]]: outerPrivEnv, [[Names]]: names }.
-    return vm.heap().allocate_without_realm<PrivateEnvironment>(outer);
+    return vm.heap().allocate<PrivateEnvironment>(outer);
 }
 
 // 9.4.3 GetThisEnvironment ( ), https://tc39.es/ecma262/#sec-getthisenvironment

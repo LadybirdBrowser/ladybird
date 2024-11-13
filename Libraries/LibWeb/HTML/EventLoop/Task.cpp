@@ -22,7 +22,7 @@ static IDAllocator s_unique_task_source_allocator { static_cast<int>(Task::Sourc
 
 JS::NonnullGCPtr<Task> Task::create(JS::VM& vm, Source source, JS::GCPtr<DOM::Document const> document, JS::NonnullGCPtr<JS::HeapFunction<void()>> steps)
 {
-    return vm.heap().allocate_without_realm<Task>(source, document, move(steps));
+    return vm.heap().allocate<Task>(source, document, move(steps));
 }
 
 Task::Task(Source source, JS::GCPtr<DOM::Document const> document, JS::NonnullGCPtr<JS::HeapFunction<void()>> steps)

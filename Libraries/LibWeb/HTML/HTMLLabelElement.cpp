@@ -29,7 +29,7 @@ void HTMLLabelElement::initialize(JS::Realm& realm)
 
 JS::GCPtr<Layout::Node> HTMLLabelElement::create_layout_node(CSS::StyleProperties style)
 {
-    return heap().allocate_without_realm<Layout::Label>(document(), this, move(style));
+    return heap().allocate<Layout::Label>(document(), this, move(style));
 }
 
 // https://html.spec.whatwg.org/multipage/forms.html#labeled-control

@@ -21,7 +21,7 @@ Symbol::Symbol(Optional<String> description, bool is_global)
 
 NonnullGCPtr<Symbol> Symbol::create(VM& vm, Optional<String> description, bool is_global)
 {
-    return vm.heap().allocate_without_realm<Symbol>(move(description), is_global);
+    return vm.heap().allocate<Symbol>(move(description), is_global);
 }
 
 // 20.4.3.3.1 SymbolDescriptiveString ( sym ), https://tc39.es/ecma262/#sec-symboldescriptivestring

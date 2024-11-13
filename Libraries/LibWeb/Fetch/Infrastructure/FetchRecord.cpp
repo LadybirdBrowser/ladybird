@@ -12,12 +12,12 @@ JS_DEFINE_ALLOCATOR(FetchRecord);
 
 JS::NonnullGCPtr<FetchRecord> FetchRecord::create(JS::VM& vm, JS::NonnullGCPtr<Infrastructure::Request> request)
 {
-    return vm.heap().allocate_without_realm<FetchRecord>(request);
+    return vm.heap().allocate<FetchRecord>(request);
 }
 
 JS::NonnullGCPtr<FetchRecord> FetchRecord::create(JS::VM& vm, JS::NonnullGCPtr<Infrastructure::Request> request, JS::GCPtr<Fetch::Infrastructure::FetchController> fetch_controller)
 {
-    return vm.heap().allocate_without_realm<FetchRecord>(request, fetch_controller);
+    return vm.heap().allocate<FetchRecord>(request, fetch_controller);
 }
 
 FetchRecord::FetchRecord(JS::NonnullGCPtr<Infrastructure::Request> request)

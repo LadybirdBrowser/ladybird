@@ -358,7 +358,7 @@ template<typename GlobalObjectType, typename... Args>
     auto root_execution_context = MUST(Realm::initialize_host_defined_realm(
         vm,
         [&](Realm& realm_) -> GlobalObject* {
-            return vm.heap().allocate_without_realm<GlobalObjectType>(realm_, forward<Args>(args)...);
+            return vm.heap().allocate<GlobalObjectType>(realm_, forward<Args>(args)...);
         },
         nullptr));
     return root_execution_context;

@@ -55,7 +55,7 @@ class ResponseHolder : public JS::Cell {
 public:
     [[nodiscard]] static JS::NonnullGCPtr<ResponseHolder> create(JS::VM& vm)
     {
-        return vm.heap().allocate_without_realm<ResponseHolder>();
+        return vm.heap().allocate<ResponseHolder>();
     }
 
     [[nodiscard]] JS::GCPtr<Fetch::Infrastructure::Response> response() const { return m_response; }
@@ -176,7 +176,7 @@ ErrorOr<void> Navigable::initialize_navigable(JS::NonnullGCPtr<DocumentState> do
     VERIFY(document_state->document());
 
     // 2. Let entry be a new session history entry, with
-    JS::NonnullGCPtr<SessionHistoryEntry> entry = *heap().allocate_without_realm<SessionHistoryEntry>();
+    JS::NonnullGCPtr<SessionHistoryEntry> entry = *heap().allocate<SessionHistoryEntry>();
     // URL: document's URL
     entry->set_url(document_state->document()->url());
     // document state: documentState
@@ -678,7 +678,7 @@ static WebIDL::ExceptionOr<JS::NonnullGCPtr<NavigationParams>> create_navigation
     //    opener policy: coop
     //    FIXME: navigation timing type: navTimingType
     //    about base URL: entry's document state's about base URL
-    auto navigation_params = vm.heap().allocate_without_realm<NavigationParams>();
+    auto navigation_params = vm.heap().allocate<NavigationParams>();
     navigation_params->id = move(navigation_id);
     navigation_params->navigable = navigable;
     navigation_params->response = response;
@@ -955,7 +955,7 @@ static WebIDL::ExceptionOr<Navigable::NavigationParamsVariant> create_navigation
         // resource: oldDocState's resource
         // ever populated: oldDocState's ever populated
         // navigable target name: oldDocState's navigable target name
-        auto new_document_state = navigable->heap().allocate_without_realm<DocumentState>();
+        auto new_document_state = navigable->heap().allocate<DocumentState>();
         new_document_state->set_history_policy_container(old_doc_state->history_policy_container());
         new_document_state->set_request_referrer(old_doc_state->request_referrer());
         new_document_state->set_request_referrer_policy(old_doc_state->request_referrer_policy());
@@ -990,7 +990,7 @@ static WebIDL::ExceptionOr<Navigable::NavigationParamsVariant> create_navigation
         // - source snapshot has transient activation: sourceSnapshotParams's has transient activation
         // - initiator origin: responseOrigin
         // FIXME: - navigation timing type: navTimingType
-        auto navigation_params = vm.heap().allocate_without_realm<NonFetchSchemeNavigationParams>();
+        auto navigation_params = vm.heap().allocate<NonFetchSchemeNavigationParams>();
         navigation_params->id = navigation_id;
         navigation_params->navigable = navigable;
         navigation_params->url = location_url.release_value().value();
@@ -1044,7 +1044,7 @@ static WebIDL::ExceptionOr<Navigable::NavigationParamsVariant> create_navigation
     //     COOP enforcement result: coopEnforcementResult
     //     FIXME: navigation timing type: navTimingType
     //     about base URL: entry's document state's about base URL
-    auto navigation_params = vm.heap().allocate_without_realm<NavigationParams>();
+    auto navigation_params = vm.heap().allocate<NavigationParams>();
     navigation_params->id = navigation_id;
     navigation_params->navigable = navigable;
     navigation_params->request = request;
@@ -1112,7 +1112,7 @@ WebIDL::ExceptionOr<void> Navigable::populate_session_history_entry_document(
             // - source snapshot has transient activation: sourceSnapshotParams's has transient activation
             // - initiator origin: entry's document state's initiator origin
             // FIXME: - navigation timing type: navTimingType
-            auto non_fetching_scheme_navigation_params = vm().heap().allocate_without_realm<NonFetchSchemeNavigationParams>();
+            auto non_fetching_scheme_navigation_params = vm().heap().allocate<NonFetchSchemeNavigationParams>();
             non_fetching_scheme_navigation_params->id = navigation_id;
             non_fetching_scheme_navigation_params->navigable = this;
             non_fetching_scheme_navigation_params->url = entry->url();
@@ -1437,7 +1437,7 @@ WebIDL::ExceptionOr<void> Navigable::navigate(NavigateParams params)
         //    initiator origin: initiatorOriginSnapshot
         //    resource: documentResource
         //    navigable target name: navigable's target name
-        JS::NonnullGCPtr<DocumentState> document_state = *heap().allocate_without_realm<DocumentState>();
+        JS::NonnullGCPtr<DocumentState> document_state = *heap().allocate<DocumentState>();
         document_state->set_request_referrer_policy(referrer_policy);
         document_state->set_initiator_origin(initiator_origin_snapshot);
         document_state->set_resource(document_resource);
@@ -1458,7 +1458,7 @@ WebIDL::ExceptionOr<void> Navigable::navigate(NavigateParams params)
         }
 
         // 6. Let historyEntry be a new session history entry, with its URL set to url and its document state set to documentState.
-        JS::NonnullGCPtr<SessionHistoryEntry> history_entry = *heap().allocate_without_realm<SessionHistoryEntry>();
+        JS::NonnullGCPtr<SessionHistoryEntry> history_entry = *heap().allocate<SessionHistoryEntry>();
         history_entry->set_url(url);
         history_entry->set_document_state(document_state);
 
@@ -1521,7 +1521,7 @@ WebIDL::ExceptionOr<void> Navigable::navigate_to_a_fragment(URL::URL const& url,
     //      document state: navigable's active session history entry's document state
     //      navigation API state: destinationNavigationAPIState
     //      scroll restoration mode: navigable's active session history entry's scroll restoration mode
-    JS::NonnullGCPtr<SessionHistoryEntry> history_entry = heap().allocate_without_realm<SessionHistoryEntry>();
+    JS::NonnullGCPtr<SessionHistoryEntry> history_entry = heap().allocate<SessionHistoryEntry>();
     history_entry->set_url(url);
     history_entry->set_document_state(active_session_history_entry()->document_state());
     history_entry->set_navigation_api_state(destination_navigation_api_state);
@@ -1668,7 +1668,7 @@ WebIDL::ExceptionOr<JS::GCPtr<DOM::Document>> Navigable::evaluate_javascript_url
     //     opener policy: coop
     // FIXME: navigation timing type: "navigate"
     //     about base URL: targetNavigable's active document's about base URL
-    auto navigation_params = vm.heap().allocate_without_realm<NavigationParams>();
+    auto navigation_params = vm.heap().allocate<NavigationParams>();
     navigation_params->id = navigation_id;
     navigation_params->navigable = this;
     navigation_params->request = {};
@@ -1734,7 +1734,7 @@ WebIDL::ExceptionOr<void> Navigable::navigate_to_a_javascript_url(URL::URL const
     //     resource: null
     //     ever populated: true
     //     navigable target name: oldDocState's navigable target name
-    JS::NonnullGCPtr<DocumentState> document_state = *heap().allocate_without_realm<DocumentState>();
+    JS::NonnullGCPtr<DocumentState> document_state = *heap().allocate<DocumentState>();
     document_state->set_document(new_document);
     document_state->set_history_policy_container(old_doc_state->history_policy_container());
     document_state->set_request_referrer(old_doc_state->request_referrer());
@@ -1748,7 +1748,7 @@ WebIDL::ExceptionOr<void> Navigable::navigate_to_a_javascript_url(URL::URL const
     // 12. Let historyEntry be a new session history entry, with
     //     URL: entryToReplace's URL
     //     document state: documentState
-    JS::NonnullGCPtr<SessionHistoryEntry> history_entry = *heap().allocate_without_realm<SessionHistoryEntry>();
+    JS::NonnullGCPtr<SessionHistoryEntry> history_entry = *heap().allocate<SessionHistoryEntry>();
     history_entry->set_url(entry_to_replace->url());
     history_entry->set_document_state(document_state);
 
@@ -1939,7 +1939,7 @@ void perform_url_and_history_update_steps(DOM::Document& document, URL::URL new_
     //      document state: activeEntry's document state
     //      scroll restoration mode: activeEntry's scroll restoration mode
     // FIXME: persisted user state: activeEntry's persisted user state
-    JS::NonnullGCPtr<SessionHistoryEntry> new_entry = document.heap().allocate_without_realm<SessionHistoryEntry>();
+    JS::NonnullGCPtr<SessionHistoryEntry> new_entry = document.heap().allocate<SessionHistoryEntry>();
     new_entry->set_url(new_url);
     new_entry->set_classic_history_api_state(serialized_data.value_or(active_entry->classic_history_api_state()));
     new_entry->set_document_state(active_entry->document_state());

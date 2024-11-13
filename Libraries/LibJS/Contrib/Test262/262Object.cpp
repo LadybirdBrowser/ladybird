@@ -66,7 +66,7 @@ JS_DEFINE_NATIVE_FUNCTION($262Object::create_realm)
     auto root_execution_context = MUST(JS::Realm::initialize_host_defined_realm(
         vm,
         [&](JS::Realm& realm) -> JS::GlobalObject* {
-            global_object = vm.heap().allocate_without_realm<JS::Test262::GlobalObject>(realm);
+            global_object = vm.heap().allocate<JS::Test262::GlobalObject>(realm);
             return global_object;
         },
         nullptr));

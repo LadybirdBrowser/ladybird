@@ -949,7 +949,7 @@ void fetch_descendants_of_and_link_a_module_script(JS::Realm& realm,
     }
 
     // 3. Let state be Record { [[ParseError]]: null, [[Destination]]: destination, [[PerformFetch]]: null, [[FetchClient]]: fetchClient }.
-    auto state = realm.heap().allocate_without_realm<FetchContext>(JS::js_null(), destination, nullptr, fetch_client);
+    auto state = realm.heap().allocate<FetchContext>(JS::js_null(), destination, nullptr, fetch_client);
 
     // 4. If performFetch was given, set state.[[PerformFetch]] to performFetch.
     state->perform_fetch = perform_fetch;

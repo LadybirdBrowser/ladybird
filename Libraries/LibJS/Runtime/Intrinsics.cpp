@@ -148,7 +148,7 @@ ThrowCompletionOr<NonnullGCPtr<Intrinsics>> Intrinsics::create(Realm& realm)
     auto& vm = realm.vm();
 
     // 1. Set realmRec.[[Intrinsics]] to a new Record.
-    auto intrinsics = vm.heap().allocate_without_realm<Intrinsics>(realm);
+    auto intrinsics = vm.heap().allocate<Intrinsics>(realm);
     realm.set_intrinsics({}, intrinsics);
 
     // 2. Set fields of realmRec.[[Intrinsics]] with the values listed in Table 6.
@@ -179,26 +179,26 @@ ThrowCompletionOr<void> Intrinsics::initialize_intrinsics(Realm& realm)
     auto& vm = this->vm();
 
     // These are done first since other prototypes depend on their presence.
-    m_empty_object_shape = heap().allocate_without_realm<Shape>(realm);
-    m_object_prototype = heap().allocate_without_realm<ObjectPrototype>(realm);
+    m_empty_object_shape = heap().allocate<Shape>(realm);
+    m_object_prototype = heap().allocate<ObjectPrototype>(realm);
     m_object_prototype->convert_to_prototype_if_needed();
-    m_function_prototype = heap().allocate_without_realm<FunctionPrototype>(realm);
+    m_function_prototype = heap().allocate<FunctionPrototype>(realm);
     m_function_prototype->convert_to_prototype_if_needed();
 
-    m_new_object_shape = heap().allocate_without_realm<Shape>(realm);
+    m_new_object_shape = heap().allocate<Shape>(realm);
     m_new_object_shape->set_prototype_without_transition(m_object_prototype);
 
     // OPTIMIZATION: A lot of runtime algorithms create an "iterator result" object.
     //               We pre-bake a shape for these objects and remember the property offsets.
     //               This allows us to construct them very quickly.
-    m_iterator_result_object_shape = heap().allocate_without_realm<Shape>(realm);
+    m_iterator_result_object_shape = heap().allocate<Shape>(realm);
     m_iterator_result_object_shape->set_prototype_without_transition(m_object_prototype);
     m_iterator_result_object_shape->add_property_without_transition(vm.names.value, Attribute::Writable | Attribute::Configurable | Attribute::Enumerable);
     m_iterator_result_object_shape->add_property_without_transition(vm.names.done, Attribute::Writable | Attribute::Configurable | Attribute::Enumerable);
     m_iterator_result_object_value_offset = m_iterator_result_object_shape->lookup(vm.names.value.to_string_or_symbol()).value().offset;
     m_iterator_result_object_done_offset = m_iterator_result_object_shape->lookup(vm.names.done.to_string_or_symbol()).value().offset;
 
-    // Normally Realm::create() takes care of this, but these are allocated via Heap::allocate_without_realm().
+    // Normally Realm::create() takes care of this, but these are allocated via Heap::allocate().
     m_function_prototype->initialize(realm);
     m_object_prototype->initialize(realm);
 

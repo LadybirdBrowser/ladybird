@@ -58,7 +58,7 @@ class SVGDecodedImageData::SVGPageClient final : public PageClient {
 public:
     static JS::NonnullGCPtr<SVGPageClient> create(JS::VM& vm, Page& page)
     {
-        return vm.heap().allocate_without_realm<SVGPageClient>(page);
+        return vm.heap().allocate<SVGPageClient>(page);
     }
 
     virtual ~SVGPageClient() override = default;

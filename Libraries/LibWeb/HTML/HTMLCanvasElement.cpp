@@ -132,7 +132,7 @@ WebIDL::ExceptionOr<void> HTMLCanvasElement::set_height(unsigned value)
 
 JS::GCPtr<Layout::Node> HTMLCanvasElement::create_layout_node(CSS::StyleProperties style)
 {
-    return heap().allocate_without_realm<Layout::CanvasBox>(document(), *this, move(style));
+    return heap().allocate<Layout::CanvasBox>(document(), *this, move(style));
 }
 
 void HTMLCanvasElement::adjust_computed_style(CSS::StyleProperties& style)

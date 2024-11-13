@@ -173,7 +173,7 @@ NonnullGCPtr<PrimitiveString> PrimitiveString::create(VM& vm, Utf16String string
     if (auto it = string_cache.find(string); it != string_cache.end())
         return *it->value;
 
-    auto new_string = vm.heap().allocate_without_realm<PrimitiveString>(string);
+    auto new_string = vm.heap().allocate<PrimitiveString>(string);
     string_cache.set(move(string), new_string);
     return *new_string;
 }
@@ -193,7 +193,7 @@ NonnullGCPtr<PrimitiveString> PrimitiveString::create(VM& vm, String string)
     if (auto it = string_cache.find(string); it != string_cache.end())
         return *it->value;
 
-    auto new_string = vm.heap().allocate_without_realm<PrimitiveString>(string);
+    auto new_string = vm.heap().allocate<PrimitiveString>(string);
     string_cache.set(move(string), new_string);
     return *new_string;
 }
@@ -222,7 +222,7 @@ NonnullGCPtr<PrimitiveString> PrimitiveString::create(VM& vm, ByteString string)
     auto& string_cache = vm.byte_string_cache();
     auto it = string_cache.find(string);
     if (it == string_cache.end()) {
-        auto new_string = vm.heap().allocate_without_realm<PrimitiveString>(string);
+        auto new_string = vm.heap().allocate<PrimitiveString>(string);
         string_cache.set(move(string), new_string);
         return *new_string;
     }
@@ -251,7 +251,7 @@ NonnullGCPtr<PrimitiveString> PrimitiveString::create(VM& vm, PrimitiveString& l
     if (rhs_empty)
         return lhs;
 
-    return vm.heap().allocate_without_realm<PrimitiveString>(lhs, rhs);
+    return vm.heap().allocate<PrimitiveString>(lhs, rhs);
 }
 
 void PrimitiveString::resolve_rope_if_needed(EncodingPreference preference) const

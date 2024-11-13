@@ -18,7 +18,7 @@ DocumentState::~DocumentState() = default;
 
 JS::NonnullGCPtr<DocumentState> DocumentState::clone() const
 {
-    JS::NonnullGCPtr<DocumentState> cloned = *heap().allocate_without_realm<DocumentState>();
+    JS::NonnullGCPtr<DocumentState> cloned = *heap().allocate<DocumentState>();
     cloned->m_document = m_document;
     cloned->m_history_policy_container = m_history_policy_container;
     cloned->m_request_referrer = m_request_referrer;

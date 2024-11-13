@@ -42,7 +42,7 @@ void PageClient::set_use_skia_painter(UseSkiaPainter use_skia_painter)
 
 JS::NonnullGCPtr<PageClient> PageClient::create(JS::VM& vm, PageHost& page_host, u64 id)
 {
-    return vm.heap().allocate_without_realm<PageClient>(page_host, id);
+    return vm.heap().allocate<PageClient>(page_host, id);
 }
 
 PageClient::PageClient(PageHost& owner, u64 id)
@@ -692,7 +692,7 @@ void PageClient::initialize_js_console(Web::DOM::Document& document)
     auto& realm = document.realm();
 
     auto console_object = realm.intrinsics().console_object();
-    auto console_client = heap().allocate_without_realm<WebContentConsoleClient>(console_object->console(), document.realm(), *this);
+    auto console_client = heap().allocate<WebContentConsoleClient>(console_object->console(), document.realm(), *this);
 
     document.set_console_client(console_client);
 }

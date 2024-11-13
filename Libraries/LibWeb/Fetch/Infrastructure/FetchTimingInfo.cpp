@@ -16,7 +16,7 @@ FetchTimingInfo::FetchTimingInfo() = default;
 
 JS::NonnullGCPtr<FetchTimingInfo> FetchTimingInfo::create(JS::VM& vm)
 {
-    return vm.heap().allocate_without_realm<FetchTimingInfo>();
+    return vm.heap().allocate<FetchTimingInfo>();
 }
 
 void FetchTimingInfo::visit_edges(JS::Cell::Visitor& visitor)

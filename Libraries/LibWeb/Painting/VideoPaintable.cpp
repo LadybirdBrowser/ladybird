@@ -30,7 +30,7 @@ static constexpr Gfx::Color control_button_color(bool is_hovered)
 
 JS::NonnullGCPtr<VideoPaintable> VideoPaintable::create(Layout::VideoBox const& layout_box)
 {
-    return layout_box.heap().allocate_without_realm<VideoPaintable>(layout_box);
+    return layout_box.heap().allocate<VideoPaintable>(layout_box);
 }
 
 VideoPaintable::VideoPaintable(Layout::VideoBox const& layout_box)

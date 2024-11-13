@@ -36,7 +36,7 @@ public:
     ~Heap();
 
     template<typename T, typename... Args>
-    NonnullGCPtr<T> allocate_without_realm(Args&&... args)
+    NonnullGCPtr<T> allocate(Args&&... args)
     {
         auto* memory = allocate_cell<T>();
         defer_gc();

@@ -16,7 +16,7 @@ JS_DEFINE_ALLOCATOR(TextPaintable);
 
 JS::NonnullGCPtr<TextPaintable> TextPaintable::create(Layout::TextNode const& layout_node, String const& text_for_rendering)
 {
-    return layout_node.heap().allocate_without_realm<TextPaintable>(layout_node, text_for_rendering);
+    return layout_node.heap().allocate<TextPaintable>(layout_node, text_for_rendering);
 }
 
 TextPaintable::TextPaintable(Layout::TextNode const& layout_node, String const& text_for_rendering)

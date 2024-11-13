@@ -16,7 +16,7 @@ namespace Web::Painting {
 
 JS::NonnullGCPtr<SVGGraphicsPaintable> SVGGraphicsPaintable::create(Layout::SVGGraphicsBox const& layout_box)
 {
-    return layout_box.heap().allocate_without_realm<SVGGraphicsPaintable>(layout_box);
+    return layout_box.heap().allocate<SVGGraphicsPaintable>(layout_box);
 }
 
 SVGGraphicsPaintable::SVGGraphicsPaintable(Layout::SVGGraphicsBox const& layout_box)

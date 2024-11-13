@@ -13,7 +13,7 @@ JS_DEFINE_ALLOCATOR(JobCallback);
 
 JS::NonnullGCPtr<JobCallback> JobCallback::create(JS::VM& vm, FunctionObject& callback, OwnPtr<CustomData> custom_data)
 {
-    return vm.heap().allocate_without_realm<JobCallback>(callback, move(custom_data));
+    return vm.heap().allocate<JobCallback>(callback, move(custom_data));
 }
 
 void JobCallback::visit_edges(Visitor& visitor)

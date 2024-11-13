@@ -555,7 +555,7 @@ WebIDL::ExceptionOr<ReadableStreamPair> readable_stream_default_tee(JS::Realm& r
         params->reading = true;
 
         // 3. Let readRequest be a read request with the following items:
-        auto read_request = realm.heap().allocate_without_realm<DefaultStreamTeeReadRequest>(realm, stream, params, cancel_promise, clone_for_branch2);
+        auto read_request = realm.heap().allocate<DefaultStreamTeeReadRequest>(realm, stream, params, cancel_promise, clone_for_branch2);
 
         // 4. Perform ! ReadableStreamDefaultReaderRead(reader, readRequest).
         readable_stream_default_reader_read(reader, read_request);
@@ -1096,7 +1096,7 @@ WebIDL::ExceptionOr<ReadableStreamPair> readable_byte_stream_tee(JS::Realm& real
         }
 
         // 2. Let readRequest be a read request with the following items:
-        auto read_request = realm.heap().allocate_without_realm<ByteStreamTeeDefaultReadRequest>(realm, stream, params, cancel_promise);
+        auto read_request = realm.heap().allocate<ByteStreamTeeDefaultReadRequest>(realm, stream, params, cancel_promise);
 
         // 3. Perform ! ReadableStreamDefaultReaderRead(reader, readRequest).
         readable_stream_default_reader_read(params->reader.get<JS::NonnullGCPtr<ReadableStreamDefaultReader>>(), read_request);
@@ -1126,7 +1126,7 @@ WebIDL::ExceptionOr<ReadableStreamPair> readable_byte_stream_tee(JS::Realm& real
         auto other_branch = !for_branch2 ? params->branch2 : params->branch1;
 
         // 4. Let readIntoRequest be a read-into request with the following items:
-        auto read_into_request = realm.heap().allocate_without_realm<ByteStreamTeeBYOBReadRequest>(realm, stream, params, cancel_promise, *byob_branch, *other_branch, for_branch2);
+        auto read_into_request = realm.heap().allocate<ByteStreamTeeBYOBReadRequest>(realm, stream, params, cancel_promise, *byob_branch, *other_branch, for_branch2);
 
         // 5. Perform ! ReadableStreamBYOBReaderRead(reader, view, 1, readIntoRequest).
         readable_stream_byob_reader_read(params->reader.get<JS::NonnullGCPtr<ReadableStreamBYOBReader>>(), view, 1, read_into_request);
@@ -5428,7 +5428,7 @@ JS::ThrowCompletionOr<JS::Handle<WebIDL::CallbackType>> property_to_callback(JS:
     if (!property.is_function())
         return vm.throw_completion<JS::TypeError>(JS::ErrorType::NotAFunction, property.to_string_without_side_effects());
 
-    return vm.heap().allocate_without_realm<WebIDL::CallbackType>(property.as_object(), HTML::incumbent_settings_object(), operation_returns_promise);
+    return vm.heap().allocate<WebIDL::CallbackType>(property.as_object(), HTML::incumbent_settings_object(), operation_returns_promise);
 }
 
 // https://streams.spec.whatwg.org/#set-up-readable-byte-stream-controller-from-underlying-source

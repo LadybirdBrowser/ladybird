@@ -20,7 +20,7 @@ class Accessor final : public Cell {
 public:
     static NonnullGCPtr<Accessor> create(VM& vm, FunctionObject* getter, FunctionObject* setter)
     {
-        return vm.heap().allocate_without_realm<Accessor>(getter, setter);
+        return vm.heap().allocate<Accessor>(getter, setter);
     }
 
     FunctionObject* getter() const { return m_getter; }

@@ -22,7 +22,7 @@ ThrowCompletionOr<NonnullOwnPtr<ExecutionContext>> Realm::initialize_host_define
     DeferGC defer_gc(vm.heap());
 
     // 1. Let realm be a new Realm Record
-    auto realm = vm.heap().allocate_without_realm<Realm>();
+    auto realm = vm.heap().allocate<Realm>();
 
     // 2. Perform CreateIntrinsics(realm).
     MUST(Intrinsics::create(*realm));
@@ -61,7 +61,7 @@ ThrowCompletionOr<NonnullOwnPtr<ExecutionContext>> Realm::initialize_host_define
         // a. Let global be OrdinaryObjectCreate(realm.[[Intrinsics]].[[%Object.prototype%]]).
         // NOTE: We allocate a proper GlobalObject directly as this plain object is
         //       turned into one via SetDefaultGlobalBindings in the spec.
-        global = vm.heap().allocate_without_realm<GlobalObject>(realm);
+        global = vm.heap().allocate<GlobalObject>(realm);
     }
 
     // 14. If the host requires that the this binding in realm's global scope return an object other than the global object, then
@@ -80,7 +80,7 @@ ThrowCompletionOr<NonnullOwnPtr<ExecutionContext>> Realm::initialize_host_define
     realm->m_global_object = global;
 
     // 17. Set realm.[[GlobalEnv]] to NewGlobalEnvironment(global, thisValue).
-    realm->m_global_environment = vm.heap().allocate_without_realm<GlobalEnvironment>(*global, *this_value);
+    realm->m_global_environment = vm.heap().allocate<GlobalEnvironment>(*global, *this_value);
 
     // 18. Perform ? SetDefaultGlobalBindings(realm).
     set_default_global_bindings(*realm);

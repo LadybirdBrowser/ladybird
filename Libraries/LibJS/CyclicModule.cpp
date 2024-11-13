@@ -54,7 +54,7 @@ PromiseCapability& CyclicModule::load_requested_modules(GCPtr<GraphLoadingState:
     auto promise_capability = MUST(new_promise_capability(vm(), vm().current_realm()->intrinsics().promise_constructor()));
 
     // 3. Let state be the GraphLoadingState Record { [[IsLoading]]: true, [[PendingModulesCount]]: 1, [[Visited]]: « », [[PromiseCapability]]: pc, [[HostDefined]]: hostDefined }.
-    auto state = heap().allocate_without_realm<GraphLoadingState>(promise_capability, true, 1, HashTable<JS::GCPtr<CyclicModule>> {}, move(host_defined));
+    auto state = heap().allocate<GraphLoadingState>(promise_capability, true, 1, HashTable<JS::GCPtr<CyclicModule>> {}, move(host_defined));
 
     // 4. Perform InnerModuleLoading(state, module).
     inner_module_loading(state);

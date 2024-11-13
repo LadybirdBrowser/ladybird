@@ -30,7 +30,7 @@ SessionHistoryEntry::SessionHistoryEntry()
 
 JS::NonnullGCPtr<SessionHistoryEntry> SessionHistoryEntry::clone() const
 {
-    JS::NonnullGCPtr<SessionHistoryEntry> entry = *heap().allocate_without_realm<SessionHistoryEntry>();
+    JS::NonnullGCPtr<SessionHistoryEntry> entry = *heap().allocate<SessionHistoryEntry>();
     entry->m_step = m_step;
     entry->m_url = m_url;
     entry->m_document_state = m_document_state->clone();

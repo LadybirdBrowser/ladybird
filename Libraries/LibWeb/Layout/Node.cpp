@@ -1010,7 +1010,7 @@ bool Node::is_inline_table() const
 
 JS::NonnullGCPtr<NodeWithStyle> NodeWithStyle::create_anonymous_wrapper() const
 {
-    auto wrapper = heap().allocate_without_realm<BlockContainer>(const_cast<DOM::Document&>(document()), nullptr, computed_values().clone_inherited_values());
+    auto wrapper = heap().allocate<BlockContainer>(const_cast<DOM::Document&>(document()), nullptr, computed_values().clone_inherited_values());
     wrapper->mutable_computed_values().set_display(CSS::Display(CSS::DisplayOutside::Block, CSS::DisplayInside::Flow));
 
     // NOTE: These properties are not inherited, but we still have to propagate them to anonymous wrappers.

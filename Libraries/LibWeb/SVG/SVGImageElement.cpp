@@ -180,7 +180,7 @@ void SVGImageElement::fetch_the_document(URL::URL const& url)
 
 JS::GCPtr<Layout::Node> SVGImageElement::create_layout_node(CSS::StyleProperties style)
 {
-    return heap().allocate_without_realm<Layout::SVGImageBox>(document(), *this, move(style));
+    return heap().allocate<Layout::SVGImageBox>(document(), *this, move(style));
 }
 
 bool SVGImageElement::is_image_available() const

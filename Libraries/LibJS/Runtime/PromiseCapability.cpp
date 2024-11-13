@@ -15,7 +15,7 @@ JS_DEFINE_ALLOCATOR(PromiseCapability);
 
 NonnullGCPtr<PromiseCapability> PromiseCapability::create(VM& vm, NonnullGCPtr<Object> promise, NonnullGCPtr<FunctionObject> resolve, NonnullGCPtr<FunctionObject> reject)
 {
-    return vm.heap().allocate_without_realm<PromiseCapability>(promise, resolve, reject);
+    return vm.heap().allocate<PromiseCapability>(promise, resolve, reject);
 }
 
 PromiseCapability::PromiseCapability(NonnullGCPtr<Object> promise, NonnullGCPtr<FunctionObject> resolve, NonnullGCPtr<FunctionObject> reject)

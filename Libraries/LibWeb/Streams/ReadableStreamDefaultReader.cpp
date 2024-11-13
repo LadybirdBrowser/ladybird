@@ -182,7 +182,7 @@ JS::NonnullGCPtr<WebIDL::Promise> ReadableStreamDefaultReader::read()
     //        Resolve promise with «[ "value" → undefined, "done" → true ]».
     //    error steps, given e
     //        Reject promise with e.
-    auto read_request = heap().allocate_without_realm<DefaultReaderReadRequest>(realm, promise_capability);
+    auto read_request = heap().allocate<DefaultReaderReadRequest>(realm, promise_capability);
 
     // 4. Perform ! ReadableStreamDefaultReaderRead(this, readRequest).
     readable_stream_default_reader_read(*this, read_request);
@@ -206,7 +206,7 @@ void ReadableStreamDefaultReader::read_all_bytes(JS::NonnullGCPtr<ReadLoopReadRe
 
     // 1. Let readRequest be a new read request with the following items:
     //    NOTE: items and steps in ReadLoopReadRequest.
-    auto read_request = heap().allocate_without_realm<ReadLoopReadRequest>(vm, realm, *this, success_steps, failure_steps);
+    auto read_request = heap().allocate<ReadLoopReadRequest>(vm, realm, *this, success_steps, failure_steps);
 
     // 2. Perform ! ReadableStreamDefaultReaderRead(this, readRequest).
     readable_stream_default_reader_read(*this, read_request);
@@ -222,7 +222,7 @@ void ReadableStreamDefaultReader::read_all_chunks(JS::NonnullGCPtr<ReadLoopReadR
 
     // 1. Let readRequest be a new read request with the following items:
     //    NOTE: items and steps in ReadLoopReadRequest.
-    auto read_request = heap().allocate_without_realm<ReadLoopReadRequest>(vm, realm, *this, success_steps, failure_steps, chunk_steps);
+    auto read_request = heap().allocate<ReadLoopReadRequest>(vm, realm, *this, success_steps, failure_steps, chunk_steps);
 
     // 2. Perform ! ReadableStreamDefaultReaderRead(this, readRequest).
     readable_stream_default_reader_read(*this, read_request);

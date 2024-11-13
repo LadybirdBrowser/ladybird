@@ -15,7 +15,7 @@ JS_DEFINE_ALLOCATOR(MarkerPaintable);
 
 JS::NonnullGCPtr<MarkerPaintable> MarkerPaintable::create(Layout::ListItemMarkerBox const& layout_box)
 {
-    return layout_box.heap().allocate_without_realm<MarkerPaintable>(layout_box);
+    return layout_box.heap().allocate<MarkerPaintable>(layout_box);
 }
 
 MarkerPaintable::MarkerPaintable(Layout::ListItemMarkerBox const& layout_box)

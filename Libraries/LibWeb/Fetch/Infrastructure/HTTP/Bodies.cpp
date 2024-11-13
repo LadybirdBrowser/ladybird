@@ -20,12 +20,12 @@ JS_DEFINE_ALLOCATOR(Body);
 
 JS::NonnullGCPtr<Body> Body::create(JS::VM& vm, JS::NonnullGCPtr<Streams::ReadableStream> stream)
 {
-    return vm.heap().allocate_without_realm<Body>(stream);
+    return vm.heap().allocate<Body>(stream);
 }
 
 JS::NonnullGCPtr<Body> Body::create(JS::VM& vm, JS::NonnullGCPtr<Streams::ReadableStream> stream, SourceType source, Optional<u64> length)
 {
-    return vm.heap().allocate_without_realm<Body>(stream, source, length);
+    return vm.heap().allocate<Body>(stream, source, length);
 }
 
 Body::Body(JS::NonnullGCPtr<Streams::ReadableStream> stream)

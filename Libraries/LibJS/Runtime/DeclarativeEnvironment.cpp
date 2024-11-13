@@ -20,7 +20,7 @@ DeclarativeEnvironment* DeclarativeEnvironment::create_for_per_iteration_binding
     auto bindings = other.m_bindings.span().slice(0, bindings_size);
     auto* parent_environment = other.outer_environment();
 
-    return parent_environment->heap().allocate_without_realm<DeclarativeEnvironment>(parent_environment, bindings);
+    return parent_environment->heap().allocate<DeclarativeEnvironment>(parent_environment, bindings);
 }
 
 DeclarativeEnvironment::DeclarativeEnvironment()

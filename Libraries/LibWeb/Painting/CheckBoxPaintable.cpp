@@ -40,7 +40,7 @@ static Gfx::Path check_mark_path(Gfx::IntRect checkbox_rect)
 JS::NonnullGCPtr<CheckBoxPaintable>
 CheckBoxPaintable::create(Layout::CheckBox const& layout_box)
 {
-    return layout_box.heap().allocate_without_realm<CheckBoxPaintable>(layout_box);
+    return layout_box.heap().allocate<CheckBoxPaintable>(layout_box);
 }
 
 CheckBoxPaintable::CheckBoxPaintable(Layout::CheckBox const& layout_box)

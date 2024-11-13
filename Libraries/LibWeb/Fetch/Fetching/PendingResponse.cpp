@@ -16,12 +16,12 @@ JS_DEFINE_ALLOCATOR(PendingResponse);
 
 JS::NonnullGCPtr<PendingResponse> PendingResponse::create(JS::VM& vm, JS::NonnullGCPtr<Infrastructure::Request> request)
 {
-    return vm.heap().allocate_without_realm<PendingResponse>(request);
+    return vm.heap().allocate<PendingResponse>(request);
 }
 
 JS::NonnullGCPtr<PendingResponse> PendingResponse::create(JS::VM& vm, JS::NonnullGCPtr<Infrastructure::Request> request, JS::NonnullGCPtr<Infrastructure::Response> response)
 {
-    return vm.heap().allocate_without_realm<PendingResponse>(request, response);
+    return vm.heap().allocate<PendingResponse>(request, response);
 }
 
 PendingResponse::PendingResponse(JS::NonnullGCPtr<Infrastructure::Request> request, JS::GCPtr<Infrastructure::Response> response)

@@ -96,7 +96,7 @@ ErrorOr<void> initialize_main_thread_vm(HTML::EventLoop::Type type)
     s_main_thread_vm->ref();
 
     auto& custom_data = verify_cast<WebEngineCustomData>(*s_main_thread_vm->custom_data());
-    custom_data.event_loop = s_main_thread_vm->heap().allocate_without_realm<HTML::EventLoop>(type);
+    custom_data.event_loop = s_main_thread_vm->heap().allocate<HTML::EventLoop>(type);
 
     // These strings could potentially live on the VM similar to CommonPropertyNames.
     DOM::MutationType::initialize_strings();
@@ -595,7 +595,7 @@ ErrorOr<void> initialize_main_thread_vm(HTML::EventLoop::Type type)
         realm.set_global_object(global_object);
 
         // 10. Set realm.[[GlobalEnv]] to NewGlobalEnvironment(globalObject, globalObject).
-        realm.set_global_environment(realm.heap().allocate_without_realm<JS::GlobalEnvironment>(global_object, global_object));
+        realm.set_global_environment(realm.heap().allocate<JS::GlobalEnvironment>(global_object, global_object));
 
         // 11. Perform ? SetDefaultGlobalBindings(realm).
         set_default_global_bindings(realm);

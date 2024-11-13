@@ -548,7 +548,7 @@ JS::NonnullGCPtr<NavigationAPIMethodTracker> Navigation::maybe_set_the_upcoming_
     //     comitted-to entry: null
     //     comitted promise:  committedPromise
     //     finished promise:  finishedPromise
-    auto api_method_tracker = vm.heap().allocate_without_realm<NavigationAPIMethodTracker>(
+    auto api_method_tracker = vm.heap().allocate<NavigationAPIMethodTracker>(
         /* .navigation = */ *this,
         /* .key = */ OptionalNone {},
         /* .info = */ info,
@@ -597,7 +597,7 @@ JS::NonnullGCPtr<NavigationAPIMethodTracker> Navigation::add_an_upcoming_travers
     //     comitted-to entry: null
     //     comitted promise:  committedPromise
     //     finished promise:  finishedPromise
-    auto api_method_tracker = vm.heap().allocate_without_realm<NavigationAPIMethodTracker>(
+    auto api_method_tracker = vm.heap().allocate<NavigationAPIMethodTracker>(
         /* .navigation = */ *this,
         /* .key = */ destination_key,
         /* .info = */ info,

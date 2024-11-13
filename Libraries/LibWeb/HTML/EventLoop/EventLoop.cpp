@@ -30,8 +30,8 @@ JS_DEFINE_ALLOCATOR(EventLoop);
 EventLoop::EventLoop(Type type)
     : m_type(type)
 {
-    m_task_queue = heap().allocate_without_realm<TaskQueue>(*this);
-    m_microtask_queue = heap().allocate_without_realm<TaskQueue>(*this);
+    m_task_queue = heap().allocate<TaskQueue>(*this);
+    m_microtask_queue = heap().allocate<TaskQueue>(*this);
 
     m_rendering_task_function = JS::create_heap_function(heap(), [this] {
         update_the_rendering();
