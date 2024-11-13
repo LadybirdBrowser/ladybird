@@ -73,17 +73,6 @@ void Application::create_platform_options(WebView::ChromeOptions& chrome_options
     web_content_options.is_layout_test_mode = is_layout_test_mode ? WebView::IsLayoutTestMode::Yes : WebView::IsLayoutTestMode::No;
 }
 
-ErrorOr<void> Application::launch_services()
-{
-    auto request_server_paths = TRY(WebView::get_paths_for_helper_process("RequestServer"sv));
-    m_request_client = TRY(WebView::launch_request_server_process(request_server_paths, resources_folder));
-
-    auto image_decoder_paths = TRY(WebView::get_paths_for_helper_process("ImageDecoder"sv));
-    m_image_decoder_client = TRY(WebView::launch_image_decoder_process(image_decoder_paths));
-
-    return {};
-}
-
 ErrorOr<void> Application::launch_test_fixtures()
 {
     Fixture::initialize_fixtures();

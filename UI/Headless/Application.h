@@ -9,10 +9,7 @@
 #include <AK/ByteString.h>
 #include <AK/Error.h>
 #include <AK/NonnullOwnPtr.h>
-#include <AK/RefPtr.h>
 #include <AK/Vector.h>
-#include <LibImageDecoderClient/Client.h>
-#include <LibRequests/RequestClient.h>
 #include <LibWeb/PixelUnits.h>
 #include <LibWebView/Application.h>
 
@@ -34,11 +31,7 @@ public:
     virtual void create_platform_arguments(Core::ArgsParser&) override;
     virtual void create_platform_options(WebView::ChromeOptions&, WebView::WebContentOptions&) override;
 
-    ErrorOr<void> launch_services();
     ErrorOr<void> launch_test_fixtures();
-
-    static Requests::RequestClient& request_client() { return *the().m_request_client; }
-    static ImageDecoderClient::Client& image_decoder_client() { return *the().m_image_decoder_client; }
 
     HeadlessWebView& create_web_view(Core::AnonymousBuffer theme, Web::DevicePixelSize window_size);
     HeadlessWebView& create_child_web_view(HeadlessWebView const&, u64 page_index);
@@ -70,9 +63,6 @@ public:
     int height { 600 };
 
 private:
-    RefPtr<Requests::RequestClient> m_request_client;
-    RefPtr<ImageDecoderClient::Client> m_image_decoder_client;
-
     Vector<NonnullOwnPtr<HeadlessWebView>> m_web_views;
 };
 

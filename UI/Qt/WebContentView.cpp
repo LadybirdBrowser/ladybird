@@ -128,8 +128,7 @@ WebContentView::WebContentView(QWidget* window, RefPtr<WebView::WebContentClient
     };
 
     on_request_worker_agent = [&]() {
-        auto& request_server_client = static_cast<Ladybird::Application*>(QApplication::instance())->request_server_client;
-        auto worker_client = MUST(WebView::launch_web_worker_process(MUST(WebView::get_paths_for_helper_process("WebWorker"sv)), *request_server_client));
+        auto worker_client = MUST(WebView::launch_web_worker_process(MUST(WebView::get_paths_for_helper_process("WebWorker"sv))));
         return worker_client->clone_transport();
     };
 
@@ -629,13 +628,9 @@ void WebContentView::initialize_client(WebView::ViewImplementation::CreateNewCli
     if (create_new_client == CreateNewClient::Yes) {
         m_client_state = {};
 
-        auto& request_server_client = static_cast<Ladybird::Application*>(QApplication::instance())->request_server_client;
-
-        // FIXME: Fail to open the tab, rather than crashing the whole application if this fails
-        auto request_server_socket = WebView::connect_new_request_server_client(*request_server_client).release_value_but_fixme_should_propagate_errors();
-
-        auto image_decoder = static_cast<Ladybird::Application*>(QApplication::instance())->image_decoder_client();
-        auto image_decoder_socket = WebView::connect_new_image_decoder_client(*image_decoder).release_value_but_fixme_should_propagate_errors();
+        // FIXME: Fail to open the tab, rather than crashing the whole application if these fail.
+        auto request_server_socket = WebView::connect_new_request_server_client().release_value_but_fixme_should_propagate_errors();
+        auto image_decoder_socket = WebView::connect_new_image_decoder_client().release_value_but_fixme_should_propagate_errors();
 
         auto candidate_web_content_paths = WebView::get_paths_for_helper_process("WebContent"sv).release_value_but_fixme_should_propagate_errors();
         auto new_client = launch_web_content_process(*this, candidate_web_content_paths, AK::move(image_decoder_socket), AK::move(request_server_socket)).release_value_but_fixme_should_propagate_errors();

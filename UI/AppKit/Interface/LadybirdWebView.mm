@@ -12,9 +12,11 @@
 #include <LibURL/URL.h>
 #include <LibWeb/HTML/SelectedFile.h>
 #include <LibWebView/Application.h>
+#include <LibWebView/HelperProcess.h>
 #include <LibWebView/SearchEngine.h>
 #include <LibWebView/SourceHighlighter.h>
 #include <LibWebView/URL.h>
+#include <LibWebView/Utilities.h>
 
 #import <Application/Application.h>
 #import <Application/ApplicationDelegate.h>
@@ -344,18 +346,9 @@ static void copy_data_to_clipboard(StringView data, NSPasteboardType pasteboard_
         return [self.observer onCreateNewTab:{} activateTab:activate_tab];
     };
 
-    m_web_view_bridge->on_request_web_content = [weak_self]() {
-        Application* application = NSApp;
-        LadybirdWebView* self = weak_self;
-        if (self == nil) {
-            VERIFY_NOT_REACHED();
-        }
-        return [application launchWebContent:*(self->m_web_view_bridge)].release_value_but_fixme_should_propagate_errors();
-    };
-
     m_web_view_bridge->on_request_worker_agent = []() {
-        Application* application = NSApp;
-        return [application launchWebWorker].release_value_but_fixme_should_propagate_errors();
+        auto worker_client = MUST(WebView::launch_web_worker_process(MUST(WebView::get_paths_for_helper_process("WebWorker"sv))));
+        return worker_client->clone_transport();
     };
 
     m_web_view_bridge->on_activate_tab = [weak_self]() {

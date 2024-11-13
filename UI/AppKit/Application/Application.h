@@ -23,9 +23,6 @@ class WebViewBridge;
 - (void)setupWebViewApplication:(Main::Arguments&)arguments
                   newTabPageURL:(URL::URL)new_tab_page_url;
 
-- (ErrorOr<void>)launchRequestServer;
-- (ErrorOr<void>)launchImageDecoder;
-- (ErrorOr<NonnullRefPtr<WebView::WebContentClient>>)launchWebContent:(Ladybird::WebViewBridge&)web_view_bridge;
-- (ErrorOr<IPC::File>)launchWebWorker;
+- (ErrorOr<void>)launchServices;
 
 @end

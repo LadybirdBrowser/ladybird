@@ -5,9 +5,7 @@
  */
 
 #include <LibCore/ArgsParser.h>
-#include <LibWebView/HelperProcess.h>
 #include <LibWebView/URL.h>
-#include <LibWebView/Utilities.h>
 #include <UI/Qt/Application.h>
 #include <UI/Qt/Settings.h>
 #include <UI/Qt/StringUtils.h>
@@ -52,38 +50,6 @@ bool Application::event(QEvent* event)
     }
 
     return QApplication::event(event);
-}
-
-static ErrorOr<NonnullRefPtr<ImageDecoderClient::Client>> launch_new_image_decoder()
-{
-    auto paths = TRY(WebView::get_paths_for_helper_process("ImageDecoder"sv));
-    return WebView::launch_image_decoder_process(paths);
-}
-
-ErrorOr<void> Application::initialize_image_decoder()
-{
-    m_image_decoder_client = TRY(launch_new_image_decoder());
-
-    m_image_decoder_client->on_death = [this] {
-        m_image_decoder_client = nullptr;
-        if (auto err = this->initialize_image_decoder(); err.is_error()) {
-            dbgln("Failed to restart image decoder: {}", err.error());
-            VERIFY_NOT_REACHED();
-        }
-
-        auto num_clients = WebView::WebContentClient::client_count();
-        auto new_sockets = m_image_decoder_client->send_sync_but_allow_failure<Messages::ImageDecoderServer::ConnectNewClients>(num_clients);
-        if (!new_sockets || new_sockets->sockets().size() == 0) {
-            dbgln("Failed to connect {} new clients to ImageDecoder", num_clients);
-            VERIFY_NOT_REACHED();
-        }
-
-        WebView::WebContentClient::for_each_client([sockets = new_sockets->take_sockets()](WebView::WebContentClient& client) mutable {
-            client.async_connect_to_image_decoder(sockets.take_last());
-            return IterationDecision::Continue;
-        });
-    };
-    return {};
 }
 
 void Application::show_task_manager_window()
