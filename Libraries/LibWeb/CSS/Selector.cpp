@@ -11,28 +11,6 @@
 
 namespace Web::CSS {
 
-static bool component_value_contains_nesting_selector(Parser::ComponentValue const& component_value)
-{
-    if (component_value.is_delim('&'))
-        return true;
-
-    if (component_value.is_block()) {
-        for (auto const& child_value : component_value.block().value) {
-            if (component_value_contains_nesting_selector(child_value))
-                return true;
-        }
-    }
-
-    if (component_value.is_function()) {
-        for (auto const& child_value : component_value.function().value) {
-            if (component_value_contains_nesting_selector(child_value))
-                return true;
-        }
-    }
-
-    return false;
-}
-
 Selector::Selector(Vector<CompoundSelector>&& compound_selectors)
     : m_compound_selectors(move(compound_selectors))
 {
@@ -59,17 +37,6 @@ Selector::Selector(Vector<CompoundSelector>&& compound_selectors)
             if (simple_selector.type == SimpleSelector::Type::PseudoClass) {
                 for (auto const& child_selector : simple_selector.pseudo_class().argument_selector_list) {
                     if (child_selector->contains_the_nesting_selector()) {
-                        m_contains_the_nesting_selector = true;
-                        break;
-                    }
-                }
-                if (m_contains_the_nesting_selector)
-                    break;
-            }
-            if (simple_selector.type == SimpleSelector::Type::Invalid) {
-                auto& invalid = simple_selector.value.get<SimpleSelector::Invalid>();
-                for (auto& item : invalid.component_values) {
-                    if (component_value_contains_nesting_selector(item)) {
                         m_contains_the_nesting_selector = true;
                         break;
                     }
@@ -216,9 +183,6 @@ u32 Selector::specificity() const
                 // - https://drafts.csswg.org/css-nesting/#ref-for-specificity
                 // The parented case is handled by replacing & with :is().
                 // So if we got here, the specificity is 0.
-                break;
-            case SimpleSelector::Type::Invalid:
-                // Ignore invalid selectors
                 break;
             }
         }
@@ -395,12 +359,6 @@ String Selector::SimpleSelector::serialize() const
     case Type::Nesting:
         // AD-HOC: Not in spec yet.
         s.append('&');
-        break;
-    case Type::Invalid:
-        // AD-HOC: We're not told how to do these. Just serialize their component values.
-        auto invalid = value.get<Invalid>();
-        for (auto const& component_value : invalid.component_values)
-            s.append(component_value.to_string());
         break;
     }
     return MUST(s.to_string());
@@ -644,7 +602,6 @@ Selector::SimpleSelector Selector::SimpleSelector::absolutized(Selector::SimpleS
     case Type::Class:
     case Type::Attribute:
     case Type::PseudoElement:
-    case Type::Invalid:
         // Everything else isn't affected
         return *this;
     }

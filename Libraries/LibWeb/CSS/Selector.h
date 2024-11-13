@@ -12,7 +12,6 @@
 #include <AK/String.h>
 #include <AK/Vector.h>
 #include <LibWeb/CSS/Keyword.h>
-#include <LibWeb/CSS/Parser/ComponentValue.h>
 #include <LibWeb/CSS/PseudoClass.h>
 
 namespace Web::CSS {
@@ -93,7 +92,6 @@ public:
             PseudoClass,
             PseudoElement,
             Nesting,
-            Invalid,
         };
 
         struct ANPlusBPattern {
@@ -197,12 +195,8 @@ public:
             CaseType case_type;
         };
 
-        struct Invalid {
-            Vector<Parser::ComponentValue> component_values;
-        };
-
         Type type;
-        Variant<Empty, Attribute, PseudoClassSelector, PseudoElement, Name, QualifiedName, Invalid> value {};
+        Variant<Empty, Attribute, PseudoClassSelector, PseudoElement, Name, QualifiedName> value {};
 
         Attribute const& attribute() const { return value.get<Attribute>(); }
         Attribute& attribute() { return value.get<Attribute>(); }
