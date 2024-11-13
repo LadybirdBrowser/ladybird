@@ -71,8 +71,7 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
     auto theme_path = LexicalPath::join(app->resources_folder, "themes"sv, "Default.ini"sv);
     auto theme = TRY(Gfx::load_system_theme(theme_path.string()));
 
-    // FIXME: Allow passing the window size as an argument.
-    static constexpr Web::DevicePixelSize window_size { 800, 600 };
+    static Web::DevicePixelSize window_size { app->width, app->height };
 
     if (!app->test_root_path.is_empty()) {
         app->test_root_path = LexicalPath::absolute_path(TRY(FileSystem::current_working_directory()), app->test_root_path);

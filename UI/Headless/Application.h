@@ -66,6 +66,8 @@ public:
     bool rebaseline { false };
     bool verbose { false };
     int per_test_timeout_in_seconds { 30 };
+    int width { 800 };
+    int height { 600 };
 
 private:
     RefPtr<Requests::RequestClient> m_request_client;
