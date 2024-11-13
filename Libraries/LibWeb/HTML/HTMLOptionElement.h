@@ -21,6 +21,7 @@ public:
     bool selected() const { return m_selected; }
     void set_selected(bool);
     void set_selected_internal(bool);
+    [[nodiscard]] u64 selectedness_update_index() const { return m_selectedness_update_index; }
 
     String value() const;
     WebIDL::ExceptionOr<void> set_value(String const&);
@@ -46,6 +47,9 @@ private:
 
     virtual void attribute_changed(FlyString const& name, Optional<String> const& old_value, Optional<String> const& value, Optional<FlyString> const& namespace_) override;
 
+    virtual void inserted() override;
+    virtual void removed_from(Node*) override;
+
     void ask_for_a_reset();
 
     // https://html.spec.whatwg.org/multipage/form-elements.html#concept-option-selectedness
@@ -53,6 +57,8 @@ private:
 
     // https://html.spec.whatwg.org/multipage/form-elements.html#concept-option-dirtiness
     bool m_dirty { false };
+
+    u64 m_selectedness_update_index { 0 };
 };
 
 }

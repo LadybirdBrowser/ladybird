@@ -94,7 +94,7 @@ public:
 
     void did_select_item(Optional<u32> const& id);
 
-    void update_selectedness(JS::GCPtr<HTMLOptionElement> last_selected_option = nullptr);
+    void update_selectedness();
 
 private:
     HTMLSelectElement(DOM::Document&, DOM::QualifiedName);
@@ -106,6 +106,8 @@ private:
     virtual i32 default_tab_index_value() const override;
 
     virtual void computed_css_values_changed() override;
+
+    virtual void children_changed() override;
 
     void show_the_picker_if_applicable();
 
