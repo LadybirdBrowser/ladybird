@@ -27,6 +27,7 @@
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Element.h>
 #include <LibWeb/DOM/ElementFactory.h>
+#include <LibWeb/DOM/ShadowRoot.h>
 #include <LibWeb/DOM/Text.h>
 #include <LibWeb/Dump.h>
 #include <LibWeb/HTML/BrowsingContext.h>
@@ -325,9 +326,17 @@ void ConnectionFromClient::debug_request(u64 page_id, ByteString const& request,
 
     if (request == "dump-style-sheets") {
         if (auto* doc = page->page().top_level_browsing_context().active_document()) {
+            dbgln("=== In document: ===");
             for (auto& sheet : doc->style_sheets().sheets()) {
                 Web::dump_sheet(sheet);
             }
+
+            doc->for_each_shadow_root([&](auto& shadow_root) {
+                dbgln("=== In shadow root {}: ===", shadow_root.host()->debug_description());
+                shadow_root.for_each_css_style_sheet([&](auto& sheet) {
+                    Web::dump_sheet(sheet);
+                });
+            });
         }
         return;
     }
