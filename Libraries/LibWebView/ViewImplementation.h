@@ -54,6 +54,8 @@ public:
     void set_window_size(Gfx::IntSize);
     void did_update_window_rect();
 
+    void set_system_visibility_state(Web::HTML::VisibilityState);
+
     void load(URL::URL const&);
     void load_html(StringView);
     void load_empty_document();
@@ -292,6 +294,8 @@ protected:
 
     RefPtr<Core::Promise<LexicalPath>> m_pending_screenshot;
     RefPtr<Core::Promise<String>> m_pending_info_request;
+
+    Web::HTML::VisibilityState m_system_visibility_state { Web::HTML::VisibilityState::Hidden };
 
     Web::HTML::AudioPlayState m_audio_play_state { Web::HTML::AudioPlayState::Paused };
     size_t m_number_of_elements_playing_audio { 0 };

@@ -1,6 +1,6 @@
-#include <LibURL/URL.h>
-#include <LibIPC/File.h>
 #include <LibGfx/Rect.h>
+#include <LibIPC/File.h>
+#include <LibURL/URL.h>
 #include <LibWeb/CSS/PreferredColorScheme.h>
 #include <LibWeb/CSS/PreferredContrast.h>
 #include <LibWeb/CSS/PreferredMotion.h>
@@ -8,6 +8,7 @@
 #include <LibWeb/CSS/StyleSheetIdentifier.h>
 #include <LibWeb/HTML/ColorPickerUpdateState.h>
 #include <LibWeb/HTML/SelectedFile.h>
+#include <LibWeb/HTML/VisibilityState.h>
 #include <LibWeb/Page/InputEvent.h>
 #include <LibWeb/WebDriver/ExecuteScript.h>
 #include <LibWebView/Attribute.h>
@@ -97,7 +98,7 @@ endpoint WebContentServer
 
     handle_file_return(u64 page_id, i32 error, Optional<IPC::File> file, i32 request_id) =|
 
-    set_system_visibility_state(u64 page_id, bool visible) =|
+    set_system_visibility_state(u64 page_id, Web::HTML::VisibilityState visibility_state) =|
 
     alert_closed(u64 page_id) =|
     confirm_closed(u64 page_id, bool accepted) =|

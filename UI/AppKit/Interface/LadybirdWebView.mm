@@ -212,7 +212,9 @@ struct HideCursor {
 
 - (void)handleVisibility:(BOOL)is_visible
 {
-    m_web_view_bridge->set_system_visibility_state(is_visible);
+    m_web_view_bridge->set_system_visibility_state(is_visible
+            ? Web::HTML::VisibilityState::Visible
+            : Web::HTML::VisibilityState::Hidden);
 }
 
 - (void)findInPage:(NSString*)query

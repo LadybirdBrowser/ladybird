@@ -92,6 +92,12 @@ void ViewImplementation::did_update_window_rect()
     client().async_did_update_window_rect(m_client_state.page_index);
 }
 
+void ViewImplementation::set_system_visibility_state(Web::HTML::VisibilityState visibility_state)
+{
+    m_system_visibility_state = visibility_state;
+    client().async_set_system_visibility_state(m_client_state.page_index, m_system_visibility_state);
+}
+
 void ViewImplementation::load(URL::URL const& url)
 {
     m_url = url;
