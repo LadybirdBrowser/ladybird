@@ -20,7 +20,7 @@ JS_DEFINE_ALLOCATOR(AbortSignal);
 
 WebIDL::ExceptionOr<JS::NonnullGCPtr<AbortSignal>> AbortSignal::construct_impl(JS::Realm& realm)
 {
-    return realm.heap().allocate<AbortSignal>(realm, realm);
+    return realm.create<AbortSignal>(realm);
 }
 
 AbortSignal::AbortSignal(JS::Realm& realm)

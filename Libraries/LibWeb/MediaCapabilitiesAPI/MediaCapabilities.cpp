@@ -15,7 +15,7 @@ JS_DEFINE_ALLOCATOR(MediaCapabilities);
 
 JS::NonnullGCPtr<MediaCapabilities> MediaCapabilities::create(JS::Realm& realm)
 {
-    return realm.heap().allocate<MediaCapabilities>(realm, realm);
+    return realm.create<MediaCapabilities>(realm);
 }
 
 MediaCapabilities::MediaCapabilities(JS::Realm& realm)

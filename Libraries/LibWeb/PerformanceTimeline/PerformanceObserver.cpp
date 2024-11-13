@@ -20,7 +20,7 @@ JS_DEFINE_ALLOCATOR(PerformanceObserver);
 
 WebIDL::ExceptionOr<JS::NonnullGCPtr<PerformanceObserver>> PerformanceObserver::construct_impl(JS::Realm& realm, JS::GCPtr<WebIDL::CallbackType> callback)
 {
-    return realm.heap().allocate<PerformanceObserver>(realm, realm, callback);
+    return realm.create<PerformanceObserver>(realm, callback);
 }
 
 PerformanceObserver::PerformanceObserver(JS::Realm& realm, JS::GCPtr<WebIDL::CallbackType> callback)

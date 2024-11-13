@@ -36,7 +36,7 @@ static JS::ThrowCompletionOr<T*> impl_from(JS::VM& vm, StringView Name)
 
 JS::NonnullGCPtr<KeyAlgorithm> KeyAlgorithm::create(JS::Realm& realm)
 {
-    return realm.heap().allocate<KeyAlgorithm>(realm, realm);
+    return realm.create<KeyAlgorithm>(realm);
 }
 
 KeyAlgorithm::KeyAlgorithm(JS::Realm& realm)
@@ -66,7 +66,7 @@ void KeyAlgorithm::visit_edges(Visitor& visitor)
 
 JS::NonnullGCPtr<RsaKeyAlgorithm> RsaKeyAlgorithm::create(JS::Realm& realm)
 {
-    return realm.heap().allocate<RsaKeyAlgorithm>(realm, realm);
+    return realm.create<RsaKeyAlgorithm>(realm);
 }
 
 RsaKeyAlgorithm::RsaKeyAlgorithm(JS::Realm& realm)
@@ -132,7 +132,7 @@ JS_DEFINE_NATIVE_FUNCTION(RsaKeyAlgorithm::public_exponent_getter)
 
 JS::NonnullGCPtr<EcKeyAlgorithm> EcKeyAlgorithm::create(JS::Realm& realm)
 {
-    return realm.heap().allocate<EcKeyAlgorithm>(realm, realm);
+    return realm.create<EcKeyAlgorithm>(realm);
 }
 
 EcKeyAlgorithm::EcKeyAlgorithm(JS::Realm& realm)
@@ -155,7 +155,7 @@ JS_DEFINE_NATIVE_FUNCTION(EcKeyAlgorithm::named_curve_getter)
 
 JS::NonnullGCPtr<RsaHashedKeyAlgorithm> RsaHashedKeyAlgorithm::create(JS::Realm& realm)
 {
-    return realm.heap().allocate<RsaHashedKeyAlgorithm>(realm, realm);
+    return realm.create<RsaHashedKeyAlgorithm>(realm);
 }
 
 RsaHashedKeyAlgorithm::RsaHashedKeyAlgorithm(JS::Realm& realm)
@@ -186,7 +186,7 @@ JS_DEFINE_NATIVE_FUNCTION(RsaHashedKeyAlgorithm::hash_getter)
 
 JS::NonnullGCPtr<AesKeyAlgorithm> AesKeyAlgorithm::create(JS::Realm& realm)
 {
-    return realm.heap().allocate<AesKeyAlgorithm>(realm, realm);
+    return realm.create<AesKeyAlgorithm>(realm);
 }
 
 AesKeyAlgorithm::AesKeyAlgorithm(JS::Realm& realm)

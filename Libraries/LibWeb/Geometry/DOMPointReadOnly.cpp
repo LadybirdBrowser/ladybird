@@ -19,12 +19,12 @@ JS_DEFINE_ALLOCATOR(DOMPointReadOnly);
 
 JS::NonnullGCPtr<DOMPointReadOnly> DOMPointReadOnly::construct_impl(JS::Realm& realm, double x, double y, double z, double w)
 {
-    return realm.heap().allocate<DOMPointReadOnly>(realm, realm, x, y, z, w);
+    return realm.create<DOMPointReadOnly>(realm, x, y, z, w);
 }
 
 JS::NonnullGCPtr<DOMPointReadOnly> DOMPointReadOnly::create(JS::Realm& realm)
 {
-    return realm.heap().allocate<DOMPointReadOnly>(realm, realm);
+    return realm.create<DOMPointReadOnly>(realm);
 }
 
 DOMPointReadOnly::DOMPointReadOnly(JS::Realm& realm, double x, double y, double z, double w)

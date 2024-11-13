@@ -13,7 +13,7 @@ JS_DEFINE_ALLOCATOR(BooleanObject);
 
 NonnullGCPtr<BooleanObject> BooleanObject::create(Realm& realm, bool value)
 {
-    return realm.heap().allocate<BooleanObject>(realm, value, realm.intrinsics().boolean_prototype());
+    return realm.create<BooleanObject>(value, realm.intrinsics().boolean_prototype());
 }
 
 BooleanObject::BooleanObject(bool value, Object& prototype)

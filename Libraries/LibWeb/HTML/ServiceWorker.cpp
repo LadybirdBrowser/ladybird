@@ -22,7 +22,7 @@ ServiceWorker::~ServiceWorker() = default;
 
 JS::NonnullGCPtr<ServiceWorker> ServiceWorker::create(JS::Realm& realm)
 {
-    return realm.heap().allocate<ServiceWorker>(realm, realm, ""_string);
+    return realm.create<ServiceWorker>(realm, ""_string);
 }
 
 void ServiceWorker::initialize(JS::Realm& realm)

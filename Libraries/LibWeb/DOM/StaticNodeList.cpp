@@ -14,7 +14,7 @@ JS_DEFINE_ALLOCATOR(StaticNodeList);
 
 JS::NonnullGCPtr<NodeList> StaticNodeList::create(JS::Realm& realm, Vector<JS::Handle<Node>> static_nodes)
 {
-    return realm.heap().allocate<StaticNodeList>(realm, realm, move(static_nodes));
+    return realm.create<StaticNodeList>(realm, move(static_nodes));
 }
 
 StaticNodeList::StaticNodeList(JS::Realm& realm, Vector<JS::Handle<Node>> static_nodes)

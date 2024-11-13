@@ -585,11 +585,11 @@ ErrorOr<void> initialize_main_thread_vm(HTML::EventLoop::Type type)
             .underlying_realm = realm,
 
             // 7. Set settings's module map to a new module map, initially empty.
-            .module_map = realm.heap().allocate<HTML::ModuleMap>(realm),
+            .module_map = realm.create<HTML::ModuleMap>(),
         };
 
         // 8. Set realm.[[HostDefined]] to settings.
-        realm.set_host_defined(make<Bindings::SyntheticHostDefined>(move(settings), realm.heap().allocate<Bindings::Intrinsics>(realm, realm)));
+        realm.set_host_defined(make<Bindings::SyntheticHostDefined>(move(settings), realm.create<Bindings::Intrinsics>(realm)));
 
         // 9. Set realm.[[GlobalObject]] to globalObject.
         realm.set_global_object(global_object);

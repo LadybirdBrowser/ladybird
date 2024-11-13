@@ -14,7 +14,7 @@ JS_DEFINE_ALLOCATOR(FocusEvent);
 
 JS::NonnullGCPtr<FocusEvent> FocusEvent::create(JS::Realm& realm, FlyString const& event_name, FocusEventInit const& event_init)
 {
-    return realm.heap().allocate<FocusEvent>(realm, realm, event_name, event_init);
+    return realm.create<FocusEvent>(realm, event_name, event_init);
 }
 
 WebIDL::ExceptionOr<JS::NonnullGCPtr<FocusEvent>> FocusEvent::construct_impl(JS::Realm& realm, FlyString const& event_name, FocusEventInit const& event_init)

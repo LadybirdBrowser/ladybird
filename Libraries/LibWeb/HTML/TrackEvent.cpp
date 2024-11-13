@@ -14,7 +14,7 @@ JS_DEFINE_ALLOCATOR(TrackEvent);
 
 JS::NonnullGCPtr<TrackEvent> TrackEvent::create(JS::Realm& realm, FlyString const& event_name, TrackEventInit event_init)
 {
-    return realm.heap().allocate<TrackEvent>(realm, realm, event_name, move(event_init));
+    return realm.create<TrackEvent>(realm, event_name, move(event_init));
 }
 
 WebIDL::ExceptionOr<JS::NonnullGCPtr<TrackEvent>> TrackEvent::construct_impl(JS::Realm& realm, FlyString const& event_name, TrackEventInit event_init)

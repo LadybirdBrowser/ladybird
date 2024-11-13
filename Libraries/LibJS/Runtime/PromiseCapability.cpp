@@ -63,7 +63,7 @@ ThrowCompletionOr<NonnullGCPtr<PromiseCapability>> new_promise_capability(VM& vm
     // 2. NOTE: C is assumed to be a constructor function that supports the parameter conventions of the Promise constructor (see 27.2.3.1).
 
     // 3. Let resolvingFunctions be the Record { [[Resolve]]: undefined, [[Reject]]: undefined }.
-    auto resolving_functions = vm.heap().allocate<ResolvingFunctions>(realm);
+    auto resolving_functions = realm.create<ResolvingFunctions>();
 
     // 4. Let executorClosure be a new Abstract Closure with parameters (resolve, reject) that captures resolvingFunctions and performs the following steps when called:
     auto executor_closure = [resolving_functions](auto& vm) -> ThrowCompletionOr<Value> {

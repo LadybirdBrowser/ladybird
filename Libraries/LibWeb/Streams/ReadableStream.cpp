@@ -28,7 +28,7 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<ReadableStream>> ReadableStream::construct_
 {
     auto& vm = realm.vm();
 
-    auto readable_stream = realm.heap().allocate<ReadableStream>(realm, realm);
+    auto readable_stream = realm.create<ReadableStream>(realm);
 
     // 1. If underlyingSource is missing, set it to null.
     auto underlying_source = underlying_source_object.has_value() ? JS::Value(underlying_source_object.value()) : JS::js_null();

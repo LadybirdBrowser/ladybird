@@ -14,7 +14,7 @@ JS_DEFINE_ALLOCATOR(BufferedChangeEvent);
 
 WebIDL::ExceptionOr<JS::NonnullGCPtr<BufferedChangeEvent>> BufferedChangeEvent::construct_impl(JS::Realm& realm, AK::FlyString const& type, BufferedChangeEventInit const& event_init)
 {
-    return realm.heap().allocate<BufferedChangeEvent>(realm, realm, type, event_init);
+    return realm.create<BufferedChangeEvent>(realm, type, event_init);
 }
 
 BufferedChangeEvent::BufferedChangeEvent(JS::Realm& realm, AK::FlyString const& type, BufferedChangeEventInit const&)

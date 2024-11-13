@@ -53,7 +53,7 @@ JS::ThrowCompletionOr<JS::GCPtr<WebGLRenderingContext>> WebGLRenderingContext::c
         return JS::GCPtr<WebGLRenderingContext> { nullptr };
     }
 
-    return realm.heap().allocate<WebGLRenderingContext>(realm, realm, canvas_element, context.release_nonnull(), context_attributes, context_attributes);
+    return realm.create<WebGLRenderingContext>(realm, canvas_element, context.release_nonnull(), context_attributes, context_attributes);
 }
 
 WebGLRenderingContext::WebGLRenderingContext(JS::Realm& realm, HTML::HTMLCanvasElement& canvas_element, NonnullOwnPtr<OpenGLContext> context, WebGLContextAttributes context_creation_parameters, WebGLContextAttributes actual_context_parameters)

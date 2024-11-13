@@ -15,7 +15,7 @@ JS_DEFINE_ALLOCATOR(IDBVersionChangeEvent);
 
 JS::NonnullGCPtr<IDBVersionChangeEvent> IDBVersionChangeEvent::create(JS::Realm& realm, FlyString const& event_name, IDBVersionChangeEventInit const& event_init)
 {
-    return realm.heap().allocate<IDBVersionChangeEvent>(realm, realm, event_name, event_init);
+    return realm.create<IDBVersionChangeEvent>(realm, event_name, event_init);
 }
 
 IDBVersionChangeEvent::IDBVersionChangeEvent(JS::Realm& realm, FlyString const& event_name, IDBVersionChangeEventInit const& event_init)

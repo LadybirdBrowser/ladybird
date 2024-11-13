@@ -99,7 +99,7 @@ private:
 
 JS::NonnullGCPtr<Window> Window::create(JS::Realm& realm)
 {
-    return realm.heap().allocate<Window>(realm, realm);
+    return realm.create<Window>(realm);
 }
 
 Window::Window(JS::Realm& realm)
@@ -642,11 +642,11 @@ Vector<JS::NonnullGCPtr<Plugin>> Window::pdf_viewer_plugin_objects()
 
     if (m_pdf_viewer_plugin_objects.is_empty()) {
         // FIXME: Propagate errors.
-        m_pdf_viewer_plugin_objects.append(realm().heap().allocate<Plugin>(realm(), realm(), "PDF Viewer"_string));
-        m_pdf_viewer_plugin_objects.append(realm().heap().allocate<Plugin>(realm(), realm(), "Chrome PDF Viewer"_string));
-        m_pdf_viewer_plugin_objects.append(realm().heap().allocate<Plugin>(realm(), realm(), "Chromium PDF Viewer"_string));
-        m_pdf_viewer_plugin_objects.append(realm().heap().allocate<Plugin>(realm(), realm(), "Microsoft Edge PDF Viewer"_string));
-        m_pdf_viewer_plugin_objects.append(realm().heap().allocate<Plugin>(realm(), realm(), "WebKit built-in PDF"_string));
+        m_pdf_viewer_plugin_objects.append(realm().create<Plugin>(realm(), "PDF Viewer"_string));
+        m_pdf_viewer_plugin_objects.append(realm().create<Plugin>(realm(), "Chrome PDF Viewer"_string));
+        m_pdf_viewer_plugin_objects.append(realm().create<Plugin>(realm(), "Chromium PDF Viewer"_string));
+        m_pdf_viewer_plugin_objects.append(realm().create<Plugin>(realm(), "Microsoft Edge PDF Viewer"_string));
+        m_pdf_viewer_plugin_objects.append(realm().create<Plugin>(realm(), "WebKit built-in PDF"_string));
     }
 
     return m_pdf_viewer_plugin_objects;
@@ -664,8 +664,8 @@ Vector<JS::NonnullGCPtr<MimeType>> Window::pdf_viewer_mime_type_objects()
         return {};
 
     if (m_pdf_viewer_mime_type_objects.is_empty()) {
-        m_pdf_viewer_mime_type_objects.append(realm().heap().allocate<MimeType>(realm(), realm(), "application/pdf"_string));
-        m_pdf_viewer_mime_type_objects.append(realm().heap().allocate<MimeType>(realm(), realm(), "text/pdf"_string));
+        m_pdf_viewer_mime_type_objects.append(realm().create<MimeType>(realm(), "application/pdf"_string));
+        m_pdf_viewer_mime_type_objects.append(realm().create<MimeType>(realm(), "text/pdf"_string));
     }
 
     return m_pdf_viewer_mime_type_objects;
@@ -687,7 +687,7 @@ JS::NonnullGCPtr<WebIDL::CallbackType> Window::count_queuing_strategy_size_funct
         auto function = JS::NativeFunction::create(realm, move(steps), 0, "size", &realm);
 
         // 3. Set globalObject’s count queuing strategy size function to a Function that represents a reference to F, with callback context equal to globalObject’s relevant settings object.
-        m_count_queuing_strategy_size_function = heap().allocate<WebIDL::CallbackType>(realm, *function, relevant_settings_object(*this));
+        m_count_queuing_strategy_size_function = realm.create<WebIDL::CallbackType>(*function, relevant_settings_object(*this));
     }
 
     return JS::NonnullGCPtr { *m_count_queuing_strategy_size_function };
@@ -711,7 +711,7 @@ JS::NonnullGCPtr<WebIDL::CallbackType> Window::byte_length_queuing_strategy_size
         auto function = JS::NativeFunction::create(realm, move(steps), 1, "size", &realm);
 
         // 3. Set globalObject’s byte length queuing strategy size function to a Function that represents a reference to F, with callback context equal to globalObject’s relevant settings object.
-        m_byte_length_queuing_strategy_size_function = heap().allocate<WebIDL::CallbackType>(realm, *function, relevant_settings_object(*this));
+        m_byte_length_queuing_strategy_size_function = realm.create<WebIDL::CallbackType>(*function, relevant_settings_object(*this));
     }
 
     return JS::NonnullGCPtr { *m_byte_length_queuing_strategy_size_function };
@@ -741,9 +741,9 @@ WebIDL::ExceptionOr<void> Window::initialize_web_interfaces(Badge<WindowEnvironm
     WindowOrWorkerGlobalScopeMixin::initialize(realm);
 
     if (s_inspector_object_exposed)
-        define_direct_property("inspector", heap().allocate<Internals::Inspector>(realm, realm), JS::default_attributes);
+        define_direct_property("inspector", realm.create<Internals::Inspector>(realm), JS::default_attributes);
     if (s_internals_object_exposed)
-        define_direct_property("internals", heap().allocate<Internals::Internals>(realm, realm), JS::default_attributes);
+        define_direct_property("internals", realm.create<Internals::Internals>(realm), JS::default_attributes);
 
     return {};
 }
@@ -878,7 +878,7 @@ JS::NonnullGCPtr<Location> Window::location()
 
     // The Window object's location getter steps are to return this's Location object.
     if (!m_location)
-        m_location = heap().allocate<Location>(realm, realm);
+        m_location = realm.create<Location>(realm);
     return JS::NonnullGCPtr { *m_location };
 }
 
@@ -1033,7 +1033,7 @@ JS::NonnullGCPtr<Navigator> Window::navigator()
 
     // The navigator and clientInformation getter steps are to return this's associated Navigator.
     if (!m_navigator)
-        m_navigator = heap().allocate<Navigator>(realm, realm);
+        m_navigator = realm.create<Navigator>(realm);
     return JS::NonnullGCPtr { *m_navigator };
 }
 
@@ -1043,7 +1043,7 @@ JS::NonnullGCPtr<CloseWatcherManager> Window::close_watcher_manager()
     auto& realm = this->realm();
 
     if (!m_close_watcher_manager)
-        m_close_watcher_manager = heap().allocate<CloseWatcherManager>(realm, realm);
+        m_close_watcher_manager = realm.create<CloseWatcherManager>(realm);
     return JS::NonnullGCPtr { *m_close_watcher_manager };
 }
 
@@ -1222,7 +1222,7 @@ JS::NonnullGCPtr<CSS::CSSStyleDeclaration> Window::get_computed_style(DOM::Eleme
 
     // AD-HOC: Just return a ResolvedCSSStyleDeclaration because that's what we have for now.
     // FIXME: Implement CSSStyleProperties, and then follow the rest of these steps instead.
-    return heap().allocate<CSS::ResolvedCSSStyleDeclaration>(realm(), element, obj_pseudo);
+    return realm().create<CSS::ResolvedCSSStyleDeclaration>(element, obj_pseudo);
 
     // 4. Let decls be an empty list of CSS declarations.
 
@@ -1253,7 +1253,7 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<CSS::MediaQueryList>> Window::match_media(S
     auto parsed_media_query_list = parse_media_query_list(CSS::Parser::ParsingContext(associated_document()), query);
 
     // 2. Return a new MediaQueryList object, with this's associated Document as the document, with parsed media query list as its associated media query list.
-    auto media_query_list = heap().allocate<CSS::MediaQueryList>(realm(), associated_document(), move(parsed_media_query_list));
+    auto media_query_list = realm().create<CSS::MediaQueryList>(associated_document(), move(parsed_media_query_list));
     associated_document().add_media_query_list(media_query_list);
     return media_query_list;
 }
@@ -1263,7 +1263,7 @@ JS::NonnullGCPtr<CSS::Screen> Window::screen()
 {
     // The screen attribute must return the Screen object associated with the Window object.
     if (!m_screen)
-        m_screen = heap().allocate<CSS::Screen>(realm(), *this);
+        m_screen = realm().create<CSS::Screen>(*this);
     return JS::NonnullGCPtr { *m_screen };
 }
 
@@ -1568,7 +1568,7 @@ void Window::cancel_animation_frame(WebIDL::UnsignedLong handle)
 AnimationFrameCallbackDriver& Window::animation_frame_callback_driver()
 {
     if (!m_animation_frame_callback_driver)
-        m_animation_frame_callback_driver = heap().allocate<AnimationFrameCallbackDriver>(realm());
+        m_animation_frame_callback_driver = realm().create<AnimationFrameCallbackDriver>();
     return *m_animation_frame_callback_driver;
 }
 
@@ -1649,7 +1649,7 @@ JS::NonnullGCPtr<Navigation> Window::navigation()
     // to a new Navigation object created in the Window object's relevant realm.
     if (!m_navigation) {
         auto& realm = relevant_realm(*this);
-        m_navigation = heap().allocate<Navigation>(realm, realm);
+        m_navigation = realm.create<Navigation>(realm);
     }
 
     // The navigation getter steps are to return this's navigation API.
@@ -1663,7 +1663,7 @@ JS::NonnullGCPtr<CustomElementRegistry> Window::custom_elements()
 
     // The customElements attribute of the Window interface must return the CustomElementRegistry object for that Window object.
     if (!m_custom_element_registry)
-        m_custom_element_registry = heap().allocate<CustomElementRegistry>(realm, realm);
+        m_custom_element_registry = realm.create<CustomElementRegistry>(realm);
     return JS::NonnullGCPtr { *m_custom_element_registry };
 }
 

@@ -23,7 +23,7 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<WritableStream>> WritableStream::construct_
 {
     auto& vm = realm.vm();
 
-    auto writable_stream = realm.heap().allocate<WritableStream>(realm, realm);
+    auto writable_stream = realm.create<WritableStream>(realm);
 
     // 1. If underlyingSink is missing, set it to null.
     auto underlying_sink = underlying_sink_object.has_value() ? JS::Value(underlying_sink_object.value()) : JS::js_null();

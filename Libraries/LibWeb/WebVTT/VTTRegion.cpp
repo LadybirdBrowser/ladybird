@@ -16,7 +16,7 @@ JS_DEFINE_ALLOCATOR(VTTRegion);
 WebIDL::ExceptionOr<JS::NonnullGCPtr<VTTRegion>> VTTRegion::construct_impl(JS::Realm& realm)
 {
     // 1. Create a new WebVTT region. Let region be that WebVTT region.
-    auto region = realm.heap().allocate<VTTRegion>(realm, realm);
+    auto region = realm.create<VTTRegion>(realm);
 
     // 2. Let region’s WebVTT region identifier be the empty string.
     region->m_identifier = ""_string;

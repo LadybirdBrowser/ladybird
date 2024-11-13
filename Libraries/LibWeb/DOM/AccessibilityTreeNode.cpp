@@ -16,7 +16,7 @@ JS_DEFINE_ALLOCATOR(AccessibilityTreeNode);
 
 JS::NonnullGCPtr<AccessibilityTreeNode> AccessibilityTreeNode::create(Document* document, DOM::Node const* value)
 {
-    return document->heap().allocate<AccessibilityTreeNode>(document->realm(), value);
+    return document->realm().create<AccessibilityTreeNode>(value);
 }
 
 AccessibilityTreeNode::AccessibilityTreeNode(JS::GCPtr<DOM::Node const> value)

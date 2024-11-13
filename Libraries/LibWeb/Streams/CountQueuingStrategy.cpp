@@ -19,7 +19,7 @@ JS::NonnullGCPtr<CountQueuingStrategy> CountQueuingStrategy::construct_impl(JS::
 {
     // The new CountQueuingStrategy(init) constructor steps are:
     // 1. Set this.[[highWaterMark]] to init["highWaterMark"].
-    return realm.heap().allocate<CountQueuingStrategy>(realm, realm, init.high_water_mark);
+    return realm.create<CountQueuingStrategy>(realm, init.high_water_mark);
 }
 
 CountQueuingStrategy::CountQueuingStrategy(JS::Realm& realm, double high_water_mark)

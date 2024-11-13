@@ -30,7 +30,7 @@ ThrowCompletionOr<NonnullGCPtr<GeneratorObject>> GeneratorObject::create(Realm& 
         generating_function_prototype = TRY(generating_function->get(vm.names.prototype));
     }
     auto generating_function_prototype_object = TRY(generating_function_prototype.to_object(vm));
-    auto object = realm.heap().allocate<GeneratorObject>(realm, realm, generating_function_prototype_object, move(execution_context));
+    auto object = realm.create<GeneratorObject>(realm, generating_function_prototype_object, move(execution_context));
     object->m_generating_function = generating_function;
     object->m_previous_value = initial_value;
     return object;

@@ -13,7 +13,7 @@ JS_DEFINE_ALLOCATOR(ArrayIterator);
 
 NonnullGCPtr<ArrayIterator> ArrayIterator::create(Realm& realm, Value array, Object::PropertyKind iteration_kind)
 {
-    return realm.heap().allocate<ArrayIterator>(realm, array, iteration_kind, realm.intrinsics().array_iterator_prototype());
+    return realm.create<ArrayIterator>(array, iteration_kind, realm.intrinsics().array_iterator_prototype());
 }
 
 ArrayIterator::ArrayIterator(Value array, Object::PropertyKind iteration_kind, Object& prototype)

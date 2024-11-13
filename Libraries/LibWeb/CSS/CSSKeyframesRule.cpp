@@ -16,7 +16,7 @@ JS_DEFINE_ALLOCATOR(CSSKeyframesRule);
 
 JS::NonnullGCPtr<CSSKeyframesRule> CSSKeyframesRule::create(JS::Realm& realm, FlyString name, JS::NonnullGCPtr<CSSRuleList> css_rules)
 {
-    return realm.heap().allocate<CSSKeyframesRule>(realm, realm, move(name), move(css_rules));
+    return realm.create<CSSKeyframesRule>(realm, move(name), move(css_rules));
 }
 
 CSSKeyframesRule::CSSKeyframesRule(JS::Realm& realm, FlyString name, JS::NonnullGCPtr<CSSRuleList> keyframes)

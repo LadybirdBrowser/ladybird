@@ -36,12 +36,12 @@ void SVGUseElement::initialize(JS::Realm& realm)
     WEB_SET_PROTOTYPE_FOR_INTERFACE(SVGUseElement);
 
     // The shadow tree is open (inspectable by script), but read-only.
-    auto shadow_root = heap().allocate<DOM::ShadowRoot>(realm, document(), *this, Bindings::ShadowRootMode::Open);
+    auto shadow_root = realm.create<DOM::ShadowRoot>(document(), *this, Bindings::ShadowRootMode::Open);
 
     // The user agent must create a use-element shadow tree whose host is the ‘use’ element itself
     set_shadow_root(shadow_root);
 
-    m_document_observer = realm.heap().allocate<DOM::DocumentObserver>(realm, realm, document());
+    m_document_observer = realm.create<DOM::DocumentObserver>(realm, document());
     m_document_observer->set_document_completely_loaded([this]() {
         clone_element_tree_as_our_shadow_tree(referenced_element());
     });

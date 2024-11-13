@@ -23,7 +23,7 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<TransformStream>> TransformStream::construc
 {
     auto& vm = realm.vm();
 
-    auto stream = realm.heap().allocate<TransformStream>(realm, realm);
+    auto stream = realm.create<TransformStream>(realm);
 
     // 1. If transformer is missing, set it to null.
     auto transformer = transformer_object.has_value() ? JS::Value { transformer_object.value() } : JS::js_null();

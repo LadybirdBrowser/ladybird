@@ -15,7 +15,7 @@ JS_DEFINE_ALLOCATOR(DOMStringList);
 
 JS::NonnullGCPtr<DOMStringList> DOMStringList::create(JS::Realm& realm, Vector<String> list)
 {
-    return realm.heap().allocate<DOMStringList>(realm, realm, list);
+    return realm.create<DOMStringList>(realm, list);
 }
 
 DOMStringList::DOMStringList(JS::Realm& realm, Vector<String> list)

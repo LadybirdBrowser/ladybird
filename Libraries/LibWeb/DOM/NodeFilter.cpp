@@ -15,7 +15,7 @@ JS_DEFINE_ALLOCATOR(NodeFilter);
 
 JS::NonnullGCPtr<NodeFilter> NodeFilter::create(JS::Realm& realm, WebIDL::CallbackType& callback)
 {
-    return realm.heap().allocate<NodeFilter>(realm, realm, callback);
+    return realm.create<NodeFilter>(realm, callback);
 }
 
 NodeFilter::NodeFilter(JS::Realm& realm, WebIDL::CallbackType& callback)

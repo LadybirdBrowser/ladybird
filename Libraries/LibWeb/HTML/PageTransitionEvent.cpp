@@ -14,7 +14,7 @@ JS_DEFINE_ALLOCATOR(PageTransitionEvent);
 
 JS::NonnullGCPtr<PageTransitionEvent> PageTransitionEvent::create(JS::Realm& realm, FlyString const& event_name, PageTransitionEventInit const& event_init)
 {
-    return realm.heap().allocate<PageTransitionEvent>(realm, realm, event_name, event_init);
+    return realm.create<PageTransitionEvent>(realm, event_name, event_init);
 }
 
 WebIDL::ExceptionOr<JS::NonnullGCPtr<PageTransitionEvent>> PageTransitionEvent::construct_impl(JS::Realm& realm, FlyString const& event_name, PageTransitionEventInit const& event_init)

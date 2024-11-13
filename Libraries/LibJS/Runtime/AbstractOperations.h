@@ -147,7 +147,7 @@ ThrowCompletionOr<NonnullGCPtr<T>> ordinary_create_from_constructor(VM& vm, Func
 {
     auto& realm = *vm.current_realm();
     auto* prototype = TRY(get_prototype_from_constructor(vm, constructor, intrinsic_default_prototype));
-    return realm.heap().allocate<T>(realm, forward<Args>(args)..., *prototype);
+    return realm.create<T>(forward<Args>(args)..., *prototype);
 }
 
 // 14.1 MergeLists ( a, b ), https://tc39.es/proposal-temporal/#sec-temporal-mergelists

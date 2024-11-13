@@ -14,7 +14,7 @@ JS_DEFINE_ALLOCATOR(BeforeUnloadEvent);
 
 JS::NonnullGCPtr<BeforeUnloadEvent> BeforeUnloadEvent::create(JS::Realm& realm, FlyString const& event_name, DOM::EventInit const& event_init)
 {
-    return realm.heap().allocate<BeforeUnloadEvent>(realm, realm, event_name, event_init);
+    return realm.create<BeforeUnloadEvent>(realm, event_name, event_init);
 }
 
 BeforeUnloadEvent::BeforeUnloadEvent(JS::Realm& realm, FlyString const& event_name, DOM::EventInit const& event_init)

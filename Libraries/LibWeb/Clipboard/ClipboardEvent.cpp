@@ -15,7 +15,7 @@ JS_DEFINE_ALLOCATOR(ClipboardEvent);
 
 JS::NonnullGCPtr<ClipboardEvent> ClipboardEvent::construct_impl(JS::Realm& realm, FlyString const& event_name, ClipboardEventInit const& event_init)
 {
-    return realm.heap().allocate<ClipboardEvent>(realm, realm, event_name, event_init);
+    return realm.create<ClipboardEvent>(realm, event_name, event_init);
 }
 
 ClipboardEvent::ClipboardEvent(JS::Realm& realm, FlyString const& event_name, ClipboardEventInit const& event_init)

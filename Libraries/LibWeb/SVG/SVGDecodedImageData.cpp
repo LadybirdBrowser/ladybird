@@ -63,7 +63,7 @@ ErrorOr<JS::NonnullGCPtr<SVGDecodedImageData>> SVGDecodedImageData::create(JS::R
 
     MUST(document->append_child(*svg_root));
 
-    return realm.heap().allocate<SVGDecodedImageData>(realm, page, page_client, document, *svg_root);
+    return realm.create<SVGDecodedImageData>(page, page_client, document, *svg_root);
 }
 
 SVGDecodedImageData::SVGDecodedImageData(JS::NonnullGCPtr<Page> page, JS::NonnullGCPtr<SVGPageClient> page_client, JS::NonnullGCPtr<DOM::Document> document, JS::NonnullGCPtr<SVG::SVGSVGElement> root_element)

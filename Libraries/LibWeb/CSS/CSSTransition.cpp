@@ -24,7 +24,7 @@ JS::NonnullGCPtr<CSSTransition> CSSTransition::start_a_transition(DOM::Element& 
     NonnullRefPtr<CSSStyleValue const> reversing_adjusted_start_value, double reversing_shortening_factor)
 {
     auto& realm = element.realm();
-    return realm.heap().allocate<CSSTransition>(realm, realm, element, property_id, transition_generation, start_time, end_time, start_value, end_value, reversing_adjusted_start_value, reversing_shortening_factor);
+    return realm.create<CSSTransition>(realm, element, property_id, transition_generation, start_time, end_time, start_value, end_value, reversing_adjusted_start_value, reversing_shortening_factor);
 }
 
 Animations::AnimationClass CSSTransition::animation_class() const

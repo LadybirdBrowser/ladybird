@@ -15,7 +15,7 @@ JS_DEFINE_ALLOCATOR(SVGTransformList);
 
 JS::NonnullGCPtr<SVGTransformList> SVGTransformList::create(JS::Realm& realm)
 {
-    return realm.heap().allocate<SVGTransformList>(realm, realm);
+    return realm.create<SVGTransformList>(realm);
 }
 
 SVGTransformList::~SVGTransformList() = default;

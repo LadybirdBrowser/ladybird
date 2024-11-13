@@ -12,7 +12,7 @@ JS_DEFINE_ALLOCATOR(DataView);
 
 NonnullGCPtr<DataView> DataView::create(Realm& realm, ArrayBuffer* viewed_buffer, ByteLength byte_length, size_t byte_offset)
 {
-    return realm.heap().allocate<DataView>(realm, viewed_buffer, move(byte_length), byte_offset, realm.intrinsics().data_view_prototype());
+    return realm.create<DataView>(viewed_buffer, move(byte_length), byte_offset, realm.intrinsics().data_view_prototype());
 }
 
 DataView::DataView(ArrayBuffer* viewed_buffer, ByteLength byte_length, size_t byte_offset, Object& prototype)

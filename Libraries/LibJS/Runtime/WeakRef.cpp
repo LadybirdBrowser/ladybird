@@ -12,12 +12,12 @@ JS_DEFINE_ALLOCATOR(WeakRef);
 
 NonnullGCPtr<WeakRef> WeakRef::create(Realm& realm, Object& value)
 {
-    return realm.heap().allocate<WeakRef>(realm, value, realm.intrinsics().weak_ref_prototype());
+    return realm.create<WeakRef>(value, realm.intrinsics().weak_ref_prototype());
 }
 
 NonnullGCPtr<WeakRef> WeakRef::create(Realm& realm, Symbol& value)
 {
-    return realm.heap().allocate<WeakRef>(realm, value, realm.intrinsics().weak_ref_prototype());
+    return realm.create<WeakRef>(value, realm.intrinsics().weak_ref_prototype());
 }
 
 WeakRef::WeakRef(Object& value, Object& prototype)

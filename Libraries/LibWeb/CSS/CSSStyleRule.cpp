@@ -18,7 +18,7 @@ JS_DEFINE_ALLOCATOR(CSSStyleRule);
 
 JS::NonnullGCPtr<CSSStyleRule> CSSStyleRule::create(JS::Realm& realm, SelectorList&& selectors, PropertyOwningCSSStyleDeclaration& declaration, CSSRuleList& nested_rules)
 {
-    return realm.heap().allocate<CSSStyleRule>(realm, realm, move(selectors), declaration, nested_rules);
+    return realm.create<CSSStyleRule>(realm, move(selectors), declaration, nested_rules);
 }
 
 CSSStyleRule::CSSStyleRule(JS::Realm& realm, SelectorList&& selectors, PropertyOwningCSSStyleDeclaration& declaration, CSSRuleList& nested_rules)

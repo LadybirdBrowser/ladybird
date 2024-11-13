@@ -28,7 +28,7 @@ AudioListener::AudioListener(JS::Realm& realm)
 
 JS::NonnullGCPtr<AudioListener> AudioListener::create(JS::Realm& realm)
 {
-    return realm.vm().heap().allocate<AudioListener>(realm, realm);
+    return realm.create<AudioListener>(realm);
 }
 
 AudioListener::~AudioListener() = default;

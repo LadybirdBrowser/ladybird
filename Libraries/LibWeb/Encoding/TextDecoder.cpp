@@ -44,7 +44,7 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<TextDecoder>> TextDecoder::construct_impl(J
     auto decoder = TextCodec::decoder_for_exact_name(encoding.value());
     VERIFY(decoder.has_value());
 
-    return realm.heap().allocate<TextDecoder>(realm, realm, *decoder, lowercase_encoding_name, fatal, ignore_bom);
+    return realm.create<TextDecoder>(realm, *decoder, lowercase_encoding_name, fatal, ignore_bom);
 }
 
 // https://encoding.spec.whatwg.org/#dom-textdecoder

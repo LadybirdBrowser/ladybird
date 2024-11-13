@@ -40,7 +40,7 @@ WebIDL::ExceptionOr<JS::GCPtr<JavaScriptModuleScript>> JavaScriptModuleScript::c
     // 2. Let script be a new module script that this algorithm will subsequently initialize.
     // 3. Set script's realm to realm.
     // 4. Set script's base URL to baseURL.
-    auto script = realm.heap().allocate<JavaScriptModuleScript>(realm, move(base_url), filename, realm);
+    auto script = realm.create<JavaScriptModuleScript>(move(base_url), filename, realm);
 
     // FIXME: 5. Set script's fetch options to options.
 

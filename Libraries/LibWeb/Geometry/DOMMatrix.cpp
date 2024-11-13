@@ -25,7 +25,7 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<DOMMatrix>> DOMMatrix::construct_impl(JS::R
     // -> If init is omitted
     if (!init.has_value()) {
         // Return the result of invoking create a 2d matrix of type DOMMatrixReadOnly or DOMMatrix as appropriate, with the sequence [1, 0, 0, 1, 0, 0].
-        return realm.heap().allocate<DOMMatrix>(realm, realm, 1, 0, 0, 1, 0, 0);
+        return realm.create<DOMMatrix>(realm, 1, 0, 0, 1, 0, 0);
     }
 
     auto const& init_value = init.value();
@@ -43,11 +43,11 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<DOMMatrix>> DOMMatrix::construct_impl(JS::R
         // If 2dTransform is true
         if (result.is_2d_transform) {
             // Return the result of invoking create a 2d matrix of type DOMMatrixReadOnly or DOMMatrix as appropriate, with a sequence of numbers, the values being the elements m11, m12, m21, m22, m41 and m42 of matrix.
-            return realm.heap().allocate<DOMMatrix>(realm, realm, elements[0][0], elements[1][0], elements[0][1], elements[1][1], elements[0][3], elements[1][3]);
+            return realm.create<DOMMatrix>(realm, elements[0][0], elements[1][0], elements[0][1], elements[1][1], elements[0][3], elements[1][3]);
         }
 
         // Otherwise, return the result of invoking create a 3d matrix of type DOMMatrixReadOnly or DOMMatrix as appropriate, with a sequence of numbers, the values being the 16 elements of matrix.
-        return realm.heap().allocate<DOMMatrix>(realm, realm,
+        return realm.create<DOMMatrix>(realm,
             elements[0][0], elements[1][0], elements[2][0], elements[3][0],
             elements[0][1], elements[1][1], elements[2][1], elements[3][1],
             elements[0][2], elements[1][2], elements[2][2], elements[3][2],
@@ -59,13 +59,13 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<DOMMatrix>> DOMMatrix::construct_impl(JS::R
     // -> If init is a sequence with 6 elements
     if (double_sequence.size() == 6) {
         // Return the result of invoking create a 2d matrix of type DOMMatrixReadOnly or DOMMatrix as appropriate, with the sequence init.
-        return realm.heap().allocate<DOMMatrix>(realm, realm, double_sequence[0], double_sequence[1], double_sequence[2], double_sequence[3], double_sequence[4], double_sequence[5]);
+        return realm.create<DOMMatrix>(realm, double_sequence[0], double_sequence[1], double_sequence[2], double_sequence[3], double_sequence[4], double_sequence[5]);
     }
 
     // -> If init is a sequence with 16 elements
     if (double_sequence.size() == 16) {
         // Return the result of invoking create a 3d matrix of type DOMMatrixReadOnly or DOMMatrix as appropriate, with the sequence init.
-        return realm.heap().allocate<DOMMatrix>(realm, realm,
+        return realm.create<DOMMatrix>(realm,
             double_sequence[0], double_sequence[1], double_sequence[2], double_sequence[3],
             double_sequence[4], double_sequence[5], double_sequence[6], double_sequence[7],
             double_sequence[8], double_sequence[9], double_sequence[10], double_sequence[11],
@@ -92,7 +92,7 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<DOMMatrix>> DOMMatrix::create_from_dom_matr
 
     // 2. Return the result of invoking create a 2d matrix of type DOMMatrixReadOnly or DOMMatrix as appropriate, with a sequence of numbers,
     //    the values being the 6 elements m11, m12, m21, m22, m41 and m42 of other in the given order.
-    return realm.heap().allocate<DOMMatrix>(realm, realm, init.m11.value(), init.m12.value(), init.m21.value(), init.m22.value(), init.m41.value(), init.m42.value());
+    return realm.create<DOMMatrix>(realm, init.m11.value(), init.m12.value(), init.m21.value(), init.m22.value(), init.m41.value(), init.m42.value());
 }
 
 // https://drafts.fxtf.org/geometry/#create-a-dommatrix-from-the-dictionary
@@ -104,11 +104,11 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<DOMMatrix>> DOMMatrix::create_from_dom_matr
     // 2. If the is2D dictionary member of other is true.
     if (init.is2d.has_value() && init.is2d.value()) {
         // Return the result of invoking create a 2d matrix of type DOMMatrixReadOnly or DOMMatrix as appropriate, with a sequence of numbers, the values being the 6 elements m11, m12, m21, m22, m41 and m42 of other in the given order.
-        return realm.heap().allocate<DOMMatrix>(realm, realm, init.m11.value(), init.m12.value(), init.m21.value(), init.m22.value(), init.m41.value(), init.m42.value());
+        return realm.create<DOMMatrix>(realm, init.m11.value(), init.m12.value(), init.m21.value(), init.m22.value(), init.m41.value(), init.m42.value());
     }
 
     // Otherwise, Return the result of invoking create a 3d matrix of type DOMMatrixReadOnly or DOMMatrix as appropriate, with a sequence of numbers, the values being the 16 elements m11, m12, m13, ..., m44 of other in the given order.
-    return realm.heap().allocate<DOMMatrix>(realm, realm, init.m11.value(), init.m12.value(), init.m13, init.m14,
+    return realm.create<DOMMatrix>(realm, init.m11.value(), init.m12.value(), init.m13, init.m14,
         init.m21.value(), init.m22.value(), init.m23, init.m24,
         init.m31, init.m32, init.m33, init.m34,
         init.m41.value(), init.m42.value(), init.m43, init.m44);
@@ -116,12 +116,12 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<DOMMatrix>> DOMMatrix::create_from_dom_matr
 
 JS::NonnullGCPtr<DOMMatrix> DOMMatrix::create_from_dom_matrix_read_only(JS::Realm& realm, DOMMatrixReadOnly const& read_only_matrix)
 {
-    return realm.heap().allocate<DOMMatrix>(realm, realm, read_only_matrix);
+    return realm.create<DOMMatrix>(realm, read_only_matrix);
 }
 
 JS::NonnullGCPtr<DOMMatrix> DOMMatrix::create(JS::Realm& realm)
 {
-    return realm.heap().allocate<DOMMatrix>(realm, realm);
+    return realm.create<DOMMatrix>(realm);
 }
 
 DOMMatrix::DOMMatrix(JS::Realm& realm, double m11, double m12, double m21, double m22, double m41, double m42)
@@ -170,11 +170,11 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<DOMMatrix>> DOMMatrix::from_float32_array(J
 
     // If array32 has 6 elements, return the result of invoking create a 2d matrix of type DOMMatrixReadOnly or DOMMatrix as appropriate, with a sequence of numbers taking the values from array32 in the provided order.
     if (elements.size() == 6)
-        return realm.heap().allocate<DOMMatrix>(realm, realm, elements.at(0), elements.at(1), elements.at(2), elements.at(3), elements.at(4), elements.at(5));
+        return realm.create<DOMMatrix>(realm, elements.at(0), elements.at(1), elements.at(2), elements.at(3), elements.at(4), elements.at(5));
 
     // If array32 has 16 elements, return the result of invoking create a 3d matrix of type DOMMatrixReadOnly or DOMMatrix as appropriate, with a sequence of numbers taking the values from array32 in the provided order.
     if (elements.size() == 16)
-        return realm.heap().allocate<DOMMatrix>(realm, realm, elements.at(0), elements.at(1), elements.at(2), elements.at(3),
+        return realm.create<DOMMatrix>(realm, elements.at(0), elements.at(1), elements.at(2), elements.at(3),
             elements.at(4), elements.at(5), elements.at(6), elements.at(7),
             elements.at(8), elements.at(9), elements.at(10), elements.at(11),
             elements.at(12), elements.at(13), elements.at(14), elements.at(15));
@@ -195,11 +195,11 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<DOMMatrix>> DOMMatrix::from_float64_array(J
 
     // If array64 has 6 elements, return the result of invoking create a 2d matrix of type DOMMatrixReadOnly or DOMMatrix as appropriate, with a sequence of numbers taking the values from array64 in the provided order.
     if (elements.size() == 6)
-        return realm.heap().allocate<DOMMatrix>(realm, realm, elements.at(0), elements.at(1), elements.at(2), elements.at(3), elements.at(4), elements.at(5));
+        return realm.create<DOMMatrix>(realm, elements.at(0), elements.at(1), elements.at(2), elements.at(3), elements.at(4), elements.at(5));
 
     // If array64 has 16 elements, return the result of invoking create a 3d matrix of type DOMMatrixReadOnly or DOMMatrix as appropriate, with a sequence of numbers taking the values from array64 in the provided order.
     if (elements.size() == 16)
-        return realm.heap().allocate<DOMMatrix>(realm, realm, elements.at(0), elements.at(1), elements.at(2), elements.at(3),
+        return realm.create<DOMMatrix>(realm, elements.at(0), elements.at(1), elements.at(2), elements.at(3),
             elements.at(4), elements.at(5), elements.at(6), elements.at(7),
             elements.at(8), elements.at(9), elements.at(10), elements.at(11),
             elements.at(12), elements.at(13), elements.at(14), elements.at(15));

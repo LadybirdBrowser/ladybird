@@ -16,7 +16,7 @@ JS_DEFINE_ALLOCATOR(CSSMediaRule);
 
 JS::NonnullGCPtr<CSSMediaRule> CSSMediaRule::create(JS::Realm& realm, MediaList& media_queries, CSSRuleList& rules)
 {
-    return realm.heap().allocate<CSSMediaRule>(realm, realm, media_queries, rules);
+    return realm.create<CSSMediaRule>(realm, media_queries, rules);
 }
 
 CSSMediaRule::CSSMediaRule(JS::Realm& realm, MediaList& media, CSSRuleList& rules)

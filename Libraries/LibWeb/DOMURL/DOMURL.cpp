@@ -22,7 +22,7 @@ JS_DEFINE_ALLOCATOR(DOMURL);
 
 JS::NonnullGCPtr<DOMURL> DOMURL::create(JS::Realm& realm, URL::URL url, JS::NonnullGCPtr<URLSearchParams> query)
 {
-    return realm.heap().allocate<DOMURL>(realm, realm, move(url), move(query));
+    return realm.create<DOMURL>(realm, move(url), query);
 }
 
 // https://url.spec.whatwg.org/#api-url-parser

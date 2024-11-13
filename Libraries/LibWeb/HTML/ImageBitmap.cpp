@@ -14,7 +14,7 @@ JS_DEFINE_ALLOCATOR(ImageBitmap);
 
 JS::NonnullGCPtr<ImageBitmap> ImageBitmap::create(JS::Realm& realm)
 {
-    return realm.heap().allocate<ImageBitmap>(realm, realm);
+    return realm.create<ImageBitmap>(realm);
 }
 
 ImageBitmap::ImageBitmap(JS::Realm& realm)

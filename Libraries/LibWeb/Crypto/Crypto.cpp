@@ -21,7 +21,7 @@ JS_DEFINE_ALLOCATOR(Crypto);
 
 JS::NonnullGCPtr<Crypto> Crypto::create(JS::Realm& realm)
 {
-    return realm.heap().allocate<Crypto>(realm, realm);
+    return realm.create<Crypto>(realm);
 }
 
 Crypto::Crypto(JS::Realm& realm)

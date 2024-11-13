@@ -14,7 +14,7 @@ JS_DEFINE_ALLOCATOR(ManagedMediaSource);
 
 WebIDL::ExceptionOr<JS::NonnullGCPtr<ManagedMediaSource>> ManagedMediaSource::construct_impl(JS::Realm& realm)
 {
-    return realm.heap().allocate<ManagedMediaSource>(realm, realm);
+    return realm.create<ManagedMediaSource>(realm);
 }
 
 ManagedMediaSource::ManagedMediaSource(JS::Realm& realm)

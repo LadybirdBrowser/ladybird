@@ -38,7 +38,7 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<WebSocket>> WebSocket::construct_impl(JS::R
 {
     auto& vm = realm.vm();
 
-    auto web_socket = realm.heap().allocate<WebSocket>(realm, realm);
+    auto web_socket = realm.create<WebSocket>(realm);
     auto& relevant_settings_object = HTML::relevant_settings_object(*web_socket);
 
     // 1. Let baseURL be this's relevant settings object's API base URL.

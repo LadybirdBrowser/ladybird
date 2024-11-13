@@ -17,7 +17,7 @@ JS_DEFINE_ALLOCATOR(ConsoleObject);
 
 static NonnullGCPtr<ConsoleObjectPrototype> create_console_prototype(Realm& realm)
 {
-    return realm.heap().allocate<ConsoleObjectPrototype>(realm, realm);
+    return realm.create<ConsoleObjectPrototype>(realm);
 }
 
 ConsoleObject::ConsoleObject(Realm& realm)
@@ -37,7 +37,7 @@ void ConsoleObject::initialize(Realm& realm)
 {
     auto& vm = this->vm();
     Base::initialize(realm);
-    m_console = vm.heap().allocate<Console>(realm, realm);
+    m_console = realm.create<Console>(realm);
     u8 attr = Attribute::Writable | Attribute::Enumerable | Attribute::Configurable;
     define_native_function(realm, vm.names.assert, assert_, 0, attr);
     define_native_function(realm, vm.names.clear, clear, 0, attr);

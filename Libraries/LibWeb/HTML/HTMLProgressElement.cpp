@@ -111,7 +111,7 @@ void HTMLProgressElement::create_shadow_tree_if_needed()
     if (shadow_root())
         return;
 
-    auto shadow_root = heap().allocate<DOM::ShadowRoot>(realm(), document(), *this, Bindings::ShadowRootMode::Closed);
+    auto shadow_root = realm().create<DOM::ShadowRoot>(document(), *this, Bindings::ShadowRootMode::Closed);
     set_shadow_root(shadow_root);
 
     auto progress_bar_element = MUST(DOM::create_element(document(), HTML::TagNames::div, Namespace::HTML));

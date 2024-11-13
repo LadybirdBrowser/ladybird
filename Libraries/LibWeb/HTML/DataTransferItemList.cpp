@@ -19,7 +19,7 @@ JS_DEFINE_ALLOCATOR(DataTransferItemList);
 
 JS::NonnullGCPtr<DataTransferItemList> DataTransferItemList::create(JS::Realm& realm, JS::NonnullGCPtr<DataTransfer> data_transfer)
 {
-    return realm.heap().allocate<DataTransferItemList>(realm, realm, data_transfer);
+    return realm.create<DataTransferItemList>(realm, data_transfer);
 }
 
 DataTransferItemList::DataTransferItemList(JS::Realm& realm, JS::NonnullGCPtr<DataTransfer> data_transfer)

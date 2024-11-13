@@ -16,7 +16,7 @@ JS_DEFINE_ALLOCATOR(AbortController);
 WebIDL::ExceptionOr<JS::NonnullGCPtr<AbortController>> AbortController::construct_impl(JS::Realm& realm)
 {
     auto signal = TRY(AbortSignal::construct_impl(realm));
-    return realm.heap().allocate<AbortController>(realm, realm, move(signal));
+    return realm.create<AbortController>(realm, move(signal));
 }
 
 // https://dom.spec.whatwg.org/#dom-abortcontroller-abortcontroller

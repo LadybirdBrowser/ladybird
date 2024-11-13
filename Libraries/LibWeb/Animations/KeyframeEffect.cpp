@@ -648,7 +648,7 @@ int KeyframeEffect::composite_order(JS::NonnullGCPtr<KeyframeEffect> a, JS::Nonn
 
 JS::NonnullGCPtr<KeyframeEffect> KeyframeEffect::create(JS::Realm& realm)
 {
-    return realm.heap().allocate<KeyframeEffect>(realm, realm);
+    return realm.create<KeyframeEffect>(realm);
 }
 
 // https://www.w3.org/TR/web-animations-1/#dom-keyframeeffect-keyframeeffect
@@ -658,10 +658,8 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<KeyframeEffect>> KeyframeEffect::construct_
     Optional<JS::Handle<JS::Object>> const& keyframes,
     Variant<double, KeyframeEffectOptions> options)
 {
-    auto& vm = realm.vm();
-
     // 1. Create a new KeyframeEffect object, effect.
-    auto effect = vm.heap().allocate<KeyframeEffect>(realm, realm);
+    auto effect = realm.create<KeyframeEffect>(realm);
 
     // 2. Set the target element of effect to target.
     effect->set_target(target);
@@ -721,10 +719,8 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<KeyframeEffect>> KeyframeEffect::construct_
 // https://www.w3.org/TR/web-animations-1/#dom-keyframeeffect-keyframeeffect-source
 WebIDL::ExceptionOr<JS::NonnullGCPtr<KeyframeEffect>> KeyframeEffect::construct_impl(JS::Realm& realm, JS::NonnullGCPtr<KeyframeEffect> source)
 {
-    auto& vm = realm.vm();
-
     // 1. Create a new KeyframeEffect object, effect.
-    auto effect = vm.heap().allocate<KeyframeEffect>(realm, realm);
+    auto effect = realm.create<KeyframeEffect>(realm);
 
     // 2. Set the following properties of effect using the corresponding values of source:
 

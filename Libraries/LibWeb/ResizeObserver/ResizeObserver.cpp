@@ -20,7 +20,7 @@ JS_DEFINE_ALLOCATOR(ResizeObserver);
 // https://drafts.csswg.org/resize-observer/#dom-resizeobserver-resizeobserver
 WebIDL::ExceptionOr<JS::NonnullGCPtr<ResizeObserver>> ResizeObserver::construct_impl(JS::Realm& realm, WebIDL::CallbackType* callback)
 {
-    return realm.heap().allocate<ResizeObserver>(realm, realm, callback);
+    return realm.create<ResizeObserver>(realm, callback);
 }
 
 ResizeObserver::ResizeObserver(JS::Realm& realm, WebIDL::CallbackType* callback)

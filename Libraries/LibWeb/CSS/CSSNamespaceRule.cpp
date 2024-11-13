@@ -25,7 +25,7 @@ CSSNamespaceRule::CSSNamespaceRule(JS::Realm& realm, Optional<FlyString> prefix,
 
 JS::NonnullGCPtr<CSSNamespaceRule> CSSNamespaceRule::create(JS::Realm& realm, Optional<FlyString> prefix, FlyString namespace_uri)
 {
-    return realm.heap().allocate<CSSNamespaceRule>(realm, realm, move(prefix), move(namespace_uri));
+    return realm.create<CSSNamespaceRule>(realm, move(prefix), move(namespace_uri));
 }
 
 void CSSNamespaceRule::initialize(JS::Realm& realm)

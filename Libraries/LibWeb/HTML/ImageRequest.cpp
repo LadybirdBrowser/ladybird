@@ -25,7 +25,7 @@ JS_DEFINE_ALLOCATOR(ImageRequest);
 
 JS::NonnullGCPtr<ImageRequest> ImageRequest::create(JS::Realm& realm, JS::NonnullGCPtr<Page> page)
 {
-    return realm.heap().allocate<ImageRequest>(realm, page);
+    return realm.create<ImageRequest>(page);
 }
 
 ImageRequest::ImageRequest(JS::NonnullGCPtr<Page> page)

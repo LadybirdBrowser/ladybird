@@ -26,7 +26,7 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<OfflineAudioContext>> OfflineAudioContext::
     // A NotSupportedError exception MUST be thrown if any of the arguments is negative, zero, or outside its nominal range.
     TRY(verify_audio_options_inside_nominal_range(realm, number_of_channels, length, sample_rate));
 
-    return realm.heap().allocate<OfflineAudioContext>(realm, realm, number_of_channels, length, sample_rate);
+    return realm.create<OfflineAudioContext>(realm, number_of_channels, length, sample_rate);
 }
 
 OfflineAudioContext::~OfflineAudioContext() = default;

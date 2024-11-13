@@ -23,7 +23,7 @@ JS_DEFINE_ALLOCATOR(CSSRuleList);
 
 JS::NonnullGCPtr<CSSRuleList> CSSRuleList::create(JS::Realm& realm, JS::MarkedVector<CSSRule*> const& rules)
 {
-    auto rule_list = realm.heap().allocate<CSSRuleList>(realm, realm);
+    auto rule_list = realm.create<CSSRuleList>(realm);
     for (auto* rule : rules)
         rule_list->m_rules.append(*rule);
     return rule_list;
@@ -37,7 +37,7 @@ CSSRuleList::CSSRuleList(JS::Realm& realm)
 
 JS::NonnullGCPtr<CSSRuleList> CSSRuleList::create_empty(JS::Realm& realm)
 {
-    return realm.heap().allocate<CSSRuleList>(realm, realm);
+    return realm.create<CSSRuleList>(realm);
 }
 
 void CSSRuleList::initialize(JS::Realm& realm)

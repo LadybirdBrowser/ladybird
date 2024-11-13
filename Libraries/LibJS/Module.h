@@ -128,7 +128,7 @@ protected:
     }
 
 private:
-    Object* module_namespace_create(VM& vm, Vector<DeprecatedFlyString> unambiguous_names);
+    Object* module_namespace_create(Vector<DeprecatedFlyString> unambiguous_names);
 
     // These handles are only safe as long as the VM they live in is valid.
     // But evaluated modules SHOULD be stored in the VM so unless you intentionally

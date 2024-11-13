@@ -60,11 +60,11 @@ JS_DEFINE_ALLOCATOR(XMLHttpRequest);
 
 WebIDL::ExceptionOr<JS::NonnullGCPtr<XMLHttpRequest>> XMLHttpRequest::construct_impl(JS::Realm& realm)
 {
-    auto upload_object = realm.heap().allocate<XMLHttpRequestUpload>(realm, realm);
+    auto upload_object = realm.create<XMLHttpRequestUpload>(realm);
     auto author_request_headers = Fetch::Infrastructure::HeaderList::create(realm.vm());
     auto response = Fetch::Infrastructure::Response::network_error(realm.vm(), "Not sent yet"sv);
     auto fetch_controller = Fetch::Infrastructure::FetchController::create(realm.vm());
-    return realm.heap().allocate<XMLHttpRequest>(realm, realm, *upload_object, *author_request_headers, *response, *fetch_controller);
+    return realm.create<XMLHttpRequest>(realm, *upload_object, *author_request_headers, *response, *fetch_controller);
 }
 
 XMLHttpRequest::XMLHttpRequest(JS::Realm& realm, XMLHttpRequestUpload& upload_object, Fetch::Infrastructure::HeaderList& author_request_headers, Fetch::Infrastructure::Response& response, Fetch::Infrastructure::FetchController& fetch_controller)

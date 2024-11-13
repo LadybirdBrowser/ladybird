@@ -14,7 +14,7 @@ JS_DEFINE_ALLOCATOR(ErrorEvent);
 
 JS::NonnullGCPtr<ErrorEvent> ErrorEvent::create(JS::Realm& realm, FlyString const& event_name, ErrorEventInit const& event_init)
 {
-    return realm.heap().allocate<ErrorEvent>(realm, realm, event_name, event_init);
+    return realm.create<ErrorEvent>(realm, event_name, event_init);
 }
 
 WebIDL::ExceptionOr<JS::NonnullGCPtr<ErrorEvent>> ErrorEvent::construct_impl(JS::Realm& realm, FlyString const& event_name, ErrorEventInit const& event_init)

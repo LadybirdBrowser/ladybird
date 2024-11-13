@@ -31,7 +31,7 @@ static void convert_to_xml_error_document(DOM::Document& document, String error_
     auto html_element = MUST(DOM::create_element(document, HTML::TagNames::html, Namespace::HTML));
     auto body_element = MUST(DOM::create_element(document, HTML::TagNames::body, Namespace::HTML));
     MUST(html_element->append_child(body_element));
-    MUST(body_element->append_child(document.heap().allocate<DOM::Text>(document.realm(), document, error_string)));
+    MUST(body_element->append_child(document.realm().create<DOM::Text>(document, error_string)));
     document.remove_all_children();
     MUST(document.append_child(html_element));
 }
@@ -249,7 +249,7 @@ static WebIDL::ExceptionOr<JS::NonnullGCPtr<DOM::Document>> load_text_document(H
         auto title = MUST(String::from_byte_string(LexicalPath::basename(url.to_byte_string())));
         auto title_element = MUST(DOM::create_element(document, HTML::TagNames::title, Namespace::HTML));
         MUST(document->head()->append_child(title_element));
-        auto title_text = document->heap().allocate<DOM::Text>(document->realm(), document, title);
+        auto title_text = document->realm().create<DOM::Text>(document, title);
         MUST(title_element->append_child(*title_text));
     });
 
@@ -287,7 +287,7 @@ static WebIDL::ExceptionOr<JS::NonnullGCPtr<DOM::Document>> load_media_document(
         auto title_element = TRY(DOM::create_element(document, HTML::TagNames::title, Namespace::HTML));
         TRY(document->head()->append_child(title_element));
 
-        auto title_text = document->heap().template allocate<DOM::Text>(document->realm(), document, title);
+        auto title_text = document->realm().template create<DOM::Text>(document, title);
         TRY(title_element->append_child(*title_text));
         return {};
     };

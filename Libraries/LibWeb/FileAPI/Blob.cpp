@@ -30,7 +30,7 @@ JS_DEFINE_ALLOCATOR(Blob);
 
 JS::NonnullGCPtr<Blob> Blob::create(JS::Realm& realm, ByteBuffer byte_buffer, String type)
 {
-    return realm.heap().allocate<Blob>(realm, realm, move(byte_buffer), move(type));
+    return realm.create<Blob>(realm, move(byte_buffer), move(type));
 }
 
 // https://w3c.github.io/FileAPI/#convert-line-endings-to-native
@@ -188,7 +188,7 @@ JS::NonnullGCPtr<Blob> Blob::create(JS::Realm& realm, Optional<Vector<BlobPart>>
 {
     // 1. If invoked with zero parameters, return a new Blob object consisting of 0 bytes, with size set to 0, and with type set to the empty string.
     if (!blob_parts.has_value() && !options.has_value())
-        return realm.heap().allocate<Blob>(realm, realm);
+        return realm.create<Blob>(realm);
 
     ByteBuffer byte_buffer {};
     // 2. Let bytes be the result of processing blob parts given blobParts and options.
@@ -213,7 +213,7 @@ JS::NonnullGCPtr<Blob> Blob::create(JS::Realm& realm, Optional<Vector<BlobPart>>
     }
 
     // 4. Return a Blob object referring to bytes as its associated byte sequence, with its size set to the length of bytes, and its type set to the value of t from the substeps above.
-    return realm.heap().allocate<Blob>(realm, realm, move(byte_buffer), move(type));
+    return realm.create<Blob>(realm, move(byte_buffer), move(type));
 }
 
 WebIDL::ExceptionOr<JS::NonnullGCPtr<Blob>> Blob::construct_impl(JS::Realm& realm, Optional<Vector<BlobPart>> const& blob_parts, Optional<BlobPropertyBag> const& options)
@@ -305,7 +305,7 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<Blob>> Blob::slice_blob(Optional<i64> start
     // b. S.size = span.
     // c. S.type = relativeContentType.
     auto byte_buffer = TRY_OR_THROW_OOM(vm, m_byte_buffer.slice(relative_start, span));
-    return heap().allocate<Blob>(realm(), realm(), move(byte_buffer), move(relative_content_type));
+    return realm().create<Blob>(realm(), move(byte_buffer), move(relative_content_type));
 }
 
 // https://w3c.github.io/FileAPI/#dom-blob-stream
@@ -321,7 +321,7 @@ JS::NonnullGCPtr<Streams::ReadableStream> Blob::get_stream()
     auto& realm = this->realm();
 
     // 1. Let stream be a new ReadableStream created in blob’s relevant Realm.
-    auto stream = realm.heap().allocate<Streams::ReadableStream>(realm, realm);
+    auto stream = realm.create<Streams::ReadableStream>(realm);
 
     // 2. Set up stream with byte reading support.
     set_up_readable_stream_controller_with_byte_reading_support(stream);

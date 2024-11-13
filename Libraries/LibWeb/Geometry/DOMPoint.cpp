@@ -15,12 +15,12 @@ JS_DEFINE_ALLOCATOR(DOMPoint);
 
 JS::NonnullGCPtr<DOMPoint> DOMPoint::construct_impl(JS::Realm& realm, double x, double y, double z, double w)
 {
-    return realm.heap().allocate<DOMPoint>(realm, realm, x, y, z, w);
+    return realm.create<DOMPoint>(realm, x, y, z, w);
 }
 
 JS::NonnullGCPtr<DOMPoint> DOMPoint::create(JS::Realm& realm)
 {
-    return realm.heap().allocate<DOMPoint>(realm, realm);
+    return realm.create<DOMPoint>(realm);
 }
 
 DOMPoint::DOMPoint(JS::Realm& realm, double x, double y, double z, double w)

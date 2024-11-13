@@ -15,7 +15,7 @@ JS_DEFINE_ALLOCATOR(TextTrack);
 
 JS::NonnullGCPtr<TextTrack> TextTrack::create(JS::Realm& realm)
 {
-    return realm.heap().allocate<TextTrack>(realm, realm);
+    return realm.create<TextTrack>(realm);
 }
 
 TextTrack::TextTrack(JS::Realm& realm)

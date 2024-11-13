@@ -23,7 +23,7 @@ JS_DEFINE_ALLOCATOR(Clipboard);
 
 WebIDL::ExceptionOr<JS::NonnullGCPtr<Clipboard>> Clipboard::construct_impl(JS::Realm& realm)
 {
-    return realm.heap().allocate<Clipboard>(realm, realm);
+    return realm.create<Clipboard>(realm);
 }
 
 Clipboard::Clipboard(JS::Realm& realm)

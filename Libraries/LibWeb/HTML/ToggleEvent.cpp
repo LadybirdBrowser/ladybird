@@ -14,7 +14,7 @@ JS_DEFINE_ALLOCATOR(ToggleEvent);
 
 JS::NonnullGCPtr<ToggleEvent> ToggleEvent::create(JS::Realm& realm, FlyString const& event_name, ToggleEventInit event_init)
 {
-    return realm.heap().allocate<ToggleEvent>(realm, realm, event_name, move(event_init));
+    return realm.create<ToggleEvent>(realm, event_name, move(event_init));
 }
 
 WebIDL::ExceptionOr<JS::NonnullGCPtr<ToggleEvent>> ToggleEvent::construct_impl(JS::Realm& realm, FlyString const& event_name, ToggleEventInit event_init)

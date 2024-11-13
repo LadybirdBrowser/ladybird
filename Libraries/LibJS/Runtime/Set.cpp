@@ -14,7 +14,7 @@ JS_DEFINE_ALLOCATOR(Set);
 
 NonnullGCPtr<Set> Set::create(Realm& realm)
 {
-    return realm.heap().allocate<Set>(realm, realm.intrinsics().set_prototype());
+    return realm.create<Set>(realm.intrinsics().set_prototype());
 }
 
 Set::Set(Object& prototype)

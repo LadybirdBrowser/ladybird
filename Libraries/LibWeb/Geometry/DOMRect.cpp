@@ -20,19 +20,19 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<DOMRect>> DOMRect::construct_impl(JS::Realm
 
 JS::NonnullGCPtr<DOMRect> DOMRect::create(JS::Realm& realm, Gfx::FloatRect const& rect)
 {
-    return realm.heap().allocate<DOMRect>(realm, realm, rect.x(), rect.y(), rect.width(), rect.height());
+    return realm.create<DOMRect>(realm, rect.x(), rect.y(), rect.width(), rect.height());
 }
 
 JS::NonnullGCPtr<DOMRect> DOMRect::create(JS::Realm& realm)
 {
-    return realm.heap().allocate<DOMRect>(realm, realm);
+    return realm.create<DOMRect>(realm);
 }
 
 // https://drafts.fxtf.org/geometry/#create-a-domrect-from-the-dictionary
 JS::NonnullGCPtr<DOMRect> DOMRect::from_rect(JS::VM& vm, Geometry::DOMRectInit const& other)
 {
     auto& realm = *vm.current_realm();
-    return realm.heap().allocate<DOMRect>(realm, realm, other.x, other.y, other.width, other.height);
+    return realm.create<DOMRect>(realm, other.x, other.y, other.width, other.height);
 }
 
 DOMRect::DOMRect(JS::Realm& realm, double x, double y, double width, double height)

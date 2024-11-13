@@ -19,17 +19,17 @@ ThrowCompletionOr<NonnullGCPtr<ArrayBuffer>> ArrayBuffer::create(Realm& realm, s
     if (buffer.is_error())
         return realm.vm().throw_completion<RangeError>(ErrorType::NotEnoughMemoryToAllocate, byte_length);
 
-    return realm.heap().allocate<ArrayBuffer>(realm, buffer.release_value(), realm.intrinsics().array_buffer_prototype());
+    return realm.create<ArrayBuffer>(buffer.release_value(), realm.intrinsics().array_buffer_prototype());
 }
 
 NonnullGCPtr<ArrayBuffer> ArrayBuffer::create(Realm& realm, ByteBuffer buffer)
 {
-    return realm.heap().allocate<ArrayBuffer>(realm, move(buffer), realm.intrinsics().array_buffer_prototype());
+    return realm.create<ArrayBuffer>(move(buffer), realm.intrinsics().array_buffer_prototype());
 }
 
 NonnullGCPtr<ArrayBuffer> ArrayBuffer::create(Realm& realm, ByteBuffer* buffer)
 {
-    return realm.heap().allocate<ArrayBuffer>(realm, buffer, realm.intrinsics().array_buffer_prototype());
+    return realm.create<ArrayBuffer>(buffer, realm.intrinsics().array_buffer_prototype());
 }
 
 ArrayBuffer::ArrayBuffer(ByteBuffer buffer, Object& prototype)

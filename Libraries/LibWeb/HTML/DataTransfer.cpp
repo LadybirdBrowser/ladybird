@@ -31,7 +31,7 @@ ENUMERATE_DATA_TRANSFER_EFFECTS
 
 JS::NonnullGCPtr<DataTransfer> DataTransfer::create(JS::Realm& realm, NonnullRefPtr<DragDataStore> drag_data_store)
 {
-    return realm.heap().allocate<DataTransfer>(realm, realm, move(drag_data_store));
+    return realm.create<DataTransfer>(realm, move(drag_data_store));
 }
 
 // https://html.spec.whatwg.org/multipage/dnd.html#dom-datatransfer
@@ -46,7 +46,7 @@ JS::NonnullGCPtr<DataTransfer> DataTransfer::construct_impl(JS::Realm& realm)
     // 3. Set the dropEffect and effectAllowed to "none".
     // NOTE: This is done by the default-initializers.
 
-    return realm.heap().allocate<DataTransfer>(realm, realm, move(drag_data_store));
+    return realm.create<DataTransfer>(realm, move(drag_data_store));
 }
 
 DataTransfer::DataTransfer(JS::Realm& realm, NonnullRefPtr<DragDataStore> drag_data_store)

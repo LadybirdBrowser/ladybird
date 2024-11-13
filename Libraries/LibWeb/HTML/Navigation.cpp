@@ -64,7 +64,7 @@ void NavigationAPIMethodTracker::visit_edges(Cell::Visitor& visitor)
 
 JS::NonnullGCPtr<Navigation> Navigation::create(JS::Realm& realm)
 {
-    return realm.heap().allocate<Navigation>(realm, realm);
+    return realm.create<Navigation>(realm);
 }
 
 Navigation::Navigation(JS::Realm& realm)

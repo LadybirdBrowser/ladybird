@@ -28,7 +28,7 @@ PerformanceMeasure::~PerformanceMeasure() = default;
 
 JS::NonnullGCPtr<PerformanceMeasure> PerformanceMeasure::create(JS::Realm& realm, String const& measure_name, HighResolutionTime::DOMHighResTimeStamp start_time, HighResolutionTime::DOMHighResTimeStamp duration, JS::Value detail)
 {
-    return realm.heap().allocate<PerformanceMeasure>(realm, realm, measure_name, start_time, duration, detail);
+    return realm.create<PerformanceMeasure>(realm, measure_name, start_time, duration, detail);
 }
 
 FlyString const& PerformanceMeasure::entry_type() const

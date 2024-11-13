@@ -24,7 +24,7 @@ JS_DEFINE_ALLOCATOR(DOMImplementation);
 JS::NonnullGCPtr<DOMImplementation> DOMImplementation::create(Document& document)
 {
     auto& realm = document.realm();
-    return realm.heap().allocate<DOMImplementation>(realm, document);
+    return realm.create<DOMImplementation>(document);
 }
 
 DOMImplementation::DOMImplementation(Document& document)
@@ -102,7 +102,7 @@ JS::NonnullGCPtr<Document> DOMImplementation::create_html_document(Optional<Stri
     html_document->set_ready_for_post_load_tasks(true);
 
     // 3. Append a new doctype, with "html" as its name and with its node document set to doc, to doc.
-    auto doctype = heap().allocate<DocumentType>(realm(), html_document);
+    auto doctype = realm().create<DocumentType>(html_document);
     doctype->set_name("html"_string);
     MUST(html_document->append_child(*doctype));
 
@@ -121,7 +121,7 @@ JS::NonnullGCPtr<Document> DOMImplementation::create_html_document(Optional<Stri
         MUST(head_element->append_child(title_element));
 
         // 2. Append a new Text node, with its data set to title (which could be the empty string) and its node document set to doc, to the title element created earlier.
-        auto text_node = heap().allocate<Text>(realm(), html_document, title.value());
+        auto text_node = realm().create<Text>(html_document, title.value());
         MUST(title_element->append_child(*text_node));
     }
 

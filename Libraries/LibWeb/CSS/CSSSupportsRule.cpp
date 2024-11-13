@@ -15,7 +15,7 @@ JS_DEFINE_ALLOCATOR(CSSSupportsRule);
 
 JS::NonnullGCPtr<CSSSupportsRule> CSSSupportsRule::create(JS::Realm& realm, NonnullRefPtr<Supports>&& supports, CSSRuleList& rules)
 {
-    return realm.heap().allocate<CSSSupportsRule>(realm, realm, move(supports), rules);
+    return realm.create<CSSSupportsRule>(realm, move(supports), rules);
 }
 
 CSSSupportsRule::CSSSupportsRule(JS::Realm& realm, NonnullRefPtr<Supports>&& supports, CSSRuleList& rules)

@@ -23,7 +23,7 @@ class Position final : public JS::Cell {
 public:
     [[nodiscard]] static JS::NonnullGCPtr<Position> create(JS::Realm& realm, JS::NonnullGCPtr<Node> node, unsigned offset)
     {
-        return realm.heap().allocate<Position>(realm, node, offset);
+        return realm.create<Position>(node, offset);
     }
 
     JS::GCPtr<Node> node() { return m_node; }

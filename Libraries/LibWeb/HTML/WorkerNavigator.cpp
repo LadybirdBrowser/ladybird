@@ -17,7 +17,7 @@ JS_DEFINE_ALLOCATOR(WorkerNavigator);
 
 JS::NonnullGCPtr<WorkerNavigator> WorkerNavigator::create(WorkerGlobalScope& global_scope)
 {
-    return global_scope.heap().allocate<WorkerNavigator>(global_scope.realm(), global_scope);
+    return global_scope.realm().create<WorkerNavigator>(global_scope);
 }
 
 WorkerNavigator::WorkerNavigator(WorkerGlobalScope& global_scope)
@@ -43,14 +43,14 @@ void WorkerNavigator::visit_edges(Cell::Visitor& visitor)
 JS::NonnullGCPtr<MediaCapabilitiesAPI::MediaCapabilities> WorkerNavigator::media_capabilities()
 {
     if (!m_media_capabilities)
-        m_media_capabilities = heap().allocate<MediaCapabilitiesAPI::MediaCapabilities>(realm(), realm());
+        m_media_capabilities = realm().create<MediaCapabilitiesAPI::MediaCapabilities>(realm());
     return *m_media_capabilities;
 }
 
 JS::NonnullGCPtr<ServiceWorkerContainer> WorkerNavigator::service_worker()
 {
     if (!m_service_worker_container)
-        m_service_worker_container = heap().allocate<ServiceWorkerContainer>(realm(), realm());
+        m_service_worker_container = realm().create<ServiceWorkerContainer>(realm());
     return *m_service_worker_container;
 }
 

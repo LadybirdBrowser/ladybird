@@ -19,7 +19,7 @@ JS_DEFINE_ALLOCATOR(CSSFontFaceRule);
 
 JS::NonnullGCPtr<CSSFontFaceRule> CSSFontFaceRule::create(JS::Realm& realm, ParsedFontFace&& font_face)
 {
-    return realm.heap().allocate<CSSFontFaceRule>(realm, realm, move(font_face));
+    return realm.create<CSSFontFaceRule>(realm, move(font_face));
 }
 
 CSSFontFaceRule::CSSFontFaceRule(JS::Realm& realm, ParsedFontFace&& font_face)

@@ -15,7 +15,7 @@ JS_DEFINE_ALLOCATOR(CSSPropertyRule);
 
 JS::NonnullGCPtr<CSSPropertyRule> CSSPropertyRule::create(JS::Realm& realm, FlyString name, FlyString syntax, bool inherits, Optional<String> initial_value)
 {
-    return realm.heap().allocate<CSSPropertyRule>(realm, realm, move(name), move(syntax), inherits, move(initial_value));
+    return realm.create<CSSPropertyRule>(realm, move(name), move(syntax), inherits, move(initial_value));
 }
 
 CSSPropertyRule::CSSPropertyRule(JS::Realm& realm, FlyString name, FlyString syntax, bool inherits, Optional<String> initial_value)

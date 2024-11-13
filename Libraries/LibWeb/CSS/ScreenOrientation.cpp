@@ -26,7 +26,7 @@ void ScreenOrientation::initialize(JS::Realm& realm)
 
 JS::NonnullGCPtr<ScreenOrientation> ScreenOrientation::create(JS::Realm& realm)
 {
-    return realm.heap().allocate<ScreenOrientation>(realm, realm);
+    return realm.create<ScreenOrientation>(realm);
 }
 
 // https://w3c.github.io/screen-orientation/#lock-method

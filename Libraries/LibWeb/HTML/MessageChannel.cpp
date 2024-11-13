@@ -16,7 +16,7 @@ JS_DEFINE_ALLOCATOR(MessageChannel);
 
 WebIDL::ExceptionOr<JS::NonnullGCPtr<MessageChannel>> MessageChannel::construct_impl(JS::Realm& realm)
 {
-    return realm.heap().allocate<MessageChannel>(realm, realm);
+    return realm.create<MessageChannel>(realm);
 }
 
 MessageChannel::MessageChannel(JS::Realm& realm)

@@ -17,7 +17,7 @@ JS_DEFINE_ALLOCATOR(SVGAnimatedString);
 
 JS::NonnullGCPtr<SVGAnimatedString> SVGAnimatedString::create(JS::Realm& realm, JS::NonnullGCPtr<SVGElement> element, FlyString reflected_attribute, Optional<FlyString> deprecated_reflected_attribute, Optional<FlyString> initial_value)
 {
-    return realm.heap().allocate<SVGAnimatedString>(realm, realm, element, move(reflected_attribute), move(deprecated_reflected_attribute), move(initial_value));
+    return realm.create<SVGAnimatedString>(realm, element, move(reflected_attribute), move(deprecated_reflected_attribute), move(initial_value));
 }
 
 SVGAnimatedString::SVGAnimatedString(JS::Realm& realm, JS::NonnullGCPtr<SVGElement> element, FlyString reflected_attribute, Optional<FlyString> deprecated_reflected_attribute, Optional<FlyString> initial_value)

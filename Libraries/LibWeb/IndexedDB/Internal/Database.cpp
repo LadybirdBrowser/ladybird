@@ -18,7 +18,7 @@ Database::~Database() = default;
 
 JS::NonnullGCPtr<Database> Database::create(JS::Realm& realm, String const& name)
 {
-    return realm.heap().allocate<Database>(realm, realm, name);
+    return realm.create<Database>(realm, name);
 }
 
 void Database::visit_edges(Visitor& visitor)

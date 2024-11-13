@@ -13,7 +13,7 @@ JS_DEFINE_ALLOCATOR(NumberObject);
 
 NonnullGCPtr<NumberObject> NumberObject::create(Realm& realm, double value)
 {
-    return realm.heap().allocate<NumberObject>(realm, value, realm.intrinsics().number_prototype());
+    return realm.create<NumberObject>(value, realm.intrinsics().number_prototype());
 }
 
 NumberObject::NumberObject(double value, Object& prototype)

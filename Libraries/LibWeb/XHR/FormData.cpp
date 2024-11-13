@@ -37,7 +37,7 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<FormData>> FormData::construct_impl(JS::Rea
 
 WebIDL::ExceptionOr<JS::NonnullGCPtr<FormData>> FormData::construct_impl(JS::Realm& realm, Vector<FormDataEntry> entry_list)
 {
-    return realm.heap().allocate<FormData>(realm, realm, move(entry_list));
+    return realm.create<FormData>(realm, move(entry_list));
 }
 
 WebIDL::ExceptionOr<JS::NonnullGCPtr<FormData>> FormData::create(JS::Realm& realm, Vector<DOMURL::QueryParam> entry_list)

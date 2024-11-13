@@ -71,7 +71,7 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<Worker>> Worker::create(String const& scrip
     // 5. Let worker URL be the resulting URL record.
 
     // 6. Let worker be a new Worker object.
-    auto worker = document.heap().allocate<Worker>(document.realm(), script_url, options, document);
+    auto worker = document.realm().create<Worker>(script_url, options, document);
 
     // 7. Let outside port be a new MessagePort in outside settings's Realm.
     auto outside_port = MessagePort::create(outside_settings.realm());
@@ -110,7 +110,7 @@ void Worker::run_a_worker(URL::URL& url, EnvironmentSettingsObject& outside_sett
     // and is shared. Run the rest of these steps in that agent.
 
     // Note: This spawns a new process to act as the 'agent' for the worker.
-    m_agent = heap().allocate<WorkerAgent>(outside_settings.realm(), url, options, port, outside_settings);
+    m_agent = outside_settings.realm().create<WorkerAgent>(url, options, port, outside_settings);
 }
 
 // https://html.spec.whatwg.org/multipage/workers.html#dom-worker-terminate

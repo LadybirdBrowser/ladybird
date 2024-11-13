@@ -17,7 +17,7 @@ JS_DEFINE_ALLOCATOR(NavigationDestination);
 
 JS::NonnullGCPtr<NavigationDestination> NavigationDestination::create(JS::Realm& realm)
 {
-    return realm.heap().allocate<NavigationDestination>(realm, realm);
+    return realm.create<NavigationDestination>(realm);
 }
 
 NavigationDestination::NavigationDestination(JS::Realm& realm)

@@ -16,7 +16,7 @@ JS_DEFINE_ALLOCATOR(CSSAnimation);
 
 JS::NonnullGCPtr<CSSAnimation> CSSAnimation::create(JS::Realm& realm)
 {
-    return realm.heap().allocate<CSSAnimation>(realm, realm);
+    return realm.create<CSSAnimation>(realm);
 }
 
 // https://www.w3.org/TR/css-animations-2/#animation-composite-order

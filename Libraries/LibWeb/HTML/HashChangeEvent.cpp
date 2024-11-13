@@ -16,12 +16,12 @@ JS_DEFINE_ALLOCATOR(HashChangeEvent);
 
 [[nodiscard]] JS::NonnullGCPtr<HashChangeEvent> HashChangeEvent::create(JS::Realm& realm, FlyString const& event_name, HashChangeEventInit const& event_init)
 {
-    return realm.heap().allocate<HashChangeEvent>(realm, realm, event_name, event_init);
+    return realm.create<HashChangeEvent>(realm, event_name, event_init);
 }
 
 JS::NonnullGCPtr<HashChangeEvent> HashChangeEvent::construct_impl(JS::Realm& realm, FlyString const& event_name, HashChangeEventInit const& event_init)
 {
-    return realm.heap().allocate<HashChangeEvent>(realm, realm, event_name, event_init);
+    return realm.create<HashChangeEvent>(realm, event_name, event_init);
 }
 
 HashChangeEvent::HashChangeEvent(JS::Realm& realm, FlyString const& event_name, HashChangeEventInit const& event_init)

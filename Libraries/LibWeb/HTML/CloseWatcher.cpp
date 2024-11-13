@@ -27,7 +27,7 @@ JS::NonnullGCPtr<CloseWatcher> CloseWatcher::establish(HTML::Window& window)
     VERIFY(window.associated_document().is_fully_active());
 
     // 2. Let closeWatcher be a new close watcher
-    auto close_watcher = window.heap().allocate<CloseWatcher>(window.realm(), window.realm());
+    auto close_watcher = window.realm().create<CloseWatcher>(window.realm());
 
     // 3. Let manager be window's associated close watcher manager
     auto manager = window.close_watcher_manager();

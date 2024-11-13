@@ -16,7 +16,7 @@ JS_DEFINE_ALLOCATOR(TextEncoder);
 
 WebIDL::ExceptionOr<JS::NonnullGCPtr<TextEncoder>> TextEncoder::construct_impl(JS::Realm& realm)
 {
-    return realm.heap().allocate<TextEncoder>(realm, realm);
+    return realm.create<TextEncoder>(realm);
 }
 
 TextEncoder::TextEncoder(JS::Realm& realm)

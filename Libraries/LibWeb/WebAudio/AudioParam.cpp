@@ -25,7 +25,7 @@ AudioParam::AudioParam(JS::Realm& realm, float default_value, float min_value, f
 
 JS::NonnullGCPtr<AudioParam> AudioParam::create(JS::Realm& realm, float default_value, float min_value, float max_value, Bindings::AutomationRate automation_rate)
 {
-    return realm.vm().heap().allocate<AudioParam>(realm, realm, default_value, min_value, max_value, automation_rate);
+    return realm.create<AudioParam>(realm, default_value, min_value, max_value, automation_rate);
 }
 
 AudioParam::~AudioParam() = default;

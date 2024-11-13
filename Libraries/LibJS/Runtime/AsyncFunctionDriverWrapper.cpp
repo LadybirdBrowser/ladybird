@@ -21,7 +21,7 @@ NonnullGCPtr<Promise> AsyncFunctionDriverWrapper::create(Realm& realm, Generator
 {
     auto top_level_promise = Promise::create(realm);
     // Note: The top_level_promise is also kept alive by this Wrapper
-    auto wrapper = realm.heap().allocate<AsyncFunctionDriverWrapper>(realm, realm, *generator_object, *top_level_promise);
+    auto wrapper = realm.create<AsyncFunctionDriverWrapper>(realm, *generator_object, *top_level_promise);
     // Prime the generator:
     // This runs until the first `await value;`
     wrapper->continue_async_execution(realm.vm(), js_undefined(), true, IsInitialExecution::Yes);

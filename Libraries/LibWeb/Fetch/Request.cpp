@@ -85,10 +85,10 @@ JS::NonnullGCPtr<Request> Request::create(JS::Realm& realm, JS::NonnullGCPtr<Inf
 {
     // 1. Let requestObject be a new Request object with realm.
     // 2. Set requestObject’s request to request.
-    auto request_object = realm.heap().allocate<Request>(realm, realm, request);
+    auto request_object = realm.create<Request>(realm, request);
 
     // 3. Set requestObject’s headers to a new Headers object with realm, whose headers list is request’s headers list and guard is guard.
-    request_object->m_headers = realm.heap().allocate<Headers>(realm, realm, request->header_list());
+    request_object->m_headers = realm.create<Headers>(realm, request->header_list());
     request_object->m_headers->set_guard(guard);
 
     // 4. Set requestObject’s signal to signal.
@@ -104,7 +104,7 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<Request>> Request::construct_impl(JS::Realm
     auto& vm = realm.vm();
 
     // Referred to as 'this' in the spec.
-    auto request_object = realm.heap().allocate<Request>(realm, realm, Infrastructure::Request::create(vm));
+    auto request_object = realm.create<Request>(realm, Infrastructure::Request::create(vm));
 
     // 1. Let request be null.
     JS::GCPtr<Infrastructure::Request> input_request;
@@ -402,7 +402,7 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<Request>> Request::construct_impl(JS::Realm
     request_object->m_signal = TRY(DOM::AbortSignal::create_dependent_abort_signal(this_relevant_realm, signals));
 
     // 31. Set this’s headers to a new Headers object with this’s relevant Realm, whose header list is request’s header list and guard is "request".
-    request_object->m_headers = realm.heap().allocate<Headers>(realm, realm, request->header_list());
+    request_object->m_headers = realm.create<Headers>(realm, request->header_list());
     request_object->m_headers->set_guard(Headers::Guard::Request);
 
     // 32. If this’s request’s mode is "no-cors", then:

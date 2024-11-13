@@ -45,18 +45,6 @@ public:
         return *static_cast<T*>(memory);
     }
 
-    template<typename T, typename... Args>
-    NonnullGCPtr<T> allocate(Realm& realm, Args&&... args)
-    {
-        auto* memory = allocate_cell<T>();
-        defer_gc();
-        new (memory) T(forward<Args>(args)...);
-        undefer_gc();
-        auto* cell = static_cast<T*>(memory);
-        memory->initialize(realm);
-        return *cell;
-    }
-
     enum class CollectionType {
         CollectGarbage,
         CollectEverything,

@@ -16,7 +16,7 @@ JS_DEFINE_ALLOCATOR(LiveNodeList);
 
 JS::NonnullGCPtr<NodeList> LiveNodeList::create(JS::Realm& realm, Node const& root, Scope scope, Function<bool(Node const&)> filter)
 {
-    return realm.heap().allocate<LiveNodeList>(realm, realm, root, scope, move(filter));
+    return realm.create<LiveNodeList>(realm, root, scope, move(filter));
 }
 
 LiveNodeList::LiveNodeList(JS::Realm& realm, Node const& root, Scope scope, Function<bool(Node const&)> filter)

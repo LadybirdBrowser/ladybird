@@ -1087,7 +1087,7 @@ Object* create_mapped_arguments_object(VM& vm, FunctionObject& function, Vector<
     // 7. Set obj.[[Set]] as specified in 10.4.4.4.
     // 8. Set obj.[[Delete]] as specified in 10.4.4.5.
     // 9. Set obj.[[Prototype]] to %Object.prototype%.
-    auto object = vm.heap().allocate<ArgumentsObject>(realm, realm, environment);
+    auto object = realm.create<ArgumentsObject>(realm, environment);
 
     // 14. Let index be 0.
     // 15. Repeat, while index < len,

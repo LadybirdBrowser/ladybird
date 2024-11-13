@@ -48,7 +48,7 @@ JS::GCPtr<NavigationTiming::PerformanceTiming> Performance::timing()
 {
     auto& realm = this->realm();
     if (!m_timing)
-        m_timing = heap().allocate<NavigationTiming::PerformanceTiming>(realm, realm);
+        m_timing = realm.create<NavigationTiming::PerformanceTiming>(realm);
     return m_timing;
 }
 
@@ -60,7 +60,7 @@ JS::GCPtr<NavigationTiming::PerformanceNavigation> Performance::navigation()
         u16 type = 0;
         u16 redirect_count = 0;
 
-        m_navigation = heap().allocate<NavigationTiming::PerformanceNavigation>(realm, realm, type, redirect_count);
+        m_navigation = realm.create<NavigationTiming::PerformanceNavigation>(realm, type, redirect_count);
     }
     return m_navigation;
 }
@@ -305,7 +305,7 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<UserTiming::PerformanceMeasure>> Performanc
     // NOTE: Already the default value of `detail`.
 
     // 4. Create a new PerformanceMeasure object (entry) with this's relevant realm.
-    auto entry = realm.heap().allocate<UserTiming::PerformanceMeasure>(realm, realm, measure_name, start_time, duration, detail);
+    auto entry = realm.create<UserTiming::PerformanceMeasure>(realm, measure_name, start_time, duration, detail);
 
     // 10. Queue entry.
     window_or_worker().queue_performance_entry(entry);

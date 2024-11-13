@@ -33,7 +33,7 @@ void SVGSVGElement::initialize(JS::Realm& realm)
 {
     Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(SVGSVGElement);
-    m_view_box_for_bindings = heap().allocate<SVGAnimatedRect>(realm, realm);
+    m_view_box_for_bindings = realm.create<SVGAnimatedRect>(realm);
 }
 
 void SVGSVGElement::visit_edges(Visitor& visitor)

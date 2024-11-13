@@ -18,7 +18,7 @@ JS_DEFINE_ALLOCATOR(Screen);
 
 JS::NonnullGCPtr<Screen> Screen::create(HTML::Window& window)
 {
-    return window.heap().allocate<Screen>(window.realm(), window);
+    return window.realm().create<Screen>(window);
 }
 
 Screen::Screen(HTML::Window& window)

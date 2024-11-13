@@ -23,7 +23,7 @@ ImportMapParseResult::~ImportMapParseResult() = default;
 JS::NonnullGCPtr<ImportMapParseResult> ImportMapParseResult::create(JS::Realm& realm, ByteString const& input, URL::URL base_url)
 {
     // 1. Let result be an import map parse result whose import map is null and whose error to rethrow is null.
-    auto result = realm.heap().allocate<ImportMapParseResult>(realm);
+    auto result = realm.create<ImportMapParseResult>();
 
     // 2. Parse an import map string given input and baseURL, catching any exceptions.
     auto import_map = parse_import_map_string(realm, input, base_url);

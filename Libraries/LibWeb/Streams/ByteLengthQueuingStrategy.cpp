@@ -19,7 +19,7 @@ JS::NonnullGCPtr<ByteLengthQueuingStrategy> ByteLengthQueuingStrategy::construct
 {
     // The new ByteLengthQueuingStrategy(init) constructor steps are:
     // 1. Set this.[[highWaterMark]] to init["highWaterMark"].
-    return realm.heap().allocate<ByteLengthQueuingStrategy>(realm, realm, init.high_water_mark);
+    return realm.create<ByteLengthQueuingStrategy>(realm, init.high_water_mark);
 }
 
 ByteLengthQueuingStrategy::ByteLengthQueuingStrategy(JS::Realm& realm, double high_water_mark)

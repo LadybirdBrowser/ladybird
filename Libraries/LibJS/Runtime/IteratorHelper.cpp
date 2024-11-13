@@ -15,7 +15,7 @@ JS_DEFINE_ALLOCATOR(IteratorHelper);
 
 ThrowCompletionOr<NonnullGCPtr<IteratorHelper>> IteratorHelper::create(Realm& realm, NonnullGCPtr<IteratorRecord> underlying_iterator, NonnullGCPtr<Closure> closure, GCPtr<AbruptClosure> abrupt_closure)
 {
-    return realm.heap().allocate<IteratorHelper>(realm, realm, realm.intrinsics().iterator_helper_prototype(), move(underlying_iterator), closure, abrupt_closure);
+    return realm.create<IteratorHelper>(realm, realm.intrinsics().iterator_helper_prototype(), move(underlying_iterator), closure, abrupt_closure);
 }
 
 IteratorHelper::IteratorHelper(Realm& realm, Object& prototype, NonnullGCPtr<IteratorRecord> underlying_iterator, NonnullGCPtr<Closure> closure, GCPtr<AbruptClosure> abrupt_closure)

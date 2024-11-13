@@ -18,7 +18,7 @@ JS_DEFINE_ALLOCATOR(NavigationTransition);
 
 JS::NonnullGCPtr<NavigationTransition> NavigationTransition::create(JS::Realm& realm, Bindings::NavigationType navigation_type, JS::NonnullGCPtr<NavigationHistoryEntry> from_entry, JS::NonnullGCPtr<WebIDL::Promise> finished_promise)
 {
-    return realm.heap().allocate<NavigationTransition>(realm, realm, navigation_type, from_entry, finished_promise);
+    return realm.create<NavigationTransition>(realm, navigation_type, from_entry, finished_promise);
 }
 
 NavigationTransition::NavigationTransition(JS::Realm& realm, Bindings::NavigationType navigation_type, JS::NonnullGCPtr<NavigationHistoryEntry> from_entry, JS::NonnullGCPtr<WebIDL::Promise> finished_promise)

@@ -76,7 +76,7 @@ void DedicatedWorkerHost::run(JS::NonnullGCPtr<Web::Page> page, Web::HTML::Trans
     // FIXME: support for 'owner' set on WorkerGlobalScope
 
     // IMPLEMENTATION DEFINED: We need an object to represent the fetch response's client
-    auto outside_settings = inner_settings->heap().allocate<Web::HTML::EnvironmentSettingsSnapshot>(inner_settings->realm(), inner_settings->realm_execution_context().copy(), outside_settings_snapshot);
+    auto outside_settings = inner_settings->realm().create<Web::HTML::EnvironmentSettingsSnapshot>(inner_settings->realm_execution_context().copy(), outside_settings_snapshot);
 
     // 12. If is shared is true, then:
     if (is_shared) {
@@ -168,7 +168,7 @@ void DedicatedWorkerHost::run(JS::NonnullGCPtr<Web::Page> page, Web::HTML::Trans
         MUST(inside_port->transfer_receiving_steps(message_port_data));
 
         // 6. Create a new WorkerLocation object and associate it with worker global scope.
-        worker_global_scope->set_location(realm.heap().allocate<Web::HTML::WorkerLocation>(realm, *worker_global_scope));
+        worker_global_scope->set_location(realm.create<Web::HTML::WorkerLocation>(*worker_global_scope));
 
         // FIXME: 7. Closing orphan workers: Start monitoring the worker such that no sooner than it
         //     stops being a protected worker, and no later than it stops being a permissible worker,

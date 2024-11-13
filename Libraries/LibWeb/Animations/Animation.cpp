@@ -28,7 +28,7 @@ JS_DEFINE_ALLOCATOR(Animation);
 JS::NonnullGCPtr<Animation> Animation::create(JS::Realm& realm, JS::GCPtr<AnimationEffect> effect, Optional<JS::GCPtr<AnimationTimeline>> timeline)
 {
     // 1. Let animation be a new Animation object.
-    auto animation = realm.heap().allocate<Animation>(realm, realm);
+    auto animation = realm.create<Animation>(realm);
 
     // 2. Run the procedure to set the timeline of an animation on animation passing timeline as the new timeline or, if
     //    a timeline argument is missing, passing the default document timeline of the Document associated with the

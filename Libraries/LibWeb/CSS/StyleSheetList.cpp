@@ -131,7 +131,7 @@ void StyleSheetList::remove_sheet(CSSStyleSheet& sheet)
 JS::NonnullGCPtr<StyleSheetList> StyleSheetList::create(JS::NonnullGCPtr<DOM::Node> document_or_shadow_root)
 {
     auto& realm = document_or_shadow_root->realm();
-    return realm.heap().allocate<StyleSheetList>(realm, document_or_shadow_root);
+    return realm.create<StyleSheetList>(document_or_shadow_root);
 }
 
 StyleSheetList::StyleSheetList(JS::NonnullGCPtr<DOM::Node> document_or_shadow_root)

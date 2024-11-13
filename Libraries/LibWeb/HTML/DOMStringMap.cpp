@@ -18,7 +18,7 @@ JS_DEFINE_ALLOCATOR(DOMStringMap);
 JS::NonnullGCPtr<DOMStringMap> DOMStringMap::create(DOM::Element& element)
 {
     auto& realm = element.realm();
-    return realm.heap().allocate<DOMStringMap>(realm, element);
+    return realm.create<DOMStringMap>(element);
 }
 
 DOMStringMap::DOMStringMap(DOM::Element& element)

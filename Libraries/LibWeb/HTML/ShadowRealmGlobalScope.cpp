@@ -21,7 +21,7 @@ ShadowRealmGlobalScope::~ShadowRealmGlobalScope() = default;
 
 JS::NonnullGCPtr<ShadowRealmGlobalScope> ShadowRealmGlobalScope::create(JS::Realm& realm)
 {
-    return realm.heap().allocate<ShadowRealmGlobalScope>(realm, realm);
+    return realm.create<ShadowRealmGlobalScope>(realm);
 }
 
 void ShadowRealmGlobalScope::initialize(JS::Realm&)

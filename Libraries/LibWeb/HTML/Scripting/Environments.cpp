@@ -520,7 +520,7 @@ SerializedEnvironmentSettingsObject EnvironmentSettingsObject::serialize()
 JS::NonnullGCPtr<StorageAPI::StorageManager> EnvironmentSettingsObject::storage_manager()
 {
     if (!m_storage_manager)
-        m_storage_manager = realm().heap().allocate<StorageAPI::StorageManager>(realm(), realm());
+        m_storage_manager = realm().create<StorageAPI::StorageManager>(realm());
     return *m_storage_manager;
 }
 

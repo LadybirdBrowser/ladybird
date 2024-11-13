@@ -25,7 +25,7 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<GainNode>> GainNode::create(JS::Realm& real
 WebIDL::ExceptionOr<JS::NonnullGCPtr<GainNode>> GainNode::construct_impl(JS::Realm& realm, JS::NonnullGCPtr<BaseAudioContext> context, GainOptions const& options)
 {
     // Create the node and allocate memory
-    auto node = realm.vm().heap().allocate<GainNode>(realm, realm, context, options);
+    auto node = realm.create<GainNode>(realm, context, options);
 
     // Default options for channel count and interpretation
     // https://webaudio.github.io/web-audio-api/#GainNode

@@ -370,7 +370,7 @@ Messages::WebDriverClient::BackResponse WebDriverConnection::back()
         auto timeout = m_timeouts_configuration.page_load_timeout;
 
         // 4. Let timer be a new timer.
-        auto timer = realm.heap().allocate<Web::WebDriver::HeapTimer>(realm);
+        auto timer = realm.create<Web::WebDriver::HeapTimer>();
 
         auto on_complete = JS::create_heap_function(realm.heap(), [this, timer]() {
             timer->stop();
@@ -415,7 +415,7 @@ Messages::WebDriverClient::BackResponse WebDriverConnection::back()
             } else {
                 auto& realm = document->realm();
 
-                m_document_observer = realm.heap().allocate<Web::DOM::DocumentObserver>(realm, realm, *document);
+                m_document_observer = realm.create<Web::DOM::DocumentObserver>(realm, *document);
                 m_document_observer->set_document_page_showing_observer([on_complete](auto) {
                     on_complete->function()();
                 });
@@ -440,7 +440,7 @@ Messages::WebDriverClient::ForwardResponse WebDriverConnection::forward()
         auto timeout = m_timeouts_configuration.page_load_timeout;
 
         // 4. Let timer be a new timer.
-        auto timer = realm.heap().allocate<Web::WebDriver::HeapTimer>(realm);
+        auto timer = realm.create<Web::WebDriver::HeapTimer>();
 
         auto on_complete = JS::create_heap_function(realm.heap(), [this, timer]() {
             timer->stop();
@@ -485,7 +485,7 @@ Messages::WebDriverClient::ForwardResponse WebDriverConnection::forward()
             } else {
                 auto& realm = document->realm();
 
-                m_document_observer = realm.heap().allocate<Web::DOM::DocumentObserver>(realm, realm, *document);
+                m_document_observer = realm.create<Web::DOM::DocumentObserver>(realm, *document);
                 m_document_observer->set_document_page_showing_observer([on_complete](auto) {
                     on_complete->function()();
                 });
@@ -2719,11 +2719,11 @@ void WebDriverConnection::wait_for_navigation_to_complete(OnNavigationComplete o
 
     // 3. Start a timer. If this algorithm has not completed before timer reaches the session’s session page load timeout
     //    in milliseconds, return an error with error code timeout.
-    m_navigation_timer = realm.heap().allocate<Web::WebDriver::HeapTimer>(realm);
+    m_navigation_timer = realm.create<Web::WebDriver::HeapTimer>();
 
     // 4. If there is an ongoing attempt to navigate the current browsing context that has not yet matured, wait for
     //    navigation to mature.
-    m_navigation_observer = realm.heap().allocate<Web::HTML::NavigationObserver>(realm, realm, *navigable);
+    m_navigation_observer = realm.create<Web::HTML::NavigationObserver>(realm, *navigable);
 
     m_navigation_observer->set_navigation_complete([this, &realm, reset_observers]() {
         reset_observers(*this);
@@ -2744,7 +2744,7 @@ void WebDriverConnection::wait_for_navigation_to_complete(OnNavigationComplete o
         // 6. Wait for the current browsing context’s document readiness state to reach readiness target,
         //    or for the session page load timeout to pass, whichever occurs sooner.
         if (auto* document = current_browsing_context().active_document(); document->readiness() != readiness_target) {
-            m_document_observer = realm.heap().allocate<Web::DOM::DocumentObserver>(realm, realm, *document);
+            m_document_observer = realm.create<Web::DOM::DocumentObserver>(realm, *document);
 
             m_document_observer->set_document_readiness_observer([this, readiness_target](Web::HTML::DocumentReadyState readiness) {
                 if (readiness == readiness_target)
@@ -2837,8 +2837,8 @@ void WebDriverConnection::wait_for_visibility_state(JS::NonnullGCPtr<JS::HeapFun
         return;
     }
 
-    auto timer = realm.heap().allocate<Web::WebDriver::HeapTimer>(realm);
-    m_document_observer = realm.heap().allocate<Web::DOM::DocumentObserver>(realm, realm, *document);
+    auto timer = realm.create<Web::WebDriver::HeapTimer>();
+    m_document_observer = realm.create<Web::DOM::DocumentObserver>(realm, *document);
 
     m_document_observer->set_document_visibility_state_observer([timer, target_visibility_state](Web::HTML::VisibilityState visibility_state) {
         if (visibility_state == target_visibility_state)
@@ -2952,7 +2952,7 @@ void WebDriverConnection::find(Web::WebDriver::LocationStrategy location_strateg
     auto timeout = m_timeouts_configuration.implicit_wait_timeout;
 
     // 4. Let timer be a new timer.
-    auto timer = realm.heap().allocate<Web::WebDriver::HeapTimer>(realm);
+    auto timer = realm.create<Web::WebDriver::HeapTimer>();
 
     auto wrapped_on_complete = JS::create_heap_function(realm.heap(), [this, on_complete, timer](Web::WebDriver::Response result) {
         m_element_locator = nullptr;
@@ -2971,7 +2971,7 @@ void WebDriverConnection::find(Web::WebDriver::LocationStrategy location_strateg
 
     // 6. Let elements returned be an empty List.
     // 7. While elements returned is empty and timer's timeout fired flag is not set:
-    m_element_locator = realm.heap().allocate<ElementLocator>(realm, current_browsing_context(), location_strategy, move(selector), get_start_node, wrapped_on_complete, timer);
+    m_element_locator = realm.create<ElementLocator>(current_browsing_context(), location_strategy, move(selector), get_start_node, wrapped_on_complete, timer);
     m_element_locator->search_for_element();
 }
 

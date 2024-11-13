@@ -20,7 +20,7 @@ JS_DEFINE_ALLOCATOR(DOMParser);
 
 WebIDL::ExceptionOr<JS::NonnullGCPtr<DOMParser>> DOMParser::construct_impl(JS::Realm& realm)
 {
-    return realm.heap().allocate<DOMParser>(realm, realm);
+    return realm.create<DOMParser>(realm);
 }
 
 DOMParser::DOMParser(JS::Realm& realm)

@@ -766,7 +766,7 @@ void ConnectionFromClient::create_child_text_node(u64 page_id, Web::UniqueNodeID
         return;
     }
 
-    auto text_node = dom_node->heap().allocate<Web::DOM::Text>(dom_node->realm(), dom_node->document(), "text"_string);
+    auto text_node = dom_node->realm().create<Web::DOM::Text>(dom_node->document(), "text"_string);
     dom_node->append_child(text_node).release_value_but_fixme_should_propagate_errors();
 
     async_did_finish_editing_dom_node(page_id, text_node->unique_id());

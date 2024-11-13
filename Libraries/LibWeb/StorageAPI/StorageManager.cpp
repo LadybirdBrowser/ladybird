@@ -15,7 +15,7 @@ JS_DEFINE_ALLOCATOR(StorageManager);
 
 WebIDL::ExceptionOr<JS::NonnullGCPtr<StorageManager>> StorageManager::create(JS::Realm& realm)
 {
-    return realm.heap().allocate<StorageManager>(realm, realm);
+    return realm.create<StorageManager>(realm);
 }
 
 StorageManager::StorageManager(JS::Realm& realm)

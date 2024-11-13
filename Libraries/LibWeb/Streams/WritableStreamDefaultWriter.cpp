@@ -18,7 +18,7 @@ JS_DEFINE_ALLOCATOR(WritableStreamDefaultWriter);
 
 WebIDL::ExceptionOr<JS::NonnullGCPtr<WritableStreamDefaultWriter>> WritableStreamDefaultWriter::construct_impl(JS::Realm& realm, JS::NonnullGCPtr<WritableStream> stream)
 {
-    auto writer = realm.heap().allocate<WritableStreamDefaultWriter>(realm, realm);
+    auto writer = realm.create<WritableStreamDefaultWriter>(realm);
 
     // 1. Perform ? SetUpWritableStreamDefaultWriter(this, stream).
     TRY(set_up_writable_stream_default_writer(*writer, stream));
