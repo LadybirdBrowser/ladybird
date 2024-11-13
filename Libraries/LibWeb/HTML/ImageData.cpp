@@ -29,7 +29,15 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<ImageData>> ImageData::create(JS::Realm& re
 
     // 2. Initialize this given sw, sh, and settings set to settings.
     // 3. Initialize the image data of this to transparent black.
-    auto data = TRY(JS::Uint8ClampedArray::create(realm, sw * sh * 4));
+    //
+    // If the Canvas Pixel ArrayBuffer cannot be allocated, then rethrow the RangeError thrown by JavaScript, and return.
+    Checked<u32> size = sw;
+    size *= sh;
+    size *= sizeof(u32);
+    if (size.has_overflow())
+        return WebIDL::IndexSizeError::create(realm, "The specified image size could not created"_string);
+
+    auto data = TRY(JS::Uint8ClampedArray::create(realm, size.value()));
     auto bitmap = TRY_OR_THROW_OOM(vm, Gfx::Bitmap::create_wrapper(Gfx::BitmapFormat::RGBA8888, Gfx::AlphaType::Unpremultiplied, Gfx::IntSize(sw, sh), sw * sizeof(u32), data->data().data()));
 
     return realm.create<ImageData>(realm, bitmap, data);
