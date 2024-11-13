@@ -506,6 +506,9 @@ void dump_selector(StringBuilder& builder, CSS::Selector const& selector, int in
             case CSS::Selector::SimpleSelector::Type::Nesting:
                 type_description = "Nesting";
                 break;
+            case CSS::Selector::SimpleSelector::Type::Invalid:
+                type_description = "INVALID";
+                break;
             }
 
             builder.appendff("{}:", type_description);
@@ -597,6 +600,14 @@ void dump_selector(StringBuilder& builder, CSS::Selector const& selector, int in
                 builder.appendff(" [{}, ", attribute_match_type_description);
                 dump_qualified_name(builder, attribute.qualified_name);
                 builder.appendff(", value='{}']", attribute.value);
+            }
+
+            if (simple_selector.type == CSS::Selector::SimpleSelector::Type::Invalid) {
+                auto invalid = simple_selector.value.get<CSS::Selector::SimpleSelector::Invalid>();
+                builder.append(" '"sv);
+                for (auto const& component_value : invalid.component_values)
+                    builder.append(component_value.to_string());
+                builder.append("'"sv);
             }
 
             if (i != relative_selector.simple_selectors.size() - 1)

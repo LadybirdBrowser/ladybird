@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<style id="style"></style>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const selectors = [
+            ":is(hello, !?)",
+            ":is(what, :fake(:imaginary), really)",
+        ];
+        let stylesheet = document.styleSheets[0];
+        for (let selector of selectors) {
+            stylesheet.insertRule(`${selector} { }`);
+            println(`${selector} -> ${stylesheet.cssRules[0].selectorText}`);
+            stylesheet.deleteRule(0);
+        }
+    });
+</script>

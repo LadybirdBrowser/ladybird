@@ -60,6 +60,29 @@ Optional<Selector::PseudoElement> Parser::parse_as_pseudo_element_selector()
     return simple_selector.pseudo_element();
 }
 
+static NonnullRefPtr<Selector> create_invalid_selector(Selector::Combinator combinator, Vector<ComponentValue> component_values)
+{
+    // Trim leading and trailing whitespace
+    while (!component_values.is_empty() && component_values.first().is(Token::Type::Whitespace)) {
+        component_values.take_first();
+    }
+    while (!component_values.is_empty() && component_values.last().is(Token::Type::Whitespace)) {
+        component_values.take_last();
+    }
+
+    Selector::SimpleSelector simple {
+        .type = Selector::SimpleSelector::Type::Invalid,
+        .value = Selector::SimpleSelector::Invalid {
+            .component_values = move(component_values),
+        }
+    };
+    Selector::CompoundSelector compound {
+        .combinator = combinator,
+        .simple_selectors = { move(simple) }
+    };
+    return Selector::create({ move(compound) });
+}
+
 template<typename T>
 Parser::ParseErrorOr<SelectorList> Parser::parse_a_selector_list(TokenStream<T>& tokens, SelectorType mode, SelectorParsingMode parsing_mode)
 {
@@ -70,8 +93,12 @@ Parser::ParseErrorOr<SelectorList> Parser::parse_a_selector_list(TokenStream<T>&
         auto stream = TokenStream(selector_parts);
         auto selector = parse_complex_selector(stream, mode);
         if (selector.is_error()) {
-            if (parsing_mode == SelectorParsingMode::Forgiving)
+            if (parsing_mode == SelectorParsingMode::Forgiving) {
+                // Keep the invalid selector around for serialization and nesting
+                auto combinator = mode == SelectorType::Standalone ? Selector::Combinator::None : Selector::Combinator::Descendant;
+                selectors.append(create_invalid_selector(combinator, move(selector_parts)));
                 continue;
+            }
             return selector.error();
         }
         selectors.append(selector.release_value());
