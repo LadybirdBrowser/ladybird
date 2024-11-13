@@ -437,6 +437,7 @@ ErrorOr<void> run_tests(Core::AnonymousBuffer const& theme, Web::DevicePixelSize
     size_t timeout_count = 0;
     size_t crashed_count = 0;
     size_t skipped_count = 0;
+    bool all_tests_ok = true;
 
     bool is_tty = isatty(STDOUT_FILENO);
     outln("Running {} tests...", tests.size());
@@ -486,12 +487,15 @@ ErrorOr<void> run_tests(Core::AnonymousBuffer const& theme, Web::DevicePixelSize
                 ++pass_count;
                 break;
             case TestResult::Fail:
+                all_tests_ok = false;
                 ++fail_count;
                 break;
             case TestResult::Timeout:
+                all_tests_ok = false;
                 ++timeout_count;
                 break;
             case TestResult::Crashed:
+                all_tests_ok = false;
                 ++crashed_count;
                 break;
             case TestResult::Skipped:
@@ -558,7 +562,7 @@ ErrorOr<void> run_tests(Core::AnonymousBuffer const& theme, Web::DevicePixelSize
 
     app.destroy_web_views();
 
-    if (timeout_count == 0 && fail_count == 0)
+    if (all_tests_ok)
         return {};
 
     return Error::from_string_literal("Failed LibWeb tests");
