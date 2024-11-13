@@ -655,8 +655,10 @@ void WebContentView::initialize_client(WebView::ViewImplementation::CreateNewCli
     client().async_set_window_handle(m_client_state.page_index, m_client_state.client_handle);
 
     client().async_set_device_pixels_per_css_pixel(m_client_state.page_index, m_device_pixel_ratio);
-    update_palette();
 
+    set_system_visibility_state(m_system_visibility_state);
+
+    update_palette();
     update_screen_rects();
 
     if (auto webdriver_content_ipc_path = WebView::Application::chrome_options().webdriver_content_ipc_path; webdriver_content_ipc_path.has_value())

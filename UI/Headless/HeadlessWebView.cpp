@@ -136,6 +136,8 @@ HeadlessWebView::HeadlessWebView(Core::AnonymousBuffer theme, Web::DevicePixelSi
         m_pending_dialog = Web::Page::PendingDialog::None;
         m_pending_prompt_text.clear();
     };
+
+    m_system_visibility_state = Web::HTML::VisibilityState::Visible;
 }
 
 NonnullOwnPtr<HeadlessWebView> HeadlessWebView::create(Core::AnonymousBuffer theme, Web::DevicePixelSize window_size)
@@ -177,7 +179,7 @@ void HeadlessWebView::initialize_client(CreateNewClient create_new_client)
     client().async_set_window_size(m_client_state.page_index, viewport_size());
     client().async_update_screen_rects(m_client_state.page_index, { screen_rect }, 0);
 
-    set_system_visibility_state(Web::HTML::VisibilityState::Visible);
+    set_system_visibility_state(m_system_visibility_state);
 
     if (Application::chrome_options().allow_popups == WebView::AllowPopups::Yes)
         client().async_debug_request(m_client_state.page_index, "block-pop-ups"sv, "off"sv);

@@ -163,6 +163,8 @@ void WebViewBridge::initialize_client(CreateNewClient create_new_client)
 
     client().async_set_device_pixels_per_css_pixel(m_client_state.page_index, m_device_pixel_ratio);
     client().async_set_preferred_color_scheme(m_client_state.page_index, m_preferred_color_scheme);
+
+    set_system_visibility_state(m_system_visibility_state);
     update_palette();
 
     if (!m_screen_rects.is_empty()) {
