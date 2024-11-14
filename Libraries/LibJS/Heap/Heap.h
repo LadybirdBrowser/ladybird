@@ -7,6 +7,7 @@
 #pragma once
 
 #include <AK/Badge.h>
+#include <AK/Function.h>
 #include <AK/HashTable.h>
 #include <AK/IntrusiveList.h>
 #include <AK/Noncopyable.h>
@@ -32,7 +33,7 @@ class Heap : public HeapBase {
     AK_MAKE_NONMOVABLE(Heap);
 
 public:
-    explicit Heap(VM&);
+    explicit Heap(VM&, Function<void(HashMap<Cell*, JS::HeapRoot>&)> gather_embedder_roots);
     ~Heap();
 
     template<typename T, typename... Args>
@@ -145,6 +146,7 @@ private:
 
     bool m_collecting_garbage { false };
     StackInfo m_stack_info;
+    Function<void(HashMap<Cell*, JS::HeapRoot>&)> m_gather_embedder_roots;
 };
 
 inline void Heap::did_create_handle(Badge<HandleImpl>, HandleImpl& impl)
