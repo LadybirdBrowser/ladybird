@@ -182,6 +182,7 @@ public:
         return Color(r_u8, g_u8, b_u8, a_u8);
     }
 
+    static Color from_a98rgb(float r, float g, float b, float alpha = 1.0f);
     static Color from_lab(float L, float a, float b, float alpha = 1.0f);
     static Color from_xyz50(float x, float y, float z, float alpha = 1.0f);
     static Color from_xyz65(float x, float y, float z, float alpha = 1.0f);
