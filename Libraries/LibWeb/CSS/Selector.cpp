@@ -624,6 +624,33 @@ Optional<Selector::CompoundSelector> Selector::CompoundSelector::absolutized(Sel
     };
 }
 
+static bool contains_invalid_contents_for_has(Selector const& selector)
+{
+    // :has() has special validity rules:
+    // - It can't appear inside itself
+    // - It bans most pseudo-elements
+    // https://drafts.csswg.org/selectors/#relational
+
+    for (auto const& compound_selector : selector.compound_selectors()) {
+        for (auto const& simple_selector : compound_selector.simple_selectors) {
+            if (simple_selector.type == Selector::SimpleSelector::Type::PseudoElement) {
+                if (!is_has_allowed_pseudo_element(simple_selector.pseudo_element().type()))
+                    return true;
+            }
+            if (simple_selector.type == Selector::SimpleSelector::Type::PseudoClass) {
+                if (simple_selector.pseudo_class().type == PseudoClass::Has)
+                    return true;
+                for (auto& child_selector : simple_selector.pseudo_class().argument_selector_list) {
+                    if (contains_invalid_contents_for_has(*child_selector))
+                        return true;
+                }
+            }
+        }
+    }
+
+    return false;
+}
+
 Optional<Selector::SimpleSelector> Selector::SimpleSelector::absolutized(Selector::SimpleSelector const& selector_for_nesting) const
 {
     switch (type) {
@@ -647,6 +674,17 @@ Optional<Selector::SimpleSelector> Selector::SimpleSelector::absolutized(Selecto
             }
             pseudo_class.argument_selector_list = move(new_selector_list);
         }
+
+        // :has() has special validity rules
+        if (pseudo_class.type == PseudoClass::Has) {
+            for (auto const& selector : pseudo_class.argument_selector_list) {
+                if (contains_invalid_contents_for_has(selector)) {
+                    dbgln_if(CSS_PARSER_DEBUG, "After absolutizing, :has() would contain invalid contents; rejecting");
+                    return {};
+                }
+            }
+        }
+
         return SimpleSelector {
             .type = Type::PseudoClass,
             .value = move(pseudo_class),
