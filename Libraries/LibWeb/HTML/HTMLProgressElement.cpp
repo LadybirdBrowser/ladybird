@@ -127,7 +127,7 @@ void HTMLProgressElement::create_shadow_tree_if_needed()
 void HTMLProgressElement::update_progress_value_element()
 {
     if (m_progress_value_element)
-        MUST(m_progress_value_element->style_for_bindings()->set_property(CSS::PropertyID::Width, MUST(String::formatted("{}%", position() * 100))));
+        MUST(m_progress_value_element->style_for_bindings()->set_property(CSS::PropertyID::Width, {}, MUST(String::formatted("{}%", position() * 100))));
 }
 
 void HTMLProgressElement::computed_css_values_changed()
@@ -140,7 +140,7 @@ void HTMLProgressElement::computed_css_values_changed()
         accent_color = accent_color_property.to_string();
 
     if (m_progress_value_element)
-        MUST(m_progress_value_element->style_for_bindings()->set_property(CSS::PropertyID::BackgroundColor, accent_color));
+        MUST(m_progress_value_element->style_for_bindings()->set_property(CSS::PropertyID::BackgroundColor, {}, accent_color));
 }
 
 }

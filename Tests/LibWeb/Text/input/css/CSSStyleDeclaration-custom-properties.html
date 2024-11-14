@@ -1,0 +1,19 @@
+<script src="../include.js"></script>
+<div id="foo"></div>
+<script>
+    test(() => {
+        const div = document.getElementById("foo");
+
+        // set property
+        div.style.setProperty("--foo", "bar");
+        println(`--foo= ${div.style.getPropertyValue("--foo")}`);
+
+        // set property with priority
+        div.style.setProperty("--foo", "baz", "important");
+        println(`--foo= ${div.style.getPropertyValue("--foo")} ${div.style.getPropertyPriority("--foo")}`);
+
+        // remove property
+        div.style.removeProperty("--foo");
+        println(`--foo= blank${div.style.getPropertyValue("--foo")}`);
+    })
+</script>

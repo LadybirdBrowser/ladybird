@@ -415,11 +415,11 @@ void HTMLTextAreaElement::update_placeholder_visibility()
         return;
     auto placeholder_text = get_attribute(AttributeNames::placeholder);
     if (placeholder_text.has_value() && m_text_node->data().is_empty()) {
-        MUST(m_placeholder_element->style_for_bindings()->set_property(CSS::PropertyID::Display, "block"sv));
-        MUST(m_inner_text_element->style_for_bindings()->set_property(CSS::PropertyID::Display, "none"sv));
+        MUST(m_placeholder_element->style_for_bindings()->set_property(CSS::PropertyID::Display, {}, "block"sv));
+        MUST(m_inner_text_element->style_for_bindings()->set_property(CSS::PropertyID::Display, {}, "none"sv));
     } else {
-        MUST(m_placeholder_element->style_for_bindings()->set_property(CSS::PropertyID::Display, "none"sv));
-        MUST(m_inner_text_element->style_for_bindings()->set_property(CSS::PropertyID::Display, "block"sv));
+        MUST(m_placeholder_element->style_for_bindings()->set_property(CSS::PropertyID::Display, {}, "none"sv));
+        MUST(m_inner_text_element->style_for_bindings()->set_property(CSS::PropertyID::Display, {}, "block"sv));
     }
 }
 

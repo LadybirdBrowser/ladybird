@@ -656,9 +656,9 @@ void HTMLInputElement::update_placeholder_visibility()
     if (!m_placeholder_element)
         return;
     if (this->placeholder_value().has_value()) {
-        MUST(m_placeholder_element->style_for_bindings()->set_property(CSS::PropertyID::Display, "block"sv));
+        MUST(m_placeholder_element->style_for_bindings()->set_property(CSS::PropertyID::Display, {}, "block"sv));
     } else {
-        MUST(m_placeholder_element->style_for_bindings()->set_property(CSS::PropertyID::Display, "none"sv));
+        MUST(m_placeholder_element->style_for_bindings()->set_property(CSS::PropertyID::Display, {}, "none"sv));
     }
 }
 
@@ -961,7 +961,7 @@ void HTMLInputElement::create_color_input_shadow_tree()
         border: 1px solid ButtonBorder;
         box-sizing: border-box;
 )~~~"_string));
-    MUST(m_color_well_element->style_for_bindings()->set_property(CSS::PropertyID::BackgroundColor, color));
+    MUST(m_color_well_element->style_for_bindings()->set_property(CSS::PropertyID::BackgroundColor, {}, color));
 
     MUST(border->append_child(*m_color_well_element));
     MUST(shadow_root->append_child(border));
@@ -973,7 +973,7 @@ void HTMLInputElement::update_color_well_element()
     if (!m_color_well_element)
         return;
 
-    MUST(m_color_well_element->style_for_bindings()->set_property(CSS::PropertyID::BackgroundColor, m_value));
+    MUST(m_color_well_element->style_for_bindings()->set_property(CSS::PropertyID::BackgroundColor, {}, m_value));
 }
 
 void HTMLInputElement::create_file_input_shadow_tree()
@@ -1140,9 +1140,9 @@ void HTMLInputElement::computed_css_values_changed()
         accent_color = accent_color_property.to_string();
 
     if (m_slider_progress_element)
-        MUST(m_slider_progress_element->style_for_bindings()->set_property(CSS::PropertyID::BackgroundColor, accent_color));
+        MUST(m_slider_progress_element->style_for_bindings()->set_property(CSS::PropertyID::BackgroundColor, {}, accent_color));
     if (m_slider_thumb)
-        MUST(m_slider_thumb->style_for_bindings()->set_property(CSS::PropertyID::BackgroundColor, accent_color));
+        MUST(m_slider_thumb->style_for_bindings()->set_property(CSS::PropertyID::BackgroundColor, {}, accent_color));
 }
 
 void HTMLInputElement::user_interaction_did_change_input_value()
@@ -1170,10 +1170,10 @@ void HTMLInputElement::update_slider_shadow_tree_elements()
     double position = (value - minimum) / (maximum - minimum) * 100;
 
     if (m_slider_progress_element)
-        MUST(m_slider_progress_element->style_for_bindings()->set_property(CSS::PropertyID::Width, MUST(String::formatted("{}%", position))));
+        MUST(m_slider_progress_element->style_for_bindings()->set_property(CSS::PropertyID::Width, {}, MUST(String::formatted("{}%", position))));
 
     if (m_slider_thumb)
-        MUST(m_slider_thumb->style_for_bindings()->set_property(CSS::PropertyID::MarginLeft, MUST(String::formatted("{}%", position))));
+        MUST(m_slider_thumb->style_for_bindings()->set_property(CSS::PropertyID::MarginLeft, {}, MUST(String::formatted("{}%", position))));
 }
 
 void HTMLInputElement::did_receive_focus()

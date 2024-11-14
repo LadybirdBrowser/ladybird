@@ -9,6 +9,7 @@
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/CSS/CSSStyleDeclaration.h>
 #include <LibWeb/CSS/Parser/Parser.h>
+#include <LibWeb/CSS/PropertyName.h>
 #include <LibWeb/CSS/StyleComputer.h>
 #include <LibWeb/CSS/StyleValues/ImageStyleValue.h>
 #include <LibWeb/DOM/Document.h>
@@ -102,7 +103,7 @@ Optional<StyleProperty> PropertyOwningCSSStyleDeclaration::property(PropertyID p
 }
 
 // https://drafts.csswg.org/cssom/#dom-cssstyledeclaration-setproperty
-WebIDL::ExceptionOr<void> PropertyOwningCSSStyleDeclaration::set_property(PropertyID property_id, StringView value, StringView priority)
+WebIDL::ExceptionOr<void> PropertyOwningCSSStyleDeclaration::set_property(PropertyID property_id, Optional<StringView> property_name, StringView value, StringView priority)
 {
     // 1. If the computed flag is set, then throw a NoModificationAllowedError exception.
     // NOTE: This is handled by the virtual override in ResolvedCSSStyleDeclaration.
@@ -114,7 +115,10 @@ WebIDL::ExceptionOr<void> PropertyOwningCSSStyleDeclaration::set_property(Proper
 
     // 3. If value is the empty string, invoke removeProperty() with property as argument and return.
     if (value.is_empty()) {
-        MUST(remove_property(property_id));
+        if (property_name.has_value())
+            MUST(remove_property(property_id, property_name.value()));
+        else
+            MUST(remove_property(property_id, string_from_property_id(property_id)));
         return {};
     }
 
@@ -137,11 +141,11 @@ WebIDL::ExceptionOr<void> PropertyOwningCSSStyleDeclaration::set_property(Proper
     // 8. If property is a shorthand property,
     if (property_is_shorthand(property_id)) {
         // then for each longhand property longhand that property maps to, in canonical order, follow these substeps:
-        StyleComputer::for_each_property_expanding_shorthands(property_id, *component_value_list, StyleComputer::AllowUnresolved::Yes, [this, &updated, priority](PropertyID longhand_property_id, CSSStyleValue const& longhand_value) {
+        StyleComputer::for_each_property_expanding_shorthands(property_id, *component_value_list, StyleComputer::AllowUnresolved::Yes, [this, &updated, property_name, priority](PropertyID longhand_property_id, CSSStyleValue const& longhand_value) {
             // 1. Let longhand result be the result of set the CSS declaration longhand with the appropriate value(s) from component value list,
             //    with the important flag set if priority is not the empty string, and unset otherwise, and with the list of declarations being the declarations.
             // 2. If longhand result is true, let updated be true.
-            updated |= set_a_css_declaration(longhand_property_id, longhand_value, !priority.is_empty() ? Important::Yes : Important::No);
+            updated |= set_a_css_declaration(longhand_property_id, property_name, longhand_value, !priority.is_empty() ? Important::Yes : Important::No);
         });
     }
     // 9. Otherwise,
@@ -149,7 +153,7 @@ WebIDL::ExceptionOr<void> PropertyOwningCSSStyleDeclaration::set_property(Proper
         // let updated be the result of set the CSS declaration property with value component value list,
         // with the important flag set if priority is not the empty string, and unset otherwise,
         // and with the list of declarations being the declarations.
-        updated = set_a_css_declaration(property_id, *component_value_list, !priority.is_empty() ? Important::Yes : Important::No);
+        updated = set_a_css_declaration(property_id, property_name, *component_value_list, !priority.is_empty() ? Important::Yes : Important::No);
     }
 
     // 10. If updated is true, update style attribute for the CSS declaration block.
@@ -160,7 +164,7 @@ WebIDL::ExceptionOr<void> PropertyOwningCSSStyleDeclaration::set_property(Proper
 }
 
 // https://drafts.csswg.org/cssom/#dom-cssstyledeclaration-removeproperty
-WebIDL::ExceptionOr<String> PropertyOwningCSSStyleDeclaration::remove_property(PropertyID property_id)
+WebIDL::ExceptionOr<String> PropertyOwningCSSStyleDeclaration::remove_property(PropertyID property_id, StringView property_name)
 {
     // 1. If the computed flag is set, then throw a NoModificationAllowedError exception.
     // NOTE: This is handled by the virtual override in ResolvedCSSStyleDeclaration.
@@ -169,8 +173,7 @@ WebIDL::ExceptionOr<String> PropertyOwningCSSStyleDeclaration::remove_property(P
     // NOTE: We've already converted it to a PropertyID enum value.
 
     // 3. Let value be the return value of invoking getPropertyValue() with property as argument.
-    // FIXME: The trip through string_from_property_id() here is silly.
-    auto value = get_property_value(string_from_property_id(property_id));
+    auto value = get_property_value(property_name);
 
     // 4. Let removed be false.
     bool removed = false;
@@ -180,7 +183,11 @@ WebIDL::ExceptionOr<String> PropertyOwningCSSStyleDeclaration::remove_property(P
     //           2. Remove that CSS declaration and let removed be true.
 
     // 6. Otherwise, if property is a case-sensitive match for a property name of a CSS declaration in the declarations, remove that CSS declaration and let removed be true.
-    removed = m_properties.remove_first_matching([&](auto& entry) { return entry.property_id == property_id; });
+    if (property_id == PropertyID::Custom) {
+        removed = m_custom_properties.remove(MUST(FlyString::from_utf8(property_name)));
+    } else {
+        removed = m_properties.remove_first_matching([&](auto& entry) { return entry.property_id == property_id; });
+    }
 
     // 7. If removed is true, Update style attribute for the CSS declaration block.
     if (removed)
@@ -212,9 +219,15 @@ void ElementInlineCSSStyleDeclaration::update_style_attribute()
 }
 
 // https://drafts.csswg.org/cssom/#set-a-css-declaration
-bool PropertyOwningCSSStyleDeclaration::set_a_css_declaration(PropertyID property_id, NonnullRefPtr<CSSStyleValue const> value, Important important)
+bool PropertyOwningCSSStyleDeclaration::set_a_css_declaration(PropertyID property_id, Optional<StringView> property_name, NonnullRefPtr<CSSStyleValue const> value, Important important)
 {
     // FIXME: Handle logical property groups.
+
+    if (property_id == PropertyID::Custom && property_name.has_value()) {
+        auto fly_string_property = MUST(FlyString::from_utf8(property_name.release_value()));
+        m_custom_properties.set(fly_string_property, StyleProperty { .important = important, .property_id = property_id, .value = move(value), .custom_name = fly_string_property });
+        return true;
+    }
 
     for (auto& property : m_properties) {
         if (property.property_id == property_id) {
@@ -237,6 +250,15 @@ bool PropertyOwningCSSStyleDeclaration::set_a_css_declaration(PropertyID propert
 // https://drafts.csswg.org/cssom/#dom-cssstyledeclaration-getpropertyvalue
 String CSSStyleDeclaration::get_property_value(StringView property_name) const
 {
+    // check for a custom property and return early
+    if (is_a_custom_property_name_string(property_name)) {
+        auto maybe_custom_property = custom_property(MUST(FlyString::from_utf8(property_name)));
+        if (maybe_custom_property.has_value()) {
+            return maybe_custom_property.value().value->to_string();
+        }
+        return {};
+    }
+
     auto property_id = property_id_from_string(property_name);
     if (!property_id.has_value())
         return {};
@@ -282,6 +304,13 @@ String CSSStyleDeclaration::get_property_value(StringView property_name) const
 // https://drafts.csswg.org/cssom/#dom-cssstyledeclaration-getpropertypriority
 StringView CSSStyleDeclaration::get_property_priority(StringView property_name) const
 {
+    if (is_a_custom_property_name_string(property_name)) {
+        auto maybe_property = custom_property(MUST(FlyString::from_utf8(property_name)));
+        if (maybe_property.has_value()) {
+            return maybe_property->important == Important::Yes ? "important"sv : ""sv;
+        }
+    }
+
     auto property_id = property_id_from_string(property_name);
     if (!property_id.has_value())
         return {};
@@ -293,18 +322,23 @@ StringView CSSStyleDeclaration::get_property_priority(StringView property_name) 
 
 WebIDL::ExceptionOr<void> CSSStyleDeclaration::set_property(StringView property_name, StringView css_text, StringView priority)
 {
+    if (is_a_custom_property_name_string(property_name)) {
+        return set_property(PropertyID::Custom, property_name, css_text, priority);
+    }
     auto property_id = property_id_from_string(property_name);
     if (!property_id.has_value())
         return {};
-    return set_property(property_id.value(), css_text, priority);
+    return set_property(property_id.value(), property_name, css_text, priority);
 }
 
 WebIDL::ExceptionOr<String> CSSStyleDeclaration::remove_property(StringView property_name)
 {
     auto property_id = property_id_from_string(property_name);
+    if (is_a_custom_property_name_string(property_name))
+        property_id = PropertyID::Custom;
     if (!property_id.has_value())
         return String {};
-    return remove_property(property_id.value());
+    return remove_property(property_id.value(), property_name);
 }
 
 // https://drafts.csswg.org/cssom/#dom-cssstyledeclaration-csstext

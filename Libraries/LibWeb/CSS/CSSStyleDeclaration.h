@@ -29,9 +29,11 @@ public:
     virtual String item(size_t index) const = 0;
 
     virtual Optional<StyleProperty> property(PropertyID) const = 0;
+    virtual Optional<StyleProperty> custom_property(FlyString const& custom_property_name) const = 0;
 
-    virtual WebIDL::ExceptionOr<void> set_property(PropertyID, StringView css_text, StringView priority = ""sv) = 0;
-    virtual WebIDL::ExceptionOr<String> remove_property(PropertyID) = 0;
+    // property_name only needs to be passed for custom properties.
+    virtual WebIDL::ExceptionOr<void> set_property(PropertyID, Optional<StringView> property_name, StringView css_text, StringView priority = ""sv) = 0;
+    virtual WebIDL::ExceptionOr<String> remove_property(PropertyID, StringView property_name) = 0;
 
     virtual WebIDL::ExceptionOr<void> set_property(StringView property_name, StringView css_text, StringView priority);
     virtual WebIDL::ExceptionOr<String> remove_property(StringView property_name);
@@ -76,12 +78,12 @@ public:
 
     virtual Optional<StyleProperty> property(PropertyID) const override;
 
-    virtual WebIDL::ExceptionOr<void> set_property(PropertyID, StringView css_text, StringView priority) override;
-    virtual WebIDL::ExceptionOr<String> remove_property(PropertyID) override;
+    virtual WebIDL::ExceptionOr<void> set_property(PropertyID, Optional<StringView> property_name, StringView css_text, StringView priority) override;
+    virtual WebIDL::ExceptionOr<String> remove_property(PropertyID, StringView) override;
 
     Vector<StyleProperty> const& properties() const { return m_properties; }
     HashMap<FlyString, StyleProperty> const& custom_properties() const { return m_custom_properties; }
-    Optional<StyleProperty> custom_property(FlyString const& custom_property_name) const { return m_custom_properties.get(custom_property_name); }
+    virtual Optional<StyleProperty> custom_property(FlyString const& custom_property_name) const override { return m_custom_properties.get(custom_property_name); }
     size_t custom_property_count() const { return m_custom_properties.size(); }
 
     virtual String serialized() const final override;
@@ -99,7 +101,7 @@ protected:
     void set_the_declarations(Vector<StyleProperty> properties, HashMap<FlyString, StyleProperty> custom_properties);
 
 private:
-    bool set_a_css_declaration(PropertyID, NonnullRefPtr<CSSStyleValue const>, Important);
+    bool set_a_css_declaration(PropertyID, Optional<StringView>, NonnullRefPtr<CSSStyleValue const>, Important);
 
     virtual void visit_edges(Cell::Visitor&) override;
 
