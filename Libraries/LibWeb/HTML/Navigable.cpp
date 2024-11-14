@@ -901,7 +901,7 @@ static WebIDL::ExceptionOr<Navigable::NavigationParamsVariant> create_navigation
         // If the latter condition occurs, then abort fetchController, and return. Otherwise, proceed onward.
         if (navigation_id.has_value() && (!navigable->ongoing_navigation().has<String>() || navigable->ongoing_navigation().get<String>() != *navigation_id)) {
             fetch_controller->abort(realm, {});
-            return Empty {};
+            return Navigable::NullOrError {};
         }
 
         // 8. If request's body is null, then set entry's document state's resource to null.
@@ -1016,9 +1016,9 @@ static WebIDL::ExceptionOr<Navigable::NavigationParamsVariant> create_navigation
         if (response_holder->response()->network_error_message().has_value() && !response_holder->response()->network_error_message().value().is_null())
             return response_holder->response()->network_error_message().value();
         else
-            return Empty {};
+            return Navigable::NullOrError {};
     } else if (location_url.is_error() || (location_url.value().has_value() && Fetch::Infrastructure::is_fetch_scheme(location_url.value().value().scheme())))
-        return Empty {};
+        return Navigable::NullOrError {};
 
     // 22. Assert: locationURL is null and response is not a network error.
     VERIFY(!location_url.value().has_value());
@@ -1085,7 +1085,7 @@ WebIDL::ExceptionOr<void> Navigable::populate_session_history_entry_document(
     // FIXME: 1. Assert: this is running in parallel.
 
     // 2. Assert: if navigationParams is non-null, then navigationParams's response is non-null.
-    if (!navigation_params.has<Empty>() && !navigation_params.has<NullWithError>())
+    if (!navigation_params.has<NullOrError>())
         VERIFY(navigation_params.has<GC::Ref<NavigationParams>>() && navigation_params.get<GC::Ref<NavigationParams>>()->response);
 
     // 3. Let currentBrowsingContext be navigable's active browsing context.
@@ -1095,7 +1095,7 @@ WebIDL::ExceptionOr<void> Navigable::populate_session_history_entry_document(
     auto document_resource = entry->document_state()->resource();
 
     // 5. If navigationParams is null, then:
-    if (navigation_params.has<Empty>() || navigation_params.has<NullWithError>()) {
+    if (navigation_params.has<NullOrError>()) {
         // 1. If documentResource is a string, then set navigationParams to the result
         //    of creating navigation params from a srcdoc resource given entry, navigable,
         //    targetSnapshotParams, navigationId, and navTimingType.
@@ -1166,9 +1166,9 @@ WebIDL::ExceptionOr<void> Navigable::populate_session_history_entry_document(
         //  - FIXME: the result of should navigation response to navigation request of type in target be blocked by Content Security Policy? given navigationParams's request, navigationParams's response, navigationParams's policy container's CSP list, cspNavigationType, and navigable is "Blocked";
         //  - FIXME: navigationParams's reserved environment is non-null and the result of checking a navigation response's adherence to its embedder policy given navigationParams's response, navigable, and navigationParams's policy container's embedder policy is false; or
         //  - FIXME: the result of checking a navigation response's adherence to `X-Frame-Options` given navigationParams's response, navigable, navigationParams's policy container's CSP list, and navigationParams's origin is false,
-        if (navigation_params.has<Empty>() || navigation_params.has<NullWithError>()) {
+        if (navigation_params.has<NullOrError>()) {
             // 1. Set entry's document state's document to the result of creating a document for inline content that doesn't have a DOM, given navigable, null, and navTimingType. The inline content should indicate to the user the sort of error that occurred.
-            auto error_message = navigation_params.has<NullWithError>() ? navigation_params.get<NullWithError>() : "Unknown error"sv;
+            auto error_message = navigation_params.get<NullOrError>().value_or("Unknown error"sv);
 
             auto error_html = load_error_page(entry->url(), error_message).release_value_but_fixme_should_propagate_errors();
             entry->document_state()->set_document(create_document_for_inline_content(this, navigation_id, [error_html](auto& document) {
@@ -1184,7 +1184,7 @@ WebIDL::ExceptionOr<void> Navigable::populate_session_history_entry_document(
             saveExtraDocumentState = false;
 
             // 4. If navigationParams is not null, then:
-            if (!navigation_params.has<Empty>() && !navigation_params.has<NullWithError>()) {
+            if (!navigation_params.has<NullOrError>()) {
                 // FIXME: 1. Run the environment discarding steps for navigationParams's reserved environment.
                 // FIXME: 2. Invoke WebDriver BiDi navigation failed with currentBrowsingContext and a new WebDriver BiDi navigation status whose id is navigationId, status is "canceled", and url is navigationParams's response's URL.
             }
@@ -1216,7 +1216,7 @@ WebIDL::ExceptionOr<void> Navigable::populate_session_history_entry_document(
 
             // 3. If entry's document state's request referrer is "client", and navigationParams is a navigation params (i.e., neither null nor a non-fetch scheme navigation params), then:
             if (entry->document_state()->request_referrer() == Fetch::Infrastructure::Request::Referrer::Client
-                && (!navigation_params.has<Empty>() && !navigation_params.has<NullWithError>() && navigation_params.has<GC::Ref<NonFetchSchemeNavigationParams>>())) {
+                && (!navigation_params.has<NullOrError>() && navigation_params.has<GC::Ref<NonFetchSchemeNavigationParams>>())) {
                 // 1. Assert: navigationParams's request is not null.
                 VERIFY(navigation_params.has<GC::Ref<NavigationParams>>() && navigation_params.get<GC::Ref<NavigationParams>>()->request);
 
@@ -1469,7 +1469,7 @@ WebIDL::ExceptionOr<void> Navigable::navigate(NavigateParams params)
         history_entry->set_document_state(document_state);
 
         // 7. Let navigationParams be null.
-        NavigationParamsVariant navigation_params = Empty {};
+        NavigationParamsVariant navigation_params = Navigable::NullOrError {};
 
         // FIXME: 8. If response is non-null:
         if (response) {
