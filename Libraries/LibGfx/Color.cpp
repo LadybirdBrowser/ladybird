@@ -413,6 +413,24 @@ Color Color::from_linear_srgb(float red, float green, float blue, float alpha)
         clamp(lroundf(alpha * 255.f), 0, 255));
 }
 
+// https://www.w3.org/TR/css-color-4/#predefined-a98-rgb
+Color Color::from_a98rgb(float r, float g, float b, float alpha)
+{
+    auto to_linear = [](float c) {
+        return pow(c, 563. / 256);
+    };
+
+    auto linear_r = to_linear(r);
+    auto linear_g = to_linear(g);
+    auto linear_b = to_linear(b);
+
+    float x = 0.57666904 * linear_r + 0.18555824 * linear_g + 0.18822865 * linear_b;
+    float y = 0.29734498 * linear_r + 0.62736357 * linear_g + 0.07529146 * linear_b;
+    float z = 0.02703136 * linear_r + 0.07068885 * linear_g + 0.99133754 * linear_b;
+
+    return from_xyz65(x, y, z, alpha);
+}
+
 Color Color::from_xyz50(float x, float y, float z, float alpha)
 {
     // See commit description for these values

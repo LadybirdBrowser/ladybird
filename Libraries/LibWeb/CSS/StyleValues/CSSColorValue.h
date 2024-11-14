@@ -24,6 +24,7 @@ public:
 
     enum class ColorType {
         RGB, // This is used by CSSRGB for rgb(...) and rgba(...).
+        A98RGB,
         HSL,
         HWB,
         Lab,
