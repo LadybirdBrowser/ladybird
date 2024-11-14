@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<style id="style"></style>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        let selectors = [
+            ":has(:yakthonk)",
+        ];
+
+        let style = document.getElementById("style");
+
+        for (let selector of selectors) {
+            style.innerText = `${selector} { color: red; }`;
+            println(`${selector} should be invalid: ${style.sheet.cssRules.length === 0 ? "PASS" : "FAIL"}`);
+        }
+    });
+</script>

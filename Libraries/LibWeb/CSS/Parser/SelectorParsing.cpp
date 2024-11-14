@@ -641,9 +641,13 @@ Parser::ParseErrorOr<Selector::SimpleSelector> Parser::parse_pseudo_simple_selec
                     .languages = move(languages) }
             };
         }
+        case PseudoClassMetadata::ParameterType::RelativeSelectorList:
         case PseudoClassMetadata::ParameterType::SelectorList: {
             auto function_token_stream = TokenStream(pseudo_function.value);
-            auto not_selector = TRY(parse_a_selector_list(function_token_stream, SelectorType::Standalone));
+            auto selector_type = metadata.parameter_type == PseudoClassMetadata::ParameterType::SelectorList
+                ? SelectorType::Standalone
+                : SelectorType::Relative;
+            auto not_selector = TRY(parse_a_selector_list(function_token_stream, selector_type));
 
             return Selector::SimpleSelector {
                 .type = Selector::SimpleSelector::Type::PseudoClass,

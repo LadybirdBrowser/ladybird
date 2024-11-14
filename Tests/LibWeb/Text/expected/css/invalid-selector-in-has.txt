@@ -1,0 +1,1 @@
+:has(:yakthonk) should be invalid: PASS
