@@ -12,17 +12,17 @@
 namespace Web::MediaSourceExtensions {
 
 struct BufferedChangeEventInit : public DOM::EventInit {
-    JS::GCPtr<HTML::TimeRanges> added_ranges;
-    JS::GCPtr<HTML::TimeRanges> removed_ranges;
+    GC::Ptr<HTML::TimeRanges> added_ranges;
+    GC::Ptr<HTML::TimeRanges> removed_ranges;
 };
 
 // https://w3c.github.io/media-source/#bufferedchangeevent-interface
 class BufferedChangeEvent : public DOM::Event {
     WEB_PLATFORM_OBJECT(BufferedChangeEvent, DOM::Event);
-    JS_DECLARE_ALLOCATOR(BufferedChangeEvent);
+    GC_DECLARE_ALLOCATOR(BufferedChangeEvent);
 
 public:
-    [[nodiscard]] static WebIDL::ExceptionOr<JS::NonnullGCPtr<BufferedChangeEvent>> construct_impl(JS::Realm&, FlyString const& type, BufferedChangeEventInit const& = {});
+    [[nodiscard]] static WebIDL::ExceptionOr<GC::Ref<BufferedChangeEvent>> construct_impl(JS::Realm&, FlyString const& type, BufferedChangeEventInit const& = {});
 
 private:
     BufferedChangeEvent(JS::Realm&, FlyString const& type, BufferedChangeEventInit const& event_init);

@@ -19,7 +19,7 @@
 
 namespace Web::HTML {
 
-JS_DEFINE_ALLOCATOR(DataTransfer);
+GC_DEFINE_ALLOCATOR(DataTransfer);
 
 namespace DataTransferEffect {
 
@@ -29,13 +29,13 @@ ENUMERATE_DATA_TRANSFER_EFFECTS
 
 }
 
-JS::NonnullGCPtr<DataTransfer> DataTransfer::create(JS::Realm& realm, NonnullRefPtr<DragDataStore> drag_data_store)
+GC::Ref<DataTransfer> DataTransfer::create(JS::Realm& realm, NonnullRefPtr<DragDataStore> drag_data_store)
 {
     return realm.create<DataTransfer>(realm, move(drag_data_store));
 }
 
 // https://html.spec.whatwg.org/multipage/dnd.html#dom-datatransfer
-JS::NonnullGCPtr<DataTransfer> DataTransfer::construct_impl(JS::Realm& realm)
+GC::Ref<DataTransfer> DataTransfer::construct_impl(JS::Realm& realm)
 {
     // 1. Set the drag data store's item list to be an empty list.
     auto drag_data_store = DragDataStore::create();
@@ -115,7 +115,7 @@ void DataTransfer::set_effect_allowed_internal(FlyString effect_allowed)
 }
 
 // https://html.spec.whatwg.org/multipage/dnd.html#dom-datatransfer-items
-JS::NonnullGCPtr<DataTransferItemList> DataTransfer::items()
+GC::Ref<DataTransferItemList> DataTransfer::items()
 {
     // The items attribute must return a DataTransferItemList object associated with the DataTransfer object.
     if (!m_items)
@@ -181,7 +181,7 @@ String DataTransfer::get_data(String const& format_argument) const
 }
 
 // https://html.spec.whatwg.org/multipage/dnd.html#dom-datatransfer-files
-JS::NonnullGCPtr<FileAPI::FileList> DataTransfer::files() const
+GC::Ref<FileAPI::FileList> DataTransfer::files() const
 {
     auto& realm = this->realm();
 
@@ -212,7 +212,7 @@ JS::NonnullGCPtr<FileAPI::FileList> DataTransfer::files() const
         FileAPI::FilePropertyBag options {};
         options.type = item.type_string;
 
-        auto file = MUST(FileAPI::File::create(realm, { JS::make_handle(blob) }, file_name, move(options)));
+        auto file = MUST(FileAPI::File::create(realm, { GC::make_root(blob) }, file_name, move(options)));
         files->add_file(file);
     }
 
@@ -233,7 +233,7 @@ void DataTransfer::disassociate_with_drag_data_store()
     update_data_transfer_types_list();
 }
 
-JS::NonnullGCPtr<DataTransferItem> DataTransfer::add_item(DragDataStoreItem item)
+GC::Ref<DataTransferItem> DataTransfer::add_item(DragDataStoreItem item)
 {
     auto& realm = this->realm();
 
@@ -260,7 +260,7 @@ bool DataTransfer::contains_item_with_type(DragDataStoreItem::Kind kind, String 
     return false;
 }
 
-JS::NonnullGCPtr<DataTransferItem> DataTransfer::item(size_t index) const
+GC::Ref<DataTransferItem> DataTransfer::item(size_t index) const
 {
     VERIFY(index < m_item_list.size());
     return m_item_list[index];

@@ -9,9 +9,9 @@
 
 namespace JS {
 
-JS_DEFINE_ALLOCATOR(MapIterator);
+GC_DEFINE_ALLOCATOR(MapIterator);
 
-NonnullGCPtr<MapIterator> MapIterator::create(Realm& realm, Map& map, Object::PropertyKind iteration_kind)
+GC::Ref<MapIterator> MapIterator::create(Realm& realm, Map& map, Object::PropertyKind iteration_kind)
 {
     return realm.create<MapIterator>(map, iteration_kind, realm.intrinsics().map_iterator_prototype());
 }

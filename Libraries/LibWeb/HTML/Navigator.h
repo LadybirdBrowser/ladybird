@@ -30,10 +30,10 @@ class Navigator : public Bindings::PlatformObject
     , public NavigatorOnLineMixin
     , public StorageAPI::NavigatorStorage {
     WEB_PLATFORM_OBJECT(Navigator, Bindings::PlatformObject);
-    JS_DECLARE_ALLOCATOR(Navigator);
+    GC_DECLARE_ALLOCATOR(Navigator);
 
 public:
-    [[nodiscard]] static JS::NonnullGCPtr<Navigator> create(JS::Realm&);
+    [[nodiscard]] static GC::Ref<Navigator> create(JS::Realm&);
 
     // FIXME: Implement NavigatorContentUtilsMixin
 
@@ -50,16 +50,16 @@ public:
 
     bool webdriver() const;
 
-    [[nodiscard]] JS::NonnullGCPtr<MimeTypeArray> mime_types();
-    [[nodiscard]] JS::NonnullGCPtr<PluginArray> plugins();
-    [[nodiscard]] JS::NonnullGCPtr<Clipboard::Clipboard> clipboard();
-    [[nodiscard]] JS::NonnullGCPtr<UserActivation> user_activation();
+    [[nodiscard]] GC::Ref<MimeTypeArray> mime_types();
+    [[nodiscard]] GC::Ref<PluginArray> plugins();
+    [[nodiscard]] GC::Ref<Clipboard::Clipboard> clipboard();
+    [[nodiscard]] GC::Ref<UserActivation> user_activation();
 
     Optional<FlyString> do_not_track() const;
 
-    JS::NonnullGCPtr<ServiceWorkerContainer> service_worker();
+    GC::Ref<ServiceWorkerContainer> service_worker();
 
-    JS::NonnullGCPtr<MediaCapabilitiesAPI::MediaCapabilities> media_capabilities();
+    GC::Ref<MediaCapabilitiesAPI::MediaCapabilities> media_capabilities();
 
     static WebIDL::Long max_touch_points();
 
@@ -76,20 +76,20 @@ private:
     // ^StorageAPI::NavigatorStorage
     virtual Bindings::PlatformObject const& this_navigator_storage_object() const override { return *this; }
 
-    JS::GCPtr<PluginArray> m_plugin_array;
-    JS::GCPtr<MimeTypeArray> m_mime_type_array;
+    GC::Ptr<PluginArray> m_plugin_array;
+    GC::Ptr<MimeTypeArray> m_mime_type_array;
 
     // https://w3c.github.io/clipboard-apis/#dom-navigator-clipboard
-    JS::GCPtr<Clipboard::Clipboard> m_clipboard;
+    GC::Ptr<Clipboard::Clipboard> m_clipboard;
 
     // https://html.spec.whatwg.org/multipage/interaction.html#dom-navigator-useractivation
-    JS::GCPtr<UserActivation> m_user_activation;
+    GC::Ptr<UserActivation> m_user_activation;
 
     // https://w3c.github.io/ServiceWorker/#navigator-serviceworker
-    JS::GCPtr<ServiceWorkerContainer> m_service_worker_container;
+    GC::Ptr<ServiceWorkerContainer> m_service_worker_container;
 
     // https://w3c.github.io/media-capabilities/#dom-navigator-mediacapabilities
-    JS::GCPtr<MediaCapabilitiesAPI::MediaCapabilities> m_media_capabilities;
+    GC::Ptr<MediaCapabilitiesAPI::MediaCapabilities> m_media_capabilities;
 };
 
 }

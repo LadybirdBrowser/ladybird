@@ -42,7 +42,7 @@ target_compile_options(FuzzilliJs
     PRIVATE $<$<CXX_COMPILER_ID:Clang>:-g -O1 -fsanitize-coverage=trace-pc-guard>
     )
 target_link_libraries(FuzzilliJs
-    PUBLIC AK LibCore LibJS
+    PUBLIC AK LibCore LibJS LibGC
     PRIVATE $<$<CXX_COMPILER_ID:Clang>:-fsanitize-coverage=trace-pc-guard>
     )
 endif()

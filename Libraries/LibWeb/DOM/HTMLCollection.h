@@ -8,7 +8,7 @@
 #pragma once
 
 #include <AK/Function.h>
-#include <LibJS/Heap/GCPtr.h>
+#include <LibGC/Ptr.h>
 #include <LibWeb/Bindings/PlatformObject.h>
 #include <LibWeb/Forward.h>
 
@@ -23,14 +23,14 @@ namespace Web::DOM {
 
 class HTMLCollection : public Bindings::PlatformObject {
     WEB_PLATFORM_OBJECT(HTMLCollection, Bindings::PlatformObject);
-    JS_DECLARE_ALLOCATOR(HTMLCollection);
+    GC_DECLARE_ALLOCATOR(HTMLCollection);
 
 public:
     enum class Scope {
         Children,
         Descendants,
     };
-    [[nodiscard]] static JS::NonnullGCPtr<HTMLCollection> create(ParentNode& root, Scope, ESCAPING Function<bool(Element const&)> filter);
+    [[nodiscard]] static GC::Ref<HTMLCollection> create(ParentNode& root, Scope, ESCAPING Function<bool(Element const&)> filter);
 
     virtual ~HTMLCollection() override;
 
@@ -38,7 +38,7 @@ public:
     Element* item(size_t index) const;
     Element* named_item(FlyString const& key) const;
 
-    JS::MarkedVector<JS::NonnullGCPtr<Element>> collect_matching_elements() const;
+    GC::MarkedVector<GC::Ref<Element>> collect_matching_elements() const;
 
     virtual Optional<JS::Value> item_value(size_t index) const override;
     virtual JS::Value named_item_value(FlyString const& name) const override;
@@ -50,8 +50,8 @@ protected:
 
     virtual void initialize(JS::Realm&) override;
 
-    JS::NonnullGCPtr<ParentNode> root() { return *m_root; }
-    JS::NonnullGCPtr<ParentNode const> root() const { return *m_root; }
+    GC::Ref<ParentNode> root() { return *m_root; }
+    GC::Ref<ParentNode const> root() const { return *m_root; }
 
 private:
     virtual void visit_edges(Cell::Visitor&) override;
@@ -60,10 +60,10 @@ private:
     void update_name_to_element_mappings_if_needed() const;
 
     mutable u64 m_cached_dom_tree_version { 0 };
-    mutable Vector<JS::NonnullGCPtr<Element>> m_cached_elements;
-    mutable OwnPtr<OrderedHashMap<FlyString, JS::NonnullGCPtr<Element>>> m_cached_name_to_element_mappings;
+    mutable Vector<GC::Ref<Element>> m_cached_elements;
+    mutable OwnPtr<OrderedHashMap<FlyString, GC::Ref<Element>>> m_cached_name_to_element_mappings;
 
-    JS::NonnullGCPtr<ParentNode> m_root;
+    GC::Ref<ParentNode> m_root;
     Function<bool(Element const&)> m_filter;
 
     Scope m_scope { Scope::Descendants };

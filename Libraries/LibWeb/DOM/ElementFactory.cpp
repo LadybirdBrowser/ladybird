@@ -276,7 +276,7 @@ bool is_unknown_html_element(FlyString const& tag_name)
 }
 
 // https://html.spec.whatwg.org/#elements-in-the-dom:element-interface
-static JS::NonnullGCPtr<Element> create_html_element(JS::Realm& realm, Document& document, QualifiedName qualified_name)
+static GC::Ref<Element> create_html_element(JS::Realm& realm, Document& document, QualifiedName qualified_name)
 {
     FlyString tag_name = qualified_name.local_name();
 
@@ -430,7 +430,7 @@ static JS::NonnullGCPtr<Element> create_html_element(JS::Realm& realm, Document&
     return realm.create<HTML::HTMLUnknownElement>(document, move(qualified_name));
 }
 
-static JS::NonnullGCPtr<SVG::SVGElement> create_svg_element(JS::Realm& realm, Document& document, QualifiedName qualified_name)
+static GC::Ref<SVG::SVGElement> create_svg_element(JS::Realm& realm, Document& document, QualifiedName qualified_name)
 {
     auto const& local_name = qualified_name.local_name();
 
@@ -498,7 +498,7 @@ static JS::NonnullGCPtr<SVG::SVGElement> create_svg_element(JS::Realm& realm, Do
     return realm.create<SVG::SVGElement>(document, move(qualified_name));
 }
 
-static JS::NonnullGCPtr<MathML::MathMLElement> create_mathml_element(JS::Realm& realm, Document& document, QualifiedName qualified_name)
+static GC::Ref<MathML::MathMLElement> create_mathml_element(JS::Realm& realm, Document& document, QualifiedName qualified_name)
 {
     // https://w3c.github.io/mathml-core/#dom-and-javascript
     // All the nodes representing MathML elements in the DOM must implement, and expose to scripts,
@@ -510,7 +510,7 @@ static JS::NonnullGCPtr<MathML::MathMLElement> create_mathml_element(JS::Realm& 
     return realm.create<MathML::MathMLElement>(document, move(qualified_name));
 }
 // https://dom.spec.whatwg.org/#concept-create-element
-WebIDL::ExceptionOr<JS::NonnullGCPtr<Element>> create_element(Document& document, FlyString local_name, Optional<FlyString> namespace_, Optional<FlyString> prefix, Optional<String> is_value, bool synchronous_custom_elements_flag)
+WebIDL::ExceptionOr<GC::Ref<Element>> create_element(Document& document, FlyString local_name, Optional<FlyString> namespace_, Optional<FlyString> prefix, Optional<String> is_value, bool synchronous_custom_elements_flag)
 {
     auto& realm = document.realm();
 
@@ -561,7 +561,7 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<Element>> create_element(Document& document
     if (definition) {
         // 1. If the synchronous custom elements flag is set, then run these steps while catching any exceptions:
         if (synchronous_custom_elements_flag) {
-            auto synchronously_upgrade_custom_element = [&]() -> JS::ThrowCompletionOr<JS::NonnullGCPtr<HTML::HTMLElement>> {
+            auto synchronously_upgrade_custom_element = [&]() -> JS::ThrowCompletionOr<GC::Ref<HTML::HTMLElement>> {
                 auto& vm = document.vm();
 
                 // 1. Let C be definition’s constructor.
@@ -578,7 +578,7 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<Element>> create_element(Document& document
                 if (!result.has_value() || !result->is_object() || !is<HTML::HTMLElement>(result->as_object()))
                     return vm.throw_completion<JS::TypeError>(JS::ErrorType::NotAnObjectOfType, "HTMLElement"sv);
 
-                JS::NonnullGCPtr<HTML::HTMLElement> element = verify_cast<HTML::HTMLElement>(result->as_object());
+                GC::Ref<HTML::HTMLElement> element = verify_cast<HTML::HTMLElement>(result->as_object());
 
                 // 5. If result’s attribute list is not empty, then throw a "NotSupportedError" DOMException.
                 if (element->has_attributes())
@@ -617,7 +617,7 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<Element>> create_element(Document& document
 
                 // 2. Set result to a new element that implements the HTMLUnknownElement interface, with no attributes, namespace set to the HTML namespace, namespace prefix set to prefix,
                 //    local name set to localName, custom element state set to "failed", custom element definition set to null, is value set to null, and node document set to document.
-                JS::NonnullGCPtr<Element> element = realm.create<HTML::HTMLUnknownElement>(document, QualifiedName { local_name, prefix, Namespace::HTML });
+                GC::Ref<Element> element = realm.create<HTML::HTMLUnknownElement>(document, QualifiedName { local_name, prefix, Namespace::HTML });
                 element->set_custom_element_state(CustomElementState::Failed);
                 return element;
             }

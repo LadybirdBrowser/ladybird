@@ -40,13 +40,13 @@ static Optional<OptionType> to_option_type(Value value)
 }
 
 // 13.1 IterableToListOfType ( items, elementTypes ), https://tc39.es/proposal-temporal/#sec-iterabletolistoftype
-ThrowCompletionOr<MarkedVector<Value>> iterable_to_list_of_type(VM& vm, Value items, Vector<OptionType> const& element_types)
+ThrowCompletionOr<GC::MarkedVector<Value>> iterable_to_list_of_type(VM& vm, Value items, Vector<OptionType> const& element_types)
 {
     // 1. Let iteratorRecord be ? GetIterator(items, sync).
     auto iterator_record = TRY(get_iterator(vm, items, IteratorHint::Sync));
 
     // 2. Let values be a new empty List.
-    MarkedVector<Value> values(vm.heap());
+    GC::MarkedVector<Value> values(vm.heap());
 
     // 3. Let next be true.
     auto next = true;
@@ -581,7 +581,7 @@ ThrowCompletionOr<RelativeTo> to_relative_temporal_object(VM& vm, Object const& 
             auto& zoned_relative_to = static_cast<ZonedDateTime&>(value_object);
 
             // i. Let timeZoneRec be ? CreateTimeZoneMethodsRecord(value.[[TimeZone]], « GET-OFFSET-NANOSECONDS-FOR, GET-POSSIBLE-INSTANTS-FOR »).
-            auto time_zone_record = TRY(create_time_zone_methods_record(vm, NonnullGCPtr<Object> { zoned_relative_to.time_zone() }, { { TimeZoneMethod::GetOffsetNanosecondsFor, TimeZoneMethod::GetPossibleInstantsFor } }));
+            auto time_zone_record = TRY(create_time_zone_methods_record(vm, GC::Ref<Object> { zoned_relative_to.time_zone() }, { { TimeZoneMethod::GetOffsetNanosecondsFor, TimeZoneMethod::GetPossibleInstantsFor } }));
 
             // ii. Return the Record { [[PlainRelativeTo]]: undefined, [[ZonedRelativeTo]]: value, [[TimeZoneRec]]: timeZoneRec }.
             return RelativeTo {
@@ -741,7 +741,7 @@ ThrowCompletionOr<RelativeTo> to_relative_temporal_object(VM& vm, Object const& 
     auto const* epoch_nanoseconds = TRY(interpret_iso_date_time_offset(vm, result.year, result.month, result.day, result.hour, result.minute, result.second, result.millisecond, result.microsecond, result.nanosecond, offset_behavior, offset_ns, time_zone, "compatible"sv, "reject"sv, match_behavior));
 
     // 12. Return ! CreateTemporalZonedDateTime(epochNanoseconds, timeZone, calendar).
-    auto time_zone_record = TRY(create_time_zone_methods_record(vm, NonnullGCPtr<Object> { time_zone.as_object() }, { { TimeZoneMethod::GetOffsetNanosecondsFor, TimeZoneMethod::GetPossibleInstantsFor } }));
+    auto time_zone_record = TRY(create_time_zone_methods_record(vm, GC::Ref<Object> { time_zone.as_object() }, { { TimeZoneMethod::GetOffsetNanosecondsFor, TimeZoneMethod::GetPossibleInstantsFor } }));
     auto* zoned_relative_to = MUST(create_temporal_zoned_date_time(vm, *epoch_nanoseconds, time_zone.as_object(), *calendar));
     return RelativeTo {
         .plain_relative_to = {},

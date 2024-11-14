@@ -17,7 +17,7 @@
 
 namespace JS {
 
-JS_DEFINE_ALLOCATOR(RegExpObject);
+GC_DEFINE_ALLOCATOR(RegExpObject);
 
 Result<regex::RegexOptions<ECMAScriptFlags>, ByteString> regex_flags_from_string(StringView flags)
 {
@@ -146,12 +146,12 @@ ThrowCompletionOr<ByteString> parse_regex_pattern(VM& vm, StringView pattern, bo
     return result.release_value();
 }
 
-NonnullGCPtr<RegExpObject> RegExpObject::create(Realm& realm)
+GC::Ref<RegExpObject> RegExpObject::create(Realm& realm)
 {
     return realm.create<RegExpObject>(realm.intrinsics().regexp_prototype());
 }
 
-NonnullGCPtr<RegExpObject> RegExpObject::create(Realm& realm, Regex<ECMA262> regex, ByteString pattern, ByteString flags)
+GC::Ref<RegExpObject> RegExpObject::create(Realm& realm, Regex<ECMA262> regex, ByteString pattern, ByteString flags)
 {
     return realm.create<RegExpObject>(move(regex), move(pattern), move(flags), realm.intrinsics().regexp_prototype());
 }
@@ -198,7 +198,7 @@ void RegExpObject::initialize(Realm& realm)
 }
 
 // 22.2.3.3 RegExpInitialize ( obj, pattern, flags ), https://tc39.es/ecma262/#sec-regexpinitialize
-ThrowCompletionOr<NonnullGCPtr<RegExpObject>> RegExpObject::regexp_initialize(VM& vm, Value pattern_value, Value flags_value)
+ThrowCompletionOr<GC::Ref<RegExpObject>> RegExpObject::regexp_initialize(VM& vm, Value pattern_value, Value flags_value)
 {
     // 1. If pattern is undefined, let P be the empty String.
     // 2. Else, let P be ? ToString(pattern).
@@ -261,7 +261,7 @@ ThrowCompletionOr<NonnullGCPtr<RegExpObject>> RegExpObject::regexp_initialize(VM
     TRY(set(vm.names.lastIndex, Value(0), Object::ShouldThrowExceptions::Yes));
 
     // 23. Return obj.
-    return NonnullGCPtr { *this };
+    return GC::Ref { *this };
 }
 
 // 22.2.6.13.1 EscapeRegExpPattern ( P, F ), https://tc39.es/ecma262/#sec-escaperegexppattern
@@ -332,7 +332,7 @@ void RegExpObject::visit_edges(JS::Cell::Visitor& visitor)
 }
 
 // 22.2.3.1 RegExpCreate ( P, F ), https://tc39.es/ecma262/#sec-regexpcreate
-ThrowCompletionOr<NonnullGCPtr<RegExpObject>> regexp_create(VM& vm, Value pattern, Value flags)
+ThrowCompletionOr<GC::Ref<RegExpObject>> regexp_create(VM& vm, Value pattern, Value flags)
 {
     auto& realm = *vm.current_realm();
 
@@ -345,7 +345,7 @@ ThrowCompletionOr<NonnullGCPtr<RegExpObject>> regexp_create(VM& vm, Value patter
 
 // 22.2.3.2 RegExpAlloc ( newTarget ), https://tc39.es/ecma262/#sec-regexpalloc
 // 22.2.3.2 RegExpAlloc ( newTarget ), https://github.com/tc39/proposal-regexp-legacy-features#regexpalloc--newtarget-
-ThrowCompletionOr<NonnullGCPtr<RegExpObject>> regexp_alloc(VM& vm, FunctionObject& new_target)
+ThrowCompletionOr<GC::Ref<RegExpObject>> regexp_alloc(VM& vm, FunctionObject& new_target)
 {
     // 1. Let obj be ? OrdinaryCreateFromConstructor(newTarget, "%RegExp.prototype%", « [[OriginalSource]], [[OriginalFlags]], [[RegExpRecord]], [[RegExpMatcher]] »).
     auto regexp_object = TRY(ordinary_create_from_constructor<RegExpObject>(vm, new_target, &Intrinsics::regexp_prototype));

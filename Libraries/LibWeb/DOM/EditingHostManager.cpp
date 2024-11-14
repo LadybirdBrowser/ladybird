@@ -12,14 +12,14 @@
 
 namespace Web::DOM {
 
-JS_DEFINE_ALLOCATOR(EditingHostManager);
+GC_DEFINE_ALLOCATOR(EditingHostManager);
 
-JS::NonnullGCPtr<EditingHostManager> EditingHostManager::create(JS::Realm& realm, JS::NonnullGCPtr<Document> document)
+GC::Ref<EditingHostManager> EditingHostManager::create(JS::Realm& realm, GC::Ref<Document> document)
 {
     return realm.create<EditingHostManager>(document);
 }
 
-EditingHostManager::EditingHostManager(JS::NonnullGCPtr<Document> document)
+EditingHostManager::EditingHostManager(GC::Ref<Document> document)
     : m_document(document)
 {
 }
@@ -79,14 +79,14 @@ void EditingHostManager::select_all()
     MUST(selection->set_base_and_extent(*selection->anchor_node(), 0, *selection->focus_node(), selection->focus_node()->length()));
 }
 
-void EditingHostManager::set_selection_anchor(JS::NonnullGCPtr<DOM::Node> anchor_node, size_t anchor_offset)
+void EditingHostManager::set_selection_anchor(GC::Ref<DOM::Node> anchor_node, size_t anchor_offset)
 {
     auto selection = m_document->get_selection();
     MUST(selection->collapse(*anchor_node, anchor_offset));
     m_document->reset_cursor_blink_cycle();
 }
 
-void EditingHostManager::set_selection_focus(JS::NonnullGCPtr<DOM::Node> focus_node, size_t focus_offset)
+void EditingHostManager::set_selection_focus(GC::Ref<DOM::Node> focus_node, size_t focus_offset)
 {
     if (!m_active_contenteditable_element || !m_active_contenteditable_element->is_ancestor_of(*focus_node))
         return;

@@ -6,14 +6,14 @@
 
 #pragma once
 
+#include <LibGC/Ptr.h>
 #include <LibGfx/Rect.h>
-#include <LibJS/Heap/GCPtr.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/WebDriver/Response.h>
 
 namespace Web::WebDriver {
 
-ErrorOr<JS::NonnullGCPtr<HTML::HTMLCanvasElement>, WebDriver::Error> draw_bounding_box_from_the_framebuffer(HTML::BrowsingContext&, DOM::Element&, Gfx::IntRect);
+ErrorOr<GC::Ref<HTML::HTMLCanvasElement>, WebDriver::Error> draw_bounding_box_from_the_framebuffer(HTML::BrowsingContext&, DOM::Element&, Gfx::IntRect);
 Response encode_canvas_element(HTML::HTMLCanvasElement&);
 
 }

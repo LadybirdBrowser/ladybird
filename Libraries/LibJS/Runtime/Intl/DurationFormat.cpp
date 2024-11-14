@@ -20,7 +20,7 @@
 
 namespace JS::Intl {
 
-JS_DEFINE_ALLOCATOR(DurationFormat);
+GC_DEFINE_ALLOCATOR(DurationFormat);
 
 // 1 DurationFormat Objects, https://tc39.es/proposal-intl-duration-format/#durationformat-objects
 DurationFormat::DurationFormat(Object& prototype)
@@ -140,7 +140,7 @@ StringView DurationFormat::display_to_string(Display display)
     }
 }
 
-static NonnullGCPtr<NumberFormat> construct_number_format(VM& vm, DurationFormat const& duration_format, NonnullGCPtr<Object> options)
+static GC::Ref<NumberFormat> construct_number_format(VM& vm, DurationFormat const& duration_format, GC::Ref<Object> options)
 {
     auto& realm = *vm.current_realm();
 
@@ -148,7 +148,7 @@ static NonnullGCPtr<NumberFormat> construct_number_format(VM& vm, DurationFormat
     return static_cast<NumberFormat&>(*number_format);
 }
 
-static NonnullGCPtr<ListFormat> construct_list_format(VM& vm, DurationFormat const& duration_format, NonnullGCPtr<Object> options)
+static GC::Ref<ListFormat> construct_list_format(VM& vm, DurationFormat const& duration_format, GC::Ref<Object> options)
 {
     auto& realm = *vm.current_realm();
 

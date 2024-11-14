@@ -12,14 +12,14 @@
 
 namespace Web::DOM {
 
-JS_DEFINE_ALLOCATOR(AccessibilityTreeNode);
+GC_DEFINE_ALLOCATOR(AccessibilityTreeNode);
 
-JS::NonnullGCPtr<AccessibilityTreeNode> AccessibilityTreeNode::create(Document* document, DOM::Node const* value)
+GC::Ref<AccessibilityTreeNode> AccessibilityTreeNode::create(Document* document, DOM::Node const* value)
 {
     return document->realm().create<AccessibilityTreeNode>(value);
 }
 
-AccessibilityTreeNode::AccessibilityTreeNode(JS::GCPtr<DOM::Node const> value)
+AccessibilityTreeNode::AccessibilityTreeNode(GC::Ptr<DOM::Node const> value)
     : m_value(value)
 {
     m_children = {};

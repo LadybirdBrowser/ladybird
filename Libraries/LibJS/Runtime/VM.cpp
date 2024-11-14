@@ -62,7 +62,7 @@ static constexpr auto make_single_ascii_character_strings(IndexSequence<code_poi
 static constexpr auto single_ascii_character_strings = make_single_ascii_character_strings(MakeIndexSequence<128>());
 
 VM::VM(OwnPtr<CustomData> custom_data, ErrorMessages error_messages)
-    : m_heap(this, [this](HashMap<CellImpl*, JS::HeapRoot>& roots) {
+    : m_heap(this, [this](HashMap<GC::Cell*, GC::HeapRoot>& roots) {
         gather_roots(roots);
     })
     , m_error_messages(move(error_messages))
@@ -99,7 +99,7 @@ VM::VM(OwnPtr<CustomData> custom_data, ErrorMessages error_messages)
         enqueue_finalization_registry_cleanup_job(finalization_registry);
     };
 
-    host_enqueue_promise_job = [this](NonnullGCPtr<HeapFunction<ThrowCompletionOr<Value>()>> job, Realm* realm) {
+    host_enqueue_promise_job = [this](GC::Ref<GC::Function<ThrowCompletionOr<Value>()>> job, Realm* realm) {
         enqueue_promise_job(job, realm);
     };
 
@@ -107,7 +107,7 @@ VM::VM(OwnPtr<CustomData> custom_data, ErrorMessages error_messages)
         return make_job_callback(function_object);
     };
 
-    host_load_imported_module = [this](ImportedModuleReferrer referrer, ModuleRequest const& module_request, GCPtr<GraphLoadingState::HostDefined> load_state, ImportedModulePayload payload) -> void {
+    host_load_imported_module = [this](ImportedModuleReferrer referrer, ModuleRequest const& module_request, GC::Ptr<GraphLoadingState::HostDefined> load_state, ImportedModulePayload payload) -> void {
         return load_imported_module(referrer, module_request, load_state, move(payload));
     };
 
@@ -204,7 +204,7 @@ Bytecode::Interpreter& VM::bytecode_interpreter()
 }
 
 struct ExecutionContextRootsCollector : public Cell::Visitor {
-    virtual void visit_impl(CellImpl& cell) override
+    virtual void visit_impl(GC::Cell& cell) override
     {
         roots.set(&cell);
     }
@@ -214,41 +214,41 @@ struct ExecutionContextRootsCollector : public Cell::Visitor {
         VERIFY_NOT_REACHED();
     }
 
-    HashTable<GCPtr<CellImpl>> roots;
+    HashTable<GC::Ptr<GC::Cell>> roots;
 };
 
-void VM::gather_roots(HashMap<CellImpl*, HeapRoot>& roots)
+void VM::gather_roots(HashMap<GC::Cell*, GC::HeapRoot>& roots)
 {
-    roots.set(m_empty_string, HeapRoot { .type = HeapRoot::Type::VM });
+    roots.set(m_empty_string, GC::HeapRoot { .type = GC::HeapRoot::Type::VM });
     for (auto string : m_single_ascii_character_strings)
-        roots.set(string, HeapRoot { .type = HeapRoot::Type::VM });
+        roots.set(string, GC::HeapRoot { .type = GC::HeapRoot::Type::VM });
 
-    roots.set(typeof_strings.number, HeapRoot { .type = HeapRoot::Type::VM });
-    roots.set(typeof_strings.undefined, HeapRoot { .type = HeapRoot::Type::VM });
-    roots.set(typeof_strings.object, HeapRoot { .type = HeapRoot::Type::VM });
-    roots.set(typeof_strings.string, HeapRoot { .type = HeapRoot::Type::VM });
-    roots.set(typeof_strings.symbol, HeapRoot { .type = HeapRoot::Type::VM });
-    roots.set(typeof_strings.boolean, HeapRoot { .type = HeapRoot::Type::VM });
-    roots.set(typeof_strings.bigint, HeapRoot { .type = HeapRoot::Type::VM });
-    roots.set(typeof_strings.function, HeapRoot { .type = HeapRoot::Type::VM });
+    roots.set(typeof_strings.number, GC::HeapRoot { .type = GC::HeapRoot::Type::VM });
+    roots.set(typeof_strings.undefined, GC::HeapRoot { .type = GC::HeapRoot::Type::VM });
+    roots.set(typeof_strings.object, GC::HeapRoot { .type = GC::HeapRoot::Type::VM });
+    roots.set(typeof_strings.string, GC::HeapRoot { .type = GC::HeapRoot::Type::VM });
+    roots.set(typeof_strings.symbol, GC::HeapRoot { .type = GC::HeapRoot::Type::VM });
+    roots.set(typeof_strings.boolean, GC::HeapRoot { .type = GC::HeapRoot::Type::VM });
+    roots.set(typeof_strings.bigint, GC::HeapRoot { .type = GC::HeapRoot::Type::VM });
+    roots.set(typeof_strings.function, GC::HeapRoot { .type = GC::HeapRoot::Type::VM });
 
 #define __JS_ENUMERATE(SymbolName, snake_name) \
-    roots.set(m_well_known_symbols.snake_name, HeapRoot { .type = HeapRoot::Type::VM });
+    roots.set(m_well_known_symbols.snake_name, GC::HeapRoot { .type = GC::HeapRoot::Type::VM });
     JS_ENUMERATE_WELL_KNOWN_SYMBOLS
 #undef __JS_ENUMERATE
 
     for (auto& symbol : m_global_symbol_registry)
-        roots.set(symbol.value, HeapRoot { .type = HeapRoot::Type::VM });
+        roots.set(symbol.value, GC::HeapRoot { .type = GC::HeapRoot::Type::VM });
 
     for (auto finalization_registry : m_finalization_registry_cleanup_jobs)
-        roots.set(finalization_registry, HeapRoot { .type = HeapRoot::Type::VM });
+        roots.set(finalization_registry, GC::HeapRoot { .type = GC::HeapRoot::Type::VM });
 
     auto gather_roots_from_execution_context_stack = [&roots](Vector<ExecutionContext*> const& stack) {
         for (auto const& execution_context : stack) {
             ExecutionContextRootsCollector visitor;
             execution_context->visit_edges(visitor);
             for (auto cell : visitor.roots)
-                roots.set(cell, HeapRoot { .type = HeapRoot::Type::VM });
+                roots.set(cell, GC::HeapRoot { .type = GC::HeapRoot::Type::VM });
         }
     };
     gather_roots_from_execution_context_stack(m_execution_context_stack);
@@ -256,7 +256,7 @@ void VM::gather_roots(HashMap<CellImpl*, HeapRoot>& roots)
         gather_roots_from_execution_context_stack(saved_stack);
 
     for (auto& job : m_promise_jobs)
-        roots.set(job, HeapRoot { .type = HeapRoot::Type::VM });
+        roots.set(job, GC::HeapRoot { .type = GC::HeapRoot::Type::VM });
 }
 
 // 9.1.2.1 GetIdentifierReference ( env, name, strict ), https://tc39.es/ecma262/#sec-getidentifierreference
@@ -347,7 +347,7 @@ Object* VM::get_import_meta()
     auto script_or_module = get_active_script_or_module();
 
     // 2. Assert: module is a Source Text Module Record.
-    auto& module = verify_cast<SourceTextModule>(*script_or_module.get<NonnullGCPtr<Module>>());
+    auto& module = verify_cast<SourceTextModule>(*script_or_module.get<GC::Ref<Module>>());
 
     // 3. Let importMeta be module.[[ImportMeta]].
     auto* import_meta = module.import_meta();
@@ -415,7 +415,7 @@ void VM::run_queued_promise_jobs()
 }
 
 // 9.5.4 HostEnqueuePromiseJob ( job, realm ), https://tc39.es/ecma262/#sec-hostenqueuepromisejob
-void VM::enqueue_promise_job(NonnullGCPtr<HeapFunction<ThrowCompletionOr<Value>()>> job, Realm*)
+void VM::enqueue_promise_job(GC::Ref<GC::Function<ThrowCompletionOr<Value>()>> job, Realm*)
 {
     // An implementation of HostEnqueuePromiseJob must conform to the requirements in 9.5 as well as the following:
     // - FIXME: If realm is not null, each time job is invoked the implementation must perform implementation-defined steps such that execution is prepared to evaluate ECMAScript code at the time of job's invocation.
@@ -587,7 +587,7 @@ static ByteString resolve_module_filename(StringView filename, StringView module
 }
 
 // 16.2.1.8 HostLoadImportedModule ( referrer, specifier, hostDefined, payload ), https://tc39.es/ecma262/#sec-HostLoadImportedModule
-void VM::load_imported_module(ImportedModuleReferrer referrer, ModuleRequest const& module_request, GCPtr<GraphLoadingState::HostDefined>, ImportedModulePayload payload)
+void VM::load_imported_module(ImportedModuleReferrer referrer, ModuleRequest const& module_request, GC::Ptr<GraphLoadingState::HostDefined>, ImportedModulePayload payload)
 {
     // An implementation of HostLoadImportedModule must conform to the following requirements:
     //
@@ -605,7 +605,7 @@ void VM::load_imported_module(ImportedModuleReferrer referrer, ModuleRequest con
     // mapping process. A typical normalization process would include actions such as expansion of relative and abbreviated path specifiers.
 
     // Here we check, against the spec, if payload is a promise capability, meaning that this was called for a dynamic import
-    if (payload.has<NonnullGCPtr<PromiseCapability>>() && !m_dynamic_imports_allowed) {
+    if (payload.has<GC::Ref<PromiseCapability>>() && !m_dynamic_imports_allowed) {
         // If you are here because you want to enable dynamic module importing make sure it won't be a security problem
         // by checking the default implementation of HostImportModuleDynamically and creating your own hook or calling
         // vm.allow_dynamic_imports().
@@ -624,7 +624,7 @@ void VM::load_imported_module(ImportedModuleReferrer referrer, ModuleRequest con
     dbgln_if(JS_MODULE_DEBUG, "[JS MODULE] module at {} has type {}", module_request.module_specifier, module_type);
 
     StringView const base_filename = referrer.visit(
-        [&](NonnullGCPtr<Realm> const&) {
+        [&](GC::Ref<Realm> const&) {
             // Generally within ECMA262 we always get a referencing_script_or_module. However, ShadowRealm gives an explicit null.
             // To get around this is we attempt to get the active script_or_module otherwise we might start loading "random" files from the working directory.
             return get_active_script_or_module().visit(
@@ -695,7 +695,7 @@ void VM::load_imported_module(ImportedModuleReferrer referrer, ModuleRequest con
 
     StringView const content_view { file_content_or_error.value().bytes() };
 
-    auto module = [&]() -> ThrowCompletionOr<NonnullGCPtr<Module>> {
+    auto module = [&]() -> ThrowCompletionOr<GC::Ref<Module>> {
         // If assertions has an entry entry such that entry.[[Key]] is "type", let type be entry.[[Value]]. The following requirements apply:
         // If type is "json", then this algorithm must either invoke ParseJSONModule and return the resulting Completion Record, or throw an exception.
         if (module_type == "json"sv) {
@@ -717,7 +717,7 @@ void VM::load_imported_module(ImportedModuleReferrer referrer, ModuleRequest con
             referrer,
             module->filename(),
             ByteString {}, // Null type
-            make_handle<Module>(*module),
+            make_root<Module>(*module),
             true);
 
         return module;

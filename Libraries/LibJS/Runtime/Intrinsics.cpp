@@ -133,7 +133,7 @@
 
 namespace JS {
 
-JS_DEFINE_ALLOCATOR(Intrinsics);
+GC_DEFINE_ALLOCATOR(Intrinsics);
 
 static void initialize_constructor(VM& vm, PropertyKey const& property_key, Object& constructor, Object* prototype, PropertyAttributes constructor_property_attributes = Attribute::Writable | Attribute::Configurable)
 {
@@ -143,7 +143,7 @@ static void initialize_constructor(VM& vm, PropertyKey const& property_key, Obje
 }
 
 // 9.3.2 CreateIntrinsics ( realmRec ), https://tc39.es/ecma262/#sec-createintrinsics
-ThrowCompletionOr<NonnullGCPtr<Intrinsics>> Intrinsics::create(Realm& realm)
+ThrowCompletionOr<GC::Ref<Intrinsics>> Intrinsics::create(Realm& realm)
 {
     auto& vm = realm.vm();
 
@@ -320,14 +320,14 @@ JS_ENUMERATE_TYPED_ARRAYS
             initialize_constructor(vm, vm.names.ClassName, *m_##snake_namespace##snake_name##_constructor, m_##snake_namespace##snake_name##_prototype); \
     }                                                                                                                                                    \
                                                                                                                                                          \
-    NonnullGCPtr<Namespace::ConstructorName> Intrinsics::snake_namespace##snake_name##_constructor()                                                     \
+    GC::Ref<Namespace::ConstructorName> Intrinsics::snake_namespace##snake_name##_constructor()                                                          \
     {                                                                                                                                                    \
         if (!m_##snake_namespace##snake_name##_constructor)                                                                                              \
             initialize_##snake_namespace##snake_name();                                                                                                  \
         return *m_##snake_namespace##snake_name##_constructor;                                                                                           \
     }                                                                                                                                                    \
                                                                                                                                                          \
-    NonnullGCPtr<Object> Intrinsics::snake_namespace##snake_name##_prototype()                                                                           \
+    GC::Ref<Object> Intrinsics::snake_namespace##snake_name##_prototype()                                                                                \
     {                                                                                                                                                    \
         if (!m_##snake_namespace##snake_name##_prototype)                                                                                                \
             initialize_##snake_namespace##snake_name();                                                                                                  \
@@ -352,7 +352,7 @@ JS_ENUMERATE_TEMPORAL_OBJECTS
 #undef __JS_ENUMERATE_INNER
 
 #define __JS_ENUMERATE(ClassName, snake_name)                              \
-    NonnullGCPtr<ClassName> Intrinsics::snake_name##_object()              \
+    GC::Ref<ClassName> Intrinsics::snake_name##_object()                   \
     {                                                                      \
         if (!m_##snake_name##_object)                                      \
             m_##snake_name##_object = m_realm->create<ClassName>(m_realm); \

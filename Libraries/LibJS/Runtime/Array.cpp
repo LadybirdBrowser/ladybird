@@ -17,10 +17,10 @@
 
 namespace JS {
 
-JS_DEFINE_ALLOCATOR(Array);
+GC_DEFINE_ALLOCATOR(Array);
 
 // 10.4.2.2 ArrayCreate ( length [ , proto ] ), https://tc39.es/ecma262/#sec-arraycreate
-ThrowCompletionOr<NonnullGCPtr<Array>> Array::create(Realm& realm, u64 length, Object* prototype)
+ThrowCompletionOr<GC::Ref<Array>> Array::create(Realm& realm, u64 length, Object* prototype)
 {
     auto& vm = realm.vm();
 
@@ -45,7 +45,7 @@ ThrowCompletionOr<NonnullGCPtr<Array>> Array::create(Realm& realm, u64 length, O
 }
 
 // 7.3.18 CreateArrayFromList ( elements ), https://tc39.es/ecma262/#sec-createarrayfromlist
-NonnullGCPtr<Array> Array::create_from(Realm& realm, ReadonlySpan<Value> elements)
+GC::Ref<Array> Array::create_from(Realm& realm, ReadonlySpan<Value> elements)
 {
     // 1. Let array be ! ArrayCreate(0).
     auto array = MUST(Array::create(realm, 0));
@@ -161,10 +161,10 @@ ThrowCompletionOr<bool> Array::set_length(PropertyDescriptor const& property_des
 }
 
 // 23.1.3.30.1 SortIndexedProperties ( obj, len, SortCompare, holes ), https://tc39.es/ecma262/#sec-sortindexedproperties
-ThrowCompletionOr<MarkedVector<Value>> sort_indexed_properties(VM& vm, Object const& object, size_t length, Function<ThrowCompletionOr<double>(Value, Value)> const& sort_compare, Holes holes)
+ThrowCompletionOr<GC::MarkedVector<Value>> sort_indexed_properties(VM& vm, Object const& object, size_t length, Function<ThrowCompletionOr<double>(Value, Value)> const& sort_compare, Holes holes)
 {
     // 1. Let items be a new empty List.
-    auto items = MarkedVector<Value> { vm.heap() };
+    auto items = GC::MarkedVector<Value> { vm.heap() };
 
     // 2. Let k be 0.
     // 3. Repeat, while k < len,
@@ -330,7 +330,7 @@ ThrowCompletionOr<bool> Array::internal_delete(PropertyKey const& property_key)
 }
 
 // NON-STANDARD: Used to inject the ephemeral length property's key
-ThrowCompletionOr<MarkedVector<Value>> Array::internal_own_property_keys() const
+ThrowCompletionOr<GC::MarkedVector<Value>> Array::internal_own_property_keys() const
 {
     auto& vm = this->vm();
     auto keys = TRY(Object::internal_own_property_keys());

@@ -13,7 +13,7 @@
 
 namespace JS::Intl {
 
-JS_DEFINE_ALLOCATOR(NumberFormatConstructor);
+GC_DEFINE_ALLOCATOR(NumberFormatConstructor);
 
 // 15.1 The Intl.NumberFormat Constructor, https://tc39.es/ecma402/#sec-intl-numberformat-constructor
 NumberFormatConstructor::NumberFormatConstructor(Realm& realm)
@@ -44,7 +44,7 @@ ThrowCompletionOr<Value> NumberFormatConstructor::call()
 }
 
 // 15.1.1 Intl.NumberFormat ( [ locales [ , options ] ] ), https://tc39.es/ecma402/#sec-intl.numberformat
-ThrowCompletionOr<NonnullGCPtr<Object>> NumberFormatConstructor::construct(FunctionObject& new_target)
+ThrowCompletionOr<GC::Ref<Object>> NumberFormatConstructor::construct(FunctionObject& new_target)
 {
     auto& vm = this->vm();
 

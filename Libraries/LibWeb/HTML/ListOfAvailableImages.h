@@ -17,8 +17,8 @@ namespace Web::HTML {
 
 // https://html.spec.whatwg.org/multipage/images.html#list-of-available-images
 class ListOfAvailableImages : public JS::Cell {
-    JS_CELL(ListOfAvailableImages, JS::Cell);
-    JS_DECLARE_ALLOCATOR(ListOfAvailableImages);
+    GC_CELL(ListOfAvailableImages, JS::Cell);
+    GC_DECLARE_ALLOCATOR(ListOfAvailableImages);
 
 public:
     struct Key {
@@ -34,20 +34,20 @@ public:
     };
 
     struct Entry {
-        Entry(JS::NonnullGCPtr<DecodedImageData> image_data, bool ignore_higher_layer_caching)
+        Entry(GC::Ref<DecodedImageData> image_data, bool ignore_higher_layer_caching)
             : image_data(move(image_data))
             , ignore_higher_layer_caching(ignore_higher_layer_caching)
         {
         }
 
-        JS::NonnullGCPtr<DecodedImageData> image_data;
+        GC::Ref<DecodedImageData> image_data;
         bool ignore_higher_layer_caching { false };
     };
 
     ListOfAvailableImages();
     ~ListOfAvailableImages();
 
-    void add(Key const&, JS::NonnullGCPtr<DecodedImageData>, bool ignore_higher_layer_caching);
+    void add(Key const&, GC::Ref<DecodedImageData>, bool ignore_higher_layer_caching);
     void remove(Key const&);
     [[nodiscard]] Entry* get(Key const&);
 

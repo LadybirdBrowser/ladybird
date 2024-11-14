@@ -14,7 +14,7 @@
 
 namespace JS::Intl {
 
-JS_DEFINE_ALLOCATOR(ListFormatConstructor);
+GC_DEFINE_ALLOCATOR(ListFormatConstructor);
 
 // 13.1 The Intl.ListFormat Constructor, https://tc39.es/ecma402/#sec-intl-listformat-constructor
 ListFormatConstructor::ListFormatConstructor(Realm& realm)
@@ -45,7 +45,7 @@ ThrowCompletionOr<Value> ListFormatConstructor::call()
 }
 
 // 13.1.1 Intl.ListFormat ( [ locales [ , options ] ] ), https://tc39.es/ecma402/#sec-Intl.ListFormat
-ThrowCompletionOr<NonnullGCPtr<Object>> ListFormatConstructor::construct(FunctionObject& new_target)
+ThrowCompletionOr<GC::Ref<Object>> ListFormatConstructor::construct(FunctionObject& new_target)
 {
     auto& vm = this->vm();
 

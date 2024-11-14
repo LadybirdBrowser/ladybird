@@ -257,40 +257,40 @@ struct StyleComputer::MatchingFontCandidate {
 
 static CSSStyleSheet& default_stylesheet(DOM::Document const& document)
 {
-    static JS::Handle<CSSStyleSheet> sheet;
+    static GC::Root<CSSStyleSheet> sheet;
     if (!sheet.cell()) {
         extern String default_stylesheet_source;
-        sheet = JS::make_handle(parse_css_stylesheet(CSS::Parser::ParsingContext(document), default_stylesheet_source));
+        sheet = GC::make_root(parse_css_stylesheet(CSS::Parser::ParsingContext(document), default_stylesheet_source));
     }
     return *sheet;
 }
 
 static CSSStyleSheet& quirks_mode_stylesheet(DOM::Document const& document)
 {
-    static JS::Handle<CSSStyleSheet> sheet;
+    static GC::Root<CSSStyleSheet> sheet;
     if (!sheet.cell()) {
         extern String quirks_mode_stylesheet_source;
-        sheet = JS::make_handle(parse_css_stylesheet(CSS::Parser::ParsingContext(document), quirks_mode_stylesheet_source));
+        sheet = GC::make_root(parse_css_stylesheet(CSS::Parser::ParsingContext(document), quirks_mode_stylesheet_source));
     }
     return *sheet;
 }
 
 static CSSStyleSheet& mathml_stylesheet(DOM::Document const& document)
 {
-    static JS::Handle<CSSStyleSheet> sheet;
+    static GC::Root<CSSStyleSheet> sheet;
     if (!sheet.cell()) {
         extern String mathml_stylesheet_source;
-        sheet = JS::make_handle(parse_css_stylesheet(CSS::Parser::ParsingContext(document), mathml_stylesheet_source));
+        sheet = GC::make_root(parse_css_stylesheet(CSS::Parser::ParsingContext(document), mathml_stylesheet_source));
     }
     return *sheet;
 }
 
 static CSSStyleSheet& svg_stylesheet(DOM::Document const& document)
 {
-    static JS::Handle<CSSStyleSheet> sheet;
+    static GC::Root<CSSStyleSheet> sheet;
     if (!sheet.cell()) {
         extern String svg_stylesheet_source;
-        sheet = JS::make_handle(parse_css_stylesheet(CSS::Parser::ParsingContext(document), svg_stylesheet_source));
+        sheet = GC::make_root(parse_css_stylesheet(CSS::Parser::ParsingContext(document), svg_stylesheet_source));
     }
     return *sheet;
 }
@@ -381,7 +381,7 @@ Vector<MatchingRule> StyleComputer::collect_matching_rules(DOM::Element const& e
     auto const& root_node = element.root();
     auto shadow_root = is<DOM::ShadowRoot>(root_node) ? static_cast<DOM::ShadowRoot const*>(&root_node) : nullptr;
 
-    JS::GCPtr<DOM::Element const> shadow_host;
+    GC::Ptr<DOM::Element const> shadow_host;
     if (element.is_shadow_host())
         shadow_host = element;
     else if (shadow_root)
@@ -979,7 +979,7 @@ static void cascade_custom_properties(DOM::Element& element, Optional<CSS::Selec
     }
 }
 
-void StyleComputer::collect_animation_into(DOM::Element& element, Optional<CSS::Selector::PseudoElement::Type> pseudo_element, JS::NonnullGCPtr<Animations::KeyframeEffect> effect, StyleProperties& style_properties, AnimationRefresh refresh) const
+void StyleComputer::collect_animation_into(DOM::Element& element, Optional<CSS::Selector::PseudoElement::Type> pseudo_element, GC::Ref<Animations::KeyframeEffect> effect, StyleProperties& style_properties, AnimationRefresh refresh) const
 {
     auto animation = effect->associated_animation();
     if (!animation)
@@ -2458,7 +2458,7 @@ NonnullOwnPtr<StyleComputer::RuleCache> StyleComputer::make_rule_cache_for_casca
 
     Vector<MatchingRule> matching_rules;
     size_t style_sheet_index = 0;
-    for_each_stylesheet(cascade_origin, [&](auto& sheet, JS::GCPtr<DOM::ShadowRoot> shadow_root) {
+    for_each_stylesheet(cascade_origin, [&](auto& sheet, GC::Ptr<DOM::ShadowRoot> shadow_root) {
         size_t rule_index = 0;
         sheet.for_each_effective_style_producing_rule([&](auto const& rule) {
             size_t selector_index = 0;
@@ -2688,7 +2688,7 @@ void StyleComputer::build_qualified_layer_names_cache()
 
     // Walk all style sheets, identifying when we first see a @layer name, and add its qualified name to the list.
     // TODO: Separate the light and shadow-dom layers.
-    for_each_stylesheet(CascadeOrigin::Author, [&](auto& sheet, JS::GCPtr<DOM::ShadowRoot>) {
+    for_each_stylesheet(CascadeOrigin::Author, [&](auto& sheet, GC::Ptr<DOM::ShadowRoot>) {
         // NOTE: Postorder so that a @layer block is iterated after its children,
         // because we want those children to occur before it in the list.
         sheet.for_each_effective_rule(TraversalOrder::Postorder, [&](auto& rule) {
@@ -2732,7 +2732,7 @@ void StyleComputer::build_qualified_layer_names_cache()
 void StyleComputer::build_rule_cache()
 {
     if (auto user_style_source = document().page().user_style(); user_style_source.has_value()) {
-        m_user_style_sheet = JS::make_handle(parse_css_stylesheet(CSS::Parser::ParsingContext(document()), user_style_source.value()));
+        m_user_style_sheet = GC::make_root(parse_css_stylesheet(CSS::Parser::ParsingContext(document()), user_style_source.value()));
     }
 
     build_qualified_layer_names_cache();

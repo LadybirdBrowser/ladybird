@@ -12,7 +12,7 @@
 
 namespace Web::HTML {
 
-JS_DEFINE_ALLOCATOR(HTMLLabelElement);
+GC_DEFINE_ALLOCATOR(HTMLLabelElement);
 
 HTMLLabelElement::HTMLLabelElement(DOM::Document& document, DOM::QualifiedName qualified_name)
     : HTMLElement(document, move(qualified_name))
@@ -27,15 +27,15 @@ void HTMLLabelElement::initialize(JS::Realm& realm)
     WEB_SET_PROTOTYPE_FOR_INTERFACE(HTMLLabelElement);
 }
 
-JS::GCPtr<Layout::Node> HTMLLabelElement::create_layout_node(CSS::StyleProperties style)
+GC::Ptr<Layout::Node> HTMLLabelElement::create_layout_node(CSS::StyleProperties style)
 {
     return heap().allocate<Layout::Label>(document(), this, move(style));
 }
 
 // https://html.spec.whatwg.org/multipage/forms.html#labeled-control
-JS::GCPtr<HTMLElement> HTMLLabelElement::control() const
+GC::Ptr<HTMLElement> HTMLLabelElement::control() const
 {
-    JS::GCPtr<HTMLElement> control;
+    GC::Ptr<HTMLElement> control;
 
     // The for attribute may be specified to indicate a form control with which the caption is
     // to be associated. If the attribute is specified, the attribute's value must be the ID of
@@ -68,7 +68,7 @@ JS::GCPtr<HTMLElement> HTMLLabelElement::control() const
 }
 
 // https://html.spec.whatwg.org/multipage/forms.html#dom-label-form
-JS::GCPtr<HTMLFormElement> HTMLLabelElement::form() const
+GC::Ptr<HTMLFormElement> HTMLLabelElement::form() const
 {
     auto labeled_control = control();
 

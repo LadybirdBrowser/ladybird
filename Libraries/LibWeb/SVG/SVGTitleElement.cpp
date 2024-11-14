@@ -12,7 +12,7 @@
 
 namespace Web::SVG {
 
-JS_DEFINE_ALLOCATOR(SVGTitleElement);
+GC_DEFINE_ALLOCATOR(SVGTitleElement);
 
 SVGTitleElement::SVGTitleElement(DOM::Document& document, DOM::QualifiedName qualified_name)
     : SVGElement(document, move(qualified_name))
@@ -25,7 +25,7 @@ void SVGTitleElement::initialize(JS::Realm& realm)
     WEB_SET_PROTOTYPE_FOR_INTERFACE(SVGTitleElement);
 }
 
-JS::GCPtr<Layout::Node> SVGTitleElement::create_layout_node(CSS::StyleProperties)
+GC::Ptr<Layout::Node> SVGTitleElement::create_layout_node(CSS::StyleProperties)
 {
     return nullptr;
 }

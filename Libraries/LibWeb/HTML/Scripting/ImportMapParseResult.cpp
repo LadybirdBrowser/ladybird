@@ -13,14 +13,14 @@
 
 namespace Web::HTML {
 
-JS_DEFINE_ALLOCATOR(ImportMapParseResult);
+GC_DEFINE_ALLOCATOR(ImportMapParseResult);
 
 ImportMapParseResult::ImportMapParseResult() = default;
 
 ImportMapParseResult::~ImportMapParseResult() = default;
 
 // https://html.spec.whatwg.org/multipage/webappapis.html#create-an-import-map-parse-result
-JS::NonnullGCPtr<ImportMapParseResult> ImportMapParseResult::create(JS::Realm& realm, ByteString const& input, URL::URL base_url)
+GC::Ref<ImportMapParseResult> ImportMapParseResult::create(JS::Realm& realm, ByteString const& input, URL::URL base_url)
 {
     // 1. Let result be an import map parse result whose import map is null and whose error to rethrow is null.
     auto result = realm.create<ImportMapParseResult>();
@@ -53,7 +53,7 @@ void ImportMapParseResult::visit_edges(Visitor& visitor)
             [&](WebIDL::SimpleException const&) {
                 // ignore
             },
-            [&](JS::NonnullGCPtr<WebIDL::DOMException> exception) {
+            [&](GC::Ref<WebIDL::DOMException> exception) {
                 visitor.visit(exception);
             },
             [&](JS::Completion const& completion) {

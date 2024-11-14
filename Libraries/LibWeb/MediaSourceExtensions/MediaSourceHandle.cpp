@@ -10,7 +10,7 @@
 
 namespace Web::MediaSourceExtensions {
 
-JS_DEFINE_ALLOCATOR(MediaSourceHandle);
+GC_DEFINE_ALLOCATOR(MediaSourceHandle);
 
 MediaSourceHandle::MediaSourceHandle(JS::Realm& realm)
     : Bindings::PlatformObject(realm)

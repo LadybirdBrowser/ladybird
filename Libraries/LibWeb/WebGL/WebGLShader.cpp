@@ -9,7 +9,7 @@
 
 namespace Web::WebGL {
 
-JS_DEFINE_ALLOCATOR(WebGLShader);
+GC_DEFINE_ALLOCATOR(WebGLShader);
 
 WebGLShader::WebGLShader(JS::Realm& realm)
     : WebGLObject(realm)

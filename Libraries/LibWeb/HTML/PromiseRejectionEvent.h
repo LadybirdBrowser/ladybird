@@ -8,7 +8,7 @@
 #pragma once
 
 #include <AK/FlyString.h>
-#include <LibJS/Heap/Handle.h>
+#include <LibGC/Root.h>
 #include <LibJS/Runtime/Promise.h>
 #include <LibJS/Runtime/Value.h>
 #include <LibWeb/DOM/Event.h>
@@ -16,17 +16,17 @@
 namespace Web::HTML {
 
 struct PromiseRejectionEventInit : public DOM::EventInit {
-    JS::Handle<JS::Object> promise;
+    GC::Root<JS::Object> promise;
     JS::Value reason;
 };
 
 class PromiseRejectionEvent final : public DOM::Event {
     WEB_PLATFORM_OBJECT(PromiseRejectionEvent, DOM::Event);
-    JS_DECLARE_ALLOCATOR(PromiseRejectionEvent);
+    GC_DECLARE_ALLOCATOR(PromiseRejectionEvent);
 
 public:
-    [[nodiscard]] static JS::NonnullGCPtr<PromiseRejectionEvent> create(JS::Realm&, FlyString const& event_name, PromiseRejectionEventInit const& = {});
-    static WebIDL::ExceptionOr<JS::NonnullGCPtr<PromiseRejectionEvent>> construct_impl(JS::Realm&, FlyString const& event_name, PromiseRejectionEventInit const&);
+    [[nodiscard]] static GC::Ref<PromiseRejectionEvent> create(JS::Realm&, FlyString const& event_name, PromiseRejectionEventInit const& = {});
+    static WebIDL::ExceptionOr<GC::Ref<PromiseRejectionEvent>> construct_impl(JS::Realm&, FlyString const& event_name, PromiseRejectionEventInit const&);
 
     virtual ~PromiseRejectionEvent() override;
 
@@ -40,7 +40,7 @@ private:
     virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Cell::Visitor&) override;
 
-    JS::NonnullGCPtr<JS::Object> m_promise;
+    GC::Ref<JS::Object> m_promise;
     JS::Value m_reason;
 };
 

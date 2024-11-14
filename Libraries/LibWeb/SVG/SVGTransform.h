@@ -15,10 +15,10 @@ namespace Web::SVG {
 // https://svgwg.org/svg2-draft/single-page.html#coords-InterfaceSVGTransform
 class SVGTransform final : public Bindings::PlatformObject {
     WEB_PLATFORM_OBJECT(SVGTransform, Bindings::PlatformObject);
-    JS_DECLARE_ALLOCATOR(SVGTransform);
+    GC_DECLARE_ALLOCATOR(SVGTransform);
 
 public:
-    [[nodiscard]] static JS::NonnullGCPtr<SVGTransform> create(JS::Realm& realm);
+    [[nodiscard]] static GC::Ref<SVGTransform> create(JS::Realm& realm);
     virtual ~SVGTransform() override;
 
     enum class Type : u16 {

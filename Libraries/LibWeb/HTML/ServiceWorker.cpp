@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibJS/Heap/Heap.h>
+#include <LibGC/Heap.h>
 #include <LibJS/Runtime/Realm.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/HTML/EventNames.h>
@@ -20,7 +20,7 @@ ServiceWorker::ServiceWorker(JS::Realm& realm, String script_url)
 
 ServiceWorker::~ServiceWorker() = default;
 
-JS::NonnullGCPtr<ServiceWorker> ServiceWorker::create(JS::Realm& realm)
+GC::Ref<ServiceWorker> ServiceWorker::create(JS::Realm& realm)
 {
     return realm.create<ServiceWorker>(realm, ""_string);
 }

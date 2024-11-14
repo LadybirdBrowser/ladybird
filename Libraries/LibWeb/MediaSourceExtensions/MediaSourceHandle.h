@@ -14,7 +14,7 @@ namespace Web::MediaSourceExtensions {
 // https://w3c.github.io/media-source/#dom-mediasourcehandle
 class MediaSourceHandle : public Bindings::PlatformObject {
     WEB_PLATFORM_OBJECT(MediaSourceHandle, Bindings::PlatformObject);
-    JS_DECLARE_ALLOCATOR(MediaSourceHandle);
+    GC_DECLARE_ALLOCATOR(MediaSourceHandle);
 
 public:
 private:

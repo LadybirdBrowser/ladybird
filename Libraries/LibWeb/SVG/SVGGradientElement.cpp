@@ -121,7 +121,7 @@ void SVGGradientElement::add_color_stops(Painting::SVGGradientPaintStyle& paint_
     });
 }
 
-JS::GCPtr<SVGGradientElement const> SVGGradientElement::linked_gradient(HashTable<SVGGradientElement const*>& seen_gradients) const
+GC::Ptr<SVGGradientElement const> SVGGradientElement::linked_gradient(HashTable<SVGGradientElement const*>& seen_gradients) const
 {
     // FIXME: This entire function is an ad-hoc hack!
     // It can only resolve #<ids> in the same document.

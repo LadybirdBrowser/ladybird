@@ -10,15 +10,15 @@
 #include <AK/HashMap.h>
 #include <AK/IntrusiveList.h>
 #include <AK/Vector.h>
-#include <LibJS/Forward.h>
-#include <LibJS/Heap/CellImpl.h>
-#include <LibJS/Heap/HeapRoot.h>
+#include <LibGC/Cell.h>
+#include <LibGC/Forward.h>
+#include <LibGC/HeapRoot.h>
 
-namespace JS {
+namespace GC {
 
 class MarkedVectorBase {
 public:
-    virtual void gather_roots(HashMap<CellImpl*, JS::HeapRoot>&) const = 0;
+    virtual void gather_roots(HashMap<Cell*, GC::HeapRoot>&) const = 0;
 
 protected:
     explicit MarkedVectorBase(Heap&);
@@ -65,10 +65,10 @@ public:
         return *this;
     }
 
-    virtual void gather_roots(HashMap<CellImpl*, JS::HeapRoot>& roots) const override
+    virtual void gather_roots(HashMap<Cell*, GC::HeapRoot>& roots) const override
     {
         for (auto& value : *this) {
-            if constexpr (IsSame<Value, T>) {
+            if constexpr (IsBaseOf<NanBoxedValue, T>) {
                 if (value.is_cell())
                     roots.set(&const_cast<T&>(value).as_cell(), HeapRoot { .type = HeapRoot::Type::MarkedVector });
             } else {

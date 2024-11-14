@@ -15,7 +15,7 @@
 
 namespace JS {
 
-JS_DEFINE_ALLOCATOR(SyntheticModule);
+GC_DEFINE_ALLOCATOR(SyntheticModule);
 
 // 1.2.1 CreateSyntheticModule ( exportNames, evaluationSteps, realm, hostDefined ), https://tc39.es/proposal-json-modules/#sec-createsyntheticmodule
 SyntheticModule::SyntheticModule(Vector<DeprecatedFlyString> export_names, SyntheticModule::EvaluationFunction evaluation_steps, Realm& realm, StringView filename)
@@ -90,7 +90,7 @@ ThrowCompletionOr<Promise*> SyntheticModule::evaluate(VM& vm)
     module_context->realm = &realm();
 
     // 5. Set the ScriptOrModule of moduleContext to module.
-    module_context->script_or_module = NonnullGCPtr<Module>(*this);
+    module_context->script_or_module = GC::Ref<Module>(*this);
 
     // 6. Set the VariableEnvironment of moduleContext to module.[[Environment]].
     module_context->variable_environment = environment();
@@ -133,11 +133,11 @@ ThrowCompletionOr<void> SyntheticModule::set_synthetic_module_export(DeprecatedF
 }
 
 // 1.3 CreateDefaultExportSyntheticModule ( defaultExport ), https://tc39.es/proposal-json-modules/#sec-create-default-export-synthetic-module
-NonnullGCPtr<SyntheticModule> SyntheticModule::create_default_export_synthetic_module(Value default_export, Realm& realm, StringView filename)
+GC::Ref<SyntheticModule> SyntheticModule::create_default_export_synthetic_module(Value default_export, Realm& realm, StringView filename)
 {
     // Note: Has some changes from PR: https://github.com/tc39/proposal-json-modules/pull/13.
     // 1. Let closure be the a Abstract Closure with parameters (module) that captures defaultExport and performs the following steps when called:
-    auto closure = [default_export = make_handle(default_export)](SyntheticModule& module) -> ThrowCompletionOr<void> {
+    auto closure = [default_export = make_root(default_export)](SyntheticModule& module) -> ThrowCompletionOr<void> {
         // a. Return ? module.SetSyntheticExport("default", defaultExport).
         return module.set_synthetic_module_export("default", default_export.value());
     };
@@ -147,7 +147,7 @@ NonnullGCPtr<SyntheticModule> SyntheticModule::create_default_export_synthetic_m
 }
 
 // 1.4 ParseJSONModule ( source ), https://tc39.es/proposal-json-modules/#sec-parse-json-module
-ThrowCompletionOr<NonnullGCPtr<Module>> parse_json_module(StringView source_text, Realm& realm, StringView filename)
+ThrowCompletionOr<GC::Ref<Module>> parse_json_module(StringView source_text, Realm& realm, StringView filename)
 {
     auto& vm = realm.vm();
 
@@ -162,7 +162,7 @@ ThrowCompletionOr<NonnullGCPtr<Module>> parse_json_module(StringView source_text
 }
 
 // 1.2.3.1 LoadRequestedModules ( ), https://tc39.es/proposal-json-modules/#sec-smr-LoadRequestedModules
-PromiseCapability& SyntheticModule::load_requested_modules(GCPtr<GraphLoadingState::HostDefined>)
+PromiseCapability& SyntheticModule::load_requested_modules(GC::Ptr<GraphLoadingState::HostDefined>)
 {
     // 1. Return ! PromiseResolve(%Promise%, undefined).
     auto& constructor = *vm().current_realm()->intrinsics().promise_constructor();

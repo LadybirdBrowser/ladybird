@@ -40,7 +40,7 @@ namespace Web::WebDriver {
         _temporary_result.release_value();                                                              \
     })
 
-using SeenMap = HashTable<JS::RawGCPtr<JS::Object const>>;
+using SeenMap = HashTable<GC::RawPtr<JS::Object const>>;
 
 // https://w3c.github.io/webdriver/#dfn-collection
 static bool is_collection(JS::Object const& value)
@@ -253,7 +253,7 @@ static Response internal_json_clone(HTML::BrowsingContext const& browsing_contex
     // -> has an own property named "toJSON" that is a Function
     if (auto to_json = object.get_without_side_effects(vm.names.toJSON); to_json.is_function()) {
         // Return success with the value returned by Function.[[Call]](toJSON) with value as the this value.
-        auto to_json_result = TRY_OR_JS_ERROR(to_json.as_function().internal_call(value, JS::MarkedVector<JS::Value> { vm.heap() }));
+        auto to_json_result = TRY_OR_JS_ERROR(to_json.as_function().internal_call(value, GC::MarkedVector<JS::Value> { vm.heap() }));
         if (!to_json_result.is_string())
             return WebDriver::Error::from_code(ErrorCode::JavascriptError, "toJSON did not return a String"sv);
 
@@ -322,7 +322,7 @@ static ErrorOr<JS::Value, WebDriver::Error> internal_json_deserialize(HTML::Brow
     if (value.is_object()) {
         // Return clone an object algorithm with session, value and seen, and the JSON deserialize algorithm as the
         // clone algorithm.
-        return clone_an_object<JS::NonnullGCPtr<JS::Object>>(browsing_context, value.as_object(), seen, internal_json_deserialize);
+        return clone_an_object<GC::Ref<JS::Object>>(browsing_context, value.as_object(), seen, internal_json_deserialize);
     }
 
     return WebDriver::Error::from_code(ErrorCode::JavascriptError, "Unrecognized value type"sv);

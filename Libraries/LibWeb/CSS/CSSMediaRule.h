@@ -16,10 +16,10 @@ namespace Web::CSS {
 // https://www.w3.org/TR/css-conditional-3/#the-cssmediarule-interface
 class CSSMediaRule final : public CSSConditionRule {
     WEB_PLATFORM_OBJECT(CSSMediaRule, CSSConditionRule);
-    JS_DECLARE_ALLOCATOR(CSSMediaRule);
+    GC_DECLARE_ALLOCATOR(CSSMediaRule);
 
 public:
-    [[nodiscard]] static JS::NonnullGCPtr<CSSMediaRule> create(JS::Realm&, MediaList& media_queries, CSSRuleList&);
+    [[nodiscard]] static GC::Ref<CSSMediaRule> create(JS::Realm&, MediaList& media_queries, CSSRuleList&);
 
     virtual ~CSSMediaRule() = default;
 
@@ -37,7 +37,7 @@ private:
     virtual void visit_edges(Cell::Visitor&) override;
     virtual String serialized() const override;
 
-    JS::NonnullGCPtr<MediaList> m_media;
+    GC::Ref<MediaList> m_media;
 };
 
 template<>

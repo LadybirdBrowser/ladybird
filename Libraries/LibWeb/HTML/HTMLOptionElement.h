@@ -13,7 +13,7 @@ namespace Web::HTML {
 
 class HTMLOptionElement final : public HTMLElement {
     WEB_PLATFORM_OBJECT(HTMLOptionElement, HTMLElement);
-    JS_DECLARE_ALLOCATOR(HTMLOptionElement);
+    GC_DECLARE_ALLOCATOR(HTMLOptionElement);
 
 public:
     virtual ~HTMLOptionElement() override;
@@ -36,7 +36,7 @@ public:
 
     bool disabled() const;
 
-    JS::GCPtr<HTML::HTMLFormElement> form() const;
+    GC::Ptr<HTML::HTMLFormElement> form() const;
 
     virtual Optional<ARIA::Role> default_role() const override;
 

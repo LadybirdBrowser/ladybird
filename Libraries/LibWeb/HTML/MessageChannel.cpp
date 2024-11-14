@@ -12,9 +12,9 @@
 
 namespace Web::HTML {
 
-JS_DEFINE_ALLOCATOR(MessageChannel);
+GC_DEFINE_ALLOCATOR(MessageChannel);
 
-WebIDL::ExceptionOr<JS::NonnullGCPtr<MessageChannel>> MessageChannel::construct_impl(JS::Realm& realm)
+WebIDL::ExceptionOr<GC::Ref<MessageChannel>> MessageChannel::construct_impl(JS::Realm& realm)
 {
     return realm.create<MessageChannel>(realm);
 }

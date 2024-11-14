@@ -31,7 +31,7 @@ public:
             FloatingElement,
         };
         Type type {};
-        JS::GCPtr<Layout::Node const> node {};
+        GC::Ptr<Layout::Node const> node {};
         RefPtr<Gfx::GlyphRun> glyph_run {};
         size_t offset_in_node { 0 };
         size_t length_in_node { 0 };
@@ -72,10 +72,10 @@ private:
 
     Layout::InlineFormattingContext& m_inline_formatting_context;
     Layout::LayoutState& m_layout_state;
-    JS::NonnullGCPtr<BlockContainer const> m_containing_block;
+    GC::Ref<BlockContainer const> m_containing_block;
     LayoutState::UsedValues const& m_containing_block_used_values;
-    JS::GCPtr<Layout::Node const> m_current_node;
-    JS::GCPtr<Layout::Node const> m_next_node;
+    GC::Ptr<Layout::Node const> m_current_node;
+    GC::Ptr<Layout::Node const> m_next_node;
     LayoutMode const m_layout_mode;
 
     struct TextNodeContext {
@@ -99,7 +99,7 @@ private:
     Optional<ExtraBoxMetrics> m_extra_leading_metrics;
     Optional<ExtraBoxMetrics> m_extra_trailing_metrics;
 
-    Vector<JS::NonnullGCPtr<NodeWithStyleAndBoxModelMetrics const>> m_box_model_node_stack;
+    Vector<GC::Ref<NodeWithStyleAndBoxModelMetrics const>> m_box_model_node_stack;
     Queue<InlineLevelIterator::Item> m_lookahead_items;
 };
 

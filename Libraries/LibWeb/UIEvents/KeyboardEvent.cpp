@@ -13,7 +13,7 @@
 
 namespace Web::UIEvents {
 
-JS_DEFINE_ALLOCATOR(KeyboardEvent);
+GC_DEFINE_ALLOCATOR(KeyboardEvent);
 
 // https://www.w3.org/TR/uievents/#determine-keydown-keyup-keyCode
 static unsigned long determine_key_code(KeyCode platform_key, u32 code_point)
@@ -668,7 +668,7 @@ static DOMKeyLocation get_event_location(KeyCode platform_key, unsigned modifier
     return DOMKeyLocation::Standard;
 }
 
-JS::NonnullGCPtr<KeyboardEvent> KeyboardEvent::create_from_platform_event(JS::Realm& realm, FlyString const& event_name, KeyCode platform_key, unsigned modifiers, u32 code_point, bool repeat)
+GC::Ref<KeyboardEvent> KeyboardEvent::create_from_platform_event(JS::Realm& realm, FlyString const& event_name, KeyCode platform_key, unsigned modifiers, u32 code_point, bool repeat)
 {
     auto event_key = MUST(get_event_key(platform_key, code_point));
     auto event_code = MUST(get_event_code(platform_key, modifiers));
@@ -752,12 +752,12 @@ void KeyboardEvent::init_keyboard_event(String const& type, bool bubbles, bool c
     m_meta_key = meta_key;
 }
 
-JS::NonnullGCPtr<KeyboardEvent> KeyboardEvent::create(JS::Realm& realm, FlyString const& event_name, KeyboardEventInit const& event_init)
+GC::Ref<KeyboardEvent> KeyboardEvent::create(JS::Realm& realm, FlyString const& event_name, KeyboardEventInit const& event_init)
 {
     return realm.create<KeyboardEvent>(realm, event_name, event_init);
 }
 
-WebIDL::ExceptionOr<JS::NonnullGCPtr<KeyboardEvent>> KeyboardEvent::construct_impl(JS::Realm& realm, FlyString const& event_name, KeyboardEventInit const& event_init)
+WebIDL::ExceptionOr<GC::Ref<KeyboardEvent>> KeyboardEvent::construct_impl(JS::Realm& realm, FlyString const& event_name, KeyboardEventInit const& event_init)
 {
     return create(realm, event_name, event_init);
 }

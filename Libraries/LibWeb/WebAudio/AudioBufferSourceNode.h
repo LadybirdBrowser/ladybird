@@ -15,7 +15,7 @@ namespace Web::WebAudio {
 
 // https://webaudio.github.io/web-audio-api/#AudioBufferSourceOptions
 struct AudioBufferSourceOptions {
-    JS::GCPtr<AudioBuffer> buffer;
+    GC::Ptr<AudioBuffer> buffer;
     float detune { 0 };
     bool loop { false };
     double loop_end { 0 };
@@ -26,15 +26,15 @@ struct AudioBufferSourceOptions {
 // https://webaudio.github.io/web-audio-api/#AudioBufferSourceNode
 class AudioBufferSourceNode : public AudioScheduledSourceNode {
     WEB_PLATFORM_OBJECT(AudioBufferSourceNode, AudioScheduledSourceNode);
-    JS_DECLARE_ALLOCATOR(AudioBufferSourceNode);
+    GC_DECLARE_ALLOCATOR(AudioBufferSourceNode);
 
 public:
     virtual ~AudioBufferSourceNode() override;
 
-    WebIDL::ExceptionOr<void> set_buffer(JS::GCPtr<AudioBuffer>);
-    JS::GCPtr<AudioBuffer> buffer() const;
-    JS::NonnullGCPtr<AudioParam> playback_rate() const;
-    JS::NonnullGCPtr<AudioParam> detune() const;
+    WebIDL::ExceptionOr<void> set_buffer(GC::Ptr<AudioBuffer>);
+    GC::Ptr<AudioBuffer> buffer() const;
+    GC::Ref<AudioParam> playback_rate() const;
+    GC::Ref<AudioParam> detune() const;
     WebIDL::ExceptionOr<void> set_loop(bool);
     bool loop() const;
     WebIDL::ExceptionOr<void> set_loop_start(double);
@@ -46,19 +46,19 @@ public:
 
     WebIDL::ExceptionOr<void> start(Optional<double>, Optional<double>, Optional<double>);
 
-    static WebIDL::ExceptionOr<JS::NonnullGCPtr<AudioBufferSourceNode>> create(JS::Realm&, JS::NonnullGCPtr<BaseAudioContext>, AudioBufferSourceOptions const& = {});
-    static WebIDL::ExceptionOr<JS::NonnullGCPtr<AudioBufferSourceNode>> construct_impl(JS::Realm&, JS::NonnullGCPtr<BaseAudioContext>, AudioBufferSourceOptions const& = {});
+    static WebIDL::ExceptionOr<GC::Ref<AudioBufferSourceNode>> create(JS::Realm&, GC::Ref<BaseAudioContext>, AudioBufferSourceOptions const& = {});
+    static WebIDL::ExceptionOr<GC::Ref<AudioBufferSourceNode>> construct_impl(JS::Realm&, GC::Ref<BaseAudioContext>, AudioBufferSourceOptions const& = {});
 
 protected:
-    AudioBufferSourceNode(JS::Realm&, JS::NonnullGCPtr<BaseAudioContext>, AudioBufferSourceOptions const& = {});
+    AudioBufferSourceNode(JS::Realm&, GC::Ref<BaseAudioContext>, AudioBufferSourceOptions const& = {});
 
     virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Cell::Visitor&) override;
 
 private:
-    JS::GCPtr<AudioBuffer> m_buffer;
-    JS::NonnullGCPtr<AudioParam> m_playback_rate;
-    JS::NonnullGCPtr<AudioParam> m_detune;
+    GC::Ptr<AudioBuffer> m_buffer;
+    GC::Ref<AudioParam> m_playback_rate;
+    GC::Ref<AudioParam> m_detune;
     bool m_loop { false };
     double m_loop_start { 0.0 };
     double m_loop_end { 0.0 };

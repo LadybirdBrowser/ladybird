@@ -8,15 +8,15 @@
 
 #include <AK/ByteString.h>
 #include <AK/Variant.h>
+#include <LibGC/CellAllocator.h>
 #include <LibJS/Heap/Cell.h>
-#include <LibJS/Heap/CellAllocator.h>
 #include <LibWeb/WebIDL/CallbackType.h>
 
 namespace Web::HTML {
 
 class EventHandler final : public JS::Cell {
-    JS_CELL(EventHandler, JS::Cell);
-    JS_DECLARE_ALLOCATOR(EventHandler);
+    GC_CELL(EventHandler, JS::Cell);
+    GC_DECLARE_ALLOCATOR(EventHandler);
 
 public:
     explicit EventHandler(ByteString);
@@ -27,10 +27,10 @@ public:
     // NOTE: This does not contain Empty as part of the optimization of not allocating all event handler attributes up front.
     // FIXME: The string should actually be an "internal raw uncompiled handler" struct. This struct is just the uncompiled source code plus a source location for reporting parse errors.
     //        https://html.spec.whatwg.org/multipage/webappapis.html#internal-raw-uncompiled-handler
-    Variant<ByteString, JS::GCPtr<WebIDL::CallbackType>> value;
+    Variant<ByteString, GC::Ptr<WebIDL::CallbackType>> value;
 
     // https://html.spec.whatwg.org/multipage/webappapis.html#event-handler-listener
-    JS::GCPtr<DOM::DOMEventListener> listener;
+    GC::Ptr<DOM::DOMEventListener> listener;
 
 private:
     virtual void visit_edges(Cell::Visitor&) override;

@@ -34,7 +34,7 @@ EventResult DragAndDropEventHandler::handle_drag_start(
     unsigned modifiers,
     Vector<HTML::SelectedFile> files)
 {
-    auto fire_a_drag_and_drop_event = [&](JS::GCPtr<DOM::EventTarget> target, FlyString const& name, JS::GCPtr<DOM::EventTarget> related_target = nullptr) {
+    auto fire_a_drag_and_drop_event = [&](GC::Ptr<DOM::EventTarget> target, FlyString const& name, GC::Ptr<DOM::EventTarget> related_target = nullptr) {
         return this->fire_a_drag_and_drop_event(realm, target, name, screen_position, page_offset, client_offset, offset, button, buttons, modifiers, related_target);
     };
 
@@ -175,8 +175,8 @@ EventResult DragAndDropEventHandler::handle_drag_start(
 // https://html.spec.whatwg.org/multipage/dnd.html#drag-and-drop-processing-model:queue-a-task
 EventResult DragAndDropEventHandler::handle_drag_move(
     JS::Realm& realm,
-    JS::NonnullGCPtr<DOM::Document> document,
-    JS::NonnullGCPtr<DOM::Node> node,
+    GC::Ref<DOM::Document> document,
+    GC::Ref<DOM::Node> node,
     CSSPixelPoint screen_position,
     CSSPixelPoint page_offset,
     CSSPixelPoint client_offset,
@@ -188,7 +188,7 @@ EventResult DragAndDropEventHandler::handle_drag_move(
     if (!has_ongoing_drag_and_drop_operation())
         return EventResult::Cancelled;
 
-    auto fire_a_drag_and_drop_event = [&](JS::GCPtr<DOM::EventTarget> target, FlyString const& name, JS::GCPtr<DOM::EventTarget> related_target = nullptr) {
+    auto fire_a_drag_and_drop_event = [&](GC::Ptr<DOM::EventTarget> target, FlyString const& name, GC::Ptr<DOM::EventTarget> related_target = nullptr) {
         return this->fire_a_drag_and_drop_event(realm, target, name, screen_position, page_offset, client_offset, offset, button, buttons, modifiers, related_target);
     };
 
@@ -204,7 +204,7 @@ EventResult DragAndDropEventHandler::handle_drag_move(
     // 3. If the drag event was not canceled and the user has not ended the drag-and-drop operation, check the state of
     //    the drag-and-drop operation, as follows:
     if (!drag_event->cancelled()) {
-        JS::GCPtr<DOM::Node> previous_target_element = m_current_target_element;
+        GC::Ptr<DOM::Node> previous_target_element = m_current_target_element;
 
         // 1. If the user is indicating a different immediate user selection than during the last iteration (or if this
         //    is the first iteration), and if this immediate user selection is not the same as the current target element,
@@ -364,7 +364,7 @@ EventResult DragAndDropEventHandler::handle_drag_end(
     if (!has_ongoing_drag_and_drop_operation())
         return EventResult::Cancelled;
 
-    auto fire_a_drag_and_drop_event = [&](JS::GCPtr<DOM::EventTarget> target, FlyString const& name, JS::GCPtr<DOM::EventTarget> related_target = nullptr) {
+    auto fire_a_drag_and_drop_event = [&](GC::Ptr<DOM::EventTarget> target, FlyString const& name, GC::Ptr<DOM::EventTarget> related_target = nullptr) {
         return this->fire_a_drag_and_drop_event(realm, target, name, screen_position, page_offset, client_offset, offset, button, buttons, modifiers, related_target);
     };
 
@@ -396,7 +396,7 @@ EventResult DragAndDropEventHandler::handle_drag_end(
         }
         // Otherwise, the drag operation might be a success; run these substeps:
         else {
-            JS::GCPtr<HTML::DragEvent> drag_event;
+            GC::Ptr<HTML::DragEvent> drag_event;
 
             // 1. Let dropped be true.
             dropped = true;
@@ -468,9 +468,9 @@ EventResult DragAndDropEventHandler::handle_drag_end(
 }
 
 // https://html.spec.whatwg.org/multipage/dnd.html#fire-a-dnd-event
-JS::NonnullGCPtr<HTML::DragEvent> DragAndDropEventHandler::fire_a_drag_and_drop_event(
+GC::Ref<HTML::DragEvent> DragAndDropEventHandler::fire_a_drag_and_drop_event(
     JS::Realm& realm,
-    JS::GCPtr<DOM::EventTarget> target,
+    GC::Ptr<DOM::EventTarget> target,
     FlyString const& name,
     CSSPixelPoint screen_position,
     CSSPixelPoint page_offset,
@@ -479,7 +479,7 @@ JS::NonnullGCPtr<HTML::DragEvent> DragAndDropEventHandler::fire_a_drag_and_drop_
     unsigned button,
     unsigned buttons,
     unsigned modifiers,
-    JS::GCPtr<DOM::EventTarget> related_target)
+    GC::Ptr<DOM::EventTarget> related_target)
 {
     // NOTE: When the source node is determined above, the spec indicates we must follow platform-specific conventions
     //       for dispatching events at the source node if the source node is an out-of-document object. We currently
@@ -606,7 +606,7 @@ JS::NonnullGCPtr<HTML::DragEvent> DragAndDropEventHandler::fire_a_drag_and_drop_
     return event;
 }
 
-bool DragAndDropEventHandler::allow_text_drop(JS::NonnullGCPtr<DOM::Node> node) const
+bool DragAndDropEventHandler::allow_text_drop(GC::Ref<DOM::Node> node) const
 {
     if (!m_drag_data_store->has_text_item())
         return false;

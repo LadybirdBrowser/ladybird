@@ -11,7 +11,7 @@
 #include <AK/String.h>
 #include <AK/Utf8View.h>
 #include <AK/Vector.h>
-#include <LibJS/Heap/HeapFunction.h>
+#include <LibGC/Function.h>
 #include <LibWeb/HTML/Scripting/ExceptionReporter.h>
 #include <LibWeb/HTML/StructuredSerialize.h>
 #include <LibWeb/HTML/StructuredSerializeOptions.h>
@@ -71,12 +71,12 @@ void UniversalGlobalScopeMixin::queue_microtask(WebIDL::CallbackType& callback)
     auto& vm = this_impl().vm();
     auto& realm = *vm.current_realm();
 
-    JS::GCPtr<DOM::Document> document;
+    GC::Ptr<DOM::Document> document;
     if (is<Window>(this_impl()))
         document = &static_cast<Window&>(this_impl()).associated_document();
 
     // The queueMicrotask(callback) method must queue a microtask to invoke callback, and if callback throws an exception, report the exception.
-    HTML::queue_a_microtask(document, JS::create_heap_function(realm.heap(), [&callback, &realm] {
+    HTML::queue_a_microtask(document, GC::create_function(realm.heap(), [&callback, &realm] {
         auto result = WebIDL::invoke_callback(callback, {});
         if (result.is_error())
             HTML::report_exception(result, realm);

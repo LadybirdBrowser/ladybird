@@ -191,7 +191,7 @@ struct LayoutState {
         CSSPixels border_top_collapsed() const { return use_collapsing_borders_model() ? round(border_top / 2) : border_top; }
         CSSPixels border_bottom_collapsed() const { return use_collapsing_borders_model() ? round(border_bottom / 2) : border_bottom; }
 
-        JS::GCPtr<Layout::NodeWithStyle> m_node { nullptr };
+        GC::Ptr<Layout::NodeWithStyle> m_node { nullptr };
         UsedValues const* m_containing_block_used_values { nullptr };
 
         CSSPixels m_content_width { 0 };
@@ -200,7 +200,7 @@ struct LayoutState {
         bool m_has_definite_width { false };
         bool m_has_definite_height { false };
 
-        HashTable<JS::GCPtr<Box const>> m_floating_descendants;
+        HashTable<GC::Ptr<Box const>> m_floating_descendants;
 
         Optional<Painting::PaintableBox::BordersDataWithElementKind> m_override_borders_data;
         Optional<Painting::PaintableBox::TableCellCoordinates> m_table_cell_coordinates;
@@ -223,7 +223,7 @@ struct LayoutState {
     // NOTE: get() will not CoW the UsedValues.
     UsedValues const& get(NodeWithStyle const&) const;
 
-    HashMap<JS::NonnullGCPtr<Layout::Node const>, NonnullOwnPtr<UsedValues>> used_values_per_layout_node;
+    HashMap<GC::Ref<Layout::Node const>, NonnullOwnPtr<UsedValues>> used_values_per_layout_node;
 
     // We cache intrinsic sizes once determined, as they will not change over the course of a full layout.
     // This avoids computing them several times while performing flex layout.
@@ -235,7 +235,7 @@ struct LayoutState {
         HashMap<CSSPixels, Optional<CSSPixels>> max_content_height;
     };
 
-    HashMap<JS::GCPtr<NodeWithStyle const>, NonnullOwnPtr<IntrinsicSizes>> mutable intrinsic_sizes;
+    HashMap<GC::Ptr<NodeWithStyle const>, NonnullOwnPtr<IntrinsicSizes>> mutable intrinsic_sizes;
 
     LayoutState const* m_parent { nullptr };
     LayoutState const& m_root;

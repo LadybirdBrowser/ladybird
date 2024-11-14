@@ -12,11 +12,11 @@
 namespace Web::Painting {
 
 class AudioPaintable final : public MediaPaintable {
-    JS_CELL(AudioPaintable, MediaPaintable);
-    JS_DECLARE_ALLOCATOR(AudioPaintable);
+    GC_CELL(AudioPaintable, MediaPaintable);
+    GC_DECLARE_ALLOCATOR(AudioPaintable);
 
 public:
-    static JS::NonnullGCPtr<AudioPaintable> create(Layout::AudioBox const&);
+    static GC::Ref<AudioPaintable> create(Layout::AudioBox const&);
 
     virtual void paint(PaintContext&, PaintPhase) const override;
 

@@ -14,9 +14,9 @@
 #include <AK/String.h>
 #include <AK/Variant.h>
 #include <AK/Vector.h>
+#include <LibGC/Ptr.h>
 #include <LibJS/Forward.h>
 #include <LibJS/Heap/Cell.h>
-#include <LibJS/Heap/GCPtr.h>
 #include <LibURL/Origin.h>
 #include <LibURL/URL.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/Bodies.h>
@@ -28,8 +28,8 @@ namespace Web::Fetch::Infrastructure {
 
 // https://fetch.spec.whatwg.org/#concept-request
 class Request final : public JS::Cell {
-    JS_CELL(Request, JS::Cell);
-    JS_DECLARE_ALLOCATOR(Request);
+    GC_CELL(Request, JS::Cell);
+    GC_DECLARE_ALLOCATOR(Request);
 
 public:
     enum class CacheMode {
@@ -169,14 +169,14 @@ public:
     // Members are implementation-defined
     struct InternalPriority { };
 
-    using BodyType = Variant<Empty, ByteBuffer, JS::NonnullGCPtr<Body>>;
+    using BodyType = Variant<Empty, ByteBuffer, GC::Ref<Body>>;
     using OriginType = Variant<Origin, URL::Origin>;
     using PolicyContainerType = Variant<PolicyContainer, HTML::PolicyContainer>;
     using ReferrerType = Variant<Referrer, URL::URL>;
-    using ReservedClientType = JS::GCPtr<HTML::Environment>;
-    using WindowType = Variant<Window, JS::GCPtr<HTML::EnvironmentSettingsObject>>;
+    using ReservedClientType = GC::Ptr<HTML::Environment>;
+    using WindowType = Variant<Window, GC::Ptr<HTML::EnvironmentSettingsObject>>;
 
-    [[nodiscard]] static JS::NonnullGCPtr<Request> create(JS::VM&);
+    [[nodiscard]] static GC::Ref<Request> create(JS::VM&);
 
     [[nodiscard]] ReadonlyBytes method() const { return m_method; }
     void set_method(ByteBuffer method) { m_method = move(method); }
@@ -184,8 +184,8 @@ public:
     [[nodiscard]] bool local_urls_only() const { return m_local_urls_only; }
     void set_local_urls_only(bool local_urls_only) { m_local_urls_only = local_urls_only; }
 
-    [[nodiscard]] JS::NonnullGCPtr<HeaderList> header_list() const { return m_header_list; }
-    void set_header_list(JS::NonnullGCPtr<HeaderList> header_list) { m_header_list = header_list; }
+    [[nodiscard]] GC::Ref<HeaderList> header_list() const { return m_header_list; }
+    void set_header_list(GC::Ref<HeaderList> header_list) { m_header_list = header_list; }
 
     [[nodiscard]] bool unsafe_request() const { return m_unsafe_request; }
     void set_unsafe_request(bool unsafe_request) { m_unsafe_request = unsafe_request; }
@@ -194,8 +194,8 @@ public:
     [[nodiscard]] BodyType& body() { return m_body; }
     void set_body(BodyType body) { m_body = move(body); }
 
-    [[nodiscard]] JS::GCPtr<HTML::EnvironmentSettingsObject const> client() const { return m_client; }
-    [[nodiscard]] JS::GCPtr<HTML::EnvironmentSettingsObject> client() { return m_client; }
+    [[nodiscard]] GC::Ptr<HTML::EnvironmentSettingsObject const> client() const { return m_client; }
+    [[nodiscard]] GC::Ptr<HTML::EnvironmentSettingsObject> client() { return m_client; }
     void set_client(HTML::EnvironmentSettingsObject* client) { m_client = client; }
 
     [[nodiscard]] ReservedClientType const& reserved_client() const { return m_reserved_client; }
@@ -313,7 +313,7 @@ public:
     [[nodiscard]] String serialize_origin() const;
     [[nodiscard]] ByteBuffer byte_serialize_origin() const;
 
-    [[nodiscard]] JS::NonnullGCPtr<Request> clone(JS::Realm&) const;
+    [[nodiscard]] GC::Ref<Request> clone(JS::Realm&) const;
 
     void add_range_header(u64 first, Optional<u64> const& last);
     void add_origin_header();
@@ -321,13 +321,13 @@ public:
     [[nodiscard]] bool cross_origin_embedder_policy_allows_credentials() const;
 
     // Non-standard
-    void add_pending_response(Badge<Fetching::PendingResponse>, JS::NonnullGCPtr<Fetching::PendingResponse> pending_response)
+    void add_pending_response(Badge<Fetching::PendingResponse>, GC::Ref<Fetching::PendingResponse> pending_response)
     {
         VERIFY(!m_pending_responses.contains_slow(pending_response));
         m_pending_responses.append(pending_response);
     }
 
-    void remove_pending_response(Badge<Fetching::PendingResponse>, JS::NonnullGCPtr<Fetching::PendingResponse> pending_response)
+    void remove_pending_response(Badge<Fetching::PendingResponse>, GC::Ref<Fetching::PendingResponse> pending_response)
     {
         m_pending_responses.remove_first_matching([&](auto gc_ptr) { return gc_ptr == pending_response; });
     }
@@ -336,7 +336,7 @@ public:
     void set_buffer_policy(BufferPolicy buffer_policy) { m_buffer_policy = buffer_policy; }
 
 private:
-    explicit Request(JS::NonnullGCPtr<HeaderList>);
+    explicit Request(GC::Ref<HeaderList>);
 
     virtual void visit_edges(JS::Cell::Visitor&) override;
 
@@ -350,7 +350,7 @@ private:
 
     // https://fetch.spec.whatwg.org/#concept-request-header-list
     // A request has an associated header list (a header list). Unless stated otherwise it is empty.
-    JS::NonnullGCPtr<HeaderList> m_header_list;
+    GC::Ref<HeaderList> m_header_list;
 
     // https://fetch.spec.whatwg.org/#unsafe-request-flag
     // A request has an associated unsafe-request flag. Unless stated otherwise it is unset.
@@ -362,7 +362,7 @@ private:
 
     // https://fetch.spec.whatwg.org/#concept-request-client
     // A request has an associated client (null or an environment settings object).
-    JS::GCPtr<HTML::EnvironmentSettingsObject> m_client;
+    GC::Ptr<HTML::EnvironmentSettingsObject> m_client;
 
     // https://fetch.spec.whatwg.org/#concept-request-reserved-client
     // A request has an associated reserved client (null, an environment, or an environment settings object). Unless
@@ -524,7 +524,7 @@ private:
     bool m_timing_allow_failed { false };
 
     // Non-standard
-    Vector<JS::NonnullGCPtr<Fetching::PendingResponse>> m_pending_responses;
+    Vector<GC::Ref<Fetching::PendingResponse>> m_pending_responses;
 
     BufferPolicy m_buffer_policy { BufferPolicy::BufferResponse };
 };

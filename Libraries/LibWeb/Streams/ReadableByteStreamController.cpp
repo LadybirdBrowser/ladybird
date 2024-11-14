@@ -17,7 +17,7 @@
 
 namespace Web::Streams {
 
-JS_DEFINE_ALLOCATOR(ReadableByteStreamController);
+GC_DEFINE_ALLOCATOR(ReadableByteStreamController);
 
 // https://streams.spec.whatwg.org/#rbs-controller-desired-size
 Optional<double> ReadableByteStreamController::desired_size() const
@@ -27,7 +27,7 @@ Optional<double> ReadableByteStreamController::desired_size() const
 }
 
 // https://streams.spec.whatwg.org/#rbs-controller-byob-request
-JS::GCPtr<ReadableStreamBYOBRequest> ReadableByteStreamController::byob_request()
+GC::Ptr<ReadableStreamBYOBRequest> ReadableByteStreamController::byob_request()
 {
     // 1. Return ! ReadableByteStreamControllerGetBYOBRequest(this).
     return readable_byte_stream_controller_get_byob_request(*this);
@@ -71,7 +71,7 @@ void ReadableByteStreamController::initialize(JS::Realm& realm)
 }
 
 // https://streams.spec.whatwg.org/#rbs-controller-enqueue
-WebIDL::ExceptionOr<void> ReadableByteStreamController::enqueue(JS::Handle<WebIDL::ArrayBufferView>& chunk)
+WebIDL::ExceptionOr<void> ReadableByteStreamController::enqueue(GC::Root<WebIDL::ArrayBufferView>& chunk)
 {
     // 1. If chunk.[[ByteLength]] is 0, throw a TypeError exception.
     // 2. If chunk.[[ViewedArrayBuffer]].[[ArrayBufferByteLength]] is 0, throw a TypeError exception.
@@ -91,7 +91,7 @@ WebIDL::ExceptionOr<void> ReadableByteStreamController::enqueue(JS::Handle<WebID
 }
 
 // https://streams.spec.whatwg.org/#rbs-controller-private-cancel
-JS::NonnullGCPtr<WebIDL::Promise> ReadableByteStreamController::cancel_steps(JS::Value reason)
+GC::Ref<WebIDL::Promise> ReadableByteStreamController::cancel_steps(JS::Value reason)
 {
     // 1. Perform ! ReadableByteStreamControllerClearPendingPullIntos(this).
     readable_byte_stream_controller_clear_pending_pull_intos(*this);
@@ -110,7 +110,7 @@ JS::NonnullGCPtr<WebIDL::Promise> ReadableByteStreamController::cancel_steps(JS:
 }
 
 // https://streams.spec.whatwg.org/#rbs-controller-private-pull
-void ReadableByteStreamController::pull_steps(JS::NonnullGCPtr<ReadRequest> read_request)
+void ReadableByteStreamController::pull_steps(GC::Ref<ReadRequest> read_request)
 {
     auto& realm = this->realm();
 

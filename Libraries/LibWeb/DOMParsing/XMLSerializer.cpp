@@ -24,9 +24,9 @@
 
 namespace Web::DOMParsing {
 
-JS_DEFINE_ALLOCATOR(XMLSerializer);
+GC_DEFINE_ALLOCATOR(XMLSerializer);
 
-WebIDL::ExceptionOr<JS::NonnullGCPtr<XMLSerializer>> XMLSerializer::construct_impl(JS::Realm& realm)
+WebIDL::ExceptionOr<GC::Ref<XMLSerializer>> XMLSerializer::construct_impl(JS::Realm& realm)
 {
     return realm.create<XMLSerializer>(realm);
 }
@@ -45,7 +45,7 @@ void XMLSerializer::initialize(JS::Realm& realm)
 }
 
 // https://w3c.github.io/DOM-Parsing/#dom-xmlserializer-serializetostring
-WebIDL::ExceptionOr<String> XMLSerializer::serialize_to_string(JS::NonnullGCPtr<DOM::Node const> root)
+WebIDL::ExceptionOr<String> XMLSerializer::serialize_to_string(GC::Ref<DOM::Node const> root)
 {
     // The serializeToString(root) method must produce an XML serialization of root passing a value of false for the require well-formed parameter, and return the result.
     return serialize_node_to_xml_string(root, RequireWellFormed::No);
@@ -128,10 +128,10 @@ static bool prefix_is_in_prefix_map(FlyString const& prefix, HashMap<FlyString, 
     return candidates_list_iterator->value.contains_slow(prefix);
 }
 
-WebIDL::ExceptionOr<String> serialize_node_to_xml_string_impl(JS::NonnullGCPtr<DOM::Node const> root, Optional<FlyString>& namespace_, HashMap<FlyString, Vector<Optional<FlyString>>>& namespace_prefix_map, u64& prefix_index, RequireWellFormed require_well_formed);
+WebIDL::ExceptionOr<String> serialize_node_to_xml_string_impl(GC::Ref<DOM::Node const> root, Optional<FlyString>& namespace_, HashMap<FlyString, Vector<Optional<FlyString>>>& namespace_prefix_map, u64& prefix_index, RequireWellFormed require_well_formed);
 
 // https://w3c.github.io/DOM-Parsing/#dfn-xml-serialization
-WebIDL::ExceptionOr<String> serialize_node_to_xml_string(JS::NonnullGCPtr<DOM::Node const> root, RequireWellFormed require_well_formed)
+WebIDL::ExceptionOr<String> serialize_node_to_xml_string(GC::Ref<DOM::Node const> root, RequireWellFormed require_well_formed)
 {
     // 1. Let namespace be a context namespace with value null. The context namespace tracks the XML serialization algorithm's current default namespace.
     //    The context namespace is changed when either an Element Node has a default namespace declaration, or the algorithm generates a default namespace declaration
@@ -165,7 +165,7 @@ static WebIDL::ExceptionOr<String> serialize_processing_instruction(DOM::Process
 static WebIDL::ExceptionOr<String> serialize_cdata_section(DOM::CDATASection const& cdata_section, RequireWellFormed require_well_formed);
 
 // https://w3c.github.io/DOM-Parsing/#dfn-xml-serialization-algorithm
-WebIDL::ExceptionOr<String> serialize_node_to_xml_string_impl(JS::NonnullGCPtr<DOM::Node const> root, Optional<FlyString>& namespace_, HashMap<FlyString, Vector<Optional<FlyString>>>& namespace_prefix_map, u64& prefix_index, RequireWellFormed require_well_formed)
+WebIDL::ExceptionOr<String> serialize_node_to_xml_string_impl(GC::Ref<DOM::Node const> root, Optional<FlyString>& namespace_, HashMap<FlyString, Vector<Optional<FlyString>>>& namespace_prefix_map, u64& prefix_index, RequireWellFormed require_well_formed)
 {
     // Each of the following algorithms for producing an XML serialization of a DOM node take as input a node to serialize and the following arguments:
     // - A context namespace namespace

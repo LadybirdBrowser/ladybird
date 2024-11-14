@@ -25,7 +25,7 @@
 
 namespace Web::HTML {
 
-JS_DEFINE_ALLOCATOR(EventLoop);
+GC_DEFINE_ALLOCATOR(EventLoop);
 
 EventLoop::EventLoop(Type type)
     : m_type(type)
@@ -33,7 +33,7 @@ EventLoop::EventLoop(Type type)
     m_task_queue = heap().allocate<TaskQueue>(*this);
     m_microtask_queue = heap().allocate<TaskQueue>(*this);
 
-    m_rendering_task_function = JS::create_heap_function(heap(), [this] {
+    m_rendering_task_function = GC::create_function(heap(), [this] {
         update_the_rendering();
     });
 }
@@ -54,7 +54,7 @@ void EventLoop::visit_edges(Visitor& visitor)
 void EventLoop::schedule()
 {
     if (!m_system_event_loop_timer) {
-        m_system_event_loop_timer = Platform::Timer::create_single_shot(heap(), 0, JS::create_heap_function(heap(), [this] {
+        m_system_event_loop_timer = Platform::Timer::create_single_shot(heap(), 0, GC::create_function(heap(), [this] {
             process();
         }));
     }
@@ -69,7 +69,7 @@ EventLoop& main_thread_event_loop()
 }
 
 // https://html.spec.whatwg.org/multipage/webappapis.html#spin-the-event-loop
-void EventLoop::spin_until(JS::NonnullGCPtr<JS::HeapFunction<bool()>> goal_condition)
+void EventLoop::spin_until(GC::Ref<GC::Function<bool()>> goal_condition)
 {
     // FIXME: The spec wants us to do the rest of the enclosing algorithm (i.e. the caller)
     //    in the context of the currently running task on entry. That's not possible with this implementation.
@@ -92,7 +92,7 @@ void EventLoop::spin_until(JS::NonnullGCPtr<JS::HeapFunction<bool()>> goal_condi
     //       2. Perform any steps that appear after this spin the event loop instance in the original algorithm.
     //       NOTE: This is achieved by returning from the function.
 
-    Platform::EventLoopPlugin::the().spin_until(JS::create_heap_function(heap(), [this, goal_condition] {
+    Platform::EventLoopPlugin::the().spin_until(GC::create_function(heap(), [this, goal_condition] {
         if (goal_condition->function()())
             return true;
         if (m_task_queue->has_runnable_tasks()) {
@@ -109,7 +109,7 @@ void EventLoop::spin_until(JS::NonnullGCPtr<JS::HeapFunction<bool()>> goal_condi
     // NOTE: This is achieved by returning from the function.
 }
 
-void EventLoop::spin_processing_tasks_with_source_until(Task::Source source, JS::NonnullGCPtr<JS::HeapFunction<bool()>> goal_condition)
+void EventLoop::spin_processing_tasks_with_source_until(Task::Source source, GC::Ref<GC::Function<bool()>> goal_condition)
 {
     auto& vm = this->vm();
     vm.save_execution_context_stack();
@@ -120,7 +120,7 @@ void EventLoop::spin_processing_tasks_with_source_until(Task::Source source, JS:
     // NOTE: HTML event loop processing steps could run a task with arbitrary source
     m_skip_event_loop_processing_steps = true;
 
-    Platform::EventLoopPlugin::the().spin_until(JS::create_heap_function(heap(), [this, source, goal_condition] {
+    Platform::EventLoopPlugin::the().spin_until(GC::create_function(heap(), [this, source, goal_condition] {
         if (goal_condition->function()())
             return true;
         if (m_task_queue->has_runnable_tasks()) {
@@ -154,7 +154,7 @@ void EventLoop::process()
         return;
 
     // 1. Let oldestTask and taskStartTime be null.
-    JS::GCPtr<Task> oldest_task;
+    GC::Ptr<Task> oldest_task;
     [[maybe_unused]] double task_start_time = 0;
 
     // 2. If the event loop has a task queue with at least one runnable task, then:
@@ -404,7 +404,7 @@ void EventLoop::update_the_rendering()
 }
 
 // https://html.spec.whatwg.org/multipage/webappapis.html#queue-a-task
-TaskID queue_a_task(HTML::Task::Source source, JS::GCPtr<EventLoop> event_loop, JS::GCPtr<DOM::Document> document, JS::NonnullGCPtr<JS::HeapFunction<void()>> steps)
+TaskID queue_a_task(HTML::Task::Source source, GC::Ptr<EventLoop> event_loop, GC::Ptr<DOM::Document> document, GC::Ref<GC::Function<void()>> steps)
 {
     // 1. If event loop was not given, set event loop to the implied event loop.
     if (!event_loop)
@@ -429,7 +429,7 @@ TaskID queue_a_task(HTML::Task::Source source, JS::GCPtr<EventLoop> event_loop, 
 }
 
 // https://html.spec.whatwg.org/multipage/webappapis.html#queue-a-global-task
-TaskID queue_global_task(HTML::Task::Source source, JS::Object& global_object, JS::NonnullGCPtr<JS::HeapFunction<void()>> steps)
+TaskID queue_global_task(HTML::Task::Source source, JS::Object& global_object, GC::Ref<GC::Function<void()>> steps)
 {
     // 1. Let event loop be global's relevant agent's event loop.
     auto& global_custom_data = verify_cast<Bindings::WebEngineCustomData>(*global_object.vm().custom_data());
@@ -447,7 +447,7 @@ TaskID queue_global_task(HTML::Task::Source source, JS::Object& global_object, J
 }
 
 // https://html.spec.whatwg.org/#queue-a-microtask
-void queue_a_microtask(DOM::Document const* document, JS::NonnullGCPtr<JS::HeapFunction<void()>> steps)
+void queue_a_microtask(DOM::Document const* document, GC::Ref<GC::Function<void()>> steps)
 {
     // 1. If event loop was not given, set event loop to the implied event loop.
     auto& event_loop = HTML::main_thread_event_loop();
@@ -515,14 +515,14 @@ void EventLoop::perform_a_microtask_checkpoint()
     // FIXME: 8. Record timing info for microtask checkpoint.
 }
 
-Vector<JS::Handle<DOM::Document>> EventLoop::documents_in_this_event_loop() const
+Vector<GC::Root<DOM::Document>> EventLoop::documents_in_this_event_loop() const
 {
-    Vector<JS::Handle<DOM::Document>> documents;
+    Vector<GC::Root<DOM::Document>> documents;
     for (auto& document : m_documents) {
         VERIFY(document);
         if (document->is_decoded_svg())
             continue;
-        documents.append(JS::make_handle(*document));
+        documents.append(GC::make_root(*document));
     }
     return documents;
 }
@@ -565,12 +565,12 @@ void EventLoop::unregister_environment_settings_object(Badge<EnvironmentSettings
 }
 
 // https://html.spec.whatwg.org/multipage/webappapis.html#same-loop-windows
-Vector<JS::Handle<HTML::Window>> EventLoop::same_loop_windows() const
+Vector<GC::Root<HTML::Window>> EventLoop::same_loop_windows() const
 {
-    Vector<JS::Handle<HTML::Window>> windows;
+    Vector<GC::Root<HTML::Window>> windows;
     for (auto& document : documents_in_this_event_loop()) {
         if (document->is_fully_active())
-            windows.append(JS::make_handle(document->window()));
+            windows.append(GC::make_root(document->window()));
     }
     return windows;
 }

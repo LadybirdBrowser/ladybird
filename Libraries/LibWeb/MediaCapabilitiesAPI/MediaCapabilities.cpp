@@ -11,9 +11,9 @@
 
 namespace Web::MediaCapabilitiesAPI {
 
-JS_DEFINE_ALLOCATOR(MediaCapabilities);
+GC_DEFINE_ALLOCATOR(MediaCapabilities);
 
-JS::NonnullGCPtr<MediaCapabilities> MediaCapabilities::create(JS::Realm& realm)
+GC::Ref<MediaCapabilities> MediaCapabilities::create(JS::Realm& realm)
 {
     return realm.create<MediaCapabilities>(realm);
 }

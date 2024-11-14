@@ -11,8 +11,8 @@
 #include <AK/NonnullRefPtr.h>
 #include <AK/Optional.h>
 #include <AK/Variant.h>
-#include <LibJS/Heap/GCPtr.h>
-#include <LibJS/Heap/Handle.h>
+#include <LibGC/Ptr.h>
+#include <LibGC/Root.h>
 #include <LibWeb/Fetch/Infrastructure/Task.h>
 #include <LibWeb/FileAPI/Blob.h>
 #include <LibWeb/Streams/ReadableStream.h>
@@ -22,43 +22,43 @@ namespace Web::Fetch::Infrastructure {
 
 // https://fetch.spec.whatwg.org/#concept-body
 class Body final : public JS::Cell {
-    JS_CELL(Body, JS::Cell);
-    JS_DECLARE_ALLOCATOR(Body);
+    GC_CELL(Body, JS::Cell);
+    GC_DECLARE_ALLOCATOR(Body);
 
 public:
-    using SourceType = Variant<Empty, ByteBuffer, JS::Handle<FileAPI::Blob>>;
+    using SourceType = Variant<Empty, ByteBuffer, GC::Root<FileAPI::Blob>>;
     // processBody must be an algorithm accepting a byte sequence.
-    using ProcessBodyCallback = JS::NonnullGCPtr<JS::HeapFunction<void(ByteBuffer)>>;
+    using ProcessBodyCallback = GC::Ref<GC::Function<void(ByteBuffer)>>;
     // processBodyError must be an algorithm optionally accepting an exception.
-    using ProcessBodyErrorCallback = JS::NonnullGCPtr<JS::HeapFunction<void(JS::Value)>>;
+    using ProcessBodyErrorCallback = GC::Ref<GC::Function<void(JS::Value)>>;
     // processBodyChunk must be an algorithm accepting a byte sequence.
-    using ProcessBodyChunkCallback = JS::NonnullGCPtr<JS::HeapFunction<void(ByteBuffer)>>;
+    using ProcessBodyChunkCallback = GC::Ref<GC::Function<void(ByteBuffer)>>;
     // processEndOfBody must be an algorithm accepting no arguments
-    using ProcessEndOfBodyCallback = JS::NonnullGCPtr<JS::HeapFunction<void()>>;
+    using ProcessEndOfBodyCallback = GC::Ref<GC::Function<void()>>;
 
-    [[nodiscard]] static JS::NonnullGCPtr<Body> create(JS::VM&, JS::NonnullGCPtr<Streams::ReadableStream>);
-    [[nodiscard]] static JS::NonnullGCPtr<Body> create(JS::VM&, JS::NonnullGCPtr<Streams::ReadableStream>, SourceType, Optional<u64>);
+    [[nodiscard]] static GC::Ref<Body> create(JS::VM&, GC::Ref<Streams::ReadableStream>);
+    [[nodiscard]] static GC::Ref<Body> create(JS::VM&, GC::Ref<Streams::ReadableStream>, SourceType, Optional<u64>);
 
-    [[nodiscard]] JS::NonnullGCPtr<Streams::ReadableStream> stream() const { return *m_stream; }
-    void set_stream(JS::NonnullGCPtr<Streams::ReadableStream> value) { m_stream = value; }
+    [[nodiscard]] GC::Ref<Streams::ReadableStream> stream() const { return *m_stream; }
+    void set_stream(GC::Ref<Streams::ReadableStream> value) { m_stream = value; }
     [[nodiscard]] SourceType const& source() const { return m_source; }
     [[nodiscard]] Optional<u64> const& length() const { return m_length; }
 
-    [[nodiscard]] JS::NonnullGCPtr<Body> clone(JS::Realm&);
+    [[nodiscard]] GC::Ref<Body> clone(JS::Realm&);
 
     void fully_read(JS::Realm&, ProcessBodyCallback process_body, ProcessBodyErrorCallback process_body_error, TaskDestination task_destination) const;
     void incrementally_read(ProcessBodyChunkCallback process_body_chunk, ProcessEndOfBodyCallback process_end_of_body, ProcessBodyErrorCallback process_body_error, TaskDestination task_destination);
-    void incrementally_read_loop(Streams::ReadableStreamDefaultReader& reader, JS::NonnullGCPtr<JS::Object> task_destination, ProcessBodyChunkCallback process_body_chunk, ProcessEndOfBodyCallback process_end_of_body, ProcessBodyErrorCallback process_body_error);
+    void incrementally_read_loop(Streams::ReadableStreamDefaultReader& reader, GC::Ref<JS::Object> task_destination, ProcessBodyChunkCallback process_body_chunk, ProcessEndOfBodyCallback process_end_of_body, ProcessBodyErrorCallback process_body_error);
 
     virtual void visit_edges(JS::Cell::Visitor&) override;
 
 private:
-    explicit Body(JS::NonnullGCPtr<Streams::ReadableStream>);
-    Body(JS::NonnullGCPtr<Streams::ReadableStream>, SourceType, Optional<u64>);
+    explicit Body(GC::Ref<Streams::ReadableStream>);
+    Body(GC::Ref<Streams::ReadableStream>, SourceType, Optional<u64>);
 
     // https://fetch.spec.whatwg.org/#concept-body-stream
     // A stream (a ReadableStream object).
-    JS::NonnullGCPtr<Streams::ReadableStream> m_stream;
+    GC::Ref<Streams::ReadableStream> m_stream;
 
     // https://fetch.spec.whatwg.org/#concept-body-source
     // A source (null, a byte sequence, a Blob object, or a FormData object), initially null.
@@ -72,10 +72,10 @@ private:
 // https://fetch.spec.whatwg.org/#body-with-type
 // A body with type is a tuple that consists of a body (a body) and a type (a header value or null).
 struct BodyWithType {
-    JS::NonnullGCPtr<Body> body;
+    GC::Ref<Body> body;
     Optional<ByteBuffer> type;
 };
 
-WebIDL::ExceptionOr<JS::NonnullGCPtr<Body>> byte_sequence_as_body(JS::Realm&, ReadonlyBytes);
+WebIDL::ExceptionOr<GC::Ref<Body>> byte_sequence_as_body(JS::Realm&, ReadonlyBytes);
 
 }

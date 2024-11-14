@@ -23,8 +23,8 @@
 namespace Web::HTML {
 
 using SerializationRecord = Vector<u32>;
-using SerializationMemory = HashMap<JS::Handle<JS::Value>, u32>;
-using DeserializationMemory = JS::MarkedVector<JS::Value>;
+using SerializationMemory = HashMap<GC::Root<JS::Value>, u32>;
+using DeserializationMemory = GC::MarkedVector<JS::Value>;
 
 struct TransferDataHolder {
     Vector<u8> data;
@@ -38,7 +38,7 @@ struct SerializedTransferRecord {
 
 struct DeserializedTransferRecord {
     JS::Value deserialized;
-    Vector<JS::Handle<JS::Object>> transferred_values;
+    Vector<GC::Root<JS::Object>> transferred_values;
 };
 
 struct DeserializedRecord {
@@ -97,12 +97,12 @@ WebIDL::ExceptionOr<void> serialize_viewed_array_buffer(JS::VM& vm, Vector<u32>&
 
 bool deserialize_boolean_primitive(ReadonlySpan<u32> const& serialized, size_t& position);
 double deserialize_number_primitive(ReadonlySpan<u32> const& serialized, size_t& position);
-JS::NonnullGCPtr<JS::BooleanObject> deserialize_boolean_object(JS::Realm& realm, ReadonlySpan<u32> const& serialized, size_t& position);
-JS::NonnullGCPtr<JS::NumberObject> deserialize_number_object(JS::Realm& realm, ReadonlySpan<u32> const& serialized, size_t& position);
-WebIDL::ExceptionOr<JS::NonnullGCPtr<JS::BigIntObject>> deserialize_big_int_object(JS::Realm& realm, ReadonlySpan<u32> const& serialized, size_t& position);
-WebIDL::ExceptionOr<JS::NonnullGCPtr<JS::StringObject>> deserialize_string_object(JS::Realm& realm, ReadonlySpan<u32> const& serialized, size_t& position);
-JS::NonnullGCPtr<JS::Date> deserialize_date_object(JS::Realm& realm, ReadonlySpan<u32> const& serialized, size_t& position);
-WebIDL::ExceptionOr<JS::NonnullGCPtr<JS::RegExpObject>> deserialize_reg_exp_object(JS::Realm& realm, ReadonlySpan<u32> const& serialized, size_t& position);
+GC::Ref<JS::BooleanObject> deserialize_boolean_object(JS::Realm& realm, ReadonlySpan<u32> const& serialized, size_t& position);
+GC::Ref<JS::NumberObject> deserialize_number_object(JS::Realm& realm, ReadonlySpan<u32> const& serialized, size_t& position);
+WebIDL::ExceptionOr<GC::Ref<JS::BigIntObject>> deserialize_big_int_object(JS::Realm& realm, ReadonlySpan<u32> const& serialized, size_t& position);
+WebIDL::ExceptionOr<GC::Ref<JS::StringObject>> deserialize_string_object(JS::Realm& realm, ReadonlySpan<u32> const& serialized, size_t& position);
+GC::Ref<JS::Date> deserialize_date_object(JS::Realm& realm, ReadonlySpan<u32> const& serialized, size_t& position);
+WebIDL::ExceptionOr<GC::Ref<JS::RegExpObject>> deserialize_reg_exp_object(JS::Realm& realm, ReadonlySpan<u32> const& serialized, size_t& position);
 
 template<typename T>
 requires(IsIntegral<T> || IsFloatingPoint<T> || IsEnum<T>)
@@ -119,10 +119,10 @@ T deserialize_primitive_type(ReadonlySpan<u32> const& serialized, size_t& positi
 
 WebIDL::ExceptionOr<ByteBuffer> deserialize_bytes(JS::VM& vm, ReadonlySpan<u32> vector, size_t& position);
 WebIDL::ExceptionOr<String> deserialize_string(JS::VM& vm, ReadonlySpan<u32> vector, size_t& position);
-WebIDL::ExceptionOr<JS::NonnullGCPtr<JS::PrimitiveString>> deserialize_string_primitive(JS::VM& vm, ReadonlySpan<u32> vector, size_t& position);
-WebIDL::ExceptionOr<JS::NonnullGCPtr<JS::BigInt>> deserialize_big_int_primitive(JS::VM& vm, ReadonlySpan<u32> vector, size_t& position);
+WebIDL::ExceptionOr<GC::Ref<JS::PrimitiveString>> deserialize_string_primitive(JS::VM& vm, ReadonlySpan<u32> vector, size_t& position);
+WebIDL::ExceptionOr<GC::Ref<JS::BigInt>> deserialize_big_int_primitive(JS::VM& vm, ReadonlySpan<u32> vector, size_t& position);
 
-WebIDL::ExceptionOr<SerializedTransferRecord> structured_serialize_with_transfer(JS::VM& vm, JS::Value value, Vector<JS::Handle<JS::Object>> const& transfer_list);
+WebIDL::ExceptionOr<SerializedTransferRecord> structured_serialize_with_transfer(JS::VM& vm, JS::Value value, Vector<GC::Root<JS::Object>> const& transfer_list);
 WebIDL::ExceptionOr<DeserializedTransferRecord> structured_deserialize_with_transfer(JS::VM& vm, SerializedTransferRecord&);
 
 }

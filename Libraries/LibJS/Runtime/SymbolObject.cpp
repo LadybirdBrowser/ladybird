@@ -10,9 +10,9 @@
 
 namespace JS {
 
-JS_DEFINE_ALLOCATOR(SymbolObject);
+GC_DEFINE_ALLOCATOR(SymbolObject);
 
-NonnullGCPtr<SymbolObject> SymbolObject::create(Realm& realm, Symbol& primitive_symbol)
+GC::Ref<SymbolObject> SymbolObject::create(Realm& realm, Symbol& primitive_symbol)
 {
     return realm.create<SymbolObject>(primitive_symbol, realm.intrinsics().symbol_prototype());
 }

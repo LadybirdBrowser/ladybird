@@ -15,7 +15,7 @@
 
 namespace Web::Animations {
 
-JS_DEFINE_ALLOCATOR(AnimationEffect);
+GC_DEFINE_ALLOCATOR(AnimationEffect);
 
 Bindings::FillMode css_fill_mode_to_bindings_fill_mode(CSS::AnimationFillMode mode)
 {
@@ -201,7 +201,7 @@ WebIDL::ExceptionOr<void> AnimationEffect::update_timing(OptionalEffectTiming ti
     return {};
 }
 
-void AnimationEffect::set_associated_animation(JS::GCPtr<Animation> value)
+void AnimationEffect::set_associated_animation(GC::Ptr<Animation> value)
 {
     m_associated_animation = value;
 }

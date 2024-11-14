@@ -26,7 +26,7 @@
 
 namespace Web::HTML {
 
-JS_DEFINE_ALLOCATOR(HTMLScriptElement);
+GC_DEFINE_ALLOCATOR(HTMLScriptElement);
 
 HTMLScriptElement::HTMLScriptElement(DOM::Document& document, DOM::QualifiedName qualified_name)
     : HTMLElement(document, move(qualified_name))
@@ -44,7 +44,7 @@ void HTMLScriptElement::initialize(JS::Realm& realm)
 void HTMLScriptElement::visit_edges(Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
-    if (auto* script = m_result.get_pointer<JS::NonnullGCPtr<Script>>())
+    if (auto* script = m_result.get_pointer<GC::Ref<Script>>())
         visitor.visit(*script);
     visitor.visit(m_parser_document);
     visitor.visit(m_preparation_time_document);
@@ -86,10 +86,10 @@ void HTMLScriptElement::execute_script()
     // https://html.spec.whatwg.org/multipage/document-lifecycle.html#read-html
     // Before any script execution occurs, the user agent must wait for scripts may run for the newly-created document to be true for document.
     if (!m_document->ready_to_run_scripts())
-        main_thread_event_loop().spin_until(JS::create_heap_function(heap(), [&] { return m_document->ready_to_run_scripts(); }));
+        main_thread_event_loop().spin_until(GC::create_function(heap(), [&] { return m_document->ready_to_run_scripts(); }));
 
     // 1. Let document be el's node document.
-    JS::NonnullGCPtr<DOM::Document> document = this->document();
+    GC::Ref<DOM::Document> document = this->document();
 
     // 2. If el's preparation-time document is not equal to document, then return.
     if (m_preparation_time_document.ptr() != document.ptr()) {
@@ -130,7 +130,7 @@ void HTMLScriptElement::execute_script()
             dbgln_if(HTML_SCRIPT_DEBUG, "HTMLScriptElement: Running inline script");
 
         // 3. Run the classic script given by el's result.
-        (void)verify_cast<ClassicScript>(*m_result.get<JS::NonnullGCPtr<Script>>()).run();
+        (void)verify_cast<ClassicScript>(*m_result.get<GC::Ref<Script>>()).run();
 
         // 4. Set document's currentScript attribute to oldCurrentScript.
         document->set_current_script({}, old_current_script);
@@ -141,12 +141,12 @@ void HTMLScriptElement::execute_script()
         VERIFY(document->current_script() == nullptr);
 
         // 2. Run the module script given by el's result.
-        (void)verify_cast<JavaScriptModuleScript>(*m_result.get<JS::NonnullGCPtr<Script>>()).run();
+        (void)verify_cast<JavaScriptModuleScript>(*m_result.get<GC::Ref<Script>>()).run();
     }
     // -> "importmap"
     else if (m_script_type == ScriptType::ImportMap) {
         // 1. Register an import map given el's relevant global object and el's result.
-        m_result.get<JS::NonnullGCPtr<ImportMapParseResult>>()->register_import_map(verify_cast<Window>(relevant_global_object(*this)));
+        m_result.get<GC::Ref<ImportMapParseResult>>()->register_import_map(verify_cast<Window>(relevant_global_object(*this)));
     }
 
     // 7. Decrement the ignore-destructive-writes counter of document, if it was incremented in the earlier step.
@@ -169,7 +169,7 @@ void HTMLScriptElement::prepare_script()
     }
 
     // 2. Let parser document be el's parser document.
-    JS::GCPtr<DOM::Document> parser_document = m_parser_document;
+    GC::Ptr<DOM::Document> parser_document = m_parser_document;
 
     // 3. Set el's parser document to null.
     m_parser_document = nullptr;

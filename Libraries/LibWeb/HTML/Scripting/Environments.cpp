@@ -517,7 +517,7 @@ SerializedEnvironmentSettingsObject EnvironmentSettingsObject::serialize()
     return object;
 }
 
-JS::NonnullGCPtr<StorageAPI::StorageManager> EnvironmentSettingsObject::storage_manager()
+GC::Ref<StorageAPI::StorageManager> EnvironmentSettingsObject::storage_manager()
 {
     if (!m_storage_manager)
         m_storage_manager = realm().create<StorageAPI::StorageManager>(realm());

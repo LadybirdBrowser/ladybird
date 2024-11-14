@@ -22,7 +22,7 @@ template<typename IncludingClass>
 class CanvasFillStrokeStyles {
 public:
     ~CanvasFillStrokeStyles() = default;
-    using FillOrStrokeStyleVariant = Variant<String, JS::Handle<CanvasGradient>, JS::Handle<CanvasPattern>>;
+    using FillOrStrokeStyleVariant = Variant<String, GC::Root<CanvasGradient>, GC::Root<CanvasPattern>>;
 
     void set_fill_style(FillOrStrokeStyleVariant style)
     {
@@ -107,25 +107,25 @@ public:
         return my_drawing_state().stroke_style.to_js_fill_or_stroke_style();
     }
 
-    WebIDL::ExceptionOr<JS::NonnullGCPtr<CanvasGradient>> create_radial_gradient(double x0, double y0, double r0, double x1, double y1, double r1)
+    WebIDL::ExceptionOr<GC::Ref<CanvasGradient>> create_radial_gradient(double x0, double y0, double r0, double x1, double y1, double r1)
     {
         auto& realm = static_cast<IncludingClass&>(*this).realm();
         return CanvasGradient::create_radial(realm, x0, y0, r0, x1, y1, r1);
     }
 
-    JS::NonnullGCPtr<CanvasGradient> create_linear_gradient(double x0, double y0, double x1, double y1)
+    GC::Ref<CanvasGradient> create_linear_gradient(double x0, double y0, double x1, double y1)
     {
         auto& realm = static_cast<IncludingClass&>(*this).realm();
         return CanvasGradient::create_linear(realm, x0, y0, x1, y1).release_value_but_fixme_should_propagate_errors();
     }
 
-    JS::NonnullGCPtr<CanvasGradient> create_conic_gradient(double start_angle, double x, double y)
+    GC::Ref<CanvasGradient> create_conic_gradient(double start_angle, double x, double y)
     {
         auto& realm = static_cast<IncludingClass&>(*this).realm();
         return CanvasGradient::create_conic(realm, start_angle, x, y).release_value_but_fixme_should_propagate_errors();
     }
 
-    WebIDL::ExceptionOr<JS::GCPtr<CanvasPattern>> create_pattern(CanvasImageSource const& image, StringView repetition)
+    WebIDL::ExceptionOr<GC::Ptr<CanvasPattern>> create_pattern(CanvasImageSource const& image, StringView repetition)
     {
         auto& realm = static_cast<IncludingClass&>(*this).realm();
         return CanvasPattern::create(realm, image, repetition);

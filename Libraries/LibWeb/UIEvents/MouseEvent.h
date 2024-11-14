@@ -22,17 +22,17 @@ struct MouseEventInit : public EventModifierInit {
     double movement_y = 0;
     i16 button = 0;
     u16 buttons = 0;
-    JS::GCPtr<DOM::EventTarget> related_target = nullptr;
+    GC::Ptr<DOM::EventTarget> related_target = nullptr;
 };
 
 class MouseEvent : public UIEvent {
     WEB_PLATFORM_OBJECT(MouseEvent, UIEvent);
-    JS_DECLARE_ALLOCATOR(MouseEvent);
+    GC_DECLARE_ALLOCATOR(MouseEvent);
 
 public:
-    [[nodiscard]] static JS::NonnullGCPtr<MouseEvent> create(JS::Realm&, FlyString const& event_name, MouseEventInit const& = {}, double page_x = 0, double page_y = 0, double offset_x = 0, double offset_y = 0);
-    static WebIDL::ExceptionOr<JS::NonnullGCPtr<MouseEvent>> create_from_platform_event(JS::Realm&, FlyString const& event_name, CSSPixelPoint screen, CSSPixelPoint page, CSSPixelPoint client, CSSPixelPoint offset, Optional<CSSPixelPoint> movement, unsigned button, unsigned buttons, unsigned modifiers);
-    static WebIDL::ExceptionOr<JS::NonnullGCPtr<MouseEvent>> construct_impl(JS::Realm&, FlyString const& event_name, MouseEventInit const&);
+    [[nodiscard]] static GC::Ref<MouseEvent> create(JS::Realm&, FlyString const& event_name, MouseEventInit const& = {}, double page_x = 0, double page_y = 0, double offset_x = 0, double offset_y = 0);
+    static WebIDL::ExceptionOr<GC::Ref<MouseEvent>> create_from_platform_event(JS::Realm&, FlyString const& event_name, CSSPixelPoint screen, CSSPixelPoint page, CSSPixelPoint client, CSSPixelPoint offset, Optional<CSSPixelPoint> movement, unsigned button, unsigned buttons, unsigned modifiers);
+    static WebIDL::ExceptionOr<GC::Ref<MouseEvent>> construct_impl(JS::Realm&, FlyString const& event_name, MouseEventInit const&);
 
     virtual ~MouseEvent() override;
 
@@ -71,7 +71,7 @@ public:
     i16 button() const { return m_button; }
     u16 buttons() const { return m_buttons; }
 
-    JS::GCPtr<DOM::EventTarget> related_target() const { return m_related_target; }
+    GC::Ptr<DOM::EventTarget> related_target() const { return m_related_target; }
 
     bool get_modifier_state(String const& key_arg) const;
 
@@ -114,7 +114,7 @@ private:
     double m_movement_y { 0 };
     i16 m_button { 0 };
     u16 m_buttons { 0 };
-    JS::GCPtr<DOM::EventTarget> m_related_target { nullptr };
+    GC::Ptr<DOM::EventTarget> m_related_target { nullptr };
 };
 
 }

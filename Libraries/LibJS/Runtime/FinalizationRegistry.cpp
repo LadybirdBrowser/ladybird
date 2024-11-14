@@ -9,9 +9,9 @@
 
 namespace JS {
 
-JS_DEFINE_ALLOCATOR(FinalizationRegistry);
+GC_DEFINE_ALLOCATOR(FinalizationRegistry);
 
-FinalizationRegistry::FinalizationRegistry(Realm& realm, NonnullGCPtr<JobCallback> cleanup_callback, Object& prototype)
+FinalizationRegistry::FinalizationRegistry(Realm& realm, GC::Ref<JobCallback> cleanup_callback, Object& prototype)
     : Object(ConstructWithPrototypeTag::Tag, prototype)
     , WeakContainer(heap())
     , m_realm(realm)
@@ -47,7 +47,7 @@ bool FinalizationRegistry::remove_by_token(Cell& unregister_token)
     return removed;
 }
 
-void FinalizationRegistry::remove_dead_cells(Badge<Heap>)
+void FinalizationRegistry::remove_dead_cells(Badge<GC::Heap>)
 {
     auto any_cells_were_removed = false;
     for (auto& record : m_records) {
@@ -62,7 +62,7 @@ void FinalizationRegistry::remove_dead_cells(Badge<Heap>)
 }
 
 // 9.13 CleanupFinalizationRegistry ( finalizationRegistry ), https://tc39.es/ecma262/#sec-cleanup-finalization-registry
-ThrowCompletionOr<void> FinalizationRegistry::cleanup(JS::GCPtr<JobCallback> callback)
+ThrowCompletionOr<void> FinalizationRegistry::cleanup(GC::Ptr<JobCallback> callback)
 {
     auto& vm = this->vm();
 
@@ -79,7 +79,7 @@ ThrowCompletionOr<void> FinalizationRegistry::cleanup(JS::GCPtr<JobCallback> cal
             continue;
 
         // b. Remove cell from finalizationRegistry.[[Cells]].
-        MarkedVector<Value> arguments(vm.heap());
+        GC::MarkedVector<Value> arguments(vm.heap());
         arguments.append(it->held_value);
         it.remove(m_records);
 

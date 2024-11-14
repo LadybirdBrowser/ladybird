@@ -12,7 +12,7 @@ namespace Web::DOM {
 
 class ParentNode : public Node {
     WEB_PLATFORM_OBJECT(ParentNode, Node);
-    JS_DECLARE_ALLOCATOR(ParentNode);
+    GC_DECLARE_ALLOCATOR(ParentNode);
 
 public:
     template<typename F>
@@ -20,23 +20,23 @@ public:
     template<typename F>
     void for_each_child(F);
 
-    JS::GCPtr<Element> first_element_child();
-    JS::GCPtr<Element> last_element_child();
+    GC::Ptr<Element> first_element_child();
+    GC::Ptr<Element> last_element_child();
     u32 child_element_count() const;
 
-    WebIDL::ExceptionOr<JS::GCPtr<Element>> query_selector(StringView);
-    WebIDL::ExceptionOr<JS::NonnullGCPtr<NodeList>> query_selector_all(StringView);
+    WebIDL::ExceptionOr<GC::Ptr<Element>> query_selector(StringView);
+    WebIDL::ExceptionOr<GC::Ref<NodeList>> query_selector_all(StringView);
 
-    JS::NonnullGCPtr<HTMLCollection> children();
+    GC::Ref<HTMLCollection> children();
 
-    JS::NonnullGCPtr<HTMLCollection> get_elements_by_tag_name(FlyString const&);
-    JS::NonnullGCPtr<HTMLCollection> get_elements_by_tag_name_ns(Optional<FlyString>, FlyString const&);
+    GC::Ref<HTMLCollection> get_elements_by_tag_name(FlyString const&);
+    GC::Ref<HTMLCollection> get_elements_by_tag_name_ns(Optional<FlyString>, FlyString const&);
 
-    WebIDL::ExceptionOr<void> prepend(Vector<Variant<JS::Handle<Node>, String>> const& nodes);
-    WebIDL::ExceptionOr<void> append(Vector<Variant<JS::Handle<Node>, String>> const& nodes);
-    WebIDL::ExceptionOr<void> replace_children(Vector<Variant<JS::Handle<Node>, String>> const& nodes);
+    WebIDL::ExceptionOr<void> prepend(Vector<Variant<GC::Root<Node>, String>> const& nodes);
+    WebIDL::ExceptionOr<void> append(Vector<Variant<GC::Root<Node>, String>> const& nodes);
+    WebIDL::ExceptionOr<void> replace_children(Vector<Variant<GC::Root<Node>, String>> const& nodes);
 
-    JS::NonnullGCPtr<HTMLCollection> get_elements_by_class_name(StringView);
+    GC::Ref<HTMLCollection> get_elements_by_class_name(StringView);
 
 protected:
     ParentNode(JS::Realm& realm, Document& document, NodeType type)
@@ -52,7 +52,7 @@ protected:
     virtual void visit_edges(Cell::Visitor&) override;
 
 private:
-    JS::GCPtr<HTMLCollection> m_children;
+    GC::Ptr<HTMLCollection> m_children;
 };
 
 template<>

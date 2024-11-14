@@ -10,10 +10,10 @@
 
 namespace Web::WebVTT {
 
-JS_DEFINE_ALLOCATOR(VTTRegion);
+GC_DEFINE_ALLOCATOR(VTTRegion);
 
 // https://w3c.github.io/webvtt/#dom-vttregion-vttregion
-WebIDL::ExceptionOr<JS::NonnullGCPtr<VTTRegion>> VTTRegion::construct_impl(JS::Realm& realm)
+WebIDL::ExceptionOr<GC::Ref<VTTRegion>> VTTRegion::construct_impl(JS::Realm& realm)
 {
     // 1. Create a new WebVTT region. Let region be that WebVTT region.
     auto region = realm.create<VTTRegion>(realm);

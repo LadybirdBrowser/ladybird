@@ -21,9 +21,9 @@
 
 namespace Web::HTML {
 
-JS_DEFINE_ALLOCATOR(WorkerGlobalScope);
+GC_DEFINE_ALLOCATOR(WorkerGlobalScope);
 
-WorkerGlobalScope::WorkerGlobalScope(JS::Realm& realm, JS::NonnullGCPtr<Web::Page> page)
+WorkerGlobalScope::WorkerGlobalScope(JS::Realm& realm, GC::Ref<Web::Page> page)
     : DOM::EventTarget(realm)
     , m_page(page)
 {
@@ -59,7 +59,7 @@ void WorkerGlobalScope::finalize()
     WindowOrWorkerGlobalScopeMixin::finalize();
 }
 
-void WorkerGlobalScope::set_internal_port(JS::NonnullGCPtr<MessagePort> port)
+void WorkerGlobalScope::set_internal_port(GC::Ref<MessagePort> port)
 {
     m_internal_port = port;
     m_internal_port->set_worker_event_target(*this);
@@ -130,14 +130,14 @@ WebIDL::ExceptionOr<void> WorkerGlobalScope::import_scripts(Vector<String> const
 }
 
 // https://html.spec.whatwg.org/multipage/workers.html#dom-workerglobalscope-location
-JS::NonnullGCPtr<WorkerLocation> WorkerGlobalScope::location() const
+GC::Ref<WorkerLocation> WorkerGlobalScope::location() const
 {
     // The location attribute must return the WorkerLocation object whose associated WorkerGlobalScope object is the WorkerGlobalScope object.
     return *m_location;
 }
 
 // https://html.spec.whatwg.org/multipage/workers.html#dom-worker-navigator
-JS::NonnullGCPtr<WorkerNavigator> WorkerGlobalScope::navigator() const
+GC::Ref<WorkerNavigator> WorkerGlobalScope::navigator() const
 {
     // The navigator attribute of the WorkerGlobalScope interface must return an instance of the WorkerNavigator interface,
     // which represents the identity and state of the user agent (the client).
@@ -157,7 +157,7 @@ JS::NonnullGCPtr<WorkerNavigator> WorkerGlobalScope::navigator() const
 ENUMERATE_WORKER_GLOBAL_SCOPE_EVENT_HANDLERS(__ENUMERATE)
 #undef __ENUMERATE
 
-JS::NonnullGCPtr<CSS::FontFaceSet> WorkerGlobalScope::fonts()
+GC::Ref<CSS::FontFaceSet> WorkerGlobalScope::fonts()
 {
     if (!m_fonts)
         m_fonts = CSS::FontFaceSet::create(realm());

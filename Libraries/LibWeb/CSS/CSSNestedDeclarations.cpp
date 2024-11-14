@@ -11,9 +11,9 @@
 
 namespace Web::CSS {
 
-JS_DEFINE_ALLOCATOR(CSSNestedDeclarations);
+GC_DEFINE_ALLOCATOR(CSSNestedDeclarations);
 
-JS::NonnullGCPtr<CSSNestedDeclarations> CSSNestedDeclarations::create(JS::Realm& realm, PropertyOwningCSSStyleDeclaration& declaration)
+GC::Ref<CSSNestedDeclarations> CSSNestedDeclarations::create(JS::Realm& realm, PropertyOwningCSSStyleDeclaration& declaration)
 {
     return realm.create<CSSNestedDeclarations>(realm, declaration);
 }

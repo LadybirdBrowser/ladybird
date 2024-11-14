@@ -10,9 +10,9 @@
 
 namespace JS {
 
-JS_DEFINE_ALLOCATOR(Set);
+GC_DEFINE_ALLOCATOR(Set);
 
-NonnullGCPtr<Set> Set::create(Realm& realm)
+GC::Ref<Set> Set::create(Realm& realm)
 {
     return realm.create<Set>(realm.intrinsics().set_prototype());
 }
@@ -27,7 +27,7 @@ void Set::initialize(Realm& realm)
     m_values = Map::create(realm);
 }
 
-NonnullGCPtr<Set> Set::copy() const
+GC::Ref<Set> Set::copy() const
 {
     auto& vm = this->vm();
     auto& realm = *vm.current_realm();
@@ -90,7 +90,7 @@ ThrowCompletionOr<SetRecord> get_set_record(VM& vm, Value value)
 }
 
 // 24.2.1.3 SetDataHas ( setData, value ), https://tc39.es/ecma262/#sec-setdatahas
-bool set_data_has(NonnullGCPtr<Set> set_data, Value value)
+bool set_data_has(GC::Ref<Set> set_data, Value value)
 {
     // NOTE: We do not need to implement SetDataIndex, as we do not implement the use of empty slots in Set. But we do
     //       need to match its behavior of always canonicalizing the provided value.

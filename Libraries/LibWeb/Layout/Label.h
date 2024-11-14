@@ -12,8 +12,8 @@
 namespace Web::Layout {
 
 class Label final : public BlockContainer {
-    JS_CELL(Label, BlockContainer);
-    JS_DECLARE_ALLOCATOR(Label);
+    GC_CELL(Label, BlockContainer);
+    GC_DECLARE_ALLOCATOR(Label);
 
 public:
     Label(DOM::Document&, HTML::HTMLLabelElement*, CSS::StyleProperties);

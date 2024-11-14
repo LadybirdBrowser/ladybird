@@ -12,11 +12,11 @@
 namespace Web::Painting {
 
 class SVGSVGPaintable final : public PaintableBox {
-    JS_CELL(SVGSVGPaintable, PaintableBox);
-    JS_DECLARE_ALLOCATOR(SVGSVGPaintable);
+    GC_CELL(SVGSVGPaintable, PaintableBox);
+    GC_DECLARE_ALLOCATOR(SVGSVGPaintable);
 
 public:
-    static JS::NonnullGCPtr<SVGSVGPaintable> create(Layout::SVGSVGBox const&);
+    static GC::Ref<SVGSVGPaintable> create(Layout::SVGSVGBox const&);
 
     virtual void before_children_paint(PaintContext&, PaintPhase) const override;
     virtual void after_children_paint(PaintContext&, PaintPhase) const override;

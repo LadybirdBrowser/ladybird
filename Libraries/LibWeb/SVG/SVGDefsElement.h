@@ -12,12 +12,12 @@ namespace Web::SVG {
 
 class SVGDefsElement final : public SVGGraphicsElement {
     WEB_PLATFORM_OBJECT(SVGDefsElement, SVGGraphicsElement);
-    JS_DECLARE_ALLOCATOR(SVGDefsElement);
+    GC_DECLARE_ALLOCATOR(SVGDefsElement);
 
 public:
     virtual ~SVGDefsElement();
 
-    virtual JS::GCPtr<Layout::Node> create_layout_node(CSS::StyleProperties) override
+    virtual GC::Ptr<Layout::Node> create_layout_node(CSS::StyleProperties) override
     {
         return nullptr;
     }

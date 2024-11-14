@@ -31,10 +31,10 @@
 
 namespace Web::WebSockets {
 
-JS_DEFINE_ALLOCATOR(WebSocket);
+GC_DEFINE_ALLOCATOR(WebSocket);
 
 // https://websockets.spec.whatwg.org/#dom-websocket-websocket
-WebIDL::ExceptionOr<JS::NonnullGCPtr<WebSocket>> WebSocket::construct_impl(JS::Realm& realm, String const& url, Optional<Variant<String, Vector<String>>> const& protocols)
+WebIDL::ExceptionOr<GC::Ref<WebSocket>> WebSocket::construct_impl(JS::Realm& realm, String const& url, Optional<Variant<String, Vector<String>>> const& protocols)
 {
     auto& vm = realm.vm();
 
@@ -214,7 +214,7 @@ WebIDL::ExceptionOr<void> WebSocket::close(Optional<u16> code, Optional<String> 
 }
 
 // https://websockets.spec.whatwg.org/#dom-websocket-send
-WebIDL::ExceptionOr<void> WebSocket::send(Variant<JS::Handle<WebIDL::BufferSource>, JS::Handle<FileAPI::Blob>, String> const& data)
+WebIDL::ExceptionOr<void> WebSocket::send(Variant<GC::Root<WebIDL::BufferSource>, GC::Root<FileAPI::Blob>, String> const& data)
 {
     auto state = ready_state();
     if (state == Requests::WebSocket::ReadyState::Connecting)
@@ -226,14 +226,14 @@ WebIDL::ExceptionOr<void> WebSocket::send(Variant<JS::Handle<WebIDL::BufferSourc
                     m_websocket->send(string);
                     return {};
                 },
-                [this](JS::Handle<WebIDL::BufferSource> const& buffer_source) -> ErrorOr<void> {
+                [this](GC::Root<WebIDL::BufferSource> const& buffer_source) -> ErrorOr<void> {
                     // FIXME: While the spec doesn't say to do this, it's not observable except from potentially throwing OOM.
                     //        Can we avoid this copy?
                     auto data_buffer = TRY(WebIDL::get_buffer_source_copy(*buffer_source->raw_object()));
                     m_websocket->send(data_buffer, false);
                     return {};
                 },
-                [this](JS::Handle<FileAPI::Blob> const& blob) -> ErrorOr<void> {
+                [this](GC::Root<FileAPI::Blob> const& blob) -> ErrorOr<void> {
                     auto byte_buffer = TRY(ByteBuffer::copy(blob->raw_bytes()));
                     m_websocket->send(byte_buffer, false);
                     return {};

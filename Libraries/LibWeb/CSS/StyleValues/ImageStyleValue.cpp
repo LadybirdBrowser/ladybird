@@ -63,7 +63,7 @@ void ImageStyleValue::load_any_resources(DOM::Document& document)
             if (image_data->is_animated() && image_data->frame_count() > 1) {
                 m_timer = Platform::Timer::create(m_document->heap());
                 m_timer->set_interval(image_data->frame_duration(0));
-                m_timer->on_timeout = JS::create_heap_function(m_document->heap(), [this] { animate(); });
+                m_timer->on_timeout = GC::create_function(m_document->heap(), [this] { animate(); });
                 m_timer->start();
             }
         },
@@ -158,7 +158,7 @@ Gfx::ImmutableBitmap const* ImageStyleValue::current_frame_bitmap(DevicePixelRec
     return bitmap(m_current_frame_index, dest_rect.size().to_type<int>());
 }
 
-JS::GCPtr<HTML::DecodedImageData> ImageStyleValue::image_data() const
+GC::Ptr<HTML::DecodedImageData> ImageStyleValue::image_data() const
 {
     if (!m_resource_request)
         return nullptr;

@@ -31,13 +31,13 @@ static ByteString const web_element_identifier = "element-6066-11e4-a52e-4f73546
 static ByteString const shadow_root_identifier = "shadow-6066-11e4-a52e-4f735466cecf"sv;
 
 // https://w3c.github.io/webdriver/#dfn-browsing-context-group-node-map
-static HashMap<JS::RawGCPtr<HTML::BrowsingContextGroup const>, HashTable<ByteString>> browsing_context_group_node_map;
+static HashMap<GC::RawPtr<HTML::BrowsingContextGroup const>, HashTable<ByteString>> browsing_context_group_node_map;
 
 // https://w3c.github.io/webdriver/#dfn-navigable-seen-nodes-map
-static HashMap<JS::RawGCPtr<HTML::Navigable>, HashTable<ByteString>> navigable_seen_nodes_map;
+static HashMap<GC::RawPtr<HTML::Navigable>, HashTable<ByteString>> navigable_seen_nodes_map;
 
 // https://w3c.github.io/webdriver/#dfn-get-a-node
-JS::GCPtr<Web::DOM::Node> get_node(HTML::BrowsingContext const& browsing_context, StringView reference)
+GC::Ptr<Web::DOM::Node> get_node(HTML::BrowsingContext const& browsing_context, StringView reference)
 {
     // 1. Let browsing context group node map be session's browsing context group node map.
     // 2. Let browsing context group be browsing context's browsing context group.
@@ -50,7 +50,7 @@ JS::GCPtr<Web::DOM::Node> get_node(HTML::BrowsingContext const& browsing_context
         return nullptr;
 
     // 5. Let node be the entry in node id map whose value is reference, if such an entry exists, or null otherwise.
-    JS::GCPtr<Web::DOM::Node> node;
+    GC::Ptr<Web::DOM::Node> node;
 
     if (node_id_map->contains(reference)) {
         auto node_id = reference.to_number<i64>().value();
@@ -158,7 +158,7 @@ bool represents_a_web_element(JS::Value value)
 }
 
 // https://w3c.github.io/webdriver/#dfn-deserialize-a-web-element
-ErrorOr<JS::NonnullGCPtr<Web::DOM::Element>, WebDriver::Error> deserialize_web_element(Web::HTML::BrowsingContext const& browsing_context, JsonObject const& object)
+ErrorOr<GC::Ref<Web::DOM::Element>, WebDriver::Error> deserialize_web_element(Web::HTML::BrowsingContext const& browsing_context, JsonObject const& object)
 {
     // 1. If object has no own property web element identifier, return error with error code invalid argument.
     if (!object.has_string(web_element_identifier))
@@ -175,7 +175,7 @@ ErrorOr<JS::NonnullGCPtr<Web::DOM::Element>, WebDriver::Error> deserialize_web_e
 }
 
 // https://w3c.github.io/webdriver/#dfn-deserialize-a-web-element
-ErrorOr<JS::NonnullGCPtr<Web::DOM::Element>, WebDriver::Error> deserialize_web_element(Web::HTML::BrowsingContext const& browsing_context, JS::Object const& object)
+ErrorOr<GC::Ref<Web::DOM::Element>, WebDriver::Error> deserialize_web_element(Web::HTML::BrowsingContext const& browsing_context, JS::Object const& object)
 {
     // 1. If object has no own property web element identifier, return error with error code invalid argument.
     auto property = object.get(web_element_identifier);
@@ -198,7 +198,7 @@ ByteString extract_web_element_reference(JsonObject const& object)
 }
 
 // https://w3c.github.io/webdriver/#dfn-get-a-webelement-origin
-ErrorOr<JS::NonnullGCPtr<Web::DOM::Element>, Web::WebDriver::Error> get_web_element_origin(Web::HTML::BrowsingContext const& browsing_context, StringView origin)
+ErrorOr<GC::Ref<Web::DOM::Element>, Web::WebDriver::Error> get_web_element_origin(Web::HTML::BrowsingContext const& browsing_context, StringView origin)
 {
     // 1. Assert: browsing context is the current browsing context.
 
@@ -210,7 +210,7 @@ ErrorOr<JS::NonnullGCPtr<Web::DOM::Element>, Web::WebDriver::Error> get_web_elem
 }
 
 // https://w3c.github.io/webdriver/#dfn-get-a-known-element
-ErrorOr<JS::NonnullGCPtr<Web::DOM::Element>, Web::WebDriver::Error> get_known_element(Web::HTML::BrowsingContext const& browsing_context, StringView reference)
+ErrorOr<GC::Ref<Web::DOM::Element>, Web::WebDriver::Error> get_known_element(Web::HTML::BrowsingContext const& browsing_context, StringView reference)
 {
     // 1. If not node reference is known with session, session's current browsing context, and reference return error
     //    with error code no such element.
@@ -366,18 +366,18 @@ bool is_element_non_typeable_form_control(Web::DOM::Element const& element)
 }
 
 // https://w3c.github.io/webdriver/#dfn-in-view
-bool is_element_in_view(ReadonlySpan<JS::NonnullGCPtr<Web::DOM::Element>> paint_tree, Web::DOM::Element& element)
+bool is_element_in_view(ReadonlySpan<GC::Ref<Web::DOM::Element>> paint_tree, Web::DOM::Element& element)
 {
     // An element is in view if it is a member of its own pointer-interactable paint tree, given the pretense that its
     // pointer events are not disabled.
     if (!element.paintable() || !element.paintable()->is_visible() || !element.paintable()->visible_for_hit_testing())
         return false;
 
-    return paint_tree.contains_slow(JS::NonnullGCPtr { element });
+    return paint_tree.contains_slow(GC::Ref { element });
 }
 
 // https://w3c.github.io/webdriver/#dfn-in-view
-bool is_element_obscured(ReadonlySpan<JS::NonnullGCPtr<Web::DOM::Element>> paint_tree, Web::DOM::Element& element)
+bool is_element_obscured(ReadonlySpan<GC::Ref<Web::DOM::Element>> paint_tree, Web::DOM::Element& element)
 {
     // An element is obscured if the pointer-interactable paint tree at its center point is empty, or the first element
     // in this tree is not an inclusive descendant of itself.
@@ -385,18 +385,18 @@ bool is_element_obscured(ReadonlySpan<JS::NonnullGCPtr<Web::DOM::Element>> paint
 }
 
 // https://w3c.github.io/webdriver/#dfn-pointer-interactable-paint-tree
-JS::MarkedVector<JS::NonnullGCPtr<Web::DOM::Element>> pointer_interactable_tree(Web::HTML::BrowsingContext& browsing_context, Web::DOM::Element& element)
+GC::MarkedVector<GC::Ref<Web::DOM::Element>> pointer_interactable_tree(Web::HTML::BrowsingContext& browsing_context, Web::DOM::Element& element)
 {
     // 1. If element is not in the same tree as session's current browsing context's active document, return an empty sequence.
     if (!browsing_context.active_document()->contains(element))
-        return JS::MarkedVector<JS::NonnullGCPtr<Web::DOM::Element>>(browsing_context.heap());
+        return GC::MarkedVector<GC::Ref<Web::DOM::Element>>(browsing_context.heap());
 
     // 2. Let rectangles be the DOMRect sequence returned by calling getClientRects().
     auto rectangles = element.get_client_rects();
 
     // 3. If rectangles has the length of 0, return an empty sequence.
     if (rectangles->length() == 0)
-        return JS::MarkedVector<JS::NonnullGCPtr<Web::DOM::Element>>(browsing_context.heap());
+        return GC::MarkedVector<GC::Ref<Web::DOM::Element>>(browsing_context.heap());
 
     // 4. Let center point be the in-view center point of the first indexed element in rectangles.
     auto viewport = browsing_context.page().top_level_traversable()->viewport_rect();
@@ -452,7 +452,7 @@ bool represents_a_shadow_root(JS::Value value)
 }
 
 // https://w3c.github.io/webdriver/#dfn-deserialize-a-shadow-root
-ErrorOr<JS::NonnullGCPtr<Web::DOM::ShadowRoot>, WebDriver::Error> deserialize_shadow_root(Web::HTML::BrowsingContext const& browsing_context, JsonObject const& object)
+ErrorOr<GC::Ref<Web::DOM::ShadowRoot>, WebDriver::Error> deserialize_shadow_root(Web::HTML::BrowsingContext const& browsing_context, JsonObject const& object)
 {
     // 1. If object has no own property shadow root identifier, return error with error code invalid argument.
     if (!object.has_string(shadow_root_identifier))
@@ -469,7 +469,7 @@ ErrorOr<JS::NonnullGCPtr<Web::DOM::ShadowRoot>, WebDriver::Error> deserialize_sh
 }
 
 // https://w3c.github.io/webdriver/#dfn-deserialize-a-shadow-root
-ErrorOr<JS::NonnullGCPtr<Web::DOM::ShadowRoot>, WebDriver::Error> deserialize_shadow_root(Web::HTML::BrowsingContext const& browsing_context, JS::Object const& object)
+ErrorOr<GC::Ref<Web::DOM::ShadowRoot>, WebDriver::Error> deserialize_shadow_root(Web::HTML::BrowsingContext const& browsing_context, JS::Object const& object)
 {
     // 1. If object has no own property shadow root identifier, return error with error code invalid argument.
     auto property = object.get(shadow_root_identifier);
@@ -487,7 +487,7 @@ ErrorOr<JS::NonnullGCPtr<Web::DOM::ShadowRoot>, WebDriver::Error> deserialize_sh
 }
 
 // https://w3c.github.io/webdriver/#dfn-get-a-known-shadow-root
-ErrorOr<JS::NonnullGCPtr<Web::DOM::ShadowRoot>, Web::WebDriver::Error> get_known_shadow_root(HTML::BrowsingContext const& browsing_context, StringView reference)
+ErrorOr<GC::Ref<Web::DOM::ShadowRoot>, Web::WebDriver::Error> get_known_shadow_root(HTML::BrowsingContext const& browsing_context, StringView reference)
 {
     // 1. If not node reference is known with session, session's current browsing context, and reference return error with error code no such shadow root.
     if (!node_reference_is_known(browsing_context, reference))

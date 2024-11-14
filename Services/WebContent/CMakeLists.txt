@@ -28,7 +28,7 @@ target_include_directories(webcontentservice PUBLIC $<BUILD_INTERFACE:${CMAKE_CU
 target_include_directories(webcontentservice PUBLIC $<BUILD_INTERFACE:${LADYBIRD_SOURCE_DIR}>)
 target_include_directories(webcontentservice PUBLIC $<BUILD_INTERFACE:${LADYBIRD_SOURCE_DIR}/Services/>)
 
-target_link_libraries(webcontentservice PUBLIC LibCore LibFileSystem LibGfx LibIPC LibJS LibMain LibMedia LibWeb LibWebSocket LibRequests LibWebView LibImageDecoderClient)
+target_link_libraries(webcontentservice PUBLIC LibCore LibFileSystem LibGfx LibIPC LibJS LibMain LibMedia LibWeb LibWebSocket LibRequests LibWebView LibImageDecoderClient LibGC)
 
 if (ENABLE_QT)
     qt_add_executable(WebContent main.cpp)

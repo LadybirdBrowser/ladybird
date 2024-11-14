@@ -13,7 +13,7 @@
 
 namespace Web::HTML {
 
-JS_DEFINE_ALLOCATOR(HTMLSlotElement);
+GC_DEFINE_ALLOCATOR(HTMLSlotElement);
 
 HTMLSlotElement::HTMLSlotElement(DOM::Document& document, DOM::QualifiedName qualified_name)
     : HTMLElement(document, move(qualified_name))
@@ -38,11 +38,11 @@ void HTMLSlotElement::visit_edges(JS::Cell::Visitor& visitor)
 }
 
 // https://html.spec.whatwg.org/multipage/scripting.html#dom-slot-assignednodes
-Vector<JS::Handle<DOM::Node>> HTMLSlotElement::assigned_nodes(AssignedNodesOptions options) const
+Vector<GC::Root<DOM::Node>> HTMLSlotElement::assigned_nodes(AssignedNodesOptions options) const
 {
     // 1. If options["flatten"] is false, then return this's assigned nodes.
     if (!options.flatten) {
-        Vector<JS::Handle<DOM::Node>> assigned_nodes;
+        Vector<GC::Root<DOM::Node>> assigned_nodes;
         assigned_nodes.ensure_capacity(assigned_nodes_internal().size());
 
         for (auto const& node : assigned_nodes_internal()) {
@@ -59,14 +59,14 @@ Vector<JS::Handle<DOM::Node>> HTMLSlotElement::assigned_nodes(AssignedNodesOptio
 }
 
 // https://html.spec.whatwg.org/multipage/scripting.html#dom-slot-assignedelements
-Vector<JS::Handle<DOM::Element>> HTMLSlotElement::assigned_elements(AssignedNodesOptions options) const
+Vector<GC::Root<DOM::Element>> HTMLSlotElement::assigned_elements(AssignedNodesOptions options) const
 {
     // 1. If options["flatten"] is false, then return this's assigned nodes, filtered to contain only Element nodes.
     if (!options.flatten) {
-        Vector<JS::Handle<DOM::Element>> assigned_nodes;
+        Vector<GC::Root<DOM::Element>> assigned_nodes;
 
         for (auto const& node : assigned_nodes_internal()) {
-            if (auto const* element = node.get_pointer<JS::NonnullGCPtr<DOM::Element>>())
+            if (auto const* element = node.get_pointer<GC::Ref<DOM::Element>>())
                 assigned_nodes.append(*element);
         }
 

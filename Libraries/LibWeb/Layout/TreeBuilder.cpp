@@ -119,10 +119,10 @@ static Layout::Node& insertion_parent_for_block_node(Layout::NodeWithStyle& layo
 
     // Parent block has inline-level children (our siblings).
     // First move these siblings into an anonymous wrapper block.
-    Vector<JS::Handle<Layout::Node>> children;
+    Vector<GC::Root<Layout::Node>> children;
     {
-        JS::GCPtr<Layout::Node> next;
-        for (JS::GCPtr<Layout::Node> child = layout_parent.first_child(); child; child = next) {
+        GC::Ptr<Layout::Node> next;
+        for (GC::Ptr<Layout::Node> child = layout_parent.first_child(); child; child = next) {
             next = child->next_sibling();
             // NOTE: We let out-of-flow children stay in the parent, to preserve tree structure.
             if (child->is_out_of_flow())
@@ -317,7 +317,7 @@ void TreeBuilder::create_layout_tree(DOM::Node& dom_node, TreeBuilder::Context& 
             dom_node.document().style_computer().pop_ancestor(static_cast<DOM::Element const&>(dom_node));
     };
 
-    JS::GCPtr<Layout::Node> layout_node;
+    GC::Ptr<Layout::Node> layout_node;
     Optional<TemporaryChange<bool>> has_svg_root_change;
 
     ScopeGuard remove_stale_layout_node_guard = [&] {
@@ -457,7 +457,7 @@ void TreeBuilder::create_layout_tree(DOM::Node& dom_node, TreeBuilder::Context& 
         // Note: This will create a new subtree for each use of the mask (so there's  not a 1-to-1 mapping
         // from DOM node to mask layout node). Each use of a mask may be laid out differently so this
         // duplication is necessary.
-        auto layout_mask_or_clip_path = [&](JS::GCPtr<SVG::SVGElement const> mask_or_clip_path) {
+        auto layout_mask_or_clip_path = [&](GC::Ptr<SVG::SVGElement const> mask_or_clip_path) {
             TemporaryChange<bool> layout_mask(context.layout_svg_mask_or_clip_path, true);
             push_parent(verify_cast<NodeWithStyle>(*layout_node));
             create_layout_tree(const_cast<SVG::SVGElement&>(*mask_or_clip_path), context);
@@ -511,7 +511,7 @@ void TreeBuilder::create_layout_tree(DOM::Node& dom_node, TreeBuilder::Context& 
         auto content_box_wrapper = parent.heap().template allocate<BlockContainer>(parent.document(), nullptr, move(content_box_computed_values));
         content_box_wrapper->set_children_are_inline(parent.children_are_inline());
 
-        Vector<JS::Handle<Node>> sequence;
+        Vector<GC::Root<Node>> sequence;
         for (auto child = parent.first_child(); child; child = child->next_sibling()) {
             if (child->is_generated_for_before_pseudo_element())
                 continue;
@@ -538,7 +538,7 @@ void TreeBuilder::create_layout_tree(DOM::Node& dom_node, TreeBuilder::Context& 
     }
 }
 
-JS::GCPtr<Layout::Node> TreeBuilder::build(DOM::Node& dom_node)
+GC::Ptr<Layout::Node> TreeBuilder::build(DOM::Node& dom_node)
 {
     VERIFY(dom_node.is_document());
 
@@ -588,7 +588,7 @@ void TreeBuilder::remove_irrelevant_boxes(NodeWithStyle& root)
 {
     // The following boxes are discarded as if they were display:none:
 
-    Vector<JS::Handle<Node>> to_remove;
+    Vector<GC::Root<Node>> to_remove;
 
     // Children of a table-column.
     for_each_in_tree_with_internal_display<CSS::DisplayInternal::TableColumn>(root, [&](Box& table_column) {
@@ -673,7 +673,7 @@ static bool is_not_table_cell(Node const& node)
 template<typename Matcher, typename Callback>
 static void for_each_sequence_of_consecutive_children_matching(NodeWithStyle& parent, Matcher matcher, Callback callback)
 {
-    Vector<JS::Handle<Node>> sequence;
+    Vector<GC::Root<Node>> sequence;
 
     auto sequence_is_all_ignorable_whitespace = [&]() -> bool {
         for (auto& node : sequence) {
@@ -699,7 +699,7 @@ static void for_each_sequence_of_consecutive_children_matching(NodeWithStyle& pa
 }
 
 template<typename WrapperBoxType>
-static void wrap_in_anonymous(Vector<JS::Handle<Node>>& sequence, Node* nearest_sibling, CSS::Display display)
+static void wrap_in_anonymous(Vector<GC::Root<Node>>& sequence, Node* nearest_sibling, CSS::Display display)
 {
     VERIFY(!sequence.is_empty());
     auto& parent = *sequence.first()->parent();
@@ -753,9 +753,9 @@ void TreeBuilder::generate_missing_child_wrappers(NodeWithStyle& root)
     });
 }
 
-Vector<JS::Handle<Box>> TreeBuilder::generate_missing_parents(NodeWithStyle& root)
+Vector<GC::Root<Box>> TreeBuilder::generate_missing_parents(NodeWithStyle& root)
 {
-    Vector<JS::Handle<Box>> table_roots_to_wrap;
+    Vector<GC::Root<Box>> table_roots_to_wrap;
     root.for_each_in_inclusive_subtree_of_type<Box>([&](auto& parent) {
         // An anonymous table-row box must be generated around each sequence of consecutive table-cell boxes whose parent is not a table-row.
         if (is_not_table_row(parent)) {
@@ -833,7 +833,7 @@ static void fixup_row(Box& row_box, TableGrid const& table_grid, size_t row_inde
     }
 }
 
-void TreeBuilder::missing_cells_fixup(Vector<JS::Handle<Box>> const& table_root_boxes)
+void TreeBuilder::missing_cells_fixup(Vector<GC::Root<Box>> const& table_root_boxes)
 {
     // Implements https://www.w3.org/TR/css-tables-3/#missing-cells-fixup.
     for (auto& table_box : table_root_boxes) {

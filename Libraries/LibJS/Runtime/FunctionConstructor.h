@@ -20,16 +20,16 @@ ThrowCompletionOr<ParameterArgumentsAndBody> extract_parameter_arguments_and_bod
 
 class FunctionConstructor final : public NativeFunction {
     JS_OBJECT(FunctionConstructor, NativeFunction);
-    JS_DECLARE_ALLOCATOR(FunctionConstructor);
+    GC_DECLARE_ALLOCATOR(FunctionConstructor);
 
 public:
-    static ThrowCompletionOr<NonnullGCPtr<ECMAScriptFunctionObject>> create_dynamic_function(VM&, FunctionObject& constructor, FunctionObject* new_target, FunctionKind kind, ReadonlySpan<String> parameter_args, String const& body_string);
+    static ThrowCompletionOr<GC::Ref<ECMAScriptFunctionObject>> create_dynamic_function(VM&, FunctionObject& constructor, FunctionObject* new_target, FunctionKind kind, ReadonlySpan<String> parameter_args, String const& body_string);
 
     virtual void initialize(Realm&) override;
     virtual ~FunctionConstructor() override = default;
 
     virtual ThrowCompletionOr<Value> call() override;
-    virtual ThrowCompletionOr<NonnullGCPtr<Object>> construct(FunctionObject& new_target) override;
+    virtual ThrowCompletionOr<GC::Ref<Object>> construct(FunctionObject& new_target) override;
 
 private:
     explicit FunctionConstructor(Realm&);

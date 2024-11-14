@@ -6,7 +6,7 @@
 
 #pragma once
 
-#include <LibJS/Heap/GCPtr.h>
+#include <LibGC/Ptr.h>
 #include <LibWeb/DOM/EventTarget.h>
 #include <LibWeb/HTML/DOMStringList.h>
 #include <LibWeb/IndexedDB/IDBRequest.h>
@@ -21,7 +21,7 @@ namespace Web::IndexedDB {
 // https://www.w3.org/TR/IndexedDB/#database-connection
 class IDBDatabase : public DOM::EventTarget {
     WEB_PLATFORM_OBJECT(IDBDatabase, DOM::EventTarget);
-    JS_DECLARE_ALLOCATOR(IDBDatabase);
+    GC_DECLARE_ALLOCATOR(IDBDatabase);
 
     enum ConnectionState {
         Open,
@@ -31,17 +31,17 @@ class IDBDatabase : public DOM::EventTarget {
 public:
     virtual ~IDBDatabase() override;
 
-    [[nodiscard]] static JS::NonnullGCPtr<IDBDatabase> create(JS::Realm&, Database&);
+    [[nodiscard]] static GC::Ref<IDBDatabase> create(JS::Realm&, Database&);
 
     void set_version(u64 version) { m_version = version; }
     void set_close_pending(bool close_pending) { m_close_pending = close_pending; }
 
-    [[nodiscard]] JS::NonnullGCPtr<HTML::DOMStringList> object_store_names() { return m_object_store_names; }
+    [[nodiscard]] GC::Ref<HTML::DOMStringList> object_store_names() { return m_object_store_names; }
     [[nodiscard]] String name() const { return m_name; }
     [[nodiscard]] u64 version() const { return m_version; }
     [[nodiscard]] bool close_pending() const { return m_close_pending; }
     [[nodiscard]] ConnectionState state() const { return m_state; }
-    [[nodiscard]] JS::NonnullGCPtr<Database> associated_database() { return m_associated_database; }
+    [[nodiscard]] GC::Ref<Database> associated_database() { return m_associated_database; }
 
     void set_onabort(WebIDL::CallbackType*);
     WebIDL::CallbackType* onabort();
@@ -61,7 +61,7 @@ protected:
 private:
     u64 m_version { 0 };
     String m_name;
-    JS::NonnullGCPtr<HTML::DOMStringList> m_object_store_names;
+    GC::Ref<HTML::DOMStringList> m_object_store_names;
 
     // Each connection has a close pending flag which is initially false.
     bool m_close_pending { false };
@@ -70,7 +70,7 @@ private:
 
     // NOTE: There is an associated database in the spec, but there is no mention where it is assigned, nor where its from
     //       So we stash the one we have when opening a connection.
-    JS::NonnullGCPtr<Database> m_associated_database;
+    GC::Ref<Database> m_associated_database;
 };
 
 }

@@ -6,7 +6,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibJS/Heap/Heap.h>
+#include <LibGC/Heap.h>
 #include <LibJS/Runtime/Realm.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Bindings/NavigatorPrototype.h>
@@ -20,9 +20,9 @@
 
 namespace Web::HTML {
 
-JS_DEFINE_ALLOCATOR(Navigator);
+GC_DEFINE_ALLOCATOR(Navigator);
 
-JS::NonnullGCPtr<Navigator> Navigator::create(JS::Realm& realm)
+GC::Ref<Navigator> Navigator::create(JS::Realm& realm)
 {
     return realm.create<Navigator>(realm);
 }
@@ -70,28 +70,28 @@ void Navigator::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_media_capabilities);
 }
 
-JS::NonnullGCPtr<MimeTypeArray> Navigator::mime_types()
+GC::Ref<MimeTypeArray> Navigator::mime_types()
 {
     if (!m_mime_type_array)
         m_mime_type_array = realm().create<MimeTypeArray>(realm());
     return *m_mime_type_array;
 }
 
-JS::NonnullGCPtr<PluginArray> Navigator::plugins()
+GC::Ref<PluginArray> Navigator::plugins()
 {
     if (!m_plugin_array)
         m_plugin_array = realm().create<PluginArray>(realm());
     return *m_plugin_array;
 }
 
-JS::NonnullGCPtr<Clipboard::Clipboard> Navigator::clipboard()
+GC::Ref<Clipboard::Clipboard> Navigator::clipboard()
 {
     if (!m_clipboard)
         m_clipboard = realm().create<Clipboard::Clipboard>(realm());
     return *m_clipboard;
 }
 
-JS::NonnullGCPtr<UserActivation> Navigator::user_activation()
+GC::Ref<UserActivation> Navigator::user_activation()
 {
     if (!m_user_activation)
         m_user_activation = realm().create<UserActivation>(realm());
@@ -117,14 +117,14 @@ Optional<FlyString> Navigator::do_not_track() const
     return {};
 }
 
-JS::NonnullGCPtr<ServiceWorkerContainer> Navigator::service_worker()
+GC::Ref<ServiceWorkerContainer> Navigator::service_worker()
 {
     if (!m_service_worker_container)
         m_service_worker_container = realm().create<ServiceWorkerContainer>(realm());
     return *m_service_worker_container;
 }
 
-JS::NonnullGCPtr<MediaCapabilitiesAPI::MediaCapabilities> Navigator::media_capabilities()
+GC::Ref<MediaCapabilitiesAPI::MediaCapabilities> Navigator::media_capabilities()
 {
     if (!m_media_capabilities)
         m_media_capabilities = realm().create<MediaCapabilitiesAPI::MediaCapabilities>(realm());

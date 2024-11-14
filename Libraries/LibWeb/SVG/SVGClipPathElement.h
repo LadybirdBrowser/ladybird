@@ -15,7 +15,7 @@ namespace Web::SVG {
 class SVGClipPathElement final : public SVGElement
     , public SVGViewport {
     WEB_PLATFORM_OBJECT(SVGClipPathElement, SVGElement);
-    JS_DECLARE_ALLOCATOR(SVGClipPathElement);
+    GC_DECLARE_ALLOCATOR(SVGClipPathElement);
 
 public:
     virtual ~SVGClipPathElement();
@@ -40,7 +40,7 @@ public:
         return m_clip_path_units.value_or(ClipPathUnits::UserSpaceOnUse);
     }
 
-    virtual JS::GCPtr<Layout::Node> create_layout_node(CSS::StyleProperties) override;
+    virtual GC::Ptr<Layout::Node> create_layout_node(CSS::StyleProperties) override;
 
 private:
     SVGClipPathElement(DOM::Document&, DOM::QualifiedName);

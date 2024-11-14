@@ -10,10 +10,10 @@
 
 namespace JS {
 
-JS_DEFINE_ALLOCATOR(WrappedFunction);
+GC_DEFINE_ALLOCATOR(WrappedFunction);
 
 // 3.1.1 WrappedFunctionCreate ( callerRealm: a Realm Record, Target: a function object, ), https://tc39.es/proposal-shadowrealm/#sec-wrappedfunctioncreate
-ThrowCompletionOr<NonnullGCPtr<WrappedFunction>> WrappedFunction::create(Realm& realm, Realm& caller_realm, FunctionObject& target)
+ThrowCompletionOr<GC::Ref<WrappedFunction>> WrappedFunction::create(Realm& realm, Realm& caller_realm, FunctionObject& target)
 {
     auto& vm = realm.vm();
 
@@ -99,7 +99,7 @@ ThrowCompletionOr<Value> ordinary_wrapped_function_call(WrappedFunction const& f
     auto* target_realm = TRY(get_function_realm(vm, target));
 
     // 6. Let wrappedArgs be a new empty List.
-    auto wrapped_args = MarkedVector<Value> { vm.heap() };
+    auto wrapped_args = GC::MarkedVector<Value> { vm.heap() };
     wrapped_args.ensure_capacity(arguments_list.size());
 
     // 7. For each element arg of argumentsList, do

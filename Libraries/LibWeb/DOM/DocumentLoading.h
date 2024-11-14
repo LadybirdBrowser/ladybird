@@ -13,12 +13,12 @@
 namespace Web {
 
 bool build_xml_document(DOM::Document& document, ByteBuffer const& data, Optional<String> content_encoding);
-JS::GCPtr<DOM::Document> load_document(HTML::NavigationParams const& navigation_params);
+GC::Ptr<DOM::Document> load_document(HTML::NavigationParams const& navigation_params);
 bool can_load_document_with_type(MimeSniff::MimeType const&);
 
 // https://html.spec.whatwg.org/multipage/document-lifecycle.html#read-ua-inline
 template<typename MutateDocument>
-JS::NonnullGCPtr<DOM::Document> create_document_for_inline_content(JS::GCPtr<HTML::Navigable> navigable, Optional<String> navigation_id, MutateDocument mutate_document)
+GC::Ref<DOM::Document> create_document_for_inline_content(GC::Ptr<HTML::Navigable> navigable, Optional<String> navigation_id, MutateDocument mutate_document)
 {
     auto& vm = navigable->vm();
 

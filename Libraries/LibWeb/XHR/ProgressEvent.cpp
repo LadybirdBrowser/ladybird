@@ -10,14 +10,14 @@
 
 namespace Web::XHR {
 
-JS_DEFINE_ALLOCATOR(ProgressEvent);
+GC_DEFINE_ALLOCATOR(ProgressEvent);
 
-JS::NonnullGCPtr<ProgressEvent> ProgressEvent::create(JS::Realm& realm, FlyString const& event_name, ProgressEventInit const& event_init)
+GC::Ref<ProgressEvent> ProgressEvent::create(JS::Realm& realm, FlyString const& event_name, ProgressEventInit const& event_init)
 {
     return realm.create<ProgressEvent>(realm, event_name, event_init);
 }
 
-WebIDL::ExceptionOr<JS::NonnullGCPtr<ProgressEvent>> ProgressEvent::construct_impl(JS::Realm& realm, FlyString const& event_name, ProgressEventInit const& event_init)
+WebIDL::ExceptionOr<GC::Ref<ProgressEvent>> ProgressEvent::construct_impl(JS::Realm& realm, FlyString const& event_name, ProgressEventInit const& event_init)
 {
     return create(realm, event_name, event_init);
 }

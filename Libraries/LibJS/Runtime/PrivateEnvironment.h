@@ -9,8 +9,8 @@
 #include <AK/DeprecatedFlyString.h>
 #include <AK/StringView.h>
 #include <AK/Vector.h>
+#include <LibGC/CellAllocator.h>
 #include <LibJS/Heap/Cell.h>
-#include <LibJS/Heap/CellAllocator.h>
 
 namespace JS {
 
@@ -29,8 +29,8 @@ struct PrivateName {
 };
 
 class PrivateEnvironment : public Cell {
-    JS_CELL(PrivateEnvironment, Cell);
-    JS_DECLARE_ALLOCATOR(PrivateEnvironment);
+    GC_CELL(PrivateEnvironment, Cell);
+    GC_DECLARE_ALLOCATOR(PrivateEnvironment);
 
 public:
     PrivateName resolve_private_identifier(DeprecatedFlyString const& identifier) const;
@@ -54,8 +54,8 @@ private:
 
     static u64 s_next_id;
 
-    GCPtr<PrivateEnvironment> m_outer_environment; // [[OuterEnv]]
-    Vector<PrivateName> m_private_names;           // [[Names]]
+    GC::Ptr<PrivateEnvironment> m_outer_environment; // [[OuterEnv]]
+    Vector<PrivateName> m_private_names;             // [[Names]]
     u64 m_unique_id;
 };
 

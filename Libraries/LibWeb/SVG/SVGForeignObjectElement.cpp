@@ -17,7 +17,7 @@
 
 namespace Web::SVG {
 
-JS_DEFINE_ALLOCATOR(SVGForeignObjectElement);
+GC_DEFINE_ALLOCATOR(SVGForeignObjectElement);
 
 SVGForeignObjectElement::SVGForeignObjectElement(DOM::Document& document, DOM::QualifiedName qualified_name)
     : SVGGraphicsElement(document, move(qualified_name))
@@ -47,7 +47,7 @@ void SVGForeignObjectElement::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_height);
 }
 
-JS::GCPtr<Layout::Node> SVGForeignObjectElement::create_layout_node(CSS::StyleProperties style)
+GC::Ptr<Layout::Node> SVGForeignObjectElement::create_layout_node(CSS::StyleProperties style)
 {
     return heap().allocate<Layout::SVGForeignObjectBox>(document(), *this, move(style));
 }
@@ -63,22 +63,22 @@ void SVGForeignObjectElement::apply_presentational_hints(CSS::StyleProperties& s
         style.set_property(CSS::PropertyID::Height, height_value.release_nonnull());
 }
 
-JS::NonnullGCPtr<SVG::SVGAnimatedLength> SVGForeignObjectElement::x()
+GC::Ref<SVG::SVGAnimatedLength> SVGForeignObjectElement::x()
 {
     return *m_x;
 }
 
-JS::NonnullGCPtr<SVG::SVGAnimatedLength> SVGForeignObjectElement::y()
+GC::Ref<SVG::SVGAnimatedLength> SVGForeignObjectElement::y()
 {
     return *m_y;
 }
 
-JS::NonnullGCPtr<SVG::SVGAnimatedLength> SVGForeignObjectElement::width()
+GC::Ref<SVG::SVGAnimatedLength> SVGForeignObjectElement::width()
 {
     return *m_width;
 }
 
-JS::NonnullGCPtr<SVG::SVGAnimatedLength> SVGForeignObjectElement::height()
+GC::Ref<SVG::SVGAnimatedLength> SVGForeignObjectElement::height()
 {
     return *m_height;
 }

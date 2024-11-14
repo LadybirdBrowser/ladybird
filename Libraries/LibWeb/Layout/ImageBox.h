@@ -12,8 +12,8 @@
 namespace Web::Layout {
 
 class ImageBox final : public ReplacedBox {
-    JS_CELL(ImageBox, ReplacedBox);
-    JS_DECLARE_ALLOCATOR(ImageBox);
+    GC_CELL(ImageBox, ReplacedBox);
+    GC_DECLARE_ALLOCATOR(ImageBox);
 
 public:
     ImageBox(DOM::Document&, DOM::Element&, CSS::StyleProperties, ImageProvider const&);
@@ -25,7 +25,7 @@ public:
 
     bool renders_as_alt_text() const;
 
-    virtual JS::GCPtr<Painting::Paintable> create_paintable() const override;
+    virtual GC::Ptr<Painting::Paintable> create_paintable() const override;
 
     auto const& image_provider() const { return m_image_provider; }
     auto& image_provider() { return m_image_provider; }

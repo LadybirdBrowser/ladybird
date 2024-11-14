@@ -14,10 +14,10 @@ namespace Web::WebIDL {
 // https://webidl.spec.whatwg.org/#idl-observable-array
 class ObservableArray final : public JS::Array {
     JS_OBJECT(ObservableArray, JS::Array);
-    JS_DECLARE_ALLOCATOR(ObservableArray);
+    GC_DECLARE_ALLOCATOR(ObservableArray);
 
 public:
-    static JS::NonnullGCPtr<ObservableArray> create(JS::Realm& realm);
+    static GC::Ref<ObservableArray> create(JS::Realm& realm);
 
     virtual JS::ThrowCompletionOr<bool> internal_set(JS::PropertyKey const& property_key, JS::Value value, JS::Value receiver, JS::CacheablePropertyMetadata* metadata = nullptr) override;
     virtual JS::ThrowCompletionOr<bool> internal_delete(JS::PropertyKey const& property_key) override;
@@ -48,11 +48,11 @@ public:
     virtual void visit_edges(JS::Cell::Visitor&) override;
 
 private:
-    using SetAnIndexedValueCallbackHeapFunction = JS::HeapFunction<SetAnIndexedValueCallbackFunction::FunctionType>;
-    using DeleteAnIndexedValueCallbackHeapFunction = JS::HeapFunction<DeleteAnIndexedValueCallbackFunction::FunctionType>;
+    using SetAnIndexedValueCallbackHeapFunction = GC::Function<SetAnIndexedValueCallbackFunction::FunctionType>;
+    using DeleteAnIndexedValueCallbackHeapFunction = GC::Function<DeleteAnIndexedValueCallbackFunction::FunctionType>;
 
-    JS::GCPtr<SetAnIndexedValueCallbackHeapFunction> m_on_set_an_indexed_value;
-    JS::GCPtr<DeleteAnIndexedValueCallbackHeapFunction> m_on_delete_an_indexed_value;
+    GC::Ptr<SetAnIndexedValueCallbackHeapFunction> m_on_set_an_indexed_value;
+    GC::Ptr<DeleteAnIndexedValueCallbackHeapFunction> m_on_delete_an_indexed_value;
 };
 
 }

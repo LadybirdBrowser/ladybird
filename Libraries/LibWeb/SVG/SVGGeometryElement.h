@@ -16,12 +16,12 @@ class SVGGeometryElement : public SVGGraphicsElement {
     WEB_PLATFORM_OBJECT(SVGGeometryElement, SVGGraphicsElement);
 
 public:
-    virtual JS::GCPtr<Layout::Node> create_layout_node(CSS::StyleProperties) override;
+    virtual GC::Ptr<Layout::Node> create_layout_node(CSS::StyleProperties) override;
 
     virtual Gfx::Path get_path(CSSPixelSize viewport_size) = 0;
 
     float get_total_length();
-    JS::NonnullGCPtr<Geometry::DOMPoint> get_point_at_length(float distance);
+    GC::Ref<Geometry::DOMPoint> get_point_at_length(float distance);
 
 protected:
     SVGGeometryElement(DOM::Document& document, DOM::QualifiedName qualified_name);

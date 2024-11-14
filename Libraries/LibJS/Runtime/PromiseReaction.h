@@ -15,8 +15,8 @@ namespace JS {
 
 // 27.2.1.2 PromiseReaction Records, https://tc39.es/ecma262/#sec-promisereaction-records
 class PromiseReaction final : public Cell {
-    JS_CELL(PromiseReaction, Cell);
-    JS_DECLARE_ALLOCATOR(PromiseReaction);
+    GC_CELL(PromiseReaction, Cell);
+    GC_DECLARE_ALLOCATOR(PromiseReaction);
 
 public:
     enum class Type {
@@ -24,24 +24,24 @@ public:
         Reject,
     };
 
-    static NonnullGCPtr<PromiseReaction> create(VM& vm, Type type, GCPtr<PromiseCapability> capability, JS::GCPtr<JobCallback> handler);
+    static GC::Ref<PromiseReaction> create(VM& vm, Type type, GC::Ptr<PromiseCapability> capability, GC::Ptr<JobCallback> handler);
 
     virtual ~PromiseReaction() = default;
 
     Type type() const { return m_type; }
-    GCPtr<PromiseCapability> capability() const { return m_capability; }
+    GC::Ptr<PromiseCapability> capability() const { return m_capability; }
 
-    JS::GCPtr<JobCallback> handler() { return m_handler; }
-    JS::GCPtr<JobCallback const> handler() const { return m_handler; }
+    GC::Ptr<JobCallback> handler() { return m_handler; }
+    GC::Ptr<JobCallback const> handler() const { return m_handler; }
 
 private:
-    PromiseReaction(Type type, GCPtr<PromiseCapability> capability, JS::GCPtr<JobCallback> handler);
+    PromiseReaction(Type type, GC::Ptr<PromiseCapability> capability, GC::Ptr<JobCallback> handler);
 
     virtual void visit_edges(Visitor&) override;
 
     Type m_type;
-    GCPtr<PromiseCapability> m_capability;
-    JS::GCPtr<JobCallback> m_handler;
+    GC::Ptr<PromiseCapability> m_capability;
+    GC::Ptr<JobCallback> m_handler;
 };
 
 }

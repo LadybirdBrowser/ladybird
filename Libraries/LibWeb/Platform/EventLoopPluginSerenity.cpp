@@ -14,14 +14,14 @@ namespace Web::Platform {
 EventLoopPluginSerenity::EventLoopPluginSerenity() = default;
 EventLoopPluginSerenity::~EventLoopPluginSerenity() = default;
 
-void EventLoopPluginSerenity::spin_until(JS::Handle<JS::HeapFunction<bool()>> goal_condition)
+void EventLoopPluginSerenity::spin_until(GC::Root<GC::Function<bool()>> goal_condition)
 {
     Core::EventLoop::current().spin_until([goal_condition = move(goal_condition)]() {
         return goal_condition->function()();
     });
 }
 
-void EventLoopPluginSerenity::deferred_invoke(JS::Handle<JS::HeapFunction<void()>> function)
+void EventLoopPluginSerenity::deferred_invoke(GC::Root<GC::Function<void()>> function)
 {
     VERIFY(function);
     Core::deferred_invoke([function = move(function)]() {
@@ -29,7 +29,7 @@ void EventLoopPluginSerenity::deferred_invoke(JS::Handle<JS::HeapFunction<void()
     });
 }
 
-JS::NonnullGCPtr<Timer> EventLoopPluginSerenity::create_timer(JS::Heap& heap)
+GC::Ref<Timer> EventLoopPluginSerenity::create_timer(GC::Heap& heap)
 {
     return TimerSerenity::create(heap);
 }

@@ -30,7 +30,7 @@ public:
     VM& vm() { return m_vm; }
     VM const& vm() const { return m_vm; }
 
-    ThrowCompletionOr<Value> run(Script&, JS::GCPtr<Environment> lexical_environment_override = nullptr);
+    ThrowCompletionOr<Value> run(Script&, GC::Ptr<Environment> lexical_environment_override = nullptr);
     ThrowCompletionOr<Value> run(SourceTextModule&);
 
     ThrowCompletionOr<Value> run(Bytecode::Executable& executable, Optional<size_t> entry_point = {}, Value initial_accumulator_value = {})
@@ -96,10 +96,10 @@ private:
 
     VM& m_vm;
     Optional<size_t> m_scheduled_jump;
-    GCPtr<Executable> m_current_executable { nullptr };
-    GCPtr<Realm> m_realm { nullptr };
-    GCPtr<Object> m_global_object { nullptr };
-    GCPtr<DeclarativeEnvironment> m_global_declarative_environment { nullptr };
+    GC::Ptr<Executable> m_current_executable { nullptr };
+    GC::Ptr<Realm> m_realm { nullptr };
+    GC::Ptr<Object> m_global_object { nullptr };
+    GC::Ptr<DeclarativeEnvironment> m_global_declarative_environment { nullptr };
     Optional<size_t&> m_program_counter;
     Span<Value> m_arguments;
     Span<Value> m_registers_and_constants_and_locals;
@@ -109,7 +109,7 @@ private:
 
 extern bool g_dump_bytecode;
 
-ThrowCompletionOr<NonnullGCPtr<Bytecode::Executable>> compile(VM&, ASTNode const&, JS::FunctionKind kind, DeprecatedFlyString const& name);
-ThrowCompletionOr<NonnullGCPtr<Bytecode::Executable>> compile(VM&, ECMAScriptFunctionObject const&);
+ThrowCompletionOr<GC::Ref<Bytecode::Executable>> compile(VM&, ASTNode const&, JS::FunctionKind kind, DeprecatedFlyString const& name);
+ThrowCompletionOr<GC::Ref<Bytecode::Executable>> compile(VM&, ECMAScriptFunctionObject const&);
 
 }

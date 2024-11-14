@@ -16,7 +16,7 @@ namespace JS {
 
 class AsyncFunctionDriverWrapper final : public Promise {
     JS_OBJECT(AsyncFunctionDriverWrapper, Promise);
-    JS_DECLARE_ALLOCATOR(AsyncFunctionDriverWrapper);
+    GC_DECLARE_ALLOCATOR(AsyncFunctionDriverWrapper);
 
 public:
     enum class IsInitialExecution {
@@ -24,7 +24,7 @@ public:
         Yes,
     };
 
-    [[nodiscard]] static NonnullGCPtr<Promise> create(Realm&, GeneratorObject*);
+    [[nodiscard]] static GC::Ref<Promise> create(Realm&, GeneratorObject*);
 
     virtual ~AsyncFunctionDriverWrapper() override = default;
     void visit_edges(Cell::Visitor&) override;
@@ -32,12 +32,12 @@ public:
     void continue_async_execution(VM&, Value, bool is_successful, IsInitialExecution is_initial_execution = IsInitialExecution::No);
 
 private:
-    AsyncFunctionDriverWrapper(Realm&, NonnullGCPtr<GeneratorObject>, NonnullGCPtr<Promise> top_level_promise);
+    AsyncFunctionDriverWrapper(Realm&, GC::Ref<GeneratorObject>, GC::Ref<Promise> top_level_promise);
     ThrowCompletionOr<void> await(Value);
 
-    NonnullGCPtr<GeneratorObject> m_generator_object;
-    NonnullGCPtr<Promise> m_top_level_promise;
-    GCPtr<Promise> m_current_promise { nullptr };
+    GC::Ref<GeneratorObject> m_generator_object;
+    GC::Ref<Promise> m_top_level_promise;
+    GC::Ptr<Promise> m_current_promise { nullptr };
     OwnPtr<ExecutionContext> m_suspended_execution_context;
 };
 

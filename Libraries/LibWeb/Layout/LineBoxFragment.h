@@ -6,9 +6,9 @@
 
 #pragma once
 
+#include <LibGC/Ptr.h>
 #include <LibGfx/Rect.h>
 #include <LibGfx/TextLayout.h>
-#include <LibJS/Heap/GCPtr.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/Painting/BorderRadiiData.h>
 #include <LibWeb/PixelUnits.h>
@@ -60,7 +60,7 @@ private:
     void append_glyph_run_ltr(RefPtr<Gfx::GlyphRun> const&, CSSPixels run_width);
     void append_glyph_run_rtl(RefPtr<Gfx::GlyphRun> const&, CSSPixels run_width);
 
-    JS::NonnullGCPtr<Node const> m_layout_node;
+    GC::Ref<Node const> m_layout_node;
     int m_start { 0 };
     int m_length { 0 };
     CSSPixels m_inline_offset;

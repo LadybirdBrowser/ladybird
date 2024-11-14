@@ -16,7 +16,7 @@
 
 namespace Web::HTML {
 
-using ImageBitmapSource = Variant<CanvasImageSource, JS::Handle<FileAPI::Blob>, JS::Handle<ImageData>>;
+using ImageBitmapSource = Variant<CanvasImageSource, GC::Root<FileAPI::Blob>, GC::Root<ImageData>>;
 
 // https://html.spec.whatwg.org/multipage/imagebitmap-and-animations.html#imagebitmapoptions
 struct ImageBitmapOptions {
@@ -27,10 +27,10 @@ class ImageBitmap final : public Bindings::PlatformObject
     , public Web::Bindings::Serializable
     , public Web::Bindings::Transferable {
     WEB_PLATFORM_OBJECT(ImageBitmap, Bindings::PlatformObject);
-    JS_DECLARE_ALLOCATOR(ImageBitmap);
+    GC_DECLARE_ALLOCATOR(ImageBitmap);
 
 public:
-    static JS::NonnullGCPtr<ImageBitmap> create(JS::Realm&);
+    static GC::Ref<ImageBitmap> create(JS::Realm&);
     virtual ~ImageBitmap() override = default;
 
     // ^Web::Bindings::Serializable

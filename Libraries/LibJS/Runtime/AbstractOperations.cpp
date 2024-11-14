@@ -73,7 +73,7 @@ ThrowCompletionOr<Value> call_impl(VM&, FunctionObject& function, Value this_val
 }
 
 // 7.3.15 Construct ( F [ , argumentsList [ , newTarget ] ] ), https://tc39.es/ecma262/#sec-construct
-ThrowCompletionOr<NonnullGCPtr<Object>> construct_impl(VM&, FunctionObject& function, ReadonlySpan<Value> arguments_list, FunctionObject* new_target)
+ThrowCompletionOr<GC::Ref<Object>> construct_impl(VM&, FunctionObject& function, ReadonlySpan<Value> arguments_list, FunctionObject* new_target)
 {
     // 1. If newTarget is not present, set newTarget to F.
     if (!new_target)
@@ -97,7 +97,7 @@ ThrowCompletionOr<size_t> length_of_array_like(VM& vm, Object const& object)
 }
 
 // 7.3.20 CreateListFromArrayLike ( obj [ , elementTypes ] ), https://tc39.es/ecma262/#sec-createlistfromarraylike
-ThrowCompletionOr<MarkedVector<Value>> create_list_from_array_like(VM& vm, Value value, Function<ThrowCompletionOr<void>(Value)> check_value)
+ThrowCompletionOr<GC::MarkedVector<Value>> create_list_from_array_like(VM& vm, Value value, Function<ThrowCompletionOr<void>(Value)> check_value)
 {
     // 1. If elementTypes is not present, set elementTypes to « Undefined, Null, Boolean, String, Symbol, Number, BigInt, Object ».
 
@@ -111,7 +111,7 @@ ThrowCompletionOr<MarkedVector<Value>> create_list_from_array_like(VM& vm, Value
     auto length = TRY(length_of_array_like(vm, array_like));
 
     // 4. Let list be a new empty List.
-    auto list = MarkedVector<Value> { vm.heap() };
+    auto list = GC::MarkedVector<Value> { vm.heap() };
     list.ensure_capacity(length);
 
     // 5. Let index be 0.
@@ -366,7 +366,7 @@ bool validate_and_apply_property_descriptor(Object* object, PropertyKey const& p
 }
 
 // 10.1.14 GetPrototypeFromConstructor ( constructor, intrinsicDefaultProto ), https://tc39.es/ecma262/#sec-getprototypefromconstructor
-ThrowCompletionOr<Object*> get_prototype_from_constructor(VM& vm, FunctionObject const& constructor, NonnullGCPtr<Object> (Intrinsics::*intrinsic_default_prototype)())
+ThrowCompletionOr<Object*> get_prototype_from_constructor(VM& vm, FunctionObject const& constructor, GC::Ref<Object> (Intrinsics::*intrinsic_default_prototype)())
 {
     // 1. Assert: intrinsicDefaultProto is this specification's name of an intrinsic object. The corresponding object must be an intrinsic that is intended to be used as the [[Prototype]] value of an object.
 
@@ -387,7 +387,7 @@ ThrowCompletionOr<Object*> get_prototype_from_constructor(VM& vm, FunctionObject
 }
 
 // 9.1.2.2 NewDeclarativeEnvironment ( E ), https://tc39.es/ecma262/#sec-newdeclarativeenvironment
-NonnullGCPtr<DeclarativeEnvironment> new_declarative_environment(Environment& environment)
+GC::Ref<DeclarativeEnvironment> new_declarative_environment(Environment& environment)
 {
     auto& heap = environment.heap();
 
@@ -398,7 +398,7 @@ NonnullGCPtr<DeclarativeEnvironment> new_declarative_environment(Environment& en
 }
 
 // 9.1.2.3 NewObjectEnvironment ( O, W, E ), https://tc39.es/ecma262/#sec-newobjectenvironment
-NonnullGCPtr<ObjectEnvironment> new_object_environment(Object& object, bool is_with_environment, Environment* environment)
+GC::Ref<ObjectEnvironment> new_object_environment(Object& object, bool is_with_environment, Environment* environment)
 {
     auto& heap = object.heap();
 
@@ -411,7 +411,7 @@ NonnullGCPtr<ObjectEnvironment> new_object_environment(Object& object, bool is_w
 }
 
 // 9.1.2.4 NewFunctionEnvironment ( F, newTarget ), https://tc39.es/ecma262/#sec-newfunctionenvironment
-NonnullGCPtr<FunctionEnvironment> new_function_environment(ECMAScriptFunctionObject& function, Object* new_target)
+GC::Ref<FunctionEnvironment> new_function_environment(ECMAScriptFunctionObject& function, Object* new_target)
 {
     auto& heap = function.heap();
 
@@ -439,7 +439,7 @@ NonnullGCPtr<FunctionEnvironment> new_function_environment(ECMAScriptFunctionObj
 }
 
 // 9.2.1.1 NewPrivateEnvironment ( outerPrivEnv ), https://tc39.es/ecma262/#sec-newprivateenvironment
-NonnullGCPtr<PrivateEnvironment> new_private_environment(VM& vm, PrivateEnvironment* outer)
+GC::Ref<PrivateEnvironment> new_private_environment(VM& vm, PrivateEnvironment* outer)
 {
     // 1. Let names be a new empty List.
     // 2. Return the PrivateEnvironment Record { [[OuterPrivateEnvironment]]: outerPrivEnv, [[Names]]: names }.
@@ -447,7 +447,7 @@ NonnullGCPtr<PrivateEnvironment> new_private_environment(VM& vm, PrivateEnvironm
 }
 
 // 9.4.3 GetThisEnvironment ( ), https://tc39.es/ecma262/#sec-getthisenvironment
-NonnullGCPtr<Environment> get_this_environment(VM& vm)
+GC::Ref<Environment> get_this_environment(VM& vm)
 {
     // 1. Let env be the running execution context's LexicalEnvironment.
     // 2. Repeat,
@@ -1482,7 +1482,7 @@ ThrowCompletionOr<DisposableResource> create_disposable_resource(VM& vm, Value v
 }
 
 // 2.1.4 GetDisposeMethod ( V, hint ), https://tc39.es/proposal-explicit-resource-management/#sec-getdisposemethod
-ThrowCompletionOr<GCPtr<FunctionObject>> get_dispose_method(VM& vm, Value value, Environment::InitializeBindingHint hint)
+ThrowCompletionOr<GC::Ptr<FunctionObject>> get_dispose_method(VM& vm, Value value, Environment::InitializeBindingHint hint)
 {
     // NOTE: We only have sync dispose for now which means we ignore step 1.
     VERIFY(hint == Environment::InitializeBindingHint::SyncDispose);
@@ -1493,7 +1493,7 @@ ThrowCompletionOr<GCPtr<FunctionObject>> get_dispose_method(VM& vm, Value value,
 }
 
 // 2.1.5 Dispose ( V, hint, method ), https://tc39.es/proposal-explicit-resource-management/#sec-dispose
-Completion dispose(VM& vm, Value value, NonnullGCPtr<FunctionObject> method)
+Completion dispose(VM& vm, Value value, GC::Ref<FunctionObject> method)
 {
     // 1. Let result be ? Call(method, V).
     [[maybe_unused]] auto result = TRY(call(vm, *method, value));
@@ -1550,7 +1550,7 @@ Completion dispose_resources(VM& vm, Vector<DisposableResource> const& disposabl
     return completion;
 }
 
-Completion dispose_resources(VM& vm, GCPtr<DeclarativeEnvironment> disposable, Completion completion)
+Completion dispose_resources(VM& vm, GC::Ptr<DeclarativeEnvironment> disposable, Completion completion)
 {
     // 1. If disposable is not undefined, then
     if (disposable)
@@ -1588,12 +1588,12 @@ ThrowCompletionOr<Value> perform_import_call(VM& vm, Value specifier, Value opti
 
         // 2. If referrer is null, set referrer to the current Realm Record.
         if (active_script_or_module.has<Empty>())
-            return NonnullGCPtr<Realm> { realm };
+            return GC::Ref<Realm> { realm };
 
-        if (active_script_or_module.has<NonnullGCPtr<Script>>())
-            return active_script_or_module.get<NonnullGCPtr<Script>>();
+        if (active_script_or_module.has<GC::Ref<Script>>())
+            return active_script_or_module.get<GC::Ref<Script>>();
 
-        return NonnullGCPtr<CyclicModule> { verify_cast<CyclicModule>(*active_script_or_module.get<NonnullGCPtr<Module>>()) };
+        return GC::Ref<CyclicModule> { verify_cast<CyclicModule>(*active_script_or_module.get<GC::Ref<Module>>()) };
     }();
 
     // 7. Let promiseCapability be ! NewPromiseCapability(%Promise%).

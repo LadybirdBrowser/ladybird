@@ -11,7 +11,7 @@
 
 namespace JS {
 
-JS_DEFINE_ALLOCATOR(ShadowRealmConstructor);
+GC_DEFINE_ALLOCATOR(ShadowRealmConstructor);
 
 // 3.2 The ShadowRealm Constructor, https://tc39.es/proposal-shadowrealm/#sec-shadowrealm-constructor
 ShadowRealmConstructor::ShadowRealmConstructor(Realm& realm)
@@ -41,7 +41,7 @@ ThrowCompletionOr<Value> ShadowRealmConstructor::call()
 
 // 3.2.1 ShadowRealm ( ), https://tc39.es/proposal-shadowrealm/#sec-shadowrealm
 // https://github.com/tc39/proposal-shadowrealm/pull/410
-ThrowCompletionOr<NonnullGCPtr<Object>> ShadowRealmConstructor::construct(FunctionObject& new_target)
+ThrowCompletionOr<GC::Ref<Object>> ShadowRealmConstructor::construct(FunctionObject& new_target)
 {
     auto& vm = this->vm();
 

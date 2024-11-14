@@ -14,7 +14,7 @@
 namespace Web::Layout {
 
 class FormAssociatedLabelableNode : public LabelableNode {
-    JS_CELL(FormAssociatedLabelableNode, LabelableNode);
+    GC_CELL(FormAssociatedLabelableNode, LabelableNode);
 
 public:
     const HTML::FormAssociatedElement& dom_node() const { return dynamic_cast<const HTML::FormAssociatedElement&>(LabelableNode::dom_node()); }

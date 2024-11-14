@@ -16,28 +16,28 @@
 #include <AK/Types.h>
 #include <AK/Vector.h>
 #include <LibCore/Forward.h>
-#include <LibJS/Forward.h>
-#include <LibJS/Heap/CellAllocator.h>
-#include <LibJS/Heap/CellImpl.h>
-#include <LibJS/Heap/ConservativeVector.h>
-#include <LibJS/Heap/Handle.h>
-#include <LibJS/Heap/HeapRoot.h>
-#include <LibJS/Heap/Internals.h>
-#include <LibJS/Heap/MarkedVector.h>
-#include <LibJS/Heap/WeakContainer.h>
+#include <LibGC/Cell.h>
+#include <LibGC/CellAllocator.h>
+#include <LibGC/ConservativeVector.h>
+#include <LibGC/Forward.h>
+#include <LibGC/HeapRoot.h>
+#include <LibGC/Internals.h>
+#include <LibGC/MarkedVector.h>
+#include <LibGC/Root.h>
+#include <LibGC/WeakContainer.h>
 
-namespace JS {
+namespace GC {
 
 class Heap : public HeapBase {
     AK_MAKE_NONCOPYABLE(Heap);
     AK_MAKE_NONMOVABLE(Heap);
 
 public:
-    explicit Heap(void* private_data, Function<void(HashMap<CellImpl*, JS::HeapRoot>&)> gather_embedder_roots);
+    explicit Heap(void* private_data, AK::Function<void(HashMap<Cell*, GC::HeapRoot>&)> gather_embedder_roots);
     ~Heap();
 
     template<typename T, typename... Args>
-    NonnullGCPtr<T> allocate(Args&&... args)
+    Ref<T> allocate(Args&&... args)
     {
         auto* memory = allocate_cell<T>();
         defer_gc();
@@ -57,8 +57,8 @@ public:
     bool should_collect_on_every_allocation() const { return m_should_collect_on_every_allocation; }
     void set_should_collect_on_every_allocation(bool b) { m_should_collect_on_every_allocation = b; }
 
-    void did_create_handle(Badge<HandleImpl>, HandleImpl&);
-    void did_destroy_handle(Badge<HandleImpl>, HandleImpl&);
+    void did_create_root(Badge<RootImpl>, RootImpl&);
+    void did_destroy_root(Badge<RootImpl>, RootImpl&);
 
     void did_create_marked_vector(Badge<MarkedVectorBase>, MarkedVectorBase&);
     void did_destroy_marked_vector(Badge<MarkedVectorBase>, MarkedVectorBase&);
@@ -71,7 +71,7 @@ public:
 
     void register_cell_allocator(Badge<CellAllocator>, CellAllocator&);
 
-    void uproot_cell(CellImpl* cell);
+    void uproot_cell(Cell* cell);
 
 private:
     friend class MarkingVisitor;
@@ -81,10 +81,10 @@ private:
     void defer_gc();
     void undefer_gc();
 
-    static bool cell_must_survive_garbage_collection(CellImpl const&);
+    static bool cell_must_survive_garbage_collection(Cell const&);
 
     template<typename T>
-    CellImpl* allocate_cell()
+    Cell* allocate_cell()
     {
         will_allocate(sizeof(T));
         if constexpr (requires { T::cell_allocator.allocator.get().allocate_cell(*this); }) {
@@ -98,10 +98,10 @@ private:
     void will_allocate(size_t);
 
     void find_min_and_max_block_addresses(FlatPtr& min_address, FlatPtr& max_address);
-    void gather_roots(HashMap<CellImpl*, HeapRoot>&);
-    void gather_conservative_roots(HashMap<CellImpl*, HeapRoot>&);
+    void gather_roots(HashMap<Cell*, HeapRoot>&);
+    void gather_conservative_roots(HashMap<Cell*, HeapRoot>&);
     void gather_asan_fake_stack_roots(HashMap<FlatPtr, HeapRoot>&, FlatPtr, FlatPtr min_block_address, FlatPtr max_block_address);
-    void mark_live_cells(HashMap<CellImpl*, HeapRoot> const& live_cells);
+    void mark_live_cells(HashMap<Cell*, HeapRoot> const& live_cells);
     void finalize_unmarked_cells();
     void sweep_dead_cells(bool print_report, Core::ElapsedTimer const&);
 
@@ -134,31 +134,31 @@ private:
     Vector<NonnullOwnPtr<CellAllocator>> m_size_based_cell_allocators;
     CellAllocator::List m_all_cell_allocators;
 
-    HandleImpl::List m_handles;
+    RootImpl::List m_roots;
     MarkedVectorBase::List m_marked_vectors;
     ConservativeVectorBase::List m_conservative_vectors;
     WeakContainer::List m_weak_containers;
 
-    Vector<GCPtr<CellImpl>> m_uprooted_cells;
+    Vector<Ptr<Cell>> m_uprooted_cells;
 
     size_t m_gc_deferrals { 0 };
     bool m_should_gc_when_deferral_ends { false };
 
     bool m_collecting_garbage { false };
     StackInfo m_stack_info;
-    Function<void(HashMap<CellImpl*, JS::HeapRoot>&)> m_gather_embedder_roots;
+    AK::Function<void(HashMap<Cell*, GC::HeapRoot>&)> m_gather_embedder_roots;
 };
 
-inline void Heap::did_create_handle(Badge<HandleImpl>, HandleImpl& impl)
+inline void Heap::did_create_root(Badge<RootImpl>, RootImpl& impl)
 {
-    VERIFY(!m_handles.contains(impl));
-    m_handles.append(impl);
+    VERIFY(!m_roots.contains(impl));
+    m_roots.append(impl);
 }
 
-inline void Heap::did_destroy_handle(Badge<HandleImpl>, HandleImpl& impl)
+inline void Heap::did_destroy_root(Badge<RootImpl>, RootImpl& impl)
 {
-    VERIFY(m_handles.contains(impl));
-    m_handles.remove(impl);
+    VERIFY(m_roots.contains(impl));
+    m_roots.remove(impl);
 }
 
 inline void Heap::did_create_marked_vector(Badge<MarkedVectorBase>, MarkedVectorBase& vector)

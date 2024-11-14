@@ -21,9 +21,9 @@
 
 namespace Web::HTML {
 
-JS_DEFINE_ALLOCATOR(SharedResourceRequest);
+GC_DEFINE_ALLOCATOR(SharedResourceRequest);
 
-JS::NonnullGCPtr<SharedResourceRequest> SharedResourceRequest::get_or_create(JS::Realm& realm, JS::NonnullGCPtr<Page> page, URL::URL const& url)
+GC::Ref<SharedResourceRequest> SharedResourceRequest::get_or_create(JS::Realm& realm, GC::Ref<Page> page, URL::URL const& url)
 {
     auto document = Bindings::principal_host_defined_environment_settings_object(realm).responsible_document();
     VERIFY(document);
@@ -35,7 +35,7 @@ JS::NonnullGCPtr<SharedResourceRequest> SharedResourceRequest::get_or_create(JS:
     return request;
 }
 
-SharedResourceRequest::SharedResourceRequest(JS::NonnullGCPtr<Page> page, URL::URL url, JS::NonnullGCPtr<DOM::Document> document)
+SharedResourceRequest::SharedResourceRequest(GC::Ref<Page> page, URL::URL url, GC::Ref<DOM::Document> document)
     : m_page(page)
     , m_url(move(url))
     , m_document(document)
@@ -64,35 +64,35 @@ void SharedResourceRequest::visit_edges(JS::Cell::Visitor& visitor)
     visitor.visit(m_image_data);
 }
 
-JS::GCPtr<DecodedImageData> SharedResourceRequest::image_data() const
+GC::Ptr<DecodedImageData> SharedResourceRequest::image_data() const
 {
     return m_image_data;
 }
 
-JS::GCPtr<Fetch::Infrastructure::FetchController> SharedResourceRequest::fetch_controller()
+GC::Ptr<Fetch::Infrastructure::FetchController> SharedResourceRequest::fetch_controller()
 {
     return m_fetch_controller.ptr();
 }
 
-void SharedResourceRequest::set_fetch_controller(JS::GCPtr<Fetch::Infrastructure::FetchController> fetch_controller)
+void SharedResourceRequest::set_fetch_controller(GC::Ptr<Fetch::Infrastructure::FetchController> fetch_controller)
 {
     m_fetch_controller = move(fetch_controller);
 }
 
-void SharedResourceRequest::fetch_resource(JS::Realm& realm, JS::NonnullGCPtr<Fetch::Infrastructure::Request> request)
+void SharedResourceRequest::fetch_resource(JS::Realm& realm, GC::Ref<Fetch::Infrastructure::Request> request)
 {
     Fetch::Infrastructure::FetchAlgorithms::Input fetch_algorithms_input {};
-    fetch_algorithms_input.process_response = [this, &realm, request](JS::NonnullGCPtr<Fetch::Infrastructure::Response> response) {
+    fetch_algorithms_input.process_response = [this, &realm, request](GC::Ref<Fetch::Infrastructure::Response> response) {
         // FIXME: If the response is CORS cross-origin, we must use its internal response to query any of its data. See:
         //        https://github.com/whatwg/html/issues/9355
         response = response->unsafe_response();
 
-        auto process_body = JS::create_heap_function(heap(), [this, request, response](ByteBuffer data) {
+        auto process_body = GC::create_function(heap(), [this, request, response](ByteBuffer data) {
             auto extracted_mime_type = response->header_list()->extract_mime_type();
             auto mime_type = extracted_mime_type.has_value() ? extracted_mime_type.value().essence().bytes_as_string_view() : StringView {};
             handle_successful_fetch(request->url(), mime_type, move(data));
         });
-        auto process_body_error = JS::create_heap_function(heap(), [this](JS::Value) {
+        auto process_body_error = GC::create_function(heap(), [this](JS::Value) {
             handle_failed_fetch();
         });
 
@@ -102,7 +102,7 @@ void SharedResourceRequest::fetch_resource(JS::Realm& realm, JS::NonnullGCPtr<Fe
             return;
         }
 
-        response->body()->fully_read(realm, process_body, process_body_error, JS::NonnullGCPtr { realm.global_object() });
+        response->body()->fully_read(realm, process_body, process_body_error, GC::Ref { realm.global_object() });
     };
 
     m_state = State::Fetching;
@@ -132,9 +132,9 @@ void SharedResourceRequest::add_callbacks(Function<void()> on_finish, Function<v
 
     Callbacks callbacks;
     if (on_finish)
-        callbacks.on_finish = JS::create_heap_function(vm().heap(), move(on_finish));
+        callbacks.on_finish = GC::create_function(vm().heap(), move(on_finish));
     if (on_fail)
-        callbacks.on_fail = JS::create_heap_function(vm().heap(), move(on_fail));
+        callbacks.on_fail = GC::create_function(vm().heap(), move(on_fail));
 
     m_callbacks.append(move(callbacks));
 }
@@ -157,7 +157,7 @@ void SharedResourceRequest::handle_successful_fetch(URL::URL const& url_string, 
         return;
     }
 
-    auto handle_successful_bitmap_decode = [strong_this = JS::Handle(*this)](Web::Platform::DecodedImage& result) -> ErrorOr<void> {
+    auto handle_successful_bitmap_decode = [strong_this = GC::Root(*this)](Web::Platform::DecodedImage& result) -> ErrorOr<void> {
         Vector<AnimatedBitmapDecodedImageData::Frame> frames;
         for (auto& frame : result.frames) {
             frames.append(AnimatedBitmapDecodedImageData::Frame {
@@ -170,7 +170,7 @@ void SharedResourceRequest::handle_successful_fetch(URL::URL const& url_string, 
         return {};
     };
 
-    auto handle_failed_decode = [strong_this = JS::Handle(*this)](Error&) -> void {
+    auto handle_failed_decode = [strong_this = GC::Root(*this)](Error&) -> void {
         strong_this->handle_failed_fetch();
     };
 

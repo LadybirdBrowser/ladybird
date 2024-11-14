@@ -12,7 +12,7 @@ namespace Web::WebGL {
 
 class WebGLFramebuffer final : public WebGLObject {
     WEB_PLATFORM_OBJECT(WebGLFramebuffer, WebGLObject);
-    JS_DECLARE_ALLOCATOR(WebGLFramebuffer);
+    GC_DECLARE_ALLOCATOR(WebGLFramebuffer);
 
 public:
     virtual ~WebGLFramebuffer();

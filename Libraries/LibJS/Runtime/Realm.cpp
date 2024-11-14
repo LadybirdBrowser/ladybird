@@ -6,7 +6,7 @@
  */
 
 #include <AK/TypeCasts.h>
-#include <LibJS/Heap/DeferGC.h>
+#include <LibGC/DeferGC.h>
 #include <LibJS/Runtime/GlobalEnvironment.h>
 #include <LibJS/Runtime/GlobalObject.h>
 #include <LibJS/Runtime/Realm.h>
@@ -14,12 +14,12 @@
 
 namespace JS {
 
-JS_DEFINE_ALLOCATOR(Realm);
+GC_DEFINE_ALLOCATOR(Realm);
 
 // 9.3.1 InitializeHostDefinedRealm ( ), https://tc39.es/ecma262/#sec-initializehostdefinedrealm
 ThrowCompletionOr<NonnullOwnPtr<ExecutionContext>> Realm::initialize_host_defined_realm(VM& vm, Function<Object*(Realm&)> create_global_object, Function<Object*(Realm&)> create_global_this_value)
 {
-    DeferGC defer_gc(vm.heap());
+    GC::DeferGC defer_gc(vm.heap());
 
     // 1. Let realm be a new Realm Record
     auto realm = vm.heap().allocate<Realm>();

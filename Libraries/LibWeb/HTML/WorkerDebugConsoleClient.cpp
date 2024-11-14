@@ -5,7 +5,7 @@
  */
 
 #include <AK/StringBuilder.h>
-#include <LibJS/Heap/MarkedVector.h>
+#include <LibGC/MarkedVector.h>
 #include <LibJS/Runtime/Completion.h>
 #include <LibJS/Runtime/Realm.h>
 #include <LibJS/Runtime/VM.h>
@@ -13,7 +13,7 @@
 
 namespace Web::HTML {
 
-JS_DEFINE_ALLOCATOR(WorkerDebugConsoleClient);
+GC_DEFINE_ALLOCATOR(WorkerDebugConsoleClient);
 
 WorkerDebugConsoleClient::WorkerDebugConsoleClient(JS::Console& console)
     : ConsoleClient(console)
@@ -60,7 +60,7 @@ JS::ThrowCompletionOr<JS::Value> WorkerDebugConsoleClient::printer(JS::Console::
         return JS::js_undefined();
     }
 
-    auto output = TRY(generically_format_values(arguments.get<JS::MarkedVector<JS::Value>>()));
+    auto output = TRY(generically_format_values(arguments.get<GC::MarkedVector<JS::Value>>()));
     m_console->output_debug_message(log_level, output);
     return JS::js_undefined();
 }

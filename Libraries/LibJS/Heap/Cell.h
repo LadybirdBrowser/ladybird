@@ -6,12 +6,13 @@
 
 #pragma once
 
-#include <LibJS/Heap/CellImpl.h>
+#include <LibGC/Cell.h>
+#include <LibJS/Forward.h>
 
 namespace JS {
 
-class Cell : public CellImpl {
-    JS_CELL(Cell, CellImpl);
+class Cell : public GC::Cell {
+    GC_CELL(Cell, GC::Cell);
 
 public:
     virtual void initialize(Realm&);

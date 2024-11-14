@@ -20,7 +20,7 @@ namespace Web::HTML {
 
 // https://html.spec.whatwg.org/multipage/webappapis.html#environment
 struct Environment : public JS::Cell {
-    JS_CELL(Environment, JS::Cell);
+    GC_CELL(Environment, JS::Cell);
 
 public:
     virtual ~Environment() override;
@@ -38,7 +38,7 @@ public:
     URL::Origin top_level_origin;
 
     // https://html.spec.whatwg.org/multipage/webappapis.html#concept-environment-target-browsing-context
-    JS::GCPtr<BrowsingContext> target_browsing_context;
+    GC::Ptr<BrowsingContext> target_browsing_context;
 
     // FIXME: An active service worker https://html.spec.whatwg.org/multipage/webappapis.html#concept-environment-active-service-worker
 
@@ -56,7 +56,7 @@ enum class RunScriptDecision {
 
 // https://html.spec.whatwg.org/multipage/webappapis.html#environment-settings-object
 struct EnvironmentSettingsObject : public Environment {
-    JS_CELL(EnvironmentSettingsObject, Environment);
+    GC_CELL(EnvironmentSettingsObject, Environment);
 
 public:
     virtual ~EnvironmentSettingsObject() override;
@@ -70,7 +70,7 @@ public:
     ModuleMap& module_map();
 
     // https://html.spec.whatwg.org/multipage/webappapis.html#responsible-document
-    virtual JS::GCPtr<DOM::Document> responsible_document() = 0;
+    virtual GC::Ptr<DOM::Document> responsible_document() = 0;
 
     // https://html.spec.whatwg.org/multipage/webappapis.html#api-url-character-encoding
     virtual String api_url_character_encoding() = 0;
@@ -94,11 +94,11 @@ public:
     EventLoop& responsible_event_loop();
 
     // https://fetch.spec.whatwg.org/#concept-fetch-group
-    Vector<JS::NonnullGCPtr<Fetch::Infrastructure::FetchRecord>>& fetch_group() { return m_fetch_group; }
+    Vector<GC::Ref<Fetch::Infrastructure::FetchRecord>>& fetch_group() { return m_fetch_group; }
 
     SerializedEnvironmentSettingsObject serialize();
 
-    JS::NonnullGCPtr<StorageAPI::StorageManager> storage_manager();
+    GC::Ref<StorageAPI::StorageManager> storage_manager();
 
     [[nodiscard]] bool discarded() const { return m_discarded; }
     void set_discarded(bool b) { m_discarded = b; }
@@ -110,17 +110,17 @@ protected:
 
 private:
     NonnullOwnPtr<JS::ExecutionContext> m_realm_execution_context;
-    JS::GCPtr<ModuleMap> m_module_map;
+    GC::Ptr<ModuleMap> m_module_map;
 
-    JS::GCPtr<EventLoop> m_responsible_event_loop;
+    GC::Ptr<EventLoop> m_responsible_event_loop;
 
     // https://fetch.spec.whatwg.org/#concept-fetch-record
     // A fetch group holds an ordered list of fetch records
-    Vector<JS::NonnullGCPtr<Fetch::Infrastructure::FetchRecord>> m_fetch_group;
+    Vector<GC::Ref<Fetch::Infrastructure::FetchRecord>> m_fetch_group;
 
     // https://storage.spec.whatwg.org/#api
     // Each environment settings object has an associated StorageManager object.
-    JS::GCPtr<StorageAPI::StorageManager> m_storage_manager;
+    GC::Ptr<StorageAPI::StorageManager> m_storage_manager;
 
     // https://w3c.github.io/ServiceWorker/#service-worker-client-discarded-flag
     // A service worker client has an associated discarded flag. It is initially unset.

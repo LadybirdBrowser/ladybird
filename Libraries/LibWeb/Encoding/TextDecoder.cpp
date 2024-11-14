@@ -15,10 +15,10 @@
 
 namespace Web::Encoding {
 
-JS_DEFINE_ALLOCATOR(TextDecoder);
+GC_DEFINE_ALLOCATOR(TextDecoder);
 
 // https://encoding.spec.whatwg.org/#dom-textdecoder
-WebIDL::ExceptionOr<JS::NonnullGCPtr<TextDecoder>> TextDecoder::construct_impl(JS::Realm& realm, FlyString label, Optional<TextDecoderOptions> const& options)
+WebIDL::ExceptionOr<GC::Ref<TextDecoder>> TextDecoder::construct_impl(JS::Realm& realm, FlyString label, Optional<TextDecoderOptions> const& options)
 {
     auto& vm = realm.vm();
 
@@ -66,7 +66,7 @@ void TextDecoder::initialize(JS::Realm& realm)
 }
 
 // https://encoding.spec.whatwg.org/#dom-textdecoder-decode
-WebIDL::ExceptionOr<String> TextDecoder::decode(Optional<JS::Handle<WebIDL::BufferSource>> const& input, Optional<TextDecodeOptions> const&) const
+WebIDL::ExceptionOr<String> TextDecoder::decode(Optional<GC::Root<WebIDL::BufferSource>> const& input, Optional<TextDecodeOptions> const&) const
 {
     if (!input.has_value())
         return TRY_OR_THROW_OOM(vm(), m_decoder.to_utf8({}));

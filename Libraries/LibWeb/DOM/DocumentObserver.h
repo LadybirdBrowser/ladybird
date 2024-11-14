@@ -6,8 +6,8 @@
 
 #pragma once
 
+#include <LibGC/Function.h>
 #include <LibJS/Forward.h>
-#include <LibJS/Heap/HeapFunction.h>
 #include <LibWeb/Bindings/PlatformObject.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/HTML/DocumentReadyState.h>
@@ -17,22 +17,22 @@ namespace Web::DOM {
 
 class DocumentObserver final : public Bindings::PlatformObject {
     WEB_PLATFORM_OBJECT(DocumentObserver, Bindings::PlatformObject);
-    JS_DECLARE_ALLOCATOR(DocumentObserver);
+    GC_DECLARE_ALLOCATOR(DocumentObserver);
 
 public:
-    [[nodiscard]] JS::GCPtr<JS::HeapFunction<void()>> document_became_inactive() const { return m_document_became_inactive; }
+    [[nodiscard]] GC::Ptr<GC::Function<void()>> document_became_inactive() const { return m_document_became_inactive; }
     void set_document_became_inactive(Function<void()>);
 
-    [[nodiscard]] JS::GCPtr<JS::HeapFunction<void()>> document_completely_loaded() const { return m_document_completely_loaded; }
+    [[nodiscard]] GC::Ptr<GC::Function<void()>> document_completely_loaded() const { return m_document_completely_loaded; }
     void set_document_completely_loaded(Function<void()>);
 
-    [[nodiscard]] JS::GCPtr<JS::HeapFunction<void(HTML::DocumentReadyState)>> document_readiness_observer() const { return m_document_readiness_observer; }
+    [[nodiscard]] GC::Ptr<GC::Function<void(HTML::DocumentReadyState)>> document_readiness_observer() const { return m_document_readiness_observer; }
     void set_document_readiness_observer(Function<void(HTML::DocumentReadyState)>);
 
-    [[nodiscard]] JS::GCPtr<JS::HeapFunction<void(HTML::VisibilityState)>> document_visibility_state_observer() const { return m_document_visibility_state_observer; }
+    [[nodiscard]] GC::Ptr<GC::Function<void(HTML::VisibilityState)>> document_visibility_state_observer() const { return m_document_visibility_state_observer; }
     void set_document_visibility_state_observer(Function<void(HTML::VisibilityState)>);
 
-    [[nodiscard]] JS::GCPtr<JS::HeapFunction<void(bool)>> document_page_showing_observer() const { return m_document_page_showing_observer; }
+    [[nodiscard]] GC::Ptr<GC::Function<void(bool)>> document_page_showing_observer() const { return m_document_page_showing_observer; }
     void set_document_page_showing_observer(Function<void(bool)>);
 
 private:
@@ -41,12 +41,12 @@ private:
     virtual void visit_edges(Cell::Visitor&) override;
     virtual void finalize() override;
 
-    JS::NonnullGCPtr<DOM::Document> m_document;
-    JS::GCPtr<JS::HeapFunction<void()>> m_document_became_inactive;
-    JS::GCPtr<JS::HeapFunction<void()>> m_document_completely_loaded;
-    JS::GCPtr<JS::HeapFunction<void(HTML::DocumentReadyState)>> m_document_readiness_observer;
-    JS::GCPtr<JS::HeapFunction<void(HTML::VisibilityState)>> m_document_visibility_state_observer;
-    JS::GCPtr<JS::HeapFunction<void(bool)>> m_document_page_showing_observer;
+    GC::Ref<DOM::Document> m_document;
+    GC::Ptr<GC::Function<void()>> m_document_became_inactive;
+    GC::Ptr<GC::Function<void()>> m_document_completely_loaded;
+    GC::Ptr<GC::Function<void(HTML::DocumentReadyState)>> m_document_readiness_observer;
+    GC::Ptr<GC::Function<void(HTML::VisibilityState)>> m_document_visibility_state_observer;
+    GC::Ptr<GC::Function<void(bool)>> m_document_page_showing_observer;
 };
 
 }

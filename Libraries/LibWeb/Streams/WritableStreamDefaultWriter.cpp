@@ -14,9 +14,9 @@
 
 namespace Web::Streams {
 
-JS_DEFINE_ALLOCATOR(WritableStreamDefaultWriter);
+GC_DEFINE_ALLOCATOR(WritableStreamDefaultWriter);
 
-WebIDL::ExceptionOr<JS::NonnullGCPtr<WritableStreamDefaultWriter>> WritableStreamDefaultWriter::construct_impl(JS::Realm& realm, JS::NonnullGCPtr<WritableStream> stream)
+WebIDL::ExceptionOr<GC::Ref<WritableStreamDefaultWriter>> WritableStreamDefaultWriter::construct_impl(JS::Realm& realm, GC::Ref<WritableStream> stream)
 {
     auto writer = realm.create<WritableStreamDefaultWriter>(realm);
 
@@ -27,7 +27,7 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<WritableStreamDefaultWriter>> WritableStrea
 }
 
 // https://streams.spec.whatwg.org/#default-writer-closed
-JS::GCPtr<WebIDL::Promise> WritableStreamDefaultWriter::closed()
+GC::Ptr<WebIDL::Promise> WritableStreamDefaultWriter::closed()
 {
     // 1. Return this.[[closedPromise]].
     return m_closed_promise;
@@ -45,14 +45,14 @@ WebIDL::ExceptionOr<Optional<double>> WritableStreamDefaultWriter::desired_size(
 }
 
 // https://streams.spec.whatwg.org/#default-writer-ready
-JS::GCPtr<WebIDL::Promise> WritableStreamDefaultWriter::ready()
+GC::Ptr<WebIDL::Promise> WritableStreamDefaultWriter::ready()
 {
     // 1. Return this.[[readyPromise]].
     return m_ready_promise;
 }
 
 // https://streams.spec.whatwg.org/#default-writer-abort
-JS::GCPtr<WebIDL::Promise> WritableStreamDefaultWriter::abort(JS::Value reason)
+GC::Ptr<WebIDL::Promise> WritableStreamDefaultWriter::abort(JS::Value reason)
 {
     auto& realm = this->realm();
 
@@ -67,7 +67,7 @@ JS::GCPtr<WebIDL::Promise> WritableStreamDefaultWriter::abort(JS::Value reason)
 }
 
 // https://streams.spec.whatwg.org/#default-writer-close
-JS::GCPtr<WebIDL::Promise> WritableStreamDefaultWriter::close()
+GC::Ptr<WebIDL::Promise> WritableStreamDefaultWriter::close()
 {
     auto& realm = this->realm();
 
@@ -106,7 +106,7 @@ void WritableStreamDefaultWriter::release_lock()
 }
 
 // https://streams.spec.whatwg.org/#default-writer-write
-JS::GCPtr<WebIDL::Promise> WritableStreamDefaultWriter::write(JS::Value chunk)
+GC::Ptr<WebIDL::Promise> WritableStreamDefaultWriter::write(JS::Value chunk)
 {
     auto& realm = this->realm();
 

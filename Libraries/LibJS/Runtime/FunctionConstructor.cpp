@@ -18,7 +18,7 @@
 
 namespace JS {
 
-JS_DEFINE_ALLOCATOR(FunctionConstructor);
+GC_DEFINE_ALLOCATOR(FunctionConstructor);
 
 FunctionConstructor::FunctionConstructor(Realm& realm)
     : NativeFunction(realm.vm().names.Function.as_string(), realm.intrinsics().function_prototype())
@@ -62,14 +62,14 @@ ThrowCompletionOr<ParameterArgumentsAndBody> extract_parameter_arguments_and_bod
 }
 
 // 20.2.1.1.1 CreateDynamicFunction ( constructor, newTarget, kind, parameterArgs, bodyArg ), https://tc39.es/ecma262/#sec-createdynamicfunction
-ThrowCompletionOr<NonnullGCPtr<ECMAScriptFunctionObject>> FunctionConstructor::create_dynamic_function(VM& vm, FunctionObject& constructor, FunctionObject* new_target, FunctionKind kind, ReadonlySpan<String> parameter_strings, String const& body_string)
+ThrowCompletionOr<GC::Ref<ECMAScriptFunctionObject>> FunctionConstructor::create_dynamic_function(VM& vm, FunctionObject& constructor, FunctionObject* new_target, FunctionKind kind, ReadonlySpan<String> parameter_strings, String const& body_string)
 {
     // 1. If newTarget is undefined, set newTarget to constructor.
     if (new_target == nullptr)
         new_target = &constructor;
 
     StringView prefix;
-    NonnullGCPtr<Object> (Intrinsics::*fallback_prototype)() = nullptr;
+    GC::Ref<Object> (Intrinsics::*fallback_prototype)() = nullptr;
 
     switch (kind) {
     // 2. If kind is normal, then
@@ -260,7 +260,7 @@ ThrowCompletionOr<Value> FunctionConstructor::call()
 }
 
 // 20.2.1.1 Function ( ...parameterArgs, bodyArg ), https://tc39.es/ecma262/#sec-function-p1-p2-pn-body
-ThrowCompletionOr<NonnullGCPtr<Object>> FunctionConstructor::construct(FunctionObject& new_target)
+ThrowCompletionOr<GC::Ref<Object>> FunctionConstructor::construct(FunctionObject& new_target)
 {
     auto& vm = this->vm();
 

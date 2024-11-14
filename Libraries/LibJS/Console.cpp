@@ -20,8 +20,8 @@
 
 namespace JS {
 
-JS_DEFINE_ALLOCATOR(Console);
-JS_DEFINE_ALLOCATOR(ConsoleClient);
+GC_DEFINE_ALLOCATOR(Console);
+GC_DEFINE_ALLOCATOR(ConsoleClient);
 
 Console::Console(Realm& realm)
     : m_realm(realm)
@@ -51,7 +51,7 @@ ThrowCompletionOr<Value> Console::assert_()
     auto message = PrimitiveString::create(vm, "Assertion failed"_string);
 
     // NOTE: Assemble `data` from the function arguments.
-    MarkedVector<Value> data { vm.heap() };
+    GC::MarkedVector<Value> data { vm.heap() };
     if (vm.argument_count() > 1) {
         data.ensure_capacity(vm.argument_count() - 1);
         for (size_t i = 1; i < vm.argument_count(); ++i) {
@@ -143,7 +143,7 @@ ThrowCompletionOr<Value> Console::log()
 }
 
 // To [create table row] given tabularDataItem, rowIndex, list finalColumns, and optional list properties, perform the following steps:
-static ThrowCompletionOr<NonnullGCPtr<Object>> create_table_row(Realm& realm, Value row_index, Value tabular_data_item, MarkedVector<Value>& final_columns, HashMap<PropertyKey, bool>& visited_columns, HashMap<PropertyKey, bool>& properties)
+static ThrowCompletionOr<GC::Ref<Object>> create_table_row(Realm& realm, Value row_index, Value tabular_data_item, GC::MarkedVector<Value>& final_columns, HashMap<PropertyKey, bool>& visited_columns, HashMap<PropertyKey, bool>& properties)
 {
     auto& vm = realm.vm();
 
@@ -265,10 +265,10 @@ ThrowCompletionOr<Value> Console::table()
         }
 
         // 1. Let `finalRows` be the new list, initially empty
-        MarkedVector<Value> final_rows(vm.heap());
+        GC::MarkedVector<Value> final_rows(vm.heap());
 
         // 2. Let `finalColumns` be the new list, initially empty
-        MarkedVector<Value> final_columns(vm.heap());
+        GC::MarkedVector<Value> final_columns(vm.heap());
 
         HashMap<PropertyKey, bool> visited_columns;
 
@@ -328,7 +328,7 @@ ThrowCompletionOr<Value> Console::table()
             TRY(final_data->set(PropertyKey("columns"), table_cols, Object::ShouldThrowExceptions::No));
 
             // 5.4. Perform `Printer("table", finalData)`
-            MarkedVector<Value> args(vm.heap());
+            GC::MarkedVector<Value> args(vm.heap());
             args.append(Value(final_data));
             return m_client->printer(LogLevel::Table, args);
         }
@@ -390,7 +390,7 @@ ThrowCompletionOr<Value> Console::dir()
 
     // 2. Perform Printer("dir", « object », options).
     if (m_client) {
-        MarkedVector<Value> printer_arguments { vm.heap() };
+        GC::MarkedVector<Value> printer_arguments { vm.heap() };
         TRY_OR_THROW_OOM(vm, printer_arguments.try_append(object));
 
         return m_client->printer(LogLevel::Dir, move(printer_arguments));
@@ -430,7 +430,7 @@ ThrowCompletionOr<Value> Console::count()
     auto concat = TRY_OR_THROW_OOM(vm, String::formatted("{}: {}", label, map.get(label).value()));
 
     // 5. Perform Logger("count", « concat »).
-    MarkedVector<Value> concat_as_vector { vm.heap() };
+    GC::MarkedVector<Value> concat_as_vector { vm.heap() };
     concat_as_vector.append(PrimitiveString::create(vm, move(concat)));
     if (m_client)
         TRY(m_client->logger(LogLevel::Count, concat_as_vector));
@@ -458,7 +458,7 @@ ThrowCompletionOr<Value> Console::count_reset()
         //    that the given label does not have an associated count.
         auto message = TRY_OR_THROW_OOM(vm, String::formatted("\"{}\" doesn't have a count", label));
         // 2. Perform Logger("countReset", « message »);
-        MarkedVector<Value> message_as_vector { vm.heap() };
+        GC::MarkedVector<Value> message_as_vector { vm.heap() };
         message_as_vector.append(PrimitiveString::create(vm, move(message)));
         if (m_client)
             TRY(m_client->logger(LogLevel::CountReset, message_as_vector));
@@ -561,7 +561,7 @@ ThrowCompletionOr<Value> Console::time()
     //    a warning to the console indicating that a timer with label `label` has already been started.
     if (m_timer_table.contains(label)) {
         if (m_client) {
-            MarkedVector<Value> timer_already_exists_warning_message_as_vector { vm.heap() };
+            GC::MarkedVector<Value> timer_already_exists_warning_message_as_vector { vm.heap() };
 
             auto message = TRY_OR_THROW_OOM(vm, String::formatted("Timer '{}' already exists.", label));
             timer_already_exists_warning_message_as_vector.append(PrimitiveString::create(vm, move(message)));
@@ -592,7 +592,7 @@ ThrowCompletionOr<Value> Console::time_log()
     // NOTE: Warn if the timer doesn't exist. Not part of the spec yet, but discussed here: https://github.com/whatwg/console/issues/134
     if (maybe_start_time == m_timer_table.end()) {
         if (m_client) {
-            MarkedVector<Value> timer_does_not_exist_warning_message_as_vector { vm.heap() };
+            GC::MarkedVector<Value> timer_does_not_exist_warning_message_as_vector { vm.heap() };
 
             auto message = TRY_OR_THROW_OOM(vm, String::formatted("Timer '{}' does not exist.", label));
             timer_does_not_exist_warning_message_as_vector.append(PrimitiveString::create(vm, move(message)));
@@ -610,7 +610,7 @@ ThrowCompletionOr<Value> Console::time_log()
     auto concat = TRY_OR_THROW_OOM(vm, String::formatted("{}: {}", label, duration));
 
     // 5. Prepend concat to data.
-    MarkedVector<Value> data { vm.heap() };
+    GC::MarkedVector<Value> data { vm.heap() };
     data.ensure_capacity(vm.argument_count());
     data.append(PrimitiveString::create(vm, move(concat)));
     for (size_t i = 1; i < vm.argument_count(); ++i)
@@ -638,7 +638,7 @@ ThrowCompletionOr<Value> Console::time_end()
     // NOTE: Warn if the timer doesn't exist. Not part of the spec yet, but discussed here: https://github.com/whatwg/console/issues/134
     if (maybe_start_time == m_timer_table.end()) {
         if (m_client) {
-            MarkedVector<Value> timer_does_not_exist_warning_message_as_vector { vm.heap() };
+            GC::MarkedVector<Value> timer_does_not_exist_warning_message_as_vector { vm.heap() };
 
             auto message = TRY_OR_THROW_OOM(vm, String::formatted("Timer '{}' does not exist.", label));
             timer_does_not_exist_warning_message_as_vector.append(PrimitiveString::create(vm, move(message)));
@@ -660,18 +660,18 @@ ThrowCompletionOr<Value> Console::time_end()
 
     // 6. Perform Printer("timeEnd", « concat »).
     if (m_client) {
-        MarkedVector<Value> concat_as_vector { vm.heap() };
+        GC::MarkedVector<Value> concat_as_vector { vm.heap() };
         concat_as_vector.append(PrimitiveString::create(vm, move(concat)));
         TRY(m_client->printer(LogLevel::TimeEnd, move(concat_as_vector)));
     }
     return js_undefined();
 }
 
-MarkedVector<Value> Console::vm_arguments()
+GC::MarkedVector<Value> Console::vm_arguments()
 {
     auto& vm = realm().vm();
 
-    MarkedVector<Value> arguments { vm.heap() };
+    GC::MarkedVector<Value> arguments { vm.heap() };
     arguments.ensure_capacity(vm.argument_count());
     for (size_t i = 0; i < vm.argument_count(); ++i) {
         arguments.append(vm.argument(i));
@@ -709,7 +709,7 @@ void Console::report_exception(JS::Error const& exception, bool in_promise) cons
         m_client->report_exception(exception, in_promise);
 }
 
-ThrowCompletionOr<String> Console::value_vector_to_string(MarkedVector<Value> const& values)
+ThrowCompletionOr<String> Console::value_vector_to_string(GC::MarkedVector<Value> const& values)
 {
     auto& vm = realm().vm();
     StringBuilder builder;
@@ -767,7 +767,7 @@ void ConsoleClient::visit_edges(Visitor& visitor)
 }
 
 // 2.1. Logger(logLevel, args), https://console.spec.whatwg.org/#logger
-ThrowCompletionOr<Value> ConsoleClient::logger(Console::LogLevel log_level, MarkedVector<Value> const& args)
+ThrowCompletionOr<Value> ConsoleClient::logger(Console::LogLevel log_level, GC::MarkedVector<Value> const& args)
 {
     auto& vm = m_console->realm().vm();
 
@@ -783,7 +783,7 @@ ThrowCompletionOr<Value> ConsoleClient::logger(Console::LogLevel log_level, Mark
 
     // 4. If rest is empty, perform Printer(logLevel, « first ») and return.
     if (rest_size == 0) {
-        MarkedVector<Value> first_as_vector { vm.heap() };
+        GC::MarkedVector<Value> first_as_vector { vm.heap() };
         first_as_vector.append(first);
         return printer(log_level, move(first_as_vector));
     }
@@ -799,7 +799,7 @@ ThrowCompletionOr<Value> ConsoleClient::logger(Console::LogLevel log_level, Mark
 }
 
 // 2.2. Formatter(args), https://console.spec.whatwg.org/#formatter
-ThrowCompletionOr<MarkedVector<Value>> ConsoleClient::formatter(MarkedVector<Value> const& args)
+ThrowCompletionOr<GC::MarkedVector<Value>> ConsoleClient::formatter(GC::MarkedVector<Value> const& args)
 {
     auto& realm = m_console->realm();
     auto& vm = realm.vm();
@@ -901,7 +901,7 @@ ThrowCompletionOr<MarkedVector<Value>> ConsoleClient::formatter(MarkedVector<Val
     }
 
     // 7. Let result be a list containing target together with the elements of args starting from the third onward.
-    MarkedVector<Value> result { vm.heap() };
+    GC::MarkedVector<Value> result { vm.heap() };
     result.ensure_capacity(args.size() - 1);
     result.empend(PrimitiveString::create(vm, move(target)));
     for (size_t i = 2; i < args.size(); ++i)
@@ -911,7 +911,7 @@ ThrowCompletionOr<MarkedVector<Value>> ConsoleClient::formatter(MarkedVector<Val
     return formatter(result);
 }
 
-ThrowCompletionOr<String> ConsoleClient::generically_format_values(MarkedVector<Value> const& values)
+ThrowCompletionOr<String> ConsoleClient::generically_format_values(GC::MarkedVector<Value> const& values)
 {
     AllocatingMemoryStream stream;
     auto& vm = m_console->realm().vm();

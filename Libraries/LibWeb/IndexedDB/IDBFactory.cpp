@@ -18,7 +18,7 @@
 
 namespace Web::IndexedDB {
 
-JS_DEFINE_ALLOCATOR(IDBFactory);
+GC_DEFINE_ALLOCATOR(IDBFactory);
 
 IDBFactory::IDBFactory(JS::Realm& realm)
     : Bindings::PlatformObject(realm)
@@ -34,7 +34,7 @@ void IDBFactory::initialize(JS::Realm& realm)
 }
 
 // https://w3c.github.io/IndexedDB/#dom-idbfactory-open
-WebIDL::ExceptionOr<JS::NonnullGCPtr<IDBOpenDBRequest>> IDBFactory::open(String const& name, Optional<u64> version)
+WebIDL::ExceptionOr<GC::Ref<IDBOpenDBRequest>> IDBFactory::open(String const& name, Optional<u64> version)
 {
     auto& realm = this->realm();
 
@@ -55,21 +55,21 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<IDBOpenDBRequest>> IDBFactory::open(String 
     auto request = IDBOpenDBRequest::create(realm);
 
     // 5. Run these steps in parallel:
-    Platform::EventLoopPlugin::the().deferred_invoke(JS::create_heap_function(realm.heap(), [&realm, storage_key, name, version, request] {
+    Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(realm.heap(), [&realm, storage_key, name, version, request] {
         HTML::TemporaryExecutionContext context(realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes);
 
         // 1. Let result be the result of opening a database connection, with storageKey, name, version if given and undefined otherwise, and request.
         auto result = open_a_database_connection(realm, storage_key.value(), name, version, request);
 
         // 2. Queue a task to run these steps:
-        HTML::queue_a_task(HTML::Task::Source::DatabaseAccess, nullptr, nullptr, JS::create_heap_function(realm.heap(), [&realm, &request, result = move(result)]() mutable {
+        HTML::queue_a_task(HTML::Task::Source::DatabaseAccess, nullptr, nullptr, GC::create_function(realm.heap(), [&realm, &request, result = move(result)]() mutable {
             // 1. If result is an error, then:
             if (result.is_error()) {
                 // 1. Set request’s result to undefined.
                 request->set_result(JS::js_undefined());
 
                 // 2. Set request’s error to result.
-                request->set_error(result.exception().get<JS::NonnullGCPtr<WebIDL::DOMException>>());
+                request->set_error(result.exception().get<GC::Ref<WebIDL::DOMException>>());
 
                 // 3. Set request’s done flag to true.
                 request->set_done(true);

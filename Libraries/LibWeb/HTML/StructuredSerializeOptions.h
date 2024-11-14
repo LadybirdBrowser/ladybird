@@ -13,7 +13,7 @@ namespace Web::HTML {
 
 // https://html.spec.whatwg.org/multipage/web-messaging.html#structuredserializeoptions
 struct StructuredSerializeOptions {
-    Vector<JS::Handle<JS::Object>> transfer;
+    Vector<GC::Root<JS::Object>> transfer;
 };
 
 }

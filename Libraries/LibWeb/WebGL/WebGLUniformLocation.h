@@ -12,7 +12,7 @@ namespace Web::WebGL {
 
 class WebGLUniformLocation final : public WebGLObject {
     WEB_PLATFORM_OBJECT(WebGLUniformLocation, WebGLObject);
-    JS_DECLARE_ALLOCATOR(WebGLUniformLocation);
+    GC_DECLARE_ALLOCATOR(WebGLUniformLocation);
 
 public:
     virtual ~WebGLUniformLocation();

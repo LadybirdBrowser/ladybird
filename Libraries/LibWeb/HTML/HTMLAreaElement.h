@@ -16,11 +16,11 @@ class HTMLAreaElement final
     : public HTMLElement
     , public HTMLHyperlinkElementUtils {
     WEB_PLATFORM_OBJECT(HTMLAreaElement, HTMLElement);
-    JS_DECLARE_ALLOCATOR(HTMLAreaElement);
+    GC_DECLARE_ALLOCATOR(HTMLAreaElement);
 
 public:
     virtual ~HTMLAreaElement() override;
-    JS::NonnullGCPtr<DOM::DOMTokenList> rel_list();
+    GC::Ref<DOM::DOMTokenList> rel_list();
 
 private:
     HTMLAreaElement(DOM::Document&, DOM::QualifiedName);
@@ -55,7 +55,7 @@ private:
 
     virtual Optional<ARIA::Role> default_role() const override;
 
-    JS::GCPtr<DOM::DOMTokenList> m_rel_list;
+    GC::Ptr<DOM::DOMTokenList> m_rel_list;
 };
 
 }

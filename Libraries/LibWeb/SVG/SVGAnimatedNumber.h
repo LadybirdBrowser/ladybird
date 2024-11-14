@@ -14,10 +14,10 @@ namespace Web::SVG {
 // https://www.w3.org/TR/SVG11/types.html#InterfaceSVGAnimatedNumber
 class SVGAnimatedNumber final : public Bindings::PlatformObject {
     WEB_PLATFORM_OBJECT(SVGAnimatedNumber, Bindings::PlatformObject);
-    JS_DECLARE_ALLOCATOR(SVGAnimatedNumber);
+    GC_DECLARE_ALLOCATOR(SVGAnimatedNumber);
 
 public:
-    [[nodiscard]] static JS::NonnullGCPtr<SVGAnimatedNumber> create(JS::Realm&, float base_val, float anim_val);
+    [[nodiscard]] static GC::Ref<SVGAnimatedNumber> create(JS::Realm&, float base_val, float anim_val);
     virtual ~SVGAnimatedNumber() override;
 
     float base_val() const { return m_base_val; }

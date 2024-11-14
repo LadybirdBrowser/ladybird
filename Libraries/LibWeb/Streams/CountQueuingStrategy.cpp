@@ -12,10 +12,10 @@
 
 namespace Web::Streams {
 
-JS_DEFINE_ALLOCATOR(CountQueuingStrategy);
+GC_DEFINE_ALLOCATOR(CountQueuingStrategy);
 
 // https://streams.spec.whatwg.org/#blqs-constructor
-JS::NonnullGCPtr<CountQueuingStrategy> CountQueuingStrategy::construct_impl(JS::Realm& realm, QueuingStrategyInit const& init)
+GC::Ref<CountQueuingStrategy> CountQueuingStrategy::construct_impl(JS::Realm& realm, QueuingStrategyInit const& init)
 {
     // The new CountQueuingStrategy(init) constructor steps are:
     // 1. Set this.[[highWaterMark]] to init["highWaterMark"].
@@ -31,7 +31,7 @@ CountQueuingStrategy::CountQueuingStrategy(JS::Realm& realm, double high_water_m
 CountQueuingStrategy::~CountQueuingStrategy() = default;
 
 // https://streams.spec.whatwg.org/#cqs-size
-JS::NonnullGCPtr<WebIDL::CallbackType> CountQueuingStrategy::size()
+GC::Ref<WebIDL::CallbackType> CountQueuingStrategy::size()
 {
     // 1. Return this's relevant global object's count queuing strategy size function.
     return verify_cast<HTML::Window>(HTML::relevant_global_object(*this)).count_queuing_strategy_size_function();

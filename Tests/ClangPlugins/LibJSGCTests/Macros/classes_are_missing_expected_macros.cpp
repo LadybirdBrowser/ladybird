@@ -9,7 +9,7 @@
 #include <LibJS/Runtime/PrototypeObject.h>
 #include <LibWeb/Bindings/PlatformObject.h>
 
-// expected-error@+1 {{Expected record to have a JS_CELL macro invocation}}
+// expected-error@+1 {{Expected record to have a GC_CELL macro invocation}}
 class TestCellClass : JS::Cell {
 };
 

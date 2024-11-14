@@ -13,7 +13,7 @@
 
 namespace Web::HTML {
 
-JS_DEFINE_ALLOCATOR(HTMLHRElement);
+GC_DEFINE_ALLOCATOR(HTMLHRElement);
 
 HTMLHRElement::HTMLHRElement(DOM::Document& document, DOM::QualifiedName qualified_name)
     : HTMLElement(document, move(qualified_name))

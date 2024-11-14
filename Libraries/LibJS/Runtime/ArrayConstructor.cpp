@@ -22,7 +22,7 @@
 
 namespace JS {
 
-JS_DEFINE_ALLOCATOR(ArrayConstructor);
+GC_DEFINE_ALLOCATOR(ArrayConstructor);
 
 ArrayConstructor::ArrayConstructor(Realm& realm)
     : NativeFunction(realm.vm().names.Array.as_string(), realm.intrinsics().function_prototype())
@@ -57,7 +57,7 @@ ThrowCompletionOr<Value> ArrayConstructor::call()
 }
 
 // 23.1.1.1 Array ( ...values ), https://tc39.es/ecma262/#sec-array
-ThrowCompletionOr<NonnullGCPtr<Object>> ArrayConstructor::construct(FunctionObject& new_target)
+ThrowCompletionOr<GC::Ref<Object>> ArrayConstructor::construct(FunctionObject& new_target)
 {
     auto& vm = this->vm();
     auto& realm = *vm.current_realm();
@@ -149,7 +149,7 @@ JS_DEFINE_NATIVE_FUNCTION(ArrayConstructor::from)
     auto constructor = vm.this_value();
 
     // 2. If mapfn is undefined, let mapping be false.
-    GCPtr<FunctionObject> mapfn;
+    GC::Ptr<FunctionObject> mapfn;
 
     // 3. Else,
     if (!mapfn_value.is_undefined()) {
@@ -166,7 +166,7 @@ JS_DEFINE_NATIVE_FUNCTION(ArrayConstructor::from)
 
     // 5. If usingIterator is not undefined, then
     if (using_iterator) {
-        GCPtr<Object> array;
+        GC::Ptr<Object> array;
 
         // a. If IsConstructor(C) is true, then
         if (constructor.is_constructor()) {
@@ -245,7 +245,7 @@ JS_DEFINE_NATIVE_FUNCTION(ArrayConstructor::from)
     // 8. Let len be ? LengthOfArrayLike(arrayLike).
     auto length = TRY(length_of_array_like(vm, array_like));
 
-    GCPtr<Object> array;
+    GC::Ptr<Object> array;
 
     // 9. If IsConstructor(C) is true, then
     if (constructor.is_constructor()) {
@@ -306,7 +306,7 @@ JS_DEFINE_NATIVE_FUNCTION(ArrayConstructor::from_async)
     auto promise_capability = MUST(new_promise_capability(vm, realm.intrinsics().promise_constructor()));
 
     // 3. Let fromAsyncClosure be a new Abstract Closure with no parameters that captures C, mapfn, and thisArg and performs the following steps when called:
-    auto from_async_closure = create_heap_function(realm.heap(), [constructor, mapfn, this_arg, &vm, &realm, async_items]() mutable -> Completion {
+    auto from_async_closure = GC::create_function(realm.heap(), [constructor, mapfn, this_arg, &vm, &realm, async_items]() mutable -> Completion {
         bool mapping;
 
         // a. If mapfn is undefined, let mapping be false.
@@ -326,7 +326,7 @@ JS_DEFINE_NATIVE_FUNCTION(ArrayConstructor::from_async)
         // c. Let usingAsyncIterator be ? GetMethod(asyncItems, @@asyncIterator).
         auto using_async_iterator = TRY(async_items.get_method(vm, vm.well_known_symbol_async_iterator()));
 
-        GCPtr<FunctionObject> using_sync_iterator;
+        GC::Ptr<FunctionObject> using_sync_iterator;
 
         // d. If usingAsyncIterator is undefined, then
         if (!using_async_iterator) {
@@ -335,7 +335,7 @@ JS_DEFINE_NATIVE_FUNCTION(ArrayConstructor::from_async)
         }
 
         // e. Let iteratorRecord be undefined.
-        GCPtr<IteratorRecord> iterator_record;
+        GC::Ptr<IteratorRecord> iterator_record;
 
         // f. If usingAsyncIterator is not undefined, then
         if (using_async_iterator) {
@@ -352,7 +352,7 @@ JS_DEFINE_NATIVE_FUNCTION(ArrayConstructor::from_async)
 
         // h. If iteratorRecord is not undefined, then
         if (iterator_record) {
-            GCPtr<Object> array;
+            GC::Ptr<Object> array;
 
             // i. If IsConstructor(C) is true, then
             if (constructor.is_constructor()) {
@@ -458,7 +458,7 @@ JS_DEFINE_NATIVE_FUNCTION(ArrayConstructor::from_async)
             // iii. Let len be ? LengthOfArrayLike(arrayLike).
             auto length = TRY(length_of_array_like(vm, array_like));
 
-            GCPtr<Object> array;
+            GC::Ptr<Object> array;
 
             // iv. If IsConstructor(C) is true, then
             if (constructor.is_constructor()) {
@@ -542,7 +542,7 @@ JS_DEFINE_NATIVE_FUNCTION(ArrayConstructor::of)
     // 3. Let C be the this value.
     auto constructor = vm.this_value();
 
-    GCPtr<Object> array;
+    GC::Ptr<Object> array;
 
     // 4. If IsConstructor(C) is true, then
     if (constructor.is_constructor()) {

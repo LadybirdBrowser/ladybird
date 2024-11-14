@@ -18,17 +18,17 @@ namespace Web::CSS {
 
 class FontFaceSet final : public DOM::EventTarget {
     WEB_PLATFORM_OBJECT(FontFaceSet, DOM::EventTarget);
-    JS_DECLARE_ALLOCATOR(FontFaceSet);
+    GC_DECLARE_ALLOCATOR(FontFaceSet);
 
 public:
-    [[nodiscard]] static JS::NonnullGCPtr<FontFaceSet> construct_impl(JS::Realm&, Vector<JS::Handle<FontFace>> const& initial_faces);
-    [[nodiscard]] static JS::NonnullGCPtr<FontFaceSet> create(JS::Realm&);
+    [[nodiscard]] static GC::Ref<FontFaceSet> construct_impl(JS::Realm&, Vector<GC::Root<FontFace>> const& initial_faces);
+    [[nodiscard]] static GC::Ref<FontFaceSet> create(JS::Realm&);
     virtual ~FontFaceSet() override = default;
 
-    JS::NonnullGCPtr<JS::Set> set_entries() const { return m_set_entries; }
+    GC::Ref<JS::Set> set_entries() const { return m_set_entries; }
 
-    WebIDL::ExceptionOr<JS::NonnullGCPtr<FontFaceSet>> add(JS::Handle<FontFace>);
-    bool delete_(JS::Handle<FontFace>);
+    WebIDL::ExceptionOr<GC::Ref<FontFaceSet>> add(GC::Root<FontFace>);
+    bool delete_(GC::Root<FontFace>);
     void clear();
 
     void set_onloading(WebIDL::CallbackType*);
@@ -38,25 +38,25 @@ public:
     void set_onloadingerror(WebIDL::CallbackType*);
     WebIDL::CallbackType* onloadingerror();
 
-    JS::ThrowCompletionOr<JS::NonnullGCPtr<WebIDL::Promise>> load(String const& font, String const& text);
+    JS::ThrowCompletionOr<GC::Ref<WebIDL::Promise>> load(String const& font, String const& text);
 
-    JS::NonnullGCPtr<WebIDL::Promise> ready() const;
+    GC::Ref<WebIDL::Promise> ready() const;
     Bindings::FontFaceSetLoadStatus status() const { return m_status; }
 
     void resolve_ready_promise();
 
 private:
-    FontFaceSet(JS::Realm&, JS::NonnullGCPtr<WebIDL::Promise> ready_promise, JS::NonnullGCPtr<JS::Set> set_entries);
+    FontFaceSet(JS::Realm&, GC::Ref<WebIDL::Promise> ready_promise, GC::Ref<JS::Set> set_entries);
 
     virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Cell::Visitor&) override;
 
-    JS::NonnullGCPtr<JS::Set> m_set_entries;
-    JS::NonnullGCPtr<WebIDL::Promise> m_ready_promise; // [[ReadyPromise]]
+    GC::Ref<JS::Set> m_set_entries;
+    GC::Ref<WebIDL::Promise> m_ready_promise; // [[ReadyPromise]]
 
-    Vector<JS::NonnullGCPtr<FontFace>> m_loading_fonts {}; // [[LoadingFonts]]
-    Vector<JS::NonnullGCPtr<FontFace>> m_loaded_fonts {};  // [[LoadedFonts]]
-    Vector<JS::NonnullGCPtr<FontFace>> m_failed_fonts {};  // [[FailedFonts]]
+    Vector<GC::Ref<FontFace>> m_loading_fonts {}; // [[LoadingFonts]]
+    Vector<GC::Ref<FontFace>> m_loaded_fonts {};  // [[LoadedFonts]]
+    Vector<GC::Ref<FontFace>> m_failed_fonts {};  // [[FailedFonts]]
 
     Bindings::FontFaceSetLoadStatus m_status { Bindings::FontFaceSetLoadStatus::Loading };
 };

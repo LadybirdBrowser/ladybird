@@ -17,7 +17,7 @@ class HTMLFieldSetElement final
     : public HTMLElement
     , public FormAssociatedElement {
     WEB_PLATFORM_OBJECT(HTMLFieldSetElement, HTMLElement);
-    JS_DECLARE_ALLOCATOR(HTMLFieldSetElement);
+    GC_DECLARE_ALLOCATOR(HTMLFieldSetElement);
     FORM_ASSOCIATED_ELEMENT(HTMLElement, HTMLFieldSetElement)
 
 public:
@@ -31,7 +31,7 @@ public:
 
     bool is_disabled() const;
 
-    JS::GCPtr<DOM::HTMLCollection> const& elements();
+    GC::Ptr<DOM::HTMLCollection> const& elements();
 
     // ^FormAssociatedElement
     // https://html.spec.whatwg.org/multipage/forms.html#category-listed
@@ -48,7 +48,7 @@ private:
     virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Cell::Visitor&) override;
 
-    JS::GCPtr<DOM::HTMLCollection> m_elements;
+    GC::Ptr<DOM::HTMLCollection> m_elements;
 };
 
 }

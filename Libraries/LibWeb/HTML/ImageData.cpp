@@ -16,10 +16,10 @@
 
 namespace Web::HTML {
 
-JS_DEFINE_ALLOCATOR(ImageData);
+GC_DEFINE_ALLOCATOR(ImageData);
 
 // https://html.spec.whatwg.org/multipage/canvas.html#dom-imagedata
-WebIDL::ExceptionOr<JS::NonnullGCPtr<ImageData>> ImageData::create(JS::Realm& realm, u32 sw, u32 sh, Optional<ImageDataSettings> const&)
+WebIDL::ExceptionOr<GC::Ref<ImageData>> ImageData::create(JS::Realm& realm, u32 sw, u32 sh, Optional<ImageDataSettings> const&)
 {
     auto& vm = realm.vm();
 
@@ -43,13 +43,13 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<ImageData>> ImageData::create(JS::Realm& re
     return realm.create<ImageData>(realm, bitmap, data);
 }
 
-WebIDL::ExceptionOr<JS::NonnullGCPtr<ImageData>> ImageData::construct_impl(JS::Realm& realm, u32 sw, u32 sh, Optional<ImageDataSettings> const& settings)
+WebIDL::ExceptionOr<GC::Ref<ImageData>> ImageData::construct_impl(JS::Realm& realm, u32 sw, u32 sh, Optional<ImageDataSettings> const& settings)
 {
     return ImageData::create(realm, sw, sh, settings);
 }
 
 // https://html.spec.whatwg.org/multipage/canvas.html#dom-imagedata-with-data
-WebIDL::ExceptionOr<JS::NonnullGCPtr<ImageData>> ImageData::create(JS::Realm& realm, JS::Handle<WebIDL::BufferSource> const& data, u32 sw, Optional<u32> sh, Optional<ImageDataSettings> const&)
+WebIDL::ExceptionOr<GC::Ref<ImageData>> ImageData::create(JS::Realm& realm, GC::Root<WebIDL::BufferSource> const& data, u32 sw, Optional<u32> sh, Optional<ImageDataSettings> const&)
 {
     auto& vm = realm.vm();
 
@@ -87,12 +87,12 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<ImageData>> ImageData::create(JS::Realm& re
     return realm.create<ImageData>(realm, bitmap, uint8_clamped_array_data);
 }
 
-WebIDL::ExceptionOr<JS::NonnullGCPtr<ImageData>> ImageData::construct_impl(JS::Realm& realm, JS::Handle<WebIDL::BufferSource> const& data, u32 sw, Optional<u32> sh, Optional<ImageDataSettings> const& settings)
+WebIDL::ExceptionOr<GC::Ref<ImageData>> ImageData::construct_impl(JS::Realm& realm, GC::Root<WebIDL::BufferSource> const& data, u32 sw, Optional<u32> sh, Optional<ImageDataSettings> const& settings)
 {
     return ImageData::create(realm, data, sw, move(sh), settings);
 }
 
-ImageData::ImageData(JS::Realm& realm, NonnullRefPtr<Gfx::Bitmap> bitmap, JS::NonnullGCPtr<JS::Uint8ClampedArray> data)
+ImageData::ImageData(JS::Realm& realm, NonnullRefPtr<Gfx::Bitmap> bitmap, GC::Ref<JS::Uint8ClampedArray> data)
     : PlatformObject(realm)
     , m_bitmap(move(bitmap))
     , m_data(move(data))

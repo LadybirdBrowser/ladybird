@@ -19,7 +19,7 @@
 
 namespace Web::SVG {
 
-JS_DEFINE_ALLOCATOR(SVGSymbolElement);
+GC_DEFINE_ALLOCATOR(SVGSymbolElement);
 
 SVGSymbolElement::SVGSymbolElement(DOM::Document& document, DOM::QualifiedName qualified_name)
     : SVGGraphicsElement(document, qualified_name)
@@ -75,7 +75,7 @@ bool SVGSymbolElement::is_direct_child_of_use_shadow_tree() const
     return is<SVGUseElement>(host);
 }
 
-JS::GCPtr<Layout::Node> SVGSymbolElement::create_layout_node(CSS::StyleProperties style)
+GC::Ptr<Layout::Node> SVGSymbolElement::create_layout_node(CSS::StyleProperties style)
 {
     return heap().allocate<Layout::SVGGraphicsBox>(document(), *this, move(style));
 }

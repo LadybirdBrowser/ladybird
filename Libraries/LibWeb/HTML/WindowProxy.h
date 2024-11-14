@@ -7,8 +7,8 @@
 #pragma once
 
 #include <AK/Forward.h>
+#include <LibGC/Ptr.h>
 #include <LibJS/Forward.h>
-#include <LibJS/Heap/GCPtr.h>
 #include <LibJS/Runtime/Object.h>
 #include <LibWeb/Forward.h>
 
@@ -16,7 +16,7 @@ namespace Web::HTML {
 
 class WindowProxy final : public JS::Object {
     JS_OBJECT(WindowProxy, JS::Object);
-    JS_DECLARE_ALLOCATOR(WindowProxy);
+    GC_DECLARE_ALLOCATOR(WindowProxy);
 
 public:
     virtual ~WindowProxy() override = default;
@@ -30,12 +30,12 @@ public:
     virtual JS::ThrowCompletionOr<JS::Value> internal_get(JS::PropertyKey const&, JS::Value receiver, JS::CacheablePropertyMetadata*, PropertyLookupPhase) const override;
     virtual JS::ThrowCompletionOr<bool> internal_set(JS::PropertyKey const&, JS::Value value, JS::Value receiver, JS::CacheablePropertyMetadata*) override;
     virtual JS::ThrowCompletionOr<bool> internal_delete(JS::PropertyKey const&) override;
-    virtual JS::ThrowCompletionOr<JS::MarkedVector<JS::Value>> internal_own_property_keys() const override;
+    virtual JS::ThrowCompletionOr<GC::MarkedVector<JS::Value>> internal_own_property_keys() const override;
 
-    JS::GCPtr<Window> window() const { return m_window; }
-    void set_window(JS::NonnullGCPtr<Window>);
+    GC::Ptr<Window> window() const { return m_window; }
+    void set_window(GC::Ref<Window>);
 
-    JS::NonnullGCPtr<BrowsingContext> associated_browsing_context() const;
+    GC::Ref<BrowsingContext> associated_browsing_context() const;
 
 private:
     explicit WindowProxy(JS::Realm&);
@@ -43,7 +43,7 @@ private:
     virtual void visit_edges(JS::Cell::Visitor&) override;
 
     // [[Window]], https://html.spec.whatwg.org/multipage/window-object.html#concept-windowproxy-window
-    JS::GCPtr<Window> m_window;
+    GC::Ptr<Window> m_window;
 };
 
 }

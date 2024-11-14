@@ -6,7 +6,7 @@
 
 #include <AK/ScopeGuard.h>
 #include <LibCore/EventLoop.h>
-#include <LibJS/Heap/Heap.h>
+#include <LibGC/Heap.h>
 #include <LibJS/Runtime/Realm.h>
 #include <LibJS/Runtime/VM.h>
 #include <LibWeb/Bindings/EventSourcePrototype.h>
@@ -29,10 +29,10 @@
 
 namespace Web::HTML {
 
-JS_DEFINE_ALLOCATOR(EventSource);
+GC_DEFINE_ALLOCATOR(EventSource);
 
 // https://html.spec.whatwg.org/multipage/server-sent-events.html#dom-eventsource
-WebIDL::ExceptionOr<JS::NonnullGCPtr<EventSource>> EventSource::construct_impl(JS::Realm& realm, StringView url, EventSourceInit event_source_init_dict)
+WebIDL::ExceptionOr<GC::Ref<EventSource>> EventSource::construct_impl(JS::Realm& realm, StringView url, EventSourceInit event_source_init_dict)
 {
     auto& vm = realm.vm();
 
@@ -87,7 +87,7 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<EventSource>> EventSource::construct_impl(J
 
     // 14. Let processEventSourceEndOfBody given response res be the following step: if res is not a network error, then
     //     reestablish the connection.
-    auto process_event_source_end_of_body = [event_source](JS::NonnullGCPtr<Fetch::Infrastructure::Response> response) {
+    auto process_event_source_end_of_body = [event_source](GC::Ref<Fetch::Infrastructure::Response> response) {
         if (!response->is_network_error())
             event_source->reestablish_the_connection();
     };
@@ -97,7 +97,7 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<EventSource>> EventSource::construct_impl(J
     Fetch::Infrastructure::FetchAlgorithms::Input fetch_algorithms_input {};
     fetch_algorithms_input.process_response_end_of_body = move(process_event_source_end_of_body);
 
-    fetch_algorithms_input.process_response = [event_source](JS::NonnullGCPtr<Fetch::Infrastructure::Response> response) {
+    fetch_algorithms_input.process_response = [event_source](GC::Ref<Fetch::Infrastructure::Response> response) {
         auto& realm = event_source->realm();
 
         // FIXME: If the response is CORS cross-origin, we must use its internal response to query any of its data. See:
@@ -130,7 +130,7 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<EventSource>> EventSource::construct_impl(J
         else {
             event_source->announce_the_connection();
 
-            auto process_body_chunk = JS::create_heap_function(realm.heap(), [event_source, pending_data = ByteBuffer()](ByteBuffer body) mutable {
+            auto process_body_chunk = GC::create_function(realm.heap(), [event_source, pending_data = ByteBuffer()](ByteBuffer body) mutable {
                 if (pending_data.is_empty())
                     pending_data = move(body);
                 else
@@ -146,10 +146,10 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<EventSource>> EventSource::construct_impl(J
                 pending_data = MUST(pending_data.slice(end_index, pending_data.size() - end_index));
             });
 
-            auto process_end_of_body = JS::create_heap_function(realm.heap(), []() {
+            auto process_end_of_body = GC::create_function(realm.heap(), []() {
                 // This case is handled by `process_event_source_end_of_body` above.
             });
-            auto process_body_error = JS::create_heap_function(realm.heap(), [](JS::Value) {
+            auto process_body_error = GC::create_function(realm.heap(), [](JS::Value) {
                 // This case is handled by `process_event_source_end_of_body` above.
             });
 
@@ -269,7 +269,7 @@ void EventSource::announce_the_connection()
     // When a user agent is to announce the connection, the user agent must queue a task which, if the readyState attribute
     // is set to a value other than CLOSED, sets the readyState attribute to OPEN and fires an event named open at the
     // EventSource object.
-    HTML::queue_a_task(HTML::Task::Source::RemoteEvent, nullptr, nullptr, JS::create_heap_function(heap(), [this]() {
+    HTML::queue_a_task(HTML::Task::Source::RemoteEvent, nullptr, nullptr, GC::create_function(heap(), [this]() {
         if (m_ready_state != ReadyState::Closed) {
             m_ready_state = ReadyState::Open;
             dispatch_event(DOM::Event::create(realm(), HTML::EventNames::open));
@@ -283,7 +283,7 @@ void EventSource::reestablish_the_connection()
     bool initial_task_has_run { false };
 
     // 1. Queue a task to run the following steps:
-    HTML::queue_a_task(HTML::Task::Source::RemoteEvent, nullptr, nullptr, JS::create_heap_function(heap(), [&]() {
+    HTML::queue_a_task(HTML::Task::Source::RemoteEvent, nullptr, nullptr, GC::create_function(heap(), [&]() {
         ScopeGuard guard { [&]() { initial_task_has_run = true; } };
 
         // 1. If the readyState attribute is set to CLOSED, abort the task.
@@ -298,7 +298,7 @@ void EventSource::reestablish_the_connection()
     }));
 
     // 2. Wait a delay equal to the reconnection time of the event source.
-    HTML::main_thread_event_loop().spin_until(JS::create_heap_function(heap(), [&, delay_start = MonotonicTime::now()]() {
+    HTML::main_thread_event_loop().spin_until(GC::create_function(heap(), [&, delay_start = MonotonicTime::now()]() {
         return (MonotonicTime::now() - delay_start) >= m_reconnection_time;
     }));
 
@@ -309,17 +309,17 @@ void EventSource::reestablish_the_connection()
 
     // 4. Wait until the aforementioned task has run, if it has not yet run.
     if (!initial_task_has_run) {
-        HTML::main_thread_event_loop().spin_until(JS::create_heap_function(heap(), [&]() { return initial_task_has_run; }));
+        HTML::main_thread_event_loop().spin_until(GC::create_function(heap(), [&]() { return initial_task_has_run; }));
     }
 
     // 5. Queue a task to run the following steps:
-    HTML::queue_a_task(HTML::Task::Source::RemoteEvent, nullptr, nullptr, JS::create_heap_function(heap(), [this]() {
+    HTML::queue_a_task(HTML::Task::Source::RemoteEvent, nullptr, nullptr, GC::create_function(heap(), [this]() {
         // 1. If the EventSource object's readyState attribute is not set to CONNECTING, then return.
         if (m_ready_state != ReadyState::Connecting)
             return;
 
         // 2. Let request be the EventSource object's request.
-        JS::NonnullGCPtr request { *m_request };
+        GC::Ref request { *m_request };
 
         // 3. If the EventSource object's last event ID string is not the empty string, then:
         if (!m_last_event_id.is_empty()) {
@@ -340,7 +340,7 @@ void EventSource::fail_the_connection()
     // When a user agent is to fail the connection, the user agent must queue a task which, if the readyState attribute
     // is set to a value other than CLOSED, sets the readyState attribute to CLOSED and fires an event named error at the
     // EventSource object. Once the user agent has failed the connection, it does not attempt to reconnect.
-    HTML::queue_a_task(HTML::Task::Source::RemoteEvent, nullptr, nullptr, JS::create_heap_function(heap(), [this]() {
+    HTML::queue_a_task(HTML::Task::Source::RemoteEvent, nullptr, nullptr, GC::create_function(heap(), [this]() {
         if (m_ready_state != ReadyState::Closed) {
             m_ready_state = ReadyState::Closed;
             dispatch_event(DOM::Event::create(realm(), HTML::EventNames::error));
@@ -461,7 +461,7 @@ void EventSource::dispatch_the_event()
 
     // 8. Queue a task which, if the readyState attribute is set to a value other than CLOSED, dispatches the newly created
     //    event at the EventSource object.
-    HTML::queue_a_task(HTML::Task::Source::RemoteEvent, nullptr, nullptr, JS::create_heap_function(heap(), [this, event]() {
+    HTML::queue_a_task(HTML::Task::Source::RemoteEvent, nullptr, nullptr, GC::create_function(heap(), [this, event]() {
         if (m_ready_state != ReadyState::Closed)
             dispatch_event(event);
     }));

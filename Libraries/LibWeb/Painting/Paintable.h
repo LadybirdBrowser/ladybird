@@ -7,7 +7,7 @@
 #pragma once
 
 #include <AK/NonnullOwnPtr.h>
-#include <LibJS/Heap/Handle.h>
+#include <LibGC/Root.h>
 #include <LibWeb/InvalidateDisplayList.h>
 #include <LibWeb/Layout/LineBox.h>
 #include <LibWeb/TraversalDecision.h>
@@ -25,7 +25,7 @@ enum class PaintPhase {
 };
 
 struct HitTestResult {
-    JS::Handle<Paintable> paintable;
+    GC::Root<Paintable> paintable;
     int index_in_node { 0 };
     Optional<CSSPixels> vertical_distance {};
     Optional<CSSPixels> horizontal_distance {};
@@ -50,7 +50,7 @@ enum class HitTestType {
 class Paintable
     : public JS::Cell
     , public TreeNode<Paintable> {
-    JS_CELL(Paintable, JS::Cell);
+    GC_CELL(Paintable, JS::Cell);
 
 public:
     virtual ~Paintable();
@@ -190,15 +190,15 @@ public:
     Layout::Node const& layout_node() const { return m_layout_node; }
     Layout::Node& layout_node() { return const_cast<Layout::Node&>(*m_layout_node); }
 
-    [[nodiscard]] JS::GCPtr<DOM::Node> dom_node();
-    [[nodiscard]] JS::GCPtr<DOM::Node const> dom_node() const;
-    void set_dom_node(JS::GCPtr<DOM::Node>);
+    [[nodiscard]] GC::Ptr<DOM::Node> dom_node();
+    [[nodiscard]] GC::Ptr<DOM::Node const> dom_node() const;
+    void set_dom_node(GC::Ptr<DOM::Node>);
 
     CSS::ImmutableComputedValues const& computed_values() const;
 
     bool visible_for_hit_testing() const { return computed_values().pointer_events() != CSS::PointerEvents::None; }
 
-    JS::GCPtr<HTML::Navigable> navigable() const;
+    GC::Ptr<HTML::Navigable> navigable() const;
 
     virtual void set_needs_display(InvalidateDisplayList = InvalidateDisplayList::Yes);
 
@@ -247,9 +247,9 @@ protected:
 
 private:
     IntrusiveListNode<Paintable> m_list_node;
-    JS::GCPtr<DOM::Node> m_dom_node;
-    JS::NonnullGCPtr<Layout::Node const> m_layout_node;
-    Optional<JS::GCPtr<PaintableBox>> mutable m_containing_block;
+    GC::Ptr<DOM::Node> m_dom_node;
+    GC::Ref<Layout::Node const> m_layout_node;
+    Optional<GC::Ptr<PaintableBox>> mutable m_containing_block;
 
     OwnPtr<StackingContext> m_stacking_context;
 

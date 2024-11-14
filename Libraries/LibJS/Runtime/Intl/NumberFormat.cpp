@@ -23,8 +23,8 @@
 
 namespace JS::Intl {
 
-JS_DEFINE_ALLOCATOR(NumberFormatBase);
-JS_DEFINE_ALLOCATOR(NumberFormat);
+GC_DEFINE_ALLOCATOR(NumberFormatBase);
+GC_DEFINE_ALLOCATOR(NumberFormat);
 
 NumberFormatBase::NumberFormatBase(Object& prototype)
     : Object(ConstructWithPrototypeTag::Tag, prototype)
@@ -149,7 +149,7 @@ String format_numeric(NumberFormat const& number_format, MathematicalValue const
 }
 
 // 15.5.7 FormatNumericToParts ( numberFormat, x ), https://tc39.es/ecma402/#sec-formatnumbertoparts
-NonnullGCPtr<Array> format_numeric_to_parts(VM& vm, NumberFormat const& number_format, MathematicalValue const& number)
+GC::Ref<Array> format_numeric_to_parts(VM& vm, NumberFormat const& number_format, MathematicalValue const& number)
 {
     auto& realm = *vm.current_realm();
 
@@ -266,7 +266,7 @@ ThrowCompletionOr<String> format_numeric_range(VM& vm, NumberFormat const& numbe
 }
 
 // 15.5.23 FormatNumericRangeToParts ( numberFormat, x, y ), https://tc39.es/ecma402/#sec-formatnumericrangetoparts
-ThrowCompletionOr<NonnullGCPtr<Array>> format_numeric_range_to_parts(VM& vm, NumberFormat const& number_format, MathematicalValue const& start, MathematicalValue const& end)
+ThrowCompletionOr<GC::Ref<Array>> format_numeric_range_to_parts(VM& vm, NumberFormat const& number_format, MathematicalValue const& start, MathematicalValue const& end)
 {
     auto& realm = *vm.current_realm();
 

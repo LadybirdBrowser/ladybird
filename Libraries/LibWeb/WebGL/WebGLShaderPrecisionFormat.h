@@ -12,7 +12,7 @@ namespace Web::WebGL {
 
 class WebGLShaderPrecisionFormat final : public WebGLObject {
     WEB_PLATFORM_OBJECT(WebGLShaderPrecisionFormat, WebGLObject);
-    JS_DECLARE_ALLOCATOR(WebGLShaderPrecisionFormat);
+    GC_DECLARE_ALLOCATOR(WebGLShaderPrecisionFormat);
 
 public:
     virtual ~WebGLShaderPrecisionFormat();

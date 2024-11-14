@@ -16,7 +16,7 @@ SVGImageBox::SVGImageBox(DOM::Document& document, SVG::SVGGraphicsElement& eleme
 {
 }
 
-JS::GCPtr<Painting::Paintable> SVGImageBox::create_paintable() const
+GC::Ptr<Painting::Paintable> SVGImageBox::create_paintable() const
 {
     return Painting::ImagePaintable::create(*this);
 }

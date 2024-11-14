@@ -13,15 +13,15 @@
 
 namespace Web::HTML {
 
-using HTMLOptionOrOptGroupElement = Variant<JS::Handle<HTMLOptionElement>, JS::Handle<HTMLOptGroupElement>>;
-using HTMLElementOrElementIndex = Variant<JS::Handle<HTMLElement>, i32>;
+using HTMLOptionOrOptGroupElement = Variant<GC::Root<HTMLOptionElement>, GC::Root<HTMLOptGroupElement>>;
+using HTMLElementOrElementIndex = Variant<GC::Root<HTMLElement>, i32>;
 
 class HTMLOptionsCollection final : public DOM::HTMLCollection {
     WEB_PLATFORM_OBJECT(HTMLOptionsCollection, DOM::HTMLCollection);
-    JS_DECLARE_ALLOCATOR(HTMLOptionsCollection);
+    GC_DECLARE_ALLOCATOR(HTMLOptionsCollection);
 
 public:
-    [[nodiscard]] static JS::NonnullGCPtr<HTMLOptionsCollection> create(DOM::ParentNode& root, ESCAPING Function<bool(DOM::Element const&)> filter);
+    [[nodiscard]] static GC::Ref<HTMLOptionsCollection> create(DOM::ParentNode& root, ESCAPING Function<bool(DOM::Element const&)> filter);
     virtual ~HTMLOptionsCollection() override;
 
     WebIDL::ExceptionOr<void> set_value_of_indexed_property(u32, JS::Value) override;

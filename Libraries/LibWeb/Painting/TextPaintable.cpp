@@ -12,9 +12,9 @@
 
 namespace Web::Painting {
 
-JS_DEFINE_ALLOCATOR(TextPaintable);
+GC_DEFINE_ALLOCATOR(TextPaintable);
 
-JS::NonnullGCPtr<TextPaintable> TextPaintable::create(Layout::TextNode const& layout_node, String const& text_for_rendering)
+GC::Ref<TextPaintable> TextPaintable::create(Layout::TextNode const& layout_node, String const& text_for_rendering)
 {
     return layout_node.heap().allocate<TextPaintable>(layout_node, text_for_rendering);
 }

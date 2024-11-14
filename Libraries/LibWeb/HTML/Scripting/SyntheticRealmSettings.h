@@ -6,8 +6,8 @@
 
 #pragma once
 
+#include <LibGC/Ptr.h>
 #include <LibJS/Forward.h>
-#include <LibJS/Heap/GCPtr.h>
 #include <LibWeb/Forward.h>
 
 namespace Web::HTML {
@@ -21,15 +21,15 @@ struct SyntheticRealmSettings {
 
     // A principal realm
     // The principal realm which this synthetic realm exists within.
-    JS::NonnullGCPtr<JS::Realm> principal_realm;
+    GC::Ref<JS::Realm> principal_realm;
 
     // An underlying realm
     // The synthetic realm which this settings object represents.
-    JS::NonnullGCPtr<JS::Realm> underlying_realm;
+    GC::Ref<JS::Realm> underlying_realm;
 
     // A module map
     // A module map that is used when importing JavaScript modules.
-    JS::NonnullGCPtr<ModuleMap> module_map;
+    GC::Ref<ModuleMap> module_map;
 
     void visit_edges(JS::Cell::Visitor&);
 };

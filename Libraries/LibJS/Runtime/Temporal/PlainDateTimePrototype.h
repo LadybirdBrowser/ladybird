@@ -13,7 +13,7 @@ namespace JS::Temporal {
 
 class PlainDateTimePrototype final : public PrototypeObject<PlainDateTimePrototype, PlainDateTime> {
     JS_PROTOTYPE_OBJECT(PlainDateTimePrototype, PlainDateTime, Temporal.PlainDateTime);
-    JS_DECLARE_ALLOCATOR(PlainDateTimePrototype);
+    GC_DECLARE_ALLOCATOR(PlainDateTimePrototype);
 
 public:
     virtual void initialize(Realm&) override;

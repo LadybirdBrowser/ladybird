@@ -13,10 +13,10 @@
 
 namespace Web::HTML {
 
-JS_DEFINE_ALLOCATOR(CanvasGradient);
+GC_DEFINE_ALLOCATOR(CanvasGradient);
 
 // https://html.spec.whatwg.org/multipage/canvas.html#dom-context-2d-createradialgradient
-WebIDL::ExceptionOr<JS::NonnullGCPtr<CanvasGradient>> CanvasGradient::create_radial(JS::Realm& realm, double x0, double y0, double r0, double x1, double y1, double r1)
+WebIDL::ExceptionOr<GC::Ref<CanvasGradient>> CanvasGradient::create_radial(JS::Realm& realm, double x0, double y0, double r0, double x1, double y1, double r1)
 {
     // If either of r0 or r1 are negative, then an "IndexSizeError" DOMException must be thrown.
     if (r0 < 0)
@@ -29,14 +29,14 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<CanvasGradient>> CanvasGradient::create_rad
 }
 
 // https://html.spec.whatwg.org/multipage/canvas.html#dom-context-2d-createlineargradient
-WebIDL::ExceptionOr<JS::NonnullGCPtr<CanvasGradient>> CanvasGradient::create_linear(JS::Realm& realm, double x0, double y0, double x1, double y1)
+WebIDL::ExceptionOr<GC::Ref<CanvasGradient>> CanvasGradient::create_linear(JS::Realm& realm, double x0, double y0, double x1, double y1)
 {
     auto linear_gradient = TRY_OR_THROW_OOM(realm.vm(), Gfx::CanvasLinearGradientPaintStyle::create(Gfx::FloatPoint { x0, y0 }, Gfx::FloatPoint { x1, y1 }));
     return realm.create<CanvasGradient>(realm, *linear_gradient);
 }
 
 // https://html.spec.whatwg.org/multipage/canvas.html#dom-context-2d-createconicgradient
-WebIDL::ExceptionOr<JS::NonnullGCPtr<CanvasGradient>> CanvasGradient::create_conic(JS::Realm& realm, double start_angle, double x, double y)
+WebIDL::ExceptionOr<GC::Ref<CanvasGradient>> CanvasGradient::create_conic(JS::Realm& realm, double start_angle, double x, double y)
 {
     auto conic_gradient = TRY_OR_THROW_OOM(realm.vm(), Gfx::CanvasConicGradientPaintStyle::create(Gfx::FloatPoint { x, y }, start_angle));
     return realm.create<CanvasGradient>(realm, *conic_gradient);

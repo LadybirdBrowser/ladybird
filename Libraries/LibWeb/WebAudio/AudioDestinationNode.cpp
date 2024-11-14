@@ -15,9 +15,9 @@
 
 namespace Web::WebAudio {
 
-JS_DEFINE_ALLOCATOR(AudioDestinationNode);
+GC_DEFINE_ALLOCATOR(AudioDestinationNode);
 
-AudioDestinationNode::AudioDestinationNode(JS::Realm& realm, JS::NonnullGCPtr<BaseAudioContext> context)
+AudioDestinationNode::AudioDestinationNode(JS::Realm& realm, GC::Ref<BaseAudioContext> context)
     : AudioNode(realm, context)
 {
 }
@@ -31,7 +31,7 @@ WebIDL::UnsignedLong AudioDestinationNode::max_channel_count()
     return 2;
 }
 
-JS::NonnullGCPtr<AudioDestinationNode> AudioDestinationNode::construct_impl(JS::Realm& realm, JS::NonnullGCPtr<BaseAudioContext> context)
+GC::Ref<AudioDestinationNode> AudioDestinationNode::construct_impl(JS::Realm& realm, GC::Ref<BaseAudioContext> context)
 {
     return realm.create<AudioDestinationNode>(realm, context);
 }

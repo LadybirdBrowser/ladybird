@@ -78,7 +78,7 @@ void ListOfActiveFormattingElements::replace(DOM::Element& to_remove, DOM::Eleme
 {
     for (size_t i = 0; i < m_entries.size(); i++) {
         if (m_entries[i].element.ptr() == &to_remove)
-            m_entries[i].element = JS::make_handle(to_add);
+            m_entries[i].element = GC::make_root(to_add);
     }
 }
 

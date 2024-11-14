@@ -17,7 +17,7 @@ namespace JS::Intl {
 
 class Collator final : public Object {
     JS_OBJECT(Collator, Object);
-    JS_DECLARE_ALLOCATOR(Collator);
+    GC_DECLARE_ALLOCATOR(Collator);
 
 public:
     static constexpr auto relevant_extension_keys()
@@ -71,7 +71,7 @@ private:
     String m_collation;                                                   // [[Collation]]
     bool m_ignore_punctuation { false };                                  // [[IgnorePunctuation]]
     bool m_numeric { false };                                             // [[Numeric]]
-    GCPtr<CollatorCompareFunction> m_bound_compare;                       // [[BoundCompare]]
+    GC::Ptr<CollatorCompareFunction> m_bound_compare;                     // [[BoundCompare]]
 
     // Non-standard. Stores the ICU collator for the Intl object's collation options.
     OwnPtr<Unicode::Collator> m_collator;

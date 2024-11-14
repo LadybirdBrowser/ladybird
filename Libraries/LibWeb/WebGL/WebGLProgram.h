@@ -12,7 +12,7 @@ namespace Web::WebGL {
 
 class WebGLProgram final : public WebGLObject {
     WEB_PLATFORM_OBJECT(WebGLProgram, WebGLObject);
-    JS_DECLARE_ALLOCATOR(WebGLProgram);
+    GC_DECLARE_ALLOCATOR(WebGLProgram);
 
 public:
     virtual ~WebGLProgram();

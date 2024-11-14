@@ -11,7 +11,7 @@
 
 namespace Web::HTML {
 
-JS_DEFINE_ALLOCATOR(HTMLOutputElement);
+GC_DEFINE_ALLOCATOR(HTMLOutputElement);
 
 HTMLOutputElement::HTMLOutputElement(DOM::Document& document, DOM::QualifiedName qualified_name)
     : HTMLElement(document, move(qualified_name))
@@ -41,7 +41,7 @@ void HTMLOutputElement::form_associated_element_attribute_changed(FlyString cons
 }
 
 // https://html.spec.whatwg.org/multipage/form-elements.html#dom-output-htmlfor
-JS::NonnullGCPtr<DOM::DOMTokenList> HTMLOutputElement::html_for()
+GC::Ref<DOM::DOMTokenList> HTMLOutputElement::html_for()
 {
     // The htmlFor IDL attribute must reflect the for content attribute.
     if (!m_html_for)

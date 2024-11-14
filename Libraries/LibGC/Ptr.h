@@ -9,51 +9,51 @@
 #include <AK/Traits.h>
 #include <AK/Types.h>
 
-namespace JS {
+namespace GC {
 
 template<typename T>
-class GCPtr;
+class Ptr;
 
 template<typename T>
-class NonnullGCPtr {
+class Ref {
 public:
-    NonnullGCPtr() = delete;
+    Ref() = delete;
 
-    NonnullGCPtr(T& ptr)
+    Ref(T& ptr)
         : m_ptr(&ptr)
     {
     }
 
     template<typename U>
-    NonnullGCPtr(U& ptr)
+    Ref(U& ptr)
     requires(IsConvertible<U*, T*>)
         : m_ptr(&static_cast<T&>(ptr))
     {
     }
 
     template<typename U>
-    NonnullGCPtr(NonnullGCPtr<U> const& other)
+    Ref(Ref<U> const& other)
     requires(IsConvertible<U*, T*>)
         : m_ptr(other.ptr())
     {
     }
 
     template<typename U>
-    NonnullGCPtr& operator=(NonnullGCPtr<U> const& other)
+    Ref& operator=(Ref<U> const& other)
     requires(IsConvertible<U*, T*>)
     {
         m_ptr = static_cast<T*>(other.ptr());
         return *this;
     }
 
-    NonnullGCPtr& operator=(T& other)
+    Ref& operator=(T& other)
     {
         m_ptr = &other;
         return *this;
     }
 
     template<typename U>
-    NonnullGCPtr& operator=(U& other)
+    Ref& operator=(U& other)
     requires(IsConvertible<U*, T*>)
     {
         m_ptr = &static_cast<T&>(other);
@@ -75,88 +75,88 @@ private:
 };
 
 template<typename T>
-class GCPtr {
+class Ptr {
 public:
-    constexpr GCPtr() = default;
+    constexpr Ptr() = default;
 
-    GCPtr(T& ptr)
+    Ptr(T& ptr)
         : m_ptr(&ptr)
     {
     }
 
-    GCPtr(T* ptr)
+    Ptr(T* ptr)
         : m_ptr(ptr)
     {
     }
 
     template<typename U>
-    GCPtr(GCPtr<U> const& other)
+    Ptr(Ptr<U> const& other)
     requires(IsConvertible<U*, T*>)
         : m_ptr(other.ptr())
     {
     }
 
-    GCPtr(NonnullGCPtr<T> const& other)
+    Ptr(Ref<T> const& other)
         : m_ptr(other.ptr())
     {
     }
 
     template<typename U>
-    GCPtr(NonnullGCPtr<U> const& other)
+    Ptr(Ref<U> const& other)
     requires(IsConvertible<U*, T*>)
         : m_ptr(other.ptr())
     {
     }
 
-    GCPtr(nullptr_t)
+    Ptr(nullptr_t)
         : m_ptr(nullptr)
     {
     }
 
     template<typename U>
-    GCPtr& operator=(GCPtr<U> const& other)
+    Ptr& operator=(Ptr<U> const& other)
     requires(IsConvertible<U*, T*>)
     {
         m_ptr = static_cast<T*>(other.ptr());
         return *this;
     }
 
-    GCPtr& operator=(NonnullGCPtr<T> const& other)
+    Ptr& operator=(Ref<T> const& other)
     {
         m_ptr = other.ptr();
         return *this;
     }
 
     template<typename U>
-    GCPtr& operator=(NonnullGCPtr<U> const& other)
+    Ptr& operator=(Ref<U> const& other)
     requires(IsConvertible<U*, T*>)
     {
         m_ptr = static_cast<T*>(other.ptr());
         return *this;
     }
 
-    GCPtr& operator=(T& other)
+    Ptr& operator=(T& other)
     {
         m_ptr = &other;
         return *this;
     }
 
     template<typename U>
-    GCPtr& operator=(U& other)
+    Ptr& operator=(U& other)
     requires(IsConvertible<U*, T*>)
     {
         m_ptr = &static_cast<T&>(other);
         return *this;
     }
 
-    GCPtr& operator=(T* other)
+    Ptr& operator=(T* other)
     {
         m_ptr = other;
         return *this;
     }
 
     template<typename U>
-    GCPtr& operator=(U* other)
+    Ptr& operator=(U* other)
     requires(IsConvertible<U*, T*>)
     {
         m_ptr = static_cast<T*>(other);
@@ -186,34 +186,34 @@ private:
     T* m_ptr { nullptr };
 };
 
-// Non-Owning GCPtr
+// Non-Owning GC::Ptr
 template<typename T>
-using RawGCPtr = GCPtr<T>;
+using RawPtr = Ptr<T>;
 
-// Non-Owning NonnullGCPtr
+// Non-Owning Ref
 template<typename T>
-using RawNonnullGCPtr = NonnullGCPtr<T>;
+using RawRef = Ref<T>;
 
 template<typename T, typename U>
-inline bool operator==(GCPtr<T> const& a, GCPtr<U> const& b)
+inline bool operator==(Ptr<T> const& a, Ptr<U> const& b)
 {
     return a.ptr() == b.ptr();
 }
 
 template<typename T, typename U>
-inline bool operator==(GCPtr<T> const& a, NonnullGCPtr<U> const& b)
+inline bool operator==(Ptr<T> const& a, Ref<U> const& b)
 {
     return a.ptr() == b.ptr();
 }
 
 template<typename T, typename U>
-inline bool operator==(NonnullGCPtr<T> const& a, NonnullGCPtr<U> const& b)
+inline bool operator==(Ref<T> const& a, Ref<U> const& b)
 {
     return a.ptr() == b.ptr();
 }
 
 template<typename T, typename U>
-inline bool operator==(NonnullGCPtr<T> const& a, GCPtr<U> const& b)
+inline bool operator==(Ref<T> const& a, Ptr<U> const& b)
 {
     return a.ptr() == b.ptr();
 }
@@ -223,16 +223,16 @@ inline bool operator==(NonnullGCPtr<T> const& a, GCPtr<U> const& b)
 namespace AK {
 
 template<typename T>
-struct Traits<JS::GCPtr<T>> : public DefaultTraits<JS::GCPtr<T>> {
-    static unsigned hash(JS::GCPtr<T> const& value)
+struct Traits<GC::Ptr<T>> : public DefaultTraits<GC::Ptr<T>> {
+    static unsigned hash(GC::Ptr<T> const& value)
     {
         return Traits<T*>::hash(value.ptr());
     }
 };
 
 template<typename T>
-struct Traits<JS::NonnullGCPtr<T>> : public DefaultTraits<JS::NonnullGCPtr<T>> {
-    static unsigned hash(JS::NonnullGCPtr<T> const& value)
+struct Traits<GC::Ref<T>> : public DefaultTraits<GC::Ref<T>> {
+    static unsigned hash(GC::Ref<T> const& value)
     {
         return Traits<T*>::hash(value.ptr());
     }

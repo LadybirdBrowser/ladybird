@@ -11,8 +11,8 @@
 #include <AK/Time.h>
 #include <AK/Variant.h>
 #include <AK/Vector.h>
-#include <LibJS/Heap/GCPtr.h>
-#include <LibJS/Heap/HeapFunction.h>
+#include <LibGC/Function.h>
+#include <LibGC/Ptr.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/PixelUnits.h>
 #include <LibWeb/UIEvents/MouseButton.h>
@@ -118,19 +118,19 @@ struct ActionObject {
 // https://w3c.github.io/webdriver/#dfn-actions-options
 struct ActionsOptions {
     using IsElementOrigin = bool (*)(JsonValue const&);
-    using GetElementOrigin = ErrorOr<JS::NonnullGCPtr<DOM::Element>, WebDriver::Error> (*)(HTML::BrowsingContext const&, StringView);
+    using GetElementOrigin = ErrorOr<GC::Ref<DOM::Element>, WebDriver::Error> (*)(HTML::BrowsingContext const&, StringView);
 
     IsElementOrigin is_element_origin { nullptr };
     GetElementOrigin get_element_origin { nullptr };
 };
 
-using OnActionsComplete = JS::NonnullGCPtr<JS::HeapFunction<void(Web::WebDriver::Response)>>;
+using OnActionsComplete = GC::Ref<GC::Function<void(Web::WebDriver::Response)>>;
 
 ErrorOr<Vector<Vector<ActionObject>>, WebDriver::Error> extract_an_action_sequence(InputState&, JsonValue const&, ActionsOptions const&);
 
-JS::NonnullGCPtr<JS::Cell> dispatch_actions(InputState&, Vector<Vector<ActionObject>>, HTML::BrowsingContext&, ActionsOptions, OnActionsComplete);
+GC::Ref<JS::Cell> dispatch_actions(InputState&, Vector<Vector<ActionObject>>, HTML::BrowsingContext&, ActionsOptions, OnActionsComplete);
 ErrorOr<void, WebDriver::Error> dispatch_tick_actions(InputState&, ReadonlySpan<ActionObject>, AK::Duration, HTML::BrowsingContext&, ActionsOptions const&);
-JS::NonnullGCPtr<JS::Cell> dispatch_list_of_actions(InputState&, Vector<ActionObject>, HTML::BrowsingContext&, ActionsOptions, OnActionsComplete);
-JS::NonnullGCPtr<JS::Cell> dispatch_actions_for_a_string(Web::WebDriver::InputState&, String const& input_id, Web::WebDriver::InputSource&, StringView text, Web::HTML::BrowsingContext&, Web::WebDriver::OnActionsComplete);
+GC::Ref<JS::Cell> dispatch_list_of_actions(InputState&, Vector<ActionObject>, HTML::BrowsingContext&, ActionsOptions, OnActionsComplete);
+GC::Ref<JS::Cell> dispatch_actions_for_a_string(Web::WebDriver::InputState&, String const& input_id, Web::WebDriver::InputSource&, StringView text, Web::HTML::BrowsingContext&, Web::WebDriver::OnActionsComplete);
 
 }

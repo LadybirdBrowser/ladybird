@@ -5,13 +5,13 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibJS/Heap/Heap.h>
+#include <LibGC/Heap.h>
 #include <LibJS/Runtime/Symbol.h>
 #include <LibJS/Runtime/VM.h>
 
 namespace JS {
 
-JS_DEFINE_ALLOCATOR(Symbol);
+GC_DEFINE_ALLOCATOR(Symbol);
 
 Symbol::Symbol(Optional<String> description, bool is_global)
     : m_description(move(description))
@@ -19,7 +19,7 @@ Symbol::Symbol(Optional<String> description, bool is_global)
 {
 }
 
-NonnullGCPtr<Symbol> Symbol::create(VM& vm, Optional<String> description, bool is_global)
+GC::Ref<Symbol> Symbol::create(VM& vm, Optional<String> description, bool is_global)
 {
     return vm.heap().allocate<Symbol>(move(description), is_global);
 }

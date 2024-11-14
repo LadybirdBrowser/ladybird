@@ -7,7 +7,7 @@
 
 #pragma once
 
-#include <LibJS/Heap/Heap.h>
+#include <LibGC/Heap.h>
 #include <LibJS/Runtime/Environment.h>
 #include <LibJS/Runtime/VM.h>
 
@@ -15,7 +15,7 @@ namespace JS {
 
 class GlobalObject : public Object {
     JS_OBJECT(GlobalObject, Object);
-    JS_DECLARE_ALLOCATOR(GlobalObject);
+    GC_DECLARE_ALLOCATOR(GlobalObject);
 
     friend class Intrinsics;
 
@@ -52,12 +52,12 @@ template<typename... Args>
 [[nodiscard]] ALWAYS_INLINE ThrowCompletionOr<Value> Value::invoke(VM& vm, PropertyKey const& property_key, Args... args)
 {
     if constexpr (sizeof...(Args) > 0) {
-        MarkedVector<Value> arglist { vm.heap() };
+        GC::MarkedVector<Value> arglist { vm.heap() };
         (..., arglist.append(move(args)));
         return invoke_internal(vm, property_key, move(arglist));
     }
 
-    return invoke_internal(vm, property_key, Optional<MarkedVector<Value>> {});
+    return invoke_internal(vm, property_key, Optional<GC::MarkedVector<Value>> {});
 }
 
 }

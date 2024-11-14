@@ -16,26 +16,26 @@ namespace Web::HTML {
 // https://html.spec.whatwg.org/multipage/dnd.html#the-datatransferitemlist-interface
 class DataTransferItemList : public Bindings::PlatformObject {
     WEB_PLATFORM_OBJECT(DataTransferItemList, Bindings::PlatformObject);
-    JS_DECLARE_ALLOCATOR(DataTransferItemList);
+    GC_DECLARE_ALLOCATOR(DataTransferItemList);
 
 public:
-    static JS::NonnullGCPtr<DataTransferItemList> create(JS::Realm&, JS::NonnullGCPtr<DataTransfer>);
+    static GC::Ref<DataTransferItemList> create(JS::Realm&, GC::Ref<DataTransfer>);
     virtual ~DataTransferItemList() override;
 
     WebIDL::UnsignedLong length() const;
 
-    WebIDL::ExceptionOr<JS::GCPtr<DataTransferItem>> add(String const& data, String const& type);
-    JS::GCPtr<DataTransferItem> add(JS::NonnullGCPtr<FileAPI::File>);
+    WebIDL::ExceptionOr<GC::Ptr<DataTransferItem>> add(String const& data, String const& type);
+    GC::Ptr<DataTransferItem> add(GC::Ref<FileAPI::File>);
 
 private:
-    DataTransferItemList(JS::Realm&, JS::NonnullGCPtr<DataTransfer>);
+    DataTransferItemList(JS::Realm&, GC::Ref<DataTransfer>);
 
     virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(JS::Cell::Visitor&) override;
 
     virtual Optional<JS::Value> item_value(size_t index) const override;
 
-    JS::NonnullGCPtr<DataTransfer> m_data_transfer;
+    GC::Ref<DataTransfer> m_data_transfer;
 };
 
 }

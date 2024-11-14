@@ -15,7 +15,7 @@
 
 namespace JS::Temporal {
 
-JS_DEFINE_ALLOCATOR(ZonedDateTimeConstructor);
+GC_DEFINE_ALLOCATOR(ZonedDateTimeConstructor);
 
 // 6.1 The Temporal.ZonedDateTime Constructor, https://tc39.es/proposal-temporal/#sec-temporal-zoneddatetime-constructor
 ZonedDateTimeConstructor::ZonedDateTimeConstructor(Realm& realm)
@@ -50,7 +50,7 @@ ThrowCompletionOr<Value> ZonedDateTimeConstructor::call()
 }
 
 // 6.1.1 Temporal.ZonedDateTime ( epochNanoseconds, timeZoneLike [ , calendarLike ] ), https://tc39.es/proposal-temporal/#sec-temporal.zoneddatetime
-ThrowCompletionOr<NonnullGCPtr<Object>> ZonedDateTimeConstructor::construct(FunctionObject& new_target)
+ThrowCompletionOr<GC::Ref<Object>> ZonedDateTimeConstructor::construct(FunctionObject& new_target)
 {
     auto& vm = this->vm();
 

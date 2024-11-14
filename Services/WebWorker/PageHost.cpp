@@ -11,9 +11,9 @@
 
 namespace WebWorker {
 
-JS_DEFINE_ALLOCATOR(PageHost);
+GC_DEFINE_ALLOCATOR(PageHost);
 
-JS::NonnullGCPtr<PageHost> PageHost::create(JS::VM& vm, ConnectionFromClient& client)
+GC::Ref<PageHost> PageHost::create(JS::VM& vm, ConnectionFromClient& client)
 {
     return vm.heap().allocate<PageHost>(client);
 }

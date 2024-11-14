@@ -10,7 +10,7 @@
 
 namespace JS {
 
-JS_DEFINE_ALLOCATOR(GeneratorFunctionPrototype);
+GC_DEFINE_ALLOCATOR(GeneratorFunctionPrototype);
 
 GeneratorFunctionPrototype::GeneratorFunctionPrototype(Realm& realm)
     : Object(ConstructWithPrototypeTag::Tag, realm.intrinsics().function_prototype())

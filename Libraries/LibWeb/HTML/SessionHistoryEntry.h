@@ -7,8 +7,8 @@
 #pragma once
 
 #include <AK/WeakPtr.h>
+#include <LibGC/Ptr.h>
 #include <LibJS/Heap/Cell.h>
-#include <LibJS/Heap/GCPtr.h>
 #include <LibURL/URL.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/HTML/PolicyContainers.h>
@@ -29,17 +29,17 @@ enum class ScrollRestorationMode {
 
 // https://html.spec.whatwg.org/multipage/history.html#session-history-entry
 class SessionHistoryEntry final : public JS::Cell {
-    JS_CELL(SessionHistoryEntry, JS::Cell);
-    JS_DECLARE_ALLOCATOR(SessionHistoryEntry);
+    GC_CELL(SessionHistoryEntry, JS::Cell);
+    GC_DECLARE_ALLOCATOR(SessionHistoryEntry);
 
 public:
     SessionHistoryEntry();
 
-    JS::NonnullGCPtr<SessionHistoryEntry> clone() const;
+    GC::Ref<SessionHistoryEntry> clone() const;
 
     void visit_edges(Cell::Visitor&) override;
 
-    JS::GCPtr<DOM::Document> document() const;
+    GC::Ptr<DOM::Document> document() const;
 
     enum class Pending {
         Tag,
@@ -51,8 +51,8 @@ public:
     [[nodiscard]] URL::URL const& url() const { return m_url; }
     void set_url(URL::URL url) { m_url = move(url); }
 
-    [[nodiscard]] JS::GCPtr<HTML::DocumentState> document_state() const { return m_document_state; }
-    void set_document_state(JS::GCPtr<HTML::DocumentState> document_state) { m_document_state = document_state; }
+    [[nodiscard]] GC::Ptr<HTML::DocumentState> document_state() const { return m_document_state; }
+    void set_document_state(GC::Ptr<HTML::DocumentState> document_state) { m_document_state = document_state; }
 
     [[nodiscard]] SerializationRecord const& classic_history_api_state() const { return m_classic_history_api_state; }
     void set_classic_history_api_state(SerializationRecord classic_history_api_state) { m_classic_history_api_state = move(classic_history_api_state); }
@@ -75,8 +75,8 @@ public:
     [[nodiscard]] Optional<ByteString> const& browsing_context_name() const { return m_browsing_context_name; }
     void set_browsing_context_name(Optional<ByteString> browsing_context_name) { m_browsing_context_name = move(browsing_context_name); }
 
-    [[nodiscard]] JS::GCPtr<BrowsingContext> original_source_browsing_context() const { return m_original_source_browsing_context; }
-    void set_original_source_browsing_context(JS::GCPtr<BrowsingContext> original_source_browsing_context) { m_original_source_browsing_context = original_source_browsing_context; }
+    [[nodiscard]] GC::Ptr<BrowsingContext> original_source_browsing_context() const { return m_original_source_browsing_context; }
+    void set_original_source_browsing_context(GC::Ptr<BrowsingContext> original_source_browsing_context) { m_original_source_browsing_context = original_source_browsing_context; }
 
 private:
     // https://html.spec.whatwg.org/multipage/browsing-the-web.html#she-step
@@ -88,7 +88,7 @@ private:
     URL::URL m_url;
 
     // https://html.spec.whatwg.org/multipage/browsing-the-web.html#she-document-state
-    JS::GCPtr<HTML::DocumentState> m_document_state;
+    GC::Ptr<HTML::DocumentState> m_document_state;
 
     // https://html.spec.whatwg.org/multipage/browsing-the-web.html#she-classic-history-api-state
     // classic history API state, which is serialized state, initially StructuredSerializeForStorage(null).
@@ -123,7 +123,7 @@ private:
     // FIXME: persisted user state, which is implementation-defined, initially null
     // NOTE: This is where we could remember the state of form controls, for example.
 
-    JS::GCPtr<BrowsingContext> m_original_source_browsing_context;
+    GC::Ptr<BrowsingContext> m_original_source_browsing_context;
 };
 
 }

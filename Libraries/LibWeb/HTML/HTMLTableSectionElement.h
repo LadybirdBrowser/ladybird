@@ -15,13 +15,13 @@ namespace Web::HTML {
 
 class HTMLTableSectionElement final : public HTMLElement {
     WEB_PLATFORM_OBJECT(HTMLTableSectionElement, HTMLElement);
-    JS_DECLARE_ALLOCATOR(HTMLTableSectionElement);
+    GC_DECLARE_ALLOCATOR(HTMLTableSectionElement);
 
 public:
     virtual ~HTMLTableSectionElement() override;
 
-    JS::NonnullGCPtr<DOM::HTMLCollection> rows() const;
-    WebIDL::ExceptionOr<JS::NonnullGCPtr<HTMLTableRowElement>> insert_row(WebIDL::Long index);
+    GC::Ref<DOM::HTMLCollection> rows() const;
+    WebIDL::ExceptionOr<GC::Ref<HTMLTableRowElement>> insert_row(WebIDL::Long index);
     WebIDL::ExceptionOr<void> delete_row(WebIDL::Long index);
 
     // https://www.w3.org/TR/html-aria/#el-tbody
@@ -39,7 +39,7 @@ private:
 
     virtual void apply_presentational_hints(CSS::StyleProperties&) const override;
 
-    JS::GCPtr<DOM::HTMLCollection> mutable m_rows;
+    GC::Ptr<DOM::HTMLCollection> mutable m_rows;
 };
 
 }

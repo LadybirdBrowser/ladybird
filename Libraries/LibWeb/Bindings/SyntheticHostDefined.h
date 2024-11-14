@@ -14,7 +14,7 @@
 namespace Web::Bindings {
 
 struct SyntheticHostDefined : public HostDefined {
-    SyntheticHostDefined(HTML::SyntheticRealmSettings synthetic_realm_settings, JS::NonnullGCPtr<Intrinsics> intrinsics)
+    SyntheticHostDefined(HTML::SyntheticRealmSettings synthetic_realm_settings, GC::Ref<Intrinsics> intrinsics)
         : HostDefined(intrinsics)
         , synthetic_realm_settings(move(synthetic_realm_settings))
     {

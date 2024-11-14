@@ -13,7 +13,7 @@ namespace JS {
 
 class RegExpStringIteratorPrototype final : public PrototypeObject<RegExpStringIteratorPrototype, RegExpStringIterator> {
     JS_PROTOTYPE_OBJECT(RegExpStringIteratorPrototype, RegExpStringIterator, RegExpStringIterator);
-    JS_DECLARE_ALLOCATOR(RegExpStringIteratorPrototype);
+    GC_DECLARE_ALLOCATOR(RegExpStringIteratorPrototype);
 
 public:
     virtual ~RegExpStringIteratorPrototype() override = default;

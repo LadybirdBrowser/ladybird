@@ -11,12 +11,12 @@
 #include <AK/NonnullOwnPtr.h>
 #include <AK/OwnPtr.h>
 #include <AK/WeakPtr.h>
+#include <LibGC/CellAllocator.h>
 #include <LibJS/Bytecode/IdentifierTable.h>
 #include <LibJS/Bytecode/Label.h>
 #include <LibJS/Bytecode/StringTable.h>
 #include <LibJS/Forward.h>
 #include <LibJS/Heap/Cell.h>
-#include <LibJS/Heap/CellAllocator.h>
 #include <LibJS/Runtime/EnvironmentCoordinate.h>
 #include <LibJS/SourceRange.h>
 
@@ -40,8 +40,8 @@ struct SourceRecord {
 };
 
 class Executable final : public Cell {
-    JS_CELL(Executable, Cell);
-    JS_DECLARE_ALLOCATOR(Executable);
+    GC_CELL(Executable, Cell);
+    GC_DECLARE_ALLOCATOR(Executable);
 
 public:
     Executable(

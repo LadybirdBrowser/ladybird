@@ -12,7 +12,7 @@ namespace Web::WebGL {
 
 class WebGLShader final : public WebGLObject {
     WEB_PLATFORM_OBJECT(WebGLShader, WebGLObject);
-    JS_DECLARE_ALLOCATOR(WebGLShader);
+    GC_DECLARE_ALLOCATOR(WebGLShader);
 
 public:
     virtual ~WebGLShader();

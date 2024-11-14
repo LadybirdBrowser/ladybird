@@ -21,11 +21,11 @@ struct AnimationEventInit : public DOM::EventInit {
 // https://www.w3.org/TR/css-animations-1/#animationevent
 class AnimationEvent : public DOM::Event {
     WEB_PLATFORM_OBJECT(AnimationEvent, DOM::Event);
-    JS_DECLARE_ALLOCATOR(AnimationEvent);
+    GC_DECLARE_ALLOCATOR(AnimationEvent);
 
 public:
-    [[nodiscard]] static JS::NonnullGCPtr<AnimationEvent> create(JS::Realm&, FlyString const& type, AnimationEventInit const& event_init = {});
-    static WebIDL::ExceptionOr<JS::NonnullGCPtr<AnimationEvent>> construct_impl(JS::Realm&, FlyString const& type, AnimationEventInit const& event_init);
+    [[nodiscard]] static GC::Ref<AnimationEvent> create(JS::Realm&, FlyString const& type, AnimationEventInit const& event_init = {});
+    static WebIDL::ExceptionOr<GC::Ref<AnimationEvent>> construct_impl(JS::Realm&, FlyString const& type, AnimationEventInit const& event_init);
 
     virtual ~AnimationEvent() override = default;
 

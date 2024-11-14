@@ -14,7 +14,7 @@
 
 namespace Web::WebGL {
 
-JS_DEFINE_ALLOCATOR(WebGLRenderingContext);
+GC_DEFINE_ALLOCATOR(WebGLRenderingContext);
 
 // https://www.khronos.org/registry/webgl/specs/latest/1.0/#fire-a-webgl-context-event
 static void fire_webgl_context_event(HTML::HTMLCanvasElement& canvas_element, FlyString const& type)
@@ -34,7 +34,7 @@ static void fire_webgl_context_creation_error(HTML::HTMLCanvasElement& canvas_el
     fire_webgl_context_event(canvas_element, EventNames::webglcontextcreationerror);
 }
 
-JS::ThrowCompletionOr<JS::GCPtr<WebGLRenderingContext>> WebGLRenderingContext::create(JS::Realm& realm, HTML::HTMLCanvasElement& canvas_element, JS::Value options)
+JS::ThrowCompletionOr<GC::Ptr<WebGLRenderingContext>> WebGLRenderingContext::create(JS::Realm& realm, HTML::HTMLCanvasElement& canvas_element, JS::Value options)
 {
     // We should be coming here from getContext being called on a wrapped <canvas> element.
     auto context_attributes = TRY(convert_value_to_context_attributes_dictionary(canvas_element.vm(), options));
@@ -42,7 +42,7 @@ JS::ThrowCompletionOr<JS::GCPtr<WebGLRenderingContext>> WebGLRenderingContext::c
     bool created_surface = canvas_element.allocate_painting_surface(/* minimum_width= */ 1, /* minimum_height= */ 1);
     if (!created_surface) {
         fire_webgl_context_creation_error(canvas_element);
-        return JS::GCPtr<WebGLRenderingContext> { nullptr };
+        return GC::Ptr<WebGLRenderingContext> { nullptr };
     }
 
     VERIFY(canvas_element.surface());
@@ -50,7 +50,7 @@ JS::ThrowCompletionOr<JS::GCPtr<WebGLRenderingContext>> WebGLRenderingContext::c
 
     if (!context) {
         fire_webgl_context_creation_error(canvas_element);
-        return JS::GCPtr<WebGLRenderingContext> { nullptr };
+        return GC::Ptr<WebGLRenderingContext> { nullptr };
     }
 
     return realm.create<WebGLRenderingContext>(realm, canvas_element, context.release_nonnull(), context_attributes, context_attributes);

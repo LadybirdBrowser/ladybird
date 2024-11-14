@@ -7,7 +7,7 @@
 #include <AK/Function.h>
 #include <AK/StringBuilder.h>
 #include <AK/TypeCasts.h>
-#include <LibJS/Heap/MarkedVector.h>
+#include <LibGC/MarkedVector.h>
 #include <LibJS/Runtime/AbstractOperations.h>
 #include <LibJS/Runtime/BoundFunction.h>
 #include <LibJS/Runtime/ECMAScriptFunctionObject.h>
@@ -19,7 +19,7 @@
 
 namespace JS {
 
-JS_DEFINE_ALLOCATOR(FunctionPrototype);
+GC_DEFINE_ALLOCATOR(FunctionPrototype);
 
 FunctionPrototype::FunctionPrototype(Realm& realm)
     : FunctionObject(realm.intrinsics().object_prototype())

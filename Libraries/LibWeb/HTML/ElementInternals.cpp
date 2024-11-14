@@ -12,9 +12,9 @@
 
 namespace Web::HTML {
 
-JS_DEFINE_ALLOCATOR(ElementInternals);
+GC_DEFINE_ALLOCATOR(ElementInternals);
 
-JS::NonnullGCPtr<ElementInternals> ElementInternals::create(JS::Realm& realm, HTMLElement& target_element)
+GC::Ref<ElementInternals> ElementInternals::create(JS::Realm& realm, HTMLElement& target_element)
 {
     return realm.create<ElementInternals>(realm, target_element);
 }
@@ -26,7 +26,7 @@ ElementInternals::ElementInternals(JS::Realm& realm, HTMLElement& target_element
 }
 
 // https://html.spec.whatwg.org/#dom-elementinternals-shadowroot
-JS::GCPtr<DOM::ShadowRoot> ElementInternals::shadow_root() const
+GC::Ptr<DOM::ShadowRoot> ElementInternals::shadow_root() const
 {
     // 1. Let target be this's target element.
     auto target = m_target_element;

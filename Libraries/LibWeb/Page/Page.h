@@ -14,6 +14,8 @@
 #include <AK/RefPtr.h>
 #include <AK/WeakPtr.h>
 #include <AK/Weakable.h>
+#include <LibGC/Heap.h>
+#include <LibGC/Root.h>
 #include <LibGfx/Forward.h>
 #include <LibGfx/Palette.h>
 #include <LibGfx/Point.h>
@@ -22,8 +24,6 @@
 #include <LibGfx/Size.h>
 #include <LibGfx/StandardCursor.h>
 #include <LibIPC/Forward.h>
-#include <LibJS/Heap/Handle.h>
-#include <LibJS/Heap/Heap.h>
 #include <LibURL/URL.h>
 #include <LibWeb/CSS/PreferredColorScheme.h>
 #include <LibWeb/CSS/PreferredContrast.h>
@@ -50,18 +50,18 @@ namespace Web {
 class PageClient;
 
 class Page final : public JS::Cell {
-    JS_CELL(Page, JS::Cell);
-    JS_DECLARE_ALLOCATOR(Page);
+    GC_CELL(Page, JS::Cell);
+    GC_DECLARE_ALLOCATOR(Page);
 
 public:
-    static JS::NonnullGCPtr<Page> create(JS::VM&, JS::NonnullGCPtr<PageClient>);
+    static GC::Ref<Page> create(JS::VM&, GC::Ref<PageClient>);
 
     ~Page();
 
     PageClient& client() { return m_client; }
     PageClient const& client() const { return m_client; }
 
-    void set_top_level_traversable(JS::NonnullGCPtr<HTML::TraversableNavigable>);
+    void set_top_level_traversable(GC::Ref<HTML::TraversableNavigable>);
 
     // FIXME: This is a hack.
     bool top_level_traversable_is_initialized() const;
@@ -69,7 +69,7 @@ public:
     HTML::BrowsingContext& top_level_browsing_context();
     HTML::BrowsingContext const& top_level_browsing_context() const;
 
-    JS::NonnullGCPtr<HTML::TraversableNavigable> top_level_traversable() const;
+    GC::Ref<HTML::TraversableNavigable> top_level_traversable() const;
 
     HTML::Navigable& focused_navigable();
     HTML::Navigable const& focused_navigable() const { return const_cast<Page*>(this)->focused_navigable(); }
@@ -128,7 +128,7 @@ public:
     void set_window_size(DevicePixelSize size) { m_window_size = size; }
 
     void did_update_window_rect();
-    void set_window_rect_observer(JS::GCPtr<JS::HeapFunction<void(DevicePixelRect)>> window_rect_observer) { m_window_rect_observer = window_rect_observer; }
+    void set_window_rect_observer(GC::Ptr<GC::Function<void(DevicePixelRect)>> window_rect_observer) { m_window_rect_observer = window_rect_observer; }
 
     void did_request_alert(String const& message);
     void alert_closed();
@@ -148,8 +148,8 @@ public:
     bool has_pending_dialog() const { return m_pending_dialog != PendingDialog::None; }
     PendingDialog pending_dialog() const { return m_pending_dialog; }
     Optional<String> const& pending_dialog_text() const { return m_pending_dialog_text; }
-    void dismiss_dialog(JS::NonnullGCPtr<JS::HeapFunction<void()>> on_dialog_closed);
-    void accept_dialog(JS::NonnullGCPtr<JS::HeapFunction<void()>> on_dialog_closed);
+    void dismiss_dialog(GC::Ref<GC::Function<void()>> on_dialog_closed);
+    void accept_dialog(GC::Ref<GC::Function<void()>> on_dialog_closed);
 
     void did_request_color_picker(WeakPtr<HTML::HTMLInputElement> target, Color current_color);
     void color_picker_update(Optional<Color> picked_color, HTML::ColorPickerUpdateState state);
@@ -213,27 +213,27 @@ public:
     Optional<FindInPageQuery> last_find_in_page_query() const { return m_last_find_in_page_query; }
 
 private:
-    explicit Page(JS::NonnullGCPtr<PageClient>);
+    explicit Page(GC::Ref<PageClient>);
     virtual void visit_edges(Visitor&) override;
 
-    JS::GCPtr<HTML::HTMLMediaElement> media_context_menu_element();
+    GC::Ptr<HTML::HTMLMediaElement> media_context_menu_element();
 
-    Vector<JS::Handle<DOM::Document>> documents_in_active_window() const;
+    Vector<GC::Root<DOM::Document>> documents_in_active_window() const;
 
     enum class SearchDirection {
         Forward,
         Backward,
     };
     FindInPageResult perform_find_in_page_query(FindInPageQuery const&, Optional<SearchDirection> = {});
-    void update_find_in_page_selection(Vector<JS::Handle<DOM::Range>> matches);
+    void update_find_in_page_selection(Vector<GC::Root<DOM::Range>> matches);
 
     void on_pending_dialog_closed();
 
-    JS::NonnullGCPtr<PageClient> m_client;
+    GC::Ref<PageClient> m_client;
 
     WeakPtr<HTML::Navigable> m_focused_navigable;
 
-    JS::GCPtr<HTML::TraversableNavigable> m_top_level_traversable;
+    GC::Ptr<HTML::TraversableNavigable> m_top_level_traversable;
 
     // FIXME: Enable this by default once CORS preflight checks are supported.
     bool m_same_origin_policy_enabled { false };
@@ -248,14 +248,14 @@ private:
 
     DevicePixelPoint m_window_position {};
     DevicePixelSize m_window_size {};
-    JS::GCPtr<JS::HeapFunction<void(DevicePixelRect)>> m_window_rect_observer;
+    GC::Ptr<GC::Function<void(DevicePixelRect)>> m_window_rect_observer;
 
     PendingDialog m_pending_dialog { PendingDialog::None };
     Optional<String> m_pending_dialog_text;
     Optional<Empty> m_pending_alert_response;
     Optional<bool> m_pending_confirm_response;
     Optional<Optional<String>> m_pending_prompt_response;
-    JS::GCPtr<JS::HeapFunction<void()>> m_on_pending_dialog_closed;
+    GC::Ptr<GC::Function<void()>> m_on_pending_dialog_closed;
 
     PendingNonBlockingDialog m_pending_non_blocking_dialog { PendingNonBlockingDialog::None };
     WeakPtr<HTML::HTMLElement> m_pending_non_blocking_dialog_target;
@@ -294,7 +294,7 @@ enum class DisplayListPlayerType {
 };
 
 class PageClient : public JS::Cell {
-    JS_CELL(PageClient, JS::Cell);
+    GC_CELL(PageClient, JS::Cell);
 
 public:
     virtual Page& page() = 0;
@@ -351,7 +351,7 @@ public:
     virtual void page_did_expire_cookies_with_time_offset(AK::Duration) { }
     virtual void page_did_update_resource_count(i32) { }
     struct NewWebViewResult {
-        JS::GCPtr<Page> page;
+        GC::Ptr<Page> page;
         String window_handle;
     };
     virtual NewWebViewResult page_did_request_new_web_view(HTML::ActivateTab, HTML::WebViewHints, HTML::TokenizedFeature::NoOpener) { return {}; }
@@ -381,8 +381,8 @@ public:
     virtual void inspector_did_select_dom_node([[maybe_unused]] UniqueNodeID node_id, [[maybe_unused]] Optional<CSS::Selector::PseudoElement::Type> const& pseudo_element) { }
     virtual void inspector_did_set_dom_node_text([[maybe_unused]] UniqueNodeID node_id, [[maybe_unused]] String const& text) { }
     virtual void inspector_did_set_dom_node_tag([[maybe_unused]] UniqueNodeID node_id, [[maybe_unused]] String const& tag) { }
-    virtual void inspector_did_add_dom_node_attributes([[maybe_unused]] UniqueNodeID node_id, [[maybe_unused]] JS::NonnullGCPtr<DOM::NamedNodeMap> attributes) { }
-    virtual void inspector_did_replace_dom_node_attribute([[maybe_unused]] UniqueNodeID node_id, [[maybe_unused]] size_t attribute_index, [[maybe_unused]] JS::NonnullGCPtr<DOM::NamedNodeMap> replacement_attributes) { }
+    virtual void inspector_did_add_dom_node_attributes([[maybe_unused]] UniqueNodeID node_id, [[maybe_unused]] GC::Ref<DOM::NamedNodeMap> attributes) { }
+    virtual void inspector_did_replace_dom_node_attribute([[maybe_unused]] UniqueNodeID node_id, [[maybe_unused]] size_t attribute_index, [[maybe_unused]] GC::Ref<DOM::NamedNodeMap> replacement_attributes) { }
     virtual void inspector_did_request_dom_tree_context_menu([[maybe_unused]] UniqueNodeID node_id, [[maybe_unused]] CSSPixelPoint position, [[maybe_unused]] String const& type, [[maybe_unused]] Optional<String> const& tag, [[maybe_unused]] Optional<size_t> const& attribute_index) { }
     virtual void inspector_did_request_cookie_context_menu([[maybe_unused]] size_t cookie_index, [[maybe_unused]] CSSPixelPoint position) { }
     virtual void inspector_did_request_style_sheet_source([[maybe_unused]] CSS::StyleSheetIdentifier const& identifier) { }

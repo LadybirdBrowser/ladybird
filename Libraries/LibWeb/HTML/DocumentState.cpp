@@ -10,15 +10,15 @@
 
 namespace Web::HTML {
 
-JS_DEFINE_ALLOCATOR(DocumentState);
+GC_DEFINE_ALLOCATOR(DocumentState);
 
 DocumentState::DocumentState() = default;
 
 DocumentState::~DocumentState() = default;
 
-JS::NonnullGCPtr<DocumentState> DocumentState::clone() const
+GC::Ref<DocumentState> DocumentState::clone() const
 {
-    JS::NonnullGCPtr<DocumentState> cloned = *heap().allocate<DocumentState>();
+    GC::Ref<DocumentState> cloned = *heap().allocate<DocumentState>();
     cloned->m_document = m_document;
     cloned->m_history_policy_container = m_history_policy_container;
     cloned->m_request_referrer = m_request_referrer;

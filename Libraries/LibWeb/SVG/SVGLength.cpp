@@ -11,14 +11,14 @@
 
 namespace Web::SVG {
 
-JS_DEFINE_ALLOCATOR(SVGLength);
+GC_DEFINE_ALLOCATOR(SVGLength);
 
-JS::NonnullGCPtr<SVGLength> SVGLength::create(JS::Realm& realm, u8 unit_type, float value)
+GC::Ref<SVGLength> SVGLength::create(JS::Realm& realm, u8 unit_type, float value)
 {
     return realm.create<SVGLength>(realm, unit_type, value);
 }
 
-JS::NonnullGCPtr<SVGLength> SVGLength::from_length_percentage(JS::Realm& realm, CSS::LengthPercentage const& length_percentage)
+GC::Ref<SVGLength> SVGLength::from_length_percentage(JS::Realm& realm, CSS::LengthPercentage const& length_percentage)
 {
     // FIXME: We can't tell if a CSS::LengthPercentage was a unitless length.
     (void)SVG_LENGTHTYPE_NUMBER;

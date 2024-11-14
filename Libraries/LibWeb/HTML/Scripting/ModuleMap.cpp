@@ -8,7 +8,7 @@
 
 namespace Web::HTML {
 
-JS_DEFINE_ALLOCATOR(ModuleMap);
+GC_DEFINE_ALLOCATOR(ModuleMap);
 
 void ModuleMap::visit_edges(Visitor& visitor)
 {
@@ -62,9 +62,9 @@ AK::HashSetResult ModuleMap::set(URL::URL const& url, ByteString const& type, En
     return value;
 }
 
-void ModuleMap::wait_for_change(JS::Heap& heap, URL::URL const& url, ByteString const& type, Function<void(Entry)> callback)
+void ModuleMap::wait_for_change(GC::Heap& heap, URL::URL const& url, ByteString const& type, Function<void(Entry)> callback)
 {
-    m_callbacks.ensure({ url, type }).append(JS::create_heap_function(heap, move(callback)));
+    m_callbacks.ensure({ url, type }).append(GC::create_function(heap, move(callback)));
 }
 
 }

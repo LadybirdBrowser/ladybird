@@ -10,16 +10,16 @@
 #include <AK/Noncopyable.h>
 #include <AK/WeakPtr.h>
 #include <LibCore/Forward.h>
+#include <LibGC/Ptr.h>
 #include <LibJS/Forward.h>
-#include <LibJS/Heap/GCPtr.h>
 #include <LibWeb/HTML/EventLoop/TaskQueue.h>
 #include <LibWeb/HighResolutionTime/DOMHighResTimeStamp.h>
 
 namespace Web::HTML {
 
 class EventLoop : public JS::Cell {
-    JS_CELL(EventLoop, JS::Cell);
-    JS_DECLARE_ALLOCATOR(EventLoop);
+    GC_CELL(EventLoop, JS::Cell);
+    GC_DECLARE_ALLOCATOR(EventLoop);
 
     struct PauseHandle {
         PauseHandle(EventLoop&, JS::Object const& global, HighResolutionTime::DOMHighResTimeStamp);
@@ -28,8 +28,8 @@ class EventLoop : public JS::Cell {
         AK_MAKE_NONCOPYABLE(PauseHandle);
         AK_MAKE_NONMOVABLE(PauseHandle);
 
-        JS::NonnullGCPtr<EventLoop> event_loop;
-        JS::NonnullGCPtr<JS::Object const> global;
+        GC::Ref<EventLoop> event_loop;
+        GC::Ref<JS::Object const> global;
         HighResolutionTime::DOMHighResTimeStamp const time_before_pause;
     };
 
@@ -53,8 +53,8 @@ public:
     TaskQueue& microtask_queue() { return *m_microtask_queue; }
     TaskQueue const& microtask_queue() const { return *m_microtask_queue; }
 
-    void spin_until(JS::NonnullGCPtr<JS::HeapFunction<bool()>> goal_condition);
-    void spin_processing_tasks_with_source_until(Task::Source, JS::NonnullGCPtr<JS::HeapFunction<bool()>> goal_condition);
+    void spin_until(GC::Ref<GC::Function<bool()>> goal_condition);
+    void spin_processing_tasks_with_source_until(Task::Source, GC::Ref<GC::Function<bool()>> goal_condition);
     void process();
     void queue_task_to_update_the_rendering();
 
@@ -72,9 +72,9 @@ public:
     void register_document(Badge<DOM::Document>, DOM::Document&);
     void unregister_document(Badge<DOM::Document>, DOM::Document&);
 
-    Vector<JS::Handle<DOM::Document>> documents_in_this_event_loop() const;
+    Vector<GC::Root<DOM::Document>> documents_in_this_event_loop() const;
 
-    Vector<JS::Handle<HTML::Window>> same_loop_windows() const;
+    Vector<GC::Root<HTML::Window>> same_loop_windows() const;
 
     void push_onto_backup_incumbent_realm_stack(JS::Realm&);
     void pop_backup_incumbent_realm_stack();
@@ -99,18 +99,18 @@ private:
 
     Type m_type { Type::Window };
 
-    JS::GCPtr<TaskQueue> m_task_queue;
-    JS::GCPtr<TaskQueue> m_microtask_queue;
+    GC::Ptr<TaskQueue> m_task_queue;
+    GC::Ptr<TaskQueue> m_microtask_queue;
 
     // https://html.spec.whatwg.org/multipage/webappapis.html#currently-running-task
-    JS::GCPtr<Task> m_currently_running_task { nullptr };
+    GC::Ptr<Task> m_currently_running_task { nullptr };
 
     // https://html.spec.whatwg.org/multipage/webappapis.html#last-render-opportunity-time
     double m_last_render_opportunity_time { 0 };
     // https://html.spec.whatwg.org/multipage/webappapis.html#last-idle-period-start-time
     double m_last_idle_period_start_time { 0 };
 
-    JS::GCPtr<Platform::Timer> m_system_event_loop_timer;
+    GC::Ptr<Platform::Timer> m_system_event_loop_timer;
 
     // https://html.spec.whatwg.org/#performing-a-microtask-checkpoint
     bool m_performing_a_microtask_checkpoint { false };
@@ -123,7 +123,7 @@ private:
 
     // https://html.spec.whatwg.org/multipage/webappapis.html#backup-incumbent-settings-object-stack
     // https://whatpr.org/html/9893/webappapis.html#backup-incumbent-realm-stack
-    Vector<JS::NonnullGCPtr<JS::Realm>> m_backup_incumbent_realm_stack;
+    Vector<GC::Ref<JS::Realm>> m_backup_incumbent_realm_stack;
 
     // https://html.spec.whatwg.org/multipage/browsing-the-web.html#termination-nesting-level
     size_t m_termination_nesting_level { 0 };
@@ -134,13 +134,13 @@ private:
 
     bool m_is_running_rendering_task { false };
 
-    JS::GCPtr<JS::HeapFunction<void()>> m_rendering_task_function;
+    GC::Ptr<GC::Function<void()>> m_rendering_task_function;
 };
 
 EventLoop& main_thread_event_loop();
-TaskID queue_a_task(HTML::Task::Source, JS::GCPtr<EventLoop>, JS::GCPtr<DOM::Document>, JS::NonnullGCPtr<JS::HeapFunction<void()>> steps);
-TaskID queue_global_task(HTML::Task::Source, JS::Object&, JS::NonnullGCPtr<JS::HeapFunction<void()>> steps);
-void queue_a_microtask(DOM::Document const*, JS::NonnullGCPtr<JS::HeapFunction<void()>> steps);
+TaskID queue_a_task(HTML::Task::Source, GC::Ptr<EventLoop>, GC::Ptr<DOM::Document>, GC::Ref<GC::Function<void()>> steps);
+TaskID queue_global_task(HTML::Task::Source, JS::Object&, GC::Ref<GC::Function<void()>> steps);
+void queue_a_microtask(DOM::Document const*, GC::Ref<GC::Function<void()>> steps);
 void perform_a_microtask_checkpoint();
 
 }

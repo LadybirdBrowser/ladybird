@@ -10,14 +10,14 @@
 
 namespace Web::CSS {
 
-JS_DEFINE_ALLOCATOR(AnimationEvent);
+GC_DEFINE_ALLOCATOR(AnimationEvent);
 
-JS::NonnullGCPtr<AnimationEvent> AnimationEvent::create(JS::Realm& realm, FlyString const& type, AnimationEventInit const& event_init)
+GC::Ref<AnimationEvent> AnimationEvent::create(JS::Realm& realm, FlyString const& type, AnimationEventInit const& event_init)
 {
     return realm.create<AnimationEvent>(realm, type, event_init);
 }
 
-WebIDL::ExceptionOr<JS::NonnullGCPtr<AnimationEvent>> AnimationEvent::construct_impl(JS::Realm& realm, FlyString const& type, AnimationEventInit const& event_init)
+WebIDL::ExceptionOr<GC::Ref<AnimationEvent>> AnimationEvent::construct_impl(JS::Realm& realm, FlyString const& type, AnimationEventInit const& event_init)
 {
     return create(realm, type, event_init);
 }

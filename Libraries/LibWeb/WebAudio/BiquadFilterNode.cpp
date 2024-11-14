@@ -13,9 +13,9 @@
 
 namespace Web::WebAudio {
 
-JS_DEFINE_ALLOCATOR(BiquadFilterNode);
+GC_DEFINE_ALLOCATOR(BiquadFilterNode);
 
-BiquadFilterNode::BiquadFilterNode(JS::Realm& realm, JS::NonnullGCPtr<BaseAudioContext> context, BiquadFilterOptions const& options)
+BiquadFilterNode::BiquadFilterNode(JS::Realm& realm, GC::Ref<BaseAudioContext> context, BiquadFilterOptions const& options)
     : AudioNode(realm, context)
     , m_type(options.type)
     , m_frequency(AudioParam::create(realm, options.frequency, NumericLimits<float>::lowest(), NumericLimits<float>::max(), Bindings::AutomationRate::ARate))
@@ -40,31 +40,31 @@ Bindings::BiquadFilterType BiquadFilterNode::type() const
 }
 
 // https://webaudio.github.io/web-audio-api/#dom-biquadfilternode-frequency
-JS::NonnullGCPtr<AudioParam> BiquadFilterNode::frequency() const
+GC::Ref<AudioParam> BiquadFilterNode::frequency() const
 {
     return m_frequency;
 }
 
 // https://webaudio.github.io/web-audio-api/#dom-biquadfilternode-detune
-JS::NonnullGCPtr<AudioParam> BiquadFilterNode::detune() const
+GC::Ref<AudioParam> BiquadFilterNode::detune() const
 {
     return m_detune;
 }
 
 // https://webaudio.github.io/web-audio-api/#dom-biquadfilternode-q
-JS::NonnullGCPtr<AudioParam> BiquadFilterNode::q() const
+GC::Ref<AudioParam> BiquadFilterNode::q() const
 {
     return m_q;
 }
 
 // https://webaudio.github.io/web-audio-api/#dom-biquadfilternode-gain
-JS::NonnullGCPtr<AudioParam> BiquadFilterNode::gain() const
+GC::Ref<AudioParam> BiquadFilterNode::gain() const
 {
     return m_gain;
 }
 
 // https://webaudio.github.io/web-audio-api/#dom-biquadfilternode-getfrequencyresponse
-WebIDL::ExceptionOr<void> BiquadFilterNode::get_frequency_response(JS::Handle<WebIDL::BufferSource> const& frequency_hz, JS::Handle<WebIDL::BufferSource> const& mag_response, JS::Handle<WebIDL::BufferSource> const& phase_response)
+WebIDL::ExceptionOr<void> BiquadFilterNode::get_frequency_response(GC::Root<WebIDL::BufferSource> const& frequency_hz, GC::Root<WebIDL::BufferSource> const& mag_response, GC::Root<WebIDL::BufferSource> const& phase_response)
 {
     (void)frequency_hz;
     (void)mag_response;
@@ -73,13 +73,13 @@ WebIDL::ExceptionOr<void> BiquadFilterNode::get_frequency_response(JS::Handle<We
     return {};
 }
 
-WebIDL::ExceptionOr<JS::NonnullGCPtr<BiquadFilterNode>> BiquadFilterNode::create(JS::Realm& realm, JS::NonnullGCPtr<BaseAudioContext> context, BiquadFilterOptions const& options)
+WebIDL::ExceptionOr<GC::Ref<BiquadFilterNode>> BiquadFilterNode::create(JS::Realm& realm, GC::Ref<BaseAudioContext> context, BiquadFilterOptions const& options)
 {
     return construct_impl(realm, context, options);
 }
 
 // https://webaudio.github.io/web-audio-api/#dom-biquadfilternode-biquadfilternode
-WebIDL::ExceptionOr<JS::NonnullGCPtr<BiquadFilterNode>> BiquadFilterNode::construct_impl(JS::Realm& realm, JS::NonnullGCPtr<BaseAudioContext> context, BiquadFilterOptions const& options)
+WebIDL::ExceptionOr<GC::Ref<BiquadFilterNode>> BiquadFilterNode::construct_impl(JS::Realm& realm, GC::Ref<BaseAudioContext> context, BiquadFilterOptions const& options)
 {
     // When the constructor is called with a BaseAudioContext c and an option object option, the user agent
     // MUST initialize the AudioNode this, with context and options as arguments.

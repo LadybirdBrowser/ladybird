@@ -15,18 +15,18 @@ namespace Web::CSS {
 
 class ScreenOrientation final : public DOM::EventTarget {
     WEB_PLATFORM_OBJECT(ScreenOrientation, DOM::EventTarget);
-    JS_DECLARE_ALLOCATOR(ScreenOrientation);
+    GC_DECLARE_ALLOCATOR(ScreenOrientation);
 
 public:
-    [[nodiscard]] static JS::NonnullGCPtr<ScreenOrientation> create(JS::Realm&);
+    [[nodiscard]] static GC::Ref<ScreenOrientation> create(JS::Realm&);
 
-    WebIDL::ExceptionOr<JS::NonnullGCPtr<WebIDL::Promise>> lock(Bindings::OrientationLockType);
+    WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> lock(Bindings::OrientationLockType);
     void unlock();
     Bindings::OrientationType type() const;
     WebIDL::UnsignedShort angle() const;
 
-    void set_onchange(JS::GCPtr<WebIDL::CallbackType>);
-    JS::GCPtr<WebIDL::CallbackType> onchange();
+    void set_onchange(GC::Ptr<WebIDL::CallbackType>);
+    GC::Ptr<WebIDL::CallbackType> onchange();
 
 private:
     explicit ScreenOrientation(JS::Realm&);

@@ -10,14 +10,14 @@
 
 namespace Web::HTML {
 
-JS_DEFINE_ALLOCATOR(SubmitEvent);
+GC_DEFINE_ALLOCATOR(SubmitEvent);
 
-JS::NonnullGCPtr<SubmitEvent> SubmitEvent::create(JS::Realm& realm, FlyString const& event_name, SubmitEventInit const& event_init)
+GC::Ref<SubmitEvent> SubmitEvent::create(JS::Realm& realm, FlyString const& event_name, SubmitEventInit const& event_init)
 {
     return realm.create<SubmitEvent>(realm, event_name, event_init);
 }
 
-WebIDL::ExceptionOr<JS::NonnullGCPtr<SubmitEvent>> SubmitEvent::construct_impl(JS::Realm& realm, FlyString const& event_name, SubmitEventInit const& event_init)
+WebIDL::ExceptionOr<GC::Ref<SubmitEvent>> SubmitEvent::construct_impl(JS::Realm& realm, FlyString const& event_name, SubmitEventInit const& event_init)
 {
     return create(realm, event_name, event_init);
 }

@@ -9,7 +9,7 @@
 
 namespace Web::WebGL {
 
-JS_DEFINE_ALLOCATOR(WebGLBuffer);
+GC_DEFINE_ALLOCATOR(WebGLBuffer);
 
 WebGLBuffer::WebGLBuffer(JS::Realm& realm)
     : WebGLObject(realm)

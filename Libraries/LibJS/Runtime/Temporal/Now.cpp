@@ -20,7 +20,7 @@
 
 namespace JS::Temporal {
 
-JS_DEFINE_ALLOCATOR(Now);
+GC_DEFINE_ALLOCATOR(Now);
 
 // 2 The Temporal.Now Object, https://tc39.es/proposal-temporal/#sec-temporal-now-object
 Now::Now(Realm& realm)

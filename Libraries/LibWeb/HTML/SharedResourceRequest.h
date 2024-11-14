@@ -8,31 +8,31 @@
 
 #include <AK/Error.h>
 #include <AK/OwnPtr.h>
+#include <LibGC/Function.h>
+#include <LibGC/Root.h>
 #include <LibGfx/Size.h>
-#include <LibJS/Heap/Handle.h>
-#include <LibJS/Heap/HeapFunction.h>
 #include <LibURL/URL.h>
 #include <LibWeb/Forward.h>
 
 namespace Web::HTML {
 
 class SharedResourceRequest final : public JS::Cell {
-    JS_CELL(SharedResourceRequest, JS::Cell);
-    JS_DECLARE_ALLOCATOR(SharedResourceRequest);
+    GC_CELL(SharedResourceRequest, JS::Cell);
+    GC_DECLARE_ALLOCATOR(SharedResourceRequest);
 
 public:
-    [[nodiscard]] static JS::NonnullGCPtr<SharedResourceRequest> get_or_create(JS::Realm&, JS::NonnullGCPtr<Page>, URL::URL const&);
+    [[nodiscard]] static GC::Ref<SharedResourceRequest> get_or_create(JS::Realm&, GC::Ref<Page>, URL::URL const&);
 
     virtual ~SharedResourceRequest() override;
 
     URL::URL const& url() const { return m_url; }
 
-    [[nodiscard]] JS::GCPtr<DecodedImageData> image_data() const;
+    [[nodiscard]] GC::Ptr<DecodedImageData> image_data() const;
 
-    [[nodiscard]] JS::GCPtr<Fetch::Infrastructure::FetchController> fetch_controller();
-    void set_fetch_controller(JS::GCPtr<Fetch::Infrastructure::FetchController>);
+    [[nodiscard]] GC::Ptr<Fetch::Infrastructure::FetchController> fetch_controller();
+    void set_fetch_controller(GC::Ptr<Fetch::Infrastructure::FetchController>);
 
-    void fetch_resource(JS::Realm&, JS::NonnullGCPtr<Fetch::Infrastructure::Request>);
+    void fetch_resource(JS::Realm&, GC::Ref<Fetch::Infrastructure::Request>);
 
     void add_callbacks(Function<void()> on_finish, Function<void()> on_fail);
 
@@ -40,7 +40,7 @@ public:
     bool needs_fetching() const;
 
 private:
-    explicit SharedResourceRequest(JS::NonnullGCPtr<Page>, URL::URL, JS::NonnullGCPtr<DOM::Document>);
+    explicit SharedResourceRequest(GC::Ref<Page>, URL::URL, GC::Ref<DOM::Document>);
 
     virtual void finalize() override;
     virtual void visit_edges(JS::Cell::Visitor&) override;
@@ -58,19 +58,19 @@ private:
 
     State m_state { State::New };
 
-    JS::NonnullGCPtr<Page> m_page;
+    GC::Ref<Page> m_page;
 
     struct Callbacks {
-        JS::GCPtr<JS::HeapFunction<void()>> on_finish;
-        JS::GCPtr<JS::HeapFunction<void()>> on_fail;
+        GC::Ptr<GC::Function<void()>> on_finish;
+        GC::Ptr<GC::Function<void()>> on_fail;
     };
     Vector<Callbacks> m_callbacks;
 
     URL::URL m_url;
-    JS::GCPtr<DecodedImageData> m_image_data;
-    JS::GCPtr<Fetch::Infrastructure::FetchController> m_fetch_controller;
+    GC::Ptr<DecodedImageData> m_image_data;
+    GC::Ptr<Fetch::Infrastructure::FetchController> m_fetch_controller;
 
-    JS::GCPtr<DOM::Document> m_document;
+    GC::Ptr<DOM::Document> m_document;
 };
 
 }

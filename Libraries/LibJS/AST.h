@@ -15,6 +15,7 @@
 #include <AK/RefPtr.h>
 #include <AK/Variant.h>
 #include <AK/Vector.h>
+#include <LibGC/Root.h>
 #include <LibJS/Bytecode/CodeGenerationError.h>
 #include <LibJS/Bytecode/Executable.h>
 #include <LibJS/Bytecode/IdentifierTable.h>
@@ -22,7 +23,6 @@
 #include <LibJS/Bytecode/Operand.h>
 #include <LibJS/Bytecode/ScopedOperand.h>
 #include <LibJS/Forward.h>
-#include <LibJS/Heap/Handle.h>
 #include <LibJS/Runtime/ClassFieldDefinition.h>
 #include <LibJS/Runtime/Completion.h>
 #include <LibJS/Runtime/EnvironmentCoordinate.h>
@@ -160,10 +160,10 @@ public:
     }
 
     Bytecode::Executable* bytecode_executable() const { return m_bytecode_executable; }
-    void set_bytecode_executable(Bytecode::Executable* bytecode_executable) { m_bytecode_executable = make_handle(bytecode_executable); }
+    void set_bytecode_executable(Bytecode::Executable* bytecode_executable) { m_bytecode_executable = make_root(bytecode_executable); }
 
 private:
-    Handle<Bytecode::Executable> m_bytecode_executable;
+    GC::Root<Bytecode::Executable> m_bytecode_executable;
 };
 
 // 14.13 Labelled Statements, https://tc39.es/ecma262/#sec-labelled-statements
@@ -690,7 +690,7 @@ struct FunctionParameter {
     Variant<NonnullRefPtr<Identifier const>, NonnullRefPtr<BindingPattern const>> binding;
     RefPtr<Expression const> default_value;
     bool is_rest { false };
-    Handle<Bytecode::Executable> bytecode_executable {};
+    GC::Root<Bytecode::Executable> bytecode_executable {};
 };
 
 struct FunctionParsingInsights {

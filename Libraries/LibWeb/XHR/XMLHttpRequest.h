@@ -26,11 +26,11 @@
 namespace Web::XHR {
 
 // https://fetch.spec.whatwg.org/#typedefdef-xmlhttprequestbodyinit
-using DocumentOrXMLHttpRequestBodyInit = Variant<JS::Handle<Web::DOM::Document>, JS::Handle<Web::FileAPI::Blob>, JS::Handle<WebIDL::BufferSource>, JS::Handle<XHR::FormData>, JS::Handle<Web::DOMURL::URLSearchParams>, AK::String>;
+using DocumentOrXMLHttpRequestBodyInit = Variant<GC::Root<Web::DOM::Document>, GC::Root<Web::FileAPI::Blob>, GC::Root<WebIDL::BufferSource>, GC::Root<XHR::FormData>, GC::Root<Web::DOMURL::URLSearchParams>, AK::String>;
 
 class XMLHttpRequest final : public XMLHttpRequestEventTarget {
     WEB_PLATFORM_OBJECT(XMLHttpRequest, XMLHttpRequestEventTarget);
-    JS_DECLARE_ALLOCATOR(XMLHttpRequest);
+    GC_DECLARE_ALLOCATOR(XMLHttpRequest);
 
 public:
     enum class State : u16 {
@@ -41,7 +41,7 @@ public:
         Done = 4,
     };
 
-    static WebIDL::ExceptionOr<JS::NonnullGCPtr<XMLHttpRequest>> construct_impl(JS::Realm&);
+    static WebIDL::ExceptionOr<GC::Ref<XMLHttpRequest>> construct_impl(JS::Realm&);
 
     virtual ~XMLHttpRequest() override;
 
@@ -49,7 +49,7 @@ public:
     Fetch::Infrastructure::Status status() const;
     WebIDL::ExceptionOr<String> status_text() const;
     WebIDL::ExceptionOr<String> response_text() const;
-    WebIDL::ExceptionOr<JS::GCPtr<DOM::Document>> response_xml();
+    WebIDL::ExceptionOr<GC::Ptr<DOM::Document>> response_xml();
     WebIDL::ExceptionOr<JS::Value> response();
     Bindings::XMLHttpRequestResponseType response_type() const { return m_response_type; }
     String response_url();
@@ -77,7 +77,7 @@ public:
 
     void abort();
 
-    JS::NonnullGCPtr<XMLHttpRequestUpload> upload() const;
+    GC::Ref<XMLHttpRequestUpload> upload() const;
 
 private:
     virtual void initialize(JS::Realm&) override;
@@ -93,14 +93,14 @@ private:
 
     WebIDL::ExceptionOr<void> handle_response_end_of_body();
     WebIDL::ExceptionOr<void> handle_errors();
-    JS::ThrowCompletionOr<void> request_error_steps(FlyString const& event_name, JS::GCPtr<WebIDL::DOMException> exception = nullptr);
+    JS::ThrowCompletionOr<void> request_error_steps(FlyString const& event_name, GC::Ptr<WebIDL::DOMException> exception = nullptr);
 
     XMLHttpRequest(JS::Realm&, XMLHttpRequestUpload&, Fetch::Infrastructure::HeaderList&, Fetch::Infrastructure::Response&, Fetch::Infrastructure::FetchController&);
 
     // https://xhr.spec.whatwg.org/#upload-object
     // upload object
     //     An XMLHttpRequestUpload object.
-    JS::NonnullGCPtr<XMLHttpRequestUpload> m_upload_object;
+    GC::Ref<XMLHttpRequestUpload> m_upload_object;
 
     // https://xhr.spec.whatwg.org/#concept-xmlhttprequest-state
     // state
@@ -135,12 +135,12 @@ private:
     // https://xhr.spec.whatwg.org/#author-request-headers
     // author request headers
     //     A header list, initially empty.
-    JS::NonnullGCPtr<Fetch::Infrastructure::HeaderList> m_author_request_headers;
+    GC::Ref<Fetch::Infrastructure::HeaderList> m_author_request_headers;
 
     // https://xhr.spec.whatwg.org/#request-body
     // request body
     //     Initially null.
-    JS::GCPtr<Fetch::Infrastructure::Body> m_request_body;
+    GC::Ptr<Fetch::Infrastructure::Body> m_request_body;
 
     // https://xhr.spec.whatwg.org/#synchronous-flag
     // synchronous flag
@@ -165,7 +165,7 @@ private:
     // https://xhr.spec.whatwg.org/#response
     // response
     //     A response, initially a network error.
-    JS::NonnullGCPtr<Fetch::Infrastructure::Response> m_response;
+    GC::Ref<Fetch::Infrastructure::Response> m_response;
 
     // https://xhr.spec.whatwg.org/#received-bytes
     // received bytes
@@ -185,13 +185,13 @@ private:
     // response object
     //     An object, failure, or null, initially null.
     //     NOTE: This needs to be a JS::Value as the JSON response might not actually be an object.
-    Variant<JS::NonnullGCPtr<JS::Object>, Failure, Empty> m_response_object;
+    Variant<GC::Ref<JS::Object>, Failure, Empty> m_response_object;
 
     // https://xhr.spec.whatwg.org/#xmlhttprequest-fetch-controller
     // fetch controller
     //     A fetch controller, initially a new fetch controller.
     //     NOTE: The send() method sets it to a useful fetch controller, but for simplicity it always holds a fetch controller.
-    JS::NonnullGCPtr<Fetch::Infrastructure::FetchController> m_fetch_controller;
+    GC::Ref<Fetch::Infrastructure::FetchController> m_fetch_controller;
 
     // https://xhr.spec.whatwg.org/#override-mime-type
     // override MIME type

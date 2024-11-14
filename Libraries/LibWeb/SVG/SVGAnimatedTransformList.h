@@ -14,30 +14,30 @@ namespace Web::SVG {
 // https://svgwg.org/svg2-draft/single-page.html#coords-InterfaceSVGTransformList
 class SVGAnimatedTransformList final : public Bindings::PlatformObject {
     WEB_PLATFORM_OBJECT(SVGAnimatedTransformList, Bindings::PlatformObject);
-    JS_DECLARE_ALLOCATOR(SVGAnimatedTransformList);
+    GC_DECLARE_ALLOCATOR(SVGAnimatedTransformList);
 
 public:
-    [[nodiscard]] static JS::NonnullGCPtr<SVGAnimatedTransformList> create(JS::Realm& realm, JS::NonnullGCPtr<SVGTransformList> base_val, JS::NonnullGCPtr<SVGTransformList> anim_val);
+    [[nodiscard]] static GC::Ref<SVGAnimatedTransformList> create(JS::Realm& realm, GC::Ref<SVGTransformList> base_val, GC::Ref<SVGTransformList> anim_val);
     virtual ~SVGAnimatedTransformList() override;
 
-    JS::NonnullGCPtr<SVGTransformList> base_val() const
+    GC::Ref<SVGTransformList> base_val() const
     {
         return m_anim_val;
     }
 
-    JS::NonnullGCPtr<SVGTransformList> anim_val() const
+    GC::Ref<SVGTransformList> anim_val() const
     {
         return m_anim_val;
     }
 
 private:
-    SVGAnimatedTransformList(JS::Realm& realm, JS::NonnullGCPtr<SVGTransformList> base_val, JS::NonnullGCPtr<SVGTransformList> anim_val);
+    SVGAnimatedTransformList(JS::Realm& realm, GC::Ref<SVGTransformList> base_val, GC::Ref<SVGTransformList> anim_val);
 
     virtual void initialize(JS::Realm& realm) override;
     virtual void visit_edges(Cell::Visitor& visitor) override;
 
-    JS::NonnullGCPtr<SVGTransformList> m_base_val;
-    JS::NonnullGCPtr<SVGTransformList> m_anim_val;
+    GC::Ref<SVGTransformList> m_base_val;
+    GC::Ref<SVGTransformList> m_anim_val;
 };
 
 }

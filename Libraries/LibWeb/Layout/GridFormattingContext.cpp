@@ -1335,7 +1335,7 @@ void GridFormattingContext::place_grid_items()
     // flex items), which are then assigned to predefined areas in the grid. They can be explicitly
     // placed using coordinates through the grid-placement properties or implicitly placed into
     // empty areas using auto-placement.
-    HashMap<int, Vector<JS::NonnullGCPtr<Box const>>> order_item_bucket;
+    HashMap<int, Vector<GC::Ref<Box const>>> order_item_bucket;
     grid_container().for_each_child_of_type<Box>([&](Box& child_box) {
         if (can_skip_is_anonymous_text_run(child_box))
             return IterationDecision::Continue;

@@ -13,7 +13,7 @@
 
 namespace Web::HTML {
 
-JS_DEFINE_ALLOCATOR(JavaScriptModuleScript);
+GC_DEFINE_ALLOCATOR(JavaScriptModuleScript);
 
 ModuleScript::~ModuleScript() = default;
 
@@ -31,7 +31,7 @@ JavaScriptModuleScript::JavaScriptModuleScript(URL::URL base_url, ByteString fil
 
 // https://html.spec.whatwg.org/multipage/webappapis.html#creating-a-javascript-module-script
 // https://whatpr.org/html/9893/webappapis.html#creating-a-javascript-module-script
-WebIDL::ExceptionOr<JS::GCPtr<JavaScriptModuleScript>> JavaScriptModuleScript::create(ByteString const& filename, StringView source, JS::Realm& realm, URL::URL base_url)
+WebIDL::ExceptionOr<GC::Ptr<JavaScriptModuleScript>> JavaScriptModuleScript::create(ByteString const& filename, StringView source, JS::Realm& realm, URL::URL base_url)
 {
     // 1. If scripting is disabled for realm, then set source to the empty string.
     if (HTML::is_scripting_disabled(realm))
@@ -146,7 +146,7 @@ JS::Promise* JavaScriptModuleScript::run(PreventErrorReporting)
         // NON-STANDARD: To ensure that LibJS can find the module on the stack, we push a new execution context.
         auto module_execution_context = JS::ExecutionContext::create();
         module_execution_context->realm = &realm;
-        module_execution_context->script_or_module = JS::NonnullGCPtr<JS::Module> { *record };
+        module_execution_context->script_or_module = GC::Ref<JS::Module> { *record };
         vm().push_execution_context(*module_execution_context);
 
         // 2. Set evaluationPromise to record.Evaluate().

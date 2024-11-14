@@ -9,9 +9,9 @@
 
 namespace JS {
 
-JS_DEFINE_ALLOCATOR(BooleanObject);
+GC_DEFINE_ALLOCATOR(BooleanObject);
 
-NonnullGCPtr<BooleanObject> BooleanObject::create(Realm& realm, bool value)
+GC::Ref<BooleanObject> BooleanObject::create(Realm& realm, bool value)
 {
     return realm.create<BooleanObject>(value, realm.intrinsics().boolean_prototype());
 }

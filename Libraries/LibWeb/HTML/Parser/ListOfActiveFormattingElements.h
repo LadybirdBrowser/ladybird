@@ -19,7 +19,7 @@ public:
     struct Entry {
         bool is_marker() const { return !element; }
 
-        JS::GCPtr<DOM::Element> element;
+        GC::Ptr<DOM::Element> element;
     };
 
     bool is_empty() const { return m_entries.is_empty(); }

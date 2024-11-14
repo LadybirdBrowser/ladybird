@@ -12,7 +12,7 @@
 
 namespace Web::SVG {
 
-JS_DEFINE_ALLOCATOR(SVGScriptElement);
+GC_DEFINE_ALLOCATOR(SVGScriptElement);
 
 SVGScriptElement::SVGScriptElement(DOM::Document& document, DOM::QualifiedName qualified_name)
     : SVGElement(document, move(qualified_name))
@@ -61,7 +61,7 @@ void SVGScriptElement::process_the_script_element()
     // https://html.spec.whatwg.org/multipage/document-lifecycle.html#read-html
     // Before any script execution occurs, the user agent must wait for scripts may run for the newly-created document to be true for document.
     if (!m_document->ready_to_run_scripts())
-        HTML::main_thread_event_loop().spin_until(JS::create_heap_function(heap(), [&] { return m_document->ready_to_run_scripts(); }));
+        HTML::main_thread_event_loop().spin_until(GC::create_function(heap(), [&] { return m_document->ready_to_run_scripts(); }));
 
     // FIXME: Support non-inline scripts.
     auto base_url = document().base_url();

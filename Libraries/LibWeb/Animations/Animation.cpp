@@ -22,10 +22,10 @@
 
 namespace Web::Animations {
 
-JS_DEFINE_ALLOCATOR(Animation);
+GC_DEFINE_ALLOCATOR(Animation);
 
 // https://www.w3.org/TR/web-animations-1/#dom-animation-animation
-JS::NonnullGCPtr<Animation> Animation::create(JS::Realm& realm, JS::GCPtr<AnimationEffect> effect, Optional<JS::GCPtr<AnimationTimeline>> timeline)
+GC::Ref<Animation> Animation::create(JS::Realm& realm, GC::Ptr<AnimationEffect> effect, Optional<GC::Ptr<AnimationTimeline>> timeline)
 {
     // 1. Let animation be a new Animation object.
     auto animation = realm.create<Animation>(realm);
@@ -45,13 +45,13 @@ JS::NonnullGCPtr<Animation> Animation::create(JS::Realm& realm, JS::GCPtr<Animat
     return animation;
 }
 
-WebIDL::ExceptionOr<JS::NonnullGCPtr<Animation>> Animation::construct_impl(JS::Realm& realm, JS::GCPtr<AnimationEffect> effect, Optional<JS::GCPtr<AnimationTimeline>> timeline)
+WebIDL::ExceptionOr<GC::Ref<Animation>> Animation::construct_impl(JS::Realm& realm, GC::Ptr<AnimationEffect> effect, Optional<GC::Ptr<AnimationTimeline>> timeline)
 {
     return create(realm, effect, timeline);
 }
 
 // https://www.w3.org/TR/web-animations-1/#animation-set-the-associated-effect-of-an-animation
-void Animation::set_effect(JS::GCPtr<AnimationEffect> new_effect)
+void Animation::set_effect(GC::Ptr<AnimationEffect> new_effect)
 {
     // Setting this attribute updates the object’s associated effect using the procedure to set the associated effect of
     // an animation.
@@ -97,7 +97,7 @@ void Animation::set_effect(JS::GCPtr<AnimationEffect> new_effect)
 }
 
 // https://www.w3.org/TR/web-animations-1/#animation-set-the-timeline-of-an-animation
-void Animation::set_timeline(JS::GCPtr<AnimationTimeline> new_timeline)
+void Animation::set_timeline(GC::Ptr<AnimationTimeline> new_timeline)
 {
     // Setting this attribute updates the object’s timeline using the procedure to set the timeline of an animation.
 
@@ -376,37 +376,37 @@ void Animation::set_replace_state(Bindings::AnimationReplaceState value)
 }
 
 // https://www.w3.org/TR/web-animations-1/#dom-animation-onfinish
-JS::GCPtr<WebIDL::CallbackType> Animation::onfinish()
+GC::Ptr<WebIDL::CallbackType> Animation::onfinish()
 {
     return event_handler_attribute(HTML::EventNames::finish);
 }
 
 // https://www.w3.org/TR/web-animations-1/#dom-animation-onfinish
-void Animation::set_onfinish(JS::GCPtr<WebIDL::CallbackType> event_handler)
+void Animation::set_onfinish(GC::Ptr<WebIDL::CallbackType> event_handler)
 {
     set_event_handler_attribute(HTML::EventNames::finish, event_handler);
 }
 
 // https://www.w3.org/TR/web-animations-1/#dom-animation-oncancel
-JS::GCPtr<WebIDL::CallbackType> Animation::oncancel()
+GC::Ptr<WebIDL::CallbackType> Animation::oncancel()
 {
     return event_handler_attribute(HTML::EventNames::cancel);
 }
 
 // https://www.w3.org/TR/web-animations-1/#dom-animation-oncancel
-void Animation::set_oncancel(JS::GCPtr<WebIDL::CallbackType> event_handler)
+void Animation::set_oncancel(GC::Ptr<WebIDL::CallbackType> event_handler)
 {
     set_event_handler_attribute(HTML::EventNames::cancel, event_handler);
 }
 
 // https://www.w3.org/TR/web-animations-1/#dom-animation-onremove
-JS::GCPtr<WebIDL::CallbackType> Animation::onremove()
+GC::Ptr<WebIDL::CallbackType> Animation::onremove()
 {
     return event_handler_attribute(HTML::EventNames::remove);
 }
 
 // https://www.w3.org/TR/web-animations-1/#dom-animation-onremove
-void Animation::set_onremove(JS::GCPtr<WebIDL::CallbackType> event_handler)
+void Animation::set_onremove(GC::Ptr<WebIDL::CallbackType> event_handler)
 {
     set_event_handler_attribute(HTML::EventNames::remove, event_handler);
 }
@@ -463,7 +463,7 @@ void Animation::cancel(ShouldInvalidate should_invalidate)
                 scheduled_event_time = m_timeline->convert_a_timeline_time_to_an_origin_relative_time(m_timeline->current_time());
             document->append_pending_animation_event({ cancel_event, *this, *this, scheduled_event_time });
         } else {
-            HTML::queue_global_task(HTML::Task::Source::DOMManipulation, realm.global_object(), JS::create_heap_function(heap(), [this, cancel_event]() {
+            HTML::queue_global_task(HTML::Task::Source::DOMManipulation, realm.global_object(), GC::create_function(heap(), [this, cancel_event]() {
                 dispatch_event(cancel_event);
             }));
         }
@@ -918,7 +918,7 @@ Optional<double> Animation::convert_a_timeline_time_to_an_origin_relative_time(O
 }
 
 // https://www.w3.org/TR/web-animations-1/#animation-document-for-timing
-JS::GCPtr<DOM::Document> Animation::document_for_timing() const
+GC::Ptr<DOM::Document> Animation::document_for_timing() const
 {
     // An animation’s document for timing is the Document with which its timeline is associated. If an animation is not
     // associated with a timeline, or its timeline is not associated with a document, then it has no document for
@@ -1105,7 +1105,7 @@ void Animation::update_finished_state(DidSeek did_seek, SynchronouslyNotify sync
     //    steps:
     if (current_finished_state && !m_is_finished) {
         // 1. Let finish notification steps refer to the following procedure:
-        auto finish_notification_steps = JS::create_heap_function(heap(), [this, &realm]() {
+        auto finish_notification_steps = GC::create_function(heap(), [this, &realm]() {
             // 1. If animation’s play state is not equal to finished, abort these steps.
             if (play_state() != Bindings::AnimationPlayState::Finished)
                 return;
@@ -1147,7 +1147,7 @@ void Animation::update_finished_state(DidSeek did_seek, SynchronouslyNotify sync
                 // Manually create a task so its ID can be saved
                 auto& document = verify_cast<HTML::Window>(realm.global_object()).associated_document();
                 auto task = HTML::Task::create(vm(), HTML::Task::Source::DOMManipulation, &document,
-                    JS::create_heap_function(heap(), [this, finish_event]() {
+                    GC::create_function(heap(), [this, finish_event]() {
                         dispatch_event(finish_event);
                     }));
                 m_pending_finish_microtask_id = task->id();
@@ -1304,7 +1304,7 @@ void Animation::run_pending_pause_task()
     update_finished_state(DidSeek::No, SynchronouslyNotify::No);
 }
 
-JS::NonnullGCPtr<WebIDL::Promise> Animation::current_ready_promise() const
+GC::Ref<WebIDL::Promise> Animation::current_ready_promise() const
 {
     if (!m_current_ready_promise) {
         // The current ready promise is initially a resolved Promise created using the procedure to create a new
@@ -1315,7 +1315,7 @@ JS::NonnullGCPtr<WebIDL::Promise> Animation::current_ready_promise() const
     return *m_current_ready_promise;
 }
 
-JS::NonnullGCPtr<WebIDL::Promise> Animation::current_finished_promise() const
+GC::Ref<WebIDL::Promise> Animation::current_finished_promise() const
 {
     if (!m_current_finished_promise) {
         // The current finished promise is initially a pending Promise object.

@@ -15,23 +15,23 @@
 
 namespace Web::WebIDL {
 
-using ReactionSteps = JS::HeapFunction<WebIDL::ExceptionOr<JS::Value>(JS::Value)>;
+using ReactionSteps = GC::Function<WebIDL::ExceptionOr<JS::Value>(JS::Value)>;
 
 // https://webidl.spec.whatwg.org/#es-promise
 using Promise = JS::PromiseCapability;
 
-JS::NonnullGCPtr<Promise> create_promise(JS::Realm&);
-JS::NonnullGCPtr<Promise> create_resolved_promise(JS::Realm&, JS::Value);
-JS::NonnullGCPtr<Promise> create_rejected_promise(JS::Realm&, JS::Value);
+GC::Ref<Promise> create_promise(JS::Realm&);
+GC::Ref<Promise> create_resolved_promise(JS::Realm&, JS::Value);
+GC::Ref<Promise> create_rejected_promise(JS::Realm&, JS::Value);
 void resolve_promise(JS::Realm&, Promise const&, JS::Value = JS::js_undefined());
 void reject_promise(JS::Realm&, Promise const&, JS::Value);
-JS::NonnullGCPtr<Promise> react_to_promise(Promise const&, JS::GCPtr<ReactionSteps> on_fulfilled_callback, JS::GCPtr<ReactionSteps> on_rejected_callback);
-JS::NonnullGCPtr<Promise> upon_fulfillment(Promise const&, JS::NonnullGCPtr<ReactionSteps>);
-JS::NonnullGCPtr<Promise> upon_rejection(Promise const&, JS::NonnullGCPtr<ReactionSteps>);
+GC::Ref<Promise> react_to_promise(Promise const&, GC::Ptr<ReactionSteps> on_fulfilled_callback, GC::Ptr<ReactionSteps> on_rejected_callback);
+GC::Ref<Promise> upon_fulfillment(Promise const&, GC::Ref<ReactionSteps>);
+GC::Ref<Promise> upon_rejection(Promise const&, GC::Ref<ReactionSteps>);
 void mark_promise_as_handled(Promise const&);
-void wait_for_all(JS::Realm&, Vector<JS::NonnullGCPtr<Promise>> const& promises, Function<void(Vector<JS::Value> const&)> success_steps, Function<void(JS::Value)> failure_steps);
+void wait_for_all(JS::Realm&, Vector<GC::Ref<Promise>> const& promises, Function<void(Vector<JS::Value> const&)> success_steps, Function<void(JS::Value)> failure_steps);
 
 // Non-spec, convenience method.
-JS::NonnullGCPtr<Promise> create_rejected_promise_from_exception(JS::Realm&, Exception);
+GC::Ref<Promise> create_rejected_promise_from_exception(JS::Realm&, Exception);
 
 }

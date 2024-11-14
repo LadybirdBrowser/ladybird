@@ -18,10 +18,10 @@ namespace Web::CSS {
 // https://drafts.css-houdini.org/css-properties-values-api/#the-css-property-rule-interface
 class CSSPropertyRule final : public CSSRule {
     WEB_PLATFORM_OBJECT(CSSPropertyRule, CSSRule);
-    JS_DECLARE_ALLOCATOR(CSSPropertyRule);
+    GC_DECLARE_ALLOCATOR(CSSPropertyRule);
 
 public:
-    static JS::NonnullGCPtr<CSSPropertyRule> create(JS::Realm&, FlyString name, FlyString syntax, bool inherits, Optional<String> initial_value);
+    static GC::Ref<CSSPropertyRule> create(JS::Realm&, FlyString name, FlyString syntax, bool inherits, Optional<String> initial_value);
 
     virtual ~CSSPropertyRule() = default;
 

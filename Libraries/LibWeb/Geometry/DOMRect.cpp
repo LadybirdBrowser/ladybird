@@ -11,25 +11,25 @@
 
 namespace Web::Geometry {
 
-JS_DEFINE_ALLOCATOR(DOMRect);
+GC_DEFINE_ALLOCATOR(DOMRect);
 
-WebIDL::ExceptionOr<JS::NonnullGCPtr<DOMRect>> DOMRect::construct_impl(JS::Realm& realm, double x, double y, double width, double height)
+WebIDL::ExceptionOr<GC::Ref<DOMRect>> DOMRect::construct_impl(JS::Realm& realm, double x, double y, double width, double height)
 {
     return create(realm, Gfx::FloatRect { x, y, width, height });
 }
 
-JS::NonnullGCPtr<DOMRect> DOMRect::create(JS::Realm& realm, Gfx::FloatRect const& rect)
+GC::Ref<DOMRect> DOMRect::create(JS::Realm& realm, Gfx::FloatRect const& rect)
 {
     return realm.create<DOMRect>(realm, rect.x(), rect.y(), rect.width(), rect.height());
 }
 
-JS::NonnullGCPtr<DOMRect> DOMRect::create(JS::Realm& realm)
+GC::Ref<DOMRect> DOMRect::create(JS::Realm& realm)
 {
     return realm.create<DOMRect>(realm);
 }
 
 // https://drafts.fxtf.org/geometry/#create-a-domrect-from-the-dictionary
-JS::NonnullGCPtr<DOMRect> DOMRect::from_rect(JS::VM& vm, Geometry::DOMRectInit const& other)
+GC::Ref<DOMRect> DOMRect::from_rect(JS::VM& vm, Geometry::DOMRectInit const& other)
 {
     auto& realm = *vm.current_realm();
     return realm.create<DOMRect>(realm, other.x, other.y, other.width, other.height);

@@ -11,7 +11,7 @@
 
 namespace Web::MathML {
 
-JS_DEFINE_ALLOCATOR(MathMLElement);
+GC_DEFINE_ALLOCATOR(MathMLElement);
 
 MathMLElement::~MathMLElement() = default;
 

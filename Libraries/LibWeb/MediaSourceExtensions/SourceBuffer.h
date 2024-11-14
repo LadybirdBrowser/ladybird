@@ -13,7 +13,7 @@ namespace Web::MediaSourceExtensions {
 // https://w3c.github.io/media-source/#dom-sourcebuffer
 class SourceBuffer : public DOM::EventTarget {
     WEB_PLATFORM_OBJECT(SourceBuffer, DOM::EventTarget);
-    JS_DECLARE_ALLOCATOR(SourceBuffer);
+    GC_DECLARE_ALLOCATOR(SourceBuffer);
 
 protected:
     SourceBuffer(JS::Realm&);

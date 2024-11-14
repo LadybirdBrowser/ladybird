@@ -7,10 +7,11 @@
 // RUN: %clang++ -cc1 -verify %plugin_opts% %s 2>&1
 // expected-no-diagnostics
 
+#include <LibGC/Cell.h>
 #include <LibJS/Runtime/Object.h>
 
 class TestClass : public JS::Object {
     JS_OBJECT(TestClass, JS::Object);
 
-    JS::RawGCPtr<JS::Object> m_object;
+    GC::RawPtr<JS::Object> m_object;
 };

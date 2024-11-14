@@ -14,7 +14,7 @@
 
 namespace Web::FileAPI {
 
-JS_DEFINE_ALLOCATOR(File);
+GC_DEFINE_ALLOCATOR(File);
 
 File::File(JS::Realm& realm, ByteBuffer byte_buffer, String file_name, String type, i64 last_modified)
     : Blob(realm, move(byte_buffer), move(type))
@@ -36,13 +36,13 @@ void File::initialize(JS::Realm& realm)
 
 File::~File() = default;
 
-JS::NonnullGCPtr<File> File::create(JS::Realm& realm)
+GC::Ref<File> File::create(JS::Realm& realm)
 {
     return realm.create<File>(realm);
 }
 
 // https://w3c.github.io/FileAPI/#ref-for-dom-file-file
-WebIDL::ExceptionOr<JS::NonnullGCPtr<File>> File::create(JS::Realm& realm, Vector<BlobPart> const& file_bits, String const& file_name, Optional<FilePropertyBag> const& options)
+WebIDL::ExceptionOr<GC::Ref<File>> File::create(JS::Realm& realm, Vector<BlobPart> const& file_bits, String const& file_name, Optional<FilePropertyBag> const& options)
 {
     auto& vm = realm.vm();
 
@@ -82,7 +82,7 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<File>> File::create(JS::Realm& realm, Vecto
     return realm.create<File>(realm, move(bytes), move(name), move(type), last_modified);
 }
 
-WebIDL::ExceptionOr<JS::NonnullGCPtr<File>> File::construct_impl(JS::Realm& realm, Vector<BlobPart> const& file_bits, String const& file_name, Optional<FilePropertyBag> const& options)
+WebIDL::ExceptionOr<GC::Ref<File>> File::construct_impl(JS::Realm& realm, Vector<BlobPart> const& file_bits, String const& file_name, Optional<FilePropertyBag> const& options)
 {
     return create(realm, file_bits, file_name, options);
 }

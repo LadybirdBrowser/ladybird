@@ -30,14 +30,14 @@ struct TextDecodeOptions {
 // https://encoding.spec.whatwg.org/#textdecoder
 class TextDecoder : public Bindings::PlatformObject {
     WEB_PLATFORM_OBJECT(TextDecoder, Bindings::PlatformObject);
-    JS_DECLARE_ALLOCATOR(TextDecoder);
+    GC_DECLARE_ALLOCATOR(TextDecoder);
 
 public:
-    static WebIDL::ExceptionOr<JS::NonnullGCPtr<TextDecoder>> construct_impl(JS::Realm&, FlyString encoding, Optional<TextDecoderOptions> const& options = {});
+    static WebIDL::ExceptionOr<GC::Ref<TextDecoder>> construct_impl(JS::Realm&, FlyString encoding, Optional<TextDecoderOptions> const& options = {});
 
     virtual ~TextDecoder() override;
 
-    WebIDL::ExceptionOr<String> decode(Optional<JS::Handle<WebIDL::BufferSource>> const&, Optional<TextDecodeOptions> const& options = {}) const;
+    WebIDL::ExceptionOr<String> decode(Optional<GC::Root<WebIDL::BufferSource>> const&, Optional<TextDecodeOptions> const& options = {}) const;
 
     FlyString const& encoding() const { return m_encoding; }
     bool fatal() const { return m_fatal; }

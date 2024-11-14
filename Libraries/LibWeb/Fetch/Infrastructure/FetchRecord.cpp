@@ -8,24 +8,24 @@
 
 namespace Web::Fetch::Infrastructure {
 
-JS_DEFINE_ALLOCATOR(FetchRecord);
+GC_DEFINE_ALLOCATOR(FetchRecord);
 
-JS::NonnullGCPtr<FetchRecord> FetchRecord::create(JS::VM& vm, JS::NonnullGCPtr<Infrastructure::Request> request)
+GC::Ref<FetchRecord> FetchRecord::create(JS::VM& vm, GC::Ref<Infrastructure::Request> request)
 {
     return vm.heap().allocate<FetchRecord>(request);
 }
 
-JS::NonnullGCPtr<FetchRecord> FetchRecord::create(JS::VM& vm, JS::NonnullGCPtr<Infrastructure::Request> request, JS::GCPtr<Fetch::Infrastructure::FetchController> fetch_controller)
+GC::Ref<FetchRecord> FetchRecord::create(JS::VM& vm, GC::Ref<Infrastructure::Request> request, GC::Ptr<Fetch::Infrastructure::FetchController> fetch_controller)
 {
     return vm.heap().allocate<FetchRecord>(request, fetch_controller);
 }
 
-FetchRecord::FetchRecord(JS::NonnullGCPtr<Infrastructure::Request> request)
+FetchRecord::FetchRecord(GC::Ref<Infrastructure::Request> request)
     : m_request(request)
 {
 }
 
-FetchRecord::FetchRecord(JS::NonnullGCPtr<Infrastructure::Request> request, JS::GCPtr<Fetch::Infrastructure::FetchController> fetch_controller)
+FetchRecord::FetchRecord(GC::Ref<Infrastructure::Request> request, GC::Ptr<Fetch::Infrastructure::FetchController> fetch_controller)
     : m_request(request)
     , m_fetch_controller(fetch_controller)
 {

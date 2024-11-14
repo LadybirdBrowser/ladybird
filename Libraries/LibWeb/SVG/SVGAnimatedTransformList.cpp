@@ -10,14 +10,14 @@
 
 namespace Web::SVG {
 
-JS_DEFINE_ALLOCATOR(SVGAnimatedTransformList);
+GC_DEFINE_ALLOCATOR(SVGAnimatedTransformList);
 
-JS::NonnullGCPtr<SVGAnimatedTransformList> SVGAnimatedTransformList::create(JS::Realm& realm, JS::NonnullGCPtr<SVGTransformList> base_val, JS::NonnullGCPtr<SVGTransformList> anim_val)
+GC::Ref<SVGAnimatedTransformList> SVGAnimatedTransformList::create(JS::Realm& realm, GC::Ref<SVGTransformList> base_val, GC::Ref<SVGTransformList> anim_val)
 {
     return realm.create<SVGAnimatedTransformList>(realm, base_val, anim_val);
 }
 
-SVGAnimatedTransformList::SVGAnimatedTransformList(JS::Realm& realm, JS::NonnullGCPtr<SVGTransformList> base_val, JS::NonnullGCPtr<SVGTransformList> anim_val)
+SVGAnimatedTransformList::SVGAnimatedTransformList(JS::Realm& realm, GC::Ref<SVGTransformList> base_val, GC::Ref<SVGTransformList> anim_val)
     : PlatformObject(realm)
     , m_base_val(base_val)
     , m_anim_val(anim_val) {};

@@ -10,9 +10,9 @@
 
 namespace Web::MediaSourceExtensions {
 
-JS_DEFINE_ALLOCATOR(BufferedChangeEvent);
+GC_DEFINE_ALLOCATOR(BufferedChangeEvent);
 
-WebIDL::ExceptionOr<JS::NonnullGCPtr<BufferedChangeEvent>> BufferedChangeEvent::construct_impl(JS::Realm& realm, AK::FlyString const& type, BufferedChangeEventInit const& event_init)
+WebIDL::ExceptionOr<GC::Ref<BufferedChangeEvent>> BufferedChangeEvent::construct_impl(JS::Realm& realm, AK::FlyString const& type, BufferedChangeEventInit const& event_init)
 {
     return realm.create<BufferedChangeEvent>(realm, type, event_init);
 }

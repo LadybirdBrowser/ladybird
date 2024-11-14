@@ -9,9 +9,9 @@
 
 namespace JS {
 
-JS_DEFINE_ALLOCATOR(JobCallback);
+GC_DEFINE_ALLOCATOR(JobCallback);
 
-JS::NonnullGCPtr<JobCallback> JobCallback::create(JS::VM& vm, FunctionObject& callback, OwnPtr<CustomData> custom_data)
+GC::Ref<JobCallback> JobCallback::create(JS::VM& vm, FunctionObject& callback, OwnPtr<CustomData> custom_data)
 {
     return vm.heap().allocate<JobCallback>(callback, move(custom_data));
 }
@@ -23,14 +23,14 @@ void JobCallback::visit_edges(Visitor& visitor)
 }
 
 // 9.5.2 HostMakeJobCallback ( callback ), https://tc39.es/ecma262/#sec-hostmakejobcallback
-JS::NonnullGCPtr<JobCallback> make_job_callback(FunctionObject& callback)
+GC::Ref<JobCallback> make_job_callback(FunctionObject& callback)
 {
     // 1. Return the JobCallback Record { [[Callback]]: callback, [[HostDefined]]: empty }.
     return JobCallback::create(callback.vm(), callback, {});
 }
 
 // 9.5.3 HostCallJobCallback ( jobCallback, V, argumentsList ), https://tc39.es/ecma262/#sec-hostcalljobcallback
-ThrowCompletionOr<Value> call_job_callback(VM& vm, JS::NonnullGCPtr<JobCallback> job_callback, Value this_value, ReadonlySpan<Value> arguments_list)
+ThrowCompletionOr<Value> call_job_callback(VM& vm, GC::Ref<JobCallback> job_callback, Value this_value, ReadonlySpan<Value> arguments_list)
 {
     // 1. Assert: IsCallable(jobCallback.[[Callback]]) is true.
 

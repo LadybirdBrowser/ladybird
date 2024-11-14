@@ -9,7 +9,7 @@
 
 #include <AK/FlyString.h>
 #include <AK/NonnullRefPtr.h>
-#include <LibJS/Heap/GCPtr.h>
+#include <LibGC/Ptr.h>
 #include <LibWeb/CSS/CSSKeyframeRule.h>
 #include <LibWeb/CSS/CSSRule.h>
 #include <LibWeb/Forward.h>
@@ -21,10 +21,10 @@ namespace Web::CSS {
 // https://drafts.csswg.org/css-animations/#interface-csskeyframesrule
 class CSSKeyframesRule final : public CSSRule {
     WEB_PLATFORM_OBJECT(CSSKeyframesRule, CSSRule);
-    JS_DECLARE_ALLOCATOR(CSSKeyframesRule);
+    GC_DECLARE_ALLOCATOR(CSSKeyframesRule);
 
 public:
-    [[nodiscard]] static JS::NonnullGCPtr<CSSKeyframesRule> create(JS::Realm&, FlyString name, JS::NonnullGCPtr<CSSRuleList>);
+    [[nodiscard]] static GC::Ref<CSSKeyframesRule> create(JS::Realm&, FlyString name, GC::Ref<CSSRuleList>);
 
     virtual ~CSSKeyframesRule() = default;
 
@@ -35,14 +35,14 @@ public:
     void set_name(String const& name) { m_name = name; }
 
 private:
-    CSSKeyframesRule(JS::Realm&, FlyString name, JS::NonnullGCPtr<CSSRuleList> keyframes);
+    CSSKeyframesRule(JS::Realm&, FlyString name, GC::Ref<CSSRuleList> keyframes);
     virtual void visit_edges(Visitor&) override;
 
     virtual void initialize(JS::Realm&) override;
     virtual String serialized() const override;
 
     FlyString m_name;
-    JS::NonnullGCPtr<CSSRuleList> m_rules;
+    GC::Ref<CSSRuleList> m_rules;
 };
 
 template<>

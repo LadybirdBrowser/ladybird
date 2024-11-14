@@ -10,10 +10,10 @@
 #include <AK/Badge.h>
 #include <AK/HashMap.h>
 #include <AK/StringView.h>
+#include <LibGC/CellAllocator.h>
+#include <LibGC/MarkedVector.h>
 #include <LibJS/Forward.h>
 #include <LibJS/Heap/Cell.h>
-#include <LibJS/Heap/CellAllocator.h>
-#include <LibJS/Heap/MarkedVector.h>
 #include <LibJS/Runtime/Completion.h>
 #include <LibJS/Runtime/IndexedProperties.h>
 #include <LibJS/Runtime/PrimitiveString.h>
@@ -25,7 +25,7 @@
 
 namespace JS {
 
-#define JS_OBJECT(class_, base_class) JS_CELL(class_, base_class)
+#define JS_OBJECT(class_, base_class) GC_CELL(class_, base_class)
 
 struct PrivateElement {
     enum class Kind {
@@ -49,17 +49,17 @@ struct CacheablePropertyMetadata {
     };
     Type type { Type::NotCacheable };
     Optional<u32> property_offset;
-    GCPtr<Object const> prototype;
+    GC::Ptr<Object const> prototype;
 };
 
 class Object : public Cell {
-    JS_CELL(Object, Cell);
-    JS_DECLARE_ALLOCATOR(Object);
+    GC_CELL(Object, Cell);
+    GC_DECLARE_ALLOCATOR(Object);
 
 public:
-    static NonnullGCPtr<Object> create_prototype(Realm&, Object* prototype);
-    static NonnullGCPtr<Object> create(Realm&, Object* prototype);
-    static NonnullGCPtr<Object> create_with_premade_shape(Shape&);
+    static GC::Ref<Object> create_prototype(Realm&, Object* prototype);
+    static GC::Ref<Object> create(Realm&, Object* prototype);
+    static GC::Ref<Object> create_with_premade_shape(Shape&);
 
     virtual void initialize(Realm&) override;
     virtual ~Object();
@@ -119,9 +119,9 @@ public:
     ThrowCompletionOr<bool> has_own_property(PropertyKey const&) const;
     ThrowCompletionOr<bool> set_integrity_level(IntegrityLevel);
     ThrowCompletionOr<bool> test_integrity_level(IntegrityLevel) const;
-    ThrowCompletionOr<MarkedVector<Value>> enumerable_own_property_names(PropertyKind kind) const;
+    ThrowCompletionOr<GC::MarkedVector<Value>> enumerable_own_property_names(PropertyKind kind) const;
     ThrowCompletionOr<void> copy_data_properties(VM&, Value source, HashTable<PropertyKey> const& excluded_keys, HashTable<JS::Value> const& excluded_values = {});
-    ThrowCompletionOr<NonnullGCPtr<Object>> snapshot_own_properties(VM&, GCPtr<Object> prototype, HashTable<PropertyKey> const& excluded_keys = {}, HashTable<Value> const& excluded_values = {});
+    ThrowCompletionOr<GC::Ref<Object>> snapshot_own_properties(VM&, GC::Ptr<Object> prototype, HashTable<PropertyKey> const& excluded_keys = {}, HashTable<Value> const& excluded_values = {});
 
     PrivateElement* private_element_find(PrivateName const& name);
     ThrowCompletionOr<void> private_field_add(PrivateName const& name, Value value);
@@ -147,7 +147,7 @@ public:
     virtual ThrowCompletionOr<Value> internal_get(PropertyKey const&, Value receiver, CacheablePropertyMetadata* = nullptr, PropertyLookupPhase = PropertyLookupPhase::OwnProperty) const;
     virtual ThrowCompletionOr<bool> internal_set(PropertyKey const&, Value value, Value receiver, CacheablePropertyMetadata* = nullptr);
     virtual ThrowCompletionOr<bool> internal_delete(PropertyKey const&);
-    virtual ThrowCompletionOr<MarkedVector<Value>> internal_own_property_keys() const;
+    virtual ThrowCompletionOr<GC::MarkedVector<Value>> internal_own_property_keys() const;
 
     // NOTE: Any subclass of Object that overrides property access slots ([[Get]], [[Set]] etc)
     //       to customize access to indexed properties (properties where the name is a positive integer)
@@ -262,7 +262,7 @@ private:
     // True if this object has lazily allocated intrinsic properties.
     bool m_has_intrinsic_accessors { false };
 
-    GCPtr<Shape> m_shape;
+    GC::Ptr<Shape> m_shape;
     Vector<Value> m_storage;
     IndexedProperties m_indexed_properties;
     OwnPtr<Vector<PrivateElement>> m_private_elements; // [[PrivateElements]]

@@ -14,7 +14,7 @@ namespace Web::DOM {
 
 class ShadowRoot final : public DocumentFragment {
     WEB_PLATFORM_OBJECT(ShadowRoot, DocumentFragment);
-    JS_DECLARE_ALLOCATOR(ShadowRoot);
+    GC_DECLARE_ALLOCATOR(ShadowRoot);
 
 public:
     Bindings::ShadowRootMode mode() const { return m_mode; }
@@ -55,12 +55,12 @@ public:
 
     CSS::StyleSheetList* style_sheets_for_bindings() { return &style_sheets(); }
 
-    JS::NonnullGCPtr<WebIDL::ObservableArray> adopted_style_sheets() const;
+    GC::Ref<WebIDL::ObservableArray> adopted_style_sheets() const;
     WebIDL::ExceptionOr<void> set_adopted_style_sheets(JS::Value);
 
     void for_each_css_style_sheet(Function<void(CSS::CSSStyleSheet&)>&& callback) const;
 
-    WebIDL::ExceptionOr<Vector<JS::NonnullGCPtr<Animations::Animation>>> get_animations();
+    WebIDL::ExceptionOr<Vector<GC::Ref<Animations::Animation>>> get_animations();
 
     virtual void finalize() override;
 
@@ -90,8 +90,8 @@ private:
     // https://dom.spec.whatwg.org/#shadowroot-serializable
     bool m_serializable { false };
 
-    JS::GCPtr<CSS::StyleSheetList> m_style_sheets;
-    mutable JS::GCPtr<WebIDL::ObservableArray> m_adopted_style_sheets;
+    GC::Ptr<CSS::StyleSheetList> m_style_sheets;
+    mutable GC::Ptr<WebIDL::ObservableArray> m_adopted_style_sheets;
 };
 
 template<>

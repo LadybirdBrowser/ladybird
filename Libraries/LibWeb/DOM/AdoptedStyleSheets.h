@@ -11,6 +11,6 @@
 
 namespace Web::DOM {
 
-JS::NonnullGCPtr<WebIDL::ObservableArray> create_adopted_style_sheets_list(Document& document);
+GC::Ref<WebIDL::ObservableArray> create_adopted_style_sheets_list(Document& document);
 
 }

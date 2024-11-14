@@ -17,31 +17,31 @@ namespace Web::HTML {
 
 class HTMLTableElement final : public HTMLElement {
     WEB_PLATFORM_OBJECT(HTMLTableElement, HTMLElement);
-    JS_DECLARE_ALLOCATOR(HTMLTableElement);
+    GC_DECLARE_ALLOCATOR(HTMLTableElement);
 
 public:
     virtual ~HTMLTableElement() override;
 
-    JS::GCPtr<HTMLTableCaptionElement> caption();
+    GC::Ptr<HTMLTableCaptionElement> caption();
     WebIDL::ExceptionOr<void> set_caption(HTMLTableCaptionElement*);
-    JS::NonnullGCPtr<HTMLTableCaptionElement> create_caption();
+    GC::Ref<HTMLTableCaptionElement> create_caption();
     void delete_caption();
 
-    JS::GCPtr<HTMLTableSectionElement> t_head();
+    GC::Ptr<HTMLTableSectionElement> t_head();
     WebIDL::ExceptionOr<void> set_t_head(HTMLTableSectionElement* thead);
-    JS::NonnullGCPtr<HTMLTableSectionElement> create_t_head();
+    GC::Ref<HTMLTableSectionElement> create_t_head();
     void delete_t_head();
 
-    JS::GCPtr<HTMLTableSectionElement> t_foot();
+    GC::Ptr<HTMLTableSectionElement> t_foot();
     WebIDL::ExceptionOr<void> set_t_foot(HTMLTableSectionElement* tfoot);
-    JS::NonnullGCPtr<HTMLTableSectionElement> create_t_foot();
+    GC::Ref<HTMLTableSectionElement> create_t_foot();
     void delete_t_foot();
 
-    JS::NonnullGCPtr<DOM::HTMLCollection> t_bodies();
-    JS::NonnullGCPtr<HTMLTableSectionElement> create_t_body();
+    GC::Ref<DOM::HTMLCollection> t_bodies();
+    GC::Ref<HTMLTableSectionElement> create_t_body();
 
-    JS::NonnullGCPtr<DOM::HTMLCollection> rows();
-    WebIDL::ExceptionOr<JS::NonnullGCPtr<HTMLTableRowElement>> insert_row(WebIDL::Long index);
+    GC::Ref<DOM::HTMLCollection> rows();
+    WebIDL::ExceptionOr<GC::Ref<HTMLTableRowElement>> insert_row(WebIDL::Long index);
     WebIDL::ExceptionOr<void> delete_row(WebIDL::Long index);
 
     // https://www.w3.org/TR/html-aria/#el-table
@@ -61,8 +61,8 @@ private:
     virtual void apply_presentational_hints(CSS::StyleProperties&) const override;
     virtual void attribute_changed(FlyString const& name, Optional<String> const& old_value, Optional<String> const& value, Optional<FlyString> const& namespace_) override;
 
-    JS::GCPtr<DOM::HTMLCollection> mutable m_rows;
-    JS::GCPtr<DOM::HTMLCollection> mutable m_t_bodies;
+    GC::Ptr<DOM::HTMLCollection> mutable m_rows;
+    GC::Ptr<DOM::HTMLCollection> mutable m_t_bodies;
     unsigned m_padding { 1 };
 };
 

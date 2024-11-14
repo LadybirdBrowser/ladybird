@@ -20,11 +20,11 @@
 namespace WebContent {
 
 class PageClient final : public Web::PageClient {
-    JS_CELL(PageClient, Web::PageClient);
-    JS_DECLARE_ALLOCATOR(PageClient);
+    GC_CELL(PageClient, Web::PageClient);
+    GC_DECLARE_ALLOCATOR(PageClient);
 
 public:
-    static JS::NonnullGCPtr<PageClient> create(JS::VM& vm, PageHost& page_host, u64 id);
+    static GC::Ref<PageClient> create(JS::VM& vm, PageHost& page_host, u64 id);
 
     virtual ~PageClient() override;
 
@@ -164,8 +164,8 @@ private:
     virtual void inspector_did_select_dom_node(Web::UniqueNodeID, Optional<Web::CSS::Selector::PseudoElement::Type> const& pseudo_element) override;
     virtual void inspector_did_set_dom_node_text(Web::UniqueNodeID, String const& text) override;
     virtual void inspector_did_set_dom_node_tag(Web::UniqueNodeID, String const& tag) override;
-    virtual void inspector_did_add_dom_node_attributes(Web::UniqueNodeID, JS::NonnullGCPtr<Web::DOM::NamedNodeMap> attributes) override;
-    virtual void inspector_did_replace_dom_node_attribute(Web::UniqueNodeID, size_t attribute_index, JS::NonnullGCPtr<Web::DOM::NamedNodeMap> replacement_attributes) override;
+    virtual void inspector_did_add_dom_node_attributes(Web::UniqueNodeID, GC::Ref<Web::DOM::NamedNodeMap> attributes) override;
+    virtual void inspector_did_replace_dom_node_attribute(Web::UniqueNodeID, size_t attribute_index, GC::Ref<Web::DOM::NamedNodeMap> replacement_attributes) override;
     virtual void inspector_did_request_dom_tree_context_menu(Web::UniqueNodeID, Web::CSSPixelPoint position, String const& type, Optional<String> const& tag, Optional<size_t> const& attribute_index) override;
     virtual void inspector_did_request_cookie_context_menu(size_t cookie_index, Web::CSSPixelPoint position) override;
     virtual void inspector_did_request_style_sheet_source(Web::CSS::StyleSheetIdentifier const& stylesheet_source) override;
@@ -177,7 +177,7 @@ private:
     ConnectionFromClient& client() const;
 
     PageHost& m_owner;
-    JS::NonnullGCPtr<Web::Page> m_page;
+    GC::Ref<Web::Page> m_page;
     RefPtr<Gfx::PaletteImpl> m_palette_impl;
     Web::DevicePixelRect m_screen_rect;
     Web::DevicePixelSize m_content_size;
@@ -208,7 +208,7 @@ private:
 
     WeakPtr<WebContentConsoleClient> m_top_level_document_console_client;
 
-    JS::Handle<JS::GlobalObject> m_console_global_object;
+    GC::Root<JS::GlobalObject> m_console_global_object;
 
     RefPtr<Core::Timer> m_paint_refresh_timer;
 };

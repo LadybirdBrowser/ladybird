@@ -16,9 +16,9 @@
 
 namespace Web::HTML {
 
-JS_DEFINE_ALLOCATOR(HTMLOptionsCollection);
+GC_DEFINE_ALLOCATOR(HTMLOptionsCollection);
 
-JS::NonnullGCPtr<HTMLOptionsCollection> HTMLOptionsCollection::create(DOM::ParentNode& root, Function<bool(DOM::Element const&)> filter)
+GC::Ref<HTMLOptionsCollection> HTMLOptionsCollection::create(DOM::ParentNode& root, Function<bool(DOM::Element const&)> filter)
 {
     return root.realm().create<HTMLOptionsCollection>(root, move(filter));
 }
@@ -123,13 +123,13 @@ WebIDL::ExceptionOr<void> HTMLOptionsCollection::set_value_of_indexed_property(u
 WebIDL::ExceptionOr<void> HTMLOptionsCollection::add(HTMLOptionOrOptGroupElement element, Optional<HTMLElementOrElementIndex> before)
 {
     auto resolved_element = element.visit(
-        [](auto& e) -> JS::Handle<HTMLElement> {
-            return JS::make_handle(static_cast<HTML::HTMLElement&>(*e));
+        [](auto& e) -> GC::Root<HTMLElement> {
+            return GC::make_root(static_cast<HTML::HTMLElement&>(*e));
         });
 
-    JS::GCPtr<DOM::Node> before_element;
-    if (before.has_value() && before->has<JS::Handle<HTMLElement>>())
-        before_element = before->get<JS::Handle<HTMLElement>>().ptr();
+    GC::Ptr<DOM::Node> before_element;
+    if (before.has_value() && before->has<GC::Root<HTMLElement>>())
+        before_element = before->get<GC::Root<HTMLElement>>().ptr();
 
     // 1. If element is an ancestor of the select element on which the HTMLOptionsCollection is rooted, then throw a "HierarchyRequestError" DOMException.
     if (resolved_element->is_ancestor_of(root()))
@@ -144,7 +144,7 @@ WebIDL::ExceptionOr<void> HTMLOptionsCollection::add(HTMLOptionOrOptGroupElement
         return {};
 
     // 4. If before is a node, then let reference be that node. Otherwise, if before is an integer, and there is a beforeth node in the collection, let reference be that node. Otherwise, let reference be null.
-    JS::GCPtr<DOM::Node> reference;
+    GC::Ptr<DOM::Node> reference;
 
     if (before_element)
         reference = move(before_element);

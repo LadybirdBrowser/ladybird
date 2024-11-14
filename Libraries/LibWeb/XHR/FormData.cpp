@@ -15,10 +15,10 @@
 
 namespace Web::XHR {
 
-JS_DEFINE_ALLOCATOR(FormData);
+GC_DEFINE_ALLOCATOR(FormData);
 
 // https://xhr.spec.whatwg.org/#dom-formdata
-WebIDL::ExceptionOr<JS::NonnullGCPtr<FormData>> FormData::construct_impl(JS::Realm& realm, JS::GCPtr<HTML::HTMLFormElement> form)
+WebIDL::ExceptionOr<GC::Ref<FormData>> FormData::construct_impl(JS::Realm& realm, GC::Ptr<HTML::HTMLFormElement> form)
 {
     Vector<FormDataEntry> list;
     // 1. If form is given, then:
@@ -35,12 +35,12 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<FormData>> FormData::construct_impl(JS::Rea
     return construct_impl(realm, move(list));
 }
 
-WebIDL::ExceptionOr<JS::NonnullGCPtr<FormData>> FormData::construct_impl(JS::Realm& realm, Vector<FormDataEntry> entry_list)
+WebIDL::ExceptionOr<GC::Ref<FormData>> FormData::construct_impl(JS::Realm& realm, Vector<FormDataEntry> entry_list)
 {
     return realm.create<FormData>(realm, move(entry_list));
 }
 
-WebIDL::ExceptionOr<JS::NonnullGCPtr<FormData>> FormData::create(JS::Realm& realm, Vector<DOMURL::QueryParam> entry_list)
+WebIDL::ExceptionOr<GC::Ref<FormData>> FormData::create(JS::Realm& realm, Vector<DOMURL::QueryParam> entry_list)
 {
     Vector<FormDataEntry> list;
     list.ensure_capacity(entry_list.size());
@@ -71,7 +71,7 @@ WebIDL::ExceptionOr<void> FormData::append(String const& name, String const& val
 }
 
 // https://xhr.spec.whatwg.org/#dom-formdata-append-blob
-WebIDL::ExceptionOr<void> FormData::append(String const& name, JS::NonnullGCPtr<FileAPI::Blob> const& blob_value, Optional<String> const& filename)
+WebIDL::ExceptionOr<void> FormData::append(String const& name, GC::Ref<FileAPI::Blob> const& blob_value, Optional<String> const& filename)
 {
     auto inner_filename = filename.has_value() ? filename.value() : Optional<String> {};
     return append_impl(name, blob_value, inner_filename);
@@ -79,7 +79,7 @@ WebIDL::ExceptionOr<void> FormData::append(String const& name, JS::NonnullGCPtr<
 
 // https://xhr.spec.whatwg.org/#dom-formdata-append
 // https://xhr.spec.whatwg.org/#dom-formdata-append-blob
-WebIDL::ExceptionOr<void> FormData::append_impl(String const& name, Variant<JS::NonnullGCPtr<FileAPI::Blob>, String> const& value, Optional<String> const& filename)
+WebIDL::ExceptionOr<void> FormData::append_impl(String const& name, Variant<GC::Ref<FileAPI::Blob>, String> const& value, Optional<String> const& filename)
 {
     auto& realm = this->realm();
     auto& vm = realm.vm();
@@ -103,7 +103,7 @@ void FormData::delete_(String const& name)
 }
 
 // https://xhr.spec.whatwg.org/#dom-formdata-get
-Variant<JS::Handle<FileAPI::File>, String, Empty> FormData::get(String const& name)
+Variant<GC::Root<FileAPI::File>, String, Empty> FormData::get(String const& name)
 {
     // 1. If there is no entry whose name is name in this’s entry list, then return null.
     auto entry_iterator = m_entry_list.find_if([&name](FormDataEntry const& entry) {
@@ -145,7 +145,7 @@ WebIDL::ExceptionOr<void> FormData::set(String const& name, String const& value)
 }
 
 // https://xhr.spec.whatwg.org/#dom-formdata-set-blob
-WebIDL::ExceptionOr<void> FormData::set(String const& name, JS::NonnullGCPtr<FileAPI::Blob> const& blob_value, Optional<String> const& filename)
+WebIDL::ExceptionOr<void> FormData::set(String const& name, GC::Ref<FileAPI::Blob> const& blob_value, Optional<String> const& filename)
 {
     auto inner_filename = filename.has_value() ? filename.value() : Optional<String> {};
     return set_impl(name, blob_value, inner_filename);
@@ -153,7 +153,7 @@ WebIDL::ExceptionOr<void> FormData::set(String const& name, JS::NonnullGCPtr<Fil
 
 // https://xhr.spec.whatwg.org/#dom-formdata-set
 // https://xhr.spec.whatwg.org/#dom-formdata-set-blob
-WebIDL::ExceptionOr<void> FormData::set_impl(String const& name, Variant<JS::NonnullGCPtr<FileAPI::Blob>, String> const& value, Optional<String> const& filename)
+WebIDL::ExceptionOr<void> FormData::set_impl(String const& name, Variant<GC::Ref<FileAPI::Blob>, String> const& value, Optional<String> const& filename)
 {
     auto& realm = this->realm();
     auto& vm = realm.vm();

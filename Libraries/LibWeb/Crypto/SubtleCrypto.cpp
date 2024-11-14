@@ -39,9 +39,9 @@ static SupportedAlgorithmsMap supported_algorithms();
 template<typename Methods, typename Param = AlgorithmParams>
 static void define_an_algorithm(String op, String algorithm);
 
-JS_DEFINE_ALLOCATOR(SubtleCrypto);
+GC_DEFINE_ALLOCATOR(SubtleCrypto);
 
-JS::NonnullGCPtr<SubtleCrypto> SubtleCrypto::create(JS::Realm& realm)
+GC::Ref<SubtleCrypto> SubtleCrypto::create(JS::Realm& realm)
 {
     return realm.create<SubtleCrypto>(realm);
 }
@@ -68,7 +68,7 @@ WebIDL::ExceptionOr<NormalizedAlgorithmAndParameter> normalize_an_algorithm(JS::
     if (algorithm.has<String>()) {
         // Return the result of running the normalize an algorithm algorithm,
         // with the alg set to a new Algorithm dictionary whose name attribute is alg, and with the op set to op.
-        auto dictionary = JS::make_handle(JS::Object::create(realm, realm.intrinsics().object_prototype()));
+        auto dictionary = GC::make_root(JS::Object::create(realm, realm.intrinsics().object_prototype()));
         TRY(dictionary->create_data_property("name", JS::PrimitiveString::create(vm, algorithm.get<String>())));
 
         return normalize_an_algorithm(realm, dictionary, operation);
@@ -86,7 +86,7 @@ WebIDL::ExceptionOr<NormalizedAlgorithmAndParameter> normalize_an_algorithm(JS::
     // 3. If an error occurred, return the error and terminate this algorithm.
     // Note: We're not going to bother creating an Algorithm object, all we want is the name attribute so that we can
     //       fetch the actual algorithm factory from the registeredAlgorithms map.
-    auto initial_algorithm = TRY(algorithm.get<JS::Handle<JS::Object>>()->get("name"));
+    auto initial_algorithm = TRY(algorithm.get<GC::Root<JS::Object>>()->get("name"));
 
     // 4. Let algName be the value of the name attribute of initialAlg.
     auto algorithm_name = TRY(initial_algorithm.to_string(vm));
@@ -113,7 +113,7 @@ WebIDL::ExceptionOr<NormalizedAlgorithmAndParameter> normalize_an_algorithm(JS::
     // 12. For each dictionary dictionary in dictionaries:
     //    Note: All of these steps are handled by the create_methods and parameter_from_value methods.
     auto methods = desired_type.create_methods(realm);
-    auto parameter = TRY(desired_type.parameter_from_value(vm, algorithm.get<JS::Handle<JS::Object>>()));
+    auto parameter = TRY(desired_type.parameter_from_value(vm, algorithm.get<GC::Root<JS::Object>>()));
     auto normalized_algorithm = NormalizedAlgorithmAndParameter { move(methods), move(parameter) };
 
     // 13. Return normalizedAlgorithm.
@@ -121,7 +121,7 @@ WebIDL::ExceptionOr<NormalizedAlgorithmAndParameter> normalize_an_algorithm(JS::
 }
 
 // https://w3c.github.io/webcrypto/#dfn-SubtleCrypto-method-encrypt
-JS::NonnullGCPtr<WebIDL::Promise> SubtleCrypto::encrypt(AlgorithmIdentifier const& algorithm, JS::NonnullGCPtr<CryptoKey> key, JS::Handle<WebIDL::BufferSource> const& data_parameter)
+GC::Ref<WebIDL::Promise> SubtleCrypto::encrypt(AlgorithmIdentifier const& algorithm, GC::Ref<CryptoKey> key, GC::Root<WebIDL::BufferSource> const& data_parameter)
 {
     auto& realm = this->realm();
     auto& vm = this->vm();
@@ -147,7 +147,7 @@ JS::NonnullGCPtr<WebIDL::Promise> SubtleCrypto::encrypt(AlgorithmIdentifier cons
 
     // 6. Return promise and perform the remaining steps in parallel.
 
-    Platform::EventLoopPlugin::the().deferred_invoke(JS::create_heap_function(realm.heap(), [&realm, normalized_algorithm = normalized_algorithm.release_value(), promise, key, data = move(data)]() -> void {
+    Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(realm.heap(), [&realm, normalized_algorithm = normalized_algorithm.release_value(), promise, key, data = move(data)]() -> void {
         HTML::TemporaryExecutionContext context(realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes);
         // 7. If the following steps or referenced procedures say to throw an error, reject promise with the returned error and then terminate the algorithm.
 
@@ -178,7 +178,7 @@ JS::NonnullGCPtr<WebIDL::Promise> SubtleCrypto::encrypt(AlgorithmIdentifier cons
 }
 
 // https://w3c.github.io/webcrypto/#dfn-SubtleCrypto-method-decrypt
-JS::NonnullGCPtr<WebIDL::Promise> SubtleCrypto::decrypt(AlgorithmIdentifier const& algorithm, JS::NonnullGCPtr<CryptoKey> key, JS::Handle<WebIDL::BufferSource> const& data_parameter)
+GC::Ref<WebIDL::Promise> SubtleCrypto::decrypt(AlgorithmIdentifier const& algorithm, GC::Ref<CryptoKey> key, GC::Root<WebIDL::BufferSource> const& data_parameter)
 {
     auto& realm = this->realm();
     auto& vm = this->vm();
@@ -204,7 +204,7 @@ JS::NonnullGCPtr<WebIDL::Promise> SubtleCrypto::decrypt(AlgorithmIdentifier cons
 
     // 6. Return promise and perform the remaining steps in parallel.
 
-    Platform::EventLoopPlugin::the().deferred_invoke(JS::create_heap_function(realm.heap(), [&realm, normalized_algorithm = normalized_algorithm.release_value(), promise, key, data = move(data)]() -> void {
+    Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(realm.heap(), [&realm, normalized_algorithm = normalized_algorithm.release_value(), promise, key, data = move(data)]() -> void {
         HTML::TemporaryExecutionContext context(realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes);
         // 7. If the following steps or referenced procedures say to throw an error, reject promise with the returned error and then terminate the algorithm.
 
@@ -235,7 +235,7 @@ JS::NonnullGCPtr<WebIDL::Promise> SubtleCrypto::decrypt(AlgorithmIdentifier cons
 }
 
 // https://w3c.github.io/webcrypto/#dfn-SubtleCrypto-method-digest
-JS::NonnullGCPtr<WebIDL::Promise> SubtleCrypto::digest(AlgorithmIdentifier const& algorithm, JS::Handle<WebIDL::BufferSource> const& data)
+GC::Ref<WebIDL::Promise> SubtleCrypto::digest(AlgorithmIdentifier const& algorithm, GC::Root<WebIDL::BufferSource> const& data)
 {
     auto& realm = this->realm();
     auto& vm = this->vm();
@@ -262,7 +262,7 @@ JS::NonnullGCPtr<WebIDL::Promise> SubtleCrypto::digest(AlgorithmIdentifier const
     auto promise = WebIDL::create_promise(realm);
 
     // 6. Return promise and perform the remaining steps in parallel.
-    Platform::EventLoopPlugin::the().deferred_invoke(JS::create_heap_function(realm.heap(), [&realm, algorithm_object = normalized_algorithm.release_value(), promise, data_buffer = move(data_buffer)]() -> void {
+    Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(realm.heap(), [&realm, algorithm_object = normalized_algorithm.release_value(), promise, data_buffer = move(data_buffer)]() -> void {
         HTML::TemporaryExecutionContext context(realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes);
         // 7. If the following steps or referenced procedures say to throw an error, reject promise with the returned error and then terminate the algorithm.
         // FIXME: Need spec reference to https://webidl.spec.whatwg.org/#reject
@@ -283,7 +283,7 @@ JS::NonnullGCPtr<WebIDL::Promise> SubtleCrypto::digest(AlgorithmIdentifier const
 }
 
 // https://w3c.github.io/webcrypto/#dfn-SubtleCrypto-method-generateKey
-JS::ThrowCompletionOr<JS::NonnullGCPtr<WebIDL::Promise>> SubtleCrypto::generate_key(AlgorithmIdentifier algorithm, bool extractable, Vector<Bindings::KeyUsage> key_usages)
+JS::ThrowCompletionOr<GC::Ref<WebIDL::Promise>> SubtleCrypto::generate_key(AlgorithmIdentifier algorithm, bool extractable, Vector<Bindings::KeyUsage> key_usages)
 {
     auto& realm = this->realm();
 
@@ -302,7 +302,7 @@ JS::ThrowCompletionOr<JS::NonnullGCPtr<WebIDL::Promise>> SubtleCrypto::generate_
     auto promise = WebIDL::create_promise(realm);
 
     // 5. Return promise and perform the remaining steps in parallel.
-    Platform::EventLoopPlugin::the().deferred_invoke(JS::create_heap_function(realm.heap(), [&realm, normalized_algorithm = normalized_algorithm.release_value(), promise, extractable, key_usages = move(key_usages)]() -> void {
+    Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(realm.heap(), [&realm, normalized_algorithm = normalized_algorithm.release_value(), promise, extractable, key_usages = move(key_usages)]() -> void {
         HTML::TemporaryExecutionContext context(realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes);
         // 6. If the following steps or referenced procedures say to throw an error, reject promise with
         //    the returned error and then terminate the algorithm.
@@ -323,14 +323,14 @@ JS::ThrowCompletionOr<JS::NonnullGCPtr<WebIDL::Promise>> SubtleCrypto::generate_
         //      If the [[usages]] internal slot of the privateKey attribute of result is the empty sequence, then throw a SyntaxError.
         // 9. Resolve promise with result.
         result.visit(
-            [&](JS::NonnullGCPtr<CryptoKey>& key) {
+            [&](GC::Ref<CryptoKey>& key) {
                 if ((key->type() == Bindings::KeyType::Secret || key->type() == Bindings::KeyType::Private) && key_usages.is_empty()) {
                     WebIDL::reject_promise(realm, promise, WebIDL::SyntaxError::create(realm, "usages must not be empty"_string));
                     return;
                 }
                 WebIDL::resolve_promise(realm, promise, key);
             },
-            [&](JS::NonnullGCPtr<CryptoKeyPair>& key_pair) {
+            [&](GC::Ref<CryptoKeyPair>& key_pair) {
                 if (key_pair->private_key()->internal_usages().is_empty()) {
                     WebIDL::reject_promise(realm, promise, WebIDL::SyntaxError::create(realm, "usages must not be empty"_string));
                     return;
@@ -343,7 +343,7 @@ JS::ThrowCompletionOr<JS::NonnullGCPtr<WebIDL::Promise>> SubtleCrypto::generate_
 }
 
 // https://w3c.github.io/webcrypto/#SubtleCrypto-method-importKey
-JS::ThrowCompletionOr<JS::NonnullGCPtr<WebIDL::Promise>> SubtleCrypto::import_key(Bindings::KeyFormat format, KeyDataType key_data, AlgorithmIdentifier algorithm, bool extractable, Vector<Bindings::KeyUsage> key_usages)
+JS::ThrowCompletionOr<GC::Ref<WebIDL::Promise>> SubtleCrypto::import_key(Bindings::KeyFormat format, KeyDataType key_data, AlgorithmIdentifier algorithm, bool extractable, Vector<Bindings::KeyUsage> key_usages)
 {
     auto& realm = this->realm();
 
@@ -359,7 +359,7 @@ JS::ThrowCompletionOr<JS::NonnullGCPtr<WebIDL::Promise>> SubtleCrypto::import_ke
         }
 
         // 2. Let keyData be the result of getting a copy of the bytes held by the keyData parameter passed to the importKey() method.
-        real_key_data = MUST(WebIDL::get_buffer_source_copy(*key_data.get<JS::Handle<WebIDL::BufferSource>>()->raw_object()));
+        real_key_data = MUST(WebIDL::get_buffer_source_copy(*key_data.get<GC::Root<WebIDL::BufferSource>>()->raw_object()));
     }
 
     if (format == Bindings::KeyFormat::Jwk) {
@@ -384,7 +384,7 @@ JS::ThrowCompletionOr<JS::NonnullGCPtr<WebIDL::Promise>> SubtleCrypto::import_ke
     auto promise = WebIDL::create_promise(realm);
 
     // 8. Return promise and perform the remaining steps in parallel.
-    Platform::EventLoopPlugin::the().deferred_invoke(JS::create_heap_function(heap(), [&realm, real_key_data = move(real_key_data), normalized_algorithm = normalized_algorithm.release_value(), promise, format, extractable, key_usages = move(key_usages), algorithm = move(algorithm)]() mutable -> void {
+    Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(heap(), [&realm, real_key_data = move(real_key_data), normalized_algorithm = normalized_algorithm.release_value(), promise, format, extractable, key_usages = move(key_usages), algorithm = move(algorithm)]() mutable -> void {
         HTML::TemporaryExecutionContext context(realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes);
 
         // 9. If the following steps or referenced procedures say to throw an error, reject promise with the returned error and then terminate the algorithm.
@@ -419,7 +419,7 @@ JS::ThrowCompletionOr<JS::NonnullGCPtr<WebIDL::Promise>> SubtleCrypto::import_ke
 }
 
 // https://w3c.github.io/webcrypto/#dfn-SubtleCrypto-method-exportKey
-JS::ThrowCompletionOr<JS::NonnullGCPtr<WebIDL::Promise>> SubtleCrypto::export_key(Bindings::KeyFormat format, JS::NonnullGCPtr<CryptoKey> key)
+JS::ThrowCompletionOr<GC::Ref<WebIDL::Promise>> SubtleCrypto::export_key(Bindings::KeyFormat format, GC::Ref<CryptoKey> key)
 {
     auto& realm = this->realm();
     // 1. Let format and key be the format and key parameters passed to the exportKey() method, respectively.
@@ -428,7 +428,7 @@ JS::ThrowCompletionOr<JS::NonnullGCPtr<WebIDL::Promise>> SubtleCrypto::export_ke
     auto promise = WebIDL::create_promise(realm);
 
     // 3. Return promise and perform the remaining steps in parallel.
-    Platform::EventLoopPlugin::the().deferred_invoke(JS::create_heap_function(heap(), [&realm, key, promise, format]() -> void {
+    Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(heap(), [&realm, key, promise, format]() -> void {
         HTML::TemporaryExecutionContext context(realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes);
         // 4.  If the following steps or referenced procedures say to throw an error, reject promise with the returned error and then terminate the algorithm.
 
@@ -465,7 +465,7 @@ JS::ThrowCompletionOr<JS::NonnullGCPtr<WebIDL::Promise>> SubtleCrypto::export_ke
 }
 
 // https://w3c.github.io/webcrypto/#dfn-SubtleCrypto-method-sign
-JS::ThrowCompletionOr<JS::NonnullGCPtr<WebIDL::Promise>> SubtleCrypto::sign(AlgorithmIdentifier const& algorithm, JS::NonnullGCPtr<CryptoKey> key, JS::Handle<WebIDL::BufferSource> const& data_parameter)
+JS::ThrowCompletionOr<GC::Ref<WebIDL::Promise>> SubtleCrypto::sign(AlgorithmIdentifier const& algorithm, GC::Ref<CryptoKey> key, GC::Root<WebIDL::BufferSource> const& data_parameter)
 {
     auto& realm = this->realm();
     auto& vm = this->vm();
@@ -491,7 +491,7 @@ JS::ThrowCompletionOr<JS::NonnullGCPtr<WebIDL::Promise>> SubtleCrypto::sign(Algo
 
     // 6. Return promise and perform the remaining steps in parallel.
 
-    Platform::EventLoopPlugin::the().deferred_invoke(JS::create_heap_function(realm.heap(), [&realm, normalized_algorithm = normalized_algorithm.release_value(), promise, key, data = move(data)]() -> void {
+    Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(realm.heap(), [&realm, normalized_algorithm = normalized_algorithm.release_value(), promise, key, data = move(data)]() -> void {
         HTML::TemporaryExecutionContext context(realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes);
         // 7. If the following steps or referenced procedures say to throw an error, reject promise with the returned error and then terminate the algorithm.
 
@@ -522,7 +522,7 @@ JS::ThrowCompletionOr<JS::NonnullGCPtr<WebIDL::Promise>> SubtleCrypto::sign(Algo
 }
 
 // https://w3c.github.io/webcrypto/#dfn-SubtleCrypto-method-verify
-JS::ThrowCompletionOr<JS::NonnullGCPtr<WebIDL::Promise>> SubtleCrypto::verify(AlgorithmIdentifier const& algorithm, JS::NonnullGCPtr<CryptoKey> key, JS::Handle<WebIDL::BufferSource> const& signature_data, JS::Handle<WebIDL::BufferSource> const& data_parameter)
+JS::ThrowCompletionOr<GC::Ref<WebIDL::Promise>> SubtleCrypto::verify(AlgorithmIdentifier const& algorithm, GC::Ref<CryptoKey> key, GC::Root<WebIDL::BufferSource> const& signature_data, GC::Root<WebIDL::BufferSource> const& data_parameter)
 {
     auto& realm = this->realm();
     auto& vm = this->vm();
@@ -555,7 +555,7 @@ JS::ThrowCompletionOr<JS::NonnullGCPtr<WebIDL::Promise>> SubtleCrypto::verify(Al
     auto promise = WebIDL::create_promise(realm);
 
     // 7. Return promise and perform the remaining steps in parallel.
-    Platform::EventLoopPlugin::the().deferred_invoke(JS::create_heap_function(realm.heap(), [&realm, normalized_algorithm = normalized_algorithm.release_value(), promise, key, signature = move(signature), data = move(data)]() -> void {
+    Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(realm.heap(), [&realm, normalized_algorithm = normalized_algorithm.release_value(), promise, key, signature = move(signature), data = move(data)]() -> void {
         HTML::TemporaryExecutionContext context(realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes);
         // 8. If the following steps or referenced procedures say to throw an error, reject promise with the returned error and then terminate the algorithm.
 
@@ -586,7 +586,7 @@ JS::ThrowCompletionOr<JS::NonnullGCPtr<WebIDL::Promise>> SubtleCrypto::verify(Al
 }
 
 // https://w3c.github.io/webcrypto/#SubtleCrypto-method-deriveBits
-JS::ThrowCompletionOr<JS::NonnullGCPtr<WebIDL::Promise>> SubtleCrypto::derive_bits(AlgorithmIdentifier algorithm, JS::NonnullGCPtr<CryptoKey> base_key, u32 length)
+JS::ThrowCompletionOr<GC::Ref<WebIDL::Promise>> SubtleCrypto::derive_bits(AlgorithmIdentifier algorithm, GC::Ref<CryptoKey> base_key, u32 length)
 {
     auto& realm = this->realm();
     // 1. Let algorithm, baseKey and length, be the algorithm, baseKey and length parameters passed to the deriveBits() method, respectively.
@@ -602,7 +602,7 @@ JS::ThrowCompletionOr<JS::NonnullGCPtr<WebIDL::Promise>> SubtleCrypto::derive_bi
     auto promise = WebIDL::create_promise(realm);
 
     // 5. Return promise and perform the remaining steps in parallel.
-    Platform::EventLoopPlugin::the().deferred_invoke(JS::create_heap_function(realm.heap(), [&realm, normalized_algorithm = normalized_algorithm.release_value(), promise, base_key, length]() -> void {
+    Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(realm.heap(), [&realm, normalized_algorithm = normalized_algorithm.release_value(), promise, base_key, length]() -> void {
         HTML::TemporaryExecutionContext context(realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes);
         // 6. If the following steps or referenced procedures say to throw an error, reject promise with the returned error and then terminate the algorithm.
 
@@ -633,7 +633,7 @@ JS::ThrowCompletionOr<JS::NonnullGCPtr<WebIDL::Promise>> SubtleCrypto::derive_bi
 }
 
 // https://w3c.github.io/webcrypto/#SubtleCrypto-method-deriveKey
-JS::ThrowCompletionOr<JS::NonnullGCPtr<WebIDL::Promise>> SubtleCrypto::derive_key(AlgorithmIdentifier algorithm, JS::NonnullGCPtr<CryptoKey> base_key, AlgorithmIdentifier derived_key_type, bool extractable, Vector<Bindings::KeyUsage> key_usages)
+JS::ThrowCompletionOr<GC::Ref<WebIDL::Promise>> SubtleCrypto::derive_key(AlgorithmIdentifier algorithm, GC::Ref<CryptoKey> base_key, AlgorithmIdentifier derived_key_type, bool extractable, Vector<Bindings::KeyUsage> key_usages)
 {
     auto& realm = this->realm();
     auto& vm = this->vm();
@@ -664,7 +664,7 @@ JS::ThrowCompletionOr<JS::NonnullGCPtr<WebIDL::Promise>> SubtleCrypto::derive_ke
     auto promise = WebIDL::create_promise(realm);
 
     // 9. Return promise and perform the remaining steps in parallel.
-    Platform::EventLoopPlugin::the().deferred_invoke(JS::create_heap_function(realm.heap(), [&realm, &vm, normalized_algorithm = normalized_algorithm.release_value(), promise, normalized_derived_key_algorithm_import = normalized_derived_key_algorithm_import.release_value(), normalized_derived_key_algorithm_length = normalized_derived_key_algorithm_length.release_value(), base_key = move(base_key), extractable, key_usages = move(key_usages)]() -> void {
+    Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(realm.heap(), [&realm, &vm, normalized_algorithm = normalized_algorithm.release_value(), promise, normalized_derived_key_algorithm_import = normalized_derived_key_algorithm_import.release_value(), normalized_derived_key_algorithm_length = normalized_derived_key_algorithm_length.release_value(), base_key = move(base_key), extractable, key_usages = move(key_usages)]() -> void {
         HTML::TemporaryExecutionContext context(realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes);
         // 10. If the following steps or referenced procedures say to throw an error, reject promise with the returned error and then terminate the algorithm.
 

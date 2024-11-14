@@ -12,10 +12,10 @@ namespace Web::UIEvents {
 
 class TextEvent final : public UIEvent {
     WEB_PLATFORM_OBJECT(TextEvent, UIEvent);
-    JS_DECLARE_ALLOCATOR(TextEvent);
+    GC_DECLARE_ALLOCATOR(TextEvent);
 
 public:
-    [[nodiscard]] static JS::NonnullGCPtr<TextEvent> create(JS::Realm&, FlyString const& event_name);
+    [[nodiscard]] static GC::Ref<TextEvent> create(JS::Realm&, FlyString const& event_name);
 
     virtual ~TextEvent() override;
 

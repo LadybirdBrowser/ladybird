@@ -10,9 +10,9 @@
 
 namespace Web::MediaSourceExtensions {
 
-JS_DEFINE_ALLOCATOR(MediaSource);
+GC_DEFINE_ALLOCATOR(MediaSource);
 
-WebIDL::ExceptionOr<JS::NonnullGCPtr<MediaSource>> MediaSource::construct_impl(JS::Realm& realm)
+WebIDL::ExceptionOr<GC::Ref<MediaSource>> MediaSource::construct_impl(JS::Realm& realm)
 {
     return realm.create<MediaSource>(realm);
 }

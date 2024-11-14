@@ -12,7 +12,7 @@
 namespace Web::Layout {
 
 class LabelableNode : public ReplacedBox {
-    JS_CELL(LabelableNode, ReplacedBox);
+    GC_CELL(LabelableNode, ReplacedBox);
 
 public:
     Painting::LabelablePaintable* paintable();

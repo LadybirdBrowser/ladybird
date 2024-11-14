@@ -15,7 +15,7 @@ namespace Web::HTML {
 
 class HTMLDialogElement final : public HTMLElement {
     WEB_PLATFORM_OBJECT(HTMLDialogElement, HTMLElement);
-    JS_DECLARE_ALLOCATOR(HTMLDialogElement);
+    GC_DECLARE_ALLOCATOR(HTMLDialogElement);
 
 public:
     virtual ~HTMLDialogElement() override;
@@ -48,7 +48,7 @@ private:
 
     String m_return_value;
     bool m_is_modal { false };
-    JS::GCPtr<CloseWatcher> m_close_watcher;
+    GC::Ptr<CloseWatcher> m_close_watcher;
 
     // https://html.spec.whatwg.org/multipage/interactive-elements.html#dialog-toggle-task-tracker
     Optional<ToggleTaskTracker> m_dialog_toggle_task_tracker;

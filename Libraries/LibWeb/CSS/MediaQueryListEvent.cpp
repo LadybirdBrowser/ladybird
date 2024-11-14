@@ -10,9 +10,9 @@
 
 namespace Web::CSS {
 
-JS_DEFINE_ALLOCATOR(MediaQueryListEvent);
+GC_DEFINE_ALLOCATOR(MediaQueryListEvent);
 
-JS::NonnullGCPtr<MediaQueryListEvent> MediaQueryListEvent::construct_impl(JS::Realm& realm, FlyString const& event_name, MediaQueryListEventInit const& event_init)
+GC::Ref<MediaQueryListEvent> MediaQueryListEvent::construct_impl(JS::Realm& realm, FlyString const& event_name, MediaQueryListEventInit const& event_init)
 {
     return realm.create<MediaQueryListEvent>(realm, event_name, event_init);
 }

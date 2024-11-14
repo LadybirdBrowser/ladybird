@@ -17,7 +17,7 @@
 
 namespace JS {
 
-JS_DEFINE_ALLOCATOR(TypedArrayPrototype);
+GC_DEFINE_ALLOCATOR(TypedArrayPrototype);
 
 TypedArrayPrototype::TypedArrayPrototype(Realm& realm)
     : Object(ConstructWithPrototypeTag::Tag, realm.intrinsics().object_prototype())
@@ -81,7 +81,7 @@ static ThrowCompletionOr<TypedArrayBase*> typed_array_from_this(VM& vm)
     return typed_array_from(vm, this_value);
 }
 
-static ThrowCompletionOr<NonnullGCPtr<FunctionObject>> callback_from_args(VM& vm, StringView prototype_name)
+static ThrowCompletionOr<GC::Ref<FunctionObject>> callback_from_args(VM& vm, StringView prototype_name)
 {
     if (vm.argument_count() < 1)
         return vm.throw_completion<TypeError>(ErrorType::TypedArrayPrototypeOneArg, prototype_name);
@@ -92,7 +92,7 @@ static ThrowCompletionOr<NonnullGCPtr<FunctionObject>> callback_from_args(VM& vm
 }
 
 // 23.2.4.1 TypedArraySpeciesCreate ( exemplar, argumentList ), https://tc39.es/ecma262/#typedarray-species-create
-static ThrowCompletionOr<TypedArrayBase*> typed_array_species_create(VM& vm, TypedArrayBase const& exemplar, MarkedVector<Value> arguments)
+static ThrowCompletionOr<TypedArrayBase*> typed_array_species_create(VM& vm, TypedArrayBase const& exemplar, GC::MarkedVector<Value> arguments)
 {
     auto& realm = *vm.current_realm();
 
@@ -634,7 +634,7 @@ JS_DEFINE_NATIVE_FUNCTION(TypedArrayPrototype::filter)
     auto callback_function = TRY(callback_from_args(vm, "filter"sv));
 
     // 5. Let kept be a new empty List.
-    MarkedVector<Value> kept { vm.heap() };
+    GC::MarkedVector<Value> kept { vm.heap() };
 
     // 6. Let captured be 0.
     size_t captured = 0;
@@ -664,7 +664,7 @@ JS_DEFINE_NATIVE_FUNCTION(TypedArrayPrototype::filter)
     }
 
     // 9. Let A be ? TypedArraySpeciesCreate(O, « 𝔽(captured) »).
-    MarkedVector<Value> arguments(vm.heap());
+    GC::MarkedVector<Value> arguments(vm.heap());
     arguments.empend(captured);
     auto* filter_array = TRY(typed_array_species_create(vm, *typed_array, move(arguments)));
 
@@ -1186,7 +1186,7 @@ JS_DEFINE_NATIVE_FUNCTION(TypedArrayPrototype::map)
     auto callback_function = TRY(callback_from_args(vm, "map"sv));
 
     // 5. Let A be ? TypedArraySpeciesCreate(O, « 𝔽(len) »).
-    MarkedVector<Value> arguments(vm.heap());
+    GC::MarkedVector<Value> arguments(vm.heap());
     arguments.empend(length);
     auto* array = TRY(typed_array_species_create(vm, *typed_array, move(arguments)));
 
@@ -1660,7 +1660,7 @@ JS_DEFINE_NATIVE_FUNCTION(TypedArrayPrototype::slice)
     auto count = max(final - k, 0);
 
     // 13. Let A be ? TypedArraySpeciesCreate(O, « 𝔽(count) »).
-    MarkedVector<Value> arguments(vm.heap());
+    GC::MarkedVector<Value> arguments(vm.heap());
     arguments.empend(count);
     auto* array = TRY(typed_array_species_create(vm, *typed_array, move(arguments)));
 
@@ -1905,7 +1905,7 @@ JS_DEFINE_NATIVE_FUNCTION(TypedArrayPrototype::subarray)
         return typed_array;
     }
 
-    MarkedVector<Value> arguments(vm.heap());
+    GC::MarkedVector<Value> arguments(vm.heap());
 
     // 15. If O.[[ArrayLength]] is auto and end is undefined, then
     if (typed_array->array_length().is_auto() && end.is_undefined()) {
@@ -2013,7 +2013,7 @@ JS_DEFINE_NATIVE_FUNCTION(TypedArrayPrototype::to_reversed)
     auto length = typed_array_length(typed_array_record);
 
     // 4. Let A be ? TypedArrayCreateSameType(O, « 𝔽(length) »).
-    MarkedVector<Value> arguments(vm.heap());
+    GC::MarkedVector<Value> arguments(vm.heap());
     arguments.empend(length);
     auto* array = TRY(typed_array_create_same_type(vm, *typed_array, move(arguments)));
 
@@ -2058,7 +2058,7 @@ JS_DEFINE_NATIVE_FUNCTION(TypedArrayPrototype::to_sorted)
     auto length = typed_array_length(typed_array_record);
 
     // 5. Let A be ? TypedArrayCreateSameType(O, « 𝔽(len) »).
-    MarkedVector<Value> arguments(vm.heap());
+    GC::MarkedVector<Value> arguments(vm.heap());
     arguments.empend(length);
     auto* array = TRY(typed_array_create_same_type(vm, *typed_array, move(arguments)));
 
@@ -2138,7 +2138,7 @@ JS_DEFINE_NATIVE_FUNCTION(TypedArrayPrototype::with)
         return vm.throw_completion<RangeError>(ErrorType::TypedArrayInvalidIntegerIndex, actual_index);
 
     // 10. Let A be ? TypedArrayCreateSameType(O, « 𝔽(len) »).
-    MarkedVector<Value> arguments(vm.heap());
+    GC::MarkedVector<Value> arguments(vm.heap());
     arguments.empend(length);
     auto* array = TRY(typed_array_create_same_type(vm, *typed_array, move(arguments)));
 

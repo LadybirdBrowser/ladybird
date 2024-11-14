@@ -18,7 +18,7 @@
 
 namespace Web::HTML {
 
-JS_DEFINE_ALLOCATOR(HTMLIFrameElement);
+GC_DEFINE_ALLOCATOR(HTMLIFrameElement);
 
 HTMLIFrameElement::HTMLIFrameElement(DOM::Document& document, DOM::QualifiedName qualified_name)
     : NavigableContainer(document, move(qualified_name))
@@ -33,7 +33,7 @@ void HTMLIFrameElement::initialize(JS::Realm& realm)
     WEB_SET_PROTOTYPE_FOR_INTERFACE(HTMLIFrameElement);
 }
 
-JS::GCPtr<Layout::Node> HTMLIFrameElement::create_layout_node(CSS::StyleProperties style)
+GC::Ptr<Layout::Node> HTMLIFrameElement::create_layout_node(CSS::StyleProperties style)
 {
     return heap().allocate<Layout::FrameBox>(document(), *this, move(style));
 }
@@ -78,7 +78,7 @@ void HTMLIFrameElement::inserted()
         return;
 
     // 2. Create a new child navigable for insertedNode.
-    MUST(create_new_child_navigable(JS::create_heap_function(realm().heap(), [this] {
+    MUST(create_new_child_navigable(GC::create_function(realm().heap(), [this] {
         // FIXME: 3. If insertedNode has a sandbox attribute, then parse the sandboxing directive given the attribute's
         //           value and insertedNode's iframe sandboxing flag set.
 

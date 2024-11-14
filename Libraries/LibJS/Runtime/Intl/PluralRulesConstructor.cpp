@@ -15,7 +15,7 @@
 
 namespace JS::Intl {
 
-JS_DEFINE_ALLOCATOR(PluralRulesConstructor);
+GC_DEFINE_ALLOCATOR(PluralRulesConstructor);
 
 // 16.1 The Intl.PluralRules Constructor, https://tc39.es/ecma402/#sec-intl-pluralrules-constructor
 PluralRulesConstructor::PluralRulesConstructor(Realm& realm)
@@ -45,7 +45,7 @@ ThrowCompletionOr<Value> PluralRulesConstructor::call()
 }
 
 // 16.1.1 Intl.PluralRules ( [ locales [ , options ] ] ), https://tc39.es/ecma402/#sec-intl.pluralrules
-ThrowCompletionOr<NonnullGCPtr<Object>> PluralRulesConstructor::construct(FunctionObject& new_target)
+ThrowCompletionOr<GC::Ref<Object>> PluralRulesConstructor::construct(FunctionObject& new_target)
 {
     auto& vm = this->vm();
 

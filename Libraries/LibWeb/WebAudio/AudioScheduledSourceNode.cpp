@@ -11,9 +11,9 @@
 
 namespace Web::WebAudio {
 
-JS_DEFINE_ALLOCATOR(AudioScheduledSourceNode);
+GC_DEFINE_ALLOCATOR(AudioScheduledSourceNode);
 
-AudioScheduledSourceNode::AudioScheduledSourceNode(JS::Realm& realm, JS::NonnullGCPtr<BaseAudioContext> context)
+AudioScheduledSourceNode::AudioScheduledSourceNode(JS::Realm& realm, GC::Ref<BaseAudioContext> context)
     : AudioNode(realm, context)
 {
 }
@@ -21,13 +21,13 @@ AudioScheduledSourceNode::AudioScheduledSourceNode(JS::Realm& realm, JS::Nonnull
 AudioScheduledSourceNode::~AudioScheduledSourceNode() = default;
 
 // https://webaudio.github.io/web-audio-api/#dom-audioscheduledsourcenode-onended
-JS::GCPtr<WebIDL::CallbackType> AudioScheduledSourceNode::onended()
+GC::Ptr<WebIDL::CallbackType> AudioScheduledSourceNode::onended()
 {
     return event_handler_attribute(HTML::EventNames::ended);
 }
 
 // https://webaudio.github.io/web-audio-api/#dom-audioscheduledsourcenode-onended
-void AudioScheduledSourceNode::set_onended(JS::GCPtr<WebIDL::CallbackType> value)
+void AudioScheduledSourceNode::set_onended(GC::Ptr<WebIDL::CallbackType> value)
 {
     set_event_handler_attribute(HTML::EventNames::ended, value);
 }

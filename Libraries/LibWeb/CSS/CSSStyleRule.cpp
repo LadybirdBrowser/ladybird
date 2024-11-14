@@ -14,9 +14,9 @@
 
 namespace Web::CSS {
 
-JS_DEFINE_ALLOCATOR(CSSStyleRule);
+GC_DEFINE_ALLOCATOR(CSSStyleRule);
 
-JS::NonnullGCPtr<CSSStyleRule> CSSStyleRule::create(JS::Realm& realm, SelectorList&& selectors, PropertyOwningCSSStyleDeclaration& declaration, CSSRuleList& nested_rules)
+GC::Ref<CSSStyleRule> CSSStyleRule::create(JS::Realm& realm, SelectorList&& selectors, PropertyOwningCSSStyleDeclaration& declaration, CSSRuleList& nested_rules)
 {
     return realm.create<CSSStyleRule>(realm, move(selectors), declaration, nested_rules);
 }

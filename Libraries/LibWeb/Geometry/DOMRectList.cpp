@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibJS/Heap/Handle.h>
+#include <LibGC/Root.h>
 #include <LibWeb/Bindings/DOMRectListPrototype.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Geometry/DOMRect.h>
@@ -13,17 +13,17 @@
 
 namespace Web::Geometry {
 
-JS_DEFINE_ALLOCATOR(DOMRectList);
+GC_DEFINE_ALLOCATOR(DOMRectList);
 
-JS::NonnullGCPtr<DOMRectList> DOMRectList::create(JS::Realm& realm, Vector<JS::Handle<DOMRect>> rect_handles)
+GC::Ref<DOMRectList> DOMRectList::create(JS::Realm& realm, Vector<GC::Root<DOMRect>> rect_handles)
 {
-    Vector<JS::NonnullGCPtr<DOMRect>> rects;
+    Vector<GC::Ref<DOMRect>> rects;
     for (auto& rect : rect_handles)
         rects.append(*rect);
     return realm.create<DOMRectList>(realm, move(rects));
 }
 
-DOMRectList::DOMRectList(JS::Realm& realm, Vector<JS::NonnullGCPtr<DOMRect>> rects)
+DOMRectList::DOMRectList(JS::Realm& realm, Vector<GC::Ref<DOMRect>> rects)
     : Bindings::PlatformObject(realm)
     , m_rects(move(rects))
 {

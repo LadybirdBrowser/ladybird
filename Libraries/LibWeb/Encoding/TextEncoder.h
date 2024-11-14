@@ -26,15 +26,15 @@ struct TextEncoderEncodeIntoResult {
 // https://encoding.spec.whatwg.org/#textencoder
 class TextEncoder final : public Bindings::PlatformObject {
     WEB_PLATFORM_OBJECT(TextEncoder, Bindings::PlatformObject);
-    JS_DECLARE_ALLOCATOR(TextEncoder);
+    GC_DECLARE_ALLOCATOR(TextEncoder);
 
 public:
-    static WebIDL::ExceptionOr<JS::NonnullGCPtr<TextEncoder>> construct_impl(JS::Realm&);
+    static WebIDL::ExceptionOr<GC::Ref<TextEncoder>> construct_impl(JS::Realm&);
 
     virtual ~TextEncoder() override;
 
-    JS::NonnullGCPtr<JS::Uint8Array> encode(String const& input) const;
-    TextEncoderEncodeIntoResult encode_into(String const& source, JS::Handle<WebIDL::BufferSource> const& destination) const;
+    GC::Ref<JS::Uint8Array> encode(String const& input) const;
+    TextEncoderEncodeIntoResult encode_into(String const& source, GC::Root<WebIDL::BufferSource> const& destination) const;
 
     static FlyString const& encoding();
 

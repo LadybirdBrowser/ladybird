@@ -11,9 +11,9 @@
 
 namespace Web::EntriesAPI {
 
-JS_DEFINE_ALLOCATOR(FileSystemEntry);
+GC_DEFINE_ALLOCATOR(FileSystemEntry);
 
-JS::NonnullGCPtr<FileSystemEntry> FileSystemEntry::create(JS::Realm& realm, EntryType entry_type, ByteString name)
+GC::Ref<FileSystemEntry> FileSystemEntry::create(JS::Realm& realm, EntryType entry_type, ByteString name)
 {
     return realm.create<FileSystemEntry>(realm, entry_type, name);
 }

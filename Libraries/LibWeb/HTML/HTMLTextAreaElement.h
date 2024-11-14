@@ -22,7 +22,7 @@ class HTMLTextAreaElement final
     : public HTMLElement
     , public FormAssociatedTextControlElement {
     WEB_PLATFORM_OBJECT(HTMLTextAreaElement, HTMLElement);
-    JS_DECLARE_ALLOCATOR(HTMLTextAreaElement);
+    GC_DECLARE_ALLOCATOR(HTMLTextAreaElement);
     FORM_ASSOCIATED_ELEMENT(HTMLElement, HTMLTextAreaElement)
 
 public:
@@ -124,7 +124,7 @@ public:
 
     // ^FormAssociatedTextControlElement
     virtual void did_edit_text_node() override;
-    virtual JS::GCPtr<DOM::Text> form_associated_element_to_text_node() override { return m_text_node; }
+    virtual GC::Ptr<DOM::Text> form_associated_element_to_text_node() override { return m_text_node; }
 
 private:
     HTMLTextAreaElement(DOM::Document&, DOM::QualifiedName);
@@ -146,11 +146,11 @@ private:
 
     void update_placeholder_visibility();
 
-    JS::GCPtr<DOM::Element> m_placeholder_element;
-    JS::GCPtr<DOM::Text> m_placeholder_text_node;
+    GC::Ptr<DOM::Element> m_placeholder_element;
+    GC::Ptr<DOM::Text> m_placeholder_text_node;
 
-    JS::GCPtr<DOM::Element> m_inner_text_element;
-    JS::GCPtr<DOM::Text> m_text_node;
+    GC::Ptr<DOM::Element> m_inner_text_element;
+    GC::Ptr<DOM::Text> m_text_node;
 
     RefPtr<Core::Timer> m_input_event_timer;
 

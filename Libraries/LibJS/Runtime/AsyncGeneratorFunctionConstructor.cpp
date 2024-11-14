@@ -12,7 +12,7 @@
 
 namespace JS {
 
-JS_DEFINE_ALLOCATOR(AsyncGeneratorFunctionConstructor);
+GC_DEFINE_ALLOCATOR(AsyncGeneratorFunctionConstructor);
 
 AsyncGeneratorFunctionConstructor::AsyncGeneratorFunctionConstructor(Realm& realm)
     : NativeFunction(realm.vm().names.AsyncGeneratorFunction.as_string(), realm.intrinsics().function_prototype())
@@ -38,7 +38,7 @@ ThrowCompletionOr<Value> AsyncGeneratorFunctionConstructor::call()
 }
 
 // 27.4.1.1 AsyncGeneratorFunction ( ...parameterArgs, bodyArg ), https://tc39.es/ecma262/#sec-asyncgeneratorfunction
-ThrowCompletionOr<NonnullGCPtr<Object>> AsyncGeneratorFunctionConstructor::construct(FunctionObject& new_target)
+ThrowCompletionOr<GC::Ref<Object>> AsyncGeneratorFunctionConstructor::construct(FunctionObject& new_target)
 {
     auto& vm = this->vm();
 

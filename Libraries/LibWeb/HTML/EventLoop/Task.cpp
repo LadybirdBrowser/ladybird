@@ -10,7 +10,7 @@
 
 namespace Web::HTML {
 
-JS_DEFINE_ALLOCATOR(Task);
+GC_DEFINE_ALLOCATOR(Task);
 
 static IDAllocator s_unique_task_source_allocator { static_cast<int>(Task::Source::UniqueTaskSourceStart) };
 
@@ -20,12 +20,12 @@ static IDAllocator s_unique_task_source_allocator { static_cast<int>(Task::Sourc
     return next_task_id++;
 }
 
-JS::NonnullGCPtr<Task> Task::create(JS::VM& vm, Source source, JS::GCPtr<DOM::Document const> document, JS::NonnullGCPtr<JS::HeapFunction<void()>> steps)
+GC::Ref<Task> Task::create(JS::VM& vm, Source source, GC::Ptr<DOM::Document const> document, GC::Ref<GC::Function<void()>> steps)
 {
     return vm.heap().allocate<Task>(source, document, move(steps));
 }
 
-Task::Task(Source source, JS::GCPtr<DOM::Document const> document, JS::NonnullGCPtr<JS::HeapFunction<void()>> steps)
+Task::Task(Source source, GC::Ptr<DOM::Document const> document, GC::Ref<GC::Function<void()>> steps)
     : m_id(allocate_task_id())
     , m_source(source)
     , m_steps(steps)

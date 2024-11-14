@@ -6,7 +6,7 @@
 
 #pragma once
 
-#include <LibJS/Heap/MarkedVector.h>
+#include <LibGC/MarkedVector.h>
 #include <LibWeb/DOM/EventTarget.h>
 #include <LibWeb/HTML/TextTrackCue.h>
 
@@ -15,14 +15,14 @@ namespace Web::HTML {
 // https://html.spec.whatwg.org/multipage/media.html#texttrackcuelist
 class TextTrackCueList final : public DOM::EventTarget {
     WEB_PLATFORM_OBJECT(TextTrackCueList, DOM::EventTarget);
-    JS_DECLARE_ALLOCATOR(TextTrackCueList);
+    GC_DECLARE_ALLOCATOR(TextTrackCueList);
 
 public:
     virtual ~TextTrackCueList() override;
 
     size_t length() const;
 
-    JS::GCPtr<TextTrackCue> get_cue_by_id(StringView id) const;
+    GC::Ptr<TextTrackCue> get_cue_by_id(StringView id) const;
 
 private:
     TextTrackCueList(JS::Realm&);
@@ -32,7 +32,7 @@ private:
 
     virtual JS::ThrowCompletionOr<Optional<JS::PropertyDescriptor>> internal_get_own_property(JS::PropertyKey const& property_name) const override;
 
-    Vector<JS::NonnullGCPtr<TextTrackCue>> m_cues;
+    Vector<GC::Ref<TextTrackCue>> m_cues;
 };
 
 }

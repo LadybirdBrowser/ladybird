@@ -12,8 +12,8 @@
 namespace Web::Layout {
 
 class ListItemBox final : public BlockContainer {
-    JS_CELL(ListItemBox, BlockContainer);
-    JS_DECLARE_ALLOCATOR(ListItemBox);
+    GC_CELL(ListItemBox, BlockContainer);
+    GC_DECLARE_ALLOCATOR(ListItemBox);
 
 public:
     ListItemBox(DOM::Document&, DOM::Element*, CSS::StyleProperties);
@@ -23,14 +23,14 @@ public:
     DOM::Element const& dom_node() const { return static_cast<DOM::Element const&>(*BlockContainer::dom_node()); }
 
     ListItemMarkerBox const* marker() const { return m_marker; }
-    void set_marker(JS::GCPtr<ListItemMarkerBox>);
+    void set_marker(GC::Ptr<ListItemMarkerBox>);
 
 private:
     virtual bool is_list_item_box() const override { return true; }
 
     virtual void visit_edges(Cell::Visitor&) override;
 
-    JS::GCPtr<ListItemMarkerBox> m_marker;
+    GC::Ptr<ListItemMarkerBox> m_marker;
 };
 
 template<>

@@ -21,10 +21,10 @@ public:
     explicit DedicatedWorkerHost(URL::URL url, Web::Bindings::WorkerType type, String name);
     ~DedicatedWorkerHost();
 
-    void run(JS::NonnullGCPtr<Web::Page>, Web::HTML::TransferDataHolder message_port_data, Web::HTML::SerializedEnvironmentSettingsObject const&);
+    void run(GC::Ref<Web::Page>, Web::HTML::TransferDataHolder message_port_data, Web::HTML::SerializedEnvironmentSettingsObject const&);
 
 private:
-    JS::Handle<Web::HTML::WorkerDebugConsoleClient> m_console;
+    GC::Root<Web::HTML::WorkerDebugConsoleClient> m_console;
 
     URL::URL m_url;
     Web::Bindings::WorkerType m_type;

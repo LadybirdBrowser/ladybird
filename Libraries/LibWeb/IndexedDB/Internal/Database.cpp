@@ -9,14 +9,14 @@
 
 namespace Web::IndexedDB {
 
-using IDBDatabaseMapping = HashMap<StorageAPI::StorageKey, HashMap<String, JS::Handle<Database>>>;
+using IDBDatabaseMapping = HashMap<StorageAPI::StorageKey, HashMap<String, GC::Root<Database>>>;
 static IDBDatabaseMapping m_databases;
 
-JS_DEFINE_ALLOCATOR(Database);
+GC_DEFINE_ALLOCATOR(Database);
 
 Database::~Database() = default;
 
-JS::NonnullGCPtr<Database> Database::create(JS::Realm& realm, String const& name)
+GC::Ref<Database> Database::create(JS::Realm& realm, String const& name)
 {
     return realm.create<Database>(realm, name);
 }
@@ -37,18 +37,18 @@ ConnectionQueue& ConnectionQueueHandler::for_key_and_name(StorageAPI::StorageKey
         });
 }
 
-Optional<JS::Handle<Database>> Database::for_key_and_name(StorageAPI::StorageKey& key, String& name)
+Optional<GC::Root<Database>> Database::for_key_and_name(StorageAPI::StorageKey& key, String& name)
 {
     return m_databases.ensure(key, [] {
-                          return HashMap<String, JS::Handle<Database>>();
+                          return HashMap<String, GC::Root<Database>>();
                       })
         .get(name);
 }
 
-ErrorOr<JS::Handle<Database>> Database::create_for_key_and_name(JS::Realm& realm, StorageAPI::StorageKey& key, String& name)
+ErrorOr<GC::Root<Database>> Database::create_for_key_and_name(JS::Realm& realm, StorageAPI::StorageKey& key, String& name)
 {
     auto database_mapping = TRY(m_databases.try_ensure(key, [] {
-        return HashMap<String, JS::Handle<Database>>();
+        return HashMap<String, GC::Root<Database>>();
     }));
 
     return database_mapping.try_ensure(name, [&] {

@@ -19,11 +19,11 @@ struct ToggleEventInit : public DOM::EventInit {
 
 class ToggleEvent : public DOM::Event {
     WEB_PLATFORM_OBJECT(ToggleEvent, DOM::Event);
-    JS_DECLARE_ALLOCATOR(ToggleEvent);
+    GC_DECLARE_ALLOCATOR(ToggleEvent);
 
 public:
-    [[nodiscard]] static JS::NonnullGCPtr<ToggleEvent> create(JS::Realm&, FlyString const& event_name, ToggleEventInit = {});
-    static WebIDL::ExceptionOr<JS::NonnullGCPtr<ToggleEvent>> construct_impl(JS::Realm&, FlyString const& event_name, ToggleEventInit);
+    [[nodiscard]] static GC::Ref<ToggleEvent> create(JS::Realm&, FlyString const& event_name, ToggleEventInit = {});
+    static WebIDL::ExceptionOr<GC::Ref<ToggleEvent>> construct_impl(JS::Realm&, FlyString const& event_name, ToggleEventInit);
 
     // https://html.spec.whatwg.org/multipage/interaction.html#dom-toggleevent-oldstate
     String const& old_state() const { return m_old_state; }

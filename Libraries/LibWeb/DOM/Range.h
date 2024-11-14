@@ -25,13 +25,13 @@ RelativeBoundaryPointPosition position_of_boundary_point_relative_to_other_bound
 
 class Range final : public AbstractRange {
     WEB_PLATFORM_OBJECT(Range, AbstractRange);
-    JS_DECLARE_ALLOCATOR(Range);
+    GC_DECLARE_ALLOCATOR(Range);
 
 public:
-    [[nodiscard]] static JS::NonnullGCPtr<Range> create(Document&);
-    [[nodiscard]] static JS::NonnullGCPtr<Range> create(HTML::Window&);
-    [[nodiscard]] static JS::NonnullGCPtr<Range> create(Node& start_container, WebIDL::UnsignedLong start_offset, Node& end_container, WebIDL::UnsignedLong end_offset);
-    static WebIDL::ExceptionOr<JS::NonnullGCPtr<Range>> construct_impl(JS::Realm&);
+    [[nodiscard]] static GC::Ref<Range> create(Document&);
+    [[nodiscard]] static GC::Ref<Range> create(HTML::Window&);
+    [[nodiscard]] static GC::Ref<Range> create(Node& start_container, WebIDL::UnsignedLong start_offset, Node& end_container, WebIDL::UnsignedLong end_offset);
+    static WebIDL::ExceptionOr<GC::Ref<Range>> construct_impl(JS::Realm&);
 
     virtual ~Range() override;
 
@@ -60,11 +60,11 @@ public:
 
     WebIDL::ExceptionOr<WebIDL::Short> compare_boundary_points(WebIDL::UnsignedShort how, Range const& source_range) const;
 
-    JS::NonnullGCPtr<Range> inverted() const;
-    JS::NonnullGCPtr<Range> normalized() const;
-    JS::NonnullGCPtr<Range> clone_range() const;
+    GC::Ref<Range> inverted() const;
+    GC::Ref<Range> normalized() const;
+    GC::Ref<Range> clone_range() const;
 
-    JS::NonnullGCPtr<Node> common_ancestor_container() const;
+    GC::Ref<Node> common_ancestor_container() const;
 
     // https://dom.spec.whatwg.org/#dom-range-detach
     void detach() const
@@ -78,24 +78,24 @@ public:
     WebIDL::ExceptionOr<WebIDL::Short> compare_point(Node const&, WebIDL::UnsignedLong offset) const;
 
     WebIDL::ExceptionOr<void> delete_contents();
-    WebIDL::ExceptionOr<JS::NonnullGCPtr<DocumentFragment>> extract_contents();
-    WebIDL::ExceptionOr<JS::NonnullGCPtr<DocumentFragment>> clone_contents();
+    WebIDL::ExceptionOr<GC::Ref<DocumentFragment>> extract_contents();
+    WebIDL::ExceptionOr<GC::Ref<DocumentFragment>> clone_contents();
 
-    WebIDL::ExceptionOr<void> insert_node(JS::NonnullGCPtr<Node>);
-    WebIDL::ExceptionOr<void> surround_contents(JS::NonnullGCPtr<Node> new_parent);
+    WebIDL::ExceptionOr<void> insert_node(GC::Ref<Node>);
+    WebIDL::ExceptionOr<void> surround_contents(GC::Ref<Node> new_parent);
 
     String to_string() const;
 
     static HashTable<Range*>& live_ranges();
 
-    JS::NonnullGCPtr<Geometry::DOMRectList> get_client_rects();
-    JS::NonnullGCPtr<Geometry::DOMRect> get_bounding_client_rect();
+    GC::Ref<Geometry::DOMRectList> get_client_rects();
+    GC::Ref<Geometry::DOMRect> get_bounding_client_rect();
 
     bool contains_node(Node const&) const;
 
-    void set_associated_selection(Badge<Selection::Selection>, JS::GCPtr<Selection::Selection>);
+    void set_associated_selection(Badge<Selection::Selection>, GC::Ptr<Selection::Selection>);
 
-    WebIDL::ExceptionOr<JS::NonnullGCPtr<DocumentFragment>> create_contextual_fragment(String const& fragment);
+    WebIDL::ExceptionOr<GC::Ref<DocumentFragment>> create_contextual_fragment(String const& fragment);
 
 private:
     explicit Range(Document&);
@@ -117,13 +117,13 @@ private:
     WebIDL::ExceptionOr<void> set_start_or_end(Node& node, u32 offset, StartOrEnd start_or_end);
     WebIDL::ExceptionOr<void> select(Node& node);
 
-    WebIDL::ExceptionOr<JS::NonnullGCPtr<DocumentFragment>> extract();
-    WebIDL::ExceptionOr<JS::NonnullGCPtr<DocumentFragment>> clone_the_contents();
-    WebIDL::ExceptionOr<void> insert(JS::NonnullGCPtr<Node>);
+    WebIDL::ExceptionOr<GC::Ref<DocumentFragment>> extract();
+    WebIDL::ExceptionOr<GC::Ref<DocumentFragment>> clone_the_contents();
+    WebIDL::ExceptionOr<void> insert(GC::Ref<Node>);
 
     bool partially_contains_node(Node const&) const;
 
-    JS::GCPtr<Selection::Selection> m_associated_selection;
+    GC::Ptr<Selection::Selection> m_associated_selection;
 };
 
 }

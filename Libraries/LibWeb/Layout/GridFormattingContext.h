@@ -35,7 +35,7 @@ struct GridPosition {
 };
 
 struct GridItem {
-    JS::NonnullGCPtr<Box const> box;
+    GC::Ref<Box const> box;
 
     // Position and span are empty if the item is auto-placed which could only be the case for abspos items
     Optional<int> row;

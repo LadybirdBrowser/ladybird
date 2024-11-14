@@ -12,7 +12,7 @@ namespace JS {
 
 class GlobalEnvironment final : public Environment {
     JS_ENVIRONMENT(GlobalEnvironment, Environment);
-    JS_DECLARE_ALLOCATOR(GlobalEnvironment);
+    GC_DECLARE_ALLOCATOR(GlobalEnvironment);
 
 public:
     virtual bool has_this_binding() const final { return true; }
@@ -44,10 +44,10 @@ private:
     virtual bool is_global_environment() const override { return true; }
     virtual void visit_edges(Visitor&) override;
 
-    GCPtr<ObjectEnvironment> m_object_record;           // [[ObjectRecord]]
-    GCPtr<Object> m_global_this_value;                  // [[GlobalThisValue]]
-    GCPtr<DeclarativeEnvironment> m_declarative_record; // [[DeclarativeRecord]]
-    Vector<DeprecatedFlyString> m_var_names;            // [[VarNames]]
+    GC::Ptr<ObjectEnvironment> m_object_record;           // [[ObjectRecord]]
+    GC::Ptr<Object> m_global_this_value;                  // [[GlobalThisValue]]
+    GC::Ptr<DeclarativeEnvironment> m_declarative_record; // [[DeclarativeRecord]]
+    Vector<DeprecatedFlyString> m_var_names;              // [[VarNames]]
 };
 
 template<>

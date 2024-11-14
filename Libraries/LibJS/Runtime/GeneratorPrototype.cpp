@@ -9,7 +9,7 @@
 
 namespace JS {
 
-JS_DEFINE_ALLOCATOR(GeneratorPrototype);
+GC_DEFINE_ALLOCATOR(GeneratorPrototype);
 
 GeneratorPrototype::GeneratorPrototype(Realm& realm)
     : PrototypeObject(realm.intrinsics().iterator_prototype())

@@ -9,7 +9,7 @@
 
 namespace Web::NavigationTiming {
 
-JS_DEFINE_ALLOCATOR(PerformanceTiming);
+GC_DEFINE_ALLOCATOR(PerformanceTiming);
 
 PerformanceTiming::PerformanceTiming(JS::Realm& realm)
     : PlatformObject(realm)

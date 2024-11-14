@@ -9,7 +9,7 @@
 
 namespace Web::WebGL {
 
-JS_DEFINE_ALLOCATOR(WebGLProgram);
+GC_DEFINE_ALLOCATOR(WebGLProgram);
 
 WebGLProgram::WebGLProgram(JS::Realm& realm)
     : WebGLObject(realm)

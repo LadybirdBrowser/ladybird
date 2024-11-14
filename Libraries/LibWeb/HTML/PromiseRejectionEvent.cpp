@@ -10,14 +10,14 @@
 
 namespace Web::HTML {
 
-JS_DEFINE_ALLOCATOR(PromiseRejectionEvent);
+GC_DEFINE_ALLOCATOR(PromiseRejectionEvent);
 
-JS::NonnullGCPtr<PromiseRejectionEvent> PromiseRejectionEvent::create(JS::Realm& realm, FlyString const& event_name, PromiseRejectionEventInit const& event_init)
+GC::Ref<PromiseRejectionEvent> PromiseRejectionEvent::create(JS::Realm& realm, FlyString const& event_name, PromiseRejectionEventInit const& event_init)
 {
     return realm.create<PromiseRejectionEvent>(realm, event_name, event_init);
 }
 
-WebIDL::ExceptionOr<JS::NonnullGCPtr<PromiseRejectionEvent>> PromiseRejectionEvent::construct_impl(JS::Realm& realm, FlyString const& event_name, PromiseRejectionEventInit const& event_init)
+WebIDL::ExceptionOr<GC::Ref<PromiseRejectionEvent>> PromiseRejectionEvent::construct_impl(JS::Realm& realm, FlyString const& event_name, PromiseRejectionEventInit const& event_init)
 {
     return create(realm, event_name, event_init);
 }

@@ -17,10 +17,10 @@ enum class EntryType {
 
 class FileSystemEntry final : public Bindings::PlatformObject {
     WEB_PLATFORM_OBJECT(FileSystemEntry, Bindings::PlatformObject);
-    JS_DECLARE_ALLOCATOR(FileSystemEntry);
+    GC_DECLARE_ALLOCATOR(FileSystemEntry);
 
 public:
-    static JS::NonnullGCPtr<FileSystemEntry> create(JS::Realm&, EntryType entry_type, ByteString name);
+    static GC::Ref<FileSystemEntry> create(JS::Realm&, EntryType entry_type, ByteString name);
     virtual ~FileSystemEntry() override = default;
 
     bool is_file() const;

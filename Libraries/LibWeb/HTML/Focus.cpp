@@ -8,7 +8,7 @@
 
 #include <AK/TypeCasts.h>
 #include <AK/Vector.h>
-#include <LibJS/Heap/Handle.h>
+#include <LibGC/Root.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Element.h>
 #include <LibWeb/DOM/ShadowRoot.h>
@@ -20,7 +20,7 @@
 namespace Web::HTML {
 
 // https://html.spec.whatwg.org/multipage/interaction.html#fire-a-focus-event
-static void fire_a_focus_event(JS::GCPtr<DOM::EventTarget> focus_event_target, JS::GCPtr<DOM::EventTarget> related_focus_target, FlyString const& event_name, bool bubbles)
+static void fire_a_focus_event(GC::Ptr<DOM::EventTarget> focus_event_target, GC::Ptr<DOM::EventTarget> related_focus_target, FlyString const& event_name, bool bubbles)
 {
     // To fire a focus event named e at an element t with a given related target r, fire an event named e at t, using FocusEvent,
     // with the relatedTarget attribute initialized to r, the view attribute initialized to t's node document's relevant global
@@ -38,7 +38,7 @@ static void fire_a_focus_event(JS::GCPtr<DOM::EventTarget> focus_event_target, J
 }
 
 // https://html.spec.whatwg.org/multipage/interaction.html#focus-update-steps
-static void run_focus_update_steps(Vector<JS::Handle<DOM::Node>> old_chain, Vector<JS::Handle<DOM::Node>> new_chain, DOM::Node* new_focus_target)
+static void run_focus_update_steps(Vector<GC::Root<DOM::Node>> old_chain, Vector<GC::Root<DOM::Node>> new_chain, DOM::Node* new_focus_target)
 {
     // 1. If the last entry in old chain and the last entry in new chain are the same,
     //    pop the last entry from old chain and the last entry from new chain and redo this step.
@@ -67,7 +67,7 @@ static void run_focus_update_steps(Vector<JS::Handle<DOM::Node>> old_chain, Vect
             }
         }
 
-        JS::GCPtr<DOM::EventTarget> blur_event_target;
+        GC::Ptr<DOM::EventTarget> blur_event_target;
         if (is<DOM::Element>(*entry)) {
             // 2. If entry is an element, let blur event target be entry.
             blur_event_target = entry.ptr();
@@ -80,7 +80,7 @@ static void run_focus_update_steps(Vector<JS::Handle<DOM::Node>> old_chain, Vect
         //    and the last entry in new chain is also an Element,
         //    then let related blur target be the last entry in new chain.
         //    Otherwise, let related blur target be null.
-        JS::GCPtr<DOM::EventTarget> related_blur_target;
+        GC::Ptr<DOM::EventTarget> related_blur_target;
         if (!old_chain.is_empty()
             && &entry == &old_chain.last()
             && is<DOM::Element>(*entry)
@@ -112,7 +112,7 @@ static void run_focus_update_steps(Vector<JS::Handle<DOM::Node>> old_chain, Vect
         else if (is<DOM::Document>(*entry))
             entry->document().set_focused_element(static_cast<DOM::Document&>(*entry).document_element());
 
-        JS::GCPtr<DOM::EventTarget> focus_event_target;
+        GC::Ptr<DOM::EventTarget> focus_event_target;
         if (is<DOM::Element>(*entry)) {
             // 2. If entry is an element, let focus event target be entry.
             focus_event_target = entry.ptr();
@@ -125,7 +125,7 @@ static void run_focus_update_steps(Vector<JS::Handle<DOM::Node>> old_chain, Vect
         //    and the last entry in old chain is also an Element,
         //    then let related focus target be the last entry in old chain.
         //    Otherwise, let related focus target be null.
-        JS::GCPtr<DOM::EventTarget> related_focus_target;
+        GC::Ptr<DOM::EventTarget> related_focus_target;
         if (!new_chain.is_empty()
             && &entry == &new_chain.last()
             && is<DOM::Element>(*entry)
@@ -146,14 +146,14 @@ static void run_focus_update_steps(Vector<JS::Handle<DOM::Node>> old_chain, Vect
 }
 
 // https://html.spec.whatwg.org/multipage/interaction.html#focus-chain
-static Vector<JS::Handle<DOM::Node>> focus_chain(DOM::Node* subject)
+static Vector<GC::Root<DOM::Node>> focus_chain(DOM::Node* subject)
 {
     // FIXME: Move this somewhere more spec-friendly.
     if (!subject)
         return {};
 
     // 1. Let output be an empty list.
-    Vector<JS::Handle<DOM::Node>> output;
+    Vector<GC::Root<DOM::Node>> output;
 
     // 2. Let currentObject be subject.
     auto* current_object = subject;
@@ -161,7 +161,7 @@ static Vector<JS::Handle<DOM::Node>> focus_chain(DOM::Node* subject)
     // 3. While true:
     while (true) {
         // 1. Append currentObject to output.
-        output.append(JS::make_handle(*current_object));
+        output.append(GC::make_root(*current_object));
 
         // FIXME: 2. If currentObject is an area element's shape, then append that area element to output.
 

@@ -21,7 +21,7 @@
 
 namespace JS::Test262 {
 
-JS_DEFINE_ALLOCATOR($262Object);
+GC_DEFINE_ALLOCATOR($262Object);
 
 $262Object::$262Object(Realm& realm)
     : Object(Object::ConstructWithoutPrototypeTag::Tag, realm)
@@ -62,7 +62,7 @@ JS_DEFINE_NATIVE_FUNCTION($262Object::clear_kept_objects)
 
 JS_DEFINE_NATIVE_FUNCTION($262Object::create_realm)
 {
-    JS::GCPtr<JS::Test262::GlobalObject> global_object;
+    GC::Ptr<JS::Test262::GlobalObject> global_object;
     auto root_execution_context = MUST(JS::Realm::initialize_host_defined_realm(
         vm,
         [&](JS::Realm& realm) -> JS::GlobalObject* {

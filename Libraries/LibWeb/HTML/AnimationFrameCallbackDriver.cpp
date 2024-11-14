@@ -11,7 +11,7 @@
 
 namespace Web::HTML {
 
-JS_DEFINE_ALLOCATOR(AnimationFrameCallbackDriver);
+GC_DEFINE_ALLOCATOR(AnimationFrameCallbackDriver);
 
 void AnimationFrameCallbackDriver::visit_edges(Cell::Visitor& visitor)
 {

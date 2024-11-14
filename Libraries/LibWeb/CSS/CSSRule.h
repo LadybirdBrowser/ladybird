@@ -8,7 +8,7 @@
 #pragma once
 
 #include <AK/String.h>
-#include <LibJS/Heap/GCPtr.h>
+#include <LibGC/Ptr.h>
 #include <LibWeb/Bindings/PlatformObject.h>
 #include <LibWeb/CSS/CSSStyleDeclaration.h>
 #include <LibWeb/CSS/Selector.h>
@@ -75,8 +75,8 @@ protected:
     [[nodiscard]] FlyString const& parent_layer_internal_qualified_name_slow_case() const;
 
     Type m_type;
-    JS::GCPtr<CSSRule> m_parent_rule;
-    JS::GCPtr<CSSStyleSheet> m_parent_style_sheet;
+    GC::Ptr<CSSRule> m_parent_rule;
+    GC::Ptr<CSSStyleSheet> m_parent_style_sheet;
 
     mutable Optional<FlyString> m_cached_layer_name;
 };

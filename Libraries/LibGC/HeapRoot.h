@@ -8,12 +8,12 @@
 
 #include <AK/SourceLocation.h>
 
-namespace JS {
+namespace GC {
 
 struct HeapRoot {
     enum class Type {
         HeapFunctionCapturedPointer,
-        Handle,
+        Root,
         MarkedVector,
         ConservativeVector,
         RegisterPointer,

@@ -10,14 +10,14 @@
 
 namespace Web::HTML {
 
-JS_DEFINE_ALLOCATOR(TrackEvent);
+GC_DEFINE_ALLOCATOR(TrackEvent);
 
-JS::NonnullGCPtr<TrackEvent> TrackEvent::create(JS::Realm& realm, FlyString const& event_name, TrackEventInit event_init)
+GC::Ref<TrackEvent> TrackEvent::create(JS::Realm& realm, FlyString const& event_name, TrackEventInit event_init)
 {
     return realm.create<TrackEvent>(realm, event_name, move(event_init));
 }
 
-WebIDL::ExceptionOr<JS::NonnullGCPtr<TrackEvent>> TrackEvent::construct_impl(JS::Realm& realm, FlyString const& event_name, TrackEventInit event_init)
+WebIDL::ExceptionOr<GC::Ref<TrackEvent>> TrackEvent::construct_impl(JS::Realm& realm, FlyString const& event_name, TrackEventInit event_init)
 {
     return create(realm, event_name, move(event_init));
 }
@@ -34,7 +34,7 @@ void TrackEvent::initialize(JS::Realm& realm)
     WEB_SET_PROTOTYPE_FOR_INTERFACE(TrackEvent);
 }
 
-Variant<Empty, JS::Handle<VideoTrack>, JS::Handle<AudioTrack>, JS::Handle<TextTrack>> TrackEvent::track() const
+Variant<Empty, GC::Root<VideoTrack>, GC::Root<AudioTrack>, GC::Root<TextTrack>> TrackEvent::track() const
 {
     // FIXME: This is a bit awkward. When creating a nullable union, our IDL generator creates a type of
     //        Optional<Variant<...>>, using an empty Optional to represent null. But when retrieving the

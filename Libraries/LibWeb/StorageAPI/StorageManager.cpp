@@ -11,9 +11,9 @@
 
 namespace Web::StorageAPI {
 
-JS_DEFINE_ALLOCATOR(StorageManager);
+GC_DEFINE_ALLOCATOR(StorageManager);
 
-WebIDL::ExceptionOr<JS::NonnullGCPtr<StorageManager>> StorageManager::create(JS::Realm& realm)
+WebIDL::ExceptionOr<GC::Ref<StorageManager>> StorageManager::create(JS::Realm& realm)
 {
     return realm.create<StorageManager>(realm);
 }

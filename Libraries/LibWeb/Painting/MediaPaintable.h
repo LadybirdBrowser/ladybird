@@ -14,7 +14,7 @@
 namespace Web::Painting {
 
 class MediaPaintable : public PaintableBox {
-    JS_CELL(MediaPaintable, PaintableBox);
+    GC_CELL(MediaPaintable, PaintableBox);
 
 protected:
     explicit MediaPaintable(Layout::ReplacedBox const&);

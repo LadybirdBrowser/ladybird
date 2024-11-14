@@ -19,7 +19,7 @@
 
 namespace JS {
 
-using ScriptOrModule = Variant<Empty, NonnullGCPtr<Script>, NonnullGCPtr<Module>>;
+using ScriptOrModule = Variant<Empty, GC::Ref<Script>, GC::Ref<Module>>;
 
 struct CachedSourceRange : public RefCounted<CachedSourceRange> {
     CachedSourceRange(size_t program_counter, Variant<UnrealizedSourceRange, SourceRange> source_range)
@@ -48,24 +48,24 @@ private:
 public:
     void operator delete(void* ptr);
 
-    GCPtr<FunctionObject> function;                // [[Function]]
-    GCPtr<Realm> realm;                            // [[Realm]]
-    ScriptOrModule script_or_module;               // [[ScriptOrModule]]
-    GCPtr<Environment> lexical_environment;        // [[LexicalEnvironment]]
-    GCPtr<Environment> variable_environment;       // [[VariableEnvironment]]
-    GCPtr<PrivateEnvironment> private_environment; // [[PrivateEnvironment]]
+    GC::Ptr<FunctionObject> function;                // [[Function]]
+    GC::Ptr<Realm> realm;                            // [[Realm]]
+    ScriptOrModule script_or_module;                 // [[ScriptOrModule]]
+    GC::Ptr<Environment> lexical_environment;        // [[LexicalEnvironment]]
+    GC::Ptr<Environment> variable_environment;       // [[VariableEnvironment]]
+    GC::Ptr<PrivateEnvironment> private_environment; // [[PrivateEnvironment]]
 
     // Non-standard: This points at something that owns this ExecutionContext, in case it needs to be protected from GC.
-    GCPtr<Cell> context_owner;
+    GC::Ptr<Cell> context_owner;
 
     Optional<size_t> program_counter;
 
     mutable RefPtr<CachedSourceRange> cached_source_range;
 
-    GCPtr<PrimitiveString> function_name;
+    GC::Ptr<PrimitiveString> function_name;
     Value this_value;
 
-    GCPtr<Bytecode::Executable> executable;
+    GC::Ptr<Bytecode::Executable> executable;
 
     // https://html.spec.whatwg.org/multipage/webappapis.html#skip-when-determining-incumbent-counter
     // FIXME: Move this out of LibJS (e.g. by using the CustomData concept), as it's used exclusively by LibWeb.
@@ -90,7 +90,7 @@ public:
     Vector<Value> registers_and_constants_and_locals;
     Vector<Bytecode::UnwindInfo> unwind_contexts;
     Vector<Optional<size_t>> previously_scheduled_jumps;
-    Vector<GCPtr<Environment>> saved_lexical_environments;
+    Vector<GC::Ptr<Environment>> saved_lexical_environments;
 };
 
 struct StackTraceElement {

@@ -182,7 +182,7 @@ ALWAYS_INLINE Value Interpreter::do_yield(Value value, Optional<Label> continuat
 }
 
 // 16.1.6 ScriptEvaluation ( scriptRecord ), https://tc39.es/ecma262/#sec-runtime-semantics-scriptevaluation
-ThrowCompletionOr<Value> Interpreter::run(Script& script_record, JS::GCPtr<Environment> lexical_environment_override)
+ThrowCompletionOr<Value> Interpreter::run(Script& script_record, GC::Ptr<Environment> lexical_environment_override)
 {
     auto& vm = this->vm();
 
@@ -199,7 +199,7 @@ ThrowCompletionOr<Value> Interpreter::run(Script& script_record, JS::GCPtr<Envir
     script_context->realm = &script_record.realm();
 
     // 5. Set the ScriptOrModule of scriptContext to scriptRecord.
-    script_context->script_or_module = NonnullGCPtr<Script>(script_record);
+    script_context->script_or_module = GC::Ref<Script>(script_record);
 
     // 6. Set the VariableEnvironment of scriptContext to globalEnv.
     script_context->variable_environment = &global_environment;
@@ -703,11 +703,11 @@ Interpreter::ResultAndReturnRegister Interpreter::run_executable(Executable& exe
 {
     dbgln_if(JS_BYTECODE_DEBUG, "Bytecode::Interpreter will run unit {:p}", &executable);
 
-    TemporaryChange restore_executable { m_current_executable, GCPtr { executable } };
+    TemporaryChange restore_executable { m_current_executable, GC::Ptr { executable } };
     TemporaryChange restore_saved_jump { m_scheduled_jump, Optional<size_t> {} };
-    TemporaryChange restore_realm { m_realm, GCPtr { vm().current_realm() } };
-    TemporaryChange restore_global_object { m_global_object, GCPtr { m_realm->global_object() } };
-    TemporaryChange restore_global_declarative_environment { m_global_declarative_environment, GCPtr { m_realm->global_environment().declarative_record() } };
+    TemporaryChange restore_realm { m_realm, GC::Ptr { vm().current_realm() } };
+    TemporaryChange restore_global_object { m_global_object, GC::Ptr { m_realm->global_object() } };
+    TemporaryChange restore_global_declarative_environment { m_global_declarative_environment, GC::Ptr { m_realm->global_environment().declarative_record() } };
 
     VERIFY(!vm().execution_context_stack().is_empty());
 
@@ -813,7 +813,7 @@ void Interpreter::enter_object_environment(Object& object)
     running_execution_context().lexical_environment = new_object_environment(object, true, old_environment);
 }
 
-ThrowCompletionOr<NonnullGCPtr<Bytecode::Executable>> compile(VM& vm, ASTNode const& node, FunctionKind kind, DeprecatedFlyString const& name)
+ThrowCompletionOr<GC::Ref<Bytecode::Executable>> compile(VM& vm, ASTNode const& node, FunctionKind kind, DeprecatedFlyString const& name)
 {
     auto executable_result = Bytecode::Generator::generate_from_ast_node(vm, node, kind);
     if (executable_result.is_error())
@@ -828,7 +828,7 @@ ThrowCompletionOr<NonnullGCPtr<Bytecode::Executable>> compile(VM& vm, ASTNode co
     return bytecode_executable;
 }
 
-ThrowCompletionOr<NonnullGCPtr<Bytecode::Executable>> compile(VM& vm, ECMAScriptFunctionObject const& function)
+ThrowCompletionOr<GC::Ref<Bytecode::Executable>> compile(VM& vm, ECMAScriptFunctionObject const& function)
 {
     auto const& name = function.name();
 
@@ -921,7 +921,7 @@ ALWAYS_INLINE Completion throw_null_or_undefined_property_access(VM& vm, Value b
     return vm.throw_completion<TypeError>(ErrorType::ToObjectNullOrUndefined);
 }
 
-ALWAYS_INLINE GCPtr<Object> base_object_for_get_impl(VM& vm, Value base_value)
+ALWAYS_INLINE GC::Ptr<Object> base_object_for_get_impl(VM& vm, Value base_value)
 {
     if (base_value.is_object()) [[likely]]
         return base_value.as_object();
@@ -942,19 +942,19 @@ ALWAYS_INLINE GCPtr<Object> base_object_for_get_impl(VM& vm, Value base_value)
     return nullptr;
 }
 
-ALWAYS_INLINE ThrowCompletionOr<NonnullGCPtr<Object>> base_object_for_get(VM& vm, Value base_value, Optional<IdentifierTableIndex> base_identifier, IdentifierTableIndex property_identifier, Executable const& executable)
+ALWAYS_INLINE ThrowCompletionOr<GC::Ref<Object>> base_object_for_get(VM& vm, Value base_value, Optional<IdentifierTableIndex> base_identifier, IdentifierTableIndex property_identifier, Executable const& executable)
 {
     if (auto base_object = base_object_for_get_impl(vm, base_value))
-        return NonnullGCPtr { *base_object };
+        return GC::Ref { *base_object };
 
     // NOTE: At this point this is guaranteed to throw (null or undefined).
     return throw_null_or_undefined_property_get(vm, base_value, base_identifier, property_identifier, executable);
 }
 
-ALWAYS_INLINE ThrowCompletionOr<NonnullGCPtr<Object>> base_object_for_get(VM& vm, Value base_value, Optional<IdentifierTableIndex> base_identifier, Value property, Executable const& executable)
+ALWAYS_INLINE ThrowCompletionOr<GC::Ref<Object>> base_object_for_get(VM& vm, Value base_value, Optional<IdentifierTableIndex> base_identifier, Value property, Executable const& executable)
 {
     if (auto base_object = base_object_for_get_impl(vm, base_value))
-        return NonnullGCPtr { *base_object };
+        return GC::Ref { *base_object };
 
     // NOTE: At this point this is guaranteed to throw (null or undefined).
     return throw_null_or_undefined_property_get(vm, base_value, base_identifier, property, executable);
@@ -1131,10 +1131,10 @@ inline ThrowCompletionOr<Value> get_global(Interpreter& interpreter, IdentifierT
 
     auto& identifier = interpreter.current_executable().get_identifier(identifier_index);
 
-    if (vm.running_execution_context().script_or_module.has<NonnullGCPtr<Module>>()) {
+    if (vm.running_execution_context().script_or_module.has<GC::Ref<Module>>()) {
         // NOTE: GetGlobal is used to access variables stored in the module environment and global environment.
         //       The module environment is checked first since it precedes the global environment in the environment chain.
-        auto& module_environment = *vm.running_execution_context().script_or_module.get<NonnullGCPtr<Module>>()->environment();
+        auto& module_environment = *vm.running_execution_context().script_or_module.get<GC::Ref<Module>>()->environment();
         if (TRY(module_environment.has_binding(identifier))) {
             // TODO: Cache offset of binding value
             return TRY(module_environment.get_binding_value(vm, identifier, vm.in_strict_mode()));
@@ -1436,13 +1436,13 @@ inline Value new_regexp(VM& vm, ParsedRegex const& parsed_regex, ByteString cons
 }
 
 // 13.3.8.1 https://tc39.es/ecma262/#sec-runtime-semantics-argumentlistevaluation
-inline MarkedVector<Value> argument_list_evaluation(VM& vm, Value arguments)
+inline GC::MarkedVector<Value> argument_list_evaluation(VM& vm, Value arguments)
 {
     // Note: Any spreading and actual evaluation is handled in preceding opcodes
     // Note: The spec uses the concept of a list, while we create a temporary array
     //       in the preceding opcodes, so we have to convert in a manner that is not
     //       visible to the user
-    MarkedVector<Value> argument_values { vm.heap() };
+    GC::MarkedVector<Value> argument_values { vm.heap() };
 
     auto& argument_array = arguments.as_array();
     auto array_length = argument_array.indexed_properties().array_like_size();
@@ -1507,7 +1507,7 @@ inline ThrowCompletionOr<ECMAScriptFunctionObject*> new_class(VM& vm, Value supe
 }
 
 // 13.3.7.1 Runtime Semantics: Evaluation, https://tc39.es/ecma262/#sec-super-keyword-runtime-semantics-evaluation
-inline ThrowCompletionOr<NonnullGCPtr<Object>> super_call_with_argument_array(VM& vm, Value argument_array, bool is_synthetic)
+inline ThrowCompletionOr<GC::Ref<Object>> super_call_with_argument_array(VM& vm, Value argument_array, bool is_synthetic)
 {
     // 1. Let newTarget be GetNewTarget().
     auto new_target = vm.get_new_target();
@@ -1519,7 +1519,7 @@ inline ThrowCompletionOr<NonnullGCPtr<Object>> super_call_with_argument_array(VM
     auto* func = get_super_constructor(vm);
 
     // 4. Let argList be ? ArgumentListEvaluation of Arguments.
-    MarkedVector<Value> arg_list { vm.heap() };
+    GC::MarkedVector<Value> arg_list { vm.heap() };
     if (is_synthetic) {
         VERIFY(argument_array.is_object() && is<Array>(argument_array.as_object()));
         auto const& array_value = static_cast<Array const&>(argument_array.as_object());
@@ -1556,7 +1556,7 @@ inline ThrowCompletionOr<NonnullGCPtr<Object>> super_call_with_argument_array(VM
     return result;
 }
 
-inline ThrowCompletionOr<NonnullGCPtr<Array>> iterator_to_array(VM& vm, Value iterator)
+inline ThrowCompletionOr<GC::Ref<Array>> iterator_to_array(VM& vm, Value iterator)
 {
     auto& iterator_record = verify_cast<IteratorRecord>(iterator.as_object());
 
@@ -1684,9 +1684,9 @@ inline ThrowCompletionOr<Object*> get_object_property_iterator(VM& vm, Value val
     //       so we just keep the order consistent anyway.
     OrderedHashTable<PropertyKey> properties;
     OrderedHashTable<PropertyKey> non_enumerable_properties;
-    HashTable<NonnullGCPtr<Object>> seen_objects;
+    HashTable<GC::Ref<Object>> seen_objects;
     // Collect all keys immediately (invariant no. 5)
-    for (auto object_to_check = GCPtr { object.ptr() }; object_to_check && !seen_objects.contains(*object_to_check); object_to_check = TRY(object_to_check->internal_get_prototype_of())) {
+    for (auto object_to_check = GC::Ptr { object.ptr() }; object_to_check && !seen_objects.contains(*object_to_check); object_to_check = TRY(object_to_check->internal_get_prototype_of())) {
         seen_objects.set(*object_to_check);
         for (auto& key : TRY(object_to_check->internal_own_property_keys())) {
             if (key.is_symbol())
@@ -2207,7 +2207,7 @@ void CreateLexicalEnvironment::execute_impl(Bytecode::Interpreter& interpreter) 
     auto make_and_swap_envs = [&](auto& old_environment) {
         auto declarative_environment = new_declarative_environment(*old_environment).ptr();
         declarative_environment->ensure_capacity(m_capacity);
-        GCPtr<Environment> environment = declarative_environment;
+        GC::Ptr<Environment> environment = declarative_environment;
         swap(old_environment, environment);
         return environment;
     };

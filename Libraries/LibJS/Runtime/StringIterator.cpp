@@ -10,9 +10,9 @@
 
 namespace JS {
 
-JS_DEFINE_ALLOCATOR(StringIterator);
+GC_DEFINE_ALLOCATOR(StringIterator);
 
-NonnullGCPtr<StringIterator> StringIterator::create(Realm& realm, String string)
+GC::Ref<StringIterator> StringIterator::create(Realm& realm, String string)
 {
     return realm.create<StringIterator>(move(string), realm.intrinsics().string_iterator_prototype());
 }

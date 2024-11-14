@@ -12,10 +12,10 @@ namespace Web::StorageAPI {
 
 class StorageManager final : public Bindings::PlatformObject {
     WEB_PLATFORM_OBJECT(StorageManager, Bindings::PlatformObject);
-    JS_DECLARE_ALLOCATOR(StorageManager);
+    GC_DECLARE_ALLOCATOR(StorageManager);
 
 public:
-    static WebIDL::ExceptionOr<JS::NonnullGCPtr<StorageManager>> create(JS::Realm&);
+    static WebIDL::ExceptionOr<GC::Ref<StorageManager>> create(JS::Realm&);
     virtual ~StorageManager() override = default;
 
 private:

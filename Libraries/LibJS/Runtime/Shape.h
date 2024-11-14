@@ -35,8 +35,8 @@ struct TransitionKey {
 };
 
 class PrototypeChainValidity final : public Cell {
-    JS_CELL(PrototypeChainValidity, Cell);
-    JS_DECLARE_ALLOCATOR(PrototypeChainValidity);
+    GC_CELL(PrototypeChainValidity, Cell);
+    GC_DECLARE_ALLOCATOR(PrototypeChainValidity);
 
 public:
     [[nodiscard]] bool is_valid() const { return m_valid; }
@@ -48,8 +48,8 @@ private:
 };
 
 class Shape final : public Cell {
-    JS_CELL(Shape, Cell);
-    JS_DECLARE_ALLOCATOR(Shape);
+    GC_CELL(Shape, Cell);
+    GC_DECLARE_ALLOCATOR(Shape);
 
 public:
     virtual ~Shape() override;
@@ -64,14 +64,14 @@ public:
         UncacheableDictionary,
     };
 
-    [[nodiscard]] NonnullGCPtr<Shape> create_put_transition(StringOrSymbol const&, PropertyAttributes attributes);
-    [[nodiscard]] NonnullGCPtr<Shape> create_configure_transition(StringOrSymbol const&, PropertyAttributes attributes);
-    [[nodiscard]] NonnullGCPtr<Shape> create_prototype_transition(Object* new_prototype);
-    [[nodiscard]] NonnullGCPtr<Shape> create_delete_transition(StringOrSymbol const&);
-    [[nodiscard]] NonnullGCPtr<Shape> create_cacheable_dictionary_transition();
-    [[nodiscard]] NonnullGCPtr<Shape> create_uncacheable_dictionary_transition();
-    [[nodiscard]] NonnullGCPtr<Shape> clone_for_prototype();
-    [[nodiscard]] static NonnullGCPtr<Shape> create_for_prototype(NonnullGCPtr<Realm>, GCPtr<Object> prototype);
+    [[nodiscard]] GC::Ref<Shape> create_put_transition(StringOrSymbol const&, PropertyAttributes attributes);
+    [[nodiscard]] GC::Ref<Shape> create_configure_transition(StringOrSymbol const&, PropertyAttributes attributes);
+    [[nodiscard]] GC::Ref<Shape> create_prototype_transition(Object* new_prototype);
+    [[nodiscard]] GC::Ref<Shape> create_delete_transition(StringOrSymbol const&);
+    [[nodiscard]] GC::Ref<Shape> create_cacheable_dictionary_transition();
+    [[nodiscard]] GC::Ref<Shape> create_uncacheable_dictionary_transition();
+    [[nodiscard]] GC::Ref<Shape> clone_for_prototype();
+    [[nodiscard]] static GC::Ref<Shape> create_for_prototype(GC::Ref<Realm>, GC::Ptr<Object> prototype);
 
     void add_property_without_transition(StringOrSymbol const&, PropertyAttributes);
     void add_property_without_transition(PropertyKey const&, PropertyAttributes);
@@ -87,7 +87,7 @@ public:
     [[nodiscard]] bool is_prototype_shape() const { return m_is_prototype_shape; }
     void set_prototype_shape();
 
-    GCPtr<PrototypeChainValidity> prototype_chain_validity() const { return m_prototype_chain_validity; }
+    GC::Ptr<PrototypeChainValidity> prototype_chain_validity() const { return m_prototype_chain_validity; }
 
     Realm& realm() const { return m_realm; }
 
@@ -111,29 +111,29 @@ private:
     Shape(Shape& previous_shape, StringOrSymbol const& property_key, TransitionType);
     Shape(Shape& previous_shape, Object* new_prototype);
 
-    void invalidate_prototype_if_needed_for_new_prototype(NonnullGCPtr<Shape> new_prototype_shape);
+    void invalidate_prototype_if_needed_for_new_prototype(GC::Ref<Shape> new_prototype_shape);
     void invalidate_all_prototype_chains_leading_to_this();
 
     virtual void visit_edges(Visitor&) override;
 
-    [[nodiscard]] GCPtr<Shape> get_or_prune_cached_forward_transition(TransitionKey const&);
-    [[nodiscard]] GCPtr<Shape> get_or_prune_cached_prototype_transition(Object* prototype);
-    [[nodiscard]] GCPtr<Shape> get_or_prune_cached_delete_transition(StringOrSymbol const&);
+    [[nodiscard]] GC::Ptr<Shape> get_or_prune_cached_forward_transition(TransitionKey const&);
+    [[nodiscard]] GC::Ptr<Shape> get_or_prune_cached_prototype_transition(Object* prototype);
+    [[nodiscard]] GC::Ptr<Shape> get_or_prune_cached_delete_transition(StringOrSymbol const&);
 
     void ensure_property_table() const;
 
-    NonnullGCPtr<Realm> m_realm;
+    GC::Ref<Realm> m_realm;
 
     mutable OwnPtr<OrderedHashMap<StringOrSymbol, PropertyMetadata>> m_property_table;
 
     OwnPtr<HashMap<TransitionKey, WeakPtr<Shape>>> m_forward_transitions;
-    OwnPtr<HashMap<GCPtr<Object>, WeakPtr<Shape>>> m_prototype_transitions;
+    OwnPtr<HashMap<GC::Ptr<Object>, WeakPtr<Shape>>> m_prototype_transitions;
     OwnPtr<HashMap<StringOrSymbol, WeakPtr<Shape>>> m_delete_transitions;
-    GCPtr<Shape> m_previous;
+    GC::Ptr<Shape> m_previous;
     StringOrSymbol m_property_key;
-    GCPtr<Object> m_prototype;
+    GC::Ptr<Object> m_prototype;
 
-    GCPtr<PrototypeChainValidity> m_prototype_chain_validity;
+    GC::Ptr<PrototypeChainValidity> m_prototype_chain_validity;
 
     u32 m_property_count { 0 };
 

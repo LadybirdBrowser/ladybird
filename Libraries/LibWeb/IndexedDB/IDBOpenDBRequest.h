@@ -15,12 +15,12 @@ namespace Web::IndexedDB {
 // https://w3c.github.io/IndexedDB/#idbopendbrequest
 class IDBOpenDBRequest : public IDBRequest {
     WEB_PLATFORM_OBJECT(IDBOpenDBRequest, IDBRequest);
-    JS_DECLARE_ALLOCATOR(IDBOpenDBRequest);
+    GC_DECLARE_ALLOCATOR(IDBOpenDBRequest);
 
 public:
     virtual ~IDBOpenDBRequest();
 
-    [[nodiscard]] static JS::NonnullGCPtr<IDBOpenDBRequest> create(JS::Realm&);
+    [[nodiscard]] static GC::Ref<IDBOpenDBRequest> create(JS::Realm&);
 
     void set_onblocked(WebIDL::CallbackType*);
     WebIDL::CallbackType* onblocked();

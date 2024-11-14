@@ -15,7 +15,7 @@
 
 namespace JS {
 
-JS_DEFINE_ALLOCATOR(BigIntConstructor);
+GC_DEFINE_ALLOCATOR(BigIntConstructor);
 
 static Crypto::SignedBigInteger const BIGINT_ONE { 1 };
 
@@ -58,7 +58,7 @@ ThrowCompletionOr<Value> BigIntConstructor::call()
 }
 
 // 21.2.1.1 BigInt ( value ), https://tc39.es/ecma262/#sec-bigint-constructor-number-value
-ThrowCompletionOr<NonnullGCPtr<Object>> BigIntConstructor::construct(FunctionObject&)
+ThrowCompletionOr<GC::Ref<Object>> BigIntConstructor::construct(FunctionObject&)
 {
     return vm().throw_completion<TypeError>(ErrorType::NotAConstructor, "BigInt");
 }

@@ -7,14 +7,14 @@
 #pragma once
 
 #include <AK/Forward.h>
+#include <LibGC/Ptr.h>
 #include <LibJS/Forward.h>
-#include <LibJS/Heap/GCPtr.h>
 #include <LibWeb/Fetch/Request.h>
 #include <LibWeb/WebIDL/Promise.h>
 
 namespace Web::Fetch {
 
-JS::NonnullGCPtr<WebIDL::Promise> fetch(JS::VM&, RequestInfo const& input, RequestInit const& init = {});
-void abort_fetch(JS::Realm&, WebIDL::Promise const&, JS::NonnullGCPtr<Infrastructure::Request>, JS::GCPtr<Response>, JS::Value error);
+GC::Ref<WebIDL::Promise> fetch(JS::VM&, RequestInfo const& input, RequestInit const& init = {});
+void abort_fetch(JS::Realm&, WebIDL::Promise const&, GC::Ref<Infrastructure::Request>, GC::Ptr<Response>, JS::Value error);
 
 }

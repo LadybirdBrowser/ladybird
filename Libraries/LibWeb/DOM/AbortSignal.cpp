@@ -16,9 +16,9 @@
 
 namespace Web::DOM {
 
-JS_DEFINE_ALLOCATOR(AbortSignal);
+GC_DEFINE_ALLOCATOR(AbortSignal);
 
-WebIDL::ExceptionOr<JS::NonnullGCPtr<AbortSignal>> AbortSignal::construct_impl(JS::Realm& realm)
+WebIDL::ExceptionOr<GC::Ref<AbortSignal>> AbortSignal::construct_impl(JS::Realm& realm)
 {
     return realm.create<AbortSignal>(realm);
 }
@@ -42,7 +42,7 @@ void AbortSignal::add_abort_algorithm(Function<void()> abort_algorithm)
         return;
 
     // 2. Append algorithm to signal’s abort algorithms.
-    m_abort_algorithms.append(JS::create_heap_function(vm().heap(), move(abort_algorithm)));
+    m_abort_algorithms.append(GC::create_function(vm().heap(), move(abort_algorithm)));
 }
 
 // https://dom.spec.whatwg.org/#abortsignal-signal-abort
@@ -59,7 +59,7 @@ void AbortSignal::signal_abort(JS::Value reason)
         m_abort_reason = WebIDL::AbortError::create(realm(), "Aborted without reason"_string).ptr();
 
     // 3. Let dependentSignalsToAbort be a new list.
-    Vector<JS::Handle<AbortSignal>> dependent_signals_to_abort;
+    Vector<GC::Root<AbortSignal>> dependent_signals_to_abort;
 
     // 4. For each dependentSignal of signal’s dependent signals:
     for (auto const& dependent_signal : m_dependent_signals) {
@@ -126,7 +126,7 @@ void AbortSignal::visit_edges(JS::Cell::Visitor& visitor)
 }
 
 // https://dom.spec.whatwg.org/#dom-abortsignal-abort
-WebIDL::ExceptionOr<JS::NonnullGCPtr<AbortSignal>> AbortSignal::abort(JS::VM& vm, JS::Value reason)
+WebIDL::ExceptionOr<GC::Ref<AbortSignal>> AbortSignal::abort(JS::VM& vm, JS::Value reason)
 {
     // 1. Let signal be a new AbortSignal object.
     auto signal = TRY(construct_impl(*vm.current_realm()));
@@ -142,7 +142,7 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<AbortSignal>> AbortSignal::abort(JS::VM& vm
 }
 
 // https://dom.spec.whatwg.org/#dom-abortsignal-timeout
-WebIDL::ExceptionOr<JS::NonnullGCPtr<AbortSignal>> AbortSignal::timeout(JS::VM& vm, WebIDL::UnsignedLongLong milliseconds)
+WebIDL::ExceptionOr<GC::Ref<AbortSignal>> AbortSignal::timeout(JS::VM& vm, WebIDL::UnsignedLongLong milliseconds)
 {
     auto& realm = *vm.current_realm();
 
@@ -157,7 +157,7 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<AbortSignal>> AbortSignal::timeout(JS::VM& 
     // 3. Run steps after a timeout given global, "AbortSignal-timeout", milliseconds, and the following step:
     window_or_worker->run_steps_after_a_timeout(milliseconds, [&realm, &global, signal]() {
         // 1. Queue a global task on the timer task source given global to signal abort given signal and a new "TimeoutError" DOMException.
-        HTML::queue_global_task(HTML::Task::Source::TimerTask, global, JS::create_heap_function(realm.heap(), [&realm, signal]() mutable {
+        HTML::queue_global_task(HTML::Task::Source::TimerTask, global, GC::create_function(realm.heap(), [&realm, signal]() mutable {
             auto reason = WebIDL::TimeoutError::create(realm, "Signal timed out"_string);
             signal->signal_abort(reason);
         }));
@@ -168,14 +168,14 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<AbortSignal>> AbortSignal::timeout(JS::VM& 
 }
 
 // https://dom.spec.whatwg.org/#dom-abortsignal-any
-WebIDL::ExceptionOr<JS::NonnullGCPtr<AbortSignal>> AbortSignal::any(JS::VM& vm, Vector<JS::Handle<AbortSignal>> const& signals)
+WebIDL::ExceptionOr<GC::Ref<AbortSignal>> AbortSignal::any(JS::VM& vm, Vector<GC::Root<AbortSignal>> const& signals)
 {
     // The static any(signals) method steps are to return the result of creating a dependent abort signal from signals using AbortSignal and the current realm.
     return create_dependent_abort_signal(*vm.current_realm(), signals);
 }
 
 // https://dom.spec.whatwg.org/#create-a-dependent-abort-signal
-WebIDL::ExceptionOr<JS::NonnullGCPtr<AbortSignal>> AbortSignal::create_dependent_abort_signal(JS::Realm& realm, Vector<JS::Handle<AbortSignal>> const& signals)
+WebIDL::ExceptionOr<GC::Ref<AbortSignal>> AbortSignal::create_dependent_abort_signal(JS::Realm& realm, Vector<GC::Root<AbortSignal>> const& signals)
 {
     // 1. Let resultSignal be a new object implementing signalInterface using realm.
     auto result_signal = TRY(construct_impl(realm));

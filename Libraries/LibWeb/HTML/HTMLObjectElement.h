@@ -22,7 +22,7 @@ class HTMLObjectElement final
     , public ResourceClient
     , public Layout::ImageProvider {
     WEB_PLATFORM_OBJECT(HTMLObjectElement, NavigableContainer)
-    JS_DECLARE_ALLOCATOR(HTMLObjectElement);
+    GC_DECLARE_ALLOCATOR(HTMLObjectElement);
     FORM_ASSOCIATED_ELEMENT(NavigableContainer, HTMLObjectElement)
 
     enum class Representation {
@@ -58,7 +58,7 @@ private:
 
     virtual void apply_presentational_hints(CSS::StyleProperties&) const override;
 
-    virtual JS::GCPtr<Layout::Node> create_layout_node(CSS::StyleProperties) override;
+    virtual GC::Ptr<Layout::Node> create_layout_node(CSS::StyleProperties) override;
     virtual void adjust_computed_style(CSS::StyleProperties&) override;
 
     bool has_ancestor_media_element_or_object_element_not_showing_fallback_content() const;
@@ -85,13 +85,13 @@ private:
     virtual Optional<CSSPixelFraction> intrinsic_aspect_ratio() const override;
     virtual RefPtr<Gfx::ImmutableBitmap> current_image_bitmap(Gfx::IntSize = {}) const override;
     virtual void set_visible_in_viewport(bool) override;
-    virtual JS::NonnullGCPtr<DOM::Element const> to_html_element() const override { return *this; }
+    virtual GC::Ref<DOM::Element const> to_html_element() const override { return *this; }
 
     Representation m_representation { Representation::Unknown };
 
-    JS::GCPtr<DecodedImageData> image_data() const;
+    GC::Ptr<DecodedImageData> image_data() const;
 
-    JS::GCPtr<SharedResourceRequest> m_resource_request;
+    GC::Ptr<SharedResourceRequest> m_resource_request;
 };
 
 }

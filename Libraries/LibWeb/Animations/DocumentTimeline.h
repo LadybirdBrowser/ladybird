@@ -20,11 +20,11 @@ struct DocumentTimelineOptions {
 // https://www.w3.org/TR/web-animations-1/#the-documenttimeline-interface
 class DocumentTimeline : public AnimationTimeline {
     WEB_PLATFORM_OBJECT(DocumentTimeline, AnimationTimeline);
-    JS_DECLARE_ALLOCATOR(DocumentTimeline);
+    GC_DECLARE_ALLOCATOR(DocumentTimeline);
 
 public:
-    static JS::NonnullGCPtr<DocumentTimeline> create(JS::Realm&, DOM::Document&, HighResolutionTime::DOMHighResTimeStamp origin_time);
-    static WebIDL::ExceptionOr<JS::NonnullGCPtr<DocumentTimeline>> construct_impl(JS::Realm&, DocumentTimelineOptions options = {});
+    static GC::Ref<DocumentTimeline> create(JS::Realm&, DOM::Document&, HighResolutionTime::DOMHighResTimeStamp origin_time);
+    static WebIDL::ExceptionOr<GC::Ref<DocumentTimeline>> construct_impl(JS::Realm&, DocumentTimelineOptions options = {});
 
     virtual void set_current_time(Optional<double> current_time) override;
     virtual bool is_inactive() const override;

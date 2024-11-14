@@ -13,7 +13,7 @@
 
 namespace Web::SVG {
 
-JS_DEFINE_ALLOCATOR(SVGGElement);
+GC_DEFINE_ALLOCATOR(SVGGElement);
 
 SVGGElement::SVGGElement(DOM::Document& document, DOM::QualifiedName qualified_name)
     : SVGGraphicsElement(document, move(qualified_name))
@@ -26,7 +26,7 @@ void SVGGElement::initialize(JS::Realm& realm)
     WEB_SET_PROTOTYPE_FOR_INTERFACE(SVGGElement);
 }
 
-JS::GCPtr<Layout::Node> SVGGElement::create_layout_node(CSS::StyleProperties style)
+GC::Ptr<Layout::Node> SVGGElement::create_layout_node(CSS::StyleProperties style)
 {
     return heap().allocate<Layout::SVGGraphicsBox>(document(), *this, move(style));
 }

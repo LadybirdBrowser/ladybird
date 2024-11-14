@@ -21,10 +21,10 @@
 
 namespace Web::Streams {
 
-JS_DEFINE_ALLOCATOR(ReadableStream);
+GC_DEFINE_ALLOCATOR(ReadableStream);
 
 // https://streams.spec.whatwg.org/#rs-constructor
-WebIDL::ExceptionOr<JS::NonnullGCPtr<ReadableStream>> ReadableStream::construct_impl(JS::Realm& realm, Optional<JS::Handle<JS::Object>> const& underlying_source_object, QueuingStrategy const& strategy)
+WebIDL::ExceptionOr<GC::Ref<ReadableStream>> ReadableStream::construct_impl(JS::Realm& realm, Optional<GC::Root<JS::Object>> const& underlying_source_object, QueuingStrategy const& strategy)
 {
     auto& vm = realm.vm();
 
@@ -69,7 +69,7 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<ReadableStream>> ReadableStream::construct_
 }
 
 // https://streams.spec.whatwg.org/#rs-from
-WebIDL::ExceptionOr<JS::NonnullGCPtr<ReadableStream>> ReadableStream::from(JS::VM& vm, JS::Value async_iterable)
+WebIDL::ExceptionOr<GC::Ref<ReadableStream>> ReadableStream::from(JS::VM& vm, JS::Value async_iterable)
 {
     // 1. Return ? ReadableStreamFromIterable(asyncIterable).
     return TRY(readable_stream_from_iterable(vm, async_iterable));
@@ -90,7 +90,7 @@ bool ReadableStream::locked() const
 }
 
 // https://streams.spec.whatwg.org/#rs-cancel
-JS::NonnullGCPtr<WebIDL::Promise> ReadableStream::cancel(JS::Value reason)
+GC::Ref<WebIDL::Promise> ReadableStream::cancel(JS::Value reason)
 {
     auto& realm = this->realm();
 
@@ -118,7 +118,7 @@ WebIDL::ExceptionOr<ReadableStreamReader> ReadableStream::get_reader(ReadableStr
     return ReadableStreamReader { TRY(acquire_readable_stream_byob_reader(*this)) };
 }
 
-WebIDL::ExceptionOr<JS::NonnullGCPtr<ReadableStream>> ReadableStream::pipe_through(ReadableWritablePair transform, StreamPipeOptions const& options)
+WebIDL::ExceptionOr<GC::Ref<ReadableStream>> ReadableStream::pipe_through(ReadableWritablePair transform, StreamPipeOptions const& options)
 {
     // 1. If ! IsReadableStreamLocked(this) is true, throw a TypeError exception.
     if (is_readable_stream_locked(*this))
@@ -138,10 +138,10 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<ReadableStream>> ReadableStream::pipe_throu
     WebIDL::mark_promise_as_handled(*promise);
 
     // 6. Return transform["readable"].
-    return JS::NonnullGCPtr { *transform.readable };
+    return GC::Ref { *transform.readable };
 }
 
-JS::NonnullGCPtr<WebIDL::Promise> ReadableStream::pipe_to(WritableStream& destination, StreamPipeOptions const& options)
+GC::Ref<WebIDL::Promise> ReadableStream::pipe_to(WritableStream& destination, StreamPipeOptions const& options)
 {
     auto& realm = this->realm();
     auto& vm = realm.vm();
@@ -175,7 +175,7 @@ void ReadableStream::close()
 {
     controller()->visit(
         // 1. If stream.[[controller]] implements ReadableByteStreamController
-        [&](JS::NonnullGCPtr<ReadableByteStreamController> controller) {
+        [&](GC::Ref<ReadableByteStreamController> controller) {
             // 1. Perform ! ReadableByteStreamControllerClose(stream.[[controller]]).
             MUST(readable_byte_stream_controller_close(controller));
 
@@ -185,7 +185,7 @@ void ReadableStream::close()
         },
 
         // 2. Otherwise, perform ! ReadableStreamDefaultControllerClose(stream.[[controller]]).
-        [&](JS::NonnullGCPtr<ReadableStreamDefaultController> controller) {
+        [&](GC::Ref<ReadableStreamDefaultController> controller) {
             readable_stream_default_controller_close(*controller);
         });
 }
@@ -196,12 +196,12 @@ void ReadableStream::error(JS::Value error)
     controller()->visit(
         // 1. If stream.[[controller]] implements ReadableByteStreamController, then perform
         //    ! ReadableByteStreamControllerError(stream.[[controller]], e).
-        [&](JS::NonnullGCPtr<ReadableByteStreamController> controller) {
+        [&](GC::Ref<ReadableByteStreamController> controller) {
             readable_byte_stream_controller_error(controller, error);
         },
 
         // 2. Otherwise, perform ! ReadableStreamDefaultControllerError(stream.[[controller]], e).
-        [&](JS::NonnullGCPtr<ReadableStreamDefaultController> controller) {
+        [&](GC::Ref<ReadableStreamDefaultController> controller) {
             readable_stream_default_controller_error(controller, error);
         });
 }

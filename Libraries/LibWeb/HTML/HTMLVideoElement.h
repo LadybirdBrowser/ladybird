@@ -22,7 +22,7 @@ struct VideoFrame {
 
 class HTMLVideoElement final : public HTMLMediaElement {
     WEB_PLATFORM_OBJECT(HTMLVideoElement, HTMLMediaElement);
-    JS_DECLARE_ALLOCATOR(HTMLVideoElement);
+    GC_DECLARE_ALLOCATOR(HTMLVideoElement);
 
 public:
     virtual ~HTMLVideoElement() override;
@@ -36,7 +36,7 @@ public:
     void set_video_height(u32 video_height) { m_video_height = video_height; }
     u32 video_height() const;
 
-    void set_video_track(JS::GCPtr<VideoTrack>);
+    void set_video_track(GC::Ptr<VideoTrack>);
 
     void set_current_frame(Badge<VideoTrack>, RefPtr<Gfx::Bitmap> frame, double position);
     VideoFrame const& current_frame() const { return m_current_frame; }
@@ -60,7 +60,7 @@ private:
     // https://html.spec.whatwg.org/multipage/media.html#the-video-element:dimension-attributes
     virtual bool supports_dimension_attributes() const override { return true; }
 
-    virtual JS::GCPtr<Layout::Node> create_layout_node(CSS::StyleProperties) override;
+    virtual GC::Ptr<Layout::Node> create_layout_node(CSS::StyleProperties) override;
     virtual void adjust_computed_style(CSS::StyleProperties&) override;
 
     virtual void on_playing() override;
@@ -69,14 +69,14 @@ private:
 
     WebIDL::ExceptionOr<void> determine_element_poster_frame(Optional<String> const& poster);
 
-    JS::GCPtr<HTML::VideoTrack> m_video_track;
+    GC::Ptr<HTML::VideoTrack> m_video_track;
     VideoFrame m_current_frame;
     RefPtr<Gfx::Bitmap> m_poster_frame;
 
     u32 m_video_width { 0 };
     u32 m_video_height { 0 };
 
-    JS::GCPtr<Fetch::Infrastructure::FetchController> m_fetch_controller;
+    GC::Ptr<Fetch::Infrastructure::FetchController> m_fetch_controller;
     Optional<DOM::DocumentLoadEventDelayer> m_load_event_delayer;
 };
 

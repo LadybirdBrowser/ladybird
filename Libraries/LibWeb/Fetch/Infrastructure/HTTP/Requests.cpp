@@ -5,7 +5,7 @@
  */
 
 #include <AK/Array.h>
-#include <LibJS/Heap/Heap.h>
+#include <LibGC/Heap.h>
 #include <LibJS/Runtime/Realm.h>
 #include <LibWeb/DOMURL/DOMURL.h>
 #include <LibWeb/Fetch/Fetching/PendingResponse.h>
@@ -13,9 +13,9 @@
 
 namespace Web::Fetch::Infrastructure {
 
-JS_DEFINE_ALLOCATOR(Request);
+GC_DEFINE_ALLOCATOR(Request);
 
-Request::Request(JS::NonnullGCPtr<HeaderList> header_list)
+Request::Request(GC::Ref<HeaderList> header_list)
     : m_header_list(header_list)
 {
 }
@@ -26,16 +26,16 @@ void Request::visit_edges(JS::Cell::Visitor& visitor)
     visitor.visit(m_header_list);
     visitor.visit(m_client);
     m_body.visit(
-        [&](JS::NonnullGCPtr<Body>& body) { visitor.visit(body); },
+        [&](GC::Ref<Body>& body) { visitor.visit(body); },
         [](auto&) {});
     visitor.visit(m_reserved_client);
     m_window.visit(
-        [&](JS::GCPtr<HTML::EnvironmentSettingsObject> const& value) { visitor.visit(value); },
+        [&](GC::Ptr<HTML::EnvironmentSettingsObject> const& value) { visitor.visit(value); },
         [](auto const&) {});
     visitor.visit(m_pending_responses);
 }
 
-JS::NonnullGCPtr<Request> Request::create(JS::VM& vm)
+GC::Ref<Request> Request::create(JS::VM& vm)
 {
     return vm.heap().allocate<Request>(HeaderList::create(vm));
 }
@@ -205,7 +205,7 @@ ByteBuffer Request::byte_serialize_origin() const
 }
 
 // https://fetch.spec.whatwg.org/#concept-request-clone
-JS::NonnullGCPtr<Request> Request::clone(JS::Realm& realm) const
+GC::Ref<Request> Request::clone(JS::Realm& realm) const
 {
     // To clone a request request, run these steps:
     auto& vm = realm.vm();
@@ -253,7 +253,7 @@ JS::NonnullGCPtr<Request> Request::clone(JS::Realm& realm) const
     new_request->set_buffer_policy(m_buffer_policy);
 
     // 2. If request’s body is non-null, set newRequest’s body to the result of cloning request’s body.
-    if (auto const* body = m_body.get_pointer<JS::NonnullGCPtr<Body>>())
+    if (auto const* body = m_body.get_pointer<GC::Ref<Body>>())
         new_request->set_body((*body)->clone(realm));
 
     // 3. Return newRequest.

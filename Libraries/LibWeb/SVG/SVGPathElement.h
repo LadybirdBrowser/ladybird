@@ -15,7 +15,7 @@ namespace Web::SVG {
 
 class SVGPathElement final : public SVGGeometryElement {
     WEB_PLATFORM_OBJECT(SVGPathElement, SVGGeometryElement);
-    JS_DECLARE_ALLOCATOR(SVGPathElement);
+    GC_DECLARE_ALLOCATOR(SVGPathElement);
 
 public:
     virtual ~SVGPathElement() override = default;

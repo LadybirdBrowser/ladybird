@@ -10,7 +10,7 @@
 
 namespace Web::Layout {
 
-JS_DEFINE_ALLOCATOR(VideoBox);
+GC_DEFINE_ALLOCATOR(VideoBox);
 
 VideoBox::VideoBox(DOM::Document& document, DOM::Element& element, CSS::StyleProperties style)
     : ReplacedBox(document, element, move(style))
@@ -57,7 +57,7 @@ void VideoBox::did_set_viewport_rect(CSSPixelRect const&)
     //        is in view. Implement those steps.
 }
 
-JS::GCPtr<Painting::Paintable> VideoBox::create_paintable() const
+GC::Ptr<Painting::Paintable> VideoBox::create_paintable() const
 {
     return Painting::VideoPaintable::create(*this);
 }

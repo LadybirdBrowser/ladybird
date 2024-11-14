@@ -12,7 +12,7 @@ namespace JS {
 
 class MathObject final : public Object {
     JS_OBJECT(MathObject, Object);
-    JS_DECLARE_ALLOCATOR(MathObject);
+    GC_DECLARE_ALLOCATOR(MathObject);
 
 public:
     virtual void initialize(Realm&) override;

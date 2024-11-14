@@ -17,12 +17,12 @@ class SVGTextPathElement
     : public SVGTextContentElement
     , public SVGURIReferenceMixin<SupportsXLinkHref::Yes> {
     WEB_PLATFORM_OBJECT(SVGTextPathElement, SVGTextContentElement);
-    JS_DECLARE_ALLOCATOR(SVGTextPathElement);
+    GC_DECLARE_ALLOCATOR(SVGTextPathElement);
 
 public:
-    virtual JS::GCPtr<Layout::Node> create_layout_node(CSS::StyleProperties) override;
+    virtual GC::Ptr<Layout::Node> create_layout_node(CSS::StyleProperties) override;
 
-    JS::GCPtr<SVGGeometryElement const> path_or_shape() const;
+    GC::Ptr<SVGGeometryElement const> path_or_shape() const;
 
 protected:
     SVGTextPathElement(DOM::Document&, DOM::QualifiedName);

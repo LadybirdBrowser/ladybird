@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibJS/Heap/Heap.h>
+#include <LibGC/Heap.h>
 #include <LibJS/Runtime/Realm.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Bindings/NavigationDestinationPrototype.h>
@@ -13,9 +13,9 @@
 
 namespace Web::HTML {
 
-JS_DEFINE_ALLOCATOR(NavigationDestination);
+GC_DEFINE_ALLOCATOR(NavigationDestination);
 
-JS::NonnullGCPtr<NavigationDestination> NavigationDestination::create(JS::Realm& realm)
+GC::Ref<NavigationDestination> NavigationDestination::create(JS::Realm& realm)
 {
     return realm.create<NavigationDestination>(realm);
 }

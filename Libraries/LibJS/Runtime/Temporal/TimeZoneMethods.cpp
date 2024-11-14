@@ -11,7 +11,7 @@
 namespace JS::Temporal {
 
 // 11.5.2 CreateTimeZoneMethodsRecord ( timeZone, methods ), https://tc39.es/proposal-temporal/#sec-temporal-createtimezonemethodsrecord
-ThrowCompletionOr<TimeZoneMethods> create_time_zone_methods_record(VM& vm, Variant<String, NonnullGCPtr<Object>> time_zone, ReadonlySpan<TimeZoneMethod> methods)
+ThrowCompletionOr<TimeZoneMethods> create_time_zone_methods_record(VM& vm, Variant<String, GC::Ref<Object>> time_zone, ReadonlySpan<TimeZoneMethod> methods)
 {
     // 1. Let record be the Time Zone Methods Record { [[Receiver]]: timeZone, [[GetOffsetNanosecondsFor]]: undefined, [[GetPossibleInstantsFor]]: undefined  }.
     TimeZoneMethods record {
@@ -56,7 +56,7 @@ ThrowCompletionOr<void> time_zone_methods_record_lookup(VM& vm, TimeZoneMethods&
             const auto& time_zone_prototype = *realm.intrinsics().temporal_time_zone_prototype();                         \
             time_zone_record.snake_name = time_zone_prototype.get_without_side_effects(vm.names.camelName).as_function(); \
         } else {                                                                                                          \
-            Value time_zone { time_zone_record.receiver.get<NonnullGCPtr<Object>>() };                                    \
+            Value time_zone { time_zone_record.receiver.get<GC::Ref<Object>>() };                                         \
             time_zone_record.snake_name = TRY(time_zone.get_method(vm, vm.names.camelName));                              \
             if (!time_zone_record.snake_name)                                                                             \
                 return vm.throw_completion<TypeError>(ErrorType::IsUndefined, #camelName##sv);                            \
@@ -110,11 +110,11 @@ ThrowCompletionOr<Value> time_zone_methods_record_call(VM& vm, TimeZoneMethods c
     // 2. Let receiver be timeZoneRec.[[Receiver]].
     // 3. If TimeZoneMethodsRecordIsBuiltin(timeZoneRec) is true, then
     //     a. Set receiver to ! CreateTemporalTimeZone(timeZoneRec.[[Receiver]]).
-    GCPtr<Object> receiver;
+    GC::Ptr<Object> receiver;
     if (time_zone_methods_record_is_builtin(time_zone_record))
         receiver = MUST(create_temporal_time_zone(vm, time_zone_record.receiver.get<String>()));
     else
-        receiver = time_zone_record.receiver.get<NonnullGCPtr<Object>>();
+        receiver = time_zone_record.receiver.get<GC::Ref<Object>>();
 
     // 4. If methodName is GET-OFFSET-NANOSECONDS-FOR, then
     //     a. Return ? Call(timeZoneRec.[[GetOffsetNanosecondsFor]], receiver, arguments).

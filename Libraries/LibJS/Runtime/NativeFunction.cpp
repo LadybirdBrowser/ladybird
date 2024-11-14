@@ -15,7 +15,7 @@
 
 namespace JS {
 
-JS_DEFINE_ALLOCATOR(NativeFunction);
+GC_DEFINE_ALLOCATOR(NativeFunction);
 
 void NativeFunction::initialize(Realm& realm)
 {
@@ -33,7 +33,7 @@ void NativeFunction::visit_edges(Cell::Visitor& visitor)
 
 // 10.3.3 CreateBuiltinFunction ( behaviour, length, name, additionalInternalSlotsList [ , realm [ , prototype [ , prefix ] ] ] ), https://tc39.es/ecma262/#sec-createbuiltinfunction
 // NOTE: This doesn't consider additionalInternalSlotsList, which is rarely used, and can either be implemented using only the `function` lambda, or needs a NativeFunction subclass.
-NonnullGCPtr<NativeFunction> NativeFunction::create(Realm& allocating_realm, Function<ThrowCompletionOr<Value>(VM&)> behaviour, i32 length, PropertyKey const& name, Optional<Realm*> realm, Optional<Object*> prototype, Optional<StringView> const& prefix)
+GC::Ref<NativeFunction> NativeFunction::create(Realm& allocating_realm, Function<ThrowCompletionOr<Value>(VM&)> behaviour, i32 length, PropertyKey const& name, Optional<Realm*> realm, Optional<Object*> prototype, Optional<StringView> const& prefix)
 {
     auto& vm = allocating_realm.vm();
 
@@ -53,7 +53,7 @@ NonnullGCPtr<NativeFunction> NativeFunction::create(Realm& allocating_realm, Fun
     // 7. Set func.[[Extensible]] to true.
     // 8. Set func.[[Realm]] to realm.
     // 9. Set func.[[InitialName]] to null.
-    auto function = allocating_realm.create<NativeFunction>(JS::create_heap_function(vm.heap(), move(behaviour)), prototype.value(), *realm.value());
+    auto function = allocating_realm.create<NativeFunction>(GC::create_function(vm.heap(), move(behaviour)), prototype.value(), *realm.value());
 
     // 10. Perform SetFunctionLength(func, length).
     function->set_function_length(length);
@@ -68,12 +68,12 @@ NonnullGCPtr<NativeFunction> NativeFunction::create(Realm& allocating_realm, Fun
     return function;
 }
 
-NonnullGCPtr<NativeFunction> NativeFunction::create(Realm& realm, DeprecatedFlyString const& name, Function<ThrowCompletionOr<Value>(VM&)> function)
+GC::Ref<NativeFunction> NativeFunction::create(Realm& realm, DeprecatedFlyString const& name, Function<ThrowCompletionOr<Value>(VM&)> function)
 {
-    return realm.create<NativeFunction>(name, JS::create_heap_function(realm.heap(), move(function)), realm.intrinsics().function_prototype());
+    return realm.create<NativeFunction>(name, GC::create_function(realm.heap(), move(function)), realm.intrinsics().function_prototype());
 }
 
-NativeFunction::NativeFunction(JS::GCPtr<JS::HeapFunction<ThrowCompletionOr<Value>(VM&)>> native_function, Object* prototype, Realm& realm)
+NativeFunction::NativeFunction(GC::Ptr<GC::Function<ThrowCompletionOr<Value>(VM&)>> native_function, Object* prototype, Realm& realm)
     : FunctionObject(realm, prototype)
     , m_native_function(move(native_function))
     , m_realm(&realm)
@@ -90,7 +90,7 @@ NativeFunction::NativeFunction(Object& prototype)
 {
 }
 
-NativeFunction::NativeFunction(DeprecatedFlyString name, JS::GCPtr<JS::HeapFunction<ThrowCompletionOr<Value>(VM&)>> native_function, Object& prototype)
+NativeFunction::NativeFunction(DeprecatedFlyString name, GC::Ptr<GC::Function<ThrowCompletionOr<Value>(VM&)>> native_function, Object& prototype)
     : FunctionObject(prototype)
     , m_name(move(name))
     , m_native_function(move(native_function))
@@ -173,7 +173,7 @@ ThrowCompletionOr<Value> NativeFunction::internal_call(Value this_argument, Read
 }
 
 // 10.3.2 [[Construct]] ( argumentsList, newTarget ), https://tc39.es/ecma262/#sec-built-in-function-objects-construct-argumentslist-newtarget
-ThrowCompletionOr<NonnullGCPtr<Object>> NativeFunction::internal_construct(ReadonlySpan<Value> arguments_list, FunctionObject& new_target)
+ThrowCompletionOr<GC::Ref<Object>> NativeFunction::internal_construct(ReadonlySpan<Value> arguments_list, FunctionObject& new_target)
 {
     auto& vm = this->vm();
 
@@ -237,7 +237,7 @@ ThrowCompletionOr<Value> NativeFunction::call()
     return m_native_function->function()(vm());
 }
 
-ThrowCompletionOr<NonnullGCPtr<Object>> NativeFunction::construct(FunctionObject&)
+ThrowCompletionOr<GC::Ref<Object>> NativeFunction::construct(FunctionObject&)
 {
     // Needs to be overridden if [[Construct]] is needed.
     VERIFY_NOT_REACHED();

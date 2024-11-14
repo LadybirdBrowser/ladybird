@@ -21,14 +21,14 @@
 
 namespace Web::HTML {
 
-JS_DEFINE_ALLOCATOR(ImageRequest);
+GC_DEFINE_ALLOCATOR(ImageRequest);
 
-JS::NonnullGCPtr<ImageRequest> ImageRequest::create(JS::Realm& realm, JS::NonnullGCPtr<Page> page)
+GC::Ref<ImageRequest> ImageRequest::create(JS::Realm& realm, GC::Ref<Page> page)
 {
     return realm.create<ImageRequest>(page);
 }
 
-ImageRequest::ImageRequest(JS::NonnullGCPtr<Page> page)
+ImageRequest::ImageRequest(GC::Ref<Page> page)
     : m_page(page)
 {
 }
@@ -94,12 +94,12 @@ void abort_the_image_request(JS::Realm&, ImageRequest* image_request)
     // AD-HOC: We simply don't do this, since our SharedResourceRequest may be used by someone else.
 }
 
-JS::GCPtr<DecodedImageData> ImageRequest::image_data() const
+GC::Ptr<DecodedImageData> ImageRequest::image_data() const
 {
     return m_image_data;
 }
 
-void ImageRequest::set_image_data(JS::GCPtr<DecodedImageData> data)
+void ImageRequest::set_image_data(GC::Ptr<DecodedImageData> data)
 {
     m_image_data = data;
 }
@@ -125,7 +125,7 @@ void ImageRequest::prepare_for_presentation(HTMLImageElement&)
     // FIXME: 16. Update req's img element's presentation appropriately.
 }
 
-void ImageRequest::fetch_image(JS::Realm& realm, JS::NonnullGCPtr<Fetch::Infrastructure::Request> request)
+void ImageRequest::fetch_image(JS::Realm& realm, GC::Ref<Fetch::Infrastructure::Request> request)
 {
     VERIFY(m_shared_resource_request);
     m_shared_resource_request->fetch_resource(realm, request);

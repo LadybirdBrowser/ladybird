@@ -16,10 +16,10 @@ namespace Web::HTML {
 
 class HTMLCanvasElement final : public HTMLElement {
     WEB_PLATFORM_OBJECT(HTMLCanvasElement, HTMLElement);
-    JS_DECLARE_ALLOCATOR(HTMLCanvasElement);
+    GC_DECLARE_ALLOCATOR(HTMLCanvasElement);
 
 public:
-    using RenderingContext = Variant<JS::Handle<CanvasRenderingContext2D>, JS::Handle<WebGL::WebGLRenderingContext>, Empty>;
+    using RenderingContext = Variant<GC::Root<CanvasRenderingContext2D>, GC::Root<WebGL::WebGLRenderingContext>, Empty>;
 
     virtual ~HTMLCanvasElement() override;
 
@@ -36,7 +36,7 @@ public:
     WebIDL::ExceptionOr<void> set_height(unsigned);
 
     String to_data_url(StringView type, JS::Value quality);
-    WebIDL::ExceptionOr<void> to_blob(JS::NonnullGCPtr<WebIDL::CallbackType> callback, StringView type, JS::Value quality);
+    WebIDL::ExceptionOr<void> to_blob(GC::Ref<WebIDL::CallbackType> callback, StringView type, JS::Value quality);
 
     void present();
 
@@ -48,7 +48,7 @@ private:
 
     virtual void apply_presentational_hints(CSS::StyleProperties&) const override;
 
-    virtual JS::GCPtr<Layout::Node> create_layout_node(CSS::StyleProperties) override;
+    virtual GC::Ptr<Layout::Node> create_layout_node(CSS::StyleProperties) override;
     virtual void adjust_computed_style(CSS::StyleProperties&) override;
 
     enum class HasOrCreatedContext {
@@ -62,7 +62,7 @@ private:
 
     RefPtr<Gfx::PaintingSurface> m_surface;
 
-    Variant<JS::NonnullGCPtr<HTML::CanvasRenderingContext2D>, JS::NonnullGCPtr<WebGL::WebGLRenderingContext>, Empty> m_context;
+    Variant<GC::Ref<HTML::CanvasRenderingContext2D>, GC::Ref<WebGL::WebGLRenderingContext>, Empty> m_context;
 };
 
 }

@@ -60,7 +60,7 @@ ErrorOr<String> generate_new_blob_url()
 }
 
 // https://w3c.github.io/FileAPI/#add-an-entry
-ErrorOr<String> add_entry_to_blob_url_store(JS::NonnullGCPtr<Blob> object)
+ErrorOr<String> add_entry_to_blob_url_store(GC::Ref<Blob> object)
 {
     // 1. Let store be the user agent’s blob URL store.
     auto& store = blob_url_store();
@@ -93,7 +93,7 @@ ErrorOr<void> remove_entry_from_blob_url_store(StringView url)
 }
 
 // https://w3c.github.io/FileAPI/#lifeTime
-void run_unloading_cleanup_steps(JS::NonnullGCPtr<DOM::Document> document)
+void run_unloading_cleanup_steps(GC::Ref<DOM::Document> document)
 {
     // 1.  Let environment be the Document's relevant settings object.
     auto& environment = document->relevant_settings_object();

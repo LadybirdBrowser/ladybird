@@ -8,7 +8,7 @@
 
 #include <AK/Badge.h>
 #include <AK/String.h>
-#include <LibJS/Heap/MarkedVector.h>
+#include <LibGC/MarkedVector.h>
 #include <LibWeb/DOM/EventTarget.h>
 #include <LibWeb/HTML/AudioTrack.h>
 
@@ -16,16 +16,16 @@ namespace Web::HTML {
 
 class AudioTrackList final : public DOM::EventTarget {
     WEB_PLATFORM_OBJECT(AudioTrackList, DOM::EventTarget);
-    JS_DECLARE_ALLOCATOR(AudioTrackList);
+    GC_DECLARE_ALLOCATOR(AudioTrackList);
 
 public:
-    void add_track(Badge<HTMLMediaElement>, JS::NonnullGCPtr<AudioTrack>);
+    void add_track(Badge<HTMLMediaElement>, GC::Ref<AudioTrack>);
     void remove_all_tracks(Badge<HTMLMediaElement>);
 
     // https://html.spec.whatwg.org/multipage/media.html#dom-audiotracklist-length
     size_t length() const { return m_audio_tracks.size(); }
 
-    JS::GCPtr<AudioTrack> get_track_by_id(StringView id) const;
+    GC::Ptr<AudioTrack> get_track_by_id(StringView id) const;
     bool has_enabled_track() const;
 
     template<typename Callback>
@@ -54,7 +54,7 @@ private:
     virtual void initialize(JS::Realm&) override;
     virtual JS::ThrowCompletionOr<Optional<JS::PropertyDescriptor>> internal_get_own_property(JS::PropertyKey const& property_name) const override;
 
-    Vector<JS::NonnullGCPtr<AudioTrack>> m_audio_tracks;
+    Vector<GC::Ref<AudioTrack>> m_audio_tracks;
 };
 
 }

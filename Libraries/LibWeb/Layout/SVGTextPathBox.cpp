@@ -9,14 +9,14 @@
 
 namespace Web::Layout {
 
-JS_DEFINE_ALLOCATOR(SVGTextPathBox);
+GC_DEFINE_ALLOCATOR(SVGTextPathBox);
 
 SVGTextPathBox::SVGTextPathBox(DOM::Document& document, SVG::SVGTextPathElement& element, CSS::StyleProperties properties)
     : SVGGraphicsBox(document, element, properties)
 {
 }
 
-JS::GCPtr<Painting::Paintable> SVGTextPathBox::create_paintable() const
+GC::Ptr<Painting::Paintable> SVGTextPathBox::create_paintable() const
 {
     return Painting::SVGPathPaintable::create(*this);
 }

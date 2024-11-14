@@ -10,7 +10,7 @@
 
 namespace Web::HTML {
 
-JS_DEFINE_ALLOCATOR(HTMLBaseElement);
+GC_DEFINE_ALLOCATOR(HTMLBaseElement);
 
 HTMLBaseElement::HTMLBaseElement(DOM::Document& document, DOM::QualifiedName qualified_name)
     : HTMLElement(document, move(qualified_name))

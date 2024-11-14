@@ -11,8 +11,8 @@
 namespace Web::Layout {
 
 class TableWrapper : public BlockContainer {
-    JS_CELL(TableWrapper, BlockContainer);
-    JS_DECLARE_ALLOCATOR(TableWrapper);
+    GC_CELL(TableWrapper, BlockContainer);
+    GC_DECLARE_ALLOCATOR(TableWrapper);
 
 public:
     TableWrapper(DOM::Document&, DOM::Node*, CSS::StyleProperties);

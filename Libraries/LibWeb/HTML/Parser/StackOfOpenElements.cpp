@@ -124,9 +124,9 @@ void StackOfOpenElements::pop_until_an_element_with_tag_name_has_been_popped(Fly
     (void)pop();
 }
 
-JS::GCPtr<DOM::Element> StackOfOpenElements::topmost_special_node_below(DOM::Element const& formatting_element)
+GC::Ptr<DOM::Element> StackOfOpenElements::topmost_special_node_below(DOM::Element const& formatting_element)
 {
-    JS::GCPtr<DOM::Element> found_element = nullptr;
+    GC::Ptr<DOM::Element> found_element = nullptr;
     for (auto& element : m_elements.in_reverse()) {
         if (element.ptr() == &formatting_element)
             break;
@@ -146,7 +146,7 @@ StackOfOpenElements::LastElementResult StackOfOpenElements::last_element_with_ta
     return { nullptr, -1 };
 }
 
-JS::GCPtr<DOM::Element> StackOfOpenElements::element_immediately_above(DOM::Element const& target)
+GC::Ptr<DOM::Element> StackOfOpenElements::element_immediately_above(DOM::Element const& target)
 {
     bool found_target = false;
     for (auto& element : m_elements.in_reverse()) {
@@ -165,7 +165,7 @@ void StackOfOpenElements::remove(DOM::Element const& element)
     });
 }
 
-void StackOfOpenElements::replace(DOM::Element const& to_remove, JS::NonnullGCPtr<DOM::Element> to_add)
+void StackOfOpenElements::replace(DOM::Element const& to_remove, GC::Ref<DOM::Element> to_add)
 {
     for (size_t i = 0; i < m_elements.size(); i++) {
         if (m_elements[i].ptr() == &to_remove) {
@@ -176,7 +176,7 @@ void StackOfOpenElements::replace(DOM::Element const& to_remove, JS::NonnullGCPt
     }
 }
 
-void StackOfOpenElements::insert_immediately_below(JS::NonnullGCPtr<DOM::Element> element_to_add, DOM::Element const& target)
+void StackOfOpenElements::insert_immediately_below(GC::Ref<DOM::Element> element_to_add, DOM::Element const& target)
 {
     for (size_t i = 0; i < m_elements.size(); i++) {
         if (m_elements[i].ptr() == &target) {

@@ -16,7 +16,7 @@
 
 namespace Web::HTML {
 
-JS_DEFINE_ALLOCATOR(ServiceWorkerContainer);
+GC_DEFINE_ALLOCATOR(ServiceWorkerContainer);
 
 ServiceWorkerContainer::ServiceWorkerContainer(JS::Realm& realm)
     : DOM::EventTarget(realm)
@@ -38,13 +38,13 @@ void ServiceWorkerContainer::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_service_worker_client);
 }
 
-JS::NonnullGCPtr<ServiceWorkerContainer> ServiceWorkerContainer::create(JS::Realm& realm)
+GC::Ref<ServiceWorkerContainer> ServiceWorkerContainer::create(JS::Realm& realm)
 {
     return realm.create<ServiceWorkerContainer>(realm);
 }
 
 // https://w3c.github.io/ServiceWorker/#navigator-service-worker-register
-JS::NonnullGCPtr<WebIDL::Promise> ServiceWorkerContainer::register_(String script_url, RegistrationOptions const& options)
+GC::Ref<WebIDL::Promise> ServiceWorkerContainer::register_(String script_url, RegistrationOptions const& options)
 {
     auto& realm = this->realm();
     // Note: The register(scriptURL, options) method creates or updates a service worker registration for the given scope url.
@@ -80,7 +80,7 @@ JS::NonnullGCPtr<WebIDL::Promise> ServiceWorkerContainer::register_(String scrip
 }
 
 // https://w3c.github.io/ServiceWorker/#start-register-algorithm
-void ServiceWorkerContainer::start_register(Optional<URL::URL> scope_url, URL::URL script_url, JS::NonnullGCPtr<WebIDL::Promise> promise, EnvironmentSettingsObject& client, URL::URL referrer, Bindings::WorkerType worker_type, Bindings::ServiceWorkerUpdateViaCache update_via_cache)
+void ServiceWorkerContainer::start_register(Optional<URL::URL> scope_url, URL::URL script_url, GC::Ref<WebIDL::Promise> promise, EnvironmentSettingsObject& client, URL::URL referrer, Bindings::WorkerType worker_type, Bindings::ServiceWorkerUpdateViaCache update_via_cache)
 {
     auto& realm = this->realm();
     auto& vm = realm.vm();

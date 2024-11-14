@@ -12,7 +12,7 @@ namespace Web::HTML {
 
 class HTMLHeadElement final : public HTMLElement {
     WEB_PLATFORM_OBJECT(HTMLHeadElement, HTMLElement);
-    JS_DECLARE_ALLOCATOR(HTMLHeadElement);
+    GC_DECLARE_ALLOCATOR(HTMLHeadElement);
 
 public:
     virtual ~HTMLHeadElement() override;

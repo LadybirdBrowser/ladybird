@@ -12,9 +12,9 @@
 
 namespace Web::FileAPI {
 
-JS_DEFINE_ALLOCATOR(FileList);
+GC_DEFINE_ALLOCATOR(FileList);
 
-JS::NonnullGCPtr<FileList> FileList::create(JS::Realm& realm)
+GC::Ref<FileList> FileList::create(JS::Realm& realm)
 {
     return realm.create<FileList>(realm);
 }

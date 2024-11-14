@@ -23,9 +23,9 @@ void Intrinsics::create_web_prototype_and_constructor<URLSearchParamsIteratorPro
 
 namespace Web::DOMURL {
 
-JS_DEFINE_ALLOCATOR(URLSearchParamsIterator);
+GC_DEFINE_ALLOCATOR(URLSearchParamsIterator);
 
-WebIDL::ExceptionOr<JS::NonnullGCPtr<URLSearchParamsIterator>> URLSearchParamsIterator::create(URLSearchParams const& url_search_params, JS::Object::PropertyKind iteration_kind)
+WebIDL::ExceptionOr<GC::Ref<URLSearchParamsIterator>> URLSearchParamsIterator::create(URLSearchParams const& url_search_params, JS::Object::PropertyKind iteration_kind)
 {
     return url_search_params.realm().create<URLSearchParamsIterator>(url_search_params, iteration_kind);
 }

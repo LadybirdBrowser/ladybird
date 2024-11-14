@@ -7,9 +7,9 @@
 #pragma once
 
 #include <AK/Forward.h>
+#include <LibGC/Ptr.h>
 #include <LibJS/Forward.h>
 #include <LibJS/Heap/Cell.h>
-#include <LibJS/Heap/GCPtr.h>
 #include <LibWeb/Fetch/Infrastructure/FetchAlgorithms.h>
 #include <LibWeb/Fetch/Infrastructure/FetchController.h>
 #include <LibWeb/Fetch/Infrastructure/FetchTimingInfo.h>
@@ -20,21 +20,21 @@ namespace Web::Fetch::Infrastructure {
 
 // https://fetch.spec.whatwg.org/#fetch-params
 class FetchParams : public JS::Cell {
-    JS_CELL(FetchParams, JS::Cell);
-    JS_DECLARE_ALLOCATOR(FetchParams);
+    GC_CELL(FetchParams, JS::Cell);
+    GC_DECLARE_ALLOCATOR(FetchParams);
 
 public:
     struct PreloadedResponseCandidatePendingTag { };
-    using PreloadedResponseCandidate = Variant<Empty, PreloadedResponseCandidatePendingTag, JS::NonnullGCPtr<Response>>;
+    using PreloadedResponseCandidate = Variant<Empty, PreloadedResponseCandidatePendingTag, GC::Ref<Response>>;
 
-    [[nodiscard]] static JS::NonnullGCPtr<FetchParams> create(JS::VM&, JS::NonnullGCPtr<Request>, JS::NonnullGCPtr<FetchTimingInfo>);
+    [[nodiscard]] static GC::Ref<FetchParams> create(JS::VM&, GC::Ref<Request>, GC::Ref<FetchTimingInfo>);
 
-    [[nodiscard]] JS::NonnullGCPtr<Request> request() const { return m_request; }
-    [[nodiscard]] JS::NonnullGCPtr<FetchController> controller() const { return m_controller; }
-    [[nodiscard]] JS::NonnullGCPtr<FetchTimingInfo> timing_info() const { return m_timing_info; }
+    [[nodiscard]] GC::Ref<Request> request() const { return m_request; }
+    [[nodiscard]] GC::Ref<FetchController> controller() const { return m_controller; }
+    [[nodiscard]] GC::Ref<FetchTimingInfo> timing_info() const { return m_timing_info; }
 
-    [[nodiscard]] JS::NonnullGCPtr<FetchAlgorithms const> algorithms() const { return m_algorithms; }
-    void set_algorithms(JS::NonnullGCPtr<FetchAlgorithms const> algorithms) { m_algorithms = algorithms; }
+    [[nodiscard]] GC::Ref<FetchAlgorithms const> algorithms() const { return m_algorithms; }
+    void set_algorithms(GC::Ref<FetchAlgorithms const> algorithms) { m_algorithms = algorithms; }
 
     [[nodiscard]] TaskDestination& task_destination() { return m_task_destination; }
     [[nodiscard]] TaskDestination const& task_destination() const { return m_task_destination; }
@@ -51,14 +51,14 @@ public:
     [[nodiscard]] bool is_canceled() const;
 
 private:
-    FetchParams(JS::NonnullGCPtr<Request>, JS::NonnullGCPtr<FetchAlgorithms>, JS::NonnullGCPtr<FetchController>, JS::NonnullGCPtr<FetchTimingInfo>);
+    FetchParams(GC::Ref<Request>, GC::Ref<FetchAlgorithms>, GC::Ref<FetchController>, GC::Ref<FetchTimingInfo>);
 
     virtual void visit_edges(JS::Cell::Visitor&) override;
 
     // https://fetch.spec.whatwg.org/#fetch-params-request
     // request
     //     A request.
-    JS::NonnullGCPtr<Request> m_request;
+    GC::Ref<Request> m_request;
 
     // https://fetch.spec.whatwg.org/#fetch-params-process-request-body
     // process request body chunk length (default null)
@@ -73,7 +73,7 @@ private:
     // https://fetch.spec.whatwg.org/#fetch-params-process-response-consume-body
     // process response consume body (default null)
     //     Null or an algorithm.
-    JS::NonnullGCPtr<FetchAlgorithms const> m_algorithms;
+    GC::Ref<FetchAlgorithms const> m_algorithms;
 
     // https://fetch.spec.whatwg.org/#fetch-params-task-destination
     // task destination (default null)
@@ -88,12 +88,12 @@ private:
     // https://fetch.spec.whatwg.org/#fetch-params-controller
     // controller (default a new fetch controller)
     //     A fetch controller.
-    JS::NonnullGCPtr<FetchController> m_controller;
+    GC::Ref<FetchController> m_controller;
 
     // https://fetch.spec.whatwg.org/#fetch-params-timing-info
     // timing info
     //     A fetch timing info.
-    JS::NonnullGCPtr<FetchTimingInfo> m_timing_info;
+    GC::Ref<FetchTimingInfo> m_timing_info;
 
     // https://fetch.spec.whatwg.org/#fetch-params-preloaded-response-candidate
     // preloaded response candidate (default null)

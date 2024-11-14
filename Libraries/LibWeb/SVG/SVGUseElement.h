@@ -19,7 +19,7 @@ class SVGUseElement final
     : public SVGGraphicsElement
     , public SVGURIReferenceMixin<SupportsXLinkHref::Yes> {
     WEB_PLATFORM_OBJECT(SVGUseElement, SVGGraphicsElement);
-    JS_DECLARE_ALLOCATOR(SVGUseElement);
+    GC_DECLARE_ALLOCATOR(SVGUseElement);
 
 public:
     virtual ~SVGUseElement() override = default;
@@ -31,13 +31,13 @@ public:
     void svg_element_changed(SVGElement&);
     void svg_element_removed(SVGElement&);
 
-    JS::NonnullGCPtr<SVGAnimatedLength> x() const;
-    JS::NonnullGCPtr<SVGAnimatedLength> y() const;
-    JS::NonnullGCPtr<SVGAnimatedLength> width() const;
-    JS::NonnullGCPtr<SVGAnimatedLength> height() const;
+    GC::Ref<SVGAnimatedLength> x() const;
+    GC::Ref<SVGAnimatedLength> y() const;
+    GC::Ref<SVGAnimatedLength> width() const;
+    GC::Ref<SVGAnimatedLength> height() const;
 
-    JS::GCPtr<SVGElement> instance_root() const;
-    JS::GCPtr<SVGElement> animated_instance_root() const;
+    GC::Ptr<SVGElement> instance_root() const;
+    GC::Ptr<SVGElement> animated_instance_root() const;
 
     virtual Gfx::AffineTransform element_transform() const override;
 
@@ -49,13 +49,13 @@ private:
 
     virtual bool is_svg_use_element() const override { return true; }
 
-    virtual JS::GCPtr<Layout::Node> create_layout_node(CSS::StyleProperties) override;
+    virtual GC::Ptr<Layout::Node> create_layout_node(CSS::StyleProperties) override;
 
     void process_the_url(Optional<String> const& href);
 
     static Optional<FlyString> parse_id_from_href(StringView);
 
-    JS::GCPtr<DOM::Element> referenced_element();
+    GC::Ptr<DOM::Element> referenced_element();
 
     void fetch_the_document(URL::URL const& url);
     bool is_referrenced_element_same_document() const;
@@ -68,8 +68,8 @@ private:
 
     URL::URL m_href;
 
-    JS::GCPtr<DOM::DocumentObserver> m_document_observer;
-    JS::GCPtr<HTML::SharedResourceRequest> m_resource_request;
+    GC::Ptr<DOM::DocumentObserver> m_document_observer;
+    GC::Ptr<HTML::SharedResourceRequest> m_resource_request;
     Optional<DOM::DocumentLoadEventDelayer> m_load_event_delayer;
 };
 

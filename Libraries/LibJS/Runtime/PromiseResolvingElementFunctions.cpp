@@ -13,13 +13,13 @@
 
 namespace JS {
 
-JS_DEFINE_ALLOCATOR(RemainingElements);
-JS_DEFINE_ALLOCATOR(PromiseValueList);
-JS_DEFINE_ALLOCATOR(PromiseResolvingElementFunction);
-JS_DEFINE_ALLOCATOR(PromiseAllResolveElementFunction);
-JS_DEFINE_ALLOCATOR(PromiseAllSettledResolveElementFunction);
-JS_DEFINE_ALLOCATOR(PromiseAllSettledRejectElementFunction);
-JS_DEFINE_ALLOCATOR(PromiseAnyRejectElementFunction);
+GC_DEFINE_ALLOCATOR(RemainingElements);
+GC_DEFINE_ALLOCATOR(PromiseValueList);
+GC_DEFINE_ALLOCATOR(PromiseResolvingElementFunction);
+GC_DEFINE_ALLOCATOR(PromiseAllResolveElementFunction);
+GC_DEFINE_ALLOCATOR(PromiseAllSettledResolveElementFunction);
+GC_DEFINE_ALLOCATOR(PromiseAllSettledRejectElementFunction);
+GC_DEFINE_ALLOCATOR(PromiseAnyRejectElementFunction);
 
 void PromiseValueList::visit_edges(Visitor& visitor)
 {
@@ -27,7 +27,7 @@ void PromiseValueList::visit_edges(Visitor& visitor)
     visitor.visit(m_values);
 }
 
-PromiseResolvingElementFunction::PromiseResolvingElementFunction(size_t index, PromiseValueList& values, NonnullGCPtr<PromiseCapability const> capability, RemainingElements& remaining_elements, Object& prototype)
+PromiseResolvingElementFunction::PromiseResolvingElementFunction(size_t index, PromiseValueList& values, GC::Ref<PromiseCapability const> capability, RemainingElements& remaining_elements, Object& prototype)
     : NativeFunction(prototype)
     , m_index(index)
     , m_values(values)
@@ -60,12 +60,12 @@ void PromiseResolvingElementFunction::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_remaining_elements);
 }
 
-NonnullGCPtr<PromiseAllResolveElementFunction> PromiseAllResolveElementFunction::create(Realm& realm, size_t index, PromiseValueList& values, NonnullGCPtr<PromiseCapability const> capability, RemainingElements& remaining_elements)
+GC::Ref<PromiseAllResolveElementFunction> PromiseAllResolveElementFunction::create(Realm& realm, size_t index, PromiseValueList& values, GC::Ref<PromiseCapability const> capability, RemainingElements& remaining_elements)
 {
     return realm.create<PromiseAllResolveElementFunction>(index, values, capability, remaining_elements, realm.intrinsics().function_prototype());
 }
 
-PromiseAllResolveElementFunction::PromiseAllResolveElementFunction(size_t index, PromiseValueList& values, NonnullGCPtr<PromiseCapability const> capability, RemainingElements& remaining_elements, Object& prototype)
+PromiseAllResolveElementFunction::PromiseAllResolveElementFunction(size_t index, PromiseValueList& values, GC::Ref<PromiseCapability const> capability, RemainingElements& remaining_elements, Object& prototype)
     : PromiseResolvingElementFunction(index, values, capability, remaining_elements, prototype)
 {
 }
@@ -92,12 +92,12 @@ ThrowCompletionOr<Value> PromiseAllResolveElementFunction::resolve_element()
     return js_undefined();
 }
 
-NonnullGCPtr<PromiseAllSettledResolveElementFunction> PromiseAllSettledResolveElementFunction::create(Realm& realm, size_t index, PromiseValueList& values, NonnullGCPtr<PromiseCapability const> capability, RemainingElements& remaining_elements)
+GC::Ref<PromiseAllSettledResolveElementFunction> PromiseAllSettledResolveElementFunction::create(Realm& realm, size_t index, PromiseValueList& values, GC::Ref<PromiseCapability const> capability, RemainingElements& remaining_elements)
 {
     return realm.create<PromiseAllSettledResolveElementFunction>(index, values, capability, remaining_elements, realm.intrinsics().function_prototype());
 }
 
-PromiseAllSettledResolveElementFunction::PromiseAllSettledResolveElementFunction(size_t index, PromiseValueList& values, NonnullGCPtr<PromiseCapability const> capability, RemainingElements& remaining_elements, Object& prototype)
+PromiseAllSettledResolveElementFunction::PromiseAllSettledResolveElementFunction(size_t index, PromiseValueList& values, GC::Ref<PromiseCapability const> capability, RemainingElements& remaining_elements, Object& prototype)
     : PromiseResolvingElementFunction(index, values, capability, remaining_elements, prototype)
 {
 }
@@ -133,12 +133,12 @@ ThrowCompletionOr<Value> PromiseAllSettledResolveElementFunction::resolve_elemen
     return js_undefined();
 }
 
-NonnullGCPtr<PromiseAllSettledRejectElementFunction> PromiseAllSettledRejectElementFunction::create(Realm& realm, size_t index, PromiseValueList& values, NonnullGCPtr<PromiseCapability const> capability, RemainingElements& remaining_elements)
+GC::Ref<PromiseAllSettledRejectElementFunction> PromiseAllSettledRejectElementFunction::create(Realm& realm, size_t index, PromiseValueList& values, GC::Ref<PromiseCapability const> capability, RemainingElements& remaining_elements)
 {
     return realm.create<PromiseAllSettledRejectElementFunction>(index, values, capability, remaining_elements, realm.intrinsics().function_prototype());
 }
 
-PromiseAllSettledRejectElementFunction::PromiseAllSettledRejectElementFunction(size_t index, PromiseValueList& values, NonnullGCPtr<PromiseCapability const> capability, RemainingElements& remaining_elements, Object& prototype)
+PromiseAllSettledRejectElementFunction::PromiseAllSettledRejectElementFunction(size_t index, PromiseValueList& values, GC::Ref<PromiseCapability const> capability, RemainingElements& remaining_elements, Object& prototype)
     : PromiseResolvingElementFunction(index, values, capability, remaining_elements, prototype)
 {
 }
@@ -174,12 +174,12 @@ ThrowCompletionOr<Value> PromiseAllSettledRejectElementFunction::resolve_element
     return js_undefined();
 }
 
-NonnullGCPtr<PromiseAnyRejectElementFunction> PromiseAnyRejectElementFunction::create(Realm& realm, size_t index, PromiseValueList& errors, NonnullGCPtr<PromiseCapability const> capability, RemainingElements& remaining_elements)
+GC::Ref<PromiseAnyRejectElementFunction> PromiseAnyRejectElementFunction::create(Realm& realm, size_t index, PromiseValueList& errors, GC::Ref<PromiseCapability const> capability, RemainingElements& remaining_elements)
 {
     return realm.create<PromiseAnyRejectElementFunction>(index, errors, capability, remaining_elements, realm.intrinsics().function_prototype());
 }
 
-PromiseAnyRejectElementFunction::PromiseAnyRejectElementFunction(size_t index, PromiseValueList& errors, NonnullGCPtr<PromiseCapability const> capability, RemainingElements& remaining_elements, Object& prototype)
+PromiseAnyRejectElementFunction::PromiseAnyRejectElementFunction(size_t index, PromiseValueList& errors, GC::Ref<PromiseCapability const> capability, RemainingElements& remaining_elements, Object& prototype)
     : PromiseResolvingElementFunction(index, errors, capability, remaining_elements, prototype)
 {
 }

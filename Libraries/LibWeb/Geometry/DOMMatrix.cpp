@@ -15,10 +15,10 @@
 
 namespace Web::Geometry {
 
-JS_DEFINE_ALLOCATOR(DOMMatrix);
+GC_DEFINE_ALLOCATOR(DOMMatrix);
 
 // https://drafts.fxtf.org/geometry/#dom-dommatrix-dommatrix
-WebIDL::ExceptionOr<JS::NonnullGCPtr<DOMMatrix>> DOMMatrix::construct_impl(JS::Realm& realm, Optional<Variant<String, Vector<double>>> const& init)
+WebIDL::ExceptionOr<GC::Ref<DOMMatrix>> DOMMatrix::construct_impl(JS::Realm& realm, Optional<Variant<String, Vector<double>>> const& init)
 {
     auto& vm = realm.vm();
 
@@ -77,7 +77,7 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<DOMMatrix>> DOMMatrix::construct_impl(JS::R
 }
 
 // https://drafts.fxtf.org/geometry/#create-a-dommatrix-from-the-2d-dictionary
-WebIDL::ExceptionOr<JS::NonnullGCPtr<DOMMatrix>> DOMMatrix::create_from_dom_matrix_2d_init(JS::Realm& realm, DOMMatrix2DInit& init)
+WebIDL::ExceptionOr<GC::Ref<DOMMatrix>> DOMMatrix::create_from_dom_matrix_2d_init(JS::Realm& realm, DOMMatrix2DInit& init)
 {
     // 1. Validate and fixup (2D) other.
     TRY(validate_and_fixup_dom_matrix_2d_init(init));
@@ -96,7 +96,7 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<DOMMatrix>> DOMMatrix::create_from_dom_matr
 }
 
 // https://drafts.fxtf.org/geometry/#create-a-dommatrix-from-the-dictionary
-WebIDL::ExceptionOr<JS::NonnullGCPtr<DOMMatrix>> DOMMatrix::create_from_dom_matrix_init(JS::Realm& realm, DOMMatrixInit& init)
+WebIDL::ExceptionOr<GC::Ref<DOMMatrix>> DOMMatrix::create_from_dom_matrix_init(JS::Realm& realm, DOMMatrixInit& init)
 {
     // 1. Validate and fixup other.
     TRY(validate_and_fixup_dom_matrix_init(init));
@@ -114,12 +114,12 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<DOMMatrix>> DOMMatrix::create_from_dom_matr
         init.m41.value(), init.m42.value(), init.m43, init.m44);
 }
 
-JS::NonnullGCPtr<DOMMatrix> DOMMatrix::create_from_dom_matrix_read_only(JS::Realm& realm, DOMMatrixReadOnly const& read_only_matrix)
+GC::Ref<DOMMatrix> DOMMatrix::create_from_dom_matrix_read_only(JS::Realm& realm, DOMMatrixReadOnly const& read_only_matrix)
 {
     return realm.create<DOMMatrix>(realm, read_only_matrix);
 }
 
-JS::NonnullGCPtr<DOMMatrix> DOMMatrix::create(JS::Realm& realm)
+GC::Ref<DOMMatrix> DOMMatrix::create(JS::Realm& realm)
 {
     return realm.create<DOMMatrix>(realm);
 }
@@ -153,13 +153,13 @@ void DOMMatrix::initialize(JS::Realm& realm)
 }
 
 // https://drafts.fxtf.org/geometry/#dom-dommatrix-frommatrix
-WebIDL::ExceptionOr<JS::NonnullGCPtr<DOMMatrix>> DOMMatrix::from_matrix(JS::VM& vm, DOMMatrixInit other)
+WebIDL::ExceptionOr<GC::Ref<DOMMatrix>> DOMMatrix::from_matrix(JS::VM& vm, DOMMatrixInit other)
 {
     return create_from_dom_matrix_init(*vm.current_realm(), other);
 }
 
 // https://drafts.fxtf.org/geometry/#dom-dommatrix-fromfloat32array
-WebIDL::ExceptionOr<JS::NonnullGCPtr<DOMMatrix>> DOMMatrix::from_float32_array(JS::VM& vm, JS::Handle<WebIDL::BufferSource> const& array32)
+WebIDL::ExceptionOr<GC::Ref<DOMMatrix>> DOMMatrix::from_float32_array(JS::VM& vm, GC::Root<WebIDL::BufferSource> const& array32)
 {
     if (!is<JS::Float32Array>(*array32->raw_object()))
         return vm.throw_completion<JS::TypeError>(JS::ErrorType::NotAnObjectOfType, "Float32Array");
@@ -184,7 +184,7 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<DOMMatrix>> DOMMatrix::from_float32_array(J
 }
 
 // https://drafts.fxtf.org/geometry/#dom-dommatrix-fromfloat64array
-WebIDL::ExceptionOr<JS::NonnullGCPtr<DOMMatrix>> DOMMatrix::from_float64_array(JS::VM& vm, JS::Handle<WebIDL::BufferSource> const& array64)
+WebIDL::ExceptionOr<GC::Ref<DOMMatrix>> DOMMatrix::from_float64_array(JS::VM& vm, GC::Root<WebIDL::BufferSource> const& array64)
 {
     if (!is<JS::Float64Array>(*array64->raw_object()))
         return vm.throw_completion<JS::TypeError>(JS::ErrorType::NotAnObjectOfType, "Float64Array");
@@ -383,7 +383,7 @@ void DOMMatrix::set_f(double value)
 }
 
 // https://drafts.fxtf.org/geometry/#dom-dommatrix-multiplyself
-WebIDL::ExceptionOr<JS::NonnullGCPtr<DOMMatrix>> DOMMatrix::multiply_self(DOMMatrixInit other)
+WebIDL::ExceptionOr<GC::Ref<DOMMatrix>> DOMMatrix::multiply_self(DOMMatrixInit other)
 {
     // 1. Let otherObject be the result of invoking create a DOMMatrix from the dictionary other.
     auto other_object = TRY(DOMMatrix::create_from_dom_matrix_init(realm(), other));
@@ -396,11 +396,11 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<DOMMatrix>> DOMMatrix::multiply_self(DOMMat
         m_is_2d = false;
 
     // 4. Return the current matrix.
-    return JS::NonnullGCPtr<DOMMatrix>(*this);
+    return GC::Ref<DOMMatrix>(*this);
 }
 
 // https://drafts.fxtf.org/geometry/#dom-dommatrix-premultiplyself
-WebIDL::ExceptionOr<JS::NonnullGCPtr<DOMMatrix>> DOMMatrix::pre_multiply_self(DOMMatrixInit other)
+WebIDL::ExceptionOr<GC::Ref<DOMMatrix>> DOMMatrix::pre_multiply_self(DOMMatrixInit other)
 {
     // 1. Let otherObject be the result of invoking create a DOMMatrix from the dictionary other.
     auto other_object = TRY(DOMMatrix::create_from_dom_matrix_init(realm(), other));
@@ -413,11 +413,11 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<DOMMatrix>> DOMMatrix::pre_multiply_self(DO
         m_is_2d = false;
 
     // 4. Return the current matrix.
-    return JS::NonnullGCPtr<DOMMatrix>(*this);
+    return GC::Ref<DOMMatrix>(*this);
 }
 
 // https://drafts.fxtf.org/geometry/#dom-dommatrix-translateself
-JS::NonnullGCPtr<DOMMatrix> DOMMatrix::translate_self(Optional<double> tx, Optional<double> ty, Optional<double> tz)
+GC::Ref<DOMMatrix> DOMMatrix::translate_self(Optional<double> tx, Optional<double> ty, Optional<double> tz)
 {
     // 1. Post-multiply a translation transformation on the current matrix. The 3D translation matrix is described in CSS Transforms.
     m_matrix = m_matrix * Gfx::translation_matrix(Vector3<double> { tx.value_or(0), ty.value_or(0), tz.value_or(0) });
@@ -431,7 +431,7 @@ JS::NonnullGCPtr<DOMMatrix> DOMMatrix::translate_self(Optional<double> tx, Optio
 }
 
 // https://drafts.fxtf.org/geometry/#dom-dommatrix-scaleself
-JS::NonnullGCPtr<DOMMatrix> DOMMatrix::scale_self(Optional<double> scale_x, Optional<double> scale_y, Optional<double> scale_z, Optional<double> origin_x, Optional<double> origin_y, Optional<double> origin_z)
+GC::Ref<DOMMatrix> DOMMatrix::scale_self(Optional<double> scale_x, Optional<double> scale_y, Optional<double> scale_z, Optional<double> origin_x, Optional<double> origin_y, Optional<double> origin_z)
 {
     // 1. Perform a translateSelf() transformation on the current matrix with the arguments originX, originY, originZ.
     translate_self(origin_x, origin_y, origin_z);
@@ -456,7 +456,7 @@ JS::NonnullGCPtr<DOMMatrix> DOMMatrix::scale_self(Optional<double> scale_x, Opti
 }
 
 // https://drafts.fxtf.org/geometry/#dom-dommatrix-scale3dself
-JS::NonnullGCPtr<DOMMatrix> DOMMatrix::scale3d_self(Optional<double> scale, Optional<double> origin_x, Optional<double> origin_y, Optional<double> origin_z)
+GC::Ref<DOMMatrix> DOMMatrix::scale3d_self(Optional<double> scale, Optional<double> origin_x, Optional<double> origin_y, Optional<double> origin_z)
 {
     // 1. Apply a translateSelf() transformation to the current matrix with the arguments originX, originY, originZ.
     translate_self(origin_x, origin_y, origin_z);
@@ -476,7 +476,7 @@ JS::NonnullGCPtr<DOMMatrix> DOMMatrix::scale3d_self(Optional<double> scale, Opti
 }
 
 // https://drafts.fxtf.org/geometry/#dom-dommatrix-rotateself
-JS::NonnullGCPtr<DOMMatrix> DOMMatrix::rotate_self(Optional<double> rot_x, Optional<double> rot_y, Optional<double> rot_z)
+GC::Ref<DOMMatrix> DOMMatrix::rotate_self(Optional<double> rot_x, Optional<double> rot_y, Optional<double> rot_z)
 {
     // 1. If rotY and rotZ are both missing, set rotZ to the value of rotX and set rotX and rotY to 0.
     if (!rot_y.has_value() && !rot_z.has_value()) {
@@ -510,7 +510,7 @@ JS::NonnullGCPtr<DOMMatrix> DOMMatrix::rotate_self(Optional<double> rot_x, Optio
     return *this;
 }
 
-JS::NonnullGCPtr<DOMMatrix> DOMMatrix::rotate_from_vector_self(Optional<double> x, Optional<double> y)
+GC::Ref<DOMMatrix> DOMMatrix::rotate_from_vector_self(Optional<double> x, Optional<double> y)
 {
     // 1. Post-multiply a rotation transformation on the current matrix.
     //    The rotation angle is determined by the angle between the vector (1,0)T and (x,y)T in the clockwise direction. If x and y should both be 0 or -0, the angle is specified as 0.
@@ -523,7 +523,7 @@ JS::NonnullGCPtr<DOMMatrix> DOMMatrix::rotate_from_vector_self(Optional<double> 
     return *this;
 }
 
-JS::NonnullGCPtr<DOMMatrix> DOMMatrix::rotate_axis_angle_self(Optional<double> x, Optional<double> y, Optional<double> z, Optional<double> angle)
+GC::Ref<DOMMatrix> DOMMatrix::rotate_axis_angle_self(Optional<double> x, Optional<double> y, Optional<double> z, Optional<double> angle)
 {
     // 1. Post-multiply a rotation transformation on the current matrix around the specified vector x, y, z by the specified rotation angle in degrees. The 3D rotation matrix is described in CSS Transforms with alpha = angle in degrees. [CSS3-TRANSFORMS]
     m_matrix = m_matrix * Gfx::rotation_matrix<double>(Vector3<double> { x.value_or(0), y.value_or(0), z.value_or(0) }.normalized(), AK::to_radians(angle.value()));
@@ -537,7 +537,7 @@ JS::NonnullGCPtr<DOMMatrix> DOMMatrix::rotate_axis_angle_self(Optional<double> x
 }
 
 // https://drafts.fxtf.org/geometry/#dom-dommatrix-skewxself
-JS::NonnullGCPtr<DOMMatrix> DOMMatrix::skew_x_self(double sx)
+GC::Ref<DOMMatrix> DOMMatrix::skew_x_self(double sx)
 {
     // 1. Post-multiply a skewX transformation on the current matrix by the specified angle sx in degrees. The 2D skewX matrix is described in CSS Transforms with alpha = sx in degrees. [CSS3-TRANSFORMS]
     Gfx::DoubleMatrix4x4 skew_matrix = {
@@ -553,7 +553,7 @@ JS::NonnullGCPtr<DOMMatrix> DOMMatrix::skew_x_self(double sx)
 }
 
 // https://drafts.fxtf.org/geometry/#dom-dommatrix-skewyself
-JS::NonnullGCPtr<DOMMatrix> DOMMatrix::skew_y_self(double sy)
+GC::Ref<DOMMatrix> DOMMatrix::skew_y_self(double sy)
 {
     // 1. Post-multiply a skewX transformation on the current matrix by the specified angle sy in degrees. The 2D skewY matrix is described in CSS Transforms with beta = sy in degrees. [CSS3-TRANSFORMS]
     Gfx::DoubleMatrix4x4 skew_matrix = {
@@ -569,7 +569,7 @@ JS::NonnullGCPtr<DOMMatrix> DOMMatrix::skew_y_self(double sy)
 }
 
 // https://drafts.fxtf.org/geometry/#dom-dommatrix-invertself
-JS::NonnullGCPtr<DOMMatrix> DOMMatrix::invert_self()
+GC::Ref<DOMMatrix> DOMMatrix::invert_self()
 {
     bool is_invertible = m_matrix.is_invertible();
 
@@ -591,7 +591,7 @@ JS::NonnullGCPtr<DOMMatrix> DOMMatrix::invert_self()
 }
 
 // https://drafts.fxtf.org/geometry/#dom-dommatrix-setmatrixvalue
-WebIDL::ExceptionOr<JS::NonnullGCPtr<DOMMatrix>> DOMMatrix::set_matrix_value(String const& transform_list)
+WebIDL::ExceptionOr<GC::Ref<DOMMatrix>> DOMMatrix::set_matrix_value(String const& transform_list)
 {
     // 1. Parse transformList into an abstract matrix, and let matrix and 2dTransform be the result. If the result is failure, then throw a "SyntaxError" DOMException.
     auto result = TRY(parse_dom_matrix_init_string(realm(), transform_list));
@@ -603,7 +603,7 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<DOMMatrix>> DOMMatrix::set_matrix_value(Str
     m_matrix = result.matrix;
 
     // 4. Return the current matrix.
-    return JS::NonnullGCPtr<DOMMatrix>(*this);
+    return GC::Ref<DOMMatrix>(*this);
 }
 
 }

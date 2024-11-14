@@ -8,8 +8,8 @@
 #pragma once
 
 #include <AK/Forward.h>
+#include <LibGC/Function.h>
 #include <LibJS/Forward.h>
-#include <LibJS/Heap/HeapFunction.h>
 #include <LibJS/Runtime/Promise.h>
 #include <LibJS/Runtime/Value.h>
 #include <LibWeb/Forward.h>
@@ -21,9 +21,9 @@ struct ExecutionResult {
     JS::Value value {};
 };
 
-using OnScriptComplete = JS::HeapFunction<void(ExecutionResult)>;
+using OnScriptComplete = GC::Function<void(ExecutionResult)>;
 
-void execute_script(HTML::BrowsingContext const&, ByteString body, JS::MarkedVector<JS::Value> arguments, Optional<u64> const& timeout_ms, JS::NonnullGCPtr<OnScriptComplete> on_complete);
-void execute_async_script(HTML::BrowsingContext const&, ByteString body, JS::MarkedVector<JS::Value> arguments, Optional<u64> const& timeout_ms, JS::NonnullGCPtr<OnScriptComplete> on_complete);
+void execute_script(HTML::BrowsingContext const&, ByteString body, GC::MarkedVector<JS::Value> arguments, Optional<u64> const& timeout_ms, GC::Ref<OnScriptComplete> on_complete);
+void execute_async_script(HTML::BrowsingContext const&, ByteString body, GC::MarkedVector<JS::Value> arguments, Optional<u64> const& timeout_ms, GC::Ref<OnScriptComplete> on_complete);
 
 }

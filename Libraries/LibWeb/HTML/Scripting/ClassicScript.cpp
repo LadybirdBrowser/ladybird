@@ -16,11 +16,11 @@
 
 namespace Web::HTML {
 
-JS_DEFINE_ALLOCATOR(ClassicScript);
+GC_DEFINE_ALLOCATOR(ClassicScript);
 
 // https://html.spec.whatwg.org/multipage/webappapis.html#creating-a-classic-script
 // https://whatpr.org/html/9893/webappapis.html#creating-a-classic-script
-JS::NonnullGCPtr<ClassicScript> ClassicScript::create(ByteString filename, StringView source, JS::Realm& realm, URL::URL base_url, size_t source_line_number, MutedErrors muted_errors)
+GC::Ref<ClassicScript> ClassicScript::create(ByteString filename, StringView source, JS::Realm& realm, URL::URL base_url, size_t source_line_number, MutedErrors muted_errors)
 {
     auto& vm = realm.vm();
 
@@ -75,7 +75,7 @@ JS::NonnullGCPtr<ClassicScript> ClassicScript::create(ByteString filename, Strin
 
 // https://html.spec.whatwg.org/multipage/webappapis.html#run-a-classic-script
 // https://whatpr.org/html/9893/webappapis.html#run-a-classic-script
-JS::Completion ClassicScript::run(RethrowErrors rethrow_errors, JS::GCPtr<JS::Environment> lexical_environment_override)
+JS::Completion ClassicScript::run(RethrowErrors rethrow_errors, GC::Ptr<JS::Environment> lexical_environment_override)
 {
     // 1. Let realm be the realm of script.
     auto& realm = this->realm();

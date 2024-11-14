@@ -15,9 +15,9 @@
 
 namespace Web::HTML {
 
-JS_DEFINE_ALLOCATOR(History);
+GC_DEFINE_ALLOCATOR(History);
 
-JS::NonnullGCPtr<History> History::create(JS::Realm& realm, DOM::Document& document)
+GC::Ref<History> History::create(JS::Realm& realm, DOM::Document& document)
 {
     return realm.create<History>(realm, document);
 }

@@ -6,12 +6,12 @@
 
 #include "TimerSerenity.h"
 #include <LibCore/Timer.h>
-#include <LibJS/Heap/Heap.h>
-#include <LibJS/Heap/HeapFunction.h>
+#include <LibGC/Function.h>
+#include <LibGC/Heap.h>
 
 namespace Web::Platform {
 
-JS::NonnullGCPtr<TimerSerenity> TimerSerenity::create(JS::Heap& heap)
+GC::Ref<TimerSerenity> TimerSerenity::create(GC::Heap& heap)
 {
     return heap.allocate<TimerSerenity>();
 }

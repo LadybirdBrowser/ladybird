@@ -9,9 +9,9 @@
 
 namespace Web::WebIDL {
 
-JS_DEFINE_ALLOCATOR(ObservableArray);
+GC_DEFINE_ALLOCATOR(ObservableArray);
 
-JS::NonnullGCPtr<ObservableArray> ObservableArray::create(JS::Realm& realm)
+GC::Ref<ObservableArray> ObservableArray::create(JS::Realm& realm)
 {
     auto prototype = realm.intrinsics().array_prototype();
     return realm.create<ObservableArray>(prototype);
@@ -31,12 +31,12 @@ void ObservableArray::visit_edges(JS::Cell::Visitor& visitor)
 
 void ObservableArray::set_on_set_an_indexed_value_callback(SetAnIndexedValueCallbackFunction&& callback)
 {
-    m_on_set_an_indexed_value = create_heap_function(heap(), move(callback));
+    m_on_set_an_indexed_value = GC::create_function(heap(), move(callback));
 }
 
 void ObservableArray::set_on_delete_an_indexed_value_callback(DeleteAnIndexedValueCallbackFunction&& callback)
 {
-    m_on_delete_an_indexed_value = create_heap_function(heap(), move(callback));
+    m_on_delete_an_indexed_value = GC::create_function(heap(), move(callback));
 }
 
 JS::ThrowCompletionOr<bool> ObservableArray::internal_set(JS::PropertyKey const& property_key, JS::Value value, JS::Value receiver, JS::CacheablePropertyMetadata* metadata)

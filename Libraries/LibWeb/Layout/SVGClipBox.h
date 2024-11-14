@@ -13,8 +13,8 @@
 namespace Web::Layout {
 
 class SVGClipBox : public SVGBox {
-    JS_CELL(SVGClipBox, SVGBox);
-    JS_DECLARE_ALLOCATOR(SVGClipBox);
+    GC_CELL(SVGClipBox, SVGBox);
+    GC_DECLARE_ALLOCATOR(SVGClipBox);
 
 public:
     SVGClipBox(DOM::Document&, SVG::SVGClipPathElement&, CSS::StyleProperties);
@@ -23,7 +23,7 @@ public:
     SVG::SVGClipPathElement& dom_node() { return verify_cast<SVG::SVGClipPathElement>(SVGBox::dom_node()); }
     SVG::SVGClipPathElement const& dom_node() const { return verify_cast<SVG::SVGClipPathElement>(SVGBox::dom_node()); }
 
-    virtual JS::GCPtr<Painting::Paintable> create_paintable() const override;
+    virtual GC::Ptr<Painting::Paintable> create_paintable() const override;
 };
 
 }

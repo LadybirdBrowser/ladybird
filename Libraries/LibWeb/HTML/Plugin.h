@@ -13,7 +13,7 @@ namespace Web::HTML {
 // https://html.spec.whatwg.org/multipage/system-state.html#dom-plugin
 class Plugin : public Bindings::PlatformObject {
     WEB_PLATFORM_OBJECT(Plugin, Bindings::PlatformObject);
-    JS_DECLARE_ALLOCATOR(Plugin);
+    GC_DECLARE_ALLOCATOR(Plugin);
 
 public:
     virtual ~Plugin() override;
@@ -22,8 +22,8 @@ public:
     String description() const;
     String filename() const;
     size_t length() const;
-    JS::GCPtr<MimeType> item(u32 index) const;
-    JS::GCPtr<MimeType> named_item(FlyString const& name) const;
+    GC::Ptr<MimeType> item(u32 index) const;
+    GC::Ptr<MimeType> named_item(FlyString const& name) const;
 
 private:
     Plugin(JS::Realm&, String name);

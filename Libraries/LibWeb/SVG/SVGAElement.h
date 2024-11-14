@@ -16,14 +16,14 @@ class SVGAElement final
     : public SVGGraphicsElement
     , public SVGURIReferenceMixin<SupportsXLinkHref::Yes> {
     WEB_PLATFORM_OBJECT(SVGAElement, SVGGraphicsElement);
-    JS_DECLARE_ALLOCATOR(SVGAElement);
+    GC_DECLARE_ALLOCATOR(SVGAElement);
 
 public:
     virtual ~SVGAElement() override;
 
-    JS::NonnullGCPtr<DOM::DOMTokenList> rel_list();
+    GC::Ref<DOM::DOMTokenList> rel_list();
 
-    virtual JS::GCPtr<Layout::Node> create_layout_node(CSS::StyleProperties) override;
+    virtual GC::Ptr<Layout::Node> create_layout_node(CSS::StyleProperties) override;
 
 private:
     SVGAElement(DOM::Document&, DOM::QualifiedName);
@@ -35,7 +35,7 @@ private:
     virtual void attribute_changed(FlyString const& name, Optional<String> const& old_value, Optional<String> const& value, Optional<FlyString> const& namespace_) override;
     virtual i32 default_tab_index_value() const override;
 
-    JS::GCPtr<DOM::DOMTokenList> m_rel_list;
+    GC::Ptr<DOM::DOMTokenList> m_rel_list;
 };
 
 }

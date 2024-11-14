@@ -10,7 +10,7 @@
 
 namespace Web::HTML {
 
-JS_DEFINE_ALLOCATOR(HTMLTimeElement);
+GC_DEFINE_ALLOCATOR(HTMLTimeElement);
 
 HTMLTimeElement::HTMLTimeElement(DOM::Document& document, DOM::QualifiedName qualified_name)
     : HTMLElement(document, move(qualified_name))

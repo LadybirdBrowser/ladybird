@@ -101,7 +101,7 @@ ThrowCompletionOr<Value> await(VM& vm, Value value)
     //        running all queued promise jobs.
     // Note: This is not used by LibJS itself, and is performed for the embedder (i.e. LibWeb).
     if (auto* custom_data = vm.custom_data()) {
-        custom_data->spin_event_loop_until(create_heap_function(vm.heap(), [success] {
+        custom_data->spin_event_loop_until(GC::create_function(vm.heap(), [success] {
             return success.has_value();
         }));
     }

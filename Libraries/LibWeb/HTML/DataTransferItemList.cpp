@@ -15,14 +15,14 @@
 
 namespace Web::HTML {
 
-JS_DEFINE_ALLOCATOR(DataTransferItemList);
+GC_DEFINE_ALLOCATOR(DataTransferItemList);
 
-JS::NonnullGCPtr<DataTransferItemList> DataTransferItemList::create(JS::Realm& realm, JS::NonnullGCPtr<DataTransfer> data_transfer)
+GC::Ref<DataTransferItemList> DataTransferItemList::create(JS::Realm& realm, GC::Ref<DataTransfer> data_transfer)
 {
     return realm.create<DataTransferItemList>(realm, data_transfer);
 }
 
-DataTransferItemList::DataTransferItemList(JS::Realm& realm, JS::NonnullGCPtr<DataTransfer> data_transfer)
+DataTransferItemList::DataTransferItemList(JS::Realm& realm, GC::Ref<DataTransfer> data_transfer)
     : PlatformObject(realm)
     , m_data_transfer(data_transfer)
 {
@@ -52,7 +52,7 @@ WebIDL::UnsignedLong DataTransferItemList::length() const
 }
 
 // https://html.spec.whatwg.org/multipage/dnd.html#dom-datatransferitemlist-add
-WebIDL::ExceptionOr<JS::GCPtr<DataTransferItem>> DataTransferItemList::add(String const& data, String const& type)
+WebIDL::ExceptionOr<GC::Ptr<DataTransferItem>> DataTransferItemList::add(String const& data, String const& type)
 {
     auto& realm = this->realm();
 
@@ -87,7 +87,7 @@ WebIDL::ExceptionOr<JS::GCPtr<DataTransferItem>> DataTransferItemList::add(Strin
 }
 
 // https://html.spec.whatwg.org/multipage/dnd.html#dom-datatransferitemlist-add
-JS::GCPtr<DataTransferItem> DataTransferItemList::add(JS::NonnullGCPtr<FileAPI::File> file)
+GC::Ptr<DataTransferItem> DataTransferItemList::add(GC::Ref<FileAPI::File> file)
 {
     // 1. If the DataTransferItemList object is not in the read/write mode, return null.
     if (m_data_transfer->mode() != DragDataStore::Mode::ReadWrite)

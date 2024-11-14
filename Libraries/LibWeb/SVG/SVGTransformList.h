@@ -16,18 +16,18 @@ namespace Web::SVG {
 // https://svgwg.org/svg2-draft/single-page.html#coords-InterfaceSVGTransformList
 class SVGTransformList final : public Bindings::PlatformObject {
     WEB_PLATFORM_OBJECT(SVGTransformList, Bindings::PlatformObject);
-    JS_DECLARE_ALLOCATOR(SVGTransformList);
+    GC_DECLARE_ALLOCATOR(SVGTransformList);
 
 public:
-    [[nodiscard]] static JS::NonnullGCPtr<SVGTransformList> create(JS::Realm& realm);
+    [[nodiscard]] static GC::Ref<SVGTransformList> create(JS::Realm& realm);
     virtual ~SVGTransformList() override;
 
     WebIDL::UnsignedLong length();
     WebIDL::UnsignedLong number_of_items();
 
-    WebIDL::ExceptionOr<JS::NonnullGCPtr<SVGTransform>> get_item(WebIDL::UnsignedLong index);
+    WebIDL::ExceptionOr<GC::Ref<SVGTransform>> get_item(WebIDL::UnsignedLong index);
 
-    JS::NonnullGCPtr<SVGTransform> append_item(JS::NonnullGCPtr<SVGTransform> new_item);
+    GC::Ref<SVGTransform> append_item(GC::Ref<SVGTransform> new_item);
 
 private:
     SVGTransformList(JS::Realm& realm);
@@ -35,7 +35,7 @@ private:
     virtual void initialize(JS::Realm& realm) override;
     virtual void visit_edges(Cell::Visitor& visitor) override;
 
-    Vector<JS::NonnullGCPtr<SVGTransform>> m_transforms;
+    Vector<GC::Ref<SVGTransform>> m_transforms;
 };
 
 }

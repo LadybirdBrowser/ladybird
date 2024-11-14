@@ -11,7 +11,7 @@
 #include <AK/Function.h>
 #include <AK/HashMap.h>
 #include <AK/NonnullOwnPtr.h>
-#include <LibJS/Heap/Handle.h>
+#include <LibGC/Root.h>
 #include <WebContent/Forward.h>
 
 namespace WebContent {
@@ -34,7 +34,7 @@ private:
     explicit PageHost(ConnectionFromClient&);
 
     ConnectionFromClient& m_client;
-    HashMap<u64, JS::Handle<PageClient>> m_pages;
+    HashMap<u64, GC::Root<PageClient>> m_pages;
     u64 m_next_id { 0 };
 };
 

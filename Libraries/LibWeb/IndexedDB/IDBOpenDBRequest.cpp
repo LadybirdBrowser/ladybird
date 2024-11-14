@@ -12,7 +12,7 @@
 
 namespace Web::IndexedDB {
 
-JS_DEFINE_ALLOCATOR(IDBOpenDBRequest);
+GC_DEFINE_ALLOCATOR(IDBOpenDBRequest);
 
 IDBOpenDBRequest::~IDBOpenDBRequest() = default;
 
@@ -27,7 +27,7 @@ void IDBOpenDBRequest::initialize(JS::Realm& realm)
     WEB_SET_PROTOTYPE_FOR_INTERFACE(IDBOpenDBRequest);
 }
 
-JS::NonnullGCPtr<IDBOpenDBRequest> IDBOpenDBRequest::create(JS::Realm& realm)
+GC::Ref<IDBOpenDBRequest> IDBOpenDBRequest::create(JS::Realm& realm)
 {
     return realm.create<IDBOpenDBRequest>(realm);
 }

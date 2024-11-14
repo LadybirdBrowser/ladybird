@@ -15,9 +15,9 @@
 
 namespace JS::Intl {
 
-JS_DEFINE_ALLOCATOR(Locale);
+GC_DEFINE_ALLOCATOR(Locale);
 
-NonnullGCPtr<Locale> Locale::create(Realm& realm, NonnullGCPtr<Locale> source_locale, String locale_tag)
+GC::Ref<Locale> Locale::create(Realm& realm, GC::Ref<Locale> source_locale, String locale_tag)
 {
     auto locale = realm.create<Locale>(realm.intrinsics().intl_locale_prototype());
 
@@ -39,7 +39,7 @@ Locale::Locale(Object& prototype)
 }
 
 // 1.1.1 CreateArrayFromListOrRestricted ( list , restricted )
-static NonnullGCPtr<Array> create_array_from_list_or_restricted(VM& vm, Vector<String> list, Optional<String> restricted)
+static GC::Ref<Array> create_array_from_list_or_restricted(VM& vm, Vector<String> list, Optional<String> restricted)
 {
     auto& realm = *vm.current_realm();
 
@@ -56,7 +56,7 @@ static NonnullGCPtr<Array> create_array_from_list_or_restricted(VM& vm, Vector<S
 }
 
 // 1.1.2 CalendarsOfLocale ( loc ), https://tc39.es/proposal-intl-locale-info/#sec-calendars-of-locale
-NonnullGCPtr<Array> calendars_of_locale(VM& vm, Locale const& locale_object)
+GC::Ref<Array> calendars_of_locale(VM& vm, Locale const& locale_object)
 {
     // 1. Let restricted be loc.[[Calendar]].
     Optional<String> restricted = locale_object.has_calendar() ? locale_object.calendar() : Optional<String> {};
@@ -75,7 +75,7 @@ NonnullGCPtr<Array> calendars_of_locale(VM& vm, Locale const& locale_object)
 }
 
 // 1.1.3 CollationsOfLocale ( loc ), https://tc39.es/proposal-intl-locale-info/#sec-collations-of-locale
-NonnullGCPtr<Array> collations_of_locale(VM& vm, Locale const& locale_object)
+GC::Ref<Array> collations_of_locale(VM& vm, Locale const& locale_object)
 {
     // 1. Let restricted be loc.[[Collation]].
     Optional<String> restricted = locale_object.has_collation() ? locale_object.collation() : Optional<String> {};
@@ -94,7 +94,7 @@ NonnullGCPtr<Array> collations_of_locale(VM& vm, Locale const& locale_object)
 }
 
 // 1.1.4 HourCyclesOfLocale ( loc ), https://tc39.es/proposal-intl-locale-info/#sec-hour-cycles-of-locale
-NonnullGCPtr<Array> hour_cycles_of_locale(VM& vm, Locale const& locale_object)
+GC::Ref<Array> hour_cycles_of_locale(VM& vm, Locale const& locale_object)
 {
     // 1. Let restricted be loc.[[HourCycle]].
     Optional<String> restricted = locale_object.has_hour_cycle() ? locale_object.hour_cycle() : Optional<String> {};
@@ -113,7 +113,7 @@ NonnullGCPtr<Array> hour_cycles_of_locale(VM& vm, Locale const& locale_object)
 }
 
 // 1.1.5 NumberingSystemsOfLocale ( loc ), https://tc39.es/proposal-intl-locale-info/#sec-numbering-systems-of-locale
-NonnullGCPtr<Array> numbering_systems_of_locale(VM& vm, Locale const& locale_object)
+GC::Ref<Array> numbering_systems_of_locale(VM& vm, Locale const& locale_object)
 {
     // 1. Let restricted be loc.[[NumberingSystem]].
     Optional<String> restricted = locale_object.has_numbering_system() ? locale_object.numbering_system() : Optional<String> {};
@@ -133,7 +133,7 @@ NonnullGCPtr<Array> numbering_systems_of_locale(VM& vm, Locale const& locale_obj
 
 // 1.1.6 TimeZonesOfLocale ( loc ), https://tc39.es/proposal-intl-locale-info/#sec-time-zones-of-locale
 // NOTE: Our implementation takes a region rather than a Locale object to avoid needlessly parsing the locale twice.
-NonnullGCPtr<Array> time_zones_of_locale(VM& vm, StringView region)
+GC::Ref<Array> time_zones_of_locale(VM& vm, StringView region)
 {
     auto& realm = *vm.current_realm();
 

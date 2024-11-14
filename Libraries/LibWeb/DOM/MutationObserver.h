@@ -8,7 +8,7 @@
 #pragma once
 
 #include <AK/RefCounted.h>
-#include <LibJS/Heap/Handle.h>
+#include <LibGC/Root.h>
 #include <LibWeb/DOM/MutationRecord.h>
 #include <LibWeb/WebIDL/CallbackType.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
@@ -29,34 +29,34 @@ struct MutationObserverInit {
 // https://dom.spec.whatwg.org/#mutationobserver
 class MutationObserver final : public Bindings::PlatformObject {
     WEB_PLATFORM_OBJECT(MutationObserver, Bindings::PlatformObject);
-    JS_DECLARE_ALLOCATOR(MutationObserver);
+    GC_DECLARE_ALLOCATOR(MutationObserver);
 
 public:
-    static WebIDL::ExceptionOr<JS::NonnullGCPtr<MutationObserver>> construct_impl(JS::Realm&, JS::GCPtr<WebIDL::CallbackType>);
+    static WebIDL::ExceptionOr<GC::Ref<MutationObserver>> construct_impl(JS::Realm&, GC::Ptr<WebIDL::CallbackType>);
     virtual ~MutationObserver() override;
 
     WebIDL::ExceptionOr<void> observe(Node& target, MutationObserverInit options = {});
     void disconnect();
-    Vector<JS::Handle<MutationRecord>> take_records();
+    Vector<GC::Root<MutationRecord>> take_records();
 
     Vector<WeakPtr<Node>>& node_list() { return m_node_list; }
     Vector<WeakPtr<Node>> const& node_list() const { return m_node_list; }
 
     WebIDL::CallbackType& callback() { return *m_callback; }
 
-    void enqueue_record(Badge<Node>, JS::NonnullGCPtr<MutationRecord> mutation_record)
+    void enqueue_record(Badge<Node>, GC::Ref<MutationRecord> mutation_record)
     {
         m_record_queue.append(*mutation_record);
     }
 
 private:
-    MutationObserver(JS::Realm&, JS::GCPtr<WebIDL::CallbackType>);
+    MutationObserver(JS::Realm&, GC::Ptr<WebIDL::CallbackType>);
 
     virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Cell::Visitor&) override;
 
     // https://dom.spec.whatwg.org/#concept-mo-callback
-    JS::GCPtr<WebIDL::CallbackType> m_callback;
+    GC::Ptr<WebIDL::CallbackType> m_callback;
 
     // https://dom.spec.whatwg.org/#mutationobserver-node-list
     // NOTE: These are weak, per https://dom.spec.whatwg.org/#garbage-collection
@@ -64,18 +64,18 @@ private:
     Vector<WeakPtr<Node>> m_node_list;
 
     // https://dom.spec.whatwg.org/#concept-mo-queue
-    Vector<JS::NonnullGCPtr<MutationRecord>> m_record_queue;
+    Vector<GC::Ref<MutationRecord>> m_record_queue;
 };
 
 // https://dom.spec.whatwg.org/#registered-observer
 class RegisteredObserver : public JS::Cell {
-    JS_CELL(RegisteredObserver, JS::Cell);
+    GC_CELL(RegisteredObserver, JS::Cell);
 
 public:
-    static JS::NonnullGCPtr<RegisteredObserver> create(MutationObserver&, MutationObserverInit const&);
+    static GC::Ref<RegisteredObserver> create(MutationObserver&, MutationObserverInit const&);
     virtual ~RegisteredObserver() override;
 
-    JS::NonnullGCPtr<MutationObserver> observer() const { return m_observer; }
+    GC::Ref<MutationObserver> observer() const { return m_observer; }
 
     MutationObserverInit const& options() const { return m_options; }
     void set_options(MutationObserverInit options) { m_options = move(options); }
@@ -86,27 +86,27 @@ protected:
     virtual void visit_edges(Cell::Visitor&) override;
 
 private:
-    JS::NonnullGCPtr<MutationObserver> m_observer;
+    GC::Ref<MutationObserver> m_observer;
     MutationObserverInit m_options;
 };
 
 // https://dom.spec.whatwg.org/#transient-registered-observer
 class TransientRegisteredObserver final : public RegisteredObserver {
-    JS_CELL(TransientRegisteredObserver, RegisteredObserver);
-    JS_DECLARE_ALLOCATOR(TransientRegisteredObserver);
+    GC_CELL(TransientRegisteredObserver, RegisteredObserver);
+    GC_DECLARE_ALLOCATOR(TransientRegisteredObserver);
 
 public:
-    static JS::NonnullGCPtr<TransientRegisteredObserver> create(MutationObserver&, MutationObserverInit const&, RegisteredObserver& source);
+    static GC::Ref<TransientRegisteredObserver> create(MutationObserver&, MutationObserverInit const&, RegisteredObserver& source);
     virtual ~TransientRegisteredObserver() override;
 
-    JS::NonnullGCPtr<RegisteredObserver> source() const { return m_source; }
+    GC::Ref<RegisteredObserver> source() const { return m_source; }
 
 private:
     TransientRegisteredObserver(MutationObserver& observer, MutationObserverInit const& options, RegisteredObserver& source);
 
     virtual void visit_edges(Cell::Visitor&) override;
 
-    JS::NonnullGCPtr<RegisteredObserver> m_source;
+    GC::Ref<RegisteredObserver> m_source;
 };
 
 }

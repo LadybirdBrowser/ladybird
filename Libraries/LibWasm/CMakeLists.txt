@@ -9,6 +9,6 @@ set(SOURCES
 )
 
 serenity_lib(LibWasm wasm)
-target_link_libraries(LibWasm PRIVATE LibCore LibJS)
+target_link_libraries(LibWasm PRIVATE LibCore LibGC LibJS)
 
 include(wasm_spec_tests)

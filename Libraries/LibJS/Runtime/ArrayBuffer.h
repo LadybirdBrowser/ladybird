@@ -56,12 +56,12 @@ struct DataBlock {
 
 class ArrayBuffer : public Object {
     JS_OBJECT(ArrayBuffer, Object);
-    JS_DECLARE_ALLOCATOR(ArrayBuffer);
+    GC_DECLARE_ALLOCATOR(ArrayBuffer);
 
 public:
-    static ThrowCompletionOr<NonnullGCPtr<ArrayBuffer>> create(Realm&, size_t);
-    static NonnullGCPtr<ArrayBuffer> create(Realm&, ByteBuffer);
-    static NonnullGCPtr<ArrayBuffer> create(Realm&, ByteBuffer*);
+    static ThrowCompletionOr<GC::Ref<ArrayBuffer>> create(Realm&, size_t);
+    static GC::Ref<ArrayBuffer> create(Realm&, ByteBuffer);
+    static GC::Ref<ArrayBuffer> create(Realm&, ByteBuffer*);
 
     virtual ~ArrayBuffer() override = default;
 
@@ -152,7 +152,7 @@ ThrowCompletionOr<ArrayBuffer*> array_buffer_copy_and_detach(VM&, ArrayBuffer& a
 ThrowCompletionOr<void> detach_array_buffer(VM&, ArrayBuffer& array_buffer, Optional<Value> key = {});
 ThrowCompletionOr<Optional<size_t>> get_array_buffer_max_byte_length_option(VM&, Value options);
 ThrowCompletionOr<ArrayBuffer*> clone_array_buffer(VM&, ArrayBuffer& source_buffer, size_t source_byte_offset, size_t source_length);
-ThrowCompletionOr<NonnullGCPtr<ArrayBuffer>> allocate_shared_array_buffer(VM&, FunctionObject& constructor, size_t byte_length);
+ThrowCompletionOr<GC::Ref<ArrayBuffer>> allocate_shared_array_buffer(VM&, FunctionObject& constructor, size_t byte_length);
 
 // 25.1.3.2 ArrayBufferByteLength ( arrayBuffer, order ), https://tc39.es/ecma262/#sec-arraybufferbytelength
 inline size_t array_buffer_byte_length(ArrayBuffer const& array_buffer, ArrayBuffer::Order)

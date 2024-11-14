@@ -15,14 +15,14 @@
 
 namespace Web::Selection {
 
-JS_DEFINE_ALLOCATOR(Selection);
+GC_DEFINE_ALLOCATOR(Selection);
 
-JS::NonnullGCPtr<Selection> Selection::create(JS::NonnullGCPtr<JS::Realm> realm, JS::NonnullGCPtr<DOM::Document> document)
+GC::Ref<Selection> Selection::create(GC::Ref<JS::Realm> realm, GC::Ref<DOM::Document> document)
 {
     return realm->create<Selection>(realm, document);
 }
 
-Selection::Selection(JS::NonnullGCPtr<JS::Realm> realm, JS::NonnullGCPtr<DOM::Document> document)
+Selection::Selection(GC::Ref<JS::Realm> realm, GC::Ref<DOM::Document> document)
     : PlatformObject(realm)
     , m_document(document)
 {
@@ -55,7 +55,7 @@ void Selection::visit_edges(Cell::Visitor& visitor)
 }
 
 // https://w3c.github.io/selection-api/#dfn-anchor
-JS::GCPtr<DOM::Node> Selection::anchor_node()
+GC::Ptr<DOM::Node> Selection::anchor_node()
 {
     if (!m_range)
         return nullptr;
@@ -75,7 +75,7 @@ unsigned Selection::anchor_offset()
 }
 
 // https://w3c.github.io/selection-api/#dfn-focus
-JS::GCPtr<DOM::Node> Selection::focus_node()
+GC::Ptr<DOM::Node> Selection::focus_node()
 {
     if (!m_range)
         return nullptr;
@@ -132,7 +132,7 @@ String Selection::direction() const
 }
 
 // https://w3c.github.io/selection-api/#dom-selection-getrangeat
-WebIDL::ExceptionOr<JS::GCPtr<DOM::Range>> Selection::get_range_at(unsigned index)
+WebIDL::ExceptionOr<GC::Ptr<DOM::Range>> Selection::get_range_at(unsigned index)
 {
     // The method must throw an IndexSizeError exception if index is not 0, or if this is empty.
     if (index != 0 || is_empty())
@@ -143,7 +143,7 @@ WebIDL::ExceptionOr<JS::GCPtr<DOM::Range>> Selection::get_range_at(unsigned inde
 }
 
 // https://w3c.github.io/selection-api/#dom-selection-addrange
-void Selection::add_range(JS::NonnullGCPtr<DOM::Range> range)
+void Selection::add_range(GC::Ref<DOM::Range> range)
 {
     // 1. If the root of the range's boundary points are not the document associated with this, abort these steps.
     if (&range->start_container()->root() != m_document.ptr())
@@ -161,7 +161,7 @@ void Selection::add_range(JS::NonnullGCPtr<DOM::Range> range)
 }
 
 // https://w3c.github.io/selection-api/#dom-selection-removerange
-WebIDL::ExceptionOr<void> Selection::remove_range(JS::NonnullGCPtr<DOM::Range> range)
+WebIDL::ExceptionOr<void> Selection::remove_range(GC::Ref<DOM::Range> range)
 {
     // The method must make this empty by disassociating its range if this's range is range.
     if (m_range == range) {
@@ -188,7 +188,7 @@ void Selection::empty()
 }
 
 // https://w3c.github.io/selection-api/#dom-selection-collapse
-WebIDL::ExceptionOr<void> Selection::collapse(JS::GCPtr<DOM::Node> node, unsigned offset)
+WebIDL::ExceptionOr<void> Selection::collapse(GC::Ptr<DOM::Node> node, unsigned offset)
 {
     // 1. If node is null, this method must behave identically as removeAllRanges() and abort these steps.
     if (!node) {
@@ -218,7 +218,7 @@ WebIDL::ExceptionOr<void> Selection::collapse(JS::GCPtr<DOM::Node> node, unsigne
 }
 
 // https://w3c.github.io/selection-api/#dom-selection-setposition
-WebIDL::ExceptionOr<void> Selection::set_position(JS::GCPtr<DOM::Node> node, unsigned offset)
+WebIDL::ExceptionOr<void> Selection::set_position(GC::Ptr<DOM::Node> node, unsigned offset)
 {
     // The method must be an alias, and behave identically, to collapse().
     return collapse(node, offset);
@@ -266,7 +266,7 @@ WebIDL::ExceptionOr<void> Selection::collapse_to_end()
 }
 
 // https://w3c.github.io/selection-api/#dom-selection-extend
-WebIDL::ExceptionOr<void> Selection::extend(JS::NonnullGCPtr<DOM::Node> node, unsigned offset)
+WebIDL::ExceptionOr<void> Selection::extend(GC::Ref<DOM::Node> node, unsigned offset)
 {
     // 1. If the document associated with this is not a shadow-including inclusive ancestor of node, abort these steps.
     if (!m_document->is_shadow_including_inclusive_ancestor_of(node))
@@ -317,7 +317,7 @@ WebIDL::ExceptionOr<void> Selection::extend(JS::NonnullGCPtr<DOM::Node> node, un
 }
 
 // https://w3c.github.io/selection-api/#dom-selection-setbaseandextent
-WebIDL::ExceptionOr<void> Selection::set_base_and_extent(JS::NonnullGCPtr<DOM::Node> anchor_node, unsigned anchor_offset, JS::NonnullGCPtr<DOM::Node> focus_node, unsigned focus_offset)
+WebIDL::ExceptionOr<void> Selection::set_base_and_extent(GC::Ref<DOM::Node> anchor_node, unsigned anchor_offset, GC::Ref<DOM::Node> focus_node, unsigned focus_offset)
 {
     // 1. If anchorOffset is longer than anchorNode's length or if focusOffset is longer than focusNode's length, throw an IndexSizeError exception and abort these steps.
     if (anchor_offset > anchor_node->length())
@@ -359,7 +359,7 @@ WebIDL::ExceptionOr<void> Selection::set_base_and_extent(JS::NonnullGCPtr<DOM::N
 }
 
 // https://w3c.github.io/selection-api/#dom-selection-selectallchildren
-WebIDL::ExceptionOr<void> Selection::select_all_children(JS::NonnullGCPtr<DOM::Node> node)
+WebIDL::ExceptionOr<void> Selection::select_all_children(GC::Ref<DOM::Node> node)
 {
     // 1. If node's root is not the document associated with this, abort these steps.
     if (&node->root() != m_document.ptr())
@@ -395,7 +395,7 @@ WebIDL::ExceptionOr<void> Selection::delete_from_document()
 }
 
 // https://w3c.github.io/selection-api/#dom-selection-containsnode
-bool Selection::contains_node(JS::NonnullGCPtr<DOM::Node> node, bool allow_partial_containment) const
+bool Selection::contains_node(GC::Ref<DOM::Node> node, bool allow_partial_containment) const
 {
     // The method must return false if this is empty or if node's root is not the document associated with this.
     if (!m_range)
@@ -450,17 +450,17 @@ String Selection::to_string() const
     return m_range->to_string();
 }
 
-JS::NonnullGCPtr<DOM::Document> Selection::document() const
+GC::Ref<DOM::Document> Selection::document() const
 {
     return m_document;
 }
 
-JS::GCPtr<DOM::Range> Selection::range() const
+GC::Ptr<DOM::Range> Selection::range() const
 {
     return m_range;
 }
 
-void Selection::set_range(JS::GCPtr<DOM::Range> range)
+void Selection::set_range(GC::Ptr<DOM::Range> range)
 {
     if (m_range == range)
         return;
@@ -474,7 +474,7 @@ void Selection::set_range(JS::GCPtr<DOM::Range> range)
         m_range->set_associated_selection({}, this);
 }
 
-JS::GCPtr<DOM::Position> Selection::cursor_position() const
+GC::Ptr<DOM::Position> Selection::cursor_position() const
 {
     if (!m_range)
         return nullptr;

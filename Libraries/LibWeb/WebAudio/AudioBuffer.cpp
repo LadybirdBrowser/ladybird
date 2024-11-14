@@ -16,14 +16,14 @@
 
 namespace Web::WebAudio {
 
-JS_DEFINE_ALLOCATOR(AudioBuffer);
+GC_DEFINE_ALLOCATOR(AudioBuffer);
 
-WebIDL::ExceptionOr<JS::NonnullGCPtr<AudioBuffer>> AudioBuffer::create(JS::Realm& realm, WebIDL::UnsignedLong number_of_channels, WebIDL::UnsignedLong length, float sample_rate)
+WebIDL::ExceptionOr<GC::Ref<AudioBuffer>> AudioBuffer::create(JS::Realm& realm, WebIDL::UnsignedLong number_of_channels, WebIDL::UnsignedLong length, float sample_rate)
 {
     return construct_impl(realm, { number_of_channels, length, sample_rate });
 }
 
-WebIDL::ExceptionOr<JS::NonnullGCPtr<AudioBuffer>> AudioBuffer::construct_impl(JS::Realm& realm, AudioBufferOptions const& options)
+WebIDL::ExceptionOr<GC::Ref<AudioBuffer>> AudioBuffer::construct_impl(JS::Realm& realm, AudioBufferOptions const& options)
 {
     // 1. If any of the values in options lie outside its nominal range, throw a NotSupportedError exception and abort the following steps.
     TRY(BaseAudioContext::verify_audio_options_inside_nominal_range(realm, options.number_of_channels, options.length, options.sample_rate));
@@ -73,7 +73,7 @@ WebIDL::UnsignedLong AudioBuffer::number_of_channels() const
 }
 
 // https://webaudio.github.io/web-audio-api/#dom-audiobuffer-getchanneldata
-WebIDL::ExceptionOr<JS::NonnullGCPtr<JS::Float32Array>> AudioBuffer::get_channel_data(WebIDL::UnsignedLong channel) const
+WebIDL::ExceptionOr<GC::Ref<JS::Float32Array>> AudioBuffer::get_channel_data(WebIDL::UnsignedLong channel) const
 {
     if (channel >= m_channels.size())
         return WebIDL::IndexSizeError::create(realm(), "Channel index is out of range"_string);
@@ -82,7 +82,7 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<JS::Float32Array>> AudioBuffer::get_channel
 }
 
 // https://webaudio.github.io/web-audio-api/#dom-audiobuffer-copyfromchannel
-WebIDL::ExceptionOr<void> AudioBuffer::copy_from_channel(JS::Handle<WebIDL::BufferSource> const& destination, WebIDL::UnsignedLong channel_number, WebIDL::UnsignedLong buffer_offset) const
+WebIDL::ExceptionOr<void> AudioBuffer::copy_from_channel(GC::Root<WebIDL::BufferSource> const& destination, WebIDL::UnsignedLong channel_number, WebIDL::UnsignedLong buffer_offset) const
 {
     // The copyFromChannel() method copies the samples from the specified channel of the AudioBuffer to the destination array.
     //
@@ -108,7 +108,7 @@ WebIDL::ExceptionOr<void> AudioBuffer::copy_from_channel(JS::Handle<WebIDL::Buff
 }
 
 // https://webaudio.github.io/web-audio-api/#dom-audiobuffer-copytochannel
-WebIDL::ExceptionOr<void> AudioBuffer::copy_to_channel(JS::Handle<WebIDL::BufferSource> const& source, WebIDL::UnsignedLong channel_number, WebIDL::UnsignedLong buffer_offset)
+WebIDL::ExceptionOr<void> AudioBuffer::copy_to_channel(GC::Root<WebIDL::BufferSource> const& source, WebIDL::UnsignedLong channel_number, WebIDL::UnsignedLong buffer_offset)
 {
     // The copyToChannel() method copies the samples to the specified channel of the AudioBuffer from the source array.
     //

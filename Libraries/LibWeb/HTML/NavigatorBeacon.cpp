@@ -44,7 +44,7 @@ WebIDL::ExceptionOr<bool> NavigatorBeaconMixin::send_beacon(String const& url, O
     auto cors_mode = Fetch::Infrastructure::Request::Mode::NoCORS;
 
     // 6. If data is not null:
-    JS::GCPtr<Fetch::Infrastructure::Body> transmitted_data;
+    GC::Ptr<Fetch::Infrastructure::Body> transmitted_data;
     if (data.has_value()) {
         // 6.1 Set transmittedData and contentType to the result of extracting data's byte stream with the keepalive flag set.
         auto body_with_type = TRY(Fetch::extract_body(realm, data.value(), true));
@@ -81,10 +81,10 @@ WebIDL::ExceptionOr<bool> NavigatorBeaconMixin::send_beacon(String const& url, O
     req->set_origin(origin);                                   // origin: origin
     req->set_keepalive(true);                                  // keepalive: true
     if (transmitted_data)
-        req->set_body(JS::NonnullGCPtr<Fetch::Infrastructure::Body> { *transmitted_data }); // body: transmittedData
-    req->set_mode(cors_mode);                                                               // mode: corsMode
-    req->set_credentials_mode(Fetch::Infrastructure::Request::CredentialsMode::Include);    // credentials mode: include
-    req->set_initiator_type(Fetch::Infrastructure::Request::InitiatorType::Beacon);         // initiator type: "beacon"
+        req->set_body(GC::Ref<Fetch::Infrastructure::Body> { *transmitted_data });       // body: transmittedData
+    req->set_mode(cors_mode);                                                            // mode: corsMode
+    req->set_credentials_mode(Fetch::Infrastructure::Request::CredentialsMode::Include); // credentials mode: include
+    req->set_initiator_type(Fetch::Infrastructure::Request::InitiatorType::Beacon);      // initiator type: "beacon"
 
     // 7.2 Fetch req.
     (void)Fetch::Fetching::fetch(realm, req, Fetch::Infrastructure::FetchAlgorithms::create(vm, {}));

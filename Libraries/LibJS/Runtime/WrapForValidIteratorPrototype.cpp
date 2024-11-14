@@ -10,7 +10,7 @@
 
 namespace JS {
 
-JS_DEFINE_ALLOCATOR(WrapForValidIteratorPrototype);
+GC_DEFINE_ALLOCATOR(WrapForValidIteratorPrototype);
 
 // 27.1.3.2.1.1 The %WrapForValidIteratorPrototype% Object, https://tc39.es/ecma262/#sec-%wrapforvaliditeratorprototype%-object
 WrapForValidIteratorPrototype::WrapForValidIteratorPrototype(Realm& realm)

@@ -8,14 +8,14 @@
 
 namespace JS {
 
-JS_DEFINE_ALLOCATOR(WeakRef);
+GC_DEFINE_ALLOCATOR(WeakRef);
 
-NonnullGCPtr<WeakRef> WeakRef::create(Realm& realm, Object& value)
+GC::Ref<WeakRef> WeakRef::create(Realm& realm, Object& value)
 {
     return realm.create<WeakRef>(value, realm.intrinsics().weak_ref_prototype());
 }
 
-NonnullGCPtr<WeakRef> WeakRef::create(Realm& realm, Symbol& value)
+GC::Ref<WeakRef> WeakRef::create(Realm& realm, Symbol& value)
 {
     return realm.create<WeakRef>(value, realm.intrinsics().weak_ref_prototype());
 }
@@ -36,7 +36,7 @@ WeakRef::WeakRef(Symbol& value, Object& prototype)
 {
 }
 
-void WeakRef::remove_dead_cells(Badge<Heap>)
+void WeakRef::remove_dead_cells(Badge<GC::Heap>)
 {
     if (m_value.visit([](Cell* cell) -> bool { return cell->state() == Cell::State::Live; }, [](Empty) -> bool { VERIFY_NOT_REACHED(); }))
         return;

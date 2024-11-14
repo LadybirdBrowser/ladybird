@@ -12,7 +12,7 @@ namespace JS {
 
 class ConsoleObject final : public Object {
     JS_OBJECT(ConsoleObject, Object);
-    JS_DECLARE_ALLOCATOR(ConsoleObject);
+    GC_DECLARE_ALLOCATOR(ConsoleObject);
 
 public:
     virtual void initialize(Realm&) override;
@@ -43,7 +43,7 @@ private:
     JS_DECLARE_NATIVE_FUNCTION(time_log);
     JS_DECLARE_NATIVE_FUNCTION(time_end);
 
-    GCPtr<Console> m_console;
+    GC::Ptr<Console> m_console;
 };
 
 }

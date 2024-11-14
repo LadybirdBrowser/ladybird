@@ -7,7 +7,7 @@
 #pragma once
 
 #include <AK/FlyString.h>
-#include <LibJS/Heap/GCPtr.h>
+#include <LibGC/Ptr.h>
 #include <LibJS/Runtime/Object.h>
 #include <LibWeb/Forward.h>
 
@@ -16,8 +16,8 @@ namespace Web::DOM {
 // https://dom.spec.whatwg.org/#concept-event-listener
 // NOTE: The spec calls this "event listener", and it's *importantly* not the same as "EventListener"
 class DOMEventListener : public JS::Cell {
-    JS_CELL(DOMEventListener, JS::Cell);
-    JS_DECLARE_ALLOCATOR(DOMEventListener);
+    GC_CELL(DOMEventListener, JS::Cell);
+    GC_DECLARE_ALLOCATOR(DOMEventListener);
 
 public:
     DOMEventListener();
@@ -27,10 +27,10 @@ public:
     FlyString type;
 
     // callback (null or an EventListener object)
-    JS::GCPtr<IDLEventListener> callback;
+    GC::Ptr<IDLEventListener> callback;
 
     // signal (null or an AbortSignal object)
-    JS::GCPtr<DOM::AbortSignal> signal;
+    GC::Ptr<DOM::AbortSignal> signal;
 
     // capture (a boolean, initially false)
     bool capture { false };

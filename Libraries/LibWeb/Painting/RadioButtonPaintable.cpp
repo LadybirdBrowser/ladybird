@@ -15,9 +15,9 @@
 
 namespace Web::Painting {
 
-JS_DEFINE_ALLOCATOR(RadioButtonPaintable);
+GC_DEFINE_ALLOCATOR(RadioButtonPaintable);
 
-JS::NonnullGCPtr<RadioButtonPaintable> RadioButtonPaintable::create(Layout::RadioButton const& layout_box)
+GC::Ref<RadioButtonPaintable> RadioButtonPaintable::create(Layout::RadioButton const& layout_box)
 {
     return layout_box.heap().allocate<RadioButtonPaintable>(layout_box);
 }

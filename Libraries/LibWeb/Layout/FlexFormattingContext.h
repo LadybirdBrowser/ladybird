@@ -54,7 +54,7 @@ private:
     };
 
     struct FlexItem {
-        JS::NonnullGCPtr<Box> box;
+        GC::Ref<Box> box;
         LayoutState::UsedValues& used_values;
         Optional<CSS::FlexBasis> used_flex_basis {};
         bool used_flex_basis_is_definite { false };

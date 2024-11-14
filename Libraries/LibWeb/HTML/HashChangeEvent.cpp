@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibJS/Heap/Heap.h>
+#include <LibGC/Heap.h>
 #include <LibJS/Runtime/Realm.h>
 #include <LibWeb/Bindings/HashChangeEventPrototype.h>
 #include <LibWeb/Bindings/Intrinsics.h>
@@ -12,14 +12,14 @@
 
 namespace Web::HTML {
 
-JS_DEFINE_ALLOCATOR(HashChangeEvent);
+GC_DEFINE_ALLOCATOR(HashChangeEvent);
 
-[[nodiscard]] JS::NonnullGCPtr<HashChangeEvent> HashChangeEvent::create(JS::Realm& realm, FlyString const& event_name, HashChangeEventInit const& event_init)
+[[nodiscard]] GC::Ref<HashChangeEvent> HashChangeEvent::create(JS::Realm& realm, FlyString const& event_name, HashChangeEventInit const& event_init)
 {
     return realm.create<HashChangeEvent>(realm, event_name, event_init);
 }
 
-JS::NonnullGCPtr<HashChangeEvent> HashChangeEvent::construct_impl(JS::Realm& realm, FlyString const& event_name, HashChangeEventInit const& event_init)
+GC::Ref<HashChangeEvent> HashChangeEvent::construct_impl(JS::Realm& realm, FlyString const& event_name, HashChangeEventInit const& event_init)
 {
     return realm.create<HashChangeEvent>(realm, event_name, event_init);
 }

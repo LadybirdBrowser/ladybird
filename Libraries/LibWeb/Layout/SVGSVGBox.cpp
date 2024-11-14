@@ -13,14 +13,14 @@
 
 namespace Web::Layout {
 
-JS_DEFINE_ALLOCATOR(SVGSVGBox);
+GC_DEFINE_ALLOCATOR(SVGSVGBox);
 
 SVGSVGBox::SVGSVGBox(DOM::Document& document, SVG::SVGSVGElement& element, CSS::StyleProperties properties)
     : ReplacedBox(document, element, move(properties))
 {
 }
 
-JS::GCPtr<Painting::Paintable> SVGSVGBox::create_paintable() const
+GC::Ptr<Painting::Paintable> SVGSVGBox::create_paintable() const
 {
     return Painting::SVGSVGPaintable::create(*this);
 }

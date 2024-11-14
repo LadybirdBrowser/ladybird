@@ -33,17 +33,17 @@ class TestClass : ::ParentObject {
 // Nested classes
 class Parent1 { };
 class Parent2 : JS::Cell {
-    JS_CELL(Parent2, JS::Cell);
+    GC_CELL(Parent2, JS::Cell);
 };
 class Parent3 { };
 class Parent4 : public Parent2 {
-    JS_CELL(Parent4, Parent2);
+    GC_CELL(Parent4, Parent2);
 };
 
 class NestedCellClass
     : Parent1
     , Parent3
     , Parent4 {
-    // expected-error@+1 {{Expected second argument of JS_CELL macro invocation to be Parent4}}
-    JS_CELL(NestedCellClass, Parent2);
+    // expected-error@+1 {{Expected second argument of GC_CELL macro invocation to be Parent4}}
+    GC_CELL(NestedCellClass, Parent2);
 };

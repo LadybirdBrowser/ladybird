@@ -12,14 +12,14 @@
 
 namespace Web::CSS {
 
-JS_DEFINE_ALLOCATOR(CSSKeyframesRule);
+GC_DEFINE_ALLOCATOR(CSSKeyframesRule);
 
-JS::NonnullGCPtr<CSSKeyframesRule> CSSKeyframesRule::create(JS::Realm& realm, FlyString name, JS::NonnullGCPtr<CSSRuleList> css_rules)
+GC::Ref<CSSKeyframesRule> CSSKeyframesRule::create(JS::Realm& realm, FlyString name, GC::Ref<CSSRuleList> css_rules)
 {
     return realm.create<CSSKeyframesRule>(realm, move(name), move(css_rules));
 }
 
-CSSKeyframesRule::CSSKeyframesRule(JS::Realm& realm, FlyString name, JS::NonnullGCPtr<CSSRuleList> keyframes)
+CSSKeyframesRule::CSSKeyframesRule(JS::Realm& realm, FlyString name, GC::Ref<CSSRuleList> keyframes)
     : CSSRule(realm, Type::Keyframes)
     , m_name(move(name))
     , m_rules(move(keyframes))

@@ -26,10 +26,10 @@ class SVGSVGElement final : public SVGGraphicsElement
     // SVGSVGElement is not strictly a NonElementParentNode, but it implements the same get_element_by_id() method.
     , public DOM::NonElementParentNode<SVGSVGElement> {
     WEB_PLATFORM_OBJECT(SVGSVGElement, SVGGraphicsElement);
-    JS_DECLARE_ALLOCATOR(SVGSVGElement);
+    GC_DECLARE_ALLOCATOR(SVGSVGElement);
 
 public:
-    virtual JS::GCPtr<Layout::Node> create_layout_node(CSS::StyleProperties) override;
+    virtual GC::Ptr<Layout::Node> create_layout_node(CSS::StyleProperties) override;
 
     virtual void apply_presentational_hints(CSS::StyleProperties&) const override;
 
@@ -41,30 +41,30 @@ public:
 
     void set_fallback_view_box_for_svg_as_image(Optional<ViewBox>);
 
-    JS::NonnullGCPtr<SVGAnimatedRect> view_box_for_bindings() { return *m_view_box_for_bindings; }
+    GC::Ref<SVGAnimatedRect> view_box_for_bindings() { return *m_view_box_for_bindings; }
 
-    JS::NonnullGCPtr<SVGAnimatedLength> x() const;
-    JS::NonnullGCPtr<SVGAnimatedLength> y() const;
-    JS::NonnullGCPtr<SVGAnimatedLength> width() const;
-    JS::NonnullGCPtr<SVGAnimatedLength> height() const;
+    GC::Ref<SVGAnimatedLength> x() const;
+    GC::Ref<SVGAnimatedLength> y() const;
+    GC::Ref<SVGAnimatedLength> width() const;
+    GC::Ref<SVGAnimatedLength> height() const;
 
     float current_scale() const;
     void set_current_scale(float);
 
-    JS::NonnullGCPtr<Geometry::DOMPointReadOnly> current_translate() const;
+    GC::Ref<Geometry::DOMPointReadOnly> current_translate() const;
 
-    JS::NonnullGCPtr<DOM::NodeList> get_intersection_list(JS::NonnullGCPtr<Geometry::DOMRectReadOnly> rect, JS::GCPtr<SVGElement> reference_element) const;
-    JS::NonnullGCPtr<DOM::NodeList> get_enclosure_list(JS::NonnullGCPtr<Geometry::DOMRectReadOnly> rect, JS::GCPtr<SVGElement> reference_element) const;
-    bool check_intersection(JS::NonnullGCPtr<SVGElement> element, JS::NonnullGCPtr<Geometry::DOMRectReadOnly> rect) const;
-    bool check_enclosure(JS::NonnullGCPtr<SVGElement> element, JS::NonnullGCPtr<Geometry::DOMRectReadOnly> rect) const;
+    GC::Ref<DOM::NodeList> get_intersection_list(GC::Ref<Geometry::DOMRectReadOnly> rect, GC::Ptr<SVGElement> reference_element) const;
+    GC::Ref<DOM::NodeList> get_enclosure_list(GC::Ref<Geometry::DOMRectReadOnly> rect, GC::Ptr<SVGElement> reference_element) const;
+    bool check_intersection(GC::Ref<SVGElement> element, GC::Ref<Geometry::DOMRectReadOnly> rect) const;
+    bool check_enclosure(GC::Ref<SVGElement> element, GC::Ref<Geometry::DOMRectReadOnly> rect) const;
 
     void deselect_all() const;
 
-    JS::NonnullGCPtr<SVGLength> create_svg_length() const;
-    JS::NonnullGCPtr<Geometry::DOMPoint> create_svg_point() const;
-    JS::NonnullGCPtr<Geometry::DOMMatrix> create_svg_matrix() const;
-    JS::NonnullGCPtr<Geometry::DOMRect> create_svg_rect() const;
-    JS::NonnullGCPtr<SVGTransform> create_svg_transform() const;
+    GC::Ref<SVGLength> create_svg_length() const;
+    GC::Ref<Geometry::DOMPoint> create_svg_point() const;
+    GC::Ref<Geometry::DOMMatrix> create_svg_matrix() const;
+    GC::Ref<Geometry::DOMRect> create_svg_rect() const;
+    GC::Ref<SVGTransform> create_svg_transform() const;
 
     // Deprecated methods that have no effect when called, but which are kept for compatibility reasons.
     WebIDL::UnsignedLong suspend_redraw(WebIDL::UnsignedLong max_wait_milliseconds) const
@@ -100,7 +100,7 @@ private:
 
     Optional<ViewBox> m_fallback_view_box_for_svg_as_image;
 
-    JS::GCPtr<SVGAnimatedRect> m_view_box_for_bindings;
+    GC::Ptr<SVGAnimatedRect> m_view_box_for_bindings;
 };
 
 }

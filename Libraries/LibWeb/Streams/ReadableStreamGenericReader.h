@@ -19,15 +19,15 @@ class ReadableStreamGenericReaderMixin {
 public:
     virtual ~ReadableStreamGenericReaderMixin() = default;
 
-    JS::GCPtr<WebIDL::Promise> closed();
+    GC::Ptr<WebIDL::Promise> closed();
 
-    JS::NonnullGCPtr<WebIDL::Promise> cancel(JS::Value reason);
+    GC::Ref<WebIDL::Promise> cancel(JS::Value reason);
 
-    JS::GCPtr<ReadableStream> stream() const { return m_stream; }
-    void set_stream(JS::GCPtr<ReadableStream> stream) { m_stream = stream; }
+    GC::Ptr<ReadableStream> stream() const { return m_stream; }
+    void set_stream(GC::Ptr<ReadableStream> stream) { m_stream = stream; }
 
-    JS::GCPtr<WebIDL::Promise> closed_promise_capability() { return m_closed_promise; }
-    void set_closed_promise_capability(JS::GCPtr<WebIDL::Promise> promise) { m_closed_promise = promise; }
+    GC::Ptr<WebIDL::Promise> closed_promise_capability() { return m_closed_promise; }
+    void set_closed_promise_capability(GC::Ptr<WebIDL::Promise> promise) { m_closed_promise = promise; }
 
 protected:
     explicit ReadableStreamGenericReaderMixin(JS::Realm&);
@@ -36,13 +36,13 @@ protected:
 
     // https://streams.spec.whatwg.org/#readablestreamgenericreader-closedpromise
     // A promise returned by the reader's closed getter
-    JS::GCPtr<WebIDL::Promise> m_closed_promise;
+    GC::Ptr<WebIDL::Promise> m_closed_promise;
 
     // https://streams.spec.whatwg.org/#readablestreamgenericreader-stream
     // A ReadableStream instance that owns this reader
-    JS::GCPtr<ReadableStream> m_stream;
+    GC::Ptr<ReadableStream> m_stream;
 
-    JS::NonnullGCPtr<JS::Realm> m_realm;
+    GC::Ref<JS::Realm> m_realm;
 };
 
 }

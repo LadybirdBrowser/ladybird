@@ -13,9 +13,9 @@
 
 namespace Web::HTML {
 
-JS_DEFINE_ALLOCATOR(TextTrackCue);
+GC_DEFINE_ALLOCATOR(TextTrackCue);
 
-TextTrackCue::TextTrackCue(JS::Realm& realm, JS::GCPtr<TextTrack> track)
+TextTrackCue::TextTrackCue(JS::Realm& realm, GC::Ptr<TextTrack> track)
     : DOM::EventTarget(realm)
     , m_track(track)
 {

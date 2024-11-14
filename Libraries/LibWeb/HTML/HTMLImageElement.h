@@ -9,9 +9,9 @@
 
 #include <AK/ByteBuffer.h>
 #include <AK/OwnPtr.h>
+#include <LibGC/Function.h>
 #include <LibGfx/Forward.h>
 #include <LibGfx/ImmutableBitmap.h>
-#include <LibJS/Heap/HeapFunction.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/DocumentLoadEventDelayer.h>
 #include <LibWeb/HTML/BrowsingContext.h>
@@ -31,7 +31,7 @@ class HTMLImageElement final
     , public Layout::ImageProvider
     , public DOM::Document::ViewportClient {
     WEB_PLATFORM_OBJECT(HTMLImageElement, HTMLElement);
-    JS_DECLARE_ALLOCATOR(HTMLImageElement);
+    GC_DECLARE_ALLOCATOR(HTMLImageElement);
     FORM_ASSOCIATED_ELEMENT(HTMLElement, HTMLImageElement);
     LAZY_LOADING_ELEMENT(HTMLImageElement);
 
@@ -68,7 +68,7 @@ public:
     String current_src() const;
 
     // https://html.spec.whatwg.org/multipage/embedded-content.html#dom-img-decode
-    [[nodiscard]] WebIDL::ExceptionOr<JS::NonnullGCPtr<WebIDL::Promise>> decode() const;
+    [[nodiscard]] WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> decode() const;
 
     virtual Optional<ARIA::Role> default_role() const override;
 
@@ -111,7 +111,7 @@ public:
     virtual Optional<CSSPixelFraction> intrinsic_aspect_ratio() const override;
     virtual RefPtr<Gfx::ImmutableBitmap> current_image_bitmap(Gfx::IntSize = {}) const override;
     virtual void set_visible_in_viewport(bool) override;
-    virtual JS::NonnullGCPtr<DOM::Element const> to_html_element() const override { return *this; }
+    virtual GC::Ref<DOM::Element const> to_html_element() const override { return *this; }
 
     virtual void visit_edges(Cell::Visitor&) override;
 
@@ -130,14 +130,14 @@ private:
     // https://html.spec.whatwg.org/multipage/embedded-content.html#the-img-element:dimension-attributes
     virtual bool supports_dimension_attributes() const override { return true; }
 
-    virtual JS::GCPtr<Layout::Node> create_layout_node(CSS::StyleProperties) override;
+    virtual GC::Ptr<Layout::Node> create_layout_node(CSS::StyleProperties) override;
     virtual void adjust_computed_style(CSS::StyleProperties&) override;
 
     virtual void did_set_viewport_rect(CSSPixelRect const&) override;
 
     void handle_successful_fetch(URL::URL const&, StringView mime_type, ImageRequest&, ByteBuffer, bool maybe_omit_events, URL::URL const& previous_url);
     void handle_failed_fetch();
-    void add_callbacks_to_image_request(JS::NonnullGCPtr<ImageRequest>, bool maybe_omit_events, URL::URL const& url_string, URL::URL const& previous_url);
+    void add_callbacks_to_image_request(GC::Ref<ImageRequest>, bool maybe_omit_events, URL::URL const& url_string, URL::URL const& previous_url);
 
     void animate();
 
@@ -154,10 +154,10 @@ private:
     Optional<String> m_last_selected_source;
 
     // https://html.spec.whatwg.org/multipage/images.html#current-request
-    JS::GCPtr<ImageRequest> m_current_request;
+    GC::Ptr<ImageRequest> m_current_request;
 
     // https://html.spec.whatwg.org/multipage/images.html#pending-request
-    JS::GCPtr<ImageRequest> m_pending_request;
+    GC::Ptr<ImageRequest> m_pending_request;
 
     SourceSet m_source_set;
 

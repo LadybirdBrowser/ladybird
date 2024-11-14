@@ -13,7 +13,7 @@ namespace Web::HTML {
 
 class HTMLModElement final : public HTMLElement {
     WEB_PLATFORM_OBJECT(HTMLModElement, HTMLElement);
-    JS_DECLARE_ALLOCATOR(HTMLModElement);
+    GC_DECLARE_ALLOCATOR(HTMLModElement);
 
 public:
     virtual ~HTMLModElement() override;

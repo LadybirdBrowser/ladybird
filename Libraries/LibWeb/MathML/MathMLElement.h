@@ -16,7 +16,7 @@ class MathMLElement : public DOM::Element
     , public HTML::GlobalEventHandlers
     , public HTML::HTMLOrSVGElement<MathMLElement> {
     WEB_PLATFORM_OBJECT(MathMLElement, DOM::Element);
-    JS_DECLARE_ALLOCATOR(MathMLElement);
+    GC_DECLARE_ALLOCATOR(MathMLElement);
 
 public:
     virtual ~MathMLElement() override;
@@ -27,7 +27,7 @@ protected:
     virtual void attribute_changed(FlyString const& name, Optional<String> const& old_value, Optional<String> const& value, Optional<FlyString> const& namespace_) override;
     virtual WebIDL::ExceptionOr<void> cloned(DOM::Node&, bool) override;
     virtual void inserted() override;
-    virtual JS::GCPtr<DOM::EventTarget> global_event_handlers_to_event_target(FlyString const&) override { return *this; }
+    virtual GC::Ptr<DOM::EventTarget> global_event_handlers_to_event_target(FlyString const&) override { return *this; }
 
 private:
     MathMLElement(DOM::Document&, DOM::QualifiedName);

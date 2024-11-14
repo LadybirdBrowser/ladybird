@@ -14,14 +14,14 @@
 namespace Web::Streams {
 
 // https://streams.spec.whatwg.org/#generic-reader-closed
-JS::GCPtr<WebIDL::Promise> ReadableStreamGenericReaderMixin::closed()
+GC::Ptr<WebIDL::Promise> ReadableStreamGenericReaderMixin::closed()
 {
     // 1. Return this.[[closedPromise]].
     return m_closed_promise;
 }
 
 // https://streams.spec.whatwg.org/#generic-reader-cancel
-JS::NonnullGCPtr<WebIDL::Promise> ReadableStreamGenericReaderMixin::cancel(JS::Value reason)
+GC::Ref<WebIDL::Promise> ReadableStreamGenericReaderMixin::cancel(JS::Value reason)
 {
     // 1. If this.[[stream]] is undefined, return a promise rejected with a TypeError exception.
     if (!m_stream) {

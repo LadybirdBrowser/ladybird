@@ -23,7 +23,7 @@
 
 namespace Web::SVG {
 
-JS_DEFINE_ALLOCATOR(SVGUseElement);
+GC_DEFINE_ALLOCATOR(SVGUseElement);
 
 SVGUseElement::SVGUseElement(DOM::Document& document, DOM::QualifiedName qualified_name)
     : SVGGraphicsElement(document, qualified_name)
@@ -131,7 +131,7 @@ void SVGUseElement::svg_element_removed(SVGElement& svg_element)
 }
 
 // https://svgwg.org/svg2-draft/linking.html#processingURL-target
-JS::GCPtr<DOM::Element> SVGUseElement::referenced_element()
+GC::Ptr<DOM::Element> SVGUseElement::referenced_element()
 {
     if (!m_href.is_valid())
         return nullptr;
@@ -193,7 +193,7 @@ bool SVGUseElement::is_valid_reference_element(Element const& reference_element)
 }
 
 // https://www.w3.org/TR/SVG11/shapes.html#RectElementXAttribute
-JS::NonnullGCPtr<SVGAnimatedLength> SVGUseElement::x() const
+GC::Ref<SVGAnimatedLength> SVGUseElement::x() const
 {
     // FIXME: Populate the unit type when it is parsed (0 here is "unknown").
     // FIXME: Create a proper animated value when animations are supported.
@@ -203,7 +203,7 @@ JS::NonnullGCPtr<SVGAnimatedLength> SVGUseElement::x() const
 }
 
 // https://www.w3.org/TR/SVG11/shapes.html#RectElementYAttribute
-JS::NonnullGCPtr<SVGAnimatedLength> SVGUseElement::y() const
+GC::Ref<SVGAnimatedLength> SVGUseElement::y() const
 {
     // FIXME: Populate the unit type when it is parsed (0 here is "unknown").
     // FIXME: Create a proper animated value when animations are supported.
@@ -212,30 +212,30 @@ JS::NonnullGCPtr<SVGAnimatedLength> SVGUseElement::y() const
     return SVGAnimatedLength::create(realm(), move(base_length), move(anim_length));
 }
 
-JS::NonnullGCPtr<SVGAnimatedLength> SVGUseElement::width() const
+GC::Ref<SVGAnimatedLength> SVGUseElement::width() const
 {
     // FIXME: Implement this properly.
     return SVGAnimatedLength::create(realm(), SVGLength::create(realm(), 0, 0), SVGLength::create(realm(), 0, 0));
 }
 
-JS::NonnullGCPtr<SVGAnimatedLength> SVGUseElement::height() const
+GC::Ref<SVGAnimatedLength> SVGUseElement::height() const
 {
     // FIXME: Implement this properly.
     return SVGAnimatedLength::create(realm(), SVGLength::create(realm(), 0, 0), SVGLength::create(realm(), 0, 0));
 }
 
 // https://svgwg.org/svg2-draft/struct.html#TermInstanceRoot
-JS::GCPtr<SVGElement> SVGUseElement::instance_root() const
+GC::Ptr<SVGElement> SVGUseElement::instance_root() const
 {
     return const_cast<DOM::ShadowRoot&>(*shadow_root()).first_child_of_type<SVGElement>();
 }
 
-JS::GCPtr<SVGElement> SVGUseElement::animated_instance_root() const
+GC::Ptr<SVGElement> SVGUseElement::animated_instance_root() const
 {
     return instance_root();
 }
 
-JS::GCPtr<Layout::Node> SVGUseElement::create_layout_node(CSS::StyleProperties style)
+GC::Ptr<Layout::Node> SVGUseElement::create_layout_node(CSS::StyleProperties style)
 {
     return heap().allocate<Layout::SVGGraphicsBox>(document(), *this, move(style));
 }

@@ -13,7 +13,7 @@ namespace JS {
 
 class FinalizationRegistryPrototype final : public PrototypeObject<FinalizationRegistryPrototype, FinalizationRegistry> {
     JS_PROTOTYPE_OBJECT(FinalizationRegistryPrototype, FinalizationRegistry, FinalizationRegistry);
-    JS_DECLARE_ALLOCATOR(FinalizationRegistryPrototype);
+    GC_DECLARE_ALLOCATOR(FinalizationRegistryPrototype);
 
 public:
     virtual void initialize(Realm&) override;

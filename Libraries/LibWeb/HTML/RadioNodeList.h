@@ -13,10 +13,10 @@ namespace Web::HTML {
 // https://html.spec.whatwg.org/multipage/common-dom-interfaces.html#radionodelist
 class RadioNodeList : public DOM::LiveNodeList {
     WEB_PLATFORM_OBJECT(RadioNodeList, DOM::LiveNodeList);
-    JS_DECLARE_ALLOCATOR(RadioNodeList);
+    GC_DECLARE_ALLOCATOR(RadioNodeList);
 
 public:
-    [[nodiscard]] static JS::NonnullGCPtr<RadioNodeList> create(JS::Realm& realm, DOM::Node const& root, Scope scope, ESCAPING Function<bool(DOM::Node const&)> filter);
+    [[nodiscard]] static GC::Ref<RadioNodeList> create(JS::Realm& realm, DOM::Node const& root, Scope scope, ESCAPING Function<bool(DOM::Node const&)> filter);
 
     virtual ~RadioNodeList() override;
 

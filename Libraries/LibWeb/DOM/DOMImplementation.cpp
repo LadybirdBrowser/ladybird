@@ -19,9 +19,9 @@
 
 namespace Web::DOM {
 
-JS_DEFINE_ALLOCATOR(DOMImplementation);
+GC_DEFINE_ALLOCATOR(DOMImplementation);
 
-JS::NonnullGCPtr<DOMImplementation> DOMImplementation::create(Document& document)
+GC::Ref<DOMImplementation> DOMImplementation::create(Document& document)
 {
     auto& realm = document.realm();
     return realm.create<DOMImplementation>(document);
@@ -48,7 +48,7 @@ void DOMImplementation::visit_edges(Cell::Visitor& visitor)
 }
 
 // https://dom.spec.whatwg.org/#dom-domimplementation-createdocument
-WebIDL::ExceptionOr<JS::NonnullGCPtr<XMLDocument>> DOMImplementation::create_document(Optional<FlyString> const& namespace_, String const& qualified_name, JS::GCPtr<DocumentType> doctype) const
+WebIDL::ExceptionOr<GC::Ref<XMLDocument>> DOMImplementation::create_document(Optional<FlyString> const& namespace_, String const& qualified_name, GC::Ptr<DocumentType> doctype) const
 {
     // 1. Let document be a new XMLDocument
     auto xml_document = XMLDocument::create(realm());
@@ -56,7 +56,7 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<XMLDocument>> DOMImplementation::create_doc
     xml_document->set_ready_for_post_load_tasks(true);
 
     // 2. Let element be null.
-    JS::GCPtr<Element> element;
+    GC::Ptr<Element> element;
 
     // 3. If qualifiedName is not the empty string, then set element to the result of running the internal createElementNS steps, given document, namespace, qualifiedName, and an empty dictionary.
     if (!qualified_name.is_empty())
@@ -90,7 +90,7 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<XMLDocument>> DOMImplementation::create_doc
 }
 
 // https://dom.spec.whatwg.org/#dom-domimplementation-createhtmldocument
-JS::NonnullGCPtr<Document> DOMImplementation::create_html_document(Optional<String> const& title) const
+GC::Ref<Document> DOMImplementation::create_html_document(Optional<String> const& title) const
 {
     // 1. Let doc be a new document that is an HTML document.
     auto html_document = HTML::HTMLDocument::create(realm());
@@ -137,7 +137,7 @@ JS::NonnullGCPtr<Document> DOMImplementation::create_html_document(Optional<Stri
 }
 
 // https://dom.spec.whatwg.org/#dom-domimplementation-createdocumenttype
-WebIDL::ExceptionOr<JS::NonnullGCPtr<DocumentType>> DOMImplementation::create_document_type(String const& qualified_name, String const& public_id, String const& system_id)
+WebIDL::ExceptionOr<GC::Ref<DocumentType>> DOMImplementation::create_document_type(String const& qualified_name, String const& public_id, String const& system_id)
 {
     // 1. Validate qualifiedName.
     TRY(Document::validate_qualified_name(realm(), qualified_name));

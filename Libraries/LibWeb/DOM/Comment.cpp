@@ -11,7 +11,7 @@
 
 namespace Web::DOM {
 
-JS_DEFINE_ALLOCATOR(Comment);
+GC_DEFINE_ALLOCATOR(Comment);
 
 Comment::Comment(Document& document, String const& data)
     : CharacterData(document, NodeType::COMMENT_NODE, data)
@@ -19,7 +19,7 @@ Comment::Comment(Document& document, String const& data)
 }
 
 // https://dom.spec.whatwg.org/#dom-comment-comment
-WebIDL::ExceptionOr<JS::NonnullGCPtr<Comment>> Comment::construct_impl(JS::Realm& realm, String const& data)
+WebIDL::ExceptionOr<GC::Ref<Comment>> Comment::construct_impl(JS::Realm& realm, String const& data)
 {
     auto& window = verify_cast<HTML::Window>(realm.global_object());
     return realm.create<Comment>(window.associated_document(), data);

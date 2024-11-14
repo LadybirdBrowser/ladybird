@@ -9,9 +9,9 @@
 #include <AK/NonnullRefPtr.h>
 #include <AK/TypeCasts.h>
 #include <AK/Vector.h>
+#include <LibGC/Root.h>
 #include <LibGfx/Rect.h>
 #include <LibJS/Heap/Cell.h>
-#include <LibJS/Heap/Handle.h>
 #include <LibWeb/CSS/ComputedValues.h>
 #include <LibWeb/CSS/StyleComputer.h>
 #include <LibWeb/CSS/StyleProperties.h>
@@ -39,7 +39,7 @@ enum class LayoutMode {
 class Node
     : public JS::Cell
     , public TreeNode<Node> {
-    JS_CELL(Node, JS::Cell);
+    GC_CELL(Node, JS::Cell);
 
 public:
     virtual ~Node();
@@ -71,15 +71,15 @@ public:
     Painting::Paintable const* first_paintable() const { return m_paintable.first(); }
     PaintableList& paintables() { return m_paintable; }
     PaintableList const& paintables() const { return m_paintable; }
-    void add_paintable(JS::GCPtr<Painting::Paintable>);
+    void add_paintable(GC::Ptr<Painting::Paintable>);
     void clear_paintables();
 
-    virtual JS::GCPtr<Painting::Paintable> create_paintable() const;
+    virtual GC::Ptr<Painting::Paintable> create_paintable() const;
 
     DOM::Document& document();
     DOM::Document const& document() const;
 
-    JS::GCPtr<HTML::Navigable> navigable() const;
+    GC::Ptr<HTML::Navigable> navigable() const;
 
     Viewport const& root() const;
     Viewport& root();
@@ -186,10 +186,10 @@ protected:
 private:
     friend class NodeWithStyle;
 
-    JS::NonnullGCPtr<DOM::Node> m_dom_node;
+    GC::Ref<DOM::Node> m_dom_node;
     PaintableList m_paintable;
 
-    JS::GCPtr<DOM::Element> m_pseudo_element_generator;
+    GC::Ptr<DOM::Element> m_pseudo_element_generator;
 
     bool m_anonymous { false };
     bool m_has_style { false };
@@ -204,7 +204,7 @@ private:
 };
 
 class NodeWithStyle : public Node {
-    JS_CELL(NodeWithStyle, Node);
+    GC_CELL(NodeWithStyle, Node);
 
 public:
     virtual ~NodeWithStyle() override = default;
@@ -218,7 +218,7 @@ public:
     Vector<CSS::BackgroundLayerData> const& background_layers() const { return computed_values().background_layers(); }
     const CSS::AbstractImageStyleValue* list_style_image() const { return m_list_style_image; }
 
-    JS::NonnullGCPtr<NodeWithStyle> create_anonymous_wrapper() const;
+    GC::Ref<NodeWithStyle> create_anonymous_wrapper() const;
 
     void transfer_table_box_computed_values_to_wrapper_computed_values(CSS::ComputedValues& wrapper_computed_values);
 
@@ -240,7 +240,7 @@ private:
 };
 
 class NodeWithStyleAndBoxModelMetrics : public NodeWithStyle {
-    JS_CELL(NodeWithStyleAndBoxModelMetrics, NodeWithStyle);
+    GC_CELL(NodeWithStyleAndBoxModelMetrics, NodeWithStyle);
 
 public:
     BoxModelMetrics& box_model() { return m_box_model; }

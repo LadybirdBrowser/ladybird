@@ -209,7 +209,7 @@ public:
     };
 
     // Needs to mess with m_state, and we're not going to expose a non-const getter for that :^)
-    friend ThrowCompletionOr<NonnullGCPtr<ECMAScriptFunctionObject>> FunctionConstructor::create_dynamic_function(VM&, FunctionObject&, FunctionObject*, FunctionKind, ReadonlySpan<String> parameter_args, String const& body_arg);
+    friend ThrowCompletionOr<GC::Ref<ECMAScriptFunctionObject>> FunctionConstructor::create_dynamic_function(VM&, FunctionObject&, FunctionObject*, FunctionKind, ReadonlySpan<String> parameter_args, String const& body_arg);
 
     static Parser parse_function_body_from_string(ByteString const& body_string, u16 parse_options, Vector<FunctionParameter> const& parameters, FunctionKind kind, FunctionParsingInsights&);
 

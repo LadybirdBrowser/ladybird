@@ -7,8 +7,8 @@
 #include <AK/Platform.h>
 #include <AK/Random.h>
 #include <AK/Vector.h>
-#include <LibJS/Heap/BlockAllocator.h>
-#include <LibJS/Heap/HeapBlock.h>
+#include <LibGC/BlockAllocator.h>
+#include <LibGC/HeapBlock.h>
 #include <sys/mman.h>
 
 #ifdef HAS_ADDRESS_SANITIZER
@@ -20,7 +20,7 @@
 #    define USE_FALLBACK_BLOCK_DEALLOCATION
 #endif
 
-namespace JS {
+namespace GC {
 
 BlockAllocator::~BlockAllocator()
 {

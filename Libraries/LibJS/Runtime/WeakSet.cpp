@@ -8,9 +8,9 @@
 
 namespace JS {
 
-JS_DEFINE_ALLOCATOR(WeakSet);
+GC_DEFINE_ALLOCATOR(WeakSet);
 
-NonnullGCPtr<WeakSet> WeakSet::create(Realm& realm)
+GC::Ref<WeakSet> WeakSet::create(Realm& realm)
 {
     return realm.create<WeakSet>(realm.intrinsics().weak_set_prototype());
 }
@@ -21,7 +21,7 @@ WeakSet::WeakSet(Object& prototype)
 {
 }
 
-void WeakSet::remove_dead_cells(Badge<Heap>)
+void WeakSet::remove_dead_cells(Badge<GC::Heap>)
 {
     m_values.remove_all_matching([](Cell* cell) {
         return cell->state() != Cell::State::Live;

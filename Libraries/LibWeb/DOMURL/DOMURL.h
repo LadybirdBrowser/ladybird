@@ -18,18 +18,18 @@ namespace Web::DOMURL {
 
 class DOMURL : public Bindings::PlatformObject {
     WEB_PLATFORM_OBJECT(DOMURL, Bindings::PlatformObject);
-    JS_DECLARE_ALLOCATOR(DOMURL);
+    GC_DECLARE_ALLOCATOR(DOMURL);
 
 public:
-    [[nodiscard]] static JS::NonnullGCPtr<DOMURL> create(JS::Realm&, URL::URL, JS::NonnullGCPtr<URLSearchParams> query);
-    static WebIDL::ExceptionOr<JS::NonnullGCPtr<DOMURL>> construct_impl(JS::Realm&, String const& url, Optional<String> const& base = {});
+    [[nodiscard]] static GC::Ref<DOMURL> create(JS::Realm&, URL::URL, GC::Ref<URLSearchParams> query);
+    static WebIDL::ExceptionOr<GC::Ref<DOMURL>> construct_impl(JS::Realm&, String const& url, Optional<String> const& base = {});
 
     virtual ~DOMURL() override;
 
-    static WebIDL::ExceptionOr<String> create_object_url(JS::VM&, JS::NonnullGCPtr<FileAPI::Blob> object);
+    static WebIDL::ExceptionOr<String> create_object_url(JS::VM&, GC::Ref<FileAPI::Blob> object);
     static WebIDL::ExceptionOr<void> revoke_object_url(JS::VM&, StringView url);
 
-    static JS::GCPtr<DOMURL> parse_for_bindings(JS::VM&, String const& url, Optional<String> const& base = {});
+    static GC::Ptr<DOMURL> parse_for_bindings(JS::VM&, String const& url, Optional<String> const& base = {});
     static bool can_parse(JS::VM&, String const& url, Optional<String> const& base = {});
 
     WebIDL::ExceptionOr<String> href() const;
@@ -70,7 +70,7 @@ public:
     WebIDL::ExceptionOr<String> search() const;
     void set_search(String const&);
 
-    JS::NonnullGCPtr<URLSearchParams const> search_params() const;
+    GC::Ref<URLSearchParams const> search_params() const;
 
     WebIDL::ExceptionOr<String> hash() const;
     void set_hash(String const&);
@@ -81,15 +81,15 @@ public:
     void set_query(Badge<URLSearchParams>, Optional<String> query) { m_url.set_query(move(query)); }
 
 private:
-    DOMURL(JS::Realm&, URL::URL, JS::NonnullGCPtr<URLSearchParams> query);
+    DOMURL(JS::Realm&, URL::URL, GC::Ref<URLSearchParams> query);
 
-    static JS::NonnullGCPtr<DOMURL> initialize_a_url(JS::Realm&, URL::URL const&);
+    static GC::Ref<DOMURL> initialize_a_url(JS::Realm&, URL::URL const&);
 
     virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Cell::Visitor&) override;
 
     URL::URL m_url;
-    JS::NonnullGCPtr<URLSearchParams> m_query;
+    GC::Ref<URLSearchParams> m_query;
 };
 
 bool host_is_domain(URL::Host const&);

@@ -12,7 +12,7 @@
 
 namespace JS {
 
-JS_DEFINE_ALLOCATOR(RegExpConstructor);
+GC_DEFINE_ALLOCATOR(RegExpConstructor);
 
 RegExpConstructor::RegExpConstructor(Realm& realm)
     : NativeFunction(realm.vm().names.RegExp.as_string(), realm.intrinsics().function_prototype())
@@ -82,7 +82,7 @@ ThrowCompletionOr<Value> RegExpConstructor::call()
 }
 
 // 22.2.4.1 RegExp ( pattern, flags ), https://tc39.es/ecma262/#sec-regexp-pattern-flags
-ThrowCompletionOr<NonnullGCPtr<Object>> RegExpConstructor::construct(FunctionObject& new_target)
+ThrowCompletionOr<GC::Ref<Object>> RegExpConstructor::construct(FunctionObject& new_target)
 {
     auto& vm = this->vm();
 

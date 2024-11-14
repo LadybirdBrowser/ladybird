@@ -11,7 +11,7 @@
 
 namespace Web::SVG {
 
-JS_DEFINE_ALLOCATOR(SVGClipPathElement);
+GC_DEFINE_ALLOCATOR(SVGClipPathElement);
 
 SVGClipPathElement::SVGClipPathElement(DOM::Document& document, DOM::QualifiedName qualified_name)
     : SVGElement(document, move(qualified_name))
@@ -36,7 +36,7 @@ void SVGClipPathElement::attribute_changed(FlyString const& name, Optional<Strin
         m_clip_path_units = AttributeParser::parse_units(value.value_or(String {}));
 }
 
-JS::GCPtr<Layout::Node> SVGClipPathElement::create_layout_node(CSS::StyleProperties)
+GC::Ptr<Layout::Node> SVGClipPathElement::create_layout_node(CSS::StyleProperties)
 {
     // Clip paths are handled as a special case in the TreeBuilder.
     return nullptr;

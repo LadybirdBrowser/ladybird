@@ -48,27 +48,27 @@ struct TargetSnapshotParams {
 
 // https://html.spec.whatwg.org/multipage/document-sequences.html#navigable
 class Navigable : public JS::Cell {
-    JS_CELL(Navigable, JS::Cell);
-    JS_DECLARE_ALLOCATOR(Navigable);
+    GC_CELL(Navigable, JS::Cell);
+    GC_DECLARE_ALLOCATOR(Navigable);
 
 public:
     virtual ~Navigable() override;
 
     using NullWithError = StringView;
-    using NavigationParamsVariant = Variant<Empty, NullWithError, JS::NonnullGCPtr<NavigationParams>, JS::NonnullGCPtr<NonFetchSchemeNavigationParams>>;
+    using NavigationParamsVariant = Variant<Empty, NullWithError, GC::Ref<NavigationParams>, GC::Ref<NonFetchSchemeNavigationParams>>;
 
-    ErrorOr<void> initialize_navigable(JS::NonnullGCPtr<DocumentState> document_state, JS::GCPtr<Navigable> parent);
+    ErrorOr<void> initialize_navigable(GC::Ref<DocumentState> document_state, GC::Ptr<Navigable> parent);
 
     void register_navigation_observer(Badge<NavigationObserver>, NavigationObserver&);
     void unregister_navigation_observer(Badge<NavigationObserver>, NavigationObserver&);
 
-    Vector<JS::Handle<Navigable>> child_navigables() const;
+    Vector<GC::Root<Navigable>> child_navigables() const;
 
     bool is_traversable() const;
 
     String const& id() const { return m_id; }
-    JS::GCPtr<Navigable> parent() const { return m_parent; }
-    bool is_ancestor_of(JS::NonnullGCPtr<Navigable>) const;
+    GC::Ptr<Navigable> parent() const { return m_parent; }
+    bool is_ancestor_of(GC::Ref<Navigable>) const;
 
     bool is_closing() const { return m_closing; }
     void set_closing(bool value) { m_closing = value; }
@@ -77,29 +77,29 @@ public:
     void set_delaying_load_events(bool value);
     bool is_delaying_load_events() const { return m_delaying_the_load_event.has_value(); }
 
-    JS::GCPtr<SessionHistoryEntry> active_session_history_entry() const { return m_active_session_history_entry; }
-    void set_active_session_history_entry(JS::GCPtr<SessionHistoryEntry> entry) { m_active_session_history_entry = entry; }
-    JS::GCPtr<SessionHistoryEntry> current_session_history_entry() const { return m_current_session_history_entry; }
-    void set_current_session_history_entry(JS::GCPtr<SessionHistoryEntry> entry) { m_current_session_history_entry = entry; }
+    GC::Ptr<SessionHistoryEntry> active_session_history_entry() const { return m_active_session_history_entry; }
+    void set_active_session_history_entry(GC::Ptr<SessionHistoryEntry> entry) { m_active_session_history_entry = entry; }
+    GC::Ptr<SessionHistoryEntry> current_session_history_entry() const { return m_current_session_history_entry; }
+    void set_current_session_history_entry(GC::Ptr<SessionHistoryEntry> entry) { m_current_session_history_entry = entry; }
 
-    Vector<JS::NonnullGCPtr<SessionHistoryEntry>>& get_session_history_entries() const;
+    Vector<GC::Ref<SessionHistoryEntry>>& get_session_history_entries() const;
 
-    void activate_history_entry(JS::GCPtr<SessionHistoryEntry>);
+    void activate_history_entry(GC::Ptr<SessionHistoryEntry>);
 
-    JS::GCPtr<DOM::Document> active_document();
-    JS::GCPtr<BrowsingContext> active_browsing_context();
-    JS::GCPtr<WindowProxy> active_window_proxy();
-    JS::GCPtr<Window> active_window();
+    GC::Ptr<DOM::Document> active_document();
+    GC::Ptr<BrowsingContext> active_browsing_context();
+    GC::Ptr<WindowProxy> active_window_proxy();
+    GC::Ptr<Window> active_window();
 
-    JS::GCPtr<SessionHistoryEntry> get_the_target_history_entry(int target_step) const;
+    GC::Ptr<SessionHistoryEntry> get_the_target_history_entry(int target_step) const;
 
     String target_name() const;
 
-    JS::GCPtr<NavigableContainer> container() const;
-    JS::GCPtr<DOM::Document> container_document() const;
+    GC::Ptr<NavigableContainer> container() const;
+    GC::Ptr<DOM::Document> container_document() const;
 
-    JS::GCPtr<TraversableNavigable> traversable_navigable() const;
-    JS::GCPtr<TraversableNavigable> top_level_traversable();
+    GC::Ptr<TraversableNavigable> traversable_navigable() const;
+    GC::Ptr<TraversableNavigable> top_level_traversable();
 
     virtual bool is_top_level_traversable() const { return false; }
 
@@ -112,13 +112,13 @@ public:
     };
 
     struct ChosenNavigable {
-        JS::GCPtr<Navigable> navigable;
+        GC::Ptr<Navigable> navigable;
         WindowType window_type;
     };
 
     ChosenNavigable choose_a_navigable(StringView name, TokenizedFeature::NoOpener no_opener, ActivateTab = ActivateTab::Yes, Optional<TokenizedFeature::Map const&> window_features = {});
 
-    static JS::GCPtr<Navigable> navigable_with_active_document(JS::NonnullGCPtr<DOM::Document>);
+    static GC::Ptr<Navigable> navigable_with_active_document(GC::Ref<DOM::Document>);
 
     enum class Traversal {
         Tag
@@ -128,20 +128,20 @@ public:
     void set_ongoing_navigation(Variant<Empty, Traversal, String> ongoing_navigation);
 
     WebIDL::ExceptionOr<void> populate_session_history_entry_document(
-        JS::GCPtr<SessionHistoryEntry> entry,
+        GC::Ptr<SessionHistoryEntry> entry,
         SourceSnapshotParams const& source_snapshot_params,
         TargetSnapshotParams const& target_snapshot_params,
         Optional<String> navigation_id = {},
         NavigationParamsVariant navigation_params = Empty {},
         CSPNavigationType csp_navigation_type = CSPNavigationType::Other,
         bool allow_POST = false,
-        JS::GCPtr<JS::HeapFunction<void()>> completion_steps = {});
+        GC::Ptr<GC::Function<void()>> completion_steps = {});
 
     struct NavigateParams {
         URL::URL const& url;
-        JS::NonnullGCPtr<DOM::Document> source_document;
+        GC::Ref<DOM::Document> source_document;
         Variant<Empty, String, POSTResource> document_resource = Empty {};
-        JS::GCPtr<Fetch::Infrastructure::Response> response = nullptr;
+        GC::Ptr<Fetch::Infrastructure::Response> response = nullptr;
         bool exceptions_enabled = false;
         Bindings::NavigationHistoryBehavior history_handling = Bindings::NavigationHistoryBehavior::Auto;
         Optional<SerializationRecord> navigation_api_state = {};
@@ -154,7 +154,7 @@ public:
 
     WebIDL::ExceptionOr<void> navigate_to_a_fragment(URL::URL const&, HistoryHandlingBehavior, UserNavigationInvolvement, Optional<SerializationRecord> navigation_api_state, String navigation_id);
 
-    WebIDL::ExceptionOr<JS::GCPtr<DOM::Document>> evaluate_javascript_url(URL::URL const&, URL::Origin const& new_document_origin, String navigation_id);
+    WebIDL::ExceptionOr<GC::Ptr<DOM::Document>> evaluate_javascript_url(URL::URL const&, URL::Origin const& new_document_origin, String navigation_id);
     WebIDL::ExceptionOr<void> navigate_to_a_javascript_url(URL::URL const&, HistoryHandlingBehavior, URL::Origin const& initiator_origin, CSPNavigationType csp_navigation_type, String navigation_id);
 
     bool allowed_by_sandboxing_to_navigate(Navigable const& target, SourceSnapshotParams const&);
@@ -195,7 +195,7 @@ public:
     Web::EventHandler const& event_handler() const { return m_event_handler; }
 
 protected:
-    explicit Navigable(JS::NonnullGCPtr<Page>);
+    explicit Navigable(GC::Ref<Page>);
 
     virtual void visit_edges(Cell::Visitor&) override;
 
@@ -216,13 +216,13 @@ private:
     String m_id;
 
     // https://html.spec.whatwg.org/multipage/document-sequences.html#nav-parent
-    JS::GCPtr<Navigable> m_parent;
+    GC::Ptr<Navigable> m_parent;
 
     // https://html.spec.whatwg.org/multipage/document-sequences.html#nav-current-history-entry
-    JS::GCPtr<SessionHistoryEntry> m_current_session_history_entry;
+    GC::Ptr<SessionHistoryEntry> m_current_session_history_entry;
 
     // https://html.spec.whatwg.org/multipage/document-sequences.html#nav-active-history-entry
-    JS::GCPtr<SessionHistoryEntry> m_active_session_history_entry;
+    GC::Ptr<SessionHistoryEntry> m_active_session_history_entry;
 
     // https://html.spec.whatwg.org/multipage/document-sequences.html#is-closing
     bool m_closing { false };
@@ -231,11 +231,11 @@ private:
     Optional<DOM::DocumentLoadEventDelayer> m_delaying_the_load_event;
 
     // Implied link between navigable and its container.
-    JS::GCPtr<NavigableContainer> m_container;
+    GC::Ptr<NavigableContainer> m_container;
 
-    JS::NonnullGCPtr<Page> m_page;
+    GC::Ref<Page> m_page;
 
-    HashTable<JS::NonnullGCPtr<NavigationObserver>> m_navigation_observers;
+    HashTable<GC::Ref<NavigationObserver>> m_navigation_observers;
 
     bool m_has_been_destroyed { false };
 
@@ -248,7 +248,7 @@ private:
 HashTable<Navigable*>& all_navigables();
 
 bool navigation_must_be_a_replace(URL::URL const& url, DOM::Document const& document);
-void finalize_a_cross_document_navigation(JS::NonnullGCPtr<Navigable>, HistoryHandlingBehavior, JS::NonnullGCPtr<SessionHistoryEntry>);
+void finalize_a_cross_document_navigation(GC::Ref<Navigable>, HistoryHandlingBehavior, GC::Ref<SessionHistoryEntry>);
 void perform_url_and_history_update_steps(DOM::Document& document, URL::URL new_url, Optional<SerializationRecord> = {}, HistoryHandlingBehavior history_handling = HistoryHandlingBehavior::Replace);
 UserNavigationInvolvement user_navigation_involvement(DOM::Event const&);
 

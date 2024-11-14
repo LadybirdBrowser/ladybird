@@ -15,7 +15,7 @@
 
 namespace Web::HTML {
 
-JS_DEFINE_ALLOCATOR(CanvasPattern);
+GC_DEFINE_ALLOCATOR(CanvasPattern);
 
 void CanvasPatternPaintStyle::paint(Gfx::IntRect physical_bounding_box, PaintFunction paint) const
 {
@@ -93,7 +93,7 @@ CanvasPattern::CanvasPattern(JS::Realm& realm, CanvasPatternPaintStyle& pattern)
 CanvasPattern::~CanvasPattern() = default;
 
 // https://html.spec.whatwg.org/multipage/canvas.html#dom-context-2d-createpattern
-WebIDL::ExceptionOr<JS::GCPtr<CanvasPattern>> CanvasPattern::create(JS::Realm& realm, CanvasImageSource const& image, StringView repetition)
+WebIDL::ExceptionOr<GC::Ptr<CanvasPattern>> CanvasPattern::create(JS::Realm& realm, CanvasImageSource const& image, StringView repetition)
 {
     auto parse_repetition = [&](auto repetition) -> Optional<CanvasPatternPaintStyle::Repetition> {
         if (repetition == "repeat"sv)
@@ -112,7 +112,7 @@ WebIDL::ExceptionOr<JS::GCPtr<CanvasPattern>> CanvasPattern::create(JS::Realm& r
 
     // 2. If usability is bad, then return null.
     if (usability == CanvasImageSourceUsability::Bad)
-        return JS::GCPtr<CanvasPattern> {};
+        return GC::Ptr<CanvasPattern> {};
 
     // 3. Assert: usability is good.
     VERIFY(usability == CanvasImageSourceUsability::Good);
@@ -129,11 +129,11 @@ WebIDL::ExceptionOr<JS::GCPtr<CanvasPattern>> CanvasPattern::create(JS::Realm& r
 
     // Note: Bitmap won't be null here, as if it were it would have "bad" usability.
     auto bitmap = image.visit(
-        [](JS::Handle<HTMLImageElement> const& source) -> RefPtr<Gfx::ImmutableBitmap> { return source->immutable_bitmap(); },
-        [](JS::Handle<SVG::SVGImageElement> const& source) -> RefPtr<Gfx::ImmutableBitmap> { return source->current_image_bitmap(); },
-        [](JS::Handle<HTMLCanvasElement> const& source) -> RefPtr<Gfx::ImmutableBitmap> { return Gfx::ImmutableBitmap::create_snapshot_from_painting_surface(*source->surface()); },
-        [](JS::Handle<HTMLVideoElement> const& source) -> RefPtr<Gfx::ImmutableBitmap> { return Gfx::ImmutableBitmap::create(*source->bitmap()); },
-        [](JS::Handle<ImageBitmap> const& source) -> RefPtr<Gfx::ImmutableBitmap> { return Gfx::ImmutableBitmap::create(*source->bitmap()); });
+        [](GC::Root<HTMLImageElement> const& source) -> RefPtr<Gfx::ImmutableBitmap> { return source->immutable_bitmap(); },
+        [](GC::Root<SVG::SVGImageElement> const& source) -> RefPtr<Gfx::ImmutableBitmap> { return source->current_image_bitmap(); },
+        [](GC::Root<HTMLCanvasElement> const& source) -> RefPtr<Gfx::ImmutableBitmap> { return Gfx::ImmutableBitmap::create_snapshot_from_painting_surface(*source->surface()); },
+        [](GC::Root<HTMLVideoElement> const& source) -> RefPtr<Gfx::ImmutableBitmap> { return Gfx::ImmutableBitmap::create(*source->bitmap()); },
+        [](GC::Root<ImageBitmap> const& source) -> RefPtr<Gfx::ImmutableBitmap> { return Gfx::ImmutableBitmap::create(*source->bitmap()); });
 
     // 6. Let pattern be a new CanvasPattern object with the image image and the repetition behavior given by repetition.
     auto pattern = TRY_OR_THROW_OOM(realm.vm(), CanvasPatternPaintStyle::create(*bitmap, *repetition_value));

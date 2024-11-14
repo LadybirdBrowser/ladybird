@@ -15,7 +15,7 @@
 
 namespace JS {
 
-JS_DEFINE_ALLOCATOR(PromisePrototype);
+GC_DEFINE_ALLOCATOR(PromisePrototype);
 
 PromisePrototype::PromisePrototype(Realm& realm)
     : PrototypeObject(realm.intrinsics().object_prototype())

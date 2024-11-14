@@ -17,7 +17,7 @@
 
 namespace Web::HTML {
 
-JS_DEFINE_ALLOCATOR(HTMLFontElement);
+GC_DEFINE_ALLOCATOR(HTMLFontElement);
 
 enum class Mode {
     RelativePlus,

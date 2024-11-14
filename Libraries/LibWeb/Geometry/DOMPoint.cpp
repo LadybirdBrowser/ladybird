@@ -11,14 +11,14 @@
 
 namespace Web::Geometry {
 
-JS_DEFINE_ALLOCATOR(DOMPoint);
+GC_DEFINE_ALLOCATOR(DOMPoint);
 
-JS::NonnullGCPtr<DOMPoint> DOMPoint::construct_impl(JS::Realm& realm, double x, double y, double z, double w)
+GC::Ref<DOMPoint> DOMPoint::construct_impl(JS::Realm& realm, double x, double y, double z, double w)
 {
     return realm.create<DOMPoint>(realm, x, y, z, w);
 }
 
-JS::NonnullGCPtr<DOMPoint> DOMPoint::create(JS::Realm& realm)
+GC::Ref<DOMPoint> DOMPoint::create(JS::Realm& realm)
 {
     return realm.create<DOMPoint>(realm);
 }
@@ -34,7 +34,7 @@ DOMPoint::DOMPoint(JS::Realm& realm)
 }
 
 // https://drafts.fxtf.org/geometry/#dom-dompoint-frompoint
-JS::NonnullGCPtr<DOMPoint> DOMPoint::from_point(JS::VM& vm, DOMPointInit const& other)
+GC::Ref<DOMPoint> DOMPoint::from_point(JS::VM& vm, DOMPointInit const& other)
 {
     // The fromPoint(other) static method on DOMPoint must create a DOMPoint from the dictionary other.
     return construct_impl(*vm.current_realm(), other.x, other.y, other.z, other.w);

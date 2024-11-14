@@ -13,17 +13,17 @@
 namespace Web::UIEvents {
 
 struct UIEventInit : public DOM::EventInit {
-    JS::GCPtr<HTML::Window> view;
+    GC::Ptr<HTML::Window> view;
     int detail { 0 };
 };
 
 class UIEvent : public DOM::Event {
     WEB_PLATFORM_OBJECT(UIEvent, DOM::Event);
-    JS_DECLARE_ALLOCATOR(UIEvent);
+    GC_DECLARE_ALLOCATOR(UIEvent);
 
 public:
-    [[nodiscard]] static JS::NonnullGCPtr<UIEvent> create(JS::Realm&, FlyString const& type);
-    static WebIDL::ExceptionOr<JS::NonnullGCPtr<UIEvent>> construct_impl(JS::Realm&, FlyString const& event_name, UIEventInit const& event_init);
+    [[nodiscard]] static GC::Ref<UIEvent> create(JS::Realm&, FlyString const& type);
+    static WebIDL::ExceptionOr<GC::Ref<UIEvent>> construct_impl(JS::Realm&, FlyString const& event_name, UIEventInit const& event_init);
 
     virtual ~UIEvent() override;
 
@@ -54,7 +54,7 @@ protected:
     virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Cell::Visitor&) override;
 
-    JS::GCPtr<HTML::Window> m_view;
+    GC::Ptr<HTML::Window> m_view;
     int m_detail { 0 };
 };
 

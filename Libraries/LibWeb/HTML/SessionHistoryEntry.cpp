@@ -11,7 +11,7 @@
 
 namespace Web::HTML {
 
-JS_DEFINE_ALLOCATOR(SessionHistoryEntry);
+GC_DEFINE_ALLOCATOR(SessionHistoryEntry);
 
 void SessionHistoryEntry::visit_edges(Cell::Visitor& visitor)
 {
@@ -28,9 +28,9 @@ SessionHistoryEntry::SessionHistoryEntry()
 {
 }
 
-JS::NonnullGCPtr<SessionHistoryEntry> SessionHistoryEntry::clone() const
+GC::Ref<SessionHistoryEntry> SessionHistoryEntry::clone() const
 {
-    JS::NonnullGCPtr<SessionHistoryEntry> entry = *heap().allocate<SessionHistoryEntry>();
+    GC::Ref<SessionHistoryEntry> entry = *heap().allocate<SessionHistoryEntry>();
     entry->m_step = m_step;
     entry->m_url = m_url;
     entry->m_document_state = m_document_state->clone();
@@ -46,7 +46,7 @@ JS::NonnullGCPtr<SessionHistoryEntry> SessionHistoryEntry::clone() const
 }
 
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#she-document
-JS::GCPtr<DOM::Document> SessionHistoryEntry::document() const
+GC::Ptr<DOM::Document> SessionHistoryEntry::document() const
 {
     // To get a session history entry's document, return its document state's document.
     if (!m_document_state)

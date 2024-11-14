@@ -42,34 +42,34 @@ namespace Web::HTML {
     __ENUMERATE_INSERTION_MODE(AfterAfterFrameset)
 
 class HTMLParser final : public JS::Cell {
-    JS_CELL(HTMLParser, JS::Cell);
-    JS_DECLARE_ALLOCATOR(HTMLParser);
+    GC_CELL(HTMLParser, JS::Cell);
+    GC_DECLARE_ALLOCATOR(HTMLParser);
 
     friend class HTMLTokenizer;
 
 public:
     ~HTMLParser();
 
-    static JS::NonnullGCPtr<HTMLParser> create_for_scripting(DOM::Document&);
-    static JS::NonnullGCPtr<HTMLParser> create_with_uncertain_encoding(DOM::Document&, ByteBuffer const& input, Optional<MimeSniff::MimeType> maybe_mime_type = {});
-    static JS::NonnullGCPtr<HTMLParser> create(DOM::Document&, StringView input, StringView encoding);
+    static GC::Ref<HTMLParser> create_for_scripting(DOM::Document&);
+    static GC::Ref<HTMLParser> create_with_uncertain_encoding(DOM::Document&, ByteBuffer const& input, Optional<MimeSniff::MimeType> maybe_mime_type = {});
+    static GC::Ref<HTMLParser> create(DOM::Document&, StringView input, StringView encoding);
 
     void run(HTMLTokenizer::StopAtInsertionPoint = HTMLTokenizer::StopAtInsertionPoint::No);
     void run(const URL::URL&, HTMLTokenizer::StopAtInsertionPoint = HTMLTokenizer::StopAtInsertionPoint::No);
 
-    static void the_end(JS::NonnullGCPtr<DOM::Document>, JS::GCPtr<HTMLParser> = nullptr);
+    static void the_end(GC::Ref<DOM::Document>, GC::Ptr<HTMLParser> = nullptr);
 
     DOM::Document& document();
     enum class AllowDeclarativeShadowRoots {
         No,
         Yes,
     };
-    static Vector<JS::Handle<DOM::Node>> parse_html_fragment(DOM::Element& context_element, StringView, AllowDeclarativeShadowRoots = AllowDeclarativeShadowRoots::No);
+    static Vector<GC::Root<DOM::Node>> parse_html_fragment(DOM::Element& context_element, StringView, AllowDeclarativeShadowRoots = AllowDeclarativeShadowRoots::No);
     enum class SerializableShadowRoots {
         No,
         Yes,
     };
-    static String serialize_html_fragment(DOM::Node const&, SerializableShadowRoots, Vector<JS::Handle<DOM::ShadowRoot>> const&, DOM::FragmentSerializationMode = DOM::FragmentSerializationMode::Inner);
+    static String serialize_html_fragment(DOM::Node const&, SerializableShadowRoots, Vector<GC::Root<DOM::ShadowRoot>> const&, DOM::FragmentSerializationMode = DOM::FragmentSerializationMode::Inner);
 
     enum class InsertionMode {
 #define __ENUMERATE_INSERTION_MODE(mode) mode,
@@ -129,16 +129,16 @@ private:
 
     void generate_implied_end_tags(FlyString const& exception = {});
     void generate_all_implied_end_tags_thoroughly();
-    JS::NonnullGCPtr<DOM::Element> create_element_for(HTMLToken const&, Optional<FlyString> const& namespace_, DOM::Node& intended_parent);
+    GC::Ref<DOM::Element> create_element_for(HTMLToken const&, Optional<FlyString> const& namespace_, DOM::Node& intended_parent);
 
     struct AdjustedInsertionLocation {
-        JS::GCPtr<DOM::Node> parent;
-        JS::GCPtr<DOM::Node> insert_before_sibling;
+        GC::Ptr<DOM::Node> parent;
+        GC::Ptr<DOM::Node> insert_before_sibling;
     };
 
-    AdjustedInsertionLocation find_appropriate_place_for_inserting_node(JS::GCPtr<DOM::Element> override_target = nullptr);
+    AdjustedInsertionLocation find_appropriate_place_for_inserting_node(GC::Ptr<DOM::Element> override_target = nullptr);
 
-    void insert_an_element_at_the_adjusted_insertion_location(JS::NonnullGCPtr<DOM::Element>);
+    void insert_an_element_at_the_adjusted_insertion_location(GC::Ref<DOM::Element>);
 
     DOM::Text* find_character_insertion_node();
     void flush_character_insertions();
@@ -146,11 +146,11 @@ private:
         No,
         Yes,
     };
-    JS::NonnullGCPtr<DOM::Element> insert_foreign_element(HTMLToken const&, Optional<FlyString> const& namespace_, OnlyAddToElementStack);
-    JS::NonnullGCPtr<DOM::Element> insert_html_element(HTMLToken const&);
-    [[nodiscard]] JS::GCPtr<DOM::Element> current_node();
-    [[nodiscard]] JS::GCPtr<DOM::Element> adjusted_current_node();
-    [[nodiscard]] JS::GCPtr<DOM::Element> node_before_current_node();
+    GC::Ref<DOM::Element> insert_foreign_element(HTMLToken const&, Optional<FlyString> const& namespace_, OnlyAddToElementStack);
+    GC::Ref<DOM::Element> insert_html_element(HTMLToken const&);
+    [[nodiscard]] GC::Ptr<DOM::Element> current_node();
+    [[nodiscard]] GC::Ptr<DOM::Element> adjusted_current_node();
+    [[nodiscard]] GC::Ptr<DOM::Element> node_before_current_node();
     void insert_character(u32 data);
     void insert_comment(HTMLToken&);
     void reconstruct_the_active_formatting_elements();
@@ -203,14 +203,14 @@ private:
 
     JS::Realm& realm();
 
-    JS::GCPtr<DOM::Document> m_document;
-    JS::GCPtr<HTMLHeadElement> m_head_element;
-    JS::GCPtr<HTMLFormElement> m_form_element;
-    JS::GCPtr<DOM::Element> m_context_element;
+    GC::Ptr<DOM::Document> m_document;
+    GC::Ptr<HTMLHeadElement> m_head_element;
+    GC::Ptr<HTMLFormElement> m_form_element;
+    GC::Ptr<DOM::Element> m_context_element;
 
     Vector<HTMLToken> m_pending_table_character_tokens;
 
-    JS::GCPtr<DOM::Text> m_character_insertion_node;
+    GC::Ptr<DOM::Text> m_character_insertion_node;
     StringBuilder m_character_insertion_builder;
 };
 

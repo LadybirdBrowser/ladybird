@@ -10,7 +10,7 @@
 
 namespace Web::SVG {
 
-JS_DEFINE_ALLOCATOR(SVGTextElement);
+GC_DEFINE_ALLOCATOR(SVGTextElement);
 
 SVGTextElement::SVGTextElement(DOM::Document& document, DOM::QualifiedName qualified_name)
     : SVGTextPositioningElement(document, move(qualified_name))
@@ -23,7 +23,7 @@ void SVGTextElement::initialize(JS::Realm& realm)
     WEB_SET_PROTOTYPE_FOR_INTERFACE(SVGTextElement);
 }
 
-JS::GCPtr<Layout::Node> SVGTextElement::create_layout_node(CSS::StyleProperties style)
+GC::Ptr<Layout::Node> SVGTextElement::create_layout_node(CSS::StyleProperties style)
 {
     return heap().allocate<Layout::SVGTextBox>(document(), *this, move(style));
 }

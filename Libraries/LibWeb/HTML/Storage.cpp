@@ -12,9 +12,9 @@
 
 namespace Web::HTML {
 
-JS_DEFINE_ALLOCATOR(Storage);
+GC_DEFINE_ALLOCATOR(Storage);
 
-JS::NonnullGCPtr<Storage> Storage::create(JS::Realm& realm)
+GC::Ref<Storage> Storage::create(JS::Realm& realm)
 {
     return realm.create<Storage>(realm);
 }

@@ -8,7 +8,7 @@
 
 #include <AK/HashTable.h>
 #include <AK/StringBuilder.h>
-#include <LibJS/Heap/DeferGC.h>
+#include <LibGC/DeferGC.h>
 #include <LibJS/Runtime/FunctionObject.h>
 #include <LibRegex/Regex.h>
 #include <LibURL/Origin.h>
@@ -367,7 +367,7 @@ void Node::set_node_value(Optional<String> const& maybe_value)
 }
 
 // https://html.spec.whatwg.org/multipage/document-sequences.html#node-navigable
-JS::GCPtr<HTML::Navigable> Node::navigable() const
+GC::Ptr<HTML::Navigable> Node::navigable() const
 {
     auto& document = const_cast<Document&>(this->document());
     if (auto cached_navigable = document.cached_navigable()) {
@@ -519,7 +519,7 @@ bool Node::is_browsing_context_connected() const
 }
 
 // https://dom.spec.whatwg.org/#concept-node-ensure-pre-insertion-validity
-WebIDL::ExceptionOr<void> Node::ensure_pre_insertion_validity(JS::NonnullGCPtr<Node> node, JS::GCPtr<Node> child) const
+WebIDL::ExceptionOr<void> Node::ensure_pre_insertion_validity(GC::Ref<Node> node, GC::Ptr<Node> child) const
 {
     // 1. If parent is not a Document, DocumentFragment, or Element node, then throw a "HierarchyRequestError" DOMException.
     if (!is<Document>(this) && !is<DocumentFragment>(this) && !is<Element>(this))
@@ -570,14 +570,14 @@ WebIDL::ExceptionOr<void> Node::ensure_pre_insertion_validity(JS::NonnullGCPtr<N
 }
 
 // https://dom.spec.whatwg.org/#concept-node-insert
-void Node::insert_before(JS::NonnullGCPtr<Node> node, JS::GCPtr<Node> child, bool suppress_observers)
+void Node::insert_before(GC::Ref<Node> node, GC::Ptr<Node> child, bool suppress_observers)
 {
     // 1. Let nodes be node’s children, if node is a DocumentFragment node; otherwise « node ».
-    Vector<JS::Handle<Node>> nodes;
+    Vector<GC::Root<Node>> nodes;
     if (is<DocumentFragment>(*node))
         nodes = node->children_as_vector();
     else
-        nodes.append(JS::make_handle(*node));
+        nodes.append(GC::make_root(*node));
 
     // 2. Let count be nodes’s size.
     auto count = nodes.size();
@@ -612,7 +612,7 @@ void Node::insert_before(JS::NonnullGCPtr<Node> node, JS::GCPtr<Node> child, boo
     }
 
     // 6. Let previousSibling be child’s previous sibling or parent’s last child if child is null.
-    JS::GCPtr<Node> previous_sibling;
+    GC::Ptr<Node> previous_sibling;
     if (child)
         previous_sibling = child->previous_sibling();
     else
@@ -670,7 +670,7 @@ void Node::insert_before(JS::NonnullGCPtr<Node> node, JS::GCPtr<Node> child, boo
                 // 1. If inclusiveDescendant is custom, then enqueue a custom element callback reaction with inclusiveDescendant,
                 //    callback name "connectedCallback", and an empty argument list.
                 if (element.is_custom()) {
-                    JS::MarkedVector<JS::Value> empty_arguments { vm().heap() };
+                    GC::MarkedVector<JS::Value> empty_arguments { vm().heap() };
                     element.enqueue_a_custom_element_callback_reaction(HTML::CustomElementReactionNames::connectedCallback, move(empty_arguments));
                 }
 
@@ -704,7 +704,7 @@ void Node::insert_before(JS::NonnullGCPtr<Node> node, JS::GCPtr<Node> child, boo
 }
 
 // https://dom.spec.whatwg.org/#concept-node-pre-insert
-WebIDL::ExceptionOr<JS::NonnullGCPtr<Node>> Node::pre_insert(JS::NonnullGCPtr<Node> node, JS::GCPtr<Node> child)
+WebIDL::ExceptionOr<GC::Ref<Node>> Node::pre_insert(GC::Ref<Node> node, GC::Ptr<Node> child)
 {
     // 1. Ensure pre-insertion validity of node into parent before child.
     TRY(ensure_pre_insertion_validity(node, child));
@@ -724,14 +724,14 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<Node>> Node::pre_insert(JS::NonnullGCPtr<No
 }
 
 // https://dom.spec.whatwg.org/#dom-node-removechild
-WebIDL::ExceptionOr<JS::NonnullGCPtr<Node>> Node::remove_child(JS::NonnullGCPtr<Node> child)
+WebIDL::ExceptionOr<GC::Ref<Node>> Node::remove_child(GC::Ref<Node> child)
 {
     // The removeChild(child) method steps are to return the result of pre-removing child from this.
     return pre_remove(child);
 }
 
 // https://dom.spec.whatwg.org/#concept-node-pre-remove
-WebIDL::ExceptionOr<JS::NonnullGCPtr<Node>> Node::pre_remove(JS::NonnullGCPtr<Node> child)
+WebIDL::ExceptionOr<GC::Ref<Node>> Node::pre_remove(GC::Ref<Node> child)
 {
     // 1. If child’s parent is not parent, then throw a "NotFoundError" DOMException.
     if (child->parent() != this)
@@ -745,7 +745,7 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<Node>> Node::pre_remove(JS::NonnullGCPtr<No
 }
 
 // https://dom.spec.whatwg.org/#concept-node-append
-WebIDL::ExceptionOr<JS::NonnullGCPtr<Node>> Node::append_child(JS::NonnullGCPtr<Node> node)
+WebIDL::ExceptionOr<GC::Ref<Node>> Node::append_child(GC::Ref<Node> node)
 {
     // To append a node to a parent, pre-insert node into parent before null.
     return pre_insert(node, nullptr);
@@ -793,10 +793,10 @@ void Node::remove(bool suppress_observers)
     });
 
     // 9. Let oldPreviousSibling be node’s previous sibling.
-    JS::GCPtr<Node> old_previous_sibling = previous_sibling();
+    GC::Ptr<Node> old_previous_sibling = previous_sibling();
 
     // 10. Let oldNextSibling be node’s next sibling.
-    JS::GCPtr<Node> old_next_sibling = next_sibling();
+    GC::Ptr<Node> old_next_sibling = next_sibling();
 
     if (is_connected()) {
         // Since the tree structure is about to change, we need to invalidate both style and layout.
@@ -856,7 +856,7 @@ void Node::remove(bool suppress_observers)
         auto& element = static_cast<DOM::Element&>(*this);
 
         if (element.is_custom() && is_parent_connected) {
-            JS::MarkedVector<JS::Value> empty_arguments { vm().heap() };
+            GC::MarkedVector<JS::Value> empty_arguments { vm().heap() };
             element.enqueue_a_custom_element_callback_reaction(HTML::CustomElementReactionNames::disconnectedCallback, move(empty_arguments));
         }
     }
@@ -872,7 +872,7 @@ void Node::remove(bool suppress_observers)
             auto& element = static_cast<DOM::Element&>(descendant);
 
             if (element.is_custom() && is_parent_connected) {
-                JS::MarkedVector<JS::Value> empty_arguments { vm().heap() };
+                GC::MarkedVector<JS::Value> empty_arguments { vm().heap() };
                 element.enqueue_a_custom_element_callback_reaction(HTML::CustomElementReactionNames::disconnectedCallback, move(empty_arguments));
             }
         }
@@ -906,7 +906,7 @@ void Node::remove(bool suppress_observers)
 }
 
 // https://dom.spec.whatwg.org/#concept-node-replace
-WebIDL::ExceptionOr<JS::NonnullGCPtr<Node>> Node::replace_child(JS::NonnullGCPtr<Node> node, JS::NonnullGCPtr<Node> child)
+WebIDL::ExceptionOr<GC::Ref<Node>> Node::replace_child(GC::Ref<Node> node, GC::Ref<Node> child)
 {
     // If parent is not a Document, DocumentFragment, or Element node, then throw a "HierarchyRequestError" DOMException.
     if (!is<Document>(this) && !is<DocumentFragment>(this) && !is<Element>(this))
@@ -955,34 +955,34 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<Node>> Node::replace_child(JS::NonnullGCPtr
     }
 
     // 7. Let referenceChild be child’s next sibling.
-    JS::GCPtr<Node> reference_child = child->next_sibling();
+    GC::Ptr<Node> reference_child = child->next_sibling();
 
     // 8. If referenceChild is node, then set referenceChild to node’s next sibling.
     if (reference_child == node)
         reference_child = node->next_sibling();
 
     // 9. Let previousSibling be child’s previous sibling.
-    JS::GCPtr<Node> previous_sibling = child->previous_sibling();
+    GC::Ptr<Node> previous_sibling = child->previous_sibling();
 
     // 10. Let removedNodes be the empty set.
-    Vector<JS::Handle<Node>> removed_nodes;
+    Vector<GC::Root<Node>> removed_nodes;
 
     // 11. If child’s parent is non-null, then:
     // NOTE: The above can only be false if child is node.
     if (child->parent()) {
         // 1. Set removedNodes to « child ».
-        removed_nodes.append(JS::make_handle(*child));
+        removed_nodes.append(GC::make_root(*child));
 
         // 2. Remove child with the suppress observers flag set.
         child->remove(true);
     }
 
     // 12. Let nodes be node’s children if node is a DocumentFragment node; otherwise « node ».
-    Vector<JS::Handle<Node>> nodes;
+    Vector<GC::Root<Node>> nodes;
     if (is<DocumentFragment>(*node))
         nodes = node->children_as_vector();
     else
-        nodes.append(JS::make_handle(*node));
+        nodes.append(GC::make_root(*node));
 
     // 13. Insert node into parent before referenceChild with the suppress observers flag set.
     insert_before(node, reference_child, true);
@@ -995,12 +995,12 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<Node>> Node::replace_child(JS::NonnullGCPtr
 }
 
 // https://dom.spec.whatwg.org/#concept-node-clone
-WebIDL::ExceptionOr<JS::NonnullGCPtr<Node>> Node::clone_node(Document* document, bool clone_children)
+WebIDL::ExceptionOr<GC::Ref<Node>> Node::clone_node(Document* document, bool clone_children)
 {
     // 1. If document is not given, let document be node’s node document.
     if (!document)
         document = m_document.ptr();
-    JS::GCPtr<Node> copy;
+    GC::Ptr<Node> copy;
 
     // 2. If node is an element, then:
     if (is<Element>(this)) {
@@ -1109,11 +1109,11 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<Node>> Node::clone_node(Document* document,
 
     // 7. Return copy.
     VERIFY(copy);
-    return JS::NonnullGCPtr { *copy };
+    return GC::Ref { *copy };
 }
 
 // https://dom.spec.whatwg.org/#dom-node-clonenode
-WebIDL::ExceptionOr<JS::NonnullGCPtr<Node>> Node::clone_node_binding(bool deep)
+WebIDL::ExceptionOr<GC::Ref<Node>> Node::clone_node_binding(bool deep)
 {
     // 1. If this is a shadow root, then throw a "NotSupportedError" DOMException.
     if (is<ShadowRoot>(*this))
@@ -1144,7 +1144,7 @@ bool Node::is_editable() const
     return parent() && parent()->is_editable();
 }
 
-void Node::set_layout_node(Badge<Layout::Node>, JS::NonnullGCPtr<Layout::Node> layout_node)
+void Node::set_layout_node(Badge<Layout::Node>, GC::Ref<Layout::Node> layout_node)
 {
     m_layout_node = layout_node;
 }
@@ -1216,11 +1216,11 @@ Slottable Node::as_slottable()
     VERIFY(is_slottable());
 
     if (is_element())
-        return JS::NonnullGCPtr { static_cast<Element&>(*this) };
-    return JS::NonnullGCPtr { static_cast<Text&>(*this) };
+        return GC::Ref { static_cast<Element&>(*this) };
+    return GC::Ref { static_cast<Text&>(*this) };
 }
 
-JS::NonnullGCPtr<NodeList> Node::child_nodes()
+GC::Ref<NodeList> Node::child_nodes()
 {
     if (!m_child_nodes) {
         m_child_nodes = LiveNodeList::create(realm(), *this, LiveNodeList::Scope::Children, [](auto&) {
@@ -1230,12 +1230,12 @@ JS::NonnullGCPtr<NodeList> Node::child_nodes()
     return *m_child_nodes;
 }
 
-Vector<JS::Handle<Node>> Node::children_as_vector() const
+Vector<GC::Root<Node>> Node::children_as_vector() const
 {
-    Vector<JS::Handle<Node>> nodes;
+    Vector<GC::Root<Node>> nodes;
 
     for_each_child([&](auto& child) {
-        nodes.append(JS::make_handle(child));
+        nodes.append(GC::make_root(child));
         return IterationDecision::Continue;
     });
 
@@ -1244,12 +1244,12 @@ Vector<JS::Handle<Node>> Node::children_as_vector() const
 
 void Node::remove_all_children(bool suppress_observers)
 {
-    while (JS::GCPtr<Node> child = first_child())
+    while (GC::Ptr<Node> child = first_child())
         child->remove(suppress_observers);
 }
 
 // https://dom.spec.whatwg.org/#dom-node-comparedocumentposition
-u16 Node::compare_document_position(JS::GCPtr<Node> other)
+u16 Node::compare_document_position(GC::Ptr<Node> other)
 {
     // 1. If this is other, then return zero.
     if (this == other.ptr())
@@ -1356,7 +1356,7 @@ bool Node::is_host_including_inclusive_ancestor_of(Node const& other) const
 }
 
 // https://dom.spec.whatwg.org/#dom-node-ownerdocument
-JS::GCPtr<Document> Node::owner_document() const
+GC::Ptr<Document> Node::owner_document() const
 {
     // The ownerDocument getter steps are to return null, if this is a document; otherwise this’s node document.
     if (is_document())
@@ -1468,7 +1468,7 @@ bool Node::is_scripting_disabled() const
 }
 
 // https://dom.spec.whatwg.org/#dom-node-contains
-bool Node::contains(JS::GCPtr<Node> other) const
+bool Node::contains(GC::Ptr<Node> other) const
 {
     // The contains(other) method steps are to return true if other is an inclusive descendant of this; otherwise false (including when other is null).
     return other && other->is_inclusive_descendant_of(*this);
@@ -1513,13 +1513,13 @@ bool Node::is_shadow_including_inclusive_ancestor_of(Node const& other) const
 }
 
 // https://dom.spec.whatwg.org/#concept-node-replace-all
-void Node::replace_all(JS::GCPtr<Node> node)
+void Node::replace_all(GC::Ptr<Node> node)
 {
     // 1. Let removedNodes be parent’s children.
     auto removed_nodes = children_as_vector();
 
     // 2. Let addedNodes be the empty set.
-    Vector<JS::Handle<Node>> added_nodes;
+    Vector<GC::Root<Node>> added_nodes;
 
     // 3. If node is a DocumentFragment node, then set addedNodes to node’s children.
     if (node && is<DocumentFragment>(*node)) {
@@ -1527,7 +1527,7 @@ void Node::replace_all(JS::GCPtr<Node> node)
     }
     // 4. Otherwise, if node is non-null, set addedNodes to « node ».
     else if (node) {
-        added_nodes.append(JS::make_handle(*node));
+        added_nodes.append(GC::make_root(*node));
     }
 
     // 5. Remove all parent’s children, in tree order, with the suppress observers flag set.
@@ -1547,7 +1547,7 @@ void Node::replace_all(JS::GCPtr<Node> node)
 void Node::string_replace_all(String const& string)
 {
     // 1. Let node be null.
-    JS::GCPtr<Node> node;
+    GC::Ptr<Node> node;
 
     // 2. If string is not the empty string, then set node to a new Text node whose data is string and node document is parent’s node document.
     if (!string.is_empty())
@@ -1881,7 +1881,7 @@ bool Node::in_a_document_tree() const
 }
 
 // https://dom.spec.whatwg.org/#dom-node-getrootnode
-JS::NonnullGCPtr<Node> Node::get_root_node(GetRootNodeOptions const& options)
+GC::Ref<Node> Node::get_root_node(GetRootNodeOptions const& options)
 {
     // The getRootNode(options) method steps are to return this’s shadow-including root if options["composed"] is true;
     if (options.composed)
@@ -1920,7 +1920,7 @@ size_t Node::length() const
     return child_count();
 }
 
-void Node::set_paintable(JS::GCPtr<Painting::Paintable> paintable)
+void Node::set_paintable(GC::Ptr<Painting::Paintable> paintable)
 {
     m_paintable = paintable;
 }
@@ -1955,11 +1955,11 @@ Painting::PaintableBox* Node::paintable_box()
 }
 
 // https://dom.spec.whatwg.org/#queue-a-mutation-record
-void Node::queue_mutation_record(FlyString const& type, Optional<FlyString> const& attribute_name, Optional<FlyString> const& attribute_namespace, Optional<String> const& old_value, Vector<JS::Handle<Node>> added_nodes, Vector<JS::Handle<Node>> removed_nodes, Node* previous_sibling, Node* next_sibling) const
+void Node::queue_mutation_record(FlyString const& type, Optional<FlyString> const& attribute_name, Optional<FlyString> const& attribute_namespace, Optional<String> const& old_value, Vector<GC::Root<Node>> added_nodes, Vector<GC::Root<Node>> removed_nodes, Node* previous_sibling, Node* next_sibling) const
 {
     // NOTE: We defer garbage collection until the end of the scope, since we can't safely use MutationObserver* as a hashmap key otherwise.
     // FIXME: This is a total hack.
-    JS::DeferGC defer_gc(heap());
+    GC::DeferGC defer_gc(heap());
 
     // 1. Let interestedObservers be an empty map.
     // mutationObserver -> mappedOldValue
@@ -2030,7 +2030,7 @@ void Node::queue_mutation_record(FlyString const& type, Optional<FlyString> cons
 }
 
 // https://dom.spec.whatwg.org/#queue-a-tree-mutation-record
-void Node::queue_tree_mutation_record(Vector<JS::Handle<Node>> added_nodes, Vector<JS::Handle<Node>> removed_nodes, Node* previous_sibling, Node* next_sibling)
+void Node::queue_tree_mutation_record(Vector<GC::Root<Node>> added_nodes, Vector<GC::Root<Node>> removed_nodes, Node* previous_sibling, Node* next_sibling)
 {
     // 1. Assert: either addedNodes or removedNodes is not empty.
     VERIFY(added_nodes.size() > 0 || removed_nodes.size() > 0);
@@ -2039,7 +2039,7 @@ void Node::queue_tree_mutation_record(Vector<JS::Handle<Node>> added_nodes, Vect
     queue_mutation_record(MutationType::childList, {}, {}, {}, move(added_nodes), move(removed_nodes), previous_sibling, next_sibling);
 }
 
-void Node::append_child_impl(JS::NonnullGCPtr<Node> node)
+void Node::append_child_impl(GC::Ref<Node> node)
 {
     VERIFY(!node->m_parent);
 
@@ -2055,7 +2055,7 @@ void Node::append_child_impl(JS::NonnullGCPtr<Node> node)
         m_first_child = m_last_child;
 }
 
-void Node::insert_before_impl(JS::NonnullGCPtr<Node> node, JS::GCPtr<Node> child)
+void Node::insert_before_impl(GC::Ref<Node> node, GC::Ptr<Node> child)
 {
     if (!child)
         return append_child_impl(move(node));
@@ -2077,7 +2077,7 @@ void Node::insert_before_impl(JS::NonnullGCPtr<Node> node, JS::GCPtr<Node> child
     node->m_parent = this;
 }
 
-void Node::remove_child_impl(JS::NonnullGCPtr<Node> node)
+void Node::remove_child_impl(GC::Ref<Node> node)
 {
     VERIFY(node->m_parent.ptr() == this);
 
@@ -2243,7 +2243,7 @@ ErrorOr<String> Node::name_or_description(NameOrDescription target, Document con
         // another widget, where the user can adjust the embedded control's value, then
         // return the embedded control as part of the text alternative in the following
         // manner:
-        JS::GCPtr<DOM::NodeList> labels;
+        GC::Ptr<DOM::NodeList> labels;
         if (is<HTML::HTMLElement>(this))
             labels = (const_cast<HTML::HTMLElement&>(static_cast<HTML::HTMLElement const&>(*current_node))).labels();
         if (labels != nullptr && labels->length() > 0) {
@@ -2475,7 +2475,7 @@ Optional<StringView> Node::first_valid_id(StringView value, Document const& docu
 void Node::add_registered_observer(RegisteredObserver& registered_observer)
 {
     if (!m_registered_observer_list)
-        m_registered_observer_list = make<Vector<JS::NonnullGCPtr<RegisteredObserver>>>();
+        m_registered_observer_list = make<Vector<GC::Ref<RegisteredObserver>>>();
     m_registered_observer_list->append(registered_observer);
 }
 

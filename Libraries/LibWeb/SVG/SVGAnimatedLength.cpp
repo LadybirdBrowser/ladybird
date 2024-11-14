@@ -10,14 +10,14 @@
 
 namespace Web::SVG {
 
-JS_DEFINE_ALLOCATOR(SVGAnimatedLength);
+GC_DEFINE_ALLOCATOR(SVGAnimatedLength);
 
-JS::NonnullGCPtr<SVGAnimatedLength> SVGAnimatedLength::create(JS::Realm& realm, JS::NonnullGCPtr<SVGLength> base_val, JS::NonnullGCPtr<SVGLength> anim_val)
+GC::Ref<SVGAnimatedLength> SVGAnimatedLength::create(JS::Realm& realm, GC::Ref<SVGLength> base_val, GC::Ref<SVGLength> anim_val)
 {
     return realm.create<SVGAnimatedLength>(realm, move(base_val), move(anim_val));
 }
 
-SVGAnimatedLength::SVGAnimatedLength(JS::Realm& realm, JS::NonnullGCPtr<SVGLength> base_val, JS::NonnullGCPtr<SVGLength> anim_val)
+SVGAnimatedLength::SVGAnimatedLength(JS::Realm& realm, GC::Ref<SVGLength> base_val, GC::Ref<SVGLength> anim_val)
     : PlatformObject(realm)
     , m_base_val(move(base_val))
     , m_anim_val(move(anim_val))

@@ -12,8 +12,8 @@
 namespace Web::Layout {
 
 class SVGTextPathBox final : public SVGGraphicsBox {
-    JS_CELL(SVGTextPathBox, SVGGraphicsBox);
-    JS_DECLARE_ALLOCATOR(SVGTextPathBox);
+    GC_CELL(SVGTextPathBox, SVGGraphicsBox);
+    GC_DECLARE_ALLOCATOR(SVGTextPathBox);
 
 public:
     SVGTextPathBox(DOM::Document&, SVG::SVGTextPathElement&, CSS::StyleProperties);
@@ -22,7 +22,7 @@ public:
     SVG::SVGTextPathElement& dom_node() { return static_cast<SVG::SVGTextPathElement&>(SVGGraphicsBox::dom_node()); }
     SVG::SVGTextPathElement const& dom_node() const { return static_cast<SVG::SVGTextPathElement const&>(SVGGraphicsBox::dom_node()); }
 
-    virtual JS::GCPtr<Painting::Paintable> create_paintable() const override;
+    virtual GC::Ptr<Painting::Paintable> create_paintable() const override;
 
 private:
     CSSPixelPoint viewbox_origin() const;

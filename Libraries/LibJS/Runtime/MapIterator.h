@@ -14,10 +14,10 @@ namespace JS {
 
 class MapIterator final : public Object {
     JS_OBJECT(MapIterator, Object);
-    JS_DECLARE_ALLOCATOR(MapIterator);
+    GC_DECLARE_ALLOCATOR(MapIterator);
 
 public:
-    static NonnullGCPtr<MapIterator> create(Realm&, Map& map, Object::PropertyKind iteration_kind);
+    static GC::Ref<MapIterator> create(Realm&, Map& map, Object::PropertyKind iteration_kind);
 
     virtual ~MapIterator() override = default;
 
@@ -32,7 +32,7 @@ private:
 
     virtual void visit_edges(Cell::Visitor&) override;
 
-    NonnullGCPtr<Map> m_map;
+    GC::Ref<Map> m_map;
     bool m_done { false };
     Object::PropertyKind m_iteration_kind;
     Map::ConstIterator m_iterator;

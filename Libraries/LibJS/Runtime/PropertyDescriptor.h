@@ -35,8 +35,8 @@ public:
     }
 
     Optional<Value> value {};
-    Optional<GCPtr<FunctionObject>> get {};
-    Optional<GCPtr<FunctionObject>> set {};
+    Optional<GC::Ptr<FunctionObject>> get {};
+    Optional<GC::Ptr<FunctionObject>> set {};
     Optional<bool> writable {};
     Optional<bool> enumerable {};
     Optional<bool> configurable {};

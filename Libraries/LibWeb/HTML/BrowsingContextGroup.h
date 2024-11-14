@@ -15,15 +15,15 @@
 namespace Web::HTML {
 
 class BrowsingContextGroup final : public JS::Cell {
-    JS_CELL(BrowsingContextGroup, JS::Cell);
-    JS_DECLARE_ALLOCATOR(BrowsingContextGroup);
+    GC_CELL(BrowsingContextGroup, JS::Cell);
+    GC_DECLARE_ALLOCATOR(BrowsingContextGroup);
 
 public:
     struct BrowsingContextGroupAndDocument {
-        JS::NonnullGCPtr<HTML::BrowsingContextGroup> browsing_context;
-        JS::NonnullGCPtr<DOM::Document> document;
+        GC::Ref<HTML::BrowsingContextGroup> browsing_context;
+        GC::Ref<DOM::Document> document;
     };
-    static WebIDL::ExceptionOr<BrowsingContextGroupAndDocument> create_a_new_browsing_context_group_and_document(JS::NonnullGCPtr<Page>);
+    static WebIDL::ExceptionOr<BrowsingContextGroupAndDocument> create_a_new_browsing_context_group_and_document(GC::Ref<Page>);
 
     ~BrowsingContextGroup();
 
@@ -36,14 +36,14 @@ public:
     void append(BrowsingContext&);
 
 private:
-    explicit BrowsingContextGroup(JS::NonnullGCPtr<Web::Page>);
+    explicit BrowsingContextGroup(GC::Ref<Web::Page>);
 
     virtual void visit_edges(Cell::Visitor&) override;
 
     // https://html.spec.whatwg.org/multipage/browsers.html#browsing-context-group-set
-    OrderedHashTable<JS::NonnullGCPtr<BrowsingContext>> m_browsing_context_set;
+    OrderedHashTable<GC::Ref<BrowsingContext>> m_browsing_context_set;
 
-    JS::NonnullGCPtr<Page> m_page;
+    GC::Ref<Page> m_page;
 };
 
 }

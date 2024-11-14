@@ -43,7 +43,7 @@ struct JsonWebKey {
     Optional<Vector<RsaOtherPrimesInfo>> oth;
     Optional<String> k;
 
-    JS::ThrowCompletionOr<JS::NonnullGCPtr<JS::Object>> to_object(JS::Realm&);
+    JS::ThrowCompletionOr<GC::Ref<JS::Object>> to_object(JS::Realm&);
 };
 
 }

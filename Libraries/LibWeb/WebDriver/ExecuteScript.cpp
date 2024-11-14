@@ -84,7 +84,7 @@ static JS::ThrowCompletionOr<JS::Value> execute_a_function_body(HTML::BrowsingCo
     return completion;
 }
 
-void execute_script(HTML::BrowsingContext const& browsing_context, ByteString body, JS::MarkedVector<JS::Value> arguments, Optional<u64> const& timeout_ms, JS::NonnullGCPtr<OnScriptComplete> on_complete)
+void execute_script(HTML::BrowsingContext const& browsing_context, ByteString body, GC::MarkedVector<JS::Value> arguments, Optional<u64> const& timeout_ms, GC::Ref<OnScriptComplete> on_complete)
 {
     auto const* document = browsing_context.active_document();
     auto& realm = document->realm();
@@ -96,7 +96,7 @@ void execute_script(HTML::BrowsingContext const& browsing_context, ByteString bo
     // 6. If timeout is not null:
     if (timeout_ms.has_value()) {
         // 1. Start the timer with timer and timeout.
-        timer->start(timeout_ms.value(), JS::create_heap_function(vm.heap(), [on_complete]() {
+        timer->start(timeout_ms.value(), GC::create_function(vm.heap(), [on_complete]() {
             on_complete->function()({ .state = JS::Promise::State::Pending });
         }));
     }
@@ -108,7 +108,7 @@ void execute_script(HTML::BrowsingContext const& browsing_context, ByteString bo
     auto promise = WebIDL::create_promise(realm);
 
     // 8. Run the following substeps in parallel:
-    Platform::EventLoopPlugin::the().deferred_invoke(JS::create_heap_function(realm.heap(), [&realm, &browsing_context, promise, body = move(body), arguments = move(arguments)]() mutable {
+    Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(realm.heap(), [&realm, &browsing_context, promise, body = move(body), arguments = move(arguments)]() mutable {
         HTML::TemporaryExecutionContext execution_context { realm };
 
         // 1. Let scriptPromise be the result of promise-calling execute a function body, with arguments body and arguments.
@@ -127,12 +127,12 @@ void execute_script(HTML::BrowsingContext const& browsing_context, ByteString bo
     }));
 
     // 9. Wait until promise is resolved, or timer's timeout fired flag is set, whichever occurs first.
-    auto reaction_steps = JS::create_heap_function(vm.heap(), [promise, timer, on_complete](JS::Value) -> WebIDL::ExceptionOr<JS::Value> {
+    auto reaction_steps = GC::create_function(vm.heap(), [promise, timer, on_complete](JS::Value) -> WebIDL::ExceptionOr<JS::Value> {
         if (timer->is_timed_out())
             return JS::js_undefined();
         timer->stop();
 
-        auto promise_promise = JS::NonnullGCPtr { verify_cast<JS::Promise>(*promise->promise()) };
+        auto promise_promise = GC::Ref { verify_cast<JS::Promise>(*promise->promise()) };
         on_complete->function()({ promise_promise->state(), promise_promise->result() });
 
         return JS::js_undefined();
@@ -141,7 +141,7 @@ void execute_script(HTML::BrowsingContext const& browsing_context, ByteString bo
     WebIDL::react_to_promise(promise, reaction_steps, reaction_steps);
 }
 
-void execute_async_script(HTML::BrowsingContext const& browsing_context, ByteString body, JS::MarkedVector<JS::Value> arguments, Optional<u64> const& timeout_ms, JS::NonnullGCPtr<OnScriptComplete> on_complete)
+void execute_async_script(HTML::BrowsingContext const& browsing_context, ByteString body, GC::MarkedVector<JS::Value> arguments, Optional<u64> const& timeout_ms, GC::Ref<OnScriptComplete> on_complete)
 {
     auto const* document = browsing_context.active_document();
     auto& realm = document->realm();
@@ -153,7 +153,7 @@ void execute_async_script(HTML::BrowsingContext const& browsing_context, ByteStr
     // 6. If timeout is not null:
     if (timeout_ms.has_value()) {
         // 1. Start the timer with timer and timeout.
-        timer->start(timeout_ms.value(), JS::create_heap_function(vm.heap(), [on_complete]() {
+        timer->start(timeout_ms.value(), GC::create_function(vm.heap(), [on_complete]() {
             on_complete->function()({ .state = JS::Promise::State::Pending });
         }));
     }
@@ -163,10 +163,10 @@ void execute_async_script(HTML::BrowsingContext const& browsing_context, ByteStr
 
     // 7. Let promise be a new Promise.
     auto promise_capability = WebIDL::create_promise(realm);
-    JS::NonnullGCPtr promise { verify_cast<JS::Promise>(*promise_capability->promise()) };
+    GC::Ref promise { verify_cast<JS::Promise>(*promise_capability->promise()) };
 
     // 8. Run the following substeps in parallel:
-    Platform::EventLoopPlugin::the().deferred_invoke(JS::create_heap_function(realm.heap(), [&vm, &realm, &browsing_context, timer, promise_capability, promise, body = move(body), arguments = move(arguments)]() mutable {
+    Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(realm.heap(), [&vm, &realm, &browsing_context, timer, promise_capability, promise, body = move(body), arguments = move(arguments)]() mutable {
         HTML::TemporaryExecutionContext execution_context { realm };
 
         // 1. Let resolvingFunctions be CreateResolvingFunctions(promise).
@@ -211,7 +211,7 @@ void execute_async_script(HTML::BrowsingContext const& browsing_context, ByteStr
             return;
         auto& script_promise = static_cast<JS::Promise&>(*script_promise_or_error.value());
 
-        vm.custom_data()->spin_event_loop_until(JS::create_heap_function(vm.heap(), [timer, &script_promise]() {
+        vm.custom_data()->spin_event_loop_until(GC::create_function(vm.heap(), [timer, &script_promise]() {
             return timer->is_timed_out() || script_promise.state() != JS::Promise::State::Pending;
         }));
 
@@ -225,7 +225,7 @@ void execute_async_script(HTML::BrowsingContext const& browsing_context, ByteStr
     }));
 
     // 9. Wait until promise is resolved, or timer's timeout fired flag is set, whichever occurs first.
-    auto reaction_steps = JS::create_heap_function(vm.heap(), [promise, timer, on_complete](JS::Value) -> WebIDL::ExceptionOr<JS::Value> {
+    auto reaction_steps = GC::create_function(vm.heap(), [promise, timer, on_complete](JS::Value) -> WebIDL::ExceptionOr<JS::Value> {
         if (timer->is_timed_out())
             return JS::js_undefined();
         timer->stop();

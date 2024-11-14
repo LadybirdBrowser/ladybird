@@ -5,7 +5,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibJS/Heap/Heap.h>
+#include <LibGC/Heap.h>
 #include <LibJS/Runtime/Realm.h>
 #include <LibJS/Runtime/Set.h>
 #include <LibWeb/Bindings/ExceptionOrUtils.h>
@@ -25,10 +25,10 @@
 
 namespace Web::CSS {
 
-JS_DEFINE_ALLOCATOR(FontFaceSet);
+GC_DEFINE_ALLOCATOR(FontFaceSet);
 
 // https://drafts.csswg.org/css-font-loading/#dom-fontfaceset-fontfaceset
-JS::NonnullGCPtr<FontFaceSet> FontFaceSet::construct_impl(JS::Realm& realm, Vector<JS::Handle<FontFace>> const& initial_faces)
+GC::Ref<FontFaceSet> FontFaceSet::construct_impl(JS::Realm& realm, Vector<GC::Root<FontFace>> const& initial_faces)
 {
     auto ready_promise = WebIDL::create_promise(realm);
     auto set_entries = JS::Set::create(realm);
@@ -40,12 +40,12 @@ JS::NonnullGCPtr<FontFaceSet> FontFaceSet::construct_impl(JS::Realm& realm, Vect
     return realm.create<FontFaceSet>(realm, ready_promise, set_entries);
 }
 
-JS::NonnullGCPtr<FontFaceSet> FontFaceSet::create(JS::Realm& realm)
+GC::Ref<FontFaceSet> FontFaceSet::create(JS::Realm& realm)
 {
     return construct_impl(realm, {});
 }
 
-FontFaceSet::FontFaceSet(JS::Realm& realm, JS::NonnullGCPtr<WebIDL::Promise> ready_promise, JS::NonnullGCPtr<JS::Set> set_entries)
+FontFaceSet::FontFaceSet(JS::Realm& realm, GC::Ref<WebIDL::Promise> ready_promise, GC::Ref<JS::Set> set_entries)
     : DOM::EventTarget(realm)
     , m_set_entries(set_entries)
     , m_ready_promise(ready_promise)
@@ -71,12 +71,12 @@ void FontFaceSet::visit_edges(Cell::Visitor& visitor)
 }
 
 // https://drafts.csswg.org/css-font-loading/#dom-fontfaceset-add
-WebIDL::ExceptionOr<JS::NonnullGCPtr<FontFaceSet>>
-FontFaceSet::add(JS::Handle<FontFace> face)
+WebIDL::ExceptionOr<GC::Ref<FontFaceSet>>
+FontFaceSet::add(GC::Root<FontFace> face)
 {
     // 1. If font is already in the FontFaceSet’s set entries, skip to the last step of this algorithm immediately.
     if (m_set_entries->set_has(face))
-        return JS::NonnullGCPtr<FontFaceSet>(*this);
+        return GC::Ref<FontFaceSet>(*this);
 
     // 2. If font is CSS-connected, throw an InvalidModificationError exception and exit this algorithm immediately.
     if (face->is_css_connected()) {
@@ -99,11 +99,11 @@ FontFaceSet::add(JS::Handle<FontFace> face)
     }
 
     // 5. Return the FontFaceSet.
-    return JS::NonnullGCPtr<FontFaceSet>(*this);
+    return GC::Ref<FontFaceSet>(*this);
 }
 
 // https://drafts.csswg.org/css-font-loading/#dom-fontfaceset-delete
-bool FontFaceSet::delete_(JS::Handle<FontFace> face)
+bool FontFaceSet::delete_(GC::Root<FontFace> face)
 {
     // 1. If font is CSS-connected, return false and exit this algorithm immediately.
     if (face->is_css_connected()) {
@@ -171,7 +171,7 @@ WebIDL::CallbackType* FontFaceSet::onloadingerror()
 }
 
 // https://drafts.csswg.org/css-font-loading/#find-the-matching-font-faces
-static WebIDL::ExceptionOr<JS::NonnullGCPtr<JS::Set>> find_matching_font_faces(JS::Realm& realm, FontFaceSet& font_face_set, String const& font, String const&)
+static WebIDL::ExceptionOr<GC::Ref<JS::Set>> find_matching_font_faces(JS::Realm& realm, FontFaceSet& font_face_set, String const& font, String const&)
 {
     // 1. Parse font using the CSS value syntax of the font property. If a syntax error occurs, return a syntax error.
     auto parser = CSS::Parser::Parser::create(CSS::Parser::ParsingContext(realm), font);
@@ -227,15 +227,15 @@ static WebIDL::ExceptionOr<JS::NonnullGCPtr<JS::Set>> find_matching_font_faces(J
 }
 
 // https://drafts.csswg.org/css-font-loading/#dom-fontfaceset-load
-JS::ThrowCompletionOr<JS::NonnullGCPtr<WebIDL::Promise>> FontFaceSet::load(String const& font, String const& text)
+JS::ThrowCompletionOr<GC::Ref<WebIDL::Promise>> FontFaceSet::load(String const& font, String const& text)
 {
     auto& realm = this->realm();
 
     // 1. Let font face set be the FontFaceSet object this method was called on. Let promise be a newly-created promise object.
-    JS::NonnullGCPtr font_face_set = *this;
+    GC::Ref font_face_set = *this;
     auto promise = WebIDL::create_promise(realm);
 
-    Platform::EventLoopPlugin::the().deferred_invoke(JS::create_heap_function(realm.heap(), [&realm, font_face_set, promise, font, text]() mutable {
+    Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(realm.heap(), [&realm, font_face_set, promise, font, text]() mutable {
         // 3. Find the matching font faces from font face set using the font and text arguments passed to the function,
         //    and let font face list be the return value (ignoring the found faces flag). If a syntax error was returned,
         //    reject promise with a SyntaxError exception and terminate these steps.
@@ -249,8 +249,8 @@ JS::ThrowCompletionOr<JS::NonnullGCPtr<WebIDL::Promise>> FontFaceSet::load(Strin
         auto matched_font_faces = result.release_value();
 
         // 4. Queue a task to run the following steps synchronously:
-        HTML::queue_a_task(HTML::Task::Source::FontLoading, nullptr, nullptr, JS::create_heap_function(realm.heap(), [&realm, promise, matched_font_faces] {
-            JS::MarkedVector<JS::NonnullGCPtr<WebIDL::Promise>> promises(realm.heap());
+        HTML::queue_a_task(HTML::Task::Source::FontLoading, nullptr, nullptr, GC::create_function(realm.heap(), [&realm, promise, matched_font_faces] {
+            GC::MarkedVector<GC::Ref<WebIDL::Promise>> promises(realm.heap());
 
             // 1. For all of the font faces in the font face list, call their load() method.
             for (auto font_face_value : *matched_font_faces) {
@@ -282,7 +282,7 @@ JS::ThrowCompletionOr<JS::NonnullGCPtr<WebIDL::Promise>> FontFaceSet::load(Strin
 }
 
 // https://drafts.csswg.org/css-font-loading/#font-face-set-ready
-JS::NonnullGCPtr<WebIDL::Promise> FontFaceSet::ready() const
+GC::Ref<WebIDL::Promise> FontFaceSet::ready() const
 {
     return m_ready_promise;
 }

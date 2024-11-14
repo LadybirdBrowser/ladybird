@@ -13,10 +13,10 @@ namespace Web::MediaSourceExtensions {
 // https://w3c.github.io/media-source/#managedmediasource-interface
 class ManagedMediaSource : public MediaSource {
     WEB_PLATFORM_OBJECT(ManagedMediaSource, MediaSource);
-    JS_DECLARE_ALLOCATOR(ManagedMediaSource);
+    GC_DECLARE_ALLOCATOR(ManagedMediaSource);
 
 public:
-    [[nodiscard]] static WebIDL::ExceptionOr<JS::NonnullGCPtr<ManagedMediaSource>> construct_impl(JS::Realm&);
+    [[nodiscard]] static WebIDL::ExceptionOr<GC::Ref<ManagedMediaSource>> construct_impl(JS::Realm&);
 
 private:
     ManagedMediaSource(JS::Realm&);

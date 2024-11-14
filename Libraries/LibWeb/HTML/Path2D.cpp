@@ -15,15 +15,15 @@
 
 namespace Web::HTML {
 
-JS_DEFINE_ALLOCATOR(Path2D);
+GC_DEFINE_ALLOCATOR(Path2D);
 
-WebIDL::ExceptionOr<JS::NonnullGCPtr<Path2D>> Path2D::construct_impl(JS::Realm& realm, Optional<Variant<JS::Handle<Path2D>, String>> const& path)
+WebIDL::ExceptionOr<GC::Ref<Path2D>> Path2D::construct_impl(JS::Realm& realm, Optional<Variant<GC::Root<Path2D>, String>> const& path)
 {
     return realm.create<Path2D>(realm, path);
 }
 
 // https://html.spec.whatwg.org/multipage/canvas.html#dom-path2d
-Path2D::Path2D(JS::Realm& realm, Optional<Variant<JS::Handle<Path2D>, String>> const& path)
+Path2D::Path2D(JS::Realm& realm, Optional<Variant<GC::Root<Path2D>, String>> const& path)
     : PlatformObject(realm)
     , CanvasPath(static_cast<Bindings::PlatformObject&>(*this))
 {
@@ -34,8 +34,8 @@ Path2D::Path2D(JS::Realm& realm, Optional<Variant<JS::Handle<Path2D>, String>> c
 
     // 3. If path is a Path2D object, then add all subpaths of path to output and return output.
     //    (In other words, it returns a copy of the argument.)
-    if (path->has<JS::Handle<Path2D>>()) {
-        this->path() = path->get<JS::Handle<Path2D>>()->path();
+    if (path->has<GC::Root<Path2D>>()) {
+        this->path() = path->get<GC::Root<Path2D>>()->path();
         return;
     }
 
@@ -66,7 +66,7 @@ void Path2D::initialize(JS::Realm& realm)
 }
 
 // https://html.spec.whatwg.org/multipage/canvas.html#dom-path2d-addpath
-WebIDL::ExceptionOr<void> Path2D::add_path(JS::NonnullGCPtr<Path2D> path, Geometry::DOMMatrix2DInit& transform)
+WebIDL::ExceptionOr<void> Path2D::add_path(GC::Ref<Path2D> path, Geometry::DOMMatrix2DInit& transform)
 {
     // The addPath(path, transform) method, when invoked on a Path2D object a, must run these steps:
 

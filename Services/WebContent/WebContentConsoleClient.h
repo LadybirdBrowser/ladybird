@@ -19,8 +19,8 @@
 namespace WebContent {
 
 class WebContentConsoleClient final : public JS::ConsoleClient {
-    JS_CELL(WebContentConsoleClient, JS::ConsoleClient);
-    JS_DECLARE_ALLOCATOR(WebContentConsoleClient);
+    GC_CELL(WebContentConsoleClient, JS::ConsoleClient);
+    GC_DECLARE_ALLOCATOR(WebContentConsoleClient);
 
 public:
     virtual ~WebContentConsoleClient() override;
@@ -42,8 +42,8 @@ private:
         m_current_message_style.append(';');
     }
 
-    JS::NonnullGCPtr<PageClient> m_client;
-    JS::GCPtr<ConsoleGlobalEnvironmentExtensions> m_console_global_environment_extensions;
+    GC::Ref<PageClient> m_client;
+    GC::Ptr<ConsoleGlobalEnvironmentExtensions> m_console_global_environment_extensions;
 
     void clear_output();
     void print_html(ByteString const& line);

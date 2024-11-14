@@ -17,7 +17,7 @@
 
 namespace Web::Bindings {
 
-JS_DEFINE_ALLOCATOR(OptionConstructor);
+GC_DEFINE_ALLOCATOR(OptionConstructor);
 
 OptionConstructor::OptionConstructor(JS::Realm& realm)
     : NativeFunction(realm.intrinsics().function_prototype())
@@ -40,7 +40,7 @@ JS::ThrowCompletionOr<JS::Value> OptionConstructor::call()
 
 // https://html.spec.whatwg.org/multipage/form-elements.html#dom-option
 // https://whatpr.org/html/9893/form-elements.html#dom-option
-JS::ThrowCompletionOr<JS::NonnullGCPtr<JS::Object>> OptionConstructor::construct(FunctionObject&)
+JS::ThrowCompletionOr<GC::Ref<JS::Object>> OptionConstructor::construct(FunctionObject&)
 {
     auto& vm = this->vm();
     auto& realm = *vm.current_realm();
@@ -56,7 +56,7 @@ JS::ThrowCompletionOr<JS::NonnullGCPtr<JS::Object>> OptionConstructor::construct
 
     // 2. Let option be the result of creating an element given document, option, and the HTML namespace.
     auto element = TRY(Bindings::throw_dom_exception_if_needed(vm, [&]() { return DOM::create_element(document, HTML::TagNames::option, Namespace::HTML); }));
-    JS::NonnullGCPtr<HTML::HTMLOptionElement> option_element = verify_cast<HTML::HTMLOptionElement>(*element);
+    GC::Ref<HTML::HTMLOptionElement> option_element = verify_cast<HTML::HTMLOptionElement>(*element);
 
     // 3. If text is not the empty string, then append to option a new Text node whose data is text.
     auto text = TRY(text_value.to_string(vm));

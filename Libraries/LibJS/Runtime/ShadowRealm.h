@@ -15,14 +15,14 @@ namespace JS {
 
 class ShadowRealm final : public Object {
     JS_OBJECT(ShadowRealm, Object);
-    JS_DECLARE_ALLOCATOR(ShadowRealm);
+    GC_DECLARE_ALLOCATOR(ShadowRealm);
 
 public:
     virtual ~ShadowRealm() override = default;
 
     [[nodiscard]] Realm const& shadow_realm() const { return *m_shadow_realm; }
     [[nodiscard]] Realm& shadow_realm() { return *m_shadow_realm; }
-    void set_shadow_realm(NonnullGCPtr<Realm> realm) { m_shadow_realm = realm; }
+    void set_shadow_realm(GC::Ref<Realm> realm) { m_shadow_realm = realm; }
 
 private:
     ShadowRealm(Object& prototype);
@@ -30,7 +30,7 @@ private:
     virtual void visit_edges(Visitor&) override;
 
     // 3.5 Properties of ShadowRealm Instances, https://tc39.es/proposal-shadowrealm/#sec-properties-of-shadowrealm-instances
-    GCPtr<Realm> m_shadow_realm; // [[ShadowRealm]]
+    GC::Ptr<Realm> m_shadow_realm; // [[ShadowRealm]]
 };
 
 ThrowCompletionOr<void> copy_name_and_length(VM&, FunctionObject& function, FunctionObject& target, Optional<StringView> prefix = {}, Optional<unsigned> arg_count = {});

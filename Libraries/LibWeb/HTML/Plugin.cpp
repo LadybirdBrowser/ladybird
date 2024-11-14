@@ -13,7 +13,7 @@
 
 namespace Web::HTML {
 
-JS_DEFINE_ALLOCATOR(Plugin);
+GC_DEFINE_ALLOCATOR(Plugin);
 
 Plugin::Plugin(JS::Realm& realm, String name)
     : Bindings::PlatformObject(realm)
@@ -83,7 +83,7 @@ size_t Plugin::length() const
 }
 
 // https://html.spec.whatwg.org/multipage/system-state.html#dom-plugin-item
-JS::GCPtr<MimeType> Plugin::item(u32 index) const
+GC::Ptr<MimeType> Plugin::item(u32 index) const
 {
     // 1. Let mimeTypes be this's relevant global object's PDF viewer mime type objects.
     auto& window = verify_cast<HTML::Window>(HTML::relevant_global_object(*this));
@@ -97,7 +97,7 @@ JS::GCPtr<MimeType> Plugin::item(u32 index) const
     return nullptr;
 }
 
-JS::GCPtr<MimeType> Plugin::named_item(FlyString const& name) const
+GC::Ptr<MimeType> Plugin::named_item(FlyString const& name) const
 {
     // 1. For each MimeType mimeType of this's relevant global object's PDF viewer mime type objects: if mimeType's type is name, then return mimeType.
     auto& window = verify_cast<HTML::Window>(HTML::relevant_global_object(*this));

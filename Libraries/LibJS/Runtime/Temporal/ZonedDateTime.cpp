@@ -20,7 +20,7 @@
 
 namespace JS::Temporal {
 
-JS_DEFINE_ALLOCATOR(ZonedDateTime);
+GC_DEFINE_ALLOCATOR(ZonedDateTime);
 
 // 6 Temporal.ZonedDateTime Objects, https://tc39.es/proposal-temporal/#sec-temporal-zoneddatetime-objects
 ZonedDateTime::ZonedDateTime(BigInt const& nanoseconds, Object& time_zone, Object& calendar, Object& prototype)
@@ -81,7 +81,7 @@ ThrowCompletionOr<BigInt const*> interpret_iso_date_time_offset(VM& vm, i32 year
     VERIFY(offset_option.is_one_of("prefer"sv, "reject"sv));
 
     // 7. Let possibleInstants be ? GetPossibleInstantsFor(timeZone, dateTime).
-    auto time_zone_record = TRY(create_time_zone_methods_record(vm, NonnullGCPtr<Object> { time_zone.as_object() }, { { TimeZoneMethod::GetPossibleInstantsFor, TimeZoneMethod::GetOffsetNanosecondsFor } }));
+    auto time_zone_record = TRY(create_time_zone_methods_record(vm, GC::Ref<Object> { time_zone.as_object() }, { { TimeZoneMethod::GetPossibleInstantsFor, TimeZoneMethod::GetOffsetNanosecondsFor } }));
     auto possible_instants = TRY(get_possible_instants_for(vm, time_zone_record, *date_time));
 
     // 8. For each element candidate of possibleInstants, do
@@ -329,7 +329,7 @@ ThrowCompletionOr<String> temporal_zoned_date_time_to_string(VM& vm, ZonedDateTi
     }
     // 11. Else,
     else {
-        auto time_zone_record = TRY(create_time_zone_methods_record(vm, NonnullGCPtr<Object> { time_zone }, { { TimeZoneMethod::GetOffsetNanosecondsFor } }));
+        auto time_zone_record = TRY(create_time_zone_methods_record(vm, GC::Ref<Object> { time_zone }, { { TimeZoneMethod::GetOffsetNanosecondsFor } }));
 
         // a. Let offsetNs be ? GetOffsetNanosecondsFor(timeZone, instant).
         auto offset_ns = TRY(get_offset_nanoseconds_for(vm, time_zone_record, *instant));
@@ -574,7 +574,7 @@ ThrowCompletionOr<NanosecondsToDaysResult> nanoseconds_to_days(VM& vm, Crypto::S
 }
 
 // 6.5.8 DifferenceTemporalZonedDateTime ( operation, zonedDateTime, other, options ), https://tc39.es/proposal-temporal/#sec-temporal-differencetemporalzoneddatetime
-ThrowCompletionOr<NonnullGCPtr<Duration>> difference_temporal_zoned_date_time(VM& vm, DifferenceOperation operation, ZonedDateTime& zoned_date_time, Value other_value, Value options_value)
+ThrowCompletionOr<GC::Ref<Duration>> difference_temporal_zoned_date_time(VM& vm, DifferenceOperation operation, ZonedDateTime& zoned_date_time, Value other_value, Value options_value)
 {
     // 1. If operation is since, let sign be -1. Otherwise, let sign be 1.
     i8 sign = operation == DifferenceOperation::Since ? -1 : 1;
@@ -612,7 +612,7 @@ ThrowCompletionOr<NonnullGCPtr<Duration>> difference_temporal_zoned_date_time(VM
     // 8. Let difference be ? DifferenceZonedDateTime(zonedDateTime.[[Nanoseconds]], other.[[Nanoseconds]], zonedDateTime.[[TimeZone]], zonedDateTime.[[Calendar]], settings.[[LargestUnit]], untilOptions).
     auto difference = TRY(difference_zoned_date_time(vm, zoned_date_time.nanoseconds(), other->nanoseconds(), zoned_date_time.time_zone(), zoned_date_time.calendar(), settings.largest_unit, *until_options));
 
-    auto calendar_record = TRY(create_calendar_methods_record(vm, NonnullGCPtr<Object> { zoned_date_time.calendar() }, { { CalendarMethod::DateAdd, CalendarMethod::DateFromFields, CalendarMethod::DateUntil, CalendarMethod::Fields } }));
+    auto calendar_record = TRY(create_calendar_methods_record(vm, GC::Ref<Object> { zoned_date_time.calendar() }, { { CalendarMethod::DateAdd, CalendarMethod::DateFromFields, CalendarMethod::DateUntil, CalendarMethod::Fields } }));
 
     // 9. Let roundResult be (? RoundDuration(difference.[[Years]], difference.[[Months]], difference.[[Weeks]], difference.[[Days]], difference.[[Hours]], difference.[[Minutes]], difference.[[Seconds]], difference.[[Milliseconds]], difference.[[Microseconds]], difference.[[Nanoseconds]], settings.[[RoundingIncrement]], settings.[[SmallestUnit]], settings.[[RoundingMode]], zonedDateTime)).[[DurationRecord]].
     auto round_result = TRY(round_duration(vm, difference.years, difference.months, difference.weeks, difference.days, difference.hours, difference.minutes, difference.seconds, difference.milliseconds, difference.microseconds, difference.nanoseconds, settings.rounding_increment, settings.smallest_unit, settings.rounding_mode, &zoned_date_time, calendar_record)).duration_record;

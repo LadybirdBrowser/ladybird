@@ -12,12 +12,12 @@
 namespace Web::Platform {
 
 class Timer : public JS::Cell {
-    JS_CELL(Timer, JS::Cell);
+    GC_CELL(Timer, JS::Cell);
 
 public:
-    static JS::NonnullGCPtr<Timer> create(JS::Heap&);
-    static JS::NonnullGCPtr<Timer> create_repeating(JS::Heap&, int interval_ms, JS::GCPtr<JS::HeapFunction<void()>> timeout_handler);
-    static JS::NonnullGCPtr<Timer> create_single_shot(JS::Heap&, int interval_ms, JS::GCPtr<JS::HeapFunction<void()>> timeout_handler);
+    static GC::Ref<Timer> create(GC::Heap&);
+    static GC::Ref<Timer> create_repeating(GC::Heap&, int interval_ms, GC::Ptr<GC::Function<void()>> timeout_handler);
+    static GC::Ref<Timer> create_single_shot(GC::Heap&, int interval_ms, GC::Ptr<GC::Function<void()>> timeout_handler);
 
     virtual ~Timer();
 
@@ -36,7 +36,7 @@ public:
     virtual bool is_single_shot() const = 0;
     virtual void set_single_shot(bool) = 0;
 
-    JS::GCPtr<JS::HeapFunction<void()>> on_timeout;
+    GC::Ptr<GC::Function<void()>> on_timeout;
 
 protected:
     virtual void visit_edges(JS::Cell::Visitor&) override;

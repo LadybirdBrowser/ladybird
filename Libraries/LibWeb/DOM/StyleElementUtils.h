@@ -19,16 +19,16 @@ public:
     CSS::CSSStyleSheet* sheet() { return m_associated_css_style_sheet; }
     CSS::CSSStyleSheet const* sheet() const { return m_associated_css_style_sheet; }
 
-    [[nodiscard]] JS::GCPtr<CSS::StyleSheetList> style_sheet_list() { return m_style_sheet_list; }
-    [[nodiscard]] JS::GCPtr<CSS::StyleSheetList const> style_sheet_list() const { return m_style_sheet_list; }
+    [[nodiscard]] GC::Ptr<CSS::StyleSheetList> style_sheet_list() { return m_style_sheet_list; }
+    [[nodiscard]] GC::Ptr<CSS::StyleSheetList const> style_sheet_list() const { return m_style_sheet_list; }
 
     void visit_edges(JS::Cell::Visitor&);
 
 private:
     // https://www.w3.org/TR/cssom/#associated-css-style-sheet
-    JS::GCPtr<CSS::CSSStyleSheet> m_associated_css_style_sheet;
+    GC::Ptr<CSS::CSSStyleSheet> m_associated_css_style_sheet;
 
-    JS::GCPtr<CSS::StyleSheetList> m_style_sheet_list;
+    GC::Ptr<CSS::StyleSheetList> m_style_sheet_list;
 };
 
 }

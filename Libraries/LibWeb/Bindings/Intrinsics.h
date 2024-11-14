@@ -9,9 +9,9 @@
 #include <AK/FlyString.h>
 #include <AK/Forward.h>
 #include <AK/HashMap.h>
+#include <LibGC/Heap.h>
 #include <LibJS/Forward.h>
 #include <LibJS/Heap/Cell.h>
-#include <LibJS/Heap/Heap.h>
 #include <LibJS/Runtime/VM.h>
 
 #define WEB_SET_PROTOTYPE_FOR_INTERFACE_WITH_CUSTOM_NAME(interface_class, interface_name)                  \
@@ -25,8 +25,8 @@
 namespace Web::Bindings {
 
 class Intrinsics final : public JS::Cell {
-    JS_CELL(Intrinsics, JS::Cell);
-    JS_DECLARE_ALLOCATOR(Intrinsics);
+    GC_CELL(Intrinsics, JS::Cell);
+    GC_DECLARE_ALLOCATOR(Intrinsics);
 
 public:
     Intrinsics(JS::Realm& realm)
@@ -75,10 +75,10 @@ private:
     template<typename PrototypeType>
     void create_web_prototype_and_constructor(JS::Realm& realm);
 
-    HashMap<FlyString, JS::NonnullGCPtr<JS::Object>> m_namespaces;
-    HashMap<FlyString, JS::NonnullGCPtr<JS::Object>> m_prototypes;
-    HashMap<FlyString, JS::GCPtr<JS::NativeFunction>> m_constructors;
-    JS::NonnullGCPtr<JS::Realm> m_realm;
+    HashMap<FlyString, GC::Ref<JS::Object>> m_namespaces;
+    HashMap<FlyString, GC::Ref<JS::Object>> m_prototypes;
+    HashMap<FlyString, GC::Ptr<JS::NativeFunction>> m_constructors;
+    GC::Ref<JS::Realm> m_realm;
 };
 
 Intrinsics& host_defined_intrinsics(JS::Realm& realm);

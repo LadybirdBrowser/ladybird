@@ -27,7 +27,7 @@
 
 namespace Web::HTML {
 
-JS_DEFINE_ALLOCATOR(HTMLObjectElement);
+GC_DEFINE_ALLOCATOR(HTMLObjectElement);
 
 HTMLObjectElement::HTMLObjectElement(DOM::Document& document, DOM::QualifiedName qualified_name)
     : NavigableContainer(document, move(qualified_name))
@@ -137,7 +137,7 @@ String HTMLObjectElement::data() const
     return MUST(document().parse_url(*data).to_string());
 }
 
-JS::GCPtr<Layout::Node> HTMLObjectElement::create_layout_node(CSS::StyleProperties style)
+GC::Ptr<Layout::Node> HTMLObjectElement::create_layout_node(CSS::StyleProperties style)
 {
     switch (m_representation) {
     case Representation::Children:
@@ -432,7 +432,7 @@ i32 HTMLObjectElement::default_tab_index_value() const
     return 0;
 }
 
-JS::GCPtr<DecodedImageData> HTMLObjectElement::image_data() const
+GC::Ptr<DecodedImageData> HTMLObjectElement::image_data() const
 {
     if (!m_resource_request)
         return nullptr;

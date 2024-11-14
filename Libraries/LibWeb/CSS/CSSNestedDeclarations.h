@@ -12,10 +12,10 @@ namespace Web::CSS {
 
 class CSSNestedDeclarations final : public CSSRule {
     WEB_PLATFORM_OBJECT(CSSNestedDeclarations, CSSRule);
-    JS_DECLARE_ALLOCATOR(CSSNestedDeclarations);
+    GC_DECLARE_ALLOCATOR(CSSNestedDeclarations);
 
 public:
-    [[nodiscard]] static JS::NonnullGCPtr<CSSNestedDeclarations> create(JS::Realm&, PropertyOwningCSSStyleDeclaration&);
+    [[nodiscard]] static GC::Ref<CSSNestedDeclarations> create(JS::Realm&, PropertyOwningCSSStyleDeclaration&);
 
     virtual ~CSSNestedDeclarations() override = default;
 
@@ -33,8 +33,8 @@ private:
     virtual String serialized() const override;
     virtual void clear_caches() override;
 
-    JS::NonnullGCPtr<PropertyOwningCSSStyleDeclaration> m_declaration;
-    JS::GCPtr<CSSStyleRule const> mutable m_parent_style_rule;
+    GC::Ref<PropertyOwningCSSStyleDeclaration> m_declaration;
+    GC::Ptr<CSSStyleRule const> mutable m_parent_style_rule;
 };
 
 template<>

@@ -16,10 +16,10 @@ namespace Web::CSS {
 
 class CSSStyleRule final : public CSSGroupingRule {
     WEB_PLATFORM_OBJECT(CSSStyleRule, CSSGroupingRule);
-    JS_DECLARE_ALLOCATOR(CSSStyleRule);
+    GC_DECLARE_ALLOCATOR(CSSStyleRule);
 
 public:
-    [[nodiscard]] static JS::NonnullGCPtr<CSSStyleRule> create(JS::Realm&, SelectorList&&, PropertyOwningCSSStyleDeclaration&, CSSRuleList&);
+    [[nodiscard]] static GC::Ref<CSSStyleRule> create(JS::Realm&, SelectorList&&, PropertyOwningCSSStyleDeclaration&, CSSRuleList&);
 
     virtual ~CSSStyleRule() override = default;
 
@@ -46,7 +46,7 @@ private:
 
     SelectorList m_selectors;
     mutable Optional<SelectorList> m_cached_absolutized_selectors;
-    JS::NonnullGCPtr<PropertyOwningCSSStyleDeclaration> m_declaration;
+    GC::Ref<PropertyOwningCSSStyleDeclaration> m_declaration;
 };
 
 template<>

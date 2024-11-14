@@ -16,7 +16,7 @@
 
 namespace Web::HTML {
 
-JS_DEFINE_ALLOCATOR(HTMLFrameElement);
+GC_DEFINE_ALLOCATOR(HTMLFrameElement);
 
 HTMLFrameElement::HTMLFrameElement(DOM::Document& document, DOM::QualifiedName qualified_name)
     : NavigableContainer(document, move(qualified_name))
@@ -48,7 +48,7 @@ void HTMLFrameElement::inserted()
         return;
 
     // 3. Create a new child navigable for insertedNode.
-    MUST(create_new_child_navigable(JS::create_heap_function(realm().heap(), [this] {
+    MUST(create_new_child_navigable(GC::create_function(realm().heap(), [this] {
         // 4. Process the frame attributes for insertedNode, with initialInsertion set to true.
         process_the_frame_attributes(true);
         set_content_navigable_initialized();

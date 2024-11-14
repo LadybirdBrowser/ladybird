@@ -29,12 +29,12 @@ namespace Web::HTML {
 
 class HTMLFormElement final : public HTMLElement {
     WEB_PLATFORM_OBJECT(HTMLFormElement, HTMLElement);
-    JS_DECLARE_ALLOCATOR(HTMLFormElement);
+    GC_DECLARE_ALLOCATOR(HTMLFormElement);
 
 public:
     virtual ~HTMLFormElement() override;
 
-    String action_from_form_element(JS::NonnullGCPtr<HTMLElement> element) const;
+    String action_from_form_element(GC::Ref<HTMLElement> element) const;
 
     enum class MethodAttributeState {
 #define __ENUMERATE_FORM_METHOD_ATTRIBUTE(_, state) state,
@@ -42,7 +42,7 @@ public:
 #undef __ENUMERATE_FORM_METHOD_ATTRIBUTE
     };
 
-    MethodAttributeState method_state_from_form_element(JS::NonnullGCPtr<HTMLElement const> element) const;
+    MethodAttributeState method_state_from_form_element(GC::Ref<HTMLElement const> element) const;
 
     enum class EncodingTypeAttributeState {
 #define __ENUMERATE_FORM_METHOD_ENCODING_TYPE(_, state) state,
@@ -50,13 +50,13 @@ public:
 #undef __ENUMERATE_FORM_METHOD_ENCODING_TYPE
     };
 
-    EncodingTypeAttributeState encoding_type_state_from_form_element(JS::NonnullGCPtr<HTMLElement> element) const;
+    EncodingTypeAttributeState encoding_type_state_from_form_element(GC::Ref<HTMLElement> element) const;
 
     struct SubmitFormOptions {
         bool from_submit_binding = { false };
         UserNavigationInvolvement user_involvement = { UserNavigationInvolvement::None };
     };
-    WebIDL::ExceptionOr<void> submit_form(JS::NonnullGCPtr<HTMLElement> submitter, SubmitFormOptions);
+    WebIDL::ExceptionOr<void> submit_form(GC::Ref<HTMLElement> submitter, SubmitFormOptions);
     WebIDL::ExceptionOr<void> implicitly_submit_form();
 
     void reset_form();
@@ -65,7 +65,7 @@ public:
     WebIDL::ExceptionOr<void> submit();
 
     // NOTE: This is for the JS bindings. Use submit_form instead.
-    WebIDL::ExceptionOr<void> request_submit(JS::GCPtr<Element> submitter);
+    WebIDL::ExceptionOr<void> request_submit(GC::Ptr<Element> submitter);
 
     // NOTE: This is for the JS bindings. Use submit_form instead.
     void reset();
@@ -73,9 +73,9 @@ public:
     void add_associated_element(Badge<FormAssociatedElement>, HTMLElement&);
     void remove_associated_element(Badge<FormAssociatedElement>, HTMLElement&);
 
-    Vector<JS::NonnullGCPtr<DOM::Element>> get_submittable_elements();
+    Vector<GC::Ref<DOM::Element>> get_submittable_elements();
 
-    JS::NonnullGCPtr<HTMLFormControlsCollection> elements() const;
+    GC::Ref<HTMLFormControlsCollection> elements() const;
     unsigned length() const;
 
     WebIDL::ExceptionOr<bool> check_validity();
@@ -90,7 +90,7 @@ public:
 
     WebIDL::ExceptionOr<void> set_method(String const&);
 
-    JS::NonnullGCPtr<DOM::DOMTokenList> rel_list();
+    GC::Ref<DOM::DOMTokenList> rel_list();
 
     String action() const;
     WebIDL::ExceptionOr<void> set_action(String const&);
@@ -112,12 +112,12 @@ private:
 
     ErrorOr<String> pick_an_encoding() const;
 
-    ErrorOr<void> mutate_action_url(URL::URL parsed_action, Vector<XHR::FormDataEntry> entry_list, String encoding, JS::NonnullGCPtr<Navigable> target_navigable, Bindings::NavigationHistoryBehavior history_handling, UserNavigationInvolvement user_involvement);
-    ErrorOr<void> submit_as_entity_body(URL::URL parsed_action, Vector<XHR::FormDataEntry> entry_list, EncodingTypeAttributeState encoding_type, String encoding, JS::NonnullGCPtr<Navigable> target_navigable, Bindings::NavigationHistoryBehavior history_handling, UserNavigationInvolvement user_involvement);
-    void get_action_url(URL::URL parsed_action, JS::NonnullGCPtr<Navigable> target_navigable, Bindings::NavigationHistoryBehavior history_handling, UserNavigationInvolvement user_involvement);
-    ErrorOr<void> mail_with_headers(URL::URL parsed_action, Vector<XHR::FormDataEntry> entry_list, String encoding, JS::NonnullGCPtr<Navigable> target_navigable, Bindings::NavigationHistoryBehavior history_handling, UserNavigationInvolvement user_involvement);
-    ErrorOr<void> mail_as_body(URL::URL parsed_action, Vector<XHR::FormDataEntry> entry_list, EncodingTypeAttributeState encoding_type, String encoding, JS::NonnullGCPtr<Navigable> target_navigable, Bindings::NavigationHistoryBehavior history_handling, UserNavigationInvolvement user_involvement);
-    void plan_to_navigate_to(URL::URL url, Variant<Empty, String, POSTResource> post_resource, JS::NonnullGCPtr<Navigable> target_navigable, Bindings::NavigationHistoryBehavior history_handling, UserNavigationInvolvement user_involvement);
+    ErrorOr<void> mutate_action_url(URL::URL parsed_action, Vector<XHR::FormDataEntry> entry_list, String encoding, GC::Ref<Navigable> target_navigable, Bindings::NavigationHistoryBehavior history_handling, UserNavigationInvolvement user_involvement);
+    ErrorOr<void> submit_as_entity_body(URL::URL parsed_action, Vector<XHR::FormDataEntry> entry_list, EncodingTypeAttributeState encoding_type, String encoding, GC::Ref<Navigable> target_navigable, Bindings::NavigationHistoryBehavior history_handling, UserNavigationInvolvement user_involvement);
+    void get_action_url(URL::URL parsed_action, GC::Ref<Navigable> target_navigable, Bindings::NavigationHistoryBehavior history_handling, UserNavigationInvolvement user_involvement);
+    ErrorOr<void> mail_with_headers(URL::URL parsed_action, Vector<XHR::FormDataEntry> entry_list, String encoding, GC::Ref<Navigable> target_navigable, Bindings::NavigationHistoryBehavior history_handling, UserNavigationInvolvement user_involvement);
+    ErrorOr<void> mail_as_body(URL::URL parsed_action, Vector<XHR::FormDataEntry> entry_list, EncodingTypeAttributeState encoding_type, String encoding, GC::Ref<Navigable> target_navigable, Bindings::NavigationHistoryBehavior history_handling, UserNavigationInvolvement user_involvement);
+    void plan_to_navigate_to(URL::URL url, Variant<Empty, String, POSTResource> post_resource, GC::Ref<Navigable> target_navigable, Bindings::NavigationHistoryBehavior history_handling, UserNavigationInvolvement user_involvement);
 
     FormAssociatedElement* default_button();
     size_t number_of_fields_blocking_implicit_submission() const;
@@ -127,25 +127,25 @@ private:
     // https://html.spec.whatwg.org/multipage/forms.html#locked-for-reset
     bool m_locked_for_reset { false };
 
-    Vector<JS::NonnullGCPtr<HTMLElement>> m_associated_elements;
+    Vector<GC::Ref<HTMLElement>> m_associated_elements;
 
     // https://html.spec.whatwg.org/multipage/forms.html#past-names-map
     struct PastNameEntry {
-        JS::GCPtr<DOM::Node const> node;
+        GC::Ptr<DOM::Node const> node;
         MonotonicTime insertion_time;
     };
     HashMap<FlyString, PastNameEntry> mutable m_past_names_map;
 
-    JS::GCPtr<HTMLFormControlsCollection> mutable m_elements;
+    GC::Ptr<HTMLFormControlsCollection> mutable m_elements;
 
     bool m_constructing_entry_list { false };
 
     // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#planned-navigation
     // Each form element has a planned navigation, which is either null or a task; when the form is first created,
     // its planned navigation must be set to null.
-    JS::GCPtr<Task const> m_planned_navigation;
+    GC::Ptr<Task const> m_planned_navigation;
 
-    JS::GCPtr<DOM::DOMTokenList> m_rel_list;
+    GC::Ptr<DOM::DOMTokenList> m_rel_list;
 };
 
 }

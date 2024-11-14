@@ -19,9 +19,9 @@
 
 namespace Web::Fetch {
 
-JS_DEFINE_ALLOCATOR(Response);
+GC_DEFINE_ALLOCATOR(Response);
 
-Response::Response(JS::Realm& realm, JS::NonnullGCPtr<Infrastructure::Response> response)
+Response::Response(JS::Realm& realm, GC::Ref<Infrastructure::Response> response)
     : PlatformObject(realm)
     , m_response(response)
 {
@@ -53,7 +53,7 @@ Optional<MimeSniff::MimeType> Response::mime_type_impl() const
 
 // https://fetch.spec.whatwg.org/#concept-body-body
 // https://fetch.spec.whatwg.org/#ref-for-concept-body-body%E2%91%A8
-JS::GCPtr<Infrastructure::Body const> Response::body_impl() const
+GC::Ptr<Infrastructure::Body const> Response::body_impl() const
 {
     // Objects including the Body interface mixin have an associated body (null or a body).
     // A Response object’s body is its response’s body.
@@ -62,7 +62,7 @@ JS::GCPtr<Infrastructure::Body const> Response::body_impl() const
 
 // https://fetch.spec.whatwg.org/#concept-body-body
 // https://fetch.spec.whatwg.org/#ref-for-concept-body-body%E2%91%A8
-JS::GCPtr<Infrastructure::Body> Response::body_impl()
+GC::Ptr<Infrastructure::Body> Response::body_impl()
 {
     // Objects including the Body interface mixin have an associated body (null or a body).
     // A Response object’s body is its response’s body.
@@ -70,7 +70,7 @@ JS::GCPtr<Infrastructure::Body> Response::body_impl()
 }
 
 // https://fetch.spec.whatwg.org/#response-create
-JS::NonnullGCPtr<Response> Response::create(JS::Realm& realm, JS::NonnullGCPtr<Infrastructure::Response> response, Headers::Guard guard)
+GC::Ref<Response> Response::create(JS::Realm& realm, GC::Ref<Infrastructure::Response> response, Headers::Guard guard)
 {
     // 1. Let responseObject be a new Response object with realm.
     // 2. Set responseObject’s response to response.
@@ -126,7 +126,7 @@ WebIDL::ExceptionOr<void> Response::initialize_response(ResponseInit const& init
 }
 
 // https://fetch.spec.whatwg.org/#dom-response
-WebIDL::ExceptionOr<JS::NonnullGCPtr<Response>> Response::construct_impl(JS::Realm& realm, Optional<BodyInit> const& body, ResponseInit const& init)
+WebIDL::ExceptionOr<GC::Ref<Response>> Response::construct_impl(JS::Realm& realm, Optional<BodyInit> const& body, ResponseInit const& init)
 {
     auto& vm = realm.vm();
 
@@ -155,7 +155,7 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<Response>> Response::construct_impl(JS::Rea
 }
 
 // https://fetch.spec.whatwg.org/#dom-response-error
-JS::NonnullGCPtr<Response> Response::error(JS::VM& vm)
+GC::Ref<Response> Response::error(JS::VM& vm)
 {
     // The static error() method steps are to return the result of creating a Response object, given a new network error, "immutable", and this’s relevant Realm.
     // FIXME: How can we reliably get 'this', i.e. the object the function was called on, in IDL-defined functions?
@@ -163,7 +163,7 @@ JS::NonnullGCPtr<Response> Response::error(JS::VM& vm)
 }
 
 // https://fetch.spec.whatwg.org/#dom-response-redirect
-WebIDL::ExceptionOr<JS::NonnullGCPtr<Response>> Response::redirect(JS::VM& vm, String const& url, u16 status)
+WebIDL::ExceptionOr<GC::Ref<Response>> Response::redirect(JS::VM& vm, String const& url, u16 status)
 {
     auto& realm = *vm.current_realm();
 
@@ -198,7 +198,7 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<Response>> Response::redirect(JS::VM& vm, S
 }
 
 // https://fetch.spec.whatwg.org/#dom-response-json
-WebIDL::ExceptionOr<JS::NonnullGCPtr<Response>> Response::json(JS::VM& vm, JS::Value data, ResponseInit const& init)
+WebIDL::ExceptionOr<GC::Ref<Response>> Response::json(JS::VM& vm, JS::Value data, ResponseInit const& init)
 {
     auto& realm = *vm.current_realm();
 
@@ -268,14 +268,14 @@ String Response::status_text() const
 }
 
 // https://fetch.spec.whatwg.org/#dom-response-headers
-JS::NonnullGCPtr<Headers> Response::headers() const
+GC::Ref<Headers> Response::headers() const
 {
     // The headers getter steps are to return this’s headers.
     return *m_headers;
 }
 
 // https://fetch.spec.whatwg.org/#dom-response-clone
-WebIDL::ExceptionOr<JS::NonnullGCPtr<Response>> Response::clone() const
+WebIDL::ExceptionOr<GC::Ref<Response>> Response::clone() const
 {
     auto& realm = this->realm();
 

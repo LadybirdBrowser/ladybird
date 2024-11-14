@@ -12,10 +12,10 @@ namespace Web::HTML {
 
 class TextMetrics : public Bindings::PlatformObject {
     WEB_PLATFORM_OBJECT(TextMetrics, Bindings::PlatformObject);
-    JS_DECLARE_ALLOCATOR(TextMetrics);
+    GC_DECLARE_ALLOCATOR(TextMetrics);
 
 public:
-    [[nodiscard]] static JS::NonnullGCPtr<TextMetrics> create(JS::Realm&);
+    [[nodiscard]] static GC::Ref<TextMetrics> create(JS::Realm&);
 
     virtual ~TextMetrics() override;
 

@@ -38,7 +38,7 @@ namespace Web {
     if (auto event_result = (expression); event_result == EventResult::Cancelled) \
         return event_result;
 
-static JS::GCPtr<DOM::Node> dom_node_for_event_dispatch(Painting::Paintable& paintable)
+static GC::Ptr<DOM::Node> dom_node_for_event_dispatch(Painting::Paintable& paintable)
 {
     if (auto node = paintable.mouse_event_target())
         return node;
@@ -53,7 +53,7 @@ static JS::GCPtr<DOM::Node> dom_node_for_event_dispatch(Painting::Paintable& pai
     return nullptr;
 }
 
-static bool parent_element_for_event_dispatch(Painting::Paintable& paintable, JS::GCPtr<DOM::Node>& node, Layout::Node*& layout_node)
+static bool parent_element_for_event_dispatch(Painting::Paintable& paintable, GC::Ptr<DOM::Node>& node, Layout::Node*& layout_node)
 {
     auto* current_ancestor_node = node.ptr();
     do {
@@ -189,7 +189,7 @@ EventResult EventHandler::handle_mousewheel(CSSPixelPoint viewport_position, CSS
 
     auto handled_event = EventResult::Dropped;
 
-    JS::GCPtr<Painting::Paintable> paintable;
+    GC::Ptr<Painting::Paintable> paintable;
     if (auto result = target_for_mouse_position(position); result.has_value())
         paintable = result->paintable;
 
@@ -253,7 +253,7 @@ EventResult EventHandler::handle_mouseup(CSSPixelPoint viewport_position, CSSPix
     if (!paint_root())
         return EventResult::Dropped;
 
-    JS::GCPtr<Painting::Paintable> paintable;
+    GC::Ptr<Painting::Paintable> paintable;
     if (auto result = target_for_mouse_position(position); result.has_value())
         paintable = result->paintable;
 
@@ -322,8 +322,8 @@ EventResult EventHandler::handle_mouseup(CSSPixelPoint viewport_position, CSSPix
                 //
                 //        https://html.spec.whatwg.org/multipage/document-sequences.html#the-rules-for-choosing-a-navigable
 
-                if (JS::GCPtr<HTML::HTMLAnchorElement const> link = node->enclosing_link_element()) {
-                    JS::NonnullGCPtr<DOM::Document> document = *m_navigable->active_document();
+                if (GC::Ptr<HTML::HTMLAnchorElement const> link = node->enclosing_link_element()) {
+                    GC::Ref<DOM::Document> document = *m_navigable->active_document();
                     auto href = link->href();
                     auto url = document->parse_url(href);
 
@@ -385,11 +385,11 @@ EventResult EventHandler::handle_mousedown(CSSPixelPoint viewport_position, CSSP
     if (!paint_root())
         return EventResult::Dropped;
 
-    JS::NonnullGCPtr<DOM::Document> document = *m_navigable->active_document();
-    JS::GCPtr<DOM::Node> node;
+    GC::Ref<DOM::Document> document = *m_navigable->active_document();
+    GC::Ptr<DOM::Node> node;
 
     {
-        JS::GCPtr<Painting::Paintable> paintable;
+        GC::Ptr<Painting::Paintable> paintable;
         if (auto result = target_for_mouse_position(position); result.has_value())
             paintable = result->paintable;
         else
@@ -442,7 +442,7 @@ EventResult EventHandler::handle_mousedown(CSSPixelPoint viewport_position, CSSP
             auto dom_node = paintable->dom_node();
             if (dom_node) {
                 // See if we want to focus something.
-                JS::GCPtr<DOM::Node> focus_candidate;
+                GC::Ptr<DOM::Node> focus_candidate;
                 for (auto candidate = node; candidate; candidate = candidate->parent_or_shadow_host()) {
                     if (candidate->is_focusable()) {
                         focus_candidate = candidate;
@@ -507,7 +507,7 @@ EventResult EventHandler::handle_mousemove(CSSPixelPoint viewport_position, CSSP
     bool is_hovering_link = false;
     Gfx::StandardCursor hovered_node_cursor = Gfx::StandardCursor::None;
 
-    JS::GCPtr<Painting::Paintable> paintable;
+    GC::Ptr<Painting::Paintable> paintable;
     Optional<int> start_index;
 
     if (auto result = target_for_mouse_position(position); result.has_value()) {
@@ -608,7 +608,7 @@ EventResult EventHandler::handle_mousemove(CSSPixelPoint viewport_position, CSSP
     page.client().page_did_request_cursor_change(hovered_node_cursor);
 
     if (hovered_node_changed) {
-        JS::GCPtr<HTML::HTMLElement const> hovered_html_element = document.hovered_node() ? document.hovered_node()->enclosing_html_element_with_attribute(HTML::AttributeNames::title) : nullptr;
+        GC::Ptr<HTML::HTMLElement const> hovered_html_element = document.hovered_node() ? document.hovered_node()->enclosing_html_element_with_attribute(HTML::AttributeNames::title) : nullptr;
         if (hovered_html_element && hovered_html_element->title().has_value()) {
             page.client().page_did_enter_tooltip_area(hovered_html_element->title()->to_byte_string());
         } else {
@@ -643,7 +643,7 @@ EventResult EventHandler::handle_doubleclick(CSSPixelPoint viewport_position, CS
     if (!paint_root())
         return EventResult::Dropped;
 
-    JS::GCPtr<Painting::Paintable> paintable;
+    GC::Ptr<Painting::Paintable> paintable;
     if (auto result = target_for_mouse_position(position); result.has_value())
         paintable = result->paintable;
     else
@@ -722,7 +722,7 @@ EventResult EventHandler::handle_drag_and_drop_event(DragEvent::Type type, CSSPi
     if (!paint_root())
         return EventResult::Dropped;
 
-    JS::GCPtr<Painting::Paintable> paintable;
+    GC::Ptr<Painting::Paintable> paintable;
     if (auto result = target_for_mouse_position(viewport_position); result.has_value())
         paintable = result->paintable;
     else
@@ -836,13 +836,13 @@ constexpr bool should_ignore_keydown_event(u32 code_point, u32 modifiers)
 
 EventResult EventHandler::fire_keyboard_event(FlyString const& event_name, HTML::Navigable& navigable, UIEvents::KeyCode key, u32 modifiers, u32 code_point, bool repeat)
 {
-    JS::GCPtr<DOM::Document> document = navigable.active_document();
+    GC::Ptr<DOM::Document> document = navigable.active_document();
     if (!document)
         return EventResult::Dropped;
     if (!document->is_fully_active())
         return EventResult::Dropped;
 
-    if (JS::GCPtr<DOM::Element> focused_element = document->focused_element()) {
+    if (GC::Ptr<DOM::Element> focused_element = document->focused_element()) {
         if (is<HTML::NavigableContainer>(*focused_element)) {
             auto& navigable_container = verify_cast<HTML::NavigableContainer>(*focused_element);
             if (navigable_container.content_navigable())
@@ -856,7 +856,7 @@ EventResult EventHandler::fire_keyboard_event(FlyString const& event_name, HTML:
     // FIXME: De-duplicate this. This is just to prevent wasting a KeyboardEvent allocation when recursing into an (i)frame.
     auto event = UIEvents::KeyboardEvent::create_from_platform_event(document->realm(), event_name, key, modifiers, code_point, repeat);
 
-    JS::GCPtr target = document->body() ?: &document->root();
+    GC::Ptr target = document->body() ?: &document->root();
     return target->dispatch_event(event) ? EventResult::Accepted : EventResult::Cancelled;
 }
 
@@ -925,7 +925,7 @@ EventResult EventHandler::handle_keydown(UIEvents::KeyCode key, u32 modifiers, u
             return dispatch_result;
     }
 
-    JS::NonnullGCPtr<DOM::Document> document = *m_navigable->active_document();
+    GC::Ref<DOM::Document> document = *m_navigable->active_document();
 
     if (key == UIEvents::KeyCode::Key_Tab) {
         if (modifiers & UIEvents::KeyModifier::Mod_Shift)

@@ -16,14 +16,14 @@
 
 namespace Web::Painting {
 
-JS_DEFINE_ALLOCATOR(ImagePaintable);
+GC_DEFINE_ALLOCATOR(ImagePaintable);
 
-JS::NonnullGCPtr<ImagePaintable> ImagePaintable::create(Layout::SVGImageBox const& layout_box)
+GC::Ref<ImagePaintable> ImagePaintable::create(Layout::SVGImageBox const& layout_box)
 {
     return layout_box.heap().allocate<ImagePaintable>(layout_box, layout_box.dom_node(), false, String {}, true);
 }
 
-JS::NonnullGCPtr<ImagePaintable> ImagePaintable::create(Layout::ImageBox const& layout_box)
+GC::Ref<ImagePaintable> ImagePaintable::create(Layout::ImageBox const& layout_box)
 {
     auto alt = layout_box.dom_node().get_attribute_value(HTML::AttributeNames::alt);
     return layout_box.heap().allocate<ImagePaintable>(layout_box, layout_box.image_provider(), layout_box.renders_as_alt_text(), move(alt), false);

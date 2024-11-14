@@ -10,9 +10,9 @@
 
 namespace Web::WebAudio {
 
-JS_DEFINE_ALLOCATOR(AudioNode);
+GC_DEFINE_ALLOCATOR(AudioNode);
 
-AudioNode::AudioNode(JS::Realm& realm, JS::NonnullGCPtr<BaseAudioContext> context)
+AudioNode::AudioNode(JS::Realm& realm, GC::Ref<BaseAudioContext> context)
     : DOM::EventTarget(realm)
     , m_context(context)
 
@@ -48,7 +48,7 @@ WebIDL::ExceptionOr<void> AudioNode::initialize_audio_node_options(AudioNodeOpti
 }
 
 // https://webaudio.github.io/web-audio-api/#dom-audionode-connect
-WebIDL::ExceptionOr<JS::NonnullGCPtr<AudioNode>> AudioNode::connect(JS::NonnullGCPtr<AudioNode> destination_node, WebIDL::UnsignedLong output, WebIDL::UnsignedLong input)
+WebIDL::ExceptionOr<GC::Ref<AudioNode>> AudioNode::connect(GC::Ref<AudioNode> destination_node, WebIDL::UnsignedLong output, WebIDL::UnsignedLong input)
 {
     // There can only be one connection between a given output of one specific node and a given input of another specific node.
     // Multiple connections with the same termini are ignored.
@@ -65,7 +65,7 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<AudioNode>> AudioNode::connect(JS::NonnullG
 }
 
 // https://webaudio.github.io/web-audio-api/#dom-audionode-connect-destinationparam-output
-void AudioNode::connect(JS::NonnullGCPtr<AudioParam> destination_param, WebIDL::UnsignedLong output)
+void AudioNode::connect(GC::Ref<AudioParam> destination_param, WebIDL::UnsignedLong output)
 {
     (void)destination_param;
     (void)output;
@@ -86,14 +86,14 @@ void AudioNode::disconnect(WebIDL::UnsignedLong output)
 }
 
 // https://webaudio.github.io/web-audio-api/#dom-audionode-disconnect-destinationnode
-void AudioNode::disconnect(JS::NonnullGCPtr<AudioNode> destination_node)
+void AudioNode::disconnect(GC::Ref<AudioNode> destination_node)
 {
     (void)destination_node;
     dbgln("FIXME: Implement AudioNode::disconnect(destination_node)");
 }
 
 // https://webaudio.github.io/web-audio-api/#dom-audionode-disconnect-destinationnode-output
-void AudioNode::disconnect(JS::NonnullGCPtr<AudioNode> destination_node, WebIDL::UnsignedLong output)
+void AudioNode::disconnect(GC::Ref<AudioNode> destination_node, WebIDL::UnsignedLong output)
 {
     (void)destination_node;
     (void)output;
@@ -101,7 +101,7 @@ void AudioNode::disconnect(JS::NonnullGCPtr<AudioNode> destination_node, WebIDL:
 }
 
 // https://webaudio.github.io/web-audio-api/#dom-audionode-disconnect-destinationnode-output-input
-void AudioNode::disconnect(JS::NonnullGCPtr<AudioNode> destination_node, WebIDL::UnsignedLong output, WebIDL::UnsignedLong input)
+void AudioNode::disconnect(GC::Ref<AudioNode> destination_node, WebIDL::UnsignedLong output, WebIDL::UnsignedLong input)
 {
     (void)destination_node;
     (void)output;
@@ -110,14 +110,14 @@ void AudioNode::disconnect(JS::NonnullGCPtr<AudioNode> destination_node, WebIDL:
 }
 
 // https://webaudio.github.io/web-audio-api/#dom-audionode-disconnect-destinationparam
-void AudioNode::disconnect(JS::NonnullGCPtr<AudioParam> destination_param)
+void AudioNode::disconnect(GC::Ref<AudioParam> destination_param)
 {
     (void)destination_param;
     dbgln("FIXME: Implement AudioNode::disconnect(destination_param)");
 }
 
 // https://webaudio.github.io/web-audio-api/#dom-audionode-disconnect-destinationparam-output
-void AudioNode::disconnect(JS::NonnullGCPtr<AudioParam> destination_param, WebIDL::UnsignedLong output)
+void AudioNode::disconnect(GC::Ref<AudioParam> destination_param, WebIDL::UnsignedLong output)
 {
     (void)destination_param;
     (void)output;

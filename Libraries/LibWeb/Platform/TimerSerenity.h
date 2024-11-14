@@ -12,10 +12,10 @@
 namespace Web::Platform {
 
 class TimerSerenity final : public Timer {
-    JS_CELL(TimerSerenity, Timer);
+    GC_CELL(TimerSerenity, Timer);
 
 public:
-    static JS::NonnullGCPtr<TimerSerenity> create(JS::Heap&);
+    static GC::Ref<TimerSerenity> create(GC::Heap&);
 
     virtual ~TimerSerenity();
 

@@ -33,7 +33,7 @@ DedicatedWorkerHost::~DedicatedWorkerHost() = default;
 
 // https://html.spec.whatwg.org/multipage/workers.html#run-a-worker
 // FIXME: Extract out into a helper for both shared and dedicated workers
-void DedicatedWorkerHost::run(JS::NonnullGCPtr<Web::Page> page, Web::HTML::TransferDataHolder message_port_data, Web::HTML::SerializedEnvironmentSettingsObject const& outside_settings_snapshot)
+void DedicatedWorkerHost::run(GC::Ref<Web::Page> page, Web::HTML::TransferDataHolder message_port_data, Web::HTML::SerializedEnvironmentSettingsObject const& outside_settings_snapshot)
 {
     bool const is_shared = false;
 
@@ -55,7 +55,7 @@ void DedicatedWorkerHost::run(JS::NonnullGCPtr<Web::Page> page, Web::HTML::Trans
 
     // 8. Let worker global scope be the global object of realm execution context's Realm component.
     // NOTE: This is the DedicatedWorkerGlobalScope or SharedWorkerGlobalScope object created in the previous step.
-    JS::NonnullGCPtr<Web::HTML::WorkerGlobalScope> worker_global_scope = verify_cast<Web::HTML::WorkerGlobalScope>(realm_execution_context->realm->global_object());
+    GC::Ref<Web::HTML::WorkerGlobalScope> worker_global_scope = verify_cast<Web::HTML::WorkerGlobalScope>(realm_execution_context->realm->global_object());
 
     // 9. Set up a worker environment settings object with realm execution context,
     //    outside settings, and unsafeWorkerCreationTime, and let inside settings be the result.
@@ -92,7 +92,7 @@ void DedicatedWorkerHost::run(JS::NonnullGCPtr<Web::Page> page, Web::HTML::Trans
                                  : Web::Fetch::Infrastructure::Request::Destination::Worker;
 
     // In both cases, let performFetch be the following perform the fetch hook given request, isTopLevel and processCustomFetchResponse:
-    auto perform_fetch_function = [inner_settings, worker_global_scope](JS::NonnullGCPtr<Web::Fetch::Infrastructure::Request> request, Web::HTML::TopLevelModule is_top_level, Web::Fetch::Infrastructure::FetchAlgorithms::ProcessResponseConsumeBodyFunction process_custom_fetch_response) -> Web::WebIDL::ExceptionOr<void> {
+    auto perform_fetch_function = [inner_settings, worker_global_scope](GC::Ref<Web::Fetch::Infrastructure::Request> request, Web::HTML::TopLevelModule is_top_level, Web::Fetch::Infrastructure::FetchAlgorithms::ProcessResponseConsumeBodyFunction process_custom_fetch_response) -> Web::WebIDL::ExceptionOr<void> {
         auto& realm = inner_settings->realm();
         auto& vm = realm.vm();
 
@@ -106,10 +106,10 @@ void DedicatedWorkerHost::run(JS::NonnullGCPtr<Web::Page> page, Web::HTML::Trans
         }
 
         // 2. Set request's reserved client to inside settings.
-        request->set_reserved_client(JS::GCPtr<Web::HTML::EnvironmentSettingsObject>(inner_settings));
+        request->set_reserved_client(GC::Ptr<Web::HTML::EnvironmentSettingsObject>(inner_settings));
 
         // We need to store the process custom fetch response function on the heap here, because we're storing it in another heap function
-        auto process_custom_fetch_response_function = JS::create_heap_function(vm.heap(), move(process_custom_fetch_response));
+        auto process_custom_fetch_response_function = GC::create_function(vm.heap(), move(process_custom_fetch_response));
 
         // 3. Fetch request with processResponseConsumeBody set to the following steps given response response and null, failure, or a byte sequence bodyBytes:
         fetch_algorithms_input.process_response_consume_body = [worker_global_scope, process_custom_fetch_response_function](auto response, auto body_bytes) {
@@ -142,7 +142,7 @@ void DedicatedWorkerHost::run(JS::NonnullGCPtr<Web::Page> page, Web::HTML::Trans
     };
     auto perform_fetch = Web::HTML::create_perform_the_fetch_hook(inner_settings->heap(), move(perform_fetch_function));
 
-    auto on_complete_function = [inner_settings, worker_global_scope, message_port_data = move(message_port_data), url = m_url](JS::GCPtr<Web::HTML::Script> script) mutable {
+    auto on_complete_function = [inner_settings, worker_global_scope, message_port_data = move(message_port_data), url = m_url](GC::Ptr<Web::HTML::Script> script) mutable {
         auto& realm = inner_settings->realm();
         // 1. If script is null or if script's error to rethrow is non-null, then:
         if (!script || !script->error_to_rethrow().is_null()) {

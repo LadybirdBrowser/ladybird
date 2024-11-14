@@ -34,7 +34,7 @@
 
 namespace Web::HTML {
 
-JS_DEFINE_ALLOCATOR(BrowsingContext);
+GC_DEFINE_ALLOCATOR(BrowsingContext);
 
 // https://html.spec.whatwg.org/multipage/urls-and-fetching.html#matches-about:blank
 bool url_matches_about_blank(URL::URL const& url)
@@ -90,7 +90,7 @@ URL::Origin determine_the_origin(Optional<URL::URL> const& url, SandboxingFlagSe
 }
 
 // https://html.spec.whatwg.org/multipage/document-sequences.html#creating-a-new-auxiliary-browsing-context
-WebIDL::ExceptionOr<BrowsingContext::BrowsingContextAndDocument> BrowsingContext::create_a_new_auxiliary_browsing_context_and_document(JS::NonnullGCPtr<Page> page, JS::NonnullGCPtr<HTML::BrowsingContext> opener)
+WebIDL::ExceptionOr<BrowsingContext::BrowsingContextAndDocument> BrowsingContext::create_a_new_auxiliary_browsing_context_and_document(GC::Ref<Page> page, GC::Ref<HTML::BrowsingContext> opener)
 {
     // 1. Let openerTopLevelBrowsingContext be opener's top-level traversable's active browsing context.
     auto opener_top_level_browsing_context = opener->top_level_traversable()->active_browsing_context();
@@ -123,7 +123,7 @@ WebIDL::ExceptionOr<BrowsingContext::BrowsingContextAndDocument> BrowsingContext
     return BrowsingContext::BrowsingContextAndDocument { browsing_context, document };
 }
 
-static void populate_with_html_head_body(JS::NonnullGCPtr<DOM::Document> document)
+static void populate_with_html_head_body(GC::Ref<DOM::Document> document)
 {
     auto html_node = MUST(DOM::create_element(document, HTML::TagNames::html, Namespace::HTML));
     auto head_element = MUST(DOM::create_element(document, HTML::TagNames::head, Namespace::HTML));
@@ -134,12 +134,12 @@ static void populate_with_html_head_body(JS::NonnullGCPtr<DOM::Document> documen
 }
 
 // https://html.spec.whatwg.org/multipage/document-sequences.html#creating-a-new-browsing-context
-WebIDL::ExceptionOr<BrowsingContext::BrowsingContextAndDocument> BrowsingContext::create_a_new_browsing_context_and_document(JS::NonnullGCPtr<Page> page, JS::GCPtr<DOM::Document> creator, JS::GCPtr<DOM::Element> embedder, JS::NonnullGCPtr<BrowsingContextGroup> group)
+WebIDL::ExceptionOr<BrowsingContext::BrowsingContextAndDocument> BrowsingContext::create_a_new_browsing_context_and_document(GC::Ref<Page> page, GC::Ptr<DOM::Document> creator, GC::Ptr<DOM::Element> embedder, GC::Ref<BrowsingContextGroup> group)
 {
     auto& vm = group->vm();
 
     // 1. Let browsingContext be a new browsing context.
-    JS::NonnullGCPtr<BrowsingContext> browsing_context = *vm.heap().allocate<BrowsingContext>(page);
+    GC::Ref<BrowsingContext> browsing_context = *vm.heap().allocate<BrowsingContext>(page);
 
     // 2. Let unsafeContextCreationTime be the unsafe shared current time.
     [[maybe_unused]] auto unsafe_context_creation_time = HighResolutionTime::unsafe_shared_current_time();
@@ -173,7 +173,7 @@ WebIDL::ExceptionOr<BrowsingContext::BrowsingContextAndDocument> BrowsingContext
 
     // FIXME: 9. Let agent be the result of obtaining a similar-origin window agent given origin, group, and false.
 
-    JS::GCPtr<Window> window;
+    GC::Ptr<Window> window;
 
     // 10. Let realm execution context be the result of creating a new JavaScript realm given agent and the following customizations:
     auto realm_execution_context = Bindings::create_a_new_javascript_realm(
@@ -289,7 +289,7 @@ WebIDL::ExceptionOr<BrowsingContext::BrowsingContextAndDocument> BrowsingContext
     return BrowsingContext::BrowsingContextAndDocument { browsing_context, document };
 }
 
-BrowsingContext::BrowsingContext(JS::NonnullGCPtr<Page> page)
+BrowsingContext::BrowsingContext(GC::Ref<Page> page)
     : m_page(page)
 {
 }
@@ -311,7 +311,7 @@ void BrowsingContext::visit_edges(Cell::Visitor& visitor)
 }
 
 // https://html.spec.whatwg.org/multipage/document-sequences.html#bc-traversable
-JS::NonnullGCPtr<HTML::TraversableNavigable> BrowsingContext::top_level_traversable() const
+GC::Ref<HTML::TraversableNavigable> BrowsingContext::top_level_traversable() const
 {
     // A browsing context's top-level traversable is its active document's node navigable's top-level traversable.
     auto traversable = active_document()->navigable()->top_level_traversable();
@@ -329,7 +329,7 @@ bool BrowsingContext::is_top_level() const
     return active_document() != nullptr && active_document()->navigable() != nullptr && active_document()->navigable()->is_traversable();
 }
 
-JS::GCPtr<BrowsingContext> BrowsingContext::top_level_browsing_context() const
+GC::Ptr<BrowsingContext> BrowsingContext::top_level_browsing_context() const
 {
     auto const* start = this;
 
@@ -388,7 +388,7 @@ HTML::WindowProxy const* BrowsingContext::window_proxy() const
     return m_window_proxy.ptr();
 }
 
-void BrowsingContext::set_window_proxy(JS::GCPtr<WindowProxy> window_proxy)
+void BrowsingContext::set_window_proxy(GC::Ptr<WindowProxy> window_proxy)
 {
     m_window_proxy = move(window_proxy);
 }
@@ -415,7 +415,7 @@ void BrowsingContext::remove()
     VERIFY(group());
 
     // 2. Let group be browsingContext's group.
-    JS::NonnullGCPtr<BrowsingContextGroup> group = *this->group();
+    GC::Ref<BrowsingContextGroup> group = *this->group();
 
     // 3. Set browsingContext's group to null.
     set_group(nullptr);
@@ -434,11 +434,11 @@ BrowsingContext const* BrowsingContext::the_one_permitted_sandboxed_navigator() 
     return nullptr;
 }
 
-JS::GCPtr<BrowsingContext> BrowsingContext::first_child() const
+GC::Ptr<BrowsingContext> BrowsingContext::first_child() const
 {
     return m_first_child;
 }
-JS::GCPtr<BrowsingContext> BrowsingContext::next_sibling() const
+GC::Ptr<BrowsingContext> BrowsingContext::next_sibling() const
 {
     return m_next_sibling;
 }
@@ -504,7 +504,7 @@ bool BrowsingContext::is_familiar_with(BrowsingContext const& other) const
 }
 
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#snapshotting-target-snapshot-params
-SandboxingFlagSet determine_the_creation_sandboxing_flags(BrowsingContext const&, JS::GCPtr<DOM::Element>)
+SandboxingFlagSet determine_the_creation_sandboxing_flags(BrowsingContext const&, GC::Ptr<DOM::Element>)
 {
     // FIXME: Populate this once we have the proper flag sets on BrowsingContext
     return {};

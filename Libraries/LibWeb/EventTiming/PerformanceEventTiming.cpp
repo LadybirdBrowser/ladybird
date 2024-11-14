@@ -12,7 +12,7 @@
 
 namespace Web::EventTiming {
 
-JS_DEFINE_ALLOCATOR(PerformanceEventTiming);
+GC_DEFINE_ALLOCATOR(PerformanceEventTiming);
 
 // https://www.w3.org/TR/event-timing/#sec-init-event-timing
 PerformanceEventTiming::PerformanceEventTiming(JS::Realm& realm, String const& name, HighResolutionTime::DOMHighResTimeStamp start_time, HighResolutionTime::DOMHighResTimeStamp duration,
@@ -51,7 +51,7 @@ bool PerformanceEventTiming::cancelable() const
     return m_cancelable;
 }
 
-JS::ThrowCompletionOr<JS::GCPtr<DOM::Node>> PerformanceEventTiming::target()
+JS::ThrowCompletionOr<GC::Ptr<DOM::Node>> PerformanceEventTiming::target()
 {
     dbgln("FIXME: Implement PerformanceEventTiming::PeformanceEventTiming target()");
     return nullptr;

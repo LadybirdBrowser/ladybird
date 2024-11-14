@@ -8,7 +8,7 @@
 #pragma once
 
 #include <AK/DeprecatedFlyString.h>
-#include <LibJS/Heap/GCPtr.h>
+#include <LibGC/Ptr.h>
 #include <LibJS/ModuleLoading.h>
 #include <LibJS/Runtime/Environment.h>
 #include <LibJS/Runtime/Realm.h>
@@ -37,7 +37,7 @@ struct ResolvedBinding {
     }
 
     Type type { Null };
-    GCPtr<Module> module;
+    GC::Ptr<Module> module;
     DeprecatedFlyString export_name;
 
     bool is_valid() const
@@ -58,25 +58,25 @@ struct ResolvedBinding {
 
 // https://tc39.es/ecma262/#graphloadingstate-record
 struct GraphLoadingState : public Cell {
-    JS_CELL(GraphLoadingState, Cell);
-    JS_DECLARE_ALLOCATOR(GraphLoadingState);
+    GC_CELL(GraphLoadingState, Cell);
+    GC_DECLARE_ALLOCATOR(GraphLoadingState);
 
 public:
     struct HostDefined : Cell {
-        JS_CELL(HostDefined, Cell);
+        GC_CELL(HostDefined, Cell);
 
     public:
         virtual ~HostDefined() = default;
     };
 
-    GCPtr<PromiseCapability> promise_capability; // [[PromiseCapability]]
-    bool is_loading { false };                   // [[IsLoading]]
-    size_t pending_module_count { 0 };           // [[PendingModulesCount]]
-    HashTable<JS::GCPtr<CyclicModule>> visited;  // [[Visited]]
-    GCPtr<HostDefined> host_defined;             // [[HostDefined]]
+    GC::Ptr<PromiseCapability> promise_capability; // [[PromiseCapability]]
+    bool is_loading { false };                     // [[IsLoading]]
+    size_t pending_module_count { 0 };             // [[PendingModulesCount]]
+    HashTable<GC::Ptr<CyclicModule>> visited;      // [[Visited]]
+    GC::Ptr<HostDefined> host_defined;             // [[HostDefined]]
 
 private:
-    GraphLoadingState(GCPtr<PromiseCapability> promise_capability, bool is_loading, size_t pending_module_count, HashTable<JS::GCPtr<CyclicModule>> visited, GCPtr<HostDefined> host_defined)
+    GraphLoadingState(GC::Ptr<PromiseCapability> promise_capability, bool is_loading, size_t pending_module_count, HashTable<GC::Ptr<CyclicModule>> visited, GC::Ptr<HostDefined> host_defined)
         : promise_capability(move(promise_capability))
         , is_loading(is_loading)
         , pending_module_count(pending_module_count)
@@ -89,8 +89,8 @@ private:
 
 // 16.2.1.4 Abstract Module Records, https://tc39.es/ecma262/#sec-abstract-module-records
 class Module : public Cell {
-    JS_CELL(Module, Cell);
-    JS_DECLARE_ALLOCATOR(Module);
+    GC_CELL(Module, Cell);
+    GC_DECLARE_ALLOCATOR(Module);
 
 public:
     virtual ~Module() override;
@@ -115,7 +115,7 @@ public:
     virtual ThrowCompletionOr<u32> inner_module_linking(VM& vm, Vector<Module*>& stack, u32 index);
     virtual ThrowCompletionOr<u32> inner_module_evaluation(VM& vm, Vector<Module*>& stack, u32 index);
 
-    virtual PromiseCapability& load_requested_modules(GCPtr<GraphLoadingState::HostDefined>) = 0;
+    virtual PromiseCapability& load_requested_modules(GC::Ptr<GraphLoadingState::HostDefined>) = 0;
 
 protected:
     Module(Realm&, ByteString filename, Script::HostDefined* host_defined = nullptr);
@@ -135,9 +135,9 @@ private:
     // destroy the VM but keep the modules this should not happen. Because VM
     // stores modules with a RefPtr we cannot just store the VM as that leads to
     // cycles.
-    GCPtr<Realm> m_realm;                            // [[Realm]]
-    GCPtr<Environment> m_environment;                // [[Environment]]
-    GCPtr<Object> m_namespace;                       // [[Namespace]]
+    GC::Ptr<Realm> m_realm;                          // [[Realm]]
+    GC::Ptr<Environment> m_environment;              // [[Environment]]
+    GC::Ptr<Object> m_namespace;                     // [[Namespace]]
     Script::HostDefined* m_host_defined { nullptr }; // [[HostDefined]]
 
     // Needed for potential lookups of modules.
@@ -147,6 +147,6 @@ private:
 class CyclicModule;
 struct GraphLoadingState;
 
-void finish_loading_imported_module(ImportedModuleReferrer, ModuleRequest const&, ImportedModulePayload, ThrowCompletionOr<NonnullGCPtr<Module>> const&);
+void finish_loading_imported_module(ImportedModuleReferrer, ModuleRequest const&, ImportedModulePayload, ThrowCompletionOr<GC::Ref<Module>> const&);
 
 }

@@ -20,7 +20,7 @@ public:
     };
 
     struct Row {
-        JS::NonnullGCPtr<Box const> box;
+        GC::Ref<Box const> box;
         CSSPixels base_height { 0 };
         CSSPixels reference_height { 0 };
         CSSPixels final_height { 0 };
@@ -34,7 +34,7 @@ public:
     };
 
     struct Cell {
-        JS::NonnullGCPtr<Box const> box;
+        GC::Ref<Box const> box;
         size_t column_index;
         size_t row_index;
         size_t column_span;

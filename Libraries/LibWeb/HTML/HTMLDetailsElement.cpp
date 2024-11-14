@@ -20,7 +20,7 @@
 
 namespace Web::HTML {
 
-JS_DEFINE_ALLOCATOR(HTMLDetailsElement);
+GC_DEFINE_ALLOCATOR(HTMLDetailsElement);
 
 HTMLDetailsElement::HTMLDetailsElement(DOM::Document& document, DOM::QualifiedName qualified_name)
     : HTMLElement(document, move(qualified_name))
@@ -153,7 +153,7 @@ void HTMLDetailsElement::update_shadow_tree_slots()
 
     auto* summary = first_child_of_type<HTMLSummaryElement>();
     if (summary != nullptr)
-        summary_assignment.append(JS::make_handle(static_cast<DOM::Element&>(*summary)));
+        summary_assignment.append(GC::make_root(static_cast<DOM::Element&>(*summary)));
 
     for_each_in_subtree([&](auto& child) {
         if (&child == summary)
@@ -162,7 +162,7 @@ void HTMLDetailsElement::update_shadow_tree_slots()
             return TraversalDecision::Continue;
 
         child.as_slottable().visit([&](auto& node) {
-            descendants_assignment.append(JS::make_handle(node));
+            descendants_assignment.append(GC::make_root(node));
         });
 
         return TraversalDecision::Continue;

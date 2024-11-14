@@ -11,10 +11,10 @@
 
 namespace JS {
 
-JS_DEFINE_ALLOCATOR(AlreadyResolved);
-JS_DEFINE_ALLOCATOR(PromiseResolvingFunction);
+GC_DEFINE_ALLOCATOR(AlreadyResolved);
+GC_DEFINE_ALLOCATOR(PromiseResolvingFunction);
 
-NonnullGCPtr<PromiseResolvingFunction> PromiseResolvingFunction::create(Realm& realm, Promise& promise, AlreadyResolved& already_resolved, FunctionType function)
+GC::Ref<PromiseResolvingFunction> PromiseResolvingFunction::create(Realm& realm, Promise& promise, AlreadyResolved& already_resolved, FunctionType function)
 {
     return realm.create<PromiseResolvingFunction>(promise, already_resolved, move(function), realm.intrinsics().function_prototype());
 }

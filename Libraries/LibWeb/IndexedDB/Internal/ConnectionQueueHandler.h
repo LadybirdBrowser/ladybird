@@ -7,16 +7,16 @@
 #pragma once
 
 #include <AK/HashMap.h>
-#include <LibJS/Heap/Handle.h>
+#include <LibGC/Root.h>
 #include <LibWeb/DOM/EventTarget.h>
 #include <LibWeb/IndexedDB/IDBRequest.h>
 #include <LibWeb/StorageAPI/StorageKey.h>
 
 namespace Web::IndexedDB {
 
-class ConnectionQueue : public AK::Vector<JS::Handle<IDBRequest>> {
+class ConnectionQueue : public AK::Vector<GC::Root<IDBRequest>> {
 public:
-    bool all_previous_requests_processed(JS::NonnullGCPtr<IDBRequest> const& request) const
+    bool all_previous_requests_processed(GC::Ref<IDBRequest> const& request) const
     {
         for (auto const& entry : *this) {
             if (entry == request)

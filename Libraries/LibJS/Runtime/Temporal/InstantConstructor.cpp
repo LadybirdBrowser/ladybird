@@ -13,7 +13,7 @@
 
 namespace JS::Temporal {
 
-JS_DEFINE_ALLOCATOR(InstantConstructor);
+GC_DEFINE_ALLOCATOR(InstantConstructor);
 
 // 8.1 The Temporal.Instant Constructor, https://tc39.es/proposal-temporal/#sec-temporal-instant-constructor
 InstantConstructor::InstantConstructor(Realm& realm)
@@ -52,7 +52,7 @@ ThrowCompletionOr<Value> InstantConstructor::call()
 }
 
 // 8.1.1 Temporal.Instant ( epochNanoseconds ), https://tc39.es/proposal-temporal/#sec-temporal.instant
-ThrowCompletionOr<NonnullGCPtr<Object>> InstantConstructor::construct(FunctionObject& new_target)
+ThrowCompletionOr<GC::Ref<Object>> InstantConstructor::construct(FunctionObject& new_target)
 {
     auto& vm = this->vm();
 

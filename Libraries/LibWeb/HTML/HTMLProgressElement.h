@@ -14,7 +14,7 @@ namespace Web::HTML {
 
 class HTMLProgressElement final : public HTMLElement {
     WEB_PLATFORM_OBJECT(HTMLProgressElement, HTMLElement);
-    JS_DECLARE_ALLOCATOR(HTMLProgressElement);
+    GC_DECLARE_ALLOCATOR(HTMLProgressElement);
 
 public:
     virtual ~HTMLProgressElement() override;
@@ -55,7 +55,7 @@ private:
 
     bool is_determinate() const { return has_attribute(HTML::AttributeNames::value); }
 
-    JS::GCPtr<DOM::Element> m_progress_value_element;
+    GC::Ptr<DOM::Element> m_progress_value_element;
 };
 
 }

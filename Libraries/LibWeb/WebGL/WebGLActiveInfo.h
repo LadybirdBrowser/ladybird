@@ -12,7 +12,7 @@ namespace Web::WebGL {
 
 class WebGLActiveInfo : public Bindings::PlatformObject {
     WEB_PLATFORM_OBJECT(WebGLActiveInfo, Bindings::PlatformObject);
-    JS_DECLARE_ALLOCATOR(WebGLActiveInfo);
+    GC_DECLARE_ALLOCATOR(WebGLActiveInfo);
 
 public:
     virtual ~WebGLActiveInfo();

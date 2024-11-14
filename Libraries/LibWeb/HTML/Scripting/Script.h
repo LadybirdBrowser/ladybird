@@ -18,8 +18,8 @@ namespace Web::HTML {
 class Script
     : public JS::Cell
     , public JS::Script::HostDefined {
-    JS_CELL(Script, JS::Cell);
-    JS_DECLARE_ALLOCATOR(Script);
+    GC_CELL(Script, JS::Cell);
+    GC_DECLARE_ALLOCATOR(Script);
 
 public:
     virtual ~Script() override;
@@ -46,7 +46,7 @@ private:
 
     URL::URL m_base_url;
     ByteString m_filename;
-    JS::NonnullGCPtr<JS::Realm> m_realm;
+    GC::Ref<JS::Realm> m_realm;
 
     // https://html.spec.whatwg.org/multipage/webappapis.html#concept-script-parse-error
     JS::Value m_parse_error;

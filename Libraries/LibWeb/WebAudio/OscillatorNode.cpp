@@ -12,17 +12,17 @@
 
 namespace Web::WebAudio {
 
-JS_DEFINE_ALLOCATOR(OscillatorNode);
+GC_DEFINE_ALLOCATOR(OscillatorNode);
 
 OscillatorNode::~OscillatorNode() = default;
 
-WebIDL::ExceptionOr<JS::NonnullGCPtr<OscillatorNode>> OscillatorNode::create(JS::Realm& realm, JS::NonnullGCPtr<BaseAudioContext> context, OscillatorOptions const& options)
+WebIDL::ExceptionOr<GC::Ref<OscillatorNode>> OscillatorNode::create(JS::Realm& realm, GC::Ref<BaseAudioContext> context, OscillatorOptions const& options)
 {
     return construct_impl(realm, context, options);
 }
 
 // https://webaudio.github.io/web-audio-api/#dom-oscillatornode-oscillatornode
-WebIDL::ExceptionOr<JS::NonnullGCPtr<OscillatorNode>> OscillatorNode::construct_impl(JS::Realm& realm, JS::NonnullGCPtr<BaseAudioContext> context, OscillatorOptions const& options)
+WebIDL::ExceptionOr<GC::Ref<OscillatorNode>> OscillatorNode::construct_impl(JS::Realm& realm, GC::Ref<BaseAudioContext> context, OscillatorOptions const& options)
 {
     // FIXME: Invoke "Initialize the AudioNode" steps.
     TRY(verify_valid_type(realm, options.type));
@@ -30,7 +30,7 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<OscillatorNode>> OscillatorNode::construct_
     return node;
 }
 
-OscillatorNode::OscillatorNode(JS::Realm& realm, JS::NonnullGCPtr<BaseAudioContext> context, OscillatorOptions const& options)
+OscillatorNode::OscillatorNode(JS::Realm& realm, GC::Ref<BaseAudioContext> context, OscillatorOptions const& options)
     : AudioScheduledSourceNode(realm, context)
     , m_frequency(AudioParam::create(realm, options.frequency, -context->nyquist_frequency(), context->nyquist_frequency(), Bindings::AutomationRate::ARate))
 {

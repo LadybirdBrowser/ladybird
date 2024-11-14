@@ -43,9 +43,9 @@
 
 namespace Web::CSS {
 
-JS_DEFINE_ALLOCATOR(ResolvedCSSStyleDeclaration);
+GC_DEFINE_ALLOCATOR(ResolvedCSSStyleDeclaration);
 
-JS::NonnullGCPtr<ResolvedCSSStyleDeclaration> ResolvedCSSStyleDeclaration::create(DOM::Element& element, Optional<Selector::PseudoElement::Type> pseudo_element)
+GC::Ref<ResolvedCSSStyleDeclaration> ResolvedCSSStyleDeclaration::create(DOM::Element& element, Optional<Selector::PseudoElement::Type> pseudo_element)
 {
     return element.realm().create<ResolvedCSSStyleDeclaration>(element, move(pseudo_element));
 }

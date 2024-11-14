@@ -6,7 +6,7 @@
 
 #include <AK/Debug.h>
 #include <AK/TypeCasts.h>
-#include <LibJS/Heap/Heap.h>
+#include <LibGC/Heap.h>
 #include <LibJS/Runtime/Completion.h>
 #include <LibJS/Runtime/VM.h>
 #include <LibWeb/Bindings/MainThreadVM.h>
@@ -17,13 +17,13 @@
 
 namespace Web::Fetch::Infrastructure {
 
-JS_DEFINE_ALLOCATOR(Response);
-JS_DEFINE_ALLOCATOR(BasicFilteredResponse);
-JS_DEFINE_ALLOCATOR(CORSFilteredResponse);
-JS_DEFINE_ALLOCATOR(OpaqueFilteredResponse);
-JS_DEFINE_ALLOCATOR(OpaqueRedirectFilteredResponse);
+GC_DEFINE_ALLOCATOR(Response);
+GC_DEFINE_ALLOCATOR(BasicFilteredResponse);
+GC_DEFINE_ALLOCATOR(CORSFilteredResponse);
+GC_DEFINE_ALLOCATOR(OpaqueFilteredResponse);
+GC_DEFINE_ALLOCATOR(OpaqueRedirectFilteredResponse);
 
-Response::Response(JS::NonnullGCPtr<HeaderList> header_list)
+Response::Response(GC::Ref<HeaderList> header_list)
     : m_header_list(header_list)
     , m_response_time(UnixDateTime::now())
 {
@@ -36,7 +36,7 @@ void Response::visit_edges(JS::Cell::Visitor& visitor)
     visitor.visit(m_body);
 }
 
-JS::NonnullGCPtr<Response> Response::create(JS::VM& vm)
+GC::Ref<Response> Response::create(JS::VM& vm)
 {
     return vm.heap().allocate<Response>(HeaderList::create(vm));
 }
@@ -45,14 +45,14 @@ JS::NonnullGCPtr<Response> Response::create(JS::VM& vm)
 // A network error is a response whose status is always 0, status message is always
 // the empty byte sequence, header list is always empty, and body is always null.
 
-JS::NonnullGCPtr<Response> Response::aborted_network_error(JS::VM& vm)
+GC::Ref<Response> Response::aborted_network_error(JS::VM& vm)
 {
     auto response = network_error(vm, "Fetch has been aborted"sv);
     response->set_aborted(true);
     return response;
 }
 
-JS::NonnullGCPtr<Response> Response::network_error(JS::VM& vm, Variant<String, StringView> message)
+GC::Ref<Response> Response::network_error(JS::VM& vm, Variant<String, StringView> message)
 {
     dbgln_if(WEB_FETCH_DEBUG, "Fetch: Creating network error response with message: {}", message.visit([](auto const& s) -> StringView { return s; }));
     auto response = Response::create(vm);
@@ -64,7 +64,7 @@ JS::NonnullGCPtr<Response> Response::network_error(JS::VM& vm, Variant<String, S
 }
 
 // https://fetch.spec.whatwg.org/#appropriate-network-error
-JS::NonnullGCPtr<Response> Response::appropriate_network_error(JS::VM& vm, FetchParams const& fetch_params)
+GC::Ref<Response> Response::appropriate_network_error(JS::VM& vm, FetchParams const& fetch_params)
 {
     // 1. Assert: fetchParams is canceled.
     VERIFY(fetch_params.is_canceled());
@@ -147,7 +147,7 @@ ErrorOr<Optional<URL::URL>> Response::location_url(Optional<String> const& reque
 }
 
 // https://fetch.spec.whatwg.org/#concept-response-clone
-JS::NonnullGCPtr<Response> Response::clone(JS::Realm& realm) const
+GC::Ref<Response> Response::clone(JS::Realm& realm) const
 {
     // To clone a response response, run these steps:
     auto& vm = realm.vm();
@@ -192,7 +192,7 @@ JS::NonnullGCPtr<Response> Response::clone(JS::Realm& realm) const
 }
 
 // https://html.spec.whatwg.org/multipage/urls-and-fetching.html#unsafe-response
-JS::NonnullGCPtr<Response> Response::unsafe_response()
+GC::Ref<Response> Response::unsafe_response()
 {
     // A response's unsafe response is its internal response if it has one, and the response itself otherwise.
     if (is<FilteredResponse>(this))
@@ -334,7 +334,7 @@ Optional<StringView> Response::network_error_message() const
     return m_network_error_message->visit([](auto const& s) -> StringView { return s; });
 }
 
-FilteredResponse::FilteredResponse(JS::NonnullGCPtr<Response> internal_response, JS::NonnullGCPtr<HeaderList> header_list)
+FilteredResponse::FilteredResponse(GC::Ref<Response> internal_response, GC::Ref<HeaderList> header_list)
     : Response(header_list)
     , m_internal_response(internal_response)
 {
@@ -350,7 +350,7 @@ void FilteredResponse::visit_edges(JS::Cell::Visitor& visitor)
     visitor.visit(m_internal_response);
 }
 
-JS::NonnullGCPtr<BasicFilteredResponse> BasicFilteredResponse::create(JS::VM& vm, JS::NonnullGCPtr<Response> internal_response)
+GC::Ref<BasicFilteredResponse> BasicFilteredResponse::create(JS::VM& vm, GC::Ref<Response> internal_response)
 {
     // A basic filtered response is a filtered response whose type is "basic" and header list excludes
     // any headers in internal response’s header list whose name is a forbidden response-header name.
@@ -363,7 +363,7 @@ JS::NonnullGCPtr<BasicFilteredResponse> BasicFilteredResponse::create(JS::VM& vm
     return vm.heap().allocate<BasicFilteredResponse>(internal_response, header_list);
 }
 
-BasicFilteredResponse::BasicFilteredResponse(JS::NonnullGCPtr<Response> internal_response, JS::NonnullGCPtr<HeaderList> header_list)
+BasicFilteredResponse::BasicFilteredResponse(GC::Ref<Response> internal_response, GC::Ref<HeaderList> header_list)
     : FilteredResponse(internal_response, header_list)
     , m_header_list(header_list)
 {
@@ -375,7 +375,7 @@ void BasicFilteredResponse::visit_edges(JS::Cell::Visitor& visitor)
     visitor.visit(m_header_list);
 }
 
-JS::NonnullGCPtr<CORSFilteredResponse> CORSFilteredResponse::create(JS::VM& vm, JS::NonnullGCPtr<Response> internal_response)
+GC::Ref<CORSFilteredResponse> CORSFilteredResponse::create(JS::VM& vm, GC::Ref<Response> internal_response)
 {
     // A CORS filtered response is a filtered response whose type is "cors" and header list excludes
     // any headers in internal response’s header list whose name is not a CORS-safelisted response-header
@@ -393,7 +393,7 @@ JS::NonnullGCPtr<CORSFilteredResponse> CORSFilteredResponse::create(JS::VM& vm, 
     return vm.heap().allocate<CORSFilteredResponse>(internal_response, header_list);
 }
 
-CORSFilteredResponse::CORSFilteredResponse(JS::NonnullGCPtr<Response> internal_response, JS::NonnullGCPtr<HeaderList> header_list)
+CORSFilteredResponse::CORSFilteredResponse(GC::Ref<Response> internal_response, GC::Ref<HeaderList> header_list)
     : FilteredResponse(internal_response, header_list)
     , m_header_list(header_list)
 {
@@ -405,14 +405,14 @@ void CORSFilteredResponse::visit_edges(JS::Cell::Visitor& visitor)
     visitor.visit(m_header_list);
 }
 
-JS::NonnullGCPtr<OpaqueFilteredResponse> OpaqueFilteredResponse::create(JS::VM& vm, JS::NonnullGCPtr<Response> internal_response)
+GC::Ref<OpaqueFilteredResponse> OpaqueFilteredResponse::create(JS::VM& vm, GC::Ref<Response> internal_response)
 {
     // An opaque filtered response is a filtered response whose type is "opaque", URL list is the empty list,
     // status is 0, status message is the empty byte sequence, header list is empty, and body is null.
     return vm.heap().allocate<OpaqueFilteredResponse>(internal_response, HeaderList::create(vm));
 }
 
-OpaqueFilteredResponse::OpaqueFilteredResponse(JS::NonnullGCPtr<Response> internal_response, JS::NonnullGCPtr<HeaderList> header_list)
+OpaqueFilteredResponse::OpaqueFilteredResponse(GC::Ref<Response> internal_response, GC::Ref<HeaderList> header_list)
     : FilteredResponse(internal_response, header_list)
     , m_header_list(header_list)
 {
@@ -425,14 +425,14 @@ void OpaqueFilteredResponse::visit_edges(JS::Cell::Visitor& visitor)
     visitor.visit(m_body);
 }
 
-JS::NonnullGCPtr<OpaqueRedirectFilteredResponse> OpaqueRedirectFilteredResponse::create(JS::VM& vm, JS::NonnullGCPtr<Response> internal_response)
+GC::Ref<OpaqueRedirectFilteredResponse> OpaqueRedirectFilteredResponse::create(JS::VM& vm, GC::Ref<Response> internal_response)
 {
     // An opaque-redirect filtered response is a filtered response whose type is "opaqueredirect",
     // status is 0, status message is the empty byte sequence, header list is empty, and body is null.
     return vm.heap().allocate<OpaqueRedirectFilteredResponse>(internal_response, HeaderList::create(vm));
 }
 
-OpaqueRedirectFilteredResponse::OpaqueRedirectFilteredResponse(JS::NonnullGCPtr<Response> internal_response, JS::NonnullGCPtr<HeaderList> header_list)
+OpaqueRedirectFilteredResponse::OpaqueRedirectFilteredResponse(GC::Ref<Response> internal_response, GC::Ref<HeaderList> header_list)
     : FilteredResponse(internal_response, header_list)
     , m_header_list(header_list)
 {

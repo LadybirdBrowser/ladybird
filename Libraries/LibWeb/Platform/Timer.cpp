@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibJS/Heap/HeapFunction.h>
+#include <LibGC/Function.h>
 #include <LibWeb/Platform/EventLoopPlugin.h>
 #include <LibWeb/Platform/Timer.h>
 
@@ -18,12 +18,12 @@ void Timer::visit_edges(JS::Cell::Visitor& visitor)
     visitor.visit(on_timeout);
 }
 
-JS::NonnullGCPtr<Timer> Timer::create(JS::Heap& heap)
+GC::Ref<Timer> Timer::create(GC::Heap& heap)
 {
     return EventLoopPlugin::the().create_timer(heap);
 }
 
-JS::NonnullGCPtr<Timer> Timer::create_repeating(JS::Heap& heap, int interval_ms, JS::GCPtr<JS::HeapFunction<void()>> timeout_handler)
+GC::Ref<Timer> Timer::create_repeating(GC::Heap& heap, int interval_ms, GC::Ptr<GC::Function<void()>> timeout_handler)
 {
     auto timer = EventLoopPlugin::the().create_timer(heap);
     timer->set_single_shot(false);
@@ -32,7 +32,7 @@ JS::NonnullGCPtr<Timer> Timer::create_repeating(JS::Heap& heap, int interval_ms,
     return timer;
 }
 
-JS::NonnullGCPtr<Timer> Timer::create_single_shot(JS::Heap& heap, int interval_ms, JS::GCPtr<JS::HeapFunction<void()>> timeout_handler)
+GC::Ref<Timer> Timer::create_single_shot(GC::Heap& heap, int interval_ms, GC::Ptr<GC::Function<void()>> timeout_handler)
 {
     auto timer = EventLoopPlugin::the().create_timer(heap);
     timer->set_single_shot(true);

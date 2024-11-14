@@ -10,28 +10,28 @@
 #include <AK/Error.h>
 #include <AK/RefPtr.h>
 #include <AK/String.h>
-#include <LibJS/Heap/Heap.h>
+#include <LibGC/Heap.h>
 #include <LibWeb/DOM/Node.h>
 #include <LibWeb/Forward.h>
 
 namespace Web::DOM {
 
 class Position final : public JS::Cell {
-    JS_CELL(Position, JS::Cell);
-    JS_DECLARE_ALLOCATOR(Position);
+    GC_CELL(Position, JS::Cell);
+    GC_DECLARE_ALLOCATOR(Position);
 
 public:
-    [[nodiscard]] static JS::NonnullGCPtr<Position> create(JS::Realm& realm, JS::NonnullGCPtr<Node> node, unsigned offset)
+    [[nodiscard]] static GC::Ref<Position> create(JS::Realm& realm, GC::Ref<Node> node, unsigned offset)
     {
         return realm.create<Position>(node, offset);
     }
 
-    JS::GCPtr<Node> node() { return m_node; }
-    JS::GCPtr<Node const> node() const { return m_node; }
+    GC::Ptr<Node> node() { return m_node; }
+    GC::Ptr<Node const> node() const { return m_node; }
 
     unsigned offset() const { return m_offset; }
 
-    bool equals(JS::NonnullGCPtr<Position> other) const
+    bool equals(GC::Ref<Position> other) const
     {
         return m_node.ptr() == other->m_node.ptr() && m_offset == other->m_offset;
     }
@@ -39,11 +39,11 @@ public:
     ErrorOr<String> to_string() const;
 
 private:
-    Position(JS::GCPtr<Node>, unsigned offset);
+    Position(GC::Ptr<Node>, unsigned offset);
 
     virtual void visit_edges(Visitor&) override;
 
-    JS::GCPtr<Node> m_node;
+    GC::Ptr<Node> m_node;
     unsigned m_offset { 0 };
 };
 

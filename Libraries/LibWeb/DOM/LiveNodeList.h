@@ -16,7 +16,7 @@ namespace Web::DOM {
 
 class LiveNodeList : public NodeList {
     WEB_PLATFORM_OBJECT(LiveNodeList, NodeList);
-    JS_DECLARE_ALLOCATOR(LiveNodeList);
+    GC_DECLARE_ALLOCATOR(LiveNodeList);
 
 public:
     enum class Scope {
@@ -24,7 +24,7 @@ public:
         Descendants,
     };
 
-    [[nodiscard]] static JS::NonnullGCPtr<NodeList> create(JS::Realm&, Node const& root, Scope, ESCAPING Function<bool(Node const&)> filter);
+    [[nodiscard]] static GC::Ref<NodeList> create(JS::Realm&, Node const& root, Scope, ESCAPING Function<bool(Node const&)> filter);
     virtual ~LiveNodeList() override;
 
     virtual u32 length() const override;
@@ -38,9 +38,9 @@ protected:
 private:
     virtual void visit_edges(Cell::Visitor&) override;
 
-    JS::MarkedVector<Node*> collection() const;
+    GC::MarkedVector<Node*> collection() const;
 
-    JS::NonnullGCPtr<Node const> m_root;
+    GC::Ref<Node const> m_root;
     Function<bool(Node const&)> m_filter;
     Scope m_scope { Scope::Descendants };
 };

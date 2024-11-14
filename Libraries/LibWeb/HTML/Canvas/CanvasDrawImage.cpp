@@ -13,7 +13,7 @@ namespace Web::HTML {
 static void default_source_size(CanvasImageSource const& image, float& source_width, float& source_height)
 {
     image.visit(
-        [&source_width, &source_height](JS::Handle<HTMLImageElement> const& source) {
+        [&source_width, &source_height](GC::Root<HTMLImageElement> const& source) {
             if (source->immutable_bitmap()) {
                 source_width = source->immutable_bitmap()->width();
                 source_height = source->immutable_bitmap()->height();
@@ -23,7 +23,7 @@ static void default_source_size(CanvasImageSource const& image, float& source_wi
                 source_height = source->height();
             }
         },
-        [&source_width, &source_height](JS::Handle<SVG::SVGImageElement> const& source) {
+        [&source_width, &source_height](GC::Root<SVG::SVGImageElement> const& source) {
             if (source->current_image_bitmap()) {
                 source_width = source->current_image_bitmap()->width();
                 source_height = source->current_image_bitmap()->height();
@@ -33,7 +33,7 @@ static void default_source_size(CanvasImageSource const& image, float& source_wi
                 source_height = source->height()->anim_val()->value();
             }
         },
-        [&source_width, &source_height](JS::Handle<HTML::HTMLVideoElement> const& source) {
+        [&source_width, &source_height](GC::Root<HTML::HTMLVideoElement> const& source) {
             if (auto const bitmap = source->bitmap(); bitmap) {
                 source_width = bitmap->width();
                 source_height = bitmap->height();
@@ -42,7 +42,7 @@ static void default_source_size(CanvasImageSource const& image, float& source_wi
                 source_height = source->video_height();
             }
         },
-        [&source_width, &source_height](JS::Handle<HTMLCanvasElement> const& source) {
+        [&source_width, &source_height](GC::Root<HTMLCanvasElement> const& source) {
             if (source->surface()) {
                 source_width = source->surface()->size().width();
                 source_height = source->surface()->size().height();

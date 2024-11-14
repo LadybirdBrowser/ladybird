@@ -24,7 +24,7 @@
 
 namespace Web::HTML {
 
-JS_DEFINE_ALLOCATOR(HTMLTableElement);
+GC_DEFINE_ALLOCATOR(HTMLTableElement);
 
 HTMLTableElement::HTMLTableElement(DOM::Document& document, DOM::QualifiedName qualified_name)
     : HTMLElement(document, move(qualified_name))
@@ -123,7 +123,7 @@ void HTMLTableElement::attribute_changed(FlyString const& name, Optional<String>
 }
 
 // https://html.spec.whatwg.org/multipage/tables.html#dom-table-caption
-JS::GCPtr<HTMLTableCaptionElement> HTMLTableElement::caption()
+GC::Ptr<HTMLTableCaptionElement> HTMLTableElement::caption()
 {
     // The caption IDL attribute must return, on getting, the first caption element child of the table element,
     // if any, or null otherwise.
@@ -144,7 +144,7 @@ WebIDL::ExceptionOr<void> HTMLTableElement::set_caption(HTMLTableCaptionElement*
 }
 
 // https://html.spec.whatwg.org/multipage/tables.html#dom-table-createcaption
-JS::NonnullGCPtr<HTMLTableCaptionElement> HTMLTableElement::create_caption()
+GC::Ref<HTMLTableCaptionElement> HTMLTableElement::create_caption()
 {
     auto maybe_caption = caption();
     if (maybe_caption) {
@@ -166,7 +166,7 @@ void HTMLTableElement::delete_caption()
 }
 
 // https://html.spec.whatwg.org/multipage/tables.html#dom-table-thead
-JS::GCPtr<HTMLTableSectionElement> HTMLTableElement::t_head()
+GC::Ptr<HTMLTableSectionElement> HTMLTableElement::t_head()
 {
     // The tHead IDL attribute must return, on getting, the first thead element child of the table element,
     // if any, or null otherwise.
@@ -223,7 +223,7 @@ WebIDL::ExceptionOr<void> HTMLTableElement::set_t_head(HTMLTableSectionElement* 
 }
 
 // https://html.spec.whatwg.org/multipage/tables.html#dom-table-createthead
-JS::NonnullGCPtr<HTMLTableSectionElement> HTMLTableElement::create_t_head()
+GC::Ref<HTMLTableSectionElement> HTMLTableElement::create_t_head()
 {
     auto maybe_thead = t_head();
     if (maybe_thead)
@@ -264,7 +264,7 @@ void HTMLTableElement::delete_t_head()
 }
 
 // https://html.spec.whatwg.org/multipage/tables.html#dom-table-tfoot
-JS::GCPtr<HTMLTableSectionElement> HTMLTableElement::t_foot()
+GC::Ptr<HTMLTableSectionElement> HTMLTableElement::t_foot()
 {
     // The tFoot IDL attribute must return, on getting, the first tfoot element child of the table element,
     // if any, or null otherwise.
@@ -299,7 +299,7 @@ WebIDL::ExceptionOr<void> HTMLTableElement::set_t_foot(HTMLTableSectionElement* 
 }
 
 // https://html.spec.whatwg.org/multipage/tables.html#dom-table-createtfoot
-JS::NonnullGCPtr<HTMLTableSectionElement> HTMLTableElement::create_t_foot()
+GC::Ref<HTMLTableSectionElement> HTMLTableElement::create_t_foot()
 {
     auto maybe_tfoot = t_foot();
     if (maybe_tfoot)
@@ -320,7 +320,7 @@ void HTMLTableElement::delete_t_foot()
 }
 
 // https://html.spec.whatwg.org/multipage/tables.html#dom-table-tbodies
-JS::NonnullGCPtr<DOM::HTMLCollection> HTMLTableElement::t_bodies()
+GC::Ref<DOM::HTMLCollection> HTMLTableElement::t_bodies()
 {
     // The tBodies attribute must return an HTMLCollection rooted at the table node,
     // whose filter matches only tbody elements that are children of the table element.
@@ -333,7 +333,7 @@ JS::NonnullGCPtr<DOM::HTMLCollection> HTMLTableElement::t_bodies()
 }
 
 // https://html.spec.whatwg.org/multipage/tables.html#dom-table-createtbody
-JS::NonnullGCPtr<HTMLTableSectionElement> HTMLTableElement::create_t_body()
+GC::Ref<HTMLTableSectionElement> HTMLTableElement::create_t_body()
 {
     auto tbody = DOM::create_element(document(), TagNames::tbody, Namespace::HTML).release_value_but_fixme_should_propagate_errors();
 
@@ -358,7 +358,7 @@ JS::NonnullGCPtr<HTMLTableSectionElement> HTMLTableElement::create_t_body()
 }
 
 // https://html.spec.whatwg.org/multipage/tables.html#dom-table-rows
-JS::NonnullGCPtr<DOM::HTMLCollection> HTMLTableElement::rows()
+GC::Ref<DOM::HTMLCollection> HTMLTableElement::rows()
 {
     HTMLTableElement* table_node = this;
     // FIXME:  The elements in the collection must be ordered such that those elements whose parent is a thead are
@@ -390,7 +390,7 @@ JS::NonnullGCPtr<DOM::HTMLCollection> HTMLTableElement::rows()
 }
 
 // https://html.spec.whatwg.org/multipage/tables.html#dom-table-insertrow
-WebIDL::ExceptionOr<JS::NonnullGCPtr<HTMLTableRowElement>> HTMLTableElement::insert_row(WebIDL::Long index)
+WebIDL::ExceptionOr<GC::Ref<HTMLTableRowElement>> HTMLTableElement::insert_row(WebIDL::Long index)
 {
     auto rows = this->rows();
     auto rows_length = rows->length();
@@ -412,7 +412,7 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<HTMLTableRowElement>> HTMLTableElement::ins
     } else {
         rows->item(index)->parent_element()->insert_before(tr, rows->item(index));
     }
-    return JS::NonnullGCPtr(tr);
+    return GC::Ref(tr);
 }
 
 // https://html.spec.whatwg.org/multipage/tables.html#dom-table-deleterow

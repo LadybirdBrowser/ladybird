@@ -14,9 +14,9 @@
 
 namespace Web::CSS {
 
-JS_DEFINE_ALLOCATOR(Screen);
+GC_DEFINE_ALLOCATOR(Screen);
 
-JS::NonnullGCPtr<Screen> Screen::create(HTML::Window& window)
+GC::Ref<Screen> Screen::create(HTML::Window& window)
 {
     return window.realm().create<Screen>(window);
 }
@@ -51,7 +51,7 @@ Gfx::IntRect Screen::screen_rect() const
     };
 }
 
-JS::NonnullGCPtr<ScreenOrientation> Screen::orientation()
+GC::Ref<ScreenOrientation> Screen::orientation()
 {
     if (!m_orientation)
         m_orientation = ScreenOrientation::create(realm());
@@ -66,13 +66,13 @@ bool Screen::is_extended() const
 }
 
 // https://w3c.github.io/window-management/#dom-screen-onchange
-void Screen::set_onchange(JS::GCPtr<WebIDL::CallbackType> event_handler)
+void Screen::set_onchange(GC::Ptr<WebIDL::CallbackType> event_handler)
 {
     set_event_handler_attribute(HTML::EventNames::change, event_handler);
 }
 
 // https://w3c.github.io/window-management/#dom-screen-onchange
-JS::GCPtr<WebIDL::CallbackType> Screen::onchange()
+GC::Ptr<WebIDL::CallbackType> Screen::onchange()
 {
     return event_handler_attribute(HTML::EventNames::change);
 }

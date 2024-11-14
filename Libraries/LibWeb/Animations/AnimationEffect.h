@@ -62,7 +62,7 @@ Bindings::PlaybackDirection css_animation_direction_to_bindings_playback_directi
 // https://www.w3.org/TR/web-animations-1/#the-animationeffect-interface
 class AnimationEffect : public Bindings::PlatformObject {
     WEB_PLATFORM_OBJECT(AnimationEffect, Bindings::PlatformObject);
-    JS_DECLARE_ALLOCATOR(AnimationEffect);
+    GC_DECLARE_ALLOCATOR(AnimationEffect);
 
 public:
     static RefPtr<CSS::CSSStyleValue const> parse_easing_string(JS::Realm& realm, StringView value);
@@ -95,8 +95,8 @@ public:
     CSS::EasingStyleValue::Function const& timing_function() { return m_timing_function; }
     void set_timing_function(CSS::EasingStyleValue::Function value) { m_timing_function = move(value); }
 
-    JS::GCPtr<Animation> associated_animation() const { return m_associated_animation; }
-    void set_associated_animation(JS::GCPtr<Animation> value);
+    GC::Ptr<Animation> associated_animation() const { return m_associated_animation; }
+    void set_associated_animation(GC::Ptr<Animation> value);
 
     AnimationDirection animation_direction() const;
 
@@ -175,7 +175,7 @@ protected:
     Bindings::PlaybackDirection m_playback_direction { Bindings::PlaybackDirection::Normal };
 
     // https://www.w3.org/TR/web-animations-1/#animation-associated-effect
-    JS::GCPtr<Animation> m_associated_animation {};
+    GC::Ptr<Animation> m_associated_animation {};
 
     // https://www.w3.org/TR/web-animations-1/#time-transformations
     CSS::EasingStyleValue::Function m_timing_function { CSS::EasingStyleValue::Linear::identity() };

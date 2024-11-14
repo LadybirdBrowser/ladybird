@@ -9,26 +9,26 @@
 #include <AK/FlyString.h>
 #include <AK/Optional.h>
 #include <AK/Variant.h>
-#include <LibJS/Heap/Handle.h>
+#include <LibGC/Root.h>
 #include <LibWeb/DOM/Event.h>
 
 namespace Web::HTML {
 
 struct TrackEventInit : public DOM::EventInit {
-    using TrackType = Optional<Variant<JS::Handle<VideoTrack>, JS::Handle<AudioTrack>, JS::Handle<TextTrack>>>;
+    using TrackType = Optional<Variant<GC::Root<VideoTrack>, GC::Root<AudioTrack>, GC::Root<TextTrack>>>;
     TrackType track;
 };
 
 class TrackEvent : public DOM::Event {
     WEB_PLATFORM_OBJECT(TrackEvent, DOM::Event);
-    JS_DECLARE_ALLOCATOR(TrackEvent);
+    GC_DECLARE_ALLOCATOR(TrackEvent);
 
 public:
-    [[nodiscard]] static JS::NonnullGCPtr<TrackEvent> create(JS::Realm&, FlyString const& event_name, TrackEventInit = {});
-    static WebIDL::ExceptionOr<JS::NonnullGCPtr<TrackEvent>> construct_impl(JS::Realm&, FlyString const& event_name, TrackEventInit);
+    [[nodiscard]] static GC::Ref<TrackEvent> create(JS::Realm&, FlyString const& event_name, TrackEventInit = {});
+    static WebIDL::ExceptionOr<GC::Ref<TrackEvent>> construct_impl(JS::Realm&, FlyString const& event_name, TrackEventInit);
 
     // https://html.spec.whatwg.org/multipage/media.html#dom-trackevent-track
-    Variant<Empty, JS::Handle<VideoTrack>, JS::Handle<AudioTrack>, JS::Handle<TextTrack>> track() const;
+    Variant<Empty, GC::Root<VideoTrack>, GC::Root<AudioTrack>, GC::Root<TextTrack>> track() const;
 
 private:
     TrackEvent(JS::Realm&, FlyString const& event_name, TrackEventInit event_init);

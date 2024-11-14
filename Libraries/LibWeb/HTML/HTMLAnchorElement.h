@@ -15,7 +15,7 @@ class HTMLAnchorElement final
     : public HTMLElement
     , public HTMLHyperlinkElementUtils {
     WEB_PLATFORM_OBJECT(HTMLAnchorElement, HTMLElement);
-    JS_DECLARE_ALLOCATOR(HTMLAnchorElement);
+    GC_DECLARE_ALLOCATOR(HTMLAnchorElement);
 
 public:
     virtual ~HTMLAnchorElement() override;
@@ -24,7 +24,7 @@ public:
     String target() const { return get_attribute_value(HTML::AttributeNames::target); }
     String download() const { return get_attribute_value(HTML::AttributeNames::download); }
 
-    JS::NonnullGCPtr<DOM::DOMTokenList> rel_list();
+    GC::Ref<DOM::DOMTokenList> rel_list();
 
     String text() const;
     void set_text(String const&);
@@ -72,7 +72,7 @@ private:
 
     virtual Optional<ARIA::Role> default_role() const override;
 
-    JS::GCPtr<DOM::DOMTokenList> m_rel_list;
+    GC::Ptr<DOM::DOMTokenList> m_rel_list;
 };
 
 }

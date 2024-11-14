@@ -22,7 +22,7 @@ class HTMLLinkElement final
     : public HTMLElement
     , public ResourceClient {
     WEB_PLATFORM_OBJECT(HTMLLinkElement, HTMLElement);
-    JS_DECLARE_ALLOCATOR(HTMLLinkElement);
+    GC_DECLARE_ALLOCATOR(HTMLLinkElement);
 
 public:
     virtual ~HTMLLinkElement() override;
@@ -36,12 +36,12 @@ public:
     String as() const;
     WebIDL::ExceptionOr<void> set_as(String const&);
 
-    JS::NonnullGCPtr<DOM::DOMTokenList> rel_list();
+    GC::Ref<DOM::DOMTokenList> rel_list();
 
     bool has_loaded_icon() const;
     bool load_favicon_and_use_if_window_is_active();
 
-    static WebIDL::ExceptionOr<void> load_fallback_favicon_if_needed(JS::NonnullGCPtr<DOM::Document>);
+    static WebIDL::ExceptionOr<void> load_fallback_favicon_if_needed(GC::Ref<DOM::Document>);
 
 private:
     HTMLLinkElement(DOM::Document&, DOM::QualifiedName);
@@ -89,13 +89,13 @@ private:
         URL::Origin origin;
         // environment
         //      An environment
-        JS::GCPtr<HTML::EnvironmentSettingsObject> environment;
+        GC::Ptr<HTML::EnvironmentSettingsObject> environment;
         // policy container
         //      A policy container
         HTML::PolicyContainer policy_container;
         // document (default null)
         //      Null or a Document
-        JS::GCPtr<Web::DOM::Document> document;
+        GC::Ptr<Web::DOM::Document> document;
         // FIXME: on document ready (default null)
         //          Null or an algorithm accepting a Document
         // fetch priority (default auto)
@@ -107,7 +107,7 @@ private:
     LinkProcessingOptions create_link_options();
 
     // https://html.spec.whatwg.org/multipage/semantics.html#create-a-link-request
-    JS::GCPtr<Fetch::Infrastructure::Request> create_link_request(LinkProcessingOptions const&);
+    GC::Ptr<Fetch::Infrastructure::Request> create_link_request(LinkProcessingOptions const&);
 
     // https://html.spec.whatwg.org/multipage/semantics.html#linked-resource-fetch-setup-steps
     bool linked_resource_fetch_setup_steps(Fetch::Infrastructure::Request&);
@@ -140,12 +140,12 @@ private:
         };
     };
 
-    JS::GCPtr<Fetch::Infrastructure::FetchController> m_fetch_controller;
+    GC::Ptr<Fetch::Infrastructure::FetchController> m_fetch_controller;
 
-    JS::GCPtr<CSS::CSSStyleSheet> m_loaded_style_sheet;
+    GC::Ptr<CSS::CSSStyleSheet> m_loaded_style_sheet;
 
     Optional<DOM::DocumentLoadEventDelayer> m_document_load_event_delayer;
-    JS::GCPtr<DOM::DOMTokenList> m_rel_list;
+    GC::Ptr<DOM::DOMTokenList> m_rel_list;
     unsigned m_relationship { 0 };
     // https://html.spec.whatwg.org/multipage/semantics.html#explicitly-enabled
     bool m_explicitly_enabled { false };

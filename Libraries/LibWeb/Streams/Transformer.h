@@ -6,8 +6,8 @@
 
 #pragma once
 
+#include <LibGC/Root.h>
 #include <LibJS/Forward.h>
-#include <LibJS/Heap/Handle.h>
 #include <LibWeb/Forward.h>
 
 namespace Web::Streams {
@@ -15,13 +15,13 @@ namespace Web::Streams {
 // https://streams.spec.whatwg.org/#dictdef-transformer
 struct Transformer {
     // https://streams.spec.whatwg.org/#dom-transformer-start
-    JS::Handle<WebIDL::CallbackType> start;
+    GC::Root<WebIDL::CallbackType> start;
     // https://streams.spec.whatwg.org/#dom-transformer-transform
-    JS::Handle<WebIDL::CallbackType> transform;
+    GC::Root<WebIDL::CallbackType> transform;
     // https://streams.spec.whatwg.org/#dom-transformer-flush
-    JS::Handle<WebIDL::CallbackType> flush;
+    GC::Root<WebIDL::CallbackType> flush;
     // https://streams.spec.whatwg.org/#dom-transformer-cancel
-    JS::Handle<WebIDL::CallbackType> cancel;
+    GC::Root<WebIDL::CallbackType> cancel;
 
     // https://streams.spec.whatwg.org/#dom-transformer-readabletype
     Optional<JS::Value> readable_type;

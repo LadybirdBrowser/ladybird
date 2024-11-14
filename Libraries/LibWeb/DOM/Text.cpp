@@ -15,7 +15,7 @@
 
 namespace Web::DOM {
 
-JS_DEFINE_ALLOCATOR(Text);
+GC_DEFINE_ALLOCATOR(Text);
 
 Text::Text(Document& document, String const& data)
     : CharacterData(document, NodeType::TEXT_NODE, data)
@@ -41,7 +41,7 @@ void Text::visit_edges(Cell::Visitor& visitor)
 }
 
 // https://dom.spec.whatwg.org/#dom-text-text
-WebIDL::ExceptionOr<JS::NonnullGCPtr<Text>> Text::construct_impl(JS::Realm& realm, String const& data)
+WebIDL::ExceptionOr<GC::Ref<Text>> Text::construct_impl(JS::Realm& realm, String const& data)
 {
     // The new Text(data) constructor steps are to set this’s data to data and this’s node document to current global object’s associated Document.
     auto& window = verify_cast<HTML::Window>(HTML::current_principal_global_object());
@@ -50,7 +50,7 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<Text>> Text::construct_impl(JS::Realm& real
 
 // https://dom.spec.whatwg.org/#dom-text-splittext
 // https://dom.spec.whatwg.org/#concept-text-split
-WebIDL::ExceptionOr<JS::NonnullGCPtr<Text>> Text::split_text(size_t offset)
+WebIDL::ExceptionOr<GC::Ref<Text>> Text::split_text(size_t offset)
 {
     // 1. Let length be node’s length.
     auto length = this->length();
@@ -69,7 +69,7 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<Text>> Text::split_text(size_t offset)
     auto new_node = realm().create<Text>(document(), new_data);
 
     // 6. Let parent be node’s parent.
-    JS::GCPtr<Node> parent = this->parent();
+    GC::Ptr<Node> parent = this->parent();
 
     // 7. If parent is not null, then:
     if (parent) {

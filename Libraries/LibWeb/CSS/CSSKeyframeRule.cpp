@@ -11,9 +11,9 @@
 
 namespace Web::CSS {
 
-JS_DEFINE_ALLOCATOR(CSSKeyframeRule);
+GC_DEFINE_ALLOCATOR(CSSKeyframeRule);
 
-JS::NonnullGCPtr<CSSKeyframeRule> CSSKeyframeRule::create(JS::Realm& realm, CSS::Percentage key, Web::CSS::PropertyOwningCSSStyleDeclaration& declarations)
+GC::Ref<CSSKeyframeRule> CSSKeyframeRule::create(JS::Realm& realm, CSS::Percentage key, Web::CSS::PropertyOwningCSSStyleDeclaration& declarations)
 {
     return realm.create<CSSKeyframeRule>(realm, key, declarations);
 }

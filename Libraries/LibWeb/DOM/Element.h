@@ -42,7 +42,7 @@ struct ShadowRootInit {
 
 struct GetHTMLOptions {
     bool serializable_shadow_roots { false };
-    Vector<JS::Handle<ShadowRoot>> shadow_roots {};
+    Vector<GC::Root<ShadowRoot>> shadow_roots {};
 };
 
 // https://w3c.github.io/csswg-drafts/cssom-view-1/#dictdef-scrollintoviewoptions
@@ -63,14 +63,14 @@ struct CheckVisibilityOptions {
 // https://html.spec.whatwg.org/multipage/custom-elements.html#upgrade-reaction
 // An upgrade reaction, which will upgrade the custom element and contains a custom element definition; or
 struct CustomElementUpgradeReaction {
-    JS::Handle<HTML::CustomElementDefinition> custom_element_definition;
+    GC::Root<HTML::CustomElementDefinition> custom_element_definition;
 };
 
 // https://html.spec.whatwg.org/multipage/custom-elements.html#callback-reaction
 // A callback reaction, which will call a lifecycle callback, and contains a callback function as well as a list of arguments.
 struct CustomElementCallbackReaction {
-    JS::Handle<WebIDL::CallbackType> callback;
-    JS::MarkedVector<JS::Value> arguments;
+    GC::Root<WebIDL::CallbackType> callback;
+    GC::MarkedVector<JS::Value> arguments;
 };
 
 // https://dom.spec.whatwg.org/#concept-element-custom-element-state
@@ -129,28 +129,28 @@ public:
 
     WebIDL::ExceptionOr<void> set_attribute_ns(Optional<FlyString> const& namespace_, FlyString const& qualified_name, String const& value);
     void set_attribute_value(FlyString const& local_name, String const& value, Optional<FlyString> const& prefix = {}, Optional<FlyString> const& namespace_ = {});
-    WebIDL::ExceptionOr<JS::GCPtr<Attr>> set_attribute_node(Attr&);
-    WebIDL::ExceptionOr<JS::GCPtr<Attr>> set_attribute_node_ns(Attr&);
+    WebIDL::ExceptionOr<GC::Ptr<Attr>> set_attribute_node(Attr&);
+    WebIDL::ExceptionOr<GC::Ptr<Attr>> set_attribute_node_ns(Attr&);
 
     void append_attribute(FlyString const& name, String const& value);
     void append_attribute(Attr&);
     void remove_attribute(FlyString const& name);
     void remove_attribute_ns(Optional<FlyString> const& namespace_, FlyString const& name);
-    WebIDL::ExceptionOr<JS::NonnullGCPtr<Attr>> remove_attribute_node(JS::NonnullGCPtr<Attr>);
+    WebIDL::ExceptionOr<GC::Ref<Attr>> remove_attribute_node(GC::Ref<Attr>);
 
     WebIDL::ExceptionOr<bool> toggle_attribute(FlyString const& name, Optional<bool> force);
     size_t attribute_list_size() const;
     NamedNodeMap const* attributes() const { return m_attributes.ptr(); }
     Vector<String> get_attribute_names() const;
 
-    JS::GCPtr<Attr> get_attribute_node(FlyString const& name) const;
-    JS::GCPtr<Attr> get_attribute_node_ns(Optional<FlyString> const& namespace_, FlyString const& name) const;
+    GC::Ptr<Attr> get_attribute_node(FlyString const& name) const;
+    GC::Ptr<Attr> get_attribute_node_ns(Optional<FlyString> const& namespace_, FlyString const& name) const;
 
     DOMTokenList* class_list();
 
-    WebIDL::ExceptionOr<JS::NonnullGCPtr<ShadowRoot>> attach_shadow(ShadowRootInit init);
+    WebIDL::ExceptionOr<GC::Ref<ShadowRoot>> attach_shadow(ShadowRootInit init);
     WebIDL::ExceptionOr<void> attach_a_shadow_root(Bindings::ShadowRootMode mode, bool clonable, bool serializable, bool delegates_focus, Bindings::SlotAssignmentMode slot_assignment);
-    JS::GCPtr<ShadowRoot> shadow_root_for_bindings() const;
+    GC::Ptr<ShadowRoot> shadow_root_for_bindings() const;
 
     WebIDL::ExceptionOr<bool> matches(StringView selectors) const;
     WebIDL::ExceptionOr<DOM::Element const*> closest(StringView selectors) const;
@@ -180,8 +180,8 @@ public:
     Optional<CSS::Selector::PseudoElement::Type> use_pseudo_element() const { return m_use_pseudo_element; }
     void set_use_pseudo_element(Optional<CSS::Selector::PseudoElement::Type> use_pseudo_element) { m_use_pseudo_element = move(use_pseudo_element); }
 
-    JS::GCPtr<Layout::NodeWithStyle> layout_node();
-    JS::GCPtr<Layout::NodeWithStyle const> layout_node() const;
+    GC::Ptr<Layout::NodeWithStyle> layout_node();
+    GC::Ptr<Layout::NodeWithStyle const> layout_node() const;
 
     Optional<CSS::StyleProperties>& computed_css_values() { return m_computed_css_values; }
     Optional<CSS::StyleProperties> const& computed_css_values() const { return m_computed_css_values; }
@@ -193,13 +193,13 @@ public:
 
     void reset_animated_css_properties();
 
-    JS::GCPtr<CSS::ElementInlineCSSStyleDeclaration const> inline_style() const { return m_inline_style; }
+    GC::Ptr<CSS::ElementInlineCSSStyleDeclaration const> inline_style() const { return m_inline_style; }
 
     CSS::CSSStyleDeclaration* style_for_bindings();
 
     CSS::StyleSheetList& document_or_shadow_root_style_sheets();
 
-    WebIDL::ExceptionOr<JS::NonnullGCPtr<DOM::DocumentFragment>> parse_fragment(StringView markup);
+    WebIDL::ExceptionOr<GC::Ref<DOM::DocumentFragment>> parse_fragment(StringView markup);
 
     WebIDL::ExceptionOr<String> inner_html() const;
     WebIDL::ExceptionOr<void> set_inner_html(StringView);
@@ -219,32 +219,32 @@ public:
     bool is_document_element() const;
 
     bool is_shadow_host() const;
-    JS::GCPtr<ShadowRoot> shadow_root() { return m_shadow_root; }
-    JS::GCPtr<ShadowRoot const> shadow_root() const { return m_shadow_root; }
-    void set_shadow_root(JS::GCPtr<ShadowRoot>);
+    GC::Ptr<ShadowRoot> shadow_root() { return m_shadow_root; }
+    GC::Ptr<ShadowRoot const> shadow_root() const { return m_shadow_root; }
+    void set_shadow_root(GC::Ptr<ShadowRoot>);
 
     void set_custom_properties(Optional<CSS::Selector::PseudoElement::Type>, HashMap<FlyString, CSS::StyleProperty> custom_properties);
     [[nodiscard]] HashMap<FlyString, CSS::StyleProperty> const& custom_properties(Optional<CSS::Selector::PseudoElement::Type>) const;
 
-    // NOTE: The function is wrapped in a JS::HeapFunction immediately.
+    // NOTE: The function is wrapped in a GC::HeapFunction immediately.
     HTML::TaskID queue_an_element_task(HTML::Task::Source, Function<void()>);
 
     bool is_void_element() const;
     bool serializes_as_void() const;
 
-    JS::NonnullGCPtr<Geometry::DOMRect> get_bounding_client_rect() const;
-    JS::NonnullGCPtr<Geometry::DOMRectList> get_client_rects() const;
+    GC::Ref<Geometry::DOMRect> get_bounding_client_rect() const;
+    GC::Ref<Geometry::DOMRectList> get_client_rects() const;
 
-    virtual JS::GCPtr<Layout::Node> create_layout_node(CSS::StyleProperties);
+    virtual GC::Ptr<Layout::Node> create_layout_node(CSS::StyleProperties);
     virtual void adjust_computed_style(CSS::StyleProperties&) { }
 
     virtual void did_receive_focus() { }
     virtual void did_lose_focus() { }
 
-    static JS::GCPtr<Layout::NodeWithStyle> create_layout_node_for_display_type(DOM::Document&, CSS::Display const&, CSS::StyleProperties, Element*);
+    static GC::Ptr<Layout::NodeWithStyle> create_layout_node_for_display_type(DOM::Document&, CSS::Display const&, CSS::StyleProperties, Element*);
 
-    void set_pseudo_element_node(Badge<Layout::TreeBuilder>, CSS::Selector::PseudoElement::Type, JS::GCPtr<Layout::NodeWithStyle>);
-    JS::GCPtr<Layout::NodeWithStyle> get_pseudo_element_node(CSS::Selector::PseudoElement::Type) const;
+    void set_pseudo_element_node(Badge<Layout::TreeBuilder>, CSS::Selector::PseudoElement::Type, GC::Ptr<Layout::NodeWithStyle>);
+    GC::Ptr<Layout::NodeWithStyle> get_pseudo_element_node(CSS::Selector::PseudoElement::Type) const;
     bool has_pseudo_elements() const;
     void clear_pseudo_element_nodes(Badge<Layout::TreeBuilder>);
     void serialize_pseudo_elements_as_json(JsonArraySerializer<StringBuilder>& children_array) const;
@@ -264,7 +264,7 @@ public:
 
     bool is_actually_disabled() const;
 
-    WebIDL::ExceptionOr<JS::GCPtr<Element>> insert_adjacent_element(String const& where, JS::NonnullGCPtr<Element> element);
+    WebIDL::ExceptionOr<GC::Ptr<Element>> insert_adjacent_element(String const& where, GC::Ref<Element> element);
     WebIDL::ExceptionOr<void> insert_adjacent_text(String const& where, String const& data);
 
     // https://w3c.github.io/csswg-drafts/cssom-view-1/#dom-element-scrollintoview
@@ -349,14 +349,14 @@ public:
     virtual bool include_in_accessibility_tree() const override;
 
     void enqueue_a_custom_element_upgrade_reaction(HTML::CustomElementDefinition& custom_element_definition);
-    void enqueue_a_custom_element_callback_reaction(FlyString const& callback_name, JS::MarkedVector<JS::Value> arguments);
+    void enqueue_a_custom_element_callback_reaction(FlyString const& callback_name, GC::MarkedVector<JS::Value> arguments);
 
     using CustomElementReactionQueue = Vector<Variant<CustomElementUpgradeReaction, CustomElementCallbackReaction>>;
     CustomElementReactionQueue* custom_element_reaction_queue() { return m_custom_element_reaction_queue; }
     CustomElementReactionQueue const* custom_element_reaction_queue() const { return m_custom_element_reaction_queue; }
     CustomElementReactionQueue& ensure_custom_element_reaction_queue();
 
-    JS::ThrowCompletionOr<void> upgrade_element(JS::NonnullGCPtr<HTML::CustomElementDefinition> custom_element_definition);
+    JS::ThrowCompletionOr<void> upgrade_element(GC::Ref<HTML::CustomElementDefinition> custom_element_definition);
     void try_to_upgrade();
 
     bool is_defined() const;
@@ -376,7 +376,7 @@ public:
     bool check_visibility(Optional<CheckVisibilityOptions>);
 
     void register_intersection_observer(Badge<IntersectionObserver::IntersectionObserver>, IntersectionObserver::IntersectionObserverRegistration);
-    void unregister_intersection_observer(Badge<IntersectionObserver::IntersectionObserver>, JS::NonnullGCPtr<IntersectionObserver::IntersectionObserver>);
+    void unregister_intersection_observer(Badge<IntersectionObserver::IntersectionObserver>, GC::Ref<IntersectionObserver::IntersectionObserver>);
     IntersectionObserver::IntersectionObserverRegistration& get_intersection_observer_registration(Badge<DOM::Document>, IntersectionObserver::IntersectionObserver const&);
 
     enum class ScrollOffsetFor {
@@ -403,7 +403,7 @@ public:
     Optional<FlyString> const& id() const { return m_id; }
     Optional<FlyString> const& name() const { return m_name; }
 
-    virtual JS::GCPtr<JS::HeapFunction<void()>> take_lazy_load_resumption_steps(Badge<DOM::Document>)
+    virtual GC::Ptr<GC::Function<void()>> take_lazy_load_resumption_steps(Badge<DOM::Document>)
     {
         return nullptr;
     }
@@ -442,7 +442,7 @@ private:
 
     void invalidate_style_after_attribute_change(FlyString const& attribute_name);
 
-    WebIDL::ExceptionOr<JS::GCPtr<Node>> insert_adjacent(StringView where, JS::NonnullGCPtr<Node> node);
+    WebIDL::ExceptionOr<GC::Ptr<Node>> insert_adjacent(StringView where, GC::Ref<Node> node);
 
     void enqueue_an_element_on_the_appropriate_element_queue();
 
@@ -454,16 +454,16 @@ private:
     QualifiedName m_qualified_name;
     FlyString m_html_uppercased_qualified_name;
 
-    JS::GCPtr<NamedNodeMap> m_attributes;
-    JS::GCPtr<CSS::ElementInlineCSSStyleDeclaration> m_inline_style;
-    JS::GCPtr<DOMTokenList> m_class_list;
-    JS::GCPtr<ShadowRoot> m_shadow_root;
+    GC::Ptr<NamedNodeMap> m_attributes;
+    GC::Ptr<CSS::ElementInlineCSSStyleDeclaration> m_inline_style;
+    GC::Ptr<DOMTokenList> m_class_list;
+    GC::Ptr<ShadowRoot> m_shadow_root;
 
     Optional<CSS::StyleProperties> m_computed_css_values;
     HashMap<FlyString, CSS::StyleProperty> m_custom_properties;
 
     struct PseudoElement {
-        JS::GCPtr<Layout::NodeWithStyle> layout_node;
+        GC::Ptr<Layout::NodeWithStyle> layout_node;
         Optional<CSS::StyleProperties> computed_css_values;
         HashMap<FlyString, CSS::StyleProperty> custom_properties;
     };
@@ -491,7 +491,7 @@ private:
     CustomElementState m_custom_element_state { CustomElementState::Undefined };
 
     // https://dom.spec.whatwg.org/#concept-element-custom-element-definition
-    JS::GCPtr<HTML::CustomElementDefinition> m_custom_element_definition;
+    GC::Ptr<HTML::CustomElementDefinition> m_custom_element_definition;
 
     // https://dom.spec.whatwg.org/#concept-element-is-value
     Optional<String> m_is_value;

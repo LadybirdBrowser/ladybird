@@ -11,15 +11,15 @@
 
 namespace Web::HTML {
 
-JS_DEFINE_ALLOCATOR(Timer);
+GC_DEFINE_ALLOCATOR(Timer);
 
-JS::NonnullGCPtr<Timer> Timer::create(JS::Object& window_or_worker_global_scope, i32 milliseconds, Function<void()> callback, i32 id)
+GC::Ref<Timer> Timer::create(JS::Object& window_or_worker_global_scope, i32 milliseconds, Function<void()> callback, i32 id)
 {
-    auto heap_function_callback = JS::create_heap_function(window_or_worker_global_scope.heap(), move(callback));
+    auto heap_function_callback = GC::create_function(window_or_worker_global_scope.heap(), move(callback));
     return window_or_worker_global_scope.heap().allocate<Timer>(window_or_worker_global_scope, milliseconds, heap_function_callback, id);
 }
 
-Timer::Timer(JS::Object& window_or_worker_global_scope, i32 milliseconds, JS::NonnullGCPtr<JS::HeapFunction<void()>> callback, i32 id)
+Timer::Timer(JS::Object& window_or_worker_global_scope, i32 milliseconds, GC::Ref<GC::Function<void()>> callback, i32 id)
     : m_window_or_worker_global_scope(window_or_worker_global_scope)
     , m_callback(move(callback))
     , m_id(id)

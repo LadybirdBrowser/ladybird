@@ -12,7 +12,7 @@
 
 namespace Web::Internals {
 
-JS_DEFINE_ALLOCATOR(InternalAnimationTimeline);
+GC_DEFINE_ALLOCATOR(InternalAnimationTimeline);
 
 void InternalAnimationTimeline::set_current_time(Optional<double> current_time)
 {

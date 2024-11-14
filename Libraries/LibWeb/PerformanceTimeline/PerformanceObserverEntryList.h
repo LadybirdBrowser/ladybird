@@ -13,17 +13,17 @@ namespace Web::PerformanceTimeline {
 // https://w3c.github.io/performance-timeline/#performanceobserverentrylist-interface
 class PerformanceObserverEntryList final : public Bindings::PlatformObject {
     WEB_PLATFORM_OBJECT(PerformanceObserverEntryList, Bindings::PlatformObject);
-    JS_DECLARE_ALLOCATOR(PerformanceObserverEntryList);
+    GC_DECLARE_ALLOCATOR(PerformanceObserverEntryList);
 
 public:
     virtual ~PerformanceObserverEntryList() override;
 
-    WebIDL::ExceptionOr<Vector<JS::Handle<PerformanceTimeline::PerformanceEntry>>> get_entries() const;
-    WebIDL::ExceptionOr<Vector<JS::Handle<PerformanceTimeline::PerformanceEntry>>> get_entries_by_type(String const& type) const;
-    WebIDL::ExceptionOr<Vector<JS::Handle<PerformanceTimeline::PerformanceEntry>>> get_entries_by_name(String const& name, Optional<String> type) const;
+    WebIDL::ExceptionOr<Vector<GC::Root<PerformanceTimeline::PerformanceEntry>>> get_entries() const;
+    WebIDL::ExceptionOr<Vector<GC::Root<PerformanceTimeline::PerformanceEntry>>> get_entries_by_type(String const& type) const;
+    WebIDL::ExceptionOr<Vector<GC::Root<PerformanceTimeline::PerformanceEntry>>> get_entries_by_name(String const& name, Optional<String> type) const;
 
 private:
-    PerformanceObserverEntryList(JS::Realm&, Vector<JS::NonnullGCPtr<PerformanceTimeline::PerformanceEntry>>&&);
+    PerformanceObserverEntryList(JS::Realm&, Vector<GC::Ref<PerformanceTimeline::PerformanceEntry>>&&);
 
     virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Cell::Visitor&) override;
@@ -31,9 +31,9 @@ private:
     // https://w3c.github.io/performance-timeline/#dfn-entry-list
     // Returns a PerformanceEntryList object returned by filter buffer by name and type algorithm with this's entry list,
     // name and type set to null.
-    Vector<JS::NonnullGCPtr<PerformanceTimeline::PerformanceEntry>> m_entry_list;
+    Vector<GC::Ref<PerformanceTimeline::PerformanceEntry>> m_entry_list;
 };
 
-ErrorOr<Vector<JS::Handle<PerformanceTimeline::PerformanceEntry>>> filter_buffer_by_name_and_type(Vector<JS::NonnullGCPtr<PerformanceTimeline::PerformanceEntry>> const& buffer, Optional<String> name, Optional<String> type);
+ErrorOr<Vector<GC::Root<PerformanceTimeline::PerformanceEntry>>> filter_buffer_by_name_and_type(Vector<GC::Ref<PerformanceTimeline::PerformanceEntry>> const& buffer, Optional<String> name, Optional<String> type);
 
 }

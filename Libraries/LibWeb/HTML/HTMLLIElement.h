@@ -13,7 +13,7 @@ namespace Web::HTML {
 
 class HTMLLIElement final : public HTMLElement {
     WEB_PLATFORM_OBJECT(HTMLLIElement, HTMLElement);
-    JS_DECLARE_ALLOCATOR(HTMLLIElement);
+    GC_DECLARE_ALLOCATOR(HTMLLIElement);
 
 public:
     virtual ~HTMLLIElement() override;

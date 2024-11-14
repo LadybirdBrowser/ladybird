@@ -5,7 +5,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibJS/Heap/HeapFunction.h>
+#include <LibGC/Function.h>
 #include <LibJS/Runtime/Realm.h>
 #include <LibWeb/Bindings/DataTransferItemPrototype.h>
 #include <LibWeb/Bindings/Intrinsics.h>
@@ -17,14 +17,14 @@
 
 namespace Web::HTML {
 
-JS_DEFINE_ALLOCATOR(DataTransferItem);
+GC_DEFINE_ALLOCATOR(DataTransferItem);
 
-JS::NonnullGCPtr<DataTransferItem> DataTransferItem::create(JS::Realm& realm, JS::NonnullGCPtr<DataTransfer> data_transfer, size_t item_index)
+GC::Ref<DataTransferItem> DataTransferItem::create(JS::Realm& realm, GC::Ref<DataTransfer> data_transfer, size_t item_index)
 {
     return realm.create<DataTransferItem>(realm, data_transfer, item_index);
 }
 
-DataTransferItem::DataTransferItem(JS::Realm& realm, JS::NonnullGCPtr<DataTransfer> data_transfer, size_t item_index)
+DataTransferItem::DataTransferItem(JS::Realm& realm, GC::Ref<DataTransfer> data_transfer, size_t item_index)
     : PlatformObject(realm)
     , m_data_transfer(data_transfer)
     , m_item_index(item_index)
@@ -91,7 +91,7 @@ Optional<DragDataStore::Mode> DataTransferItem::mode() const
 }
 
 // https://html.spec.whatwg.org/multipage/dnd.html#dom-datatransferitem-getasstring
-void DataTransferItem::get_as_string(JS::GCPtr<WebIDL::CallbackType> callback) const
+void DataTransferItem::get_as_string(GC::Ptr<WebIDL::CallbackType> callback) const
 {
     auto& realm = this->realm();
     auto& vm = realm.vm();
@@ -116,13 +116,13 @@ void DataTransferItem::get_as_string(JS::GCPtr<WebIDL::CallbackType> callback) c
     auto data = JS::PrimitiveString::create(vm, MUST(String::from_utf8({ item.data })));
 
     HTML::queue_a_task(HTML::Task::Source::Unspecified, nullptr, nullptr,
-        JS::HeapFunction<void()>::create(realm.heap(), [callback, data]() {
+        GC::Function<void()>::create(realm.heap(), [callback, data]() {
             (void)WebIDL::invoke_callback(*callback, {}, data);
         }));
 }
 
 // https://html.spec.whatwg.org/multipage/dnd.html#dom-datatransferitem-getasfile
-JS::GCPtr<FileAPI::File> DataTransferItem::get_as_file() const
+GC::Ptr<FileAPI::File> DataTransferItem::get_as_file() const
 {
     auto& realm = this->realm();
 
@@ -146,11 +146,11 @@ JS::GCPtr<FileAPI::File> DataTransferItem::get_as_file() const
     FileAPI::FilePropertyBag options {};
     options.type = item.type_string;
 
-    return MUST(FileAPI::File::create(realm, { JS::make_handle(blob) }, file_name, move(options)));
+    return MUST(FileAPI::File::create(realm, { GC::make_root(blob) }, file_name, move(options)));
 }
 
 // https://wicg.github.io/entries-api/#dom-datatransferitem-webkitgetasentry
-JS::GCPtr<EntriesAPI::FileSystemEntry> DataTransferItem::webkit_get_as_entry() const
+GC::Ptr<EntriesAPI::FileSystemEntry> DataTransferItem::webkit_get_as_entry() const
 {
     auto& realm = this->realm();
 

@@ -21,23 +21,23 @@ namespace JS {
 
 class Array : public Object {
     JS_OBJECT(Array, Object);
-    JS_DECLARE_ALLOCATOR(Array);
+    GC_DECLARE_ALLOCATOR(Array);
 
 public:
-    static ThrowCompletionOr<NonnullGCPtr<Array>> create(Realm&, u64 length, Object* prototype = nullptr);
-    static NonnullGCPtr<Array> create_from(Realm&, ReadonlySpan<Value>);
+    static ThrowCompletionOr<GC::Ref<Array>> create(Realm&, u64 length, Object* prototype = nullptr);
+    static GC::Ref<Array> create_from(Realm&, ReadonlySpan<Value>);
 
     template<size_t N>
-    static NonnullGCPtr<Array> create_from(Realm& realm, Value const (&values)[N])
+    static GC::Ref<Array> create_from(Realm& realm, Value const (&values)[N])
     {
         return create_from(realm, ReadonlySpan<Value> { values, N });
     }
 
     // Non-standard but equivalent to CreateArrayFromList.
     template<typename T>
-    static NonnullGCPtr<Array> create_from(Realm& realm, ReadonlySpan<T> elements, Function<Value(T const&)> map_fn)
+    static GC::Ref<Array> create_from(Realm& realm, ReadonlySpan<T> elements, Function<Value(T const&)> map_fn)
     {
-        auto values = MarkedVector<Value> { realm.heap() };
+        auto values = GC::MarkedVector<Value> { realm.heap() };
         values.ensure_capacity(elements.size());
         for (auto const& element : elements)
             values.append(map_fn(element));
@@ -50,7 +50,7 @@ public:
     virtual ThrowCompletionOr<Optional<PropertyDescriptor>> internal_get_own_property(PropertyKey const&) const override final;
     virtual ThrowCompletionOr<bool> internal_define_own_property(PropertyKey const&, PropertyDescriptor const&, Optional<PropertyDescriptor>* precomputed_get_own_property = nullptr) override final;
     virtual ThrowCompletionOr<bool> internal_delete(PropertyKey const&) override;
-    virtual ThrowCompletionOr<MarkedVector<Value>> internal_own_property_keys() const override final;
+    virtual ThrowCompletionOr<GC::MarkedVector<Value>> internal_own_property_keys() const override final;
 
     [[nodiscard]] bool length_is_writable() const { return m_length_writable; }
 
@@ -68,7 +68,7 @@ enum class Holes {
     ReadThroughHoles,
 };
 
-ThrowCompletionOr<MarkedVector<Value>> sort_indexed_properties(VM&, Object const&, size_t length, Function<ThrowCompletionOr<double>(Value, Value)> const& sort_compare, Holes holes);
+ThrowCompletionOr<GC::MarkedVector<Value>> sort_indexed_properties(VM&, Object const&, size_t length, Function<ThrowCompletionOr<double>(Value, Value)> const& sort_compare, Holes holes);
 ThrowCompletionOr<double> compare_array_elements(VM&, Value x, Value y, FunctionObject* comparefn);
 
 }

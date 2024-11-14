@@ -155,14 +155,14 @@ String Element::get_attribute_value(FlyString const& local_name, Optional<FlyStr
 }
 
 // https://dom.spec.whatwg.org/#dom-element-getattributenode
-JS::GCPtr<Attr> Element::get_attribute_node(FlyString const& name) const
+GC::Ptr<Attr> Element::get_attribute_node(FlyString const& name) const
 {
     // The getAttributeNode(qualifiedName) method steps are to return the result of getting an attribute given qualifiedName and this.
     return m_attributes->get_attribute(name);
 }
 
 // https://dom.spec.whatwg.org/#dom-element-getattributenodens
-JS::GCPtr<Attr> Element::get_attribute_node_ns(Optional<FlyString> const& namespace_, FlyString const& name) const
+GC::Ptr<Attr> Element::get_attribute_node_ns(Optional<FlyString> const& namespace_, FlyString const& name) const
 {
     // The getAttributeNodeNS(namespace, localName) method steps are to return the result of getting an attribute given namespace, localName, and this.
     return m_attributes->get_attribute_ns(namespace_, name);
@@ -286,14 +286,14 @@ void Element::set_attribute_value(FlyString const& local_name, String const& val
 }
 
 // https://dom.spec.whatwg.org/#dom-element-setattributenode
-WebIDL::ExceptionOr<JS::GCPtr<Attr>> Element::set_attribute_node(Attr& attr)
+WebIDL::ExceptionOr<GC::Ptr<Attr>> Element::set_attribute_node(Attr& attr)
 {
     // The setAttributeNode(attr) and setAttributeNodeNS(attr) methods steps are to return the result of setting an attribute given attr and this.
     return m_attributes->set_attribute(attr);
 }
 
 // https://dom.spec.whatwg.org/#dom-element-setattributenodens
-WebIDL::ExceptionOr<JS::GCPtr<Attr>> Element::set_attribute_node_ns(Attr& attr)
+WebIDL::ExceptionOr<GC::Ptr<Attr>> Element::set_attribute_node_ns(Attr& attr)
 {
     // The setAttributeNode(attr) and setAttributeNodeNS(attr) methods steps are to return the result of setting an attribute given attr and this.
     return m_attributes->set_attribute(attr);
@@ -314,7 +314,7 @@ void Element::remove_attribute_ns(Optional<FlyString> const& namespace_, FlyStri
 }
 
 // https://dom.spec.whatwg.org/#dom-element-removeattributenode
-WebIDL::ExceptionOr<JS::NonnullGCPtr<Attr>> Element::remove_attribute_node(JS::NonnullGCPtr<Attr> attr)
+WebIDL::ExceptionOr<GC::Ref<Attr>> Element::remove_attribute_node(GC::Ref<Attr> attr)
 {
     return m_attributes->remove_attribute_node(attr);
 }
@@ -386,7 +386,7 @@ Vector<String> Element::get_attribute_names() const
     return names;
 }
 
-JS::GCPtr<Layout::Node> Element::create_layout_node(CSS::StyleProperties style)
+GC::Ptr<Layout::Node> Element::create_layout_node(CSS::StyleProperties style)
 {
     if (local_name() == "noscript" && document().is_scripting_enabled())
         return nullptr;
@@ -395,7 +395,7 @@ JS::GCPtr<Layout::Node> Element::create_layout_node(CSS::StyleProperties style)
     return create_layout_node_for_display_type(document(), display, move(style), this);
 }
 
-JS::GCPtr<Layout::NodeWithStyle> Element::create_layout_node_for_display_type(DOM::Document& document, CSS::Display const& display, CSS::StyleProperties style, Element* element)
+GC::Ptr<Layout::NodeWithStyle> Element::create_layout_node_for_display_type(DOM::Document& document, CSS::Display const& display, CSS::StyleProperties style, Element* element)
 {
     if (display.is_table_inside() || display.is_table_row_group() || display.is_table_header_group() || display.is_table_footer_group() || display.is_table_row())
         return document.heap().allocate<Layout::Box>(document, element, move(style));
@@ -666,17 +666,17 @@ WebIDL::ExceptionOr<void> Element::attach_a_shadow_root(Bindings::ShadowRootMode
 }
 
 // https://dom.spec.whatwg.org/#dom-element-attachshadow
-WebIDL::ExceptionOr<JS::NonnullGCPtr<ShadowRoot>> Element::attach_shadow(ShadowRootInit init)
+WebIDL::ExceptionOr<GC::Ref<ShadowRoot>> Element::attach_shadow(ShadowRootInit init)
 {
     // 1. Run attach a shadow root with this, init["mode"], init["clonable"], init["serializable"], init["delegatesFocus"], and init["slotAssignment"].
     TRY(attach_a_shadow_root(init.mode, init.clonable, init.serializable, init.delegates_focus, init.slot_assignment));
 
     // 2. Return this’s shadow root.
-    return JS::NonnullGCPtr { *shadow_root() };
+    return GC::Ref { *shadow_root() };
 }
 
 // https://dom.spec.whatwg.org/#dom-element-shadowroot
-JS::GCPtr<ShadowRoot> Element::shadow_root_for_bindings() const
+GC::Ptr<ShadowRoot> Element::shadow_root_for_bindings() const
 {
     // 1. Let shadow be this’s shadow root.
     auto shadow = m_shadow_root;
@@ -807,7 +807,7 @@ bool Element::is_shadow_host() const
     return m_shadow_root != nullptr;
 }
 
-void Element::set_shadow_root(JS::GCPtr<ShadowRoot> shadow_root)
+void Element::set_shadow_root(GC::Ptr<ShadowRoot> shadow_root)
 {
     if (m_shadow_root == shadow_root)
         return;
@@ -839,7 +839,7 @@ void Element::make_html_uppercased_qualified_name()
 // https://html.spec.whatwg.org/multipage/webappapis.html#queue-an-element-task
 HTML::TaskID Element::queue_an_element_task(HTML::Task::Source source, Function<void()> steps)
 {
-    return queue_a_task(source, HTML::main_thread_event_loop(), document(), JS::create_heap_function(heap(), move(steps)));
+    return queue_a_task(source, HTML::main_thread_event_loop(), document(), GC::create_function(heap(), move(steps)));
 }
 
 // https://html.spec.whatwg.org/multipage/syntax.html#void-elements
@@ -855,7 +855,7 @@ bool Element::serializes_as_void() const
 }
 
 // https://drafts.csswg.org/cssom-view/#dom-element-getboundingclientrect
-JS::NonnullGCPtr<Geometry::DOMRect> Element::get_bounding_client_rect() const
+GC::Ref<Geometry::DOMRect> Element::get_bounding_client_rect() const
 {
     // 1. Let list be the result of invoking getClientRects() on element.
     auto list = get_client_rects();
@@ -874,7 +874,7 @@ JS::NonnullGCPtr<Geometry::DOMRect> Element::get_bounding_client_rect() const
         }
     }
     if (all_rectangle_has_zero_width_or_height)
-        return JS::NonnullGCPtr { *const_cast<Geometry::DOMRect*>(list->item(0)) };
+        return GC::Ref { *const_cast<Geometry::DOMRect*>(list->item(0)) };
 
     // 4. Otherwise, return a DOMRect object describing the smallest rectangle that includes all of the rectangles in
     //    list of which the height or width is not zero.
@@ -890,7 +890,7 @@ JS::NonnullGCPtr<Geometry::DOMRect> Element::get_bounding_client_rect() const
 }
 
 // https://drafts.csswg.org/cssom-view/#dom-element-getclientrects
-JS::NonnullGCPtr<Geometry::DOMRectList> Element::get_client_rects() const
+GC::Ref<Geometry::DOMRectList> Element::get_client_rects() const
 {
     auto navigable = document().navigable();
     if (!navigable)
@@ -923,7 +923,7 @@ JS::NonnullGCPtr<Geometry::DOMRectList> Element::get_client_rects() const
     CSSPixelPoint scroll_offset;
     auto const* paintable = this->paintable();
 
-    Vector<JS::Handle<Geometry::DOMRect>> rects;
+    Vector<GC::Root<Geometry::DOMRect>> rects;
     if (auto const* paintable_box = this->paintable_box()) {
         transform = Gfx::extract_2d_affine_transform(paintable_box->transform());
         for (auto const* containing_block = paintable->containing_block(); !containing_block->is_viewport(); containing_block = containing_block->containing_block()) {
@@ -1063,7 +1063,7 @@ void Element::children_changed()
     set_needs_style_update(true);
 }
 
-void Element::set_pseudo_element_node(Badge<Layout::TreeBuilder>, CSS::Selector::PseudoElement::Type pseudo_element, JS::GCPtr<Layout::NodeWithStyle> pseudo_element_node)
+void Element::set_pseudo_element_node(Badge<Layout::TreeBuilder>, CSS::Selector::PseudoElement::Type pseudo_element, GC::Ptr<Layout::NodeWithStyle> pseudo_element_node)
 {
     auto existing_pseudo_element = get_pseudo_element(pseudo_element);
     if (!existing_pseudo_element.has_value() && !pseudo_element_node)
@@ -1072,7 +1072,7 @@ void Element::set_pseudo_element_node(Badge<Layout::TreeBuilder>, CSS::Selector:
     ensure_pseudo_element(pseudo_element).layout_node = move(pseudo_element_node);
 }
 
-JS::GCPtr<Layout::NodeWithStyle> Element::get_pseudo_element_node(CSS::Selector::PseudoElement::Type pseudo_element) const
+GC::Ptr<Layout::NodeWithStyle> Element::get_pseudo_element_node(CSS::Selector::PseudoElement::Type pseudo_element) const
 {
     if (auto element_data = get_pseudo_element(pseudo_element); element_data.has_value())
         return element_data->layout_node;
@@ -1473,7 +1473,7 @@ bool Element::is_actually_disabled() const
 }
 
 // https://html.spec.whatwg.org/multipage/dynamic-markup-insertion.html#fragment-parsing-algorithm-steps
-WebIDL::ExceptionOr<JS::NonnullGCPtr<DOM::DocumentFragment>> Element::parse_fragment(StringView markup)
+WebIDL::ExceptionOr<GC::Ref<DOM::DocumentFragment>> Element::parse_fragment(StringView markup)
 {
     // 1. Let algorithm be the HTML fragment parsing algorithm.
     auto algorithm = HTML::HTMLParser::parse_html_fragment;
@@ -1537,7 +1537,7 @@ WebIDL::ExceptionOr<void> Element::set_outer_html(String const& value)
 WebIDL::ExceptionOr<void> Element::insert_adjacent_html(String const& position, String const& string)
 {
     // 1. Let context be null.
-    JS::GCPtr<Node> context;
+    GC::Ptr<Node> context;
 
     // 2. Use the first matching item from this list:
     // - If position is an ASCII case-insensitive match for the string "beforebegin"
@@ -1607,39 +1607,39 @@ WebIDL::ExceptionOr<void> Element::insert_adjacent_html(String const& position, 
 }
 
 // https://dom.spec.whatwg.org/#insert-adjacent
-WebIDL::ExceptionOr<JS::GCPtr<Node>> Element::insert_adjacent(StringView where, JS::NonnullGCPtr<Node> node)
+WebIDL::ExceptionOr<GC::Ptr<Node>> Element::insert_adjacent(StringView where, GC::Ref<Node> node)
 {
     // To insert adjacent, given an element element, string where, and a node node, run the steps associated with the first ASCII case-insensitive match for where:
     if (Infra::is_ascii_case_insensitive_match(where, "beforebegin"sv)) {
         // -> "beforebegin"
         // If element’s parent is null, return null.
         if (!parent())
-            return JS::GCPtr<Node> { nullptr };
+            return GC::Ptr<Node> { nullptr };
 
         // Return the result of pre-inserting node into element’s parent before element.
-        return JS::GCPtr<Node> { TRY(parent()->pre_insert(move(node), this)) };
+        return GC::Ptr<Node> { TRY(parent()->pre_insert(move(node), this)) };
     }
 
     if (Infra::is_ascii_case_insensitive_match(where, "afterbegin"sv)) {
         // -> "afterbegin"
         // Return the result of pre-inserting node into element before element’s first child.
-        return JS::GCPtr<Node> { TRY(pre_insert(move(node), first_child())) };
+        return GC::Ptr<Node> { TRY(pre_insert(move(node), first_child())) };
     }
 
     if (Infra::is_ascii_case_insensitive_match(where, "beforeend"sv)) {
         // -> "beforeend"
         // Return the result of pre-inserting node into element before null.
-        return JS::GCPtr<Node> { TRY(pre_insert(move(node), nullptr)) };
+        return GC::Ptr<Node> { TRY(pre_insert(move(node), nullptr)) };
     }
 
     if (Infra::is_ascii_case_insensitive_match(where, "afterend"sv)) {
         // -> "afterend"
         // If element’s parent is null, return null.
         if (!parent())
-            return JS::GCPtr<Node> { nullptr };
+            return GC::Ptr<Node> { nullptr };
 
         // Return the result of pre-inserting node into element’s parent before element’s next sibling.
-        return JS::GCPtr<Node> { TRY(parent()->pre_insert(move(node), next_sibling())) };
+        return GC::Ptr<Node> { TRY(parent()->pre_insert(move(node), next_sibling())) };
     }
 
     // -> Otherwise
@@ -1648,13 +1648,13 @@ WebIDL::ExceptionOr<JS::GCPtr<Node>> Element::insert_adjacent(StringView where, 
 }
 
 // https://dom.spec.whatwg.org/#dom-element-insertadjacentelement
-WebIDL::ExceptionOr<JS::GCPtr<Element>> Element::insert_adjacent_element(String const& where, JS::NonnullGCPtr<Element> element)
+WebIDL::ExceptionOr<GC::Ptr<Element>> Element::insert_adjacent_element(String const& where, GC::Ref<Element> element)
 {
     // The insertAdjacentElement(where, element) method steps are to return the result of running insert adjacent, give this, where, and element.
     auto returned_node = TRY(insert_adjacent(where, element));
     if (!returned_node)
-        return JS::GCPtr<Element> { nullptr };
-    return JS::GCPtr<Element> { verify_cast<Element>(*returned_node) };
+        return GC::Ptr<Element> { nullptr };
+    return GC::Ptr<Element> { verify_cast<Element>(*returned_node) };
 }
 
 // https://dom.spec.whatwg.org/#dom-element-insertadjacenttext
@@ -1954,8 +1954,8 @@ void Element::enqueue_an_element_on_the_appropriate_element_queue()
         reactions_stack.processing_the_backup_element_queue = true;
 
         // 4. Queue a microtask to perform the following steps:
-        // NOTE: `this` is protected by JS::HeapFunction
-        HTML::queue_a_microtask(&document(), JS::create_heap_function(relevant_agent.heap(), [this]() {
+        // NOTE: `this` is protected by GC::Function
+        HTML::queue_a_microtask(&document(), GC::create_function(relevant_agent.heap(), [this]() {
             auto& relevant_agent = HTML::relevant_agent(*this);
             auto* custom_data = verify_cast<Bindings::WebEngineCustomData>(relevant_agent.custom_data());
             auto& reactions_stack = custom_data->custom_element_reactions_stack;
@@ -1984,7 +1984,7 @@ void Element::enqueue_a_custom_element_upgrade_reaction(HTML::CustomElementDefin
     enqueue_an_element_on_the_appropriate_element_queue();
 }
 
-void Element::enqueue_a_custom_element_callback_reaction(FlyString const& callback_name, JS::MarkedVector<JS::Value> arguments)
+void Element::enqueue_a_custom_element_callback_reaction(FlyString const& callback_name, GC::MarkedVector<JS::Value> arguments)
 {
     // 1. Let definition be element's custom element definition.
     auto& definition = m_custom_element_definition;
@@ -2020,7 +2020,7 @@ void Element::enqueue_a_custom_element_callback_reaction(FlyString const& callba
 }
 
 // https://html.spec.whatwg.org/multipage/custom-elements.html#concept-upgrade-an-element
-JS::ThrowCompletionOr<void> Element::upgrade_element(JS::NonnullGCPtr<HTML::CustomElementDefinition> custom_element_definition)
+JS::ThrowCompletionOr<void> Element::upgrade_element(GC::Ref<HTML::CustomElementDefinition> custom_element_definition)
 {
     auto& realm = this->realm();
     auto& vm = this->vm();
@@ -2041,7 +2041,7 @@ JS::ThrowCompletionOr<void> Element::upgrade_element(JS::NonnullGCPtr<HTML::Cust
         auto const* attribute = m_attributes->item(attribute_index);
         VERIFY(attribute);
 
-        JS::MarkedVector<JS::Value> arguments { vm.heap() };
+        GC::MarkedVector<JS::Value> arguments { vm.heap() };
 
         arguments.append(JS::PrimitiveString::create(vm, attribute->local_name()));
         arguments.append(JS::js_null());
@@ -2053,12 +2053,12 @@ JS::ThrowCompletionOr<void> Element::upgrade_element(JS::NonnullGCPtr<HTML::Cust
 
     // 5. If element is connected, then enqueue a custom element callback reaction with element, callback name "connectedCallback", and an empty argument list.
     if (is_connected()) {
-        JS::MarkedVector<JS::Value> empty_arguments { vm.heap() };
+        GC::MarkedVector<JS::Value> empty_arguments { vm.heap() };
         enqueue_a_custom_element_callback_reaction(HTML::CustomElementReactionNames::connectedCallback, move(empty_arguments));
     }
 
     // 6. Add element to the end of definition's construction stack.
-    custom_element_definition->construction_stack().append(JS::make_handle(this));
+    custom_element_definition->construction_stack().append(GC::make_root(this));
 
     // 7. Let C be definition's constructor.
     auto& constructor = custom_element_definition->constructor();
@@ -2201,12 +2201,12 @@ void Element::for_each_attribute(Function<void(FlyString const&, String const&)>
     });
 }
 
-JS::GCPtr<Layout::NodeWithStyle> Element::layout_node()
+GC::Ptr<Layout::NodeWithStyle> Element::layout_node()
 {
     return static_cast<Layout::NodeWithStyle*>(Node::layout_node());
 }
 
-JS::GCPtr<Layout::NodeWithStyle const> Element::layout_node() const
+GC::Ptr<Layout::NodeWithStyle const> Element::layout_node() const
 {
     return static_cast<Layout::NodeWithStyle const*>(Node::layout_node());
 }
@@ -2442,7 +2442,7 @@ void Element::register_intersection_observer(Badge<IntersectionObserver::Interse
     m_registered_intersection_observers->append(move(registration));
 }
 
-void Element::unregister_intersection_observer(Badge<IntersectionObserver::IntersectionObserver>, JS::NonnullGCPtr<IntersectionObserver::IntersectionObserver> observer)
+void Element::unregister_intersection_observer(Badge<IntersectionObserver::IntersectionObserver>, GC::Ref<IntersectionObserver::IntersectionObserver> observer)
 {
     if (!m_registered_intersection_observers)
         return;
@@ -2697,7 +2697,7 @@ void Element::attribute_changed(FlyString const& local_name, Optional<String> co
             assign_slottables(*assigned_slot);
 
         // 7. Run assign a slot for element.
-        assign_a_slot(JS::NonnullGCPtr { *this });
+        assign_a_slot(GC::Ref { *this });
         return;
     }
 

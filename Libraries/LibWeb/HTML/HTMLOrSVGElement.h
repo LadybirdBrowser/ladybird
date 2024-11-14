@@ -6,8 +6,8 @@
 
 #pragma once
 
+#include <LibGC/Ptr.h>
 #include <LibJS/Heap/Cell.h>
-#include <LibJS/Heap/GCPtr.h>
 #include <LibWeb/HTML/DOMStringMap.h>
 
 namespace Web::HTML {
@@ -15,7 +15,7 @@ namespace Web::HTML {
 template<typename ElementBase>
 class HTMLOrSVGElement {
 public:
-    [[nodiscard]] JS::NonnullGCPtr<DOMStringMap> dataset();
+    [[nodiscard]] GC::Ref<DOMStringMap> dataset();
 
     // https://html.spec.whatwg.org/#dom-noncedelement-nonce
     String const& nonce() { return m_cryptographic_nonce; }
@@ -31,7 +31,7 @@ protected:
     void visit_edges(JS::Cell::Visitor&);
 
     // https://html.spec.whatwg.org/multipage/dom.html#dom-dataset-dev
-    JS::GCPtr<DOMStringMap> m_dataset;
+    GC::Ptr<DOMStringMap> m_dataset;
 
     // https://html.spec.whatwg.org/#cryptographicnonce
     String m_cryptographic_nonce;

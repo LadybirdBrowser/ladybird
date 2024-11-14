@@ -10,7 +10,7 @@
 
 namespace Web::HTML {
 
-JS_DEFINE_ALLOCATOR(ShadowRealmGlobalScope);
+GC_DEFINE_ALLOCATOR(ShadowRealmGlobalScope);
 
 ShadowRealmGlobalScope::ShadowRealmGlobalScope(JS::Realm& realm)
     : DOM::EventTarget(realm)
@@ -19,7 +19,7 @@ ShadowRealmGlobalScope::ShadowRealmGlobalScope(JS::Realm& realm)
 
 ShadowRealmGlobalScope::~ShadowRealmGlobalScope() = default;
 
-JS::NonnullGCPtr<ShadowRealmGlobalScope> ShadowRealmGlobalScope::create(JS::Realm& realm)
+GC::Ref<ShadowRealmGlobalScope> ShadowRealmGlobalScope::create(JS::Realm& realm)
 {
     return realm.create<ShadowRealmGlobalScope>(realm);
 }

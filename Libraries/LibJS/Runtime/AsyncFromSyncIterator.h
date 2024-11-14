@@ -15,10 +15,10 @@ namespace JS {
 // 27.1.4.3 Properties of Async-from-Sync Iterator Instances, https://tc39.es/ecma262/#sec-properties-of-async-from-sync-iterator-instances
 class AsyncFromSyncIterator final : public Object {
     JS_OBJECT(AsyncFromSyncIterator, Object);
-    JS_DECLARE_ALLOCATOR(AsyncFromSyncIterator);
+    GC_DECLARE_ALLOCATOR(AsyncFromSyncIterator);
 
 public:
-    static NonnullGCPtr<AsyncFromSyncIterator> create(Realm&, NonnullGCPtr<IteratorRecord> sync_iterator_record);
+    static GC::Ref<AsyncFromSyncIterator> create(Realm&, GC::Ref<IteratorRecord> sync_iterator_record);
 
     virtual ~AsyncFromSyncIterator() override = default;
 
@@ -28,9 +28,9 @@ public:
     IteratorRecord const& sync_iterator_record() const { return m_sync_iterator_record; }
 
 private:
-    AsyncFromSyncIterator(Realm&, NonnullGCPtr<IteratorRecord> sync_iterator_record);
+    AsyncFromSyncIterator(Realm&, GC::Ref<IteratorRecord> sync_iterator_record);
 
-    NonnullGCPtr<IteratorRecord> m_sync_iterator_record; // [[SyncIteratorRecord]]
+    GC::Ref<IteratorRecord> m_sync_iterator_record; // [[SyncIteratorRecord]]
 };
 
 }

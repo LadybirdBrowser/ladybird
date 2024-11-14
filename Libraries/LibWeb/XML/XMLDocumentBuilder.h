@@ -38,8 +38,8 @@ private:
     virtual void comment(StringView data) override;
     virtual void document_end() override;
 
-    JS::NonnullGCPtr<DOM::Document> m_document;
-    JS::GCPtr<DOM::Node> m_current_node;
+    GC::Ref<DOM::Document> m_document;
+    GC::Ptr<DOM::Node> m_current_node;
     XMLScriptingSupport m_scripting_support { XMLScriptingSupport::Enabled };
     bool m_has_error { false };
     StringBuilder text_builder;

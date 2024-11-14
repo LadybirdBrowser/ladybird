@@ -7,8 +7,8 @@
 #include <AK/Assertions.h>
 #include <AK/NonnullOwnPtr.h>
 #include <AK/Platform.h>
-#include <LibJS/Heap/Heap.h>
-#include <LibJS/Heap/HeapBlock.h>
+#include <LibGC/Heap.h>
+#include <LibGC/HeapBlock.h>
 #include <stdio.h>
 #include <sys/mman.h>
 
@@ -16,7 +16,7 @@
 #    include <sanitizer/asan_interface.h>
 #endif
 
-namespace JS {
+namespace GC {
 
 size_t HeapBlockBase::block_size = PAGE_SIZE;
 
@@ -37,16 +37,16 @@ HeapBlock::HeapBlock(Heap& heap, CellAllocator& cell_allocator, size_t cell_size
     ASAN_POISON_MEMORY_REGION(m_storage, block_size - sizeof(HeapBlock));
 }
 
-void HeapBlock::deallocate(CellImpl* cell)
+void HeapBlock::deallocate(Cell* cell)
 {
     VERIFY(is_valid_cell_pointer(cell));
     VERIFY(!m_freelist || is_valid_cell_pointer(m_freelist));
-    VERIFY(cell->state() == CellImpl::State::Live);
+    VERIFY(cell->state() == Cell::State::Live);
     VERIFY(!cell->is_marked());
 
-    cell->~CellImpl();
+    cell->~Cell();
     auto* freelist_entry = new (cell) FreelistEntry();
-    freelist_entry->set_state(CellImpl::State::Dead);
+    freelist_entry->set_state(Cell::State::Dead);
     freelist_entry->next = m_freelist;
     m_freelist = freelist_entry;
 

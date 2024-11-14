@@ -23,7 +23,7 @@ enum class ReaderType {
 struct PullIntoDescriptor {
     // https://streams.spec.whatwg.org/#pull-into-descriptor-buffer
     // An ArrayBuffer
-    JS::NonnullGCPtr<JS::ArrayBuffer> buffer;
+    GC::Ref<JS::ArrayBuffer> buffer;
 
     // https://streams.spec.whatwg.org/#pull-into-descriptor-buffer-byte-length
     // A positive integer representing the initial byte length of buffer
@@ -51,7 +51,7 @@ struct PullIntoDescriptor {
 
     // https://streams.spec.whatwg.org/#pull-into-descriptor-view-constructor
     // A typed array constructor or %DataView%, which will be used for constructing a view with which to write into the buffer
-    JS::NonnullGCPtr<JS::NativeFunction> view_constructor;
+    GC::Ref<JS::NativeFunction> view_constructor;
 
     // https://streams.spec.whatwg.org/#pull-into-descriptor-reader-type
     // Either "default" or "byob", indicating what type of readable stream reader initiated this request, or "none" if the initiating reader was released
@@ -62,7 +62,7 @@ struct PullIntoDescriptor {
 struct ReadableByteStreamQueueEntry {
     // https://streams.spec.whatwg.org/#readable-byte-stream-queue-entry-buffer
     // An ArrayBuffer, which will be a transferred version of the one originally supplied by the underlying byte source
-    JS::NonnullGCPtr<JS::ArrayBuffer> buffer;
+    GC::Ref<JS::ArrayBuffer> buffer;
 
     // https://streams.spec.whatwg.org/#readable-byte-stream-queue-entry-byte-offset
     // A nonnegative integer number giving the byte offset derived from the view originally supplied by the underlying byte source
@@ -76,30 +76,30 @@ struct ReadableByteStreamQueueEntry {
 // https://streams.spec.whatwg.org/#readablebytestreamcontroller
 class ReadableByteStreamController : public Bindings::PlatformObject {
     WEB_PLATFORM_OBJECT(ReadableByteStreamController, Bindings::PlatformObject);
-    JS_DECLARE_ALLOCATOR(ReadableByteStreamController);
+    GC_DECLARE_ALLOCATOR(ReadableByteStreamController);
 
 public:
     virtual ~ReadableByteStreamController() override = default;
 
     // IDL getter, returns current [[byobRequest]] (if any), and otherwise the [[byobRequest]] for the next pending pull into request
-    JS::GCPtr<ReadableStreamBYOBRequest> byob_request();
+    GC::Ptr<ReadableStreamBYOBRequest> byob_request();
 
-    void set_byob_request(JS::GCPtr<ReadableStreamBYOBRequest> request) { m_byob_request = request; }
+    void set_byob_request(GC::Ptr<ReadableStreamBYOBRequest> request) { m_byob_request = request; }
 
     // Raw [[byobRequest]] slot
-    JS::GCPtr<ReadableStreamBYOBRequest const> raw_byob_request() const { return m_byob_request; }
-    JS::GCPtr<ReadableStreamBYOBRequest> raw_byob_request() { return m_byob_request; }
+    GC::Ptr<ReadableStreamBYOBRequest const> raw_byob_request() const { return m_byob_request; }
+    GC::Ptr<ReadableStreamBYOBRequest> raw_byob_request() { return m_byob_request; }
 
     Optional<double> desired_size() const;
     WebIDL::ExceptionOr<void> close();
     void error(JS::Value error);
-    WebIDL::ExceptionOr<void> enqueue(JS::Handle<WebIDL::ArrayBufferView>&);
+    WebIDL::ExceptionOr<void> enqueue(GC::Root<WebIDL::ArrayBufferView>&);
 
     Optional<u64> const& auto_allocate_chunk_size() { return m_auto_allocate_chunk_size; }
     void set_auto_allocate_chunk_size(Optional<u64> value) { m_auto_allocate_chunk_size = value; }
 
-    JS::GCPtr<CancelAlgorithm> cancel_algorithm() { return m_cancel_algorithm; }
-    void set_cancel_algorithm(JS::GCPtr<CancelAlgorithm> value) { m_cancel_algorithm = value; }
+    GC::Ptr<CancelAlgorithm> cancel_algorithm() { return m_cancel_algorithm; }
+    void set_cancel_algorithm(GC::Ptr<CancelAlgorithm> value) { m_cancel_algorithm = value; }
 
     bool close_requested() const { return m_close_requested; }
     void set_close_requested(bool value) { m_close_requested = value; }
@@ -107,8 +107,8 @@ public:
     bool pull_again() const { return m_pull_again; }
     void set_pull_again(bool value) { m_pull_again = value; }
 
-    JS::GCPtr<PullAlgorithm> pull_algorithm() { return m_pull_algorithm; }
-    void set_pull_algorithm(JS::GCPtr<PullAlgorithm> value) { m_pull_algorithm = value; }
+    GC::Ptr<PullAlgorithm> pull_algorithm() { return m_pull_algorithm; }
+    void set_pull_algorithm(GC::Ptr<PullAlgorithm> value) { m_pull_algorithm = value; }
 
     bool pulling() const { return m_pulling; }
     void set_pulling(bool value) { m_pulling = value; }
@@ -127,12 +127,12 @@ public:
     double strategy_hwm() const { return m_strategy_hwm; }
     void set_strategy_hwm(double value) { m_strategy_hwm = value; }
 
-    JS::GCPtr<ReadableStream const> stream() const { return m_stream; }
-    JS::GCPtr<ReadableStream> stream() { return m_stream; }
-    void set_stream(JS::GCPtr<ReadableStream> stream) { m_stream = stream; }
+    GC::Ptr<ReadableStream const> stream() const { return m_stream; }
+    GC::Ptr<ReadableStream> stream() { return m_stream; }
+    void set_stream(GC::Ptr<ReadableStream> stream) { m_stream = stream; }
 
-    JS::NonnullGCPtr<WebIDL::Promise> cancel_steps(JS::Value reason);
-    void pull_steps(JS::NonnullGCPtr<ReadRequest>);
+    GC::Ref<WebIDL::Promise> cancel_steps(JS::Value reason);
+    void pull_steps(GC::Ref<ReadRequest>);
     void release_steps();
 
 private:
@@ -148,11 +148,11 @@ private:
 
     // https://streams.spec.whatwg.org/#readablebytestreamcontroller-byobrequest
     // A ReadableStreamBYOBRequest instance representing the current BYOB pull request, or null if there are no pending requests
-    JS::GCPtr<ReadableStreamBYOBRequest> m_byob_request;
+    GC::Ptr<ReadableStreamBYOBRequest> m_byob_request;
 
     // https://streams.spec.whatwg.org/#readablestreamdefaultcontroller-cancelalgorithm
     // A promise-returning algorithm, taking one argument (the cancel reason), which communicates a requested cancelation to the underlying source
-    JS::GCPtr<CancelAlgorithm> m_cancel_algorithm;
+    GC::Ptr<CancelAlgorithm> m_cancel_algorithm;
 
     // https://streams.spec.whatwg.org/#readablestreamdefaultcontroller-closerequested
     // A boolean flag indicating whether the stream has been closed by its underlying source, but still has chunks in its internal queue that have not yet been read
@@ -164,7 +164,7 @@ private:
 
     // https://streams.spec.whatwg.org/#readablestreamdefaultcontroller-pullalgorithm
     // A promise-returning algorithm that pulls data from the underlying source
-    JS::GCPtr<PullAlgorithm> m_pull_algorithm;
+    GC::Ptr<PullAlgorithm> m_pull_algorithm;
 
     // https://streams.spec.whatwg.org/#readablestreamdefaultcontroller-pulling
     // A boolean flag set to true while the underlying source's pull algorithm is executing and the returned promise has not yet fulfilled, used to prevent reentrant calls
@@ -192,7 +192,7 @@ private:
 
     // https://streams.spec.whatwg.org/#readablestreamdefaultcontroller-stream
     // The ReadableStream instance controlled
-    JS::GCPtr<ReadableStream> m_stream;
+    GC::Ptr<ReadableStream> m_stream;
 };
 
 }

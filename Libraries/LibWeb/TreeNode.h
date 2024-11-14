@@ -8,8 +8,8 @@
 
 #include <AK/Assertions.h>
 #include <AK/TypeCasts.h>
+#include <LibGC/Ptr.h>
 #include <LibJS/Heap/Cell.h>
-#include <LibJS/Heap/GCPtr.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/TraversalDecision.h>
 
@@ -62,10 +62,10 @@ public:
     bool is_ancestor_of(TreeNode const&) const;
     bool is_inclusive_ancestor_of(TreeNode const&) const;
 
-    void append_child(JS::NonnullGCPtr<T> node);
-    void prepend_child(JS::NonnullGCPtr<T> node);
-    void insert_before(JS::NonnullGCPtr<T> node, JS::GCPtr<T> child);
-    void remove_child(JS::NonnullGCPtr<T> node);
+    void append_child(GC::Ref<T> node);
+    void prepend_child(GC::Ref<T> node);
+    void insert_before(GC::Ref<T> node, GC::Ptr<T> child);
+    void remove_child(GC::Ref<T> node);
 
     T* next_in_pre_order()
     {
@@ -351,7 +351,7 @@ private:
 };
 
 template<typename T>
-inline void TreeNode<T>::remove_child(JS::NonnullGCPtr<T> node)
+inline void TreeNode<T>::remove_child(GC::Ref<T> node)
 {
     VERIFY(node->m_parent == this);
 
@@ -373,7 +373,7 @@ inline void TreeNode<T>::remove_child(JS::NonnullGCPtr<T> node)
 }
 
 template<typename T>
-inline void TreeNode<T>::append_child(JS::NonnullGCPtr<T> node)
+inline void TreeNode<T>::append_child(GC::Ref<T> node)
 {
     VERIFY(!node->m_parent);
 
@@ -387,7 +387,7 @@ inline void TreeNode<T>::append_child(JS::NonnullGCPtr<T> node)
 }
 
 template<typename T>
-inline void TreeNode<T>::insert_before(JS::NonnullGCPtr<T> node, JS::GCPtr<T> child)
+inline void TreeNode<T>::insert_before(GC::Ref<T> node, GC::Ptr<T> child)
 {
     if (!child)
         return append_child(move(node));
@@ -410,7 +410,7 @@ inline void TreeNode<T>::insert_before(JS::NonnullGCPtr<T> node, JS::GCPtr<T> ch
 }
 
 template<typename T>
-inline void TreeNode<T>::prepend_child(JS::NonnullGCPtr<T> node)
+inline void TreeNode<T>::prepend_child(GC::Ref<T> node)
 {
     VERIFY(!node->m_parent);
 

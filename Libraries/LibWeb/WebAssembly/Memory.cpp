@@ -15,9 +15,9 @@
 
 namespace Web::WebAssembly {
 
-JS_DEFINE_ALLOCATOR(Memory);
+GC_DEFINE_ALLOCATOR(Memory);
 
-WebIDL::ExceptionOr<JS::NonnullGCPtr<Memory>> Memory::construct_impl(JS::Realm& realm, MemoryDescriptor& descriptor)
+WebIDL::ExceptionOr<GC::Ref<Memory>> Memory::construct_impl(JS::Realm& realm, MemoryDescriptor& descriptor)
 {
     auto& vm = realm.vm();
 
@@ -92,7 +92,7 @@ WebIDL::ExceptionOr<void> Memory::reset_the_memory_buffer()
 }
 
 // https://webassembly.github.io/spec/js-api/#dom-memory-buffer
-WebIDL::ExceptionOr<JS::NonnullGCPtr<JS::ArrayBuffer>> Memory::buffer() const
+WebIDL::ExceptionOr<GC::Ref<JS::ArrayBuffer>> Memory::buffer() const
 {
     auto& vm = this->vm();
     auto& realm = *vm.current_realm();
@@ -100,11 +100,11 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<JS::ArrayBuffer>> Memory::buffer() const
     if (!m_buffer)
         m_buffer = TRY(create_a_memory_buffer(vm, realm, m_address));
 
-    return JS::NonnullGCPtr(*m_buffer);
+    return GC::Ref(*m_buffer);
 }
 
 // https://webassembly.github.io/spec/js-api/#create-a-memory-buffer
-WebIDL::ExceptionOr<JS::NonnullGCPtr<JS::ArrayBuffer>> Memory::create_a_memory_buffer(JS::VM& vm, JS::Realm& realm, Wasm::MemoryAddress address)
+WebIDL::ExceptionOr<GC::Ref<JS::ArrayBuffer>> Memory::create_a_memory_buffer(JS::VM& vm, JS::Realm& realm, Wasm::MemoryAddress address)
 {
     auto& context = Detail::get_cache(realm);
     auto* memory = context.abstract_machine().store().get(address);
@@ -114,7 +114,7 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<JS::ArrayBuffer>> Memory::create_a_memory_b
     auto array_buffer = JS::ArrayBuffer::create(realm, &memory->data());
     array_buffer->set_detach_key(JS::PrimitiveString::create(vm, "WebAssembly.Memory"_string));
 
-    return JS::NonnullGCPtr(*array_buffer);
+    return GC::Ref(*array_buffer);
 }
 
 }

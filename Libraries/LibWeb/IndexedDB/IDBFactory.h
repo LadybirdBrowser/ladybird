@@ -15,12 +15,12 @@ namespace Web::IndexedDB {
 // https://w3c.github.io/IndexedDB/#idbfactory
 class IDBFactory : public Bindings::PlatformObject {
     WEB_PLATFORM_OBJECT(IDBFactory, Bindings::PlatformObject);
-    JS_DECLARE_ALLOCATOR(IDBFactory);
+    GC_DECLARE_ALLOCATOR(IDBFactory);
 
 public:
     virtual ~IDBFactory() override;
 
-    WebIDL::ExceptionOr<JS::NonnullGCPtr<IDBOpenDBRequest>> open(String const& name, Optional<u64> version);
+    WebIDL::ExceptionOr<GC::Ref<IDBOpenDBRequest>> open(String const& name, Optional<u64> version);
 
 protected:
     explicit IDBFactory(JS::Realm&);

@@ -12,12 +12,12 @@
 #include <LibJS/Heap/Handle.h>
 
 class CellClass : JS::Cell {
-    JS_CELL(CellClass, JS::Cell);
+    GC_CELL(CellClass, JS::Cell);
 
-    // expected-warning@+1 {{Types inheriting from JS::Cell should not have JS::Handle fields}}
-    JS::Handle<JS::Cell> m_handle;
+    // expected-warning@+1 {{Types inheriting from GC::Cell should not have GC::Root fields}}
+    GC::Root<JS::Cell> m_handle;
 };
 
 class NonCellClass {
-    JS::Handle<JS::Cell> m_handle;
+    GC::Root<JS::Cell> m_handle;
 };

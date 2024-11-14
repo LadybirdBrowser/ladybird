@@ -54,9 +54,9 @@ inline void replace_in_ordered_set(Vector<String>& set, String const& item, Stri
 
 namespace Web::DOM {
 
-JS_DEFINE_ALLOCATOR(DOMTokenList);
+GC_DEFINE_ALLOCATOR(DOMTokenList);
 
-JS::NonnullGCPtr<DOMTokenList> DOMTokenList::create(Element& associated_element, FlyString associated_attribute)
+GC::Ref<DOMTokenList> DOMTokenList::create(Element& associated_element, FlyString associated_attribute)
 {
     auto& realm = associated_element.realm();
     return realm.create<DOMTokenList>(associated_element, move(associated_attribute));
@@ -253,7 +253,7 @@ String DOMTokenList::value() const
 // https://dom.spec.whatwg.org/#ref-for-concept-element-attributes-set-value%E2%91%A2
 void DOMTokenList::set_value(String const& value)
 {
-    JS::GCPtr<DOM::Element> associated_element = m_associated_element.ptr();
+    GC::Ptr<DOM::Element> associated_element = m_associated_element.ptr();
     if (!associated_element)
         return;
 
@@ -284,7 +284,7 @@ WebIDL::ExceptionOr<void> DOMTokenList::validate_token_not_whitespace(StringView
 // https://dom.spec.whatwg.org/#concept-dtl-update
 void DOMTokenList::run_update_steps()
 {
-    JS::GCPtr<DOM::Element> associated_element = m_associated_element.ptr();
+    GC::Ptr<DOM::Element> associated_element = m_associated_element.ptr();
     if (!associated_element)
         return;
 

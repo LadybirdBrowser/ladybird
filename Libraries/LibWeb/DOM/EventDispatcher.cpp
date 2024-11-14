@@ -31,7 +31,7 @@
 namespace Web::DOM {
 
 // https://dom.spec.whatwg.org/#concept-event-listener-inner-invoke
-bool EventDispatcher::inner_invoke(Event& event, Vector<JS::Handle<DOM::DOMEventListener>>& listeners, Event::Phase phase, bool invocation_target_in_shadow_tree)
+bool EventDispatcher::inner_invoke(Event& event, Vector<GC::Root<DOM::DOMEventListener>>& listeners, Event::Phase phase, bool invocation_target_in_shadow_tree)
 {
     // 1. Let found be false.
     bool found = false;
@@ -181,14 +181,14 @@ void EventDispatcher::invoke(Event::PathEntry& struct_, Event& event, Event::Pha
 }
 
 // https://dom.spec.whatwg.org/#concept-event-dispatch
-bool EventDispatcher::dispatch(JS::NonnullGCPtr<EventTarget> target, Event& event, bool legacy_target_override)
+bool EventDispatcher::dispatch(GC::Ref<EventTarget> target, Event& event, bool legacy_target_override)
 {
     // 1. Set event’s dispatch flag.
     event.set_dispatched(true);
 
     // 2. Let targetOverride be target, if legacy target override flag is not given, and target’s associated Document otherwise. [HTML]
     // NOTE: legacy target override flag is only used by HTML and only when target is a Window object.
-    JS::GCPtr<EventTarget> target_override;
+    GC::Ptr<EventTarget> target_override;
     if (!legacy_target_override) {
         target_override = target;
     } else {
@@ -196,10 +196,10 @@ bool EventDispatcher::dispatch(JS::NonnullGCPtr<EventTarget> target, Event& even
     }
 
     // 3. Let activationTarget be null.
-    JS::GCPtr<EventTarget> activation_target;
+    GC::Ptr<EventTarget> activation_target;
 
     // 4. Let relatedTarget be the result of retargeting event’s relatedTarget against target.
-    JS::GCPtr<EventTarget> related_target = retarget(event.related_target(), target);
+    GC::Ptr<EventTarget> related_target = retarget(event.related_target(), target);
 
     bool clear_targets = false;
     // 5. If target is not relatedTarget or target is event’s relatedTarget, then:
@@ -223,7 +223,7 @@ bool EventDispatcher::dispatch(JS::NonnullGCPtr<EventTarget> target, Event& even
             activation_target = target;
 
         // 6. Let slottable be target, if target is a slottable and is assigned, and null otherwise.
-        JS::GCPtr<EventTarget> slottable;
+        GC::Ptr<EventTarget> slottable;
 
         if (is<Node>(*target) && is_an_assigned_slottable(static_cast<Node&>(*target)))
             slottable = target;

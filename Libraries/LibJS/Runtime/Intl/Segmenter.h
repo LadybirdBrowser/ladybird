@@ -15,7 +15,7 @@ namespace JS::Intl {
 
 class Segmenter final : public Object {
     JS_OBJECT(Segmenter, Object);
-    JS_DECLARE_ALLOCATOR(Segmenter);
+    GC_DECLARE_ALLOCATOR(Segmenter);
 
 public:
     virtual ~Segmenter() override = default;
@@ -40,7 +40,7 @@ private:
     OwnPtr<Unicode::Segmenter> m_segmenter;
 };
 
-ThrowCompletionOr<NonnullGCPtr<Object>> create_segment_data_object(VM&, Unicode::Segmenter const&, Utf16View const&, size_t start_index, size_t end_index);
+ThrowCompletionOr<GC::Ref<Object>> create_segment_data_object(VM&, Unicode::Segmenter const&, Utf16View const&, size_t start_index, size_t end_index);
 
 enum class Direction {
     Before,

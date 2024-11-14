@@ -10,9 +10,9 @@
 
 namespace Web::SVG {
 
-JS_DEFINE_ALLOCATOR(SVGAnimatedNumber);
+GC_DEFINE_ALLOCATOR(SVGAnimatedNumber);
 
-JS::NonnullGCPtr<SVGAnimatedNumber> SVGAnimatedNumber::create(JS::Realm& realm, float base_val, float anim_val)
+GC::Ref<SVGAnimatedNumber> SVGAnimatedNumber::create(JS::Realm& realm, float base_val, float anim_val)
 {
     return realm.create<SVGAnimatedNumber>(realm, base_val, anim_val);
 }

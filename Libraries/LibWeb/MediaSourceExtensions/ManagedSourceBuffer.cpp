@@ -10,7 +10,7 @@
 
 namespace Web::MediaSourceExtensions {
 
-JS_DEFINE_ALLOCATOR(ManagedSourceBuffer);
+GC_DEFINE_ALLOCATOR(ManagedSourceBuffer);
 
 ManagedSourceBuffer::ManagedSourceBuffer(JS::Realm& realm)
     : SourceBuffer(realm)

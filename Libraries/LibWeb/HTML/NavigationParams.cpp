@@ -11,8 +11,8 @@
 
 namespace Web::HTML {
 
-JS_DEFINE_ALLOCATOR(NavigationParams);
-JS_DEFINE_ALLOCATOR(NonFetchSchemeNavigationParams);
+GC_DEFINE_ALLOCATOR(NavigationParams);
+GC_DEFINE_ALLOCATOR(NonFetchSchemeNavigationParams);
 
 void NavigationParams::visit_edges(Visitor& visitor)
 {

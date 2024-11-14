@@ -9,8 +9,8 @@
 #include <AK/ByteBuffer.h>
 #include <AK/Optional.h>
 #include <AK/StringView.h>
+#include <LibGC/Ptr.h>
 #include <LibJS/Forward.h>
-#include <LibJS/Heap/GCPtr.h>
 #include <LibJS/Runtime/Completion.h>
 #include <LibJS/Runtime/Value.h>
 
@@ -53,7 +53,7 @@ struct DecodeResult {
     Optional<Completion> error; // [[Error]]
 };
 
-ThrowCompletionOr<NonnullGCPtr<TypedArrayBase>> validate_uint8_array(VM&);
+ThrowCompletionOr<GC::Ref<TypedArrayBase>> validate_uint8_array(VM&);
 ThrowCompletionOr<ByteBuffer> get_uint8_array_bytes(VM&, TypedArrayBase const&);
 void set_uint8_array_bytes(TypedArrayBase&, ReadonlyBytes);
 DecodeResult from_base64(VM&, StringView string, Alphabet alphabet, LastChunkHandling last_chunk_handling, Optional<size_t> max_length = {});

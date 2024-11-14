@@ -177,7 +177,7 @@ void XMLDocumentBuilder::element_end(const XML::Name& name)
 
             // 2. Spin the event loop until the parser's Document has no style sheet that is blocking scripts and the pending parsing-blocking script's "ready to be parser-executed" flag is set.
             if (m_document->has_a_style_sheet_that_is_blocking_scripts() || !pending_parsing_blocking_script->is_ready_to_be_parser_executed()) {
-                HTML::main_thread_event_loop().spin_until(JS::create_heap_function(script_element.heap(), [&] {
+                HTML::main_thread_event_loop().spin_until(GC::create_function(script_element.heap(), [&] {
                     return !m_document->has_a_style_sheet_that_is_blocking_scripts() && pending_parsing_blocking_script->is_ready_to_be_parser_executed();
                 }));
             }
@@ -250,7 +250,7 @@ void XMLDocumentBuilder::document_end()
     while (!m_document->scripts_to_execute_when_parsing_has_finished().is_empty()) {
         // Spin the event loop until the first script in the list of scripts that will execute when the document has finished parsing has its "ready to be parser-executed" flag set
         // and the parser's Document has no style sheet that is blocking scripts.
-        HTML::main_thread_event_loop().spin_until(JS::create_heap_function(heap, [&] {
+        HTML::main_thread_event_loop().spin_until(GC::create_function(heap, [&] {
             return m_document->scripts_to_execute_when_parsing_has_finished().first()->is_ready_to_be_parser_executed()
                 && !m_document->has_a_style_sheet_that_is_blocking_scripts();
         }));
@@ -262,7 +262,7 @@ void XMLDocumentBuilder::document_end()
         (void)m_document->scripts_to_execute_when_parsing_has_finished().take_first();
     }
     // Queue a global task on the DOM manipulation task source given the Document's relevant global object to run the following substeps:
-    queue_global_task(HTML::Task::Source::DOMManipulation, m_document, JS::create_heap_function(m_document->heap(), [document = m_document] {
+    queue_global_task(HTML::Task::Source::DOMManipulation, m_document, GC::create_function(m_document->heap(), [document = m_document] {
         // Set the Document's load timing info's DOM content loaded event start time to the current high resolution time given the Document's relevant global object.
         document->load_timing_info().dom_content_loaded_event_start_time = HighResolutionTime::current_high_resolution_time(relevant_global_object(*document));
 
@@ -280,17 +280,17 @@ void XMLDocumentBuilder::document_end()
     }));
 
     // Spin the event loop until the set of scripts that will execute as soon as possible and the list of scripts that will execute in order as soon as possible are empty.
-    HTML::main_thread_event_loop().spin_until(JS::create_heap_function(heap, [&] {
+    HTML::main_thread_event_loop().spin_until(GC::create_function(heap, [&] {
         return m_document->scripts_to_execute_as_soon_as_possible().is_empty();
     }));
 
     // Spin the event loop until there is nothing that delays the load event in the Document.
-    HTML::main_thread_event_loop().spin_until(JS::create_heap_function(heap, [&] {
+    HTML::main_thread_event_loop().spin_until(GC::create_function(heap, [&] {
         return !m_document->anything_is_delaying_the_load_event();
     }));
 
     // Queue a global task on the DOM manipulation task source given the Document's relevant global object to run the following steps:
-    queue_global_task(HTML::Task::Source::DOMManipulation, m_document, JS::create_heap_function(m_document->heap(), [document = m_document] {
+    queue_global_task(HTML::Task::Source::DOMManipulation, m_document, GC::create_function(m_document->heap(), [document = m_document] {
         // Update the current document readiness to "complete".
         document->update_readiness(HTML::DocumentReadyState::Complete);
 
@@ -299,7 +299,7 @@ void XMLDocumentBuilder::document_end()
             return;
 
         // Let window be the Document's relevant global object.
-        JS::NonnullGCPtr<HTML::Window> window = verify_cast<HTML::Window>(relevant_global_object(*document));
+        GC::Ref<HTML::Window> window = verify_cast<HTML::Window>(relevant_global_object(*document));
 
         // Set the Document's load timing info's load event start time to the current high resolution time given window.
         document->load_timing_info().load_event_start_time = HighResolutionTime::current_high_resolution_time(window);

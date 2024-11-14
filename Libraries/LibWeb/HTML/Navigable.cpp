@@ -46,20 +46,20 @@
 
 namespace Web::HTML {
 
-JS_DEFINE_ALLOCATOR(Navigable);
+GC_DEFINE_ALLOCATOR(Navigable);
 
 class ResponseHolder : public JS::Cell {
-    JS_CELL(ResponseHolder, JS::Cell);
-    JS_DECLARE_ALLOCATOR(ResponseHolder);
+    GC_CELL(ResponseHolder, JS::Cell);
+    GC_DECLARE_ALLOCATOR(ResponseHolder);
 
 public:
-    [[nodiscard]] static JS::NonnullGCPtr<ResponseHolder> create(JS::VM& vm)
+    [[nodiscard]] static GC::Ref<ResponseHolder> create(JS::VM& vm)
     {
         return vm.heap().allocate<ResponseHolder>();
     }
 
-    [[nodiscard]] JS::GCPtr<Fetch::Infrastructure::Response> response() const { return m_response; }
-    void set_response(JS::GCPtr<Fetch::Infrastructure::Response> response) { m_response = response; }
+    [[nodiscard]] GC::Ptr<Fetch::Infrastructure::Response> response() const { return m_response; }
+    void set_response(GC::Ptr<Fetch::Infrastructure::Response> response) { m_response = response; }
 
     virtual void visit_edges(Cell::Visitor& visitor) override
     {
@@ -68,10 +68,10 @@ public:
     }
 
 private:
-    JS::GCPtr<Fetch::Infrastructure::Response> m_response;
+    GC::Ptr<Fetch::Infrastructure::Response> m_response;
 };
 
-JS_DEFINE_ALLOCATOR(ResponseHolder);
+GC_DEFINE_ALLOCATOR(ResponseHolder);
 
 HashTable<Navigable*>& all_navigables()
 {
@@ -80,9 +80,9 @@ HashTable<Navigable*>& all_navigables()
 }
 
 // https://html.spec.whatwg.org/multipage/document-sequences.html#child-navigable
-Vector<JS::Handle<Navigable>> Navigable::child_navigables() const
+Vector<GC::Root<Navigable>> Navigable::child_navigables() const
 {
-    Vector<JS::Handle<Navigable>> results;
+    Vector<GC::Root<Navigable>> results;
     for (auto& entry : all_navigables()) {
         if (entry->current_session_history_entry()->step() == SessionHistoryEntry::Pending::Tag)
             continue;
@@ -98,7 +98,7 @@ bool Navigable::is_traversable() const
     return is<TraversableNavigable>(*this);
 }
 
-bool Navigable::is_ancestor_of(JS::NonnullGCPtr<Navigable> other) const
+bool Navigable::is_ancestor_of(GC::Ref<Navigable> other) const
 {
     for (auto ancestor = other->parent(); ancestor; ancestor = ancestor->parent()) {
         if (ancestor == this)
@@ -107,7 +107,7 @@ bool Navigable::is_ancestor_of(JS::NonnullGCPtr<Navigable> other) const
     return false;
 }
 
-Navigable::Navigable(JS::NonnullGCPtr<Page> page)
+Navigable::Navigable(GC::Ref<Page> page)
     : m_page(page)
     , m_event_handler({}, *this)
 {
@@ -157,7 +157,7 @@ void Navigable::set_delaying_load_events(bool value)
     }
 }
 
-JS::GCPtr<Navigable> Navigable::navigable_with_active_document(JS::NonnullGCPtr<DOM::Document> document)
+GC::Ptr<Navigable> Navigable::navigable_with_active_document(GC::Ref<DOM::Document> document)
 {
     for (auto* navigable : all_navigables()) {
         if (navigable->active_document() == document)
@@ -167,7 +167,7 @@ JS::GCPtr<Navigable> Navigable::navigable_with_active_document(JS::NonnullGCPtr<
 }
 
 // https://html.spec.whatwg.org/multipage/document-sequences.html#initialize-the-navigable
-ErrorOr<void> Navigable::initialize_navigable(JS::NonnullGCPtr<DocumentState> document_state, JS::GCPtr<Navigable> parent)
+ErrorOr<void> Navigable::initialize_navigable(GC::Ref<DocumentState> document_state, GC::Ptr<Navigable> parent)
 {
     static int next_id = 0;
     m_id = String::number(next_id++);
@@ -176,7 +176,7 @@ ErrorOr<void> Navigable::initialize_navigable(JS::NonnullGCPtr<DocumentState> do
     VERIFY(document_state->document());
 
     // 2. Let entry be a new session history entry, with
-    JS::NonnullGCPtr<SessionHistoryEntry> entry = *heap().allocate<SessionHistoryEntry>();
+    GC::Ref<SessionHistoryEntry> entry = *heap().allocate<SessionHistoryEntry>();
     // URL: document's URL
     entry->set_url(document_state->document()->url());
     // document state: documentState
@@ -195,13 +195,13 @@ ErrorOr<void> Navigable::initialize_navigable(JS::NonnullGCPtr<DocumentState> do
 }
 
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#getting-the-target-history-entry
-JS::GCPtr<SessionHistoryEntry> Navigable::get_the_target_history_entry(int target_step) const
+GC::Ptr<SessionHistoryEntry> Navigable::get_the_target_history_entry(int target_step) const
 {
     // 1. Let entries be the result of getting session history entries for navigable.
     auto& entries = get_session_history_entries();
 
     // 2. Return the item in entries that has the greatest step less than or equal to step.
-    JS::GCPtr<SessionHistoryEntry> result = nullptr;
+    GC::Ptr<SessionHistoryEntry> result = nullptr;
     for (auto& entry : entries) {
         auto entry_step = entry->step().get<int>();
         if (entry_step <= target_step) {
@@ -215,12 +215,12 @@ JS::GCPtr<SessionHistoryEntry> Navigable::get_the_target_history_entry(int targe
 }
 
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#activate-history-entry
-void Navigable::activate_history_entry(JS::GCPtr<SessionHistoryEntry> entry)
+void Navigable::activate_history_entry(GC::Ptr<SessionHistoryEntry> entry)
 {
     // FIXME: 1. Save persisted state to the navigable's active session history entry.
 
     // 2. Let newDocument be entry's document.
-    JS::GCPtr<DOM::Document> new_document = entry->document().ptr();
+    GC::Ptr<DOM::Document> new_document = entry->document().ptr();
 
     // 3. Assert: newDocument's is initial about:blank is false, i.e., we never traverse
     //    back to the initial about:blank Document because it always gets replaced when we
@@ -242,14 +242,14 @@ void Navigable::activate_history_entry(JS::GCPtr<SessionHistoryEntry> entry)
 }
 
 // https://html.spec.whatwg.org/multipage/document-sequences.html#nav-document
-JS::GCPtr<DOM::Document> Navigable::active_document()
+GC::Ptr<DOM::Document> Navigable::active_document()
 {
     // A navigable's active document is its active session history entry's document.
     return m_active_session_history_entry->document();
 }
 
 // https://html.spec.whatwg.org/multipage/document-sequences.html#nav-bc
-JS::GCPtr<BrowsingContext> Navigable::active_browsing_context()
+GC::Ptr<BrowsingContext> Navigable::active_browsing_context()
 {
     // A navigable's active browsing context is its active document's browsing context.
     // If this navigable is a traversable navigable, then its active browsing context will be a top-level browsing context.
@@ -259,7 +259,7 @@ JS::GCPtr<BrowsingContext> Navigable::active_browsing_context()
 }
 
 // https://html.spec.whatwg.org/multipage/document-sequences.html#nav-wp
-JS::GCPtr<HTML::WindowProxy> Navigable::active_window_proxy()
+GC::Ptr<HTML::WindowProxy> Navigable::active_window_proxy()
 {
     // A navigable's active WindowProxy is its active browsing context's associated WindowProxy.
     if (auto browsing_context = active_browsing_context())
@@ -268,7 +268,7 @@ JS::GCPtr<HTML::WindowProxy> Navigable::active_window_proxy()
 }
 
 // https://html.spec.whatwg.org/multipage/document-sequences.html#nav-window
-JS::GCPtr<HTML::Window> Navigable::active_window()
+GC::Ptr<HTML::Window> Navigable::active_window()
 {
     // A navigable's active window is its active WindowProxy's [[Window]].
     if (auto window_proxy = active_window_proxy())
@@ -284,14 +284,14 @@ String Navigable::target_name() const
 }
 
 // https://html.spec.whatwg.org/multipage/document-sequences.html#nav-container
-JS::GCPtr<NavigableContainer> Navigable::container() const
+GC::Ptr<NavigableContainer> Navigable::container() const
 {
     // The container of a navigable navigable is the navigable container whose nested navigable is navigable, or null if there is no such element.
     return NavigableContainer::navigable_container_with_content_navigable(const_cast<Navigable&>(*this));
 }
 
 // https://html.spec.whatwg.org/multipage/document-sequences.html#nav-container-document
-JS::GCPtr<DOM::Document> Navigable::container_document() const
+GC::Ptr<DOM::Document> Navigable::container_document() const
 {
     auto container = this->container();
 
@@ -304,7 +304,7 @@ JS::GCPtr<DOM::Document> Navigable::container_document() const
 }
 
 // https://html.spec.whatwg.org/multipage/document-sequences.html#nav-traversable
-JS::GCPtr<TraversableNavigable> Navigable::traversable_navigable() const
+GC::Ptr<TraversableNavigable> Navigable::traversable_navigable() const
 {
     // 1. Let navigable be inputNavigable.
     auto navigable = const_cast<Navigable*>(this);
@@ -318,7 +318,7 @@ JS::GCPtr<TraversableNavigable> Navigable::traversable_navigable() const
 }
 
 // https://html.spec.whatwg.org/multipage/document-sequences.html#nav-top
-JS::GCPtr<TraversableNavigable> Navigable::top_level_traversable()
+GC::Ptr<TraversableNavigable> Navigable::top_level_traversable()
 {
     // 1. Let navigable be inputNavigable.
     auto navigable = this;
@@ -349,7 +349,7 @@ void Navigable::set_ongoing_navigation(Variant<Empty, Traversal, String> ongoing
 Navigable::ChosenNavigable Navigable::choose_a_navigable(StringView name, TokenizedFeature::NoOpener no_opener, ActivateTab activate_tab, Optional<TokenizedFeature::Map const&> window_features)
 {
     // NOTE: Implementation for step 7 here.
-    JS::GCPtr<Navigable> same_name_navigable = nullptr;
+    GC::Ptr<Navigable> same_name_navigable = nullptr;
     if (!Infra::is_ascii_case_insensitive_match(name, "_blank"sv)) {
         for (auto& n : all_navigables()) {
             if (n->target_name() == name && !n->has_been_destroyed()) {
@@ -359,7 +359,7 @@ Navigable::ChosenNavigable Navigable::choose_a_navigable(StringView name, Tokeni
     }
 
     // 1. Let chosen be null.
-    JS::GCPtr<Navigable> chosen = nullptr;
+    GC::Ptr<Navigable> chosen = nullptr;
 
     // 2. Let windowType be "existing or none".
     auto window_type = WindowType::ExistingOrNone;
@@ -453,7 +453,7 @@ Navigable::ChosenNavigable Navigable::choose_a_navigable(StringView name, Tokeni
             if (!Infra::is_ascii_case_insensitive_match(name, "_blank"sv))
                 target_name = MUST(String::from_utf8(name));
 
-            auto create_new_traversable_closure = [this, no_opener, target_name, activate_tab, window_features](JS::GCPtr<BrowsingContext> opener) -> JS::NonnullGCPtr<Navigable> {
+            auto create_new_traversable_closure = [this, no_opener, target_name, activate_tab, window_features](GC::Ptr<BrowsingContext> opener) -> GC::Ref<Navigable> {
                 auto hints = WebViewHints::from_tokenised_features(window_features.value_or({}), traversable_navigable()->page());
                 auto [page, window_handle] = traversable_navigable()->page().client().page_did_request_new_web_view(activate_tab, hints, no_opener);
                 auto traversable = TraversableNavigable::create_a_new_top_level_traversable(*page, opener, target_name).release_value_but_fixme_should_propagate_errors();
@@ -461,7 +461,7 @@ Navigable::ChosenNavigable Navigable::choose_a_navigable(StringView name, Tokeni
                 traversable->set_window_handle(window_handle);
                 return traversable;
             };
-            auto create_new_traversable = JS::create_heap_function(heap(), move(create_new_traversable_closure));
+            auto create_new_traversable = GC::create_function(heap(), move(create_new_traversable_closure));
 
             // 7. If noopener is true, then set chosen to the result of creating a new top-level traversable given null and targetName.
             if (no_opener == TokenizedFeature::NoOpener::Yes) {
@@ -498,7 +498,7 @@ Navigable::ChosenNavigable Navigable::choose_a_navigable(StringView name, Tokeni
 }
 
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#getting-session-history-entries
-Vector<JS::NonnullGCPtr<SessionHistoryEntry>>& Navigable::get_session_history_entries() const
+Vector<GC::Ref<SessionHistoryEntry>>& Navigable::get_session_history_entries() const
 {
     // 1. Let traversable be navigable's traversable navigable.
     auto traversable = traversable_navigable();
@@ -510,7 +510,7 @@ Vector<JS::NonnullGCPtr<SessionHistoryEntry>>& Navigable::get_session_history_en
         return traversable->session_history_entries();
 
     // 4. Let docStates be an empty ordered set of document states.
-    Vector<JS::GCPtr<DocumentState>> doc_states;
+    Vector<GC::Ptr<DocumentState>> doc_states;
 
     // 5. For each entry of traversable's session history entries, append entry's document state to docStates.
     for (auto& entry : traversable->session_history_entries())
@@ -575,7 +575,7 @@ static PolicyContainer determine_navigation_params_policy_container(URL::URL con
 }
 
 // https://html.spec.whatwg.org/multipage/browsers.html#obtain-coop
-static OpenerPolicy obtain_an_opener_policy(JS::NonnullGCPtr<Fetch::Infrastructure::Response>, Fetch::Infrastructure::Request::ReservedClientType const& reserved_client)
+static OpenerPolicy obtain_an_opener_policy(GC::Ref<Fetch::Infrastructure::Response>, Fetch::Infrastructure::Request::ReservedClientType const& reserved_client)
 {
 
     // 1. Let policy be a new opener policy.
@@ -604,7 +604,7 @@ static OpenerPolicy obtain_an_opener_policy(JS::NonnullGCPtr<Fetch::Infrastructu
 }
 
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#attempt-to-create-a-non-fetch-scheme-document
-static JS::GCPtr<DOM::Document> attempt_to_create_a_non_fetch_scheme_document(NonFetchSchemeNavigationParams const& params)
+static GC::Ptr<DOM::Document> attempt_to_create_a_non_fetch_scheme_document(NonFetchSchemeNavigationParams const& params)
 {
     // FIXME: Implement this algorithm to hand off to external software or display inline content
     dbgln("(FIXME) Don't know how to navigate to {}", params.url);
@@ -612,7 +612,7 @@ static JS::GCPtr<DOM::Document> attempt_to_create_a_non_fetch_scheme_document(No
 }
 
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#create-navigation-params-from-a-srcdoc-resource
-static WebIDL::ExceptionOr<JS::NonnullGCPtr<NavigationParams>> create_navigation_params_from_a_srcdoc_resource(JS::GCPtr<SessionHistoryEntry> entry, JS::GCPtr<Navigable> navigable, TargetSnapshotParams const& target_snapshot_params, Optional<String> navigation_id)
+static WebIDL::ExceptionOr<GC::Ref<NavigationParams>> create_navigation_params_from_a_srcdoc_resource(GC::Ptr<SessionHistoryEntry> entry, GC::Ptr<Navigable> navigable, TargetSnapshotParams const& target_snapshot_params, Optional<String> navigation_id)
 {
     auto& vm = navigable->vm();
     VERIFY(navigable->active_window());
@@ -693,7 +693,7 @@ static WebIDL::ExceptionOr<JS::NonnullGCPtr<NavigationParams>> create_navigation
 }
 
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#create-navigation-params-by-fetching
-static WebIDL::ExceptionOr<Navigable::NavigationParamsVariant> create_navigation_params_by_fetching(JS::GCPtr<SessionHistoryEntry> entry, JS::GCPtr<Navigable> navigable, SourceSnapshotParams const& source_snapshot_params, TargetSnapshotParams const& target_snapshot_params, CSPNavigationType csp_navigation_type, Optional<String> navigation_id)
+static WebIDL::ExceptionOr<Navigable::NavigationParamsVariant> create_navigation_params_by_fetching(GC::Ptr<SessionHistoryEntry> entry, GC::Ptr<Navigable> navigable, SourceSnapshotParams const& source_snapshot_params, TargetSnapshotParams const& target_snapshot_params, CSPNavigationType csp_navigation_type, Optional<String> navigation_id)
 {
     auto& vm = navigable->vm();
     VERIFY(navigable->active_window());
@@ -809,7 +809,7 @@ static WebIDL::ExceptionOr<Navigable::NavigationParamsVariant> create_navigation
     Optional<URL::Origin> response_origin;
 
     // 11. Let fetchController be null.
-    JS::GCPtr<Fetch::Infrastructure::FetchController> fetch_controller = nullptr;
+    GC::Ptr<Fetch::Infrastructure::FetchController> fetch_controller = nullptr;
 
     // 12. Let coopEnforcementResult be a new opener policy enforcement result, with
     // - url: navigable's active document's URL
@@ -858,7 +858,7 @@ static WebIDL::ExceptionOr<Navigable::NavigationParamsVariant> create_navigation
             // FIXME: Let processEarlyHintsResponse be the following algorithm given a response earlyResponse:
 
             // Let processResponse be the following algorithm given a response fetchedResponse:
-            auto process_response = [response_holder](JS::NonnullGCPtr<Fetch::Infrastructure::Response> fetch_response) {
+            auto process_response = [response_holder](GC::Ref<Fetch::Infrastructure::Response> fetch_response) {
                 // 1. Set response to fetchedResponse.
                 response_holder->set_response(fetch_response);
             };
@@ -883,7 +883,7 @@ static WebIDL::ExceptionOr<Navigable::NavigationParamsVariant> create_navigation
         }
 
         // 7. Wait until either response is non-null, or navigable's ongoing navigation changes to no longer equal navigationId.
-        HTML::main_thread_event_loop().spin_until(JS::create_heap_function(vm.heap(), [&]() {
+        HTML::main_thread_event_loop().spin_until(GC::create_function(vm.heap(), [&]() {
             if (response_holder->response() != nullptr)
                 return true;
 
@@ -1063,14 +1063,14 @@ static WebIDL::ExceptionOr<Navigable::NavigationParamsVariant> create_navigation
 
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#attempt-to-populate-the-history-entry's-document
 WebIDL::ExceptionOr<void> Navigable::populate_session_history_entry_document(
-    JS::GCPtr<SessionHistoryEntry> entry,
+    GC::Ptr<SessionHistoryEntry> entry,
     SourceSnapshotParams const& source_snapshot_params,
     TargetSnapshotParams const& target_snapshot_params,
     Optional<String> navigation_id,
     Navigable::NavigationParamsVariant navigation_params,
     CSPNavigationType csp_navigation_type,
     bool allow_POST,
-    JS::GCPtr<JS::HeapFunction<void()>> completion_steps)
+    GC::Ptr<GC::Function<void()>> completion_steps)
 {
     // AD-HOC: Not in the spec but subsequent steps will fail if the navigable doesn't have an active window.
     if (!active_window())
@@ -1080,7 +1080,7 @@ WebIDL::ExceptionOr<void> Navigable::populate_session_history_entry_document(
 
     // 2. Assert: if navigationParams is non-null, then navigationParams's response is non-null.
     if (!navigation_params.has<Empty>() && !navigation_params.has<NullWithError>())
-        VERIFY(navigation_params.has<JS::NonnullGCPtr<NavigationParams>>() && navigation_params.get<JS::NonnullGCPtr<NavigationParams>>()->response);
+        VERIFY(navigation_params.has<GC::Ref<NavigationParams>>() && navigation_params.get<GC::Ref<NavigationParams>>()->response);
 
     // 3. Let currentBrowsingContext be navigable's active browsing context.
     [[maybe_unused]] auto current_browsing_context = active_browsing_context();
@@ -1128,7 +1128,7 @@ WebIDL::ExceptionOr<void> Navigable::populate_session_history_entry_document(
         return {};
 
     // 6. Queue a global task on the navigation and traversal task source, given navigable's active window, to run these steps:
-    queue_global_task(Task::Source::NavigationAndTraversal, *active_window(), JS::create_heap_function(heap(), [this, entry, navigation_params = move(navigation_params), navigation_id, completion_steps]() mutable {
+    queue_global_task(Task::Source::NavigationAndTraversal, *active_window(), GC::create_function(heap(), [this, entry, navigation_params = move(navigation_params), navigation_id, completion_steps]() mutable {
         // NOTE: This check is not in the spec but we should not continue navigation if navigable has been destroyed.
         if (has_been_destroyed())
             return;
@@ -1144,9 +1144,9 @@ WebIDL::ExceptionOr<void> Navigable::populate_session_history_entry_document(
         auto saveExtraDocumentState = true;
 
         // 3. If navigationParams is a non-fetch scheme navigation params, then:
-        if (navigation_params.has<JS::NonnullGCPtr<NonFetchSchemeNavigationParams>>()) {
+        if (navigation_params.has<GC::Ref<NonFetchSchemeNavigationParams>>()) {
             // 1. Set entry's document state's document to the result of running attempt to create a non-fetch scheme document given navigationParams.
-            entry->document_state()->set_document(attempt_to_create_a_non_fetch_scheme_document(navigation_params.get<JS::NonnullGCPtr<NonFetchSchemeNavigationParams>>()));
+            entry->document_state()->set_document(attempt_to_create_a_non_fetch_scheme_document(navigation_params.get<GC::Ref<NonFetchSchemeNavigationParams>>()));
             if (entry->document()) {
                 entry->document_state()->set_ever_populated(true);
             }
@@ -1187,8 +1187,8 @@ WebIDL::ExceptionOr<void> Navigable::populate_session_history_entry_document(
         //            header specifying the attachment disposition type, then:
         // 6. Otherwise, if navigationParams's response's status is not 204 and is not 205, then set entry's document state's document to the result of
         //    loading a document given navigationParams, sourceSnapshotParams, and entry's document state's initiator origin.
-        else if (auto const& response = navigation_params.get<JS::NonnullGCPtr<NavigationParams>>()->response; response->status() != 204 && response->status() != 205) {
-            auto document = load_document(navigation_params.get<JS::NonnullGCPtr<NavigationParams>>());
+        else if (auto const& response = navigation_params.get<GC::Ref<NavigationParams>>()->response; response->status() != 204 && response->status() != 205) {
+            auto document = load_document(navigation_params.get<GC::Ref<NavigationParams>>());
             entry->document_state()->set_document(document);
         }
 
@@ -1210,12 +1210,12 @@ WebIDL::ExceptionOr<void> Navigable::populate_session_history_entry_document(
 
             // 3. If entry's document state's request referrer is "client", and navigationParams is a navigation params (i.e., neither null nor a non-fetch scheme navigation params), then:
             if (entry->document_state()->request_referrer() == Fetch::Infrastructure::Request::Referrer::Client
-                && (!navigation_params.has<Empty>() && !navigation_params.has<NullWithError>() && navigation_params.has<JS::NonnullGCPtr<NonFetchSchemeNavigationParams>>())) {
+                && (!navigation_params.has<Empty>() && !navigation_params.has<NullWithError>() && navigation_params.has<GC::Ref<NonFetchSchemeNavigationParams>>())) {
                 // 1. Assert: navigationParams's request is not null.
-                VERIFY(navigation_params.has<JS::NonnullGCPtr<NavigationParams>>() && navigation_params.get<JS::NonnullGCPtr<NavigationParams>>()->request);
+                VERIFY(navigation_params.has<GC::Ref<NavigationParams>>() && navigation_params.get<GC::Ref<NavigationParams>>()->request);
 
                 // 2. Set entry's document state's request referrer to navigationParams's request's referrer.
-                entry->document_state()->set_request_referrer(navigation_params.get<JS::NonnullGCPtr<NavigationParams>>()->request->referrer());
+                entry->document_state()->set_request_referrer(navigation_params.get<GC::Ref<NavigationParams>>()->request->referrer());
             }
         }
 
@@ -1356,7 +1356,7 @@ WebIDL::ExceptionOr<void> Navigable::navigate(NavigateParams params)
     if (url.scheme() == "javascript"sv) {
         // 1. Queue a global task on the navigation and traversal task source given navigable's active window to navigate to a javascript: URL given navigable, url, historyHandling, initiatorOriginSnapshot, and cspNavigationType.
         VERIFY(active_window());
-        queue_global_task(Task::Source::NavigationAndTraversal, *active_window(), JS::create_heap_function(heap(), [this, url, history_handling, initiator_origin_snapshot, csp_navigation_type, navigation_id] {
+        queue_global_task(Task::Source::NavigationAndTraversal, *active_window(), GC::create_function(heap(), [this, url, history_handling, initiator_origin_snapshot, csp_navigation_type, navigation_id] {
             (void)navigate_to_a_javascript_url(url, to_history_handling_behavior(history_handling), initiator_origin_snapshot, csp_navigation_type, navigation_id);
         }));
 
@@ -1401,7 +1401,7 @@ WebIDL::ExceptionOr<void> Navigable::navigate(NavigateParams params)
     }
 
     // 20. In parallel, run these steps:
-    Platform::EventLoopPlugin::the().deferred_invoke(JS::create_heap_function(heap(), [this, source_snapshot_params, target_snapshot_params, csp_navigation_type, document_resource, url, navigation_id, referrer_policy, initiator_origin_snapshot, response, history_handling, initiator_base_url_snapshot] {
+    Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(heap(), [this, source_snapshot_params, target_snapshot_params, csp_navigation_type, document_resource, url, navigation_id, referrer_policy, initiator_origin_snapshot, response, history_handling, initiator_base_url_snapshot] {
         // AD-HOC: Not in the spec but subsequent steps will fail if the navigable doesn't have an active window.
         if (!active_window()) {
             set_delaying_load_events(false);
@@ -1427,7 +1427,7 @@ WebIDL::ExceptionOr<void> Navigable::navigate(NavigateParams params)
         }
 
         // 3. Queue a global task on the navigation and traversal task source given navigable's active window to abort a document and its descendants given navigable's active document.
-        queue_global_task(Task::Source::NavigationAndTraversal, *active_window(), JS::create_heap_function(heap(), [this] {
+        queue_global_task(Task::Source::NavigationAndTraversal, *active_window(), GC::create_function(heap(), [this] {
             VERIFY(this->active_document());
             this->active_document()->abort_a_document_and_its_descendants();
         }));
@@ -1437,7 +1437,7 @@ WebIDL::ExceptionOr<void> Navigable::navigate(NavigateParams params)
         //    initiator origin: initiatorOriginSnapshot
         //    resource: documentResource
         //    navigable target name: navigable's target name
-        JS::NonnullGCPtr<DocumentState> document_state = *heap().allocate<DocumentState>();
+        GC::Ref<DocumentState> document_state = *heap().allocate<DocumentState>();
         document_state->set_request_referrer_policy(referrer_policy);
         document_state->set_initiator_origin(initiator_origin_snapshot);
         document_state->set_resource(document_resource);
@@ -1458,7 +1458,7 @@ WebIDL::ExceptionOr<void> Navigable::navigate(NavigateParams params)
         }
 
         // 6. Let historyEntry be a new session history entry, with its URL set to url and its document state set to documentState.
-        JS::NonnullGCPtr<SessionHistoryEntry> history_entry = *heap().allocate<SessionHistoryEntry>();
+        GC::Ref<SessionHistoryEntry> history_entry = *heap().allocate<SessionHistoryEntry>();
         history_entry->set_url(url);
         history_entry->set_document_state(document_state);
 
@@ -1473,9 +1473,9 @@ WebIDL::ExceptionOr<void> Navigable::navigate(NavigateParams params)
         //     for historyEntry, given navigable, "navigate", sourceSnapshotParams,
         //     targetSnapshotParams, navigationId, navigationParams, cspNavigationType, with allowPOST
         //     set to true and completionSteps set to the following step:
-        populate_session_history_entry_document(history_entry, source_snapshot_params, target_snapshot_params, navigation_id, navigation_params, csp_navigation_type, true, JS::create_heap_function(heap(), [this, history_entry, history_handling, navigation_id] {
+        populate_session_history_entry_document(history_entry, source_snapshot_params, target_snapshot_params, navigation_id, navigation_params, csp_navigation_type, true, GC::create_function(heap(), [this, history_entry, history_handling, navigation_id] {
             // 1.     Append session history traversal steps to navigable's traversable to finalize a cross-document navigation given navigable, historyHandling, and historyEntry.
-            traversable_navigable()->append_session_history_traversal_steps(JS::create_heap_function(heap(), [this, history_entry, history_handling, navigation_id] {
+            traversable_navigable()->append_session_history_traversal_steps(GC::create_function(heap(), [this, history_entry, history_handling, navigation_id] {
                 if (this->has_been_destroyed()) {
                     // NOTE: This check is not in the spec but we should not continue navigation if navigable has been destroyed.
                     set_delaying_load_events(false);
@@ -1521,7 +1521,7 @@ WebIDL::ExceptionOr<void> Navigable::navigate_to_a_fragment(URL::URL const& url,
     //      document state: navigable's active session history entry's document state
     //      navigation API state: destinationNavigationAPIState
     //      scroll restoration mode: navigable's active session history entry's scroll restoration mode
-    JS::NonnullGCPtr<SessionHistoryEntry> history_entry = heap().allocate<SessionHistoryEntry>();
+    GC::Ref<SessionHistoryEntry> history_entry = heap().allocate<SessionHistoryEntry>();
     history_entry->set_url(url);
     history_entry->set_document_state(active_session_history_entry()->document_state());
     history_entry->set_navigation_api_state(destination_navigation_api_state);
@@ -1570,7 +1570,7 @@ WebIDL::ExceptionOr<void> Navigable::navigate_to_a_fragment(URL::URL const& url,
     auto traversable = traversable_navigable();
 
     // 17. Append the following session history synchronous navigation steps involving navigable to traversable:
-    traversable->append_session_history_synchronous_navigation_steps(*this, JS::create_heap_function(heap(), [this, traversable, history_entry, entry_to_replace, navigation_id, history_handling] {
+    traversable->append_session_history_synchronous_navigation_steps(*this, GC::create_function(heap(), [this, traversable, history_entry, entry_to_replace, navigation_id, history_handling] {
         // 1. Finalize a same-document navigation given traversable, navigable, historyEntry, and entryToReplace.
         finalize_a_same_document_navigation(*traversable, *this, history_entry, entry_to_replace, history_handling);
 
@@ -1584,7 +1584,7 @@ WebIDL::ExceptionOr<void> Navigable::navigate_to_a_fragment(URL::URL const& url,
 
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#evaluate-a-javascript:-url
 // https://whatpr.org/html/9893/browsing-the-web.html#evaluate-a-javascript:-url
-WebIDL::ExceptionOr<JS::GCPtr<DOM::Document>> Navigable::evaluate_javascript_url(URL::URL const& url, URL::Origin const& new_document_origin, String navigation_id)
+WebIDL::ExceptionOr<GC::Ptr<DOM::Document>> Navigable::evaluate_javascript_url(URL::URL const& url, URL::Origin const& new_document_origin, String navigation_id)
 {
     auto& vm = this->vm();
     VERIFY(active_window());
@@ -1734,7 +1734,7 @@ WebIDL::ExceptionOr<void> Navigable::navigate_to_a_javascript_url(URL::URL const
     //     resource: null
     //     ever populated: true
     //     navigable target name: oldDocState's navigable target name
-    JS::NonnullGCPtr<DocumentState> document_state = *heap().allocate<DocumentState>();
+    GC::Ref<DocumentState> document_state = *heap().allocate<DocumentState>();
     document_state->set_document(new_document);
     document_state->set_history_policy_container(old_doc_state->history_policy_container());
     document_state->set_request_referrer(old_doc_state->request_referrer());
@@ -1748,12 +1748,12 @@ WebIDL::ExceptionOr<void> Navigable::navigate_to_a_javascript_url(URL::URL const
     // 12. Let historyEntry be a new session history entry, with
     //     URL: entryToReplace's URL
     //     document state: documentState
-    JS::NonnullGCPtr<SessionHistoryEntry> history_entry = *heap().allocate<SessionHistoryEntry>();
+    GC::Ref<SessionHistoryEntry> history_entry = *heap().allocate<SessionHistoryEntry>();
     history_entry->set_url(entry_to_replace->url());
     history_entry->set_document_state(document_state);
 
     // 13. Append session history traversal steps to targetNavigable's traversable to finalize a cross-document navigation with targetNavigable, historyHandling, and historyEntry.
-    traversable_navigable()->append_session_history_traversal_steps(JS::create_heap_function(heap(), [this, history_entry, history_handling, navigation_id] {
+    traversable_navigable()->append_session_history_traversal_steps(GC::create_function(heap(), [this, history_entry, history_handling, navigation_id] {
         finalize_a_cross_document_navigation(*this, history_handling, history_entry);
     }));
 
@@ -1770,7 +1770,7 @@ void Navigable::reload()
     auto traversable = traversable_navigable();
 
     // 3. Append the following session history traversal steps to traversable:
-    traversable->append_session_history_traversal_steps(JS::create_heap_function(heap(), [traversable] {
+    traversable->append_session_history_traversal_steps(GC::create_function(heap(), [traversable] {
         // 1. Apply the reload history step to traversable.
         traversable->apply_the_reload_history_step();
     }));
@@ -1855,7 +1855,7 @@ TargetSnapshotParams Navigable::snapshot_target_snapshot_params()
 }
 
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#finalize-a-cross-document-navigation
-void finalize_a_cross_document_navigation(JS::NonnullGCPtr<Navigable> navigable, HistoryHandlingBehavior history_handling, JS::NonnullGCPtr<SessionHistoryEntry> history_entry)
+void finalize_a_cross_document_navigation(GC::Ref<Navigable> navigable, HistoryHandlingBehavior history_handling, GC::Ref<SessionHistoryEntry> history_entry)
 {
     // NOTE: This is not in the spec but we should not navigate destroyed navigable.
     if (navigable->has_been_destroyed())
@@ -1939,7 +1939,7 @@ void perform_url_and_history_update_steps(DOM::Document& document, URL::URL new_
     //      document state: activeEntry's document state
     //      scroll restoration mode: activeEntry's scroll restoration mode
     // FIXME: persisted user state: activeEntry's persisted user state
-    JS::NonnullGCPtr<SessionHistoryEntry> new_entry = document.heap().allocate<SessionHistoryEntry>();
+    GC::Ref<SessionHistoryEntry> new_entry = document.heap().allocate<SessionHistoryEntry>();
     new_entry->set_url(new_url);
     new_entry->set_classic_history_api_state(serialized_data.value_or(active_entry->classic_history_api_state()));
     new_entry->set_document_state(active_entry->document_state());
@@ -1984,7 +1984,7 @@ void perform_url_and_history_update_steps(DOM::Document& document, URL::URL new_
     auto traversable = navigable->traversable_navigable();
 
     // 13. Append the following session history synchronous navigation steps involving navigable to traversable:
-    traversable->append_session_history_synchronous_navigation_steps(*navigable, JS::create_heap_function(document.realm().heap(), [traversable, navigable, new_entry, entry_to_replace, history_handling] {
+    traversable->append_session_history_synchronous_navigation_steps(*navigable, GC::create_function(document.realm().heap(), [traversable, navigable, new_entry, entry_to_replace, history_handling] {
         // 1. Finalize a same-document navigation given traversable, navigable, newEntry, and entryToReplace.
         finalize_a_same_document_navigation(*traversable, *navigable, new_entry, entry_to_replace, history_handling);
 
@@ -2111,7 +2111,7 @@ void Navigable::inform_the_navigation_api_about_aborting_navigation()
     if (!active_window())
         return;
 
-    queue_global_task(Task::Source::NavigationAndTraversal, *active_window(), JS::create_heap_function(heap(), [this] {
+    queue_global_task(Task::Source::NavigationAndTraversal, *active_window(), GC::create_function(heap(), [this] {
         // 2. Let navigation be navigable's active window's navigation API.
         VERIFY(active_window());
         auto navigation = active_window()->navigation();

@@ -9,7 +9,7 @@
 
 #include <AK/Badge.h>
 #include <AK/Optional.h>
-#include <LibJS/Heap/HeapFunction.h>
+#include <LibGC/Function.h>
 #include <LibJS/Runtime/Completion.h>
 #include <LibJS/Runtime/FunctionObject.h>
 #include <LibJS/Runtime/PropertyKey.h>
@@ -18,21 +18,21 @@ namespace JS {
 
 class NativeFunction : public FunctionObject {
     JS_OBJECT(NativeFunction, FunctionObject);
-    JS_DECLARE_ALLOCATOR(NativeFunction);
+    GC_DECLARE_ALLOCATOR(NativeFunction);
 
 public:
-    static NonnullGCPtr<NativeFunction> create(Realm&, ESCAPING Function<ThrowCompletionOr<Value>(VM&)> behaviour, i32 length, PropertyKey const& name, Optional<Realm*> = {}, Optional<Object*> prototype = {}, Optional<StringView> const& prefix = {});
-    static NonnullGCPtr<NativeFunction> create(Realm&, DeprecatedFlyString const& name, ESCAPING Function<ThrowCompletionOr<Value>(VM&)>);
+    static GC::Ref<NativeFunction> create(Realm&, ESCAPING Function<ThrowCompletionOr<Value>(VM&)> behaviour, i32 length, PropertyKey const& name, Optional<Realm*> = {}, Optional<Object*> prototype = {}, Optional<StringView> const& prefix = {});
+    static GC::Ref<NativeFunction> create(Realm&, DeprecatedFlyString const& name, ESCAPING Function<ThrowCompletionOr<Value>(VM&)>);
 
     virtual ~NativeFunction() override = default;
 
     virtual ThrowCompletionOr<Value> internal_call(Value this_argument, ReadonlySpan<Value> arguments_list) override;
-    virtual ThrowCompletionOr<NonnullGCPtr<Object>> internal_construct(ReadonlySpan<Value> arguments_list, FunctionObject& new_target) override;
+    virtual ThrowCompletionOr<GC::Ref<Object>> internal_construct(ReadonlySpan<Value> arguments_list, FunctionObject& new_target) override;
 
     // Used for [[Call]] / [[Construct]]'s "...result of evaluating F in a manner that conforms to the specification of F".
     // Needs to be overridden by all NativeFunctions without an m_native_function.
     virtual ThrowCompletionOr<Value> call();
-    virtual ThrowCompletionOr<NonnullGCPtr<Object>> construct(FunctionObject& new_target);
+    virtual ThrowCompletionOr<GC::Ref<Object>> construct(FunctionObject& new_target);
 
     virtual DeprecatedFlyString const& name() const override { return m_name; }
     virtual bool is_strict_mode() const override;
@@ -44,8 +44,8 @@ public:
 
 protected:
     NativeFunction(DeprecatedFlyString name, Object& prototype);
-    NativeFunction(JS::GCPtr<JS::HeapFunction<ThrowCompletionOr<Value>(VM&)>>, Object* prototype, Realm& realm);
-    NativeFunction(DeprecatedFlyString name, JS::GCPtr<JS::HeapFunction<ThrowCompletionOr<Value>(VM&)>>, Object& prototype);
+    NativeFunction(GC::Ptr<GC::Function<ThrowCompletionOr<Value>(VM&)>>, Object* prototype, Realm& realm);
+    NativeFunction(DeprecatedFlyString name, GC::Ptr<GC::Function<ThrowCompletionOr<Value>(VM&)>>, Object& prototype);
     explicit NativeFunction(Object& prototype);
 
     virtual void initialize(Realm&) override;
@@ -55,10 +55,10 @@ private:
     virtual bool is_native_function() const final { return true; }
 
     DeprecatedFlyString m_name;
-    GCPtr<PrimitiveString> m_name_string;
+    GC::Ptr<PrimitiveString> m_name_string;
     Optional<DeprecatedFlyString> m_initial_name; // [[InitialName]]
-    JS::GCPtr<JS::HeapFunction<ThrowCompletionOr<Value>(VM&)>> m_native_function;
-    GCPtr<Realm> m_realm;
+    GC::Ptr<GC::Function<ThrowCompletionOr<Value>(VM&)>> m_native_function;
+    GC::Ptr<Realm> m_realm;
 };
 
 template<>

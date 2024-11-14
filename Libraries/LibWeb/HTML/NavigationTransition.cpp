@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibJS/Heap/Heap.h>
+#include <LibGC/Heap.h>
 #include <LibJS/Runtime/Realm.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Bindings/NavigationTransitionPrototype.h>
@@ -14,14 +14,14 @@
 
 namespace Web::HTML {
 
-JS_DEFINE_ALLOCATOR(NavigationTransition);
+GC_DEFINE_ALLOCATOR(NavigationTransition);
 
-JS::NonnullGCPtr<NavigationTransition> NavigationTransition::create(JS::Realm& realm, Bindings::NavigationType navigation_type, JS::NonnullGCPtr<NavigationHistoryEntry> from_entry, JS::NonnullGCPtr<WebIDL::Promise> finished_promise)
+GC::Ref<NavigationTransition> NavigationTransition::create(JS::Realm& realm, Bindings::NavigationType navigation_type, GC::Ref<NavigationHistoryEntry> from_entry, GC::Ref<WebIDL::Promise> finished_promise)
 {
     return realm.create<NavigationTransition>(realm, navigation_type, from_entry, finished_promise);
 }
 
-NavigationTransition::NavigationTransition(JS::Realm& realm, Bindings::NavigationType navigation_type, JS::NonnullGCPtr<NavigationHistoryEntry> from_entry, JS::NonnullGCPtr<WebIDL::Promise> finished_promise)
+NavigationTransition::NavigationTransition(JS::Realm& realm, Bindings::NavigationType navigation_type, GC::Ref<NavigationHistoryEntry> from_entry, GC::Ref<WebIDL::Promise> finished_promise)
     : Bindings::PlatformObject(realm)
     , m_navigation_type(navigation_type)
     , m_from_entry(from_entry)

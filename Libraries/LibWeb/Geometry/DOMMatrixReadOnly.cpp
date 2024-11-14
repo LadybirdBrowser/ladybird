@@ -21,10 +21,10 @@
 
 namespace Web::Geometry {
 
-JS_DEFINE_ALLOCATOR(DOMMatrixReadOnly);
+GC_DEFINE_ALLOCATOR(DOMMatrixReadOnly);
 
 // https://drafts.fxtf.org/geometry/#dom-dommatrixreadonly-dommatrixreadonly
-WebIDL::ExceptionOr<JS::NonnullGCPtr<DOMMatrixReadOnly>> DOMMatrixReadOnly::construct_impl(JS::Realm& realm, Optional<Variant<String, Vector<double>>> const& init)
+WebIDL::ExceptionOr<GC::Ref<DOMMatrixReadOnly>> DOMMatrixReadOnly::construct_impl(JS::Realm& realm, Optional<Variant<String, Vector<double>>> const& init)
 {
     auto& vm = realm.vm();
 
@@ -83,7 +83,7 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<DOMMatrixReadOnly>> DOMMatrixReadOnly::cons
 }
 
 // https://drafts.fxtf.org/geometry/#create-a-dommatrixreadonly-from-the-2d-dictionary
-WebIDL::ExceptionOr<JS::NonnullGCPtr<DOMMatrixReadOnly>> DOMMatrixReadOnly::create_from_dom_matrix_2d_init(JS::Realm& realm, DOMMatrix2DInit& init)
+WebIDL::ExceptionOr<GC::Ref<DOMMatrixReadOnly>> DOMMatrixReadOnly::create_from_dom_matrix_2d_init(JS::Realm& realm, DOMMatrix2DInit& init)
 {
     // 1. Validate and fixup (2D) other.
     TRY(validate_and_fixup_dom_matrix_2d_init(init));
@@ -102,7 +102,7 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<DOMMatrixReadOnly>> DOMMatrixReadOnly::crea
 }
 
 // https://drafts.fxtf.org/geometry/#create-a-dommatrixreadonly-from-the-dictionary
-WebIDL::ExceptionOr<JS::NonnullGCPtr<DOMMatrixReadOnly>> DOMMatrixReadOnly::create_from_dom_matrix_init(JS::Realm& realm, DOMMatrixInit& init)
+WebIDL::ExceptionOr<GC::Ref<DOMMatrixReadOnly>> DOMMatrixReadOnly::create_from_dom_matrix_init(JS::Realm& realm, DOMMatrixInit& init)
 {
     // 1. Validate and fixup other.
     TRY(validate_and_fixup_dom_matrix_init(init));
@@ -120,7 +120,7 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<DOMMatrixReadOnly>> DOMMatrixReadOnly::crea
         init.m41.value(), init.m42.value(), init.m43, init.m44);
 }
 
-JS::NonnullGCPtr<DOMMatrixReadOnly> DOMMatrixReadOnly::create(JS::Realm& realm)
+GC::Ref<DOMMatrixReadOnly> DOMMatrixReadOnly::create(JS::Realm& realm)
 {
     return realm.create<DOMMatrixReadOnly>(realm);
 }
@@ -224,13 +224,13 @@ void DOMMatrixReadOnly::initialize_from_create_3d_matrix(double m11, double m12,
 }
 
 // https://drafts.fxtf.org/geometry/#dom-dommatrixreadonly-frommatrix
-WebIDL::ExceptionOr<JS::NonnullGCPtr<DOMMatrixReadOnly>> DOMMatrixReadOnly::from_matrix(JS::VM& vm, DOMMatrixInit& other)
+WebIDL::ExceptionOr<GC::Ref<DOMMatrixReadOnly>> DOMMatrixReadOnly::from_matrix(JS::VM& vm, DOMMatrixInit& other)
 {
     return create_from_dom_matrix_init(*vm.current_realm(), other);
 }
 
 // https://drafts.fxtf.org/geometry/#dom-dommatrixreadonly-fromfloat32array
-WebIDL::ExceptionOr<JS::NonnullGCPtr<DOMMatrixReadOnly>> DOMMatrixReadOnly::from_float32_array(JS::VM& vm, JS::Handle<WebIDL::BufferSource> const& array32)
+WebIDL::ExceptionOr<GC::Ref<DOMMatrixReadOnly>> DOMMatrixReadOnly::from_float32_array(JS::VM& vm, GC::Root<WebIDL::BufferSource> const& array32)
 {
     if (!is<JS::Float32Array>(*array32))
         return vm.throw_completion<JS::TypeError>(JS::ErrorType::NotAnObjectOfType, "Float32Array");
@@ -255,7 +255,7 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<DOMMatrixReadOnly>> DOMMatrixReadOnly::from
 }
 
 // https://drafts.fxtf.org/geometry/#dom-dommatrixreadonly-fromfloat64array
-WebIDL::ExceptionOr<JS::NonnullGCPtr<DOMMatrixReadOnly>> DOMMatrixReadOnly::from_float64_array(JS::VM& vm, JS::Handle<WebIDL::BufferSource> const& array64)
+WebIDL::ExceptionOr<GC::Ref<DOMMatrixReadOnly>> DOMMatrixReadOnly::from_float64_array(JS::VM& vm, GC::Root<WebIDL::BufferSource> const& array64)
 {
     if (!is<JS::Float64Array>(*array64))
         return vm.throw_completion<JS::TypeError>(JS::ErrorType::NotAnObjectOfType, "Float64Array");
@@ -333,7 +333,7 @@ bool DOMMatrixReadOnly::is_identity() const
 }
 
 // https://drafts.fxtf.org/geometry/#dom-dommatrixreadonly-translate
-JS::NonnullGCPtr<DOMMatrix> DOMMatrixReadOnly::translate(Optional<double> const& tx, Optional<double> const& ty, Optional<double> const& tz) const
+GC::Ref<DOMMatrix> DOMMatrixReadOnly::translate(Optional<double> const& tx, Optional<double> const& ty, Optional<double> const& tz) const
 {
     // 1. Let result be the resulting matrix initialized to the values of the current matrix.
     auto result = DOMMatrix::create_from_dom_matrix_read_only(realm(), *this);
@@ -344,7 +344,7 @@ JS::NonnullGCPtr<DOMMatrix> DOMMatrixReadOnly::translate(Optional<double> const&
 }
 
 // https://drafts.fxtf.org/geometry/#dom-dommatrixreadonly-scale
-JS::NonnullGCPtr<DOMMatrix> DOMMatrixReadOnly::scale(Optional<double> scale_x, Optional<double> scale_y, Optional<double> scale_z, Optional<double> origin_x, Optional<double> origin_y, Optional<double> origin_z)
+GC::Ref<DOMMatrix> DOMMatrixReadOnly::scale(Optional<double> scale_x, Optional<double> scale_y, Optional<double> scale_z, Optional<double> origin_x, Optional<double> origin_y, Optional<double> origin_z)
 {
     // 1. If scaleY is missing, set scaleY to the value of scaleX.
     if (!scale_y.has_value())
@@ -359,7 +359,7 @@ JS::NonnullGCPtr<DOMMatrix> DOMMatrixReadOnly::scale(Optional<double> scale_x, O
 }
 
 // https://drafts.fxtf.org/geometry/#dom-dommatrixreadonly-scalenonuniform
-JS::NonnullGCPtr<DOMMatrix> DOMMatrixReadOnly::scale_non_uniform(Optional<double> scale_x, Optional<double> scale_y)
+GC::Ref<DOMMatrix> DOMMatrixReadOnly::scale_non_uniform(Optional<double> scale_x, Optional<double> scale_y)
 {
     // 1. Let result be the resulting matrix initialized to the values of the current matrix.
     auto result = DOMMatrix::create_from_dom_matrix_read_only(realm(), *this);
@@ -370,7 +370,7 @@ JS::NonnullGCPtr<DOMMatrix> DOMMatrixReadOnly::scale_non_uniform(Optional<double
 }
 
 // https://drafts.fxtf.org/geometry/#dom-dommatrixreadonly-scale3d
-JS::NonnullGCPtr<DOMMatrix> DOMMatrixReadOnly::scale3d(Optional<double> scale, Optional<double> origin_x, Optional<double> origin_y, Optional<double> origin_z)
+GC::Ref<DOMMatrix> DOMMatrixReadOnly::scale3d(Optional<double> scale, Optional<double> origin_x, Optional<double> origin_y, Optional<double> origin_z)
 {
     // 1. Let result be the resulting matrix initialized to the values of the current matrix.
     auto result = DOMMatrix::create_from_dom_matrix_read_only(realm(), *this);
@@ -380,7 +380,7 @@ JS::NonnullGCPtr<DOMMatrix> DOMMatrixReadOnly::scale3d(Optional<double> scale, O
     return result->scale3d_self(scale, origin_x, origin_y, origin_z);
 }
 
-JS::NonnullGCPtr<DOMMatrix> DOMMatrixReadOnly::rotate(Optional<double> rot_x, Optional<double> rot_y, Optional<double> rot_z)
+GC::Ref<DOMMatrix> DOMMatrixReadOnly::rotate(Optional<double> rot_x, Optional<double> rot_y, Optional<double> rot_z)
 {
     // 1. Let result be the resulting matrix initialized to the values of the current matrix.
     auto result = DOMMatrix::create_from_dom_matrix_read_only(realm(), *this);
@@ -390,7 +390,7 @@ JS::NonnullGCPtr<DOMMatrix> DOMMatrixReadOnly::rotate(Optional<double> rot_x, Op
     return result->rotate_self(rot_x, rot_y, rot_z);
 }
 
-JS::NonnullGCPtr<DOMMatrix> DOMMatrixReadOnly::rotate_from_vector(Optional<double> x, Optional<double> y)
+GC::Ref<DOMMatrix> DOMMatrixReadOnly::rotate_from_vector(Optional<double> x, Optional<double> y)
 {
     // 1. Let result be the resulting matrix initialized to the values of the current matrix.
     auto result = DOMMatrix::create_from_dom_matrix_read_only(realm(), *this);
@@ -400,7 +400,7 @@ JS::NonnullGCPtr<DOMMatrix> DOMMatrixReadOnly::rotate_from_vector(Optional<doubl
     return result->rotate_from_vector_self(x, y);
 }
 
-JS::NonnullGCPtr<DOMMatrix> DOMMatrixReadOnly::rotate_axis_angle(Optional<double> x, Optional<double> y, Optional<double> z, Optional<double> angle)
+GC::Ref<DOMMatrix> DOMMatrixReadOnly::rotate_axis_angle(Optional<double> x, Optional<double> y, Optional<double> z, Optional<double> angle)
 {
     // 1. Let result be the resulting matrix initialized to the values of the current matrix.
     auto result = DOMMatrix::create_from_dom_matrix_read_only(realm(), *this);
@@ -411,7 +411,7 @@ JS::NonnullGCPtr<DOMMatrix> DOMMatrixReadOnly::rotate_axis_angle(Optional<double
 }
 
 // https://drafts.fxtf.org/geometry/#dom-dommatrixreadonly-skewx
-JS::NonnullGCPtr<DOMMatrix> DOMMatrixReadOnly::skew_x(double sx) const
+GC::Ref<DOMMatrix> DOMMatrixReadOnly::skew_x(double sx) const
 {
     // 1. Let result be the resulting matrix initialized to the values of the current matrix.
     auto result = DOMMatrix::create_from_dom_matrix_read_only(realm(), *this);
@@ -422,7 +422,7 @@ JS::NonnullGCPtr<DOMMatrix> DOMMatrixReadOnly::skew_x(double sx) const
 }
 
 // https://drafts.fxtf.org/geometry/#dom-dommatrixreadonly-skewy
-JS::NonnullGCPtr<DOMMatrix> DOMMatrixReadOnly::skew_y(double sy) const
+GC::Ref<DOMMatrix> DOMMatrixReadOnly::skew_y(double sy) const
 {
     // 1. Let result be the resulting matrix initialized to the values of the current matrix.
     auto result = DOMMatrix::create_from_dom_matrix_read_only(realm(), *this);
@@ -433,7 +433,7 @@ JS::NonnullGCPtr<DOMMatrix> DOMMatrixReadOnly::skew_y(double sy) const
 }
 
 // https://drafts.fxtf.org/geometry/#dom-dommatrixreadonly-multiply
-WebIDL::ExceptionOr<JS::NonnullGCPtr<DOMMatrix>> DOMMatrixReadOnly::multiply(DOMMatrixInit other)
+WebIDL::ExceptionOr<GC::Ref<DOMMatrix>> DOMMatrixReadOnly::multiply(DOMMatrixInit other)
 {
     // 1. Let result be the resulting matrix initialized to the values of the current matrix.
     auto result = DOMMatrix::create_from_dom_matrix_read_only(realm(), *this);
@@ -444,7 +444,7 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<DOMMatrix>> DOMMatrixReadOnly::multiply(DOM
 }
 
 // https://drafts.fxtf.org/geometry/#dom-dommatrixreadonly-flipx
-JS::NonnullGCPtr<DOMMatrix> DOMMatrixReadOnly::flip_x()
+GC::Ref<DOMMatrix> DOMMatrixReadOnly::flip_x()
 {
     // 1. Let result be the resulting matrix initialized to the values of the current matrix.
     auto result = DOMMatrix::create_from_dom_matrix_read_only(realm(), *this);
@@ -463,7 +463,7 @@ JS::NonnullGCPtr<DOMMatrix> DOMMatrixReadOnly::flip_x()
 }
 
 // https://drafts.fxtf.org/geometry/#dom-dommatrixreadonly-flipy
-JS::NonnullGCPtr<DOMMatrix> DOMMatrixReadOnly::flip_y()
+GC::Ref<DOMMatrix> DOMMatrixReadOnly::flip_y()
 {
     // 1. Let result be the resulting matrix initialized to the values of the current matrix.
     auto result = DOMMatrix::create_from_dom_matrix_read_only(realm(), *this);
@@ -482,7 +482,7 @@ JS::NonnullGCPtr<DOMMatrix> DOMMatrixReadOnly::flip_y()
 }
 
 // https://drafts.fxtf.org/geometry/#dom-dommatrixreadonly-inverse
-JS::NonnullGCPtr<DOMMatrix> DOMMatrixReadOnly::inverse() const
+GC::Ref<DOMMatrix> DOMMatrixReadOnly::inverse() const
 {
     // 1. Let result be the resulting matrix initialized to the values of the current matrix.
     auto result = DOMMatrix::create_from_dom_matrix_read_only(realm(), *this);
@@ -494,7 +494,7 @@ JS::NonnullGCPtr<DOMMatrix> DOMMatrixReadOnly::inverse() const
 }
 
 // https://drafts.fxtf.org/geometry/#dom-dommatrixreadonly-transformpoint
-JS::NonnullGCPtr<DOMPoint> DOMMatrixReadOnly::transform_point(DOMPointInit const& point) const
+GC::Ref<DOMPoint> DOMMatrixReadOnly::transform_point(DOMPointInit const& point) const
 {
     // Let pointObject be the result of invoking create a DOMPoint from the dictionary point.
     auto point_object = DOMPoint::from_point(realm().vm(), point);
@@ -504,7 +504,7 @@ JS::NonnullGCPtr<DOMPoint> DOMMatrixReadOnly::transform_point(DOMPointInit const
 }
 
 // https://drafts.fxtf.org/geometry/#transform-a-point-with-a-matrix
-JS::NonnullGCPtr<DOMPoint> DOMMatrixReadOnly::transform_point(DOMPointReadOnly const& point) const
+GC::Ref<DOMPoint> DOMMatrixReadOnly::transform_point(DOMPointReadOnly const& point) const
 {
     // 1. Let x be point’s x coordinate.
     // 2. Let y be point’s y coordinate.
@@ -527,7 +527,7 @@ JS::NonnullGCPtr<DOMPoint> DOMMatrixReadOnly::transform_point(DOMPointReadOnly c
 }
 
 // https://drafts.fxtf.org/geometry/#dom-dommatrixreadonly-tofloat32array
-JS::NonnullGCPtr<JS::Float32Array> DOMMatrixReadOnly::to_float32_array() const
+GC::Ref<JS::Float32Array> DOMMatrixReadOnly::to_float32_array() const
 {
     // Returns the serialized 16 elements m11 to m44 of the current matrix in column-major order as Float32Array.
     float elements[16] = { static_cast<float>(m11()), static_cast<float>(m12()), static_cast<float>(m13()), static_cast<float>(m14()),
@@ -540,7 +540,7 @@ JS::NonnullGCPtr<JS::Float32Array> DOMMatrixReadOnly::to_float32_array() const
 }
 
 // https://drafts.fxtf.org/geometry/#dom-dommatrixreadonly-tofloat64array
-JS::NonnullGCPtr<JS::Float64Array> DOMMatrixReadOnly::to_float64_array() const
+GC::Ref<JS::Float64Array> DOMMatrixReadOnly::to_float64_array() const
 {
     // Returns the serialized 16 elements m11 to m44 of the current matrix in column-major order as Float64Array.
     double elements[16] = { m11(), m12(), m13(), m14(),

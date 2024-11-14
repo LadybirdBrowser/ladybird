@@ -12,14 +12,14 @@ namespace JS {
 
 class AsyncFunctionConstructor final : public NativeFunction {
     JS_OBJECT(AsyncFunctionConstructor, NativeFunction);
-    JS_DECLARE_ALLOCATOR(AsyncFunctionConstructor);
+    GC_DECLARE_ALLOCATOR(AsyncFunctionConstructor);
 
 public:
     virtual void initialize(Realm&) override;
     virtual ~AsyncFunctionConstructor() override = default;
 
     virtual ThrowCompletionOr<Value> call() override;
-    virtual ThrowCompletionOr<NonnullGCPtr<Object>> construct(FunctionObject& new_target) override;
+    virtual ThrowCompletionOr<GC::Ref<Object>> construct(FunctionObject& new_target) override;
 
 private:
     explicit AsyncFunctionConstructor(Realm&);
