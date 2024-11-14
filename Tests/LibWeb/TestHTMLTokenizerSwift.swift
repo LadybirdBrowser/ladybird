@@ -69,11 +69,13 @@ struct TestHTMLTokenizerSwift {
         #expect(tokenizer.state == HTMLTokenizer.State.Data)  // initial state
 
         let token = tokenizer.nextToken()
-        #expect(token?.type == .EndOfFile)
-        #expect(tokenizer.state == HTMLTokenizer.State.CharacterReference)
+        #expect(token?.type == .Character(codePoint: "&"))
 
         let token2 = tokenizer.nextToken()
-        #expect(token2 == nil)
+        #expect(token2?.type == .EndOfFile)
+
+        let token3 = tokenizer.nextToken()
+        #expect(token3 == nil)
     }
 
     @Test func tagOpenOnly() {

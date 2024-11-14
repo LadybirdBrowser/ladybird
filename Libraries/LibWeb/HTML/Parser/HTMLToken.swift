@@ -163,6 +163,81 @@ public class HTMLToken {
             }
         }
     }
+    public var name: Swift.String? {
+        get {
+            switch self.type {
+            case .DOCTYPE(let name, _, _, _):
+                return name
+            default:
+                preconditionFailure("doctypeName called on non-doctype token")
+            }
+        }
+        set {
+            switch self.type {
+            case .DOCTYPE(_, let publicIdentifier, let systemIdentifier, let forceQuirksMode):
+                self.type = .DOCTYPE(name: newValue, publicIdentifier: publicIdentifier, systemIdentifier: systemIdentifier, forceQuirksMode: forceQuirksMode)
+            default:
+                preconditionFailure("doctypeName= called on non-doctype token")
+            }
+        }
+    }
+
+    public var forceQuirks: Bool {
+        get {
+            switch self.type {
+            case .DOCTYPE(_, _, _, let forceQuirksMode):
+                return forceQuirksMode
+            default:
+                preconditionFailure("forceQuirks called on non-doctype token")
+            }
+        }
+        set {
+            switch self.type {
+            case .DOCTYPE(let name, let publicIdentifier, let systemIdentifier, _):
+                self.type = .DOCTYPE(name: name, publicIdentifier: publicIdentifier, systemIdentifier: systemIdentifier, forceQuirksMode: newValue)
+            default:
+                preconditionFailure("forceQuirks= called on non-doctype token")
+            }
+        }
+    }
+
+    public var publicIdentifier: Swift.String? {
+        get {
+            switch self.type {
+            case .DOCTYPE(_, let publicIdentifier, _, _):
+                return publicIdentifier
+            default:
+                preconditionFailure("publicIdentifier called on non-doctype token")
+            }
+        }
+        set {
+            switch self.type {
+            case .DOCTYPE(let name, _, let systemIdentifier, let forceQuirksMode):
+                self.type = .DOCTYPE(name: name, publicIdentifier: newValue, systemIdentifier: systemIdentifier, forceQuirksMode: forceQuirksMode)
+            default:
+                preconditionFailure("publicIdentifier= called on non-doctype token")
+            }
+        }
+    }
+
+    public var systemIdentifier: Swift.String? {
+        get {
+            switch self.type {
+            case .DOCTYPE(_, _, let systemIdentifier, _):
+                return systemIdentifier
+            default:
+                preconditionFailure("systemIdentifier called on non-doctype token")
+            }
+        }
+        set {
+            switch self.type {
+            case .DOCTYPE(let name, let publicIdentifier, _, let forceQuirksMode):
+                self.type = .DOCTYPE(name: name, publicIdentifier: publicIdentifier, systemIdentifier: newValue, forceQuirksMode: forceQuirksMode)
+            default:
+                preconditionFailure("systemIdentifier= called on non-doctype token")
+            }
+        }
+    }
 
     public init() {}
     public init(type: TokenType) {
