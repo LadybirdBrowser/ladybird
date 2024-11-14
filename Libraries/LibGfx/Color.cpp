@@ -433,6 +433,26 @@ Color Color::from_a98rgb(float r, float g, float b, float alpha)
     return from_xyz65(x, y, z, alpha);
 }
 
+// https://www.w3.org/TR/css-color-4/#predefined-a98-rgb
+Color Color::from_display_p3(float r, float g, float b, float alpha)
+{
+    auto to_linear = [](float c) {
+        if (c < 0.04045)
+            return c / 12.92;
+        return pow((c + 0.055) / (1.055), 2.4);
+    };
+
+    auto linear_r = to_linear(r);
+    auto linear_g = to_linear(g);
+    auto linear_b = to_linear(b);
+
+    float x = 0.48657095 * linear_r + 0.26566769 * linear_g + 0.19821729 * linear_b;
+    float y = 0.22897456 * linear_r + 0.69173852 * linear_g + 0.07928691 * linear_b;
+    float z = 0.00000000 * linear_r + 0.04511338 * linear_g + 1.04394437 * linear_b;
+
+    return from_xyz65(x, y, z, alpha);
+}
+
 Color Color::from_xyz50(float x, float y, float z, float alpha)
 {
     // See commit description for these values

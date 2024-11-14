@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>CSS Color 4: display-p3</title>
+<link rel="author" title="Chris Lilley" href="mailto:chris@w3.org">
+<link rel="help" href="https://drafts.csswg.org/css-color-4/#valdef-color-display-p3">
+<link rel="help" href="https://drafts.csswg.org/css-color-4/#predefined-to-predefined">
+<link rel="match" href="../../../../expected/wpt-import/css/css-color/blacksquare-ref.html">
+<meta name="assert" content="display-p3 with no alpha">
+<style>
+    .test { background-color: red; width: 12em; height: 12em; }
+    .test { background-color: color(display-p3 0 0 0); } /* black (sRGB #000000) converted to display-p3 */
+</style>
+<body>
+    <p>Test passes if you see a black square, and no red.</p>
+    <div class="test"></div>
+</body>
