@@ -21,6 +21,7 @@ set(SOURCES
     CyclicModule.cpp
     Heap/BlockAllocator.cpp
     Heap/Cell.cpp
+    Heap/CellImpl.cpp
     Heap/CellAllocator.cpp
     Heap/ConservativeVector.cpp
     Heap/Handle.cpp

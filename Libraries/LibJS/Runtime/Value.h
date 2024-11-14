@@ -19,6 +19,7 @@
 #include <AK/String.h>
 #include <AK/Types.h>
 #include <LibJS/Forward.h>
+#include <LibJS/Heap/Cell.h>
 #include <LibJS/Heap/GCPtr.h>
 #include <LibJS/Heap/Handle.h>
 #include <LibJS/Heap/NanBoxedValue.h>
@@ -254,6 +255,18 @@ public:
     Value(Handle<T> const& ptr)
         : Value(ptr.ptr())
     {
+    }
+
+    Cell& as_cell()
+    {
+        VERIFY(is_cell());
+        return *extract_pointer<Cell>();
+    }
+
+    Cell& as_cell() const
+    {
+        VERIFY(is_cell());
+        return *extract_pointer<Cell>();
     }
 
     double as_double() const
@@ -661,14 +674,14 @@ private:
     {
     }
 
-    explicit Handle(Value value, Cell* cell, SourceLocation location)
+    explicit Handle(Value value, CellImpl* cell, SourceLocation location)
         : m_value(value)
-        , m_handle(Handle<Cell>::create(cell, location))
+        , m_handle(Handle<CellImpl>::create(cell, location))
     {
     }
 
     Optional<Value> m_value;
-    Handle<Cell> m_handle;
+    Handle<CellImpl> m_handle;
 };
 
 inline Handle<Value> make_handle(Value value, SourceLocation location = SourceLocation::current())

@@ -9,6 +9,7 @@
 #pragma once
 
 #include <AK/HashMap.h>
+#include <LibJS/Heap/Cell.h>
 #include <LibJS/Heap/GCPtr.h>
 #include <LibJS/Heap/HeapFunction.h>
 #include <LibWeb/WebIDL/Types.h>

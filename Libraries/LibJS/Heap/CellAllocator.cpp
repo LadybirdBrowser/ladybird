@@ -18,7 +18,7 @@ CellAllocator::CellAllocator(size_t cell_size, char const* class_name)
 {
 }
 
-Cell* CellAllocator::allocate_cell(Heap& heap)
+CellImpl* CellAllocator::allocate_cell(Heap& heap)
 {
     if (!m_list_node.is_in_list())
         heap.register_cell_allocator({}, *this);

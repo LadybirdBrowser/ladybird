@@ -28,7 +28,7 @@ public:
 
     size_t cell_size() const { return m_cell_size; }
 
-    Cell* allocate_cell(Heap&);
+    CellImpl* allocate_cell(Heap&);
 
     template<typename Callback>
     IterationDecision for_each_block(Callback callback)

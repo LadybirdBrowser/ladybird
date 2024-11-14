@@ -39,9 +39,9 @@ static bool record_inherits_from_cell(clang::CXXRecordDecl const& record)
     if (!record.isCompleteDefinition())
         return false;
 
-    bool inherits_from_cell = record.getQualifiedNameAsString() == "JS::Cell";
+    bool inherits_from_cell = record.getQualifiedNameAsString() == "JS::CellImpl";
     record.forallBases([&](clang::CXXRecordDecl const* base) -> bool {
-        if (base->getQualifiedNameAsString() == "JS::Cell") {
+        if (base->getQualifiedNameAsString() == "JS::CellImpl") {
             inherits_from_cell = true;
             return false;
         }
@@ -173,7 +173,7 @@ bool LibJSGCVisitor::VisitCXXRecordDecl(clang::CXXRecordDecl* record)
     // Cell triggers a bunch of warnings for its empty visit_edges implementation, but
     // it doesn't have any members anyways so it's fine to just ignore.
     auto qualified_name = record->getQualifiedNameAsString();
-    if (qualified_name == "JS::Cell")
+    if (qualified_name == "JS::CellImpl")
         return true;
 
     auto& diag_engine = m_context.getDiagnostics();
@@ -192,7 +192,7 @@ bool LibJSGCVisitor::VisitCXXRecordDecl(clang::CXXRecordDecl* record)
 
         if (outer_type == OuterType::Ptr || outer_type == OuterType::Ref) {
             if (base_type_inherits_from_cell) {
-                auto diag_id = diag_engine.getCustomDiagID(clang::DiagnosticsEngine::Error, "%0 to JS::Cell type should be wrapped in %1");
+                auto diag_id = diag_engine.getCustomDiagID(clang::DiagnosticsEngine::Error, "%0 to JS::CellImpl type should be wrapped in %1");
                 auto builder = diag_engine.Report(field->getLocation(), diag_id);
                 if (outer_type == OuterType::Ref) {
                     builder << "reference"
@@ -204,7 +204,7 @@ bool LibJSGCVisitor::VisitCXXRecordDecl(clang::CXXRecordDecl* record)
             }
         } else if (outer_type == OuterType::GCPtr || outer_type == OuterType::RawGCPtr) {
             if (!base_type_inherits_from_cell) {
-                auto diag_id = diag_engine.getCustomDiagID(clang::DiagnosticsEngine::Error, "Specialization type must inherit from JS::Cell");
+                auto diag_id = diag_engine.getCustomDiagID(clang::DiagnosticsEngine::Error, "Specialization type must inherit from JS::CellImpl");
                 diag_engine.Report(field->getLocation(), diag_id);
             } else if (outer_type == OuterType::GCPtr) {
                 fields_that_need_visiting.push_back(field);
@@ -212,7 +212,7 @@ bool LibJSGCVisitor::VisitCXXRecordDecl(clang::CXXRecordDecl* record)
         } else if (outer_type == OuterType::Handle) {
             if (record_is_cell && m_detect_invalid_function_members) {
                 // FIXME: Change this to an Error when all of the use cases get addressed and remove the plugin argument
-                auto diag_id = diag_engine.getCustomDiagID(clang::DiagnosticsEngine::Warning, "Types inheriting from JS::Cell should not have %0 fields");
+                auto diag_id = diag_engine.getCustomDiagID(clang::DiagnosticsEngine::Warning, "Types inheriting from JS::CellImpl should not have %0 fields");
                 auto builder = diag_engine.Report(field->getLocation(), diag_id);
                 builder << "JS::Handle";
             }
@@ -311,7 +311,7 @@ static std::optional<CellTypeWithOrigin> find_cell_type_with_origin(clang::CXXRe
         if (auto const* base_record = base.getType()->getAsCXXRecordDecl()) {
             auto base_name = base_record->getQualifiedNameAsString();
 
-            if (base_name == "JS::Cell")
+            if (base_name == "JS::CellImpl")
                 return CellTypeWithOrigin { *base_record, LibJSCellMacro::Type::JSCell };
 
             if (base_name == "JS::Object")

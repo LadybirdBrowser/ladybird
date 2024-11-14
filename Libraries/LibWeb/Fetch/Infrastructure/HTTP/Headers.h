@@ -14,6 +14,7 @@
 #include <AK/String.h>
 #include <AK/Vector.h>
 #include <LibJS/Forward.h>
+#include <LibJS/Heap/Cell.h>
 #include <LibJS/Heap/GCPtr.h>
 #include <LibJS/Heap/Heap.h>
 #include <LibWeb/MimeSniff/MimeType.h>

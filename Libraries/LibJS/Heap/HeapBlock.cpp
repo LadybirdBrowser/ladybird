@@ -37,16 +37,16 @@ HeapBlock::HeapBlock(Heap& heap, CellAllocator& cell_allocator, size_t cell_size
     ASAN_POISON_MEMORY_REGION(m_storage, block_size - sizeof(HeapBlock));
 }
 
-void HeapBlock::deallocate(Cell* cell)
+void HeapBlock::deallocate(CellImpl* cell)
 {
     VERIFY(is_valid_cell_pointer(cell));
     VERIFY(!m_freelist || is_valid_cell_pointer(m_freelist));
-    VERIFY(cell->state() == Cell::State::Live);
+    VERIFY(cell->state() == CellImpl::State::Live);
     VERIFY(!cell->is_marked());
 
-    cell->~Cell();
+    cell->~CellImpl();
     auto* freelist_entry = new (cell) FreelistEntry();
-    freelist_entry->set_state(Cell::State::Dead);
+    freelist_entry->set_state(CellImpl::State::Dead);
     freelist_entry->next = m_freelist;
     m_freelist = freelist_entry;
 

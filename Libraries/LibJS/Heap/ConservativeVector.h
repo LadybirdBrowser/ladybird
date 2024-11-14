@@ -10,7 +10,7 @@
 #include <AK/IntrusiveList.h>
 #include <AK/Vector.h>
 #include <LibJS/Forward.h>
-#include <LibJS/Heap/Cell.h>
+#include <LibJS/Heap/CellImpl.h>
 #include <LibJS/Heap/HeapRoot.h>
 
 namespace JS {

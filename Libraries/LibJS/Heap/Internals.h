@@ -17,15 +17,15 @@ class HeapBase {
     AK_MAKE_NONMOVABLE(HeapBase);
 
 public:
-    VM& vm() { return m_vm; }
+    void* private_data() { return m_private_data; }
 
 protected:
-    HeapBase(VM& vm)
-        : m_vm(vm)
+    explicit HeapBase(void* private_data)
+        : m_private_data(private_data)
     {
     }
 
-    VM& m_vm;
+    void* m_private_data;
 };
 
 class HeapBlockBase {
@@ -34,7 +34,7 @@ class HeapBlockBase {
 
 public:
     static size_t block_size;
-    static HeapBlockBase* from_cell(Cell const* cell)
+    static HeapBlockBase* from_cell(CellImpl const* cell)
     {
         return reinterpret_cast<HeapBlockBase*>(bit_cast<FlatPtr>(cell) & ~(HeapBlockBase::block_size - 1));
     }

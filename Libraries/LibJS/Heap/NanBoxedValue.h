@@ -86,16 +86,16 @@ public:
         return reinterpret_cast<PointerType*>(extract_pointer_bits(m_value.encoded));
     }
 
-    Cell& as_cell()
+    CellImpl& as_cell()
     {
         VERIFY(is_cell());
-        return *extract_pointer<Cell>();
+        return *extract_pointer<CellImpl>();
     }
 
-    Cell& as_cell() const
+    CellImpl& as_cell() const
     {
         VERIFY(is_cell());
-        return *extract_pointer<Cell>();
+        return *extract_pointer<CellImpl>();
     }
 
     bool is_nan() const

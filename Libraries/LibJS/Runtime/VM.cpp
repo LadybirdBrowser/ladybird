@@ -62,7 +62,7 @@ static constexpr auto make_single_ascii_character_strings(IndexSequence<code_poi
 static constexpr auto single_ascii_character_strings = make_single_ascii_character_strings(MakeIndexSequence<128>());
 
 VM::VM(OwnPtr<CustomData> custom_data, ErrorMessages error_messages)
-    : m_heap(*this, [this](HashMap<Cell*, JS::HeapRoot>& roots) {
+    : m_heap(this, [this](HashMap<CellImpl*, JS::HeapRoot>& roots) {
         gather_roots(roots);
     })
     , m_error_messages(move(error_messages))
@@ -204,7 +204,7 @@ Bytecode::Interpreter& VM::bytecode_interpreter()
 }
 
 struct ExecutionContextRootsCollector : public Cell::Visitor {
-    virtual void visit_impl(Cell& cell) override
+    virtual void visit_impl(CellImpl& cell) override
     {
         roots.set(&cell);
     }
@@ -214,10 +214,10 @@ struct ExecutionContextRootsCollector : public Cell::Visitor {
         VERIFY_NOT_REACHED();
     }
 
-    HashTable<GCPtr<Cell>> roots;
+    HashTable<GCPtr<CellImpl>> roots;
 };
 
-void VM::gather_roots(HashMap<Cell*, HeapRoot>& roots)
+void VM::gather_roots(HashMap<CellImpl*, HeapRoot>& roots)
 {
     roots.set(m_empty_string, HeapRoot { .type = HeapRoot::Type::VM });
     for (auto string : m_single_ascii_character_strings)
