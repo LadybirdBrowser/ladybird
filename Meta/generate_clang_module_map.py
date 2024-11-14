@@ -26,10 +26,11 @@ def main():
                  epilog=__doc__,
                  formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument('directory', help='source directory to generate module map for')
-    parser.add_argument('generated_files', nargs='+', help='extra files to include in the module map')
-    parser.add_argument('-n', '--module-name', help='top-level module name')
-    parser.add_argument('-m', '--module-map', required=True, help='output module map file')
-    parser.add_argument('-v', '--vfs-map', required=True, help='output VFS map file')
+    parser.add_argument('--module-name', help='top-level module name')
+    parser.add_argument('--module-map', required=True, help='output module map file')
+    parser.add_argument('--vfs-map', required=True, help='output VFS map file')
+    parser.add_argument('--exclude-files', nargs='*', required=False, help='files to exclude in the module map')
+    parser.add_argument('--generated-files', nargs='*', help='extra files to include in the module map')
     args = parser.parse_args()
 
     root = pathlib.Path(args.directory)
@@ -38,8 +39,9 @@ def main():
         return 1
     pathlib.Path(args.module_map).parent.mkdir(parents=True, exist_ok=True)
     pathlib.Path(args.vfs_map).parent.mkdir(parents=True, exist_ok=True)
+    exclude_files = set(args.exclude_files) if args.exclude_files else set()
 
-    header_files = [f for f in root.rglob('**/*.h') if f.is_file()]
+    header_files = [f for f in root.rglob('**/*.h') if f.is_file() and f.name not in exclude_files]
     module_name = args.module_name if args.module_name else root.name
 
     module_map = f"module {module_name} {{\n"
