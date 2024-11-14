@@ -99,7 +99,6 @@ void Range::update_associated_selection()
     auto& document = m_start_container->document();
     if (auto* viewport = document.paintable()) {
         viewport->recompute_selection_states(*this);
-        viewport->update_selection();
         viewport->set_needs_display();
     }
 

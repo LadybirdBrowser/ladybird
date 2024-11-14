@@ -1234,8 +1234,6 @@ void Document::update_layout()
         page().client().page_did_layout();
     }
 
-    paintable()->update_selection();
-
     m_needs_layout = false;
 
     // Scrolling by zero offset will clamp scroll offset back to valid range if it was out of bounds
