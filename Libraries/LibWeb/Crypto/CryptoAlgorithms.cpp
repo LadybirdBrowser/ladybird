@@ -3589,8 +3589,6 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<CryptoKey>> HMAC::import_key(Web::Crypto::A
 // https://w3c.github.io/webcrypto/#hmac-operations
 WebIDL::ExceptionOr<JS::NonnullGCPtr<JS::Object>> HMAC::export_key(Bindings::KeyFormat format, JS::NonnullGCPtr<CryptoKey> key)
 {
-    auto& vm = m_realm->vm();
-
     // 1. If the underlying cryptographic key material represented by the [[handle]] internal slot
     //    of key cannot be accessed, then throw an OperationError.
     // NOTE: In our impl this is always accessible
@@ -3657,15 +3655,10 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<JS::Object>> HMAC::export_key(Bindings::Key
         }
 
         // Set the key_ops attribute of jwk to equal the usages attribute of key.
-        auto key_usages = verify_cast<JS::Array>(key->usages());
-        auto key_usages_length = MUST(MUST(key_usages->get(vm.names.length)).to_length(vm));
-        for (auto i = 0u; i < key_usages_length; ++i) {
-            auto usage = key_usages->get(i);
-            if (!usage.has_value())
-                break;
-
-            auto usage_string = TRY(usage.value().to_string(vm));
-            jwk.key_ops->append(usage_string);
+        jwk.key_ops = Vector<String> {};
+        jwk.key_ops->ensure_capacity(key->internal_usages().size());
+        for (auto const& usage : key->internal_usages()) {
+            jwk.key_ops->append(Bindings::idl_enum_to_string(usage));
         }
 
         // Set the ext attribute of jwk to equal the [[extractable]] internal slot of key.
