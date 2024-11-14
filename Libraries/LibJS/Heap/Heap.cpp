@@ -18,8 +18,8 @@
 #include <LibJS/Heap/Handle.h>
 #include <LibJS/Heap/Heap.h>
 #include <LibJS/Heap/HeapBlock.h>
+#include <LibJS/Heap/NanBoxedValue.h>
 #include <LibJS/Runtime/VM.h>
-#include <LibJS/Runtime/Value.h>
 #include <setjmp.h>
 
 #ifdef HAS_ADDRESS_SANITIZER
@@ -61,23 +61,23 @@ void Heap::will_allocate(size_t size)
 
 static void add_possible_value(HashMap<FlatPtr, HeapRoot>& possible_pointers, FlatPtr data, HeapRoot origin, FlatPtr min_block_address, FlatPtr max_block_address)
 {
-    if constexpr (sizeof(FlatPtr*) == sizeof(Value)) {
-        // Because Value stores pointers in non-canonical form we have to check if the top bytes
+    if constexpr (sizeof(FlatPtr*) == sizeof(NanBoxedValue)) {
+        // Because NanBoxedValue stores pointers in non-canonical form we have to check if the top bytes
         // match any pointer-backed tag, in that case we have to extract the pointer to its
         // canonical form and add that as a possible pointer.
         FlatPtr possible_pointer;
         if ((data & SHIFTED_IS_CELL_PATTERN) == SHIFTED_IS_CELL_PATTERN)
-            possible_pointer = Value::extract_pointer_bits(data);
+            possible_pointer = NanBoxedValue::extract_pointer_bits(data);
         else
             possible_pointer = data;
         if (possible_pointer < min_block_address || possible_pointer > max_block_address)
             return;
         possible_pointers.set(possible_pointer, move(origin));
     } else {
-        static_assert((sizeof(Value) % sizeof(FlatPtr*)) == 0);
+        static_assert((sizeof(NanBoxedValue) % sizeof(FlatPtr*)) == 0);
         if (data < min_block_address || data > max_block_address)
             return;
-        // In the 32-bit case we will look at the top and bottom part of Value separately we just
+        // In the 32-bit case we will look at the top and bottom part of NanBoxedValue separately we just
         // add both the upper and lower bytes as possible pointers.
         possible_pointers.set(data, move(origin));
     }

@@ -6,7 +6,7 @@
 
 #include <LibJS/Heap/Cell.h>
 #include <LibJS/Heap/Heap.h>
-#include <LibJS/Runtime/Value.h>
+#include <LibJS/Heap/NanBoxedValue.h>
 
 namespace JS {
 
@@ -14,7 +14,7 @@ void JS::Cell::initialize(JS::Realm&)
 {
 }
 
-void JS::Cell::Visitor::visit(JS::Value value)
+void JS::Cell::Visitor::visit(NanBoxedValue const& value)
 {
     if (value.is_cell())
         visit_impl(value.as_cell());

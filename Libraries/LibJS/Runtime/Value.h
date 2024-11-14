@@ -21,6 +21,7 @@
 #include <LibJS/Forward.h>
 #include <LibJS/Heap/GCPtr.h>
 #include <LibJS/Heap/Handle.h>
+#include <LibJS/Heap/NanBoxedValue.h>
 #include <math.h>
 
 namespace JS {
@@ -29,44 +30,6 @@ namespace JS {
 static constexpr double MAX_ARRAY_LIKE_INDEX = 9007199254740991.0;
 // Unique bit representation of negative zero (only sign bit set)
 static constexpr u64 NEGATIVE_ZERO_BITS = ((u64)1 << 63);
-
-static_assert(sizeof(double) == 8);
-static_assert(sizeof(void*) == sizeof(double) || sizeof(void*) == sizeof(u32));
-// To make our Value representation compact we can use the fact that IEEE
-// doubles have a lot (2^52 - 2) of NaN bit patterns. The canonical form being
-// just 0x7FF8000000000000 i.e. sign = 0 exponent is all ones and the top most
-// bit of the mantissa set.
-static constexpr u64 CANON_NAN_BITS = bit_cast<u64>(__builtin_nan(""));
-static_assert(CANON_NAN_BITS == 0x7FF8000000000000);
-// (Unfortunately all the other values are valid so we have to convert any
-// incoming NaNs to this pattern although in practice it seems only the negative
-// version of these CANON_NAN_BITS)
-// +/- Infinity are represented by a full exponent but without any bits of the
-// mantissa set.
-static constexpr u64 POSITIVE_INFINITY_BITS = bit_cast<u64>(__builtin_huge_val());
-static constexpr u64 NEGATIVE_INFINITY_BITS = bit_cast<u64>(-__builtin_huge_val());
-static_assert(POSITIVE_INFINITY_BITS == 0x7FF0000000000000);
-static_assert(NEGATIVE_INFINITY_BITS == 0xFFF0000000000000);
-// However as long as any bit is set in the mantissa with the exponent of all
-// ones this value is a NaN, and it even ignores the sign bit.
-// (NOTE: we have to use __builtin_isnan here since some isnan implementations are not constexpr)
-static_assert(__builtin_isnan(bit_cast<double>(0x7FF0000000000001)));
-static_assert(__builtin_isnan(bit_cast<double>(0xFFF0000000040000)));
-// This means we can use all of these NaNs to store all other options for Value.
-// To make sure all of these other representations we use 0x7FF8 as the base top
-// 2 bytes which ensures the value is always a NaN.
-static constexpr u64 BASE_TAG = 0x7FF8;
-// This leaves the sign bit and the three lower bits for tagging a value and then
-// 48 bits of potential payload.
-// First the pointer backed types (Object, String etc.), to signify this category
-// and make stack scanning easier we use the sign bit (top most bit) of 1 to
-// signify that it is a pointer backed type.
-static constexpr u64 IS_CELL_BIT = 0x8000 | BASE_TAG;
-// On all current 64-bit systems this code runs pointer actually only use the
-// lowest 6 bytes which fits neatly into our NaN payload with the top two bytes
-// left over for marking it as a NaN and tagging the type.
-// Note that we do need to take care when extracting the pointer value but this
-// is explained in the extract_pointer method.
 
 // This leaves us 3 bits to tag the type of pointer:
 static constexpr u64 OBJECT_TAG = 0b001 | IS_CELL_BIT;
@@ -77,7 +40,6 @@ static constexpr u64 BIGINT_TAG = 0b101 | IS_CELL_BIT;
 
 // We can then by extracting the top 13 bits quickly check if a Value is
 // pointer backed.
-static constexpr u64 IS_CELL_PATTERN = 0xFFF8ULL;
 static_assert((OBJECT_TAG & IS_CELL_PATTERN) == IS_CELL_PATTERN);
 static_assert((STRING_TAG & IS_CELL_PATTERN) == IS_CELL_PATTERN);
 static_assert((CANON_NAN_BITS & IS_CELL_PATTERN) != IS_CELL_PATTERN);
@@ -104,11 +66,8 @@ static_assert((EMPTY_TAG & IS_NULLISH_EXTRACT_PATTERN) != IS_NULLISH_PATTERN);
 // values are not valid anywhere else we can use this "value" to our advantage
 // in Optional<Value> to represent the empty optional.
 
-static constexpr u64 TAG_EXTRACTION = 0xFFFF000000000000;
-static constexpr u64 TAG_SHIFT = 48;
 static constexpr u64 SHIFTED_BOOLEAN_TAG = BOOLEAN_TAG << TAG_SHIFT;
 static constexpr u64 SHIFTED_INT32_TAG = INT32_TAG << TAG_SHIFT;
-static constexpr u64 SHIFTED_IS_CELL_PATTERN = IS_CELL_PATTERN << TAG_SHIFT;
 
 // Summary:
 // To pack all the different value in to doubles we use the following schema:
@@ -125,7 +84,7 @@ static constexpr u64 SHIFTED_IS_CELL_PATTERN = IS_CELL_PATTERN << TAG_SHIFT;
 // options from 8 tags to 15 but since we currently only use 5 for both sign bits
 // this is not needed.
 
-class Value {
+class Value : public NanBoxedValue {
 public:
     enum class PreferredType {
         Default,
@@ -146,17 +105,11 @@ public:
     bool is_accessor() const { return m_value.tag == ACCESSOR_TAG; }
     bool is_bigint() const { return m_value.tag == BIGINT_TAG; }
     bool is_nullish() const { return (m_value.tag & IS_NULLISH_EXTRACT_PATTERN) == IS_NULLISH_PATTERN; }
-    bool is_cell() const { return (m_value.tag & IS_CELL_PATTERN) == IS_CELL_PATTERN; }
     ThrowCompletionOr<bool> is_array(VM&) const;
     bool is_function() const;
     bool is_constructor() const;
     bool is_error() const;
     ThrowCompletionOr<bool> is_regexp(VM&) const;
-
-    bool is_nan() const
-    {
-        return m_value.encoded == CANON_NAN_BITS;
-    }
 
     bool is_infinity() const
     {
@@ -353,18 +306,6 @@ public:
         return *extract_pointer<Symbol>();
     }
 
-    Cell& as_cell()
-    {
-        VERIFY(is_cell());
-        return *extract_pointer<Cell>();
-    }
-
-    Cell& as_cell() const
-    {
-        VERIFY(is_cell());
-        return *extract_pointer<Cell>();
-    }
-
     Accessor& as_accessor()
     {
         VERIFY(is_accessor());
@@ -434,27 +375,6 @@ public:
     template<typename... Args>
     [[nodiscard]] ALWAYS_INLINE ThrowCompletionOr<Value> invoke(VM&, PropertyKey const& property_key, Args... args);
 
-    static constexpr FlatPtr extract_pointer_bits(u64 encoded)
-    {
-#ifdef AK_ARCH_32_BIT
-        // For 32-bit system the pointer fully fits so we can just return it directly.
-        static_assert(sizeof(void*) == sizeof(u32));
-        return static_cast<FlatPtr>(encoded & 0xffff'ffff);
-#elif ARCH(X86_64) || ARCH(RISCV64)
-        // For x86_64 and riscv64 the top 16 bits should be sign extending the "real" top bit (47th).
-        // So first shift the top 16 bits away then using the right shift it sign extends the top 16 bits.
-        return static_cast<FlatPtr>((static_cast<i64>(encoded << 16)) >> 16);
-#elif ARCH(AARCH64) || ARCH(PPC64) || ARCH(PPC64LE)
-        // For AArch64 the top 16 bits of the pointer should be zero.
-        // For PPC64: all 64 bits can be used for pointers, however on Linux only
-        //            the lower 43 bits are used for user-space addresses, so
-        //            masking off the top 16 bits should match the rest of LibJS.
-        return static_cast<FlatPtr>(encoded & 0xffff'ffff'ffffULL);
-#else
-#    error "Unknown architecture. Don't know whether pointers need to be sign-extended."
-#endif
-    }
-
     // A double is any Value which does not have the full exponent and top mantissa bit set or has
     // exactly only those bits set.
     bool is_double() const { return (m_value.encoded & CANON_NAN_BITS) != CANON_NAN_BITS || (m_value.encoded == CANON_NAN_BITS); }
@@ -511,30 +431,14 @@ private:
             //       This means that all bits above the 47th should be the same as
             //       the 47th. When storing a pointer we thus drop the top 16 bits as
             //       we can recover it when extracting the pointer again.
-            //       See also: Value::extract_pointer.
+            //       See also: NanBoxedValue::extract_pointer.
             m_value.encoded = tag | (reinterpret_cast<u64>(ptr) & 0x0000ffffffffffffULL);
         }
-    }
-
-    template<typename PointerType>
-    PointerType* extract_pointer() const
-    {
-        VERIFY(is_cell());
-        return reinterpret_cast<PointerType*>(extract_pointer_bits(m_value.encoded));
     }
 
     [[nodiscard]] ThrowCompletionOr<Value> invoke_internal(VM&, PropertyKey const&, Optional<MarkedVector<Value>> arguments);
 
     ThrowCompletionOr<i32> to_i32_slow_case(VM&) const;
-
-    union {
-        double as_double;
-        struct {
-            u64 payload : 48;
-            u64 tag : 16;
-        };
-        u64 encoded;
-    } m_value { .encoded = 0 };
 
     friend Value js_undefined();
     friend Value js_null();
