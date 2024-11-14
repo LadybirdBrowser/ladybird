@@ -3248,19 +3248,10 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<JS::Object>> X25519::export_key(Bindings::K
         }
 
         // 6. Set the key_ops attribute of jwk to the usages attribute of key.
-        auto key_ops = Vector<String> {};
-        auto key_usages = verify_cast<JS::Array>(key->usages());
-        auto key_usages_length = MUST(MUST(key_usages->get(vm.names.length)).to_length(vm));
-        for (auto i = 0u; i < key_usages_length; ++i) {
-            auto usage = key_usages->get(i);
-            if (!usage.has_value())
-                break;
-
-            auto usage_string = TRY(usage.value().to_string(vm));
-            key_ops.append(usage_string);
-        }
-
-        jwk.key_ops = key_ops;
+        jwk.key_ops = Vector<String> {};
+        jwk.key_ops->ensure_capacity(key->internal_usages().size());
+        for (auto const& usage : key->internal_usages())
+            jwk.key_ops->append(Bindings::idl_enum_to_string(usage));
 
         // 7. Set the ext attribute of jwk to the [[extractable]] internal slot of key.
         jwk.ext = key->extractable();
@@ -3706,5 +3697,4 @@ WebIDL::ExceptionOr<JS::Value> HMAC::get_key_length(AlgorithmParams const& param
     // 2. Return length.
     return JS::Value(length);
 }
-
 }
