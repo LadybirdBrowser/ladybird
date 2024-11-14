@@ -335,18 +335,33 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
     Core::ArgsParser args_parser;
 
     StringView output_path;
-    StringView base_path;
+    Vector<ByteString> base_paths;
     Vector<ByteString> paths;
 
     args_parser.add_option(output_path, "Path to output generated files into", "output-path", 'o', "output-path");
-    args_parser.add_option(base_path, "Path to root of IDL file tree", "base-path", 'b', "base-path");
+    args_parser.add_option(Core::ArgsParser::Option {
+        .argument_mode = Core::ArgsParser::OptionArgumentMode::Required,
+        .help_string = "Path to root of IDL file tree(s)",
+        .long_name = "base-path",
+        .short_name = 'b',
+        .value_name = "base-path",
+        .accept_value = [&](StringView s) {
+            base_paths.append(s);
+            return true;
+        },
+    });
     args_parser.add_positional_argument(paths, "Paths of every IDL file that could be Exposed", "paths");
     args_parser.parse(arguments);
 
     VERIFY(!paths.is_empty());
-    VERIFY(!base_path.is_empty());
+    VERIFY(!base_paths.is_empty());
 
-    LexicalPath const lexical_base(base_path);
+    Vector<StringView> lexical_bases;
+    for (auto const& base_path : base_paths) {
+        VERIFY(!base_path.is_empty());
+        LexicalPath lexical_path(base_path);
+        lexical_bases.append(lexical_path.string());
+    }
 
     // Read in all IDL files, we must own the storage for all of these for the lifetime of the program
     Vector<ByteString> file_contents;
@@ -372,7 +387,7 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
 
     for (size_t i = 0; i < paths.size(); ++i) {
         auto const& path = paths[i];
-        IDL::Parser parser(path, file_contents[i], lexical_base.string());
+        IDL::Parser parser(path, file_contents[i], lexical_bases);
         auto& interface = parser.parse();
         if (interface.name.is_empty()) {
             s_error_string = ByteString::formatted("Interface for file {} missing", path);

@@ -160,9 +160,22 @@ HashMap<ByteString, ByteString> Parser::parse_extended_attributes()
 static HashTable<ByteString> import_stack;
 Optional<Interface&> Parser::resolve_import(auto path)
 {
-    auto include_path = LexicalPath::join(import_base_path, path).string();
-    if (!FileSystem::exists(include_path))
-        report_parsing_error(ByteString::formatted("{}: No such file or directory", include_path), filename, input, lexer.tell());
+    ByteString include_path;
+    for (auto import_base_path : import_base_paths) {
+        auto maybe_include_path = LexicalPath::join(import_base_path, path).string();
+        if (!FileSystem::exists(maybe_include_path))
+            continue;
+
+        include_path = maybe_include_path;
+        break;
+    }
+
+    if (include_path.is_empty()) {
+        StringBuilder error_message;
+        error_message.appendff("Failed to find {} in the following directories:\n", path);
+        error_message.join('\n', import_base_paths);
+        report_parsing_error(error_message.to_byte_string(), filename, input, lexer.tell());
+    }
 
     auto real_path_error_or = FileSystem::real_path(include_path);
     if (real_path_error_or.is_error())
@@ -183,7 +196,7 @@ Optional<Interface&> Parser::resolve_import(auto path)
     auto data_or_error = file_or_error.value()->read_until_eof();
     if (data_or_error.is_error())
         report_parsing_error(ByteString::formatted("Failed to read {}: {}", real_path, data_or_error.error()), filename, input, lexer.tell());
-    auto& result = Parser(this, real_path, data_or_error.value(), import_base_path).parse();
+    auto& result = Parser(this, real_path, data_or_error.value(), import_base_paths).parse();
     import_stack.remove(real_path);
 
     top_level_resolved_imports().set(real_path, &result);
@@ -1229,16 +1242,16 @@ Interface& Parser::parse()
     return interface;
 }
 
-Parser::Parser(ByteString filename, StringView contents, ByteString import_base_path)
-    : import_base_path(move(import_base_path))
+Parser::Parser(ByteString filename, StringView contents, Vector<StringView> import_base_paths)
+    : import_base_paths(move(import_base_paths))
     , filename(move(filename))
     , input(contents)
     , lexer(input)
 {
 }
 
-Parser::Parser(Parser* parent, ByteString filename, StringView contents, ByteString import_base_path)
-    : import_base_path(move(import_base_path))
+Parser::Parser(Parser* parent, ByteString filename, StringView contents, Vector<StringView> import_base_paths)
+    : import_base_paths(move(import_base_paths))
     , filename(move(filename))
     , input(contents)
     , lexer(input)
