@@ -17,8 +17,8 @@
 #include <AK/Vector.h>
 #include <LibCore/Forward.h>
 #include <LibJS/Forward.h>
-#include <LibJS/Heap/Cell.h>
 #include <LibJS/Heap/CellAllocator.h>
+#include <LibJS/Heap/CellImpl.h>
 #include <LibJS/Heap/ConservativeVector.h>
 #include <LibJS/Heap/Handle.h>
 #include <LibJS/Heap/HeapRoot.h>
@@ -33,7 +33,7 @@ class Heap : public HeapBase {
     AK_MAKE_NONMOVABLE(Heap);
 
 public:
-    explicit Heap(VM&, Function<void(HashMap<Cell*, JS::HeapRoot>&)> gather_embedder_roots);
+    explicit Heap(void* private_data, Function<void(HashMap<CellImpl*, JS::HeapRoot>&)> gather_embedder_roots);
     ~Heap();
 
     template<typename T, typename... Args>
@@ -71,7 +71,7 @@ public:
 
     void register_cell_allocator(Badge<CellAllocator>, CellAllocator&);
 
-    void uproot_cell(Cell* cell);
+    void uproot_cell(CellImpl* cell);
 
 private:
     friend class MarkingVisitor;
@@ -81,10 +81,10 @@ private:
     void defer_gc();
     void undefer_gc();
 
-    static bool cell_must_survive_garbage_collection(Cell const&);
+    static bool cell_must_survive_garbage_collection(CellImpl const&);
 
     template<typename T>
-    Cell* allocate_cell()
+    CellImpl* allocate_cell()
     {
         will_allocate(sizeof(T));
         if constexpr (requires { T::cell_allocator.allocator.get().allocate_cell(*this); }) {
@@ -98,10 +98,10 @@ private:
     void will_allocate(size_t);
 
     void find_min_and_max_block_addresses(FlatPtr& min_address, FlatPtr& max_address);
-    void gather_roots(HashMap<Cell*, HeapRoot>&);
-    void gather_conservative_roots(HashMap<Cell*, HeapRoot>&);
+    void gather_roots(HashMap<CellImpl*, HeapRoot>&);
+    void gather_conservative_roots(HashMap<CellImpl*, HeapRoot>&);
     void gather_asan_fake_stack_roots(HashMap<FlatPtr, HeapRoot>&, FlatPtr, FlatPtr min_block_address, FlatPtr max_block_address);
-    void mark_live_cells(HashMap<Cell*, HeapRoot> const& live_cells);
+    void mark_live_cells(HashMap<CellImpl*, HeapRoot> const& live_cells);
     void finalize_unmarked_cells();
     void sweep_dead_cells(bool print_report, Core::ElapsedTimer const&);
 
@@ -139,14 +139,14 @@ private:
     ConservativeVectorBase::List m_conservative_vectors;
     WeakContainer::List m_weak_containers;
 
-    Vector<GCPtr<Cell>> m_uprooted_cells;
+    Vector<GCPtr<CellImpl>> m_uprooted_cells;
 
     size_t m_gc_deferrals { 0 };
     bool m_should_gc_when_deferral_ends { false };
 
     bool m_collecting_garbage { false };
     StackInfo m_stack_info;
-    Function<void(HashMap<Cell*, JS::HeapRoot>&)> m_gather_embedder_roots;
+    Function<void(HashMap<CellImpl*, JS::HeapRoot>&)> m_gather_embedder_roots;
 };
 
 inline void Heap::did_create_handle(Badge<HandleImpl>, HandleImpl& impl)

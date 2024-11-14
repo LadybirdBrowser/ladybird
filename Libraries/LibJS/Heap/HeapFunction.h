@@ -7,14 +7,14 @@
 #pragma once
 
 #include <AK/Function.h>
-#include <LibJS/Heap/Cell.h>
+#include <LibJS/Heap/CellImpl.h>
 #include <LibJS/Heap/Heap.h>
 
 namespace JS {
 
 template<typename T>
-class HeapFunction final : public Cell {
-    JS_CELL(HeapFunction, Cell);
+class HeapFunction final : public CellImpl {
+    JS_CELL(HeapFunction, CellImpl);
 
 public:
     static NonnullGCPtr<HeapFunction> create(Heap& heap, Function<T> function)

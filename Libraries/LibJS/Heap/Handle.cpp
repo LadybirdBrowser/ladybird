@@ -4,13 +4,13 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibJS/Heap/Cell.h>
+#include <LibJS/Heap/CellImpl.h>
 #include <LibJS/Heap/Handle.h>
 #include <LibJS/Heap/Heap.h>
 
 namespace JS {
 
-HandleImpl::HandleImpl(Cell* cell, SourceLocation location)
+HandleImpl::HandleImpl(CellImpl* cell, SourceLocation location)
     : m_cell(cell)
     , m_location(location)
 {

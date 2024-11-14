@@ -159,6 +159,7 @@ class BigInt;
 class BoundFunction;
 struct CachedSourceRange;
 class Cell;
+class CellImpl;
 class CellAllocator;
 class ClassExpression;
 struct ClassFieldDefinition;

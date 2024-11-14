@@ -24,8 +24,8 @@ class HandleImpl : public RefCounted<HandleImpl> {
 public:
     ~HandleImpl();
 
-    Cell* cell() { return m_cell; }
-    Cell const* cell() const { return m_cell; }
+    CellImpl* cell() { return m_cell; }
+    CellImpl const* cell() const { return m_cell; }
 
     SourceLocation const& source_location() const { return m_location; }
 
@@ -33,8 +33,8 @@ private:
     template<class T>
     friend class Handle;
 
-    explicit HandleImpl(Cell*, SourceLocation location);
-    GCPtr<Cell> m_cell;
+    explicit HandleImpl(CellImpl*, SourceLocation location);
+    GCPtr<CellImpl> m_cell;
     SourceLocation m_location;
 
     IntrusiveListNode<HandleImpl> m_list_node;

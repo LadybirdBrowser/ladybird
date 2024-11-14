@@ -11,7 +11,7 @@
 #include <AK/StringView.h>
 #include <AK/Types.h>
 #include <LibJS/Forward.h>
-#include <LibJS/Heap/Cell.h>
+#include <LibJS/Heap/CellImpl.h>
 #include <LibJS/Heap/Internals.h>
 
 #ifdef HAS_ADDRESS_SANITIZER
@@ -32,9 +32,9 @@ public:
     size_t cell_count() const { return (block_size - sizeof(HeapBlock)) / m_cell_size; }
     bool is_full() const { return !has_lazy_freelist() && !m_freelist; }
 
-    ALWAYS_INLINE Cell* allocate()
+    ALWAYS_INLINE CellImpl* allocate()
     {
-        Cell* allocated_cell = nullptr;
+        CellImpl* allocated_cell = nullptr;
         if (m_freelist) {
             VERIFY(is_valid_cell_pointer(m_freelist));
             allocated_cell = exchange(m_freelist, m_freelist->next);
@@ -48,7 +48,7 @@ public:
         return allocated_cell;
     }
 
-    void deallocate(Cell*);
+    void deallocate(CellImpl*);
 
     template<typename Callback>
     void for_each_cell(Callback callback)
@@ -58,7 +58,7 @@ public:
             callback(cell(i));
     }
 
-    template<Cell::State state, typename Callback>
+    template<CellImpl::State state, typename Callback>
     void for_each_cell_in_state(Callback callback)
     {
         for_each_cell([&](auto* cell) {
@@ -67,12 +67,12 @@ public:
         });
     }
 
-    static HeapBlock* from_cell(Cell const* cell)
+    static HeapBlock* from_cell(CellImpl const* cell)
     {
         return static_cast<HeapBlock*>(HeapBlockBase::from_cell(cell));
     }
 
-    Cell* cell_from_possible_pointer(FlatPtr pointer)
+    CellImpl* cell_from_possible_pointer(FlatPtr pointer)
     {
         if (pointer < reinterpret_cast<FlatPtr>(m_storage))
             return nullptr;
@@ -83,7 +83,7 @@ public:
         return cell(cell_index);
     }
 
-    bool is_valid_cell_pointer(Cell const* cell)
+    bool is_valid_cell_pointer(CellImpl const* cell)
     {
         return cell_from_possible_pointer((FlatPtr)cell);
     }
@@ -97,15 +97,15 @@ private:
 
     bool has_lazy_freelist() const { return m_next_lazy_freelist_index < cell_count(); }
 
-    struct FreelistEntry final : public Cell {
-        JS_CELL(FreelistEntry, Cell);
+    struct FreelistEntry final : public CellImpl {
+        JS_CELL(FreelistEntry, CellImpl);
 
         RawGCPtr<FreelistEntry> next;
     };
 
-    Cell* cell(size_t index)
+    CellImpl* cell(size_t index)
     {
-        return reinterpret_cast<Cell*>(&m_storage[index * cell_size()]);
+        return reinterpret_cast<CellImpl*>(&m_storage[index * cell_size()]);
     }
 
     CellAllocator& m_cell_allocator;

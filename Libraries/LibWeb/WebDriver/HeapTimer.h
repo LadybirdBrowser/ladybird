@@ -7,6 +7,7 @@
 #pragma once
 
 #include <LibCore/Forward.h>
+#include <LibJS/Heap/Cell.h>
 #include <LibJS/Heap/GCPtr.h>
 #include <LibJS/Heap/HeapFunction.h>
 

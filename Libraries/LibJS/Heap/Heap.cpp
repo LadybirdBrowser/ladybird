@@ -28,8 +28,8 @@
 
 namespace JS {
 
-Heap::Heap(VM& vm, Function<void(HashMap<Cell*, JS::HeapRoot>&)> gather_embedder_roots)
-    : HeapBase(vm)
+Heap::Heap(void* private_data, Function<void(HashMap<CellImpl*, JS::HeapRoot>&)> gather_embedder_roots)
+    : HeapBase(private_data)
     , m_gather_embedder_roots(move(gather_embedder_roots))
 {
     static_assert(HeapBlock::min_possible_cell_size <= 32, "Heap Cell tracking uses too much data!");
@@ -100,7 +100,7 @@ static void for_each_cell_among_possible_pointers(HashTable<HeapBlock*> const& a
     for (auto possible_pointer : possible_pointers.keys()) {
         if (!possible_pointer)
             continue;
-        auto* possible_heap_block = HeapBlock::from_cell(reinterpret_cast<Cell const*>(possible_pointer));
+        auto* possible_heap_block = HeapBlock::from_cell(reinterpret_cast<CellImpl const*>(possible_pointer));
         if (!all_live_heap_blocks.contains(possible_heap_block))
             continue;
         if (auto* cell = possible_heap_block->cell_from_possible_pointer(possible_pointer)) {
@@ -109,9 +109,9 @@ static void for_each_cell_among_possible_pointers(HashTable<HeapBlock*> const& a
     }
 }
 
-class GraphConstructorVisitor final : public Cell::Visitor {
+class GraphConstructorVisitor final : public CellImpl::Visitor {
 public:
-    explicit GraphConstructorVisitor(Heap& heap, HashMap<Cell*, HeapRoot> const& roots)
+    explicit GraphConstructorVisitor(Heap& heap, HashMap<CellImpl*, HeapRoot> const& roots)
         : m_heap(heap)
     {
         m_heap.find_min_and_max_block_addresses(m_min_block_address, m_max_block_address);
@@ -129,7 +129,7 @@ public:
         }
     }
 
-    virtual void visit_impl(Cell& cell) override
+    virtual void visit_impl(CellImpl& cell) override
     {
         if (m_node_being_visited)
             m_node_being_visited->edges.set(reinterpret_cast<FlatPtr>(&cell));
@@ -148,7 +148,7 @@ public:
         for (size_t i = 0; i < (bytes.size() / sizeof(FlatPtr)); ++i)
             add_possible_value(possible_pointers, raw_pointer_sized_values[i], HeapRoot { .type = HeapRoot::Type::HeapFunctionCapturedPointer }, m_min_block_address, m_max_block_address);
 
-        for_each_cell_among_possible_pointers(m_all_live_heap_blocks, possible_pointers, [&](Cell* cell, FlatPtr) {
+        for_each_cell_among_possible_pointers(m_all_live_heap_blocks, possible_pointers, [&](CellImpl* cell, FlatPtr) {
             if (m_node_being_visited)
                 m_node_being_visited->edges.set(reinterpret_cast<FlatPtr>(cell));
 
@@ -218,7 +218,7 @@ private:
     };
 
     GraphNode* m_node_being_visited { nullptr };
-    Vector<NonnullGCPtr<Cell>> m_work_queue;
+    Vector<NonnullGCPtr<CellImpl>> m_work_queue;
     HashMap<FlatPtr, GraphNode> m_graph;
 
     Heap& m_heap;
@@ -229,7 +229,7 @@ private:
 
 AK::JsonObject Heap::dump_graph()
 {
-    HashMap<Cell*, HeapRoot> roots;
+    HashMap<CellImpl*, HeapRoot> roots;
     gather_roots(roots);
     GraphConstructorVisitor visitor(*this, roots);
     visitor.visit_all_cells();
@@ -250,7 +250,7 @@ void Heap::collect_garbage(CollectionType collection_type, bool print_report)
             m_should_gc_when_deferral_ends = true;
             return;
         }
-        HashMap<Cell*, HeapRoot> roots;
+        HashMap<CellImpl*, HeapRoot> roots;
         gather_roots(roots);
         mark_live_cells(roots);
     }
@@ -258,7 +258,7 @@ void Heap::collect_garbage(CollectionType collection_type, bool print_report)
     sweep_dead_cells(print_report, collection_measurement_timer);
 }
 
-void Heap::gather_roots(HashMap<Cell*, HeapRoot>& roots)
+void Heap::gather_roots(HashMap<CellImpl*, HeapRoot>& roots)
 {
     m_gather_embedder_roots(roots);
     gather_conservative_roots(roots);
@@ -298,7 +298,7 @@ void Heap::gather_asan_fake_stack_roots(HashMap<FlatPtr, HeapRoot>&, FlatPtr, Fl
 }
 #endif
 
-NO_SANITIZE_ADDRESS void Heap::gather_conservative_roots(HashMap<Cell*, HeapRoot>& roots)
+NO_SANITIZE_ADDRESS void Heap::gather_conservative_roots(HashMap<CellImpl*, HeapRoot>& roots)
 {
     FlatPtr dummy;
 
@@ -337,8 +337,8 @@ NO_SANITIZE_ADDRESS void Heap::gather_conservative_roots(HashMap<Cell*, HeapRoot
         return IterationDecision::Continue;
     });
 
-    for_each_cell_among_possible_pointers(all_live_heap_blocks, possible_pointers, [&](Cell* cell, FlatPtr possible_pointer) {
-        if (cell->state() == Cell::State::Live) {
+    for_each_cell_among_possible_pointers(all_live_heap_blocks, possible_pointers, [&](CellImpl* cell, FlatPtr possible_pointer) {
+        if (cell->state() == CellImpl::State::Live) {
             dbgln_if(HEAP_DEBUG, "  ?-> {}", (void const*)cell);
             roots.set(cell, *possible_pointers.get(possible_pointer));
         } else {
@@ -347,9 +347,9 @@ NO_SANITIZE_ADDRESS void Heap::gather_conservative_roots(HashMap<Cell*, HeapRoot
     });
 }
 
-class MarkingVisitor final : public Cell::Visitor {
+class MarkingVisitor final : public CellImpl::Visitor {
 public:
-    explicit MarkingVisitor(Heap& heap, HashMap<Cell*, HeapRoot> const& roots)
+    explicit MarkingVisitor(Heap& heap, HashMap<CellImpl*, HeapRoot> const& roots)
         : m_heap(heap)
     {
         m_heap.find_min_and_max_block_addresses(m_min_block_address, m_max_block_address);
@@ -363,7 +363,7 @@ public:
         }
     }
 
-    virtual void visit_impl(Cell& cell) override
+    virtual void visit_impl(CellImpl& cell) override
     {
         if (cell.is_marked())
             return;
@@ -381,10 +381,10 @@ public:
         for (size_t i = 0; i < (bytes.size() / sizeof(FlatPtr)); ++i)
             add_possible_value(possible_pointers, raw_pointer_sized_values[i], HeapRoot { .type = HeapRoot::Type::HeapFunctionCapturedPointer }, m_min_block_address, m_max_block_address);
 
-        for_each_cell_among_possible_pointers(m_all_live_heap_blocks, possible_pointers, [&](Cell* cell, FlatPtr) {
+        for_each_cell_among_possible_pointers(m_all_live_heap_blocks, possible_pointers, [&](CellImpl* cell, FlatPtr) {
             if (cell->is_marked())
                 return;
-            if (cell->state() != Cell::State::Live)
+            if (cell->state() != CellImpl::State::Live)
                 return;
             cell->set_marked(true);
             m_work_queue.append(*cell);
@@ -400,13 +400,13 @@ public:
 
 private:
     Heap& m_heap;
-    Vector<NonnullGCPtr<Cell>> m_work_queue;
+    Vector<NonnullGCPtr<CellImpl>> m_work_queue;
     HashTable<HeapBlock*> m_all_live_heap_blocks;
     FlatPtr m_min_block_address;
     FlatPtr m_max_block_address;
 };
 
-void Heap::mark_live_cells(HashMap<Cell*, HeapRoot> const& roots)
+void Heap::mark_live_cells(HashMap<CellImpl*, HeapRoot> const& roots)
 {
     dbgln_if(HEAP_DEBUG, "mark_live_cells:");
 
@@ -420,7 +420,7 @@ void Heap::mark_live_cells(HashMap<Cell*, HeapRoot> const& roots)
     m_uprooted_cells.clear();
 }
 
-bool Heap::cell_must_survive_garbage_collection(Cell const& cell)
+bool Heap::cell_must_survive_garbage_collection(CellImpl const& cell)
 {
     if (!cell.overrides_must_survive_garbage_collection({}))
         return false;
@@ -430,7 +430,7 @@ bool Heap::cell_must_survive_garbage_collection(Cell const& cell)
 void Heap::finalize_unmarked_cells()
 {
     for_each_block([&](auto& block) {
-        block.template for_each_cell_in_state<Cell::State::Live>([](Cell* cell) {
+        block.template for_each_cell_in_state<CellImpl::State::Live>([](CellImpl* cell) {
             if (!cell->is_marked() && !cell_must_survive_garbage_collection(*cell))
                 cell->finalize();
         });
@@ -452,7 +452,7 @@ void Heap::sweep_dead_cells(bool print_report, Core::ElapsedTimer const& measure
     for_each_block([&](auto& block) {
         bool block_has_live_cells = false;
         bool block_was_full = block.is_full();
-        block.template for_each_cell_in_state<Cell::State::Live>([&](Cell* cell) {
+        block.template for_each_cell_in_state<CellImpl::State::Live>([&](CellImpl* cell) {
             if (!cell->is_marked() && !cell_must_survive_garbage_collection(*cell)) {
                 dbgln_if(HEAP_DEBUG, "  ~ {}", cell);
                 block.deallocate(cell);
@@ -530,7 +530,7 @@ void Heap::undefer_gc()
     }
 }
 
-void Heap::uproot_cell(Cell* cell)
+void Heap::uproot_cell(CellImpl* cell)
 {
     m_uprooted_cells.append(cell);
 }
