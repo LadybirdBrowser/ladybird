@@ -314,6 +314,20 @@ String CSSStyleDeclaration::css_text() const
     return serialized();
 }
 
+// https://drafts.csswg.org/cssom/#dom-cssstyleproperties-cssfloat
+String CSSStyleDeclaration::css_float() const
+{
+    // The cssFloat attribute, on getting, must return the result of invoking getPropertyValue() with float as argument.
+    return get_property_value("float"sv);
+}
+
+WebIDL::ExceptionOr<void> CSSStyleDeclaration::set_css_float(StringView value)
+{
+    // On setting, the attribute must invoke setProperty() with float as first argument, as second argument the given value,
+    // and no third argument. Any exceptions thrown must be re-thrown.
+    return set_property("float"sv, value, ""sv);
+}
+
 // https://www.w3.org/TR/cssom/#serialize-a-css-declaration
 static String serialize_a_css_declaration(CSS::PropertyID property, StringView value, Important important)
 {
@@ -434,55 +448,6 @@ String PropertyOwningCSSStyleDeclaration::serialized() const
     StringBuilder builder;
     builder.join(' ', list);
     return MUST(builder.to_string());
-}
-
-static CSS::PropertyID property_id_from_name(StringView name)
-{
-    // FIXME: Perhaps this should go in the code generator.
-    if (name == "cssFloat"sv)
-        return CSS::PropertyID::Float;
-
-    if (auto property_id = CSS::property_id_from_camel_case_string(name); property_id.has_value())
-        return property_id.value();
-
-    if (auto property_id = CSS::property_id_from_string(name); property_id.has_value())
-        return property_id.value();
-
-    return CSS::PropertyID::Invalid;
-}
-
-JS::ThrowCompletionOr<bool> CSSStyleDeclaration::internal_has_property(JS::PropertyKey const& name) const
-{
-    if (!name.is_string())
-        return Base::internal_has_property(name);
-    return property_id_from_name(name.to_string()) != CSS::PropertyID::Invalid;
-}
-
-JS::ThrowCompletionOr<JS::Value> CSSStyleDeclaration::internal_get(JS::PropertyKey const& name, JS::Value receiver, JS::CacheablePropertyMetadata* cacheable_metadata, PropertyLookupPhase phase) const
-{
-    if (name.is_number())
-        return { JS::PrimitiveString::create(vm(), item(name.as_number())) };
-    if (!name.is_string())
-        return Base::internal_get(name, receiver, cacheable_metadata, phase);
-    auto property_id = property_id_from_name(name.to_string());
-    if (property_id == CSS::PropertyID::Invalid)
-        return Base::internal_get(name, receiver, cacheable_metadata, phase);
-    return JS::PrimitiveString::create(vm(), get_property_value(string_from_property_id(property_id)));
-}
-
-JS::ThrowCompletionOr<bool> CSSStyleDeclaration::internal_set(JS::PropertyKey const& name, JS::Value value, JS::Value receiver, JS::CacheablePropertyMetadata* cacheable_metadata)
-{
-    auto& vm = this->vm();
-    if (!name.is_string())
-        return Base::internal_set(name, value, receiver, cacheable_metadata);
-    auto property_id = property_id_from_name(name.to_string());
-    if (property_id == CSS::PropertyID::Invalid)
-        return Base::internal_set(name, value, receiver, cacheable_metadata);
-
-    auto css_text = value.is_null() ? String {} : TRY(value.to_string(vm));
-
-    TRY(Bindings::throw_dom_exception_if_needed(vm, [&] { return set_property(property_id, css_text); }));
-    return true;
 }
 
 WebIDL::ExceptionOr<void> PropertyOwningCSSStyleDeclaration::set_css_text(StringView css_text)

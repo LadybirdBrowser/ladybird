@@ -11,7 +11,7 @@ They are run automatically as part of the build, and most of the time you can ig
 ## Properties.json
 
 Each CSS property has an entry here, which describes what values it accepts, whether it's inherited, and similar data.
-This generates `PropertyID.h` and `PropertyID.cpp`.
+This generates `PropertyID.h`, `PropertyID.cpp`, `GeneratedCSSStyleProperties.h`, `GeneratedCSSStyleProperties.cpp` and `GeneratedCSSStyleProperties.idl`.
 Most of this data is found in the information box for that property in the relevant CSS spec.
 
 The file is organized as a single JSON object, with keys being property names, and the values being the data for that property.

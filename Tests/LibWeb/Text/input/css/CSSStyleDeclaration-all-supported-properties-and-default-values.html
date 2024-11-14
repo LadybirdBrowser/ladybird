@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const defaultStyleIframe = document.createElement("iframe");
+        document.body.appendChild(defaultStyleIframe);
+
+        const defaultStyle = getComputedStyle(defaultStyleIframe.contentDocument.body);
+
+        const stylePrototype = Object.getPrototypeOf(defaultStyle);
+        const supportedProperties = Object.getOwnPropertyNames(stylePrototype);
+
+        println("All supported properties and their default values exposed from CSSStyleDeclaration from getComputedStyle:");
+        for (const supportedProperty of supportedProperties) {
+            println(`'${supportedProperty}': '${defaultStyle[supportedProperty]}'`);
+        }
+    });
+</script>

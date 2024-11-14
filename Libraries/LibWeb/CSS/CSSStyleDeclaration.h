@@ -10,11 +10,14 @@
 #include <AK/Vector.h>
 #include <LibWeb/Bindings/PlatformObject.h>
 #include <LibWeb/CSS/CSSStyleValue.h>
+#include <LibWeb/CSS/GeneratedCSSStyleProperties.h>
 #include <LibWeb/CSS/StyleProperty.h>
 
 namespace Web::CSS {
 
-class CSSStyleDeclaration : public Bindings::PlatformObject {
+class CSSStyleDeclaration
+    : public Bindings::PlatformObject
+    , public Bindings::GeneratedCSSStyleProperties {
     WEB_PLATFORM_OBJECT(CSSStyleDeclaration, Bindings::PlatformObject);
     JS_DECLARE_ALLOCATOR(CSSStyleDeclaration);
 
@@ -39,16 +42,21 @@ public:
     String css_text() const;
     virtual WebIDL::ExceptionOr<void> set_css_text(StringView) = 0;
 
-    virtual String serialized() const = 0;
+    String css_float() const;
+    WebIDL::ExceptionOr<void> set_css_float(StringView);
 
-    virtual JS::ThrowCompletionOr<bool> internal_has_property(JS::PropertyKey const& name) const override;
-    virtual JS::ThrowCompletionOr<JS::Value> internal_get(JS::PropertyKey const&, JS::Value receiver, JS::CacheablePropertyMetadata*, PropertyLookupPhase) const override;
-    virtual JS::ThrowCompletionOr<bool> internal_set(JS::PropertyKey const&, JS::Value value, JS::Value receiver, JS::CacheablePropertyMetadata*) override;
+    virtual String serialized() const = 0;
 
     virtual JS::GCPtr<CSSRule> parent_rule() const;
 
 protected:
     explicit CSSStyleDeclaration(JS::Realm&);
+
+    virtual CSSStyleDeclaration& generated_style_properties_to_css_style_declaration() override { return *this; }
+
+private:
+    // ^PlatformObject
+    virtual Optional<JS::Value> item_value(size_t index) const override;
 };
 
 class PropertyOwningCSSStyleDeclaration : public CSSStyleDeclaration {
