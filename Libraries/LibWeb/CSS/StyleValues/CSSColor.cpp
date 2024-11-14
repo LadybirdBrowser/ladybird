@@ -58,9 +58,9 @@ String CSSColor::to_string() const
 
 Color CSSColor::to_color(Optional<Layout::NodeWithStyle const&>) const
 {
-    auto const c1 = resolve_with_reference_value(m_properties.channels[0], 100).value_or(0);
-    auto const c2 = resolve_with_reference_value(m_properties.channels[1], 100).value_or(0);
-    auto const c3 = resolve_with_reference_value(m_properties.channels[2], 100).value_or(0);
+    auto const c1 = resolve_with_reference_value(m_properties.channels[0], 1).value_or(0);
+    auto const c2 = resolve_with_reference_value(m_properties.channels[1], 1).value_or(0);
+    auto const c3 = resolve_with_reference_value(m_properties.channels[2], 1).value_or(0);
     auto const alpha_val = resolve_alpha(m_properties.alpha).value_or(1);
 
     if (color_type() == ColorType::sRGB) {
