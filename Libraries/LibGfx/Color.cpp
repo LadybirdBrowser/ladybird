@@ -399,7 +399,9 @@ Vector<Color> Color::tints(u32 steps, float max) const
 Color Color::from_linear_srgb(float red, float green, float blue, float alpha)
 {
     auto linear_to_srgb = [](float c) {
-        return c >= 0.0031308f ? 1.055f * pow(c, 0.4166666f) - 0.055f : 12.92f * c;
+        if (c <= 0.04045 / 12.92)
+            return c * 12.92;
+        return pow(c, 10. / 24) * 1.055 - 0.055;
     };
 
     red = linear_to_srgb(red) * 255.f;
