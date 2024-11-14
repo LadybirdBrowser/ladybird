@@ -194,6 +194,7 @@ class MemberExpression;
 class MetaProperty;
 class Module;
 struct ModuleRequest;
+class NanBoxedValue;
 class NativeFunction;
 class ObjectEnvironment;
 class Parser;
