@@ -27,7 +27,7 @@ static constexpr bool TODO = false;
 extern "C" __attribute__((noreturn)) void ak_assertion_failed(char const*);
 #ifndef NDEBUG
 #    define ASSERT(expr)                                                               \
-        (__builtin_expect(!(expr), 0)                                                  \
+        (__builtin_expect(/* NOLINT(readability-simplify-boolean-expr) */ !(expr), 0)  \
                 ? ak_assertion_failed(#expr " at " __FILE__ ":" __stringify(__LINE__)) \
                 : (void)0)
 #    define ASSERT_NOT_REACHED ASSERT(false) /* NOLINT(cert-dcl03-c,misc-static-assert) No, this can't be static_assert, it's a runtime check */
