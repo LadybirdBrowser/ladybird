@@ -321,6 +321,11 @@ String const& TextNode::text_for_rendering() const
 // NOTE: This collapses whitespace into a single ASCII space if the CSS white-space property tells us to.
 void TextNode::compute_text_for_rendering()
 {
+    if (dom_node().is_password_input()) {
+        m_text_for_rendering = MUST(String::repeated('*', dom_node().data().code_points().length()));
+        return;
+    }
+
     bool collapse = [](CSS::WhiteSpace white_space) {
         switch (white_space) {
         case CSS::WhiteSpace::Normal:
@@ -344,11 +349,6 @@ void TextNode::compute_text_for_rendering()
     auto data = apply_text_transform(dom_node().data(), computed_values().text_transform(), lang).release_value_but_fixme_should_propagate_errors();
 
     auto data_view = data.bytes_as_string_view();
-
-    if (dom_node().is_password_input()) {
-        m_text_for_rendering = MUST(String::repeated('*', data_view.length()));
-        return;
-    }
 
     if (!collapse || data.is_empty()) {
         m_text_for_rendering = data;
