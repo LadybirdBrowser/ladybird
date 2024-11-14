@@ -222,7 +222,7 @@ public:
 
         String serialize() const;
 
-        SimpleSelector absolutized(SimpleSelector const& selector_for_nesting) const;
+        Optional<SimpleSelector> absolutized(SimpleSelector const& selector_for_nesting) const;
     };
 
     enum class Combinator {
@@ -240,7 +240,7 @@ public:
         Combinator combinator { Combinator::None };
         Vector<SimpleSelector> simple_selectors;
 
-        CompoundSelector absolutized(SimpleSelector const& selector_for_nesting) const;
+        Optional<CompoundSelector> absolutized(SimpleSelector const& selector_for_nesting) const;
     };
 
     static NonnullRefPtr<Selector> create(Vector<CompoundSelector>&& compound_selectors)
@@ -254,7 +254,7 @@ public:
     Optional<PseudoElement> const& pseudo_element() const { return m_pseudo_element; }
     NonnullRefPtr<Selector> relative_to(SimpleSelector const&) const;
     bool contains_the_nesting_selector() const { return m_contains_the_nesting_selector; }
-    NonnullRefPtr<Selector> absolutized(SimpleSelector const& selector_for_nesting) const;
+    RefPtr<Selector> absolutized(SimpleSelector const& selector_for_nesting) const;
     u32 specificity() const;
     String serialize() const;
 

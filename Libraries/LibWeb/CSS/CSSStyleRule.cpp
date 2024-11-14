@@ -187,8 +187,10 @@ SelectorList const& CSSStyleRule::absolutized_selectors() const
             },
         };
         SelectorList absolutized_selectors;
-        for (auto const& selector : selectors())
-            absolutized_selectors.append(selector->absolutized(parent_selector));
+        for (auto const& selector : selectors()) {
+            if (auto absolutized = selector->absolutized(parent_selector))
+                absolutized_selectors.append(absolutized.release_nonnull());
+        }
         m_cached_absolutized_selectors = move(absolutized_selectors);
     } else {
         // NOTE: We can't actually replace & with :scope, because & has to have 0 specificity.
