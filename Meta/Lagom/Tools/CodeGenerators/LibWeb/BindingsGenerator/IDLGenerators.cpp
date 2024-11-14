@@ -2810,14 +2810,15 @@ static void generate_prototype_or_global_mixin_declarations(IDL::Interface const
         if (attribute.extended_attributes.contains("FIXME"))
             continue;
         auto attribute_generator = generator.fork();
-        attribute_generator.set("attribute.name:snakecase", attribute.name.to_snakecase());
+        attribute_generator.set("attribute.getter_callback", attribute.getter_callback_name);
         attribute_generator.append(R"~~~(
-    JS_DECLARE_NATIVE_FUNCTION(@attribute.name:snakecase@_getter);
+    JS_DECLARE_NATIVE_FUNCTION(@attribute.getter_callback@);
 )~~~");
 
         if (!attribute.readonly || attribute.extended_attributes.contains("Replaceable"sv) || attribute.extended_attributes.contains("PutForwards"sv)) {
+            attribute_generator.set("attribute.setter_callback", attribute.setter_callback_name);
             attribute_generator.append(R"~~~(
-    JS_DECLARE_NATIVE_FUNCTION(@attribute.name:snakecase@_setter);
+    JS_DECLARE_NATIVE_FUNCTION(@attribute.setter_callback@);
 )~~~");
         }
     }
