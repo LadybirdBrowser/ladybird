@@ -19,6 +19,7 @@ class Utf8View;
 
 class Utf8CodePointIterator {
     friend class Utf8View;
+    friend class ByteString;
 
 public:
     Utf8CodePointIterator() = default;
@@ -184,40 +185,6 @@ private:
     mutable bool m_have_length { false };
 };
 
-class DeprecatedStringCodePointIterator {
-public:
-    Optional<u32> next()
-    {
-        if (m_it.done())
-            return {};
-        auto value = *m_it;
-        ++m_it;
-        return value;
-    }
-
-    [[nodiscard]] Optional<u32> peek() const
-    {
-        if (m_it.done())
-            return {};
-        return *m_it;
-    }
-
-    [[nodiscard]] size_t byte_offset() const
-    {
-        return Utf8View(m_string).byte_offset_of(m_it);
-    }
-
-    DeprecatedStringCodePointIterator(ByteString string)
-        : m_string(move(string))
-        , m_it(Utf8View(m_string).begin())
-    {
-    }
-
-private:
-    ByteString m_string;
-    Utf8CodePointIterator m_it;
-};
-
 template<>
 struct Formatter<Utf8View> : Formatter<StringView> {
     ErrorOr<void> format(FormatBuilder&, Utf8View const&);
@@ -312,7 +279,6 @@ inline u32 Utf8CodePointIterator::operator*() const
 }
 
 #if USING_AK_GLOBALLY
-using AK::DeprecatedStringCodePointIterator;
 using AK::Utf8CodePointIterator;
 using AK::Utf8View;
 #endif

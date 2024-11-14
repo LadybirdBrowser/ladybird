@@ -141,7 +141,8 @@ public:
 
     [[nodiscard]] bool is_whitespace() const { return StringUtils::is_whitespace(*this); }
 
-    [[nodiscard]] DeprecatedStringCodePointIterator code_points() const;
+    [[nodiscard]] Utf8CodePointIterator code_points() const&;
+    [[nodiscard]] Utf8CodePointIterator code_points() const&& = delete;
 
     [[nodiscard]] ByteString trim(StringView characters, TrimMode mode = TrimMode::Both) const
     {
