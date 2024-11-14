@@ -29,8 +29,6 @@ ErrorOr<NonnullOwnPtr<MappedFile>> MappedFile::map_from_file(NonnullOwnPtr<Core:
 
 ErrorOr<NonnullOwnPtr<MappedFile>> MappedFile::map_from_fd_and_close(int fd, [[maybe_unused]] StringView path, Mode mode)
 {
-    TRY(Core::System::fcntl(fd, F_SETFD, FD_CLOEXEC));
-
     ScopeGuard fd_close_guard = [fd] {
         ::close(fd);
     };
