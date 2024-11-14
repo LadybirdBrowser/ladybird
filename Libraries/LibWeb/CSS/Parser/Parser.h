@@ -413,6 +413,8 @@ private:
     };
     static ContextType context_type_for_at_rule(FlyString const&);
     Vector<ContextType> m_rule_context;
+
+    Vector<PseudoClass> m_pseudo_class_context; // Stack of pseudo-class functions we're currently inside
 };
 
 }

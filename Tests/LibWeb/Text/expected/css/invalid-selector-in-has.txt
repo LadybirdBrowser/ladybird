@@ -1,1 +1,6 @@
 :has(:yakthonk) should be invalid: PASS
+:has(:not(:yakthonk)) should be invalid: PASS
+:has(:has(span)) should be invalid: PASS
+:has(:not(:has(span))) should be invalid: PASS
+:has(::before) should be invalid: PASS
+:has(:not(::before)) should be invalid: PASS

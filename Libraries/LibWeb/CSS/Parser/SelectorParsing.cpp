@@ -411,6 +411,11 @@ Parser::ParseErrorOr<Selector::SimpleSelector> Parser::parse_pseudo_simple_selec
 
         // Note: We allow the "ignored" -webkit prefix here for -webkit-progress-bar/-webkit-progress-bar
         if (auto pseudo_element = Selector::PseudoElement::from_string(pseudo_name); pseudo_element.has_value()) {
+            // :has() is fussy about pseudo-elements inside it
+            if (m_pseudo_class_context.contains_slow(PseudoClass::Has) && !is_has_allowed_pseudo_element(pseudo_element->type())) {
+                return ParseError::SyntaxError;
+            }
+
             return Selector::SimpleSelector {
                 .type = Selector::SimpleSelector::Type::PseudoElement,
                 .value = pseudo_element.release_value()
@@ -423,6 +428,10 @@ Parser::ParseErrorOr<Selector::SimpleSelector> Parser::parse_pseudo_simple_selec
         // valid at parse time, but ::-webkit-jkl() is not.) If they’re not otherwise recognized and supported, they
         // must be treated as matching nothing, and are unknown -webkit- pseudo-elements.
         if (pseudo_name.starts_with_bytes("-webkit-"sv, CaseSensitivity::CaseInsensitive)) {
+            // :has() only allows a limited set of pseudo-elements inside it, which doesn't include unknown ones.
+            if (m_pseudo_class_context.contains_slow(PseudoClass::Has))
+                return ParseError::SyntaxError;
+
             return Selector::SimpleSelector {
                 .type = Selector::SimpleSelector::Type::PseudoElement,
                 // Unknown -webkit- pseudo-elements must be serialized in ASCII lowercase.
@@ -470,6 +479,11 @@ Parser::ParseErrorOr<Selector::SimpleSelector> Parser::parse_pseudo_simple_selec
             case Selector::PseudoElement::Type::Before:
             case Selector::PseudoElement::Type::FirstLetter:
             case Selector::PseudoElement::Type::FirstLine:
+                // :has() is fussy about pseudo-elements inside it
+                if (m_pseudo_class_context.contains_slow(PseudoClass::Has) && !is_has_allowed_pseudo_element(pseudo_element->type())) {
+                    return ParseError::SyntaxError;
+                }
+
                 return Selector::SimpleSelector {
                     .type = Selector::SimpleSelector::Type::PseudoElement,
                     .value = pseudo_element.value()
@@ -544,6 +558,16 @@ Parser::ParseErrorOr<Selector::SimpleSelector> Parser::parse_pseudo_simple_selec
             dbgln_if(CSS_PARSER_DEBUG, "Empty :{}() selector", pseudo_function.name);
             return ParseError::SyntaxError;
         }
+
+        // "The :has() pseudo-class cannot be nested; :has() is not valid within :has()."
+        // https://drafts.csswg.org/selectors/#relational
+        if (pseudo_class == PseudoClass::Has && m_pseudo_class_context.contains_slow(PseudoClass::Has)) {
+            dbgln_if(CSS_PARSER_DEBUG, ":has() is not allowed inside :has()");
+            return ParseError::SyntaxError;
+        }
+
+        m_pseudo_class_context.append(pseudo_class);
+        ScopeGuard guard = [&] { m_pseudo_class_context.take_last(); };
 
         switch (metadata.parameter_type) {
         case PseudoClassMetadata::ParameterType::ANPlusB:

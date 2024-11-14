@@ -5,6 +5,11 @@
     test(() => {
         let selectors = [
             ":has(:yakthonk)",
+            ":has(:not(:yakthonk))",
+            ":has(:has(span))",
+            ":has(:not(:has(span)))",
+            ":has(::before)",
+            ":has(:not(::before))",
         ];
 
         let style = document.getElementById("style");
