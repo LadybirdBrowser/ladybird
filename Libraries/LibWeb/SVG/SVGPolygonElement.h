@@ -12,7 +12,7 @@ namespace Web::SVG {
 
 class SVGPolygonElement final : public SVGGeometryElement {
     WEB_PLATFORM_OBJECT(SVGPolygonElement, SVGGeometryElement);
-    JS_DECLARE_ALLOCATOR(SVGPolygonElement);
+    GC_DECLARE_ALLOCATOR(SVGPolygonElement);
 
 public:
     virtual ~SVGPolygonElement() override = default;

@@ -17,21 +17,21 @@ namespace Web::WebAudio {
 // https://webaudio.github.io/web-audio-api/#AudioListener
 class AudioListener final : public Bindings::PlatformObject {
     WEB_PLATFORM_OBJECT(AudioListener, Bindings::PlatformObject);
-    JS_DECLARE_ALLOCATOR(AudioListener);
+    GC_DECLARE_ALLOCATOR(AudioListener);
 
 public:
-    static JS::NonnullGCPtr<AudioListener> create(JS::Realm&);
+    static GC::Ref<AudioListener> create(JS::Realm&);
     virtual ~AudioListener() override;
 
-    JS::NonnullGCPtr<AudioParam> forward_x() const { return m_forward_x; }
-    JS::NonnullGCPtr<AudioParam> forward_y() const { return m_forward_y; }
-    JS::NonnullGCPtr<AudioParam> forward_z() const { return m_forward_z; }
-    JS::NonnullGCPtr<AudioParam> position_x() const { return m_position_x; }
-    JS::NonnullGCPtr<AudioParam> position_y() const { return m_position_y; }
-    JS::NonnullGCPtr<AudioParam> position_z() const { return m_position_z; }
-    JS::NonnullGCPtr<AudioParam> up_x() const { return m_up_x; }
-    JS::NonnullGCPtr<AudioParam> up_y() const { return m_up_y; }
-    JS::NonnullGCPtr<AudioParam> up_z() const { return m_up_z; }
+    GC::Ref<AudioParam> forward_x() const { return m_forward_x; }
+    GC::Ref<AudioParam> forward_y() const { return m_forward_y; }
+    GC::Ref<AudioParam> forward_z() const { return m_forward_z; }
+    GC::Ref<AudioParam> position_x() const { return m_position_x; }
+    GC::Ref<AudioParam> position_y() const { return m_position_y; }
+    GC::Ref<AudioParam> position_z() const { return m_position_z; }
+    GC::Ref<AudioParam> up_x() const { return m_up_x; }
+    GC::Ref<AudioParam> up_y() const { return m_up_y; }
+    GC::Ref<AudioParam> up_z() const { return m_up_z; }
 
     WebIDL::ExceptionOr<void> set_position(float x, float y, float z);
     WebIDL::ExceptionOr<void> set_orientation(float x, float y, float z, float x_up, float y_up, float z_up);
@@ -42,15 +42,15 @@ private:
     virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Cell::Visitor&) override;
 
-    JS::NonnullGCPtr<AudioParam> m_forward_x;
-    JS::NonnullGCPtr<AudioParam> m_forward_y;
-    JS::NonnullGCPtr<AudioParam> m_forward_z;
-    JS::NonnullGCPtr<AudioParam> m_position_x;
-    JS::NonnullGCPtr<AudioParam> m_position_y;
-    JS::NonnullGCPtr<AudioParam> m_position_z;
-    JS::NonnullGCPtr<AudioParam> m_up_x;
-    JS::NonnullGCPtr<AudioParam> m_up_y;
-    JS::NonnullGCPtr<AudioParam> m_up_z;
+    GC::Ref<AudioParam> m_forward_x;
+    GC::Ref<AudioParam> m_forward_y;
+    GC::Ref<AudioParam> m_forward_z;
+    GC::Ref<AudioParam> m_position_x;
+    GC::Ref<AudioParam> m_position_y;
+    GC::Ref<AudioParam> m_position_z;
+    GC::Ref<AudioParam> m_up_x;
+    GC::Ref<AudioParam> m_up_y;
+    GC::Ref<AudioParam> m_up_z;
 };
 
 }

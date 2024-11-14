@@ -16,7 +16,7 @@
 
 namespace Web::UserTiming {
 
-JS_DEFINE_ALLOCATOR(PerformanceMark);
+GC_DEFINE_ALLOCATOR(PerformanceMark);
 
 PerformanceMark::PerformanceMark(JS::Realm& realm, String const& name, HighResolutionTime::DOMHighResTimeStamp start_time, HighResolutionTime::DOMHighResTimeStamp duration, JS::Value detail)
     : PerformanceTimeline::PerformanceEntry(realm, name, start_time, duration)
@@ -27,7 +27,7 @@ PerformanceMark::PerformanceMark(JS::Realm& realm, String const& name, HighResol
 PerformanceMark::~PerformanceMark() = default;
 
 // https://w3c.github.io/user-timing/#dfn-performancemark-constructor
-WebIDL::ExceptionOr<JS::NonnullGCPtr<PerformanceMark>> PerformanceMark::construct_impl(JS::Realm& realm, String const& mark_name, Web::UserTiming::PerformanceMarkOptions const& mark_options)
+WebIDL::ExceptionOr<GC::Ref<PerformanceMark>> PerformanceMark::construct_impl(JS::Realm& realm, String const& mark_name, Web::UserTiming::PerformanceMarkOptions const& mark_options)
 {
     auto& current_principal_global_object = HTML::current_principal_global_object();
     auto& vm = realm.vm();

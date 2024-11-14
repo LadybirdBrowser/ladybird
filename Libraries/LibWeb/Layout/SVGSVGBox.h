@@ -12,8 +12,8 @@
 namespace Web::Layout {
 
 class SVGSVGBox final : public ReplacedBox {
-    JS_CELL(SVGSVGBox, ReplacedBox);
-    JS_DECLARE_ALLOCATOR(SVGSVGBox);
+    GC_CELL(SVGSVGBox, ReplacedBox);
+    GC_DECLARE_ALLOCATOR(SVGSVGBox);
 
 public:
     SVGSVGBox(DOM::Document&, SVG::SVGSVGElement&, CSS::StyleProperties);
@@ -24,7 +24,7 @@ public:
 
     virtual bool can_have_children() const override { return true; }
 
-    virtual JS::GCPtr<Painting::Paintable> create_paintable() const override;
+    virtual GC::Ptr<Painting::Paintable> create_paintable() const override;
 
     virtual void prepare_for_replaced_layout() override;
 

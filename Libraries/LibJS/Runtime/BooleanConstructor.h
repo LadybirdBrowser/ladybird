@@ -12,14 +12,14 @@ namespace JS {
 
 class BooleanConstructor final : public NativeFunction {
     JS_OBJECT(BooleanConstructor, NativeFunction);
-    JS_DECLARE_ALLOCATOR(BooleanConstructor);
+    GC_DECLARE_ALLOCATOR(BooleanConstructor);
 
 public:
     virtual void initialize(Realm&) override;
     virtual ~BooleanConstructor() override = default;
 
     virtual ThrowCompletionOr<Value> call() override;
-    virtual ThrowCompletionOr<NonnullGCPtr<Object>> construct(FunctionObject& new_target) override;
+    virtual ThrowCompletionOr<GC::Ref<Object>> construct(FunctionObject& new_target) override;
 
 private:
     explicit BooleanConstructor(Realm&);

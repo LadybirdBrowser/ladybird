@@ -7,7 +7,7 @@
 #pragma once
 
 #include <AK/Noncopyable.h>
-#include <LibJS/Heap/Handle.h>
+#include <LibGC/Root.h>
 #include <LibWeb/Forward.h>
 
 namespace Web::DOM {
@@ -21,7 +21,7 @@ public:
     ~DocumentLoadEventDelayer();
 
 private:
-    JS::Handle<Document> m_document;
+    GC::Root<Document> m_document;
 };
 
 }

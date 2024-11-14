@@ -13,7 +13,7 @@
 
 namespace Web::Layout {
 
-JS_DEFINE_ALLOCATOR(ImageBox);
+GC_DEFINE_ALLOCATOR(ImageBox);
 
 ImageBox::ImageBox(DOM::Document& document, DOM::Element& element, CSS::StyleProperties style, ImageProvider const& image_provider)
     : ReplacedBox(document, element, move(style))
@@ -71,7 +71,7 @@ bool ImageBox::renders_as_alt_text() const
     return false;
 }
 
-JS::GCPtr<Painting::Paintable> ImageBox::create_paintable() const
+GC::Ptr<Painting::Paintable> ImageBox::create_paintable() const
 {
     return Painting::ImagePaintable::create(*this);
 }

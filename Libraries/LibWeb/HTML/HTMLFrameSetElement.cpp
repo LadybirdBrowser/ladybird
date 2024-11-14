@@ -12,7 +12,7 @@
 
 namespace Web::HTML {
 
-JS_DEFINE_ALLOCATOR(HTMLFrameSetElement);
+GC_DEFINE_ALLOCATOR(HTMLFrameSetElement);
 
 HTMLFrameSetElement::HTMLFrameSetElement(DOM::Document& document, DOM::QualifiedName qualified_name)
     : HTMLElement(document, move(qualified_name))
@@ -47,7 +47,7 @@ void HTMLFrameSetElement::attribute_changed(FlyString const& name, Optional<Stri
 #undef __ENUMERATE
 }
 
-JS::GCPtr<DOM::EventTarget> HTMLFrameSetElement::global_event_handlers_to_event_target(FlyString const& event_name)
+GC::Ptr<DOM::EventTarget> HTMLFrameSetElement::global_event_handlers_to_event_target(FlyString const& event_name)
 {
     // NOTE: This is a little weird, but IIUC document.body.onload actually refers to window.onload
     // NOTE: document.body can return either a HTMLBodyElement or HTMLFrameSetElement, so both these elements must support this mapping.
@@ -57,7 +57,7 @@ JS::GCPtr<DOM::EventTarget> HTMLFrameSetElement::global_event_handlers_to_event_
     return *this;
 }
 
-JS::GCPtr<DOM::EventTarget> HTMLFrameSetElement::window_event_handlers_to_event_target()
+GC::Ptr<DOM::EventTarget> HTMLFrameSetElement::window_event_handlers_to_event_target()
 {
     // All WindowEventHandlers on HTMLFrameSetElement (e.g. document.body.onrejectionhandled) are mapped to window.on{event}.
     // NOTE: document.body can return either a HTMLBodyElement or HTMLFrameSetElement, so both these elements must support this mapping.

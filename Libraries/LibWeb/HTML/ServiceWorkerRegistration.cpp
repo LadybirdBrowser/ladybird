@@ -11,7 +11,7 @@
 
 namespace Web::HTML {
 
-JS_DEFINE_ALLOCATOR(ServiceWorkerRegistration);
+GC_DEFINE_ALLOCATOR(ServiceWorkerRegistration);
 
 ServiceWorkerRegistration::ServiceWorkerRegistration(JS::Realm& realm)
     : DOM::EventTarget(realm)
@@ -24,7 +24,7 @@ void ServiceWorkerRegistration::initialize(JS::Realm& realm)
     WEB_SET_PROTOTYPE_FOR_INTERFACE(ServiceWorkerRegistration);
 }
 
-JS::NonnullGCPtr<ServiceWorkerRegistration> ServiceWorkerRegistration::create(JS::Realm& realm)
+GC::Ref<ServiceWorkerRegistration> ServiceWorkerRegistration::create(JS::Realm& realm)
 {
     return realm.create<ServiceWorkerRegistration>(realm);
 }

@@ -15,9 +15,9 @@
 
 namespace Web::DOM {
 
-JS_DEFINE_ALLOCATOR(NamedNodeMap);
+GC_DEFINE_ALLOCATOR(NamedNodeMap);
 
-JS::NonnullGCPtr<NamedNodeMap> NamedNodeMap::create(Element& element)
+GC::Ref<NamedNodeMap> NamedNodeMap::create(Element& element)
 {
     auto& realm = element.realm();
     return realm.create<NamedNodeMap>(element);
@@ -96,13 +96,13 @@ Attr const* NamedNodeMap::get_named_item_ns(Optional<FlyString> const& namespace
 }
 
 // https://dom.spec.whatwg.org/#dom-namednodemap-setnameditem
-WebIDL::ExceptionOr<JS::GCPtr<Attr>> NamedNodeMap::set_named_item(Attr& attribute)
+WebIDL::ExceptionOr<GC::Ptr<Attr>> NamedNodeMap::set_named_item(Attr& attribute)
 {
     return set_attribute(attribute);
 }
 
 // https://dom.spec.whatwg.org/#dom-namednodemap-setnameditemns
-WebIDL::ExceptionOr<JS::GCPtr<Attr>> NamedNodeMap::set_named_item_ns(Attr& attribute)
+WebIDL::ExceptionOr<GC::Ptr<Attr>> NamedNodeMap::set_named_item_ns(Attr& attribute)
 {
     return set_attribute(attribute);
 }
@@ -210,7 +210,7 @@ Attr const* NamedNodeMap::get_attribute_ns(Optional<FlyString> const& namespace_
 }
 
 // https://dom.spec.whatwg.org/#concept-element-attributes-set
-WebIDL::ExceptionOr<JS::GCPtr<Attr>> NamedNodeMap::set_attribute(Attr& attribute)
+WebIDL::ExceptionOr<GC::Ptr<Attr>> NamedNodeMap::set_attribute(Attr& attribute)
 {
     // 1. If attr’s element is neither null nor element, throw an "InUseAttributeError" DOMException.
     if ((attribute.owner_element() != nullptr) && (attribute.owner_element() != &associated_element()))
@@ -272,7 +272,7 @@ void NamedNodeMap::append_attribute(Attr& attribute)
 // https://dom.spec.whatwg.org/#concept-element-attributes-remove
 void NamedNodeMap::remove_attribute_at_index(size_t attribute_index)
 {
-    JS::NonnullGCPtr<Attr> attribute = m_attributes.at(attribute_index);
+    GC::Ref<Attr> attribute = m_attributes.at(attribute_index);
 
     // 1. Let element be attribute’s element.
     auto* element = attribute->owner_element();
@@ -337,7 +337,7 @@ JS::Value NamedNodeMap::named_item_value(FlyString const& name) const
 }
 
 // https://dom.spec.whatwg.org/#dom-element-removeattributenode
-WebIDL::ExceptionOr<JS::NonnullGCPtr<Attr>> NamedNodeMap::remove_attribute_node(JS::NonnullGCPtr<Attr> attr)
+WebIDL::ExceptionOr<GC::Ref<Attr>> NamedNodeMap::remove_attribute_node(GC::Ref<Attr> attr)
 {
     // 1. If this’s attribute list does not contain attr, then throw a "NotFoundError" DOMException.
     auto index = m_attributes.find_first_index(attr);

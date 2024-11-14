@@ -5,7 +5,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibJS/Heap/Heap.h>
+#include <LibGC/Heap.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Bindings/WorkerNavigatorPrototype.h>
 #include <LibWeb/HTML/WorkerGlobalScope.h>
@@ -13,9 +13,9 @@
 
 namespace Web::HTML {
 
-JS_DEFINE_ALLOCATOR(WorkerNavigator);
+GC_DEFINE_ALLOCATOR(WorkerNavigator);
 
-JS::NonnullGCPtr<WorkerNavigator> WorkerNavigator::create(WorkerGlobalScope& global_scope)
+GC::Ref<WorkerNavigator> WorkerNavigator::create(WorkerGlobalScope& global_scope)
 {
     return global_scope.realm().create<WorkerNavigator>(global_scope);
 }
@@ -40,14 +40,14 @@ void WorkerNavigator::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_service_worker_container);
 }
 
-JS::NonnullGCPtr<MediaCapabilitiesAPI::MediaCapabilities> WorkerNavigator::media_capabilities()
+GC::Ref<MediaCapabilitiesAPI::MediaCapabilities> WorkerNavigator::media_capabilities()
 {
     if (!m_media_capabilities)
         m_media_capabilities = realm().create<MediaCapabilitiesAPI::MediaCapabilities>(realm());
     return *m_media_capabilities;
 }
 
-JS::NonnullGCPtr<ServiceWorkerContainer> WorkerNavigator::service_worker()
+GC::Ref<ServiceWorkerContainer> WorkerNavigator::service_worker()
 {
     if (!m_service_worker_container)
         m_service_worker_container = realm().create<ServiceWorkerContainer>(realm());

@@ -12,7 +12,7 @@ namespace Web::SVG {
 
 class SVGPolylineElement final : public SVGGeometryElement {
     WEB_PLATFORM_OBJECT(SVGPolylineElement, SVGGeometryElement);
-    JS_DECLARE_ALLOCATOR(SVGPolylineElement);
+    GC_DECLARE_ALLOCATOR(SVGPolylineElement);
 
 public:
     virtual ~SVGPolylineElement() override = default;

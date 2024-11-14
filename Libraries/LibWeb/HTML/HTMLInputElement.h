@@ -52,13 +52,13 @@ class HTMLInputElement final
     , public FormAssociatedTextControlElement
     , public Layout::ImageProvider {
     WEB_PLATFORM_OBJECT(HTMLInputElement, HTMLElement);
-    JS_DECLARE_ALLOCATOR(HTMLInputElement);
+    GC_DECLARE_ALLOCATOR(HTMLInputElement);
     FORM_ASSOCIATED_ELEMENT(HTMLElement, HTMLInputElement)
 
 public:
     virtual ~HTMLInputElement() override;
 
-    virtual JS::GCPtr<Layout::Node> create_layout_node(CSS::StyleProperties) override;
+    virtual GC::Ptr<Layout::Node> create_layout_node(CSS::StyleProperties) override;
     virtual void adjust_computed_style(CSS::StyleProperties&) override;
 
     enum class TypeAttributeState {
@@ -110,14 +110,14 @@ public:
     };
     void did_select_files(Span<SelectedFile> selected_files, MultipleHandling = MultipleHandling::Replace);
 
-    JS::GCPtr<FileAPI::FileList> files();
-    void set_files(JS::GCPtr<FileAPI::FileList>);
+    GC::Ptr<FileAPI::FileList> files();
+    void set_files(GC::Ptr<FileAPI::FileList>);
 
     FileFilter parse_accept_attribute() const;
 
     // NOTE: User interaction
     // https://html.spec.whatwg.org/multipage/input.html#update-the-file-selection
-    void update_the_file_selection(JS::NonnullGCPtr<FileAPI::FileList>);
+    void update_the_file_selection(GC::Ref<FileAPI::FileList>);
 
     WebIDL::Long max_length() const;
     WebIDL::ExceptionOr<void> set_max_length(WebIDL::Long);
@@ -135,7 +135,7 @@ public:
     SelectedCoordinate selected_coordinate() const { return m_selected_coordinate; }
 
     JS::Object* value_as_date() const;
-    WebIDL::ExceptionOr<void> set_value_as_date(Optional<JS::Handle<JS::Object>> const&);
+    WebIDL::ExceptionOr<void> set_value_as_date(Optional<GC::Root<JS::Object>> const&);
 
     double value_as_number() const;
     WebIDL::ExceptionOr<void> set_value_as_number(double value);
@@ -185,7 +185,7 @@ public:
 
     virtual WebIDL::ExceptionOr<void> cloned(Node&, bool) override;
 
-    JS::NonnullGCPtr<ValidityState const> validity() const;
+    GC::Ref<ValidityState const> validity() const;
 
     // ^HTMLElement
     // https://html.spec.whatwg.org/multipage/forms.html#category-label
@@ -193,8 +193,8 @@ public:
 
     virtual Optional<ARIA::Role> default_role() const override;
 
-    JS::GCPtr<Element> placeholder_element() { return m_placeholder_element; }
-    JS::GCPtr<Element const> placeholder_element() const { return m_placeholder_element; }
+    GC::Ptr<Element> placeholder_element() { return m_placeholder_element; }
+    GC::Ptr<Element const> placeholder_element() const { return m_placeholder_element; }
 
     virtual bool has_activation_behavior() const override;
     virtual void activation_behavior(DOM::Event const&) override;
@@ -216,7 +216,7 @@ public:
 
     // ^FormAssociatedTextControlElement
     virtual void did_edit_text_node() override;
-    virtual JS::GCPtr<DOM::Text> form_associated_element_to_text_node() override { return m_text_node; }
+    virtual GC::Ptr<DOM::Text> form_associated_element_to_text_node() override { return m_text_node; }
 
 private:
     HTMLInputElement(DOM::Document&, DOM::QualifiedName);
@@ -249,7 +249,7 @@ private:
     virtual Optional<CSSPixelFraction> intrinsic_aspect_ratio() const override;
     virtual RefPtr<Gfx::ImmutableBitmap> current_image_bitmap(Gfx::IntSize = {}) const override;
     virtual void set_visible_in_viewport(bool) override;
-    virtual JS::NonnullGCPtr<DOM::Element const> to_html_element() const override { return *this; }
+    virtual GC::Ref<DOM::Element const> to_html_element() const override { return *this; }
 
     virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Cell::Visitor&) override;
@@ -257,8 +257,8 @@ private:
     Optional<double> convert_string_to_number(StringView input) const;
     String convert_number_to_string(double input) const;
 
-    WebIDL::ExceptionOr<JS::GCPtr<JS::Date>> convert_string_to_date(StringView input) const;
-    String covert_date_to_string(JS::NonnullGCPtr<JS::Date> input) const;
+    WebIDL::ExceptionOr<GC::Ptr<JS::Date>> convert_string_to_date(StringView input) const;
+    String covert_date_to_string(GC::Ref<JS::Date> input) const;
 
     Optional<double> min() const;
     Optional<double> max() const;
@@ -298,28 +298,28 @@ private:
     ValueAttributeMode value_attribute_mode() const;
 
     void update_placeholder_visibility();
-    JS::GCPtr<DOM::Element> m_placeholder_element;
-    JS::GCPtr<DOM::Text> m_placeholder_text_node;
+    GC::Ptr<DOM::Element> m_placeholder_element;
+    GC::Ptr<DOM::Text> m_placeholder_text_node;
 
     void update_text_input_shadow_tree();
-    JS::GCPtr<DOM::Element> m_inner_text_element;
-    JS::GCPtr<DOM::Text> m_text_node;
+    GC::Ptr<DOM::Element> m_inner_text_element;
+    GC::Ptr<DOM::Text> m_text_node;
     bool m_checked { false };
 
     void update_color_well_element();
-    JS::GCPtr<DOM::Element> m_color_well_element;
+    GC::Ptr<DOM::Element> m_color_well_element;
 
     void update_file_input_shadow_tree();
-    JS::GCPtr<DOM::Element> m_file_button;
-    JS::GCPtr<DOM::Element> m_file_label;
+    GC::Ptr<DOM::Element> m_file_button;
+    GC::Ptr<DOM::Element> m_file_label;
 
     void update_slider_shadow_tree_elements();
-    JS::GCPtr<DOM::Element> m_slider_runnable_track;
-    JS::GCPtr<DOM::Element> m_slider_progress_element;
-    JS::GCPtr<DOM::Element> m_slider_thumb;
+    GC::Ptr<DOM::Element> m_slider_runnable_track;
+    GC::Ptr<DOM::Element> m_slider_progress_element;
+    GC::Ptr<DOM::Element> m_slider_thumb;
 
-    JS::GCPtr<DecodedImageData> image_data() const;
-    JS::GCPtr<SharedResourceRequest> m_resource_request;
+    GC::Ptr<DecodedImageData> image_data() const;
+    GC::Ptr<SharedResourceRequest> m_resource_request;
     SelectedCoordinate m_selected_coordinate;
 
     Optional<DOM::DocumentLoadEventDelayer> m_load_event_delayer;
@@ -339,10 +339,10 @@ private:
     // https://html.spec.whatwg.org/multipage/input.html#the-input-element:legacy-pre-activation-behavior
     bool m_before_legacy_pre_activation_behavior_checked { false };
     bool m_before_legacy_pre_activation_behavior_indeterminate { false };
-    JS::GCPtr<HTMLInputElement> m_legacy_pre_activation_behavior_checked_element_in_group;
+    GC::Ptr<HTMLInputElement> m_legacy_pre_activation_behavior_checked_element_in_group;
 
     // https://html.spec.whatwg.org/multipage/input.html#concept-input-type-file-selected
-    JS::GCPtr<FileAPI::FileList> m_selected_files;
+    GC::Ptr<FileAPI::FileList> m_selected_files;
 
     TypeAttributeState m_type { TypeAttributeState::Text };
     String m_value;

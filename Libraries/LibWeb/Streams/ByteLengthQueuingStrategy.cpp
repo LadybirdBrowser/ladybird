@@ -12,10 +12,10 @@
 
 namespace Web::Streams {
 
-JS_DEFINE_ALLOCATOR(ByteLengthQueuingStrategy);
+GC_DEFINE_ALLOCATOR(ByteLengthQueuingStrategy);
 
 // https://streams.spec.whatwg.org/#blqs-constructor
-JS::NonnullGCPtr<ByteLengthQueuingStrategy> ByteLengthQueuingStrategy::construct_impl(JS::Realm& realm, QueuingStrategyInit const& init)
+GC::Ref<ByteLengthQueuingStrategy> ByteLengthQueuingStrategy::construct_impl(JS::Realm& realm, QueuingStrategyInit const& init)
 {
     // The new ByteLengthQueuingStrategy(init) constructor steps are:
     // 1. Set this.[[highWaterMark]] to init["highWaterMark"].
@@ -31,7 +31,7 @@ ByteLengthQueuingStrategy::ByteLengthQueuingStrategy(JS::Realm& realm, double hi
 ByteLengthQueuingStrategy::~ByteLengthQueuingStrategy() = default;
 
 // https://streams.spec.whatwg.org/#blqs-size
-JS::NonnullGCPtr<WebIDL::CallbackType> ByteLengthQueuingStrategy::size()
+GC::Ref<WebIDL::CallbackType> ByteLengthQueuingStrategy::size()
 {
     // 1. Return this's relevant global object's byte length queuing strategy size function.
     return verify_cast<HTML::Window>(HTML::relevant_global_object(*this)).byte_length_queuing_strategy_size_function();

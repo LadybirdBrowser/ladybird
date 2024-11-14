@@ -7,8 +7,8 @@
 #pragma once
 
 #include <AK/Optional.h>
-#include <LibJS/Heap/CellAllocator.h>
-#include <LibJS/Heap/GCPtr.h>
+#include <LibGC/CellAllocator.h>
+#include <LibGC/Ptr.h>
 #include <LibURL/Origin.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/Requests.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/Responses.h>
@@ -22,23 +22,23 @@ namespace Web::HTML {
 
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#navigation-params
 struct NavigationParams : JS::Cell {
-    JS_CELL(NavigationParams, JS::Cell);
-    JS_DECLARE_ALLOCATOR(NavigationParams);
+    GC_CELL(NavigationParams, JS::Cell);
+    GC_DECLARE_ALLOCATOR(NavigationParams);
 
     // null or a navigation ID
     Optional<String> id;
 
     // the navigable to be navigated
-    JS::GCPtr<Navigable> navigable;
+    GC::Ptr<Navigable> navigable;
 
     // null or a request that started the navigation
-    JS::GCPtr<Fetch::Infrastructure::Request> request;
+    GC::Ptr<Fetch::Infrastructure::Request> request;
 
     // a response that ultimately was navigated to (potentially a network error)
-    JS::GCPtr<Fetch::Infrastructure::Response> response;
+    GC::Ptr<Fetch::Infrastructure::Response> response;
 
     // null or a fetch controller
-    JS::GCPtr<Fetch::Infrastructure::FetchController> fetch_controller { nullptr };
+    GC::Ptr<Fetch::Infrastructure::FetchController> fetch_controller { nullptr };
 
     // null or an algorithm accepting a Document, once it has been created
     Function<void(DOM::Document&)> commit_early_hints { nullptr };
@@ -71,14 +71,14 @@ struct NavigationParams : JS::Cell {
 
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#non-fetch-scheme-navigation-params
 struct NonFetchSchemeNavigationParams : JS::Cell {
-    JS_CELL(NonFetchSchemeNavigationParams, JS::Cell);
-    JS_DECLARE_ALLOCATOR(NonFetchSchemeNavigationParams);
+    GC_CELL(NonFetchSchemeNavigationParams, JS::Cell);
+    GC_DECLARE_ALLOCATOR(NonFetchSchemeNavigationParams);
 
     // null or a navigation ID
     Optional<String> id;
 
     // the navigable to be navigated
-    JS::GCPtr<Navigable> navigable;
+    GC::Ptr<Navigable> navigable;
 
     // a URL
     URL::URL url;

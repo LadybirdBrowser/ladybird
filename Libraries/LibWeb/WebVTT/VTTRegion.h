@@ -15,10 +15,10 @@ namespace Web::WebVTT {
 // https://w3c.github.io/webvtt/#vttregion
 class VTTRegion final : public Bindings::PlatformObject {
     WEB_PLATFORM_OBJECT(VTTRegion, Bindings::PlatformObject);
-    JS_DECLARE_ALLOCATOR(VTTRegion);
+    GC_DECLARE_ALLOCATOR(VTTRegion);
 
 public:
-    static WebIDL::ExceptionOr<JS::NonnullGCPtr<VTTRegion>> construct_impl(JS::Realm&);
+    static WebIDL::ExceptionOr<GC::Ref<VTTRegion>> construct_impl(JS::Realm&);
     virtual ~VTTRegion() override = default;
 
     String const& id() const { return m_identifier; }

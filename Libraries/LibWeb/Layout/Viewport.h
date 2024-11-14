@@ -12,15 +12,15 @@
 namespace Web::Layout {
 
 class Viewport final : public BlockContainer {
-    JS_CELL(Viewport, BlockContainer);
-    JS_DECLARE_ALLOCATOR(Viewport);
+    GC_CELL(Viewport, BlockContainer);
+    GC_DECLARE_ALLOCATOR(Viewport);
 
 public:
     explicit Viewport(DOM::Document&, CSS::StyleProperties);
     virtual ~Viewport() override;
 
     struct TextPosition {
-        JS::NonnullGCPtr<DOM::Text> dom_node;
+        GC::Ref<DOM::Text> dom_node;
         size_t start_offset { 0 };
     };
     struct TextBlock {
@@ -34,7 +34,7 @@ public:
     virtual void visit_edges(Visitor&) override;
 
 private:
-    virtual JS::GCPtr<Painting::Paintable> create_paintable() const override;
+    virtual GC::Ptr<Painting::Paintable> create_paintable() const override;
 
     void update_text_blocks();
 

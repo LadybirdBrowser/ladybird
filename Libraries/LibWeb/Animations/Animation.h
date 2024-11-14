@@ -24,20 +24,20 @@ enum class AnimationClass {
 // https://www.w3.org/TR/web-animations-1/#the-animation-interface
 class Animation : public DOM::EventTarget {
     WEB_PLATFORM_OBJECT(Animation, DOM::EventTarget);
-    JS_DECLARE_ALLOCATOR(Animation);
+    GC_DECLARE_ALLOCATOR(Animation);
 
 public:
-    static JS::NonnullGCPtr<Animation> create(JS::Realm&, JS::GCPtr<AnimationEffect>, Optional<JS::GCPtr<AnimationTimeline>>);
-    static WebIDL::ExceptionOr<JS::NonnullGCPtr<Animation>> construct_impl(JS::Realm&, JS::GCPtr<AnimationEffect>, Optional<JS::GCPtr<AnimationTimeline>>);
+    static GC::Ref<Animation> create(JS::Realm&, GC::Ptr<AnimationEffect>, Optional<GC::Ptr<AnimationTimeline>>);
+    static WebIDL::ExceptionOr<GC::Ref<Animation>> construct_impl(JS::Realm&, GC::Ptr<AnimationEffect>, Optional<GC::Ptr<AnimationTimeline>>);
 
     FlyString const& id() const { return m_id; }
     void set_id(FlyString value) { m_id = move(value); }
 
-    JS::GCPtr<AnimationEffect> effect() const { return m_effect; }
-    void set_effect(JS::GCPtr<AnimationEffect>);
+    GC::Ptr<AnimationEffect> effect() const { return m_effect; }
+    void set_effect(GC::Ptr<AnimationEffect>);
 
-    JS::GCPtr<AnimationTimeline> timeline() const { return m_timeline; }
-    void set_timeline(JS::GCPtr<AnimationTimeline>);
+    GC::Ptr<AnimationTimeline> timeline() const { return m_timeline; }
+    void set_timeline(GC::Ptr<AnimationTimeline>);
 
     Optional<double> const& start_time() const { return m_start_time; }
     void set_start_time(Optional<double> const&);
@@ -60,18 +60,18 @@ public:
     bool pending() const { return m_pending_play_task == TaskState::Scheduled || m_pending_pause_task == TaskState::Scheduled; }
 
     // https://www.w3.org/TR/web-animations-1/#dom-animation-ready
-    JS::NonnullGCPtr<WebIDL::Promise> ready() const { return current_ready_promise(); }
+    GC::Ref<WebIDL::Promise> ready() const { return current_ready_promise(); }
 
     // https://www.w3.org/TR/web-animations-1/#dom-animation-finished
-    JS::NonnullGCPtr<WebIDL::Promise> finished() const { return current_finished_promise(); }
+    GC::Ref<WebIDL::Promise> finished() const { return current_finished_promise(); }
     bool is_finished() const { return m_is_finished; }
 
-    JS::GCPtr<WebIDL::CallbackType> onfinish();
-    void set_onfinish(JS::GCPtr<WebIDL::CallbackType>);
-    JS::GCPtr<WebIDL::CallbackType> oncancel();
-    void set_oncancel(JS::GCPtr<WebIDL::CallbackType>);
-    JS::GCPtr<WebIDL::CallbackType> onremove();
-    void set_onremove(JS::GCPtr<WebIDL::CallbackType>);
+    GC::Ptr<WebIDL::CallbackType> onfinish();
+    void set_onfinish(GC::Ptr<WebIDL::CallbackType>);
+    GC::Ptr<WebIDL::CallbackType> oncancel();
+    void set_oncancel(GC::Ptr<WebIDL::CallbackType>);
+    GC::Ptr<WebIDL::CallbackType> onremove();
+    void set_onremove(GC::Ptr<WebIDL::CallbackType>);
 
     enum class AutoRewind {
         Yes,
@@ -93,7 +93,7 @@ public:
     Optional<double> convert_an_animation_time_to_timeline_time(Optional<double>) const;
     Optional<double> convert_a_timeline_time_to_an_origin_relative_time(Optional<double>) const;
 
-    JS::GCPtr<DOM::Document> document_for_timing() const;
+    GC::Ptr<DOM::Document> document_for_timing() const;
     void notify_timeline_time_did_change();
 
     void effect_timing_changed(Badge<AnimationEffect>);
@@ -101,11 +101,11 @@ public:
     virtual bool is_css_animation() const { return false; }
     virtual bool is_css_transition() const { return false; }
 
-    JS::GCPtr<DOM::Element> owning_element() const { return m_owning_element; }
-    void set_owning_element(JS::GCPtr<DOM::Element> value) { m_owning_element = value; }
+    GC::Ptr<DOM::Element> owning_element() const { return m_owning_element; }
+    void set_owning_element(GC::Ptr<DOM::Element> value) { m_owning_element = value; }
 
     virtual AnimationClass animation_class() const { return AnimationClass::None; }
-    virtual Optional<int> class_specific_composite_order(JS::NonnullGCPtr<Animation>) const { return {}; }
+    virtual Optional<int> class_specific_composite_order(GC::Ref<Animation>) const { return {}; }
 
     unsigned int global_animation_list_order() const { return m_global_animation_list_order; }
 
@@ -144,8 +144,8 @@ private:
     void run_pending_play_task();
     void run_pending_pause_task();
 
-    JS::NonnullGCPtr<WebIDL::Promise> current_ready_promise() const;
-    JS::NonnullGCPtr<WebIDL::Promise> current_finished_promise() const;
+    GC::Ref<WebIDL::Promise> current_ready_promise() const;
+    GC::Ref<WebIDL::Promise> current_finished_promise() const;
 
     void invalidate_effect();
 
@@ -156,10 +156,10 @@ private:
     unsigned int m_global_animation_list_order { 0 };
 
     // https://www.w3.org/TR/web-animations-1/#dom-animation-effect
-    JS::GCPtr<AnimationEffect> m_effect;
+    GC::Ptr<AnimationEffect> m_effect;
 
     // https://www.w3.org/TR/web-animations-1/#dom-animation-timeline
-    JS::GCPtr<AnimationTimeline> m_timeline;
+    GC::Ptr<AnimationTimeline> m_timeline;
 
     // https://www.w3.org/TR/web-animations-1/#animation-start-time
     Optional<double> m_start_time {};
@@ -181,10 +181,10 @@ private:
 
     // Note: The following promises are initialized lazily to avoid constructing them outside of an execution context
     // https://www.w3.org/TR/web-animations-1/#current-ready-promise
-    mutable JS::GCPtr<WebIDL::Promise> m_current_ready_promise;
+    mutable GC::Ptr<WebIDL::Promise> m_current_ready_promise;
 
     // https://www.w3.org/TR/web-animations-1/#current-finished-promise
-    mutable JS::GCPtr<WebIDL::Promise> m_current_finished_promise;
+    mutable GC::Ptr<WebIDL::Promise> m_current_finished_promise;
     bool m_is_finished { false };
 
     // https://www.w3.org/TR/web-animations-1/#pending-play-task
@@ -194,7 +194,7 @@ private:
     TaskState m_pending_pause_task { TaskState::None };
 
     // https://www.w3.org/TR/css-animations-2/#owning-element-section
-    JS::GCPtr<DOM::Element> m_owning_element;
+    GC::Ptr<DOM::Element> m_owning_element;
 
     Optional<HTML::TaskID> m_pending_finish_microtask_id;
 

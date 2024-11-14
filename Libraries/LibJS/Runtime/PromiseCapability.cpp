@@ -11,14 +11,14 @@
 
 namespace JS {
 
-JS_DEFINE_ALLOCATOR(PromiseCapability);
+GC_DEFINE_ALLOCATOR(PromiseCapability);
 
-NonnullGCPtr<PromiseCapability> PromiseCapability::create(VM& vm, NonnullGCPtr<Object> promise, NonnullGCPtr<FunctionObject> resolve, NonnullGCPtr<FunctionObject> reject)
+GC::Ref<PromiseCapability> PromiseCapability::create(VM& vm, GC::Ref<Object> promise, GC::Ref<FunctionObject> resolve, GC::Ref<FunctionObject> reject)
 {
     return vm.heap().allocate<PromiseCapability>(promise, resolve, reject);
 }
 
-PromiseCapability::PromiseCapability(NonnullGCPtr<Object> promise, NonnullGCPtr<FunctionObject> resolve, NonnullGCPtr<FunctionObject> reject)
+PromiseCapability::PromiseCapability(GC::Ref<Object> promise, GC::Ref<FunctionObject> resolve, GC::Ref<FunctionObject> reject)
     : m_promise(promise)
     , m_resolve(resolve)
     , m_reject(reject)
@@ -35,8 +35,8 @@ void PromiseCapability::visit_edges(Cell::Visitor& visitor)
 
 namespace {
 struct ResolvingFunctions final : public Cell {
-    JS_CELL(ResolvingFunctions, Cell);
-    JS_DECLARE_ALLOCATOR(ResolvingFunctions);
+    GC_CELL(ResolvingFunctions, Cell);
+    GC_DECLARE_ALLOCATOR(ResolvingFunctions);
 
     Value resolve { js_undefined() };
     Value reject { js_undefined() };
@@ -48,11 +48,11 @@ struct ResolvingFunctions final : public Cell {
         visitor.visit(reject);
     }
 };
-JS_DEFINE_ALLOCATOR(ResolvingFunctions);
+GC_DEFINE_ALLOCATOR(ResolvingFunctions);
 }
 
 // 27.2.1.5 NewPromiseCapability ( C ), https://tc39.es/ecma262/#sec-newpromisecapability
-ThrowCompletionOr<NonnullGCPtr<PromiseCapability>> new_promise_capability(VM& vm, Value constructor)
+ThrowCompletionOr<GC::Ref<PromiseCapability>> new_promise_capability(VM& vm, Value constructor)
 {
     auto& realm = *vm.current_realm();
 

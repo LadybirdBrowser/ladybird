@@ -4,13 +4,13 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibJS/Heap/MarkedVector.h>
+#include <LibGC/MarkedVector.h>
 #include <LibWeb/HTML/EventLoop/EventLoop.h>
 #include <LibWeb/HTML/EventLoop/TaskQueue.h>
 
 namespace Web::HTML {
 
-JS_DEFINE_ALLOCATOR(TaskQueue);
+GC_DEFINE_ALLOCATOR(TaskQueue);
 
 TaskQueue::TaskQueue(HTML::EventLoop& event_loop)
     : m_event_loop(event_loop)
@@ -26,13 +26,13 @@ void TaskQueue::visit_edges(Visitor& visitor)
     visitor.visit(m_tasks);
 }
 
-void TaskQueue::add(JS::NonnullGCPtr<Task> task)
+void TaskQueue::add(GC::Ref<Task> task)
 {
     m_tasks.append(task);
     m_event_loop->schedule();
 }
 
-JS::GCPtr<Task> TaskQueue::take_first_runnable()
+GC::Ptr<Task> TaskQueue::take_first_runnable()
 {
     if (m_event_loop->execution_paused())
         return nullptr;
@@ -63,9 +63,9 @@ void TaskQueue::remove_tasks_matching(Function<bool(HTML::Task const&)> filter)
     });
 }
 
-JS::MarkedVector<JS::NonnullGCPtr<Task>> TaskQueue::take_tasks_matching(Function<bool(HTML::Task const&)> filter)
+GC::MarkedVector<GC::Ref<Task>> TaskQueue::take_tasks_matching(Function<bool(HTML::Task const&)> filter)
 {
-    JS::MarkedVector<JS::NonnullGCPtr<Task>> matching_tasks(heap());
+    GC::MarkedVector<GC::Ref<Task>> matching_tasks(heap());
 
     for (size_t i = 0; i < m_tasks.size();) {
         auto& task = m_tasks.at(i);

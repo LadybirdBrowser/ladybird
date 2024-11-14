@@ -12,10 +12,10 @@ namespace Web::CSS {
 
 class CSSNamespaceRule final : public CSSRule {
     WEB_PLATFORM_OBJECT(CSSNamespaceRule, CSSRule);
-    JS_DECLARE_ALLOCATOR(CSSNamespaceRule);
+    GC_DECLARE_ALLOCATOR(CSSNamespaceRule);
 
 public:
-    [[nodiscard]] static JS::NonnullGCPtr<CSSNamespaceRule> create(JS::Realm&, Optional<FlyString> prefix, FlyString namespace_uri);
+    [[nodiscard]] static GC::Ref<CSSNamespaceRule> create(JS::Realm&, Optional<FlyString> prefix, FlyString namespace_uri);
 
     virtual ~CSSNamespaceRule() = default;
 

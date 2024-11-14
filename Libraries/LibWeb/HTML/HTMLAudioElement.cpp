@@ -14,7 +14,7 @@
 
 namespace Web::HTML {
 
-JS_DEFINE_ALLOCATOR(HTMLAudioElement);
+GC_DEFINE_ALLOCATOR(HTMLAudioElement);
 
 HTMLAudioElement::HTMLAudioElement(DOM::Document& document, DOM::QualifiedName qualified_name)
     : HTMLMediaElement(document, move(qualified_name))
@@ -29,7 +29,7 @@ void HTMLAudioElement::initialize(JS::Realm& realm)
     WEB_SET_PROTOTYPE_FOR_INTERFACE(HTMLAudioElement);
 }
 
-JS::GCPtr<Layout::Node> HTMLAudioElement::create_layout_node(CSS::StyleProperties style)
+GC::Ptr<Layout::Node> HTMLAudioElement::create_layout_node(CSS::StyleProperties style)
 {
     return heap().allocate<Layout::AudioBox>(document(), *this, move(style));
 }

@@ -4,16 +4,16 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibGC/Heap.h>
 #include <LibGfx/AntiAliasingPainter.h>
-#include <LibJS/Heap/Heap.h>
 #include <LibWeb/Layout/ListItemMarkerBox.h>
 #include <LibWeb/Painting/MarkerPaintable.h>
 
 namespace Web::Painting {
 
-JS_DEFINE_ALLOCATOR(MarkerPaintable);
+GC_DEFINE_ALLOCATOR(MarkerPaintable);
 
-JS::NonnullGCPtr<MarkerPaintable> MarkerPaintable::create(Layout::ListItemMarkerBox const& layout_box)
+GC::Ref<MarkerPaintable> MarkerPaintable::create(Layout::ListItemMarkerBox const& layout_box)
 {
     return layout_box.heap().allocate<MarkerPaintable>(layout_box);
 }

@@ -16,29 +16,29 @@ struct OscillatorOptions : AudioNodeOptions {
     Bindings::OscillatorType type { Bindings::OscillatorType::Sine };
     float frequency { 440 };
     float detune { 0 };
-    JS::GCPtr<PeriodicWave> periodic_wave;
+    GC::Ptr<PeriodicWave> periodic_wave;
 };
 
 // https://webaudio.github.io/web-audio-api/#OscillatorNode
 class OscillatorNode : public AudioScheduledSourceNode {
     WEB_PLATFORM_OBJECT(OscillatorNode, AudioScheduledSourceNode);
-    JS_DECLARE_ALLOCATOR(OscillatorNode);
+    GC_DECLARE_ALLOCATOR(OscillatorNode);
 
 public:
     virtual ~OscillatorNode() override;
 
-    static WebIDL::ExceptionOr<JS::NonnullGCPtr<OscillatorNode>> create(JS::Realm&, JS::NonnullGCPtr<BaseAudioContext>, OscillatorOptions const& = {});
-    static WebIDL::ExceptionOr<JS::NonnullGCPtr<OscillatorNode>> construct_impl(JS::Realm&, JS::NonnullGCPtr<BaseAudioContext>, OscillatorOptions const& = {});
+    static WebIDL::ExceptionOr<GC::Ref<OscillatorNode>> create(JS::Realm&, GC::Ref<BaseAudioContext>, OscillatorOptions const& = {});
+    static WebIDL::ExceptionOr<GC::Ref<OscillatorNode>> construct_impl(JS::Realm&, GC::Ref<BaseAudioContext>, OscillatorOptions const& = {});
 
     Bindings::OscillatorType type() const;
     WebIDL::ExceptionOr<void> set_type(Bindings::OscillatorType);
 
-    JS::NonnullGCPtr<AudioParam const> frequency() const { return m_frequency; }
+    GC::Ref<AudioParam const> frequency() const { return m_frequency; }
     WebIDL::UnsignedLong number_of_inputs() override { return 0; }
     WebIDL::UnsignedLong number_of_outputs() override { return 1; }
 
 protected:
-    OscillatorNode(JS::Realm&, JS::NonnullGCPtr<BaseAudioContext>, OscillatorOptions const& = {});
+    OscillatorNode(JS::Realm&, GC::Ref<BaseAudioContext>, OscillatorOptions const& = {});
 
     virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Cell::Visitor&) override;
@@ -50,7 +50,7 @@ private:
     Bindings::OscillatorType m_type { Bindings::OscillatorType::Sine };
 
     // https://webaudio.github.io/web-audio-api/#dom-oscillatornode-frequency
-    JS::NonnullGCPtr<AudioParam> m_frequency;
+    GC::Ref<AudioParam> m_frequency;
 };
 
 }

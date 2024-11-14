@@ -14,7 +14,7 @@
 
 namespace Web::SVG {
 
-JS_DEFINE_ALLOCATOR(SVGStopElement);
+GC_DEFINE_ALLOCATOR(SVGStopElement);
 
 SVGStopElement::SVGStopElement(DOM::Document& document, DOM::QualifiedName qualified_name)
     : SVGElement(document, qualified_name)
@@ -61,7 +61,7 @@ float SVGStopElement::stop_opacity() const
     return 1;
 }
 
-JS::NonnullGCPtr<SVGAnimatedNumber> SVGStopElement::offset() const
+GC::Ref<SVGAnimatedNumber> SVGStopElement::offset() const
 {
     // FIXME: Implement this properly.
     return SVGAnimatedNumber::create(realm(), 0, 0);

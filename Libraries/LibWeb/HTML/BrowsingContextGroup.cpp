@@ -11,16 +11,16 @@
 
 namespace Web::HTML {
 
-JS_DEFINE_ALLOCATOR(BrowsingContextGroup);
+GC_DEFINE_ALLOCATOR(BrowsingContextGroup);
 
 // https://html.spec.whatwg.org/multipage/browsers.html#browsing-context-group-set
-static HashTable<JS::NonnullGCPtr<BrowsingContextGroup>>& user_agent_browsing_context_group_set()
+static HashTable<GC::Ref<BrowsingContextGroup>>& user_agent_browsing_context_group_set()
 {
-    static HashTable<JS::NonnullGCPtr<BrowsingContextGroup>> set;
+    static HashTable<GC::Ref<BrowsingContextGroup>> set;
     return set;
 }
 
-BrowsingContextGroup::BrowsingContextGroup(JS::NonnullGCPtr<Web::Page> page)
+BrowsingContextGroup::BrowsingContextGroup(GC::Ref<Web::Page> page)
     : m_page(page)
 {
     user_agent_browsing_context_group_set().set(*this);
@@ -39,7 +39,7 @@ void BrowsingContextGroup::visit_edges(Cell::Visitor& visitor)
 }
 
 // https://html.spec.whatwg.org/multipage/document-sequences.html#creating-a-new-browsing-context-group-and-document
-auto BrowsingContextGroup::create_a_new_browsing_context_group_and_document(JS::NonnullGCPtr<Page> page) -> WebIDL::ExceptionOr<BrowsingContextGroupAndDocument>
+auto BrowsingContextGroup::create_a_new_browsing_context_group_and_document(GC::Ref<Page> page) -> WebIDL::ExceptionOr<BrowsingContextGroupAndDocument>
 {
     // 1. Let group be a new browsing context group.
     // 2. Append group to the user agent's browsing context group set.

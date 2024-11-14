@@ -90,7 +90,7 @@ PromiseJob create_promise_reaction_job(VM& vm, PromiseReaction& reaction, Value 
 {
     // 1. Let job be a new Job Abstract Closure with no parameters that captures reaction and argument and performs the following steps when called:
     //    See run_reaction_job for "the following steps".
-    auto job = create_heap_function(vm.heap(), [&vm, &reaction, argument] {
+    auto job = GC::create_function(vm.heap(), [&vm, &reaction, argument] {
         return run_reaction_job(vm, reaction, argument);
     });
 
@@ -144,7 +144,7 @@ static ThrowCompletionOr<Value> run_resolve_thenable_job(VM& vm, Promise& promis
 }
 
 // 27.2.2.2 NewPromiseResolveThenableJob ( promiseToResolve, thenable, then ), https://tc39.es/ecma262/#sec-newpromiseresolvethenablejob
-PromiseJob create_promise_resolve_thenable_job(VM& vm, Promise& promise_to_resolve, Value thenable, JS::NonnullGCPtr<JobCallback> then)
+PromiseJob create_promise_resolve_thenable_job(VM& vm, Promise& promise_to_resolve, Value thenable, GC::Ref<JobCallback> then)
 {
     // 2. Let getThenRealmResult be Completion(GetFunctionRealm(then.[[Callback]])).
     auto get_then_realm_result = get_function_realm(vm, then->callback());
@@ -164,7 +164,7 @@ PromiseJob create_promise_resolve_thenable_job(VM& vm, Promise& promise_to_resol
 
     // 1. Let job be a new Job Abstract Closure with no parameters that captures promiseToResolve, thenable, and then and performs the following steps when called:
     //    See run_resolve_thenable_job() for "the following steps".
-    auto job = create_heap_function(vm.heap(), [&vm, &promise_to_resolve, thenable, then]() mutable {
+    auto job = GC::create_function(vm.heap(), [&vm, &promise_to_resolve, thenable, then]() mutable {
         return run_resolve_thenable_job(vm, promise_to_resolve, thenable, then);
     });
 

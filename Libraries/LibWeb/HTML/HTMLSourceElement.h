@@ -12,7 +12,7 @@ namespace Web::HTML {
 
 class HTMLSourceElement final : public HTMLElement {
     WEB_PLATFORM_OBJECT(HTMLSourceElement, HTMLElement);
-    JS_DECLARE_ALLOCATOR(HTMLSourceElement);
+    GC_DECLARE_ALLOCATOR(HTMLSourceElement);
 
 public:
     virtual ~HTMLSourceElement() override;

@@ -14,8 +14,8 @@
 namespace Web::Layout {
 
 class SVGForeignObjectBox final : public BlockContainer {
-    JS_CELL(SVGForeignObjectBox, BlockContainer);
-    JS_DECLARE_ALLOCATOR(SVGForeignObjectBox);
+    GC_CELL(SVGForeignObjectBox, BlockContainer);
+    GC_DECLARE_ALLOCATOR(SVGForeignObjectBox);
 
 public:
     SVGForeignObjectBox(DOM::Document&, SVG::SVGForeignObjectElement&, CSS::StyleProperties);
@@ -24,7 +24,7 @@ public:
     SVG::SVGForeignObjectElement& dom_node() { return static_cast<SVG::SVGForeignObjectElement&>(*BlockContainer::dom_node()); }
     SVG::SVGForeignObjectElement const& dom_node() const { return static_cast<SVG::SVGForeignObjectElement const&>(*BlockContainer::dom_node()); }
 
-    virtual JS::GCPtr<Painting::Paintable> create_paintable() const override;
+    virtual GC::Ptr<Painting::Paintable> create_paintable() const override;
 };
 
 }

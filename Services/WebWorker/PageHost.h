@@ -14,11 +14,11 @@
 namespace WebWorker {
 
 class PageHost final : public Web::PageClient {
-    JS_CELL(PageHost, Web::PageClient);
-    JS_DECLARE_ALLOCATOR(PageHost);
+    GC_CELL(PageHost, Web::PageClient);
+    GC_DECLARE_ALLOCATOR(PageHost);
 
 public:
-    static JS::NonnullGCPtr<PageHost> create(JS::VM& vm, ConnectionFromClient& client);
+    static GC::Ref<PageHost> create(JS::VM& vm, ConnectionFromClient& client);
 
     virtual ~PageHost();
 
@@ -45,7 +45,7 @@ private:
     void setup_palette();
 
     ConnectionFromClient& m_client;
-    JS::NonnullGCPtr<Web::Page> m_page;
+    GC::Ref<Web::Page> m_page;
     RefPtr<Gfx::PaletteImpl> m_palette_impl;
 };
 

@@ -22,11 +22,11 @@ namespace Web::CSS {
 // https://www.w3.org/TR/cssom/#the-cssrulelist-interface
 class CSSRuleList : public Bindings::PlatformObject {
     WEB_PLATFORM_OBJECT(CSSRuleList, Bindings::PlatformObject);
-    JS_DECLARE_ALLOCATOR(CSSRuleList);
+    GC_DECLARE_ALLOCATOR(CSSRuleList);
 
 public:
-    [[nodiscard]] static JS::NonnullGCPtr<CSSRuleList> create(JS::Realm&, JS::MarkedVector<CSSRule*> const&);
-    [[nodiscard]] static JS::NonnullGCPtr<CSSRuleList> create_empty(JS::Realm&);
+    [[nodiscard]] static GC::Ref<CSSRuleList> create(JS::Realm&, GC::MarkedVector<CSSRule*> const&);
+    [[nodiscard]] static GC::Ref<CSSRuleList> create_empty(JS::Realm&);
 
     ~CSSRuleList() = default;
 
@@ -61,7 +61,7 @@ public:
     // Returns whether the match state of any media queries changed after evaluation.
     bool evaluate_media_queries(HTML::Window const&);
 
-    void set_rules(Badge<CSSStyleSheet>, Vector<JS::NonnullGCPtr<CSSRule>> rules) { m_rules = move(rules); }
+    void set_rules(Badge<CSSStyleSheet>, Vector<GC::Ref<CSSRule>> rules) { m_rules = move(rules); }
 
     Function<void()> on_change;
 
@@ -71,7 +71,7 @@ private:
     virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Cell::Visitor&) override;
 
-    Vector<JS::NonnullGCPtr<CSSRule>> m_rules;
+    Vector<GC::Ref<CSSRule>> m_rules;
 };
 
 }

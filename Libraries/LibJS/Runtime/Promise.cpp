@@ -19,7 +19,7 @@
 
 namespace JS {
 
-JS_DEFINE_ALLOCATOR(Promise);
+GC_DEFINE_ALLOCATOR(Promise);
 
 // 27.2.4.7.1 PromiseResolve ( C, x ), https://tc39.es/ecma262/#sec-promise-resolve
 ThrowCompletionOr<Object*> promise_resolve(VM& vm, Object& constructor, Value value)
@@ -44,7 +44,7 @@ ThrowCompletionOr<Object*> promise_resolve(VM& vm, Object& constructor, Value va
     return promise_capability->promise().ptr();
 }
 
-NonnullGCPtr<Promise> Promise::create(Realm& realm)
+GC::Ref<Promise> Promise::create(Realm& realm)
 {
     return realm.create<Promise>(realm.intrinsics().promise_prototype());
 }
@@ -290,7 +290,7 @@ void Promise::trigger_reactions() const
 }
 
 // 27.2.5.4.1 PerformPromiseThen ( promise, onFulfilled, onRejected [ , resultCapability ] ), https://tc39.es/ecma262/#sec-performpromisethen
-Value Promise::perform_then(Value on_fulfilled, Value on_rejected, GCPtr<PromiseCapability> result_capability)
+Value Promise::perform_then(Value on_fulfilled, Value on_rejected, GC::Ptr<PromiseCapability> result_capability)
 {
     auto& vm = this->vm();
 
@@ -300,7 +300,7 @@ Value Promise::perform_then(Value on_fulfilled, Value on_rejected, GCPtr<Promise
 
     // 3. If IsCallable(onFulfilled) is false, then
     //     a. Let onFulfilledJobCallback be empty.
-    GCPtr<JobCallback> on_fulfilled_job_callback;
+    GC::Ptr<JobCallback> on_fulfilled_job_callback;
 
     // 4. Else,
     if (on_fulfilled.is_function()) {
@@ -311,7 +311,7 @@ Value Promise::perform_then(Value on_fulfilled, Value on_rejected, GCPtr<Promise
 
     // 5. If IsCallable(onRejected) is false, then
     //     a. Let onRejectedJobCallback be empty.
-    GCPtr<JobCallback> on_rejected_job_callback;
+    GC::Ptr<JobCallback> on_rejected_job_callback;
 
     // 6. Else,
     if (on_rejected.is_function()) {

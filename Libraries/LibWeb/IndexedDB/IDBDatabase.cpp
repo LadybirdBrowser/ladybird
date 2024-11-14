@@ -11,7 +11,7 @@
 
 namespace Web::IndexedDB {
 
-JS_DEFINE_ALLOCATOR(IDBDatabase);
+GC_DEFINE_ALLOCATOR(IDBDatabase);
 
 IDBDatabase::IDBDatabase(JS::Realm& realm, Database& db)
     : EventTarget(realm)
@@ -24,7 +24,7 @@ IDBDatabase::IDBDatabase(JS::Realm& realm, Database& db)
 
 IDBDatabase::~IDBDatabase() = default;
 
-JS::NonnullGCPtr<IDBDatabase> IDBDatabase::create(JS::Realm& realm, Database& db)
+GC::Ref<IDBDatabase> IDBDatabase::create(JS::Realm& realm, Database& db)
 {
     return realm.create<IDBDatabase>(realm, db);
 }

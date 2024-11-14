@@ -10,14 +10,14 @@
 
 namespace Web::WebIDL {
 
-JS_DEFINE_ALLOCATOR(DOMException);
+GC_DEFINE_ALLOCATOR(DOMException);
 
-JS::NonnullGCPtr<DOMException> DOMException::create(JS::Realm& realm, FlyString name, String message)
+GC::Ref<DOMException> DOMException::create(JS::Realm& realm, FlyString name, String message)
 {
     return realm.create<DOMException>(realm, move(name), move(message));
 }
 
-JS::NonnullGCPtr<DOMException> DOMException::construct_impl(JS::Realm& realm, String message, FlyString name)
+GC::Ref<DOMException> DOMException::construct_impl(JS::Realm& realm, String message, FlyString name)
 {
     return realm.create<DOMException>(realm, move(name), move(message));
 }

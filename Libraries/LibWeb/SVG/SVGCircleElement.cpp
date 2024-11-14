@@ -16,7 +16,7 @@
 
 namespace Web::SVG {
 
-JS_DEFINE_ALLOCATOR(SVGCircleElement);
+GC_DEFINE_ALLOCATOR(SVGCircleElement);
 
 SVGCircleElement::SVGCircleElement(DOM::Document& document, DOM::QualifiedName qualified_name)
     : SVGGeometryElement(document, qualified_name)
@@ -83,19 +83,19 @@ Gfx::Path SVGCircleElement::get_path(CSSPixelSize viewport_size)
 }
 
 // https://www.w3.org/TR/SVG11/shapes.html#CircleElementCXAttribute
-JS::NonnullGCPtr<SVGAnimatedLength> SVGCircleElement::cx() const
+GC::Ref<SVGAnimatedLength> SVGCircleElement::cx() const
 {
     return svg_animated_length_for_property(CSS::PropertyID::Cx);
 }
 
 // https://www.w3.org/TR/SVG11/shapes.html#CircleElementCYAttribute
-JS::NonnullGCPtr<SVGAnimatedLength> SVGCircleElement::cy() const
+GC::Ref<SVGAnimatedLength> SVGCircleElement::cy() const
 {
     return svg_animated_length_for_property(CSS::PropertyID::Cy);
 }
 
 // https://www.w3.org/TR/SVG11/shapes.html#CircleElementRAttribute
-JS::NonnullGCPtr<SVGAnimatedLength> SVGCircleElement::r() const
+GC::Ref<SVGAnimatedLength> SVGCircleElement::r() const
 {
     return svg_animated_length_for_property(CSS::PropertyID::R);
 }

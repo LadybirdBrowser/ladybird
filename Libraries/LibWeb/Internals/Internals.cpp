@@ -21,7 +21,7 @@
 
 namespace Web::Internals {
 
-JS_DEFINE_ALLOCATOR(Internals);
+GC_DEFINE_ALLOCATOR(Internals);
 
 Internals::Internals(JS::Realm& realm)
     : Bindings::PlatformObject(realm)
@@ -158,7 +158,7 @@ void Internals::spoof_current_url(String const& url_string)
     HTML::relevant_settings_object(window.associated_document()).creation_url = url;
 }
 
-JS::NonnullGCPtr<InternalAnimationTimeline> Internals::create_internal_animation_timeline()
+GC::Ref<InternalAnimationTimeline> Internals::create_internal_animation_timeline()
 {
     auto& realm = this->realm();
     return realm.create<InternalAnimationTimeline>(realm);

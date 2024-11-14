@@ -14,7 +14,7 @@
 
 namespace Web::HTML {
 
-JS_DEFINE_ALLOCATOR(Worker);
+GC_DEFINE_ALLOCATOR(Worker);
 
 // https://html.spec.whatwg.org/multipage/workers.html#dedicated-workers-and-the-worker-interface
 Worker::Worker(String const& script_url, WorkerOptions const& options, DOM::Document& document)
@@ -41,7 +41,7 @@ void Worker::visit_edges(Cell::Visitor& visitor)
 
 // https://html.spec.whatwg.org/multipage/workers.html#dom-worker
 // https://whatpr.org/html/9893/workers.html#dom-worker
-WebIDL::ExceptionOr<JS::NonnullGCPtr<Worker>> Worker::create(String const& script_url, WorkerOptions const& options, DOM::Document& document)
+WebIDL::ExceptionOr<GC::Ref<Worker>> Worker::create(String const& script_url, WorkerOptions const& options, DOM::Document& document)
 {
     dbgln_if(WEB_WORKER_DEBUG, "WebWorker: Creating worker with script_url = {}", script_url);
 
@@ -89,7 +89,7 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<Worker>> Worker::create(String const& scrip
 }
 
 // https://html.spec.whatwg.org/multipage/workers.html#run-a-worker
-void Worker::run_a_worker(URL::URL& url, EnvironmentSettingsObject& outside_settings, JS::GCPtr<MessagePort> port, WorkerOptions const& options)
+void Worker::run_a_worker(URL::URL& url, EnvironmentSettingsObject& outside_settings, GC::Ptr<MessagePort> port, WorkerOptions const& options)
 {
     // 1. Let is shared be true if worker is a SharedWorker object, and false otherwise.
     // FIXME: SharedWorker support
@@ -134,7 +134,7 @@ WebIDL::ExceptionOr<void> Worker::post_message(JS::Value message, StructuredSeri
 }
 
 // https://html.spec.whatwg.org/multipage/workers.html#dom-worker-postmessage
-WebIDL::ExceptionOr<void> Worker::post_message(JS::Value message, Vector<JS::Handle<JS::Object>> const& transfer)
+WebIDL::ExceptionOr<void> Worker::post_message(JS::Value message, Vector<GC::Root<JS::Object>> const& transfer)
 {
     // The postMessage(message, transfer) and postMessage(message, options) methods on Worker objects act as if,
     // when invoked, they immediately invoked the respective postMessage(message, transfer) and

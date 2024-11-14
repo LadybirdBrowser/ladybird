@@ -13,7 +13,7 @@ namespace Web::MediaSourceExtensions {
 // https://w3c.github.io/media-source/#managedsourcebuffer-interface
 class ManagedSourceBuffer : public SourceBuffer {
     WEB_PLATFORM_OBJECT(ManagedSourceBuffer, SourceBuffer);
-    JS_DECLARE_ALLOCATOR(ManagedSourceBuffer);
+    GC_DECLARE_ALLOCATOR(ManagedSourceBuffer);
 
 public:
 private:

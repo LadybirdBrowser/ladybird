@@ -10,9 +10,9 @@
 
 namespace Web::HTML {
 
-JS_DEFINE_ALLOCATOR(BeforeUnloadEvent);
+GC_DEFINE_ALLOCATOR(BeforeUnloadEvent);
 
-JS::NonnullGCPtr<BeforeUnloadEvent> BeforeUnloadEvent::create(JS::Realm& realm, FlyString const& event_name, DOM::EventInit const& event_init)
+GC::Ref<BeforeUnloadEvent> BeforeUnloadEvent::create(JS::Realm& realm, FlyString const& event_name, DOM::EventInit const& event_init)
 {
     return realm.create<BeforeUnloadEvent>(realm, event_name, event_init);
 }

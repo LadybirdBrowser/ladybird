@@ -13,7 +13,7 @@ namespace Web::HTML {
 
 class HTMLSpanElement final : public HTMLElement {
     WEB_PLATFORM_OBJECT(HTMLSpanElement, HTMLElement);
-    JS_DECLARE_ALLOCATOR(HTMLSpanElement);
+    GC_DECLARE_ALLOCATOR(HTMLSpanElement);
 
 public:
     virtual ~HTMLSpanElement() override;

@@ -13,7 +13,7 @@
 
 namespace Web::HTML {
 
-JS_DEFINE_ALLOCATOR(MimeTypeArray);
+GC_DEFINE_ALLOCATOR(MimeTypeArray);
 
 MimeTypeArray::MimeTypeArray(JS::Realm& realm)
     : Bindings::PlatformObject(realm)
@@ -59,7 +59,7 @@ size_t MimeTypeArray::length() const
 }
 
 // https://html.spec.whatwg.org/multipage/system-state.html#dom-mimetypearray-item
-JS::GCPtr<MimeType> MimeTypeArray::item(u32 index) const
+GC::Ptr<MimeType> MimeTypeArray::item(u32 index) const
 {
     // 1. Let mimeTypes be this's relevant global object's PDF viewer mime type objects.
     auto& window = verify_cast<HTML::Window>(HTML::relevant_global_object(*this));
@@ -74,7 +74,7 @@ JS::GCPtr<MimeType> MimeTypeArray::item(u32 index) const
 }
 
 // https://html.spec.whatwg.org/multipage/system-state.html#dom-mimetypearray-nameditem
-JS::GCPtr<MimeType> MimeTypeArray::named_item(FlyString const& name) const
+GC::Ptr<MimeType> MimeTypeArray::named_item(FlyString const& name) const
 {
     // 1. For each MimeType mimeType of this's relevant global object's PDF viewer mime type objects: if mimeType's type is name, then return mimeType.
     auto& window = verify_cast<HTML::Window>(HTML::relevant_global_object(*this));

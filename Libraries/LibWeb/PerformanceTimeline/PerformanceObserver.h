@@ -21,7 +21,7 @@ struct PerformanceObserverInit {
 // https://w3c.github.io/performance-timeline/#dom-performanceobserver
 class PerformanceObserver final : public Bindings::PlatformObject {
     WEB_PLATFORM_OBJECT(PerformanceObserver, Bindings::PlatformObject);
-    JS_DECLARE_ALLOCATOR(PerformanceObserver);
+    GC_DECLARE_ALLOCATOR(PerformanceObserver);
 
 public:
     enum class ObserverType {
@@ -30,12 +30,12 @@ public:
         Multiple,
     };
 
-    static WebIDL::ExceptionOr<JS::NonnullGCPtr<PerformanceObserver>> construct_impl(JS::Realm&, JS::GCPtr<WebIDL::CallbackType>);
+    static WebIDL::ExceptionOr<GC::Ref<PerformanceObserver>> construct_impl(JS::Realm&, GC::Ptr<WebIDL::CallbackType>);
     virtual ~PerformanceObserver() override;
 
     WebIDL::ExceptionOr<void> observe(PerformanceObserverInit& options);
     void disconnect();
-    Vector<JS::Handle<PerformanceTimeline::PerformanceEntry>> take_records();
+    Vector<GC::Root<PerformanceTimeline::PerformanceEntry>> take_records();
 
     bool requires_dropped_entries() const { return m_requires_dropped_entries; }
     void unset_requires_dropped_entries(Badge<HTML::WindowOrWorkerGlobalScopeMixin>);
@@ -44,23 +44,23 @@ public:
 
     WebIDL::CallbackType& callback() { return *m_callback; }
 
-    void append_to_observer_buffer(Badge<HTML::WindowOrWorkerGlobalScopeMixin>, JS::NonnullGCPtr<PerformanceTimeline::PerformanceEntry>);
+    void append_to_observer_buffer(Badge<HTML::WindowOrWorkerGlobalScopeMixin>, GC::Ref<PerformanceTimeline::PerformanceEntry>);
 
-    static JS::NonnullGCPtr<JS::Object> supported_entry_types(JS::VM&);
+    static GC::Ref<JS::Object> supported_entry_types(JS::VM&);
 
 private:
-    PerformanceObserver(JS::Realm&, JS::GCPtr<WebIDL::CallbackType>);
+    PerformanceObserver(JS::Realm&, GC::Ptr<WebIDL::CallbackType>);
 
     virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Cell::Visitor&) override;
 
     // https://w3c.github.io/performance-timeline/#dfn-observer-callback
     // A PerformanceObserverCallback observer callback set on creation.
-    JS::GCPtr<WebIDL::CallbackType> m_callback;
+    GC::Ptr<WebIDL::CallbackType> m_callback;
 
     // https://w3c.github.io/performance-timeline/#dfn-observer-buffer
     // A PerformanceEntryList object called the observer buffer that is initially empty.
-    Vector<JS::NonnullGCPtr<PerformanceTimeline::PerformanceEntry>> m_observer_buffer;
+    Vector<GC::Ref<PerformanceTimeline::PerformanceEntry>> m_observer_buffer;
 
     // https://w3c.github.io/performance-timeline/#dfn-observer-type
     // A DOMString observer type which is initially "undefined".

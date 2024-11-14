@@ -4,12 +4,12 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibJS/Heap/CellImpl.h>
-#include <LibJS/Heap/NanBoxedValue.h>
+#include <LibGC/Cell.h>
+#include <LibGC/NanBoxedValue.h>
 
-namespace JS {
+namespace GC {
 
-void JS::CellImpl::Visitor::visit(NanBoxedValue const& value)
+void GC::Cell::Visitor::visit(NanBoxedValue const& value)
 {
     if (value.is_cell())
         visit_impl(value.as_cell());

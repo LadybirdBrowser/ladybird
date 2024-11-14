@@ -13,12 +13,12 @@
 namespace Web::SVG {
 
 class SVGDecodedImageData final : public HTML::DecodedImageData {
-    JS_CELL(SVGDecodedImageData, HTML::DecodedImageData);
-    JS_DECLARE_ALLOCATOR(SVGDecodedImageData);
+    GC_CELL(SVGDecodedImageData, HTML::DecodedImageData);
+    GC_DECLARE_ALLOCATOR(SVGDecodedImageData);
 
 public:
     class SVGPageClient;
-    static ErrorOr<JS::NonnullGCPtr<SVGDecodedImageData>> create(JS::Realm&, JS::NonnullGCPtr<Page>, URL::URL const&, ByteBuffer encoded_svg);
+    static ErrorOr<GC::Ref<SVGDecodedImageData>> create(JS::Realm&, GC::Ref<Page>, URL::URL const&, ByteBuffer encoded_svg);
     virtual ~SVGDecodedImageData() override;
 
     virtual RefPtr<Gfx::ImmutableBitmap> bitmap(size_t frame_index, Gfx::IntSize) const override;
@@ -38,33 +38,33 @@ public:
     virtual void visit_edges(Cell::Visitor& visitor) override;
 
 private:
-    SVGDecodedImageData(JS::NonnullGCPtr<Page>, JS::NonnullGCPtr<SVGPageClient>, JS::NonnullGCPtr<DOM::Document>, JS::NonnullGCPtr<SVG::SVGSVGElement>);
+    SVGDecodedImageData(GC::Ref<Page>, GC::Ref<SVGPageClient>, GC::Ref<DOM::Document>, GC::Ref<SVG::SVGSVGElement>);
 
     RefPtr<Gfx::Bitmap> render(Gfx::IntSize) const;
 
     mutable HashMap<Gfx::IntSize, NonnullRefPtr<Gfx::ImmutableBitmap>> m_cached_rendered_bitmaps;
 
-    JS::NonnullGCPtr<Page> m_page;
-    JS::NonnullGCPtr<SVGPageClient> m_page_client;
+    GC::Ref<Page> m_page;
+    GC::Ref<SVGPageClient> m_page_client;
 
-    JS::NonnullGCPtr<DOM::Document> m_document;
-    JS::NonnullGCPtr<SVG::SVGSVGElement> m_root_element;
+    GC::Ref<DOM::Document> m_document;
+    GC::Ref<SVG::SVGSVGElement> m_root_element;
 };
 
 class SVGDecodedImageData::SVGPageClient final : public PageClient {
-    JS_CELL(SVGDecodedImageData::SVGPageClient, PageClient);
-    JS_DECLARE_ALLOCATOR(SVGDecodedImageData::SVGPageClient);
+    GC_CELL(SVGDecodedImageData::SVGPageClient, PageClient);
+    GC_DECLARE_ALLOCATOR(SVGDecodedImageData::SVGPageClient);
 
 public:
-    static JS::NonnullGCPtr<SVGPageClient> create(JS::VM& vm, Page& page)
+    static GC::Ref<SVGPageClient> create(JS::VM& vm, Page& page)
     {
         return vm.heap().allocate<SVGPageClient>(page);
     }
 
     virtual ~SVGPageClient() override = default;
 
-    JS::NonnullGCPtr<Page> m_host_page;
-    JS::GCPtr<Page> m_svg_page;
+    GC::Ref<Page> m_host_page;
+    GC::Ptr<Page> m_svg_page;
 
     virtual Page& page() override { return *m_svg_page; }
     virtual Page const& page() const override { return *m_svg_page; }

@@ -37,7 +37,7 @@ class WorkerGlobalScope
     , public WindowOrWorkerGlobalScopeMixin
     , public UniversalGlobalScopeMixin {
     WEB_PLATFORM_OBJECT(WorkerGlobalScope, DOM::EventTarget);
-    JS_DECLARE_ALLOCATOR(WorkerGlobalScope);
+    GC_DECLARE_ALLOCATOR(WorkerGlobalScope);
 
 public:
     virtual ~WorkerGlobalScope() override;
@@ -62,10 +62,10 @@ public:
     // https://html.spec.whatwg.org/multipage/workers.html#the-workerglobalscope-common-interface
 
     // https://html.spec.whatwg.org/multipage/workers.html#dom-workerglobalscope-self
-    JS::NonnullGCPtr<WorkerGlobalScope const> self() const { return *this; }
+    GC::Ref<WorkerGlobalScope const> self() const { return *this; }
 
-    JS::NonnullGCPtr<WorkerLocation> location() const;
-    JS::NonnullGCPtr<WorkerNavigator> navigator() const;
+    GC::Ref<WorkerLocation> location() const;
+    GC::Ref<WorkerNavigator> navigator() const;
     WebIDL::ExceptionOr<void> import_scripts(Vector<String> const& urls, PerformTheFetchHook = nullptr);
 
 #undef __ENUMERATE
@@ -75,7 +75,7 @@ public:
     ENUMERATE_WORKER_GLOBAL_SCOPE_EVENT_HANDLERS(__ENUMERATE)
 #undef __ENUMERATE
 
-    JS::NonnullGCPtr<CSS::FontFaceSet> fonts();
+    GC::Ref<CSS::FontFaceSet> fonts();
 
     // Non-IDL public methods
 
@@ -84,9 +84,9 @@ public:
 
     // Spec note: While the WorkerLocation object is created after the WorkerGlobalScope object,
     //            this is not problematic as it cannot be observed from script.
-    void set_location(JS::NonnullGCPtr<WorkerLocation> loc) { m_location = move(loc); }
+    void set_location(GC::Ref<WorkerLocation> loc) { m_location = move(loc); }
 
-    void set_internal_port(JS::NonnullGCPtr<MessagePort> port);
+    void set_internal_port(GC::Ref<MessagePort> port);
 
     void initialize_web_interfaces(Badge<WorkerEnvironmentSettingsObject>) { initialize_web_interfaces_impl(); }
 
@@ -97,7 +97,7 @@ public:
     bool is_closing() const { return m_closing; }
 
 protected:
-    explicit WorkerGlobalScope(JS::Realm&, JS::NonnullGCPtr<Web::Page>);
+    explicit WorkerGlobalScope(JS::Realm&, GC::Ref<Web::Page>);
 
     virtual void initialize_web_interfaces_impl();
 
@@ -105,15 +105,15 @@ protected:
 
     virtual void finalize() override;
 
-    JS::GCPtr<MessagePort> m_internal_port;
+    GC::Ptr<MessagePort> m_internal_port;
 
 private:
     virtual void visit_edges(Cell::Visitor&) override;
 
-    JS::GCPtr<WorkerLocation> m_location;
-    JS::GCPtr<WorkerNavigator> m_navigator;
+    GC::Ptr<WorkerLocation> m_location;
+    GC::Ptr<WorkerNavigator> m_navigator;
 
-    JS::NonnullGCPtr<Web::Page> m_page;
+    GC::Ref<Web::Page> m_page;
 
     // FIXME: Add all these internal slots
 
@@ -153,7 +153,7 @@ private:
     bool m_closing { false };
 
     // https://drafts.csswg.org/css-font-loading/#font-source
-    JS::GCPtr<CSS::FontFaceSet> m_fonts;
+    GC::Ptr<CSS::FontFaceSet> m_fonts;
 };
 
 }

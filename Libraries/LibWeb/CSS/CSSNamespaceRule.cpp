@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibJS/Heap/Heap.h>
+#include <LibGC/Heap.h>
 #include <LibJS/Runtime/Realm.h>
 #include <LibWeb/Bindings/CSSNamespaceRulePrototype.h>
 #include <LibWeb/Bindings/Intrinsics.h>
@@ -14,7 +14,7 @@
 
 namespace Web::CSS {
 
-JS_DEFINE_ALLOCATOR(CSSNamespaceRule);
+GC_DEFINE_ALLOCATOR(CSSNamespaceRule);
 
 CSSNamespaceRule::CSSNamespaceRule(JS::Realm& realm, Optional<FlyString> prefix, FlyString namespace_uri)
     : CSSRule(realm, Type::Namespace)
@@ -23,7 +23,7 @@ CSSNamespaceRule::CSSNamespaceRule(JS::Realm& realm, Optional<FlyString> prefix,
 {
 }
 
-JS::NonnullGCPtr<CSSNamespaceRule> CSSNamespaceRule::create(JS::Realm& realm, Optional<FlyString> prefix, FlyString namespace_uri)
+GC::Ref<CSSNamespaceRule> CSSNamespaceRule::create(JS::Realm& realm, Optional<FlyString> prefix, FlyString namespace_uri)
 {
     return realm.create<CSSNamespaceRule>(realm, move(prefix), move(namespace_uri));
 }

@@ -12,15 +12,15 @@
 namespace Web::Layout {
 
 class RadioButton final : public FormAssociatedLabelableNode {
-    JS_CELL(RadioButton, FormAssociatedLabelableNode);
-    JS_DECLARE_ALLOCATOR(RadioButton);
+    GC_CELL(RadioButton, FormAssociatedLabelableNode);
+    GC_DECLARE_ALLOCATOR(RadioButton);
 
 public:
     RadioButton(DOM::Document&, HTML::HTMLInputElement&, CSS::StyleProperties);
     virtual ~RadioButton() override;
 
 private:
-    virtual JS::GCPtr<Painting::Paintable> create_paintable() const override;
+    virtual GC::Ptr<Painting::Paintable> create_paintable() const override;
 };
 
 }

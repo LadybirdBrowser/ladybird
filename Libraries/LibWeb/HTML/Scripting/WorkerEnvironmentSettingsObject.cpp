@@ -13,10 +13,10 @@
 
 namespace Web::HTML {
 
-JS_DEFINE_ALLOCATOR(WorkerEnvironmentSettingsObject);
+GC_DEFINE_ALLOCATOR(WorkerEnvironmentSettingsObject);
 
 // https://html.spec.whatwg.org/multipage/workers.html#set-up-a-worker-environment-settings-object
-JS::NonnullGCPtr<WorkerEnvironmentSettingsObject> WorkerEnvironmentSettingsObject::setup(JS::NonnullGCPtr<Page> page, NonnullOwnPtr<JS::ExecutionContext> execution_context, SerializedEnvironmentSettingsObject const& outside_settings, HighResolutionTime::DOMHighResTimeStamp unsafe_worker_creation_time)
+GC::Ref<WorkerEnvironmentSettingsObject> WorkerEnvironmentSettingsObject::setup(GC::Ref<Page> page, NonnullOwnPtr<JS::ExecutionContext> execution_context, SerializedEnvironmentSettingsObject const& outside_settings, HighResolutionTime::DOMHighResTimeStamp unsafe_worker_creation_time)
 {
     (void)unsafe_worker_creation_time;
 

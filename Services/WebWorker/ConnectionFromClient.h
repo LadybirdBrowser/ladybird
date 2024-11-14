@@ -7,9 +7,9 @@
 #pragma once
 
 #include <AK/HashMap.h>
+#include <LibGC/Root.h>
 #include <LibIPC/ConnectionFromClient.h>
 #include <LibJS/Forward.h>
-#include <LibJS/Heap/Handle.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/Loader/FileRequest.h>
 #include <LibWeb/Worker/WebWorkerClientEndpoint.h>
@@ -44,7 +44,7 @@ private:
     virtual void start_dedicated_worker(URL::URL const& url, Web::Bindings::WorkerType const& type, Web::Bindings::RequestCredentials const& credentials, String const& name, Web::HTML::TransferDataHolder const&, Web::HTML::SerializedEnvironmentSettingsObject const&) override;
     virtual void handle_file_return(i32 error, Optional<IPC::File> const& file, i32 request_id) override;
 
-    JS::Handle<PageHost> m_page_host;
+    GC::Root<PageHost> m_page_host;
 
     // FIXME: Route console messages to the Browser UI using a ConsoleClient
 

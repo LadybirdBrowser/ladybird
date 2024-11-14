@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibJS/Heap/Heap.h>
+#include <LibGC/Heap.h>
 #include <LibJS/Runtime/Realm.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Bindings/SVGAnimatedStringPrototype.h>
@@ -13,14 +13,14 @@
 
 namespace Web::SVG {
 
-JS_DEFINE_ALLOCATOR(SVGAnimatedString);
+GC_DEFINE_ALLOCATOR(SVGAnimatedString);
 
-JS::NonnullGCPtr<SVGAnimatedString> SVGAnimatedString::create(JS::Realm& realm, JS::NonnullGCPtr<SVGElement> element, FlyString reflected_attribute, Optional<FlyString> deprecated_reflected_attribute, Optional<FlyString> initial_value)
+GC::Ref<SVGAnimatedString> SVGAnimatedString::create(JS::Realm& realm, GC::Ref<SVGElement> element, FlyString reflected_attribute, Optional<FlyString> deprecated_reflected_attribute, Optional<FlyString> initial_value)
 {
     return realm.create<SVGAnimatedString>(realm, element, move(reflected_attribute), move(deprecated_reflected_attribute), move(initial_value));
 }
 
-SVGAnimatedString::SVGAnimatedString(JS::Realm& realm, JS::NonnullGCPtr<SVGElement> element, FlyString reflected_attribute, Optional<FlyString> deprecated_reflected_attribute, Optional<FlyString> initial_value)
+SVGAnimatedString::SVGAnimatedString(JS::Realm& realm, GC::Ref<SVGElement> element, FlyString reflected_attribute, Optional<FlyString> deprecated_reflected_attribute, Optional<FlyString> initial_value)
     : Bindings::PlatformObject(realm)
     , m_element(element)
     , m_reflected_attribute(move(reflected_attribute))

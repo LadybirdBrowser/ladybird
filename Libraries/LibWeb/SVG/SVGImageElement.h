@@ -6,7 +6,7 @@
 
 #pragma once
 
-#include <LibJS/Heap/GCPtr.h>
+#include <LibGC/Ptr.h>
 #include <LibWeb/Layout/ImageProvider.h>
 #include <LibWeb/SVG/SVGAnimatedLength.h>
 #include <LibWeb/SVG/SVGGraphicsElement.h>
@@ -22,10 +22,10 @@ class SVGImageElement
 public:
     virtual void attribute_changed(FlyString const& name, Optional<String> const& old_value, Optional<String> const& value, Optional<FlyString> const& namespace_) override;
 
-    JS::NonnullGCPtr<SVG::SVGAnimatedLength> x();
-    JS::NonnullGCPtr<SVG::SVGAnimatedLength> y();
-    JS::NonnullGCPtr<SVG::SVGAnimatedLength> width();
-    JS::NonnullGCPtr<SVG::SVGAnimatedLength> height();
+    GC::Ref<SVG::SVGAnimatedLength> x();
+    GC::Ref<SVG::SVGAnimatedLength> y();
+    GC::Ref<SVG::SVGAnimatedLength> width();
+    GC::Ref<SVG::SVGAnimatedLength> height();
 
     Gfx::Rect<CSSPixels> bounding_box() const;
 
@@ -36,7 +36,7 @@ public:
     virtual Optional<CSSPixelFraction> intrinsic_aspect_ratio() const override;
     virtual RefPtr<Gfx::ImmutableBitmap> current_image_bitmap(Gfx::IntSize = {}) const override;
     virtual void set_visible_in_viewport(bool) override { }
-    virtual JS::NonnullGCPtr<DOM::Element const> to_html_element() const override { return *this; }
+    virtual GC::Ref<DOM::Element const> to_html_element() const override { return *this; }
 
 protected:
     SVGImageElement(DOM::Document&, DOM::QualifiedName);
@@ -48,13 +48,13 @@ protected:
     void fetch_the_document(URL::URL const& url);
 
 private:
-    virtual JS::GCPtr<Layout::Node> create_layout_node(CSS::StyleProperties) override;
+    virtual GC::Ptr<Layout::Node> create_layout_node(CSS::StyleProperties) override;
     void animate();
 
-    JS::GCPtr<SVG::SVGAnimatedLength> m_x;
-    JS::GCPtr<SVG::SVGAnimatedLength> m_y;
-    JS::GCPtr<SVG::SVGAnimatedLength> m_width;
-    JS::GCPtr<SVG::SVGAnimatedLength> m_height;
+    GC::Ptr<SVG::SVGAnimatedLength> m_x;
+    GC::Ptr<SVG::SVGAnimatedLength> m_y;
+    GC::Ptr<SVG::SVGAnimatedLength> m_width;
+    GC::Ptr<SVG::SVGAnimatedLength> m_height;
 
     RefPtr<Core::Timer> m_animation_timer;
     size_t m_current_frame_index { 0 };
@@ -62,7 +62,7 @@ private:
 
     URL::URL m_href;
 
-    JS::GCPtr<HTML::SharedResourceRequest> m_resource_request;
+    GC::Ptr<HTML::SharedResourceRequest> m_resource_request;
     Optional<DOM::DocumentLoadEventDelayer> m_load_event_delayer;
 };
 

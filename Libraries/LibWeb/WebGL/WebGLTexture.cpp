@@ -9,7 +9,7 @@
 
 namespace Web::WebGL {
 
-JS_DEFINE_ALLOCATOR(WebGLTexture);
+GC_DEFINE_ALLOCATOR(WebGLTexture);
 
 WebGLTexture::WebGLTexture(JS::Realm& realm)
     : WebGLObject(realm)

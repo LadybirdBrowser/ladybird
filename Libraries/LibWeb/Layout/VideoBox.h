@@ -15,8 +15,8 @@ namespace Web::Layout {
 class VideoBox final
     : public ReplacedBox
     , public DOM::Document::ViewportClient {
-    JS_CELL(VideoBox, ReplacedBox);
-    JS_DECLARE_ALLOCATOR(VideoBox);
+    GC_CELL(VideoBox, ReplacedBox);
+    GC_DECLARE_ALLOCATOR(VideoBox);
 
 public:
     virtual void prepare_for_replaced_layout() override;
@@ -24,7 +24,7 @@ public:
     HTML::HTMLVideoElement& dom_node();
     HTML::HTMLVideoElement const& dom_node() const;
 
-    virtual JS::GCPtr<Painting::Paintable> create_paintable() const override;
+    virtual GC::Ptr<Painting::Paintable> create_paintable() const override;
 
 private:
     VideoBox(DOM::Document&, DOM::Element&, CSS::StyleProperties);

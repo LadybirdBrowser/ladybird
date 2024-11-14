@@ -11,9 +11,9 @@
 
 namespace Web::SVG {
 
-JS_DEFINE_ALLOCATOR(SVGTransformList);
+GC_DEFINE_ALLOCATOR(SVGTransformList);
 
-JS::NonnullGCPtr<SVGTransformList> SVGTransformList::create(JS::Realm& realm)
+GC::Ref<SVGTransformList> SVGTransformList::create(JS::Realm& realm)
 {
     return realm.create<SVGTransformList>(realm);
 }
@@ -40,7 +40,7 @@ WebIDL::UnsignedLong SVGTransformList::number_of_items()
 }
 
 // https://svgwg.org/svg2-draft/single-page.html#types-__svg__SVGNameList__getItem
-WebIDL::ExceptionOr<JS::NonnullGCPtr<SVGTransform>> SVGTransformList::get_item(WebIDL::UnsignedLong index)
+WebIDL::ExceptionOr<GC::Ref<SVGTransform>> SVGTransformList::get_item(WebIDL::UnsignedLong index)
 {
     // 1. If index is greater than or equal to the length of the list, then throw an IndexSizeError.
     if (index >= m_transforms.size())
@@ -50,7 +50,7 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<SVGTransform>> SVGTransformList::get_item(W
 }
 
 // https://svgwg.org/svg2-draft/single-page.html#types-__svg__SVGNameList__appendItem
-JS::NonnullGCPtr<SVGTransform> SVGTransformList::append_item(JS::NonnullGCPtr<SVGTransform> new_item)
+GC::Ref<SVGTransform> SVGTransformList::append_item(GC::Ref<SVGTransform> new_item)
 {
     // FIXME: This does not implement the steps from the specification.
     m_transforms.append(new_item);

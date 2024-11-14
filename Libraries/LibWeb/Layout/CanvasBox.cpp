@@ -9,7 +9,7 @@
 
 namespace Web::Layout {
 
-JS_DEFINE_ALLOCATOR(CanvasBox);
+GC_DEFINE_ALLOCATOR(CanvasBox);
 
 CanvasBox::CanvasBox(DOM::Document& document, HTML::HTMLCanvasElement& element, CSS::StyleProperties style)
     : ReplacedBox(document, element, move(style))
@@ -24,7 +24,7 @@ void CanvasBox::prepare_for_replaced_layout()
     set_natural_height(dom_node().height());
 }
 
-JS::GCPtr<Painting::Paintable> CanvasBox::create_paintable() const
+GC::Ptr<Painting::Paintable> CanvasBox::create_paintable() const
 {
     return Painting::CanvasPaintable::create(*this);
 }

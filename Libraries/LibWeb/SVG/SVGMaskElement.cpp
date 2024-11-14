@@ -12,7 +12,7 @@
 
 namespace Web::SVG {
 
-JS_DEFINE_ALLOCATOR(SVGMaskElement);
+GC_DEFINE_ALLOCATOR(SVGMaskElement);
 
 SVGMaskElement::SVGMaskElement(DOM::Document& document, DOM::QualifiedName tag_name)
     : SVGGraphicsElement(document, move(tag_name))
@@ -27,7 +27,7 @@ void SVGMaskElement::initialize(JS::Realm& realm)
     WEB_SET_PROTOTYPE_FOR_INTERFACE(SVGMaskElement);
 }
 
-JS::GCPtr<Layout::Node> SVGMaskElement::create_layout_node(CSS::StyleProperties)
+GC::Ptr<Layout::Node> SVGMaskElement::create_layout_node(CSS::StyleProperties)
 {
     // Masks are handled as a special case in the TreeBuilder.
     return nullptr;

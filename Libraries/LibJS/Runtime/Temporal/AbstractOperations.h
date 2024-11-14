@@ -124,7 +124,7 @@ struct DifferenceSettings {
     String largest_unit;
     String rounding_mode;
     u64 rounding_increment;
-    NonnullGCPtr<Object> options;
+    GC::Ref<Object> options;
 };
 
 struct TemporalUnitRequired { };
@@ -134,7 +134,7 @@ struct GetOptionRequired { };
 using OptionDefault = Variant<GetOptionRequired, Empty, bool, StringView, double>;
 using TemporalUnitDefault = Variant<TemporalUnitRequired, Optional<StringView>>;
 
-ThrowCompletionOr<MarkedVector<Value>> iterable_to_list_of_type(VM&, Value items, Vector<OptionType> const& element_types);
+ThrowCompletionOr<GC::MarkedVector<Value>> iterable_to_list_of_type(VM&, Value items, Vector<OptionType> const& element_types);
 ThrowCompletionOr<Object*> get_options_object(VM&, Value options);
 ThrowCompletionOr<Value> get_option(VM&, Object const& options, PropertyKey const& property, OptionType type, ReadonlySpan<StringView> values, OptionDefault const&);
 ThrowCompletionOr<String> to_temporal_overflow(VM&, Object const* options);
@@ -151,8 +151,8 @@ ThrowCompletionOr<SecondsStringPrecision> to_seconds_string_precision_record(VM&
 ThrowCompletionOr<Optional<String>> get_temporal_unit(VM&, Object const& normalized_options, PropertyKey const&, UnitGroup, TemporalUnitDefault const& default_, Vector<StringView> const& extra_values = {});
 
 struct RelativeTo {
-    GCPtr<PlainDate> plain_relative_to;         // [[PlainRelativeTo]]
-    GCPtr<ZonedDateTime> zoned_relative_to;     // [[ZonedRelativeTo]]
+    GC::Ptr<PlainDate> plain_relative_to;       // [[PlainRelativeTo]]
+    GC::Ptr<ZonedDateTime> zoned_relative_to;   // [[ZonedRelativeTo]]
     Optional<TimeZoneMethods> time_zone_record; // [[TimeZoneRec]]
 };
 ThrowCompletionOr<RelativeTo> to_relative_temporal_object(VM&, Object const& options);

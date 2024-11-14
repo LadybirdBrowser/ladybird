@@ -74,7 +74,7 @@ Optional<Painting::PaintStyle> SVGGraphicsElement::stroke_paint_style(SVGPaintCo
     return svg_paint_computed_value_to_gfx_paint_style(paint_context, layout_node()->computed_values().stroke());
 }
 
-JS::GCPtr<SVG::SVGMaskElement const> SVGGraphicsElement::mask() const
+GC::Ptr<SVG::SVGMaskElement const> SVGGraphicsElement::mask() const
 {
     auto const& mask_reference = layout_node()->computed_values().mask();
     if (!mask_reference.has_value())
@@ -82,7 +82,7 @@ JS::GCPtr<SVG::SVGMaskElement const> SVGGraphicsElement::mask() const
     return try_resolve_url_to<SVG::SVGMaskElement const>(mask_reference->url());
 }
 
-JS::GCPtr<SVG::SVGClipPathElement const> SVGGraphicsElement::clip_path() const
+GC::Ptr<SVG::SVGClipPathElement const> SVGGraphicsElement::clip_path() const
 {
     auto const& clip_path_reference = layout_node()->computed_values().clip_path();
     if (!clip_path_reference.has_value() || !clip_path_reference->is_url())
@@ -288,7 +288,7 @@ Optional<float> SVGGraphicsElement::stroke_width() const
 }
 
 // https://svgwg.org/svg2-draft/types.html#__svg__SVGGraphicsElement__getBBox
-JS::NonnullGCPtr<Geometry::DOMRect> SVGGraphicsElement::get_b_box(Optional<SVGBoundingBoxOptions>)
+GC::Ref<Geometry::DOMRect> SVGGraphicsElement::get_b_box(Optional<SVGBoundingBoxOptions>)
 {
     // FIXME: It should be possible to compute this without layout updates. The bounding box is within the
     // SVG coordinate space (before any viewbox or other transformations), so it should be possible to
@@ -309,7 +309,7 @@ JS::NonnullGCPtr<Geometry::DOMRect> SVGGraphicsElement::get_b_box(Optional<SVGBo
     return Geometry::DOMRect::create(realm(), translated_rect);
 }
 
-JS::NonnullGCPtr<SVGAnimatedTransformList> SVGGraphicsElement::transform() const
+GC::Ref<SVGAnimatedTransformList> SVGGraphicsElement::transform() const
 {
     dbgln("(STUBBED) SVGGraphicsElement::transform(). Called on: {}", debug_description());
     auto base_val = SVGTransformList::create(realm());
@@ -317,7 +317,7 @@ JS::NonnullGCPtr<SVGAnimatedTransformList> SVGGraphicsElement::transform() const
     return SVGAnimatedTransformList::create(realm(), base_val, anim_val);
 }
 
-JS::GCPtr<Geometry::DOMMatrix> SVGGraphicsElement::get_screen_ctm()
+GC::Ptr<Geometry::DOMMatrix> SVGGraphicsElement::get_screen_ctm()
 {
     dbgln("(STUBBED) SVGGraphicsElement::get_screen_ctm(). Called on: {}", debug_description());
     return Geometry::DOMMatrix::create(realm());

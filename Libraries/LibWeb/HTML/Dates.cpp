@@ -129,7 +129,7 @@ bool is_valid_date_string(StringView value)
 }
 
 // https://html.spec.whatwg.org/multipage/common-microsyntaxes.html#parse-a-date-string
-WebIDL::ExceptionOr<JS::NonnullGCPtr<JS::Date>> parse_date_string(JS::Realm& realm, StringView value)
+WebIDL::ExceptionOr<GC::Ref<JS::Date>> parse_date_string(JS::Realm& realm, StringView value)
 {
     // FIXME: Implement spec compliant date string parsing
     auto parts = value.split_view('-', SplitBehavior::KeepEmpty);
@@ -225,7 +225,7 @@ bool is_valid_time_string(StringView value)
 }
 
 // https://html.spec.whatwg.org/multipage/common-microsyntaxes.html#parse-a-time-string
-WebIDL::ExceptionOr<JS::NonnullGCPtr<JS::Date>> parse_time_string(JS::Realm& realm, StringView value)
+WebIDL::ExceptionOr<GC::Ref<JS::Date>> parse_time_string(JS::Realm& realm, StringView value)
 {
     // FIXME: Implement spec compliant time string parsing
     auto parts = value.split_view(':', SplitBehavior::KeepEmpty);

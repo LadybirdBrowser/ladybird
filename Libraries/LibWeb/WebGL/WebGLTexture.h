@@ -12,7 +12,7 @@ namespace Web::WebGL {
 
 class WebGLTexture final : public WebGLObject {
     WEB_PLATFORM_OBJECT(WebGLTexture, WebGLObject);
-    JS_DECLARE_ALLOCATOR(WebGLTexture);
+    GC_DECLARE_ALLOCATOR(WebGLTexture);
 
 public:
     virtual ~WebGLTexture();

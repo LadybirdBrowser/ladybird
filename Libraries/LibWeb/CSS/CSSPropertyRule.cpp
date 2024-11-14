@@ -11,9 +11,9 @@
 
 namespace Web::CSS {
 
-JS_DEFINE_ALLOCATOR(CSSPropertyRule);
+GC_DEFINE_ALLOCATOR(CSSPropertyRule);
 
-JS::NonnullGCPtr<CSSPropertyRule> CSSPropertyRule::create(JS::Realm& realm, FlyString name, FlyString syntax, bool inherits, Optional<String> initial_value)
+GC::Ref<CSSPropertyRule> CSSPropertyRule::create(JS::Realm& realm, FlyString name, FlyString syntax, bool inherits, Optional<String> initial_value)
 {
     return realm.create<CSSPropertyRule>(realm, move(name), move(syntax), inherits, move(initial_value));
 }

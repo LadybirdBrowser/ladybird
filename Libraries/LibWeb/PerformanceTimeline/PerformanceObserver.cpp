@@ -16,14 +16,14 @@
 
 namespace Web::PerformanceTimeline {
 
-JS_DEFINE_ALLOCATOR(PerformanceObserver);
+GC_DEFINE_ALLOCATOR(PerformanceObserver);
 
-WebIDL::ExceptionOr<JS::NonnullGCPtr<PerformanceObserver>> PerformanceObserver::construct_impl(JS::Realm& realm, JS::GCPtr<WebIDL::CallbackType> callback)
+WebIDL::ExceptionOr<GC::Ref<PerformanceObserver>> PerformanceObserver::construct_impl(JS::Realm& realm, GC::Ptr<WebIDL::CallbackType> callback)
 {
     return realm.create<PerformanceObserver>(realm, callback);
 }
 
-PerformanceObserver::PerformanceObserver(JS::Realm& realm, JS::GCPtr<WebIDL::CallbackType> callback)
+PerformanceObserver::PerformanceObserver(JS::Realm& realm, GC::Ptr<WebIDL::CallbackType> callback)
     : Bindings::PlatformObject(realm)
     , m_callback(move(callback))
 {
@@ -207,10 +207,10 @@ void PerformanceObserver::disconnect()
 }
 
 // https://w3c.github.io/performance-timeline/#dom-performanceobserver-takerecords
-Vector<JS::Handle<PerformanceTimeline::PerformanceEntry>> PerformanceObserver::take_records()
+Vector<GC::Root<PerformanceTimeline::PerformanceEntry>> PerformanceObserver::take_records()
 {
     // The takeRecords() method must return a copy of this's observer buffer, and also empty this's observer buffer.
-    Vector<JS::Handle<PerformanceTimeline::PerformanceEntry>> records;
+    Vector<GC::Root<PerformanceTimeline::PerformanceEntry>> records;
     for (auto& record : m_observer_buffer)
         records.append(*record);
     m_observer_buffer.clear();
@@ -218,7 +218,7 @@ Vector<JS::Handle<PerformanceTimeline::PerformanceEntry>> PerformanceObserver::t
 }
 
 // https://w3c.github.io/performance-timeline/#dom-performanceobserver-supportedentrytypes
-JS::NonnullGCPtr<JS::Object> PerformanceObserver::supported_entry_types(JS::VM& vm)
+GC::Ref<JS::Object> PerformanceObserver::supported_entry_types(JS::VM& vm)
 {
     // 1. Let globalObject be the environment settings object's global object.
     auto* window_or_worker = dynamic_cast<HTML::WindowOrWorkerGlobalScopeMixin*>(&vm.get_global_object());
@@ -233,7 +233,7 @@ void PerformanceObserver::unset_requires_dropped_entries(Badge<HTML::WindowOrWor
     m_requires_dropped_entries = false;
 }
 
-void PerformanceObserver::append_to_observer_buffer(Badge<HTML::WindowOrWorkerGlobalScopeMixin>, JS::NonnullGCPtr<PerformanceTimeline::PerformanceEntry> entry)
+void PerformanceObserver::append_to_observer_buffer(Badge<HTML::WindowOrWorkerGlobalScopeMixin>, GC::Ref<PerformanceTimeline::PerformanceEntry> entry)
 {
     m_observer_buffer.append(entry);
 }

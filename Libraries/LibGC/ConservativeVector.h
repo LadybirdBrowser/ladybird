@@ -9,11 +9,11 @@
 #include <AK/HashMap.h>
 #include <AK/IntrusiveList.h>
 #include <AK/Vector.h>
-#include <LibJS/Forward.h>
-#include <LibJS/Heap/CellImpl.h>
-#include <LibJS/Heap/HeapRoot.h>
+#include <LibGC/Cell.h>
+#include <LibGC/Forward.h>
+#include <LibGC/HeapRoot.h>
 
-namespace JS {
+namespace GC {
 
 class ConservativeVectorBase {
 public:

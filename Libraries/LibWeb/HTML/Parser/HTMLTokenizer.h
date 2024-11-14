@@ -12,7 +12,7 @@
 #include <AK/StringView.h>
 #include <AK/Types.h>
 #include <AK/Utf8View.h>
-#include <LibJS/Heap/GCPtr.h>
+#include <LibGC/Ptr.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/HTML/Parser/HTMLToken.h>
 
@@ -181,7 +181,7 @@ private:
     void restore_to(Utf8CodePointIterator const& new_iterator);
     HTMLToken::Position nth_last_position(size_t n = 0);
 
-    JS::GCPtr<HTMLParser> m_parser;
+    GC::Ptr<HTMLParser> m_parser;
 
     State m_state { State::Data };
     State m_return_state { State::Data };

@@ -7,30 +7,30 @@
 #pragma once
 
 #include <AK/ByteBuffer.h>
+#include <LibGC/CellAllocator.h>
 #include <LibJS/Heap/Cell.h>
-#include <LibJS/Heap/CellAllocator.h>
 #include <LibWeb/Forward.h>
 
 namespace Web::Fetch::Fetching {
 
 class FetchedDataReceiver final : public JS::Cell {
-    JS_CELL(FetchedDataReceiver, JS::Cell);
-    JS_DECLARE_ALLOCATOR(FetchedDataReceiver);
+    GC_CELL(FetchedDataReceiver, JS::Cell);
+    GC_DECLARE_ALLOCATOR(FetchedDataReceiver);
 
 public:
     virtual ~FetchedDataReceiver() override;
 
-    void set_pending_promise(JS::NonnullGCPtr<WebIDL::Promise>);
+    void set_pending_promise(GC::Ref<WebIDL::Promise>);
     void on_data_received(ReadonlyBytes);
 
 private:
-    FetchedDataReceiver(JS::NonnullGCPtr<Infrastructure::FetchParams const>, JS::NonnullGCPtr<Streams::ReadableStream>);
+    FetchedDataReceiver(GC::Ref<Infrastructure::FetchParams const>, GC::Ref<Streams::ReadableStream>);
 
     virtual void visit_edges(Visitor& visitor) override;
 
-    JS::NonnullGCPtr<Infrastructure::FetchParams const> m_fetch_params;
-    JS::NonnullGCPtr<Streams::ReadableStream> m_stream;
-    JS::GCPtr<WebIDL::Promise> m_pending_promise;
+    GC::Ref<Infrastructure::FetchParams const> m_fetch_params;
+    GC::Ref<Streams::ReadableStream> m_stream;
+    GC::Ptr<WebIDL::Promise> m_pending_promise;
     ByteBuffer m_buffer;
 };
 

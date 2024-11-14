@@ -16,7 +16,7 @@
 
 namespace JS::Intl {
 
-JS_DEFINE_ALLOCATOR(LocaleConstructor);
+GC_DEFINE_ALLOCATOR(LocaleConstructor);
 
 struct LocaleAndKeys {
     String locale;
@@ -244,7 +244,7 @@ ThrowCompletionOr<Value> LocaleConstructor::call()
 
 // 14.1.1 Intl.Locale ( tag [ , options ] ), https://tc39.es/ecma402/#sec-Intl.Locale
 // 1.2.3 Intl.Locale ( tag [ , options ] ), https://tc39.es/proposal-intl-locale-info/#sec-Intl.Locale
-ThrowCompletionOr<NonnullGCPtr<Object>> LocaleConstructor::construct(FunctionObject& new_target)
+ThrowCompletionOr<GC::Ref<Object>> LocaleConstructor::construct(FunctionObject& new_target)
 {
     auto& vm = this->vm();
 

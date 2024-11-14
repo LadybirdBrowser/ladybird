@@ -5,7 +5,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibJS/Heap/Heap.h>
+#include <LibGC/Heap.h>
 #include <LibJS/Runtime/ArrayBuffer.h>
 #include <LibJS/Runtime/Error.h>
 #include <LibJS/Runtime/Iterator.h>
@@ -24,8 +24,8 @@
 
 namespace Web::Streams {
 
-JS_DEFINE_ALLOCATOR(ReadableStreamDefaultReader);
-JS_DEFINE_ALLOCATOR(ReadLoopReadRequest);
+GC_DEFINE_ALLOCATOR(ReadableStreamDefaultReader);
+GC_DEFINE_ALLOCATOR(ReadLoopReadRequest);
 
 void ReadLoopReadRequest::visit_edges(Visitor& visitor)
 {
@@ -38,7 +38,7 @@ void ReadLoopReadRequest::visit_edges(Visitor& visitor)
 }
 
 // https://streams.spec.whatwg.org/#default-reader-constructor
-WebIDL::ExceptionOr<JS::NonnullGCPtr<ReadableStreamDefaultReader>> ReadableStreamDefaultReader::construct_impl(JS::Realm& realm, JS::NonnullGCPtr<ReadableStream> stream)
+WebIDL::ExceptionOr<GC::Ref<ReadableStreamDefaultReader>> ReadableStreamDefaultReader::construct_impl(JS::Realm& realm, GC::Ref<ReadableStream> stream)
 {
     auto reader = realm.create<ReadableStreamDefaultReader>(realm);
 
@@ -69,7 +69,7 @@ void ReadableStreamDefaultReader::visit_edges(Cell::Visitor& visitor)
 }
 
 // https://streams.spec.whatwg.org/#read-loop
-ReadLoopReadRequest::ReadLoopReadRequest(JS::VM& vm, JS::Realm& realm, ReadableStreamDefaultReader& reader, JS::NonnullGCPtr<SuccessSteps> success_steps, JS::NonnullGCPtr<FailureSteps> failure_steps, JS::GCPtr<ChunkSteps> chunk_steps)
+ReadLoopReadRequest::ReadLoopReadRequest(JS::VM& vm, JS::Realm& realm, ReadableStreamDefaultReader& reader, GC::Ref<SuccessSteps> success_steps, GC::Ref<FailureSteps> failure_steps, GC::Ptr<ChunkSteps> chunk_steps)
     : m_vm(vm)
     , m_realm(realm)
     , m_reader(reader)
@@ -122,8 +122,8 @@ void ReadLoopReadRequest::on_error(JS::Value error)
 }
 
 class DefaultReaderReadRequest final : public ReadRequest {
-    JS_CELL(DefaultReaderReadRequest, ReadRequest);
-    JS_DECLARE_ALLOCATOR(DefaultReaderReadRequest);
+    GC_CELL(DefaultReaderReadRequest, ReadRequest);
+    GC_DECLARE_ALLOCATOR(DefaultReaderReadRequest);
 
 public:
     DefaultReaderReadRequest(JS::Realm& realm, WebIDL::Promise& promise)
@@ -155,14 +155,14 @@ private:
         visitor.visit(m_promise);
     }
 
-    JS::NonnullGCPtr<JS::Realm> m_realm;
-    JS::NonnullGCPtr<WebIDL::Promise> m_promise;
+    GC::Ref<JS::Realm> m_realm;
+    GC::Ref<WebIDL::Promise> m_promise;
 };
 
-JS_DEFINE_ALLOCATOR(DefaultReaderReadRequest);
+GC_DEFINE_ALLOCATOR(DefaultReaderReadRequest);
 
 // https://streams.spec.whatwg.org/#default-reader-read
-JS::NonnullGCPtr<WebIDL::Promise> ReadableStreamDefaultReader::read()
+GC::Ref<WebIDL::Promise> ReadableStreamDefaultReader::read()
 {
     auto& realm = this->realm();
 
@@ -199,7 +199,7 @@ void ReadableStreamDefaultReader::read_a_chunk(Fetch::Infrastructure::Incrementa
 }
 
 // https://streams.spec.whatwg.org/#readablestreamdefaultreader-read-all-bytes
-void ReadableStreamDefaultReader::read_all_bytes(JS::NonnullGCPtr<ReadLoopReadRequest::SuccessSteps> success_steps, JS::NonnullGCPtr<ReadLoopReadRequest::FailureSteps> failure_steps)
+void ReadableStreamDefaultReader::read_all_bytes(GC::Ref<ReadLoopReadRequest::SuccessSteps> success_steps, GC::Ref<ReadLoopReadRequest::FailureSteps> failure_steps)
 {
     auto& realm = this->realm();
     auto& vm = realm.vm();
@@ -212,7 +212,7 @@ void ReadableStreamDefaultReader::read_all_bytes(JS::NonnullGCPtr<ReadLoopReadRe
     readable_stream_default_reader_read(*this, read_request);
 }
 
-void ReadableStreamDefaultReader::read_all_chunks(JS::NonnullGCPtr<ReadLoopReadRequest::ChunkSteps> chunk_steps, JS::NonnullGCPtr<ReadLoopReadRequest::SuccessSteps> success_steps, JS::NonnullGCPtr<ReadLoopReadRequest::FailureSteps> failure_steps)
+void ReadableStreamDefaultReader::read_all_chunks(GC::Ref<ReadLoopReadRequest::ChunkSteps> chunk_steps, GC::Ref<ReadLoopReadRequest::SuccessSteps> success_steps, GC::Ref<ReadLoopReadRequest::FailureSteps> failure_steps)
 {
     // AD-HOC: Some spec steps direct us to "read all chunks" from a stream, but there isn't an AO defined to do that.
     //         We implement those steps by using the "read all bytes" definition, with a custom callback to receive
@@ -231,18 +231,18 @@ void ReadableStreamDefaultReader::read_all_chunks(JS::NonnullGCPtr<ReadLoopReadR
 // FIXME: This function is a promise-based wrapper around "read all bytes". The spec changed this function to not use promises
 //        in https://github.com/whatwg/streams/commit/f894acdd417926a2121710803cef593e15127964 - however, it seems that the
 //        FileAPI blob specification has not been updated to match, see: https://github.com/w3c/FileAPI/issues/187.
-JS::NonnullGCPtr<WebIDL::Promise> ReadableStreamDefaultReader::read_all_bytes_deprecated()
+GC::Ref<WebIDL::Promise> ReadableStreamDefaultReader::read_all_bytes_deprecated()
 {
     auto& realm = this->realm();
 
     auto promise = WebIDL::create_promise(realm);
 
-    auto success_steps = JS::create_heap_function(realm.heap(), [promise, &realm](ByteBuffer bytes) {
+    auto success_steps = GC::create_function(realm.heap(), [promise, &realm](ByteBuffer bytes) {
         auto buffer = JS::ArrayBuffer::create(realm, move(bytes));
         WebIDL::resolve_promise(realm, promise, buffer);
     });
 
-    auto failure_steps = JS::create_heap_function(realm.heap(), [promise, &realm](JS::Value error) {
+    auto failure_steps = GC::create_function(realm.heap(), [promise, &realm](JS::Value error) {
         WebIDL::reject_promise(realm, promise, error);
     });
 

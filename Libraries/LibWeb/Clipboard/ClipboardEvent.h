@@ -6,7 +6,7 @@
 
 #pragma once
 
-#include <LibJS/Heap/GCPtr.h>
+#include <LibGC/Ptr.h>
 #include <LibWeb/DOM/Event.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/HTML/DataTransfer.h>
@@ -14,20 +14,20 @@
 namespace Web::Clipboard {
 
 struct ClipboardEventInit : public DOM::EventInit {
-    JS::GCPtr<HTML::DataTransfer> clipboard_data;
+    GC::Ptr<HTML::DataTransfer> clipboard_data;
 };
 
 // https://w3c.github.io/clipboard-apis/#clipboardevent
 class ClipboardEvent : public DOM::Event {
     WEB_PLATFORM_OBJECT(ClipboardEvent, DOM::Event);
-    JS_DECLARE_ALLOCATOR(ClipboardEvent);
+    GC_DECLARE_ALLOCATOR(ClipboardEvent);
 
 public:
-    static JS::NonnullGCPtr<ClipboardEvent> construct_impl(JS::Realm&, FlyString const& event_name, ClipboardEventInit const& event_init);
+    static GC::Ref<ClipboardEvent> construct_impl(JS::Realm&, FlyString const& event_name, ClipboardEventInit const& event_init);
 
     virtual ~ClipboardEvent() override;
 
-    JS::GCPtr<HTML::DataTransfer> clipboard_data() { return m_clipboard_data; }
+    GC::Ptr<HTML::DataTransfer> clipboard_data() { return m_clipboard_data; }
 
 private:
     ClipboardEvent(JS::Realm&, FlyString const& event_name, ClipboardEventInit const& event_init);
@@ -35,7 +35,7 @@ private:
     virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(JS::Cell::Visitor&) override;
 
-    JS::GCPtr<HTML::DataTransfer> m_clipboard_data;
+    GC::Ptr<HTML::DataTransfer> m_clipboard_data;
 };
 
 }

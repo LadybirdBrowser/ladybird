@@ -24,11 +24,11 @@ struct AudioBufferOptions {
 // https://webaudio.github.io/web-audio-api/#AudioBuffer
 class AudioBuffer final : public Bindings::PlatformObject {
     WEB_PLATFORM_OBJECT(AudioBuffer, Bindings::PlatformObject);
-    JS_DECLARE_ALLOCATOR(AudioBuffer);
+    GC_DECLARE_ALLOCATOR(AudioBuffer);
 
 public:
-    static WebIDL::ExceptionOr<JS::NonnullGCPtr<AudioBuffer>> create(JS::Realm&, WebIDL::UnsignedLong number_of_channels, WebIDL::UnsignedLong length, float sample_rate);
-    static WebIDL::ExceptionOr<JS::NonnullGCPtr<AudioBuffer>> construct_impl(JS::Realm&, AudioBufferOptions const&);
+    static WebIDL::ExceptionOr<GC::Ref<AudioBuffer>> create(JS::Realm&, WebIDL::UnsignedLong number_of_channels, WebIDL::UnsignedLong length, float sample_rate);
+    static WebIDL::ExceptionOr<GC::Ref<AudioBuffer>> construct_impl(JS::Realm&, AudioBufferOptions const&);
 
     virtual ~AudioBuffer() override;
 
@@ -36,9 +36,9 @@ public:
     WebIDL::UnsignedLong length() const;
     double duration() const;
     WebIDL::UnsignedLong number_of_channels() const;
-    WebIDL::ExceptionOr<JS::NonnullGCPtr<JS::Float32Array>> get_channel_data(WebIDL::UnsignedLong channel) const;
-    WebIDL::ExceptionOr<void> copy_from_channel(JS::Handle<WebIDL::BufferSource> const&, WebIDL::UnsignedLong channel_number, WebIDL::UnsignedLong buffer_offset = 0) const;
-    WebIDL::ExceptionOr<void> copy_to_channel(JS::Handle<WebIDL::BufferSource> const&, WebIDL::UnsignedLong channel_number, WebIDL::UnsignedLong buffer_offset = 0);
+    WebIDL::ExceptionOr<GC::Ref<JS::Float32Array>> get_channel_data(WebIDL::UnsignedLong channel) const;
+    WebIDL::ExceptionOr<void> copy_from_channel(GC::Root<WebIDL::BufferSource> const&, WebIDL::UnsignedLong channel_number, WebIDL::UnsignedLong buffer_offset = 0) const;
+    WebIDL::ExceptionOr<void> copy_to_channel(GC::Root<WebIDL::BufferSource> const&, WebIDL::UnsignedLong channel_number, WebIDL::UnsignedLong buffer_offset = 0);
 
 private:
     explicit AudioBuffer(JS::Realm&, AudioBufferOptions const&);
@@ -51,7 +51,7 @@ private:
     //
     // https://webaudio.github.io/web-audio-api/#dom-audiobuffer-internal-data-slot
     // A data block holding the audio sample data.
-    Vector<JS::NonnullGCPtr<JS::Float32Array>> m_channels; // [[internal data]] / [[number_of_channels]]
+    Vector<GC::Ref<JS::Float32Array>> m_channels; // [[internal data]] / [[number_of_channels]]
 
     // https://webaudio.github.io/web-audio-api/#dom-audiobuffer-length-slot
     // The length of each channel of this AudioBuffer, which is an unsigned long.

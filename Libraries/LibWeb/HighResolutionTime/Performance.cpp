@@ -20,7 +20,7 @@
 
 namespace Web::HighResolutionTime {
 
-JS_DEFINE_ALLOCATOR(Performance);
+GC_DEFINE_ALLOCATOR(Performance);
 
 Performance::Performance(JS::Realm& realm)
     : DOM::EventTarget(realm)
@@ -44,7 +44,7 @@ void Performance::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_timing);
 }
 
-JS::GCPtr<NavigationTiming::PerformanceTiming> Performance::timing()
+GC::Ptr<NavigationTiming::PerformanceTiming> Performance::timing()
 {
     auto& realm = this->realm();
     if (!m_timing)
@@ -52,7 +52,7 @@ JS::GCPtr<NavigationTiming::PerformanceTiming> Performance::timing()
     return m_timing;
 }
 
-JS::GCPtr<NavigationTiming::PerformanceNavigation> Performance::navigation()
+GC::Ptr<NavigationTiming::PerformanceNavigation> Performance::navigation()
 {
     auto& realm = this->realm();
     if (!m_navigation) {
@@ -80,7 +80,7 @@ double Performance::now() const
 }
 
 // https://w3c.github.io/user-timing/#mark-method
-WebIDL::ExceptionOr<JS::NonnullGCPtr<UserTiming::PerformanceMark>> Performance::mark(String const& mark_name, UserTiming::PerformanceMarkOptions const& mark_options)
+WebIDL::ExceptionOr<GC::Ref<UserTiming::PerformanceMark>> Performance::mark(String const& mark_name, UserTiming::PerformanceMarkOptions const& mark_options)
 {
     auto& realm = this->realm();
 
@@ -166,7 +166,7 @@ WebIDL::ExceptionOr<HighResolutionTime::DOMHighResTimeStamp> Performance::conver
         auto& tuple = window_or_worker().relevant_performance_entry_tuple(PerformanceTimeline::EntryTypes::mark);
         auto& performance_entry_buffer = tuple.performance_entry_buffer;
 
-        auto maybe_entry = performance_entry_buffer.last_matching([&mark_string](JS::Handle<PerformanceTimeline::PerformanceEntry> const& entry) {
+        auto maybe_entry = performance_entry_buffer.last_matching([&mark_string](GC::Root<PerformanceTimeline::PerformanceEntry> const& entry) {
             return entry->name() == mark_string;
         });
 
@@ -188,7 +188,7 @@ WebIDL::ExceptionOr<HighResolutionTime::DOMHighResTimeStamp> Performance::conver
 }
 
 // https://w3c.github.io/user-timing/#dom-performance-measure
-WebIDL::ExceptionOr<JS::NonnullGCPtr<UserTiming::PerformanceMeasure>> Performance::measure(String const& measure_name, Variant<String, UserTiming::PerformanceMeasureOptions> const& start_or_measure_options, Optional<String> end_mark)
+WebIDL::ExceptionOr<GC::Ref<UserTiming::PerformanceMeasure>> Performance::measure(String const& measure_name, Variant<String, UserTiming::PerformanceMeasureOptions> const& start_or_measure_options, Optional<String> end_mark)
 {
     auto& realm = this->realm();
     auto& vm = this->vm();
@@ -333,7 +333,7 @@ void Performance::clear_measures(Optional<String> measure_name)
 }
 
 // https://www.w3.org/TR/performance-timeline/#getentries-method
-WebIDL::ExceptionOr<Vector<JS::Handle<PerformanceTimeline::PerformanceEntry>>> Performance::get_entries() const
+WebIDL::ExceptionOr<Vector<GC::Root<PerformanceTimeline::PerformanceEntry>>> Performance::get_entries() const
 {
     auto& vm = this->vm();
 
@@ -343,7 +343,7 @@ WebIDL::ExceptionOr<Vector<JS::Handle<PerformanceTimeline::PerformanceEntry>>> P
 }
 
 // https://www.w3.org/TR/performance-timeline/#dom-performance-getentriesbytype
-WebIDL::ExceptionOr<Vector<JS::Handle<PerformanceTimeline::PerformanceEntry>>> Performance::get_entries_by_type(String const& type) const
+WebIDL::ExceptionOr<Vector<GC::Root<PerformanceTimeline::PerformanceEntry>>> Performance::get_entries_by_type(String const& type) const
 {
     auto& vm = this->vm();
 
@@ -353,7 +353,7 @@ WebIDL::ExceptionOr<Vector<JS::Handle<PerformanceTimeline::PerformanceEntry>>> P
 }
 
 // https://www.w3.org/TR/performance-timeline/#dom-performance-getentriesbyname
-WebIDL::ExceptionOr<Vector<JS::Handle<PerformanceTimeline::PerformanceEntry>>> Performance::get_entries_by_name(String const& name, Optional<String> type) const
+WebIDL::ExceptionOr<Vector<GC::Root<PerformanceTimeline::PerformanceEntry>>> Performance::get_entries_by_name(String const& name, Optional<String> type) const
 {
     auto& vm = this->vm();
 

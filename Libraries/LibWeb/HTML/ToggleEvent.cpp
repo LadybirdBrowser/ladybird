@@ -10,14 +10,14 @@
 
 namespace Web::HTML {
 
-JS_DEFINE_ALLOCATOR(ToggleEvent);
+GC_DEFINE_ALLOCATOR(ToggleEvent);
 
-JS::NonnullGCPtr<ToggleEvent> ToggleEvent::create(JS::Realm& realm, FlyString const& event_name, ToggleEventInit event_init)
+GC::Ref<ToggleEvent> ToggleEvent::create(JS::Realm& realm, FlyString const& event_name, ToggleEventInit event_init)
 {
     return realm.create<ToggleEvent>(realm, event_name, move(event_init));
 }
 
-WebIDL::ExceptionOr<JS::NonnullGCPtr<ToggleEvent>> ToggleEvent::construct_impl(JS::Realm& realm, FlyString const& event_name, ToggleEventInit event_init)
+WebIDL::ExceptionOr<GC::Ref<ToggleEvent>> ToggleEvent::construct_impl(JS::Realm& realm, FlyString const& event_name, ToggleEventInit event_init)
 {
     return create(realm, event_name, move(event_init));
 }

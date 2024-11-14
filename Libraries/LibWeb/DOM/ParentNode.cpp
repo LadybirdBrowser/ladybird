@@ -21,14 +21,14 @@
 
 namespace Web::DOM {
 
-JS_DEFINE_ALLOCATOR(ParentNode);
+GC_DEFINE_ALLOCATOR(ParentNode);
 
 enum class ReturnMatches {
     First,
     All,
 };
 // https://dom.spec.whatwg.org/#scope-match-a-selectors-string
-static WebIDL::ExceptionOr<Variant<JS::GCPtr<Element>, JS::NonnullGCPtr<NodeList>>> scope_match_a_selectors_string(ParentNode& node, StringView selector_text, ReturnMatches return_matches)
+static WebIDL::ExceptionOr<Variant<GC::Ptr<Element>, GC::Ref<NodeList>>> scope_match_a_selectors_string(ParentNode& node, StringView selector_text, ReturnMatches return_matches)
 {
     // To scope-match a selectors string selectors against a node, run these steps:
     // 1. Let s be the result of parse a selector selectors.
@@ -41,8 +41,8 @@ static WebIDL::ExceptionOr<Variant<JS::GCPtr<Element>, JS::NonnullGCPtr<NodeList
     auto selectors = maybe_selectors.value();
 
     // 3. Return the result of match a selector against a tree with s and node’s root using scoping root node.
-    JS::GCPtr<Element> single_result;
-    Vector<JS::Handle<Node>> results;
+    GC::Ptr<Element> single_result;
+    Vector<GC::Root<Node>> results;
     // FIXME: This should be shadow-including. https://drafts.csswg.org/selectors-4/#match-a-selector-against-a-tree
     node.for_each_in_subtree_of_type<Element>([&](auto& element) {
         for (auto& selector : selectors) {
@@ -64,26 +64,26 @@ static WebIDL::ExceptionOr<Variant<JS::GCPtr<Element>, JS::NonnullGCPtr<NodeList
 }
 
 // https://dom.spec.whatwg.org/#dom-parentnode-queryselector
-WebIDL::ExceptionOr<JS::GCPtr<Element>> ParentNode::query_selector(StringView selector_text)
+WebIDL::ExceptionOr<GC::Ptr<Element>> ParentNode::query_selector(StringView selector_text)
 {
     // The querySelector(selectors) method steps are to return the first result of running scope-match a selectors string selectors against this,
     // if the result is not an empty list; otherwise null.
-    return TRY(scope_match_a_selectors_string(*this, selector_text, ReturnMatches::First)).get<JS::GCPtr<Element>>();
+    return TRY(scope_match_a_selectors_string(*this, selector_text, ReturnMatches::First)).get<GC::Ptr<Element>>();
 }
 
 // https://dom.spec.whatwg.org/#dom-parentnode-queryselectorall
-WebIDL::ExceptionOr<JS::NonnullGCPtr<NodeList>> ParentNode::query_selector_all(StringView selector_text)
+WebIDL::ExceptionOr<GC::Ref<NodeList>> ParentNode::query_selector_all(StringView selector_text)
 {
     // The querySelectorAll(selectors) method steps are to return the static result of running scope-match a selectors string selectors against this.
-    return TRY(scope_match_a_selectors_string(*this, selector_text, ReturnMatches::All)).get<JS::NonnullGCPtr<NodeList>>();
+    return TRY(scope_match_a_selectors_string(*this, selector_text, ReturnMatches::All)).get<GC::Ref<NodeList>>();
 }
 
-JS::GCPtr<Element> ParentNode::first_element_child()
+GC::Ptr<Element> ParentNode::first_element_child()
 {
     return first_child_of_type<Element>();
 }
 
-JS::GCPtr<Element> ParentNode::last_element_child()
+GC::Ptr<Element> ParentNode::last_element_child()
 {
     return last_child_of_type<Element>();
 }
@@ -106,7 +106,7 @@ void ParentNode::visit_edges(Cell::Visitor& visitor)
 }
 
 // https://dom.spec.whatwg.org/#dom-parentnode-children
-JS::NonnullGCPtr<HTMLCollection> ParentNode::children()
+GC::Ref<HTMLCollection> ParentNode::children()
 {
     // The children getter steps are to return an HTMLCollection collection rooted at this matching only element children.
     if (!m_children) {
@@ -119,7 +119,7 @@ JS::NonnullGCPtr<HTMLCollection> ParentNode::children()
 
 // https://dom.spec.whatwg.org/#concept-getelementsbytagname
 // NOTE: This method is only exposed on Document and Element, but is in ParentNode to prevent code duplication.
-JS::NonnullGCPtr<HTMLCollection> ParentNode::get_elements_by_tag_name(FlyString const& qualified_name)
+GC::Ref<HTMLCollection> ParentNode::get_elements_by_tag_name(FlyString const& qualified_name)
 {
     // 1. If qualifiedName is "*" (U+002A), return a HTMLCollection rooted at root, whose filter matches only descendant elements.
     if (qualified_name == "*") {
@@ -149,7 +149,7 @@ JS::NonnullGCPtr<HTMLCollection> ParentNode::get_elements_by_tag_name(FlyString 
 
 // https://dom.spec.whatwg.org/#concept-getelementsbytagnamens
 // NOTE: This method is only exposed on Document and Element, but is in ParentNode to prevent code duplication.
-JS::NonnullGCPtr<HTMLCollection> ParentNode::get_elements_by_tag_name_ns(Optional<FlyString> namespace_, FlyString const& local_name)
+GC::Ref<HTMLCollection> ParentNode::get_elements_by_tag_name_ns(Optional<FlyString> namespace_, FlyString const& local_name)
 {
     // 1. If namespace is the empty string, set it to null.
     if (namespace_ == FlyString {})
@@ -183,7 +183,7 @@ JS::NonnullGCPtr<HTMLCollection> ParentNode::get_elements_by_tag_name_ns(Optiona
 }
 
 // https://dom.spec.whatwg.org/#dom-parentnode-prepend
-WebIDL::ExceptionOr<void> ParentNode::prepend(Vector<Variant<JS::Handle<Node>, String>> const& nodes)
+WebIDL::ExceptionOr<void> ParentNode::prepend(Vector<Variant<GC::Root<Node>, String>> const& nodes)
 {
     // 1. Let node be the result of converting nodes into a node given nodes and this’s node document.
     auto node = TRY(convert_nodes_to_single_node(nodes, document()));
@@ -194,7 +194,7 @@ WebIDL::ExceptionOr<void> ParentNode::prepend(Vector<Variant<JS::Handle<Node>, S
     return {};
 }
 
-WebIDL::ExceptionOr<void> ParentNode::append(Vector<Variant<JS::Handle<Node>, String>> const& nodes)
+WebIDL::ExceptionOr<void> ParentNode::append(Vector<Variant<GC::Root<Node>, String>> const& nodes)
 {
     // 1. Let node be the result of converting nodes into a node given nodes and this’s node document.
     auto node = TRY(convert_nodes_to_single_node(nodes, document()));
@@ -205,7 +205,7 @@ WebIDL::ExceptionOr<void> ParentNode::append(Vector<Variant<JS::Handle<Node>, St
     return {};
 }
 
-WebIDL::ExceptionOr<void> ParentNode::replace_children(Vector<Variant<JS::Handle<Node>, String>> const& nodes)
+WebIDL::ExceptionOr<void> ParentNode::replace_children(Vector<Variant<GC::Root<Node>, String>> const& nodes)
 {
     // 1. Let node be the result of converting nodes into a node given nodes and this’s node document.
     auto node = TRY(convert_nodes_to_single_node(nodes, document()));
@@ -219,7 +219,7 @@ WebIDL::ExceptionOr<void> ParentNode::replace_children(Vector<Variant<JS::Handle
 }
 
 // https://dom.spec.whatwg.org/#dom-document-getelementsbyclassname
-JS::NonnullGCPtr<HTMLCollection> ParentNode::get_elements_by_class_name(StringView class_names)
+GC::Ref<HTMLCollection> ParentNode::get_elements_by_class_name(StringView class_names)
 {
     Vector<FlyString> list_of_class_names;
     for (auto& name : class_names.split_view_if(Infra::is_ascii_whitespace)) {

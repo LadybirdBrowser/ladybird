@@ -10,7 +10,7 @@
 
 namespace JS {
 
-JS_DEFINE_ALLOCATOR(ShadowRealmPrototype);
+GC_DEFINE_ALLOCATOR(ShadowRealmPrototype);
 
 // 3.4 Properties of the ShadowRealm Prototype Object, https://tc39.es/proposal-shadowrealm/#sec-properties-of-the-shadowrealm-prototype-object
 ShadowRealmPrototype::ShadowRealmPrototype(Realm& realm)

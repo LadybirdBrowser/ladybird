@@ -19,7 +19,7 @@
 
 namespace JS::Temporal {
 
-JS_DEFINE_ALLOCATOR(PlainDatePrototype);
+GC_DEFINE_ALLOCATOR(PlainDatePrototype);
 
 // 3.3 Properties of the Temporal.PlainDate Prototype Object, https://tc39.es/proposal-temporal/#sec-properties-of-the-temporal-plaindate-prototype-object
 PlainDatePrototype::PlainDatePrototype(Realm& realm)

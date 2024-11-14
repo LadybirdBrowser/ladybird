@@ -9,9 +9,9 @@
 
 namespace JS {
 
-JS_DEFINE_ALLOCATOR(BigIntObject);
+GC_DEFINE_ALLOCATOR(BigIntObject);
 
-NonnullGCPtr<BigIntObject> BigIntObject::create(Realm& realm, BigInt& bigint)
+GC::Ref<BigIntObject> BigIntObject::create(Realm& realm, BigInt& bigint)
 {
     return realm.create<BigIntObject>(bigint, realm.intrinsics().bigint_prototype());
 }

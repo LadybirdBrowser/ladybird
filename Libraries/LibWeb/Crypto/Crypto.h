@@ -14,16 +14,16 @@ namespace Web::Crypto {
 
 class Crypto : public Bindings::PlatformObject {
     WEB_PLATFORM_OBJECT(Crypto, Bindings::PlatformObject);
-    JS_DECLARE_ALLOCATOR(Crypto);
+    GC_DECLARE_ALLOCATOR(Crypto);
 
 public:
-    [[nodiscard]] static JS::NonnullGCPtr<Crypto> create(JS::Realm&);
+    [[nodiscard]] static GC::Ref<Crypto> create(JS::Realm&);
 
     virtual ~Crypto() override;
 
-    JS::NonnullGCPtr<SubtleCrypto> subtle() const;
+    GC::Ref<SubtleCrypto> subtle() const;
 
-    WebIDL::ExceptionOr<JS::Handle<WebIDL::ArrayBufferView>> get_random_values(JS::Handle<WebIDL::ArrayBufferView>) const;
+    WebIDL::ExceptionOr<GC::Root<WebIDL::ArrayBufferView>> get_random_values(GC::Root<WebIDL::ArrayBufferView>) const;
     WebIDL::ExceptionOr<String> random_uuid() const;
 
 protected:
@@ -33,7 +33,7 @@ protected:
 private:
     explicit Crypto(JS::Realm&);
 
-    JS::GCPtr<SubtleCrypto> m_subtle;
+    GC::Ptr<SubtleCrypto> m_subtle;
 };
 
 ErrorOr<String> generate_random_uuid();

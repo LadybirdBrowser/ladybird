@@ -48,7 +48,7 @@ void Node::visit_edges(Cell::Visitor& visitor)
     Base::visit_edges(visitor);
     visitor.visit(m_dom_node);
     for (auto const& paintable : m_paintable) {
-        visitor.visit(JS::GCPtr { &paintable });
+        visitor.visit(GC::Ptr { &paintable });
     }
     visitor.visit(m_pseudo_element_generator);
     TreeNode::visit_edges(visitor);
@@ -205,7 +205,7 @@ bool Node::establishes_stacking_context() const
     return computed_values().opacity() < 1.0f;
 }
 
-JS::GCPtr<HTML::Navigable> Node::navigable() const
+GC::Ptr<HTML::Navigable> Node::navigable() const
 {
     return document().navigable();
 }
@@ -1008,7 +1008,7 @@ bool Node::is_inline_table() const
     return display.is_inline_outside() && display.is_table_inside();
 }
 
-JS::NonnullGCPtr<NodeWithStyle> NodeWithStyle::create_anonymous_wrapper() const
+GC::Ref<NodeWithStyle> NodeWithStyle::create_anonymous_wrapper() const
 {
     auto wrapper = heap().allocate<BlockContainer>(const_cast<DOM::Document&>(document()), nullptr, computed_values().clone_inherited_values());
     wrapper->mutable_computed_values().set_display(CSS::Display(CSS::DisplayOutside::Block, CSS::DisplayInside::Flow));
@@ -1080,7 +1080,7 @@ bool NodeWithStyle::is_scroll_container() const
         || overflow_value_makes_box_a_scroll_container(computed_values().overflow_y());
 }
 
-void Node::add_paintable(JS::GCPtr<Painting::Paintable> paintable)
+void Node::add_paintable(GC::Ptr<Painting::Paintable> paintable)
 {
     if (!paintable)
         return;
@@ -1092,7 +1092,7 @@ void Node::clear_paintables()
     m_paintable.clear();
 }
 
-JS::GCPtr<Painting::Paintable> Node::create_paintable() const
+GC::Ptr<Painting::Paintable> Node::create_paintable() const
 {
     return nullptr;
 }

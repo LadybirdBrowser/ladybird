@@ -8,8 +8,8 @@
 
 #include <AK/Error.h>
 #include <AK/OwnPtr.h>
+#include <LibGC/Root.h>
 #include <LibGfx/Size.h>
-#include <LibJS/Heap/Handle.h>
 #include <LibURL/URL.h>
 #include <LibWeb/Forward.h>
 
@@ -17,11 +17,11 @@ namespace Web::HTML {
 
 // https://html.spec.whatwg.org/multipage/images.html#image-request
 class ImageRequest final : public JS::Cell {
-    JS_CELL(ImageRequest, JS::Cell);
-    JS_DECLARE_ALLOCATOR(ImageRequest);
+    GC_CELL(ImageRequest, JS::Cell);
+    GC_DECLARE_ALLOCATOR(ImageRequest);
 
 public:
-    [[nodiscard]] static JS::NonnullGCPtr<ImageRequest> create(JS::Realm&, JS::NonnullGCPtr<Page>);
+    [[nodiscard]] static GC::Ref<ImageRequest> create(JS::Realm&, GC::Ref<Page>);
 
     ~ImageRequest();
 
@@ -42,8 +42,8 @@ public:
     URL::URL const& current_url() const;
     void set_current_url(JS::Realm&, URL::URL);
 
-    [[nodiscard]] JS::GCPtr<DecodedImageData> image_data() const;
-    void set_image_data(JS::GCPtr<DecodedImageData>);
+    [[nodiscard]] GC::Ptr<DecodedImageData> image_data() const;
+    void set_image_data(GC::Ptr<DecodedImageData>);
 
     [[nodiscard]] float current_pixel_density() const { return m_current_pixel_density; }
     void set_current_pixel_density(float density) { m_current_pixel_density = density; }
@@ -54,17 +54,17 @@ public:
     // https://html.spec.whatwg.org/multipage/images.html#prepare-an-image-for-presentation
     void prepare_for_presentation(HTMLImageElement&);
 
-    void fetch_image(JS::Realm&, JS::NonnullGCPtr<Fetch::Infrastructure::Request>);
+    void fetch_image(JS::Realm&, GC::Ref<Fetch::Infrastructure::Request>);
     void add_callbacks(Function<void()> on_finish, Function<void()> on_fail);
 
-    JS::GCPtr<SharedResourceRequest const> shared_resource_request() const { return m_shared_resource_request; }
+    GC::Ptr<SharedResourceRequest const> shared_resource_request() const { return m_shared_resource_request; }
 
     virtual void visit_edges(JS::Cell::Visitor&) override;
 
 private:
-    explicit ImageRequest(JS::NonnullGCPtr<Page>);
+    explicit ImageRequest(GC::Ref<Page>);
 
-    JS::NonnullGCPtr<Page> m_page;
+    GC::Ref<Page> m_page;
 
     // https://html.spec.whatwg.org/multipage/images.html#img-req-state
     // An image request's state is initially unavailable.
@@ -75,7 +75,7 @@ private:
     URL::URL m_current_url;
 
     // https://html.spec.whatwg.org/multipage/images.html#img-req-data
-    JS::GCPtr<DecodedImageData> m_image_data;
+    GC::Ptr<DecodedImageData> m_image_data;
 
     // https://html.spec.whatwg.org/multipage/images.html#current-pixel-density
     // Each image request has a current pixel density, which must initially be 1.
@@ -86,7 +86,7 @@ private:
     // which is either a struct consisting of a width and a height or is null. It must initially be null.
     Optional<Gfx::FloatSize> m_preferred_density_corrected_dimensions;
 
-    JS::GCPtr<SharedResourceRequest> m_shared_resource_request;
+    GC::Ptr<SharedResourceRequest> m_shared_resource_request;
 };
 
 // https://html.spec.whatwg.org/multipage/images.html#abort-the-image-request

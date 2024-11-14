@@ -8,9 +8,9 @@
 #pragma once
 
 #include <AK/Types.h>
-#include <LibJS/Forward.h>
+#include <LibGC/Forward.h>
 
-namespace JS {
+namespace GC {
 
 class HeapBase {
     AK_MAKE_NONCOPYABLE(HeapBase);
@@ -34,7 +34,7 @@ class HeapBlockBase {
 
 public:
     static size_t block_size;
-    static HeapBlockBase* from_cell(CellImpl const* cell)
+    static HeapBlockBase* from_cell(Cell const* cell)
     {
         return reinterpret_cast<HeapBlockBase*>(bit_cast<FlatPtr>(cell) & ~(HeapBlockBase::block_size - 1));
     }

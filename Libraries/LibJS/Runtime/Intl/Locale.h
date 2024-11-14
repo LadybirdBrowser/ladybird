@@ -10,7 +10,7 @@
 #include <AK/Optional.h>
 #include <AK/String.h>
 #include <AK/Vector.h>
-#include <LibJS/Heap/GCPtr.h>
+#include <LibGC/Ptr.h>
 #include <LibJS/Runtime/Completion.h>
 #include <LibJS/Runtime/Object.h>
 #include <LibJS/Runtime/Value.h>
@@ -20,10 +20,10 @@ namespace JS::Intl {
 
 class Locale final : public Object {
     JS_OBJECT(Locale, Object);
-    JS_DECLARE_ALLOCATOR(Locale);
+    GC_DECLARE_ALLOCATOR(Locale);
 
 public:
-    static NonnullGCPtr<Locale> create(Realm&, NonnullGCPtr<Locale> source_locale, String);
+    static GC::Ref<Locale> create(Realm&, GC::Ref<Locale> source_locale, String);
 
     static constexpr auto relevant_extension_keys()
     {
@@ -89,11 +89,11 @@ struct WeekInfo {
     Vector<u8> weekend;    // [[Weekend]]
 };
 
-NonnullGCPtr<Array> calendars_of_locale(VM&, Locale const&);
-NonnullGCPtr<Array> collations_of_locale(VM&, Locale const& locale);
-NonnullGCPtr<Array> hour_cycles_of_locale(VM&, Locale const& locale);
-NonnullGCPtr<Array> numbering_systems_of_locale(VM&, Locale const&);
-NonnullGCPtr<Array> time_zones_of_locale(VM&, StringView region);
+GC::Ref<Array> calendars_of_locale(VM&, Locale const&);
+GC::Ref<Array> collations_of_locale(VM&, Locale const& locale);
+GC::Ref<Array> hour_cycles_of_locale(VM&, Locale const& locale);
+GC::Ref<Array> numbering_systems_of_locale(VM&, Locale const&);
+GC::Ref<Array> time_zones_of_locale(VM&, StringView region);
 StringView character_direction_of_locale(Locale const&);
 StringView weekday_to_string(StringView weekday);
 Optional<u8> string_to_weekday_value(StringView weekday);

@@ -7,8 +7,8 @@
 #pragma once
 
 #include <AK/Forward.h>
+#include <LibGC/Ptr.h>
 #include <LibJS/Forward.h>
-#include <LibJS/Heap/GCPtr.h>
 #include <LibWeb/Bindings/PlatformObject.h>
 #include <LibWeb/Bindings/RequestPrototype.h>
 #include <LibWeb/Fetch/Body.h>
@@ -20,7 +20,7 @@
 namespace Web::Fetch {
 
 // https://fetch.spec.whatwg.org/#requestinfo
-using RequestInfo = Variant<JS::Handle<Request>, String>;
+using RequestInfo = Variant<GC::Root<Request>, String>;
 
 // https://fetch.spec.whatwg.org/#requestinit
 struct RequestInit {
@@ -35,7 +35,7 @@ struct RequestInit {
     Optional<Bindings::RequestRedirect> redirect;
     Optional<String> integrity;
     Optional<bool> keepalive;
-    Optional<JS::GCPtr<DOM::AbortSignal>> signal;
+    Optional<GC::Ptr<DOM::AbortSignal>> signal;
     Optional<Bindings::RequestDuplex> duplex;
     Optional<Bindings::RequestPriority> priority;
     Optional<JS::Value> window;
@@ -66,27 +66,27 @@ class Request final
     : public Bindings::PlatformObject
     , public BodyMixin {
     WEB_PLATFORM_OBJECT(Request, Bindings::PlatformObject);
-    JS_DECLARE_ALLOCATOR(Request);
+    GC_DECLARE_ALLOCATOR(Request);
 
 public:
-    [[nodiscard]] static JS::NonnullGCPtr<Request> create(JS::Realm&, JS::NonnullGCPtr<Infrastructure::Request>, Headers::Guard, JS::NonnullGCPtr<DOM::AbortSignal>);
-    static WebIDL::ExceptionOr<JS::NonnullGCPtr<Request>> construct_impl(JS::Realm&, RequestInfo const& input, RequestInit const& init = {});
+    [[nodiscard]] static GC::Ref<Request> create(JS::Realm&, GC::Ref<Infrastructure::Request>, Headers::Guard, GC::Ref<DOM::AbortSignal>);
+    static WebIDL::ExceptionOr<GC::Ref<Request>> construct_impl(JS::Realm&, RequestInfo const& input, RequestInit const& init = {});
 
     virtual ~Request() override;
 
     // ^BodyMixin
     virtual Optional<MimeSniff::MimeType> mime_type_impl() const override;
-    virtual JS::GCPtr<Infrastructure::Body> body_impl() override;
-    virtual JS::GCPtr<Infrastructure::Body const> body_impl() const override;
+    virtual GC::Ptr<Infrastructure::Body> body_impl() override;
+    virtual GC::Ptr<Infrastructure::Body const> body_impl() const override;
     virtual Bindings::PlatformObject& as_platform_object() override { return *this; }
     virtual Bindings::PlatformObject const& as_platform_object() const override { return *this; }
 
-    [[nodiscard]] JS::NonnullGCPtr<Infrastructure::Request> request() const { return m_request; }
+    [[nodiscard]] GC::Ref<Infrastructure::Request> request() const { return m_request; }
 
     // JS API functions
     [[nodiscard]] String method() const;
     [[nodiscard]] String url() const;
-    [[nodiscard]] JS::NonnullGCPtr<Headers> headers() const;
+    [[nodiscard]] GC::Ref<Headers> headers() const;
     [[nodiscard]] Bindings::RequestDestination destination() const;
     [[nodiscard]] String referrer() const;
     [[nodiscard]] Bindings::ReferrerPolicy referrer_policy() const;
@@ -98,27 +98,27 @@ public:
     [[nodiscard]] bool keepalive() const;
     [[nodiscard]] bool is_reload_navigation() const;
     [[nodiscard]] bool is_history_navigation() const;
-    [[nodiscard]] JS::NonnullGCPtr<DOM::AbortSignal> signal() const;
+    [[nodiscard]] GC::Ref<DOM::AbortSignal> signal() const;
     [[nodiscard]] Bindings::RequestDuplex duplex() const;
-    [[nodiscard]] WebIDL::ExceptionOr<JS::NonnullGCPtr<Request>> clone() const;
+    [[nodiscard]] WebIDL::ExceptionOr<GC::Ref<Request>> clone() const;
 
 private:
-    Request(JS::Realm&, JS::NonnullGCPtr<Infrastructure::Request>);
+    Request(JS::Realm&, GC::Ref<Infrastructure::Request>);
 
     virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Cell::Visitor&) override;
 
     // https://fetch.spec.whatwg.org/#concept-request-request
     // A Request object has an associated request (a request).
-    JS::NonnullGCPtr<Infrastructure::Request> m_request;
+    GC::Ref<Infrastructure::Request> m_request;
 
     // https://fetch.spec.whatwg.org/#request-headers
     // A Request object also has an associated headers (null or a Headers object), initially null.
-    JS::GCPtr<Headers> m_headers;
+    GC::Ptr<Headers> m_headers;
 
     // https://fetch.spec.whatwg.org/#request-signal
     // A Request object has an associated signal (null or an AbortSignal object), initially null.
-    JS::GCPtr<DOM::AbortSignal> m_signal;
+    GC::Ptr<DOM::AbortSignal> m_signal;
 };
 
 }

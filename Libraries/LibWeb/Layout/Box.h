@@ -19,7 +19,7 @@ struct LineBoxFragmentCoordinate {
 };
 
 class Box : public NodeWithStyleAndBoxModelMetrics {
-    JS_CELL(Box, NodeWithStyleAndBoxModelMetrics);
+    GC_CELL(Box, NodeWithStyleAndBoxModelMetrics);
 
 public:
     Painting::PaintableBox const* paintable_box() const;
@@ -46,11 +46,11 @@ public:
 
     virtual void did_set_content_size() { }
 
-    virtual JS::GCPtr<Painting::Paintable> create_paintable() const override;
+    virtual GC::Ptr<Painting::Paintable> create_paintable() const override;
 
-    void add_contained_abspos_child(JS::NonnullGCPtr<Node> child) { m_contained_abspos_children.append(child); }
+    void add_contained_abspos_child(GC::Ref<Node> child) { m_contained_abspos_children.append(child); }
     void clear_contained_abspos_children() { m_contained_abspos_children.clear(); }
-    Vector<JS::NonnullGCPtr<Node>> const& contained_abspos_children() const { return m_contained_abspos_children; }
+    Vector<GC::Ref<Node>> const& contained_abspos_children() const { return m_contained_abspos_children; }
 
     virtual void visit_edges(Cell::Visitor&) override;
 
@@ -65,7 +65,7 @@ private:
     Optional<CSSPixels> m_natural_height;
     Optional<CSSPixelFraction> m_natural_aspect_ratio;
 
-    Vector<JS::NonnullGCPtr<Node>> m_contained_abspos_children;
+    Vector<GC::Ref<Node>> m_contained_abspos_children;
 };
 
 template<>

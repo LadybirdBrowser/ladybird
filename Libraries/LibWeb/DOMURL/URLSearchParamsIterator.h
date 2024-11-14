@@ -13,10 +13,10 @@ namespace Web::DOMURL {
 
 class URLSearchParamsIterator : public Bindings::PlatformObject {
     WEB_PLATFORM_OBJECT(URLSearchParamsIterator, Bindings::PlatformObject);
-    JS_DECLARE_ALLOCATOR(URLSearchParamsIterator);
+    GC_DECLARE_ALLOCATOR(URLSearchParamsIterator);
 
 public:
-    static WebIDL::ExceptionOr<JS::NonnullGCPtr<URLSearchParamsIterator>> create(URLSearchParams const&, JS::Object::PropertyKind iteration_kind);
+    static WebIDL::ExceptionOr<GC::Ref<URLSearchParamsIterator>> create(URLSearchParams const&, JS::Object::PropertyKind iteration_kind);
 
     virtual ~URLSearchParamsIterator() override;
 
@@ -28,7 +28,7 @@ private:
     virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Cell::Visitor&) override;
 
-    JS::NonnullGCPtr<URLSearchParams const> m_url_search_params;
+    GC::Ref<URLSearchParams const> m_url_search_params;
     JS::Object::PropertyKind m_iteration_kind;
     size_t m_index { 0 };
 };

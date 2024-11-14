@@ -8,16 +8,16 @@
 
 #include <AK/Badge.h>
 #include <AK/String.h>
+#include <LibGC/Root.h>
 #include <LibJS/Bytecode/Executable.h>
 #include <LibJS/Bytecode/ScopedOperand.h>
 #include <LibJS/Forward.h>
-#include <LibJS/Heap/Handle.h>
 
 namespace JS::Bytecode {
 
 struct UnwindInfo {
-    JS::GCPtr<Executable const> executable;
-    JS::GCPtr<Environment> lexical_environment;
+    GC::Ptr<Executable const> executable;
+    GC::Ptr<Environment> lexical_environment;
 
     bool handler_called { false };
 };

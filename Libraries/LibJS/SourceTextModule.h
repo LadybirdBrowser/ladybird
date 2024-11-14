@@ -15,13 +15,13 @@ namespace JS {
 
 // 16.2.1.6 Source Text Module Records, https://tc39.es/ecma262/#sec-source-text-module-records
 class SourceTextModule final : public CyclicModule {
-    JS_CELL(SourceTextModule, CyclicModule);
-    JS_DECLARE_ALLOCATOR(SourceTextModule);
+    GC_CELL(SourceTextModule, CyclicModule);
+    GC_DECLARE_ALLOCATOR(SourceTextModule);
 
 public:
     virtual ~SourceTextModule() override;
 
-    static Result<NonnullGCPtr<SourceTextModule>, Vector<ParserError>> parse(StringView source_text, Realm&, StringView filename = {}, Script::HostDefined* host_defined = nullptr);
+    static Result<GC::Ref<SourceTextModule>, Vector<ParserError>> parse(StringView source_text, Realm&, StringView filename = {}, Script::HostDefined* host_defined = nullptr);
 
     Program const& parse_node() const { return *m_ecmascript_code; }
 
@@ -33,7 +33,7 @@ public:
 
 protected:
     virtual ThrowCompletionOr<void> initialize_environment(VM& vm) override;
-    virtual ThrowCompletionOr<void> execute_module(VM& vm, GCPtr<PromiseCapability> capability) override;
+    virtual ThrowCompletionOr<void> execute_module(VM& vm, GC::Ptr<PromiseCapability> capability) override;
 
 private:
     SourceTextModule(Realm&, StringView filename, Script::HostDefined* host_defined, bool has_top_level_await, NonnullRefPtr<Program> body, Vector<ModuleRequest> requested_modules,
@@ -45,7 +45,7 @@ private:
 
     NonnullRefPtr<Program> m_ecmascript_code;            // [[ECMAScriptCode]]
     NonnullOwnPtr<ExecutionContext> m_execution_context; // [[Context]]
-    GCPtr<Object> m_import_meta;                         // [[ImportMeta]]
+    GC::Ptr<Object> m_import_meta;                       // [[ImportMeta]]
     Vector<ImportEntry> m_import_entries;                // [[ImportEntries]]
     Vector<ExportEntry> m_local_export_entries;          // [[LocalExportEntries]]
     Vector<ExportEntry> m_indirect_export_entries;       // [[IndirectExportEntries]]

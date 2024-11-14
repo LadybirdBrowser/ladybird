@@ -13,7 +13,7 @@ namespace JS {
 
 class ArrayPrototype final : public Array {
     JS_OBJECT(ArrayPrototype, Array);
-    JS_DECLARE_ALLOCATOR(ArrayPrototype);
+    GC_DECLARE_ALLOCATOR(ArrayPrototype);
 
 public:
     virtual void initialize(Realm&) override;
@@ -64,6 +64,6 @@ private:
     JS_DECLARE_NATIVE_FUNCTION(with);
 };
 
-ThrowCompletionOr<void> array_merge_sort(VM&, Function<ThrowCompletionOr<double>(Value, Value)> const& compare_func, MarkedVector<Value>& arr_to_sort);
+ThrowCompletionOr<void> array_merge_sort(VM&, Function<ThrowCompletionOr<double>(Value, Value)> const& compare_func, GC::MarkedVector<Value>& arr_to_sort);
 
 }

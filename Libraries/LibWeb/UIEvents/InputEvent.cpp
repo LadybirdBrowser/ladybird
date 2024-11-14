@@ -10,9 +10,9 @@
 
 namespace Web::UIEvents {
 
-JS_DEFINE_ALLOCATOR(InputEvent);
+GC_DEFINE_ALLOCATOR(InputEvent);
 
-JS::NonnullGCPtr<InputEvent> InputEvent::create_from_platform_event(JS::Realm& realm, FlyString const& event_name, InputEventInit const& event_init)
+GC::Ref<InputEvent> InputEvent::create_from_platform_event(JS::Realm& realm, FlyString const& event_name, InputEventInit const& event_init)
 {
     auto event = realm.create<InputEvent>(realm, event_name, event_init);
     event->set_bubbles(true);
@@ -22,7 +22,7 @@ JS::NonnullGCPtr<InputEvent> InputEvent::create_from_platform_event(JS::Realm& r
     return event;
 }
 
-WebIDL::ExceptionOr<JS::NonnullGCPtr<InputEvent>> InputEvent::construct_impl(JS::Realm& realm, FlyString const& event_name, InputEventInit const& event_init)
+WebIDL::ExceptionOr<GC::Ref<InputEvent>> InputEvent::construct_impl(JS::Realm& realm, FlyString const& event_name, InputEventInit const& event_init)
 {
     return realm.create<InputEvent>(realm, event_name, event_init);
 }

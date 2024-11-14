@@ -36,10 +36,10 @@ public:
     static constexpr float MIN_SAMPLE_RATE { 8000 };
     static constexpr float MAX_SAMPLE_RATE { 192000 };
 
-    JS::NonnullGCPtr<AudioDestinationNode> destination() const { return m_destination; }
+    GC::Ref<AudioDestinationNode> destination() const { return m_destination; }
     float sample_rate() const { return m_sample_rate; }
     double current_time() const { return m_current_time; }
-    JS::NonnullGCPtr<AudioListener> listener() const { return m_listener; }
+    GC::Ref<AudioListener> listener() const { return m_listener; }
     Bindings::AudioContextState state() const { return m_control_thread_state; }
 
     // https://webaudio.github.io/web-audio-api/#--nyquist-frequency
@@ -54,33 +54,33 @@ public:
 
     static WebIDL::ExceptionOr<void> verify_audio_options_inside_nominal_range(JS::Realm&, WebIDL::UnsignedLong number_of_channels, WebIDL::UnsignedLong length, float sample_rate);
 
-    WebIDL::ExceptionOr<JS::NonnullGCPtr<BiquadFilterNode>> create_biquad_filter();
-    WebIDL::ExceptionOr<JS::NonnullGCPtr<AudioBuffer>> create_buffer(WebIDL::UnsignedLong number_of_channels, WebIDL::UnsignedLong length, float sample_rate);
-    WebIDL::ExceptionOr<JS::NonnullGCPtr<AudioBufferSourceNode>> create_buffer_source();
-    WebIDL::ExceptionOr<JS::NonnullGCPtr<OscillatorNode>> create_oscillator();
-    WebIDL::ExceptionOr<JS::NonnullGCPtr<DynamicsCompressorNode>> create_dynamics_compressor();
-    WebIDL::ExceptionOr<JS::NonnullGCPtr<GainNode>> create_gain();
+    WebIDL::ExceptionOr<GC::Ref<BiquadFilterNode>> create_biquad_filter();
+    WebIDL::ExceptionOr<GC::Ref<AudioBuffer>> create_buffer(WebIDL::UnsignedLong number_of_channels, WebIDL::UnsignedLong length, float sample_rate);
+    WebIDL::ExceptionOr<GC::Ref<AudioBufferSourceNode>> create_buffer_source();
+    WebIDL::ExceptionOr<GC::Ref<OscillatorNode>> create_oscillator();
+    WebIDL::ExceptionOr<GC::Ref<DynamicsCompressorNode>> create_dynamics_compressor();
+    WebIDL::ExceptionOr<GC::Ref<GainNode>> create_gain();
 
-    JS::NonnullGCPtr<WebIDL::Promise> decode_audio_data(JS::Handle<WebIDL::BufferSource>, JS::GCPtr<WebIDL::CallbackType>, JS::GCPtr<WebIDL::CallbackType>);
+    GC::Ref<WebIDL::Promise> decode_audio_data(GC::Root<WebIDL::BufferSource>, GC::Ptr<WebIDL::CallbackType>, GC::Ptr<WebIDL::CallbackType>);
 
 protected:
     explicit BaseAudioContext(JS::Realm&, float m_sample_rate = 0);
 
-    void queue_a_media_element_task(JS::NonnullGCPtr<JS::HeapFunction<void()>>);
+    void queue_a_media_element_task(GC::Ref<GC::Function<void()>>);
 
     virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Cell::Visitor&) override;
 
-    JS::NonnullGCPtr<AudioDestinationNode> m_destination;
-    Vector<JS::NonnullGCPtr<WebIDL::Promise>> m_pending_promises;
+    GC::Ref<AudioDestinationNode> m_destination;
+    Vector<GC::Ref<WebIDL::Promise>> m_pending_promises;
 
 private:
-    void queue_a_decoding_operation(JS::NonnullGCPtr<JS::PromiseCapability>, JS::Handle<WebIDL::BufferSource>, JS::GCPtr<WebIDL::CallbackType>, JS::GCPtr<WebIDL::CallbackType>);
+    void queue_a_decoding_operation(GC::Ref<JS::PromiseCapability>, GC::Root<WebIDL::BufferSource>, GC::Ptr<WebIDL::CallbackType>, GC::Ptr<WebIDL::CallbackType>);
 
     float m_sample_rate { 0 };
     double m_current_time { 0 };
 
-    JS::NonnullGCPtr<AudioListener> m_listener;
+    GC::Ref<AudioListener> m_listener;
 
     Bindings::AudioContextState m_control_thread_state = Bindings::AudioContextState::Suspended;
     Bindings::AudioContextState m_rendering_thread_state = Bindings::AudioContextState::Suspended;

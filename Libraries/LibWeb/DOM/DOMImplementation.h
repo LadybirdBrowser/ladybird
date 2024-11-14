@@ -7,7 +7,7 @@
 
 #pragma once
 
-#include <LibJS/Heap/GCPtr.h>
+#include <LibGC/Ptr.h>
 #include <LibWeb/Bindings/PlatformObject.h>
 #include <LibWeb/DOM/Document.h>
 
@@ -15,15 +15,15 @@ namespace Web::DOM {
 
 class DOMImplementation final : public Bindings::PlatformObject {
     WEB_PLATFORM_OBJECT(DOMImplementation, Bindings::PlatformObject);
-    JS_DECLARE_ALLOCATOR(DOMImplementation);
+    GC_DECLARE_ALLOCATOR(DOMImplementation);
 
 public:
-    [[nodiscard]] static JS::NonnullGCPtr<DOMImplementation> create(Document&);
+    [[nodiscard]] static GC::Ref<DOMImplementation> create(Document&);
     virtual ~DOMImplementation();
 
-    WebIDL::ExceptionOr<JS::NonnullGCPtr<XMLDocument>> create_document(Optional<FlyString> const&, String const&, JS::GCPtr<DocumentType>) const;
-    JS::NonnullGCPtr<Document> create_html_document(Optional<String> const& title) const;
-    WebIDL::ExceptionOr<JS::NonnullGCPtr<DocumentType>> create_document_type(String const& qualified_name, String const& public_id, String const& system_id);
+    WebIDL::ExceptionOr<GC::Ref<XMLDocument>> create_document(Optional<FlyString> const&, String const&, GC::Ptr<DocumentType>) const;
+    GC::Ref<Document> create_html_document(Optional<String> const& title) const;
+    WebIDL::ExceptionOr<GC::Ref<DocumentType>> create_document_type(String const& qualified_name, String const& public_id, String const& system_id);
 
     // https://dom.spec.whatwg.org/#dom-domimplementation-hasfeature
     bool has_feature() const
@@ -41,7 +41,7 @@ private:
     Document& document() { return m_document; }
     Document const& document() const { return m_document; }
 
-    JS::NonnullGCPtr<Document> m_document;
+    GC::Ref<Document> m_document;
 };
 
 }

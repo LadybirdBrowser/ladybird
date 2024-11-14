@@ -19,7 +19,7 @@
 
 namespace Web::DOMURL {
 
-JS_DEFINE_ALLOCATOR(URLSearchParams);
+GC_DEFINE_ALLOCATOR(URLSearchParams);
 
 URLSearchParams::URLSearchParams(JS::Realm& realm, Vector<QueryParam> list)
     : PlatformObject(realm)
@@ -125,13 +125,13 @@ Vector<QueryParam> url_decode(StringView input)
     return output;
 }
 
-JS::NonnullGCPtr<URLSearchParams> URLSearchParams::create(JS::Realm& realm, Vector<QueryParam> list)
+GC::Ref<URLSearchParams> URLSearchParams::create(JS::Realm& realm, Vector<QueryParam> list)
 {
     return realm.create<URLSearchParams>(realm, move(list));
 }
 
 // https://url.spec.whatwg.org/#urlsearchparams-initialize
-JS::NonnullGCPtr<URLSearchParams> URLSearchParams::create(JS::Realm& realm, StringView init)
+GC::Ref<URLSearchParams> URLSearchParams::create(JS::Realm& realm, StringView init)
 {
     // NOTE: We skip the other steps since we know it is a string at this point.
     // b. Set query’s list to the result of parsing init.
@@ -140,7 +140,7 @@ JS::NonnullGCPtr<URLSearchParams> URLSearchParams::create(JS::Realm& realm, Stri
 
 // https://url.spec.whatwg.org/#dom-urlsearchparams-urlsearchparams
 // https://url.spec.whatwg.org/#urlsearchparams-initialize
-WebIDL::ExceptionOr<JS::NonnullGCPtr<URLSearchParams>> URLSearchParams::construct_impl(JS::Realm& realm, Variant<Vector<Vector<String>>, OrderedHashMap<String, String>, String> const& init)
+WebIDL::ExceptionOr<GC::Ref<URLSearchParams>> URLSearchParams::construct_impl(JS::Realm& realm, Variant<Vector<Vector<String>>, OrderedHashMap<String, String>, String> const& init)
 {
     auto& vm = realm.vm();
 

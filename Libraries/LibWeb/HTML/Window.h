@@ -10,7 +10,7 @@
 #include <AK/Badge.h>
 #include <AK/RefPtr.h>
 #include <AK/TypeCasts.h>
-#include <LibJS/Heap/Heap.h>
+#include <LibGC/Heap.h>
 #include <LibURL/URL.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Bindings/WindowGlobalMixin.h>
@@ -53,10 +53,10 @@ class Window final
     , public UniversalGlobalScopeMixin
     , public Bindings::WindowGlobalMixin {
     WEB_PLATFORM_OBJECT(Window, DOM::EventTarget);
-    JS_DECLARE_ALLOCATOR(Window);
+    GC_DECLARE_ALLOCATOR(Window);
 
 public:
-    [[nodiscard]] static JS::NonnullGCPtr<Window> create(JS::Realm&);
+    [[nodiscard]] static GC::Ref<Window> create(JS::Realm&);
 
     ~Window();
 
@@ -94,7 +94,7 @@ public:
     BrowsingContext const* browsing_context() const;
     BrowsingContext* browsing_context();
 
-    JS::GCPtr<Navigable> navigable() const;
+    GC::Ptr<Navigable> navigable() const;
 
     ImportMap const& import_map() const { return m_import_map; }
     void set_import_map(ImportMap const& import_map) { m_import_map = import_map; }
@@ -102,10 +102,10 @@ public:
     bool import_maps_allowed() const { return m_import_maps_allowed; }
     void set_import_maps_allowed(bool import_maps_allowed) { m_import_maps_allowed = import_maps_allowed; }
 
-    WebIDL::ExceptionOr<JS::GCPtr<WindowProxy>> window_open_steps(StringView url, StringView target, StringView features);
+    WebIDL::ExceptionOr<GC::Ptr<WindowProxy>> window_open_steps(StringView url, StringView target, StringView features);
 
     struct OpenedWindow {
-        JS::GCPtr<Navigable> navigable;
+        GC::Ptr<Navigable> navigable;
         TokenizedFeature::NoOpener no_opener { TokenizedFeature::NoOpener::No };
         Navigable::WindowType window_type { Navigable::WindowType::ExistingOrNone };
     };
@@ -119,8 +119,8 @@ public:
 
     void fire_a_page_transition_event(FlyString const& event_name, bool persisted);
 
-    WebIDL::ExceptionOr<JS::NonnullGCPtr<Storage>> local_storage();
-    WebIDL::ExceptionOr<JS::NonnullGCPtr<Storage>> session_storage();
+    WebIDL::ExceptionOr<GC::Ref<Storage>> local_storage();
+    WebIDL::ExceptionOr<GC::Ref<Storage>> session_storage();
 
     void start_an_idle_period();
 
@@ -135,57 +135,57 @@ public:
 
     WebIDL::ExceptionOr<void> initialize_web_interfaces(Badge<WindowEnvironmentSettingsObject>);
 
-    Vector<JS::NonnullGCPtr<Plugin>> pdf_viewer_plugin_objects();
-    Vector<JS::NonnullGCPtr<MimeType>> pdf_viewer_mime_type_objects();
+    Vector<GC::Ref<Plugin>> pdf_viewer_plugin_objects();
+    Vector<GC::Ref<MimeType>> pdf_viewer_mime_type_objects();
 
     CrossOriginPropertyDescriptorMap const& cross_origin_property_descriptor_map() const { return m_cross_origin_property_descriptor_map; }
     CrossOriginPropertyDescriptorMap& cross_origin_property_descriptor_map() { return m_cross_origin_property_descriptor_map; }
 
-    JS::NonnullGCPtr<WebIDL::CallbackType> count_queuing_strategy_size_function();
-    JS::NonnullGCPtr<WebIDL::CallbackType> byte_length_queuing_strategy_size_function();
+    GC::Ref<WebIDL::CallbackType> count_queuing_strategy_size_function();
+    GC::Ref<WebIDL::CallbackType> byte_length_queuing_strategy_size_function();
 
     // JS API functions
-    JS::NonnullGCPtr<WindowProxy> window() const;
-    JS::NonnullGCPtr<WindowProxy> self() const;
-    JS::NonnullGCPtr<DOM::Document const> document() const;
+    GC::Ref<WindowProxy> window() const;
+    GC::Ref<WindowProxy> self() const;
+    GC::Ref<DOM::Document const> document() const;
     String name() const;
     void set_name(String const&);
     String status() const;
     void close();
     bool closed() const;
     void set_status(String const&);
-    [[nodiscard]] JS::NonnullGCPtr<Location> location();
-    JS::NonnullGCPtr<History> history() const;
-    JS::NonnullGCPtr<Navigation> navigation();
+    [[nodiscard]] GC::Ref<Location> location();
+    GC::Ref<History> history() const;
+    GC::Ref<Navigation> navigation();
     void focus();
     void blur();
 
-    JS::NonnullGCPtr<WindowProxy> frames() const;
+    GC::Ref<WindowProxy> frames() const;
     u32 length();
-    JS::GCPtr<WindowProxy const> top() const;
-    JS::GCPtr<WindowProxy const> opener() const;
+    GC::Ptr<WindowProxy const> top() const;
+    GC::Ptr<WindowProxy const> opener() const;
     WebIDL::ExceptionOr<void> set_opener(JS::Value);
-    JS::GCPtr<WindowProxy const> parent() const;
-    JS::GCPtr<DOM::Element const> frame_element() const;
-    WebIDL::ExceptionOr<JS::GCPtr<WindowProxy>> open(Optional<String> const& url, Optional<String> const& target, Optional<String> const& features);
+    GC::Ptr<WindowProxy const> parent() const;
+    GC::Ptr<DOM::Element const> frame_element() const;
+    WebIDL::ExceptionOr<GC::Ptr<WindowProxy>> open(Optional<String> const& url, Optional<String> const& target, Optional<String> const& features);
 
-    [[nodiscard]] JS::NonnullGCPtr<Navigator> navigator();
-    [[nodiscard]] JS::NonnullGCPtr<CloseWatcherManager> close_watcher_manager();
+    [[nodiscard]] GC::Ref<Navigator> navigator();
+    [[nodiscard]] GC::Ref<CloseWatcherManager> close_watcher_manager();
 
     void alert(String const& message = {});
     bool confirm(Optional<String> const& message);
     Optional<String> prompt(Optional<String> const& message, Optional<String> const& default_);
 
-    WebIDL::ExceptionOr<void> post_message(JS::Value message, String const&, Vector<JS::Handle<JS::Object>> const&);
+    WebIDL::ExceptionOr<void> post_message(JS::Value message, String const&, Vector<GC::Root<JS::Object>> const&);
     WebIDL::ExceptionOr<void> post_message(JS::Value message, WindowPostMessageOptions const&);
 
-    Variant<JS::Handle<DOM::Event>, JS::Value> event() const;
+    Variant<GC::Root<DOM::Event>, JS::Value> event() const;
 
-    [[nodiscard]] JS::NonnullGCPtr<CSS::CSSStyleDeclaration> get_computed_style(DOM::Element&, Optional<String> const& pseudo_element) const;
+    [[nodiscard]] GC::Ref<CSS::CSSStyleDeclaration> get_computed_style(DOM::Element&, Optional<String> const& pseudo_element) const;
 
-    WebIDL::ExceptionOr<JS::NonnullGCPtr<CSS::MediaQueryList>> match_media(String const& query);
-    [[nodiscard]] JS::NonnullGCPtr<CSS::Screen> screen();
-    [[nodiscard]] JS::GCPtr<CSS::VisualViewport> visual_viewport();
+    WebIDL::ExceptionOr<GC::Ref<CSS::MediaQueryList>> match_media(String const& query);
+    [[nodiscard]] GC::Ref<CSS::Screen> screen();
+    [[nodiscard]] GC::Ptr<CSS::VisualViewport> visual_viewport();
 
     i32 inner_width() const;
     i32 inner_height() const;
@@ -211,18 +211,18 @@ public:
     AnimationFrameCallbackDriver& animation_frame_callback_driver();
     bool has_animation_frame_callbacks();
 
-    WebIDL::UnsignedLong request_animation_frame(JS::NonnullGCPtr<WebIDL::CallbackType>);
+    WebIDL::UnsignedLong request_animation_frame(GC::Ref<WebIDL::CallbackType>);
     void cancel_animation_frame(WebIDL::UnsignedLong handle);
 
     u32 request_idle_callback(WebIDL::CallbackType&, RequestIdleCallback::IdleRequestOptions const&);
     void cancel_idle_callback(u32 handle);
 
-    JS::GCPtr<Selection::Selection> get_selection() const;
+    GC::Ptr<Selection::Selection> get_selection() const;
 
     void capture_events();
     void release_events();
 
-    [[nodiscard]] JS::NonnullGCPtr<CustomElementRegistry> custom_elements();
+    [[nodiscard]] GC::Ref<CustomElementRegistry> custom_elements();
 
     HighResolutionTime::DOMHighResTimeStamp last_activation_timestamp() const { return m_last_activation_timestamp; }
     void set_last_activation_timestamp(HighResolutionTime::DOMHighResTimeStamp timestamp) { m_last_activation_timestamp = timestamp; }
@@ -237,7 +237,7 @@ public:
     static void set_inspector_object_exposed(bool);
     static void set_internals_object_exposed(bool);
 
-    [[nodiscard]] OrderedHashMap<FlyString, JS::NonnullGCPtr<Navigable>> document_tree_child_navigable_target_name_property_set();
+    [[nodiscard]] OrderedHashMap<FlyString, GC::Ref<Navigable>> document_tree_child_navigable_target_name_property_set();
 
     [[nodiscard]] Vector<FlyString> supported_property_names() const override;
     [[nodiscard]] JS::Value named_item_value(FlyString const&) const override;
@@ -251,25 +251,25 @@ private:
     virtual void finalize() override;
 
     // ^HTML::GlobalEventHandlers
-    virtual JS::GCPtr<DOM::EventTarget> global_event_handlers_to_event_target(FlyString const&) override { return *this; }
+    virtual GC::Ptr<DOM::EventTarget> global_event_handlers_to_event_target(FlyString const&) override { return *this; }
 
     // ^HTML::WindowEventHandlers
-    virtual JS::GCPtr<DOM::EventTarget> window_event_handlers_to_event_target() override { return *this; }
+    virtual GC::Ptr<DOM::EventTarget> window_event_handlers_to_event_target() override { return *this; }
 
     void invoke_idle_callbacks();
 
     struct [[nodiscard]] NamedObjects {
-        Vector<JS::NonnullGCPtr<Navigable>> navigables;
-        Vector<JS::NonnullGCPtr<DOM::Element>> elements;
+        Vector<GC::Ref<Navigable>> navigables;
+        Vector<GC::Ref<DOM::Element>> elements;
     };
     NamedObjects named_objects(StringView name);
 
     WebIDL::ExceptionOr<void> window_post_message_steps(JS::Value, WindowPostMessageOptions const&);
 
     // https://html.spec.whatwg.org/multipage/window-object.html#concept-document-window
-    JS::GCPtr<DOM::Document> m_associated_document;
+    GC::Ptr<DOM::Document> m_associated_document;
 
-    JS::GCPtr<DOM::Event> m_current_event;
+    GC::Ptr<DOM::Event> m_current_event;
 
     // https://html.spec.whatwg.org/multipage/webappapis.html#concept-window-import-map
     ImportMap m_import_map;
@@ -277,19 +277,19 @@ private:
     // https://html.spec.whatwg.org/multipage/webappapis.html#import-maps-allowed
     bool m_import_maps_allowed { true };
 
-    JS::GCPtr<CSS::Screen> m_screen;
-    JS::GCPtr<Navigator> m_navigator;
-    JS::GCPtr<Location> m_location;
-    JS::GCPtr<CloseWatcherManager> m_close_watcher_manager;
+    GC::Ptr<CSS::Screen> m_screen;
+    GC::Ptr<Navigator> m_navigator;
+    GC::Ptr<Location> m_location;
+    GC::Ptr<CloseWatcherManager> m_close_watcher_manager;
 
     // https://html.spec.whatwg.org/multipage/nav-history-apis.html#window-navigation-api
-    JS::GCPtr<Navigation> m_navigation;
+    GC::Ptr<Navigation> m_navigation;
 
     // https://html.spec.whatwg.org/multipage/custom-elements.html#custom-elements-api
     // Each Window object is associated with a unique instance of a CustomElementRegistry object, allocated when the Window object is created.
-    JS::GCPtr<CustomElementRegistry> m_custom_element_registry;
+    GC::Ptr<CustomElementRegistry> m_custom_element_registry;
 
-    JS::GCPtr<AnimationFrameCallbackDriver> m_animation_frame_callback_driver;
+    GC::Ptr<AnimationFrameCallbackDriver> m_animation_frame_callback_driver;
 
     // https://w3c.github.io/requestidlecallback/#dfn-list-of-idle-request-callbacks
     Vector<NonnullRefPtr<IdleCallback>> m_idle_request_callbacks;
@@ -299,10 +299,10 @@ private:
     u32 m_idle_callback_identifier = 0;
 
     // https://html.spec.whatwg.org/multipage/system-state.html#pdf-viewer-plugin-objects
-    Vector<JS::NonnullGCPtr<Plugin>> m_pdf_viewer_plugin_objects;
+    Vector<GC::Ref<Plugin>> m_pdf_viewer_plugin_objects;
 
     // https://html.spec.whatwg.org/multipage/system-state.html#pdf-viewer-mime-type-objects
-    Vector<JS::NonnullGCPtr<MimeType>> m_pdf_viewer_mime_type_objects;
+    Vector<GC::Ref<MimeType>> m_pdf_viewer_mime_type_objects;
 
     // [[CrossOriginPropertyDescriptorMap]], https://html.spec.whatwg.org/multipage/browsers.html#crossoriginpropertydescriptormap
     CrossOriginPropertyDescriptorMap m_cross_origin_property_descriptor_map;
@@ -314,10 +314,10 @@ private:
     HighResolutionTime::DOMHighResTimeStamp m_last_history_action_activation_timestamp { AK::Infinity<double> };
 
     // https://streams.spec.whatwg.org/#count-queuing-strategy-size-function
-    JS::GCPtr<WebIDL::CallbackType> m_count_queuing_strategy_size_function;
+    GC::Ptr<WebIDL::CallbackType> m_count_queuing_strategy_size_function;
 
     // https://streams.spec.whatwg.org/#byte-length-queuing-strategy-size-function
-    JS::GCPtr<WebIDL::CallbackType> m_byte_length_queuing_strategy_size_function;
+    GC::Ptr<WebIDL::CallbackType> m_byte_length_queuing_strategy_size_function;
 
     // https://html.spec.whatwg.org/multipage/nav-history-apis.html#dom-window-status
     // When the Window object is created, the attribute must be set to the empty string. It does not do anything else.

@@ -91,14 +91,14 @@ static u16 get_legacy_code_for_name(FlyString const& name)
 // https://webidl.spec.whatwg.org/#idl-DOMException
 class DOMException final : public Bindings::PlatformObject {
     WEB_PLATFORM_OBJECT(DOMException, Bindings::PlatformObject);
-    JS_DECLARE_ALLOCATOR(DOMException);
+    GC_DECLARE_ALLOCATOR(DOMException);
 
 public:
-    static JS::NonnullGCPtr<DOMException> create(JS::Realm& realm, FlyString name, String message);
+    static GC::Ref<DOMException> create(JS::Realm& realm, FlyString name, String message);
 
     // JS constructor has message first, name second
     // FIXME: This is a completely pointless footgun, let's use the same order for both factories.
-    static JS::NonnullGCPtr<DOMException> construct_impl(JS::Realm& realm, String message, FlyString name);
+    static GC::Ref<DOMException> construct_impl(JS::Realm& realm, String message, FlyString name);
 
     virtual ~DOMException() override;
 
@@ -116,13 +116,13 @@ private:
     FlyString m_message;
 };
 
-#define __ENUMERATE(ErrorName)                                                                \
-    class ErrorName final {                                                                   \
-    public:                                                                                   \
-        static JS::NonnullGCPtr<DOMException> create(JS::Realm& realm, String const& message) \
-        {                                                                                     \
-            return DOMException::create(realm, #ErrorName##_fly_string, message);             \
-        }                                                                                     \
+#define __ENUMERATE(ErrorName)                                                       \
+    class ErrorName final {                                                          \
+    public:                                                                          \
+        static GC::Ref<DOMException> create(JS::Realm& realm, String const& message) \
+        {                                                                            \
+            return DOMException::create(realm, #ErrorName##_fly_string, message);    \
+        }                                                                            \
     };
 ENUMERATE_DOM_EXCEPTION_ERROR_NAMES
 #undef __ENUMERATE
@@ -131,7 +131,7 @@ ENUMERATE_DOM_EXCEPTION_ERROR_NAMES
 
 namespace Web {
 
-inline JS::Completion throw_completion(JS::NonnullGCPtr<WebIDL::DOMException> exception)
+inline JS::Completion throw_completion(GC::Ref<WebIDL::DOMException> exception)
 {
     return JS::throw_completion(JS::Value(exception));
 }

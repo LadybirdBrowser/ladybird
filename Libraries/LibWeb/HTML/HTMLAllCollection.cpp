@@ -30,9 +30,9 @@
 
 namespace Web::HTML {
 
-JS_DEFINE_ALLOCATOR(HTMLAllCollection);
+GC_DEFINE_ALLOCATOR(HTMLAllCollection);
 
-JS::NonnullGCPtr<HTMLAllCollection> HTMLAllCollection::create(DOM::ParentNode& root, Scope scope, Function<bool(DOM::Element const&)> filter)
+GC::Ref<HTMLAllCollection> HTMLAllCollection::create(DOM::ParentNode& root, Scope scope, Function<bool(DOM::Element const&)> filter)
 {
     return root.realm().create<HTMLAllCollection>(root, scope, move(filter));
 }
@@ -84,9 +84,9 @@ static bool is_all_named_element(DOM::Element const& element)
         || is<HTML::HTMLTextAreaElement>(element);
 }
 
-JS::MarkedVector<JS::NonnullGCPtr<DOM::Element>> HTMLAllCollection::collect_matching_elements() const
+GC::MarkedVector<GC::Ref<DOM::Element>> HTMLAllCollection::collect_matching_elements() const
 {
-    JS::MarkedVector<JS::NonnullGCPtr<DOM::Element>> elements(m_root->heap());
+    GC::MarkedVector<GC::Ref<DOM::Element>> elements(m_root->heap());
     if (m_scope == Scope::Descendants) {
         m_root->for_each_in_subtree_of_type<DOM::Element>([&](auto& element) {
             if (m_filter(element))
@@ -111,7 +111,7 @@ size_t HTMLAllCollection::length() const
 }
 
 // https://html.spec.whatwg.org/multipage/common-dom-interfaces.html#dom-htmlallcollection-item
-Variant<JS::NonnullGCPtr<DOM::HTMLCollection>, JS::NonnullGCPtr<DOM::Element>, Empty> HTMLAllCollection::item(Optional<FlyString> const& name_or_index) const
+Variant<GC::Ref<DOM::HTMLCollection>, GC::Ref<DOM::Element>, Empty> HTMLAllCollection::item(Optional<FlyString> const& name_or_index) const
 {
     // 1. If nameOrIndex was not provided, return null.
     if (!name_or_index.has_value())
@@ -122,7 +122,7 @@ Variant<JS::NonnullGCPtr<DOM::HTMLCollection>, JS::NonnullGCPtr<DOM::Element>, E
 }
 
 // https://html.spec.whatwg.org/multipage/common-dom-interfaces.html#dom-htmlallcollection-nameditem
-Variant<JS::NonnullGCPtr<DOM::HTMLCollection>, JS::NonnullGCPtr<DOM::Element>, Empty> HTMLAllCollection::named_item(FlyString const& name) const
+Variant<GC::Ref<DOM::HTMLCollection>, GC::Ref<DOM::Element>, Empty> HTMLAllCollection::named_item(FlyString const& name) const
 {
     // The namedItem(name) method steps are to return the result of getting the "all"-named element(s) from this given name.
     return get_the_all_named_elements(name);
@@ -158,7 +158,7 @@ Vector<FlyString> HTMLAllCollection::supported_property_names() const
 }
 
 // https://html.spec.whatwg.org/multipage/common-dom-interfaces.html#concept-get-all-named
-Variant<JS::NonnullGCPtr<DOM::HTMLCollection>, JS::NonnullGCPtr<DOM::Element>, Empty> HTMLAllCollection::get_the_all_named_elements(FlyString const& name) const
+Variant<GC::Ref<DOM::HTMLCollection>, GC::Ref<DOM::Element>, Empty> HTMLAllCollection::get_the_all_named_elements(FlyString const& name) const
 {
     // 1. If name is the empty string, return null.
     if (name.is_empty())
@@ -188,7 +188,7 @@ Variant<JS::NonnullGCPtr<DOM::HTMLCollection>, JS::NonnullGCPtr<DOM::Element>, E
 }
 
 // https://html.spec.whatwg.org/multipage/common-dom-interfaces.html#concept-get-all-indexed
-JS::GCPtr<DOM::Element> HTMLAllCollection::get_the_all_indexed_element(u32 index) const
+GC::Ptr<DOM::Element> HTMLAllCollection::get_the_all_indexed_element(u32 index) const
 {
     // To get the "all"-indexed element from an HTMLAllCollection collection given an index index, return the indexth
     // element in collection, or null if there is no such indexth element.
@@ -199,7 +199,7 @@ JS::GCPtr<DOM::Element> HTMLAllCollection::get_the_all_indexed_element(u32 index
 }
 
 // https://html.spec.whatwg.org/multipage/common-dom-interfaces.html#concept-get-all-indexed-or-named
-Variant<JS::NonnullGCPtr<DOM::HTMLCollection>, JS::NonnullGCPtr<DOM::Element>, Empty> HTMLAllCollection::get_the_all_indexed_or_named_elements(JS::PropertyKey const& name_or_index) const
+Variant<GC::Ref<DOM::HTMLCollection>, GC::Ref<DOM::Element>, Empty> HTMLAllCollection::get_the_all_indexed_or_named_elements(JS::PropertyKey const& name_or_index) const
 {
     // 1. If nameOrIndex, converted to a JavaScript String value, is an array index property name, return the result of getting the "all"-indexed element from
     //    collection given the number represented by nameOrIndex.
@@ -207,7 +207,7 @@ Variant<JS::NonnullGCPtr<DOM::HTMLCollection>, JS::NonnullGCPtr<DOM::Element>, E
         auto maybe_element = get_the_all_indexed_element(name_or_index.as_number());
         if (!maybe_element)
             return Empty {};
-        return JS::NonnullGCPtr<DOM::Element> { *maybe_element };
+        return GC::Ref<DOM::Element> { *maybe_element };
     }
 
     // 2. Return the result of getting the "all"-named element(s) from collection given nameOrIndex.

@@ -49,7 +49,7 @@ static inline bool same_type_for_equality(Value const& lhs, Value const& rhs)
     // If the top two bytes are identical then either:
     // both are NaN boxed Values with the same type
     // or they are doubles which happen to have the same top bytes.
-    if ((lhs.encoded() & TAG_EXTRACTION) == (rhs.encoded() & TAG_EXTRACTION))
+    if ((lhs.encoded() & GC::TAG_EXTRACTION) == (rhs.encoded() & GC::TAG_EXTRACTION))
         return true;
 
     if (lhs.is_number() && rhs.is_number())
@@ -322,7 +322,7 @@ ThrowCompletionOr<bool> Value::is_regexp(VM& vm) const
 }
 
 // 13.5.3 The typeof Operator, https://tc39.es/ecma262/#sec-typeof-operator
-NonnullGCPtr<PrimitiveString> Value::typeof_(VM& vm) const
+GC::Ref<PrimitiveString> Value::typeof_(VM& vm) const
 {
     // 9. If val is a Number, return "number".
     if (is_number())
@@ -394,7 +394,7 @@ String Value::to_string_without_side_effects() const
     }
 }
 
-ThrowCompletionOr<NonnullGCPtr<PrimitiveString>> Value::to_primitive_string(VM& vm)
+ThrowCompletionOr<GC::Ref<PrimitiveString>> Value::to_primitive_string(VM& vm)
 {
     if (is_string())
         return as_string();
@@ -556,7 +556,7 @@ ThrowCompletionOr<Value> Value::to_primitive_slow_case(VM& vm, PreferredType pre
 }
 
 // 7.1.18 ToObject ( argument ), https://tc39.es/ecma262/#sec-toobject
-ThrowCompletionOr<NonnullGCPtr<Object>> Value::to_object(VM& vm) const
+ThrowCompletionOr<GC::Ref<Object>> Value::to_object(VM& vm) const
 {
     auto& realm = *vm.current_realm();
     VERIFY(!is_empty());
@@ -744,7 +744,7 @@ ThrowCompletionOr<Value> Value::to_number_slow_case(VM& vm) const
 static Optional<BigInt*> string_to_bigint(VM& vm, StringView string);
 
 // 7.1.13 ToBigInt ( argument ), https://tc39.es/ecma262/#sec-tobigint
-ThrowCompletionOr<NonnullGCPtr<BigInt>> Value::to_bigint(VM& vm) const
+ThrowCompletionOr<GC::Ref<BigInt>> Value::to_bigint(VM& vm) const
 {
     // 1. Let prim be ? ToPrimitive(argument, number).
     auto primitive = TRY(to_primitive(vm, PreferredType::Number));
@@ -1227,7 +1227,7 @@ ThrowCompletionOr<Value> Value::get(VM& vm, PropertyKey const& property_key) con
 }
 
 // 7.3.11 GetMethod ( V, P ), https://tc39.es/ecma262/#sec-getmethod
-ThrowCompletionOr<GCPtr<FunctionObject>> Value::get_method(VM& vm, PropertyKey const& property_key) const
+ThrowCompletionOr<GC::Ptr<FunctionObject>> Value::get_method(VM& vm, PropertyKey const& property_key) const
 {
     // 1. Let func be ? GetV(V, P).
     auto function = TRY(get(vm, property_key));
@@ -2493,7 +2493,7 @@ ThrowCompletionOr<TriState> is_less_than(VM& vm, Value lhs, Value rhs, bool left
 }
 
 // 7.3.21 Invoke ( V, P [ , argumentsList ] ), https://tc39.es/ecma262/#sec-invoke
-ThrowCompletionOr<Value> Value::invoke_internal(VM& vm, PropertyKey const& property_key, Optional<MarkedVector<Value>> arguments)
+ThrowCompletionOr<Value> Value::invoke_internal(VM& vm, PropertyKey const& property_key, Optional<GC::MarkedVector<Value>> arguments)
 {
     // 1. If argumentsList is not present, set argumentsList to a new empty List.
 

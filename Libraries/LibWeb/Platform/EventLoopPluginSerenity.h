@@ -15,9 +15,9 @@ public:
     EventLoopPluginSerenity();
     virtual ~EventLoopPluginSerenity() override;
 
-    virtual void spin_until(JS::Handle<JS::HeapFunction<bool()>> goal_condition) override;
-    virtual void deferred_invoke(JS::Handle<JS::HeapFunction<void()>>) override;
-    virtual JS::NonnullGCPtr<Timer> create_timer(JS::Heap&) override;
+    virtual void spin_until(GC::Root<GC::Function<bool()>> goal_condition) override;
+    virtual void deferred_invoke(GC::Root<GC::Function<void()>>) override;
+    virtual GC::Ref<Timer> create_timer(GC::Heap&) override;
     virtual void quit() override;
 };
 

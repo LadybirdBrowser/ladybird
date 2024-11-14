@@ -64,7 +64,7 @@ static ErrorOr<void> generate_intrinsic_definitions(StringView output_path, Vect
     SourceGenerator generator(builder);
 
     generator.append(R"~~~(
-#include <LibJS/Heap/DeferGC.h>
+#include <LibGC/DeferGC.h>
 #include <LibJS/Runtime/Object.h>
 #include <LibWeb/Bindings/Intrinsics.h>)~~~");
 

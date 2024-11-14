@@ -17,15 +17,15 @@ namespace Web::FileAPI {
 // https://w3c.github.io/FileAPI/#dfn-filereader
 class FileReader : public DOM::EventTarget {
     WEB_PLATFORM_OBJECT(FileReader, DOM::EventTarget);
-    JS_DECLARE_ALLOCATOR(FileReader);
+    GC_DECLARE_ALLOCATOR(FileReader);
 
 public:
-    using Result = Variant<Empty, String, JS::Handle<JS::ArrayBuffer>>;
+    using Result = Variant<Empty, String, GC::Root<JS::ArrayBuffer>>;
 
     virtual ~FileReader() override;
 
-    [[nodiscard]] static JS::NonnullGCPtr<FileReader> create(JS::Realm&);
-    static JS::NonnullGCPtr<FileReader> construct_impl(JS::Realm&);
+    [[nodiscard]] static GC::Ref<FileReader> create(JS::Realm&);
+    static GC::Ref<FileReader> construct_impl(JS::Realm&);
 
     // async read methods
     WebIDL::ExceptionOr<void> read_as_array_buffer(Blob&);
@@ -59,7 +59,7 @@ public:
     Result result() const { return m_result; }
 
     // https://w3c.github.io/FileAPI/#dom-filereader-error
-    JS::GCPtr<WebIDL::DOMException> error() const { return m_error; }
+    GC::Ptr<WebIDL::DOMException> error() const { return m_error; }
 
     // event handler attributes
     void set_onloadstart(WebIDL::CallbackType*);
@@ -111,7 +111,7 @@ private:
 
     // A FileReader has an associated error (null or a DOMException). It is initially null.
     // https://w3c.github.io/FileAPI/#filereader-error
-    JS::GCPtr<WebIDL::DOMException> m_error;
+    GC::Ptr<WebIDL::DOMException> m_error;
 };
 
 }

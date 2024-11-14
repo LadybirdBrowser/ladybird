@@ -10,14 +10,14 @@
 
 namespace Web::UIEvents {
 
-JS_DEFINE_ALLOCATOR(CompositionEvent);
+GC_DEFINE_ALLOCATOR(CompositionEvent);
 
-JS::NonnullGCPtr<CompositionEvent> CompositionEvent::create(JS::Realm& realm, FlyString const& event_name, CompositionEventInit const& event_init)
+GC::Ref<CompositionEvent> CompositionEvent::create(JS::Realm& realm, FlyString const& event_name, CompositionEventInit const& event_init)
 {
     return realm.create<CompositionEvent>(realm, event_name, event_init);
 }
 
-WebIDL::ExceptionOr<JS::NonnullGCPtr<CompositionEvent>> CompositionEvent::construct_impl(JS::Realm& realm, FlyString const& event_name, CompositionEventInit const& event_init)
+WebIDL::ExceptionOr<GC::Ref<CompositionEvent>> CompositionEvent::construct_impl(JS::Realm& realm, FlyString const& event_name, CompositionEventInit const& event_init)
 {
     return realm.create<CompositionEvent>(realm, event_name, event_init);
 }

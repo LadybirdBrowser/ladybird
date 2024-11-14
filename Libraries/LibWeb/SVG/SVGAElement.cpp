@@ -12,7 +12,7 @@
 
 namespace Web::SVG {
 
-JS_DEFINE_ALLOCATOR(SVGAElement);
+GC_DEFINE_ALLOCATOR(SVGAElement);
 
 SVGAElement::SVGAElement(DOM::Document& document, DOM::QualifiedName qualified_name)
     : SVGGraphicsElement(document, move(qualified_name))
@@ -55,7 +55,7 @@ i32 SVGAElement::default_tab_index_value() const
 }
 
 // https://svgwg.org/svg2-draft/linking.html#__svg__SVGAElement__relList
-JS::NonnullGCPtr<DOM::DOMTokenList> SVGAElement::rel_list()
+GC::Ref<DOM::DOMTokenList> SVGAElement::rel_list()
 {
     // The relList IDL attribute reflects the ‘rel’ content attribute.
     if (!m_rel_list)
@@ -63,7 +63,7 @@ JS::NonnullGCPtr<DOM::DOMTokenList> SVGAElement::rel_list()
     return *m_rel_list;
 }
 
-JS::GCPtr<Layout::Node> SVGAElement::create_layout_node(CSS::StyleProperties style)
+GC::Ptr<Layout::Node> SVGAElement::create_layout_node(CSS::StyleProperties style)
 {
     return heap().allocate<Layout::SVGGraphicsBox>(document(), *this, move(style));
 }

@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibJS/Heap/Heap.h>
+#include <LibGC/Heap.h>
 #include <LibJS/Runtime/Realm.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Bindings/NavigationCurrentEntryChangeEventPrototype.h>
@@ -13,9 +13,9 @@
 
 namespace Web::HTML {
 
-JS_DEFINE_ALLOCATOR(NavigationCurrentEntryChangeEvent);
+GC_DEFINE_ALLOCATOR(NavigationCurrentEntryChangeEvent);
 
-JS::NonnullGCPtr<NavigationCurrentEntryChangeEvent> NavigationCurrentEntryChangeEvent::construct_impl(JS::Realm& realm, FlyString const& event_name, NavigationCurrentEntryChangeEventInit const& event_init)
+GC::Ref<NavigationCurrentEntryChangeEvent> NavigationCurrentEntryChangeEvent::construct_impl(JS::Realm& realm, FlyString const& event_name, NavigationCurrentEntryChangeEventInit const& event_init)
 {
     return realm.create<NavigationCurrentEntryChangeEvent>(realm, event_name, event_init);
 }

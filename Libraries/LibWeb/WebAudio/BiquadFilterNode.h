@@ -24,7 +24,7 @@ struct BiquadFilterOptions : AudioNodeOptions {
 // https://webaudio.github.io/web-audio-api/#BiquadFilterNode
 class BiquadFilterNode : public AudioNode {
     WEB_PLATFORM_OBJECT(BiquadFilterNode, AudioNode);
-    JS_DECLARE_ALLOCATOR(BiquadFilterNode);
+    GC_DECLARE_ALLOCATOR(BiquadFilterNode);
 
 public:
     virtual ~BiquadFilterNode() override;
@@ -34,27 +34,27 @@ public:
 
     void set_type(Bindings::BiquadFilterType);
     Bindings::BiquadFilterType type() const;
-    JS::NonnullGCPtr<AudioParam> frequency() const;
-    JS::NonnullGCPtr<AudioParam> detune() const;
-    JS::NonnullGCPtr<AudioParam> q() const;
-    JS::NonnullGCPtr<AudioParam> gain() const;
-    WebIDL::ExceptionOr<void> get_frequency_response(JS::Handle<WebIDL::BufferSource> const&, JS::Handle<WebIDL::BufferSource> const&, JS::Handle<WebIDL::BufferSource> const&);
+    GC::Ref<AudioParam> frequency() const;
+    GC::Ref<AudioParam> detune() const;
+    GC::Ref<AudioParam> q() const;
+    GC::Ref<AudioParam> gain() const;
+    WebIDL::ExceptionOr<void> get_frequency_response(GC::Root<WebIDL::BufferSource> const&, GC::Root<WebIDL::BufferSource> const&, GC::Root<WebIDL::BufferSource> const&);
 
-    static WebIDL::ExceptionOr<JS::NonnullGCPtr<BiquadFilterNode>> create(JS::Realm&, JS::NonnullGCPtr<BaseAudioContext>, BiquadFilterOptions const& = {});
-    static WebIDL::ExceptionOr<JS::NonnullGCPtr<BiquadFilterNode>> construct_impl(JS::Realm&, JS::NonnullGCPtr<BaseAudioContext>, BiquadFilterOptions const& = {});
+    static WebIDL::ExceptionOr<GC::Ref<BiquadFilterNode>> create(JS::Realm&, GC::Ref<BaseAudioContext>, BiquadFilterOptions const& = {});
+    static WebIDL::ExceptionOr<GC::Ref<BiquadFilterNode>> construct_impl(JS::Realm&, GC::Ref<BaseAudioContext>, BiquadFilterOptions const& = {});
 
 protected:
-    BiquadFilterNode(JS::Realm&, JS::NonnullGCPtr<BaseAudioContext>, BiquadFilterOptions const& = {});
+    BiquadFilterNode(JS::Realm&, GC::Ref<BaseAudioContext>, BiquadFilterOptions const& = {});
 
     virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Cell::Visitor&) override;
 
 private:
     Bindings::BiquadFilterType m_type { Bindings::BiquadFilterType::Lowpass };
-    JS::NonnullGCPtr<AudioParam> m_frequency;
-    JS::NonnullGCPtr<AudioParam> m_detune;
-    JS::NonnullGCPtr<AudioParam> m_q;
-    JS::NonnullGCPtr<AudioParam> m_gain;
+    GC::Ref<AudioParam> m_frequency;
+    GC::Ref<AudioParam> m_detune;
+    GC::Ref<AudioParam> m_q;
+    GC::Ref<AudioParam> m_gain;
 };
 
 }

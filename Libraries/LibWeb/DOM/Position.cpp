@@ -11,9 +11,9 @@
 
 namespace Web::DOM {
 
-JS_DEFINE_ALLOCATOR(Position);
+GC_DEFINE_ALLOCATOR(Position);
 
-Position::Position(JS::GCPtr<Node> node, unsigned offset)
+Position::Position(GC::Ptr<Node> node, unsigned offset)
     : m_node(node)
     , m_offset(offset)
 {

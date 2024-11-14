@@ -12,7 +12,7 @@
 
 namespace Web::HTML {
 
-JS_DEFINE_ALLOCATOR(TextTrackList);
+GC_DEFINE_ALLOCATOR(TextTrackList);
 
 TextTrackList::TextTrackList(JS::Realm& realm)
     : DOM::EventTarget(realm, MayInterfereWithIndexedPropertyAccess::Yes)
@@ -57,7 +57,7 @@ size_t TextTrackList::length() const
 }
 
 // https://html.spec.whatwg.org/multipage/media.html#dom-texttracklist-gettrackbyid
-JS::GCPtr<TextTrack> TextTrackList::get_track_by_id(StringView id) const
+GC::Ptr<TextTrack> TextTrackList::get_track_by_id(StringView id) const
 {
     // The getTrackById(id) method must return the first TextTrack in the TextTrackList object whose id
     // IDL attribute would return a value equal to the value of the id argument.

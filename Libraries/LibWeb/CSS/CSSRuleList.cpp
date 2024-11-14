@@ -19,9 +19,9 @@
 
 namespace Web::CSS {
 
-JS_DEFINE_ALLOCATOR(CSSRuleList);
+GC_DEFINE_ALLOCATOR(CSSRuleList);
 
-JS::NonnullGCPtr<CSSRuleList> CSSRuleList::create(JS::Realm& realm, JS::MarkedVector<CSSRule*> const& rules)
+GC::Ref<CSSRuleList> CSSRuleList::create(JS::Realm& realm, GC::MarkedVector<CSSRule*> const& rules)
 {
     auto rule_list = realm.create<CSSRuleList>(realm);
     for (auto* rule : rules)
@@ -35,7 +35,7 @@ CSSRuleList::CSSRuleList(JS::Realm& realm)
     m_legacy_platform_object_flags = LegacyPlatformObjectFlags { .supports_indexed_properties = 1 };
 }
 
-JS::NonnullGCPtr<CSSRuleList> CSSRuleList::create_empty(JS::Realm& realm)
+GC::Ref<CSSRuleList> CSSRuleList::create_empty(JS::Realm& realm)
 {
     return realm.create<CSSRuleList>(realm);
 }

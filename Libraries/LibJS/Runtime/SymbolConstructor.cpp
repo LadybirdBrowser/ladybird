@@ -11,7 +11,7 @@
 
 namespace JS {
 
-JS_DEFINE_ALLOCATOR(SymbolConstructor);
+GC_DEFINE_ALLOCATOR(SymbolConstructor);
 
 SymbolConstructor::SymbolConstructor(Realm& realm)
     : NativeFunction(realm.vm().names.Symbol.as_string(), realm.intrinsics().function_prototype())
@@ -55,7 +55,7 @@ ThrowCompletionOr<Value> SymbolConstructor::call()
 }
 
 // 20.4.1.1 Symbol ( [ description ] ), https://tc39.es/ecma262/#sec-symbol-description
-ThrowCompletionOr<NonnullGCPtr<Object>> SymbolConstructor::construct(FunctionObject&)
+ThrowCompletionOr<GC::Ref<Object>> SymbolConstructor::construct(FunctionObject&)
 {
     // 1. If NewTarget is not undefined, throw a TypeError exception.
     return vm().throw_completion<TypeError>(ErrorType::NotAConstructor, "Symbol");

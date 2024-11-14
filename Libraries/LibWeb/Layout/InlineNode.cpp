@@ -14,7 +14,7 @@
 
 namespace Web::Layout {
 
-JS_DEFINE_ALLOCATOR(InlineNode);
+GC_DEFINE_ALLOCATOR(InlineNode);
 
 InlineNode::InlineNode(DOM::Document& document, DOM::Element* element, CSS::StyleProperties style)
     : Layout::NodeWithStyleAndBoxModelMetrics(document, element, move(style))
@@ -23,7 +23,7 @@ InlineNode::InlineNode(DOM::Document& document, DOM::Element* element, CSS::Styl
 
 InlineNode::~InlineNode() = default;
 
-JS::GCPtr<Painting::PaintableWithLines> InlineNode::create_paintable_for_line_with_index(size_t line_index) const
+GC::Ptr<Painting::PaintableWithLines> InlineNode::create_paintable_for_line_with_index(size_t line_index) const
 {
     for (auto const& paintable : paintables()) {
         if (is<Painting::PaintableWithLines>(paintable)) {

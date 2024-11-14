@@ -20,13 +20,13 @@ class DedicatedWorkerGlobalScope
     : public WorkerGlobalScope
     , public Bindings::DedicatedWorkerGlobalScopeGlobalMixin {
     WEB_PLATFORM_OBJECT(DedicatedWorkerGlobalScope, WorkerGlobalScope);
-    JS_DECLARE_ALLOCATOR(DedicatedWorkerGlobalScope);
+    GC_DECLARE_ALLOCATOR(DedicatedWorkerGlobalScope);
 
 public:
     virtual ~DedicatedWorkerGlobalScope() override;
 
     WebIDL::ExceptionOr<void> post_message(JS::Value message, StructuredSerializeOptions const&);
-    WebIDL::ExceptionOr<void> post_message(JS::Value message, Vector<JS::Handle<JS::Object>> const& transfer);
+    WebIDL::ExceptionOr<void> post_message(JS::Value message, Vector<GC::Root<JS::Object>> const& transfer);
 
     void set_name(String name) { m_name = move(name); }
     String name() const { return m_name; }
@@ -43,7 +43,7 @@ public:
     virtual void finalize() override;
 
 private:
-    DedicatedWorkerGlobalScope(JS::Realm&, JS::NonnullGCPtr<Web::Page>);
+    DedicatedWorkerGlobalScope(JS::Realm&, GC::Ref<Web::Page>);
 
     virtual void initialize_web_interfaces_impl() override;
 

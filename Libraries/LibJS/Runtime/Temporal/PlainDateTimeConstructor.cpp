@@ -14,7 +14,7 @@
 
 namespace JS::Temporal {
 
-JS_DEFINE_ALLOCATOR(PlainDateTimeConstructor);
+GC_DEFINE_ALLOCATOR(PlainDateTimeConstructor);
 
 // 5.1 The Temporal.PlainDateTime Constructor, https://tc39.es/proposal-temporal/#sec-temporal-plaindatetime-constructor
 PlainDateTimeConstructor::PlainDateTimeConstructor(Realm& realm)
@@ -48,7 +48,7 @@ ThrowCompletionOr<Value> PlainDateTimeConstructor::call()
 }
 
 // 5.1.1 Temporal.PlainDateTime ( isoYear, isoMonth, isoDay [ , hour [ , minute [ , second [ , millisecond [ , microsecond [ , nanosecond [ , calendarLike ] ] ] ] ] ] ] ), https://tc39.es/proposal-temporal/#sec-temporal.plaindatetime
-ThrowCompletionOr<NonnullGCPtr<Object>> PlainDateTimeConstructor::construct(FunctionObject& new_target)
+ThrowCompletionOr<GC::Ref<Object>> PlainDateTimeConstructor::construct(FunctionObject& new_target)
 {
     auto& vm = this->vm();
 

@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibJS/Heap/HeapFunction.h>
+#include <LibGC/Function.h>
 #include <LibWeb/Bindings/ExceptionOrUtils.h>
 #include <LibWeb/Fetch/Fetching/FetchedDataReceiver.h>
 #include <LibWeb/Fetch/Infrastructure/FetchParams.h>
@@ -16,9 +16,9 @@
 
 namespace Web::Fetch::Fetching {
 
-JS_DEFINE_ALLOCATOR(FetchedDataReceiver);
+GC_DEFINE_ALLOCATOR(FetchedDataReceiver);
 
-FetchedDataReceiver::FetchedDataReceiver(JS::NonnullGCPtr<Infrastructure::FetchParams const> fetch_params, JS::NonnullGCPtr<Streams::ReadableStream> stream)
+FetchedDataReceiver::FetchedDataReceiver(GC::Ref<Infrastructure::FetchParams const> fetch_params, GC::Ref<Streams::ReadableStream> stream)
     : m_fetch_params(fetch_params)
     , m_stream(stream)
 {
@@ -34,7 +34,7 @@ void FetchedDataReceiver::visit_edges(Visitor& visitor)
     visitor.visit(m_pending_promise);
 }
 
-void FetchedDataReceiver::set_pending_promise(JS::NonnullGCPtr<WebIDL::Promise> promise)
+void FetchedDataReceiver::set_pending_promise(GC::Ref<WebIDL::Promise> promise)
 {
     auto had_pending_promise = m_pending_promise != nullptr;
     m_pending_promise = promise;
@@ -63,8 +63,8 @@ void FetchedDataReceiver::on_data_received(ReadonlyBytes bytes)
     // 3. Queue a fetch task to run the following steps, with fetchParams’s task destination.
     Infrastructure::queue_fetch_task(
         m_fetch_params->controller(),
-        m_fetch_params->task_destination().get<JS::NonnullGCPtr<JS::Object>>(),
-        JS::create_heap_function(heap(), [this, bytes = MUST(ByteBuffer::copy(bytes))]() mutable {
+        m_fetch_params->task_destination().get<GC::Ref<JS::Object>>(),
+        GC::create_function(heap(), [this, bytes = MUST(ByteBuffer::copy(bytes))]() mutable {
             HTML::TemporaryExecutionContext execution_context { m_stream->realm(), HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
 
             // 1. Pull from bytes buffer into stream.

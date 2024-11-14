@@ -10,7 +10,7 @@
 
 namespace Web::Layout {
 
-JS_DEFINE_ALLOCATOR(AudioBox);
+GC_DEFINE_ALLOCATOR(AudioBox);
 
 AudioBox::AudioBox(DOM::Document& document, DOM::Element& element, CSS::StyleProperties style)
     : ReplacedBox(document, element, move(style))
@@ -29,7 +29,7 @@ HTML::HTMLAudioElement const& AudioBox::dom_node() const
     return static_cast<HTML::HTMLAudioElement const&>(ReplacedBox::dom_node());
 }
 
-JS::GCPtr<Painting::Paintable> AudioBox::create_paintable() const
+GC::Ptr<Painting::Paintable> AudioBox::create_paintable() const
 {
     return Painting::AudioPaintable::create(*this);
 }

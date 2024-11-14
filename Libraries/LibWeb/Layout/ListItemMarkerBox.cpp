@@ -10,7 +10,7 @@
 
 namespace Web::Layout {
 
-JS_DEFINE_ALLOCATOR(ListItemMarkerBox);
+GC_DEFINE_ALLOCATOR(ListItemMarkerBox);
 
 ListItemMarkerBox::ListItemMarkerBox(DOM::Document& document, CSS::ListStyleType style_type, CSS::ListStylePosition style_position, size_t index, CSS::StyleProperties style)
     : Box(document, nullptr, move(style))
@@ -56,7 +56,7 @@ ListItemMarkerBox::ListItemMarkerBox(DOM::Document& document, CSS::ListStyleType
 
 ListItemMarkerBox::~ListItemMarkerBox() = default;
 
-JS::GCPtr<Painting::Paintable> ListItemMarkerBox::create_paintable() const
+GC::Ptr<Painting::Paintable> ListItemMarkerBox::create_paintable() const
 {
     return Painting::MarkerPaintable::create(*this);
 }

@@ -34,7 +34,7 @@
 
 namespace Web::HTML {
 
-JS_DEFINE_ALLOCATOR(HTMLLinkElement);
+GC_DEFINE_ALLOCATOR(HTMLLinkElement);
 
 HTMLLinkElement::HTMLLinkElement(DOM::Document& document, DOM::QualifiedName qualified_name)
     : HTMLElement(document, move(qualified_name))
@@ -116,7 +116,7 @@ WebIDL::ExceptionOr<void> HTMLLinkElement::set_as(String const& value)
 }
 
 // https://html.spec.whatwg.org/multipage/semantics.html#dom-link-rellist
-JS::NonnullGCPtr<DOM::DOMTokenList> HTMLLinkElement::rel_list()
+GC::Ref<DOM::DOMTokenList> HTMLLinkElement::rel_list()
 {
     // The relList IDL attribute must reflect the rel content attribute.
     if (!m_rel_list)
@@ -263,7 +263,7 @@ HTMLLinkElement::LinkProcessingOptions HTMLLinkElement::create_link_options()
 }
 
 // https://html.spec.whatwg.org/multipage/semantics.html#create-a-link-request
-JS::GCPtr<Fetch::Infrastructure::Request> HTMLLinkElement::create_link_request(HTMLLinkElement::LinkProcessingOptions const& options)
+GC::Ptr<Fetch::Infrastructure::Request> HTMLLinkElement::create_link_request(HTMLLinkElement::LinkProcessingOptions const& options)
 {
     // 1. Assert: options's href is not the empty string.
     VERIFY(!options.href.is_empty());
@@ -527,13 +527,13 @@ void HTMLLinkElement::resource_did_load_favicon()
     document().check_favicon_after_loading_link_resource();
 }
 
-static NonnullRefPtr<Core::Promise<Web::Platform::DecodedImage>> decode_favicon(ReadonlyBytes favicon_data, URL::URL const& favicon_url, JS::NonnullGCPtr<DOM::Document> document)
+static NonnullRefPtr<Core::Promise<Web::Platform::DecodedImage>> decode_favicon(ReadonlyBytes favicon_data, URL::URL const& favicon_url, GC::Ref<DOM::Document> document)
 {
     auto on_failed_decode = [favicon_url]([[maybe_unused]] Error& error) {
         dbgln_if(IMAGE_DECODER_DEBUG, "Failed to decode favicon {}: {}", favicon_url, error);
     };
 
-    auto on_successful_decode = [document = JS::Handle(document)](Web::Platform::DecodedImage& decoded_image) -> ErrorOr<void> {
+    auto on_successful_decode = [document = GC::Root(document)](Web::Platform::DecodedImage& decoded_image) -> ErrorOr<void> {
         auto favicon_bitmap = decoded_image.frames[0].bitmap;
         dbgln_if(IMAGE_DECODER_DEBUG, "Decoded favicon, {}", favicon_bitmap->size());
 
@@ -561,7 +561,7 @@ bool HTMLLinkElement::load_favicon_and_use_if_window_is_active()
 }
 
 // https://html.spec.whatwg.org/multipage/links.html#rel-icon:the-link-element-3
-WebIDL::ExceptionOr<void> HTMLLinkElement::load_fallback_favicon_if_needed(JS::NonnullGCPtr<DOM::Document> document)
+WebIDL::ExceptionOr<void> HTMLLinkElement::load_fallback_favicon_if_needed(GC::Ref<DOM::Document> document)
 {
     auto& realm = document->realm();
     auto& vm = realm.vm();
@@ -586,14 +586,14 @@ WebIDL::ExceptionOr<void> HTMLLinkElement::load_fallback_favicon_if_needed(JS::N
 
     // 2. Let response be the result of fetching request.
     Fetch::Infrastructure::FetchAlgorithms::Input fetch_algorithms_input {};
-    fetch_algorithms_input.process_response = [document, request](JS::NonnullGCPtr<Fetch::Infrastructure::Response> response) {
+    fetch_algorithms_input.process_response = [document, request](GC::Ref<Fetch::Infrastructure::Response> response) {
         auto& realm = document->realm();
-        auto global = JS::NonnullGCPtr { realm.global_object() };
+        auto global = GC::Ref { realm.global_object() };
 
-        auto process_body = JS::create_heap_function(realm.heap(), [document, request](ByteBuffer body) {
+        auto process_body = GC::create_function(realm.heap(), [document, request](ByteBuffer body) {
             (void)decode_favicon(body, request->url(), document);
         });
-        auto process_body_error = JS::create_heap_function(realm.heap(), [](JS::Value) {
+        auto process_body_error = GC::create_function(realm.heap(), [](JS::Value) {
         });
 
         // Check for failed favicon response

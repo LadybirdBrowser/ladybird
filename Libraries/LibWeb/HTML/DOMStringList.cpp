@@ -11,9 +11,9 @@
 
 namespace Web::HTML {
 
-JS_DEFINE_ALLOCATOR(DOMStringList);
+GC_DEFINE_ALLOCATOR(DOMStringList);
 
-JS::NonnullGCPtr<DOMStringList> DOMStringList::create(JS::Realm& realm, Vector<String> list)
+GC::Ref<DOMStringList> DOMStringList::create(JS::Realm& realm, Vector<String> list)
 {
     return realm.create<DOMStringList>(realm, list);
 }

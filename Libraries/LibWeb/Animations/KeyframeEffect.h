@@ -56,7 +56,7 @@ struct BaseKeyframe {
 // https://www.w3.org/TR/web-animations-1/#the-keyframeeffect-interface
 class KeyframeEffect : public AnimationEffect {
     WEB_PLATFORM_OBJECT(KeyframeEffect, AnimationEffect);
-    JS_DECLARE_ALLOCATOR(KeyframeEffect);
+    GC_DECLARE_ALLOCATOR(KeyframeEffect);
 
 public:
     constexpr static double AnimationKeyFrameKeyScaleFactor = 1000.0; // 0..100000
@@ -72,17 +72,17 @@ public:
     };
     static void generate_initial_and_final_frames(RefPtr<KeyFrameSet>, HashTable<CSS::PropertyID> const& animated_properties);
 
-    static int composite_order(JS::NonnullGCPtr<KeyframeEffect>, JS::NonnullGCPtr<KeyframeEffect>);
+    static int composite_order(GC::Ref<KeyframeEffect>, GC::Ref<KeyframeEffect>);
 
-    static JS::NonnullGCPtr<KeyframeEffect> create(JS::Realm&);
+    static GC::Ref<KeyframeEffect> create(JS::Realm&);
 
-    static WebIDL::ExceptionOr<JS::NonnullGCPtr<KeyframeEffect>> construct_impl(
+    static WebIDL::ExceptionOr<GC::Ref<KeyframeEffect>> construct_impl(
         JS::Realm&,
-        JS::Handle<DOM::Element> const& target,
-        Optional<JS::Handle<JS::Object>> const& keyframes,
+        GC::Root<DOM::Element> const& target,
+        Optional<GC::Root<JS::Object>> const& keyframes,
         Variant<double, KeyframeEffectOptions> options = KeyframeEffectOptions {});
 
-    static WebIDL::ExceptionOr<JS::NonnullGCPtr<KeyframeEffect>> construct_impl(JS::Realm&, JS::NonnullGCPtr<KeyframeEffect> source);
+    static WebIDL::ExceptionOr<GC::Ref<KeyframeEffect>> construct_impl(JS::Realm&, GC::Ref<KeyframeEffect> source);
 
     DOM::Element* target() const override { return m_target_element; }
     void set_target(DOM::Element* target);
@@ -97,8 +97,8 @@ public:
     Bindings::CompositeOperation composite() const { return m_composite; }
     void set_composite(Bindings::CompositeOperation value) { m_composite = value; }
 
-    WebIDL::ExceptionOr<JS::MarkedVector<JS::Object*>> get_keyframes();
-    WebIDL::ExceptionOr<void> set_keyframes(Optional<JS::Handle<JS::Object>> const&);
+    WebIDL::ExceptionOr<GC::MarkedVector<JS::Object*>> get_keyframes();
+    WebIDL::ExceptionOr<void> set_keyframes(Optional<GC::Root<JS::Object>> const&);
 
     KeyFrameSet const* key_frame_set() { return m_key_frame_set; }
     void set_key_frame_set(RefPtr<KeyFrameSet const> key_frame_set) { m_key_frame_set = key_frame_set; }
@@ -118,7 +118,7 @@ private:
     virtual void visit_edges(Cell::Visitor&) override;
 
     // https://www.w3.org/TR/web-animations-1/#effect-target-target-element
-    JS::GCPtr<DOM::Element> m_target_element {};
+    GC::Ptr<DOM::Element> m_target_element {};
 
     // https://www.w3.org/TR/web-animations-1/#dom-keyframeeffect-pseudoelement
     Optional<CSS::Selector::PseudoElement> m_target_pseudo_selector {};
@@ -130,7 +130,7 @@ private:
     Vector<BaseKeyframe> m_keyframes {};
 
     // A cached version of m_keyframes suitable for returning from get_keyframes()
-    Vector<JS::NonnullGCPtr<JS::Object>> m_keyframe_objects {};
+    Vector<GC::Ref<JS::Object>> m_keyframe_objects {};
 
     RefPtr<KeyFrameSet const> m_key_frame_set {};
 

@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibJS/Heap/Heap.h>
+#include <LibGC/Heap.h>
 #include <LibJS/Runtime/Realm.h>
 #include <LibWeb/Animations/DocumentTimeline.h>
 #include <LibWeb/Bindings/DocumentTimelinePrototype.h>
@@ -15,9 +15,9 @@
 
 namespace Web::Animations {
 
-JS_DEFINE_ALLOCATOR(DocumentTimeline);
+GC_DEFINE_ALLOCATOR(DocumentTimeline);
 
-JS::NonnullGCPtr<DocumentTimeline> DocumentTimeline::create(JS::Realm& realm, DOM::Document& document, HighResolutionTime::DOMHighResTimeStamp origin_time)
+GC::Ref<DocumentTimeline> DocumentTimeline::create(JS::Realm& realm, DOM::Document& document, HighResolutionTime::DOMHighResTimeStamp origin_time)
 {
     auto timeline = realm.create<DocumentTimeline>(realm, document, origin_time);
     auto current_time = document.last_animation_frame_timestamp();
@@ -32,7 +32,7 @@ JS::NonnullGCPtr<DocumentTimeline> DocumentTimeline::create(JS::Realm& realm, DO
 }
 
 // https://www.w3.org/TR/web-animations-1/#dom-documenttimeline-documenttimeline
-WebIDL::ExceptionOr<JS::NonnullGCPtr<DocumentTimeline>> DocumentTimeline::construct_impl(JS::Realm& realm, DocumentTimelineOptions options)
+WebIDL::ExceptionOr<GC::Ref<DocumentTimeline>> DocumentTimeline::construct_impl(JS::Realm& realm, DocumentTimelineOptions options)
 {
     // Creates a new DocumentTimeline. The Document with which the timeline is associated is the Document associated
     // with the Window that is the current global object.

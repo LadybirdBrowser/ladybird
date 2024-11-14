@@ -13,10 +13,10 @@ namespace Web::HTML {
 
 class BeforeUnloadEvent final : public DOM::Event {
     WEB_PLATFORM_OBJECT(BeforeUnloadEvent, DOM::Event);
-    JS_DECLARE_ALLOCATOR(BeforeUnloadEvent);
+    GC_DECLARE_ALLOCATOR(BeforeUnloadEvent);
 
 public:
-    [[nodiscard]] static JS::NonnullGCPtr<BeforeUnloadEvent> create(JS::Realm&, FlyString const& event_name, DOM::EventInit const& = {});
+    [[nodiscard]] static GC::Ref<BeforeUnloadEvent> create(JS::Realm&, FlyString const& event_name, DOM::EventInit const& = {});
 
     BeforeUnloadEvent(JS::Realm&, FlyString const& event_name, DOM::EventInit const&);
 

@@ -14,7 +14,7 @@
 
 namespace JS {
 
-JS_DEFINE_ALLOCATOR(MapConstructor);
+GC_DEFINE_ALLOCATOR(MapConstructor);
 
 MapConstructor::MapConstructor(Realm& realm)
     : NativeFunction(realm.vm().names.Map.as_string(), realm.intrinsics().function_prototype())
@@ -45,7 +45,7 @@ ThrowCompletionOr<Value> MapConstructor::call()
 }
 
 // 24.1.1.1 Map ( [ iterable ] ), https://tc39.es/ecma262/#sec-map-iterable
-ThrowCompletionOr<NonnullGCPtr<Object>> MapConstructor::construct(FunctionObject& new_target)
+ThrowCompletionOr<GC::Ref<Object>> MapConstructor::construct(FunctionObject& new_target)
 {
     auto& vm = this->vm();
 
@@ -80,13 +80,13 @@ JS_DEFINE_NATIVE_FUNCTION(MapConstructor::group_by)
     auto items = vm.argument(0);
     auto callback_function = vm.argument(1);
 
-    struct KeyedGroupTraits : public Traits<Handle<Value>> {
-        static unsigned hash(Handle<Value> const& value_handle)
+    struct KeyedGroupTraits : public Traits<GC::Root<Value>> {
+        static unsigned hash(GC::Root<Value> const& value_handle)
         {
             return ValueTraits::hash(value_handle.value());
         }
 
-        static bool equals(Handle<Value> const& a, Handle<Value> const& b)
+        static bool equals(GC::Root<Value> const& a, GC::Root<Value> const& b)
         {
             // AddValueToKeyedGroup uses SameValue on the keys on Step 1.a.
             return same_value(a.value(), b.value());
@@ -94,7 +94,7 @@ JS_DEFINE_NATIVE_FUNCTION(MapConstructor::group_by)
     };
 
     // 1. Let groups be ? GroupBy(items, callbackfn, zero).
-    auto groups = TRY((JS::group_by<OrderedHashMap<Handle<Value>, MarkedVector<Value>, KeyedGroupTraits>, void>(vm, items, callback_function)));
+    auto groups = TRY((JS::group_by<OrderedHashMap<GC::Root<Value>, GC::MarkedVector<Value>, KeyedGroupTraits>, void>(vm, items, callback_function)));
 
     // 2. Let map be ! Construct(%Map%).
     auto map = Map::create(realm);

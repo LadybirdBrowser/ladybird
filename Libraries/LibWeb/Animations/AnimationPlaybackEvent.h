@@ -20,11 +20,11 @@ struct AnimationPlaybackEventInit : public DOM::EventInit {
 // https://www.w3.org/TR/web-animations-1/#animationplaybackevent
 class AnimationPlaybackEvent : public DOM::Event {
     WEB_PLATFORM_OBJECT(AnimationPlaybackEvent, DOM::Event);
-    JS_DECLARE_ALLOCATOR(AnimationPlaybackEvent);
+    GC_DECLARE_ALLOCATOR(AnimationPlaybackEvent);
 
 public:
-    [[nodiscard]] static JS::NonnullGCPtr<AnimationPlaybackEvent> create(JS::Realm&, FlyString const& type, AnimationPlaybackEventInit const& event_init = {});
-    static WebIDL::ExceptionOr<JS::NonnullGCPtr<AnimationPlaybackEvent>> construct_impl(JS::Realm&, FlyString const& type, AnimationPlaybackEventInit const& event_init);
+    [[nodiscard]] static GC::Ref<AnimationPlaybackEvent> create(JS::Realm&, FlyString const& type, AnimationPlaybackEventInit const& event_init = {});
+    static WebIDL::ExceptionOr<GC::Ref<AnimationPlaybackEvent>> construct_impl(JS::Realm&, FlyString const& type, AnimationPlaybackEventInit const& event_init);
 
     virtual ~AnimationPlaybackEvent() override = default;
 

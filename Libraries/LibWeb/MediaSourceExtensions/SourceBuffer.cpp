@@ -10,7 +10,7 @@
 
 namespace Web::MediaSourceExtensions {
 
-JS_DEFINE_ALLOCATOR(SourceBuffer);
+GC_DEFINE_ALLOCATOR(SourceBuffer);
 
 SourceBuffer::SourceBuffer(JS::Realm& realm)
     : DOM::EventTarget(realm)

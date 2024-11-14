@@ -349,7 +349,7 @@ public:
         }
 
         // 25. Set memory[value] to serialized.
-        m_memory.set(make_handle(value), m_next_id++);
+        m_memory.set(make_root(value), m_next_id++);
 
         // 26. If deep is true, then:
         if (deep) {
@@ -797,7 +797,7 @@ public:
                 value = JS::DataView::create(*realm, &array_buffer, byte_length, byte_offset);
             } else {
                 u32 array_length = deserialize_primitive_type<u32>(m_serialized, m_position);
-                JS::GCPtr<JS::TypedArrayBase> typed_array_ptr;
+                GC::Ptr<JS::TypedArrayBase> typed_array_ptr;
 #define CREATE_TYPED_ARRAY(ClassName)       \
     if (constructor_name == #ClassName##sv) \
         typed_array_ptr = JS::ClassName::create(*realm, array_length, array_buffer);
@@ -974,10 +974,10 @@ public:
 private:
     JS::VM& m_vm;
     ReadonlySpan<u32> m_serialized;
-    JS::MarkedVector<JS::Value> m_memory; // Index -> JS value
+    GC::MarkedVector<JS::Value> m_memory; // Index -> JS value
     size_t m_position { 0 };
 
-    static WebIDL::ExceptionOr<JS::NonnullGCPtr<Bindings::PlatformObject>> create_serialized_type(StringView interface_name, JS::Realm& realm)
+    static WebIDL::ExceptionOr<GC::Ref<Bindings::PlatformObject>> create_serialized_type(StringView interface_name, JS::Realm& realm)
     {
         if (interface_name == "Blob"sv)
             return FileAPI::Blob::create(realm);
@@ -1024,37 +1024,37 @@ double deserialize_number_primitive(ReadonlySpan<u32> const& serialized, size_t&
     return deserialize_primitive_type<double>(serialized, position);
 }
 
-JS::NonnullGCPtr<JS::BooleanObject> deserialize_boolean_object(JS::Realm& realm, ReadonlySpan<u32> const& serialized, size_t& position)
+GC::Ref<JS::BooleanObject> deserialize_boolean_object(JS::Realm& realm, ReadonlySpan<u32> const& serialized, size_t& position)
 {
     auto boolean_primitive = deserialize_boolean_primitive(serialized, position);
     return JS::BooleanObject::create(realm, boolean_primitive);
 }
 
-JS::NonnullGCPtr<JS::NumberObject> deserialize_number_object(JS::Realm& realm, ReadonlySpan<u32> const& serialized, size_t& position)
+GC::Ref<JS::NumberObject> deserialize_number_object(JS::Realm& realm, ReadonlySpan<u32> const& serialized, size_t& position)
 {
     auto number_primitive = deserialize_number_primitive(serialized, position);
     return JS::NumberObject::create(realm, number_primitive);
 }
 
-WebIDL::ExceptionOr<JS::NonnullGCPtr<JS::BigIntObject>> deserialize_big_int_object(JS::Realm& realm, ReadonlySpan<u32> const& serialized, size_t& position)
+WebIDL::ExceptionOr<GC::Ref<JS::BigIntObject>> deserialize_big_int_object(JS::Realm& realm, ReadonlySpan<u32> const& serialized, size_t& position)
 {
     auto big_int_primitive = TRY(deserialize_big_int_primitive(realm.vm(), serialized, position));
     return JS::BigIntObject::create(realm, big_int_primitive);
 }
 
-WebIDL::ExceptionOr<JS::NonnullGCPtr<JS::StringObject>> deserialize_string_object(JS::Realm& realm, ReadonlySpan<u32> const& serialized, size_t& position)
+WebIDL::ExceptionOr<GC::Ref<JS::StringObject>> deserialize_string_object(JS::Realm& realm, ReadonlySpan<u32> const& serialized, size_t& position)
 {
     auto string_primitive = TRY(deserialize_string_primitive(realm.vm(), serialized, position));
     return JS::StringObject::create(realm, string_primitive, realm.intrinsics().string_prototype());
 }
 
-JS::NonnullGCPtr<JS::Date> deserialize_date_object(JS::Realm& realm, ReadonlySpan<u32> const& serialized, size_t& position)
+GC::Ref<JS::Date> deserialize_date_object(JS::Realm& realm, ReadonlySpan<u32> const& serialized, size_t& position)
 {
     auto double_value = deserialize_primitive_type<double>(serialized, position);
     return JS::Date::create(realm, double_value);
 }
 
-WebIDL::ExceptionOr<JS::NonnullGCPtr<JS::RegExpObject>> deserialize_reg_exp_object(JS::Realm& realm, ReadonlySpan<u32> const& serialized, size_t& position)
+WebIDL::ExceptionOr<GC::Ref<JS::RegExpObject>> deserialize_reg_exp_object(JS::Realm& realm, ReadonlySpan<u32> const& serialized, size_t& position)
 {
     auto pattern = TRY(deserialize_string_primitive(realm.vm(), serialized, position));
     auto flags = TRY(deserialize_string_primitive(realm.vm(), serialized, position));
@@ -1084,7 +1084,7 @@ WebIDL::ExceptionOr<String> deserialize_string(JS::VM& vm, ReadonlySpan<u32> vec
     return TRY_OR_THROW_OOM(vm, String::from_utf8(StringView { bytes }));
 }
 
-WebIDL::ExceptionOr<JS::NonnullGCPtr<JS::PrimitiveString>> deserialize_string_primitive(JS::VM& vm, ReadonlySpan<u32> vector, size_t& position)
+WebIDL::ExceptionOr<GC::Ref<JS::PrimitiveString>> deserialize_string_primitive(JS::VM& vm, ReadonlySpan<u32> vector, size_t& position)
 {
     auto bytes = TRY(deserialize_bytes(vm, vector, position));
 
@@ -1093,7 +1093,7 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<JS::PrimitiveString>> deserialize_string_pr
     }));
 }
 
-WebIDL::ExceptionOr<JS::NonnullGCPtr<JS::BigInt>> deserialize_big_int_primitive(JS::VM& vm, ReadonlySpan<u32> vector, size_t& position)
+WebIDL::ExceptionOr<GC::Ref<JS::BigInt>> deserialize_big_int_primitive(JS::VM& vm, ReadonlySpan<u32> vector, size_t& position)
 {
     auto string = TRY(deserialize_string_primitive(vm, vector, position));
     auto string_view = TRY(Bindings::throw_dom_exception_if_needed(vm, [&string]() {
@@ -1104,7 +1104,7 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<JS::BigInt>> deserialize_big_int_primitive(
 }
 
 // https://html.spec.whatwg.org/multipage/structured-data.html#structuredserializewithtransfer
-WebIDL::ExceptionOr<SerializedTransferRecord> structured_serialize_with_transfer(JS::VM& vm, JS::Value value, Vector<JS::Handle<JS::Object>> const& transfer_list)
+WebIDL::ExceptionOr<SerializedTransferRecord> structured_serialize_with_transfer(JS::VM& vm, JS::Value value, Vector<GC::Root<JS::Object>> const& transfer_list)
 {
     // 1. Let memory be an empty map.
     SerializationMemory memory = {};
@@ -1127,7 +1127,7 @@ WebIDL::ExceptionOr<SerializedTransferRecord> structured_serialize_with_transfer
         }
 
         // 4. Set memory[transferable] to { [[Type]]: an uninitialized value }.
-        memory.set(JS::make_handle(transferable_value), NumericLimits<u32>::max());
+        memory.set(GC::make_root(transferable_value), NumericLimits<u32>::max());
     }
 
     // 3. Let serialized be ? StructuredSerializeInternal(value, false, memory).
@@ -1198,7 +1198,7 @@ static bool is_interface_exposed_on_target_realm(u8 name, JS::Realm& realm)
     return false;
 }
 
-static WebIDL::ExceptionOr<JS::NonnullGCPtr<Bindings::PlatformObject>> create_transferred_value(TransferType name, JS::Realm& target_realm, TransferDataHolder& transfer_data_holder)
+static WebIDL::ExceptionOr<GC::Ref<Bindings::PlatformObject>> create_transferred_value(TransferType name, JS::Realm& target_realm, TransferDataHolder& transfer_data_holder)
 {
     switch (name) {
     case TransferType::MessagePort: {
@@ -1219,7 +1219,7 @@ WebIDL::ExceptionOr<DeserializedTransferRecord> structured_deserialize_with_tran
     auto memory = DeserializationMemory(vm.heap());
 
     // 2. Let transferredValues be a new empty List.
-    Vector<JS::Handle<JS::Object>> transferred_values;
+    Vector<GC::Root<JS::Object>> transferred_values;
 
     // 3. For each transferDataHolder of serializeWithTransferResult.[[TransferDataHolders]]:
     for (auto& transfer_data_holder : serialize_with_transfer_result.transfer_data_holders) {
@@ -1262,7 +1262,7 @@ WebIDL::ExceptionOr<DeserializedTransferRecord> structured_deserialize_with_tran
         memory.append(value);
 
         // 6. Append value to transferredValues.
-        transferred_values.append(JS::make_handle(value.as_object()));
+        transferred_values.append(GC::make_root(value.as_object()));
     }
 
     // 4. Let deserialized be ? StructuredDeserialize(serializeWithTransferResult.[[Serialized]], targetRealm, memory).

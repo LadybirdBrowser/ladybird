@@ -6,7 +6,7 @@
 
 #pragma once
 
-#include <LibJS/Heap/GCPtr.h>
+#include <LibGC/Ptr.h>
 #include <LibWeb/Forward.h>
 
 namespace Web::HTML {
@@ -25,7 +25,7 @@ public:
     ~TemporaryExecutionContext();
 
 private:
-    JS::NonnullGCPtr<JS::Realm> m_realm;
+    GC::Ref<JS::Realm> m_realm;
     CallbacksEnabled m_callbacks_enabled { CallbacksEnabled::No };
 };
 

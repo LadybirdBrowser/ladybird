@@ -21,11 +21,11 @@ enum class TopLevelModule {
     No
 };
 
-using OnFetchScriptComplete = JS::NonnullGCPtr<JS::HeapFunction<void(JS::GCPtr<Script>)>>;
-using PerformTheFetchHook = JS::GCPtr<JS::HeapFunction<WebIDL::ExceptionOr<void>(JS::NonnullGCPtr<Fetch::Infrastructure::Request>, TopLevelModule, Fetch::Infrastructure::FetchAlgorithms::ProcessResponseConsumeBodyFunction)>>;
+using OnFetchScriptComplete = GC::Ref<GC::Function<void(GC::Ptr<Script>)>>;
+using PerformTheFetchHook = GC::Ptr<GC::Function<WebIDL::ExceptionOr<void>(GC::Ref<Fetch::Infrastructure::Request>, TopLevelModule, Fetch::Infrastructure::FetchAlgorithms::ProcessResponseConsumeBodyFunction)>>;
 
-OnFetchScriptComplete create_on_fetch_script_complete(JS::Heap& heap, Function<void(JS::GCPtr<Script>)> function);
-PerformTheFetchHook create_perform_the_fetch_hook(JS::Heap& heap, Function<WebIDL::ExceptionOr<void>(JS::NonnullGCPtr<Fetch::Infrastructure::Request>, TopLevelModule, Fetch::Infrastructure::FetchAlgorithms::ProcessResponseConsumeBodyFunction)> function);
+OnFetchScriptComplete create_on_fetch_script_complete(GC::Heap& heap, Function<void(GC::Ptr<Script>)> function);
+PerformTheFetchHook create_perform_the_fetch_hook(GC::Heap& heap, Function<WebIDL::ExceptionOr<void>(GC::Ref<Fetch::Infrastructure::Request>, TopLevelModule, Fetch::Infrastructure::FetchAlgorithms::ProcessResponseConsumeBodyFunction)> function);
 
 // https://html.spec.whatwg.org/multipage/webappapis.html#script-fetch-options
 struct ScriptFetchOptions {
@@ -55,14 +55,14 @@ struct ScriptFetchOptions {
 ScriptFetchOptions default_script_fetch_options();
 
 class FetchContext : public JS::GraphLoadingState::HostDefined {
-    JS_CELL(FetchContext, JS::GraphLoadingState::HostDefined);
-    JS_DECLARE_ALLOCATOR(FetchContext);
+    GC_CELL(FetchContext, JS::GraphLoadingState::HostDefined);
+    GC_DECLARE_ALLOCATOR(FetchContext);
 
 public:
-    JS::Value parse_error;                                    // [[ParseError]]
-    Fetch::Infrastructure::Request::Destination destination;  // [[Destination]]
-    PerformTheFetchHook perform_fetch;                        // [[PerformFetch]]
-    JS::NonnullGCPtr<EnvironmentSettingsObject> fetch_client; // [[FetchClient]]
+    JS::Value parse_error;                                   // [[ParseError]]
+    Fetch::Infrastructure::Request::Destination destination; // [[Destination]]
+    PerformTheFetchHook perform_fetch;                       // [[PerformFetch]]
+    GC::Ref<EnvironmentSettingsObject> fetch_client;         // [[FetchClient]]
 
 private:
     FetchContext(JS::Value parse_error, Fetch::Infrastructure::Request::Destination destination, PerformTheFetchHook perform_fetch, EnvironmentSettingsObject& fetch_client)
@@ -88,9 +88,9 @@ WebIDL::ExceptionOr<Optional<URL::URL>> resolve_imports_match(ByteString const& 
 Optional<URL::URL> resolve_url_like_module_specifier(ByteString const& specifier, URL::URL const& base_url);
 WebIDL::ExceptionOr<ScriptFetchOptions> get_descendant_script_fetch_options(ScriptFetchOptions const& original_options, URL::URL const& url, EnvironmentSettingsObject& settings_object);
 WebIDL::ExceptionOr<String> resolve_a_module_integrity_metadata(URL::URL const& url, EnvironmentSettingsObject& settings_object);
-WebIDL::ExceptionOr<void> fetch_classic_script(JS::NonnullGCPtr<HTMLScriptElement>, URL::URL const&, EnvironmentSettingsObject& settings_object, ScriptFetchOptions options, CORSSettingAttribute cors_setting, String character_encoding, OnFetchScriptComplete on_complete);
+WebIDL::ExceptionOr<void> fetch_classic_script(GC::Ref<HTMLScriptElement>, URL::URL const&, EnvironmentSettingsObject& settings_object, ScriptFetchOptions options, CORSSettingAttribute cors_setting, String character_encoding, OnFetchScriptComplete on_complete);
 WebIDL::ExceptionOr<void> fetch_classic_worker_script(URL::URL const&, EnvironmentSettingsObject& fetch_client, Fetch::Infrastructure::Request::Destination, EnvironmentSettingsObject& settings_object, PerformTheFetchHook, OnFetchScriptComplete);
-WebIDL::ExceptionOr<JS::NonnullGCPtr<ClassicScript>> fetch_a_classic_worker_imported_script(URL::URL const&, HTML::EnvironmentSettingsObject&, PerformTheFetchHook = nullptr);
+WebIDL::ExceptionOr<GC::Ref<ClassicScript>> fetch_a_classic_worker_imported_script(URL::URL const&, HTML::EnvironmentSettingsObject&, PerformTheFetchHook = nullptr);
 WebIDL::ExceptionOr<void> fetch_module_worker_script_graph(URL::URL const&, EnvironmentSettingsObject& fetch_client, Fetch::Infrastructure::Request::Destination, EnvironmentSettingsObject& settings_object, PerformTheFetchHook, OnFetchScriptComplete);
 WebIDL::ExceptionOr<void> fetch_worklet_module_worker_script_graph(URL::URL const&, EnvironmentSettingsObject& fetch_client, Fetch::Infrastructure::Request::Destination, EnvironmentSettingsObject& settings_object, PerformTheFetchHook, OnFetchScriptComplete);
 void fetch_internal_module_script_graph(JS::Realm&, JS::ModuleRequest const& module_request, EnvironmentSettingsObject& fetch_client_settings_object, Fetch::Infrastructure::Request::Destination, ScriptFetchOptions const&, Script& referring_script, HashTable<ModuleLocationTuple> const& visited_set, PerformTheFetchHook, OnFetchScriptComplete on_complete);

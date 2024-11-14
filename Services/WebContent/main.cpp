@@ -48,7 +48,7 @@
 
 static ErrorOr<void> load_content_filters(StringView config_path);
 static ErrorOr<void> load_autoplay_allowlist(StringView config_path);
-static ErrorOr<void> initialize_resource_loader(JS::Heap&, int request_server_socket);
+static ErrorOr<void> initialize_resource_loader(GC::Heap&, int request_server_socket);
 static ErrorOr<void> initialize_image_decoder(int image_decoder_socket);
 static ErrorOr<void> reinitialize_image_decoder(IPC::File const& image_decoder_socket);
 
@@ -256,7 +256,7 @@ static ErrorOr<void> load_autoplay_allowlist(StringView config_path)
     return {};
 }
 
-ErrorOr<void> initialize_resource_loader(JS::Heap& heap, int request_server_socket)
+ErrorOr<void> initialize_resource_loader(GC::Heap& heap, int request_server_socket)
 {
     static_assert(IsSame<IPC::Transport, IPC::TransportSocket>, "Need to handle other IPC transports here");
 

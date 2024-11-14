@@ -7,9 +7,9 @@
 
 #pragma once
 
+#include <LibGC/Ptr.h>
+#include <LibGC/Root.h>
 #include <LibJS/Forward.h>
-#include <LibJS/Heap/GCPtr.h>
-#include <LibJS/Heap/Handle.h>
 #include <LibWasm/Types.h>
 #include <LibWeb/Bindings/ExceptionOrUtils.h>
 #include <LibWeb/Bindings/PlatformObject.h>
@@ -19,10 +19,10 @@ namespace Web::WebAssembly {
 
 class Module : public Bindings::PlatformObject {
     WEB_PLATFORM_OBJECT(Module, Bindings::PlatformObject);
-    JS_DECLARE_ALLOCATOR(Module);
+    GC_DECLARE_ALLOCATOR(Module);
 
 public:
-    static WebIDL::ExceptionOr<JS::NonnullGCPtr<Module>> construct_impl(JS::Realm&, JS::Handle<WebIDL::BufferSource>& bytes);
+    static WebIDL::ExceptionOr<GC::Ref<Module>> construct_impl(JS::Realm&, GC::Root<WebIDL::BufferSource>& bytes);
 
     NonnullRefPtr<Detail::CompiledWebAssemblyModule> compiled_module() const { return m_compiled_module; }
 

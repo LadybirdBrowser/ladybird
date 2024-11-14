@@ -13,7 +13,7 @@
 
 namespace Web::HTML {
 
-JS_DEFINE_ALLOCATOR(VideoTrackList);
+GC_DEFINE_ALLOCATOR(VideoTrackList);
 
 VideoTrackList::VideoTrackList(JS::Realm& realm)
     : DOM::EventTarget(realm, MayInterfereWithIndexedPropertyAccess::Yes)
@@ -44,7 +44,7 @@ JS::ThrowCompletionOr<Optional<JS::PropertyDescriptor>> VideoTrackList::internal
     return Base::internal_get_own_property(property_name);
 }
 
-void VideoTrackList::add_track(Badge<HTMLMediaElement>, JS::NonnullGCPtr<VideoTrack> video_track)
+void VideoTrackList::add_track(Badge<HTMLMediaElement>, GC::Ref<VideoTrack> video_track)
 {
     m_video_tracks.append(video_track);
     video_track->set_video_track_list({}, this);
@@ -56,7 +56,7 @@ void VideoTrackList::remove_all_tracks(Badge<HTMLMediaElement>)
 }
 
 // https://html.spec.whatwg.org/multipage/media.html#dom-videotracklist-gettrackbyid
-JS::GCPtr<VideoTrack> VideoTrackList::get_track_by_id(StringView id) const
+GC::Ptr<VideoTrack> VideoTrackList::get_track_by_id(StringView id) const
 {
     // The AudioTrackList getTrackById(id) and VideoTrackList getTrackById(id) methods must return the first AudioTrack
     // or VideoTrack object (respectively) in the AudioTrackList or VideoTrackList object (respectively) whose identifier

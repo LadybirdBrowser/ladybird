@@ -20,7 +20,7 @@
 
 namespace Web::HTML {
 
-JS_DEFINE_ALLOCATOR(HTMLTableSectionElement);
+GC_DEFINE_ALLOCATOR(HTMLTableSectionElement);
 
 HTMLTableSectionElement::HTMLTableSectionElement(DOM::Document& document, DOM::QualifiedName qualified_name)
     : HTMLElement(document, move(qualified_name))
@@ -42,7 +42,7 @@ void HTMLTableSectionElement::visit_edges(Cell::Visitor& visitor)
 }
 
 // https://html.spec.whatwg.org/multipage/tables.html#dom-tbody-rows
-JS::NonnullGCPtr<DOM::HTMLCollection> HTMLTableSectionElement::rows() const
+GC::Ref<DOM::HTMLCollection> HTMLTableSectionElement::rows() const
 {
     // The rows attribute must return an HTMLCollection rooted at this element,
     // whose filter matches only tr elements that are children of this element.
@@ -55,7 +55,7 @@ JS::NonnullGCPtr<DOM::HTMLCollection> HTMLTableSectionElement::rows() const
 }
 
 // https://html.spec.whatwg.org/multipage/tables.html#dom-tbody-insertrow
-WebIDL::ExceptionOr<JS::NonnullGCPtr<HTMLTableRowElement>> HTMLTableSectionElement::insert_row(WebIDL::Long index)
+WebIDL::ExceptionOr<GC::Ref<HTMLTableRowElement>> HTMLTableSectionElement::insert_row(WebIDL::Long index)
 {
     auto rows_collection = rows();
     auto rows_collection_size = static_cast<long>(rows_collection->length());
@@ -75,7 +75,7 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<HTMLTableRowElement>> HTMLTableSectionEleme
         insert_before(table_row, rows_collection->item(index));
 
     // 5. Return table row.
-    return JS::NonnullGCPtr(table_row);
+    return GC::Ref(table_row);
 }
 
 // https://html.spec.whatwg.org/multipage/tables.html#dom-tbody-deleterow

@@ -12,17 +12,17 @@ namespace Web::HTML {
 
 class HTMLLabelElement final : public HTMLElement {
     WEB_PLATFORM_OBJECT(HTMLLabelElement, HTMLElement);
-    JS_DECLARE_ALLOCATOR(HTMLLabelElement);
+    GC_DECLARE_ALLOCATOR(HTMLLabelElement);
 
 public:
     virtual ~HTMLLabelElement() override;
 
-    virtual JS::GCPtr<Layout::Node> create_layout_node(CSS::StyleProperties) override;
+    virtual GC::Ptr<Layout::Node> create_layout_node(CSS::StyleProperties) override;
 
     Optional<String> for_() const { return attribute(HTML::AttributeNames::for_); }
 
-    JS::GCPtr<HTMLElement> control() const;
-    JS::GCPtr<HTMLFormElement> form() const;
+    GC::Ptr<HTMLElement> control() const;
+    GC::Ptr<HTMLFormElement> form() const;
 
 private:
     HTMLLabelElement(DOM::Document&, DOM::QualifiedName);

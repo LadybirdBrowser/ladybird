@@ -12,14 +12,14 @@
 
 namespace Web::DOM {
 
-JS_DEFINE_ALLOCATOR(CustomEvent);
+GC_DEFINE_ALLOCATOR(CustomEvent);
 
-JS::NonnullGCPtr<CustomEvent> CustomEvent::create(JS::Realm& realm, FlyString const& event_name, CustomEventInit const& event_init)
+GC::Ref<CustomEvent> CustomEvent::create(JS::Realm& realm, FlyString const& event_name, CustomEventInit const& event_init)
 {
     return realm.create<CustomEvent>(realm, event_name, event_init);
 }
 
-WebIDL::ExceptionOr<JS::NonnullGCPtr<CustomEvent>> CustomEvent::construct_impl(JS::Realm& realm, FlyString const& event_name, CustomEventInit const& event_init)
+WebIDL::ExceptionOr<GC::Ref<CustomEvent>> CustomEvent::construct_impl(JS::Realm& realm, FlyString const& event_name, CustomEventInit const& event_init)
 {
     return create(realm, event_name, event_init);
 }

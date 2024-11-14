@@ -10,9 +10,9 @@
 
 namespace JS {
 
-JS_DEFINE_ALLOCATOR(SuppressedError);
+GC_DEFINE_ALLOCATOR(SuppressedError);
 
-NonnullGCPtr<SuppressedError> SuppressedError::create(Realm& realm)
+GC::Ref<SuppressedError> SuppressedError::create(Realm& realm)
 {
     return realm.create<SuppressedError>(realm.intrinsics().suppressed_error_prototype());
 }

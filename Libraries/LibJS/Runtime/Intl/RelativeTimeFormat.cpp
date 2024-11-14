@@ -16,7 +16,7 @@
 
 namespace JS::Intl {
 
-JS_DEFINE_ALLOCATOR(RelativeTimeFormat);
+GC_DEFINE_ALLOCATOR(RelativeTimeFormat);
 
 // 17 RelativeTimeFormat Objects, https://tc39.es/ecma402/#relativetimeformat-objects
 RelativeTimeFormat::RelativeTimeFormat(Object& prototype)
@@ -96,7 +96,7 @@ ThrowCompletionOr<String> format_relative_time(VM& vm, RelativeTimeFormat& relat
 }
 
 // 17.5.5 FormatRelativeTimeToParts ( relativeTimeFormat, value, unit ), https://tc39.es/ecma402/#sec-FormatRelativeTimeToParts
-ThrowCompletionOr<NonnullGCPtr<Array>> format_relative_time_to_parts(VM& vm, RelativeTimeFormat& relative_time_format, double value, StringView unit)
+ThrowCompletionOr<GC::Ref<Array>> format_relative_time_to_parts(VM& vm, RelativeTimeFormat& relative_time_format, double value, StringView unit)
 {
     auto& realm = *vm.current_realm();
 

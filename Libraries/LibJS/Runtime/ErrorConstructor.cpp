@@ -11,7 +11,7 @@
 
 namespace JS {
 
-JS_DEFINE_ALLOCATOR(ErrorConstructor);
+GC_DEFINE_ALLOCATOR(ErrorConstructor);
 
 ErrorConstructor::ErrorConstructor(Realm& realm)
     : NativeFunction(realm.vm().names.Error.as_string(), realm.intrinsics().function_prototype())
@@ -40,7 +40,7 @@ ThrowCompletionOr<Value> ErrorConstructor::call()
 }
 
 // 20.5.1.1 Error ( message [ , options ] ), https://tc39.es/ecma262/#sec-error-message
-ThrowCompletionOr<NonnullGCPtr<Object>> ErrorConstructor::construct(FunctionObject& new_target)
+ThrowCompletionOr<GC::Ref<Object>> ErrorConstructor::construct(FunctionObject& new_target)
 {
     auto& vm = this->vm();
 
@@ -67,7 +67,7 @@ ThrowCompletionOr<NonnullGCPtr<Object>> ErrorConstructor::construct(FunctionObje
 }
 
 #define __JS_ENUMERATE(ClassName, snake_name, PrototypeName, ConstructorName, ArrayType)                                    \
-    JS_DEFINE_ALLOCATOR(ConstructorName);                                                                                   \
+    GC_DEFINE_ALLOCATOR(ConstructorName);                                                                                   \
     ConstructorName::ConstructorName(Realm& realm)                                                                          \
         : NativeFunction(realm.vm().names.ClassName.as_string(), realm.intrinsics().error_constructor())                    \
     {                                                                                                                       \
@@ -94,7 +94,7 @@ ThrowCompletionOr<NonnullGCPtr<Object>> ErrorConstructor::construct(FunctionObje
     }                                                                                                                       \
                                                                                                                             \
     /* 20.5.6.1.1 NativeError ( message [ , options ] ), https://tc39.es/ecma262/#sec-nativeerror */                        \
-    ThrowCompletionOr<NonnullGCPtr<Object>> ConstructorName::construct(FunctionObject& new_target)                          \
+    ThrowCompletionOr<GC::Ref<Object>> ConstructorName::construct(FunctionObject& new_target)                               \
     {                                                                                                                       \
         auto& vm = this->vm();                                                                                              \
                                                                                                                             \

@@ -17,10 +17,10 @@ namespace Web::Streams {
 // https://streams.spec.whatwg.org/#countqueuingstrategy
 class CountQueuingStrategy final : public Bindings::PlatformObject {
     WEB_PLATFORM_OBJECT(CountQueuingStrategy, Bindings::PlatformObject);
-    JS_DECLARE_ALLOCATOR(CountQueuingStrategy);
+    GC_DECLARE_ALLOCATOR(CountQueuingStrategy);
 
 public:
-    static JS::NonnullGCPtr<CountQueuingStrategy> construct_impl(JS::Realm&, QueuingStrategyInit const&);
+    static GC::Ref<CountQueuingStrategy> construct_impl(JS::Realm&, QueuingStrategyInit const&);
 
     virtual ~CountQueuingStrategy() override;
 
@@ -32,7 +32,7 @@ public:
         return m_high_water_mark;
     }
 
-    JS::NonnullGCPtr<WebIDL::CallbackType> size();
+    GC::Ref<WebIDL::CallbackType> size();
 
 private:
     explicit CountQueuingStrategy(JS::Realm&, double high_water_mark);

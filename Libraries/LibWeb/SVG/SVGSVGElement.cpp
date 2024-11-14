@@ -22,7 +22,7 @@
 
 namespace Web::SVG {
 
-JS_DEFINE_ALLOCATOR(SVGSVGElement);
+GC_DEFINE_ALLOCATOR(SVGSVGElement);
 
 SVGSVGElement::SVGSVGElement(DOM::Document& document, DOM::QualifiedName qualified_name)
     : SVGGraphicsElement(document, qualified_name)
@@ -42,7 +42,7 @@ void SVGSVGElement::visit_edges(Visitor& visitor)
     visitor.visit(m_view_box_for_bindings);
 }
 
-JS::GCPtr<Layout::Node> SVGSVGElement::create_layout_node(CSS::StyleProperties style)
+GC::Ptr<Layout::Node> SVGSVGElement::create_layout_node(CSS::StyleProperties style)
 {
     return heap().allocate<Layout::SVGSVGBox>(document(), *this, move(style));
 }
@@ -169,22 +169,22 @@ Optional<ViewBox> SVGSVGElement::view_box() const
     return {};
 }
 
-JS::NonnullGCPtr<SVGAnimatedLength> SVGSVGElement::x() const
+GC::Ref<SVGAnimatedLength> SVGSVGElement::x() const
 {
     return svg_animated_length_for_property(CSS::PropertyID::X);
 }
 
-JS::NonnullGCPtr<SVGAnimatedLength> SVGSVGElement::y() const
+GC::Ref<SVGAnimatedLength> SVGSVGElement::y() const
 {
     return svg_animated_length_for_property(CSS::PropertyID::Y);
 }
 
-JS::NonnullGCPtr<SVGAnimatedLength> SVGSVGElement::width() const
+GC::Ref<SVGAnimatedLength> SVGSVGElement::width() const
 {
     return svg_animated_length_for_property(CSS::PropertyID::Width);
 }
 
-JS::NonnullGCPtr<SVGAnimatedLength> SVGSVGElement::height() const
+GC::Ref<SVGAnimatedLength> SVGSVGElement::height() const
 {
     return svg_animated_length_for_property(CSS::PropertyID::Height);
 }
@@ -200,31 +200,31 @@ void SVGSVGElement::set_current_scale(float)
     dbgln("(STUBBED) SVGSVGElement::set_current_scale(). Called on: {}", debug_description());
 }
 
-JS::NonnullGCPtr<Geometry::DOMPointReadOnly> SVGSVGElement::current_translate() const
+GC::Ref<Geometry::DOMPointReadOnly> SVGSVGElement::current_translate() const
 {
     dbgln("(STUBBED) SVGSVGElement::current_translate(). Called on: {}", debug_description());
     return Geometry::DOMPointReadOnly::create(realm());
 }
 
-JS::NonnullGCPtr<DOM::NodeList> SVGSVGElement::get_intersection_list(JS::NonnullGCPtr<Geometry::DOMRectReadOnly>, JS::GCPtr<SVGElement>) const
+GC::Ref<DOM::NodeList> SVGSVGElement::get_intersection_list(GC::Ref<Geometry::DOMRectReadOnly>, GC::Ptr<SVGElement>) const
 {
     dbgln("(STUBBED) SVGSVGElement::get_intersection_list(). Called on: {}", debug_description());
     return DOM::StaticNodeList::create(realm(), {});
 }
 
-JS::NonnullGCPtr<DOM::NodeList> SVGSVGElement::get_enclosure_list(JS::NonnullGCPtr<Geometry::DOMRectReadOnly>, JS::GCPtr<SVGElement>) const
+GC::Ref<DOM::NodeList> SVGSVGElement::get_enclosure_list(GC::Ref<Geometry::DOMRectReadOnly>, GC::Ptr<SVGElement>) const
 {
     dbgln("(STUBBED) SVGSVGElement::get_enclosure_list(). Called on: {}", debug_description());
     return DOM::StaticNodeList::create(realm(), {});
 }
 
-bool SVGSVGElement::check_intersection(JS::NonnullGCPtr<SVGElement>, JS::NonnullGCPtr<Geometry::DOMRectReadOnly>) const
+bool SVGSVGElement::check_intersection(GC::Ref<SVGElement>, GC::Ref<Geometry::DOMRectReadOnly>) const
 {
     dbgln("(STUBBED) SVGSVGElement::check_intersection(). Called on: {}", debug_description());
     return false;
 }
 
-bool SVGSVGElement::check_enclosure(JS::NonnullGCPtr<SVGElement>, JS::NonnullGCPtr<Geometry::DOMRectReadOnly>) const
+bool SVGSVGElement::check_enclosure(GC::Ref<SVGElement>, GC::Ref<Geometry::DOMRectReadOnly>) const
 {
     dbgln("(STUBBED) SVGSVGElement::check_enclosure(). Called on: {}", debug_description());
     return false;
@@ -237,31 +237,31 @@ void SVGSVGElement::deselect_all() const
         selection->remove_all_ranges();
 }
 
-JS::NonnullGCPtr<SVGLength> SVGSVGElement::create_svg_length() const
+GC::Ref<SVGLength> SVGSVGElement::create_svg_length() const
 {
     // A new, detached SVGLength object whose value is the unitless <number> 0.
     return SVGLength::create(realm(), SVGLength::SVG_LENGTHTYPE_NUMBER, 0);
 }
 
-JS::NonnullGCPtr<Geometry::DOMPoint> SVGSVGElement::create_svg_point() const
+GC::Ref<Geometry::DOMPoint> SVGSVGElement::create_svg_point() const
 {
     // A new, detached DOMPoint object whose coordinates are all 0.
     return Geometry::DOMPoint::from_point(vm(), Geometry::DOMPointInit {});
 }
 
-JS::NonnullGCPtr<Geometry::DOMMatrix> SVGSVGElement::create_svg_matrix() const
+GC::Ref<Geometry::DOMMatrix> SVGSVGElement::create_svg_matrix() const
 {
     // A new, detached DOMMatrix object representing the identity matrix.
     return Geometry::DOMMatrix::create(realm());
 }
 
-JS::NonnullGCPtr<Geometry::DOMRect> SVGSVGElement::create_svg_rect() const
+GC::Ref<Geometry::DOMRect> SVGSVGElement::create_svg_rect() const
 {
     // A new, DOMRect object whose x, y, width and height are all 0.
     return Geometry::DOMRect::construct_impl(realm(), 0, 0, 0, 0).release_value_but_fixme_should_propagate_errors();
 }
 
-JS::NonnullGCPtr<SVGTransform> SVGSVGElement::create_svg_transform() const
+GC::Ref<SVGTransform> SVGSVGElement::create_svg_transform() const
 {
     return SVGTransform::create(realm());
 }

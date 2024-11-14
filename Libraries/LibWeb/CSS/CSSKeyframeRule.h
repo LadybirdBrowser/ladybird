@@ -18,16 +18,16 @@ namespace Web::CSS {
 // https://drafts.csswg.org/css-animations/#interface-csskeyframerule
 class CSSKeyframeRule final : public CSSRule {
     WEB_PLATFORM_OBJECT(CSSKeyframeRule, CSSRule);
-    JS_DECLARE_ALLOCATOR(CSSKeyframeRule);
+    GC_DECLARE_ALLOCATOR(CSSKeyframeRule);
 
 public:
-    static JS::NonnullGCPtr<CSSKeyframeRule> create(JS::Realm&, CSS::Percentage key, PropertyOwningCSSStyleDeclaration&);
+    static GC::Ref<CSSKeyframeRule> create(JS::Realm&, CSS::Percentage key, PropertyOwningCSSStyleDeclaration&);
 
     virtual ~CSSKeyframeRule() = default;
 
     CSS::Percentage key() const { return m_key; }
-    JS::NonnullGCPtr<CSSStyleDeclaration> style() const { return m_declarations; }
-    JS::NonnullGCPtr<PropertyOwningCSSStyleDeclaration> style_as_property_owning_style_declaration() const { return m_declarations; }
+    GC::Ref<CSSStyleDeclaration> style() const { return m_declarations; }
+    GC::Ref<PropertyOwningCSSStyleDeclaration> style_as_property_owning_style_declaration() const { return m_declarations; }
 
     String key_text() const
     {
@@ -47,7 +47,7 @@ private:
     virtual String serialized() const override;
 
     CSS::Percentage m_key;
-    JS::NonnullGCPtr<PropertyOwningCSSStyleDeclaration> m_declarations;
+    GC::Ref<PropertyOwningCSSStyleDeclaration> m_declarations;
 };
 
 template<>

@@ -12,7 +12,7 @@ namespace Web::HTML {
 
 class HTMLAudioElement final : public HTMLMediaElement {
     WEB_PLATFORM_OBJECT(HTMLAudioElement, HTMLMediaElement);
-    JS_DECLARE_ALLOCATOR(HTMLAudioElement);
+    GC_DECLARE_ALLOCATOR(HTMLAudioElement);
 
 public:
     virtual ~HTMLAudioElement() override;
@@ -25,7 +25,7 @@ private:
 
     virtual void initialize(JS::Realm&) override;
 
-    virtual JS::GCPtr<Layout::Node> create_layout_node(CSS::StyleProperties) override;
+    virtual GC::Ptr<Layout::Node> create_layout_node(CSS::StyleProperties) override;
     virtual void adjust_computed_style(CSS::StyleProperties&) override;
 
     virtual void on_playing() override;

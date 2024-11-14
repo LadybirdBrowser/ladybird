@@ -13,7 +13,7 @@
 namespace Web::StorageAPI {
 
 // https://storage.spec.whatwg.org/#dom-navigatorstorage-storage
-JS::NonnullGCPtr<StorageManager> NavigatorStorage::storage()
+GC::Ref<StorageManager> NavigatorStorage::storage()
 {
     // The storage getter steps are to return this’s relevant settings object’s StorageManager object.
     return HTML::relevant_settings_object(this_navigator_storage_object()).storage_manager();

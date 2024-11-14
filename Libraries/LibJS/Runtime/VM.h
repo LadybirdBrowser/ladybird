@@ -15,9 +15,10 @@
 #include <AK/RefCounted.h>
 #include <AK/StackInfo.h>
 #include <AK/Variant.h>
+#include <LibGC/Function.h>
+#include <LibGC/Heap.h>
+#include <LibGC/MarkedVector.h>
 #include <LibJS/CyclicModule.h>
-#include <LibJS/Heap/Heap.h>
-#include <LibJS/Heap/MarkedVector.h>
 #include <LibJS/ModuleLoading.h>
 #include <LibJS/Runtime/CommonPropertyNames.h>
 #include <LibJS/Runtime/Completion.h>
@@ -47,40 +48,40 @@ public:
     struct CustomData {
         virtual ~CustomData() = default;
 
-        virtual void spin_event_loop_until(JS::Handle<JS::HeapFunction<bool()>> goal_condition) = 0;
+        virtual void spin_event_loop_until(GC::Root<GC::Function<bool()>> goal_condition) = 0;
     };
 
     static ErrorOr<NonnullRefPtr<VM>> create(OwnPtr<CustomData> = {});
     ~VM();
 
-    Heap& heap() { return m_heap; }
-    Heap const& heap() const { return m_heap; }
+    GC::Heap& heap() { return m_heap; }
+    GC::Heap const& heap() const { return m_heap; }
 
     Bytecode::Interpreter& bytecode_interpreter();
 
     void dump_backtrace() const;
 
-    void gather_roots(HashMap<CellImpl*, HeapRoot>&);
+    void gather_roots(HashMap<GC::Cell*, GC::HeapRoot>&);
 
-#define __JS_ENUMERATE(SymbolName, snake_name)                  \
-    NonnullGCPtr<Symbol> well_known_symbol_##snake_name() const \
-    {                                                           \
-        return *m_well_known_symbols.snake_name;                \
+#define __JS_ENUMERATE(SymbolName, snake_name)             \
+    GC::Ref<Symbol> well_known_symbol_##snake_name() const \
+    {                                                      \
+        return *m_well_known_symbols.snake_name;           \
     }
     JS_ENUMERATE_WELL_KNOWN_SYMBOLS
 #undef __JS_ENUMERATE
 
-    HashMap<String, GCPtr<PrimitiveString>>& string_cache()
+    HashMap<String, GC::Ptr<PrimitiveString>>& string_cache()
     {
         return m_string_cache;
     }
 
-    HashMap<ByteString, GCPtr<PrimitiveString>>& byte_string_cache()
+    HashMap<ByteString, GC::Ptr<PrimitiveString>>& byte_string_cache()
     {
         return m_byte_string_cache;
     }
 
-    HashMap<Utf16String, GCPtr<PrimitiveString>>& utf16_string_cache()
+    HashMap<Utf16String, GC::Ptr<PrimitiveString>>& utf16_string_cache()
     {
         return m_utf16_string_cache;
     }
@@ -189,8 +190,8 @@ public:
 
     StackInfo const& stack_info() const { return m_stack_info; }
 
-    HashMap<String, NonnullGCPtr<Symbol>> const& global_symbol_registry() const { return m_global_symbol_registry; }
-    HashMap<String, NonnullGCPtr<Symbol>>& global_symbol_registry() { return m_global_symbol_registry; }
+    HashMap<String, GC::Ref<Symbol>> const& global_symbol_registry() const { return m_global_symbol_registry; }
+    HashMap<String, GC::Ref<Symbol>>& global_symbol_registry() { return m_global_symbol_registry; }
 
     u32 execution_generation() const { return m_execution_generation; }
     void finish_execution_generation() { ++m_execution_generation; }
@@ -228,18 +229,18 @@ public:
 
     CommonPropertyNames names;
     struct {
-        GCPtr<PrimitiveString> number;
-        GCPtr<PrimitiveString> undefined;
-        GCPtr<PrimitiveString> object;
-        GCPtr<PrimitiveString> string;
-        GCPtr<PrimitiveString> symbol;
-        GCPtr<PrimitiveString> boolean;
-        GCPtr<PrimitiveString> bigint;
-        GCPtr<PrimitiveString> function;
+        GC::Ptr<PrimitiveString> number;
+        GC::Ptr<PrimitiveString> undefined;
+        GC::Ptr<PrimitiveString> object;
+        GC::Ptr<PrimitiveString> string;
+        GC::Ptr<PrimitiveString> symbol;
+        GC::Ptr<PrimitiveString> boolean;
+        GC::Ptr<PrimitiveString> bigint;
+        GC::Ptr<PrimitiveString> function;
     } typeof_strings;
 
     void run_queued_promise_jobs();
-    void enqueue_promise_job(NonnullGCPtr<HeapFunction<ThrowCompletionOr<Value>()>> job, Realm*);
+    void enqueue_promise_job(GC::Ref<GC::Function<ThrowCompletionOr<Value>()>> job, Realm*);
 
     void run_queued_finalization_registry_cleanup_jobs();
     void enqueue_finalization_registry_cleanup_job(FinalizationRegistry&);
@@ -267,7 +268,7 @@ public:
     //       Our implementation of this proposal is outdated however, as such we try to adapt the proposal and living standard
     //       to match our implementation for now.
     // 16.2.1.8 HostLoadImportedModule ( referrer, moduleRequest, hostDefined, payload ), https://tc39.es/proposal-import-attributes/#sec-HostLoadImportedModule
-    Function<void(ImportedModuleReferrer, ModuleRequest const&, GCPtr<GraphLoadingState::HostDefined>, ImportedModulePayload)> host_load_imported_module;
+    Function<void(ImportedModuleReferrer, ModuleRequest const&, GC::Ptr<GraphLoadingState::HostDefined>, ImportedModulePayload)> host_load_imported_module;
 
     Function<HashMap<PropertyKey, Value>(SourceTextModule&)> host_get_import_meta_properties;
     Function<void(Object*, SourceTextModule const&)> host_finalize_import_meta;
@@ -279,8 +280,8 @@ public:
     Function<void(Promise&, Promise::RejectionOperation)> host_promise_rejection_tracker;
     Function<ThrowCompletionOr<Value>(JobCallback&, Value, ReadonlySpan<Value>)> host_call_job_callback;
     Function<void(FinalizationRegistry&)> host_enqueue_finalization_registry_cleanup_job;
-    Function<void(NonnullGCPtr<HeapFunction<ThrowCompletionOr<Value>()>>, Realm*)> host_enqueue_promise_job;
-    Function<JS::NonnullGCPtr<JobCallback>(FunctionObject&)> host_make_job_callback;
+    Function<void(GC::Ref<GC::Function<ThrowCompletionOr<Value>()>>, Realm*)> host_enqueue_promise_job;
+    Function<GC::Ref<JobCallback>(FunctionObject&)> host_make_job_callback;
     Function<ThrowCompletionOr<void>(Realm&, ReadonlySpan<String>, StringView, EvalMode)> host_ensure_can_compile_strings;
     Function<ThrowCompletionOr<void>(Object&)> host_ensure_can_add_private_element;
     Function<ThrowCompletionOr<HandledByHost>(ArrayBuffer&, size_t)> host_resize_array_buffer;
@@ -294,23 +295,23 @@ private:
 
     struct WellKnownSymbols {
 #define __JS_ENUMERATE(SymbolName, snake_name) \
-    GCPtr<Symbol> snake_name;
+    GC::Ptr<Symbol> snake_name;
         JS_ENUMERATE_WELL_KNOWN_SYMBOLS
 #undef __JS_ENUMERATE
     };
 
     VM(OwnPtr<CustomData>, ErrorMessages);
 
-    void load_imported_module(ImportedModuleReferrer, ModuleRequest const&, GCPtr<GraphLoadingState::HostDefined>, ImportedModulePayload);
+    void load_imported_module(ImportedModuleReferrer, ModuleRequest const&, GC::Ptr<GraphLoadingState::HostDefined>, ImportedModulePayload);
     ThrowCompletionOr<void> link_and_eval_module(CyclicModule&);
 
     void set_well_known_symbols(WellKnownSymbols well_known_symbols) { m_well_known_symbols = move(well_known_symbols); }
 
-    HashMap<String, GCPtr<PrimitiveString>> m_string_cache;
-    HashMap<ByteString, GCPtr<PrimitiveString>> m_byte_string_cache;
-    HashMap<Utf16String, GCPtr<PrimitiveString>> m_utf16_string_cache;
+    HashMap<String, GC::Ptr<PrimitiveString>> m_string_cache;
+    HashMap<ByteString, GC::Ptr<PrimitiveString>> m_byte_string_cache;
+    HashMap<Utf16String, GC::Ptr<PrimitiveString>> m_utf16_string_cache;
 
-    Heap m_heap;
+    GC::Heap m_heap;
 
     Vector<ExecutionContext*> m_execution_context_stack;
 
@@ -319,21 +320,21 @@ private:
     StackInfo m_stack_info;
 
     // GlobalSymbolRegistry, https://tc39.es/ecma262/#table-globalsymbolregistry-record-fields
-    HashMap<String, NonnullGCPtr<Symbol>> m_global_symbol_registry;
+    HashMap<String, GC::Ref<Symbol>> m_global_symbol_registry;
 
-    Vector<NonnullGCPtr<HeapFunction<ThrowCompletionOr<Value>()>>> m_promise_jobs;
+    Vector<GC::Ref<GC::Function<ThrowCompletionOr<Value>()>>> m_promise_jobs;
 
-    Vector<GCPtr<FinalizationRegistry>> m_finalization_registry_cleanup_jobs;
+    Vector<GC::Ptr<FinalizationRegistry>> m_finalization_registry_cleanup_jobs;
 
-    GCPtr<PrimitiveString> m_empty_string;
-    GCPtr<PrimitiveString> m_single_ascii_character_strings[128] {};
+    GC::Ptr<PrimitiveString> m_empty_string;
+    GC::Ptr<PrimitiveString> m_single_ascii_character_strings[128] {};
     ErrorMessages m_error_messages;
 
     struct StoredModule {
         ImportedModuleReferrer referrer;
         ByteString filename;
         ByteString type;
-        Handle<Module> module;
+        GC::Root<Module> module;
         bool has_once_started_linking { false };
     };
 

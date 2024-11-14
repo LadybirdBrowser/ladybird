@@ -10,15 +10,15 @@
 
 namespace Web::Animations {
 
-JS_DEFINE_ALLOCATOR(AnimationPlaybackEvent);
+GC_DEFINE_ALLOCATOR(AnimationPlaybackEvent);
 
-JS::NonnullGCPtr<AnimationPlaybackEvent> AnimationPlaybackEvent::create(JS::Realm& realm, FlyString const& type, AnimationPlaybackEventInit const& event_init)
+GC::Ref<AnimationPlaybackEvent> AnimationPlaybackEvent::create(JS::Realm& realm, FlyString const& type, AnimationPlaybackEventInit const& event_init)
 {
     return realm.create<AnimationPlaybackEvent>(realm, type, event_init);
 }
 
 // https://www.w3.org/TR/web-animations-1/#dom-animationplaybackevent-animationplaybackevent
-WebIDL::ExceptionOr<JS::NonnullGCPtr<AnimationPlaybackEvent>> AnimationPlaybackEvent::construct_impl(JS::Realm& realm, FlyString const& type, AnimationPlaybackEventInit const& event_init)
+WebIDL::ExceptionOr<GC::Ref<AnimationPlaybackEvent>> AnimationPlaybackEvent::construct_impl(JS::Realm& realm, FlyString const& type, AnimationPlaybackEventInit const& event_init)
 {
     return create(realm, type, event_init);
 }

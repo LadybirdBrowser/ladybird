@@ -14,14 +14,14 @@ namespace Web::HTML {
 
 class HTMLTrackElement final : public HTMLElement {
     WEB_PLATFORM_OBJECT(HTMLTrackElement, HTMLElement);
-    JS_DECLARE_ALLOCATOR(HTMLTrackElement);
+    GC_DECLARE_ALLOCATOR(HTMLTrackElement);
 
 public:
     virtual ~HTMLTrackElement() override;
 
     WebIDL::UnsignedShort ready_state();
 
-    JS::Handle<TextTrack> track() { return m_track; }
+    GC::Root<TextTrack> track() { return m_track; }
 
 private:
     HTMLTrackElement(DOM::Document&, DOM::QualifiedName);
@@ -32,7 +32,7 @@ private:
     // ^DOM::Element
     virtual void attribute_changed(FlyString const& name, Optional<String> const& old_value, Optional<String> const& value, Optional<FlyString> const& namespace_) override;
 
-    JS::GCPtr<TextTrack> m_track;
+    GC::Ptr<TextTrack> m_track;
 };
 
 }

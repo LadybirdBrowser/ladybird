@@ -15,7 +15,7 @@
 
 namespace JS {
 
-JS_DEFINE_ALLOCATOR(CyclicModule);
+GC_DEFINE_ALLOCATOR(CyclicModule);
 
 CyclicModule::CyclicModule(Realm& realm, StringView filename, bool has_top_level_await, Vector<ModuleRequest> requested_modules, Script::HostDefined* host_defined)
     : Module(realm, filename, host_defined)
@@ -45,7 +45,7 @@ void GraphLoadingState::visit_edges(Cell::Visitor& visitor)
 }
 
 // 16.2.1.5.1 LoadRequestedModules ( [ hostDefined ] ), https://tc39.es/ecma262/#sec-LoadRequestedModules
-PromiseCapability& CyclicModule::load_requested_modules(GCPtr<GraphLoadingState::HostDefined> host_defined)
+PromiseCapability& CyclicModule::load_requested_modules(GC::Ptr<GraphLoadingState::HostDefined> host_defined)
 {
     // 1. If hostDefined is not present, let hostDefined be EMPTY.
     // NOTE: The empty state is handled by hostDefined being an optional without value.
@@ -54,7 +54,7 @@ PromiseCapability& CyclicModule::load_requested_modules(GCPtr<GraphLoadingState:
     auto promise_capability = MUST(new_promise_capability(vm(), vm().current_realm()->intrinsics().promise_constructor()));
 
     // 3. Let state be the GraphLoadingState Record { [[IsLoading]]: true, [[PendingModulesCount]]: 1, [[Visited]]: « », [[PromiseCapability]]: pc, [[HostDefined]]: hostDefined }.
-    auto state = heap().allocate<GraphLoadingState>(promise_capability, true, 1, HashTable<JS::GCPtr<CyclicModule>> {}, move(host_defined));
+    auto state = heap().allocate<GraphLoadingState>(promise_capability, true, 1, HashTable<GC::Ptr<CyclicModule>> {}, move(host_defined));
 
     // 4. Perform InnerModuleLoading(state, module).
     inner_module_loading(state);
@@ -101,7 +101,7 @@ void CyclicModule::inner_module_loading(JS::GraphLoadingState& state)
             // ii. Else,
             if (!found_record_in_loaded_modules) {
                 // 1. Perform HostLoadImportedModule(module, required, state.[[HostDefined]], state).
-                vm().host_load_imported_module(NonnullGCPtr<CyclicModule> { *this }, required, state.host_defined, NonnullGCPtr<GraphLoadingState> { state });
+                vm().host_load_imported_module(GC::Ref<CyclicModule> { *this }, required, state.host_defined, GC::Ref<GraphLoadingState> { state });
 
                 // 2. NOTE: HostLoadImportedModule will call FinishLoadingImportedModule, which re-enters the graph loading process through ContinueModuleLoading.
             }
@@ -138,7 +138,7 @@ void CyclicModule::inner_module_loading(JS::GraphLoadingState& state)
 }
 
 // 16.2.1.5.1.2 ContinueModuleLoading ( state, moduleCompletion ), https://tc39.es/ecma262/#sec-ContinueModuleLoading
-void continue_module_loading(GraphLoadingState& state, ThrowCompletionOr<NonnullGCPtr<Module>> const& module_completion)
+void continue_module_loading(GraphLoadingState& state, ThrowCompletionOr<GC::Ref<Module>> const& module_completion)
 {
     // 1. If state.[[IsLoading]] is false, return UNUSED.
     if (!state.is_loading)
@@ -469,7 +469,7 @@ ThrowCompletionOr<u32> CyclicModule::inner_module_evaluation(VM& vm, Vector<Modu
         if (!is<CyclicModule>(*required_module))
             continue;
 
-        JS::NonnullGCPtr<CyclicModule> cyclic_module = verify_cast<CyclicModule>(*required_module);
+        GC::Ref<CyclicModule> cyclic_module = verify_cast<CyclicModule>(*required_module);
         // i. Assert: requiredModule.[[Status]] is either evaluating, evaluating-async, or evaluated.
         VERIFY(cyclic_module->m_status == ModuleStatus::Evaluating || cyclic_module->m_status == ModuleStatus::EvaluatingAsync || cyclic_module->m_status == ModuleStatus::Evaluated);
 
@@ -578,7 +578,7 @@ ThrowCompletionOr<void> CyclicModule::initialize_environment(VM&)
     VERIFY_NOT_REACHED();
 }
 
-ThrowCompletionOr<void> CyclicModule::execute_module(VM&, GCPtr<PromiseCapability>)
+ThrowCompletionOr<void> CyclicModule::execute_module(VM&, GC::Ptr<PromiseCapability>)
 {
     // Note: In ecma262 this is never called on a cyclic module only on SourceTextModules.
     //       So this check is to make sure we don't accidentally call this.
@@ -807,7 +807,7 @@ void CyclicModule::async_module_execution_rejected(VM& vm, Value error)
 }
 
 // 16.2.1.7 GetImportedModule ( referrer, specifier ), https://tc39.es/ecma262/#sec-GetImportedModule
-NonnullGCPtr<Module> CyclicModule::get_imported_module(ModuleRequest const& request)
+GC::Ref<Module> CyclicModule::get_imported_module(ModuleRequest const& request)
 {
     // 1. Assert: Exactly one element of referrer.[[LoadedModules]] is a Record whose [[Specifier]] is specifier,
     //    since LoadRequestedModules has completed successfully on referrer prior to invoking this abstract operation.
@@ -829,7 +829,7 @@ NonnullGCPtr<Module> CyclicModule::get_imported_module(ModuleRequest const& requ
 }
 
 // 13.3.10.1.1 ContinueDynamicImport ( promiseCapability, moduleCompletion ), https://tc39.es/ecma262/#sec-ContinueDynamicImport
-void continue_dynamic_import(NonnullGCPtr<PromiseCapability> promise_capability, ThrowCompletionOr<NonnullGCPtr<Module>> const& module_completion)
+void continue_dynamic_import(GC::Ref<PromiseCapability> promise_capability, ThrowCompletionOr<GC::Ref<Module>> const& module_completion)
 {
     auto& vm = promise_capability->vm();
 

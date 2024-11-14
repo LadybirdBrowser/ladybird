@@ -12,7 +12,7 @@
 
 namespace JS::Temporal {
 
-JS_DEFINE_ALLOCATOR(PlainTimeConstructor);
+GC_DEFINE_ALLOCATOR(PlainTimeConstructor);
 
 // 4.1 The Temporal.PlainTime Constructor, https://tc39.es/proposal-temporal/#sec-temporal-plaintime-constructor
 PlainTimeConstructor::PlainTimeConstructor(Realm& realm)
@@ -46,7 +46,7 @@ ThrowCompletionOr<Value> PlainTimeConstructor::call()
 }
 
 // 4.1.1 Temporal.PlainTime ( [ hour [ , minute [ , second [ , millisecond [ , microsecond [ , nanosecond ] ] ] ] ] ] ), https://tc39.es/proposal-temporal/#sec-temporal.plaintime
-ThrowCompletionOr<NonnullGCPtr<Object>> PlainTimeConstructor::construct(FunctionObject& new_target)
+ThrowCompletionOr<GC::Ref<Object>> PlainTimeConstructor::construct(FunctionObject& new_target)
 {
     auto& vm = this->vm();
 

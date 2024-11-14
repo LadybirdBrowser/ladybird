@@ -16,10 +16,10 @@
 
 namespace Web::Streams {
 
-JS_DEFINE_ALLOCATOR(WritableStream);
+GC_DEFINE_ALLOCATOR(WritableStream);
 
 // https://streams.spec.whatwg.org/#ws-constructor
-WebIDL::ExceptionOr<JS::NonnullGCPtr<WritableStream>> WritableStream::construct_impl(JS::Realm& realm, Optional<JS::Handle<JS::Object>> const& underlying_sink_object, QueuingStrategy const& strategy)
+WebIDL::ExceptionOr<GC::Ref<WritableStream>> WritableStream::construct_impl(JS::Realm& realm, Optional<GC::Root<JS::Object>> const& underlying_sink_object, QueuingStrategy const& strategy)
 {
     auto& vm = realm.vm();
 
@@ -58,7 +58,7 @@ bool WritableStream::locked() const
 }
 
 // https://streams.spec.whatwg.org/#ws-close
-JS::GCPtr<WebIDL::Promise> WritableStream::close()
+GC::Ptr<WebIDL::Promise> WritableStream::close()
 {
     auto& realm = this->realm();
 
@@ -79,7 +79,7 @@ JS::GCPtr<WebIDL::Promise> WritableStream::close()
 }
 
 // https://streams.spec.whatwg.org/#ws-abort
-JS::GCPtr<WebIDL::Promise> WritableStream::abort(JS::Value reason)
+GC::Ptr<WebIDL::Promise> WritableStream::abort(JS::Value reason)
 {
     auto& realm = this->realm();
 
@@ -94,7 +94,7 @@ JS::GCPtr<WebIDL::Promise> WritableStream::abort(JS::Value reason)
 }
 
 // https://streams.spec.whatwg.org/#ws-get-writer
-WebIDL::ExceptionOr<JS::NonnullGCPtr<WritableStreamDefaultWriter>> WritableStream::get_writer()
+WebIDL::ExceptionOr<GC::Ref<WritableStreamDefaultWriter>> WritableStream::get_writer()
 {
     // 1. Return ? AcquireWritableStreamDefaultWriter(this).
     return acquire_writable_stream_default_writer(*this);

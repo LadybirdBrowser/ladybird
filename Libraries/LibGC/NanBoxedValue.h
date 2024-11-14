@@ -8,8 +8,9 @@
 
 #include <AK/BitCast.h>
 #include <AK/Types.h>
+#include <LibGC/Cell.h>
 
-namespace JS {
+namespace GC {
 
 static_assert(sizeof(double) == 8);
 static_assert(sizeof(void*) == sizeof(double) || sizeof(void*) == sizeof(u32));
@@ -72,7 +73,7 @@ public:
         // For AArch64 the top 16 bits of the pointer should be zero.
         // For PPC64: all 64 bits can be used for pointers, however on Linux only
         //            the lower 43 bits are used for user-space addresses, so
-        //            masking off the top 16 bits should match the rest of LibJS.
+        //            masking off the top 16 bits should match the rest of LibGC.
         return static_cast<FlatPtr>(encoded & 0xffff'ffff'ffffULL);
 #else
 #    error "Unknown architecture. Don't know whether pointers need to be sign-extended."
@@ -86,16 +87,16 @@ public:
         return reinterpret_cast<PointerType*>(extract_pointer_bits(m_value.encoded));
     }
 
-    CellImpl& as_cell()
+    Cell& as_cell()
     {
         VERIFY(is_cell());
-        return *extract_pointer<CellImpl>();
+        return *extract_pointer<Cell>();
     }
 
-    CellImpl& as_cell() const
+    Cell& as_cell() const
     {
         VERIFY(is_cell());
-        return *extract_pointer<CellImpl>();
+        return *extract_pointer<Cell>();
     }
 
     bool is_nan() const

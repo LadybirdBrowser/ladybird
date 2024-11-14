@@ -28,13 +28,13 @@ struct RegistrationOptions {
 
 class ServiceWorkerContainer : public DOM::EventTarget {
     WEB_PLATFORM_OBJECT(ServiceWorkerContainer, DOM::EventTarget);
-    JS_DECLARE_ALLOCATOR(ServiceWorkerContainer);
+    GC_DECLARE_ALLOCATOR(ServiceWorkerContainer);
 
 public:
-    [[nodiscard]] static JS::NonnullGCPtr<ServiceWorkerContainer> create(JS::Realm& realm);
+    [[nodiscard]] static GC::Ref<ServiceWorkerContainer> create(JS::Realm& realm);
     virtual ~ServiceWorkerContainer() override;
 
-    JS::NonnullGCPtr<WebIDL::Promise> register_(String script_url, RegistrationOptions const& options);
+    GC::Ref<WebIDL::Promise> register_(String script_url, RegistrationOptions const& options);
 
 #undef __ENUMERATE
 #define __ENUMERATE(attribute_name, event_name)       \
@@ -49,9 +49,9 @@ private:
     virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Cell::Visitor&) override;
 
-    void start_register(Optional<URL::URL> scope_url, URL::URL script_url, JS::NonnullGCPtr<WebIDL::Promise>, EnvironmentSettingsObject&, URL::URL referrer, Bindings::WorkerType, Bindings::ServiceWorkerUpdateViaCache);
+    void start_register(Optional<URL::URL> scope_url, URL::URL script_url, GC::Ref<WebIDL::Promise>, EnvironmentSettingsObject&, URL::URL referrer, Bindings::WorkerType, Bindings::ServiceWorkerUpdateViaCache);
 
-    JS::NonnullGCPtr<EnvironmentSettingsObject> m_service_worker_client;
+    GC::Ref<EnvironmentSettingsObject> m_service_worker_client;
 };
 
 }

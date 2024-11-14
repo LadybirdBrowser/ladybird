@@ -369,7 +369,7 @@ JS_DEFINE_NATIVE_FUNCTION(Uint8ArrayPrototypeHelpers::set_from_hex)
 }
 
 // 7 ValidateUint8Array ( ta ), https://tc39.es/proposal-arraybuffer-base64/spec/#sec-validateuint8array
-ThrowCompletionOr<NonnullGCPtr<TypedArrayBase>> validate_uint8_array(VM& vm)
+ThrowCompletionOr<GC::Ref<TypedArrayBase>> validate_uint8_array(VM& vm)
 {
     auto this_object = TRY(vm.this_value().to_object(vm));
 

@@ -13,9 +13,9 @@
 
 namespace Web::RequestIdleCallback {
 
-JS_DEFINE_ALLOCATOR(IdleDeadline);
+GC_DEFINE_ALLOCATOR(IdleDeadline);
 
-JS::NonnullGCPtr<IdleDeadline> IdleDeadline::create(JS::Realm& realm, bool did_timeout)
+GC::Ref<IdleDeadline> IdleDeadline::create(JS::Realm& realm, bool did_timeout)
 {
     return realm.create<IdleDeadline>(realm, did_timeout);
 }

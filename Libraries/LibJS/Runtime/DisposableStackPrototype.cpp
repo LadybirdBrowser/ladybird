@@ -12,7 +12,7 @@
 
 namespace JS {
 
-JS_DEFINE_ALLOCATOR(DisposableStackPrototype);
+GC_DEFINE_ALLOCATOR(DisposableStackPrototype);
 
 DisposableStackPrototype::DisposableStackPrototype(Realm& realm)
     : PrototypeObject(realm.intrinsics().object_prototype())
@@ -136,7 +136,7 @@ JS_DEFINE_NATIVE_FUNCTION(DisposableStackPrototype::adopt)
     // 11.3.3.4.1 DisposableStack Adopt Callback Functions, https://tc39.es/proposal-explicit-resource-management/#sec-disposablestack-adopt-callback-functions
     // A DisposableStack adopt callback function is an anonymous built-in function object that has [[Argument]] and [[OnDisposeCallback]] internal slots.
     auto function = NativeFunction::create(
-        realm, [argument = make_handle(value), callback = make_handle(on_dispose)](VM& vm) {
+        realm, [argument = make_root(value), callback = make_root(on_dispose)](VM& vm) {
             // When a DisposableStack adopt callback function is called, the following steps are taken:
             // 1. Let F be the active function object.
             // 2. Assert: IsCallable(F.[[OnDisposeCallback]]) is true.

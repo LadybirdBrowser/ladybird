@@ -17,10 +17,10 @@ struct Variable {
     DeclarationKind declaration_kind;
 };
 
-#define JS_ENVIRONMENT(class_, base_class) JS_CELL(class_, base_class)
+#define JS_ENVIRONMENT(class_, base_class) GC_CELL(class_, base_class)
 
 class Environment : public Cell {
-    JS_CELL(Environment, Cell);
+    GC_CELL(Environment, Cell);
 
 public:
     enum class InitializeBindingHint {
@@ -70,7 +70,7 @@ private:
     bool m_permanently_screwed_by_eval { false };
     bool m_declarative { false };
 
-    GCPtr<Environment> m_outer_environment;
+    GC::Ptr<Environment> m_outer_environment;
 };
 
 }

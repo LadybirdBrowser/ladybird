@@ -12,7 +12,7 @@
 namespace Web::Layout {
 
 class ReplacedBox : public Box {
-    JS_CELL(ReplacedBox, Box);
+    GC_CELL(ReplacedBox, Box);
 
 public:
     ReplacedBox(DOM::Document&, DOM::Element&, CSS::StyleProperties);

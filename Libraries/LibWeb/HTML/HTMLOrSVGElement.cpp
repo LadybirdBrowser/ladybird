@@ -14,7 +14,7 @@ namespace Web::HTML {
 
 // https://html.spec.whatwg.org/multipage/dom.html#dom-dataset-dev
 template<typename ElementBase>
-JS::NonnullGCPtr<DOMStringMap> HTMLOrSVGElement<ElementBase>::dataset()
+GC::Ref<DOMStringMap> HTMLOrSVGElement<ElementBase>::dataset()
 {
     if (!m_dataset)
         m_dataset = DOMStringMap::create(*static_cast<ElementBase*>(this));

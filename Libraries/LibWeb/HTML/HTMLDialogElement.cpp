@@ -19,7 +19,7 @@
 
 namespace Web::HTML {
 
-JS_DEFINE_ALLOCATOR(HTMLDialogElement);
+GC_DEFINE_ALLOCATOR(HTMLDialogElement);
 
 HTMLDialogElement::HTMLDialogElement(DOM::Document& document, DOM::QualifiedName qualified_name)
     : HTMLElement(document, move(qualified_name))
@@ -324,7 +324,7 @@ void HTMLDialogElement::close_the_dialog(Optional<String> result)
 void HTMLDialogElement::run_dialog_focusing_steps()
 {
     // 1. Let control be null
-    JS::GCPtr<Element> control = nullptr;
+    GC::Ptr<Element> control = nullptr;
 
     // FIXME 2. If subject has the autofocus attribute, then set control to subject.
     // FIXME 3. If control is null, then set control to the focus delegate of subject.

@@ -12,7 +12,7 @@ namespace JS {
 
 class PromisePrototype final : public PrototypeObject<PromisePrototype, Promise> {
     JS_PROTOTYPE_OBJECT(PromisePrototype, Promise, Promise);
-    JS_DECLARE_ALLOCATOR(PromisePrototype);
+    GC_DECLARE_ALLOCATOR(PromisePrototype);
 
 public:
     virtual void initialize(Realm&) override;

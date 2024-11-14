@@ -9,9 +9,9 @@
 
 namespace JS {
 
-JS_DEFINE_ALLOCATOR(SetIterator);
+GC_DEFINE_ALLOCATOR(SetIterator);
 
-NonnullGCPtr<SetIterator> SetIterator::create(Realm& realm, Set& set, Object::PropertyKind iteration_kind)
+GC::Ref<SetIterator> SetIterator::create(Realm& realm, Set& set, Object::PropertyKind iteration_kind)
 {
     return realm.create<SetIterator>(set, iteration_kind, realm.intrinsics().set_iterator_prototype());
 }

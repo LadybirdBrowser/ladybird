@@ -24,7 +24,7 @@
 
 namespace JS::Temporal {
 
-JS_DEFINE_ALLOCATOR(TimeZone);
+GC_DEFINE_ALLOCATOR(TimeZone);
 
 // 11 Temporal.TimeZone Objects, https://tc39.es/proposal-temporal/#sec-temporal-timezone-objects
 TimeZone::TimeZone(Object& prototype)
@@ -378,7 +378,7 @@ ThrowCompletionOr<double> get_offset_nanoseconds_for(VM& vm, TimeZoneMethods con
 // 11.6.9 BuiltinTimeZoneGetOffsetStringFor ( timeZone, instant ), https://tc39.es/proposal-temporal/#sec-temporal-builtintimezonegetoffsetstringfor
 ThrowCompletionOr<String> builtin_time_zone_get_offset_string_for(VM& vm, Value time_zone, Instant& instant)
 {
-    auto time_zone_record = TRY(create_time_zone_methods_record(vm, NonnullGCPtr<Object> { time_zone.as_object() }, { { TimeZoneMethod::GetOffsetNanosecondsFor } }));
+    auto time_zone_record = TRY(create_time_zone_methods_record(vm, GC::Ref<Object> { time_zone.as_object() }, { { TimeZoneMethod::GetOffsetNanosecondsFor } }));
 
     // 1. Let offsetNanoseconds be ? GetOffsetNanosecondsFor(timeZone, instant).
     auto offset_nanoseconds = TRY(get_offset_nanoseconds_for(vm, time_zone_record, instant));
@@ -390,7 +390,7 @@ ThrowCompletionOr<String> builtin_time_zone_get_offset_string_for(VM& vm, Value 
 // 11.6.10 BuiltinTimeZoneGetPlainDateTimeFor ( timeZone, instant, calendar ), https://tc39.es/proposal-temporal/#sec-temporal-builtintimezonegetplaindatetimefor
 ThrowCompletionOr<PlainDateTime*> builtin_time_zone_get_plain_date_time_for(VM& vm, Value time_zone, Instant& instant, Object& calendar)
 {
-    auto time_zone_record = TRY(create_time_zone_methods_record(vm, NonnullGCPtr<Object> { time_zone.as_object() }, { { TimeZoneMethod::GetOffsetNanosecondsFor } }));
+    auto time_zone_record = TRY(create_time_zone_methods_record(vm, GC::Ref<Object> { time_zone.as_object() }, { { TimeZoneMethod::GetOffsetNanosecondsFor } }));
 
     // 1. Assert: instant has an [[InitializedTemporalInstant]] internal slot.
 
@@ -408,12 +408,12 @@ ThrowCompletionOr<PlainDateTime*> builtin_time_zone_get_plain_date_time_for(VM& 
 }
 
 // 11.6.11 BuiltinTimeZoneGetInstantFor ( timeZone, dateTime, disambiguation ), https://tc39.es/proposal-temporal/#sec-temporal-builtintimezonegetinstantfor
-ThrowCompletionOr<NonnullGCPtr<Instant>> builtin_time_zone_get_instant_for(VM& vm, Value time_zone, PlainDateTime& date_time, StringView disambiguation)
+ThrowCompletionOr<GC::Ref<Instant>> builtin_time_zone_get_instant_for(VM& vm, Value time_zone, PlainDateTime& date_time, StringView disambiguation)
 {
     // 1. Assert: dateTime has an [[InitializedTemporalDateTime]] internal slot.
 
     // 2. Let possibleInstants be ? GetPossibleInstantsFor(timeZone, dateTime).
-    auto time_zone_record = TRY(create_time_zone_methods_record(vm, NonnullGCPtr<Object> { time_zone.as_object() }, { { TimeZoneMethod::GetOffsetNanosecondsFor, TimeZoneMethod::GetPossibleInstantsFor } }));
+    auto time_zone_record = TRY(create_time_zone_methods_record(vm, GC::Ref<Object> { time_zone.as_object() }, { { TimeZoneMethod::GetOffsetNanosecondsFor, TimeZoneMethod::GetPossibleInstantsFor } }));
     auto possible_instants = TRY(get_possible_instants_for(vm, time_zone_record, date_time));
 
     // 3. Return ? DisambiguatePossibleInstants(possibleInstants, timeZone, dateTime, disambiguation).
@@ -421,7 +421,7 @@ ThrowCompletionOr<NonnullGCPtr<Instant>> builtin_time_zone_get_instant_for(VM& v
 }
 
 // 11.6.12 DisambiguatePossibleInstants ( possibleInstants, timeZone, dateTime, disambiguation ), https://tc39.es/proposal-temporal/#sec-temporal-disambiguatepossibleinstants
-ThrowCompletionOr<NonnullGCPtr<Instant>> disambiguate_possible_instants(VM& vm, MarkedVector<NonnullGCPtr<Instant>> const& possible_instants, TimeZoneMethods const& time_zone_record, PlainDateTime& date_time, StringView disambiguation)
+ThrowCompletionOr<GC::Ref<Instant>> disambiguate_possible_instants(VM& vm, GC::MarkedVector<GC::Ref<Instant>> const& possible_instants, TimeZoneMethods const& time_zone_record, PlainDateTime& date_time, StringView disambiguation)
 {
     // 1. Assert: TimeZoneMethodsRecordHasLookedUp(timeZoneRec, GET-POSSIBLE-INSTANTS-FOR) is true.
     VERIFY(time_zone_methods_record_has_looked_up(time_zone_record, TimeZoneMethod::GetPossibleInstantsFor));
@@ -544,14 +544,14 @@ ThrowCompletionOr<NonnullGCPtr<Instant>> disambiguate_possible_instants(VM& vm, 
 }
 
 // 11.5.24 GetPossibleInstantsFor ( timeZoneRec, dateTime ), https://tc39.es/proposal-temporal/#sec-temporal-getpossibleinstantsfor
-ThrowCompletionOr<MarkedVector<NonnullGCPtr<Instant>>> get_possible_instants_for(VM& vm, TimeZoneMethods const& time_zone_record, PlainDateTime const& date_time)
+ThrowCompletionOr<GC::MarkedVector<GC::Ref<Instant>>> get_possible_instants_for(VM& vm, TimeZoneMethods const& time_zone_record, PlainDateTime const& date_time)
 {
     // 1. Let possibleInstants be ? TimeZoneMethodsRecordCall(timeZoneRec, GET-POSSIBLE-INSTANTS-FOR, « dateTime »).
     auto possible_instants = TRY(time_zone_methods_record_call(vm, time_zone_record, TimeZoneMethod::GetPossibleInstantsFor, { { &date_time } }));
 
     // 2. If TimeZoneMethodsRecordIsBuiltin(timeZoneRec), return ! CreateListFromArrayLike(possibleInstants, « Object »).
     if (time_zone_methods_record_is_builtin(time_zone_record)) {
-        auto list = MarkedVector<NonnullGCPtr<Instant>> { vm.heap() };
+        auto list = GC::MarkedVector<GC::Ref<Instant>> { vm.heap() };
 
         (void)MUST(create_list_from_array_like(vm, possible_instants, [&list](auto value) -> ThrowCompletionOr<void> {
             list.append(verify_cast<Instant>(value.as_object()));
@@ -565,7 +565,7 @@ ThrowCompletionOr<MarkedVector<NonnullGCPtr<Instant>>> get_possible_instants_for
     auto iterator = TRY(get_iterator(vm, possible_instants, IteratorHint::Sync));
 
     // 4. Let list be a new empty List.
-    auto list = MarkedVector<NonnullGCPtr<Instant>> { vm.heap() };
+    auto list = GC::MarkedVector<GC::Ref<Instant>> { vm.heap() };
 
     // 5. Repeat,
     while (true) {

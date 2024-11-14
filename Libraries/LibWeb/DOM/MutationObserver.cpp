@@ -12,16 +12,16 @@
 
 namespace Web::DOM {
 
-JS_DEFINE_ALLOCATOR(MutationObserver);
-JS_DEFINE_ALLOCATOR(TransientRegisteredObserver);
+GC_DEFINE_ALLOCATOR(MutationObserver);
+GC_DEFINE_ALLOCATOR(TransientRegisteredObserver);
 
-WebIDL::ExceptionOr<JS::NonnullGCPtr<MutationObserver>> MutationObserver::construct_impl(JS::Realm& realm, JS::GCPtr<WebIDL::CallbackType> callback)
+WebIDL::ExceptionOr<GC::Ref<MutationObserver>> MutationObserver::construct_impl(JS::Realm& realm, GC::Ptr<WebIDL::CallbackType> callback)
 {
     return realm.create<MutationObserver>(realm, callback);
 }
 
 // https://dom.spec.whatwg.org/#dom-mutationobserver-mutationobserver
-MutationObserver::MutationObserver(JS::Realm& realm, JS::GCPtr<WebIDL::CallbackType> callback)
+MutationObserver::MutationObserver(JS::Realm& realm, GC::Ptr<WebIDL::CallbackType> callback)
     : PlatformObject(realm)
     , m_callback(move(callback))
 {
@@ -146,10 +146,10 @@ void MutationObserver::disconnect()
 }
 
 // https://dom.spec.whatwg.org/#dom-mutationobserver-takerecords
-Vector<JS::Handle<MutationRecord>> MutationObserver::take_records()
+Vector<GC::Root<MutationRecord>> MutationObserver::take_records()
 {
     // 1. Let records be a clone of this’s record queue.
-    Vector<JS::Handle<MutationRecord>> records;
+    Vector<GC::Root<MutationRecord>> records;
     for (auto& record : m_record_queue)
         records.append(*record);
 
@@ -160,7 +160,7 @@ Vector<JS::Handle<MutationRecord>> MutationObserver::take_records()
     return records;
 }
 
-JS::NonnullGCPtr<RegisteredObserver> RegisteredObserver::create(MutationObserver& observer, MutationObserverInit const& options)
+GC::Ref<RegisteredObserver> RegisteredObserver::create(MutationObserver& observer, MutationObserverInit const& options)
 {
     return observer.heap().allocate<RegisteredObserver>(observer, options);
 }
@@ -179,7 +179,7 @@ void RegisteredObserver::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_observer);
 }
 
-JS::NonnullGCPtr<TransientRegisteredObserver> TransientRegisteredObserver::create(MutationObserver& observer, MutationObserverInit const& options, RegisteredObserver& source)
+GC::Ref<TransientRegisteredObserver> TransientRegisteredObserver::create(MutationObserver& observer, MutationObserverInit const& options, RegisteredObserver& source)
 {
     return observer.heap().allocate<TransientRegisteredObserver>(observer, options, source);
 }

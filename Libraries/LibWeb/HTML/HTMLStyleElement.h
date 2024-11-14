@@ -14,7 +14,7 @@ namespace Web::HTML {
 
 class HTMLStyleElement final : public HTMLElement {
     WEB_PLATFORM_OBJECT(HTMLStyleElement, HTMLElement);
-    JS_DECLARE_ALLOCATOR(HTMLStyleElement);
+    GC_DECLARE_ALLOCATOR(HTMLStyleElement);
 
 public:
     virtual ~HTMLStyleElement() override;

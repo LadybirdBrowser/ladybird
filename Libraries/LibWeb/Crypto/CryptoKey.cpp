@@ -13,15 +13,15 @@
 
 namespace Web::Crypto {
 
-JS_DEFINE_ALLOCATOR(CryptoKey);
-JS_DEFINE_ALLOCATOR(CryptoKeyPair);
+GC_DEFINE_ALLOCATOR(CryptoKey);
+GC_DEFINE_ALLOCATOR(CryptoKeyPair);
 
-JS::NonnullGCPtr<CryptoKey> CryptoKey::create(JS::Realm& realm, InternalKeyData key_data)
+GC::Ref<CryptoKey> CryptoKey::create(JS::Realm& realm, InternalKeyData key_data)
 {
     return realm.create<CryptoKey>(realm, move(key_data));
 }
 
-JS::NonnullGCPtr<CryptoKey> CryptoKey::create(JS::Realm& realm)
+GC::Ref<CryptoKey> CryptoKey::create(JS::Realm& realm)
 {
     return realm.create<CryptoKey>(realm);
 }
@@ -80,12 +80,12 @@ String CryptoKey::algorithm_name() const
     return m_algorithm_name;
 }
 
-JS::NonnullGCPtr<CryptoKeyPair> CryptoKeyPair::create(JS::Realm& realm, JS::NonnullGCPtr<CryptoKey> public_key, JS::NonnullGCPtr<CryptoKey> private_key)
+GC::Ref<CryptoKeyPair> CryptoKeyPair::create(JS::Realm& realm, GC::Ref<CryptoKey> public_key, GC::Ref<CryptoKey> private_key)
 {
     return realm.create<CryptoKeyPair>(realm, public_key, private_key);
 }
 
-CryptoKeyPair::CryptoKeyPair(JS::Realm& realm, JS::NonnullGCPtr<CryptoKey> public_key, JS::NonnullGCPtr<CryptoKey> private_key)
+CryptoKeyPair::CryptoKeyPair(JS::Realm& realm, GC::Ref<CryptoKey> public_key, GC::Ref<CryptoKey> private_key)
     : Object(ConstructWithPrototypeTag::Tag, realm.intrinsics().object_prototype())
     , m_public_key(public_key)
     , m_private_key(private_key)

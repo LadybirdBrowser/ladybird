@@ -13,10 +13,10 @@ namespace Web::CSS {
 // https://drafts.csswg.org/css-cascade-5/#the-csslayerblockrule-interface
 class CSSLayerBlockRule final : public CSSGroupingRule {
     WEB_PLATFORM_OBJECT(CSSLayerBlockRule, CSSGroupingRule);
-    JS_DECLARE_ALLOCATOR(CSSLayerBlockRule);
+    GC_DECLARE_ALLOCATOR(CSSLayerBlockRule);
 
 public:
-    [[nodiscard]] static JS::NonnullGCPtr<CSSLayerBlockRule> create(JS::Realm&, FlyString name, CSSRuleList&);
+    [[nodiscard]] static GC::Ref<CSSLayerBlockRule> create(JS::Realm&, FlyString name, CSSRuleList&);
 
     static FlyString next_unique_anonymous_layer_name();
 

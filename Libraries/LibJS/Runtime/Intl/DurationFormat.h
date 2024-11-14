@@ -18,7 +18,7 @@ namespace JS::Intl {
 
 class DurationFormat final : public Object {
     JS_OBJECT(DurationFormat, Object);
-    JS_DECLARE_ALLOCATOR(DurationFormat);
+    GC_DECLARE_ALLOCATOR(DurationFormat);
 
 public:
     enum class Style {

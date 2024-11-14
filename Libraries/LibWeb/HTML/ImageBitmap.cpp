@@ -10,9 +10,9 @@
 
 namespace Web::HTML {
 
-JS_DEFINE_ALLOCATOR(ImageBitmap);
+GC_DEFINE_ALLOCATOR(ImageBitmap);
 
-JS::NonnullGCPtr<ImageBitmap> ImageBitmap::create(JS::Realm& realm)
+GC::Ref<ImageBitmap> ImageBitmap::create(JS::Realm& realm)
 {
     return realm.create<ImageBitmap>(realm);
 }

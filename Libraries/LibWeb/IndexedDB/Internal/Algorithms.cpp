@@ -17,7 +17,7 @@
 namespace Web::IndexedDB {
 
 // https://w3c.github.io/IndexedDB/#open-a-database-connection
-WebIDL::ExceptionOr<JS::NonnullGCPtr<IDBDatabase>> open_a_database_connection(JS::Realm& realm, StorageAPI::StorageKey storage_key, String name, Optional<u64> maybe_version, JS::NonnullGCPtr<IDBRequest> request)
+WebIDL::ExceptionOr<GC::Ref<IDBDatabase>> open_a_database_connection(JS::Realm& realm, StorageAPI::StorageKey storage_key, String name, Optional<u64> maybe_version, GC::Ref<IDBRequest> request)
 {
     // 1. Let queue be the connection queue for storageKey and name.
     auto& queue = ConnectionQueueHandler::for_key_and_name(storage_key, name);
@@ -26,13 +26,13 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<IDBDatabase>> open_a_database_connection(JS
     queue.append(request);
 
     // 3. Wait until all previous requests in queue have been processed.
-    HTML::main_thread_event_loop().spin_until(JS::create_heap_function(realm.vm().heap(), [queue, request]() {
+    HTML::main_thread_event_loop().spin_until(GC::create_function(realm.vm().heap(), [queue, request]() {
         return queue.all_previous_requests_processed(request);
     }));
 
     // 4. Let db be the database named name in storageKey, or null otherwise.
     auto maybe_db = Database::for_key_and_name(storage_key, name);
-    JS::GCPtr<Database> db;
+    GC::Ptr<Database> db;
 
     // 5. If version is undefined, let version be 1 if db is null, or db’s version otherwise.
     auto version = maybe_version.value_or(maybe_db.has_value() ? maybe_db.value()->version() : 1);
@@ -69,7 +69,7 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<IDBDatabase>> open_a_database_connection(JS
         //    queue a task to fire a version change event named versionchange at entry with db’s version and version.
         for (auto& entry : open_connections) {
             if (!entry->close_pending()) {
-                HTML::queue_a_task(HTML::Task::Source::DatabaseAccess, nullptr, nullptr, JS::create_heap_function(realm.vm().heap(), [&realm, entry, db, version]() {
+                HTML::queue_a_task(HTML::Task::Source::DatabaseAccess, nullptr, nullptr, GC::create_function(realm.vm().heap(), [&realm, entry, db, version]() {
                     fire_a_version_change_event(realm, HTML::EventNames::versionchange, *entry, db->version(), version);
                 }));
             }
@@ -81,14 +81,14 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<IDBDatabase>> open_a_database_connection(JS
         //    queue a task to fire a version change event named blocked at request with db’s version and version.
         for (auto& entry : open_connections) {
             if (entry->state() != IDBDatabase::ConnectionState::Closed) {
-                HTML::queue_a_task(HTML::Task::Source::DatabaseAccess, nullptr, nullptr, JS::create_heap_function(realm.vm().heap(), [&realm, entry, db, version]() {
+                HTML::queue_a_task(HTML::Task::Source::DatabaseAccess, nullptr, nullptr, GC::create_function(realm.vm().heap(), [&realm, entry, db, version]() {
                     fire_a_version_change_event(realm, HTML::EventNames::blocked, *entry, db->version(), version);
                 }));
             }
         }
 
         // 5. Wait until all connections in openConnections are closed.
-        HTML::main_thread_event_loop().spin_until(JS::create_heap_function(realm.vm().heap(), [open_connections]() {
+        HTML::main_thread_event_loop().spin_until(GC::create_function(realm.vm().heap(), [open_connections]() {
             for (auto const& entry : open_connections) {
                 if (entry->state() != IDBDatabase::ConnectionState::Closed) {
                     return false;
@@ -115,7 +115,7 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<IDBDatabase>> open_a_database_connection(JS
     return connection;
 }
 
-bool fire_a_version_change_event(JS::Realm& realm, FlyString const& event_name, JS::NonnullGCPtr<DOM::EventTarget> target, u64 old_version, Optional<u64> new_version)
+bool fire_a_version_change_event(JS::Realm& realm, FlyString const& event_name, GC::Ref<DOM::EventTarget> target, u64 old_version, Optional<u64> new_version)
 {
     IDBVersionChangeEventInit event_init = {};
     // 4. Set event’s oldVersion attribute to oldVersion.

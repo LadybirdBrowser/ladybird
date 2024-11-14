@@ -9,10 +9,10 @@
 
 namespace Web::HTML {
 
-JS_DEFINE_ALLOCATOR(SessionHistoryTraversalQueue);
-JS_DEFINE_ALLOCATOR(SessionHistoryTraversalQueueEntry);
+GC_DEFINE_ALLOCATOR(SessionHistoryTraversalQueue);
+GC_DEFINE_ALLOCATOR(SessionHistoryTraversalQueueEntry);
 
-JS::NonnullGCPtr<SessionHistoryTraversalQueueEntry> SessionHistoryTraversalQueueEntry::create(JS::VM& vm, JS::NonnullGCPtr<JS::HeapFunction<void()>> steps, JS::GCPtr<HTML::Navigable> target_navigable)
+GC::Ref<SessionHistoryTraversalQueueEntry> SessionHistoryTraversalQueueEntry::create(JS::VM& vm, GC::Ref<GC::Function<void()>> steps, GC::Ptr<HTML::Navigable> target_navigable)
 {
     return vm.heap().allocate<SessionHistoryTraversalQueueEntry>(steps, target_navigable);
 }
@@ -46,7 +46,7 @@ void SessionHistoryTraversalQueue::visit_edges(JS::Cell::Visitor& visitor)
     visitor.visit(m_queue);
 }
 
-void SessionHistoryTraversalQueue::append(JS::NonnullGCPtr<JS::HeapFunction<void()>> steps)
+void SessionHistoryTraversalQueue::append(GC::Ref<GC::Function<void()>> steps)
 {
     m_queue.append(SessionHistoryTraversalQueueEntry::create(vm(), steps, nullptr));
     if (!m_timer->is_active()) {
@@ -54,7 +54,7 @@ void SessionHistoryTraversalQueue::append(JS::NonnullGCPtr<JS::HeapFunction<void
     }
 }
 
-void SessionHistoryTraversalQueue::append_sync(JS::NonnullGCPtr<JS::HeapFunction<void()>> steps, JS::GCPtr<Navigable> target_navigable)
+void SessionHistoryTraversalQueue::append_sync(GC::Ref<GC::Function<void()>> steps, GC::Ptr<Navigable> target_navigable)
 {
     m_queue.append(SessionHistoryTraversalQueueEntry::create(vm(), steps, target_navigable));
     if (!m_timer->is_active()) {
@@ -63,7 +63,7 @@ void SessionHistoryTraversalQueue::append_sync(JS::NonnullGCPtr<JS::HeapFunction
 }
 
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#sync-navigations-jump-queue
-JS::GCPtr<SessionHistoryTraversalQueueEntry> SessionHistoryTraversalQueue::first_synchronous_navigation_steps_with_target_navigable_not_contained_in(HashTable<JS::NonnullGCPtr<Navigable>> const& set)
+GC::Ptr<SessionHistoryTraversalQueueEntry> SessionHistoryTraversalQueue::first_synchronous_navigation_steps_with_target_navigable_not_contained_in(HashTable<GC::Ref<Navigable>> const& set)
 {
     auto index = m_queue.find_first_index_if([&set](auto const& entry) -> bool {
         return (entry->target_navigable() != nullptr) && !set.contains(*entry->target_navigable());

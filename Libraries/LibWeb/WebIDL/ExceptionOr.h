@@ -32,7 +32,7 @@ struct SimpleException {
     Variant<String, StringView> message;
 };
 
-using Exception = Variant<SimpleException, JS::NonnullGCPtr<DOMException>, JS::Completion>;
+using Exception = Variant<SimpleException, GC::Ref<DOMException>, JS::Completion>;
 
 template<typename ValueType>
 class [[nodiscard]] ExceptionOr {
@@ -63,7 +63,7 @@ public:
     {
     }
 
-    ExceptionOr(JS::NonnullGCPtr<DOMException> exception)
+    ExceptionOr(GC::Ref<DOMException> exception)
         : m_result_or_exception(exception)
     {
     }
@@ -104,7 +104,7 @@ public:
 
     Exception exception() const
     {
-        return m_result_or_exception.template downcast<SimpleException, JS::NonnullGCPtr<DOMException>, JS::Completion>();
+        return m_result_or_exception.template downcast<SimpleException, GC::Ref<DOMException>, JS::Completion>();
     }
 
     bool is_exception() const
@@ -124,7 +124,7 @@ public:
 
 private:
     // https://webidl.spec.whatwg.org/#idl-exceptions
-    Variant<ValueType, SimpleException, JS::NonnullGCPtr<DOMException>, JS::Completion> m_result_or_exception;
+    Variant<ValueType, SimpleException, GC::Ref<DOMException>, JS::Completion> m_result_or_exception;
 };
 
 template<>

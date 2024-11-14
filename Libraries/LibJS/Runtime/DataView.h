@@ -15,10 +15,10 @@ namespace JS {
 
 class DataView : public Object {
     JS_OBJECT(DataView, Object);
-    JS_DECLARE_ALLOCATOR(DataView);
+    GC_DECLARE_ALLOCATOR(DataView);
 
 public:
-    static NonnullGCPtr<DataView> create(Realm&, ArrayBuffer*, ByteLength byte_length, size_t byte_offset);
+    static GC::Ref<DataView> create(Realm&, ArrayBuffer*, ByteLength byte_length, size_t byte_offset);
 
     virtual ~DataView() override = default;
 
@@ -31,14 +31,14 @@ private:
 
     virtual void visit_edges(Visitor& visitor) override;
 
-    GCPtr<ArrayBuffer> m_viewed_array_buffer;
+    GC::Ptr<ArrayBuffer> m_viewed_array_buffer;
     ByteLength m_byte_length { 0 };
     size_t m_byte_offset { 0 };
 };
 
 // 25.3.1.1 DataView With Buffer Witness Records, https://tc39.es/ecma262/#sec-dataview-with-buffer-witness-records
 struct DataViewWithBufferWitness {
-    NonnullGCPtr<DataView const> object;  // [[Object]]
+    GC::Ref<DataView const> object;       // [[Object]]
     ByteLength cached_buffer_byte_length; // [[CachedBufferByteLength]]
 };
 

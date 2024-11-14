@@ -12,14 +12,14 @@ namespace JS {
 
 class StringConstructor final : public NativeFunction {
     JS_OBJECT(StringConstructor, NativeFunction);
-    JS_DECLARE_ALLOCATOR(StringConstructor);
+    GC_DECLARE_ALLOCATOR(StringConstructor);
 
 public:
     virtual void initialize(Realm&) override;
     virtual ~StringConstructor() override = default;
 
     virtual ThrowCompletionOr<Value> call() override;
-    virtual ThrowCompletionOr<NonnullGCPtr<Object>> construct(FunctionObject& new_target) override;
+    virtual ThrowCompletionOr<GC::Ref<Object>> construct(FunctionObject& new_target) override;
 
 private:
     explicit StringConstructor(Realm&);

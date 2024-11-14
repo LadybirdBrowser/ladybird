@@ -13,9 +13,9 @@
 
 namespace Web::PerformanceTimeline {
 
-JS_DEFINE_ALLOCATOR(PerformanceObserverEntryList);
+GC_DEFINE_ALLOCATOR(PerformanceObserverEntryList);
 
-PerformanceObserverEntryList::PerformanceObserverEntryList(JS::Realm& realm, Vector<JS::NonnullGCPtr<PerformanceTimeline::PerformanceEntry>>&& entry_list)
+PerformanceObserverEntryList::PerformanceObserverEntryList(JS::Realm& realm, Vector<GC::Ref<PerformanceTimeline::PerformanceEntry>>&& entry_list)
     : Bindings::PlatformObject(realm)
     , m_entry_list(move(entry_list))
 {
@@ -36,10 +36,10 @@ void PerformanceObserverEntryList::visit_edges(Cell::Visitor& visitor)
 }
 
 // https://www.w3.org/TR/performance-timeline/#dfn-filter-buffer-by-name-and-type
-ErrorOr<Vector<JS::Handle<PerformanceTimeline::PerformanceEntry>>> filter_buffer_by_name_and_type(Vector<JS::NonnullGCPtr<PerformanceTimeline::PerformanceEntry>> const& buffer, Optional<String> name, Optional<String> type)
+ErrorOr<Vector<GC::Root<PerformanceTimeline::PerformanceEntry>>> filter_buffer_by_name_and_type(Vector<GC::Ref<PerformanceTimeline::PerformanceEntry>> const& buffer, Optional<String> name, Optional<String> type)
 {
     // 1. Let result be an initially empty list.
-    Vector<JS::Handle<PerformanceTimeline::PerformanceEntry>> result;
+    Vector<GC::Root<PerformanceTimeline::PerformanceEntry>> result;
 
     // 2. For each PerformanceEntry entry in buffer, run the following steps:
     for (auto const& entry : buffer) {
@@ -65,7 +65,7 @@ ErrorOr<Vector<JS::Handle<PerformanceTimeline::PerformanceEntry>>> filter_buffer
 }
 
 // https://w3c.github.io/performance-timeline/#dom-performanceobserverentrylist-getentries
-WebIDL::ExceptionOr<Vector<JS::Handle<PerformanceTimeline::PerformanceEntry>>> PerformanceObserverEntryList::get_entries() const
+WebIDL::ExceptionOr<Vector<GC::Root<PerformanceTimeline::PerformanceEntry>>> PerformanceObserverEntryList::get_entries() const
 {
     // Returns a PerformanceEntryList object returned by filter buffer by name and type algorithm with this's entry list,
     // name and type set to null.
@@ -73,7 +73,7 @@ WebIDL::ExceptionOr<Vector<JS::Handle<PerformanceTimeline::PerformanceEntry>>> P
 }
 
 // https://w3c.github.io/performance-timeline/#dom-performanceobserverentrylist-getentriesbytype
-WebIDL::ExceptionOr<Vector<JS::Handle<PerformanceTimeline::PerformanceEntry>>> PerformanceObserverEntryList::get_entries_by_type(String const& type) const
+WebIDL::ExceptionOr<Vector<GC::Root<PerformanceTimeline::PerformanceEntry>>> PerformanceObserverEntryList::get_entries_by_type(String const& type) const
 {
     // Returns a PerformanceEntryList object returned by filter buffer by name and type algorithm with this's entry list,
     // name set to null, and type set to the method's input type parameter.
@@ -81,7 +81,7 @@ WebIDL::ExceptionOr<Vector<JS::Handle<PerformanceTimeline::PerformanceEntry>>> P
 }
 
 // https://w3c.github.io/performance-timeline/#dom-performanceobserverentrylist-getentriesbyname
-WebIDL::ExceptionOr<Vector<JS::Handle<PerformanceTimeline::PerformanceEntry>>> PerformanceObserverEntryList::get_entries_by_name(String const& name, Optional<String> type) const
+WebIDL::ExceptionOr<Vector<GC::Root<PerformanceTimeline::PerformanceEntry>>> PerformanceObserverEntryList::get_entries_by_name(String const& name, Optional<String> type) const
 {
     // Returns a PerformanceEntryList object returned by filter buffer by name and type algorithm with this's entry list,
     // name set to the method input name parameter, and type set to null if optional entryType is omitted, or set to the

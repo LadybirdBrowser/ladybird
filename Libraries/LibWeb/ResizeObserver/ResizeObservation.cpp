@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibJS/Heap/Heap.h>
+#include <LibGC/Heap.h>
 #include <LibWeb/Bindings/ExceptionOrUtils.h>
 #include <LibWeb/DOM/Element.h>
 #include <LibWeb/Painting/PaintableBox.h>
@@ -12,9 +12,9 @@
 
 namespace Web::ResizeObserver {
 
-JS_DEFINE_ALLOCATOR(ResizeObservation);
+GC_DEFINE_ALLOCATOR(ResizeObservation);
 
-WebIDL::ExceptionOr<JS::NonnullGCPtr<ResizeObservation>> ResizeObservation::create(JS::Realm& realm, DOM::Element& target, Bindings::ResizeObserverBoxOptions observed_box)
+WebIDL::ExceptionOr<GC::Ref<ResizeObservation>> ResizeObservation::create(JS::Realm& realm, DOM::Element& target, Bindings::ResizeObserverBoxOptions observed_box)
 {
     return realm.create<ResizeObservation>(realm, target, observed_box);
 }

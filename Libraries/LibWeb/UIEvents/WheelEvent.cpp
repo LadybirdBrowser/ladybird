@@ -14,7 +14,7 @@
 
 namespace Web::UIEvents {
 
-JS_DEFINE_ALLOCATOR(WheelEvent);
+GC_DEFINE_ALLOCATOR(WheelEvent);
 
 WheelEvent::WheelEvent(JS::Realm& realm, FlyString const& event_name, WheelEventInit const& event_init, double page_x, double page_y, double offset_x, double offset_y)
     : MouseEvent(realm, event_name, event_init, page_x, page_y, offset_x, offset_y)
@@ -33,17 +33,17 @@ void WheelEvent::initialize(JS::Realm& realm)
     WEB_SET_PROTOTYPE_FOR_INTERFACE(WheelEvent);
 }
 
-JS::NonnullGCPtr<WheelEvent> WheelEvent::construct_impl(JS::Realm& realm, FlyString const& event_name, WheelEventInit const& wheel_event_init)
+GC::Ref<WheelEvent> WheelEvent::construct_impl(JS::Realm& realm, FlyString const& event_name, WheelEventInit const& wheel_event_init)
 {
     return create(realm, event_name, wheel_event_init);
 }
 
-JS::NonnullGCPtr<WheelEvent> WheelEvent::create(JS::Realm& realm, FlyString const& event_name, WheelEventInit const& event_init, double page_x, double page_y, double offset_x, double offset_y)
+GC::Ref<WheelEvent> WheelEvent::create(JS::Realm& realm, FlyString const& event_name, WheelEventInit const& event_init, double page_x, double page_y, double offset_x, double offset_y)
 {
     return realm.create<WheelEvent>(realm, event_name, event_init, page_x, page_y, offset_x, offset_y);
 }
 
-WebIDL::ExceptionOr<JS::NonnullGCPtr<WheelEvent>> WheelEvent::create_from_platform_event(JS::Realm& realm, FlyString const& event_name, CSSPixelPoint screen, CSSPixelPoint page, CSSPixelPoint client, CSSPixelPoint offset, double delta_x, double delta_y, unsigned button, unsigned buttons, unsigned modifiers)
+WebIDL::ExceptionOr<GC::Ref<WheelEvent>> WheelEvent::create_from_platform_event(JS::Realm& realm, FlyString const& event_name, CSSPixelPoint screen, CSSPixelPoint page, CSSPixelPoint client, CSSPixelPoint offset, double delta_x, double delta_y, unsigned button, unsigned buttons, unsigned modifiers)
 {
     WheelEventInit event_init {};
     event_init.ctrl_key = modifiers & Mod_Ctrl;

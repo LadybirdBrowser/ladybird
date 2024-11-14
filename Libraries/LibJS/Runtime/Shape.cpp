@@ -4,16 +4,16 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibJS/Heap/DeferGC.h>
+#include <LibGC/DeferGC.h>
 #include <LibJS/Runtime/Shape.h>
 #include <LibJS/Runtime/VM.h>
 
 namespace JS {
 
-JS_DEFINE_ALLOCATOR(Shape);
-JS_DEFINE_ALLOCATOR(PrototypeChainValidity);
+GC_DEFINE_ALLOCATOR(Shape);
+GC_DEFINE_ALLOCATOR(PrototypeChainValidity);
 
-static HashTable<JS::GCPtr<Shape>> s_all_prototype_shapes;
+static HashTable<GC::Ptr<Shape>> s_all_prototype_shapes;
 
 Shape::~Shape()
 {
@@ -21,7 +21,7 @@ Shape::~Shape()
         s_all_prototype_shapes.remove(this);
 }
 
-NonnullGCPtr<Shape> Shape::create_cacheable_dictionary_transition()
+GC::Ref<Shape> Shape::create_cacheable_dictionary_transition()
 {
     auto new_shape = heap().allocate<Shape>(m_realm);
     new_shape->m_dictionary = true;
@@ -35,7 +35,7 @@ NonnullGCPtr<Shape> Shape::create_cacheable_dictionary_transition()
     return new_shape;
 }
 
-NonnullGCPtr<Shape> Shape::create_uncacheable_dictionary_transition()
+GC::Ref<Shape> Shape::create_uncacheable_dictionary_transition()
 {
     auto new_shape = heap().allocate<Shape>(m_realm);
     new_shape->m_dictionary = true;
@@ -49,7 +49,7 @@ NonnullGCPtr<Shape> Shape::create_uncacheable_dictionary_transition()
     return new_shape;
 }
 
-GCPtr<Shape> Shape::get_or_prune_cached_forward_transition(TransitionKey const& key)
+GC::Ptr<Shape> Shape::get_or_prune_cached_forward_transition(TransitionKey const& key)
 {
     if (m_is_prototype_shape)
         return nullptr;
@@ -66,7 +66,7 @@ GCPtr<Shape> Shape::get_or_prune_cached_forward_transition(TransitionKey const& 
     return it->value.ptr();
 }
 
-GCPtr<Shape> Shape::get_or_prune_cached_delete_transition(StringOrSymbol const& key)
+GC::Ptr<Shape> Shape::get_or_prune_cached_delete_transition(StringOrSymbol const& key)
 {
     if (m_is_prototype_shape)
         return nullptr;
@@ -83,7 +83,7 @@ GCPtr<Shape> Shape::get_or_prune_cached_delete_transition(StringOrSymbol const& 
     return it->value.ptr();
 }
 
-GCPtr<Shape> Shape::get_or_prune_cached_prototype_transition(Object* prototype)
+GC::Ptr<Shape> Shape::get_or_prune_cached_prototype_transition(Object* prototype)
 {
     if (m_is_prototype_shape)
         return nullptr;
@@ -100,7 +100,7 @@ GCPtr<Shape> Shape::get_or_prune_cached_prototype_transition(Object* prototype)
     return it->value.ptr();
 }
 
-NonnullGCPtr<Shape> Shape::create_put_transition(StringOrSymbol const& property_key, PropertyAttributes attributes)
+GC::Ref<Shape> Shape::create_put_transition(StringOrSymbol const& property_key, PropertyAttributes attributes)
 {
     TransitionKey key { property_key, attributes };
     if (auto existing_shape = get_or_prune_cached_forward_transition(key))
@@ -115,7 +115,7 @@ NonnullGCPtr<Shape> Shape::create_put_transition(StringOrSymbol const& property_
     return new_shape;
 }
 
-NonnullGCPtr<Shape> Shape::create_configure_transition(StringOrSymbol const& property_key, PropertyAttributes attributes)
+GC::Ref<Shape> Shape::create_configure_transition(StringOrSymbol const& property_key, PropertyAttributes attributes)
 {
     TransitionKey key { property_key, attributes };
     if (auto existing_shape = get_or_prune_cached_forward_transition(key))
@@ -130,7 +130,7 @@ NonnullGCPtr<Shape> Shape::create_configure_transition(StringOrSymbol const& pro
     return new_shape;
 }
 
-NonnullGCPtr<Shape> Shape::create_prototype_transition(Object* new_prototype)
+GC::Ref<Shape> Shape::create_prototype_transition(Object* new_prototype)
 {
     if (new_prototype)
         new_prototype->convert_to_prototype_if_needed();
@@ -140,7 +140,7 @@ NonnullGCPtr<Shape> Shape::create_prototype_transition(Object* new_prototype)
     invalidate_prototype_if_needed_for_new_prototype(new_shape);
     if (!m_is_prototype_shape) {
         if (!m_prototype_transitions)
-            m_prototype_transitions = make<HashMap<GCPtr<Object>, WeakPtr<Shape>>>();
+            m_prototype_transitions = make<HashMap<GC::Ptr<Object>, WeakPtr<Shape>>>();
         m_prototype_transitions->set(new_prototype, new_shape.ptr());
     }
     return new_shape;
@@ -270,7 +270,7 @@ void Shape::ensure_property_table() const
     }
 }
 
-NonnullGCPtr<Shape> Shape::create_delete_transition(StringOrSymbol const& property_key)
+GC::Ref<Shape> Shape::create_delete_transition(StringOrSymbol const& property_key)
 {
     if (auto existing_shape = get_or_prune_cached_delete_transition(property_key))
         return *existing_shape;
@@ -319,7 +319,7 @@ void Shape::remove_property_without_transition(StringOrSymbol const& property_ke
     }
 }
 
-NonnullGCPtr<Shape> Shape::create_for_prototype(NonnullGCPtr<Realm> realm, GCPtr<Object> prototype)
+GC::Ref<Shape> Shape::create_for_prototype(GC::Ref<Realm> realm, GC::Ptr<Object> prototype)
 {
     auto new_shape = realm->heap().allocate<Shape>(realm);
     s_all_prototype_shapes.set(new_shape);
@@ -329,7 +329,7 @@ NonnullGCPtr<Shape> Shape::create_for_prototype(NonnullGCPtr<Realm> realm, GCPtr
     return new_shape;
 }
 
-NonnullGCPtr<Shape> Shape::clone_for_prototype()
+GC::Ref<Shape> Shape::clone_for_prototype()
 {
     VERIFY(!m_is_prototype_shape);
     VERIFY(!m_prototype_chain_validity);
@@ -360,7 +360,7 @@ void Shape::set_prototype_shape()
     m_prototype_chain_validity = heap().allocate<PrototypeChainValidity>();
 }
 
-void Shape::invalidate_prototype_if_needed_for_new_prototype(NonnullGCPtr<Shape> new_prototype_shape)
+void Shape::invalidate_prototype_if_needed_for_new_prototype(GC::Ref<Shape> new_prototype_shape)
 {
     if (!m_is_prototype_shape)
         return;

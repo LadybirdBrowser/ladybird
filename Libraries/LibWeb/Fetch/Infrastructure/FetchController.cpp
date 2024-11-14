@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibJS/Heap/Heap.h>
+#include <LibGC/Heap.h>
 #include <LibJS/Runtime/VM.h>
 #include <LibWeb/Fetch/Infrastructure/FetchAlgorithms.h>
 #include <LibWeb/Fetch/Infrastructure/FetchController.h>
@@ -14,11 +14,11 @@
 
 namespace Web::Fetch::Infrastructure {
 
-JS_DEFINE_ALLOCATOR(FetchController);
+GC_DEFINE_ALLOCATOR(FetchController);
 
 FetchController::FetchController() = default;
 
-JS::NonnullGCPtr<FetchController> FetchController::create(JS::VM& vm)
+GC::Ref<FetchController> FetchController::create(JS::VM& vm)
 {
     return vm.heap().allocate<FetchController>();
 }
@@ -34,12 +34,12 @@ void FetchController::visit_edges(JS::Cell::Visitor& visitor)
 
 void FetchController::set_report_timing_steps(Function<void(JS::Object const&)> report_timing_steps)
 {
-    m_report_timing_steps = JS::create_heap_function(vm().heap(), move(report_timing_steps));
+    m_report_timing_steps = GC::create_function(vm().heap(), move(report_timing_steps));
 }
 
 void FetchController::set_next_manual_redirect_steps(Function<void()> next_manual_redirect_steps)
 {
-    m_next_manual_redirect_steps = JS::create_heap_function(vm().heap(), move(next_manual_redirect_steps));
+    m_next_manual_redirect_steps = GC::create_function(vm().heap(), move(next_manual_redirect_steps));
 }
 
 // https://fetch.spec.whatwg.org/#finalize-and-report-timing
@@ -63,7 +63,7 @@ void FetchController::process_next_manual_redirect() const
 }
 
 // https://fetch.spec.whatwg.org/#extract-full-timing-info
-JS::NonnullGCPtr<FetchTimingInfo> FetchController::extract_full_timing_info() const
+GC::Ref<FetchTimingInfo> FetchController::extract_full_timing_info() const
 {
     // 1. Assert: this’s full timing info is not null.
     VERIFY(m_full_timing_info);

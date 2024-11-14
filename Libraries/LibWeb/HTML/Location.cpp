@@ -7,7 +7,7 @@
 
 #include <AK/String.h>
 #include <AK/StringBuilder.h>
-#include <LibJS/Heap/MarkedVector.h>
+#include <LibGC/MarkedVector.h>
 #include <LibJS/Runtime/Completion.h>
 #include <LibJS/Runtime/PropertyDescriptor.h>
 #include <LibJS/Runtime/PropertyKey.h>
@@ -22,7 +22,7 @@
 
 namespace Web::HTML {
 
-JS_DEFINE_ALLOCATOR(Location);
+GC_DEFINE_ALLOCATOR(Location);
 
 // https://html.spec.whatwg.org/multipage/history.html#the-location-interface
 Location::Location(JS::Realm& realm)
@@ -51,7 +51,7 @@ void Location::initialize(JS::Realm& realm)
 }
 
 // https://html.spec.whatwg.org/multipage/history.html#relevant-document
-JS::GCPtr<DOM::Document> Location::relevant_document() const
+GC::Ptr<DOM::Document> Location::relevant_document() const
 {
     // A Location object has an associated relevant Document, which is this Location object's
     // relevant global object's browsing context's active document, if this Location object's
@@ -579,7 +579,7 @@ JS::ThrowCompletionOr<bool> Location::internal_delete(JS::PropertyKey const& pro
 }
 
 // 7.10.5.10 [[OwnPropertyKeys]] ( ), https://html.spec.whatwg.org/multipage/history.html#location-ownpropertykeys
-JS::ThrowCompletionOr<JS::MarkedVector<JS::Value>> Location::internal_own_property_keys() const
+JS::ThrowCompletionOr<GC::MarkedVector<JS::Value>> Location::internal_own_property_keys() const
 {
     // 1. If IsPlatformObjectSameOrigin(this) is true, then return OrdinaryOwnPropertyKeys(this).
     if (HTML::is_platform_object_same_origin(*this))

@@ -20,10 +20,10 @@ class CSSImportRule final
     : public CSSRule
     , public ResourceClient {
     WEB_PLATFORM_OBJECT(CSSImportRule, CSSRule);
-    JS_DECLARE_ALLOCATOR(CSSImportRule);
+    GC_DECLARE_ALLOCATOR(CSSImportRule);
 
 public:
-    [[nodiscard]] static JS::NonnullGCPtr<CSSImportRule> create(URL::URL, DOM::Document&);
+    [[nodiscard]] static GC::Ref<CSSImportRule> create(URL::URL, DOM::Document&);
 
     virtual ~CSSImportRule() = default;
 
@@ -49,8 +49,8 @@ private:
     virtual void resource_did_load() override;
 
     URL::URL m_url;
-    JS::GCPtr<DOM::Document> m_document;
-    JS::GCPtr<CSSStyleSheet> m_style_sheet;
+    GC::Ptr<DOM::Document> m_document;
+    GC::Ptr<CSSStyleSheet> m_style_sheet;
     Optional<DOM::DocumentLoadEventDelayer> m_document_load_event_delayer;
 };
 

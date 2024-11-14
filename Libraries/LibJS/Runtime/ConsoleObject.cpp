@@ -13,9 +13,9 @@
 
 namespace JS {
 
-JS_DEFINE_ALLOCATOR(ConsoleObject);
+GC_DEFINE_ALLOCATOR(ConsoleObject);
 
-static NonnullGCPtr<ConsoleObjectPrototype> create_console_prototype(Realm& realm)
+static GC::Ref<ConsoleObjectPrototype> create_console_prototype(Realm& realm)
 {
     return realm.create<ConsoleObjectPrototype>(realm);
 }

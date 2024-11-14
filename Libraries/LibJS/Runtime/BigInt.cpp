@@ -5,15 +5,15 @@
  */
 
 #include <LibCrypto/BigInt/SignedBigInteger.h>
-#include <LibJS/Heap/Heap.h>
+#include <LibGC/Heap.h>
 #include <LibJS/Runtime/BigInt.h>
 #include <LibJS/Runtime/GlobalObject.h>
 
 namespace JS {
 
-JS_DEFINE_ALLOCATOR(BigInt);
+GC_DEFINE_ALLOCATOR(BigInt);
 
-NonnullGCPtr<BigInt> BigInt::create(VM& vm, Crypto::SignedBigInteger big_integer)
+GC::Ref<BigInt> BigInt::create(VM& vm, Crypto::SignedBigInteger big_integer)
 {
     return vm.heap().allocate<BigInt>(move(big_integer));
 }

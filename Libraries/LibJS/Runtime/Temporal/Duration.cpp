@@ -25,7 +25,7 @@
 
 namespace JS::Temporal {
 
-JS_DEFINE_ALLOCATOR(Duration);
+GC_DEFINE_ALLOCATOR(Duration);
 
 // 7 Temporal.Duration Objects, https://tc39.es/proposal-temporal/#sec-temporal-duration-objects
 Duration::Duration(double years, double months, double weeks, double days, double hours, double minutes, double seconds, double milliseconds, double microseconds, double nanoseconds, Object& prototype)
@@ -127,7 +127,7 @@ ThrowCompletionOr<TimeDurationRecord> create_time_duration_record(VM& vm, double
 }
 
 // 7.5.8 ToTemporalDuration ( item ), https://tc39.es/proposal-temporal/#sec-temporal-totemporalduration
-ThrowCompletionOr<NonnullGCPtr<Duration>> to_temporal_duration(VM& vm, Value item)
+ThrowCompletionOr<GC::Ref<Duration>> to_temporal_duration(VM& vm, Value item)
 {
     // 1. If Type(item) is Object and item has an [[InitializedTemporalDuration]] internal slot, then
     if (item.is_object() && is<Duration>(item.as_object())) {
@@ -433,7 +433,7 @@ ThrowCompletionOr<PartialDurationRecord> to_temporal_partial_duration_record(VM&
 }
 
 // 7.5.14 CreateTemporalDuration ( years, months, weeks, days, hours, minutes, seconds, milliseconds, microseconds, nanoseconds [ , newTarget ] ), https://tc39.es/proposal-temporal/#sec-temporal-createtemporalduration
-ThrowCompletionOr<NonnullGCPtr<Duration>> create_temporal_duration(VM& vm, double years, double months, double weeks, double days, double hours, double minutes, double seconds, double milliseconds, double microseconds, double nanoseconds, FunctionObject const* new_target)
+ThrowCompletionOr<GC::Ref<Duration>> create_temporal_duration(VM& vm, double years, double months, double weeks, double days, double hours, double minutes, double seconds, double milliseconds, double microseconds, double nanoseconds, FunctionObject const* new_target)
 {
     auto& realm = *vm.current_realm();
 
@@ -463,7 +463,7 @@ ThrowCompletionOr<NonnullGCPtr<Duration>> create_temporal_duration(VM& vm, doubl
 }
 
 // 7.5.15 CreateNegatedTemporalDuration ( duration ), https://tc39.es/proposal-temporal/#sec-temporal-createnegatedtemporalduration
-NonnullGCPtr<Duration> create_negated_temporal_duration(VM& vm, Duration const& duration)
+GC::Ref<Duration> create_negated_temporal_duration(VM& vm, Duration const& duration)
 {
     // 1. Return ! CreateTemporalDuration(-duration.[[Years]], -duration.[[Months]], -duration.[[Weeks]], -duration.[[Days]], -duration.[[Hours]], -duration.[[Minutes]], -duration.[[Seconds]], -duration.[[Milliseconds]], -duration.[[Microseconds]], -duration.[[Nanoseconds]]).
     return MUST(create_temporal_duration(vm, -duration.years(), -duration.months(), -duration.weeks(), -duration.days(), -duration.hours(), -duration.minutes(), -duration.seconds(), -duration.milliseconds(), -duration.microseconds(), -duration.nanoseconds()));
@@ -477,7 +477,7 @@ ThrowCompletionOr<double> calculate_offset_shift(VM& vm, Value relative_to_value
         return 0.0;
 
     auto& relative_to = static_cast<ZonedDateTime&>(relative_to_value.as_object());
-    auto time_zone_record = TRY(create_time_zone_methods_record(vm, NonnullGCPtr<Object> { relative_to.time_zone() }, { { TimeZoneMethod::GetOffsetNanosecondsFor } }));
+    auto time_zone_record = TRY(create_time_zone_methods_record(vm, GC::Ref<Object> { relative_to.time_zone() }, { { TimeZoneMethod::GetOffsetNanosecondsFor } }));
 
     // 2. Let instant be ! CreateTemporalInstant(relativeTo.[[Nanoseconds]]).
     auto* instant = MUST(create_temporal_instant(vm, relative_to.nanoseconds()));
@@ -921,7 +921,7 @@ ThrowCompletionOr<DateDurationRecord> unbalance_duration_relative(VM& vm, double
 
             // FIXME: AD-HOC calendar records use as this AO is not up to date with latest spec
             // iv. Let untilResult be ? CalendarDateUntil(calendar, relativeTo, newRelativeTo, untilOptions, dateUntil).
-            auto calendar_record = TRY(create_calendar_methods_record(vm, NonnullGCPtr<Object> { *calendar }, { { CalendarMethod::DateAdd, CalendarMethod::DateUntil } }));
+            auto calendar_record = TRY(create_calendar_methods_record(vm, GC::Ref<Object> { *calendar }, { { CalendarMethod::DateAdd, CalendarMethod::DateUntil } }));
             auto until_result = TRY(calendar_date_until(vm, calendar_record, relative_to, new_relative_to, *until_options));
 
             // v. Let oneYearMonths be untilResult.[[Months]].
@@ -1159,7 +1159,7 @@ ThrowCompletionOr<DateDurationRecord> balance_duration_relative(VM& vm, double y
 
         // FIXME: AD-HOC calendar records use as this AO is not up to date with latest spec
         // n. Let untilResult be ? CalendarDateUntil(calendar, relativeTo, newRelativeTo, untilOptions, dateUntil).
-        auto calendar_record = TRY(create_calendar_methods_record(vm, NonnullGCPtr<Object> { calendar }, { { CalendarMethod::DateAdd, CalendarMethod::DateUntil } }));
+        auto calendar_record = TRY(create_calendar_methods_record(vm, GC::Ref<Object> { calendar }, { { CalendarMethod::DateAdd, CalendarMethod::DateUntil } }));
         auto until_result = TRY(calendar_date_until(vm, calendar_record, relative_to, new_relative_to, *until_options));
 
         // o. Let oneYearMonths be untilResult.[[Months]].
@@ -1342,7 +1342,7 @@ ThrowCompletionOr<DurationRecord> add_duration(VM& vm, double years1, double mon
 
         // j. Let dateDifference be ? CalendarDateUntil(calendar, relativeTo, end, differenceOptions).
         // FIXME: AD-HOC calendar records use as this AO is not up to date with latest spec
-        auto calendar_record = TRY(create_calendar_methods_record(vm, NonnullGCPtr<Object> { calendar }, { { CalendarMethod::DateAdd, CalendarMethod::DateUntil } }));
+        auto calendar_record = TRY(create_calendar_methods_record(vm, GC::Ref<Object> { calendar }, { { CalendarMethod::DateAdd, CalendarMethod::DateUntil } }));
         auto date_difference = TRY(calendar_date_until(vm, calendar_record, &relative_to, end, *difference_options));
 
         // k. Let result be ? BalanceDuration(dateDifference.[[Days]], h1 + h2, min1 + min2, s1 + s2, ms1 + ms2, mus1 + mus2, ns1 + ns2, largestUnit).
@@ -1398,7 +1398,7 @@ ThrowCompletionOr<MoveRelativeDateResult> move_relative_date(VM& vm, Object& cal
     auto days = days_until(relative_to, *new_date);
 
     // 3. Return the Record { [[RelativeTo]]: newDate, [[Days]]: days }.
-    return MoveRelativeDateResult { .relative_to = make_handle(new_date), .days = days };
+    return MoveRelativeDateResult { .relative_to = make_root(new_date), .days = days };
 }
 
 // 7.5.24 MoveRelativeZonedDateTime ( zonedDateTime, years, months, weeks, days ), https://tc39.es/proposal-temporal/#sec-temporal-moverelativezoneddatetime
@@ -2068,7 +2068,7 @@ ThrowCompletionOr<String> temporal_duration_to_string(VM& vm, double years, doub
 }
 
 // 7.5.28 AddDurationToOrSubtractDurationFromDuration ( operation, duration, other, options ), https://tc39.es/proposal-temporal/#sec-temporal-adddurationtoorsubtractdurationfromduration
-ThrowCompletionOr<NonnullGCPtr<Duration>> add_duration_to_or_subtract_duration_from_duration(VM& vm, ArithmeticOperation operation, Duration const& duration, Value other_value, Value options_value)
+ThrowCompletionOr<GC::Ref<Duration>> add_duration_to_or_subtract_duration_from_duration(VM& vm, ArithmeticOperation operation, Duration const& duration, Value other_value, Value options_value)
 {
     // 1. If operation is subtract, let sign be -1. Otherwise, let sign be 1.
     i8 sign = operation == ArithmeticOperation::Subtract ? -1 : 1;

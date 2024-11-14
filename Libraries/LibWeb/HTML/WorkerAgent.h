@@ -20,10 +20,10 @@ struct WorkerOptions {
 };
 
 class WorkerAgent : public JS::Cell {
-    JS_CELL(WorkerAgent, JS::Cell);
-    JS_DECLARE_ALLOCATOR(WorkerAgent);
+    GC_CELL(WorkerAgent, JS::Cell);
+    GC_DECLARE_ALLOCATOR(WorkerAgent);
 
-    WorkerAgent(URL::URL url, WorkerOptions const& options, JS::GCPtr<MessagePort> outside_port, JS::NonnullGCPtr<EnvironmentSettingsObject> outside_settings);
+    WorkerAgent(URL::URL url, WorkerOptions const& options, GC::Ptr<MessagePort> outside_port, GC::Ref<EnvironmentSettingsObject> outside_settings);
 
 private:
     virtual void initialize(JS::Realm&) override;
@@ -32,9 +32,9 @@ private:
     WorkerOptions m_worker_options;
     URL::URL m_url;
 
-    JS::GCPtr<MessagePort> m_message_port;
-    JS::GCPtr<MessagePort> m_outside_port;
-    JS::NonnullGCPtr<EnvironmentSettingsObject> m_outside_settings;
+    GC::Ptr<MessagePort> m_message_port;
+    GC::Ptr<MessagePort> m_outside_port;
+    GC::Ref<EnvironmentSettingsObject> m_outside_settings;
 
     RefPtr<Web::HTML::WebWorkerClient> m_worker_ipc;
 };

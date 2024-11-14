@@ -11,16 +11,16 @@
 
 namespace Web::DOM {
 
-JS_DEFINE_ALLOCATOR(AbortController);
+GC_DEFINE_ALLOCATOR(AbortController);
 
-WebIDL::ExceptionOr<JS::NonnullGCPtr<AbortController>> AbortController::construct_impl(JS::Realm& realm)
+WebIDL::ExceptionOr<GC::Ref<AbortController>> AbortController::construct_impl(JS::Realm& realm)
 {
     auto signal = TRY(AbortSignal::construct_impl(realm));
     return realm.create<AbortController>(realm, move(signal));
 }
 
 // https://dom.spec.whatwg.org/#dom-abortcontroller-abortcontroller
-AbortController::AbortController(JS::Realm& realm, JS::NonnullGCPtr<AbortSignal> signal)
+AbortController::AbortController(JS::Realm& realm, GC::Ref<AbortSignal> signal)
     : PlatformObject(realm)
     , m_signal(move(signal))
 {

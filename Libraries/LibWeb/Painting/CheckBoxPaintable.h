@@ -12,11 +12,11 @@
 namespace Web::Painting {
 
 class CheckBoxPaintable final : public LabelablePaintable {
-    JS_CELL(CheckBoxPaintable, LabelablePaintable);
-    JS_DECLARE_ALLOCATOR(CheckBoxPaintable);
+    GC_CELL(CheckBoxPaintable, LabelablePaintable);
+    GC_DECLARE_ALLOCATOR(CheckBoxPaintable);
 
 public:
-    static JS::NonnullGCPtr<CheckBoxPaintable> create(Layout::CheckBox const&);
+    static GC::Ref<CheckBoxPaintable> create(Layout::CheckBox const&);
 
     Layout::CheckBox const& layout_box() const;
     Layout::CheckBox& layout_box();

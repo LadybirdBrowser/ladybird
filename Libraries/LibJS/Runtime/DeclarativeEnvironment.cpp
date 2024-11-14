@@ -13,7 +13,7 @@
 
 namespace JS {
 
-JS_DEFINE_ALLOCATOR(DeclarativeEnvironment);
+GC_DEFINE_ALLOCATOR(DeclarativeEnvironment);
 
 DeclarativeEnvironment* DeclarativeEnvironment::create_for_per_iteration_bindings(Badge<ForStatement>, DeclarativeEnvironment& other, size_t bindings_size)
 {

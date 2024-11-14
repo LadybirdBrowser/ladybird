@@ -12,7 +12,7 @@ class TestClass : JS::Object {
     JS_OBJECT(TestClass, JS::Object);
 
     struct NestedClassOk : JS::Cell {
-        JS_CELL(NestedClassOk, JS::Cell);
+        GC_CELL(NestedClassOk, JS::Cell);
     };
 
     // expected-error@+1 {{Expected record to have a JS_OBJECT macro invocation}}
@@ -26,7 +26,7 @@ class TestClass : JS::Object {
 // Same test, but the parent object is not a cell
 class TestClass2 {
     struct NestedClassOk : JS::Cell {
-        JS_CELL(NestedClassOk, JS::Cell);
+        GC_CELL(NestedClassOk, JS::Cell);
     };
 
     // expected-error@+1 {{Expected record to have a JS_OBJECT macro invocation}}

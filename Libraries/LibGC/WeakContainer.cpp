@@ -4,10 +4,10 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibJS/Heap/Heap.h>
-#include <LibJS/Heap/WeakContainer.h>
+#include <LibGC/Heap.h>
+#include <LibGC/WeakContainer.h>
 
-namespace JS {
+namespace GC {
 
 WeakContainer::WeakContainer(Heap& heap)
     : m_heap(heap)

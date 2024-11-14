@@ -15,7 +15,7 @@
 
 namespace JS::Intl {
 
-JS_DEFINE_ALLOCATOR(DurationFormatConstructor);
+GC_DEFINE_ALLOCATOR(DurationFormatConstructor);
 
 // 1.2 The Intl.DurationFormat Constructor, https://tc39.es/proposal-intl-duration-format/#sec-intl-durationformat-constructor
 DurationFormatConstructor::DurationFormatConstructor(Realm& realm)
@@ -45,7 +45,7 @@ ThrowCompletionOr<Value> DurationFormatConstructor::call()
 }
 
 // 1.2.1 Intl.DurationFormat ( [ locales [ , options ] ] ), https://tc39.es/proposal-intl-duration-format/#sec-Intl.DurationFormat
-ThrowCompletionOr<NonnullGCPtr<Object>> DurationFormatConstructor::construct(FunctionObject& new_target)
+ThrowCompletionOr<GC::Ref<Object>> DurationFormatConstructor::construct(FunctionObject& new_target)
 {
     auto& vm = this->vm();
 

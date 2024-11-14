@@ -14,22 +14,22 @@ namespace Web::DOM {
 // https://dom.spec.whatwg.org/#nodeiterator
 class NodeIterator final : public Bindings::PlatformObject {
     WEB_PLATFORM_OBJECT(NodeIterator, Bindings::PlatformObject);
-    JS_DECLARE_ALLOCATOR(NodeIterator);
+    GC_DECLARE_ALLOCATOR(NodeIterator);
 
 public:
-    static WebIDL::ExceptionOr<JS::NonnullGCPtr<NodeIterator>> create(Node& root, unsigned what_to_show, JS::GCPtr<NodeFilter>);
+    static WebIDL::ExceptionOr<GC::Ref<NodeIterator>> create(Node& root, unsigned what_to_show, GC::Ptr<NodeFilter>);
 
     virtual ~NodeIterator() override;
 
-    JS::NonnullGCPtr<Node> root() { return m_root; }
-    JS::NonnullGCPtr<Node> reference_node() { return m_reference.node; }
+    GC::Ref<Node> root() { return m_root; }
+    GC::Ref<Node> reference_node() { return m_reference.node; }
     bool pointer_before_reference_node() const { return m_reference.is_before_node; }
     unsigned what_to_show() const { return m_what_to_show; }
 
     NodeFilter* filter() { return m_filter.ptr(); }
 
-    JS::ThrowCompletionOr<JS::GCPtr<Node>> next_node();
-    JS::ThrowCompletionOr<JS::GCPtr<Node>> previous_node();
+    JS::ThrowCompletionOr<GC::Ptr<Node>> next_node();
+    JS::ThrowCompletionOr<GC::Ptr<Node>> previous_node();
 
     void detach();
 
@@ -47,15 +47,15 @@ private:
         Previous,
     };
 
-    JS::ThrowCompletionOr<JS::GCPtr<Node>> traverse(Direction);
+    JS::ThrowCompletionOr<GC::Ptr<Node>> traverse(Direction);
 
     JS::ThrowCompletionOr<NodeFilter::Result> filter(Node&);
 
     // https://dom.spec.whatwg.org/#concept-traversal-root
-    JS::NonnullGCPtr<Node> m_root;
+    GC::Ref<Node> m_root;
 
     struct NodePointer {
-        JS::NonnullGCPtr<Node> node;
+        GC::Ref<Node> node;
 
         // https://dom.spec.whatwg.org/#nodeiterator-pointer-before-reference
         bool is_before_node { true };
@@ -74,7 +74,7 @@ private:
     unsigned m_what_to_show { 0 };
 
     // https://dom.spec.whatwg.org/#concept-traversal-filter
-    JS::GCPtr<NodeFilter> m_filter;
+    GC::Ptr<NodeFilter> m_filter;
 
     // https://dom.spec.whatwg.org/#concept-traversal-active
     bool m_active { false };

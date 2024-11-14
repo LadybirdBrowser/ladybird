@@ -32,7 +32,7 @@
 
 RefPtr<JS::VM> g_vm;
 Vector<String> g_repl_statements;
-JS::Handle<JS::Value> g_last_value = JS::make_handle(JS::js_undefined());
+GC::Root<JS::Value> g_last_value = GC::make_root(JS::js_undefined());
 
 class ReplObject final : public JS::GlobalObject {
     JS_OBJECT(ReplObject, JS::GlobalObject);
@@ -259,7 +259,7 @@ static ErrorOr<bool> parse_and_run(JS::Realm& realm, StringView source, StringVi
     };
 
     if (!result.is_error())
-        g_last_value = JS::make_handle(result.value());
+        g_last_value = GC::make_root(result.value());
 
     if (result.is_error()) {
         VERIFY(result.throw_completion().value().has_value());
@@ -448,7 +448,7 @@ static ErrorOr<void> repl(JS::Realm& realm)
 }
 
 class ReplConsoleClient final : public JS::ConsoleClient {
-    JS_CELL(ReplConsoleClient, JS::ConsoleClient);
+    GC_CELL(ReplConsoleClient, JS::ConsoleClient);
 
 public:
     ReplConsoleClient(JS::Console& console)
@@ -494,7 +494,7 @@ public:
             return JS::js_undefined();
         }
 
-        auto output = TRY(generically_format_values(arguments.get<JS::MarkedVector<JS::Value>>()));
+        auto output = TRY(generically_format_values(arguments.get<GC::MarkedVector<JS::Value>>()));
 
         switch (log_level) {
         case JS::Console::LogLevel::Debug:

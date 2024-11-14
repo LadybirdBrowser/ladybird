@@ -8,7 +8,7 @@
 
 namespace Web::WebGL {
 
-JS_DEFINE_ALLOCATOR(WebGLActiveInfo);
+GC_DEFINE_ALLOCATOR(WebGLActiveInfo);
 
 WebGLActiveInfo::WebGLActiveInfo(JS::Realm& realm)
     : Bindings::PlatformObject(realm)

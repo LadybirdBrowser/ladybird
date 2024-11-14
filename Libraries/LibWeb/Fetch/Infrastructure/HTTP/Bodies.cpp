@@ -16,24 +16,24 @@
 
 namespace Web::Fetch::Infrastructure {
 
-JS_DEFINE_ALLOCATOR(Body);
+GC_DEFINE_ALLOCATOR(Body);
 
-JS::NonnullGCPtr<Body> Body::create(JS::VM& vm, JS::NonnullGCPtr<Streams::ReadableStream> stream)
+GC::Ref<Body> Body::create(JS::VM& vm, GC::Ref<Streams::ReadableStream> stream)
 {
     return vm.heap().allocate<Body>(stream);
 }
 
-JS::NonnullGCPtr<Body> Body::create(JS::VM& vm, JS::NonnullGCPtr<Streams::ReadableStream> stream, SourceType source, Optional<u64> length)
+GC::Ref<Body> Body::create(JS::VM& vm, GC::Ref<Streams::ReadableStream> stream, SourceType source, Optional<u64> length)
 {
     return vm.heap().allocate<Body>(stream, source, length);
 }
 
-Body::Body(JS::NonnullGCPtr<Streams::ReadableStream> stream)
+Body::Body(GC::Ref<Streams::ReadableStream> stream)
     : m_stream(move(stream))
 {
 }
 
-Body::Body(JS::NonnullGCPtr<Streams::ReadableStream> stream, SourceType source, Optional<u64> length)
+Body::Body(GC::Ref<Streams::ReadableStream> stream, SourceType source, Optional<u64> length)
     : m_stream(move(stream))
     , m_source(move(source))
     , m_length(move(length))
@@ -47,7 +47,7 @@ void Body::visit_edges(Cell::Visitor& visitor)
 }
 
 // https://fetch.spec.whatwg.org/#concept-body-clone
-JS::NonnullGCPtr<Body> Body::clone(JS::Realm& realm)
+GC::Ref<Body> Body::clone(JS::Realm& realm)
 {
     HTML::TemporaryExecutionContext execution_context { realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
 
@@ -68,21 +68,21 @@ void Body::fully_read(JS::Realm& realm, Web::Fetch::Infrastructure::Body::Proces
     // FIXME: 1. If taskDestination is null, then set taskDestination to the result of starting a new parallel queue.
     // FIXME: Handle 'parallel queue' task destination
     VERIFY(!task_destination.has<Empty>());
-    auto task_destination_object = task_destination.get<JS::NonnullGCPtr<JS::Object>>();
+    auto task_destination_object = task_destination.get<GC::Ref<JS::Object>>();
 
     // 2. Let successSteps given a byte sequence bytes be to queue a fetch task to run processBody given bytes, with taskDestination.
     auto success_steps = [&realm, process_body, task_destination_object = task_destination_object](ReadonlyBytes bytes) -> ErrorOr<void> {
         // Make a copy of the bytes, as the source of the bytes may disappear between the time the task is queued and executed.
         auto bytes_copy = TRY(ByteBuffer::copy(bytes));
-        queue_fetch_task(*task_destination_object, JS::create_heap_function(realm.heap(), [process_body, bytes_copy = move(bytes_copy)]() mutable {
+        queue_fetch_task(*task_destination_object, GC::create_function(realm.heap(), [process_body, bytes_copy = move(bytes_copy)]() mutable {
             process_body->function()(move(bytes_copy));
         }));
         return {};
     };
 
     // 3. Let errorSteps optionally given an exception exception be to queue a fetch task to run processBodyError given exception, with taskDestination.
-    auto error_steps = [&realm, process_body_error, task_destination_object](JS::GCPtr<WebIDL::DOMException> exception) {
-        queue_fetch_task(*task_destination_object, JS::create_heap_function(realm.heap(), [process_body_error, exception]() {
+    auto error_steps = [&realm, process_body_error, task_destination_object](GC::Ptr<WebIDL::DOMException> exception) {
+        queue_fetch_task(*task_destination_object, GC::create_function(realm.heap(), [process_body_error, exception]() {
             process_body_error->function()(exception);
         }));
     };
@@ -95,7 +95,7 @@ void Body::fully_read(JS::Realm& realm, Web::Fetch::Infrastructure::Body::Proces
             if (auto result = success_steps(byte_buffer); result.is_error())
                 error_steps(WebIDL::UnknownError::create(realm, "Out-of-memory"_string));
         },
-        [&](JS::Handle<FileAPI::Blob> const& blob) {
+        [&](GC::Root<FileAPI::Blob> const& blob) {
             if (auto result = success_steps(blob->raw_bytes()); result.is_error())
                 error_steps(WebIDL::UnknownError::create(realm, "Out-of-memory"_string));
         },
@@ -109,7 +109,7 @@ void Body::incrementally_read(ProcessBodyChunkCallback process_body_chunk, Proce
 {
     HTML::TemporaryExecutionContext const execution_context { m_stream->realm(), HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
 
-    VERIFY(task_destination.has<JS::NonnullGCPtr<JS::Object>>());
+    VERIFY(task_destination.has<GC::Ref<JS::Object>>());
     // FIXME: 1. If taskDestination is null, then set taskDestination to the result of starting a new parallel queue.
     // FIXME: Handle 'parallel queue' task destination
 
@@ -118,11 +118,11 @@ void Body::incrementally_read(ProcessBodyChunkCallback process_body_chunk, Proce
     auto reader = MUST(Streams::acquire_readable_stream_default_reader(m_stream));
 
     // 3. Perform the incrementally-read loop given reader, taskDestination, processBodyChunk, processEndOfBody, and processBodyError.
-    incrementally_read_loop(reader, task_destination.get<JS::NonnullGCPtr<JS::Object>>(), process_body_chunk, process_end_of_body, process_body_error);
+    incrementally_read_loop(reader, task_destination.get<GC::Ref<JS::Object>>(), process_body_chunk, process_end_of_body, process_body_error);
 }
 
 // https://fetch.spec.whatwg.org/#incrementally-read-loop
-void Body::incrementally_read_loop(Streams::ReadableStreamDefaultReader& reader, JS::NonnullGCPtr<JS::Object> task_destination, ProcessBodyChunkCallback process_body_chunk, ProcessEndOfBodyCallback process_end_of_body, ProcessBodyErrorCallback process_body_error)
+void Body::incrementally_read_loop(Streams::ReadableStreamDefaultReader& reader, GC::Ref<JS::Object> task_destination, ProcessBodyChunkCallback process_body_chunk, ProcessEndOfBodyCallback process_end_of_body, ProcessBodyErrorCallback process_body_error)
 
 {
     auto& realm = reader.realm();
@@ -134,7 +134,7 @@ void Body::incrementally_read_loop(Streams::ReadableStreamDefaultReader& reader,
 }
 
 // https://fetch.spec.whatwg.org/#byte-sequence-as-a-body
-WebIDL::ExceptionOr<JS::NonnullGCPtr<Body>> byte_sequence_as_body(JS::Realm& realm, ReadonlyBytes bytes)
+WebIDL::ExceptionOr<GC::Ref<Body>> byte_sequence_as_body(JS::Realm& realm, ReadonlyBytes bytes)
 {
     // To get a byte sequence bytes as a body, return the body of the result of safely extracting bytes.
     auto [body, _] = TRY(safely_extract_body(realm, bytes));

@@ -20,25 +20,25 @@ namespace Web::HTML {
 
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#document-state-2
 class DocumentState final : public JS::Cell {
-    JS_CELL(DocumentState, JS::Cell);
-    JS_DECLARE_ALLOCATOR(DocumentState);
+    GC_CELL(DocumentState, JS::Cell);
+    GC_DECLARE_ALLOCATOR(DocumentState);
 
 public:
     struct NestedHistory {
         String id;
-        Vector<JS::NonnullGCPtr<SessionHistoryEntry>> entries;
+        Vector<GC::Ref<SessionHistoryEntry>> entries;
     };
 
     virtual ~DocumentState();
 
-    JS::NonnullGCPtr<DocumentState> clone() const;
+    GC::Ref<DocumentState> clone() const;
 
     enum class Client {
         Tag,
     };
 
-    [[nodiscard]] JS::GCPtr<DOM::Document> document() const { return m_document; }
-    void set_document(JS::GCPtr<DOM::Document> document) { m_document = document; }
+    [[nodiscard]] GC::Ptr<DOM::Document> document() const { return m_document; }
+    void set_document(GC::Ptr<DOM::Document> document) { m_document = document; }
 
     [[nodiscard]] Variant<PolicyContainer, Client> history_policy_container() const { return m_history_policy_container; }
     void set_history_policy_container(Variant<PolicyContainer, Client> history_policy_container) { m_history_policy_container = move(history_policy_container); }
@@ -79,7 +79,7 @@ private:
     void visit_edges(Cell::Visitor&) override;
 
     // https://html.spec.whatwg.org/multipage/browsing-the-web.html#document-state-document
-    JS::GCPtr<DOM::Document> m_document;
+    GC::Ptr<DOM::Document> m_document;
 
     // https://html.spec.whatwg.org/multipage/browsing-the-web.html#document-state-history-policy-container
     Variant<PolicyContainer, Client> m_history_policy_container { Client::Tag };

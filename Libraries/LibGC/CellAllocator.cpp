@@ -5,12 +5,12 @@
  */
 
 #include <AK/Badge.h>
-#include <LibJS/Heap/BlockAllocator.h>
-#include <LibJS/Heap/CellAllocator.h>
-#include <LibJS/Heap/Heap.h>
-#include <LibJS/Heap/HeapBlock.h>
+#include <LibGC/BlockAllocator.h>
+#include <LibGC/CellAllocator.h>
+#include <LibGC/Heap.h>
+#include <LibGC/HeapBlock.h>
 
-namespace JS {
+namespace GC {
 
 CellAllocator::CellAllocator(size_t cell_size, char const* class_name)
     : m_class_name(class_name)
@@ -18,7 +18,7 @@ CellAllocator::CellAllocator(size_t cell_size, char const* class_name)
 {
 }
 
-CellImpl* CellAllocator::allocate_cell(Heap& heap)
+Cell* CellAllocator::allocate_cell(Heap& heap)
 {
     if (!m_list_node.is_in_list())
         heap.register_cell_allocator({}, *this);

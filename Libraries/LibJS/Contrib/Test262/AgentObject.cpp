@@ -12,7 +12,7 @@
 
 namespace JS::Test262 {
 
-JS_DEFINE_ALLOCATOR(AgentObject);
+GC_DEFINE_ALLOCATOR(AgentObject);
 
 AgentObject::AgentObject(Realm& realm)
     : Object(Object::ConstructWithoutPrototypeTag::Tag, realm)

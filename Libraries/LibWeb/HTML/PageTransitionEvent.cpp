@@ -10,14 +10,14 @@
 
 namespace Web::HTML {
 
-JS_DEFINE_ALLOCATOR(PageTransitionEvent);
+GC_DEFINE_ALLOCATOR(PageTransitionEvent);
 
-JS::NonnullGCPtr<PageTransitionEvent> PageTransitionEvent::create(JS::Realm& realm, FlyString const& event_name, PageTransitionEventInit const& event_init)
+GC::Ref<PageTransitionEvent> PageTransitionEvent::create(JS::Realm& realm, FlyString const& event_name, PageTransitionEventInit const& event_init)
 {
     return realm.create<PageTransitionEvent>(realm, event_name, event_init);
 }
 
-WebIDL::ExceptionOr<JS::NonnullGCPtr<PageTransitionEvent>> PageTransitionEvent::construct_impl(JS::Realm& realm, FlyString const& event_name, PageTransitionEventInit const& event_init)
+WebIDL::ExceptionOr<GC::Ref<PageTransitionEvent>> PageTransitionEvent::construct_impl(JS::Realm& realm, FlyString const& event_name, PageTransitionEventInit const& event_init)
 {
     return create(realm, event_name, event_init);
 }

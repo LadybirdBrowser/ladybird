@@ -58,7 +58,7 @@ WebIDL::ExceptionOr<WebIDL::Long> SVGTextContentElement::get_number_of_chars() c
     return static_cast<WebIDL::Long>(chars.size());
 }
 
-JS::NonnullGCPtr<Geometry::DOMPoint> SVGTextContentElement::get_start_position_of_char(WebIDL::UnsignedLong charnum)
+GC::Ref<Geometry::DOMPoint> SVGTextContentElement::get_start_position_of_char(WebIDL::UnsignedLong charnum)
 {
     dbgln("(STUBBED) SVGTextContentElement::get_start_position_of_char(charnum={}). Called on: {}", charnum, debug_description());
     return Geometry::DOMPoint::from_point(vm(), Geometry::DOMPointInit {});

@@ -25,19 +25,19 @@ struct AudioTimestamp {
 // https://webaudio.github.io/web-audio-api/#AudioContext
 class AudioContext final : public BaseAudioContext {
     WEB_PLATFORM_OBJECT(AudioContext, BaseAudioContext);
-    JS_DECLARE_ALLOCATOR(AudioContext);
+    GC_DECLARE_ALLOCATOR(AudioContext);
 
 public:
-    static WebIDL::ExceptionOr<JS::NonnullGCPtr<AudioContext>> construct_impl(JS::Realm&, AudioContextOptions const& context_options = {});
+    static WebIDL::ExceptionOr<GC::Ref<AudioContext>> construct_impl(JS::Realm&, AudioContextOptions const& context_options = {});
 
     virtual ~AudioContext() override;
 
     double base_latency() const { return m_base_latency; }
     double output_latency() const { return m_output_latency; }
     AudioTimestamp get_output_timestamp();
-    WebIDL::ExceptionOr<JS::NonnullGCPtr<WebIDL::Promise>> resume();
-    WebIDL::ExceptionOr<JS::NonnullGCPtr<WebIDL::Promise>> suspend();
-    WebIDL::ExceptionOr<JS::NonnullGCPtr<WebIDL::Promise>> close();
+    WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> resume();
+    WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> suspend();
+    WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> close();
 
 private:
     explicit AudioContext(JS::Realm&, AudioContextOptions const& context_options);
@@ -49,7 +49,7 @@ private:
     double m_output_latency { 0 };
 
     bool m_allowed_to_start = true;
-    Vector<JS::NonnullGCPtr<WebIDL::Promise>> m_pending_resume_promises;
+    Vector<GC::Ref<WebIDL::Promise>> m_pending_resume_promises;
     bool m_suspended_by_user = false;
 
     bool start_rendering_audio_graph();

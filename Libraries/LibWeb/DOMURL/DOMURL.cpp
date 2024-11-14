@@ -18,9 +18,9 @@
 
 namespace Web::DOMURL {
 
-JS_DEFINE_ALLOCATOR(DOMURL);
+GC_DEFINE_ALLOCATOR(DOMURL);
 
-JS::NonnullGCPtr<DOMURL> DOMURL::create(JS::Realm& realm, URL::URL url, JS::NonnullGCPtr<URLSearchParams> query)
+GC::Ref<DOMURL> DOMURL::create(JS::Realm& realm, URL::URL url, GC::Ref<URLSearchParams> query)
 {
     return realm.create<DOMURL>(realm, move(url), query);
 }
@@ -52,7 +52,7 @@ static Optional<URL::URL> parse_api_url(String const& url, Optional<String> cons
 }
 
 // https://url.spec.whatwg.org/#url-initialize
-JS::NonnullGCPtr<DOMURL> DOMURL::initialize_a_url(JS::Realm& realm, URL::URL const& url_record)
+GC::Ref<DOMURL> DOMURL::initialize_a_url(JS::Realm& realm, URL::URL const& url_record)
 {
     // 1. Let query be urlRecord’s query, if that is non-null; otherwise the empty string.
     auto query = url_record.query().value_or(String {});
@@ -71,7 +71,7 @@ JS::NonnullGCPtr<DOMURL> DOMURL::initialize_a_url(JS::Realm& realm, URL::URL con
 }
 
 // https://url.spec.whatwg.org/#dom-url-parse
-JS::GCPtr<DOMURL> DOMURL::parse_for_bindings(JS::VM& vm, String const& url, Optional<String> const& base)
+GC::Ptr<DOMURL> DOMURL::parse_for_bindings(JS::VM& vm, String const& url, Optional<String> const& base)
 {
     auto& realm = *vm.current_realm();
 
@@ -89,7 +89,7 @@ JS::GCPtr<DOMURL> DOMURL::parse_for_bindings(JS::VM& vm, String const& url, Opti
 }
 
 // https://url.spec.whatwg.org/#dom-url-url
-WebIDL::ExceptionOr<JS::NonnullGCPtr<DOMURL>> DOMURL::construct_impl(JS::Realm& realm, String const& url, Optional<String> const& base)
+WebIDL::ExceptionOr<GC::Ref<DOMURL>> DOMURL::construct_impl(JS::Realm& realm, String const& url, Optional<String> const& base)
 {
     // 1. Let parsedURL be the result of running the API URL parser on url with base, if given.
     auto parsed_url = parse_api_url(url, base);
@@ -102,7 +102,7 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<DOMURL>> DOMURL::construct_impl(JS::Realm& 
     return initialize_a_url(realm, parsed_url.value());
 }
 
-DOMURL::DOMURL(JS::Realm& realm, URL::URL url, JS::NonnullGCPtr<URLSearchParams> query)
+DOMURL::DOMURL(JS::Realm& realm, URL::URL url, GC::Ref<URLSearchParams> query)
     : PlatformObject(realm)
     , m_url(move(url))
     , m_query(move(query))
@@ -124,7 +124,7 @@ void DOMURL::visit_edges(Cell::Visitor& visitor)
 }
 
 // https://w3c.github.io/FileAPI/#dfn-createObjectURL
-WebIDL::ExceptionOr<String> DOMURL::create_object_url(JS::VM& vm, JS::NonnullGCPtr<FileAPI::Blob> object)
+WebIDL::ExceptionOr<String> DOMURL::create_object_url(JS::VM& vm, GC::Ref<FileAPI::Blob> object)
 {
     // The createObjectURL(obj) static method must return the result of adding an entry to the blob URL store for obj.
     return TRY_OR_THROW_OOM(vm, FileAPI::add_entry_to_blob_url_store(object));
@@ -433,7 +433,7 @@ void DOMURL::set_search(String const& search)
 }
 
 // https://url.spec.whatwg.org/#dom-url-searchparams
-JS::NonnullGCPtr<URLSearchParams const> DOMURL::search_params() const
+GC::Ref<URLSearchParams const> DOMURL::search_params() const
 {
     // The searchParams getter steps are to return this’s query object.
     return m_query;

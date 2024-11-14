@@ -59,14 +59,14 @@ WebIDL::CallbackType* BaseAudioContext::onstatechange()
 }
 
 // https://webaudio.github.io/web-audio-api/#dom-baseaudiocontext-createbiquadfilter
-WebIDL::ExceptionOr<JS::NonnullGCPtr<BiquadFilterNode>> BaseAudioContext::create_biquad_filter()
+WebIDL::ExceptionOr<GC::Ref<BiquadFilterNode>> BaseAudioContext::create_biquad_filter()
 {
     // Factory method for a BiquadFilterNode representing a second order filter which can be configured as one of several common filter types.
     return BiquadFilterNode::create(realm(), *this);
 }
 
 // https://webaudio.github.io/web-audio-api/#dom-baseaudiocontext-createbuffer
-WebIDL::ExceptionOr<JS::NonnullGCPtr<AudioBuffer>> BaseAudioContext::create_buffer(WebIDL::UnsignedLong number_of_channels, WebIDL::UnsignedLong length, float sample_rate)
+WebIDL::ExceptionOr<GC::Ref<AudioBuffer>> BaseAudioContext::create_buffer(WebIDL::UnsignedLong number_of_channels, WebIDL::UnsignedLong length, float sample_rate)
 {
     // Creates an AudioBuffer of the given size. The audio data in the buffer will be zero-initialized (silent).
     // A NotSupportedError exception MUST be thrown if any of the arguments is negative, zero, or outside its nominal range.
@@ -74,28 +74,28 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<AudioBuffer>> BaseAudioContext::create_buff
 }
 
 // https://webaudio.github.io/web-audio-api/#dom-baseaudiocontext-createbuffersource
-WebIDL::ExceptionOr<JS::NonnullGCPtr<AudioBufferSourceNode>> BaseAudioContext::create_buffer_source()
+WebIDL::ExceptionOr<GC::Ref<AudioBufferSourceNode>> BaseAudioContext::create_buffer_source()
 {
     // Factory method for a AudioBufferSourceNode.
     return AudioBufferSourceNode::create(realm(), *this);
 }
 
 // https://webaudio.github.io/web-audio-api/#dom-baseaudiocontext-createoscillator
-WebIDL::ExceptionOr<JS::NonnullGCPtr<OscillatorNode>> BaseAudioContext::create_oscillator()
+WebIDL::ExceptionOr<GC::Ref<OscillatorNode>> BaseAudioContext::create_oscillator()
 {
     // Factory method for an OscillatorNode.
     return OscillatorNode::create(realm(), *this);
 }
 
 // https://webaudio.github.io/web-audio-api/#dom-baseaudiocontext-createdynamicscompressor
-WebIDL::ExceptionOr<JS::NonnullGCPtr<DynamicsCompressorNode>> BaseAudioContext::create_dynamics_compressor()
+WebIDL::ExceptionOr<GC::Ref<DynamicsCompressorNode>> BaseAudioContext::create_dynamics_compressor()
 {
     // Factory method for a DynamicsCompressorNode.
     return DynamicsCompressorNode::create(realm(), *this);
 }
 
 // https://webaudio.github.io/web-audio-api/#dom-baseaudiocontext-creategain
-WebIDL::ExceptionOr<JS::NonnullGCPtr<GainNode>> BaseAudioContext::create_gain()
+WebIDL::ExceptionOr<GC::Ref<GainNode>> BaseAudioContext::create_gain()
 {
     // Factory method for GainNode.
     return GainNode::create(realm(), *this);
@@ -121,14 +121,14 @@ WebIDL::ExceptionOr<void> BaseAudioContext::verify_audio_options_inside_nominal_
     return {};
 }
 
-void BaseAudioContext::queue_a_media_element_task(JS::NonnullGCPtr<JS::HeapFunction<void()>> steps)
+void BaseAudioContext::queue_a_media_element_task(GC::Ref<GC::Function<void()>> steps)
 {
     auto task = HTML::Task::create(vm(), m_media_element_event_task_source.source, HTML::current_principal_settings_object().responsible_document(), steps);
     HTML::main_thread_event_loop().task_queue().add(task);
 }
 
 // https://webaudio.github.io/web-audio-api/#dom-baseaudiocontext-decodeaudiodata
-JS::NonnullGCPtr<WebIDL::Promise> BaseAudioContext::decode_audio_data(JS::Handle<WebIDL::BufferSource> audio_data, JS::GCPtr<WebIDL::CallbackType> success_callback, JS::GCPtr<WebIDL::CallbackType> error_callback)
+GC::Ref<WebIDL::Promise> BaseAudioContext::decode_audio_data(GC::Root<WebIDL::BufferSource> audio_data, GC::Ptr<WebIDL::CallbackType> success_callback, GC::Ptr<WebIDL::CallbackType> error_callback)
 {
     auto& realm = this->realm();
 
@@ -169,7 +169,7 @@ JS::NonnullGCPtr<WebIDL::Promise> BaseAudioContext::decode_audio_data(JS::Handle
 
         // 4.3. Queue a media element task to invoke errorCallback with error.
         if (error_callback) {
-            queue_a_media_element_task(JS::create_heap_function(heap(), [&realm, error_callback, error] {
+            queue_a_media_element_task(GC::create_function(heap(), [&realm, error_callback, error] {
                 auto completion = WebIDL::invoke_callback(*error_callback, {}, error);
                 if (completion.is_abrupt())
                     HTML::report_exception(completion, realm);
@@ -182,7 +182,7 @@ JS::NonnullGCPtr<WebIDL::Promise> BaseAudioContext::decode_audio_data(JS::Handle
 }
 
 // https://webaudio.github.io/web-audio-api/#dom-baseaudiocontext-decodeaudiodata
-void BaseAudioContext::queue_a_decoding_operation(JS::NonnullGCPtr<JS::PromiseCapability> promise, [[maybe_unused]] JS::Handle<WebIDL::BufferSource> audio_data, JS::GCPtr<WebIDL::CallbackType> success_callback, JS::GCPtr<WebIDL::CallbackType> error_callback)
+void BaseAudioContext::queue_a_decoding_operation(GC::Ref<JS::PromiseCapability> promise, [[maybe_unused]] GC::Root<WebIDL::BufferSource> audio_data, GC::Ptr<WebIDL::CallbackType> success_callback, GC::Ptr<WebIDL::CallbackType> error_callback)
 {
     auto& realm = this->realm();
 
@@ -208,7 +208,7 @@ void BaseAudioContext::queue_a_decoding_operation(JS::NonnullGCPtr<JS::PromiseCa
     // 4. If can decode is false,
     if (!can_decode) {
         // queue a media element task to execute the following steps:
-        queue_a_media_element_task(JS::create_heap_function(heap(), [this, &realm, promise, error_callback] {
+        queue_a_media_element_task(GC::create_function(heap(), [this, &realm, promise, error_callback] {
             // 4.1. Let error be a DOMException whose name is EncodingError.
             auto error = WebIDL::EncodingError::create(realm, "Unable to decode."_string);
 

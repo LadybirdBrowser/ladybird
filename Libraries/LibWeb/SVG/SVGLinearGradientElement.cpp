@@ -15,7 +15,7 @@
 
 namespace Web::SVG {
 
-JS_DEFINE_ALLOCATOR(SVGLinearGradientElement);
+GC_DEFINE_ALLOCATOR(SVGLinearGradientElement);
 
 SVGLinearGradientElement::SVGLinearGradientElement(DOM::Document& document, DOM::QualifiedName qualified_name)
     : SVGGradientElement(document, qualified_name)
@@ -159,25 +159,25 @@ Optional<Painting::PaintStyle> SVGLinearGradientElement::to_gfx_paint_style(SVGP
     return *m_paint_style;
 }
 
-JS::NonnullGCPtr<SVGAnimatedLength> SVGLinearGradientElement::x1() const
+GC::Ref<SVGAnimatedLength> SVGLinearGradientElement::x1() const
 {
     // FIXME: Implement this properly.
     return SVGAnimatedLength::create(realm(), SVGLength::create(realm(), 0, 0), SVGLength::create(realm(), 0, 0));
 }
 
-JS::NonnullGCPtr<SVGAnimatedLength> SVGLinearGradientElement::y1() const
+GC::Ref<SVGAnimatedLength> SVGLinearGradientElement::y1() const
 {
     // FIXME: Implement this properly.
     return SVGAnimatedLength::create(realm(), SVGLength::create(realm(), 0, 0), SVGLength::create(realm(), 0, 0));
 }
 
-JS::NonnullGCPtr<SVGAnimatedLength> SVGLinearGradientElement::x2() const
+GC::Ref<SVGAnimatedLength> SVGLinearGradientElement::x2() const
 {
     // FIXME: Implement this properly.
     return SVGAnimatedLength::create(realm(), SVGLength::create(realm(), 0, 0), SVGLength::create(realm(), 0, 0));
 }
 
-JS::NonnullGCPtr<SVGAnimatedLength> SVGLinearGradientElement::y2() const
+GC::Ref<SVGAnimatedLength> SVGLinearGradientElement::y2() const
 {
     // FIXME: Implement this properly.
     return SVGAnimatedLength::create(realm(), SVGLength::create(realm(), 0, 0), SVGLength::create(realm(), 0, 0));

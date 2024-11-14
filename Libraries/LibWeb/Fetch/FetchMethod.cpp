@@ -25,7 +25,7 @@
 namespace Web::Fetch {
 
 // https://fetch.spec.whatwg.org/#dom-global-fetch
-JS::NonnullGCPtr<WebIDL::Promise> fetch(JS::VM& vm, RequestInfo const& input, RequestInit const& init)
+GC::Ref<WebIDL::Promise> fetch(JS::VM& vm, RequestInfo const& input, RequestInit const& init)
 {
     auto& realm = *vm.current_realm();
 
@@ -61,7 +61,7 @@ JS::NonnullGCPtr<WebIDL::Promise> fetch(JS::VM& vm, RequestInfo const& input, Re
     (void)global_object;
 
     // 7. Let responseObject be null.
-    JS::GCPtr<Response> response_object;
+    GC::Ptr<Response> response_object;
 
     // 8. Let relevantRealm be this’s relevant Realm.
     // NOTE: This assumes that the running execution context is for the fetch() function call.
@@ -73,14 +73,14 @@ JS::NonnullGCPtr<WebIDL::Promise> fetch(JS::VM& vm, RequestInfo const& input, Re
     auto locally_aborted = Fetching::RefCountedFlag::create(false);
 
     // 10. Let controller be null.
-    JS::GCPtr<Infrastructure::FetchController> controller;
+    GC::Ptr<Infrastructure::FetchController> controller;
 
     // NOTE: Step 11 is done out of order so that the controller is non-null when we capture the GCPtr by copy in the abort algorithm lambda.
     //       This is not observable, AFAICT.
 
     // 12. Set controller to the result of calling fetch given request and processResponse given response being these
     //     steps:
-    auto process_response = [locally_aborted, promise_capability, request, response_object, &relevant_realm](JS::NonnullGCPtr<Infrastructure::Response> response) mutable {
+    auto process_response = [locally_aborted, promise_capability, request, response_object, &relevant_realm](GC::Ref<Infrastructure::Response> response) mutable {
         // 1. If locallyAborted is true, then abort these steps.
         if (locally_aborted->value())
             return;
@@ -153,7 +153,7 @@ JS::NonnullGCPtr<WebIDL::Promise> fetch(JS::VM& vm, RequestInfo const& input, Re
 }
 
 // https://fetch.spec.whatwg.org/#abort-fetch
-void abort_fetch(JS::Realm& realm, WebIDL::Promise const& promise, JS::NonnullGCPtr<Infrastructure::Request> request, JS::GCPtr<Response> response_object, JS::Value error)
+void abort_fetch(JS::Realm& realm, WebIDL::Promise const& promise, GC::Ref<Infrastructure::Request> request, GC::Ptr<Response> response_object, JS::Value error)
 {
     dbgln_if(WEB_FETCH_DEBUG, "Fetch: Aborting fetch with: request @ {}, error = {}", request.ptr(), error);
 
@@ -162,7 +162,7 @@ void abort_fetch(JS::Realm& realm, WebIDL::Promise const& promise, JS::NonnullGC
     WebIDL::reject_promise(realm, promise, error);
 
     // 2. If request’s body is non-null and is readable, then cancel request’s body with error.
-    if (auto* body = request->body().get_pointer<JS::NonnullGCPtr<Infrastructure::Body>>(); body != nullptr && (*body)->stream()->is_readable()) {
+    if (auto* body = request->body().get_pointer<GC::Ref<Infrastructure::Body>>(); body != nullptr && (*body)->stream()->is_readable()) {
         // TODO: Implement cancelling streams
         (void)error;
     }

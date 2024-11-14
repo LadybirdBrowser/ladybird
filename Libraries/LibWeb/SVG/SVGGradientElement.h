@@ -59,7 +59,7 @@ protected:
     virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Cell::Visitor&) override;
 
-    JS::GCPtr<SVGGradientElement const> linked_gradient(HashTable<SVGGradientElement const*>& seen_gradients) const;
+    GC::Ptr<SVGGradientElement const> linked_gradient(HashTable<SVGGradientElement const*>& seen_gradients) const;
 
     Gfx::AffineTransform gradient_paint_transform(SVGPaintContext const&) const;
 

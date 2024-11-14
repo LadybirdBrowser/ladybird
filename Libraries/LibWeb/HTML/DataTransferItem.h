@@ -17,29 +17,29 @@ namespace Web::HTML {
 // https://html.spec.whatwg.org/multipage/dnd.html#the-datatransferitem-interface
 class DataTransferItem : public Bindings::PlatformObject {
     WEB_PLATFORM_OBJECT(DataTransferItem, Bindings::PlatformObject);
-    JS_DECLARE_ALLOCATOR(DataTransferItem);
+    GC_DECLARE_ALLOCATOR(DataTransferItem);
 
 public:
-    static JS::NonnullGCPtr<DataTransferItem> create(JS::Realm&, JS::NonnullGCPtr<DataTransfer>, size_t item_index);
+    static GC::Ref<DataTransferItem> create(JS::Realm&, GC::Ref<DataTransfer>, size_t item_index);
     virtual ~DataTransferItem() override;
 
     String kind() const;
     String type() const;
 
-    void get_as_string(JS::GCPtr<WebIDL::CallbackType>) const;
-    JS::GCPtr<FileAPI::File> get_as_file() const;
+    void get_as_string(GC::Ptr<WebIDL::CallbackType>) const;
+    GC::Ptr<FileAPI::File> get_as_file() const;
 
-    JS::GCPtr<EntriesAPI::FileSystemEntry> webkit_get_as_entry() const;
+    GC::Ptr<EntriesAPI::FileSystemEntry> webkit_get_as_entry() const;
 
 private:
-    DataTransferItem(JS::Realm&, JS::NonnullGCPtr<DataTransfer>, size_t item_index);
+    DataTransferItem(JS::Realm&, GC::Ref<DataTransfer>, size_t item_index);
 
     virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(JS::Cell::Visitor&) override;
 
     Optional<DragDataStore::Mode> mode() const;
 
-    JS::NonnullGCPtr<DataTransfer> m_data_transfer;
+    GC::Ref<DataTransfer> m_data_transfer;
     Optional<size_t> m_item_index;
 };
 

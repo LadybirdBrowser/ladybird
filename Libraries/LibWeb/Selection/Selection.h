@@ -13,10 +13,10 @@ namespace Web::Selection {
 
 class Selection final : public Bindings::PlatformObject {
     WEB_PLATFORM_OBJECT(Selection, Bindings::PlatformObject);
-    JS_DECLARE_ALLOCATOR(Selection);
+    GC_DECLARE_ALLOCATOR(Selection);
 
 public:
-    [[nodiscard]] static JS::NonnullGCPtr<Selection> create(JS::NonnullGCPtr<JS::Realm>, JS::NonnullGCPtr<DOM::Document>);
+    [[nodiscard]] static GC::Ref<Selection> create(GC::Ref<JS::Realm>, GC::Ref<DOM::Document>);
 
     virtual ~Selection() override;
 
@@ -26,40 +26,40 @@ public:
         Directionless,
     };
 
-    JS::GCPtr<DOM::Node> anchor_node();
+    GC::Ptr<DOM::Node> anchor_node();
     unsigned anchor_offset();
-    JS::GCPtr<DOM::Node> focus_node();
+    GC::Ptr<DOM::Node> focus_node();
     unsigned focus_offset() const;
     bool is_collapsed() const;
     unsigned range_count() const;
     String type() const;
     String direction() const;
-    WebIDL::ExceptionOr<JS::GCPtr<DOM::Range>> get_range_at(unsigned index);
-    void add_range(JS::NonnullGCPtr<DOM::Range>);
-    WebIDL::ExceptionOr<void> remove_range(JS::NonnullGCPtr<DOM::Range>);
+    WebIDL::ExceptionOr<GC::Ptr<DOM::Range>> get_range_at(unsigned index);
+    void add_range(GC::Ref<DOM::Range>);
+    WebIDL::ExceptionOr<void> remove_range(GC::Ref<DOM::Range>);
     void remove_all_ranges();
     void empty();
-    WebIDL::ExceptionOr<void> collapse(JS::GCPtr<DOM::Node>, unsigned offset);
-    WebIDL::ExceptionOr<void> set_position(JS::GCPtr<DOM::Node>, unsigned offset);
+    WebIDL::ExceptionOr<void> collapse(GC::Ptr<DOM::Node>, unsigned offset);
+    WebIDL::ExceptionOr<void> set_position(GC::Ptr<DOM::Node>, unsigned offset);
     WebIDL::ExceptionOr<void> collapse_to_start();
     WebIDL::ExceptionOr<void> collapse_to_end();
-    WebIDL::ExceptionOr<void> extend(JS::NonnullGCPtr<DOM::Node>, unsigned offset);
-    WebIDL::ExceptionOr<void> set_base_and_extent(JS::NonnullGCPtr<DOM::Node> anchor_node, unsigned anchor_offset, JS::NonnullGCPtr<DOM::Node> focus_node, unsigned focus_offset);
-    WebIDL::ExceptionOr<void> select_all_children(JS::NonnullGCPtr<DOM::Node>);
+    WebIDL::ExceptionOr<void> extend(GC::Ref<DOM::Node>, unsigned offset);
+    WebIDL::ExceptionOr<void> set_base_and_extent(GC::Ref<DOM::Node> anchor_node, unsigned anchor_offset, GC::Ref<DOM::Node> focus_node, unsigned focus_offset);
+    WebIDL::ExceptionOr<void> select_all_children(GC::Ref<DOM::Node>);
     WebIDL::ExceptionOr<void>
     delete_from_document();
-    bool contains_node(JS::NonnullGCPtr<DOM::Node>, bool allow_partial_containment) const;
+    bool contains_node(GC::Ref<DOM::Node>, bool allow_partial_containment) const;
 
     String to_string() const;
 
     // Non-standard convenience accessor for the selection's range.
-    JS::GCPtr<DOM::Range> range() const;
+    GC::Ptr<DOM::Range> range() const;
 
     // Non-standard accessor for the selection's document.
-    JS::NonnullGCPtr<DOM::Document> document() const;
+    GC::Ref<DOM::Document> document() const;
 
     // Non-standard
-    JS::GCPtr<DOM::Position> cursor_position() const;
+    GC::Ptr<DOM::Position> cursor_position() const;
 
     // Non-standard
     void move_offset_to_next_character(bool collapse_selection);
@@ -68,19 +68,19 @@ public:
     void move_offset_to_previous_word(bool collapse_selection);
 
 private:
-    Selection(JS::NonnullGCPtr<JS::Realm>, JS::NonnullGCPtr<DOM::Document>);
+    Selection(GC::Ref<JS::Realm>, GC::Ref<DOM::Document>);
 
     [[nodiscard]] bool is_empty() const;
 
     virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Cell::Visitor&) override;
 
-    void set_range(JS::GCPtr<DOM::Range>);
+    void set_range(GC::Ptr<DOM::Range>);
 
     // https://w3c.github.io/selection-api/#dfn-empty
-    JS::GCPtr<DOM::Range> m_range;
+    GC::Ptr<DOM::Range> m_range;
 
-    JS::NonnullGCPtr<DOM::Document> m_document;
+    GC::Ref<DOM::Document> m_document;
     Direction m_direction { Direction::Directionless };
 };
 

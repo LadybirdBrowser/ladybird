@@ -12,8 +12,8 @@
 namespace Web::Layout {
 
 class CanvasBox final : public ReplacedBox {
-    JS_CELL(CanvasBox, ReplacedBox);
-    JS_DECLARE_ALLOCATOR(CanvasBox);
+    GC_CELL(CanvasBox, ReplacedBox);
+    GC_DECLARE_ALLOCATOR(CanvasBox);
 
 public:
     CanvasBox(DOM::Document&, HTML::HTMLCanvasElement&, CSS::StyleProperties);
@@ -23,7 +23,7 @@ public:
 
     const HTML::HTMLCanvasElement& dom_node() const { return static_cast<const HTML::HTMLCanvasElement&>(ReplacedBox::dom_node()); }
 
-    virtual JS::GCPtr<Painting::Paintable> create_paintable() const override;
+    virtual GC::Ptr<Painting::Paintable> create_paintable() const override;
 };
 
 }

@@ -32,22 +32,22 @@
 
 namespace Web::Painting {
 
-JS::NonnullGCPtr<PaintableWithLines> PaintableWithLines::create(Layout::BlockContainer const& block_container)
+GC::Ref<PaintableWithLines> PaintableWithLines::create(Layout::BlockContainer const& block_container)
 {
     return block_container.heap().allocate<PaintableWithLines>(block_container);
 }
 
-JS::NonnullGCPtr<PaintableWithLines> PaintableWithLines::create(Layout::InlineNode const& inline_node, size_t line_index)
+GC::Ref<PaintableWithLines> PaintableWithLines::create(Layout::InlineNode const& inline_node, size_t line_index)
 {
     return inline_node.heap().allocate<PaintableWithLines>(inline_node, line_index);
 }
 
-JS::NonnullGCPtr<PaintableBox> PaintableBox::create(Layout::Box const& layout_box)
+GC::Ref<PaintableBox> PaintableBox::create(Layout::Box const& layout_box)
 {
     return layout_box.heap().allocate<PaintableBox>(layout_box);
 }
 
-JS::NonnullGCPtr<PaintableBox> PaintableBox::create(Layout::InlineNode const& layout_box)
+GC::Ref<PaintableBox> PaintableBox::create(Layout::InlineNode const& layout_box)
 {
     return layout_box.heap().allocate<PaintableBox>(layout_box);
 }
@@ -142,7 +142,7 @@ void PaintableBox::set_scroll_offset(CSSPixelPoint offset)
     //           the element’s eventual snap target in the block axis as newBlockTarget and the element’s eventual snap
     //           target in the inline axis as newInlineTarget.
 
-    JS::NonnullGCPtr<DOM::EventTarget> const event_target = *dom_node();
+    GC::Ref<DOM::EventTarget> const event_target = *dom_node();
 
     // 3. If the element is already in doc’s pending scroll event targets, abort these steps.
     if (document.pending_scroll_event_targets().contains_slow(event_target))

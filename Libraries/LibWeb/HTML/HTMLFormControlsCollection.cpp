@@ -14,9 +14,9 @@
 
 namespace Web::HTML {
 
-JS_DEFINE_ALLOCATOR(HTMLFormControlsCollection);
+GC_DEFINE_ALLOCATOR(HTMLFormControlsCollection);
 
-JS::NonnullGCPtr<HTMLFormControlsCollection> HTMLFormControlsCollection::create(DOM::ParentNode& root, Scope scope, Function<bool(DOM::Element const&)> filter)
+GC::Ref<HTMLFormControlsCollection> HTMLFormControlsCollection::create(DOM::ParentNode& root, Scope scope, Function<bool(DOM::Element const&)> filter)
 {
     return root.realm().create<HTMLFormControlsCollection>(root, scope, move(filter));
 }
@@ -35,7 +35,7 @@ void HTMLFormControlsCollection::initialize(JS::Realm& realm)
 }
 
 // https://html.spec.whatwg.org/multipage/common-dom-interfaces.html#dom-htmlformcontrolscollection-nameditem
-Variant<Empty, DOM::Element*, JS::Handle<RadioNodeList>> HTMLFormControlsCollection::named_item_or_radio_node_list(FlyString const& name) const
+Variant<Empty, DOM::Element*, GC::Root<RadioNodeList>> HTMLFormControlsCollection::named_item_or_radio_node_list(FlyString const& name) const
 {
     // 1. If name is the empty string, return null and stop the algorithm.
     if (name.is_empty())
@@ -68,7 +68,7 @@ Variant<Empty, DOM::Element*, JS::Handle<RadioNodeList>> HTMLFormControlsCollect
     // 4. Otherwise, create a new RadioNodeList object representing a live view of the HTMLFormControlsCollection object, further filtered so that the only nodes in the
     //    RadioNodeList object are those that have either an id attribute or a name attribute equal to name. The nodes in the RadioNodeList object must be sorted in tree
     //    order. Return that RadioNodeList object.
-    return JS::make_handle(RadioNodeList::create(realm(), root(), DOM::LiveNodeList::Scope::Descendants, [name](auto const& node) {
+    return GC::make_root(RadioNodeList::create(realm(), root(), DOM::LiveNodeList::Scope::Descendants, [name](auto const& node) {
         if (!is<DOM::Element>(node))
             return false;
 

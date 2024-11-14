@@ -9,7 +9,7 @@
 
 namespace Web::WebGL {
 
-JS_DEFINE_ALLOCATOR(WebGLUniformLocation);
+GC_DEFINE_ALLOCATOR(WebGLUniformLocation);
 
 WebGLUniformLocation::WebGLUniformLocation(JS::Realm& realm)
     : WebGLObject(realm)

@@ -15,7 +15,7 @@ namespace Web::EventTiming {
 // https://www.w3.org/TR/event-timing/#sec-performance-event-timing
 class PerformanceEventTiming final : public PerformanceTimeline::PerformanceEntry {
     WEB_PLATFORM_OBJECT(PerformanceEventTiming, PerformanceTimeline::PerformanceEntry);
-    JS_DECLARE_ALLOCATOR(PerformanceEventTiming);
+    GC_DECLARE_ALLOCATOR(PerformanceEventTiming);
 
 public:
     virtual ~PerformanceEventTiming();
@@ -23,7 +23,7 @@ public:
     HighResolutionTime::DOMHighResTimeStamp processing_start() const;
     HighResolutionTime::DOMHighResTimeStamp processing_end() const;
     bool cancelable() const;
-    JS::ThrowCompletionOr<JS::GCPtr<DOM::Node>> target();
+    JS::ThrowCompletionOr<GC::Ptr<DOM::Node>> target();
     unsigned long long interaction_id();
 
     // from the registry:
@@ -44,13 +44,13 @@ private:
     // this is the only PerformanceEntry that has two event types it could represent
     // That complicates implementing the registry functions if they remain static
     FlyString m_entry_type;
-    JS::GCPtr<DOM::EventTarget> m_event_target;
+    GC::Ptr<DOM::EventTarget> m_event_target;
     HighResolutionTime::DOMHighResTimeStamp m_start_time;
     HighResolutionTime::DOMHighResTimeStamp m_processing_start;
     bool m_cancelable;
     unsigned long long m_interaction_id;
 
-    static WebIDL::ExceptionOr<JS::NonnullGCPtr<PerformanceEventTiming>> construct_impl(DOM::Event const&, HighResolutionTime::DOMHighResTimeStamp, unsigned long long);
+    static WebIDL::ExceptionOr<GC::Ref<PerformanceEventTiming>> construct_impl(DOM::Event const&, HighResolutionTime::DOMHighResTimeStamp, unsigned long long);
     virtual void initialize(JS::Realm&) override;
 
     PerformanceTimeline::ShouldAddEntry should_add_performance_event_timing() const;

@@ -7,7 +7,7 @@
 #pragma once
 
 #include <AK/RefPtr.h>
-#include <LibJS/Heap/GCPtr.h>
+#include <LibGC/Ptr.h>
 #include <LibWeb/CSS/Display.h>
 #include <LibWeb/CSS/Selector.h>
 #include <LibWeb/Forward.h>
@@ -18,7 +18,7 @@ class TreeBuilder {
 public:
     TreeBuilder();
 
-    JS::GCPtr<Layout::Node> build(DOM::Node&);
+    GC::Ptr<Layout::Node> build(DOM::Node&);
 
 private:
     struct Context {
@@ -43,8 +43,8 @@ private:
     void fixup_tables(NodeWithStyle& root);
     void remove_irrelevant_boxes(NodeWithStyle& root);
     void generate_missing_child_wrappers(NodeWithStyle& root);
-    Vector<JS::Handle<Box>> generate_missing_parents(NodeWithStyle& root);
-    void missing_cells_fixup(Vector<JS::Handle<Box>> const&);
+    Vector<GC::Root<Box>> generate_missing_parents(NodeWithStyle& root);
+    void missing_cells_fixup(Vector<GC::Root<Box>> const&);
 
     enum class AppendOrPrepend {
         Append,
@@ -53,8 +53,8 @@ private:
     void insert_node_into_inline_or_block_ancestor(Layout::Node&, CSS::Display, AppendOrPrepend);
     void create_pseudo_element_if_needed(DOM::Element&, CSS::Selector::PseudoElement::Type, AppendOrPrepend);
 
-    JS::GCPtr<Layout::Node> m_layout_root;
-    Vector<JS::NonnullGCPtr<Layout::NodeWithStyle>> m_ancestor_stack;
+    GC::Ptr<Layout::Node> m_layout_root;
+    Vector<GC::Ref<Layout::NodeWithStyle>> m_ancestor_stack;
 
     u32 m_quote_nesting_level { 0 };
 };

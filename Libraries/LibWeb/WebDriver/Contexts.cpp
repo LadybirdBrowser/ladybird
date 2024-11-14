@@ -44,7 +44,7 @@ JsonObject window_proxy_reference_object(HTML::WindowProxy const& window)
     return object;
 }
 
-static JS::GCPtr<HTML::Navigable> find_navigable_with_handle(StringView handle, bool should_be_top_level)
+static GC::Ptr<HTML::Navigable> find_navigable_with_handle(StringView handle, bool should_be_top_level)
 {
     for (auto* navigable : Web::HTML::all_navigables()) {
         if (navigable->is_top_level_traversable() != should_be_top_level)
@@ -69,7 +69,7 @@ bool represents_a_web_frame(JS::Value value)
 }
 
 // https://w3c.github.io/webdriver/#dfn-deserialize-a-web-frame
-ErrorOr<JS::NonnullGCPtr<HTML::WindowProxy>, WebDriver::Error> deserialize_web_frame(JS::Object const& object)
+ErrorOr<GC::Ref<HTML::WindowProxy>, WebDriver::Error> deserialize_web_frame(JS::Object const& object)
 {
     // 1. If object has no own property web frame identifier, return error with error code invalid argument.
     auto property = object.get(WEB_FRAME_IDENTIFIER);
@@ -104,7 +104,7 @@ bool represents_a_web_window(JS::Value value)
 }
 
 // https://w3c.github.io/webdriver/#dfn-deserialize-a-web-frame
-ErrorOr<JS::NonnullGCPtr<HTML::WindowProxy>, WebDriver::Error> deserialize_web_window(JS::Object const& object)
+ErrorOr<GC::Ref<HTML::WindowProxy>, WebDriver::Error> deserialize_web_window(JS::Object const& object)
 {
     // 1. If object has no own property web window identifier, return error with error code invalid argument.
     auto property = object.get(WEB_WINDOW_IDENTIFIER);

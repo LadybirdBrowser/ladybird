@@ -21,7 +21,7 @@ class HTMLSelectElement final
     : public HTMLElement
     , public FormAssociatedElement {
     WEB_PLATFORM_OBJECT(HTMLSelectElement, HTMLElement);
-    JS_DECLARE_ALLOCATOR(HTMLSelectElement);
+    GC_DECLARE_ALLOCATOR(HTMLSelectElement);
     FORM_ASSOCIATED_ELEMENT(HTMLElement, HTMLSelectElement)
 
 public:
@@ -32,7 +32,7 @@ public:
     WebIDL::UnsignedLong size() const;
     WebIDL::ExceptionOr<void> set_size(WebIDL::UnsignedLong);
 
-    JS::GCPtr<HTMLOptionsCollection> const& options();
+    GC::Ptr<HTMLOptionsCollection> const& options();
 
     WebIDL::UnsignedLong length();
     WebIDL::ExceptionOr<void> set_length(WebIDL::UnsignedLong);
@@ -42,7 +42,7 @@ public:
     void remove();
     void remove(WebIDL::Long);
 
-    JS::NonnullGCPtr<DOM::HTMLCollection> selected_options();
+    GC::Ref<DOM::HTMLCollection> selected_options();
 
     WebIDL::Long selected_index() const;
     void set_selected_index(WebIDL::Long);
@@ -55,7 +55,7 @@ public:
 
     WebIDL::ExceptionOr<void> show_picker();
 
-    Vector<JS::Handle<HTMLOptionElement>> list_of_options() const;
+    Vector<GC::Root<HTMLOptionElement>> list_of_options() const;
 
     // ^EventTarget
     // https://html.spec.whatwg.org/multipage/interaction.html#the-tabindex-attribute:the-select-element
@@ -115,12 +115,12 @@ private:
     void update_inner_text_element();
     void queue_input_and_change_events();
 
-    JS::GCPtr<HTMLOptionsCollection> m_options;
-    JS::GCPtr<DOM::HTMLCollection> m_selected_options;
+    GC::Ptr<HTMLOptionsCollection> m_options;
+    GC::Ptr<DOM::HTMLCollection> m_selected_options;
     bool m_is_open { false };
     Vector<SelectItem> m_select_items;
-    JS::GCPtr<DOM::Element> m_inner_text_element;
-    JS::GCPtr<DOM::Element> m_chevron_icon_element;
+    GC::Ptr<DOM::Element> m_inner_text_element;
+    GC::Ptr<DOM::Element> m_chevron_icon_element;
 };
 
 }

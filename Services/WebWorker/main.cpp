@@ -29,7 +29,7 @@
 #    include <QCoreApplication>
 #endif
 
-static ErrorOr<void> initialize_resource_loader(JS::Heap&, int request_server_socket);
+static ErrorOr<void> initialize_resource_loader(GC::Heap&, int request_server_socket);
 
 ErrorOr<int> serenity_main(Main::Arguments arguments)
 {
@@ -71,7 +71,7 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
     return event_loop.exec();
 }
 
-static ErrorOr<void> initialize_resource_loader(JS::Heap& heap, int request_server_socket)
+static ErrorOr<void> initialize_resource_loader(GC::Heap& heap, int request_server_socket)
 {
     static_assert(IsSame<IPC::Transport, IPC::TransportSocket>, "Need to handle other IPC transports here");
 

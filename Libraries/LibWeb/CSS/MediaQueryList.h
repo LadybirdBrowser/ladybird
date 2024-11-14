@@ -15,10 +15,10 @@ namespace Web::CSS {
 // 4.2. The MediaQueryList Interface, https://drafts.csswg.org/cssom-view/#the-mediaquerylist-interface
 class MediaQueryList final : public DOM::EventTarget {
     WEB_PLATFORM_OBJECT(MediaQueryList, DOM::EventTarget);
-    JS_DECLARE_ALLOCATOR(MediaQueryList);
+    GC_DECLARE_ALLOCATOR(MediaQueryList);
 
 public:
-    [[nodiscard]] static JS::NonnullGCPtr<MediaQueryList> create(DOM::Document&, Vector<NonnullRefPtr<MediaQuery>>&&);
+    [[nodiscard]] static GC::Ref<MediaQueryList> create(DOM::Document&, Vector<NonnullRefPtr<MediaQuery>>&&);
 
     virtual ~MediaQueryList() override = default;
 
@@ -26,8 +26,8 @@ public:
     bool matches() const;
     bool evaluate();
 
-    void add_listener(JS::GCPtr<DOM::IDLEventListener>);
-    void remove_listener(JS::GCPtr<DOM::IDLEventListener>);
+    void add_listener(GC::Ptr<DOM::IDLEventListener>);
+    void remove_listener(GC::Ptr<DOM::IDLEventListener>);
 
     void set_onchange(WebIDL::CallbackType*);
     WebIDL::CallbackType* onchange();
@@ -38,7 +38,7 @@ private:
     virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Cell::Visitor&) override;
 
-    JS::NonnullGCPtr<DOM::Document> m_document;
+    GC::Ref<DOM::Document> m_document;
     Vector<NonnullRefPtr<MediaQuery>> m_media;
 };
 

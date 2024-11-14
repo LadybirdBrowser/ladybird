@@ -83,22 +83,22 @@ CSS::ImmutableComputedValues const& Paintable::computed_values() const
     return m_layout_node->computed_values();
 }
 
-void Paintable::set_dom_node(JS::GCPtr<DOM::Node> dom_node)
+void Paintable::set_dom_node(GC::Ptr<DOM::Node> dom_node)
 {
     m_dom_node = dom_node;
 }
 
-JS::GCPtr<DOM::Node> Paintable::dom_node()
+GC::Ptr<DOM::Node> Paintable::dom_node()
 {
     return m_dom_node;
 }
 
-JS::GCPtr<DOM::Node const> Paintable::dom_node() const
+GC::Ptr<DOM::Node const> Paintable::dom_node() const
 {
     return m_dom_node;
 }
 
-JS::GCPtr<HTML::Navigable> Paintable::navigable() const
+GC::Ptr<HTML::Navigable> Paintable::navigable() const
 {
     return document().navigable();
 }

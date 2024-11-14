@@ -4,16 +4,16 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibJS/Heap/Heap.h>
+#include <LibGC/Heap.h>
 #include <LibJS/Runtime/VM.h>
 #include <LibWeb/Fetch/Infrastructure/FetchParams.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/Responses.h>
 
 namespace Web::Fetch::Infrastructure {
 
-JS_DEFINE_ALLOCATOR(FetchParams);
+GC_DEFINE_ALLOCATOR(FetchParams);
 
-FetchParams::FetchParams(JS::NonnullGCPtr<Request> request, JS::NonnullGCPtr<FetchAlgorithms> algorithms, JS::NonnullGCPtr<FetchController> controller, JS::NonnullGCPtr<FetchTimingInfo> timing_info)
+FetchParams::FetchParams(GC::Ref<Request> request, GC::Ref<FetchAlgorithms> algorithms, GC::Ref<FetchController> controller, GC::Ref<FetchTimingInfo> timing_info)
     : m_request(request)
     , m_algorithms(algorithms)
     , m_controller(controller)
@@ -22,7 +22,7 @@ FetchParams::FetchParams(JS::NonnullGCPtr<Request> request, JS::NonnullGCPtr<Fet
     m_controller->set_fetch_params({}, *this);
 }
 
-JS::NonnullGCPtr<FetchParams> FetchParams::create(JS::VM& vm, JS::NonnullGCPtr<Request> request, JS::NonnullGCPtr<FetchTimingInfo> timing_info)
+GC::Ref<FetchParams> FetchParams::create(JS::VM& vm, GC::Ref<Request> request, GC::Ref<FetchTimingInfo> timing_info)
 {
     auto algorithms = Infrastructure::FetchAlgorithms::create(vm, {});
     auto controller = Infrastructure::FetchController::create(vm);
@@ -36,10 +36,10 @@ void FetchParams::visit_edges(JS::Cell::Visitor& visitor)
     visitor.visit(m_algorithms);
     visitor.visit(m_controller);
     visitor.visit(m_timing_info);
-    if (m_task_destination.has<JS::NonnullGCPtr<JS::Object>>())
-        visitor.visit(m_task_destination.get<JS::NonnullGCPtr<JS::Object>>());
-    if (m_preloaded_response_candidate.has<JS::NonnullGCPtr<Response>>())
-        visitor.visit(m_preloaded_response_candidate.get<JS::NonnullGCPtr<Response>>());
+    if (m_task_destination.has<GC::Ref<JS::Object>>())
+        visitor.visit(m_task_destination.get<GC::Ref<JS::Object>>());
+    if (m_preloaded_response_candidate.has<GC::Ref<Response>>())
+        visitor.visit(m_preloaded_response_candidate.get<GC::Ref<Response>>());
 }
 
 // https://fetch.spec.whatwg.org/#fetch-params-aborted

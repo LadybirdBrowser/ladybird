@@ -14,10 +14,10 @@
 
 namespace JS {
 
-JS_DEFINE_ALLOCATOR(StringObject);
+GC_DEFINE_ALLOCATOR(StringObject);
 
 // 10.4.3.4 StringCreate ( value, prototype ), https://tc39.es/ecma262/#sec-stringcreate
-NonnullGCPtr<StringObject> StringObject::create(Realm& realm, PrimitiveString& primitive_string, Object& prototype)
+GC::Ref<StringObject> StringObject::create(Realm& realm, PrimitiveString& primitive_string, Object& prototype)
 {
     // 1. Let S be MakeBasicObject(« [[Prototype]], [[Extensible]], [[StringData]] »).
     // 2. Set S.[[Prototype]] to prototype.
@@ -128,12 +128,12 @@ ThrowCompletionOr<bool> StringObject::internal_define_own_property(PropertyKey c
 }
 
 // 10.4.3.3 [[OwnPropertyKeys]] ( ), https://tc39.es/ecma262/#sec-string-exotic-objects-ownpropertykeys
-ThrowCompletionOr<MarkedVector<Value>> StringObject::internal_own_property_keys() const
+ThrowCompletionOr<GC::MarkedVector<Value>> StringObject::internal_own_property_keys() const
 {
     auto& vm = this->vm();
 
     // 1. Let keys be a new empty List.
-    auto keys = MarkedVector<Value> { heap() };
+    auto keys = GC::MarkedVector<Value> { heap() };
 
     // 2. Let str be O.[[StringData]].
     auto str = m_string->utf16_string_view();

@@ -12,9 +12,9 @@
 
 namespace Web::HTML {
 
-JS_DEFINE_ALLOCATOR(BroadcastChannel);
+GC_DEFINE_ALLOCATOR(BroadcastChannel);
 
-JS::NonnullGCPtr<BroadcastChannel> BroadcastChannel::construct_impl(JS::Realm& realm, FlyString const& name)
+GC::Ref<BroadcastChannel> BroadcastChannel::construct_impl(JS::Realm& realm, FlyString const& name)
 {
     return realm.create<BroadcastChannel>(realm, name);
 }

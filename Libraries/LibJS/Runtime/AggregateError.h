@@ -13,10 +13,10 @@ namespace JS {
 
 class AggregateError : public Error {
     JS_OBJECT(AggregateError, Error);
-    JS_DECLARE_ALLOCATOR(AggregateError);
+    GC_DECLARE_ALLOCATOR(AggregateError);
 
 public:
-    static NonnullGCPtr<AggregateError> create(Realm&);
+    static GC::Ref<AggregateError> create(Realm&);
     virtual ~AggregateError() override = default;
 
 private:

@@ -11,14 +11,14 @@
 
 namespace JS {
 
-JS_DEFINE_ALLOCATOR(IteratorHelper);
+GC_DEFINE_ALLOCATOR(IteratorHelper);
 
-ThrowCompletionOr<NonnullGCPtr<IteratorHelper>> IteratorHelper::create(Realm& realm, NonnullGCPtr<IteratorRecord> underlying_iterator, NonnullGCPtr<Closure> closure, GCPtr<AbruptClosure> abrupt_closure)
+ThrowCompletionOr<GC::Ref<IteratorHelper>> IteratorHelper::create(Realm& realm, GC::Ref<IteratorRecord> underlying_iterator, GC::Ref<Closure> closure, GC::Ptr<AbruptClosure> abrupt_closure)
 {
     return realm.create<IteratorHelper>(realm, realm.intrinsics().iterator_helper_prototype(), move(underlying_iterator), closure, abrupt_closure);
 }
 
-IteratorHelper::IteratorHelper(Realm& realm, Object& prototype, NonnullGCPtr<IteratorRecord> underlying_iterator, NonnullGCPtr<Closure> closure, GCPtr<AbruptClosure> abrupt_closure)
+IteratorHelper::IteratorHelper(Realm& realm, Object& prototype, GC::Ref<IteratorRecord> underlying_iterator, GC::Ref<Closure> closure, GC::Ptr<AbruptClosure> abrupt_closure)
     : GeneratorObject(realm, prototype, realm.vm().running_execution_context().copy(), "Iterator Helper"sv)
     , m_underlying_iterator(move(underlying_iterator))
     , m_closure(closure)

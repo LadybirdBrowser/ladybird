@@ -12,11 +12,11 @@
 namespace Web::Painting {
 
 class VideoPaintable final : public MediaPaintable {
-    JS_CELL(VideoPaintable, MediaPaintable);
-    JS_DECLARE_ALLOCATOR(VideoPaintable);
+    GC_CELL(VideoPaintable, MediaPaintable);
+    GC_DECLARE_ALLOCATOR(VideoPaintable);
 
 public:
-    static JS::NonnullGCPtr<VideoPaintable> create(Layout::VideoBox const&);
+    static GC::Ref<VideoPaintable> create(Layout::VideoBox const&);
 
     virtual void paint(PaintContext&, PaintPhase) const override;
 

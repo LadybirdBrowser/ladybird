@@ -10,7 +10,7 @@
 namespace Web::DOM {
 
 DocumentLoadEventDelayer::DocumentLoadEventDelayer(Document& document)
-    : m_document(JS::make_handle(document))
+    : m_document(GC::make_root(document))
 {
     m_document->increment_number_of_things_delaying_the_load_event({});
 }

@@ -23,12 +23,12 @@
 
 namespace JS {
 
-JS_DEFINE_ALLOCATOR(Object);
+GC_DEFINE_ALLOCATOR(Object);
 
-static HashMap<GCPtr<Object const>, HashMap<DeprecatedFlyString, Object::IntrinsicAccessor>> s_intrinsics;
+static HashMap<GC::Ptr<Object const>, HashMap<DeprecatedFlyString, Object::IntrinsicAccessor>> s_intrinsics;
 
 // 10.1.12 OrdinaryObjectCreate ( proto [ , additionalInternalSlotsList ] ), https://tc39.es/ecma262/#sec-ordinaryobjectcreate
-NonnullGCPtr<Object> Object::create(Realm& realm, Object* prototype)
+GC::Ref<Object> Object::create(Realm& realm, Object* prototype)
 {
     if (!prototype)
         return realm.create<Object>(realm.intrinsics().empty_object_shape());
@@ -37,7 +37,7 @@ NonnullGCPtr<Object> Object::create(Realm& realm, Object* prototype)
     return realm.create<Object>(ConstructWithPrototypeTag::Tag, *prototype);
 }
 
-NonnullGCPtr<Object> Object::create_prototype(Realm& realm, Object* prototype)
+GC::Ref<Object> Object::create_prototype(Realm& realm, Object* prototype)
 {
     auto shape = realm.heap().allocate<Shape>(realm);
     if (prototype)
@@ -45,7 +45,7 @@ NonnullGCPtr<Object> Object::create_prototype(Realm& realm, Object* prototype)
     return realm.create<Object>(shape);
 }
 
-NonnullGCPtr<Object> Object::create_with_premade_shape(Shape& shape)
+GC::Ref<Object> Object::create_with_premade_shape(Shape& shape)
 {
     return shape.realm().create<Object>(shape);
 }
@@ -371,7 +371,7 @@ ThrowCompletionOr<bool> Object::test_integrity_level(IntegrityLevel level) const
 }
 
 // 7.3.24 EnumerableOwnPropertyNames ( O, kind ), https://tc39.es/ecma262/#sec-enumerableownpropertynames
-ThrowCompletionOr<MarkedVector<Value>> Object::enumerable_own_property_names(PropertyKind kind) const
+ThrowCompletionOr<GC::MarkedVector<Value>> Object::enumerable_own_property_names(PropertyKind kind) const
 {
     // NOTE: This has been flattened for readability, so some `else` branches in the
     //       spec text have been replaced with `continue`s in the loop below.
@@ -383,7 +383,7 @@ ThrowCompletionOr<MarkedVector<Value>> Object::enumerable_own_property_names(Pro
     auto own_keys = TRY(internal_own_property_keys());
 
     // 2. Let properties be a new empty List.
-    auto properties = MarkedVector<Value> { heap() };
+    auto properties = GC::MarkedVector<Value> { heap() };
 
     // 3. For each element key of ownKeys, do
     for (auto& key : own_keys) {
@@ -480,7 +480,7 @@ ThrowCompletionOr<void> Object::copy_data_properties(VM& vm, Value source, HashT
 }
 
 // 14.7 SnapshotOwnProperties ( source, proto [ , excludedKeys [ , excludedValues ] ] ), https://tc39.es/proposal-temporal/#sec-snapshotownproperties
-ThrowCompletionOr<NonnullGCPtr<Object>> Object::snapshot_own_properties(VM& vm, GCPtr<Object> prototype, HashTable<PropertyKey> const& excluded_keys, HashTable<Value> const& excluded_values)
+ThrowCompletionOr<GC::Ref<Object>> Object::snapshot_own_properties(VM& vm, GC::Ptr<Object> prototype, HashTable<PropertyKey> const& excluded_keys, HashTable<Value> const& excluded_values)
 {
     auto& realm = *vm.current_realm();
 
@@ -1070,12 +1070,12 @@ ThrowCompletionOr<bool> Object::internal_delete(PropertyKey const& property_key)
 }
 
 // 10.1.11 [[OwnPropertyKeys]] ( ), https://tc39.es/ecma262/#sec-ordinary-object-internal-methods-and-internal-slots-ownpropertykeys
-ThrowCompletionOr<MarkedVector<Value>> Object::internal_own_property_keys() const
+ThrowCompletionOr<GC::MarkedVector<Value>> Object::internal_own_property_keys() const
 {
     auto& vm = this->vm();
 
     // 1. Let keys be a new empty List.
-    MarkedVector<Value> keys { heap() };
+    GC::MarkedVector<Value> keys { heap() };
 
     // 2. For each own property key P of O such that P is an array index, in ascending numeric index order, do
     for (auto& entry : m_indexed_properties) {

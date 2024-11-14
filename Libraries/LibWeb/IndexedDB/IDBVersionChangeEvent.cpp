@@ -11,9 +11,9 @@
 
 namespace Web::IndexedDB {
 
-JS_DEFINE_ALLOCATOR(IDBVersionChangeEvent);
+GC_DEFINE_ALLOCATOR(IDBVersionChangeEvent);
 
-JS::NonnullGCPtr<IDBVersionChangeEvent> IDBVersionChangeEvent::create(JS::Realm& realm, FlyString const& event_name, IDBVersionChangeEventInit const& event_init)
+GC::Ref<IDBVersionChangeEvent> IDBVersionChangeEvent::create(JS::Realm& realm, FlyString const& event_name, IDBVersionChangeEventInit const& event_init)
 {
     return realm.create<IDBVersionChangeEvent>(realm, event_name, event_init);
 }

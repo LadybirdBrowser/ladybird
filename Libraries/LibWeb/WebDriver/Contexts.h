@@ -17,9 +17,9 @@ namespace Web::WebDriver {
 JsonObject window_proxy_reference_object(HTML::WindowProxy const&);
 
 bool represents_a_web_frame(JS::Value);
-ErrorOr<JS::NonnullGCPtr<HTML::WindowProxy>, WebDriver::Error> deserialize_web_frame(JS::Object const&);
+ErrorOr<GC::Ref<HTML::WindowProxy>, WebDriver::Error> deserialize_web_frame(JS::Object const&);
 
 bool represents_a_web_window(JS::Value);
-ErrorOr<JS::NonnullGCPtr<HTML::WindowProxy>, WebDriver::Error> deserialize_web_window(JS::Object const&);
+ErrorOr<GC::Ref<HTML::WindowProxy>, WebDriver::Error> deserialize_web_window(JS::Object const&);
 
 }

@@ -14,12 +14,12 @@
 
 namespace Web::Crypto {
 
-JS_DEFINE_ALLOCATOR(KeyAlgorithm);
-JS_DEFINE_ALLOCATOR(RsaKeyAlgorithm);
-JS_DEFINE_ALLOCATOR(RsaHashedKeyAlgorithm);
-JS_DEFINE_ALLOCATOR(EcKeyAlgorithm);
-JS_DEFINE_ALLOCATOR(AesKeyAlgorithm);
-JS_DEFINE_ALLOCATOR(HmacKeyAlgorithm);
+GC_DEFINE_ALLOCATOR(KeyAlgorithm);
+GC_DEFINE_ALLOCATOR(RsaKeyAlgorithm);
+GC_DEFINE_ALLOCATOR(RsaHashedKeyAlgorithm);
+GC_DEFINE_ALLOCATOR(EcKeyAlgorithm);
+GC_DEFINE_ALLOCATOR(AesKeyAlgorithm);
+GC_DEFINE_ALLOCATOR(HmacKeyAlgorithm);
 
 template<typename T>
 static JS::ThrowCompletionOr<T*> impl_from(JS::VM& vm, StringView Name)
@@ -36,7 +36,7 @@ static JS::ThrowCompletionOr<T*> impl_from(JS::VM& vm, StringView Name)
     return static_cast<T*>(this_object);
 }
 
-JS::NonnullGCPtr<KeyAlgorithm> KeyAlgorithm::create(JS::Realm& realm)
+GC::Ref<KeyAlgorithm> KeyAlgorithm::create(JS::Realm& realm)
 {
     return realm.create<KeyAlgorithm>(realm);
 }
@@ -66,7 +66,7 @@ void KeyAlgorithm::visit_edges(Visitor& visitor)
     visitor.visit(m_realm);
 }
 
-JS::NonnullGCPtr<RsaKeyAlgorithm> RsaKeyAlgorithm::create(JS::Realm& realm)
+GC::Ref<RsaKeyAlgorithm> RsaKeyAlgorithm::create(JS::Realm& realm)
 {
     return realm.create<RsaKeyAlgorithm>(realm);
 }
@@ -132,7 +132,7 @@ JS_DEFINE_NATIVE_FUNCTION(RsaKeyAlgorithm::public_exponent_getter)
     return impl->public_exponent();
 }
 
-JS::NonnullGCPtr<EcKeyAlgorithm> EcKeyAlgorithm::create(JS::Realm& realm)
+GC::Ref<EcKeyAlgorithm> EcKeyAlgorithm::create(JS::Realm& realm)
 {
     return realm.create<EcKeyAlgorithm>(realm);
 }
@@ -155,7 +155,7 @@ JS_DEFINE_NATIVE_FUNCTION(EcKeyAlgorithm::named_curve_getter)
     return JS::PrimitiveString::create(vm, impl->named_curve());
 }
 
-JS::NonnullGCPtr<RsaHashedKeyAlgorithm> RsaHashedKeyAlgorithm::create(JS::Realm& realm)
+GC::Ref<RsaHashedKeyAlgorithm> RsaHashedKeyAlgorithm::create(JS::Realm& realm)
 {
     return realm.create<RsaHashedKeyAlgorithm>(realm);
 }
@@ -181,12 +181,12 @@ JS_DEFINE_NATIVE_FUNCTION(RsaHashedKeyAlgorithm::hash_getter)
         [&](String const& hash_string) -> JS::Value {
             return JS::PrimitiveString::create(vm, hash_string);
         },
-        [&](JS::Handle<JS::Object> const& hash) -> JS::Value {
+        [&](GC::Root<JS::Object> const& hash) -> JS::Value {
             return hash;
         });
 }
 
-JS::NonnullGCPtr<AesKeyAlgorithm> AesKeyAlgorithm::create(JS::Realm& realm)
+GC::Ref<AesKeyAlgorithm> AesKeyAlgorithm::create(JS::Realm& realm)
 {
     return realm.create<AesKeyAlgorithm>(realm);
 }
@@ -211,7 +211,7 @@ JS_DEFINE_NATIVE_FUNCTION(AesKeyAlgorithm::length_getter)
     return length;
 }
 
-JS::NonnullGCPtr<HmacKeyAlgorithm> HmacKeyAlgorithm::create(JS::Realm& realm)
+GC::Ref<HmacKeyAlgorithm> HmacKeyAlgorithm::create(JS::Realm& realm)
 {
     return realm.create<HmacKeyAlgorithm>(realm);
 }

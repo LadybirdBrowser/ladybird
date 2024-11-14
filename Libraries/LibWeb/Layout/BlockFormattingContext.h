@@ -87,7 +87,7 @@ private:
     };
 
     struct FloatingBox {
-        JS::NonnullGCPtr<Box const> box;
+        GC::Ref<Box const> box;
 
         LayoutState::UsedValues& used_values;
 

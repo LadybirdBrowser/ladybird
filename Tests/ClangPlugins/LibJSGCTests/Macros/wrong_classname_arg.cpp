@@ -12,8 +12,8 @@
 // An incorrect first argument for JS_PROTOTYPE_OBJECT is a compile error, so that is not tested
 
 class TestCellClass : JS::Cell {
-    // expected-error@+1 {{Expected first argument of JS_CELL macro invocation to be TestCellClass}}
-    JS_CELL(bad, JS::Cell);
+    // expected-error@+1 {{Expected first argument of GC_CELL macro invocation to be TestCellClass}}
+    GC_CELL(bad, JS::Cell);
 };
 
 class TestObjectClass : JS::Object {
@@ -36,6 +36,6 @@ struct Outer {
 };
 
 struct Outer::Inner : JS::Cell {
-    // expected-error@+1 {{Expected first argument of JS_CELL macro invocation to be Outer::Inner}}
-    JS_CELL(Inner, JS::Cell);
+    // expected-error@+1 {{Expected first argument of GC_CELL macro invocation to be Outer::Inner}}
+    GC_CELL(Inner, JS::Cell);
 };

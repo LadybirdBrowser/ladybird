@@ -10,14 +10,14 @@
 
 namespace Web::Layout {
 
-JS_DEFINE_ALLOCATOR(SVGForeignObjectBox);
+GC_DEFINE_ALLOCATOR(SVGForeignObjectBox);
 
 SVGForeignObjectBox::SVGForeignObjectBox(DOM::Document& document, SVG::SVGForeignObjectElement& element, CSS::StyleProperties properties)
     : BlockContainer(document, &element, properties)
 {
 }
 
-JS::GCPtr<Painting::Paintable> SVGForeignObjectBox::create_paintable() const
+GC::Ptr<Painting::Paintable> SVGForeignObjectBox::create_paintable() const
 {
     return Painting::SVGForeignObjectPaintable::create(*this);
 }

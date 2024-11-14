@@ -9,7 +9,7 @@
 
 #include <AK/RefCounted.h>
 #include <AK/Weakable.h>
-#include <LibJS/Heap/HeapFunction.h>
+#include <LibGC/Function.h>
 #include <LibWeb/DOM/EventTarget.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/WebIDL/Types.h>
@@ -19,10 +19,10 @@ namespace Web::DOM {
 // https://dom.spec.whatwg.org/#abortsignal
 class AbortSignal final : public EventTarget {
     WEB_PLATFORM_OBJECT(AbortSignal, EventTarget);
-    JS_DECLARE_ALLOCATOR(AbortSignal);
+    GC_DECLARE_ALLOCATOR(AbortSignal);
 
 public:
-    static WebIDL::ExceptionOr<JS::NonnullGCPtr<AbortSignal>> construct_impl(JS::Realm&);
+    static WebIDL::ExceptionOr<GC::Ref<AbortSignal>> construct_impl(JS::Realm&);
 
     virtual ~AbortSignal() override = default;
 
@@ -43,11 +43,11 @@ public:
 
     JS::ThrowCompletionOr<void> throw_if_aborted() const;
 
-    static WebIDL::ExceptionOr<JS::NonnullGCPtr<AbortSignal>> abort(JS::VM&, JS::Value reason);
-    static WebIDL::ExceptionOr<JS::NonnullGCPtr<AbortSignal>> timeout(JS::VM&, Web::WebIDL::UnsignedLongLong milliseconds);
-    static WebIDL::ExceptionOr<JS::NonnullGCPtr<AbortSignal>> any(JS::VM&, Vector<JS::Handle<AbortSignal>> const&);
+    static WebIDL::ExceptionOr<GC::Ref<AbortSignal>> abort(JS::VM&, JS::Value reason);
+    static WebIDL::ExceptionOr<GC::Ref<AbortSignal>> timeout(JS::VM&, Web::WebIDL::UnsignedLongLong milliseconds);
+    static WebIDL::ExceptionOr<GC::Ref<AbortSignal>> any(JS::VM&, Vector<GC::Root<AbortSignal>> const&);
 
-    static WebIDL::ExceptionOr<JS::NonnullGCPtr<AbortSignal>> create_dependent_abort_signal(JS::Realm&, Vector<JS::Handle<AbortSignal>> const&);
+    static WebIDL::ExceptionOr<GC::Ref<AbortSignal>> create_dependent_abort_signal(JS::Realm&, Vector<GC::Root<AbortSignal>> const&);
 
 private:
     explicit AbortSignal(JS::Realm&);
@@ -58,10 +58,10 @@ private:
     bool dependent() const { return m_dependent; }
     void set_dependent(bool dependent) { m_dependent = dependent; }
 
-    Vector<JS::GCPtr<AbortSignal>> source_signals() const { return m_source_signals; }
+    Vector<GC::Ptr<AbortSignal>> source_signals() const { return m_source_signals; }
 
-    void append_source_signal(JS::GCPtr<AbortSignal> source_signal) { m_source_signals.append(source_signal); }
-    void append_dependent_signal(JS::GCPtr<AbortSignal> dependent_signal) { m_dependent_signals.append(dependent_signal); }
+    void append_source_signal(GC::Ptr<AbortSignal> source_signal) { m_source_signals.append(source_signal); }
+    void append_dependent_signal(GC::Ptr<AbortSignal> dependent_signal) { m_dependent_signals.append(dependent_signal); }
 
     // https://dom.spec.whatwg.org/#abortsignal-abort-reason
     // An AbortSignal object has an associated abort reason, which is a JavaScript value. It is undefined unless specified otherwise.
@@ -69,15 +69,15 @@ private:
 
     // https://dom.spec.whatwg.org/#abortsignal-abort-algorithms
     // FIXME: This should be a set.
-    Vector<JS::NonnullGCPtr<JS::HeapFunction<void()>>> m_abort_algorithms;
+    Vector<GC::Ref<GC::Function<void()>>> m_abort_algorithms;
 
     // https://dom.spec.whatwg.org/#abortsignal-source-signals
     // An AbortSignal object has associated source signals (a weak set of AbortSignal objects that the object is dependent on for its aborted state), which is initially empty.
-    Vector<JS::GCPtr<AbortSignal>> m_source_signals;
+    Vector<GC::Ptr<AbortSignal>> m_source_signals;
 
     // https://dom.spec.whatwg.org/#abortsignal-dependent-signals
     // An AbortSignal object has associated dependent signals (a weak set of AbortSignal objects that are dependent on the object for their aborted state), which is initially empty.
-    Vector<JS::GCPtr<AbortSignal>> m_dependent_signals;
+    Vector<GC::Ptr<AbortSignal>> m_dependent_signals;
 
     // https://dom.spec.whatwg.org/#abortsignal-dependent
     // An AbortSignal object has a dependent (a boolean), which is initially false.

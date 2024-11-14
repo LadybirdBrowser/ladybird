@@ -7,8 +7,8 @@
 #pragma once
 
 #include <AK/Forward.h>
-#include <LibJS/Heap/GCPtr.h>
-#include <LibJS/Heap/HeapFunction.h>
+#include <LibGC/Function.h>
+#include <LibGC/Ptr.h>
 #include <LibWeb/Forward.h>
 
 namespace Web::Platform {
@@ -20,9 +20,9 @@ public:
 
     virtual ~EventLoopPlugin();
 
-    virtual void spin_until(JS::Handle<JS::HeapFunction<bool()>> goal_condition) = 0;
-    virtual void deferred_invoke(ESCAPING JS::Handle<JS::HeapFunction<void()>>) = 0;
-    virtual JS::NonnullGCPtr<Timer> create_timer(JS::Heap&) = 0;
+    virtual void spin_until(GC::Root<GC::Function<bool()>> goal_condition) = 0;
+    virtual void deferred_invoke(ESCAPING GC::Root<GC::Function<void()>>) = 0;
+    virtual GC::Ref<Timer> create_timer(GC::Heap&) = 0;
     virtual void quit() = 0;
 };
 

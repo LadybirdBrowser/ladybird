@@ -49,7 +49,7 @@ void NavigableContainer::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_content_navigable);
 }
 
-JS::GCPtr<NavigableContainer> NavigableContainer::navigable_container_with_content_navigable(JS::NonnullGCPtr<Navigable> navigable)
+GC::Ptr<NavigableContainer> NavigableContainer::navigable_container_with_content_navigable(GC::Ref<Navigable> navigable)
 {
     for (auto* navigable_container : all_instances()) {
         if (navigable_container->content_navigable() == navigable)
@@ -59,7 +59,7 @@ JS::GCPtr<NavigableContainer> NavigableContainer::navigable_container_with_conte
 }
 
 // https://html.spec.whatwg.org/multipage/document-sequences.html#create-a-new-child-navigable
-WebIDL::ExceptionOr<void> NavigableContainer::create_new_child_navigable(JS::GCPtr<JS::HeapFunction<void()>> after_session_history_update)
+WebIDL::ExceptionOr<void> NavigableContainer::create_new_child_navigable(GC::Ptr<GC::Function<void()>> after_session_history_update)
 {
     // 1. Let parentNavigable be element's node navigable.
     auto parent_navigable = navigable();
@@ -86,7 +86,7 @@ WebIDL::ExceptionOr<void> NavigableContainer::create_new_child_navigable(JS::GCP
     //  - origin: document's origin
     //  - navigable target name: targetName
     //  - about base URL: document's about base URL
-    JS::NonnullGCPtr<DocumentState> document_state = *heap().allocate<HTML::DocumentState>();
+    GC::Ref<DocumentState> document_state = *heap().allocate<HTML::DocumentState>();
     document_state->set_document(document);
     document_state->set_initiator_origin(document->origin());
     document_state->set_origin(document->origin());
@@ -95,7 +95,7 @@ WebIDL::ExceptionOr<void> NavigableContainer::create_new_child_navigable(JS::GCP
     document_state->set_about_base_url(document->about_base_url());
 
     // 7. Let navigable be a new navigable.
-    JS::NonnullGCPtr<Navigable> navigable = *heap().allocate<Navigable>(page);
+    GC::Ref<Navigable> navigable = *heap().allocate<Navigable>(page);
 
     // 8. Initialize the navigable navigable given documentState and parentNavigable.
     TRY_OR_THROW_OOM(vm(), navigable->initialize_navigable(document_state, parent_navigable));
@@ -110,7 +110,7 @@ WebIDL::ExceptionOr<void> NavigableContainer::create_new_child_navigable(JS::GCP
     auto traversable = parent_navigable->traversable_navigable();
 
     // 12. Append the following session history traversal steps to traversable:
-    traversable->append_session_history_traversal_steps(JS::create_heap_function(heap(), [traversable, navigable, parent_navigable, history_entry, after_session_history_update] {
+    traversable->append_session_history_traversal_steps(GC::create_function(heap(), [traversable, navigable, parent_navigable, history_entry, after_session_history_update] {
         // 1. Let parentDocState be parentNavigable's active session history entry's document state.
         auto parent_doc_state = parent_navigable->active_session_history_entry()->document_state();
 
@@ -278,7 +278,7 @@ void NavigableContainer::destroy_the_child_navigable()
     // FIXME: 4. Inform the navigation API about child navigable destruction given navigable.
 
     // 5. Destroy a document and its descendants given navigable's active document.
-    navigable->active_document()->destroy_a_document_and_its_descendants(JS::create_heap_function(heap(), [this, navigable] {
+    navigable->active_document()->destroy_a_document_and_its_descendants(GC::create_function(heap(), [this, navigable] {
         // 3. Set container's content navigable to null.
         m_content_navigable = nullptr;
 
@@ -297,7 +297,7 @@ void NavigableContainer::destroy_the_child_navigable()
         auto traversable = this->navigable()->traversable_navigable();
 
         // 9. Append the following session history traversal steps to traversable:
-        traversable->append_session_history_traversal_steps(JS::create_heap_function(heap(), [traversable] {
+        traversable->append_session_history_traversal_steps(GC::create_function(heap(), [traversable] {
             // 1. Update for navigable creation/destruction given traversable.
             traversable->update_for_navigable_creation_or_destruction();
         }));

@@ -16,7 +16,7 @@
 
 namespace Web::FileAPI {
 
-using BlobPart = Variant<JS::Handle<WebIDL::BufferSource>, JS::Handle<Blob>, String>;
+using BlobPart = Variant<GC::Root<WebIDL::BufferSource>, GC::Root<Blob>, String>;
 
 struct BlobPropertyBag {
     String type = String {};
@@ -31,30 +31,30 @@ class Blob
     : public Bindings::PlatformObject
     , public Bindings::Serializable {
     WEB_PLATFORM_OBJECT(Blob, Bindings::PlatformObject);
-    JS_DECLARE_ALLOCATOR(Blob);
+    GC_DECLARE_ALLOCATOR(Blob);
 
 public:
     virtual ~Blob() override;
 
-    [[nodiscard]] static JS::NonnullGCPtr<Blob> create(JS::Realm&, ByteBuffer, String type);
-    [[nodiscard]] static JS::NonnullGCPtr<Blob> create(JS::Realm&, Optional<Vector<BlobPart>> const& blob_parts = {}, Optional<BlobPropertyBag> const& options = {});
-    static WebIDL::ExceptionOr<JS::NonnullGCPtr<Blob>> construct_impl(JS::Realm&, Optional<Vector<BlobPart>> const& blob_parts = {}, Optional<BlobPropertyBag> const& options = {});
+    [[nodiscard]] static GC::Ref<Blob> create(JS::Realm&, ByteBuffer, String type);
+    [[nodiscard]] static GC::Ref<Blob> create(JS::Realm&, Optional<Vector<BlobPart>> const& blob_parts = {}, Optional<BlobPropertyBag> const& options = {});
+    static WebIDL::ExceptionOr<GC::Ref<Blob>> construct_impl(JS::Realm&, Optional<Vector<BlobPart>> const& blob_parts = {}, Optional<BlobPropertyBag> const& options = {});
 
     // https://w3c.github.io/FileAPI/#dfn-size
     u64 size() const { return m_byte_buffer.size(); }
     // https://w3c.github.io/FileAPI/#dfn-type
     String const& type() const { return m_type; }
 
-    WebIDL::ExceptionOr<JS::NonnullGCPtr<Blob>> slice(Optional<i64> start = {}, Optional<i64> end = {}, Optional<String> const& content_type = {});
+    WebIDL::ExceptionOr<GC::Ref<Blob>> slice(Optional<i64> start = {}, Optional<i64> end = {}, Optional<String> const& content_type = {});
 
-    JS::NonnullGCPtr<Streams::ReadableStream> stream();
-    JS::NonnullGCPtr<WebIDL::Promise> text();
-    JS::NonnullGCPtr<WebIDL::Promise> array_buffer();
-    JS::NonnullGCPtr<WebIDL::Promise> bytes();
+    GC::Ref<Streams::ReadableStream> stream();
+    GC::Ref<WebIDL::Promise> text();
+    GC::Ref<WebIDL::Promise> array_buffer();
+    GC::Ref<WebIDL::Promise> bytes();
 
     ReadonlyBytes raw_bytes() const { return m_byte_buffer.bytes(); }
 
-    JS::NonnullGCPtr<Streams::ReadableStream> get_stream();
+    GC::Ref<Streams::ReadableStream> get_stream();
 
     virtual StringView interface_name() const override { return "Blob"sv; }
 
@@ -67,7 +67,7 @@ protected:
 
     virtual void initialize(JS::Realm&) override;
 
-    WebIDL::ExceptionOr<JS::NonnullGCPtr<Blob>> slice_blob(Optional<i64> start = {}, Optional<i64> end = {}, Optional<String> const& content_type = {});
+    WebIDL::ExceptionOr<GC::Ref<Blob>> slice_blob(Optional<i64> start = {}, Optional<i64> end = {}, Optional<String> const& content_type = {});
 
     ByteBuffer m_byte_buffer {};
     String m_type {};

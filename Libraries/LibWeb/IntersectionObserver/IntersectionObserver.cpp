@@ -16,10 +16,10 @@
 
 namespace Web::IntersectionObserver {
 
-JS_DEFINE_ALLOCATOR(IntersectionObserver);
+GC_DEFINE_ALLOCATOR(IntersectionObserver);
 
 // https://w3c.github.io/IntersectionObserver/#dom-intersectionobserver-intersectionobserver
-WebIDL::ExceptionOr<JS::NonnullGCPtr<IntersectionObserver>> IntersectionObserver::construct_impl(JS::Realm& realm, JS::GCPtr<WebIDL::CallbackType> callback, IntersectionObserverInit const& options)
+WebIDL::ExceptionOr<GC::Ref<IntersectionObserver>> IntersectionObserver::construct_impl(JS::Realm& realm, GC::Ptr<WebIDL::CallbackType> callback, IntersectionObserverInit const& options)
 {
     // 4. Let thresholds be a list equal to options.threshold.
     Vector<double> thresholds;
@@ -48,12 +48,12 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<IntersectionObserver>> IntersectionObserver
     return realm.create<IntersectionObserver>(realm, callback, options.root, move(thresholds));
 }
 
-IntersectionObserver::IntersectionObserver(JS::Realm& realm, JS::GCPtr<WebIDL::CallbackType> callback, Optional<Variant<JS::Handle<DOM::Element>, JS::Handle<DOM::Document>>> const& root, Vector<double>&& thresholds)
+IntersectionObserver::IntersectionObserver(JS::Realm& realm, GC::Ptr<WebIDL::CallbackType> callback, Optional<Variant<GC::Root<DOM::Element>, GC::Root<DOM::Document>>> const& root, Vector<double>&& thresholds)
     : PlatformObject(realm)
     , m_callback(callback)
     , m_thresholds(move(thresholds))
 {
-    m_root = root.has_value() ? root->visit([](auto& value) -> JS::GCPtr<DOM::Node> { return *value; }) : nullptr;
+    m_root = root.has_value() ? root->visit([](auto& value) -> GC::Ptr<DOM::Node> { return *value; }) : nullptr;
     intersection_root().visit([this](auto& node) {
         m_document = node->document();
     });
@@ -89,7 +89,7 @@ void IntersectionObserver::observe(DOM::Element& target)
     // Run the observe a target Element algorithm, providing this and target.
     // https://www.w3.org/TR/intersection-observer/#observe-a-target-element
     // 1. If target is in observer’s internal [[ObservationTargets]] slot, return.
-    if (m_observation_targets.contains_slow(JS::NonnullGCPtr { target }))
+    if (m_observation_targets.contains_slow(GC::Ref { target }))
         return;
 
     // 2. Let intersectionObserverRegistration be an IntersectionObserverRegistration record with an observer
@@ -117,7 +117,7 @@ void IntersectionObserver::unobserve(DOM::Element& target)
     target.unregister_intersection_observer({}, *this);
 
     // 2. Remove target from this’s internal [[ObservationTargets]] slot, if present
-    m_observation_targets.remove_first_matching([&target](JS::NonnullGCPtr<DOM::Element> const& entry) {
+    m_observation_targets.remove_first_matching([&target](GC::Ref<DOM::Element> const& entry) {
         return entry.ptr() == &target;
     });
 }
@@ -136,10 +136,10 @@ void IntersectionObserver::disconnect()
 }
 
 // https://www.w3.org/TR/intersection-observer/#dom-intersectionobserver-takerecords
-Vector<JS::Handle<IntersectionObserverEntry>> IntersectionObserver::take_records()
+Vector<GC::Root<IntersectionObserverEntry>> IntersectionObserver::take_records()
 {
     // 1. Let queue be a copy of this’s internal [[QueuedEntries]] slot.
-    Vector<JS::Handle<IntersectionObserverEntry>> queue;
+    Vector<GC::Root<IntersectionObserverEntry>> queue;
     for (auto& entry : m_queued_entries)
         queue.append(*entry);
 
@@ -150,32 +150,32 @@ Vector<JS::Handle<IntersectionObserverEntry>> IntersectionObserver::take_records
     return queue;
 }
 
-Variant<JS::Handle<DOM::Element>, JS::Handle<DOM::Document>, Empty> IntersectionObserver::root() const
+Variant<GC::Root<DOM::Element>, GC::Root<DOM::Document>, Empty> IntersectionObserver::root() const
 {
     if (!m_root)
         return Empty {};
     if (m_root->is_element())
-        return JS::make_handle(static_cast<DOM::Element&>(*m_root));
+        return GC::make_root(static_cast<DOM::Element&>(*m_root));
     if (m_root->is_document())
-        return JS::make_handle(static_cast<DOM::Document&>(*m_root));
+        return GC::make_root(static_cast<DOM::Document&>(*m_root));
     VERIFY_NOT_REACHED();
 }
 
 // https://www.w3.org/TR/intersection-observer/#intersectionobserver-intersection-root
-Variant<JS::Handle<DOM::Element>, JS::Handle<DOM::Document>> IntersectionObserver::intersection_root() const
+Variant<GC::Root<DOM::Element>, GC::Root<DOM::Document>> IntersectionObserver::intersection_root() const
 {
     // The intersection root for an IntersectionObserver is the value of its root attribute
     // if the attribute is non-null;
     if (m_root) {
         if (m_root->is_element())
-            return JS::make_handle(static_cast<DOM::Element&>(*m_root));
+            return GC::make_root(static_cast<DOM::Element&>(*m_root));
         if (m_root->is_document())
-            return JS::make_handle(static_cast<DOM::Document&>(*m_root));
+            return GC::make_root(static_cast<DOM::Document&>(*m_root));
         VERIFY_NOT_REACHED();
     }
 
     // otherwise, it is the top-level browsing context’s document node, referred to as the implicit root.
-    return JS::make_handle(verify_cast<HTML::Window>(HTML::relevant_global_object(*this)).page().top_level_browsing_context().active_document());
+    return GC::make_root(verify_cast<HTML::Window>(HTML::relevant_global_object(*this)).page().top_level_browsing_context().active_document());
 }
 
 // https://www.w3.org/TR/intersection-observer/#intersectionobserver-root-intersection-rectangle
@@ -189,8 +189,8 @@ CSSPixelRect IntersectionObserver::root_intersection_rectangle() const
 
     // If the intersection root is a document,
     //    it’s the size of the document's viewport (note that this processing step can only be reached if the document is fully active).
-    if (intersection_root.has<JS::Handle<DOM::Document>>()) {
-        auto document = intersection_root.get<JS::Handle<DOM::Document>>();
+    if (intersection_root.has<GC::Root<DOM::Document>>()) {
+        auto document = intersection_root.get<GC::Root<DOM::Document>>();
 
         // Since the spec says that this is only reach if the document is fully active, that means it must have a navigable.
         VERIFY(document->navigable());
@@ -199,8 +199,8 @@ CSSPixelRect IntersectionObserver::root_intersection_rectangle() const
         //       as intersections are computed using viewport-relative element rects.
         rect = CSSPixelRect { CSSPixelPoint { 0, 0 }, document->viewport_rect().size() };
     } else {
-        VERIFY(intersection_root.has<JS::Handle<DOM::Element>>());
-        auto element = intersection_root.get<JS::Handle<DOM::Element>>();
+        VERIFY(intersection_root.has<GC::Root<DOM::Element>>());
+        auto element = intersection_root.get<GC::Root<DOM::Element>>();
 
         // FIXME: Otherwise, if the intersection root has a content clip,
         //          it’s the element’s content area.
@@ -220,7 +220,7 @@ CSSPixelRect IntersectionObserver::root_intersection_rectangle() const
     return rect;
 }
 
-void IntersectionObserver::queue_entry(Badge<DOM::Document>, JS::NonnullGCPtr<IntersectionObserverEntry> entry)
+void IntersectionObserver::queue_entry(Badge<DOM::Document>, GC::Ref<IntersectionObserverEntry> entry)
 {
     m_queued_entries.append(entry);
 }

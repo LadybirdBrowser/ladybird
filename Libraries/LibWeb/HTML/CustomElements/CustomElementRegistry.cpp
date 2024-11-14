@@ -20,8 +20,8 @@
 
 namespace Web::HTML {
 
-JS_DEFINE_ALLOCATOR(CustomElementRegistry);
-JS_DEFINE_ALLOCATOR(CustomElementDefinition);
+GC_DEFINE_ALLOCATOR(CustomElementRegistry);
+GC_DEFINE_ALLOCATOR(CustomElementDefinition);
 
 CustomElementRegistry::CustomElementRegistry(JS::Realm& realm)
     : Bindings::PlatformObject(realm)
@@ -44,7 +44,7 @@ void CustomElementRegistry::visit_edges(Visitor& visitor)
 }
 
 // https://webidl.spec.whatwg.org/#es-callback-function
-static JS::ThrowCompletionOr<JS::NonnullGCPtr<WebIDL::CallbackType>> convert_value_to_callback_function(JS::VM& vm, JS::Value value)
+static JS::ThrowCompletionOr<GC::Ref<WebIDL::CallbackType>> convert_value_to_callback_function(JS::VM& vm, JS::Value value)
 {
     // FIXME: De-duplicate this from the IDL generator.
     // 1. If the result of calling IsCallable(V) is false and the conversion to an IDL value is not being performed due to V being assigned to an attribute whose type is a nullable callback function that is annotated with [LegacyTreatNonObjectAsNull], then throw a TypeError.
@@ -288,7 +288,7 @@ JS::ThrowCompletionOr<void> CustomElementRegistry::define(String const& name, We
 
     // 18. Let upgrade candidates be all elements that are shadow-including descendants of document, whose namespace is the HTML namespace and whose local name is localName, in shadow-including tree order.
     //     Additionally, if extends is non-null, only include elements whose is value is equal to name.
-    Vector<JS::Handle<DOM::Element>> upgrade_candidates;
+    Vector<GC::Root<DOM::Element>> upgrade_candidates;
 
     document.for_each_shadow_including_descendant([&](DOM::Node& inclusive_descendant) {
         if (!is<DOM::Element>(inclusive_descendant))
@@ -297,7 +297,7 @@ JS::ThrowCompletionOr<void> CustomElementRegistry::define(String const& name, We
         auto& inclusive_descendant_element = static_cast<DOM::Element&>(inclusive_descendant);
 
         if (inclusive_descendant_element.namespace_uri() == Namespace::HTML && inclusive_descendant_element.local_name() == local_name && (!extends.has_value() || inclusive_descendant_element.is_value() == name))
-            upgrade_candidates.append(JS::make_handle(inclusive_descendant_element));
+            upgrade_candidates.append(GC::make_root(inclusive_descendant_element));
 
         return TraversalDecision::Continue;
     });
@@ -323,7 +323,7 @@ JS::ThrowCompletionOr<void> CustomElementRegistry::define(String const& name, We
 }
 
 // https://html.spec.whatwg.org/multipage/custom-elements.html#dom-customelementregistry-get
-Variant<JS::Handle<WebIDL::CallbackType>, JS::Value> CustomElementRegistry::get(String const& name) const
+Variant<GC::Root<WebIDL::CallbackType>, JS::Value> CustomElementRegistry::get(String const& name) const
 {
     // 1. If this CustomElementRegistry contains an entry with name name, then return that entry's constructor.
     auto existing_definition_iterator = m_custom_element_definitions.find_if([&name](auto const& definition) {
@@ -331,14 +331,14 @@ Variant<JS::Handle<WebIDL::CallbackType>, JS::Value> CustomElementRegistry::get(
     });
 
     if (!existing_definition_iterator.is_end())
-        return JS::make_handle((*existing_definition_iterator)->constructor());
+        return GC::make_root((*existing_definition_iterator)->constructor());
 
     // 2. Otherwise, return undefined.
     return JS::js_undefined();
 }
 
 // https://html.spec.whatwg.org/multipage/custom-elements.html#dom-customelementregistry-getname
-Optional<String> CustomElementRegistry::get_name(JS::Handle<WebIDL::CallbackType> const& constructor) const
+Optional<String> CustomElementRegistry::get_name(GC::Root<WebIDL::CallbackType> const& constructor) const
 {
     // 1. If this CustomElementRegistry contains an entry with constructor constructor, then return that entry's name.
     auto existing_definition_iterator = m_custom_element_definitions.find_if([&constructor](auto const& definition) {
@@ -353,7 +353,7 @@ Optional<String> CustomElementRegistry::get_name(JS::Handle<WebIDL::CallbackType
 }
 
 // https://html.spec.whatwg.org/multipage/custom-elements.html#dom-customelementregistry-whendefined
-WebIDL::ExceptionOr<JS::NonnullGCPtr<WebIDL::Promise>> CustomElementRegistry::when_defined(String const& name)
+WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> CustomElementRegistry::when_defined(String const& name)
 {
     auto& realm = this->realm();
 
@@ -362,7 +362,7 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<WebIDL::Promise>> CustomElementRegistry::wh
         return WebIDL::create_rejected_promise(realm, WebIDL::SyntaxError::create(realm, MUST(String::formatted("'{}' is not a valid custom element name"sv, name))));
 
     // 2. If this CustomElementRegistry contains an entry with name name, then return a new promise resolved with that entry's constructor.
-    auto existing_definition_iterator = m_custom_element_definitions.find_if([&name](JS::Handle<CustomElementDefinition> const& definition) {
+    auto existing_definition_iterator = m_custom_element_definitions.find_if([&name](GC::Root<CustomElementDefinition> const& definition) {
         return definition->name() == name;
     });
 
@@ -374,7 +374,7 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<WebIDL::Promise>> CustomElementRegistry::wh
 
     // 4. If map does not contain an entry with key name, create an entry in map with key name and whose value is a new promise.
     // 5. Let promise be the value of the entry in map with key name.
-    JS::GCPtr<WebIDL::Promise> promise;
+    GC::Ptr<WebIDL::Promise> promise;
 
     auto existing_promise_iterator = m_when_defined_promise_map.find(name);
     if (existing_promise_iterator != m_when_defined_promise_map.end()) {
@@ -386,21 +386,21 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<WebIDL::Promise>> CustomElementRegistry::wh
 
     // 5. Return promise.
     VERIFY(promise);
-    return JS::NonnullGCPtr { *promise };
+    return GC::Ref { *promise };
 }
 
 // https://html.spec.whatwg.org/multipage/custom-elements.html#dom-customelementregistry-upgrade
-void CustomElementRegistry::upgrade(JS::NonnullGCPtr<DOM::Node> root) const
+void CustomElementRegistry::upgrade(GC::Ref<DOM::Node> root) const
 {
     // 1. Let candidates be a list of all of root's shadow-including inclusive descendant elements, in shadow-including tree order.
-    Vector<JS::Handle<DOM::Element>> candidates;
+    Vector<GC::Root<DOM::Element>> candidates;
 
     root->for_each_shadow_including_inclusive_descendant([&](DOM::Node& inclusive_descendant) {
         if (!is<DOM::Element>(inclusive_descendant))
             return TraversalDecision::Continue;
 
         auto& inclusive_descendant_element = static_cast<DOM::Element&>(inclusive_descendant);
-        candidates.append(JS::make_handle(inclusive_descendant_element));
+        candidates.append(GC::make_root(inclusive_descendant_element));
 
         return TraversalDecision::Continue;
     });
@@ -410,18 +410,18 @@ void CustomElementRegistry::upgrade(JS::NonnullGCPtr<DOM::Node> root) const
         candidate->try_to_upgrade();
 }
 
-JS::GCPtr<CustomElementDefinition> CustomElementRegistry::get_definition_with_name_and_local_name(String const& name, String const& local_name) const
+GC::Ptr<CustomElementDefinition> CustomElementRegistry::get_definition_with_name_and_local_name(String const& name, String const& local_name) const
 {
-    auto definition_iterator = m_custom_element_definitions.find_if([&](JS::Handle<CustomElementDefinition> const& definition) {
+    auto definition_iterator = m_custom_element_definitions.find_if([&](GC::Root<CustomElementDefinition> const& definition) {
         return definition->name() == name && definition->local_name() == local_name;
     });
 
     return definition_iterator.is_end() ? nullptr : definition_iterator->ptr();
 }
 
-JS::GCPtr<CustomElementDefinition> CustomElementRegistry::get_definition_from_new_target(JS::FunctionObject const& new_target) const
+GC::Ptr<CustomElementDefinition> CustomElementRegistry::get_definition_from_new_target(JS::FunctionObject const& new_target) const
 {
-    auto definition_iterator = m_custom_element_definitions.find_if([&](JS::Handle<CustomElementDefinition> const& definition) {
+    auto definition_iterator = m_custom_element_definitions.find_if([&](GC::Root<CustomElementDefinition> const& definition) {
         return definition->constructor().callback.ptr() == &new_target;
     });
 

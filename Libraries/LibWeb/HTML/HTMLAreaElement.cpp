@@ -12,7 +12,7 @@
 
 namespace Web::HTML {
 
-JS_DEFINE_ALLOCATOR(HTMLAreaElement);
+GC_DEFINE_ALLOCATOR(HTMLAreaElement);
 
 HTMLAreaElement::HTMLAreaElement(DOM::Document& document, DOM::QualifiedName qualified_name)
     : HTMLElement(document, move(qualified_name))
@@ -46,7 +46,7 @@ void HTMLAreaElement::attribute_changed(FlyString const& name, Optional<String> 
 }
 
 // https://html.spec.whatwg.org/multipage/image-maps.html#dom-area-rellist
-JS::NonnullGCPtr<DOM::DOMTokenList> HTMLAreaElement::rel_list()
+GC::Ref<DOM::DOMTokenList> HTMLAreaElement::rel_list()
 {
     // The IDL attribute relList must reflect the rel content attribute.
     if (!m_rel_list)

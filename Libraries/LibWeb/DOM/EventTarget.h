@@ -19,12 +19,12 @@ namespace Web::DOM {
 
 class EventTarget : public Bindings::PlatformObject {
     WEB_PLATFORM_OBJECT(EventTarget, Bindings::PlatformObject);
-    JS_DECLARE_ALLOCATOR(EventTarget);
+    GC_DECLARE_ALLOCATOR(EventTarget);
 
 public:
     virtual ~EventTarget() override;
 
-    static WebIDL::ExceptionOr<JS::NonnullGCPtr<EventTarget>> construct_impl(JS::Realm&);
+    static WebIDL::ExceptionOr<GC::Ref<EventTarget>> construct_impl(JS::Realm&);
 
     virtual bool is_focusable() const { return false; }
 
@@ -44,7 +44,7 @@ public:
     void remove_an_event_listener(DOMEventListener&);
     void remove_from_event_listener_list(DOMEventListener&);
 
-    Vector<JS::Handle<DOMEventListener>> event_listener_list();
+    Vector<GC::Root<DOMEventListener>> event_listener_list();
 
     virtual bool has_activation_behavior() const;
     virtual void activation_behavior(Event const&);
@@ -70,11 +70,11 @@ protected:
 
 private:
     struct Data {
-        Vector<JS::NonnullGCPtr<DOMEventListener>> event_listener_list;
+        Vector<GC::Ref<DOMEventListener>> event_listener_list;
 
         // https://html.spec.whatwg.org/multipage/webappapis.html#event-handler-map
         // Spec Note: The order of the entries of event handler map could be arbitrary. It is not observable through any algorithms that operate on the map.
-        HashMap<FlyString, JS::NonnullGCPtr<HTML::EventHandler>> event_handler_map;
+        HashMap<FlyString, GC::Ref<HTML::EventHandler>> event_handler_map;
     };
 
     Data& ensure_data();

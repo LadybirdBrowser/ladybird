@@ -14,7 +14,7 @@ namespace Web::SVG {
 
 class SVGLinearGradientElement : public SVGGradientElement {
     WEB_PLATFORM_OBJECT(SVGLinearGradientElement, SVGGradientElement);
-    JS_DECLARE_ALLOCATOR(SVGLinearGradientElement);
+    GC_DECLARE_ALLOCATOR(SVGLinearGradientElement);
 
 public:
     virtual ~SVGLinearGradientElement() override = default;
@@ -23,10 +23,10 @@ public:
 
     virtual Optional<Painting::PaintStyle> to_gfx_paint_style(SVGPaintContext const&) const override;
 
-    JS::NonnullGCPtr<SVGAnimatedLength> x1() const;
-    JS::NonnullGCPtr<SVGAnimatedLength> y1() const;
-    JS::NonnullGCPtr<SVGAnimatedLength> x2() const;
-    JS::NonnullGCPtr<SVGAnimatedLength> y2() const;
+    GC::Ref<SVGAnimatedLength> x1() const;
+    GC::Ref<SVGAnimatedLength> y1() const;
+    GC::Ref<SVGAnimatedLength> x2() const;
+    GC::Ref<SVGAnimatedLength> y2() const;
 
 protected:
     SVGLinearGradientElement(DOM::Document&, DOM::QualifiedName);
@@ -34,7 +34,7 @@ protected:
     virtual void initialize(JS::Realm&) override;
 
 private:
-    JS::GCPtr<SVGLinearGradientElement const> linked_linear_gradient(HashTable<SVGGradientElement const*>& seen_gradients) const
+    GC::Ptr<SVGLinearGradientElement const> linked_linear_gradient(HashTable<SVGGradientElement const*>& seen_gradients) const
     {
         if (auto gradient = linked_gradient(seen_gradients); gradient && is<SVGLinearGradientElement>(*gradient))
             return &verify_cast<SVGLinearGradientElement>(*gradient);

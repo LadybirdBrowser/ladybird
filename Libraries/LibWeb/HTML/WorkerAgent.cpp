@@ -12,9 +12,9 @@
 
 namespace Web::HTML {
 
-JS_DEFINE_ALLOCATOR(WorkerAgent);
+GC_DEFINE_ALLOCATOR(WorkerAgent);
 
-WorkerAgent::WorkerAgent(URL::URL url, WorkerOptions const& options, JS::GCPtr<MessagePort> outside_port, JS::NonnullGCPtr<EnvironmentSettingsObject> outside_settings)
+WorkerAgent::WorkerAgent(URL::URL url, WorkerOptions const& options, GC::Ptr<MessagePort> outside_port, GC::Ref<EnvironmentSettingsObject> outside_settings)
     : m_worker_options(options)
     , m_url(move(url))
     , m_outside_port(outside_port)

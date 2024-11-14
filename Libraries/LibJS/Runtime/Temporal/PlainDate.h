@@ -17,7 +17,7 @@ namespace JS::Temporal {
 
 class PlainDate final : public Object {
     JS_OBJECT(PlainDate, Object);
-    JS_DECLARE_ALLOCATOR(PlainDate);
+    GC_DECLARE_ALLOCATOR(PlainDate);
 
 public:
     virtual ~PlainDate() override = default;
@@ -34,10 +34,10 @@ private:
     virtual void visit_edges(Visitor&) override;
 
     // 3.4 Properties of Temporal.PlainDate Instances, https://tc39.es/proposal-temporal/#sec-properties-of-temporal-plaindate-instances
-    i32 m_iso_year { 0 };            // [[ISOYear]]
-    u8 m_iso_month { 1 };            // [[ISOMonth]]
-    u8 m_iso_day { 1 };              // [[ISODay]]
-    NonnullGCPtr<Object> m_calendar; // [[Calendar]]
+    i32 m_iso_year { 0 };       // [[ISOYear]]
+    u8 m_iso_month { 1 };       // [[ISOMonth]]
+    u8 m_iso_day { 1 };         // [[ISODay]]
+    GC::Ref<Object> m_calendar; // [[Calendar]]
 };
 
 // 3.5.1 ISO Date Records, https://tc39.es/proposal-temporal/#sec-temporal-iso-date-records
@@ -58,7 +58,7 @@ ThrowCompletionOr<String> pad_iso_year(VM&, i32 y);
 ThrowCompletionOr<String> temporal_date_to_string(VM&, PlainDate&, StringView show_calendar);
 ThrowCompletionOr<ISODateRecord> add_iso_date(VM&, i32 year, u8 month, u8 day, double years, double months, double weeks, double days, StringView overflow);
 i8 compare_iso_date(i32 year1, u8 month1, u8 day1, i32 year2, u8 month2, u8 day2);
-ThrowCompletionOr<NonnullGCPtr<Duration>> difference_temporal_plain_date(VM&, DifferenceOperation, PlainDate&, Value other, Value options);
-ThrowCompletionOr<NonnullGCPtr<Duration>> difference_date(VM& vm, CalendarMethods const&, PlainDate const& one, PlainDate const& two, Object const& options);
+ThrowCompletionOr<GC::Ref<Duration>> difference_temporal_plain_date(VM&, DifferenceOperation, PlainDate&, Value other, Value options);
+ThrowCompletionOr<GC::Ref<Duration>> difference_date(VM& vm, CalendarMethods const&, PlainDate const& one, PlainDate const& two, Object const& options);
 
 }

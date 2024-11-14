@@ -14,7 +14,7 @@ namespace Web::Internals {
 
 class Inspector final : public Bindings::PlatformObject {
     WEB_PLATFORM_OBJECT(Inspector, Bindings::PlatformObject);
-    JS_DECLARE_ALLOCATOR(Inspector);
+    GC_DECLARE_ALLOCATOR(Inspector);
 
 public:
     virtual ~Inspector() override;
@@ -24,8 +24,8 @@ public:
 
     void set_dom_node_text(i64 node_id, String const& text);
     void set_dom_node_tag(i64 node_id, String const& tag);
-    void add_dom_node_attributes(i64 node_id, JS::NonnullGCPtr<DOM::NamedNodeMap> attributes);
-    void replace_dom_node_attribute(i64 node_id, WebIDL::UnsignedLongLong attribute_index, JS::NonnullGCPtr<DOM::NamedNodeMap> replacement_attributes);
+    void add_dom_node_attributes(i64 node_id, GC::Ref<DOM::NamedNodeMap> attributes);
+    void replace_dom_node_attribute(i64 node_id, WebIDL::UnsignedLongLong attribute_index, GC::Ref<DOM::NamedNodeMap> replacement_attributes);
 
     void request_dom_tree_context_menu(i64 node_id, i32 client_x, i32 client_y, String const& type, Optional<String> const& tag, Optional<WebIDL::UnsignedLongLong> const& attribute_index);
 

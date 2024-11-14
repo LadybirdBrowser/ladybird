@@ -10,14 +10,14 @@
 
 namespace Web::HTML {
 
-JS_DEFINE_ALLOCATOR(ErrorEvent);
+GC_DEFINE_ALLOCATOR(ErrorEvent);
 
-JS::NonnullGCPtr<ErrorEvent> ErrorEvent::create(JS::Realm& realm, FlyString const& event_name, ErrorEventInit const& event_init)
+GC::Ref<ErrorEvent> ErrorEvent::create(JS::Realm& realm, FlyString const& event_name, ErrorEventInit const& event_init)
 {
     return realm.create<ErrorEvent>(realm, event_name, event_init);
 }
 
-WebIDL::ExceptionOr<JS::NonnullGCPtr<ErrorEvent>> ErrorEvent::construct_impl(JS::Realm& realm, FlyString const& event_name, ErrorEventInit const& event_init)
+WebIDL::ExceptionOr<GC::Ref<ErrorEvent>> ErrorEvent::construct_impl(JS::Realm& realm, FlyString const& event_name, ErrorEventInit const& event_init)
 {
     return create(realm, event_name, event_init);
 }

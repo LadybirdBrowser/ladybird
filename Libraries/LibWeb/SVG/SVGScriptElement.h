@@ -16,7 +16,7 @@ class SVGScriptElement
     : public SVGElement
     , public SVGURIReferenceMixin<SupportsXLinkHref::Yes> {
     WEB_PLATFORM_OBJECT(SVGScriptElement, SVGElement);
-    JS_DECLARE_ALLOCATOR(SVGScriptElement);
+    GC_DECLARE_ALLOCATOR(SVGScriptElement);
 
 public:
     void process_the_script_element();
@@ -35,7 +35,7 @@ private:
 
     bool m_already_processed { false };
 
-    JS::GCPtr<HTML::ClassicScript> m_script;
+    GC::Ptr<HTML::ClassicScript> m_script;
 
     size_t m_source_line_number { 1 };
 };

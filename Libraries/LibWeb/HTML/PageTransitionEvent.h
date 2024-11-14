@@ -17,11 +17,11 @@ struct PageTransitionEventInit : public DOM::EventInit {
 
 class PageTransitionEvent final : public DOM::Event {
     WEB_PLATFORM_OBJECT(PageTransitionEvent, DOM::Event);
-    JS_DECLARE_ALLOCATOR(PageTransitionEvent);
+    GC_DECLARE_ALLOCATOR(PageTransitionEvent);
 
 public:
-    [[nodiscard]] static JS::NonnullGCPtr<PageTransitionEvent> create(JS::Realm&, FlyString const& event_name, PageTransitionEventInit const&);
-    static WebIDL::ExceptionOr<JS::NonnullGCPtr<PageTransitionEvent>> construct_impl(JS::Realm&, FlyString const& event_name, PageTransitionEventInit const&);
+    [[nodiscard]] static GC::Ref<PageTransitionEvent> create(JS::Realm&, FlyString const& event_name, PageTransitionEventInit const&);
+    static WebIDL::ExceptionOr<GC::Ref<PageTransitionEvent>> construct_impl(JS::Realm&, FlyString const& event_name, PageTransitionEventInit const&);
 
     PageTransitionEvent(JS::Realm&, FlyString const& event_name, PageTransitionEventInit const& event_init);
 

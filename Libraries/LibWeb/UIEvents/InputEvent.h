@@ -19,11 +19,11 @@ struct InputEventInit : public UIEventInit {
 
 class InputEvent final : public UIEvent {
     WEB_PLATFORM_OBJECT(InputEvent, UIEvent);
-    JS_DECLARE_ALLOCATOR(InputEvent);
+    GC_DECLARE_ALLOCATOR(InputEvent);
 
 public:
-    [[nodiscard]] static JS::NonnullGCPtr<InputEvent> create_from_platform_event(JS::Realm&, FlyString const& type, InputEventInit const& event_init);
-    static WebIDL::ExceptionOr<JS::NonnullGCPtr<InputEvent>> construct_impl(JS::Realm&, FlyString const& event_name, InputEventInit const& event_init);
+    [[nodiscard]] static GC::Ref<InputEvent> create_from_platform_event(JS::Realm&, FlyString const& type, InputEventInit const& event_init);
+    static WebIDL::ExceptionOr<GC::Ref<InputEvent>> construct_impl(JS::Realm&, FlyString const& event_name, InputEventInit const& event_init);
 
     virtual ~InputEvent() override;
 

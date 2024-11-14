@@ -33,14 +33,14 @@ namespace WebContent {
 
 static PageClient::UseSkiaPainter s_use_skia_painter = PageClient::UseSkiaPainter::GPUBackendIfAvailable;
 
-JS_DEFINE_ALLOCATOR(PageClient);
+GC_DEFINE_ALLOCATOR(PageClient);
 
 void PageClient::set_use_skia_painter(UseSkiaPainter use_skia_painter)
 {
     s_use_skia_painter = use_skia_painter;
 }
 
-JS::NonnullGCPtr<PageClient> PageClient::create(JS::VM& vm, PageHost& page_host, u64 id)
+GC::Ref<PageClient> PageClient::create(JS::VM& vm, PageHost& page_host, u64 id)
 {
     return vm.heap().allocate<PageClient>(page_host, id);
 }
@@ -626,7 +626,7 @@ void PageClient::inspector_did_set_dom_node_tag(Web::UniqueNodeID node_id, Strin
     client().async_inspector_did_set_dom_node_tag(m_id, node_id, tag);
 }
 
-static Vector<WebView::Attribute> named_node_map_to_vector(JS::NonnullGCPtr<Web::DOM::NamedNodeMap> map)
+static Vector<WebView::Attribute> named_node_map_to_vector(GC::Ref<Web::DOM::NamedNodeMap> map)
 {
     Vector<WebView::Attribute> attributes;
     attributes.ensure_capacity(map->length());
@@ -641,12 +641,12 @@ static Vector<WebView::Attribute> named_node_map_to_vector(JS::NonnullGCPtr<Web:
     return attributes;
 }
 
-void PageClient::inspector_did_add_dom_node_attributes(Web::UniqueNodeID node_id, JS::NonnullGCPtr<Web::DOM::NamedNodeMap> attributes)
+void PageClient::inspector_did_add_dom_node_attributes(Web::UniqueNodeID node_id, GC::Ref<Web::DOM::NamedNodeMap> attributes)
 {
     client().async_inspector_did_add_dom_node_attributes(m_id, node_id, named_node_map_to_vector(attributes));
 }
 
-void PageClient::inspector_did_replace_dom_node_attribute(Web::UniqueNodeID node_id, size_t attribute_index, JS::NonnullGCPtr<Web::DOM::NamedNodeMap> replacement_attributes)
+void PageClient::inspector_did_replace_dom_node_attribute(Web::UniqueNodeID node_id, size_t attribute_index, GC::Ref<Web::DOM::NamedNodeMap> replacement_attributes)
 {
     client().async_inspector_did_replace_dom_node_attribute(m_id, node_id, attribute_index, named_node_map_to_vector(replacement_attributes));
 }

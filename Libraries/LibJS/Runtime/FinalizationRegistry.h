@@ -7,8 +7,8 @@
 #pragma once
 
 #include <AK/SinglyLinkedList.h>
-#include <LibJS/Heap/GCPtr.h>
-#include <LibJS/Heap/WeakContainer.h>
+#include <LibGC/Ptr.h>
+#include <LibGC/WeakContainer.h>
 #include <LibJS/Runtime/FunctionObject.h>
 #include <LibJS/Runtime/GlobalObject.h>
 #include <LibJS/Runtime/JobCallback.h>
@@ -19,18 +19,18 @@ namespace JS {
 
 class FinalizationRegistry final
     : public Object
-    , public WeakContainer {
+    , public GC::WeakContainer {
     JS_OBJECT(FinalizationRegistry, Object);
-    JS_DECLARE_ALLOCATOR(FinalizationRegistry);
+    GC_DECLARE_ALLOCATOR(FinalizationRegistry);
 
 public:
     virtual ~FinalizationRegistry() override = default;
 
     void add_finalization_record(Cell& target, Value held_value, Cell* unregister_token);
     bool remove_by_token(Cell& unregister_token);
-    ThrowCompletionOr<void> cleanup(GCPtr<JobCallback> = {});
+    ThrowCompletionOr<void> cleanup(GC::Ptr<JobCallback> = {});
 
-    virtual void remove_dead_cells(Badge<Heap>) override;
+    virtual void remove_dead_cells(Badge<GC::Heap>) override;
 
     Realm& realm() { return *m_realm; }
     Realm const& realm() const { return *m_realm; }
@@ -39,17 +39,17 @@ public:
     JobCallback const& cleanup_callback() const { return *m_cleanup_callback; }
 
 private:
-    FinalizationRegistry(Realm&, NonnullGCPtr<JobCallback>, Object& prototype);
+    FinalizationRegistry(Realm&, GC::Ref<JobCallback>, Object& prototype);
 
     virtual void visit_edges(Visitor& visitor) override;
 
-    NonnullGCPtr<Realm> m_realm;
-    NonnullGCPtr<JobCallback> m_cleanup_callback;
+    GC::Ref<Realm> m_realm;
+    GC::Ref<JobCallback> m_cleanup_callback;
 
     struct FinalizationRecord {
-        GCPtr<Cell> target;
+        GC::Ptr<Cell> target;
         Value held_value;
-        GCPtr<Cell> unregister_token;
+        GC::Ptr<Cell> unregister_token;
     };
     SinglyLinkedList<FinalizationRecord> m_records;
 };

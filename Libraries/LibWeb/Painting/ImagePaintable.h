@@ -15,12 +15,12 @@ namespace Web::Painting {
 class ImagePaintable final
     : public PaintableBox
     , public DOM::Document::ViewportClient {
-    JS_CELL(ImagePaintable, PaintableBox);
-    JS_DECLARE_ALLOCATOR(ImagePaintable);
+    GC_CELL(ImagePaintable, PaintableBox);
+    GC_DECLARE_ALLOCATOR(ImagePaintable);
 
 public:
-    static JS::NonnullGCPtr<ImagePaintable> create(Layout::ImageBox const& layout_box);
-    static JS::NonnullGCPtr<ImagePaintable> create(Layout::SVGImageBox const& layout_box);
+    static GC::Ref<ImagePaintable> create(Layout::ImageBox const& layout_box);
+    static GC::Ref<ImagePaintable> create(Layout::SVGImageBox const& layout_box);
 
     virtual void paint(PaintContext&, PaintPhase) const override;
 

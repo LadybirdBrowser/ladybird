@@ -75,7 +75,7 @@ public:
     }
 
     // https://html.spec.whatwg.org/multipage/canvas.html#dom-context-2d-gettransform
-    WebIDL::ExceptionOr<JS::NonnullGCPtr<Geometry::DOMMatrix>> get_transform()
+    WebIDL::ExceptionOr<GC::Ref<Geometry::DOMMatrix>> get_transform()
     {
         auto& realm = static_cast<IncludingClass&>(*this).realm();
         auto transform = my_drawing_state().transform;

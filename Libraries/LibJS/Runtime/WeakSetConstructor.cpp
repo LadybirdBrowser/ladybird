@@ -13,7 +13,7 @@
 
 namespace JS {
 
-JS_DEFINE_ALLOCATOR(WeakSetConstructor);
+GC_DEFINE_ALLOCATOR(WeakSetConstructor);
 
 WeakSetConstructor::WeakSetConstructor(Realm& realm)
     : NativeFunction(realm.vm().names.WeakSet.as_string(), realm.intrinsics().function_prototype())
@@ -41,7 +41,7 @@ ThrowCompletionOr<Value> WeakSetConstructor::call()
 }
 
 // 24.4.1.1 WeakSet ( [ iterable ] ), https://tc39.es/ecma262/#sec-weakset-iterable
-ThrowCompletionOr<NonnullGCPtr<Object>> WeakSetConstructor::construct(FunctionObject& new_target)
+ThrowCompletionOr<GC::Ref<Object>> WeakSetConstructor::construct(FunctionObject& new_target)
 {
     auto& vm = this->vm();
     auto iterable = vm.argument(0);

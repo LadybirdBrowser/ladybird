@@ -8,9 +8,9 @@
 
 namespace JS {
 
-JS_DEFINE_ALLOCATOR(WeakMap);
+GC_DEFINE_ALLOCATOR(WeakMap);
 
-NonnullGCPtr<WeakMap> WeakMap::create(Realm& realm)
+GC::Ref<WeakMap> WeakMap::create(Realm& realm)
 {
     return realm.create<WeakMap>(realm.intrinsics().weak_map_prototype());
 }
@@ -21,7 +21,7 @@ WeakMap::WeakMap(Object& prototype)
 {
 }
 
-void WeakMap::remove_dead_cells(Badge<Heap>)
+void WeakMap::remove_dead_cells(Badge<GC::Heap>)
 {
     m_values.remove_all_matching([](Cell* key, Value) {
         return key->state() != Cell::State::Live;

@@ -15,7 +15,7 @@
 namespace Web::WebDriver {
 
 // https://w3c.github.io/webdriver/#css-selectors
-static ErrorOr<JS::NonnullGCPtr<DOM::NodeList>, Error> locate_element_by_css_selector(DOM::ParentNode& start_node, StringView selector)
+static ErrorOr<GC::Ref<DOM::NodeList>, Error> locate_element_by_css_selector(DOM::ParentNode& start_node, StringView selector)
 {
     // 1. Let elements be the result of calling querySelectorAll() with start node as this and selector as the argument.
     //    If this causes an exception to be thrown, return error with error code invalid selector.
@@ -28,7 +28,7 @@ static ErrorOr<JS::NonnullGCPtr<DOM::NodeList>, Error> locate_element_by_css_sel
 }
 
 // https://w3c.github.io/webdriver/#link-text
-static ErrorOr<JS::NonnullGCPtr<DOM::NodeList>, Error> locate_element_by_link_text(DOM::ParentNode& start_node, StringView selector)
+static ErrorOr<GC::Ref<DOM::NodeList>, Error> locate_element_by_link_text(DOM::ParentNode& start_node, StringView selector)
 {
     auto& realm = start_node.realm();
 
@@ -39,7 +39,7 @@ static ErrorOr<JS::NonnullGCPtr<DOM::NodeList>, Error> locate_element_by_link_te
         return Error::from_code(ErrorCode::UnknownError, "querySelectorAll() failed"sv);
 
     // 2. Let result be an empty NodeList.
-    Vector<JS::Handle<DOM::Node>> result;
+    Vector<GC::Root<DOM::Node>> result;
 
     // 3. For each element in elements:
     for (size_t i = 0; i < elements.value()->length(); ++i) {
@@ -61,7 +61,7 @@ static ErrorOr<JS::NonnullGCPtr<DOM::NodeList>, Error> locate_element_by_link_te
 }
 
 // https://w3c.github.io/webdriver/#partial-link-text
-static ErrorOr<JS::NonnullGCPtr<DOM::NodeList>, Error> locate_element_by_partial_link_text(DOM::ParentNode& start_node, StringView selector)
+static ErrorOr<GC::Ref<DOM::NodeList>, Error> locate_element_by_partial_link_text(DOM::ParentNode& start_node, StringView selector)
 {
     auto& realm = start_node.realm();
 
@@ -72,7 +72,7 @@ static ErrorOr<JS::NonnullGCPtr<DOM::NodeList>, Error> locate_element_by_partial
         return Error::from_code(ErrorCode::UnknownError, "querySelectorAll() failed"sv);
 
     // 2. Let result be an empty NodeList.
-    Vector<JS::Handle<DOM::Node>> result;
+    Vector<GC::Root<DOM::Node>> result;
 
     // 3. For each element in elements:
     for (size_t i = 0; i < elements.value()->length(); ++i) {
@@ -91,7 +91,7 @@ static ErrorOr<JS::NonnullGCPtr<DOM::NodeList>, Error> locate_element_by_partial
 }
 
 // https://w3c.github.io/webdriver/#tag-name
-static JS::NonnullGCPtr<DOM::NodeList> locate_element_by_tag_name(DOM::ParentNode& start_node, StringView selector)
+static GC::Ref<DOM::NodeList> locate_element_by_tag_name(DOM::ParentNode& start_node, StringView selector)
 {
     auto& realm = start_node.realm();
 
@@ -100,7 +100,7 @@ static JS::NonnullGCPtr<DOM::NodeList> locate_element_by_tag_name(DOM::ParentNod
     auto elements = start_node.get_elements_by_tag_name(MUST(FlyString::from_utf8(selector)));
 
     // FIXME: Having to convert this to a NodeList is a bit awkward.
-    Vector<JS::Handle<DOM::Node>> result;
+    Vector<GC::Root<DOM::Node>> result;
 
     for (size_t i = 0; i < elements->length(); ++i) {
         auto* element = elements->item(i);
@@ -111,7 +111,7 @@ static JS::NonnullGCPtr<DOM::NodeList> locate_element_by_tag_name(DOM::ParentNod
 }
 
 // https://w3c.github.io/webdriver/#xpath
-static ErrorOr<JS::NonnullGCPtr<DOM::NodeList>, Error> locate_element_by_x_path(DOM::ParentNode&, StringView)
+static ErrorOr<GC::Ref<DOM::NodeList>, Error> locate_element_by_x_path(DOM::ParentNode&, StringView)
 {
     return Error::from_code(ErrorCode::UnsupportedOperation, "Not implemented: locate element by XPath"sv);
 }
@@ -131,7 +131,7 @@ Optional<LocationStrategy> location_strategy_from_string(StringView type)
     return {};
 }
 
-ErrorOr<JS::NonnullGCPtr<DOM::NodeList>, Error> invoke_location_strategy(LocationStrategy type, DOM::ParentNode& start_node, StringView selector)
+ErrorOr<GC::Ref<DOM::NodeList>, Error> invoke_location_strategy(LocationStrategy type, DOM::ParentNode& start_node, StringView selector)
 {
     switch (type) {
     case LocationStrategy::CssSelector:

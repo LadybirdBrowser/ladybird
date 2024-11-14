@@ -19,7 +19,7 @@ class ServiceWorker : public DOM::EventTarget {
     WEB_PLATFORM_OBJECT(ServiceWorker, DOM::EventTarget);
 
 public:
-    [[nodiscard]] static JS::NonnullGCPtr<ServiceWorker> create(JS::Realm& realm);
+    [[nodiscard]] static GC::Ref<ServiceWorker> create(JS::Realm& realm);
 
     virtual ~ServiceWorker() override;
 

@@ -10,10 +10,10 @@
 
 namespace Web::WebVTT {
 
-JS_DEFINE_ALLOCATOR(VTTCue);
+GC_DEFINE_ALLOCATOR(VTTCue);
 
 // https://w3c.github.io/webvtt/#dom-vttcue-vttcue
-WebIDL::ExceptionOr<JS::NonnullGCPtr<VTTCue>> VTTCue::construct_impl(JS::Realm& realm, double start_time, double end_time, String const& text)
+WebIDL::ExceptionOr<GC::Ref<VTTCue>> VTTCue::construct_impl(JS::Realm& realm, double start_time, double end_time, String const& text)
 {
     // 1. Create a new WebVTT cue. Let cue be that WebVTT cue.
     auto cue = realm.create<VTTCue>(realm, nullptr);
@@ -67,7 +67,7 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<VTTCue>> VTTCue::construct_impl(JS::Realm& 
     return cue;
 }
 
-VTTCue::VTTCue(JS::Realm& realm, JS::GCPtr<HTML::TextTrack> track)
+VTTCue::VTTCue(JS::Realm& realm, GC::Ptr<HTML::TextTrack> track)
     : HTML::TextTrackCue(realm, track)
 {
 }

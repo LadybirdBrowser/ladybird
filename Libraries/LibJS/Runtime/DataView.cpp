@@ -8,9 +8,9 @@
 
 namespace JS {
 
-JS_DEFINE_ALLOCATOR(DataView);
+GC_DEFINE_ALLOCATOR(DataView);
 
-NonnullGCPtr<DataView> DataView::create(Realm& realm, ArrayBuffer* viewed_buffer, ByteLength byte_length, size_t byte_offset)
+GC::Ref<DataView> DataView::create(Realm& realm, ArrayBuffer* viewed_buffer, ByteLength byte_length, size_t byte_offset)
 {
     return realm.create<DataView>(viewed_buffer, move(byte_length), byte_offset, realm.intrinsics().data_view_prototype());
 }

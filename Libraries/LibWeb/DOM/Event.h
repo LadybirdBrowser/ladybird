@@ -21,7 +21,7 @@ struct EventInit {
 
 class Event : public Bindings::PlatformObject {
     WEB_PLATFORM_OBJECT(Event, Bindings::PlatformObject);
-    JS_DECLARE_ALLOCATOR(Event);
+    GC_DECLARE_ALLOCATOR(Event);
 
 public:
     enum Phase : u16 {
@@ -32,13 +32,13 @@ public:
     };
 
     // FIXME: These need explicit marking somehow.
-    using TouchTargetList = Vector<JS::GCPtr<EventTarget>>;
+    using TouchTargetList = Vector<GC::Ptr<EventTarget>>;
 
     struct PathEntry {
-        JS::GCPtr<EventTarget> invocation_target;
+        GC::Ptr<EventTarget> invocation_target;
         bool invocation_target_in_shadow_tree { false };
-        JS::GCPtr<EventTarget> shadow_adjusted_target;
-        JS::GCPtr<EventTarget> related_target;
+        GC::Ptr<EventTarget> shadow_adjusted_target;
+        GC::Ptr<EventTarget> related_target;
         TouchTargetList touch_target_list;
         bool root_of_closed_tree { false };
         bool slot_in_closed_tree { false };
@@ -47,8 +47,8 @@ public:
 
     using Path = Vector<PathEntry>;
 
-    [[nodiscard]] static JS::NonnullGCPtr<Event> create(JS::Realm&, FlyString const& event_name, EventInit const& event_init = {});
-    static WebIDL::ExceptionOr<JS::NonnullGCPtr<Event>> construct_impl(JS::Realm&, FlyString const& event_name, EventInit const& event_init);
+    [[nodiscard]] static GC::Ref<Event> create(JS::Realm&, FlyString const& event_name, EventInit const& event_init = {});
+    static WebIDL::ExceptionOr<GC::Ref<Event>> construct_impl(JS::Realm&, FlyString const& event_name, EventInit const& event_init);
 
     Event(JS::Realm&, FlyString const& type);
     Event(JS::Realm&, FlyString const& type, EventInit const& event_init);
@@ -61,13 +61,13 @@ public:
     FlyString const& type() const { return m_type; }
     void set_type(FlyString const& type) { m_type = type; }
 
-    JS::GCPtr<EventTarget> target() const { return m_target; }
+    GC::Ptr<EventTarget> target() const { return m_target; }
     void set_target(EventTarget* target) { m_target = target; }
 
     // NOTE: This is intended for the JS bindings.
-    JS::GCPtr<EventTarget> src_element() const { return target(); }
+    GC::Ptr<EventTarget> src_element() const { return target(); }
 
-    JS::GCPtr<EventTarget> related_target() const { return m_related_target; }
+    GC::Ptr<EventTarget> related_target() const { return m_related_target; }
     void set_related_target(EventTarget* related_target) { m_related_target = related_target; }
 
     bool should_stop_propagation() const { return m_stop_propagation; }
@@ -97,7 +97,7 @@ public:
     u16 event_phase() const { return m_phase; }
     void set_phase(Phase phase) { m_phase = phase; }
 
-    JS::GCPtr<EventTarget> current_target() const { return m_current_target; }
+    GC::Ptr<EventTarget> current_target() const { return m_current_target; }
     void set_current_target(EventTarget* current_target) { m_current_target = current_target; }
 
     bool return_value() const { return !m_cancelled; }
@@ -107,7 +107,7 @@ public:
             set_cancelled_flag();
     }
 
-    void append_to_path(EventTarget&, JS::GCPtr<EventTarget>, JS::GCPtr<EventTarget>, TouchTargetList&, bool);
+    void append_to_path(EventTarget&, GC::Ptr<EventTarget>, GC::Ptr<EventTarget>, TouchTargetList&, bool);
     Path& path() { return m_path; }
     Path const& path() const { return m_path; }
     void clear_path() { m_path.clear(); }
@@ -144,7 +144,7 @@ public:
 
     void set_time_stamp(double time_stamp) { m_time_stamp = time_stamp; }
 
-    Vector<JS::Handle<EventTarget>> composed_path() const;
+    Vector<GC::Root<EventTarget>> composed_path() const;
 
     template<typename T>
     bool fast_is() const = delete;
@@ -160,9 +160,9 @@ protected:
 
 private:
     FlyString m_type;
-    JS::GCPtr<EventTarget> m_target;
-    JS::GCPtr<EventTarget> m_related_target;
-    JS::GCPtr<EventTarget> m_current_target;
+    GC::Ptr<EventTarget> m_target;
+    GC::Ptr<EventTarget> m_related_target;
+    GC::Ptr<EventTarget> m_current_target;
 
     Phase m_phase { None };
 

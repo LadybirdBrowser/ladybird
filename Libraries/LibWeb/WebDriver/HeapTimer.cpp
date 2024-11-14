@@ -9,7 +9,7 @@
 
 namespace Web::WebDriver {
 
-JS_DEFINE_ALLOCATOR(HeapTimer);
+GC_DEFINE_ALLOCATOR(HeapTimer);
 
 HeapTimer::HeapTimer()
     : m_timer(Core::Timer::create())
@@ -24,7 +24,7 @@ void HeapTimer::visit_edges(JS::Cell::Visitor& visitor)
     visitor.visit(m_on_timeout);
 }
 
-void HeapTimer::start(u64 timeout_ms, JS::NonnullGCPtr<JS::HeapFunction<void()>> on_timeout)
+void HeapTimer::start(u64 timeout_ms, GC::Ref<GC::Function<void()>> on_timeout)
 {
     m_on_timeout = on_timeout;
 

@@ -12,8 +12,8 @@
 namespace Web::Layout {
 
 class ListItemMarkerBox final : public Box {
-    JS_CELL(ListItemMarkerBox, Box);
-    JS_DECLARE_ALLOCATOR(ListItemMarkerBox);
+    GC_CELL(ListItemMarkerBox, Box);
+    GC_DECLARE_ALLOCATOR(ListItemMarkerBox);
 
 public:
     explicit ListItemMarkerBox(DOM::Document&, CSS::ListStyleType, CSS::ListStylePosition, size_t index, CSS::StyleProperties);
@@ -21,7 +21,7 @@ public:
 
     Optional<ByteString> const& text() const { return m_text; }
 
-    virtual JS::GCPtr<Painting::Paintable> create_paintable() const override;
+    virtual GC::Ptr<Painting::Paintable> create_paintable() const override;
 
     CSS::ListStyleType list_style_type() const { return m_list_style_type; }
     CSS::ListStylePosition list_style_position() const { return m_list_style_position; }

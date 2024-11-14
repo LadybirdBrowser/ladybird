@@ -23,23 +23,23 @@ struct OfflineAudioContextOptions {
 // https://webaudio.github.io/web-audio-api/#OfflineAudioContext
 class OfflineAudioContext final : public BaseAudioContext {
     WEB_PLATFORM_OBJECT(OfflineAudioContext, BaseAudioContext);
-    JS_DECLARE_ALLOCATOR(OfflineAudioContext);
+    GC_DECLARE_ALLOCATOR(OfflineAudioContext);
 
 public:
-    static WebIDL::ExceptionOr<JS::NonnullGCPtr<OfflineAudioContext>> construct_impl(JS::Realm&, OfflineAudioContextOptions const&);
-    static WebIDL::ExceptionOr<JS::NonnullGCPtr<OfflineAudioContext>> construct_impl(JS::Realm&,
+    static WebIDL::ExceptionOr<GC::Ref<OfflineAudioContext>> construct_impl(JS::Realm&, OfflineAudioContextOptions const&);
+    static WebIDL::ExceptionOr<GC::Ref<OfflineAudioContext>> construct_impl(JS::Realm&,
         WebIDL::UnsignedLong number_of_channels, WebIDL::UnsignedLong length, float sample_rate);
 
     virtual ~OfflineAudioContext() override;
 
-    WebIDL::ExceptionOr<JS::NonnullGCPtr<WebIDL::Promise>> start_rendering();
-    WebIDL::ExceptionOr<JS::NonnullGCPtr<WebIDL::Promise>> resume();
-    WebIDL::ExceptionOr<JS::NonnullGCPtr<WebIDL::Promise>> suspend(double suspend_time);
+    WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> start_rendering();
+    WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> resume();
+    WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> suspend(double suspend_time);
 
     WebIDL::UnsignedLong length() const;
 
-    JS::GCPtr<WebIDL::CallbackType> oncomplete();
-    void set_oncomplete(JS::GCPtr<WebIDL::CallbackType>);
+    GC::Ptr<WebIDL::CallbackType> oncomplete();
+    void set_oncomplete(GC::Ptr<WebIDL::CallbackType>);
 
 private:
     OfflineAudioContext(JS::Realm&, OfflineAudioContextOptions const&);

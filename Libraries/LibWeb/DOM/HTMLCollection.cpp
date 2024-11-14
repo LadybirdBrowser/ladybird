@@ -15,9 +15,9 @@
 
 namespace Web::DOM {
 
-JS_DEFINE_ALLOCATOR(HTMLCollection);
+GC_DEFINE_ALLOCATOR(HTMLCollection);
 
-JS::NonnullGCPtr<HTMLCollection> HTMLCollection::create(ParentNode& root, Scope scope, Function<bool(Element const&)> filter)
+GC::Ref<HTMLCollection> HTMLCollection::create(ParentNode& root, Scope scope, Function<bool(Element const&)> filter)
 {
     return root.realm().create<HTMLCollection>(root, scope, move(filter));
 }
@@ -57,7 +57,7 @@ void HTMLCollection::update_name_to_element_mappings_if_needed() const
     update_cache_if_needed();
     if (m_cached_name_to_element_mappings)
         return;
-    m_cached_name_to_element_mappings = make<OrderedHashMap<FlyString, JS::NonnullGCPtr<Element>>>();
+    m_cached_name_to_element_mappings = make<OrderedHashMap<FlyString, GC::Ref<Element>>>();
     for (auto const& element : m_cached_elements) {
         // 1. If element has an ID which is not in result, append element’s ID to result.
         if (auto const& id = element->id(); id.has_value()) {
@@ -98,10 +98,10 @@ void HTMLCollection::update_cache_if_needed() const
     m_cached_dom_tree_version = root()->document().dom_tree_version();
 }
 
-JS::MarkedVector<JS::NonnullGCPtr<Element>> HTMLCollection::collect_matching_elements() const
+GC::MarkedVector<GC::Ref<Element>> HTMLCollection::collect_matching_elements() const
 {
     update_cache_if_needed();
-    JS::MarkedVector<JS::NonnullGCPtr<Element>> elements(heap());
+    GC::MarkedVector<GC::Ref<Element>> elements(heap());
     for (auto& element : m_cached_elements)
         elements.append(element);
     return elements;

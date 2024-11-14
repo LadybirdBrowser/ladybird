@@ -12,13 +12,13 @@ namespace JS {
 
 // 1.2 Synthetic Module Records, https://tc39.es/proposal-json-modules/#sec-synthetic-module-records
 class SyntheticModule final : public Module {
-    JS_CELL(SyntheticModule, Module);
-    JS_DECLARE_ALLOCATOR(SyntheticModule);
+    GC_CELL(SyntheticModule, Module);
+    GC_DECLARE_ALLOCATOR(SyntheticModule);
 
 public:
     using EvaluationFunction = Function<ThrowCompletionOr<void>(SyntheticModule&)>;
 
-    static NonnullGCPtr<SyntheticModule> create_default_export_synthetic_module(Value default_export, Realm& realm, StringView filename);
+    static GC::Ref<SyntheticModule> create_default_export_synthetic_module(Value default_export, Realm& realm, StringView filename);
 
     ThrowCompletionOr<void> set_synthetic_module_export(DeprecatedFlyString const& export_name, Value export_value);
 
@@ -26,7 +26,7 @@ public:
     virtual ThrowCompletionOr<Promise*> evaluate(VM& vm) override;
     virtual ThrowCompletionOr<Vector<DeprecatedFlyString>> get_exported_names(VM& vm, Vector<Module*> export_star_set) override;
     virtual ThrowCompletionOr<ResolvedBinding> resolve_export(VM& vm, DeprecatedFlyString const& export_name, Vector<ResolvedBinding> resolve_set) override;
-    virtual PromiseCapability& load_requested_modules(GCPtr<GraphLoadingState::HostDefined>) override;
+    virtual PromiseCapability& load_requested_modules(GC::Ptr<GraphLoadingState::HostDefined>) override;
 
 private:
     SyntheticModule(Vector<DeprecatedFlyString> export_names, EvaluationFunction evaluation_steps, Realm& realm, StringView filename);
@@ -35,6 +35,6 @@ private:
     EvaluationFunction m_evaluation_steps;      // [[EvaluationSteps]]
 };
 
-ThrowCompletionOr<NonnullGCPtr<Module>> parse_json_module(StringView source_text, Realm& realm, StringView filename);
+ThrowCompletionOr<GC::Ref<Module>> parse_json_module(StringView source_text, Realm& realm, StringView filename);
 
 }

@@ -9,7 +9,7 @@
 
 namespace JS {
 
-JS_DEFINE_ALLOCATOR(AsyncFunctionPrototype);
+GC_DEFINE_ALLOCATOR(AsyncFunctionPrototype);
 
 AsyncFunctionPrototype::AsyncFunctionPrototype(Realm& realm)
     : Object(ConstructWithPrototypeTag::Tag, realm.intrinsics().function_prototype())

@@ -14,11 +14,11 @@
 namespace JS {
 
 class Accessor final : public Cell {
-    JS_CELL(Accessor, Cell);
-    JS_DECLARE_ALLOCATOR(Accessor);
+    GC_CELL(Accessor, Cell);
+    GC_DECLARE_ALLOCATOR(Accessor);
 
 public:
-    static NonnullGCPtr<Accessor> create(VM& vm, FunctionObject* getter, FunctionObject* setter)
+    static GC::Ref<Accessor> create(VM& vm, FunctionObject* getter, FunctionObject* setter)
     {
         return vm.heap().allocate<Accessor>(getter, setter);
     }
@@ -43,8 +43,8 @@ private:
     {
     }
 
-    GCPtr<FunctionObject> m_getter;
-    GCPtr<FunctionObject> m_setter;
+    GC::Ptr<FunctionObject> m_getter;
+    GC::Ptr<FunctionObject> m_setter;
 };
 
 }

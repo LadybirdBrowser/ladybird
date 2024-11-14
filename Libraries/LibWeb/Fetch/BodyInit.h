@@ -14,9 +14,9 @@
 namespace Web::Fetch {
 
 // https://fetch.spec.whatwg.org/#bodyinit
-using BodyInit = Variant<JS::Handle<Streams::ReadableStream>, JS::Handle<FileAPI::Blob>, JS::Handle<WebIDL::BufferSource>, JS::Handle<XHR::FormData>, JS::Handle<DOMURL::URLSearchParams>, String>;
+using BodyInit = Variant<GC::Root<Streams::ReadableStream>, GC::Root<FileAPI::Blob>, GC::Root<WebIDL::BufferSource>, GC::Root<XHR::FormData>, GC::Root<DOMURL::URLSearchParams>, String>;
 
-using BodyInitOrReadableBytes = Variant<JS::Handle<Streams::ReadableStream>, JS::Handle<FileAPI::Blob>, JS::Handle<WebIDL::BufferSource>, JS::Handle<XHR::FormData>, JS::Handle<DOMURL::URLSearchParams>, String, ReadonlyBytes>;
+using BodyInitOrReadableBytes = Variant<GC::Root<Streams::ReadableStream>, GC::Root<FileAPI::Blob>, GC::Root<WebIDL::BufferSource>, GC::Root<XHR::FormData>, GC::Root<DOMURL::URLSearchParams>, String, ReadonlyBytes>;
 WebIDL::ExceptionOr<Infrastructure::BodyWithType> safely_extract_body(JS::Realm&, BodyInitOrReadableBytes const&);
 WebIDL::ExceptionOr<Infrastructure::BodyWithType> extract_body(JS::Realm&, BodyInitOrReadableBytes const&, bool keepalive = false);
 

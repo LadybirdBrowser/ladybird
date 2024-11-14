@@ -17,13 +17,13 @@ struct AlreadyConstructedCustomElementMarker {
 
 // https://html.spec.whatwg.org/multipage/custom-elements.html#custom-element-definition
 class CustomElementDefinition : public JS::Cell {
-    JS_CELL(CustomElementDefinition, JS::Cell);
-    JS_DECLARE_ALLOCATOR(CustomElementDefinition);
+    GC_CELL(CustomElementDefinition, JS::Cell);
+    GC_DECLARE_ALLOCATOR(CustomElementDefinition);
 
-    using LifecycleCallbacksStorage = OrderedHashMap<FlyString, JS::GCPtr<WebIDL::CallbackType>>;
-    using ConstructionStackStorage = Vector<Variant<JS::Handle<DOM::Element>, AlreadyConstructedCustomElementMarker>>;
+    using LifecycleCallbacksStorage = OrderedHashMap<FlyString, GC::Ptr<WebIDL::CallbackType>>;
+    using ConstructionStackStorage = Vector<Variant<GC::Root<DOM::Element>, AlreadyConstructedCustomElementMarker>>;
 
-    static JS::NonnullGCPtr<CustomElementDefinition> create(JS::Realm& realm, String const& name, String const& local_name, WebIDL::CallbackType& constructor, Vector<String>&& observed_attributes, LifecycleCallbacksStorage&& lifecycle_callbacks, bool form_associated, bool disable_internals, bool disable_shadow)
+    static GC::Ref<CustomElementDefinition> create(JS::Realm& realm, String const& name, String const& local_name, WebIDL::CallbackType& constructor, Vector<String>&& observed_attributes, LifecycleCallbacksStorage&& lifecycle_callbacks, bool form_associated, bool disable_internals, bool disable_shadow)
     {
         return realm.create<CustomElementDefinition>(name, local_name, constructor, move(observed_attributes), move(lifecycle_callbacks), form_associated, disable_internals, disable_shadow);
     }
@@ -74,7 +74,7 @@ private:
 
     // https://html.spec.whatwg.org/multipage/custom-elements.html#concept-custom-element-definition-constructor
     // A Web IDL CustomElementConstructor callback function type value wrapping the custom element constructor
-    JS::NonnullGCPtr<WebIDL::CallbackType> m_constructor;
+    GC::Ref<WebIDL::CallbackType> m_constructor;
 
     // https://html.spec.whatwg.org/multipage/custom-elements.html#concept-custom-element-definition-observed-attributes
     // A list of observed attributes

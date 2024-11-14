@@ -10,14 +10,14 @@
 
 namespace Web::Layout {
 
-JS_DEFINE_ALLOCATOR(SVGClipBox);
+GC_DEFINE_ALLOCATOR(SVGClipBox);
 
 SVGClipBox::SVGClipBox(DOM::Document& document, SVG::SVGClipPathElement& element, CSS::StyleProperties properties)
     : SVGBox(document, element, properties)
 {
 }
 
-JS::GCPtr<Painting::Paintable> SVGClipBox::create_paintable() const
+GC::Ptr<Painting::Paintable> SVGClipBox::create_paintable() const
 {
     return Painting::SVGClipPaintable::create(*this);
 }

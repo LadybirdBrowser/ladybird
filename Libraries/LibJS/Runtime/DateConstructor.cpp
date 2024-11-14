@@ -23,7 +23,7 @@
 
 namespace JS {
 
-JS_DEFINE_ALLOCATOR(DateConstructor);
+GC_DEFINE_ALLOCATOR(DateConstructor);
 
 // 21.4.3.2 Date.parse ( string ), https://tc39.es/ecma262/#sec-date.parse
 static double parse_simplified_iso8601(ByteString const& iso_8601)
@@ -237,7 +237,7 @@ ThrowCompletionOr<Value> DateConstructor::call()
 }
 
 // 21.4.2.1 Date ( ...values ), https://tc39.es/ecma262/#sec-date
-ThrowCompletionOr<NonnullGCPtr<Object>> DateConstructor::construct(FunctionObject& new_target)
+ThrowCompletionOr<GC::Ref<Object>> DateConstructor::construct(FunctionObject& new_target)
 {
     auto& vm = this->vm();
 

@@ -11,7 +11,7 @@
 
 namespace Web::HTML {
 
-JS_DEFINE_ALLOCATOR(MediaError);
+GC_DEFINE_ALLOCATOR(MediaError);
 
 MediaError::MediaError(JS::Realm& realm, Code code, String message)
     : Base(realm)

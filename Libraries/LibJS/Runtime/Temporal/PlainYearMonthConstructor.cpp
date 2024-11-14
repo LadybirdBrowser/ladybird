@@ -14,7 +14,7 @@
 
 namespace JS::Temporal {
 
-JS_DEFINE_ALLOCATOR(PlainYearMonthConstructor);
+GC_DEFINE_ALLOCATOR(PlainYearMonthConstructor);
 
 // 9.1 The Temporal.PlainYearMonth Constructor, https://tc39.es/proposal-temporal/#sec-temporal-plainyearmonth-constructor
 PlainYearMonthConstructor::PlainYearMonthConstructor(Realm& realm)
@@ -48,7 +48,7 @@ ThrowCompletionOr<Value> PlainYearMonthConstructor::call()
 }
 
 // 9.1.1 Temporal.PlainYearMonth ( isoYear, isoMonth [ , calendarLike [ , referenceISODay ] ] ), https://tc39.es/proposal-temporal/#sec-temporal.plainyearmonth
-ThrowCompletionOr<NonnullGCPtr<Object>> PlainYearMonthConstructor::construct(FunctionObject& new_target)
+ThrowCompletionOr<GC::Ref<Object>> PlainYearMonthConstructor::construct(FunctionObject& new_target)
 {
     auto& vm = this->vm();
 

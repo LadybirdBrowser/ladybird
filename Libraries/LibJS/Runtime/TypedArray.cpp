@@ -288,7 +288,7 @@ static ThrowCompletionOr<void> initialize_typed_array_from_array_like(VM& vm, Ty
 
 // 23.2.5.1.4 InitializeTypedArrayFromList, https://tc39.es/ecma262/#sec-initializetypedarrayfromlist
 template<typename T>
-static ThrowCompletionOr<void> initialize_typed_array_from_list(VM& vm, TypedArray<T>& typed_array, MarkedVector<Value> const& list)
+static ThrowCompletionOr<void> initialize_typed_array_from_list(VM& vm, TypedArray<T>& typed_array, GC::MarkedVector<Value> const& list)
 {
     // 1. Let len be the number of elements in values.
     auto length = list.size();
@@ -315,7 +315,7 @@ static ThrowCompletionOr<void> initialize_typed_array_from_list(VM& vm, TypedArr
 }
 
 // 23.2.4.2 TypedArrayCreate ( constructor, argumentList ), https://tc39.es/ecma262/#typedarray-create
-ThrowCompletionOr<TypedArrayBase*> typed_array_create(VM& vm, FunctionObject& constructor, MarkedVector<Value> arguments)
+ThrowCompletionOr<TypedArrayBase*> typed_array_create(VM& vm, FunctionObject& constructor, GC::MarkedVector<Value> arguments)
 {
     Optional<double> first_argument;
     if (arguments.size() == 1 && arguments[0].is_number())
@@ -346,7 +346,7 @@ ThrowCompletionOr<TypedArrayBase*> typed_array_create(VM& vm, FunctionObject& co
 }
 
 // 23.2.4.3 TypedArrayCreateSameType ( exemplar, argumentList ), https://tc39.es/ecma262/#sec-typedarray-create-same-type
-ThrowCompletionOr<TypedArrayBase*> typed_array_create_same_type(VM& vm, TypedArrayBase const& exemplar, MarkedVector<Value> arguments)
+ThrowCompletionOr<TypedArrayBase*> typed_array_create_same_type(VM& vm, TypedArrayBase const& exemplar, GC::MarkedVector<Value> arguments)
 {
     auto& realm = *vm.current_realm();
 
@@ -446,23 +446,23 @@ void TypedArrayBase::visit_edges(Visitor& visitor)
 }
 
 #define JS_DEFINE_TYPED_ARRAY(ClassName, snake_name, PrototypeName, ConstructorName, Type)                                  \
-    JS_DEFINE_ALLOCATOR(ClassName);                                                                                         \
-    JS_DEFINE_ALLOCATOR(PrototypeName);                                                                                     \
-    JS_DEFINE_ALLOCATOR(ConstructorName);                                                                                   \
-    ThrowCompletionOr<NonnullGCPtr<ClassName>> ClassName::create(Realm& realm, u32 length, FunctionObject& new_target)      \
+    GC_DEFINE_ALLOCATOR(ClassName);                                                                                         \
+    GC_DEFINE_ALLOCATOR(PrototypeName);                                                                                     \
+    GC_DEFINE_ALLOCATOR(ConstructorName);                                                                                   \
+    ThrowCompletionOr<GC::Ref<ClassName>> ClassName::create(Realm& realm, u32 length, FunctionObject& new_target)           \
     {                                                                                                                       \
         auto* prototype = TRY(get_prototype_from_constructor(realm.vm(), new_target, &Intrinsics::snake_name##_prototype)); \
         auto array_buffer = TRY(ArrayBuffer::create(realm, length * sizeof(UnderlyingBufferDataType)));                     \
         return realm.create<ClassName>(*prototype, length, *array_buffer);                                                  \
     }                                                                                                                       \
                                                                                                                             \
-    ThrowCompletionOr<NonnullGCPtr<ClassName>> ClassName::create(Realm& realm, u32 length)                                  \
+    ThrowCompletionOr<GC::Ref<ClassName>> ClassName::create(Realm& realm, u32 length)                                       \
     {                                                                                                                       \
         auto array_buffer = TRY(ArrayBuffer::create(realm, length * sizeof(UnderlyingBufferDataType)));                     \
         return create(realm, length, *array_buffer);                                                                        \
     }                                                                                                                       \
                                                                                                                             \
-    NonnullGCPtr<ClassName> ClassName::create(Realm& realm, u32 length, ArrayBuffer& array_buffer)                          \
+    GC::Ref<ClassName> ClassName::create(Realm& realm, u32 length, ArrayBuffer& array_buffer)                               \
     {                                                                                                                       \
         return realm.create<ClassName>(realm.intrinsics().snake_name##_prototype(), length, array_buffer);                  \
     }                                                                                                                       \
@@ -540,7 +540,7 @@ void TypedArrayBase::visit_edges(Visitor& visitor)
     }                                                                                                                       \
                                                                                                                             \
     /* 23.2.5.1 TypedArray ( ...args ), https://tc39.es/ecma262/#sec-typedarray */                                          \
-    ThrowCompletionOr<NonnullGCPtr<Object>> ConstructorName::construct(FunctionObject& new_target)                          \
+    ThrowCompletionOr<GC::Ref<Object>> ConstructorName::construct(FunctionObject& new_target)                               \
     {                                                                                                                       \
         auto& vm = this->vm();                                                                                              \
         auto& realm = *vm.current_realm();                                                                                  \

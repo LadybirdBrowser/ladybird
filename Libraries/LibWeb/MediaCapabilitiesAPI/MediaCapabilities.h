@@ -12,10 +12,10 @@ namespace Web::MediaCapabilitiesAPI {
 
 class MediaCapabilities final : public Bindings::PlatformObject {
     WEB_PLATFORM_OBJECT(MediaCapabilities, Bindings::PlatformObject);
-    JS_DECLARE_ALLOCATOR(MediaCapabilities);
+    GC_DECLARE_ALLOCATOR(MediaCapabilities);
 
 public:
-    static JS::NonnullGCPtr<MediaCapabilities> create(JS::Realm&);
+    static GC::Ref<MediaCapabilities> create(JS::Realm&);
     virtual ~MediaCapabilities() override = default;
 
 private:

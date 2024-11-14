@@ -13,11 +13,11 @@
 namespace Web::Painting {
 
 class ViewportPaintable final : public PaintableWithLines {
-    JS_CELL(ViewportPaintable, PaintableWithLines);
-    JS_DECLARE_ALLOCATOR(ViewportPaintable);
+    GC_CELL(ViewportPaintable, PaintableWithLines);
+    GC_DECLARE_ALLOCATOR(ViewportPaintable);
 
 public:
-    static JS::NonnullGCPtr<ViewportPaintable> create(Layout::Viewport const&);
+    static GC::Ref<ViewportPaintable> create(Layout::Viewport const&);
     virtual ~ViewportPaintable() override;
 
     void paint_all_phases(PaintContext&);
@@ -26,12 +26,12 @@ public:
     void assign_scroll_frames();
     void refresh_scroll_state();
 
-    HashMap<JS::GCPtr<PaintableBox const>, RefPtr<ClipFrame>> clip_state;
+    HashMap<GC::Ptr<PaintableBox const>, RefPtr<ClipFrame>> clip_state;
     void assign_clip_frames();
 
     void resolve_paint_only_properties();
 
-    JS::GCPtr<Selection::Selection> selection() const;
+    GC::Ptr<Selection::Selection> selection() const;
     void recompute_selection_states(DOM::Range&);
 
     bool handle_mousewheel(Badge<EventHandler>, CSSPixelPoint, unsigned, unsigned, int wheel_delta_x, int wheel_delta_y) override;

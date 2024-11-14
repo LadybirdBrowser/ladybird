@@ -13,9 +13,9 @@
 
 namespace Web::HTML {
 
-JS_DEFINE_ALLOCATOR(DOMStringMap);
+GC_DEFINE_ALLOCATOR(DOMStringMap);
 
-JS::NonnullGCPtr<DOMStringMap> DOMStringMap::create(DOM::Element& element)
+GC::Ref<DOMStringMap> DOMStringMap::create(DOM::Element& element)
 {
     auto& realm = element.realm();
     return realm.create<DOMStringMap>(element);

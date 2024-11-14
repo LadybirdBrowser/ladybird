@@ -13,14 +13,14 @@
 
 namespace Web::HTML {
 
-JS_DEFINE_ALLOCATOR(MessageEvent);
+GC_DEFINE_ALLOCATOR(MessageEvent);
 
-JS::NonnullGCPtr<MessageEvent> MessageEvent::create(JS::Realm& realm, FlyString const& event_name, MessageEventInit const& event_init)
+GC::Ref<MessageEvent> MessageEvent::create(JS::Realm& realm, FlyString const& event_name, MessageEventInit const& event_init)
 {
     return realm.create<MessageEvent>(realm, event_name, event_init);
 }
 
-WebIDL::ExceptionOr<JS::NonnullGCPtr<MessageEvent>> MessageEvent::construct_impl(JS::Realm& realm, FlyString const& event_name, MessageEventInit const& event_init)
+WebIDL::ExceptionOr<GC::Ref<MessageEvent>> MessageEvent::construct_impl(JS::Realm& realm, FlyString const& event_name, MessageEventInit const& event_init)
 {
     return create(realm, event_name, event_init);
 }
@@ -55,18 +55,18 @@ void MessageEvent::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_ports);
 }
 
-Variant<JS::Handle<WindowProxy>, JS::Handle<MessagePort>, Empty> MessageEvent::source() const
+Variant<GC::Root<WindowProxy>, GC::Root<MessagePort>, Empty> MessageEvent::source() const
 {
     if (!m_source.has_value())
         return Empty {};
 
-    return m_source.value().downcast<JS::Handle<WindowProxy>, JS::Handle<MessagePort>>();
+    return m_source.value().downcast<GC::Root<WindowProxy>, GC::Root<MessagePort>>();
 }
 
-JS::NonnullGCPtr<JS::Object> MessageEvent::ports() const
+GC::Ref<JS::Object> MessageEvent::ports() const
 {
     if (!m_ports_array) {
-        JS::MarkedVector<JS::Value> port_vector(heap());
+        GC::MarkedVector<JS::Value> port_vector(heap());
         for (auto const& port : m_ports)
             port_vector.append(port);
 
@@ -77,7 +77,7 @@ JS::NonnullGCPtr<JS::Object> MessageEvent::ports() const
 }
 
 // https://html.spec.whatwg.org/multipage/comms.html#dom-messageevent-initmessageevent
-void MessageEvent::init_message_event(String const& type, bool bubbles, bool cancelable, JS::Value data, String const& origin, String const& last_event_id, Optional<MessageEventSource> source, Vector<JS::Handle<MessagePort>> const& ports)
+void MessageEvent::init_message_event(String const& type, bool bubbles, bool cancelable, JS::Value data, String const& origin, String const& last_event_id, Optional<MessageEventSource> source, Vector<GC::Root<MessagePort>> const& ports)
 {
     // The initMessageEvent(type, bubbles, cancelable, data, origin, lastEventId, source, ports) method must initialize the event in a
     // manner analogous to the similarly-named initEvent() method.

@@ -164,13 +164,13 @@ public:
     virtual bool is_navigable_container() const { return false; }
     virtual bool is_lazy_loading() const { return false; }
 
-    WebIDL::ExceptionOr<JS::NonnullGCPtr<Node>> pre_insert(JS::NonnullGCPtr<Node>, JS::GCPtr<Node>);
-    WebIDL::ExceptionOr<JS::NonnullGCPtr<Node>> pre_remove(JS::NonnullGCPtr<Node>);
+    WebIDL::ExceptionOr<GC::Ref<Node>> pre_insert(GC::Ref<Node>, GC::Ptr<Node>);
+    WebIDL::ExceptionOr<GC::Ref<Node>> pre_remove(GC::Ref<Node>);
 
-    WebIDL::ExceptionOr<JS::NonnullGCPtr<Node>> append_child(JS::NonnullGCPtr<Node>);
-    WebIDL::ExceptionOr<JS::NonnullGCPtr<Node>> remove_child(JS::NonnullGCPtr<Node>);
+    WebIDL::ExceptionOr<GC::Ref<Node>> append_child(GC::Ref<Node>);
+    WebIDL::ExceptionOr<GC::Ref<Node>> remove_child(GC::Ref<Node>);
 
-    void insert_before(JS::NonnullGCPtr<Node> node, JS::GCPtr<Node> child, bool suppress_observers = false);
+    void insert_before(GC::Ref<Node> node, GC::Ptr<Node> child, bool suppress_observers = false);
     void remove(bool suppress_observers = false);
     void remove_all_children(bool suppress_observers = false);
 
@@ -184,17 +184,17 @@ public:
         DOCUMENT_POSITION_IMPLEMENTATION_SPECIFIC = 32,
     };
 
-    u16 compare_document_position(JS::GCPtr<Node> other);
+    u16 compare_document_position(GC::Ptr<Node> other);
 
-    WebIDL::ExceptionOr<JS::NonnullGCPtr<Node>> replace_child(JS::NonnullGCPtr<Node> node, JS::NonnullGCPtr<Node> child);
+    WebIDL::ExceptionOr<GC::Ref<Node>> replace_child(GC::Ref<Node> node, GC::Ref<Node> child);
 
-    WebIDL::ExceptionOr<JS::NonnullGCPtr<Node>> clone_node(Document* document = nullptr, bool clone_children = false);
-    WebIDL::ExceptionOr<JS::NonnullGCPtr<Node>> clone_node_binding(bool deep);
+    WebIDL::ExceptionOr<GC::Ref<Node>> clone_node(Document* document = nullptr, bool clone_children = false);
+    WebIDL::ExceptionOr<GC::Ref<Node>> clone_node_binding(bool deep);
 
     // NOTE: This is intended for the JS bindings.
     bool has_child_nodes() const { return has_children(); }
-    JS::NonnullGCPtr<NodeList> child_nodes();
-    Vector<JS::Handle<Node>> children_as_vector() const;
+    GC::Ref<NodeList> child_nodes();
+    Vector<GC::Root<Node>> children_as_vector() const;
 
     virtual FlyString node_name() const = 0;
 
@@ -211,12 +211,12 @@ public:
     Optional<String> node_value() const;
     void set_node_value(Optional<String> const&);
 
-    JS::GCPtr<HTML::Navigable> navigable() const;
+    GC::Ptr<HTML::Navigable> navigable() const;
 
     Document& document() { return *m_document; }
     Document const& document() const { return *m_document; }
 
-    JS::GCPtr<Document> owner_document() const;
+    GC::Ptr<Document> owner_document() const;
 
     const HTML::HTMLAnchorElement* enclosing_link_element() const;
     const HTML::HTMLElement* enclosing_html_element() const;
@@ -260,10 +260,10 @@ public:
     Painting::Paintable const* paintable() const;
     Painting::Paintable* paintable();
 
-    void set_paintable(JS::GCPtr<Painting::Paintable>);
+    void set_paintable(GC::Ptr<Painting::Paintable>);
     void clear_paintable();
 
-    void set_layout_node(Badge<Layout::Node>, JS::NonnullGCPtr<Layout::Node>);
+    void set_layout_node(Badge<Layout::Node>, GC::Ref<Layout::Node>);
     void detach_layout_node(Badge<Layout::TreeBuilder>);
 
     virtual bool is_child_allowed(Node const&) const { return true; }
@@ -283,14 +283,14 @@ public:
     template<typename T>
     bool fast_is() const = delete;
 
-    WebIDL::ExceptionOr<void> ensure_pre_insertion_validity(JS::NonnullGCPtr<Node> node, JS::GCPtr<Node> child) const;
+    WebIDL::ExceptionOr<void> ensure_pre_insertion_validity(GC::Ref<Node> node, GC::Ptr<Node> child) const;
 
     bool is_host_including_inclusive_ancestor_of(Node const&) const;
 
     bool is_scripting_enabled() const;
     bool is_scripting_disabled() const;
 
-    bool contains(JS::GCPtr<Node>) const;
+    bool contains(GC::Ptr<Node>) const;
 
     // Used for dumping the DOM Tree
     void serialize_tree_as_json(JsonObjectSerializer<StringBuilder>&) const;
@@ -307,13 +307,13 @@ public:
 
     WebIDL::ExceptionOr<void> unsafely_set_html(Element&, StringView);
 
-    void replace_all(JS::GCPtr<Node>);
+    void replace_all(GC::Ptr<Node>);
     void string_replace_all(String const&);
 
     bool is_same_node(Node const*) const;
     bool is_equal_node(Node const*) const;
 
-    JS::NonnullGCPtr<Node> get_root_node(GetRootNodeOptions const& options = {});
+    GC::Ref<Node> get_root_node(GetRootNodeOptions const& options = {});
 
     bool is_uninteresting_whitespace_node() const;
 
@@ -326,7 +326,7 @@ public:
 
     void add_registered_observer(RegisteredObserver&);
 
-    void queue_mutation_record(FlyString const& type, Optional<FlyString> const& attribute_name, Optional<FlyString> const& attribute_namespace, Optional<String> const& old_value, Vector<JS::Handle<Node>> added_nodes, Vector<JS::Handle<Node>> removed_nodes, Node* previous_sibling, Node* next_sibling) const;
+    void queue_mutation_record(FlyString const& type, Optional<FlyString> const& attribute_name, Optional<FlyString> const& attribute_namespace, Optional<String> const& old_value, Vector<GC::Root<Node>> added_nodes, Vector<GC::Root<Node>> removed_nodes, Node* previous_sibling, Node* next_sibling) const;
 
     // https://dom.spec.whatwg.org/#concept-shadow-including-inclusive-descendant
     template<typename Callback>
@@ -770,9 +770,9 @@ protected:
     virtual void visit_edges(Cell::Visitor&) override;
     virtual void finalize() override;
 
-    JS::GCPtr<Document> m_document;
-    JS::GCPtr<Layout::Node> m_layout_node;
-    JS::GCPtr<Painting::Paintable> m_paintable;
+    GC::Ptr<Document> m_document;
+    GC::Ptr<Layout::Node> m_layout_node;
+    GC::Ptr<Painting::Paintable> m_paintable;
     NodeType m_type { NodeType::INVALID };
     bool m_needs_style_update { false };
     bool m_child_needs_style_update { false };
@@ -781,28 +781,28 @@ protected:
 
     // https://dom.spec.whatwg.org/#registered-observer-list
     // "Nodes have a strong reference to registered observers in their registered observer list." https://dom.spec.whatwg.org/#garbage-collection
-    OwnPtr<Vector<JS::NonnullGCPtr<RegisteredObserver>>> m_registered_observer_list;
+    OwnPtr<Vector<GC::Ref<RegisteredObserver>>> m_registered_observer_list;
 
     void build_accessibility_tree(AccessibilityTreeNode& parent);
 
     ErrorOr<String> name_or_description(NameOrDescription, Document const&, HashTable<UniqueNodeID>&, IsDescendant = IsDescendant::No) const;
 
 private:
-    void queue_tree_mutation_record(Vector<JS::Handle<Node>> added_nodes, Vector<JS::Handle<Node>> removed_nodes, Node* previous_sibling, Node* next_sibling);
+    void queue_tree_mutation_record(Vector<GC::Root<Node>> added_nodes, Vector<GC::Root<Node>> removed_nodes, Node* previous_sibling, Node* next_sibling);
 
-    void insert_before_impl(JS::NonnullGCPtr<Node>, JS::GCPtr<Node> child);
-    void append_child_impl(JS::NonnullGCPtr<Node>);
-    void remove_child_impl(JS::NonnullGCPtr<Node>);
+    void insert_before_impl(GC::Ref<Node>, GC::Ptr<Node> child);
+    void append_child_impl(GC::Ref<Node>);
+    void remove_child_impl(GC::Ref<Node>);
 
     static Optional<StringView> first_valid_id(StringView, Document const&);
 
-    JS::GCPtr<Node> m_parent;
-    JS::GCPtr<Node> m_first_child;
-    JS::GCPtr<Node> m_last_child;
-    JS::GCPtr<Node> m_next_sibling;
-    JS::GCPtr<Node> m_previous_sibling;
+    GC::Ptr<Node> m_parent;
+    GC::Ptr<Node> m_first_child;
+    GC::Ptr<Node> m_last_child;
+    GC::Ptr<Node> m_next_sibling;
+    GC::Ptr<Node> m_previous_sibling;
 
-    JS::GCPtr<NodeList> m_child_nodes;
+    GC::Ptr<NodeList> m_child_nodes;
 };
 
 }

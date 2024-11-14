@@ -7,9 +7,9 @@
 #pragma once
 
 #include <AK/IntrusiveList.h>
-#include <LibJS/Forward.h>
+#include <LibGC/Forward.h>
 
-namespace JS {
+namespace GC {
 
 class WeakContainer {
 public:

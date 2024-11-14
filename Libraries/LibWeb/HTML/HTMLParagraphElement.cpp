@@ -12,7 +12,7 @@
 
 namespace Web::HTML {
 
-JS_DEFINE_ALLOCATOR(HTMLParagraphElement);
+GC_DEFINE_ALLOCATOR(HTMLParagraphElement);
 
 HTMLParagraphElement::HTMLParagraphElement(DOM::Document& document, DOM::QualifiedName qualified_name)
     : HTMLElement(document, move(qualified_name))

@@ -4,20 +4,20 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibJS/Heap/Heap.h>
+#include <LibGC/Heap.h>
 #include <LibJS/Runtime/Error.h>
 #include <LibWeb/DOM/StaticNodeList.h>
 
 namespace Web::DOM {
 
-JS_DEFINE_ALLOCATOR(StaticNodeList);
+GC_DEFINE_ALLOCATOR(StaticNodeList);
 
-JS::NonnullGCPtr<NodeList> StaticNodeList::create(JS::Realm& realm, Vector<JS::Handle<Node>> static_nodes)
+GC::Ref<NodeList> StaticNodeList::create(JS::Realm& realm, Vector<GC::Root<Node>> static_nodes)
 {
     return realm.create<StaticNodeList>(realm, move(static_nodes));
 }
 
-StaticNodeList::StaticNodeList(JS::Realm& realm, Vector<JS::Handle<Node>> static_nodes)
+StaticNodeList::StaticNodeList(JS::Realm& realm, Vector<GC::Root<Node>> static_nodes)
     : NodeList(realm)
 {
     for (auto& node : static_nodes)

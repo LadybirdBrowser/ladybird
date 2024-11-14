@@ -42,7 +42,7 @@ void upgrade_a_mixed_content_request_to_a_potentially_trustworthy_url_if_appropr
 }
 
 // https://w3c.github.io/webappsec-mixed-content/#categorize-settings-object
-ProhibitsMixedSecurityContexts does_settings_prohibit_mixed_security_contexts(JS::GCPtr<HTML::EnvironmentSettingsObject> settings)
+ProhibitsMixedSecurityContexts does_settings_prohibit_mixed_security_contexts(GC::Ptr<HTML::EnvironmentSettingsObject> settings)
 {
     // 1. If settings’ origin is a potentially trustworthy origin, then return "Prohibits Mixed Security Contexts".
     if (SecureContexts::is_origin_potentially_trustworthy(settings->origin()) == SecureContexts::Trustworthiness::PotentiallyTrustworthy)
@@ -91,7 +91,7 @@ Fetch::Infrastructure::RequestOrResponseBlocking should_fetching_request_be_bloc
 }
 
 // https://w3c.github.io/webappsec-mixed-content/#should-block-response
-Web::Fetch::Infrastructure::RequestOrResponseBlocking should_response_to_request_be_blocked_as_mixed_content(Fetch::Infrastructure::Request& request, JS::NonnullGCPtr<Fetch::Infrastructure::Response>& response)
+Web::Fetch::Infrastructure::RequestOrResponseBlocking should_response_to_request_be_blocked_as_mixed_content(Fetch::Infrastructure::Request& request, GC::Ref<Fetch::Infrastructure::Response>& response)
 {
     // 1. Return allowed if one or more of the following conditions are met:
     if (

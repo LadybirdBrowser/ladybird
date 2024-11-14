@@ -8,13 +8,13 @@
 
 #include <AK/String.h>
 #include <AK/Variant.h>
-#include <LibJS/Heap/Handle.h>
+#include <LibGC/Root.h>
 #include <LibWeb/Forward.h>
 
 namespace Web::XHR {
 
 // https://xhr.spec.whatwg.org/#formdataentryvalue
-using FormDataEntryValue = Variant<JS::Handle<FileAPI::File>, String>;
+using FormDataEntryValue = Variant<GC::Root<FileAPI::File>, String>;
 
 struct FormDataEntry {
     String name;

@@ -15,10 +15,10 @@
 
 namespace Web::ResizeObserver {
 
-JS_DEFINE_ALLOCATOR(ResizeObserver);
+GC_DEFINE_ALLOCATOR(ResizeObserver);
 
 // https://drafts.csswg.org/resize-observer/#dom-resizeobserver-resizeobserver
-WebIDL::ExceptionOr<JS::NonnullGCPtr<ResizeObserver>> ResizeObserver::construct_impl(JS::Realm& realm, WebIDL::CallbackType* callback)
+WebIDL::ExceptionOr<GC::Ref<ResizeObserver>> ResizeObserver::construct_impl(JS::Realm& realm, WebIDL::CallbackType* callback)
 {
     return realm.create<ResizeObserver>(realm, callback);
 }
@@ -97,7 +97,7 @@ void ResizeObserver::disconnect()
     m_active_targets.clear();
 }
 
-void ResizeObserver::invoke_callback(ReadonlySpan<JS::NonnullGCPtr<ResizeObserverEntry>> entries) const
+void ResizeObserver::invoke_callback(ReadonlySpan<GC::Ref<ResizeObserverEntry>> entries) const
 {
     auto& callback = *m_callback;
     auto& realm = callback.callback_context->realm();

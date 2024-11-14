@@ -13,8 +13,8 @@
 namespace Web::HTML {
 
 class TaskQueue : public JS::Cell {
-    JS_CELL(TaskQueue, JS::Cell);
-    JS_DECLARE_ALLOCATOR(TaskQueue);
+    GC_CELL(TaskQueue, JS::Cell);
+    GC_DECLARE_ALLOCATOR(TaskQueue);
 
 public:
     explicit TaskQueue(HTML::EventLoop&);
@@ -25,11 +25,11 @@ public:
     bool has_runnable_tasks() const;
     bool has_rendering_tasks() const;
 
-    void add(JS::NonnullGCPtr<HTML::Task>);
-    JS::GCPtr<HTML::Task> take_first_runnable();
+    void add(GC::Ref<HTML::Task>);
+    GC::Ptr<HTML::Task> take_first_runnable();
 
-    void enqueue(JS::NonnullGCPtr<HTML::Task> task) { add(task); }
-    JS::GCPtr<HTML::Task> dequeue()
+    void enqueue(GC::Ref<HTML::Task> task) { add(task); }
+    GC::Ptr<HTML::Task> dequeue()
     {
         if (m_tasks.is_empty())
             return {};
@@ -37,16 +37,16 @@ public:
     }
 
     void remove_tasks_matching(Function<bool(HTML::Task const&)>);
-    JS::MarkedVector<JS::NonnullGCPtr<Task>> take_tasks_matching(Function<bool(HTML::Task const&)>);
+    GC::MarkedVector<GC::Ref<Task>> take_tasks_matching(Function<bool(HTML::Task const&)>);
 
     Task const* last_added_task() const;
 
 private:
     virtual void visit_edges(Visitor&) override;
 
-    JS::NonnullGCPtr<HTML::EventLoop> m_event_loop;
+    GC::Ref<HTML::EventLoop> m_event_loop;
 
-    Vector<JS::NonnullGCPtr<HTML::Task>> m_tasks;
+    Vector<GC::Ref<HTML::Task>> m_tasks;
 };
 
 }

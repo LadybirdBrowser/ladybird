@@ -18,30 +18,30 @@ namespace Web::Streams {
 // https://streams.spec.whatwg.org/#writablestreamdefaultwriter
 class WritableStreamDefaultWriter final : public Bindings::PlatformObject {
     WEB_PLATFORM_OBJECT(WritableStreamDefaultWriter, Bindings::PlatformObject);
-    JS_DECLARE_ALLOCATOR(WritableStreamDefaultWriter);
+    GC_DECLARE_ALLOCATOR(WritableStreamDefaultWriter);
 
 public:
-    static WebIDL::ExceptionOr<JS::NonnullGCPtr<WritableStreamDefaultWriter>> construct_impl(JS::Realm&, JS::NonnullGCPtr<WritableStream>);
+    static WebIDL::ExceptionOr<GC::Ref<WritableStreamDefaultWriter>> construct_impl(JS::Realm&, GC::Ref<WritableStream>);
 
     virtual ~WritableStreamDefaultWriter() override = default;
 
-    JS::GCPtr<WebIDL::Promise> closed();
+    GC::Ptr<WebIDL::Promise> closed();
     WebIDL::ExceptionOr<Optional<double>> desired_size() const;
-    JS::GCPtr<WebIDL::Promise> ready();
-    JS::GCPtr<WebIDL::Promise> abort(JS::Value reason);
-    JS::GCPtr<WebIDL::Promise> close();
+    GC::Ptr<WebIDL::Promise> ready();
+    GC::Ptr<WebIDL::Promise> abort(JS::Value reason);
+    GC::Ptr<WebIDL::Promise> close();
     void release_lock();
-    JS::GCPtr<WebIDL::Promise> write(JS::Value chunk);
+    GC::Ptr<WebIDL::Promise> write(JS::Value chunk);
 
-    JS::GCPtr<WebIDL::Promise> closed_promise() { return m_closed_promise; }
-    void set_closed_promise(JS::GCPtr<WebIDL::Promise> value) { m_closed_promise = value; }
+    GC::Ptr<WebIDL::Promise> closed_promise() { return m_closed_promise; }
+    void set_closed_promise(GC::Ptr<WebIDL::Promise> value) { m_closed_promise = value; }
 
-    JS::GCPtr<WebIDL::Promise> ready_promise() { return m_ready_promise; }
-    void set_ready_promise(JS::GCPtr<WebIDL::Promise> value) { m_ready_promise = value; }
+    GC::Ptr<WebIDL::Promise> ready_promise() { return m_ready_promise; }
+    void set_ready_promise(GC::Ptr<WebIDL::Promise> value) { m_ready_promise = value; }
 
-    JS::GCPtr<WritableStream const> stream() const { return m_stream; }
-    JS::GCPtr<WritableStream> stream() { return m_stream; }
-    void set_stream(JS::GCPtr<WritableStream> value) { m_stream = value; }
+    GC::Ptr<WritableStream const> stream() const { return m_stream; }
+    GC::Ptr<WritableStream> stream() { return m_stream; }
+    void set_stream(GC::Ptr<WritableStream> value) { m_stream = value; }
 
 private:
     explicit WritableStreamDefaultWriter(JS::Realm&);
@@ -52,15 +52,15 @@ private:
 
     // https://streams.spec.whatwg.org/#writablestreamdefaultwriter-closedpromise
     // A promise returned by the writer’s closed getter
-    JS::GCPtr<WebIDL::Promise> m_closed_promise;
+    GC::Ptr<WebIDL::Promise> m_closed_promise;
 
     // https://streams.spec.whatwg.org/#writablestreamdefaultwriter-readypromise
     // A promise returned by the writer’s ready getter
-    JS::GCPtr<WebIDL::Promise> m_ready_promise;
+    GC::Ptr<WebIDL::Promise> m_ready_promise;
 
     // https://streams.spec.whatwg.org/#writablestreamdefaultwriter-stream
     // A WritableStream instance that owns this reader
-    JS::GCPtr<WritableStream> m_stream;
+    GC::Ptr<WritableStream> m_stream;
 };
 
 }

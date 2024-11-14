@@ -172,15 +172,15 @@ public:
 
     virtual void did_edit_text_node() = 0;
 
-    virtual JS::GCPtr<DOM::Text> form_associated_element_to_text_node() = 0;
-    virtual JS::GCPtr<DOM::Text const> form_associated_element_to_text_node() const { return const_cast<FormAssociatedTextControlElement&>(*this).form_associated_element_to_text_node(); }
+    virtual GC::Ptr<DOM::Text> form_associated_element_to_text_node() = 0;
+    virtual GC::Ptr<DOM::Text const> form_associated_element_to_text_node() const { return const_cast<FormAssociatedTextControlElement&>(*this).form_associated_element_to_text_node(); }
 
     virtual void handle_insert(String const&) override;
     virtual void handle_delete(DeleteDirection) override;
     virtual void handle_return_key() override;
     virtual void select_all() override;
-    virtual void set_selection_anchor(JS::NonnullGCPtr<DOM::Node>, size_t offset) override;
-    virtual void set_selection_focus(JS::NonnullGCPtr<DOM::Node>, size_t offset) override;
+    virtual void set_selection_anchor(GC::Ref<DOM::Node>, size_t offset) override;
+    virtual void set_selection_focus(GC::Ref<DOM::Node>, size_t offset) override;
     virtual void move_cursor_to_start(CollapseSelection) override;
     virtual void move_cursor_to_end(CollapseSelection) override;
     virtual void increment_cursor_position_offset(CollapseSelection) override;
@@ -188,7 +188,7 @@ public:
     virtual void increment_cursor_position_to_next_word(CollapseSelection) override;
     virtual void decrement_cursor_position_to_previous_word(CollapseSelection) override;
 
-    JS::GCPtr<DOM::Position> cursor_position() const;
+    GC::Ptr<DOM::Position> cursor_position() const;
 
 protected:
     // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#concept-textarea/input-relevant-value

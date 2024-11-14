@@ -13,7 +13,7 @@
 
 namespace JS {
 
-JS_DEFINE_ALLOCATOR(WeakMapConstructor);
+GC_DEFINE_ALLOCATOR(WeakMapConstructor);
 
 WeakMapConstructor::WeakMapConstructor(Realm& realm)
     : NativeFunction(realm.vm().names.WeakMap.as_string(), realm.intrinsics().function_prototype())
@@ -41,7 +41,7 @@ ThrowCompletionOr<Value> WeakMapConstructor::call()
 }
 
 // 24.3.1.1 WeakMap ( [ iterable ] ), https://tc39.es/ecma262/#sec-weakmap-iterable
-ThrowCompletionOr<NonnullGCPtr<Object>> WeakMapConstructor::construct(FunctionObject& new_target)
+ThrowCompletionOr<GC::Ref<Object>> WeakMapConstructor::construct(FunctionObject& new_target)
 {
     auto& vm = this->vm();
     auto iterable = vm.argument(0);

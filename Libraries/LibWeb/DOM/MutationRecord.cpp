@@ -13,9 +13,9 @@
 
 namespace Web::DOM {
 
-JS_DEFINE_ALLOCATOR(MutationRecord);
+GC_DEFINE_ALLOCATOR(MutationRecord);
 
-JS::NonnullGCPtr<MutationRecord> MutationRecord::create(JS::Realm& realm, FlyString const& type, Node const& target, NodeList& added_nodes, NodeList& removed_nodes, Node* previous_sibling, Node* next_sibling, Optional<String> const& attribute_name, Optional<String> const& attribute_namespace, Optional<String> const& old_value)
+GC::Ref<MutationRecord> MutationRecord::create(JS::Realm& realm, FlyString const& type, Node const& target, NodeList& added_nodes, NodeList& removed_nodes, Node* previous_sibling, Node* next_sibling, Optional<String> const& attribute_name, Optional<String> const& attribute_namespace, Optional<String> const& old_value)
 {
     return realm.create<MutationRecord>(realm, type, target, added_nodes, removed_nodes, previous_sibling, next_sibling, attribute_name, attribute_namespace, old_value);
 }
@@ -23,11 +23,11 @@ JS::NonnullGCPtr<MutationRecord> MutationRecord::create(JS::Realm& realm, FlyStr
 MutationRecord::MutationRecord(JS::Realm& realm, FlyString const& type, Node const& target, NodeList& added_nodes, NodeList& removed_nodes, Node* previous_sibling, Node* next_sibling, Optional<String> const& attribute_name, Optional<String> const& attribute_namespace, Optional<String> const& old_value)
     : PlatformObject(realm)
     , m_type(type)
-    , m_target(JS::make_handle(target))
+    , m_target(GC::make_root(target))
     , m_added_nodes(added_nodes)
     , m_removed_nodes(removed_nodes)
-    , m_previous_sibling(JS::make_handle(previous_sibling))
-    , m_next_sibling(JS::make_handle(next_sibling))
+    , m_previous_sibling(GC::make_root(previous_sibling))
+    , m_next_sibling(GC::make_root(next_sibling))
     , m_attribute_name(attribute_name)
     , m_attribute_namespace(attribute_namespace)
     , m_old_value(old_value)

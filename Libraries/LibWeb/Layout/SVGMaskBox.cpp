@@ -10,14 +10,14 @@
 
 namespace Web::Layout {
 
-JS_DEFINE_ALLOCATOR(SVGMaskBox);
+GC_DEFINE_ALLOCATOR(SVGMaskBox);
 
 SVGMaskBox::SVGMaskBox(DOM::Document& document, SVG::SVGMaskElement& element, CSS::StyleProperties properties)
     : SVGGraphicsBox(document, element, properties)
 {
 }
 
-JS::GCPtr<Painting::Paintable> SVGMaskBox::create_paintable() const
+GC::Ptr<Painting::Paintable> SVGMaskBox::create_paintable() const
 {
     return Painting::SVGMaskPaintable::create(*this);
 }

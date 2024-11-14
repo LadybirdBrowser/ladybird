@@ -11,11 +11,11 @@
 #include <AK/ByteString.h>
 #include <AK/HashMap.h>
 #include <AK/String.h>
+#include <LibGC/MarkedVector.h>
 #include <LibGfx/Rect.h>
 #include <LibIPC/ConnectionToServer.h>
 #include <LibIPC/Transport.h>
 #include <LibJS/Forward.h>
-#include <LibJS/Heap/MarkedVector.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/HTML/VisibilityState.h>
 #include <LibWeb/WebDriver/ElementLocationStrategies.h>
@@ -114,10 +114,10 @@ private:
 
     void set_current_browsing_context(Web::HTML::BrowsingContext&);
     Web::HTML::BrowsingContext& current_browsing_context() { return *m_current_browsing_context; }
-    JS::GCPtr<Web::HTML::BrowsingContext> current_parent_browsing_context() { return m_current_parent_browsing_context; }
+    GC::Ptr<Web::HTML::BrowsingContext> current_parent_browsing_context() { return m_current_parent_browsing_context; }
 
     void set_current_top_level_browsing_context(Web::HTML::BrowsingContext&);
-    JS::GCPtr<Web::HTML::BrowsingContext> current_top_level_browsing_context() { return m_current_top_level_browsing_context; }
+    GC::Ptr<Web::HTML::BrowsingContext> current_top_level_browsing_context() { return m_current_top_level_browsing_context; }
 
     ErrorOr<void, Web::WebDriver::Error> ensure_current_browsing_context_is_open();
     ErrorOr<void, Web::WebDriver::Error> ensure_current_top_level_browsing_context_is_open();
@@ -130,23 +130,23 @@ private:
     void handle_any_user_prompts(Function<void()> on_dialog_closed);
 
     void maximize_the_window();
-    void iconify_the_window(JS::NonnullGCPtr<JS::HeapFunction<void()>>);
-    void restore_the_window(JS::NonnullGCPtr<JS::HeapFunction<void()>>);
-    void wait_for_visibility_state(JS::NonnullGCPtr<JS::HeapFunction<void()>>, Web::HTML::VisibilityState);
+    void iconify_the_window(GC::Ref<GC::Function<void()>>);
+    void restore_the_window(GC::Ref<GC::Function<void()>>);
+    void wait_for_visibility_state(GC::Ref<GC::Function<void()>>, Web::HTML::VisibilityState);
 
-    using OnNavigationComplete = JS::NonnullGCPtr<JS::HeapFunction<void(Web::WebDriver::Response)>>;
+    using OnNavigationComplete = GC::Ref<GC::Function<void(Web::WebDriver::Response)>>;
     void wait_for_navigation_to_complete(OnNavigationComplete);
 
-    Gfx::IntPoint calculate_absolute_position_of_element(JS::NonnullGCPtr<Web::Geometry::DOMRect> rect);
+    Gfx::IntPoint calculate_absolute_position_of_element(GC::Ref<Web::Geometry::DOMRect> rect);
     Gfx::IntRect calculate_absolute_rect_of_element(Web::DOM::Element const& element);
 
-    using GetStartNode = JS::NonnullGCPtr<JS::HeapFunction<ErrorOr<JS::NonnullGCPtr<Web::DOM::ParentNode>, Web::WebDriver::Error>()>>;
-    using OnFindComplete = JS::NonnullGCPtr<JS::HeapFunction<void(Web::WebDriver::Response)>>;
+    using GetStartNode = GC::Ref<GC::Function<ErrorOr<GC::Ref<Web::DOM::ParentNode>, Web::WebDriver::Error>()>>;
+    using OnFindComplete = GC::Ref<GC::Function<void(Web::WebDriver::Response)>>;
     void find(Web::WebDriver::LocationStrategy, ByteString, GetStartNode, OnFindComplete);
 
     struct ScriptArguments {
         ByteString script;
-        JS::MarkedVector<JS::Value> arguments;
+        GC::MarkedVector<JS::Value> arguments;
     };
     ErrorOr<ScriptArguments, Web::WebDriver::Error> extract_the_script_arguments_from_a_request(JS::VM&, JsonValue const& payload);
     void handle_script_response(Web::WebDriver::ExecutionResult);
@@ -166,25 +166,25 @@ private:
     Web::WebDriver::TimeoutsConfiguration m_timeouts_configuration;
 
     // https://w3c.github.io/webdriver/#dfn-current-browsing-context
-    JS::GCPtr<Web::HTML::BrowsingContext> m_current_browsing_context;
+    GC::Ptr<Web::HTML::BrowsingContext> m_current_browsing_context;
 
     // https://w3c.github.io/webdriver/#dfn-current-parent-browsing-context
-    JS::GCPtr<Web::HTML::BrowsingContext> m_current_parent_browsing_context;
+    GC::Ptr<Web::HTML::BrowsingContext> m_current_parent_browsing_context;
 
     // https://w3c.github.io/webdriver/#dfn-current-top-level-browsing-context
-    JS::GCPtr<Web::HTML::BrowsingContext> m_current_top_level_browsing_context;
+    GC::Ptr<Web::HTML::BrowsingContext> m_current_top_level_browsing_context;
 
     size_t m_pending_window_rect_requests { 0 };
     bool m_has_pending_script_execution { false };
 
     friend class ElementLocator;
-    JS::GCPtr<ElementLocator> m_element_locator;
+    GC::Ptr<ElementLocator> m_element_locator;
 
-    JS::GCPtr<JS::Cell> m_action_executor;
+    GC::Ptr<JS::Cell> m_action_executor;
 
-    JS::GCPtr<Web::DOM::DocumentObserver> m_document_observer;
-    JS::GCPtr<Web::HTML::NavigationObserver> m_navigation_observer;
-    JS::GCPtr<Web::WebDriver::HeapTimer> m_navigation_timer;
+    GC::Ptr<Web::DOM::DocumentObserver> m_document_observer;
+    GC::Ptr<Web::HTML::NavigationObserver> m_navigation_observer;
+    GC::Ptr<Web::WebDriver::HeapTimer> m_navigation_timer;
 };
 
 }

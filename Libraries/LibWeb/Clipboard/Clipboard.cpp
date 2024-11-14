@@ -19,9 +19,9 @@
 
 namespace Web::Clipboard {
 
-JS_DEFINE_ALLOCATOR(Clipboard);
+GC_DEFINE_ALLOCATOR(Clipboard);
 
-WebIDL::ExceptionOr<JS::NonnullGCPtr<Clipboard>> Clipboard::construct_impl(JS::Realm& realm)
+WebIDL::ExceptionOr<GC::Ref<Clipboard>> Clipboard::construct_impl(JS::Realm& realm)
 {
     return realm.create<Clipboard>(realm);
 }
@@ -84,7 +84,7 @@ static String os_specific_well_known_format(StringView mime_type_string)
 }
 
 // https://w3c.github.io/clipboard-apis/#write-blobs-and-option-to-the-clipboard
-static void write_blobs_and_option_to_clipboard(JS::Realm& realm, ReadonlySpan<JS::NonnullGCPtr<FileAPI::Blob>> items, String presentation_style)
+static void write_blobs_and_option_to_clipboard(JS::Realm& realm, ReadonlySpan<GC::Ref<FileAPI::Blob>> items, String presentation_style)
 {
     auto& window = verify_cast<HTML::Window>(realm.global_object());
 
@@ -141,7 +141,7 @@ static bool check_clipboard_write_permission(JS::Realm& realm)
 }
 
 // https://w3c.github.io/clipboard-apis/#dom-clipboard-writetext
-JS::NonnullGCPtr<WebIDL::Promise> Clipboard::write_text(String data)
+GC::Ref<WebIDL::Promise> Clipboard::write_text(String data)
 {
     // 1. Let realm be this's relevant realm.
     auto& realm = HTML::relevant_realm(*this);
@@ -150,7 +150,7 @@ JS::NonnullGCPtr<WebIDL::Promise> Clipboard::write_text(String data)
     auto promise = WebIDL::create_promise(realm);
 
     // 3. Run the following steps in parallel:
-    Platform::EventLoopPlugin::the().deferred_invoke(JS::create_heap_function(realm.heap(), [&realm, promise, data = move(data)]() mutable {
+    Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(realm.heap(), [&realm, promise, data = move(data)]() mutable {
         // 1. Let r be the result of running check clipboard write permission.
         auto result = check_clipboard_write_permission(realm);
 
@@ -158,7 +158,7 @@ JS::NonnullGCPtr<WebIDL::Promise> Clipboard::write_text(String data)
         if (!result) {
             // 1. Queue a global task on the permission task source, given realm’s global object, to reject p with
             //    "NotAllowedError" DOMException in realm.
-            queue_global_task(HTML::Task::Source::Permissions, realm.global_object(), JS::create_heap_function(realm.heap(), [&realm, promise]() mutable {
+            queue_global_task(HTML::Task::Source::Permissions, realm.global_object(), GC::create_function(realm.heap(), [&realm, promise]() mutable {
                 HTML::TemporaryExecutionContext execution_context { realm };
                 WebIDL::reject_promise(realm, promise, WebIDL::NotAllowedError::create(realm, "Clipboard writing is only allowed through user activation"_string));
             }));
@@ -168,9 +168,9 @@ JS::NonnullGCPtr<WebIDL::Promise> Clipboard::write_text(String data)
         }
 
         // 1. Queue a global task on the clipboard task source, given realm’s global object, to perform the below steps:
-        queue_global_task(HTML::Task::Source::Clipboard, realm.global_object(), JS::create_heap_function(realm.heap(), [&realm, promise, data = move(data)]() mutable {
+        queue_global_task(HTML::Task::Source::Clipboard, realm.global_object(), GC::create_function(realm.heap(), [&realm, promise, data = move(data)]() mutable {
             // 1. Let itemList be an empty sequence<Blob>.
-            Vector<JS::NonnullGCPtr<FileAPI::Blob>> item_list;
+            Vector<GC::Ref<FileAPI::Blob>> item_list;
 
             // 2. Let textBlob be a new Blob created with: type attribute set to "text/plain;charset=utf-8", and its
             //    underlying byte sequence set to the UTF-8 encoding of data.

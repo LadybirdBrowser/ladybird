@@ -108,7 +108,7 @@ void SVGElement::remove_from_use_element_that_reference_this()
 }
 
 // https://svgwg.org/svg2-draft/types.html#__svg__SVGElement__classNames
-JS::NonnullGCPtr<SVGAnimatedString> SVGElement::class_name()
+GC::Ref<SVGAnimatedString> SVGElement::class_name()
 {
     // The className IDL attribute reflects the ‘class’ attribute.
     if (!m_class_name_animated_string)
@@ -118,7 +118,7 @@ JS::NonnullGCPtr<SVGAnimatedString> SVGElement::class_name()
 }
 
 // https://svgwg.org/svg2-draft/types.html#__svg__SVGElement__ownerSVGElement
-JS::GCPtr<SVGSVGElement> SVGElement::owner_svg_element()
+GC::Ptr<SVGSVGElement> SVGElement::owner_svg_element()
 {
     // The ownerSVGElement IDL attribute represents the nearest ancestor ‘svg’ element.
     // On getting ownerSVGElement, the nearest ancestor ‘svg’ element is returned;
@@ -126,7 +126,7 @@ JS::GCPtr<SVGSVGElement> SVGElement::owner_svg_element()
     return shadow_including_first_ancestor_of_type<SVGSVGElement>();
 }
 
-JS::NonnullGCPtr<SVGAnimatedLength> SVGElement::svg_animated_length_for_property(CSS::PropertyID property) const
+GC::Ref<SVGAnimatedLength> SVGElement::svg_animated_length_for_property(CSS::PropertyID property) const
 {
     // FIXME: Create a proper animated value when animations are supported.
     auto make_length = [&] {

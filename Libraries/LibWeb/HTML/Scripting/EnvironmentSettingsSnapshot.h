@@ -14,15 +14,15 @@ namespace Web::HTML {
 
 class EnvironmentSettingsSnapshot final
     : public EnvironmentSettingsObject {
-    JS_CELL(EnvironmentSettingsSnapshot, EnvironmentSettingsObject);
-    JS_DECLARE_ALLOCATOR(EnvironmentSettingsSnapshot);
+    GC_CELL(EnvironmentSettingsSnapshot, EnvironmentSettingsObject);
+    GC_DECLARE_ALLOCATOR(EnvironmentSettingsSnapshot);
 
 public:
     EnvironmentSettingsSnapshot(NonnullOwnPtr<JS::ExecutionContext>, SerializedEnvironmentSettingsObject const&);
 
     virtual ~EnvironmentSettingsSnapshot() override;
 
-    JS::GCPtr<DOM::Document> responsible_document() override { return nullptr; }
+    GC::Ptr<DOM::Document> responsible_document() override { return nullptr; }
     String api_url_character_encoding() override { return m_api_url_character_encoding; }
     URL::URL api_base_url() override { return m_url; }
     URL::Origin origin() override { return m_origin; }

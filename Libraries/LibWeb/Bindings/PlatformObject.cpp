@@ -400,7 +400,7 @@ JS::ThrowCompletionOr<bool> PlatformObject::internal_prevent_extensions()
 }
 
 // https://webidl.spec.whatwg.org/#legacy-platform-object-ownpropertykeys
-JS::ThrowCompletionOr<JS::MarkedVector<JS::Value>> PlatformObject::internal_own_property_keys() const
+JS::ThrowCompletionOr<GC::MarkedVector<JS::Value>> PlatformObject::internal_own_property_keys() const
 {
     if (!m_legacy_platform_object_flags.has_value() || m_legacy_platform_object_flags->has_global_interface_extended_attribute)
         return Base::internal_own_property_keys();
@@ -408,7 +408,7 @@ JS::ThrowCompletionOr<JS::MarkedVector<JS::Value>> PlatformObject::internal_own_
     auto& vm = this->vm();
 
     // 1. Let keys be a new empty list of ECMAScript String and Symbol values.
-    JS::MarkedVector<JS::Value> keys { heap() };
+    GC::MarkedVector<JS::Value> keys { heap() };
 
     // 2. If O supports indexed properties, then for each index of O’s supported property indices, in ascending numerical order, append ! ToString(index) to keys.
     if (m_legacy_platform_object_flags->supports_indexed_properties) {

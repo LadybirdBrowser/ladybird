@@ -13,9 +13,9 @@
 
 namespace Web::CSS {
 
-JS_DEFINE_ALLOCATOR(MediaList);
+GC_DEFINE_ALLOCATOR(MediaList);
 
-JS::NonnullGCPtr<MediaList> MediaList::create(JS::Realm& realm, Vector<NonnullRefPtr<MediaQuery>>&& media)
+GC::Ref<MediaList> MediaList::create(JS::Realm& realm, Vector<NonnullRefPtr<MediaQuery>>&& media)
 {
     return realm.create<MediaList>(realm, move(media));
 }

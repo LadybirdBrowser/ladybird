@@ -16,7 +16,7 @@
 
 namespace Web::HTML {
 
-JS_DEFINE_ALLOCATOR(HTMLMeterElement);
+GC_DEFINE_ALLOCATOR(HTMLMeterElement);
 
 HTMLMeterElement::HTMLMeterElement(DOM::Document& document, DOM::QualifiedName qualified_name)
     : HTMLElement(document, move(qualified_name))

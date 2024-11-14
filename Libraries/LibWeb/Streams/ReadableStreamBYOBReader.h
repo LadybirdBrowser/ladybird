@@ -24,7 +24,7 @@ struct ReadableStreamBYOBReaderReadOptions {
 
 // https://streams.spec.whatwg.org/#read-into-request
 class ReadIntoRequest : public JS::Cell {
-    JS_CELL(ReadIntoRequest, JS::Cell);
+    GC_CELL(ReadIntoRequest, JS::Cell);
 
 public:
     virtual ~ReadIntoRequest() = default;
@@ -44,18 +44,18 @@ class ReadableStreamBYOBReader final
     : public Bindings::PlatformObject
     , public ReadableStreamGenericReaderMixin {
     WEB_PLATFORM_OBJECT(ReadableStreamBYOBReader, Bindings::PlatformObject);
-    JS_DECLARE_ALLOCATOR(ReadableStreamBYOBReader);
+    GC_DECLARE_ALLOCATOR(ReadableStreamBYOBReader);
 
 public:
-    static WebIDL::ExceptionOr<JS::NonnullGCPtr<ReadableStreamBYOBReader>> construct_impl(JS::Realm&, JS::NonnullGCPtr<ReadableStream>);
+    static WebIDL::ExceptionOr<GC::Ref<ReadableStreamBYOBReader>> construct_impl(JS::Realm&, GC::Ref<ReadableStream>);
 
     virtual ~ReadableStreamBYOBReader() override = default;
 
-    JS::NonnullGCPtr<WebIDL::Promise> read(JS::Handle<WebIDL::ArrayBufferView>&, ReadableStreamBYOBReaderReadOptions options = {});
+    GC::Ref<WebIDL::Promise> read(GC::Root<WebIDL::ArrayBufferView>&, ReadableStreamBYOBReaderReadOptions options = {});
 
     void release_lock();
 
-    Vector<JS::NonnullGCPtr<ReadIntoRequest>>& read_into_requests() { return m_read_into_requests; }
+    Vector<GC::Ref<ReadIntoRequest>>& read_into_requests() { return m_read_into_requests; }
 
 private:
     explicit ReadableStreamBYOBReader(JS::Realm&);
@@ -66,7 +66,7 @@ private:
 
     // https://streams.spec.whatwg.org/#readablestreambyobreader-readintorequests
     // A list of read-into requests, used when a consumer requests chunks sooner than they are available
-    Vector<JS::NonnullGCPtr<ReadIntoRequest>> m_read_into_requests;
+    Vector<GC::Ref<ReadIntoRequest>> m_read_into_requests;
 };
 
 }

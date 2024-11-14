@@ -21,22 +21,22 @@ namespace Web {
 class ResourceLoader : public Core::EventReceiver {
     C_OBJECT_ABSTRACT(ResourceLoader)
 public:
-    static void initialize(JS::Heap&, NonnullRefPtr<Requests::RequestClient>);
+    static void initialize(GC::Heap&, NonnullRefPtr<Requests::RequestClient>);
     static ResourceLoader& the();
 
     RefPtr<Resource> load_resource(Resource::Type, LoadRequest&);
 
-    using SuccessCallback = JS::HeapFunction<void(ReadonlyBytes, HTTP::HeaderMap const& response_headers, Optional<u32> status_code, Optional<String> const& reason_phrase)>;
-    using ErrorCallback = JS::HeapFunction<void(ByteString const&, Optional<u32> status_code, Optional<String> const& reason_phrase, ReadonlyBytes payload, HTTP::HeaderMap const& response_headers)>;
-    using TimeoutCallback = JS::HeapFunction<void()>;
+    using SuccessCallback = GC::Function<void(ReadonlyBytes, HTTP::HeaderMap const& response_headers, Optional<u32> status_code, Optional<String> const& reason_phrase)>;
+    using ErrorCallback = GC::Function<void(ByteString const&, Optional<u32> status_code, Optional<String> const& reason_phrase, ReadonlyBytes payload, HTTP::HeaderMap const& response_headers)>;
+    using TimeoutCallback = GC::Function<void()>;
 
-    void load(LoadRequest&, JS::Handle<SuccessCallback> success_callback, JS::Handle<ErrorCallback> error_callback = nullptr, Optional<u32> timeout = {}, JS::Handle<TimeoutCallback> timeout_callback = nullptr);
+    void load(LoadRequest&, GC::Root<SuccessCallback> success_callback, GC::Root<ErrorCallback> error_callback = nullptr, Optional<u32> timeout = {}, GC::Root<TimeoutCallback> timeout_callback = nullptr);
 
-    using OnHeadersReceived = JS::HeapFunction<void(HTTP::HeaderMap const& response_headers, Optional<u32> status_code, Optional<String> const& reason_phrase)>;
-    using OnDataReceived = JS::HeapFunction<void(ReadonlyBytes data)>;
-    using OnComplete = JS::HeapFunction<void(bool success, Optional<StringView> error_message)>;
+    using OnHeadersReceived = GC::Function<void(HTTP::HeaderMap const& response_headers, Optional<u32> status_code, Optional<String> const& reason_phrase)>;
+    using OnDataReceived = GC::Function<void(ReadonlyBytes data)>;
+    using OnComplete = GC::Function<void(bool success, Optional<StringView> error_message)>;
 
-    void load_unbuffered(LoadRequest&, JS::Handle<OnHeadersReceived>, JS::Handle<OnDataReceived>, JS::Handle<OnComplete>);
+    void load_unbuffered(LoadRequest&, GC::Root<OnHeadersReceived>, GC::Root<OnDataReceived>, GC::Root<OnComplete>);
 
     Requests::RequestClient& request_client() { return *m_request_client; }
 
@@ -73,10 +73,10 @@ public:
     void clear_cache();
     void evict_from_cache(LoadRequest const&);
 
-    JS::Heap& heap() { return m_heap; }
+    GC::Heap& heap() { return m_heap; }
 
 private:
-    explicit ResourceLoader(JS::Heap&, NonnullRefPtr<Requests::RequestClient>);
+    explicit ResourceLoader(GC::Heap&, NonnullRefPtr<Requests::RequestClient>);
 
     RefPtr<Requests::Request> start_network_request(LoadRequest const&);
     void handle_network_response_headers(LoadRequest const&, HTTP::HeaderMap const&);
@@ -84,7 +84,7 @@ private:
 
     int m_pending_loads { 0 };
 
-    JS::Heap& m_heap;
+    GC::Heap& m_heap;
     NonnullRefPtr<Requests::RequestClient> m_request_client;
     HashTable<NonnullRefPtr<Requests::Request>> m_active_requests;
 
@@ -93,7 +93,7 @@ private:
     Vector<String> m_preferred_languages = { "en"_string };
     NavigatorCompatibilityMode m_navigator_compatibility_mode;
     bool m_enable_do_not_track { false };
-    Optional<JS::GCPtr<Page>> m_page {};
+    Optional<GC::Ptr<Page>> m_page {};
 };
 
 }

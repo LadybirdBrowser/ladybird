@@ -6,8 +6,8 @@
 
 #pragma once
 
+#include <LibGC/Function.h>
 #include <LibJS/Heap/Cell.h>
-#include <LibJS/Heap/HeapFunction.h>
 #include <LibURL/URL.h>
 #include <LibWeb/HTML/Scripting/ModuleScript.h>
 
@@ -36,8 +36,8 @@ private:
 
 // https://html.spec.whatwg.org/multipage/webappapis.html#module-map
 class ModuleMap final : public JS::Cell {
-    JS_CELL(ModuleMap, JS::Cell);
-    JS_DECLARE_ALLOCATOR(ModuleMap);
+    GC_CELL(ModuleMap, JS::Cell);
+    GC_DECLARE_ALLOCATOR(ModuleMap);
 
 public:
     ModuleMap() = default;
@@ -51,10 +51,10 @@ public:
 
     struct Entry {
         EntryType type;
-        JS::GCPtr<JavaScriptModuleScript> module_script;
+        GC::Ptr<JavaScriptModuleScript> module_script;
     };
 
-    using CallbackFunction = JS::NonnullGCPtr<JS::HeapFunction<void(Entry)>>;
+    using CallbackFunction = GC::Ref<GC::Function<void(Entry)>>;
 
     bool is_fetching(URL::URL const& url, ByteString const& type) const;
     bool is_failed(URL::URL const& url, ByteString const& type) const;
@@ -65,7 +65,7 @@ public:
 
     AK::HashSetResult set(URL::URL const& url, ByteString const& type, Entry);
 
-    void wait_for_change(JS::Heap&, URL::URL const& url, ByteString const& type, Function<void(Entry)> callback);
+    void wait_for_change(GC::Heap&, URL::URL const& url, ByteString const& type, Function<void(Entry)> callback);
 
 private:
     virtual void visit_edges(JS::Cell::Visitor&) override;

@@ -112,7 +112,7 @@ ThrowCompletionOr<Value> Reference::get_value(VM& vm) const
         }
 
         // OPTIMIZATION: For various primitives we can avoid actually creating a new object for them.
-        GCPtr<Object> base_obj;
+        GC::Ptr<Object> base_obj;
         if (m_base_value.is_string()) {
             auto string_value = TRY(m_base_value.as_string().get(vm, name()));
             if (string_value.has_value())

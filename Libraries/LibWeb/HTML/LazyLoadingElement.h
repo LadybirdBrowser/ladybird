@@ -13,13 +13,13 @@
 namespace Web::HTML {
 
 // Lazy-loaded elements should invoke this macro to inject overridden LazyLoadingElement methods.
-#define LAZY_LOADING_ELEMENT(ElementClass)                                                                     \
-private:                                                                                                       \
-    virtual JS::GCPtr<JS::HeapFunction<void()>> take_lazy_load_resumption_steps(Badge<DOM::Document>) override \
-    {                                                                                                          \
-        return take_lazy_load_resumption_steps_internal();                                                     \
-    }                                                                                                          \
-                                                                                                               \
+#define LAZY_LOADING_ELEMENT(ElementClass)                                                               \
+private:                                                                                                 \
+    virtual GC::Ptr<GC::Function<void()>> take_lazy_load_resumption_steps(Badge<DOM::Document>) override \
+    {                                                                                                    \
+        return take_lazy_load_resumption_steps_internal();                                               \
+    }                                                                                                    \
+                                                                                                         \
     virtual bool is_lazy_loading() const override { return true; }
 
 enum class LazyLoading {
@@ -63,7 +63,7 @@ public:
     {
         auto& element = static_cast<T&>(*this);
 
-        m_lazy_load_resumption_steps = JS::create_heap_function(element.vm().heap(), move(steps));
+        m_lazy_load_resumption_steps = GC::create_function(element.vm().heap(), move(steps));
     }
 
     void visit_lazy_loading_element(JS::Cell::Visitor& visitor)
@@ -75,7 +75,7 @@ protected:
     LazyLoadingElement() = default;
     virtual ~LazyLoadingElement() = default;
 
-    JS::GCPtr<JS::HeapFunction<void()>> take_lazy_load_resumption_steps_internal()
+    GC::Ptr<GC::Function<void()>> take_lazy_load_resumption_steps_internal()
     {
         auto lazy_load_resumption_steps = m_lazy_load_resumption_steps;
         m_lazy_load_resumption_steps = nullptr;
@@ -85,7 +85,7 @@ protected:
 private:
     // https://html.spec.whatwg.org/multipage/urls-and-fetching.html#lazy-load-resumption-steps
     // Each img and iframe element has associated lazy load resumption steps, initially null.
-    JS::GCPtr<JS::HeapFunction<void()>> m_lazy_load_resumption_steps;
+    GC::Ptr<GC::Function<void()>> m_lazy_load_resumption_steps;
 };
 
 }

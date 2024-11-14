@@ -13,7 +13,7 @@
 
 namespace JS::Intl {
 
-JS_DEFINE_ALLOCATOR(NumberFormatPrototype);
+GC_DEFINE_ALLOCATOR(NumberFormatPrototype);
 
 // 15.3 Properties of the Intl.NumberFormat Prototype Object, https://tc39.es/ecma402/#sec-properties-of-intl-numberformat-prototype-object
 NumberFormatPrototype::NumberFormatPrototype(Realm& realm)

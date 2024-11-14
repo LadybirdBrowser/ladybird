@@ -7,8 +7,8 @@
 #pragma once
 
 #include <AK/DistinctNumeric.h>
+#include <LibGC/CellAllocator.h>
 #include <LibJS/Heap/Cell.h>
-#include <LibJS/Heap/CellAllocator.h>
 #include <LibWeb/Forward.h>
 
 namespace Web::HTML {
@@ -18,8 +18,8 @@ struct UniqueTaskSource;
 AK_TYPEDEF_DISTINCT_NUMERIC_GENERAL(u64, TaskID, Comparison);
 
 class Task final : public JS::Cell {
-    JS_CELL(Task, JS::Cell);
-    JS_DECLARE_ALLOCATOR(Task);
+    GC_CELL(Task, JS::Cell);
+    GC_DECLARE_ALLOCATOR(Task);
 
 public:
     // https://html.spec.whatwg.org/multipage/webappapis.html#generic-task-sources
@@ -74,7 +74,7 @@ public:
         UniqueTaskSourceStart
     };
 
-    static JS::NonnullGCPtr<Task> create(JS::VM&, Source, JS::GCPtr<DOM::Document const>, JS::NonnullGCPtr<JS::HeapFunction<void()>> steps);
+    static GC::Ref<Task> create(JS::VM&, Source, GC::Ptr<DOM::Document const>, GC::Ref<GC::Function<void()>> steps);
 
     virtual ~Task() override;
 
@@ -87,14 +87,14 @@ public:
     bool is_runnable() const;
 
 private:
-    Task(Source, JS::GCPtr<DOM::Document const>, JS::NonnullGCPtr<JS::HeapFunction<void()>> steps);
+    Task(Source, GC::Ptr<DOM::Document const>, GC::Ref<GC::Function<void()>> steps);
 
     virtual void visit_edges(Visitor&) override;
 
     TaskID m_id {};
     Source m_source { Source::Unspecified };
-    JS::NonnullGCPtr<JS::HeapFunction<void()>> m_steps;
-    JS::GCPtr<DOM::Document const> m_document;
+    GC::Ref<GC::Function<void()>> m_steps;
+    GC::Ptr<DOM::Document const> m_document;
 };
 
 struct UniqueTaskSource {

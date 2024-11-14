@@ -13,7 +13,7 @@
 
 namespace JS::Bytecode {
 
-JS_DEFINE_ALLOCATOR(Executable);
+GC_DEFINE_ALLOCATOR(Executable);
 
 Executable::Executable(
     Vector<u8> bytecode,

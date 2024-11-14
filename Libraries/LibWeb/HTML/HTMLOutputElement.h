@@ -17,13 +17,13 @@ class HTMLOutputElement final
     : public HTMLElement
     , public FormAssociatedElement {
     WEB_PLATFORM_OBJECT(HTMLOutputElement, HTMLElement);
-    JS_DECLARE_ALLOCATOR(HTMLOutputElement);
+    GC_DECLARE_ALLOCATOR(HTMLOutputElement);
     FORM_ASSOCIATED_ELEMENT(HTMLElement, HTMLOutputElement)
 
 public:
     virtual ~HTMLOutputElement() override;
 
-    JS::NonnullGCPtr<DOM::DOMTokenList> html_for();
+    GC::Ref<DOM::DOMTokenList> html_for();
 
     String const& type() const
     {
@@ -65,7 +65,7 @@ private:
 
     virtual void form_associated_element_attribute_changed(FlyString const& name, Optional<String> const& value) override;
 
-    JS::GCPtr<DOM::DOMTokenList> m_html_for;
+    GC::Ptr<DOM::DOMTokenList> m_html_for;
 
     Optional<String> m_default_value_override {};
 };

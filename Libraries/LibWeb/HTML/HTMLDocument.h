@@ -16,13 +16,13 @@ namespace Web::HTML {
 //       https://github.com/whatwg/dom/issues/221
 class HTMLDocument final : public DOM::Document {
     WEB_PLATFORM_OBJECT(HTMLDocument, DOM::Document);
-    JS_DECLARE_ALLOCATOR(HTMLDocument);
+    GC_DECLARE_ALLOCATOR(HTMLDocument);
 
 public:
     virtual ~HTMLDocument() override;
 
-    [[nodiscard]] static JS::NonnullGCPtr<HTMLDocument> create(JS::Realm&, URL::URL const& url = "about:blank"sv);
-    WebIDL::ExceptionOr<JS::NonnullGCPtr<HTMLDocument>> construct_impl(JS::Realm&);
+    [[nodiscard]] static GC::Ref<HTMLDocument> create(JS::Realm&, URL::URL const& url = "about:blank"sv);
+    WebIDL::ExceptionOr<GC::Ref<HTMLDocument>> construct_impl(JS::Realm&);
 
 private:
     virtual void initialize(JS::Realm&) override;

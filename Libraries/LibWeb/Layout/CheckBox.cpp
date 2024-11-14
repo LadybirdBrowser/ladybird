@@ -11,7 +11,7 @@
 
 namespace Web::Layout {
 
-JS_DEFINE_ALLOCATOR(CheckBox);
+GC_DEFINE_ALLOCATOR(CheckBox);
 
 CheckBox::CheckBox(DOM::Document& document, HTML::HTMLInputElement& element, CSS::StyleProperties style)
     : FormAssociatedLabelableNode(document, element, move(style))
@@ -22,7 +22,7 @@ CheckBox::CheckBox(DOM::Document& document, HTML::HTMLInputElement& element, CSS
 
 CheckBox::~CheckBox() = default;
 
-JS::GCPtr<Painting::Paintable> CheckBox::create_paintable() const
+GC::Ptr<Painting::Paintable> CheckBox::create_paintable() const
 {
     return Painting::CheckBoxPaintable::create(*this);
 }

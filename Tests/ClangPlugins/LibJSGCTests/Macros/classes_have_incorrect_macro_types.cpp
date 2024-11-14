@@ -15,22 +15,22 @@
 //       have a comma in it, and wouldn't be passable as the basename without a typedef.
 
 class CellWithObjectMacro : JS::Cell {
-    // expected-error@+1 {{Invalid JS-CELL-like macro invocation; expected JS_CELL}}
+    // expected-error@+1 {{Invalid GC-CELL-like macro invocation; expected GC_CELL}}
     JS_OBJECT(CellWithObjectMacro, JS::Cell);
 };
 
 class CellWithEnvironmentMacro : JS::Cell {
-    // expected-error@+1 {{Invalid JS-CELL-like macro invocation; expected JS_CELL}}
+    // expected-error@+1 {{Invalid GC-CELL-like macro invocation; expected GC_CELL}}
     JS_ENVIRONMENT(CellWithEnvironmentMacro, JS::Cell);
 };
 
 class ObjectWithCellMacro : JS::Object {
-    // expected-error@+1 {{Invalid JS-CELL-like macro invocation; expected JS_OBJECT}}
-    JS_CELL(ObjectWithCellMacro, JS::Object);
+    // expected-error@+1 {{Invalid GC-CELL-like macro invocation; expected JS_OBJECT}}
+    GC_CELL(ObjectWithCellMacro, JS::Object);
 };
 
 class ObjectWithEnvironmentMacro : JS::Object {
-    // expected-error@+1 {{Invalid JS-CELL-like macro invocation; expected JS_OBJECT}}
+    // expected-error@+1 {{Invalid GC-CELL-like macro invocation; expected JS_OBJECT}}
     JS_ENVIRONMENT(ObjectWithEnvironmentMacro, JS::Object);
 };
 
@@ -38,12 +38,12 @@ class ObjectWithEnvironmentMacro : JS::Object {
 namespace JS {
 
 class CellWithPrototypeMacro : Cell {
-    // expected-error@+1 {{Invalid JS-CELL-like macro invocation; expected JS_CELL}}
+    // expected-error@+1 {{Invalid GC-CELL-like macro invocation; expected GC_CELL}}
     JS_PROTOTYPE_OBJECT(CellWithPrototypeMacro, Cell, Cell);
 };
 
 class ObjectWithPrototypeMacro : Object {
-    // expected-error@+1 {{Invalid JS-CELL-like macro invocation; expected JS_OBJECT}}
+    // expected-error@+1 {{Invalid GC-CELL-like macro invocation; expected JS_OBJECT}}
     JS_PROTOTYPE_OBJECT(ObjectWithPrototypeMacro, Object, Object);
 };
 

@@ -12,7 +12,7 @@
 
 struct LibJSCellMacro {
     enum class Type {
-        JSCell,
+        GCCell,
         JSObject,
         JSEnvironment,
         JSPrototypeObject,

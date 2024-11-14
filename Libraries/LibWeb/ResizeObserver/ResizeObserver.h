@@ -20,10 +20,10 @@ struct ResizeObserverOptions {
 // https://drafts.csswg.org/resize-observer-1/#resize-observer-interface
 class ResizeObserver : public Bindings::PlatformObject {
     WEB_PLATFORM_OBJECT(ResizeObserver, Bindings::PlatformObject);
-    JS_DECLARE_ALLOCATOR(ResizeObserver);
+    GC_DECLARE_ALLOCATOR(ResizeObserver);
 
 public:
-    static WebIDL::ExceptionOr<JS::NonnullGCPtr<ResizeObserver>> construct_impl(JS::Realm&, WebIDL::CallbackType* callback);
+    static WebIDL::ExceptionOr<GC::Ref<ResizeObserver>> construct_impl(JS::Realm&, WebIDL::CallbackType* callback);
 
     virtual ~ResizeObserver() override;
 
@@ -31,11 +31,11 @@ public:
     void unobserve(DOM::Element& target);
     void disconnect();
 
-    void invoke_callback(ReadonlySpan<JS::NonnullGCPtr<ResizeObserverEntry>> entries) const;
+    void invoke_callback(ReadonlySpan<GC::Ref<ResizeObserverEntry>> entries) const;
 
-    Vector<JS::NonnullGCPtr<ResizeObservation>>& observation_targets() { return m_observation_targets; }
-    Vector<JS::NonnullGCPtr<ResizeObservation>>& active_targets() { return m_active_targets; }
-    Vector<JS::NonnullGCPtr<ResizeObservation>>& skipped_targets() { return m_skipped_targets; }
+    Vector<GC::Ref<ResizeObservation>>& observation_targets() { return m_observation_targets; }
+    Vector<GC::Ref<ResizeObservation>>& active_targets() { return m_active_targets; }
+    Vector<GC::Ref<ResizeObservation>>& skipped_targets() { return m_skipped_targets; }
 
 private:
     explicit ResizeObserver(JS::Realm&, WebIDL::CallbackType* callback);
@@ -44,10 +44,10 @@ private:
     virtual void visit_edges(JS::Cell::Visitor&) override;
     virtual void finalize() override;
 
-    JS::GCPtr<WebIDL::CallbackType> m_callback;
-    Vector<JS::NonnullGCPtr<ResizeObservation>> m_observation_targets;
-    Vector<JS::NonnullGCPtr<ResizeObservation>> m_active_targets;
-    Vector<JS::NonnullGCPtr<ResizeObservation>> m_skipped_targets;
+    GC::Ptr<WebIDL::CallbackType> m_callback;
+    Vector<GC::Ref<ResizeObservation>> m_observation_targets;
+    Vector<GC::Ref<ResizeObservation>> m_active_targets;
+    Vector<GC::Ref<ResizeObservation>> m_skipped_targets;
 
     // AD-HOC: This is the document where we've registered the observer.
     WeakPtr<DOM::Document> m_document;

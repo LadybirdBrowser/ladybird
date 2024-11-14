@@ -29,7 +29,7 @@
 
 namespace Web::HTML {
 
-JS_DEFINE_ALLOCATOR(HTMLSelectElement);
+GC_DEFINE_ALLOCATOR(HTMLSelectElement);
 
 HTMLSelectElement::HTMLSelectElement(DOM::Document& document, DOM::QualifiedName qualified_name)
     : HTMLElement(document, move(qualified_name))
@@ -100,7 +100,7 @@ WebIDL::ExceptionOr<void> HTMLSelectElement::set_size(WebIDL::UnsignedLong size)
 }
 
 // https://html.spec.whatwg.org/multipage/form-elements.html#dom-select-options
-JS::GCPtr<HTMLOptionsCollection> const& HTMLSelectElement::options()
+GC::Ptr<HTMLOptionsCollection> const& HTMLSelectElement::options()
 {
     if (!m_options) {
         m_options = HTMLOptionsCollection::create(*this, [](DOM::Element const& element) {
@@ -166,7 +166,7 @@ void HTMLSelectElement::remove(WebIDL::Long index)
 }
 
 // https://html.spec.whatwg.org/multipage/form-elements.html#dom-select-selectedoptions
-JS::NonnullGCPtr<DOM::HTMLCollection> HTMLSelectElement::selected_options()
+GC::Ref<DOM::HTMLCollection> HTMLSelectElement::selected_options()
 {
     // The selectedOptions IDL attribute must return an HTMLCollection rooted at the select node,
     // whose filter matches the elements in the list of options that have their selectedness set to true.
@@ -183,20 +183,20 @@ JS::NonnullGCPtr<DOM::HTMLCollection> HTMLSelectElement::selected_options()
 }
 
 // https://html.spec.whatwg.org/multipage/form-elements.html#concept-select-option-list
-Vector<JS::Handle<HTMLOptionElement>> HTMLSelectElement::list_of_options() const
+Vector<GC::Root<HTMLOptionElement>> HTMLSelectElement::list_of_options() const
 {
     // The list of options for a select element consists of all the option element children of the select element,
     // and all the option element children of all the optgroup element children of the select element, in tree order.
-    Vector<JS::Handle<HTMLOptionElement>> list;
+    Vector<GC::Root<HTMLOptionElement>> list;
 
     for_each_child_of_type<HTMLOptionElement>([&](HTMLOptionElement& option_element) {
-        list.append(JS::make_handle(option_element));
+        list.append(GC::make_root(option_element));
         return IterationDecision::Continue;
     });
 
     for_each_child_of_type<HTMLOptGroupElement>([&](HTMLOptGroupElement const& optgroup_element) {
         optgroup_element.for_each_child_of_type<HTMLOptionElement>([&](HTMLOptionElement& option_element) {
-            list.append(JS::make_handle(option_element));
+            list.append(GC::make_root(option_element));
             return IterationDecision::Continue;
         });
         return IterationDecision::Continue;
@@ -611,7 +611,7 @@ void HTMLSelectElement::update_selectedness()
     if (number_of_selected >= 2) {
         // then set the selectedness of all but the last option element with its selectedness set to true
         // in the list of options in tree order to false.
-        JS::GCPtr<HTML::HTMLOptionElement> last_selected_option;
+        GC::Ptr<HTML::HTMLOptionElement> last_selected_option;
         u64 last_selected_option_update_index = 0;
 
         for (auto const& option_element : list_of_options()) {

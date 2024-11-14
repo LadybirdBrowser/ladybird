@@ -13,7 +13,7 @@ namespace Web::Layout {
 
 // https://www.w3.org/TR/css-display/#block-container
 class BlockContainer : public Box {
-    JS_CELL(BlockContainer, Box);
+    GC_CELL(BlockContainer, Box);
 
 public:
     BlockContainer(DOM::Document&, DOM::Node*, CSS::StyleProperties);
@@ -22,7 +22,7 @@ public:
 
     Painting::PaintableWithLines const* paintable_with_lines() const;
 
-    virtual JS::GCPtr<Painting::Paintable> create_paintable() const override;
+    virtual GC::Ptr<Painting::Paintable> create_paintable() const override;
 
 private:
     virtual bool is_block_container() const final { return true; }

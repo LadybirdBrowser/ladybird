@@ -14,7 +14,7 @@ namespace Web::SVG {
 class SVGSymbolElement final : public SVGGraphicsElement
     , public SVGViewport {
     WEB_PLATFORM_OBJECT(SVGSymbolElement, SVGGraphicsElement);
-    JS_DECLARE_ALLOCATOR(SVGSymbolElement);
+    GC_DECLARE_ALLOCATOR(SVGSymbolElement);
 
 public:
     virtual ~SVGSymbolElement() override = default;
@@ -28,7 +28,7 @@ public:
         return {};
     }
 
-    JS::NonnullGCPtr<SVGAnimatedRect> view_box_for_bindings() { return *m_view_box_for_bindings; }
+    GC::Ref<SVGAnimatedRect> view_box_for_bindings() { return *m_view_box_for_bindings; }
 
 private:
     SVGSymbolElement(DOM::Document&, DOM::QualifiedName);
@@ -36,7 +36,7 @@ private:
     virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Cell::Visitor&) override;
 
-    virtual JS::GCPtr<Layout::Node> create_layout_node(CSS::StyleProperties) override;
+    virtual GC::Ptr<Layout::Node> create_layout_node(CSS::StyleProperties) override;
 
     bool is_direct_child_of_use_shadow_tree() const;
 
@@ -44,7 +44,7 @@ private:
 
     Optional<ViewBox> m_view_box;
 
-    JS::GCPtr<SVGAnimatedRect> m_view_box_for_bindings;
+    GC::Ptr<SVGAnimatedRect> m_view_box_for_bindings;
 };
 
 }

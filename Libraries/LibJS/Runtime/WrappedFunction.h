@@ -13,10 +13,10 @@ namespace JS {
 
 class WrappedFunction final : public FunctionObject {
     JS_OBJECT(WrappedFunction, FunctionObject);
-    JS_DECLARE_ALLOCATOR(WrappedFunction);
+    GC_DECLARE_ALLOCATOR(WrappedFunction);
 
 public:
-    static ThrowCompletionOr<NonnullGCPtr<WrappedFunction>> create(Realm&, Realm& caller_realm, FunctionObject& target_function);
+    static ThrowCompletionOr<GC::Ref<WrappedFunction>> create(Realm&, Realm& caller_realm, FunctionObject& target_function);
 
     virtual ~WrappedFunction() = default;
 
@@ -36,8 +36,8 @@ private:
     virtual void visit_edges(Visitor&) override;
 
     // Internal Slots of Wrapped Function Exotic Objects, https://tc39.es/proposal-shadowrealm/#table-internal-slots-of-wrapped-function-exotic-objects
-    NonnullGCPtr<FunctionObject> m_wrapped_target_function; // [[WrappedTargetFunction]]
-    NonnullGCPtr<Realm> m_realm;                            // [[Realm]]
+    GC::Ref<FunctionObject> m_wrapped_target_function; // [[WrappedTargetFunction]]
+    GC::Ref<Realm> m_realm;                            // [[Realm]]
 };
 
 ThrowCompletionOr<Value> ordinary_wrapped_function_call(WrappedFunction const&, Value this_argument, ReadonlySpan<Value> arguments_list);

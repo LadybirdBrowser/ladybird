@@ -13,11 +13,11 @@
 namespace Web::Painting {
 
 class SVGPathPaintable final : public SVGGraphicsPaintable {
-    JS_CELL(SVGPathPaintable, SVGGraphicsPaintable);
-    JS_DECLARE_ALLOCATOR(SVGPathPaintable);
+    GC_CELL(SVGPathPaintable, SVGGraphicsPaintable);
+    GC_DECLARE_ALLOCATOR(SVGPathPaintable);
 
 public:
-    static JS::NonnullGCPtr<SVGPathPaintable> create(Layout::SVGGraphicsBox const&);
+    static GC::Ref<SVGPathPaintable> create(Layout::SVGGraphicsBox const&);
 
     virtual TraversalDecision hit_test(CSSPixelPoint, HitTestType, Function<TraversalDecision(HitTestResult)> const& callback) const override;
 

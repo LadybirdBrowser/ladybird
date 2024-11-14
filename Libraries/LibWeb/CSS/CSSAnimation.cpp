@@ -12,17 +12,17 @@
 
 namespace Web::CSS {
 
-JS_DEFINE_ALLOCATOR(CSSAnimation);
+GC_DEFINE_ALLOCATOR(CSSAnimation);
 
-JS::NonnullGCPtr<CSSAnimation> CSSAnimation::create(JS::Realm& realm)
+GC::Ref<CSSAnimation> CSSAnimation::create(JS::Realm& realm)
 {
     return realm.create<CSSAnimation>(realm);
 }
 
 // https://www.w3.org/TR/css-animations-2/#animation-composite-order
-Optional<int> CSSAnimation::class_specific_composite_order(JS::NonnullGCPtr<Animations::Animation> other_animation) const
+Optional<int> CSSAnimation::class_specific_composite_order(GC::Ref<Animations::Animation> other_animation) const
 {
-    auto other = JS::NonnullGCPtr { verify_cast<CSSAnimation>(*other_animation) };
+    auto other = GC::Ref { verify_cast<CSSAnimation>(*other_animation) };
 
     // The existance of an owning element determines the animation class, so both animations should have their owning
     // element in the same state

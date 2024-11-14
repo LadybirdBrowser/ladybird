@@ -12,7 +12,7 @@
 
 namespace Web::DOM {
 
-JS_DEFINE_ALLOCATOR(NodeIterator);
+GC_DEFINE_ALLOCATOR(NodeIterator);
 
 NodeIterator::NodeIterator(Node& root)
     : PlatformObject(root.realm())
@@ -48,7 +48,7 @@ void NodeIterator::visit_edges(Cell::Visitor& visitor)
 }
 
 // https://dom.spec.whatwg.org/#dom-document-createnodeiterator
-WebIDL::ExceptionOr<JS::NonnullGCPtr<NodeIterator>> NodeIterator::create(Node& root, unsigned what_to_show, JS::GCPtr<NodeFilter> filter)
+WebIDL::ExceptionOr<GC::Ref<NodeIterator>> NodeIterator::create(Node& root, unsigned what_to_show, GC::Ptr<NodeFilter> filter)
 {
     // 1. Let iterator be a new NodeIterator object.
     // 2. Set iterator’s root and iterator’s reference to root.
@@ -74,13 +74,13 @@ void NodeIterator::detach()
 }
 
 // https://dom.spec.whatwg.org/#concept-nodeiterator-traverse
-JS::ThrowCompletionOr<JS::GCPtr<Node>> NodeIterator::traverse(Direction direction)
+JS::ThrowCompletionOr<GC::Ptr<Node>> NodeIterator::traverse(Direction direction)
 {
     // 1. Let node be iterator’s reference.
     // 2. Let beforeNode be iterator’s pointer before reference.
     m_traversal_pointer = m_reference;
 
-    JS::GCPtr<Node> candidate;
+    GC::Ptr<Node> candidate;
 
     // 3. While true:
     while (true) {
@@ -175,13 +175,13 @@ JS::ThrowCompletionOr<NodeFilter::Result> NodeIterator::filter(Node& node)
 }
 
 // https://dom.spec.whatwg.org/#dom-nodeiterator-nextnode
-JS::ThrowCompletionOr<JS::GCPtr<Node>> NodeIterator::next_node()
+JS::ThrowCompletionOr<GC::Ptr<Node>> NodeIterator::next_node()
 {
     return traverse(Direction::Next);
 }
 
 // https://dom.spec.whatwg.org/#dom-nodeiterator-previousnode
-JS::ThrowCompletionOr<JS::GCPtr<Node>> NodeIterator::previous_node()
+JS::ThrowCompletionOr<GC::Ptr<Node>> NodeIterator::previous_node()
 {
     return traverse(Direction::Previous);
 }

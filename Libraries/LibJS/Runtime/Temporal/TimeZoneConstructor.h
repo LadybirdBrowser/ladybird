@@ -12,14 +12,14 @@ namespace JS::Temporal {
 
 class TimeZoneConstructor final : public NativeFunction {
     JS_OBJECT(TimeZoneConstructor, NativeFunction);
-    JS_DECLARE_ALLOCATOR(TimeZoneConstructor);
+    GC_DECLARE_ALLOCATOR(TimeZoneConstructor);
 
 public:
     virtual void initialize(Realm&) override;
     virtual ~TimeZoneConstructor() override = default;
 
     virtual ThrowCompletionOr<Value> call() override;
-    virtual ThrowCompletionOr<NonnullGCPtr<Object>> construct(FunctionObject& new_target) override;
+    virtual ThrowCompletionOr<GC::Ref<Object>> construct(FunctionObject& new_target) override;
 
 private:
     explicit TimeZoneConstructor(Realm&);

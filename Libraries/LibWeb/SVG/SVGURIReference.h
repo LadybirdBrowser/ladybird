@@ -22,7 +22,7 @@ class SVGURIReferenceMixin {
 public:
     virtual ~SVGURIReferenceMixin() = default;
 
-    JS::NonnullGCPtr<SVGAnimatedString> href()
+    GC::Ref<SVGAnimatedString> href()
     {
         // The href IDL attribute represents the value of the ‘href’ attribute, and, on elements that are defined to support
         // it, the deprecated ‘xlink:href’ attribute. On getting href, an SVGAnimatedString object is returned that:
@@ -44,7 +44,7 @@ protected:
     }
 
 private:
-    JS::GCPtr<SVGAnimatedString> m_href_animated_string;
+    GC::Ptr<SVGAnimatedString> m_href_animated_string;
 };
 
 }

@@ -12,9 +12,9 @@
 
 namespace Web::Encoding {
 
-JS_DEFINE_ALLOCATOR(TextEncoder);
+GC_DEFINE_ALLOCATOR(TextEncoder);
 
-WebIDL::ExceptionOr<JS::NonnullGCPtr<TextEncoder>> TextEncoder::construct_impl(JS::Realm& realm)
+WebIDL::ExceptionOr<GC::Ref<TextEncoder>> TextEncoder::construct_impl(JS::Realm& realm)
 {
     return realm.create<TextEncoder>(realm);
 }
@@ -33,7 +33,7 @@ void TextEncoder::initialize(JS::Realm& realm)
 }
 
 // https://encoding.spec.whatwg.org/#dom-textencoder-encode
-JS::NonnullGCPtr<JS::Uint8Array> TextEncoder::encode(String const& input) const
+GC::Ref<JS::Uint8Array> TextEncoder::encode(String const& input) const
 {
     // NOTE: The AK::String is always UTF-8, so most of these steps are no-ops.
     // 1. Convert input to an I/O queue of scalar values.
@@ -51,7 +51,7 @@ JS::NonnullGCPtr<JS::Uint8Array> TextEncoder::encode(String const& input) const
 }
 
 // https://encoding.spec.whatwg.org/#dom-textencoder-encodeinto
-TextEncoderEncodeIntoResult TextEncoder::encode_into(String const& source, JS::Handle<WebIDL::BufferSource> const& destination) const
+TextEncoderEncodeIntoResult TextEncoder::encode_into(String const& source, GC::Root<WebIDL::BufferSource> const& destination) const
 {
     auto& data = destination->viewed_array_buffer()->buffer();
 

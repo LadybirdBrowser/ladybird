@@ -12,14 +12,14 @@ namespace JS::Intl {
 
 class SegmenterConstructor final : public NativeFunction {
     JS_OBJECT(SegmenterConstructor, NativeFunction);
-    JS_DECLARE_ALLOCATOR(SegmenterConstructor);
+    GC_DECLARE_ALLOCATOR(SegmenterConstructor);
 
 public:
     virtual void initialize(Realm&) override;
     virtual ~SegmenterConstructor() override = default;
 
     virtual ThrowCompletionOr<Value> call() override;
-    virtual ThrowCompletionOr<NonnullGCPtr<Object>> construct(FunctionObject& new_target) override;
+    virtual ThrowCompletionOr<GC::Ref<Object>> construct(FunctionObject& new_target) override;
 
 private:
     explicit SegmenterConstructor(Realm&);

@@ -11,8 +11,8 @@
 #include <AK/Optional.h>
 #include <AK/Time.h>
 #include <AK/Variant.h>
+#include <LibGC/MarkedVector.h>
 #include <LibGfx/Rect.h>
-#include <LibJS/Heap/MarkedVector.h>
 #include <LibWeb/DOM/DocumentLoadEventDelayer.h>
 #include <LibWeb/HTML/CORSSettingAttribute.h>
 #include <LibWeb/HTML/EventLoop/Task.h>
@@ -39,10 +39,10 @@ public:
 
     virtual bool is_focusable() const override { return true; }
 
-    // NOTE: The function is wrapped in a JS::HeapFunction immediately.
+    // NOTE: The function is wrapped in a GC::HeapFunction immediately.
     void queue_a_media_element_task(Function<void()>);
 
-    JS::GCPtr<MediaError> error() const { return m_error; }
+    GC::Ptr<MediaError> error() const { return m_error; }
     void set_decoder_error(String error_message);
 
     String const& current_src() const { return m_current_src; }
@@ -56,7 +56,7 @@ public:
     };
     NetworkState network_state() const { return m_network_state; }
 
-    [[nodiscard]] JS::NonnullGCPtr<TimeRanges> buffered() const;
+    [[nodiscard]] GC::Ref<TimeRanges> buffered() const;
 
     Bindings::CanPlayTypeResult can_play_type(StringView type) const;
 
@@ -88,7 +88,7 @@ public:
     bool paused() const { return m_paused; }
     bool ended() const;
     bool potentially_playing() const;
-    WebIDL::ExceptionOr<JS::NonnullGCPtr<WebIDL::Promise>> play();
+    WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> play();
     WebIDL::ExceptionOr<void> pause();
     WebIDL::ExceptionOr<void> toggle_playback();
 
@@ -102,11 +102,11 @@ public:
 
     double effective_media_volume() const;
 
-    JS::NonnullGCPtr<AudioTrackList> audio_tracks() const { return *m_audio_tracks; }
-    JS::NonnullGCPtr<VideoTrackList> video_tracks() const { return *m_video_tracks; }
-    JS::NonnullGCPtr<TextTrackList> text_tracks() const { return *m_text_tracks; }
+    GC::Ref<AudioTrackList> audio_tracks() const { return *m_audio_tracks; }
+    GC::Ref<VideoTrackList> video_tracks() const { return *m_video_tracks; }
+    GC::Ref<TextTrackList> text_tracks() const { return *m_text_tracks; }
 
-    JS::NonnullGCPtr<TextTrack> add_text_track(Bindings::TextTrackKind kind, String const& label, String const& language);
+    GC::Ref<TextTrack> add_text_track(Bindings::TextTrackKind kind, String const& label, String const& language);
 
     WebIDL::ExceptionOr<bool> handle_keydown(Badge<Web::EventHandler>, UIEvents::KeyCode, u32 modifiers);
 
@@ -165,9 +165,9 @@ private:
 
     WebIDL::ExceptionOr<void> load_element();
     WebIDL::ExceptionOr<void> fetch_resource(URL::URL const&, ESCAPING Function<void(String)> failure_callback);
-    static bool verify_response(JS::NonnullGCPtr<Fetch::Infrastructure::Response>, ByteRange const&);
+    static bool verify_response(GC::Ref<Fetch::Infrastructure::Response>, ByteRange const&);
     WebIDL::ExceptionOr<void> process_media_data(Function<void(String)> failure_callback);
-    WebIDL::ExceptionOr<void> handle_media_source_failure(Span<JS::NonnullGCPtr<WebIDL::Promise>> promises, String error_message);
+    WebIDL::ExceptionOr<void> handle_media_source_failure(Span<GC::Ref<WebIDL::Promise>> promises, String error_message);
     void forget_media_resource_specific_tracks();
     void set_ready_state(ReadyState);
 
@@ -193,13 +193,13 @@ private:
     };
     void time_marches_on(TimeMarchesOnReason = TimeMarchesOnReason::NormalPlayback);
 
-    JS::MarkedVector<JS::NonnullGCPtr<WebIDL::Promise>> take_pending_play_promises();
-    void resolve_pending_play_promises(ReadonlySpan<JS::NonnullGCPtr<WebIDL::Promise>> promises);
-    void reject_pending_play_promises(ReadonlySpan<JS::NonnullGCPtr<WebIDL::Promise>> promises, JS::NonnullGCPtr<WebIDL::DOMException> error);
+    GC::MarkedVector<GC::Ref<WebIDL::Promise>> take_pending_play_promises();
+    void resolve_pending_play_promises(ReadonlySpan<GC::Ref<WebIDL::Promise>> promises);
+    void reject_pending_play_promises(ReadonlySpan<GC::Ref<WebIDL::Promise>> promises, GC::Ref<WebIDL::DOMException> error);
 
     // https://html.spec.whatwg.org/multipage/media.html#reject-pending-play-promises
     template<typename ErrorType>
-    void reject_pending_play_promises(ReadonlySpan<JS::NonnullGCPtr<WebIDL::Promise>> promises, String message)
+    void reject_pending_play_promises(ReadonlySpan<GC::Ref<WebIDL::Promise>> promises, String message)
     {
         auto& realm = this->realm();
 
@@ -211,7 +211,7 @@ private:
     UniqueTaskSource m_media_element_event_task_source {};
 
     // https://html.spec.whatwg.org/multipage/media.html#dom-media-error
-    JS::GCPtr<MediaError> m_error;
+    GC::Ptr<MediaError> m_error;
 
     // https://html.spec.whatwg.org/multipage/media.html#dom-media-crossorigin
     CORSSettingAttribute m_crossorigin { CORSSettingAttribute::NoCORS };
@@ -245,7 +245,7 @@ private:
     double m_duration { NAN };
 
     // https://html.spec.whatwg.org/multipage/media.html#list-of-pending-play-promises
-    Vector<JS::NonnullGCPtr<WebIDL::Promise>> m_pending_play_promises;
+    Vector<GC::Ref<WebIDL::Promise>> m_pending_play_promises;
 
     // https://html.spec.whatwg.org/multipage/media.html#dom-media-paused
     bool m_paused { true };
@@ -257,13 +257,13 @@ private:
     bool m_muted { false };
 
     // https://html.spec.whatwg.org/multipage/media.html#dom-media-audiotracks
-    JS::GCPtr<AudioTrackList> m_audio_tracks;
+    GC::Ptr<AudioTrackList> m_audio_tracks;
 
     // https://html.spec.whatwg.org/multipage/media.html#dom-media-videotracks
-    JS::GCPtr<VideoTrackList> m_video_tracks;
+    GC::Ptr<VideoTrackList> m_video_tracks;
 
     // https://html.spec.whatwg.org/multipage/media.html#dom-media-texttracks
-    JS::GCPtr<TextTrackList> m_text_tracks;
+    GC::Ptr<TextTrackList> m_text_tracks;
 
     // https://html.spec.whatwg.org/multipage/media.html#media-data
     ByteBuffer m_media_data;
@@ -277,11 +277,11 @@ private:
     bool m_running_time_update_event_handler { false };
     Optional<MonotonicTime> m_last_time_update_event_time;
 
-    JS::GCPtr<DOM::DocumentObserver> m_document_observer;
+    GC::Ptr<DOM::DocumentObserver> m_document_observer;
 
-    JS::GCPtr<SourceElementSelector> m_source_element_selector;
+    GC::Ptr<SourceElementSelector> m_source_element_selector;
 
-    JS::GCPtr<Fetch::Infrastructure::FetchController> m_fetch_controller;
+    GC::Ptr<Fetch::Infrastructure::FetchController> m_fetch_controller;
 
     bool m_seek_in_progress = false;
 

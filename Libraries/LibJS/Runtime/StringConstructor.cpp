@@ -18,7 +18,7 @@
 
 namespace JS {
 
-JS_DEFINE_ALLOCATOR(StringConstructor);
+GC_DEFINE_ALLOCATOR(StringConstructor);
 
 StringConstructor::StringConstructor(Realm& realm)
     : NativeFunction(realm.vm().names.String.as_string(), realm.intrinsics().function_prototype())
@@ -62,7 +62,7 @@ ThrowCompletionOr<Value> StringConstructor::call()
 }
 
 // 22.1.1.1 String ( value ), https://tc39.es/ecma262/#sec-string-constructor-string-value
-ThrowCompletionOr<NonnullGCPtr<Object>> StringConstructor::construct(FunctionObject& new_target)
+ThrowCompletionOr<GC::Ref<Object>> StringConstructor::construct(FunctionObject& new_target)
 {
     auto& vm = this->vm();
     auto& realm = *vm.current_realm();

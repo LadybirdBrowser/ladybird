@@ -19,18 +19,18 @@ class ShadowRealmGlobalScope
     , public UniversalGlobalScopeMixin
     , public Bindings::ShadowRealmGlobalScopeGlobalMixin {
     WEB_PLATFORM_OBJECT(ShadowRealmGlobalScope, DOM::EventTarget);
-    JS_DECLARE_ALLOCATOR(ShadowRealmGlobalScope);
+    GC_DECLARE_ALLOCATOR(ShadowRealmGlobalScope);
 
 public:
     virtual ~ShadowRealmGlobalScope() override;
 
-    static JS::NonnullGCPtr<ShadowRealmGlobalScope> create(JS::Realm&);
+    static GC::Ref<ShadowRealmGlobalScope> create(JS::Realm&);
 
     virtual Bindings::PlatformObject& this_impl() override { return *this; }
     virtual Bindings::PlatformObject const& this_impl() const override { return *this; }
 
     // https://whatpr.org/html/9893/webappapis.html#dom-shadowrealmglobalscope-self
-    JS::NonnullGCPtr<ShadowRealmGlobalScope> self()
+    GC::Ref<ShadowRealmGlobalScope> self()
     {
         // The self getter steps are to return this.
         return *this;

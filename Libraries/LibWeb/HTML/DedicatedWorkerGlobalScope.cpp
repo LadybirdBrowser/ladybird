@@ -15,9 +15,9 @@
 
 namespace Web::HTML {
 
-JS_DEFINE_ALLOCATOR(DedicatedWorkerGlobalScope);
+GC_DEFINE_ALLOCATOR(DedicatedWorkerGlobalScope);
 
-DedicatedWorkerGlobalScope::DedicatedWorkerGlobalScope(JS::Realm& realm, JS::NonnullGCPtr<Web::Page> page)
+DedicatedWorkerGlobalScope::DedicatedWorkerGlobalScope(JS::Realm& realm, GC::Ref<Web::Page> page)
     : WorkerGlobalScope(realm, page)
 {
     m_legacy_platform_object_flags = LegacyPlatformObjectFlags { .has_global_interface_extended_attribute = true };
@@ -58,7 +58,7 @@ WebIDL::ExceptionOr<void> DedicatedWorkerGlobalScope::post_message(JS::Value mes
 }
 
 // https://html.spec.whatwg.org/multipage/workers.html#dom-dedicatedworkerglobalscope-postmessage
-WebIDL::ExceptionOr<void> DedicatedWorkerGlobalScope::post_message(JS::Value message, Vector<JS::Handle<JS::Object>> const& transfer)
+WebIDL::ExceptionOr<void> DedicatedWorkerGlobalScope::post_message(JS::Value message, Vector<GC::Root<JS::Object>> const& transfer)
 {
     // The postMessage(message, transfer) and postMessage(message, options) methods on DedicatedWorkerGlobalScope objects act as if,
     // when invoked, it immediately invoked the respective postMessage(message, transfer) and postMessage(message, options)

@@ -12,7 +12,7 @@
 namespace Web::Painting {
 
 class SVGPaintable : public PaintableBox {
-    JS_CELL(SVGPaintable, PaintableBox);
+    GC_CELL(SVGPaintable, PaintableBox);
 
 public:
     Layout::SVGBox const& layout_box() const;

@@ -9,17 +9,17 @@
 #include <AK/IntrusiveList.h>
 #include <AK/NeverDestroyed.h>
 #include <AK/NonnullOwnPtr.h>
-#include <LibJS/Forward.h>
-#include <LibJS/Heap/BlockAllocator.h>
-#include <LibJS/Heap/HeapBlock.h>
+#include <LibGC/BlockAllocator.h>
+#include <LibGC/Forward.h>
+#include <LibGC/HeapBlock.h>
 
-#define JS_DECLARE_ALLOCATOR(ClassName) \
-    static JS::TypeIsolatingCellAllocator<ClassName> cell_allocator
+#define GC_DECLARE_ALLOCATOR(ClassName) \
+    static GC::TypeIsolatingCellAllocator<ClassName> cell_allocator
 
-#define JS_DEFINE_ALLOCATOR(ClassName) \
-    JS::TypeIsolatingCellAllocator<ClassName> ClassName::cell_allocator { #ClassName }
+#define GC_DEFINE_ALLOCATOR(ClassName) \
+    GC::TypeIsolatingCellAllocator<ClassName> ClassName::cell_allocator { #ClassName }
 
-namespace JS {
+namespace GC {
 
 class CellAllocator {
 public:
@@ -28,7 +28,7 @@ public:
 
     size_t cell_size() const { return m_cell_size; }
 
-    CellImpl* allocate_cell(Heap&);
+    Cell* allocate_cell(Heap&);
 
     template<typename Callback>
     IterationDecision for_each_block(Callback callback)

@@ -19,7 +19,7 @@ namespace Web::HTML {
 
 class Location final : public Bindings::PlatformObject {
     WEB_PLATFORM_OBJECT(Location, Bindings::PlatformObject);
-    JS_DECLARE_ALLOCATOR(Location);
+    GC_DECLARE_ALLOCATOR(Location);
 
 public:
     virtual ~Location() override;
@@ -63,7 +63,7 @@ public:
     virtual JS::ThrowCompletionOr<JS::Value> internal_get(JS::PropertyKey const&, JS::Value receiver, JS::CacheablePropertyMetadata*, PropertyLookupPhase) const override;
     virtual JS::ThrowCompletionOr<bool> internal_set(JS::PropertyKey const&, JS::Value value, JS::Value receiver, JS::CacheablePropertyMetadata*) override;
     virtual JS::ThrowCompletionOr<bool> internal_delete(JS::PropertyKey const&) override;
-    virtual JS::ThrowCompletionOr<JS::MarkedVector<JS::Value>> internal_own_property_keys() const override;
+    virtual JS::ThrowCompletionOr<GC::MarkedVector<JS::Value>> internal_own_property_keys() const override;
 
     HTML::CrossOriginPropertyDescriptorMap const& cross_origin_property_descriptor_map() const { return m_cross_origin_property_descriptor_map; }
     HTML::CrossOriginPropertyDescriptorMap& cross_origin_property_descriptor_map() { return m_cross_origin_property_descriptor_map; }
@@ -74,7 +74,7 @@ private:
     virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Cell::Visitor&) override;
 
-    JS::GCPtr<DOM::Document> relevant_document() const;
+    GC::Ptr<DOM::Document> relevant_document() const;
     URL::URL url() const;
     WebIDL::ExceptionOr<void> navigate(URL::URL, Bindings::NavigationHistoryBehavior = Bindings::NavigationHistoryBehavior::Auto);
 

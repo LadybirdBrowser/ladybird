@@ -9,9 +9,9 @@
 
 namespace Web::Painting {
 
-JS_DEFINE_ALLOCATOR(SVGForeignObjectPaintable);
+GC_DEFINE_ALLOCATOR(SVGForeignObjectPaintable);
 
-JS::NonnullGCPtr<SVGForeignObjectPaintable> SVGForeignObjectPaintable::create(Layout::SVGForeignObjectBox const& layout_box)
+GC::Ref<SVGForeignObjectPaintable> SVGForeignObjectPaintable::create(Layout::SVGForeignObjectBox const& layout_box)
 {
     return layout_box.heap().allocate<SVGForeignObjectPaintable>(layout_box);
 }

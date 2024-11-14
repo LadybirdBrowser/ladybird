@@ -12,7 +12,7 @@
 
 namespace JS {
 
-JS_DEFINE_ALLOCATOR(SharedArrayBufferPrototype);
+GC_DEFINE_ALLOCATOR(SharedArrayBufferPrototype);
 
 SharedArrayBufferPrototype::SharedArrayBufferPrototype(Realm& realm)
     : PrototypeObject(realm.intrinsics().object_prototype())

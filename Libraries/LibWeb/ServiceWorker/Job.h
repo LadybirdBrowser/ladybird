@@ -15,13 +15,13 @@
 namespace Web::ServiceWorker {
 
 struct Job;
-using JobQueue = JS::MarkedVector<JS::NonnullGCPtr<Job>>;
+using JobQueue = GC::MarkedVector<GC::Ref<Job>>;
 
 // https://w3c.github.io/ServiceWorker/#dfn-job
 // FIXME: Consider not making this GC allocated, and give a special JobQueue class responsibility for its referenced GC objects
 struct Job : public JS::Cell {
-    JS_CELL(Job, JS::Cell)
-    JS_DECLARE_ALLOCATOR(Job);
+    GC_CELL(Job, JS::Cell)
+    GC_DECLARE_ALLOCATOR(Job);
 
 public:
     enum class Type : u8 {
@@ -31,7 +31,7 @@ public:
     };
 
     // https://w3c.github.io/ServiceWorker/#create-job
-    static JS::NonnullGCPtr<Job> create(JS::VM&, Type, StorageAPI::StorageKey, URL::URL scope_url, URL::URL script_url, JS::GCPtr<WebIDL::Promise>, JS::GCPtr<HTML::EnvironmentSettingsObject> client);
+    static GC::Ref<Job> create(JS::VM&, Type, StorageAPI::StorageKey, URL::URL scope_url, URL::URL script_url, GC::Ptr<WebIDL::Promise>, GC::Ptr<HTML::EnvironmentSettingsObject> client);
 
     virtual ~Job() override;
 
@@ -42,12 +42,12 @@ public:
     Bindings::WorkerType worker_type = Bindings::WorkerType::Classic;
     // FIXME: The spec sometimes omits setting update_via_cache after CreateJob. Default to the default value for ServiceWorkerRegistrations
     Bindings::ServiceWorkerUpdateViaCache update_via_cache = Bindings::ServiceWorkerUpdateViaCache::Imports;
-    JS::GCPtr<HTML::EnvironmentSettingsObject> client = nullptr;
+    GC::Ptr<HTML::EnvironmentSettingsObject> client = nullptr;
     Optional<URL::URL> referrer;
     // FIXME: Spec just references this as an ECMAScript promise https://github.com/w3c/ServiceWorker/issues/1731
-    JS::GCPtr<WebIDL::Promise> job_promise = nullptr;
+    GC::Ptr<WebIDL::Promise> job_promise = nullptr;
     RawPtr<JobQueue> containing_job_queue = nullptr;
-    Vector<JS::NonnullGCPtr<Job>> list_of_equivalent_jobs;
+    Vector<GC::Ref<Job>> list_of_equivalent_jobs;
     bool force_cache_bypass = false;
 
     // https://w3c.github.io/ServiceWorker/#dfn-job-equivalent
@@ -70,10 +70,10 @@ public:
 private:
     virtual void visit_edges(JS::Cell::Visitor& visitor) override;
 
-    Job(Type, StorageAPI::StorageKey, URL::URL scope_url, URL::URL script_url, JS::GCPtr<WebIDL::Promise>, JS::GCPtr<HTML::EnvironmentSettingsObject> client);
+    Job(Type, StorageAPI::StorageKey, URL::URL scope_url, URL::URL script_url, GC::Ptr<WebIDL::Promise>, GC::Ptr<HTML::EnvironmentSettingsObject> client);
 };
 
 // https://w3c.github.io/ServiceWorker/#schedule-job-algorithm
-void schedule_job(JS::VM&, JS::NonnullGCPtr<Job>);
+void schedule_job(JS::VM&, GC::Ref<Job>);
 
 }

@@ -28,10 +28,10 @@ namespace Web::WebSockets {
 
 class WebSocket final : public DOM::EventTarget {
     WEB_PLATFORM_OBJECT(WebSocket, DOM::EventTarget);
-    JS_DECLARE_ALLOCATOR(WebSocket);
+    GC_DECLARE_ALLOCATOR(WebSocket);
 
 public:
-    static WebIDL::ExceptionOr<JS::NonnullGCPtr<WebSocket>> construct_impl(JS::Realm&, String const& url, Optional<Variant<String, Vector<String>>> const& protocols);
+    static WebIDL::ExceptionOr<GC::Ref<WebSocket>> construct_impl(JS::Realm&, String const& url, Optional<Variant<String, Vector<String>>> const& protocols);
 
     virtual ~WebSocket() override;
 
@@ -53,7 +53,7 @@ public:
     void set_binary_type(String const& type) { m_binary_type = type; }
 
     WebIDL::ExceptionOr<void> close(Optional<u16> code, Optional<String> reason);
-    WebIDL::ExceptionOr<void> send(Variant<JS::Handle<WebIDL::BufferSource>, JS::Handle<FileAPI::Blob>, String> const& data);
+    WebIDL::ExceptionOr<void> send(Variant<GC::Root<WebIDL::BufferSource>, GC::Root<FileAPI::Blob>, String> const& data);
 
 private:
     void on_open();

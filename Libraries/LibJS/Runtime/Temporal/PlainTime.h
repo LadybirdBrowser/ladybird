@@ -17,7 +17,7 @@ namespace JS::Temporal {
 
 class PlainTime final : public Object {
     JS_OBJECT(PlainTime, Object);
-    JS_DECLARE_ALLOCATOR(PlainTime);
+    GC_DECLARE_ALLOCATOR(PlainTime);
 
 public:
     virtual ~PlainTime() override = default;
@@ -37,13 +37,13 @@ private:
     virtual void visit_edges(Visitor&) override;
 
     // 4.4 Properties of Temporal.PlainTime Instances, https://tc39.es/proposal-temporal/#sec-properties-of-temporal-plaintime-instances
-    u8 m_iso_hour { 0 };               // [[ISOHour]]
-    u8 m_iso_minute { 0 };             // [[ISOMinute]]
-    u8 m_iso_second { 0 };             // [[ISOSecond]]
-    u16 m_iso_millisecond { 0 };       // [[ISOMillisecond]]
-    u16 m_iso_microsecond { 0 };       // [[ISOMicrosecond]]
-    u16 m_iso_nanosecond { 0 };        // [[ISONanosecond]]
-    NonnullGCPtr<Calendar> m_calendar; // [[Calendar]] (always the built-in ISO 8601 calendar)
+    u8 m_iso_hour { 0 };          // [[ISOHour]]
+    u8 m_iso_minute { 0 };        // [[ISOMinute]]
+    u8 m_iso_second { 0 };        // [[ISOSecond]]
+    u16 m_iso_millisecond { 0 };  // [[ISOMillisecond]]
+    u16 m_iso_microsecond { 0 };  // [[ISOMicrosecond]]
+    u16 m_iso_nanosecond { 0 };   // [[ISONanosecond]]
+    GC::Ref<Calendar> m_calendar; // [[Calendar]] (always the built-in ISO 8601 calendar)
 };
 
 struct DaysAndTime {
@@ -90,7 +90,7 @@ ThrowCompletionOr<String> temporal_time_to_string(VM&, u8 hour, u8 minute, u8 se
 i8 compare_temporal_time(u8 hour1, u8 minute1, u8 second1, u16 millisecond1, u16 microsecond1, u16 nanosecond1, u8 hour2, u8 minute2, u8 second2, u16 millisecond2, u16 microsecond2, u16 nanosecond2);
 DaysAndTime add_time(u8 hour, u8 minute, u8 second, u16 millisecond, u16 microsecond, u16 nanosecond, double hours, double minutes, double seconds, double milliseconds, double microseconds, double nanoseconds);
 DaysAndTime round_time(u8 hour, u8 minute, u8 second, u16 millisecond, u16 microsecond, u16 nanosecond, u64 increment, StringView unit, StringView rounding_mode, Optional<double> day_length_ns = {});
-ThrowCompletionOr<NonnullGCPtr<Duration>> difference_temporal_plain_time(VM&, DifferenceOperation, PlainTime const&, Value other, Value options);
+ThrowCompletionOr<GC::Ref<Duration>> difference_temporal_plain_time(VM&, DifferenceOperation, PlainTime const&, Value other, Value options);
 ThrowCompletionOr<PlainTime*> add_duration_to_or_subtract_duration_from_plain_time(VM&, ArithmeticOperation, PlainTime const&, Value temporal_duration_like);
 
 }

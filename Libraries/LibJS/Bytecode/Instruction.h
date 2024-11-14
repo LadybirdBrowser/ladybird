@@ -213,7 +213,7 @@ private:
     u8 const* m_begin { nullptr };
     u8 const* m_end { nullptr };
     u8 const* m_ptr { nullptr };
-    GCPtr<Executable const> m_executable;
+    GC::Ptr<Executable const> m_executable;
 };
 
 }

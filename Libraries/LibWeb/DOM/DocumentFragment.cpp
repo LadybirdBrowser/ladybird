@@ -10,7 +10,7 @@
 
 namespace Web::DOM {
 
-JS_DEFINE_ALLOCATOR(DocumentFragment);
+GC_DEFINE_ALLOCATOR(DocumentFragment);
 
 DocumentFragment::DocumentFragment(Document& document)
     : ParentNode(document, NodeType::DOCUMENT_FRAGMENT_NODE)
@@ -35,7 +35,7 @@ void DocumentFragment::set_host(Web::DOM::Element* element)
 }
 
 // https://dom.spec.whatwg.org/#dom-documentfragment-documentfragment
-WebIDL::ExceptionOr<JS::NonnullGCPtr<DocumentFragment>> DocumentFragment::construct_impl(JS::Realm& realm)
+WebIDL::ExceptionOr<GC::Ref<DocumentFragment>> DocumentFragment::construct_impl(JS::Realm& realm)
 {
     auto& window = verify_cast<HTML::Window>(realm.global_object());
     return realm.create<DocumentFragment>(window.associated_document());

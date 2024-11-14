@@ -34,12 +34,12 @@ enum class DOMKeyLocation {
 // https://www.w3.org/TR/uievents/#interface-keyboardevent
 class KeyboardEvent final : public UIEvent {
     WEB_PLATFORM_OBJECT(KeyboardEvent, UIEvent);
-    JS_DECLARE_ALLOCATOR(KeyboardEvent);
+    GC_DECLARE_ALLOCATOR(KeyboardEvent);
 
 public:
-    [[nodiscard]] static JS::NonnullGCPtr<KeyboardEvent> create(JS::Realm&, FlyString const& event_name, KeyboardEventInit const& = {});
-    [[nodiscard]] static JS::NonnullGCPtr<KeyboardEvent> create_from_platform_event(JS::Realm&, FlyString const& event_name, KeyCode, unsigned modifiers, u32 code_point, bool repeat);
-    static WebIDL::ExceptionOr<JS::NonnullGCPtr<KeyboardEvent>> construct_impl(JS::Realm&, FlyString const& event_name, KeyboardEventInit const&);
+    [[nodiscard]] static GC::Ref<KeyboardEvent> create(JS::Realm&, FlyString const& event_name, KeyboardEventInit const& = {});
+    [[nodiscard]] static GC::Ref<KeyboardEvent> create_from_platform_event(JS::Realm&, FlyString const& event_name, KeyCode, unsigned modifiers, u32 code_point, bool repeat);
+    static WebIDL::ExceptionOr<GC::Ref<KeyboardEvent>> construct_impl(JS::Realm&, FlyString const& event_name, KeyboardEventInit const&);
 
     virtual ~KeyboardEvent() override;
 

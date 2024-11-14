@@ -6,7 +6,7 @@
 
 #pragma once
 
-#include <LibJS/Heap/MarkedVector.h>
+#include <LibGC/MarkedVector.h>
 #include <LibWeb/DOM/EventTarget.h>
 #include <LibWeb/HTML/TextTrack.h>
 
@@ -15,12 +15,12 @@ namespace Web::HTML {
 // https://html.spec.whatwg.org/multipage/media.html#texttrackcue
 class TextTrackCue : public DOM::EventTarget {
     WEB_PLATFORM_OBJECT(TextTrackCue, DOM::EventTarget);
-    JS_DECLARE_ALLOCATOR(TextTrackCue);
+    GC_DECLARE_ALLOCATOR(TextTrackCue);
 
 public:
     virtual ~TextTrackCue() override;
 
-    JS::GCPtr<TextTrack> track() { return m_track; }
+    GC::Ptr<TextTrack> track() { return m_track; }
 
     String const& id() const { return m_identifier; }
     void set_id(String const& id) { m_identifier = id; }
@@ -41,12 +41,12 @@ public:
     void set_onexit(WebIDL::CallbackType*);
 
 protected:
-    TextTrackCue(JS::Realm&, JS::GCPtr<TextTrack>);
+    TextTrackCue(JS::Realm&, GC::Ptr<TextTrack>);
 
     virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Visitor&) override;
 
-    JS::GCPtr<TextTrack> m_track;
+    GC::Ptr<TextTrack> m_track;
 
     // https://html.spec.whatwg.org/multipage/media.html#text-track-cue-identifier
     String m_identifier;

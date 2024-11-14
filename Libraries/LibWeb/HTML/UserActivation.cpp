@@ -11,9 +11,9 @@
 
 namespace Web::HTML {
 
-JS_DEFINE_ALLOCATOR(UserActivation);
+GC_DEFINE_ALLOCATOR(UserActivation);
 
-WebIDL::ExceptionOr<JS::NonnullGCPtr<UserActivation>> UserActivation::construct_impl(JS::Realm& realm)
+WebIDL::ExceptionOr<GC::Ref<UserActivation>> UserActivation::construct_impl(JS::Realm& realm)
 {
     return realm.create<UserActivation>(realm);
 }

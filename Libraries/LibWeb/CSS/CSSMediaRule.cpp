@@ -12,9 +12,9 @@
 
 namespace Web::CSS {
 
-JS_DEFINE_ALLOCATOR(CSSMediaRule);
+GC_DEFINE_ALLOCATOR(CSSMediaRule);
 
-JS::NonnullGCPtr<CSSMediaRule> CSSMediaRule::create(JS::Realm& realm, MediaList& media_queries, CSSRuleList& rules)
+GC::Ref<CSSMediaRule> CSSMediaRule::create(JS::Realm& realm, MediaList& media_queries, CSSRuleList& rules)
 {
     return realm.create<CSSMediaRule>(realm, media_queries, rules);
 }

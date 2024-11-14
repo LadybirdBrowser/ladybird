@@ -17,17 +17,17 @@ namespace Web::CSS {
 
 class CSSTransition : public Animations::Animation {
     WEB_PLATFORM_OBJECT(CSSTransition, Animations::Animation);
-    JS_DECLARE_ALLOCATOR(CSSTransition);
+    GC_DECLARE_ALLOCATOR(CSSTransition);
 
 public:
-    static JS::NonnullGCPtr<CSSTransition> start_a_transition(DOM::Element&, PropertyID, size_t transition_generation,
+    static GC::Ref<CSSTransition> start_a_transition(DOM::Element&, PropertyID, size_t transition_generation,
         double start_time, double end_time, NonnullRefPtr<CSSStyleValue const> start_value, NonnullRefPtr<CSSStyleValue const> end_value,
         NonnullRefPtr<CSSStyleValue const> reversing_adjusted_start_value, double reversing_shortening_factor);
 
     StringView transition_property() const { return string_from_property_id(m_transition_property); }
 
     virtual Animations::AnimationClass animation_class() const override;
-    virtual Optional<int> class_specific_composite_order(JS::NonnullGCPtr<Animations::Animation> other) const override;
+    virtual Optional<int> class_specific_composite_order(GC::Ref<Animations::Animation> other) const override;
 
     double transition_start_time() const { return m_start_time; }
     double transition_end_time() const { return m_end_time; }
@@ -72,9 +72,9 @@ private:
     // https://drafts.csswg.org/css-transitions/#transition-reversing-shortening-factor
     double m_reversing_shortening_factor;
 
-    JS::NonnullGCPtr<Animations::KeyframeEffect> m_keyframe_effect;
+    GC::Ref<Animations::KeyframeEffect> m_keyframe_effect;
 
-    JS::GCPtr<CSS::CSSStyleDeclaration const> m_cached_declaration;
+    GC::Ptr<CSS::CSSStyleDeclaration const> m_cached_declaration;
 };
 
 }

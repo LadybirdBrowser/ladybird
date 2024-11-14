@@ -1271,8 +1271,8 @@ static ErrorOr<void, WebDriver::Error> dispatch_pointer_move_action(ActionObject
 
 // https://w3c.github.io/webdriver/#dfn-dispatch-actions-inner
 class ActionExecutor final : public JS::Cell {
-    JS_CELL(ActionExecutor, JS::Cell);
-    JS_DECLARE_ALLOCATOR(ActionExecutor);
+    GC_CELL(ActionExecutor, JS::Cell);
+    GC_DECLARE_ALLOCATOR(ActionExecutor);
 
 public:
     ActionExecutor(InputState& input_state, Vector<Vector<ActionObject>> actions_by_tick, HTML::BrowsingContext& browsing_context, ActionsOptions actions_options, OnActionsComplete on_complete)
@@ -1316,7 +1316,7 @@ public:
         m_timer = Core::Timer::create_single_shot(static_cast<int>(tick_duration.to_milliseconds()), [this]() {
             m_timer = nullptr;
 
-            HTML::queue_a_task(HTML::Task::Source::Unspecified, nullptr, nullptr, JS::create_heap_function(heap(), [this]() {
+            HTML::queue_a_task(HTML::Task::Source::Unspecified, nullptr, nullptr, GC::create_function(heap(), [this]() {
                 process_next_tick();
             }));
         });
@@ -1331,7 +1331,7 @@ private:
         visitor.visit(m_on_complete);
     }
 
-    JS::NonnullGCPtr<HTML::BrowsingContext> m_browsing_context;
+    GC::Ref<HTML::BrowsingContext> m_browsing_context;
 
     InputState& m_input_state;
     ActionsOptions m_actions_options;
@@ -1344,10 +1344,10 @@ private:
     RefPtr<Core::Timer> m_timer;
 };
 
-JS_DEFINE_ALLOCATOR(ActionExecutor);
+GC_DEFINE_ALLOCATOR(ActionExecutor);
 
 // https://w3c.github.io/webdriver/#dfn-dispatch-actions
-JS::NonnullGCPtr<JS::Cell> dispatch_actions(InputState& input_state, Vector<Vector<ActionObject>> actions_by_tick, HTML::BrowsingContext& browsing_context, ActionsOptions actions_options, OnActionsComplete on_complete)
+GC::Ref<JS::Cell> dispatch_actions(InputState& input_state, Vector<Vector<ActionObject>> actions_by_tick, HTML::BrowsingContext& browsing_context, ActionsOptions actions_options, OnActionsComplete on_complete)
 {
     // 1. Let token be a new unique identifier.
     auto token = MUST(Crypto::generate_random_uuid());
@@ -1466,7 +1466,7 @@ ErrorOr<void, WebDriver::Error> dispatch_tick_actions(InputState& input_state, R
 }
 
 // https://w3c.github.io/webdriver/#dfn-dispatch-a-list-of-actions
-JS::NonnullGCPtr<JS::Cell> dispatch_list_of_actions(InputState& input_state, Vector<ActionObject> actions, HTML::BrowsingContext& browsing_context, ActionsOptions actions_options, OnActionsComplete on_complete)
+GC::Ref<JS::Cell> dispatch_list_of_actions(InputState& input_state, Vector<ActionObject> actions, HTML::BrowsingContext& browsing_context, ActionsOptions actions_options, OnActionsComplete on_complete)
 {
     // 1. Let tick actions be the list «actions»
     // 2. Let actions by tick be the list «tick actions».
@@ -1478,7 +1478,7 @@ JS::NonnullGCPtr<JS::Cell> dispatch_list_of_actions(InputState& input_state, Vec
 }
 
 // https://w3c.github.io/webdriver/#dfn-dispatch-the-events-for-a-typeable-string
-static JS::NonnullGCPtr<JS::Cell> dispatch_the_events_for_a_typeable_string(Web::WebDriver::InputState& input_state, String const& input_id, Web::WebDriver::InputSource& source, StringView text, Web::HTML::BrowsingContext& browsing_context, Web::WebDriver::OnActionsComplete on_complete)
+static GC::Ref<JS::Cell> dispatch_the_events_for_a_typeable_string(Web::WebDriver::InputState& input_state, String const& input_id, Web::WebDriver::InputSource& source, StringView text, Web::HTML::BrowsingContext& browsing_context, Web::WebDriver::OnActionsComplete on_complete)
 {
     auto& input_source = source.get<Web::WebDriver::KeyInputSource>();
 
@@ -1551,7 +1551,7 @@ static JS::NonnullGCPtr<JS::Cell> dispatch_the_events_for_a_typeable_string(Web:
 }
 
 // https://w3c.github.io/webdriver/#dfn-dispatch-actions-for-a-string
-JS::NonnullGCPtr<JS::Cell> dispatch_actions_for_a_string(Web::WebDriver::InputState& input_state, String const& input_id, Web::WebDriver::InputSource& source, StringView text, Web::HTML::BrowsingContext& browsing_context, Web::WebDriver::OnActionsComplete on_complete)
+GC::Ref<JS::Cell> dispatch_actions_for_a_string(Web::WebDriver::InputState& input_state, String const& input_id, Web::WebDriver::InputSource& source, StringView text, Web::HTML::BrowsingContext& browsing_context, Web::WebDriver::OnActionsComplete on_complete)
 {
     // FIXME: 1. Let clusters be an array created by breaking text into extended grapheme clusters.
     // FIXME: 2. Let undo actions be an empty map.
@@ -1596,7 +1596,7 @@ JS::NonnullGCPtr<JS::Cell> dispatch_actions_for_a_string(Web::WebDriver::InputSt
 
     // 5. Dispatch the events for a typeable string with input state, input id and source, current typeable text, and
     //    browsing context.
-    return dispatch_the_events_for_a_typeable_string(input_state, input_id, source, text, browsing_context, JS::create_heap_function(browsing_context.heap(), [on_complete](Web::WebDriver::Response result) {
+    return dispatch_the_events_for_a_typeable_string(input_state, input_id, source, text, browsing_context, GC::create_function(browsing_context.heap(), [on_complete](Web::WebDriver::Response result) {
         // FIXME: 6. Try to clear the modifier key state with input state, input id, source, undo actions, and browsing context.
 
         on_complete->function()(move(result));

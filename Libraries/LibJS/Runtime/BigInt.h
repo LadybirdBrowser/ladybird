@@ -10,17 +10,17 @@
 #include <AK/String.h>
 #include <AK/StringView.h>
 #include <LibCrypto/BigInt/SignedBigInteger.h>
+#include <LibGC/CellAllocator.h>
 #include <LibJS/Heap/Cell.h>
-#include <LibJS/Heap/CellAllocator.h>
 
 namespace JS {
 
 class BigInt final : public Cell {
-    JS_CELL(BigInt, Cell);
-    JS_DECLARE_ALLOCATOR(BigInt);
+    GC_CELL(BigInt, Cell);
+    GC_DECLARE_ALLOCATOR(BigInt);
 
 public:
-    [[nodiscard]] static NonnullGCPtr<BigInt> create(VM&, Crypto::SignedBigInteger);
+    [[nodiscard]] static GC::Ref<BigInt> create(VM&, Crypto::SignedBigInteger);
 
     virtual ~BigInt() override = default;
 

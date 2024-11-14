@@ -12,7 +12,7 @@ namespace JS::Test262 {
 
 class IsHTMLDDA final : public NativeFunction {
     JS_OBJECT(IsHTMLDDA, NativeFunction);
-    JS_DECLARE_ALLOCATOR(IsHTMLDDA);
+    GC_DECLARE_ALLOCATOR(IsHTMLDDA);
 
 public:
     virtual ~IsHTMLDDA() override = default;

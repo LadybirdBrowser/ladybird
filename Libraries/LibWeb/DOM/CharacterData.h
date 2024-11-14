@@ -21,7 +21,7 @@ class CharacterData
     , public ChildNode<CharacterData>
     , public NonDocumentTypeChildNode<CharacterData> {
     WEB_PLATFORM_OBJECT(CharacterData, Node);
-    JS_DECLARE_ALLOCATOR(CharacterData);
+    GC_DECLARE_ALLOCATOR(CharacterData);
 
 public:
     virtual ~CharacterData() override;

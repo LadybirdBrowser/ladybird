@@ -6,9 +6,9 @@
 
 #pragma once
 
+#include <LibGC/Ptr.h>
 #include <LibJS/Forward.h>
 #include <LibJS/Heap/Cell.h>
-#include <LibJS/Heap/GCPtr.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/Responses.h>
 
 namespace Web::Fetch::Fetching {
@@ -18,29 +18,29 @@ namespace Web::Fetch::Fetching {
 // of the Fetch spec - we run 'in parallel' as a deferred_invoke(), which is still on the main thread;
 // therefore we use callbacks to run portions of the spec that require waiting for an HTTP load.
 class PendingResponse : public JS::Cell {
-    JS_CELL(PendingResponse, JS::Cell);
-    JS_DECLARE_ALLOCATOR(PendingResponse);
+    GC_CELL(PendingResponse, JS::Cell);
+    GC_DECLARE_ALLOCATOR(PendingResponse);
 
 public:
-    using Callback = Function<void(JS::NonnullGCPtr<Infrastructure::Response>)>;
+    using Callback = Function<void(GC::Ref<Infrastructure::Response>)>;
 
-    [[nodiscard]] static JS::NonnullGCPtr<PendingResponse> create(JS::VM&, JS::NonnullGCPtr<Infrastructure::Request>);
-    [[nodiscard]] static JS::NonnullGCPtr<PendingResponse> create(JS::VM&, JS::NonnullGCPtr<Infrastructure::Request>, JS::NonnullGCPtr<Infrastructure::Response>);
+    [[nodiscard]] static GC::Ref<PendingResponse> create(JS::VM&, GC::Ref<Infrastructure::Request>);
+    [[nodiscard]] static GC::Ref<PendingResponse> create(JS::VM&, GC::Ref<Infrastructure::Request>, GC::Ref<Infrastructure::Response>);
 
     void when_loaded(Callback);
-    void resolve(JS::NonnullGCPtr<Infrastructure::Response>);
+    void resolve(GC::Ref<Infrastructure::Response>);
     bool is_resolved() const { return m_response != nullptr; }
 
 private:
-    PendingResponse(JS::NonnullGCPtr<Infrastructure::Request>, JS::GCPtr<Infrastructure::Response> = {});
+    PendingResponse(GC::Ref<Infrastructure::Request>, GC::Ptr<Infrastructure::Response> = {});
 
     virtual void visit_edges(JS::Cell::Visitor&) override;
 
     void run_callback();
 
-    JS::GCPtr<JS::HeapFunction<void(JS::NonnullGCPtr<Infrastructure::Response>)>> m_callback;
-    JS::NonnullGCPtr<Infrastructure::Request> m_request;
-    JS::GCPtr<Infrastructure::Response> m_response;
+    GC::Ptr<GC::Function<void(GC::Ref<Infrastructure::Response>)>> m_callback;
+    GC::Ref<Infrastructure::Request> m_request;
+    GC::Ptr<Infrastructure::Response> m_response;
 };
 
 }

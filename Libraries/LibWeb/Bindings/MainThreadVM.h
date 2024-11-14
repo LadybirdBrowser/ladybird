@@ -24,11 +24,11 @@ struct CustomElementReactionsStack {
     // https://html.spec.whatwg.org/multipage/custom-elements.html#element-queue
     // Each item in the stack is an element queue, which is initially empty as well. Each item in an element queue is an element.
     // (The elements are not necessarily custom yet, since this queue is used for upgrades as well.)
-    Vector<Vector<JS::Handle<DOM::Element>>> element_queue_stack;
+    Vector<Vector<GC::Root<DOM::Element>>> element_queue_stack;
 
     // https://html.spec.whatwg.org/multipage/custom-elements.html#backup-element-queue
     // Each custom element reactions stack has an associated backup element queue, which an initially-empty element queue.
-    Vector<JS::Handle<DOM::Element>> backup_element_queue;
+    Vector<GC::Root<DOM::Element>> backup_element_queue;
 
     // https://html.spec.whatwg.org/multipage/custom-elements.html#processing-the-backup-element-queue
     // To prevent reentrancy when processing the backup element queue, each custom element reactions stack also has a processing the backup element queue flag, initially unset.
@@ -38,9 +38,9 @@ struct CustomElementReactionsStack {
 struct WebEngineCustomData final : public JS::VM::CustomData {
     virtual ~WebEngineCustomData() override = default;
 
-    virtual void spin_event_loop_until(JS::Handle<JS::HeapFunction<bool()>> goal_condition) override;
+    virtual void spin_event_loop_until(GC::Root<GC::Function<bool()>> goal_condition) override;
 
-    JS::Handle<HTML::EventLoop> event_loop;
+    GC::Root<HTML::EventLoop> event_loop;
 
     // FIXME: These should only be on similar-origin window agents, but we don't currently differentiate agent types.
 
@@ -49,9 +49,9 @@ struct WebEngineCustomData final : public JS::VM::CustomData {
 
     // https://dom.spec.whatwg.org/#mutation-observer-list
     // FIXME: This should be a set.
-    Vector<JS::NonnullGCPtr<DOM::MutationObserver>> mutation_observers;
+    Vector<GC::Ref<DOM::MutationObserver>> mutation_observers;
 
-    JS::Handle<JS::Realm> internal_realm;
+    GC::Root<JS::Realm> internal_realm;
 
     OwnPtr<JS::ExecutionContext> root_execution_context;
 
@@ -61,8 +61,8 @@ struct WebEngineCustomData final : public JS::VM::CustomData {
 
     // https://html.spec.whatwg.org/multipage/custom-elements.html#current-element-queue
     // A similar-origin window agent's current element queue is the element queue at the top of its custom element reactions stack.
-    Vector<JS::Handle<DOM::Element>>& current_element_queue() { return custom_element_reactions_stack.element_queue_stack.last(); }
-    Vector<JS::Handle<DOM::Element>> const& current_element_queue() const { return custom_element_reactions_stack.element_queue_stack.last(); }
+    Vector<GC::Root<DOM::Element>>& current_element_queue() { return custom_element_reactions_stack.element_queue_stack.last(); }
+    Vector<GC::Root<DOM::Element>> const& current_element_queue() const { return custom_element_reactions_stack.element_queue_stack.last(); }
 };
 
 struct WebEngineCustomJobCallbackData final : public JS::JobCallback::CustomData {
@@ -74,7 +74,7 @@ struct WebEngineCustomJobCallbackData final : public JS::JobCallback::CustomData
 
     virtual ~WebEngineCustomJobCallbackData() override = default;
 
-    JS::NonnullGCPtr<JS::Realm> incumbent_realm;
+    GC::Ref<JS::Realm> incumbent_realm;
     OwnPtr<JS::ExecutionContext> active_script_context;
 };
 
@@ -85,6 +85,6 @@ JS::VM& main_thread_vm();
 
 void queue_mutation_observer_microtask(DOM::Document const&);
 NonnullOwnPtr<JS::ExecutionContext> create_a_new_javascript_realm(JS::VM&, Function<JS::Object*(JS::Realm&)> create_global_object, Function<JS::Object*(JS::Realm&)> create_global_this_value);
-void invoke_custom_element_reactions(Vector<JS::Handle<DOM::Element>>& element_queue);
+void invoke_custom_element_reactions(Vector<GC::Root<DOM::Element>>& element_queue);
 
 }

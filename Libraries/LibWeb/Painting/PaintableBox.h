@@ -23,11 +23,11 @@ namespace Web::Painting {
 
 class PaintableBox : public Paintable
     , public ClippableAndScrollable {
-    JS_CELL(PaintableBox, Paintable);
+    GC_CELL(PaintableBox, Paintable);
 
 public:
-    static JS::NonnullGCPtr<PaintableBox> create(Layout::Box const&);
-    static JS::NonnullGCPtr<PaintableBox> create(Layout::InlineNode const&);
+    static GC::Ref<PaintableBox> create(Layout::Box const&);
+    static GC::Ref<PaintableBox> create(Layout::InlineNode const&);
     virtual ~PaintableBox();
 
     virtual void before_paint(PaintContext&, PaintPhase) const override;
@@ -310,11 +310,11 @@ private:
 };
 
 class PaintableWithLines : public PaintableBox {
-    JS_CELL(PaintableWithLines, PaintableBox);
+    GC_CELL(PaintableWithLines, PaintableBox);
 
 public:
-    static JS::NonnullGCPtr<PaintableWithLines> create(Layout::BlockContainer const&);
-    static JS::NonnullGCPtr<PaintableWithLines> create(Layout::InlineNode const&, size_t line_index);
+    static GC::Ref<PaintableWithLines> create(Layout::BlockContainer const&);
+    static GC::Ref<PaintableWithLines> create(Layout::InlineNode const&, size_t line_index);
     virtual ~PaintableWithLines() override;
 
     Layout::NodeWithStyleAndBoxModelMetrics const& layout_node_with_style_and_box_metrics() const;
@@ -347,7 +347,7 @@ public:
     {
         Base::visit_edges(visitor);
         for (auto& fragment : m_fragments)
-            visitor.visit(JS::NonnullGCPtr { fragment.layout_node() });
+            visitor.visit(GC::Ref { fragment.layout_node() });
     }
 
     virtual void resolve_paint_properties() override;

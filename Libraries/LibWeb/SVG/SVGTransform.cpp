@@ -11,9 +11,9 @@
 
 namespace Web::SVG {
 
-JS_DEFINE_ALLOCATOR(SVGTransform);
+GC_DEFINE_ALLOCATOR(SVGTransform);
 
-JS::NonnullGCPtr<SVGTransform> SVGTransform::create(JS::Realm& realm)
+GC::Ref<SVGTransform> SVGTransform::create(JS::Realm& realm)
 {
     return realm.create<SVGTransform>(realm);
 }

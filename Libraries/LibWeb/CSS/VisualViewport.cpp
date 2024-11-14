@@ -15,9 +15,9 @@
 
 namespace Web::CSS {
 
-JS_DEFINE_ALLOCATOR(VisualViewport);
+GC_DEFINE_ALLOCATOR(VisualViewport);
 
-JS::NonnullGCPtr<VisualViewport> VisualViewport::create(DOM::Document& document)
+GC::Ref<VisualViewport> VisualViewport::create(DOM::Document& document)
 {
     return document.realm().create<VisualViewport>(document);
 }

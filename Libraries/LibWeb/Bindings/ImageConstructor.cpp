@@ -14,7 +14,7 @@
 
 namespace Web::Bindings {
 
-JS_DEFINE_ALLOCATOR(ImageConstructor);
+GC_DEFINE_ALLOCATOR(ImageConstructor);
 
 ImageConstructor::ImageConstructor(JS::Realm& realm)
     : NativeFunction(realm.intrinsics().function_prototype())
@@ -37,7 +37,7 @@ JS::ThrowCompletionOr<JS::Value> ImageConstructor::call()
 
 // https://html.spec.whatwg.org/multipage/embedded-content.html#dom-image
 // https://whatpr.org/html/9893/embedded-content.html#dom-image
-JS::ThrowCompletionOr<JS::NonnullGCPtr<JS::Object>> ImageConstructor::construct(FunctionObject&)
+JS::ThrowCompletionOr<GC::Ref<JS::Object>> ImageConstructor::construct(FunctionObject&)
 {
     auto& vm = this->vm();
 

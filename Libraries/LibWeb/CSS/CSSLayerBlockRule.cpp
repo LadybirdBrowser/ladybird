@@ -11,9 +11,9 @@
 
 namespace Web::CSS {
 
-JS_DEFINE_ALLOCATOR(CSSLayerBlockRule);
+GC_DEFINE_ALLOCATOR(CSSLayerBlockRule);
 
-JS::NonnullGCPtr<CSSLayerBlockRule> CSSLayerBlockRule::create(JS::Realm& realm, FlyString name, CSSRuleList& rules)
+GC::Ref<CSSLayerBlockRule> CSSLayerBlockRule::create(JS::Realm& realm, FlyString name, CSSRuleList& rules)
 {
     return realm.create<CSSLayerBlockRule>(realm, move(name), rules);
 }

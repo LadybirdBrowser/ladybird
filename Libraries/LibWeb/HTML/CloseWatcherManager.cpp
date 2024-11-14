@@ -14,9 +14,9 @@
 
 namespace Web::HTML {
 
-JS_DEFINE_ALLOCATOR(CloseWatcherManager);
+GC_DEFINE_ALLOCATOR(CloseWatcherManager);
 
-JS::NonnullGCPtr<CloseWatcherManager> CloseWatcherManager::create(JS::Realm& realm)
+GC::Ref<CloseWatcherManager> CloseWatcherManager::create(JS::Realm& realm)
 {
     return realm.create<CloseWatcherManager>(realm);
 }
@@ -26,12 +26,12 @@ CloseWatcherManager::CloseWatcherManager(JS::Realm& realm)
 {
 }
 
-void CloseWatcherManager::add(JS::NonnullGCPtr<CloseWatcher> close_watcher)
+void CloseWatcherManager::add(GC::Ref<CloseWatcher> close_watcher)
 {
     // If manager's groups's size is less than manager's allowed number of groups
     if (m_groups.size() < m_allowed_number_of_groups) {
         // then append « closeWatcher » to manager's groups.
-        JS::MarkedVector<JS::NonnullGCPtr<CloseWatcher>> new_group(realm().heap());
+        GC::MarkedVector<GC::Ref<CloseWatcher>> new_group(realm().heap());
         new_group.append(close_watcher);
         m_groups.append(move(new_group));
     } else {
@@ -49,7 +49,7 @@ void CloseWatcherManager::remove(CloseWatcher const& close_watcher)
 {
     // 2. For each group of manager's groups: remove closeWatcher from group
     for (auto& group : m_groups) {
-        group.remove_first_matching([&close_watcher](JS::NonnullGCPtr<CloseWatcher>& entry) {
+        group.remove_first_matching([&close_watcher](GC::Ref<CloseWatcher>& entry) {
             return entry.ptr() == &close_watcher;
         });
     }
@@ -68,7 +68,7 @@ bool CloseWatcherManager::process_close_watchers()
         auto& group = m_groups.last();
         // Ambiguous spec wording. We copy the groups to avoid modifying the original while iterating.
         // See https://github.com/whatwg/html/issues/10240
-        JS::MarkedVector<JS::NonnullGCPtr<CloseWatcher>> group_copy(realm().heap());
+        GC::MarkedVector<GC::Ref<CloseWatcher>> group_copy(realm().heap());
         group_copy.ensure_capacity(group.size());
         for (auto& close_watcher : group) {
             group_copy.append(close_watcher);

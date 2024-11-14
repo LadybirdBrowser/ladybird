@@ -25,18 +25,18 @@ struct PointerEventInit : public MouseEventInit {
     String pointer_type;
     bool is_primary { false };
     WebIDL::Long persistent_device_id { 0 };
-    AK::Vector<JS::Handle<PointerEvent>> coalesced_events;
-    AK::Vector<JS::Handle<PointerEvent>> predicted_events;
+    AK::Vector<GC::Root<PointerEvent>> coalesced_events;
+    AK::Vector<GC::Root<PointerEvent>> predicted_events;
 };
 
 // https://w3c.github.io/pointerevents/#pointerevent-interface
 class PointerEvent : public MouseEvent {
     WEB_PLATFORM_OBJECT(PointerEvent, MouseEvent);
-    JS_DECLARE_ALLOCATOR(PointerEvent);
+    GC_DECLARE_ALLOCATOR(PointerEvent);
 
 public:
-    [[nodiscard]] static JS::NonnullGCPtr<PointerEvent> create(JS::Realm&, FlyString const& type, PointerEventInit const& = {}, double page_x = 0, double page_y = 0, double offset_x = 0, double offset_y = 0);
-    static WebIDL::ExceptionOr<JS::NonnullGCPtr<PointerEvent>> construct_impl(JS::Realm&, FlyString const& type, PointerEventInit const&);
+    [[nodiscard]] static GC::Ref<PointerEvent> create(JS::Realm&, FlyString const& type, PointerEventInit const& = {}, double page_x = 0, double page_y = 0, double offset_x = 0, double offset_y = 0);
+    static WebIDL::ExceptionOr<GC::Ref<PointerEvent>> construct_impl(JS::Realm&, FlyString const& type, PointerEventInit const&);
 
     virtual ~PointerEvent() override;
 
@@ -53,8 +53,8 @@ public:
     String const& pointer_type() const { return m_pointer_type; }
     bool is_primary() const { return m_is_primary; }
     WebIDL::Long persistent_device_id() const { return m_persistent_device_id; }
-    AK::ReadonlySpan<JS::NonnullGCPtr<PointerEvent>> get_coalesced_events() const { return m_coalesced_events; }
-    AK::ReadonlySpan<JS::NonnullGCPtr<PointerEvent>> get_predicted_events() const { return m_predicted_events; }
+    AK::ReadonlySpan<GC::Ref<PointerEvent>> get_coalesced_events() const { return m_coalesced_events; }
+    AK::ReadonlySpan<GC::Ref<PointerEvent>> get_predicted_events() const { return m_predicted_events; }
 
     // https://w3c.github.io/pointerevents/#dom-pointerevent-pressure
     // For hardware and platforms that do not support pressure, the value MUST be 0.5 when in the active buttons state and 0 otherwise.
@@ -132,10 +132,10 @@ private:
     WebIDL::Long m_persistent_device_id { 0 };
 
     // https://w3c.github.io/pointerevents/#dom-pointerevent-getcoalescedevents
-    AK::Vector<JS::NonnullGCPtr<PointerEvent>> m_coalesced_events;
+    AK::Vector<GC::Ref<PointerEvent>> m_coalesced_events;
 
     // https://w3c.github.io/pointerevents/#dom-pointerevent-getpredictedevents
-    AK::Vector<JS::NonnullGCPtr<PointerEvent>> m_predicted_events;
+    AK::Vector<GC::Ref<PointerEvent>> m_predicted_events;
 };
 
 }

@@ -12,7 +12,7 @@
 
 namespace Web::Layout {
 
-JS_DEFINE_ALLOCATOR(RadioButton);
+GC_DEFINE_ALLOCATOR(RadioButton);
 
 RadioButton::RadioButton(DOM::Document& document, HTML::HTMLInputElement& element, CSS::StyleProperties style)
     : FormAssociatedLabelableNode(document, element, move(style))
@@ -24,7 +24,7 @@ RadioButton::RadioButton(DOM::Document& document, HTML::HTMLInputElement& elemen
 
 RadioButton::~RadioButton() = default;
 
-JS::GCPtr<Painting::Paintable> RadioButton::create_paintable() const
+GC::Ptr<Painting::Paintable> RadioButton::create_paintable() const
 {
     return Painting::RadioButtonPaintable::create(*this);
 }

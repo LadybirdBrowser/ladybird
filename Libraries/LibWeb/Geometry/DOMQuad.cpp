@@ -10,14 +10,14 @@
 
 namespace Web::Geometry {
 
-JS_DEFINE_ALLOCATOR(DOMQuad);
+GC_DEFINE_ALLOCATOR(DOMQuad);
 
-JS::NonnullGCPtr<DOMQuad> DOMQuad::construct_impl(JS::Realm& realm, DOMPointInit const& p1, DOMPointInit const& p2, DOMPointInit const& p3, DOMPointInit const& p4)
+GC::Ref<DOMQuad> DOMQuad::construct_impl(JS::Realm& realm, DOMPointInit const& p1, DOMPointInit const& p2, DOMPointInit const& p3, DOMPointInit const& p4)
 {
     return realm.create<DOMQuad>(realm, p1, p2, p3, p4);
 }
 
-JS::NonnullGCPtr<DOMQuad> DOMQuad::create(JS::Realm& realm)
+GC::Ref<DOMQuad> DOMQuad::create(JS::Realm& realm)
 {
     return realm.create<DOMQuad>(realm);
 }
@@ -43,7 +43,7 @@ DOMQuad::DOMQuad(JS::Realm& realm)
 DOMQuad::~DOMQuad() = default;
 
 // https://drafts.fxtf.org/geometry/#dom-domquad-fromrect
-JS::NonnullGCPtr<DOMQuad> DOMQuad::from_rect(JS::VM& vm, DOMRectInit const& other)
+GC::Ref<DOMQuad> DOMQuad::from_rect(JS::VM& vm, DOMRectInit const& other)
 {
     // The fromRect(other) static method on DOMQuad must create a DOMQuad from the DOMRectInit dictionary other.
     return construct_impl(*vm.current_realm(), { other.x, other.y },
@@ -53,14 +53,14 @@ JS::NonnullGCPtr<DOMQuad> DOMQuad::from_rect(JS::VM& vm, DOMRectInit const& othe
 }
 
 // https://drafts.fxtf.org/geometry/#dom-domquad-fromquad
-JS::NonnullGCPtr<DOMQuad> DOMQuad::from_quad(JS::VM& vm, DOMQuadInit const& other)
+GC::Ref<DOMQuad> DOMQuad::from_quad(JS::VM& vm, DOMQuadInit const& other)
 {
     // The fromQuad(other) static method on DOMQuad must create a DOMQuad from the DOMQuadInit dictionary other.
     return construct_impl(*vm.current_realm(), other.p1, other.p2, other.p3, other.p4);
 }
 
 // https://drafts.fxtf.org/geometry/#dom-domquad-getbounds
-JS::NonnullGCPtr<DOMRect> DOMQuad::get_bounds() const
+GC::Ref<DOMRect> DOMQuad::get_bounds() const
 {
     // The NaN-safe minimum of a non-empty list of unrestricted double values is NaN if any member of the list is NaN, or the minimum of the list otherwise.
     auto nan_safe_minimum = [](double a, double b, double c, double d) -> double {

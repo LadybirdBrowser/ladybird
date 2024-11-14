@@ -52,19 +52,19 @@ class DOMMatrixReadOnly
     : public Bindings::PlatformObject
     , public Bindings::Serializable {
     WEB_PLATFORM_OBJECT(DOMMatrixReadOnly, Bindings::PlatformObject);
-    JS_DECLARE_ALLOCATOR(DOMMatrixReadOnly);
+    GC_DECLARE_ALLOCATOR(DOMMatrixReadOnly);
 
 public:
-    static WebIDL::ExceptionOr<JS::NonnullGCPtr<DOMMatrixReadOnly>> construct_impl(JS::Realm&, Optional<Variant<String, Vector<double>>> const& init);
-    static WebIDL::ExceptionOr<JS::NonnullGCPtr<DOMMatrixReadOnly>> create_from_dom_matrix_2d_init(JS::Realm&, DOMMatrix2DInit& init);
-    static WebIDL::ExceptionOr<JS::NonnullGCPtr<DOMMatrixReadOnly>> create_from_dom_matrix_init(JS::Realm&, DOMMatrixInit& init);
-    static JS::NonnullGCPtr<DOMMatrixReadOnly> create(JS::Realm&);
+    static WebIDL::ExceptionOr<GC::Ref<DOMMatrixReadOnly>> construct_impl(JS::Realm&, Optional<Variant<String, Vector<double>>> const& init);
+    static WebIDL::ExceptionOr<GC::Ref<DOMMatrixReadOnly>> create_from_dom_matrix_2d_init(JS::Realm&, DOMMatrix2DInit& init);
+    static WebIDL::ExceptionOr<GC::Ref<DOMMatrixReadOnly>> create_from_dom_matrix_init(JS::Realm&, DOMMatrixInit& init);
+    static GC::Ref<DOMMatrixReadOnly> create(JS::Realm&);
 
     virtual ~DOMMatrixReadOnly() override;
 
-    static WebIDL::ExceptionOr<JS::NonnullGCPtr<DOMMatrixReadOnly>> from_matrix(JS::VM&, DOMMatrixInit& other);
-    static WebIDL::ExceptionOr<JS::NonnullGCPtr<DOMMatrixReadOnly>> from_float32_array(JS::VM&, JS::Handle<WebIDL::BufferSource> const& array32);
-    static WebIDL::ExceptionOr<JS::NonnullGCPtr<DOMMatrixReadOnly>> from_float64_array(JS::VM&, JS::Handle<WebIDL::BufferSource> const& array64);
+    static WebIDL::ExceptionOr<GC::Ref<DOMMatrixReadOnly>> from_matrix(JS::VM&, DOMMatrixInit& other);
+    static WebIDL::ExceptionOr<GC::Ref<DOMMatrixReadOnly>> from_float32_array(JS::VM&, GC::Root<WebIDL::BufferSource> const& array32);
+    static WebIDL::ExceptionOr<GC::Ref<DOMMatrixReadOnly>> from_float64_array(JS::VM&, GC::Root<WebIDL::BufferSource> const& array64);
 
     // https://drafts.fxtf.org/geometry/#dommatrix-attributes
     double m11() const { return m_matrix.elements()[0][0]; }
@@ -94,24 +94,24 @@ public:
     bool is2d() const { return m_is_2d; }
     bool is_identity() const;
 
-    JS::NonnullGCPtr<DOMMatrix> translate(Optional<double> const& tx, Optional<double> const& ty, Optional<double> const& tz) const;
-    JS::NonnullGCPtr<DOMMatrix> scale(Optional<double> scale_x, Optional<double> scale_y, Optional<double> scale_z, Optional<double> origin_x, Optional<double> origin_y, Optional<double> origin_z);
-    JS::NonnullGCPtr<DOMMatrix> scale_non_uniform(Optional<double> scale_x, Optional<double> scale_y);
-    JS::NonnullGCPtr<DOMMatrix> scale3d(Optional<double> scale, Optional<double> origin_x, Optional<double> origin_y, Optional<double> origin_z);
-    JS::NonnullGCPtr<DOMMatrix> rotate(Optional<double> rot_x, Optional<double> rot_y, Optional<double> rot_z);
-    JS::NonnullGCPtr<DOMMatrix> rotate_from_vector(Optional<double> x, Optional<double> y);
-    JS::NonnullGCPtr<DOMMatrix> rotate_axis_angle(Optional<double> x, Optional<double> y, Optional<double> z, Optional<double> angle);
-    JS::NonnullGCPtr<DOMMatrix> skew_x(double sx = 0) const;
-    JS::NonnullGCPtr<DOMMatrix> skew_y(double sy = 0) const;
-    WebIDL::ExceptionOr<JS::NonnullGCPtr<DOMMatrix>> multiply(DOMMatrixInit other = {});
-    JS::NonnullGCPtr<DOMMatrix> flip_x();
-    JS::NonnullGCPtr<DOMMatrix> flip_y();
-    JS::NonnullGCPtr<DOMMatrix> inverse() const;
+    GC::Ref<DOMMatrix> translate(Optional<double> const& tx, Optional<double> const& ty, Optional<double> const& tz) const;
+    GC::Ref<DOMMatrix> scale(Optional<double> scale_x, Optional<double> scale_y, Optional<double> scale_z, Optional<double> origin_x, Optional<double> origin_y, Optional<double> origin_z);
+    GC::Ref<DOMMatrix> scale_non_uniform(Optional<double> scale_x, Optional<double> scale_y);
+    GC::Ref<DOMMatrix> scale3d(Optional<double> scale, Optional<double> origin_x, Optional<double> origin_y, Optional<double> origin_z);
+    GC::Ref<DOMMatrix> rotate(Optional<double> rot_x, Optional<double> rot_y, Optional<double> rot_z);
+    GC::Ref<DOMMatrix> rotate_from_vector(Optional<double> x, Optional<double> y);
+    GC::Ref<DOMMatrix> rotate_axis_angle(Optional<double> x, Optional<double> y, Optional<double> z, Optional<double> angle);
+    GC::Ref<DOMMatrix> skew_x(double sx = 0) const;
+    GC::Ref<DOMMatrix> skew_y(double sy = 0) const;
+    WebIDL::ExceptionOr<GC::Ref<DOMMatrix>> multiply(DOMMatrixInit other = {});
+    GC::Ref<DOMMatrix> flip_x();
+    GC::Ref<DOMMatrix> flip_y();
+    GC::Ref<DOMMatrix> inverse() const;
 
-    JS::NonnullGCPtr<DOMPoint> transform_point(DOMPointInit const&) const;
-    JS::NonnullGCPtr<DOMPoint> transform_point(DOMPointReadOnly const&) const;
-    JS::NonnullGCPtr<JS::Float32Array> to_float32_array() const;
-    JS::NonnullGCPtr<JS::Float64Array> to_float64_array() const;
+    GC::Ref<DOMPoint> transform_point(DOMPointInit const&) const;
+    GC::Ref<DOMPoint> transform_point(DOMPointReadOnly const&) const;
+    GC::Ref<JS::Float32Array> to_float32_array() const;
+    GC::Ref<JS::Float64Array> to_float64_array() const;
 
     WebIDL::ExceptionOr<String> to_string() const;
 

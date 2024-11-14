@@ -15,7 +15,7 @@
 
 namespace Web::Streams {
 
-JS_DEFINE_ALLOCATOR(ReadableStreamDefaultController);
+GC_DEFINE_ALLOCATOR(ReadableStreamDefaultController);
 
 ReadableStreamDefaultController::ReadableStreamDefaultController(JS::Realm& realm)
     : Bindings::PlatformObject(realm)
@@ -64,7 +64,7 @@ void ReadableStreamDefaultController::error(JS::Value error)
 }
 
 // https://streams.spec.whatwg.org/#rs-default-controller-private-cancel
-JS::NonnullGCPtr<WebIDL::Promise> ReadableStreamDefaultController::cancel_steps(JS::Value reason)
+GC::Ref<WebIDL::Promise> ReadableStreamDefaultController::cancel_steps(JS::Value reason)
 {
     // 1. Perform ! ResetQueue(this).
     reset_queue(*this);

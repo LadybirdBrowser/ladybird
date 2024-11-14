@@ -13,14 +13,14 @@
 namespace Web::Layout {
 
 class AudioBox final : public ReplacedBox {
-    JS_CELL(AudioBox, ReplacedBox);
-    JS_DECLARE_ALLOCATOR(AudioBox);
+    GC_CELL(AudioBox, ReplacedBox);
+    GC_DECLARE_ALLOCATOR(AudioBox);
 
 public:
     HTML::HTMLAudioElement& dom_node();
     HTML::HTMLAudioElement const& dom_node() const;
 
-    virtual JS::GCPtr<Painting::Paintable> create_paintable() const override;
+    virtual GC::Ptr<Painting::Paintable> create_paintable() const override;
 
 private:
     AudioBox(DOM::Document&, DOM::Element&, CSS::StyleProperties);

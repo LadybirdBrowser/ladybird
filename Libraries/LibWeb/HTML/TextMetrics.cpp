@@ -11,9 +11,9 @@
 
 namespace Web::HTML {
 
-JS_DEFINE_ALLOCATOR(TextMetrics);
+GC_DEFINE_ALLOCATOR(TextMetrics);
 
-JS::NonnullGCPtr<TextMetrics> TextMetrics::create(JS::Realm& realm)
+GC::Ref<TextMetrics> TextMetrics::create(JS::Realm& realm)
 {
     return realm.create<TextMetrics>(realm);
 }

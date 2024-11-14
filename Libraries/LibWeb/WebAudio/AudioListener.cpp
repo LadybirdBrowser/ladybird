@@ -4,13 +4,13 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibJS/Heap/CellAllocator.h>
+#include <LibGC/CellAllocator.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/WebAudio/AudioListener.h>
 
 namespace Web::WebAudio {
 
-JS_DEFINE_ALLOCATOR(AudioListener);
+GC_DEFINE_ALLOCATOR(AudioListener);
 
 AudioListener::AudioListener(JS::Realm& realm)
     : Bindings::PlatformObject(realm)
@@ -26,7 +26,7 @@ AudioListener::AudioListener(JS::Realm& realm)
 {
 }
 
-JS::NonnullGCPtr<AudioListener> AudioListener::create(JS::Realm& realm)
+GC::Ref<AudioListener> AudioListener::create(JS::Realm& realm)
 {
     return realm.create<AudioListener>(realm);
 }

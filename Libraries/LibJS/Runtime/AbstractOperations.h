@@ -9,8 +9,8 @@
 #include <AK/Concepts.h>
 #include <AK/Forward.h>
 #include <LibCrypto/Forward.h>
+#include <LibGC/MarkedVector.h>
 #include <LibJS/Forward.h>
-#include <LibJS/Heap/MarkedVector.h>
 #include <LibJS/Runtime/CanonicalIndex.h>
 #include <LibJS/Runtime/FunctionObject.h>
 #include <LibJS/Runtime/GlobalObject.h>
@@ -22,38 +22,38 @@
 
 namespace JS {
 
-NonnullGCPtr<DeclarativeEnvironment> new_declarative_environment(Environment&);
-NonnullGCPtr<ObjectEnvironment> new_object_environment(Object&, bool is_with_environment, Environment*);
-NonnullGCPtr<FunctionEnvironment> new_function_environment(ECMAScriptFunctionObject&, Object* new_target);
-NonnullGCPtr<PrivateEnvironment> new_private_environment(VM& vm, PrivateEnvironment* outer);
-NonnullGCPtr<Environment> get_this_environment(VM&);
+GC::Ref<DeclarativeEnvironment> new_declarative_environment(Environment&);
+GC::Ref<ObjectEnvironment> new_object_environment(Object&, bool is_with_environment, Environment*);
+GC::Ref<FunctionEnvironment> new_function_environment(ECMAScriptFunctionObject&, Object* new_target);
+GC::Ref<PrivateEnvironment> new_private_environment(VM& vm, PrivateEnvironment* outer);
+GC::Ref<Environment> get_this_environment(VM&);
 bool can_be_held_weakly(Value);
 Object* get_super_constructor(VM&);
 ThrowCompletionOr<Value> require_object_coercible(VM&, Value);
 ThrowCompletionOr<Value> call_impl(VM&, Value function, Value this_value, ReadonlySpan<Value> arguments = {});
 ThrowCompletionOr<Value> call_impl(VM&, FunctionObject& function, Value this_value, ReadonlySpan<Value> arguments = {});
-ThrowCompletionOr<NonnullGCPtr<Object>> construct_impl(VM&, FunctionObject&, ReadonlySpan<Value> arguments = {}, FunctionObject* new_target = nullptr);
+ThrowCompletionOr<GC::Ref<Object>> construct_impl(VM&, FunctionObject&, ReadonlySpan<Value> arguments = {}, FunctionObject* new_target = nullptr);
 ThrowCompletionOr<size_t> length_of_array_like(VM&, Object const&);
-ThrowCompletionOr<MarkedVector<Value>> create_list_from_array_like(VM&, Value, Function<ThrowCompletionOr<void>(Value)> = {});
+ThrowCompletionOr<GC::MarkedVector<Value>> create_list_from_array_like(VM&, Value, Function<ThrowCompletionOr<void>(Value)> = {});
 ThrowCompletionOr<FunctionObject*> species_constructor(VM&, Object const&, FunctionObject& default_constructor);
 ThrowCompletionOr<Realm*> get_function_realm(VM&, FunctionObject const&);
 ThrowCompletionOr<void> initialize_bound_name(VM&, DeprecatedFlyString const&, Value, Environment*);
 bool is_compatible_property_descriptor(bool extensible, PropertyDescriptor const&, Optional<PropertyDescriptor> const& current);
 bool validate_and_apply_property_descriptor(Object*, PropertyKey const&, bool extensible, PropertyDescriptor const&, Optional<PropertyDescriptor> const& current);
-ThrowCompletionOr<Object*> get_prototype_from_constructor(VM&, FunctionObject const& constructor, NonnullGCPtr<Object> (Intrinsics::*intrinsic_default_prototype)());
+ThrowCompletionOr<Object*> get_prototype_from_constructor(VM&, FunctionObject const& constructor, GC::Ref<Object> (Intrinsics::*intrinsic_default_prototype)());
 Object* create_unmapped_arguments_object(VM&, ReadonlySpan<Value> arguments);
 Object* create_mapped_arguments_object(VM&, FunctionObject&, Vector<FunctionParameter> const&, ReadonlySpan<Value> arguments, Environment&);
 
 struct DisposableResource {
     Value resource_value;
-    NonnullGCPtr<FunctionObject> dispose_method;
+    GC::Ref<FunctionObject> dispose_method;
 };
 ThrowCompletionOr<void> add_disposable_resource(VM&, Vector<DisposableResource>& disposable, Value, Environment::InitializeBindingHint, FunctionObject* = nullptr);
 ThrowCompletionOr<DisposableResource> create_disposable_resource(VM&, Value, Environment::InitializeBindingHint, FunctionObject* method = nullptr);
-ThrowCompletionOr<GCPtr<FunctionObject>> get_dispose_method(VM&, Value, Environment::InitializeBindingHint);
-Completion dispose(VM& vm, Value, NonnullGCPtr<FunctionObject> method);
+ThrowCompletionOr<GC::Ptr<FunctionObject>> get_dispose_method(VM&, Value, Environment::InitializeBindingHint);
+Completion dispose(VM& vm, Value, GC::Ref<FunctionObject> method);
 Completion dispose_resources(VM& vm, Vector<DisposableResource> const& disposable, Completion completion);
-Completion dispose_resources(VM& vm, GCPtr<DeclarativeEnvironment> disposable, Completion completion);
+Completion dispose_resources(VM& vm, GC::Ptr<DeclarativeEnvironment> disposable, Completion completion);
 
 ThrowCompletionOr<Value> perform_import_call(VM&, Value specifier, Value options_value);
 
@@ -120,7 +120,7 @@ ALWAYS_INLINE ThrowCompletionOr<Value> call(VM& vm, FunctionObject& function, Va
 
 // 7.3.15 Construct ( F [ , argumentsList [ , newTarget ] ] ), https://tc39.es/ecma262/#sec-construct
 template<typename... Args>
-ALWAYS_INLINE ThrowCompletionOr<NonnullGCPtr<Object>> construct(VM& vm, FunctionObject& function, Args&&... args)
+ALWAYS_INLINE ThrowCompletionOr<GC::Ref<Object>> construct(VM& vm, FunctionObject& function, Args&&... args)
 {
     constexpr auto argument_count = sizeof...(Args);
     if constexpr (argument_count > 0) {
@@ -131,19 +131,19 @@ ALWAYS_INLINE ThrowCompletionOr<NonnullGCPtr<Object>> construct(VM& vm, Function
     return construct_impl(vm, function);
 }
 
-ALWAYS_INLINE ThrowCompletionOr<NonnullGCPtr<Object>> construct(VM& vm, FunctionObject& function, ReadonlySpan<Value> arguments_list, FunctionObject* new_target = nullptr)
+ALWAYS_INLINE ThrowCompletionOr<GC::Ref<Object>> construct(VM& vm, FunctionObject& function, ReadonlySpan<Value> arguments_list, FunctionObject* new_target = nullptr)
 {
     return construct_impl(vm, function, arguments_list, new_target);
 }
 
-ALWAYS_INLINE ThrowCompletionOr<NonnullGCPtr<Object>> construct(VM& vm, FunctionObject& function, Span<Value> arguments_list, FunctionObject* new_target = nullptr)
+ALWAYS_INLINE ThrowCompletionOr<GC::Ref<Object>> construct(VM& vm, FunctionObject& function, Span<Value> arguments_list, FunctionObject* new_target = nullptr)
 {
     return construct_impl(vm, function, static_cast<ReadonlySpan<Value>>(arguments_list), new_target);
 }
 
 // 10.1.13 OrdinaryCreateFromConstructor ( constructor, intrinsicDefaultProto [ , internalSlotsList ] ), https://tc39.es/ecma262/#sec-ordinarycreatefromconstructor
 template<typename T, typename... Args>
-ThrowCompletionOr<NonnullGCPtr<T>> ordinary_create_from_constructor(VM& vm, FunctionObject const& constructor, NonnullGCPtr<Object> (Intrinsics::*intrinsic_default_prototype)(), Args&&... args)
+ThrowCompletionOr<GC::Ref<T>> ordinary_create_from_constructor(VM& vm, FunctionObject const& constructor, GC::Ref<Object> (Intrinsics::*intrinsic_default_prototype)(), Args&&... args)
 {
     auto& realm = *vm.current_realm();
     auto* prototype = TRY(get_prototype_from_constructor(vm, constructor, intrinsic_default_prototype));
@@ -199,7 +199,7 @@ void add_value_to_keyed_group(VM& vm, GroupsType& groups, KeyType key, Value val
     }
 
     // 2. Let group be the Record { [[Key]]: key, [[Elements]]: « value » }.
-    MarkedVector<Value> new_elements { vm.heap() };
+    GC::MarkedVector<Value> new_elements { vm.heap() };
     new_elements.append(value);
 
     // 3. Append group as the last element of groups.
@@ -278,7 +278,7 @@ ThrowCompletionOr<GroupsType> group_by(VM& vm, Value items, Value callback_funct
             // ii. Set key to CanonicalizeKeyedCollectionKey(key).
             key = canonicalize_keyed_collection_key(key.value());
 
-            add_value_to_keyed_group(vm, groups, make_handle(key.release_value()), value);
+            add_value_to_keyed_group(vm, groups, make_root(key.release_value()), value);
         }
 
         // i. Perform AddValueToKeyedGroup(groups, key, value).

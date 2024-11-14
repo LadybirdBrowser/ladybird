@@ -16,10 +16,10 @@
 
 namespace Web::DOM {
 
-JS_DEFINE_ALLOCATOR(Event);
+GC_DEFINE_ALLOCATOR(Event);
 
 // https://dom.spec.whatwg.org/#concept-event-create
-JS::NonnullGCPtr<Event> Event::create(JS::Realm& realm, FlyString const& event_name, EventInit const& event_init)
+GC::Ref<Event> Event::create(JS::Realm& realm, FlyString const& event_name, EventInit const& event_init)
 {
     auto event = realm.create<Event>(realm, event_name, event_init);
     // 4. Initialize event’s isTrusted attribute to true.
@@ -27,7 +27,7 @@ JS::NonnullGCPtr<Event> Event::create(JS::Realm& realm, FlyString const& event_n
     return event;
 }
 
-WebIDL::ExceptionOr<JS::NonnullGCPtr<Event>> Event::construct_impl(JS::Realm& realm, FlyString const& event_name, EventInit const& event_init)
+WebIDL::ExceptionOr<GC::Ref<Event>> Event::construct_impl(JS::Realm& realm, FlyString const& event_name, EventInit const& event_init)
 {
     return realm.create<Event>(realm, event_name, event_init);
 }
@@ -75,7 +75,7 @@ void Event::visit_edges(Visitor& visitor)
 }
 
 // https://dom.spec.whatwg.org/#concept-event-path-append
-void Event::append_to_path(EventTarget& invocation_target, JS::GCPtr<EventTarget> shadow_adjusted_target, JS::GCPtr<EventTarget> related_target, TouchTargetList& touch_targets, bool slot_in_closed_tree)
+void Event::append_to_path(EventTarget& invocation_target, GC::Ptr<EventTarget> shadow_adjusted_target, GC::Ptr<EventTarget> related_target, TouchTargetList& touch_targets, bool slot_in_closed_tree)
 {
     // 1. Let invocationTargetInShadowTree be false.
     bool invocation_target_in_shadow_tree = false;
@@ -146,10 +146,10 @@ void Event::init_event(String const& type, bool bubbles, bool cancelable)
 }
 
 // https://dom.spec.whatwg.org/#dom-event-composedpath
-Vector<JS::Handle<EventTarget>> Event::composed_path() const
+Vector<GC::Root<EventTarget>> Event::composed_path() const
 {
     // 1. Let composedPath be an empty list.
-    Vector<JS::Handle<EventTarget>> composed_path;
+    Vector<GC::Root<EventTarget>> composed_path;
 
     // 2. Let path be this’s path. (NOTE: Not necessary)
 

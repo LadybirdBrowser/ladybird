@@ -18,11 +18,11 @@ struct WebGLContextEventInit final : public DOM::EventInit {
 
 class WebGLContextEvent final : public DOM::Event {
     WEB_PLATFORM_OBJECT(WebGLContextEvent, DOM::Event);
-    JS_DECLARE_ALLOCATOR(WebGLContextEvent);
+    GC_DECLARE_ALLOCATOR(WebGLContextEvent);
 
 public:
-    [[nodiscard]] static JS::NonnullGCPtr<WebGLContextEvent> create(JS::Realm&, FlyString const& type, WebGLContextEventInit const&);
-    static WebIDL::ExceptionOr<JS::NonnullGCPtr<WebGLContextEvent>> construct_impl(JS::Realm&, FlyString const& type, WebGLContextEventInit const&);
+    [[nodiscard]] static GC::Ref<WebGLContextEvent> create(JS::Realm&, FlyString const& type, WebGLContextEventInit const&);
+    static WebIDL::ExceptionOr<GC::Ref<WebGLContextEvent>> construct_impl(JS::Realm&, FlyString const& type, WebGLContextEventInit const&);
 
     virtual ~WebGLContextEvent() override;
 

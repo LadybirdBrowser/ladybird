@@ -17,7 +17,7 @@
 
 namespace JS::Bytecode {
 
-Generator::Generator(VM& vm, GCPtr<ECMAScriptFunctionObject const> function, MustPropagateCompletion must_propagate_completion)
+Generator::Generator(VM& vm, GC::Ptr<ECMAScriptFunctionObject const> function, MustPropagateCompletion must_propagate_completion)
     : m_vm(vm)
     , m_string_table(make<StringTable>())
     , m_identifier_table(make<IdentifierTable>())
@@ -199,7 +199,7 @@ CodeGenerationErrorOr<void> Generator::emit_function_declaration_instantiation(E
     return {};
 }
 
-CodeGenerationErrorOr<NonnullGCPtr<Executable>> Generator::compile(VM& vm, ASTNode const& node, FunctionKind enclosing_function_kind, GCPtr<ECMAScriptFunctionObject const> function, MustPropagateCompletion must_propagate_completion, Vector<DeprecatedFlyString> local_variable_names)
+CodeGenerationErrorOr<GC::Ref<Executable>> Generator::compile(VM& vm, ASTNode const& node, FunctionKind enclosing_function_kind, GC::Ptr<ECMAScriptFunctionObject const> function, MustPropagateCompletion must_propagate_completion, Vector<DeprecatedFlyString> local_variable_names)
 {
     Generator generator(vm, function, must_propagate_completion);
 
@@ -460,7 +460,7 @@ CodeGenerationErrorOr<NonnullGCPtr<Executable>> Generator::compile(VM& vm, ASTNo
     return executable;
 }
 
-CodeGenerationErrorOr<NonnullGCPtr<Executable>> Generator::generate_from_ast_node(VM& vm, ASTNode const& node, FunctionKind enclosing_function_kind)
+CodeGenerationErrorOr<GC::Ref<Executable>> Generator::generate_from_ast_node(VM& vm, ASTNode const& node, FunctionKind enclosing_function_kind)
 {
     Vector<DeprecatedFlyString> local_variable_names;
     if (is<ScopeNode>(node))
@@ -468,7 +468,7 @@ CodeGenerationErrorOr<NonnullGCPtr<Executable>> Generator::generate_from_ast_nod
     return compile(vm, node, enclosing_function_kind, {}, MustPropagateCompletion::Yes, move(local_variable_names));
 }
 
-CodeGenerationErrorOr<NonnullGCPtr<Executable>> Generator::generate_from_function(VM& vm, ECMAScriptFunctionObject const& function)
+CodeGenerationErrorOr<GC::Ref<Executable>> Generator::generate_from_function(VM& vm, ECMAScriptFunctionObject const& function)
 {
     return compile(vm, function.ecmascript_code(), function.kind(), &function, MustPropagateCompletion::No, function.local_variables_names());
 }

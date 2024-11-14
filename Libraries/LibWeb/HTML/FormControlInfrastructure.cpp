@@ -19,7 +19,7 @@
 namespace Web::HTML {
 
 // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#create-an-entry
-WebIDL::ExceptionOr<XHR::FormDataEntry> create_entry(JS::Realm& realm, String const& name, Variant<JS::NonnullGCPtr<FileAPI::Blob>, String> const& value, Optional<String> const& filename)
+WebIDL::ExceptionOr<XHR::FormDataEntry> create_entry(JS::Realm& realm, String const& name, Variant<GC::Ref<FileAPI::Blob>, String> const& value, Optional<String> const& filename)
 {
     auto& vm = realm.vm();
 
@@ -28,18 +28,18 @@ WebIDL::ExceptionOr<XHR::FormDataEntry> create_entry(JS::Realm& realm, String co
 
     auto entry_value = TRY(value.visit(
         // 2. If value is a string, then set value to the result of converting value into a scalar value string.
-        [&](String const& string) -> WebIDL::ExceptionOr<Variant<JS::Handle<FileAPI::File>, String>> {
+        [&](String const& string) -> WebIDL::ExceptionOr<Variant<GC::Root<FileAPI::File>, String>> {
             return TRY_OR_THROW_OOM(vm, Infra::convert_to_scalar_value_string(string));
         },
         // 3. Otherwise:
-        [&](JS::NonnullGCPtr<FileAPI::Blob> blob) -> WebIDL::ExceptionOr<Variant<JS::Handle<FileAPI::File>, String>> {
+        [&](GC::Ref<FileAPI::Blob> blob) -> WebIDL::ExceptionOr<Variant<GC::Root<FileAPI::File>, String>> {
             // 1. If value is not a File object, then set value to a new File object, representing the same bytes, whose
             //    name attribute value is "blob".
             if (!is<FileAPI::File>(*blob)) {
                 FileAPI::FilePropertyBag options {};
                 options.type = blob->type();
 
-                blob = TRY(FileAPI::File::create(realm, { JS::make_handle(*blob) }, "blob"_string, move(options)));
+                blob = TRY(FileAPI::File::create(realm, { GC::make_root(*blob) }, "blob"_string, move(options)));
             }
 
             // 2. If filename is given, then set value to a new File object, representing the same bytes, whose name
@@ -48,10 +48,10 @@ WebIDL::ExceptionOr<XHR::FormDataEntry> create_entry(JS::Realm& realm, String co
                 FileAPI::FilePropertyBag options {};
                 options.type = blob->type();
 
-                blob = TRY(FileAPI::File::create(realm, { JS::make_handle(*blob) }, *filename, move(options)));
+                blob = TRY(FileAPI::File::create(realm, { GC::make_root(*blob) }, *filename, move(options)));
             }
 
-            return JS::make_handle(verify_cast<FileAPI::File>(*blob));
+            return GC::make_root(verify_cast<FileAPI::File>(*blob));
         }));
 
     // 4. Return an entry whose name is name and whose value is value.
@@ -62,7 +62,7 @@ WebIDL::ExceptionOr<XHR::FormDataEntry> create_entry(JS::Realm& realm, String co
 }
 
 // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#constructing-the-form-data-set
-WebIDL::ExceptionOr<Optional<Vector<XHR::FormDataEntry>>> construct_entry_list(JS::Realm& realm, HTMLFormElement& form, JS::GCPtr<HTMLElement> submitter, Optional<String> encoding)
+WebIDL::ExceptionOr<Optional<Vector<XHR::FormDataEntry>>> construct_entry_list(JS::Realm& realm, HTMLFormElement& form, GC::Ptr<HTMLElement> submitter, Optional<String> encoding)
 {
     // 1. If form's constructing entry list is true, then return null.
     if (form.constructing_entry_list())
@@ -165,13 +165,13 @@ WebIDL::ExceptionOr<Optional<Vector<XHR::FormDataEntry>>> construct_entry_list(J
                 FileAPI::FilePropertyBag options {};
                 options.type = "application/octet-stream"_string;
                 auto file = TRY(FileAPI::File::create(realm, {}, String {}, options));
-                entry_list.append(XHR::FormDataEntry { .name = name.to_string(), .value = JS::make_handle(file) });
+                entry_list.append(XHR::FormDataEntry { .name = name.to_string(), .value = GC::make_root(file) });
             }
             // 2. Otherwise, for each file in selected files, create an entry with name and a File object representing the file, and append it to entry list.
             else {
                 for (size_t i = 0; i < file_element->files()->length(); i++) {
-                    auto file = JS::NonnullGCPtr { *file_element->files()->item(i) };
-                    entry_list.append(XHR::FormDataEntry { .name = name.to_string(), .value = JS::make_handle(file) });
+                    auto file = GC::Ref { *file_element->files()->item(i) };
+                    entry_list.append(XHR::FormDataEntry { .name = name.to_string(), .value = GC::make_root(file) });
                 }
             }
         }
@@ -272,7 +272,7 @@ ErrorOr<SerializedFormData> serialize_to_multipart_form_data(Vector<XHR::FormDat
         auto escaped_name = TRY(escape_line_feed_carriage_return_double_quote(normalized_name));
 
         TRY(entry.value.visit(
-            [&](JS::Handle<FileAPI::File> const& file) -> ErrorOr<void> {
+            [&](GC::Root<FileAPI::File> const& file) -> ErrorOr<void> {
                 // For filenames replace any 0x0A (LF) bytes with the byte sequence `%0A`, 0x0D (CR) with `%0D` and 0x22 (") with `%22`
                 auto escaped_filename = TRY(escape_line_feed_carriage_return_double_quote(file->name()));
                 // Add a `Content-Disposition` header with a `name` set to entry's name and `filename` set to entry's filename.

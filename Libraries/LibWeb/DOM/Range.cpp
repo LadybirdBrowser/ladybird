@@ -29,7 +29,7 @@
 
 namespace Web::DOM {
 
-JS_DEFINE_ALLOCATOR(Range);
+GC_DEFINE_ALLOCATOR(Range);
 
 HashTable<Range*>& Range::live_ranges()
 {
@@ -37,24 +37,24 @@ HashTable<Range*>& Range::live_ranges()
     return ranges;
 }
 
-JS::NonnullGCPtr<Range> Range::create(HTML::Window& window)
+GC::Ref<Range> Range::create(HTML::Window& window)
 {
     return Range::create(window.associated_document());
 }
 
-JS::NonnullGCPtr<Range> Range::create(Document& document)
+GC::Ref<Range> Range::create(Document& document)
 {
     auto& realm = document.realm();
     return realm.create<Range>(document);
 }
 
-JS::NonnullGCPtr<Range> Range::create(Node& start_container, WebIDL::UnsignedLong start_offset, Node& end_container, WebIDL::UnsignedLong end_offset)
+GC::Ref<Range> Range::create(Node& start_container, WebIDL::UnsignedLong start_offset, Node& end_container, WebIDL::UnsignedLong end_offset)
 {
     auto& realm = start_container.realm();
     return realm.create<Range>(start_container, start_offset, end_container, end_offset);
 }
 
-WebIDL::ExceptionOr<JS::NonnullGCPtr<Range>> Range::construct_impl(JS::Realm& realm)
+WebIDL::ExceptionOr<GC::Ref<Range>> Range::construct_impl(JS::Realm& realm)
 {
     auto& window = verify_cast<HTML::Window>(realm.global_object());
     return Range::create(window);
@@ -88,7 +88,7 @@ void Range::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_associated_selection);
 }
 
-void Range::set_associated_selection(Badge<Selection::Selection>, JS::GCPtr<Selection::Selection> selection)
+void Range::set_associated_selection(Badge<Selection::Selection>, GC::Ptr<Selection::Selection> selection)
 {
     m_associated_selection = selection;
     update_associated_selection();
@@ -152,7 +152,7 @@ RelativeBoundaryPointPosition position_of_boundary_point_relative_to_other_bound
     // 4. If nodeA is an ancestor of nodeB:
     if (node_a.is_ancestor_of(node_b)) {
         // 1. Let child be nodeB.
-        JS::NonnullGCPtr<Node const> child = node_b;
+        GC::Ref<Node const> child = node_b;
 
         // 2. While child is not a child of nodeA, set child to its parent.
         while (!node_a.is_parent_of(child)) {
@@ -300,10 +300,10 @@ WebIDL::ExceptionOr<WebIDL::Short> Range::compare_boundary_points(WebIDL::Unsign
     if (&root() != &source_range.root())
         return WebIDL::WrongDocumentError::create(realm(), "This range is not in the same tree as the source range."_string);
 
-    JS::GCPtr<Node> this_point_node;
+    GC::Ptr<Node> this_point_node;
     u32 this_point_offset = 0;
 
-    JS::GCPtr<Node> other_point_node;
+    GC::Ptr<Node> other_point_node;
     u32 other_point_offset = 0;
 
     // 3. If how is:
@@ -439,17 +439,17 @@ WebIDL::ExceptionOr<void> Range::select_node_contents(Node& node)
     return {};
 }
 
-JS::NonnullGCPtr<Range> Range::clone_range() const
+GC::Ref<Range> Range::clone_range() const
 {
     return shape().realm().create<Range>(const_cast<Node&>(*m_start_container), m_start_offset, const_cast<Node&>(*m_end_container), m_end_offset);
 }
 
-JS::NonnullGCPtr<Range> Range::inverted() const
+GC::Ref<Range> Range::inverted() const
 {
     return shape().realm().create<Range>(const_cast<Node&>(*m_end_container), m_end_offset, const_cast<Node&>(*m_start_container), m_start_offset);
 }
 
-JS::NonnullGCPtr<Range> Range::normalized() const
+GC::Ref<Range> Range::normalized() const
 {
     if (m_start_container.ptr() == m_end_container.ptr()) {
         if (m_start_offset <= m_end_offset)
@@ -465,7 +465,7 @@ JS::NonnullGCPtr<Range> Range::normalized() const
 }
 
 // https://dom.spec.whatwg.org/#dom-range-commonancestorcontainer
-JS::NonnullGCPtr<Node> Range::common_ancestor_container() const
+GC::Ref<Node> Range::common_ancestor_container() const
 {
     // 1. Let container be start node.
     auto container = m_start_container;
@@ -597,13 +597,13 @@ String Range::to_string() const
 }
 
 // https://dom.spec.whatwg.org/#dom-range-extractcontents
-WebIDL::ExceptionOr<JS::NonnullGCPtr<DocumentFragment>> Range::extract_contents()
+WebIDL::ExceptionOr<GC::Ref<DocumentFragment>> Range::extract_contents()
 {
     return extract();
 }
 
 // https://dom.spec.whatwg.org/#concept-range-extract
-WebIDL::ExceptionOr<JS::NonnullGCPtr<DocumentFragment>> Range::extract()
+WebIDL::ExceptionOr<GC::Ref<DocumentFragment>> Range::extract()
 {
     // 1. Let fragment be a new DocumentFragment node whose node document is range’s start node’s node document.
     auto fragment = realm().create<DOM::DocumentFragment>(const_cast<Document&>(start_container()->document()));
@@ -614,9 +614,9 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<DocumentFragment>> Range::extract()
 
     // 3. Let original start node, original start offset, original end node, and original end offset
     //    be range’s start node, start offset, end node, and end offset, respectively.
-    JS::NonnullGCPtr<Node> original_start_node = m_start_container;
+    GC::Ref<Node> original_start_node = m_start_container;
     auto original_start_offset = m_start_offset;
-    JS::NonnullGCPtr<Node> original_end_node = m_end_container;
+    GC::Ref<Node> original_end_node = m_end_container;
     auto original_end_offset = m_end_offset;
 
     // 4. If original start node is original end node and it is a CharacterData node, then:
@@ -640,14 +640,14 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<DocumentFragment>> Range::extract()
     }
 
     // 5. Let common ancestor be original start node.
-    JS::NonnullGCPtr<Node> common_ancestor = original_start_node;
+    GC::Ref<Node> common_ancestor = original_start_node;
 
     // 6. While common ancestor is not an inclusive ancestor of original end node, set common ancestor to its own parent.
     while (!common_ancestor->is_inclusive_ancestor_of(original_end_node))
         common_ancestor = *common_ancestor->parent_node();
 
     // 7. Let first partially contained child be null.
-    JS::GCPtr<Node> first_partially_contained_child;
+    GC::Ptr<Node> first_partially_contained_child;
 
     // 8. If original start node is not an inclusive ancestor of original end node,
     //    set first partially contained child to the first child of common ancestor that is partially contained in range.
@@ -661,7 +661,7 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<DocumentFragment>> Range::extract()
     }
 
     // 9. Let last partially contained child be null.
-    JS::GCPtr<Node> last_partially_contained_child;
+    GC::Ptr<Node> last_partially_contained_child;
 
     // 10. If original end node is not an inclusive ancestor of original start node,
     //     set last partially contained child to the last child of common ancestor that is partially contained in range.
@@ -675,7 +675,7 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<DocumentFragment>> Range::extract()
     }
 
     // 11. Let contained children be a list of all children of common ancestor that are contained in range, in tree order.
-    Vector<JS::NonnullGCPtr<Node>> contained_children;
+    Vector<GC::Ref<Node>> contained_children;
     for (Node* node = common_ancestor->first_child(); node; node = node->next_sibling()) {
         if (contains_node(*node))
             contained_children.append(*node);
@@ -687,7 +687,7 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<DocumentFragment>> Range::extract()
             return WebIDL::HierarchyRequestError::create(realm(), "Contained child is a DocumentType"_string);
     }
 
-    JS::GCPtr<Node> new_node;
+    GC::Ptr<Node> new_node;
     size_t new_offset = 0;
 
     // 13. If original start node is an inclusive ancestor of original end node, set new node to original start node and new offset to original start offset.
@@ -698,7 +698,7 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<DocumentFragment>> Range::extract()
     // 14. Otherwise:
     else {
         // 1. Let reference node equal original start node.
-        JS::GCPtr<Node> reference_node = original_start_node;
+        GC::Ptr<Node> reference_node = original_start_node;
 
         // 2. While reference node’s parent is not null and is not an inclusive ancestor of original end node, set reference node to its parent.
         while (reference_node->parent_node() && !reference_node->parent_node()->is_inclusive_ancestor_of(original_end_node))
@@ -819,13 +819,13 @@ bool Range::partially_contains_node(Node const& node) const
 }
 
 // https://dom.spec.whatwg.org/#dom-range-insertnode
-WebIDL::ExceptionOr<void> Range::insert_node(JS::NonnullGCPtr<Node> node)
+WebIDL::ExceptionOr<void> Range::insert_node(GC::Ref<Node> node)
 {
     return insert(node);
 }
 
 // https://dom.spec.whatwg.org/#concept-range-insert
-WebIDL::ExceptionOr<void> Range::insert(JS::NonnullGCPtr<Node> node)
+WebIDL::ExceptionOr<void> Range::insert(GC::Ref<Node> node)
 {
     // 1. If range’s start node is a ProcessingInstruction or Comment node, is a Text node whose parent is null, or is node, then throw a "HierarchyRequestError" DOMException.
     if ((is<ProcessingInstruction>(*m_start_container) || is<Comment>(*m_start_container))
@@ -835,7 +835,7 @@ WebIDL::ExceptionOr<void> Range::insert(JS::NonnullGCPtr<Node> node)
     }
 
     // 2. Let referenceNode be null.
-    JS::GCPtr<Node> reference_node;
+    GC::Ptr<Node> reference_node;
 
     // 3. If range’s start node is a Text node, set referenceNode to that Text node.
     if (is<Text>(*m_start_container)) {
@@ -847,7 +847,7 @@ WebIDL::ExceptionOr<void> Range::insert(JS::NonnullGCPtr<Node> node)
     }
 
     // 5. Let parent be range’s start node if referenceNode is null, and referenceNode’s parent otherwise.
-    JS::GCPtr<Node> parent;
+    GC::Ptr<Node> parent;
     if (!reference_node)
         parent = m_start_container;
     else
@@ -892,7 +892,7 @@ WebIDL::ExceptionOr<void> Range::insert(JS::NonnullGCPtr<Node> node)
 }
 
 // https://dom.spec.whatwg.org/#dom-range-surroundcontents
-WebIDL::ExceptionOr<void> Range::surround_contents(JS::NonnullGCPtr<Node> new_parent)
+WebIDL::ExceptionOr<void> Range::surround_contents(GC::Ref<Node> new_parent)
 {
     // 1. If a non-Text node is partially contained in this, then throw an "InvalidStateError" DOMException.
     Node* start_non_text_node = start_container();
@@ -926,13 +926,13 @@ WebIDL::ExceptionOr<void> Range::surround_contents(JS::NonnullGCPtr<Node> new_pa
 }
 
 // https://dom.spec.whatwg.org/#dom-range-clonecontents
-WebIDL::ExceptionOr<JS::NonnullGCPtr<DocumentFragment>> Range::clone_contents()
+WebIDL::ExceptionOr<GC::Ref<DocumentFragment>> Range::clone_contents()
 {
     return clone_the_contents();
 }
 
 // https://dom.spec.whatwg.org/#concept-range-clone
-WebIDL::ExceptionOr<JS::NonnullGCPtr<DocumentFragment>> Range::clone_the_contents()
+WebIDL::ExceptionOr<GC::Ref<DocumentFragment>> Range::clone_the_contents()
 {
     // 1. Let fragment be a new DocumentFragment node whose node document is range’s start node’s node document.
     auto fragment = realm().create<DOM::DocumentFragment>(const_cast<Document&>(start_container()->document()));
@@ -943,9 +943,9 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<DocumentFragment>> Range::clone_the_content
 
     // 3. Let original start node, original start offset, original end node, and original end offset
     //    be range’s start node, start offset, end node, and end offset, respectively.
-    JS::NonnullGCPtr<Node> original_start_node = m_start_container;
+    GC::Ref<Node> original_start_node = m_start_container;
     auto original_start_offset = m_start_offset;
-    JS::NonnullGCPtr<Node> original_end_node = m_end_container;
+    GC::Ref<Node> original_end_node = m_end_container;
     auto original_end_offset = m_end_offset;
 
     // 4. If original start node is original end node and it is a CharacterData node, then:
@@ -966,14 +966,14 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<DocumentFragment>> Range::clone_the_content
     }
 
     // 5. Let common ancestor be original start node.
-    JS::NonnullGCPtr<Node> common_ancestor = original_start_node;
+    GC::Ref<Node> common_ancestor = original_start_node;
 
     // 6. While common ancestor is not an inclusive ancestor of original end node, set common ancestor to its own parent.
     while (!common_ancestor->is_inclusive_ancestor_of(original_end_node))
         common_ancestor = *common_ancestor->parent_node();
 
     // 7. Let first partially contained child be null.
-    JS::GCPtr<Node> first_partially_contained_child;
+    GC::Ptr<Node> first_partially_contained_child;
 
     // 8. If original start node is not an inclusive ancestor of original end node,
     //    set first partially contained child to the first child of common ancestor that is partially contained in range.
@@ -987,7 +987,7 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<DocumentFragment>> Range::clone_the_content
     }
 
     // 9. Let last partially contained child be null.
-    JS::GCPtr<Node> last_partially_contained_child;
+    GC::Ptr<Node> last_partially_contained_child;
 
     // 10. If original end node is not an inclusive ancestor of original start node,
     //     set last partially contained child to the last child of common ancestor that is partially contained in range.
@@ -1001,7 +1001,7 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<DocumentFragment>> Range::clone_the_content
     }
 
     // 11. Let contained children be a list of all children of common ancestor that are contained in range, in tree order.
-    Vector<JS::NonnullGCPtr<Node>> contained_children;
+    Vector<GC::Ref<Node>> contained_children;
     for (Node* node = common_ancestor->first_child(); node; node = node->next_sibling()) {
         if (contains_node(*node))
             contained_children.append(*node);
@@ -1095,9 +1095,9 @@ WebIDL::ExceptionOr<void> Range::delete_contents()
         return {};
 
     // 2. Let original start node, original start offset, original end node, and original end offset be this’s start node, start offset, end node, and end offset, respectively.
-    JS::NonnullGCPtr<Node> original_start_node = m_start_container;
+    GC::Ref<Node> original_start_node = m_start_container;
     auto original_start_offset = m_start_offset;
-    JS::NonnullGCPtr<Node> original_end_node = m_end_container;
+    GC::Ref<Node> original_end_node = m_end_container;
     auto original_end_offset = m_end_offset;
 
     // 3. If original start node is original end node and it is a CharacterData node, then replace data with node original start node, offset original start offset,
@@ -1108,13 +1108,13 @@ WebIDL::ExceptionOr<void> Range::delete_contents()
     }
 
     // 4. Let nodes to remove be a list of all the nodes that are contained in this, in tree order, omitting any node whose parent is also contained in this.
-    JS::MarkedVector<Node*> nodes_to_remove(heap());
+    GC::MarkedVector<Node*> nodes_to_remove(heap());
     for (Node const* node = start_container(); node != end_container()->next_sibling(); node = node->next_in_pre_order()) {
         if (contains_node(*node) && (!node->parent_node() || !contains_node(*node->parent_node())))
             nodes_to_remove.append(const_cast<Node*>(node));
     }
 
-    JS::GCPtr<Node> new_node;
+    GC::Ptr<Node> new_node;
     size_t new_offset = 0;
 
     // 5. If original start node is an inclusive ancestor of original end node, set new node to original start node and new offset to original start offset.
@@ -1156,7 +1156,7 @@ WebIDL::ExceptionOr<void> Range::delete_contents()
 
 // https://drafts.csswg.org/cssom-view/#dom-element-getclientrects
 // https://drafts.csswg.org/cssom-view/#extensions-to-the-range-interface
-JS::NonnullGCPtr<Geometry::DOMRectList> Range::get_client_rects()
+GC::Ref<Geometry::DOMRectList> Range::get_client_rects()
 {
     // 1. return an empty DOMRectList object if the range is not in the document
     if (!start_container()->document().navigable())
@@ -1164,7 +1164,7 @@ JS::NonnullGCPtr<Geometry::DOMRectList> Range::get_client_rects()
 
     start_container()->document().update_layout();
     update_associated_selection();
-    Vector<JS::Handle<Geometry::DOMRect>> rects;
+    Vector<GC::Root<Geometry::DOMRect>> rects;
     // FIXME: take Range collapsed into consideration
     // 2. Iterate the node included in Range
     auto start_node = start_container();
@@ -1185,7 +1185,7 @@ JS::NonnullGCPtr<Geometry::DOMRectList> Range::get_client_rects()
             // areas returned by invoking getClientRects() on the element.
             if (contains_node(*node) && !contains_node(*node->parent())) {
                 auto const& element = static_cast<DOM::Element const&>(*node);
-                JS::NonnullGCPtr<Geometry::DOMRectList> const element_rects = element.get_client_rects();
+                GC::Ref<Geometry::DOMRectList> const element_rects = element.get_client_rects();
                 for (u32 i = 0; i < element_rects->length(); i++) {
                     auto rect = element_rects->item(i);
                     rects.append(Geometry::DOMRect::create(realm(),
@@ -1220,7 +1220,7 @@ JS::NonnullGCPtr<Geometry::DOMRectList> Range::get_client_rects()
 }
 
 // https://w3c.github.io/csswg-drafts/cssom-view/#dom-range-getboundingclientrect
-JS::NonnullGCPtr<Geometry::DOMRect> Range::get_bounding_client_rect()
+GC::Ref<Geometry::DOMRect> Range::get_bounding_client_rect()
 {
     // 1. Let list be the result of invoking getClientRects() on element.
     auto list = get_client_rects();
@@ -1239,7 +1239,7 @@ JS::NonnullGCPtr<Geometry::DOMRect> Range::get_bounding_client_rect()
         }
     }
     if (all_rectangle_has_zero_width_or_height)
-        return JS::NonnullGCPtr { *const_cast<Geometry::DOMRect*>(list->item(0)) };
+        return GC::Ref { *const_cast<Geometry::DOMRect*>(list->item(0)) };
 
     // 4. Otherwise, return a DOMRect object describing the smallest rectangle that includes all of the rectangles in
     //    list of which the height or width is not zero.
@@ -1255,15 +1255,15 @@ JS::NonnullGCPtr<Geometry::DOMRect> Range::get_bounding_client_rect()
 }
 
 // https://html.spec.whatwg.org/multipage/dynamic-markup-insertion.html#dom-range-createcontextualfragment
-WebIDL::ExceptionOr<JS::NonnullGCPtr<DocumentFragment>> Range::create_contextual_fragment(String const& string)
+WebIDL::ExceptionOr<GC::Ref<DocumentFragment>> Range::create_contextual_fragment(String const& string)
 {
     // FIXME: 1. Let compliantString be the result of invoking the Get Trusted Type compliant string algorithm with TrustedHTML, this's relevant global object, string, "Range createContextualFragment", and "script".
 
     // 2. Let node be this's start node.
-    JS::NonnullGCPtr<Node> node = *start_container();
+    GC::Ref<Node> node = *start_container();
 
     // 3. Let element be null.
-    JS::GCPtr<Element> element = nullptr;
+    GC::Ptr<Element> element = nullptr;
 
     auto node_type = static_cast<NodeType>(node->node_type());
     // 4. If node implements Element, set element to node.

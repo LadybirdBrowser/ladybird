@@ -10,9 +10,9 @@
 
 namespace Web::UIEvents {
 
-JS_DEFINE_ALLOCATOR(TextEvent);
+GC_DEFINE_ALLOCATOR(TextEvent);
 
-JS::NonnullGCPtr<TextEvent> TextEvent::create(JS::Realm& realm, FlyString const& event_name)
+GC::Ref<TextEvent> TextEvent::create(JS::Realm& realm, FlyString const& event_name)
 {
     return realm.create<TextEvent>(realm, event_name);
 }

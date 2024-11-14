@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibJS/Heap/Heap.h>
+#include <LibGC/Heap.h>
 #include <LibWeb/Bindings/ExceptionOrUtils.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Bindings/ResizeObserverEntryPrototype.h>
@@ -13,10 +13,10 @@
 
 namespace Web::ResizeObserver {
 
-JS_DEFINE_ALLOCATOR(ResizeObserverEntry);
+GC_DEFINE_ALLOCATOR(ResizeObserverEntry);
 
 // https://drafts.csswg.org/resize-observer-1/#create-and-populate-resizeobserverentry-h
-WebIDL::ExceptionOr<JS::NonnullGCPtr<ResizeObserverEntry>> ResizeObserverEntry::create_and_populate(JS::Realm& realm, DOM::Element& target)
+WebIDL::ExceptionOr<GC::Ref<ResizeObserverEntry>> ResizeObserverEntry::create_and_populate(JS::Realm& realm, DOM::Element& target)
 {
     // 1. Let this be a new ResizeObserverEntry.
     // 2. Set this.target slot to target.
@@ -74,9 +74,9 @@ void ResizeObserverEntry::visit_edges(JS::Cell::Visitor& visitor)
     visitor.visit(m_content_rect);
 }
 
-static JS::NonnullGCPtr<JS::Object> to_js_array(JS::Realm& realm, Vector<JS::NonnullGCPtr<ResizeObserverSize>> const& sizes)
+static GC::Ref<JS::Object> to_js_array(JS::Realm& realm, Vector<GC::Ref<ResizeObserverSize>> const& sizes)
 {
-    JS::MarkedVector<JS::Value> vector(realm.heap());
+    GC::MarkedVector<JS::Value> vector(realm.heap());
     for (auto const& size : sizes)
         vector.append(JS::Value(size.ptr()));
 
@@ -85,17 +85,17 @@ static JS::NonnullGCPtr<JS::Object> to_js_array(JS::Realm& realm, Vector<JS::Non
     return array;
 }
 
-JS::NonnullGCPtr<JS::Object> ResizeObserverEntry::border_box_size_js_array() const
+GC::Ref<JS::Object> ResizeObserverEntry::border_box_size_js_array() const
 {
     return to_js_array(realm(), m_border_box_size);
 }
 
-JS::NonnullGCPtr<JS::Object> ResizeObserverEntry::content_box_size_js_array() const
+GC::Ref<JS::Object> ResizeObserverEntry::content_box_size_js_array() const
 {
     return to_js_array(realm(), m_content_box_size);
 }
 
-JS::NonnullGCPtr<JS::Object> ResizeObserverEntry::device_pixel_content_box_size_js_array() const
+GC::Ref<JS::Object> ResizeObserverEntry::device_pixel_content_box_size_js_array() const
 {
     return to_js_array(realm(), m_device_pixel_content_box_size);
 }

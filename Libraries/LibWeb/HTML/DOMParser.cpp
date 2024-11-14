@@ -16,9 +16,9 @@
 
 namespace Web::HTML {
 
-JS_DEFINE_ALLOCATOR(DOMParser);
+GC_DEFINE_ALLOCATOR(DOMParser);
 
-WebIDL::ExceptionOr<JS::NonnullGCPtr<DOMParser>> DOMParser::construct_impl(JS::Realm& realm)
+WebIDL::ExceptionOr<GC::Ref<DOMParser>> DOMParser::construct_impl(JS::Realm& realm)
 {
     return realm.create<DOMParser>(realm);
 }
@@ -37,12 +37,12 @@ void DOMParser::initialize(JS::Realm& realm)
 }
 
 // https://html.spec.whatwg.org/multipage/dynamic-markup-insertion.html#dom-domparser-parsefromstring
-JS::NonnullGCPtr<DOM::Document> DOMParser::parse_from_string(StringView string, Bindings::DOMParserSupportedType type)
+GC::Ref<DOM::Document> DOMParser::parse_from_string(StringView string, Bindings::DOMParserSupportedType type)
 {
     // FIXME: 1. Let compliantString to the result of invoking the Get Trusted Type compliant string algorithm with TrustedHTML, this's relevant global object, string, "DOMParser parseFromString", and "script".
 
     // 2. Let document be a new Document, whose content type is type and url is this's relevant global object's associated Document's URL.
-    JS::GCPtr<DOM::Document> document;
+    GC::Ptr<DOM::Document> document;
 
     // 3. Switch on type:
     if (type == Bindings::DOMParserSupportedType::Text_Html) {

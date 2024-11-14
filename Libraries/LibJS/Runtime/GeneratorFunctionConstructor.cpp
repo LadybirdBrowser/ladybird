@@ -11,7 +11,7 @@
 
 namespace JS {
 
-JS_DEFINE_ALLOCATOR(GeneratorFunctionConstructor);
+GC_DEFINE_ALLOCATOR(GeneratorFunctionConstructor);
 
 GeneratorFunctionConstructor::GeneratorFunctionConstructor(Realm& realm)
     : NativeFunction(static_cast<Object&>(realm.intrinsics().function_constructor()))
@@ -36,7 +36,7 @@ ThrowCompletionOr<Value> GeneratorFunctionConstructor::call()
 }
 
 // 27.3.1.1 GeneratorFunction ( ...parameterArgs, bodyArg ), https://tc39.es/ecma262/#sec-generatorfunction
-ThrowCompletionOr<NonnullGCPtr<Object>> GeneratorFunctionConstructor::construct(FunctionObject& new_target)
+ThrowCompletionOr<GC::Ref<Object>> GeneratorFunctionConstructor::construct(FunctionObject& new_target)
 {
     auto& vm = this->vm();
 

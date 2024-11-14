@@ -23,16 +23,16 @@
 
 namespace Web::SVG {
 
-JS_DEFINE_ALLOCATOR(SVGDecodedImageData);
-JS_DEFINE_ALLOCATOR(SVGDecodedImageData::SVGPageClient);
+GC_DEFINE_ALLOCATOR(SVGDecodedImageData);
+GC_DEFINE_ALLOCATOR(SVGDecodedImageData::SVGPageClient);
 
-ErrorOr<JS::NonnullGCPtr<SVGDecodedImageData>> SVGDecodedImageData::create(JS::Realm& realm, JS::NonnullGCPtr<Page> host_page, URL::URL const& url, ByteBuffer data)
+ErrorOr<GC::Ref<SVGDecodedImageData>> SVGDecodedImageData::create(JS::Realm& realm, GC::Ref<Page> host_page, URL::URL const& url, ByteBuffer data)
 {
     auto page_client = SVGPageClient::create(Bindings::main_thread_vm(), host_page);
     auto page = Page::create(Bindings::main_thread_vm(), *page_client);
     page_client->m_svg_page = page.ptr();
     page->set_top_level_traversable(MUST(Web::HTML::TraversableNavigable::create_a_new_top_level_traversable(*page, nullptr, {})));
-    JS::NonnullGCPtr<HTML::Navigable> navigable = page->top_level_traversable();
+    GC::Ref<HTML::Navigable> navigable = page->top_level_traversable();
     auto response = Fetch::Infrastructure::Response::create(navigable->vm());
     response->url_list().append(url);
     auto navigation_params = navigable->heap().allocate<HTML::NavigationParams>();
@@ -66,7 +66,7 @@ ErrorOr<JS::NonnullGCPtr<SVGDecodedImageData>> SVGDecodedImageData::create(JS::R
     return realm.create<SVGDecodedImageData>(page, page_client, document, *svg_root);
 }
 
-SVGDecodedImageData::SVGDecodedImageData(JS::NonnullGCPtr<Page> page, JS::NonnullGCPtr<SVGPageClient> page_client, JS::NonnullGCPtr<DOM::Document> document, JS::NonnullGCPtr<SVG::SVGSVGElement> root_element)
+SVGDecodedImageData::SVGDecodedImageData(GC::Ref<Page> page, GC::Ref<SVGPageClient> page_client, GC::Ref<DOM::Document> document, GC::Ref<SVG::SVGSVGElement> root_element)
     : m_page(page)
     , m_page_client(page_client)
     , m_document(document)

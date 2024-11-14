@@ -16,11 +16,11 @@ struct CompositionEventInit : public UIEventInit {
 
 class CompositionEvent final : public UIEvent {
     WEB_PLATFORM_OBJECT(CompositionEvent, UIEvent);
-    JS_DECLARE_ALLOCATOR(CompositionEvent);
+    GC_DECLARE_ALLOCATOR(CompositionEvent);
 
 public:
-    [[nodiscard]] static JS::NonnullGCPtr<CompositionEvent> create(JS::Realm&, FlyString const& event_name, CompositionEventInit const& = {});
-    static WebIDL::ExceptionOr<JS::NonnullGCPtr<CompositionEvent>> construct_impl(JS::Realm&, FlyString const& event_name, CompositionEventInit const& event_init);
+    [[nodiscard]] static GC::Ref<CompositionEvent> create(JS::Realm&, FlyString const& event_name, CompositionEventInit const& = {});
+    static WebIDL::ExceptionOr<GC::Ref<CompositionEvent>> construct_impl(JS::Realm&, FlyString const& event_name, CompositionEventInit const& event_init);
 
     virtual ~CompositionEvent() override;
 

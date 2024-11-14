@@ -10,7 +10,7 @@
 
 namespace JS {
 
-JS_DEFINE_ALLOCATOR(IteratorHelperPrototype);
+GC_DEFINE_ALLOCATOR(IteratorHelperPrototype);
 
 // 27.1.2.1 The %IteratorHelperPrototype% Object, https://tc39.es/ecma262/#sec-%iteratorhelperprototype%-object
 IteratorHelperPrototype::IteratorHelperPrototype(Realm& realm)

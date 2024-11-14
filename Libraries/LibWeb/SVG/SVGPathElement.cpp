@@ -16,7 +16,7 @@
 
 namespace Web::SVG {
 
-JS_DEFINE_ALLOCATOR(SVGPathElement);
+GC_DEFINE_ALLOCATOR(SVGPathElement);
 
 [[maybe_unused]] static void print_instruction(PathInstruction const& instruction)
 {

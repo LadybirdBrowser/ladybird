@@ -13,11 +13,11 @@
 #include <AK/Noncopyable.h>
 #include <AK/StringView.h>
 #include <AK/Weakable.h>
-#include <LibJS/Forward.h>
-#include <LibJS/Heap/GCPtr.h>
-#include <LibJS/Heap/Internals.h>
+#include <LibGC/Forward.h>
+#include <LibGC/Internals.h>
+#include <LibGC/Ptr.h>
 
-namespace JS {
+namespace GC {
 
 // This instrumentation tells analysis tooling to ignore a potentially mis-wrapped GC-allocated member variable
 // It should only be used when the lifetime of the GC-allocated member is always longer than the object
@@ -27,21 +27,21 @@ namespace JS {
 #    define IGNORE_GC
 #endif
 
-#define JS_CELL(class_, base_class)                \
+#define GC_CELL(class_, base_class)                \
 public:                                            \
     using Base = base_class;                       \
     virtual StringView class_name() const override \
     {                                              \
         return #class_##sv;                        \
     }                                              \
-    friend class JS::Heap;
+    friend class GC::Heap;
 
-class CellImpl : public Weakable<CellImpl> {
-    AK_MAKE_NONCOPYABLE(CellImpl);
-    AK_MAKE_NONMOVABLE(CellImpl);
+class Cell : public Weakable<Cell> {
+    AK_MAKE_NONCOPYABLE(Cell);
+    AK_MAKE_NONMOVABLE(Cell);
 
 public:
-    virtual ~CellImpl() = default;
+    virtual ~Cell() = default;
 
     bool is_marked() const { return m_mark; }
     void set_marked(bool b) { m_mark = b; }
@@ -58,36 +58,36 @@ public:
 
     class Visitor {
     public:
-        void visit(CellImpl* cell)
+        void visit(Cell* cell)
         {
             if (cell)
                 visit_impl(*cell);
         }
 
-        void visit(CellImpl& cell)
+        void visit(Cell& cell)
         {
             visit_impl(cell);
         }
 
-        void visit(CellImpl const* cell)
+        void visit(Cell const* cell)
         {
-            visit(const_cast<CellImpl*>(cell));
+            visit(const_cast<Cell*>(cell));
         }
 
-        void visit(CellImpl const& cell)
+        void visit(Cell const& cell)
         {
-            visit(const_cast<CellImpl&>(cell));
+            visit(const_cast<Cell&>(cell));
         }
 
         template<typename T>
-        void visit(GCPtr<T> cell)
+        void visit(Ptr<T> cell)
         {
             if (cell)
                 visit_impl(const_cast<RemoveConst<T>&>(*cell.ptr()));
         }
 
         template<typename T>
-        void visit(NonnullGCPtr<T> cell)
+        void visit(Ref<T> cell)
         {
             visit_impl(const_cast<RemoveConst<T>&>(*cell.ptr()));
         }
@@ -161,7 +161,7 @@ public:
         virtual void visit_possible_values(ReadonlyBytes) = 0;
 
     protected:
-        virtual void visit_impl(CellImpl&) = 0;
+        virtual void visit_impl(Cell&) = 0;
         virtual ~Visitor() = default;
     };
 
@@ -180,7 +180,7 @@ public:
     ALWAYS_INLINE Heap& heap() const { return HeapBlockBase::from_cell(this)->heap(); }
 
 protected:
-    CellImpl() = default;
+    Cell() = default;
 
     ALWAYS_INLINE void* private_data() const { return bit_cast<HeapBase*>(&heap())->private_data(); }
 
@@ -195,8 +195,8 @@ private:
 }
 
 template<>
-struct AK::Formatter<JS::CellImpl> : AK::Formatter<FormatString> {
-    ErrorOr<void> format(FormatBuilder& builder, JS::CellImpl const* cell)
+struct AK::Formatter<GC::Cell> : AK::Formatter<FormatString> {
+    ErrorOr<void> format(FormatBuilder& builder, GC::Cell const* cell)
     {
         if (!cell)
             return builder.put_string("Cell{nullptr}"sv);

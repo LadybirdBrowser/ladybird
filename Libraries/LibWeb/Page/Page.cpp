@@ -28,14 +28,14 @@
 
 namespace Web {
 
-JS_DEFINE_ALLOCATOR(Page);
+GC_DEFINE_ALLOCATOR(Page);
 
-JS::NonnullGCPtr<Page> Page::create(JS::VM& vm, JS::NonnullGCPtr<PageClient> page_client)
+GC::Ref<Page> Page::create(JS::VM& vm, GC::Ref<PageClient> page_client)
 {
     return vm.heap().allocate<Page>(page_client);
 }
 
-Page::Page(JS::NonnullGCPtr<PageClient> client)
+Page::Page(GC::Ref<PageClient> client)
     : m_client(client)
 {
 }
@@ -227,7 +227,7 @@ EventResult Page::handle_keyup(UIEvents::KeyCode key, unsigned modifiers, u32 co
     return focused_navigable().event_handler().handle_keyup(key, modifiers, code_point, repeat);
 }
 
-void Page::set_top_level_traversable(JS::NonnullGCPtr<HTML::TraversableNavigable> navigable)
+void Page::set_top_level_traversable(GC::Ref<HTML::TraversableNavigable> navigable)
 {
     VERIFY(!m_top_level_traversable); // Replacement is not allowed!
     VERIFY(&navigable->page() == this);
@@ -249,7 +249,7 @@ HTML::BrowsingContext const& Page::top_level_browsing_context() const
     return *m_top_level_traversable->active_browsing_context();
 }
 
-JS::NonnullGCPtr<HTML::TraversableNavigable> Page::top_level_traversable() const
+GC::Ref<HTML::TraversableNavigable> Page::top_level_traversable() const
 {
     return *m_top_level_traversable;
 }
@@ -266,7 +266,7 @@ static ResponseType spin_event_loop_until_dialog_closed(PageClient& client, Opti
     auto& event_loop = Web::HTML::current_principal_settings_object().responsible_event_loop();
     auto pause_handle = event_loop.pause();
 
-    Web::Platform::EventLoopPlugin::the().spin_until(JS::create_heap_function(event_loop.heap(), [&]() {
+    Web::Platform::EventLoopPlugin::the().spin_until(GC::create_function(event_loop.heap(), [&]() {
         return response.has_value() || !client.is_connection_open();
     }));
 
@@ -335,7 +335,7 @@ void Page::prompt_closed(Optional<String> response)
     }
 }
 
-void Page::dismiss_dialog(JS::NonnullGCPtr<JS::HeapFunction<void()>> on_dialog_closed)
+void Page::dismiss_dialog(GC::Ref<GC::Function<void()>> on_dialog_closed)
 {
     m_on_pending_dialog_closed = on_dialog_closed;
 
@@ -352,7 +352,7 @@ void Page::dismiss_dialog(JS::NonnullGCPtr<JS::HeapFunction<void()>> on_dialog_c
     }
 }
 
-void Page::accept_dialog(JS::NonnullGCPtr<JS::HeapFunction<void()>> on_dialog_closed)
+void Page::accept_dialog(GC::Ref<GC::Function<void()>> on_dialog_closed)
 {
     m_on_pending_dialog_closed = on_dialog_closed;
 
@@ -541,7 +541,7 @@ void Page::toggle_page_mute_state()
     }
 }
 
-JS::GCPtr<HTML::HTMLMediaElement> Page::media_context_menu_element()
+GC::Ptr<HTML::HTMLMediaElement> Page::media_context_menu_element()
 {
     if (!m_media_context_menu_element_id.has_value())
         return nullptr;
@@ -564,7 +564,7 @@ void Page::set_user_style(String source)
     }
 }
 
-Vector<JS::Handle<DOM::Document>> Page::documents_in_active_window() const
+Vector<GC::Root<DOM::Document>> Page::documents_in_active_window() const
 {
     if (!top_level_traversable_is_initialized())
         return {};
@@ -593,7 +593,7 @@ Page::FindInPageResult Page::perform_find_in_page_query(FindInPageQuery const& q
 {
     VERIFY(top_level_traversable_is_initialized());
 
-    Vector<JS::Handle<DOM::Range>> all_matches;
+    Vector<GC::Root<DOM::Range>> all_matches;
 
     auto find_current_match_index = [this, &direction](auto& document, auto& matches) -> size_t {
         // Always return the first match if there is no active query.
@@ -704,7 +704,7 @@ Page::FindInPageResult Page::find_in_page_previous_match()
     return result;
 }
 
-void Page::update_find_in_page_selection(Vector<JS::Handle<DOM::Range>> matches)
+void Page::update_find_in_page_selection(Vector<GC::Root<DOM::Range>> matches)
 {
     clear_selection();
 

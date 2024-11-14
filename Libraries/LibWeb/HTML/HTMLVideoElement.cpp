@@ -24,7 +24,7 @@
 
 namespace Web::HTML {
 
-JS_DEFINE_ALLOCATOR(HTMLVideoElement);
+GC_DEFINE_ALLOCATOR(HTMLVideoElement);
 
 HTMLVideoElement::HTMLVideoElement(DOM::Document& document, DOM::QualifiedName qualified_name)
     : HTMLMediaElement(document, move(qualified_name))
@@ -63,7 +63,7 @@ void HTMLVideoElement::attribute_changed(FlyString const& name, Optional<String>
     }
 }
 
-JS::GCPtr<Layout::Node> HTMLVideoElement::create_layout_node(CSS::StyleProperties style)
+GC::Ptr<Layout::Node> HTMLVideoElement::create_layout_node(CSS::StyleProperties style)
 {
     return heap().allocate<Layout::VideoBox>(document(), *this, move(style));
 }
@@ -107,7 +107,7 @@ u32 HTMLVideoElement::video_height() const
     return m_video_height;
 }
 
-void HTMLVideoElement::set_video_track(JS::GCPtr<HTML::VideoTrack> video_track)
+void HTMLVideoElement::set_video_track(GC::Ptr<HTML::VideoTrack> video_track)
 {
     set_needs_style_update(true);
     document().set_needs_layout();
@@ -196,13 +196,13 @@ WebIDL::ExceptionOr<void> HTMLVideoElement::determine_element_poster_frame(Optio
             response = filtered_response.internal_response();
         }
 
-        auto on_image_data_read = JS::create_heap_function(heap(), [this](ByteBuffer image_data) mutable {
+        auto on_image_data_read = GC::create_function(heap(), [this](ByteBuffer image_data) mutable {
             m_fetch_controller = nullptr;
 
             // 6. If an image is thus obtained, the poster frame is that image. Otherwise, there is no poster frame.
             (void)Platform::ImageCodecPlugin::the().decode_image(
                 image_data,
-                [strong_this = JS::Handle(*this)](Web::Platform::DecodedImage& image) -> ErrorOr<void> {
+                [strong_this = GC::Root(*this)](Web::Platform::DecodedImage& image) -> ErrorOr<void> {
                     if (!image.frames.is_empty())
                         strong_this->m_poster_frame = move(image.frames[0].bitmap);
                     return {};
@@ -211,9 +211,9 @@ WebIDL::ExceptionOr<void> HTMLVideoElement::determine_element_poster_frame(Optio
         });
 
         VERIFY(response->body());
-        auto empty_algorithm = JS::create_heap_function(heap(), [](JS::Value) {});
+        auto empty_algorithm = GC::create_function(heap(), [](JS::Value) {});
 
-        response->body()->fully_read(realm, on_image_data_read, empty_algorithm, JS::NonnullGCPtr { global });
+        response->body()->fully_read(realm, on_image_data_read, empty_algorithm, GC::Ref { global });
     };
 
     m_fetch_controller = TRY(Fetch::Fetching::fetch(realm, request, Fetch::Infrastructure::FetchAlgorithms::create(vm, move(fetch_algorithms_input))));

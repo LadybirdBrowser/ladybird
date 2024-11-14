@@ -15,12 +15,12 @@ namespace Web::HTML {
 
 class AudioTrack final : public Bindings::PlatformObject {
     WEB_PLATFORM_OBJECT(AudioTrack, Bindings::PlatformObject);
-    JS_DECLARE_ALLOCATOR(AudioTrack);
+    GC_DECLARE_ALLOCATOR(AudioTrack);
 
 public:
     virtual ~AudioTrack() override;
 
-    void set_audio_track_list(Badge<AudioTrackList>, JS::GCPtr<AudioTrackList> audio_track_list) { m_audio_track_list = audio_track_list; }
+    void set_audio_track_list(Badge<AudioTrackList>, GC::Ptr<AudioTrackList> audio_track_list) { m_audio_track_list = audio_track_list; }
 
     void play(Badge<HTMLAudioElement>);
     void pause(Badge<HTMLAudioElement>);
@@ -39,7 +39,7 @@ public:
     void set_enabled(bool enabled);
 
 private:
-    AudioTrack(JS::Realm&, JS::NonnullGCPtr<HTMLMediaElement>, NonnullRefPtr<Audio::Loader>);
+    AudioTrack(JS::Realm&, GC::Ref<HTMLMediaElement>, NonnullRefPtr<Audio::Loader>);
 
     virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Cell::Visitor&) override;
@@ -59,8 +59,8 @@ private:
     // https://html.spec.whatwg.org/multipage/media.html#dom-audiotrack-enabled
     bool m_enabled { false };
 
-    JS::NonnullGCPtr<HTMLMediaElement> m_media_element;
-    JS::GCPtr<AudioTrackList> m_audio_track_list;
+    GC::Ref<HTMLMediaElement> m_media_element;
+    GC::Ptr<AudioTrackList> m_audio_track_list;
 
     NonnullOwnPtr<Platform::AudioCodecPlugin> m_audio_plugin;
 };

@@ -16,10 +16,10 @@ namespace Web::Geometry {
 // https://drafts.fxtf.org/geometry-1/#DOMRectList
 class DOMRectList final : public Bindings::PlatformObject {
     WEB_PLATFORM_OBJECT(DOMRectList, Bindings::PlatformObject);
-    JS_DECLARE_ALLOCATOR(DOMRectList);
+    GC_DECLARE_ALLOCATOR(DOMRectList);
 
 public:
-    [[nodiscard]] static JS::NonnullGCPtr<DOMRectList> create(JS::Realm&, Vector<JS::Handle<DOMRect>>);
+    [[nodiscard]] static GC::Ref<DOMRectList> create(JS::Realm&, Vector<GC::Root<DOMRect>>);
 
     virtual ~DOMRectList() override;
 
@@ -29,12 +29,12 @@ public:
     virtual Optional<JS::Value> item_value(size_t index) const override;
 
 private:
-    DOMRectList(JS::Realm&, Vector<JS::NonnullGCPtr<DOMRect>>);
+    DOMRectList(JS::Realm&, Vector<GC::Ref<DOMRect>>);
 
     virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Cell::Visitor&) override;
 
-    Vector<JS::NonnullGCPtr<DOMRect>> m_rects;
+    Vector<GC::Ref<DOMRect>> m_rects;
 };
 
 }

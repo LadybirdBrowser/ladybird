@@ -19,14 +19,14 @@ struct ImageDataSettings {
 
 class ImageData final : public Bindings::PlatformObject {
     WEB_PLATFORM_OBJECT(ImageData, Bindings::PlatformObject);
-    JS_DECLARE_ALLOCATOR(ImageData);
+    GC_DECLARE_ALLOCATOR(ImageData);
 
 public:
-    [[nodiscard]] static WebIDL::ExceptionOr<JS::NonnullGCPtr<ImageData>> create(JS::Realm&, u32 sw, u32 sh, Optional<ImageDataSettings> const& settings = {});
-    [[nodiscard]] static WebIDL::ExceptionOr<JS::NonnullGCPtr<ImageData>> create(JS::Realm&, JS::Handle<WebIDL::BufferSource> const& data, u32 sw, Optional<u32> sh = {}, Optional<ImageDataSettings> const& settings = {});
+    [[nodiscard]] static WebIDL::ExceptionOr<GC::Ref<ImageData>> create(JS::Realm&, u32 sw, u32 sh, Optional<ImageDataSettings> const& settings = {});
+    [[nodiscard]] static WebIDL::ExceptionOr<GC::Ref<ImageData>> create(JS::Realm&, GC::Root<WebIDL::BufferSource> const& data, u32 sw, Optional<u32> sh = {}, Optional<ImageDataSettings> const& settings = {});
 
-    [[nodiscard]] static WebIDL::ExceptionOr<JS::NonnullGCPtr<ImageData>> construct_impl(JS::Realm&, u32 sw, u32 sh, Optional<ImageDataSettings> const& settings = {});
-    [[nodiscard]] static WebIDL::ExceptionOr<JS::NonnullGCPtr<ImageData>> construct_impl(JS::Realm&, JS::Handle<WebIDL::BufferSource> const& data, u32 sw, Optional<u32> sh = {}, Optional<ImageDataSettings> const& settings = {});
+    [[nodiscard]] static WebIDL::ExceptionOr<GC::Ref<ImageData>> construct_impl(JS::Realm&, u32 sw, u32 sh, Optional<ImageDataSettings> const& settings = {});
+    [[nodiscard]] static WebIDL::ExceptionOr<GC::Ref<ImageData>> construct_impl(JS::Realm&, GC::Root<WebIDL::BufferSource> const& data, u32 sw, Optional<u32> sh = {}, Optional<ImageDataSettings> const& settings = {});
 
     virtual ~ImageData() override;
 
@@ -40,13 +40,13 @@ public:
     const JS::Uint8ClampedArray* data() const;
 
 private:
-    ImageData(JS::Realm&, NonnullRefPtr<Gfx::Bitmap>, JS::NonnullGCPtr<JS::Uint8ClampedArray>);
+    ImageData(JS::Realm&, NonnullRefPtr<Gfx::Bitmap>, GC::Ref<JS::Uint8ClampedArray>);
 
     virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Cell::Visitor&) override;
 
     NonnullRefPtr<Gfx::Bitmap> m_bitmap;
-    JS::NonnullGCPtr<JS::Uint8ClampedArray> m_data;
+    GC::Ref<JS::Uint8ClampedArray> m_data;
 };
 
 }

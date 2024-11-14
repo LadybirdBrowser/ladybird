@@ -382,6 +382,7 @@ set(lagom_standard_libraries
     Compress
     Crypto
     Diff
+    GC
     HTTP
     IPC
     JS
@@ -453,13 +454,13 @@ if (ENABLE_GUI_TARGETS)
     lagom_utility(image SOURCES ../../Utilities/image.cpp LIBS LibGfx LibMain)
 endif()
 
-lagom_utility(js SOURCES ../../Utilities/js.cpp LIBS LibCrypto LibJS LibLine LibUnicode LibMain LibTextCodec Threads::Threads)
+lagom_utility(js SOURCES ../../Utilities/js.cpp LIBS LibCrypto LibJS LibLine LibUnicode LibMain LibTextCodec LibGC Threads::Threads)
 
 lagom_utility(gzip SOURCES ../../Utilities/gzip.cpp LIBS LibCompress LibMain)
 lagom_utility(lzcat SOURCES ../../Utilities/lzcat.cpp LIBS LibCompress LibMain)
 
 lagom_utility(tar SOURCES ../../Utilities/tar.cpp LIBS LibArchive LibCompress LibFileSystem LibMain)
-lagom_utility(test262-runner SOURCES ../../Tests/LibJS/test262-runner.cpp LIBS LibJS LibFileSystem)
+lagom_utility(test262-runner SOURCES ../../Tests/LibJS/test262-runner.cpp LIBS LibJS LibFileSystem LibGC)
 
 if (CMAKE_SYSTEM_NAME STREQUAL "Linux")
     include(CheckCSourceCompiles)
@@ -554,7 +555,7 @@ if (BUILD_TESTING)
     add_executable(test-js
         ../../Tests/LibJS/test-js.cpp
         ../../Libraries/LibTest/JavaScriptTestRunnerMain.cpp)
-    target_link_libraries(test-js AK LibCore LibFileSystem LibTest LibJS)
+    target_link_libraries(test-js AK LibCore LibFileSystem LibTest LibJS LibGC)
     add_test(
         NAME JS
         COMMAND test-js --show-progress=false
@@ -569,7 +570,7 @@ if (BUILD_TESTING)
     add_executable(test-wasm
         ../../Tests/LibWasm/test-wasm.cpp
         ../../Libraries/LibTest/JavaScriptTestRunnerMain.cpp)
-    target_link_libraries(test-wasm AK LibCore LibFileSystem LibTest LibWasm LibJS LibCrypto)
+    target_link_libraries(test-wasm AK LibCore LibFileSystem LibTest LibWasm LibJS LibCrypto LibGC)
     set(wasm_test_root "${SERENITY_PROJECT_ROOT}")
     if (INCLUDE_WASM_SPEC_TESTS)
        set(wasm_test_root "${CMAKE_CURRENT_BINARY_DIR}")

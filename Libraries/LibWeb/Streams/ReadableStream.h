@@ -17,10 +17,10 @@
 namespace Web::Streams {
 
 // https://streams.spec.whatwg.org/#typedefdef-readablestreamreader
-using ReadableStreamReader = Variant<JS::NonnullGCPtr<ReadableStreamDefaultReader>, JS::NonnullGCPtr<ReadableStreamBYOBReader>>;
+using ReadableStreamReader = Variant<GC::Ref<ReadableStreamDefaultReader>, GC::Ref<ReadableStreamBYOBReader>>;
 
 // https://streams.spec.whatwg.org/#typedefdef-readablestreamcontroller
-using ReadableStreamController = Variant<JS::NonnullGCPtr<ReadableStreamDefaultController>, JS::NonnullGCPtr<ReadableByteStreamController>>;
+using ReadableStreamController = Variant<GC::Ref<ReadableStreamDefaultController>, GC::Ref<ReadableByteStreamController>>;
 
 // https://streams.spec.whatwg.org/#dictdef-readablestreamgetreaderoptions
 struct ReadableStreamGetReaderOptions {
@@ -28,22 +28,22 @@ struct ReadableStreamGetReaderOptions {
 };
 
 struct ReadableWritablePair {
-    JS::GCPtr<ReadableStream> readable;
-    JS::GCPtr<WritableStream> writable;
+    GC::Ptr<ReadableStream> readable;
+    GC::Ptr<WritableStream> writable;
 };
 
 struct StreamPipeOptions {
     bool prevent_close { false };
     bool prevent_abort { false };
     bool prevent_cancel { false };
-    JS::GCPtr<DOM::AbortSignal> signal;
+    GC::Ptr<DOM::AbortSignal> signal;
 };
 
 struct ReadableStreamPair {
     // Define a couple container-like methods so this type may be used as the return type of the IDL `tee` implementation.
     size_t size() const { return 2; }
 
-    JS::NonnullGCPtr<ReadableStream>& at(size_t index)
+    GC::Ref<ReadableStream>& at(size_t index)
     {
         if (index == 0)
             return first;
@@ -52,14 +52,14 @@ struct ReadableStreamPair {
         VERIFY_NOT_REACHED();
     }
 
-    JS::NonnullGCPtr<ReadableStream> first;
-    JS::NonnullGCPtr<ReadableStream> second;
+    GC::Ref<ReadableStream> first;
+    GC::Ref<ReadableStream> second;
 };
 
 // https://streams.spec.whatwg.org/#readablestream
 class ReadableStream final : public Bindings::PlatformObject {
     WEB_PLATFORM_OBJECT(ReadableStream, Bindings::PlatformObject);
-    JS_DECLARE_ALLOCATOR(ReadableStream);
+    GC_DECLARE_ALLOCATOR(ReadableStream);
 
 public:
     enum class State {
@@ -68,17 +68,17 @@ public:
         Errored,
     };
 
-    static WebIDL::ExceptionOr<JS::NonnullGCPtr<ReadableStream>> construct_impl(JS::Realm&, Optional<JS::Handle<JS::Object>> const& underlying_source, QueuingStrategy const& = {});
+    static WebIDL::ExceptionOr<GC::Ref<ReadableStream>> construct_impl(JS::Realm&, Optional<GC::Root<JS::Object>> const& underlying_source, QueuingStrategy const& = {});
 
-    static WebIDL::ExceptionOr<JS::NonnullGCPtr<ReadableStream>> from(JS::VM& vm, JS::Value async_iterable);
+    static WebIDL::ExceptionOr<GC::Ref<ReadableStream>> from(JS::VM& vm, JS::Value async_iterable);
 
     virtual ~ReadableStream() override;
 
     bool locked() const;
-    JS::NonnullGCPtr<WebIDL::Promise> cancel(JS::Value reason);
+    GC::Ref<WebIDL::Promise> cancel(JS::Value reason);
     WebIDL::ExceptionOr<ReadableStreamReader> get_reader(ReadableStreamGetReaderOptions const& = {});
-    WebIDL::ExceptionOr<JS::NonnullGCPtr<ReadableStream>> pipe_through(ReadableWritablePair transform, StreamPipeOptions const& = {});
-    JS::NonnullGCPtr<WebIDL::Promise> pipe_to(WritableStream& destination, StreamPipeOptions const& = {});
+    WebIDL::ExceptionOr<GC::Ref<ReadableStream>> pipe_through(ReadableWritablePair transform, StreamPipeOptions const& = {});
+    GC::Ref<WebIDL::Promise> pipe_to(WritableStream& destination, StreamPipeOptions const& = {});
     WebIDL::ExceptionOr<ReadableStreamPair> tee();
 
     void close();

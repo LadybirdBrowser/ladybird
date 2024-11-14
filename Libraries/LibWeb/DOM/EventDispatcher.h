@@ -14,11 +14,11 @@ namespace Web::DOM {
 
 class EventDispatcher {
 public:
-    static bool dispatch(JS::NonnullGCPtr<EventTarget>, Event&, bool legacy_target_override = false);
+    static bool dispatch(GC::Ref<EventTarget>, Event&, bool legacy_target_override = false);
 
 private:
     static void invoke(Event::PathEntry&, Event&, Event::Phase);
-    static bool inner_invoke(Event&, Vector<JS::Handle<DOM::DOMEventListener>>&, Event::Phase, bool);
+    static bool inner_invoke(Event&, Vector<GC::Root<DOM::DOMEventListener>>&, Event::Phase, bool);
 };
 
 }

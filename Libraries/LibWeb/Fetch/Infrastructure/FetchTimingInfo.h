@@ -8,9 +8,9 @@
 
 #include <AK/String.h>
 #include <AK/Vector.h>
+#include <LibGC/Ptr.h>
 #include <LibJS/Forward.h>
 #include <LibJS/Heap/Cell.h>
-#include <LibJS/Heap/GCPtr.h>
 #include <LibWeb/Fetch/Infrastructure/ConnectionTimingInfo.h>
 #include <LibWeb/HighResolutionTime/DOMHighResTimeStamp.h>
 
@@ -18,11 +18,11 @@ namespace Web::Fetch::Infrastructure {
 
 // https://fetch.spec.whatwg.org/#fetch-timing-info
 class FetchTimingInfo : public JS::Cell {
-    JS_CELL(FetchTimingInfo, JS::Cell);
-    JS_DECLARE_ALLOCATOR(FetchTimingInfo);
+    GC_CELL(FetchTimingInfo, JS::Cell);
+    GC_DECLARE_ALLOCATOR(FetchTimingInfo);
 
 public:
-    [[nodiscard]] static JS::NonnullGCPtr<FetchTimingInfo> create(JS::VM&);
+    [[nodiscard]] static GC::Ref<FetchTimingInfo> create(JS::VM&);
 
     [[nodiscard]] HighResolutionTime::DOMHighResTimeStamp start_time() const { return m_start_time; }
     void set_start_time(HighResolutionTime::DOMHighResTimeStamp start_time) { m_start_time = start_time; }
@@ -48,8 +48,8 @@ public:
     [[nodiscard]] HighResolutionTime::DOMHighResTimeStamp end_time() const { return m_end_time; }
     void set_end_time(HighResolutionTime::DOMHighResTimeStamp end_time) { m_end_time = end_time; }
 
-    [[nodiscard]] JS::GCPtr<ConnectionTimingInfo> final_connection_timing_info() const { return m_final_connection_timing_info; }
-    void set_final_connection_timing_info(JS::GCPtr<ConnectionTimingInfo> final_connection_timing_info) { m_final_connection_timing_info = final_connection_timing_info; }
+    [[nodiscard]] GC::Ptr<ConnectionTimingInfo> final_connection_timing_info() const { return m_final_connection_timing_info; }
+    void set_final_connection_timing_info(GC::Ptr<ConnectionTimingInfo> final_connection_timing_info) { m_final_connection_timing_info = final_connection_timing_info; }
 
     [[nodiscard]] Vector<String>& server_timing_headers() { return m_server_timing_headers; }
     [[nodiscard]] Vector<String> const& server_timing_headers() const { return m_server_timing_headers; }
@@ -106,7 +106,7 @@ private:
     // https://fetch.spec.whatwg.org/#fetch-timing-info-final-connection-timing-info
     // final connection timing info (default null)
     //     Null or a connection timing info.
-    JS::GCPtr<ConnectionTimingInfo> m_final_connection_timing_info;
+    GC::Ptr<ConnectionTimingInfo> m_final_connection_timing_info;
 
     // https://fetch.spec.whatwg.org/#fetch-timing-info-server-timing-headers
     // server-timing headers (default « »)
@@ -119,6 +119,6 @@ private:
     bool m_render_blocking { false };
 };
 
-JS::NonnullGCPtr<FetchTimingInfo> create_opaque_timing_info(JS::VM&, FetchTimingInfo const& timing_info);
+GC::Ref<FetchTimingInfo> create_opaque_timing_info(JS::VM&, FetchTimingInfo const& timing_info);
 
 }

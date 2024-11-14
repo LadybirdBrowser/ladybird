@@ -15,14 +15,14 @@ class NavigableContainer : public HTMLElement {
     WEB_PLATFORM_OBJECT(NavigableContainer, HTMLElement);
 
 public:
-    static JS::GCPtr<NavigableContainer> navigable_container_with_content_navigable(JS::NonnullGCPtr<Navigable> navigable);
+    static GC::Ptr<NavigableContainer> navigable_container_with_content_navigable(GC::Ref<Navigable> navigable);
 
     virtual ~NavigableContainer() override;
 
     static HashTable<NavigableContainer*>& all_instances();
 
-    JS::GCPtr<Navigable> content_navigable() { return m_content_navigable; }
-    JS::GCPtr<Navigable const> content_navigable() const { return m_content_navigable.ptr(); }
+    GC::Ptr<Navigable> content_navigable() { return m_content_navigable; }
+    GC::Ptr<Navigable const> content_navigable() const { return m_content_navigable.ptr(); }
 
     const DOM::Document* content_document() const;
     DOM::Document const* content_document_without_origin_check() const;
@@ -51,10 +51,10 @@ protected:
     // https://html.spec.whatwg.org/multipage/iframe-embed-object.html#navigate-an-iframe-or-frame
     void navigate_an_iframe_or_frame(URL::URL url, ReferrerPolicy::ReferrerPolicy referrer_policy, Optional<String> srcdoc_string = {});
 
-    WebIDL::ExceptionOr<void> create_new_child_navigable(JS::GCPtr<JS::HeapFunction<void()>> after_session_history_update = {});
+    WebIDL::ExceptionOr<void> create_new_child_navigable(GC::Ptr<GC::Function<void()>> after_session_history_update = {});
 
     // https://html.spec.whatwg.org/multipage/document-sequences.html#content-navigable
-    JS::GCPtr<Navigable> m_content_navigable { nullptr };
+    GC::Ptr<Navigable> m_content_navigable { nullptr };
 
     void set_potentially_delays_the_load_event(bool value) { m_potentially_delays_the_load_event = value; }
 

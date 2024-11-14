@@ -73,7 +73,7 @@ HTML::HTMLCanvasElement const& WebGLRenderingContextBase::canvas_element() const
     return *m_canvas_element;
 }
 
-JS::NonnullGCPtr<HTML::HTMLCanvasElement> WebGLRenderingContextBase::canvas_for_binding() const
+GC::Ref<HTML::HTMLCanvasElement> WebGLRenderingContextBase::canvas_for_binding() const
 {
     return *m_canvas_element;
 }

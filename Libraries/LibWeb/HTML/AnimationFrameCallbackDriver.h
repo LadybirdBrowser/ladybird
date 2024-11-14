@@ -9,18 +9,18 @@
 #pragma once
 
 #include <AK/HashMap.h>
+#include <LibGC/Function.h>
+#include <LibGC/Ptr.h>
 #include <LibJS/Heap/Cell.h>
-#include <LibJS/Heap/GCPtr.h>
-#include <LibJS/Heap/HeapFunction.h>
 #include <LibWeb/WebIDL/Types.h>
 
 namespace Web::HTML {
 
 class AnimationFrameCallbackDriver final : public JS::Cell {
-    JS_CELL(AnimationFrameCallbackDriver, JS::Cell);
-    JS_DECLARE_ALLOCATOR(AnimationFrameCallbackDriver);
+    GC_CELL(AnimationFrameCallbackDriver, JS::Cell);
+    GC_DECLARE_ALLOCATOR(AnimationFrameCallbackDriver);
 
-    using Callback = JS::NonnullGCPtr<JS::HeapFunction<void(double)>>;
+    using Callback = GC::Ref<GC::Function<void(double)>>;
 
 public:
     [[nodiscard]] WebIDL::UnsignedLong add(Callback handler);

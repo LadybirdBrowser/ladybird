@@ -15,7 +15,7 @@
 
 namespace WebContent {
 
-JS_DEFINE_ALLOCATOR(ConsoleGlobalEnvironmentExtensions);
+GC_DEFINE_ALLOCATOR(ConsoleGlobalEnvironmentExtensions);
 
 ConsoleGlobalEnvironmentExtensions::ConsoleGlobalEnvironmentExtensions(JS::Realm& realm, Web::HTML::Window& window)
     : Object(realm, nullptr)

@@ -28,15 +28,15 @@ namespace Web::HTML {
 
 constexpr u8 IPC_FILE_TAG = 0xA5;
 
-JS_DEFINE_ALLOCATOR(MessagePort);
+GC_DEFINE_ALLOCATOR(MessagePort);
 
-static HashTable<JS::RawGCPtr<MessagePort>>& all_message_ports()
+static HashTable<GC::RawPtr<MessagePort>>& all_message_ports()
 {
-    static HashTable<JS::RawGCPtr<MessagePort>> ports;
+    static HashTable<GC::RawPtr<MessagePort>> ports;
     return ports;
 }
 
-JS::NonnullGCPtr<MessagePort> MessagePort::create(JS::Realm& realm)
+GC::Ref<MessagePort> MessagePort::create(JS::Realm& realm)
 {
     return realm.create<MessagePort>(realm);
 }
@@ -77,7 +77,7 @@ bool MessagePort::is_entangled() const
     return m_transport.has_value();
 }
 
-void MessagePort::set_worker_event_target(JS::NonnullGCPtr<DOM::EventTarget> target)
+void MessagePort::set_worker_event_target(GC::Ref<DOM::EventTarget> target)
 {
     m_worker_event_target = target;
 }
@@ -132,7 +132,7 @@ WebIDL::ExceptionOr<void> MessagePort::transfer_receiving_steps(HTML::TransferDa
             auto fd = data_holder.fds.take_first();
             m_transport = IPC::Transport(MUST(Core::LocalSocket::adopt_fd(fd.take_fd())));
 
-            m_transport->set_up_read_hook([strong_this = JS::make_handle(this)]() {
+            m_transport->set_up_read_hook([strong_this = GC::make_root(this)]() {
                 strong_this->read_from_transport();
             });
         } else {
@@ -192,20 +192,20 @@ void MessagePort::entangle_with(MessagePort& remote_port)
     m_transport = IPC::Transport(move(sockets[0]));
     m_remote_port->m_transport = IPC::Transport(move(sockets[1]));
 
-    m_transport->set_up_read_hook([strong_this = JS::make_handle(this)]() {
+    m_transport->set_up_read_hook([strong_this = GC::make_root(this)]() {
         strong_this->read_from_transport();
     });
 
-    m_remote_port->m_transport->set_up_read_hook([remote_port = JS::make_handle(m_remote_port)]() {
+    m_remote_port->m_transport->set_up_read_hook([remote_port = GC::make_root(m_remote_port)]() {
         remote_port->read_from_transport();
     });
 }
 
 // https://html.spec.whatwg.org/multipage/web-messaging.html#dom-messageport-postmessage-options
-WebIDL::ExceptionOr<void> MessagePort::post_message(JS::Value message, Vector<JS::Handle<JS::Object>> const& transfer)
+WebIDL::ExceptionOr<void> MessagePort::post_message(JS::Value message, Vector<GC::Root<JS::Object>> const& transfer)
 {
     // 1. Let targetPort be the port with which this MessagePort is entangled, if any; otherwise let it be null.
-    JS::GCPtr<MessagePort> target_port = m_remote_port;
+    GC::Ptr<MessagePort> target_port = m_remote_port;
 
     // 2. Let options be «[ "transfer" → transfer ]».
     auto options = StructuredSerializeOptions { transfer };
@@ -218,14 +218,14 @@ WebIDL::ExceptionOr<void> MessagePort::post_message(JS::Value message, Vector<JS
 WebIDL::ExceptionOr<void> MessagePort::post_message(JS::Value message, StructuredSerializeOptions const& options)
 {
     // 1. Let targetPort be the port with which this MessagePort is entangled, if any; otherwise let it be null.
-    JS::GCPtr<MessagePort> target_port = m_remote_port;
+    GC::Ptr<MessagePort> target_port = m_remote_port;
 
     // 2. Run the message port post message steps providing targetPort, message and options.
     return message_port_post_message_steps(target_port, message, options);
 }
 
 // https://html.spec.whatwg.org/multipage/web-messaging.html#message-port-post-message-steps
-WebIDL::ExceptionOr<void> MessagePort::message_port_post_message_steps(JS::GCPtr<MessagePort> target_port, JS::Value message, StructuredSerializeOptions const& options)
+WebIDL::ExceptionOr<void> MessagePort::message_port_post_message_steps(GC::Ptr<MessagePort> target_port, JS::Value message, StructuredSerializeOptions const& options)
 {
     auto& realm = this->realm();
     auto& vm = this->vm();
@@ -323,7 +323,7 @@ ErrorOr<MessagePort::ParseDecision> MessagePort::parse_message()
 
         // Note: this is step 7 of message_port_post_message_steps:
         // 7. Add a task that runs the following steps to the port message queue of targetPort:
-        queue_global_task(Task::Source::PostedMessage, relevant_global_object(*this), JS::create_heap_function(heap(), [this, serialized_transfer_record = move(serialized_transfer_record)]() mutable {
+        queue_global_task(Task::Source::PostedMessage, relevant_global_object(*this), GC::create_function(heap(), [this, serialized_transfer_record = move(serialized_transfer_record)]() mutable {
             this->post_message_task_steps(serialized_transfer_record);
         }));
 
@@ -339,7 +339,7 @@ ErrorOr<MessagePort::ParseDecision> MessagePort::parse_message()
 void MessagePort::read_from_transport()
 {
     auto&& [bytes, fds] = m_transport->read_as_much_as_possible_without_blocking([this] {
-        queue_global_task(Task::Source::PostedMessage, relevant_global_object(*this), JS::create_heap_function(heap(), [this] {
+        queue_global_task(Task::Source::PostedMessage, relevant_global_object(*this), GC::create_function(heap(), [this] {
             this->close();
         }));
     });
@@ -397,7 +397,7 @@ void MessagePort::post_message_task_steps(SerializedTransferRecord& serialize_wi
 
     // 5. Let newPorts be a new frozen array consisting of all MessagePort objects in deserializeRecord.[[TransferredValues]], if any, maintaining their relative order.
     // FIXME: Use a FrozenArray
-    Vector<JS::Handle<MessagePort>> new_ports;
+    Vector<GC::Root<MessagePort>> new_ports;
     for (auto const& object : deserialize_record.transferred_values) {
         if (is<HTML::MessagePort>(*object)) {
             new_ports.append(verify_cast<MessagePort>(*object));

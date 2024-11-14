@@ -11,9 +11,9 @@
 
 namespace Web::HTML {
 
-JS_DEFINE_ALLOCATOR(TextTrack);
+GC_DEFINE_ALLOCATOR(TextTrack);
 
-JS::NonnullGCPtr<TextTrack> TextTrack::create(JS::Realm& realm)
+GC::Ref<TextTrack> TextTrack::create(JS::Realm& realm)
 {
     return realm.create<TextTrack>(realm);
 }

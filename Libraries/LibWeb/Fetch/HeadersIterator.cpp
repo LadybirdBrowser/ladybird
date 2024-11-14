@@ -23,9 +23,9 @@ void Intrinsics::create_web_prototype_and_constructor<HeadersIteratorPrototype>(
 
 namespace Web::Fetch {
 
-JS_DEFINE_ALLOCATOR(HeadersIterator);
+GC_DEFINE_ALLOCATOR(HeadersIterator);
 
-JS::NonnullGCPtr<HeadersIterator> HeadersIterator::create(Headers const& headers, JS::Object::PropertyKind iteration_kind)
+GC::Ref<HeadersIterator> HeadersIterator::create(Headers const& headers, JS::Object::PropertyKind iteration_kind)
 {
     return headers.realm().create<HeadersIterator>(headers, iteration_kind);
 }
@@ -52,7 +52,7 @@ void HeadersIterator::visit_edges(JS::Cell::Visitor& visitor)
 }
 
 // https://webidl.spec.whatwg.org/#es-iterable, Step 2
-JS::NonnullGCPtr<JS::Object> HeadersIterator::next()
+GC::Ref<JS::Object> HeadersIterator::next()
 {
     // The value pairs to iterate over are the return value of running sort and combine with this’s header list.
     auto value_pairs_to_iterate_over = [&]() {

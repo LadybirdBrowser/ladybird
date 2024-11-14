@@ -35,10 +35,10 @@
 
 namespace Web::CSS::Parser {
 
-JS::GCPtr<CSSRule> Parser::convert_to_rule(Rule const& rule, Nested nested)
+GC::Ptr<CSSRule> Parser::convert_to_rule(Rule const& rule, Nested nested)
 {
     return rule.visit(
-        [this, nested](AtRule const& at_rule) -> JS::GCPtr<CSSRule> {
+        [this, nested](AtRule const& at_rule) -> GC::Ptr<CSSRule> {
             if (has_ignored_vendor_prefix(at_rule.name))
                 return {};
 
@@ -70,12 +70,12 @@ JS::GCPtr<CSSRule> Parser::convert_to_rule(Rule const& rule, Nested nested)
             dbgln_if(CSS_PARSER_DEBUG, "Unrecognized CSS at-rule: @{}", at_rule.name);
             return {};
         },
-        [this, nested](QualifiedRule const& qualified_rule) -> JS::GCPtr<CSSRule> {
+        [this, nested](QualifiedRule const& qualified_rule) -> GC::Ptr<CSSRule> {
             return convert_to_style_rule(qualified_rule, nested);
         });
 }
 
-JS::GCPtr<CSSStyleRule> Parser::convert_to_style_rule(QualifiedRule const& qualified_rule, Nested nested)
+GC::Ptr<CSSStyleRule> Parser::convert_to_style_rule(QualifiedRule const& qualified_rule, Nested nested)
 {
     TokenStream prelude_stream { qualified_rule.prelude };
 
@@ -107,7 +107,7 @@ JS::GCPtr<CSSStyleRule> Parser::convert_to_style_rule(QualifiedRule const& quali
         return {};
     }
 
-    JS::MarkedVector<CSSRule*> child_rules { m_context.realm().heap() };
+    GC::MarkedVector<CSSRule*> child_rules { m_context.realm().heap() };
     for (auto& child : qualified_rule.child_rules) {
         child.visit(
             [&](Rule const& rule) {
@@ -135,7 +135,7 @@ JS::GCPtr<CSSStyleRule> Parser::convert_to_style_rule(QualifiedRule const& quali
     return CSSStyleRule::create(m_context.realm(), move(selectors), *declaration, *nested_rules);
 }
 
-JS::GCPtr<CSSImportRule> Parser::convert_to_import_rule(AtRule const& rule)
+GC::Ptr<CSSImportRule> Parser::convert_to_import_rule(AtRule const& rule)
 {
     // https://drafts.csswg.org/css-cascade-5/#at-import
     // @import [ <url> | <string> ]
@@ -220,7 +220,7 @@ Optional<FlyString> Parser::parse_layer_name(TokenStream<ComponentValue>& tokens
     return builder.to_fly_string_without_validation();
 }
 
-JS::GCPtr<CSSRule> Parser::convert_to_layer_rule(AtRule const& rule, Nested nested)
+GC::Ptr<CSSRule> Parser::convert_to_layer_rule(AtRule const& rule, Nested nested)
 {
     // https://drafts.csswg.org/css-cascade-5/#at-layer
     if (!rule.child_rules_and_lists_of_declarations.is_empty()) {
@@ -246,7 +246,7 @@ JS::GCPtr<CSSRule> Parser::convert_to_layer_rule(AtRule const& rule, Nested nest
         }
 
         // Then the rules
-        JS::MarkedVector<CSSRule*> child_rules { m_context.realm().heap() };
+        GC::MarkedVector<CSSRule*> child_rules { m_context.realm().heap() };
         for (auto const& child : rule.child_rules_and_lists_of_declarations) {
             child.visit(
                 [&](Rule const& rule) {
@@ -298,7 +298,7 @@ JS::GCPtr<CSSRule> Parser::convert_to_layer_rule(AtRule const& rule, Nested nest
     return CSSLayerStatementRule::create(m_context.realm(), move(layer_names));
 }
 
-JS::GCPtr<CSSKeyframesRule> Parser::convert_to_keyframes_rule(AtRule const& rule)
+GC::Ptr<CSSKeyframesRule> Parser::convert_to_keyframes_rule(AtRule const& rule)
 {
     // https://drafts.csswg.org/css-animations/#keyframes
     // @keyframes = @keyframes <keyframes-name> { <qualified-rule-list> }
@@ -341,7 +341,7 @@ JS::GCPtr<CSSKeyframesRule> Parser::convert_to_keyframes_rule(AtRule const& rule
 
     auto name = name_token.to_string();
 
-    JS::MarkedVector<CSSRule*> keyframes(m_context.realm().heap());
+    GC::MarkedVector<CSSRule*> keyframes(m_context.realm().heap());
     rule.for_each_as_qualified_rule_list([&](auto& qualified_rule) {
         if (!qualified_rule.child_rules.is_empty()) {
             dbgln_if(CSS_PARSER_DEBUG, "CSSParser: @keyframes keyframe rule contains at-rules; discarding them.");
@@ -399,7 +399,7 @@ JS::GCPtr<CSSKeyframesRule> Parser::convert_to_keyframes_rule(AtRule const& rule
     return CSSKeyframesRule::create(m_context.realm(), name, CSSRuleList::create(m_context.realm(), move(keyframes)));
 }
 
-JS::GCPtr<CSSNamespaceRule> Parser::convert_to_namespace_rule(AtRule const& rule)
+GC::Ptr<CSSNamespaceRule> Parser::convert_to_namespace_rule(AtRule const& rule)
 {
     // https://drafts.csswg.org/css-namespaces/#syntax
     // @namespace <namespace-prefix>? [ <string> | <url> ] ;
@@ -446,7 +446,7 @@ JS::GCPtr<CSSNamespaceRule> Parser::convert_to_namespace_rule(AtRule const& rule
     return CSSNamespaceRule::create(m_context.realm(), prefix, namespace_uri);
 }
 
-JS::GCPtr<CSSSupportsRule> Parser::convert_to_supports_rule(AtRule const& rule, Nested nested)
+GC::Ptr<CSSSupportsRule> Parser::convert_to_supports_rule(AtRule const& rule, Nested nested)
 {
     // https://drafts.csswg.org/css-conditional-3/#at-supports
     // @supports <supports-condition> {
@@ -468,7 +468,7 @@ JS::GCPtr<CSSSupportsRule> Parser::convert_to_supports_rule(AtRule const& rule, 
         return {};
     }
 
-    JS::MarkedVector<CSSRule*> child_rules { m_context.realm().heap() };
+    GC::MarkedVector<CSSRule*> child_rules { m_context.realm().heap() };
     for (auto const& child : rule.child_rules_and_lists_of_declarations) {
         child.visit(
             [&](Rule const& rule) {
@@ -489,7 +489,7 @@ JS::GCPtr<CSSSupportsRule> Parser::convert_to_supports_rule(AtRule const& rule, 
     return CSSSupportsRule::create(m_context.realm(), supports.release_nonnull(), rule_list);
 }
 
-JS::GCPtr<CSSPropertyRule> Parser::convert_to_property_rule(AtRule const& rule)
+GC::Ptr<CSSPropertyRule> Parser::convert_to_property_rule(AtRule const& rule)
 {
     // https://drafts.css-houdini.org/css-properties-values-api-1/#at-ruledef-property
     // @property <custom-property-name> {
@@ -586,7 +586,7 @@ JS::GCPtr<CSSPropertyRule> Parser::convert_to_property_rule(AtRule const& rule)
     return {};
 }
 
-JS::GCPtr<CSSFontFaceRule> Parser::convert_to_font_face_rule(AtRule const& rule)
+GC::Ptr<CSSFontFaceRule> Parser::convert_to_font_face_rule(AtRule const& rule)
 {
     // https://drafts.csswg.org/css-fonts/#font-face-rule
 

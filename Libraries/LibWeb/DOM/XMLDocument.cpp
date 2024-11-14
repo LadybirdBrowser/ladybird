@@ -9,9 +9,9 @@
 
 namespace Web::DOM {
 
-JS_DEFINE_ALLOCATOR(XMLDocument);
+GC_DEFINE_ALLOCATOR(XMLDocument);
 
-JS::NonnullGCPtr<XMLDocument> XMLDocument::create(JS::Realm& realm, URL::URL const& url)
+GC::Ref<XMLDocument> XMLDocument::create(JS::Realm& realm, URL::URL const& url)
 {
     return realm.create<XMLDocument>(realm, url);
 }

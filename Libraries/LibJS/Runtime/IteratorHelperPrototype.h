@@ -13,7 +13,7 @@ namespace JS {
 
 class IteratorHelperPrototype final : public PrototypeObject<IteratorHelperPrototype, IteratorHelper> {
     JS_PROTOTYPE_OBJECT(IteratorHelperPrototype, IteratorHelper, IteratorHelper);
-    JS_DECLARE_ALLOCATOR(IteratorHelperPrototype);
+    GC_DECLARE_ALLOCATOR(IteratorHelperPrototype);
 
 public:
     virtual void initialize(Realm&) override;

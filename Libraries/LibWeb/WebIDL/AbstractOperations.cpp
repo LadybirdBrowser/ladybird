@@ -131,7 +131,7 @@ inline JS::Completion clean_up_on_return(JS::Realm& stored_realm, JS::Realm& rel
 
 // https://webidl.spec.whatwg.org/#call-a-user-objects-operation
 // https://whatpr.org/webidl/1437.html#call-a-user-objects-operation
-JS::Completion call_user_object_operation(WebIDL::CallbackType& callback, String const& operation_name, Optional<JS::Value> this_argument, JS::MarkedVector<JS::Value> args)
+JS::Completion call_user_object_operation(WebIDL::CallbackType& callback, String const& operation_name, Optional<JS::Value> this_argument, GC::MarkedVector<JS::Value> args)
 {
     // 1. Let completion be an uninitialized variable.
     JS::Completion completion;
@@ -207,7 +207,7 @@ JS::Completion call_user_object_operation(WebIDL::CallbackType& callback, String
 
 // https://webidl.spec.whatwg.org/#invoke-a-callback-function
 // https://whatpr.org/webidl/1437.html#invoke-a-callback-function
-JS::Completion invoke_callback(WebIDL::CallbackType& callback, Optional<JS::Value> this_argument, JS::MarkedVector<JS::Value> args)
+JS::Completion invoke_callback(WebIDL::CallbackType& callback, Optional<JS::Value> this_argument, GC::MarkedVector<JS::Value> args)
 {
     // 1. Let completion be an uninitialized variable.
     JS::Completion completion;
@@ -261,7 +261,7 @@ JS::Completion invoke_callback(WebIDL::CallbackType& callback, Optional<JS::Valu
     return clean_up_on_return(stored_realm, relevant_realm, completion, callback.operation_returns_promise);
 }
 
-JS::Completion construct(WebIDL::CallbackType& callback, JS::MarkedVector<JS::Value> args)
+JS::Completion construct(WebIDL::CallbackType& callback, GC::MarkedVector<JS::Value> args)
 {
     // 1. Let completion be an uninitialized variable.
     JS::Completion completion;

@@ -15,7 +15,7 @@ namespace Web::Internals {
 
 class Internals final : public Bindings::PlatformObject {
     WEB_PLATFORM_OBJECT(Internals, Bindings::PlatformObject);
-    JS_DECLARE_ALLOCATOR(Internals);
+    GC_DECLARE_ALLOCATOR(Internals);
 
 public:
     virtual ~Internals() override;
@@ -39,7 +39,7 @@ public:
 
     void spoof_current_url(String const& url);
 
-    JS::NonnullGCPtr<InternalAnimationTimeline> create_internal_animation_timeline();
+    GC::Ref<InternalAnimationTimeline> create_internal_animation_timeline();
 
     void simulate_drag_start(double x, double y, String const& name, String const& contents);
     void simulate_drag_move(double x, double y);

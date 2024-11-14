@@ -11,9 +11,9 @@
 
 namespace Web::CSS {
 
-JS_DEFINE_ALLOCATOR(CSSLayerStatementRule);
+GC_DEFINE_ALLOCATOR(CSSLayerStatementRule);
 
-JS::NonnullGCPtr<CSSLayerStatementRule> CSSLayerStatementRule::create(JS::Realm& realm, Vector<FlyString> name_list)
+GC::Ref<CSSLayerStatementRule> CSSLayerStatementRule::create(JS::Realm& realm, Vector<FlyString> name_list)
 {
     return realm.create<CSSLayerStatementRule>(realm, move(name_list));
 }

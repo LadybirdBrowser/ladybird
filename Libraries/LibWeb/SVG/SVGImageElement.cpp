@@ -6,7 +6,7 @@
 
 #include "SVGImageElement.h"
 #include <LibCore/Timer.h>
-#include <LibJS/Heap/Heap.h>
+#include <LibGC/Heap.h>
 #include <LibWeb/Bindings/SVGImageElementPrototype.h>
 #include <LibWeb/DOM/DocumentObserver.h>
 #include <LibWeb/DOM/Event.h>
@@ -64,7 +64,7 @@ void SVGImageElement::attribute_changed(FlyString const& name, Optional<String> 
 }
 
 // https://svgwg.org/svg2-draft/embedded.html#__svg__SVGImageElement__x
-JS::NonnullGCPtr<SVG::SVGAnimatedLength> SVGImageElement::x()
+GC::Ref<SVG::SVGAnimatedLength> SVGImageElement::x()
 {
     if (!m_x) {
         auto& realm = this->realm();
@@ -75,7 +75,7 @@ JS::NonnullGCPtr<SVG::SVGAnimatedLength> SVGImageElement::x()
 }
 
 // https://svgwg.org/svg2-draft/embedded.html#__svg__SVGImageElement__y
-JS::NonnullGCPtr<SVG::SVGAnimatedLength> SVGImageElement::y()
+GC::Ref<SVG::SVGAnimatedLength> SVGImageElement::y()
 {
     if (!m_y) {
         auto& realm = this->realm();
@@ -86,7 +86,7 @@ JS::NonnullGCPtr<SVG::SVGAnimatedLength> SVGImageElement::y()
 }
 
 // https://svgwg.org/svg2-draft/embedded.html#__svg__SVGImageElement__width
-JS::NonnullGCPtr<SVG::SVGAnimatedLength> SVGImageElement::width()
+GC::Ref<SVG::SVGAnimatedLength> SVGImageElement::width()
 {
     if (!m_width) {
         auto& realm = this->realm();
@@ -97,7 +97,7 @@ JS::NonnullGCPtr<SVG::SVGAnimatedLength> SVGImageElement::width()
 }
 
 // https://svgwg.org/svg2-draft/embedded.html#__svg__SVGImageElement__height
-JS::NonnullGCPtr<SVG::SVGAnimatedLength> SVGImageElement::height()
+GC::Ref<SVG::SVGAnimatedLength> SVGImageElement::height()
 {
     if (!m_height) {
         auto& realm = this->realm();
@@ -179,7 +179,7 @@ void SVGImageElement::fetch_the_document(URL::URL const& url)
     }
 }
 
-JS::GCPtr<Layout::Node> SVGImageElement::create_layout_node(CSS::StyleProperties style)
+GC::Ptr<Layout::Node> SVGImageElement::create_layout_node(CSS::StyleProperties style)
 {
     return heap().allocate<Layout::SVGImageBox>(document(), *this, move(style));
 }

@@ -14,10 +14,10 @@
 
 namespace Web::Streams {
 
-JS_DEFINE_ALLOCATOR(ReadableStreamBYOBRequest);
+GC_DEFINE_ALLOCATOR(ReadableStreamBYOBRequest);
 
 // https://streams.spec.whatwg.org/#rs-byob-request-view
-JS::GCPtr<WebIDL::ArrayBufferView> ReadableStreamBYOBRequest::view()
+GC::Ptr<WebIDL::ArrayBufferView> ReadableStreamBYOBRequest::view()
 {
     // 1. Return this.[[view]].
     return m_view;
@@ -63,7 +63,7 @@ WebIDL::ExceptionOr<void> ReadableStreamBYOBRequest::respond(WebIDL::UnsignedLon
 }
 
 // https://streams.spec.whatwg.org/#rs-byob-request-respond-with-new-view
-WebIDL::ExceptionOr<void> ReadableStreamBYOBRequest::respond_with_new_view(JS::Handle<WebIDL::ArrayBufferView> const& view)
+WebIDL::ExceptionOr<void> ReadableStreamBYOBRequest::respond_with_new_view(GC::Root<WebIDL::ArrayBufferView> const& view)
 {
     auto& realm = this->realm();
 

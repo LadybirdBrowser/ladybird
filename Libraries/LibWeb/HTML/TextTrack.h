@@ -7,8 +7,8 @@
 #pragma once
 
 #include <AK/String.h>
+#include <LibGC/Ptr.h>
 #include <LibJS/Forward.h>
-#include <LibJS/Heap/GCPtr.h>
 #include <LibWeb/Bindings/TextTrackPrototype.h>
 #include <LibWeb/DOM/EventTarget.h>
 #include <LibWeb/Forward.h>
@@ -18,7 +18,7 @@ namespace Web::HTML {
 
 class TextTrack final : public DOM::EventTarget {
     WEB_PLATFORM_OBJECT(TextTrack, DOM::EventTarget);
-    JS_DECLARE_ALLOCATOR(TextTrack);
+    GC_DECLARE_ALLOCATOR(TextTrack);
 
 public:
     // https://html.spec.whatwg.org/multipage/media.html#text-track-readiness-state
@@ -29,7 +29,7 @@ public:
         FailedToLoad,
     };
 
-    static JS::NonnullGCPtr<TextTrack> create(JS::Realm&);
+    static GC::Ref<TextTrack> create(JS::Realm&);
     virtual ~TextTrack() override;
 
     Bindings::TextTrackKind kind();

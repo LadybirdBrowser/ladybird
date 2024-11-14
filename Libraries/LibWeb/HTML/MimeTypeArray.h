@@ -13,14 +13,14 @@ namespace Web::HTML {
 // https://html.spec.whatwg.org/multipage/system-state.html#mimetypearray
 class MimeTypeArray : public Bindings::PlatformObject {
     WEB_PLATFORM_OBJECT(MimeTypeArray, Bindings::PlatformObject);
-    JS_DECLARE_ALLOCATOR(MimeTypeArray);
+    GC_DECLARE_ALLOCATOR(MimeTypeArray);
 
 public:
     virtual ~MimeTypeArray() override;
 
     size_t length() const;
-    JS::GCPtr<MimeType> item(u32 index) const;
-    JS::GCPtr<MimeType> named_item(FlyString const& name) const;
+    GC::Ptr<MimeType> item(u32 index) const;
+    GC::Ptr<MimeType> named_item(FlyString const& name) const;
 
 private:
     MimeTypeArray(JS::Realm&);

@@ -11,7 +11,7 @@
 namespace Web::WebDriver {
 
 // https://w3c.github.io/webdriver/#dfn-browsing-context-input-state-map
-static HashMap<JS::RawGCPtr<HTML::BrowsingContext>, InputState> s_browsing_context_input_state_map;
+static HashMap<GC::RawPtr<HTML::BrowsingContext>, InputState> s_browsing_context_input_state_map;
 
 InputState::InputState() = default;
 InputState::~InputState() = default;

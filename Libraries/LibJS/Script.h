@@ -7,8 +7,8 @@
 #pragma once
 
 #include <AK/NonnullRefPtr.h>
-#include <LibJS/Heap/GCPtr.h>
-#include <LibJS/Heap/Handle.h>
+#include <LibGC/Ptr.h>
+#include <LibGC/Root.h>
 #include <LibJS/ParserError.h>
 #include <LibJS/Runtime/Realm.h>
 
@@ -16,8 +16,8 @@ namespace JS {
 
 // 16.1.4 Script Records, https://tc39.es/ecma262/#sec-script-records
 class Script final : public Cell {
-    JS_CELL(Script, Cell);
-    JS_DECLARE_ALLOCATOR(Script);
+    GC_CELL(Script, Cell);
+    GC_DECLARE_ALLOCATOR(Script);
 
 public:
     struct HostDefined {
@@ -27,7 +27,7 @@ public:
     };
 
     virtual ~Script() override;
-    static Result<NonnullGCPtr<Script>, Vector<ParserError>> parse(StringView source_text, Realm&, StringView filename = {}, HostDefined* = nullptr, size_t line_number_offset = 1);
+    static Result<GC::Ref<Script>, Vector<ParserError>> parse(StringView source_text, Realm&, StringView filename = {}, HostDefined* = nullptr, size_t line_number_offset = 1);
 
     Realm& realm() { return *m_realm; }
     Program const& parse_node() const { return *m_parse_node; }
@@ -42,7 +42,7 @@ private:
 
     virtual void visit_edges(Cell::Visitor&) override;
 
-    GCPtr<Realm> m_realm;                         // [[Realm]]
+    GC::Ptr<Realm> m_realm;                       // [[Realm]]
     NonnullRefPtr<Program> m_parse_node;          // [[ECMAScriptCode]]
     Vector<ModuleWithSpecifier> m_loaded_modules; // [[LoadedModules]]
 

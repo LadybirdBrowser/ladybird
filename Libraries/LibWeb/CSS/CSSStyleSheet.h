@@ -22,22 +22,22 @@ class FontLoader;
 
 struct CSSStyleSheetInit {
     Optional<String> base_url {};
-    Variant<JS::Handle<MediaList>, String> media { String {} };
+    Variant<GC::Root<MediaList>, String> media { String {} };
     bool disabled { false };
 };
 
 class CSSStyleSheet final : public StyleSheet {
     WEB_PLATFORM_OBJECT(CSSStyleSheet, StyleSheet);
-    JS_DECLARE_ALLOCATOR(CSSStyleSheet);
+    GC_DECLARE_ALLOCATOR(CSSStyleSheet);
 
 public:
-    [[nodiscard]] static JS::NonnullGCPtr<CSSStyleSheet> create(JS::Realm&, CSSRuleList&, MediaList&, Optional<URL::URL> location);
-    static WebIDL::ExceptionOr<JS::NonnullGCPtr<CSSStyleSheet>> construct_impl(JS::Realm&, Optional<CSSStyleSheetInit> const& options = {});
+    [[nodiscard]] static GC::Ref<CSSStyleSheet> create(JS::Realm&, CSSRuleList&, MediaList&, Optional<URL::URL> location);
+    static WebIDL::ExceptionOr<GC::Ref<CSSStyleSheet>> construct_impl(JS::Realm&, Optional<CSSStyleSheetInit> const& options = {});
 
     virtual ~CSSStyleSheet() override = default;
 
-    JS::GCPtr<CSSRule const> owner_rule() const { return m_owner_css_rule; }
-    JS::GCPtr<CSSRule> owner_rule() { return m_owner_css_rule; }
+    GC::Ptr<CSSRule const> owner_rule() const { return m_owner_css_rule; }
+    GC::Ptr<CSSRule> owner_rule() { return m_owner_css_rule; }
     void set_owner_css_rule(CSSRule* rule) { m_owner_css_rule = rule; }
 
     virtual String type() const override { return "text/css"_string; }
@@ -53,7 +53,7 @@ public:
     WebIDL::ExceptionOr<void> remove_rule(Optional<WebIDL::UnsignedLong> index);
     WebIDL::ExceptionOr<void> delete_rule(unsigned index);
 
-    JS::NonnullGCPtr<WebIDL::Promise> replace(String text);
+    GC::Ref<WebIDL::Promise> replace(String text);
     WebIDL::ExceptionOr<void> replace_sync(StringView text);
 
     void for_each_effective_rule(TraversalOrder, Function<void(CSSRule const&)> const& callback) const;
@@ -62,23 +62,23 @@ public:
     bool evaluate_media_queries(HTML::Window const&);
     void for_each_effective_keyframes_at_rule(Function<void(CSSKeyframesRule const&)> const& callback) const;
 
-    JS::GCPtr<StyleSheetList> style_sheet_list() const { return m_style_sheet_list; }
+    GC::Ptr<StyleSheetList> style_sheet_list() const { return m_style_sheet_list; }
     void set_style_sheet_list(Badge<StyleSheetList>, StyleSheetList*);
 
     Optional<FlyString> default_namespace() const;
-    JS::GCPtr<CSSNamespaceRule> default_namespace_rule() const { return m_default_namespace_rule; }
+    GC::Ptr<CSSNamespaceRule> default_namespace_rule() const { return m_default_namespace_rule; }
 
     Optional<FlyString> namespace_uri(StringView namespace_prefix) const;
 
-    Vector<JS::NonnullGCPtr<CSSImportRule>> const& import_rules() const { return m_import_rules; }
+    Vector<GC::Ref<CSSImportRule>> const& import_rules() const { return m_import_rules; }
 
     Optional<URL::URL> base_url() const { return m_base_url; }
     void set_base_url(Optional<URL::URL> base_url) { m_base_url = move(base_url); }
 
     bool constructed() const { return m_constructed; }
 
-    JS::GCPtr<DOM::Document const> constructor_document() const { return m_constructor_document; }
-    void set_constructor_document(JS::GCPtr<DOM::Document const> constructor_document) { m_constructor_document = constructor_document; }
+    GC::Ptr<DOM::Document const> constructor_document() const { return m_constructor_document; }
+    void set_constructor_document(GC::Ptr<DOM::Document const> constructor_document) { m_constructor_document = constructor_document; }
 
     bool disallow_modification() const { return m_disallow_modification; }
 
@@ -104,16 +104,16 @@ private:
 
     Optional<String> m_source_text;
 
-    JS::GCPtr<CSSRuleList> m_rules;
-    JS::GCPtr<CSSNamespaceRule> m_default_namespace_rule;
-    HashMap<FlyString, JS::GCPtr<CSSNamespaceRule>> m_namespace_rules;
-    Vector<JS::NonnullGCPtr<CSSImportRule>> m_import_rules;
+    GC::Ptr<CSSRuleList> m_rules;
+    GC::Ptr<CSSNamespaceRule> m_default_namespace_rule;
+    HashMap<FlyString, GC::Ptr<CSSNamespaceRule>> m_namespace_rules;
+    Vector<GC::Ref<CSSImportRule>> m_import_rules;
 
-    JS::GCPtr<StyleSheetList> m_style_sheet_list;
-    JS::GCPtr<CSSRule> m_owner_css_rule;
+    GC::Ptr<StyleSheetList> m_style_sheet_list;
+    GC::Ptr<CSSRule> m_owner_css_rule;
 
     Optional<URL::URL> m_base_url;
-    JS::GCPtr<DOM::Document const> m_constructor_document;
+    GC::Ptr<DOM::Document const> m_constructor_document;
     bool m_constructed { false };
     bool m_disallow_modification { false };
     Optional<bool> m_did_match;

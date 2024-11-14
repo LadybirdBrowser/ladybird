@@ -20,7 +20,7 @@
 
 namespace JS::Temporal {
 
-JS_DEFINE_ALLOCATOR(ZonedDateTimePrototype);
+GC_DEFINE_ALLOCATOR(ZonedDateTimePrototype);
 
 // 6.3 Properties of the Temporal.ZonedDateTime Prototype Object, https://tc39.es/proposal-temporal/#sec-properties-of-the-temporal-zoneddatetime-prototype-object
 ZonedDateTimePrototype::ZonedDateTimePrototype(Realm& realm)
@@ -676,7 +676,7 @@ JS_DEFINE_NATIVE_FUNCTION(ZonedDateTimePrototype::offset_nanoseconds_getter)
 
     // 3. Let timeZone be zonedDateTime.[[TimeZone]].
     // 3. Let timeZoneRec be ? CreateTimeZoneMethodsRecord(zonedDateTime.[[TimeZone]], « GET-OFFSET-NANOSECONDS-FOR »).
-    auto time_zone_record = TRY(create_time_zone_methods_record(vm, NonnullGCPtr<Object> { zoned_date_time->time_zone() }, { { TimeZoneMethod::GetOffsetNanosecondsFor } }));
+    auto time_zone_record = TRY(create_time_zone_methods_record(vm, GC::Ref<Object> { zoned_date_time->time_zone() }, { { TimeZoneMethod::GetOffsetNanosecondsFor } }));
 
     // 4. Let instant be ! CreateTemporalInstant(zonedDateTime.[[Nanoseconds]]).
     auto* instant = MUST(create_temporal_instant(vm, zoned_date_time->nanoseconds()));
@@ -1045,7 +1045,7 @@ JS_DEFINE_NATIVE_FUNCTION(ZonedDateTimePrototype::round)
     // 12. Let timeZone be zonedDateTime.[[TimeZone]].
     auto& time_zone = zoned_date_time->time_zone();
 
-    auto time_zone_record = TRY(create_time_zone_methods_record(vm, NonnullGCPtr<Object> { time_zone }, { { TimeZoneMethod::GetOffsetNanosecondsFor } }));
+    auto time_zone_record = TRY(create_time_zone_methods_record(vm, GC::Ref<Object> { time_zone }, { { TimeZoneMethod::GetOffsetNanosecondsFor } }));
 
     // 13. Let instant be ! CreateTemporalInstant(zonedDateTime.[[Nanoseconds]]).
     auto* instant = MUST(create_temporal_instant(vm, zoned_date_time->nanoseconds()));

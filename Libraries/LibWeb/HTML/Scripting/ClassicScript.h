@@ -14,8 +14,8 @@ namespace Web::HTML {
 
 // https://html.spec.whatwg.org/multipage/webappapis.html#classic-script
 class ClassicScript final : public Script {
-    JS_CELL(ClassicScript, Script);
-    JS_DECLARE_ALLOCATOR(ClassicScript);
+    GC_CELL(ClassicScript, Script);
+    GC_DECLARE_ALLOCATOR(ClassicScript);
 
 public:
     virtual ~ClassicScript() override;
@@ -24,7 +24,7 @@ public:
         No,
         Yes,
     };
-    static JS::NonnullGCPtr<ClassicScript> create(ByteString filename, StringView source, JS::Realm&, URL::URL base_url, size_t source_line_number = 1, MutedErrors = MutedErrors::No);
+    static GC::Ref<ClassicScript> create(ByteString filename, StringView source, JS::Realm&, URL::URL base_url, size_t source_line_number = 1, MutedErrors = MutedErrors::No);
 
     JS::Script* script_record() { return m_script_record; }
     JS::Script const* script_record() const { return m_script_record; }
@@ -33,7 +33,7 @@ public:
         No,
         Yes,
     };
-    JS::Completion run(RethrowErrors = RethrowErrors::No, JS::GCPtr<JS::Environment> lexical_environment_override = {});
+    JS::Completion run(RethrowErrors = RethrowErrors::No, GC::Ptr<JS::Environment> lexical_environment_override = {});
 
     MutedErrors muted_errors() const { return m_muted_errors; }
 
@@ -42,7 +42,7 @@ private:
 
     virtual void visit_edges(Cell::Visitor&) override;
 
-    JS::GCPtr<JS::Script> m_script_record;
+    GC::Ptr<JS::Script> m_script_record;
     MutedErrors m_muted_errors { MutedErrors::No };
 };
 

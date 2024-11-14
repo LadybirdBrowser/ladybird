@@ -14,9 +14,9 @@
 #include <AK/StringBuilder.h>
 #include <AK/TemporaryChange.h>
 #include <LibCrypto/BigInt/SignedBigInteger.h>
+#include <LibGC/ConservativeVector.h>
+#include <LibGC/MarkedVector.h>
 #include <LibJS/AST.h>
-#include <LibJS/Heap/ConservativeVector.h>
-#include <LibJS/Heap/MarkedVector.h>
 #include <LibJS/Runtime/AbstractOperations.h>
 #include <LibJS/Runtime/Accessor.h>
 #include <LibJS/Runtime/Array.h>
@@ -97,7 +97,7 @@ Value FunctionExpression::instantiate_ordinary_function_expression(VM& vm, Depre
     auto has_own_name = !name().is_empty();
 
     auto const used_name = has_own_name ? name() : given_name.view();
-    auto environment = NonnullGCPtr { *vm.running_execution_context().lexical_environment };
+    auto environment = GC::Ref { *vm.running_execution_context().lexical_environment };
     if (has_own_name) {
         VERIFY(environment);
         environment = new_declarative_environment(*environment);
@@ -227,7 +227,7 @@ ThrowCompletionOr<ClassElement::ClassValue> ClassField::class_element_evaluation
     auto& realm = *vm.current_realm();
 
     auto property_key_or_private_name = TRY(class_key_to_property_name(vm, *m_key, property_key));
-    GCPtr<ECMAScriptFunctionObject> initializer;
+    GC::Ptr<ECMAScriptFunctionObject> initializer;
     if (m_initializer) {
         auto copy_initializer = m_initializer;
         auto name = property_key_or_private_name.visit(
@@ -310,7 +310,7 @@ ThrowCompletionOr<ECMAScriptFunctionObject*> ClassExpression::create_class_const
 
     vm.running_execution_context().lexical_environment = class_environment;
 
-    auto proto_parent = GCPtr { realm.intrinsics().object_prototype() };
+    auto proto_parent = GC::Ptr { realm.intrinsics().object_prototype() };
     auto constructor_parent = realm.intrinsics().function_prototype();
 
     if (!m_super_class.is_null()) {
@@ -366,12 +366,12 @@ ThrowCompletionOr<ECMAScriptFunctionObject*> ClassExpression::create_class_const
 
     prototype->define_direct_property(vm.names.constructor, class_constructor, Attribute::Writable | Attribute::Configurable);
 
-    using StaticElement = Variant<ClassFieldDefinition, JS::NonnullGCPtr<ECMAScriptFunctionObject>>;
+    using StaticElement = Variant<ClassFieldDefinition, GC::Ref<ECMAScriptFunctionObject>>;
 
-    ConservativeVector<PrivateElement> static_private_methods(vm.heap());
-    ConservativeVector<PrivateElement> instance_private_methods(vm.heap());
-    ConservativeVector<ClassFieldDefinition> instance_fields(vm.heap());
-    ConservativeVector<StaticElement> static_elements(vm.heap());
+    GC::ConservativeVector<PrivateElement> static_private_methods(vm.heap());
+    GC::ConservativeVector<PrivateElement> instance_private_methods(vm.heap());
+    GC::ConservativeVector<ClassFieldDefinition> instance_fields(vm.heap());
+    GC::ConservativeVector<StaticElement> static_elements(vm.heap());
 
     for (size_t element_index = 0; element_index < m_elements.size(); element_index++) {
         auto const& element = m_elements[element_index];
@@ -411,7 +411,7 @@ ThrowCompletionOr<ECMAScriptFunctionObject*> ClassExpression::create_class_const
             VERIFY(element_value.has<Completion>() && element_value.get<Completion>().value().has_value());
             auto& element_object = element_value.get<Completion>().value()->as_object();
             VERIFY(is<ECMAScriptFunctionObject>(element_object));
-            static_elements.append(NonnullGCPtr { static_cast<ECMAScriptFunctionObject&>(element_object) });
+            static_elements.append(GC::Ref { static_cast<ECMAScriptFunctionObject&>(element_object) });
         }
     }
 
@@ -435,7 +435,7 @@ ThrowCompletionOr<ECMAScriptFunctionObject*> ClassExpression::create_class_const
             [&](ClassFieldDefinition& field) -> ThrowCompletionOr<void> {
                 return TRY(class_constructor->define_field(field));
             },
-            [&](Handle<ECMAScriptFunctionObject> static_block_function) -> ThrowCompletionOr<void> {
+            [&](GC::Root<ECMAScriptFunctionObject> static_block_function) -> ThrowCompletionOr<void> {
                 VERIFY(!static_block_function.is_null());
                 // We discard any value returned here.
                 TRY(call(vm, *static_block_function.cell(), class_constructor));

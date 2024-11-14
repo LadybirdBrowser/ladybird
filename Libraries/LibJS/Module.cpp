@@ -15,8 +15,8 @@
 
 namespace JS {
 
-JS_DEFINE_ALLOCATOR(Module);
-JS_DEFINE_ALLOCATOR(GraphLoadingState);
+GC_DEFINE_ALLOCATOR(Module);
+GC_DEFINE_ALLOCATOR(GraphLoadingState);
 
 Module::Module(Realm& realm, ByteString filename, Script::HostDefined* host_defined)
     : m_realm(realm)
@@ -68,14 +68,14 @@ ThrowCompletionOr<u32> Module::inner_module_evaluation(VM& vm, Vector<Module*>&,
 }
 
 // 16.2.1.9 FinishLoadingImportedModule ( referrer, specifier, payload, result ), https://tc39.es/ecma262/#sec-FinishLoadingImportedModule
-void finish_loading_imported_module(ImportedModuleReferrer referrer, ModuleRequest const& module_request, ImportedModulePayload payload, ThrowCompletionOr<NonnullGCPtr<Module>> const& result)
+void finish_loading_imported_module(ImportedModuleReferrer referrer, ModuleRequest const& module_request, ImportedModulePayload payload, ThrowCompletionOr<GC::Ref<Module>> const& result)
 {
     // 1. If result is a normal completion, then
     if (!result.is_error()) {
         // NOTE: Only Script and CyclicModule referrers have the [[LoadedModules]] internal slot.
-        if (referrer.has<NonnullGCPtr<Script>>() || referrer.has<NonnullGCPtr<CyclicModule>>()) {
+        if (referrer.has<GC::Ref<Script>>() || referrer.has<GC::Ref<CyclicModule>>()) {
             auto& loaded_modules = referrer.visit(
-                [](JS::NonnullGCPtr<JS::Realm>&) -> Vector<ModuleWithSpecifier>& {
+                [](GC::Ref<JS::Realm>&) -> Vector<ModuleWithSpecifier>& {
                     VERIFY_NOT_REACHED();
                     __builtin_unreachable();
                 },
@@ -101,19 +101,19 @@ void finish_loading_imported_module(ImportedModuleReferrer referrer, ModuleReque
                 // i. Append the Record { [[Specifier]]: specifier, [[Module]]: result.[[Value]] } to referrer.[[LoadedModules]].
                 loaded_modules.append(ModuleWithSpecifier {
                     .specifier = module_request.module_specifier,
-                    .module = NonnullGCPtr<Module>(*module) });
+                    .module = GC::Ref<Module>(*module) });
             }
         }
     }
 
-    if (payload.has<NonnullGCPtr<GraphLoadingState>>()) {
+    if (payload.has<GC::Ref<GraphLoadingState>>()) {
         // a. Perform ContinueModuleLoading(payload, result)
-        continue_module_loading(payload.get<NonnullGCPtr<GraphLoadingState>>(), result);
+        continue_module_loading(payload.get<GC::Ref<GraphLoadingState>>(), result);
     }
     // Else,
     else {
         // a. Perform ContinueDynamicImport(payload, result).
-        continue_dynamic_import(payload.get<NonnullGCPtr<PromiseCapability>>(), result);
+        continue_dynamic_import(payload.get<GC::Ref<PromiseCapability>>(), result);
     }
 
     // 4. Return unused.
@@ -174,7 +174,7 @@ Object* Module::module_namespace_create(Vector<DeprecatedFlyString> unambiguous_
     auto module_namespace = realm.create<ModuleNamespaceObject>(realm, this, move(unambiguous_names));
 
     // 9. Set module.[[Namespace]] to M.
-    m_namespace = make_handle(module_namespace);
+    m_namespace = make_root(module_namespace);
 
     // 10. Return M.
     return module_namespace;

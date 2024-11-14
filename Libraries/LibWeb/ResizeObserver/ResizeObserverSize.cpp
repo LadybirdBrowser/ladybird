@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibJS/Heap/Heap.h>
+#include <LibGC/Heap.h>
 #include <LibWeb/Bindings/ResizeObserverSizePrototype.h>
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/Painting/PaintableBox.h>
@@ -12,7 +12,7 @@
 
 namespace Web::ResizeObserver {
 
-JS_DEFINE_ALLOCATOR(ResizeObserverSize);
+GC_DEFINE_ALLOCATOR(ResizeObserverSize);
 
 void ResizeObserverSize::initialize(JS::Realm& realm)
 {
@@ -21,7 +21,7 @@ void ResizeObserverSize::initialize(JS::Realm& realm)
 }
 
 // https://drafts.csswg.org/resize-observer-1/#calculate-box-size
-JS::NonnullGCPtr<ResizeObserverSize> ResizeObserverSize::calculate_box_size(JS::Realm& realm, DOM::Element& target, Bindings::ResizeObserverBoxOptions observed_box)
+GC::Ref<ResizeObserverSize> ResizeObserverSize::calculate_box_size(JS::Realm& realm, DOM::Element& target, Bindings::ResizeObserverBoxOptions observed_box)
 {
     // 1. Let computedSize be a new ResizeObserverSize object.
     auto computed_size = realm.create<ResizeObserverSize>(realm);

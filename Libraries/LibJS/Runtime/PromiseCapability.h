@@ -14,28 +14,28 @@ namespace JS {
 
 // 27.2.1.1 PromiseCapability Records, https://tc39.es/ecma262/#sec-promisecapability-records
 class PromiseCapability final : public Cell {
-    JS_CELL(PromiseCapability, Cell);
-    JS_DECLARE_ALLOCATOR(PromiseCapability);
+    GC_CELL(PromiseCapability, Cell);
+    GC_DECLARE_ALLOCATOR(PromiseCapability);
 
 public:
-    static NonnullGCPtr<PromiseCapability> create(VM& vm, NonnullGCPtr<Object> promise, NonnullGCPtr<FunctionObject> resolve, NonnullGCPtr<FunctionObject> reject);
+    static GC::Ref<PromiseCapability> create(VM& vm, GC::Ref<Object> promise, GC::Ref<FunctionObject> resolve, GC::Ref<FunctionObject> reject);
 
     virtual ~PromiseCapability() = default;
 
-    [[nodiscard]] NonnullGCPtr<Object> promise() const { return m_promise; }
+    [[nodiscard]] GC::Ref<Object> promise() const { return m_promise; }
 
-    [[nodiscard]] NonnullGCPtr<FunctionObject> resolve() const { return m_resolve; }
+    [[nodiscard]] GC::Ref<FunctionObject> resolve() const { return m_resolve; }
 
-    [[nodiscard]] NonnullGCPtr<FunctionObject> reject() const { return m_reject; }
+    [[nodiscard]] GC::Ref<FunctionObject> reject() const { return m_reject; }
 
 private:
-    PromiseCapability(NonnullGCPtr<Object>, NonnullGCPtr<FunctionObject>, NonnullGCPtr<FunctionObject>);
+    PromiseCapability(GC::Ref<Object>, GC::Ref<FunctionObject>, GC::Ref<FunctionObject>);
 
     virtual void visit_edges(Visitor&) override;
 
-    NonnullGCPtr<Object> m_promise;
-    NonnullGCPtr<FunctionObject> m_resolve;
-    NonnullGCPtr<FunctionObject> m_reject;
+    GC::Ref<Object> m_promise;
+    GC::Ref<FunctionObject> m_resolve;
+    GC::Ref<FunctionObject> m_reject;
 };
 
 // 27.2.1.1.1 IfAbruptRejectPromise ( value, capability ), https://tc39.es/ecma262/#sec-ifabruptrejectpromise
@@ -85,6 +85,6 @@ private:
     })
 
 // 27.2.1.5 NewPromiseCapability ( C ), https://tc39.es/ecma262/#sec-newpromisecapability
-ThrowCompletionOr<NonnullGCPtr<PromiseCapability>> new_promise_capability(VM& vm, Value constructor);
+ThrowCompletionOr<GC::Ref<PromiseCapability>> new_promise_capability(VM& vm, Value constructor);
 
 }

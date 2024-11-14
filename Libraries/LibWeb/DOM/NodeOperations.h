@@ -7,12 +7,12 @@
 
 #pragma once
 
-#include <LibJS/Heap/GCPtr.h>
-#include <LibJS/Heap/Handle.h>
+#include <LibGC/Ptr.h>
+#include <LibGC/Root.h>
 #include <LibWeb/Forward.h>
 
 namespace Web::DOM {
 
-WebIDL::ExceptionOr<JS::NonnullGCPtr<Node>> convert_nodes_to_single_node(Vector<Variant<JS::Handle<Node>, String>> const& nodes, DOM::Document& document);
+WebIDL::ExceptionOr<GC::Ref<Node>> convert_nodes_to_single_node(Vector<Variant<GC::Root<Node>, String>> const& nodes, DOM::Document& document);
 
 }

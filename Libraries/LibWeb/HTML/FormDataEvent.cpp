@@ -10,9 +10,9 @@
 
 namespace Web::HTML {
 
-JS_DEFINE_ALLOCATOR(FormDataEvent);
+GC_DEFINE_ALLOCATOR(FormDataEvent);
 
-WebIDL::ExceptionOr<JS::NonnullGCPtr<FormDataEvent>> FormDataEvent::construct_impl(JS::Realm& realm, FlyString const& event_name, FormDataEventInit const& event_init)
+WebIDL::ExceptionOr<GC::Ref<FormDataEvent>> FormDataEvent::construct_impl(JS::Realm& realm, FlyString const& event_name, FormDataEventInit const& event_init)
 {
     return realm.create<FormDataEvent>(realm, event_name, event_init);
 }

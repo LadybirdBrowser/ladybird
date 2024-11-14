@@ -12,7 +12,7 @@
 
 namespace Web::CSS {
 
-JS_DEFINE_ALLOCATOR(StyleSheetList);
+GC_DEFINE_ALLOCATOR(StyleSheetList);
 
 // https://www.w3.org/TR/cssom/#remove-a-css-style-sheet
 void StyleSheetList::remove_a_css_style_sheet(CSS::CSSStyleSheet& sheet)
@@ -128,13 +128,13 @@ void StyleSheetList::remove_sheet(CSSStyleSheet& sheet)
     document_or_shadow_root().invalidate_style(DOM::StyleInvalidationReason::StyleSheetListRemoveSheet);
 }
 
-JS::NonnullGCPtr<StyleSheetList> StyleSheetList::create(JS::NonnullGCPtr<DOM::Node> document_or_shadow_root)
+GC::Ref<StyleSheetList> StyleSheetList::create(GC::Ref<DOM::Node> document_or_shadow_root)
 {
     auto& realm = document_or_shadow_root->realm();
     return realm.create<StyleSheetList>(document_or_shadow_root);
 }
 
-StyleSheetList::StyleSheetList(JS::NonnullGCPtr<DOM::Node> document_or_shadow_root)
+StyleSheetList::StyleSheetList(GC::Ref<DOM::Node> document_or_shadow_root)
     : Bindings::PlatformObject(document_or_shadow_root->realm())
     , m_document_or_shadow_root(document_or_shadow_root)
 {

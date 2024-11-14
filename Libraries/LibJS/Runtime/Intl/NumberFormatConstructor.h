@@ -13,14 +13,14 @@ namespace JS::Intl {
 
 class NumberFormatConstructor final : public NativeFunction {
     JS_OBJECT(NumberFormatConstructor, NativeFunction);
-    JS_DECLARE_ALLOCATOR(NumberFormatConstructor);
+    GC_DECLARE_ALLOCATOR(NumberFormatConstructor);
 
 public:
     virtual void initialize(Realm&) override;
     virtual ~NumberFormatConstructor() override = default;
 
     virtual ThrowCompletionOr<Value> call() override;
-    virtual ThrowCompletionOr<NonnullGCPtr<Object>> construct(FunctionObject& new_target) override;
+    virtual ThrowCompletionOr<GC::Ref<Object>> construct(FunctionObject& new_target) override;
 
 private:
     explicit NumberFormatConstructor(Realm&);

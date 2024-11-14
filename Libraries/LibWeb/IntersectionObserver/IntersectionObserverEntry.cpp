@@ -11,13 +11,13 @@
 
 namespace Web::IntersectionObserver {
 
-JS_DEFINE_ALLOCATOR(IntersectionObserverEntry);
+GC_DEFINE_ALLOCATOR(IntersectionObserverEntry);
 
-WebIDL::ExceptionOr<JS::NonnullGCPtr<IntersectionObserverEntry>> IntersectionObserverEntry::construct_impl(JS::Realm& realm, Web::IntersectionObserver::IntersectionObserverEntryInit const& options)
+WebIDL::ExceptionOr<GC::Ref<IntersectionObserverEntry>> IntersectionObserverEntry::construct_impl(JS::Realm& realm, Web::IntersectionObserver::IntersectionObserverEntryInit const& options)
 {
     auto& vm = realm.vm();
 
-    JS::GCPtr<Geometry::DOMRectReadOnly> root_bounds;
+    GC::Ptr<Geometry::DOMRectReadOnly> root_bounds;
     if (options.root_bounds.has_value())
         root_bounds = Geometry::DOMRectReadOnly::from_rect(vm, options.root_bounds.value());
 
@@ -26,7 +26,7 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<IntersectionObserverEntry>> IntersectionObs
     return realm.create<IntersectionObserverEntry>(realm, options.time, root_bounds, bounding_client_rect, intersection_rect, options.is_intersecting, options.intersection_ratio, *options.target);
 }
 
-IntersectionObserverEntry::IntersectionObserverEntry(JS::Realm& realm, HighResolutionTime::DOMHighResTimeStamp time, JS::GCPtr<Geometry::DOMRectReadOnly> root_bounds, JS::NonnullGCPtr<Geometry::DOMRectReadOnly> bounding_client_rect, JS::NonnullGCPtr<Geometry::DOMRectReadOnly> intersection_rect, bool is_intersecting, double intersection_ratio, JS::NonnullGCPtr<DOM::Element> target)
+IntersectionObserverEntry::IntersectionObserverEntry(JS::Realm& realm, HighResolutionTime::DOMHighResTimeStamp time, GC::Ptr<Geometry::DOMRectReadOnly> root_bounds, GC::Ref<Geometry::DOMRectReadOnly> bounding_client_rect, GC::Ref<Geometry::DOMRectReadOnly> intersection_rect, bool is_intersecting, double intersection_ratio, GC::Ref<DOM::Element> target)
     : Bindings::PlatformObject(realm)
     , m_time(time)
     , m_root_bounds(root_bounds)

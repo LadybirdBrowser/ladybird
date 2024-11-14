@@ -13,10 +13,10 @@ namespace Web::HTML {
 
 class DOMStringList final : public Bindings::PlatformObject {
     WEB_PLATFORM_OBJECT(DOMStringList, Bindings::PlatformObject);
-    JS_DECLARE_ALLOCATOR(DOMStringList);
+    GC_DECLARE_ALLOCATOR(DOMStringList);
 
 public:
-    static JS::NonnullGCPtr<DOMStringList> create(JS::Realm&, Vector<String>);
+    static GC::Ref<DOMStringList> create(JS::Realm&, Vector<String>);
 
     u32 length() const;
     Optional<String> item(u32 index) const;

@@ -10,9 +10,9 @@
 
 namespace Web::DOM {
 
-JS_DEFINE_ALLOCATOR(DocumentType);
+GC_DEFINE_ALLOCATOR(DocumentType);
 
-JS::NonnullGCPtr<DocumentType> DocumentType::create(Document& document)
+GC::Ref<DocumentType> DocumentType::create(Document& document)
 {
     return document.realm().create<DocumentType>(document);
 }

@@ -31,9 +31,9 @@
 
 namespace Web::HTML {
 
-JS_DEFINE_ALLOCATOR(CanvasRenderingContext2D);
+GC_DEFINE_ALLOCATOR(CanvasRenderingContext2D);
 
-JS::NonnullGCPtr<CanvasRenderingContext2D> CanvasRenderingContext2D::create(JS::Realm& realm, HTMLCanvasElement& element)
+GC::Ref<CanvasRenderingContext2D> CanvasRenderingContext2D::create(JS::Realm& realm, HTMLCanvasElement& element)
 {
     return realm.create<CanvasRenderingContext2D>(realm, element);
 }
@@ -69,7 +69,7 @@ HTMLCanvasElement const& CanvasRenderingContext2D::canvas_element() const
     return *m_element;
 }
 
-JS::NonnullGCPtr<HTMLCanvasElement> CanvasRenderingContext2D::canvas_for_binding() const
+GC::Ref<HTMLCanvasElement> CanvasRenderingContext2D::canvas_for_binding() const
 {
     return *m_element;
 }
@@ -124,20 +124,20 @@ WebIDL::ExceptionOr<void> CanvasRenderingContext2D::draw_image_internal(CanvasIm
         return {};
 
     auto bitmap = image.visit(
-        [](JS::Handle<HTMLImageElement> const& source) -> RefPtr<Gfx::ImmutableBitmap> {
+        [](GC::Root<HTMLImageElement> const& source) -> RefPtr<Gfx::ImmutableBitmap> {
             return source->immutable_bitmap();
         },
-        [](JS::Handle<SVG::SVGImageElement> const& source) -> RefPtr<Gfx::ImmutableBitmap> {
+        [](GC::Root<SVG::SVGImageElement> const& source) -> RefPtr<Gfx::ImmutableBitmap> {
             return source->current_image_bitmap();
         },
-        [](JS::Handle<HTMLCanvasElement> const& source) -> RefPtr<Gfx::ImmutableBitmap> {
+        [](GC::Root<HTMLCanvasElement> const& source) -> RefPtr<Gfx::ImmutableBitmap> {
             auto surface = source->surface();
             if (!surface)
                 return {};
             return Gfx::ImmutableBitmap::create_snapshot_from_painting_surface(*surface);
         },
-        [](JS::Handle<HTMLVideoElement> const& source) -> RefPtr<Gfx::ImmutableBitmap> { return Gfx::ImmutableBitmap::create(*source->bitmap()); },
-        [](JS::Handle<ImageBitmap> const& source) -> RefPtr<Gfx::ImmutableBitmap> {
+        [](GC::Root<HTMLVideoElement> const& source) -> RefPtr<Gfx::ImmutableBitmap> { return Gfx::ImmutableBitmap::create(*source->bitmap()); },
+        [](GC::Root<ImageBitmap> const& source) -> RefPtr<Gfx::ImmutableBitmap> {
             return Gfx::ImmutableBitmap::create(*source->bitmap());
         });
     if (!bitmap)
@@ -346,7 +346,7 @@ void CanvasRenderingContext2D::fill(Path2D& path, StringView fill_rule)
 }
 
 // https://html.spec.whatwg.org/multipage/canvas.html#dom-context-2d-createimagedata
-WebIDL::ExceptionOr<JS::NonnullGCPtr<ImageData>> CanvasRenderingContext2D::create_image_data(int width, int height, Optional<ImageDataSettings> const& settings) const
+WebIDL::ExceptionOr<GC::Ref<ImageData>> CanvasRenderingContext2D::create_image_data(int width, int height, Optional<ImageDataSettings> const& settings) const
 {
     // 1. If one or both of sw and sh are zero, then throw an "IndexSizeError" DOMException.
     if (width == 0 || height == 0)
@@ -367,7 +367,7 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<ImageData>> CanvasRenderingContext2D::creat
 }
 
 // https://html.spec.whatwg.org/multipage/canvas.html#dom-context-2d-createimagedata-imagedata
-WebIDL::ExceptionOr<JS::NonnullGCPtr<ImageData>> CanvasRenderingContext2D::create_image_data(ImageData const& image_data) const
+WebIDL::ExceptionOr<GC::Ref<ImageData>> CanvasRenderingContext2D::create_image_data(ImageData const& image_data) const
 {
     // 1. Let newImageData be a new ImageData object.
     // 2. Initialize newImageData given the value of imagedata's width attribute, the value of imagedata's height attribute, and defaultColorSpace set to the value of imagedata's colorSpace attribute.
@@ -379,7 +379,7 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<ImageData>> CanvasRenderingContext2D::creat
 }
 
 // https://html.spec.whatwg.org/multipage/canvas.html#dom-context-2d-getimagedata
-WebIDL::ExceptionOr<JS::GCPtr<ImageData>> CanvasRenderingContext2D::get_image_data(int x, int y, int width, int height, Optional<ImageDataSettings> const& settings) const
+WebIDL::ExceptionOr<GC::Ptr<ImageData>> CanvasRenderingContext2D::get_image_data(int x, int y, int width, int height, Optional<ImageDataSettings> const& settings) const
 {
     // 1. If either the sw or sh arguments are zero, then throw an "IndexSizeError" DOMException.
     if (width == 0 || height == 0)
@@ -464,7 +464,7 @@ void CanvasRenderingContext2D::reset_to_default_state()
 }
 
 // https://html.spec.whatwg.org/multipage/canvas.html#dom-context-2d-measuretext
-JS::NonnullGCPtr<TextMetrics> CanvasRenderingContext2D::measure_text(StringView text)
+GC::Ref<TextMetrics> CanvasRenderingContext2D::measure_text(StringView text)
 {
     // The measureText(text) method steps are to run the text preparation
     // algorithm, passing it text and the object implementing the CanvasText
@@ -625,7 +625,7 @@ WebIDL::ExceptionOr<CanvasImageSourceUsability> check_usability_of_image(CanvasI
     // 1. Switch on image:
     auto usability = TRY(image.visit(
         // HTMLOrSVGImageElement
-        [](JS::Handle<HTMLImageElement> const& image_element) -> WebIDL::ExceptionOr<Optional<CanvasImageSourceUsability>> {
+        [](GC::Root<HTMLImageElement> const& image_element) -> WebIDL::ExceptionOr<Optional<CanvasImageSourceUsability>> {
             // FIXME: If image's current request's state is broken, then throw an "InvalidStateError" DOMException.
 
             // If image is not fully decodable, then return bad.
@@ -638,7 +638,7 @@ WebIDL::ExceptionOr<CanvasImageSourceUsability> check_usability_of_image(CanvasI
             return Optional<CanvasImageSourceUsability> {};
         },
         // FIXME: Don't duplicate this for HTMLImageElement and SVGImageElement.
-        [](JS::Handle<SVG::SVGImageElement> const& image_element) -> WebIDL::ExceptionOr<Optional<CanvasImageSourceUsability>> {
+        [](GC::Root<SVG::SVGImageElement> const& image_element) -> WebIDL::ExceptionOr<Optional<CanvasImageSourceUsability>> {
             // FIXME: If image's current request's state is broken, then throw an "InvalidStateError" DOMException.
 
             // If image is not fully decodable, then return bad.
@@ -651,7 +651,7 @@ WebIDL::ExceptionOr<CanvasImageSourceUsability> check_usability_of_image(CanvasI
             return Optional<CanvasImageSourceUsability> {};
         },
 
-        [](JS::Handle<HTML::HTMLVideoElement> const& video_element) -> WebIDL::ExceptionOr<Optional<CanvasImageSourceUsability>> {
+        [](GC::Root<HTML::HTMLVideoElement> const& video_element) -> WebIDL::ExceptionOr<Optional<CanvasImageSourceUsability>> {
             // If image's readyState attribute is either HAVE_NOTHING or HAVE_METADATA, then return bad.
             if (video_element->ready_state() == HTML::HTMLMediaElement::ReadyState::HaveNothing || video_element->ready_state() == HTML::HTMLMediaElement::ReadyState::HaveMetadata) {
                 return { CanvasImageSourceUsability::Bad };
@@ -661,7 +661,7 @@ WebIDL::ExceptionOr<CanvasImageSourceUsability> check_usability_of_image(CanvasI
 
         // HTMLCanvasElement
         // FIXME: OffscreenCanvas
-        [](JS::Handle<HTMLCanvasElement> const& canvas_element) -> WebIDL::ExceptionOr<Optional<CanvasImageSourceUsability>> {
+        [](GC::Root<HTMLCanvasElement> const& canvas_element) -> WebIDL::ExceptionOr<Optional<CanvasImageSourceUsability>> {
             // If image has either a horizontal dimension or a vertical dimension equal to zero, then throw an "InvalidStateError" DOMException.
             if (canvas_element->width() == 0 || canvas_element->height() == 0)
                 return WebIDL::InvalidStateError::create(canvas_element->realm(), "Canvas width or height is zero"_string);
@@ -670,7 +670,7 @@ WebIDL::ExceptionOr<CanvasImageSourceUsability> check_usability_of_image(CanvasI
 
         // ImageBitmap
         // FIXME: VideoFrame
-        [](JS::Handle<ImageBitmap> const& image_bitmap) -> WebIDL::ExceptionOr<Optional<CanvasImageSourceUsability>> {
+        [](GC::Root<ImageBitmap> const& image_bitmap) -> WebIDL::ExceptionOr<Optional<CanvasImageSourceUsability>> {
             if (image_bitmap->is_detached())
                 return WebIDL::InvalidStateError::create(image_bitmap->realm(), "Image bitmap is detached"_string);
             return Optional<CanvasImageSourceUsability> {};
@@ -688,20 +688,20 @@ bool image_is_not_origin_clean(CanvasImageSource const& image)
     // An object image is not origin-clean if, switching on image's type:
     return image.visit(
         // HTMLOrSVGImageElement
-        [](JS::Handle<HTMLImageElement> const&) {
+        [](GC::Root<HTMLImageElement> const&) {
             // FIXME: image's current request's image data is CORS-cross-origin.
             return false;
         },
-        [](JS::Handle<SVG::SVGImageElement> const&) {
+        [](GC::Root<SVG::SVGImageElement> const&) {
             // FIXME: image's current request's image data is CORS-cross-origin.
             return false;
         },
-        [](JS::Handle<HTML::HTMLVideoElement> const&) {
+        [](GC::Root<HTML::HTMLVideoElement> const&) {
             // FIXME: image's media data is CORS-cross-origin.
             return false;
         },
         // HTMLCanvasElement
-        [](OneOf<JS::Handle<HTMLCanvasElement>, JS::Handle<ImageBitmap>> auto const&) {
+        [](OneOf<GC::Root<HTMLCanvasElement>, GC::Root<ImageBitmap>> auto const&) {
             // FIXME: image's bitmap's origin-clean flag is false.
             return false;
         });

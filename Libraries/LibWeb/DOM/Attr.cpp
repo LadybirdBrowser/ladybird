@@ -16,19 +16,19 @@
 
 namespace Web::DOM {
 
-JS_DEFINE_ALLOCATOR(Attr);
+GC_DEFINE_ALLOCATOR(Attr);
 
-JS::NonnullGCPtr<Attr> Attr::create(Document& document, FlyString local_name, String value, Element* owner_element)
+GC::Ref<Attr> Attr::create(Document& document, FlyString local_name, String value, Element* owner_element)
 {
     return document.realm().create<Attr>(document, QualifiedName(move(local_name), Optional<FlyString> {}, Optional<FlyString> {}), move(value), owner_element);
 }
 
-JS::NonnullGCPtr<Attr> Attr::create(Document& document, QualifiedName qualified_name, String value, Element* owner_element)
+GC::Ref<Attr> Attr::create(Document& document, QualifiedName qualified_name, String value, Element* owner_element)
 {
     return document.realm().create<Attr>(document, move(qualified_name), move(value), owner_element);
 }
 
-JS::NonnullGCPtr<Attr> Attr::clone(Document& document)
+GC::Ref<Attr> Attr::clone(Document& document)
 {
     return realm().create<Attr>(document, m_qualified_name, m_value, nullptr);
 }
@@ -105,7 +105,7 @@ void Attr::handle_attribute_changes(Element& element, Optional<String> const& ol
     if (element.is_custom()) {
         auto& vm = this->vm();
 
-        JS::MarkedVector<JS::Value> arguments { vm.heap() };
+        GC::MarkedVector<JS::Value> arguments { vm.heap() };
         arguments.append(JS::PrimitiveString::create(vm, local_name()));
         arguments.append(!old_value.has_value() ? JS::js_null() : JS::PrimitiveString::create(vm, old_value.value()));
         arguments.append(!new_value.has_value() ? JS::js_null() : JS::PrimitiveString::create(vm, new_value.value()));

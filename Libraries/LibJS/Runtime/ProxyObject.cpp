@@ -16,7 +16,7 @@
 
 namespace JS {
 
-JS_DEFINE_ALLOCATOR(ProxyObject);
+GC_DEFINE_ALLOCATOR(ProxyObject);
 
 // NOTE: We can't rely on native stack overflows to catch infinite recursion in Proxy traps,
 //       since the compiler may decide to optimize tail/sibling calls into loops.
@@ -36,7 +36,7 @@ struct RecursionDepthUpdater {
             return vm().throw_completion<InternalError>(ErrorType::CallStackSizeExceeded); \
     } while (0)
 
-NonnullGCPtr<ProxyObject> ProxyObject::create(Realm& realm, Object& target, Object& handler)
+GC::Ref<ProxyObject> ProxyObject::create(Realm& realm, Object& target, Object& handler)
 {
     return realm.create<ProxyObject>(target, handler, realm.intrinsics().object_prototype());
 }
@@ -681,7 +681,7 @@ ThrowCompletionOr<bool> ProxyObject::internal_delete(PropertyKey const& property
 }
 
 // 10.5.11 [[OwnPropertyKeys]] ( ), https://tc39.es/ecma262/#sec-proxy-object-internal-methods-and-internal-slots-ownpropertykeys
-ThrowCompletionOr<MarkedVector<Value>> ProxyObject::internal_own_property_keys() const
+ThrowCompletionOr<GC::MarkedVector<Value>> ProxyObject::internal_own_property_keys() const
 {
     LIMIT_PROXY_RECURSION_DEPTH();
 
@@ -732,10 +732,10 @@ ThrowCompletionOr<MarkedVector<Value>> ProxyObject::internal_own_property_keys()
     // 13. Assert: targetKeys contains no duplicate entries.
 
     // 14. Let targetConfigurableKeys be a new empty List.
-    auto target_configurable_keys = MarkedVector<Value> { heap() };
+    auto target_configurable_keys = GC::MarkedVector<Value> { heap() };
 
     // 15. Let targetNonconfigurableKeys be a new empty List.
-    auto target_nonconfigurable_keys = MarkedVector<Value> { heap() };
+    auto target_nonconfigurable_keys = GC::MarkedVector<Value> { heap() };
 
     // 16. For each element key of targetKeys, do
     for (auto& key : target_keys) {
@@ -763,7 +763,7 @@ ThrowCompletionOr<MarkedVector<Value>> ProxyObject::internal_own_property_keys()
     }
 
     // 18. Let uncheckedResultKeys be a List whose elements are the elements of trapResult.
-    auto unchecked_result_keys = MarkedVector<Value> { heap() };
+    auto unchecked_result_keys = GC::MarkedVector<Value> { heap() };
     unchecked_result_keys.extend(trap_result);
 
     // 19. For each element key of targetNonconfigurableKeys, do
@@ -849,7 +849,7 @@ bool ProxyObject::has_constructor() const
 }
 
 // 10.5.13 [[Construct]] ( argumentsList, newTarget ), https://tc39.es/ecma262/#sec-proxy-object-internal-methods-and-internal-slots-construct-argumentslist-newtarget
-ThrowCompletionOr<NonnullGCPtr<Object>> ProxyObject::internal_construct(ReadonlySpan<Value> arguments_list, FunctionObject& new_target)
+ThrowCompletionOr<GC::Ref<Object>> ProxyObject::internal_construct(ReadonlySpan<Value> arguments_list, FunctionObject& new_target)
 {
     LIMIT_PROXY_RECURSION_DEPTH();
 

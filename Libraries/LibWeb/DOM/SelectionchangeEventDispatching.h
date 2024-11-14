@@ -33,7 +33,7 @@ void schedule_a_selectionchange_event(T& target, Document& document)
 
     // 2. Queue a task on the user interaction task source to fire a selectionchange event on
     //    target.
-    queue_global_task(HTML::Task::Source::UserInteraction, relevant_global_object(document), JS::create_heap_function(document.heap(), [&] {
+    queue_global_task(HTML::Task::Source::UserInteraction, relevant_global_object(document), GC::create_function(document.heap(), [&] {
         fire_a_selectionchange_event(target, document);
     }));
 }
