@@ -76,7 +76,7 @@ String ResolvedCSSStyleDeclaration::item(size_t index) const
 {
     // The item(index) method must return the property name of the CSS declaration at position index.
     // FIXME: Return custom properties if index > last_longhand_property_id.
-    if (index > length())
+    if (index >= length())
         return {};
     auto property_id = static_cast<PropertyID>(index + to_underlying(first_longhand_property_id));
     return string_from_property_id(property_id).to_string();
