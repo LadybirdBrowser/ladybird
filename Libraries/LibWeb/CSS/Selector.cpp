@@ -586,27 +586,37 @@ NonnullRefPtr<Selector> Selector::relative_to(SimpleSelector const& parent) cons
     return Selector::create(move(copied_compound_selectors));
 }
 
-NonnullRefPtr<Selector> Selector::absolutized(Selector::SimpleSelector const& selector_for_nesting) const
+RefPtr<Selector> Selector::absolutized(Selector::SimpleSelector const& selector_for_nesting) const
 {
     if (!contains_the_nesting_selector())
         return *this;
 
     Vector<CompoundSelector> absolutized_compound_selectors;
     absolutized_compound_selectors.ensure_capacity(m_compound_selectors.size());
-    for (auto const& compound_selector : m_compound_selectors)
-        absolutized_compound_selectors.append(compound_selector.absolutized(selector_for_nesting));
+    for (auto const& compound_selector : m_compound_selectors) {
+        if (auto absolutized = compound_selector.absolutized(selector_for_nesting); absolutized.has_value()) {
+            absolutized_compound_selectors.append(absolutized.release_value());
+        } else {
+            return nullptr;
+        }
+    }
 
     return Selector::create(move(absolutized_compound_selectors));
 }
 
-Selector::CompoundSelector Selector::CompoundSelector::absolutized(Selector::SimpleSelector const& selector_for_nesting) const
+Optional<Selector::CompoundSelector> Selector::CompoundSelector::absolutized(Selector::SimpleSelector const& selector_for_nesting) const
 {
     // TODO: Cache if it contains the nesting selector?
 
     Vector<SimpleSelector> absolutized_simple_selectors;
     absolutized_simple_selectors.ensure_capacity(simple_selectors.size());
-    for (auto const& simple_selector : simple_selectors)
-        absolutized_simple_selectors.append(simple_selector.absolutized(selector_for_nesting));
+    for (auto const& simple_selector : simple_selectors) {
+        if (auto absolutized = simple_selector.absolutized(selector_for_nesting); absolutized.has_value()) {
+            absolutized_simple_selectors.append(absolutized.release_value());
+        } else {
+            return {};
+        }
+    }
 
     return CompoundSelector {
         .combinator = this->combinator,
@@ -614,7 +624,7 @@ Selector::CompoundSelector Selector::CompoundSelector::absolutized(Selector::Sim
     };
 }
 
-Selector::SimpleSelector Selector::SimpleSelector::absolutized(Selector::SimpleSelector const& selector_for_nesting) const
+Optional<Selector::SimpleSelector> Selector::SimpleSelector::absolutized(Selector::SimpleSelector const& selector_for_nesting) const
 {
     switch (type) {
     case Type::Nesting:
@@ -628,8 +638,13 @@ Selector::SimpleSelector Selector::SimpleSelector::absolutized(Selector::SimpleS
         if (!pseudo_class.argument_selector_list.is_empty()) {
             SelectorList new_selector_list;
             new_selector_list.ensure_capacity(pseudo_class.argument_selector_list.size());
-            for (auto const& argument_selector : pseudo_class.argument_selector_list)
-                new_selector_list.append(argument_selector->absolutized(selector_for_nesting));
+            for (auto const& argument_selector : pseudo_class.argument_selector_list) {
+                if (auto absolutized = argument_selector->absolutized(selector_for_nesting)) {
+                    new_selector_list.append(absolutized.release_nonnull());
+                } else if (!pseudo_class.is_forgiving) {
+                    return {};
+                }
+            }
             pseudo_class.argument_selector_list = move(new_selector_list);
         }
         return SimpleSelector {
