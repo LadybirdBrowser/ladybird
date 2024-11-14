@@ -70,6 +70,11 @@ set(SOURCES
     SkiaBackendContext.cpp
 )
 
+set(SWIFT_EXCLUDE_HEADERS
+    MetalContext.h
+    VulkanContext.h
+)
+
 if (APPLE)
     list(APPEND SOURCES MetalContext.mm)
 endif()
@@ -130,7 +135,7 @@ else()
 endif()
 
 if (ENABLE_SWIFT)
-    generate_clang_module_map(LibGfx GENERATED_FILES ${generated_headers})
+    generate_clang_module_map(LibGfx GENERATED_FILES ${generated_headers} EXCLUDE_FILES ${SWIFT_EXCLUDE_HEADERS})
     target_sources(LibGfx PRIVATE
         Color.swift
     )

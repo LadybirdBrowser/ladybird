@@ -24,7 +24,7 @@ function(embed_as_string name source_file output source_variable_name)
 endfunction()
 
 function(generate_clang_module_map target_name)
-    cmake_parse_arguments(PARSE_ARGV 1 MODULE_MAP "" "DIRECTORY" "GENERATED_FILES")
+    cmake_parse_arguments(PARSE_ARGV 1 MODULE_MAP "" "DIRECTORY" "GENERATED_FILES;EXCLUDE_FILES")
     if (NOT MODULE_MAP_DIRECTORY)
         set(MODULE_MAP_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}")
     endif()
@@ -44,7 +44,8 @@ function(generate_clang_module_map target_name)
                 --module-name "${module_name}"
                 --module-map "${module_map_file}"
                 --vfs-map ${vfs_overlay_file}
-                ${MODULE_MAP_GENERATED_FILES}
+                --exclude-files ${MODULE_MAP_EXCLUDE_FILES}
+                --generated-files ${MODULE_MAP_GENERATED_FILES}
         VERBATIM
         DEPENDS "${SerenityOS_SOURCE_DIR}/Meta/generate_clang_module_map.py"
     )
