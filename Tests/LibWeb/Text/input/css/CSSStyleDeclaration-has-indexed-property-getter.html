@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const bodyStyleDeclaration = getComputedStyle(document.body);
+
+        const serializedBodyComputedStyle = JSON.stringify(bodyStyleDeclaration, null, 4);
+        println("All properties associated with getComputedStyle(document.body):");
+        println(serializedBodyComputedStyle);
+
+        const serializedBodyElementStyle = JSON.stringify(document.body.style, null, 4);
+        println("All properties associated with document.body.style by default:");
+        println(serializedBodyElementStyle);
+
+        document.body.style.display = "none";
+        document.body.style.backgroundColor = "red";
+        document.body.style.fontSize = "15px";
+
+        const serializedBodyElementStyleWithSetProperties = JSON.stringify(document.body.style, null, 4);
+        println("All properties associated with document.body.style after setting some properties:");
+        println(serializedBodyElementStyleWithSetProperties);
+    });
+</script>

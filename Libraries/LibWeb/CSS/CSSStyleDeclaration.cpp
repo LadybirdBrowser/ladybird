@@ -24,6 +24,9 @@ JS_DEFINE_ALLOCATOR(ElementInlineCSSStyleDeclaration);
 CSSStyleDeclaration::CSSStyleDeclaration(JS::Realm& realm)
     : PlatformObject(realm)
 {
+    m_legacy_platform_object_flags = LegacyPlatformObjectFlags {
+        .supports_indexed_properties = true,
+    };
 }
 
 void CSSStyleDeclaration::initialize(JS::Realm& realm)
@@ -326,6 +329,15 @@ WebIDL::ExceptionOr<void> CSSStyleDeclaration::set_css_float(StringView value)
     // On setting, the attribute must invoke setProperty() with float as first argument, as second argument the given value,
     // and no third argument. Any exceptions thrown must be re-thrown.
     return set_property("float"sv, value, ""sv);
+}
+
+Optional<JS::Value> CSSStyleDeclaration::item_value(size_t index) const
+{
+    auto value = item(index);
+    if (value.is_empty())
+        return {};
+
+    return JS::PrimitiveString::create(vm(), value);
 }
 
 // https://www.w3.org/TR/cssom/#serialize-a-css-declaration
