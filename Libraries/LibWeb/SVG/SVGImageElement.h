@@ -20,7 +20,7 @@ class SVGImageElement
     WEB_PLATFORM_OBJECT(SVGImageElement, SVGGraphicsElement);
 
 public:
-    virtual void attribute_changed(FlyString const& name, Optional<String> const& old_value, Optional<String> const& value) override;
+    virtual void attribute_changed(FlyString const& name, Optional<String> const& old_value, Optional<String> const& value, Optional<FlyString> const& namespace_) override;
 
     JS::NonnullGCPtr<SVG::SVGAnimatedLength> x();
     JS::NonnullGCPtr<SVG::SVGAnimatedLength> y();

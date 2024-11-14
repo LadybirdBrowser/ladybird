@@ -45,7 +45,7 @@ private:
     virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(JS::Cell::Visitor&) override;
 
-    virtual void attribute_change_steps(FlyString const& local_name, Optional<String> const& old_value, Optional<String> const& value, Optional<FlyString> const& namespace_) override;
+    virtual void attribute_changed(FlyString const& name, Optional<String> const& old_value, Optional<String> const& value, Optional<FlyString> const& namespace_) override;
 
     // https://html.spec.whatwg.org/multipage/scripting.html#manually-assigned-nodes
     Vector<DOM::Slottable> m_manually_assigned_nodes;

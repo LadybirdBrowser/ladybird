@@ -65,9 +65,9 @@ void HTMLFrameElement::removed_from(DOM::Node* node)
 }
 
 // https://html.spec.whatwg.org/multipage/obsolete.html#frames:frame-3
-void HTMLFrameElement::attribute_changed(FlyString const& name, Optional<String> const& old_value, Optional<String> const& value)
+void HTMLFrameElement::attribute_changed(FlyString const& name, Optional<String> const& old_value, Optional<String> const& value, Optional<FlyString> const& namespace_)
 {
-    Base::attribute_changed(name, old_value, value);
+    Base::attribute_changed(name, old_value, value, namespace_);
 
     // Whenever a frame element with a non-null content navigable has its src attribute set, changed, or removed, the
     // user agent must process the frame attributes.

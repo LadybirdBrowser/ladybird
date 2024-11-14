@@ -27,7 +27,7 @@ private:
     virtual void adjust_computed_style(CSS::StyleProperties&) override;
 
     virtual void initialize(JS::Realm&) override;
-    virtual void attribute_changed(FlyString const&, Optional<String> const& old_value, Optional<String> const&) override;
+    virtual void attribute_changed(FlyString const& name, Optional<String> const& old_value, Optional<String> const& value, Optional<FlyString> const& namespace_) override;
 
     // ^HTML::GlobalEventHandlers
     virtual JS::GCPtr<EventTarget> global_event_handlers_to_event_target(FlyString const& event_name) override;

@@ -34,9 +34,9 @@ void HTMLOptionElement::initialize(JS::Realm& realm)
     WEB_SET_PROTOTYPE_FOR_INTERFACE(HTMLOptionElement);
 }
 
-void HTMLOptionElement::attribute_changed(FlyString const& name, Optional<String> const& old_value, Optional<String> const& value)
+void HTMLOptionElement::attribute_changed(FlyString const& name, Optional<String> const& old_value, Optional<String> const& value, Optional<FlyString> const& namespace_)
 {
-    HTMLElement::attribute_changed(name, old_value, value);
+    Base::attribute_changed(name, old_value, value, namespace_);
 
     if (name == HTML::AttributeNames::selected) {
         if (!value.has_value()) {

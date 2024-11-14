@@ -44,7 +44,7 @@ private:
 
     virtual void initialize(JS::Realm&) override;
 
-    void attribute_changed(FlyString const& name, Optional<String> const& old_value, Optional<String> const& value) override;
+    virtual void attribute_changed(FlyString const& name, Optional<String> const& old_value, Optional<String> const& value, Optional<FlyString> const& namespace_) override;
 
     void ask_for_a_reset();
 

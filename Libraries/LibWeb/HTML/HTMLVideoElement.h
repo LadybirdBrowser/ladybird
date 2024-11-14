@@ -55,7 +55,7 @@ private:
     virtual void finalize() override;
     virtual void visit_edges(Cell::Visitor&) override;
 
-    virtual void attribute_changed(FlyString const& name, Optional<String> const& old_value, Optional<String> const& value) override;
+    virtual void attribute_changed(FlyString const& name, Optional<String> const& old_value, Optional<String> const& value, Optional<FlyString> const& namespace_) override;
 
     // https://html.spec.whatwg.org/multipage/media.html#the-video-element:dimension-attributes
     virtual bool supports_dimension_attributes() const override { return true; }

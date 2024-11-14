@@ -33,9 +33,10 @@ JS::GCPtr<Layout::Node> SVGMaskElement::create_layout_node(CSS::StyleProperties)
     return nullptr;
 }
 
-void SVGMaskElement::attribute_changed(FlyString const& name, Optional<String> const& old_value, Optional<String> const& value)
+void SVGMaskElement::attribute_changed(FlyString const& name, Optional<String> const& old_value, Optional<String> const& value, Optional<FlyString> const& namespace_)
 {
-    SVGGraphicsElement::attribute_changed(name, old_value, value);
+    Base::attribute_changed(name, old_value, value, namespace_);
+
     if (name == AttributeNames::maskUnits) {
         m_mask_units = AttributeParser::parse_units(value.value_or(String {}));
     } else if (name == AttributeNames::maskContentUnits) {

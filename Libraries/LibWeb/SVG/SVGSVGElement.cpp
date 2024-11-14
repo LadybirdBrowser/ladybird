@@ -101,9 +101,9 @@ void SVGSVGElement::apply_presentational_hints(CSS::StyleProperties& style) cons
         style.set_property(CSS::PropertyID::Height, height.release_nonnull());
 }
 
-void SVGSVGElement::attribute_changed(FlyString const& name, Optional<String> const& old_value, Optional<String> const& value)
+void SVGSVGElement::attribute_changed(FlyString const& name, Optional<String> const& old_value, Optional<String> const& value, Optional<FlyString> const& namespace_)
 {
-    SVGGraphicsElement::attribute_changed(name, old_value, value);
+    Base::attribute_changed(name, old_value, value, namespace_);
 
     if (name.equals_ignoring_ascii_case(SVG::AttributeNames::viewBox)) {
         if (!value.has_value()) {

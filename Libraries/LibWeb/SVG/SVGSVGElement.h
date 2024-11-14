@@ -91,7 +91,7 @@ private:
 
     virtual bool is_svg_svg_element() const override { return true; }
 
-    virtual void attribute_changed(FlyString const& name, Optional<String> const& old_value, Optional<String> const& value) override;
+    virtual void attribute_changed(FlyString const& name, Optional<String> const& old_value, Optional<String> const& value, Optional<FlyString> const& namespace_) override;
 
     void update_fallback_view_box_for_svg_as_image();
 
