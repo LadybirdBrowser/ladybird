@@ -278,32 +278,6 @@ JS::GCPtr<Selection::Selection> ViewportPaintable::selection() const
     return const_cast<DOM::Document&>(document()).get_selection();
 }
 
-void ViewportPaintable::update_selection()
-{
-    // 1. Start by setting all layout nodes to unselected.
-    for_each_in_inclusive_subtree([&](auto& layout_node) {
-        layout_node.set_selected(false);
-        return TraversalDecision::Continue;
-    });
-
-    // 2. If there is no active Selection or selected Range, return.
-    auto selection = document().get_selection();
-    if (!selection)
-        return;
-    auto range = selection->range();
-    if (!range)
-        return;
-
-    auto* start_container = range->start_container();
-    auto* end_container = range->end_container();
-
-    // 3. Mark the nodes included in range selected.
-    for (auto* node = start_container; node && node != end_container->next_in_pre_order(); node = node->next_in_pre_order()) {
-        if (auto* paintable = node->paintable())
-            paintable->set_selected(true);
-    }
-}
-
 void ViewportPaintable::recompute_selection_states(DOM::Range& range)
 {
     // 1. Start by resetting the selection state of all layout nodes to None.

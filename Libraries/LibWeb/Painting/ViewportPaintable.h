@@ -33,7 +33,6 @@ public:
 
     JS::GCPtr<Selection::Selection> selection() const;
     void recompute_selection_states(DOM::Range&);
-    void update_selection();
 
     bool handle_mousewheel(Badge<EventHandler>, CSSPixelPoint, unsigned, unsigned, int wheel_delta_x, int wheel_delta_y) override;
 

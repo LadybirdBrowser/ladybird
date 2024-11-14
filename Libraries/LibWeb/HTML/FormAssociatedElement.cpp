@@ -672,11 +672,9 @@ void FormAssociatedTextControlElement::selection_was_changed()
     if (!text_paintable)
         return;
     if (m_selection_start == m_selection_end) {
-        text_paintable->set_selected(false);
         text_paintable->set_selection_state(Painting::Paintable::SelectionState::None);
         text_node->document().reset_cursor_blink_cycle();
     } else {
-        text_paintable->set_selected(true);
         text_paintable->set_selection_state(Painting::Paintable::SelectionState::StartAndEnd);
     }
     text_paintable->set_needs_display();

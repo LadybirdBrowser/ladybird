@@ -79,9 +79,6 @@ void HTMLTextAreaElement::did_receive_focus()
         return;
     m_text_node->invalidate_style(DOM::StyleInvalidationReason::DidReceiveFocus);
 
-    if (auto* paintable = m_text_node->paintable())
-        paintable->set_selected(true);
-
     if (m_placeholder_text_node)
         m_placeholder_text_node->invalidate_style(DOM::StyleInvalidationReason::DidReceiveFocus);
 }
@@ -90,9 +87,6 @@ void HTMLTextAreaElement::did_lose_focus()
 {
     if (m_text_node)
         m_text_node->invalidate_style(DOM::StyleInvalidationReason::DidLoseFocus);
-
-    if (auto* paintable = m_text_node->paintable())
-        paintable->set_selected(false);
 
     if (m_placeholder_text_node)
         m_placeholder_text_node->invalidate_style(DOM::StyleInvalidationReason::DidLoseFocus);

@@ -187,9 +187,6 @@ Gfx::Orientation PaintableFragment::orientation() const
 
 CSSPixelRect PaintableFragment::selection_rect(Gfx::Font const& font) const
 {
-    if (!paintable().is_selected())
-        return {};
-
     if (auto const* focused_element = paintable().document().focused_element(); focused_element && is<HTML::FormAssociatedTextControlElement>(*focused_element)) {
         HTML::FormAssociatedTextControlElement const* text_control_element = nullptr;
         if (is<HTML::HTMLInputElement>(*focused_element)) {
