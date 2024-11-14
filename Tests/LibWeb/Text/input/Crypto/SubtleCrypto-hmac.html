@@ -1,0 +1,22 @@
+<script src="../include.js"></script>
+<script>
+    asyncTest(async done => {
+        await crypto.subtle.exportKey(
+            "jwk",
+            await crypto.subtle.generateKey(
+                {
+                    name: "HMAC",
+                    hash: {
+                        name: "SHA-512",
+                    },
+                },
+                !0,
+                ["sign", "verify"]
+            )
+        );
+
+        println("Does not crash.");
+
+        done();
+    });
+</script>
