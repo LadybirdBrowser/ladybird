@@ -54,8 +54,8 @@ class Navigable : public JS::Cell {
 public:
     virtual ~Navigable() override;
 
-    using NullWithError = StringView;
-    using NavigationParamsVariant = Variant<Empty, NullWithError, GC::Ref<NavigationParams>, GC::Ref<NonFetchSchemeNavigationParams>>;
+    using NullOrError = Optional<StringView>;
+    using NavigationParamsVariant = Variant<NullOrError, GC::Ref<NavigationParams>, GC::Ref<NonFetchSchemeNavigationParams>>;
 
     ErrorOr<void> initialize_navigable(GC::Ref<DocumentState> document_state, GC::Ptr<Navigable> parent);
 
@@ -132,7 +132,7 @@ public:
         SourceSnapshotParams const& source_snapshot_params,
         TargetSnapshotParams const& target_snapshot_params,
         Optional<String> navigation_id = {},
-        NavigationParamsVariant navigation_params = Empty {},
+        NavigationParamsVariant navigation_params = Navigable::NullOrError {},
         CSPNavigationType csp_navigation_type = CSPNavigationType::Other,
         bool allow_POST = false,
         GC::Ptr<GC::Function<void()>> completion_steps = {});
