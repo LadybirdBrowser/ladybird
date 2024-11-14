@@ -1234,6 +1234,10 @@ void Document::update_layout()
         page().client().page_did_layout();
     }
 
+    if (auto range = get_selection()->range()) {
+        paintable()->recompute_selection_states(*range);
+    }
+
     m_needs_layout = false;
 
     // Scrolling by zero offset will clamp scroll offset back to valid range if it was out of bounds
