@@ -142,6 +142,8 @@ public:
             // Only used when "pseudo_class" is "NthChild" or "NthLastChild".
             ANPlusBPattern nth_child_pattern {};
 
+            // FIXME: This would make more sense as part of SelectorList but that's currently a `using`
+            bool is_forgiving { false };
             SelectorList argument_selector_list {};
 
             // Used for :lang(en-gb,dk)

@@ -608,6 +608,7 @@ Parser::ParseErrorOr<Selector::SimpleSelector> Parser::parse_pseudo_simple_selec
                 .type = Selector::SimpleSelector::Type::PseudoClass,
                 .value = Selector::SimpleSelector::PseudoClassSelector {
                     .type = pseudo_class,
+                    .is_forgiving = true,
                     .argument_selector_list = move(argument_selector_list) }
             };
         }
