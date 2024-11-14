@@ -45,7 +45,7 @@
     "argument": ""
   },
   "has": {
-    "argument": "<forgiving-relative-selector-list>"
+    "argument": "<relative-selector-list>"
   },
   "host": {
     "argument": "<compound-selector>?"
