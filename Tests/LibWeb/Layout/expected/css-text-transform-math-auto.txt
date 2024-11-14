@@ -2,8 +2,18 @@ Viewport <#document> at (0,0) content-size 800x600 children: not-inline
   BlockContainer <html> at (0,0) content-size 800x600 [BFC] children: not-inline
     BlockContainer <body> at (8,16) content-size 784x17 children: not-inline
       BlockContainer <p> at (8,16) content-size 784x17 children: inline
-        frag 0 from TextNode start: 0, length: 67, rect: [8,16 118.40625x17] baseline: 13.296875
-            "𝑊𝑒𝑙𝑙, ℎ𝑒𝑙𝑙𝑜 𝑓𝑟𝑖𝑒𝑛𝑑𝑠!"
+        frag 0 from TextNode start: 0, length: 16, rect: [8,16 29.171875x17] baseline: 13.296875
+            "𝑊𝑒𝑙𝑙"
+        frag 1 from TextNode start: 16, length: 2, rect: [37,16 13.046875x17] baseline: 13.296875
+            ", "
+        frag 2 from TextNode start: 18, length: 19, rect: [50,16 33x17] baseline: 13.296875
+            "ℎ𝑒𝑙𝑙𝑜"
+        frag 3 from TextNode start: 37, length: 1, rect: [83,16 8x17] baseline: 13.296875
+            " "
+        frag 4 from TextNode start: 38, length: 28, rect: [91,16 44.171875x17] baseline: 13.296875
+            "𝑓𝑟𝑖𝑒𝑛𝑑𝑠"
+        frag 5 from TextNode start: 66, length: 1, rect: [135,16 3.859375x17] baseline: 13.296875
+            "!"
         TextNode <#text>
       BlockContainer <(anonymous)> at (8,49) content-size 784x0 children: inline
         TextNode <#text>

@@ -2095,6 +2095,10 @@ RefPtr<Gfx::FontCascadeList const> StyleComputer::compute_font_for_style_values(
         font_list->add(*emoji_font);
     }
 
+    if (auto math_font = Platform::FontPlugin::the().default_math_font(font_size_in_pt); math_font) {
+        font_list->add(*math_font);
+    }
+
     auto found_font = StyleProperties::font_fallback(monospace, bold);
     font_list->set_last_resort_font(found_font->with_size(font_size_in_pt));
 

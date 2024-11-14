@@ -80,6 +80,11 @@ RefPtr<Gfx::Font> FontPlugin::default_emoji_font(float point_size)
     return Gfx::FontDatabase::the().get(default_emoji_font_name, point_size, 400, Gfx::FontWidth::Normal, 0);
 }
 
+RefPtr<Gfx::Font> FontPlugin::default_math_font(float point_size)
+{
+    return Gfx::FontDatabase::the().get("Noto Sans Math"_fly_string, point_size, 400, Gfx::FontWidth::Normal, 0);
+}
+
 #ifdef USE_FONTCONFIG
 static Optional<String> query_fontconfig_for_generic_family(Web::Platform::GenericFont generic_font)
 {
