@@ -7,6 +7,7 @@
 
 #include <AK/Badge.h>
 #include <AK/Debug.h>
+#include <AK/Function.h>
 #include <AK/HashTable.h>
 #include <AK/JsonArray.h>
 #include <AK/JsonObject.h>
@@ -19,7 +20,6 @@
 #include <LibJS/Heap/Heap.h>
 #include <LibJS/Heap/HeapBlock.h>
 #include <LibJS/Heap/NanBoxedValue.h>
-#include <LibJS/Runtime/VM.h>
 #include <setjmp.h>
 
 #ifdef HAS_ADDRESS_SANITIZER
@@ -28,8 +28,9 @@
 
 namespace JS {
 
-Heap::Heap(VM& vm)
+Heap::Heap(VM& vm, Function<void(HashMap<Cell*, JS::HeapRoot>&)> gather_embedder_roots)
     : HeapBase(vm)
+    , m_gather_embedder_roots(move(gather_embedder_roots))
 {
     static_assert(HeapBlock::min_possible_cell_size <= 32, "Heap Cell tracking uses too much data!");
     m_size_based_cell_allocators.append(make<CellAllocator>(64));
@@ -259,7 +260,7 @@ void Heap::collect_garbage(CollectionType collection_type, bool print_report)
 
 void Heap::gather_roots(HashMap<Cell*, HeapRoot>& roots)
 {
-    vm().gather_roots(roots);
+    m_gather_embedder_roots(roots);
     gather_conservative_roots(roots);
 
     for (auto& handle : m_handles)
