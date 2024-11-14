@@ -326,8 +326,16 @@ void Parser::parse_attribute(HashMap<ByteString, ByteString>& extended_attribute
 
     assert_specific(';');
 
-    auto getter_callback_name = ByteString::formatted("{}_getter", name.to_snakecase());
-    auto setter_callback_name = ByteString::formatted("{}_setter", name.to_snakecase());
+    ByteString attribute_callback_name;
+    auto custom_callback_name = extended_attributes.find("AttributeCallbackName");
+    if (custom_callback_name != extended_attributes.end()) {
+        attribute_callback_name = custom_callback_name->value;
+    } else {
+        attribute_callback_name = name.to_snakecase().replace("-"sv, "_"sv, ReplaceMode::All);
+    }
+
+    auto getter_callback_name = ByteString::formatted("{}_getter", attribute_callback_name);
+    auto setter_callback_name = ByteString::formatted("{}_setter", attribute_callback_name);
 
     Attribute attribute {
         inherit,
