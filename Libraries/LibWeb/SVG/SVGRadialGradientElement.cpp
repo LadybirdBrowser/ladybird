@@ -25,9 +25,9 @@ void SVGRadialGradientElement::initialize(JS::Realm& realm)
     WEB_SET_PROTOTYPE_FOR_INTERFACE(SVGRadialGradientElement);
 }
 
-void SVGRadialGradientElement::attribute_changed(FlyString const& name, Optional<String> const& old_value, Optional<String> const& value)
+void SVGRadialGradientElement::attribute_changed(FlyString const& name, Optional<String> const& old_value, Optional<String> const& value, Optional<FlyString> const& namespace_)
 {
-    SVGGradientElement::attribute_changed(name, old_value, value);
+    Base::attribute_changed(name, old_value, value, namespace_);
 
     // FIXME: These are <length> or <coordinate> in the spec, but all examples seem to allow percentages
     // and unitless values.

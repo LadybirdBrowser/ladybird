@@ -20,10 +20,10 @@ MathMLElement::MathMLElement(DOM::Document& document, DOM::QualifiedName qualifi
 {
 }
 
-void MathMLElement::attribute_change_steps(FlyString const& local_name, Optional<String> const& old_value, Optional<String> const& value, Optional<FlyString> const& namespace_)
+void MathMLElement::attribute_changed(FlyString const& local_name, Optional<String> const& old_value, Optional<String> const& value, Optional<FlyString> const& namespace_)
 {
-    Base::attribute_change_steps(local_name, old_value, value, namespace_);
-    HTMLOrSVGElement::attribute_change_steps(local_name, old_value, value, namespace_);
+    Base::attribute_changed(local_name, old_value, value, namespace_);
+    HTMLOrSVGElement::attribute_changed(local_name, old_value, value, namespace_);
 }
 
 WebIDL::ExceptionOr<void> MathMLElement::cloned(DOM::Node& node, bool clone_children)

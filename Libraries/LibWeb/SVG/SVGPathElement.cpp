@@ -97,9 +97,9 @@ void SVGPathElement::initialize(JS::Realm& realm)
     WEB_SET_PROTOTYPE_FOR_INTERFACE(SVGPathElement);
 }
 
-void SVGPathElement::attribute_changed(FlyString const& name, Optional<String> const& old_value, Optional<String> const& value)
+void SVGPathElement::attribute_changed(FlyString const& name, Optional<String> const& old_value, Optional<String> const& value, Optional<FlyString> const& namespace_)
 {
-    SVGGeometryElement::attribute_changed(name, old_value, value);
+    Base::attribute_changed(name, old_value, value, namespace_);
 
     if (name == "d")
         m_instructions = AttributeParser::parse_path_data(value.value_or(String {}));

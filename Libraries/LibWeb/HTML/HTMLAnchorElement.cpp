@@ -40,9 +40,10 @@ void HTMLAnchorElement::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_rel_list);
 }
 
-void HTMLAnchorElement::attribute_changed(FlyString const& name, Optional<String> const& old_value, Optional<String> const& value)
+void HTMLAnchorElement::attribute_changed(FlyString const& name, Optional<String> const& old_value, Optional<String> const& value, Optional<FlyString> const& namespace_)
 {
-    HTMLElement::attribute_changed(name, old_value, value);
+    Base::attribute_changed(name, old_value, value, namespace_);
+
     if (name == HTML::AttributeNames::href) {
         set_the_url();
     } else if (name == HTML::AttributeNames::rel) {

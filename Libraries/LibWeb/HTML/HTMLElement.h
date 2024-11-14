@@ -81,8 +81,7 @@ protected:
 
     virtual void initialize(JS::Realm&) override;
 
-    virtual void attribute_changed(FlyString const& name, Optional<String> const& old_value, Optional<String> const& value) override;
-    virtual void attribute_change_steps(FlyString const&, Optional<String> const&, Optional<String> const&, Optional<FlyString> const&) override;
+    virtual void attribute_changed(FlyString const& name, Optional<String> const& old_value, Optional<String> const& value, Optional<FlyString> const& namespace_) override;
     virtual WebIDL::ExceptionOr<void> cloned(DOM::Node&, bool) override;
     virtual void inserted() override;
 

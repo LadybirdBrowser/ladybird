@@ -50,9 +50,10 @@ void SVGSymbolElement::apply_presentational_hints(CSS::StyleProperties& style) c
     }
 }
 
-void SVGSymbolElement::attribute_changed(FlyString const& name, Optional<String> const& old_value, Optional<String> const& value)
+void SVGSymbolElement::attribute_changed(FlyString const& name, Optional<String> const& old_value, Optional<String> const& value, Optional<FlyString> const& namespace_)
 {
-    Base::attribute_changed(name, old_value, value);
+    Base::attribute_changed(name, old_value, value, namespace_);
+
     if (name.equals_ignoring_ascii_case(SVG::AttributeNames::viewBox)) {
         m_view_box = try_parse_view_box(value.value_or(String {}));
         m_view_box_for_bindings->set_nulled(!m_view_box.has_value());

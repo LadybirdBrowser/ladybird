@@ -42,9 +42,10 @@ void SVGImageElement::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_resource_request);
 }
 
-void SVGImageElement::attribute_changed(FlyString const& name, Optional<String> const& old_value, Optional<String> const& value)
+void SVGImageElement::attribute_changed(FlyString const& name, Optional<String> const& old_value, Optional<String> const& value, Optional<FlyString> const& namespace_)
 {
-    SVGGraphicsElement::attribute_changed(name, old_value, value);
+    Base::attribute_changed(name, old_value, value, namespace_);
+
     if (name == SVG::AttributeNames::x) {
         auto parsed_value = AttributeParser::parse_coordinate(value.value_or(String {}));
         MUST(x()->base_val()->set_value(parsed_value.value_or(0)));

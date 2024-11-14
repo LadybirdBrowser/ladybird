@@ -58,7 +58,7 @@ void HTMLOrSVGElement<ElementBase>::blur()
 
 // https://html.spec.whatwg.org/#dom-noncedelement-nonce
 template<typename ElementBase>
-void HTMLOrSVGElement<ElementBase>::attribute_change_steps(FlyString const& local_name, Optional<String> const&, Optional<String> const& value, Optional<FlyString> const& namespace_)
+void HTMLOrSVGElement<ElementBase>::attribute_changed(FlyString const& local_name, Optional<String> const&, Optional<String> const& value, Optional<FlyString> const& namespace_)
 {
     // 1. If element does not include HTMLOrSVGElement, then return.
     // 2. If localName is not nonce or namespace is not null, then return.

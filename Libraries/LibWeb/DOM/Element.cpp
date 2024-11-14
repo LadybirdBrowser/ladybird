@@ -444,71 +444,11 @@ JS::GCPtr<Layout::NodeWithStyle> Element::create_layout_node_for_display_type(DO
 
 void Element::run_attribute_change_steps(FlyString const& local_name, Optional<String> const& old_value, Optional<String> const& value, Optional<FlyString> const& namespace_)
 {
-    attribute_change_steps(local_name, old_value, value, namespace_);
-
-    // AD-HOC: Run our own internal attribute change handler.
-    attribute_changed(local_name, old_value, value);
+    attribute_changed(local_name, old_value, value, namespace_);
 
     if (old_value != value) {
         invalidate_style_after_attribute_change(local_name);
         document().bump_dom_tree_version();
-    }
-}
-
-void Element::attribute_changed(FlyString const& name, Optional<String> const&, Optional<String> const& value)
-{
-    auto value_or_empty = value.value_or(String {});
-
-    if (name == HTML::AttributeNames::id) {
-        if (value_or_empty.is_empty())
-            m_id = {};
-        else
-            m_id = value_or_empty;
-
-        document().element_id_changed({}, *this);
-    } else if (name == HTML::AttributeNames::name) {
-        if (value_or_empty.is_empty())
-            m_name = {};
-        else
-            m_name = value_or_empty;
-
-        document().element_name_changed({}, *this);
-    } else if (name == HTML::AttributeNames::class_) {
-        if (value_or_empty.is_empty()) {
-            m_classes.clear();
-        } else {
-            auto new_classes = value_or_empty.bytes_as_string_view().split_view_if(Infra::is_ascii_whitespace);
-            m_classes.clear();
-            m_classes.ensure_capacity(new_classes.size());
-            for (auto& new_class : new_classes) {
-                m_classes.unchecked_append(FlyString::from_utf8(new_class).release_value_but_fixme_should_propagate_errors());
-            }
-        }
-        if (m_class_list)
-            m_class_list->associated_attribute_changed(value_or_empty);
-    } else if (name == HTML::AttributeNames::style) {
-        if (!value.has_value()) {
-            if (m_inline_style) {
-                m_inline_style = nullptr;
-                set_needs_style_update(true);
-            }
-        } else {
-            // https://drafts.csswg.org/cssom/#ref-for-cssstyledeclaration-updating-flag
-            if (m_inline_style && m_inline_style->is_updating())
-                return;
-            m_inline_style = parse_css_style_attribute(CSS::Parser::ParsingContext(document()), *value, *this);
-            set_needs_style_update(true);
-        }
-    } else if (name == HTML::AttributeNames::dir) {
-        // https://html.spec.whatwg.org/multipage/dom.html#attr-dir
-        if (value_or_empty.equals_ignoring_ascii_case("ltr"sv))
-            m_dir = Dir::Ltr;
-        else if (value_or_empty.equals_ignoring_ascii_case("rtl"sv))
-            m_dir = Dir::Rtl;
-        else if (value_or_empty.equals_ignoring_ascii_case("auto"sv))
-            m_dir = Dir::Auto;
-        else
-            m_dir = {};
     }
 }
 
@@ -2727,9 +2667,10 @@ Element::Directionality Element::parent_directionality() const
     return Directionality::Ltr;
 }
 
-// https://dom.spec.whatwg.org/#ref-for-concept-element-attributes-change-ext①
-void Element::attribute_change_steps(FlyString const& local_name, Optional<String> const& old_value, Optional<String> const& value, Optional<FlyString> const& namespace_)
+// https://dom.spec.whatwg.org/#concept-element-attributes-change-ext
+void Element::attribute_changed(FlyString const& local_name, Optional<String> const& old_value, Optional<String> const& value, Optional<FlyString> const& namespace_)
 {
+    // https://dom.spec.whatwg.org/#ref-for-concept-element-attributes-change-ext①
     // 1. If localName is slot and namespace is null, then:
     if (local_name == HTML::AttributeNames::slot && !namespace_.has_value()) {
         // 1. If value is oldValue, then return.
@@ -2757,6 +2698,61 @@ void Element::attribute_change_steps(FlyString const& local_name, Optional<Strin
 
         // 7. Run assign a slot for element.
         assign_a_slot(JS::NonnullGCPtr { *this });
+        return;
+    }
+
+    auto value_or_empty = value.value_or(String {});
+
+    if (local_name == HTML::AttributeNames::id) {
+        if (value_or_empty.is_empty())
+            m_id = {};
+        else
+            m_id = value_or_empty;
+
+        document().element_id_changed({}, *this);
+    } else if (local_name == HTML::AttributeNames::name) {
+        if (value_or_empty.is_empty())
+            m_name = {};
+        else
+            m_name = value_or_empty;
+
+        document().element_name_changed({}, *this);
+    } else if (local_name == HTML::AttributeNames::class_) {
+        if (value_or_empty.is_empty()) {
+            m_classes.clear();
+        } else {
+            auto new_classes = value_or_empty.bytes_as_string_view().split_view_if(Infra::is_ascii_whitespace);
+            m_classes.clear();
+            m_classes.ensure_capacity(new_classes.size());
+            for (auto& new_class : new_classes) {
+                m_classes.unchecked_append(FlyString::from_utf8(new_class).release_value_but_fixme_should_propagate_errors());
+            }
+        }
+        if (m_class_list)
+            m_class_list->associated_attribute_changed(value_or_empty);
+    } else if (local_name == HTML::AttributeNames::style) {
+        if (!value.has_value()) {
+            if (m_inline_style) {
+                m_inline_style = nullptr;
+                set_needs_style_update(true);
+            }
+        } else {
+            // https://drafts.csswg.org/cssom/#ref-for-cssstyledeclaration-updating-flag
+            if (m_inline_style && m_inline_style->is_updating())
+                return;
+            m_inline_style = parse_css_style_attribute(CSS::Parser::ParsingContext(document()), *value, *this);
+            set_needs_style_update(true);
+        }
+    } else if (local_name == HTML::AttributeNames::dir) {
+        // https://html.spec.whatwg.org/multipage/dom.html#attr-dir
+        if (value_or_empty.equals_ignoring_ascii_case("ltr"sv))
+            m_dir = Dir::Ltr;
+        else if (value_or_empty.equals_ignoring_ascii_case("rtl"sv))
+            m_dir = Dir::Rtl;
+        else if (value_or_empty.equals_ignoring_ascii_case("auto"sv))
+            m_dir = Dir::Auto;
+        else
+            m_dir = {};
     }
 }
 

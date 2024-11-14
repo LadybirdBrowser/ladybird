@@ -595,9 +595,10 @@ bool HTMLElement::cannot_navigate() const
     return !is<HTML::HTMLAnchorElement>(this) && !is_connected();
 }
 
-void HTMLElement::attribute_changed(FlyString const& name, Optional<String> const& old_value, Optional<String> const& value)
+void HTMLElement::attribute_changed(FlyString const& name, Optional<String> const& old_value, Optional<String> const& value, Optional<FlyString> const& namespace_)
 {
-    Element::attribute_changed(name, old_value, value);
+    Base::attribute_changed(name, old_value, value, namespace_);
+    HTMLOrSVGElement::attribute_changed(name, old_value, value, namespace_);
 
     if (name == HTML::AttributeNames::contenteditable) {
         if (!value.has_value()) {
@@ -625,12 +626,6 @@ void HTMLElement::attribute_changed(FlyString const& name, Optional<String> cons
     }
     ENUMERATE_GLOBAL_EVENT_HANDLERS(__ENUMERATE)
 #undef __ENUMERATE
-}
-
-void HTMLElement::attribute_change_steps(FlyString const& local_name, Optional<String> const& old_value, Optional<String> const& value, Optional<FlyString> const& namespace_)
-{
-    Base::attribute_change_steps(local_name, old_value, value, namespace_);
-    HTMLOrSVGElement::attribute_change_steps(local_name, old_value, value, namespace_);
 }
 
 WebIDL::ExceptionOr<void> HTMLElement::cloned(Web::DOM::Node& copy, bool clone_children)
