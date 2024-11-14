@@ -183,6 +183,7 @@ public:
     }
 
     static Color from_a98rgb(float r, float g, float b, float alpha = 1.0f);
+    static Color from_display_p3(float r, float g, float b, float alpha = 1.0f);
     static Color from_lab(float L, float a, float b, float alpha = 1.0f);
     static Color from_xyz50(float x, float y, float z, float alpha = 1.0f);
     static Color from_xyz65(float x, float y, float z, float alpha = 1.0f);

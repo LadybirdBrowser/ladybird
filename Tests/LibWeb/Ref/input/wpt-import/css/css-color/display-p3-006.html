@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>CSS Color 4: display-p3 and sRGB with medium chroma</title>
+<link rel="author" title="Chris Lilley" href="mailto:chris@w3.org">
+<link rel="help" href="https://drafts.csswg.org/css-color-4/#valdef-color-display-p3">
+<link rel="help" href="https://drafts.csswg.org/css-color-4/#predefined-sRGB">
+<link rel="help" href="https://drafts.csswg.org/css-color-4/#oklab-lab-to-predefined">
+<link rel="match" href="../../../../expected/wpt-import/css/css-color/mossgreensquare-ref.html">
+<meta name="assert" content="display-p3 with no alpha">
+<style>
+    .test, .test2 { background-color: red; width: 12em; height: 4em; }
+    .ref {background-color: rgb(44.8436% 53.537% 28.8112%); width: 12em; height: 4em; }
+        /* lch(54% 35 118) converted to legacy sRGB */
+    .test { background-color: color(display-p3 0.465377 0.532768 0.317713); }
+        /* lch(54% 35 118) converted to display-p3 */
+    .test2 {background-color: color(srgb 0.448436 0.53537 0.288113); }
+        /* lch(54% 35 118) converted to color(sRGB) */
+</style>
+<body>
+    <p>Test passes if you see a moss green square, and no red.</p>
+    <div class="test"></div>
+    <div class="ref"></div>
+    <div class="test2"></div>
+</body>

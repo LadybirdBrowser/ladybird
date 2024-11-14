@@ -17,6 +17,8 @@ CSSColorValue::ColorType color_type_from_string_view(StringView color_space)
 {
     if (color_space == "a98-rgb"sv)
         return CSSColorValue::ColorType::A98RGB;
+    if (color_space == "display-p3"sv)
+        return CSSColorValue::ColorType::DisplayP3;
     if (color_space == "srgb"sv)
         return CSSColorValue::ColorType::sRGB;
     if (color_space == "srgb-linear"sv)
@@ -69,6 +71,9 @@ Color CSSColor::to_color(Optional<Layout::NodeWithStyle const&>) const
 
     if (color_type() == ColorType::A98RGB)
         return Color::from_a98rgb(c1, c2, c3, alpha_val);
+
+    if (color_type() == ColorType::DisplayP3)
+        return Color::from_display_p3(c1, c2, c3, alpha_val);
 
     if (color_type() == ColorType::sRGB) {
         auto const to_u8 = [](float c) -> u8 { return round_to<u8>(clamp(255 * c, 0, 255)); };
