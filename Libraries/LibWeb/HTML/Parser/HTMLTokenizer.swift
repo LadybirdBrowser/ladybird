@@ -126,9 +126,59 @@ public class HTMLTokenizer {
     private var lastStartTagName: Swift.String? = nil
     private var currentTokensAttributes: [HTMLToken.Attribute]? = nil
     private var currentAttribute: HTMLToken.Attribute? = nil
+    private var characterReferenceCode: Int = 0
 
     private var aborted = false
     private var hasEmittedEOF = false
+
+    // https://infra.spec.whatwg.org/#noncharacter
+    // A noncharacter is a code point that is in the range U+FDD0 to U+FDEF, inclusive,
+    // or U+FFFE, U+FFFF, U+1FFFE, U+1FFFF, U+2FFFE, U+2FFFF, U+3FFFE, U+3FFFF, U+4FFFE, U+4FFFF,
+    // U+5FFFE, U+5FFFF, U+6FFFE, U+6FFFF, U+7FFFE, U+7FFFF, U+8FFFE, U+8FFFF, U+9FFFE, U+9FFFF,
+    // U+AFFFE, U+AFFFF, U+BFFFE, U+BFFFF, U+CFFFE, U+CFFFF, U+DFFFE, U+DFFFF, U+EFFFE, U+EFFFF,
+    // U+FFFFE, U+FFFFF, U+10FFFE, or U+10FFFF.
+    static private var nonCharacter = CharacterSet(charactersIn: Unicode.Scalar(0xFDD0)!...Unicode.Scalar(0xFDEF)!)
+        .union(CharacterSet(charactersIn: "\u{FFFE}"..."\u{FFFF}"))
+        .union(CharacterSet(charactersIn: "\u{1FFFE}"..."\u{1FFFF}"))
+        .union(CharacterSet(charactersIn: "\u{2FFFE}"..."\u{2FFFF}"))
+        .union(CharacterSet(charactersIn: "\u{3FFFE}"..."\u{3FFFF}"))
+        .union(CharacterSet(charactersIn: "\u{4FFFE}"..."\u{4FFFF}"))
+        .union(CharacterSet(charactersIn: "\u{5FFFE}"..."\u{5FFFF}"))
+        .union(CharacterSet(charactersIn: "\u{6FFFE}"..."\u{6FFFF}"))
+        .union(CharacterSet(charactersIn: "\u{7FFFE}"..."\u{7FFFF}"))
+        .union(CharacterSet(charactersIn: "\u{8FFFE}"..."\u{8FFFF}"))
+        .union(CharacterSet(charactersIn: "\u{9FFFE}"..."\u{9FFFF}"))
+        .union(CharacterSet(charactersIn: "\u{AFFFE}"..."\u{AFFFF}"))
+        .union(CharacterSet(charactersIn: "\u{BFFFE}"..."\u{BFFFF}"))
+        .union(CharacterSet(charactersIn: "\u{CFFFE}"..."\u{CFFFF}"))
+        .union(CharacterSet(charactersIn: "\u{DFFFE}"..."\u{DFFFF}"))
+        .union(CharacterSet(charactersIn: "\u{EFFFE}"..."\u{EFFFF}"))
+        .union(CharacterSet(charactersIn: "\u{FFFFE}"..."\u{FFFFF}"))
+        .union(CharacterSet(charactersIn: "\u{10FFFE}"..."\u{10FFFF}"))
+
+    // https://infra.spec.whatwg.org/#ascii-whitespace
+    static private var asciiWhitespace = CharacterSet(charactersIn: "\t\n\u{000C}\u{000D} ")
+
+    // https://infra.spec.whatwg.org/#c0-control
+    static private var c0Control = CharacterSet(charactersIn: "\u{0000}"..."\u{001F}")
+
+    // https://infra.spec.whatwg.org/#control
+    static private var control = c0Control.union(CharacterSet(charactersIn: "\u{007F}"..."\u{009F}"))
+
+    // IMPLEMENTATION DEFINED: Used for the numeric character reference end state
+    static private var controlNotAsciiWhitespace = control.subtracting(asciiWhitespace)
+
+    // https://infra.spec.whatwg.org/#ascii-digit
+    static private var asciiDigit = CharacterSet(charactersIn: "0123456789")
+
+    // https://infra.spec.whatwg.org/#ascii-upper-hex-digit
+    static private var asciiUpperHexDigit = CharacterSet(charactersIn: "ABCDEF")
+
+    // https://infra.spec.whatwg.org/#ascii-lower-hex-digit
+    static private var asciiLowerHexDigit = CharacterSet(charactersIn: "abcdef")
+
+    // https://infra.spec.whatwg.org/#ascii-hex-digit
+    static private var asciiHexDigit = asciiUpperHexDigit.union(asciiLowerHexDigit)
 
     // https://infra.spec.whatwg.org/#ascii-upper-alpha
     static private var asciiUpperAlpha = CharacterSet(charactersIn: "ABCDEFGHIJKLMNOPQRSTUVWXYZ")
@@ -138,6 +188,40 @@ public class HTMLTokenizer {
 
     // https://infra.spec.whatwg.org/#ascii-upper-alpha
     static private var asciiAlpha = asciiUpperAlpha.union(asciiLowerAlpha)
+
+    // https://infra.spec.whatwg.org/#ascii-alphanumeric
+    static private var asciiAlphanumeric = asciiAlpha.union(asciiDigit)
+
+    static private var characterReferenceControlCodeMapping: [Int: Unicode.Scalar] =
+        [
+            0x80: Unicode.Scalar(0x20AC)!,  // €
+            0x82: Unicode.Scalar(0x201A)!,  // ‚
+            0x83: Unicode.Scalar(0x0192)!,  // ƒ
+            0x84: Unicode.Scalar(0x201E)!,  // „
+            0x85: Unicode.Scalar(0x2026)!,  // …
+            0x86: Unicode.Scalar(0x2020)!,  // †
+            0x87: Unicode.Scalar(0x2021)!,  // ‡
+            0x88: Unicode.Scalar(0x02C6)!,  // ˆ
+            0x89: Unicode.Scalar(0x2030)!,  // ‰
+            0x8A: Unicode.Scalar(0x0160)!,  // Š
+            0x8B: Unicode.Scalar(0x2039)!,  // ‹
+            0x8C: Unicode.Scalar(0x0152)!,  // Œ
+            0x8E: Unicode.Scalar(0x017D)!,  // Ž
+            0x91: Unicode.Scalar(0x2018)!,  // ‘
+            0x92: Unicode.Scalar(0x2019)!,  // ’
+            0x93: Unicode.Scalar(0x201C)!,  // “
+            0x94: Unicode.Scalar(0x201D)!,  // ”
+            0x95: Unicode.Scalar(0x2022)!,  // •
+            0x96: Unicode.Scalar(0x2013)!,  // –
+            0x97: Unicode.Scalar(0x2014)!,  // —
+            0x98: Unicode.Scalar(0x02DC)!,  // ˜
+            0x99: Unicode.Scalar(0x2122)!,  // ™
+            0x9A: Unicode.Scalar(0x0161)!,  // š
+            0x9B: Unicode.Scalar(0x203A)!,  // ›
+            0x9C: Unicode.Scalar(0x0153)!,  // œ
+            0x9E: Unicode.Scalar(0x017E)!,  // ž
+            0x9F: Unicode.Scalar(0x0178)!,  // Ÿ
+        ]
 
     public init() {
         self.cursor = self.input.startIndex
@@ -162,8 +246,8 @@ public class HTMLTokenizer {
     }
 
     func skip(_ count: Int) {
+        self.previousCursor = self.cursor
         self.cursor = self.input.index(self.cursor, offsetBy: count, limitedBy: self.input.endIndex) ?? input.endIndex
-        self.previousCursor = self.input.index(before: self.cursor)
     }
 
     func peekCodePoint(_ offset: Int = 0) -> Character? {
@@ -579,6 +663,65 @@ public class HTMLTokenizer {
                 self.queuedTokens.append(HTMLToken(type: .Character(codePoint: codePoint)))
             }
             return reconsume(currentInputCharacter, in: .RCDATA)
+        // 13.2.5.12 RAWTEXT less-than sign state, https://html.spec.whatwg.org/multipage/parsing.html#rawtext-less-than-sign-state
+        case .RAWTEXTLessThanSign:
+            switch currentInputCharacter {
+            case "/":
+                self.temporaryBuffer = ""
+                return switchTo(.RAWTEXTEndTagOpen)
+            default:
+                return emitCharacterAndReconsume("<", in: .RAWTEXT, currentInputCharacter: currentInputCharacter)
+            }
+        // 13.2.5.13 RAWTEXT end tag open state, https://html.spec.whatwg.org/multipage/parsing.html#rawtext-end-tag-open-state
+        case .RAWTEXTEndTagOpen:
+            switch currentInputCharacter {
+            case let c? where HTMLTokenizer.asciiAlpha.contains(c.unicodeScalars.first!):
+                createNewToken(HTMLToken(type: .EndTag(tagName: "")))
+                return reconsume(currentInputCharacter!, in: .RAWTEXTEndTagName)
+            default:
+                queuedTokens.append(HTMLToken(type: .Character(codePoint: "<")))
+                queuedTokens.append(HTMLToken(type: .Character(codePoint: "/")))
+                return reconsume(currentInputCharacter, in: .RAWTEXT)
+            }
+        // 13.2.5.14 RAWTEXT end tag name state, https://html.spec.whatwg.org/multipage/parsing.html#rawtext-end-tag-name-state
+        case .RAWTEXTEndTagName:
+            switch currentInputCharacter {
+            case "\t", "\n", "\u{000C}", " ":
+                if self.isAppropriateEndTagToken(currentToken) {
+                    return switchTo(.BeforeAttributeName)
+                }
+                break
+            case "/":
+                if self.isAppropriateEndTagToken(currentToken) {
+                    return switchTo(.SelfClosingStartTag)
+                }
+                break
+            case ">":
+                if self.isAppropriateEndTagToken(currentToken) {
+                    return switchToAndEmitCurrentToken(.Data)
+                }
+                break
+            case let c? where HTMLTokenizer.asciiUpperAlpha.contains(c.unicodeScalars.first!):
+                self.currentBuilder.append(Character(Unicode.Scalar(c.asciiValue! + 0x20)))
+                self.temporaryBuffer.append(c)
+                return continueInCurrentState()
+            case let c? where HTMLTokenizer.asciiLowerAlpha.contains(c.unicodeScalars.first!):
+                self.currentBuilder.append(c)
+                self.temporaryBuffer.append(c)
+                return continueInCurrentState()
+            default:
+                break
+            }
+
+            // First three steps fall through to the "anything else" block
+            self.queuedTokens.append(HTMLToken(type: .Character(codePoint: "<")))
+            self.queuedTokens.append(HTMLToken(type: .Character(codePoint: "/")))
+            // NOTE: The spec doesn't mention this, but it seems that m_current_token (an end tag) is just dropped in this case.
+            self.currentBuilder = ""
+            for codePoint in self.temporaryBuffer {
+                self.queuedTokens.append(HTMLToken(type: .Character(codePoint: codePoint)))
+            }
+            return reconsume(currentInputCharacter, in: .RAWTEXT)
         // 13.2.5.15 Script data less-than sign state, https://html.spec.whatwg.org/multipage/parsing.html#script-data-less-than-sign-state
         case .ScriptDataLessThanSign:
             switch currentInputCharacter {
@@ -1225,9 +1368,559 @@ public class HTMLTokenizer {
                 currentBuilder.append("--!")
                 return reconsume(currentInputCharacter, in: .Comment)
             }
-        default:
-            print("TODO: In state \(self.state) with input \(Swift.String(describing: currentInputCharacter))")
-            return emitEOF()
+        // 13.2.5.53 DOCTYPE state, https://html.spec.whatwg.org/multipage/parsing.html#doctype-state
+        case .DOCTYPE:
+            switch currentInputCharacter {
+            case "\t", "\n", "\u{000C}", " ":
+                return switchTo(.BeforeDOCTYPEName)
+            case ">":
+                return reconsume(currentInputCharacter, in: .BeforeDOCTYPEName)
+            case nil:
+                // FIXME: log_parse_error()
+                currentToken = HTMLToken(type: .DOCTYPE(name: nil, publicIdentifier: nil, systemIdentifier: nil, forceQuirksMode: true))
+                return emitCurrentTokenFollowedByEOF()
+            default:
+                // FIXME: log_parse_error()
+                return reconsume(currentInputCharacter!, in: .BeforeDOCTYPEName)
+            }
+        // 13.2.5.54 Before DOCTYPE name state, https://html.spec.whatwg.org/multipage/parsing.html#before-doctype-name-state
+        case .BeforeDOCTYPEName:
+            switch currentInputCharacter {
+            case "\t", "\n", "\u{000C}", " ":
+                return continueInCurrentState()
+            case let c? where HTMLTokenizer.asciiUpperAlpha.contains(c.unicodeScalars.first!):
+                precondition(self.currentBuilder.isEmpty)
+                self.currentToken = HTMLToken(type: .DOCTYPE(name: nil, publicIdentifier: nil, systemIdentifier: nil, forceQuirksMode: false))
+                self.currentBuilder.append(Character(Unicode.Scalar(c.asciiValue! + 0x20)))
+                return switchTo(.DOCTYPEName)
+            case "\0":
+                // FIXME: log_parse_error()
+                precondition(self.currentBuilder.isEmpty)
+                self.currentToken = HTMLToken(type: .DOCTYPE(name: nil, publicIdentifier: nil, systemIdentifier: nil, forceQuirksMode: false))
+                self.currentBuilder.append("\u{FFFD}")
+                return switchTo(.DOCTYPEName)
+            case ">":
+                // FIXME: log_parse_error()
+                self.currentToken = HTMLToken(type: .DOCTYPE(name: nil, publicIdentifier: nil, systemIdentifier: nil, forceQuirksMode: true))
+                return switchToAndEmitCurrentToken(.Data)
+            case nil:
+                // FIXME: log_parse_error()
+                self.currentToken = HTMLToken(type: .DOCTYPE(name: nil, publicIdentifier: nil, systemIdentifier: nil, forceQuirksMode: true))
+                return emitCurrentTokenFollowedByEOF()
+            default:
+                // FIXME: log_parse_error()
+                precondition(self.currentBuilder.isEmpty)
+                self.currentToken = HTMLToken(type: .DOCTYPE(name: nil, publicIdentifier: nil, systemIdentifier: nil, forceQuirksMode: false))
+                self.currentBuilder.append(currentInputCharacter!)
+                return switchTo(.DOCTYPEName)
+            }
+        // 13.2.5.55 DOCTYPE name state, https://html.spec.whatwg.org/multipage/parsing.html#doctype-name-state
+        case .DOCTYPEName:
+            switch currentInputCharacter {
+            case "\t", "\n", "\u{000C}", " ":
+                self.currentToken.name = self.currentBuilder.takeString()
+                return switchTo(.AfterDOCTYPEName)
+            case ">":
+                self.currentToken.name = self.currentBuilder.takeString()
+                return switchToAndEmitCurrentToken(.Data)
+            case let c? where HTMLTokenizer.asciiUpperAlpha.contains(c.unicodeScalars.first!):
+                self.currentBuilder.append(Character(Unicode.Scalar(c.asciiValue! + 0x20)))
+                return continueInCurrentState()
+            case "\0":
+                // FIXME: log_parse_error()
+                self.currentBuilder.append("\u{FFFD}")
+                return continueInCurrentState()
+            case nil:
+                // FIXME: log_parse_error()
+                self.currentToken.forceQuirks = true
+                self.currentToken.name = self.currentBuilder.takeString()
+                return emitCurrentTokenFollowedByEOF()
+            default:
+                self.currentBuilder.append(currentInputCharacter!)
+                return continueInCurrentState()
+            }
+        // 13.2.5.56 After DOCTYPE name state, https://html.spec.whatwg.org/multipage/parsing.html#after-doctype-name-state
+        case .AfterDOCTYPEName:
+            precondition(self.currentBuilder.isEmpty)
+            precondition(self.currentToken.name != nil)
+            switch currentInputCharacter {
+            case "\t", "\n", "\u{000C}", " ":
+                return continueInCurrentState()
+            case ">":
+                return switchToAndEmitCurrentToken(.Data)
+            case nil:
+                // FIXME: log_parse_error()
+                self.currentToken.forceQuirks = true
+                return emitCurrentTokenFollowedByEOF()
+            default:
+                if "pP".contains(currentInputCharacter!), peekNext(count: 5)?.uppercased() == "UBLIC" {
+                    skip(5)
+                    return switchTo(.AfterDOCTYPEPublicKeyword)
+                }
+                if "sS".contains(currentInputCharacter!), peekNext(count: 5)?.uppercased() == "YSTEM" {
+                    skip(5)
+                    return switchTo(.AfterDOCTYPESystemKeyword)
+                }
+
+                // FIXME: log_parse_error()
+                self.currentToken.forceQuirks = true
+                return reconsume(currentInputCharacter!, in: .BogusDOCTYPE)
+            }
+        // 13.2.5.57 After DOCTYPE public keyword state, https://html.spec.whatwg.org/multipage/parsing.html#after-doctype-public-keyword-state
+        case .AfterDOCTYPEPublicKeyword:
+            switch currentInputCharacter {
+            case "\t", "\n", "\u{000C}", " ":
+                return switchTo(.BeforeDOCTYPEPublicIdentifier)
+            case "\"":
+                // FIXME: log_parse_error()
+                self.currentToken.publicIdentifier = ""
+                return switchTo(.DOCTYPEPublicIdentifierDoubleQuoted)
+            case "'":
+                self.currentToken.publicIdentifier = ""
+                return switchTo(.DOCTYPEPublicIdentifierSingleQuoted)
+            case ">":
+                // FIXME: log_parse_error()
+                self.currentToken.forceQuirks = true
+                return switchToAndEmitCurrentToken(.Data)
+            case nil:
+                // FIXME: log_parse_error()
+                self.currentToken.forceQuirks = true
+                return emitCurrentTokenFollowedByEOF()
+            default:
+                // FIXME: log_parse_error()
+                self.currentToken.forceQuirks = true
+                return reconsume(currentInputCharacter!, in: .BogusDOCTYPE)
+            }
+        // 13.2.5.58 Before DOCTYPE public identifier state, https://html.spec.whatwg.org/multipage/parsing.html#before-doctype-public-identifier-state
+        case .BeforeDOCTYPEPublicIdentifier:
+            switch currentInputCharacter {
+            case "\t", "\n", "\u{000C}", " ":
+                return continueInCurrentState()
+            case "\"":
+                self.currentToken.publicIdentifier = ""
+                return switchTo(.DOCTYPEPublicIdentifierDoubleQuoted)
+            case "'":
+                self.currentToken.publicIdentifier = ""
+                return switchTo(.DOCTYPEPublicIdentifierSingleQuoted)
+            case ">":
+                // FIXME: log_parse_error()
+                self.currentToken.forceQuirks = true
+                return switchToAndEmitCurrentToken(.Data)
+            case nil:
+                // FIXME: log_parse_error()
+                self.currentToken.forceQuirks = true
+                return emitCurrentTokenFollowedByEOF()
+            default:
+                // FIXME: log_parse_error()
+                self.currentToken.forceQuirks = true
+                return reconsume(currentInputCharacter!, in: .BogusDOCTYPE)
+            }
+        // 13.2.5.59 DOCTYPE public identifier (double-quoted) state, https://html.spec.whatwg.org/multipage/parsing.html#doctype-public-identifier-double-quoted-state
+        case .DOCTYPEPublicIdentifierDoubleQuoted:
+            switch currentInputCharacter {
+            case "\"":
+                self.currentToken.publicIdentifier = self.currentBuilder.takeString()
+                return switchTo(.AfterDOCTYPEPublicIdentifier)
+            case "\0":
+                // FIXME: log_parse_error()
+                self.currentBuilder.append("\u{FFFD}")
+                return continueInCurrentState()
+            case ">":
+                // FIXME: log_parse_error()
+                self.currentToken.publicIdentifier = self.currentBuilder.takeString()
+                self.currentToken.forceQuirks = true
+                return switchToAndEmitCurrentToken(.Data)
+            case nil:
+                // FIXME: log_parse_error()
+                self.currentToken.forceQuirks = true
+                return emitCurrentTokenFollowedByEOF()
+            default:
+                self.currentBuilder.append(currentInputCharacter!)
+                return continueInCurrentState()
+            }
+        // 13.2.5.60 DOCTYPE public identifier (single-quoted) state, https://html.spec.whatwg.org/multipage/parsing.html#doctype-public-identifier-single-quoted-state
+        case .DOCTYPEPublicIdentifierSingleQuoted:
+            switch currentInputCharacter {
+            case "'":
+                self.currentToken.publicIdentifier = self.currentBuilder.takeString()
+                return switchTo(.AfterDOCTYPEPublicIdentifier)
+            case "\0":
+                // FIXME: log_parse_error()
+                self.currentBuilder.append("\u{FFFD}")
+                return continueInCurrentState()
+            case ">":
+                // FIXME: log_parse_error()
+                self.currentToken.publicIdentifier = self.currentBuilder.takeString()
+                self.currentToken.forceQuirks = true
+                return switchToAndEmitCurrentToken(.Data)
+            case nil:
+                // FIXME: log_parse_error()
+                self.currentToken.forceQuirks = true
+                return emitCurrentTokenFollowedByEOF()
+            default:
+                self.currentBuilder.append(currentInputCharacter!)
+                return continueInCurrentState()
+            }
+        // 13.2.5.61 After DOCTYPE public identifier state, https://html.spec.whatwg.org/multipage/parsing.html#after-doctype-public-identifier-state
+        case .AfterDOCTYPEPublicIdentifier:
+            switch currentInputCharacter {
+            case "\t", "\n", "\u{000C}", " ":
+                return switchTo(.BetweenDOCTYPEPublicAndSystemIdentifiers)
+            case ">":
+                return switchToAndEmitCurrentToken(.Data)
+            case "\"":
+                // FIXME: log_parse_error()
+                self.currentToken.systemIdentifier = ""
+                return switchTo(.DOCTYPESystemIdentifierDoubleQuoted)
+            case "'":
+                // FIXME: log_parse_error()
+                self.currentToken.systemIdentifier = ""
+                return switchTo(.DOCTYPESystemIdentifierSingleQuoted)
+            case nil:
+                // FIXME: log_parse_error()
+                self.currentToken.forceQuirks = true
+                return emitCurrentTokenFollowedByEOF()
+            default:
+                // FIXME: log_parse_error()
+                self.currentToken.forceQuirks = true
+                return reconsume(currentInputCharacter!, in: .BogusDOCTYPE)
+            }
+        // 13.2.5.62 Between DOCTYPE public and system identifiers state, https://html.spec.whatwg.org/multipage/parsing.html#between-doctype-public-and-system-identifiers-state
+        case .BetweenDOCTYPEPublicAndSystemIdentifiers:
+            switch currentInputCharacter {
+            case "\t", "\n", "\u{000C}", " ":
+                return continueInCurrentState()
+            case ">":
+                return switchToAndEmitCurrentToken(.Data)
+            case "\"":
+                self.currentToken.systemIdentifier = ""
+                return switchTo(.DOCTYPESystemIdentifierDoubleQuoted)
+            case "'":
+                self.currentToken.systemIdentifier = ""
+                return switchTo(.DOCTYPESystemIdentifierSingleQuoted)
+            case nil:
+                // FIXME: log_parse_error()
+                self.currentToken.forceQuirks = true
+                return emitCurrentTokenFollowedByEOF()
+            default:
+                // FIXME: log_parse_error()
+                self.currentToken.forceQuirks = true
+                return reconsume(currentInputCharacter!, in: .BogusDOCTYPE)
+            }
+        // 13.2.5.63 After DOCTYPE system keyword state, https://html.spec.whatwg.org/multipage/parsing.html#after-doctype-system-keyword-state
+        case .AfterDOCTYPESystemKeyword:
+            switch currentInputCharacter {
+            case "\t", "\n", "\u{000C}", " ":
+                return switchTo(.BeforeDOCTYPESystemIdentifier)
+            case "\"":
+                // FIXME: log_parse_error()
+                self.currentToken.systemIdentifier = ""
+                return switchTo(.DOCTYPESystemIdentifierDoubleQuoted)
+            case "'":
+                // FIXME: log_parse_error()
+                self.currentToken.systemIdentifier = ""
+                return switchTo(.DOCTYPESystemIdentifierSingleQuoted)
+            case ">":
+                // FIXME: log_parse_error()
+                self.currentToken.forceQuirks = true
+                return switchToAndEmitCurrentToken(.Data)
+            case nil:
+                // FIXME: log_parse_error()
+                self.currentToken.forceQuirks = true
+                return emitCurrentTokenFollowedByEOF()
+            default:
+                // FIXME: log_parse_error()
+                self.currentToken.forceQuirks = true
+                return reconsume(currentInputCharacter!, in: .BogusDOCTYPE)
+            }
+        // 13.2.5.64 Before DOCTYPE system identifier state, https://html.spec.whatwg.org/multipage/parsing.html#before-doctype-system-identifier-state
+        case .BeforeDOCTYPESystemIdentifier:
+            switch currentInputCharacter {
+            case "\t", "\n", "\u{000C}", " ":
+                return continueInCurrentState()
+            case "\"":
+                self.currentToken.systemIdentifier = ""
+                return switchTo(.DOCTYPESystemIdentifierDoubleQuoted)
+            case "'":
+                self.currentToken.systemIdentifier = ""
+                return switchTo(.DOCTYPESystemIdentifierSingleQuoted)
+            case ">":
+                // FIXME: log_parse_error()
+                self.currentToken.forceQuirks = true
+                return switchToAndEmitCurrentToken(.Data)
+            case nil:
+                // FIXME: log_parse_error()
+                self.currentToken.forceQuirks = true
+                return emitCurrentTokenFollowedByEOF()
+            default:
+                // FIXME: log_parse_error()
+                self.currentToken.forceQuirks = true
+                return reconsume(currentInputCharacter!, in: .BogusDOCTYPE)
+            }
+        // 13.2.5.65 DOCTYPE system identifier (double-quoted) state, https://html.spec.whatwg.org/multipage/parsing.html#doctype-system-identifier-double-quoted-state
+        case .DOCTYPESystemIdentifierDoubleQuoted:
+            switch currentInputCharacter {
+            case "\"":
+                self.currentToken.systemIdentifier = self.currentBuilder.takeString()
+                return switchTo(.AfterDOCTYPESystemIdentifier)
+            case "\0":
+                // FIXME: log_parse_error()
+                self.currentBuilder.append("\u{FFFD}")
+                return continueInCurrentState()
+            case ">":
+                // FIXME: log_parse_error()
+                self.currentToken.systemIdentifier = self.currentBuilder.takeString()
+                self.currentToken.forceQuirks = true
+                return switchToAndEmitCurrentToken(.Data)
+            case nil:
+                // FIXME: log_parse_error()
+                self.currentToken.forceQuirks = true
+                return emitCurrentTokenFollowedByEOF()
+            default:
+                self.currentBuilder.append(currentInputCharacter!)
+                return continueInCurrentState()
+            }
+        // 13.2.5.66 DOCTYPE system identifier (single-quoted) state, https://html.spec.whatwg.org/multipage/parsing.html#doctype-system-identifier-single-quoted-state
+        case .DOCTYPESystemIdentifierSingleQuoted:
+            switch currentInputCharacter {
+            case "'":
+                return switchTo(.AfterDOCTYPESystemIdentifier)
+            case "\0":
+                // FIXME: log_parse_error()
+                self.currentBuilder.append("\u{FFFD}")
+                return continueInCurrentState()
+            case ">":
+                // FIXME: log_parse_error()
+                self.currentToken.systemIdentifier = self.currentBuilder.takeString()
+                self.currentToken.forceQuirks = true
+                return switchToAndEmitCurrentToken(.Data)
+            case nil:
+                // FIXME: log_parse_error()
+                self.currentToken.forceQuirks = true
+                return emitCurrentTokenFollowedByEOF()
+            default:
+                self.currentBuilder.append(currentInputCharacter!)
+                return continueInCurrentState()
+            }
+        // 13.2.5.67 After DOCTYPE system identifier state, https://html.spec.whatwg.org/multipage/parsing.html#after-doctype-system-identifier-state
+        case .AfterDOCTYPESystemIdentifier:
+            switch currentInputCharacter {
+            case "\t", "\n", "\u{000C}", " ":
+                return continueInCurrentState()
+            case ">":
+                return switchToAndEmitCurrentToken(.Data)
+            case nil:
+                // FIXME: log_parse_error()
+                self.currentToken.forceQuirks = true
+                return emitCurrentTokenFollowedByEOF()
+            default:
+                // FIXME: log_parse_error()
+                // NOTE: This does not set the current DOCTYPE token's force-quirks flag to on.
+                return reconsume(currentInputCharacter!, in: .BogusDOCTYPE)
+            }
+        // 13.2.5.68 Bogus DOCTYPE state, https://html.spec.whatwg.org/multipage/parsing.html#bogus-doctype-state
+        case .BogusDOCTYPE:
+            switch currentInputCharacter {
+            case ">":
+                return switchToAndEmitCurrentToken(.Data)
+            case "\0":
+                // FIXME: log_parse_error()
+                return continueInCurrentState()
+            case nil:
+                return emitCurrentTokenFollowedByEOF()
+            default:
+                return continueInCurrentState()
+            }
+        // 13.2.5.69 CDATA section state, https://html.spec.whatwg.org/multipage/parsing.html#cdata-section-state
+        case .CDATASection:
+            switch currentInputCharacter {
+            case "]":
+                return switchTo(.CDATASectionBracket)
+            case nil:
+                // FIXME: log_parse_error()
+                return emitEOF()
+            default:
+                // NOTE: U+0000 NULL characters are handled in the tree construction stage,
+                //       as part of the in foreign content insertion mode, which is the only place where CDATA sections can appear.
+                return emitCharacter(currentInputCharacter!)
+            }
+        // 13.2.5.70 CDATA section bracket state, https://html.spec.whatwg.org/multipage/parsing.html#cdata-section-bracket-state
+        case .CDATASectionBracket:
+            switch currentInputCharacter {
+            case "]":
+                return switchTo(.CDATASectionEnd)
+            default:
+                return emitCharacterAndReconsume("]", in: .CDATASection, currentInputCharacter: currentInputCharacter)
+            }
+
+        // 13.2.5.71 CDATA section end state, https://html.spec.whatwg.org/multipage/parsing.html#cdata-section-end-state
+        case .CDATASectionEnd:
+            switch currentInputCharacter {
+            case "]":
+                return emitCharacter("]")
+            case ">":
+                return switchTo(.Data)
+            default:
+                queuedTokens.append(HTMLToken(type: .Character(codePoint: "]")))
+                return emitCharacterAndReconsume("]", in: .CDATASection, currentInputCharacter: currentInputCharacter)
+            }
+        // 13.2.5.72 Character reference state, https://html.spec.whatwg.org/multipage/parsing.html#character-reference-state
+        case .CharacterReference:
+            self.temporaryBuffer = "&"
+            switch currentInputCharacter {
+            case let c? where HTMLTokenizer.asciiAlphanumeric.contains(c.unicodeScalars.first!):
+                return reconsume(currentInputCharacter!, in: .NamedCharacterReference)
+            case "#":
+                self.temporaryBuffer.append(currentInputCharacter!)
+                return switchTo(.NumericCharacterReference)
+            default:
+                self.flushCodepointsConsumedAsACharacterReference()
+                return reconsume(currentInputCharacter, in: self.returnState)
+            }
+        // 13.2.5.73 Named character reference state, https://html.spec.whatwg.org/multipage/parsing.html#named-character-reference-state
+        case .NamedCharacterReference:
+            var subString = self.input[self.previousCursor...]
+            let entityMatch = subString.withUTF8 { utf8 in
+                return Web.HTML.match_entity_for_named_character_reference(AK.StringView(utf8.baseAddress!, utf8.count))
+            }
+            if entityMatch.hasValue {
+                let entity = entityMatch.value!.entity
+                skip(entity.length())
+                // FIXME: Iterate over the entity's code points and add them instead of creating a string
+                self.temporaryBuffer.append(Swift.String(akStringView: entity)!)
+
+                if self.consumedAsPartOfAnAttribute(), !entity.endsWith(";") {
+                    if let peeked = peekCodePoint(), peeked == "=" || HTMLTokenizer.asciiAlphanumeric.contains(peeked.unicodeScalars.first!) {
+                        self.flushCodepointsConsumedAsACharacterReference()
+                        return switchTo(self.returnState)
+                    }
+                }
+
+                if !entity.endsWith(";") {
+                    // FIXME: log_parse_error()
+                }
+
+                self.temporaryBuffer = ""
+
+                // FIXME: This AK::Vector<u32, 2> should be CxxConvertibleToContainer, but https://github.com/swiftlang/swift/issues/77607
+                let codePoints = entityMatch.value!.code_points
+                for i in 0...codePoints.size() {
+                    self.temporaryBuffer.append(Character(Unicode.Scalar(codePoints[i])!))
+                }
+                self.flushCodepointsConsumedAsACharacterReference()
+                return switchTo(self.returnState)
+            }
+
+            self.flushCodepointsConsumedAsACharacterReference()
+            return reconsume(currentInputCharacter, in: .AmbiguousAmpersand)
+        // 13.2.5.74 Ambiguous ampersand state, https://html.spec.whatwg.org/multipage/parsing.html#ambiguous-ampersand-state
+        case .AmbiguousAmpersand:
+            switch currentInputCharacter {
+            case let c? where HTMLTokenizer.asciiAlphanumeric.contains(c.unicodeScalars.first!):
+                if self.consumedAsPartOfAnAttribute() {
+                    self.currentBuilder.append(currentInputCharacter!)
+                    return continueInCurrentState()
+                }
+                return emitCharacter(currentInputCharacter!)
+            case ";":
+                // FIXME: log_parse_error()
+                return reconsume(currentInputCharacter!, in: self.returnState)
+            default:
+                return reconsume(currentInputCharacter, in: self.returnState)
+            }
+        // 13.2.5.75 Numeric character reference state, https://html.spec.whatwg.org/multipage/parsing.html#numeric-character-reference-state
+        case .NumericCharacterReference:
+            self.characterReferenceCode = 0
+            switch currentInputCharacter {
+            case "x", "X":
+                self.temporaryBuffer.append(currentInputCharacter!)
+                return switchTo(.HexadecimalCharacterReferenceStart)
+            default:
+                return reconsume(currentInputCharacter, in: .DecimalCharacterReferenceStart)
+            }
+        // 13.2.5.76 Hexadecimal character reference start state, https://html.spec.whatwg.org/multipage/parsing.html#hexadecimal-character-reference-start-state
+        case .HexadecimalCharacterReferenceStart:
+            switch currentInputCharacter {
+            case let c? where HTMLTokenizer.asciiHexDigit.contains(c.unicodeScalars.first!):
+                return reconsume(currentInputCharacter!, in: .HexadecimalCharacterReference)
+            default:
+                // FIXME: log_parse_error()
+                self.flushCodepointsConsumedAsACharacterReference()
+                return reconsume(currentInputCharacter, in: self.returnState)
+            }
+        // 13.2.5.77 Decimal character reference start state, https://html.spec.whatwg.org/multipage/parsing.html#decimal-character-reference-start-state
+        case .DecimalCharacterReferenceStart:
+            switch currentInputCharacter {
+            case let c? where HTMLTokenizer.asciiDigit.contains(c.unicodeScalars.first!):
+                return reconsume(currentInputCharacter!, in: .DecimalCharacterReference)
+            default:
+                // FIXME: log_parse_error()
+                self.flushCodepointsConsumedAsACharacterReference()
+                return reconsume(currentInputCharacter, in: self.returnState)
+            }
+        // 13.2.5.78 Hexadecimal character reference state, https://html.spec.whatwg.org/multipage/parsing.html#hexadecimal-character-reference-state
+        case .HexadecimalCharacterReference:
+            switch currentInputCharacter {
+            case let c? where HTMLTokenizer.asciiDigit.contains(c.unicodeScalars.first!):
+                self.characterReferenceCode = self.characterReferenceCode * 16 + Int(c.asciiValue! - 0x30)
+                return continueInCurrentState()
+            case let c? where HTMLTokenizer.asciiUpperHexDigit.contains(c.unicodeScalars.first!):
+                self.characterReferenceCode = self.characterReferenceCode * 16 + Int(c.asciiValue! - 0x37)
+                return continueInCurrentState()
+            case let c? where HTMLTokenizer.asciiLowerHexDigit.contains(c.unicodeScalars.first!):
+                self.characterReferenceCode = self.characterReferenceCode * 16 + Int(c.asciiValue! - 0x57)
+                return continueInCurrentState()
+            case ";":
+                return switchTo(.NumericCharacterReferenceEnd)
+            default:
+                // FIXME: log_parse_error()
+                return reconsume(currentInputCharacter, in: .NumericCharacterReferenceEnd)
+            }
+
+        // 13.2.5.79 Decimal character reference state, https://html.spec.whatwg.org/multipage/parsing.html#decimal-character-reference-state
+        case .DecimalCharacterReference:
+            switch currentInputCharacter {
+            case let c? where HTMLTokenizer.asciiDigit.contains(c.unicodeScalars.first!):
+                self.characterReferenceCode = self.characterReferenceCode * 10 + Int(c.asciiValue! - 0x30)
+                return continueInCurrentState()
+            case ";":
+                return switchTo(.NumericCharacterReferenceEnd)
+            default:
+                // FIXME: log_parse_error()
+                return reconsume(currentInputCharacter, in: .NumericCharacterReferenceEnd)
+            }
+
+        // 13.2.5.80 Numeric character reference end state, https://html.spec.whatwg.org/multipage/parsing.html#numeric-character-reference-end-state
+        case .NumericCharacterReferenceEnd:
+            dontConsumeNextInputCharacter()
+            let codePoint: UnicodeScalar =
+                switch self.characterReferenceCode {
+                case 0x00:
+                    // FIXME: log_parse_error()
+                    UnicodeScalar(0xFFFD)!
+                case let c where c > 0x10FFFF:
+                    // FIXME: log_parse_error()
+                    UnicodeScalar(0xFFFD)!
+                case let c where UTF16.CodeUnit(exactly: c).map({ UTF16.isSurrogate($0) }) != nil:
+                    // FIXME: log_parse_error()
+                    UnicodeScalar(0xFFFD)!
+                case let c where UnicodeScalar(c)! == "\u{000D}" || HTMLTokenizer.controlNotAsciiWhitespace.contains(UnicodeScalar(c)!):
+                    // FIXME: log_parse_error()
+                    if let codePoint = HTMLTokenizer.characterReferenceControlCodeMapping[c] {
+                        codePoint
+                    } else {
+                        UnicodeScalar(c)!
+                    }
+                case let c where HTMLTokenizer.nonCharacter.contains(UnicodeScalar(c)!):
+                    // FIXME: log_parse_error()
+                    UnicodeScalar(c)!
+                default:
+                    UnicodeScalar(self.characterReferenceCode)!
+                }
+
+            self.temporaryBuffer = Swift.String(Character(codePoint))
+            self.flushCodepointsConsumedAsACharacterReference()
+            return switchTo(self.returnState)
         }
     }
 }

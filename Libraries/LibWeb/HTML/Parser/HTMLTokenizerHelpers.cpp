@@ -20,4 +20,12 @@ OptionalString decode_to_utf8(StringView text, StringView encoding)
     return decoded_or_error.release_value();
 }
 
+OptionalEntityMatch match_entity_for_named_character_reference(StringView entity)
+{
+    auto entity_match = code_points_from_entity(entity);
+    if (entity_match.has_value())
+        return entity_match.release_value();
+    return std::nullopt;
+}
+
 }
