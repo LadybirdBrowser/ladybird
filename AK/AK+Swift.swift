@@ -29,4 +29,11 @@ extension AK.StringView: ExpressibleByStringLiteral {
     public init(stringLiteral value: StringLiteralType) {
         self.init(value.utf8Start, value.utf8CodeUnitCount)
     }
+
+    public func endsWith(_ suffix: AK.StringView) -> Bool {
+        if suffix.length() == 1 {
+            return self.ends_with(suffix[0])
+        }
+        return self.ends_with(suffix, AK.CaseSensitivity.sensitive)
+    }
 }
