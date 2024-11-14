@@ -70,6 +70,16 @@ public:
             visit_impl(cell);
         }
 
+        void visit(Cell const* cell)
+        {
+            visit(const_cast<Cell*>(cell));
+        }
+
+        void visit(Cell const& cell)
+        {
+            visit(const_cast<Cell&>(cell));
+        }
+
         template<typename T>
         void visit(GCPtr<T> cell)
         {
