@@ -1,3 +1,5 @@
+#import <CSS/GeneratedCSSStyleProperties.idl>
+
 // https://drafts.csswg.org/cssom/#cssstyledeclaration
 [Exposed=Window]
 interface CSSStyleDeclaration {
@@ -15,8 +17,8 @@ interface CSSStyleDeclaration {
 
     readonly attribute CSSRule? parentRule;
 
-    // NOTE: cssFloat is implemented manually in the bindings code, along with the other property accessors.
-    //       Hence, this does not need to be implemented.
-    // [CEReactions, LegacyNullToEmptyString] attribute CSSOMString cssFloat;
+    [CEReactions, LegacyNullToEmptyString] attribute CSSOMString cssFloat;
 
 };
+
+CSSStyleDeclaration includes GeneratedCSSStyleProperties;

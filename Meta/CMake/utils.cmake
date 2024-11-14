@@ -184,6 +184,26 @@ function(invoke_generator name generator primary_source header implementation)
     set(CURRENT_LIB_GENERATED ${CURRENT_LIB_GENERATED} PARENT_SCOPE)
 endfunction()
 
+function(invoke_idl_generator name generator primary_source header implementation idl)
+    cmake_parse_arguments(invoke_idl_generator "" "" "arguments;dependencies" ${ARGN})
+
+    add_custom_command(
+        OUTPUT "${header}" "${implementation}" "${idl}"
+        COMMAND $<TARGET_FILE:${generator}> -h "${header}.tmp" -c "${implementation}.tmp" -i "${idl}.tmp" ${invoke_idl_generator_arguments}
+        COMMAND "${CMAKE_COMMAND}" -E copy_if_different "${header}.tmp" "${header}"
+        COMMAND "${CMAKE_COMMAND}" -E copy_if_different "${implementation}.tmp" "${implementation}"
+        COMMAND "${CMAKE_COMMAND}" -E copy_if_different "${idl}.tmp" "${idl}"
+        COMMAND "${CMAKE_COMMAND}" -E remove "${header}.tmp" "${implementation}.tmp" "${idl}.tmp"
+        VERBATIM
+        DEPENDS ${generator} ${invoke_idl_generator_dependencies} "${primary_source}"
+    )
+
+    add_custom_target("generate_${name}" DEPENDS "${header}" "${implementation}" "${idl}")
+    add_dependencies(all_generated "generate_${name}")
+    list(APPEND CURRENT_LIB_GENERATED "${name}")
+    set(CURRENT_LIB_GENERATED ${CURRENT_LIB_GENERATED} PARENT_SCOPE)
+endfunction()
+
 function(download_file_multisource urls path)
     cmake_parse_arguments(DOWNLOAD "" "SHA256" "" ${ARGN})
 

@@ -64,6 +64,16 @@ function (generate_css_implementation)
         arguments -j "${LIBWEB_INPUT_FOLDER}/CSS/Keywords.json"
     )
 
+    invoke_idl_generator(
+        "GeneratedCSSStyleProperties.cpp"
+        Lagom::GenerateCSSStyleProperties
+        "${LIBWEB_INPUT_FOLDER}/CSS/Properties.json"
+        "CSS/GeneratedCSSStyleProperties.h"
+        "CSS/GeneratedCSSStyleProperties.cpp"
+        "CSS/GeneratedCSSStyleProperties.idl"
+        arguments -j "${LIBWEB_INPUT_FOLDER}/CSS/Properties.json"
+    )
+
     embed_as_string(
         "DefaultStyleSheetSource.cpp"
         "${LIBWEB_INPUT_FOLDER}/CSS/Default.css"
@@ -98,6 +108,7 @@ function (generate_css_implementation)
 
     set(CSS_GENERATED_HEADERS
        "CSS/Enums.h"
+       "CSS/GeneratedCSSStyleProperties.h"
        "CSS/Keyword.h"
        "CSS/MathFunctions.h"
        "CSS/MediaFeatureID.h"
@@ -164,7 +175,7 @@ function (generate_js_bindings target)
         add_custom_command(
             OUTPUT ${BINDINGS_SOURCES}
             COMMAND "$<TARGET_FILE:Lagom::BindingsGenerator>" -o "Bindings" --depfile "Bindings/${basename}.d"
-                    ${depfile_prefix_arg} "${LIBWEB_INPUT_FOLDER}/${class}.idl" "${LIBWEB_INPUT_FOLDER}"
+                    ${depfile_prefix_arg} "${LIBWEB_INPUT_FOLDER}/${class}.idl" "${LIBWEB_INPUT_FOLDER}" "${CMAKE_CURRENT_BINARY_DIR}"
             VERBATIM
             COMMENT "Generating Bindings for ${class}"
             DEPENDS Lagom::BindingsGenerator
@@ -201,7 +212,7 @@ function (generate_js_bindings target)
         add_custom_command(
             OUTPUT  ${exposed_interface_sources}
             COMMAND "${CMAKE_COMMAND}" -E make_directory "tmp"
-            COMMAND $<TARGET_FILE:Lagom::GenerateWindowOrWorkerInterfaces> -o "${CMAKE_CURRENT_BINARY_DIR}/tmp" -b "${LIBWEB_INPUT_FOLDER}" ${LIBWEB_ALL_IDL_FILES}
+            COMMAND $<TARGET_FILE:Lagom::GenerateWindowOrWorkerInterfaces> -o "${CMAKE_CURRENT_BINARY_DIR}/tmp" -b "${LIBWEB_INPUT_FOLDER}" -b "${CMAKE_CURRENT_BINARY_DIR}" ${LIBWEB_ALL_IDL_FILES}
             COMMAND "${CMAKE_COMMAND}" -E copy_if_different tmp/IntrinsicDefinitions.cpp "Bindings/IntrinsicDefinitions.cpp"
             COMMAND "${CMAKE_COMMAND}" -E copy_if_different tmp/DedicatedWorkerExposedInterfaces.h "Bindings/DedicatedWorkerExposedInterfaces.h"
             COMMAND "${CMAKE_COMMAND}" -E copy_if_different tmp/DedicatedWorkerExposedInterfaces.cpp "Bindings/DedicatedWorkerExposedInterfaces.cpp"
