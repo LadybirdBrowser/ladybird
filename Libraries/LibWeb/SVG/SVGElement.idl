@@ -1,6 +1,7 @@
 #import <CSS/ElementCSSInlineStyle.idl>
 #import <DOM/Element.idl>
-#import <HTML/HTMLElement.idl>
+#import <DOM/EventHandler.idl>
+#import <HTML/HTMLOrSVGElement.idl>
 #import <HTML/DOMStringMap.idl>
 #import <SVG/SVGAnimatedString.idl>
 #import <SVG/SVGSVGElement.idl>

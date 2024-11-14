@@ -129,12 +129,25 @@ GC::Ref<WebIDL::Promise> WindowOrWorkerGlobalScopeMixin::create_image_bitmap_imp
     (void)options;
 
     // 3. Check the usability of the image argument. If this throws an exception or returns bad, then return a promise rejected with an "InvalidStateError" DOMException.
-    // FIXME: "Check the usability of the image argument" is only defined for CanvasImageSource, let's skip it for other types
-    if (image.has<CanvasImageSource>()) {
-        if (auto usability = check_usability_of_image(image.get<CanvasImageSource>()); usability.is_error() or usability.value() == CanvasImageSourceUsability::Bad) {
-            auto error = WebIDL::InvalidStateError::create(this_impl().realm(), "image argument is not usable"_string);
-            return WebIDL::create_rejected_promise_from_exception(realm, error);
-        }
+    auto error_promise = image.visit(
+        [](GC::Root<FileAPI::Blob>&) -> Optional<GC::Ref<WebIDL::Promise>> {
+            return {};
+        },
+        [](GC::Root<ImageData>&) -> Optional<GC::Ref<WebIDL::Promise>> {
+            return {};
+        },
+        [&](auto& canvas_image_source) -> Optional<GC::Ref<WebIDL::Promise>> {
+            // Note: "Check the usability of the image argument" is only defined for CanvasImageSource
+            if (auto usability = check_usability_of_image(canvas_image_source); usability.is_error() or usability.value() == CanvasImageSourceUsability::Bad) {
+                auto error = WebIDL::InvalidStateError::create(this_impl().realm(), "image argument is not usable"_string);
+                return WebIDL::create_rejected_promise_from_exception(realm, error);
+            }
+
+            return {};
+        });
+
+    if (error_promise.has_value()) {
+        return error_promise.release_value();
     }
 
     // 4. Let p be a new promise.
