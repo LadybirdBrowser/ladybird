@@ -760,6 +760,10 @@ ThrowCompletionOr<void> SourceTextModule::execute_module(VM& vm, GC::Ptr<Promise
         //         the top-level module code.
         // FIXME: Improve this situation, so we can match the spec better.
 
+        // AD-HOC: We push/pop the moduleContext around the function construction to ensure that the async execution context
+        //         captures the module execution context.
+        vm.push_execution_context(*module_context);
+
         FunctionParsingInsights parsing_insights;
         parsing_insights.uses_this_from_environment = true;
         parsing_insights.uses_this = true;
@@ -768,11 +772,9 @@ ThrowCompletionOr<void> SourceTextModule::execute_module(VM& vm, GC::Ptr<Promise
             {}, 0, {}, environment(), nullptr, FunctionKind::Async, true, parsing_insights);
         module_wrapper_function->set_is_module_wrapper(true);
 
-        // AD-HOC: We push/pop the moduleContext around the call to ensure that the async execution context
-        //         captures the module execution context.
-        vm.push_execution_context(*module_context);
-        auto result = call(vm, Value { module_wrapper_function }, js_undefined(), ReadonlySpan<Value> {});
         vm.pop_execution_context();
+
+        auto result = call(vm, Value { module_wrapper_function }, js_undefined(), ReadonlySpan<Value> {});
 
         // AD-HOC: This is basically analogous to what AsyncBlockStart would do.
         if (result.is_throw_completion()) {

@@ -53,6 +53,33 @@ describe("normal behavior", () => {
 
                 expect(value).not.toHaveProperty("default", null);
                 expect(value).not.toHaveProperty("bar", null);
+                expect(value).not.toHaveProperty("baz", null);
+                expect(value).not.toHaveProperty("qux", null);
+                passed = true;
+            })
+            .catch(value => {
+                error = value;
+            });
+        runQueuedPromiseJobs();
+        expect(error).toBeNull();
+        expect(passed).toBeTrue();
+    });
+
+    test("value from async module from top-level awaited function", () => {
+        const shadowRealm = new ShadowRealm();
+        const promise = shadowRealm.importValue("./async-module.mjs", "qux");
+        expect(promise).toBeInstanceOf(Promise);
+        let error = null;
+        let passed = false;
+        promise
+            .then(value => {
+                expect(value).toBe("'qux' export");
+                expect(typeof value).toBe("string");
+
+                expect(value).not.toHaveProperty("default", null);
+                expect(value).not.toHaveProperty("foo", null);
+                expect(value).not.toHaveProperty("bar", null);
+                expect(value).not.toHaveProperty("baz", null);
                 passed = true;
             })
             .catch(value => {
