@@ -5,12 +5,12 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <AK/CharacterTypes.h>
 #include <AK/Debug.h>
 #include <AK/FloatingPointStringConversions.h>
 #include <AK/SourceLocation.h>
 #include <AK/Vector.h>
 #include <LibTextCodec/Decoder.h>
+#include <LibWeb/CSS/CharacterTypes.h>
 #include <LibWeb/CSS/Parser/Tokenizer.h>
 #include <LibWeb/Infra/Strings.h>
 
@@ -35,39 +35,9 @@ static inline bool is_quotation_mark(u32 code_point)
     return code_point == 0x22;
 }
 
-static inline bool is_greater_than_maximum_allowed_code_point(u32 code_point)
-{
-    return code_point > 0x10FFFF;
-}
-
-static inline bool is_low_line(u32 code_point)
-{
-    return code_point == 0x5F;
-}
-
-// https://www.w3.org/TR/css-syntax-3/#ident-start-code-point
-static inline bool is_ident_start_code_point(u32 code_point)
-{
-    // FIXME: We use !is_ascii() for "non-ASCII code point" in the spec, but it's not quite right -
-    //        it treats EOF as a valid! The spec also lacks a definition of code point. For now, the
-    //        !is_eof() check is a hack, but it should work.
-    return !is_eof(code_point) && (is_ascii_alpha(code_point) || !is_ascii(code_point) || is_low_line(code_point));
-}
-
 static inline bool is_hyphen_minus(u32 code_point)
 {
     return code_point == 0x2D;
-}
-
-// https://www.w3.org/TR/css-syntax-3/#ident-code-point
-static inline bool is_ident_code_point(u32 code_point)
-{
-    return is_ident_start_code_point(code_point) || is_ascii_digit(code_point) || is_hyphen_minus(code_point);
-}
-
-static inline bool is_non_printable(u32 code_point)
-{
-    return code_point <= 0x8 || code_point == 0xB || (code_point >= 0xE && code_point <= 0x1F) || code_point == 0x7F;
 }
 
 static inline bool is_number_sign(u32 code_point)
@@ -108,11 +78,6 @@ static inline bool is_comma(u32 code_point)
 static inline bool is_full_stop(u32 code_point)
 {
     return code_point == 0x2E;
-}
-
-static inline bool is_newline(u32 code_point)
-{
-    return code_point == 0xA;
 }
 
 static inline bool is_asterisk(u32 code_point)
@@ -168,11 +133,6 @@ static inline bool is_open_curly_bracket(u32 code_point)
 static inline bool is_closed_curly_bracket(u32 code_point)
 {
     return code_point == 0x7D;
-}
-
-static inline bool is_whitespace(u32 code_point)
-{
-    return code_point == 0x9 || code_point == 0xA || code_point == 0x20;
 }
 
 static inline bool is_percent(u32 code_point)
@@ -400,14 +360,14 @@ u32 Tokenizer::consume_escaped_code_point()
     auto input = next_code_point();
 
     // hex digit
-    if (is_ascii_hex_digit(input)) {
+    if (is_hex_digit(input)) {
         // Consume as many hex digits as possible, but no more than 5.
         // Note that this means 1-6 hex digits have been consumed in total.
         StringBuilder builder;
         builder.append_code_point(input);
 
         size_t counter = 0;
-        while (is_ascii_hex_digit(peek_code_point()) && counter++ < 5) {
+        while (is_hex_digit(peek_code_point()) && counter++ < 5) {
             builder.append_code_point(next_code_point());
         }
 
@@ -517,7 +477,7 @@ Number Tokenizer::consume_a_number()
     // 3. While the next input code point is a digit, consume it and append it to repr.
     for (;;) {
         auto digits = peek_code_point();
-        if (!is_ascii_digit(digits))
+        if (!is_digit(digits))
             break;
 
         repr.append_code_point(next_code_point());
@@ -525,7 +485,7 @@ Number Tokenizer::consume_a_number()
 
     // 4. If the next 2 input code points are U+002E FULL STOP (.) followed by a digit, then:
     auto maybe_number = peek_twin();
-    if (is_full_stop(maybe_number.first) && is_ascii_digit(maybe_number.second)) {
+    if (is_full_stop(maybe_number.first) && is_digit(maybe_number.second)) {
         // 1. Consume them.
         // 2. Append them to repr.
         repr.append_code_point(next_code_point());
@@ -537,7 +497,7 @@ Number Tokenizer::consume_a_number()
         // 4. While the next input code point is a digit, consume it and append it to repr.
         for (;;) {
             auto digit = peek_code_point();
-            if (!is_ascii_digit(digit))
+            if (!is_digit(digit))
                 break;
 
             repr.append_code_point(next_code_point());
@@ -549,17 +509,17 @@ Number Tokenizer::consume_a_number()
     // or U+002B PLUS SIGN (+), followed by a digit, then:
     auto maybe_exp = peek_triplet();
     if ((is_E(maybe_exp.first) || is_e(maybe_exp.first))
-        && (((is_plus_sign(maybe_exp.second) || is_hyphen_minus(maybe_exp.second)) && is_ascii_digit(maybe_exp.third))
-            || (is_ascii_digit(maybe_exp.second)))) {
+        && (((is_plus_sign(maybe_exp.second) || is_hyphen_minus(maybe_exp.second)) && is_digit(maybe_exp.third))
+            || (is_digit(maybe_exp.second)))) {
         // 1. Consume them.
         // 2. Append them to repr.
         if (is_plus_sign(maybe_exp.second) || is_hyphen_minus(maybe_exp.second)) {
-            if (is_ascii_digit(maybe_exp.third)) {
+            if (is_digit(maybe_exp.third)) {
                 repr.append_code_point(next_code_point());
                 repr.append_code_point(next_code_point());
                 repr.append_code_point(next_code_point());
             }
-        } else if (is_ascii_digit(maybe_exp.second)) {
+        } else if (is_digit(maybe_exp.second)) {
             repr.append_code_point(next_code_point());
             repr.append_code_point(next_code_point());
         }
@@ -570,7 +530,7 @@ Number Tokenizer::consume_a_number()
         // 4. While the next input code point is a digit, consume it and append it to repr.
         for (;;) {
             auto digits = peek_code_point();
-            if (!is_ascii_digit(digits))
+            if (!is_digit(digits))
                 break;
 
             repr.append_code_point(next_code_point());
@@ -713,7 +673,7 @@ Token Tokenizer::consume_a_url_token()
         // U+0027 APOSTROPHE (')
         // U+0028 LEFT PARENTHESIS (()
         // non-printable code point
-        if (is_quotation_mark(input) || is_apostrophe(input) || is_left_paren(input) || is_non_printable(input)) {
+        if (is_quotation_mark(input) || is_apostrophe(input) || is_left_paren(input) || is_non_printable_code_point(input)) {
             // This is a parse error. Consume the remnants of a bad url, create a <bad-url-token>, and return it.
             log_parse_error();
             consume_the_remnants_of_a_bad_url();
@@ -855,12 +815,12 @@ bool Tokenizer::would_start_a_number(U32Triplet values)
     // U+002D HYPHEN-MINUS (-)
     if (is_plus_sign(values.first) || is_hyphen_minus(values.first)) {
         // If the second code point is a digit, return true.
-        if (is_ascii_digit(values.second))
+        if (is_digit(values.second))
             return true;
 
         // Otherwise, if the second code point is a U+002E FULL STOP (.) and the third
         // code point is a digit, return true.
-        if (is_full_stop(values.second) && is_ascii_digit(values.third))
+        if (is_full_stop(values.second) && is_digit(values.third))
             return true;
 
         // Otherwise, return false.
@@ -870,10 +830,10 @@ bool Tokenizer::would_start_a_number(U32Triplet values)
     // U+002E FULL STOP (.)
     if (is_full_stop(values.first))
         // If the second code point is a digit, return true. Otherwise, return false.
-        return is_ascii_digit(values.second);
+        return is_digit(values.second);
 
     // digit
-    if (is_ascii_digit(values.first))
+    if (is_digit(values.first))
         // Return true.
         return true;
 
@@ -1328,7 +1288,7 @@ Token Tokenizer::consume_a_token()
     }
 
     // digit
-    if (is_ascii_digit(input)) {
+    if (is_digit(input)) {
         dbgln_if(CSS_TOKENIZER_DEBUG, "is digit");
         // Reconsume the current input code point, consume a numeric token, and return it.
         reconsume_current_input_code_point();
