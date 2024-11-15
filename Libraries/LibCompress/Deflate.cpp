@@ -480,10 +480,7 @@ DeflateCompressor::DeflateCompressor(NonnullOwnPtr<LittleEndianOutputBitStream> 
     m_distance_frequencies.fill(0);
 }
 
-DeflateCompressor::~DeflateCompressor()
-{
-    VERIFY(m_finished);
-}
+DeflateCompressor::~DeflateCompressor() = default;
 
 ErrorOr<Bytes> DeflateCompressor::read_some(Bytes)
 {
