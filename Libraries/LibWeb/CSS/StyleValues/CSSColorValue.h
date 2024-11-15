@@ -35,6 +35,7 @@ public:
         sRGB, // This is used by CSSColor for color(srgb ...).
         sRGBLinear,
         ProPhotoRGB,
+        Rec2020,
         XYZD50,
         XYZD65,
     };
