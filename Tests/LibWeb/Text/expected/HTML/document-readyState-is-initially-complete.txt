@@ -1,0 +1,5 @@
+readyState of 'new Document()' should be 'complete': 'complete'
+readyState of 'document.implementation.createHTMLDocument()' should be 'complete': 'complete'
+readyState of 'document.implementation.createDocument()' should be 'complete': 'complete'
+FIXME: readyState of 'new DOMParser().parseFromString('', 'text/html')' should be 'complete': 'interactive'
+readyState of 'iframe.contentDocument' of initial about:blank iframe should be 'complete': 'complete'
