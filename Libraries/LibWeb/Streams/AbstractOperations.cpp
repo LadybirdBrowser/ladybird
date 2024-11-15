@@ -5071,7 +5071,7 @@ GC::Ref<WebIDL::Promise> transform_stream_default_sink_close_algorithm(Transform
             transform_stream_error(stream, reason);
 
             // 2. Throw readable.[[storedError]].
-            return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, readable->stored_error().as_string().utf8_string() };
+            return JS::throw_completion(readable->stored_error());
         }));
 
     return react_result;
