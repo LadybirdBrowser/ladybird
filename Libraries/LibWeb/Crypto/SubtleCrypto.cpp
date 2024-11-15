@@ -1,6 +1,7 @@
 /*
  * Copyright (c) 2021-2022, Linus Groh <linusg@serenityos.org>
  * Copyright (c) 2023-2024, stelar7 <dudedbz@gmail.com>
+ * Copyright (c) 2024, Jelle Raaijmakers <jelle@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -8,7 +9,6 @@
 #include <AK/QuickSort.h>
 #include <LibCrypto/Hash/HashManager.h>
 #include <LibJS/Runtime/ArrayBuffer.h>
-#include <LibJS/Runtime/Promise.h>
 #include <LibWeb/Bindings/ExceptionOrUtils.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Bindings/SubtleCryptoPrototype.h>
@@ -664,7 +664,7 @@ JS::ThrowCompletionOr<GC::Ref<WebIDL::Promise>> SubtleCrypto::derive_key(Algorit
     auto promise = WebIDL::create_promise(realm);
 
     // 9. Return promise and perform the remaining steps in parallel.
-    Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(realm.heap(), [&realm, &vm, normalized_algorithm = normalized_algorithm.release_value(), promise, normalized_derived_key_algorithm_import = normalized_derived_key_algorithm_import.release_value(), normalized_derived_key_algorithm_length = normalized_derived_key_algorithm_length.release_value(), base_key = move(base_key), extractable, key_usages = move(key_usages)]() -> void {
+    Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(realm.heap(), [&realm, &vm, normalized_algorithm = normalized_algorithm.release_value(), promise, normalized_derived_key_algorithm_import = normalized_derived_key_algorithm_import.release_value(), normalized_derived_key_algorithm_length = normalized_derived_key_algorithm_length.release_value(), base_key = move(base_key), extractable, key_usages = move(key_usages)]() mutable -> void {
         HTML::TemporaryExecutionContext context(realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes);
         // 10. If the following steps or referenced procedures say to throw an error, reject promise with the returned error and then terminate the algorithm.
 
@@ -707,25 +707,28 @@ JS::ThrowCompletionOr<GC::Ref<WebIDL::Promise>> SubtleCrypto::derive_key(Algorit
         }
 
         // 15. Let result be the result of performing the import key operation specified by normalizedDerivedKeyAlgorithmImport using "raw" as format, secret as keyData, derivedKeyType as algorithm and using extractable and usages.
-        auto result = normalized_derived_key_algorithm_import.methods->import_key(*normalized_derived_key_algorithm_import.parameter, Bindings::KeyFormat::Raw, secret.release_value()->buffer(), extractable, key_usages);
-        if (result.is_error()) {
-            WebIDL::reject_promise(realm, promise, Bindings::dom_exception_to_throw_completion(realm.vm(), result.release_error()).release_value().value());
+        auto result_or_error = normalized_derived_key_algorithm_import.methods->import_key(*normalized_derived_key_algorithm_import.parameter, Bindings::KeyFormat::Raw, secret.release_value()->buffer(), extractable, key_usages);
+        if (result_or_error.is_error()) {
+            WebIDL::reject_promise(realm, promise, Bindings::dom_exception_to_throw_completion(realm.vm(), result_or_error.release_error()).release_value().value());
             return;
         }
+        auto result = result_or_error.release_value();
 
         // 16. If the [[type]] internal slot of result is "secret" or "private" and usages is empty, then throw a SyntaxError.
-        if ((result.release_value()->type() == Bindings::KeyType::Secret || result.release_value()->type() == Bindings::KeyType::Private) && key_usages.is_empty()) {
+        if ((result->type() == Bindings::KeyType::Secret || result->type() == Bindings::KeyType::Private) && key_usages.is_empty()) {
             WebIDL::reject_promise(realm, promise, WebIDL::SyntaxError::create(realm, "usages must not be empty"_string));
             return;
         }
 
-        // AD-HOC: Set the [[extractable]] internal slot of key to be extractable.
-        //         See: https://github.com/w3c/webcrypto/issues/383
-        auto key = result.release_value();
-        key->set_extractable(extractable);
+        // 17. Set the [[extractable]] internal slot of result to extractable.
+        result->set_extractable(extractable);
 
-        // 17. Resolve promise with result.
-        WebIDL::resolve_promise(realm, promise, key);
+        // 18. Set the [[usages]] internal slot of result to the normalized value of usages.
+        normalize_key_usages(key_usages);
+        result->set_usages(key_usages);
+
+        // 19. Resolve promise with result.
+        WebIDL::resolve_promise(realm, promise, result);
     }));
 
     return promise;
