@@ -6,18 +6,18 @@ Rerun
 
 Found 12 tests
 
-7 Pass
-5 Fail
+9 Pass
+3 Fail
 Details
 Result	Test Name	MessagePass	No children, no label	
 Pass	No children, empty label	
 Pass	No children, label	
 Fail	No children, namespaced label	
-Fail	Single child, no label	
+Pass	Single child, no label	
 Pass	Single child, empty label	
 Pass	Single child, label	
 Fail	Single child, namespaced label	
-Fail	Two children, no label	
+Pass	Two children, no label	
 Pass	Two children, empty label	
 Pass	Two children, label	
 Fail	Two children, namespaced label	

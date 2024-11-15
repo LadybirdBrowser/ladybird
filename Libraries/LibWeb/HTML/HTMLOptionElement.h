@@ -29,6 +29,9 @@ public:
     String text() const;
     void set_text(String const&);
 
+    [[nodiscard]] String label() const;
+    void set_label(String const&);
+
     int index() const;
 
     bool disabled() const;

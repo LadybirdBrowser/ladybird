@@ -99,6 +99,23 @@ static void concatenate_descendants_text_content(DOM::Node const* node, StringBu
     });
 }
 
+// https://html.spec.whatwg.org/multipage/form-elements.html#dom-option-label
+String HTMLOptionElement::label() const
+{
+    // The label IDL attribute, on getting, if there is a label content attribute,
+    // must return that attribute's value; otherwise, it must return the element's label.
+    if (auto label = attribute(HTML::AttributeNames::label); label.has_value())
+        return label.release_value();
+
+    return text();
+}
+
+// https://html.spec.whatwg.org/multipage/form-elements.html#dom-option-label
+void HTMLOptionElement::set_label(String const& label)
+{
+    MUST(set_attribute(HTML::AttributeNames::label, label));
+}
+
 // https://html.spec.whatwg.org/multipage/form-elements.html#dom-option-text
 String HTMLOptionElement::text() const
 {
