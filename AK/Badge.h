@@ -6,24 +6,22 @@
 
 #pragma once
 
+#include <AK/Noncopyable.h>
 #include <AK/Platform.h>
 
 namespace AK {
 
 template<typename T>
 class Badge {
+    AK_MAKE_NONCOPYABLE(Badge);
+    AK_MAKE_NONMOVABLE(Badge);
+
 public:
     using Type = T;
 
 private:
     friend T;
     constexpr Badge() = default;
-
-    Badge(Badge const&) = delete;
-    Badge& operator=(Badge const&) = delete;
-
-    Badge(Badge&&) = delete;
-    Badge& operator=(Badge&&) = delete;
 };
 
 }
