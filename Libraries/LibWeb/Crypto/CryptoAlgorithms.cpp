@@ -1311,6 +1311,7 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<JS::ArrayBuffer>> AesCbc::decrypt(Algorithm
     return JS::ArrayBuffer::create(m_realm, move(plaintext));
 }
 
+// https://w3c.github.io/webcrypto/#aes-cbc-operations
 WebIDL::ExceptionOr<JS::NonnullGCPtr<CryptoKey>> AesCbc::import_key(AlgorithmParams const&, Bindings::KeyFormat format, CryptoKey::InternalKeyData key_data, bool extractable, Vector<Bindings::KeyUsage> const& key_usages)
 {
     // 1. If usages contains an entry which is not one of "encrypt", "decrypt", "wrapKey" or "unwrapKey", then throw a SyntaxError.
@@ -2701,6 +2702,7 @@ WebIDL::ExceptionOr<JS::Value> HKDF::get_key_length(AlgorithmParams const&)
     return JS::js_null();
 }
 
+// https://w3c.github.io/webcrypto/#pbkdf2-operations
 WebIDL::ExceptionOr<JS::NonnullGCPtr<JS::ArrayBuffer>> PBKDF2::derive_bits(AlgorithmParams const& params, JS::NonnullGCPtr<CryptoKey> key, Optional<u32> length_optional)
 {
     auto& realm = *m_realm;
@@ -2708,7 +2710,6 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<JS::ArrayBuffer>> PBKDF2::derive_bits(Algor
 
     // 1. If length is null or zero, or is not a multiple of 8, then throw an OperationError.
     auto length = length_optional.value_or(0);
-
     if (length == 0 || length % 8 != 0)
         return WebIDL::OperationError::create(realm, "Length must be greater than 0 and divisible by 8"_string);
 
@@ -2753,24 +2754,24 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<JS::ArrayBuffer>> PBKDF2::derive_bits(Algor
     return JS::ArrayBuffer::create(realm, result.release_value());
 }
 
+// https://w3c.github.io/webcrypto/#pbkdf2-operations
 WebIDL::ExceptionOr<JS::Value> PBKDF2::get_key_length(AlgorithmParams const&)
 {
     // 1. Return null.
     return JS::js_null();
 }
 
+// https://w3c.github.io/webcrypto/#pbkdf2-operations
 WebIDL::ExceptionOr<JS::NonnullGCPtr<CryptoKey>> PBKDF2::import_key(AlgorithmParams const&, Bindings::KeyFormat format, CryptoKey::InternalKeyData key_data, bool extractable, Vector<Bindings::KeyUsage> const& key_usages)
 {
     // 1. If format is not "raw", throw a NotSupportedError
-    if (format != Bindings::KeyFormat::Raw) {
+    if (format != Bindings::KeyFormat::Raw)
         return WebIDL::NotSupportedError::create(m_realm, "Only raw format is supported"_string);
-    }
 
     // 2. If usages contains a value that is not "deriveKey" or "deriveBits", then throw a SyntaxError.
     for (auto& usage : key_usages) {
-        if (usage != Bindings::KeyUsage::Derivekey && usage != Bindings::KeyUsage::Derivebits) {
+        if (usage != Bindings::KeyUsage::Derivekey && usage != Bindings::KeyUsage::Derivebits)
             return WebIDL::SyntaxError::create(m_realm, MUST(String::formatted("Invalid key usage '{}'", idl_enum_to_string(usage))));
-        }
     }
 
     // 3. If extractable is not false, then throw a SyntaxError.
