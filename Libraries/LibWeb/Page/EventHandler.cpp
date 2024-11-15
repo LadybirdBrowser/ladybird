@@ -177,8 +177,6 @@ EventResult EventHandler::handle_mousewheel(CSSPixelPoint viewport_position, CSS
     if (!m_navigable->active_document()->is_fully_active())
         return EventResult::Dropped;
 
-    auto position = viewport_position;
-
     m_navigable->active_document()->update_layout();
 
     if (!paint_root())
@@ -190,20 +188,20 @@ EventResult EventHandler::handle_mousewheel(CSSPixelPoint viewport_position, CSS
     auto handled_event = EventResult::Dropped;
 
     GC::Ptr<Painting::Paintable> paintable;
-    if (auto result = target_for_mouse_position(position); result.has_value())
+    if (auto result = target_for_mouse_position(viewport_position); result.has_value())
         paintable = result->paintable;
 
     if (paintable) {
         auto* containing_block = paintable->containing_block();
         while (containing_block) {
-            auto handled_scroll_event = containing_block->handle_mousewheel({}, position, buttons, modifiers, wheel_delta_x, wheel_delta_y);
+            auto handled_scroll_event = containing_block->handle_mousewheel({}, viewport_position, buttons, modifiers, wheel_delta_x, wheel_delta_y);
             if (handled_scroll_event)
                 return EventResult::Handled;
 
             containing_block = containing_block->containing_block();
         }
 
-        if (paintable->handle_mousewheel({}, position, buttons, modifiers, wheel_delta_x, wheel_delta_y))
+        if (paintable->handle_mousewheel({}, viewport_position, buttons, modifiers, wheel_delta_x, wheel_delta_y))
             return EventResult::Handled;
 
         auto node = dom_node_for_event_dispatch(*paintable);
@@ -212,7 +210,7 @@ EventResult EventHandler::handle_mousewheel(CSSPixelPoint viewport_position, CSS
             // FIXME: Support wheel events in nested browsing contexts.
             if (is<HTML::HTMLIFrameElement>(*node)) {
                 auto& iframe = static_cast<HTML::HTMLIFrameElement&>(*node);
-                auto position_in_iframe = position.translated(compute_mouse_event_offset({}, paintable->layout_node()));
+                auto position_in_iframe = viewport_position.translated(compute_mouse_event_offset({}, paintable->layout_node()));
                 iframe.content_navigable()->event_handler().handle_mousewheel(position_in_iframe, screen_position, button, buttons, modifiers, wheel_delta_x, wheel_delta_y);
                 return EventResult::Dropped;
             }
@@ -222,10 +220,9 @@ EventResult EventHandler::handle_mousewheel(CSSPixelPoint viewport_position, CSS
             if (!parent_element_for_event_dispatch(*paintable, node, layout_node))
                 return EventResult::Dropped;
 
-            auto offset = compute_mouse_event_offset(position, *layout_node);
-            auto client_offset = compute_mouse_event_client_offset(position);
-            auto page_offset = compute_mouse_event_page_offset(client_offset);
-            if (node->dispatch_event(UIEvents::WheelEvent::create_from_platform_event(node->realm(), UIEvents::EventNames::wheel, screen_position, page_offset, client_offset, offset, wheel_delta_x, wheel_delta_y, button, buttons, modifiers).release_value_but_fixme_should_propagate_errors())) {
+            auto page_offset = compute_mouse_event_page_offset(viewport_position);
+            auto offset = compute_mouse_event_offset(page_offset, *layout_node);
+            if (node->dispatch_event(UIEvents::WheelEvent::create_from_platform_event(node->realm(), UIEvents::EventNames::wheel, screen_position, page_offset, viewport_position, offset, wheel_delta_x, wheel_delta_y, button, buttons, modifiers).release_value_but_fixme_should_propagate_errors())) {
                 m_navigable->active_window()->scroll_by(wheel_delta_x, wheel_delta_y);
             }
 
@@ -246,26 +243,24 @@ EventResult EventHandler::handle_mouseup(CSSPixelPoint viewport_position, CSSPix
     if (!m_navigable->active_document()->is_fully_active())
         return EventResult::Dropped;
 
-    auto position = viewport_position;
-
     m_navigable->active_document()->update_layout();
 
     if (!paint_root())
         return EventResult::Dropped;
 
     GC::Ptr<Painting::Paintable> paintable;
-    if (auto result = target_for_mouse_position(position); result.has_value())
+    if (auto result = target_for_mouse_position(viewport_position); result.has_value())
         paintable = result->paintable;
 
     if (paintable && paintable->wants_mouse_events()) {
-        if (paintable->handle_mouseup({}, position, button, modifiers) == Painting::Paintable::DispatchEventOfSameName::No)
+        if (paintable->handle_mouseup({}, viewport_position, button, modifiers) == Painting::Paintable::DispatchEventOfSameName::No)
             return EventResult::Cancelled;
 
         // Things may have changed as a consequence of Layout::Node::handle_mouseup(). Hit test again.
         if (!paint_root())
             return EventResult::Handled;
 
-        if (auto result = paint_root()->hit_test(position, Painting::HitTestType::Exact); result.has_value())
+        if (auto result = paint_root()->hit_test(viewport_position, Painting::HitTestType::Exact); result.has_value())
             paintable = result->paintable;
     }
 
@@ -277,7 +272,7 @@ EventResult EventHandler::handle_mouseup(CSSPixelPoint viewport_position, CSSPix
         if (node) {
             if (is<HTML::HTMLIFrameElement>(*node)) {
                 if (auto content_navigable = static_cast<HTML::HTMLIFrameElement&>(*node).content_navigable())
-                    return content_navigable->event_handler().handle_mouseup(position.translated(compute_mouse_event_offset({}, paintable->layout_node())), screen_position, button, buttons, modifiers);
+                    return content_navigable->event_handler().handle_mouseup(viewport_position.translated(compute_mouse_event_offset({}, paintable->layout_node())), screen_position, button, buttons, modifiers);
                 return EventResult::Dropped;
             }
 
@@ -290,22 +285,21 @@ EventResult EventHandler::handle_mouseup(CSSPixelPoint viewport_position, CSSPix
                 goto after_node_use;
             }
 
-            auto offset = compute_mouse_event_offset(position, *layout_node);
-            auto client_offset = compute_mouse_event_client_offset(position);
-            auto page_offset = compute_mouse_event_page_offset(client_offset);
-            node->dispatch_event(UIEvents::MouseEvent::create_from_platform_event(node->realm(), UIEvents::EventNames::mouseup, screen_position, page_offset, client_offset, offset, {}, button, buttons, modifiers).release_value_but_fixme_should_propagate_errors());
+            auto page_offset = compute_mouse_event_page_offset(viewport_position);
+            auto offset = compute_mouse_event_offset(page_offset, *layout_node);
+            node->dispatch_event(UIEvents::MouseEvent::create_from_platform_event(node->realm(), UIEvents::EventNames::mouseup, screen_position, page_offset, viewport_position, offset, {}, button, buttons, modifiers).release_value_but_fixme_should_propagate_errors());
             handled_event = EventResult::Handled;
 
             bool run_activation_behavior = false;
             if (node.ptr() == m_mousedown_target) {
                 if (button == UIEvents::MouseButton::Primary) {
-                    run_activation_behavior = node->dispatch_event(UIEvents::MouseEvent::create_from_platform_event(node->realm(), UIEvents::EventNames::click, screen_position, page_offset, client_offset, offset, {}, button, buttons, modifiers).release_value_but_fixme_should_propagate_errors());
+                    run_activation_behavior = node->dispatch_event(UIEvents::MouseEvent::create_from_platform_event(node->realm(), UIEvents::EventNames::click, screen_position, page_offset, viewport_position, offset, {}, button, buttons, modifiers).release_value_but_fixme_should_propagate_errors());
                 } else if (button == UIEvents::MouseButton::Middle) {
-                    run_activation_behavior = node->dispatch_event(UIEvents::MouseEvent::create_from_platform_event(node->realm(), UIEvents::EventNames::auxclick, screen_position, page_offset, client_offset, offset, {}, button, buttons, modifiers).release_value_but_fixme_should_propagate_errors());
+                    run_activation_behavior = node->dispatch_event(UIEvents::MouseEvent::create_from_platform_event(node->realm(), UIEvents::EventNames::auxclick, screen_position, page_offset, viewport_position, offset, {}, button, buttons, modifiers).release_value_but_fixme_should_propagate_errors());
                 } else if (button == UIEvents::MouseButton::Secondary) {
                     // Allow the user to bypass custom context menus by holding shift, like Firefox.
                     if ((modifiers & UIEvents::Mod_Shift) == 0)
-                        run_activation_behavior = node->dispatch_event(UIEvents::MouseEvent::create_from_platform_event(node->realm(), UIEvents::EventNames::contextmenu, screen_position, page_offset, client_offset, offset, {}, button, buttons, modifiers).release_value_but_fixme_should_propagate_errors());
+                        run_activation_behavior = node->dispatch_event(UIEvents::MouseEvent::create_from_platform_event(node->realm(), UIEvents::EventNames::contextmenu, screen_position, page_offset, viewport_position, offset, {}, button, buttons, modifiers).release_value_but_fixme_should_propagate_errors());
                     else
                         run_activation_behavior = true;
                 }
@@ -378,8 +372,6 @@ EventResult EventHandler::handle_mousedown(CSSPixelPoint viewport_position, CSSP
     if (!m_navigable->active_document()->is_fully_active())
         return EventResult::Dropped;
 
-    auto position = viewport_position;
-
     m_navigable->active_document()->update_layout();
 
     if (!paint_root())
@@ -390,7 +382,7 @@ EventResult EventHandler::handle_mousedown(CSSPixelPoint viewport_position, CSSP
 
     {
         GC::Ptr<Painting::Paintable> paintable;
-        if (auto result = target_for_mouse_position(position); result.has_value())
+        if (auto result = target_for_mouse_position(viewport_position); result.has_value())
             paintable = result->paintable;
         else
             return EventResult::Dropped;
@@ -403,7 +395,7 @@ EventResult EventHandler::handle_mousedown(CSSPixelPoint viewport_position, CSSP
         document->set_hovered_node(node);
 
         if (paintable->wants_mouse_events()) {
-            if (paintable->handle_mousedown({}, position, button, modifiers) == Painting::Paintable::DispatchEventOfSameName::No)
+            if (paintable->handle_mousedown({}, viewport_position, button, modifiers) == Painting::Paintable::DispatchEventOfSameName::No)
                 return EventResult::Cancelled;
         }
 
@@ -412,7 +404,7 @@ EventResult EventHandler::handle_mousedown(CSSPixelPoint viewport_position, CSSP
 
         if (is<HTML::HTMLIFrameElement>(*node)) {
             if (auto content_navigable = static_cast<HTML::HTMLIFrameElement&>(*node).content_navigable())
-                return content_navigable->event_handler().handle_mousedown(position.translated(compute_mouse_event_offset({}, paintable->layout_node())), screen_position, button, buttons, modifiers);
+                return content_navigable->event_handler().handle_mousedown(viewport_position.translated(compute_mouse_event_offset({}, paintable->layout_node())), screen_position, button, buttons, modifiers);
             return EventResult::Dropped;
         }
 
@@ -426,10 +418,9 @@ EventResult EventHandler::handle_mousedown(CSSPixelPoint viewport_position, CSSP
             return EventResult::Dropped;
 
         m_mousedown_target = node.ptr();
-        auto offset = compute_mouse_event_offset(position, *layout_node);
-        auto client_offset = compute_mouse_event_client_offset(position);
-        auto page_offset = compute_mouse_event_page_offset(client_offset);
-        node->dispatch_event(UIEvents::MouseEvent::create_from_platform_event(node->realm(), UIEvents::EventNames::mousedown, screen_position, page_offset, client_offset, offset, {}, button, buttons, modifiers).release_value_but_fixme_should_propagate_errors());
+        auto page_offset = compute_mouse_event_page_offset(viewport_position);
+        auto offset = compute_mouse_event_offset(page_offset, *layout_node);
+        node->dispatch_event(UIEvents::MouseEvent::create_from_platform_event(node->realm(), UIEvents::EventNames::mousedown, screen_position, page_offset, viewport_position, offset, {}, button, buttons, modifiers).release_value_but_fixme_should_propagate_errors());
     }
 
     // NOTE: Dispatching an event may have disturbed the world.
@@ -437,7 +428,7 @@ EventResult EventHandler::handle_mousedown(CSSPixelPoint viewport_position, CSSP
         return EventResult::Accepted;
 
     if (button == UIEvents::MouseButton::Primary) {
-        if (auto result = paint_root()->hit_test(position, Painting::HitTestType::TextCursor); result.has_value()) {
+        if (auto result = paint_root()->hit_test(viewport_position, Painting::HitTestType::TextCursor); result.has_value()) {
             auto paintable = result->paintable;
             auto dom_node = paintable->dom_node();
             if (dom_node) {
@@ -494,8 +485,6 @@ EventResult EventHandler::handle_mousemove(CSSPixelPoint viewport_position, CSSP
     if (!m_navigable->active_document()->is_fully_active())
         return EventResult::Dropped;
 
-    auto position = viewport_position;
-
     m_navigable->active_document()->update_layout();
 
     if (!paint_root())
@@ -510,7 +499,7 @@ EventResult EventHandler::handle_mousemove(CSSPixelPoint viewport_position, CSSP
     GC::Ptr<Painting::Paintable> paintable;
     Optional<int> start_index;
 
-    if (auto result = target_for_mouse_position(position); result.has_value()) {
+    if (auto result = target_for_mouse_position(viewport_position); result.has_value()) {
         paintable = result->paintable;
         start_index = result->index_in_node;
     }
@@ -519,7 +508,7 @@ EventResult EventHandler::handle_mousemove(CSSPixelPoint viewport_position, CSSP
     if (paintable) {
         if (paintable->wants_mouse_events()) {
             document.set_hovered_node(paintable->dom_node());
-            if (paintable->handle_mousemove({}, position, buttons, modifiers) == Painting::Paintable::DispatchEventOfSameName::No)
+            if (paintable->handle_mousemove({}, viewport_position, buttons, modifiers) == Painting::Paintable::DispatchEventOfSameName::No)
                 return EventResult::Cancelled;
 
             // FIXME: It feels a bit aggressive to always update the cursor like this.
@@ -530,7 +519,7 @@ EventResult EventHandler::handle_mousemove(CSSPixelPoint viewport_position, CSSP
 
         if (node && is<HTML::HTMLIFrameElement>(*node)) {
             if (auto content_navigable = static_cast<HTML::HTMLIFrameElement&>(*node).content_navigable())
-                return content_navigable->event_handler().handle_mousemove(position.translated(compute_mouse_event_offset({}, paintable->layout_node())), screen_position, buttons, modifiers);
+                return content_navigable->event_handler().handle_mousemove(viewport_position.translated(compute_mouse_event_offset({}, paintable->layout_node())), screen_position, buttons, modifiers);
             return EventResult::Dropped;
         }
 
@@ -563,14 +552,13 @@ EventResult EventHandler::handle_mousemove(CSSPixelPoint viewport_position, CSSP
                     hovered_node_cursor = cursor_css_to_gfx(cursor);
             }
 
-            auto offset = compute_mouse_event_offset(position, *layout_node);
-            auto client_offset = compute_mouse_event_client_offset(position);
-            auto page_offset = compute_mouse_event_page_offset(client_offset);
+            auto page_offset = compute_mouse_event_page_offset(viewport_position);
+            auto offset = compute_mouse_event_offset(page_offset, *layout_node);
             auto movement = compute_mouse_event_movement(screen_position);
 
             m_mousemove_previous_screen_position = screen_position;
 
-            bool continue_ = node->dispatch_event(UIEvents::MouseEvent::create_from_platform_event(node->realm(), UIEvents::EventNames::mousemove, screen_position, page_offset, client_offset, offset, movement, UIEvents::MouseButton::Primary, buttons, modifiers).release_value_but_fixme_should_propagate_errors());
+            bool continue_ = node->dispatch_event(UIEvents::MouseEvent::create_from_platform_event(node->realm(), UIEvents::EventNames::mousemove, screen_position, page_offset, viewport_position, offset, movement, UIEvents::MouseButton::Primary, buttons, modifiers).release_value_but_fixme_should_propagate_errors());
             if (!continue_)
                 return EventResult::Cancelled;
 
@@ -580,7 +568,7 @@ EventResult EventHandler::handle_mousemove(CSSPixelPoint viewport_position, CSSP
         }
 
         if (m_in_mouse_selection) {
-            auto hit = paint_root()->hit_test(position, Painting::HitTestType::TextCursor);
+            auto hit = paint_root()->hit_test(viewport_position, Painting::HitTestType::TextCursor);
             if (m_mouse_selection_target) {
                 if (hit.has_value()) {
                     m_mouse_selection_target->set_selection_focus(*hit->paintable->dom_node(), hit->index_in_node);
@@ -635,16 +623,13 @@ EventResult EventHandler::handle_doubleclick(CSSPixelPoint viewport_position, CS
 
     auto& document = *m_navigable->active_document();
 
-    auto scroll_offset = document.navigable()->viewport_scroll_offset();
-    auto position = viewport_position.translated(scroll_offset);
-
     document.update_layout();
 
     if (!paint_root())
         return EventResult::Dropped;
 
     GC::Ptr<Painting::Paintable> paintable;
-    if (auto result = target_for_mouse_position(position); result.has_value())
+    if (auto result = target_for_mouse_position(viewport_position); result.has_value())
         paintable = result->paintable;
     else
         return EventResult::Dropped;
@@ -665,7 +650,7 @@ EventResult EventHandler::handle_doubleclick(CSSPixelPoint viewport_position, CS
 
     if (is<HTML::HTMLIFrameElement>(*node)) {
         if (auto content_navigable = static_cast<HTML::HTMLIFrameElement&>(*node).content_navigable())
-            return content_navigable->event_handler().handle_doubleclick(position.translated(compute_mouse_event_offset({}, paintable->layout_node())), screen_position, button, buttons, modifiers);
+            return content_navigable->event_handler().handle_doubleclick(viewport_position.translated(compute_mouse_event_offset({}, paintable->layout_node())), screen_position, button, buttons, modifiers);
         return EventResult::Dropped;
     }
 
@@ -675,17 +660,16 @@ EventResult EventHandler::handle_doubleclick(CSSPixelPoint viewport_position, CS
     if (!parent_element_for_event_dispatch(*paintable, node, layout_node))
         return EventResult::Dropped;
 
-    auto offset = compute_mouse_event_offset(position, *layout_node);
-    auto client_offset = compute_mouse_event_client_offset(position);
-    auto page_offset = compute_mouse_event_page_offset(client_offset);
-    node->dispatch_event(UIEvents::MouseEvent::create_from_platform_event(node->realm(), UIEvents::EventNames::dblclick, screen_position, page_offset, client_offset, offset, {}, button, buttons, modifiers).release_value_but_fixme_should_propagate_errors());
+    auto page_offset = compute_mouse_event_page_offset(viewport_position);
+    auto offset = compute_mouse_event_offset(page_offset, *layout_node);
+    node->dispatch_event(UIEvents::MouseEvent::create_from_platform_event(node->realm(), UIEvents::EventNames::dblclick, screen_position, page_offset, viewport_position, offset, {}, button, buttons, modifiers).release_value_but_fixme_should_propagate_errors());
 
     // NOTE: Dispatching an event may have disturbed the world.
     if (!paint_root() || paint_root() != node->document().paintable_box())
         return EventResult::Accepted;
 
     if (button == UIEvents::MouseButton::Primary) {
-        if (auto result = paint_root()->hit_test(position, Painting::HitTestType::TextCursor); result.has_value()) {
+        if (auto result = paint_root()->hit_test(viewport_position, Painting::HitTestType::TextCursor); result.has_value()) {
             if (!result->paintable->dom_node())
                 return EventResult::Accepted;
             if (!is<Painting::TextPaintable>(*result->paintable))
@@ -738,19 +722,18 @@ EventResult EventHandler::handle_drag_and_drop_event(DragEvent::Type type, CSSPi
         return EventResult::Dropped;
     }
 
-    auto offset = compute_mouse_event_offset(viewport_position, paintable->layout_node());
-    auto client_offset = compute_mouse_event_client_offset(viewport_position);
-    auto page_offset = compute_mouse_event_page_offset(client_offset);
+    auto page_offset = compute_mouse_event_page_offset(viewport_position);
+    auto offset = compute_mouse_event_offset(page_offset, paintable->layout_node());
 
     switch (type) {
     case DragEvent::Type::DragStart:
-        return m_drag_and_drop_event_handler->handle_drag_start(document.realm(), screen_position, page_offset, client_offset, offset, button, buttons, modifiers, move(files));
+        return m_drag_and_drop_event_handler->handle_drag_start(document.realm(), screen_position, page_offset, viewport_position, offset, button, buttons, modifiers, move(files));
     case DragEvent::Type::DragMove:
-        return m_drag_and_drop_event_handler->handle_drag_move(document.realm(), document, *node, screen_position, page_offset, client_offset, offset, button, buttons, modifiers);
+        return m_drag_and_drop_event_handler->handle_drag_move(document.realm(), document, *node, screen_position, page_offset, viewport_position, offset, button, buttons, modifiers);
     case DragEvent::Type::DragEnd:
-        return m_drag_and_drop_event_handler->handle_drag_leave(document.realm(), screen_position, page_offset, client_offset, offset, button, buttons, modifiers);
+        return m_drag_and_drop_event_handler->handle_drag_leave(document.realm(), screen_position, page_offset, viewport_position, offset, button, buttons, modifiers);
     case DragEvent::Type::Drop:
-        return m_drag_and_drop_event_handler->handle_drop(document.realm(), screen_position, page_offset, client_offset, offset, button, buttons, modifiers);
+        return m_drag_and_drop_event_handler->handle_drop(document.realm(), screen_position, page_offset, viewport_position, offset, button, buttons, modifiers);
     }
 
     VERIFY_NOT_REACHED();
@@ -1111,15 +1094,6 @@ void EventHandler::handle_paste(String const& text)
 void EventHandler::set_mouse_event_tracking_paintable(Painting::Paintable* paintable)
 {
     m_mouse_event_tracking_paintable = paintable;
-}
-
-CSSPixelPoint EventHandler::compute_mouse_event_client_offset(CSSPixelPoint event_page_position) const
-{
-    // https://w3c.github.io/csswg-drafts/cssom-view/#dom-mouseevent-clientx
-    // The clientX attribute must return the x-coordinate of the position where the event occurred relative to the origin of the viewport.
-
-    auto scroll_offset = m_navigable->active_document()->navigable()->viewport_scroll_offset();
-    return event_page_position.translated(-scroll_offset);
 }
 
 CSSPixelPoint EventHandler::compute_mouse_event_page_offset(CSSPixelPoint event_client_offset) const
