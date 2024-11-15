@@ -455,11 +455,6 @@ if (ENABLE_GUI_TARGETS)
 endif()
 
 lagom_utility(js SOURCES ../../Utilities/js.cpp LIBS LibCrypto LibJS LibLine LibUnicode LibMain LibTextCodec LibGC Threads::Threads)
-
-lagom_utility(gzip SOURCES ../../Utilities/gzip.cpp LIBS LibCompress LibMain)
-lagom_utility(lzcat SOURCES ../../Utilities/lzcat.cpp LIBS LibCompress LibMain)
-
-lagom_utility(tar SOURCES ../../Utilities/tar.cpp LIBS LibArchive LibCompress LibFileSystem LibMain)
 lagom_utility(test262-runner SOURCES ../../Tests/LibJS/test262-runner.cpp LIBS LibJS LibFileSystem LibGC)
 
 if (CMAKE_SYSTEM_NAME STREQUAL "Linux")
@@ -481,7 +476,6 @@ endif()
 
 lagom_utility(wasm SOURCES ../../Utilities/wasm.cpp LIBS LibFileSystem LibWasm LibLine LibMain LibJS)
 lagom_utility(xml SOURCES ../../Utilities/xml.cpp LIBS LibFileSystem LibMain LibXML LibURL)
-lagom_utility(xzcat SOURCES ../../Utilities/xzcat.cpp LIBS LibCompress LibMain)
 
 include(CTest)
 if (BUILD_TESTING)
