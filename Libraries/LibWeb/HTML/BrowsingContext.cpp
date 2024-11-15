@@ -60,7 +60,7 @@ bool url_matches_about_srcdoc(URL::URL const& url)
 }
 
 // https://html.spec.whatwg.org/multipage/document-sequences.html#determining-the-origin
-URL::Origin determine_the_origin(Optional<URL::URL> const& url, SandboxingFlagSet sandbox_flags, Optional<URL::Origin> source_origin)
+URL::Origin determine_the_origin(Optional<URL::URL const&> url, SandboxingFlagSet sandbox_flags, Optional<URL::Origin> source_origin)
 {
     // 1. If sandboxFlags has its sandboxed origin browsing context flag set, then return a new opaque origin.
     if (has_flag(sandbox_flags, SandboxingFlagSet::SandboxedOrigin)) {
