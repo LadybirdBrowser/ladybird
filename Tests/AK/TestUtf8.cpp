@@ -312,3 +312,26 @@ TEST_CASE(trim)
         EXPECT_EQ(view.trim(whitespace, TrimMode::Right).as_string(), "\u180E");
     }
 }
+
+static bool is_period(u32 code_point) { return code_point == '.'; }
+
+TEST_CASE(for_each_split_view)
+{
+    Utf8View view { "...Well..hello.friends!..."sv };
+    auto gather = [&](auto split_behavior) {
+        Vector<StringView> results;
+        view.for_each_split_view(is_period, split_behavior, [&](auto part) {
+            results.append(part.as_string());
+        });
+        return results;
+    };
+
+    EXPECT_EQ(gather(SplitBehavior::Nothing),
+        Vector({ "Well"sv, "hello"sv, "friends!"sv }));
+    EXPECT_EQ(gather(SplitBehavior::KeepEmpty),
+        Vector({ ""sv, ""sv, ""sv, "Well"sv, ""sv, "hello"sv, "friends!"sv, ""sv, ""sv, ""sv }));
+    EXPECT_EQ(gather(SplitBehavior::KeepTrailingSeparator),
+        Vector({ "Well."sv, "hello."sv, "friends!."sv }));
+    EXPECT_EQ(gather(SplitBehavior::KeepEmpty | SplitBehavior::KeepTrailingSeparator),
+        Vector({ "."sv, "."sv, "."sv, "Well."sv, "."sv, "hello."sv, "friends!."sv, "."sv, "."sv, ""sv }));
+}
