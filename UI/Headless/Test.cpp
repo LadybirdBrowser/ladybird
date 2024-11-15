@@ -143,6 +143,8 @@ void run_dump_test(HeadlessWebView& view, Test& test, URL::URL const& url, int t
         }
 
         if (Application::the().rebaseline) {
+            TRY(Core::Directory::create(LexicalPath { test.expectation_path }.parent().string(), Core::Directory::CreateDirectories::Yes));
+
             auto expectation_file = TRY(open_expectation_file(Core::File::OpenMode::Write));
             TRY(expectation_file->write_until_depleted(test.text));
 
