@@ -1,0 +1,13 @@
+<link rel="match" href="../expected/svg-gradient-paint-transformation-ref.html" />
+<svg height="150" width="150" xmlns="http://www.w3.org/2000/svg">
+  <style>
+    .hi {
+      font: bold 70px sans-serif;
+    }
+  </style>
+  <linearGradient id="gradient">
+    <stop offset="0%" stop-color="rgba(255, 0, 0, 1)"/>
+    <stop offset="100%" stop-color="rgba(0, 255, 0, 1)"/>
+  </linearGradient>
+  <text x="50" y="50" class="hi" fill="url(#gradient)" transform="rotate(45 50 50)">HI</text>
+</svg>
