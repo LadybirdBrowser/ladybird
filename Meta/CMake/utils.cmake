@@ -184,7 +184,7 @@ function(invoke_generator name generator primary_source header implementation)
     set(CURRENT_LIB_GENERATED ${CURRENT_LIB_GENERATED} PARENT_SCOPE)
 endfunction()
 
-function(invoke_idl_generator name generator primary_source header implementation idl)
+function(invoke_idl_generator cpp_name idl_name generator primary_source header implementation idl)
     cmake_parse_arguments(invoke_idl_generator "" "" "arguments;dependencies" ${ARGN})
 
     add_custom_command(
@@ -198,8 +198,10 @@ function(invoke_idl_generator name generator primary_source header implementatio
         DEPENDS ${generator} ${invoke_idl_generator_dependencies} "${primary_source}"
     )
 
-    add_custom_target("generate_${name}" DEPENDS "${header}" "${implementation}" "${idl}")
-    add_dependencies(all_generated "generate_${name}")
+    add_custom_target("generate_${cpp_name}" DEPENDS "${header}" "${implementation}" "${idl}")
+    add_custom_target("generate_${idl_name}" DEPENDS "generate_${cpp_name}")
+    add_dependencies(all_generated "generate_${cpp_name}")
+    add_dependencies(all_generated "generate_${idl_name}")
     list(APPEND CURRENT_LIB_GENERATED "${name}")
     set(CURRENT_LIB_GENERATED ${CURRENT_LIB_GENERATED} PARENT_SCOPE)
 endfunction()
