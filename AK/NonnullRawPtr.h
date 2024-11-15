@@ -21,6 +21,7 @@ public:
     using ValueType = T;
 
     NonnullRawPtr() = delete;
+    NonnullRawPtr(T const&&) = delete;
 
     NonnullRawPtr(T& other)
         : m_ptr(&other)
