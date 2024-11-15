@@ -719,8 +719,13 @@ JS::ThrowCompletionOr<JS::NonnullGCPtr<WebIDL::Promise>> SubtleCrypto::derive_ke
             return;
         }
 
+        // AD-HOC: Set the [[extractable]] internal slot of key to be extractable.
+        //         See: https://github.com/w3c/webcrypto/issues/383
+        auto key = result.release_value();
+        key->set_extractable(extractable);
+
         // 17. Resolve promise with result.
-        WebIDL::resolve_promise(realm, promise, result.release_value());
+        WebIDL::resolve_promise(realm, promise, key);
     }));
 
     return promise;
