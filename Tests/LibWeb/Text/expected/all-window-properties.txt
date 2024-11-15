@@ -63,6 +63,7 @@ CloseEvent
 CloseWatcher
 Comment
 CompositionEvent
+CompressionStream
 CountQueuingStrategy
 Crypto
 CryptoKey
