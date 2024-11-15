@@ -17,6 +17,7 @@
 #include <LibWeb/HTML/HTMLSelectElement.h>
 #include <LibWeb/HighResolutionTime/TimeOrigin.h>
 #include <LibWeb/Infra/Strings.h>
+#include <LibWeb/SVG/SVGScriptElement.h>
 
 namespace Web::HTML {
 
@@ -88,8 +89,7 @@ WebIDL::ExceptionOr<void> HTMLOptionElement::set_value(String const& value)
 
 static void concatenate_descendants_text_content(DOM::Node const* node, StringBuilder& builder)
 {
-    // FIXME: SVGScriptElement should also be skipped, but it doesn't exist yet.
-    if (is<HTMLScriptElement>(node))
+    if (is<HTMLScriptElement>(node) || is<SVG::SVGScriptElement>(node))
         return;
     if (is<DOM::Text>(node))
         builder.append(verify_cast<DOM::Text>(node)->data());

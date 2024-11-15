@@ -6,12 +6,11 @@ Rerun
 
 Found 11 tests
 
-10 Pass
-1 Fail
+11 Pass
 Details
 Result	Test Name	MessagePass	option.text should recurse	
 Pass	option.text should not recurse into HTML script elements	
-Fail	option.text should not recurse into SVG script elements	
+Pass	option.text should not recurse into SVG script elements	
 Pass	option.text should recurse into MathML script elements	
 Pass	option.text should recurse into null script elements	
 Pass	option.text should work if a child of the option ends with a script	
