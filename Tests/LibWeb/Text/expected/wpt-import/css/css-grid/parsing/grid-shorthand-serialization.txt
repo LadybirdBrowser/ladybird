@@ -6,15 +6,15 @@ Rerun
 
 Found 121 tests
 
-30 Pass
-91 Fail
+35 Pass
+86 Fail
 Details
 Result	Test Name	MessageFail	e.style.cssText = grid: auto-flow auto / 100px 100px should set grid	
 Fail	e.style.cssText = grid: auto-flow auto / 100px 100px should set grid-template-areas	
 Pass	e.style.cssText = grid: auto-flow auto / 100px 100px; grid-template-areas: "one two" "three four" should set grid	
 Fail	e.style.cssText = grid: auto-flow auto / 100px 100px; grid-template-areas: "one two" "three four" should set grid-auto-flow	
 Fail	e.style.cssText = grid: auto-flow auto / 100px 100px; grid-template-areas: "one two" "three four" should set grid-auto-rows	
-Fail	e.style.cssText = grid: auto-flow auto / 100px 100px; grid-template-areas: "one two" "three four" should set grid-template-areas	
+Pass	e.style.cssText = grid: auto-flow auto / 100px 100px; grid-template-areas: "one two" "three four" should set grid-template-areas	
 Fail	e.style.cssText = grid: 30px 40px / 50px 60px; grid-auto-flow: column should set grid	
 Pass	e.style.cssText = grid: 30px 40px / 50px 60px; grid-auto-flow: column should set grid-auto-flow	
 Pass	e.style.cssText = grid: 30px 40px / 50px 60px; grid-auto-flow: column should set grid-template	
@@ -115,18 +115,18 @@ Fail	e.style.cssText = grid: auto-flow 1px / none; grid-template-rows: repeat(au
 Fail	e.style.cssText = grid: auto-flow 1px / none; grid-template-rows: repeat(auto-fit, 3px) should set grid-template-columns	
 Fail	e.style.cssText = grid: auto-flow 1px / none; grid-template-rows: repeat(auto-fit, 3px) should set grid-template-rows	
 Fail	e.style.cssText = grid-template-rows: auto auto; grid-template-columns: repeat(2, 3px); grid-template-areas: "one two" "three four" should set grid	
-Fail	e.style.cssText = grid-template-rows: auto auto; grid-template-columns: repeat(2, 3px); grid-template-areas: "one two" "three four" should set grid-template-areas	
+Pass	e.style.cssText = grid-template-rows: auto auto; grid-template-columns: repeat(2, 3px); grid-template-areas: "one two" "three four" should set grid-template-areas	
 Pass	e.style.cssText = grid-template-rows: auto auto; grid-template-columns: repeat(2, 3px); grid-template-areas: "one two" "three four" should set grid-template-columns	
 Pass	e.style.cssText = grid-template-rows: auto auto; grid-template-columns: repeat(2, 3px); grid-template-areas: "one two" "three four" should set grid-template-rows	
 Fail	e.style.cssText = grid-template-rows: auto auto; grid-template-columns: repeat(2, 1fr); grid-template-areas: "one two" "three four" should set grid	
-Fail	e.style.cssText = grid-template-rows: auto auto; grid-template-columns: repeat(2, 1fr); grid-template-areas: "one two" "three four" should set grid-template-areas	
+Pass	e.style.cssText = grid-template-rows: auto auto; grid-template-columns: repeat(2, 1fr); grid-template-areas: "one two" "three four" should set grid-template-areas	
 Pass	e.style.cssText = grid-template-rows: auto auto; grid-template-columns: repeat(2, 1fr); grid-template-areas: "one two" "three four" should set grid-template-columns	
 Pass	e.style.cssText = grid-template-rows: auto auto; grid-template-columns: repeat(2, 1fr); grid-template-areas: "one two" "three four" should set grid-template-rows	
 Fail	e.style.cssText = grid-template-rows: auto auto; grid-template-columns: repeat(auto-fill, 3px); grid-template-areas: "one two" "three four" should set grid	
-Fail	e.style.cssText = grid-template-rows: auto auto; grid-template-columns: repeat(auto-fill, 3px); grid-template-areas: "one two" "three four" should set grid-template-areas	
+Pass	e.style.cssText = grid-template-rows: auto auto; grid-template-columns: repeat(auto-fill, 3px); grid-template-areas: "one two" "three four" should set grid-template-areas	
 Fail	e.style.cssText = grid-template-rows: auto auto; grid-template-columns: repeat(auto-fill, 3px); grid-template-areas: "one two" "three four" should set grid-template-columns	
 Pass	e.style.cssText = grid-template-rows: auto auto; grid-template-columns: repeat(auto-fill, 3px); grid-template-areas: "one two" "three four" should set grid-template-rows	
 Fail	e.style.cssText = grid-template-rows: auto auto; grid-template-columns: repeat(auto-fit, 3px); grid-template-areas: "one two" "three four" should set grid	
-Fail	e.style.cssText = grid-template-rows: auto auto; grid-template-columns: repeat(auto-fit, 3px); grid-template-areas: "one two" "three four" should set grid-template-areas	
+Pass	e.style.cssText = grid-template-rows: auto auto; grid-template-columns: repeat(auto-fit, 3px); grid-template-areas: "one two" "three four" should set grid-template-areas	
 Fail	e.style.cssText = grid-template-rows: auto auto; grid-template-columns: repeat(auto-fit, 3px); grid-template-areas: "one two" "three four" should set grid-template-columns	
 Pass	e.style.cssText = grid-template-rows: auto auto; grid-template-columns: repeat(auto-fit, 3px); grid-template-areas: "one two" "three four" should set grid-template-rows	

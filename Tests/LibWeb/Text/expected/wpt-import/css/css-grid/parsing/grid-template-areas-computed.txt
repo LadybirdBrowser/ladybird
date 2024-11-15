@@ -6,15 +6,14 @@ Rerun
 
 Found 9 tests
 
-1 Pass
-8 Fail
+9 Pass
 Details
 Result	Test Name	MessagePass	Property grid-template-areas value 'none'	
-Fail	Property grid-template-areas value '"first"'	
-Fail	Property grid-template-areas value '"first second"'	
-Fail	Property grid-template-areas value '"1st 2nd 3rd"'	
-Fail	Property grid-template-areas value '"first second" "third fourth"'	
-Fail	Property grid-template-areas value '"first second" "third ." "1st 2nd" "3rd 4th"'	
-Fail	Property grid-template-areas value '" a b "'	
-Fail	Property grid-template-areas value '"c d"'	
-Fail	Property grid-template-areas value '"first ..."'	
+Pass	Property grid-template-areas value '"first"'	
+Pass	Property grid-template-areas value '"first second"'	
+Pass	Property grid-template-areas value '"1st 2nd 3rd"'	
+Pass	Property grid-template-areas value '"first second" "third fourth"'	
+Pass	Property grid-template-areas value '"first second" "third ." "1st 2nd" "3rd 4th"'	
+Pass	Property grid-template-areas value '" a b "'	
+Pass	Property grid-template-areas value '"c d"'	
+Pass	Property grid-template-areas value '"first ..."'	

@@ -22,6 +22,7 @@
 #include <LibWeb/CSS/CSSStyleSheet.h>
 #include <LibWeb/CSS/CSSStyleValue.h>
 #include <LibWeb/CSS/CalculatedOr.h>
+#include <LibWeb/CSS/CharacterTypes.h>
 #include <LibWeb/CSS/EdgeRect.h>
 #include <LibWeb/CSS/MediaList.h>
 #include <LibWeb/CSS/Parser/Parser.h>
@@ -7804,20 +7805,60 @@ RefPtr<CSSStyleValue> Parser::parse_grid_shorthand_value(TokenStream<ComponentVa
 RefPtr<CSSStyleValue> Parser::parse_grid_template_areas_value(TokenStream<ComponentValue>& tokens)
 {
     // none | <string>+
-    Vector<Vector<String>> grid_area_rows;
-
     if (auto none = parse_all_as_single_keyword_value(tokens, Keyword::None))
-        return GridTemplateAreaStyleValue::create(move(grid_area_rows));
+        return GridTemplateAreaStyleValue::create({});
+
+    auto is_full_stop = [](u32 code_point) {
+        return code_point == '.';
+    };
+
+    auto consume_while = [](Utf8CodePointIterator& code_points, AK::Function<bool(u32)> predicate) {
+        StringBuilder builder;
+        while (!code_points.done() && predicate(*code_points)) {
+            builder.append_code_point(*code_points);
+            ++code_points;
+        }
+        return MUST(builder.to_string());
+    };
+
+    Vector<Vector<String>> grid_area_rows;
+    Optional<size_t> column_count;
 
     auto transaction = tokens.begin_transaction();
     while (tokens.has_next_token() && tokens.next_token().is(Token::Type::String)) {
         Vector<String> grid_area_columns;
-        auto const parts = MUST(tokens.consume_a_token().token().string().to_string().split(' '));
-        for (auto& part : parts) {
-            grid_area_columns.append(part);
+        auto string = tokens.consume_a_token().token().string().code_points();
+        auto code_points = string.begin();
+
+        while (!code_points.done()) {
+            if (is_whitespace(*code_points)) {
+                consume_while(code_points, is_whitespace);
+            } else if (is_full_stop(*code_points)) {
+                consume_while(code_points, *is_full_stop);
+                grid_area_columns.append("."_string);
+            } else if (is_ident_code_point(*code_points)) {
+                auto token = consume_while(code_points, is_ident_code_point);
+                grid_area_columns.append(move(token));
+            } else {
+                return nullptr;
+            }
         }
+
+        if (grid_area_columns.is_empty())
+            return nullptr;
+
+        if (column_count.has_value()) {
+            if (grid_area_columns.size() != column_count)
+                return nullptr;
+        } else {
+            column_count = grid_area_columns.size();
+        }
+
         grid_area_rows.append(move(grid_area_columns));
     }
+
+    // FIXME: If a named grid area spans multiple grid cells, but those cells do not form a single filled-in rectangle, the declaration is invalid.
+
     transaction.commit();
     return GridTemplateAreaStyleValue::create(grid_area_rows);
 }
