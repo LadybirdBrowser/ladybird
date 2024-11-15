@@ -88,6 +88,7 @@ DataTransferItem
 DataTransferItemList
 DataView
 Date
+DecompressionStream
 DisposableStack
 Document
 DocumentFragment
