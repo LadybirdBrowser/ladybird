@@ -1,0 +1,119 @@
+Summary
+
+Harness status: OK
+
+Rerun
+
+Found 108 tests
+
+84 Pass
+24 Fail
+Details
+Result	Test Name	MessagePass	e.style['display'] = "grid" should set the property value	
+Pass	e.style['display'] = "inline-grid" should set the property value	
+Pass	e.style['display'] = "inline" should set the property value	
+Pass	e.style['display'] = "block" should set the property value	
+Pass	e.style['display'] = "list-item" should set the property value	
+Pass	e.style['display'] = "inline-block" should set the property value	
+Pass	e.style['display'] = "table" should set the property value	
+Pass	e.style['display'] = "inline-table" should set the property value	
+Pass	e.style['display'] = "table-row-group" should set the property value	
+Pass	e.style['display'] = "table-header-group" should set the property value	
+Pass	e.style['display'] = "table-footer-group" should set the property value	
+Pass	e.style['display'] = "table-row" should set the property value	
+Pass	e.style['display'] = "table-column-group" should set the property value	
+Pass	e.style['display'] = "table-column" should set the property value	
+Pass	e.style['display'] = "table-cell" should set the property value	
+Pass	e.style['display'] = "table-caption" should set the property value	
+Pass	e.style['display'] = "none" should set the property value	
+Pass	e.style['display'] = "flex" should set the property value	
+Pass	e.style['display'] = "inline-flex" should set the property value	
+Pass	e.style['display'] = "contents" should set the property value	
+Pass	e.style['display'] = "run-in" should set the property value	
+Pass	e.style['display'] = "flow" should set the property value	
+Pass	e.style['display'] = "flow-root" should set the property value	
+Pass	e.style['display'] = "ruby" should set the property value	
+Pass	e.style['display'] = "ruby-base" should set the property value	
+Pass	e.style['display'] = "ruby-text" should set the property value	
+Pass	e.style['display'] = "flow list-item" should set the property value	
+Pass	e.style['display'] = "list-item flow" should set the property value	
+Fail	e.style['display'] = "flow-root list-item" should set the property value	
+Fail	e.style['display'] = "list-item flow-root" should set the property value	
+Pass	e.style['display'] = "block flow" should set the property value	
+Pass	e.style['display'] = "flow block" should set the property value	
+Pass	e.style['display'] = "flow-root block" should set the property value	
+Pass	e.style['display'] = "block flow-root" should set the property value	
+Pass	e.style['display'] = "flex block" should set the property value	
+Pass	e.style['display'] = "block flex" should set the property value	
+Pass	e.style['display'] = "grid block" should set the property value	
+Pass	e.style['display'] = "block grid" should set the property value	
+Pass	e.style['display'] = "table block" should set the property value	
+Pass	e.style['display'] = "block table" should set the property value	
+Pass	e.style['display'] = "block ruby" should set the property value	
+Pass	e.style['display'] = "ruby block" should set the property value	
+Pass	e.style['display'] = "block list-item" should set the property value	
+Pass	e.style['display'] = "list-item block" should set the property value	
+Pass	e.style['display'] = "flow block list-item" should set the property value	
+Pass	e.style['display'] = "block flow list-item" should set the property value	
+Pass	e.style['display'] = "flow list-item block" should set the property value	
+Pass	e.style['display'] = "block list-item flow" should set the property value	
+Pass	e.style['display'] = "list-item block flow" should set the property value	
+Pass	e.style['display'] = "list-item flow block" should set the property value	
+Fail	e.style['display'] = "flow-root block list-item" should set the property value	
+Fail	e.style['display'] = "block flow-root list-item" should set the property value	
+Fail	e.style['display'] = "flow-root list-item block" should set the property value	
+Fail	e.style['display'] = "block list-item flow-root" should set the property value	
+Fail	e.style['display'] = "list-item block flow-root" should set the property value	
+Fail	e.style['display'] = "list-item flow-root block" should set the property value	
+Pass	e.style['display'] = "inline flow" should set the property value	
+Pass	e.style['display'] = "flow inline" should set the property value	
+Pass	e.style['display'] = "flow-root inline" should set the property value	
+Pass	e.style['display'] = "inline flow-root" should set the property value	
+Pass	e.style['display'] = "flex inline" should set the property value	
+Pass	e.style['display'] = "inline flex" should set the property value	
+Pass	e.style['display'] = "grid inline" should set the property value	
+Pass	e.style['display'] = "inline grid" should set the property value	
+Pass	e.style['display'] = "table inline" should set the property value	
+Pass	e.style['display'] = "inline table" should set the property value	
+Pass	e.style['display'] = "inline ruby" should set the property value	
+Pass	e.style['display'] = "ruby inline" should set the property value	
+Fail	e.style['display'] = "inline list-item" should set the property value	
+Fail	e.style['display'] = "list-item inline" should set the property value	
+Fail	e.style['display'] = "flow inline list-item" should set the property value	
+Fail	e.style['display'] = "inline flow list-item" should set the property value	
+Fail	e.style['display'] = "flow list-item inline" should set the property value	
+Fail	e.style['display'] = "inline list-item flow" should set the property value	
+Fail	e.style['display'] = "list-item inline flow" should set the property value	
+Fail	e.style['display'] = "list-item flow inline" should set the property value	
+Pass	e.style['display'] = "flow-root inline list-item" should set the property value	
+Pass	e.style['display'] = "inline flow-root list-item" should set the property value	
+Pass	e.style['display'] = "flow-root list-item inline" should set the property value	
+Pass	e.style['display'] = "inline list-item flow-root" should set the property value	
+Pass	e.style['display'] = "list-item inline flow-root" should set the property value	
+Pass	e.style['display'] = "list-item flow-root inline" should set the property value	
+Pass	e.style['display'] = "run-in flow" should set the property value	
+Pass	e.style['display'] = "flow run-in" should set the property value	
+Pass	e.style['display'] = "flow-root run-in" should set the property value	
+Pass	e.style['display'] = "run-in flow-root" should set the property value	
+Pass	e.style['display'] = "flex run-in" should set the property value	
+Pass	e.style['display'] = "run-in flex" should set the property value	
+Pass	e.style['display'] = "grid run-in" should set the property value	
+Pass	e.style['display'] = "run-in grid" should set the property value	
+Pass	e.style['display'] = "table run-in" should set the property value	
+Pass	e.style['display'] = "run-in table" should set the property value	
+Pass	e.style['display'] = "run-in ruby" should set the property value	
+Pass	e.style['display'] = "ruby run-in" should set the property value	
+Fail	e.style['display'] = "run-in list-item" should set the property value	
+Fail	e.style['display'] = "list-item run-in" should set the property value	
+Fail	e.style['display'] = "flow run-in list-item" should set the property value	
+Fail	e.style['display'] = "run-in flow list-item" should set the property value	
+Fail	e.style['display'] = "flow list-item run-in" should set the property value	
+Fail	e.style['display'] = "run-in list-item flow" should set the property value	
+Fail	e.style['display'] = "list-item run-in flow" should set the property value	
+Fail	e.style['display'] = "list-item flow run-in" should set the property value	
+Pass	e.style['display'] = "flow-root run-in list-item" should set the property value	
+Pass	e.style['display'] = "run-in flow-root list-item" should set the property value	
+Pass	e.style['display'] = "flow-root list-item run-in" should set the property value	
+Pass	e.style['display'] = "run-in list-item flow-root" should set the property value	
+Pass	e.style['display'] = "list-item run-in flow-root" should set the property value	
+Pass	e.style['display'] = "list-item flow-root run-in" should set the property value	

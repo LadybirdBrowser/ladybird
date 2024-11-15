@@ -1,0 +1,17 @@
+Summary
+
+Harness status: OK
+
+Rerun
+
+Found 6 tests
+
+1 Pass
+5 Fail
+Details
+Result	Test Name	MessagePass	computed display on ::before and ::after for <div class="block">	
+Fail	computed display on ::before and ::after for <math class="block">	
+Fail	computed display on ::before and ::after for <mrow class="block">	
+Fail	computed display on ::before and ::after for <div class="inline">	
+Fail	computed display on ::before and ::after for <math class="inline">	
+Fail	computed display on ::before and ::after for <mrow class="inline">	

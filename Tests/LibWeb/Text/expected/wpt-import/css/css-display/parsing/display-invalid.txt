@@ -1,0 +1,65 @@
+Summary
+
+Harness status: OK
+
+Rerun
+
+Found 55 tests
+
+55 Pass
+Details
+Result	Test Name	MessagePass	e.style['display'] = "grid inline-grid" should not set the property value	
+Pass	e.style['display'] = "none grid" should not set the property value	
+Pass	e.style['display'] = "none flow" should not set the property value	
+Pass	e.style['display'] = "none ruby" should not set the property value	
+Pass	e.style['display'] = "none flow-root" should not set the property value	
+Pass	e.style['display'] = "none list-item" should not set the property value	
+Pass	e.style['display'] = "contents list-item" should not set the property value	
+Pass	e.style['display'] = "list-item contents" should not set the property value	
+Pass	e.style['display'] = "flow flow" should not set the property value	
+Pass	e.style['display'] = "block block" should not set the property value	
+Pass	e.style['display'] = "flow flow-root" should not set the property value	
+Pass	e.style['display'] = "flow-root flow-root" should not set the property value	
+Pass	e.style['display'] = "block inline" should not set the property value	
+Pass	e.style['display'] = "flex ruby" should not set the property value	
+Pass	e.style['display'] = "ruby flex" should not set the property value	
+Pass	e.style['display'] = "inline inline" should not set the property value	
+Pass	e.style['display'] = "flex flex" should not set the property value	
+Pass	e.style['display'] = "grid flex" should not set the property value	
+Pass	e.style['display'] = "ruby grid" should not set the property value	
+Pass	e.style['display'] = "flex grid" should not set the property value	
+Pass	e.style['display'] = "grid table" should not set the property value	
+Pass	e.style['display'] = "table flex" should not set the property value	
+Pass	e.style['display'] = "flex table" should not set the property value	
+Pass	e.style['display'] = "ruby table" should not set the property value	
+Pass	e.style['display'] = "table table" should not set the property value	
+Pass	e.style['display'] = "table flow-root" should not set the property value	
+Pass	e.style['display'] = "flow-root ruby" should not set the property value	
+Pass	e.style['display'] = "list-item list-item" should not set the property value	
+Pass	e.style['display'] = "list-item table" should not set the property value	
+Pass	e.style['display'] = "flex list-item" should not set the property value	
+Pass	e.style['display'] = "list-item grid" should not set the property value	
+Pass	e.style['display'] = "flow flow list-item" should not set the property value	
+Pass	e.style['display'] = "grid flow list-item" should not set the property value	
+Pass	e.style['display'] = "flow list-item flow" should not set the property value	
+Pass	e.style['display'] = "block list-item block" should not set the property value	
+Pass	e.style['display'] = "list-item flow-root flow" should not set the property value	
+Pass	e.style['display'] = "list-item block block" should not set the property value	
+Pass	e.style['display'] = "list-item block list-item" should not set the property value	
+Pass	e.style['display'] = "list-item flow-root list-item" should not set the property value	
+Pass	e.style['display'] = "list-item flow-root block list-item" should not set the property value	
+Pass	e.style['display'] = "list-item block flow-root list-item" should not set the property value	
+Pass	e.style['display'] = "block list-item flow-root list-item" should not set the property value	
+Pass	e.style['display'] = "flow-root list-item block list-item" should not set the property value	
+Pass	e.style['display'] = "list-item ruby" should not set the property value	
+Pass	e.style['display'] = "ruby list-item" should not set the property value	
+Pass	e.style['display'] = "ruby ruby" should not set the property value	
+Pass	e.style['display'] = "ruby flow" should not set the property value	
+Pass	e.style['display'] = "flow ruby" should not set the property value	
+Pass	e.style['display'] = "ruby flow-root" should not set the property value	
+Pass	e.style['display'] = "grid ruby" should not set the property value	
+Pass	e.style['display'] = "table ruby" should not set the property value	
+Pass	e.style['display'] = "table-row flow" should not set the property value	
+Pass	e.style['display'] = "flow table-row" should not set the property value	
+Pass	e.style['display'] = "table-row-group flow-root" should not set the property value	
+Pass	e.style['display'] = "flex table-row-group" should not set the property value	
