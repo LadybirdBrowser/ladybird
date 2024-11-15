@@ -356,11 +356,10 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
     VERIFY(!paths.is_empty());
     VERIFY(!base_paths.is_empty());
 
-    Vector<StringView> lexical_bases;
+    Vector<ByteString> lexical_bases;
     for (auto const& base_path : base_paths) {
         VERIFY(!base_path.is_empty());
-        LexicalPath lexical_path(base_path);
-        lexical_bases.append(lexical_path.string());
+        lexical_bases.append(base_path);
     }
 
     // Read in all IDL files, we must own the storage for all of these for the lifetime of the program

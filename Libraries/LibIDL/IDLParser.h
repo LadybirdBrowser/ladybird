@@ -17,7 +17,7 @@ namespace IDL {
 
 class Parser {
 public:
-    Parser(ByteString filename, StringView contents, Vector<StringView> import_base_paths);
+    Parser(ByteString filename, StringView contents, Vector<ByteString> import_base_paths);
     Interface& parse();
 
     Vector<ByteString> imported_files() const;
@@ -35,7 +35,7 @@ private:
         Yes,
     };
 
-    Parser(Parser* parent, ByteString filename, StringView contents, Vector<StringView> import_base_path);
+    Parser(Parser* parent, ByteString filename, StringView contents, Vector<ByteString> import_base_path);
 
     void assert_specific(char ch);
     void assert_string(StringView expected);
@@ -68,7 +68,7 @@ private:
     ByteString parse_identifier_ending_with_space();
     ByteString parse_identifier_ending_with_space_or(auto... possible_terminating_characters);
 
-    Vector<StringView> import_base_paths;
+    Vector<ByteString> import_base_paths;
     ByteString filename;
     StringView input;
     LineTrackingLexer lexer;
