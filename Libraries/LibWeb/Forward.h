@@ -96,10 +96,7 @@ enum class Source;
 namespace Web::CredentialManagement {
 struct CredentialRequestOptions;
 struct CredentialCreationOptions;
-struct CredentialData;
-struct CredentialRequestOptions;
-struct CredentialCreationOptions;
-struct FederatedCredentialRequestOptions;
+// https://w3c.github.io/webappsec-credential-management/
 
 enum class CredentialMediationRequirement;
 
