@@ -4,10 +4,8 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include "Directory.h"
-#include "DirIterator.h"
-#include "System.h"
-#include <dirent.h>
+#include <LibCore/Directory.h>
+#include <LibCore/System.h>
 
 namespace Core {
 
@@ -31,6 +29,7 @@ Directory::~Directory()
         MUST(System::close(m_directory_fd));
 }
 
+#ifndef AK_OS_WINDOWS
 ErrorOr<void> Directory::chown(uid_t uid, gid_t gid)
 {
     if (m_directory_fd == -1)
@@ -38,6 +37,7 @@ ErrorOr<void> Directory::chown(uid_t uid, gid_t gid)
     TRY(Core::System::fchown(m_directory_fd, uid, gid));
     return {};
 }
+#endif
 
 ErrorOr<bool> Directory::is_valid_directory(int fd)
 {
@@ -69,7 +69,7 @@ ErrorOr<Directory> Directory::create(LexicalPath path, CreateDirectories create_
 
 ErrorOr<void> Directory::ensure_directory(LexicalPath const& path, mode_t creation_mode)
 {
-    if (path.basename() == "/" || path.basename() == ".")
+    if (path.is_root() || path.string() == ".")
         return {};
 
     TRY(ensure_directory(path.parent(), creation_mode));
