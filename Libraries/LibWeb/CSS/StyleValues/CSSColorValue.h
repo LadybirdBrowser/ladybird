@@ -31,6 +31,7 @@ public:
         OKLab,
         OKLCH,
         sRGB, // This is used by CSSColor for color(srgb ...).
+        sRGBLinear,
         XYZD50,
         XYZD65,
     };
