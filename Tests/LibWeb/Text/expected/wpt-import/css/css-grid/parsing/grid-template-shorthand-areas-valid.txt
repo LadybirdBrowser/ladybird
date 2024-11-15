@@ -6,10 +6,11 @@ Rerun
 
 Found 5 tests
 
-5 Fail
+2 Pass
+3 Fail
 Details
 Result	Test Name	MessageFail	grid-template: none / 1px and "grid-template-areas: "a";" should be valid.	
-Fail	grid-template: none / none and "grid-template-areas: "a";" should be valid.	
+Pass	grid-template: none / none and "grid-template-areas: "a";" should be valid.	
 Fail	grid-template: auto / 1px and "grid-template-areas: "a a a";" should be valid.	
 Fail	grid-template: auto / auto and "grid-template-areas: "a a a";" should be valid.	
-Fail	grid-template: 10px 20px 30px / 40px 50px 60px 70px and "grid-template-areas: "a . b ." "c d . e" "f g h .";" should be valid.	
+Pass	grid-template: 10px 20px 30px / 40px 50px 60px 70px and "grid-template-areas: "a . b ." "c d . e" "f g h .";" should be valid.	

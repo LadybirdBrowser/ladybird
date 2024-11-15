@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>CSS Grid Layout Test: Support for 'grid-template-ares' property</title>
+<link rel="author" title="Manuel Rego Casasnovas" href="mailto:rego@igalia.com">
+<link rel="help" href="http://www.w3.org/TR/css-grid-1/#grid-template-areas-property" title="5.2 Named Areas: the 'grid-template-areas' property">
+<meta name="flags" content="ahem dom">
+<meta name="assert" content="This test checks that 'grid-template-areas' is supported in a grid. So you can define the grid structure.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="support/testing-utils.js"></script>
+<style>
+  #grid {
+    display: grid;
+  }
+</style>
+<div id="log"></div>
+
+<div id="grid"></div>
+
+<script>
+  // Single values.
+  TestingUtils.testGridTemplateAreas('grid', 'none', 'none');
+  TestingUtils.testGridTemplateAreas('grid', '"a"', '"a"');
+  TestingUtils.testGridTemplateAreas('grid', '"."', '"."');
+  TestingUtils.testGridTemplateAreas('grid', '"lower UPPER 10 -minus _low 1-st ©copy_right line¶"', '"lower UPPER 10 -minus _low 1-st ©copy_right line¶"');
+  TestingUtils.testGridTemplateAreas('grid', '"a b"', '"a b"');
+  TestingUtils.testGridTemplateAreas('grid', '"a b" "c d"', '"a b" "c d"');
+  TestingUtils.testGridTemplateAreas('grid', '"a   b"   "c   d"', '"a b" "c d"');
+  TestingUtils.testGridTemplateAreas('grid', '"a b""c d"', '"a b" "c d"');
+  TestingUtils.testGridTemplateAreas('grid', '"a b"\t"c d"', '"a b" "c d"');
+  TestingUtils.testGridTemplateAreas('grid', '"a b"\n"c d"', '"a b" "c d"');
+  TestingUtils.testGridTemplateAreas('grid', '"a b" "a b"', '"a b" "a b"');
+  TestingUtils.testGridTemplateAreas('grid', '"a a" "b b"', '"a a" "b b"');
+  TestingUtils.testGridTemplateAreas('grid', '". a ." "b a c"', '". a ." "b a c"');
+  TestingUtils.testGridTemplateAreas('grid', '".. a ..." "b a c"', '". a ." "b a c"');
+  TestingUtils.testGridTemplateAreas('grid', '".a..." "b a c"', '". a ." "b a c"');
+  TestingUtils.testGridTemplateAreas('grid', '"head head" "nav main" "foot ."', '"head head" "nav main" "foot ."');
+  TestingUtils.testGridTemplateAreas('grid', '"head head" "nav main" "foot ...."', '"head head" "nav main" "foot ."');
+  TestingUtils.testGridTemplateAreas('grid', '"head head" "nav main" "foot."', '"head head" "nav main" "foot ."');
+  TestingUtils.testGridTemplateAreas('grid', '". header header ." "nav main main main" "nav footer footer ."', '". header header ." "nav main main main" "nav footer footer ."');
+  TestingUtils.testGridTemplateAreas('grid', '"... header header ...." "nav main main main" "nav footer footer ...."', '". header header ." "nav main main main" "nav footer footer ."');
+  TestingUtils.testGridTemplateAreas('grid', '"...header header...." "nav main main main" "nav footer footer...."', '". header header ." "nav main main main" "nav footer footer ."');
+  TestingUtils.testGridTemplateAreas('grid', '"title stats" "score stats" "board board" "ctrls ctrls"', '"title stats" "score stats" "board board" "ctrls ctrls"');
+  TestingUtils.testGridTemplateAreas('grid', '"title board" "stats board" "score ctrls"', '"title board" "stats board" "score ctrls"');
+  TestingUtils.testGridTemplateAreas('grid', '". a" "b a" ". a"', '". a" "b a" ". a"');
+  TestingUtils.testGridTemplateAreas('grid', '".. a" "b a" "... a"', '". a" "b a" ". a"');
+  TestingUtils.testGridTemplateAreas('grid', '"..a" "b a" ".a"', '". a" "b a" ". a"');
+  TestingUtils.testGridTemplateAreas('grid', '"a a a" "b b b"', '"a a a" "b b b"');
+  TestingUtils.testGridTemplateAreas('grid', '". ." "a a"', '". ." "a a"');
+  TestingUtils.testGridTemplateAreas('grid', '"... ...." "a a"', '". ." "a a"');
+
+  // Reset values.
+  document.getElementById('grid').style.gridTemplateAreas = '';
+
+  // Wrong values.
+  TestingUtils.testGridTemplateAreas('grid', 'a', 'none');
+  TestingUtils.testGridTemplateAreas('grid', '"a" "b c"', 'none');
+  TestingUtils.testGridTemplateAreas('grid', '"a b" "c" "d e"', 'none');
+  TestingUtils.testGridTemplateAreas('grid', '"a b c" "d e"', 'none');
+  TestingUtils.testGridTemplateAreas('grid', '"a b"-"c d"', 'none');
+  TestingUtils.testGridTemplateAreas('grid', '"a b" - "c d"', 'none');
+  TestingUtils.testGridTemplateAreas('grid', '"a b" . "c d"', 'none');
+  TestingUtils.testGridTemplateAreas('grid', '"a b a"', 'none');
+  TestingUtils.testGridTemplateAreas('grid', '"a" "b" "a"', 'none');
+  TestingUtils.testGridTemplateAreas('grid', '"a b" "b b"', 'none');
+  TestingUtils.testGridTemplateAreas('grid', '"b a" "b b"', 'none');
+  TestingUtils.testGridTemplateAreas('grid', '"a b" "b a"', 'none');
+  TestingUtils.testGridTemplateAreas('grid', '"a ." ". a"', 'none');
+  TestingUtils.testGridTemplateAreas('grid', '","', 'none');
+  TestingUtils.testGridTemplateAreas('grid', '"10%"', 'none');
+  TestingUtils.testGridTemplateAreas('grid', '"USD$"', 'none');
+</script>
