@@ -28,6 +28,8 @@ public:
 
     static bool is_absolute_path(StringView path);
     bool is_absolute() const { return is_absolute_path(m_string); }
+    bool is_root() const;
+
     ByteString const& string() const { return m_string; }
 
     StringView dirname() const { return m_dirname; }
