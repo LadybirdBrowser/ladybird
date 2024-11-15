@@ -84,10 +84,7 @@ ZlibCompressor::ZlibCompressor(MaybeOwned<Stream> stream, NonnullOwnPtr<Stream> 
 {
 }
 
-ZlibCompressor::~ZlibCompressor()
-{
-    VERIFY(m_finished);
-}
+ZlibCompressor::~ZlibCompressor() = default;
 
 ErrorOr<void> ZlibCompressor::write_header(ZlibCompressionMethod compression_method, ZlibCompressionLevel compression_level)
 {
