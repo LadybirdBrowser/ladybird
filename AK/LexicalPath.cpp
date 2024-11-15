@@ -63,6 +63,11 @@ bool LexicalPath::is_absolute_path(StringView path)
     return path.starts_with('/');
 }
 
+bool LexicalPath::is_root() const
+{
+    return m_string == "/";
+}
+
 Vector<ByteString> LexicalPath::parts() const
 {
     Vector<ByteString> vector;
