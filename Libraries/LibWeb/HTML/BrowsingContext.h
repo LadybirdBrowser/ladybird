@@ -169,7 +169,7 @@ private:
     GC::Ptr<BrowsingContext> m_previous_sibling;
 };
 
-URL::Origin determine_the_origin(Optional<URL::URL> const&, SandboxingFlagSet, Optional<URL::Origin> source_origin);
+URL::Origin determine_the_origin(Optional<URL::URL const&>, SandboxingFlagSet, Optional<URL::Origin> source_origin);
 
 SandboxingFlagSet determine_the_creation_sandboxing_flags(BrowsingContext const&, GC::Ptr<DOM::Element> embedder);
 
