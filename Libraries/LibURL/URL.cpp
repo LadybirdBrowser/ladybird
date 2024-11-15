@@ -10,7 +10,7 @@
 #include <AK/Debug.h>
 #include <AK/LexicalPath.h>
 #include <AK/StringBuilder.h>
-#include <AK/Utf8View.h>
+#include <AK/Wtf8ByteView.h>
 #include <LibURL/Parser.h>
 #include <LibURL/URL.h>
 
@@ -467,7 +467,7 @@ void append_percent_encoded_if_necessary(StringBuilder& builder, u32 code_point,
 String percent_encode(StringView input, PercentEncodeSet set, SpaceAsPlus space_as_plus)
 {
     StringBuilder builder;
-    for (auto code_point : Utf8View(input)) {
+    for (auto code_point : Wtf8ByteView(input)) {
         if (space_as_plus == SpaceAsPlus::Yes && code_point == ' ')
             builder.append('+');
         else
@@ -481,7 +481,7 @@ ByteString percent_decode(StringView input)
     if (!input.contains('%'))
         return input;
     StringBuilder builder;
-    Utf8View utf8_view(input);
+    Wtf8ByteView utf8_view(input);
     for (auto it = utf8_view.begin(); !it.done(); ++it) {
         if (*it != '%') {
             builder.append_code_point(*it);

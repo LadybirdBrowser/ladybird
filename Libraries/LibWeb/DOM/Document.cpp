@@ -13,7 +13,7 @@
 #include <AK/GenericLexer.h>
 #include <AK/InsertionSort.h>
 #include <AK/StringBuilder.h>
-#include <AK/Utf8View.h>
+#include <AK/Wtf8ByteView.h>
 #include <LibCore/Timer.h>
 #include <LibJS/Runtime/Array.h>
 #include <LibJS/Runtime/FunctionObject.h>

@@ -10,7 +10,7 @@
 #include <AK/Debug.h>
 #include <AK/GenericLexer.h>
 #include <AK/HashMap.h>
-#include <AK/Utf8View.h>
+#include <AK/Wtf8ByteView.h>
 #include <LibUnicode/CharacterTypes.h>
 #include <stdio.h>
 
@@ -505,7 +505,7 @@ ALWAYS_INLINE u32 Lexer::current_code_point() const
         return REPLACEMENT_CHARACTER;
     if (is_ascii(substring[0]))
         return substring[0];
-    Utf8View utf_8_view { substring };
+    Wtf8ByteView utf_8_view { substring };
     return *utf_8_view.begin();
 }
 

@@ -21,7 +21,7 @@ CompletionSuggestion::CompletionSuggestion(StringView completion, StringView tra
 
 void SuggestionManager::set_suggestions(Vector<CompletionSuggestion>&& suggestions)
 {
-    auto code_point_at = [](Utf8View view, size_t index) {
+    auto code_point_at = [](Wtf8ByteView view, size_t index) {
         size_t count = 0;
         for (auto cp : view) {
             if (count == index) {

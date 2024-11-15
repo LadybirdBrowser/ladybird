@@ -13,7 +13,7 @@
 #include <AK/GenericLexer.h>
 #include <AK/String.h>
 #include <AK/Utf16View.h>
-#include <AK/Utf8View.h>
+#include <AK/Wtf8ByteView.h>
 #include <LibWeb/Infra/CharacterTypes.h>
 #include <LibWeb/Infra/Strings.h>
 
@@ -55,7 +55,7 @@ ErrorOr<String> strip_and_collapse_whitespace(StringView string)
 {
     // Replace any sequence of one or more consecutive code points that are ASCII whitespace in the string with a single U+0020 SPACE code point.
     StringBuilder builder;
-    for (auto code_point : Utf8View { string }) {
+    for (auto code_point : Wtf8ByteView { string }) {
         if (Infra::is_ascii_whitespace(code_point)) {
             if (!builder.string_view().ends_with(' '))
                 builder.append(' ');
@@ -107,7 +107,7 @@ ErrorOr<String> convert_to_scalar_value_string(StringView string)
 {
     // To convert a string into a scalar value string, replace any surrogates with U+FFFD.
     StringBuilder scalar_value_builder;
-    auto utf8_view = Utf8View { string };
+    auto utf8_view = Wtf8ByteView { string };
     for (u32 code_point : utf8_view) {
         if (is_unicode_surrogate(code_point))
             code_point = 0xFFFD;
@@ -122,7 +122,7 @@ ErrorOr<String> to_ascii_lowercase(StringView string)
     // To ASCII lowercase a string, replace all ASCII upper alphas in the string with their
     // corresponding code point in ASCII lower alpha.
     StringBuilder string_builder;
-    auto utf8_view = Utf8View { string };
+    auto utf8_view = Wtf8ByteView { string };
     for (u32 code_point : utf8_view) {
         code_point = AK::to_ascii_lowercase(code_point);
         string_builder.append_code_point(code_point);
@@ -136,7 +136,7 @@ ErrorOr<String> to_ascii_uppercase(StringView string)
     // To ASCII uppercase a string, replace all ASCII lower alphas in the string with their
     // corresponding code point in ASCII upper alpha.
     StringBuilder string_builder;
-    auto utf8_view = Utf8View { string };
+    auto utf8_view = Wtf8ByteView { string };
     for (u32 code_point : utf8_view) {
         code_point = AK::to_ascii_uppercase(code_point);
         string_builder.append_code_point(code_point);
@@ -148,7 +148,7 @@ ErrorOr<String> to_ascii_uppercase(StringView string)
 ByteBuffer isomorphic_encode(StringView input)
 {
     ByteBuffer buf = {};
-    for (auto code_point : Utf8View { input }) {
+    for (auto code_point : Wtf8ByteView { input }) {
         // VERIFY(code_point <= 0xFF);
         if (code_point > 0xFF)
             dbgln("FIXME: Trying to isomorphic encode a string with code points > U+00FF.");

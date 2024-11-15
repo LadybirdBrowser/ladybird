@@ -8,7 +8,7 @@
 #include <AK/Math.h>
 #include <AK/Stream.h>
 #include <AK/Try.h>
-#include <AK/Utf8View.h>
+#include <AK/Wtf8ByteView.h>
 #include <LibCrypto/ASN1/DER.h>
 
 namespace Crypto::ASN1 {
@@ -161,7 +161,7 @@ ErrorOr<Vector<int>> Decoder::decode_object_identifier(ReadonlyBytes data)
 
 ErrorOr<StringView> Decoder::decode_printable_string(ReadonlyBytes data)
 {
-    Utf8View view { data };
+    Wtf8ByteView view { data };
     if (!view.validate())
         return Error::from_string_literal("ASN1::Decoder: Invalid UTF-8 in printable string");
 
@@ -335,7 +335,7 @@ ErrorOr<void> Encoder::write_arbitrary_sized_integer(UnsignedBigInteger const& v
 
 ErrorOr<void> Encoder::write_printable_string(StringView string, Optional<Class> class_override, Optional<Kind> kind_override)
 {
-    Utf8View view { string };
+    Wtf8ByteView view { string };
     if (!view.validate())
         return Error::from_string_literal("ASN1::Encoder: Invalid UTF-8 in printable string");
 
@@ -517,7 +517,7 @@ ErrorOr<void> pretty_print(Decoder& decoder, Stream& stream, int indent)
                 break;
             }
             case Kind::Utf8String: {
-                auto value = TRY(decoder.read<Utf8View>());
+                auto value = TRY(decoder.read<Wtf8ByteView>());
                 builder.append(' ');
                 for (auto cp : value)
                     builder.append_code_point(cp);

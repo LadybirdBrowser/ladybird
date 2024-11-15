@@ -10,7 +10,7 @@
 #include <AK/Math.h>
 #include <AK/Optional.h>
 #include <AK/Time.h>
-#include <AK/Utf8View.h>
+#include <AK/Wtf8ByteView.h>
 #include <LibCore/MappedFile.h>
 
 #include "Reader.h"

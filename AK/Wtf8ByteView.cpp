@@ -8,13 +8,13 @@
 #include <AK/Assertions.h>
 #include <AK/Debug.h>
 #include <AK/Format.h>
-#include <AK/Utf8View.h>
+#include <AK/Wtf8ByteView.h>
 
 #include <simdutf.h>
 
 namespace AK {
 
-Utf8CodePointIterator Utf8View::iterator_at_byte_offset(size_t byte_offset) const
+Utf8CodePointIterator Wtf8ByteView::iterator_at_byte_offset(size_t byte_offset) const
 {
     size_t current_offset = 0;
     for (auto iterator = begin(); !iterator.done(); ++iterator) {
@@ -25,12 +25,12 @@ Utf8CodePointIterator Utf8View::iterator_at_byte_offset(size_t byte_offset) cons
     return end();
 }
 
-Utf8CodePointIterator Utf8View::iterator_at_byte_offset_without_validation(size_t byte_offset) const
+Utf8CodePointIterator Wtf8ByteView::iterator_at_byte_offset_without_validation(size_t byte_offset) const
 {
     return Utf8CodePointIterator { reinterpret_cast<u8 const*>(m_string.characters_without_null_termination()) + byte_offset, m_string.length() - byte_offset };
 }
 
-size_t Utf8View::byte_offset_of(size_t code_point_offset) const
+size_t Wtf8ByteView::byte_offset_of(size_t code_point_offset) const
 {
     size_t byte_offset = 0;
 
@@ -45,7 +45,7 @@ size_t Utf8View::byte_offset_of(size_t code_point_offset) const
     return byte_offset;
 }
 
-Utf8View Utf8View::unicode_substring_view(size_t code_point_offset, size_t code_point_length) const
+Wtf8ByteView Wtf8ByteView::unicode_substring_view(size_t code_point_offset, size_t code_point_length) const
 {
     if (code_point_length == 0)
         return {};
@@ -64,10 +64,10 @@ Utf8View Utf8View::unicode_substring_view(size_t code_point_offset, size_t code_
     VERIFY_NOT_REACHED();
 }
 
-size_t Utf8View::calculate_length() const
+size_t Wtf8ByteView::calculate_length() const
 {
-    // FIXME: simdutf's code point length method assumes valid UTF-8, whereas Utf8View uses U+FFFD as a replacement
-    //        for invalid code points. If we change Utf8View to only accept valid encodings as an invariant, we can
+    // FIXME: simdutf's code point length method assumes valid UTF-8, whereas Wtf8ByteView uses U+FFFD as a replacement
+    //        for invalid code points. If we change Wtf8ByteView to only accept valid encodings as an invariant, we can
     //        remove this branch.
     if (validate()) [[likely]]
         return simdutf::count_utf8(m_string.characters_without_null_termination(), m_string.length());
@@ -84,7 +84,7 @@ size_t Utf8View::calculate_length() const
     return length;
 }
 
-bool Utf8View::starts_with(Utf8View const& start) const
+bool Wtf8ByteView::starts_with(Wtf8ByteView const& start) const
 {
     if (start.is_empty())
         return true;
@@ -102,7 +102,7 @@ bool Utf8View::starts_with(Utf8View const& start) const
     return true;
 }
 
-bool Utf8View::contains(u32 needle) const
+bool Wtf8ByteView::contains(u32 needle) const
 {
     if (needle <= 0x7f) {
         // OPTIMIZATION: Fast path for ASCII
@@ -120,7 +120,7 @@ bool Utf8View::contains(u32 needle) const
     return false;
 }
 
-Utf8View Utf8View::trim(Utf8View const& characters, TrimMode mode) const
+Wtf8ByteView Wtf8ByteView::trim(Wtf8ByteView const& characters, TrimMode mode) const
 {
     size_t substring_start = 0;
     size_t substring_length = byte_length();
@@ -152,7 +152,7 @@ Utf8View Utf8View::trim(Utf8View const& characters, TrimMode mode) const
     return substring_view(substring_start, substring_length);
 }
 
-bool Utf8View::validate(size_t& valid_bytes, AllowSurrogates allow_surrogates) const
+bool Wtf8ByteView::validate(size_t& valid_bytes, AllowSurrogates allow_surrogates) const
 {
     auto result = simdutf::validate_utf8_with_errors(m_string.characters_without_null_termination(), m_string.length());
     valid_bytes = result.count;
@@ -187,7 +187,7 @@ Optional<u32> Utf8CodePointIterator::peek(size_t offset) const
     return *new_iterator;
 }
 
-ErrorOr<void> Formatter<Utf8View>::format(FormatBuilder& builder, Utf8View const& string)
+ErrorOr<void> Formatter<Wtf8ByteView>::format(FormatBuilder& builder, Wtf8ByteView const& string)
 {
     return Formatter<StringView>::format(builder, string.as_string());
 }

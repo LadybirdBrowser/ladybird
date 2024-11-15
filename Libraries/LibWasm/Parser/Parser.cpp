@@ -94,7 +94,7 @@ static ParseResult<ByteString> parse_name(Stream& stream)
     ScopeLogger<WASM_BINPARSER_DEBUG> logger;
     auto data = TRY(parse_vector<u8>(stream));
     auto string = ByteString::copy(data);
-    if (!Utf8View(string).validate(Utf8View::AllowSurrogates::No))
+    if (!Wtf8ByteView(string).validate(Wtf8ByteView::AllowSurrogates::No))
         return ParseError::InvalidUtf8;
     return string;
 }

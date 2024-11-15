@@ -6,7 +6,7 @@
 
 #include <AK/CharacterTypes.h>
 #include <AK/TypeCasts.h>
-#include <AK/Utf8View.h>
+#include <AK/Wtf8ByteView.h>
 #include <LibWeb/DOM/Position.h>
 #include <LibWeb/Layout/Box.h>
 #include <LibWeb/Layout/BreakNode.h>

@@ -393,7 +393,7 @@ public:)~~~");
 
         if (parameter.attributes.contains_slow("UTF8")) {
             parameter_generator.appendln(R"~~~(
-        if (!Utf8View(@parameter.name@).validate())
+        if (!Wtf8ByteView(@parameter.name@).validate())
             return Error::from_string_literal("Decoded @parameter.name@ is invalid UTF-8");)~~~");
         }
     }
@@ -808,7 +808,7 @@ void build(StringBuilder& builder, Vector<Endpoint> const& endpoints)
 #include <AK/MemoryStream.h>
 #include <AK/OwnPtr.h>
 #include <AK/Result.h>
-#include <AK/Utf8View.h>
+#include <AK/Wtf8ByteView.h>
 #include <LibIPC/Connection.h>
 #include <LibIPC/Decoder.h>
 #include <LibIPC/Encoder.h>

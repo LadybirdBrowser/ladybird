@@ -2796,7 +2796,7 @@ void HTMLTokenizer::create_new_token(HTMLToken::Type type)
 HTMLTokenizer::HTMLTokenizer()
 {
     m_decoded_input = "";
-    m_utf8_view = Utf8View(m_decoded_input);
+    m_utf8_view = Wtf8ByteView(m_decoded_input);
     m_utf8_iterator = m_utf8_view.begin();
     m_prev_utf8_iterator = m_utf8_view.begin();
     m_source_positions.empend(0u, 0u);
@@ -2807,7 +2807,7 @@ HTMLTokenizer::HTMLTokenizer(StringView input, ByteString const& encoding)
     auto decoder = TextCodec::decoder_for(encoding);
     VERIFY(decoder.has_value());
     m_decoded_input = decoder->to_utf8(input).release_value_but_fixme_should_propagate_errors().to_byte_string();
-    m_utf8_view = Utf8View(m_decoded_input);
+    m_utf8_view = Wtf8ByteView(m_decoded_input);
     m_utf8_iterator = m_utf8_view.begin();
     m_prev_utf8_iterator = m_utf8_view.begin();
     m_source_positions.empend(0u, 0u);
@@ -2825,7 +2825,7 @@ void HTMLTokenizer::insert_input_at_insertion_point(StringView input)
     builder.append(m_decoded_input.substring_view(m_insertion_point.position));
     m_decoded_input = builder.to_byte_string();
 
-    m_utf8_view = Utf8View(m_decoded_input);
+    m_utf8_view = Wtf8ByteView(m_decoded_input);
     m_utf8_iterator = m_utf8_view.iterator_at_byte_offset(utf8_iterator_byte_offset);
     m_prev_utf8_iterator = m_utf8_view.iterator_at_byte_offset(prev_utf8_iterator_byte_offset);
 

@@ -6,7 +6,7 @@
 
 #include <AK/BinarySearch.h>
 #include <AK/Error.h>
-#include <AK/Utf8View.h>
+#include <AK/Wtf8ByteView.h>
 #include <LibTextCodec/Decoder.h>
 #include <LibTextCodec/Encoder.h>
 #include <LibTextCodec/LookupTables.h>
@@ -138,7 +138,7 @@ Optional<Encoder&> encoder_for(StringView label)
 }
 
 // https://encoding.spec.whatwg.org/#utf-8-encoder
-ErrorOr<void> UTF8Encoder::process(Utf8View input, Function<ErrorOr<void>(u8)> on_byte, Function<ErrorOr<void>(u32)>)
+ErrorOr<void> UTF8Encoder::process(Wtf8ByteView input, Function<ErrorOr<void>(u8)> on_byte, Function<ErrorOr<void>(u32)>)
 {
     ReadonlyBytes bytes { input.bytes(), input.byte_length() };
     for (auto byte : bytes)
@@ -147,7 +147,7 @@ ErrorOr<void> UTF8Encoder::process(Utf8View input, Function<ErrorOr<void>(u8)> o
 }
 
 // https://encoding.spec.whatwg.org/#euc-jp-encoder
-ErrorOr<void> EUCJPEncoder::process(Utf8View input, Function<ErrorOr<void>(u8)> on_byte, Function<ErrorOr<void>(u32)> on_error)
+ErrorOr<void> EUCJPEncoder::process(Wtf8ByteView input, Function<ErrorOr<void>(u8)> on_byte, Function<ErrorOr<void>(u32)> on_error)
 {
     for (auto item : input) {
         // 1. If code point is end-of-queue, return finished.
@@ -311,7 +311,7 @@ ErrorOr<ISO2022JPEncoder::State> ISO2022JPEncoder::process_item(u32 item, State 
 }
 
 // https://encoding.spec.whatwg.org/#iso-2022-jp-encoder
-ErrorOr<void> ISO2022JPEncoder::process(Utf8View input, Function<ErrorOr<void>(u8)> on_byte, Function<ErrorOr<void>(u32)> on_error)
+ErrorOr<void> ISO2022JPEncoder::process(Wtf8ByteView input, Function<ErrorOr<void>(u8)> on_byte, Function<ErrorOr<void>(u32)> on_error)
 {
     // ISO-2022-JP’s encoder has an associated ISO-2022-JP encoder state which is ASCII, Roman, or jis0208 (initially ASCII).
     auto state = State::ASCII;
@@ -359,7 +359,7 @@ static Optional<u32> index_shift_jis_pointer(u32 code_point)
 }
 
 // https://encoding.spec.whatwg.org/#shift_jis-encoder
-ErrorOr<void> ShiftJISEncoder::process(Utf8View input, Function<ErrorOr<void>(u8)> on_byte, Function<ErrorOr<void>(u32)> on_error)
+ErrorOr<void> ShiftJISEncoder::process(Wtf8ByteView input, Function<ErrorOr<void>(u8)> on_byte, Function<ErrorOr<void>(u32)> on_error)
 {
     for (u32 item : input) {
         // 1. If code point is end-of-queue, return finished.
@@ -426,7 +426,7 @@ ErrorOr<void> ShiftJISEncoder::process(Utf8View input, Function<ErrorOr<void>(u8
 }
 
 // https://encoding.spec.whatwg.org/#euc-kr-encoder
-ErrorOr<void> EUCKREncoder::process(Utf8View input, Function<ErrorOr<void>(u8)> on_byte, Function<ErrorOr<void>(u32)> on_error)
+ErrorOr<void> EUCKREncoder::process(Wtf8ByteView input, Function<ErrorOr<void>(u8)> on_byte, Function<ErrorOr<void>(u32)> on_error)
 {
     for (u32 item : input) {
         // 1. If code point is end-of-queue, return finished.
@@ -487,7 +487,7 @@ static Optional<u32> index_big5_pointer(u32 code_point)
 }
 
 // https://encoding.spec.whatwg.org/#big5-encoder
-ErrorOr<void> Big5Encoder::process(Utf8View input, Function<ErrorOr<void>(u8)> on_byte, Function<ErrorOr<void>(u32)> on_error)
+ErrorOr<void> Big5Encoder::process(Wtf8ByteView input, Function<ErrorOr<void>(u8)> on_byte, Function<ErrorOr<void>(u32)> on_error)
 {
     for (u32 item : input) {
         // 1. If code point is end-of-queue, return finished.
@@ -552,7 +552,7 @@ GB18030Encoder::GB18030Encoder(IsGBK is_gbk)
 }
 
 // https://encoding.spec.whatwg.org/#gb18030-encoder
-ErrorOr<void> GB18030Encoder::process(Utf8View input, Function<ErrorOr<void>(u8)> on_byte, Function<ErrorOr<void>(u32)> on_error)
+ErrorOr<void> GB18030Encoder::process(Wtf8ByteView input, Function<ErrorOr<void>(u8)> on_byte, Function<ErrorOr<void>(u32)> on_error)
 {
     bool gbk = (m_is_gbk == IsGBK::Yes);
 
@@ -638,7 +638,7 @@ ErrorOr<void> GB18030Encoder::process(Utf8View input, Function<ErrorOr<void>(u8)
 
 // https://encoding.spec.whatwg.org/#single-byte-encoder
 template<Integral ArrayType>
-ErrorOr<void> SingleByteEncoder<ArrayType>::process(Utf8View input, Function<ErrorOr<void>(u8)> on_byte, Function<ErrorOr<void>(u32)> on_error)
+ErrorOr<void> SingleByteEncoder<ArrayType>::process(Wtf8ByteView input, Function<ErrorOr<void>(u8)> on_byte, Function<ErrorOr<void>(u32)> on_error)
 {
     for (u32 const code_point : input) {
         if (code_point < 0x80) {

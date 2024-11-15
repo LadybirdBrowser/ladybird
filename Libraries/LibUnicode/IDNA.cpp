@@ -13,7 +13,7 @@
 namespace Unicode::IDNA {
 
 // https://www.unicode.org/reports/tr46/#ToASCII
-ErrorOr<String> to_ascii(Utf8View domain_name, ToAsciiOptions const& options)
+ErrorOr<String> to_ascii(Wtf8ByteView domain_name, ToAsciiOptions const& options)
 {
     u32 icu_options = UIDNA_DEFAULT;
 

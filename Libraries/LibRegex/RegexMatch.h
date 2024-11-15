@@ -20,9 +20,9 @@
 #include <AK/StringView.h>
 #include <AK/Utf16View.h>
 #include <AK/Utf32View.h>
-#include <AK/Utf8View.h>
 #include <AK/Variant.h>
 #include <AK/Vector.h>
+#include <AK/Wtf8ByteView.h>
 
 namespace regex {
 
@@ -55,7 +55,7 @@ public:
     {
     }
 
-    RegexStringView(Utf8View view)
+    RegexStringView(Wtf8ByteView view)
         : m_view(view)
     {
     }
@@ -82,9 +82,9 @@ public:
         return m_view.get<Utf16View>();
     }
 
-    Utf8View const& u8_view() const
+    Wtf8ByteView const& u8_view() const
     {
-        return m_view.get<Utf8View>();
+        return m_view.get<Wtf8ByteView>();
     }
 
     bool unicode() const { return m_unicode; }
@@ -115,7 +115,7 @@ public:
     {
         return m_view.visit(
             [](Utf16View const& view) { return view.length_in_code_units(); },
-            [](Utf8View const& view) { return view.byte_length(); },
+            [](Wtf8ByteView const& view) { return view.byte_length(); },
             [](auto const& view) { return view.length(); });
     }
 
@@ -217,7 +217,7 @@ public:
                     views.empend(view);
                 return views;
             },
-            [](Utf8View const& view) {
+            [](Wtf8ByteView const& view) {
                 if (view.is_empty())
                     return Vector<RegexStringView> { view };
 
@@ -253,7 +253,7 @@ public:
             auto view = m_view.visit(
                 [&](auto view) { return RegexStringView { view.substring_view(offset, length) }; },
                 [&](Utf16View const& view) { return RegexStringView { view.unicode_substring_view(offset, length) }; },
-                [&](Utf8View const& view) { return RegexStringView { view.unicode_substring_view(offset, length) }; });
+                [&](Wtf8ByteView const& view) { return RegexStringView { view.unicode_substring_view(offset, length) }; });
 
             view.set_unicode(unicode());
             return view;
@@ -304,7 +304,7 @@ public:
             },
             [&](Utf32View const& view) -> u32 { return view[index]; },
             [&](Utf16View const& view) -> u32 { return view.code_point_at(index); },
-            [&](Utf8View const& view) -> u32 {
+            [&](Wtf8ByteView const& view) -> u32 {
                 auto it = view.iterator_at_byte_offset(index);
                 VERIFY(it != view.end());
                 return *it;
@@ -327,7 +327,7 @@ public:
             },
             [&](Utf32View const& view) -> u32 { return view[code_unit_index]; },
             [&](Utf16View const& view) -> u32 { return view.code_unit_at(code_unit_index); },
-            [&](Utf8View const& view) -> u32 {
+            [&](Wtf8ByteView const& view) -> u32 {
                 auto it = view.iterator_at_byte_offset(code_unit_index);
                 VERIFY(it != view.end());
                 return *it;
@@ -338,14 +338,14 @@ public:
     {
         return m_view.visit(
             [&](StringView view) -> u32 {
-                Utf8View utf8_view { view };
+                Wtf8ByteView utf8_view { view };
                 return utf8_view.byte_offset_of(code_point_index);
             },
             [&](Utf32View const&) -> u32 { return code_point_index; },
             [&](Utf16View const& view) -> u32 {
                 return view.code_unit_offset_of(code_point_index);
             },
-            [&](Utf8View const& view) -> u32 {
+            [&](Wtf8ByteView const& view) -> u32 {
                 return view.byte_offset_of(code_point_index);
             });
     }
@@ -355,7 +355,7 @@ public:
         return m_view.visit(
             [&](Utf32View) { return to_byte_string() == cstring; },
             [&](Utf16View) { return to_byte_string() == cstring; },
-            [&](Utf8View const& view) { return view.as_string() == cstring; },
+            [&](Wtf8ByteView const& view) { return view.as_string() == cstring; },
             [&](StringView view) { return view == cstring; });
     }
 
@@ -364,7 +364,7 @@ public:
         return m_view.visit(
             [&](Utf32View) { return to_byte_string() == string; },
             [&](Utf16View) { return to_byte_string() == string; },
-            [&](Utf8View const& view) { return view.as_string() == string; },
+            [&](Wtf8ByteView const& view) { return view.as_string() == string; },
             [&](StringView view) { return view == string; });
     }
 
@@ -373,7 +373,7 @@ public:
         return m_view.visit(
             [&](Utf32View) { return to_byte_string() == string; },
             [&](Utf16View) { return to_byte_string() == string; },
-            [&](Utf8View const& view) { return view.as_string() == string; },
+            [&](Wtf8ByteView const& view) { return view.as_string() == string; },
             [&](StringView view) { return view == string; });
     }
 
@@ -384,7 +384,7 @@ public:
                 return view.length() == other.length() && __builtin_memcmp(view.code_points(), other.code_points(), view.length() * sizeof(u32)) == 0;
             },
             [&](Utf16View) { return to_byte_string() == RegexStringView { other }.to_byte_string(); },
-            [&](Utf8View const& view) { return view.as_string() == RegexStringView { other }.to_byte_string(); },
+            [&](Wtf8ByteView const& view) { return view.as_string() == RegexStringView { other }.to_byte_string(); },
             [&](StringView view) { return view == RegexStringView { other }.to_byte_string(); });
     }
 
@@ -393,16 +393,16 @@ public:
         return m_view.visit(
             [&](Utf32View) { return to_byte_string() == RegexStringView { other }.to_byte_string(); },
             [&](Utf16View const& view) { return view == other; },
-            [&](Utf8View const& view) { return view.as_string() == RegexStringView { other }.to_byte_string(); },
+            [&](Wtf8ByteView const& view) { return view.as_string() == RegexStringView { other }.to_byte_string(); },
             [&](StringView view) { return view == RegexStringView { other }.to_byte_string(); });
     }
 
-    bool operator==(Utf8View const& other) const
+    bool operator==(Wtf8ByteView const& other) const
     {
         return m_view.visit(
             [&](Utf32View) { return to_byte_string() == other.as_string(); },
             [&](Utf16View) { return to_byte_string() == other.as_string(); },
-            [&](Utf8View const& view) { return view.as_string() == other.as_string(); },
+            [&](Wtf8ByteView const& view) { return view.as_string() == other.as_string(); },
             [&](StringView view) { return other.as_string() == view; });
     }
 
@@ -437,7 +437,7 @@ public:
             [&](Utf16View) -> bool {
                 TODO();
             },
-            [&](Utf8View const& view) { return view.as_string().starts_with(str); },
+            [&](Wtf8ByteView const& view) { return view.as_string().starts_with(str); },
             [&](StringView view) { return view.starts_with(str); });
     }
 
@@ -456,7 +456,7 @@ public:
                 return true;
             },
             [&](Utf16View) -> bool { TODO(); },
-            [&](Utf8View const& view) {
+            [&](Wtf8ByteView const& view) {
                 auto it = view.begin();
                 for (auto code_point : str) {
                     if (it.done())
@@ -471,7 +471,7 @@ public:
     }
 
 private:
-    Variant<StringView, Utf8View, Utf16View, Utf32View> m_view { StringView {} };
+    Variant<StringView, Wtf8ByteView, Utf16View, Utf32View> m_view { StringView {} };
     bool m_unicode { false };
 };
 

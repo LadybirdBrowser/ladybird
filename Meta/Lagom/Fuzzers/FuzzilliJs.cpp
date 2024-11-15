@@ -216,7 +216,7 @@ int main(int, char**)
         auto js = StringView(static_cast<unsigned char const*>(data_buffer.data()), script_size);
 
         // FIXME: https://github.com/SerenityOS/serenity/issues/17899
-        if (!Utf8View(js).validate()) {
+        if (!Wtf8ByteView(js).validate()) {
             result = 1;
         } else {
             auto parse_result = JS::Script::parse(js, realm);

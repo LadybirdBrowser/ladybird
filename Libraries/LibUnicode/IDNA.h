@@ -51,6 +51,6 @@ struct ToAsciiOptions {
     VerifyDnsLength verify_dns_length { VerifyDnsLength::Yes };
 };
 
-ErrorOr<String> to_ascii(Utf8View domain_name, ToAsciiOptions const& = {});
+ErrorOr<String> to_ascii(Wtf8ByteView domain_name, ToAsciiOptions const& = {});
 
 }

@@ -10,7 +10,7 @@
 #include <AK/Optional.h>
 #include <AK/StringView.h>
 #include <AK/Types.h>
-#include <AK/Utf8View.h>
+#include <AK/Wtf8ByteView.h>
 #include <LibWeb/CSS/Parser/Token.h>
 #include <LibWeb/Forward.h>
 
@@ -100,7 +100,7 @@ private:
     [[nodiscard]] static bool would_start_a_number(U32Triplet);
 
     String m_decoded_input;
-    Utf8View m_utf8_view;
+    Wtf8ByteView m_utf8_view;
     AK::Utf8CodePointIterator m_utf8_iterator;
     AK::Utf8CodePointIterator m_prev_utf8_iterator;
     Token::Position m_position;

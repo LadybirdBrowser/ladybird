@@ -14,8 +14,8 @@
 #include <AK/MemoryStream.h>
 #include <AK/StringBuilder.h>
 #include <AK/Try.h>
-#include <AK/Utf8View.h>
 #include <AK/Vector.h>
+#include <AK/Wtf8ByteView.h>
 #include <ctype.h>
 
 TEST_CASE(construct_empty)

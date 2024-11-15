@@ -55,8 +55,8 @@ class UnixDateTime;
 class Utf16View;
 class Utf32CodePointIterator;
 class Utf32View;
+class Wtf8ByteView;
 class Utf8CodePointIterator;
-class Utf8View;
 
 template<typename T>
 class Span;
@@ -202,7 +202,7 @@ using AK::Utf16View;
 using AK::Utf32CodePointIterator;
 using AK::Utf32View;
 using AK::Utf8CodePointIterator;
-using AK::Utf8View;
 using AK::Vector;
+using AK::Wtf8ByteView;
 
 #endif

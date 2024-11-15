@@ -134,11 +134,11 @@ void PathImplSkia::cubic_bezier_curve_to(FloatPoint c1, FloatPoint c2, FloatPoin
     m_path->cubicTo(c1.x(), c1.y(), c2.x(), c2.y(), p2.x(), p2.y());
 }
 
-void PathImplSkia::text(Utf8View string, Font const& font)
+void PathImplSkia::text(Wtf8ByteView string, Font const& font)
 {
     SkTextUtils::GetPath(string.as_string().characters_without_null_termination(), string.as_string().length(), SkTextEncoding::kUTF8, last_point().x(), last_point().y(), verify_cast<ScaledFont>(font).skia_font(1), m_path.ptr());
 }
-NonnullOwnPtr<PathImpl> PathImplSkia::place_text_along(Utf8View text, Font const& font) const
+NonnullOwnPtr<PathImpl> PathImplSkia::place_text_along(Wtf8ByteView text, Font const& font) const
 {
     auto sk_font = verify_cast<ScaledFont>(font).skia_font(1);
     size_t const text_length = text.length();

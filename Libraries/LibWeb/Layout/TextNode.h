@@ -6,7 +6,7 @@
 
 #pragma once
 
-#include <AK/Utf8View.h>
+#include <AK/Wtf8ByteView.h>
 #include <LibUnicode/Segmenter.h>
 #include <LibWeb/DOM/Text.h>
 #include <LibWeb/Layout/Node.h>
@@ -28,7 +28,7 @@ public:
     String const& text_for_rendering() const;
 
     struct Chunk {
-        Utf8View view;
+        Wtf8ByteView view;
         NonnullRefPtr<Gfx::Font> font;
         size_t start { 0 };
         size_t length { 0 };
@@ -51,7 +51,7 @@ public:
 
         bool const m_wrap_lines;
         bool const m_respect_linebreaks;
-        Utf8View m_utf8_view;
+        Wtf8ByteView m_utf8_view;
         Gfx::FontCascadeList const& m_font_cascade_list;
 
         Unicode::Segmenter& m_grapheme_segmenter;

@@ -309,7 +309,7 @@ Gfx::Path SVGFormattingContext::compute_path_for_text(SVGTextBox const& text_box
     auto& text_element = static_cast<SVG::SVGTextPositioningElement const&>(text_box.dom_node());
     auto& font = text_box.first_available_font();
     auto text_contents = text_element.text_contents();
-    Utf8View text_utf8 { text_contents };
+    Wtf8ByteView text_utf8 { text_contents };
     auto text_width = font.width(text_utf8);
     auto text_offset = text_element.get_offset(m_viewport_size);
 
@@ -351,7 +351,7 @@ Gfx::Path SVGFormattingContext::compute_path_for_text_path(SVGTextPathBox const&
 
     auto& font = text_path_box.first_available_font();
     auto text_contents = text_path_element.text_contents();
-    Utf8View text_utf8 { text_contents };
+    Wtf8ByteView text_utf8 { text_contents };
 
     auto shape_path = const_cast<SVG::SVGGeometryElement&>(*path_or_shape).get_path(m_viewport_size);
     return shape_path.place_text_along(text_utf8, font);

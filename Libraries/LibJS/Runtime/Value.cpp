@@ -13,7 +13,7 @@
 #include <AK/FloatingPointStringConversions.h>
 #include <AK/StringBuilder.h>
 #include <AK/StringFloatingPointConversions.h>
-#include <AK/Utf8View.h>
+#include <AK/Wtf8ByteView.h>
 #include <LibCrypto/BigInt/SignedBigInteger.h>
 #include <LibCrypto/NumberTheory/ModularFunctions.h>
 #include <LibJS/Runtime/AbstractOperations.h>
@@ -669,7 +669,7 @@ static Optional<NumberParseResult> parse_number_text(StringView text)
 double string_to_number(StringView string)
 {
     // 1. Let text be StringToCodePoints(str).
-    auto text = Utf8View(string).trim(whitespace_characters, AK::TrimMode::Both).as_string();
+    auto text = Wtf8ByteView(string).trim(whitespace_characters, AK::TrimMode::Both).as_string();
 
     // 2. Let literal be ParseText(text, StringNumericLiteral).
     if (text.is_empty())
@@ -845,7 +845,7 @@ static Optional<BigIntParseResult> parse_bigint_text(StringView text)
 static Optional<BigInt*> string_to_bigint(VM& vm, StringView string)
 {
     // 1. Let text be StringToCodePoints(str).
-    auto text = Utf8View(string).trim(whitespace_characters, AK::TrimMode::Both).as_string();
+    auto text = Wtf8ByteView(string).trim(whitespace_characters, AK::TrimMode::Both).as_string();
 
     // 2. Let literal be ParseText(text, StringIntegerLiteral).
     auto result = parse_bigint_text(text);
@@ -2373,8 +2373,8 @@ ThrowCompletionOr<TriState> is_less_than(VM& vm, Value lhs, Value rhs, bool left
         auto x_string = x_primitive.as_string().byte_string();
         auto y_string = y_primitive.as_string().byte_string();
 
-        Utf8View x_code_points { x_string };
-        Utf8View y_code_points { y_string };
+        Wtf8ByteView x_code_points { x_string };
+        Wtf8ByteView y_code_points { y_string };
 
         // a. Let lx be the length of px.
         // b. Let ly be the length of py.

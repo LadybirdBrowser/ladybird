@@ -8,8 +8,8 @@
 
 #include <AK/ByteString.h>
 #include <AK/Types.h>
-#include <AK/Utf8View.h>
 #include <AK/Vector.h>
+#include <AK/Wtf8ByteView.h>
 
 namespace Line {
 
@@ -124,7 +124,7 @@ public:
         }
 
         ByteString replacement;
-        mutable Utf8View replacement_view;
+        mutable Wtf8ByteView replacement_view;
         Mode mode;
     };
 

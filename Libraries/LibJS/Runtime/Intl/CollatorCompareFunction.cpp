@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <AK/Utf8View.h>
+#include <AK/Wtf8ByteView.h>
 #include <LibJS/Runtime/GlobalObject.h>
 #include <LibJS/Runtime/Intl/Collator.h>
 #include <LibJS/Runtime/Intl/CollatorCompareFunction.h>

@@ -217,7 +217,7 @@ Gfx::Path CanvasRenderingContext2D::text_path(StringView text, float x, float y,
 
     Gfx::Path path;
     path.move_to({ x, y });
-    path.text(Utf8View { text }, *font);
+    path.text(Wtf8ByteView { text }, *font);
 
     auto text_width = path.bounding_box().width();
     Gfx::AffineTransform transform = {};

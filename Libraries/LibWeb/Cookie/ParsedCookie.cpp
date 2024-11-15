@@ -31,7 +31,7 @@ static Optional<UnixDateTime> parse_date_time(StringView date_string);
 
 bool cookie_contains_invalid_control_character(StringView cookie_string)
 {
-    for (auto code_point : Utf8View { cookie_string }) {
+    for (auto code_point : Wtf8ByteView { cookie_string }) {
         if (code_point <= 0x08)
             return true;
         if (code_point >= 0x0a && code_point <= 0x1f)

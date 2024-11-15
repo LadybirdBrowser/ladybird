@@ -10,7 +10,7 @@
 #include <AK/BinarySearch.h>
 #include <AK/StringBuilder.h>
 #include <AK/Utf16View.h>
-#include <AK/Utf8View.h>
+#include <AK/Wtf8ByteView.h>
 #include <LibTextCodec/Decoder.h>
 #include <LibTextCodec/LookupTables.h>
 
@@ -353,7 +353,7 @@ ErrorOr<String> Decoder::to_utf8(StringView input)
 
 ErrorOr<void> UTF8Decoder::process(StringView input, Function<ErrorOr<void>(u32)> on_code_point)
 {
-    for (auto c : Utf8View(input)) {
+    for (auto c : Wtf8ByteView(input)) {
         TRY(on_code_point(c));
     }
     return {};
@@ -361,7 +361,7 @@ ErrorOr<void> UTF8Decoder::process(StringView input, Function<ErrorOr<void>(u32)
 
 bool UTF8Decoder::validate(StringView input)
 {
-    return Utf8View(input).validate();
+    return Wtf8ByteView(input).validate();
 }
 
 ErrorOr<String> UTF8Decoder::to_utf8(StringView input)

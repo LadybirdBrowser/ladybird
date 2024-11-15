@@ -8,7 +8,7 @@
 
 #include <AK/QuickSort.h>
 #include <AK/StringBuilder.h>
-#include <AK/Utf8View.h>
+#include <AK/Wtf8ByteView.h>
 #include <LibWeb/CSS/CSSFontFaceRule.h>
 #include <LibWeb/CSS/CSSImportRule.h>
 #include <LibWeb/CSS/CSSLayerBlockRule.h>

@@ -13,7 +13,7 @@
 #include <AK/SourceLocation.h>
 #include <AK/StringBuilder.h>
 #include <AK/StringUtils.h>
-#include <AK/Utf8View.h>
+#include <AK/Wtf8ByteView.h>
 #include <LibTextCodec/Decoder.h>
 #include <LibTextCodec/Encoder.h>
 #include <LibURL/Parser.h>
@@ -62,7 +62,7 @@ static void report_validation_error(SourceLocation const& location = SourceLocat
 static Optional<Host> parse_opaque_host(StringView input)
 {
     // 1. If input contains a forbidden host code point, host-invalid-code-point validation error, return failure.
-    for (auto code_point : Utf8View { input }) {
+    for (auto code_point : Wtf8ByteView { input }) {
         if (is_forbidden_host_code_point(code_point)) {
             report_validation_error();
             return {};
@@ -346,7 +346,7 @@ static Optional<IPv6Address> parse_ipv6_address(StringView input)
 
     Vector<u32> code_points;
     code_points.ensure_capacity(input.length());
-    for (auto code_point : Utf8View { input }) {
+    for (auto code_point : Wtf8ByteView { input }) {
         code_points.append(code_point);
     }
 
@@ -629,7 +629,7 @@ static ErrorOr<String> domain_to_ascii(StringView domain, bool be_strict)
         Unicode::IDNA::TransitionalProcessing::No,
         be_strict ? Unicode::IDNA::VerifyDnsLength::Yes : Unicode::IDNA::VerifyDnsLength::No
     };
-    auto result = TRY(Unicode::IDNA::to_ascii(Utf8View(domain), options));
+    auto result = TRY(Unicode::IDNA::to_ascii(Wtf8ByteView(domain), options));
 
     // 3. If result is the empty string, domain-to-ASCII validation error, return failure.
     if (result.is_empty())
@@ -777,7 +777,7 @@ String Parser::percent_encode_after_encoding(TextCodec::Encoder& encoder, String
 
     // 2. Set potentialError to the result of running encode or fail with inputQueue, encoder, and encodeOutput.
     MUST(encoder.process(
-        Utf8View(input),
+        Wtf8ByteView(input),
 
         // 3. For each byte of encodeOutput converted to a byte sequence:
         [&](u8 byte) -> ErrorOr<void> {
@@ -881,7 +881,7 @@ URL Parser::basic_parse(StringView raw_input, Optional<URL> const& base_url, URL
     bool inside_brackets = false;
     bool password_token_seen = false;
 
-    Utf8View input(processed_input);
+    Wtf8ByteView input(processed_input);
 
     // 8. Let pointer be a pointer for input.
     Utf8CodePointIterator iterator = input.begin();
@@ -1196,7 +1196,7 @@ URL Parser::basic_parse(StringView raw_input, Optional<URL> const& base_url, URL
                 StringBuilder password_builder;
 
                 // 4. For each codePoint in buffer:
-                for (auto c : Utf8View(buffer.string_view())) {
+                for (auto c : Wtf8ByteView(buffer.string_view())) {
                     // 1. If codePoint is U+003A (:) and passwordTokenSeen is false, then set passwordTokenSeen to true and continue.
                     if (c == ':' && !password_token_seen) {
                         password_token_seen = true;

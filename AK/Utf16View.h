@@ -22,7 +22,7 @@ namespace AK {
 using Utf16Data = Vector<u16, 1>;
 
 ErrorOr<Utf16Data> utf8_to_utf16(StringView, Endianness = Endianness::Host);
-ErrorOr<Utf16Data> utf8_to_utf16(Utf8View const&, Endianness = Endianness::Host);
+ErrorOr<Utf16Data> utf8_to_utf16(Wtf8ByteView const&, Endianness = Endianness::Host);
 ErrorOr<Utf16Data> utf32_to_utf16(Utf32View const&, Endianness = Endianness::Host);
 ErrorOr<void> code_point_to_utf16(Utf16Data&, u32, Endianness = Endianness::Host);
 

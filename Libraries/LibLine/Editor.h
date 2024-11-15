@@ -17,8 +17,8 @@
 #include <AK/Result.h>
 #include <AK/Traits.h>
 #include <AK/Utf32View.h>
-#include <AK/Utf8View.h>
 #include <AK/Vector.h>
+#include <AK/Wtf8ByteView.h>
 #include <LibCore/DirIterator.h>
 #include <LibCore/EventLoop.h>
 #include <LibCore/EventReceiver.h>
@@ -218,7 +218,7 @@ public:
     void clear_line();
     void insert(ByteString const&);
     void insert(StringView);
-    void insert(Utf8View&);
+    void insert(Wtf8ByteView&);
     void insert(Utf32View const&);
     void insert(u32 const);
     void stylize(Span const&, Style const&);

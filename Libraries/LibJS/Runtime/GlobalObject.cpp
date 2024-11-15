@@ -11,7 +11,7 @@
 #include <AK/Hex.h>
 #include <AK/UnicodeUtils.h>
 #include <AK/Utf16View.h>
-#include <AK/Utf8View.h>
+#include <AK/Wtf8ByteView.h>
 #include <LibGC/DeferGC.h>
 #include <LibJS/Runtime/AbstractOperations.h>
 #include <LibJS/Runtime/AggregateErrorConstructor.h>
@@ -370,7 +370,7 @@ JS_DEFINE_NATIVE_FUNCTION(GlobalObject::parse_int)
 
     bool had_digits = false;
     double number = 0;
-    for (auto code_point : Utf8View(trimmed_view)) {
+    for (auto code_point : Wtf8ByteView(trimmed_view)) {
         auto digit = parse_digit(code_point);
         if (!digit.has_value())
             break;
@@ -480,7 +480,7 @@ static ThrowCompletionOr<ByteString> decode(VM& vm, ByteString const& string, St
         if (expected_continuation_bytes > 0) {
             decoded_builder.append(decoded_code_unit);
             expected_continuation_bytes--;
-            if (expected_continuation_bytes == 0 && !Utf8View(decoded_builder.string_view().substring_view(code_point_start_offset)).validate())
+            if (expected_continuation_bytes == 0 && !Wtf8ByteView(decoded_builder.string_view().substring_view(code_point_start_offset)).validate())
                 return vm.throw_completion<URIError>(ErrorType::URIMalformed);
             continue;
         }

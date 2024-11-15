@@ -25,12 +25,12 @@ String String::from_utf8_with_replacement_character(StringView view, WithBOMHand
     if (auto bytes = view.bytes(); with_bom_handling == WithBOMHandling::Yes && bytes.size() >= 3 && bytes[0] == 0xEF && bytes[1] == 0xBB && bytes[2] == 0xBF)
         view = view.substring_view(3);
 
-    if (Utf8View(view).validate())
+    if (Wtf8ByteView(view).validate())
         return String::from_utf8_without_validation(view.bytes());
 
     StringBuilder builder;
 
-    for (auto c : Utf8View { view })
+    for (auto c : Wtf8ByteView { view })
         builder.append_code_point(c);
 
     return builder.to_string_without_validation();
@@ -48,7 +48,7 @@ String String::from_utf8_without_validation(ReadonlyBytes bytes)
 
 ErrorOr<String> String::from_utf8(StringView view)
 {
-    if (!Utf8View { view }.validate())
+    if (!Wtf8ByteView { view }.validate())
         return Error::from_string_literal("String::from_utf8: Input was not valid UTF-8");
 
     String result;
@@ -105,7 +105,7 @@ ErrorOr<String> String::from_stream(Stream& stream, size_t byte_count)
     String result;
     TRY(result.replace_with_new_string(byte_count, [&](Bytes buffer) -> ErrorOr<void> {
         TRY(stream.read_until_filled(buffer));
-        if (!Utf8View { StringView { buffer } }.validate())
+        if (!Wtf8ByteView { StringView { buffer } }.validate())
             return Error::from_string_literal("String::from_stream: Input was not valid UTF-8");
         return {};
     }));
@@ -114,7 +114,7 @@ ErrorOr<String> String::from_stream(Stream& stream, size_t byte_count)
 
 ErrorOr<String> String::from_string_builder(Badge<StringBuilder>, StringBuilder& builder)
 {
-    if (!Utf8View { builder.string_view() }.validate())
+    if (!Wtf8ByteView { builder.string_view() }.validate())
         return Error::from_string_literal("String::from_string_builder: Input was not valid UTF-8");
 
     String result;
@@ -275,9 +275,9 @@ u32 String::ascii_case_insensitive_hash() const
     return case_insensitive_string_hash(reinterpret_cast<char const*>(bytes().data()), bytes().size());
 }
 
-Utf8View String::code_points() const&
+Wtf8ByteView String::code_points() const&
 {
-    return Utf8View(bytes_as_string_view());
+    return Wtf8ByteView(bytes_as_string_view());
 }
 
 ErrorOr<void> Formatter<String>::format(FormatBuilder& builder, String const& utf8_string)
@@ -293,7 +293,7 @@ ErrorOr<String> String::replace(StringView needle, StringView replacement, Repla
 ErrorOr<String> String::reverse() const
 {
     // FIXME: This handles multi-byte code points, but not e.g. grapheme clusters.
-    // FIXME: We could avoid allocating a temporary vector if Utf8View supports reverse iteration.
+    // FIXME: We could avoid allocating a temporary vector if Wtf8ByteView supports reverse iteration.
     auto code_point_length = code_points().length();
 
     Vector<u32> code_points;
@@ -309,7 +309,7 @@ ErrorOr<String> String::reverse() const
     return builder.to_string();
 }
 
-ErrorOr<String> String::trim(Utf8View const& code_points_to_trim, TrimMode mode) const
+ErrorOr<String> String::trim(Wtf8ByteView const& code_points_to_trim, TrimMode mode) const
 {
     auto trimmed = code_points().trim(code_points_to_trim, mode);
     return String::from_utf8(trimmed.as_string());
@@ -317,7 +317,7 @@ ErrorOr<String> String::trim(Utf8View const& code_points_to_trim, TrimMode mode)
 
 ErrorOr<String> String::trim(StringView code_points_to_trim, TrimMode mode) const
 {
-    return trim(Utf8View { code_points_to_trim }, mode);
+    return trim(Wtf8ByteView { code_points_to_trim }, mode);
 }
 
 ErrorOr<String> String::trim_ascii_whitespace(TrimMode mode) const

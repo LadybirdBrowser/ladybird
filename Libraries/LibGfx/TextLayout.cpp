@@ -12,7 +12,7 @@
 
 namespace Gfx {
 
-RefPtr<GlyphRun> shape_text(FloatPoint baseline_start, float letter_spacing, Utf8View string, Gfx::Font const& font, GlyphRun::TextType text_type)
+RefPtr<GlyphRun> shape_text(FloatPoint baseline_start, float letter_spacing, Wtf8ByteView string, Gfx::Font const& font, GlyphRun::TextType text_type)
 {
     hb_buffer_t* buffer = hb_buffer_create();
     ScopeGuard destroy_buffer = [&]() { hb_buffer_destroy(buffer); };
@@ -48,7 +48,7 @@ RefPtr<GlyphRun> shape_text(FloatPoint baseline_start, float letter_spacing, Utf
     return adopt_ref(*new Gfx::GlyphRun(move(glyph_run), font, text_type, point.x()));
 }
 
-float measure_text_width(Utf8View const& string, Gfx::Font const& font)
+float measure_text_width(Wtf8ByteView const& string, Gfx::Font const& font)
 {
     auto glyph_run = shape_text({}, 0, string, font, GlyphRun::TextType::Common);
     return glyph_run->width();

@@ -8,8 +8,8 @@
 
 #include <AK/QuickSort.h>
 #include <AK/String.h>
-#include <AK/Utf8View.h>
 #include <AK/Vector.h>
+#include <AK/Wtf8ByteView.h>
 #include <LibGC/Function.h>
 #include <LibJS/Runtime/Array.h>
 #include <LibWeb/Bindings/MainThreadVM.h>

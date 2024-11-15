@@ -4552,7 +4552,7 @@ static String escape_string(StringView string, AttributeMode attribute_mode)
 {
     // https://html.spec.whatwg.org/multipage/parsing.html#escapingString
     StringBuilder builder;
-    for (auto code_point : Utf8View { string }) {
+    for (auto code_point : Wtf8ByteView { string }) {
         // 1. Replace any occurrence of the "&" character by the string "&amp;".
         if (code_point == '&')
             builder.append("&amp;"sv);
@@ -4809,7 +4809,7 @@ String HTMLParser::serialize_html_fragment(DOM::Node const& node, SerializableSh
 }
 
 // https://html.spec.whatwg.org/multipage/common-microsyntaxes.html#current-dimension-value
-static RefPtr<CSS::CSSStyleValue> parse_current_dimension_value(float value, Utf8View input, Utf8View::Iterator position)
+static RefPtr<CSS::CSSStyleValue> parse_current_dimension_value(float value, Wtf8ByteView input, Wtf8ByteView::Iterator position)
 {
     // 1. If position is past the end of input, then return value as a length.
     if (position == input.end())
@@ -4827,7 +4827,7 @@ static RefPtr<CSS::CSSStyleValue> parse_current_dimension_value(float value, Utf
 RefPtr<CSS::CSSStyleValue> parse_dimension_value(StringView string)
 {
     // 1. Let input be the string being parsed.
-    auto input = Utf8View(string);
+    auto input = Wtf8ByteView(string);
     if (!input.validate())
         return nullptr;
 
@@ -4972,7 +4972,7 @@ Optional<Color> parse_legacy_color_value(StringView string_view)
     // 6. Replace any code points greater than U+FFFF in input (i.e., any characters that are not in the basic multilingual plane) with "00".
     auto replace_non_basic_multilingual_code_points = [](StringView string) -> ByteString {
         StringBuilder builder;
-        for (auto code_point : Utf8View { string }) {
+        for (auto code_point : Wtf8ByteView { string }) {
             if (code_point > 0xFFFF)
                 builder.append("00"sv);
             else
@@ -4993,7 +4993,7 @@ Optional<Color> parse_legacy_color_value(StringView string_view)
     // 9. Replace any character in input that is not an ASCII hex digit with U+0030 (0).
     auto replace_non_ascii_hex = [](StringView string) -> ByteString {
         StringBuilder builder;
-        for (auto code_point : Utf8View { string }) {
+        for (auto code_point : Wtf8ByteView { string }) {
             if (is_ascii_hex_digit(code_point))
                 builder.append_code_point(code_point);
             else

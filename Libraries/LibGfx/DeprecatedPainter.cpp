@@ -19,7 +19,7 @@
 #include <AK/Memory.h>
 #include <AK/Stack.h>
 #include <AK/StdLibExtras.h>
-#include <AK/Utf8View.h>
+#include <AK/Wtf8ByteView.h>
 #include <LibGfx/DeprecatedPath.h>
 #include <LibGfx/Palette.h>
 #include <LibGfx/Quad.h>

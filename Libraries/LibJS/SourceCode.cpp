@@ -5,7 +5,7 @@
  */
 
 #include <AK/BinarySearch.h>
-#include <AK/Utf8View.h>
+#include <AK/Wtf8ByteView.h>
 #include <LibJS/SourceCode.h>
 #include <LibJS/SourceRange.h>
 #include <LibJS/Token.h>
@@ -47,7 +47,7 @@ void SourceCode::fill_position_cache() const
     m_cached_positions.ensure_capacity(m_code.bytes().size() / minimum_distance_between_cached_positions);
     m_cached_positions.append({ .line = 1, .column = 1, .offset = 0 });
 
-    Utf8View const view(m_code);
+    Wtf8ByteView const view(m_code);
     for (auto it = view.begin(); it != view.end(); ++it) {
         u32 code_point = *it;
         bool is_line_terminator = code_point == '\r' || (code_point == '\n' && !previous_code_point_was_carriage_return) || code_point == LINE_SEPARATOR || code_point == PARAGRAPH_SEPARATOR;
@@ -95,7 +95,7 @@ SourceRange SourceCode::range_from_offsets(u32 start_offset, u32 end_offset) con
 
     bool previous_code_point_was_carriage_return = false;
 
-    Utf8View const view(m_code);
+    Wtf8ByteView const view(m_code);
     for (auto it = view.iterator_at_byte_offset_without_validation(current.offset); it != view.end(); ++it) {
 
         // If we're on or after the start offset, this is the start position.

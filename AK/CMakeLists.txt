@@ -33,7 +33,7 @@ set(SOURCES
     Time.cpp
     Utf16View.cpp
     Utf32View.cpp
-    Utf8View.cpp
+    Wtf8ByteView.cpp
     kmalloc.cpp
 )
 

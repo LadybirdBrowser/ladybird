@@ -5,7 +5,7 @@
  */
 
 #include <AK/StringBuilder.h>
-#include <AK/Utf8View.h>
+#include <AK/Wtf8ByteView.h>
 #include <LibWeb/CSS/Serialize.h>
 
 namespace Web::CSS {
@@ -26,7 +26,7 @@ void escape_a_character_as_code_point(StringBuilder& builder, u32 character)
 // https://www.w3.org/TR/cssom-1/#serialize-an-identifier
 void serialize_an_identifier(StringBuilder& builder, StringView ident)
 {
-    Utf8View characters { ident };
+    Wtf8ByteView characters { ident };
     auto first_character = characters.is_empty() ? 0 : *characters.begin();
 
     // To serialize an identifier means to create a string represented by the concatenation of,
@@ -78,7 +78,7 @@ void serialize_an_identifier(StringBuilder& builder, StringView ident)
 // https://www.w3.org/TR/cssom-1/#serialize-a-string
 void serialize_a_string(StringBuilder& builder, StringView string)
 {
-    Utf8View characters { string };
+    Wtf8ByteView characters { string };
 
     // To serialize a string means to create a string represented by '"' (U+0022), followed by the result
     // of applying the rules below to each character of the given string, followed by '"' (U+0022):

@@ -9,7 +9,7 @@
 #include <AK/FlyString.h>
 #include <AK/StringBuilder.h>
 #include <AK/Utf16View.h>
-#include <AK/Utf8View.h>
+#include <AK/Wtf8ByteView.h>
 #include <LibJS/Runtime/AbstractOperations.h>
 #include <LibJS/Runtime/GlobalObject.h>
 #include <LibJS/Runtime/PrimitiveString.h>
@@ -340,8 +340,8 @@ void PrimitiveString::resolve_rope_if_needed(EncodingPreference preference) cons
             continue;
         }
 
-        auto high_surrogate = *Utf8View(previous_string_as_utf8.substring_view(previous_string_as_utf8.length() - 3)).begin();
-        auto low_surrogate = *Utf8View(current_string_as_utf8).begin();
+        auto high_surrogate = *Wtf8ByteView(previous_string_as_utf8.substring_view(previous_string_as_utf8.length() - 3)).begin();
+        auto low_surrogate = *Wtf8ByteView(current_string_as_utf8).begin();
 
         if (!Utf16View::is_high_surrogate(high_surrogate) || !Utf16View::is_low_surrogate(low_surrogate)) {
             builder.append(current_string_as_utf8);

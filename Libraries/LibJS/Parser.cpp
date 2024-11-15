@@ -4556,7 +4556,7 @@ DeprecatedFlyString Parser::consume_string_value()
     if (value.length() < 3)
         return value;
 
-    Utf8View view { value.view().substring_view(value.length() - 3) };
+    Wtf8ByteView view { value.view().substring_view(value.length() - 3) };
     VERIFY(view.length() <= 3);
     auto codepoint = *view.begin();
     if (Utf16View::is_high_surrogate(codepoint)) {

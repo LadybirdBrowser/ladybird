@@ -1408,7 +1408,7 @@ ThrowCompletionOr<String> trim_string(VM& vm, Value input_value, TrimMode where)
     // 5. Else,
     // a. Assert: where is start+end.
     // b. Let T be the String value that is a copy of S with both leading and trailing white space removed.
-    auto trimmed_string = Utf8View(string).trim(whitespace_characters, where).as_string();
+    auto trimmed_string = Wtf8ByteView(string).trim(whitespace_characters, where).as_string();
 
     // 6. Return T.
     return MUST(String::from_utf8(trimmed_string));

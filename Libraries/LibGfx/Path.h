@@ -8,7 +8,7 @@
 
 #include <AK/Forward.h>
 #include <AK/NonnullOwnPtr.h>
-#include <AK/Utf8View.h>
+#include <AK/Wtf8ByteView.h>
 #include <LibGfx/Forward.h>
 #include <LibGfx/PaintStyle.h>
 #include <LibGfx/ScalingMode.h>
@@ -31,7 +31,7 @@ public:
     virtual void arc_to(FloatPoint point, float radius, bool large_arc, bool sweep) = 0;
     virtual void quadratic_bezier_curve_to(FloatPoint through, FloatPoint point) = 0;
     virtual void cubic_bezier_curve_to(FloatPoint c1, FloatPoint c2, FloatPoint p2) = 0;
-    virtual void text(Utf8View, Font const&) = 0;
+    virtual void text(Wtf8ByteView, Font const&) = 0;
 
     virtual void append_path(Gfx::Path const&) = 0;
     virtual void intersect(Gfx::Path const&) = 0;
@@ -44,7 +44,7 @@ public:
 
     virtual NonnullOwnPtr<PathImpl> clone() const = 0;
     virtual NonnullOwnPtr<PathImpl> copy_transformed(Gfx::AffineTransform const&) const = 0;
-    virtual NonnullOwnPtr<PathImpl> place_text_along(Utf8View text, Font const&) const = 0;
+    virtual NonnullOwnPtr<PathImpl> place_text_along(Wtf8ByteView text, Font const&) const = 0;
 };
 
 class Path {
@@ -75,7 +75,7 @@ public:
     void arc_to(FloatPoint point, float radius, bool large_arc, bool sweep) { impl().arc_to(point, radius, large_arc, sweep); }
     void quadratic_bezier_curve_to(FloatPoint through, FloatPoint point) { impl().quadratic_bezier_curve_to(through, point); }
     void cubic_bezier_curve_to(FloatPoint c1, FloatPoint c2, FloatPoint p2) { impl().cubic_bezier_curve_to(c1, c2, p2); }
-    void text(Utf8View text, Font const& font) { impl().text(text, font); }
+    void text(Wtf8ByteView text, Font const& font) { impl().text(text, font); }
 
     void horizontal_line_to(float x) { line_to({ x, last_point().y() }); }
     void vertical_line_to(float y) { line_to({ last_point().x(), y }); }
@@ -91,7 +91,7 @@ public:
 
     Gfx::Path clone() const { return Gfx::Path { impl().clone() }; }
     Gfx::Path copy_transformed(Gfx::AffineTransform const& transform) const { return Gfx::Path { impl().copy_transformed(transform) }; }
-    Gfx::Path place_text_along(Utf8View text, Font const& font) const { return Gfx::Path { impl().place_text_along(text, font) }; }
+    Gfx::Path place_text_along(Wtf8ByteView text, Font const& font) const { return Gfx::Path { impl().place_text_along(text, font) }; }
 
     void transform(Gfx::AffineTransform const& transform) { m_impl = impl().copy_transformed(transform); }
 

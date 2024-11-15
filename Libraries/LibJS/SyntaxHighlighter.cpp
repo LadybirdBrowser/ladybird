@@ -67,7 +67,7 @@ void SyntaxHighlighter::rehighlight(Palette const& palette)
             position.set_column(position.column() + 1);
     };
 
-    auto append_token = [&](Utf8View str, Token const& token, bool is_trivia) {
+    auto append_token = [&](Wtf8ByteView str, Token const& token, bool is_trivia) {
         if (str.is_empty())
             return;
 
@@ -100,10 +100,10 @@ void SyntaxHighlighter::rehighlight(Palette const& palette)
 
     bool was_eof = false;
     for (auto token = lexer.next(); !was_eof; token = lexer.next()) {
-        append_token(Utf8View(token.trivia()), token, true);
+        append_token(Wtf8ByteView(token.trivia()), token, true);
 
         auto token_start_position = position;
-        append_token(Utf8View(token.value()), token, false);
+        append_token(Wtf8ByteView(token.value()), token, false);
 
         if (token.type() == TokenType::Eof)
             was_eof = true;

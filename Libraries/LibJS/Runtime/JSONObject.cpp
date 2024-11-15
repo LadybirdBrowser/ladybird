@@ -11,7 +11,7 @@
 #include <AK/StringBuilder.h>
 #include <AK/TypeCasts.h>
 #include <AK/Utf16View.h>
-#include <AK/Utf8View.h>
+#include <AK/Wtf8ByteView.h>
 #include <LibJS/Runtime/AbstractOperations.h>
 #include <LibJS/Runtime/Array.h>
 #include <LibJS/Runtime/BigIntObject.h>
@@ -358,7 +358,7 @@ ByteString JSONObject::quote_json_string(ByteString string)
     builder.append('"');
 
     // 2. For each code point C of StringToCodePoints(value), do
-    auto utf_view = Utf8View(string);
+    auto utf_view = Wtf8ByteView(string);
     for (auto code_point : utf_view) {
         // a. If C is listed in the “Code Point” column of Table 70, then
         // i. Set product to the string-concatenation of product and the escape sequence for C as specified in the “Escape Sequence” column of the corresponding row.

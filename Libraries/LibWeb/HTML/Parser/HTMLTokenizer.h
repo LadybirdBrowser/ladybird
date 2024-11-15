@@ -11,7 +11,7 @@
 #include <AK/StringBuilder.h>
 #include <AK/StringView.h>
 #include <AK/Types.h>
-#include <AK/Utf8View.h>
+#include <AK/Wtf8ByteView.h>
 #include <LibGC/Ptr.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/HTML/Parser/HTMLToken.h>
@@ -197,7 +197,7 @@ private:
     InsertionPoint m_insertion_point {};
     InsertionPoint m_old_insertion_point {};
 
-    Utf8View m_utf8_view;
+    Wtf8ByteView m_utf8_view;
     Utf8CodePointIterator m_utf8_iterator;
     Utf8CodePointIterator m_prev_utf8_iterator;
 

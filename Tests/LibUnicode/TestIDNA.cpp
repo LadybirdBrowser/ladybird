@@ -12,7 +12,7 @@ namespace Unicode::IDNA {
 
 TEST_CASE(to_ascii)
 {
-#define TEST_TO_ASCII(input, expected, ...) EXPECT_EQ(TRY_OR_FAIL(to_ascii(Utf8View(input), ##__VA_ARGS__)), expected)
+#define TEST_TO_ASCII(input, expected, ...) EXPECT_EQ(TRY_OR_FAIL(to_ascii(Wtf8ByteView(input), ##__VA_ARGS__)), expected)
 
     ToAsciiOptions const options_with_transitional_processing {
         .transitional_processing = TransitionalProcessing::Yes
@@ -35,11 +35,11 @@ TEST_CASE(to_ascii)
 #undef TEST_TO_ASCII_T
 #undef TEST_TO_ASCII
 
-    EXPECT(to_ascii(Utf8View("xn--o-ccb.com"sv)).is_error());
-    EXPECT(to_ascii(Utf8View("wh--f.com"sv)).is_error());
-    EXPECT(to_ascii(Utf8View("xn--whf-cec.com"sv)).is_error());
-    EXPECT(to_ascii(Utf8View("-whf.com"sv)).is_error());
-    EXPECT(to_ascii(Utf8View("whf-.com"sv)).is_error());
+    EXPECT(to_ascii(Wtf8ByteView("xn--o-ccb.com"sv)).is_error());
+    EXPECT(to_ascii(Wtf8ByteView("wh--f.com"sv)).is_error());
+    EXPECT(to_ascii(Wtf8ByteView("xn--whf-cec.com"sv)).is_error());
+    EXPECT(to_ascii(Wtf8ByteView("-whf.com"sv)).is_error());
+    EXPECT(to_ascii(Wtf8ByteView("whf-.com"sv)).is_error());
 }
 
 }

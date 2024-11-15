@@ -11,8 +11,8 @@
 #include <AK/CharacterTypes.h>
 #include <AK/Forward.h>
 #include <AK/Utf32View.h>
-#include <AK/Utf8View.h>
 #include <AK/Vector.h>
+#include <AK/Wtf8ByteView.h>
 #include <LibGfx/Font/Font.h>
 #include <LibGfx/FontCascadeList.h>
 #include <LibGfx/Forward.h>
@@ -64,7 +64,7 @@ private:
     float m_width { 0 };
 };
 
-RefPtr<GlyphRun> shape_text(FloatPoint baseline_start, float letter_spacing, Utf8View string, Gfx::Font const& font, GlyphRun::TextType);
-float measure_text_width(Utf8View const& string, Gfx::Font const& font);
+RefPtr<GlyphRun> shape_text(FloatPoint baseline_start, float letter_spacing, Wtf8ByteView string, Gfx::Font const& font, GlyphRun::TextType);
+float measure_text_width(Wtf8ByteView const& string, Gfx::Font const& font);
 
 }

@@ -9,8 +9,8 @@
 
 #include <AK/Base64.h>
 #include <AK/String.h>
-#include <AK/Utf8View.h>
 #include <AK/Vector.h>
+#include <AK/Wtf8ByteView.h>
 #include <LibGC/Function.h>
 #include <LibWeb/HTML/Scripting/ExceptionReporter.h>
 #include <LibWeb/HTML/StructuredSerialize.h>
@@ -36,7 +36,7 @@ WebIDL::ExceptionOr<String> UniversalGlobalScopeMixin::btoa(String const& data) 
     // The btoa(data) method must throw an "InvalidCharacterError" DOMException if data contains any character whose code point is greater than U+00FF.
     Vector<u8> byte_string;
     byte_string.ensure_capacity(data.bytes().size());
-    for (u32 code_point : Utf8View(data)) {
+    for (u32 code_point : Wtf8ByteView(data)) {
         if (code_point > 0xff)
             return WebIDL::InvalidCharacterError::create(realm, "Data contains characters outside the range U+0000 and U+00FF"_string);
         byte_string.append(code_point);

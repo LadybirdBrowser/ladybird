@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <AK/Utf8View.h>
+#include <AK/Wtf8ByteView.h>
 #include <LibJS/Runtime/GlobalObject.h>
 #include <LibJS/Runtime/StringIterator.h>
 
@@ -20,7 +20,7 @@ GC::Ref<StringIterator> StringIterator::create(Realm& realm, String string)
 StringIterator::StringIterator(String string, Object& prototype)
     : Object(ConstructWithPrototypeTag::Tag, prototype)
     , m_string(move(string))
-    , m_iterator(Utf8View(m_string).begin())
+    , m_iterator(Wtf8ByteView(m_string).begin())
 {
 }
 

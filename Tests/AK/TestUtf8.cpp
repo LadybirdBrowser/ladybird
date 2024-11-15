@@ -7,11 +7,11 @@
 #include <LibTest/TestCase.h>
 
 #include <AK/ByteBuffer.h>
-#include <AK/Utf8View.h>
+#include <AK/Wtf8ByteView.h>
 
 TEST_CASE(decode_ascii)
 {
-    Utf8View utf8 { "Hello World!11"sv };
+    Wtf8ByteView utf8 { "Hello World!11"sv };
     EXPECT(utf8.validate());
 
     u32 expected[] = { 72, 101, 108, 108, 111, 32, 87, 111, 114, 108, 100, 33, 49, 49 };
@@ -28,7 +28,7 @@ TEST_CASE(decode_ascii)
 
 TEST_CASE(decode_utf8)
 {
-    Utf8View utf8 { "Привет, мир! 😀 γειά σου κόσμος こんにちは世界"sv };
+    Wtf8ByteView utf8 { "Привет, мир! 😀 γειά σου κόσμος こんにちは世界"sv };
     size_t valid_bytes;
     EXPECT(utf8.validate(valid_bytes));
     EXPECT(valid_bytes == (size_t)utf8.byte_length());
@@ -50,9 +50,9 @@ TEST_CASE(decode_utf8)
 
 TEST_CASE(null_view)
 {
-    Utf8View view;
-    EXPECT(view.validate(Utf8View::AllowSurrogates::No));
-    EXPECT(view.validate(Utf8View::AllowSurrogates::Yes));
+    Wtf8ByteView view;
+    EXPECT(view.validate(Wtf8ByteView::AllowSurrogates::No));
+    EXPECT(view.validate(Wtf8ByteView::AllowSurrogates::Yes));
     EXPECT_EQ(view.byte_length(), 0zu);
     EXPECT_EQ(view.length(), 0zu);
 
@@ -64,38 +64,38 @@ TEST_CASE(validate_invalid_ut8)
 {
     size_t valid_bytes;
     char invalid_utf8_1[] = { 42, 35, (char)182, 9 };
-    Utf8View utf8_1 { StringView { invalid_utf8_1, 4 } };
+    Wtf8ByteView utf8_1 { StringView { invalid_utf8_1, 4 } };
     EXPECT(!utf8_1.validate(valid_bytes));
     EXPECT(valid_bytes == 2);
 
     char invalid_utf8_2[] = { 42, 35, (char)208, (char)208 };
-    Utf8View utf8_2 { StringView { invalid_utf8_2, 4 } };
+    Wtf8ByteView utf8_2 { StringView { invalid_utf8_2, 4 } };
     EXPECT(!utf8_2.validate(valid_bytes));
     EXPECT(valid_bytes == 2);
 
     char invalid_utf8_3[] = { (char)208 };
-    Utf8View utf8_3 { StringView { invalid_utf8_3, 1 } };
+    Wtf8ByteView utf8_3 { StringView { invalid_utf8_3, 1 } };
     EXPECT(!utf8_3.validate(valid_bytes));
     EXPECT(valid_bytes == 0);
 
     char invalid_utf8_4[] = { (char)208, 35 };
-    Utf8View utf8_4 { StringView { invalid_utf8_4, 2 } };
+    Wtf8ByteView utf8_4 { StringView { invalid_utf8_4, 2 } };
     EXPECT(!utf8_4.validate(valid_bytes));
     EXPECT(valid_bytes == 0);
 
     char invalid_utf8_5[] = { (char)0xf4, (char)0x8f, (char)0xbf, (char)0xc0 }; // U+110000
-    Utf8View utf8_5 { StringView { invalid_utf8_5, 4 } };
+    Wtf8ByteView utf8_5 { StringView { invalid_utf8_5, 4 } };
     EXPECT(!utf8_5.validate(valid_bytes));
     EXPECT(valid_bytes == 0);
 
     char invalid_utf8_6[] = { (char)0xf4, (char)0xa1, (char)0xb0, (char)0xbd }; // U+121c3d
-    Utf8View utf8_6 { StringView { invalid_utf8_6, 4 } };
+    Wtf8ByteView utf8_6 { StringView { invalid_utf8_6, 4 } };
     EXPECT(!utf8_6.validate(valid_bytes));
     EXPECT(valid_bytes == 0);
 
     char invalid_utf8_7[] = { (char)0xed, (char)0xa0, (char)0x80 }; // U+d800
-    Utf8View utf8_7 { StringView { invalid_utf8_7, 3 } };
-    EXPECT(!utf8_7.validate(valid_bytes, Utf8View::AllowSurrogates::No));
+    Wtf8ByteView utf8_7 { StringView { invalid_utf8_7, 3 } };
+    EXPECT(!utf8_7.validate(valid_bytes, Wtf8ByteView::AllowSurrogates::No));
     EXPECT(valid_bytes == 0);
 }
 
@@ -105,44 +105,44 @@ TEST_CASE(validate_overlong_utf8)
 
     // Overlong 2-byte encoding of U+002F
     char invalid_utf8_1[] = { 42, 35, static_cast<char>(0xc0), static_cast<char>(0xaf) };
-    Utf8View utf8_1 { StringView { invalid_utf8_1, sizeof(invalid_utf8_1) } };
+    Wtf8ByteView utf8_1 { StringView { invalid_utf8_1, sizeof(invalid_utf8_1) } };
     EXPECT(!utf8_1.validate(valid_bytes));
     EXPECT(valid_bytes == 2);
 
     // Overlong 3-byte encoding of U+002F
     char invalid_utf8_2[] = { 42, 35, static_cast<char>(0xe0), static_cast<char>(0x80), static_cast<char>(0xaf) };
-    Utf8View utf8_2 { StringView { invalid_utf8_2, sizeof(invalid_utf8_2) } };
+    Wtf8ByteView utf8_2 { StringView { invalid_utf8_2, sizeof(invalid_utf8_2) } };
     EXPECT(!utf8_2.validate(valid_bytes));
     EXPECT(valid_bytes == 2);
 
     // Overlong 4-byte encoding of U+002F
     char invalid_utf8_3[] = { 42, 35, static_cast<char>(0xf0), static_cast<char>(0x80), static_cast<char>(0x80), static_cast<char>(0xaf) };
-    Utf8View utf8_3 { StringView { invalid_utf8_3, sizeof(invalid_utf8_3) } };
+    Wtf8ByteView utf8_3 { StringView { invalid_utf8_3, sizeof(invalid_utf8_3) } };
     EXPECT(!utf8_3.validate(valid_bytes));
     EXPECT(valid_bytes == 2);
 
     // Overlong 3-byte encoding of U+00FF
     char invalid_utf8_4[] = { 42, 35, static_cast<char>(0xe0), static_cast<char>(0x83), static_cast<char>(0xbf) };
-    Utf8View utf8_4 { StringView { invalid_utf8_4, sizeof(invalid_utf8_4) } };
+    Wtf8ByteView utf8_4 { StringView { invalid_utf8_4, sizeof(invalid_utf8_4) } };
     EXPECT(!utf8_4.validate(valid_bytes));
     EXPECT(valid_bytes == 2);
 
     // Overlong 4-byte encoding of U+00FF
     char invalid_utf8_5[] = { 42, 35, static_cast<char>(0xf0), static_cast<char>(0x80), static_cast<char>(0x83), static_cast<char>(0xbf) };
-    Utf8View utf8_5 { StringView { invalid_utf8_5, sizeof(invalid_utf8_5) } };
+    Wtf8ByteView utf8_5 { StringView { invalid_utf8_5, sizeof(invalid_utf8_5) } };
     EXPECT(!utf8_5.validate(valid_bytes));
     EXPECT(valid_bytes == 2);
 
     // Overlong 4-byte encoding of U+0FFF
     char invalid_utf8_6[] = { 42, 35, static_cast<char>(0xf0), static_cast<char>(0x8f), static_cast<char>(0xbf), static_cast<char>(0xbf) };
-    Utf8View utf8_6 { StringView { invalid_utf8_6, sizeof(invalid_utf8_6) } };
+    Wtf8ByteView utf8_6 { StringView { invalid_utf8_6, sizeof(invalid_utf8_6) } };
     EXPECT(!utf8_6.validate(valid_bytes));
     EXPECT(valid_bytes == 2);
 }
 
 TEST_CASE(iterate_utf8)
 {
-    Utf8View view("Some weird characters \u00A9\u266A\uA755"sv);
+    Wtf8ByteView view("Some weird characters \u00A9\u266A\uA755"sv);
     Utf8CodePointIterator iterator = view.begin();
 
     EXPECT(*iterator == 'S');
@@ -181,7 +181,7 @@ TEST_CASE(decode_invalid_ut8)
     // Test case 1 : Getting an extension byte as first byte of the code point
     {
         char raw_data[] = { 'a', 'b', (char)0xA0, 'd' };
-        Utf8View view { StringView { raw_data, 4 } };
+        Wtf8ByteView view { StringView { raw_data, 4 } };
         u32 expected_characters[] = { 'a', 'b', 0xFFFD, 'd' };
         ByteString expected_underlying_bytes[] = { "a", "b", "\xA0", "d" };
         size_t expected_size = sizeof(expected_characters) / sizeof(expected_characters[0]);
@@ -199,7 +199,7 @@ TEST_CASE(decode_invalid_ut8)
     // Test case 2 : Getting a non-extension byte when an extension byte is expected
     {
         char raw_data[] = { 'a', 'b', (char)0xC0, 'd', 'e' };
-        Utf8View view { StringView { raw_data, 5 } };
+        Wtf8ByteView view { StringView { raw_data, 5 } };
         u32 expected_characters[] = { 'a', 'b', 0xFFFD, 'd', 'e' };
         ByteString expected_underlying_bytes[] = { "a", "b", "\xC0", "d", "e" };
         size_t expected_size = sizeof(expected_characters) / sizeof(expected_characters[0]);
@@ -217,7 +217,7 @@ TEST_CASE(decode_invalid_ut8)
     // Test case 3 : Not enough bytes before the end of the string
     {
         char raw_data[] = { 'a', 'b', (char)0x90, 'd' };
-        Utf8View view { StringView { raw_data, 4 } };
+        Wtf8ByteView view { StringView { raw_data, 4 } };
         u32 expected_characters[] = { 'a', 'b', 0xFFFD, 'd' };
         ByteString expected_underlying_bytes[] = { "a", "b", "\x90", "d" };
         size_t expected_size = sizeof(expected_characters) / sizeof(expected_characters[0]);
@@ -235,7 +235,7 @@ TEST_CASE(decode_invalid_ut8)
     // Test case 4 : Not enough bytes at the end of the string
     {
         char raw_data[] = { 'a', 'b', 'c', (char)0x90 };
-        Utf8View view { StringView { raw_data, 4 } };
+        Wtf8ByteView view { StringView { raw_data, 4 } };
         u32 expected_characters[] = { 'a', 'b', 'c', 0xFFFD };
         ByteString expected_underlying_bytes[] = { "a", "b", "c", "\x90" };
         size_t expected_size = sizeof(expected_characters) / sizeof(expected_characters[0]);
@@ -257,7 +257,7 @@ TEST_CASE(decode_invalid_ut8)
         // Shifted:        100   100011   010001   010110
         // Result:    11110100 10100011 10010001 10010110
         char raw_data[] = { 'a', (char)0xF4, (char)0xA3, (char)0x91, (char)0x96, 'b' };
-        Utf8View view { StringView { raw_data, 6 } };
+        Wtf8ByteView view { StringView { raw_data, 6 } };
         // This definition seems to suggest that we should instead output multiple replacement characters:
         // https://encoding.spec.whatwg.org/#ref-for-concept-stream-prepend②
         // This is supported by the plaintext description and example collection, which annoyingly does not give an example of how to deal with this:
@@ -280,33 +280,33 @@ TEST_CASE(decode_invalid_ut8)
 
 TEST_CASE(trim)
 {
-    Utf8View whitespace { " "sv };
+    Wtf8ByteView whitespace { " "sv };
     {
-        Utf8View view { "word"sv };
+        Wtf8ByteView view { "word"sv };
         EXPECT_EQ(view.trim(whitespace, TrimMode::Both).as_string(), "word");
         EXPECT_EQ(view.trim(whitespace, TrimMode::Left).as_string(), "word");
         EXPECT_EQ(view.trim(whitespace, TrimMode::Right).as_string(), "word");
     }
     {
-        Utf8View view { "   word"sv };
+        Wtf8ByteView view { "   word"sv };
         EXPECT_EQ(view.trim(whitespace, TrimMode::Both).as_string(), "word");
         EXPECT_EQ(view.trim(whitespace, TrimMode::Left).as_string(), "word");
         EXPECT_EQ(view.trim(whitespace, TrimMode::Right).as_string(), "   word");
     }
     {
-        Utf8View view { "word   "sv };
+        Wtf8ByteView view { "word   "sv };
         EXPECT_EQ(view.trim(whitespace, TrimMode::Both).as_string(), "word");
         EXPECT_EQ(view.trim(whitespace, TrimMode::Left).as_string(), "word   ");
         EXPECT_EQ(view.trim(whitespace, TrimMode::Right).as_string(), "word");
     }
     {
-        Utf8View view { "   word   "sv };
+        Wtf8ByteView view { "   word   "sv };
         EXPECT_EQ(view.trim(whitespace, TrimMode::Both).as_string(), "word");
         EXPECT_EQ(view.trim(whitespace, TrimMode::Left).as_string(), "word   ");
         EXPECT_EQ(view.trim(whitespace, TrimMode::Right).as_string(), "   word");
     }
     {
-        Utf8View view { "\u180E"sv };
+        Wtf8ByteView view { "\u180E"sv };
         EXPECT_EQ(view.trim(whitespace, TrimMode::Both).as_string(), "\u180E");
         EXPECT_EQ(view.trim(whitespace, TrimMode::Left).as_string(), "\u180E");
         EXPECT_EQ(view.trim(whitespace, TrimMode::Right).as_string(), "\u180E");
@@ -317,7 +317,7 @@ static bool is_period(u32 code_point) { return code_point == '.'; }
 
 TEST_CASE(for_each_split_view)
 {
-    Utf8View view { "...Well..hello.friends!..."sv };
+    Wtf8ByteView view { "...Well..hello.friends!..."sv };
     auto gather = [&](auto split_behavior) {
         Vector<StringView> results;
         view.for_each_split_view(is_period, split_behavior, [&](auto part) {

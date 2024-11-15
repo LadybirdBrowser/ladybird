@@ -5,7 +5,7 @@
  */
 
 #include <AK/StringView.h>
-#include <AK/Utf8View.h>
+#include <AK/Wtf8ByteView.h>
 #include <LibWeb/HTML/CustomElements/CustomElementName.h>
 
 namespace Web::HTML {
@@ -53,7 +53,7 @@ bool is_valid_custom_element_name(StringView name)
     // PotentialCustomElementName ::=
     //      [a-z] (PCENChar)* '-' (PCENChar)*
 
-    auto code_points = Utf8View { name };
+    auto code_points = Wtf8ByteView { name };
     auto it = code_points.begin();
 
     if (code_points.is_empty() || *it < 'a' || *it > 'z')

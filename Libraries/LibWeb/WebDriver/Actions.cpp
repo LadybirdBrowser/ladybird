@@ -11,7 +11,7 @@
 #include <AK/JsonObject.h>
 #include <AK/JsonValue.h>
 #include <AK/Math.h>
-#include <AK/Utf8View.h>
+#include <AK/Wtf8ByteView.h>
 #include <LibWeb/Crypto/Crypto.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/HTML/BrowsingContext.h>
@@ -310,7 +310,7 @@ static ErrorOr<ActionObject, WebDriver::Error> process_key_action(String id, Jso
 
     // 6. If key is not a String containing a single unicode code point [or grapheme cluster?] return error with error
     //    code invalid argument.
-    Utf8View utf8_key { key };
+    Wtf8ByteView utf8_key { key };
 
     if (utf8_key.length() != 1) {
         // FIXME: The spec seems undecided on whether grapheme clusters should be supported. Update this step to check
@@ -1494,7 +1494,7 @@ static GC::Ref<JS::Cell> dispatch_the_events_for_a_typeable_string(Web::WebDrive
     };
 
     // 2. For each char of text:
-    for (auto code_point : Utf8View { text }) {
+    for (auto code_point : Wtf8ByteView { text }) {
         auto char_is_shifted = Web::WebDriver::is_shifted_character(code_point);
 
         // 1. Let global key state be the result of get the global key state with input state.

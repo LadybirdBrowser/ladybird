@@ -16,7 +16,7 @@
 #include <AK/ScopedValueRollback.h>
 #include <AK/StringBuilder.h>
 #include <AK/Utf32View.h>
-#include <AK/Utf8View.h>
+#include <AK/Wtf8ByteView.h>
 #include <LibCore/ConfigFile.h>
 #include <LibCore/Event.h>
 #include <LibCore/EventLoop.h>
@@ -377,17 +377,17 @@ void Editor::insert(Utf32View const& string)
 
 void Editor::insert(ByteString const& string)
 {
-    for (auto ch : Utf8View { string })
+    for (auto ch : Wtf8ByteView { string })
         insert(ch);
 }
 
 void Editor::insert(StringView string_view)
 {
-    auto view = Utf8View { string_view };
+    auto view = Wtf8ByteView { string_view };
     insert(view);
 }
 
-void Editor::insert(Utf8View& view)
+void Editor::insert(Wtf8ByteView& view)
 {
     for (auto ch : view)
         insert(ch);
@@ -919,14 +919,14 @@ ErrorOr<void> Editor::handle_read_event()
     // Discard starting bytes until they make sense as utf-8.
     size_t valid_bytes = 0;
     while (available_bytes > 0) {
-        Utf8View { StringView { m_incomplete_data.data(), available_bytes } }.validate(valid_bytes);
+        Wtf8ByteView { StringView { m_incomplete_data.data(), available_bytes } }.validate(valid_bytes);
         if (valid_bytes != 0)
             break;
         m_incomplete_data.take_first();
         --available_bytes;
     }
 
-    Utf8View input_view { StringView { m_incomplete_data.data(), valid_bytes } };
+    Wtf8ByteView input_view { StringView { m_incomplete_data.data(), valid_bytes } };
     size_t consumed_code_points = 0;
 
     static Vector<u8, 4> csi_parameter_bytes;
@@ -1492,7 +1492,7 @@ ErrorOr<void> Editor::refresh_display()
     };
 
     auto print_character_at = [&](size_t i) {
-        Variant<u32, Utf8View> c { Utf8View {} };
+        Variant<u32, Wtf8ByteView> c { Wtf8ByteView {} };
         if (auto it = m_current_masks.find_largest_not_above_iterator(i); !it.is_end() && it->has_value()) {
             auto offset = i - it.key();
             if (it->value().mode == Style::Mask::Mode::ReplaceEntireSelection) {
@@ -1902,7 +1902,7 @@ StringMetrics Editor::actual_rendered_string_metrics(StringView string, RedBlack
 {
     Vector<u32> utf32_buffer;
     utf32_buffer.ensure_capacity(string.length());
-    for (auto c : Utf8View { string })
+    for (auto c : Wtf8ByteView { string })
         utf32_buffer.append(c);
 
     return actual_rendered_string_metrics(Utf32View { utf32_buffer.data(), utf32_buffer.size() }, masks, maximum_line_width);

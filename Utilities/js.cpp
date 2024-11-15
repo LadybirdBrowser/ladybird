@@ -442,7 +442,7 @@ static ErrorOr<void> repl(JS::Realm& realm)
 {
     while (s_keep_running_repl) {
         auto const piece = TRY(read_next_piece());
-        if (Utf8View { piece }.trim(JS::whitespace_characters).is_empty())
+        if (Wtf8ByteView { piece }.trim(JS::whitespace_characters).is_empty())
             continue;
 
         g_repl_statements.append(piece);
@@ -631,7 +631,7 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
             JS::Lexer lexer(line);
             bool indenters_starting_line = true;
             for (JS::Token token = lexer.next(); token.type() != JS::TokenType::Eof; token = lexer.next()) {
-                auto length = Utf8View { token.value() }.length();
+                auto length = Wtf8ByteView { token.value() }.length();
                 auto start = token.offset();
                 auto end = start + length;
                 if (indenters_starting_line) {
@@ -836,7 +836,7 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
                 auto file_contents = TRY(file->read_until_eof());
                 auto source = StringView { file_contents };
 
-                if (Utf8View { file_contents }.validate()) {
+                if (Wtf8ByteView { file_contents }.validate()) {
                     builder.append(source);
                 } else {
                     auto decoder = TextCodec::decoder_for("windows-1252"sv);

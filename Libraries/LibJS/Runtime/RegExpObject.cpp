@@ -285,7 +285,7 @@ ByteString RegExpObject::escape_regexp_pattern() const
 
     // FIXME: Check the 'u' and 'v' flags and escape accordingly
     StringBuilder builder;
-    auto pattern = Utf8View { m_pattern };
+    auto pattern = Wtf8ByteView { m_pattern };
     auto escaped = false;
     for (auto code_point : pattern) {
         if (escaped) {

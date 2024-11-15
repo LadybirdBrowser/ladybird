@@ -258,7 +258,7 @@ TEST_CASE(char_utf8)
     Regex<PosixExtended> re("😀");
     RegexResult result;
 
-    EXPECT_EQ((result = match(Utf8View { "Привет, мир! 😀 γειά σου κόσμος 😀 こんにちは世界"sv }, re, PosixFlags::Global)).success, true);
+    EXPECT_EQ((result = match(Wtf8ByteView { "Привет, мир! 😀 γειά σου κόσμος 😀 こんにちは世界"sv }, re, PosixFlags::Global)).success, true);
     EXPECT_EQ(result.count, 2u);
 }
 

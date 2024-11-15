@@ -5,7 +5,7 @@
  */
 
 #include <AK/TypeCasts.h>
-#include <AK/Utf8View.h>
+#include <AK/Wtf8ByteView.h>
 #include <LibGfx/Font/ScaledFont.h>
 #include <LibGfx/Font/TypefaceSkia.h>
 #include <LibGfx/TextLayout.h>
@@ -58,13 +58,13 @@ ScaledFontMetrics ScaledFont::metrics() const
     return metrics;
 }
 
-float ScaledFont::width(StringView view) const { return measure_text_width(Utf8View(view), *this); }
-float ScaledFont::width(Utf8View const& view) const { return measure_text_width(view, *this); }
+float ScaledFont::width(StringView view) const { return measure_text_width(Wtf8ByteView(view), *this); }
+float ScaledFont::width(Wtf8ByteView const& view) const { return measure_text_width(view, *this); }
 
 float ScaledFont::glyph_width(u32 code_point) const
 {
     auto string = String::from_code_point(code_point);
-    return measure_text_width(Utf8View(string), *this);
+    return measure_text_width(Wtf8ByteView(string), *this);
 }
 
 NonnullRefPtr<ScaledFont> ScaledFont::scaled_with_size(float point_size) const

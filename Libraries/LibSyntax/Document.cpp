@@ -9,8 +9,8 @@
 #include <AK/Debug.h>
 #include <AK/QuickSort.h>
 #include <AK/StringBuilder.h>
-#include <AK/Utf8View.h>
 #include <AK/Vector.h>
+#include <AK/Wtf8ByteView.h>
 #include <LibSyntax/Document.h>
 
 namespace Syntax {
@@ -101,7 +101,7 @@ bool TextDocumentLine::set_text(Document& document, StringView text)
         return true;
     }
     m_text.clear();
-    Utf8View utf8_view(text);
+    Wtf8ByteView utf8_view(text);
     if (!utf8_view.validate()) {
         return false;
     }

@@ -10,7 +10,7 @@
 #include <AK/Forward.h>
 #include <AK/String.h>
 #include <AK/Utf32View.h>
-#include <AK/Utf8View.h>
+#include <AK/Wtf8ByteView.h>
 #include <LibLine/Style.h>
 
 namespace Line {
@@ -56,9 +56,9 @@ public:
     size_t invariant_offset { 0 };
     bool allow_commit_without_listing { true };
 
-    Utf8View text_view() const { return text.code_points(); }
-    Utf8View trivia_view() const { return trailing_trivia.code_points(); }
-    Utf8View display_trivia_view() const { return display_trivia.code_points(); }
+    Wtf8ByteView text_view() const { return text.code_points(); }
+    Wtf8ByteView trivia_view() const { return trailing_trivia.code_points(); }
+    Wtf8ByteView display_trivia_view() const { return display_trivia.code_points(); }
     StringView text_string() const { return text.bytes_as_string_view(); }
     StringView display_trivia_string() const { return display_trivia.bytes_as_string_view(); }
     bool is_valid { false };
@@ -100,7 +100,7 @@ public:
         // This bit of data will be removed, but restored if the suggestion is rejected.
         size_t static_offset_from_cursor { 0 };
 
-        Vector<Utf8View> insert {};
+        Vector<Wtf8ByteView> insert {};
 
         Optional<Style> style_to_apply {};
 

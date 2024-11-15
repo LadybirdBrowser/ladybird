@@ -147,7 +147,7 @@ Optional<Element::Directionality> Text::directionality() const
     // 1. If text's data does not contain a code point whose bidirectional character type is L, AL, or R, then return null.
     // 2. Let codePoint be the first code point in text's data whose bidirectional character type is L, AL, or R.
     Optional<Unicode::BidiClass> found_character_bidi_class;
-    for (auto code_point : Utf8View(data())) {
+    for (auto code_point : Wtf8ByteView(data())) {
         auto bidi_class = Unicode::bidirectional_class(code_point);
         if (first_is_one_of(bidi_class, Unicode::BidiClass::LeftToRight, Unicode::BidiClass::RightToLeftArabic, Unicode::BidiClass::RightToLeft)) {
             found_character_bidi_class = bidi_class;

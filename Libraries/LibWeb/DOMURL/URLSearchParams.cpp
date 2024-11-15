@@ -7,7 +7,7 @@
 
 #include <AK/QuickSort.h>
 #include <AK/StringBuilder.h>
-#include <AK/Utf8View.h>
+#include <AK/Wtf8ByteView.h>
 #include <LibTextCodec/Decoder.h>
 #include <LibTextCodec/Encoder.h>
 #include <LibURL/Parser.h>

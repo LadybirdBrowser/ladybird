@@ -462,7 +462,7 @@ Optional<u32> read_unicode_char()
 
         builder.append(c);
 
-        Utf8View search_char_utf8_view { builder.string_view() };
+        Wtf8ByteView search_char_utf8_view { builder.string_view() };
 
         if (search_char_utf8_view.validate())
             return *search_char_utf8_view.begin();
@@ -758,7 +758,7 @@ void Editor::edit_in_external_editor()
         m_buffer.clear_with_capacity();
         m_refresh_needed = true;
 
-        Utf8View view { data };
+        Wtf8ByteView view { data };
         if (view.validate()) {
             for (auto cp : view)
                 insert(cp);

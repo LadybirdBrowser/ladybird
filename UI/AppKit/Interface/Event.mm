@@ -5,7 +5,7 @@
  */
 
 #include <AK/TypeCasts.h>
-#include <AK/Utf8View.h>
+#include <AK/Wtf8ByteView.h>
 #include <LibURL/URL.h>
 #include <LibWeb/HTML/SelectedFile.h>
 #include <LibWeb/UIEvents/KeyCode.h>
@@ -306,7 +306,7 @@ Web::KeyEvent ns_event_to_key_event(Web::KeyEvent::Type type, NSEvent* event)
 
     if (event.type == NSEventTypeKeyDown || event.type == NSEventTypeKeyUp) {
         auto const* utf8 = [event.characters UTF8String];
-        Utf8View utf8_view { StringView { utf8, strlen(utf8) } };
+        Wtf8ByteView utf8_view { StringView { utf8, strlen(utf8) } };
 
         code_point = utf8_view.is_empty() ? 0u : *utf8_view.begin();
 

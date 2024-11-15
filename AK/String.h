@@ -21,8 +21,8 @@
 #include <AK/Traits.h>
 #include <AK/Types.h>
 #include <AK/UnicodeUtils.h>
-#include <AK/Utf8View.h>
 #include <AK/Vector.h>
+#include <AK/Wtf8ByteView.h>
 
 namespace AK {
 
@@ -127,8 +127,8 @@ public:
     ErrorOr<String> substring_from_byte_offset_with_shared_superstring(size_t start) const;
 
     // Returns an iterable view over the Unicode code points.
-    [[nodiscard]] Utf8View code_points() const&;
-    [[nodiscard]] Utf8View code_points() const&& = delete;
+    [[nodiscard]] Wtf8ByteView code_points() const&;
+    [[nodiscard]] Wtf8ByteView code_points() const&& = delete;
 
     // Returns true if the String is zero-length.
     [[nodiscard]] bool is_empty() const;
@@ -142,7 +142,7 @@ public:
     ErrorOr<String> replace(StringView needle, StringView replacement, ReplaceMode replace_mode) const;
     ErrorOr<String> reverse() const;
 
-    ErrorOr<String> trim(Utf8View const& code_points_to_trim, TrimMode mode = TrimMode::Both) const;
+    ErrorOr<String> trim(Wtf8ByteView const& code_points_to_trim, TrimMode mode = TrimMode::Both) const;
     ErrorOr<String> trim(StringView code_points_to_trim, TrimMode mode = TrimMode::Both) const;
     ErrorOr<String> trim_whitespace(TrimMode mode = TrimMode::Both) const;
     ErrorOr<String> trim_ascii_whitespace(TrimMode mode = TrimMode::Both) const;

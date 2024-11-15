@@ -16,10 +16,10 @@
 
 namespace AK {
 
-class Utf8View;
+class Wtf8ByteView;
 
 class Utf8CodePointIterator {
-    friend class Utf8View;
+    friend class Wtf8ByteView;
     friend class ByteString;
 
 public:
@@ -60,30 +60,30 @@ private:
     size_t m_length { 0 };
 };
 
-class Utf8View {
+class Wtf8ByteView {
 public:
     using Iterator = Utf8CodePointIterator;
 
-    Utf8View() = default;
+    Wtf8ByteView() = default;
 
-    explicit constexpr Utf8View(StringView string)
+    explicit constexpr Wtf8ByteView(StringView string)
         : m_string(string)
     {
     }
 
-    explicit Utf8View(ByteString& string)
+    explicit Wtf8ByteView(ByteString& string)
         : m_string(string.view())
     {
     }
 
-    explicit Utf8View(ByteString&&) = delete;
+    explicit Wtf8ByteView(ByteString&&) = delete;
 
     enum class AllowSurrogates {
         Yes,
         No,
     };
 
-    ~Utf8View() = default;
+    ~Wtf8ByteView() = default;
 
     StringView as_string() const { return m_string; }
 
@@ -106,17 +106,17 @@ public:
 
     size_t byte_offset_of(size_t code_point_offset) const;
 
-    Utf8View substring_view(size_t byte_offset, size_t byte_length) const { return Utf8View { m_string.substring_view(byte_offset, byte_length) }; }
-    Utf8View substring_view(size_t byte_offset) const { return substring_view(byte_offset, byte_length() - byte_offset); }
-    Utf8View unicode_substring_view(size_t code_point_offset, size_t code_point_length) const;
-    Utf8View unicode_substring_view(size_t code_point_offset) const { return unicode_substring_view(code_point_offset, length() - code_point_offset); }
+    Wtf8ByteView substring_view(size_t byte_offset, size_t byte_length) const { return Wtf8ByteView { m_string.substring_view(byte_offset, byte_length) }; }
+    Wtf8ByteView substring_view(size_t byte_offset) const { return substring_view(byte_offset, byte_length() - byte_offset); }
+    Wtf8ByteView unicode_substring_view(size_t code_point_offset, size_t code_point_length) const;
+    Wtf8ByteView unicode_substring_view(size_t code_point_offset) const { return unicode_substring_view(code_point_offset, length() - code_point_offset); }
 
     bool is_empty() const { return m_string.is_empty(); }
     bool is_null() const { return m_string.is_null(); }
-    bool starts_with(Utf8View const&) const;
+    bool starts_with(Wtf8ByteView const&) const;
     bool contains(u32) const;
 
-    Utf8View trim(Utf8View const& characters, TrimMode mode = TrimMode::Both) const;
+    Wtf8ByteView trim(Wtf8ByteView const& characters, TrimMode mode = TrimMode::Both) const;
 
     size_t iterator_offset(Utf8CodePointIterator const& it) const
     {
@@ -233,8 +233,8 @@ private:
 };
 
 template<>
-struct Formatter<Utf8View> : Formatter<StringView> {
-    ErrorOr<void> format(FormatBuilder&, Utf8View const&);
+struct Formatter<Wtf8ByteView> : Formatter<StringView> {
+    ErrorOr<void> format(FormatBuilder&, Wtf8ByteView const&);
 };
 
 inline Utf8CodePointIterator& Utf8CodePointIterator::operator++()
@@ -266,7 +266,7 @@ inline Utf8CodePointIterator& Utf8CodePointIterator::operator++()
 inline size_t Utf8CodePointIterator::underlying_code_point_length_in_bytes() const
 {
     VERIFY(m_length > 0);
-    auto [code_point_length_in_bytes, value, first_byte_makes_sense] = Utf8View::decode_leading_byte(*m_ptr);
+    auto [code_point_length_in_bytes, value, first_byte_makes_sense] = Wtf8ByteView::decode_leading_byte(*m_ptr);
 
     // If any of these tests fail, we will output a replacement character for this byte and treat it as a code point of size 1.
     if (!first_byte_makes_sense)
@@ -291,7 +291,7 @@ inline u32 Utf8CodePointIterator::operator*() const
     if (*m_ptr <= 0x7F)
         return *m_ptr;
 
-    auto [code_point_length_in_bytes, code_point_value_so_far, first_byte_makes_sense] = Utf8View::decode_leading_byte(*m_ptr);
+    auto [code_point_length_in_bytes, code_point_value_so_far, first_byte_makes_sense] = Wtf8ByteView::decode_leading_byte(*m_ptr);
 
     if (!first_byte_makes_sense) {
         // The first byte of the code point doesn't make sense: output a replacement character
@@ -327,5 +327,5 @@ inline u32 Utf8CodePointIterator::operator*() const
 
 #if USING_AK_GLOBALLY
 using AK::Utf8CodePointIterator;
-using AK::Utf8View;
+using AK::Wtf8ByteView;
 #endif

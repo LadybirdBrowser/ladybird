@@ -7,7 +7,7 @@
 #include <AK/CharacterTypes.h>
 #include <AK/GenericLexer.h>
 #include <AK/StringView.h>
-#include <AK/Utf8View.h>
+#include <AK/Wtf8ByteView.h>
 #include <LibTextCodec/Decoder.h>
 #include <LibWeb/DOM/Attr.h>
 #include <LibWeb/DOM/Document.h>
@@ -402,7 +402,7 @@ ByteString run_encoding_sniffing_algorithm(DOM::Document& document, ByteBuffer c
     // 8. FIXME: The user agent may attempt to autodetect the character encoding from applying frequency analysis or other algorithms to the data stream. Such algorithms
     //    may use information about the resource other than the resource's contents, including the address of the resource. If autodetection succeeds in determining a
     //    character encoding, and that encoding is a supported encoding, then return that encoding, with the confidence tentative. [UNIVCHARDET]
-    if (!Utf8View(StringView(input)).validate()) {
+    if (!Wtf8ByteView(StringView(input)).validate()) {
         // FIXME: As soon as Locale is supported, this should sometimes return a different encoding based on the locale.
         return "windows-1252";
     }

@@ -102,7 +102,7 @@ TEST_CASE(json_encoded_surrogates)
 }
 
 /*
-FIXME: Parse JSON from a Utf8View
+FIXME: Parse JSON from a Wtf8ByteView
 
 TEST_CASE(json_utf8_multibyte)
 {

@@ -9,8 +9,8 @@
 #include <AK/Forward.h>
 #include <AK/NonnullRefPtr.h>
 #include <AK/SegmentedVector.h>
-#include <AK/Utf8View.h>
 #include <AK/Vector.h>
+#include <AK/Wtf8ByteView.h>
 #include <LibGfx/AntiAliasingPainter.h>
 #include <LibGfx/Color.h>
 #include <LibGfx/Forward.h>

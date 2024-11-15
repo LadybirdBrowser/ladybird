@@ -6,7 +6,7 @@
 
 #include <AK/CharacterTypes.h>
 #include <AK/QuickSort.h>
-#include <AK/Utf8View.h>
+#include <AK/Wtf8ByteView.h>
 #include <LibUnicode/ICU.h>
 #include <LibUnicode/Locale.h>
 #include <LibUnicode/NumberFormat.h>

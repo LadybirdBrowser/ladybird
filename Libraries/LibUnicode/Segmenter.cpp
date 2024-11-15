@@ -236,7 +236,7 @@ NonnullOwnPtr<Segmenter> Segmenter::create(StringView locale, SegmenterGranulari
     return make<SegmenterImpl>(segmenter.release_nonnull(), segmenter_granularity);
 }
 
-bool Segmenter::should_continue_beyond_word(Utf8View const& word)
+bool Segmenter::should_continue_beyond_word(Wtf8ByteView const& word)
 {
     for (auto code_point : word) {
         if (!code_point_has_punctuation_general_category(code_point) && !code_point_has_separator_general_category(code_point))

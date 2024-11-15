@@ -83,7 +83,7 @@ public:
     virtual u8 baseline() const = 0;
 
     virtual float width(StringView) const = 0;
-    virtual float width(Utf8View const&) const = 0;
+    virtual float width(Wtf8ByteView const&) const = 0;
 
     virtual FlyString family() const = 0;
 

@@ -550,7 +550,7 @@ ErrorOr<Name, ParseError> Parser::parse_name()
     // Replace this once we have a unicode-aware lexer.
     auto start = m_lexer.tell();
     StringView remaining = m_lexer.input().substring_view(start);
-    Utf8View view { remaining };
+    Wtf8ByteView view { remaining };
     auto code_points = view.begin();
     if (code_points.done() || !s_name_start_characters.contains(*code_points)) {
         if (m_options.treat_errors_as_fatal)

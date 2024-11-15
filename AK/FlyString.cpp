@@ -11,7 +11,7 @@
 #include <AK/String.h>
 #include <AK/StringData.h>
 #include <AK/StringView.h>
-#include <AK/Utf8View.h>
+#include <AK/Wtf8ByteView.h>
 
 namespace AK {
 
@@ -105,9 +105,9 @@ String FlyString::to_string() const
     return String(move(copy));
 }
 
-Utf8View FlyString::code_points() const
+Wtf8ByteView FlyString::code_points() const
 {
-    return Utf8View { bytes_as_string_view() };
+    return Wtf8ByteView { bytes_as_string_view() };
 }
 
 ReadonlyBytes FlyString::bytes() const

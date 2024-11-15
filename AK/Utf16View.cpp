@@ -10,7 +10,7 @@
 #include <AK/StringView.h>
 #include <AK/Utf16View.h>
 #include <AK/Utf32View.h>
-#include <AK/Utf8View.h>
+#include <AK/Wtf8ByteView.h>
 
 #include <simdutf.h>
 
@@ -36,7 +36,7 @@ static constexpr u16 host_code_unit(u16 code_unit, Endianness endianness)
     VERIFY_NOT_REACHED();
 }
 
-template<OneOf<Utf8View, Utf32View> UtfViewType>
+template<OneOf<Wtf8ByteView, Utf32View> UtfViewType>
 static ErrorOr<Utf16Data> to_utf16_slow(UtfViewType const& view, Endianness endianness)
 {
     Utf16Data utf16_data;
@@ -50,13 +50,13 @@ static ErrorOr<Utf16Data> to_utf16_slow(UtfViewType const& view, Endianness endi
 
 ErrorOr<Utf16Data> utf8_to_utf16(StringView utf8_view, Endianness endianness)
 {
-    return utf8_to_utf16(Utf8View { utf8_view }, endianness);
+    return utf8_to_utf16(Wtf8ByteView { utf8_view }, endianness);
 }
 
-ErrorOr<Utf16Data> utf8_to_utf16(Utf8View const& utf8_view, Endianness endianness)
+ErrorOr<Utf16Data> utf8_to_utf16(Wtf8ByteView const& utf8_view, Endianness endianness)
 {
     // All callers want to allow lonely surrogates, which simdutf does not permit.
-    if (!utf8_view.validate(Utf8View::AllowSurrogates::No)) [[unlikely]]
+    if (!utf8_view.validate(Wtf8ByteView::AllowSurrogates::No)) [[unlikely]]
         return to_utf16_slow(utf8_view, endianness);
     if (utf8_view.is_empty())
         return Utf16Data {};

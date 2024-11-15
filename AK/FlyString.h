@@ -39,7 +39,7 @@ public:
     explicit operator String() const;
     String to_string() const;
 
-    [[nodiscard]] Utf8View code_points() const;
+    [[nodiscard]] Wtf8ByteView code_points() const;
     [[nodiscard]] ReadonlyBytes bytes() const;
     [[nodiscard]] StringView bytes_as_string_view() const;
 
