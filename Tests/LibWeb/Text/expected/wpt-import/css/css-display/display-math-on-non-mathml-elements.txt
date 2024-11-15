@@ -1,0 +1,21 @@
+Summary
+
+Harness status: OK
+
+Rerun
+
+Found 10 tests
+
+8 Pass
+2 Fail
+Details
+Result	Test Name	MessageFail	computed display on <div style="display: math;">	
+Pass	computed display on <div style="display: inline math;">	
+Pass	computed display on <div style="display: math inline;">	
+Pass	computed display on <div style="display: block math;">	
+Pass	computed display on <div style="display: math block;">	
+Fail	computed display on <svg style="display: math;">	
+Pass	computed display on <svg style="display: inline math;">	
+Pass	computed display on <svg style="display: math inline;">	
+Pass	computed display on <svg style="display: block math;">	
+Pass	computed display on <svg style="display: math block;">	

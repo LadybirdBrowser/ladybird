@@ -1,0 +1,15 @@
+Summary
+
+Harness status: OK
+
+Rerun
+
+Found 5 tests
+
+5 Pass
+Details
+Result	Test Name	MessagePass	Serialization of computed style value for display:contents	
+Pass	display:contents element as inherit parent - explicit inheritance	
+Pass	display:contents element as inherit parent - implicit inheritance	
+Pass	Resolved value should be computed value, not used value, for display:contents	
+Pass	display:contents is blockified for root elements	

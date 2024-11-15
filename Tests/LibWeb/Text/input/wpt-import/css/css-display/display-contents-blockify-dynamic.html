@@ -1,0 +1,34 @@
+<!doctype html>
+<link rel="help" href="https://bugzilla.mozilla.org/show_bug.cgi?id=1561283">
+<link rel="help" href="https://drafts.csswg.org/css-display/#valdef-display-contents">
+<link rel="help" href="https://drafts.csswg.org/css-grid/#grid-item-display">
+<link rel="author" href="https://mozilla.org" title="Mozilla">
+<link rel="author" href="mailto:emilio@crisal.io" title="Emilio Cobos Álvarez">
+<link rel="author" href="mailto:obrufau@igalia.com" title="Oriol Brufau">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<style>
+  .grid { display: grid }
+</style>
+<div style="display: grid">
+  <span id="grid-child">
+    <span></span>
+  </div>
+</div>
+<script>
+function display(el) {
+  return getComputedStyle(el).display;
+}
+test(function() {
+  let child = document.getElementById("grid-child");
+  let grandChild = child.firstElementChild;
+  assert_equals(display(child), "block", "Grid child should get blockified");
+  assert_equals(display(grandChild), "inline", "Grid grand-child should not get initially blockified");
+  child.style.display = "contents";
+  assert_equals(display(child), "contents", "No reason for it not to become display: contents");
+  assert_equals(display(grandChild), "block", "Grid grand-child with display: contents parent should get blockified");
+  child.style.display = "";
+  assert_equals(display(child), "block", "Grid child should get blockified");
+  assert_equals(display(grandChild), "inline", "Grid grand-child should get un-blockified when its parent's display stops being `contents`");
+}, "Dynamic changes to `display` causing blockification of children are handled correctly");
+</script>
