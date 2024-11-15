@@ -283,6 +283,9 @@ public:
 
     [[nodiscard]] constexpr int compare(StringView other) const
     {
+        if (m_length == 0 && other.m_length == 0)
+            return 0;
+
         if (m_characters == nullptr)
             return other.m_characters ? -1 : 0;
 
