@@ -23,6 +23,27 @@
 
 namespace Web::WebIDL {
 
+bool is_buffer_source_type(JS::Value value)
+{
+    if (!value.is_object())
+        return false;
+
+    auto const& object = value.as_object();
+    return is<JS::TypedArrayBase>(object) || is<JS::DataView>(object) || is<JS::ArrayBuffer>(object);
+}
+
+GC::Ptr<JS::ArrayBuffer> underlying_buffer_source(JS::Object& buffer_source)
+{
+    if (is<JS::TypedArrayBase>(buffer_source))
+        return static_cast<JS::TypedArrayBase&>(buffer_source).viewed_array_buffer();
+    if (is<JS::DataView>(buffer_source))
+        return static_cast<JS::DataView&>(buffer_source).viewed_array_buffer();
+    if (is<JS::ArrayBuffer>(buffer_source))
+        return static_cast<JS::ArrayBuffer&>(buffer_source);
+
+    VERIFY_NOT_REACHED();
+}
+
 // https://webidl.spec.whatwg.org/#dfn-get-buffer-source-copy
 ErrorOr<ByteBuffer> get_buffer_source_copy(JS::Object const& buffer_source)
 {
