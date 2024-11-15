@@ -1,0 +1,16 @@
+#import <Streams/GenericTransformStream.idl>
+
+// https://compression.spec.whatwg.org/#enumdef-compressionformat
+enum CompressionFormat {
+    "deflate",
+    "deflate-raw",
+    "gzip",
+};
+
+// https://compression.spec.whatwg.org/#compressionstream
+[Exposed=*]
+interface CompressionStream {
+    constructor(CompressionFormat format);
+};
+
+CompressionStream includes GenericTransformStream;

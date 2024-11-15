@@ -1,0 +1,31 @@
+<script src="../include.js"></script>
+<script>
+    asyncTest(async done => {
+        const text = "Well hello friends!";
+
+        for (const format of ["deflate", "deflate-raw", "gzip"]) {
+            let stream = new Blob([text]).stream();
+
+            let compressor = stream.pipeThrough(new CompressionStream(format));
+            let reader = compressor.getReader();
+
+            let buffer = new ArrayBuffer(256);
+            let offset = 0;
+
+            while (true) {
+                let result = await reader.read();
+                if (result.done) {
+                    break;
+                }
+
+                new Uint8Array(buffer).set(result.value, offset);
+                offset += result.value.byteLength;
+            }
+
+            let result = new Uint8Array(buffer, 0, offset).toBase64();
+            println(`format=${format}: ${result}`);
+        }
+
+        done();
+    });
+</script>
