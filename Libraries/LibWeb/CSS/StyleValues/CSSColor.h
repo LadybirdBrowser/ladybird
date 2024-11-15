@@ -21,7 +21,7 @@ public:
     virtual Color to_color(Optional<Layout::NodeWithStyle const&>) const override;
     virtual String to_string() const override;
 
-    static constexpr Array s_supported_color_space = { "a98-rgb"sv, "display-p3"sv, "srgb"sv, "srgb-linear"sv, "xyz"sv, "xyz-d50"sv, "xyz-d65"sv };
+    static constexpr Array s_supported_color_space = { "a98-rgb"sv, "display-p3"sv, "srgb"sv, "srgb-linear"sv, "prophoto-rgb"sv, "xyz"sv, "xyz-d50"sv, "xyz-d65"sv };
 
 private:
     CSSColor(ColorType color_type, ValueComparingNonnullRefPtr<CSSStyleValue> c1, ValueComparingNonnullRefPtr<CSSStyleValue> c2, ValueComparingNonnullRefPtr<CSSStyleValue> c3, ValueComparingNonnullRefPtr<CSSStyleValue> alpha)

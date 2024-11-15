@@ -453,6 +453,29 @@ Color Color::from_display_p3(float r, float g, float b, float alpha)
     return from_xyz65(x, y, z, alpha);
 }
 
+// https://www.w3.org/TR/css-color-4/#predefined-prophoto-rgb
+Color Color::from_pro_photo_rgb(float r, float g, float b, float alpha)
+{
+    auto to_linear = [](float c) -> float {
+        u8 sign = c < 0 ? -1 : 1;
+        float absolute = abs(c);
+
+        if (absolute <= 16. / 252)
+            return c / 16;
+        return sign * pow(c, 1.8);
+    };
+
+    auto linear_r = to_linear(r);
+    auto linear_g = to_linear(g);
+    auto linear_b = to_linear(b);
+
+    float x = 0.79776664 * linear_r + 0.13518130 * linear_g + 0.03134773 * linear_b;
+    float y = 0.28807483 * linear_r + 0.71183523 * linear_g + 0.00008994 * linear_b;
+    float z = 0.00000000 * linear_r + 0.00000000 * linear_g + 0.82510460 * linear_b;
+
+    return from_xyz50(x, y, z, alpha);
+}
+
 Color Color::from_xyz50(float x, float y, float z, float alpha)
 {
     // See commit description for these values
