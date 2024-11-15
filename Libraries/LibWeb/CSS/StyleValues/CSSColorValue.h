@@ -34,6 +34,7 @@ public:
         OKLCH,
         sRGB, // This is used by CSSColor for color(srgb ...).
         sRGBLinear,
+        ProPhotoRGB,
         XYZD50,
         XYZD65,
     };
