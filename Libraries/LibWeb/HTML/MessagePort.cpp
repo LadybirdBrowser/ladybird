@@ -408,7 +408,9 @@ void MessagePort::post_message_task_steps(SerializedTransferRecord& serialize_wi
     MessageEventInit event_init {};
     event_init.data = message_clone;
     event_init.ports = move(new_ports);
-    message_event_target->dispatch_event(MessageEvent::create(target_realm, HTML::EventNames::message, event_init));
+    auto event = MessageEvent::create(target_realm, HTML::EventNames::message, event_init);
+    event->set_is_trusted(true);
+    message_event_target->dispatch_event(event);
 }
 
 // https://html.spec.whatwg.org/multipage/web-messaging.html#dom-messageport-start

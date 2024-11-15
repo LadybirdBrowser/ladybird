@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    asyncTest((done) => {
+        const workerJs = `
+            self.onmessage = (messageEvent) => {
+                if (messageEvent.isTrusted && messageEvent.origin === '' && messageEvent.source === null) {
+                    self.postMessage(messageEvent.data + "pong");
+                }
+            };
+        `;
+
+        const workerJsBlob = new Blob([workerJs], {
+            type: "text/javascript",
+        });
+        const workerJsUrl = URL.createObjectURL(workerJsBlob);
+
+        const worker = new Worker(workerJsUrl);
+
+        worker.onmessage = (messageEvent) => {
+            if (messageEvent.isTrusted && messageEvent.origin === '' && messageEvent.source === null) {
+                println(messageEvent.data);
+                done();
+            }
+        };
+
+        worker.postMessage("ping\n");
+    });
+</script>

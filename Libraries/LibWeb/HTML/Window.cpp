@@ -1165,6 +1165,7 @@ WebIDL::ExceptionOr<void> Window::window_post_message_steps(JS::Value message, W
         message_event_init.ports = move(new_ports);
 
         auto message_event = MessageEvent::create(target_realm, EventNames::message, message_event_init);
+        message_event->set_is_trusted(true);
         dispatch_event(message_event);
     }));
 

@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    asyncTest((done) => {
+        const iframe = document.createElement("iframe");
+        document.body.appendChild(iframe);
+
+        const script = iframe.contentDocument.createElement("script");
+        script.textContent = `
+            self.onmessage = (messageEvent) => {
+                if (messageEvent.isTrusted && messageEvent.source === window.parent) {
+                    window.parent.postMessage(messageEvent.data + "pong");
+                }
+            };
+        `;
+        iframe.contentDocument.body.appendChild(script);
+
+        window.onmessage = (messageEvent) => {
+            if (messageEvent.isTrusted && messageEvent.source === iframe.contentWindow) {
+                println(messageEvent.data);
+                done();
+            }
+        }
+
+        iframe.contentWindow.postMessage("ping\n", { targetOrigin: "*" });
+    });
+</script>
