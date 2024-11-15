@@ -49,7 +49,7 @@ public:
     virtual ErrorOr<size_t> write_some(ReadonlyBytes) override;
     virtual bool is_eof() const override;
     virtual bool is_open() const override { return true; }
-    virtual void close() override {};
+    virtual void close() override { }
 
     static ErrorOr<ByteBuffer> decompress_all(ReadonlyBytes);
 
@@ -83,7 +83,7 @@ private:
 
 class GzipCompressor final : public Stream {
 public:
-    GzipCompressor(MaybeOwned<Stream>);
+    static ErrorOr<NonnullOwnPtr<GzipCompressor>> create(MaybeOwned<Stream>);
 
     virtual ErrorOr<Bytes> read_some(Bytes) override;
     virtual ErrorOr<size_t> write_some(ReadonlyBytes) override;
@@ -93,8 +93,17 @@ public:
 
     static ErrorOr<ByteBuffer> compress_all(ReadonlyBytes bytes);
 
+    ErrorOr<void> finish();
+
 private:
+    GzipCompressor(MaybeOwned<Stream>, NonnullOwnPtr<DeflateCompressor>);
+
     MaybeOwned<Stream> m_output_stream;
+    NonnullOwnPtr<DeflateCompressor> m_deflate_compressor;
+
+    Crypto::Checksum::CRC32 m_crc32;
+    size_t m_total_bytes { 0 };
+    bool m_finished { false };
 };
 
 }

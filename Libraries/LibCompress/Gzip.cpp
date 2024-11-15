@@ -189,8 +189,25 @@ ErrorOr<size_t> GzipDecompressor::write_some(ReadonlyBytes)
     return Error::from_errno(EBADF);
 }
 
-GzipCompressor::GzipCompressor(MaybeOwned<Stream> stream)
-    : m_output_stream(move(stream))
+ErrorOr<NonnullOwnPtr<GzipCompressor>> GzipCompressor::create(MaybeOwned<Stream> output_stream)
+{
+    BlockHeader header;
+    header.identification_1 = 0x1f;
+    header.identification_2 = 0x8b;
+    header.compression_method = 0x08;
+    header.flags = 0;
+    header.modification_time = 0;
+    header.extra_flags = 3;      // DEFLATE sets 2 for maximum compression and 4 for minimum compression
+    header.operating_system = 3; // unix
+    TRY(output_stream->write_until_depleted({ &header, sizeof(header) }));
+
+    auto deflate_compressor = TRY(DeflateCompressor::construct(MaybeOwned(*output_stream)));
+    return adopt_own(*new GzipCompressor { move(output_stream), move(deflate_compressor) });
+}
+
+GzipCompressor::GzipCompressor(MaybeOwned<Stream> output_stream, NonnullOwnPtr<DeflateCompressor> deflate_compressor)
+    : m_output_stream(move(output_stream))
+    , m_deflate_compressor(move(deflate_compressor))
 {
 }
 
@@ -201,23 +218,25 @@ ErrorOr<Bytes> GzipCompressor::read_some(Bytes)
 
 ErrorOr<size_t> GzipCompressor::write_some(ReadonlyBytes bytes)
 {
-    BlockHeader header;
-    header.identification_1 = 0x1f;
-    header.identification_2 = 0x8b;
-    header.compression_method = 0x08;
-    header.flags = 0;
-    header.modification_time = 0;
-    header.extra_flags = 3;      // DEFLATE sets 2 for maximum compression and 4 for minimum compression
-    header.operating_system = 3; // unix
-    TRY(m_output_stream->write_until_depleted({ &header, sizeof(header) }));
-    auto compressed_stream = TRY(DeflateCompressor::construct(MaybeOwned(*m_output_stream)));
-    TRY(compressed_stream->write_until_depleted(bytes));
-    TRY(compressed_stream->final_flush());
-    Crypto::Checksum::CRC32 crc32;
-    crc32.update(bytes);
-    TRY(m_output_stream->write_value<LittleEndian<u32>>(crc32.digest()));
-    TRY(m_output_stream->write_value<LittleEndian<u32>>(bytes.size()));
+    VERIFY(!m_finished);
+
+    TRY(m_deflate_compressor->write_until_depleted(bytes));
+    m_total_bytes += bytes.size();
+    m_crc32.update(bytes);
+
     return bytes.size();
+}
+
+ErrorOr<void> GzipCompressor::finish()
+{
+    VERIFY(!m_finished);
+    m_finished = true;
+
+    TRY(m_deflate_compressor->final_flush());
+    TRY(m_output_stream->write_value<LittleEndian<u32>>(m_crc32.digest()));
+    TRY(m_output_stream->write_value<LittleEndian<u32>>(m_total_bytes));
+
+    return {};
 }
 
 bool GzipCompressor::is_eof() const
@@ -237,12 +256,14 @@ void GzipCompressor::close()
 ErrorOr<ByteBuffer> GzipCompressor::compress_all(ReadonlyBytes bytes)
 {
     auto output_stream = TRY(try_make<AllocatingMemoryStream>());
-    GzipCompressor gzip_stream { MaybeOwned<Stream>(*output_stream) };
+    auto gzip_stream = TRY(GzipCompressor::create(MaybeOwned { *output_stream }));
 
-    TRY(gzip_stream.write_until_depleted(bytes));
+    TRY(gzip_stream->write_until_depleted(bytes));
+    TRY(gzip_stream->finish());
 
     auto buffer = TRY(ByteBuffer::create_uninitialized(output_stream->used_buffer_size()));
     TRY(output_stream->read_until_filled(buffer.bytes()));
+
     return buffer;
 }
 
