@@ -1,0 +1,37 @@
+<script src="../include.js"></script>
+<script>
+    asyncTest(async done => {
+        const data = [
+            // FIXME: Enable this case when our DecompressionStream is functioning with the zlib format.
+            // { format: "deflate", text: "eJwLT83JUchIzcnJV0grykzNSylWBABGEQb1" },
+            { format: "deflate-raw", text: "C0/NyVHISM3JyVdIK8pMzUspVgQA" },
+            { format: "gzip", text: "H4sIAAAAAAADAwtPzclRyEjNyclXSCvKTM1LKVYEAHN0w4sTAAAA" },
+        ];
+
+        for (const test of data) {
+            const text = Uint8Array.fromBase64(test.text);
+            let stream = new Blob([text]).stream();
+
+            let decompressor = stream.pipeThrough(new DecompressionStream(test.format));
+            let reader = decompressor.getReader();
+
+            let buffer = new ArrayBuffer(256);
+            let offset = 0;
+
+            while (true) {
+                let result = await reader.read();
+                if (result.done) {
+                    break;
+                }
+
+                new Uint8Array(buffer).set(result.value, offset);
+                offset += result.value.byteLength;
+            }
+
+            let result = String.fromCharCode.apply(null, new Uint8Array(buffer, 0, offset));
+            println(`format=${test.format}: ${result}`);
+        }
+
+        done();
+    });
+</script>

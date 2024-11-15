@@ -29,6 +29,7 @@ set(SOURCES
     Clipboard/Clipboard.cpp
     Clipboard/ClipboardEvent.cpp
     Compression/CompressionStream.cpp
+    Compression/DecompressionStream.cpp
     Crypto/Crypto.cpp
     Crypto/CryptoAlgorithms.cpp
     Crypto/CryptoBindings.cpp

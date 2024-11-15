@@ -88,6 +88,7 @@ class Clipboard;
 
 namespace Web::Compression {
 class CompressionStream;
+class DecompressionStream;
 }
 
 namespace Web::Cookie {
