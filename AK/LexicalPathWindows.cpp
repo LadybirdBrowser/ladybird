@@ -10,14 +10,9 @@
 
 namespace AK {
 
-static bool is_absolute_path(StringView path)
-{
-    return path.length() >= 2 && path[1] == ':';
-}
-
 static bool is_root(auto const& parts)
 {
-    return parts.size() == 1 && is_absolute_path(parts[0]);
+    return parts.size() == 1 && LexicalPath::is_absolute_path(parts[0]);
 }
 
 LexicalPath::LexicalPath(ByteString path)
@@ -45,9 +40,9 @@ LexicalPath::LexicalPath(ByteString path)
     }
 }
 
-bool LexicalPath::is_absolute() const
+bool LexicalPath::is_absolute_path(StringView path)
 {
-    return is_absolute_path(m_string);
+    return path.length() >= 2 && path[1] == ':';
 }
 
 Vector<ByteString> LexicalPath::parts() const

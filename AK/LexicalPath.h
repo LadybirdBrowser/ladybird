@@ -26,7 +26,8 @@ public:
 
     explicit LexicalPath(ByteString);
 
-    bool is_absolute() const;
+    static bool is_absolute_path(StringView path);
+    bool is_absolute() const { return is_absolute_path(m_string); }
     ByteString const& string() const { return m_string; }
 
     StringView dirname() const { return m_dirname; }
