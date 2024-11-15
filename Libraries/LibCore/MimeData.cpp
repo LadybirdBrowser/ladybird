@@ -79,7 +79,7 @@ static Array const s_registered_mime_type = {
     MimeType { .name = "application/x-blender"sv, .common_extensions = { ".blend"sv, ".blended"sv }, .description = "Blender project file"sv, .magic_bytes = Vector<u8> { 'B', 'L', 'E', 'N', 'D', 'E', 'R' } },
     MimeType { .name = "application/x-bzip2"sv, .common_extensions = { ".bz2"sv }, .description = "BZIP2 compressed data"sv, .magic_bytes = Vector<u8> { 'B', 'Z', 'h' } },
     MimeType { .name = "application/x-sheets+json"sv, .common_extensions = { ".sheets"sv }, .description = "Serenity Spreadsheet document"sv },
-    MimeType { .name = "application/xhtml+xml"sv, .common_extensions = { ".xhtml"sv }, .description = "XHTML document"sv },
+    MimeType { .name = "application/xhtml+xml"sv, .common_extensions = { ".xhtml"sv, ".xht"sv }, .description = "XHTML document"sv },
     MimeType { .name = "application/zip"sv, .common_extensions = { ".zip"sv }, .description = "ZIP archive"sv, .magic_bytes = Vector<u8> { 0x50, 0x4B } },
 
     MimeType { .name = "audio/flac"sv, .common_extensions = { ".flac"sv }, .description = "FLAC audio"sv, .magic_bytes = Vector<u8> { 'f', 'L', 'a', 'C' } },
