@@ -45,6 +45,11 @@ JS::ThrowCompletionOr<JS::NonnullGCPtr<JS::Object>> OptionConstructor::construct
     auto& vm = this->vm();
     auto& realm = *vm.current_realm();
 
+    // NOTE: This implements the default value for the `text` parameter (the empty string "").
+    auto text_value = vm.argument(0);
+    if (text_value.is_undefined())
+        text_value = &vm.empty_string();
+
     // 1. Let document be the current principal global object's associated Document.
     auto& window = verify_cast<HTML::Window>(HTML::current_principal_global_object());
     auto& document = window.associated_document();
@@ -54,16 +59,14 @@ JS::ThrowCompletionOr<JS::NonnullGCPtr<JS::Object>> OptionConstructor::construct
     JS::NonnullGCPtr<HTML::HTMLOptionElement> option_element = verify_cast<HTML::HTMLOptionElement>(*element);
 
     // 3. If text is not the empty string, then append to option a new Text node whose data is text.
-    if (vm.argument_count() > 0) {
-        auto text = TRY(vm.argument(0).to_string(vm));
-        if (!text.is_empty()) {
-            auto new_text_node = realm.create<DOM::Text>(document, text);
-            MUST(option_element->append_child(*new_text_node));
-        }
+    auto text = TRY(text_value.to_string(vm));
+    if (!text.is_empty()) {
+        auto new_text_node = realm.create<DOM::Text>(document, text);
+        MUST(option_element->append_child(*new_text_node));
     }
 
     // 4. If value is given, then set an attribute value for option using "value" and value.
-    if (vm.argument_count() > 1) {
+    if (!vm.argument(1).is_undefined()) {
         auto value = TRY(vm.argument(1).to_string(vm));
         MUST(option_element->set_attribute(HTML::AttributeNames::value, value));
     }

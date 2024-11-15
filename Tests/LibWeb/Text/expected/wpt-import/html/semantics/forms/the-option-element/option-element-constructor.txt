@@ -6,15 +6,14 @@ Rerun
 
 Found 11 tests
 
-10 Pass
-1 Fail
+11 Pass
 Details
 Result	Test Name	MessagePass	Option constructor with no arguments	
 Pass	Option constructor with falsy arguments	
 Pass	Option constructor creates HTMLOptionElement with specified text and value	
 Pass	Option constructor handles selectedness correctly when specified with defaultSelected only	
 Pass	Option constructor handles selectedness correctly, even when incongruous with defaultSelected	
-Fail	Option constructor treats undefined text and value correctly	
+Pass	Option constructor treats undefined text and value correctly	
 Pass	Option constructor treats empty text and value correctly	
 Pass	Option constructor treats falsy selected and defaultSelected correctly	
 Pass	Option constructor treats truthy selected and defaultSelected correctly	
