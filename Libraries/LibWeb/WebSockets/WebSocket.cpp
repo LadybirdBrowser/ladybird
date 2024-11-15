@@ -247,28 +247,37 @@ WebIDL::ExceptionOr<void> WebSocket::send(Variant<GC::Root<WebIDL::BufferSource>
 // https://websockets.spec.whatwg.org/#feedback-from-the-protocol
 void WebSocket::on_open()
 {
-    // 1. Change the readyState attribute's value to OPEN (1).
-    // 2. Change the extensions attribute's value to the extensions in use, if it is not the null value. [WSP]
-    // 3. Change the protocol attribute's value to the subprotocol in use, if it is not the null value. [WSP]
-    dispatch_event(DOM::Event::create(realm(), HTML::EventNames::open));
+    // When the WebSocket connection is established, the user agent must queue a task to run these steps:
+    HTML::queue_a_task(HTML::Task::Source::WebSocket, nullptr, nullptr, GC::create_function(heap(), [this] {
+        // 1. Change the readyState attribute's value to OPEN (1).
+        // 2. Change the extensions attribute's value to the extensions in use, if it is not the null value. [WSP]
+        // 3. Change the protocol attribute's value to the subprotocol in use, if it is not the null value. [WSP]
+        dispatch_event(DOM::Event::create(realm(), HTML::EventNames::open));
+    }));
 }
 
 // https://websockets.spec.whatwg.org/#feedback-from-the-protocol
 void WebSocket::on_error()
 {
-    dispatch_event(DOM::Event::create(realm(), HTML::EventNames::error));
+    // When the WebSocket connection is closed, possibly cleanly, the user agent must queue a task to run the following substeps:
+    HTML::queue_a_task(HTML::Task::Source::WebSocket, nullptr, nullptr, GC::create_function(heap(), [this] {
+        dispatch_event(DOM::Event::create(realm(), HTML::EventNames::error));
+    }));
 }
 
 // https://websockets.spec.whatwg.org/#feedback-from-the-protocol
 void WebSocket::on_close(u16 code, String reason, bool was_clean)
 {
-    // 1. Change the readyState attribute's value to CLOSED. This is handled by the Protocol's WebSocket
-    // 2. If [needed], fire an event named error at the WebSocket object. This is handled by the Protocol's WebSocket
-    HTML::CloseEventInit event_init {};
-    event_init.was_clean = was_clean;
-    event_init.code = code;
-    event_init.reason = reason;
-    dispatch_event(HTML::CloseEvent::create(realm(), HTML::EventNames::close, event_init));
+    // When the WebSocket connection is closed, possibly cleanly, the user agent must queue a task to run the following substeps:
+    HTML::queue_a_task(HTML::Task::Source::WebSocket, nullptr, nullptr, GC::create_function(heap(), [this, code, reason = move(reason), was_clean] {
+        // 1. Change the readyState attribute's value to CLOSED. This is handled by the Protocol's WebSocket
+        // 2. If [needed], fire an event named error at the WebSocket object. This is handled by the Protocol's WebSocket
+        HTML::CloseEventInit event_init {};
+        event_init.was_clean = was_clean;
+        event_init.code = code;
+        event_init.reason = reason;
+        dispatch_event(HTML::CloseEvent::create(realm(), HTML::EventNames::close, event_init));
+    }));
 }
 
 // https://websockets.spec.whatwg.org/#feedback-from-the-protocol
@@ -276,33 +285,37 @@ void WebSocket::on_message(ByteBuffer message, bool is_text)
 {
     if (m_websocket->ready_state() != Requests::WebSocket::ReadyState::Open)
         return;
-    if (is_text) {
-        auto text_message = ByteString(ReadonlyBytes(message));
-        HTML::MessageEventInit event_init;
-        event_init.data = JS::PrimitiveString::create(vm(), text_message);
-        event_init.origin = url().release_value_but_fixme_should_propagate_errors();
-        dispatch_event(HTML::MessageEvent::create(realm(), HTML::EventNames::message, event_init));
-        return;
-    }
 
-    if (m_binary_type == "blob") {
-        // type indicates that the data is Binary and binaryType is "blob"
-        HTML::MessageEventInit event_init;
-        event_init.data = FileAPI::Blob::create(realm(), message, "text/plain;charset=utf-8"_string);
-        event_init.origin = url().release_value_but_fixme_should_propagate_errors();
-        dispatch_event(HTML::MessageEvent::create(realm(), HTML::EventNames::message, event_init));
-        return;
-    } else if (m_binary_type == "arraybuffer") {
-        // type indicates that the data is Binary and binaryType is "arraybuffer"
-        HTML::MessageEventInit event_init;
-        event_init.data = JS::ArrayBuffer::create(realm(), message);
-        event_init.origin = url().release_value_but_fixme_should_propagate_errors();
-        dispatch_event(HTML::MessageEvent::create(realm(), HTML::EventNames::message, event_init));
-        return;
-    }
+    // When a WebSocket message has been received with type type and data data, the user agent must queue a task to follow these steps:
+    HTML::queue_a_task(HTML::Task::Source::WebSocket, nullptr, nullptr, GC::create_function(heap(), [this, message = move(message), is_text] {
+        if (is_text) {
+            auto text_message = ByteString(ReadonlyBytes(message));
+            HTML::MessageEventInit event_init;
+            event_init.data = JS::PrimitiveString::create(vm(), text_message);
+            event_init.origin = url().release_value_but_fixme_should_propagate_errors();
+            dispatch_event(HTML::MessageEvent::create(realm(), HTML::EventNames::message, event_init));
+            return;
+        }
 
-    dbgln("Unsupported WebSocket message type {}", m_binary_type);
-    TODO();
+        if (m_binary_type == "blob") {
+            // type indicates that the data is Binary and binaryType is "blob"
+            HTML::MessageEventInit event_init;
+            event_init.data = FileAPI::Blob::create(realm(), message, "text/plain;charset=utf-8"_string);
+            event_init.origin = url().release_value_but_fixme_should_propagate_errors();
+            dispatch_event(HTML::MessageEvent::create(realm(), HTML::EventNames::message, event_init));
+            return;
+        } else if (m_binary_type == "arraybuffer") {
+            // type indicates that the data is Binary and binaryType is "arraybuffer"
+            HTML::MessageEventInit event_init;
+            event_init.data = JS::ArrayBuffer::create(realm(), message);
+            event_init.origin = url().release_value_but_fixme_should_propagate_errors();
+            dispatch_event(HTML::MessageEvent::create(realm(), HTML::EventNames::message, event_init));
+            return;
+        }
+
+        dbgln("Unsupported WebSocket message type {}", m_binary_type);
+        TODO();
+    }));
 }
 
 #undef __ENUMERATE
