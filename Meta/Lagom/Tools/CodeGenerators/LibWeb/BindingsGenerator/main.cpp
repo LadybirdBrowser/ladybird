@@ -21,7 +21,7 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
 {
     Core::ArgsParser args_parser;
     StringView path;
-    Vector<StringView> import_base_paths;
+    Vector<ByteString> import_base_paths;
     StringView output_path = "-"sv;
     StringView depfile_path;
     StringView depfile_prefix;

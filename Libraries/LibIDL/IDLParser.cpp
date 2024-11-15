@@ -1250,7 +1250,7 @@ Interface& Parser::parse()
     return interface;
 }
 
-Parser::Parser(ByteString filename, StringView contents, Vector<StringView> import_base_paths)
+Parser::Parser(ByteString filename, StringView contents, Vector<ByteString> import_base_paths)
     : import_base_paths(move(import_base_paths))
     , filename(move(filename))
     , input(contents)
@@ -1258,7 +1258,7 @@ Parser::Parser(ByteString filename, StringView contents, Vector<StringView> impo
 {
 }
 
-Parser::Parser(Parser* parent, ByteString filename, StringView contents, Vector<StringView> import_base_paths)
+Parser::Parser(Parser* parent, ByteString filename, StringView contents, Vector<ByteString> import_base_paths)
     : import_base_paths(move(import_base_paths))
     , filename(move(filename))
     , input(contents)
