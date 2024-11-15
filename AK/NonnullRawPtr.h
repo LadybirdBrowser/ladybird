@@ -7,12 +7,16 @@
 #pragma once
 
 #include <AK/Forward.h>
+#include <AK/Noncopyable.h>
 #include <AK/Traits.h>
 
 namespace AK {
 
 template<typename T>
 requires(!IsLvalueReference<T> && !IsRvalueReference<T>) class [[nodiscard]] NonnullRawPtr {
+    AK_MAKE_DEFAULT_COPYABLE(NonnullRawPtr);
+    AK_MAKE_DEFAULT_MOVABLE(NonnullRawPtr);
+
 public:
     using ValueType = T;
 
@@ -21,30 +25,6 @@ public:
     NonnullRawPtr(T& other)
         : m_ptr(&other)
     {
-    }
-
-    NonnullRawPtr(NonnullRawPtr const& other)
-        : m_ptr(other.m_ptr)
-    {
-    }
-
-    NonnullRawPtr(NonnullRawPtr&& other)
-        : m_ptr(other.m_ptr)
-    {
-    }
-
-    NonnullRawPtr& operator=(NonnullRawPtr const& other)
-    {
-        m_ptr = other.m_ptr;
-
-        return *this;
-    }
-
-    NonnullRawPtr& operator=(NonnullRawPtr&& other)
-    {
-        m_ptr = other.m_ptr;
-
-        return *this;
     }
 
     operator bool() const = delete;
