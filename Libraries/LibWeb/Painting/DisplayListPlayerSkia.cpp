@@ -468,12 +468,12 @@ static ColorStopList replace_transition_hints_with_normal_color_stops(ColorStopL
         auto distance_between_stops = next_color_stop.position - previous_color_stop.position;
         auto transition_hint = color_stop.transition_hint.value();
 
-        Array<float, 5> const transition_hint_relative_sampling_positions = {
+        Array transition_hint_relative_sampling_positions {
             transition_hint * 0.33f,
             transition_hint * 0.66f,
             transition_hint,
-            transition_hint + (1 - transition_hint) * 0.33f,
-            transition_hint + (1 - transition_hint) * 0.66f,
+            transition_hint + (1.f - transition_hint) * 0.33f,
+            transition_hint + (1.f - transition_hint) * 0.66f,
         };
 
         for (auto const& transition_hint_relative_sampling_position : transition_hint_relative_sampling_positions) {
@@ -562,9 +562,10 @@ void DisplayListPlayerSkia::paint_linear_gradient(PaintLinearGradient const& com
     auto bottom = rect.center().translated(0, -length / 2);
     auto top = rect.center().translated(0, length / 2);
 
-    Array<SkPoint, 2> points;
-    points[0] = to_skia_point(top);
-    points[1] = to_skia_point(bottom);
+    Array points {
+        to_skia_point(top),
+        to_skia_point(bottom),
+    };
 
     auto center = to_skia_rect(rect).center();
     SkMatrix matrix;
@@ -778,7 +779,7 @@ static SkPaint paint_style_to_skia_paint(Painting::SVGGradientPaintStyle const& 
     if (is<SVGLinearGradientPaintStyle>(paint_style)) {
         auto const& linear_gradient_paint_style = static_cast<SVGLinearGradientPaintStyle const&>(paint_style);
 
-        Array<SkPoint, 2> points {
+        Array points {
             to_skia_point(linear_gradient_paint_style.start_point()),
             to_skia_point(linear_gradient_paint_style.end_point()),
         };
