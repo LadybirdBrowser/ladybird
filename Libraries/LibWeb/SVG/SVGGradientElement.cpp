@@ -84,7 +84,7 @@ Optional<Gfx::AffineTransform> SVGGradientElement::gradient_transform_impl(HashT
 // The gradient transform, appropriately scaled and combined with the paint transform.
 Gfx::AffineTransform SVGGradientElement::gradient_paint_transform(SVGPaintContext const& paint_context) const
 {
-    Gfx::AffineTransform gradient_paint_transform;
+    Gfx::AffineTransform gradient_paint_transform = paint_context.paint_transform;
     auto const& bounding_box = paint_context.path_bounding_box;
 
     if (gradient_units() == SVGUnits::ObjectBoundingBox) {
