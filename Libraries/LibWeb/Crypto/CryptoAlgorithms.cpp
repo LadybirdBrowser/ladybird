@@ -2260,43 +2260,6 @@ WebIDL::ExceptionOr<JS::NonnullGCPtr<CryptoKey>> HKDF::import_key(AlgorithmParam
     return key;
 }
 
-WebIDL::ExceptionOr<JS::NonnullGCPtr<CryptoKey>> PBKDF2::import_key(AlgorithmParams const&, Bindings::KeyFormat format, CryptoKey::InternalKeyData key_data, bool extractable, Vector<Bindings::KeyUsage> const& key_usages)
-{
-    // 1. If format is not "raw", throw a NotSupportedError
-    if (format != Bindings::KeyFormat::Raw) {
-        return WebIDL::NotSupportedError::create(m_realm, "Only raw format is supported"_string);
-    }
-
-    // 2. If usages contains a value that is not "deriveKey" or "deriveBits", then throw a SyntaxError.
-    for (auto& usage : key_usages) {
-        if (usage != Bindings::KeyUsage::Derivekey && usage != Bindings::KeyUsage::Derivebits) {
-            return WebIDL::SyntaxError::create(m_realm, MUST(String::formatted("Invalid key usage '{}'", idl_enum_to_string(usage))));
-        }
-    }
-
-    // 3. If extractable is not false, then throw a SyntaxError.
-    if (extractable)
-        return WebIDL::SyntaxError::create(m_realm, "extractable must be false"_string);
-
-    // 4. Let key be a new CryptoKey representing keyData.
-    auto key = CryptoKey::create(m_realm, move(key_data));
-
-    // 5. Set the [[type]] internal slot of key to "secret".
-    key->set_type(Bindings::KeyType::Secret);
-
-    // 6. Let algorithm be a new KeyAlgorithm object.
-    auto algorithm = KeyAlgorithm::create(m_realm);
-
-    // 7. Set the name attribute of algorithm to "PBKDF2".
-    algorithm->set_name("PBKDF2"_string);
-
-    // 8. Set the [[algorithm]] internal slot of key to algorithm.
-    key->set_algorithm(algorithm);
-
-    // 9. Return key.
-    return key;
-}
-
 WebIDL::ExceptionOr<JS::NonnullGCPtr<JS::ArrayBuffer>> SHA::digest(AlgorithmParams const& algorithm, ByteBuffer const& data)
 {
     auto& algorithm_name = algorithm.name;
@@ -2794,6 +2757,43 @@ WebIDL::ExceptionOr<JS::Value> PBKDF2::get_key_length(AlgorithmParams const&)
 {
     // 1. Return null.
     return JS::js_null();
+}
+
+WebIDL::ExceptionOr<JS::NonnullGCPtr<CryptoKey>> PBKDF2::import_key(AlgorithmParams const&, Bindings::KeyFormat format, CryptoKey::InternalKeyData key_data, bool extractable, Vector<Bindings::KeyUsage> const& key_usages)
+{
+    // 1. If format is not "raw", throw a NotSupportedError
+    if (format != Bindings::KeyFormat::Raw) {
+        return WebIDL::NotSupportedError::create(m_realm, "Only raw format is supported"_string);
+    }
+
+    // 2. If usages contains a value that is not "deriveKey" or "deriveBits", then throw a SyntaxError.
+    for (auto& usage : key_usages) {
+        if (usage != Bindings::KeyUsage::Derivekey && usage != Bindings::KeyUsage::Derivebits) {
+            return WebIDL::SyntaxError::create(m_realm, MUST(String::formatted("Invalid key usage '{}'", idl_enum_to_string(usage))));
+        }
+    }
+
+    // 3. If extractable is not false, then throw a SyntaxError.
+    if (extractable)
+        return WebIDL::SyntaxError::create(m_realm, "extractable must be false"_string);
+
+    // 4. Let key be a new CryptoKey representing keyData.
+    auto key = CryptoKey::create(m_realm, move(key_data));
+
+    // 5. Set the [[type]] internal slot of key to "secret".
+    key->set_type(Bindings::KeyType::Secret);
+
+    // 6. Let algorithm be a new KeyAlgorithm object.
+    auto algorithm = KeyAlgorithm::create(m_realm);
+
+    // 7. Set the name attribute of algorithm to "PBKDF2".
+    algorithm->set_name("PBKDF2"_string);
+
+    // 8. Set the [[algorithm]] internal slot of key to algorithm.
+    key->set_algorithm(algorithm);
+
+    // 9. Return key.
+    return key;
 }
 
 // https://wicg.github.io/webcrypto-secure-curves/#x25519-operations
