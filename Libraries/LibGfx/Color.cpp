@@ -476,6 +476,33 @@ Color Color::from_pro_photo_rgb(float r, float g, float b, float alpha)
     return from_xyz50(x, y, z, alpha);
 }
 
+// https://www.w3.org/TR/css-color-4/#predefined-rec2020
+Color Color::from_rec2020(float r, float g, float b, float alpha)
+{
+    auto to_linear = [](float c) -> float {
+        auto constexpr alpha = 1.09929682680944;
+        auto constexpr beta = 0.018053968510807;
+
+        u8 sign = c < 0 ? -1 : 1;
+        auto absolute = abs(c);
+
+        if (absolute < beta * 4.5)
+            return c / 4.5;
+
+        return sign * (pow((absolute + alpha - 1) / alpha, 1 / 0.45));
+    };
+
+    auto linear_r = to_linear(r);
+    auto linear_g = to_linear(g);
+    auto linear_b = to_linear(b);
+
+    float x = 0.63695805 * linear_r + 0.14461690 * linear_g + 0.16888098 * linear_b;
+    float y = 0.26270021 * linear_r + 0.67799807 * linear_g + 0.05930172 * linear_b;
+    float z = 0.00000000 * linear_r + 0.02807269 * linear_g + 1.06098506 * linear_b;
+
+    return from_xyz65(x, y, z, alpha);
+}
+
 Color Color::from_xyz50(float x, float y, float z, float alpha)
 {
     // See commit description for these values
