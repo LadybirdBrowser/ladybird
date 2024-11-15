@@ -42,11 +42,16 @@ String Display::to_string() const
         if (*this == Display::from_short(Display::Short::InlineTable))
             return "inline-table"_string;
 
-        builder.append(CSS::to_string(m_value.outside_inside.outside));
-        builder.append(' ');
-        builder.append(CSS::to_string(m_value.outside_inside.inside));
-        if (m_value.outside_inside.list_item == ListItem::Yes)
-            builder.append(" list-item"sv);
+        {
+            Vector<StringView, 3> parts;
+            if (!(m_value.outside_inside.outside == DisplayOutside::Block && m_value.outside_inside.inside == DisplayInside::FlowRoot))
+                parts.append(CSS::to_string(m_value.outside_inside.outside));
+            if (m_value.outside_inside.inside != DisplayInside::Flow)
+                parts.append(CSS::to_string(m_value.outside_inside.inside));
+            if (m_value.outside_inside.list_item == ListItem::Yes)
+                parts.append("list-item"sv);
+            builder.join(' ', parts);
+        }
         break;
     case Type::Internal:
         builder.append(CSS::to_string(m_value.internal));
