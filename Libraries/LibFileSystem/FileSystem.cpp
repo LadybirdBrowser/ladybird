@@ -67,60 +67,6 @@ bool exists(int fd)
     return !Core::System::fstat(fd).is_error();
 }
 
-bool is_device(StringView path)
-{
-    auto st_or_error = Core::System::stat(path);
-    if (st_or_error.is_error())
-        return false;
-    auto st = st_or_error.release_value();
-    return S_ISBLK(st.st_mode) || S_ISCHR(st.st_mode);
-}
-
-bool is_device(int fd)
-{
-    auto st_or_error = Core::System::fstat(fd);
-    if (st_or_error.is_error())
-        return false;
-    auto st = st_or_error.release_value();
-    return S_ISBLK(st.st_mode) || S_ISCHR(st.st_mode);
-}
-
-bool is_block_device(StringView path)
-{
-    auto st_or_error = Core::System::stat(path);
-    if (st_or_error.is_error())
-        return false;
-    auto st = st_or_error.release_value();
-    return S_ISBLK(st.st_mode);
-}
-
-bool is_block_device(int fd)
-{
-    auto st_or_error = Core::System::fstat(fd);
-    if (st_or_error.is_error())
-        return false;
-    auto st = st_or_error.release_value();
-    return S_ISBLK(st.st_mode);
-}
-
-bool is_char_device(StringView path)
-{
-    auto st_or_error = Core::System::stat(path);
-    if (st_or_error.is_error())
-        return false;
-    auto st = st_or_error.release_value();
-    return S_ISCHR(st.st_mode);
-}
-
-bool is_char_device(int fd)
-{
-    auto st_or_error = Core::System::fstat(fd);
-    if (st_or_error.is_error())
-        return false;
-    auto st = st_or_error.release_value();
-    return S_ISCHR(st.st_mode);
-}
-
 bool is_regular_file(StringView path)
 {
     auto st_or_error = Core::System::stat(path);
@@ -368,48 +314,6 @@ ErrorOr<off_t> size_from_fstat(int fd)
     return st.st_size;
 }
 
-ErrorOr<off_t> block_device_size_from_ioctl(StringView path)
-{
-    if (!path.characters_without_null_termination())
-        return Error::from_syscall("ioctl"sv, -EFAULT);
-
-    ByteString path_string = path;
-    int fd = open(path_string.characters(), O_RDONLY);
-
-    if (fd < 0)
-        return Error::from_errno(errno);
-
-    off_t size = TRY(block_device_size_from_ioctl(fd));
-
-    if (close(fd) != 0)
-        return Error::from_errno(errno);
-
-    return size;
-}
-
-ErrorOr<off_t> block_device_size_from_ioctl(int fd)
-{
-#if defined(AK_OS_MACOS)
-    u64 block_count = 0;
-    u32 block_size = 0;
-    TRY(Core::System::ioctl(fd, DKIOCGETBLOCKCOUNT, &block_count));
-    TRY(Core::System::ioctl(fd, DKIOCGETBLOCKSIZE, &block_size));
-    return static_cast<off_t>(block_count * block_size);
-#elif defined(AK_OS_FREEBSD) || defined(AK_OS_NETBSD)
-    off_t size = 0;
-    TRY(Core::System::ioctl(fd, DIOCGMEDIASIZE, &size));
-    return size;
-#elif defined(AK_OS_LINUX)
-    u64 size = 0;
-    TRY(Core::System::ioctl(fd, BLKGETSIZE64, &size));
-    return static_cast<off_t>(size);
-#else
-    // FIXME: Add support for more platforms.
-    (void)fd;
-    return Error::from_string_literal("Platform does not support getting block device size");
-#endif
-}
-
 bool can_delete_or_move(StringView path)
 {
     VERIFY(!path.is_empty());
@@ -435,21 +339,6 @@ bool can_delete_or_move(StringView path)
     // Directory is sticky, only the file owner, directory owner, and root can modify (rename, remove) it.
     auto user_id = geteuid();
     return user_id == 0 || directory_stat.st_uid == user_id || stat_or_empty(path).st_uid == user_id;
-}
-
-ErrorOr<ByteString> read_link(StringView link_path)
-{
-    return Core::System::readlink(link_path);
-}
-
-ErrorOr<void> link_file(StringView destination_path, StringView source_path)
-{
-    return TRY(Core::System::symlink(source_path, TRY(get_duplicate_file_name(destination_path))));
-}
-
-bool looks_like_shared_library(StringView path)
-{
-    return path.ends_with(".so"sv) || path.contains(".so."sv);
 }
 
 }
