@@ -66,6 +66,7 @@ function (generate_css_implementation)
 
     invoke_idl_generator(
         "GeneratedCSSStyleProperties.cpp"
+        "GeneratedCSSStyleProperties.idl"
         Lagom::GenerateCSSStyleProperties
         "${LIBWEB_INPUT_FOLDER}/CSS/Properties.json"
         "CSS/GeneratedCSSStyleProperties.h"
@@ -122,10 +123,18 @@ function (generate_css_implementation)
     endif()
     list(APPEND LIBWEB_ALL_GENERATED_HEADERS ${CSS_GENERATED_HEADERS})
     set(LIBWEB_ALL_GENERATED_HEADERS ${LIBWEB_ALL_GENERATED_HEADERS} PARENT_SCOPE)
+
+    set(CSS_GENERATED_IDL
+        "GeneratedCSSStyleProperties.idl"
+    )
+    list(APPEND LIBWEB_ALL_GENERATED_IDL ${CSS_GENERATED_IDL})
+    set(LIBWEB_ALL_GENERATED_IDL ${LIBWEB_ALL_GENERATED_IDL} PARENT_SCOPE)
 endfunction()
 
 function (generate_js_bindings target)
     set(LIBWEB_INPUT_FOLDER "${CMAKE_CURRENT_SOURCE_DIR}")
+    set(generated_idl_targets ${LIBWEB_ALL_GENERATED_IDL})
+    list(TRANSFORM generated_idl_targets PREPEND "generate_")
     function(libweb_js_bindings class)
         cmake_parse_arguments(PARSE_ARGV 1 LIBWEB_BINDINGS "NAMESPACE;ITERABLE;GLOBAL" "" "")
         get_filename_component(basename "${class}" NAME)
@@ -186,6 +195,7 @@ function (generate_js_bindings target)
         add_custom_target(generate_${basename} DEPENDS ${BINDINGS_SOURCES})
         add_dependencies(all_generated generate_${basename})
         add_dependencies(${target} generate_${basename})
+        add_dependencies(generate_${basename} ${generated_idl_targets})
 
         set(BINDINGS_HEADERS ${BINDINGS_SOURCES})
         list(FILTER BINDINGS_HEADERS INCLUDE REGEX "\.h$")
@@ -230,6 +240,7 @@ function (generate_js_bindings target)
         add_custom_target(generate_exposed_interfaces DEPENDS ${exposed_interface_sources})
         add_dependencies(all_generated generate_exposed_interfaces)
         add_dependencies(${target} generate_exposed_interfaces)
+        add_dependencies(generate_exposed_interfaces ${generated_idl_targets})
 
         list(TRANSFORM exposed_interface_sources PREPEND "${CMAKE_CURRENT_BINARY_DIR}/")
         set(exposed_interface_headers ${exposed_interface_sources})
