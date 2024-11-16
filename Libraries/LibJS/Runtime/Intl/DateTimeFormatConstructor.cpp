@@ -11,7 +11,6 @@
 #include <LibJS/Runtime/Intl/AbstractOperations.h>
 #include <LibJS/Runtime/Intl/DateTimeFormat.h>
 #include <LibJS/Runtime/Intl/DateTimeFormatConstructor.h>
-#include <LibJS/Runtime/Temporal/TimeZone.h>
 #include <LibUnicode/DateTimeFormat.h>
 #include <LibUnicode/Locale.h>
 
@@ -205,13 +204,13 @@ ThrowCompletionOr<GC::Ref<DateTimeFormat>> create_date_time_format(VM& vm, Funct
 
     if (is_time_zone_offset_string) {
         // a. Let parseResult be ParseText(StringToCodePoints(timeZone), UTCOffset).
-        auto parse_result = Temporal::parse_iso8601(Temporal::Production::TimeZoneNumericUTCOffset, time_zone);
+        auto parse_result = parse_utc_offset(time_zone);
 
         // b. Assert: parseResult is a Parse Node.
         VERIFY(parse_result.has_value());
 
         // c. If parseResult contains more than one MinuteSecond Parse Node, throw a RangeError exception.
-        if (parse_result->time_zone_utc_offset_second.has_value())
+        if (parse_result->second.has_value())
             return vm.throw_completion<RangeError>(ErrorType::OptionIsNotValidValue, time_zone, vm.names.timeZone);
 
         // d. Let offsetNanoseconds be ParseTimeZoneOffsetString(timeZone).

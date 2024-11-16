@@ -5,14 +5,16 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/CharacterTypes.h>
+#include <AK/GenericLexer.h>
 #include <AK/NumericLimits.h>
+#include <AK/ScopeGuard.h>
 #include <AK/StringBuilder.h>
 #include <AK/Time.h>
 #include <LibJS/Runtime/AbstractOperations.h>
 #include <LibJS/Runtime/Date.h>
 #include <LibJS/Runtime/GlobalObject.h>
 #include <LibJS/Runtime/Intl/AbstractOperations.h>
-#include <LibJS/Runtime/Temporal/ISO8601.h>
 #include <time.h>
 
 namespace JS {
@@ -634,11 +636,171 @@ double time_clip(double time)
     return to_integer_or_infinity(time);
 }
 
+// 21.4.1.33 Time Zone Offset String Format, https://tc39.es/ecma262/#sec-time-zone-offset-strings
+Optional<UTCOffset> parse_utc_offset(StringView offset_string)
+{
+    GenericLexer lexer { offset_string };
+    UTCOffset parse_result;
+
+    // https://tc39.es/ecma262/#prod-ASCIISign
+    auto parse_ascii_sign = [&]() {
+        // ASCIISign ::: one of
+        //     + -
+        if (lexer.next_is(is_any_of("+-"sv))) {
+            parse_result.sign = lexer.consume();
+            return true;
+        }
+
+        return false;
+    };
+
+    auto parse_two_digits = [&](size_t max_value) -> Optional<u8> {
+        if (auto digits = lexer.peek_string(2); digits.has_value()) {
+            auto number = digits->to_number<u8>(TrimWhitespace::No);
+
+            if (number.has_value() && *number <= max_value) {
+                lexer.ignore(2);
+                return *number;
+            }
+        }
+
+        return {};
+    };
+
+    // https://tc39.es/ecma262/#prod-Hour
+    auto parse_hour = [&]() {
+        // Hour :::
+        //     0 DecimalDigit
+        //     1 DecimalDigit
+        //     20
+        //     21
+        //     22
+        //     23
+        parse_result.hour = parse_two_digits(23);
+        return parse_result.hour.has_value();
+    };
+
+    // https://tc39.es/ecma262/#prod-TimeSeparator
+    auto parse_time_separator = [&](auto extended) {
+        // TimeSeparator[Extended] :::
+        //     [+Extended] :
+        //     [~Extended] [empty]
+        if (extended)
+            return lexer.consume_specific(':');
+        return true;
+    };
+
+    // https://tc39.es/ecma262/#prod-MinuteSecond
+    auto parse_minute_second = [&](auto& result) {
+        // MinuteSecond :::
+        //     0 DecimalDigit
+        //     1 DecimalDigit
+        //     2 DecimalDigit
+        //     3 DecimalDigit
+        //     4 DecimalDigit
+        //     5 DecimalDigit
+        result = parse_two_digits(59);
+        return result.has_value();
+    };
+
+    // https://tc39.es/ecma262/#prod-TemporalDecimalSeparator
+    auto parse_temporal_decimal_separator = [&]() {
+        // TemporalDecimalSeparator ::: one of
+        //    . ,
+        return lexer.consume_specific('.') || lexer.consume_specific(',');
+    };
+
+    // https://tc39.es/ecma262/#prod-TemporalDecimalFraction
+    auto parse_temporal_decimal_fraction = [&]() {
+        // TemporalDecimalFraction :::
+        //     TemporalDecimalSeparator DecimalDigit
+        //     TemporalDecimalSeparator DecimalDigit DecimalDigit
+        //     TemporalDecimalSeparator DecimalDigit DecimalDigit DecimalDigit
+        //     TemporalDecimalSeparator DecimalDigit DecimalDigit DecimalDigit DecimalDigit
+        //     TemporalDecimalSeparator DecimalDigit DecimalDigit DecimalDigit DecimalDigit DecimalDigit
+        //     TemporalDecimalSeparator DecimalDigit DecimalDigit DecimalDigit DecimalDigit DecimalDigit DecimalDigit
+        //     TemporalDecimalSeparator DecimalDigit DecimalDigit DecimalDigit DecimalDigit DecimalDigit DecimalDigit DecimalDigit
+        //     TemporalDecimalSeparator DecimalDigit DecimalDigit DecimalDigit DecimalDigit DecimalDigit DecimalDigit DecimalDigit DecimalDigit
+        //     TemporalDecimalSeparator DecimalDigit DecimalDigit DecimalDigit DecimalDigit DecimalDigit DecimalDigit DecimalDigit DecimalDigit DecimalDigit
+        auto position = lexer.tell();
+
+        if (!parse_temporal_decimal_separator())
+            return false;
+
+        for (size_t i = 0; i < 9; ++i) {
+            if (!lexer.next_is(is_ascii_digit))
+                break;
+            lexer.ignore();
+        }
+
+        if (auto fraction = lexer.input().substring_view(position, lexer.tell() - position); fraction.length() > 1) {
+            parse_result.fraction = fraction;
+            return true;
+        }
+
+        return false;
+    };
+
+    // https://tc39.es/ecma262/#prod-HourSubcomponents
+    auto parse_hour_subcomponents = [&](auto extended) {
+        // HourSubcomponents[Extended] :::
+        //     TimeSeparator[?Extended] MinuteSecond
+        //     TimeSeparator[?Extended] MinuteSecond TimeSeparator[?Extended] MinuteSecond TemporalDecimalFraction[opt]
+        ArmedScopeGuard guard { [&, position = lexer.tell()]() { lexer.retreat(lexer.tell() - position); } };
+
+        if (!parse_time_separator(extended))
+            return false;
+        if (!parse_minute_second(parse_result.minute))
+            return false;
+
+        if (lexer.is_eof()) {
+            guard.disarm();
+            return true;
+        }
+
+        if (!parse_time_separator(extended))
+            return false;
+        if (!parse_minute_second(parse_result.second))
+            return false;
+
+        if (lexer.is_eof()) {
+            guard.disarm();
+            return true;
+        }
+
+        if (!parse_temporal_decimal_fraction())
+            return false;
+
+        guard.disarm();
+        return true;
+    };
+
+    // https://tc39.es/ecma262/#prod-UTCOffset
+    // UTCOffset :::
+    //     ASCIISign Hour
+    //     ASCIISign Hour HourSubcomponents[+Extended]
+    //     ASCIISign Hour HourSubcomponents[~Extended]
+    if (!parse_ascii_sign())
+        return {};
+    if (!parse_hour())
+        return {};
+
+    if (lexer.is_eof())
+        return parse_result;
+
+    if (!parse_hour_subcomponents(true) && !parse_hour_subcomponents(false))
+        return {};
+    if (lexer.is_eof())
+        return parse_result;
+
+    return {};
+}
+
 // 21.4.1.33.1 IsTimeZoneOffsetString ( offsetString ), https://tc39.es/ecma262/#sec-istimezoneoffsetstring
 bool is_time_zone_offset_string(StringView offset_string)
 {
     // 1. Let parseResult be ParseText(StringToCodePoints(offsetString), UTCOffset).
-    auto parse_result = Temporal::parse_iso8601(Temporal::Production::TimeZoneNumericUTCOffset, offset_string);
+    auto parse_result = parse_utc_offset(offset_string);
 
     // 2. If parseResult is a List of errors, return false.
     // 3. Return true.
@@ -649,20 +811,20 @@ bool is_time_zone_offset_string(StringView offset_string)
 double parse_time_zone_offset_string(StringView offset_string)
 {
     // 1. Let parseResult be ParseText(offsetString, UTCOffset).
-    auto parse_result = Temporal::parse_iso8601(Temporal::Production::TimeZoneNumericUTCOffset, offset_string);
+    auto parse_result = parse_utc_offset(offset_string);
 
     // 2. Assert: parseResult is not a List of errors.
     VERIFY(parse_result.has_value());
 
     // 3. Assert: parseResult contains a ASCIISign Parse Node.
-    VERIFY(parse_result->time_zone_utc_offset_sign.has_value());
+    VERIFY(parse_result->sign.has_value());
 
     // 4. Let parsedSign be the source text matched by the ASCIISign Parse Node contained within parseResult.
-    auto parsed_sign = *parse_result->time_zone_utc_offset_sign;
+    auto parsed_sign = *parse_result->sign;
     i8 sign { 0 };
 
     // 5. If parsedSign is the single code point U+002D (HYPHEN-MINUS), then
-    if (parsed_sign == "-"sv) {
+    if (parsed_sign == '-') {
         // a. Let sign be -1.
         sign = -1;
     }
@@ -675,55 +837,37 @@ double parse_time_zone_offset_string(StringView offset_string)
     // 7. NOTE: Applications of StringToNumber below do not lose precision, since each of the parsed values is guaranteed to be a sufficiently short string of decimal digits.
 
     // 8. Assert: parseResult contains an Hour Parse Node.
-    VERIFY(parse_result->time_zone_utc_offset_hour.has_value());
+    VERIFY(parse_result->hour.has_value());
 
     // 9. Let parsedHours be the source text matched by the Hour Parse Node contained within parseResult.
-    auto parsed_hours = *parse_result->time_zone_utc_offset_hour;
-
     // 10. Let hours be ℝ(StringToNumber(CodePointsToString(parsedHours))).
-    auto hours = string_to_number(parsed_hours);
-
-    double minutes { 0 };
-    double seconds { 0 };
-    double nanoseconds { 0 };
+    auto hours = *parse_result->hour;
 
     // 11. If parseResult does not contain a MinuteSecond Parse Node, then
-    if (!parse_result->time_zone_utc_offset_minute.has_value()) {
-        // a. Let minutes be 0.
-        minutes = 0;
-    }
+    //     a. Let minutes be 0.
     // 12. Else,
-    else {
-        // a. Let parsedMinutes be the source text matched by the first MinuteSecond Parse Node contained within parseResult.
-        auto parsed_minutes = *parse_result->time_zone_utc_offset_minute;
-
-        // b. Let minutes be ℝ(StringToNumber(CodePointsToString(parsedMinutes))).
-        minutes = string_to_number(parsed_minutes);
-    }
+    //     a. Let parsedMinutes be the source text matched by the first MinuteSecond Parse Node contained within parseResult.
+    //     b. Let minutes be ℝ(StringToNumber(CodePointsToString(parsedMinutes))).
+    double minutes = parse_result->minute.value_or(0);
 
     // 13. If parseResult does not contain two MinuteSecond Parse Nodes, then
-    if (!parse_result->time_zone_utc_offset_second.has_value()) {
-        // a. Let seconds be 0.
-        seconds = 0;
-    }
+    //     a. Let seconds be 0.
     // 14. Else,
-    else {
-        // a. Let parsedSeconds be the source text matched by the second secondSecond Parse Node contained within parseResult.
-        auto parsed_seconds = *parse_result->time_zone_utc_offset_second;
+    //     a. Let parsedSeconds be the source text matched by the second secondSecond Parse Node contained within parseResult.
+    //     b. Let seconds be ℝ(StringToNumber(CodePointsToString(parsedSeconds))).
+    double seconds = parse_result->second.value_or(0);
 
-        // b. Let seconds be ℝ(StringToNumber(CodePointsToString(parsedSeconds))).
-        seconds = string_to_number(parsed_seconds);
-    }
+    double nanoseconds = 0;
 
     // 15. If parseResult does not contain a TemporalDecimalFraction Parse Node, then
-    if (!parse_result->time_zone_utc_offset_fraction.has_value()) {
+    if (!parse_result->fraction.has_value()) {
         // a. Let nanoseconds be 0.
         nanoseconds = 0;
     }
     // 16. Else,
     else {
         // a. Let parsedFraction be the source text matched by the TemporalDecimalFraction Parse Node contained within parseResult.
-        auto parsed_fraction = *parse_result->time_zone_utc_offset_fraction;
+        auto parsed_fraction = *parse_result->fraction;
 
         // b. Let fraction be the string-concatenation of CodePointsToString(parsedFraction) and "000000000".
         auto fraction = ByteString::formatted("{}000000000", parsed_fraction);
