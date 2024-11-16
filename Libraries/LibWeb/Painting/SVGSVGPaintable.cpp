@@ -100,8 +100,8 @@ void SVGSVGPaintable::paint_descendants(PaintContext& context, PaintableBox cons
     };
 
     paintable.before_children_paint(context, PaintPhase::Foreground);
-    paintable.for_each_child([&](auto& child) {
-        paint_svg_box(verify_cast<PaintableBox>(child));
+    paintable.for_each_child_of_type<PaintableBox>([&](PaintableBox& child) {
+        paint_svg_box(child);
         return IterationDecision::Continue;
     });
     paintable.after_children_paint(context, PaintPhase::Foreground);
