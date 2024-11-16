@@ -73,16 +73,20 @@ String human_readable_size_long(u64 size, UseThousandsSeparator use_thousands_se
     return MUST(String::formatted("{} ({} bytes)", human_readable_size_string, size));
 }
 
-String human_readable_time(i64 time_in_seconds)
+String human_readable_time(Duration duration)
 {
-    auto days = time_in_seconds / 86400;
-    time_in_seconds = time_in_seconds % 86400;
+    auto milliseconds = duration.to_milliseconds();
 
-    auto hours = time_in_seconds / 3600;
-    time_in_seconds = time_in_seconds % 3600;
+    auto days = milliseconds / 86400000;
+    milliseconds = milliseconds % 86400000;
 
-    auto minutes = time_in_seconds / 60;
-    time_in_seconds = time_in_seconds % 60;
+    auto hours = milliseconds / 3600000;
+    milliseconds = milliseconds % 3600000;
+
+    auto minutes = milliseconds / 60000;
+    milliseconds = milliseconds % 60000;
+
+    auto seconds = static_cast<double>(milliseconds) / 1000.0;
 
     StringBuilder builder;
 
@@ -95,7 +99,7 @@ String human_readable_time(i64 time_in_seconds)
     if (minutes > 0)
         builder.appendff("{} minute{} ", minutes, minutes == 1 ? "" : "s");
 
-    builder.appendff("{} second{}", time_in_seconds, time_in_seconds == 1 ? "" : "s");
+    builder.appendff("{:.3} second{}", seconds, seconds == 1.0 ? "" : "s");
 
     return MUST(builder.to_string());
 }

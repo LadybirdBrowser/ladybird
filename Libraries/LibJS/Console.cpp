@@ -8,6 +8,7 @@
  */
 
 #include <AK/MemoryStream.h>
+#include <AK/NumberFormat.h>
 #include <AK/StringBuilder.h>
 #include <LibJS/Console.h>
 #include <LibJS/Print.h>
@@ -15,7 +16,6 @@
 #include <LibJS/Runtime/Array.h>
 #include <LibJS/Runtime/Completion.h>
 #include <LibJS/Runtime/StringConstructor.h>
-#include <LibJS/Runtime/Temporal/Duration.h>
 #include <LibJS/Runtime/ValueInlines.h>
 
 namespace JS {
@@ -604,7 +604,7 @@ ThrowCompletionOr<Value> Console::time_log()
     auto start_time = maybe_start_time->value;
 
     // 3. Let duration be a string representing the difference between the current time and startTime, in an implementation-defined format.
-    auto duration = TRY(format_time_since(start_time));
+    auto duration = AK::human_readable_time(start_time.elapsed_time());
 
     // 4. Let concat be the concatenation of label, U+003A (:), U+0020 SPACE, and duration.
     auto concat = TRY_OR_THROW_OOM(vm, String::formatted("{}: {}", label, duration));
@@ -653,7 +653,7 @@ ThrowCompletionOr<Value> Console::time_end()
     m_timer_table.remove(label);
 
     // 4. Let duration be a string representing the difference between the current time and startTime, in an implementation-defined format.
-    auto duration = TRY(format_time_since(start_time));
+    auto duration = AK::human_readable_time(start_time.elapsed_time());
 
     // 5. Let concat be the concatenation of label, U+003A (:), U+0020 SPACE, and duration.
     auto concat = TRY_OR_THROW_OOM(vm, String::formatted("{}: {}", label, duration));
@@ -719,35 +719,6 @@ ThrowCompletionOr<String> Console::value_vector_to_string(GC::MarkedVector<Value
             builder.append(' ');
 
         builder.append(TRY(item.to_string(vm)));
-    }
-
-    return MUST(builder.to_string());
-}
-
-ThrowCompletionOr<String> Console::format_time_since(Core::ElapsedTimer timer)
-{
-    auto& vm = realm().vm();
-
-    auto elapsed_ms = timer.elapsed_time().to_milliseconds();
-    auto duration = TRY(Temporal::balance_duration(vm, 0, 0, 0, 0, elapsed_ms, 0, "0"_sbigint, "year"sv));
-
-    auto append = [&](auto& builder, auto format, auto number) {
-        if (!builder.is_empty())
-            builder.append(' ');
-        builder.appendff(format, number);
-    };
-
-    StringBuilder builder;
-
-    if (duration.days > 0)
-        append(builder, "{:.0} day(s)"sv, duration.days);
-    if (duration.hours > 0)
-        append(builder, "{:.0} hour(s)"sv, duration.hours);
-    if (duration.minutes > 0)
-        append(builder, "{:.0} minute(s)"sv, duration.minutes);
-    if (duration.seconds > 0 || duration.milliseconds > 0) {
-        double combined_seconds = duration.seconds + (0.001 * duration.milliseconds);
-        append(builder, "{:.3} seconds"sv, combined_seconds);
     }
 
     return MUST(builder.to_string());
