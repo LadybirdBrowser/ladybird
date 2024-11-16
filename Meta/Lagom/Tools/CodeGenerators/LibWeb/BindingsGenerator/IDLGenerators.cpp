@@ -1992,6 +1992,14 @@ JS_DEFINE_NATIVE_FUNCTION(@class_name@::@function.name:snakecase@@overload_suffi
     [[maybe_unused]] auto& realm = *vm.current_realm();
 )~~~");
 
+    // NOTE: Create a wrapper lambda so that if the function steps return an exception, we can return that in a rejected promise.
+    if (function.return_type->name() == "Promise"sv) {
+        function_generator.append(R"~~~(
+    auto steps = [&realm, &vm]() -> JS::ThrowCompletionOr<GC::Ref<WebIDL::Promise>> {
+        (void)realm;
+)~~~");
+    }
+
     if (is_static_function == StaticFunction::No) {
         function_generator.append(R"~~~(
     auto* impl = TRY(impl_from(vm));
@@ -2050,6 +2058,26 @@ JS_DEFINE_NATIVE_FUNCTION(@class_name@::@function.name:snakecase@@overload_suffi
 
         function_generator.append(R"~~~(
     [[maybe_unused]] auto retval = TRY(throw_dom_exception_if_needed(vm, [&] { return @interface_fully_qualified_name@::@function.cpp_name@(@.arguments@); }));
+)~~~");
+    }
+
+    if (function.return_type->name() == "Promise"sv) {
+        // https://webidl.spec.whatwg.org/#dfn-create-operation-function
+        // If we had an exception running the steps and are meant to return a Promise, wrap that exception in a rejected promise.
+        function_generator.append(R"~~~(
+        return retval;
+    };
+
+    auto maybe_retval = steps();
+
+    // And then, if an exception E was thrown:
+    // 1. If op has a return type that is a promise type, then return ! Call(%Promise.reject%, %Promise%, «E»).
+    // 2. Otherwise, end these steps and allow the exception to propagate.
+    // NOTE: We know that this is a Promise return type statically by the IDL.
+    if (maybe_retval.is_throw_completion())
+        return WebIDL::create_rejected_promise(realm, maybe_retval.error_value())->promise();
+
+    auto retval = maybe_retval.release_value();
 )~~~");
     }
 
