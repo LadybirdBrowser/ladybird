@@ -40,7 +40,6 @@ ThrowCompletionOr<Value> ShadowRealmConstructor::call()
 }
 
 // 3.2.1 ShadowRealm ( ), https://tc39.es/proposal-shadowrealm/#sec-shadowrealm
-// https://github.com/tc39/proposal-shadowrealm/pull/410
 ThrowCompletionOr<GC::Ref<Object>> ShadowRealmConstructor::construct(FunctionObject& new_target)
 {
     auto& vm = this->vm();
@@ -62,7 +61,7 @@ ThrowCompletionOr<GC::Ref<Object>> ShadowRealmConstructor::construct(FunctionObj
     // 8. Set O.[[ShadowRealm]] to realmRec.
     object->set_shadow_realm(realm_record);
 
-    // 9. Perform ? HostInitializeShadowRealm(realmRec).
+    // 9. Perform ? HostInitializeShadowRealm(realmRec, innerContext, O).
     TRY(vm.host_initialize_shadow_realm(realm_record, move(inner_context), object));
 
     // 10. Return O.
