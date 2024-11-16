@@ -128,8 +128,8 @@ describe("correct behavior", () => {
         expect(console.debug.toString()).toBe("function debug() { [native code] }");
         expect(Function.toString()).toBe("function Function() { [native code] }");
         expect(
-            Object.getOwnPropertyDescriptor(Temporal.TimeZone.prototype, "id").get.toString()
-        ).toBe("function get id() { [native code] }");
+            Object.getOwnPropertyDescriptor(Intl.NumberFormat.prototype, "format").get.toString()
+        ).toBe("function get format() { [native code] }");
 
         const values = [
             // Callable Proxy
