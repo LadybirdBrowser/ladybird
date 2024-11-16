@@ -23,6 +23,14 @@ extension Swift.String {
     }
 }
 
+extension AK.String {
+    public init(swiftString: consuming Swift.String) {
+        self.init()  // Create empty string first, using default constructor
+        swiftString.withUTF8 { buffer in
+            self = AK.String.from_utf8_without_validation(AK.ReadonlyBytes(buffer.baseAddress!, buffer.count))
+        }
+    }
+}
 extension AK.StringView: ExpressibleByStringLiteral {
     public typealias StringLiteralType = Swift.StaticString
 
