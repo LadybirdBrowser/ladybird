@@ -147,6 +147,7 @@ using __ptrdiff_t = __PTRDIFF_TYPE__;
 #    if defined(AK_OS_WINDOWS)
 using ssize_t = AK::Detail::MakeSigned<size_t>;
 using mode_t = unsigned short;
+using pid_t = int;
 #    endif
 #endif
 
