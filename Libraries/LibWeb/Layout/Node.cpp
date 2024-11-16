@@ -199,7 +199,7 @@ bool Node::establishes_stacking_context() const
     // - perspective
     // - clip-path
     // - mask / mask-image / mask-border
-    if (computed_values().mask().has_value() || computed_values().clip_path().has_value())
+    if (computed_values().mask().has_value() || computed_values().clip_path().has_value() || computed_values().mask_image())
         return true;
 
     return computed_values().opacity() < 1.0f;
@@ -828,6 +828,12 @@ void NodeWithStyle::apply_style(const CSS::StyleProperties& computed_style)
         computed_values.set_stroke_width(stroke_width.as_length().length());
     else if (stroke_width.is_percentage())
         computed_values.set_stroke_width(CSS::LengthPercentage { stroke_width.as_percentage().percentage() });
+
+    if (auto const& mask_image = computed_style.property(CSS::PropertyID::MaskImage); mask_image.is_abstract_image()) {
+        auto const& abstract_image = mask_image.as_abstract_image();
+        computed_values.set_mask_image(abstract_image);
+        const_cast<CSS::AbstractImageStyleValue&>(abstract_image).load_any_resources(document());
+    }
 
     if (auto mask_type = computed_style.mask_type(); mask_type.has_value())
         computed_values.set_mask_type(*mask_type);
