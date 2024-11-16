@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<input type="checkbox" id="checkbox">
+<script src="include.js"></script>
+<script>
+    checkbox.addEventListener("change", () => {
+      println("Change event was fired when it shouldn't have been.");
+    });
+    asyncTest(async done => {
+        checkbox.focus();
+        await new Promise(resolve => setTimeout(resolve, 0));
+        checkbox.blur();
+        await new Promise(resolve => setTimeout(resolve, 0));
+
+        done();
+    });
+</script>
