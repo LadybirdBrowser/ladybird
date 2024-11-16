@@ -122,6 +122,13 @@ concept IterableContainer = requires {
     } -> IteratorPairWith<decltype(declval<T>().end())>;
 };
 
+template<typename T, typename ValueT>
+concept IterableContainerOf = IterableContainer<T> && requires {
+    {
+        *declval<T>().begin()
+    } -> SameAs<ValueT>;
+};
+
 template<typename Func, typename... Args>
 concept FallibleFunction = requires(Func&& func, Args&&... args) {
     func(forward<Args>(args)...).is_error();
@@ -173,6 +180,7 @@ using AK::Concepts::Fundamental;
 using AK::Concepts::Indexable;
 using AK::Concepts::Integral;
 using AK::Concepts::IterableContainer;
+using AK::Concepts::IterableContainerOf;
 using AK::Concepts::IteratorFunction;
 using AK::Concepts::IteratorPairWith;
 using AK::Concepts::OneOf;
