@@ -96,6 +96,8 @@ public:
 
     void update_selectedness();
 
+    void update_inner_text_element(Badge<HTMLOptionElement>);
+
 private:
     HTMLSelectElement(DOM::Document&, DOM::QualifiedName);
 
