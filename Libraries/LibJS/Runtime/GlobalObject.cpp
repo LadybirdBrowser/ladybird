@@ -67,17 +67,7 @@
 #include <LibJS/Runtime/StringPrototype.h>
 #include <LibJS/Runtime/SuppressedErrorConstructor.h>
 #include <LibJS/Runtime/SymbolConstructor.h>
-#include <LibJS/Runtime/Temporal/CalendarConstructor.h>
-#include <LibJS/Runtime/Temporal/DurationConstructor.h>
-#include <LibJS/Runtime/Temporal/InstantConstructor.h>
-#include <LibJS/Runtime/Temporal/PlainDateConstructor.h>
-#include <LibJS/Runtime/Temporal/PlainDateTimeConstructor.h>
-#include <LibJS/Runtime/Temporal/PlainMonthDayConstructor.h>
-#include <LibJS/Runtime/Temporal/PlainTimeConstructor.h>
-#include <LibJS/Runtime/Temporal/PlainYearMonthConstructor.h>
 #include <LibJS/Runtime/Temporal/Temporal.h>
-#include <LibJS/Runtime/Temporal/TimeZoneConstructor.h>
-#include <LibJS/Runtime/Temporal/ZonedDateTimeConstructor.h>
 #include <LibJS/Runtime/TypedArray.h>
 #include <LibJS/Runtime/Value.h>
 #include <LibJS/Runtime/ValueInlines.h>

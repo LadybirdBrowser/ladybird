@@ -87,17 +87,7 @@
     __JS_ENUMERATE(RelativeTimeFormat, relative_time_format, RelativeTimeFormatPrototype, RelativeTimeFormatConstructor) \
     __JS_ENUMERATE(Segmenter, segmenter, SegmenterPrototype, SegmenterConstructor)
 
-#define JS_ENUMERATE_TEMPORAL_OBJECTS                                                                    \
-    __JS_ENUMERATE(Calendar, calendar, CalendarPrototype, CalendarConstructor)                           \
-    __JS_ENUMERATE(Duration, duration, DurationPrototype, DurationConstructor)                           \
-    __JS_ENUMERATE(Instant, instant, InstantPrototype, InstantConstructor)                               \
-    __JS_ENUMERATE(PlainDate, plain_date, PlainDatePrototype, PlainDateConstructor)                      \
-    __JS_ENUMERATE(PlainDateTime, plain_date_time, PlainDateTimePrototype, PlainDateTimeConstructor)     \
-    __JS_ENUMERATE(PlainMonthDay, plain_month_day, PlainMonthDayPrototype, PlainMonthDayConstructor)     \
-    __JS_ENUMERATE(PlainTime, plain_time, PlainTimePrototype, PlainTimeConstructor)                      \
-    __JS_ENUMERATE(PlainYearMonth, plain_year_month, PlainYearMonthPrototype, PlainYearMonthConstructor) \
-    __JS_ENUMERATE(TimeZone, time_zone, TimeZonePrototype, TimeZoneConstructor)                          \
-    __JS_ENUMERATE(ZonedDateTime, zoned_date_time, ZonedDateTimePrototype, ZonedDateTimeConstructor)
+#define JS_ENUMERATE_TEMPORAL_OBJECTS
 
 #define JS_ENUMERATE_BUILTIN_NAMESPACE_OBJECTS \
     __JS_ENUMERATE(AtomicsObject, atomics)     \
@@ -284,13 +274,8 @@ namespace Temporal {
     class PrototypeName;
 JS_ENUMERATE_TEMPORAL_OBJECTS
 #undef __JS_ENUMERATE
+
 class Temporal;
-struct CalendarMethods;
-struct DurationRecord;
-struct DateDurationRecord;
-struct TimeDurationRecord;
-struct TimeZoneMethods;
-struct PartialDurationRecord;
 };
 
 template<typename T>

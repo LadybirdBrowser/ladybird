@@ -205,40 +205,8 @@ set(SOURCES
     Runtime/SymbolObject.cpp
     Runtime/SymbolPrototype.cpp
     Runtime/Temporal/AbstractOperations.cpp
-    Runtime/Temporal/Calendar.cpp
-    Runtime/Temporal/CalendarConstructor.cpp
-    Runtime/Temporal/CalendarPrototype.cpp
     Runtime/Temporal/Duration.cpp
-    Runtime/Temporal/DurationConstructor.cpp
-    Runtime/Temporal/DurationPrototype.cpp
-    Runtime/Temporal/Instant.cpp
-    Runtime/Temporal/InstantConstructor.cpp
-    Runtime/Temporal/InstantPrototype.cpp
-    Runtime/Temporal/ISO8601.cpp
-    Runtime/Temporal/Now.cpp
-    Runtime/Temporal/PlainDate.cpp
-    Runtime/Temporal/PlainDateConstructor.cpp
-    Runtime/Temporal/PlainDatePrototype.cpp
-    Runtime/Temporal/PlainDateTime.cpp
-    Runtime/Temporal/PlainDateTimeConstructor.cpp
-    Runtime/Temporal/PlainDateTimePrototype.cpp
-    Runtime/Temporal/PlainMonthDay.cpp
-    Runtime/Temporal/PlainMonthDayConstructor.cpp
-    Runtime/Temporal/PlainMonthDayPrototype.cpp
-    Runtime/Temporal/PlainTime.cpp
-    Runtime/Temporal/PlainTimeConstructor.cpp
-    Runtime/Temporal/PlainTimePrototype.cpp
-    Runtime/Temporal/PlainYearMonth.cpp
-    Runtime/Temporal/PlainYearMonthConstructor.cpp
-    Runtime/Temporal/PlainYearMonthPrototype.cpp
     Runtime/Temporal/Temporal.cpp
-    Runtime/Temporal/TimeZone.cpp
-    Runtime/Temporal/TimeZoneConstructor.cpp
-    Runtime/Temporal/TimeZoneMethods.cpp
-    Runtime/Temporal/TimeZonePrototype.cpp
-    Runtime/Temporal/ZonedDateTime.cpp
-    Runtime/Temporal/ZonedDateTimeConstructor.cpp
-    Runtime/Temporal/ZonedDateTimePrototype.cpp
     Runtime/TypedArray.cpp
     Runtime/TypedArrayConstructor.cpp
     Runtime/TypedArrayPrototype.cpp
