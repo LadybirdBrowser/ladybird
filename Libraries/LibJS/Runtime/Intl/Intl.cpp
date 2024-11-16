@@ -22,7 +22,6 @@
 #include <LibJS/Runtime/Intl/RelativeTimeFormatConstructor.h>
 #include <LibJS/Runtime/Intl/SegmenterConstructor.h>
 #include <LibJS/Runtime/Intl/SingleUnitIdentifiers.h>
-#include <LibJS/Runtime/Temporal/TimeZone.h>
 #include <LibUnicode/DateTimeFormat.h>
 #include <LibUnicode/Locale.h>
 #include <LibUnicode/NumberFormat.h>
