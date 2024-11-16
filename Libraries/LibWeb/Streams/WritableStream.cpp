@@ -58,7 +58,7 @@ bool WritableStream::locked() const
 }
 
 // https://streams.spec.whatwg.org/#ws-close
-GC::Ptr<WebIDL::Promise> WritableStream::close()
+GC::Ref<WebIDL::Promise> WritableStream::close()
 {
     auto& realm = this->realm();
 
@@ -79,7 +79,7 @@ GC::Ptr<WebIDL::Promise> WritableStream::close()
 }
 
 // https://streams.spec.whatwg.org/#ws-abort
-GC::Ptr<WebIDL::Promise> WritableStream::abort(JS::Value reason)
+GC::Ref<WebIDL::Promise> WritableStream::abort(JS::Value reason)
 {
     auto& realm = this->realm();
 
