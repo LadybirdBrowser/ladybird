@@ -505,22 +505,22 @@ Color Color::from_rec2020(float r, float g, float b, float alpha)
 
 Color Color::from_xyz50(float x, float y, float z, float alpha)
 {
-    // See commit description for these values
-    float red = 3.13397926 * x - 1.61689519 * y - 0.49070587 * z;
-    float green = -0.97840009 * x + 1.91589112 * y + 0.03339256 * z;
-    float blue = 0.07200357 * x - 0.22897505 * y + 1.40517398 * z;
+    // See commit description for these values.
+    float r = +3.134136 * x - 1.617386 * y - 0.490662 * z;
+    float g = -0.978795 * x + 1.916254 * y + 0.033443 * z;
+    float b = +0.071955 * x - 0.228977 * y + 1.405386 * z;
 
-    return from_linear_srgb(red, green, blue, alpha);
+    return from_linear_srgb(r, g, b, alpha);
 }
 
 Color Color::from_xyz65(float x, float y, float z, float alpha)
 {
-    // https://en.wikipedia.org/wiki/SRGB#From_CIE_XYZ_to_sRGB
-    float red = 3.2406 * x - 1.5372 * y - 0.4986 * z;
-    float green = -0.9689 * x + 1.8758 * y + 0.0415 * z;
-    float blue = 0.0557 * x - 0.2040 * y + 1.0570 * z;
+    // See commit description for these values.
+    float r = +3.240970 * x - 1.537383 * y - 0.498611 * z;
+    float g = -0.969244 * x + 1.875968 * y + 0.041555 * z;
+    float b = +0.055630 * x - 0.203977 * y + 1.056972 * z;
 
-    return from_linear_srgb(red, green, blue, alpha);
+    return from_linear_srgb(r, g, b, alpha);
 }
 
 Color Color::from_lab(float L, float a, float b, float alpha)

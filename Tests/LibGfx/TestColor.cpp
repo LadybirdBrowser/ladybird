@@ -14,3 +14,10 @@ TEST_CASE(color)
         EXPECT_EQ(gray, gray.to_grayscale());
     }
 }
+
+TEST_CASE(all_green)
+{
+    EXPECT_EQ(Color(Color::NamedColor::Green), Color::from_lab(87.8185, -79.2711, 80.9946));
+    EXPECT_EQ(Color(Color::NamedColor::Green), Color::from_xyz50(0.385152, 0.716887, 0.097081));
+    EXPECT_EQ(Color(Color::NamedColor::Green), Color::from_xyz65(0.357584, 0.715169, 0.119195));
+}
