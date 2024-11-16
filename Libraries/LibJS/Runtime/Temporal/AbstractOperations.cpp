@@ -2,6 +2,7 @@
  * Copyright (c) 2021-2022, Idan Horowitz <idan.horowitz@serenityos.org>
  * Copyright (c) 2021-2023, Linus Groh <linusg@serenityos.org>
  * Copyright (c) 2021, Luke Wilde <lukew@serenityos.org>
+ * Copyright (c) 2024, Tim Flynn <trflynn89@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -11,7 +12,7 @@
 
 namespace JS::Temporal {
 
-// 13.2 GetOptionsObject ( options ), https://tc39.es/proposal-temporal/#sec-getoptionsobject
+// 14.4.1.1 GetOptionsObject ( options ), https://tc39.es/proposal-temporal/#sec-getoptionsobject
 ThrowCompletionOr<Object*> get_options_object(VM& vm, Value options)
 {
     auto& realm = *vm.current_realm();
@@ -22,7 +23,7 @@ ThrowCompletionOr<Object*> get_options_object(VM& vm, Value options)
         return Object::create(realm, nullptr).ptr();
     }
 
-    // 2. If Type(options) is Object, then
+    // 2. If options is an Object, then
     if (options.is_object()) {
         // a. Return options.
         return &options.as_object();
@@ -32,7 +33,7 @@ ThrowCompletionOr<Object*> get_options_object(VM& vm, Value options)
     return vm.throw_completion<TypeError>(ErrorType::NotAnObject, "Options");
 }
 
-// 13.3 GetOption ( options, property, type, values, fallback ), https://tc39.es/proposal-temporal/#sec-getoption
+// 14.4.1.2 GetOption ( options, property, type, values, default ), https://tc39.es/proposal-temporal/#sec-getoption
 ThrowCompletionOr<Value> get_option(VM& vm, Object const& options, PropertyKey const& property, OptionType type, ReadonlySpan<StringView> values, OptionDefault const& default_)
 {
     VERIFY(property.is_string());
@@ -42,51 +43,43 @@ ThrowCompletionOr<Value> get_option(VM& vm, Object const& options, PropertyKey c
 
     // 2. If value is undefined, then
     if (value.is_undefined()) {
-        // a. If default is required, throw a RangeError exception.
-        if (default_.has<GetOptionRequired>())
+        // a. If default is REQUIRED, throw a RangeError exception.
+        if (default_.has<DefaultRequired>())
             return vm.throw_completion<RangeError>(ErrorType::OptionIsNotValidValue, "undefined"sv, property.as_string());
 
         // b. Return default.
         return default_.visit(
-            [](GetOptionRequired) -> ThrowCompletionOr<Value> { VERIFY_NOT_REACHED(); },
-            [](Empty) -> ThrowCompletionOr<Value> { return js_undefined(); },
-            [](bool b) -> ThrowCompletionOr<Value> { return Value(b); },
-            [](double d) -> ThrowCompletionOr<Value> { return Value(d); },
-            [&vm](StringView s) -> ThrowCompletionOr<Value> { return PrimitiveString::create(vm, s); });
+            [](DefaultRequired) -> Value { VERIFY_NOT_REACHED(); },
+            [](Empty) -> Value { return js_undefined(); },
+            [](bool default_) -> Value { return Value { default_ }; },
+            [](double default_) -> Value { return Value { default_ }; },
+            [&](StringView default_) -> Value { return PrimitiveString::create(vm, default_); });
     }
 
-    // 5. If type is "boolean", then
+    // 3. If type is BOOLEAN, then
     if (type == OptionType::Boolean) {
         // a. Set value to ToBoolean(value).
-        value = Value(value.to_boolean());
+        value = Value { value.to_boolean() };
     }
-    // 6. Else if type is "number", then
-    else if (type == OptionType::Number) {
-        // a. Set value to ? ToNumber(value).
-        value = TRY(value.to_number(vm));
-
-        // b. If value is NaN, throw a RangeError exception.
-        if (value.is_nan())
-            return vm.throw_completion<RangeError>(ErrorType::OptionIsNotValidValue, vm.names.NaN.as_string(), property.as_string());
-    }
-    // 7. Else,
+    // 4. Else,
     else {
-        // a. Assert: type is "string".
+        // a. Assert: type is STRING.
         VERIFY(type == OptionType::String);
 
         // b. Set value to ? ToString(value).
         value = TRY(value.to_primitive_string(vm));
     }
 
-    // 8. If values is not undefined and values does not contain an element equal to value, throw a RangeError exception.
+    // 5. If values is not EMPTY and values does not contain value, throw a RangeError exception.
     if (!values.is_empty()) {
         // NOTE: Every location in the spec that invokes GetOption with type=boolean also has values=undefined.
         VERIFY(value.is_string());
+
         if (auto value_string = value.as_string().utf8_string(); !values.contains_slow(value_string))
             return vm.throw_completion<RangeError>(ErrorType::OptionIsNotValidValue, value_string, property.as_string());
     }
 
-    // 9. Return value.
+    // 6. Return value.
     return value;
 }
 
