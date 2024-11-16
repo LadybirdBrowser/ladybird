@@ -501,6 +501,7 @@ if (BUILD_TESTING)
         AK
         LibCrypto
         LibCompress
+        LibGC
         LibTest
         LibTextCodec
         LibThreading

@@ -13,6 +13,7 @@
 #include <AK/Noncopyable.h>
 #include <AK/NonnullOwnPtr.h>
 #include <AK/StackInfo.h>
+#include <AK/Swift.h>
 #include <AK/Types.h>
 #include <AK/Vector.h>
 #include <LibCore/Forward.h>
@@ -150,7 +151,7 @@ private:
     bool m_collecting_garbage { false };
     StackInfo m_stack_info;
     AK::Function<void(HashMap<Cell*, GC::HeapRoot>&)> m_gather_embedder_roots;
-};
+} SWIFT_IMMORTAL_REFERENCE;
 
 inline void Heap::did_create_root(Badge<RootImpl>, RootImpl& impl)
 {
