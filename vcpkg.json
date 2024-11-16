@@ -75,6 +75,10 @@
       "name": "mman",
       "platform": "windows"
     },
+    {
+      "name": "pthread",
+      "platform": "windows"
+    },
     "simdutf",
     {
       "name": "skia",

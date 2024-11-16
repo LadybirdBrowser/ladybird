@@ -41,7 +41,7 @@ private:
 
     int m_fd { -1 };
     bool m_is_enabled { false };
-    pthread_t m_owner_thread { 0 };
+    pthread_t m_owner_thread {};
     Type m_type { Type::None };
 };
 

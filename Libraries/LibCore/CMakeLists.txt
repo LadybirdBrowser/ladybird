@@ -116,4 +116,8 @@ endif()
 
 if (WIN32)
     target_include_directories(LibCore PRIVATE ${MMAN_INCLUDE_DIR})
+
+    find_package(pthread REQUIRED)
+    target_include_directories(LibCore PRIVATE ${PTHREAD_INCLUDE_DIR})
+    target_link_libraries(LibCore PRIVATE ${PTHREAD_LIBRARY})
 endif()
