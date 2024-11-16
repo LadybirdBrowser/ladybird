@@ -3,6 +3,7 @@ set(SOURCES
     Cell.cpp
     CellAllocator.cpp
     ConservativeVector.cpp
+    ForeignCell.cpp
     Root.cpp
     Heap.cpp
     HeapBlock.cpp

@@ -79,6 +79,7 @@ private:
     friend class MarkingVisitor;
     friend class GraphConstructorVisitor;
     friend class DeferGC;
+    friend class ForeignCell;
 
     void defer_gc();
     void undefer_gc();

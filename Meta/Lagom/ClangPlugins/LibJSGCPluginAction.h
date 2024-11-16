@@ -13,6 +13,7 @@
 struct LibJSCellMacro {
     enum class Type {
         GCCell,
+        ForeignCell,
         JSObject,
         JSEnvironment,
         JSPrototypeObject,
