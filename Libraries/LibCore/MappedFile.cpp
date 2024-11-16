@@ -9,9 +9,7 @@
 #include <LibCore/File.h>
 #include <LibCore/MappedFile.h>
 #include <LibCore/System.h>
-#include <fcntl.h>
 #include <sys/mman.h>
-#include <unistd.h>
 
 namespace Core {
 
@@ -30,7 +28,7 @@ ErrorOr<NonnullOwnPtr<MappedFile>> MappedFile::map_from_file(NonnullOwnPtr<Core:
 ErrorOr<NonnullOwnPtr<MappedFile>> MappedFile::map_from_fd_and_close(int fd, [[maybe_unused]] StringView path, Mode mode)
 {
     ScopeGuard fd_close_guard = [fd] {
-        ::close(fd);
+        (void)System::close(fd);
     };
 
     auto stat = TRY(Core::System::fstat(fd));
