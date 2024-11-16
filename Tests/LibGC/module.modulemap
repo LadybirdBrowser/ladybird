@@ -1,0 +1,6 @@
+module GCTesting {
+    header "TestHeap.h"
+    header "TestInterop.h"
+    requires cplusplus
+    export *
+}
