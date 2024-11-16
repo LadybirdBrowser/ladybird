@@ -2195,6 +2195,18 @@ ErrorOr<String> Node::name_or_description(NameOrDescription target, Document con
     if (is_element()) {
         auto const* element = static_cast<DOM::Element const*>(this);
         auto role = element->role_or_default();
+        bool is_referenced = false;
+        auto id = element->id();
+        if (id.has_value()) {
+            this->root().for_each_in_inclusive_subtree_of_type<HTML::HTMLElement>([&](auto& element) {
+                auto aria_data = MUST(Web::ARIA::AriaData::build_data(element));
+                if (aria_data->aria_labelled_by_or_default().contains_slow(id.value())) {
+                    is_referenced = true;
+                    return TraversalDecision::Break;
+                }
+                return TraversalDecision::Continue;
+            });
+        }
         // 2. Compute the text alternative for the current node:
         // A. If the current node is hidden and is not directly referenced by aria-labelledby or aria-describedby, nor directly referenced by a native host language text alternative element (e.g. label in HTML) or attribute, return the empty string.
         // FIXME: Check for references
@@ -2224,7 +2236,13 @@ ErrorOr<String> Node::name_or_description(NameOrDescription target, Document con
                 auto node = document.get_element_by_id(MUST(FlyString::from_utf8(id_ref)));
                 if (!node)
                     continue;
-
+                // AD-HOC: The “For each IDREF” substep in the spec doesn’t seem to explicitly require the following
+                // check for an aria-label value; but the “div group explicitly labelledby self and heading” subtest at
+                // https://wpt.fyi/results/accname/name/comp_labelledby.html won’t pass unless we do this check.
+                if (target == NameOrDescription::Name && node->aria_label().has_value() && !node->aria_label()->is_empty() && !node->aria_label()->bytes_as_string_view().is_whitespace()) {
+                    total_accumulated_text.append(' ');
+                    total_accumulated_text.append(node->aria_label().value());
+                }
                 if (visited_nodes.contains(node->unique_id()))
                     continue;
                 // a. Set the current node to the node referenced by the IDREF.
@@ -2333,7 +2351,7 @@ ErrorOr<String> Node::name_or_description(NameOrDescription target, Document con
         }
 
         // F. Otherwise, if the current node's role allows name from content, or if the current node is referenced by aria-labelledby, aria-describedby, or is a native host language text alternative element (e.g. label in HTML), or is a descendant of a native host language text alternative element:
-        if ((role.has_value() && ARIA::allows_name_from_content(role.value())) || is_descendant == IsDescendant::Yes) {
+        if ((role.has_value() && ARIA::allows_name_from_content(role.value())) || is_referenced || is_descendant == IsDescendant::Yes) {
             // i. Set the accumulated text to the empty string.
             total_accumulated_text.clear();
             // ii. Name From Generated Content: Check for CSS generated textual content associated with the current node and include

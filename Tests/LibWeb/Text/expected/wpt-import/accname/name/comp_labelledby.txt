@@ -1,0 +1,13 @@
+Summary
+
+Harness status: OK
+
+Rerun
+
+Found 3 tests
+
+3 Pass
+Details
+Result	Test Name	MessagePass	div group explicitly labelledby heading	
+Pass	div group explicitly labelledby self and heading	
+Pass	nav with verified spaces appended between each of IDREFS	
