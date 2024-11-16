@@ -6,11 +6,10 @@ Rerun
 
 Found 24 tests
 
-23 Pass
-1 Fail
+24 Pass
 Details
 Result	Test Name	MessagePass	ReadableStream with byte source: read({ min }) rejects if min is 0	
-Fail	ReadableStream with byte source: read({ min }) rejects if min is negative	
+Pass	ReadableStream with byte source: read({ min }) rejects if min is negative	
 Pass	ReadableStream with byte source: read({ min }) rejects if min is larger than view's length (Uint8Array)	
 Pass	ReadableStream with byte source: read({ min }) rejects if min is larger than view's length (Uint16Array)	
 Pass	ReadableStream with byte source: read({ min }) rejects if min is larger than view's length (DataView)	
