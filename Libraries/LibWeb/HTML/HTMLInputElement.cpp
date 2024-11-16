@@ -637,6 +637,7 @@ void HTMLInputElement::commit_pending_changes()
     case TypeAttributeState::Telephone:
     case TypeAttributeState::Text:
     case TypeAttributeState::URL:
+    case TypeAttributeState::Checkbox:
         if (!m_has_uncommitted_changes)
             return;
         break;
