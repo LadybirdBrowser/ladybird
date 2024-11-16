@@ -158,26 +158,6 @@ ErrorOr<pid_t> Process::spawn(StringView path, ReadonlySpan<StringView> argument
     return process.pid();
 }
 
-ErrorOr<pid_t> Process::spawn(StringView path, ReadonlySpan<char const*> arguments, ByteString working_directory, KeepAsChild keep_as_child)
-{
-    Vector<ByteString> backing_strings;
-    backing_strings.ensure_capacity(arguments.size());
-    for (auto const& argument : arguments)
-        backing_strings.append(argument);
-
-    auto process = TRY(spawn({
-        .executable = path,
-        .arguments = backing_strings,
-        .working_directory = working_directory.is_empty() ? Optional<ByteString> {} : Optional<ByteString> { working_directory },
-    }));
-
-    if (keep_as_child == KeepAsChild::No)
-        TRY(process.disown());
-    else
-        process.m_should_disown = false;
-    return process.pid();
-}
-
 ErrorOr<String> Process::get_name()
 {
 #if defined(AK_OS_SERENITY)
