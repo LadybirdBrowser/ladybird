@@ -599,20 +599,20 @@ class ExpectationError extends Error {
             return;
         }
 
-        const now = () => Temporal.Now.instant().epochNanoseconds;
-        const start = now();
-        const time_us = () => Number(BigInt.asIntN(53, (now() - start) / 1000n));
+        const start = Date.now();
+        const time_ms = () => Date.now() - start;
+
         try {
             callback();
             suite[message] = {
                 result: "pass",
-                duration: time_us(),
+                duration: time_ms(),
             };
         } catch (e) {
             suite[message] = {
                 result: "fail",
                 details: String(e),
-                duration: time_us(),
+                duration: time_ms(),
             };
         }
     };
@@ -652,20 +652,20 @@ class ExpectationError extends Error {
             return;
         }
 
-        const now = () => Temporal.Now.instant().epochNanoseconds;
-        const start = now();
-        const time_us = () => Number(BigInt.asIntN(53, (now() - start) / 1000n));
+        const start = Date.now();
+        const time_ms = () => Date.now() - start;
+
         try {
             callback();
             suite[message] = {
                 result: "fail",
                 details: "Expected test to fail, but it passed",
-                duration: time_us(),
+                duration: time_ms(),
             };
         } catch (e) {
             suite[message] = {
                 result: "xfail",
-                duration: time_us(),
+                duration: time_ms(),
             };
         }
     };
@@ -677,21 +677,21 @@ class ExpectationError extends Error {
     withinSameSecond = callback => {
         let callbackDuration;
         for (let tries = 0; tries < 5; tries++) {
-            const start = Temporal.Now.instant();
+            const start = Date.now();
             const result = callback();
-            const end = Temporal.Now.instant();
-            if (start.epochSeconds !== end.epochSeconds) {
-                callbackDuration = start.until(end);
+            const end = Date.now();
+
+            if (start / 1000 != end / 1000) {
+                callbackDuration = end - start;
                 continue;
             }
+
             return result;
         }
         throw new ExpectationError(
             `Tried to execute callback '${callback}' 5 times within the same second but ` +
                 `failed. Make sure the callback does as little work as possible (the last run ` +
-                `took ${callbackDuration.total(
-                    "milliseconds"
-                )} ms) and the machine is not overloaded. If you see this ` +
+                `took ${callbackDuration}ms) and the machine is not overloaded. If you see this ` +
                 `error appearing in the CI it is most likely a flaky failure!`
         );
     };
