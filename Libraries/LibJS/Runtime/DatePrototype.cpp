@@ -21,7 +21,6 @@
 #include <LibJS/Runtime/GlobalObject.h>
 #include <LibJS/Runtime/Intl/DateTimeFormat.h>
 #include <LibJS/Runtime/Intl/DateTimeFormatConstructor.h>
-#include <LibJS/Runtime/Temporal/Instant.h>
 #include <LibJS/Runtime/Value.h>
 #include <LibJS/Runtime/ValueInlines.h>
 #include <LibUnicode/DisplayNames.h>
@@ -82,7 +81,6 @@ void DatePrototype::initialize(Realm& realm)
     define_native_function(realm, vm.names.toLocaleString, to_locale_string, 0, attr);
     define_native_function(realm, vm.names.toLocaleTimeString, to_locale_time_string, 0, attr);
     define_native_function(realm, vm.names.toString, to_string, 0, attr);
-    define_native_function(realm, vm.names.toTemporalInstant, to_temporal_instant, 0, attr);
     define_native_function(realm, vm.names.toTimeString, to_time_string, 0, attr);
     define_native_function(realm, vm.names.toUTCString, to_utc_string, 0, attr);
 
@@ -1177,20 +1175,6 @@ ByteString to_date_string(double time)
 
     // 3. Return the string-concatenation of DateString(t), the code unit 0x0020 (SPACE), TimeString(t), and TimeZoneString(tv).
     return ByteString::formatted("{} {}{}", date_string(time), time_string(time), time_zone_string(time));
-}
-
-// 14.1.1 Date.prototype.toTemporalInstant ( ), https://tc39.es/proposal-temporal/#sec-date.prototype.totemporalinstant
-JS_DEFINE_NATIVE_FUNCTION(DatePrototype::to_temporal_instant)
-{
-    // 1. Let t be ? thisTimeValue(this value).
-    auto t = TRY(this_time_value(vm, vm.this_value()));
-
-    // 2. Let ns be ? NumberToBigInt(t) × ℤ(10^6).
-    auto* ns = TRY(number_to_bigint(vm, Value(t)));
-    ns = BigInt::create(vm, ns->big_integer().multiplied_by(Crypto::UnsignedBigInteger { 1'000'000 }));
-
-    // 3. Return ! CreateTemporalInstant(ns).
-    return MUST(Temporal::create_temporal_instant(vm, *ns));
 }
 
 // 21.4.4.42 Date.prototype.toTimeString ( ), https://tc39.es/ecma262/#sec-date.prototype.totimestring
