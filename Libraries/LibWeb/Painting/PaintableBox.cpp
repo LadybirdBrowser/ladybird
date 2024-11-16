@@ -1177,6 +1177,10 @@ void PaintableBox::resolve_paint_properties()
     if (background_layers) {
         m_resolved_background = resolve_background_layers(*background_layers, *this, background_color, background_rect, normalized_border_radii_data());
     };
+
+    if (auto mask_image = computed_values.mask_image()) {
+        mask_image->resolve_for_size(layout_node_with_style_and_box_metrics(), absolute_padding_box_rect().size());
+    }
 }
 
 void PaintableWithLines::resolve_paint_properties()

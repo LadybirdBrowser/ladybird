@@ -329,6 +329,15 @@ void StackingContext::paint(PaintContext& context) const
     }
     context.display_list_recorder().push_stacking_context(push_stacking_context_params);
 
+    if (auto mask_image = computed_values.mask_image()) {
+        auto mask_display_list = DisplayList::create();
+        DisplayListRecorder display_list_recorder(*mask_display_list);
+        auto mask_painting_context = context.clone(display_list_recorder);
+        auto mask_rect_in_device_pixels = context.enclosing_device_rect(paintable_box().absolute_padding_box_rect());
+        mask_image->paint(mask_painting_context, { {}, mask_rect_in_device_pixels.size() }, CSS::ImageRendering::Auto);
+        context.display_list_recorder().add_mask(mask_display_list, mask_rect_in_device_pixels.to_type<int>());
+    }
+
     if (auto masking_area = paintable_box().get_masking_area(); masking_area.has_value()) {
         if (masking_area->is_empty())
             return;

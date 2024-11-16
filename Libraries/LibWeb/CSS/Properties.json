@@ -95,6 +95,9 @@
   "-webkit-mask": {
     "legacy-alias-for": "mask"
   },
+  "-webkit-mask-image": {
+    "legacy-alias-for": "mask-image"
+  },
   "-webkit-order": {
     "legacy-alias-for": "order"
   },
@@ -1856,6 +1859,18 @@
     "__comment": "FIXME: This should be a <mask-reference> and/or <mask-layer>#",
     "valid-types": [
       "url"
+    ],
+    "initial": "none"
+  },
+  "mask-image": {
+    "animation-type": "discrete",
+    "inherited": false,
+    "affects-layout": false,
+    "valid-types": [
+      "image"
+    ],
+    "valid-identifiers": [
+      "none"
     ],
     "initial": "none"
   },

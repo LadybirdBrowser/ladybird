@@ -486,6 +486,7 @@ public:
     Color stop_color() const { return m_noninherited.stop_color; }
     float stop_opacity() const { return m_noninherited.stop_opacity; }
     CSS::TextAnchor text_anchor() const { return m_inherited.text_anchor; }
+    RefPtr<AbstractImageStyleValue const> mask_image() const { return m_noninherited.mask_image; }
     Optional<MaskReference> const& mask() const { return m_noninherited.mask; }
     CSS::MaskType mask_type() const { return m_noninherited.mask_type; }
     Optional<ClipPathReference> const& clip_path() const { return m_noninherited.clip_path; }
@@ -681,6 +682,7 @@ protected:
         Optional<MaskReference> mask;
         CSS::MaskType mask_type { InitialValues::mask_type() };
         Optional<ClipPathReference> clip_path;
+        RefPtr<CSS::AbstractImageStyleValue> mask_image;
 
         LengthPercentage cx { InitialValues::cx() };
         LengthPercentage cy { InitialValues::cy() };
@@ -838,6 +840,7 @@ public:
     void set_outline_width(CSS::Length value) { m_noninherited.outline_width = value; }
     void set_mask(MaskReference value) { m_noninherited.mask = value; }
     void set_mask_type(CSS::MaskType value) { m_noninherited.mask_type = value; }
+    void set_mask_image(CSS::AbstractImageStyleValue const& value) { m_noninherited.mask_image = value; }
     void set_clip_path(ClipPathReference value) { m_noninherited.clip_path = value; }
     void set_clip_rule(CSS::ClipRule value) { m_inherited.clip_rule = value; }
 
