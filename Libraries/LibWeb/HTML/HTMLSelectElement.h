@@ -97,6 +97,8 @@ public:
     void update_selectedness();
 
 private:
+    friend class HTMLOptionElement;
+
     HTMLSelectElement(DOM::Document&, DOM::QualifiedName);
 
     virtual void initialize(JS::Realm&) override;
