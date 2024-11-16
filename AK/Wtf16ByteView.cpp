@@ -8,8 +8,8 @@
 #include <AK/Concepts.h>
 #include <AK/StringBuilder.h>
 #include <AK/StringView.h>
-#include <AK/Utf16View.h>
 #include <AK/Utf32View.h>
+#include <AK/Wtf16ByteView.h>
 #include <AK/Wtf8ByteView.h>
 
 #include <simdutf.h>
@@ -134,17 +134,17 @@ size_t utf16_code_unit_length_from_utf8(StringView string)
     return simdutf::utf16_length_from_utf8(string.characters_without_null_termination(), string.length());
 }
 
-bool Utf16View::is_high_surrogate(u16 code_unit)
+bool Wtf16ByteView::is_high_surrogate(u16 code_unit)
 {
     return (code_unit >= high_surrogate_min) && (code_unit <= high_surrogate_max);
 }
 
-bool Utf16View::is_low_surrogate(u16 code_unit)
+bool Wtf16ByteView::is_low_surrogate(u16 code_unit)
 {
     return (code_unit >= low_surrogate_min) && (code_unit <= low_surrogate_max);
 }
 
-u32 Utf16View::decode_surrogate_pair(u16 high_surrogate, u16 low_surrogate)
+u32 Wtf16ByteView::decode_surrogate_pair(u16 high_surrogate, u16 low_surrogate)
 {
     VERIFY(is_high_surrogate(high_surrogate));
     VERIFY(is_low_surrogate(low_surrogate));
@@ -152,12 +152,12 @@ u32 Utf16View::decode_surrogate_pair(u16 high_surrogate, u16 low_surrogate)
     return ((high_surrogate - high_surrogate_min) << 10) + (low_surrogate - low_surrogate_min) + first_supplementary_plane_code_point;
 }
 
-ErrorOr<ByteString> Utf16View::to_byte_string(AllowInvalidCodeUnits allow_invalid_code_units) const
+ErrorOr<ByteString> Wtf16ByteView::to_byte_string(AllowInvalidCodeUnits allow_invalid_code_units) const
 {
     return TRY(to_utf8(allow_invalid_code_units)).to_byte_string();
 }
 
-ErrorOr<String> Utf16View::to_utf8(AllowInvalidCodeUnits allow_invalid_code_units) const
+ErrorOr<String> Wtf16ByteView::to_utf8(AllowInvalidCodeUnits allow_invalid_code_units) const
 {
     if (allow_invalid_code_units == AllowInvalidCodeUnits::No)
         return String::from_utf16(*this);
@@ -175,20 +175,20 @@ ErrorOr<String> Utf16View::to_utf8(AllowInvalidCodeUnits allow_invalid_code_unit
     return builder.to_string_without_validation();
 }
 
-size_t Utf16View::length_in_code_points() const
+size_t Wtf16ByteView::length_in_code_points() const
 {
     if (!m_length_in_code_points.has_value())
         m_length_in_code_points = calculate_length_in_code_points();
     return *m_length_in_code_points;
 }
 
-u16 Utf16View::code_unit_at(size_t index) const
+u16 Wtf16ByteView::code_unit_at(size_t index) const
 {
     VERIFY(index < length_in_code_units());
     return host_code_unit(m_code_units[index], m_endianness);
 }
 
-u32 Utf16View::code_point_at(size_t index) const
+u32 Wtf16ByteView::code_point_at(size_t index) const
 {
     VERIFY(index < length_in_code_units());
 
@@ -205,7 +205,7 @@ u32 Utf16View::code_point_at(size_t index) const
     return decode_surrogate_pair(code_point, second);
 }
 
-size_t Utf16View::code_point_offset_of(size_t code_unit_offset) const
+size_t Wtf16ByteView::code_point_offset_of(size_t code_unit_offset) const
 {
     size_t code_point_offset = 0;
 
@@ -220,7 +220,7 @@ size_t Utf16View::code_point_offset_of(size_t code_unit_offset) const
     return code_point_offset;
 }
 
-size_t Utf16View::code_unit_offset_of(size_t code_point_offset) const
+size_t Wtf16ByteView::code_unit_offset_of(size_t code_point_offset) const
 {
     size_t code_unit_offset = 0;
 
@@ -235,7 +235,7 @@ size_t Utf16View::code_unit_offset_of(size_t code_point_offset) const
     return code_unit_offset;
 }
 
-size_t Utf16View::code_unit_offset_of(Utf16CodePointIterator const& it) const
+size_t Wtf16ByteView::code_unit_offset_of(Utf16CodePointIterator const& it) const
 {
     VERIFY(it.m_ptr >= begin_ptr());
     VERIFY(it.m_ptr <= end_ptr());
@@ -243,15 +243,15 @@ size_t Utf16View::code_unit_offset_of(Utf16CodePointIterator const& it) const
     return it.m_ptr - begin_ptr();
 }
 
-Utf16View Utf16View::substring_view(size_t code_unit_offset, size_t code_unit_length) const
+Wtf16ByteView Wtf16ByteView::substring_view(size_t code_unit_offset, size_t code_unit_length) const
 {
     VERIFY(!Checked<size_t>::addition_would_overflow(code_unit_offset, code_unit_length));
     VERIFY(code_unit_offset + code_unit_length <= length_in_code_units());
 
-    return Utf16View { m_code_units.slice(code_unit_offset, code_unit_length) };
+    return Wtf16ByteView { m_code_units.slice(code_unit_offset, code_unit_length) };
 }
 
-Utf16View Utf16View::unicode_substring_view(size_t code_point_offset, size_t code_point_length) const
+Wtf16ByteView Wtf16ByteView::unicode_substring_view(size_t code_point_offset, size_t code_point_length) const
 {
     if (code_point_length == 0)
         return {};
@@ -275,7 +275,7 @@ Utf16View Utf16View::unicode_substring_view(size_t code_point_offset, size_t cod
     VERIFY_NOT_REACHED();
 }
 
-bool Utf16View::starts_with(Utf16View const& needle) const
+bool Wtf16ByteView::starts_with(Wtf16ByteView const& needle) const
 {
     if (needle.is_empty())
         return true;
@@ -294,7 +294,7 @@ bool Utf16View::starts_with(Utf16View const& needle) const
     return true;
 }
 
-bool Utf16View::validate() const
+bool Wtf16ByteView::validate() const
 {
     switch (m_endianness) {
     case Endianness::Host:
@@ -307,7 +307,7 @@ bool Utf16View::validate() const
     VERIFY_NOT_REACHED();
 }
 
-bool Utf16View::validate(size_t& valid_code_units) const
+bool Wtf16ByteView::validate(size_t& valid_code_units) const
 {
     auto result = [&]() {
         switch (m_endianness) {
@@ -325,10 +325,10 @@ bool Utf16View::validate(size_t& valid_code_units) const
     return result.error == simdutf::SUCCESS;
 }
 
-size_t Utf16View::calculate_length_in_code_points() const
+size_t Wtf16ByteView::calculate_length_in_code_points() const
 {
-    // FIXME: simdutf's code point length method assumes valid UTF-16, whereas Utf16View uses U+FFFD as a replacement
-    //        for invalid code points. If we change Utf16View to only accept valid encodings as an invariant, we can
+    // FIXME: simdutf's code point length method assumes valid UTF-16, whereas Wtf16ByteView uses U+FFFD as a replacement
+    //        for invalid code points. If we change Wtf16ByteView to only accept valid encodings as an invariant, we can
     //        remove this branch.
     if (validate()) [[likely]] {
         switch (m_endianness) {
@@ -347,7 +347,7 @@ size_t Utf16View::calculate_length_in_code_points() const
     return code_points;
 }
 
-bool Utf16View::equals_ignoring_case(Utf16View const& other) const
+bool Wtf16ByteView::equals_ignoring_case(Wtf16ByteView const& other) const
 {
     if (length_in_code_units() == 0)
         return other.length_in_code_units() == 0;
@@ -399,18 +399,18 @@ u32 Utf16CodePointIterator::operator*() const
 
     auto code_unit = host_code_unit(*m_ptr, m_endianness);
 
-    if (Utf16View::is_high_surrogate(code_unit)) {
+    if (Wtf16ByteView::is_high_surrogate(code_unit)) {
         if (m_remaining_code_units > 1) {
             auto next_code_unit = host_code_unit(*(m_ptr + 1), m_endianness);
 
-            if (Utf16View::is_low_surrogate(next_code_unit))
-                return Utf16View::decode_surrogate_pair(code_unit, next_code_unit);
+            if (Wtf16ByteView::is_low_surrogate(next_code_unit))
+                return Wtf16ByteView::decode_surrogate_pair(code_unit, next_code_unit);
         }
 
         return replacement_code_point;
     }
 
-    if (Utf16View::is_low_surrogate(code_unit))
+    if (Wtf16ByteView::is_low_surrogate(code_unit))
         return replacement_code_point;
 
     return static_cast<u32>(code_unit);

@@ -10,12 +10,12 @@
 #include <AK/String.h>
 #include <AK/StringView.h>
 #include <AK/Types.h>
-#include <AK/Utf16View.h>
+#include <AK/Wtf16ByteView.h>
 
 TEST_CASE(decode_ascii)
 {
     auto string = MUST(AK::utf8_to_utf16("Hello World!11"sv));
-    Utf16View view { string };
+    Wtf16ByteView view { string };
 
     size_t valid_code_units = 0;
     EXPECT(view.validate(valid_code_units));
@@ -34,7 +34,7 @@ TEST_CASE(decode_ascii)
 TEST_CASE(decode_utf8)
 {
     auto string = MUST(AK::utf8_to_utf16("Привет, мир! 😀 γειά σου κόσμος こんにちは世界"sv));
-    Utf16View view { string };
+    Wtf16ByteView view { string };
 
     size_t valid_code_units = 0;
     EXPECT(view.validate(valid_code_units));
@@ -55,15 +55,15 @@ TEST_CASE(encode_utf8)
     {
         auto utf8_string = "Привет, мир! 😀 γειά σου κόσμος こんにちは世界"_string;
         auto string = MUST(AK::utf8_to_utf16(utf8_string));
-        Utf16View view { string };
-        EXPECT_EQ(MUST(view.to_utf8(Utf16View::AllowInvalidCodeUnits::Yes)), utf8_string);
-        EXPECT_EQ(MUST(view.to_utf8(Utf16View::AllowInvalidCodeUnits::No)), utf8_string);
+        Wtf16ByteView view { string };
+        EXPECT_EQ(MUST(view.to_utf8(Wtf16ByteView::AllowInvalidCodeUnits::Yes)), utf8_string);
+        EXPECT_EQ(MUST(view.to_utf8(Wtf16ByteView::AllowInvalidCodeUnits::No)), utf8_string);
     }
     {
         auto encoded = Array { (u16)0xd83d };
-        Utf16View view { encoded };
-        EXPECT_EQ(MUST(view.to_utf8(Utf16View::AllowInvalidCodeUnits::Yes)), "\xed\xa0\xbd"sv);
-        EXPECT(view.to_utf8(Utf16View::AllowInvalidCodeUnits::No).is_error());
+        Wtf16ByteView view { encoded };
+        EXPECT_EQ(MUST(view.to_utf8(Wtf16ByteView::AllowInvalidCodeUnits::Yes)), "\xed\xa0\xbd"sv);
+        EXPECT(view.to_utf8(Wtf16ByteView::AllowInvalidCodeUnits::No).is_error());
     }
 }
 
@@ -72,7 +72,7 @@ TEST_CASE(decode_utf16)
     // Same string as the decode_utf8 test.
     auto encoded = Array { (u16)0x041f, 0x0440, 0x0438, 0x0432, 0x0435, 0x0442, 0x002c, 0x0020, 0x043c, 0x0438, 0x0440, 0x0021, 0x0020, 0xd83d, 0xde00, 0x0020, 0x03b3, 0x03b5, 0x03b9, 0x03ac, 0x0020, 0x03c3, 0x03bf, 0x03c5, 0x0020, 0x03ba, 0x03cc, 0x03c3, 0x03bc, 0x03bf, 0x03c2, 0x0020, 0x3053, 0x3093, 0x306b, 0x3061, 0x306f, 0x4e16, 0x754c };
 
-    Utf16View view { encoded };
+    Wtf16ByteView view { encoded };
     EXPECT_EQ(encoded.size(), view.length_in_code_units());
 
     size_t valid_code_units = 0;
@@ -99,12 +99,12 @@ TEST_CASE(utf16_code_unit_length_from_utf8)
 
 TEST_CASE(null_view)
 {
-    Utf16View view;
+    Wtf16ByteView view;
     EXPECT(view.validate());
     EXPECT_EQ(view.length_in_code_units(), 0zu);
     EXPECT_EQ(view.length_in_code_points(), 0zu);
-    EXPECT_EQ(MUST(view.to_utf8(Utf16View::AllowInvalidCodeUnits::No)), ""sv);
-    EXPECT_EQ(MUST(view.to_utf8(Utf16View::AllowInvalidCodeUnits::Yes)), ""sv);
+    EXPECT_EQ(MUST(view.to_utf8(Wtf16ByteView::AllowInvalidCodeUnits::No)), ""sv);
+    EXPECT_EQ(MUST(view.to_utf8(Wtf16ByteView::AllowInvalidCodeUnits::Yes)), ""sv);
 
     for ([[maybe_unused]] auto it : view)
         FAIL("Iterating a null UTF-16 string should not produce any values");
@@ -113,18 +113,18 @@ TEST_CASE(null_view)
 TEST_CASE(utf16_literal)
 {
     {
-        Utf16View view { u"" };
+        Wtf16ByteView view { u"" };
         EXPECT(view.validate());
         EXPECT_EQ(view.length_in_code_units(), 0u);
     }
     {
-        Utf16View view { u"a" };
+        Wtf16ByteView view { u"a" };
         EXPECT(view.validate());
         EXPECT_EQ(view.length_in_code_units(), 1u);
         EXPECT_EQ(view.code_unit_at(0), 0x61u);
     }
     {
-        Utf16View view { u"abc" };
+        Wtf16ByteView view { u"abc" };
         EXPECT(view.validate());
         EXPECT_EQ(view.length_in_code_units(), 3u);
         EXPECT_EQ(view.code_unit_at(0), 0x61u);
@@ -132,7 +132,7 @@ TEST_CASE(utf16_literal)
         EXPECT_EQ(view.code_unit_at(2), 0x63u);
     }
     {
-        Utf16View view { u"🙃" };
+        Wtf16ByteView view { u"🙃" };
         EXPECT(view.validate());
         EXPECT_EQ(view.length_in_code_units(), 2u);
         EXPECT_EQ(view.code_unit_at(0), 0xd83du);
@@ -143,7 +143,7 @@ TEST_CASE(utf16_literal)
 TEST_CASE(iterate_utf16)
 {
     auto string = MUST(AK::utf8_to_utf16("Привет 😀"sv));
-    Utf16View view { string };
+    Wtf16ByteView view { string };
     auto iterator = view.begin();
 
     EXPECT(*iterator == 1055);
@@ -195,51 +195,51 @@ TEST_CASE(validate_invalid_utf16)
     {
         // Lonely high surrogate.
         auto invalid = Array { (u16)0xd800 };
-        EXPECT(!Utf16View(invalid).validate(valid_code_units));
+        EXPECT(!Wtf16ByteView(invalid).validate(valid_code_units));
         EXPECT(valid_code_units == 0);
 
         invalid = Array { (u16)0xdbff };
-        EXPECT(!Utf16View(invalid).validate(valid_code_units));
+        EXPECT(!Wtf16ByteView(invalid).validate(valid_code_units));
         EXPECT(valid_code_units == 0);
     }
     {
         // Lonely low surrogate.
         auto invalid = Array { (u16)0xdc00 };
-        EXPECT(!Utf16View(invalid).validate(valid_code_units));
+        EXPECT(!Wtf16ByteView(invalid).validate(valid_code_units));
         EXPECT(valid_code_units == 0);
 
         invalid = Array { (u16)0xdfff };
-        EXPECT(!Utf16View(invalid).validate(valid_code_units));
+        EXPECT(!Wtf16ByteView(invalid).validate(valid_code_units));
         EXPECT(valid_code_units == 0);
     }
     {
         // High surrogate followed by non-surrogate.
         auto invalid = Array { (u16)0xd800, 0 };
-        EXPECT(!Utf16View(invalid).validate(valid_code_units));
+        EXPECT(!Wtf16ByteView(invalid).validate(valid_code_units));
         EXPECT(valid_code_units == 0);
 
         invalid = Array { (u16)0xd800, 0xe000 };
-        EXPECT(!Utf16View(invalid).validate(valid_code_units));
+        EXPECT(!Wtf16ByteView(invalid).validate(valid_code_units));
         EXPECT(valid_code_units == 0);
     }
     {
         // High surrogate followed by high surrogate.
         auto invalid = Array { (u16)0xd800, 0xd800 };
-        EXPECT(!Utf16View(invalid).validate(valid_code_units));
+        EXPECT(!Wtf16ByteView(invalid).validate(valid_code_units));
         EXPECT(valid_code_units == 0);
 
         invalid = Array { (u16)0xd800, 0xdbff };
-        EXPECT(!Utf16View(invalid).validate(valid_code_units));
+        EXPECT(!Wtf16ByteView(invalid).validate(valid_code_units));
         EXPECT(valid_code_units == 0);
     }
     {
         // Valid UTF-16 followed by invalid code units.
         auto invalid = Array { (u16)0x41, 0x41, 0xd800 };
-        EXPECT(!Utf16View(invalid).validate(valid_code_units));
+        EXPECT(!Wtf16ByteView(invalid).validate(valid_code_units));
         EXPECT(valid_code_units == 2);
 
         invalid = Array { (u16)0x41, 0x41, 0xd800 };
-        EXPECT(!Utf16View(invalid).validate(valid_code_units));
+        EXPECT(!Wtf16ByteView(invalid).validate(valid_code_units));
         EXPECT(valid_code_units == 2);
     }
 }
@@ -250,7 +250,7 @@ TEST_CASE(decode_invalid_utf16)
         // Lonely high surrogate.
         auto invalid = Array { (u16)0x41, 0x42, 0xd800 };
 
-        Utf16View view { invalid };
+        Wtf16ByteView view { invalid };
         EXPECT_EQ(invalid.size(), view.length_in_code_units());
 
         auto expected = Array { (u32)0x41, 0x42, 0xfffd };
@@ -266,7 +266,7 @@ TEST_CASE(decode_invalid_utf16)
         // Lonely low surrogate.
         auto invalid = Array { (u16)0x41, 0x42, 0xdc00 };
 
-        Utf16View view { invalid };
+        Wtf16ByteView view { invalid };
         EXPECT_EQ(invalid.size(), view.length_in_code_units());
 
         auto expected = Array { (u32)0x41, 0x42, 0xfffd };
@@ -282,7 +282,7 @@ TEST_CASE(decode_invalid_utf16)
         // High surrogate followed by non-surrogate.
         auto invalid = Array { (u16)0x41, 0x42, 0xd800, 0 };
 
-        Utf16View view { invalid };
+        Wtf16ByteView view { invalid };
         EXPECT_EQ(invalid.size(), view.length_in_code_units());
 
         auto expected = Array { (u32)0x41, 0x42, 0xfffd, 0 };
@@ -298,7 +298,7 @@ TEST_CASE(decode_invalid_utf16)
         // High surrogate followed by high surrogate.
         auto invalid = Array { (u16)0x41, 0x42, 0xd800, 0xd800 };
 
-        Utf16View view { invalid };
+        Wtf16ByteView view { invalid };
         EXPECT_EQ(invalid.size(), view.length_in_code_units());
 
         auto expected = Array { (u32)0x41, 0x42, 0xfffd, 0xfffd };
@@ -316,40 +316,40 @@ TEST_CASE(substring_view)
 {
     auto string = MUST(AK::utf8_to_utf16("Привет 😀"sv));
     {
-        Utf16View view { string };
+        Wtf16ByteView view { string };
         view = view.substring_view(7, 2);
 
         EXPECT(view.length_in_code_units() == 2);
         EXPECT_EQ(MUST(view.to_utf8()), "😀"sv);
     }
     {
-        Utf16View view { string };
+        Wtf16ByteView view { string };
         view = view.substring_view(7, 1);
 
         EXPECT(view.length_in_code_units() == 1);
-        EXPECT_EQ(MUST(view.to_utf8(Utf16View::AllowInvalidCodeUnits::Yes)), "\xed\xa0\xbd"sv);
-        EXPECT(view.to_utf8(Utf16View::AllowInvalidCodeUnits::No).is_error());
+        EXPECT_EQ(MUST(view.to_utf8(Wtf16ByteView::AllowInvalidCodeUnits::Yes)), "\xed\xa0\xbd"sv);
+        EXPECT(view.to_utf8(Wtf16ByteView::AllowInvalidCodeUnits::No).is_error());
     }
 }
 
 TEST_CASE(starts_with)
 {
-    EXPECT(Utf16View {}.starts_with(u""));
-    EXPECT(!Utf16View {}.starts_with(u" "));
+    EXPECT(Wtf16ByteView {}.starts_with(u""));
+    EXPECT(!Wtf16ByteView {}.starts_with(u" "));
 
-    EXPECT(Utf16View { u"a" }.starts_with(u""));
-    EXPECT(Utf16View { u"a" }.starts_with(u"a"));
-    EXPECT(!Utf16View { u"a" }.starts_with(u"b"));
-    EXPECT(!Utf16View { u"a" }.starts_with(u"ab"));
+    EXPECT(Wtf16ByteView { u"a" }.starts_with(u""));
+    EXPECT(Wtf16ByteView { u"a" }.starts_with(u"a"));
+    EXPECT(!Wtf16ByteView { u"a" }.starts_with(u"b"));
+    EXPECT(!Wtf16ByteView { u"a" }.starts_with(u"ab"));
 
-    EXPECT(Utf16View { u"abc" }.starts_with(u""));
-    EXPECT(Utf16View { u"abc" }.starts_with(u"a"));
-    EXPECT(Utf16View { u"abc" }.starts_with(u"ab"));
-    EXPECT(Utf16View { u"abc" }.starts_with(u"abc"));
-    EXPECT(!Utf16View { u"abc" }.starts_with(u"b"));
-    EXPECT(!Utf16View { u"abc" }.starts_with(u"bc"));
+    EXPECT(Wtf16ByteView { u"abc" }.starts_with(u""));
+    EXPECT(Wtf16ByteView { u"abc" }.starts_with(u"a"));
+    EXPECT(Wtf16ByteView { u"abc" }.starts_with(u"ab"));
+    EXPECT(Wtf16ByteView { u"abc" }.starts_with(u"abc"));
+    EXPECT(!Wtf16ByteView { u"abc" }.starts_with(u"b"));
+    EXPECT(!Wtf16ByteView { u"abc" }.starts_with(u"bc"));
 
-    auto emoji = Utf16View { u"😀🙃" };
+    auto emoji = Wtf16ByteView { u"😀🙃" };
 
     EXPECT(emoji.starts_with(u""));
     EXPECT(emoji.starts_with(u"😀"));
@@ -361,7 +361,7 @@ TEST_CASE(starts_with)
 TEST_CASE(big_endian)
 {
     auto string = MUST(AK::utf8_to_utf16("säk😀"sv, AK::Endianness::Big));
-    Utf16View view { string, AK::Endianness::Big };
+    Wtf16ByteView view { string, AK::Endianness::Big };
     {
         EXPECT(view.validate());
         EXPECT_EQ(MUST(view.to_utf8()), "säk😀"sv);
@@ -395,7 +395,7 @@ TEST_CASE(big_endian)
 TEST_CASE(little_endian)
 {
     auto string = MUST(AK::utf8_to_utf16("säk😀"sv, AK::Endianness::Little));
-    Utf16View view { string, AK::Endianness::Little };
+    Wtf16ByteView view { string, AK::Endianness::Little };
     {
         EXPECT(view.validate());
         EXPECT_EQ(MUST(view.to_utf8()), "säk😀"sv);

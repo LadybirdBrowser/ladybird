@@ -9,7 +9,7 @@
 
 #include <AK/BinarySearch.h>
 #include <AK/StringBuilder.h>
-#include <AK/Utf16View.h>
+#include <AK/Wtf16ByteView.h>
 #include <AK/Wtf8ByteView.h>
 #include <LibTextCodec/Decoder.h>
 #include <LibTextCodec/LookupTables.h>
@@ -369,9 +369,9 @@ ErrorOr<String> UTF8Decoder::to_utf8(StringView input)
     return String::from_utf8_with_replacement_character(input);
 }
 
-static Utf16View as_utf16(StringView view, AK::Endianness endianness)
+static Wtf16ByteView as_utf16(StringView view, AK::Endianness endianness)
 {
-    return Utf16View {
+    return Wtf16ByteView {
         { reinterpret_cast<u16 const*>(view.bytes().data()), view.length() / 2 },
         endianness
     };

@@ -5,7 +5,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <AK/Utf16View.h>
+#include <AK/Wtf16ByteView.h>
 #include <LibJS/Runtime/Completion.h>
 #include <LibJS/Runtime/Utf16String.h>
 #include <LibWeb/Bindings/SVGTextPositioningElementPrototype.h>

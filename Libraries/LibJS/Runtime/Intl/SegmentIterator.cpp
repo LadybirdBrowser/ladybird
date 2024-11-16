@@ -13,7 +13,7 @@ namespace JS::Intl {
 GC_DEFINE_ALLOCATOR(SegmentIterator);
 
 // 18.6.1 CreateSegmentIterator ( segmenter, string ), https://tc39.es/ecma402/#sec-createsegmentsobject
-GC::Ref<SegmentIterator> SegmentIterator::create(Realm& realm, Unicode::Segmenter const& segmenter, Utf16View const& string, Segments const& segments)
+GC::Ref<SegmentIterator> SegmentIterator::create(Realm& realm, Unicode::Segmenter const& segmenter, Wtf16ByteView const& string, Segments const& segments)
 {
     // 1. Let internalSlotsList be « [[IteratingSegmenter]], [[IteratedString]], [[IteratedStringNextSegmentCodeUnitIndex]] ».
     // 2. Let iterator be OrdinaryObjectCreate(%SegmentIteratorPrototype%, internalSlotsList).
@@ -25,7 +25,7 @@ GC::Ref<SegmentIterator> SegmentIterator::create(Realm& realm, Unicode::Segmente
 }
 
 // 18.6 Segment Iterator Objects, https://tc39.es/ecma402/#sec-segment-iterator-objects
-SegmentIterator::SegmentIterator(Realm& realm, Unicode::Segmenter const& segmenter, Utf16View const& string, Segments const& segments)
+SegmentIterator::SegmentIterator(Realm& realm, Unicode::Segmenter const& segmenter, Wtf16ByteView const& string, Segments const& segments)
     : Object(ConstructWithPrototypeTag::Tag, realm.intrinsics().intl_segment_iterator_prototype())
     , m_iterating_segmenter(segmenter.clone())
     , m_iterated_string(string)

@@ -5,7 +5,7 @@
  */
 
 #include "JNIHelpers.h"
-#include <AK/Utf16View.h>
+#include <AK/Wtf16ByteView.h>
 
 namespace Ladybird {
 jstring JavaEnvironment::jstring_from_ak_string(String const& str)

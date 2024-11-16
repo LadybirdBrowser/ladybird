@@ -7,7 +7,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <AK/Utf16View.h>
+#include <AK/Wtf16ByteView.h>
 #include <LibWeb/Bindings/HTMLTextAreaElementPrototype.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/CSS/StyleProperties.h>

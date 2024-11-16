@@ -37,7 +37,7 @@ NonnullRefPtr<Utf16StringImpl> Utf16StringImpl::create(StringView string)
     return create(MUST(utf8_to_utf16(string)));
 }
 
-NonnullRefPtr<Utf16StringImpl> Utf16StringImpl::create(Utf16View const& view)
+NonnullRefPtr<Utf16StringImpl> Utf16StringImpl::create(Wtf16ByteView const& view)
 {
     Utf16Data string;
     string.ensure_capacity(view.length_in_code_units());
@@ -50,9 +50,9 @@ Utf16Data const& Utf16StringImpl::string() const
     return m_string;
 }
 
-Utf16View Utf16StringImpl::view() const
+Wtf16ByteView Utf16StringImpl::view() const
 {
-    return Utf16View { m_string };
+    return Wtf16ByteView { m_string };
 }
 
 u32 Utf16StringImpl::compute_hash() const
@@ -79,7 +79,7 @@ Utf16String Utf16String::create(StringView string)
     return Utf16String { Detail::Utf16StringImpl::create(string) };
 }
 
-Utf16String Utf16String::create(Utf16View const& string)
+Utf16String Utf16String::create(Wtf16ByteView const& string)
 {
     return Utf16String { Detail::Utf16StringImpl::create(string) };
 }
@@ -94,29 +94,29 @@ Utf16Data const& Utf16String::string() const
     return m_string->string();
 }
 
-Utf16View Utf16String::view() const
+Wtf16ByteView Utf16String::view() const
 {
     return m_string->view();
 }
 
-Utf16View Utf16String::substring_view(size_t code_unit_offset, size_t code_unit_length) const
+Wtf16ByteView Utf16String::substring_view(size_t code_unit_offset, size_t code_unit_length) const
 {
     return view().substring_view(code_unit_offset, code_unit_length);
 }
 
-Utf16View Utf16String::substring_view(size_t code_unit_offset) const
+Wtf16ByteView Utf16String::substring_view(size_t code_unit_offset) const
 {
     return view().substring_view(code_unit_offset);
 }
 
 String Utf16String::to_utf8() const
 {
-    return MUST(view().to_utf8(Utf16View::AllowInvalidCodeUnits::Yes));
+    return MUST(view().to_utf8(Wtf16ByteView::AllowInvalidCodeUnits::Yes));
 }
 
 ByteString Utf16String::to_byte_string() const
 {
-    return MUST(view().to_byte_string(Utf16View::AllowInvalidCodeUnits::Yes));
+    return MUST(view().to_byte_string(Wtf16ByteView::AllowInvalidCodeUnits::Yes));
 }
 
 u16 Utf16String::code_unit_at(size_t index) const

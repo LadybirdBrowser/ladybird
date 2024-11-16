@@ -34,7 +34,7 @@ public:
     virtual NonnullOwnPtr<Segmenter> clone() const = 0;
 
     virtual void set_segmented_text(String) = 0;
-    virtual void set_segmented_text(Utf16View const&) = 0;
+    virtual void set_segmented_text(Wtf16ByteView const&) = 0;
 
     virtual size_t current_boundary() = 0;
 
@@ -47,7 +47,7 @@ public:
 
     using SegmentationCallback = Function<IterationDecision(size_t)>;
     virtual void for_each_boundary(String, SegmentationCallback) = 0;
-    virtual void for_each_boundary(Utf16View const&, SegmentationCallback) = 0;
+    virtual void for_each_boundary(Wtf16ByteView const&, SegmentationCallback) = 0;
     virtual void for_each_boundary(Utf32View const&, SegmentationCallback) = 0;
 
     virtual bool is_current_boundary_word_like() const = 0;

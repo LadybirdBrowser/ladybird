@@ -12,7 +12,7 @@
 #include <AK/FlyString.h>
 #include <AK/GenericLexer.h>
 #include <AK/String.h>
-#include <AK/Utf16View.h>
+#include <AK/Wtf16ByteView.h>
 #include <AK/Wtf8ByteView.h>
 #include <LibWeb/Infra/CharacterTypes.h>
 #include <LibWeb/Infra/Strings.h>
@@ -88,10 +88,10 @@ bool is_code_unit_prefix(StringView potential_prefix, StringView input)
             return false;
 
         // 3. Let potentialPrefixCodeUnit be the ith code unit of potentialPrefix.
-        auto potential_prefix_code_unit = Utf16View(potential_prefix_utf16).code_unit_at(i);
+        auto potential_prefix_code_unit = Wtf16ByteView(potential_prefix_utf16).code_unit_at(i);
 
         // 4. Let inputCodeUnit be the ith code unit of input.
-        auto input_code_unit = Utf16View(input_utf16).code_unit_at(i);
+        auto input_code_unit = Wtf16ByteView(input_utf16).code_unit_at(i);
 
         // 5. Return false if potentialPrefixCodeUnit is not inputCodeUnit.
         if (potential_prefix_code_unit != input_code_unit)

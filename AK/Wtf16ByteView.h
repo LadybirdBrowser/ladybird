@@ -28,10 +28,10 @@ ErrorOr<void> code_point_to_utf16(Utf16Data&, u32, Endianness = Endianness::Host
 
 size_t utf16_code_unit_length_from_utf8(StringView);
 
-class Utf16View;
+class Wtf16ByteView;
 
 class Utf16CodePointIterator {
-    friend class Utf16View;
+    friend class Wtf16ByteView;
 
 public:
     Utf16CodePointIterator() = default;
@@ -60,7 +60,7 @@ private:
     Endianness m_endianness { Endianness::Host };
 };
 
-class Utf16View {
+class Wtf16ByteView {
 public:
     using Iterator = Utf16CodePointIterator;
 
@@ -68,17 +68,17 @@ public:
     static bool is_low_surrogate(u16);
     static u32 decode_surrogate_pair(u16 high_surrogate, u16 low_surrogate);
 
-    Utf16View() = default;
-    ~Utf16View() = default;
+    Wtf16ByteView() = default;
+    ~Wtf16ByteView() = default;
 
-    explicit Utf16View(ReadonlySpan<u16> code_units, Endianness endianness = Endianness::Host)
+    explicit Wtf16ByteView(ReadonlySpan<u16> code_units, Endianness endianness = Endianness::Host)
         : m_code_units(code_units)
         , m_endianness(endianness)
     {
     }
 
     template<size_t Size>
-    Utf16View(char16_t const (&code_units)[Size], Endianness endianness = Endianness::Host)
+    Wtf16ByteView(char16_t const (&code_units)[Size], Endianness endianness = Endianness::Host)
         : m_code_units(
               reinterpret_cast<u16 const*>(&code_units[0]),
               code_units[Size - 1] == u'\0' ? Size - 1 : Size)
@@ -86,7 +86,7 @@ public:
     {
     }
 
-    bool operator==(Utf16View const& other) const { return m_code_units == other.m_code_units; }
+    bool operator==(Wtf16ByteView const& other) const { return m_code_units == other.m_code_units; }
 
     enum class AllowInvalidCodeUnits {
         Yes,
@@ -118,18 +118,18 @@ public:
     size_t code_unit_offset_of(size_t code_point_offset) const;
     size_t code_unit_offset_of(Utf16CodePointIterator const&) const;
 
-    Utf16View substring_view(size_t code_unit_offset, size_t code_unit_length) const;
-    Utf16View substring_view(size_t code_unit_offset) const { return substring_view(code_unit_offset, length_in_code_units() - code_unit_offset); }
+    Wtf16ByteView substring_view(size_t code_unit_offset, size_t code_unit_length) const;
+    Wtf16ByteView substring_view(size_t code_unit_offset) const { return substring_view(code_unit_offset, length_in_code_units() - code_unit_offset); }
 
-    Utf16View unicode_substring_view(size_t code_point_offset, size_t code_point_length) const;
-    Utf16View unicode_substring_view(size_t code_point_offset) const { return unicode_substring_view(code_point_offset, length_in_code_points() - code_point_offset); }
+    Wtf16ByteView unicode_substring_view(size_t code_point_offset, size_t code_point_length) const;
+    Wtf16ByteView unicode_substring_view(size_t code_point_offset) const { return unicode_substring_view(code_point_offset, length_in_code_points() - code_point_offset); }
 
-    bool starts_with(Utf16View const&) const;
+    bool starts_with(Wtf16ByteView const&) const;
 
     bool validate() const;
     bool validate(size_t& valid_code_units) const;
 
-    bool equals_ignoring_case(Utf16View const&) const;
+    bool equals_ignoring_case(Wtf16ByteView const&) const;
 
 private:
     u16 const* begin_ptr() const { return m_code_units.data(); }
@@ -145,8 +145,8 @@ private:
 }
 
 template<>
-struct AK::Formatter<AK::Utf16View> : Formatter<FormatString> {
-    ErrorOr<void> format(FormatBuilder& builder, AK::Utf16View const& value)
+struct AK::Formatter<AK::Wtf16ByteView> : Formatter<FormatString> {
+    ErrorOr<void> format(FormatBuilder& builder, AK::Wtf16ByteView const& value)
     {
         return builder.builder().try_append(value);
     }
@@ -154,5 +154,5 @@ struct AK::Formatter<AK::Utf16View> : Formatter<FormatString> {
 
 #if USING_AK_GLOBALLY
 using AK::Utf16Data;
-using AK::Utf16View;
+using AK::Wtf16ByteView;
 #endif

@@ -10,8 +10,8 @@
 #include <AK/NonnullRefPtr.h>
 #include <AK/RefCounted.h>
 #include <AK/Types.h>
-#include <AK/Utf16View.h>
 #include <AK/Vector.h>
+#include <AK/Wtf16ByteView.h>
 #include <LibJS/Runtime/Completion.h>
 
 namespace JS {
@@ -24,10 +24,10 @@ public:
     [[nodiscard]] static NonnullRefPtr<Utf16StringImpl> create();
     [[nodiscard]] static NonnullRefPtr<Utf16StringImpl> create(Utf16Data);
     [[nodiscard]] static NonnullRefPtr<Utf16StringImpl> create(StringView);
-    [[nodiscard]] static NonnullRefPtr<Utf16StringImpl> create(Utf16View const&);
+    [[nodiscard]] static NonnullRefPtr<Utf16StringImpl> create(Wtf16ByteView const&);
 
     Utf16Data const& string() const;
-    Utf16View view() const;
+    Wtf16ByteView view() const;
 
     [[nodiscard]] u32 hash() const
     {
@@ -57,12 +57,12 @@ public:
     [[nodiscard]] static Utf16String create();
     [[nodiscard]] static Utf16String create(Utf16Data);
     [[nodiscard]] static Utf16String create(StringView);
-    [[nodiscard]] static Utf16String create(Utf16View const&);
+    [[nodiscard]] static Utf16String create(Wtf16ByteView const&);
 
     Utf16Data const& string() const;
-    Utf16View view() const;
-    Utf16View substring_view(size_t code_unit_offset, size_t code_unit_length) const;
-    Utf16View substring_view(size_t code_unit_offset) const;
+    Wtf16ByteView view() const;
+    Wtf16ByteView substring_view(size_t code_unit_offset, size_t code_unit_length) const;
+    Wtf16ByteView substring_view(size_t code_unit_offset) const;
 
     [[nodiscard]] String to_utf8() const;
     [[nodiscard]] ByteString to_byte_string() const;

@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <AK/Utf16View.h>
+#include <AK/Wtf16ByteView.h>
 #include <LibGfx/ICC/BinaryFormat.h>
 #include <LibGfx/ICC/BinaryWriter.h>
 #include <LibGfx/ICC/Profile.h>

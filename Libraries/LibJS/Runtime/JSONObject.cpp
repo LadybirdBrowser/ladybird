@@ -10,7 +10,7 @@
 #include <AK/JsonParser.h>
 #include <AK/StringBuilder.h>
 #include <AK/TypeCasts.h>
-#include <AK/Utf16View.h>
+#include <AK/Wtf16ByteView.h>
 #include <AK/Wtf8ByteView.h>
 #include <LibJS/Runtime/AbstractOperations.h>
 #include <LibJS/Runtime/Array.h>

@@ -17,8 +17,8 @@ struct CodePoint {
     size_t code_unit_count { 0 };
 };
 
-Optional<size_t> string_index_of(Utf16View const& string, Utf16View const& search_value, size_t from_index);
-CodePoint code_point_at(Utf16View const& string, size_t position);
+Optional<size_t> string_index_of(Wtf16ByteView const& string, Wtf16ByteView const& search_value, size_t from_index);
+CodePoint code_point_at(Wtf16ByteView const& string, size_t position);
 String to_well_formed_string(Utf16String const&);
 static constexpr Wtf8ByteView whitespace_characters = Wtf8ByteView("\x09\x0A\x0B\x0C\x0D\x20\xC2\xA0\xE1\x9A\x80\xE2\x80\x80\xE2\x80\x81\xE2\x80\x82\xE2\x80\x83\xE2\x80\x84\xE2\x80\x85\xE2\x80\x86\xE2\x80\x87\xE2\x80\x88\xE2\x80\x89\xE2\x80\x8A\xE2\x80\xAF\xE2\x81\x9F\xE3\x80\x80\xE2\x80\xA8\xE2\x80\xA9\xEF\xBB\xBF"sv);
 ThrowCompletionOr<String> trim_string(VM&, Value string, TrimMode where);

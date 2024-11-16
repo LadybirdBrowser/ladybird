@@ -5,8 +5,8 @@
  */
 
 #include <AK/StringBuilder.h>
-#include <AK/Utf16View.h>
 #include <AK/Utf32View.h>
+#include <AK/Wtf16ByteView.h>
 #include <LibJS/Runtime/AbstractOperations.h>
 #include <LibJS/Runtime/Array.h>
 #include <LibJS/Runtime/Error.h>

@@ -8,7 +8,7 @@
 
 #include <AK/CharacterTypes.h>
 #include <AK/Function.h>
-#include <AK/Utf16View.h>
+#include <AK/Wtf16ByteView.h>
 #include <LibJS/Runtime/AbstractOperations.h>
 #include <LibJS/Runtime/Array.h>
 #include <LibJS/Runtime/Error.h>
@@ -57,7 +57,7 @@ void RegExpPrototype::initialize(Realm& realm)
 }
 
 // Non-standard abstraction around steps used by multiple prototypes.
-static ThrowCompletionOr<void> increment_last_index(VM& vm, Object& regexp_object, Utf16View const& string, bool unicode)
+static ThrowCompletionOr<void> increment_last_index(VM& vm, Object& regexp_object, Wtf16ByteView const& string, bool unicode)
 {
     // Let thisIndex be ℝ(? ToLength(? Get(rx, "lastIndex"))).
     auto last_index_value = TRY(regexp_object.get(vm.names.lastIndex));
@@ -83,7 +83,7 @@ struct Match {
 };
 
 // 22.2.7.7 GetMatchIndexPair ( S, match ), https://tc39.es/ecma262/#sec-getmatchindexpair
-static Value get_match_index_par(VM& vm, Utf16View const& string, Match const& match)
+static Value get_match_index_par(VM& vm, Wtf16ByteView const& string, Match const& match)
 {
     auto& realm = *vm.current_realm();
 
@@ -99,7 +99,7 @@ static Value get_match_index_par(VM& vm, Utf16View const& string, Match const& m
 }
 
 // 22.2.7.8 MakeMatchIndicesIndexPairArray ( S, indices, groupNames, hasGroups ), https://tc39.es/ecma262/#sec-makematchindicesindexpairarray
-static Value make_match_indices_index_pair_array(VM& vm, Utf16View const& string, Vector<Optional<Match>> const& indices, HashMap<DeprecatedFlyString, Match> const& group_names, bool has_groups)
+static Value make_match_indices_index_pair_array(VM& vm, Wtf16ByteView const& string, Vector<Optional<Match>> const& indices, HashMap<DeprecatedFlyString, Match> const& group_names, bool has_groups)
 {
     // Note: This implementation differs from the spec, but has the same behavior.
     //
@@ -413,7 +413,7 @@ ThrowCompletionOr<Value> regexp_exec(VM& vm, Object& regexp_object, Utf16String 
 }
 
 // 22.2.7.3 AdvanceStringIndex ( S, index, unicode ), https://tc39.es/ecma262/#sec-advancestringindex
-size_t advance_string_index(Utf16View const& string, size_t index, bool unicode)
+size_t advance_string_index(Wtf16ByteView const& string, size_t index, bool unicode)
 {
     // 1. Assert: index ≤ 2^53 - 1.
 

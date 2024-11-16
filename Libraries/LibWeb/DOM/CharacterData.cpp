@@ -47,7 +47,7 @@ WebIDL::ExceptionOr<String> CharacterData::substring_data(size_t offset, size_t 
     // 1. Let length be node’s length.
     // FIXME: This is very inefficient!
     auto utf16_data = MUST(AK::utf8_to_utf16(m_data));
-    Utf16View utf16_view { utf16_data };
+    Wtf16ByteView utf16_view { utf16_data };
     auto length = utf16_view.length_in_code_units();
 
     // 2. If offset is greater than length, then throw an "IndexSizeError" DOMException.
@@ -57,10 +57,10 @@ WebIDL::ExceptionOr<String> CharacterData::substring_data(size_t offset, size_t 
     // 3. If offset plus count is greater than length, return a string whose value is the code units from the offsetth code unit
     //    to the end of node’s data, and then return.
     if (offset + count > length)
-        return MUST(utf16_view.substring_view(offset).to_utf8(Utf16View::AllowInvalidCodeUnits::Yes));
+        return MUST(utf16_view.substring_view(offset).to_utf8(Wtf16ByteView::AllowInvalidCodeUnits::Yes));
 
     // 4. Return a string whose value is the code units from the offsetth code unit to the offset+countth code unit in node’s data.
-    return MUST(utf16_view.substring_view(offset, count).to_utf8(Utf16View::AllowInvalidCodeUnits::Yes));
+    return MUST(utf16_view.substring_view(offset, count).to_utf8(Wtf16ByteView::AllowInvalidCodeUnits::Yes));
 }
 
 // https://dom.spec.whatwg.org/#concept-cd-replace
@@ -69,7 +69,7 @@ WebIDL::ExceptionOr<void> CharacterData::replace_data(size_t offset, size_t coun
     // 1. Let length be node’s length.
     // FIXME: This is very inefficient!
     auto utf16_data = MUST(AK::utf8_to_utf16(m_data));
-    Utf16View utf16_view { utf16_data };
+    Wtf16ByteView utf16_view { utf16_data };
     auto length = utf16_view.length_in_code_units();
 
     auto inserted_data_length_in_utf16_code_units = AK::utf16_code_unit_length_from_utf8(data);
@@ -89,9 +89,9 @@ WebIDL::ExceptionOr<void> CharacterData::replace_data(size_t offset, size_t coun
     // 6. Let delete offset be offset + data’s length.
     // 7. Starting from delete offset code units, remove count code units from node’s data.
     StringBuilder builder;
-    builder.append(MUST(utf16_view.substring_view(0, offset).to_utf8(Utf16View::AllowInvalidCodeUnits::Yes)));
+    builder.append(MUST(utf16_view.substring_view(0, offset).to_utf8(Wtf16ByteView::AllowInvalidCodeUnits::Yes)));
     builder.append(data);
-    builder.append(MUST(utf16_view.substring_view(offset + count).to_utf8(Utf16View::AllowInvalidCodeUnits::Yes)));
+    builder.append(MUST(utf16_view.substring_view(offset + count).to_utf8(Wtf16ByteView::AllowInvalidCodeUnits::Yes)));
     m_data = MUST(builder.to_string());
 
     // 8. For each live range whose start node is node and start offset is greater than offset but less than or equal to offset plus count, set its start offset to offset.

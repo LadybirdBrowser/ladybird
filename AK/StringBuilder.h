@@ -29,7 +29,7 @@ public:
     ErrorOr<void> will_append(size_t);
 
     ErrorOr<void> try_append(StringView);
-    ErrorOr<void> try_append(Utf16View const&);
+    ErrorOr<void> try_append(Wtf16ByteView const&);
     ErrorOr<void> try_append(Utf32View const&);
     ErrorOr<void> try_append_code_point(u32);
     ErrorOr<void> try_append(char);
@@ -45,7 +45,7 @@ public:
     ErrorOr<void> try_append_escaped_for_json(StringView);
 
     void append(StringView);
-    void append(Utf16View const&);
+    void append(Wtf16ByteView const&);
     void append(Utf32View const&);
     void append(char);
     void append_code_point(u32);

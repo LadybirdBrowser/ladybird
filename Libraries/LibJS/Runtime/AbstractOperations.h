@@ -62,7 +62,7 @@ enum class CanonicalIndexMode {
     IgnoreNumericRoundtrip,
 };
 [[nodiscard]] CanonicalIndex canonical_numeric_index_string(PropertyKey const&, CanonicalIndexMode needs_numeric);
-ThrowCompletionOr<String> get_substitution(VM&, Utf16View const& matched, Utf16View const& str, size_t position, Span<Value> captures, Value named_captures, Value replacement);
+ThrowCompletionOr<String> get_substitution(VM&, Wtf16ByteView const& matched, Wtf16ByteView const& str, size_t position, Span<Value> captures, Value named_captures, Value replacement);
 
 enum class CallerMode {
     Strict,

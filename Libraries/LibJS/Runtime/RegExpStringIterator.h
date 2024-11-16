@@ -6,7 +6,7 @@
 
 #pragma once
 
-#include <AK/Utf16View.h>
+#include <AK/Wtf16ByteView.h>
 #include <LibJS/Runtime/Object.h>
 #include <LibJS/Runtime/Utf16String.h>
 

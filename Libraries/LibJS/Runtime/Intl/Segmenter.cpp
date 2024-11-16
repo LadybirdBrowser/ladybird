@@ -5,7 +5,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <AK/Utf16View.h>
+#include <AK/Wtf16ByteView.h>
 #include <LibJS/Runtime/GlobalObject.h>
 #include <LibJS/Runtime/Intl/Segmenter.h>
 
@@ -20,7 +20,7 @@ Segmenter::Segmenter(Object& prototype)
 }
 
 // 18.7.1 CreateSegmentDataObject ( segmenter, string, startIndex, endIndex ), https://tc39.es/ecma402/#sec-createsegmentdataobject
-ThrowCompletionOr<GC::Ref<Object>> create_segment_data_object(VM& vm, Unicode::Segmenter const& segmenter, Utf16View const& string, size_t start_index, size_t end_index)
+ThrowCompletionOr<GC::Ref<Object>> create_segment_data_object(VM& vm, Unicode::Segmenter const& segmenter, Wtf16ByteView const& string, size_t start_index, size_t end_index)
 {
     auto& realm = *vm.current_realm();
 
@@ -68,7 +68,7 @@ ThrowCompletionOr<GC::Ref<Object>> create_segment_data_object(VM& vm, Unicode::S
 }
 
 // 18.8.1 FindBoundary ( segmenter, string, startIndex, direction ), https://tc39.es/ecma402/#sec-findboundary
-size_t find_boundary(Unicode::Segmenter& segmenter, Utf16View const& string, size_t start_index, Direction direction)
+size_t find_boundary(Unicode::Segmenter& segmenter, Wtf16ByteView const& string, size_t start_index, Direction direction)
 {
     // 1. Let len be the length of string.
     auto length = string.length_in_code_units();

@@ -8,7 +8,7 @@
 #include <AK/CharacterTypes.h>
 #include <AK/FlyString.h>
 #include <AK/StringBuilder.h>
-#include <AK/Utf16View.h>
+#include <AK/Wtf16ByteView.h>
 #include <AK/Wtf8ByteView.h>
 #include <LibJS/Runtime/AbstractOperations.h>
 #include <LibJS/Runtime/GlobalObject.h>
@@ -132,7 +132,7 @@ Utf16String PrimitiveString::utf16_string() const
     return *m_utf16_string;
 }
 
-Utf16View PrimitiveString::utf16_string_view() const
+Wtf16ByteView PrimitiveString::utf16_string_view() const
 {
     (void)utf16_string();
     return m_utf16_string->view();
@@ -343,7 +343,7 @@ void PrimitiveString::resolve_rope_if_needed(EncodingPreference preference) cons
         auto high_surrogate = *Wtf8ByteView(previous_string_as_utf8.substring_view(previous_string_as_utf8.length() - 3)).begin();
         auto low_surrogate = *Wtf8ByteView(current_string_as_utf8).begin();
 
-        if (!Utf16View::is_high_surrogate(high_surrogate) || !Utf16View::is_low_surrogate(low_surrogate)) {
+        if (!Wtf16ByteView::is_high_surrogate(high_surrogate) || !Wtf16ByteView::is_low_surrogate(low_surrogate)) {
             builder.append(current_string_as_utf8);
             previous = current;
             continue;
@@ -351,7 +351,7 @@ void PrimitiveString::resolve_rope_if_needed(EncodingPreference preference) cons
 
         // Remove 3 bytes from the builder and replace them with the UTF-8 encoded code point.
         builder.trim(3);
-        builder.append_code_point(Utf16View::decode_surrogate_pair(high_surrogate, low_surrogate));
+        builder.append_code_point(Wtf16ByteView::decode_surrogate_pair(high_surrogate, low_surrogate));
 
         // Append the remaining part of the current string.
         builder.append(current_string_as_utf8.substring_view(3));

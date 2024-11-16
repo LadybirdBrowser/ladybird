@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <AK/Utf16View.h>
+#include <AK/Wtf16ByteView.h>
 #include <LibJS/Runtime/RegExpConstructor.h>
 #include <LibJS/Runtime/RegExpLegacyStaticProperties.h>
 #include <LibJS/Runtime/VM.h>

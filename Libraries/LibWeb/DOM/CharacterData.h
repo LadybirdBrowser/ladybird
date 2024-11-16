@@ -7,7 +7,7 @@
 #pragma once
 
 #include <AK/String.h>
-#include <AK/Utf16View.h>
+#include <AK/Wtf16ByteView.h>
 #include <LibUnicode/Forward.h>
 #include <LibWeb/DOM/ChildNode.h>
 #include <LibWeb/DOM/Node.h>

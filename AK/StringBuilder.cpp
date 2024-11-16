@@ -14,8 +14,8 @@
 #include <AK/StringData.h>
 #include <AK/StringView.h>
 #include <AK/UnicodeUtils.h>
-#include <AK/Utf16View.h>
 #include <AK/Utf32View.h>
+#include <AK/Wtf16ByteView.h>
 
 #include <simdutf.h>
 
@@ -237,7 +237,7 @@ void StringBuilder::append_code_point(u32 code_point)
     }
 }
 
-ErrorOr<void> StringBuilder::try_append(Utf16View const& utf16_view)
+ErrorOr<void> StringBuilder::try_append(Wtf16ByteView const& utf16_view)
 {
     if (utf16_view.is_empty())
         return {};
@@ -247,7 +247,7 @@ ErrorOr<void> StringBuilder::try_append(Utf16View const& utf16_view)
     // Possibly over-allocate a little to ensure we don't have to allocate later.
     TRY(will_append(maximum_utf8_length));
 
-    Utf16View remaining_view = utf16_view;
+    Wtf16ByteView remaining_view = utf16_view;
     for (;;) {
         auto uninitialized_data_pointer = static_cast<char*>(m_buffer.end_pointer());
 
@@ -295,7 +295,7 @@ ErrorOr<void> StringBuilder::try_append(Utf16View const& utf16_view)
             uninitialized_data_pointer[bytes_just_written++] = (((code_unit >> 12) & 0x0f) | 0xe0);
             uninitialized_data_pointer[bytes_just_written++] = (((code_unit >> 6) & 0x3f) | 0x80);
             uninitialized_data_pointer[bytes_just_written++] = (((code_unit >> 0) & 0x3f) | 0x80);
-        } while (first_invalid_code_unit < remaining_view.length_in_code_units() && Utf16View::is_low_surrogate(remaining_view.data()[first_invalid_code_unit]));
+        } while (first_invalid_code_unit < remaining_view.length_in_code_units() && Wtf16ByteView::is_low_surrogate(remaining_view.data()[first_invalid_code_unit]));
 
         // Code unit might no longer be invalid, retry on the remaining data.
         m_buffer.set_size(m_buffer.size() + bytes_just_written);
@@ -305,7 +305,7 @@ ErrorOr<void> StringBuilder::try_append(Utf16View const& utf16_view)
     return {};
 }
 
-void StringBuilder::append(Utf16View const& utf16_view)
+void StringBuilder::append(Wtf16ByteView const& utf16_view)
 {
     MUST(try_append(utf16_view));
 }

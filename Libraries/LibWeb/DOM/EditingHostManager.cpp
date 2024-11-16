@@ -60,7 +60,7 @@ void EditingHostManager::handle_insert(String const& data)
     VERIFY(selection->is_collapsed());
 
     auto utf16_data = MUST(AK::utf8_to_utf16(data));
-    Utf16View const utf16_view { utf16_data };
+    Wtf16ByteView const utf16_view { utf16_data };
     auto length = utf16_view.length_in_code_units();
     MUST(selection->collapse(*node, selection->anchor_offset() + length));
 

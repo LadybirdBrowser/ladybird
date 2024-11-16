@@ -12,8 +12,8 @@
 #include <AK/MemMem.h>
 #include <AK/Stream.h>
 #include <AK/String.h>
-#include <AK/Utf16View.h>
 #include <AK/Vector.h>
+#include <AK/Wtf16ByteView.h>
 #include <stdlib.h>
 
 #include <simdutf.h>
@@ -59,7 +59,7 @@ ErrorOr<String> String::from_utf8(StringView view)
     return result;
 }
 
-ErrorOr<String> String::from_utf16(Utf16View const& utf16)
+ErrorOr<String> String::from_utf16(Wtf16ByteView const& utf16)
 {
     if (!utf16.validate())
         return Error::from_string_literal("String::from_utf16: Input was not valid UTF-16");

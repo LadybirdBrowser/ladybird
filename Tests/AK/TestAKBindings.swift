@@ -31,7 +31,7 @@ struct TestAKBindings {
         precondition(isCxxSequenceType(AK.ReadonlyBytes.self))
         precondition(isCxxSequenceType(AK.Utf16Data.self))
 
-        precondition(!isCxxSequenceType(AK.Utf16View.self))
+        precondition(!isCxxSequenceType(AK.Wtf16ByteView.self))
         precondition(!isCxxSequenceType(AK.String.self))
 
         precondition(!isCxxSequenceType(AK.Error.self))

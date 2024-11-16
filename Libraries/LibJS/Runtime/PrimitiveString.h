@@ -48,7 +48,7 @@ public:
     bool has_byte_string() const { return m_byte_string.has_value(); }
 
     [[nodiscard]] Utf16String utf16_string() const;
-    [[nodiscard]] Utf16View utf16_string_view() const;
+    [[nodiscard]] Wtf16ByteView utf16_string_view() const;
     bool has_utf16_string() const { return m_utf16_string.has_value(); }
 
     ThrowCompletionOr<Optional<Value>> get(VM&, PropertyKey const&) const;

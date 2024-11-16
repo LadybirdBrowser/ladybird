@@ -10,7 +10,7 @@
 #include <AK/FloatingPointStringConversions.h>
 #include <AK/Hex.h>
 #include <AK/UnicodeUtils.h>
-#include <AK/Utf16View.h>
+#include <AK/Wtf16ByteView.h>
 #include <AK/Wtf8ByteView.h>
 #include <LibGC/DeferGC.h>
 #include <LibJS/Runtime/AbstractOperations.h>

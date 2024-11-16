@@ -31,8 +31,8 @@ set(SOURCES
     StringUtils.cpp
     StringView.cpp
     Time.cpp
-    Utf16View.cpp
     Utf32View.cpp
+    Wtf16ByteView.cpp
     Wtf8ByteView.cpp
     kmalloc.cpp
 )

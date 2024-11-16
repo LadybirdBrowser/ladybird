@@ -9,7 +9,7 @@
 #include <AK/FloatingPointStringConversions.h>
 #include <AK/Function.h>
 #include <AK/Optional.h>
-#include <AK/Utf16View.h>
+#include <AK/Wtf16ByteView.h>
 #include <LibJS/Bytecode/Interpreter.h>
 #include <LibJS/ModuleLoading.h>
 #include <LibJS/Parser.h>
@@ -1213,7 +1213,7 @@ CanonicalIndex canonical_numeric_index_string(PropertyKey const& property_key, C
 }
 
 // 22.1.3.19.1 GetSubstitution ( matched, str, position, captures, namedCaptures, replacementTemplate ), https://tc39.es/ecma262/#sec-getsubstitution
-ThrowCompletionOr<String> get_substitution(VM& vm, Utf16View const& matched, Utf16View const& str, size_t position, Span<Value> captures, Value named_captures, Value replacement_template)
+ThrowCompletionOr<String> get_substitution(VM& vm, Wtf16ByteView const& matched, Wtf16ByteView const& str, size_t position, Span<Value> captures, Value named_captures, Value replacement_template)
 {
     // 1. Let stringLength be the length of str.
     auto string_length = str.length_in_code_units();
@@ -1232,8 +1232,8 @@ ThrowCompletionOr<String> get_substitution(VM& vm, Utf16View const& matched, Utf
     while (!template_remainder.is_empty()) {
         // a. NOTE: The following steps isolate ref (a prefix of templateRemainder), determine refReplacement (its replacement), and then append that replacement to result.
 
-        Utf16View ref;
-        Utf16View ref_replacement;
+        Wtf16ByteView ref;
+        Wtf16ByteView ref_replacement;
         Optional<Utf16String> capture_string;
 
         // b. If templateRemainder starts with "$$", then
@@ -1359,7 +1359,7 @@ ThrowCompletionOr<String> get_substitution(VM& vm, Utf16View const& matched, Utf
 
                 // 2. Let groupName be the substring of templateRemainder from 2 to gtPos.
                 auto group_name_view = template_remainder.substring_view(2, *greater_than_position - 2);
-                auto group_name = MUST(group_name_view.to_byte_string(Utf16View::AllowInvalidCodeUnits::Yes));
+                auto group_name = MUST(group_name_view.to_byte_string(Wtf16ByteView::AllowInvalidCodeUnits::Yes));
 
                 // 3. Assert: namedCaptures is an Object.
                 VERIFY(named_captures.is_object());
@@ -1401,7 +1401,7 @@ ThrowCompletionOr<String> get_substitution(VM& vm, Utf16View const& matched, Utf
     }
 
     // 6. Return result.
-    return MUST(Utf16View { result }.to_utf8(Utf16View::AllowInvalidCodeUnits::Yes));
+    return MUST(Wtf16ByteView { result }.to_utf8(Wtf16ByteView::AllowInvalidCodeUnits::Yes));
 }
 
 // 2.1.2 AddDisposableResource ( disposable, V, hint [ , method ] ), https://tc39.es/proposal-explicit-resource-management/#sec-adddisposableresource-disposable-v-hint-disposemethod

@@ -4,8 +4,8 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <AK/Utf16View.h>
 #include <AK/Utf32View.h>
+#include <AK/Wtf16ByteView.h>
 #include <LibUnicode/CharacterTypes.h>
 #include <LibUnicode/ICU.h>
 #include <LibUnicode/Locale.h>
@@ -73,7 +73,7 @@ public:
         utext_close(&utext);
     }
 
-    virtual void set_segmented_text(Utf16View const& text) override
+    virtual void set_segmented_text(Wtf16ByteView const& text) override
     {
         m_segmented_text = icu::UnicodeString { text.data(), static_cast<i32>(text.length_in_code_units()) };
         m_segmenter->setText(m_segmented_text.get<icu::UnicodeString>());
@@ -123,7 +123,7 @@ public:
         for_each_boundary(move(callback));
     }
 
-    virtual void for_each_boundary(Utf16View const& text, SegmentationCallback callback) override
+    virtual void for_each_boundary(Wtf16ByteView const& text, SegmentationCallback callback) override
     {
         if (text.is_empty())
             return;

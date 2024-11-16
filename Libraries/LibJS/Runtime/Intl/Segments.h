@@ -6,7 +6,7 @@
 
 #pragma once
 
-#include <AK/Utf16View.h>
+#include <AK/Wtf16ByteView.h>
 #include <LibJS/Runtime/Intl/Segmenter.h>
 #include <LibJS/Runtime/Object.h>
 #include <LibUnicode/Segmenter.h>
@@ -24,7 +24,7 @@ public:
 
     Unicode::Segmenter& segments_segmenter() const { return *m_segments_segmenter; }
 
-    Utf16View segments_string() const { return m_segments_string.view(); }
+    Wtf16ByteView segments_string() const { return m_segments_string.view(); }
 
 private:
     Segments(Realm&, Unicode::Segmenter const&, Utf16String);
