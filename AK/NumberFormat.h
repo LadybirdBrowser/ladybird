@@ -7,6 +7,7 @@
 #pragma once
 
 #include <AK/String.h>
+#include <AK/Time.h>
 
 namespace AK {
 
@@ -24,7 +25,7 @@ String human_readable_size(u64 size, HumanReadableBasedOn based_on = HumanReadab
 String human_readable_quantity(u64 quantity, HumanReadableBasedOn based_on = HumanReadableBasedOn::Base2, StringView unit = "B"sv, UseThousandsSeparator use_thousands_separator = UseThousandsSeparator::No);
 
 String human_readable_size_long(u64 size, UseThousandsSeparator use_thousands_separator = UseThousandsSeparator::No);
-String human_readable_time(i64 time_in_seconds);
+String human_readable_time(Duration);
 String human_readable_digital_time(i64 time_in_seconds);
 
 }

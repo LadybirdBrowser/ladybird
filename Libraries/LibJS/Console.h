@@ -96,7 +96,6 @@ private:
     virtual void visit_edges(Visitor&) override;
 
     ThrowCompletionOr<String> value_vector_to_string(GC::MarkedVector<Value> const&);
-    ThrowCompletionOr<String> format_time_since(Core::ElapsedTimer timer);
 
     GC::Ref<Realm> m_realm;
     GC::Ptr<ConsoleClient> m_client;
