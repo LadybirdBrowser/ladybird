@@ -13,6 +13,7 @@ namespace GC {
 class Cell;
 class CellAllocator;
 class DeferGC;
+class ForeignCell;
 class RootImpl;
 class Heap;
 class HeapBlock;
