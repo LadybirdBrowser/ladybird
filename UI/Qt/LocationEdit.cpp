@@ -37,11 +37,20 @@ LocationEdit::LocationEdit(QWidget* parent)
 
         clearFocus();
 
-        Optional<StringView> search_engine_url;
-        if (Settings::the()->enable_search())
-            search_engine_url = Settings::the()->search_engine().query_url;
-
         auto query = ak_string_from_qstring(text());
+
+        Optional<StringView> search_engine_url;
+        if (Settings::the()->enable_search()) {
+            search_engine_url = Settings::the()->search_engine().query_url;
+            if (query.starts_with('!')) {
+                auto splits = MUST(query.split(' ')); // FIXME: some missing error handling here.
+                auto exist = WebView::find_search_engine_by_bang(splits[0]);
+                if (exist.has_value()) {
+                    search_engine_url = exist->query_url;
+                    query = MUST(query.substring_from_byte_offset(splits[0].bytes().size()));
+                }
+            }
+        }
 
         if (auto url = WebView::sanitize_url(query, search_engine_url); url.has_value())
             set_url(url.release_value());

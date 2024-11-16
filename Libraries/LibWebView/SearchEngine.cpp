@@ -11,19 +11,19 @@
 namespace WebView {
 
 static constexpr auto builtin_search_engines = Array {
-    SearchEngine { "Bing"sv, "https://www.bing.com/search?q={}"sv },
-    SearchEngine { "Brave"sv, "https://search.brave.com/search?q={}"sv },
-    SearchEngine { "DuckDuckGo"sv, "https://duckduckgo.com/?q={}"sv },
-    SearchEngine { "Ecosia"sv, "https://ecosia.org/search?q={}"sv },
-    SearchEngine { "GitHub"sv, "https://github.com/search?q={}"sv },
-    SearchEngine { "Google"sv, "https://www.google.com/search?q={}"sv },
-    SearchEngine { "GoogleScholar"sv, "https://scholar.google.com/scholar?q={}"sv },
-    SearchEngine { "Kagi"sv, "https://kagi.com/search?q={}"sv },
-    SearchEngine { "Mojeek"sv, "https://www.mojeek.com/search?q={}"sv },
-    SearchEngine { "Startpage"sv, "https://startpage.com/search?q={}"sv },
-    SearchEngine { "Wikipedia"sv, "https://en.wikipedia.org/w/index.php?title=Special:Search&search={}"sv },
-    SearchEngine { "Yahoo"sv, "https://search.yahoo.com/search?p={}"sv },
-    SearchEngine { "Yandex"sv, "https://yandex.com/search/?text={}"sv },
+    SearchEngine { "Bing"sv, "https://www.bing.com/search?q={}"sv, "!b"sv },
+    SearchEngine { "Brave"sv, "https://search.brave.com/search?q={}"sv, "!brave"sv },
+    SearchEngine { "DuckDuckGo"sv, "https://duckduckgo.com/?q={}"sv, "!ddg"sv },
+    SearchEngine { "Ecosia"sv, "https://ecosia.org/search?q={}"sv, "!ec"sv },
+    SearchEngine { "GitHub"sv, "https://github.com/search?q={}"sv, "!gh"sv },
+    SearchEngine { "Google"sv, "https://www.google.com/search?q={}"sv, "!g"sv },
+    SearchEngine { "GoogleScholar"sv, "https://scholar.google.com/scholar?q={}"sv, "!gscholar"sv },
+    SearchEngine { "Kagi"sv, "https://kagi.com/search?q={}"sv, "!kagi"sv },
+    SearchEngine { "Mojeek"sv, "https://www.mojeek.com/search?q={}"sv, "!mojeek"sv },
+    SearchEngine { "Startpage"sv, "https://startpage.com/search?q={}"sv, "!startpage"sv },
+    SearchEngine { "Wikipedia"sv, "https://en.wikipedia.org/w/index.php?title=Special:Search&search={}"sv, "!w"sv },
+    SearchEngine { "Yahoo"sv, "https://search.yahoo.com/search?p={}"sv, "!y"sv },
+    SearchEngine { "Yandex"sv, "https://yandex.com/search/?text={}"sv, "!ya"sv },
 };
 
 ReadonlySpan<SearchEngine> search_engines()
@@ -57,6 +57,19 @@ Optional<SearchEngine const&> find_search_engine_by_query_url(StringView query_u
     auto it = AK::find_if(builtin_search_engines.begin(), builtin_search_engines.end(),
         [&](auto const& engine) {
             return engine.query_url == query_url;
+        });
+
+    if (it == builtin_search_engines.end())
+        return {};
+
+    return *it;
+}
+
+Optional<SearchEngine const&> find_search_engine_by_bang(StringView bang)
+{
+    auto it = AK::find_if(builtin_search_engines.begin(), builtin_search_engines.end(),
+        [&](auto const& engine) {
+            return engine.bang == bang;
         });
 
     if (it == builtin_search_engines.end())
