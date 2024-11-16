@@ -37,7 +37,7 @@ public:
     {
     }
 
-    template<IterableContainer ContainerT>
+    template<IterableContainerOf<JsonValue> ContainerT>
     JsonArray(ContainerT const& source)
     {
         for (auto& value : source)
