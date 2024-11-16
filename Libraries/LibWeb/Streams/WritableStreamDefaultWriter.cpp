@@ -52,7 +52,7 @@ GC::Ptr<WebIDL::Promise> WritableStreamDefaultWriter::ready()
 }
 
 // https://streams.spec.whatwg.org/#default-writer-abort
-GC::Ptr<WebIDL::Promise> WritableStreamDefaultWriter::abort(JS::Value reason)
+GC::Ref<WebIDL::Promise> WritableStreamDefaultWriter::abort(JS::Value reason)
 {
     auto& realm = this->realm();
 
@@ -67,7 +67,7 @@ GC::Ptr<WebIDL::Promise> WritableStreamDefaultWriter::abort(JS::Value reason)
 }
 
 // https://streams.spec.whatwg.org/#default-writer-close
-GC::Ptr<WebIDL::Promise> WritableStreamDefaultWriter::close()
+GC::Ref<WebIDL::Promise> WritableStreamDefaultWriter::close()
 {
     auto& realm = this->realm();
 
@@ -106,7 +106,7 @@ void WritableStreamDefaultWriter::release_lock()
 }
 
 // https://streams.spec.whatwg.org/#default-writer-write
-GC::Ptr<WebIDL::Promise> WritableStreamDefaultWriter::write(JS::Value chunk)
+GC::Ref<WebIDL::Promise> WritableStreamDefaultWriter::write(JS::Value chunk)
 {
     auto& realm = this->realm();
 
