@@ -451,7 +451,7 @@ Navigable::ChosenNavigable Navigable::choose_a_navigable(StringView name, Tokeni
 
             // 6. If name is not an ASCII case-insensitive match for "_blank", then set targetName to name.
             if (!Infra::is_ascii_case_insensitive_match(name, "_blank"sv))
-                target_name = MUST(String::from_utf8(name));
+                target_name = MUST(String::from_wtf8(name));
 
             auto create_new_traversable_closure = [this, no_opener, target_name, activate_tab, window_features](GC::Ptr<BrowsingContext> opener) -> GC::Ref<Navigable> {
                 auto hints = WebViewHints::from_tokenised_features(window_features.value_or({}), traversable_navigable()->page());

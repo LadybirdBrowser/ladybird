@@ -156,7 +156,7 @@ static ErrorOr<MatchedRoute, Error> match_route(HTTP::HttpRequest const& request
             else if (request_segment.has_value() != route_segment.has_value())
                 on_failed_match();
             else if (route_segment->starts_with(':'))
-                TRY(parameters.try_append(TRY(String::from_utf8(*request_segment))));
+                TRY(parameters.try_append(TRY(String::from_wtf8(*request_segment))));
             else if (request_segment != route_segment)
                 on_failed_match();
         }

@@ -95,7 +95,7 @@ void DOMTokenList::associated_attribute_changed(StringView value)
 
     auto split_values = value.split_view_if(Infra::is_ascii_whitespace);
     for (auto const& split_value : split_values)
-        append_to_ordered_set(m_token_set, String::from_utf8(split_value).release_value_but_fixme_should_propagate_errors());
+        append_to_ordered_set(m_token_set, String::from_wtf8(split_value).release_value_but_fixme_should_propagate_errors());
 }
 
 // https://dom.spec.whatwg.org/#dom-domtokenlist-item

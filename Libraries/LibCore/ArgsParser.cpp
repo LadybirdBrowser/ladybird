@@ -465,7 +465,7 @@ void ArgsParser::add_option(String& value, char const* help_string, char const* 
         short_name,
         value_name,
         [&value](StringView s) -> ErrorOr<bool> {
-            value = TRY_OR_ERROR_IF_NOT_OOM(String::from_utf8(s), s);
+            value = TRY_OR_ERROR_IF_NOT_OOM(String::from_wtf8(s), s);
             return true;
         },
         hide_mode,
@@ -603,7 +603,7 @@ void ArgsParser::add_positional_argument(String& value, char const* help_string,
         required == Required::Yes ? 1 : 0,
         1,
         [&value](StringView s) -> ErrorOr<bool> {
-            value = TRY_OR_ERROR_IF_NOT_OOM(String::from_utf8(s), s);
+            value = TRY_OR_ERROR_IF_NOT_OOM(String::from_wtf8(s), s);
             return true;
         }
     };
@@ -664,7 +664,7 @@ void ArgsParser::add_positional_argument(Vector<String>& values, char const* hel
         required == Required::Yes ? 1 : 0,
         INT_MAX,
         [&values](StringView s) -> ErrorOr<bool> {
-            TRY_OR_ERROR_IF_NOT_OOM(values.try_append(TRY(String::from_utf8(s))), s);
+            TRY_OR_ERROR_IF_NOT_OOM(values.try_append(TRY(String::from_wtf8(s))), s);
             return true;
         }
     };

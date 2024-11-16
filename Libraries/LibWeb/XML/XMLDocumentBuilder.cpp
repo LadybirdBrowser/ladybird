@@ -216,7 +216,7 @@ void XMLDocumentBuilder::text(StringView data)
         text_builder.clear();
     } else {
         if (!data.is_empty()) {
-            auto node = m_document->create_text_node(MUST(String::from_utf8(data)));
+            auto node = m_document->create_text_node(MUST(String::from_wtf8(data)));
             MUST(m_current_node->append_child(node));
         }
     }
@@ -226,7 +226,7 @@ void XMLDocumentBuilder::comment(StringView data)
 {
     if (m_has_error)
         return;
-    MUST(m_document->append_child(m_document->create_comment(MUST(String::from_utf8(data)))));
+    MUST(m_document->append_child(m_document->create_comment(MUST(String::from_wtf8(data)))));
 }
 
 void XMLDocumentBuilder::document_end()

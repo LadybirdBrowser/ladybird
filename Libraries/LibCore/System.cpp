@@ -569,7 +569,7 @@ ErrorOr<String> mkdtemp(Span<char> pattern)
         return Error::from_errno(errno);
     }
 
-    return String::from_utf8(StringView { path, strlen(path) });
+    return String::from_wtf8(StringView { path, strlen(path) });
 }
 
 ErrorOr<void> rename(StringView old_path, StringView new_path)

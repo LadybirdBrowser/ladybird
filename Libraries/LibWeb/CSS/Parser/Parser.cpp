@@ -5969,7 +5969,7 @@ Vector<ParsedFontFace::Source> Parser::parse_font_face_src(TokenStream<T>& compo
                     continue;
                 }
 
-                format = FlyString::from_utf8(format_name).release_value_but_fixme_should_propagate_errors();
+                format = FlyString::from_wtf8(format_name).release_value_but_fixme_should_propagate_errors();
             } else {
                 dbgln_if(CSS_PARSER_DEBUG, "CSSParser: @font-face src invalid (unrecognized function token `{}`); discarding.", function.name);
                 return {};

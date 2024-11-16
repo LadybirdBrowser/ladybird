@@ -1006,7 +1006,7 @@ WebIDL::ExceptionOr<void> HTMLMediaElement::fetch_resource(URL::URL const& url_r
             // NOTE: We do this step before creating the updateMedia task so that we can invoke the failure callback.
             if (!verify_response(response, byte_range)) {
                 auto error_message = response->network_error_message().value_or("Failed to fetch media resource"sv);
-                failure_callback(String::from_utf8(error_message).release_value_but_fixme_should_propagate_errors());
+                failure_callback(String::from_wtf8(error_message).release_value_but_fixme_should_propagate_errors());
                 return;
             }
 
@@ -1107,7 +1107,7 @@ WebIDL::ExceptionOr<void> HTMLMediaElement::process_media_data(Function<void(Str
         m_fetch_controller->stop_fetch();
 
         // 2. Abort this subalgorithm, returning to the resource selection algorithm.
-        failure_callback(MUST(String::from_utf8(playback_manager.error().description())));
+        failure_callback(MUST(String::from_wtf8(playback_manager.error().description())));
 
         return {};
     }

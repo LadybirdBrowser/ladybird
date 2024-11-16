@@ -95,7 +95,7 @@ Optional<ParsedCookie> parse_cookie(URL::URL const& url, StringView cookie_strin
         return {};
 
     // 6. The cookie-name is the name string, and the cookie-value is the value string.
-    ParsedCookie parsed_cookie { MUST(String::from_utf8(name)), MUST(String::from_utf8(value)) };
+    ParsedCookie parsed_cookie { MUST(String::from_wtf8(name)), MUST(String::from_wtf8(value)) };
 
     parse_attributes(url, parsed_cookie, unparsed_attributes);
     return parsed_cookie;
@@ -291,7 +291,7 @@ void on_path_attribute(URL::URL const& url, ParsedCookie& parsed_cookie, StringV
     // Otherwise:
     else {
         // 1. Let cookie-path be the attribute-value.
-        cookie_path = MUST(String::from_utf8(attribute_value));
+        cookie_path = MUST(String::from_wtf8(attribute_value));
     }
 
     // 2. Append an attribute to the cookie-attribute-list with an attribute-name of Path and an attribute-value of
@@ -513,7 +513,7 @@ String default_path(URL::URL const& url)
     // 4. Output the characters of the uri-path from the first character up to, but not including, the right-most
     //    %x2F ("/").
     // FIXME: The path might not be valid UTF-8.
-    return MUST(String::from_utf8(uri_path.substring_view(0, last_separator)));
+    return MUST(String::from_wtf8(uri_path.substring_view(0, last_separator)));
 }
 
 }

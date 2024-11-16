@@ -32,7 +32,7 @@ public:
     virtual StringView name() const override { return m_name.bytes_as_string_view(); }
 
 private:
-    HashMap<FlyString, Vector<NonnullRefPtr<Typeface>>, AK::ASCIICaseInsensitiveFlyStringTraits> m_typeface_by_family;
+    HashMap<FlyString, Vector<NonnullRefPtr<Typeface>>, AK::ASCIICaseInsensitiveWtf8FlyStringTraits> m_typeface_by_family;
     String m_name { "Path"_string };
 };
 

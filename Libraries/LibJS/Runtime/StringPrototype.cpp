@@ -1252,7 +1252,7 @@ static ThrowCompletionOr<String> transform_case(VM& vm, String const& string, Va
     // 3. Else,
     else {
         // a. Let requestedLocale be ! DefaultLocale().
-        requested_locale = String::from_utf8_without_validation(Unicode::default_locale().bytes());
+        requested_locale = String::from_wtf8_without_validation(Unicode::default_locale().bytes());
     }
 
     // 4. Let availableLocales be an Available Locales List which includes the language tags for which the Unicode Character Database contains language-sensitive case mappings. If the implementation supports additional locale-sensitive case mappings, availableLocales should also include their corresponding language tags.
@@ -1411,7 +1411,7 @@ ThrowCompletionOr<String> trim_string(VM& vm, Value input_value, TrimMode where)
     auto trimmed_string = Wtf8ByteView(string).trim(whitespace_characters, where).as_string();
 
     // 6. Return T.
-    return MUST(String::from_utf8(trimmed_string));
+    return MUST(String::from_wtf8(trimmed_string));
 }
 
 // 22.1.3.32 String.prototype.trim ( ), https://tc39.es/ecma262/#sec-string.prototype.trim

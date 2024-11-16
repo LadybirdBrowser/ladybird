@@ -33,7 +33,6 @@ class DeprecatedFlyString;
 class ByteString;
 class Duration;
 class Error;
-class FlyString;
 class GenericLexer;
 class IPv4Address;
 class IPv6Address;
@@ -47,7 +46,6 @@ class SearchableCircularBuffer;
 class SeekableStream;
 class StackInfo;
 class Stream;
-class String;
 class StringBuilder;
 class StringImpl;
 class StringView;
@@ -56,7 +54,12 @@ class Wtf16ByteView;
 class Utf32CodePointIterator;
 class Utf32View;
 class Wtf8ByteView;
+class Wtf8FlyString;
+class Wtf8String;
 class Utf8CodePointIterator;
+
+using String = Wtf8String;
+using FlyString = Wtf8FlyString;
 
 template<typename T>
 class Span;

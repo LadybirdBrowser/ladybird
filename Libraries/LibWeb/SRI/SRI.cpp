@@ -101,8 +101,8 @@ ErrorOr<Vector<Metadata>> parse_metadata(StringView metadata)
         //    Note: Since no options are defined (see the §3.1 Integrity metadata), a corresponding entry is not set in metadata.
         //    If options are defined in a future version, hash-with-opt-token-list[1] can be utilized as options.
         auto metadata = Metadata {
-            .algorithm = TRY(String::from_utf8(algorithm)),
-            .base64_value = TRY(String::from_utf8(base64_value)),
+            .algorithm = TRY(String::from_wtf8(algorithm)),
+            .base64_value = TRY(String::from_wtf8(base64_value)),
             .options = {},
         };
 

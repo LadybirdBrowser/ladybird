@@ -389,12 +389,12 @@ JS_DEFINE_NATIVE_FUNCTION(DurationPrototype::round)
         largest_unit_present = false;
 
         // b. Set largestUnit to defaultLargestUnit.
-        largest_unit = MUST(String::from_utf8(default_largest_unit));
+        largest_unit = MUST(String::from_wtf8(default_largest_unit));
     }
     // 14. Else if largestUnit is "auto", then
     else if (*largest_unit == "auto"sv) {
         // a. Set largestUnit to defaultLargestUnit.
-        largest_unit = MUST(String::from_utf8(default_largest_unit));
+        largest_unit = MUST(String::from_wtf8(default_largest_unit));
     }
 
     // 15. If smallestUnitPresent is false and largestUnitPresent is false, then

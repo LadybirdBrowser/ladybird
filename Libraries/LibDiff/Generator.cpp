@@ -90,7 +90,7 @@ ErrorOr<Vector<Hunk>> from_text(StringView old_text, StringView new_text, size_t
 
         for (size_t offset = 0; offset < available_context; ++offset) {
             size_t context_line = i + offset - available_context;
-            TRY(hunk.lines.try_append(Line { Line::Operation::Context, TRY(String::from_utf8(old_lines[context_line])) }));
+            TRY(hunk.lines.try_append(Line { Line::Operation::Context, TRY(String::from_wtf8(old_lines[context_line])) }));
         }
 
         return {};
@@ -103,7 +103,7 @@ ErrorOr<Vector<Hunk>> from_text(StringView old_text, StringView new_text, size_t
         if (cell.direction == Direction::Down) {
             if (cur_hunk.lines.is_empty())
                 TRY(set_up_hunk_prepended_with_context(cur_hunk));
-            TRY(cur_hunk.lines.try_append(Line { Line::Operation::Addition, TRY(String::from_utf8(new_lines[j])) }));
+            TRY(cur_hunk.lines.try_append(Line { Line::Operation::Addition, TRY(String::from_wtf8(new_lines[j])) }));
             cur_hunk.location.new_range.number_of_lines++;
 
             ++j;
@@ -111,7 +111,7 @@ ErrorOr<Vector<Hunk>> from_text(StringView old_text, StringView new_text, size_t
         } else if (cell.direction == Direction::Right) {
             if (cur_hunk.lines.is_empty())
                 TRY(set_up_hunk_prepended_with_context(cur_hunk));
-            TRY(cur_hunk.lines.try_append(Line { Line::Operation::Removal, TRY(String::from_utf8(old_lines[i])) }));
+            TRY(cur_hunk.lines.try_append(Line { Line::Operation::Removal, TRY(String::from_wtf8(old_lines[i])) }));
             cur_hunk.location.old_range.number_of_lines++;
 
             ++i;
@@ -125,7 +125,7 @@ ErrorOr<Vector<Hunk>> from_text(StringView old_text, StringView new_text, size_t
                 if (current_context == context) {
                     TRY(flush_hunk());
                 } else {
-                    TRY(cur_hunk.lines.try_append(Line { Line::Operation::Context, TRY(String::from_utf8(old_lines[i])) }));
+                    TRY(cur_hunk.lines.try_append(Line { Line::Operation::Context, TRY(String::from_wtf8(old_lines[i])) }));
                     cur_hunk.location.new_range.number_of_lines++;
                     cur_hunk.location.old_range.number_of_lines++;
                 }
@@ -142,7 +142,7 @@ ErrorOr<Vector<Hunk>> from_text(StringView old_text, StringView new_text, size_t
         if (cur_hunk.lines.is_empty())
             TRY(set_up_hunk_prepended_with_context(cur_hunk));
 
-        TRY(cur_hunk.lines.try_append(Line { Line::Operation::Removal, TRY(String::from_utf8(old_lines[i])) }));
+        TRY(cur_hunk.lines.try_append(Line { Line::Operation::Removal, TRY(String::from_wtf8(old_lines[i])) }));
         cur_hunk.location.old_range.number_of_lines++;
         ++i;
     }
@@ -150,7 +150,7 @@ ErrorOr<Vector<Hunk>> from_text(StringView old_text, StringView new_text, size_t
     while (j < new_lines.size()) {
         if (cur_hunk.lines.is_empty())
             TRY(set_up_hunk_prepended_with_context(cur_hunk));
-        TRY(cur_hunk.lines.try_append(Line { Line::Operation::Addition, TRY(String::from_utf8(new_lines[j])) }));
+        TRY(cur_hunk.lines.try_append(Line { Line::Operation::Addition, TRY(String::from_wtf8(new_lines[j])) }));
         cur_hunk.location.new_range.number_of_lines++;
 
         ++j;

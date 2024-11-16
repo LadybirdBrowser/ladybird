@@ -38,7 +38,7 @@ namespace JS {
 ErrorOr<NonnullRefPtr<VM>> VM::create(OwnPtr<CustomData> custom_data)
 {
     ErrorMessages error_messages {};
-    error_messages[to_underlying(ErrorMessage::OutOfMemory)] = TRY(String::from_utf8(ErrorType::OutOfMemory.message()));
+    error_messages[to_underlying(ErrorMessage::OutOfMemory)] = TRY(String::from_wtf8(ErrorType::OutOfMemory.message()));
 
     auto vm = adopt_ref(*new VM(move(custom_data), move(error_messages)));
 

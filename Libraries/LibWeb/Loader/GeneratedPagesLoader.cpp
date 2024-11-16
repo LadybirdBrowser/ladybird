@@ -18,12 +18,12 @@ namespace Web {
 
 void set_chrome_process_command_line(StringView command_line)
 {
-    s_chrome_process_command_line = MUST(String::from_utf8(command_line));
+    s_chrome_process_command_line = MUST(String::from_wtf8(command_line));
 }
 
 void set_chrome_process_executable_path(StringView executable_path)
 {
-    s_chrome_process_executable_path = MUST(String::from_utf8(executable_path));
+    s_chrome_process_executable_path = MUST(String::from_wtf8(executable_path));
 }
 
 ErrorOr<String> load_error_page(URL::URL const& url, StringView error_message)
@@ -36,7 +36,7 @@ ErrorOr<String> load_error_page(URL::URL const& url, StringView error_message)
     generator.set("failed_url", escape_html_entities(url.to_byte_string()));
     generator.set("error_message", escape_html_entities(error_message));
     generator.append(template_file->data());
-    return TRY(String::from_utf8(generator.as_string_view()));
+    return TRY(String::from_wtf8(generator.as_string_view()));
 }
 
 ErrorOr<String> load_file_directory_page(URL::URL const& url)
@@ -77,7 +77,7 @@ ErrorOr<String> load_file_directory_page(URL::URL const& url)
     generator.set("parent_url", TRY(String::formatted("file://{}", escape_html_entities(lexical_path.parent().string()))));
     generator.set("contents", contents.to_byte_string());
     generator.append(template_file->data());
-    return TRY(String::from_utf8(generator.as_string_view()));
+    return TRY(String::from_wtf8(generator.as_string_view()));
 }
 
 ErrorOr<String> load_about_version_page()
@@ -95,7 +95,7 @@ ErrorOr<String> load_about_version_page()
     generator.set("command_line", s_chrome_process_command_line);
     generator.set("executable_path", s_chrome_process_executable_path);
     generator.append(template_file->data());
-    return TRY(String::from_utf8(generator.as_string_view()));
+    return TRY(String::from_wtf8(generator.as_string_view()));
 }
 
 }

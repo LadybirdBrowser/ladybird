@@ -782,7 +782,7 @@ ErrorOr<NonnullRefPtr<NamedColor2TagData>> NamedColor2TagData::from_bytes(Readon
         for (size_t i = 0; i < length; ++i)
             if (buffer[i] >= 128)
                 return Error::from_string_literal("ICC::Profile: namedColor2Type not 7-bit ASCII");
-        return String::from_utf8({ buffer, length });
+        return String::from_wtf8({ buffer, length });
     };
 
     String prefix = TRY(buffer_to_string(header.prefix_for_each_color_name));
@@ -1175,7 +1175,7 @@ ErrorOr<NonnullRefPtr<TextDescriptionTagData>> TextDescriptionTagData::from_byte
         }
     }
 
-    return try_make_ref_counted<TextDescriptionTagData>(offset, size, TRY(String::from_utf8(ascii_description)), unicode_language_code, move(unicode_description), move(macintosh_description));
+    return try_make_ref_counted<TextDescriptionTagData>(offset, size, TRY(String::from_wtf8(ascii_description)), unicode_language_code, move(unicode_description), move(macintosh_description));
 }
 
 ErrorOr<NonnullRefPtr<TextTagData>> TextTagData::from_bytes(ReadonlyBytes bytes, u32 offset, u32 size)
@@ -1200,7 +1200,7 @@ ErrorOr<NonnullRefPtr<TextTagData>> TextTagData::from_bytes(ReadonlyBytes bytes,
     if (text_data[length - 1] != '\0')
         return Error::from_string_literal("ICC::Profile: textType data not \\0-terminated");
 
-    return try_make_ref_counted<TextTagData>(offset, size, TRY(String::from_utf8(StringView(text_data, length - 1))));
+    return try_make_ref_counted<TextTagData>(offset, size, TRY(String::from_wtf8(StringView(text_data, length - 1))));
 }
 
 ErrorOr<NonnullRefPtr<ViewingConditionsTagData>> ViewingConditionsTagData::from_bytes(ReadonlyBytes bytes, u32 offset, u32 size)

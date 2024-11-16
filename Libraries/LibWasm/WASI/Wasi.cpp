@@ -928,7 +928,7 @@ struct Names {
     static ErrorOr<Names> construct()
     {
         return Names {
-#define NAME(x) .x = TRY(FlyString::from_utf8(#x##sv)),
+#define NAME(x) .x = TRY(FlyString::from_wtf8(#x##sv)),
             ENUMERATE_FUNCTION_NAMES(NAME)
 #undef NAME
         };
@@ -937,7 +937,7 @@ struct Names {
 
 ErrorOr<HostFunction> Implementation::function_by_name(StringView name)
 {
-    auto name_for_comparison = TRY(FlyString::from_utf8(name));
+    auto name_for_comparison = TRY(FlyString::from_wtf8(name));
     static auto names = TRY(Names::construct());
 
 #define IMPL(x)                         \

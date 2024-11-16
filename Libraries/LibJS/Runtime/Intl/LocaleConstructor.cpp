@@ -191,7 +191,7 @@ static LocaleAndKeys apply_unicode_extension_to_tag(StringView tag, LocaleAndKey
             // iii. Else,
             else {
                 // 1. Append the Record { [[Key]]: key, [[Value]]: value } to keywords.
-                keywords.empend(MUST(String::from_utf8(key)), *value);
+                keywords.empend(MUST(String::from_wtf8(key)), *value);
             }
         }
 
@@ -308,7 +308,7 @@ ThrowCompletionOr<GC::Ref<Object>> LocaleConstructor::construct(FunctionObject& 
     // 20. If fw is not undefined, then
     if (first_day_of_week.has_value()) {
         // a. Set fw to !WeekdayToString(fw).
-        first_day_of_week = MUST(String::from_utf8(weekday_to_string(*first_day_of_week)));
+        first_day_of_week = MUST(String::from_wtf8(weekday_to_string(*first_day_of_week)));
 
         // b. If fw does not match the type sequence (from UTS 35 Unicode Locale Identifier, section 3.2), throw a RangeError exception.
         if (!Unicode::is_type_identifier(*first_day_of_week))

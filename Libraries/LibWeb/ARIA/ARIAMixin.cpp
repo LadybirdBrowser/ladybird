@@ -86,7 +86,7 @@ Vector<String> ARIAMixin::parse_id_reference_list(Optional<String> const& id_lis
 
     auto id_references = id_list->bytes_as_string_view().split_view_if(Infra::is_ascii_whitespace);
     for (auto const id_reference_view : id_references) {
-        auto id_reference = MUST(String::from_utf8(id_reference_view));
+        auto id_reference = MUST(String::from_wtf8(id_reference_view));
         if (id_reference_exists(id_reference))
             result.append(id_reference);
     }

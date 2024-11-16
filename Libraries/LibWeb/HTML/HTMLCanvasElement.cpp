@@ -329,7 +329,7 @@ WebIDL::ExceptionOr<void> HTMLCanvasElement::to_blob(GC::Ref<WebIDL::CallbackTyp
                 // 1. If result is non-null, then set result to a new Blob object, created in the relevant realm of this canvas element, representing result. [FILEAPI]
                 GC::Ptr<FileAPI::Blob> blob_result;
                 if (file_result.has_value())
-                    blob_result = FileAPI::Blob::create(realm(), file_result->buffer, TRY_OR_THROW_OOM(vm(), String::from_utf8(file_result->mime_type)));
+                    blob_result = FileAPI::Blob::create(realm(), file_result->buffer, TRY_OR_THROW_OOM(vm(), String::from_wtf8(file_result->mime_type)));
 
                 // 2. Invoke callback with « result ».
                 TRY(WebIDL::invoke_callback(*callback, {}, move(blob_result)));

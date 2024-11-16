@@ -685,7 +685,7 @@ WebIDL::ExceptionOr<GC::Ref<JS::ArrayBuffer>> RSAOAEP::encrypt(AlgorithmParams c
 
     // 4. If performing the operation results in an error, then throw an OperationError.
     if (maybe_padding.is_error()) {
-        auto error_message = MUST(String::from_utf8(maybe_padding.error().string_literal()));
+        auto error_message = MUST(String::from_wtf8(maybe_padding.error().string_literal()));
         return WebIDL::OperationError::create(realm, error_message);
     }
 
@@ -746,7 +746,7 @@ WebIDL::ExceptionOr<GC::Ref<JS::ArrayBuffer>> RSAOAEP::decrypt(AlgorithmParams c
 
     // 4. If performing the operation results in an error, then throw an OperationError.
     if (maybe_plaintext.is_error()) {
-        auto error_message = MUST(String::from_utf8(maybe_plaintext.error().string_literal()));
+        auto error_message = MUST(String::from_wtf8(maybe_plaintext.error().string_literal()));
         return WebIDL::OperationError::create(realm, error_message);
     }
 
@@ -2511,7 +2511,7 @@ WebIDL::ExceptionOr<JS::Value> ECDSA::verify(AlgorithmParams const& params, GC::
             [&](auto instance) { return instance.verify(M, Q, encoded_signature); });
 
         if (maybe_result.is_error()) {
-            auto error_message = MUST(String::from_utf8(maybe_result.error().string_literal()));
+            auto error_message = MUST(String::from_wtf8(maybe_result.error().string_literal()));
             return WebIDL::OperationError::create(m_realm, error_message);
         }
 

@@ -323,7 +323,7 @@ ThrowCompletionOr<Vector<String>> calendar_fields(VM& vm, Object& calendar, Vect
         Vector<String> result;
         TRY_OR_THROW_OOM(vm, result.try_ensure_capacity(field_names.size()));
         for (auto& value : field_names)
-            result.unchecked_append(TRY_OR_THROW_OOM(vm, String::from_utf8(value)));
+            result.unchecked_append(TRY_OR_THROW_OOM(vm, String::from_wtf8(value)));
         return result;
     }
 

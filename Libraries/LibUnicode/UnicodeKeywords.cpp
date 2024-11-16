@@ -95,7 +95,7 @@ Vector<String> const& available_currencies()
 
             // https://unicode-org.atlassian.net/browse/ICU-21687
             if (StringView currency { next, static_cast<size_t>(length) }; currency != "LSM"sv)
-                result.append(MUST(String::from_utf8(currency)));
+                result.append(MUST(String::from_wtf8(currency)));
         }
 
         quick_sort(result);
@@ -143,7 +143,7 @@ Vector<String> available_hour_cycles(StringView locale)
         return available_hour_cycles();
 
     Vector<String> hour_cycles;
-    hour_cycles.append(MUST(String::from_utf8(hour_cycle_to_string(*preferred_hour_cycle))));
+    hour_cycles.append(MUST(String::from_wtf8(hour_cycle_to_string(*preferred_hour_cycle))));
 
     for (auto const& hour_cycle : available_hour_cycles()) {
         if (hour_cycle != hour_cycles[0])
@@ -186,7 +186,7 @@ Vector<String> available_number_systems(StringView locale)
     Vector<String> number_systems;
 
     auto const* preferred_number_system = locale_data->numbering_system().getName();
-    number_systems.append(MUST(String::from_utf8({ preferred_number_system, strlen(preferred_number_system) })));
+    number_systems.append(MUST(String::from_wtf8({ preferred_number_system, strlen(preferred_number_system) })));
 
     for (auto const& number_system : available_number_systems()) {
         if (number_system != number_systems[0])

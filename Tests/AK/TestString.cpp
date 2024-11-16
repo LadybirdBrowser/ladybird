@@ -29,7 +29,7 @@ TEST_CASE(construct_empty)
     EXPECT(empty2.is_empty());
     EXPECT_EQ(empty, empty2);
 
-    auto empty3 = MUST(String::from_utf8(""sv));
+    auto empty3 = MUST(String::from_wtf8(""sv));
     EXPECT(empty3.is_empty());
     EXPECT_EQ(empty, empty3);
 }
@@ -67,7 +67,7 @@ TEST_CASE(short_strings)
      *        This is important for the odd pointer address checks (this is to
      *        test if the ShortString structs are endian agnostic). */
 #ifdef AK_ARCH_64_BIT
-    auto string1 = MUST(String::from_utf8("foo bar"sv));
+    auto string1 = MUST(String::from_wtf8("foo bar"sv));
     EXPECT_EQ(string1.is_short_string(), true);
     EXPECT_EQ(string1.bytes().size(), 7u);
     EXPECT_EQ(string1.bytes_as_string_view(), "foo bar"sv);
@@ -81,7 +81,7 @@ TEST_CASE(short_strings)
     // check for odd "pointer" value, i.e. short string flag
     EXPECT_EQ(*((uintptr_t*)&string2) % 2UL, 1U);
 #else
-    auto string1 = MUST(String::from_utf8("foo"sv));
+    auto string1 = MUST(String::from_wtf8("foo"sv));
     EXPECT_EQ(string1.is_short_string(), true);
     EXPECT_EQ(string1.bytes().size(), 3u);
     EXPECT_EQ(string1.bytes_as_string_view(), "foo"sv);
@@ -99,7 +99,7 @@ TEST_CASE(short_strings)
 
 TEST_CASE(long_strings)
 {
-    auto string = MUST(String::from_utf8("abcdefgh"sv));
+    auto string = MUST(String::from_wtf8("abcdefgh"sv));
     EXPECT_EQ(string.is_short_string(), false);
     EXPECT_EQ(string.bytes().size(), 8u);
     EXPECT_EQ(string.bytes_as_string_view(), "abcdefgh"sv);
@@ -155,11 +155,11 @@ TEST_CASE(long_streams)
 
 TEST_CASE(invalid_utf8)
 {
-    auto string1 = String::from_utf8("long string \xf4\x8f\xbf\xc0"sv); // U+110000
+    auto string1 = String::from_wtf8("long string \xf4\x8f\xbf\xc0"sv); // U+110000
     EXPECT(string1.is_error());
     EXPECT(string1.error().string_literal().contains("Input was not valid UTF-8"sv));
 
-    auto string2 = String::from_utf8("\xf4\xa1\xb0\xbd"sv); // U+121C3D
+    auto string2 = String::from_wtf8("\xf4\xa1\xb0\xbd"sv); // U+121C3D
     EXPECT(string2.is_error());
     EXPECT(string2.error().string_literal().contains("Input was not valid UTF-8"sv));
 
@@ -175,20 +175,20 @@ TEST_CASE(invalid_utf8)
 
 TEST_CASE(with_replacement_character)
 {
-    auto string1 = String::from_utf8_with_replacement_character("long string \xf4\x8f\xbf\xc0"sv, String::WithBOMHandling::No); // U+110000
+    auto string1 = String::from_wtf8_with_replacement_character("long string \xf4\x8f\xbf\xc0"sv, String::WithBOMHandling::No); // U+110000
     Array<u8, 24> string1_expected { 0x6c, 0x6f, 0x6e, 0x67, 0x20, 0x73, 0x74, 0x72, 0x69, 0x6e, 0x67, 0x20, 0xef, 0xbf, 0xbd, 0xef, 0xbf, 0xbd, 0xef, 0xbf, 0xbd, 0xef, 0xbf, 0xbd };
     EXPECT_EQ(string1.bytes(), string1_expected);
 
-    auto string3 = String::from_utf8_with_replacement_character("A valid string!"sv, String::WithBOMHandling::No);
+    auto string3 = String::from_wtf8_with_replacement_character("A valid string!"sv, String::WithBOMHandling::No);
     EXPECT_EQ(string3, "A valid string!"sv);
 
-    auto string4 = String::from_utf8_with_replacement_character(""sv, String::WithBOMHandling::No);
+    auto string4 = String::from_wtf8_with_replacement_character(""sv, String::WithBOMHandling::No);
     EXPECT_EQ(string4, ""sv);
 
-    auto string5 = String::from_utf8_with_replacement_character("\xEF\xBB\xBFWHF!"sv, String::WithBOMHandling::Yes);
+    auto string5 = String::from_wtf8_with_replacement_character("\xEF\xBB\xBFWHF!"sv, String::WithBOMHandling::Yes);
     EXPECT_EQ(string5, "WHF!"sv);
 
-    auto string6 = String::from_utf8_with_replacement_character("\xEF\xBB\xBFWHF!"sv, String::WithBOMHandling::No);
+    auto string6 = String::from_wtf8_with_replacement_character("\xEF\xBB\xBFWHF!"sv, String::WithBOMHandling::No);
     EXPECT_EQ(string6, "\xEF\xBB\xBFWHF!"sv);
 }
 
@@ -280,7 +280,7 @@ TEST_CASE(replace)
 TEST_CASE(reverse)
 {
     auto test_reverse = [](auto test, auto expected) {
-        auto string = MUST(String::from_utf8(test));
+        auto string = MUST(String::from_wtf8(test));
         auto result = MUST(string.reverse());
 
         EXPECT_EQ(result, expected);
@@ -627,7 +627,7 @@ TEST_CASE(to_casefold)
 {
     for (u8 code_point = 0; code_point < 0x80; ++code_point) {
         auto ascii = tolower(code_point);
-        auto unicode = MUST(MUST(String::from_utf8({ reinterpret_cast<char const*>(&code_point), 1 })).to_casefold());
+        auto unicode = MUST(MUST(String::from_wtf8({ reinterpret_cast<char const*>(&code_point), 1 })).to_casefold());
 
         EXPECT_EQ(unicode.bytes_as_string_view().length(), 1u);
         EXPECT_EQ(unicode.bytes_as_string_view()[0], ascii);

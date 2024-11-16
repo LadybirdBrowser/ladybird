@@ -662,7 +662,7 @@ private:
                 --count;
             auto string_data = TRY(ByteBuffer::create_uninitialized(count));
             TRY(m_stream->read_until_filled(string_data));
-            result.empend(TRY(String::from_utf8(StringView { string_data.bytes() })));
+            result.empend(TRY(String::from_wtf8(StringView { string_data.bytes() })));
             return result;
         }
         case Type::UnsignedShort:

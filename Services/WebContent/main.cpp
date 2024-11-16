@@ -222,7 +222,7 @@ static ErrorOr<void> load_content_filters(StringView config_path)
         if (line.is_empty())
             continue;
 
-        auto pattern = TRY(String::from_utf8(line));
+        auto pattern = TRY(String::from_wtf8(line));
         TRY(patterns.try_append(move(pattern)));
     }
 
@@ -246,7 +246,7 @@ static ErrorOr<void> load_autoplay_allowlist(StringView config_path)
         if (line.is_empty())
             continue;
 
-        auto domain = TRY(String::from_utf8(line));
+        auto domain = TRY(String::from_wtf8(line));
         TRY(origins.try_append(move(domain)));
     }
 

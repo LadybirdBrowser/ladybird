@@ -205,7 +205,7 @@ GC::Ref<PrimitiveString> PrimitiveString::create(VM& vm, FlyString const& string
 
 GC::Ref<PrimitiveString> PrimitiveString::create(VM& vm, StringView string)
 {
-    return create(vm, String::from_utf8(string).release_value());
+    return create(vm, String::from_wtf8(string).release_value());
 }
 
 GC::Ref<PrimitiveString> PrimitiveString::create(VM& vm, ByteString string)

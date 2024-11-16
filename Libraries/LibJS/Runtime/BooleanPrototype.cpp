@@ -55,7 +55,7 @@ JS_DEFINE_NATIVE_FUNCTION(BooleanPrototype::to_string)
     auto b = TRY(this_boolean_value(vm, vm.this_value()));
 
     // 2. If b is true, return "true"; else return "false".
-    return PrimitiveString::create(vm, TRY_OR_THROW_OOM(vm, String::from_utf8(b ? "true"sv : "false"sv)));
+    return PrimitiveString::create(vm, TRY_OR_THROW_OOM(vm, String::from_wtf8(b ? "true"sv : "false"sv)));
 }
 
 // 20.3.3.3 Boolean.prototype.valueOf ( ), https://tc39.es/ecma262/#sec-boolean.prototype.valueof

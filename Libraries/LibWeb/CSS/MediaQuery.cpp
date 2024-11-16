@@ -25,7 +25,7 @@ NonnullRefPtr<MediaQuery> MediaQuery::create_not_all()
 String MediaFeatureValue::to_string() const
 {
     return m_value.visit(
-        [](Keyword const& ident) { return MUST(String::from_utf8(string_from_keyword(ident))); },
+        [](Keyword const& ident) { return MUST(String::from_wtf8(string_from_keyword(ident))); },
         [](Length const& length) { return length.to_string(); },
         [](Ratio const& ratio) { return ratio.to_string(); },
         [](Resolution const& resolution) { return resolution.to_string(); },
@@ -62,7 +62,7 @@ String MediaFeature::to_string() const
 
     switch (m_type) {
     case Type::IsTrue:
-        return MUST(String::from_utf8(string_from_media_feature_id(m_id)));
+        return MUST(String::from_wtf8(string_from_media_feature_id(m_id)));
     case Type::ExactValue:
         return MUST(String::formatted("{}: {}", string_from_media_feature_id(m_id), m_value->to_string()));
     case Type::MinValue:

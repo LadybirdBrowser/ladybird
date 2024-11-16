@@ -212,7 +212,7 @@ public:
     template<typename T>
     Completion throw_completion(ErrorType type)
     {
-        return throw_completion<T>(String::from_utf8_without_validation(type.message().bytes()));
+        return throw_completion<T>(String::from_wtf8_without_validation(type.message().bytes()));
     }
 
     template<typename T, typename... Args>

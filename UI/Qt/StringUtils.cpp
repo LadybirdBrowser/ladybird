@@ -15,7 +15,7 @@ AK::ByteString ak_byte_string_from_qstring(QString const& qstring)
 String ak_string_from_qstring(QString const& qstring)
 {
     auto utf8_data = qstring.toUtf8();
-    return MUST(String::from_utf8(StringView(utf8_data.data(), utf8_data.size())));
+    return MUST(String::from_wtf8(StringView(utf8_data.data(), utf8_data.size())));
 }
 
 QString qstring_from_ak_string(StringView ak_string)

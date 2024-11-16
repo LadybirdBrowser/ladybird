@@ -1081,7 +1081,7 @@ WebIDL::ExceptionOr<ByteBuffer> deserialize_bytes(JS::VM& vm, ReadonlySpan<u32> 
 WebIDL::ExceptionOr<String> deserialize_string(JS::VM& vm, ReadonlySpan<u32> vector, size_t& position)
 {
     auto bytes = TRY(deserialize_bytes(vm, vector, position));
-    return TRY_OR_THROW_OOM(vm, String::from_utf8(StringView { bytes }));
+    return TRY_OR_THROW_OOM(vm, String::from_wtf8(StringView { bytes }));
 }
 
 WebIDL::ExceptionOr<GC::Ref<JS::PrimitiveString>> deserialize_string_primitive(JS::VM& vm, ReadonlySpan<u32> vector, size_t& position)

@@ -225,7 +225,7 @@ static constexpr auto s_single_char_tokens = make_single_char_tokens_array();
 Lexer::Lexer(StringView source, StringView filename, size_t line_number, size_t line_column)
     : m_source(source)
     , m_current_token(TokenType::Eof, {}, {}, {}, 0, 0, 0)
-    , m_filename(String::from_utf8(filename).release_value_but_fixme_should_propagate_errors())
+    , m_filename(String::from_wtf8(filename).release_value_but_fixme_should_propagate_errors())
     , m_line_number(line_number)
     , m_line_column(line_column)
     , m_parsed_identifiers(adopt_ref(*new ParsedIdentifiers))

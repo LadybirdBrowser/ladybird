@@ -234,7 +234,7 @@ ThrowCompletionOr<String> to_temporal_offset(VM& vm, Object const* options, Stri
 {
     // 1. If options is undefined, return fallback.
     if (options == nullptr)
-        return TRY_OR_THROW_OOM(vm, String::from_utf8(fallback));
+        return TRY_OR_THROW_OOM(vm, String::from_wtf8(fallback));
 
     // 2. Return ? GetOption(options, "offset", "string", « "prefer", "use", "ignore", "reject" », fallback).
     auto option = TRY(get_option(vm, *options, vm.names.offset, OptionType::String, { "prefer"sv, "use"sv, "ignore"sv, "reject"sv }, fallback));
@@ -525,7 +525,7 @@ ThrowCompletionOr<Optional<String>> get_temporal_unit(VM& vm, Object const& norm
     for (auto const& row : temporal_units) {
         if (row.plural == value) {
             // a. Set value to the value in the Singular column of the corresponding row.
-            value = TRY_OR_THROW_OOM(vm, String::from_utf8(row.singular));
+            value = TRY_OR_THROW_OOM(vm, String::from_wtf8(row.singular));
         }
     }
 
@@ -1303,7 +1303,7 @@ ThrowCompletionOr<ISODateTime> parse_iso_date_time(VM& vm, ParseResult const& pa
     if (year.has_value()) {
         normalized_year = year->starts_with("\xE2\x88\x92"sv)
             ? TRY_OR_THROW_OOM(vm, String::formatted("-{}", year->substring_view(3)))
-            : TRY_OR_THROW_OOM(vm, String::from_utf8(*year));
+            : TRY_OR_THROW_OOM(vm, String::from_wtf8(*year));
     }
 
     // 7. Let yearMV be ! ToIntegerOrInfinity(CodePointsToString(year)).
@@ -1395,7 +1395,7 @@ ThrowCompletionOr<ISODateTime> parse_iso_date_time(VM& vm, ParseResult const& pa
         auto name = parse_result.time_zone_identifier;
 
         // b. Set timeZoneResult.[[Name]] to CodePointsToString(name).
-        time_zone_result.name = TRY_OR_THROW_OOM(vm, String::from_utf8(*name));
+        time_zone_result.name = TRY_OR_THROW_OOM(vm, String::from_wtf8(*name));
     }
 
     // 22. If parseResult contains a UTCDesignator Parse Node, then
@@ -1411,7 +1411,7 @@ ThrowCompletionOr<ISODateTime> parse_iso_date_time(VM& vm, ParseResult const& pa
             auto offset = parse_result.time_zone_numeric_utc_offset;
 
             // ii. Set timeZoneResult.[[OffsetString]] to CodePointsToString(offset).
-            time_zone_result.offset_string = TRY_OR_THROW_OOM(vm, String::from_utf8(*offset));
+            time_zone_result.offset_string = TRY_OR_THROW_OOM(vm, String::from_wtf8(*offset));
         }
     }
 
@@ -1431,7 +1431,7 @@ ThrowCompletionOr<ISODateTime> parse_iso_date_time(VM& vm, ParseResult const& pa
                 auto const& value = annotation.value;
 
                 // 2. Let calendar be CodePointsToString(value).
-                calendar = TRY_OR_THROW_OOM(vm, String::from_utf8(value));
+                calendar = TRY_OR_THROW_OOM(vm, String::from_wtf8(value));
             }
         }
         // c. Else,
@@ -1513,7 +1513,7 @@ ThrowCompletionOr<String> parse_temporal_calendar_string(VM& vm, StringView iso_
             return vm.throw_completion<RangeError>(ErrorType::TemporalInvalidCalendarString, iso_string);
         // c. Else, return isoString.
         else
-            return TRY_OR_THROW_OOM(vm, String::from_utf8(iso_string));
+            return TRY_OR_THROW_OOM(vm, String::from_wtf8(iso_string));
     }
 }
 
@@ -1761,7 +1761,7 @@ ThrowCompletionOr<TemporalTimeZone> parse_temporal_time_zone_string(VM& vm, Stri
     // 2. If parseResult is a Parse Node, then
     if (parse_result.has_value()) {
         // a. Return the Record { [[Z]]: false, [[OffsetString]]: undefined, [[Name]]: timeZoneString }.
-        return TemporalTimeZone { .z = false, .offset_string = {}, .name = TRY_OR_THROW_OOM(vm, String::from_utf8(time_zone_string)) };
+        return TemporalTimeZone { .z = false, .offset_string = {}, .name = TRY_OR_THROW_OOM(vm, String::from_wtf8(time_zone_string)) };
     }
 
     // 3. Let result be ? ParseISODateTime(timeZoneString).
@@ -1916,7 +1916,7 @@ ThrowCompletionOr<DifferenceSettings> get_difference_settings(VM& vm, Difference
 
     // 7. If largestUnit is "auto", set largestUnit to defaultLargestUnit.
     if (largest_unit == "auto"sv)
-        largest_unit = TRY_OR_THROW_OOM(vm, String::from_utf8(default_largest_unit));
+        largest_unit = TRY_OR_THROW_OOM(vm, String::from_wtf8(default_largest_unit));
 
     // 8. If LargerOfTwoTemporalUnits(largestUnit, smallestUnit) is not largestUnit, throw a RangeError exception.
     if (larger_of_two_temporal_units(*largest_unit, *smallest_unit) != largest_unit)
@@ -1928,7 +1928,7 @@ ThrowCompletionOr<DifferenceSettings> get_difference_settings(VM& vm, Difference
     // 10. If operation is since, then
     if (operation == DifferenceOperation::Since) {
         // a. Set roundingMode to ! NegateTemporalRoundingMode(roundingMode).
-        rounding_mode = TRY_OR_THROW_OOM(vm, String::from_utf8(negate_temporal_rounding_mode(rounding_mode)));
+        rounding_mode = TRY_OR_THROW_OOM(vm, String::from_wtf8(negate_temporal_rounding_mode(rounding_mode)));
     }
 
     // 11. Let maximum be ! MaximumTemporalDurationRoundingIncrement(smallestUnit).

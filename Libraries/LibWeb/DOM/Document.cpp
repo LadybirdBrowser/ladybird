@@ -2984,8 +2984,8 @@ WebIDL::ExceptionOr<Document::PrefixAndTagName> Document::validate_qualified_nam
         return WebIDL::InvalidCharacterError::create(realm, "Qualified name can't end with colon (:)."_string);
 
     return Document::PrefixAndTagName {
-        .prefix = MUST(FlyString::from_utf8(qualified_name.bytes_as_string_view().substring_view(0, *colon_offset))),
-        .tag_name = MUST(FlyString::from_utf8(qualified_name.bytes_as_string_view().substring_view(*colon_offset + 1))),
+        .prefix = MUST(FlyString::from_wtf8(qualified_name.bytes_as_string_view().substring_view(0, *colon_offset))),
+        .tag_name = MUST(FlyString::from_wtf8(qualified_name.bytes_as_string_view().substring_view(*colon_offset + 1))),
     };
 }
 

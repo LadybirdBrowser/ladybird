@@ -30,7 +30,7 @@ public:
     }
 
     CompletionSuggestion(StringView completion, ForSearchTag)
-        : text(MUST(String::from_utf8(completion)))
+        : text(MUST(String::from_wtf8(completion)))
     {
     }
 

@@ -643,11 +643,11 @@ ErrorOr<String> HTMLFormElement::pick_an_encoding() const
             return "UTF-8"_string;
 
         // 6. Return the first encoding in candidate encodings.
-        return String::from_utf8(candidate_encodings.first());
+        return String::from_wtf8(candidate_encodings.first());
     }
 
     // 3. Return the result of getting an output encoding from encoding.
-    return MUST(String::from_utf8(TextCodec::get_output_encoding(encoding)));
+    return MUST(String::from_wtf8(TextCodec::get_output_encoding(encoding)));
 }
 
 // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#convert-to-a-list-of-name-value-pairs

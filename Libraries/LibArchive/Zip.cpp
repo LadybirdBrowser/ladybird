@@ -87,7 +87,7 @@ ErrorOr<bool> Zip::for_each_member(Function<ErrorOr<IterationDecision>(ZipMember
         VERIFY(local_file_header.read(m_input_data.slice(central_directory_record.local_file_header_offset)));
 
         ZipMember member;
-        member.name = TRY(String::from_utf8({ central_directory_record.name, central_directory_record.name_length }));
+        member.name = TRY(String::from_wtf8({ central_directory_record.name, central_directory_record.name_length }));
         member.compressed_data = { local_file_header.compressed_data, central_directory_record.compressed_size };
         member.compression_method = central_directory_record.compression_method;
         member.uncompressed_size = central_directory_record.uncompressed_size;
@@ -163,7 +163,7 @@ ErrorOr<ZipOutputStream::MemberInformation> ZipOutputStream::add_member_from_str
     auto buffer = TRY(stream.read_until_eof());
 
     Archive::ZipMember member {};
-    member.name = TRY(String::from_utf8(path));
+    member.name = TRY(String::from_wtf8(path));
 
     if (modification_time.has_value()) {
         member.modification_date = to_packed_dos_date(modification_time->year(), modification_time->month(), modification_time->day());
@@ -199,7 +199,7 @@ ErrorOr<ZipOutputStream::MemberInformation> ZipOutputStream::add_member_from_str
 ErrorOr<void> ZipOutputStream::add_directory(StringView name, Optional<Core::DateTime> const& modification_time)
 {
     Archive::ZipMember member {};
-    member.name = TRY(String::from_utf8(name));
+    member.name = TRY(String::from_wtf8(name));
     member.compressed_data = {};
     member.compression_method = Archive::ZipCompressionMethod::Store;
     member.uncompressed_size = 0;

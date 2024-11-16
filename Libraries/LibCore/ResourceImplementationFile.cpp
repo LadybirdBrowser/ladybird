@@ -24,7 +24,7 @@ ErrorOr<NonnullRefPtr<Resource>> ResourceImplementationFile::load_from_resource_
 
     VERIFY(uri.starts_with(resource_scheme));
 
-    auto path = TRY(String::from_utf8(uri.substring_view(resource_scheme.length())));
+    auto path = TRY(String::from_wtf8(uri.substring_view(resource_scheme.length())));
     auto full_path = TRY(String::from_byte_string(LexicalPath::join(m_base_directory, path).string()));
 
     auto st = TRY(System::stat(full_path));

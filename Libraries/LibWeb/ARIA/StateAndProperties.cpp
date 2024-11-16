@@ -42,7 +42,7 @@ ErrorOr<String> state_or_property_to_string_value(StateAndProperties state_or_pr
     case StateAndProperties::AriaBrailleRoleDescription:
         return aria_data.aria_braille_role_description_or_default();
     case StateAndProperties::AriaBusy:
-        return String::from_utf8(aria_data.aria_busy_or_default() ? "true"sv : "false"sv);
+        return String::from_wtf8(aria_data.aria_busy_or_default() ? "true"sv : "false"sv);
     case StateAndProperties::AriaChecked:
         return ARIA::tristate_to_string(aria_data.aria_checked_or_default());
     case StateAndProperties::AriaColCount:
@@ -253,7 +253,7 @@ ErrorOr<String> state_or_property_to_string_value(StateAndProperties state_or_pr
         return builder.to_string();
     }
     case StateAndProperties::AriaRequired:
-        return String::from_utf8(aria_data.aria_required_or_default() ? "true"sv : "false"sv);
+        return String::from_wtf8(aria_data.aria_required_or_default() ? "true"sv : "false"sv);
     case StateAndProperties::AriaRoleDescription:
         return aria_data.aria_role_description_or_default();
     case StateAndProperties::AriaRowCount:

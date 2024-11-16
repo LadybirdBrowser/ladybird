@@ -62,7 +62,7 @@ String normalize(StringView string, NormalizationForm form)
     }
 
     if (icu_failure(status))
-        return MUST(String::from_utf8(string));
+        return MUST(String::from_wtf8(string));
 
     VERIFY(normalizer);
 
@@ -71,7 +71,7 @@ String normalize(StringView string, NormalizationForm form)
 
     normalizer->normalizeUTF8(0, icu_string_piece(string), sink, nullptr, status);
     if (icu_failure(status))
-        return MUST(String::from_utf8(string));
+        return MUST(String::from_wtf8(string));
 
     return MUST(builder.to_string());
 }

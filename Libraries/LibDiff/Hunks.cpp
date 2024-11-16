@@ -169,7 +169,7 @@ ErrorOr<Vector<Hunk>> Parser::parse_hunks()
             }
 
             auto const content = line.substring_view(1, line.length() - 1);
-            TRY(hunk.lines.try_append(Line { operation, TRY(String::from_utf8(content)) }));
+            TRY(hunk.lines.try_append(Line { operation, TRY(String::from_wtf8(content)) }));
         }
 
         TRY(hunks.try_append(hunk));

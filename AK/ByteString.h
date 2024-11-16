@@ -88,10 +88,10 @@ public:
 
     ByteString(DeprecatedFlyString const&);
 
-    static ErrorOr<ByteString> from_utf8(ReadonlyBytes);
-    static ErrorOr<ByteString> from_utf8(StringView string) { return from_utf8(string.bytes()); }
-    static ByteString must_from_utf8(StringView string) { return MUST(from_utf8(string)); }
-    static ByteString from_utf8_without_validation(StringView string) { return ByteString { string }; }
+    static ErrorOr<ByteString> from_wtf8(ReadonlyBytes);
+    static ErrorOr<ByteString> from_wtf8(StringView string) { return from_wtf8(string.bytes()); }
+    static ByteString must_from_wtf8(StringView string) { return MUST(from_wtf8(string)); }
+    static ByteString from_wtf8_without_validation(StringView string) { return ByteString { string }; }
 
     template<
         typename F,

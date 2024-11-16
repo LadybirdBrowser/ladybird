@@ -76,7 +76,7 @@ Optional<time_t> Resource::modified_time() const
 
 String Resource::filename() const
 {
-    return MUST(String::from_utf8(LexicalPath(m_path.bytes_as_string_view()).basename()));
+    return MUST(String::from_wtf8(LexicalPath(m_path.bytes_as_string_view()).basename()));
 }
 
 Vector<String> Resource::children() const

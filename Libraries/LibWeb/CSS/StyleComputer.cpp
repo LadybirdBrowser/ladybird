@@ -2681,7 +2681,7 @@ void StyleComputer::build_qualified_layer_names_cache()
         auto* node = &root;
         internal_qualified_name.bytes_as_string_view()
             .for_each_split_view('.', SplitBehavior::Nothing, [&](StringView part) {
-                auto local_name = MUST(FlyString::from_utf8(part));
+                auto local_name = MUST(FlyString::from_wtf8(part));
                 node = &node->children.ensure(local_name);
             });
     };

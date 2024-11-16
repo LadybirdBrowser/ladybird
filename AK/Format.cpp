@@ -1094,7 +1094,7 @@ void set_log_tag_name(char const* tag_name)
 {
     static String s_log_tag_storage;
     // NOTE: Make sure to copy the null terminator
-    s_log_tag_storage = MUST(String::from_utf8({ tag_name, strlen(tag_name) + 1 }));
+    s_log_tag_storage = MUST(String::from_wtf8({ tag_name, strlen(tag_name) + 1 }));
     s_log_tag_name = s_log_tag_storage.bytes_as_string_view().characters_without_null_termination();
 }
 

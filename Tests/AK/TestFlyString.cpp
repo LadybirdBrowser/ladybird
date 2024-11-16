@@ -121,8 +121,8 @@ TEST_CASE(moved_fly_string_becomes_empty)
 
 TEST_CASE(is_one_of)
 {
-    auto foo = MUST(FlyString::from_utf8("foo"sv));
-    auto bar = MUST(FlyString::from_utf8("bar"sv));
+    auto foo = MUST(FlyString::from_wtf8("foo"sv));
+    auto bar = MUST(FlyString::from_wtf8("bar"sv));
 
     EXPECT(foo.is_one_of(foo));
     EXPECT(foo.is_one_of(foo, bar));

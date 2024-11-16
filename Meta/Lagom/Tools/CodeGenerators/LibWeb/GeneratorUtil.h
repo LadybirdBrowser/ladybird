@@ -53,7 +53,7 @@ inline String snake_casify(StringView dashy_name)
 {
     // FIXME: We don't really need to convert dashy_name to a String first, but currently
     //        all the `replace` functions that take a StringView return ByteString.
-    return MUST(MUST(String::from_utf8(dashy_name)).replace("-"sv, "_"sv, ReplaceMode::All));
+    return MUST(MUST(String::from_wtf8(dashy_name)).replace("-"sv, "_"sv, ReplaceMode::All));
 }
 
 inline ErrorOr<JsonValue> read_entire_file_as_json(StringView filename)

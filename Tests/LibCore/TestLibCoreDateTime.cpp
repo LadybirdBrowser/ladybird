@@ -18,7 +18,7 @@ public:
     explicit TimeZoneGuard(StringView time_zone)
     {
         if (auto current_time_zone = Core::Environment::get("TZ"sv); current_time_zone.has_value())
-            m_time_zone = MUST(String::from_utf8(*current_time_zone));
+            m_time_zone = MUST(String::from_wtf8(*current_time_zone));
 
         update(time_zone);
     }

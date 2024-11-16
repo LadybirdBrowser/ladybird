@@ -251,7 +251,7 @@ FileFilter HTMLInputElement::parse_accept_attribute() const
         // A string whose first character is a U+002E FULL STOP character (.)
         //     Indicates that files with the specified file extension are accepted.
         else if (value.starts_with('.'))
-            filter.add_filter(FileFilter::Extension { MUST(String::from_utf8(value.substring_view(1))) });
+            filter.add_filter(FileFilter::Extension { MUST(String::from_wtf8(value.substring_view(1))) });
     });
 
     return filter;
@@ -1446,7 +1446,7 @@ String HTMLInputElement::value_sanitization_algorithm(String const& value) const
                 if (c != '\r' && c != '\n')
                     builder.append(c);
             }
-            return MUST(String::from_utf8(builder.string_view().trim(Infra::ASCII_WHITESPACE)));
+            return MUST(String::from_wtf8(builder.string_view().trim(Infra::ASCII_WHITESPACE)));
         }
         return MUST(value.trim(Infra::ASCII_WHITESPACE));
     } else if (type_state() == HTMLInputElement::TypeAttributeState::Email) {
@@ -1459,7 +1459,7 @@ String HTMLInputElement::value_sanitization_algorithm(String const& value) const
                 if (c != '\r' && c != '\n')
                     builder.append(c);
             }
-            return MUST(String::from_utf8(builder.string_view().trim(Infra::ASCII_WHITESPACE)));
+            return MUST(String::from_wtf8(builder.string_view().trim(Infra::ASCII_WHITESPACE)));
         }
         return MUST(value.trim(Infra::ASCII_WHITESPACE));
     } else if (type_state() == HTMLInputElement::TypeAttributeState::Number) {

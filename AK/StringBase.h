@@ -101,8 +101,8 @@ protected:
     ErrorOr<StringBase> substring_from_byte_offset_with_shared_superstring(size_t start, size_t byte_count) const;
 
 private:
-    friend class ::AK::String;
-    friend class ::AK::FlyString;
+    friend class ::AK::Wtf8FlyString;
+    friend class ::AK::Wtf8String;
 
     // NOTE: If the least significant bit of the pointer is set, this is a short string.
     static constexpr uintptr_t SHORT_STRING_FLAG = 1;

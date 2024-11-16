@@ -516,7 +516,7 @@ def generate_tag_handler(tag: Tag) -> str:
 
 def generate_tag_handler_file(tags: List[Tag]) -> str:
     formatter_for_tag_with_enum = '\n'.join([fR"""        case {tag.id}:
-            return MUST(String::from_utf8(
+            return MUST(String::from_wtf8(
                 name_for_enum_tag_value(static_cast<{tag.associated_enum.export_name()}>(v.get<u32>()))));"""
                                              for tag in tags if tag.associated_enum])
 

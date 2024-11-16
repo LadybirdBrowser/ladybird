@@ -54,12 +54,12 @@ VideoTrack::VideoTrack(JS::Realm& realm, GC::Ref<HTMLMediaElement> media_element
     };
 
     m_playback_manager->on_decoder_error = [this](auto error) {
-        auto error_message = MUST(String::from_utf8(error.description()));
+        auto error_message = MUST(String::from_wtf8(error.description()));
         m_media_element->set_decoder_error(move(error_message));
     };
 
     m_playback_manager->on_fatal_playback_error = [this](auto error) {
-        auto error_message = MUST(String::from_utf8(error.string_literal()));
+        auto error_message = MUST(String::from_wtf8(error.string_literal()));
         m_media_element->set_decoder_error(move(error_message));
     };
 }

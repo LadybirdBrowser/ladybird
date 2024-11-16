@@ -394,7 +394,7 @@ static void generate_to_string(SourceGenerator& scoped_generator, ParameterType 
     })~~~");
         if (!may_be_null) {
             scoped_generator.append(R"~~~( else {
-        @cpp_name@ = MUST(@string_type@::from_utf8(@parameter.optional_default_value@sv));
+        @cpp_name@ = MUST(@string_type@::from_wtf8(@parameter.optional_default_value@sv));
     }
 )~~~");
         } else {
@@ -1521,7 +1521,7 @@ static void generate_to_cpp(SourceGenerator& generator, ParameterType& parameter
                     } else if (optional_default_value->starts_with("\""sv) && optional_default_value->ends_with("\""sv)) {
                         union_generator.set("default_string_value", optional_default_value.value());
                         union_generator.append(R"~~~(
-    @union_type@ @cpp_name@ = @js_name@@js_suffix@.is_undefined() ? MUST(String::from_utf8(@default_string_value@sv)) : TRY(@js_name@@js_suffix@_to_variant(@js_name@@js_suffix@));
+    @union_type@ @cpp_name@ = @js_name@@js_suffix@.is_undefined() ? MUST(String::from_wtf8(@default_string_value@sv)) : TRY(@js_name@@js_suffix@_to_variant(@js_name@@js_suffix@));
 )~~~");
                     } else if (optional_default_value == "{}") {
                         VERIFY(dictionary_type);

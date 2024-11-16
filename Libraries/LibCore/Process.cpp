@@ -185,12 +185,12 @@ ErrorOr<String> Process::get_name()
     int rc = get_process_name(buffer, BUFSIZ);
     if (rc != 0)
         return Error::from_syscall("get_process_name"sv, -rc);
-    return String::from_utf8(StringView { buffer, strlen(buffer) });
+    return String::from_wtf8(StringView { buffer, strlen(buffer) });
 #elif defined(AK_LIBC_GLIBC) || (defined(AK_OS_LINUX) && !defined(AK_OS_ANDROID))
-    return String::from_utf8(StringView { program_invocation_name, strlen(program_invocation_name) });
+    return String::from_wtf8(StringView { program_invocation_name, strlen(program_invocation_name) });
 #elif defined(AK_OS_BSD_GENERIC) || defined(AK_OS_HAIKU)
     auto const* progname = getprogname();
-    return String::from_utf8(StringView { progname, strlen(progname) });
+    return String::from_wtf8(StringView { progname, strlen(progname) });
 #else
     // FIXME: Implement Process::get_name() for other platforms.
     return "???"_string;

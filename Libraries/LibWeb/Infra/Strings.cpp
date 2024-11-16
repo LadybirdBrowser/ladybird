@@ -65,7 +65,7 @@ ErrorOr<String> strip_and_collapse_whitespace(StringView string)
     }
 
     // ...and then remove any leading and trailing ASCII whitespace from that string.
-    return String::from_utf8(builder.string_view().trim(Infra::ASCII_WHITESPACE));
+    return String::from_wtf8(builder.string_view().trim(Infra::ASCII_WHITESPACE));
 }
 
 // https://infra.spec.whatwg.org/#code-unit-prefix

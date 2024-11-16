@@ -374,7 +374,7 @@ WebIDL::ExceptionOr<GC::Ref<Request>> Request::construct_impl(JS::Realm& realm, 
             return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Method must not be one of CONNECT, TRACE, or TRACK"sv };
 
         // 3. Normalize method.
-        method = MUST(String::from_utf8(Infrastructure::normalize_method(method.bytes())));
+        method = MUST(String::from_wtf8(Infrastructure::normalize_method(method.bytes())));
 
         // 4. Set request’s method to method.
         request->set_method(MUST(ByteBuffer::copy(method.bytes())));
@@ -509,7 +509,7 @@ WebIDL::ExceptionOr<GC::Ref<Request>> Request::construct_impl(JS::Realm& realm, 
 String Request::method() const
 {
     // The method getter steps are to return this’s request’s method.
-    return MUST(String::from_utf8(m_request->method()));
+    return MUST(String::from_wtf8(m_request->method()));
 }
 
 // https://fetch.spec.whatwg.org/#dom-request-url

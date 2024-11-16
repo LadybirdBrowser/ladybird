@@ -97,7 +97,7 @@ static GC::Ref<DOM::NodeList> locate_element_by_tag_name(DOM::ParentNode& start_
 
     // To find a web element with the Tag Name strategy return success with data set to the result of calling
     // getElementsByTagName() with start node as this and selector as the argument.
-    auto elements = start_node.get_elements_by_tag_name(MUST(FlyString::from_utf8(selector)));
+    auto elements = start_node.get_elements_by_tag_name(MUST(FlyString::from_wtf8(selector)));
 
     // FIXME: Having to convert this to a NodeList is a bit awkward.
     Vector<GC::Root<DOM::Node>> result;

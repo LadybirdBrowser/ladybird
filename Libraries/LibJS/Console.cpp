@@ -403,7 +403,7 @@ static ThrowCompletionOr<String> label_or_fallback(VM& vm, StringView fallback)
 {
     return vm.argument_count() > 0 && !vm.argument(0).is_undefined()
         ? vm.argument(0).to_string(vm)
-        : TRY_OR_THROW_OOM(vm, String::from_utf8(fallback));
+        : TRY_OR_THROW_OOM(vm, String::from_wtf8(fallback));
 }
 
 // 1.2.1. count(label), https://console.spec.whatwg.org/#count

@@ -617,7 +617,7 @@ static ErrorOr<String> domain_to_ascii(StringView domain, bool be_strict)
 
         if (!slow_path) {
             auto lowercase_domain = domain.to_lowercase_string();
-            return String::from_utf8_without_validation(lowercase_domain.bytes());
+            return String::from_wtf8_without_validation(lowercase_domain.bytes());
         }
     }
 

@@ -7,26 +7,26 @@
 #include <AK/Array.h>
 #include <AK/Checked.h>
 #include <AK/Endian.h>
-#include <AK/FlyString.h>
 #include <AK/Format.h>
 #include <AK/MemMem.h>
 #include <AK/Stream.h>
-#include <AK/String.h>
 #include <AK/Vector.h>
 #include <AK/Wtf16ByteView.h>
+#include <AK/Wtf8FlyString.h>
+#include <AK/Wtf8String.h>
 #include <stdlib.h>
 
 #include <simdutf.h>
 
 namespace AK {
 
-String String::from_utf8_with_replacement_character(StringView view, WithBOMHandling with_bom_handling)
+Wtf8String Wtf8String::from_wtf8_with_replacement_character(StringView view, WithBOMHandling with_bom_handling)
 {
     if (auto bytes = view.bytes(); with_bom_handling == WithBOMHandling::Yes && bytes.size() >= 3 && bytes[0] == 0xEF && bytes[1] == 0xBB && bytes[2] == 0xBF)
         view = view.substring_view(3);
 
     if (Wtf8ByteView(view).validate())
-        return String::from_utf8_without_validation(view.bytes());
+        return Wtf8String::from_wtf8_without_validation(view.bytes());
 
     StringBuilder builder;
 
@@ -36,9 +36,9 @@ String String::from_utf8_with_replacement_character(StringView view, WithBOMHand
     return builder.to_string_without_validation();
 }
 
-String String::from_utf8_without_validation(ReadonlyBytes bytes)
+Wtf8String Wtf8String::from_wtf8_without_validation(ReadonlyBytes bytes)
 {
-    String result;
+    Wtf8String result;
     MUST(result.replace_with_new_string(bytes.size(), [&](Bytes buffer) {
         bytes.copy_to(buffer);
         return ErrorOr<void> {};
@@ -46,12 +46,12 @@ String String::from_utf8_without_validation(ReadonlyBytes bytes)
     return result;
 }
 
-ErrorOr<String> String::from_utf8(StringView view)
+ErrorOr<Wtf8String> Wtf8String::from_wtf8(StringView view)
 {
     if (!Wtf8ByteView { view }.validate())
-        return Error::from_string_literal("String::from_utf8: Input was not valid UTF-8");
+        return Error::from_string_literal("Wtf8String::from_wtf8: Input was not valid UTF-8");
 
-    String result;
+    Wtf8String result;
     TRY(result.replace_with_new_string(view.length(), [&](Bytes buffer) {
         view.bytes().copy_to(buffer);
         return ErrorOr<void> {};
@@ -59,14 +59,14 @@ ErrorOr<String> String::from_utf8(StringView view)
     return result;
 }
 
-ErrorOr<String> String::from_utf16(Wtf16ByteView const& utf16)
+ErrorOr<Wtf8String> Wtf8String::from_utf16(Wtf16ByteView const& utf16)
 {
     if (!utf16.validate())
-        return Error::from_string_literal("String::from_utf16: Input was not valid UTF-16");
+        return Error::from_string_literal("Wtf8String::from_utf16: Input was not valid UTF-16");
     if (utf16.is_empty())
-        return String {};
+        return Wtf8String {};
 
-    String result;
+    Wtf8String result;
 
     auto utf8_length = [&]() {
         switch (utf16.endianness()) {
@@ -100,36 +100,36 @@ ErrorOr<String> String::from_utf16(Wtf16ByteView const& utf16)
     return result;
 }
 
-ErrorOr<String> String::from_stream(Stream& stream, size_t byte_count)
+ErrorOr<Wtf8String> Wtf8String::from_stream(Stream& stream, size_t byte_count)
 {
-    String result;
+    Wtf8String result;
     TRY(result.replace_with_new_string(byte_count, [&](Bytes buffer) -> ErrorOr<void> {
         TRY(stream.read_until_filled(buffer));
         if (!Wtf8ByteView { StringView { buffer } }.validate())
-            return Error::from_string_literal("String::from_stream: Input was not valid UTF-8");
+            return Error::from_string_literal("Wtf8String::from_stream: Input was not valid UTF-8");
         return {};
     }));
     return result;
 }
 
-ErrorOr<String> String::from_string_builder(Badge<StringBuilder>, StringBuilder& builder)
+ErrorOr<Wtf8String> Wtf8String::from_string_builder(Badge<StringBuilder>, StringBuilder& builder)
 {
     if (!Wtf8ByteView { builder.string_view() }.validate())
-        return Error::from_string_literal("String::from_string_builder: Input was not valid UTF-8");
+        return Error::from_string_literal("Wtf8String::from_string_builder: Input was not valid UTF-8");
 
-    String result;
+    Wtf8String result;
     result.replace_with_string_builder(builder);
     return result;
 }
 
-String String::from_string_builder_without_validation(Badge<StringBuilder>, StringBuilder& builder)
+Wtf8String Wtf8String::from_string_builder_without_validation(Badge<StringBuilder>, StringBuilder& builder)
 {
-    String result;
+    Wtf8String result;
     result.replace_with_string_builder(builder);
     return result;
 }
 
-ErrorOr<String> String::repeated(u32 code_point, size_t count)
+ErrorOr<Wtf8String> Wtf8String::repeated(u32 code_point, size_t count)
 {
     VERIFY(is_unicode(code_point));
 
@@ -142,7 +142,7 @@ ErrorOr<String> String::repeated(u32 code_point, size_t count)
 
     auto total_byte_count = code_point_byte_length * count;
 
-    String result;
+    Wtf8String result;
     TRY(result.replace_with_new_string(total_byte_count, [&](Bytes buffer) {
         if (code_point_byte_length == 1) {
             buffer.fill(code_point_as_utf8[0]);
@@ -155,31 +155,31 @@ ErrorOr<String> String::repeated(u32 code_point, size_t count)
     return result;
 }
 
-StringView String::bytes_as_string_view() const&
+StringView Wtf8String::bytes_as_string_view() const&
 {
     return StringView(bytes());
 }
 
-bool String::is_empty() const
+bool Wtf8String::is_empty() const
 {
     return bytes().size() == 0;
 }
 
-ErrorOr<String> String::vformatted(StringView fmtstr, TypeErasedFormatParams& params)
+ErrorOr<Wtf8String> Wtf8String::vformatted(StringView fmtstr, TypeErasedFormatParams& params)
 {
     StringBuilder builder;
     TRY(vformat(builder, fmtstr, params));
     return builder.to_string();
 }
 
-ErrorOr<Vector<String>> String::split(u32 separator, SplitBehavior split_behavior) const
+ErrorOr<Vector<Wtf8String>> Wtf8String::split(u32 separator, SplitBehavior split_behavior) const
 {
     return split_limit(separator, 0, split_behavior);
 }
 
-ErrorOr<Vector<String>> String::split_limit(u32 separator, size_t limit, SplitBehavior split_behavior) const
+ErrorOr<Vector<Wtf8String>> Wtf8String::split_limit(u32 separator, size_t limit, SplitBehavior split_behavior) const
 {
-    Vector<String> result;
+    Vector<Wtf8String> result;
 
     if (is_empty())
         return result;
@@ -202,7 +202,7 @@ ErrorOr<Vector<String>> String::split_limit(u32 separator, size_t limit, SplitBe
     return result;
 }
 
-Optional<size_t> String::find_byte_offset(u32 code_point, size_t from_byte_offset) const
+Optional<size_t> Wtf8String::find_byte_offset(u32 code_point, size_t from_byte_offset) const
 {
     auto code_points = this->code_points();
     if (from_byte_offset >= code_points.byte_length())
@@ -216,7 +216,7 @@ Optional<size_t> String::find_byte_offset(u32 code_point, size_t from_byte_offse
     return {};
 }
 
-Optional<size_t> String::find_byte_offset(StringView substring, size_t from_byte_offset) const
+Optional<size_t> Wtf8String::find_byte_offset(StringView substring, size_t from_byte_offset) const
 {
     auto view = bytes_as_string_view();
     if (from_byte_offset >= view.length())
@@ -231,66 +231,66 @@ Optional<size_t> String::find_byte_offset(StringView substring, size_t from_byte
     return {};
 }
 
-bool String::operator==(FlyString const& other) const
+bool Wtf8String::operator==(Wtf8FlyString const& other) const
 {
     return static_cast<StringBase const&>(*this) == other.data({});
 }
 
-bool String::operator==(StringView other) const
+bool Wtf8String::operator==(StringView other) const
 {
     return bytes_as_string_view() == other;
 }
 
-ErrorOr<String> String::substring_from_byte_offset(size_t start, size_t byte_count) const
+ErrorOr<Wtf8String> Wtf8String::substring_from_byte_offset(size_t start, size_t byte_count) const
 {
     if (!byte_count)
-        return String {};
-    return String::from_utf8(bytes_as_string_view().substring_view(start, byte_count));
+        return Wtf8String {};
+    return Wtf8String::from_wtf8(bytes_as_string_view().substring_view(start, byte_count));
 }
 
-ErrorOr<String> String::substring_from_byte_offset(size_t start) const
+ErrorOr<Wtf8String> Wtf8String::substring_from_byte_offset(size_t start) const
 {
     VERIFY(start <= bytes_as_string_view().length());
     return substring_from_byte_offset(start, bytes_as_string_view().length() - start);
 }
 
-ErrorOr<String> String::substring_from_byte_offset_with_shared_superstring(size_t start, size_t byte_count) const
+ErrorOr<Wtf8String> Wtf8String::substring_from_byte_offset_with_shared_superstring(size_t start, size_t byte_count) const
 {
-    return String { TRY(StringBase::substring_from_byte_offset_with_shared_superstring(start, byte_count)) };
+    return Wtf8String { TRY(StringBase::substring_from_byte_offset_with_shared_superstring(start, byte_count)) };
 }
 
-ErrorOr<String> String::substring_from_byte_offset_with_shared_superstring(size_t start) const
+ErrorOr<Wtf8String> Wtf8String::substring_from_byte_offset_with_shared_superstring(size_t start) const
 {
     VERIFY(start <= bytes_as_string_view().length());
     return substring_from_byte_offset_with_shared_superstring(start, bytes_as_string_view().length() - start);
 }
 
-bool String::operator==(char const* c_string) const
+bool Wtf8String::operator==(char const* c_string) const
 {
     return bytes_as_string_view() == c_string;
 }
 
-u32 String::ascii_case_insensitive_hash() const
+u32 Wtf8String::ascii_case_insensitive_hash() const
 {
     return case_insensitive_string_hash(reinterpret_cast<char const*>(bytes().data()), bytes().size());
 }
 
-Wtf8ByteView String::code_points() const&
+Wtf8ByteView Wtf8String::code_points() const&
 {
     return Wtf8ByteView(bytes_as_string_view());
 }
 
-ErrorOr<void> Formatter<String>::format(FormatBuilder& builder, String const& utf8_string)
+ErrorOr<void> Formatter<Wtf8String>::format(FormatBuilder& builder, Wtf8String const& utf8_string)
 {
     return Formatter<StringView>::format(builder, utf8_string.bytes_as_string_view());
 }
 
-ErrorOr<String> String::replace(StringView needle, StringView replacement, ReplaceMode replace_mode) const
+ErrorOr<Wtf8String> Wtf8String::replace(StringView needle, StringView replacement, ReplaceMode replace_mode) const
 {
     return StringUtils::replace(*this, needle, replacement, replace_mode);
 }
 
-ErrorOr<String> String::reverse() const
+ErrorOr<Wtf8String> Wtf8String::reverse() const
 {
     // FIXME: This handles multi-byte code points, but not e.g. grapheme clusters.
     // FIXME: We could avoid allocating a temporary vector if Wtf8ByteView supports reverse iteration.
@@ -309,34 +309,34 @@ ErrorOr<String> String::reverse() const
     return builder.to_string();
 }
 
-ErrorOr<String> String::trim(Wtf8ByteView const& code_points_to_trim, TrimMode mode) const
+ErrorOr<Wtf8String> Wtf8String::trim(Wtf8ByteView const& code_points_to_trim, TrimMode mode) const
 {
     auto trimmed = code_points().trim(code_points_to_trim, mode);
-    return String::from_utf8(trimmed.as_string());
+    return Wtf8String::from_wtf8(trimmed.as_string());
 }
 
-ErrorOr<String> String::trim(StringView code_points_to_trim, TrimMode mode) const
+ErrorOr<Wtf8String> Wtf8String::trim(StringView code_points_to_trim, TrimMode mode) const
 {
     return trim(Wtf8ByteView { code_points_to_trim }, mode);
 }
 
-ErrorOr<String> String::trim_ascii_whitespace(TrimMode mode) const
+ErrorOr<Wtf8String> Wtf8String::trim_ascii_whitespace(TrimMode mode) const
 {
     return trim(" \n\t\v\f\r"sv, mode);
 }
 
-bool String::contains(StringView needle, CaseSensitivity case_sensitivity) const
+bool Wtf8String::contains(StringView needle, CaseSensitivity case_sensitivity) const
 {
     return StringUtils::contains(bytes_as_string_view(), needle, case_sensitivity);
 }
 
-bool String::contains(u32 needle, CaseSensitivity case_sensitivity) const
+bool Wtf8String::contains(u32 needle, CaseSensitivity case_sensitivity) const
 {
-    auto needle_as_string = String::from_code_point(needle);
+    auto needle_as_string = Wtf8String::from_code_point(needle);
     return contains(needle_as_string.bytes_as_string_view(), case_sensitivity);
 }
 
-bool String::starts_with(u32 code_point) const
+bool Wtf8String::starts_with(u32 code_point) const
 {
     if (is_empty())
         return false;
@@ -344,12 +344,12 @@ bool String::starts_with(u32 code_point) const
     return *code_points().begin() == code_point;
 }
 
-bool String::starts_with_bytes(StringView bytes, CaseSensitivity case_sensitivity) const
+bool Wtf8String::starts_with_bytes(StringView bytes, CaseSensitivity case_sensitivity) const
 {
     return bytes_as_string_view().starts_with(bytes, case_sensitivity);
 }
 
-bool String::ends_with(u32 code_point) const
+bool Wtf8String::ends_with(u32 code_point) const
 {
     if (is_empty())
         return false;
@@ -361,27 +361,27 @@ bool String::ends_with(u32 code_point) const
     return last_code_point == code_point;
 }
 
-bool String::ends_with_bytes(StringView bytes, CaseSensitivity case_sensitivity) const
+bool Wtf8String::ends_with_bytes(StringView bytes, CaseSensitivity case_sensitivity) const
 {
     return bytes_as_string_view().ends_with(bytes, case_sensitivity);
 }
 
-unsigned Traits<String>::hash(String const& string)
+unsigned Traits<Wtf8String>::hash(Wtf8String const& string)
 {
     return string.hash();
 }
 
-ByteString String::to_byte_string() const
+ByteString Wtf8String::to_byte_string() const
 {
     return ByteString(bytes_as_string_view());
 }
 
-ErrorOr<String> String::from_byte_string(ByteString const& byte_string)
+ErrorOr<Wtf8String> Wtf8String::from_byte_string(ByteString const& byte_string)
 {
-    return String::from_utf8(byte_string.view());
+    return Wtf8String::from_wtf8(byte_string.view());
 }
 
-String String::to_ascii_lowercase() const
+Wtf8String Wtf8String::to_ascii_lowercase() const
 {
     bool const has_ascii_uppercase = [&] {
         for (u8 const byte : bytes()) {
@@ -402,10 +402,10 @@ String String::to_ascii_lowercase() const
         else
             lowercase_bytes.unchecked_append(byte);
     }
-    return String::from_utf8_without_validation(lowercase_bytes);
+    return Wtf8String::from_wtf8_without_validation(lowercase_bytes);
 }
 
-String String::to_ascii_uppercase() const
+Wtf8String Wtf8String::to_ascii_uppercase() const
 {
     bool const has_ascii_lowercase = [&] {
         for (u8 const byte : bytes()) {
@@ -426,25 +426,25 @@ String String::to_ascii_uppercase() const
         else
             uppercase_bytes.unchecked_append(byte);
     }
-    return String::from_utf8_without_validation(uppercase_bytes);
+    return Wtf8String::from_wtf8_without_validation(uppercase_bytes);
 }
 
-bool String::equals_ignoring_ascii_case(String const& other) const
+bool Wtf8String::equals_ignoring_ascii_case(Wtf8String const& other) const
 {
     return StringUtils::equals_ignoring_ascii_case(bytes_as_string_view(), other.bytes_as_string_view());
 }
 
-bool String::equals_ignoring_ascii_case(StringView other) const
+bool Wtf8String::equals_ignoring_ascii_case(StringView other) const
 {
     return StringUtils::equals_ignoring_ascii_case(bytes_as_string_view(), other);
 }
 
-ErrorOr<String> String::repeated(String const& input, size_t count)
+ErrorOr<Wtf8String> Wtf8String::repeated(Wtf8String const& input, size_t count)
 {
     if (Checked<u32>::multiplication_would_overflow(count, input.bytes().size()))
         return Error::from_errno(EOVERFLOW);
 
-    String result;
+    Wtf8String result;
     size_t input_size = input.bytes().size();
     TRY(result.replace_with_new_string(count * input_size, [&](Bytes buffer) {
         if (input_size == 1) {

@@ -119,7 +119,7 @@ FlyString TypefaceSkia::family() const
     if (!m_family.has_value()) {
         SkString family_name;
         impl().skia_typeface->getFamilyName(&family_name);
-        m_family = FlyString::from_utf8_without_validation(ReadonlyBytes { family_name.c_str(), family_name.size() });
+        m_family = FlyString::from_wtf8_without_validation(ReadonlyBytes { family_name.c_str(), family_name.size() });
     }
     return m_family.value();
 }

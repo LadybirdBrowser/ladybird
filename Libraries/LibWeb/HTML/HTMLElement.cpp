@@ -225,7 +225,7 @@ GC::Ref<DOM::DocumentFragment> HTMLElement::rendered_text_fragment(StringView in
 
         // 2. If text is not the empty string, then append a new Text node whose data is text and node document is document to fragment.
         if (!text.is_empty()) {
-            MUST(fragment->append_child(document().create_text_node(MUST(String::from_utf8(text)))));
+            MUST(fragment->append_child(document().create_text_node(MUST(String::from_wtf8(text)))));
         }
 
         // 3. While position is not past the end of input, and the code point at position is either U+000A LF or U+000D CR:

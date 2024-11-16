@@ -141,7 +141,7 @@ static Optional<String> query_fontconfig_for_generic_family(Web::Platform::Gener
         FcChar8* family = nullptr;
         if (FcPatternGetString(matched, FC_FAMILY, 0, &family) == FcResultMatch) {
             auto const* family_cstring = reinterpret_cast<char const*>(family);
-            if (auto string = String::from_utf8(StringView { family_cstring, strlen(family_cstring) }); !string.is_error()) {
+            if (auto string = String::from_wtf8(StringView { family_cstring, strlen(family_cstring) }); !string.is_error()) {
                 name = string.release_value();
             }
         }

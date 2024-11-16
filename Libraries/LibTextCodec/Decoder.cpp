@@ -366,7 +366,7 @@ bool UTF8Decoder::validate(StringView input)
 
 ErrorOr<String> UTF8Decoder::to_utf8(StringView input)
 {
-    return String::from_utf8_with_replacement_character(input);
+    return String::from_wtf8_with_replacement_character(input);
 }
 
 static Wtf16ByteView as_utf16(StringView view, AK::Endianness endianness)

@@ -164,7 +164,7 @@ Optional<Vector<String>> get_decode_and_split_header_value(ReadonlyBytes value)
         }
 
         // 3. Remove all HTTP tab or space from the start and end of temporaryValue.
-        auto temporary_value = MUST(String::from_utf8(temporary_value_builder.string_view().trim(HTTP_TAB_OR_SPACE, TrimMode::Both)));
+        auto temporary_value = MUST(String::from_wtf8(temporary_value_builder.string_view().trim(HTTP_TAB_OR_SPACE, TrimMode::Both)));
 
         // 4. Append temporaryValue to values.
         values.append(move(temporary_value));

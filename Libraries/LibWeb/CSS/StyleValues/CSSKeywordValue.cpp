@@ -18,7 +18,7 @@ namespace Web::CSS {
 
 String CSSKeywordValue::to_string() const
 {
-    return MUST(String::from_utf8(string_from_keyword(keyword())));
+    return MUST(String::from_wtf8(string_from_keyword(keyword())));
 }
 
 bool CSSKeywordValue::is_color(Keyword keyword)

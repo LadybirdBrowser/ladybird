@@ -66,7 +66,7 @@ ThrowCompletionOr<String> canonicalize_time_zone_name(VM&, StringView time_zone)
     // 2. If ianaTimeZone is a Link name, let ianaTimeZone be the String value of the corresponding Zone name as specified
     //    in the file backward of the IANA Time Zone Database.
     auto iana_time_zone = Unicode::resolve_primary_time_zone(*it).value_or_lazy_evaluated([&]() {
-        return MUST(String::from_utf8(time_zone));
+        return MUST(String::from_wtf8(time_zone));
     });
 
     // 3. If ianaTimeZone is one of "Etc/UTC", "Etc/GMT", or "GMT", return "UTC".

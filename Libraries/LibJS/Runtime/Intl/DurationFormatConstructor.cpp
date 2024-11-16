@@ -130,7 +130,7 @@ ThrowCompletionOr<GC::Ref<Object>> DurationFormatConstructor::construct(Function
         auto display_slot = duration_instances_component.set_display_slot;
 
         // c. Let unit be the Unit value of the current row.
-        auto unit = MUST(String::from_utf8(duration_instances_component.unit));
+        auto unit = MUST(String::from_wtf8(duration_instances_component.unit));
 
         // d. Let valueList be the Values value of the current row.
         auto value_list = duration_instances_component.values;

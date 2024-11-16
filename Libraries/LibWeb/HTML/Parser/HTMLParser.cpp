@@ -158,7 +158,7 @@ HTMLParser::HTMLParser(DOM::Document& document, StringView input, StringView enc
     m_document->set_parser({}, *this);
     auto standardized_encoding = TextCodec::get_standardized_encoding(encoding);
     VERIFY(standardized_encoding.has_value());
-    m_document->set_encoding(MUST(String::from_utf8(standardized_encoding.value())));
+    m_document->set_encoding(MUST(String::from_wtf8(standardized_encoding.value())));
 }
 
 HTMLParser::HTMLParser(DOM::Document& document)

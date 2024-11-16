@@ -304,7 +304,7 @@ void HTMLScriptElement::prepare_script()
     if (has_attribute(HTML::AttributeNames::charset)) {
         auto charset = TextCodec::get_standardized_encoding(get_attribute_value(HTML::AttributeNames::charset));
         if (charset.has_value())
-            encoding = String::from_utf8(*charset).release_value_but_fixme_should_propagate_errors();
+            encoding = String::from_wtf8(*charset).release_value_but_fixme_should_propagate_errors();
     }
 
     if (!encoding.has_value()) {

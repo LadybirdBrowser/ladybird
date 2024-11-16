@@ -184,7 +184,7 @@ ErrorOr<InputSource*, WebDriver::Error> get_or_create_input_source(InputState& i
         // FIXME: Spec issue: The spec doesn't say to add the source to the input state map, but it is explicitly
         //        expected when we reach the `dispatch tick actions` AO.
         //        https://github.com/w3c/webdriver/issues/1810
-        input_state.input_state_map.set(MUST(String::from_utf8(id)), create_input_source(input_state, type, subtype));
+        input_state.input_state_map.set(MUST(String::from_wtf8(id)), create_input_source(input_state, type, subtype));
         source = get_input_source(input_state, id);
     }
 

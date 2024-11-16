@@ -129,10 +129,10 @@ static Optional<LanguageID> parse_unicode_language_id(GenericLexer& lexer)
         case ParseState::ParsingLanguageOrScript:
             if (is_unicode_language_subtag(*segment)) {
                 state = ParseState::ParsingScript;
-                language_id.language = MUST(String::from_utf8(*segment));
+                language_id.language = MUST(String::from_wtf8(*segment));
             } else if (is_unicode_script_subtag(*segment)) {
                 state = ParseState::ParsingRegion;
-                language_id.script = MUST(String::from_utf8(*segment));
+                language_id.script = MUST(String::from_wtf8(*segment));
             } else {
                 return {};
             }
@@ -141,7 +141,7 @@ static Optional<LanguageID> parse_unicode_language_id(GenericLexer& lexer)
         case ParseState::ParsingScript:
             if (is_unicode_script_subtag(*segment)) {
                 state = ParseState::ParsingRegion;
-                language_id.script = MUST(String::from_utf8(*segment));
+                language_id.script = MUST(String::from_wtf8(*segment));
                 break;
             }
 
@@ -151,7 +151,7 @@ static Optional<LanguageID> parse_unicode_language_id(GenericLexer& lexer)
         case ParseState::ParsingRegion:
             if (is_unicode_region_subtag(*segment)) {
                 state = ParseState::ParsingVariant;
-                language_id.region = MUST(String::from_utf8(*segment));
+                language_id.region = MUST(String::from_wtf8(*segment));
                 break;
             }
 
@@ -160,7 +160,7 @@ static Optional<LanguageID> parse_unicode_language_id(GenericLexer& lexer)
 
         case ParseState::ParsingVariant:
             if (is_unicode_variant_subtag(*segment)) {
-                language_id.variants.append(MUST(String::from_utf8(*segment)));
+                language_id.variants.append(MUST(String::from_wtf8(*segment)));
             } else {
                 lexer.retreat(segment->length() + 1);
                 state = ParseState::Done;
@@ -202,7 +202,7 @@ static Optional<LocaleExtension> parse_unicode_locale_extension(GenericLexer& le
         switch (state) {
         case ParseState::ParsingAttribute:
             if (is_attribute(*segment)) {
-                locale_extension.attributes.append(MUST(String::from_utf8(*segment)));
+                locale_extension.attributes.append(MUST(String::from_wtf8(*segment)));
                 break;
             }
 
@@ -211,7 +211,7 @@ static Optional<LocaleExtension> parse_unicode_locale_extension(GenericLexer& le
 
         case ParseState::ParsingKeyword: {
             // keyword = key (sep type)?
-            Keyword keyword { .key = MUST(String::from_utf8(*segment)) };
+            Keyword keyword { .key = MUST(String::from_wtf8(*segment)) };
             Vector<StringView> keyword_values;
 
             if (!is_key(*segment)) {
@@ -288,7 +288,7 @@ static Optional<TransformedExtension> parse_transformed_extension(GenericLexer& 
 
         case ParseState::ParsingField: {
             // tfield = tkey tvalue;
-            TransformedField field { .key = MUST(String::from_utf8(*segment)) };
+            TransformedField field { .key = MUST(String::from_wtf8(*segment)) };
             Vector<StringView> field_values;
 
             if (!is_transformed_key(*segment)) {
@@ -420,7 +420,7 @@ static Vector<String> parse_private_use_extensions(GenericLexer& lexer)
                 break;
             }
 
-            extensions.append(MUST(String::from_utf8(*segment)));
+            extensions.append(MUST(String::from_wtf8(*segment)));
         }
 
         return extensions;

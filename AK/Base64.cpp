@@ -65,7 +65,7 @@ static ErrorOr<String> encode_base64_impl(StringView input, simdutf::base64_opti
         reinterpret_cast<char*>(output.data()),
         options);
 
-    return String::from_utf8_without_validation(output);
+    return String::from_wtf8_without_validation(output);
 }
 
 ErrorOr<ByteBuffer> decode_base64(StringView input)

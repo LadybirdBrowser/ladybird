@@ -215,8 +215,8 @@ WebIDL::ExceptionOr<QualifiedName> validate_and_extract(JS::Realm& realm, Option
     // 5. If qualifiedName contains a U+003A (:), then strictly split the string on it and set prefix to the part before and localName to the part after.
     if (qualified_name.bytes_as_string_view().contains(':')) {
         auto parts = qualified_name.bytes_as_string_view().split_view(':');
-        prefix = MUST(FlyString::from_utf8(parts[0]));
-        local_name = MUST(FlyString::from_utf8(parts[1]));
+        prefix = MUST(FlyString::from_wtf8(parts[0]));
+        local_name = MUST(FlyString::from_wtf8(parts[1]));
     }
 
     // 6. If prefix is non-null and namespace is null, then throw a "NamespaceError" DOMException.
@@ -2725,7 +2725,7 @@ void Element::attribute_changed(FlyString const& local_name, Optional<String> co
             m_classes.clear();
             m_classes.ensure_capacity(new_classes.size());
             for (auto& new_class : new_classes) {
-                m_classes.unchecked_append(FlyString::from_utf8(new_class).release_value_but_fixme_should_propagate_errors());
+                m_classes.unchecked_append(FlyString::from_wtf8(new_class).release_value_but_fixme_should_propagate_errors());
             }
         }
         if (m_class_list)

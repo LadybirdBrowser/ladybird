@@ -120,7 +120,7 @@ Vector<String> icu_string_enumeration_to_list(OwnPtr<icu::StringEnumeration> enu
         if (!filter(keyword))
             continue;
 
-        result.append(MUST(String::from_utf8({ keyword, static_cast<size_t>(length) })));
+        result.append(MUST(String::from_wtf8({ keyword, static_cast<size_t>(length) })));
     }
 
     return result;

@@ -166,7 +166,7 @@ Optional<MimeType> MimeType::parse(StringView string)
         // 9. Otherwise:
         else {
             // 1. Set parameterValue to the result of collecting a sequence of code points that are not U+003B (;) from input, given position.
-            parameter_value = String::from_utf8_without_validation(lexer.consume_until(';').bytes());
+            parameter_value = String::from_wtf8_without_validation(lexer.consume_until(';').bytes());
 
             // 2. Remove any trailing HTTP whitespace from parameterValue.
             parameter_value = MUST(parameter_value.trim(Fetch::Infrastructure::HTTP_WHITESPACE, TrimMode::Right));

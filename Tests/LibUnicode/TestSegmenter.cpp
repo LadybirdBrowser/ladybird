@@ -18,7 +18,7 @@ static void test_grapheme_segmentation(StringView string, size_t const (&expecte
     Vector<size_t> boundaries;
     auto segmenter = Unicode::Segmenter::create(Unicode::SegmenterGranularity::Grapheme);
 
-    segmenter->for_each_boundary(MUST(String::from_utf8(string)), [&](auto boundary) {
+    segmenter->for_each_boundary(MUST(String::from_wtf8(string)), [&](auto boundary) {
         boundaries.append(boundary);
         return IterationDecision::Continue;
     });
@@ -82,7 +82,7 @@ static void test_word_segmentation(StringView string, size_t const (&expected_bo
     Vector<size_t> boundaries;
     auto segmenter = Unicode::Segmenter::create(Unicode::SegmenterGranularity::Word);
 
-    segmenter->for_each_boundary(MUST(String::from_utf8(string)), [&](auto boundary) {
+    segmenter->for_each_boundary(MUST(String::from_wtf8(string)), [&](auto boundary) {
         boundaries.append(boundary);
         return IterationDecision::Continue;
     });

@@ -177,7 +177,7 @@ String DataTransfer::get_data(String const& format_argument) const
     //           the first URL from the list, if any, or the empty string otherwise.
 
     // 10. Return result.
-    return MUST(String::from_utf8(result));
+    return MUST(String::from_wtf8(result));
 }
 
 // https://html.spec.whatwg.org/multipage/dnd.html#dom-datatransfer-files

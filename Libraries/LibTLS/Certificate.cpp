@@ -292,7 +292,7 @@ static ErrorOr<RelativeDistinguishedName> parse_name(Crypto::ASN1::Decoder& deco
             POP_SCOPE();
 
             auto attribute_type_string = TRY(String::join("."sv, attribute_type_oid));
-            auto attribute_value_string = TRY(String::from_utf8(attribute_value));
+            auto attribute_value_string = TRY(String::from_wtf8(attribute_value));
             TRY(rdn.set(move(attribute_type_string), move(attribute_value_string)));
 
             EXIT_SCOPE();
@@ -504,13 +504,13 @@ static ErrorOr<String> parse_general_name(Crypto::ASN1::Decoder& decoder, Vector
         PUSH_SCOPE("rfc822Name"sv)
         READ_OBJECT(IA5String, StringView, name);
         POP_SCOPE();
-        return String::from_utf8(name);
+        return String::from_wtf8(name);
     }
     case 2: {
         PUSH_SCOPE("dNSName"sv)
         READ_OBJECT(IA5String, StringView, name);
         POP_SCOPE();
-        return String::from_utf8(name);
+        return String::from_wtf8(name);
     }
     case 3:
         // Note: We don't know how to use this.
@@ -536,7 +536,7 @@ static ErrorOr<String> parse_general_name(Crypto::ASN1::Decoder& decoder, Vector
         PUSH_SCOPE("uniformResourceIdentifier"sv);
         READ_OBJECT(IA5String, StringView, name);
         POP_SCOPE();
-        return String::from_utf8(name);
+        return String::from_wtf8(name);
     }
     case 7: {
         PUSH_SCOPE("iPAddress"sv);

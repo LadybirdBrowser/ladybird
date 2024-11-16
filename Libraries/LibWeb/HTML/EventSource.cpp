@@ -392,7 +392,7 @@ void EventSource::process_field(StringView field, StringView value)
     // -> If the field name is "event"
     if (field == "event"sv) {
         // Set the event type buffer to field value.
-        m_event_type = MUST(String::from_utf8(value));
+        m_event_type = MUST(String::from_wtf8(value));
     }
     // -> If the field name is "data"
     else if (field == "data"sv) {
@@ -405,7 +405,7 @@ void EventSource::process_field(StringView field, StringView value)
         // If the field value does not contain U+0000 NULL, then set the last event ID buffer to the field value.
         // Otherwise, ignore the field.
         if (!value.contains('\0'))
-            m_last_event_id = MUST(String::from_utf8(value));
+            m_last_event_id = MUST(String::from_wtf8(value));
     }
     // -> If the field name is "retry"
     else if (field == "retry"sv) {

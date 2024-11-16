@@ -280,7 +280,7 @@ public:
     ErrorOr<String> to_string() const
     {
         return m_view.visit(
-            [](StringView view) { return String::from_utf8(view); },
+            [](StringView view) { return String::from_wtf8(view); },
             [](Wtf16ByteView view) { return view.to_utf8(Wtf16ByteView::AllowInvalidCodeUnits::Yes); },
             [](auto& view) -> ErrorOr<String> {
                 StringBuilder builder;

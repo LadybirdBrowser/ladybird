@@ -304,7 +304,7 @@ void XMLHttpRequest::set_document_response()
     if (final_mime.is_html()) {
         // 5.1. Let charset be the result of get a final encoding for xhr.
         if (auto final_encoding = get_final_encoding(); final_encoding.has_value())
-            charset = MUST(String::from_utf8(*final_encoding));
+            charset = MUST(String::from_wtf8(*final_encoding));
 
         // 5.2. If charset is null, prescan the first 1024 bytes of xhr’s received bytes and if that does not terminate unsuccessfully then let charset be the return value.
         document = DOM::Document::create(realm());
@@ -978,7 +978,7 @@ WebIDL::ExceptionOr<Optional<String>> XMLHttpRequest::get_response_header(String
 
     // The getResponseHeader(name) method steps are to return the result of getting name from this’s response’s header list.
     auto header_bytes = m_response->header_list()->get(name.bytes());
-    return header_bytes.has_value() ? TRY_OR_THROW_OOM(vm, String::from_utf8(*header_bytes)) : Optional<String> {};
+    return header_bytes.has_value() ? TRY_OR_THROW_OOM(vm, String::from_wtf8(*header_bytes)) : Optional<String> {};
 }
 
 // https://xhr.spec.whatwg.org/#legacy-uppercased-byte-less-than
@@ -1026,7 +1026,7 @@ WebIDL::ExceptionOr<String> XMLHttpRequest::get_all_response_headers() const
     }
 
     // 5. Return output.
-    return TRY_OR_THROW_OOM(vm, String::from_utf8(output));
+    return TRY_OR_THROW_OOM(vm, String::from_wtf8(output));
 }
 
 // https://xhr.spec.whatwg.org/#dom-xmlhttprequest-overridemimetype
@@ -1164,7 +1164,7 @@ WebIDL::ExceptionOr<String> XMLHttpRequest::status_text() const
     auto& vm = this->vm();
 
     // The statusText getter steps are to return this’s response’s status message.
-    return TRY_OR_THROW_OOM(vm, String::from_utf8(m_response->status_message()));
+    return TRY_OR_THROW_OOM(vm, String::from_wtf8(m_response->status_message()));
 }
 
 // https://xhr.spec.whatwg.org/#handle-response-end-of-body
@@ -1290,7 +1290,7 @@ String XMLHttpRequest::response_url()
         return String {};
 
     auto serialized = m_response->url().value().serialize(URL::ExcludeFragment::Yes);
-    return String::from_utf8_without_validation(serialized.bytes());
+    return String::from_wtf8_without_validation(serialized.bytes());
 }
 
 }

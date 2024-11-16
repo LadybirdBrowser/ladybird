@@ -160,25 +160,25 @@ ByteString StringBuilder::to_byte_string() const
 ErrorOr<String> StringBuilder::to_string()
 {
     if (m_buffer.is_inline())
-        return String::from_utf8(string_view());
+        return String::from_wtf8(string_view());
     return String::from_string_builder({}, *this);
 }
 
 String StringBuilder::to_string_without_validation()
 {
     if (m_buffer.is_inline())
-        return String::from_utf8_without_validation(string_view().bytes());
+        return String::from_wtf8_without_validation(string_view().bytes());
     return String::from_string_builder_without_validation({}, *this);
 }
 
 FlyString StringBuilder::to_fly_string_without_validation() const
 {
-    return FlyString::from_utf8_without_validation(string_view().bytes());
+    return FlyString::from_wtf8_without_validation(string_view().bytes());
 }
 
 ErrorOr<FlyString> StringBuilder::to_fly_string() const
 {
-    return FlyString::from_utf8(string_view());
+    return FlyString::from_wtf8(string_view());
 }
 
 u8* StringBuilder::data()

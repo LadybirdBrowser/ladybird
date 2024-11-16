@@ -154,7 +154,7 @@ ErrorOr<Optional<String>> PublicSuffixData::get_public_suffix(StringView string)
         TRY(search_string.try_append(part));
 
         if (is_public_suffix(search_string.string_view())) {
-            overall_search_string.append(TRY(String::from_utf8(part)));
+            overall_search_string.append(TRY(String::from_wtf8(part)));
             overall_search_string.append("."sv);
             continue;
         }
@@ -164,7 +164,7 @@ ErrorOr<Optional<String>> PublicSuffixData::get_public_suffix(StringView string)
         TRY(search_string.try_append("*"sv));
 
         if (is_public_suffix(search_string.string_view())) {
-            overall_search_string.append(TRY(String::from_utf8(part)));
+            overall_search_string.append(TRY(String::from_wtf8(part)));
             overall_search_string.append("."sv);
             continue;
         }

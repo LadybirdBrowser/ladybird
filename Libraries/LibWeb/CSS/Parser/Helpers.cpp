@@ -26,7 +26,7 @@ CSS::CSSStyleSheet* parse_css_stylesheet(CSS::Parser::ParsingContext const& cont
     }
     auto* style_sheet = CSS::Parser::Parser::create(context, css).parse_as_css_stylesheet(location);
     // FIXME: Avoid this copy
-    style_sheet->set_source_text(MUST(String::from_utf8(css)));
+    style_sheet->set_source_text(MUST(String::from_wtf8(css)));
     return style_sheet;
 }
 

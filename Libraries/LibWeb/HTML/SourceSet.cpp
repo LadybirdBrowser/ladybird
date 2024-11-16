@@ -326,7 +326,7 @@ descriptor_parser:
     //     Otherwise, there is a parse error.
     if (!error) {
         ImageSource source;
-        source.url = String::from_utf8(url).release_value_but_fixme_should_propagate_errors();
+        source.url = String::from_wtf8(url).release_value_but_fixme_should_propagate_errors();
         if (width.has_value())
             source.descriptor = ImageSource::WidthDescriptorValue { width.value() };
         else if (density.has_value())

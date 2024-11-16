@@ -131,7 +131,7 @@ ValueType Database::result_column(StatementID statement_id, int column)
 
     if constexpr (IsSame<ValueType, String>) {
         auto const* text = reinterpret_cast<char const*>(sqlite3_column_text(statement, column));
-        return MUST(String::from_utf8(StringView { text, strlen(text) }));
+        return MUST(String::from_wtf8(StringView { text, strlen(text) }));
     } else if constexpr (IsSame<ValueType, UnixDateTime>) {
         auto milliseconds = sqlite3_column_int64(statement, column);
         return UnixDateTime::from_milliseconds_since_epoch(milliseconds);

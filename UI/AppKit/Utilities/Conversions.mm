@@ -11,7 +11,7 @@ namespace Ladybird {
 String ns_string_to_string(NSString* string)
 {
     auto const* utf8 = [string UTF8String];
-    return MUST(String::from_utf8({ utf8, strlen(utf8) }));
+    return MUST(String::from_wtf8({ utf8, strlen(utf8) }));
 }
 
 ByteString ns_string_to_byte_string(NSString* string)

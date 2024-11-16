@@ -392,10 +392,10 @@ Utf8CodePointIterator ByteString::code_points() const&
     return Utf8CodePointIterator { reinterpret_cast<u8 const*>(characters()), length() };
 }
 
-ErrorOr<ByteString> ByteString::from_utf8(ReadonlyBytes bytes)
+ErrorOr<ByteString> ByteString::from_wtf8(ReadonlyBytes bytes)
 {
     if (!Wtf8ByteView(bytes).validate())
-        return Error::from_string_literal("ByteString::from_utf8: Input was not valid UTF-8");
+        return Error::from_string_literal("ByteString::from_wtf8: Input was not valid UTF-8");
     return ByteString { *StringImpl::create(bytes) };
 }
 

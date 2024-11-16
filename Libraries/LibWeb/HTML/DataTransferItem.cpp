@@ -113,7 +113,7 @@ void DataTransferItem::get_as_string(GC::Ptr<WebIDL::CallbackType> callback) con
 
     // 4. Otherwise, queue a task to invoke callback, passing the actual data of the item represented by the
     //    DataTransferItem object as the argument.
-    auto data = JS::PrimitiveString::create(vm, MUST(String::from_utf8({ item.data })));
+    auto data = JS::PrimitiveString::create(vm, MUST(String::from_wtf8({ item.data })));
 
     HTML::queue_a_task(HTML::Task::Source::Unspecified, nullptr, nullptr,
         GC::Function<void()>::create(realm.heap(), [callback, data]() {

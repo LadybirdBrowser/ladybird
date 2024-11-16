@@ -27,7 +27,7 @@ static ProfileHeader rgb_header()
 static ErrorOr<NonnullRefPtr<MultiLocalizedUnicodeTagData>> en_US(StringView text)
 {
     Vector<MultiLocalizedUnicodeTagData::Record> records;
-    TRY(records.try_append({ ('e' << 8) | 'n', ('U' << 8) | 'S', TRY(String::from_utf8(text)) }));
+    TRY(records.try_append({ ('e' << 8) | 'n', ('U' << 8) | 'S', TRY(String::from_wtf8(text)) }));
     return try_make_ref_counted<MultiLocalizedUnicodeTagData>(0, 0, records);
 }
 

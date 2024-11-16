@@ -50,7 +50,7 @@ GC::Ref<Error> Error::create(Realm& realm, String message)
 
 GC::Ref<Error> Error::create(Realm& realm, StringView message)
 {
-    return create(realm, MUST(String::from_utf8(message)));
+    return create(realm, MUST(String::from_wtf8(message)));
 }
 
 Error::Error(Object& prototype)
@@ -174,7 +174,7 @@ String Error::stack_string(CompactTraceback compact) const
                                                                                                            \
     GC::Ref<ClassName> ClassName::create(Realm& realm, StringView message)                                 \
     {                                                                                                      \
-        return create(realm, MUST(String::from_utf8(message)));                                            \
+        return create(realm, MUST(String::from_wtf8(message)));                                            \
     }                                                                                                      \
                                                                                                            \
     ClassName::ClassName(Object& prototype)                                                                \

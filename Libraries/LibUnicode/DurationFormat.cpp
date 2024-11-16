@@ -72,12 +72,12 @@ DigitalFormat digital_format(StringView locale)
     digital_format.uses_two_digit_hours = hours.length() == 2;
 
     auto hours_minutes_separator = lexer.consume_while(is_not_ascii_digit);
-    digital_format.hours_minutes_separator = MUST(String::from_utf8(hours_minutes_separator));
+    digital_format.hours_minutes_separator = MUST(String::from_wtf8(hours_minutes_separator));
 
     lexer.ignore_while(is_ascii_digit);
 
     auto minutes_seconds_separator = lexer.consume_while(is_not_ascii_digit);
-    digital_format.minutes_seconds_separator = MUST(String::from_utf8(minutes_seconds_separator));
+    digital_format.minutes_seconds_separator = MUST(String::from_wtf8(minutes_seconds_separator));
 
     locale_data->set_digital_format(move(digital_format));
     return *locale_data->digital_format();

@@ -106,7 +106,7 @@ WebIDL::ExceptionOr<Optional<String>> Headers::get(String const& name_string)
 
     // 2. Return the result of getting name from this’s header list.
     auto byte_buffer = m_header_list->get(name);
-    return byte_buffer.has_value() ? MUST(String::from_utf8(*byte_buffer)) : Optional<String> {};
+    return byte_buffer.has_value() ? MUST(String::from_wtf8(*byte_buffer)) : Optional<String> {};
 }
 
 // https://fetch.spec.whatwg.org/#dom-headers-getsetcookie
@@ -123,7 +123,7 @@ Vector<String> Headers::get_set_cookie()
     //    `Set-Cookie`, in order.
     for (auto const& header : *m_header_list) {
         if (StringView { header.name }.equals_ignoring_ascii_case("Set-Cookie"sv))
-            values.append(MUST(String::from_utf8(header.value)));
+            values.append(MUST(String::from_wtf8(header.value)));
     }
     return values;
 }
@@ -197,7 +197,7 @@ JS::ThrowCompletionOr<void> Headers::for_each(ForEachCallback callback)
         auto const& pair = pairs[i];
 
         // 2. Invoke idlCallback with « pair’s value, pair’s key, idlObject » and with thisArg as the callback this value.
-        TRY(callback(MUST(String::from_utf8(pair.name)), MUST(String::from_utf8(pair.value))));
+        TRY(callback(MUST(String::from_wtf8(pair.name)), MUST(String::from_wtf8(pair.value))));
 
         // 3. Set pairs to idlObject’s current list of value pairs to iterate over. (It might have changed.)
         pairs = value_pairs_to_iterate_over();

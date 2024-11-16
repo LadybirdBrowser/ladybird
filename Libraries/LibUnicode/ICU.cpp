@@ -24,7 +24,7 @@ Optional<LocaleData&> LocaleData::for_locale(StringView locale)
     auto locale_data = s_locale_cache.get(locale);
 
     if (!locale_data.has_value()) {
-        locale_data = s_locale_cache.ensure(MUST(String::from_utf8(locale)), [&]() -> OwnPtr<LocaleData> {
+        locale_data = s_locale_cache.ensure(MUST(String::from_wtf8(locale)), [&]() -> OwnPtr<LocaleData> {
             UErrorCode status = U_ZERO_ERROR;
 
             auto icu_locale = icu::Locale::forLanguageTag(icu_string_piece(locale), status);
@@ -119,7 +119,7 @@ Optional<TimeZoneData&> TimeZoneData::for_time_zone(StringView time_zone)
     auto time_zone_data = s_time_zone_cache.get(time_zone);
 
     if (!time_zone_data.has_value()) {
-        time_zone_data = s_time_zone_cache.ensure(MUST(String::from_utf8(time_zone)), [&]() -> OwnPtr<TimeZoneData> {
+        time_zone_data = s_time_zone_cache.ensure(MUST(String::from_wtf8(time_zone)), [&]() -> OwnPtr<TimeZoneData> {
             auto icu_time_zone = adopt_own_if_nonnull(icu::TimeZone::createTimeZone(icu_string(time_zone)));
             if (!icu_time_zone || *icu_time_zone == icu::TimeZone::getUnknown())
                 return nullptr;

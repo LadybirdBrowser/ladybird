@@ -371,7 +371,7 @@ ThrowCompletionOr<DurationRecord> difference_iso_date_time(VM& vm, i32 year1, u8
     auto date_largest_unit = larger_of_two_temporal_units("day"sv, largest_unit);
 
     // 11. Let untilOptions be ? MergeLargestUnitOption(options, dateLargestUnit).
-    auto* until_options = TRY(merge_largest_unit_option(vm, options, TRY_OR_THROW_OOM(vm, String::from_utf8(date_largest_unit))));
+    auto* until_options = TRY(merge_largest_unit_option(vm, options, TRY_OR_THROW_OOM(vm, String::from_wtf8(date_largest_unit))));
 
     // 12. Let dateDifference be ? CalendarDateUntil(calendar, date1, date2, untilOptions).
     // FIXME: AD-HOC calendar records use as this AO is not up to date with latest spec

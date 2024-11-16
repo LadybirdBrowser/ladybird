@@ -367,7 +367,7 @@ Optional<MatchedLocale> lookup_matching_locale_by_prefix(ReadonlySpan<String> re
         while (!prefix.is_empty()) {
             // i. If availableLocales contains prefix, return the Record { [[locale]]: prefix, [[extension]]: extension }.
             if (Unicode::is_locale_available(prefix))
-                return MatchedLocale { MUST(String::from_utf8(prefix)), move(extension) };
+                return MatchedLocale { MUST(String::from_wtf8(prefix)), move(extension) };
 
             // ii. If prefix contains "-" (code unit 0x002D HYPHEN-MINUS), let pos be the index into prefix of the last
             //     occurrence of "-"; else let pos be 0.
@@ -471,7 +471,7 @@ ResolvedLocale resolve_locale(ReadonlySpan<String> requested_locales, LocaleOpti
 
     // 4. If r is undefined, set r to the Record { [[locale]]: DefaultLocale(), [[extension]]: empty }.
     if (!matcher_result.has_value())
-        matcher_result = MatchedLocale { MUST(String::from_utf8(Unicode::default_locale())), {} };
+        matcher_result = MatchedLocale { MUST(String::from_wtf8(Unicode::default_locale())), {} };
 
     // 5. Let foundLocale be r.[[locale]].
     auto found_locale = move(matcher_result->locale);
@@ -526,7 +526,7 @@ ResolvedLocale resolve_locale(ReadonlySpan<String> requested_locales, LocaleOpti
                     value = move(requested_value);
 
                     // b. Set supportedKeyword to the Record { [[Key]]: key, [[Value]]: value }.
-                    supported_keyword = Unicode::Keyword { MUST(String::from_utf8(key)), move(entry->value) };
+                    supported_keyword = Unicode::Keyword { MUST(String::from_wtf8(key)), move(entry->value) };
                 }
             }
             // iv. Else if keyLocaleData contains "true", then
@@ -535,7 +535,7 @@ ResolvedLocale resolve_locale(ReadonlySpan<String> requested_locales, LocaleOpti
                 value = true_string;
 
                 // 2. Set supportedKeyword to the Record { [[Key]]: key, [[Value]]: "" }.
-                supported_keyword = Unicode::Keyword { MUST(String::from_utf8(key)), {} };
+                supported_keyword = Unicode::Keyword { MUST(String::from_wtf8(key)), {} };
             }
         }
 

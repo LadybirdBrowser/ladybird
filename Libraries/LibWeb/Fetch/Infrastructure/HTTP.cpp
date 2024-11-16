@@ -72,7 +72,7 @@ String collect_an_http_quoted_string(GenericLexer& lexer, HttpQuotedStringExtrac
         return MUST(value.to_string());
 
     // 7. Return the code points from positionStart to position, inclusive, within input.
-    return MUST(String::from_utf8(lexer.input().substring_view(position_start, lexer.tell() - position_start)));
+    return MUST(String::from_wtf8(lexer.input().substring_view(position_start, lexer.tell() - position_start)));
 }
 
 }

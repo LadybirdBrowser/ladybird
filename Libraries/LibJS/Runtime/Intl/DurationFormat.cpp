@@ -364,7 +364,7 @@ ThrowCompletionOr<DurationUnitOptions> get_duration_unit_options(VM& vm, String 
     }
 
     // 11. Return the Record { [[Style]]: style, [[Display]]: display  }.
-    return DurationUnitOptions { .style = MUST(String::from_utf8(style)), .display = move(display) };
+    return DurationUnitOptions { .style = MUST(String::from_wtf8(style)), .display = move(display) };
 }
 
 // 1.1.7 AddFractionalDigits ( durationFormat, duration ), https://tc39.es/proposal-intl-duration-format/#sec-addfractionaldigits

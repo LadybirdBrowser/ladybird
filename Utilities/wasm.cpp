@@ -623,7 +623,7 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
                 .provide_arguments = [&] {
                     Vector<String> strings;
                     for (auto& string : args_if_wasi)
-                        strings.append(String::from_utf8(string).release_value_but_fixme_should_propagate_errors());
+                        strings.append(String::from_wtf8(string).release_value_but_fixme_should_propagate_errors());
                     return strings; },
                 .provide_environment = {},
                 .provide_preopened_directories = [&] {

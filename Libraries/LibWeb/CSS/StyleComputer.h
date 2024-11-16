@@ -225,7 +225,7 @@ private:
         HashMap<FlyString, Vector<MatchingRule>> rules_by_id;
         HashMap<FlyString, Vector<MatchingRule>> rules_by_class;
         HashMap<FlyString, Vector<MatchingRule>> rules_by_tag_name;
-        HashMap<FlyString, Vector<MatchingRule>, AK::ASCIICaseInsensitiveFlyStringTraits> rules_by_attribute_name;
+        HashMap<FlyString, Vector<MatchingRule>, AK::ASCIICaseInsensitiveWtf8FlyStringTraits> rules_by_attribute_name;
         Array<Vector<MatchingRule>, to_underlying(CSS::Selector::PseudoElement::Type::KnownPseudoElementCount)> rules_by_pseudo_element;
         Vector<MatchingRule> root_rules;
         Vector<MatchingRule> other_rules;

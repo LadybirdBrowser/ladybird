@@ -264,7 +264,7 @@ bool Response::ok() const
 String Response::status_text() const
 {
     // The statusText getter steps are to return this’s response’s status message.
-    return MUST(String::from_utf8(m_response->status_message()));
+    return MUST(String::from_wtf8(m_response->status_message()));
 }
 
 // https://fetch.spec.whatwg.org/#dom-response-headers
