@@ -74,9 +74,8 @@ public:
     static ErrorOr<Process> spawn(ProcessSpawnOptions const& options);
     static Process current();
 
-    // FIXME: Make the following 2 functions return Process instance or delete them.
-    static ErrorOr<pid_t> spawn(StringView path, ReadonlySpan<ByteString> arguments, ByteString working_directory = {}, KeepAsChild keep_as_child = KeepAsChild::No);
-    static ErrorOr<pid_t> spawn(StringView path, ReadonlySpan<StringView> arguments, ByteString working_directory = {}, KeepAsChild keep_as_child = KeepAsChild::No);
+    static ErrorOr<Process> spawn(StringView path, ReadonlySpan<ByteString> arguments, ByteString working_directory = {}, KeepAsChild keep_as_child = KeepAsChild::No);
+    static ErrorOr<Process> spawn(StringView path, ReadonlySpan<StringView> arguments, ByteString working_directory = {}, KeepAsChild keep_as_child = KeepAsChild::No);
 
     static ErrorOr<String> get_name();
     enum class SetThreadName {
@@ -96,7 +95,7 @@ public:
     ErrorOr<bool> wait_for_termination();
 
 private:
-    Process(pid_t pid)
+    Process(pid_t pid = -1)
         : m_pid(pid)
         , m_should_disown(true)
     {

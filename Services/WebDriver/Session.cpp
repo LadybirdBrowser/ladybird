@@ -43,10 +43,9 @@ Session::~Session()
     // from active sessions
 
     // 3. Perform any implementation-specific cleanup steps.
-    if (m_browser_pid.has_value()) {
-        MUST(Core::System::kill(*m_browser_pid, SIGTERM));
-        m_browser_pid = {};
-    }
+    if (m_browser_process.has_value())
+        MUST(Core::System::kill(m_browser_process->pid(), SIGTERM));
+
     if (m_web_content_socket_path.has_value()) {
         MUST(Core::System::unlink(*m_web_content_socket_path));
         m_web_content_socket_path = {};
@@ -172,9 +171,9 @@ ErrorOr<void> Session::start(LaunchBrowserCallbacks const& callbacks)
     m_web_content_server = TRY(create_server(promise));
 
     if (m_options.headless)
-        m_browser_pid = TRY(callbacks.launch_headless_browser(*m_web_content_socket_path));
+        m_browser_process = TRY(callbacks.launch_headless_browser(*m_web_content_socket_path));
     else
-        m_browser_pid = TRY(callbacks.launch_browser(*m_web_content_socket_path));
+        m_browser_process = TRY(callbacks.launch_browser(*m_web_content_socket_path));
 
     // FIXME: Allow this to be more asynchronous. For now, this at least allows us to propagate
     //        errors received while accepting the Browser and WebContent sockets.
