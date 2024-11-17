@@ -26,6 +26,8 @@ public:
     explicit StringBuilder(size_t initial_capacity = inline_capacity);
     ~StringBuilder() = default;
 
+    ErrorOr<void> will_append(size_t);
+
     ErrorOr<void> try_append(StringView);
     ErrorOr<void> try_append(Utf16View const&);
     ErrorOr<void> try_append(Utf32View const&);
@@ -103,7 +105,6 @@ public:
 private:
     explicit StringBuilder(Buffer);
 
-    ErrorOr<void> will_append(size_t);
     u8* data();
     u8 const* data() const;
 

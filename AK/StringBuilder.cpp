@@ -50,7 +50,7 @@ StringBuilder::StringBuilder(Buffer buffer)
 {
 }
 
-inline ErrorOr<void> StringBuilder::will_append(size_t size)
+ErrorOr<void> StringBuilder::will_append(size_t size)
 {
     Checked<size_t> needed_capacity = m_buffer.size();
     needed_capacity += size;
