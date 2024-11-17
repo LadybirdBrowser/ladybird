@@ -128,6 +128,7 @@ public:
     [[nodiscard]] bool operator==(UnsignedBigInteger const& other) const;
     [[nodiscard]] bool operator!=(UnsignedBigInteger const& other) const;
     [[nodiscard]] bool operator<(UnsignedBigInteger const& other) const;
+    [[nodiscard]] bool operator<=(UnsignedBigInteger const& other) const;
     [[nodiscard]] bool operator>(UnsignedBigInteger const& other) const;
     [[nodiscard]] bool operator>=(UnsignedBigInteger const& other) const;
 
