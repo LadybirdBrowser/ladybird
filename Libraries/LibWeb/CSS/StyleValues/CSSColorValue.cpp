@@ -45,7 +45,7 @@ ValueComparingNonnullRefPtr<CSSColorValue> CSSColorValue::create_from_color(Colo
     return make_rgb_color(color);
 }
 
-Optional<float> CSSColorValue::resolve_hue(CSSStyleValue const& style_value)
+Optional<double> CSSColorValue::resolve_hue(CSSStyleValue const& style_value)
 {
     // <number> | <angle> | none
     auto normalized = [](double number) {
@@ -67,11 +67,11 @@ Optional<float> CSSColorValue::resolve_hue(CSSStyleValue const& style_value)
     return {};
 }
 
-Optional<float> CSSColorValue::resolve_with_reference_value(CSSStyleValue const& style_value, float one_hundred_percent_value)
+Optional<double> CSSColorValue::resolve_with_reference_value(CSSStyleValue const& style_value, float one_hundred_percent_value)
 {
     // <percentage> | <number> | none
     auto normalize_percentage = [one_hundred_percent_value](Percentage const& percentage) {
-        return static_cast<float>(percentage.as_fraction()) * one_hundred_percent_value;
+        return percentage.as_fraction() * one_hundred_percent_value;
     };
 
     if (style_value.is_percentage())
@@ -94,7 +94,7 @@ Optional<float> CSSColorValue::resolve_with_reference_value(CSSStyleValue const&
     return {};
 }
 
-Optional<float> CSSColorValue::resolve_alpha(CSSStyleValue const& style_value)
+Optional<double> CSSColorValue::resolve_alpha(CSSStyleValue const& style_value)
 {
     // <number> | <percentage> | none
     auto normalized = [](double number) {
