@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>DOMTokenList coverage for attributes</title>
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<div id=log></div>
+<script>
+"use strict";
+
+var pairs = [
+  // Defined in DOM
+  {attr: "classList", sup: ["anyElement"]},
+  // Defined in HTML except for a which is also SVG
+  {attr: "relList", sup: ["a", "area", "link"]},
+  // Defined in HTML
+  {attr: "htmlFor", sup: ["output"]},
+  {attr: "sandbox", sup: ["iframe"]},
+  {attr: "sizes", sup: ["link"]}
+];
+var namespaces = [
+  "http://www.w3.org/1999/xhtml",
+  "http://www.w3.org/2000/svg",
+  "http://www.w3.org/1998/Math/MathML",
+  "http://example.com/",
+  ""
+];
+
+var elements = ["a", "area", "link", "iframe", "output", "td", "th"];
+function testAttr(pair, new_el){
+  return (pair.attr === "classList" ||
+          (pair.attr === "relList" && new_el.localName === "a" &&
+           new_el.namespaceURI === "http://www.w3.org/2000/svg") ||
+          (new_el.namespaceURI === "http://www.w3.org/1999/xhtml" &&
+           pair.sup.indexOf(new_el.localName) != -1));
+}
+
+pairs.forEach(function(pair) {
+  namespaces.forEach(function(ns) {
+    elements.forEach(function(el) {
+      var new_el = document.createElementNS(ns, el);
+      if (testAttr(pair, new_el)) {
+        test(function() {
+          assert_class_string(new_el[pair.attr], "DOMTokenList");
+        }, new_el.localName + "." + pair.attr + " in " + new_el.namespaceURI + " namespace should be DOMTokenList.");
+      }
+      else {
+        test(function() {
+          assert_equals(new_el[pair.attr], undefined);
+       }, new_el.localName + "." + pair.attr + " in " + new_el.namespaceURI + " namespace should be undefined.");
+      }
+    });
+  });
+});
+
+</script>
