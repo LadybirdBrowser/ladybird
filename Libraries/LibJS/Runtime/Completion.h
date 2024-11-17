@@ -17,11 +17,11 @@
 
 namespace JS {
 
-#define TRY_OR_THROW_OOM(vm, expression)                                                                              \
+#define TRY_OR_THROW_OOM(vm, ...)                                                                                     \
     ({                                                                                                                \
         /* Ignore -Wshadow to allow nesting the macro. */                                                             \
         AK_IGNORE_DIAGNOSTIC("-Wshadow",                                                                              \
-            auto&& _temporary_result = (expression));                                                                 \
+            auto&& _temporary_result = (__VA_ARGS__));                                                                \
         if (_temporary_result.is_error()) {                                                                           \
             VERIFY(_temporary_result.error().code() == ENOMEM);                                                       \
             return (vm).throw_completion<JS::InternalError>((vm).error_message(::JS::VM::ErrorMessage::OutOfMemory)); \
@@ -31,11 +31,11 @@ namespace JS {
         _temporary_result.release_value();                                                                            \
     })
 
-#define MUST_OR_THROW_OOM(expression)                                                                  \
+#define MUST_OR_THROW_OOM(...)                                                                         \
     ({                                                                                                 \
         /* Ignore -Wshadow to allow nesting the macro. */                                              \
         AK_IGNORE_DIAGNOSTIC("-Wshadow",                                                               \
-            auto&& _temporary_result = (expression));                                                  \
+            auto&& _temporary_result = (__VA_ARGS__));                                                 \
         if (_temporary_result.is_error()) {                                                            \
             auto _completion = _temporary_result.release_error();                                      \
                                                                                                        \

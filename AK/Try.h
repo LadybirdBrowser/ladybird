@@ -24,11 +24,11 @@
 //       from a fallible expression. This will not do what you want; the statement expression
 //       will create a copy regardless, so it is explicitly disallowed.
 
-#define TRY(expression)                                                                              \
+#define TRY(...)                                                                                     \
     ({                                                                                               \
         /* Ignore -Wshadow to allow nesting the macro. */                                            \
         AK_IGNORE_DIAGNOSTIC("-Wshadow",                                                             \
-            auto&& _temporary_result = (expression));                                                \
+            auto&& _temporary_result = (__VA_ARGS__));                                               \
         static_assert(!::AK::Detail::IsLvalueReference<decltype(_temporary_result.release_value())>, \
             "Do not return a reference from a fallible expression");                                 \
         if (_temporary_result.is_error()) [[unlikely]]                                               \
@@ -36,11 +36,11 @@
         _temporary_result.release_value();                                                           \
     })
 
-#define MUST(expression)                                                                             \
+#define MUST(...)                                                                                    \
     ({                                                                                               \
         /* Ignore -Wshadow to allow nesting the macro. */                                            \
         AK_IGNORE_DIAGNOSTIC("-Wshadow",                                                             \
-            auto&& _temporary_result = (expression));                                                \
+            auto&& _temporary_result = (__VA_ARGS__));                                               \
         static_assert(!::AK::Detail::IsLvalueReference<decltype(_temporary_result.release_value())>, \
             "Do not return a reference from a fallible expression");                                 \
         AK_HANDLE_UNEXPECTED_ERROR(_temporary_result)                                                \
