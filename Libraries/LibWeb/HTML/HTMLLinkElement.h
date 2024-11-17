@@ -37,6 +37,7 @@ public:
     WebIDL::ExceptionOr<void> set_as(String const&);
 
     GC::Ref<DOM::DOMTokenList> rel_list();
+    GC::Ref<DOM::DOMTokenList> sizes();
 
     bool has_loaded_icon() const;
     bool load_favicon_and_use_if_window_is_active();
@@ -146,6 +147,7 @@ private:
 
     Optional<DOM::DocumentLoadEventDelayer> m_document_load_event_delayer;
     GC::Ptr<DOM::DOMTokenList> m_rel_list;
+    GC::Ptr<DOM::DOMTokenList> m_sizes;
     unsigned m_relationship { 0 };
     // https://html.spec.whatwg.org/multipage/semantics.html#explicitly-enabled
     bool m_explicitly_enabled { false };
