@@ -50,6 +50,18 @@ LocationEdit::LocationEdit(QWidget* parent)
                     query = MUST(query.substring_from_byte_offset(splits[0].bytes().size()));
                 }
             }
+            // FIXME: low quality code. this can be merged into the if branch
+            auto const temp = query.split(' ');
+            if (!temp.is_error()) {
+                auto const last = temp.value().last();
+                if (temp.value().last().starts_with('!')) {
+                    auto exist = WebView::find_search_engine_by_bang(last);
+                    if (exist.has_value()) {
+                        search_engine_url = exist->query_url;
+                        query = MUST(query.substring_from_byte_offset(0, query.bytes().size() - last.bytes().size()));
+                    }
+                }
+            }
         }
 
         if (auto url = WebView::sanitize_url(query, search_engine_url); url.has_value())
