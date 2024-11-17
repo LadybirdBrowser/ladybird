@@ -27,9 +27,9 @@ interface MediaSource : EventTarget {
     [FIXME] readonly  attribute ReadyState readyState;
 
     [FIXME] attribute unrestricted double duration;
-    [FIXME] attribute EventHandler onsourceopen;
-    [FIXME] attribute EventHandler onsourceended;
-    [FIXME] attribute EventHandler onsourceclose;
+    attribute EventHandler onsourceopen;
+    attribute EventHandler onsourceended;
+    attribute EventHandler onsourceclose;
 
     static readonly attribute boolean canConstructInDedicatedWorker;
 

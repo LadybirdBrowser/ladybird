@@ -45,6 +45,7 @@
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/HTML/WindowProxy.h>
 #include <LibWeb/MathML/TagNames.h>
+#include <LibWeb/MediaSourceExtensions/EventNames.h>
 #include <LibWeb/Namespace.h>
 #include <LibWeb/NavigationTiming/EntryNames.h>
 #include <LibWeb/PerformanceTimeline/EntryTypes.h>
@@ -105,6 +106,7 @@ ErrorOr<void> initialize_main_thread_vm(HTML::EventLoop::Type type)
     HTML::EventNames::initialize_strings();
     HTML::TagNames::initialize_strings();
     MathML::TagNames::initialize_strings();
+    MediaSourceExtensions::EventNames::initialize_strings();
     Namespace::initialize_strings();
     NavigationTiming::EntryNames::initialize_strings();
     PerformanceTimeline::EntryTypes::initialize_strings();

@@ -23,11 +23,11 @@ interface SourceBuffer : EventTarget {
     [FIXME] attribute double appendWindowStart;
     [FIXME] attribute unrestricted double appendWindowEnd;
 
-    [FIXME] attribute EventHandler onupdatestart;
-    [FIXME] attribute EventHandler onupdate;
-    [FIXME] attribute EventHandler onupdateend;
-    [FIXME] attribute EventHandler onerror;
-    [FIXME] attribute EventHandler onabort;
+    attribute EventHandler onupdatestart;
+    attribute EventHandler onupdate;
+    attribute EventHandler onupdateend;
+    attribute EventHandler onerror;
+    attribute EventHandler onabort;
 
     [FIXME] undefined appendBuffer(BufferSource data);
     [FIXME] undefined abort();

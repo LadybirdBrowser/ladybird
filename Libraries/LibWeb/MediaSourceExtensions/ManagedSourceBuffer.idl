@@ -4,5 +4,5 @@
 // https://w3c.github.io/media-source/#managedsourcebuffer-interface
 [Exposed=(Window,DedicatedWorker)]
 interface ManagedSourceBuffer : SourceBuffer {
-    [FIXME] attribute EventHandler onbufferedchange;
+    attribute EventHandler onbufferedchange;
 };

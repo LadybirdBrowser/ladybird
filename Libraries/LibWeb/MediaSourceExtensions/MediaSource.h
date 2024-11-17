@@ -21,6 +21,15 @@ public:
     // https://w3c.github.io/media-source/#dom-mediasource-canconstructindedicatedworker
     static bool can_construct_in_dedicated_worker(JS::VM&) { return true; }
 
+    void set_onsourceopen(GC::Ptr<WebIDL::CallbackType>);
+    GC::Ptr<WebIDL::CallbackType> onsourceopen();
+
+    void set_onsourceended(GC::Ptr<WebIDL::CallbackType>);
+    GC::Ptr<WebIDL::CallbackType> onsourceended();
+
+    void set_onsourceclose(GC::Ptr<WebIDL::CallbackType>);
+    GC::Ptr<WebIDL::CallbackType> onsourceclose();
+
 protected:
     MediaSource(JS::Realm&);
 

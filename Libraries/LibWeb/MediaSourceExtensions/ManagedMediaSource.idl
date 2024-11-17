@@ -6,6 +6,6 @@
 interface ManagedMediaSource : MediaSource {
     constructor();
     [FIXME] readonly attribute boolean streaming;
-    [FIXME] attribute EventHandler onstartstreaming;
-    [FIXME] attribute EventHandler onendstreaming;
+    attribute EventHandler onstartstreaming;
+    attribute EventHandler onendstreaming;
 };
