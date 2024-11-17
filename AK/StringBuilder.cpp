@@ -203,12 +203,10 @@ void StringBuilder::clear()
 
 ErrorOr<void> StringBuilder::try_append_code_point(u32 code_point)
 {
-    auto nwritten = TRY(AK::UnicodeUtils::try_code_point_to_utf8(code_point, [this](char c) { return try_append(c); }));
-    if (nwritten < 0) {
-        TRY(try_append(0xef));
-        TRY(try_append(0xbf));
-        TRY(try_append(0xbd));
-    }
+    TRY(AK::UnicodeUtils::try_code_point_to_utf8_lossy(
+        code_point,
+        [this](char c) { return try_append(c); },
+        [this](size_t n) { return will_append(n); }));
     return {};
 }
 

@@ -25,57 +25,86 @@ constexpr int bytes_to_store_code_point_in_utf8(u32 code_point)
     return 0;
 }
 
-template<typename Callback>
-[[nodiscard]] constexpr int code_point_to_utf8(u32 code_point, Callback callback)
-{
-    if (code_point <= 0x7f) {
-        callback(static_cast<char>(code_point));
-        return 1;
-    } else if (code_point <= 0x07ff) {
-        callback(static_cast<char>(((code_point >> 6) & 0x1f) | 0xc0));
-        callback(static_cast<char>(((code_point >> 0) & 0x3f) | 0x80));
-        return 2;
-    } else if (code_point <= 0xffff) {
-        callback(static_cast<char>(((code_point >> 12) & 0x0f) | 0xe0));
-        callback(static_cast<char>(((code_point >> 6) & 0x3f) | 0x80));
-        callback(static_cast<char>(((code_point >> 0) & 0x3f) | 0x80));
-        return 3;
-    } else if (code_point <= 0x10ffff) {
-        callback(static_cast<char>(((code_point >> 18) & 0x07) | 0xf0));
-        callback(static_cast<char>(((code_point >> 12) & 0x3f) | 0x80));
-        callback(static_cast<char>(((code_point >> 6) & 0x3f) | 0x80));
-        callback(static_cast<char>(((code_point >> 0) & 0x3f) | 0x80));
-        return 4;
-    }
-    return -1;
+namespace {
+inline void prepare_nothing(size_t) { }
+inline ErrorOr<void> try_prepare_nothing(size_t) { return {}; }
 }
 
-template<FallibleFunction<char> Callback>
-[[nodiscard]] ErrorOr<int> try_code_point_to_utf8(u32 code_point, Callback&& callback)
+template<FallibleFunction<char> Callback, FallibleFunction<size_t> Prepare = ErrorOr<void>(size_t)>
+[[nodiscard]] ErrorOr<int> try_code_point_to_utf8(u32 code_point, Callback&& callback, Prepare&& prepare = try_prepare_nothing)
 {
     if (code_point <= 0x7f) {
+        TRY(prepare(1));
         TRY(callback(static_cast<char>(code_point)));
         return 1;
     }
     if (code_point <= 0x07ff) {
+        TRY(prepare(2));
         TRY(callback(static_cast<char>((((code_point >> 6) & 0x1f) | 0xc0))));
         TRY(callback(static_cast<char>((((code_point >> 0) & 0x3f) | 0x80))));
         return 2;
     }
     if (code_point <= 0xffff) {
+        TRY(prepare(3));
         TRY(callback(static_cast<char>((((code_point >> 12) & 0x0f) | 0xe0))));
         TRY(callback(static_cast<char>((((code_point >> 6) & 0x3f) | 0x80))));
         TRY(callback(static_cast<char>((((code_point >> 0) & 0x3f) | 0x80))));
         return 3;
     }
     if (code_point <= 0x10ffff) {
+        TRY(prepare(4));
         TRY(callback(static_cast<char>((((code_point >> 18) & 0x07) | 0xf0))));
         TRY(callback(static_cast<char>((((code_point >> 12) & 0x3f) | 0x80))));
         TRY(callback(static_cast<char>((((code_point >> 6) & 0x3f) | 0x80))));
         TRY(callback(static_cast<char>((((code_point >> 0) & 0x3f) | 0x80))));
         return 4;
     }
-    return -1;
+    return 0;
+}
+
+template<FallibleFunction<char> Callback, FallibleFunction<size_t> Prepare = ErrorOr<void>(size_t)>
+[[nodiscard]] ErrorOr<int> try_code_point_to_utf8_lossy(u32 code_point, Callback&& callback, Prepare&& prepare = try_prepare_nothing)
+{
+    if (auto nwritten = TRY(try_code_point_to_utf8(code_point, callback, prepare))) {
+        return nwritten;
+    }
+
+    TRY(prepare(3));
+    TRY(callback(0xef));
+    TRY(callback(0xbf));
+    TRY(callback(0xbd));
+
+    return 3;
+}
+
+template<typename Callback, typename Prepare = void(size_t)>
+[[nodiscard]] constexpr int code_point_to_utf8(u32 code_point, Callback&& callback, Prepare&& prepare = prepare_nothing)
+{
+    return try_code_point_to_utf8(
+        code_point,
+        [&](char ch) -> ErrorOr<void> {
+            callback(ch);
+            return {};
+        },
+        [&](size_t n) -> ErrorOr<void> {
+            prepare(n);
+            return {};
+        })
+        .release_value();
+}
+
+template<typename Callback, typename Prepare = void(size_t)>
+[[nodiscard]] constexpr int code_point_to_utf8_lossy(u32 code_point, Callback&& callback, Prepare&& prepare = prepare_nothing)
+{
+    return try_code_point_to_utf8_lossy(
+        code_point,
+        [&](char ch) {
+            callback(ch);
+        },
+        [&](size_t n) {
+            prepare(n);
+        })
+        .release_value();
 }
 
 /**
