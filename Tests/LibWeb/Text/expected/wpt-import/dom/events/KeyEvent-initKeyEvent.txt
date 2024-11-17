@@ -1,0 +1,13 @@
+Summary
+
+Harness status: OK
+
+Rerun
+
+Found 3 tests
+
+3 Pass
+Details
+Result	Test Name	MessagePass	KeyboardEvent.initKeyEvent shouldn't be defined (created by createEvent("KeyboardEvent")	
+Pass	KeyboardEvent.initKeyEvent shouldn't be defined (created by constructor)	
+Pass	KeyboardEvent.prototype.initKeyEvent shouldn't be defined	

@@ -1,0 +1,22 @@
+Summary
+
+Harness status: OK
+
+Rerun
+
+Found 12 tests
+
+12 Pass
+Details
+Result	Test Name	MessagePass	Properties of initEvent(type, true, true)	
+Pass	Properties of initEvent(type, true, false)	
+Pass	Properties of initEvent(type, false, true)	
+Pass	Properties of initEvent(type, false, false)	
+Pass	Calling initEvent multiple times (getting type).	
+Pass	Calling initEvent multiple times (not getting type).	
+Pass	Calling initEvent must not have an effect during dispatching.	
+Pass	Calling initEvent must unset the stop propagation flag.	
+Pass	Calling initEvent must unset the stop immediate propagation flag.	
+Pass	Calling initEvent during propagation.	
+Pass	First parameter to initEvent should be mandatory.	
+Pass	Tests initEvent's default parameter values.	

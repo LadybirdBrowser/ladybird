@@ -1,0 +1,13 @@
+Summary
+
+Harness status: OK
+
+Rerun
+
+Found 3 tests
+
+3 Pass
+Details
+Result	Test Name	MessagePass	Event.type should initially be the empty string	
+Pass	Event.type should be initialized by initEvent	
+Pass	Event.type should be initialized by the constructor	

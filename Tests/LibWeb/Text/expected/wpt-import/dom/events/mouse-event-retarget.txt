@@ -1,0 +1,11 @@
+Summary
+
+Harness status: OK
+
+Rerun
+
+Found 1 tests
+
+1 Fail
+Details
+Result	Test Name	MessageFail	offsetX is correctly adjusted	

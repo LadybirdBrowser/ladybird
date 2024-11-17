@@ -1,0 +1,12 @@
+Summary
+
+Harness status: OK
+
+Rerun
+
+Found 2 tests
+
+2 Fail
+Details
+Result	Test Name	MessageFail	relatedTarget should not leak at capturing phase, at window object.	
+Fail	relatedTarget should not leak at target.	

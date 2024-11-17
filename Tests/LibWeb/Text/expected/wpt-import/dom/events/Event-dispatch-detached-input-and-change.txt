@@ -1,0 +1,22 @@
+Summary
+
+Harness status: OK
+
+Rerun
+
+Found 12 tests
+
+12 Pass
+Details
+Result	Test Name	MessagePass	detached checkbox should not emit input or change events on click().	
+Pass	detached radio should not emit input or change events on click().	
+Pass	detached checkbox should not emit input or change events on dispatchEvent(new MouseEvent('click')).	
+Pass	detached radio should not emit input or change events on dispatchEvent(new MouseEvent('click')).	
+Pass	attached checkbox should emit input and change events on click().	
+Pass	attached radio should emit input and change events on click().	
+Pass	attached checkbox should emit input and change events on dispatchEvent(new MouseEvent('click')).	
+Pass	attached radio should emit input and change events on dispatchEvent(new MouseEvent('click')).	
+Pass	attached to shadow dom checkbox should emit input and change events on click().	
+Pass	attached to shadow dom radio should emit input and change events on click().	
+Pass	attached to shadow dom checkbox should emit input and change events on dispatchEvent(new MouseEvent('click')).	
+Pass	attached to shadow dom radio should emit input and change events on dispatchEvent(new MouseEvent('click')).	

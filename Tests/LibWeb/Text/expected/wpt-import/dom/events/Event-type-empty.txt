@@ -1,0 +1,12 @@
+Summary
+
+Harness status: OK
+
+Rerun
+
+Found 2 tests
+
+2 Pass
+Details
+Result	Test Name	MessagePass	initEvent	
+Pass	Constructor	

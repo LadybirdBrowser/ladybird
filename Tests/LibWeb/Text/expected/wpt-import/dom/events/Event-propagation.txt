@@ -1,0 +1,17 @@
+Summary
+
+Harness status: OK
+
+Rerun
+
+Found 7 tests
+
+7 Pass
+Details
+Result	Test Name	MessagePass	Newly-created Event	
+Pass	After stopPropagation()	
+Pass	Reinitialized after stopPropagation()	
+Pass	After stopImmediatePropagation()	
+Pass	Reinitialized after stopImmediatePropagation()	
+Pass	After cancelBubble=true	
+Pass	Reinitialized after cancelBubble=true	

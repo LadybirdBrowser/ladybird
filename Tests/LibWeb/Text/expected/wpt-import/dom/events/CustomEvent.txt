@@ -1,0 +1,13 @@
+Summary
+
+Harness status: OK
+
+Rerun
+
+Found 3 tests
+
+3 Pass
+Details
+Result	Test Name	MessagePass	CustomEvent dispatching.	
+Pass	First parameter to initCustomEvent should be mandatory.	
+Pass	initCustomEvent's default parameter values.	

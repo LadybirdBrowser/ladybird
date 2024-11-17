@@ -1,0 +1,17 @@
+Summary
+
+Harness status: OK
+
+Rerun
+
+Found 7 tests
+
+7 Pass
+Details
+Result	Test Name	MessagePass	When an event is created, returnValue should be initialized to true.	
+Pass	preventDefault() should not change returnValue if cancelable is false.	
+Pass	returnValue=false should have no effect if cancelable is false.	
+Pass	preventDefault() should change returnValue if cancelable is true.	
+Pass	returnValue should change returnValue if cancelable is true.	
+Pass	initEvent should unset returnValue.	
+Pass	returnValue=true should have no effect once the canceled flag was set.	

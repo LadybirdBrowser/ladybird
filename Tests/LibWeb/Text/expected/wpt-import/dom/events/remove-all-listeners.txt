@@ -1,0 +1,13 @@
+Summary
+
+Harness status: OK
+
+Rerun
+
+Found 2 tests
+
+1 Pass
+1 Fail
+Details
+Result	Test Name	MessagePass	Removing all listeners and then adding a new one should work.	
+Fail	Nested usage of once listeners should work.	

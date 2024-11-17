@@ -1,0 +1,14 @@
+Summary
+
+Harness status: OK
+
+Rerun
+
+Found 4 tests
+
+4 Pass
+Details
+Result	Test Name	MessagePass	Capture boolean should be honored correctly	
+Pass	Capture option should be honored correctly	
+Pass	Supports capture option	
+Pass	Equivalence of option values	
