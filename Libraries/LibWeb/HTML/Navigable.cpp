@@ -1875,8 +1875,11 @@ void finalize_a_cross_document_navigation(GC::Ref<Navigable> navigable, HistoryH
     //    - historyEntry's document's browsing context is not an auxiliary browsing context whose opener browsing context is non-null; and
     //    - historyEntry's document's origin is not navigable's active document's origin
     //    then set historyEntry's document state's navigable target name to the empty string.
-    if (navigable->parent() == nullptr && history_entry->document()->browsing_context()->opener_browsing_context() != nullptr && history_entry->document()->origin() != navigable->active_document()->origin())
+    if (navigable->parent() == nullptr
+        && !(history_entry->document()->browsing_context()->is_auxiliary() && history_entry->document()->browsing_context()->opener_browsing_context() != nullptr)
+        && history_entry->document()->origin() != navigable->active_document()->origin()) {
         history_entry->document_state()->set_navigable_target_name(String {});
+    }
 
     // 5. Let entryToReplace be navigable's active session history entry if historyHandling is "replace", otherwise null.
     auto entry_to_replace = history_handling == HistoryHandlingBehavior::Replace ? navigable->active_session_history_entry() : nullptr;
