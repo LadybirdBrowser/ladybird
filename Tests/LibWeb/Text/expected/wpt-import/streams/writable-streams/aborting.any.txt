@@ -6,8 +6,7 @@ Rerun
 
 Found 62 tests
 
-45 Pass
-17 Fail
+62 Pass
 Details
 Result	Test Name	MessagePass	Aborting a WritableStream before it starts should cause the writer's unsettled ready promise to reject	
 Pass	Aborting a WritableStream should cause the writer's fulfilled ready promise to reset to a rejected one	
@@ -38,36 +37,36 @@ Pass	if underlying close() has started and then rejects, the abort() and close()
 Pass	an abort() that happens during a write() should trigger the underlying abort() even with a close() queued	
 Pass	if a writer is created for a stream with a pending abort, its ready should be rejected with the abort error	
 Pass	writer close() promise should resolve before abort() promise	
-Fail	writer.ready should reject on controller error without waiting for underlying write	
+Pass	writer.ready should reject on controller error without waiting for underlying write	
 Pass	writer.abort() while there is an in-flight write, and then finish the write with rejection	
-Fail	writer.abort(), controller.error() while there is an in-flight write, and then finish the write	
-Fail	writer.abort(), controller.error() while there is an in-flight close, and then finish the close	
-Fail	controller.error(), writer.abort() while there is an in-flight write, and then finish the write	
-Fail	controller.error(), writer.abort() while there is an in-flight close, and then finish the close	
+Pass	writer.abort(), controller.error() while there is an in-flight write, and then finish the write	
+Pass	writer.abort(), controller.error() while there is an in-flight close, and then finish the close	
+Pass	controller.error(), writer.abort() while there is an in-flight write, and then finish the write	
+Pass	controller.error(), writer.abort() while there is an in-flight close, and then finish the close	
 Pass	releaseLock() while aborting should reject the original closed promise	
 Pass	releaseLock() during delayed async abort() should reject the writer.closed promise	
 Pass	sink abort() should not be called until sink start() is done	
-Fail	if start attempts to error the controller after abort() has been called, then it should lose	undefined is not a function (evaluated from 'controller.error')
+Pass	if start attempts to error the controller after abort() has been called, then it should lose	
 Pass	stream abort() promise should still resolve if sink start() rejects	
 Pass	writer abort() during sink start() should replace the writer.ready promise synchronously	
 Pass	promises returned from other writer methods should be rejected when writer abort() happens during sink start()	
-Fail	abort() should succeed despite rejection from write	
-Fail	abort() should be rejected with the rejection returned from close()	
+Pass	abort() should succeed despite rejection from write	
+Pass	abort() should be rejected with the rejection returned from close()	
 Pass	a rejecting sink.write() should not prevent sink.abort() from being called	
 Pass	when start errors after stream abort(), underlying sink abort() should be called anyway	
 Pass	when calling abort() twice on the same stream, both should give the same promise that fulfills with undefined	
 Pass	when calling abort() twice on the same stream, but sequentially so so there's no pending abort the second time, both should fulfill with undefined	
-Fail	calling abort() on an errored stream should fulfill with undefined	undefined is not a function (evaluated from 'c.error')
-Fail	sink abort() should not be called if stream was erroring due to controller.error() before abort() was called	
+Pass	calling abort() on an errored stream should fulfill with undefined	
+Pass	sink abort() should not be called if stream was erroring due to controller.error() before abort() was called	
 Pass	sink abort() should not be called if stream was erroring due to bad strategy before abort() was called	
 Pass	abort with no arguments should set the stored error to undefined	
 Pass	abort with an undefined argument should set the stored error to undefined	
 Pass	abort with a string argument should set the stored error to that argument	
 Pass	abort on a locked stream should reject	
-Fail	WritableStreamDefaultController.signal	
-Fail	the abort signal is signalled synchronously - write	
-Fail	the abort signal is signalled synchronously - close	
-Fail	the abort signal is not signalled on error	
-Fail	the abort signal is not signalled on write failure	
-Fail	the abort signal is not signalled on close failure	
-Fail	recursive abort() call	
+Pass	WritableStreamDefaultController.signal	
+Pass	the abort signal is signalled synchronously - write	
+Pass	the abort signal is signalled synchronously - close	
+Pass	the abort signal is not signalled on error	
+Pass	the abort signal is not signalled on write failure	
+Pass	the abort signal is not signalled on close failure	
+Pass	recursive abort() call	

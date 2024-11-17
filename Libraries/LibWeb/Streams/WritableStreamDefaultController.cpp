@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Bindings/WritableStreamDefaultControllerPrototype.h>
 #include <LibWeb/DOM/AbortSignal.h>
 #include <LibWeb/Streams/WritableStream.h>
@@ -24,6 +25,12 @@ void WritableStreamDefaultController::visit_edges(Visitor& visitor)
     visitor.visit(m_close_algorithm);
     visitor.visit(m_strategy_size_algorithm);
     visitor.visit(m_write_algorithm);
+}
+
+void WritableStreamDefaultController::initialize(JS::Realm& realm)
+{
+    Base::initialize(realm);
+    WEB_SET_PROTOTYPE_FOR_INTERFACE(WritableStreamDefaultController);
 }
 
 // https://streams.spec.whatwg.org/#ws-default-controller-error
