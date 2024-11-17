@@ -20,28 +20,28 @@ requires(!IsLvalueReference<T> && !IsRvalueReference<T>) class [[nodiscard]] Non
 public:
     using ValueType = T;
 
-    NonnullRawPtr() = delete;
-    NonnullRawPtr(T const&&) = delete;
+    constexpr NonnullRawPtr() = delete;
+    constexpr NonnullRawPtr(T const&&) = delete;
 
-    NonnullRawPtr(T& other)
+    constexpr NonnullRawPtr(T& other)
         : m_ptr(&other)
     {
     }
 
-    operator bool() const = delete;
-    bool operator!() const = delete;
+    constexpr operator bool() const = delete;
+    constexpr bool operator!() const = delete;
 
-    operator T&() { return *m_ptr; }
-    operator T const&() const { return *m_ptr; }
+    constexpr operator T&() { return *m_ptr; }
+    constexpr operator T const&() const { return *m_ptr; }
 
-    [[nodiscard]] ALWAYS_INLINE T& value() { return *m_ptr; }
-    [[nodiscard]] ALWAYS_INLINE T const& value() const { return *m_ptr; }
+    [[nodiscard]] ALWAYS_INLINE constexpr T& value() { return *m_ptr; }
+    [[nodiscard]] ALWAYS_INLINE constexpr T const& value() const { return *m_ptr; }
 
-    [[nodiscard]] ALWAYS_INLINE T& operator*() { return value(); }
-    [[nodiscard]] ALWAYS_INLINE T const& operator*() const { return value(); }
+    [[nodiscard]] ALWAYS_INLINE constexpr T& operator*() { return value(); }
+    [[nodiscard]] ALWAYS_INLINE constexpr T const& operator*() const { return value(); }
 
-    ALWAYS_INLINE RETURNS_NONNULL T* operator->() { return &value(); }
-    ALWAYS_INLINE RETURNS_NONNULL T const* operator->() const { return &value(); }
+    ALWAYS_INLINE RETURNS_NONNULL constexpr T* operator->() { return &value(); }
+    ALWAYS_INLINE RETURNS_NONNULL constexpr T const* operator->() const { return &value(); }
 
 private:
     T* m_ptr;
