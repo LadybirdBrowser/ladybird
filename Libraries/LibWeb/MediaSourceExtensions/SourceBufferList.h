@@ -15,6 +15,13 @@ class SourceBufferList : public DOM::EventTarget {
     WEB_PLATFORM_OBJECT(SourceBufferList, DOM::EventTarget);
     GC_DECLARE_ALLOCATOR(SourceBufferList);
 
+public:
+    void set_onaddsourcebuffer(GC::Ptr<WebIDL::CallbackType>);
+    GC::Ptr<WebIDL::CallbackType> onaddsourcebuffer();
+
+    void set_onremovesourcebuffer(GC::Ptr<WebIDL::CallbackType>);
+    GC::Ptr<WebIDL::CallbackType> onremovesourcebuffer();
+
 private:
     SourceBufferList(JS::Realm&);
 

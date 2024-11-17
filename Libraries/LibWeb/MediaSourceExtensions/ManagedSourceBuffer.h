@@ -16,6 +16,9 @@ class ManagedSourceBuffer : public SourceBuffer {
     GC_DECLARE_ALLOCATOR(ManagedSourceBuffer);
 
 public:
+    void set_onbufferedchange(GC::Ptr<WebIDL::CallbackType>);
+    GC::Ptr<WebIDL::CallbackType> onbufferedchange();
+
 private:
     ManagedSourceBuffer(JS::Realm&);
 

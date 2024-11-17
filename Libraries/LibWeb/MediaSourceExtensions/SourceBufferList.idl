@@ -6,8 +6,8 @@
 interface SourceBufferList : EventTarget {
     [FIXME] readonly attribute unsigned long length;
 
-    [FIXME] attribute EventHandler onaddsourcebuffer;
-    [FIXME] attribute EventHandler onremovesourcebuffer;
+    attribute EventHandler onaddsourcebuffer;
+    attribute EventHandler onremovesourcebuffer;
 
     [FIXME] getter SourceBuffer (unsigned long index);
 };

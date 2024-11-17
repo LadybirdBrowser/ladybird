@@ -18,6 +18,12 @@ class ManagedMediaSource : public MediaSource {
 public:
     [[nodiscard]] static WebIDL::ExceptionOr<GC::Ref<ManagedMediaSource>> construct_impl(JS::Realm&);
 
+    void set_onstartstreaming(GC::Ptr<WebIDL::CallbackType>);
+    GC::Ptr<WebIDL::CallbackType> onstartstreaming();
+
+    void set_onendstreaming(GC::Ptr<WebIDL::CallbackType>);
+    GC::Ptr<WebIDL::CallbackType> onendstreaming();
+
 private:
     ManagedMediaSource(JS::Realm&);
 
