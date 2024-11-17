@@ -1197,6 +1197,8 @@ void Optimizer::append_alternation(ByteCode& target, Span<ByteCode> alternatives
             for (auto& patch : patch_locations) {
                 if (!patch.done && node_is(node, patch.source_ip)) {
                     auto value = static_cast<ByteCodeValueType>(target.size() - patch.target_ip - 1);
+                    if (value == 0)
+                        target[patch.target_ip - 1] = static_cast<ByteCodeValueType>(OpCodeId::Jump);
                     target[patch.target_ip] = value;
                     patch.done = true;
                 }
