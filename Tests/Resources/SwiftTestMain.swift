@@ -4,13 +4,24 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-// FIXME: This file is intended to become redundant as swift-testing stabilizes
-//        See https://github.com/swiftlang/swift-testing/blob/133e30231c4583b02ab3ea2a7f678f3d7f4f8a3d/Documentation/CMake.md#add-an-entry-point
+import Foundation
 
-import Testing
+typealias EntryPoint = @convention(thin) @Sendable (_ configurationJSON: UnsafeRawBufferPointer?, _ recordHandler: @escaping @Sendable (_ recordJSON: UnsafeRawBufferPointer) -> Void) async throws -> Bool
+
+@_extern(c, "swt_abiv0_getEntryPoint")
+func swt_abiv0_getEntryPoint() -> UnsafeRawPointer
 
 @main struct Runner {
-    static func main() async {
-        await Testing.__swiftPMEntryPoint() as Never
+    static func main() async throws {
+        let configurationJSON: UnsafeRawBufferPointer? = nil
+        let recordHandler: @Sendable (UnsafeRawBufferPointer) -> Void = { _ in }
+
+        let entryPoint = unsafeBitCast(swt_abiv0_getEntryPoint(), to: EntryPoint.self)
+
+        if try await entryPoint(configurationJSON, recordHandler) {
+            exit(EXIT_SUCCESS)
+        } else {
+            exit(EXIT_FAILURE)
+        }
     }
 }
