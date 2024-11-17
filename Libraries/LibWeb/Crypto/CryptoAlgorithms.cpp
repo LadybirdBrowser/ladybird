@@ -2526,6 +2526,106 @@ WebIDL::ExceptionOr<JS::Value> ECDSA::verify(AlgorithmParams const& params, GC::
     return JS::Value(result);
 }
 
+// https://w3c.github.io/webcrypto/#ecdh-operations
+WebIDL::ExceptionOr<Variant<GC::Ref<CryptoKey>, GC::Ref<CryptoKeyPair>>> ECDH::generate_key(AlgorithmParams const& params, bool extractable, Vector<Bindings::KeyUsage> const& key_usages)
+{
+    // 1. If usages contains an entry which is not "deriveKey" or "deriveBits" then throw a SyntaxError.
+    for (auto const& usage : key_usages) {
+        if (usage != Bindings::KeyUsage::Derivekey && usage != Bindings::KeyUsage::Derivebits) {
+            return WebIDL::SyntaxError::create(m_realm, MUST(String::formatted("Invalid key usage '{}'", idl_enum_to_string(usage))));
+        }
+    }
+
+    auto const& normalized_algorithm = static_cast<EcKeyGenParams const&>(params);
+
+    // 2. If the namedCurve member of normalizedAlgorithm is "P-256", "P-384" or "P-521":
+    // Generate an Elliptic Curve key pair, as defined in [RFC6090]
+    // with domain parameters for the curve identified by the namedCurve member of normalizedAlgorithm.
+    Variant<Empty, ::Crypto::Curves::SECP256r1, ::Crypto::Curves::SECP384r1> curve;
+    if (normalized_algorithm.named_curve.is_one_of("P-256"sv, "P-384"sv, "P-521"sv)) {
+        if (normalized_algorithm.named_curve.equals_ignoring_ascii_case("P-256"sv))
+            curve = ::Crypto::Curves::SECP256r1 {};
+
+        if (normalized_algorithm.named_curve.equals_ignoring_ascii_case("P-384"sv))
+            curve = ::Crypto::Curves::SECP384r1 {};
+
+        // FIXME: Support P-521
+        if (normalized_algorithm.named_curve.equals_ignoring_ascii_case("P-521"sv))
+            return WebIDL::NotSupportedError::create(m_realm, "'P-521' is not supported yet"_string);
+    } else {
+        // If the namedCurve member of normalizedAlgorithm is a value specified in an applicable specification
+        // that specifies the use of that value with ECDH:
+        // Perform the ECDH generation steps specified in that specification,
+        // passing in normalizedAlgorithm and resulting in an elliptic curve key pair.
+
+        // Otherwise: throw a NotSupportedError
+        return WebIDL::NotSupportedError::create(m_realm, "Only 'P-256', 'P-384' and 'P-521' is supported"_string);
+    }
+
+    // 3. If performing the operation results in an error, then throw a OperationError.
+    auto maybe_private_key_data = curve.visit(
+        [](Empty const&) -> ErrorOr<ByteBuffer> { return Error::from_string_literal("noop error"); },
+        [](auto instance) { return instance.generate_private_key(); });
+
+    if (maybe_private_key_data.is_error())
+        return WebIDL::OperationError::create(m_realm, "Failed to create valid crypto instance"_string);
+
+    auto private_key_data = maybe_private_key_data.release_value();
+
+    auto maybe_public_key_data = curve.visit(
+        [](Empty const&) -> ErrorOr<ByteBuffer> { return Error::from_string_literal("noop error"); },
+        [&](auto instance) { return instance.generate_public_key(private_key_data); });
+
+    if (maybe_public_key_data.is_error())
+        return WebIDL::OperationError::create(m_realm, "Failed to create valid crypto instance"_string);
+
+    auto public_key_data = maybe_public_key_data.release_value();
+
+    // 4. Let algorithm be a new EcKeyAlgorithm object.
+    auto algorithm = EcKeyAlgorithm::create(m_realm);
+
+    // 5. Set the name attribute of algorithm to "ECDH".
+    algorithm->set_name("ECDH"_string);
+
+    // 6. Set the namedCurve attribute of algorithm to equal the namedCurve member of normalizedAlgorithm.
+    algorithm->set_named_curve(normalized_algorithm.named_curve);
+
+    // 7. Let publicKey be a new CryptoKey representing the public key of the generated key pair.
+    auto public_key = CryptoKey::create(m_realm, CryptoKey::InternalKeyData { public_key_data });
+
+    // 8. Set the [[type]] internal slot of publicKey to "public"
+    public_key->set_type(Bindings::KeyType::Public);
+
+    // 9. Set the [[algorithm]] internal slot of publicKey to algorithm.
+    public_key->set_algorithm(algorithm);
+
+    // 10. Set the [[extractable]] internal slot of publicKey to true.
+    public_key->set_extractable(true);
+
+    // 11. Set the [[usages]] internal slot of publicKey to be the empty list.
+    public_key->set_usages({});
+
+    // 12. Let privateKey be a new CryptoKey representing the private key of the generated key pair.
+    auto private_key = CryptoKey::create(m_realm, CryptoKey::InternalKeyData { private_key_data });
+
+    // 13. Set the [[type]] internal slot of privateKey to "private"
+    private_key->set_type(Bindings::KeyType::Private);
+
+    // 14. Set the [[algorithm]] internal slot of privateKey to algorithm.
+    private_key->set_algorithm(algorithm);
+
+    // 15. Set the [[extractable]] internal slot of privateKey to extractable.
+    private_key->set_extractable(extractable);
+
+    // 16. Set the [[usages]] internal slot of privateKey to be the usage intersection of usages and [ "deriveKey", "deriveBits" ].
+    private_key->set_usages(usage_intersection(key_usages, { { Bindings::KeyUsage::Derivekey, Bindings::KeyUsage::Derivebits } }));
+
+    // 17. Let result be a new CryptoKeyPair dictionary.
+    // 18. Set the publicKey attribute of result to be publicKey.
+    // 19. Set the privateKey attribute of result to be privateKey.
+    // 20. Return the result of converting result to an ECMAScript Object, as defined by [WebIDL].
+    return Variant<GC::Ref<CryptoKey>, GC::Ref<CryptoKeyPair>> { CryptoKeyPair::create(m_realm, public_key, private_key) };
+}
 // https://wicg.github.io/webcrypto-secure-curves/#ed25519-operations
 WebIDL::ExceptionOr<Variant<GC::Ref<CryptoKey>, GC::Ref<CryptoKeyPair>>> ED25519::generate_key([[maybe_unused]] AlgorithmParams const& params, bool extractable, Vector<Bindings::KeyUsage> const& key_usages)
 {
