@@ -601,6 +601,11 @@ bool UnsignedBigInteger::operator<(UnsignedBigInteger const& other) const
     return false;
 }
 
+bool UnsignedBigInteger::operator<=(UnsignedBigInteger const& other) const
+{
+    return *this < other || *this == other;
+}
+
 bool UnsignedBigInteger::operator>(UnsignedBigInteger const& other) const
 {
     return *this != other && !(*this < other);
