@@ -62,7 +62,7 @@ public:
 
     virtual u32 which() const override { return m_key_code; }
 
-    void init_keyboard_event(String const& type, bool bubbles, bool cancelable, HTML::Window* view, String const& key, WebIDL::UnsignedLong location, bool ctrl_key, bool alt_key, bool shift_key, bool meta_key);
+    void init_keyboard_event(String const& type, bool bubbles, bool cancelable, GC::Ptr<HTML::WindowProxy> view, String const& key, WebIDL::UnsignedLong location, bool ctrl_key, bool alt_key, bool shift_key, bool meta_key);
 
 private:
     KeyboardEvent(JS::Realm&, FlyString const& event_name, KeyboardEventInit const& event_init);

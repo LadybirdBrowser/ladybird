@@ -6,11 +6,10 @@ Rerun
 
 Found 5 tests
 
-4 Pass
-1 Fail
+5 Pass
 Details
 Result	Test Name	MessagePass	Calling initKeyboardEvent while dispatching.	
 Pass	Calling initMouseEvent while dispatching.	
 Pass	Calling initCustomEvent while dispatching.	
-Fail	Calling initUIEvent while dispatching.	Not an object of type Window
+Pass	Calling initUIEvent while dispatching.	
 Pass	Calling initEvent while dispatching.	

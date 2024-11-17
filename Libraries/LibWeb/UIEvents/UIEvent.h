@@ -13,7 +13,7 @@
 namespace Web::UIEvents {
 
 struct UIEventInit : public DOM::EventInit {
-    GC::Ptr<HTML::Window> view;
+    GC::Ptr<HTML::WindowProxy> view;
     int detail { 0 };
 };
 
@@ -27,11 +27,11 @@ public:
 
     virtual ~UIEvent() override;
 
-    HTML::Window const* view() const { return m_view.ptr(); }
+    GC::Ptr<HTML::WindowProxy> const view() const { return m_view; }
     int detail() const { return m_detail; }
     virtual u32 which() const { return 0; }
 
-    void init_ui_event(String const& type, bool bubbles, bool cancelable, HTML::Window* view, int detail)
+    void init_ui_event(String const& type, bool bubbles, bool cancelable, GC::Ptr<HTML::WindowProxy> view, int detail)
     {
         // Initializes attributes of an UIEvent object. This method has the same behavior as initEvent().
 
@@ -54,7 +54,7 @@ protected:
     virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Cell::Visitor&) override;
 
-    GC::Ptr<HTML::Window> m_view;
+    GC::Ptr<HTML::WindowProxy> m_view;
     int m_detail { 0 };
 };
 

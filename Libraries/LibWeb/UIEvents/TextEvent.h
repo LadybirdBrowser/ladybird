@@ -22,7 +22,7 @@ public:
     // https://w3c.github.io/uievents/#dom-textevent-data
     String data() const { return m_data; }
 
-    void init_text_event(String const& type, bool bubbles, bool cancelable, HTML::Window* view, String const& data);
+    void init_text_event(String const& type, bool bubbles, bool cancelable, GC::Ptr<HTML::WindowProxy> view, String const& data);
 
 private:
     TextEvent(JS::Realm&, FlyString const& event_name);

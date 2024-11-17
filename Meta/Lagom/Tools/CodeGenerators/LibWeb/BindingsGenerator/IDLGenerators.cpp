@@ -102,6 +102,7 @@ static bool is_platform_object(Type const& type)
         "VideoTrackList"sv,
         "WebGLRenderingContext"sv,
         "Window"sv,
+        "WindowProxy"sv,
         "WritableStream"sv,
     };
     if (type.name().ends_with("Element"sv))
