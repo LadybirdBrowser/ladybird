@@ -61,6 +61,24 @@ struct ArgvList {
     }
 };
 
+Process::Process(Process&& other)
+    : m_pid(exchange(other.m_pid, 0))
+    , m_should_disown(exchange(other.m_should_disown, false))
+{
+}
+
+Process& Process::operator=(Process&& other)
+{
+    m_pid = exchange(other.m_pid, 0);
+    m_should_disown = exchange(other.m_should_disown, false);
+    return *this;
+}
+
+Process::~Process()
+{
+    (void)disown();
+}
+
 Process Process::current()
 {
     auto p = Process { getpid() };
@@ -295,6 +313,11 @@ void Process::wait_for_debugger_and_break()
         }
         ::usleep(100 * 1000);
     }
+}
+
+pid_t Process::pid() const
+{
+    return m_pid;
 }
 
 ErrorOr<void> Process::disown()
