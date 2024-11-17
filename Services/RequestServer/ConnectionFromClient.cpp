@@ -311,12 +311,15 @@ void ConnectionFromClient::start_request(i32 request_id, ByteString const& metho
     set_option(CURLOPT_PORT, url.port_or_default());
     set_option(CURLOPT_CONNECTTIMEOUT, s_connect_timeout_seconds);
 
+    bool did_set_body = false;
+
     if (method == "GET"sv) {
         set_option(CURLOPT_HTTPGET, 1L);
     } else if (method.is_one_of("POST"sv, "PUT"sv, "PATCH"sv, "DELETE"sv)) {
         request->body = request_body;
         set_option(CURLOPT_POSTFIELDSIZE, request->body.size());
         set_option(CURLOPT_POSTFIELDS, request->body.data());
+        did_set_body = true;
     } else if (method == "HEAD") {
         set_option(CURLOPT_NOBODY, 1L);
     }
@@ -325,6 +328,12 @@ void ConnectionFromClient::start_request(i32 request_id, ByteString const& metho
     set_option(CURLOPT_FOLLOWLOCATION, 0);
 
     struct curl_slist* curl_headers = nullptr;
+
+    // NOTE: CURLOPT_POSTFIELDS automatically sets the Content-Type header.
+    //       Set it to empty if the headers passed in don't contain a content type.
+    if (did_set_body && !request_headers.contains("Content-Type"))
+        curl_headers = curl_slist_append(curl_headers, "Content-Type:");
+
     for (auto const& header : request_headers.headers()) {
         auto header_string = ByteString::formatted("{}: {}", header.name, header.value);
         curl_headers = curl_slist_append(curl_headers, header_string.characters());
