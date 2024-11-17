@@ -48,9 +48,9 @@ protected:
     {
     }
 
-    static Optional<float> resolve_hue(CSSStyleValue const&);
-    static Optional<float> resolve_with_reference_value(CSSStyleValue const&, float one_hundred_percent_value);
-    static Optional<float> resolve_alpha(CSSStyleValue const&);
+    static Optional<double> resolve_hue(CSSStyleValue const&);
+    static Optional<double> resolve_with_reference_value(CSSStyleValue const&, float one_hundred_percent_value);
+    static Optional<double> resolve_alpha(CSSStyleValue const&);
 
 private:
     ColorType m_color_type;
