@@ -53,23 +53,9 @@ public:
         No
     };
 
-    Process(Process&& other)
-        : m_pid(exchange(other.m_pid, 0))
-        , m_should_disown(exchange(other.m_should_disown, false))
-    {
-    }
-
-    Process& operator=(Process&& other)
-    {
-        m_pid = exchange(other.m_pid, 0);
-        m_should_disown = exchange(other.m_should_disown, false);
-        return *this;
-    }
-
-    ~Process()
-    {
-        (void)disown();
-    }
+    Process(Process&& other);
+    Process& operator=(Process&& other);
+    ~Process();
 
     static ErrorOr<Process> spawn(ProcessSpawnOptions const& options);
     static Process current();
@@ -87,14 +73,17 @@ public:
     static void wait_for_debugger_and_break();
     static ErrorOr<bool> is_being_debugged();
 
-    pid_t pid() const { return m_pid; }
+    pid_t pid() const;
 
+#ifndef AK_OS_WINDOWS
     ErrorOr<void> disown();
+#endif
 
     // FIXME: Make it return an exit code.
     ErrorOr<bool> wait_for_termination();
 
 private:
+#ifndef AK_OS_WINDOWS
     Process(pid_t pid = -1)
         : m_pid(pid)
         , m_should_disown(true)
@@ -103,6 +92,14 @@ private:
 
     pid_t m_pid;
     bool m_should_disown;
+#else
+    Process(void* handle = 0)
+        : m_handle(handle)
+    {
+    }
+
+    void* m_handle;
+#endif
 };
 
 }
