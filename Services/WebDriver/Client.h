@@ -19,8 +19,8 @@
 namespace WebDriver {
 
 struct LaunchBrowserCallbacks {
-    Function<ErrorOr<pid_t>(ByteString const&)> launch_browser;
-    Function<ErrorOr<pid_t>(ByteString const&)> launch_headless_browser;
+    Function<ErrorOr<Core::Process>(ByteString const&)> launch_browser;
+    Function<ErrorOr<Core::Process>(ByteString const&)> launch_headless_browser;
 };
 
 class Client final : public Web::WebDriver::Client {

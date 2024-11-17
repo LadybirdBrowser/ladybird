@@ -121,7 +121,7 @@ ErrorOr<Process> Process::spawn(ProcessSpawnOptions const& options)
     return Process { pid };
 }
 
-ErrorOr<pid_t> Process::spawn(StringView path, ReadonlySpan<ByteString> arguments, ByteString working_directory, KeepAsChild keep_as_child)
+ErrorOr<Process> Process::spawn(StringView path, ReadonlySpan<ByteString> arguments, ByteString working_directory, KeepAsChild keep_as_child)
 {
     auto process = TRY(spawn({
         .executable = path,
@@ -131,14 +131,11 @@ ErrorOr<pid_t> Process::spawn(StringView path, ReadonlySpan<ByteString> argument
 
     if (keep_as_child == KeepAsChild::No)
         TRY(process.disown());
-    else {
-        // FIXME: This won't be needed if return value is changed to Process.
-        process.m_should_disown = false;
-    }
-    return process.pid();
+
+    return process;
 }
 
-ErrorOr<pid_t> Process::spawn(StringView path, ReadonlySpan<StringView> arguments, ByteString working_directory, KeepAsChild keep_as_child)
+ErrorOr<Process> Process::spawn(StringView path, ReadonlySpan<StringView> arguments, ByteString working_directory, KeepAsChild keep_as_child)
 {
     Vector<ByteString> backing_strings;
     backing_strings.ensure_capacity(arguments.size());
@@ -153,9 +150,8 @@ ErrorOr<pid_t> Process::spawn(StringView path, ReadonlySpan<StringView> argument
 
     if (keep_as_child == KeepAsChild::No)
         TRY(process.disown());
-    else
-        process.m_should_disown = false;
-    return process.pid();
+
+    return process;
 }
 
 ErrorOr<String> Process::get_name()

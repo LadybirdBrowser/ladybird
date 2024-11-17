@@ -15,6 +15,7 @@
 #include <AK/ScopeGuard.h>
 #include <AK/String.h>
 #include <LibCore/EventLoop.h>
+#include <LibCore/Process.h>
 #include <LibCore/Promise.h>
 #include <LibWeb/WebDriver/Capabilities.h>
 #include <LibWeb/WebDriver/Error.h>
@@ -95,7 +96,7 @@ private:
     String m_current_window_handle;
 
     Optional<ByteString> m_web_content_socket_path;
-    Optional<pid_t> m_browser_pid;
+    Optional<Core::Process> m_browser_process;
 
     RefPtr<Core::LocalServer> m_web_content_server;
 

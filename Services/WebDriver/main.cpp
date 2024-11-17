@@ -19,11 +19,11 @@
 
 static Vector<ByteString> certificates;
 
-static ErrorOr<pid_t> launch_process(StringView application, ReadonlySpan<ByteString> arguments)
+static ErrorOr<Core::Process> launch_process(StringView application, ReadonlySpan<ByteString> arguments)
 {
     auto paths = TRY(WebView::get_paths_for_helper_process(application));
 
-    ErrorOr<pid_t> result = -1;
+    ErrorOr<Core::Process> result = Error::from_string_literal("All paths failed to launch");
     for (auto const& path : paths) {
         auto path_view = path.view();
         result = Core::Process::spawn(path_view, arguments, {}, Core::Process::KeepAsChild::Yes);
@@ -56,13 +56,13 @@ static Vector<ByteString> create_arguments(ByteString const& socket_path, bool f
     return arguments;
 }
 
-static ErrorOr<pid_t> launch_browser(ByteString const& socket_path, bool force_cpu_painting)
+static ErrorOr<Core::Process> launch_browser(ByteString const& socket_path, bool force_cpu_painting)
 {
     auto arguments = create_arguments(socket_path, force_cpu_painting);
     return launch_process("Ladybird"sv, arguments.span());
 }
 
-static ErrorOr<pid_t> launch_headless_browser(ByteString const& socket_path, bool force_cpu_painting)
+static ErrorOr<Core::Process> launch_headless_browser(ByteString const& socket_path, bool force_cpu_painting)
 {
     auto arguments = create_arguments(socket_path, force_cpu_painting);
     return launch_process("headless-browser"sv, arguments.span());
