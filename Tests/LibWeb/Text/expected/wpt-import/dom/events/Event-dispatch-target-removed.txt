@@ -1,0 +1,11 @@
+Summary
+
+Harness status: OK
+
+Rerun
+
+Found 1 tests
+
+1 Fail
+Details
+Result	Test Name	MessageFail	Event propagation path when an element in it is removed from the DOM	

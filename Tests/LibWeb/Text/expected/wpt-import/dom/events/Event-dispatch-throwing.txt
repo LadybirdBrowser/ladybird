@@ -1,0 +1,12 @@
+Summary
+
+Harness status: OK
+
+Rerun
+
+Found 2 tests
+
+2 Pass
+Details
+Result	Test Name	MessagePass	Throwing in event listener with a single listeners	
+Pass	Throwing in event listener with multiple listeners	

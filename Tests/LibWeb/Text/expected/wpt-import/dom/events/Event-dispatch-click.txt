@@ -1,0 +1,44 @@
+Summary
+
+Harness status: OK
+
+Rerun
+
+Found 33 tests
+
+30 Pass
+3 Fail
+Details
+Result	Test Name	MessagePass	basic with click()	
+Pass	basic with dispatchEvent()	
+Pass	basic with wrong event class	
+Pass	look at parents only when event bubbles	
+Pass	look at parents when event bubbles	
+Pass	pick the first with activation behavior <input type=checkbox>	
+Pass	pick the first with activation behavior <a href>	
+Pass	pick the first with activation behavior <input type=radio>	
+Pass	event state during post-click handling	
+Pass	redispatch during post-click handling	
+Pass	disabled checkbox still has activation behavior	
+Pass	disabled checkbox still has activation behavior, part 2	
+Pass	disabled radio still has activation behavior	
+Pass	disconnected checkbox should be checked	
+Pass	disconnected radio should be checked	
+Pass	disconnected checkbox should be checked from dispatchEvent(new MouseEvent('click'))	
+Pass	disconnected radio should be checked from dispatchEvent(new MouseEvent('click'))	
+Pass	disabled checkbox should be checked from dispatchEvent(new MouseEvent("click"))	
+Pass	disabled radio should be checked from dispatchEvent(new MouseEvent("click"))	
+Pass	disabled checkbox should fire onclick	
+Pass	disabled radio should fire onclick	
+Pass	disabled checkbox should get legacy-canceled-activation behavior	
+Pass	disabled radio should get legacy-canceled-activation behavior	
+Pass	disabled checkbox should get legacy-canceled-activation behavior 2	
+Pass	disabled radio should get legacy-canceled-activation behavior 2	
+Pass	disabling checkbox in onclick listener shouldn't suppress oninput	
+Pass	disabling checkbox in onclick listener shouldn't suppress onchange	
+Pass	disabling radio in onclick listener shouldn't suppress oninput	
+Pass	disabling radio in onclick listener shouldn't suppress onchange	
+Pass	disconnected form should not submit	
+Fail	disabled submit button should not activate	
+Fail	submit button should not activate if the event listener disables it	
+Fail	submit button that morphed from checkbox should not activate	

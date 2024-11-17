@@ -1,0 +1,16 @@
+Summary
+
+Harness status: OK
+
+Rerun
+
+Found 6 tests
+
+6 Pass
+Details
+Result	Test Name	MessagePass	the this value inside the event listener callback should be the node	
+Pass	the this value inside the event listener object handleEvent should be the object	
+Pass	dispatchEvent should invoke the current handleEvent method of the object	
+Pass	addEventListener should not require handleEvent to be defined on object listeners	
+Pass	handleEvent properties added to a function before addEventListener are not reached	
+Pass	handleEvent properties added to a function after addEventListener are not reached	

@@ -1,0 +1,18 @@
+Summary
+
+Harness status: OK
+
+Rerun
+
+Found 8 tests
+
+8 Pass
+Details
+Result	Test Name	MessagePass	cancelBubble must be false when an event is initially created.	
+Pass	Initializing an event must set cancelBubble to false.	
+Pass	stopPropagation() must set cancelBubble to true.	
+Pass	stopImmediatePropagation() must set cancelBubble to true.	
+Pass	Event.cancelBubble=false must have no effect.	
+Pass	Event.cancelBubble=false must have no effect during event propagation.	
+Pass	cancelBubble must be false after an event has been dispatched.	
+Pass	Event.cancelBubble=true must set the stop propagation flag.	

@@ -1,0 +1,18 @@
+Summary
+
+Harness status: OK
+
+Rerun
+
+Found 8 tests
+
+8 Pass
+Details
+Result	Test Name	MessagePass	When an event is created, defaultPrevented should be initialized to false.	
+Pass	initEvent should work correctly (not cancelable).	
+Pass	preventDefault() should not change defaultPrevented if cancelable is false.	
+Pass	returnValue should not change defaultPrevented if cancelable is false.	
+Pass	initEvent should work correctly (cancelable).	
+Pass	preventDefault() should change defaultPrevented if cancelable is true.	
+Pass	returnValue should change defaultPrevented if cancelable is true.	
+Pass	initEvent should unset defaultPrevented.	

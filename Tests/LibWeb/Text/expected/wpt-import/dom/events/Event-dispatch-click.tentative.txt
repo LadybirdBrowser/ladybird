@@ -1,0 +1,17 @@
+Summary
+
+Harness status: OK
+
+Rerun
+
+Found 6 tests
+
+4 Pass
+2 Fail
+Details
+Result	Test Name	MessagePass	disabled checkbox should not be checked from label click	
+Pass	disabled radio should not be checked from label click	
+Pass	disabled checkbox should not be checked from label click by dispatchEvent	
+Pass	disabled radio should not be checked from label click by dispatchEvent	
+Fail	checkbox morphed into another type should not mutate checked state	
+Fail	radio morphed into another type should not steal the existing checked state	

@@ -1,0 +1,16 @@
+Summary
+
+Harness status: OK
+
+Rerun
+
+Found 6 tests
+
+6 Pass
+Details
+Result	Test Name	MessagePass	calls `handleEvent` method of `EventListener`	
+Pass	performs `Get` every time event is dispatched	
+Pass	doesn't call `handleEvent` method on callable `EventListener`	
+Pass	rethrows errors when getting `handleEvent`	
+Pass	throws if `handleEvent` is falsy and not callable	
+Pass	throws if `handleEvent` is thruthy and not callable	

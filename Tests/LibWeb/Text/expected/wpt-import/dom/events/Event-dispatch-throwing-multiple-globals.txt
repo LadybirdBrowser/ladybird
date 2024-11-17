@@ -1,0 +1,12 @@
+Summary
+
+Harness status: OK
+
+Rerun
+
+Found 2 tests
+
+2 Fail
+Details
+Result	Test Name	MessageFail	exception thrown in event listener function should result in error event on listener's global	
+Fail	exception thrown in event listener interface object should result in error event on listener's global	

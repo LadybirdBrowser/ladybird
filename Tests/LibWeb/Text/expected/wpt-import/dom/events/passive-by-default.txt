@@ -1,0 +1,111 @@
+Summary
+
+Harness status: OK
+
+Rerun
+
+Found 100 tests
+
+68 Pass
+32 Fail
+Details
+Result	Test Name	MessageFail	touchstart listener is passive by default for Window	
+Fail	touchstart listener is passive with {passive:undefined} for Window	
+Pass	touchstart listener is non-passive with {passive:false} for Window	
+Pass	touchstart listener is passive with {passive:true} for Window	
+Fail	touchstart listener is passive by default for HTMLDocument	
+Fail	touchstart listener is passive with {passive:undefined} for HTMLDocument	
+Pass	touchstart listener is non-passive with {passive:false} for HTMLDocument	
+Pass	touchstart listener is passive with {passive:true} for HTMLDocument	
+Fail	touchstart listener is passive by default for HTMLHtmlElement	
+Fail	touchstart listener is passive with {passive:undefined} for HTMLHtmlElement	
+Pass	touchstart listener is non-passive with {passive:false} for HTMLHtmlElement	
+Pass	touchstart listener is passive with {passive:true} for HTMLHtmlElement	
+Fail	touchstart listener is passive by default for HTMLBodyElement	
+Fail	touchstart listener is passive with {passive:undefined} for HTMLBodyElement	
+Pass	touchstart listener is non-passive with {passive:false} for HTMLBodyElement	
+Pass	touchstart listener is passive with {passive:true} for HTMLBodyElement	
+Pass	touchstart listener is non-passive by default for HTMLDivElement	
+Pass	touchstart listener is non-passive with {passive:undefined} for HTMLDivElement	
+Pass	touchstart listener is non-passive with {passive:false} for HTMLDivElement	
+Pass	touchstart listener is passive with {passive:true} for HTMLDivElement	
+Fail	touchmove listener is passive by default for Window	
+Fail	touchmove listener is passive with {passive:undefined} for Window	
+Pass	touchmove listener is non-passive with {passive:false} for Window	
+Pass	touchmove listener is passive with {passive:true} for Window	
+Fail	touchmove listener is passive by default for HTMLDocument	
+Fail	touchmove listener is passive with {passive:undefined} for HTMLDocument	
+Pass	touchmove listener is non-passive with {passive:false} for HTMLDocument	
+Pass	touchmove listener is passive with {passive:true} for HTMLDocument	
+Fail	touchmove listener is passive by default for HTMLHtmlElement	
+Fail	touchmove listener is passive with {passive:undefined} for HTMLHtmlElement	
+Pass	touchmove listener is non-passive with {passive:false} for HTMLHtmlElement	
+Pass	touchmove listener is passive with {passive:true} for HTMLHtmlElement	
+Fail	touchmove listener is passive by default for HTMLBodyElement	
+Fail	touchmove listener is passive with {passive:undefined} for HTMLBodyElement	
+Pass	touchmove listener is non-passive with {passive:false} for HTMLBodyElement	
+Pass	touchmove listener is passive with {passive:true} for HTMLBodyElement	
+Pass	touchmove listener is non-passive by default for HTMLDivElement	
+Pass	touchmove listener is non-passive with {passive:undefined} for HTMLDivElement	
+Pass	touchmove listener is non-passive with {passive:false} for HTMLDivElement	
+Pass	touchmove listener is passive with {passive:true} for HTMLDivElement	
+Fail	wheel listener is passive by default for Window	
+Fail	wheel listener is passive with {passive:undefined} for Window	
+Pass	wheel listener is non-passive with {passive:false} for Window	
+Pass	wheel listener is passive with {passive:true} for Window	
+Fail	wheel listener is passive by default for HTMLDocument	
+Fail	wheel listener is passive with {passive:undefined} for HTMLDocument	
+Pass	wheel listener is non-passive with {passive:false} for HTMLDocument	
+Pass	wheel listener is passive with {passive:true} for HTMLDocument	
+Fail	wheel listener is passive by default for HTMLHtmlElement	
+Fail	wheel listener is passive with {passive:undefined} for HTMLHtmlElement	
+Pass	wheel listener is non-passive with {passive:false} for HTMLHtmlElement	
+Pass	wheel listener is passive with {passive:true} for HTMLHtmlElement	
+Fail	wheel listener is passive by default for HTMLBodyElement	
+Fail	wheel listener is passive with {passive:undefined} for HTMLBodyElement	
+Pass	wheel listener is non-passive with {passive:false} for HTMLBodyElement	
+Pass	wheel listener is passive with {passive:true} for HTMLBodyElement	
+Pass	wheel listener is non-passive by default for HTMLDivElement	
+Pass	wheel listener is non-passive with {passive:undefined} for HTMLDivElement	
+Pass	wheel listener is non-passive with {passive:false} for HTMLDivElement	
+Pass	wheel listener is passive with {passive:true} for HTMLDivElement	
+Fail	mousewheel listener is passive by default for Window	
+Fail	mousewheel listener is passive with {passive:undefined} for Window	
+Pass	mousewheel listener is non-passive with {passive:false} for Window	
+Pass	mousewheel listener is passive with {passive:true} for Window	
+Fail	mousewheel listener is passive by default for HTMLDocument	
+Fail	mousewheel listener is passive with {passive:undefined} for HTMLDocument	
+Pass	mousewheel listener is non-passive with {passive:false} for HTMLDocument	
+Pass	mousewheel listener is passive with {passive:true} for HTMLDocument	
+Fail	mousewheel listener is passive by default for HTMLHtmlElement	
+Fail	mousewheel listener is passive with {passive:undefined} for HTMLHtmlElement	
+Pass	mousewheel listener is non-passive with {passive:false} for HTMLHtmlElement	
+Pass	mousewheel listener is passive with {passive:true} for HTMLHtmlElement	
+Fail	mousewheel listener is passive by default for HTMLBodyElement	
+Fail	mousewheel listener is passive with {passive:undefined} for HTMLBodyElement	
+Pass	mousewheel listener is non-passive with {passive:false} for HTMLBodyElement	
+Pass	mousewheel listener is passive with {passive:true} for HTMLBodyElement	
+Pass	mousewheel listener is non-passive by default for HTMLDivElement	
+Pass	mousewheel listener is non-passive with {passive:undefined} for HTMLDivElement	
+Pass	mousewheel listener is non-passive with {passive:false} for HTMLDivElement	
+Pass	mousewheel listener is passive with {passive:true} for HTMLDivElement	
+Pass	touchend listener is non-passive by default for Window	
+Pass	touchend listener is non-passive with {passive:undefined} for Window	
+Pass	touchend listener is non-passive with {passive:false} for Window	
+Pass	touchend listener is passive with {passive:true} for Window	
+Pass	touchend listener is non-passive by default for HTMLDocument	
+Pass	touchend listener is non-passive with {passive:undefined} for HTMLDocument	
+Pass	touchend listener is non-passive with {passive:false} for HTMLDocument	
+Pass	touchend listener is passive with {passive:true} for HTMLDocument	
+Pass	touchend listener is non-passive by default for HTMLHtmlElement	
+Pass	touchend listener is non-passive with {passive:undefined} for HTMLHtmlElement	
+Pass	touchend listener is non-passive with {passive:false} for HTMLHtmlElement	
+Pass	touchend listener is passive with {passive:true} for HTMLHtmlElement	
+Pass	touchend listener is non-passive by default for HTMLBodyElement	
+Pass	touchend listener is non-passive with {passive:undefined} for HTMLBodyElement	
+Pass	touchend listener is non-passive with {passive:false} for HTMLBodyElement	
+Pass	touchend listener is passive with {passive:true} for HTMLBodyElement	
+Pass	touchend listener is non-passive by default for HTMLDivElement	
+Pass	touchend listener is non-passive with {passive:undefined} for HTMLDivElement	
+Pass	touchend listener is non-passive with {passive:false} for HTMLDivElement	
+Pass	touchend listener is passive with {passive:true} for HTMLDivElement	

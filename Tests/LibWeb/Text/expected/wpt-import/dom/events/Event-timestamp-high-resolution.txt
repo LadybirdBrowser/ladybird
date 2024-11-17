@@ -1,0 +1,14 @@
+Summary
+
+Harness status: OK
+
+Rerun
+
+Found 4 tests
+
+4 Pass
+Details
+Result	Test Name	MessagePass	Constructed MouseEvent timestamp should be high resolution and have the same time origin as performance.now()	
+Pass	Constructed KeyboardEvent timestamp should be high resolution and have the same time origin as performance.now()	
+Pass	Constructed WheelEvent timestamp should be high resolution and have the same time origin as performance.now()	
+Pass	Constructed FocusEvent timestamp should be high resolution and have the same time origin as performance.now()	

@@ -1,0 +1,11 @@
+Summary
+
+Harness status: OK
+
+Rerun
+
+Found 1 tests
+
+1 Fail
+Details
+Result	Test Name	MessageFail	Constructed GamepadEvent timestamp should be high resolution and have the same time origin as performance.now()	undefined is not a constructor (evaluated from 'window[<computed>]')
