@@ -25,5 +25,6 @@ TEST_CASE(all_green)
 TEST_CASE(hsv)
 {
     EXPECT_EQ(Color(51, 179, 51), Color::from_hsv(120, 0.714285714, .7));
+    EXPECT_EQ(Color(51, 179, 51, 128), Color::from_hsv(120, 0.714285714, .7).with_opacity(0.5));
     EXPECT_EQ(Color(87, 128, 77), Color::from_hsv(108, 0.4, .5));
 }
