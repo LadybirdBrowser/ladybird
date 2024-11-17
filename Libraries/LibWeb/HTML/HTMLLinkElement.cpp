@@ -124,6 +124,15 @@ GC::Ref<DOM::DOMTokenList> HTMLLinkElement::rel_list()
     return *m_rel_list;
 }
 
+// https://html.spec.whatwg.org/multipage/semantics.html#dom-link-sizes
+GC::Ref<DOM::DOMTokenList> HTMLLinkElement::sizes()
+{
+    // The size IDL attribute must reflect the size content attribute.
+    if (!m_sizes)
+        m_sizes = DOM::DOMTokenList::create(*this, HTML::AttributeNames::sizes);
+    return *m_sizes;
+}
+
 bool HTMLLinkElement::has_loaded_icon() const
 {
     return m_relationship & Relationship::Icon && resource() && resource()->is_loaded() && resource()->has_encoded_data();
@@ -616,6 +625,7 @@ void HTMLLinkElement::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_fetch_controller);
     visitor.visit(m_loaded_style_sheet);
     visitor.visit(m_rel_list);
+    visitor.visit(m_sizes);
 }
 
 }

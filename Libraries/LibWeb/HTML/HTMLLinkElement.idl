@@ -18,7 +18,7 @@ interface HTMLLinkElement : HTMLElement {
     [CEReactions, Reflect] attribute DOMString integrity;
     [CEReactions, Reflect] attribute DOMString hreflang;
     [CEReactions, Reflect] attribute DOMString type;
-    [FIXME, SameObject, PutForwards=value] readonly attribute DOMTokenList sizes;
+    [SameObject, PutForwards=value] readonly attribute DOMTokenList sizes;
     [CEReactions, Reflect=imagesrcset] attribute USVString imageSrcset;
     [CEReactions, Reflect=imagesizes] attribute DOMString imageSizes;
     [CEReactions, Reflect=referrerpolicy, Enumerated=ReferrerPolicy] attribute DOMString referrerPolicy;
