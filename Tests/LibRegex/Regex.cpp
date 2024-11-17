@@ -1042,6 +1042,8 @@ TEST_CASE(optimizer_atomic_groups)
         // (b+)(b+) produces an intermediate block with no matching ops, the optimiser should ignore that block when looking for following matches and correctly detect the overlap between (b+) and (b+).
         // note that the second loop may be rewritten to a ForkReplace, but the first loop should not be rewritten.
         Tuple { "(b+)(b+)"sv, "bbb"sv, true },
+        // Don't treat [\S] as [\s]; see ladybird#2296.
+        Tuple { "([^\\s]+?)\\(([\\s\\S]*)\\)"sv, "a(b)"sv, true },
     };
 
     for (auto& test : tests) {
