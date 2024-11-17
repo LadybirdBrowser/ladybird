@@ -6,8 +6,7 @@ Rerun
 
 Found 175 tests
 
-174 Pass
-1 Fail
+175 Pass
 Details
 Result	Test Name	MessagePass	a.classList in http://www.w3.org/1999/xhtml namespace should be DOMTokenList.	
 Pass	area.classList in http://www.w3.org/1999/xhtml namespace should be DOMTokenList.	
@@ -117,7 +116,7 @@ Pass	th.htmlFor in null namespace should be undefined.
 Pass	a.sandbox in http://www.w3.org/1999/xhtml namespace should be undefined.	
 Pass	area.sandbox in http://www.w3.org/1999/xhtml namespace should be undefined.	
 Pass	link.sandbox in http://www.w3.org/1999/xhtml namespace should be undefined.	
-Fail	iframe.sandbox in http://www.w3.org/1999/xhtml namespace should be DOMTokenList.	
+Pass	iframe.sandbox in http://www.w3.org/1999/xhtml namespace should be DOMTokenList.	
 Pass	output.sandbox in http://www.w3.org/1999/xhtml namespace should be undefined.	
 Pass	td.sandbox in http://www.w3.org/1999/xhtml namespace should be undefined.	
 Pass	th.sandbox in http://www.w3.org/1999/xhtml namespace should be undefined.	
