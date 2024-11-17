@@ -172,8 +172,26 @@ struct AK::Formatter<Crypto::UnsignedBigInteger> : Formatter<StringView> {
     ErrorOr<void> format(FormatBuilder&, Crypto::UnsignedBigInteger const&);
 };
 
-inline Crypto::UnsignedBigInteger
-operator""_bigint(char const* string, size_t length)
+inline Crypto::UnsignedBigInteger operator""_bigint(char const* string, size_t length)
 {
     return MUST(Crypto::UnsignedBigInteger::from_base(10, { string, length }));
+}
+
+inline Crypto::UnsignedBigInteger operator""_bigint(unsigned long long value)
+{
+    auto result = Crypto::UnsignedBigInteger { static_cast<u64>(value) };
+    VERIFY(!result.is_invalid());
+
+    return result;
+}
+
+inline Crypto::UnsignedBigInteger operator""_bigint(long double value)
+{
+    VERIFY(value >= 0);
+    VERIFY(value < static_cast<long double>(NumericLimits<double>::max()));
+
+    auto result = Crypto::UnsignedBigInteger { static_cast<double>(value) };
+    VERIFY(!result.is_invalid());
+
+    return result;
 }
