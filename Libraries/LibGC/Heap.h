@@ -73,6 +73,8 @@ public:
 
     void uproot_cell(Cell* cell);
 
+    bool is_gc_deferred() const { return m_gc_deferrals > 0; }
+
 private:
     friend class MarkingVisitor;
     friend class GraphConstructorVisitor;
