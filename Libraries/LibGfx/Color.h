@@ -400,7 +400,8 @@ public:
 
     constexpr Color with_opacity(float opacity) const
     {
-        return with_alpha(alpha() * opacity);
+        VERIFY(opacity >= 0 && opacity <= 1);
+        return with_alpha(static_cast<u8>(round(alpha() * opacity)));
     }
 
     constexpr Color darkened(float amount = 0.5f) const
