@@ -39,22 +39,24 @@ LocationEdit::LocationEdit(QWidget* parent)
 
         auto query = ak_string_from_qstring(text());
 
+        auto const bang_char = '!'; // should this be a setting?
+
         Optional<StringView> search_engine_url;
         if (Settings::the()->enable_search()) {
             search_engine_url = Settings::the()->search_engine().query_url;
-            if (query.starts_with('!')) {
-                auto splits = MUST(query.split(' ')); // FIXME: some missing error handling here.
-                auto exist = WebView::find_search_engine_by_bang(splits[0]);
-                if (exist.has_value()) {
-                    search_engine_url = exist->query_url;
-                    query = MUST(query.substring_from_byte_offset(splits[0].bytes().size()));
+
+            auto const splits = query.split(' ');
+            if (!splits.is_error()) {
+                auto const first = splits.value().first();
+                if (first.starts_with(bang_char)) {
+                    auto exist = WebView::find_search_engine_by_bang(first);
+                    if (exist.has_value()) {
+                        search_engine_url = exist->query_url;
+                        query = MUST(query.substring_from_byte_offset(first.bytes().size() + 1));
+                    }
                 }
-            }
-            // FIXME: low quality code. this can be merged into the if branch
-            auto const temp = query.split(' ');
-            if (!temp.is_error()) {
-                auto const last = temp.value().last();
-                if (temp.value().last().starts_with('!')) {
+                auto const last = splits.value().last();
+                if (last.starts_with(bang_char)) {
                     auto exist = WebView::find_search_engine_by_bang(last);
                     if (exist.has_value()) {
                         search_engine_url = exist->query_url;
