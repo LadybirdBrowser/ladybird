@@ -8,6 +8,7 @@
 #include <LibURL/Origin.h>
 #include <LibWeb/Bindings/HTMLIFrameElementPrototype.h>
 #include <LibWeb/CSS/StyleValues/DisplayStyleValue.h>
+#include <LibWeb/DOM/DOMTokenList.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Event.h>
 #include <LibWeb/HTML/BrowsingContext.h>
@@ -211,10 +212,20 @@ i32 HTMLIFrameElement::default_tab_index_value() const
     return 0;
 }
 
+// https://html.spec.whatwg.org/multipage/iframe-embed-object.html#dom-iframe-sandbox
+GC::Ref<DOM::DOMTokenList> HTMLIFrameElement::sandbox()
+{
+    // The sandbox IDL attribute must reflect the sandbox content attribute.
+    if (!m_sandbox)
+        m_sandbox = DOM::DOMTokenList::create(*this, HTML::AttributeNames::sandbox);
+    return *m_sandbox;
+}
+
 void HTMLIFrameElement::visit_edges(Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visit_lazy_loading_element(visitor);
+    visitor.visit(m_sandbox);
 }
 
 void HTMLIFrameElement::set_current_navigation_was_lazy_loaded(bool value)

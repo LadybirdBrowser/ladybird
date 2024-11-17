@@ -11,7 +11,7 @@ interface HTMLIFrameElement : HTMLElement {
     [CEReactions, Reflect, URL] attribute USVString src;
     [CEReactions, Reflect] attribute DOMString srcdoc;
     [CEReactions, Reflect] attribute DOMString name;
-    [FIXME, SameObject, PutForwards=value] readonly attribute DOMTokenList sandbox;
+    [SameObject, PutForwards=value] readonly attribute DOMTokenList sandbox;
     [CEReactions, Reflect] attribute DOMString allow;
     [CEReactions, Reflect=allowfullscreen] attribute boolean allowFullscreen;
     [CEReactions, Reflect] attribute DOMString width;

@@ -31,6 +31,8 @@ public:
     Optional<HighResolutionTime::DOMHighResTimeStamp> const& pending_resource_start_time() const { return m_pending_resource_start_time; }
     void set_pending_resource_start_time(Optional<HighResolutionTime::DOMHighResTimeStamp> time) { m_pending_resource_start_time = time; }
 
+    GC::Ref<DOM::DOMTokenList> sandbox();
+
     virtual void visit_edges(Cell::Visitor&) override;
 
 private:
@@ -55,6 +57,8 @@ private:
 
     // https://html.spec.whatwg.org/multipage/iframe-embed-object.html#iframe-pending-resource-timing-start-time
     Optional<HighResolutionTime::DOMHighResTimeStamp> m_pending_resource_start_time = {};
+
+    GC::Ptr<DOM::DOMTokenList> m_sandbox;
 };
 
 void run_iframe_load_event_steps(HTML::HTMLIFrameElement&);
