@@ -31,7 +31,7 @@ void TextEvent::initialize(JS::Realm& realm)
 }
 
 // https://w3c.github.io/uievents/#dom-textevent-inittextevent
-void TextEvent::init_text_event(String const& type, bool bubbles, bool cancelable, HTML::Window* view, String const& data)
+void TextEvent::init_text_event(String const& type, bool bubbles, bool cancelable, GC::Ptr<HTML::WindowProxy> view, String const& data)
 {
     // Initializes attributes of a TextEvent object. This method has the same behavior as UIEvent.initUIEvent().
     // The value of detail remains undefined.

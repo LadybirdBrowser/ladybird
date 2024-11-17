@@ -730,7 +730,7 @@ bool KeyboardEvent::get_modifier_state(String const& key_arg) const
 }
 
 // https://w3c.github.io/uievents/#dom-keyboardevent-initkeyboardevent
-void KeyboardEvent::init_keyboard_event(String const& type, bool bubbles, bool cancelable, HTML::Window* view, String const& key, WebIDL::UnsignedLong location, bool ctrl_key, bool alt_key, bool shift_key, bool meta_key)
+void KeyboardEvent::init_keyboard_event(String const& type, bool bubbles, bool cancelable, GC::Ptr<HTML::WindowProxy> view, String const& key, WebIDL::UnsignedLong location, bool ctrl_key, bool alt_key, bool shift_key, bool meta_key)
 {
     // Initializes attributes of a KeyboardEvent object. This method has the same behavior as UIEvent.initUIEvent().
     // The value of detail remains undefined.

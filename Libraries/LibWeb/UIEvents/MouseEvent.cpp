@@ -97,7 +97,7 @@ bool MouseEvent::get_modifier_state(String const& key_arg) const
 }
 
 // https://w3c.github.io/uievents/#dom-mouseevent-initmouseevent
-void MouseEvent::init_mouse_event(String const& type, bool bubbles, bool cancelable, HTML::Window* view, WebIDL::Long detail, WebIDL::Long screen_x, WebIDL::Long screen_y, WebIDL::Long client_x, WebIDL::Long client_y, bool ctrl_key, bool alt_key, bool shift_key, bool meta_key, WebIDL::Short button, DOM::EventTarget* related_target)
+void MouseEvent::init_mouse_event(String const& type, bool bubbles, bool cancelable, GC::Ptr<HTML::WindowProxy> view, WebIDL::Long detail, WebIDL::Long screen_x, WebIDL::Long screen_y, WebIDL::Long client_x, WebIDL::Long client_y, bool ctrl_key, bool alt_key, bool shift_key, bool meta_key, WebIDL::Short button, DOM::EventTarget* related_target)
 {
     // Initializes attributes of a MouseEvent object. This method has the same behavior as UIEvent.initUIEvent().
 

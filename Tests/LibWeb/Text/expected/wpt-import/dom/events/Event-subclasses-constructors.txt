@@ -6,8 +6,7 @@ Rerun
 
 Found 49 tests
 
-43 Pass
-6 Fail
+49 Pass
 Details
 Result	Test Name	MessagePass	Event constructor (no argument)	
 Pass	Event constructor (undefined argument)	
@@ -20,37 +19,37 @@ Pass	UIEvent constructor (undefined argument)
 Pass	UIEvent constructor (null argument)	
 Pass	UIEvent constructor (empty argument)	
 Pass	UIEvent constructor (argument with default values)	
-Fail	UIEvent constructor (argument with non-default values)	Not an object of type Window
+Pass	UIEvent constructor (argument with non-default values)	
 Pass	FocusEvent constructor (no argument)	
 Pass	FocusEvent constructor (undefined argument)	
 Pass	FocusEvent constructor (null argument)	
 Pass	FocusEvent constructor (empty argument)	
 Pass	FocusEvent constructor (argument with default values)	
-Fail	FocusEvent constructor (argument with non-default values)	Not an object of type Window
+Pass	FocusEvent constructor (argument with non-default values)	
 Pass	MouseEvent constructor (no argument)	
 Pass	MouseEvent constructor (undefined argument)	
 Pass	MouseEvent constructor (null argument)	
 Pass	MouseEvent constructor (empty argument)	
 Pass	MouseEvent constructor (argument with default values)	
-Fail	MouseEvent constructor (argument with non-default values)	Not an object of type Window
+Pass	MouseEvent constructor (argument with non-default values)	
 Pass	WheelEvent constructor (no argument)	
 Pass	WheelEvent constructor (undefined argument)	
 Pass	WheelEvent constructor (null argument)	
 Pass	WheelEvent constructor (empty argument)	
 Pass	WheelEvent constructor (argument with default values)	
-Fail	WheelEvent constructor (argument with non-default values)	Not an object of type Window
+Pass	WheelEvent constructor (argument with non-default values)	
 Pass	KeyboardEvent constructor (no argument)	
 Pass	KeyboardEvent constructor (undefined argument)	
 Pass	KeyboardEvent constructor (null argument)	
 Pass	KeyboardEvent constructor (empty argument)	
 Pass	KeyboardEvent constructor (argument with default values)	
-Fail	KeyboardEvent constructor (argument with non-default values)	Not an object of type Window
+Pass	KeyboardEvent constructor (argument with non-default values)	
 Pass	CompositionEvent constructor (no argument)	
 Pass	CompositionEvent constructor (undefined argument)	
 Pass	CompositionEvent constructor (null argument)	
 Pass	CompositionEvent constructor (empty argument)	
 Pass	CompositionEvent constructor (argument with default values)	
-Fail	CompositionEvent constructor (argument with non-default values)	Not an object of type Window
+Pass	CompositionEvent constructor (argument with non-default values)	
 Pass	SubclassedEvent constructor (no argument)	
 Pass	SubclassedEvent constructor (undefined argument)	
 Pass	SubclassedEvent constructor (null argument)	
