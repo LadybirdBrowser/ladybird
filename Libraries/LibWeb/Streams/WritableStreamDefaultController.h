@@ -56,6 +56,8 @@ public:
 private:
     explicit WritableStreamDefaultController(JS::Realm&);
 
+    virtual void initialize(JS::Realm&) override;
+
     virtual void visit_edges(Visitor&) override;
 
     // https://streams.spec.whatwg.org/#writablestreamdefaultcontroller-abortalgorithm
