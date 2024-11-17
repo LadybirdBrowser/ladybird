@@ -21,6 +21,8 @@ if (APPLE)
     set(CMAKE_Swift_COMPILER_TARGET "${SWIFT_TARGET_TRIPLE}")
 endif()
 
+add_compile_options("SHELL:$<$<COMPILE_LANGUAGE:Swift>:-enable-experimental-feature Extern>")
+
 set(VFS_OVERLAY_DIRECTORY "${CMAKE_BINARY_DIR}/vfs_overlays" CACHE PATH "Directory to put VFS overlays in")
 
 # FIXME: https://gitlab.kitware.com/cmake/cmake/-/issues/26195
