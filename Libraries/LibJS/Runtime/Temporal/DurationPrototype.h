@@ -30,6 +30,7 @@ private:
 
     JS_DECLARE_NATIVE_FUNCTION(sign_getter);
     JS_DECLARE_NATIVE_FUNCTION(blank_getter);
+    JS_DECLARE_NATIVE_FUNCTION(with);
 };
 
 }
