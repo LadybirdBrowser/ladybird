@@ -103,6 +103,7 @@ struct RelativeTo {
     GC::Ptr<JS::Object> zoned_relative_to; // [[ZonedRelativeTo]]
 };
 
+ThrowCompletionOr<void> validate_temporal_rounding_increment(VM&, u64 increment, u64 dividend, bool inclusive);
 ThrowCompletionOr<Precision> get_temporal_fractional_second_digits_option(VM&, Object const& options);
 SecondsStringPrecision to_seconds_string_precision_record(UnitValue, Precision);
 ThrowCompletionOr<UnitValue> get_temporal_unit_valued_option(VM&, Object const& options, PropertyKey const&, UnitGroup, UnitDefault const&, ReadonlySpan<UnitValue> extra_values = {});
@@ -110,6 +111,7 @@ ThrowCompletionOr<RelativeTo> get_temporal_relative_to_option(VM&, Object const&
 Unit larger_of_two_temporal_units(Unit, Unit);
 bool is_calendar_unit(Unit);
 UnitCategory temporal_unit_category(Unit);
+RoundingIncrement maximum_temporal_duration_rounding_increment(Unit);
 Crypto::UnsignedBigInteger const& temporal_unit_length_in_nanoseconds(Unit);
 String format_fractional_seconds(u64, Precision);
 UnsignedRoundingMode get_unsigned_rounding_mode(RoundingMode, Sign);
@@ -183,5 +185,6 @@ ThrowCompletionOr<Value> get_option(VM& vm, Object const& options, PropertyKey c
 }
 
 ThrowCompletionOr<RoundingMode> get_rounding_mode_option(VM&, Object const& options, RoundingMode fallback);
+ThrowCompletionOr<u64> get_rounding_increment_option(VM&, Object const& options);
 
 }
