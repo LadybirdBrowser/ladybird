@@ -21,3 +21,9 @@ TEST_CASE(all_green)
     EXPECT_EQ(Color(Color::NamedColor::Green), Color::from_xyz50(0.385152, 0.716887, 0.097081));
     EXPECT_EQ(Color(Color::NamedColor::Green), Color::from_xyz65(0.357584, 0.715169, 0.119195));
 }
+
+TEST_CASE(hsv)
+{
+    EXPECT_EQ(Color(51, 179, 51), Color::from_hsv(120, 0.714285714, .7));
+    EXPECT_EQ(Color(87, 128, 77), Color::from_hsv(108, 0.4, .5));
+}
