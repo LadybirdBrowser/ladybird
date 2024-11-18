@@ -46,6 +46,7 @@ void DurationPrototype::initialize(Realm& realm)
     define_native_function(realm, vm.names.toString, to_string, 0, attr);
     define_native_function(realm, vm.names.toJSON, to_json, 0, attr);
     define_native_function(realm, vm.names.toLocaleString, to_locale_string, 0, attr);
+    define_native_function(realm, vm.names.valueOf, value_of, 0, attr);
 }
 
 // 7.3.3 get Temporal.Duration.prototype.years, https://tc39.es/proposal-temporal/#sec-get-temporal.duration.prototype.years
@@ -580,6 +581,13 @@ JS_DEFINE_NATIVE_FUNCTION(DurationPrototype::to_locale_string)
 
     // 3. Return TemporalDurationToString(duration, AUTO).
     return PrimitiveString::create(vm, temporal_duration_to_string(duration, Auto {}));
+}
+
+// 7.3.25 Temporal.Duration.prototype.valueOf ( ), https://tc39.es/proposal-temporal/#sec-temporal.duration.prototype.valueof
+JS_DEFINE_NATIVE_FUNCTION(DurationPrototype::value_of)
+{
+    // 1. Throw a TypeError exception.
+    return vm.throw_completion<TypeError>(ErrorType::Convert, "Temporal.Duration", "a primitive value");
 }
 
 }
