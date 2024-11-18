@@ -113,7 +113,22 @@ CSSPixelSize RadialGradientStyleValue::resolve_size(Layout::Node const& node, CS
         auto distance = corner_distance(corner);
         if (m_properties.ending_shape == EndingShape::Ellipse) {
             auto shape = get_shape();
-            auto aspect_ratio = shape.width() / shape.height();
+            CSSPixels height = shape.height();
+            CSSPixels width = shape.width();
+
+            // Prevent division by zero
+            // https://w3c.github.io/csswg-drafts/css-images/#degenerate-radials
+            if (height == 0) {
+                // Render as if the ending shape was an ellipse whose width was an arbitrary very large number and whose height
+                // was an arbitrary very small number greater than zero. This will make the gradient look like a solid-color image equal
+                // to the color of the last color-stop, or equal to the average color of the gradient if it’s repeating.
+                constexpr auto arbitrary_small_number = CSSPixels::smallest_positive_value();
+                constexpr auto arbitrary_large_number = CSSPixels::max();
+                return CSSPixelSize { arbitrary_large_number, arbitrary_small_number };
+            }
+
+            auto aspect_ratio = width / height;
+
             auto p = corner - center;
             auto radius_a = sqrt(p.y() * p.y() * aspect_ratio * aspect_ratio + p.x() * p.x());
             auto radius_b = radius_a / aspect_ratio;
