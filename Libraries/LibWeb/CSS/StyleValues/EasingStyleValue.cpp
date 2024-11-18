@@ -315,6 +315,7 @@ double EasingStyleValue::CubicBezier::evaluate_at(double input_progress, bool) c
     return sample1.y + factor * (sample2.y - sample1.y);
 }
 
+// https://drafts.csswg.org/css-easing/#bezier-serialization
 String EasingStyleValue::CubicBezier::to_string() const
 {
     StringBuilder builder;
@@ -377,13 +378,16 @@ double EasingStyleValue::Steps::evaluate_at(double input_progress, bool before_f
     return current_step / jumps;
 }
 
+// https://drafts.csswg.org/css-easing/#steps-serialization
 String EasingStyleValue::Steps::to_string() const
 {
     StringBuilder builder;
+    // Unlike the other easing function keywords, step-start and step-end do not serialize as themselves.
+    // Instead, they serialize as "steps(1, start)" and "steps(1)", respectively.
     if (*this == Steps::step_start()) {
-        builder.append("step-start"sv);
+        builder.append("steps(1, start)"sv);
     } else if (*this == Steps::step_end()) {
-        builder.append("step-end"sv);
+        builder.append("steps(1)"sv);
     } else {
         auto position = [&] -> Optional<StringView> {
             switch (this->position) {
