@@ -28,6 +28,19 @@ public:
     WebIDL::ExceptionOr<String> atob(String const& data) const;
     void queue_microtask(WebIDL::CallbackType&);
     WebIDL::ExceptionOr<JS::Value> structured_clone(JS::Value, StructuredSerializeOptions const&) const;
+
+    GC::Ref<WebIDL::CallbackType> count_queuing_strategy_size_function();
+    GC::Ref<WebIDL::CallbackType> byte_length_queuing_strategy_size_function();
+
+protected:
+    void visit_edges(GC::Cell::Visitor&);
+
+private:
+    // https://streams.spec.whatwg.org/#count-queuing-strategy-size-function
+    GC::Ptr<WebIDL::CallbackType> m_count_queuing_strategy_size_function;
+
+    // https://streams.spec.whatwg.org/#byte-length-queuing-strategy-size-function
+    GC::Ptr<WebIDL::CallbackType> m_byte_length_queuing_strategy_size_function;
 };
 
 }

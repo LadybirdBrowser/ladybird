@@ -41,6 +41,7 @@ void ShadowRealmGlobalScope::initialize_web_interfaces()
 void ShadowRealmGlobalScope::visit_edges(Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
+    UniversalGlobalScopeMixin::visit_edges(visitor);
 }
 
 }

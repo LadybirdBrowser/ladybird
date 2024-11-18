@@ -141,9 +141,6 @@ public:
     CrossOriginPropertyDescriptorMap const& cross_origin_property_descriptor_map() const { return m_cross_origin_property_descriptor_map; }
     CrossOriginPropertyDescriptorMap& cross_origin_property_descriptor_map() { return m_cross_origin_property_descriptor_map; }
 
-    GC::Ref<WebIDL::CallbackType> count_queuing_strategy_size_function();
-    GC::Ref<WebIDL::CallbackType> byte_length_queuing_strategy_size_function();
-
     // JS API functions
     GC::Ref<WindowProxy> window() const;
     GC::Ref<WindowProxy> self() const;
@@ -312,12 +309,6 @@ private:
 
     // https://html.spec.whatwg.org/multipage/interaction.html#last-history-action-activation-timestamp
     HighResolutionTime::DOMHighResTimeStamp m_last_history_action_activation_timestamp { AK::Infinity<double> };
-
-    // https://streams.spec.whatwg.org/#count-queuing-strategy-size-function
-    GC::Ptr<WebIDL::CallbackType> m_count_queuing_strategy_size_function;
-
-    // https://streams.spec.whatwg.org/#byte-length-queuing-strategy-size-function
-    GC::Ptr<WebIDL::CallbackType> m_byte_length_queuing_strategy_size_function;
 
     // https://html.spec.whatwg.org/multipage/nav-history-apis.html#dom-window-status
     // When the Window object is created, the attribute must be set to the empty string. It does not do anything else.

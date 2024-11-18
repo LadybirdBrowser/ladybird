@@ -7,7 +7,7 @@
 
 #include <LibWeb/Bindings/CountQueuingStrategyPrototype.h>
 #include <LibWeb/Bindings/Intrinsics.h>
-#include <LibWeb/HTML/Window.h>
+#include <LibWeb/HTML/UniversalGlobalScope.h>
 #include <LibWeb/Streams/CountQueuingStrategy.h>
 
 namespace Web::Streams {
@@ -34,7 +34,9 @@ CountQueuingStrategy::~CountQueuingStrategy() = default;
 GC::Ref<WebIDL::CallbackType> CountQueuingStrategy::size()
 {
     // 1. Return this's relevant global object's count queuing strategy size function.
-    return verify_cast<HTML::Window>(HTML::relevant_global_object(*this)).count_queuing_strategy_size_function();
+    auto* global = dynamic_cast<HTML::UniversalGlobalScopeMixin*>(&HTML::relevant_global_object(*this));
+    VERIFY(global);
+    return global->count_queuing_strategy_size_function();
 }
 
 void CountQueuingStrategy::initialize(JS::Realm& realm)
