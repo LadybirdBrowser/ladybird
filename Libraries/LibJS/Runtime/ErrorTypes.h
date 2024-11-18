@@ -286,7 +286,7 @@
     M(TemporalOnlyISO8601WithMonthDayString, "MM-DD string format can only be used with the iso8601 calendar")                          \
     M(TemporalOnlyISO8601WithYearMonthString, "YYYY-MM string format can only be used with the iso8601 calendar")                       \
     M(TemporalMissingOptionsObject, "Required options object is missing or undefined")                                                  \
-    M(TemporalMissingStartingPoint, "A starting point is required for balancing {}")                                                    \
+    M(TemporalMissingStartingPoint, "A starting point is required for comparing {}")                                                    \
     M(TemporalMissingUnits, "One or both of smallestUnit or largestUnit is required")                                                   \
     M(TemporalNanosecondsConvertedToDaysWithOppositeSign, "Time zone or calendar converted nanoseconds into a number of days with "     \
                                                           "the opposite sign")                                                          \

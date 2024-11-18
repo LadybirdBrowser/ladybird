@@ -206,7 +206,10 @@ set(SOURCES
     Runtime/SymbolPrototype.cpp
     Runtime/Temporal/AbstractOperations.cpp
     Runtime/Temporal/Duration.cpp
+    Runtime/Temporal/DurationConstructor.cpp
+    Runtime/Temporal/DurationPrototype.cpp
     Runtime/Temporal/Instant.cpp
+    Runtime/Temporal/ISO8601.cpp
     Runtime/Temporal/Temporal.cpp
     Runtime/TypedArray.cpp
     Runtime/TypedArrayConstructor.cpp
