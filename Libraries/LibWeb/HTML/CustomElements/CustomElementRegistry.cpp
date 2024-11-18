@@ -44,6 +44,7 @@ void CustomElementRegistry::visit_edges(Visitor& visitor)
 }
 
 // https://webidl.spec.whatwg.org/#es-callback-function
+// https://github.com/whatwg/html/pull/9893
 static JS::ThrowCompletionOr<GC::Ref<WebIDL::CallbackType>> convert_value_to_callback_function(JS::VM& vm, JS::Value value)
 {
     // FIXME: De-duplicate this from the IDL generator.
@@ -51,8 +52,8 @@ static JS::ThrowCompletionOr<GC::Ref<WebIDL::CallbackType>> convert_value_to_cal
     if (!value.is_function())
         return vm.throw_completion<JS::TypeError>(JS::ErrorType::NotAFunction, value.to_string_without_side_effects());
 
-    // 2. Return the IDL callback function type value that represents a reference to the same object that V represents, with the incumbent settings object as the callback context.
-    return vm.heap().allocate<WebIDL::CallbackType>(value.as_object(), HTML::incumbent_settings_object());
+    // 2. Return the IDL callback function type value that represents a reference to the same object that V represents, with the incumbent realm as the callback context.
+    return vm.heap().allocate<WebIDL::CallbackType>(value.as_object(), HTML::incumbent_realm());
 }
 
 // https://webidl.spec.whatwg.org/#es-sequence

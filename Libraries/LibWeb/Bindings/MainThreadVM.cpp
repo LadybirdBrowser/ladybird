@@ -673,7 +673,7 @@ void queue_mutation_observer_microtask(DOM::Document const& document)
             // 4. If records is not empty, then invoke mo’s callback with « records, mo », and mo. If this throws an exception, catch it, and report the exception.
             if (!records.is_empty()) {
                 auto& callback = mutation_observer->callback();
-                auto& realm = callback.callback_context->realm();
+                auto& realm = callback.callback_context;
 
                 auto wrapped_records = MUST(JS::Array::create(realm, 0));
                 for (size_t i = 0; i < records.size(); ++i) {

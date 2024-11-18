@@ -167,9 +167,8 @@ JS::Completion call_user_object_operation(WebIDL::CallbackType& callback, String
     // 4. Let relevant realm be O’s associated Realm.
     auto& relevant_realm = object->shape().realm();
 
-    // FIXME: We should get the realm directly from the callback context.
     // 5. Let stored realm be value’s callback context.
-    auto& stored_realm = callback.callback_context->realm();
+    auto& stored_realm = callback.callback_context;
 
     // 6. Prepare to run script with relevant realm.
     HTML::prepare_to_run_script(relevant_realm);
@@ -252,9 +251,8 @@ JS::Completion invoke_callback(WebIDL::CallbackType& callback, Optional<JS::Valu
     // 5. Let relevant realm be F’s associated Realm.
     auto& relevant_realm = function_object->shape().realm();
 
-    // FIXME: We should get the realm directly from the callback context.
     // 6. Let stored realm be value’s callback context.
-    auto& stored_realm = callback.callback_context->realm();
+    auto& stored_realm = callback.callback_context;
 
     // 8. Prepare to run script with relevant realm.
     HTML::prepare_to_run_script(relevant_realm);
@@ -297,9 +295,8 @@ JS::Completion construct(WebIDL::CallbackType& callback, GC::MarkedVector<JS::Va
     if (!JS::Value(function_object).is_constructor())
         return relevant_realm.vm().template throw_completion<JS::TypeError>(JS::ErrorType::NotAConstructor, JS::Value(function_object).to_string_without_side_effects());
 
-    // FIXME: We should get the realm directly from the callback context.
     // 4. Let stored realm be callable’s callback context.
-    auto& stored_realm = callback.callback_context->realm();
+    auto& stored_realm = callback.callback_context;
 
     // 5. Prepare to run script with relevant realm.
     HTML::prepare_to_run_script(relevant_realm);

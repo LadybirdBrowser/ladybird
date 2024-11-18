@@ -1,6 +1,21 @@
 <script src="../include.js"></script>
 <script>
     test(() => {
+        const realm = new ShadowRealm();
+        const result = realm.evaluate(`
+            (() => {
+                let str = "";
+                for (const QueuingStrategy of [CountQueuingStrategy, ByteLengthQueuingStrategy]) {
+                    const size1 = (new QueuingStrategy({ highWaterMark: 5 })).size;
+                    const size2 = (new QueuingStrategy({ highWaterMark: 10 })).size;
+                    str += \`\${QueuingStrategy.name} | size1 === size2 -> \${size1 === size2}\n\`;
+                }
+                return str;
+            })()
+        `);
+
+        println(result);
+
         for (const QueuingStrategy of [CountQueuingStrategy, ByteLengthQueuingStrategy]) {
             const size1 = (new QueuingStrategy({ highWaterMark: 5 })).size;
             const size2 = (new QueuingStrategy({ highWaterMark: 10 })).size;

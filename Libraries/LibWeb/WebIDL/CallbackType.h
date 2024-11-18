@@ -24,12 +24,13 @@ class CallbackType final : public JS::Cell {
     GC_DECLARE_ALLOCATOR(CallbackType);
 
 public:
-    CallbackType(JS::Object& callback, HTML::EnvironmentSettingsObject& callback_context, OperationReturnsPromise = OperationReturnsPromise::No);
+    CallbackType(JS::Object& callback, JS::Realm& callback_context, OperationReturnsPromise = OperationReturnsPromise::No);
 
     GC::Ref<JS::Object> callback;
 
     // https://webidl.spec.whatwg.org/#dfn-callback-context
-    GC::Ref<HTML::EnvironmentSettingsObject> callback_context;
+    // NOTE: This is a Realm per ShadowRealm proposal https://github.com/whatwg/webidl/pull/1437
+    GC::Ref<JS::Realm> callback_context;
 
     // Non-standard property used to distinguish Promise-returning callbacks in callback-related AOs
     OperationReturnsPromise operation_returns_promise;

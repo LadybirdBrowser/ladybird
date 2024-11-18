@@ -5428,7 +5428,7 @@ JS::ThrowCompletionOr<GC::Root<WebIDL::CallbackType>> property_to_callback(JS::V
     if (!property.is_function())
         return vm.throw_completion<JS::TypeError>(JS::ErrorType::NotAFunction, property.to_string_without_side_effects());
 
-    return vm.heap().allocate<WebIDL::CallbackType>(property.as_object(), HTML::incumbent_settings_object(), operation_returns_promise);
+    return vm.heap().allocate<WebIDL::CallbackType>(property.as_object(), HTML::incumbent_realm(), operation_returns_promise);
 }
 
 // https://streams.spec.whatwg.org/#set-up-readable-byte-stream-controller-from-underlying-source

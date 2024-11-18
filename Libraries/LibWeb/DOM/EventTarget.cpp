@@ -492,7 +492,8 @@ WebIDL::CallbackType* EventTarget::get_current_value_of_event_handler(FlyString 
         function->set_script_or_module({});
 
         // 12. Set eventHandler's value to the result of creating a Web IDL EventHandler callback function object whose object reference is function and whose callback context is settings object.
-        event_handler->value = GC::Ptr(realm.heap().allocate<WebIDL::CallbackType>(*function, settings_object));
+        // FIXME: Update this comment once the ShadowRealm proposal is merged to pass realm.
+        event_handler->value = GC::Ptr(realm.heap().allocate<WebIDL::CallbackType>(*function, realm));
     }
 
     // 4. Return eventHandler's value.
@@ -584,7 +585,7 @@ void EventTarget::activate_event_handler(FlyString const& name, HTML::EventHandl
         0, "", &realm);
 
     // NOTE: As per the spec, the callback context is arbitrary.
-    auto callback = realm.heap().allocate<WebIDL::CallbackType>(*callback_function, Bindings::principal_host_defined_environment_settings_object(realm));
+    auto callback = realm.heap().allocate<WebIDL::CallbackType>(*callback_function, realm);
 
     // 5. Let listener be a new event listener whose type is the event handler event type corresponding to eventHandler and callback is callback.
     auto listener = realm.heap().allocate<DOMEventListener>();
