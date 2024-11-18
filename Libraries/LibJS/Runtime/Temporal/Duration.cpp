@@ -701,6 +701,20 @@ i8 compare_time_duration(TimeDuration const& one, TimeDuration const& two)
     return 0;
 }
 
+// 7.5.27 RoundTimeDurationToIncrement ( d, increment, roundingMode ), https://tc39.es/proposal-temporal/#sec-temporal-roundtimedurationtoincrement
+ThrowCompletionOr<TimeDuration> round_time_duration_to_increment(VM& vm, TimeDuration const& duration, Crypto::UnsignedBigInteger const& increment, RoundingMode rounding_mode)
+{
+    // 1. Let rounded be RoundNumberToIncrement(d, increment, roundingMode).
+    auto rounded = round_number_to_increment(duration, increment, rounding_mode);
+
+    // 2. If abs(rounded) > maxTimeDuration, throw a RangeError exception.
+    if (rounded.unsigned_value() > MAX_TIME_DURATION.unsigned_value())
+        return vm.throw_completion<RangeError>(ErrorType::TemporalInvalidDuration);
+
+    // 3. Return rounded.
+    return rounded;
+}
+
 // 7.5.28 TimeDurationSign ( d ), https://tc39.es/proposal-temporal/#sec-temporal-timedurationsign
 i8 time_duration_sign(TimeDuration const& time_duration)
 {
@@ -714,6 +728,108 @@ i8 time_duration_sign(TimeDuration const& time_duration)
 
     // 3. Return 0.
     return 0;
+}
+
+// 7.5.30 RoundTimeDuration ( timeDuration, increment, unit, roundingMode ), https://tc39.es/proposal-temporal/#sec-temporal-roundtimeduration
+ThrowCompletionOr<TimeDuration> round_time_duration(VM& vm, TimeDuration const& time_duration, Crypto::UnsignedBigInteger const& increment, Unit unit, RoundingMode rounding_mode)
+{
+    // 1. Let divisor be the value in the "Length in Nanoseconds" column of the row of Table 21 whose "Value" column contains unit.
+    auto const& divisor = temporal_unit_length_in_nanoseconds(unit);
+
+    // 2. Return ? RoundTimeDurationToIncrement(timeDuration, divisor × increment, roundingMode).
+    return TRY(round_time_duration_to_increment(vm, time_duration, divisor.multiplied_by(increment), rounding_mode));
+}
+
+// 7.5.39 TemporalDurationToString ( duration, precision ), https://tc39.es/proposal-temporal/#sec-temporal-temporaldurationtostring
+String temporal_duration_to_string(Duration const& duration, Precision precision)
+{
+    // 1. Let sign be DurationSign(duration).
+    auto sign = duration_sign(duration);
+
+    // 2. Let datePart be the empty String.
+    StringBuilder date_part;
+
+    // 3. If duration.[[Years]] ≠ 0, then
+    if (duration.years() != 0) {
+        // a. Set datePart to the string concatenation of abs(duration.[[Years]]) formatted as a decimal number and the
+        //    code unit 0x0059 (LATIN CAPITAL LETTER Y).
+        date_part.appendff("{}Y", AK::fabs(duration.years()));
+    }
+    // 4. If duration.[[Months]] ≠ 0, then
+    if (duration.months() != 0) {
+        // a. Set datePart to the string concatenation of datePart, abs(duration.[[Months]]) formatted as a decimal number,
+        //    and the code unit 0x004D (LATIN CAPITAL LETTER M).
+        date_part.appendff("{}M", AK::fabs(duration.months()));
+    }
+    // 5. If duration.[[Weeks]] ≠ 0, then
+    if (duration.weeks() != 0) {
+        // a. Set datePart to the string concatenation of datePart, abs(duration.[[Weeks]]) formatted as a decimal number,
+        //    and the code unit 0x0057 (LATIN CAPITAL LETTER W).
+        date_part.appendff("{}W", AK::fabs(duration.weeks()));
+    }
+    // 6. If duration.[[Days]] ≠ 0, then
+    if (duration.days() != 0) {
+        // a. Set datePart to the string concatenation of datePart, abs(duration.[[Days]]) formatted as a decimal number,
+        //    and the code unit 0x0044 (LATIN CAPITAL LETTER D).
+        date_part.appendff("{}D", AK::fabs(duration.days()));
+    }
+
+    // 7. Let timePart be the empty String.
+    StringBuilder time_part;
+
+    // 8. If duration.[[Hours]] ≠ 0, then
+    if (duration.hours() != 0) {
+        // a. Set timePart to the string concatenation of abs(duration.[[Hours]]) formatted as a decimal number and the
+        //    code unit 0x0048 (LATIN CAPITAL LETTER H).
+        time_part.appendff("{}H", AK::fabs(duration.hours()));
+    }
+    // 9. If duration.[[Minutes]] ≠ 0, then
+    if (duration.minutes() != 0) {
+        // a. Set timePart to the string concatenation of timePart, abs(duration.[[Minutes]]) formatted as a decimal number,
+        //    and the code unit 0x004D (LATIN CAPITAL LETTER M).
+        time_part.appendff("{}M", AK::fabs(duration.minutes()));
+    }
+
+    // 10. Let zeroMinutesAndHigher be false.
+    auto zero_minutes_and_higher = false;
+
+    // 11. If DefaultTemporalLargestUnit(duration) is SECOND, MILLISECOND, MICROSECOND, or NANOSECOND, set zeroMinutesAndHigher to true.
+    if (auto unit = default_temporal_largest_unit(duration); unit == Unit::Second || unit == Unit::Millisecond || unit == Unit::Microsecond || unit == Unit::Nanosecond)
+        zero_minutes_and_higher = true;
+
+    // 12. Let secondsDuration be TimeDurationFromComponents(0, 0, duration.[[Seconds]], duration.[[Milliseconds]], duration.[[Microseconds]], duration.[[Nanoseconds]]).
+    auto seconds_duration = time_duration_from_components(0, 0, duration.seconds(), duration.milliseconds(), duration.microseconds(), duration.nanoseconds());
+
+    // 13. If secondsDuration ≠ 0, or zeroMinutesAndHigher is true, or precision is not auto, then
+    if (!seconds_duration.is_zero() || zero_minutes_and_higher || !precision.has<Auto>()) {
+        auto division_result = seconds_duration.divided_by(NANOSECONDS_PER_SECOND);
+
+        // a. Let secondsPart be abs(truncate(secondsDuration / 10**9)) formatted as a decimal number.
+        auto seconds_part = MUST(division_result.quotient.unsigned_value().to_base(10));
+
+        // b. Let subSecondsPart be FormatFractionalSeconds(abs(remainder(secondsDuration, 10**9)), precision).
+        auto sub_seconds_part = format_fractional_seconds(division_result.remainder.unsigned_value().to_u64(), precision);
+
+        // c. Set timePart to the string concatenation of timePart, secondsPart, subSecondsPart, and the code unit
+        //    0x0053 (LATIN CAPITAL LETTER S).
+        time_part.appendff("{}{}S", seconds_part, sub_seconds_part);
+    }
+
+    // 14. Let signPart be the code unit 0x002D (HYPHEN-MINUS) if sign < 0, and otherwise the empty String.
+    auto sign_part = sign < 0 ? "-"sv : ""sv;
+
+    // 15. Let result be the string concatenation of signPart, the code unit 0x0050 (LATIN CAPITAL LETTER P) and datePart.
+    StringBuilder result;
+    result.appendff("{}P{}", sign_part, date_part.string_view());
+
+    // 16. If timePart is not the empty String, then
+    if (!time_part.is_empty()) {
+        // a. Set result to the string concatenation of result, the code unit 0x0054 (LATIN CAPITAL LETTER T), and timePart.
+        result.appendff("T{}", time_part.string_view());
+    }
+
+    // 17. Return result.
+    return MUST(result.to_string());
 }
 
 // 7.5.40 AddDurations ( operation, duration, other ), https://tc39.es/proposal-temporal/#sec-temporal-adddurations

@@ -41,6 +41,9 @@ void DurationPrototype::initialize(Realm& realm)
     define_native_function(realm, vm.names.abs, abs, 0, attr);
     define_native_function(realm, vm.names.add, add, 1, attr);
     define_native_function(realm, vm.names.subtract, subtract, 1, attr);
+    define_native_function(realm, vm.names.toString, to_string, 0, attr);
+    define_native_function(realm, vm.names.toJSON, to_json, 0, attr);
+    define_native_function(realm, vm.names.toLocaleString, to_locale_string, 0, attr);
 }
 
 // 7.3.3 get Temporal.Duration.prototype.years, https://tc39.es/proposal-temporal/#sec-get-temporal.duration.prototype.years
@@ -212,6 +215,87 @@ JS_DEFINE_NATIVE_FUNCTION(DurationPrototype::subtract)
 
     // 3. Return ? AddDurations(SUBTRACT, duration, other).
     return TRY(add_durations(vm, ArithmeticOperation::Subtract, duration, other));
+}
+
+// 7.3.22 Temporal.Duration.prototype.toString ( [ options ] ), https://tc39.es/proposal-temporal/#sec-temporal.duration.prototype.tostring
+JS_DEFINE_NATIVE_FUNCTION(DurationPrototype::to_string)
+{
+    // 1. Let duration be the this value.
+    // 2. Perform ? RequireInternalSlot(duration, [[InitializedTemporalDuration]]).
+    auto duration = TRY(typed_this_object(vm));
+
+    // 3. Let resolvedOptions be ? GetOptionsObject(options).
+    auto resolved_options = TRY(get_options_object(vm, vm.argument(0)));
+
+    // 4. NOTE: The following steps read options and perform independent validation in alphabetical order
+    //    (GetTemporalFractionalSecondDigitsOption reads "fractionalSecondDigits" and GetRoundingModeOption reads
+    //    "roundingMode").
+
+    // 5. Let digits be ? GetTemporalFractionalSecondDigitsOption(resolvedOptions).
+    auto digits = TRY(get_temporal_fractional_second_digits_option(vm, resolved_options));
+
+    // 6. Let roundingMode be ? GetRoundingModeOption(resolvedOptions, TRUNC).
+    auto rounding_mode = TRY(get_rounding_mode_option(vm, resolved_options, RoundingMode::Trunc));
+
+    // 7. Let smallestUnit be ? GetTemporalUnitValuedOption(resolvedOptions, "smallestUnit", TIME, UNSET).
+    auto smallest_unit = TRY(get_temporal_unit_valued_option(vm, resolved_options, vm.names.smallestUnit, UnitGroup::Time, Unset {}));
+
+    // 8. If smallestUnit is HOUR or MINUTE, throw a RangeError exception.
+    if (auto const* unit = smallest_unit.get_pointer<Unit>(); unit && (*unit == Unit::Hour || *unit == Unit::Minute))
+        return vm.throw_completion<RangeError>(ErrorType::OptionIsNotValidValue, temporal_unit_to_string(*unit), vm.names.smallestUnit);
+
+    // 9. Let precision be ToSecondsStringPrecisionRecord(smallestUnit, digits).
+    auto precision = to_seconds_string_precision_record(smallest_unit, digits);
+
+    // 10. If precision.[[Unit]] is NANOSECOND and precision.[[Increment]] = 1, then
+    if (precision.unit == Unit::Nanosecond && precision.increment == 1) {
+        // a. Return TemporalDurationToString(duration, precision.[[Precision]]).
+        return PrimitiveString::create(vm, temporal_duration_to_string(duration, precision.precision.downcast<Auto, u8>()));
+    }
+
+    // 11. Let largestUnit be DefaultTemporalLargestUnit(duration).
+    auto largest_unit = default_temporal_largest_unit(duration);
+
+    // 12. Let internalDuration be ToInternalDurationRecord(duration).
+    auto internal_duration = to_internal_duration_record(vm, duration);
+
+    // 13. Let timeDuration be ? RoundTimeDuration(internalDuration.[[Time]], precision.[[Increment]], precision.[[Unit]], roundingMode).
+    auto time_duration = TRY(round_time_duration(vm, internal_duration.time, precision.increment, precision.unit, rounding_mode));
+
+    // 14. Set internalDuration to ! CombineDateAndTimeDuration(internalDuration.[[Date]], timeDuration).
+    internal_duration = MUST(combine_date_and_time_duration(vm, internal_duration.date, move(time_duration)));
+
+    // 15. Let roundedLargestUnit be LargerOfTwoTemporalUnits(largestUnit, SECOND).
+    auto rounded_largest_unit = larger_of_two_temporal_units(largest_unit, Unit::Second);
+
+    // 16. Let roundedDuration be ? TemporalDurationFromInternal(internalDuration, roundedLargestUnit).
+    auto rounded_duration = TRY(temporal_duration_from_internal(vm, internal_duration, rounded_largest_unit));
+
+    // 17. Return TemporalDurationToString(roundedDuration, precision.[[Precision]]).
+    return PrimitiveString::create(vm, temporal_duration_to_string(rounded_duration, precision.precision.downcast<Auto, u8>()));
+}
+
+// 7.3.23 Temporal.Duration.prototype.toJSON ( ), https://tc39.es/proposal-temporal/#sec-temporal.duration.prototype.tojson
+JS_DEFINE_NATIVE_FUNCTION(DurationPrototype::to_json)
+{
+    // 1. Let duration be the this value.
+    // 2. Perform ? RequireInternalSlot(duration, [[InitializedTemporalDuration]]).
+    auto duration = TRY(typed_this_object(vm));
+
+    // 3. Return TemporalDurationToString(duration, AUTO).
+    return PrimitiveString::create(vm, temporal_duration_to_string(duration, Auto {}));
+}
+
+// 7.3.24 Temporal.Duration.prototype.toLocaleString ( [ locales [ , options ] ] ), https://tc39.es/proposal-temporal/#sec-temporal.duration.prototype.tolocalestring
+// NOTE: This is the minimum toLocaleString implementation for engines without ECMA-402.
+JS_DEFINE_NATIVE_FUNCTION(DurationPrototype::to_locale_string)
+{
+    // 1. Let duration be the this value.
+    // 2. Perform ? RequireInternalSlot(duration, [[InitializedTemporalDuration]]).
+    auto duration = TRY(typed_this_object(vm));
+
+    // 3. Return TemporalDurationToString(duration, AUTO).
+    return PrimitiveString::create(vm, temporal_duration_to_string(duration, Auto {}));
 }
 
 }
