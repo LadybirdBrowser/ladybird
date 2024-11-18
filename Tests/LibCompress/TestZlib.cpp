@@ -27,6 +27,25 @@ TEST_CASE(zlib_decompress_simple)
     EXPECT(decompressed.bytes() == (ReadonlyBytes { uncompressed, sizeof(uncompressed) - 1 }));
 }
 
+TEST_CASE(zlib_decompress_stream)
+{
+    Array<u8, 40> const compressed {
+        0x78, 0x01, 0x01, 0x1D, 0x00, 0xE2, 0xFF, 0x54, 0x68, 0x69, 0x73, 0x20,
+        0x69, 0x73, 0x20, 0x61, 0x20, 0x73, 0x69, 0x6D, 0x70, 0x6C, 0x65, 0x20,
+        0x74, 0x65, 0x78, 0x74, 0x20, 0x66, 0x69, 0x6C, 0x65, 0x20, 0x3A, 0x29,
+        0x99, 0x5E, 0x09, 0xE8
+    };
+
+    u8 const uncompressed[] = "This is a simple text file :)";
+
+    auto stream = make<AllocatingMemoryStream>();
+    auto input = MaybeOwned<Stream> { *stream };
+    auto decompressor = TRY_OR_FAIL(Compress::ZlibDecompressor::create(move(input)));
+    TRY_OR_FAIL(stream->write_until_depleted(compressed));
+    auto decompressed = TRY_OR_FAIL(decompressor->read_until_eof());
+    EXPECT(decompressed.bytes() == (ReadonlyBytes { uncompressed, sizeof(uncompressed) - 1 }));
+}
+
 TEST_CASE(zlib_compress_simple)
 {
     // Note: This is just the output of our compression function from an arbitrary point in time.
