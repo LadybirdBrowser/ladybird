@@ -100,7 +100,7 @@ void ResizeObserver::disconnect()
 void ResizeObserver::invoke_callback(ReadonlySpan<GC::Ref<ResizeObserverEntry>> entries) const
 {
     auto& callback = *m_callback;
-    auto& realm = callback.callback_context->realm();
+    auto& realm = callback.callback_context;
 
     auto wrapped_records = MUST(JS::Array::create(realm, 0));
     for (size_t i = 0; i < entries.size(); ++i) {
