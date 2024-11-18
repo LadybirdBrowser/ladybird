@@ -16,6 +16,7 @@
 #include <LibJS/Runtime/Intl/PluralRulesConstructor.h>
 #include <LibJS/Runtime/Intl/RelativeTimeFormat.h>
 #include <LibJS/Runtime/Temporal/AbstractOperations.h>
+#include <LibJS/Runtime/Temporal/Duration.h>
 #include <LibJS/Runtime/ValueInlines.h>
 
 namespace JS::Intl {
@@ -157,7 +158,7 @@ static GC::Ref<ListFormat> construct_list_format(VM& vm, DurationFormat const& d
 }
 
 // 1.1.3 ToDurationRecord ( input ), https://tc39.es/proposal-intl-duration-format/#sec-todurationrecord
-ThrowCompletionOr<Temporal::DurationRecord> to_duration_record(VM& vm, Value input)
+ThrowCompletionOr<DurationRecord> to_duration_record(VM& vm, Value input)
 {
     // 1. If Type(input) is not Object, then
     if (!input.is_object()) {
@@ -172,7 +173,7 @@ ThrowCompletionOr<Temporal::DurationRecord> to_duration_record(VM& vm, Value inp
     auto& input_object = input.as_object();
 
     // 2. Let result be a new Duration Record with each field set to 0.
-    Temporal::DurationRecord result = {};
+    DurationRecord result = {};
     bool any_defined = false;
 
     auto set_duration_record_value = [&](auto const& name, auto& value_slot) -> ThrowCompletionOr<void> {
@@ -238,6 +239,24 @@ ThrowCompletionOr<Temporal::DurationRecord> to_duration_record(VM& vm, Value inp
 
     // 25. Return result.
     return result;
+}
+
+// 1.1.4 DurationSign ( duration ), https://tc39.es/proposal-intl-duration-format/#sec-durationsign
+i8 duration_sign(DurationRecord const& duration)
+{
+    // 1. For each value v of « duration.[[Years]], duration.[[Months]], duration.[[Weeks]], duration.[[Days]], duration.[[Hours]], duration.[[Minutes]], duration.[[Seconds]], duration.[[Milliseconds]], duration.[[Microseconds]], duration.[[Nanoseconds]] », do
+    for (auto value : { duration.years, duration.months, duration.weeks, duration.days, duration.hours, duration.minutes, duration.seconds, duration.milliseconds, duration.microseconds, duration.nanoseconds }) {
+        // a. If v < 0, return -1.
+        if (value < 0)
+            return -1;
+
+        // b. If v > 0, return 1.
+        if (value > 0)
+            return 1;
+    }
+
+    // 2. Return 0.
+    return 0;
 }
 
 // 1.1.6 GetDurationUnitOptions ( unit, options, baseStyle, stylesList, digitalBase, prevStyle, twoDigitHours ), https://tc39.es/proposal-intl-duration-format/#sec-getdurationunitoptions
@@ -349,7 +368,7 @@ ThrowCompletionOr<DurationUnitOptions> get_duration_unit_options(VM& vm, String 
 }
 
 // 1.1.7 AddFractionalDigits ( durationFormat, duration ), https://tc39.es/proposal-intl-duration-format/#sec-addfractionaldigits
-double add_fractional_digits(DurationFormat const& duration_format, Temporal::DurationRecord const& duration)
+double add_fractional_digits(DurationFormat const& duration_format, DurationRecord const& duration)
 {
     // 1. Let result be 0.
     double result = 0;
@@ -625,7 +644,7 @@ Vector<DurationFormatPart> format_numeric_seconds(VM& vm, DurationFormat const& 
 }
 
 // 1.1.12 FormatNumericUnits ( durationFormat, duration, firstNumericUnit, signDisplayed ), https://tc39.es/proposal-intl-duration-format/#sec-formatnumericunits
-Vector<DurationFormatPart> format_numeric_units(VM& vm, DurationFormat const& duration_format, Temporal::DurationRecord const& duration, StringView first_numeric_unit, bool sign_displayed)
+Vector<DurationFormatPart> format_numeric_units(VM& vm, DurationFormat const& duration_format, DurationRecord const& duration, StringView first_numeric_unit, bool sign_displayed)
 {
     // 1. Assert: firstNumericUnit is "hours", "minutes", or "seconds".
     VERIFY(first_numeric_unit.is_one_of("hours"sv, "minutes"sv, "seconds"sv));
@@ -696,8 +715,8 @@ Vector<DurationFormatPart> format_numeric_units(VM& vm, DurationFormat const& du
     if (hours_formatted) {
         // a. If signDisplayed is true, then
         if (sign_displayed) {
-            // i. If hoursValue is 0 and DurationSign(duration.[[Years]], duration.[[Months]], duration.[[Weeks]], duration.[[Days]], duration.[[Hours]], duration.[[Minutes]], duration.[[Seconds]], duration.[[Milliseconds]], duration.[[Microseconds]], duration.[[Nanoseconds]]) is -1, then
-            if (hours_value == 0 && Temporal::duration_sign(duration.years, duration.months, duration.weeks, duration.days, duration.hours, duration.minutes, duration.seconds, duration.milliseconds, duration.microseconds, duration.nanoseconds) == -1) {
+            // i. If hoursValue is 0 and DurationSign(duration) is -1, then
+            if (hours_value == 0 && duration_sign(duration) == -1) {
                 // 1. Set hoursValue to negative-zero.
                 hours_value = -0.0;
             }
@@ -714,8 +733,8 @@ Vector<DurationFormatPart> format_numeric_units(VM& vm, DurationFormat const& du
     if (minutes_formatted) {
         // a. If signDisplayed is true, then
         if (sign_displayed) {
-            // i. If minutesValue is 0 and DurationSign(duration.[[Years]], duration.[[Months]], duration.[[Weeks]], duration.[[Days]], duration.[[Hours]], duration.[[Minutes]], duration.[[Seconds]], duration.[[Milliseconds]], duration.[[Microseconds]], duration.[[Nanoseconds]]) is -1, then
-            if (minutes_value == 0 && Temporal::duration_sign(duration.years, duration.months, duration.weeks, duration.days, duration.hours, duration.minutes, duration.seconds, duration.milliseconds, duration.microseconds, duration.nanoseconds) == -1) {
+            // i. If minutesValue is 0 and DurationSign(duration) is -1, then
+            if (minutes_value == 0 && duration_sign(duration) == -1) {
                 // 1. Set minutesValue to negative-zero.
                 minutes_value = -0.0;
             }
@@ -833,7 +852,7 @@ Vector<DurationFormatPart> list_format_parts(VM& vm, DurationFormat const& durat
 }
 
 // 1.1.7 PartitionDurationFormatPattern ( durationFormat, duration ), https://tc39.es/proposal-intl-duration-format/#sec-partitiondurationformatpattern
-Vector<DurationFormatPart> partition_duration_format_pattern(VM& vm, DurationFormat const& duration_format, Temporal::DurationRecord const& duration)
+Vector<DurationFormatPart> partition_duration_format_pattern(VM& vm, DurationFormat const& duration_format, DurationRecord const& duration)
 {
     auto& realm = *vm.current_realm();
 
@@ -930,8 +949,8 @@ Vector<DurationFormatPart> partition_duration_format_pattern(VM& vm, DurationFor
                     // a. Set signDisplayed to false.
                     sign_displayed = false;
 
-                    // b. If value is 0 and DurationSign(duration.[[Years]], duration.[[Months]], duration.[[Weeks]], duration.[[Days]], duration.[[Hours]], duration.[[Minutes]], duration.[[Seconds]], duration.[[Milliseconds]], duration.[[Microseconds]], duration.[[Nanoseconds]]) is -1, then
-                    if (value == 0 && Temporal::duration_sign(duration.years, duration.months, duration.weeks, duration.days, duration.hours, duration.minutes, duration.seconds, duration.milliseconds, duration.microseconds, duration.nanoseconds) == -1) {
+                    // b. If value is 0 and DurationSign(duration) is -1, then
+                    if (value == 0 && duration_sign(duration) == -1) {
                         // i. Set value to negative-zero.
                         value = -0.0;
                     }
