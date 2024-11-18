@@ -7,6 +7,7 @@
  */
 
 #include <AK/JsonValue.h>
+#include <AK/NeverDestroyed.h>
 #include <AK/StringBuilder.h>
 #include <LibCore/ArgsParser.h>
 #include <LibCore/ConfigFile.h>
@@ -30,7 +31,10 @@
 #include <LibTextCodec/Decoder.h>
 #include <signal.h>
 
-RefPtr<JS::VM> g_vm;
+// FIXME: https://github.com/LadybirdBrowser/ladybird/issues/2412
+//    We should be able to destroy the VM on process exit.
+NeverDestroyed<RefPtr<JS::VM>> g_vm_storage;
+JS::VM* g_vm;
 Vector<String> g_repl_statements;
 GC::Root<JS::Value> g_last_value = GC::make_root(JS::js_undefined());
 
@@ -555,7 +559,8 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
     AK::set_debug_enabled(!disable_debug_printing);
     s_history_path = TRY(String::formatted("{}/.js-history", Core::StandardPaths::home_directory()));
 
-    g_vm = TRY(JS::VM::create());
+    g_vm_storage.get() = TRY(JS::VM::create());
+    g_vm = g_vm_storage->ptr();
     g_vm->set_dynamic_imports_allowed(true);
 
     if (!disable_debug_printing) {
