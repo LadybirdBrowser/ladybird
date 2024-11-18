@@ -5777,7 +5777,7 @@ RefPtr<CSSStyleValue> Parser::parse_font_language_override_value(TokenStream<Com
         }
         transaction.commit();
         if (length < 4)
-            return StringStyleValue::create(MUST(String::formatted("{<4}", string_value)));
+            return StringStyleValue::create(MUST(String::formatted("{:<4}", string_value)));
         return string;
     }
 
