@@ -121,6 +121,7 @@ i8 compare_time_duration(TimeDuration const&, TimeDuration const&);
 ThrowCompletionOr<TimeDuration> round_time_duration_to_increment(VM&, TimeDuration const&, Crypto::UnsignedBigInteger const& increment, RoundingMode);
 i8 time_duration_sign(TimeDuration const&);
 ThrowCompletionOr<TimeDuration> round_time_duration(VM&, TimeDuration const&, Crypto::UnsignedBigInteger const& increment, Unit, RoundingMode);
+double total_time_duration(TimeDuration const&, Unit);
 String temporal_duration_to_string(Duration const&, Precision);
 ThrowCompletionOr<GC::Ref<Duration>> add_durations(VM&, ArithmeticOperation, Duration const&, Value);
 

@@ -43,6 +43,39 @@ StringView temporal_unit_to_string(Unit unit)
     return temporal_units[to_underlying(unit)].singular_property_name;
 }
 
+// 13.14 ValidateTemporalRoundingIncrement ( increment, dividend, inclusive ), https://tc39.es/proposal-temporal/#sec-validatetemporalroundingincrement
+ThrowCompletionOr<void> validate_temporal_rounding_increment(VM& vm, u64 increment, u64 dividend, bool inclusive)
+{
+    u64 maximum = 0;
+
+    // 1. If inclusive is true, then
+    if (inclusive) {
+        // a. Let maximum be dividend.
+        maximum = dividend;
+    }
+    // 2. Else,
+    else {
+        // a. Assert: dividend > 1.
+        VERIFY(dividend > 1);
+
+        // b. Let maximum be dividend - 1.
+        maximum = dividend - 1;
+    }
+
+    // 3. If increment > maximum, throw a RangeError exception.
+    if (increment > maximum)
+        return vm.throw_completion<RangeError>(ErrorType::OptionIsNotValidValue, increment, "roundingIncrement");
+
+    // 5. If dividend modulo increment ≠ 0, then
+    if (modulo(dividend, increment) != 0) {
+        // a. Throw a RangeError exception.
+        return vm.throw_completion<RangeError>(ErrorType::OptionIsNotValidValue, increment, "roundingIncrement");
+    }
+
+    // 6. Return UNUSED.
+    return {};
+}
+
 // 13.15 GetTemporalFractionalSecondDigitsOption ( options ), https://tc39.es/proposal-temporal/#sec-temporal-gettemporalfractionalseconddigitsoption
 ThrowCompletionOr<Precision> get_temporal_fractional_second_digits_option(VM& vm, Object const& options)
 {
@@ -322,6 +355,14 @@ UnitCategory temporal_unit_category(Unit unit)
 {
     // 1. Return the value from the "Category" column of the row of Table 21 in which unit is in the "Value" column.
     return temporal_units[to_underlying(unit)].category;
+}
+
+// 13.22 MaximumTemporalDurationRoundingIncrement ( unit ), https://tc39.es/proposal-temporal/#sec-temporal-maximumtemporaldurationroundingincrement
+RoundingIncrement maximum_temporal_duration_rounding_increment(Unit unit)
+{
+    // 1. Return the value from the "Maximum duration rounding increment" column of the row of Table 21 in which unit is
+    //    in the "Value" column.
+    return temporal_units[to_underlying(unit)].maximum_duration_rounding_increment;
 }
 
 // AD-HOC
@@ -928,6 +969,27 @@ ThrowCompletionOr<RoundingMode> get_rounding_mode_option(VM& vm, Object const& o
 
     // 4. Return the value from the "Rounding Mode" column of the row with stringValue in its "String Identifier" column.
     return static_cast<RoundingMode>(allowed_strings.first_index_of(string_value.as_string().utf8_string_view()).value());
+}
+
+// 14.4.1.4 GetRoundingIncrementOption ( options ), https://tc39.es/proposal-temporal/#sec-temporal-getroundingincrementoption
+ThrowCompletionOr<u64> get_rounding_increment_option(VM& vm, Object const& options)
+{
+    // 1. Let value be ? Get(options, "roundingIncrement").
+    auto value = TRY(options.get(vm.names.roundingIncrement));
+
+    // 2. If value is undefined, return 1𝔽.
+    if (value.is_undefined())
+        return 1;
+
+    // 3. Let integerIncrement be ? ToIntegerWithTruncation(value).
+    auto integer_increment = TRY(to_integer_with_truncation(vm, value, ErrorType::OptionIsNotValidValue, value, "roundingIncrement"sv));
+
+    // 4. If integerIncrement < 1 or integerIncrement > 10**9, throw a RangeError exception.
+    if (integer_increment < 1 || integer_increment > 1'000'000'000u)
+        return vm.throw_completion<RangeError>(ErrorType::OptionIsNotValidValue, value, "roundingIncrement");
+
+    // 5. Return integerIncrement.
+    return static_cast<u64>(integer_increment);
 }
 
 }

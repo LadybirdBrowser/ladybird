@@ -9,6 +9,7 @@
 
 #include <AK/Math.h>
 #include <AK/NumericLimits.h>
+#include <LibCrypto/BigFraction/BigFraction.h>
 #include <LibJS/Runtime/AbstractOperations.h>
 #include <LibJS/Runtime/Intrinsics.h>
 #include <LibJS/Runtime/Realm.h>
@@ -738,6 +739,21 @@ ThrowCompletionOr<TimeDuration> round_time_duration(VM& vm, TimeDuration const& 
 
     // 2. Return ? RoundTimeDurationToIncrement(timeDuration, divisor × increment, roundingMode).
     return TRY(round_time_duration_to_increment(vm, time_duration, divisor.multiplied_by(increment), rounding_mode));
+}
+
+// 7.5.31 TotalTimeDuration ( timeDuration, unit ), https://tc39.es/proposal-temporal/#sec-temporal-totaltimeduration
+double total_time_duration(TimeDuration const& time_duration, Unit unit)
+{
+    // 1. Let divisor be the value in the "Length in Nanoseconds" column of the row of Table 21 whose "Value" column contains unit.
+    auto const& divisor = temporal_unit_length_in_nanoseconds(unit);
+
+    // 2. NOTE: The following step cannot be implemented directly using floating-point arithmetic when 𝔽(timeDuration) is
+    //    not a safe integer. The division can be implemented in C++ with the __float128 type if the compiler supports it,
+    //    or with software emulation such as in the SoftFP library.
+
+    // 3. Return timeDuration / divisor.
+    auto result = Crypto::BigFraction { time_duration } / Crypto::BigFraction { Crypto::SignedBigInteger { divisor } };
+    return result.to_double();
 }
 
 // 7.5.39 TemporalDurationToString ( duration, precision ), https://tc39.es/proposal-temporal/#sec-temporal-temporaldurationtostring
