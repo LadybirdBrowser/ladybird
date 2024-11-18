@@ -35,6 +35,11 @@ public:
 
     virtual void paint(PaintContext&, PaintPhase) const override;
 
+    StackingContext* stacking_context() { return m_stacking_context; }
+    StackingContext const* stacking_context() const { return m_stacking_context; }
+    void set_stacking_context(NonnullOwnPtr<StackingContext>);
+    void invalidate_stacking_context();
+
     virtual Optional<CSSPixelRect> get_masking_area() const;
     virtual Optional<Gfx::Bitmap::MaskKind> get_mask_type() const { return {}; }
     virtual RefPtr<Gfx::ImmutableBitmap> calculate_mask(PaintContext&, CSSPixelRect const&) const { return {}; }
@@ -275,6 +280,8 @@ private:
     virtual DispatchEventOfSameName handle_mousedown(Badge<EventHandler>, CSSPixelPoint, unsigned button, unsigned modifiers) override;
     virtual DispatchEventOfSameName handle_mouseup(Badge<EventHandler>, CSSPixelPoint, unsigned button, unsigned modifiers) override;
     virtual DispatchEventOfSameName handle_mousemove(Badge<EventHandler>, CSSPixelPoint, unsigned buttons, unsigned modifiers) override;
+
+    OwnPtr<StackingContext> m_stacking_context;
 
     Optional<OverflowData> m_overflow_data;
 

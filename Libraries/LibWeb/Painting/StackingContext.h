@@ -16,13 +16,12 @@ class StackingContext {
     friend class ViewportPaintable;
 
 public:
-    StackingContext(Paintable&, StackingContext* parent, size_t index_in_tree_order);
+    StackingContext(PaintableBox&, StackingContext* parent, size_t index_in_tree_order);
 
     StackingContext* parent() { return m_parent; }
     StackingContext const* parent() const { return m_parent; }
 
-    Paintable const& paintable() const { return *m_paintable; }
-    PaintableBox const& paintable_box() const { return verify_cast<PaintableBox>(*m_paintable); }
+    PaintableBox const& paintable_box() const { return *m_paintable; }
 
     enum class StackingContextPaintPhase {
         BackgroundAndBorders,
@@ -48,14 +47,14 @@ public:
     void set_last_paint_generation_id(u64 generation_id);
 
 private:
-    GC::Ref<Paintable> m_paintable;
+    GC::Ref<PaintableBox> m_paintable;
     StackingContext* const m_parent { nullptr };
     Vector<StackingContext*> m_children;
     size_t m_index_in_tree_order { 0 };
     Optional<u64> m_last_paint_generation_id;
 
-    Vector<GC::Ref<Paintable const>> m_positioned_descendants_and_stacking_contexts_with_stack_level_0;
-    Vector<GC::Ref<Paintable const>> m_non_positioned_floating_descendants;
+    Vector<GC::Ref<PaintableBox const>> m_positioned_descendants_and_stacking_contexts_with_stack_level_0;
+    Vector<GC::Ref<PaintableBox const>> m_non_positioned_floating_descendants;
 
     static void paint_child(PaintContext&, StackingContext const&);
     void paint_internal(PaintContext&) const;

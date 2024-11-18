@@ -128,24 +128,23 @@ TraversalDecision Paintable::hit_test(CSSPixelPoint, HitTestType, Function<Trave
     return TraversalDecision::Continue;
 }
 
+bool Paintable::has_stacking_context() const
+{
+    if (is_paintable_box())
+        return static_cast<PaintableBox const&>(*this).stacking_context();
+    return false;
+}
+
 StackingContext* Paintable::enclosing_stacking_context()
 {
     for (auto* ancestor = parent(); ancestor; ancestor = ancestor->parent()) {
-        if (auto* stacking_context = ancestor->stacking_context())
+        if (!ancestor->is_paintable_box())
+            continue;
+        if (auto* stacking_context = static_cast<PaintableBox&>(*ancestor).stacking_context())
             return const_cast<StackingContext*>(stacking_context);
     }
     // We should always reach the viewport's stacking context.
     VERIFY_NOT_REACHED();
-}
-
-void Paintable::set_stacking_context(NonnullOwnPtr<StackingContext> stacking_context)
-{
-    m_stacking_context = move(stacking_context);
-}
-
-void Paintable::invalidate_stacking_context()
-{
-    m_stacking_context = nullptr;
 }
 
 void Paintable::set_needs_display(InvalidateDisplayList should_invalidate_display_list)
