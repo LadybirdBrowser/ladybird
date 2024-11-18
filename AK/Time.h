@@ -12,8 +12,11 @@
 #include <AK/Checked.h>
 #include <AK/Platform.h>
 #include <AK/Types.h>
-#if defined(AK_OS_WINDOWS)
-#    include <winsock2.h>
+#ifdef AK_OS_WINDOWS
+struct timeval {
+    long tv_sec;
+    long tv_usec;
+};
 #else
 #    include <sys/time.h>
 #endif

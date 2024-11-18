@@ -7,11 +7,10 @@
 #include <AK/Checked.h>
 #include <AK/Time.h>
 
-#include <time.h>
-#if defined(AK_OS_WINDOWS)
-#    include <profileapi.h>
-#else
-#    include <sys/time.h>
+#ifdef AK_OS_WINDOWS
+#    define timeval dummy_timeval
+#    include <windows.h>
+#    undef timeval
 #endif
 
 namespace AK {
