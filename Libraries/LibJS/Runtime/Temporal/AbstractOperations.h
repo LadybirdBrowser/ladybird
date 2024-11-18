@@ -18,6 +18,11 @@
 
 namespace JS::Temporal {
 
+enum class ArithmeticOperation {
+    Add,
+    Subtract,
+};
+
 // https://tc39.es/proposal-temporal/#sec-temporal-units
 enum class Unit {
     Year,
@@ -56,6 +61,7 @@ struct RelativeTo {
 };
 
 ThrowCompletionOr<RelativeTo> get_temporal_relative_to_option(VM&, Object const& options);
+Unit larger_of_two_temporal_units(Unit, Unit);
 bool is_calendar_unit(Unit);
 UnitCategory temporal_unit_category(Unit);
 ThrowCompletionOr<GC::Ref<Duration>> parse_temporal_duration_string(VM&, StringView iso_string);

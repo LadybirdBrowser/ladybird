@@ -55,6 +55,26 @@ ThrowCompletionOr<RelativeTo> get_temporal_relative_to_option(VM& vm, Object con
     return RelativeTo { .plain_relative_to = {}, .zoned_relative_to = {} };
 }
 
+// 13.19 LargerOfTwoTemporalUnits ( u1, u2 ), https://tc39.es/proposal-temporal/#sec-temporal-largeroftwotemporalunits
+Unit larger_of_two_temporal_units(Unit unit1, Unit unit2)
+{
+    // 1. For each row of Table 21, except the header row, in table order, do
+    for (auto const& row : temporal_units) {
+        // a. Let unit be the value in the "Value" column of the row.
+        auto unit = row.value;
+
+        // b. If u1 is unit, return unit.
+        if (unit1 == unit)
+            return unit;
+
+        // c. If u2 is unit, return unit.
+        if (unit2 == unit)
+            return unit;
+    }
+
+    VERIFY_NOT_REACHED();
+}
+
 // 13.20 IsCalendarUnit ( unit ), https://tc39.es/proposal-temporal/#sec-temporal-iscalendarunit
 bool is_calendar_unit(Unit unit)
 {

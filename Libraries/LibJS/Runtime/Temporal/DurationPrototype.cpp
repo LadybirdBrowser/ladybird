@@ -37,6 +37,10 @@ void DurationPrototype::initialize(Realm& realm)
 
     u8 attr = Attribute::Writable | Attribute::Configurable;
     define_native_function(realm, vm.names.with, with, 1, attr);
+    define_native_function(realm, vm.names.negated, negated, 0, attr);
+    define_native_function(realm, vm.names.abs, abs, 0, attr);
+    define_native_function(realm, vm.names.add, add, 1, attr);
+    define_native_function(realm, vm.names.subtract, subtract, 1, attr);
 }
 
 // 7.3.3 get Temporal.Duration.prototype.years, https://tc39.es/proposal-temporal/#sec-get-temporal.duration.prototype.years
@@ -160,6 +164,54 @@ JS_DEFINE_NATIVE_FUNCTION(DurationPrototype::with)
 
     // 24. Return ? CreateTemporalDuration(years, months, weeks, days, hours, minutes, seconds, milliseconds, microseconds, nanoseconds).
     return TRY(create_temporal_duration(vm, years, months, weeks, days, hours, minutes, seconds, milliseconds, microseconds, nanoseconds));
+}
+
+// 7.3.16 Temporal.Duration.prototype.negated ( ), https://tc39.es/proposal-temporal/#sec-temporal.duration.prototype.negated
+JS_DEFINE_NATIVE_FUNCTION(DurationPrototype::negated)
+{
+    // 1. Let duration be the this value.
+    // 2. Perform ? RequireInternalSlot(duration, [[InitializedTemporalDuration]]).
+    auto duration = TRY(typed_this_object(vm));
+
+    // 3. Return CreateNegatedTemporalDuration(duration).
+    return create_negated_temporal_duration(vm, duration);
+}
+
+// 7.3.17 Temporal.Duration.prototype.abs ( ), https://tc39.es/proposal-temporal/#sec-temporal.duration.prototype.abs
+JS_DEFINE_NATIVE_FUNCTION(DurationPrototype::abs)
+{
+    // 1. Let duration be the this value.
+    // 2. Perform ? RequireInternalSlot(duration, [[InitializedTemporalDuration]]).
+    auto duration = TRY(typed_this_object(vm));
+
+    // 3. Return ! CreateTemporalDuration(abs(duration.[[Years]]), abs(duration.[[Months]]), abs(duration.[[Weeks]]), abs(duration.[[Days]]), abs(duration.[[Hours]]), abs(duration.[[Minutes]]), abs(duration.[[Seconds]]), abs(duration.[[Milliseconds]]), abs(duration.[[Microseconds]]), abs(duration.[[Nanoseconds]])).
+    return MUST(create_temporal_duration(vm, fabs(duration->years()), fabs(duration->months()), fabs(duration->weeks()), fabs(duration->days()), fabs(duration->hours()), fabs(duration->minutes()), fabs(duration->seconds()), fabs(duration->milliseconds()), fabs(duration->microseconds()), fabs(duration->nanoseconds())));
+}
+
+// 7.3.18 Temporal.Duration.prototype.add ( other ), https://tc39.es/proposal-temporal/#sec-temporal.duration.prototype.add
+JS_DEFINE_NATIVE_FUNCTION(DurationPrototype::add)
+{
+    auto other = vm.argument(0);
+
+    // 1. Let duration be the this value.
+    // 2. Perform ? RequireInternalSlot(duration, [[InitializedTemporalDuration]]).
+    auto duration = TRY(typed_this_object(vm));
+
+    // 3. Return ? AddDurations(ADD, duration, other).
+    return TRY(add_durations(vm, ArithmeticOperation::Add, duration, other));
+}
+
+// 7.3.19 Temporal.Duration.prototype.subtract ( other ), https://tc39.es/proposal-temporal/#sec-temporal.duration.prototype.subtract
+JS_DEFINE_NATIVE_FUNCTION(DurationPrototype::subtract)
+{
+    auto other = vm.argument(0);
+
+    // 1. Let duration be the this value.
+    // 2. Perform ? RequireInternalSlot(duration, [[InitializedTemporalDuration]]).
+    auto duration = TRY(typed_this_object(vm));
+
+    // 3. Return ? AddDurations(SUBTRACT, duration, other).
+    return TRY(add_durations(vm, ArithmeticOperation::Subtract, duration, other));
 }
 
 }
