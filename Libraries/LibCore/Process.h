@@ -79,8 +79,7 @@ public:
     ErrorOr<void> disown();
 #endif
 
-    // FIXME: Make it return an exit code.
-    ErrorOr<bool> wait_for_termination();
+    ErrorOr<int> wait_for_termination();
 
 private:
 #ifndef AK_OS_WINDOWS

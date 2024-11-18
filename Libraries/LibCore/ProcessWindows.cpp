@@ -146,7 +146,7 @@ pid_t Process::pid() const
     return GetProcessId(m_handle);
 }
 
-ErrorOr<bool> Process::wait_for_termination()
+ErrorOr<int> Process::wait_for_termination()
 {
     auto result = WaitForSingleObject(m_handle, INFINITE);
     if (result == WAIT_FAILED)
@@ -156,7 +156,7 @@ ErrorOr<bool> Process::wait_for_termination()
     if (!GetExitCodeProcess(m_handle, &exit_code))
         return Error::from_windows_error(GetLastError());
 
-    return !exit_code;
+    return exit_code;
 }
 
 }

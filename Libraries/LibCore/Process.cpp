@@ -335,19 +335,19 @@ ErrorOr<void> Process::disown()
     }
 }
 
-ErrorOr<bool> Process::wait_for_termination()
+ErrorOr<int> Process::wait_for_termination()
 {
     VERIFY(m_pid > 0);
 
-    bool exited_with_code_0 = true;
+    int exit_code = -1;
     int status;
     if (waitpid(m_pid, &status, 0) == -1)
         return Error::from_syscall("waitpid"sv, errno);
 
     if (WIFEXITED(status)) {
-        exited_with_code_0 &= WEXITSTATUS(status) == 0;
+        exit_code = WEXITSTATUS(status);
     } else if (WIFSIGNALED(status)) {
-        exited_with_code_0 = false;
+        exit_code = 128 + WTERMSIG(status);
     } else if (WIFSTOPPED(status)) {
         // This is only possible if the child process is being traced by us.
         VERIFY_NOT_REACHED();
@@ -356,7 +356,7 @@ ErrorOr<bool> Process::wait_for_termination()
     }
 
     m_should_disown = false;
-    return exited_with_code_0;
+    return exit_code;
 }
 
 }
