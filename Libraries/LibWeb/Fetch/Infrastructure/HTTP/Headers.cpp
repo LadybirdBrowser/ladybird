@@ -544,8 +544,8 @@ bool is_cors_safelisted_request_header(Header const& header)
     }
     // `range`
     else if (name.equals_ignoring_ascii_case("range"sv)) {
-        // 1. Let rangeValue be the result of parsing a single range header value given value.
-        auto range_value = parse_single_range_header_value(value);
+        // 1. Let rangeValue be the result of parsing a single range header value given value and false.
+        auto range_value = parse_single_range_header_value(value, false);
 
         // 2. If rangeValue is failure, then return false.
         if (!range_value.has_value())
@@ -833,50 +833,70 @@ Variant<Vector<ByteBuffer>, ExtractHeaderParseFailure, Empty> extract_header_lis
 }
 
 // https://fetch.spec.whatwg.org/#simple-range-header-value
-Optional<RangeHeaderValue> parse_single_range_header_value(ReadonlyBytes value)
+Optional<RangeHeaderValue> parse_single_range_header_value(ReadonlyBytes const value, bool const allow_whitespace)
 {
     // 1. Let data be the isomorphic decoding of value.
-    auto data = Infra::isomorphic_decode(value);
+    auto const data = Infra::isomorphic_decode(value);
 
-    // 2. If data does not start with "bytes=", then return failure.
-    if (!data.starts_with_bytes("bytes="sv))
+    // 2. If data does not start with "bytes", then return failure.
+    if (!data.starts_with_bytes("bytes"sv))
         return {};
 
-    // 3. Let position be a position variable for data, initially pointing at the 6th code point of data.
+    // 3. Let position be a position variable for data, initially pointing at the 5th code point of data.
     auto lexer = GenericLexer { data };
-    lexer.ignore(6);
+    lexer.ignore(5);
 
-    // 4. Let rangeStart be the result of collecting a sequence of code points that are ASCII digits, from data given position.
+    // 4. If allowWhitespace is true, collect a sequence of code points that are HTTP tab or space, from data given position.
+    if (allow_whitespace)
+        lexer.consume_while(is_http_tab_or_space);
+
+    // 5. If the code point at position within data is not U+003D (=), then return failure.
+    // 6. Advance position by 1.
+    if (!lexer.consume_specific('='))
+        return {};
+
+    // 7. If allowWhitespace is true, collect a sequence of code points that are HTTP tab or space, from data given position.
+    if (allow_whitespace)
+        lexer.consume_while(is_http_tab_or_space);
+
+    // 8. Let rangeStart be the result of collecting a sequence of code points that are ASCII digits, from data given position.
     auto range_start = lexer.consume_while(is_ascii_digit);
 
-    // 5. Let rangeStartValue be rangeStart, interpreted as decimal number, if rangeStart is not the empty string; otherwise null.
+    // 9. Let rangeStartValue be rangeStart, interpreted as decimal number, if rangeStart is not the empty string; otherwise null.
     auto range_start_value = range_start.to_number<u64>();
 
-    // 6. If the code point at position within data is not U+002D (-), then return failure.
-    // 7. Advance position by 1.
+    // 10. If allowWhitespace is true, collect a sequence of code points that are HTTP tab or space, from data given position.
+    if (allow_whitespace)
+        lexer.consume_while(is_http_tab_or_space);
+
+    // 11. If the code point at position within data is not U+002D (-), then return failure.
+    // 12. Advance position by 1.
     if (!lexer.consume_specific('-'))
         return {};
 
-    // 8. Let rangeEnd be the result of collecting a sequence of code points that are ASCII digits, from data given position.
+    // 13. If allowWhitespace is true, collect a sequence of code points that are HTTP tab or space, from data given position.
+    if (allow_whitespace)
+        lexer.consume_while(is_http_tab_or_space);
+
+    // 14. Let rangeEnd be the result of collecting a sequence of code points that are ASCII digits, from data given position.
     auto range_end = lexer.consume_while(is_ascii_digit);
 
-    // 9. Let rangeEndValue be rangeEnd, interpreted as decimal number, if rangeEnd is not the empty string; otherwise null.
+    // 15. Let rangeEndValue be rangeEnd, interpreted as decimal number, if rangeEnd is not the empty string; otherwise null.
     auto range_end_value = range_end.to_number<u64>();
 
-    // 10. If position is not past the end of data, then return failure.
+    // 16. If position is not past the end of data, then return failure.
     if (!lexer.is_eof())
         return {};
 
-    // 11. If rangeEndValue and rangeStartValue are null, then return failure.
+    // 17. If rangeEndValue and rangeStartValue are null, then return failure.
     if (!range_end_value.has_value() && !range_start_value.has_value())
         return {};
 
-    // 12. If rangeStartValue and rangeEndValue are numbers, and rangeStartValue is greater than rangeEndValue, then return failure.
+    // 18. If rangeStartValue and rangeEndValue are numbers, and rangeStartValue is greater than rangeEndValue, then return failure.
     if (range_start_value.has_value() && range_end_value.has_value() && *range_start_value > *range_end_value)
         return {};
 
-    // 13. Return (rangeStartValue, rangeEndValue).
-    // NOTE: The range end or start can be omitted, e.g., `bytes=0-` or `bytes=-500` are valid ranges.
+    // 19. Return (rangeStartValue, rangeEndValue).
     return RangeHeaderValue { move(range_start_value), move(range_end_value) };
 }
 

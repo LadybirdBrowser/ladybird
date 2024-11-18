@@ -32,6 +32,11 @@ inline constexpr Array HTTP_TAB_OR_SPACE_BYTES = {
     0x09, 0x20
 };
 
+constexpr bool is_http_tab_or_space(u32 const code_point)
+{
+    return code_point == 0x09 || code_point == 0x20;
+}
+
 enum class HttpQuotedStringExtractValue {
     No,
     Yes,
