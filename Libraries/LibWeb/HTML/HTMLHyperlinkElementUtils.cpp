@@ -9,6 +9,9 @@
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/HTML/HTMLHyperlinkElementUtils.h>
 #include <LibWeb/HTML/Navigable.h>
+#include <LibWeb/HTML/Navigation.h>
+#include <LibWeb/HTML/Window.h>
+#include <LibWeb/Platform/EventLoopPlugin.h>
 
 namespace Web::HTML {
 
@@ -519,6 +522,52 @@ void HTMLHyperlinkElementUtils::follow_the_hyperlink(Optional<String> hyperlink_
 
     // 13. Navigate targetNavigable to urlString using subject's node document, with referrerPolicy set to referrerPolicy and userInvolvement set to userInvolvement.
     MUST(target_navigable->navigate({ .url = url_string, .source_document = hyperlink_element_utils_document(), .referrer_policy = referrer_policy, .user_involvement = user_involvement }));
+}
+
+// https://html.spec.whatwg.org/multipage/links.html#downloading-hyperlinks
+void HTMLHyperlinkElementUtils::download_hyperlink(Optional<String> hyperlink_suffix, UserNavigationInvolvement user_involvement)
+{
+    // 1. If subject cannot navigate, then return.
+    if (cannot_navigate())
+        return;
+
+    // 2. If subject's node document's active sandboxing flag set has the sandboxed downloads browsing context flag set, then return.
+    if (has_flag(hyperlink_element_utils_document().active_sandboxing_flag_set(), SandboxingFlagSet::SandboxedDownloads))
+        return;
+
+    // 3. Let urlString be the result of encoding-parsing-and-serializing a URL given subject's href attribute value, relative to subject's node document.
+    auto url_string = hyperlink_element_utils_document().encoding_parse_and_serialize_url(href());
+
+    // 4. If urlString is failure, then return.
+    if (!url_string.has_value())
+        return;
+
+    // 5. If hyperlinkSuffix is non-null, then append it to urlString.
+    if (hyperlink_suffix.has_value())
+        url_string = MUST(String::formatted("{}{}", *url_string, *hyperlink_suffix));
+
+    auto url = URL::URL(*url_string);
+
+    // 6. If userInvolvement is not "browser UI", then:
+    if (user_involvement != UserNavigationInvolvement::BrowserUI) {
+        // 1. Assert: subject has a download attribute.
+        VERIFY(hyperlink_element_utils_element().has_attribute(HTML::AttributeNames::download));
+
+        // 2. Let navigation be subject's relevant global object's navigation API.
+        auto navigation = as<Window>(relevant_global_object(*this)).navigation();
+
+        // 3. Let filename be the value of subject's download attribute.
+        auto filename = hyperlink_element_utils_element().attribute(HTML::AttributeNames::download).value_or(String {});
+
+        // 4. Let continue be the result of firing a download request navigate event at navigation with destinationURL set to urlString, userInvolvement set to userInvolvement, and filename set to filename.
+        bool continue_ = navigation->fire_a_download_request_navigate_event(url, user_involvement, filename);
+
+        // 5. If continue is false, then return.
+        if (!continue_)
+            return;
+    }
+
+    // FIXME: 7. Run these steps in parallel:
 }
 
 }
