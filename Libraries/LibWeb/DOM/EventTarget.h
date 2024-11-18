@@ -42,7 +42,6 @@ public:
 
     void add_an_event_listener(DOMEventListener&);
     void remove_an_event_listener(DOMEventListener&);
-    void remove_from_event_listener_list(DOMEventListener&);
 
     Vector<GC::Root<DOMEventListener>> event_listener_list();
 

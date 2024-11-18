@@ -56,9 +56,9 @@ bool EventDispatcher::inner_invoke(Event& event, Vector<GC::Root<DOM::DOMEventLi
         if (phase == Event::Phase::BubblingPhase && listener->capture)
             continue;
 
-        // 5. If listener’s once is true, then remove listener from event’s currentTarget attribute value’s event listener list.
+        // 5. If listener’s once is true, then remove an event listener given event’s currentTarget attribute value and listener.
         if (listener->once)
-            event.current_target()->remove_from_event_listener_list(*listener);
+            event.current_target()->remove_an_event_listener(*listener);
 
         // 6. Let global be listener callback’s associated Realm’s global object.
         auto& callback = listener->callback->callback();
