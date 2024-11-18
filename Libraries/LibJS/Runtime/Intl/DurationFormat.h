@@ -11,7 +11,6 @@
 #include <AK/String.h>
 #include <LibJS/Runtime/Intl/AbstractOperations.h>
 #include <LibJS/Runtime/Object.h>
-#include <LibJS/Runtime/Temporal/Duration.h>
 #include <LibUnicode/Locale.h>
 
 namespace JS::Intl {
@@ -199,8 +198,22 @@ private:
     Optional<u8> m_fractional_digits;                     // [[FractionalDigits]]
 };
 
+// 1.1.1 Duration Records, https://tc39.es/proposal-intl-duration-format/#sec-duration-records
+struct DurationRecord {
+    double years { 0 };
+    double months { 0 };
+    double weeks { 0 };
+    double days { 0 };
+    double hours { 0 };
+    double minutes { 0 };
+    double seconds { 0 };
+    double milliseconds { 0 };
+    double microseconds { 0 };
+    double nanoseconds { 0 };
+};
+
 struct DurationInstanceComponent {
-    double Temporal::DurationRecord::*value_slot;
+    double DurationRecord::*value_slot;
     DurationFormat::ValueStyle (DurationFormat::*get_style_slot)() const;
     void (DurationFormat::*set_style_slot)(StringView);
     DurationFormat::Display (DurationFormat::*get_display_slot)() const;
@@ -216,16 +229,16 @@ static constexpr AK::Array<StringView, 3> date_values = { "long"sv, "short"sv, "
 static constexpr AK::Array<StringView, 5> time_values = { "long"sv, "short"sv, "narrow"sv, "numeric"sv, "2-digit"sv };
 static constexpr AK::Array<StringView, 4> sub_second_values = { "long"sv, "short"sv, "narrow"sv, "numeric"sv };
 static constexpr AK::Array<DurationInstanceComponent, 10> duration_instances_components {
-    DurationInstanceComponent { &Temporal::DurationRecord::years, &DurationFormat::years_style, &DurationFormat::set_years_style, &DurationFormat::years_display, &DurationFormat::set_years_display, "years"sv, "year"sv, date_values, "short"sv },
-    DurationInstanceComponent { &Temporal::DurationRecord::months, &DurationFormat::months_style, &DurationFormat::set_months_style, &DurationFormat::months_display, &DurationFormat::set_months_display, "months"sv, "month"sv, date_values, "short"sv },
-    DurationInstanceComponent { &Temporal::DurationRecord::weeks, &DurationFormat::weeks_style, &DurationFormat::set_weeks_style, &DurationFormat::weeks_display, &DurationFormat::set_weeks_display, "weeks"sv, "week"sv, date_values, "short"sv },
-    DurationInstanceComponent { &Temporal::DurationRecord::days, &DurationFormat::days_style, &DurationFormat::set_days_style, &DurationFormat::days_display, &DurationFormat::set_days_display, "days"sv, "day"sv, date_values, "short"sv },
-    DurationInstanceComponent { &Temporal::DurationRecord::hours, &DurationFormat::hours_style, &DurationFormat::set_hours_style, &DurationFormat::hours_display, &DurationFormat::set_hours_display, "hours"sv, "hour"sv, time_values, "numeric"sv },
-    DurationInstanceComponent { &Temporal::DurationRecord::minutes, &DurationFormat::minutes_style, &DurationFormat::set_minutes_style, &DurationFormat::minutes_display, &DurationFormat::set_minutes_display, "minutes"sv, "minute"sv, time_values, "numeric"sv },
-    DurationInstanceComponent { &Temporal::DurationRecord::seconds, &DurationFormat::seconds_style, &DurationFormat::set_seconds_style, &DurationFormat::seconds_display, &DurationFormat::set_seconds_display, "seconds"sv, "second"sv, time_values, "numeric"sv },
-    DurationInstanceComponent { &Temporal::DurationRecord::milliseconds, &DurationFormat::milliseconds_style, &DurationFormat::set_milliseconds_style, &DurationFormat::milliseconds_display, &DurationFormat::set_milliseconds_display, "milliseconds"sv, "millisecond"sv, sub_second_values, "numeric"sv },
-    DurationInstanceComponent { &Temporal::DurationRecord::microseconds, &DurationFormat::microseconds_style, &DurationFormat::set_microseconds_style, &DurationFormat::microseconds_display, &DurationFormat::set_microseconds_display, "microseconds"sv, "microsecond"sv, sub_second_values, "numeric"sv },
-    DurationInstanceComponent { &Temporal::DurationRecord::nanoseconds, &DurationFormat::nanoseconds_style, &DurationFormat::set_nanoseconds_style, &DurationFormat::nanoseconds_display, &DurationFormat::set_nanoseconds_display, "nanoseconds"sv, "nanosecond"sv, sub_second_values, "numeric"sv },
+    DurationInstanceComponent { &DurationRecord::years, &DurationFormat::years_style, &DurationFormat::set_years_style, &DurationFormat::years_display, &DurationFormat::set_years_display, "years"sv, "year"sv, date_values, "short"sv },
+    DurationInstanceComponent { &DurationRecord::months, &DurationFormat::months_style, &DurationFormat::set_months_style, &DurationFormat::months_display, &DurationFormat::set_months_display, "months"sv, "month"sv, date_values, "short"sv },
+    DurationInstanceComponent { &DurationRecord::weeks, &DurationFormat::weeks_style, &DurationFormat::set_weeks_style, &DurationFormat::weeks_display, &DurationFormat::set_weeks_display, "weeks"sv, "week"sv, date_values, "short"sv },
+    DurationInstanceComponent { &DurationRecord::days, &DurationFormat::days_style, &DurationFormat::set_days_style, &DurationFormat::days_display, &DurationFormat::set_days_display, "days"sv, "day"sv, date_values, "short"sv },
+    DurationInstanceComponent { &DurationRecord::hours, &DurationFormat::hours_style, &DurationFormat::set_hours_style, &DurationFormat::hours_display, &DurationFormat::set_hours_display, "hours"sv, "hour"sv, time_values, "numeric"sv },
+    DurationInstanceComponent { &DurationRecord::minutes, &DurationFormat::minutes_style, &DurationFormat::set_minutes_style, &DurationFormat::minutes_display, &DurationFormat::set_minutes_display, "minutes"sv, "minute"sv, time_values, "numeric"sv },
+    DurationInstanceComponent { &DurationRecord::seconds, &DurationFormat::seconds_style, &DurationFormat::set_seconds_style, &DurationFormat::seconds_display, &DurationFormat::set_seconds_display, "seconds"sv, "second"sv, time_values, "numeric"sv },
+    DurationInstanceComponent { &DurationRecord::milliseconds, &DurationFormat::milliseconds_style, &DurationFormat::set_milliseconds_style, &DurationFormat::milliseconds_display, &DurationFormat::set_milliseconds_display, "milliseconds"sv, "millisecond"sv, sub_second_values, "numeric"sv },
+    DurationInstanceComponent { &DurationRecord::microseconds, &DurationFormat::microseconds_style, &DurationFormat::set_microseconds_style, &DurationFormat::microseconds_display, &DurationFormat::set_microseconds_display, "microseconds"sv, "microsecond"sv, sub_second_values, "numeric"sv },
+    DurationInstanceComponent { &DurationRecord::nanoseconds, &DurationFormat::nanoseconds_style, &DurationFormat::set_nanoseconds_style, &DurationFormat::nanoseconds_display, &DurationFormat::set_nanoseconds_display, "nanoseconds"sv, "nanosecond"sv, sub_second_values, "numeric"sv },
 };
 
 struct DurationUnitOptions {
@@ -239,15 +252,16 @@ struct DurationFormatPart {
     StringView unit;
 };
 
-ThrowCompletionOr<Temporal::DurationRecord> to_duration_record(VM&, Value input);
+ThrowCompletionOr<DurationRecord> to_duration_record(VM&, Value input);
+i8 duration_sign(DurationRecord const&);
 ThrowCompletionOr<DurationUnitOptions> get_duration_unit_options(VM&, String const& unit, Object const& options, StringView base_style, ReadonlySpan<StringView> styles_list, StringView digital_base, StringView previous_style, bool two_digit_hours);
-double add_fractional_digits(DurationFormat const&, Temporal::DurationRecord const&);
+double add_fractional_digits(DurationFormat const&, DurationRecord const&);
 bool next_unit_fractional(DurationFormat const&, StringView unit);
 Vector<DurationFormatPart> format_numeric_hours(VM&, DurationFormat const&, double hours_value, bool sign_displayed);
 Vector<DurationFormatPart> format_numeric_minutes(VM&, DurationFormat const&, double minutes_value, bool hours_displayed, bool sign_displayed);
 Vector<DurationFormatPart> format_numeric_seconds(VM&, DurationFormat const&, double seconds_value, bool minutes_displayed, bool sign_displayed);
-Vector<DurationFormatPart> format_numeric_units(VM&, DurationFormat const&, Temporal::DurationRecord const&, StringView first_numeric_unit, bool sign_displayed);
+Vector<DurationFormatPart> format_numeric_units(VM&, DurationFormat const&, DurationRecord const&, StringView first_numeric_unit, bool sign_displayed);
 Vector<DurationFormatPart> list_format_parts(VM&, DurationFormat const&, Vector<Vector<DurationFormatPart>>& partitioned_parts_list);
-Vector<DurationFormatPart> partition_duration_format_pattern(VM&, DurationFormat const&, Temporal::DurationRecord const&);
+Vector<DurationFormatPart> partition_duration_format_pattern(VM&, DurationFormat const&, DurationRecord const&);
 
 }
