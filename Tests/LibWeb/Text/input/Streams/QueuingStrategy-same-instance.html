@@ -1,0 +1,10 @@
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        for (const QueuingStrategy of [CountQueuingStrategy, ByteLengthQueuingStrategy]) {
+            const size1 = (new QueuingStrategy({ highWaterMark: 5 })).size;
+            const size2 = (new QueuingStrategy({ highWaterMark: 10 })).size;
+            println(`${QueuingStrategy.name} | size1 === size2 -> ${size1 === size2}`);
+        }
+    })
+</script>
