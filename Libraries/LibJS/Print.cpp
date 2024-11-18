@@ -47,6 +47,7 @@
 #include <LibJS/Runtime/Shape.h>
 #include <LibJS/Runtime/StringObject.h>
 #include <LibJS/Runtime/StringPrototype.h>
+#include <LibJS/Runtime/Temporal/Duration.h>
 #include <LibJS/Runtime/TypedArray.h>
 #include <LibJS/Runtime/Value.h>
 #include <LibJS/Runtime/WeakMap.h>
@@ -827,6 +828,13 @@ ErrorOr<void> print_intl_duration_format(JS::PrintContext& print_context, JS::In
     return {};
 }
 
+ErrorOr<void> print_temporal_duration(JS::PrintContext& print_context, JS::Temporal::Duration const& duration, HashTable<JS::Object*>&)
+{
+    TRY(print_type(print_context, "Temporal.Duration"sv));
+    TRY(js_out(print_context, " \033[34;1m{} y, {} M, {} w, {} d, {} h, {} m, {} s, {} ms, {} us, {} ns\033[0m", duration.years(), duration.months(), duration.weeks(), duration.days(), duration.hours(), duration.minutes(), duration.seconds(), duration.milliseconds(), duration.microseconds(), duration.nanoseconds()));
+    return {};
+}
+
 ErrorOr<void> print_boolean_object(JS::PrintContext& print_context, JS::BooleanObject const& boolean_object, HashTable<JS::Object*>& seen_objects)
 {
     TRY(print_type(print_context, "Boolean"sv));
@@ -942,6 +950,8 @@ ErrorOr<void> print_value(JS::PrintContext& print_context, JS::Value value, Hash
             return print_intl_segments(print_context, static_cast<JS::Intl::Segments&>(object), seen_objects);
         if (is<JS::Intl::DurationFormat>(object))
             return print_intl_duration_format(print_context, static_cast<JS::Intl::DurationFormat&>(object), seen_objects);
+        if (is<JS::Temporal::Duration>(object))
+            return print_temporal_duration(print_context, static_cast<JS::Temporal::Duration&>(object), seen_objects);
         return print_object(print_context, object, seen_objects);
     }
 
