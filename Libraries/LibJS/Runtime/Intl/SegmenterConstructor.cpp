@@ -60,7 +60,7 @@ ThrowCompletionOr<GC::Ref<Object>> SegmenterConstructor::construct(FunctionObjec
     auto requested_locales = TRY(canonicalize_locale_list(vm, locales));
 
     // 5. Set options to ? GetOptionsObject(options).
-    auto* options = TRY(Temporal::get_options_object(vm, options_value));
+    auto options = TRY(Temporal::get_options_object(vm, options_value));
 
     // 6. Let opt be a new Record.
     LocaleOptions opt {};

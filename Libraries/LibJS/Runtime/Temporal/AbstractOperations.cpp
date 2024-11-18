@@ -13,20 +13,20 @@
 namespace JS::Temporal {
 
 // 14.4.1.1 GetOptionsObject ( options ), https://tc39.es/proposal-temporal/#sec-getoptionsobject
-ThrowCompletionOr<Object*> get_options_object(VM& vm, Value options)
+ThrowCompletionOr<GC::Ref<Object>> get_options_object(VM& vm, Value options)
 {
     auto& realm = *vm.current_realm();
 
     // 1. If options is undefined, then
     if (options.is_undefined()) {
         // a. Return OrdinaryObjectCreate(null).
-        return Object::create(realm, nullptr).ptr();
+        return Object::create(realm, nullptr);
     }
 
     // 2. If options is an Object, then
     if (options.is_object()) {
         // a. Return options.
-        return &options.as_object();
+        return options.as_object();
     }
 
     // 3. Throw a TypeError exception.

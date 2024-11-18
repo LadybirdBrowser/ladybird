@@ -59,7 +59,7 @@ ThrowCompletionOr<GC::Ref<Object>> ListFormatConstructor::construct(FunctionObje
     auto requested_locales = TRY(canonicalize_locale_list(vm, locale_value));
 
     // 4. Set options to ? GetOptionsObject(options).
-    auto* options = TRY(Temporal::get_options_object(vm, options_value));
+    auto options = TRY(Temporal::get_options_object(vm, options_value));
 
     // 5. Let opt be a new Record.
     LocaleOptions opt {};
