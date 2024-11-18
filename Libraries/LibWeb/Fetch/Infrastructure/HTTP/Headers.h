@@ -93,7 +93,7 @@ struct ExtractHeaderParseFailure {
 [[nodiscard]] bool is_request_body_header_name(ReadonlyBytes);
 [[nodiscard]] Optional<Vector<ByteBuffer>> extract_header_values(Header const&);
 [[nodiscard]] Variant<Vector<ByteBuffer>, ExtractHeaderParseFailure, Empty> extract_header_list_values(ReadonlyBytes, HeaderList const&);
-[[nodiscard]] Optional<RangeHeaderValue> parse_single_range_header_value(ReadonlyBytes);
+[[nodiscard]] Optional<RangeHeaderValue> parse_single_range_header_value(ReadonlyBytes, bool);
 [[nodiscard]] ByteBuffer default_user_agent_value();
 
 }
