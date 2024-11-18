@@ -25,8 +25,8 @@ Color CSSHWB::to_color(Optional<Layout::NodeWithStyle const&>) const
         return Color(gray, gray, gray, to_byte(alpha_val));
     }
 
-    float value = 1 - b_val;
-    float saturation = 1 - (w_val / value);
+    auto value = 1 - b_val;
+    auto saturation = 1 - (w_val / value);
     return Color::from_hsv(h_val, saturation, value).with_opacity(alpha_val);
 }
 
