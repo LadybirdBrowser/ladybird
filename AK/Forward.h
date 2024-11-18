@@ -22,10 +22,14 @@ class StringData;
 
 enum class TrailingCodePointTransformation : u8;
 
+class AsciiChar;
+class AsciiStringView;
 class BigEndianInputBitStream;
 class BigEndianOutputBitStream;
 class Bitmap;
 using ByteBuffer = Detail::ByteBuffer<32>;
+class ByteString;
+class ByteStringCodePointIterator;
 class CircularBuffer;
 class ConstrainedStream;
 class CountingStream;
@@ -49,16 +53,29 @@ class Stream;
 class StringBuilder;
 class StringImpl;
 class StringView;
+template<typename>
+class UnicodeCodePointIterator;
+template<typename>
+class UnicodeCodePointReversedIterator;
 class UnixDateTime;
 class Wtf16ByteView;
 class Utf32CodePointIterator;
 class Utf32View;
+class Utf8CodePointIterator;
+class Utf8FlyString;
+class Utf8String;
+class Utf8View;
+class Wtf16View;
+class Wtf32View;
 class Wtf8ByteView;
+class Wtf8CodePointIterator;
 class Wtf8FlyString;
 class Wtf8String;
-class Utf8CodePointIterator;
+class Wtf8View;
 
+// DEPRECATED: Use `Utf8String` or `Wtf8String` instead, depending on context
 using String = Wtf8String;
+// DEPRECATED: Use `Utf8FlyString` or `Wtf8FlyString` instead, depending on context
 using FlyString = Wtf8FlyString;
 
 template<typename T>
@@ -160,6 +177,7 @@ using AK::Bitmap;
 using AK::ByteBuffer;
 using AK::Bytes;
 using AK::ByteString;
+using AK::ByteStringCodePointIterator;
 using AK::CircularBuffer;
 using AK::CircularQueue;
 using AK::ConstrainedStream;
@@ -200,12 +218,19 @@ using AK::StringImpl;
 using AK::StringView;
 using AK::TrailingCodePointTransformation;
 using AK::Traits;
+using AK::UnicodeCodePointIterator;
+using AK::UnicodeCodePointReversedIterator;
 using AK::UnixDateTime;
-using AK::Wtf16ByteView;
 using AK::Utf32CodePointIterator;
 using AK::Utf32View;
 using AK::Utf8CodePointIterator;
+using AK::Utf8View;
 using AK::Vector;
+using AK::Wtf16ByteView;
+using AK::Wtf16View;
+using AK::Wtf32View;
 using AK::Wtf8ByteView;
+using AK::Wtf8String;
+using AK::Wtf8View;
 
 #endif

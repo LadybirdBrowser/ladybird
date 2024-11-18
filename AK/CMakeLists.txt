@@ -30,6 +30,7 @@ set(SOURCES
     StringView.cpp
     Time.cpp
     Utf32View.cpp
+    Utf8String.cpp
     Wtf16ByteView.cpp
     Wtf8ByteView.cpp
     Wtf8FlyString.cpp

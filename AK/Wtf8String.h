@@ -20,9 +20,11 @@
 #include <AK/StringView.h>
 #include <AK/Traits.h>
 #include <AK/Types.h>
+#include <AK/UnicodeCodePointView.h>
 #include <AK/UnicodeUtils.h>
 #include <AK/Vector.h>
 #include <AK/Wtf8ByteView.h>
+#include <AK/Wtf8View.h>
 
 namespace AK {
 
@@ -38,15 +40,17 @@ namespace AK {
 // Wtf8String is a strongly owned sequence of Unicode code points encoded as WTF-8.
 // The data may or may not be heap-allocated, and may or may not be reference counted.
 // There is no guarantee that the underlying bytes are null-terminated.
-class Wtf8String : public Detail::StringBase {
-    AK_MAKE_DEFAULT_COPYABLE(Wtf8String);
-    AK_MAKE_DEFAULT_MOVABLE(Wtf8String);
-
+class Wtf8String : public UnicodeCodePointIterableBase<Wtf8String, Wtf8View, Detail::StringBase> {
 public:
+    Wtf8View unicode_code_point_view() const&
+    {
+        return Wtf8View::from_string_view_unchecked(bytes_as_string_view());
+    }
+
     // NOTE: For short strings, we avoid heap allocations by storing them in the data pointer slot.
     static constexpr size_t MAX_SHORT_STRING_BYTE_COUNT = Detail::MAX_SHORT_STRING_BYTE_COUNT;
 
-    using StringBase::StringBase;
+    using UnicodeCodePointIterableBase::UnicodeCodePointIterableBase;
 
     // Creates a new Wtf8String from a sequence of WTF-8 encoded code points.
     static ErrorOr<Wtf8String> from_wtf8(StringView);
@@ -75,10 +79,19 @@ public:
     static ErrorOr<Wtf8String> from_stream(Stream&, size_t byte_count);
 
     // Creates a new Wtf8String from a single code point.
-    static constexpr Wtf8String from_code_point(u32 code_point)
+    static constexpr Wtf8String from_code_point(AsciiChar code_point)
     {
-        VERIFY(is_unicode(code_point));
+        Wtf8String string;
+        string.replace_with_new_short_string(1, [&](Bytes buffer) {
+            buffer[0] = code_point;
+        });
 
+        return string;
+    }
+
+    // Creates a new Wtf8String from a single code point.
+    static constexpr Wtf8String from_code_point(UnicodeCodePoint code_point)
+    {
         Wtf8String string;
         string.replace_with_new_short_string(UnicodeUtils::bytes_to_store_code_point_in_utf8(code_point), [&](Bytes buffer) {
             size_t i = 0;
@@ -88,6 +101,12 @@ public:
         });
 
         return string;
+    }
+
+    // Creates a new Wtf8String from a single code point.
+    static constexpr Wtf8String from_code_point(u32 code_point)
+    {
+        return from_code_point(UnicodeCodePoint::checked(code_point));
     }
 
     // Creates a new Wtf8String with a single code point repeated N times.
@@ -218,12 +237,12 @@ private:
     using ShortString = Detail::ShortString;
 
     explicit constexpr Wtf8String(StringBase&& base)
-        : StringBase(move(base))
+        : UnicodeCodePointIterableBase(move(base))
     {
     }
 
     explicit constexpr Wtf8String(nullptr_t)
-        : StringBase(nullptr)
+        : UnicodeCodePointIterableBase(nullptr)
     {
     }
 };

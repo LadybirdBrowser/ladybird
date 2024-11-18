@@ -71,7 +71,7 @@ public:
     [[nodiscard]] constexpr char const* characters_without_null_termination() const { return m_characters; }
     [[nodiscard]] constexpr size_t length() const { return m_length; }
 
-    [[nodiscard]] ReadonlyBytes bytes() const { return { m_characters, m_length }; }
+    [[nodiscard]] constexpr ReadonlyBytes bytes() const { return { bit_cast<u8 const*>(m_characters), m_length }; }
 
     constexpr char const& operator[](size_t index) const
     {

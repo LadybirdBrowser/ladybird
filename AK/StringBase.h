@@ -72,7 +72,8 @@ public:
 
     [[nodiscard]] bool operator==(StringBase const&) const;
 
-    [[nodiscard]] ALWAYS_INLINE FlatPtr raw(Badge<FlyString>) const { return bit_cast<FlatPtr>(m_data); }
+    [[nodiscard]] ALWAYS_INLINE FlatPtr raw(Badge<Wtf8FlyString>) const { return bit_cast<FlatPtr>(m_data); }
+    [[nodiscard]] ALWAYS_INLINE FlatPtr raw(Badge<Utf8FlyString>) const { return bit_cast<FlatPtr>(m_data); }
 
 protected:
     bool is_invalid() const { return m_invalid_tag == UINTPTR_MAX; }
@@ -101,6 +102,8 @@ protected:
     ErrorOr<StringBase> substring_from_byte_offset_with_shared_superstring(size_t start, size_t byte_count) const;
 
 private:
+    friend class ::AK::Utf8FlyString;
+    friend class ::AK::Utf8String;
     friend class ::AK::Wtf8FlyString;
     friend class ::AK::Wtf8String;
 

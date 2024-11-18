@@ -14,6 +14,7 @@
 #include <AK/Forward.h>
 #include <AK/Optional.h>
 #include <AK/StringView.h>
+#include <AK/UnicodeCodePoint.h>
 #include <stdio.h>
 #include <string.h>
 
@@ -169,6 +170,8 @@ public:
         : m_builder(builder)
     {
     }
+
+    ErrorOr<void> put_code_point(u32 code_point);
 
     ErrorOr<void> put_padding(char fill, size_t amount);
 
@@ -513,8 +516,20 @@ struct Formatter<T*> : StandardFormatter {
 };
 
 template<>
+struct Formatter<UnicodeCodePoint> : StandardFormatter {
+    ErrorOr<void> format(FormatBuilder&, UnicodeCodePoint);
+};
+
+template<>
+struct Formatter<AsciiChar> : Formatter<UnicodeCodePoint> { };
+
+template<>
 struct Formatter<char> : StandardFormatter {
     ErrorOr<void> format(FormatBuilder&, char);
+};
+template<>
+struct Formatter<char8_t> : StandardFormatter {
+    ErrorOr<void> format(FormatBuilder&, char8_t);
 };
 template<>
 struct Formatter<wchar_t> : StandardFormatter {

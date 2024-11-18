@@ -170,6 +170,20 @@ bool Wtf8ByteView::validate(size_t& valid_bytes, AllowSurrogates allow_surrogate
     return result.error == simdutf::SUCCESS;
 }
 
+ErrorOr<Wtf8View> Wtf8ByteView::validate_wtf8() const
+{
+    if (!validate(AllowSurrogates::Yes))
+        return Error::from_string_literal("Wtf8ByteView::validate_wtf8: Input was not valid WTF-8");
+    return Wtf8View::from_string_view_unchecked(m_string);
+}
+
+ErrorOr<Utf8View> Wtf8ByteView::validate_utf8() const
+{
+    if (!validate(AllowSurrogates::No))
+        return Error::from_string_literal("Wtf8ByteView::validate_utf8: Input was not valid UTF-8");
+    return Utf8View::from_string_view_unchecked(m_string);
+}
+
 Optional<u32> Utf8CodePointIterator::peek(size_t offset) const
 {
     if (offset == 0) {

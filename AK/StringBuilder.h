@@ -14,6 +14,21 @@
 
 namespace AK {
 
+template<typename T>
+ErrorOr<T> string_builder_to(StringBuilder&& builder) = delete;
+
+template<>
+ErrorOr<String> string_builder_to<String>(StringBuilder&& builder);
+
+template<>
+ErrorOr<FlyString> string_builder_to<FlyString>(StringBuilder&& builder);
+
+template<>
+ErrorOr<ByteString> string_builder_to<ByteString>(StringBuilder&& builder);
+
+template<>
+ErrorOr<ByteBuffer> string_builder_to<ByteBuffer>(StringBuilder&& builder);
+
 class StringBuilder {
 public:
     static constexpr size_t inline_capacity = 256;
@@ -31,8 +46,9 @@ public:
     ErrorOr<void> try_append(StringView);
     ErrorOr<void> try_append(Wtf16ByteView const&);
     ErrorOr<void> try_append(Utf32View const&);
-    ErrorOr<void> try_append_code_point(u32);
     ErrorOr<void> try_append(char);
+    ErrorOr<void> try_append(UnicodeCodePoint);
+    ErrorOr<void> try_append_code_point(u32);
     template<typename... Parameters>
     ErrorOr<void> try_appendff(CheckedFormatString<Parameters...>&& fmtstr, Parameters const&... parameters)
     {
@@ -43,16 +59,31 @@ public:
     ErrorOr<void> try_append_repeated(char, size_t);
     ErrorOr<void> try_append_repeated(StringView, size_t);
     ErrorOr<void> try_append_escaped_for_json(StringView);
+    ErrorOr<void> try_append(IterableContainerOf<UnicodeCodePoint> auto const& view)
+    {
+        if constexpr (requires { { view.length_without_side_effects() } -> ConvertibleTo<Optional<size_t>>; }) {
+            if (auto length = view.length_without_side_effects(); length.has_value())
+                TRY(will_append(length.value()));
+        }
+        for (auto cp : view)
+            TRY(try_append_code_point(cp));
+        return {};
+    }
 
     void append(StringView);
     void append(Wtf16ByteView const&);
     void append(Utf32View const&);
     void append(char);
+    void append(UnicodeCodePoint);
     void append_code_point(u32);
     void append(char const*, size_t);
     void appendvf(char const*, va_list);
     void append_repeated(char, size_t);
     void append_repeated(StringView, size_t);
+    void append(IterableContainerOf<UnicodeCodePoint> auto const& view)
+    {
+        MUST(try_append(view));
+    }
 
     void append_as_lowercase(char);
     void append_escaped_for_json(StringView);
@@ -76,6 +107,12 @@ public:
 
     [[nodiscard]] StringView string_view() const;
     void clear();
+
+    template<typename T>
+    ErrorOr<T> to() &&
+    {
+        return string_builder_to<T>();
+    }
 
     [[nodiscard]] size_t length() const;
     [[nodiscard]] bool is_empty() const;

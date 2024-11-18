@@ -97,6 +97,11 @@ ErrorOr<void> StringBuilder::try_append(char ch)
     return {};
 }
 
+ErrorOr<void> StringBuilder::try_append(UnicodeCodePoint cp)
+{
+    return try_append_code_point(cp);
+}
+
 ErrorOr<void> StringBuilder::try_append_repeated(char ch, size_t n)
 {
     TRY(will_append(n));
@@ -133,6 +138,11 @@ void StringBuilder::append(char const* characters, size_t length)
 void StringBuilder::append(char ch)
 {
     MUST(try_append(ch));
+}
+
+void StringBuilder::append(UnicodeCodePoint cp)
+{
+    MUST(try_append(cp));
 }
 
 void StringBuilder::append_repeated(char ch, size_t n)
@@ -374,6 +384,30 @@ auto StringBuilder::leak_buffer_for_string_construction(Badge<Detail::StringData
     }
 
     return {};
+}
+
+template<>
+ErrorOr<String> string_builder_to<String>(StringBuilder&& builder)
+{
+    return builder.to_string();
+}
+
+template<>
+ErrorOr<FlyString> string_builder_to<FlyString>(StringBuilder&& builder)
+{
+    return builder.to_fly_string();
+}
+
+template<>
+ErrorOr<ByteString> string_builder_to<ByteString>(StringBuilder&& builder)
+{
+    return builder.to_byte_string();
+}
+
+template<>
+ErrorOr<ByteBuffer> string_builder_to<ByteBuffer>(StringBuilder&& builder)
+{
+    return builder.to_byte_buffer();
 }
 
 }

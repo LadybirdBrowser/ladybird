@@ -199,6 +199,20 @@ bool FormatParser::consume_replacement_field(size_t& index)
     return true;
 }
 
+ErrorOr<void> FormatBuilder::put_code_point(u32 code_point)
+{
+    TRY(UnicodeUtils::try_code_point_to_utf8_lossy(
+        code_point,
+        [this](char code_unit) {
+            return m_builder.try_append(code_unit);
+        },
+        [this](size_t n) {
+            return m_builder.will_append(n);
+        }));
+
+    return {};
+}
+
 ErrorOr<void> FormatBuilder::put_padding(char fill, size_t amount)
 {
     for (size_t i = 0; i < amount; ++i)
@@ -950,6 +964,16 @@ ErrorOr<void> Formatter<T>::format(FormatBuilder& builder, T value)
         return builder.put_i64(value, base, m_alternative_form, upper_case, m_zero_pad, m_use_separator, m_align, m_width.value(), m_fill, m_sign_mode);
 }
 
+ErrorOr<void> Formatter<UnicodeCodePoint>::format(FormatBuilder& builder, UnicodeCodePoint value)
+{
+    if (m_mode == Mode::Binary || m_mode == Mode::BinaryUppercase || m_mode == Mode::Decimal || m_mode == Mode::Octal || m_mode == Mode::Hexadecimal || m_mode == Mode::HexadecimalUppercase) {
+        Formatter<u32> formatter { *this };
+        return formatter.format(builder, static_cast<u32>(value));
+    } else {
+        return builder.put_code_point(value);
+    }
+}
+
 ErrorOr<void> Formatter<char>::format(FormatBuilder& builder, char value)
 {
     if (m_mode == Mode::Binary || m_mode == Mode::BinaryUppercase || m_mode == Mode::Decimal || m_mode == Mode::Octal || m_mode == Mode::Hexadecimal || m_mode == Mode::HexadecimalUppercase) {
@@ -959,6 +983,16 @@ ErrorOr<void> Formatter<char>::format(FormatBuilder& builder, char value)
     } else {
         Formatter<StringView> formatter { *this };
         return formatter.format(builder, { &value, 1 });
+    }
+}
+ErrorOr<void> Formatter<char8_t>::format(FormatBuilder& builder, char8_t value)
+{
+    if (m_mode == Mode::Binary || m_mode == Mode::BinaryUppercase || m_mode == Mode::Decimal || m_mode == Mode::Octal || m_mode == Mode::Hexadecimal || m_mode == Mode::HexadecimalUppercase) {
+        Formatter<u8> formatter { *this };
+        return formatter.format(builder, static_cast<u8>(value));
+    } else {
+        Formatter<StringView> formatter { *this };
+        return formatter.format(builder, { reinterpret_cast<u8 const*>(&value), 1 });
     }
 }
 ErrorOr<void> Formatter<wchar_t>::format(FormatBuilder& builder, wchar_t value)

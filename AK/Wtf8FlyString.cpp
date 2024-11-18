@@ -122,7 +122,7 @@ StringView Wtf8FlyString::bytes_as_string_view() const
 
 bool Wtf8FlyString::operator==(String const& other) const
 {
-    return m_data == other;
+    return m_data == static_cast<Detail::StringBase const&>(other);
 }
 
 bool Wtf8FlyString::operator==(StringView string) const

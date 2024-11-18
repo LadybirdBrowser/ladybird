@@ -13,6 +13,8 @@
 #include <AK/Function.h>
 #include <AK/StringView.h>
 #include <AK/Types.h>
+#include <AK/Utf8View.h>
+#include <AK/Wtf8View.h>
 
 namespace AK {
 
@@ -139,6 +141,10 @@ public:
     }
 
     bool validate(size_t& valid_bytes, AllowSurrogates allow_surrogates = AllowSurrogates::Yes) const;
+
+    ErrorOr<Wtf8View> validate_wtf8() const;
+
+    ErrorOr<Utf8View> validate_utf8() const;
 
     template<typename Callback>
     auto for_each_split_view(Function<bool(u32)> splitter, SplitBehavior split_behavior, Callback callback) const
