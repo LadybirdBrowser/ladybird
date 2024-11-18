@@ -1074,6 +1074,12 @@ inline ThrowCompletionOr<Value> get_by_value(VM& vm, Optional<IdentifierTableInd
                     return fast_typed_array_get_element<i32>(typed_array, index);
                 case TypedArrayBase::Kind::Uint8ClampedArray:
                     return fast_typed_array_get_element<u8>(typed_array, index);
+                case TypedArrayBase::Kind::Float16Array:
+                    return fast_typed_array_get_element<f16>(typed_array, index);
+                case TypedArrayBase::Kind::Float32Array:
+                    return fast_typed_array_get_element<float>(typed_array, index);
+                case TypedArrayBase::Kind::Float64Array:
+                    return fast_typed_array_get_element<double>(typed_array, index);
                 default:
                     // FIXME: Support more TypedArray kinds.
                     break;
@@ -1312,33 +1318,49 @@ inline ThrowCompletionOr<void> put_by_value(VM& vm, Value base, Optional<Depreca
             auto& typed_array = static_cast<TypedArrayBase&>(object);
             auto canonical_index = CanonicalIndex { CanonicalIndex::Type::Index, index };
 
-            if (value.is_int32() && is_valid_integer_index(typed_array, canonical_index)) {
-                switch (typed_array.kind()) {
-                case TypedArrayBase::Kind::Uint8Array:
-                    fast_typed_array_set_element<u8>(typed_array, index, static_cast<u8>(value.as_i32()));
-                    return {};
-                case TypedArrayBase::Kind::Uint16Array:
-                    fast_typed_array_set_element<u16>(typed_array, index, static_cast<u16>(value.as_i32()));
-                    return {};
-                case TypedArrayBase::Kind::Uint32Array:
-                    fast_typed_array_set_element<u32>(typed_array, index, static_cast<u32>(value.as_i32()));
-                    return {};
-                case TypedArrayBase::Kind::Int8Array:
-                    fast_typed_array_set_element<i8>(typed_array, index, static_cast<i8>(value.as_i32()));
-                    return {};
-                case TypedArrayBase::Kind::Int16Array:
-                    fast_typed_array_set_element<i16>(typed_array, index, static_cast<i16>(value.as_i32()));
-                    return {};
-                case TypedArrayBase::Kind::Int32Array:
-                    fast_typed_array_set_element<i32>(typed_array, index, value.as_i32());
-                    return {};
-                case TypedArrayBase::Kind::Uint8ClampedArray:
-                    fast_typed_array_set_element<u8>(typed_array, index, clamp(value.as_i32(), 0, 255));
-                    return {};
-                default:
-                    // FIXME: Support more TypedArray kinds.
-                    break;
+            if (is_valid_integer_index(typed_array, canonical_index)) {
+                if (value.is_int32()) {
+                    switch (typed_array.kind()) {
+                    case TypedArrayBase::Kind::Uint8Array:
+                        fast_typed_array_set_element<u8>(typed_array, index, static_cast<u8>(value.as_i32()));
+                        return {};
+                    case TypedArrayBase::Kind::Uint16Array:
+                        fast_typed_array_set_element<u16>(typed_array, index, static_cast<u16>(value.as_i32()));
+                        return {};
+                    case TypedArrayBase::Kind::Uint32Array:
+                        fast_typed_array_set_element<u32>(typed_array, index, static_cast<u32>(value.as_i32()));
+                        return {};
+                    case TypedArrayBase::Kind::Int8Array:
+                        fast_typed_array_set_element<i8>(typed_array, index, static_cast<i8>(value.as_i32()));
+                        return {};
+                    case TypedArrayBase::Kind::Int16Array:
+                        fast_typed_array_set_element<i16>(typed_array, index, static_cast<i16>(value.as_i32()));
+                        return {};
+                    case TypedArrayBase::Kind::Int32Array:
+                        fast_typed_array_set_element<i32>(typed_array, index, value.as_i32());
+                        return {};
+                    case TypedArrayBase::Kind::Uint8ClampedArray:
+                        fast_typed_array_set_element<u8>(typed_array, index, clamp(value.as_i32(), 0, 255));
+                        return {};
+                    default:
+                        break;
+                    }
+                } else if (value.is_double()) {
+                    switch (typed_array.kind()) {
+                    case TypedArrayBase::Kind::Float16Array:
+                        fast_typed_array_set_element<f16>(typed_array, index, static_cast<f16>(value.as_double()));
+                        return {};
+                    case TypedArrayBase::Kind::Float32Array:
+                        fast_typed_array_set_element<float>(typed_array, index, static_cast<float>(value.as_double()));
+                        return {};
+                    case TypedArrayBase::Kind::Float64Array:
+                        fast_typed_array_set_element<double>(typed_array, index, value.as_double());
+                        return {};
+                    default:
+                        break;
+                    }
                 }
+                // FIXME: Support more TypedArray kinds.
             }
 
             if (typed_array.kind() == TypedArrayBase::Kind::Uint32Array && value.is_integral_number()) {
