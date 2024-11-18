@@ -42,6 +42,7 @@ void DurationPrototype::initialize(Realm& realm)
     define_native_function(realm, vm.names.add, add, 1, attr);
     define_native_function(realm, vm.names.subtract, subtract, 1, attr);
     define_native_function(realm, vm.names.round, round, 1, attr);
+    define_native_function(realm, vm.names.total, total, 1, attr);
     define_native_function(realm, vm.names.toString, to_string, 0, attr);
     define_native_function(realm, vm.names.toJSON, to_json, 0, attr);
     define_native_function(realm, vm.names.toLocaleString, to_locale_string, 0, attr);
@@ -409,6 +410,95 @@ JS_DEFINE_NATIVE_FUNCTION(DurationPrototype::round)
 
     // 33. Return ? TemporalDurationFromInternal(internalDuration, largestUnit).
     return TRY(temporal_duration_from_internal(vm, internal_duration, largest_unit_value));
+}
+
+// 7.3.21 Temporal.Duration.prototype.total ( totalOf ), https://tc39.es/proposal-temporal/#sec-temporal.duration.prototype.total
+JS_DEFINE_NATIVE_FUNCTION(DurationPrototype::total)
+{
+    auto& realm = *vm.current_realm();
+
+    auto total_of_value = vm.argument(0);
+
+    // 1. Let duration be the this value.
+    // 2. Perform ? RequireInternalSlot(duration, [[InitializedTemporalDuration]]).
+    auto duration = TRY(typed_this_object(vm));
+
+    // 3. If totalOf is undefined, throw a TypeError exception.
+    if (total_of_value.is_undefined())
+        return vm.throw_completion<TypeError>(ErrorType::IsUndefined, "totalOf"sv);
+
+    GC::Ptr<Object> total_of;
+
+    // 4. If totalOf is a String, then
+    if (total_of_value.is_string()) {
+        // a. Let paramString be totalOf.
+        auto param_string = total_of_value;
+
+        // b. Set totalOf to OrdinaryObjectCreate(null).
+        total_of = Object::create(realm, nullptr);
+
+        // c. Perform ! CreateDataPropertyOrThrow(totalOf, "unit", paramString).
+        MUST(total_of->create_data_property_or_throw(vm.names.unit, param_string));
+    }
+    // 5. Else,
+    else {
+        // a. Set totalOf to ? GetOptionsObject(totalOf).
+        total_of = TRY(get_options_object(vm, total_of_value));
+    }
+
+    // 6. NOTE: The following steps read options and perform independent validation in alphabetical order
+    //    (GetTemporalRelativeToOption reads "relativeTo").
+
+    // 7. Let relativeToRecord be ? GetTemporalRelativeToOption(totalOf).
+    // 8. Let zonedRelativeTo be relativeToRecord.[[ZonedRelativeTo]].
+    // 9. Let plainRelativeTo be relativeToRecord.[[PlainRelativeTo]].
+    auto [zoned_relative_to, plain_relative_to] = TRY(get_temporal_relative_to_option(vm, *total_of));
+
+    // 10. Let unit be ? GetTemporalUnitValuedOption(totalOf, "unit", DATETIME, REQUIRED).
+    auto unit = TRY(get_temporal_unit_valued_option(vm, *total_of, vm.names.unit, UnitGroup::DateTime, Required {})).get<Unit>();
+
+    double total = 0;
+
+    // 11. If zonedRelativeTo is not undefined, then
+    if (zoned_relative_to) {
+        // FIXME: a. Let internalDuration be ToInternalDurationRecord(duration).
+        // FIXME: b. Let timeZone be zonedRelativeTo.[[TimeZone]].
+        // FIXME: c. Let calendar be zonedRelativeTo.[[Calendar]].
+        // FIXME: d. Let relativeEpochNs be zonedRelativeTo.[[EpochNanoseconds]].
+        // FIXME: e. Let targetEpochNs be ? AddZonedDateTime(relativeEpochNs, timeZone, calendar, internalDuration, constrain).
+        // FIXME: f. Let total be ? DifferenceZonedDateTimeWithTotal(relativeEpochNs, targetEpochNs, timeZone, calendar, unit).
+    }
+    // 12. Else if plainRelativeTo is not undefined, then
+    else if (plain_relative_to) {
+        // FIXME: a. Let internalDuration be ToInternalDurationRecordWith24HourDays(duration).
+        // FIXME: b. Let targetTime be AddTime(MidnightTimeRecord(), internalDuration.[[Time]]).
+        // FIXME: c. Let calendar be plainRelativeTo.[[Calendar]].
+        // FIXME: d. Let dateDuration be ! AdjustDateDurationRecord(internalDuration.[[Date]], targetTime.[[Days]]).
+        // FIXME: e. Let targetDate be ? CalendarDateAdd(calendar, plainRelativeTo.[[ISODate]], dateDuration, constrain).
+        // FIXME: f. Let isoDateTime be CombineISODateAndTimeRecord(plainRelativeTo.[[ISODate]], MidnightTimeRecord()).
+        // FIXME: g. Let targetDateTime be CombineISODateAndTimeRecord(targetDate, targetTime).
+        // FIXME: h. Let total be ? DifferencePlainDateTimeWithTotal(isoDateTime, targetDateTime, calendar, unit).
+    }
+    // 13. Else,
+    else {
+        // a. Let largestUnit be DefaultTemporalLargestUnit(duration).
+        auto largest_unit = default_temporal_largest_unit(duration);
+
+        // b. If IsCalendarUnit(largestUnit) is true, or IsCalendarUnit(unit) is true, throw a RangeError exception.
+        if (is_calendar_unit(largest_unit))
+            return vm.throw_completion<RangeError>(ErrorType::TemporalInvalidLargestUnit, temporal_unit_to_string(largest_unit));
+        if (is_calendar_unit(unit))
+            return vm.throw_completion<RangeError>(ErrorType::TemporalInvalidLargestUnit, temporal_unit_to_string(unit));
+
+        // c. Let internalDuration be ToInternalDurationRecordWith24HourDays(duration).
+        auto internal_duration = to_internal_duration_record_with_24_hour_days(vm, duration);
+
+        // d. Let total be TotalTimeDuration(internalDuration.[[Time]], unit).
+        total = total_time_duration(internal_duration.time, unit);
+    }
+
+    // 14. Return 𝔽(total).
+    return total;
 }
 
 // 7.3.22 Temporal.Duration.prototype.toString ( [ options ] ), https://tc39.es/proposal-temporal/#sec-temporal.duration.prototype.tostring
