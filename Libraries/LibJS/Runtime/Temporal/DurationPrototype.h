@@ -27,6 +27,9 @@ private:
     JS_DECLARE_NATIVE_FUNCTION(unit##_getter);
     JS_ENUMERATE_DURATION_UNITS
 #undef __JS_ENUMERATE
+
+    JS_DECLARE_NATIVE_FUNCTION(sign_getter);
+    JS_DECLARE_NATIVE_FUNCTION(blank_getter);
 };
 
 }
