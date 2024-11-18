@@ -32,8 +32,6 @@ WebIDL::ExceptionOr<GC::Ref<DecompressionStream>> DecompressionStream::construct
     auto decompressor = [&, input_stream = MaybeOwned<Stream> { *input_stream }]() mutable -> ErrorOr<Decompressor> {
         switch (format) {
         case Bindings::CompressionFormat::Deflate:
-            // FIXME: Our zlib decompressor assumes the initial data contains the zlib header. We don't have any data yet,
-            //        so this will always fail.
             return TRY(Compress::ZlibDecompressor::create(move(input_stream)));
         case Bindings::CompressionFormat::DeflateRaw:
             return TRY(Compress::DeflateDecompressor::construct(make<LittleEndianInputBitStream>(move(input_stream))));

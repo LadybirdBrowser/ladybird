@@ -55,10 +55,10 @@ public:
     virtual void close() override;
 
 private:
-    ZlibDecompressor(ZlibHeader, NonnullOwnPtr<Stream>);
+    ZlibDecompressor(MaybeOwned<Stream>);
 
-    ZlibHeader m_header;
-    NonnullOwnPtr<Stream> m_stream;
+    bool m_has_seen_header { false };
+    MaybeOwned<Stream> m_stream;
 };
 
 class ZlibCompressor : public Stream {
