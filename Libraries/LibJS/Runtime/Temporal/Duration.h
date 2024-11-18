@@ -102,6 +102,8 @@ struct InternalDuration {
 
 DateDuration zero_date_duration(VM&);
 InternalDuration to_internal_duration_record(VM&, Duration const&);
+InternalDuration to_internal_duration_record_with_24_hour_days(VM&, Duration const&);
+ThrowCompletionOr<GC::Ref<Duration>> temporal_duration_from_internal(VM&, InternalDuration const&, Unit largest_unit);
 ThrowCompletionOr<DateDuration> create_date_duration_record(VM&, double years, double months, double weeks, double days);
 ThrowCompletionOr<InternalDuration> combine_date_and_time_duration(VM&, DateDuration, TimeDuration);
 ThrowCompletionOr<GC::Ref<Duration>> to_temporal_duration(VM&, Value);
@@ -111,9 +113,12 @@ bool is_valid_duration(double years, double months, double weeks, double days, d
 Unit default_temporal_largest_unit(Duration const&);
 ThrowCompletionOr<PartialDuration> to_temporal_partial_duration_record(VM&, Value temporal_duration_like);
 ThrowCompletionOr<GC::Ref<Duration>> create_temporal_duration(VM&, double years, double months, double weeks, double days, double hours, double minutes, double seconds, double milliseconds, double microseconds, double nanoseconds, GC::Ptr<FunctionObject> new_target = {});
+GC::Ref<Duration> create_negated_temporal_duration(VM&, Duration const&);
 TimeDuration time_duration_from_components(double hours, double minutes, double seconds, double milliseconds, double microseconds, double nanoseconds);
+ThrowCompletionOr<TimeDuration> add_time_duration(VM&, TimeDuration const&, TimeDuration const&);
 ThrowCompletionOr<TimeDuration> add_24_hour_days_to_time_duration(VM&, TimeDuration const&, double days);
 i8 compare_time_duration(TimeDuration const&, TimeDuration const&);
 i8 time_duration_sign(TimeDuration const&);
+ThrowCompletionOr<GC::Ref<Duration>> add_durations(VM&, ArithmeticOperation, Duration const&, Value);
 
 }

@@ -88,6 +88,200 @@ InternalDuration to_internal_duration_record(VM& vm, Duration const& duration)
     return MUST(combine_date_and_time_duration(vm, date_duration, move(time_duration)));
 }
 
+// 7.5.6 ToInternalDurationRecordWith24HourDays ( duration ), https://tc39.es/proposal-temporal/#sec-temporal-tointernaldurationrecordwith24hourdays
+InternalDuration to_internal_duration_record_with_24_hour_days(VM& vm, Duration const& duration)
+{
+    // 1. Let timeDuration be TimeDurationFromComponents(duration.[[Hours]], duration.[[Minutes]], duration.[[Seconds]], duration.[[Milliseconds]], duration.[[Microseconds]], duration.[[Nanoseconds]]).
+    auto time_duration = time_duration_from_components(duration.hours(), duration.minutes(), duration.seconds(), duration.milliseconds(), duration.microseconds(), duration.nanoseconds());
+
+    // 2. Set timeDuration to ! Add24HourDaysToTimeDuration(timeDuration, duration.[[Days]]).
+    time_duration = MUST(add_24_hour_days_to_time_duration(vm, time_duration, duration.days()));
+
+    // 3. Let dateDuration be ! CreateDateDurationRecord(duration.[[Years]], duration.[[Months]], duration.[[Weeks]], 0).
+    auto date_duration = MUST(create_date_duration_record(vm, duration.years(), duration.months(), duration.weeks(), 0));
+
+    // 4. Return ! CombineDateAndTimeDuration(dateDuration, timeDuration).
+    return MUST(combine_date_and_time_duration(vm, date_duration, move(time_duration)));
+}
+
+// 7.5.8 TemporalDurationFromInternal ( internalDuration, largestUnit ), https://tc39.es/proposal-temporal/#sec-temporal-temporaldurationfrominternal
+ThrowCompletionOr<GC::Ref<Duration>> temporal_duration_from_internal(VM& vm, InternalDuration const& internal_duration, Unit largest_unit)
+{
+    // 1. Let days, hours, minutes, seconds, milliseconds, and microseconds be 0.
+    double days = 0;
+    double hours = 0;
+    double minutes = 0;
+    double seconds = 0;
+    double milliseconds = 0;
+    double microseconds = 0;
+
+    // 2. Let sign be TimeDurationSign(internalDuration.[[Time]]).
+    auto sign = time_duration_sign(internal_duration.time);
+
+    // 3. Let nanoseconds be abs(internalDuration.[[Time]]).
+    auto const& absolute_nanoseconds = internal_duration.time.unsigned_value();
+    double nanoseconds = 0;
+
+    // 4. If TemporalUnitCategory(largestUnit) is date, then
+    if (temporal_unit_category(largest_unit) == UnitCategory::Date) {
+        // a. Set microseconds to floor(nanoseconds / 1000).
+        auto nanoseconds_division_result = absolute_nanoseconds.divided_by(NANOSECONDS_PER_MICROSECOND);
+
+        // b. Set nanoseconds to nanoseconds modulo 1000.
+        nanoseconds = nanoseconds_division_result.remainder.to_double();
+
+        // c. Set milliseconds to floor(microseconds / 1000).
+        auto microseconds_division_result = nanoseconds_division_result.quotient.divided_by(MICROSECONDS_PER_MILLISECOND);
+
+        // d. Set microseconds to microseconds modulo 1000.
+        microseconds = microseconds_division_result.remainder.to_double();
+
+        // e. Set seconds to floor(milliseconds / 1000).
+        auto milliseconds_division_result = microseconds_division_result.quotient.divided_by(MILLISECONDS_PER_SECOND);
+
+        // f. Set milliseconds to milliseconds modulo 1000.
+        milliseconds = milliseconds_division_result.remainder.to_double();
+
+        // g. Set minutes to floor(seconds / 60).
+        auto seconds_division_result = milliseconds_division_result.quotient.divided_by(SECONDS_PER_MINUTE);
+
+        // h. Set seconds to seconds modulo 60.
+        seconds = seconds_division_result.remainder.to_double();
+
+        // i. Set hours to floor(minutes / 60).
+        auto minutes_division_result = seconds_division_result.quotient.divided_by(MINUTES_PER_HOUR);
+
+        // j. Set minutes to minutes modulo 60.
+        minutes = minutes_division_result.remainder.to_double();
+
+        // k. Set days to floor(hours / 24).
+        auto hours_division_result = minutes_division_result.quotient.divided_by(HOURS_PER_DAY);
+        days = hours_division_result.quotient.to_double();
+
+        // l. Set hours to hours modulo 24.
+        hours = hours_division_result.remainder.to_double();
+    }
+    // 5. Else if largestUnit is hour, then
+    else if (largest_unit == Unit::Hour) {
+        // a. Set microseconds to floor(nanoseconds / 1000).
+        auto nanoseconds_division_result = absolute_nanoseconds.divided_by(NANOSECONDS_PER_MICROSECOND);
+
+        // b. Set nanoseconds to nanoseconds modulo 1000.
+        nanoseconds = nanoseconds_division_result.remainder.to_double();
+
+        // c. Set milliseconds to floor(microseconds / 1000).
+        auto microseconds_division_result = nanoseconds_division_result.quotient.divided_by(MICROSECONDS_PER_MILLISECOND);
+
+        // d. Set microseconds to microseconds modulo 1000.
+        microseconds = microseconds_division_result.remainder.to_double();
+
+        // e. Set seconds to floor(milliseconds / 1000).
+        auto milliseconds_division_result = microseconds_division_result.quotient.divided_by(MILLISECONDS_PER_SECOND);
+
+        // f. Set milliseconds to milliseconds modulo 1000.
+        milliseconds = milliseconds_division_result.remainder.to_double();
+
+        // g. Set minutes to floor(seconds / 60).
+        auto seconds_division_result = milliseconds_division_result.quotient.divided_by(SECONDS_PER_MINUTE);
+
+        // h. Set seconds to seconds modulo 60.
+        seconds = seconds_division_result.remainder.to_double();
+
+        // i. Set hours to floor(minutes / 60).
+        auto minutes_division_result = seconds_division_result.quotient.divided_by(MINUTES_PER_HOUR);
+        hours = minutes_division_result.quotient.to_double();
+
+        // j. Set minutes to minutes modulo 60.
+        minutes = minutes_division_result.remainder.to_double();
+    }
+    // 6. Else if largestUnit is minute, then
+    else if (largest_unit == Unit::Minute) {
+        // a. Set microseconds to floor(nanoseconds / 1000).
+        auto nanoseconds_division_result = absolute_nanoseconds.divided_by(Crypto::UnsignedBigInteger(NANOSECONDS_PER_MICROSECOND));
+
+        // b. Set nanoseconds to nanoseconds modulo 1000.
+        nanoseconds = nanoseconds_division_result.remainder.to_double();
+
+        // c. Set milliseconds to floor(microseconds / 1000).
+        auto microseconds_division_result = nanoseconds_division_result.quotient.divided_by(MICROSECONDS_PER_MILLISECOND);
+
+        // d. Set microseconds to microseconds modulo 1000.
+        microseconds = microseconds_division_result.remainder.to_double();
+
+        // e. Set seconds to floor(milliseconds / 1000).
+        auto milliseconds_division_result = microseconds_division_result.quotient.divided_by(MILLISECONDS_PER_SECOND);
+
+        // f. Set milliseconds to milliseconds modulo 1000.
+        milliseconds = milliseconds_division_result.remainder.to_double();
+
+        // g. Set minutes to floor(seconds / 60).
+        auto seconds_division_result = milliseconds_division_result.quotient.divided_by(SECONDS_PER_MINUTE);
+        minutes = seconds_division_result.quotient.to_double();
+
+        // h. Set seconds to seconds modulo 60.
+        seconds = seconds_division_result.remainder.to_double();
+    }
+    // 7. Else if largestUnit is second, then
+    else if (largest_unit == Unit::Second) {
+        // a. Set microseconds to floor(nanoseconds / 1000).
+        auto nanoseconds_division_result = absolute_nanoseconds.divided_by(NANOSECONDS_PER_MICROSECOND);
+
+        // b. Set nanoseconds to nanoseconds modulo 1000.
+        nanoseconds = nanoseconds_division_result.remainder.to_double();
+
+        // c. Set milliseconds to floor(microseconds / 1000).
+        auto microseconds_division_result = nanoseconds_division_result.quotient.divided_by(MICROSECONDS_PER_MILLISECOND);
+
+        // d. Set microseconds to microseconds modulo 1000.
+        microseconds = microseconds_division_result.remainder.to_double();
+
+        // e. Set seconds to floor(milliseconds / 1000).
+        auto milliseconds_division_result = microseconds_division_result.quotient.divided_by(MILLISECONDS_PER_SECOND);
+        seconds = milliseconds_division_result.quotient.to_double();
+
+        // f. Set milliseconds to milliseconds modulo 1000.
+        milliseconds = milliseconds_division_result.remainder.to_double();
+    }
+    // 8. Else if largestUnit is millisecond, then
+    else if (largest_unit == Unit::Millisecond) {
+        // a. Set microseconds to floor(nanoseconds / 1000).
+        auto nanoseconds_division_result = absolute_nanoseconds.divided_by(NANOSECONDS_PER_MICROSECOND);
+
+        // b. Set nanoseconds to nanoseconds modulo 1000.
+        nanoseconds = nanoseconds_division_result.remainder.to_double();
+
+        // c. Set milliseconds to floor(microseconds / 1000).
+        auto microseconds_division_result = nanoseconds_division_result.quotient.divided_by(MICROSECONDS_PER_MILLISECOND);
+        milliseconds = microseconds_division_result.quotient.to_double();
+
+        // d. Set microseconds to microseconds modulo 1000.
+        microseconds = microseconds_division_result.remainder.to_double();
+    }
+    // 9. Else if largestUnit is microsecond, then
+    else if (largest_unit == Unit::Microsecond) {
+        // a. Set microseconds to floor(nanoseconds / 1000).
+        auto nanoseconds_division_result = absolute_nanoseconds.divided_by(NANOSECONDS_PER_MICROSECOND);
+        microseconds = nanoseconds_division_result.quotient.to_double();
+
+        // b. Set nanoseconds to nanoseconds modulo 1000.
+        nanoseconds = nanoseconds_division_result.remainder.to_double();
+    }
+    // 10. Else,
+    else {
+        // a. Assert: largestUnit is nanosecond.
+        VERIFY(largest_unit == Unit::Nanosecond);
+        nanoseconds = absolute_nanoseconds.to_double();
+    }
+
+    // 11. NOTE: When largestUnit is millisecond, microsecond, or nanosecond, milliseconds, microseconds, or nanoseconds
+    //     may be an unsafe integer. In this case, care must be taken when implementing the calculation using floating
+    //     point arithmetic. It can be implemented in C++ using std::fma(). String manipulation will also give an exact
+    //     result, since the multiplication is by a power of 10.
+
+    // 12. Return ? CreateTemporalDuration(internalDuration.[[Date]].[[Years]], internalDuration.[[Date]].[[Months]], internalDuration.[[Date]].[[Weeks]], internalDuration.[[Date]].[[Days]] + days × sign, hours × sign, minutes × sign, seconds × sign, milliseconds × sign, microseconds × sign, nanoseconds × sign).
+    return TRY(create_temporal_duration(vm, internal_duration.date.years, internal_duration.date.months, internal_duration.date.weeks, internal_duration.date.days + (days * sign), hours * sign, minutes * sign, seconds * sign, milliseconds * sign, microseconds * sign, nanoseconds * sign));
+}
+
 // 7.5.9 CreateDateDurationRecord ( years, months, weeks, days ), https://tc39.es/proposal-temporal/#sec-temporal-createdatedurationrecord
 ThrowCompletionOr<DateDuration> create_date_duration_record(VM& vm, double years, double months, double weeks, double days)
 {
@@ -432,6 +626,13 @@ ThrowCompletionOr<GC::Ref<Duration>> create_temporal_duration(VM& vm, double yea
     return object;
 }
 
+// 7.5.20 CreateNegatedTemporalDuration ( duration ), https://tc39.es/proposal-temporal/#sec-temporal-createnegatedtemporalduration
+GC::Ref<Duration> create_negated_temporal_duration(VM& vm, Duration const& duration)
+{
+    // 1. Return ! CreateTemporalDuration(-duration.[[Years]], -duration.[[Months]], -duration.[[Weeks]], -duration.[[Days]], -duration.[[Hours]], -duration.[[Minutes]], -duration.[[Seconds]], -duration.[[Milliseconds]], -duration.[[Microseconds]], -duration.[[Nanoseconds]]).
+    return MUST(create_temporal_duration(vm, -duration.years(), -duration.months(), -duration.weeks(), -duration.days(), -duration.hours(), -duration.minutes(), -duration.seconds(), -duration.milliseconds(), -duration.microseconds(), -duration.nanoseconds()));
+}
+
 // 7.5.21 TimeDurationFromComponents ( hours, minutes, seconds, milliseconds, microseconds, nanoseconds ), https://tc39.es/proposal-temporal/#sec-temporal-timedurationfromcomponents
 TimeDuration time_duration_from_components(double hours, double minutes, double seconds, double milliseconds, double microseconds, double nanoseconds)
 {
@@ -455,6 +656,20 @@ TimeDuration time_duration_from_components(double hours, double minutes, double 
 
     // 7. Return nanoseconds.
     return total_nanoseconds;
+}
+
+// 7.5.22 AddTimeDuration ( one, two ), https://tc39.es/proposal-temporal/#sec-temporal-addtimeduration
+ThrowCompletionOr<TimeDuration> add_time_duration(VM& vm, TimeDuration const& one, TimeDuration const& two)
+{
+    // 1. Let result be one + two.
+    auto result = one.plus(two);
+
+    // 2. If abs(result) > maxTimeDuration, throw a RangeError exception.
+    if (result.unsigned_value() > MAX_TIME_DURATION.unsigned_value())
+        return vm.throw_completion<RangeError>(ErrorType::TemporalInvalidDuration);
+
+    // 3. Return result.
+    return result;
 }
 
 // 7.5.23 Add24HourDaysToTimeDuration ( d, days ), https://tc39.es/proposal-temporal/#sec-temporal-add24hourdaystonormalizedtimeduration
@@ -499,6 +714,45 @@ i8 time_duration_sign(TimeDuration const& time_duration)
 
     // 3. Return 0.
     return 0;
+}
+
+// 7.5.40 AddDurations ( operation, duration, other ), https://tc39.es/proposal-temporal/#sec-temporal-adddurations
+ThrowCompletionOr<GC::Ref<Duration>> add_durations(VM& vm, ArithmeticOperation operation, Duration const& duration, Value other_value)
+{
+    // 1. Set other to ? ToTemporalDuration(other).
+    auto other = TRY(to_temporal_duration(vm, other_value));
+
+    // 2. If operation is subtract, set other to CreateNegatedTemporalDuration(other).
+    if (operation == ArithmeticOperation::Subtract)
+        other = create_negated_temporal_duration(vm, other);
+
+    // 3. Let largestUnit1 be DefaultTemporalLargestUnit(duration).
+    auto largest_unit1 = default_temporal_largest_unit(duration);
+
+    // 4. Let largestUnit2 be DefaultTemporalLargestUnit(other).
+    auto largest_unit2 = default_temporal_largest_unit(other);
+
+    // 5. Let largestUnit be LargerOfTwoTemporalUnits(largestUnit1, largestUnit2).
+    auto largest_unit = larger_of_two_temporal_units(largest_unit1, largest_unit2);
+
+    // 6. If IsCalendarUnit(largestUnit) is true, throw a RangeError exception.
+    if (is_calendar_unit(largest_unit))
+        return vm.throw_completion<RangeError>(ErrorType::TemporalInvalidLargestUnit, "a calendar unit"sv);
+
+    // 7. Let d1 be ToInternalDurationRecordWith24HourDays(duration).
+    auto duration1 = to_internal_duration_record_with_24_hour_days(vm, duration);
+
+    // 8. Let d2 be ToInternalDurationRecordWith24HourDays(other).
+    auto duration2 = to_internal_duration_record_with_24_hour_days(vm, other);
+
+    // 9. Let timeResult be ? AddTimeDuration(d1.[[Time]], d2.[[Time]]).
+    auto time_result = TRY(add_time_duration(vm, duration1.time, duration2.time));
+
+    // 10. Let result be ! CombineDateAndTimeDuration(ZeroDateDuration(), timeResult).
+    auto result = MUST(combine_date_and_time_duration(vm, zero_date_duration(vm), move(time_result)));
+
+    // 11. Return ? TemporalDurationFromInternal(result, largestUnit).
+    return TRY(temporal_duration_from_internal(vm, result, largest_unit));
 }
 
 }

@@ -261,6 +261,7 @@
     M(TemporalInvalidInstantString, "Invalid instant string '{}'")                                                                      \
     M(TemporalInvalidISODate, "Invalid ISO date")                                                                                       \
     M(TemporalInvalidISODateTime, "Invalid ISO date time")                                                                              \
+    M(TemporalInvalidLargestUnit, "Largest unit must not be {}")                                                                        \
     M(TemporalInvalidMonthCode, "Invalid month code")                                                                                   \
     M(TemporalInvalidMonthDayString, "Invalid month day string '{}'")                                                                   \
     M(TemporalInvalidMonthDayStringUTCDesignator, "Invalid month day string '{}': must not contain a UTC designator")                   \
