@@ -860,33 +860,79 @@ WebIDL::ExceptionOr<GC::Ref<PendingResponse>> scheme_fetch(JS::Realm& realm, Inf
             auto content_type_header = Infrastructure::Header::from_string_pair("Content-Type"sv, type);
             response->header_list()->append(move(content_type_header));
         }
-        // FIXME: 9. Otherwise:
+        // 9. Otherwise:
         else {
             // 1. Set response’s range-requested flag.
+            response->set_range_requested(true);
+
             // 2. Let rangeHeader be the result of getting `Range` from request’s header list.
+            auto const range_header = request->header_list()->get("Range"sv.bytes()).value_or(ByteBuffer {});
+
             // 3. Let rangeValue be the result of parsing a single range header value given rangeHeader and true.
+            auto maybe_range_value = Infrastructure::parse_single_range_header_value(range_header, true);
+
             // 4. If rangeValue is failure, then return a network error.
+            if (!maybe_range_value.has_value())
+                return PendingResponse::create(vm, request, Infrastructure::Response::network_error(vm, "Failed to parse single range header value"sv));
+
             // 5. Let (rangeStart, rangeEnd) be rangeValue.
+            auto& [range_start, range_end] = maybe_range_value.value();
+
             // 6. If rangeStart is null:
-            //     1. Set rangeStart to fullLength − rangeEnd.
-            //     2. Set rangeEnd to rangeStart + rangeEnd − 1.
+            if (!range_start.has_value()) {
+                VERIFY(range_end.has_value());
+
+                // 1. Set rangeStart to fullLength − rangeEnd.
+                range_start = full_length - *range_end;
+
+                // 2. Set rangeEnd to rangeStart + rangeEnd − 1.
+                range_end = *range_start + *range_end - 1;
+            }
             // 7. Otherwise:
-            //     1. If rangeStart is greater than or equal to fullLength, then return a network error.
-            //     2. If rangeEnd is null or rangeEnd is greater than or equal to fullLength, then set rangeEnd to fullLength − 1.
+            else {
+                // 1. If rangeStart is greater than or equal to fullLength, then return a network error.
+                if (*range_start >= full_length)
+                    return PendingResponse::create(vm, request, Infrastructure::Response::network_error(vm, "rangeStart is greater than or equal to fullLength"sv));
+
+                // 2. If rangeEnd is null or rangeEnd is greater than or equal to fullLength, then set rangeEnd to fullLength − 1.
+                if (!range_end.has_value() || *range_end >= full_length)
+                    range_end = full_length - 1;
+            }
+
             // 8. Let slicedBlob be the result of invoking slice blob given blob, rangeStart, rangeEnd + 1, and type.
+            auto sliced_blob = TRY(blob->slice(*range_start, *range_end + 1, type));
+
             // 9. Let slicedBodyWithType be the result of safely extracting slicedBlob.
+            auto sliced_body_with_type = TRY(safely_extract_body(realm, sliced_blob->raw_bytes()));
+
             // 10. Set response’s body to slicedBodyWithType’s body.
+            response->set_body(sliced_body_with_type.body);
+
             // 11. Let serializedSlicedLength be slicedBlob’s size, serialized and isomorphic encoded.
-            // 12. Let contentRange be `bytes `.
-            // 13. Append rangeStart, serialized and isomorphic encoded, to contentRange.
-            // 14. Append 0x2D (-) to contentRange.
-            // 15. Append rangeEnd, serialized and isomorphic encoded to contentRange.
-            // 16. Append 0x2F (/) to contentRange.
-            // 17. Append serializedFullLength to contentRange.
-            // 18. Set response’s status to 206.
-            // 19. Set response’s status message to `Partial Content`.
-            // 20. Set response’s header list to « (`Content-Length`, serializedSlicedLength), (`Content-Type`, type), (`Content-Range`, contentRange) ».
-            return PendingResponse::create(vm, request, Infrastructure::Response::network_error(vm, "Request has a 'blob:' URL with a Content-Range header, which is currently unsupported"sv));
+            auto serialized_sliced_length = String::number(sliced_blob->size());
+
+            // 12. Let contentRange be the result of invoking build a content range given rangeStart, rangeEnd, and fullLength.
+            auto content_range = Infrastructure::build_content_range(*range_start, *range_end, full_length);
+
+            // 13. Set response’s status to 206.
+            response->set_status(206);
+
+            // 14. Set response’s status message to `Partial Content`.
+            response->set_status_message(MUST(ByteBuffer::copy("Partial Content"sv.bytes())));
+
+            // 15. Set response’s header list to «
+
+            // (`Content-Length`, serializedSlicedLength),
+            auto content_length_header = Infrastructure::Header::from_string_pair("Content-Length"sv, serialized_sliced_length);
+            response->header_list()->append(move(content_length_header));
+
+            // (`Content-Type`, type),
+            auto content_type_header = Infrastructure::Header::from_string_pair("Content-Type"sv, type);
+            response->header_list()->append(move(content_type_header));
+
+            // (`Content-Range`, contentRange) ».
+            auto content_range_header = Infrastructure::Header::from_string_pair("Content-Range"sv, content_range);
+            response->header_list()->append(move(content_range_header));
         }
 
         // 10. Return response.

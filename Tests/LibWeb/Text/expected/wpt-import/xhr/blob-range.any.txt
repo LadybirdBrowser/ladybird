@@ -1,0 +1,37 @@
+Summary
+
+Harness status: OK
+
+Rerun
+
+Found 27 tests
+
+27 Pass
+Details
+Result	Test Name	MessagePass	A simple blob range request.	
+Pass	A blob range request with no type.	
+Pass	A blob range request with no end.	
+Pass	A blob range request with no start.	
+Pass	A simple blob range request with whitespace.	
+Pass	Blob content with short content and a large range end	
+Pass	Blob content with short content and a range end matching content length	
+Pass	Blob range with whitespace before and after hyphen	
+Pass	Blob range with whitespace after hyphen	
+Pass	Blob range with whitespace around equals sign	
+Pass	Blob range with no value	
+Pass	Blob range with incorrect range header	
+Pass	Blob range with incorrect range header #2	
+Pass	Blob range with incorrect range header #3	
+Pass	Blob range request with multiple range values	
+Pass	Blob range request with multiple range values and whitespace	
+Pass	Blob range request with trailing comma	
+Pass	Blob range with no start or end	
+Pass	Blob range request with short range end	
+Pass	Blob range start should be an ASCII digit	
+Pass	Blob range should have a dash	
+Pass	Blob range end should be an ASCII digit	
+Pass	Blob range should include '-'	
+Pass	Blob range should include '='	
+Pass	Blob range should include 'bytes='	
+Pass	Blob content with short content and a large range start	
+Pass	Blob content with short content and a range start matching the content length	
