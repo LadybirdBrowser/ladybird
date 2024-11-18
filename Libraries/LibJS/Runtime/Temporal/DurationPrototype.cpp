@@ -31,6 +31,9 @@ void DurationPrototype::initialize(Realm& realm)
     define_native_accessor(realm, vm.names.unit, unit##_getter, {}, Attribute::Configurable);
     JS_ENUMERATE_DURATION_UNITS
 #undef __JS_ENUMERATE
+
+    define_native_accessor(realm, vm.names.sign, sign_getter, {}, Attribute::Configurable);
+    define_native_accessor(realm, vm.names.blank, blank_getter, {}, Attribute::Configurable);
 }
 
 // 7.3.3 get Temporal.Duration.prototype.years, https://tc39.es/proposal-temporal/#sec-get-temporal.duration.prototype.years
@@ -55,5 +58,31 @@ void DurationPrototype::initialize(Realm& realm)
     }
 JS_ENUMERATE_DURATION_UNITS
 #undef __JS_ENUMERATE
+
+// 7.3.13 get Temporal.Duration.prototype.sign, https://tc39.es/proposal-temporal/#sec-get-temporal.duration.prototype.sign
+JS_DEFINE_NATIVE_FUNCTION(DurationPrototype::sign_getter)
+{
+    // 1. Let duration be the this value.
+    // 2. Perform ? RequireInternalSlot(duration, [[InitializedTemporalDuration]]).
+    auto duration = TRY(typed_this_object(vm));
+
+    // 3. Return 𝔽(DurationSign(duration)).
+    return duration_sign(duration);
+}
+
+// 7.3.14 get Temporal.Duration.prototype.blank, https://tc39.es/proposal-temporal/#sec-get-temporal.duration.prototype.blank
+JS_DEFINE_NATIVE_FUNCTION(DurationPrototype::blank_getter)
+{
+    // 1. Let duration be the this value.
+    // 2. Perform ? RequireInternalSlot(duration, [[InitializedTemporalDuration]]).
+    auto duration = TRY(typed_this_object(vm));
+
+    // 3. If DurationSign(duration) = 0, return true.
+    if (duration_sign(duration) == 0)
+        return true;
+
+    // 4. Return false.
+    return false;
+}
 
 }
