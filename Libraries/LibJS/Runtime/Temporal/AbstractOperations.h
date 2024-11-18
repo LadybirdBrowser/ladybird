@@ -9,6 +9,7 @@
 #pragma once
 
 #include <AK/Variant.h>
+#include <LibGC/Ptr.h>
 #include <LibJS/Forward.h>
 #include <LibJS/Runtime/Completion.h>
 #include <LibJS/Runtime/VM.h>
@@ -39,7 +40,7 @@ enum class OptionType {
 struct DefaultRequired { };
 using OptionDefault = Variant<DefaultRequired, Empty, bool, StringView, double>;
 
-ThrowCompletionOr<Object*> get_options_object(VM&, Value options);
+ThrowCompletionOr<GC::Ref<Object>> get_options_object(VM&, Value options);
 ThrowCompletionOr<Value> get_option(VM&, Object const& options, PropertyKey const& property, OptionType type, ReadonlySpan<StringView> values, OptionDefault const&);
 
 template<size_t Size>
