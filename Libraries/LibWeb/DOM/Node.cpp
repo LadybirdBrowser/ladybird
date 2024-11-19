@@ -36,11 +36,14 @@
 #include <LibWeb/HTML/CustomElements/CustomElementReactionNames.h>
 #include <LibWeb/HTML/HTMLAnchorElement.h>
 #include <LibWeb/HTML/HTMLDocument.h>
+#include <LibWeb/HTML/HTMLFieldSetElement.h>
 #include <LibWeb/HTML/HTMLImageElement.h>
 #include <LibWeb/HTML/HTMLInputElement.h>
+#include <LibWeb/HTML/HTMLLegendElement.h>
 #include <LibWeb/HTML/HTMLSelectElement.h>
 #include <LibWeb/HTML/HTMLSlotElement.h>
 #include <LibWeb/HTML/HTMLStyleElement.h>
+#include <LibWeb/HTML/HTMLTableElement.h>
 #include <LibWeb/HTML/Navigable.h>
 #include <LibWeb/HTML/NavigableContainer.h>
 #include <LibWeb/HTML/Parser/HTMLParser.h>
@@ -2380,6 +2383,31 @@ ErrorOr<String> Node::name_or_description(NameOrDescription target, Document con
             // return the value of that attribute.
             if (auto title_attribute = element->get_attribute_ns(Namespace::XLink, XLink::AttributeNames::title); title_attribute.has_value())
                 return title_attribute.release_value();
+        }
+        // https://w3c.github.io/html-aam/#table-element-accessible-name-computation
+        // if the table element has a child that is a caption element, then use the subtree of the first such element
+        if (is<HTML::HTMLTableElement>(*element))
+            if (auto& table = (const_cast<HTML::HTMLTableElement&>(static_cast<HTML::HTMLTableElement const&>(*element))); table.caption())
+                return table.caption()->text_content().release_value();
+        // https://w3c.github.io/html-aam/#table-element-accessible-name-computation
+        // if the fieldset element has a child that is a legend element, then use the subtree of the first such element
+        if (is<HTML::HTMLFieldSetElement>(*element)) {
+            Optional<String> legend;
+            auto& fieldset = (const_cast<HTML::HTMLFieldSetElement&>(static_cast<HTML::HTMLFieldSetElement const&>(*element)));
+            fieldset.for_each_child_of_type<HTML::HTMLLegendElement>([&](HTML::HTMLLegendElement const& element) mutable {
+                legend = element.text_content().release_value();
+                return IterationDecision::Break;
+            });
+            if (legend.has_value())
+                return legend.release_value();
+        }
+        if (is<HTML::HTMLInputElement>(*element)) {
+            auto& input = (const_cast<HTML::HTMLInputElement&>(static_cast<HTML::HTMLInputElement const&>(*element)));
+            // https://w3c.github.io/html-aam/#input-type-image-accessible-name-computation
+            // Otherwise use alt attribute if present and its value is not the empty string.
+            if (input.type_state() == HTML::HTMLInputElement::TypeAttributeState::ImageButton)
+                if (auto alt = element->get_attribute(HTML::AttributeNames::alt); alt.has_value())
+                    return alt.release_value();
         }
 
         // F. Otherwise, if the current node's role allows name from content, or if the current node is referenced by aria-labelledby, aria-describedby, or is a native host language text alternative element (e.g. label in HTML), or is a descendant of a native host language text alternative element:
