@@ -196,6 +196,14 @@ WebIDL::ExceptionOr<String> serialize_node_to_xml_string_impl(GC::Ref<DOM::Node 
         return serialize_comment(static_cast<DOM::Comment const&>(*root), require_well_formed);
     }
 
+    // NOTE: CDATASection comes before Text since CDATASection is a subclass of Text.
+    if (is<DOM::CDATASection>(*root)) {
+        // Note: Serialization of CDATASection nodes is not mentioned in the specification, but treating CDATASection nodes as
+        // text leads to incorrect serialization.
+        // Spec bug: https://github.com/w3c/DOM-Parsing/issues/38
+        return serialize_cdata_section(static_cast<DOM::CDATASection const&>(*root), require_well_formed);
+    }
+
     if (is<DOM::Text>(*root)) {
         // -> Text
         //    Run the algorithm for XML serializing a Text node node.
@@ -218,12 +226,6 @@ WebIDL::ExceptionOr<String> serialize_node_to_xml_string_impl(GC::Ref<DOM::Node 
         // -> ProcessingInstruction
         //    Run the algorithm for XML serializing a ProcessingInstruction node node.
         return serialize_processing_instruction(static_cast<DOM::ProcessingInstruction const&>(*root), require_well_formed);
-    }
-
-    if (is<DOM::CDATASection>(*root)) {
-        // Note: Serialization of CDATASection nodes is not mentioned in the specification, but treating CDATASection nodes as
-        // text leads to incorrect serialization.
-        return serialize_cdata_section(static_cast<DOM::CDATASection const&>(*root), require_well_formed);
     }
 
     if (is<DOM::Attr>(*root)) {
