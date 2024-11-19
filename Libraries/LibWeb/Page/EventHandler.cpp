@@ -136,13 +136,44 @@ static Gfx::StandardCursor cursor_css_to_gfx(Optional<CSS::Cursor> cursor)
     }
 }
 
+// https://drafts.csswg.org/cssom-view/#dom-mouseevent-offsetx
 static CSSPixelPoint compute_mouse_event_offset(CSSPixelPoint position, Layout::Node const& layout_node)
 {
-    auto top_left_of_layout_node = layout_node.first_paintable()->box_type_agnostic_position();
-    return {
-        position.x() - top_left_of_layout_node.x(),
-        position.y() - top_left_of_layout_node.y()
+    // If the event’s dispatch flag is set,
+    // FIXME: Is this guaranteed to be dispatched?
+
+    // return the x-coordinate of the position where the event occurred,
+    Gfx::Point<float> precision_offset = {
+        position.x().to_double(),
+        position.y().to_double()
     };
+
+    // ignoring the transforms that apply to the element and its ancestors,
+    if (layout_node.has_css_transform()) {
+        auto const& paintable_box = layout_node.dom_node()->paintable_box();
+        auto const affine_transform = Gfx::extract_2d_affine_transform(paintable_box->transform().inverse());
+
+        auto const& origin = paintable_box->transform_origin();
+        Gfx::Point<float> const precision_origin = {
+            origin.x().to_double(),
+            origin.y().to_double()
+        };
+
+        precision_offset.translate_by(-precision_origin);
+        precision_offset.transform_by(affine_transform);
+        precision_offset.translate_by(precision_origin);
+    }
+
+    // relative to the origin of the padding edge of the target node
+    auto const top_left_of_layout_node = layout_node.first_paintable()->box_type_agnostic_position();
+    CSSPixelPoint offset = {
+        CSSPixels(precision_offset.x()),
+        CSSPixels(precision_offset.y())
+    };
+    offset -= top_left_of_layout_node;
+
+    // and terminate these steps.
+    return offset;
 }
 
 EventHandler::EventHandler(Badge<HTML::Navigable>, HTML::Navigable& navigable)
