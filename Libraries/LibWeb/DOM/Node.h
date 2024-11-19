@@ -110,7 +110,7 @@ public:
 
     NodeType type() const { return m_type; }
     bool is_element() const { return type() == NodeType::ELEMENT_NODE; }
-    bool is_text() const { return type() == NodeType::TEXT_NODE; }
+    bool is_text() const { return type() == NodeType::TEXT_NODE || type() == NodeType::CDATA_SECTION_NODE; }
     bool is_document() const { return type() == NodeType::DOCUMENT_NODE; }
     bool is_document_type() const { return type() == NodeType::DOCUMENT_TYPE_NODE; }
     bool is_comment() const { return type() == NodeType::COMMENT_NODE; }
