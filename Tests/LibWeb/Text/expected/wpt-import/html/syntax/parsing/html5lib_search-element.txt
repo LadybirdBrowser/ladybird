@@ -6,9 +6,8 @@ Rerun
 
 Found 3 tests
 
-1 Pass
-2 Fail
+3 Pass
 Details
-Result	Test Name	MessageFail	html5lib_search-element.html 114b9f3c8147c0ed8ef3ed1811a9da3f10d74402	
-Fail	html5lib_search-element.html 2204afb9037ec886f428ab5dcead5ee9f87c65cb	
+Result	Test Name	MessagePass	html5lib_search-element.html 114b9f3c8147c0ed8ef3ed1811a9da3f10d74402	
+Pass	html5lib_search-element.html 2204afb9037ec886f428ab5dcead5ee9f87c65cb	
 Pass	html5lib_search-element.html 5153f797fbb63a23a40d19e298aca06d53d22f7f	

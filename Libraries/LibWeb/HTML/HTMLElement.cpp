@@ -775,6 +775,9 @@ Optional<ARIA::Role> HTMLElement::default_role() const
     // https://www.w3.org/TR/html-aria/#el-samp
     if (local_name() == TagNames::samp)
         return ARIA::Role::generic;
+    // https://www.w3.org/TR/html-aria/#el-search
+    if (local_name() == TagNames::search)
+        return ARIA::Role::search;
     // https://www.w3.org/TR/html-aria/#el-section
     if (local_name() == TagNames::section) {
         // TODO:  role=region if the section element has an accessible name
