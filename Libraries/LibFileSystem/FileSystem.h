@@ -11,7 +11,6 @@
 #include <AK/Error.h>
 #include <AK/StringView.h>
 #include <LibCore/File.h>
-#include <sys/stat.h>
 
 namespace FileSystem {
 
