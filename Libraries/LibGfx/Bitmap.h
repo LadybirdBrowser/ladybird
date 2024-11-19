@@ -109,25 +109,7 @@ public:
 
     [[nodiscard]] size_t pitch() const { return m_pitch; }
 
-    [[nodiscard]] static unsigned bpp_for_format(BitmapFormat format)
-    {
-        switch (format) {
-        case BitmapFormat::BGRx8888:
-        case BitmapFormat::BGRA8888:
-            return 32;
-        default:
-            VERIFY_NOT_REACHED();
-        case BitmapFormat::Invalid:
-            return 0;
-        }
-    }
-
     [[nodiscard]] static size_t minimum_pitch(size_t width, BitmapFormat);
-
-    [[nodiscard]] unsigned bpp() const
-    {
-        return bpp_for_format(m_format);
-    }
 
     [[nodiscard]] bool has_alpha_channel() const { return m_format == BitmapFormat::BGRA8888 || m_format == BitmapFormat::RGBA8888; }
     [[nodiscard]] BitmapFormat format() const { return m_format; }
