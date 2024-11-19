@@ -36,6 +36,7 @@ public:
 
     Optional<Gfx::Color> fill_color() const;
     Optional<Gfx::Color> stroke_color() const;
+    Optional<float> stroke_dashoffset() const;
     Optional<float> stroke_width() const;
     Optional<float> fill_opacity() const;
     Optional<CSS::StrokeLinecap> stroke_linecap() const;
@@ -94,6 +95,7 @@ protected:
 
 private:
     virtual bool is_svg_graphics_element() const final { return true; }
+    float resolve_relative_to_viewport_size(CSS::LengthPercentage const& length_percentage) const;
 };
 
 Gfx::AffineTransform transform_from_transform_list(ReadonlySpan<Transform> transform_list);

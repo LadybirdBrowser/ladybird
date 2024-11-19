@@ -150,6 +150,7 @@ void SVGGraphicsElement::apply_presentational_hints(CSS::StyleProperties& style)
         NamedPropertyID(CSS::PropertyID::Fill),
         // FIXME: The `stroke` attribute and CSS `stroke` property are not the same! But our support is limited enough that they are equivalent for now.
         NamedPropertyID(CSS::PropertyID::Stroke),
+        NamedPropertyID(CSS::PropertyID::StrokeDashoffset),
         NamedPropertyID(CSS::PropertyID::StrokeLinecap),
         NamedPropertyID(CSS::PropertyID::StrokeLinejoin),
         NamedPropertyID(CSS::PropertyID::StrokeMiterlimit),
@@ -266,13 +267,10 @@ Optional<float> SVGGraphicsElement::stroke_opacity() const
     return layout_node()->computed_values().stroke_opacity();
 }
 
-Optional<float> SVGGraphicsElement::stroke_width() const
+float SVGGraphicsElement::resolve_relative_to_viewport_size(CSS::LengthPercentage const& length_percentage) const
 {
-    if (!layout_node())
-        return {};
     // FIXME: Converting to pixels isn't really correct - values should be in "user units"
     //        https://svgwg.org/svg2-draft/coords.html#TermUserUnits
-    auto width = layout_node()->computed_values().stroke_width();
     // Resolved relative to the "Scaled viewport size": https://www.w3.org/TR/2017/WD-fill-stroke-3-20170413/#scaled-viewport-size
     // FIXME: This isn't right, but it's something.
     CSSPixels viewport_width = 0;
@@ -284,7 +282,21 @@ Optional<float> SVGGraphicsElement::stroke_width() const
         }
     }
     auto scaled_viewport_size = (viewport_width + viewport_height) * CSSPixels(0.5);
-    return width.to_px(*layout_node(), scaled_viewport_size).to_double();
+    return length_percentage.to_px(*layout_node(), scaled_viewport_size).to_double();
+}
+
+Optional<float> SVGGraphicsElement::stroke_dashoffset() const
+{
+    if (!layout_node())
+        return {};
+    return resolve_relative_to_viewport_size(layout_node()->computed_values().stroke_dashoffset());
+}
+
+Optional<float> SVGGraphicsElement::stroke_width() const
+{
+    if (!layout_node())
+        return {};
+    return resolve_relative_to_viewport_size(layout_node()->computed_values().stroke_width());
 }
 
 // https://svgwg.org/svg2-draft/types.html#__svg__SVGGraphicsElement__getBBox
