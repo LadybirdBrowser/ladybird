@@ -8,11 +8,12 @@
 
 #include <LibWeb/Forward.h>
 #include <LibWeb/Layout/BlockContainer.h>
+
 namespace Web::Layout {
 
 class FieldSetBox final : public BlockContainer {
-    JS_CELL(FieldSetBox, BlockContainer);
-    JS_DECLARE_ALLOCATOR(FieldSetBox);
+    GC_CELL(FieldSetBox, BlockContainer);
+    GC_DECLARE_ALLOCATOR(FieldSetBox);
 
 public:
     FieldSetBox(DOM::Document&, DOM::Element&, CSS::StyleProperties);
