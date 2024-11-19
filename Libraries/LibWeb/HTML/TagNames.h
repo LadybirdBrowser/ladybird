@@ -123,6 +123,7 @@ namespace Web::HTML::TagNames {
     __ENUMERATE_HTML_TAG(s)          \
     __ENUMERATE_HTML_TAG(samp)       \
     __ENUMERATE_HTML_TAG(script)     \
+    __ENUMERATE_HTML_TAG(search)     \
     __ENUMERATE_HTML_TAG(section)    \
     __ENUMERATE_HTML_TAG(select)     \
     __ENUMERATE_HTML_TAG(slot)       \
