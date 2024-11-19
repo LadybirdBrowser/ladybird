@@ -1,4 +1,4 @@
-Input: steps(1, jump-none), Computed: steps(1, jump-none)
+Input: steps(1, jump-none), Computed: ease
 Input: steps(1, start), Computed: steps(1, start)
 Input: steps(1), Computed: steps(1)
 Input: steps(4, jump-both), Computed: steps(4, jump-both)
