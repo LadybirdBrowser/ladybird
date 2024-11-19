@@ -130,6 +130,9 @@ bool assume(T const& expression, StringView expression_string, SourceLocation lo
     return true;
 }
 
+template<typename T>
+consteval void expect_consteval(T) { }
+
 }
 
 #define EXPECT(x)                  \
@@ -178,6 +181,8 @@ bool assume(T const& expression, StringView expression_string, SourceLocation lo
             ::AK::warnln("\033[31;1mFAIL\033[0m: {}:{}: {}", __FILE__, __LINE__, message); \
         ::Test::set_current_test_result(::Test::TestResult::Failed);                       \
     } while (false)
+
+#define EXPECT_CONSTEVAL(...) ::Test::expect_consteval(__VA_ARGS__)
 
 // To use, specify the lambda to execute in a sub process and verify it exits:
 //  EXPECT_CRASH("This should fail", []{

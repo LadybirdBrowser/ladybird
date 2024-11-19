@@ -13,6 +13,17 @@
 #include <AK/String.h>
 #include <AK/Vector.h>
 
+struct DontCopyMe {
+    DontCopyMe() { }
+    ~DontCopyMe() = default;
+    DontCopyMe(DontCopyMe&&) = default;
+    DontCopyMe& operator=(DontCopyMe&&) = default;
+    DontCopyMe(DontCopyMe const&) = delete;
+    DontCopyMe& operator=(DontCopyMe const&) = delete;
+
+    int x { 13 };
+};
+
 TEST_CASE(basic_optional)
 {
     Optional<int> x;
@@ -24,32 +35,31 @@ TEST_CASE(basic_optional)
 
 TEST_CASE(move_optional)
 {
-    Optional<int> x;
+    Optional<DontCopyMe> x;
     EXPECT_EQ(x.has_value(), false);
-    x = 3;
+    x = DontCopyMe {};
     EXPECT_EQ(x.has_value(), true);
-    EXPECT_EQ(x.value(), 3);
+    EXPECT_EQ(x.value().x, 13);
 
-    Optional<int> y;
+    Optional<DontCopyMe> y;
     y = move(x);
     EXPECT_EQ(y.has_value(), true);
-    EXPECT_EQ(y.value(), 3);
+    EXPECT_EQ(y.value().x, 13);
     EXPECT_EQ(x.has_value(), false);
+}
+
+TEST_CASE(consteval_optional)
+{
+    EXPECT_CONSTEVAL(Optional<int> {});
+    EXPECT_CONSTEVAL(Optional<int> {}.has_value());
+    EXPECT_CONSTEVAL(Optional<int> { 13 });
+    EXPECT_CONSTEVAL(Optional<int> { 13 }.has_value());
+    EXPECT_CONSTEVAL(Optional<int> { 13 }.value());
+    EXPECT_CONSTEVAL(Optional<int> { 13 }.release_value());
 }
 
 TEST_CASE(optional_rvalue_ref_qualified_getters)
 {
-    struct DontCopyMe {
-        DontCopyMe() { }
-        ~DontCopyMe() = default;
-        DontCopyMe(DontCopyMe&&) = default;
-        DontCopyMe& operator=(DontCopyMe&&) = default;
-        DontCopyMe(DontCopyMe const&) = delete;
-        DontCopyMe& operator=(DontCopyMe const&) = delete;
-
-        int x { 13 };
-    };
-
     auto make_an_optional = []() -> Optional<DontCopyMe> {
         return DontCopyMe {};
     };
