@@ -1430,6 +1430,18 @@ void Node::serialize_tree_as_json(JsonObjectSerializer<StringBuilder>& object) c
                 MUST(children.finish());
             }
         }
+
+        if (paintable_box()) {
+            if (paintable_box()->is_scrollable()) {
+                MUST(object.add("scrollable"sv, true));
+            }
+            if (!paintable_box()->is_visible()) {
+                MUST(object.add("invisible"sv, true));
+            }
+            if (paintable_box()->has_stacking_context()) {
+                MUST(object.add("stackingContext"sv, true));
+            }
+        }
     } else if (is_text()) {
         MUST(object.add("type"sv, "text"));
 

@@ -629,36 +629,55 @@ String InspectorClient::generate_dom_tree(JsonObject const& dom_tree)
         if (type != "element"sv) {
             builder.appendff("<span class=\"hoverable internal\" {}>", data_attributes.string_view());
             builder.appendff(name);
-            builder.append("</span>"sv);
-            return;
+        } else {
+            if (name.equals_ignoring_ascii_case("BODY"sv) || name.equals_ignoring_ascii_case("FRAMESET"sv))
+                m_body_or_frameset_node_id = node_id;
+
+            auto tag = name.to_lowercase();
+
+            builder.appendff("<span class=\"hoverable\" {}>", data_attributes.string_view());
+            builder.append("<span>&lt;</span>"sv);
+            builder.appendff("<span data-node-type=\"tag\" data-tag=\"{0}\" class=\"editable tag\">{0}</span>", tag);
+
+            if (auto attributes = node.get_object("attributes"sv); attributes.has_value()) {
+                attributes->for_each_member([&](auto const& name, auto const& value) {
+                    auto& dom_node_attributes = m_dom_node_attributes.ensure(node_id);
+                    auto value_string = value.as_string();
+
+                    builder.append("&nbsp;"sv);
+                    builder.appendff("<span data-node-type=\"attribute\" data-tag=\"{}\" data-attribute-index={} class=\"editable\">", tag, dom_node_attributes.size());
+                    builder.appendff("<span class=\"attribute-name\">{}</span>", escape_html_entities(name));
+                    builder.append('=');
+                    builder.appendff("<span class=\"attribute-value\">\"{}\"</span>", escape_html_entities(value_string));
+                    builder.append("</span>"sv);
+
+                    dom_node_attributes.empend(MUST(String::from_byte_string(name)), MUST(String::from_byte_string(value_string)));
+                });
+            }
+
+            builder.append("<span>&gt;</span>"sv);
         }
 
-        if (name.equals_ignoring_ascii_case("BODY"sv) || name.equals_ignoring_ascii_case("FRAMESET"sv))
-            m_body_or_frameset_node_id = node_id;
-
-        auto tag = name.to_lowercase();
-
-        builder.appendff("<span class=\"hoverable\" {}>", data_attributes.string_view());
-        builder.append("<span>&lt;</span>"sv);
-        builder.appendff("<span data-node-type=\"tag\" data-tag=\"{0}\" class=\"editable tag\">{0}</span>", tag);
-
-        if (auto attributes = node.get_object("attributes"sv); attributes.has_value()) {
-            attributes->for_each_member([&](auto const& name, auto const& value) {
-                auto& dom_node_attributes = m_dom_node_attributes.ensure(node_id);
-                auto value_string = value.as_string();
-
-                builder.append("&nbsp;"sv);
-                builder.appendff("<span data-node-type=\"attribute\" data-tag=\"{}\" data-attribute-index={} class=\"editable\">", tag, dom_node_attributes.size());
-                builder.appendff("<span class=\"attribute-name\">{}</span>", escape_html_entities(name));
-                builder.append('=');
-                builder.appendff("<span class=\"attribute-value\">\"{}\"</span>", escape_html_entities(value_string));
-                builder.append("</span>"sv);
-
-                dom_node_attributes.empend(MUST(String::from_byte_string(name)), MUST(String::from_byte_string(value_string)));
-            });
+        // display miscellaneous extra bits of info about the element
+        Vector<String> extra;
+        if (node.get_bool("scrollable"sv).value_or(false)) {
+            extra.append("scrollable"_string);
+        }
+        if (node.get_bool("invisible"sv).value_or(false)) {
+            extra.append("invisible"_string);
+        }
+        if (node.get_bool("stackingContext"sv).value_or(false)) {
+            extra.append("isolated"_string);
+        }
+        if (!extra.is_empty()) {
+            builder.append(" <span>("sv);
+            builder.append(extra[0]);
+            for (size_t i = 1; i < extra.size(); i++) {
+                builder.appendff(", {}", extra[i]);
+            }
+            builder.append(")</span>"sv);
         }
 
-        builder.append("<span>&gt;</span>"sv);
         builder.append("</span>"sv);
     });
 
