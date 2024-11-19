@@ -9,8 +9,6 @@
 #include <AK/Assertions.h>
 #include <AK/BinarySearch.h>
 #include <AK/MemoryStream.h>
-#include <string.h>
-
 #include <LibCompress/Deflate.h>
 #include <LibCompress/Huffman.h>
 

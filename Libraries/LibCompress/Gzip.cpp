@@ -11,9 +11,6 @@
 #include <AK/MemoryStream.h>
 #include <AK/String.h>
 #include <LibCore/DateTime.h>
-#include <LibCore/File.h>
-#include <LibCore/MappedFile.h>
-#include <LibCore/System.h>
 
 namespace Compress {
 
