@@ -10,7 +10,7 @@
 
 namespace Web::Layout {
 
-JS_DEFINE_ALLOCATOR(FieldSetBox);
+GC_DEFINE_ALLOCATOR(FieldSetBox);
 
 FieldSetBox::FieldSetBox(DOM::Document& document, DOM::Element& element, CSS::StyleProperties style)
     : BlockContainer(document, &element, move(style))
