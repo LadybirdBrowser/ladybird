@@ -706,7 +706,6 @@ void PaintableWithLines::paint(PaintContext& context, PaintPhase phase) const
         return;
 
     bool should_clip_overflow = computed_values().overflow_x() != CSS::Overflow::Visible && computed_values().overflow_y() != CSS::Overflow::Visible;
-    Optional<u32> corner_clip_id;
 
     auto clip_box = absolute_padding_box_rect();
     if (get_clip_rect().has_value()) {
