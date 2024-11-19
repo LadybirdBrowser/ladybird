@@ -2290,6 +2290,15 @@ ErrorOr<String> Node::name_or_description(NameOrDescription target, Document con
             for (u32 i = 0; i < labels->length(); i++) {
                 auto nodes = labels->item(i)->children_as_vector();
                 for (auto const& node : nodes) {
+                    // AD-HOC: https://wpt.fyi/results/accname/name/comp_host_language_label.html has “encapsulation”
+                    // tests, from which can be induced a requirement that when computing the accessible name for a
+                    // <label>-ed form control (“embedded control”), then any content (text content or attribute values)
+                    // from the control itself that would otherwise be included in the accessible-name computation for
+                    // it ancestor <label> must instead be skipped and not included. The HTML-AAM spec seems to maybe
+                    // be trying to achieve that result by expressing specific steps for each particular type of form
+                    // control. But what all that reduces/optimizes/simplifies down to is just, “skip over self”.
+                    if (node == this)
+                        continue;
                     if (node->is_element()) {
                         auto const& element = static_cast<DOM::Element const&>(*node);
                         auto role = element.role_or_default();
