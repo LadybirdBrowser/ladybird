@@ -32,8 +32,10 @@
 #include <LibWeb/DOM/Range.h>
 #include <LibWeb/DOM/ShadowRoot.h>
 #include <LibWeb/DOM/StaticNodeList.h>
+#include <LibWeb/DOM/XMLDocument.h>
 #include <LibWeb/HTML/CustomElements/CustomElementReactionNames.h>
 #include <LibWeb/HTML/HTMLAnchorElement.h>
+#include <LibWeb/HTML/HTMLDocument.h>
 #include <LibWeb/HTML/HTMLImageElement.h>
 #include <LibWeb/HTML/HTMLInputElement.h>
 #include <LibWeb/HTML/HTMLSelectElement.h>
@@ -1021,7 +1023,16 @@ WebIDL::ExceptionOr<GC::Ref<Node>> Node::clone_node(Document* document, bool clo
     else if (is<Document>(this)) {
         // Document
         auto document_ = verify_cast<Document>(this);
-        auto document_copy = Document::create(this->realm(), document_->url());
+        auto document_copy = [&] -> GC::Ref<Document> {
+            switch (document_->document_type()) {
+            case Document::Type::XML:
+                return XMLDocument::create(realm(), document_->url());
+            case Document::Type::HTML:
+                return HTML::HTMLDocument::create(realm(), document_->url());
+            default:
+                return Document::create(realm(), document_->url());
+            }
+        }();
 
         // Set copy’s encoding, content type, URL, origin, type, and mode to those of node.
         document_copy->set_encoding(document_->encoding());
