@@ -12,7 +12,9 @@
 #include <AK/ByteString.h>
 #include <AK/ScopeGuard.h>
 #include <LibCore/System.h>
-#include <WinSock2.h>
+#include <Windows.h>
+#include <cerrno>
+#include <direct.h>
 #include <io.h>
 
 namespace Core::System {
