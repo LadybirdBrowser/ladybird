@@ -1,6 +1,6 @@
 All supported properties and their default values exposed from CSSStyleDeclaration from getComputedStyle:
 'cssText': ''
-'length': '202'
+'length': '203'
 'parentRule': 'null'
 'cssFloat': 'none'
 'WebkitAlignContent': 'normal'
@@ -495,6 +495,8 @@ All supported properties and their default values exposed from CSSStyleDeclarati
 'stopOpacity': '1'
 'stop-opacity': '1'
 'stroke': 'none'
+'strokeDashoffset': '0'
+'stroke-dashoffset': '0'
 'strokeLinecap': 'butt'
 'stroke-linecap': 'butt'
 'strokeLinejoin': 'miter'

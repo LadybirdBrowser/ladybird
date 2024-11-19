@@ -854,6 +854,17 @@ void NodeWithStyle::apply_style(const CSS::StyleProperties& computed_style)
         computed_values.set_fill_rule(*fill_rule);
 
     computed_values.set_fill_opacity(computed_style.fill_opacity());
+
+    auto const& stroke_dashoffset = computed_style.property(CSS::PropertyID::StrokeDashoffset);
+    // FIXME: Converting to pixels isn't really correct - values should be in "user units"
+    //        https://svgwg.org/svg2-draft/coords.html#TermUserUnits
+    if (stroke_dashoffset.is_number())
+        computed_values.set_stroke_dashoffset(CSS::Length::make_px(CSSPixels::nearest_value_for(stroke_dashoffset.as_number().number())));
+    else if (stroke_dashoffset.is_length())
+        computed_values.set_stroke_dashoffset(stroke_dashoffset.as_length().length());
+    else if (stroke_dashoffset.is_percentage())
+        computed_values.set_stroke_dashoffset(CSS::LengthPercentage { stroke_dashoffset.as_percentage().percentage() });
+
     if (auto stroke_linecap = computed_style.stroke_linecap(); stroke_linecap.has_value())
         computed_values.set_stroke_linecap(stroke_linecap.value());
     if (auto stroke_linejoin = computed_style.stroke_linejoin(); stroke_linejoin.has_value())

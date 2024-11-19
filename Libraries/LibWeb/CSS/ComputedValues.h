@@ -150,10 +150,12 @@ public:
     static float fill_opacity() { return 1.0f; }
     static CSS::FillRule fill_rule() { return CSS::FillRule::Nonzero; }
     static CSS::ClipRule clip_rule() { return CSS::ClipRule::Nonzero; }
+    static CSS::LengthPercentage stroke_dashoffset() { return CSS::Length::make_px(0); }
     static CSS::StrokeLinecap stroke_linecap() { return CSS::StrokeLinecap::Butt; }
     static CSS::StrokeLinejoin stroke_linejoin() { return CSS::StrokeLinejoin::Miter; }
     static float stroke_miterlimit() { return 4.0f; }
     static float stroke_opacity() { return 1.0f; }
+    static CSS::LengthPercentage stroke_width() { return CSS::Length::make_px(1); }
     static float stop_opacity() { return 1.0f; }
     static CSS::TextAnchor text_anchor() { return CSS::TextAnchor::Start; }
     static CSS::Length border_radius() { return Length::make_px(0); }
@@ -478,6 +480,7 @@ public:
     CSS::FillRule fill_rule() const { return m_inherited.fill_rule; }
     Optional<SVGPaint> const& stroke() const { return m_inherited.stroke; }
     float fill_opacity() const { return m_inherited.fill_opacity; }
+    LengthPercentage const& stroke_dashoffset() const { return m_inherited.stroke_dashoffset; }
     CSS::StrokeLinecap stroke_linecap() const { return m_inherited.stroke_linecap; }
     CSS::StrokeLinejoin stroke_linejoin() const { return m_inherited.stroke_linejoin; }
     NumberOrCalculated stroke_miterlimit() const { return m_inherited.stroke_miterlimit; }
@@ -578,11 +581,12 @@ protected:
         CSS::FillRule fill_rule { InitialValues::fill_rule() };
         Optional<SVGPaint> stroke;
         float fill_opacity { InitialValues::fill_opacity() };
+        LengthPercentage stroke_dashoffset { InitialValues::stroke_dashoffset() };
         CSS::StrokeLinecap stroke_linecap { InitialValues::stroke_linecap() };
         CSS::StrokeLinejoin stroke_linejoin { InitialValues::stroke_linejoin() };
         NumberOrCalculated stroke_miterlimit { InitialValues::stroke_miterlimit() };
         float stroke_opacity { InitialValues::stroke_opacity() };
-        LengthPercentage stroke_width { Length::make_px(1) };
+        LengthPercentage stroke_width { InitialValues::stroke_width() };
         CSS::TextAnchor text_anchor { InitialValues::text_anchor() };
         CSS::ClipRule clip_rule { InitialValues::clip_rule() };
 
@@ -826,6 +830,7 @@ public:
     void set_stroke(SVGPaint value) { m_inherited.stroke = value; }
     void set_fill_rule(CSS::FillRule value) { m_inherited.fill_rule = value; }
     void set_fill_opacity(float value) { m_inherited.fill_opacity = value; }
+    void set_stroke_dashoffset(LengthPercentage value) { m_inherited.stroke_dashoffset = value; }
     void set_stroke_linecap(CSS::StrokeLinecap value) { m_inherited.stroke_linecap = value; }
     void set_stroke_linejoin(CSS::StrokeLinejoin value) { m_inherited.stroke_linejoin = value; }
     void set_stroke_miterlimit(NumberOrCalculated value) { m_inherited.stroke_miterlimit = value; }
