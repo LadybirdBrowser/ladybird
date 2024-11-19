@@ -18,4 +18,11 @@
 #    define SWIFT_CONFORMS_TO_PROTOCOL(protocol)
 #    define SWIFT_COMPUTED_PROPERTY
 #    define SWIFT_MUTATING
+#    define SWIFT_UNCHECKED_SENDABLE
+#    define SWIFT_NONCOPYABLE
+#    define SWIFT_NONESCAPABLE
+#    define SWIFT_ESCAPABLE
+#    define SWIFT_ESCAPABLE_IF(...)
+#    define SWIFT_RETURNS_RETAINED
+#    define SWIFT_RETURNS_UNRETAINED
 #endif
