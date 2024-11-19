@@ -10,8 +10,6 @@
 #include <LibCore/DirIterator.h>
 #include <LibCore/System.h>
 #include <LibFileSystem/FileSystem.h>
-#include <dirent.h>
-#include <limits.h>
 
 #if !defined(AK_OS_IOS) && defined(AK_OS_BSD_GENERIC)
 #    include <sys/disk.h>
