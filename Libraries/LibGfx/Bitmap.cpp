@@ -7,16 +7,8 @@
  */
 
 #include <AK/Bitmap.h>
-#include <AK/ByteString.h>
 #include <AK/Checked.h>
-#include <AK/LexicalPath.h>
-#include <AK/Memory.h>
-#include <AK/MemoryStream.h>
-#include <LibCore/File.h>
-#include <LibCore/MappedFile.h>
-#include <LibCore/MimeData.h>
 #include <LibGfx/Bitmap.h>
-#include <LibGfx/ImageFormats/ImageDecoder.h>
 #include <LibGfx/ShareableBitmap.h>
 #include <errno.h>
 
@@ -103,30 +95,6 @@ ErrorOr<NonnullRefPtr<Bitmap>> Bitmap::create_wrapper(BitmapFormat format, Alpha
     if (size_would_overflow(format, size))
         return Error::from_string_literal("Gfx::Bitmap::create_wrapper size overflow");
     return adopt_ref(*new Bitmap(format, alpha_type, size, pitch, data, move(destruction_callback)));
-}
-
-ErrorOr<NonnullRefPtr<Bitmap>> Bitmap::load_from_file(StringView path, Optional<IntSize> ideal_size)
-{
-    auto file = TRY(Core::File::open(path, Core::File::OpenMode::Read));
-    return load_from_file(move(file), path, ideal_size);
-}
-
-ErrorOr<NonnullRefPtr<Bitmap>> Bitmap::load_from_file(NonnullOwnPtr<Core::File> file, StringView path, Optional<IntSize> ideal_size)
-{
-    auto mapped_file = TRY(Core::MappedFile::map_from_file(move(file), path));
-    auto mime_type = Core::guess_mime_type_based_on_filename(path);
-    return load_from_bytes(mapped_file->bytes(), ideal_size, mime_type);
-}
-
-ErrorOr<NonnullRefPtr<Bitmap>> Bitmap::load_from_bytes(ReadonlyBytes bytes, Optional<IntSize> ideal_size, Optional<ByteString> mine_type)
-{
-    if (auto decoder = TRY(ImageDecoder::try_create_for_raw_bytes(bytes, mine_type))) {
-        auto frame = TRY(decoder->frame(0, ideal_size));
-        if (auto& bitmap = frame.image)
-            return bitmap.release_nonnull();
-    }
-
-    return Error::from_string_literal("Gfx::Bitmap unable to load from file");
 }
 
 Bitmap::Bitmap(BitmapFormat format, AlphaType alpha_type, IntSize size, size_t pitch, void* data, Function<void()>&& destruction_callback)
