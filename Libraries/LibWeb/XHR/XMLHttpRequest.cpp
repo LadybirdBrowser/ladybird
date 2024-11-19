@@ -433,7 +433,7 @@ WebIDL::ExceptionOr<void> XMLHttpRequest::set_request_header(String const& name_
     // 4. If name is not a header name or value is not a header value, then throw a "SyntaxError" DOMException.
     if (!Fetch::Infrastructure::is_header_name(name))
         return WebIDL::SyntaxError::create(realm, "Header name contains invalid characters."_string);
-    if (!Fetch::Infrastructure::is_header_value(value))
+    if (!Fetch::Infrastructure::is_header_value(normalized_value))
         return WebIDL::SyntaxError::create(realm, "Header value contains invalid characters."_string);
 
     auto header = Fetch::Infrastructure::Header {
