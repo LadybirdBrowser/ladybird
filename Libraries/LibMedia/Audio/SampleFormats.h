@@ -6,7 +6,6 @@
 
 #pragma once
 
-#include <AK/ByteString.h>
 #include <AK/Types.h>
 
 namespace Audio {

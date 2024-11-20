@@ -7,6 +7,7 @@
 
 #include <AK/Debug.h>
 #include <AK/Function.h>
+#include <AK/IntegralMath.h>
 #include <AK/Math.h>
 #include <AK/Optional.h>
 #include <AK/Time.h>

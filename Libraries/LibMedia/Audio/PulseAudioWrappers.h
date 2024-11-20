@@ -8,7 +8,6 @@
 
 #include "Forward.h"
 #include "PlaybackStream.h"
-#include "SampleFormats.h"
 #include <AK/AtomicRefCounted.h>
 #include <AK/Error.h>
 #include <AK/NonnullRefPtr.h>

@@ -6,6 +6,8 @@
 
 #pragma once
 
+#include <AK/Assertions.h>
+#include <AK/StdLibExtras.h>
 #include <AK/Types.h>
 #include <initializer_list>
 

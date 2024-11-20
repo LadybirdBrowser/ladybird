@@ -13,7 +13,6 @@
 extern "C" {
 #include <libavcodec/avcodec.h>
 #include <libavformat/avformat.h>
-#include <libavutil/samplefmt.h>
 }
 
 namespace Audio {

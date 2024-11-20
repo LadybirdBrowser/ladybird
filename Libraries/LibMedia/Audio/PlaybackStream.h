@@ -9,12 +9,9 @@
 #include "SampleFormats.h"
 #include <AK/AtomicRefCounted.h>
 #include <AK/Function.h>
-#include <AK/Queue.h>
 #include <AK/Time.h>
 #include <LibCore/Forward.h>
-#include <LibThreading/ConditionVariable.h>
-#include <LibThreading/MutexProtected.h>
-#include <LibThreading/Thread.h>
+#include <LibCore/ThreadedPromise.h>
 
 namespace Audio {
 

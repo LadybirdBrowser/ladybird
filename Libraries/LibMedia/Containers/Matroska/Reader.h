@@ -7,9 +7,9 @@
 
 #pragma once
 
-#include <AK/IntegralMath.h>
+#include <AK/NonnullOwnPtr.h>
+#include <AK/NonnullRefPtr.h>
 #include <AK/Optional.h>
-#include <AK/OwnPtr.h>
 #include <LibCore/MappedFile.h>
 #include <LibMedia/DecoderError.h>
 
