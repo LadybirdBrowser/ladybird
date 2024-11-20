@@ -24,6 +24,7 @@ public:
     virtual String item(size_t index) const override;
 
     virtual Optional<StyleProperty> property(PropertyID) const override;
+    virtual Optional<StyleProperty> custom_property(FlyString const& custom_property_name) const override;
     virtual WebIDL::ExceptionOr<void> set_property(PropertyID, StringView css_text, StringView priority) override;
     virtual WebIDL::ExceptionOr<void> set_property(StringView property_name, StringView css_text, StringView priority) override;
     virtual WebIDL::ExceptionOr<String> remove_property(PropertyID) override;
