@@ -62,7 +62,7 @@ void XMLDocumentBuilder::set_source(ByteString source)
     m_document->set_source(MUST(String::from_byte_string(source)));
 }
 
-void XMLDocumentBuilder::set_doctype(XML::Doctype doctype)
+void XMLDocumentBuilder::doctype(XML::Doctype const& doctype)
 {
     if (m_document->doctype()) {
         return;
@@ -73,13 +73,13 @@ void XMLDocumentBuilder::set_doctype(XML::Doctype doctype)
     document_type->set_name(name);
 
     if (doctype.external_id.has_value()) {
-        auto external_id = doctype.external_id.release_value();
+        auto const& external_id = *doctype.external_id;
 
         auto system_id = MUST(AK::String::from_byte_string(external_id.system_id.system_literal));
         document_type->set_system_id(system_id);
 
         if (external_id.public_id.has_value()) {
-            auto public_id = MUST(AK::String::from_byte_string(external_id.public_id.release_value().public_literal));
+            auto public_id = MUST(AK::String::from_byte_string(external_id.public_id->public_literal));
             document_type->set_public_id(public_id);
         }
     }
