@@ -11,6 +11,7 @@ list(APPEND CLANG_PLUGINS_COMPILE_OPTIONS_FOR_TESTS
     -Wno-literal-range
     -Wno-unknown-warning-option
     -Wno-unqualified-std-cast-call
+    -fgnuc-version=4.2.1 # NOTE: Clang default as of 10.0.0
 )
 
 # Ensure we always check for invalid function field types regardless of the value of ENABLE_CLANG_PLUGINS_INVALID_FUNCTION_MEMBERS
