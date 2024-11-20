@@ -12,6 +12,7 @@
 #include <LibCore/Proxy.h>
 #include <LibCore/Socket.h>
 #include <LibRequests/NetworkErrorEnum.h>
+#include <LibTLS/TLSv12.h>
 #include <LibTextCodec/Decoder.h>
 #include <LibWebSocket/ConnectionInfo.h>
 #include <LibWebSocket/Message.h>
