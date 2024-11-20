@@ -102,8 +102,13 @@ Optional<StyleProperty> PropertyOwningCSSStyleDeclaration::property(PropertyID p
 }
 
 // https://drafts.csswg.org/cssom/#dom-cssstyledeclaration-setproperty
-WebIDL::ExceptionOr<void> PropertyOwningCSSStyleDeclaration::set_property(PropertyID property_id, StringView value, StringView priority)
+WebIDL::ExceptionOr<void> PropertyOwningCSSStyleDeclaration::set_property(StringView property_name, StringView value, StringView priority)
 {
+    auto maybe_property_id = property_id_from_string(property_name);
+    if (!maybe_property_id.has_value())
+        return {};
+    auto property_id = maybe_property_id.value();
+
     // 1. If the computed flag is set, then throw a NoModificationAllowedError exception.
     // NOTE: This is handled by the virtual override in ResolvedCSSStyleDeclaration.
 
@@ -146,10 +151,22 @@ WebIDL::ExceptionOr<void> PropertyOwningCSSStyleDeclaration::set_property(Proper
     }
     // 9. Otherwise,
     else {
-        // let updated be the result of set the CSS declaration property with value component value list,
-        // with the important flag set if priority is not the empty string, and unset otherwise,
-        // and with the list of declarations being the declarations.
-        updated = set_a_css_declaration(property_id, *component_value_list, !priority.is_empty() ? Important::Yes : Important::No);
+        if (property_id == PropertyID::Custom) {
+            auto custom_name = FlyString::from_utf8_without_validation(property_name.bytes());
+            StyleProperty style_property {
+                .important = !priority.is_empty() ? Important::Yes : Important::No,
+                .property_id = property_id,
+                .value = component_value_list.release_nonnull(),
+                .custom_name = custom_name,
+            };
+            m_custom_properties.set(custom_name, style_property);
+            updated = true;
+        } else {
+            // let updated be the result of set the CSS declaration property with value component value list,
+            // with the important flag set if priority is not the empty string, and unset otherwise,
+            // and with the list of declarations being the declarations.
+            updated = set_a_css_declaration(property_id, *component_value_list, !priority.is_empty() ? Important::Yes : Important::No);
+        }
     }
 
     // 10. If updated is true, update style attribute for the CSS declaration block.
@@ -291,12 +308,9 @@ StringView CSSStyleDeclaration::get_property_priority(StringView property_name) 
     return maybe_property->important == Important::Yes ? "important"sv : ""sv;
 }
 
-WebIDL::ExceptionOr<void> CSSStyleDeclaration::set_property(StringView property_name, StringView css_text, StringView priority)
+WebIDL::ExceptionOr<void> CSSStyleDeclaration::set_property(PropertyID property_id, StringView css_text, StringView priority)
 {
-    auto property_id = property_id_from_string(property_name);
-    if (!property_id.has_value())
-        return {};
-    return set_property(property_id.value(), css_text, priority);
+    return set_property(string_from_property_id(property_id), css_text, priority);
 }
 
 WebIDL::ExceptionOr<String> CSSStyleDeclaration::remove_property(StringView property_name)

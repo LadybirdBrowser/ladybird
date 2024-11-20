@@ -30,10 +30,10 @@ public:
 
     virtual Optional<StyleProperty> property(PropertyID) const = 0;
 
-    virtual WebIDL::ExceptionOr<void> set_property(PropertyID, StringView css_text, StringView priority = ""sv) = 0;
+    virtual WebIDL::ExceptionOr<void> set_property(PropertyID, StringView css_text, StringView priority = ""sv);
     virtual WebIDL::ExceptionOr<String> remove_property(PropertyID) = 0;
 
-    virtual WebIDL::ExceptionOr<void> set_property(StringView property_name, StringView css_text, StringView priority);
+    virtual WebIDL::ExceptionOr<void> set_property(StringView property_name, StringView css_text, StringView priority) = 0;
     virtual WebIDL::ExceptionOr<String> remove_property(StringView property_name);
 
     String get_property_value(StringView property) const;
@@ -76,7 +76,7 @@ public:
 
     virtual Optional<StyleProperty> property(PropertyID) const override;
 
-    virtual WebIDL::ExceptionOr<void> set_property(PropertyID, StringView css_text, StringView priority) override;
+    virtual WebIDL::ExceptionOr<void> set_property(StringView property_name, StringView css_text, StringView priority) override;
     virtual WebIDL::ExceptionOr<String> remove_property(PropertyID) override;
 
     Vector<StyleProperty> const& properties() const { return m_properties; }
