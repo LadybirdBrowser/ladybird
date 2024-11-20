@@ -162,6 +162,7 @@ bool is_calendar_unit(Unit);
 UnitCategory temporal_unit_category(Unit);
 RoundingIncrement maximum_temporal_duration_rounding_increment(Unit);
 Crypto::UnsignedBigInteger const& temporal_unit_length_in_nanoseconds(Unit);
+ThrowCompletionOr<bool> is_partial_temporal_object(VM&, Value);
 String format_fractional_seconds(u64, Precision);
 String format_time_string(u8 hour, u8 minute, u8 second, u16 sub_second_nanoseconds, SecondsStringPrecision::Precision, Optional<TimeStyle> = {});
 UnsignedRoundingMode get_unsigned_rounding_mode(RoundingMode, Sign);

@@ -113,4 +113,35 @@ bool iso_date_within_limits(ISODate iso_date)
     return iso_date_time_within_limits(iso_date_time);
 }
 
+// 3.5.12 CompareISODate ( isoDate1, isoDate2 ), https://tc39.es/proposal-temporal/#sec-temporal-compareisodate
+i8 compare_iso_date(ISODate iso_date1, ISODate iso_date2)
+{
+    // 1. If isoDate1.[[Year]] > isoDate2.[[Year]], return 1.
+    if (iso_date1.year > iso_date2.year)
+        return 1;
+
+    // 2. If isoDate1.[[Year]] < isoDate2.[[Year]], return -1.
+    if (iso_date1.year < iso_date2.year)
+        return -1;
+
+    // 3. If isoDate1.[[Month]] > isoDate2.[[Month]], return 1.
+    if (iso_date1.month > iso_date2.month)
+        return 1;
+
+    // 4. If isoDate1.[[Month]] < isoDate2.[[Month]], return -1.
+    if (iso_date1.month < iso_date2.month)
+        return -1;
+
+    // 5. If isoDate1.[[Day]] > isoDate2.[[Day]], return 1.
+    if (iso_date1.day > iso_date2.day)
+        return 1;
+
+    // 6. If isoDate1.[[Day]] < isoDate2.[[Day]], return -1.
+    if (iso_date1.day < iso_date2.day)
+        return -1;
+
+    // 7. Return 0.
+    return 0;
+}
+
 }
