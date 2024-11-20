@@ -703,12 +703,12 @@ void HTMLImageElement::add_callbacks_to_image_request(GC::Ref<ImageRequest> imag
                 // 3. Add the image to the list of available images using the key key, with the ignore higher-layer caching flag set.
                 document().list_of_available_images().add(key, *image_data, true);
 
+                set_needs_style_update(true);
+                document().set_needs_layout();
+
                 // 4. If maybe omit events is not set or previousURL is not equal to urlString, then fire an event named load at the img element.
                 if (!maybe_omit_events || previous_url != url_string)
                     dispatch_event(DOM::Event::create(realm(), HTML::EventNames::load));
-
-                set_needs_style_update(true);
-                document().set_needs_layout();
 
                 if (image_data->is_animated() && image_data->frame_count() > 1) {
                     m_current_frame_index = 0;
