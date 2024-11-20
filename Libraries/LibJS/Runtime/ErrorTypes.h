@@ -249,6 +249,7 @@
     M(TemporalInvalidCalendarFunctionResult, "Invalid calendar, {}() function returned {}")                                             \
     M(TemporalInvalidCalendarIdentifier, "Invalid calendar identifier '{}'")                                                            \
     M(TemporalInvalidCalendarString, "Invalid calendar string '{}'")                                                                    \
+    M(TemporalInvalidCriticalAnnotation, "Invalid critical annotation: '{}={}'")                                                        \
     M(TemporalInvalidDateTimeString, "Invalid date time string '{}'")                                                                   \
     M(TemporalInvalidDateTimeStringUTCDesignator, "Invalid date time string '{}': must not contain a UTC designator")                   \
     M(TemporalInvalidDuration, "Invalid duration")                                                                                      \
@@ -295,6 +296,7 @@
                                                                             "nanoseconds with the opposite sign")                       \
     M(TemporalNanosecondsConvertedToRemainderOfNanosecondsLongerThanDayLength, "Time zone or calendar ended up with a remainder of "    \
                                                                                "nanoseconds longer than the day length")                \
+    M(TemporalObjectMustBePartialTemporalObject, "Object must be a partial Temporal object")                                            \
     M(TemporalObjectMustHaveOneOf, "Object must have at least one of the following properties: {}")                                     \
     M(TemporalObjectMustNotHave, "Object must not have a defined {} property")                                                          \
     M(TemporalPropertyMustBeFinite, "Property must not be Infinity")                                                                    \

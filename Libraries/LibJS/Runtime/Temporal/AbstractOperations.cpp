@@ -9,11 +9,15 @@
 
 #include <LibCrypto/BigFraction/BigFraction.h>
 #include <LibJS/Runtime/AbstractOperations.h>
+#include <LibJS/Runtime/Date.h>
 #include <LibJS/Runtime/PropertyKey.h>
 #include <LibJS/Runtime/Temporal/AbstractOperations.h>
+#include <LibJS/Runtime/Temporal/Calendar.h>
 #include <LibJS/Runtime/Temporal/Duration.h>
-#include <LibJS/Runtime/Temporal/ISO8601.h>
 #include <LibJS/Runtime/Temporal/Instant.h>
+#include <LibJS/Runtime/Temporal/PlainDate.h>
+#include <LibJS/Runtime/Temporal/PlainDateTime.h>
+#include <LibJS/Runtime/Temporal/TimeZone.h>
 
 namespace JS::Temporal {
 
@@ -41,6 +45,43 @@ static auto temporal_units = to_array<TemporalUnit>({
 StringView temporal_unit_to_string(Unit unit)
 {
     return temporal_units[to_underlying(unit)].singular_property_name;
+}
+
+// 13.1 ISODateToEpochDays ( year, month, date ), https://tc39.es/proposal-temporal/#sec-isodatetoepochdays
+double iso_date_to_epoch_days(double year, double month, double date)
+{
+    // 1. Let resolvedYear be year + floor(month / 12).
+    // 2. Let resolvedMonth be month modulo 12.
+    // 3. Find a time t such that EpochTimeToEpochYear(t) = resolvedYear, EpochTimeToMonthInYear(t) = resolvedMonth, and EpochTimeToDate(t) = 1.
+    // 4. Return EpochTimeToDayNumber(t) + date - 1.
+
+    // EDITOR'S NOTE: This operation corresponds to ECMA-262 operation MakeDay(year, month, date). It calculates the
+    //                result in mathematical values instead of Number values. These two operations would be unified when
+    //                https://github.com/tc39/ecma262/issues/1087 is fixed.
+
+    // Since we don't have a real MV type to work with, let's defer to MakeDay.
+    return JS::make_day(year, month, date);
+}
+
+// 13.2 EpochDaysToEpochMs ( day, time ), https://tc39.es/proposal-temporal/#sec-epochdaystoepochms
+double epoch_days_to_epoch_ms(double day, double time)
+{
+    // 1. Return day × ℝ(msPerDay) + time.
+    return day * JS::ms_per_day + time;
+}
+
+// 13.6 GetTemporalOverflowOption ( options ), https://tc39.es/proposal-temporal/#sec-temporal-gettemporaloverflowoption
+ThrowCompletionOr<Overflow> get_temporal_overflow_option(VM& vm, Object const& options)
+{
+    // 1. Let stringValue be ? GetOption(options, "overflow", STRING, « "constrain", "reject" », "constrain").
+    auto string_value = TRY(get_option(vm, options, vm.names.overflow, OptionType::String, { "constrain"sv, "reject"sv }, "constrain"sv));
+
+    // 2. If stringValue is "constrain", return CONSTRAIN.
+    if (string_value.as_string().utf8_string() == "constrain"sv)
+        return Overflow::Constrain;
+
+    // 3. Return REJECT.
+    return Overflow::Reject;
 }
 
 // 13.14 ValidateTemporalRoundingIncrement ( increment, dividend, inclusive ), https://tc39.es/proposal-temporal/#sec-validatetemporalroundingincrement
@@ -422,6 +463,27 @@ String format_fractional_seconds(u64 sub_second_nanoseconds, Precision precision
     return MUST(String::formatted(".{}", fraction_string));
 }
 
+// 13.25 FormatTimeString ( hour, minute, second, subSecondNanoseconds, precision [ , style ] ), https://tc39.es/proposal-temporal/#sec-temporal-formattimestring
+String format_time_string(u8 hour, u8 minute, u8 second, u16 sub_second_nanoseconds, SecondsStringPrecision::Precision precision, Optional<TimeStyle> style)
+{
+    // 1. If style is present and style is UNSEPARATED, let separator be the empty String; otherwise, let separator be ":".
+    auto separator = style == TimeStyle::Unseparated ? ""sv : ":"sv;
+
+    // 2. Let hh be ToZeroPaddedDecimalString(hour, 2).
+    // 3. Let mm be ToZeroPaddedDecimalString(minute, 2).
+
+    // 4. If precision is minute, return the string-concatenation of hh, separator, and mm.
+    if (precision.has<SecondsStringPrecision::Minute>())
+        return MUST(String::formatted("{:02}{}{:02}", hour, separator, minute));
+
+    // 5. Let ss be ToZeroPaddedDecimalString(second, 2).
+    // 6. Let subSecondsPart be FormatFractionalSeconds(subSecondNanoseconds, precision).
+    auto sub_seconds_part = format_fractional_seconds(sub_second_nanoseconds, precision.downcast<Auto, u8>());
+
+    // 7. Return the string-concatenation of hh, separator, mm, separator, ss, and subSecondsPart.
+    return MUST(String::formatted("{:02}{}{:02}{}{:02}{}", hour, separator, minute, separator, second, sub_seconds_part));
+}
+
 // 13.26 GetUnsignedRoundingMode ( roundingMode, sign ), https://tc39.es/proposal-temporal/#sec-getunsignedroundingmode
 UnsignedRoundingMode get_unsigned_rounding_mode(RoundingMode rounding_mode, Sign sign)
 {
@@ -664,6 +726,260 @@ Crypto::SignedBigInteger round_number_to_increment(Crypto::SignedBigInteger cons
     return rounded.multiplied_by(increment);
 }
 
+// 13.33 ParseISODateTime ( isoString, allowedFormats ), https://tc39.es/proposal-temporal/#sec-temporal-parseisodatetime
+ThrowCompletionOr<ParsedISODateTime> parse_iso_date_time(VM& vm, StringView iso_string, ReadonlySpan<Production> allowed_formats)
+{
+    // 1. Let parseResult be EMPTY.
+    Optional<ParseResult> parse_result;
+
+    // 2. Let calendar be EMPTY.
+    Optional<String> calendar;
+
+    // 3. Let yearAbsent be false.
+    auto year_absent = false;
+
+    // 4. For each nonterminal goal of allowedFormats, do
+    for (auto goal : allowed_formats) {
+        // a. If parseResult is not a Parse Node, then
+        if (parse_result.has_value())
+            break;
+
+        // i. Set parseResult to ParseText(StringToCodePoints(isoString), goal).
+        parse_result = parse_iso8601(goal, iso_string);
+
+        // ii. If parseResult is a Parse Node, then
+        if (parse_result.has_value()) {
+            // 1. Let calendarWasCritical be false.
+            auto calendar_was_critical = false;
+
+            // 2. For each Annotation Parse Node annotation contained within parseResult, do
+            for (auto const& annotation : parse_result->annotations) {
+                // a. Let key be the source text matched by the AnnotationKey Parse Node contained within annotation.
+                auto const& key = annotation.key;
+
+                // b. Let value be the source text matched by the AnnotationValue Parse Node contained within annotation.
+                auto const& value = annotation.value;
+
+                // c. If CodePointsToString(key) is "u-ca", then
+                if (key == "u-ca"sv) {
+                    // i. If calendar is EMPTY, then
+                    if (!calendar.has_value()) {
+                        // i. Set calendar to CodePointsToString(value).
+                        calendar = String::from_utf8_without_validation(value.bytes());
+
+                        // ii. If annotation contains an AnnotationCriticalFlag Parse Node, set calendarWasCritical to true.
+                        if (annotation.critical)
+                            calendar_was_critical = true;
+                    }
+                    // ii. Else,
+                    else {
+                        // i. If annotation contains an AnnotationCriticalFlag Parse Node, or calendarWasCritical is true,
+                        //    throw a RangeError exception.
+                        if (annotation.critical || calendar_was_critical)
+                            return vm.throw_completion<RangeError>(ErrorType::TemporalInvalidCriticalAnnotation, key, value);
+                    }
+                }
+                // d. Else,
+                else {
+                    // i. If annotation contains an AnnotationCriticalFlag Parse Node, throw a RangeError exception.
+                    if (annotation.critical)
+                        return vm.throw_completion<RangeError>(ErrorType::TemporalInvalidCriticalAnnotation, key, value);
+                }
+            }
+
+            // 3. If goal is TemporalMonthDayString or TemporalYearMonthString, calendar is not EMPTY, and the
+            //    ASCII-lowercase of calendar is not "iso8601", throw a RangeError exception.
+            if (goal == Production::TemporalMonthDayString || goal == Production::TemporalYearMonthString) {
+                if (calendar.has_value() && !calendar->equals_ignoring_ascii_case("iso8601"sv))
+                    return vm.throw_completion<RangeError>(ErrorType::TemporalInvalidCalendarIdentifier, *calendar);
+            }
+
+            // 4. If goal is TemporalMonthDayString and parseResult does not contain a DateYear Parse Node, then
+            if (goal == Production::TemporalMonthDayString && !parse_result->date_year.has_value()) {
+                // a. Assert: goal is the last element of allowedFormats.
+                VERIFY(goal == allowed_formats.last());
+
+                // b. Set yearAbsent to true.
+                year_absent = true;
+            }
+        }
+    }
+
+    // 5. If parseResult is not a Parse Node, throw a RangeError exception.
+    if (!parse_result.has_value())
+        return vm.throw_completion<RangeError>(ErrorType::TemporalInvalidISODateTime);
+
+    // 6. NOTE: Applications of StringToNumber below do not lose precision, since each of the parsed values is guaranteed
+    //    to be a sufficiently short string of decimal digits.
+
+    // 7. Let each of year, month, day, hour, minute, second, and fSeconds be the source text matched by the respective
+    //    DateYear, DateMonth, DateDay, the first Hour, the first MinuteSecond, TimeSecond, and the first
+    //    TemporalDecimalFraction Parse Node contained within parseResult, or an empty sequence of code points if not present.
+    auto year = parse_result->date_year.value_or({});
+    auto month = parse_result->date_month.value_or({});
+    auto day = parse_result->date_day.value_or({});
+    auto hour = parse_result->time_hour.value_or({});
+    auto minute = parse_result->time_minute.value_or({});
+    auto second = parse_result->time_second.value_or({});
+    auto fractional_seconds = parse_result->time_fraction.value_or({});
+
+    // 8. Let yearMV be ℝ(StringToNumber(CodePointsToString(year))).
+    auto year_value = string_to_number(year);
+
+    // 9. If month is empty, then
+    //        a. Let monthMV be 1.
+    // 10. Else,
+    //         a. Let monthMV be ℝ(StringToNumber(CodePointsToString(month))).
+    auto month_value = month.is_empty() ? 1 : string_to_number(month);
+
+    // 11. If day is empty, then
+    //         a. Let dayMV be 1.
+    // 12. Else,
+    //         a. Let dayMV be ℝ(StringToNumber(CodePointsToString(day))).
+    auto day_value = day.is_empty() ? 1 : string_to_number(day);
+
+    // 13. If hour is empty, then
+    //         a. Let hourMV be 0.
+    // 14. Else,
+    //         a. Let hourMV be ℝ(StringToNumber(CodePointsToString(hour))).
+    auto hour_value = hour.is_empty() ? 0 : string_to_number(hour);
+
+    // 15. If minute is empty, then
+    //         a. Let minuteMV be 0.
+    // 16. Else,
+    //         a. Let minuteMV be ℝ(StringToNumber(CodePointsToString(minute))).
+    auto minute_value = minute.is_empty() ? 0 : string_to_number(minute);
+
+    // 17. If second is empty, then
+    //         a. Let secondMV be 0.
+    // 18. Else,
+    //         a. Let secondMV be ℝ(StringToNumber(CodePointsToString(second))).
+    //         b. If secondMV = 60, then
+    //                i. Set secondMV to 59.
+    auto second_value = second.is_empty() ? 0 : min(string_to_number(second), 59.0);
+
+    double millisecond_value = 0;
+    double microsecond_value = 0;
+    double nanosecond_value = 0;
+
+    // 19. If fSeconds is not empty, then
+    if (!fractional_seconds.is_empty()) {
+        // a. Let fSecondsDigits be the substring of CodePointsToString(fSeconds) from 1.
+        auto fractional_seconds_digits = fractional_seconds.substring_view(1);
+
+        // b. Let fSecondsDigitsExtended be the string-concatenation of fSecondsDigits and "000000000".
+        auto fractional_seconds_extended = MUST(String::formatted("{}000000000", fractional_seconds_digits));
+
+        // c. Let millisecond be the substring of fSecondsDigitsExtended from 0 to 3.
+        auto millisecond = fractional_seconds_extended.bytes_as_string_view().substring_view(0, 3);
+
+        // d. Let microsecond be the substring of fSecondsDigitsExtended from 3 to 6.
+        auto microsecond = fractional_seconds_extended.bytes_as_string_view().substring_view(3, 3);
+
+        // e. Let nanosecond be the substring of fSecondsDigitsExtended from 6 to 9.
+        auto nanosecond = fractional_seconds_extended.bytes_as_string_view().substring_view(6, 3);
+
+        // f. Let millisecondMV be ℝ(StringToNumber(millisecond)).
+        millisecond_value = string_to_number(millisecond);
+
+        // g. Let microsecondMV be ℝ(StringToNumber(microsecond)).
+        microsecond_value = string_to_number(microsecond);
+
+        // h. Let nanosecondMV be ℝ(StringToNumber(nanosecond)).
+        nanosecond_value = string_to_number(nanosecond);
+    }
+    // 20. Else,
+    else {
+        // a. Let millisecondMV be 0.
+        // b. Let microsecondMV be 0.
+        // c. Let nanosecondMV be 0.
+    }
+
+    // 21. Assert: IsValidISODate(yearMV, monthMV, dayMV) is true.
+    VERIFY(is_valid_iso_date(year_value, month_value, day_value));
+
+    Variant<ParsedISODateTime::StartOfDay, Time> time { ParsedISODateTime::StartOfDay {} };
+
+    // 22. If hour is empty, then
+    if (hour.is_empty()) {
+        // a. Let time be START-OF-DAY.
+    }
+    // 23. Else,
+    else {
+        // a. Let time be CreateTimeRecord(hourMV, minuteMV, secondMV, millisecondMV, microsecondMV, nanosecondMV).
+        time = create_time_record(hour_value, minute_value, second_value, millisecond_value, microsecond_value, nanosecond_value);
+    }
+
+    // 24. Let timeZoneResult be ISO String Time Zone Parse Record { [[Z]]: false, [[OffsetString]]: EMPTY, [[TimeZoneAnnotation]]: EMPTY }.
+    ParsedISOTimeZone time_zone_result;
+
+    // 25. If parseResult contains a TimeZoneIdentifier Parse Node, then
+    if (parse_result->time_zone_identifier.has_value()) {
+        // a. Let identifier be the source text matched by the TimeZoneIdentifier Parse Node contained within parseResult.
+        // b. Set timeZoneResult.[[TimeZoneAnnotation]] to CodePointsToString(identifier).
+        time_zone_result.time_zone_annotation = String::from_utf8_without_validation(parse_result->time_zone_identifier->bytes());
+    }
+
+    // 26. If parseResult contains a UTCDesignator Parse Node, then
+    if (parse_result->utc_designator.has_value()) {
+        // a. Set timeZoneResult.[[Z]] to true.
+        time_zone_result.z_designator = true;
+    }
+    // 27. Else if parseResult contains a UTCOffset[+SubMinutePrecision] Parse Node, then
+    else if (parse_result->date_time_offset.has_value()) {
+        // a. Let offset be the source text matched by the UTCOffset[+SubMinutePrecision] Parse Node contained within parseResult.
+        // b. Set timeZoneResult.[[OffsetString]] to CodePointsToString(offset).
+        time_zone_result.offset_string = String::from_utf8_without_validation(parse_result->date_time_offset->source_text.bytes());
+    }
+
+    // 28. If yearAbsent is true, let yearReturn be EMPTY; else let yearReturn be yearMV.
+    Optional<i32> year_return;
+    if (!year_absent)
+        year_return = static_cast<i32>(year_value);
+
+    // 29. Return ISO Date-Time Parse Record { [[Year]]: yearReturn, [[Month]]: monthMV, [[Day]]: dayMV, [[Time]]: time, [[TimeZone]]: timeZoneResult, [[Calendar]]: calendar  }.
+    return ParsedISODateTime { .year = year_return, .month = static_cast<u8>(month_value), .day = static_cast<u8>(day_value), .time = move(time), .time_zone = move(time_zone_result), .calendar = move(calendar) };
+}
+
+// 13.34 ParseTemporalCalendarString ( string ), https://tc39.es/proposal-temporal/#sec-temporal-parsetemporalcalendarstring
+ThrowCompletionOr<String> parse_temporal_calendar_string(VM& vm, String const& string)
+{
+    // 1. Let parseResult be Completion(ParseISODateTime(string, « TemporalDateTimeString[+Zoned], TemporalDateTimeString[~Zoned],
+    //    TemporalInstantString, TemporalTimeString, TemporalMonthDayString, TemporalYearMonthString »)).
+    static constexpr auto productions = to_array<Production>({
+        Production::TemporalZonedDateTimeString,
+        Production::TemporalDateTimeString,
+        Production::TemporalInstantString,
+        Production::TemporalTimeString,
+        Production::TemporalMonthDayString,
+        Production::TemporalYearMonthString,
+    });
+
+    auto parse_result = parse_iso_date_time(vm, string, productions);
+
+    // 2. If parseResult is a normal completion, then
+    if (!parse_result.is_error()) {
+        // a. Let calendar be parseResult.[[Value]].[[Calendar]].
+        auto calendar = parse_result.value().calendar;
+
+        // b. If calendar is empty, return "iso8601".
+        // c. Else, return calendar.
+        return calendar.value_or("iso8601"_string);
+    }
+    // 3. Else,
+    else {
+        // a. Set parseResult to ParseText(StringToCodePoints(string), AnnotationValue).
+        auto annotation_parse_result = parse_iso8601(Production::AnnotationValue, string);
+
+        // b. If parseResult is a List of errors, throw a RangeError exception.
+        if (!annotation_parse_result.has_value())
+            return vm.throw_completion<RangeError>(ErrorType::TemporalInvalidCalendarString, string);
+
+        // c. Else, return string.
+        return string;
+    }
+}
+
 // 13.35 ParseTemporalDurationString ( isoString ), https://tc39.es/proposal-temporal/#sec-temporal-parsetemporaldurationstring
 ThrowCompletionOr<GC::Ref<Duration>> parse_temporal_duration_string(VM& vm, StringView iso_string)
 {
@@ -884,6 +1200,152 @@ ThrowCompletionOr<GC::Ref<Duration>> parse_temporal_duration_string(VM& vm, Stri
     return TRY(create_temporal_duration(vm, years_value, months_value, weeks_value, days_value, hours_value, factored_minutes_value, factored_seconds_value, factored_milliseconds_value, factored_microseconds_value, factored_nanoseconds_value));
 }
 
+// 13.36 ParseTemporalTimeZoneString ( timeZoneString ), https://tc39.es/proposal-temporal/#sec-temporal-parsetemporaltimezonestring
+ThrowCompletionOr<TimeZone> parse_temporal_time_zone_string(VM& vm, StringView time_zone_string)
+{
+    // 1. Let parseResult be ParseText(StringToCodePoints(timeZoneString), TimeZoneIdentifier).
+    auto parse_result = parse_iso8601(Production::TimeZoneIdentifier, time_zone_string);
+
+    // 2. If parseResult is a Parse Node, then
+    if (parse_result.has_value()) {
+        // a. Return ! ParseTimeZoneIdentifier(timeZoneString).
+        return parse_time_zone_identifier(parse_result.release_value());
+    }
+
+    // 3. Let result be ? ParseISODateTime(timeZoneString, « TemporalDateTimeString[+Zoned], TemporalDateTimeString[~Zoned],
+    //    TemporalInstantString, TemporalTimeString, TemporalMonthDayString, TemporalYearMonthString »).
+    static constexpr auto productions = to_array<Production>({
+        Production::TemporalZonedDateTimeString,
+        Production::TemporalDateTimeString,
+        Production::TemporalInstantString,
+        Production::TemporalTimeString,
+        Production::TemporalMonthDayString,
+        Production::TemporalYearMonthString,
+    });
+
+    auto result = TRY(parse_iso_date_time(vm, time_zone_string, productions));
+
+    // 4. Let timeZoneResult be result.[[TimeZone]].
+    auto time_zone_result = move(result.time_zone);
+
+    // 5. If timeZoneResult.[[TimeZoneAnnotation]] is not empty, then
+    if (time_zone_result.time_zone_annotation.has_value()) {
+        // a. Return ! ParseTimeZoneIdentifier(timeZoneResult.[[TimeZoneAnnotation]]).
+        return MUST(parse_time_zone_identifier(vm, *time_zone_result.time_zone_annotation));
+    }
+
+    // 6. If timeZoneResult.[[Z]] is true, then
+    if (time_zone_result.z_designator) {
+        // a. Return ! ParseTimeZoneIdentifier("UTC").
+        return MUST(parse_time_zone_identifier(vm, "UTC"sv));
+    }
+
+    // 7. If timeZoneResult.[[OffsetString]] is not empty, then
+    if (time_zone_result.offset_string.has_value()) {
+        // a. Return ? ParseTimeZoneIdentifier(timeZoneResult.[[OffsetString]]).
+        return TRY(parse_time_zone_identifier(vm, *time_zone_result.offset_string));
+    }
+
+    // 8. Throw a RangeError exception.
+    return vm.throw_completion<RangeError>(ErrorType::TemporalInvalidTimeZoneString, time_zone_string);
+}
+
+// 13.40 ToMonthCode ( argument ), https://tc39.es/proposal-temporal/#sec-temporal-tomonthcode
+ThrowCompletionOr<String> to_month_code(VM& vm, Value argument)
+{
+    // 1. Let monthCode be ? ToPrimitive(argument, STRING).
+    auto month_code = TRY(argument.to_primitive(vm, Value::PreferredType::String));
+
+    // 2. If monthCode is not a String, throw a TypeError exception.
+    if (!month_code.is_string())
+        return vm.throw_completion<TypeError>(ErrorType::TemporalInvalidMonthCode);
+    auto month_code_string = month_code.as_string().utf8_string_view();
+
+    // 3. If the length of monthCode is not 3 or 4, throw a RangeError exception.
+    if (month_code_string.length() != 3 && month_code_string.length() != 4)
+        return vm.throw_completion<RangeError>(ErrorType::TemporalInvalidMonthCode);
+
+    // 4. If the first code unit of monthCode is not 0x004D (LATIN CAPITAL LETTER M), throw a RangeError exception.
+    if (month_code_string[0] != 'M')
+        return vm.throw_completion<RangeError>(ErrorType::TemporalInvalidMonthCode);
+
+    // 5. If the second code unit of monthCode is not in the inclusive interval from 0x0030 (DIGIT ZERO) to 0x0039 (DIGIT NINE),
+    //    throw a RangeError exception.
+    if (!is_ascii_digit(month_code_string[1]) || parse_ascii_digit(month_code_string[1]) > 9)
+        return vm.throw_completion<RangeError>(ErrorType::TemporalInvalidMonthCode);
+
+    // 6. If the third code unit of monthCode is not in the inclusive interval from 0x0030 (DIGIT ZERO) to 0x0039 (DIGIT NINE),
+    //    throw a RangeError exception.
+    if (!is_ascii_digit(month_code_string[2]) || parse_ascii_digit(month_code_string[2]) > 9)
+        return vm.throw_completion<RangeError>(ErrorType::TemporalInvalidMonthCode);
+
+    // 7. If the length of monthCode is 4 and the fourth code unit of monthCode is not 0x004C (LATIN CAPITAL LETTER L),
+    //    throw a RangeError exception.
+    if (month_code_string.length() == 4 && month_code_string[3] != 'L')
+        return vm.throw_completion<RangeError>(ErrorType::TemporalInvalidMonthCode);
+
+    // 8. Let monthCodeDigits be the substring of monthCode from 1 to 3.
+    auto month_code_digits = month_code_string.substring_view(1, 2);
+
+    // 9. Let monthCodeInteger be ℝ(StringToNumber(monthCodeDigits)).
+    auto month_code_integer = month_code_digits.to_number<u8>().value();
+
+    // 10. If monthCodeInteger is 0 and the length of monthCode is not 4, throw a RangeError exception.
+    if (month_code_integer == 0 && month_code_string.length() != 4)
+        return vm.throw_completion<RangeError>(ErrorType::TemporalInvalidMonthCode);
+
+    // 11. Return monthCode.
+    return month_code.as_string().utf8_string();
+}
+
+// 13.41 ToOffsetString ( argument ), https://tc39.es/proposal-temporal/#sec-temporal-tooffsetstring
+ThrowCompletionOr<String> to_offset_string(VM& vm, Value argument)
+{
+    // 1. Let offset be ? ToPrimitive(argument, STRING).
+    auto offset = TRY(argument.to_primitive(vm, Value::PreferredType::String));
+
+    // 2. If offset is not a String, throw a TypeError exception.
+    if (!offset.is_string())
+        return vm.throw_completion<TypeError>(ErrorType::TemporalInvalidTimeZoneString, offset);
+
+    // 3. Perform ? ParseDateTimeUTCOffset(offset).
+    // FIXME: ParseTimeZoneOffsetString should be renamed to ParseDateTimeUTCOffset and updated for Temporal. For now, we
+    //        can just check with the ISO8601 parser directly.
+    if (!parse_utc_offset(argument.as_string().utf8_string_view(), SubMinutePrecision::Yes).has_value())
+        return vm.throw_completion<RangeError>(ErrorType::TemporalInvalidTimeZoneString, offset);
+
+    // 4. Return offset.
+    return offset.as_string().utf8_string();
+}
+
+// 13.42 ISODateToFields ( calendar, isoDate, type ), https://tc39.es/proposal-temporal/#sec-temporal-isodatetofields
+CalendarFields iso_date_to_fields(StringView calendar, ISODate const& iso_date, DateType type)
+{
+    // 1. Let fields be an empty Calendar Fields Record with all fields set to unset.
+    auto fields = CalendarFields::unset();
+
+    // 2. Let calendarDate be CalendarISOToDate(calendar, isoDate).
+    auto calendar_date = calendar_iso_to_date(calendar, iso_date);
+
+    // 3. Set fields.[[MonthCode]] to calendarDate.[[MonthCode]].
+    fields.month_code = calendar_date.month_code;
+
+    // 4. If type is MONTH-DAY or DATE, then
+    if (type == DateType::MonthDay || type == DateType::Date) {
+        // a. Set fields.[[Day]] to calendarDate.[[Day]].
+        fields.day = calendar_date.day;
+    }
+
+    // 5. If type is YEAR-MONTH or DATE, then
+    if (type == DateType::YearMonth || type == DateType::Date) {
+        // a. Set fields.[[Year]] to calendarDate.[[Year]].
+        fields.year = calendar_date.year;
+    }
+
+    // 6. Return fields.
+    return fields;
+}
+
 // 14.4.1.1 GetOptionsObject ( options ), https://tc39.es/proposal-temporal/#sec-getoptionsobject
 ThrowCompletionOr<GC::Ref<Object>> get_options_object(VM& vm, Value options)
 {
@@ -990,6 +1452,21 @@ ThrowCompletionOr<u64> get_rounding_increment_option(VM& vm, Object const& optio
 
     // 5. Return integerIncrement.
     return static_cast<u64>(integer_increment);
+}
+
+// 14.5.1 GetUTCEpochNanoseconds ( isoDateTime ), https://tc39.es/proposal-temporal/#sec-getutcepochnanoseconds
+Crypto::SignedBigInteger get_utc_epoch_nanoseconds(ISODateTime const& iso_date_time)
+{
+    return JS::get_utc_epoch_nanoseconds(
+        iso_date_time.iso_date.year,
+        iso_date_time.iso_date.month,
+        iso_date_time.iso_date.day,
+        iso_date_time.time.hour,
+        iso_date_time.time.minute,
+        iso_date_time.time.second,
+        iso_date_time.time.millisecond,
+        iso_date_time.time.microsecond,
+        iso_date_time.time.nanosecond);
 }
 
 }

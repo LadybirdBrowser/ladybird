@@ -14,6 +14,8 @@
 #include <LibGC/Ptr.h>
 #include <LibJS/Forward.h>
 #include <LibJS/Runtime/Completion.h>
+#include <LibJS/Runtime/Temporal/ISO8601.h>
+#include <LibJS/Runtime/Temporal/PlainTime.h>
 #include <LibJS/Runtime/VM.h>
 #include <LibJS/Runtime/ValueInlines.h>
 #include <math.h>
@@ -23,6 +25,22 @@ namespace JS::Temporal {
 enum class ArithmeticOperation {
     Add,
     Subtract,
+};
+
+enum class DateType {
+    Date,
+    MonthDay,
+    YearMonth,
+};
+
+enum class Overflow {
+    Constrain,
+    Reject,
+};
+
+enum class TimeStyle {
+    Separated,
+    Unseparated,
 };
 
 // https://tc39.es/proposal-temporal/#sec-temporal-units
@@ -91,8 +109,9 @@ using UnitValue = Variant<Unset, Auto, Unit>;
 
 struct SecondsStringPrecision {
     struct Minute { };
+    using Precision = Variant<Minute, Auto, u8>;
 
-    Variant<Minute, Auto, u8> precision;
+    Precision precision;
     Unit unit;
     u8 increment { 0 };
 };
@@ -103,6 +122,28 @@ struct RelativeTo {
     GC::Ptr<JS::Object> zoned_relative_to; // [[ZonedRelativeTo]]
 };
 
+// 13.31 ISO String Time Zone Parse Records, https://tc39.es/proposal-temporal/#sec-temporal-iso-string-time-zone-parse-records
+struct ParsedISOTimeZone {
+    bool z_designator { false };
+    Optional<String> offset_string;
+    Optional<String> time_zone_annotation;
+};
+
+// 13.32 ISO Date-Time Parse Records, https://tc39.es/proposal-temporal/#sec-temporal-iso-date-time-parse-records
+struct ParsedISODateTime {
+    struct StartOfDay { };
+
+    Optional<i32> year { 0 };
+    u8 month { 0 };
+    u8 day { 0 };
+    Variant<StartOfDay, Time> time;
+    ParsedISOTimeZone time_zone;
+    Optional<String> calendar;
+};
+
+double iso_date_to_epoch_days(double year, double month, double date);
+double epoch_days_to_epoch_ms(double day, double time);
+ThrowCompletionOr<Overflow> get_temporal_overflow_option(VM&, Object const& options);
 ThrowCompletionOr<void> validate_temporal_rounding_increment(VM&, u64 increment, u64 dividend, bool inclusive);
 ThrowCompletionOr<Precision> get_temporal_fractional_second_digits_option(VM&, Object const& options);
 SecondsStringPrecision to_seconds_string_precision_record(UnitValue, Precision);
@@ -114,12 +155,19 @@ UnitCategory temporal_unit_category(Unit);
 RoundingIncrement maximum_temporal_duration_rounding_increment(Unit);
 Crypto::UnsignedBigInteger const& temporal_unit_length_in_nanoseconds(Unit);
 String format_fractional_seconds(u64, Precision);
+String format_time_string(u8 hour, u8 minute, u8 second, u16 sub_second_nanoseconds, SecondsStringPrecision::Precision, Optional<TimeStyle> = {});
 UnsignedRoundingMode get_unsigned_rounding_mode(RoundingMode, Sign);
 double apply_unsigned_rounding_mode(double, double r1, double r2, UnsignedRoundingMode);
 Crypto::SignedBigInteger apply_unsigned_rounding_mode(Crypto::SignedDivisionResult const&, Crypto::SignedBigInteger const& r1, Crypto::SignedBigInteger const& r2, UnsignedRoundingMode, Crypto::UnsignedBigInteger const& increment);
 double round_number_to_increment(double, u64 increment, RoundingMode);
 Crypto::SignedBigInteger round_number_to_increment(Crypto::SignedBigInteger const&, Crypto::UnsignedBigInteger const& increment, RoundingMode);
+ThrowCompletionOr<ParsedISODateTime> parse_iso_date_time(VM&, StringView iso_string, ReadonlySpan<Production> allowed_formats);
+ThrowCompletionOr<String> parse_temporal_calendar_string(VM&, String const&);
 ThrowCompletionOr<GC::Ref<Duration>> parse_temporal_duration_string(VM&, StringView iso_string);
+ThrowCompletionOr<TimeZone> parse_temporal_time_zone_string(VM& vm, StringView time_zone_string);
+ThrowCompletionOr<String> to_month_code(VM&, Value argument);
+ThrowCompletionOr<String> to_offset_string(VM&, Value argument);
+CalendarFields iso_date_to_fields(StringView calendar, ISODate const&, DateType);
 
 // 13.38 ToIntegerWithTruncation ( argument ), https://tc39.es/proposal-temporal/#sec-tointegerwithtruncation
 template<typename... Args>
@@ -153,6 +201,21 @@ ThrowCompletionOr<double> to_integer_with_truncation(VM& vm, StringView argument
     return trunc(number);
 }
 
+// 13.37 ToPositiveIntegerWithTruncation ( argument ), https://tc39.es/proposal-temporal/#sec-topositiveintegerwithtruncation
+template<typename... Args>
+ThrowCompletionOr<double> to_positive_integer_with_truncation(VM& vm, Value argument, ErrorType error_type, Args&&... args)
+{
+    // 1. Let integer be ? ToIntegerWithTruncation(argument).
+    auto integer = TRY(to_integer_with_truncation(vm, argument, error_type, args...));
+
+    // 2. If integer ≤ 0, throw a RangeError exception.
+    if (integer <= 0)
+        return vm.throw_completion<RangeError>(error_type, args...);
+
+    // 3. Return integer.
+    return integer;
+}
+
 // 13.39 ToIntegerIfIntegral ( argument ), https://tc39.es/proposal-temporal/#sec-tointegerifintegral
 template<typename... Args>
 ThrowCompletionOr<double> to_integer_if_integral(VM& vm, Value argument, ErrorType error_type, Args&&... args)
@@ -167,6 +230,12 @@ ThrowCompletionOr<double> to_integer_if_integral(VM& vm, Value argument, ErrorTy
     // 3. Return ℝ(number).
     return number.as_double();
 }
+
+// 14.2 The Year-Week Record Specification Type, https://tc39.es/proposal-temporal/#sec-year-week-record-specification-type
+struct YearWeek {
+    Optional<u8> week;
+    Optional<i32> year;
+};
 
 enum class OptionType {
     Boolean,
@@ -186,5 +255,6 @@ ThrowCompletionOr<Value> get_option(VM& vm, Object const& options, PropertyKey c
 
 ThrowCompletionOr<RoundingMode> get_rounding_mode_option(VM&, Object const& options, RoundingMode fallback);
 ThrowCompletionOr<u64> get_rounding_increment_option(VM&, Object const& options);
+Crypto::SignedBigInteger get_utc_epoch_nanoseconds(ISODateTime const&);
 
 }

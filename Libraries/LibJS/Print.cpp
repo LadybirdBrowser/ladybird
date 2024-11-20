@@ -48,6 +48,7 @@
 #include <LibJS/Runtime/StringObject.h>
 #include <LibJS/Runtime/StringPrototype.h>
 #include <LibJS/Runtime/Temporal/Duration.h>
+#include <LibJS/Runtime/Temporal/PlainMonthDay.h>
 #include <LibJS/Runtime/TypedArray.h>
 #include <LibJS/Runtime/Value.h>
 #include <LibJS/Runtime/WeakMap.h>
@@ -835,6 +836,15 @@ ErrorOr<void> print_temporal_duration(JS::PrintContext& print_context, JS::Tempo
     return {};
 }
 
+ErrorOr<void> print_temporal_plain_month_day(JS::PrintContext& print_context, JS::Temporal::PlainMonthDay const& plain_month_day, HashTable<JS::Object*>& seen_objects)
+{
+    TRY(print_type(print_context, "Temporal.PlainMonthDay"sv));
+    TRY(js_out(print_context, " \033[34;1m{:02}-{:02}\033[0m", plain_month_day.iso_date().month, plain_month_day.iso_date().day));
+    TRY(js_out(print_context, "\n  calendar: "));
+    TRY(print_value(print_context, JS::PrimitiveString::create(plain_month_day.vm(), plain_month_day.calendar()), seen_objects));
+    return {};
+}
+
 ErrorOr<void> print_boolean_object(JS::PrintContext& print_context, JS::BooleanObject const& boolean_object, HashTable<JS::Object*>& seen_objects)
 {
     TRY(print_type(print_context, "Boolean"sv));
@@ -952,6 +962,8 @@ ErrorOr<void> print_value(JS::PrintContext& print_context, JS::Value value, Hash
             return print_intl_duration_format(print_context, static_cast<JS::Intl::DurationFormat&>(object), seen_objects);
         if (is<JS::Temporal::Duration>(object))
             return print_temporal_duration(print_context, static_cast<JS::Temporal::Duration&>(object), seen_objects);
+        if (is<JS::Temporal::PlainMonthDay>(object))
+            return print_temporal_plain_month_day(print_context, static_cast<JS::Temporal::PlainMonthDay&>(object), seen_objects);
         return print_object(print_context, object, seen_objects);
     }
 
