@@ -40,6 +40,7 @@ void PlainMonthDayPrototype::initialize(Realm& realm)
     define_native_function(realm, vm.names.toString, to_string, 0, attr);
     define_native_function(realm, vm.names.toLocaleString, to_locale_string, 0, attr);
     define_native_function(realm, vm.names.toJSON, to_json, 0, attr);
+    define_native_function(realm, vm.names.valueOf, value_of, 0, attr);
 }
 
 // 10.3.3 get Temporal.PlainMonthDay.prototype.calendarId, https://tc39.es/proposal-temporal/#sec-get-temporal.plainmonthday.prototype.calendarid
@@ -170,6 +171,13 @@ JS_DEFINE_NATIVE_FUNCTION(PlainMonthDayPrototype::to_json)
 
     // 3. Return TemporalMonthDayToString(monthDay, auto).
     return PrimitiveString::create(vm, temporal_month_day_to_string(month_day, ShowCalendar::Auto));
+}
+
+// 10.3.11 Temporal.PlainMonthDay.prototype.valueOf ( ), https://tc39.es/proposal-temporal/#sec-temporal.plainmonthday.prototype.valueof
+JS_DEFINE_NATIVE_FUNCTION(PlainMonthDayPrototype::value_of)
+{
+    // 1. Throw a TypeError exception.
+    return vm.throw_completion<TypeError>(ErrorType::Convert, "Temporal.PlainMonthDay", "a primitive value");
 }
 
 }
