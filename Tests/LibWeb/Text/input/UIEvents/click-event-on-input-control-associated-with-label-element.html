@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<style>
+    * {
+        margin: 0;
+    }
+
+    .box {
+        display: inline-block;
+        width: 100px;
+        height: 100px;
+        background-color: purple;
+    }
+
+    input {
+        display: none;
+    }
+
+    label {
+        display: block;
+        width: 200px;
+        height: 200px;
+        border: 1px solid black;
+    }
+</style>
+<script src="../include.js"></script>
+<body>
+    <form>
+        <label>
+            <input type="radio" name="fruit" value="apple" id="radio1">
+            <span class="box"></span>
+        </label>
+        <label>
+            <input type="radio" name="fruit" value="banana" id="radio2">
+            hey
+        </label>
+    </form>
+</body>
+<script>
+    asyncTest(done => {
+        let eventCount = 0;
+        function endTestIfGotAllEvents() {
+            eventCount++;
+            if (eventCount == 4) {
+                done();
+            }
+        }
+
+        document.querySelectorAll('input').forEach(function (element) {
+            element.addEventListener('click', function (event) {
+                println(`click event on input#${event.target.id}`);
+                endTestIfGotAllEvents();
+            });
+            element.addEventListener('mouseup', function (event) {
+                println(`mouseup event on input#${event.target.id}`);
+                endTestIfGotAllEvents();
+            });
+        });
+
+        document.querySelectorAll('.box').forEach(function (element) {
+            element.addEventListener('click', function (event) {
+                println('click event on box');
+                endTestIfGotAllEvents();
+            });
+            element.addEventListener('mouseup', function (event) {
+                println('mouseup event on box');
+                endTestIfGotAllEvents();
+            });
+        });
+
+        internals.click(50, 50);
+        internals.click(50, 250);
+    });
+</script>
+</html>

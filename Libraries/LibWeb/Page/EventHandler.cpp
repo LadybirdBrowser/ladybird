@@ -17,6 +17,7 @@
 #include <LibWeb/HTML/HTMLImageElement.h>
 #include <LibWeb/HTML/HTMLMediaElement.h>
 #include <LibWeb/HTML/HTMLVideoElement.h>
+#include <LibWeb/Layout/Label.h>
 #include <LibWeb/Layout/Viewport.h>
 #include <LibWeb/Page/DragAndDropEventHandler.h>
 #include <LibWeb/Page/EventHandler.h>
@@ -40,8 +41,6 @@ namespace Web {
 
 static GC::Ptr<DOM::Node> dom_node_for_event_dispatch(Painting::Paintable& paintable)
 {
-    if (auto node = paintable.mouse_event_target())
-        return node;
     if (auto node = paintable.dom_node())
         return node;
     auto* layout_parent = paintable.layout_node().parent();
@@ -50,6 +49,17 @@ static GC::Ptr<DOM::Node> dom_node_for_event_dispatch(Painting::Paintable& paint
             return node;
         layout_parent = layout_parent->parent();
     }
+    return nullptr;
+}
+
+static DOM::Node* input_control_associated_with_ancestor_label_element(Painting::Paintable& paintable)
+{
+    if (is<Layout::Label>(paintable.layout_node())) {
+        auto const& label = verify_cast<Layout::Label>(paintable.layout_node());
+        return label.dom_node().control().ptr();
+    }
+    if (auto const* label = paintable.layout_node().first_ancestor_of_type<Layout::Label>())
+        return label->dom_node().control().ptr();
     return nullptr;
 }
 
@@ -351,6 +361,12 @@ EventResult EventHandler::handle_mouseup(CSSPixelPoint viewport_position, CSSPix
                     }
                 }
             }
+
+            if (auto* input_control = input_control_associated_with_ancestor_label_element(*paintable)) {
+                if (button == UIEvents::MouseButton::Primary) {
+                    input_control->dispatch_event(UIEvents::MouseEvent::create_from_platform_event(node->realm(), UIEvents::EventNames::click, screen_position, page_offset, viewport_position, offset, {}, button, buttons, modifiers).release_value_but_fixme_should_propagate_errors());
+                }
+            }
         }
     }
 
@@ -434,10 +450,14 @@ EventResult EventHandler::handle_mousedown(CSSPixelPoint viewport_position, CSSP
             if (dom_node) {
                 // See if we want to focus something.
                 GC::Ptr<DOM::Node> focus_candidate;
-                for (auto candidate = node; candidate; candidate = candidate->parent_or_shadow_host()) {
-                    if (candidate->is_focusable()) {
-                        focus_candidate = candidate;
-                        break;
+                if (auto* input_control = input_control_associated_with_ancestor_label_element(*paintable)) {
+                    focus_candidate = input_control;
+                } else {
+                    for (auto candidate = node; candidate; candidate = candidate->parent_or_shadow_host()) {
+                        if (candidate->is_focusable()) {
+                            focus_candidate = candidate;
+                            break;
+                        }
                     }
                 }
 
