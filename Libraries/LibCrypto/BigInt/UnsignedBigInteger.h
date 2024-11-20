@@ -9,7 +9,6 @@
 #pragma once
 
 #include <AK/BigIntBase.h>
-#include <AK/ByteBuffer.h>
 #include <AK/ByteString.h>
 #include <AK/Concepts.h>
 #include <AK/Span.h>

@@ -9,7 +9,6 @@
 
 #include <AK/Concepts.h>
 #include <AK/Span.h>
-#include <AK/String.h>
 #include <LibCrypto/BigInt/UnsignedBigInteger.h>
 
 namespace Crypto {

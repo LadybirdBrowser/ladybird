@@ -7,7 +7,6 @@
 #pragma once
 
 #include <AK/BitmapView.h>
-#include <AK/Result.h>
 #include <AK/Types.h>
 #include <LibCrypto/ASN1/ASN1.h>
 #include <LibCrypto/BigInt/UnsignedBigInteger.h>

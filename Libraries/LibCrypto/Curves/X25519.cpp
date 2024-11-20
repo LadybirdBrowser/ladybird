@@ -5,7 +5,6 @@
  */
 
 #include <AK/ByteReader.h>
-#include <AK/Endian.h>
 #include <AK/Random.h>
 #include <LibCrypto/Curves/Curve25519.h>
 #include <LibCrypto/Curves/X25519.h>

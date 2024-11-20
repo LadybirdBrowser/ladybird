@@ -8,7 +8,6 @@
 #pragma once
 
 #include <AK/ByteString.h>
-#include <AK/Vector.h>
 #include <LibCrypto/Cipher/Cipher.h>
 #include <LibCrypto/Cipher/Mode/CBC.h>
 #include <LibCrypto/Cipher/Mode/CTR.h>
