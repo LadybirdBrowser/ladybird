@@ -8,7 +8,6 @@
 #include <AK/Assertions.h>
 #include <AK/Debug.h>
 #include <AK/Format.h>
-#include <stdio.h>
 
 namespace regex {
 

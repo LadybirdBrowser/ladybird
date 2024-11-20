@@ -16,7 +16,6 @@
 #include <AK/StringBuilder.h>
 #include <AK/StringUtils.h>
 #include <AK/TemporaryChange.h>
-#include <AK/Utf16View.h>
 #include <LibUnicode/CharacterTypes.h>
 
 namespace regex {
