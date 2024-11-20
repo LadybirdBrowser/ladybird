@@ -205,12 +205,21 @@ set(SOURCES
     Runtime/SymbolObject.cpp
     Runtime/SymbolPrototype.cpp
     Runtime/Temporal/AbstractOperations.cpp
+    Runtime/Temporal/Calendar.cpp
+    Runtime/Temporal/DateEquations.cpp
     Runtime/Temporal/Duration.cpp
     Runtime/Temporal/DurationConstructor.cpp
     Runtime/Temporal/DurationPrototype.cpp
     Runtime/Temporal/Instant.cpp
     Runtime/Temporal/ISO8601.cpp
+    Runtime/Temporal/PlainDate.cpp
+    Runtime/Temporal/PlainDateTime.cpp
+    Runtime/Temporal/PlainMonthDay.cpp
+    Runtime/Temporal/PlainMonthDayConstructor.cpp
+    Runtime/Temporal/PlainMonthDayPrototype.cpp
+    Runtime/Temporal/PlainTime.cpp
     Runtime/Temporal/Temporal.cpp
+    Runtime/Temporal/TimeZone.cpp
     Runtime/TypedArray.cpp
     Runtime/TypedArrayConstructor.cpp
     Runtime/TypedArrayPrototype.cpp

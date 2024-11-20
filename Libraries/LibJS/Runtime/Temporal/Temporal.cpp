@@ -7,6 +7,7 @@
 
 #include <LibJS/Runtime/GlobalObject.h>
 #include <LibJS/Runtime/Temporal/DurationConstructor.h>
+#include <LibJS/Runtime/Temporal/PlainMonthDayConstructor.h>
 #include <LibJS/Runtime/Temporal/Temporal.h>
 
 namespace JS::Temporal {
@@ -30,6 +31,7 @@ void Temporal::initialize(Realm& realm)
 
     u8 attr = Attribute::Writable | Attribute::Configurable;
     define_intrinsic_accessor(vm.names.Duration, attr, [](auto& realm) -> Value { return realm.intrinsics().temporal_duration_constructor(); });
+    define_intrinsic_accessor(vm.names.PlainMonthDay, attr, [](auto& realm) -> Value { return realm.intrinsics().temporal_plain_month_day_constructor(); });
 }
 
 }
