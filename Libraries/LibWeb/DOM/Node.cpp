@@ -1057,15 +1057,21 @@ WebIDL::ExceptionOr<GC::Ref<Node>> Node::clone_node(Document* document, bool clo
         // Set copy’s namespace, namespace prefix, local name, and value to those of node.
         auto& attr = static_cast<Attr&>(*this);
         copy = attr.clone(*document);
-    }
-    // NOTE: is<Text>() currently returns true only for text nodes, not for descendant types of Text.
-    else if (is<Text>(this) || is<CDATASection>(this)) {
+    } else if (is<Text>(this)) {
         // Text
         auto& text = static_cast<Text&>(*this);
 
         // Set copy’s data to that of node.
-        auto text_copy = realm().create<Text>(*document, text.data());
-        copy = move(text_copy);
+        copy = [&]() -> GC::Ref<Text> {
+            switch (type()) {
+            case NodeType::TEXT_NODE:
+                return realm().create<Text>(*document, text.data());
+            case NodeType::CDATA_SECTION_NODE:
+                return realm().create<CDATASection>(*document, text.data());
+            default:
+                VERIFY_NOT_REACHED();
+            }
+        }();
     } else if (is<Comment>(this)) {
         // Comment
         auto comment = verify_cast<Comment>(this);
