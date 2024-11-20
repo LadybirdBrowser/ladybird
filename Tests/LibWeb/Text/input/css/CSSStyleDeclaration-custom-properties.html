@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<body></body>
+<script>
+    test(() => {
+        const div = document.createElement('div');
+        div.style.setProperty("--redcolor", "red");
+
+        const nested = document.createElement('div');
+        nested.style["backgroundColor"] = "var(--redcolor)";
+        nested.style["width"] = "100px";
+        nested.style["height"] = "100px";
+        div.appendChild(nested);
+
+        document.body.appendChild(div);
+
+        println(getComputedStyle(nested).backgroundColor);
+    });
+</script>
