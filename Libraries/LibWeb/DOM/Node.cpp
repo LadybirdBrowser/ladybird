@@ -51,6 +51,8 @@
 #include <LibWeb/Namespace.h>
 #include <LibWeb/Painting/Paintable.h>
 #include <LibWeb/Painting/PaintableBox.h>
+#include <LibWeb/SVG/SVGTitleElement.h>
+#include <LibWeb/XLink/AttributeNames.h>
 
 namespace Web::DOM {
 
@@ -2354,11 +2356,25 @@ ErrorOr<String> Node::name_or_description(NameOrDescription target, Document con
         // element (e.g. HTML label or SVG title) that defines a text alternative, return that alternative in the form
         // of a flat string as defined by the host language, unless the element is marked as presentational
         // (role="presentation" or role="none").
-        if (role != ARIA::Role::presentation && role != ARIA::Role::none && is<HTML::HTMLImageElement>(*element)) {
+        // TODO: Confirm (through existing WPT test cases) whether HTMLLabelElement is already handled (by the code for
+        // step C. “Embedded Control” above) in conformance with the spec requirements — and if not, then add handling.
+        if (role != ARIA::Role::presentation && role != ARIA::Role::none && is<HTML::HTMLImageElement>(*element))
             return element->alternative_text().release_value();
-            // TODO: Add handling for SVGTitleElement, and also confirm (through existing WPT test cases) whether
-            // HTMLLabelElement is already handled (by the code for step C. “Embedded Control” above) in conformance
-            // with the spec requirements — and if not, then add handling for it here.
+        // https://w3c.github.io/svg-aam/#mapping_additional_nd
+        Optional<String> title_element_text;
+        if (element->is_svg_element()) {
+            // If the current node has at least one direct child title element, select the appropriate title based on
+            // the language rules for the SVG specification, and return the title text alternative as a flat string.
+            element->for_each_child_of_type<SVG::SVGTitleElement>([&](SVG::SVGTitleElement const& title) mutable {
+                title_element_text = title.text_content();
+                return IterationDecision::Break;
+            });
+            if (title_element_text.has_value())
+                return title_element_text.release_value();
+            // If the current node is a link, and there was no child title element, but it has an xlink:title attribute,
+            // return the value of that attribute.
+            if (auto title_attribute = element->get_attribute_ns(Namespace::XLink, XLink::AttributeNames::title); title_attribute.has_value())
+                return title_attribute.release_value();
         }
 
         // F. Otherwise, if the current node's role allows name from content, or if the current node is referenced by aria-labelledby, aria-describedby, or is a native host language text alternative element (e.g. label in HTML), or is a descendant of a native host language text alternative element:
