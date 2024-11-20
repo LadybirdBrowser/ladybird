@@ -1,0 +1,46 @@
+<!doctype html>
+<title>Input Preprocessing</title>
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<style>
+
+foo { color: blue; }
+
+</style>
+
+<meta name="author" title="Tab Atkins-Bittner">
+<link rel=help href="https://drafts.csswg.org/css-syntax/#input-preprocessing">
+
+<script>
+
+function roundtripIdent(str) {
+    const rule = document.styleSheets[0].cssRules[0];
+    rule.selectorText = "original-ident";
+    rule.selectorText = str;
+    // Check for parse error.
+    if(rule.selectorText == "original-ident") return "parse error";
+    return rule.selectorText;
+}
+function testParsing(input, expected) {
+    test(()=>{
+        assert_equals(roundtripIdent(input), expected);
+    }, `"${input}" becomes "${expected}"`);
+}
+
+/* Can't figure out how to test the newline normalization... */
+
+/* NULL becomes FFFD */
+testParsing("foo\x00", "foo\ufffd");
+testParsing("f\x00oo", "f\ufffdoo");
+testParsing("\x00foo", "\ufffdfoo");
+testParsing("\x00", "\ufffd");
+testParsing("\x00\x00\x00", "\ufffd\ufffd\ufffd");
+
+/* surrogates become FFFD */
+testParsing("foo\ud800", "foo\ufffd");
+testParsing("f\ud800oo", "f\ufffdoo");
+testParsing("\ud800foo", "\ufffdfoo");
+testParsing("\ud800", "\ufffd");
+testParsing("\ud800\ud800\ud800", "\ufffd\ufffd\ufffd");
+
+</script>
