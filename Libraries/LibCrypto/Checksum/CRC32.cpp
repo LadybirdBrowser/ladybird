@@ -5,7 +5,6 @@
  */
 
 #include <AK/Array.h>
-#include <AK/NumericLimits.h>
 #include <AK/Span.h>
 #include <AK/Types.h>
 #include <LibCrypto/Checksum/CRC32.h>

@@ -7,7 +7,6 @@
 
 #include "UnsignedBigIntegerAlgorithms.h"
 #include <AK/BigIntBase.h>
-#include <AK/BuiltinWrappers.h>
 
 namespace Crypto {
 

@@ -10,7 +10,6 @@
 #include <AK/ByteString.h>
 #include <AK/Endian.h>
 #include <AK/Types.h>
-#include <LibCrypto/Hash/HashFunction.h>
 
 namespace Crypto::Authentication {
 

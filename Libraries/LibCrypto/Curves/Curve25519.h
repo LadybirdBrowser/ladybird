@@ -6,8 +6,6 @@
 
 #pragma once
 
-#include <AK/Random.h>
-
 namespace Crypto::Curves {
 
 class Curve25519 {

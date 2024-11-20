@@ -7,7 +7,6 @@
 #pragma once
 
 #include <AK/ByteBuffer.h>
-#include <LibCrypto/Curves/EllipticCurve.h>
 
 namespace Crypto::Curves {
 

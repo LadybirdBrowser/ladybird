@@ -7,6 +7,7 @@
 #include <AK/Debug.h>
 #include <AK/Endian.h>
 #include <AK/MemoryStream.h>
+#include <AK/Random.h>
 #include <LibCore/EventLoop.h>
 #include <LibCore/Timer.h>
 #include <LibTLS/TLSv12.h>

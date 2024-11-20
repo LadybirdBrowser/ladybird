@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/Format.h>
 #include <LibCrypto/ASN1/PEM.h>
 #include <stddef.h>
 #include <stdint.h>

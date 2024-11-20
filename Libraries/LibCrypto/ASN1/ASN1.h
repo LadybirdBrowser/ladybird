@@ -8,7 +8,6 @@
 
 #include <AK/Time.h>
 #include <AK/Types.h>
-#include <LibCrypto/BigInt/UnsignedBigInteger.h>
 
 namespace Crypto::ASN1 {
 

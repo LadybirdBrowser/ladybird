@@ -5,6 +5,7 @@
  */
 
 #include <AK/Debug.h>
+#include <AK/Random.h>
 #include <LibCrypto/BigInt/Algorithms/UnsignedBigIntegerAlgorithms.h>
 #include <LibCrypto/NumberTheory/ModularFunctions.h>
 
