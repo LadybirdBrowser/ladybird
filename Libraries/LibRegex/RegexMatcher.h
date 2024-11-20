@@ -13,9 +13,6 @@
 
 #include <AK/Forward.h>
 #include <AK/GenericLexer.h>
-#include <AK/HashMap.h>
-#include <AK/Types.h>
-#include <AK/Utf32View.h>
 #include <AK/Vector.h>
 #include <ctype.h>
 
