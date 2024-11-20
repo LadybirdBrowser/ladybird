@@ -30,13 +30,6 @@ bool TextPaintable::wants_mouse_events() const
     return layout_node().first_ancestor_of_type<Layout::Label>();
 }
 
-DOM::Node* TextPaintable::mouse_event_target() const
-{
-    if (auto const* label = layout_node().first_ancestor_of_type<Layout::Label>())
-        return label->dom_node().control().ptr();
-    return nullptr;
-}
-
 TextPaintable::DispatchEventOfSameName TextPaintable::handle_mousedown(Badge<EventHandler>, CSSPixelPoint position, unsigned button, unsigned)
 {
     auto* label = layout_node().first_ancestor_of_type<Layout::Label>();
