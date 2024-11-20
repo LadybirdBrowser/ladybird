@@ -8,6 +8,7 @@
 
 #include <AK/AtomicRefCounted.h>
 #include <AK/HashTable.h>
+#include <AK/MaybeOwned.h>
 #include <AK/MemoryStream.h>
 #include <AK/Random.h>
 #include <AK/StringView.h>

@@ -7,12 +7,10 @@
 #pragma once
 
 #include <AK/Base64.h>
-#include <AK/MaybeOwned.h>
+#include <AK/IPv4Address.h>
+#include <AK/IPv6Address.h>
 #include <AK/RedBlackTree.h>
 #include <AK/Time.h>
-#include <LibCore/Promise.h>
-#include <LibCore/SocketAddress.h>
-#include <LibURL/URL.h>
 
 namespace DNS {
 namespace Messages {
