@@ -1,0 +1,22 @@
+Summary
+
+Harness status: OK
+
+Rerun
+
+Found 12 tests
+
+12 Pass
+Details
+Result	Test Name	MessagePass	circle > title	
+Pass	rect > title	
+Pass	polygon > title	
+Pass	g > title	
+Pass	[xlink:title][href] > circle	
+Pass	[xlink:title][href] > rect	
+Pass	[xlink:title][href] > polygon	
+Pass	[xlink:title][href] > g	
+Pass	[xlink:title][xlink:href] > circle	
+Pass	[xlink:title][xlink:href] > rect	
+Pass	[xlink:title][xlink:href] > polygon	
+Pass	[xlink:title][xlink:href] > g	
