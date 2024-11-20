@@ -17,6 +17,7 @@
 #include <LibJS/Runtime/Temporal/Instant.h>
 #include <LibJS/Runtime/Temporal/PlainDate.h>
 #include <LibJS/Runtime/Temporal/PlainDateTime.h>
+#include <LibJS/Runtime/Temporal/PlainMonthDay.h>
 #include <LibJS/Runtime/Temporal/TimeZone.h>
 
 namespace JS::Temporal {
@@ -449,6 +450,40 @@ Crypto::UnsignedBigInteger const& temporal_unit_length_in_nanoseconds(Unit unit)
     default:
         VERIFY_NOT_REACHED();
     }
+}
+
+// 13.23 IsPartialTemporalObject ( value ), https://tc39.es/proposal-temporal/#sec-temporal-ispartialtemporalobject
+ThrowCompletionOr<bool> is_partial_temporal_object(VM& vm, Value value)
+{
+    // 1. If value is not an Object, return false.
+    if (!value.is_object())
+        return false;
+
+    auto const& object = value.as_object();
+
+    // 2. If value has an [[InitializedTemporalDate]], [[InitializedTemporalDateTime]], [[InitializedTemporalMonthDay]],
+    //    [[InitializedTemporalTime]], [[InitializedTemporalYearMonth]], or [[InitializedTemporalZonedDateTime]] internal
+    //    slot, return false.
+    // FIXME: Add the other types as we define them.
+    if (is<PlainMonthDay>(object))
+        return false;
+
+    // 3. Let calendarProperty be ? Get(value, "calendar").
+    auto calendar_property = TRY(object.get(vm.names.calendar));
+
+    // 4. If calendarProperty is not undefined, return false.
+    if (!calendar_property.is_undefined())
+        return false;
+
+    // 5. Let timeZoneProperty be ? Get(value, "timeZone").
+    auto time_zone_property = TRY(object.get(vm.names.timeZone));
+
+    // 6. If timeZoneProperty is not undefined, return false.
+    if (!time_zone_property.is_undefined())
+        return false;
+
+    // 7. Return true.
+    return true;
 }
 
 // 13.24 FormatFractionalSeconds ( subSecondNanoseconds, precision ), https://tc39.es/proposal-temporal/#sec-temporal-formatfractionalseconds

@@ -243,6 +243,73 @@ ThrowCompletionOr<CalendarFields> prepare_calendar_fields(VM& vm, StringView cal
     return result;
 }
 
+// 12.2.4 CalendarFieldKeysPresent ( fields ), https://tc39.es/proposal-temporal/#sec-temporal-calendarfieldkeyspresent
+Vector<CalendarField> calendar_field_keys_present(CalendarFields const& fields)
+{
+    // 1. Let list be « ».
+    Vector<CalendarField> list;
+
+    auto handle_field = [&](auto enumeration_key, auto const& value) {
+        // a. Let value be fields' field whose name is given in the Field Name column of the row.
+        // b. Let enumerationKey be the value in the Enumeration Key column of the row.
+        // c. If value is not unset, append enumerationKey to list.
+        if (value.has_value())
+            list.append(enumeration_key);
+    };
+
+    // 2. For each row of Table 19, except the header row, do
+#define __JS_ENUMERATE(enumeration, field_name, property_key, conversion) \
+    handle_field(enumeration, fields.field_name);
+    JS_ENUMERATE_CALENDAR_FIELDS
+#undef __JS_ENUMERATE
+
+    // 3. Return list.
+    return list;
+}
+
+// 12.2.5 CalendarMergeFields ( calendar, fields, additionalFields ), https://tc39.es/proposal-temporal/#sec-temporal-calendarmergefields
+CalendarFields calendar_merge_fields(StringView calendar, CalendarFields const& fields, CalendarFields const& additional_fields)
+{
+    // 1. Let additionalKeys be CalendarFieldKeysPresent(additionalFields).
+    auto additional_keys = calendar_field_keys_present(additional_fields);
+
+    // 2. Let overriddenKeys be CalendarFieldKeysToIgnore(calendar, additionalKeys).
+    auto overridden_keys = calendar_field_keys_to_ignore(calendar, additional_keys);
+
+    // 3. Let merged be a Calendar Fields Record with all fields set to unset.
+    auto merged = CalendarFields::unset();
+
+    // 4. Let fieldsKeys be CalendarFieldKeysPresent(fields).
+    auto fields_keys = calendar_field_keys_present(fields);
+
+    auto merge_field = [&](auto key, auto& merged_field, auto const& fields_field, auto const& additional_fields_field) {
+        // a. Let key be the value in the Enumeration Key column of the row.
+
+        // b. If fieldsKeys contains key and overriddenKeys does not contain key, then
+        if (fields_keys.contains_slow(key) && !overridden_keys.contains_slow(key)) {
+            // i. Let propValue be fields' field whose name is given in the Field Name column of the row.
+            // ii. Set merged's field whose name is given in the Field Name column of the row to propValue.
+            merged_field = fields_field;
+        }
+
+        // c. If additionalKeys contains key, then
+        if (additional_keys.contains_slow(key)) {
+            // i. Let propValue be additionalFields' field whose name is given in the Field Name column of the row.
+            // ii. Set merged's field whose name is given in the Field Name column of the row to propValue.
+            merged_field = additional_fields_field;
+        }
+    };
+
+    // 5. For each row of Table 19, except the header row, do
+#define __JS_ENUMERATE(enumeration, field_name, property_key, conversion) \
+    merge_field(enumeration, merged.field_name, fields.field_name, additional_fields.field_name);
+    JS_ENUMERATE_CALENDAR_FIELDS
+#undef __JS_ENUMERATE
+
+    // 6. Return merged.
+    return merged;
+}
+
 // 12.2.8 ToTemporalCalendarIdentifier ( temporalCalendarLike ), https://tc39.es/proposal-temporal/#sec-temporal-totemporalcalendaridentifier
 ThrowCompletionOr<String> to_temporal_calendar_identifier(VM& vm, Value temporal_calendar_like)
 {
@@ -326,6 +393,15 @@ String format_calendar_annotation(StringView id, ShowCalendar show_calendar)
 
     // 4. Return the string-concatenation of "[", flag, "u-ca=", id, and "]".
     return MUST(String::formatted("[{}u-ca={}]", flag, id));
+}
+
+// 12.2.14 CalendarEquals ( one, two ), https://tc39.es/proposal-temporal/#sec-temporal-calendarequals
+bool calendar_equals(StringView one, StringView two)
+{
+    // 1. If CanonicalizeUValue("ca", one) is CanonicalizeUValue("ca", two), return true.
+    // 2. Return false.
+    return Unicode::canonicalize_unicode_extension_values("ca"sv, one)
+        == Unicode::canonicalize_unicode_extension_values("ca"sv, two);
 }
 
 // 12.2.15 ISODaysInMonth ( year, month ), https://tc39.es/proposal-temporal/#sec-temporal-isodaysinmonth
@@ -530,6 +606,39 @@ Vector<CalendarField> calendar_extra_fields(StringView calendar, CalendarFieldLi
 
     // FIXME: 2. Return an implementation-defined List as described above.
     return {};
+}
+
+// 12.2.23 CalendarFieldKeysToIgnore ( calendar, keys ), https://tc39.es/proposal-temporal/#sec-temporal-calendarfieldkeystoignore
+Vector<CalendarField> calendar_field_keys_to_ignore(StringView calendar, ReadonlySpan<CalendarField> keys)
+{
+    // 1. If calendar is "iso8601", then
+    if (calendar == "iso8601"sv) {
+        // a. Let ignoredKeys be an empty List.
+        Vector<CalendarField> ignored_keys;
+
+        // b. For each element key of keys, do
+        for (auto key : keys) {
+            // i. Append key to ignoredKeys.
+            ignored_keys.append(key);
+
+            // ii. If key is MONTH, append MONTH-CODE to ignoredKeys.
+            if (key == CalendarField::Month)
+                ignored_keys.append(CalendarField::MonthCode);
+            // iii. Else if key is MONTH-CODE, append MONTH to ignoredKeys.
+            else if (key == CalendarField::MonthCode)
+                ignored_keys.append(CalendarField::Month);
+        }
+
+        // c. NOTE: While ignoredKeys can have duplicate elements, this is not intended to be meaningful. This specification
+        //    only checks whether particular keys are or are not members of the list.
+
+        // d. Return ignoredKeys.
+        return ignored_keys;
+    }
+
+    // 2. Return an implementation-defined List as described below.
+    // FIXME: Return keys for an ISO8601 calendar for now.
+    return calendar_field_keys_to_ignore("iso8601"sv, keys);
 }
 
 // 12.2.24 CalendarResolveFields ( calendar, fields, type ), https://tc39.es/proposal-temporal/#sec-temporal-calendarresolvefields
