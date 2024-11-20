@@ -1,6 +1,6 @@
 # Testing Ladybird
 
-Tests are locates in `Tests/`, with a directory for each library.
+Tests are located in `Tests/`, with a directory for each library.
 
 Every feature or bug fix added to LibWeb should have a corresponding test in `Tests/LibWeb`.
 The test should be either a Text, Layout, Ref, or Screenshot test depending on the feature.
