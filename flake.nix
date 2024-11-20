@@ -9,6 +9,6 @@
   outputs = { self, nixpkgs, utils, }: utils.lib.eachDefaultSystem (system: let
     pkgs = import nixpkgs { inherit system; };
   in {
-    devShells.default = import ./Ladybird { inherit pkgs; };
+    devShells.default = import ./UI { inherit pkgs; };
   });
 }
