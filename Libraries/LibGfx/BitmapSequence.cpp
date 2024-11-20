@@ -5,7 +5,6 @@
  */
 
 #include <AK/Checked.h>
-#include <AK/Forward.h>
 #include <LibCore/AnonymousBuffer.h>
 #include <LibGfx/Bitmap.h>
 #include <LibGfx/BitmapSequence.h>

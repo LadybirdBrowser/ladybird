@@ -6,7 +6,6 @@
 
 #pragma once
 
-#include <AK/ByteString.h>
 #include <AK/Optional.h>
 #include <AK/Vector.h>
 #include <LibGfx/Forward.h>

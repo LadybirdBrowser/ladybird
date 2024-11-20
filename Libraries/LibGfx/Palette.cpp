@@ -6,9 +6,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <AK/Badge.h>
 #include <LibGfx/Palette.h>
-#include <string.h>
 
 namespace Gfx {
 

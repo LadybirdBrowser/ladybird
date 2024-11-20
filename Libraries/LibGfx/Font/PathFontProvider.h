@@ -9,7 +9,6 @@
 #include <AK/FlyString.h>
 #include <AK/Function.h>
 #include <AK/HashMap.h>
-#include <AK/OwnPtr.h>
 #include <LibGfx/Font/FontDatabase.h>
 #include <LibGfx/Font/Typeface.h>
 

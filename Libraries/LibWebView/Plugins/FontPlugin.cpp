@@ -10,6 +10,7 @@
 #include <AK/TypeCasts.h>
 #include <LibCore/Resource.h>
 #include <LibCore/StandardPaths.h>
+#include <LibGfx/Font/Font.h>
 #include <LibGfx/Font/FontDatabase.h>
 #include <LibGfx/Font/PathFontProvider.h>
 #include <LibWebView/Plugins/FontPlugin.h>

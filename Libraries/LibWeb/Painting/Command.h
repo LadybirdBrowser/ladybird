@@ -16,6 +16,7 @@
 #include <LibGfx/Forward.h>
 #include <LibGfx/Gradients.h>
 #include <LibGfx/ImmutableBitmap.h>
+#include <LibGfx/LineStyle.h>
 #include <LibGfx/PaintStyle.h>
 #include <LibGfx/PaintingSurface.h>
 #include <LibGfx/Palette.h>

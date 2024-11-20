@@ -17,7 +17,6 @@
 #include <LibCompress/Lzw.h>
 #include <LibGfx/ImageFormats/GIFLoader.h>
 #include <LibGfx/Painter.h>
-#include <string.h>
 
 namespace Gfx {
 

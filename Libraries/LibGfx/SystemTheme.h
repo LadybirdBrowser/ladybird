@@ -10,7 +10,6 @@
 
 #include <AK/ByteString.h>
 #include <AK/Forward.h>
-#include <AK/Types.h>
 #include <AK/Vector.h>
 #include <LibCore/AnonymousBuffer.h>
 #include <LibCore/ConfigFile.h>

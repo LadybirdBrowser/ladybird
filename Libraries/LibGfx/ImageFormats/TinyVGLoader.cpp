@@ -10,7 +10,6 @@
 #include <AK/LEB128.h>
 #include <AK/MemoryStream.h>
 #include <AK/Variant.h>
-#include <LibCore/File.h>
 #include <LibGfx/AntiAliasingPainter.h>
 #include <LibGfx/DeprecatedPainter.h>
 #include <LibGfx/ImageFormats/TinyVGLoader.h>

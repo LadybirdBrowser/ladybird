@@ -9,9 +9,10 @@
 #include <AK/Forward.h>
 #include <AK/NonnullOwnPtr.h>
 #include <AK/Utf8View.h>
+#include <LibGfx/AffineTransform.h>
 #include <LibGfx/Forward.h>
-#include <LibGfx/PaintStyle.h>
-#include <LibGfx/ScalingMode.h>
+#include <LibGfx/Point.h>
+#include <LibGfx/Rect.h>
 #include <LibGfx/WindingRule.h>
 
 namespace Gfx {

@@ -9,7 +9,7 @@
 #include <AK/TypeCasts.h>
 #include <LibGfx/Font/ScaledFont.h>
 #include <LibGfx/PathSkia.h>
-#include <core/SkContourMeasure.h>
+#include <LibGfx/Rect.h>
 #include <core/SkFont.h>
 #include <core/SkPath.h>
 #include <core/SkPathMeasure.h>

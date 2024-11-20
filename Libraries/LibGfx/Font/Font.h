@@ -7,15 +7,10 @@
 
 #pragma once
 
-#include <AK/Bitmap.h>
-#include <AK/ByteReader.h>
 #include <AK/RefCounted.h>
 #include <AK/RefPtr.h>
 #include <AK/String.h>
 #include <AK/Types.h>
-#include <LibCore/MappedFile.h>
-#include <LibGfx/Bitmap.h>
-#include <LibGfx/Size.h>
 
 struct hb_font_t;
 

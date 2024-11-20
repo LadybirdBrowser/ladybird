@@ -5,7 +5,6 @@
  */
 
 #include <LibGfx/Bitmap.h>
-#include <LibGfx/ImmutableBitmap.h>
 #include <LibGfx/PaintingSurface.h>
 #include <LibGfx/SkiaUtils.h>
 
@@ -16,9 +15,7 @@
 #include <gpu/ganesh/SkSurfaceGanesh.h>
 
 #ifdef AK_OS_MACOS
-#    include <gpu/ganesh/mtl/GrMtlBackendContext.h>
 #    include <gpu/ganesh/mtl/GrMtlBackendSurface.h>
-#    include <gpu/ganesh/mtl/GrMtlDirectContext.h>
 #endif
 
 namespace Gfx {

@@ -4,7 +4,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <AK/Debug.h>
 #include <AK/Error.h>
 #include <LibGfx/ImageFormats/JPEGXLLoader.h>
 #include <jxl/decode.h>

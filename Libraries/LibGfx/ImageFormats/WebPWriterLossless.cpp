@@ -8,11 +8,9 @@
 
 #include <AK/BitStream.h>
 #include <AK/Debug.h>
-#include <AK/Endian.h>
 #include <AK/HashTable.h>
 #include <AK/MemoryStream.h>
 #include <AK/QuickSort.h>
-#include <LibCompress/DeflateTables.h>
 #include <LibCompress/Huffman.h>
 #include <LibGfx/Bitmap.h>
 #include <LibGfx/ImageFormats/WebPSharedLossless.h>

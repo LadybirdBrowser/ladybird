@@ -4,14 +4,12 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <AK/ByteBuffer.h>
 #include <AK/Debug.h>
 #include <AK/MemoryStream.h>
 #include <AK/Types.h>
 #include <LibGfx/ImageFormats/BMPLoader.h>
 #include <LibGfx/ImageFormats/ICOLoader.h>
 #include <LibGfx/ImageFormats/PNGLoader.h>
-#include <string.h>
 
 namespace Gfx {
 

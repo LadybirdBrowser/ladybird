@@ -10,7 +10,6 @@
 #include <LibGfx/Color.h>
 #include <LibGfx/Forward.h>
 #include <LibGfx/ImageFormats/WebPWriterLossless.h>
-#include <LibGfx/Point.h>
 
 namespace Gfx {
 

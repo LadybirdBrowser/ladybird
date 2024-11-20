@@ -6,12 +6,10 @@
 
 #include <AK/LsanSuppressions.h>
 #include <LibGfx/Font/FontDatabase.h>
-#include <LibGfx/Font/Typeface.h>
 #include <LibGfx/Font/TypefaceSkia.h>
 
 #include <core/SkData.h>
 #include <core/SkFontMgr.h>
-#include <core/SkRefCnt.h>
 #include <core/SkTypeface.h>
 #ifndef AK_OS_ANDROID
 #    include <ports/SkFontMgr_fontconfig.h>

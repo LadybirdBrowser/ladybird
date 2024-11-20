@@ -7,7 +7,7 @@
 
 #include "TextLayout.h"
 #include <AK/TypeCasts.h>
-#include <LibGfx/Font/ScaledFont.h>
+#include <LibGfx/Point.h>
 #include <harfbuzz/hb.h>
 
 namespace Gfx {

@@ -7,7 +7,6 @@
 #pragma once
 
 #include <AK/Forward.h>
-#include <AK/Memory.h>
 #include <AK/NonnullRefPtr.h>
 #include <AK/Vector.h>
 #include <LibGfx/Color.h>
@@ -16,8 +15,6 @@
 #include <LibGfx/PaintStyle.h>
 #include <LibGfx/Point.h>
 #include <LibGfx/Rect.h>
-#include <LibGfx/ScalingMode.h>
-#include <LibGfx/Size.h>
 #include <LibGfx/WindingRule.h>
 
 namespace Gfx {
