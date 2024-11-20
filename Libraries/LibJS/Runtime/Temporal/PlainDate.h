@@ -25,6 +25,7 @@ struct ISODate {
 ISODate create_iso_date_record(double year, double month, double day);
 ThrowCompletionOr<ISODate> regulate_iso_date(VM& vm, double year, double month, double day, Overflow overflow);
 bool is_valid_iso_date(double year, double month, double day);
+String pad_iso_year(i32 year);
 bool iso_date_within_limits(ISODate);
 
 }

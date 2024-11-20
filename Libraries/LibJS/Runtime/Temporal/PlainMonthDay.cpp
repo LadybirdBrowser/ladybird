@@ -9,7 +9,6 @@
 #include <LibJS/Runtime/AbstractOperations.h>
 #include <LibJS/Runtime/Intrinsics.h>
 #include <LibJS/Runtime/Realm.h>
-#include <LibJS/Runtime/Temporal/AbstractOperations.h>
 #include <LibJS/Runtime/Temporal/Calendar.h>
 #include <LibJS/Runtime/Temporal/PlainMonthDay.h>
 #include <LibJS/Runtime/Temporal/PlainMonthDayConstructor.h>
@@ -139,6 +138,33 @@ ThrowCompletionOr<GC::Ref<PlainMonthDay>> create_temporal_month_day(VM& vm, ISOD
 
     // 6. Return object.
     return object;
+}
+
+// 10.5.3 TemporalMonthDayToString ( monthDay, showCalendar ), https://tc39.es/proposal-temporal/#sec-temporal-temporalmonthdaytostring
+String temporal_month_day_to_string(PlainMonthDay const& month_day, ShowCalendar show_calendar)
+{
+    // 1. Let month be ToZeroPaddedDecimalString(monthDay.[[ISODate]].[[Month]], 2).
+    // 2. Let day be ToZeroPaddedDecimalString(monthDay.[[ISODate]].[[Day]], 2).
+    // 3. Let result be the string-concatenation of month, the code unit 0x002D (HYPHEN-MINUS), and day.
+    auto result = MUST(String::formatted("{:02}-{:02}", month_day.iso_date().month, month_day.iso_date().day));
+
+    // 4. If showCalendar is one of ALWAYS or CRITICAL, or if monthDay.[[Calendar]] is not "iso8601", then
+    if (show_calendar == ShowCalendar::Always || show_calendar == ShowCalendar::Critical || month_day.calendar() != "iso8601"sv) {
+        // a. Let year be PadISOYear(monthDay.[[ISODate]].[[Year]]).
+        auto year = pad_iso_year(month_day.iso_date().year);
+
+        // b. Set result to the string-concatenation of year, the code unit 0x002D (HYPHEN-MINUS), and result.
+        result = MUST(String::formatted("{}-{}", year, result));
+    }
+
+    // 5. Let calendarString be FormatCalendarAnnotation(monthDay.[[Calendar]], showCalendar).
+    auto calendar_string = format_calendar_annotation(month_day.calendar(), show_calendar);
+
+    // 6. Set result to the string-concatenation of result and calendarString.
+    result = MUST(String::formatted("{}{}", result, calendar_string));
+
+    // 7. Return result.
+    return result;
 }
 
 }

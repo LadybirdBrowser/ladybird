@@ -86,6 +86,23 @@ bool is_valid_iso_date(double year, double month, double day)
     return true;
 }
 
+// 3.5.9 PadISOYear ( y ), https://tc39.es/proposal-temporal/#sec-temporal-padisoyear
+String pad_iso_year(i32 year)
+{
+    // 1. If y ≥ 0 and y ≤ 9999, then
+    if (year >= 0 && year <= 9999) {
+        // a. Return ToZeroPaddedDecimalString(y, 4).
+        return MUST(String::formatted("{:04}", year));
+    }
+
+    // 2. If y > 0, let yearSign be "+"; otherwise, let yearSign be "-".
+    auto year_sign = year > 0 ? '+' : '-';
+
+    // 3. Let year be ToZeroPaddedDecimalString(abs(y), 6).
+    // 4. Return the string-concatenation of yearSign and year.
+    return MUST(String::formatted("{}{:06}", year_sign, abs(year)));
+}
+
 // 3.5.11 ISODateWithinLimits ( isoDate ), https://tc39.es/proposal-temporal/#sec-temporal-isodatewithinlimits
 bool iso_date_within_limits(ISODate iso_date)
 {

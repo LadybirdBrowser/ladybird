@@ -84,6 +84,28 @@ ThrowCompletionOr<Overflow> get_temporal_overflow_option(VM& vm, Object const& o
     return Overflow::Reject;
 }
 
+// 13.10 GetTemporalShowCalendarNameOption ( options ), https://tc39.es/proposal-temporal/#sec-temporal-gettemporalshowcalendarnameoption
+ThrowCompletionOr<ShowCalendar> get_temporal_show_calendar_name_option(VM& vm, Object const& options)
+{
+    // 1. Let stringValue be ? GetOption(options, "calendarName", STRING, « "auto", "always", "never", "critical" », "auto").
+    auto string_value = TRY(get_option(vm, options, vm.names.calendarName, OptionType::String, { "auto"sv, "always"sv, "never"sv, "critical"sv }, "auto"sv));
+
+    // 2. If stringValue is "always", return ALWAYS.
+    if (string_value.as_string().utf8_string_view() == "always"sv)
+        return ShowCalendar::Always;
+
+    // 3. If stringValue is "never", return NEVER.
+    if (string_value.as_string().utf8_string_view() == "never"sv)
+        return ShowCalendar::Never;
+
+    // 4. If stringValue is "critical", return CRITICAL.
+    if (string_value.as_string().utf8_string_view() == "critical"sv)
+        return ShowCalendar::Critical;
+
+    // 5. Return AUTO.
+    return ShowCalendar::Auto;
+}
+
 // 13.14 ValidateTemporalRoundingIncrement ( increment, dividend, inclusive ), https://tc39.es/proposal-temporal/#sec-validatetemporalroundingincrement
 ThrowCompletionOr<void> validate_temporal_rounding_increment(VM& vm, u64 increment, u64 dividend, bool inclusive)
 {
