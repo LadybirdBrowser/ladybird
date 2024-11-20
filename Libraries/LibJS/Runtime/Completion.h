@@ -164,7 +164,7 @@ class Optional<JS::Completion> : public OptionalBase<JS::Completion> {
 public:
     using ValueType = JS::Completion;
 
-    Optional() = default;
+    constexpr Optional() = default;
 
     Optional(Optional<JS::Completion> const& other)
     {
@@ -172,19 +172,19 @@ public:
             m_value = other.m_value;
     }
 
-    Optional(Optional&& other)
+    constexpr Optional(Optional&& other)
         : m_value(move(other.m_value))
     {
     }
 
     template<typename U = JS::Completion>
-    explicit(!IsConvertible<U&&, JS::Completion>) Optional(U&& value)
+    explicit(!IsConvertible<U&&, JS::Completion>) constexpr Optional(U&& value)
     requires(!IsSame<RemoveCVReference<U>, Optional<JS::Completion>> && IsConstructible<JS::Completion, U &&>)
         : m_value(forward<U>(value))
     {
     }
 
-    Optional& operator=(Optional const& other)
+    constexpr Optional& operator=(Optional const& other)
     {
         if (this != &other) {
             clear();
@@ -193,7 +193,7 @@ public:
         return *this;
     }
 
-    Optional& operator=(Optional&& other)
+    constexpr Optional& operator=(Optional&& other)
     {
         if (this != &other) {
             clear();
@@ -207,18 +207,18 @@ public:
         m_value = JS::Completion(JS::Completion::EmptyTag {});
     }
 
-    [[nodiscard]] bool has_value() const
+    [[nodiscard]] constexpr bool has_value() const
     {
         return !m_value.is_empty();
     }
 
-    [[nodiscard]] JS::Completion& value() &
+    [[nodiscard]] constexpr JS::Completion& value() &
     {
         VERIFY(has_value());
         return m_value;
     }
 
-    [[nodiscard]] JS::Completion const& value() const&
+    [[nodiscard]] constexpr JS::Completion const& value() const&
     {
         VERIFY(has_value());
         return m_value;
