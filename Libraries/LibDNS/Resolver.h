@@ -208,6 +208,24 @@ public:
 
         auto promise = Core::Promise<NonnullRefPtr<LookupResult const>>::construct();
 
+        if (auto maybe_ipv4 = IPv4Address::from_string(name); maybe_ipv4.has_value()) {
+            if (desired_types.contains_slow(Messages::ResourceType::A)) {
+                auto result = make_ref_counted<LookupResult>(Messages::DomainName {});
+                result->add_record({ .name = {}, .type = Messages::ResourceType::A, .class_ = Messages::Class::IN, .ttl = 0, .record = Messages::Records::A { maybe_ipv4.release_value() }, .raw = {} });
+                promise->resolve(move(result));
+                return promise;
+            }
+        }
+
+        if (auto maybe_ipv6 = IPv6Address::from_string(name); maybe_ipv6.has_value()) {
+            if (desired_types.contains_slow(Messages::ResourceType::AAAA)) {
+                auto result = make_ref_counted<LookupResult>(Messages::DomainName {});
+                result->add_record({ .name = {}, .type = Messages::ResourceType::AAAA, .class_ = Messages::Class::IN, .ttl = 0, .record = Messages::Records::AAAA { maybe_ipv6.release_value() }, .raw = {} });
+                promise->resolve(move(result));
+                return promise;
+            }
+        }
+
         if (auto result = lookup_in_cache(name, class_, desired_types)) {
             promise->resolve(result.release_nonnull());
             return promise;
