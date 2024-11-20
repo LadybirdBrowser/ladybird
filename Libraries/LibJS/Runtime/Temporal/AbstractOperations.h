@@ -38,6 +38,13 @@ enum class Overflow {
     Reject,
 };
 
+enum class ShowCalendar {
+    Auto,
+    Always,
+    Never,
+    Critical,
+};
+
 enum class TimeStyle {
     Separated,
     Unseparated,
@@ -144,6 +151,7 @@ struct ParsedISODateTime {
 double iso_date_to_epoch_days(double year, double month, double date);
 double epoch_days_to_epoch_ms(double day, double time);
 ThrowCompletionOr<Overflow> get_temporal_overflow_option(VM&, Object const& options);
+ThrowCompletionOr<ShowCalendar> get_temporal_show_calendar_name_option(VM&, Object const& options);
 ThrowCompletionOr<void> validate_temporal_rounding_increment(VM&, u64 increment, u64 dividend, bool inclusive);
 ThrowCompletionOr<Precision> get_temporal_fractional_second_digits_option(VM&, Object const& options);
 SecondsStringPrecision to_seconds_string_precision_record(UnitValue, Precision);

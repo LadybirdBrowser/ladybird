@@ -100,6 +100,7 @@ ThrowCompletionOr<String> canonicalize_calendar(VM&, StringView id);
 Vector<String> const& available_calendars();
 ThrowCompletionOr<CalendarFields> prepare_calendar_fields(VM&, StringView calendar, Object const& fields, CalendarFieldList calendar_field_names, CalendarFieldList non_calendar_field_names, CalendarFieldListOrPartial required_field_names);
 ThrowCompletionOr<ISODate> calendar_month_day_from_fields(VM&, StringView calendar, CalendarFields, Overflow);
+String format_calendar_annotation(StringView id, ShowCalendar);
 u8 iso_days_in_month(double year, double month);
 YearWeek iso_week_of_year(ISODate const&);
 u16 iso_day_of_year(ISODate const&);

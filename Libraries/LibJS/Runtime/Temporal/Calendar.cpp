@@ -310,6 +310,24 @@ ThrowCompletionOr<ISODate> calendar_month_day_from_fields(VM& vm, StringView cal
     return result;
 }
 
+// 12.2.13 FormatCalendarAnnotation ( id, showCalendar ), https://tc39.es/proposal-temporal/#sec-temporal-formatcalendarannotation
+String format_calendar_annotation(StringView id, ShowCalendar show_calendar)
+{
+    // 1. If showCalendar is NEVER, return the empty String.
+    if (show_calendar == ShowCalendar::Never)
+        return String {};
+
+    // 2. If showCalendar is AUTO and id is "iso8601", return the empty String.
+    if (show_calendar == ShowCalendar::Auto && id == "iso8601"sv)
+        return String {};
+
+    // 3. If showCalendar is CRITICAL, let flag be "!"; else, let flag be the empty String.
+    auto flag = show_calendar == ShowCalendar::Critical ? "!"sv : ""sv;
+
+    // 4. Return the string-concatenation of "[", flag, "u-ca=", id, and "]".
+    return MUST(String::formatted("[{}u-ca={}]", flag, id));
+}
+
 // 12.2.15 ISODaysInMonth ( year, month ), https://tc39.es/proposal-temporal/#sec-temporal-isodaysinmonth
 u8 iso_days_in_month(double year, double month)
 {

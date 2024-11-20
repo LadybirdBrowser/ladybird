@@ -10,6 +10,7 @@
 #include <AK/String.h>
 #include <LibJS/Runtime/Completion.h>
 #include <LibJS/Runtime/Object.h>
+#include <LibJS/Runtime/Temporal/AbstractOperations.h>
 #include <LibJS/Runtime/Temporal/PlainDate.h>
 
 namespace JS::Temporal {
@@ -33,5 +34,6 @@ private:
 
 ThrowCompletionOr<GC::Ref<PlainMonthDay>> to_temporal_month_day(VM&, Value item, Value options = js_undefined());
 ThrowCompletionOr<GC::Ref<PlainMonthDay>> create_temporal_month_day(VM&, ISODate, String calendar, GC::Ptr<FunctionObject> new_target = {});
+String temporal_month_day_to_string(PlainMonthDay const&, ShowCalendar);
 
 }
