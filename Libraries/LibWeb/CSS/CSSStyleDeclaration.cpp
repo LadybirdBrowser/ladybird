@@ -318,6 +318,12 @@ StringView CSSStyleDeclaration::get_property_priority(StringView property_name) 
     auto property_id = property_id_from_string(property_name);
     if (!property_id.has_value())
         return {};
+    if (property_id.value() == PropertyID::Custom) {
+        auto maybe_custom_property = custom_property(FlyString::from_utf8_without_validation(property_name.bytes()));
+        if (!maybe_custom_property.has_value())
+            return {};
+        return maybe_custom_property.value().important == Important::Yes ? "important"sv : ""sv;
+    }
     auto maybe_property = property(property_id.value());
     if (!maybe_property.has_value())
         return {};
