@@ -1,0 +1,17 @@
+Summary
+
+Harness status: OK
+
+Rerun
+
+Found 7 tests
+
+7 Pass
+Details
+Result	Test Name	MessagePass	For Element nodes, nodeName should return the same as tagName.	
+Pass	For Text nodes, nodeName should return "#text".	
+Pass	For ProcessingInstruction nodes, nodeName should return the target.	
+Pass	For Comment nodes, nodeName should return "#comment".	
+Pass	For Document nodes, nodeName should return "#document".	
+Pass	For DocumentType nodes, nodeName should return the name.	
+Pass	For DocumentFragment nodes, nodeName should return "#document-fragment".	
