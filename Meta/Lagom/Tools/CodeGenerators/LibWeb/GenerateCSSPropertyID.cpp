@@ -402,6 +402,7 @@ ErrorOr<void> generate_implementation_file(JsonObject& properties, Core::File& f
 #include <LibWeb/CSS/Enums.h>
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/CSS/PropertyID.h>
+#include <LibWeb/CSS/PropertyName.h>
 #include <LibWeb/CSS/CSSStyleValue.h>
 #include <LibWeb/CSS/StyleValues/PercentageStyleValue.h>
 #include <LibWeb/CSS/StyleValues/TimeStyleValue.h>
@@ -436,6 +437,9 @@ Optional<PropertyID> property_id_from_camel_case_string(StringView string)
 
 Optional<PropertyID> property_id_from_string(StringView string)
 {
+    if (is_a_custom_property_name_string(string))
+        return PropertyID::Custom;
+
     if (Infra::is_ascii_case_insensitive_match(string, "all"sv))
         return PropertyID::All;
 )~~~");
