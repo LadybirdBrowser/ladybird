@@ -204,15 +204,15 @@ Vector<Token> Tokenizer::tokenize(StringView input, StringView encoding)
 
         auto decoded_input = MUST(decoder->to_utf8(input));
 
-        // OPTIMIZATION: If the input doesn't contain any CR or FF, we can skip the filtering
-        bool const contains_cr_or_ff = [&] {
-            for (auto byte : decoded_input.bytes()) {
-                if (byte == '\r' || byte == '\f')
+        // OPTIMIZATION: If the input doesn't contain any filterable characters, we can skip the filtering
+        bool const contains_filterable = [&] {
+            for (auto code_point : decoded_input.code_points()) {
+                if (code_point == '\r' || code_point == '\f' || code_point == 0x00 || is_unicode_surrogate(code_point))
                     return true;
             }
             return false;
         }();
-        if (!contains_cr_or_ff) {
+        if (!contains_filterable) {
             return decoded_input;
         }
 
@@ -242,7 +242,7 @@ Vector<Token> Tokenizer::tokenize(StringView input, StringView encoding)
                 } else if (code_point == '\f') {
                     builder.append('\n');
                     // Replace any U+0000 NULL or surrogate code points in input with U+FFFD REPLACEMENT CHARACTER (�).
-                } else if (code_point == 0x00 || (code_point >= 0xD800 && code_point <= 0xDFFF)) {
+                } else if (code_point == 0x00 || is_unicode_surrogate(code_point)) {
                     builder.append_code_point(REPLACEMENT_CHARACTER);
                 } else {
                     builder.append_code_point(code_point);
