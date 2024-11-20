@@ -119,7 +119,7 @@ WebIDL::ExceptionOr<void> PropertyOwningCSSStyleDeclaration::set_property(String
 
     // 3. If value is the empty string, invoke removeProperty() with property as argument and return.
     if (value.is_empty()) {
-        MUST(remove_property(property_id));
+        MUST(remove_property(property_name));
         return {};
     }
 
@@ -177,8 +177,12 @@ WebIDL::ExceptionOr<void> PropertyOwningCSSStyleDeclaration::set_property(String
 }
 
 // https://drafts.csswg.org/cssom/#dom-cssstyledeclaration-removeproperty
-WebIDL::ExceptionOr<String> PropertyOwningCSSStyleDeclaration::remove_property(PropertyID property_id)
+WebIDL::ExceptionOr<String> PropertyOwningCSSStyleDeclaration::remove_property(StringView property_name)
 {
+    auto property_id = property_id_from_string(property_name);
+    if (!property_id.has_value())
+        return String {};
+
     // 1. If the computed flag is set, then throw a NoModificationAllowedError exception.
     // NOTE: This is handled by the virtual override in ResolvedCSSStyleDeclaration.
 
@@ -186,8 +190,7 @@ WebIDL::ExceptionOr<String> PropertyOwningCSSStyleDeclaration::remove_property(P
     // NOTE: We've already converted it to a PropertyID enum value.
 
     // 3. Let value be the return value of invoking getPropertyValue() with property as argument.
-    // FIXME: The trip through string_from_property_id() here is silly.
-    auto value = get_property_value(string_from_property_id(property_id));
+    auto value = get_property_value(property_name);
 
     // 4. Let removed be false.
     bool removed = false;
@@ -197,7 +200,12 @@ WebIDL::ExceptionOr<String> PropertyOwningCSSStyleDeclaration::remove_property(P
     //           2. Remove that CSS declaration and let removed be true.
 
     // 6. Otherwise, if property is a case-sensitive match for a property name of a CSS declaration in the declarations, remove that CSS declaration and let removed be true.
-    removed = m_properties.remove_first_matching([&](auto& entry) { return entry.property_id == property_id; });
+    if (property_id == PropertyID::Custom) {
+        auto custom_name = FlyString::from_utf8_without_validation(property_name.bytes());
+        removed = m_custom_properties.remove(custom_name);
+    } else {
+        removed = m_properties.remove_first_matching([&](auto& entry) { return entry.property_id == property_id; });
+    }
 
     // 7. If removed is true, Update style attribute for the CSS declaration block.
     if (removed)
@@ -321,12 +329,9 @@ WebIDL::ExceptionOr<void> CSSStyleDeclaration::set_property(PropertyID property_
     return set_property(string_from_property_id(property_id), css_text, priority);
 }
 
-WebIDL::ExceptionOr<String> CSSStyleDeclaration::remove_property(StringView property_name)
+WebIDL::ExceptionOr<String> CSSStyleDeclaration::remove_property(PropertyID property_name)
 {
-    auto property_id = property_id_from_string(property_name);
-    if (!property_id.has_value())
-        return String {};
-    return remove_property(property_id.value());
+    return remove_property(string_from_property_id(property_name));
 }
 
 // https://drafts.csswg.org/cssom/#dom-cssstyledeclaration-csstext
