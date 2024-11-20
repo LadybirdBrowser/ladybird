@@ -7,11 +7,8 @@
 #pragma once
 
 #include <AK/Vector.h>
-#include <LibCore/EventReceiver.h>
 #include <LibHTTP/HeaderMap.h>
-#include <LibTLS/TLSv12.h>
 #include <LibURL/URL.h>
-#include <LibWebSocket/Message.h>
 
 namespace WebSocket {
 

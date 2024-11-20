@@ -10,7 +10,6 @@
 #include <LibCrypto/Hash/HashManager.h>
 #include <LibWebSocket/Impl/WebSocketImplSerenity.h>
 #include <LibWebSocket/WebSocket.h>
-#include <unistd.h>
 
 namespace WebSocket {
 

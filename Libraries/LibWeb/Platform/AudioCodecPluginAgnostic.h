@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <LibCore/Timer.h>
 #include <LibMedia/Audio/PlaybackStream.h>
 #include <LibWeb/Platform/AudioCodecPlugin.h>
 

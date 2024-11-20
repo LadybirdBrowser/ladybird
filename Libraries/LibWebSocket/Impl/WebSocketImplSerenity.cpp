@@ -8,6 +8,7 @@
 
 #include <LibCore/EventLoop.h>
 #include <LibCore/Socket.h>
+#include <LibTLS/TLSv12.h>
 #include <LibWebSocket/Impl/WebSocketImplSerenity.h>
 
 namespace WebSocket {
