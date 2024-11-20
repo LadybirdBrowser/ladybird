@@ -22,6 +22,10 @@ serenity_lib(LibCoreMinimal coreminimal)
 if (WIN32)
     find_path(DIRENT_INCLUDE_DIR dirent.h REQUIRED)
     target_include_directories(LibCoreMinimal PRIVATE ${DIRENT_INCLUDE_DIR})
+
+    find_package(mman REQUIRED)
+    target_include_directories(LibCoreMinimal PRIVATE ${MMAN_INCLUDE_DIR})
+    target_link_libraries(LibCoreMinimal PRIVATE ${MMAN_LIBRARY})
 endif()
 
 if (LAGOM_TOOLS_ONLY)

@@ -71,6 +71,10 @@
         "simd"
       ]
     },
+    {
+      "name": "mman",
+      "platform": "windows"
+    },
     "simdutf",
     {
       "name": "skia",
