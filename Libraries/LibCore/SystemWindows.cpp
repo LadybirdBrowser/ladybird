@@ -15,6 +15,7 @@
 #include <Windows.h>
 #include <direct.h>
 #include <io.h>
+#include <sys/mman.h>
 
 namespace Core::System {
 
@@ -164,6 +165,23 @@ ErrorOr<struct stat> fstatat(int, StringView, int)
 {
     dbgln("Core::System::fstatat() is not implemented");
     VERIFY_NOT_REACHED();
+}
+
+ErrorOr<void*> mmap(void* address, size_t size, int protection, int flags, int fd, off_t offset, size_t alignment, StringView)
+{
+    // custom alignment is not supported
+    VERIFY(!alignment);
+    void* ptr = ::mmap(address, size, protection, flags, fd, offset);
+    if (ptr == MAP_FAILED)
+        return Error::from_syscall("mmap"sv, -errno);
+    return ptr;
+}
+
+ErrorOr<void> munmap(void* address, size_t size)
+{
+    if (::munmap(address, size) < 0)
+        return Error::from_syscall("munmap"sv, -errno);
+    return {};
 }
 
 }
