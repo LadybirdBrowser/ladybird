@@ -8,7 +8,6 @@
 #include <AK/Base64.h>
 #include <AK/StringBuilder.h>
 #include <LibHTTP/HttpRequest.h>
-#include <LibURL/Parser.h>
 
 namespace HTTP {
 

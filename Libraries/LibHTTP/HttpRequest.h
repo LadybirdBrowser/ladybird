@@ -11,7 +11,6 @@
 #include <AK/ByteString.h>
 #include <AK/Noncopyable.h>
 #include <AK/Optional.h>
-#include <AK/Vector.h>
 #include <LibCore/Forward.h>
 #include <LibHTTP/HeaderMap.h>
 #include <LibURL/URL.h>

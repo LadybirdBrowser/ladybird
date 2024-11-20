@@ -7,8 +7,6 @@
 
 #pragma once
 
-#include <AK/ByteString.h>
-#include <AK/HashMap.h>
 #include <LibCore/NetworkResponse.h>
 #include <LibHTTP/HeaderMap.h>
 
