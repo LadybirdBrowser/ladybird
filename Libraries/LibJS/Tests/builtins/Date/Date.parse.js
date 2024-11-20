@@ -41,6 +41,7 @@ test("basic functionality", () => {
     expect(Date.parse("01 February 2013")).toBe(1359698400000);
     expect(Date.parse("Tuesday, October 29, 2024, 18:00 UTC")).toBe(1730224800000);
     expect(Date.parse("November 19 2024 00:00:00 +0900")).toBe(1731942000000);
+    expect(Date.parse("Wed Nov 20 2024")).toBe(1732082400000);
 
     // FIXME: Create a scoped time zone helper when bytecode supports the `using` declaration.
     setTimeZone(originalTimeZone);

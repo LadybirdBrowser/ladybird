@@ -192,6 +192,7 @@ static double parse_date_string(VM& vm, ByteString const& date_string)
         "%d%t%b%t%Y%t%R"sv,                    // "01 Jan 2000 08:00"
         "%A,%t%B%t%e,%t%Y,%t%R%t%Z"sv,         // "Tuesday, October 29, 2024, 18:00 UTC"
         "%B%t%d%t%Y%t%T%t%z"sv,                // "November 19 2024 00:00:00 +0900"
+        "%a%t%b%t%e%t%Y"sv                     // "Wed Nov 20 2024"
     };
 
     for (auto const& format : extra_formats) {
