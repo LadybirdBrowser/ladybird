@@ -10,11 +10,7 @@
 #    pragma GCC optimize("O3")
 #endif
 
-#include <AK/Function.h>
-#include <AK/NumericLimits.h>
 #include <LibGfx/AntiAliasingPainter.h>
-#include <LibGfx/DeprecatedPainter.h>
-#include <LibGfx/Line.h>
 
 namespace Gfx {
 

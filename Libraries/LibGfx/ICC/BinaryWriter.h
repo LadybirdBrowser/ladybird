@@ -6,8 +6,6 @@
 
 #pragma once
 
-#include <AK/ByteBuffer.h>
-
 namespace Gfx::ICC {
 
 class Profile;

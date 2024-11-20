@@ -8,8 +8,6 @@
 #pragma once
 
 #include <AK/FlyString.h>
-#include <AK/HashMap.h>
-#include <LibGfx/Bitmap.h>
 #include <LibGfx/Font/Font.h>
 #include <LibGfx/Font/Typeface.h>
 

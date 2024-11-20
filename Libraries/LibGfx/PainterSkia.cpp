@@ -13,20 +13,9 @@
 #include <LibGfx/PathSkia.h>
 
 #include <AK/TypeCasts.h>
-#include <core/SkBitmap.h>
-#include <core/SkBlurTypes.h>
 #include <core/SkCanvas.h>
-#include <core/SkColorFilter.h>
-#include <core/SkMaskFilter.h>
 #include <core/SkPath.h>
-#include <core/SkPathBuilder.h>
-#include <core/SkRRect.h>
-#include <core/SkSurface.h>
 #include <effects/SkGradientShader.h>
-#include <effects/SkImageFilters.h>
-#include <gpu/GrDirectContext.h>
-#include <gpu/ganesh/SkSurfaceGanesh.h>
-#include <pathops/SkPathOps.h>
 
 namespace Gfx {
 

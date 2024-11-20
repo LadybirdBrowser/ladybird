@@ -6,12 +6,9 @@
 
 #include <AK/Math.h>
 #include <AK/StringBuilder.h>
-#include <AK/TypeCasts.h>
 #include <LibGfx/BoundingBox.h>
 #include <LibGfx/DeprecatedPainter.h>
 #include <LibGfx/DeprecatedPath.h>
-#include <LibGfx/Font/ScaledFont.h>
-#include <LibGfx/TextLayout.h>
 
 namespace Gfx {
 

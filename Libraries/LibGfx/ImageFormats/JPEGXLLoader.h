@@ -6,7 +6,6 @@
 
 #pragma once
 
-#include <AK/MemoryStream.h>
 #include <LibGfx/ImageFormats/ImageDecoder.h>
 
 namespace Gfx {

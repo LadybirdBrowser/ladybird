@@ -4,7 +4,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <core/SkTypeface.h>
 #include <harfbuzz/hb.h>
 
 #include <LibGfx/Font/ScaledFont.h>

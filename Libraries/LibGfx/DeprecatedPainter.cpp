@@ -12,18 +12,13 @@
 
 #include "DeprecatedPainter.h"
 #include "Bitmap.h"
-#include "Font/Font.h"
 #include <AK/Assertions.h>
 #include <AK/Function.h>
 #include <AK/Math.h>
 #include <AK/Memory.h>
-#include <AK/Stack.h>
 #include <AK/StdLibExtras.h>
-#include <AK/Utf8View.h>
 #include <LibGfx/DeprecatedPath.h>
-#include <LibGfx/Palette.h>
-#include <LibGfx/Quad.h>
-#include <LibGfx/TextLayout.h>
+#include <LibGfx/ScalingMode.h>
 #include <stdio.h>
 
 #if defined(AK_COMPILER_GCC)

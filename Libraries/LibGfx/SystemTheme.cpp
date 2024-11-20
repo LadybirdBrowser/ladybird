@@ -11,7 +11,6 @@
 #include <LibCore/ConfigFile.h>
 #include <LibCore/DirIterator.h>
 #include <LibGfx/SystemTheme.h>
-#include <string.h>
 
 namespace Gfx {
 

@@ -7,16 +7,12 @@
 
 #pragma once
 
-#include <AK/ByteString.h>
-#include <AK/CharacterTypes.h>
 #include <AK/Forward.h>
-#include <AK/Utf32View.h>
 #include <AK/Utf8View.h>
 #include <AK/Vector.h>
 #include <LibGfx/Font/Font.h>
-#include <LibGfx/FontCascadeList.h>
 #include <LibGfx/Forward.h>
-#include <LibGfx/Rect.h>
+#include <LibGfx/Point.h>
 
 namespace Gfx {
 

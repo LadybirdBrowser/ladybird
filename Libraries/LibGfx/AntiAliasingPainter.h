@@ -9,9 +9,7 @@
 #include <LibGfx/Color.h>
 #include <LibGfx/DeprecatedPath.h>
 #include <LibGfx/Forward.h>
-#include <LibGfx/LineStyle.h>
 #include <LibGfx/PaintStyle.h>
-#include <LibGfx/Quad.h>
 #include <LibGfx/WindingRule.h>
 
 namespace Gfx {

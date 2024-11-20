@@ -7,7 +7,6 @@
 #include <LibGfx/ICC/Profile.h>
 #include <LibGfx/ICC/Tags.h>
 #include <LibGfx/ICC/WellKnownProfiles.h>
-#include <time.h>
 
 namespace Gfx::ICC {
 

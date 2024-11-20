@@ -5,8 +5,6 @@
  */
 
 #include <AK/ByteString.h>
-#include <AK/Vector.h>
-#include <LibGfx/Line.h>
 #include <LibGfx/Rect.h>
 #include <LibIPC/Decoder.h>
 #include <LibIPC/Encoder.h>

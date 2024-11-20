@@ -4,9 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <AK/Array.h>
-#include <AK/Debug.h>
-#include <AK/IntegralMath.h>
+#include <AK/Memory.h>
 #include <AK/Types.h>
 #include <LibGfx/AntiAliasingPainter.h>
 #include <LibGfx/DeprecatedPainter.h>

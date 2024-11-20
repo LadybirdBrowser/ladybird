@@ -7,9 +7,7 @@
 
 #pragma once
 
-#include <AK/BitStream.h>
 #include <AK/Error.h>
-#include <AK/Optional.h>
 #include <AK/Types.h>
 
 namespace Gfx {
