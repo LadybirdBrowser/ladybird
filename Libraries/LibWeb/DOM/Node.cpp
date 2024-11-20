@@ -235,10 +235,7 @@ WebIDL::ExceptionOr<void> Node::normalize()
         Vector<Text*> nodes;
 
         auto* current_node = node.previous_sibling();
-        while (current_node) {
-            if (!current_node->is_text())
-                break;
-
+        while (current_node && current_node->is_exclusive_text()) {
             nodes.append(static_cast<Text*>(current_node));
             current_node = current_node->previous_sibling();
         }
@@ -247,10 +244,7 @@ WebIDL::ExceptionOr<void> Node::normalize()
         nodes.reverse();
 
         current_node = node.next_sibling();
-        while (current_node) {
-            if (!current_node->is_text())
-                break;
-
+        while (current_node && current_node->is_exclusive_text()) {
             nodes.append(static_cast<Text*>(current_node));
             current_node = current_node->next_sibling();
         }
@@ -291,7 +285,7 @@ WebIDL::ExceptionOr<void> Node::normalize()
         auto* current_node = node.next_sibling();
 
         // 6. While currentNode is an exclusive Text node:
-        while (current_node && is<Text>(*current_node)) {
+        while (current_node && current_node->is_exclusive_text()) {
             // 1. For each live range whose start node is currentNode, add length to its start offset and set its start node to node.
             for (auto& range : Range::live_ranges()) {
                 if (range->start_container() == current_node)
