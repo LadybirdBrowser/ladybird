@@ -31,7 +31,7 @@ public:
 
 private:
     virtual void set_source(ByteString) override;
-    virtual void doctype(XML::Doctype const&) override;
+    virtual void set_doctype(XML::Doctype) override;
     virtual void element_start(XML::Name const& name, HashMap<XML::Name, ByteString> const& attributes) override;
     virtual void element_end(XML::Name const& name) override;
     virtual void text(StringView data) override;

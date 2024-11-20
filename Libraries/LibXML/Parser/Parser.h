@@ -34,9 +34,9 @@ struct Listener {
     virtual ~Listener() { }
 
     virtual void set_source(ByteString) { }
+    virtual void set_doctype(XML::Doctype) { }
     virtual void document_start() { }
     virtual void document_end() { }
-    virtual void doctype(Doctype const&) { }
     virtual void element_start(Name const&, HashMap<Name, ByteString> const&) { }
     virtual void element_end(Name const&) { }
     virtual void text(StringView) { }
