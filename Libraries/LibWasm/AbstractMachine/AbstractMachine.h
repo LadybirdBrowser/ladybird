@@ -9,8 +9,7 @@
 #include <AK/Function.h>
 #include <AK/HashMap.h>
 #include <AK/HashTable.h>
-#include <AK/OwnPtr.h>
-#include <AK/Result.h>
+#include <AK/NonnullOwnPtr.h>
 #include <AK/StackInfo.h>
 #include <AK/UFixedBigInt.h>
 #include <LibWasm/Types.h>

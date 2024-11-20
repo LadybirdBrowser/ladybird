@@ -9,7 +9,6 @@
 #include <AK/Endian.h>
 #include <AK/LEB128.h>
 #include <AK/MemoryStream.h>
-#include <AK/ScopeGuard.h>
 #include <AK/ScopeLogger.h>
 #include <AK/UFixedBigInt.h>
 #include <LibWasm/Types.h>

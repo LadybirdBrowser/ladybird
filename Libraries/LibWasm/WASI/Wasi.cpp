@@ -8,13 +8,10 @@
 #include <AK/Debug.h>
 #include <AK/FlyString.h>
 #include <AK/Random.h>
-#include <AK/SourceLocation.h>
+#include <AK/Span.h>
 #include <AK/Tuple.h>
-#include <LibCore/File.h>
-#include <LibWasm/AbstractMachine/Interpreter.h>
-#include <LibWasm/Printer/Printer.h>
+#include <LibWasm/AbstractMachine/Configuration.h>
 #include <LibWasm/Wasi.h>
-#include <dirent.h>
 #include <fcntl.h>
 #include <sys/stat.h>
 #include <time.h>

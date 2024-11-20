@@ -5,7 +5,6 @@
  */
 
 #include <AK/HashTable.h>
-#include <AK/Result.h>
 #include <AK/SourceLocation.h>
 #include <AK/TemporaryChange.h>
 #include <AK/Try.h>
