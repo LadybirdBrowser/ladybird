@@ -16,5 +16,8 @@
         document.body.appendChild(div);
 
         println(getComputedStyle(nested).backgroundColor);
+
+        div.style.removeProperty("--redcolor");
+        println(getComputedStyle(nested).backgroundColor);
     });
 </script>

@@ -32,10 +32,10 @@ public:
     virtual Optional<StyleProperty> custom_property(FlyString const& custom_property_name) const = 0;
 
     virtual WebIDL::ExceptionOr<void> set_property(PropertyID, StringView css_text, StringView priority = ""sv);
-    virtual WebIDL::ExceptionOr<String> remove_property(PropertyID) = 0;
+    virtual WebIDL::ExceptionOr<String> remove_property(PropertyID);
 
     virtual WebIDL::ExceptionOr<void> set_property(StringView property_name, StringView css_text, StringView priority) = 0;
-    virtual WebIDL::ExceptionOr<String> remove_property(StringView property_name);
+    virtual WebIDL::ExceptionOr<String> remove_property(StringView property_name) = 0;
 
     String get_property_value(StringView property) const;
     StringView get_property_priority(StringView property) const;
@@ -79,8 +79,7 @@ public:
     virtual Optional<StyleProperty> custom_property(FlyString const& custom_property_name) const override { return m_custom_properties.get(custom_property_name); }
 
     virtual WebIDL::ExceptionOr<void> set_property(StringView property_name, StringView css_text, StringView priority) override;
-    virtual WebIDL::ExceptionOr<String> remove_property(PropertyID) override;
-
+    virtual WebIDL::ExceptionOr<String> remove_property(StringView property_name) override;
     Vector<StyleProperty> const& properties() const { return m_properties; }
     HashMap<FlyString, StyleProperty> const& custom_properties() const { return m_custom_properties; }
 
