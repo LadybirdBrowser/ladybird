@@ -4,8 +4,8 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/FixedArray.h>
 #include <AK/NonnullOwnPtr.h>
-#include <AK/OwnPtr.h>
 #include <LibMedia/Color/ColorConverter.h>
 
 #include "VideoFrame.h"

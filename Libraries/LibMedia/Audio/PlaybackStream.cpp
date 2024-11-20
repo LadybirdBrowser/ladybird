@@ -7,7 +7,6 @@
 #include "PlaybackStream.h"
 
 #include <AK/Platform.h>
-#include <LibCore/ThreadedPromise.h>
 
 #if defined(HAVE_PULSEAUDIO)
 #    include "PlaybackStreamPulseAudio.h"

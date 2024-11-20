@@ -5,6 +5,7 @@
  */
 
 #include "SampleFormats.h"
+#include <AK/Assertions.h>
 
 namespace Audio {
 

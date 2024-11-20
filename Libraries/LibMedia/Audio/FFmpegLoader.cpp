@@ -5,7 +5,6 @@
  */
 
 #include "FFmpegLoader.h"
-#include <AK/BitStream.h>
 #include <AK/NumericLimits.h>
 #include <LibCore/System.h>
 
