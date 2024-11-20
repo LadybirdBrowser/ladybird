@@ -1,0 +1,13 @@
+<script src="../include.js"></script>
+<script>
+    asyncTest((done) => {
+        let img = document.createElement("img");
+        img.src = "../../../Layout/input/400.png";
+        document.body.appendChild(img);
+        img.onload = function() {
+            println("image is " + img.clientWidth + "x" + img.clientHeight);
+            img.remove();
+            done();
+        };
+    });
+</script>
