@@ -153,7 +153,7 @@ Attr const* NamedNodeMap::get_attribute(FlyString const& qualified_name, size_t*
     // 2. Return the first attribute in element’s attribute list whose qualified name is qualifiedName; otherwise null.
     for (auto const& attribute : m_attributes) {
         if (compare_as_lowercase) {
-            if (attribute->name().equals_ignoring_ascii_case(qualified_name))
+            if (attribute->name().equals_ignoring_ascii_case(qualified_name) && !AK::any_of(attribute->name().bytes(), is_ascii_upper_alpha))
                 return attribute;
         } else {
             if (attribute->name() == qualified_name)
