@@ -5,6 +5,7 @@
     test(() => {
         const div = document.createElement('div');
         div.style.setProperty("--redcolor", "red");
+        println(`style.getPropertyValue(--redcolor)=${div.style.getPropertyValue("--redcolor")}`);
 
         const nested = document.createElement('div');
         nested.style["backgroundColor"] = "var(--redcolor)";

@@ -258,6 +258,14 @@ String CSSStyleDeclaration::get_property_value(StringView property_name) const
     if (!property_id.has_value())
         return {};
 
+    if (property_id.value() == PropertyID::Custom) {
+        auto maybe_custom_property = custom_property(FlyString::from_utf8_without_validation(property_name.bytes()));
+        if (maybe_custom_property.has_value()) {
+            return maybe_custom_property.value().value->to_string();
+        }
+        return {};
+    }
+
     // 2. If property is a shorthand property, then follow these substeps:
     if (property_is_shorthand(property_id.value())) {
         // 1. Let list be a new empty array.

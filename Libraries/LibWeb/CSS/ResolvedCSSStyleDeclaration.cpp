@@ -601,6 +601,12 @@ Optional<StyleProperty> ResolvedCSSStyleDeclaration::property(PropertyID propert
     };
 }
 
+Optional<StyleProperty> ResolvedCSSStyleDeclaration::custom_property(FlyString const&) const
+{
+    dbgln("FIXME: ResolvedCSSStyleDeclaration::custom_property is not implemented");
+    return {};
+}
+
 static WebIDL::ExceptionOr<void> cannot_modify_computed_property_error(JS::Realm& realm)
 {
     return WebIDL::NoModificationAllowedError::create(realm, "Cannot modify properties in result of getComputedStyle()"_string);
