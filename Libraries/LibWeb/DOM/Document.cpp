@@ -5203,11 +5203,11 @@ size_t Document::broadcast_active_resize_observations()
                 shallowest_target_depth = target_depth;
         }
 
-        // 4. Invoke observer.[[callback]] with entries.
-        observer->invoke_callback(entries);
-
-        // 5. Clear observer.[[activeTargets]].
+        // 4. Clear observer.[[activeTargets]].
         observer->active_targets().clear();
+
+        // 5. Invoke observer.[[callback]] with entries.
+        observer->invoke_callback(entries);
     }
 
     return shallowest_target_depth;
