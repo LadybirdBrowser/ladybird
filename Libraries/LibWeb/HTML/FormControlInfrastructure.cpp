@@ -201,7 +201,7 @@ WebIDL::ExceptionOr<Optional<Vector<XHR::FormDataEntry>>> construct_entry_list(J
         }
     }
     // 6. Let form data be a new FormData object associated with entry list.
-    auto form_data = TRY(XHR::FormData::construct_impl(realm, entry_list));
+    auto form_data = TRY(XHR::FormData::construct_impl(realm, move(entry_list)));
 
     // 7. Fire an event named formdata at form using FormDataEvent, with the formData attribute initialized to form data and the bubbles attribute initialized to true.
     FormDataEventInit init {};
@@ -214,7 +214,7 @@ WebIDL::ExceptionOr<Optional<Vector<XHR::FormDataEntry>>> construct_entry_list(J
     form.set_constructing_entry_list(false);
 
     // 9. Return a clone of entry list.
-    return entry_list;
+    return form_data->entry_list();
 }
 
 ErrorOr<String> normalize_line_breaks(StringView value)
