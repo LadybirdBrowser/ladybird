@@ -36,4 +36,6 @@ extern Crypto::UnsignedBigInteger const SECONDS_PER_MINUTE;
 extern Crypto::UnsignedBigInteger const MINUTES_PER_HOUR;
 extern Crypto::UnsignedBigInteger const HOURS_PER_DAY;
 
+bool is_valid_epoch_nanoseconds(Crypto::SignedBigInteger const& epoch_nanoseconds);
+
 }

@@ -11,6 +11,7 @@
 #include <AK/QuickSort.h>
 #include <LibJS/Runtime/Temporal/Calendar.h>
 #include <LibJS/Runtime/Temporal/DateEquations.h>
+#include <LibJS/Runtime/Temporal/Duration.h>
 #include <LibJS/Runtime/Temporal/ISO8601.h>
 #include <LibJS/Runtime/Temporal/PlainDate.h>
 #include <LibJS/Runtime/Temporal/PlainMonthDay.h>
@@ -311,6 +312,154 @@ CalendarFields calendar_merge_fields(StringView calendar, CalendarFields const& 
     return merged;
 }
 
+// 12.2.6 CalendarDateAdd ( calendar, isoDate, duration, overflow ), https://tc39.es/proposal-temporal/#sec-temporal-calendardateadd
+ThrowCompletionOr<ISODate> calendar_date_add(VM& vm, StringView calendar, ISODate const& iso_date, DateDuration const& duration, Overflow overflow)
+{
+    ISODate result;
+
+    // 1. If calendar is "iso8601", then
+    // FIXME: Return an ISODate for an ISO8601 calendar for now.
+    if (true || calendar == "iso8601"sv) {
+        // a. Let intermediate be BalanceISOYearMonth(isoDate.[[Year]] + duration.[[Years]], isoDate.[[Month]] + duration.[[Months]]).
+        auto intermediate = balance_iso_year_month(static_cast<double>(iso_date.year) + duration.years, static_cast<double>(iso_date.month) + duration.months);
+
+        // b. Set intermediate to ? RegulateISODate(intermediate.[[Year]], intermediate.[[Month]], isoDate.[[Day]], overflow).
+        auto intermediate_date = TRY(regulate_iso_date(vm, intermediate.year, intermediate.month, iso_date.day, overflow));
+
+        // c. Let d be intermediate.[[Day]] + duration.[[Days]] + 7 × duration.[[Weeks]].
+        auto day = intermediate_date.day + duration.days + (7 * duration.weeks);
+
+        // d. Let result be BalanceISODate(intermediate.[[Year]], intermediate.[[Month]], d).
+        result = balance_iso_date(intermediate_date.year, intermediate_date.month, day);
+    }
+    // 2. Else,
+    else {
+        // a. Let result be an implementation-defined ISO Date Record, or throw a RangeError exception, as described below.
+    }
+
+    // 3. If ISODateWithinLimits(result) is false, throw a RangeError exception.
+    if (!iso_date_within_limits(result))
+        return vm.throw_completion<RangeError>(ErrorType::TemporalInvalidISODate);
+
+    // 4. Return result.
+    return result;
+}
+
+// 12.2.7 CalendarDateUntil ( calendar, one, two, largestUnit ), https://tc39.es/proposal-temporal/#sec-temporal-calendardateuntil
+DateDuration calendar_date_until(VM& vm, StringView calendar, ISODate const& one, ISODate const& two, Unit largest_unit)
+{
+    // 1. If calendar is "iso8601", then
+    if (calendar == "iso8601"sv) {
+        // a. Let sign be -CompareISODate(one, two).
+        auto sign = compare_iso_date(one, two);
+        sign *= -1;
+
+        // b. If sign = 0, return ZeroDateDuration().
+        if (sign == 0)
+            return zero_date_duration(vm);
+
+        // c. Let years be 0.
+        double years = 0;
+
+        // d. If largestUnit is YEAR, then
+        if (largest_unit == Unit::Year) {
+            // i. Let candidateYears be sign.
+            double candidate_years = sign;
+
+            // ii. Repeat, while ISODateSurpasses(sign, one.[[Year]] + candidateYears, one.[[Month]], one.[[Day]], two) is false,
+            while (!iso_date_surpasses(sign, static_cast<double>(one.year) + candidate_years, one.month, one.day, two)) {
+                // 1. Set years to candidateYears.
+                years = candidate_years;
+
+                // 2. Set candidateYears to candidateYears + sign.
+                candidate_years += sign;
+            }
+        }
+
+        // e. Let months be 0.
+        double months = 0;
+
+        // f. If largestUnit is YEAR or largestUnit is MONTH, then
+        if (largest_unit == Unit::Year || largest_unit == Unit::Month) {
+            // i. Let candidateMonths be sign.
+            double candidate_months = sign;
+
+            // ii. Let intermediate be BalanceISOYearMonth(one.[[Year]] + years, one.[[Month]] + candidateMonths).
+            auto intermediate = balance_iso_year_month(static_cast<double>(one.year) + years, static_cast<double>(one.month) + candidate_months);
+
+            // iii. Repeat, while ISODateSurpasses(sign, intermediate.[[Year]], intermediate.[[Month]], one.[[Day]], two) is false,
+            while (!iso_date_surpasses(sign, intermediate.year, intermediate.month, one.day, two)) {
+                // 1. Set months to candidateMonths.
+                months = candidate_months;
+
+                // 2. Set candidateMonths to candidateMonths + sign.
+                candidate_months += sign;
+
+                // 3. Set intermediate to BalanceISOYearMonth(intermediate.[[Year]], intermediate.[[Month]] + sign).
+                intermediate = balance_iso_year_month(intermediate.year, static_cast<double>(intermediate.month) + sign);
+            }
+        }
+
+        // g. Set intermediate to BalanceISOYearMonth(one.[[Year]] + years, one.[[Month]] + months).
+        auto intermediate = balance_iso_year_month(static_cast<double>(one.year) + years, static_cast<double>(one.month) + months);
+
+        // h. Let constrained be ! RegulateISODate(intermediate.[[Year]], intermediate.[[Month]], one.[[Day]], CONSTRAIN).
+        auto constrained = MUST(regulate_iso_date(vm, intermediate.year, intermediate.month, one.day, Overflow::Constrain));
+
+        // i. Let weeks be 0.
+        double weeks = 0;
+
+        // j. If largestUnit is WEEK, then
+        if (largest_unit == Unit::Week) {
+            // i. Let candidateWeeks be sign.
+            double candidate_weeks = sign;
+
+            // ii. Set intermediate to BalanceISODate(constrained.[[Year]], constrained.[[Month]], constrained.[[Day]] + 7 × candidateWeeks).
+            auto intermediate = balance_iso_date(constrained.year, constrained.month, static_cast<double>(constrained.day) + (7.0 * candidate_weeks));
+
+            // iii. Repeat, while ISODateSurpasses(sign, intermediate.[[Year]], intermediate.[[Month]], intermediate.[[Day]], two) is false,
+            while (!iso_date_surpasses(sign, intermediate.year, intermediate.month, intermediate.day, two)) {
+                // 1. Set weeks to candidateWeeks.
+                weeks = candidate_weeks;
+
+                // 2. Set candidateWeeks to candidateWeeks + sign.
+                candidate_weeks += sign;
+
+                // 3. Set intermediate to BalanceISODate(intermediate.[[Year]], intermediate.[[Month]], intermediate.[[Day]] + 7 × sign).
+                intermediate = balance_iso_date(intermediate.year, intermediate.month, static_cast<double>(intermediate.day) + (7.0 * sign));
+            }
+        }
+
+        // k. Let days be 0.
+        double days = 0;
+
+        // l. Let candidateDays be sign.
+        double candidate_days = sign;
+
+        // m. Set intermediate to BalanceISODate(constrained.[[Year]], constrained.[[Month]], constrained.[[Day]] + 7 × weeks + candidateDays).
+        auto intermediate_date = balance_iso_date(constrained.year, constrained.month, static_cast<double>(constrained.day) + (7.0 * weeks) + candidate_days);
+
+        // n. Repeat, while ISODateSurpasses(sign, intermediate.[[Year]], intermediate.[[Month]], intermediate.[[Day]], two) is false,
+        while (!iso_date_surpasses(sign, intermediate_date.year, intermediate_date.month, intermediate_date.day, two)) {
+            // i. Set days to candidateDays.
+            days = candidate_days;
+
+            // ii. Set candidateDays to candidateDays + sign.
+            candidate_days += sign;
+
+            // iii. Set intermediate to BalanceISODate(intermediate.[[Year]], intermediate.[[Month]], intermediate.[[Day]] + sign).
+            intermediate_date = balance_iso_date(intermediate_date.year, intermediate_date.month, static_cast<double>(intermediate_date.day) + sign);
+        }
+
+        // o. Return ! CreateDateDurationRecord(years, months, weeks, days).
+        return MUST(create_date_duration_record(vm, years, months, weeks, days));
+    }
+
+    // 2. Return an implementation-defined Date Duration Record as described above.
+    // FIXME: Return a DateDuration for an ISO8601 calendar for now.
+    return calendar_date_until(vm, "iso8601"sv, one, two, largest_unit);
+}
+
 // 12.2.8 ToTemporalCalendarIdentifier ( temporalCalendarLike ), https://tc39.es/proposal-temporal/#sec-temporal-totemporalcalendaridentifier
 ThrowCompletionOr<String> to_temporal_calendar_identifier(VM& vm, Value temporal_calendar_like)
 {
@@ -363,6 +512,23 @@ ThrowCompletionOr<String> get_temporal_calendar_identifier_with_iso_default(VM& 
 
     // 4. Return ? ToTemporalCalendarIdentifier(calendarLike).
     return TRY(to_temporal_calendar_identifier(vm, calendar_like));
+}
+
+// 12.2.10 CalendarDateFromFields ( calendar, fields, overflow ), https://tc39.es/proposal-temporal/#sec-temporal-calendardatefromfields
+ThrowCompletionOr<ISODate> calendar_date_from_fields(VM& vm, StringView calendar, CalendarFields fields, Overflow overflow)
+{
+    // 1. Perform ? CalendarResolveFields(calendar, fields, DATE).
+    TRY(calendar_resolve_fields(vm, calendar, fields, DateType::Date));
+
+    // 2. Let result be ? CalendarDateToISO(calendar, fields, overflow).
+    auto result = TRY(calendar_date_to_iso(vm, calendar, fields, overflow));
+
+    // 3. If ISODateWithinLimits(result) is false, throw a RangeError exception.
+    if (!iso_date_within_limits(result))
+        return vm.throw_completion<RangeError>(ErrorType::TemporalInvalidISODate);
+
+    // 4. Return result.
+    return result;
 }
 
 // 12.2.11 CalendarYearMonthFromFields ( calendar, fields, overflow ), https://tc39.es/proposal-temporal/#sec-temporal-calendaryearmonthfromfields

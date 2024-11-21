@@ -33,6 +33,11 @@ enum class DateType {
     YearMonth,
 };
 
+enum class DurationOperation {
+    Since,
+    Until,
+};
+
 enum class Overflow {
     Constrain,
     Reject,
@@ -148,9 +153,18 @@ struct ParsedISODateTime {
     Optional<String> calendar;
 };
 
+struct DifferenceSettings {
+    Unit smallest_unit;
+    Unit largest_unit;
+    RoundingMode rounding_mode;
+    u64 rounding_increment { 0 };
+};
+
 double iso_date_to_epoch_days(double year, double month, double date);
 double epoch_days_to_epoch_ms(double day, double time);
+ThrowCompletionOr<void> check_iso_days_range(VM&, ISODate const&);
 ThrowCompletionOr<Overflow> get_temporal_overflow_option(VM&, Object const& options);
+RoundingMode negate_rounding_mode(RoundingMode);
 ThrowCompletionOr<ShowCalendar> get_temporal_show_calendar_name_option(VM&, Object const& options);
 ThrowCompletionOr<void> validate_temporal_rounding_increment(VM&, u64 increment, u64 dividend, bool inclusive);
 ThrowCompletionOr<Precision> get_temporal_fractional_second_digits_option(VM&, Object const& options);
@@ -177,6 +191,7 @@ ThrowCompletionOr<TimeZone> parse_temporal_time_zone_string(VM& vm, StringView t
 ThrowCompletionOr<String> to_month_code(VM&, Value argument);
 ThrowCompletionOr<String> to_offset_string(VM&, Value argument);
 CalendarFields iso_date_to_fields(StringView calendar, ISODate const&, DateType);
+ThrowCompletionOr<DifferenceSettings> get_difference_settings(VM&, DurationOperation, Object const& options, UnitGroup, ReadonlySpan<Unit> disallowed_units, Unit fallback_smallest_unit, Unit smallest_largest_default_unit);
 
 // 13.38 ToIntegerWithTruncation ( argument ), https://tc39.es/proposal-temporal/#sec-tointegerwithtruncation
 template<typename... Args>

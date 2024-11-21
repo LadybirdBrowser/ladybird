@@ -286,6 +286,7 @@ struct DateDuration;
 struct InternalDuration;
 struct ISODate;
 struct ISODateTime;
+struct ISOYearMonth;
 struct ParseResult;
 struct PartialDuration;
 struct Time;

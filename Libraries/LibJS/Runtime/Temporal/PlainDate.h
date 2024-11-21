@@ -23,8 +23,10 @@ struct ISODate {
 };
 
 ISODate create_iso_date_record(double year, double month, double day);
+bool iso_date_surpasses(i8 sign, double year1, double month1, double day1, ISODate iso_date2);
 ThrowCompletionOr<ISODate> regulate_iso_date(VM& vm, double year, double month, double day, Overflow overflow);
 bool is_valid_iso_date(double year, double month, double day);
+ISODate balance_iso_date(double year, double month, double day);
 String pad_iso_year(i32 year);
 bool iso_date_within_limits(ISODate);
 i8 compare_iso_date(ISODate, ISODate);

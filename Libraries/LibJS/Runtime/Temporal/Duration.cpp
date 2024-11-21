@@ -9,13 +9,16 @@
 
 #include <AK/Math.h>
 #include <AK/NumericLimits.h>
-#include <LibCrypto/BigFraction/BigFraction.h>
 #include <LibJS/Runtime/AbstractOperations.h>
+#include <LibJS/Runtime/Date.h>
 #include <LibJS/Runtime/Intrinsics.h>
 #include <LibJS/Runtime/Realm.h>
+#include <LibJS/Runtime/Temporal/Calendar.h>
 #include <LibJS/Runtime/Temporal/Duration.h>
 #include <LibJS/Runtime/Temporal/DurationConstructor.h>
 #include <LibJS/Runtime/Temporal/Instant.h>
+#include <LibJS/Runtime/Temporal/PlainDateTime.h>
+#include <LibJS/Runtime/Temporal/TimeZone.h>
 #include <LibJS/Runtime/VM.h>
 #include <LibJS/Runtime/ValueInlines.h>
 #include <math.h>
@@ -294,6 +297,21 @@ ThrowCompletionOr<DateDuration> create_date_duration_record(VM& vm, double years
     return DateDuration { years, months, weeks, days };
 }
 
+// 7.5.10 AdjustDateDurationRecord ( dateDuration, days [ , weeks [ , months ] ] ), https://tc39.es/proposal-temporal/#sec-temporal-adjustdatedurationrecord
+ThrowCompletionOr<DateDuration> adjust_date_duration_record(VM& vm, DateDuration const& date_duration, double days, Optional<double> weeks, Optional<double> months)
+{
+    // 1. If weeks is not present, set weeks to dateDuration.[[Weeks]].
+    if (!weeks.has_value())
+        weeks = date_duration.weeks;
+
+    // 2. If months is not present, set months to dateDuration.[[Months]].
+    if (!months.has_value())
+        months = date_duration.months;
+
+    // 3. Return ? CreateDateDurationRecord(dateDuration.[[Years]], months, weeks, days).
+    return TRY(create_date_duration_record(vm, date_duration.years, *months, *weeks, days));
+}
+
 // 7.5.11 CombineDateAndTimeDuration ( dateDuration, timeDuration ), https://tc39.es/proposal-temporal/#sec-temporal-combinedateandtimeduration
 ThrowCompletionOr<InternalDuration> combine_date_and_time_duration(VM& vm, DateDuration date_duration, TimeDuration time_duration)
 {
@@ -416,6 +434,20 @@ i8 date_duration_sign(DateDuration const& date_duration)
 
     // 2. Return 0.
     return 0;
+}
+
+// 7.5.15 InternalDurationSign ( internalDuration ), https://tc39.es/proposal-temporal/#sec-temporal-internaldurationsign
+i8 internal_duration_sign(InternalDuration const& internal_duration)
+{
+    // 1. Let dateSign be DateDurationSign(internalDuration.[[Date]]).
+    auto date_sign = date_duration_sign(internal_duration.date);
+
+    // 2. If dateSign ≠ 0, return dateSign.
+    if (date_sign != 0)
+        return date_sign;
+
+    // 3. Return TimeDurationSign(internalDuration.[[Time]]).
+    return time_duration_sign(internal_duration.time);
 }
 
 // 7.5.16 IsValidDuration ( years, months, weeks, days, hours, minutes, seconds, milliseconds, microseconds, nanoseconds ), https://tc39.es/proposal-temporal/#sec-temporal-isvalidduration
@@ -687,6 +719,13 @@ ThrowCompletionOr<TimeDuration> add_24_hour_days_to_time_duration(VM& vm, TimeDu
     return result;
 }
 
+// 7.5.24 AddTimeDurationToEpochNanoseconds ( d, epochNs ), https://tc39.es/proposal-temporal/#sec-temporal-addtimedurationtoepochnanoseconds
+TimeDuration add_time_duration_to_epoch_nanoseconds(TimeDuration const& duration, TimeDuration const& epoch_nanoseconds)
+{
+    // 1. Return epochNs + ℤ(d).
+    return epoch_nanoseconds.plus(duration);
+}
+
 // 7.5.25 CompareTimeDuration ( one, two ), https://tc39.es/proposal-temporal/#sec-temporal-comparetimeduration
 i8 compare_time_duration(TimeDuration const& one, TimeDuration const& two)
 {
@@ -700,6 +739,19 @@ i8 compare_time_duration(TimeDuration const& one, TimeDuration const& two)
 
     // 3. Return 0.
     return 0;
+}
+
+// 7.5.26 TimeDurationFromEpochNanosecondsDifference ( one, two ), https://tc39.es/proposal-temporal/#sec-temporal-timedurationfromepochnanosecondsdifference
+TimeDuration time_duration_from_epoch_nanoseconds_difference(TimeDuration const& one, TimeDuration const& two)
+{
+    // 1. Let result be ℝ(one) - ℝ(two).
+    auto result = one.minus(two);
+
+    // 2. Assert: abs(result) ≤ maxTimeDuration.
+    VERIFY(result.unsigned_value() <= MAX_TIME_DURATION.unsigned_value());
+
+    // 3. Return result.
+    return result;
 }
 
 // 7.5.27 RoundTimeDurationToIncrement ( d, increment, roundingMode ), https://tc39.es/proposal-temporal/#sec-temporal-roundtimedurationtoincrement
@@ -754,6 +806,532 @@ double total_time_duration(TimeDuration const& time_duration, Unit unit)
     // 3. Return timeDuration / divisor.
     auto result = Crypto::BigFraction { time_duration } / Crypto::BigFraction { Crypto::SignedBigInteger { divisor } };
     return result.to_double();
+}
+
+// 7.5.33 NudgeToCalendarUnit ( sign, duration, destEpochNs, isoDateTime, timeZone, calendar, increment, unit, roundingMode ), https://tc39.es/proposal-temporal/#sec-temporal-nudgetocalendarunit
+ThrowCompletionOr<CalendarNudgeResult> nudge_to_calendar_unit(VM& vm, i8 sign, InternalDuration const& duration, TimeDuration const& dest_epoch_ns, ISODateTime const& iso_date_time, Optional<StringView> time_zone, StringView calendar, u64 increment, Unit unit, RoundingMode rounding_mode)
+{
+    DateDuration start_duration;
+    DateDuration end_duration;
+
+    double r1 = 0;
+    double r2 = 0;
+
+    // 1. If unit is YEAR, then
+    if (unit == Unit::Year) {
+        // a. Let years be RoundNumberToIncrement(duration.[[Date]].[[Years]], increment, TRUNC).
+        auto years = round_number_to_increment(duration.date.years, increment, RoundingMode::Trunc);
+
+        // b. Let r1 be years.
+        r1 = years;
+
+        // c. Let r2 be years + increment × sign.
+        r2 = years + static_cast<double>(increment) * sign;
+
+        // d. Let startDuration be ? CreateDateDurationRecord(r1, 0, 0, 0).
+        start_duration = TRY(create_date_duration_record(vm, r1, 0, 0, 0));
+
+        // e. Let endDuration be ? CreateDateDurationRecord(r2, 0, 0, 0).
+        end_duration = TRY(create_date_duration_record(vm, r2, 0, 0, 0));
+    }
+    // 2. Else if unit is MONTH, then
+    else if (unit == Unit::Month) {
+        // a. Let months be RoundNumberToIncrement(duration.[[Date]].[[Months]], increment, TRUNC).
+        auto months = round_number_to_increment(duration.date.months, increment, RoundingMode::Trunc);
+
+        // b. Let r1 be months.
+        r1 = months;
+
+        // c. Let r2 be months + increment × sign.
+        r2 = months + static_cast<double>(increment) * sign;
+
+        // d. Let startDuration be ? AdjustDateDurationRecord(duration.[[Date]], 0, 0, r1).
+        start_duration = TRY(adjust_date_duration_record(vm, duration.date, 0, 0, r1));
+
+        // e. Let endDuration be ? AdjustDateDurationRecord(duration.[[Date]], 0, 0, r2).
+        end_duration = TRY(adjust_date_duration_record(vm, duration.date, 0, 0, r2));
+    }
+    // 3. Else if unit is WEEK, then
+    else if (unit == Unit::Week) {
+        // a. Let yearsMonths be ! AdjustDateDurationRecord(duration.[[Date]], 0, 0).
+        auto years_months = MUST(adjust_date_duration_record(vm, duration.date, 0, 0));
+
+        // b. Let weeksStart be ? CalendarDateAdd(calendar, isoDateTime.[[ISODate]], yearsMonths, CONSTRAIN).
+        auto weeks_start = TRY(calendar_date_add(vm, calendar, iso_date_time.iso_date, years_months, Overflow::Constrain));
+
+        // c. Let weeksEnd be BalanceISODate(weeksStart.[[Year]], weeksStart.[[Month]], weeksStart.[[Day]] + duration.[[Date]].[[Days]]).
+        auto weeks_end = balance_iso_date(weeks_start.year, weeks_start.month, static_cast<double>(weeks_start.day) + duration.date.days);
+
+        // d. Let untilResult be CalendarDateUntil(calendar, weeksStart, weeksEnd, WEEK).
+        auto until_result = calendar_date_until(vm, calendar, weeks_start, weeks_end, Unit::Week);
+
+        // e. Let weeks be RoundNumberToIncrement(duration.[[Date]].[[Weeks]] + untilResult.[[Weeks]], increment, TRUNC).
+        auto weeks = round_number_to_increment(duration.date.weeks + until_result.weeks, increment, RoundingMode::Trunc);
+
+        // f. Let r1 be weeks.
+        r1 = weeks;
+
+        // g. Let r2 be weeks + increment × sign.
+        r2 = weeks + static_cast<double>(increment) * sign;
+
+        // h. Let startDuration be ? AdjustDateDurationRecord(duration.[[Date]], 0, r1).
+        start_duration = TRY(adjust_date_duration_record(vm, duration.date, 0, r1));
+
+        // i. Let endDuration be ? AdjustDateDurationRecord(duration.[[Date]], 0, r2).
+        end_duration = TRY(adjust_date_duration_record(vm, duration.date, 0, r2));
+    }
+    // 4. Else,
+    else {
+        // a. Assert: unit is DAY.
+        VERIFY(unit == Unit::Day);
+
+        // b. Let days be RoundNumberToIncrement(duration.[[Date]].[[Days]], increment, TRUNC).
+        auto days = round_number_to_increment(duration.date.days, increment, RoundingMode::Trunc);
+
+        // c. Let r1 be days.
+        r1 = days;
+
+        // d. Let r2 be days + increment × sign.
+        r2 = days + static_cast<double>(increment) * sign;
+
+        // e. Let startDuration be ? AdjustDateDurationRecord(duration.[[Date]], r1).
+        start_duration = TRY(adjust_date_duration_record(vm, duration.date, r1));
+
+        // f. Let endDuration be ? AdjustDateDurationRecord(duration.[[Date]], r2).
+        end_duration = TRY(adjust_date_duration_record(vm, duration.date, r2));
+    }
+
+    // 5. Assert: If sign is 1, r1 ≥ 0 and r1 < r2.
+    if (sign == 1)
+        VERIFY(r1 >= 0 && r1 < r2);
+    // 6. Assert: If sign is -1, r1 ≤ 0 and r1 > r2.
+    else if (sign == -1)
+        VERIFY(r1 <= 0 && r1 > r2);
+
+    // 7. Let start be ? CalendarDateAdd(calendar, isoDateTime.[[ISODate]], startDuration, CONSTRAIN).
+    auto start = TRY(calendar_date_add(vm, calendar, iso_date_time.iso_date, start_duration, Overflow::Constrain));
+
+    // 8. Let end be ? CalendarDateAdd(calendar, isoDateTime.[[ISODate]], endDuration, CONSTRAIN).
+    auto end = TRY(calendar_date_add(vm, calendar, iso_date_time.iso_date, end_duration, Overflow::Constrain));
+
+    // 9. Let startDateTime be CombineISODateAndTimeRecord(start, isoDateTime.[[Time]]).
+    auto start_date_time = combine_iso_date_and_time_record(start, iso_date_time.time);
+
+    // 10. Let endDateTime be CombineISODateAndTimeRecord(end, isoDateTime.[[Time]]).
+    auto end_date_time = combine_iso_date_and_time_record(end, iso_date_time.time);
+
+    TimeDuration start_epoch_ns;
+    TimeDuration end_epoch_ns;
+
+    // 11. If timeZone is UNSET, then
+    if (!time_zone.has_value()) {
+        // a. Let startEpochNs be GetUTCEpochNanoseconds(startDateTime).
+        start_epoch_ns = get_utc_epoch_nanoseconds(start_date_time);
+
+        // b. Let endEpochNs be GetUTCEpochNanoseconds(endDateTime).
+        end_epoch_ns = get_utc_epoch_nanoseconds(end_date_time);
+    }
+    // 12. Else,
+    else {
+        // a. Let startEpochNs be ? GetEpochNanosecondsFor(timeZone, startDateTime, COMPATIBLE).
+        start_epoch_ns = TRY(get_epoch_nanoseconds_for(vm, *time_zone, start_date_time, Disambiguation::Compatible));
+
+        // b. Let endEpochNs be ? GetEpochNanosecondsFor(timeZone, endDateTime, COMPATIBLE).
+        end_epoch_ns = TRY(get_epoch_nanoseconds_for(vm, *time_zone, end_date_time, Disambiguation::Compatible));
+    }
+
+    // 13. If sign is 1, then
+    if (sign == 1) {
+        // a. Assert: startEpochNs ≤ destEpochNs ≤ endEpochNs.
+        VERIFY(start_epoch_ns <= dest_epoch_ns);
+        VERIFY(dest_epoch_ns <= end_epoch_ns);
+    }
+    // 14. Else,
+    else {
+        // a. Assert: endEpochNs ≤ destEpochNs ≤ startEpochNs.
+        VERIFY(end_epoch_ns <= dest_epoch_ns);
+        VERIFY(dest_epoch_ns <= start_epoch_ns);
+    }
+
+    // 15. Assert: startEpochNs ≠ endEpochNs.
+    VERIFY(start_epoch_ns != end_epoch_ns);
+
+    // 16. Let progress be (destEpochNs - startEpochNs) / (endEpochNs - startEpochNs).
+    auto progress_numerator = dest_epoch_ns.minus(start_epoch_ns);
+    auto progress_denominator = end_epoch_ns.minus(start_epoch_ns);
+    auto progress_equals_one = progress_numerator == progress_denominator;
+
+    // 17. Let total be r1 + progress × increment × sign.
+    auto total_numerator = progress_numerator.multiplied_by(Crypto::UnsignedBigInteger { increment });
+
+    if (sign == -1)
+        total_numerator.negate();
+    if (progress_denominator.is_negative())
+        total_numerator.negate();
+
+    auto total_mv = Crypto::BigFraction { Crypto::SignedBigInteger { r1 } } + Crypto::BigFraction { move(total_numerator), progress_denominator.unsigned_value() };
+    auto total = total_mv.to_double();
+
+    // 18. NOTE: The above two steps cannot be implemented directly using floating-point arithmetic. This division can be
+    //     implemented as if expressing the denominator and numerator of total as two time durations, and performing one
+    //     division operation with a floating-point result.
+
+    // 19. Assert: 0 ≤ progress ≤ 1.
+
+    // 20. If sign < 0, let isNegative be NEGATIVE; else let isNegative be POSITIVE.
+    auto is_negative = sign < 0 ? Sign::Negative : Sign::Positive;
+
+    // 21. Let unsignedRoundingMode be GetUnsignedRoundingMode(roundingMode, isNegative).
+    auto unsigned_rounding_mode = get_unsigned_rounding_mode(rounding_mode, is_negative);
+
+    double rounded_unit = 0;
+
+    // 22. If progress = 1, then
+    if (progress_equals_one) {
+        // a. Let roundedUnit be abs(r2).
+        rounded_unit = fabs(r2);
+    }
+    // 23. Else,
+    else {
+        // a. Assert: abs(r1) ≤ abs(total) < abs(r2).
+        VERIFY(fabs(r1) <= fabs(total));
+        VERIFY(fabs(total) <= fabs(r2));
+
+        // b. Let roundedUnit be ApplyUnsignedRoundingMode(abs(total), abs(r1), abs(r2), unsignedRoundingMode).
+        rounded_unit = apply_unsigned_rounding_mode(fabs(total), fabs(r1), fabs(r2), unsigned_rounding_mode);
+    }
+
+    auto did_expand_calendar_unit = false;
+    DateDuration result_duration;
+    TimeDuration nudged_epoch_ns;
+
+    // 24. If roundedUnit is abs(r2), then
+    if (rounded_unit == fabs(r2)) {
+        // a. Let didExpandCalendarUnit be true.
+        did_expand_calendar_unit = true;
+
+        // b. Let resultDuration be endDuration.
+        result_duration = end_duration;
+
+        // c. Let nudgedEpochNs be endEpochNs.
+        nudged_epoch_ns = move(end_epoch_ns);
+    }
+    // 25. Else,
+    else {
+        // a. Let didExpandCalendarUnit be false.
+        did_expand_calendar_unit = false;
+
+        // b. Let resultDuration be startDuration.
+        result_duration = start_duration;
+
+        // c. Let nudgedEpochNs be startEpochNs.
+        nudged_epoch_ns = move(start_epoch_ns);
+    }
+
+    // 26. Set resultDuration to ! CombineDateAndTimeDuration(resultDuration, 0).
+    auto result_date_and_time_duration = MUST(combine_date_and_time_duration(vm, result_duration, TimeDuration { 0 }));
+
+    // 27. Let nudgeResult be Duration Nudge Result Record { [[Duration]]: resultDuration, [[NudgedEpochNs]]: nudgedEpochNs, [[DidExpandCalendarUnit]]: didExpandCalendarUnit }.
+    DurationNudgeResult nudge_result { .duration = move(result_date_and_time_duration), .nudged_epoch_ns = move(nudged_epoch_ns), .did_expand_calendar_unit = did_expand_calendar_unit };
+
+    // 28. Return the Record { [[NudgeResult]]: nudgeResult, [[Total]]: total }.
+    return CalendarNudgeResult { .nudge_result = move(nudge_result), .total = move(total_mv) };
+}
+
+// 7.5.34 NudgeToZonedTime ( sign, duration, isoDateTime, timeZone, calendar, increment, unit, roundingMode ), https://tc39.es/proposal-temporal/#sec-temporal-nudgetozonedtime
+ThrowCompletionOr<DurationNudgeResult> nudge_to_zoned_time(VM& vm, i8 sign, InternalDuration const& duration, ISODateTime const& iso_date_time, StringView time_zone, StringView calendar, u64 increment, Unit unit, RoundingMode rounding_mode)
+{
+    // 1. Let start be ? CalendarDateAdd(calendar, isoDateTime.[[ISODate]], duration.[[Date]], CONSTRAIN).
+    auto start = TRY(calendar_date_add(vm, calendar, iso_date_time.iso_date, duration.date, Overflow::Constrain));
+
+    // 2. Let startDateTime be CombineISODateAndTimeRecord(start, isoDateTime.[[Time]]).
+    auto start_date_time = combine_iso_date_and_time_record(start, iso_date_time.time);
+
+    // 3. Let endDate be BalanceISODate(start.[[Year]], start.[[Month]], start.[[Day]] + sign).
+    auto end_date = balance_iso_date(start.year, start.month, static_cast<double>(start.day) + sign);
+
+    // 4. Let endDateTime be CombineISODateAndTimeRecord(endDate, isoDateTime.[[Time]]).
+    auto end_date_time = combine_iso_date_and_time_record(end_date, iso_date_time.time);
+
+    // 5. Let startEpochNs be ? GetEpochNanosecondsFor(timeZone, startDateTime, COMPATIBLE).
+    auto start_epoch_ns = TRY(get_epoch_nanoseconds_for(vm, time_zone, start_date_time, Disambiguation::Compatible));
+
+    // 6. Let endEpochNs be ? GetEpochNanosecondsFor(timeZone, endDateTime, COMPATIBLE).
+    auto end_epoch_ns = TRY(get_epoch_nanoseconds_for(vm, time_zone, end_date_time, Disambiguation::Compatible));
+
+    // 7. Let daySpan be TimeDurationFromEpochNanosecondsDifference(endEpochNs, startEpochNs).
+    auto day_span = time_duration_from_epoch_nanoseconds_difference(end_epoch_ns, start_epoch_ns);
+
+    // 8. Assert: TimeDurationSign(daySpan) = sign.
+    VERIFY(time_duration_sign(day_span) == sign);
+
+    // 9. Let unitLength be the value in the "Length in Nanoseconds" column of the row of Table 21 whose "Value" column contains unit.
+    auto const& unit_length = temporal_unit_length_in_nanoseconds(unit);
+
+    // 10. Let roundedTimeDuration be ? RoundTimeDurationToIncrement(duration.[[Time]], increment × unitLength, roundingMode).
+    auto unit_length_multiplied_by_increment = unit_length.multiplied_by(Crypto::UnsignedBigInteger { increment });
+    auto rounded_time_duration = TRY(round_time_duration_to_increment(vm, duration.time, unit_length_multiplied_by_increment, rounding_mode));
+
+    // 11. Let beyondDaySpan be ? AddTimeDuration(roundedTimeDuration, -daySpan).
+    day_span.negate();
+    auto beyond_day_span = TRY(add_time_duration(vm, rounded_time_duration, day_span));
+
+    auto did_round_beyond_day = false;
+    TimeDuration nudged_epoch_ns;
+    i8 day_delta = 0;
+
+    // 12. If TimeDurationSign(beyondDaySpan) ≠ -sign, then
+    if (time_duration_sign(beyond_day_span) != -sign) {
+        // a. Let didRoundBeyondDay be true.
+        did_round_beyond_day = true;
+
+        // b. Let dayDelta be sign.
+        day_delta = sign;
+
+        // c. Set roundedTimeDuration to ? RoundTimeDurationToIncrement(beyondDaySpan, increment × unitLength, roundingMode).
+        rounded_time_duration = TRY(round_time_duration_to_increment(vm, beyond_day_span, unit_length_multiplied_by_increment, rounding_mode));
+
+        // d. Let nudgedEpochNs be AddTimeDurationToEpochNanoseconds(roundedTimeDuration, endEpochNs).
+        nudged_epoch_ns = add_time_duration_to_epoch_nanoseconds(rounded_time_duration, end_epoch_ns);
+    }
+    // 13. Else,
+    else {
+        // a. Let didRoundBeyondDay be false.
+        did_round_beyond_day = false;
+
+        // b. Let dayDelta be 0.
+        day_delta = 0;
+
+        // c. Let nudgedEpochNs be AddTimeDurationToEpochNanoseconds(roundedTimeDuration, startEpochNs).
+        nudged_epoch_ns = add_time_duration_to_epoch_nanoseconds(rounded_time_duration, start_epoch_ns);
+    }
+
+    // 14. Let dateDuration be ? AdjustDateDurationRecord(duration.[[Date]], duration.[[Date]].[[Days]] + dayDelta).
+    auto date_duration = TRY(adjust_date_duration_record(vm, duration.date, duration.date.days + day_delta));
+
+    // 15. Let resultDuration be ? CombineDateAndTimeDuration(dateDuration, roundedTimeDuration).
+    auto result_duration = TRY(combine_date_and_time_duration(vm, date_duration, move(rounded_time_duration)));
+
+    // 16. Return Duration Nudge Result Record { [[Duration]]: resultDuration, [[NudgedEpochNs]]: nudgedEpochNs, [[DidExpandCalendarUnit]]: didRoundBeyondDay }.
+    return DurationNudgeResult { .duration = move(result_duration), .nudged_epoch_ns = move(nudged_epoch_ns), .did_expand_calendar_unit = did_round_beyond_day };
+}
+
+// 7.5.35 NudgeToDayOrTime ( duration, destEpochNs, largestUnit, increment, smallestUnit, roundingMode ), https://tc39.es/proposal-temporal/#sec-temporal-nudgetodayortime
+ThrowCompletionOr<DurationNudgeResult> nudge_to_day_or_time(VM& vm, InternalDuration const& duration, TimeDuration const& dest_epoch_ns, Unit largest_unit, u64 increment, Unit smallest_unit, RoundingMode rounding_mode)
+{
+    // 1. Let timeDuration be ! Add24HourDaysToTimeDuration(duration.[[Time]], duration.[[Date]].[[Days]]).
+    auto time_duration = MUST(add_24_hour_days_to_time_duration(vm, duration.time, duration.date.days));
+
+    // 2. Let unitLength be the value in the "Length in Nanoseconds" column of the row of Table 21 whose "Value" column contains smallestUnit.
+    auto const& unit_length = temporal_unit_length_in_nanoseconds(smallest_unit);
+
+    // 3. Let roundedTime be ? RoundTimeDurationToIncrement(timeDuration, unitLength × increment, roundingMode).
+    auto unit_length_multiplied_by_increment = unit_length.multiplied_by(Crypto::UnsignedBigInteger { increment });
+    auto rounded_time = TRY(round_time_duration_to_increment(vm, time_duration, unit_length_multiplied_by_increment, rounding_mode));
+
+    // 4. Let diffTime be ! AddTimeDuration(roundedTime, -timeDuration).
+    time_duration.negate();
+    auto diff_time = MUST(add_time_duration(vm, rounded_time, time_duration));
+    time_duration.negate();
+
+    // 5. Let wholeDays be truncate(TotalTimeDuration(timeDuration, DAY)).
+    auto whole_days = trunc(total_time_duration(time_duration, Unit::Day));
+
+    // 6. Let roundedWholeDays be truncate(TotalTimeDuration(roundedTime, DAY)).
+    auto rounded_whole_days = trunc(total_time_duration(rounded_time, Unit::Day));
+
+    // 7. Let dayDelta be roundedWholeDays - wholeDays.
+    auto day_delta = rounded_whole_days - whole_days;
+
+    // 8. If dayDelta < 0, let dayDeltaSign be -1; else if dayDelta > 0, let dayDeltaSign be 1; else let dayDeltaSign be 0.
+    auto day_delta_sign = day_delta < 0 ? -1 : (day_delta > 0 ? 1 : 0);
+
+    // 9. If dayDeltaSign = TimeDurationSign(timeDuration), let didExpandDays be true; else let didExpandDays be false.
+    auto did_expand_days = day_delta_sign == time_duration_sign(time_duration);
+
+    // 10. Let nudgedEpochNs be AddTimeDurationToEpochNanoseconds(diffTime, destEpochNs).
+    auto nudged_epoch_ns = add_time_duration_to_epoch_nanoseconds(diff_time, dest_epoch_ns);
+
+    // 11. Let days be 0.
+    double days = 0;
+
+    // 12. Let remainder be roundedTime.
+    TimeDuration remainder;
+
+    // 13. If TemporalUnitCategory(largestUnit) is DATE, then
+    if (temporal_unit_category(largest_unit) == UnitCategory::Date) {
+        // a. Set days to roundedWholeDays.
+        days = rounded_whole_days;
+
+        // b. Set remainder to ! AddTimeDuration(roundedTime, TimeDurationFromComponents(-roundedWholeDays * HoursPerDay, 0, 0, 0, 0, 0)).
+        remainder = MUST(add_time_duration(vm, rounded_time, time_duration_from_components(-rounded_whole_days * JS::hours_per_day, 0, 0, 0, 0, 0)));
+    } else {
+        remainder = move(rounded_time);
+    }
+
+    // 14. Let dateDuration be ? AdjustDateDurationRecord(duration.[[Date]], days).
+    auto date_duration = TRY(adjust_date_duration_record(vm, duration.date, days));
+
+    // 15. Let resultDuration be ? CombineDateAndTimeDuration(dateDuration, remainder).
+    auto result_duration = TRY(combine_date_and_time_duration(vm, date_duration, move(remainder)));
+
+    // 16. Return Duration Nudge Result Record { [[Duration]]: resultDuration, [[NudgedEpochNs]]: nudgedEpochNs, [[DidExpandCalendarUnit]]: didExpandDays }.
+    return DurationNudgeResult { .duration = move(result_duration), .nudged_epoch_ns = move(nudged_epoch_ns), .did_expand_calendar_unit = did_expand_days };
+}
+
+// 7.5.36 BubbleRelativeDuration ( sign, duration, nudgedEpochNs, isoDateTime, timeZone, calendar, largestUnit, smallestUnit ), https://tc39.es/proposal-temporal/#sec-temporal-bubblerelativeduration
+ThrowCompletionOr<InternalDuration> bubble_relative_duration(VM& vm, i8 sign, InternalDuration duration, TimeDuration const& nudged_epoch_ns, ISODateTime const& iso_date_time, Optional<StringView> time_zone, StringView calendar, Unit largest_unit, Unit smallest_unit)
+{
+    // 1. If smallestUnit is largestUnit, return duration.
+    if (smallest_unit == largest_unit)
+        return duration;
+
+    // 2. Let largestUnitIndex be the ordinal index of the row of Table 21 whose "Value" column contains largestUnit.
+    auto largest_unit_index = to_underlying(largest_unit);
+
+    // 3. Let smallestUnitIndex be the ordinal index of the row of Table 21 whose "Value" column contains smallestUnit.
+    auto smallest_unit_index = to_underlying(smallest_unit);
+
+    // 4. Let unitIndex be smallestUnitIndex - 1.
+    auto unit_index = smallest_unit_index - 1;
+
+    // 5. Let done be false.
+    auto done = false;
+
+    // 6. Repeat, while unitIndex ≥ largestUnitIndex and done is false,
+    while (unit_index >= largest_unit_index && !done) {
+        // a. Let unit be the value in the "Value" column of Table 21 in the row whose ordinal index is unitIndex.
+        auto unit = static_cast<Unit>(unit_index);
+
+        // b. If unit is not WEEK, or largestUnit is WEEK, then
+        if (unit != Unit::Week || largest_unit == Unit::Week) {
+            DateDuration end_duration;
+
+            // i. If unit is YEAR, then
+            if (unit == Unit::Year) {
+                // 1. Let years be duration.[[Date]].[[Years]] + sign.
+                auto years = duration.date.years + sign;
+
+                // 2. Let endDuration be ? CreateDateDurationRecord(years, 0, 0, 0).
+                end_duration = TRY(create_date_duration_record(vm, years, 0, 0, 0));
+            }
+            // ii. Else if unit is MONTH, then
+            else if (unit == Unit::Month) {
+                // 1. Let months be duration.[[Date]].[[Months]] + sign.
+                auto months = duration.date.months + sign;
+
+                // 2. Let endDuration be ? AdjustDateDurationRecord(duration.[[Date]], 0, 0, months).
+                end_duration = TRY(adjust_date_duration_record(vm, duration.date, 0, 0, months));
+            }
+            // iii. Else,
+            else {
+                // 1. Assert: unit is WEEK.
+                VERIFY(unit == Unit::Week);
+
+                // 2. Let weeks be duration.[[Date]].[[Weeks]] + sign.
+                auto weeks = duration.date.weeks + sign;
+
+                // 3. Let endDuration be ? AdjustDateDurationRecord(duration.[[Date]], 0, weeks).
+                end_duration = TRY(adjust_date_duration_record(vm, duration.date, 0, weeks));
+            }
+
+            // iv. Let end be ? CalendarDateAdd(calendar, isoDateTime.[[ISODate]], endDuration, CONSTRAIN).
+            auto end = TRY(calendar_date_add(vm, calendar, iso_date_time.iso_date, end_duration, Overflow::Constrain));
+
+            // v. Let endDateTime be CombineISODateAndTimeRecord(end, isoDateTime.[[Time]]).
+            auto end_date_time = combine_iso_date_and_time_record(end, iso_date_time.time);
+
+            TimeDuration end_epoch_ns;
+
+            // vi. If timeZone is UNSET, then
+            if (!time_zone.has_value()) {
+                // 1. Let endEpochNs be GetUTCEpochNanoseconds(endDateTime).
+                end_epoch_ns = get_utc_epoch_nanoseconds(end_date_time);
+            }
+            // vii. Else,
+            else {
+                // 1. Let endEpochNs be ? GetEpochNanosecondsFor(timeZone, endDateTime, COMPATIBLE).
+                end_epoch_ns = TRY(get_epoch_nanoseconds_for(vm, *time_zone, end_date_time, Disambiguation::Compatible));
+            }
+
+            // viii. Let beyondEnd be nudgedEpochNs - endEpochNs.
+            auto beyond_end = nudged_epoch_ns.minus(end_epoch_ns);
+
+            // ix. If beyondEnd < 0, let beyondEndSign be -1; else if beyondEnd > 0, let beyondEndSign be 1; else let beyondEndSign be 0.
+            auto beyond_end_sign = beyond_end.is_negative() ? -1 : (beyond_end.is_positive() ? 1 : 0);
+
+            // x. If beyondEndSign ≠ -sign, then
+            if (beyond_end_sign != -sign) {
+                // 1. Set duration to ! CombineDateAndTimeDuration(endDuration, 0).
+                duration = MUST(combine_date_and_time_duration(vm, end_duration, TimeDuration { 0 }));
+            }
+            // xi. Else,
+            else {
+                // 1. Set done to true.
+                done = true;
+            }
+        }
+
+        // c. Set unitIndex to unitIndex - 1.
+        --unit_index;
+    }
+
+    // 7. Return duration.
+    return duration;
+}
+
+// 7.5.37 RoundRelativeDuration ( duration, destEpochNs, isoDateTime, timeZone, calendar, largestUnit, increment, smallestUnit, roundingMode ), https://tc39.es/proposal-temporal/#sec-temporal-roundrelativeduration
+ThrowCompletionOr<InternalDuration> round_relative_duration(VM& vm, InternalDuration duration, TimeDuration const& dest_epoch_ns, ISODateTime const& iso_date_time, Optional<StringView> time_zone, StringView calendar, Unit largest_unit, u64 increment, Unit smallest_unit, RoundingMode rounding_mode)
+{
+    // 1. Let irregularLengthUnit be false.
+    auto irregular_length_unit = false;
+
+    // 2. If IsCalendarUnit(smallestUnit) is true, set irregularLengthUnit to true.
+    if (is_calendar_unit(smallest_unit))
+        irregular_length_unit = true;
+
+    // 3. If timeZone is not UNSET and smallestUnit is DAY, set irregularLengthUnit to true.
+    if (time_zone.has_value() && smallest_unit == Unit::Day)
+        irregular_length_unit = true;
+
+    // 4. If InternalDurationSign(duration) < 0, let sign be -1; else let sign be 1.
+    i8 sign = internal_duration_sign(duration) < 0 ? -1 : 1;
+
+    DurationNudgeResult nudge_result;
+
+    // 5. If irregularLengthUnit is true, then
+    if (irregular_length_unit) {
+        // a. Let record be ? NudgeToCalendarUnit(sign, duration, destEpochNs, isoDateTime, timeZone, calendar, increment, smallestUnit, roundingMode).
+        auto record = TRY(nudge_to_calendar_unit(vm, sign, duration, dest_epoch_ns, iso_date_time, time_zone, calendar, increment, smallest_unit, rounding_mode));
+
+        // b. Let nudgeResult be record.[[NudgeResult]].
+        nudge_result = move(record.nudge_result);
+    }
+    // 6. Else if timeZone is not UNSET, then
+    else if (time_zone.has_value()) {
+        // a. Let nudgeResult be ? NudgeToZonedTime(sign, duration, isoDateTime, timeZone, calendar, increment, smallestUnit, roundingMode).
+        nudge_result = TRY(nudge_to_zoned_time(vm, sign, duration, iso_date_time, *time_zone, calendar, increment, smallest_unit, rounding_mode));
+    }
+    // 7. Else,
+    else {
+        // a. Let nudgeResult be ? NudgeToDayOrTime(duration, destEpochNs, largestUnit, increment, smallestUnit, roundingMode).
+        nudge_result = TRY(nudge_to_day_or_time(vm, duration, dest_epoch_ns, largest_unit, increment, smallest_unit, rounding_mode));
+    }
+
+    // 8. Set duration to nudgeResult.[[Duration]].
+    duration = move(nudge_result.duration);
+
+    // 9. If nudgeResult.[[DidExpandCalendarUnit]] is true and smallestUnit is not WEEK, then
+    if (nudge_result.did_expand_calendar_unit && smallest_unit != Unit::Week) {
+        // a. Let startUnit be LargerOfTwoTemporalUnits(smallestUnit, DAY).
+        auto start_unit = larger_of_two_temporal_units(smallest_unit, Unit::Day);
+
+        // b. Set duration to ? BubbleRelativeDuration(sign, duration, nudgeResult.[[NudgedEpochNs]], isoDateTime, timeZone, calendar, largestUnit, startUnit).
+        duration = TRY(bubble_relative_duration(vm, sign, move(duration), nudge_result.nudged_epoch_ns, iso_date_time, time_zone, calendar, largest_unit, start_unit));
+    }
+
+    // 10. Return duration.
+    return duration;
 }
 
 // 7.5.39 TemporalDurationToString ( duration, precision ), https://tc39.es/proposal-temporal/#sec-temporal-temporaldurationtostring

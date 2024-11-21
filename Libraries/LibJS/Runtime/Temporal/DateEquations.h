@@ -19,6 +19,8 @@ double epoch_day_number_for_year(double year);
 double epoch_time_for_year(double year);
 i32 epoch_time_to_epoch_year(double time);
 u16 epoch_time_to_day_in_year(double time);
+u8 epoch_time_to_month_in_year(double time);
 u8 epoch_time_to_week_day(double time);
+u8 epoch_time_to_date(double time);
 
 }
