@@ -9,6 +9,10 @@
 #include <LibCore/ResourceImplementationFile.h>
 #include <LibCore/System.h>
 
+#if defined(AK_OS_WINDOWS)
+#    include <dirent.h>
+#endif
+
 namespace Core {
 
 static OwnPtr<ResourceImplementation> s_the;
