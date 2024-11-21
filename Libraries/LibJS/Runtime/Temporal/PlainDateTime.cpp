@@ -8,7 +8,9 @@
 
 #include <LibJS/Runtime/Temporal/AbstractOperations.h>
 #include <LibJS/Runtime/Temporal/Instant.h>
+#include <LibJS/Runtime/Temporal/PlainDate.h>
 #include <LibJS/Runtime/Temporal/PlainDateTime.h>
+#include <LibJS/Runtime/Temporal/PlainTime.h>
 
 namespace JS::Temporal {
 
@@ -50,6 +52,19 @@ bool iso_date_time_within_limits(ISODateTime iso_date_time)
 
     // 5. Return true.
     return true;
+}
+
+// 5.5.7 BalanceISODateTime ( year, month, day, hour, minute, second, millisecond, microsecond, nanosecond ), https://tc39.es/proposal-temporal/#sec-temporal-balanceisodatetime
+ISODateTime balance_iso_date_time(double year, double month, double day, double hour, double minute, double second, double millisecond, double microsecond, double nanosecond)
+{
+    // 1. Let balancedTime be BalanceTime(hour, minute, second, millisecond, microsecond, nanosecond).
+    auto balanced_time = balance_time(hour, minute, second, millisecond, microsecond, nanosecond);
+
+    // 2. Let balancedDate be BalanceISODate(year, month, day + balancedTime.[[Days]]).
+    auto balanced_date = balance_iso_date(year, month, day + balanced_time.days);
+
+    // 3. Return CombineISODateAndTimeRecord(balancedDate, balancedTime).
+    return combine_iso_date_and_time_record(balanced_date, balanced_time);
 }
 
 }

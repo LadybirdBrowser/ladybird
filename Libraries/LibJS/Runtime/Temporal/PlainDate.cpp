@@ -9,6 +9,7 @@
 
 #include <AK/Checked.h>
 #include <LibJS/Runtime/Temporal/Calendar.h>
+#include <LibJS/Runtime/Temporal/DateEquations.h>
 #include <LibJS/Runtime/Temporal/PlainDate.h>
 #include <LibJS/Runtime/Temporal/PlainDateTime.h>
 #include <LibJS/Runtime/Temporal/PlainTime.h>
@@ -23,6 +24,32 @@ ISODate create_iso_date_record(double year, double month, double day)
 
     // 2. Return ISO Date Record { [[Year]]: year, [[Month]]: month, [[Day]]: day }.
     return { .year = static_cast<i32>(year), .month = static_cast<u8>(month), .day = static_cast<u8>(day) };
+}
+
+// 3.5.5 ISODateSurpasses ( sign, y1, m1, d1, isoDate2 ), https://tc39.es/proposal-temporal/#sec-temporal-isodatesurpasses
+bool iso_date_surpasses(i8 sign, double year1, double month1, double day1, ISODate iso_date2)
+{
+    // 1. If y1 ≠ isoDate2.[[Year]], then
+    if (year1 != iso_date2.year) {
+        // a. If sign × (y1 - isoDate2.[[Year]]) > 0, return true.
+        if (sign * (year1 - iso_date2.year) > 0)
+            return true;
+    }
+    // 2. Else if m1 ≠ isoDate2.[[Month]], then
+    else if (month1 != iso_date2.month) {
+        // a. If sign × (m1 - isoDate2.[[Month]]) > 0, return true.
+        if (sign * (month1 - iso_date2.month) > 0)
+            return true;
+    }
+    // 3. Else if d1 ≠ isoDate2.[[Day]], then
+    else if (day1 != iso_date2.day) {
+        // a. If sign × (d1 - isoDate2.[[Day]]) > 0, return true.
+        if (sign * (day1 - iso_date2.day) > 0)
+            return true;
+    }
+
+    // 4. Return false.
+    return false;
 }
 
 // 3.5.6 RegulateISODate ( year, month, day, overflow ), https://tc39.es/proposal-temporal/#sec-temporal-regulateisodate
@@ -84,6 +111,19 @@ bool is_valid_iso_date(double year, double month, double day)
 
     // 4. Return true.
     return true;
+}
+
+// 3.5.8 BalanceISODate ( year, month, day ), https://tc39.es/proposal-temporal/#sec-temporal-balanceisodate
+ISODate balance_iso_date(double year, double month, double day)
+{
+    // 1. Let epochDays be ISODateToEpochDays(year, month - 1, day).
+    auto epoch_days = iso_date_to_epoch_days(year, month - 1, day);
+
+    // 2. Let ms be EpochDaysToEpochMs(epochDays, 0).
+    auto ms = epoch_days_to_epoch_ms(epoch_days, 0);
+
+    // 3. Return CreateISODateRecord(EpochTimeToEpochYear(ms), EpochTimeToMonthInYear(ms) + 1, EpochTimeToDate(ms)).
+    return create_iso_date_record(epoch_time_to_epoch_year(ms), epoch_time_to_month_in_year(ms) + 1.0, epoch_time_to_date(ms));
 }
 
 // 3.5.9 PadISOYear ( y ), https://tc39.es/proposal-temporal/#sec-temporal-padisoyear

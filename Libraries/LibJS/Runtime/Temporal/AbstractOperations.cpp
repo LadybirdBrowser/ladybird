@@ -72,6 +72,19 @@ double epoch_days_to_epoch_ms(double day, double time)
     return day * JS::ms_per_day + time;
 }
 
+// 13.4 CheckISODaysRange ( isoDate ), https://tc39.es/proposal-temporal/#sec-checkisodaysrange
+ThrowCompletionOr<void> check_iso_days_range(VM& vm, ISODate const& iso_date)
+{
+    // 1. If abs(ISODateToEpochDays(isoDate.[[Year]], isoDate.[[Month]] - 1, isoDate.[[Day]])) > 10**8, then
+    if (fabs(iso_date_to_epoch_days(iso_date.year, iso_date.month - 1, iso_date.day)) > 100'000'000) {
+        // a. Throw a RangeError exception.
+        return vm.throw_completion<RangeError>(ErrorType::TemporalInvalidISODate);
+    }
+
+    // 2. Return unused.
+    return {};
+}
+
 // 13.6 GetTemporalOverflowOption ( options ), https://tc39.es/proposal-temporal/#sec-temporal-gettemporaloverflowoption
 ThrowCompletionOr<Overflow> get_temporal_overflow_option(VM& vm, Object const& options)
 {
@@ -84,6 +97,29 @@ ThrowCompletionOr<Overflow> get_temporal_overflow_option(VM& vm, Object const& o
 
     // 3. Return REJECT.
     return Overflow::Reject;
+}
+
+// 13.8 NegateRoundingMode ( roundingMode ), https://tc39.es/proposal-temporal/#sec-temporal-negateroundingmode
+RoundingMode negate_rounding_mode(RoundingMode rounding_mode)
+{
+    // 1. If roundingMode is CEIL, return FLOOR.
+    if (rounding_mode == RoundingMode::Ceil)
+        return RoundingMode::Floor;
+
+    // 2. If roundingMode is FLOOR, return CEIL.
+    if (rounding_mode == RoundingMode::Floor)
+        return RoundingMode::Ceil;
+
+    // 3. If roundingMode is HALF-CEIL, return HALF-FLOOR.
+    if (rounding_mode == RoundingMode::HalfCeil)
+        return RoundingMode::HalfFloor;
+
+    // 4. If roundingMode is HALF-FLOOR, return HALF-CEIL.
+    if (rounding_mode == RoundingMode::HalfFloor)
+        return RoundingMode::HalfCeil;
+
+    // 5. Return roundingMode.
+    return rounding_mode;
 }
 
 // 13.10 GetTemporalShowCalendarNameOption ( options ), https://tc39.es/proposal-temporal/#sec-temporal-gettemporalshowcalendarnameoption
@@ -1401,6 +1437,61 @@ CalendarFields iso_date_to_fields(StringView calendar, ISODate const& iso_date, 
 
     // 6. Return fields.
     return fields;
+}
+
+// 13.43 GetDifferenceSettings ( operation, options, unitGroup, disallowedUnits, fallbackSmallestUnit, smallestLargestDefaultUnit ), https://tc39.es/proposal-temporal/#sec-temporal-getdifferencesettings
+ThrowCompletionOr<DifferenceSettings> get_difference_settings(VM& vm, DurationOperation operation, Object const& options, UnitGroup unit_group, ReadonlySpan<Unit> disallowed_units, Unit fallback_smallest_unit, Unit smallest_largest_default_unit)
+{
+    // 1. NOTE: The following steps read options and perform independent validation in alphabetical order.
+
+    // 2. Let largestUnit be ? GetTemporalUnitValuedOption(options, "largestUnit", unitGroup, AUTO).
+    auto largest_unit = TRY(get_temporal_unit_valued_option(vm, options, vm.names.largestUnit, unit_group, Auto {}));
+
+    // 3. If disallowedUnits contains largestUnit, throw a RangeError exception.
+    if (auto* unit = largest_unit.get_pointer<Unit>(); unit && disallowed_units.contains_slow(*unit))
+        return vm.throw_completion<RangeError>(ErrorType::OptionIsNotValidValue, temporal_unit_to_string(*unit), vm.names.largestUnit);
+
+    // 4. Let roundingIncrement be ? GetRoundingIncrementOption(options).
+    auto rounding_increment = TRY(get_rounding_increment_option(vm, options));
+
+    // 5. Let roundingMode be ? GetRoundingModeOption(options, TRUNC).
+    auto rounding_mode = TRY(get_rounding_mode_option(vm, options, RoundingMode::Trunc));
+
+    // 6. If operation is SINCE, then
+    if (operation == DurationOperation::Since) {
+        // a. Set roundingMode to NegateRoundingMode(roundingMode).
+        rounding_mode = negate_rounding_mode(rounding_mode);
+    }
+
+    // 7. Let smallestUnit be ? GetTemporalUnitValuedOption(options, "smallestUnit", unitGroup, fallbackSmallestUnit).
+    auto smallest_unit = TRY(get_temporal_unit_valued_option(vm, options, vm.names.smallestUnit, unit_group, fallback_smallest_unit));
+    auto smallest_unit_value = smallest_unit.get<Unit>();
+
+    // 8. If disallowedUnits contains smallestUnit, throw a RangeError exception.
+    if (disallowed_units.contains_slow(smallest_unit_value))
+        return vm.throw_completion<RangeError>(ErrorType::OptionIsNotValidValue, temporal_unit_to_string(smallest_unit_value), vm.names.smallestUnit);
+
+    // 9. Let defaultLargestUnit be LargerOfTwoTemporalUnits(smallestLargestDefaultUnit, smallestUnit).
+    auto default_largest_unit = larger_of_two_temporal_units(smallest_largest_default_unit, smallest_unit.get<Unit>());
+
+    // 10. If largestUnit is AUTO, set largestUnit to defaultLargestUnit.
+    if (largest_unit.has<Auto>())
+        largest_unit = default_largest_unit;
+    auto largest_unit_value = largest_unit.get<Unit>();
+
+    // 11. If LargerOfTwoTemporalUnits(largestUnit, smallestUnit) is not largestUnit, throw a RangeError exception.
+    if (larger_of_two_temporal_units(largest_unit_value, smallest_unit_value) != largest_unit_value)
+        return vm.throw_completion<RangeError>(ErrorType::TemporalInvalidUnitRange, temporal_unit_to_string(smallest_unit_value), temporal_unit_to_string(largest_unit_value));
+
+    // 12. Let maximum be MaximumTemporalDurationRoundingIncrement(smallestUnit).
+    auto maximum = maximum_temporal_duration_rounding_increment(smallest_unit_value);
+
+    // 13. If maximum is not UNSET, perform ? ValidateTemporalRoundingIncrement(roundingIncrement, maximum, false).
+    if (!maximum.has<Unset>())
+        TRY(validate_temporal_rounding_increment(vm, rounding_increment, maximum.get<u64>(), false));
+
+    // 14. Return the Record { [[SmallestUnit]]: smallestUnit, [[LargestUnit]]: largestUnit, [[RoundingMode]]: roundingMode, [[RoundingIncrement]]: roundingIncrement,  }.
+    return DifferenceSettings { .smallest_unit = smallest_unit_value, .largest_unit = largest_unit_value, .rounding_mode = rounding_mode, .rounding_increment = rounding_increment };
 }
 
 // 14.4.1.1 GetOptionsObject ( options ), https://tc39.es/proposal-temporal/#sec-getoptionsobject

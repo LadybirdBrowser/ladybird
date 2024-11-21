@@ -34,4 +34,17 @@ Crypto::UnsignedBigInteger const SECONDS_PER_MINUTE = 60_bigint;
 Crypto::UnsignedBigInteger const MINUTES_PER_HOUR = 60_bigint;
 Crypto::UnsignedBigInteger const HOURS_PER_DAY = 24_bigint;
 
+// 8.5.1 IsValidEpochNanoseconds ( epochNanoseconds ), https://tc39.es/proposal-temporal/#sec-temporal-isvalidepochnanoseconds
+bool is_valid_epoch_nanoseconds(Crypto::SignedBigInteger const& epoch_nanoseconds)
+{
+    // 1. If ℝ(epochNanoseconds) < nsMinInstant or ℝ(epochNanoseconds) > nsMaxInstant, then
+    if (epoch_nanoseconds < NANOSECONDS_MIN_INSTANT || epoch_nanoseconds > NANOSECONDS_MAX_INSTANT) {
+        // a. Return false.
+        return false;
+    }
+
+    // 2. Return true.
+    return true;
+}
+
 }

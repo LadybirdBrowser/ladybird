@@ -7,7 +7,9 @@
  */
 
 #include <AK/Assertions.h>
+#include <LibJS/Runtime/AbstractOperations.h>
 #include <LibJS/Runtime/Temporal/PlainTime.h>
+#include <math.h>
 
 namespace JS::Temporal {
 
@@ -28,6 +30,13 @@ Time create_time_record(double hour, double minute, double second, double millis
         .microsecond = static_cast<u16>(microsecond),
         .nanosecond = static_cast<u16>(nanosecond),
     };
+}
+
+// 4.5.3 MidnightTimeRecord ( ), https://tc39.es/proposal-temporal/#sec-temporal-midnighttimerecord
+Time midnight_time_record()
+{
+    // 1. Return Time Record { [[Days]]: 0, [[Hour]]: 0, [[Minute]]: 0, [[Second]]: 0, [[Millisecond]]: 0, [[Microsecond]]: 0, [[Nanosecond]]: 0  }.
+    return { .days = 0, .hour = 0, .minute = 0, .second = 0, .millisecond = 0, .microsecond = 0, .nanosecond = 0 };
 }
 
 // 4.5.4 NoonTimeRecord ( ), https://tc39.es/proposal-temporal/#sec-temporal-noontimerecord
@@ -78,6 +87,49 @@ bool is_valid_time(double hour, double minute, double second, double millisecond
 
     // 7. Return true.
     return true;
+}
+
+// 4.5.10 BalanceTime ( hour, minute, second, millisecond, microsecond, nanosecond ), https://tc39.es/proposal-temporal/#sec-temporal-balancetime
+Time balance_time(double hour, double minute, double second, double millisecond, double microsecond, double nanosecond)
+{
+    // 1. Set microsecond to microsecond + floor(nanosecond / 1000).
+    microsecond += floor(nanosecond / 1000.0);
+
+    // 2. Set nanosecond to nanosecond modulo 1000.
+    nanosecond = modulo(nanosecond, 1000.0);
+
+    // 3. Set millisecond to millisecond + floor(microsecond / 1000).
+    millisecond += floor(microsecond / 1000.0);
+
+    // 4. Set microsecond to microsecond modulo 1000.
+    microsecond = modulo(microsecond, 1000.0);
+
+    // 5. Set second to second + floor(millisecond / 1000).
+    second += floor(millisecond / 1000.0);
+
+    // 6. Set millisecond to millisecond modulo 1000.
+    millisecond = modulo(millisecond, 1000.0);
+
+    // 7. Set minute to minute + floor(second / 60).
+    minute += floor(second / 60.0);
+
+    // 8. Set second to second modulo 60.
+    second = modulo(second, 60.0);
+
+    // 9. Set hour to hour + floor(minute / 60).
+    hour += floor(minute / 60.0);
+
+    // 10. Set minute to minute modulo 60.
+    minute = modulo(minute, 60.0);
+
+    // 11. Let deltaDays be floor(hour / 24).
+    auto delta_days = floor(hour / 24.0);
+
+    // 12. Set hour to hour modulo 24.
+    hour = modulo(hour, 24.0);
+
+    // 13. Return CreateTimeRecord(hour, minute, second, millisecond, microsecond, nanosecond, deltaDays).
+    return create_time_record(hour, minute, second, millisecond, microsecond, nanosecond, delta_days);
 }
 
 }

@@ -238,6 +238,8 @@
     M(TemporalAmbiguousMonthOfPlainMonthDay, "Accessing month of PlainMonthDay is ambiguous, use monthCode instead")                    \
     M(TemporalDifferentCalendars, "Cannot compare dates from two different calendars")                                                  \
     M(TemporalDifferentTimeZones, "Cannot compare dates from two different time zones")                                                 \
+    M(TemporalDisambiguatePossibleEpochNSRejectMoreThanOne, "Cannot disambiguate two or more possible epoch nanoseconds")               \
+    M(TemporalDisambiguatePossibleEpochNSRejectZero, "Cannot disambiguate zero possible epoch nanoseconds")                             \
     M(TemporalDisambiguatePossibleInstantsEarlierZero, "Cannot disambiguate zero possible instants with mode \"earlier\"")              \
     M(TemporalDisambiguatePossibleInstantsRejectMoreThanOne, "Cannot disambiguate two or more possible instants with mode \"reject\"")  \
     M(TemporalDisambiguatePossibleInstantsRejectZero, "Cannot disambiguate zero possible instants with mode \"reject\"")                \

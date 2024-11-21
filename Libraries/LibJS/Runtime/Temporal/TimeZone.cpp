@@ -9,7 +9,10 @@
 #include <LibJS/Runtime/AbstractOperations.h>
 #include <LibJS/Runtime/Date.h>
 #include <LibJS/Runtime/Intl/AbstractOperations.h>
+#include <LibJS/Runtime/Temporal/AbstractOperations.h>
 #include <LibJS/Runtime/Temporal/ISO8601.h>
+#include <LibJS/Runtime/Temporal/Instant.h>
+#include <LibJS/Runtime/Temporal/PlainDateTime.h>
 #include <LibJS/Runtime/Temporal/TimeZone.h>
 #include <LibJS/Runtime/VM.h>
 
@@ -68,6 +71,125 @@ ThrowCompletionOr<String> to_temporal_time_zone_identifier(VM& vm, Value tempora
 
     // 9. Return timeZoneIdentifierRecord.[[Identifier]].
     return time_zone_identifier_record->identifier;
+}
+
+// 11.1.11 GetEpochNanosecondsFor ( timeZone, isoDateTime, disambiguation ), https://tc39.es/proposal-temporal/#sec-temporal-getepochnanosecondsfor
+ThrowCompletionOr<Crypto::SignedBigInteger> get_epoch_nanoseconds_for(VM& vm, StringView time_zone, ISODateTime const& iso_date_time, Disambiguation disambiguation)
+{
+    // 1. Let possibleEpochNs be ? GetPossibleEpochNanoseconds(timeZone, isoDateTime).
+    auto possible_epoch_ns = TRY(get_possible_epoch_nanoseconds(vm, time_zone, iso_date_time));
+
+    // 2. Return ? DisambiguatePossibleEpochNanoseconds(possibleEpochNs, timeZone, isoDateTime, disambiguation).
+    return TRY(disambiguate_possible_epoch_nanoseconds(vm, move(possible_epoch_ns), time_zone, iso_date_time, disambiguation));
+}
+
+// 11.1.12 DisambiguatePossibleEpochNanoseconds ( possibleEpochNs, timeZone, isoDateTime, disambiguation ), https://tc39.es/proposal-temporal/#sec-temporal-disambiguatepossibleepochnanoseconds
+ThrowCompletionOr<Crypto::SignedBigInteger> disambiguate_possible_epoch_nanoseconds(VM& vm, Vector<Crypto::SignedBigInteger> possible_epoch_ns, StringView time_zone, ISODateTime const& iso_date_time, Disambiguation disambiguation)
+{
+    // 1. Let n be possibleEpochNs's length.
+    auto n = possible_epoch_ns.size();
+
+    // 2. If n = 1, then
+    if (n == 1) {
+        // a. Return possibleEpochNs[0].
+        return move(possible_epoch_ns[0]);
+    }
+
+    // 3. If n ≠ 0, then
+    if (n != 0) {
+        // a. If disambiguation is EARLIER or COMPATIBLE, then
+        if (disambiguation == Disambiguation::Earlier || disambiguation == Disambiguation::Compatible) {
+            // i. Return possibleEpochNs[0].
+            return move(possible_epoch_ns[0]);
+        }
+
+        // b. If disambiguation is LATER, then
+        if (disambiguation == Disambiguation::Later) {
+            // i. Return possibleEpochNs[n - 1].
+            return move(possible_epoch_ns[n - 1]);
+        }
+
+        // c. Assert: disambiguation is REJECT.
+        VERIFY(disambiguation == Disambiguation::Reject);
+
+        // d. Throw a RangeError exception.
+        return vm.throw_completion<RangeError>(ErrorType::TemporalDisambiguatePossibleEpochNSRejectMoreThanOne);
+    }
+
+    // 4. Assert: n = 0.
+    VERIFY(n == 0);
+
+    // 5. If disambiguation is REJECT, then
+    if (disambiguation == Disambiguation::Reject) {
+        // a. Throw a RangeError exception.
+        return vm.throw_completion<RangeError>(ErrorType::TemporalDisambiguatePossibleEpochNSRejectZero);
+    }
+
+    // FIXME: GetNamedTimeZoneEpochNanoseconds currently does not produce zero instants.
+    (void)time_zone;
+    (void)iso_date_time;
+    TODO();
+}
+
+// 11.1.13 GetPossibleEpochNanoseconds ( timeZone, isoDateTime ), https://tc39.es/proposal-temporal/#sec-temporal-getpossibleepochnanoseconds
+ThrowCompletionOr<Vector<Crypto::SignedBigInteger>> get_possible_epoch_nanoseconds(VM& vm, StringView time_zone, ISODateTime const& iso_date_time)
+{
+    Vector<Crypto::SignedBigInteger> possible_epoch_nanoseconds;
+
+    // 1. Let parseResult be ! ParseTimeZoneIdentifier(timeZone).
+    auto parse_result = parse_time_zone_identifier(time_zone);
+
+    // 2. If parseResult.[[OffsetMinutes]] is not empty, then
+    if (parse_result.offset_minutes.has_value()) {
+        // a. Let balanced be BalanceISODateTime(isoDateTime.[[ISODate]].[[Year]], isoDateTime.[[ISODate]].[[Month]], isoDateTime.[[ISODate]].[[Day]], isoDateTime.[[Time]].[[Hour]], isoDateTime.[[Time]].[[Minute]] - parseResult.[[OffsetMinutes]], isoDateTime.[[Time]].[[Second]], isoDateTime.[[Time]].[[Millisecond]], isoDateTime.[[Time]].[[Microsecond]], isoDateTime.[[Time]].[[Nanosecond]]).
+        auto balanced = balance_iso_date_time(
+            iso_date_time.iso_date.year,
+            iso_date_time.iso_date.month,
+            iso_date_time.iso_date.day,
+            iso_date_time.time.hour,
+            static_cast<double>(iso_date_time.time.minute) - static_cast<double>(*parse_result.offset_minutes),
+            iso_date_time.time.second,
+            iso_date_time.time.millisecond,
+            iso_date_time.time.microsecond,
+            iso_date_time.time.nanosecond);
+
+        // b. Perform ? CheckISODaysRange(balanced.[[ISODate]]).
+        TRY(check_iso_days_range(vm, balanced.iso_date));
+
+        // c. Let epochNanoseconds be GetUTCEpochNanoseconds(balanced).
+        auto epoch_nanoseconds = get_utc_epoch_nanoseconds(balanced);
+
+        // d. Let possibleEpochNanoseconds be « epochNanoseconds ».
+        possible_epoch_nanoseconds.append(move(epoch_nanoseconds));
+    }
+    // 3. Else,
+    else {
+        // a. Perform ? CheckISODaysRange(isoDateTime.[[ISODate]]).
+        TRY(check_iso_days_range(vm, iso_date_time.iso_date));
+
+        // b. Let possibleEpochNanoseconds be GetNamedTimeZoneEpochNanoseconds(parseResult.[[Name]], isoDateTime).
+        possible_epoch_nanoseconds = get_named_time_zone_epoch_nanoseconds(
+            *parse_result.name,
+            iso_date_time.iso_date.year,
+            iso_date_time.iso_date.month,
+            iso_date_time.iso_date.day,
+            iso_date_time.time.hour,
+            iso_date_time.time.minute,
+            iso_date_time.time.second,
+            iso_date_time.time.millisecond,
+            iso_date_time.time.microsecond,
+            iso_date_time.time.nanosecond);
+    }
+
+    // 4. For each value epochNanoseconds in possibleEpochNanoseconds, do
+    for (auto const& epoch_nanoseconds : possible_epoch_nanoseconds) {
+        // a. If IsValidEpochNanoseconds(epochNanoseconds) is false, throw a RangeError exception.
+        if (!is_valid_epoch_nanoseconds(epoch_nanoseconds))
+            return vm.throw_completion<RangeError>(ErrorType::TemporalInvalidEpochNanoseconds);
+    }
+
+    // 5. Return possibleEpochNanoseconds.
+    return possible_epoch_nanoseconds;
 }
 
 // 11.1.16 ParseTimeZoneIdentifier ( identifier ), https://tc39.es/proposal-temporal/#sec-parsetimezoneidentifier

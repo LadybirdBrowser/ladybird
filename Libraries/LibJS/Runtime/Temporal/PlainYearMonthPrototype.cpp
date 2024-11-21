@@ -7,6 +7,7 @@
 
 #include <LibJS/Runtime/Temporal/AbstractOperations.h>
 #include <LibJS/Runtime/Temporal/Calendar.h>
+#include <LibJS/Runtime/Temporal/Duration.h>
 #include <LibJS/Runtime/Temporal/PlainYearMonthPrototype.h>
 
 namespace JS::Temporal {
@@ -41,6 +42,8 @@ void PlainYearMonthPrototype::initialize(Realm& realm)
 
     u8 attr = Attribute::Writable | Attribute::Configurable;
     define_native_function(realm, vm.names.with, with, 1, attr);
+    define_native_function(realm, vm.names.until, until, 1, attr);
+    define_native_function(realm, vm.names.since, since, 1, attr);
     define_native_function(realm, vm.names.equals, equals, 1, attr);
     define_native_function(realm, vm.names.toString, to_string, 0, attr);
     define_native_function(realm, vm.names.toLocaleString, to_locale_string, 0, attr);
@@ -168,6 +171,34 @@ JS_DEFINE_NATIVE_FUNCTION(PlainYearMonthPrototype::with)
 
     // 11. Return ! CreateTemporalYearMonth(isoDate, calendar).
     return MUST(create_temporal_year_month(vm, iso_date, calendar));
+}
+
+// 9.3.16 Temporal.PlainYearMonth.prototype.until ( other [ , options ] ), https://tc39.es/proposal-temporal/#sec-temporal.plainyearmonth.prototype.until
+JS_DEFINE_NATIVE_FUNCTION(PlainYearMonthPrototype::until)
+{
+    auto other = vm.argument(0);
+    auto options = vm.argument(1);
+
+    // 1. Let yearMonth be the this value.
+    // 2. Perform ? RequireInternalSlot(yearMonth, [[InitializedTemporalYearMonth]]).
+    auto year_month = TRY(typed_this_object(vm));
+
+    // 3. Return ? DifferenceTemporalPlainYearMonth(UNTIL, yearMonth, other, options).
+    return TRY(difference_temporal_plain_year_month(vm, DurationOperation::Until, year_month, other, options));
+}
+
+// 9.3.17 Temporal.PlainYearMonth.prototype.since ( other [ , options ] ), https://tc39.es/proposal-temporal/#sec-temporal.plainyearmonth.prototype.since
+JS_DEFINE_NATIVE_FUNCTION(PlainYearMonthPrototype::since)
+{
+    auto other = vm.argument(0);
+    auto options = vm.argument(1);
+
+    // 1. Let yearMonth be the this value.
+    // 2. Perform ? RequireInternalSlot(yearMonth, [[InitializedTemporalYearMonth]]).
+    auto year_month = TRY(typed_this_object(vm));
+
+    // 3. Return ? DifferenceTemporalPlainYearMonth(SINCE, yearMonth, other, options).
+    return TRY(difference_temporal_plain_year_month(vm, DurationOperation::Since, year_month, other, options));
 }
 
 // 9.3.18 Temporal.PlainYearMonth.prototype.equals ( other ), https://tc39.es/proposal-temporal/#sec-temporal.plainyearmonth.prototype.equals
