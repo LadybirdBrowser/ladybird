@@ -6,17 +6,16 @@ Rerun
 
 Found 11 tests
 
-1 Pass
-10 Fail
+11 Pass
 Details
-Result	Test Name	MessageFail	Trailing declarations apply after any preceding rules	
-Fail	Trailing declarations apply after any preceding rules (no leading)	
-Fail	Trailing declarations apply after any preceding rules (multiple)	
-Fail	Nested declarations rule has same specificity as outer selector	
-Fail	Nested declarations rule has top-level specificity behavior	
-Fail	Nested declarations rule has top-level specificity behavior (max matching)	
-Fail	Bare declartaion in nested grouping rule can match pseudo-element	
-Fail	Nested group rules have top-level specificity behavior	
-Fail	Nested @scope rules behave like :where(:scope)	
-Fail	Nested @scope rules behave like :where(:scope) (trailing)	
+Result	Test Name	MessagePass	Trailing declarations apply after any preceding rules	
+Pass	Trailing declarations apply after any preceding rules (no leading)	
+Pass	Trailing declarations apply after any preceding rules (multiple)	
+Pass	Nested declarations rule has same specificity as outer selector	
+Pass	Nested declarations rule has top-level specificity behavior	
+Pass	Nested declarations rule has top-level specificity behavior (max matching)	
+Pass	Bare declartaion in nested grouping rule can match pseudo-element	
+Pass	Nested group rules have top-level specificity behavior	
+Pass	Nested @scope rules behave like :where(:scope)	
+Pass	Nested @scope rules behave like :where(:scope) (trailing)	
 Pass	Nested declarations rule responds to parent selector text change	

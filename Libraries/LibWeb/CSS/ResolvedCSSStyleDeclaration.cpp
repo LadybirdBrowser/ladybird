@@ -601,10 +601,10 @@ Optional<StyleProperty> ResolvedCSSStyleDeclaration::property(PropertyID propert
     };
 }
 
-Optional<StyleProperty> ResolvedCSSStyleDeclaration::custom_property(FlyString const&) const
+Optional<StyleProperty> ResolvedCSSStyleDeclaration::custom_property(FlyString const& name) const
 {
-    dbgln("FIXME: ResolvedCSSStyleDeclaration::custom_property is not implemented");
-    return {};
+    const_cast<DOM::Document&>(m_element->document()).update_style();
+    return m_element->custom_properties(m_pseudo_element).get(name);
 }
 
 static WebIDL::ExceptionOr<void> cannot_modify_computed_property_error(JS::Realm& realm)

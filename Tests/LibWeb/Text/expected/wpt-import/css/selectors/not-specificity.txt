@@ -6,13 +6,13 @@ Rerun
 
 Found 8 tests
 
-8 Fail
+8 Pass
 Details
-Result	Test Name	MessageFail	:not(#foo) wins over :not(.foo)	
-Fail	:not(div#foo) wins over :not(#foo)	
-Fail	:not(.bar, #foo) has same specificity as :not(#foo, .bar)	
-Fail	:not(.bar, #foo) wins over :not(.foo, .bar)	
-Fail	:not(span + span) wins over :not(span)	
-Fail	:not(span, li, p) wins over :not(span, lo, p)	
-Fail	:not(span, :not(:not(.a#foo)), p) wins over :not(span, #foo, p)	
-Fail	:not(span, #foo, p) wins over :not(span, :where(.a#foo), p)	
+Result	Test Name	MessagePass	:not(#foo) wins over :not(.foo)	
+Pass	:not(div#foo) wins over :not(#foo)	
+Pass	:not(.bar, #foo) has same specificity as :not(#foo, .bar)	
+Pass	:not(.bar, #foo) wins over :not(.foo, .bar)	
+Pass	:not(span + span) wins over :not(span)	
+Pass	:not(span, li, p) wins over :not(span, lo, p)	
+Pass	:not(span, :not(:not(.a#foo)), p) wins over :not(span, #foo, p)	
+Pass	:not(span, #foo, p) wins over :not(span, :where(.a#foo), p)	

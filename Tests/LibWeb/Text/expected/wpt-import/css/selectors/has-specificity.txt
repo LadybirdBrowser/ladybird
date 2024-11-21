@@ -6,13 +6,13 @@ Rerun
 
 Found 8 tests
 
-8 Fail
+8 Pass
 Details
-Result	Test Name	MessageFail	:has(#foo) wins over :has(.foo)	
-Fail	:has(span#foo) wins over :has(#foo)	
-Fail	:has(.bar, #foo) has same specificity as :has(#foo, .bar)	
-Fail	:has(.bar, #foo) wins over :has(.foo, .bar)	
-Fail	:has(span + span) wins over :has(span)	
-Fail	:has(span, li, p) wins over :has(span, lo, p)	
-Fail	latter .baz wins over :has(.foo)	
-Fail	latter :has(.foo) wins over .baz	
+Result	Test Name	MessagePass	:has(#foo) wins over :has(.foo)	
+Pass	:has(span#foo) wins over :has(#foo)	
+Pass	:has(.bar, #foo) has same specificity as :has(#foo, .bar)	
+Pass	:has(.bar, #foo) wins over :has(.foo, .bar)	
+Pass	:has(span + span) wins over :has(span)	
+Pass	:has(span, li, p) wins over :has(span, lo, p)	
+Pass	latter .baz wins over :has(.foo)	
+Pass	latter :has(.foo) wins over .baz	

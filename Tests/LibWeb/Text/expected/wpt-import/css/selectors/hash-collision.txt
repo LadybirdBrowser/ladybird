@@ -6,6 +6,6 @@ Rerun
 
 Found 1 tests
 
-1 Fail
+1 Pass
 Details
-Result	Test Name	MessageFail	Test string hash collision in bucketing	
+Result	Test Name	MessagePass	Test string hash collision in bucketing	
