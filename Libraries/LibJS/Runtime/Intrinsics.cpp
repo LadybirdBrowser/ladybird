@@ -103,6 +103,8 @@
 #include <LibJS/Runtime/Temporal/DurationPrototype.h>
 #include <LibJS/Runtime/Temporal/PlainMonthDayConstructor.h>
 #include <LibJS/Runtime/Temporal/PlainMonthDayPrototype.h>
+#include <LibJS/Runtime/Temporal/PlainYearMonthConstructor.h>
+#include <LibJS/Runtime/Temporal/PlainYearMonthPrototype.h>
 #include <LibJS/Runtime/Temporal/Temporal.h>
 #include <LibJS/Runtime/TypedArray.h>
 #include <LibJS/Runtime/TypedArrayConstructor.h>
