@@ -234,7 +234,16 @@ void MediaPaintable::paint_control_bar_speaker(PaintContext& context, HTML::HTML
     path.quadratic_bezier_curve_to(device_point(16, 7.5), device_point(13, 12));
     path.move_to(device_point(14, 0));
     path.quadratic_bezier_curve_to(device_point(20, 7.5), device_point(14, 15));
-    context.display_list_recorder().stroke_path({ .path = path, .color = speaker_button_color, .thickness = 1 });
+    context.display_list_recorder().stroke_path({
+        .cap_style = Gfx::Path::CapStyle::Round,
+        .join_style = Gfx::Path::JoinStyle::Round,
+        .miter_limit = 4,
+        .dash_array = {},
+        .dash_offset = 0,
+        .path = path,
+        .color = speaker_button_color,
+        .thickness = 1,
+    });
 
     if (media_element.muted()) {
         context.display_list_recorder().draw_line(device_point(0, 0).to_type<int>(), device_point(20, 15).to_type<int>(), Color::Red, 2);

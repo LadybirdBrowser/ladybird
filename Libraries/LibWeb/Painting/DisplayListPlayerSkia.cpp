@@ -817,6 +817,7 @@ void DisplayListPlayerSkia::stroke_path_using_color(StrokePathUsingColor const& 
     if (!command.thickness)
         return;
 
+    // FIXME: Use .cap_style, .join_style, .miter_limit, .dash_array, .dash_offset.
     auto& canvas = surface().canvas();
     SkPaint paint;
     paint.setAntiAlias(true);
@@ -834,6 +835,7 @@ void DisplayListPlayerSkia::stroke_path_using_paint_style(StrokePathUsingPaintSt
     if (!command.thickness)
         return;
 
+    // FIXME: Use .cap_style, .join_style, .miter_limit, .dash_array, .dash_offset.
     auto path = to_skia_path(command.path);
     path.offset(command.aa_translation.x(), command.aa_translation.y());
     auto paint = paint_style_to_skia_paint(*command.paint_style, command.bounding_rect().to_type<float>());

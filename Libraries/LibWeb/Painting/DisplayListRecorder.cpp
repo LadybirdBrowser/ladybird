@@ -86,6 +86,11 @@ void DisplayListRecorder::stroke_path(StrokePathUsingColorParams params)
     if (path_bounding_rect.is_empty())
         return;
     append(StrokePathUsingColor {
+        .cap_style = params.cap_style,
+        .join_style = params.join_style,
+        .miter_limit = params.miter_limit,
+        .dash_array = move(params.dash_array),
+        .dash_offset = params.dash_offset,
         .path_bounding_rect = path_bounding_rect,
         .path = move(params.path),
         .color = params.color,
@@ -103,6 +108,11 @@ void DisplayListRecorder::stroke_path(StrokePathUsingPaintStyleParams params)
     if (path_bounding_rect.is_empty())
         return;
     append(StrokePathUsingPaintStyle {
+        .cap_style = params.cap_style,
+        .join_style = params.join_style,
+        .miter_limit = params.miter_limit,
+        .dash_array = move(params.dash_array),
+        .dash_offset = params.dash_offset,
         .path_bounding_rect = path_bounding_rect,
         .path = move(params.path),
         .paint_style = params.paint_style,

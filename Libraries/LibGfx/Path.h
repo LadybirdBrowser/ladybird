@@ -72,6 +72,19 @@ public:
     void line_to(Gfx::FloatPoint const& point) { impl().line_to(point); }
     void close_all_subpaths() { impl().close_all_subpaths(); }
     void close() { impl().close(); }
+
+    enum class CapStyle {
+        Butt,
+        Round,
+        Square,
+    };
+
+    enum class JoinStyle {
+        Miter,
+        Round,
+        Bevel,
+    };
+
     void elliptical_arc_to(FloatPoint point, FloatSize radii, float x_axis_rotation, bool large_arc, bool sweep) { impl().elliptical_arc_to(point, radii, x_axis_rotation, large_arc, sweep); }
     void arc_to(FloatPoint point, float radius, bool large_arc, bool sweep) { impl().arc_to(point, radius, large_arc, sweep); }
     void quadratic_bezier_curve_to(FloatPoint through, FloatPoint point) { impl().quadratic_bezier_curve_to(through, point); }
