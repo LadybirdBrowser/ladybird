@@ -101,17 +101,16 @@ size_t EventLoopImplementationWindows::pump(PumpMode)
     // TODO: investigate if event_count can realistically exceed 64
     VERIFY(event_count <= MAXIMUM_WAIT_OBJECTS);
 
-    HANDLE event_handles[event_count];
-    event_handles[0] = thread_data.wake_event.handle;
+    Vector<HANDLE, MAXIMUM_WAIT_OBJECTS> event_handles;
+    event_handles.append(thread_data.wake_event.handle);
 
-    size_t index = 1;
     for (auto& entry : notifiers)
-        event_handles[index++] = entry.key.handle;
+        event_handles.append(entry.key.handle);
     for (auto& entry : timers)
-        event_handles[index++] = entry.key.handle;
+        event_handles.append(entry.key.handle);
 
-    DWORD result = WaitForMultipleObjects(event_count, event_handles, FALSE, INFINITE);
-    index = result - WAIT_OBJECT_0;
+    DWORD result = WaitForMultipleObjects(event_count, event_handles.data(), FALSE, INFINITE);
+    size_t index = result - WAIT_OBJECT_0;
     VERIFY(index < event_count);
 
     if (index != 0) {
@@ -220,13 +219,13 @@ void EventLoopManagerWindows::unregister_timer(intptr_t timer_id)
     ThreadData::the().timers.remove((HANDLE)timer_id);
 }
 
-int EventLoopManagerWindows::register_signal(int signal_number, Function<void(int)> handler)
+int EventLoopManagerWindows::register_signal([[maybe_unused]] int signal_number, [[maybe_unused]] Function<void(int)> handler)
 {
     dbgln("Core::EventLoopManagerWindows::register_signal() is not implemented");
     VERIFY_NOT_REACHED();
 }
 
-void EventLoopManagerWindows::unregister_signal(int handler_id)
+void EventLoopManagerWindows::unregister_signal([[maybe_unused]] int handler_id)
 {
     dbgln("Core::EventLoopManagerWindows::unregister_signal() is not implemented");
     VERIFY_NOT_REACHED();
