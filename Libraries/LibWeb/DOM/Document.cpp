@@ -15,6 +15,7 @@
 #include <AK/StringBuilder.h>
 #include <AK/Utf8View.h>
 #include <LibCore/Timer.h>
+#include <LibGC/MarkedVector.h>
 #include <LibJS/Runtime/Array.h>
 #include <LibJS/Runtime/FunctionObject.h>
 #include <LibJS/Runtime/NativeFunction.h>
@@ -5160,7 +5161,14 @@ size_t Document::broadcast_active_resize_observations()
     auto shallowest_target_depth = NumericLimits<size_t>::max();
 
     // 2. For each observer in document.[[resizeObservers]] run these steps:
-    for (auto const& observer : m_resize_observers) {
+
+    // NOTE: We make a copy of the resize observers list to avoid modifying it while iterating.
+    GC::MarkedVector<GC::Ref<ResizeObserver::ResizeObserver>> resize_observers(heap());
+    resize_observers.ensure_capacity(m_resize_observers.size());
+    for (auto const& observer : m_resize_observers)
+        resize_observers.append(observer);
+
+    for (auto const& observer : resize_observers) {
         // 1. If observer.[[activeTargets]] slot is empty, continue.
         if (observer->active_targets().is_empty()) {
             continue;
