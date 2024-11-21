@@ -18,6 +18,7 @@
 #include <LibJS/Runtime/Temporal/PlainDate.h>
 #include <LibJS/Runtime/Temporal/PlainDateTime.h>
 #include <LibJS/Runtime/Temporal/PlainMonthDay.h>
+#include <LibJS/Runtime/Temporal/PlainYearMonth.h>
 #include <LibJS/Runtime/Temporal/TimeZone.h>
 
 namespace JS::Temporal {
@@ -466,6 +467,8 @@ ThrowCompletionOr<bool> is_partial_temporal_object(VM& vm, Value value)
     //    slot, return false.
     // FIXME: Add the other types as we define them.
     if (is<PlainMonthDay>(object))
+        return false;
+    if (is<PlainYearMonth>(object))
         return false;
 
     // 3. Let calendarProperty be ? Get(value, "calendar").

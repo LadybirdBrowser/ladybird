@@ -87,9 +87,10 @@
     __JS_ENUMERATE(RelativeTimeFormat, relative_time_format, RelativeTimeFormatPrototype, RelativeTimeFormatConstructor) \
     __JS_ENUMERATE(Segmenter, segmenter, SegmenterPrototype, SegmenterConstructor)
 
-#define JS_ENUMERATE_TEMPORAL_OBJECTS                                          \
-    __JS_ENUMERATE(Duration, duration, DurationPrototype, DurationConstructor) \
-    __JS_ENUMERATE(PlainMonthDay, plain_month_day, PlainMonthDayPrototype, PlainMonthDayConstructor)
+#define JS_ENUMERATE_TEMPORAL_OBJECTS                                                                \
+    __JS_ENUMERATE(Duration, duration, DurationPrototype, DurationConstructor)                       \
+    __JS_ENUMERATE(PlainMonthDay, plain_month_day, PlainMonthDayPrototype, PlainMonthDayConstructor) \
+    __JS_ENUMERATE(PlainYearMonth, plain_year_month, PlainYearMonthPrototype, PlainYearMonthConstructor)
 
 #define JS_ENUMERATE_BUILTIN_NAMESPACE_OBJECTS \
     __JS_ENUMERATE(AtomicsObject, atomics)     \

@@ -14,6 +14,7 @@
 #include <LibJS/Runtime/Temporal/ISO8601.h>
 #include <LibJS/Runtime/Temporal/PlainDate.h>
 #include <LibJS/Runtime/Temporal/PlainMonthDay.h>
+#include <LibJS/Runtime/Temporal/PlainYearMonth.h>
 #include <LibJS/Runtime/Temporal/TimeZone.h>
 #include <LibJS/Runtime/VM.h>
 #include <LibUnicode/Locale.h>
@@ -324,6 +325,8 @@ ThrowCompletionOr<String> to_temporal_calendar_identifier(VM& vm, Value temporal
         // FIXME: Add the other calendar-holding types as we define them.
         if (is<PlainMonthDay>(temporal_calendar_object))
             return static_cast<PlainMonthDay const&>(temporal_calendar_object).calendar();
+        if (is<PlainYearMonth>(temporal_calendar_object))
+            return static_cast<PlainYearMonth const&>(temporal_calendar_object).calendar();
     }
 
     // 2. If temporalCalendarLike is not a String, throw a TypeError exception.
@@ -346,6 +349,8 @@ ThrowCompletionOr<String> get_temporal_calendar_identifier_with_iso_default(VM& 
     // FIXME: Add the other calendar-holding types as we define them.
     if (is<PlainMonthDay>(item))
         return static_cast<PlainMonthDay const&>(item).calendar();
+    if (is<PlainYearMonth>(item))
+        return static_cast<PlainYearMonth const&>(item).calendar();
 
     // 2. Let calendarLike be ? Get(item, "calendar").
     auto calendar_like = TRY(item.get(vm.names.calendar));
@@ -358,6 +363,30 @@ ThrowCompletionOr<String> get_temporal_calendar_identifier_with_iso_default(VM& 
 
     // 4. Return ? ToTemporalCalendarIdentifier(calendarLike).
     return TRY(to_temporal_calendar_identifier(vm, calendar_like));
+}
+
+// 12.2.11 CalendarYearMonthFromFields ( calendar, fields, overflow ), https://tc39.es/proposal-temporal/#sec-temporal-calendaryearmonthfromfields
+ThrowCompletionOr<ISODate> calendar_year_month_from_fields(VM& vm, StringView calendar, CalendarFields fields, Overflow overflow)
+{
+    // 1. Perform ? CalendarResolveFields(calendar, fields, YEAR-MONTH).
+    TRY(calendar_resolve_fields(vm, calendar, fields, DateType::YearMonth));
+
+    // FIXME: 2. Let firstDayIndex be the 1-based index of the first day of the month described by fields (i.e., 1 unless the
+    //           month's first day is skipped by this calendar.)
+    static auto constexpr first_day_index = 1;
+
+    // 3. Set fields.[[Day]] to firstDayIndex.
+    fields.day = first_day_index;
+
+    // 4. Let result be ? CalendarDateToISO(calendar, fields, overflow).
+    auto result = TRY(calendar_date_to_iso(vm, calendar, fields, overflow));
+
+    // 5. If ISOYearMonthWithinLimits(result) is false, throw a RangeError exception.
+    if (!iso_year_month_within_limits(result))
+        return vm.throw_completion<RangeError>(ErrorType::TemporalInvalidISODate);
+
+    // 6. Return result.
+    return result;
 }
 
 // 12.2.12 CalendarMonthDayFromFields ( calendar, fields, overflow ), https://tc39.es/proposal-temporal/#sec-temporal-calendarmonthdayfromfields
@@ -528,6 +557,25 @@ u8 iso_day_of_week(ISODate const& iso_date)
 
     // 4. Return dayOfWeek.
     return day_of_week;
+}
+
+// 12.2.19 CalendarDateToISO ( calendar, fields, overflow ), https://tc39.es/proposal-temporal/#sec-temporal-calendardatetoiso
+ThrowCompletionOr<ISODate> calendar_date_to_iso(VM& vm, StringView calendar, CalendarFields const& fields, Overflow overflow)
+{
+    // 1. If calendar is "iso8601", then
+    if (calendar == "iso8601"sv) {
+        // a. Assert: fields.[[Year]], fields.[[Month]], and fields.[[Day]] are not UNSET.
+        VERIFY(fields.year.has_value());
+        VERIFY(fields.month.has_value());
+        VERIFY(fields.day.has_value());
+
+        // b. Return ? RegulateISODate(fields.[[Year]], fields.[[Month]], fields.[[Day]], overflow).
+        return TRY(regulate_iso_date(vm, *fields.year, *fields.month, *fields.day, overflow));
+    }
+
+    // 2. Return an implementation-defined ISO Date Record, or throw a RangeError exception, as described below.
+    // FIXME: Create an ISODateRecord based on an ISO8601 calendar for now. See also: CalendarResolveFields.
+    return calendar_month_day_to_iso_reference_date(vm, "iso8601"sv, fields, overflow);
 }
 
 // 12.2.20 CalendarMonthDayToISOReferenceDate ( calendar, fields, overflow ), https://tc39.es/proposal-temporal/#sec-temporal-calendarmonthdaytoisoreferencedate
