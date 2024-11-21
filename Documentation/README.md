@@ -35,5 +35,5 @@ you are welcome to ask on [Discord](../README.md#get-in-touch-and-participate).
 * [LibWeb: From Loading to Painting](LibWebFromLoadingToPainting.md)
 * [LibWeb: Browsing Contexts and Navigables](BrowsingContextsAndNavigables.md)
 * [How to Add an IDL File](AddNewIDLFile.md)
-* [LibWeb Code Style & Patterns](Browser/Patterns.md)
+* [LibWeb Code Style & Patterns](LibWebPatterns.md)
 * [CSS Generated Files](CSSGeneratedFiles.md)
