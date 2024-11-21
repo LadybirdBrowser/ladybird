@@ -15,7 +15,6 @@
 #include <AK/String.h>
 #include <AK/Vector.h>
 #include <LibCore/Environment.h>
-#include <LibCore/SessionManagement.h>
 #include <LibCore/System.h>
 #include <limits.h>
 #include <stdarg.h>

@@ -48,7 +48,6 @@ set(SOURCES
     Resource.cpp
     ResourceImplementation.cpp
     ResourceImplementationFile.cpp
-    SessionManagement.cpp
     Socket.cpp
     SystemServerTakeover.cpp
     TCPServer.cpp

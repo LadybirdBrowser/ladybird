@@ -6,7 +6,6 @@
 
 #pragma once
 
-#include <LibCore/SessionManagement.h>
 #include <LibIPC/Connection.h>
 
 namespace IPC {
