@@ -604,7 +604,16 @@ Optional<StyleProperty> ResolvedCSSStyleDeclaration::property(PropertyID propert
 Optional<StyleProperty> ResolvedCSSStyleDeclaration::custom_property(FlyString const& name) const
 {
     const_cast<DOM::Document&>(m_element->document()).update_style();
-    return m_element->custom_properties(m_pseudo_element).get(name);
+
+    auto const* element_to_check = m_element.ptr();
+    while (element_to_check) {
+        if (auto property = element_to_check->custom_properties(m_pseudo_element).get(name); property.has_value())
+            return *property;
+
+        element_to_check = element_to_check->parent_element();
+    }
+
+    return {};
 }
 
 static WebIDL::ExceptionOr<void> cannot_modify_computed_property_error(JS::Realm& realm)
