@@ -11,6 +11,31 @@ namespace Web::UIEvents {
 
 GC_DEFINE_ALLOCATOR(PointerEvent);
 
+WebIDL::ExceptionOr<GC::Ref<PointerEvent>> PointerEvent::create_from_platform_event(JS::Realm& realm, FlyString const& event_name, CSSPixelPoint screen, CSSPixelPoint page, CSSPixelPoint client, CSSPixelPoint offset, Optional<CSSPixelPoint> movement, unsigned button, unsigned buttons, unsigned modifiers)
+{
+    PointerEventInit event_init {};
+    event_init.ctrl_key = modifiers & Mod_Ctrl;
+    event_init.shift_key = modifiers & Mod_Shift;
+    event_init.alt_key = modifiers & Mod_Alt;
+    event_init.meta_key = modifiers & Mod_Super;
+    event_init.screen_x = screen.x().to_double();
+    event_init.screen_y = screen.y().to_double();
+    event_init.client_x = client.x().to_double();
+    event_init.client_y = client.y().to_double();
+    if (movement.has_value()) {
+        event_init.movement_x = movement.value().x().to_double();
+        event_init.movement_y = movement.value().y().to_double();
+    }
+    event_init.button = mouse_button_to_button_code(static_cast<MouseButton>(button));
+    event_init.buttons = buttons;
+    auto event = PointerEvent::create(realm, event_name, event_init, page.x().to_double(), page.y().to_double(), offset.x().to_double(), offset.y().to_double());
+    event->set_is_trusted(true);
+    event->set_bubbles(true);
+    event->set_cancelable(true);
+    event->set_composed(true);
+    return event;
+}
+
 PointerEvent::PointerEvent(JS::Realm& realm, FlyString const& type, PointerEventInit const& event_init, double page_x, double page_y, double offset_x, double offset_y)
     : MouseEvent(realm, type, event_init, page_x, page_y, offset_x, offset_y)
     , m_pointer_id(event_init.pointer_id)

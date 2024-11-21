@@ -31,6 +31,7 @@
 #include <LibWeb/UIEvents/KeyboardEvent.h>
 #include <LibWeb/UIEvents/MouseButton.h>
 #include <LibWeb/UIEvents/MouseEvent.h>
+#include <LibWeb/UIEvents/PointerEvent.h>
 #include <LibWeb/UIEvents/WheelEvent.h>
 
 namespace Web {
@@ -297,6 +298,7 @@ EventResult EventHandler::handle_mouseup(CSSPixelPoint viewport_position, CSSPix
 
             auto page_offset = compute_mouse_event_page_offset(viewport_position);
             auto offset = compute_mouse_event_offset(page_offset, *layout_node);
+            node->dispatch_event(UIEvents::PointerEvent::create_from_platform_event(node->realm(), UIEvents::EventNames::pointerup, screen_position, page_offset, viewport_position, offset, {}, button, buttons, modifiers).release_value_but_fixme_should_propagate_errors());
             node->dispatch_event(UIEvents::MouseEvent::create_from_platform_event(node->realm(), UIEvents::EventNames::mouseup, screen_position, page_offset, viewport_position, offset, {}, button, buttons, modifiers).release_value_but_fixme_should_propagate_errors());
             handled_event = EventResult::Handled;
 
@@ -436,6 +438,7 @@ EventResult EventHandler::handle_mousedown(CSSPixelPoint viewport_position, CSSP
         m_mousedown_target = node.ptr();
         auto page_offset = compute_mouse_event_page_offset(viewport_position);
         auto offset = compute_mouse_event_offset(page_offset, *layout_node);
+        node->dispatch_event(UIEvents::PointerEvent::create_from_platform_event(node->realm(), UIEvents::EventNames::pointerdown, screen_position, page_offset, viewport_position, offset, {}, button, buttons, modifiers).release_value_but_fixme_should_propagate_errors());
         node->dispatch_event(UIEvents::MouseEvent::create_from_platform_event(node->realm(), UIEvents::EventNames::mousedown, screen_position, page_offset, viewport_position, offset, {}, button, buttons, modifiers).release_value_but_fixme_should_propagate_errors());
     }
 
@@ -578,7 +581,10 @@ EventResult EventHandler::handle_mousemove(CSSPixelPoint viewport_position, CSSP
 
             m_mousemove_previous_screen_position = screen_position;
 
-            bool continue_ = node->dispatch_event(UIEvents::MouseEvent::create_from_platform_event(node->realm(), UIEvents::EventNames::mousemove, screen_position, page_offset, viewport_position, offset, movement, UIEvents::MouseButton::Primary, buttons, modifiers).release_value_but_fixme_should_propagate_errors());
+            bool continue_ = node->dispatch_event(UIEvents::PointerEvent::create_from_platform_event(node->realm(), UIEvents::EventNames::pointermove, screen_position, page_offset, viewport_position, offset, movement, UIEvents::MouseButton::Primary, buttons, modifiers).release_value_but_fixme_should_propagate_errors());
+            if (!continue_)
+                return EventResult::Cancelled;
+            continue_ = node->dispatch_event(UIEvents::MouseEvent::create_from_platform_event(node->realm(), UIEvents::EventNames::mousemove, screen_position, page_offset, viewport_position, offset, movement, UIEvents::MouseButton::Primary, buttons, modifiers).release_value_but_fixme_should_propagate_errors());
             if (!continue_)
                 return EventResult::Cancelled;
 
