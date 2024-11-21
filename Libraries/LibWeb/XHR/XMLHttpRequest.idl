@@ -33,7 +33,7 @@ interface XMLHttpRequest : XMLHttpRequestEventTarget {
     // request
     undefined open(DOMString method, DOMString url);
     undefined open(ByteString method, USVString url, boolean async, optional USVString? username = null, optional USVString? password = null);
-    undefined setRequestHeader(DOMString name, DOMString value);
+    undefined setRequestHeader(ByteString name, ByteString value);
     attribute unsigned long timeout;
     attribute boolean withCredentials;
     [SameObject] readonly attribute XMLHttpRequestUpload upload;
