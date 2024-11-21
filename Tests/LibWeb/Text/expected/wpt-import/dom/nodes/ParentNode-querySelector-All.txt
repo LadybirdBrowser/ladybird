@@ -6,8 +6,8 @@ Rerun
 
 Found 1975 tests
 
-1931 Pass
-44 Fail
+1951 Pass
+24 Fail
 Details
 Result	Test Name	MessagePass	Selectors-API Test Suite: HTML	
 Pass	Document supports querySelector	
@@ -116,10 +116,10 @@ Pass	Document.querySelector: Invalid pseudo-element: :::before
 Pass	Document.querySelectorAll: Invalid pseudo-element: :::before	
 Pass	Document.querySelector: Invalid pseudo-element: :: before	
 Pass	Document.querySelectorAll: Invalid pseudo-element: :: before	
-Fail	Document.querySelector: Undeclared namespace: ns|div	
-Fail	Document.querySelectorAll: Undeclared namespace: ns|div	
-Fail	Document.querySelector: Undeclared namespace: :not(ns|div)	
-Fail	Document.querySelectorAll: Undeclared namespace: :not(ns|div)	
+Pass	Document.querySelector: Undeclared namespace: ns|div	
+Pass	Document.querySelectorAll: Undeclared namespace: ns|div	
+Pass	Document.querySelector: Undeclared namespace: :not(ns|div)	
+Pass	Document.querySelectorAll: Undeclared namespace: :not(ns|div)	
 Pass	Document.querySelector: Invalid namespace: ^|div	
 Pass	Document.querySelectorAll: Invalid namespace: ^|div	
 Pass	Document.querySelector: Invalid namespace: $|div	
@@ -184,10 +184,10 @@ Pass	Detached Element.querySelector: Invalid pseudo-element: :::before
 Pass	Detached Element.querySelectorAll: Invalid pseudo-element: :::before	
 Pass	Detached Element.querySelector: Invalid pseudo-element: :: before	
 Pass	Detached Element.querySelectorAll: Invalid pseudo-element: :: before	
-Fail	Detached Element.querySelector: Undeclared namespace: ns|div	
-Fail	Detached Element.querySelectorAll: Undeclared namespace: ns|div	
-Fail	Detached Element.querySelector: Undeclared namespace: :not(ns|div)	
-Fail	Detached Element.querySelectorAll: Undeclared namespace: :not(ns|div)	
+Pass	Detached Element.querySelector: Undeclared namespace: ns|div	
+Pass	Detached Element.querySelectorAll: Undeclared namespace: ns|div	
+Pass	Detached Element.querySelector: Undeclared namespace: :not(ns|div)	
+Pass	Detached Element.querySelectorAll: Undeclared namespace: :not(ns|div)	
 Pass	Detached Element.querySelector: Invalid namespace: ^|div	
 Pass	Detached Element.querySelectorAll: Invalid namespace: ^|div	
 Pass	Detached Element.querySelector: Invalid namespace: $|div	
@@ -252,10 +252,10 @@ Pass	Fragment.querySelector: Invalid pseudo-element: :::before
 Pass	Fragment.querySelectorAll: Invalid pseudo-element: :::before	
 Pass	Fragment.querySelector: Invalid pseudo-element: :: before	
 Pass	Fragment.querySelectorAll: Invalid pseudo-element: :: before	
-Fail	Fragment.querySelector: Undeclared namespace: ns|div	
-Fail	Fragment.querySelectorAll: Undeclared namespace: ns|div	
-Fail	Fragment.querySelector: Undeclared namespace: :not(ns|div)	
-Fail	Fragment.querySelectorAll: Undeclared namespace: :not(ns|div)	
+Pass	Fragment.querySelector: Undeclared namespace: ns|div	
+Pass	Fragment.querySelectorAll: Undeclared namespace: ns|div	
+Pass	Fragment.querySelector: Undeclared namespace: :not(ns|div)	
+Pass	Fragment.querySelectorAll: Undeclared namespace: :not(ns|div)	
 Pass	Fragment.querySelector: Invalid namespace: ^|div	
 Pass	Fragment.querySelectorAll: Invalid namespace: ^|div	
 Pass	Fragment.querySelector: Invalid namespace: $|div	
@@ -320,10 +320,10 @@ Pass	In-document Element.querySelector: Invalid pseudo-element: :::before
 Pass	In-document Element.querySelectorAll: Invalid pseudo-element: :::before	
 Pass	In-document Element.querySelector: Invalid pseudo-element: :: before	
 Pass	In-document Element.querySelectorAll: Invalid pseudo-element: :: before	
-Fail	In-document Element.querySelector: Undeclared namespace: ns|div	
-Fail	In-document Element.querySelectorAll: Undeclared namespace: ns|div	
-Fail	In-document Element.querySelector: Undeclared namespace: :not(ns|div)	
-Fail	In-document Element.querySelectorAll: Undeclared namespace: :not(ns|div)	
+Pass	In-document Element.querySelector: Undeclared namespace: ns|div	
+Pass	In-document Element.querySelectorAll: Undeclared namespace: ns|div	
+Pass	In-document Element.querySelector: Undeclared namespace: :not(ns|div)	
+Pass	In-document Element.querySelectorAll: Undeclared namespace: :not(ns|div)	
 Pass	In-document Element.querySelector: Invalid namespace: ^|div	
 Pass	In-document Element.querySelectorAll: Invalid namespace: ^|div	
 Pass	In-document Element.querySelector: Invalid namespace: $|div	
@@ -388,10 +388,10 @@ Pass	Empty Element.querySelector: Invalid pseudo-element: :::before
 Pass	Empty Element.querySelectorAll: Invalid pseudo-element: :::before	
 Pass	Empty Element.querySelector: Invalid pseudo-element: :: before	
 Pass	Empty Element.querySelectorAll: Invalid pseudo-element: :: before	
-Fail	Empty Element.querySelector: Undeclared namespace: ns|div	
-Fail	Empty Element.querySelectorAll: Undeclared namespace: ns|div	
-Fail	Empty Element.querySelector: Undeclared namespace: :not(ns|div)	
-Fail	Empty Element.querySelectorAll: Undeclared namespace: :not(ns|div)	
+Pass	Empty Element.querySelector: Undeclared namespace: ns|div	
+Pass	Empty Element.querySelectorAll: Undeclared namespace: ns|div	
+Pass	Empty Element.querySelector: Undeclared namespace: :not(ns|div)	
+Pass	Empty Element.querySelectorAll: Undeclared namespace: :not(ns|div)	
 Pass	Empty Element.querySelector: Invalid namespace: ^|div	
 Pass	Empty Element.querySelectorAll: Invalid namespace: ^|div	
 Pass	Empty Element.querySelector: Invalid namespace: $|div	

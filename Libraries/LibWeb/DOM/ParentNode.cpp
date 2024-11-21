@@ -23,6 +23,26 @@ namespace Web::DOM {
 
 GC_DEFINE_ALLOCATOR(ParentNode);
 
+static bool contains_named_namespace(const CSS::SelectorList& selectors)
+{
+    for (auto const& selector : selectors) {
+        for (auto const& compound_selector : selector->compound_selectors()) {
+            for (auto simple_selector : compound_selector.simple_selectors) {
+                if (simple_selector.value.has<CSS::Selector::SimpleSelector::QualifiedName>()) {
+                    if (simple_selector.qualified_name().namespace_type == CSS::Selector::SimpleSelector::QualifiedName::NamespaceType::Named)
+                        return true;
+                }
+
+                if (simple_selector.value.has<CSS::Selector::SimpleSelector::PseudoClassSelector>()) {
+                    if (contains_named_namespace(simple_selector.pseudo_class().argument_selector_list))
+                        return true;
+                }
+            }
+        }
+    }
+    return false;
+}
+
 enum class ReturnMatches {
     First,
     All,
@@ -39,6 +59,10 @@ static WebIDL::ExceptionOr<Variant<GC::Ptr<Element>, GC::Ref<NodeList>>> scope_m
         return WebIDL::SyntaxError::create(node.realm(), "Failed to parse selector"_string);
 
     auto selectors = maybe_selectors.value();
+
+    // "Note: Support for namespaces within selectors is not planned and will not be added."
+    if (contains_named_namespace(selectors))
+        return WebIDL::SyntaxError::create(node.realm(), "Failed to parse selector"_string);
 
     // 3. Return the result of match a selector against a tree with s and node’s root using scoping root node.
     GC::Ptr<Element> single_result;
