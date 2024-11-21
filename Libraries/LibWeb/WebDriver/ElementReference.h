@@ -19,10 +19,10 @@
 namespace Web::WebDriver {
 
 GC::Ptr<Web::DOM::Node> get_node(HTML::BrowsingContext const&, StringView reference);
-ByteString get_or_create_a_node_reference(HTML::BrowsingContext const&, Web::DOM::Node const&);
+String get_or_create_a_node_reference(HTML::BrowsingContext const&, Web::DOM::Node const&);
 bool node_reference_is_known(HTML::BrowsingContext const&, StringView reference);
 
-ByteString get_or_create_a_web_element_reference(HTML::BrowsingContext const&, Web::DOM::Node const& element);
+String get_or_create_a_web_element_reference(HTML::BrowsingContext const&, Web::DOM::Node const& element);
 JsonObject web_element_reference_object(HTML::BrowsingContext const&, Web::DOM::Node const& element);
 bool represents_a_web_element(JsonValue const&);
 bool represents_a_web_element(JS::Value);
@@ -46,7 +46,7 @@ bool is_element_in_view(ReadonlySpan<GC::Ref<Web::DOM::Element>> paint_tree, Web
 bool is_element_obscured(ReadonlySpan<GC::Ref<Web::DOM::Element>> paint_tree, Web::DOM::Element&);
 GC::MarkedVector<GC::Ref<Web::DOM::Element>> pointer_interactable_tree(Web::HTML::BrowsingContext&, Web::DOM::Element&);
 
-ByteString get_or_create_a_shadow_root_reference(HTML::BrowsingContext const&, Web::DOM::ShadowRoot const&);
+String get_or_create_a_shadow_root_reference(HTML::BrowsingContext const&, Web::DOM::ShadowRoot const&);
 JsonObject shadow_root_reference_object(HTML::BrowsingContext const&, Web::DOM::ShadowRoot const&);
 bool represents_a_shadow_root(JsonValue const&);
 bool represents_a_shadow_root(JS::Value);

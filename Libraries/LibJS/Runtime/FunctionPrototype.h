@@ -19,7 +19,7 @@ public:
     virtual ~FunctionPrototype() override = default;
 
     virtual ThrowCompletionOr<Value> internal_call(Value this_argument, ReadonlySpan<Value> arguments_list) override;
-    virtual DeprecatedFlyString const& name() const override { return m_name; }
+    virtual FlyString const& name() const override { return m_name; }
 
 private:
     explicit FunctionPrototype(Realm&);
@@ -31,7 +31,7 @@ private:
     JS_DECLARE_NATIVE_FUNCTION(symbol_has_instance);
 
     // 20.2.3: The Function prototype object has a "name" property whose value is the empty String.
-    DeprecatedFlyString m_name;
+    FlyString m_name;
 };
 
 }

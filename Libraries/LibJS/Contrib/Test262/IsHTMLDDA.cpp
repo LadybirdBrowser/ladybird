@@ -13,7 +13,7 @@ GC_DEFINE_ALLOCATOR(IsHTMLDDA);
 
 IsHTMLDDA::IsHTMLDDA(Realm& realm)
     // NativeFunction without prototype is currently not possible (only due to the lack of a ctor that supports it)
-    : NativeFunction("IsHTMLDDA", realm.intrinsics().function_prototype())
+    : NativeFunction("IsHTMLDDA"_fly_string, realm.intrinsics().function_prototype())
 {
 }
 

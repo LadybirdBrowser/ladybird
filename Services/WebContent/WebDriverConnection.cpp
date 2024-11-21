@@ -80,10 +80,10 @@ namespace WebContent {
 static JsonValue serialize_cookie(Web::Cookie::Cookie const& cookie)
 {
     JsonObject serialized_cookie;
-    serialized_cookie.set("name"sv, cookie.name.to_byte_string());
-    serialized_cookie.set("value"sv, cookie.value.to_byte_string());
-    serialized_cookie.set("path"sv, cookie.path.to_byte_string());
-    serialized_cookie.set("domain"sv, cookie.domain.to_byte_string());
+    serialized_cookie.set("name"sv, cookie.name);
+    serialized_cookie.set("value"sv, cookie.value);
+    serialized_cookie.set("path"sv, cookie.path);
+    serialized_cookie.set("domain"sv, cookie.domain);
     serialized_cookie.set("secure"sv, cookie.secure);
     serialized_cookie.set("httpOnly"sv, cookie.http_only);
     serialized_cookie.set("expiry"sv, cookie.expiry_time.seconds_since_epoch());
@@ -350,7 +350,7 @@ Messages::WebDriverClient::GetCurrentUrlResponse WebDriverConnection::get_curren
         auto url = current_top_level_browsing_context()->active_document()->url();
 
         // 4. Return success with data url.
-        async_driver_execution_complete({ url.to_byte_string() });
+        async_driver_execution_complete({ url.to_string() });
     });
 
     return JsonValue {};
@@ -533,7 +533,7 @@ Messages::WebDriverClient::GetTitleResponse WebDriverConnection::get_title()
         auto title = current_top_level_browsing_context()->active_document()->title();
 
         // 4. Return success with data title.
-        async_driver_execution_complete({ title.to_byte_string() });
+        async_driver_execution_complete({ title });
     });
 
     return JsonValue {};
@@ -1328,7 +1328,7 @@ Messages::WebDriverClient::GetElementAttributeResponse WebDriverConnection::get_
         }
 
         // 5. Return success with data result.
-        async_driver_execution_complete({ result.to_byte_string() });
+        async_driver_execution_complete({ result });
     });
 
     return JsonValue {};
@@ -1351,7 +1351,7 @@ Messages::WebDriverClient::GetElementPropertyResponse WebDriverConnection::get_e
         // 5. Let property be the result of calling the Object.[[GetProperty]](name) on element.
         Web::HTML::TemporaryExecutionContext execution_context { current_browsing_context().active_document()->realm() };
 
-        if (auto property_or_error = element->get(name.to_byte_string()); !property_or_error.is_throw_completion()) {
+        if (auto property_or_error = element->get(FlyString(name)); !property_or_error.is_throw_completion()) {
             auto property = property_or_error.release_value();
 
             // 6. Let result be the value of property if not undefined, or null.
@@ -1394,7 +1394,7 @@ Messages::WebDriverClient::GetElementCssValueResponse WebDriverConnection::get_e
         //     "" (empty string)
 
         // 5. Return success with data computed value.
-        async_driver_execution_complete({ computed_value.to_byte_string() });
+        async_driver_execution_complete({ computed_value });
     });
 
     return JsonValue {};
@@ -1416,7 +1416,7 @@ Messages::WebDriverClient::GetElementTextResponse WebDriverConnection::get_eleme
         auto rendered_text = Web::WebDriver::element_rendered_text(element);
 
         // 5. Return success with data rendered text.
-        async_driver_execution_complete({ rendered_text.to_byte_string() });
+        async_driver_execution_complete({ rendered_text });
     });
 
     return JsonValue {};
@@ -1439,7 +1439,7 @@ Messages::WebDriverClient::GetElementTagNameResponse WebDriverConnection::get_el
         auto qualified_name = element->local_name();
 
         // 5. Return success with data qualified name.
-        async_driver_execution_complete({ qualified_name.to_string().to_byte_string() });
+        async_driver_execution_complete({ qualified_name.to_string() });
     });
 
     return JsonValue {};
@@ -1546,7 +1546,7 @@ Messages::WebDriverClient::GetComputedLabelResponse WebDriverConnection::get_com
         auto label = element->accessible_name(element->document()).release_value_but_fixme_should_propagate_errors();
 
         // 5. Return success with data label.
-        async_driver_execution_complete({ label.to_byte_string() });
+        async_driver_execution_complete({ label });
     });
 
     return JsonValue {};
@@ -1703,7 +1703,7 @@ Web::WebDriver::Response WebDriverConnection::element_click_impl(String const& e
 
         // 10. Set a property origin to element on pointer move action.
         auto origin = Web::WebDriver::get_or_create_a_web_element_reference(current_browsing_context(), *element);
-        pointer_move_action.pointer_move_fields().origin = MUST(String::from_byte_string(origin));
+        pointer_move_action.pointer_move_fields().origin = origin;
 
         // 11. Let pointer down action be an action object constructed with arguments input id, "pointer", and "pointerDown".
         Web::WebDriver::ActionObject pointer_down_action { input_id, Web::WebDriver::InputSourceType::Pointer, Web::WebDriver::ActionObject::Subtype::PointerDown };
@@ -1916,7 +1916,7 @@ Web::WebDriver::Response WebDriverConnection::element_send_keys_impl(String cons
         // 5. Verify that each file given by the user exists. If any do not, return error with error code invalid argument.
         // 6. Complete implementation specific steps equivalent to setting the selected files on the input element. If
         //    multiple is true files are be appended to element's selected files.
-        auto create_selected_file = [](auto const& path) -> ErrorOr<Web::HTML::SelectedFile> {
+        auto create_selected_file = [](StringView path) -> ErrorOr<Web::HTML::SelectedFile> {
             auto file = TRY(Core::File::open(path, Core::File::OpenMode::Read));
             auto contents = TRY(file->read_until_eof());
 
@@ -2052,7 +2052,7 @@ Messages::WebDriverClient::GetSourceResponse WebDriverConnection::get_source()
             source = MUST(document->serialize_fragment(Web::DOMParsing::RequireWellFormed::No));
 
         // 5. Return success with data source.
-        async_driver_execution_complete({ source->to_byte_string() });
+        async_driver_execution_complete({ source });
     });
 
     return JsonValue {};
@@ -2451,9 +2451,7 @@ Messages::WebDriverClient::GetAlertTextResponse WebDriverConnection::get_alert_t
     auto const& message = current_browsing_context().page().pending_dialog_text();
 
     // 4. Return success with data message.
-    if (message.has_value())
-        return message->to_byte_string();
-    return JsonValue {};
+    return message;
 }
 
 // 16.4 Send Alert Text, https://w3c.github.io/webdriver/#send-alert-text

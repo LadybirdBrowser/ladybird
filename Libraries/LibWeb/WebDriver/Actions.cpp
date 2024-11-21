@@ -26,7 +26,7 @@
 
 namespace Web::WebDriver {
 
-static Optional<ActionObject::Subtype> action_object_subtype_from_string(StringView action_subtype)
+static Optional<ActionObject::Subtype> action_object_subtype_from_string(String const& action_subtype)
 {
     if (action_subtype == "pause"sv)
         return ActionObject::Subtype::Pause;

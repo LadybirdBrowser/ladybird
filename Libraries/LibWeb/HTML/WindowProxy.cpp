@@ -119,7 +119,7 @@ JS::ThrowCompletionOr<Optional<JS::PropertyDescriptor>> WindowProxy::internal_ge
     auto navigable_property_set = m_window->document_tree_child_navigable_target_name_property_set();
     auto property_key_string = property_key.to_string();
 
-    if (auto navigable = navigable_property_set.get(property_key_string.view()); navigable.has_value()) {
+    if (auto navigable = navigable_property_set.get(property_key_string); navigable.has_value()) {
         // 1. Let value be the active WindowProxy of the named object of W with the name P.
         auto value = navigable.value()->active_window_proxy();
 

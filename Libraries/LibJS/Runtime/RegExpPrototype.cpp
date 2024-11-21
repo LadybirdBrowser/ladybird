@@ -99,7 +99,7 @@ static Value get_match_index_par(VM& vm, Utf16View const& string, Match const& m
 }
 
 // 22.2.7.8 MakeMatchIndicesIndexPairArray ( S, indices, groupNames, hasGroups ), https://tc39.es/ecma262/#sec-makematchindicesindexpairarray
-static Value make_match_indices_index_pair_array(VM& vm, Utf16View const& string, Vector<Optional<Match>> const& indices, HashMap<DeprecatedFlyString, Match> const& group_names, bool has_groups)
+static Value make_match_indices_index_pair_array(VM& vm, Utf16View const& string, Vector<Optional<Match>> const& indices, HashMap<FlyString, Match> const& group_names, bool has_groups)
 {
     // Note: This implementation differs from the spec, but has the same behavior.
     //
@@ -186,7 +186,7 @@ static ThrowCompletionOr<Value> regexp_builtin_exec(VM& vm, RegExpObject& regexp
     // 5. If flags contains "y", let sticky be true; else let sticky be false.
     bool sticky = regex.options().has_flag_set(ECMAScriptFlags::Sticky);
     // 6. If flags contains "d", let hasIndices be true, else let hasIndices be false.
-    bool has_indices = regexp_object.flags().find('d').has_value();
+    bool has_indices = regexp_object.flags().contains('d');
 
     // 7. If global is false and sticky is false, set lastIndex to 0.
     if (!global && !sticky)
@@ -273,7 +273,7 @@ static ThrowCompletionOr<Value> regexp_builtin_exec(VM& vm, RegExpObject& regexp
     Vector<Utf16String> captured_values;
 
     // 26. Let groupNames be a new empty List.
-    HashMap<DeprecatedFlyString, Match> group_names;
+    HashMap<FlyString, Match> group_names;
 
     // 27. Add match as the last element of indices.
     indices.append(move(match_indices));
@@ -330,7 +330,7 @@ static ThrowCompletionOr<Value> regexp_builtin_exec(VM& vm, RegExpObject& regexp
         // e. If the ith capture of R was defined with a GroupName, then
         if (capture.capture_group_name.has_value()) {
             // i. Let s be the CapturingGroupName of the corresponding RegExpIdentifierName.
-            auto group_name = capture.capture_group_name.release_value().to_string().to_byte_string();
+            auto group_name = capture.capture_group_name.release_value();
 
             // ii. Perform ! CreateDataPropertyOrThrow(groups, s, capturedValue).
             MUST(groups_object->create_data_property_or_throw(group_name, captured_value));

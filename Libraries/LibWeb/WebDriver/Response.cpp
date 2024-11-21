@@ -58,8 +58,8 @@ ErrorOr<Web::WebDriver::Response> IPC::decode(Decoder& decoder)
 
     case ResponseType::Error: {
         auto http_status = TRY(decoder.decode<unsigned>());
-        auto error = TRY(decoder.decode<ByteString>());
-        auto message = TRY(decoder.decode<ByteString>());
+        auto error = TRY(decoder.decode<String>());
+        auto message = TRY(decoder.decode<String>());
         auto data = TRY(decoder.decode<Optional<JsonValue>>());
 
         return Web::WebDriver::Error { http_status, move(error), move(message), move(data) };

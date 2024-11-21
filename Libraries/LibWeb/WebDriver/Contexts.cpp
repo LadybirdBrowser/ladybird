@@ -14,10 +14,10 @@
 namespace Web::WebDriver {
 
 // https://w3c.github.io/webdriver/#dfn-web-window-identifier
-static ByteString const WEB_WINDOW_IDENTIFIER = "window-fcc6-11e5-b4f8-330a88ab9d7f"sv;
+static FlyString const WEB_WINDOW_IDENTIFIER = "window-fcc6-11e5-b4f8-330a88ab9d7f"_fly_string;
 
 // https://w3c.github.io/webdriver/#dfn-web-frame-identifier
-static ByteString const WEB_FRAME_IDENTIFIER = "frame-075b-4da1-b6ba-e579c2d3230a"sv;
+static FlyString const WEB_FRAME_IDENTIFIER = "frame-075b-4da1-b6ba-e579c2d3230a"_fly_string;
 
 // https://w3c.github.io/webdriver/#dfn-windowproxy-reference-object
 JsonObject window_proxy_reference_object(HTML::WindowProxy const& window)
@@ -39,7 +39,7 @@ JsonObject window_proxy_reference_object(HTML::WindowProxy const& window)
 
     // identifier
     //    Associated window handle of the window’s browsing context.
-    object.set(identifier, navigable->traversable_navigable()->window_handle().to_byte_string());
+    object.set(identifier, navigable->traversable_navigable()->window_handle());
 
     return object;
 }

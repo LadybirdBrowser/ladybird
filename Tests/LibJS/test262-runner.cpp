@@ -33,7 +33,7 @@
 #    include <sys/prctl.h>
 #endif
 
-static ByteString s_current_test = "";
+static String s_current_test = ""_string;
 static bool s_parse_only = false;
 static ByteString s_harness_file_directory;
 static bool s_automatic_harness_detection_mode = false;
@@ -116,7 +116,7 @@ static Result<void, TestError> run_program(InterpreterT& interpreter, ScriptOrMo
 
 static HashMap<ByteString, ByteString> s_cached_harness_files;
 
-static Result<StringView, TestError> read_harness_file(StringView harness_file)
+static Result<StringView, TestError> read_harness_file(ByteString harness_file)
 {
     auto cache = s_cached_harness_files.find(harness_file);
     if (cache == s_cached_harness_files.end()) {
@@ -126,7 +126,7 @@ static Result<StringView, TestError> read_harness_file(StringView harness_file)
                 NegativePhase::Harness,
                 "filesystem"_fly_string,
                 MUST(String::formatted("Could not open file: {}", harness_file)),
-                harness_file
+                move(harness_file)
             };
         }
 
@@ -136,7 +136,7 @@ static Result<StringView, TestError> read_harness_file(StringView harness_file)
                 NegativePhase::Harness,
                 "filesystem"_fly_string,
                 MUST(String::formatted("Could not read file: {}", harness_file)),
-                harness_file
+                move(harness_file)
             };
         }
 
@@ -148,7 +148,7 @@ static Result<StringView, TestError> read_harness_file(StringView harness_file)
     return cache->value.view();
 }
 
-static Result<GC::Ref<JS::Script>, TestError> parse_harness_files(JS::Realm& realm, StringView harness_file)
+static Result<GC::Ref<JS::Script>, TestError> parse_harness_files(JS::Realm& realm, ByteString harness_file)
 {
     auto source_or_error = read_harness_file(harness_file);
     if (source_or_error.is_error())
@@ -181,7 +181,7 @@ static constexpr auto assert_harness_file = "assert.js"sv;
 static constexpr auto async_include = "doneprintHandle.js"sv;
 
 struct TestMetadata {
-    Vector<StringView> harness_files { sta_harness_file, assert_harness_file };
+    Vector<ByteString> harness_files { sta_harness_file, assert_harness_file };
 
     SkipTest skip_test { SkipTest::No };
 
@@ -251,14 +251,14 @@ static Result<void, TestError> run_test(StringView source, StringView filepath, 
     return run_program(vm->bytecode_interpreter(), program_or_error.value());
 }
 
-static Result<TestMetadata, ByteString> extract_metadata(StringView source)
+static Result<TestMetadata, String> extract_metadata(StringView source)
 {
     auto lines = source.lines();
 
     TestMetadata metadata;
 
     bool parsing_negative = false;
-    ByteString failed_message;
+    String failed_message;
 
     auto parse_list = [&](StringView line) {
         auto start = line.find('[');
@@ -269,7 +269,7 @@ static Result<TestMetadata, ByteString> extract_metadata(StringView source)
 
         auto end = line.find_last(']');
         if (!end.has_value() || end.value() <= start.value()) {
-            failed_message = ByteString::formatted("Can't parse list in '{}'", line);
+            failed_message = MUST(String::formatted("Can't parse list in '{}'", line));
             return items;
         }
 
@@ -282,7 +282,7 @@ static Result<TestMetadata, ByteString> extract_metadata(StringView source)
     auto second_word = [&](StringView line) {
         auto separator = line.find(' ');
         if (!separator.has_value() || separator.value() >= (line.length() - 1u)) {
-            failed_message = ByteString::formatted("Can't parse value after space in '{}'", line);
+            failed_message = MUST(String::formatted("Can't parse value after space in '{}'", line));
             return ""sv;
         }
         return line.substring_view(separator.value() + 1);
@@ -312,7 +312,7 @@ static Result<TestMetadata, ByteString> extract_metadata(StringView source)
                 continue;
             } else {
                 if (include_list.is_empty()) {
-                    failed_message = "Supposed to parse a list but found no entries";
+                    failed_message = "Supposed to parse a list but found no entries"_string;
                     break;
                 }
 
@@ -336,18 +336,18 @@ static Result<TestMetadata, ByteString> extract_metadata(StringView source)
                     metadata.phase = NegativePhase::Runtime;
                 } else {
                     has_phase = false;
-                    failed_message = ByteString::formatted("Unknown negative phase: {}", phase);
+                    failed_message = MUST(String::formatted("Unknown negative phase: {}", phase));
                     break;
                 }
             } else if (line.starts_with("type:"sv)) {
                 metadata.type = second_word(line);
             } else {
                 if (!has_phase) {
-                    failed_message = "Failed to find phase in negative attributes";
+                    failed_message = "Failed to find phase in negative attributes"_string;
                     break;
                 }
                 if (metadata.type.is_empty()) {
-                    failed_message = "Failed to find type in negative attributes";
+                    failed_message = "Failed to find type in negative attributes"_string;
                     break;
                 }
 
@@ -393,7 +393,7 @@ static Result<TestMetadata, ByteString> extract_metadata(StringView source)
     }
 
     if (failed_message.is_empty())
-        failed_message = ByteString::formatted("Never reached end of comment '---*/'");
+        failed_message = MUST(String::formatted("Never reached end of comment '---*/'"));
 
     return failed_message;
 }
@@ -468,7 +468,7 @@ static bool verify_test(Result<void, TestError>& result, TestMetadata const& met
 
     JsonObject expected_error_object;
     expected_error_object.set("phase", phase_to_string(metadata.phase));
-    expected_error_object.set("type", metadata.type.to_byte_string());
+    expected_error_object.set("type", metadata.type);
 
     expected_error = expected_error_object;
 
@@ -654,10 +654,10 @@ int main(int argc, char** argv)
     auto collect_output = [&] {
         fflush(stdout);
         auto nread = read(stdout_pipe[0], buffer, BUFFER_SIZE);
-        Optional<ByteString> value;
+        Optional<String> value;
 
         if (nread > 0) {
-            value = ByteString { buffer, static_cast<size_t>(nread) };
+            value = MUST(String::from_utf8(StringView { buffer, static_cast<size_t>(nread) }));
             while (nread > 0) {
                 nread = read(stdout_pipe[0], buffer, BUFFER_SIZE);
             }
@@ -692,7 +692,7 @@ int main(int argc, char** argv)
 
         auto& path = path_or_error.value();
 
-        s_current_test = path;
+        s_current_test = MUST(String::from_utf8(path));
 
         if (s_automatic_harness_detection_mode) {
             if (!extract_harness_directory(path))
@@ -766,7 +766,7 @@ int main(int argc, char** argv)
                 result_object.set("output", *first_output);
 
             passed = verify_test(result, metadata, result_object);
-            auto output = first_output.value_or("");
+            auto output = first_output.value_or(""_string);
             if (metadata.is_async && !s_parse_only) {
                 if (!output.contains("Test262:AsyncTestComplete"sv) || output.contains("Test262:AsyncTestFailure"sv)) {
                     result_object.set("async_fail", true);
@@ -790,7 +790,7 @@ int main(int argc, char** argv)
                 result_object.set("strict_output", *first_output);
 
             passed = verify_test(result, metadata, result_object);
-            auto output = first_output.value_or("");
+            auto output = first_output.value_or(""_string);
 
             if (metadata.is_async && !s_parse_only) {
                 if (!output.contains("Test262:AsyncTestComplete"sv) || output.contains("Test262:AsyncTestFailure"sv)) {
@@ -807,10 +807,10 @@ int main(int argc, char** argv)
             result_object.remove("strict_mode"sv);
 
         if (!result_object.has("result"sv))
-            result_object.set("result"sv, passed ? "passed"sv : "failed"sv);
+            result_object.set("result", passed ? "passed"sv : "failed"sv);
     }
 
-    s_current_test = "";
+    s_current_test = String {};
     outln(saved_stdout_fd, "DONE {}", count);
 
     // After this point we have already written our output so pretend everything is fine if we get an error.

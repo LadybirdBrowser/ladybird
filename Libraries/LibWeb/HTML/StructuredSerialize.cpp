@@ -520,8 +520,8 @@ WebIDL::ExceptionOr<void> serialize_reg_exp_object(JS::VM& vm, SerializationReco
     // Note: A Regex<ECMA262> object is perfectly happy to be reconstructed with just the source+flags
     //       In the future, we could optimize the work being done on the deserialize step by serializing
     //       more of the internal state (the [[RegExpMatcher]] internal slot)
-    TRY(serialize_string(vm, serialized, TRY_OR_THROW_OOM(vm, String::from_byte_string(regexp_object.pattern()))));
-    TRY(serialize_string(vm, serialized, TRY_OR_THROW_OOM(vm, String::from_byte_string(regexp_object.flags()))));
+    TRY(serialize_string(vm, serialized, regexp_object.pattern()));
+    TRY(serialize_string(vm, serialized, regexp_object.flags()));
     return {};
 }
 
@@ -546,11 +546,6 @@ WebIDL::ExceptionOr<void> serialize_bytes(JS::VM& vm, Vector<u32>& vector, Reado
     return {};
 }
 
-WebIDL::ExceptionOr<void> serialize_string(JS::VM& vm, Vector<u32>& vector, DeprecatedFlyString const& string)
-{
-    return serialize_bytes(vm, vector, string.view().bytes());
-}
-
 WebIDL::ExceptionOr<void> serialize_string(JS::VM& vm, Vector<u32>& vector, String const& string)
 {
     return serialize_bytes(vm, vector, { string.code_points().bytes(), string.code_points().byte_length() });
@@ -561,6 +556,11 @@ WebIDL::ExceptionOr<void> serialize_string(JS::VM& vm, Vector<u32>& vector, JS::
     auto string = primitive_string.utf8_string();
     TRY(serialize_string(vm, vector, string));
     return {};
+}
+
+WebIDL::ExceptionOr<void> serialize_string(JS::VM& vm, Vector<u32>& vector, StringView string_view)
+{
+    return serialize_bytes(vm, vector, string_view.bytes());
 }
 
 WebIDL::ExceptionOr<void> serialize_array_buffer(JS::VM& vm, Vector<u32>& vector, JS::ArrayBuffer const& array_buffer, bool for_storage)
@@ -666,8 +666,8 @@ WebIDL::ExceptionOr<void> serialize_viewed_array_buffer(JS::VM& vm, Vector<u32>&
         //    [[ArrayBufferSerialized]]: bufferSerialized, [[ByteLength]]: value.[[ByteLength]],
         //    [[ByteOffset]]: value.[[ByteOffset]], [[ArrayLength]]: value.[[ArrayLength]] }.
         serialize_enum(vector, ValueTag::ArrayBufferView);
-        vector.extend(move(buffer_serialized));                 // [[ArrayBufferSerialized]]
-        TRY(serialize_string(vm, vector, view.element_name())); // [[Constructor]]
+        vector.extend(move(buffer_serialized));                             // [[ArrayBufferSerialized]]
+        TRY(serialize_string(vm, vector, view.element_name().to_string())); // [[Constructor]]
         serialize_primitive_type(vector, JS::typed_array_byte_length(view_record));
         serialize_primitive_type(vector, view.byte_offset());
         serialize_primitive_type(vector, JS::typed_array_length(view_record));
@@ -957,7 +957,7 @@ public:
                     auto deserialized_value = TRY(deserialize());
 
                     // 2. Let result be ! CreateDataProperty(value, entry.[[Key]], deserializedValue).
-                    auto result = MUST(object.create_data_property(key.to_byte_string(), deserialized_value));
+                    auto result = MUST(object.create_data_property(FlyString(key), deserialized_value));
 
                     // 3. Assert: result is true.
                     VERIFY(result);

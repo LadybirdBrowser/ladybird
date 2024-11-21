@@ -21,7 +21,7 @@ class SourceGenerator {
     AK_MAKE_NONCOPYABLE(SourceGenerator);
 
 public:
-    using MappingType = HashMap<StringView, String>;
+    using MappingType = HashMap<FlyString, String>;
 
     explicit SourceGenerator(StringBuilder& builder, char opening = '@', char closing = '@', char escape = '\\')
         : m_builder(builder)
@@ -48,13 +48,18 @@ public:
         return SourceGenerator { m_builder, MUST(m_mapping.clone()), m_opening, m_closing };
     }
 
-    void set(StringView key, String value)
+    void set(FlyString key, String value)
     {
-        if (key.contains(m_opening) || key.contains(m_closing)) {
+        if (key.bytes_as_string_view().contains(m_opening) || key.bytes_as_string_view().contains(m_closing)) {
             warnln("SourceGenerator keys cannot contain the opening/closing delimiters `{}` and `{}`. (Keys are only wrapped in these when using them, not when setting them.)", m_opening, m_closing);
             VERIFY_NOT_REACHED();
         }
         m_mapping.set(key, move(value));
+    }
+
+    void set(StringView key, String value)
+    {
+        set(MUST(FlyString::from_utf8(key)), move(value));
     }
 
     void set(StringView key, FlyString const& value)

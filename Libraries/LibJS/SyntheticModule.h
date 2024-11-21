@@ -20,19 +20,19 @@ public:
 
     static GC::Ref<SyntheticModule> create_default_export_synthetic_module(Value default_export, Realm& realm, StringView filename);
 
-    ThrowCompletionOr<void> set_synthetic_module_export(DeprecatedFlyString const& export_name, Value export_value);
+    ThrowCompletionOr<void> set_synthetic_module_export(FlyString const& export_name, Value export_value);
 
     virtual ThrowCompletionOr<void> link(VM& vm) override;
     virtual ThrowCompletionOr<Promise*> evaluate(VM& vm) override;
-    virtual ThrowCompletionOr<Vector<DeprecatedFlyString>> get_exported_names(VM& vm, Vector<Module*> export_star_set) override;
-    virtual ThrowCompletionOr<ResolvedBinding> resolve_export(VM& vm, DeprecatedFlyString const& export_name, Vector<ResolvedBinding> resolve_set) override;
+    virtual ThrowCompletionOr<Vector<FlyString>> get_exported_names(VM& vm, Vector<Module*> export_star_set) override;
+    virtual ThrowCompletionOr<ResolvedBinding> resolve_export(VM& vm, FlyString const& export_name, Vector<ResolvedBinding> resolve_set) override;
     virtual PromiseCapability& load_requested_modules(GC::Ptr<GraphLoadingState::HostDefined>) override;
 
 private:
-    SyntheticModule(Vector<DeprecatedFlyString> export_names, EvaluationFunction evaluation_steps, Realm& realm, StringView filename);
+    SyntheticModule(Vector<FlyString> export_names, EvaluationFunction evaluation_steps, Realm& realm, StringView filename);
 
-    Vector<DeprecatedFlyString> m_export_names; // [[ExportNames]]
-    EvaluationFunction m_evaluation_steps;      // [[EvaluationSteps]]
+    Vector<FlyString> m_export_names;      // [[ExportNames]]
+    EvaluationFunction m_evaluation_steps; // [[EvaluationSteps]]
 };
 
 ThrowCompletionOr<GC::Ref<Module>> parse_json_module(StringView source_text, Realm& realm, StringView filename);

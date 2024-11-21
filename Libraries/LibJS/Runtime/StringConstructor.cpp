@@ -167,7 +167,7 @@ JS_DEFINE_NATIVE_FUNCTION(StringConstructor::raw)
     // 7. Let nextIndex be 0.
     // 8. Repeat,
     for (size_t i = 0; i < literal_count; ++i) {
-        auto next_key = ByteString::number(i);
+        auto next_key = FlyString(String::number(i));
 
         // a. Let nextLiteralVal be ? Get(literals, ! ToString(𝔽(nextIndex))).
         auto next_literal_value = TRY(literals->get(next_key));

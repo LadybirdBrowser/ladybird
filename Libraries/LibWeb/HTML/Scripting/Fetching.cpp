@@ -61,10 +61,10 @@ ScriptFetchOptions default_script_fetch_options()
 }
 
 // https://html.spec.whatwg.org/multipage/webappapis.html#module-type-from-module-request
-ByteString module_type_from_module_request(JS::ModuleRequest const& module_request)
+FlyString module_type_from_module_request(JS::ModuleRequest const& module_request)
 {
     // 1. Let moduleType be "javascript".
-    ByteString module_type = "javascript"sv;
+    FlyString module_type = "javascript"_fly_string;
 
     // 2. If moduleRequest.[[Attributes]] has a Record entry such that entry.[[Key]] is "type", then:
     for (auto const& entry : module_request.attributes) {
@@ -73,7 +73,7 @@ ByteString module_type_from_module_request(JS::ModuleRequest const& module_reque
 
         // 1. If entry.[[Value]] is "javascript", then set moduleType to null.
         if (entry.value == "javascript"sv)
-            module_type = nullptr;
+            module_type = FlyString {};
         // 2. Otherwise, set moduleType to entry.[[Value]].
         else
             module_type = entry.value;
@@ -85,7 +85,7 @@ ByteString module_type_from_module_request(JS::ModuleRequest const& module_reque
 
 // https://html.spec.whatwg.org/multipage/webappapis.html#resolve-a-module-specifier
 // https://whatpr.org/html/9893/webappapis.html#resolve-a-module-specifier
-WebIDL::ExceptionOr<URL::URL> resolve_module_specifier(Optional<Script&> referring_script, ByteString const& specifier)
+WebIDL::ExceptionOr<URL::URL> resolve_module_specifier(Optional<Script&> referring_script, FlyString const& specifier)
 {
     auto& vm = Bindings::main_thread_vm();
 
@@ -127,7 +127,7 @@ WebIDL::ExceptionOr<URL::URL> resolve_module_specifier(Optional<Script&> referri
     auto as_url = resolve_url_like_module_specifier(specifier, *base_url);
 
     // 8. Let normalizedSpecifier be the serialization of asURL, if asURL is non-null; otherwise, specifier.
-    auto normalized_specifier = as_url.has_value() ? as_url->serialize().to_byte_string() : specifier;
+    auto normalized_specifier = as_url.has_value() ? as_url->serialize() : specifier;
 
     // 9. For each scopePrefix → scopeImports of importMap's scopes:
     for (auto const& entry : import_map.scopes()) {
@@ -163,7 +163,7 @@ WebIDL::ExceptionOr<URL::URL> resolve_module_specifier(Optional<Script&> referri
 }
 
 // https://html.spec.whatwg.org/multipage/webappapis.html#resolving-an-imports-match
-WebIDL::ExceptionOr<Optional<URL::URL>> resolve_imports_match(ByteString const& normalized_specifier, Optional<URL::URL> as_url, ModuleSpecifierMap const& specifier_map)
+WebIDL::ExceptionOr<Optional<URL::URL>> resolve_imports_match(FlyString const& normalized_specifier, Optional<URL::URL> as_url, ModuleSpecifierMap const& specifier_map)
 {
     // 1. For each specifierKey → resolutionResult of specifierMap:
     for (auto const& [specifier_key, resolution_result] : specifier_map) {
@@ -183,7 +183,7 @@ WebIDL::ExceptionOr<Optional<URL::URL>> resolve_imports_match(ByteString const& 
         // 2. If all of the following are true:
         if (
             // - specifierKey ends with U+002F (/);
-            specifier_key.ends_with("/"sv) &&
+            specifier_key.ends_with_bytes("/"sv) &&
             // - specifierKey is a code unit prefix of normalizedSpecifier; and
             Infra::is_code_unit_prefix(specifier_key, normalized_specifier) &&
             // - either asURL is null, or asURL is special,
@@ -199,7 +199,7 @@ WebIDL::ExceptionOr<Optional<URL::URL>> resolve_imports_match(ByteString const& 
 
             // 3. Let afterPrefix be the portion of normalizedSpecifier after the initial specifierKey prefix.
             // FIXME: Clarify if this is meant by the portion after the initial specifierKey prefix.
-            auto after_prefix = normalized_specifier.substring(specifier_key.length());
+            auto after_prefix = normalized_specifier.bytes_as_string_view().substring_view(specifier_key.bytes_as_string_view().length());
 
             // 4. Assert: resolutionResult, serialized, ends with U+002F (/), as enforced during parsing.
             VERIFY(resolution_result->serialize().ends_with('/'));
@@ -230,8 +230,10 @@ WebIDL::ExceptionOr<Optional<URL::URL>> resolve_imports_match(ByteString const& 
 }
 
 // https://html.spec.whatwg.org/multipage/webappapis.html#resolving-a-url-like-module-specifier
-Optional<URL::URL> resolve_url_like_module_specifier(ByteString const& specifier, URL::URL const& base_url)
+Optional<URL::URL> resolve_url_like_module_specifier(FlyString const& specifier_, URL::URL const& base_url)
 {
+    auto specifier = specifier_.bytes_as_string_view();
+
     // 1. If specifier starts with "/", "./", or "../", then:
     if (specifier.starts_with("/"sv) || specifier.starts_with("./"sv) || specifier.starts_with("../"sv)) {
         // 1. Let url be the result of URL parsing specifier with baseURL.
@@ -717,7 +719,7 @@ void fetch_descendants_of_a_module_script(JS::Realm& realm, JavaScriptModuleScri
 }
 
 // https://html.spec.whatwg.org/multipage/webappapis.html#fetch-destination-from-module-type
-Fetch::Infrastructure::Request::Destination fetch_destination_from_module_type(Fetch::Infrastructure::Request::Destination default_destination, ByteString const& module_type)
+Fetch::Infrastructure::Request::Destination fetch_destination_from_module_type(Fetch::Infrastructure::Request::Destination default_destination, FlyString const& module_type)
 {
     // 1. If moduleType is "json", then return "json".
     if (module_type == "json"sv)
@@ -746,7 +748,7 @@ void fetch_single_module_script(JS::Realm& realm,
     OnFetchScriptComplete on_complete)
 {
     // 1. Let moduleType be "javascript".
-    ByteString module_type = "javascript"sv;
+    FlyString module_type = "javascript"_fly_string;
 
     // 2. If moduleRequest was given, then set moduleType to the result of running the module type from module request steps given moduleRequest.
     if (module_request.has_value())

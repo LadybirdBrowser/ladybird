@@ -9,6 +9,7 @@
 #include <AK/Badge.h>
 #include <AK/ByteString.h>
 #include <AK/DistinctNumeric.h>
+#include <AK/FlyString.h>
 #include <AK/LEB128.h>
 #include <AK/Result.h>
 #include <AK/String.h>
@@ -534,7 +535,7 @@ private:
 
 class CustomSection {
 public:
-    CustomSection(ByteString name, ByteBuffer contents)
+    CustomSection(FlyString name, ByteBuffer contents)
         : m_name(move(name))
         , m_contents(move(contents))
     {
@@ -546,7 +547,7 @@ public:
     static ParseResult<CustomSection> parse(Stream& stream);
 
 private:
-    ByteString m_name;
+    FlyString m_name;
     ByteBuffer m_contents;
 };
 
@@ -572,7 +573,7 @@ public:
     class Import {
     public:
         using ImportDesc = Variant<TypeIndex, TableType, MemoryType, GlobalType, FunctionType>;
-        Import(ByteString module, ByteString name, ImportDesc description)
+        Import(FlyString module, FlyString name, ImportDesc description)
             : m_module(move(module))
             , m_name(move(name))
             , m_description(move(description))
@@ -593,8 +594,8 @@ public:
             return Import { module, name, result };
         }
 
-        ByteString m_module;
-        ByteString m_name;
+        FlyString m_module;
+        FlyString m_name;
         ImportDesc m_description;
     };
 
@@ -755,7 +756,7 @@ private:
 public:
     class Export {
     public:
-        explicit Export(ByteString name, ExportDesc description)
+        explicit Export(FlyString name, ExportDesc description)
             : m_name(move(name))
             , m_description(move(description))
         {
@@ -767,7 +768,7 @@ public:
         static ParseResult<Export> parse(Stream& stream);
 
     private:
-        ByteString m_name;
+        FlyString m_name;
         ExportDesc m_description;
     };
 

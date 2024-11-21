@@ -523,7 +523,7 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
     bool export_all_imports = false;
     bool shell_mode = false;
     bool wasi = false;
-    ByteString exported_function_to_execute;
+    String exported_function_to_execute;
     Vector<ParsedValue> values_to_push;
     Vector<ByteString> modules_to_link_in;
     Vector<StringView> args_if_wasi;

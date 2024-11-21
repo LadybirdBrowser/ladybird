@@ -87,7 +87,7 @@ ThrowCompletionOr<void> copy_name_and_length(VM& vm, FunctionObject& function, F
         target_name = PrimitiveString::create(vm, String {});
 
     // 8. Perform SetFunctionName(F, targetName, prefix).
-    function.set_function_name({ target_name.as_string().byte_string() }, move(prefix));
+    function.set_function_name({ FlyString(target_name.as_string().utf8_string()) }, move(prefix));
 
     return {};
 }
@@ -147,7 +147,7 @@ ThrowCompletionOr<Value> perform_shadow_realm_eval(VM& vm, StringView source_tex
     // 11. If result.[[Type]] is normal, then
     if (!eval_result.is_throw_completion()) {
         // a. Set result to the result of evaluating body.
-        auto maybe_executable = Bytecode::compile(vm, program, FunctionKind::Normal, "ShadowRealmEval"sv);
+        auto maybe_executable = Bytecode::compile(vm, program, FunctionKind::Normal, "ShadowRealmEval"_fly_string);
         if (maybe_executable.is_error()) {
             result = maybe_executable.release_error();
         } else {
@@ -190,7 +190,7 @@ ThrowCompletionOr<Value> perform_shadow_realm_eval(VM& vm, StringView source_tex
 }
 
 // 3.1.4 ShadowRealmImportValue ( specifierString: a String, exportNameString: a String, callerRealm: a Realm Record, evalRealm: a Realm Record, evalContext: an execution context, ), https://tc39.es/proposal-shadowrealm/#sec-shadowrealmimportvalue
-ThrowCompletionOr<Value> shadow_realm_import_value(VM& vm, ByteString specifier_string, ByteString export_name_string, Realm& caller_realm, Realm& eval_realm)
+ThrowCompletionOr<Value> shadow_realm_import_value(VM& vm, FlyString specifier_string, FlyString const& export_name_string, Realm& caller_realm, Realm& eval_realm)
 {
     auto& realm = *vm.current_realm();
 

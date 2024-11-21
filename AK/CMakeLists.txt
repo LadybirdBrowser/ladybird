@@ -5,7 +5,6 @@ set(SOURCES
     ConstrainedStream.cpp
     CountingStream.cpp
     DOSPackedTime.cpp
-    DeprecatedFlyString.cpp
     ByteString.cpp
     Error.cpp
     FloatingPointStringConversions.cpp

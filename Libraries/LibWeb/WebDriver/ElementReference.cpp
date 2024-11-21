@@ -25,16 +25,16 @@
 namespace Web::WebDriver {
 
 // https://w3c.github.io/webdriver/#dfn-web-element-identifier
-static ByteString const web_element_identifier = "element-6066-11e4-a52e-4f735466cecf"sv;
+static FlyString const web_element_identifier = "element-6066-11e4-a52e-4f735466cecf"_fly_string;
 
 // https://w3c.github.io/webdriver/#dfn-shadow-root-identifier
-static ByteString const shadow_root_identifier = "shadow-6066-11e4-a52e-4f735466cecf"sv;
+static FlyString const shadow_root_identifier = "shadow-6066-11e4-a52e-4f735466cecf"_fly_string;
 
 // https://w3c.github.io/webdriver/#dfn-browsing-context-group-node-map
-static HashMap<GC::RawPtr<HTML::BrowsingContextGroup const>, HashTable<ByteString>> browsing_context_group_node_map;
+static HashMap<GC::RawPtr<HTML::BrowsingContextGroup const>, HashTable<FlyString>> browsing_context_group_node_map;
 
 // https://w3c.github.io/webdriver/#dfn-navigable-seen-nodes-map
-static HashMap<GC::RawPtr<HTML::Navigable>, HashTable<ByteString>> navigable_seen_nodes_map;
+static HashMap<GC::RawPtr<HTML::Navigable>, HashTable<FlyString>> navigable_seen_nodes_map;
 
 // https://w3c.github.io/webdriver/#dfn-get-a-node
 GC::Ptr<Web::DOM::Node> get_node(HTML::BrowsingContext const& browsing_context, StringView reference)
@@ -62,7 +62,7 @@ GC::Ptr<Web::DOM::Node> get_node(HTML::BrowsingContext const& browsing_context, 
 }
 
 // https://w3c.github.io/webdriver/#dfn-get-or-create-a-node-reference
-ByteString get_or_create_a_node_reference(HTML::BrowsingContext const& browsing_context, Web::DOM::Node const& node)
+String get_or_create_a_node_reference(HTML::BrowsingContext const& browsing_context, Web::DOM::Node const& node)
 {
     // 1. Let browsing context group node map be session's browsing context group node map.
     // 2. Let browsing context group be browsing context's browsing context group.
@@ -73,7 +73,7 @@ ByteString get_or_create_a_node_reference(HTML::BrowsingContext const& browsing_
     // 4. Let node id map be browsing context group node map[browsing context group].
     auto& node_id_map = browsing_context_group_node_map.ensure(browsing_context_group);
 
-    auto node_id = ByteString::number(node.unique_id().value());
+    auto node_id = String::number(node.unique_id().value());
 
     // 5. If node id map does not contain node:
     if (!node_id_map.contains(node_id)) {
@@ -111,7 +111,7 @@ bool node_reference_is_known(HTML::BrowsingContext const& browsing_context, Stri
 }
 
 // https://w3c.github.io/webdriver/#dfn-get-or-create-a-web-element-reference
-ByteString get_or_create_a_web_element_reference(HTML::BrowsingContext const& browsing_context, Web::DOM::Node const& element)
+String get_or_create_a_web_element_reference(HTML::BrowsingContext const& browsing_context, Web::DOM::Node const& element)
 {
     // 1. Assert: element implements Element.
     VERIFY(element.is_element());
@@ -407,7 +407,7 @@ GC::MarkedVector<GC::Ref<Web::DOM::Element>> pointer_interactable_tree(Web::HTML
 }
 
 // https://w3c.github.io/webdriver/#dfn-get-or-create-a-shadow-root-reference
-ByteString get_or_create_a_shadow_root_reference(HTML::BrowsingContext const& browsing_context, Web::DOM::ShadowRoot const& shadow_root)
+String get_or_create_a_shadow_root_reference(HTML::BrowsingContext const& browsing_context, Web::DOM::ShadowRoot const& shadow_root)
 {
     // 1. Assert: element implements ShadowRoot.
     // 2. Return the result of trying to get or create a node reference with session, session's current browsing context,

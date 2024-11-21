@@ -32,7 +32,7 @@ private:
         HashTable<GC::Ptr<Object>> seen_objects;
         ByteString indent { ByteString::empty() };
         ByteString gap;
-        Optional<Vector<ByteString>> property_list;
+        Optional<Vector<FlyString>> property_list;
     };
 
     // Stringify helpers

@@ -17,16 +17,22 @@ class StringData;
 static constexpr size_t MAX_SHORT_STRING_BYTE_COUNT = sizeof(StringData*) - sizeof(u8);
 
 struct ShortString {
+    struct Flag {
+        static constexpr uintptr_t ShortString = 1;
+        static constexpr uintptr_t Auxiliary = 2;
+        static constexpr uintptr_t Count = 2;
+    };
+
     ReadonlyBytes bytes() const;
     size_t byte_count() const;
 
     // NOTE: This is the byte count shifted left 1 step and or'ed with a 1 (the SHORT_STRING_FLAG)
 #if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
-    u8 byte_count_and_short_string_flag { 0 };
+    u8 byte_count_and_flags { 0 };
     u8 storage[MAX_SHORT_STRING_BYTE_COUNT] = { 0 };
 #else
     u8 storage[MAX_SHORT_STRING_BYTE_COUNT] = { 0 };
-    u8 byte_count_and_short_string_flag { 0 };
+    u8 byte_count_and_flags { 0 };
 #endif
 };
 
@@ -34,9 +40,11 @@ static_assert(sizeof(ShortString) == sizeof(StringData*));
 
 class StringBase {
 public:
+    using Flag = ShortString::Flag;
+
     // Creates an empty (zero-length) String.
     constexpr StringBase()
-        : StringBase(ShortString { .byte_count_and_short_string_flag = SHORT_STRING_FLAG })
+        : StringBase(ShortString { .byte_count_and_flags = Flag::ShortString })
     {
     }
 
@@ -46,7 +54,7 @@ public:
         : m_short_string(other.m_short_string)
     {
         other.m_short_string = ShortString {};
-        other.m_short_string.byte_count_and_short_string_flag = SHORT_STRING_FLAG;
+        other.m_short_string.byte_count_and_flags = Flag::ShortString;
     }
 
     StringBase& operator=(StringBase&&);
@@ -61,7 +69,7 @@ public:
     // NOTE: This is primarily interesting to unit tests.
     [[nodiscard]] constexpr bool is_short_string() const
     {
-        return (m_short_string.byte_count_and_short_string_flag & SHORT_STRING_FLAG) != 0;
+        return (m_short_string.byte_count_and_flags & Flag::ShortString) != 0;
     }
 
     // Returns the underlying UTF-8 encoded bytes.
@@ -104,9 +112,6 @@ private:
     friend class ::AK::String;
     friend class ::AK::FlyString;
 
-    // NOTE: If the least significant bit of the pointer is set, this is a short string.
-    static constexpr uintptr_t SHORT_STRING_FLAG = 1;
-
     explicit StringBase(NonnullRefPtr<Detail::StringData const>);
 
     explicit constexpr StringBase(nullptr_t)
@@ -127,7 +132,7 @@ private:
         VERIFY(byte_count <= MAX_SHORT_STRING_BYTE_COUNT);
 
         m_short_string = ShortString {};
-        m_short_string.byte_count_and_short_string_flag = (byte_count << 1) | SHORT_STRING_FLAG;
+        m_short_string.byte_count_and_flags = (byte_count << Flag::Count) | Flag::ShortString;
         return { m_short_string.storage, byte_count };
     }
 

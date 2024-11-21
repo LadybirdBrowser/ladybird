@@ -1688,7 +1688,7 @@ WebIDL::ExceptionOr<GC::Ref<Element>> Document::create_element(String const& a_l
         namespace_ = Namespace::HTML;
 
     // 6. Return the result of creating an element given this, localName, namespace, null, is, and with the synchronous custom elements flag set.
-    return TRY(DOM::create_element(*this, MUST(FlyString::from_deprecated_fly_string(local_name)), move(namespace_), {}, move(is_value), true));
+    return TRY(DOM::create_element(*this, MUST(String::from_byte_string(local_name)), move(namespace_), {}, move(is_value), true));
 }
 
 // https://dom.spec.whatwg.org/#dom-document-createelementns
@@ -2134,7 +2134,7 @@ Document::IndicatedPart Document::determine_the_indicated_part() const
     auto decoded_fragment = URL::percent_decode(*fragment);
 
     // 7. Set potentialIndicatedElement to the result of finding a potential indicated element given document and decodedFragment.
-    potential_indicated_element = find_a_potential_indicated_element(MUST(FlyString::from_deprecated_fly_string(decoded_fragment)));
+    potential_indicated_element = find_a_potential_indicated_element(MUST(String::from_byte_string(decoded_fragment)));
 
     // 8. If potentialIndicatedElement is not null, then return potentialIndicatedElement.
     if (potential_indicated_element)
@@ -4162,7 +4162,7 @@ void Document::start_intersection_observing_a_lazy_loading_element(Element& elem
     // 2. If doc's lazy load intersection observer is null, set it to a new IntersectionObserver instance, initialized as follows:
     if (!m_lazy_load_intersection_observer) {
         // - The callback is these steps, with arguments entries and observer:
-        auto callback = JS::NativeFunction::create(realm, "", [this](JS::VM& vm) -> JS::ThrowCompletionOr<JS::Value> {
+        auto callback = JS::NativeFunction::create(realm, ""_fly_string, [this](JS::VM& vm) -> JS::ThrowCompletionOr<JS::Value> {
             // For each entry in entries using a method of iteration which does not trigger developer-modifiable array accessors or iteration hooks:
             auto& entries = verify_cast<JS::Array>(vm.argument(0).as_object());
             auto entries_length = MUST(MUST(entries.get(vm.names.length)).to_length(vm));

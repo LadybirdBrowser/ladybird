@@ -23,7 +23,7 @@ public:
     virtual ThrowCompletionOr<Value> internal_call(Value this_argument, ReadonlySpan<Value> arguments_list) override;
 
     // FIXME: Remove this (and stop inventing random internal slots that shouldn't exist, jeez)
-    virtual DeprecatedFlyString const& name() const override { return m_wrapped_target_function->name(); }
+    virtual FlyString const& name() const override { return m_wrapped_target_function->name(); }
 
     virtual Realm* realm() const override { return m_realm; }
 

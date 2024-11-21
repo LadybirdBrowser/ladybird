@@ -204,7 +204,7 @@ JS::ThrowCompletionOr<void> CustomElementRegistry::define(String const& name, We
         // 4. For each of the keys callbackName in lifecycleCallbacks, in the order listed in the previous step:
         for (auto const& callback_name : { CustomElementReactionNames::connectedCallback, CustomElementReactionNames::disconnectedCallback, CustomElementReactionNames::adoptedCallback, CustomElementReactionNames::attributeChangedCallback }) {
             // 1. Let callbackValue be ? Get(prototype, callbackName).
-            auto callback_value = TRY(prototype.get(callback_name.to_deprecated_fly_string()));
+            auto callback_value = TRY(prototype.get(callback_name));
 
             // 2. If callbackValue is not undefined, then set the value of the entry in lifecycleCallbacks with key callbackName to the result of converting callbackValue to the Web IDL Function callback type. Rethrow any exceptions from the conversion.
             if (!callback_value.is_undefined()) {
@@ -257,7 +257,7 @@ JS::ThrowCompletionOr<void> CustomElementRegistry::define(String const& name, We
         if (form_associated) {
             for (auto const& callback_name : { CustomElementReactionNames::formAssociatedCallback, CustomElementReactionNames::formResetCallback, CustomElementReactionNames::formDisabledCallback, CustomElementReactionNames::formStateRestoreCallback }) {
                 // 1. Let callbackValue be ? Get(prototype, callbackName).
-                auto callback_value = TRY(prototype.get(callback_name.to_deprecated_fly_string()));
+                auto callback_value = TRY(prototype.get(callback_name));
 
                 // 2. If callbackValue is not undefined, then set the value of the entry in lifecycleCallbacks with key callbackName to the result of converting callbackValue to the Web IDL Function callback type. Rethrow any exceptions from the conversion.
                 if (!callback_value.is_undefined())

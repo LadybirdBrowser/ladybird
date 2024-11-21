@@ -64,7 +64,7 @@ static void print_indent(int indent)
     out("{}", ByteString::repeated(' ', indent * 2));
 }
 
-static void update_function_name(Value value, DeprecatedFlyString const& name)
+static void update_function_name(Value value, FlyString const& name)
 {
     if (!value.is_function())
         return;
@@ -88,15 +88,12 @@ void LabelledStatement::dump(int indent) const
 }
 
 // 15.2.5 Runtime Semantics: InstantiateOrdinaryFunctionExpression, https://tc39.es/ecma262/#sec-runtime-semantics-instantiateordinaryfunctionexpression
-Value FunctionExpression::instantiate_ordinary_function_expression(VM& vm, DeprecatedFlyString given_name) const
+Value FunctionExpression::instantiate_ordinary_function_expression(VM& vm, FlyString const& given_name) const
 {
     auto& realm = *vm.current_realm();
 
-    if (given_name.is_empty())
-        given_name = "";
     auto has_own_name = !name().is_empty();
-
-    auto const used_name = has_own_name ? name() : given_name.view();
+    auto const used_name = has_own_name ? name() : given_name;
     auto environment = GC::Ref { *vm.running_execution_context().lexical_environment };
     if (has_own_name) {
         VERIFY(environment);
@@ -118,10 +115,10 @@ Value FunctionExpression::instantiate_ordinary_function_expression(VM& vm, Depre
     return closure;
 }
 
-Optional<ByteString> CallExpression::expression_string() const
+Optional<String> CallExpression::expression_string() const
 {
     if (is<Identifier>(*m_callee))
-        return static_cast<Identifier const&>(*m_callee).string();
+        return static_cast<Identifier const&>(*m_callee).string().to_string();
 
     if (is<MemberExpression>(*m_callee))
         return static_cast<MemberExpression const&>(*m_callee).to_string_approximation();
@@ -158,23 +155,26 @@ ThrowCompletionOr<ClassElement::ClassValue> ClassMethod::class_element_evaluatio
     auto method_value = Value(&method_function);
     method_function.make_method(target);
 
-    auto set_function_name = [&](ByteString prefix = "") {
+    auto set_function_name = [&](StringView prefix = ""sv) {
         auto name = property_key_or_private_name.visit(
-            [&](PropertyKey const& property_key) -> ByteString {
+            [&](PropertyKey const& property_key) -> FlyString {
                 if (property_key.is_symbol()) {
                     auto description = property_key.as_symbol()->description();
                     if (!description.has_value() || description->is_empty())
-                        return "";
-                    return ByteString::formatted("[{}]", *description);
+                        return ""_fly_string;
+                    return MUST(String::formatted("[{}]", *description));
                 } else {
-                    return property_key.to_string();
+                    return property_key.to_fly_string();
                 }
             },
-            [&](PrivateName const& private_name) -> ByteString {
+            [&](PrivateName const& private_name) -> FlyString {
                 return private_name.description;
             });
 
-        update_function_name(method_value, ByteString::formatted("{}{}{}", prefix, prefix.is_empty() ? "" : " ", name));
+        if (prefix.is_empty())
+            update_function_name(method_value, name);
+        else
+            update_function_name(method_value, MUST(String::formatted("{}{}{}", prefix, " ", name)));
     };
 
     if (property_key_or_private_name.has<PropertyKey>()) {
@@ -185,11 +185,11 @@ ThrowCompletionOr<ClassElement::ClassValue> ClassMethod::class_element_evaluatio
             TRY(target.define_property_or_throw(property_key, { .value = method_value, .writable = true, .enumerable = false, .configurable = true }));
             break;
         case ClassMethod::Kind::Getter:
-            set_function_name("get");
+            set_function_name("get"sv);
             TRY(target.define_property_or_throw(property_key, { .get = &method_function, .enumerable = true, .configurable = true }));
             break;
         case ClassMethod::Kind::Setter:
-            set_function_name("set");
+            set_function_name("set"sv);
             TRY(target.define_property_or_throw(property_key, { .set = &method_function, .enumerable = true, .configurable = true }));
             break;
         default:
@@ -204,10 +204,10 @@ ThrowCompletionOr<ClassElement::ClassValue> ClassMethod::class_element_evaluatio
             set_function_name();
             return ClassValue { PrivateElement { private_name, PrivateElement::Kind::Method, method_value } };
         case Kind::Getter:
-            set_function_name("get");
+            set_function_name("get"sv);
             return ClassValue { PrivateElement { private_name, PrivateElement::Kind::Accessor, Value(Accessor::create(vm, &method_function, nullptr)) } };
         case Kind::Setter:
-            set_function_name("set");
+            set_function_name("set"sv);
             return ClassValue { PrivateElement { private_name, PrivateElement::Kind::Accessor, Value(Accessor::create(vm, nullptr, &method_function)) } };
         default:
             VERIFY_NOT_REACHED();
@@ -231,10 +231,10 @@ ThrowCompletionOr<ClassElement::ClassValue> ClassField::class_element_evaluation
     if (m_initializer) {
         auto copy_initializer = m_initializer;
         auto name = property_key_or_private_name.visit(
-            [&](PropertyKey const& property_key) -> ByteString {
+            [&](PropertyKey const& property_key) -> FlyString {
                 return property_key.is_number() ? property_key.to_string() : property_key.to_string_or_symbol().to_display_string();
             },
-            [&](PrivateName const& private_name) -> ByteString {
+            [&](PrivateName const& private_name) -> FlyString {
                 return private_name.description;
             });
 
@@ -243,7 +243,7 @@ ThrowCompletionOr<ClassElement::ClassValue> ClassField::class_element_evaluation
         FunctionParsingInsights parsing_insights;
         parsing_insights.uses_this_from_environment = true;
         parsing_insights.uses_this = true;
-        initializer = ECMAScriptFunctionObject::create(realm, "field", ByteString::empty(), *function_code, {}, 0, {}, vm.lexical_environment(), vm.running_execution_context().private_environment, FunctionKind::Normal, true, parsing_insights, false, property_key_or_private_name);
+        initializer = ECMAScriptFunctionObject::create(realm, "field"_fly_string, ByteString::empty(), *function_code, {}, 0, {}, vm.lexical_environment(), vm.running_execution_context().private_environment, FunctionKind::Normal, true, parsing_insights, false, property_key_or_private_name);
         initializer->make_method(target);
     }
 
@@ -255,19 +255,19 @@ ThrowCompletionOr<ClassElement::ClassValue> ClassField::class_element_evaluation
     };
 }
 
-static Optional<DeprecatedFlyString> nullopt_or_private_identifier_description(Expression const& expression)
+static Optional<FlyString> nullopt_or_private_identifier_description(Expression const& expression)
 {
     if (is<PrivateIdentifier>(expression))
         return static_cast<PrivateIdentifier const&>(expression).string();
     return {};
 }
 
-Optional<DeprecatedFlyString> ClassField::private_bound_identifier() const
+Optional<FlyString> ClassField::private_bound_identifier() const
 {
     return nullopt_or_private_identifier_description(*m_key);
 }
 
-Optional<DeprecatedFlyString> ClassMethod::private_bound_identifier() const
+Optional<FlyString> ClassMethod::private_bound_identifier() const
 {
     return nullopt_or_private_identifier_description(*m_key);
 }
@@ -290,7 +290,7 @@ ThrowCompletionOr<ClassElement::ClassValue> StaticInitializer::class_element_eva
     FunctionParsingInsights parsing_insights;
     parsing_insights.uses_this_from_environment = true;
     parsing_insights.uses_this = true;
-    auto body_function = ECMAScriptFunctionObject::create(realm, ByteString::empty(), ByteString::empty(), *m_function_body, {}, 0, m_function_body->local_variables_names(), lexical_environment, private_environment, FunctionKind::Normal, true, parsing_insights, false);
+    auto body_function = ECMAScriptFunctionObject::create(realm, FlyString {}, ByteString::empty(), *m_function_body, {}, 0, m_function_body->local_variables_names(), lexical_environment, private_environment, FunctionKind::Normal, true, parsing_insights, false);
 
     // 6. Perform MakeMethod(bodyFunction, homeObject).
     body_function->make_method(home_object);
@@ -299,7 +299,7 @@ ThrowCompletionOr<ClassElement::ClassValue> StaticInitializer::class_element_eva
     return ClassValue { normal_completion(body_function) };
 }
 
-ThrowCompletionOr<ECMAScriptFunctionObject*> ClassExpression::create_class_constructor(VM& vm, Environment* class_environment, Environment* environment, Value super_class, ReadonlySpan<Value> element_keys, Optional<DeprecatedFlyString> const& binding_name, DeprecatedFlyString const& class_name) const
+ThrowCompletionOr<ECMAScriptFunctionObject*> ClassExpression::create_class_constructor(VM& vm, Environment* class_environment, Environment* environment, Value super_class, ReadonlySpan<Value> element_keys, Optional<FlyString> const& binding_name, FlyString const& class_name) const
 {
     auto& realm = *vm.current_realm();
 
@@ -1210,16 +1210,16 @@ void MemberExpression::dump(int indent) const
     m_property->dump(indent + 1);
 }
 
-ByteString MemberExpression::to_string_approximation() const
+String MemberExpression::to_string_approximation() const
 {
-    ByteString object_string = "<object>";
+    FlyString object_string = "<object>"_fly_string;
     if (is<Identifier>(*m_object))
         object_string = static_cast<Identifier const&>(*m_object).string();
     if (is_computed())
-        return ByteString::formatted("{}[<computed>]", object_string);
+        return MUST(String::formatted("{}[<computed>]", object_string));
     if (is<PrivateIdentifier>(*m_property))
-        return ByteString::formatted("{}.{}", object_string, verify_cast<PrivateIdentifier>(*m_property).string());
-    return ByteString::formatted("{}.{}", object_string, verify_cast<Identifier>(*m_property).string());
+        return MUST(String::formatted("{}.{}", object_string, verify_cast<PrivateIdentifier>(*m_property).string()));
+    return MUST(String::formatted("{}.{}", object_string, verify_cast<Identifier>(*m_property).string()));
 }
 
 bool MemberExpression::ends_in_private_name() const
@@ -1350,7 +1350,7 @@ void CatchClause::dump(int indent) const
 {
     print_indent(indent);
     m_parameter.visit(
-        [&](DeprecatedFlyString const& parameter) {
+        [&](FlyString const& parameter) {
             if (parameter.is_empty())
                 outln("CatchClause");
             else
@@ -1499,7 +1499,7 @@ void ScopeNode::add_hoisted_function(NonnullRefPtr<FunctionDeclaration const> de
     m_functions_hoistable_with_annexB_extension.append(move(declaration));
 }
 
-DeprecatedFlyString ExportStatement::local_name_for_default = "*default*";
+FlyString ExportStatement::local_name_for_default = "*default*"_fly_string;
 
 static void dump_assert_clauses(ModuleRequest const& request)
 {
@@ -1517,7 +1517,7 @@ void ExportStatement::dump(int indent) const
     print_indent(indent + 1);
     outln("(ExportEntries)");
 
-    auto string_or_null = [](Optional<DeprecatedFlyString> const& string) -> ByteString {
+    auto string_or_null = [](Optional<FlyString> const& string) -> ByteString {
         if (!string.has_value()) {
             return "null";
         }
@@ -1565,7 +1565,7 @@ void ImportStatement::dump(int indent) const
     }
 }
 
-bool ExportStatement::has_export(DeprecatedFlyString const& export_name) const
+bool ExportStatement::has_export(FlyString const& export_name) const
 {
     return any_of(m_entries.begin(), m_entries.end(), [&](auto& entry) {
         // Make sure that empty exported names does not overlap with anything
@@ -1575,7 +1575,7 @@ bool ExportStatement::has_export(DeprecatedFlyString const& export_name) const
     });
 }
 
-bool ImportStatement::has_bound_name(DeprecatedFlyString const& name) const
+bool ImportStatement::has_bound_name(FlyString const& name) const
 {
     return any_of(m_entries.begin(), m_entries.end(), [&](auto& entry) {
         return entry.local_name == name;
@@ -1629,7 +1629,18 @@ void ScopeNode::block_declaration_instantiation(VM& vm, Environment* environment
             auto& function_declaration = static_cast<FunctionDeclaration const&>(declaration);
 
             // ii. Let fo be InstantiateFunctionObject of d with arguments env and privateEnv.
-            auto function = ECMAScriptFunctionObject::create(realm, function_declaration.name(), function_declaration.source_text(), function_declaration.body(), function_declaration.parameters(), function_declaration.function_length(), function_declaration.local_variables_names(), environment, private_environment, function_declaration.kind(), function_declaration.is_strict_mode(),
+            auto function = ECMAScriptFunctionObject::create(
+                realm,
+                function_declaration.name(),
+                function_declaration.source_text(),
+                function_declaration.body(),
+                function_declaration.parameters(),
+                function_declaration.function_length(),
+                function_declaration.local_variables_names(),
+                environment,
+                private_environment,
+                function_declaration.kind(),
+                function_declaration.is_strict_mode(),
                 function_declaration.parsing_insights());
 
             // iii. Perform ! env.InitializeBinding(fn, fo). NOTE: This step is replaced in section B.3.2.6.
@@ -1689,7 +1700,7 @@ ThrowCompletionOr<void> Program::global_declaration_instantiation(VM& vm, Global
     Vector<FunctionDeclaration const&> functions_to_initialize;
 
     // 7. Let declaredFunctionNames be a new empty List.
-    HashTable<DeprecatedFlyString> declared_function_names;
+    HashTable<FlyString> declared_function_names;
 
     // 8. For each element d of varDeclarations, in reverse List order, do
 
@@ -1724,7 +1735,7 @@ ThrowCompletionOr<void> Program::global_declaration_instantiation(VM& vm, Global
     }));
 
     // 9. Let declaredVarNames be a new empty List.
-    HashTable<DeprecatedFlyString> declared_var_names;
+    HashTable<FlyString> declared_var_names;
 
     // 10. For each element d of varDeclarations, do
     TRY(for_each_var_scoped_variable_declaration([&](Declaration const& declaration) {
@@ -1854,7 +1865,7 @@ ThrowCompletionOr<void> Program::global_declaration_instantiation(VM& vm, Global
     return {};
 }
 
-ModuleRequest::ModuleRequest(DeprecatedFlyString module_specifier_, Vector<ImportAttribute> attributes)
+ModuleRequest::ModuleRequest(FlyString module_specifier_, Vector<ImportAttribute> attributes)
     : module_specifier(move(module_specifier_))
     , attributes(move(attributes))
 {

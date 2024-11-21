@@ -172,7 +172,7 @@ static ThrowCompletionOr<GC::Ref<Object>> create_table_row(Realm& realm, Value r
 
     // 2. Set `row["(index)"]` to `rowIndex`
     {
-        auto key = PropertyKey { "(index)", PropertyKey::StringMayBeNumber::No };
+        auto key = PropertyKey { "(index)"_fly_string, PropertyKey::StringMayBeNumber::No };
         TRY(row->set(key, row_index, Object::ShouldThrowExceptions::No));
 
         add_column(key);
