@@ -6,6 +6,6 @@ Rerun
 
 Found 1 tests
 
-1 Fail
+1 Pass
 Details
-Result	Test Name	MessageFail	element with display:contents is focusable	
+Result	Test Name	MessagePass	element with display:contents is focusable	
