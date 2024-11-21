@@ -185,13 +185,11 @@ void InlineFormattingContext::dimension_box_on_line(Box const& box, LayoutMode l
 
     auto independent_formatting_context = layout_inside(box, layout_mode, box_state.available_inner_space_or_constraints_from(*m_available_space));
 
-    auto const& height_value = box.computed_values().height();
     if (should_treat_height_as_auto(box, *m_available_space)) {
         // FIXME: (10.6.6) If 'height' is 'auto', the height depends on the element's descendants per 10.6.7.
-        parent().resolve_used_height_if_treated_as_auto(box, AvailableSpace(AvailableSize::make_indefinite(), AvailableSize::make_indefinite()));
+        parent().resolve_used_height_if_treated_as_auto(box, *m_available_space);
     } else {
-        auto inner_height = calculate_inner_height(box, AvailableSize::make_definite(m_containing_block_used_values.content_height()), height_value);
-        box_state.set_content_height(inner_height);
+        parent().resolve_used_height_if_not_treated_as_auto(box, *m_available_space);
     }
 
     if (independent_formatting_context)

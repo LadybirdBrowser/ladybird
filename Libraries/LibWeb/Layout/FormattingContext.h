@@ -76,7 +76,7 @@ public:
     CSSPixels calculate_fit_content_width(Layout::Box const&, AvailableSpace const&) const;
 
     CSSPixels calculate_inner_width(Layout::Box const&, AvailableSize const&, CSS::Size const& width) const;
-    CSSPixels calculate_inner_height(Layout::Box const&, AvailableSize const&, CSS::Size const& height) const;
+    [[nodiscard]] CSSPixels calculate_inner_height(Layout::Box const&, AvailableSpace const&, CSS::Size const& height) const;
 
     virtual CSSPixels greatest_child_width(Box const&) const;
 
@@ -102,8 +102,8 @@ public:
 protected:
     FormattingContext(Type, LayoutMode, LayoutState&, Box const&, FormattingContext* parent = nullptr);
 
-    static bool should_treat_width_as_auto(Box const&, AvailableSpace const&);
-    static bool should_treat_height_as_auto(Box const&, AvailableSpace const&);
+    [[nodiscard]] bool should_treat_width_as_auto(Box const&, AvailableSpace const&) const;
+    [[nodiscard]] bool should_treat_height_as_auto(Box const&, AvailableSpace const&) const;
 
     [[nodiscard]] bool should_treat_max_width_as_none(Box const&, AvailableSize const&) const;
     [[nodiscard]] bool should_treat_max_height_as_none(Box const&, AvailableSize const&) const;

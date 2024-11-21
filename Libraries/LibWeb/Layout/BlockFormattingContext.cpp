@@ -416,16 +416,16 @@ void BlockFormattingContext::resolve_used_height_if_not_treated_as_auto(Box cons
     auto const& computed_values = box.computed_values();
     auto& box_state = m_state.get_mutable(box);
 
-    auto height = calculate_inner_height(box, available_space.height, box.computed_values().height());
+    auto height = calculate_inner_height(box, available_space, box.computed_values().height());
 
     if (!should_treat_max_height_as_none(box, available_space.height)) {
         if (!computed_values.max_height().is_auto()) {
-            auto max_height = calculate_inner_height(box, available_space.height, computed_values.max_height());
+            auto max_height = calculate_inner_height(box, available_space, computed_values.max_height());
             height = min(height, max_height);
         }
     }
     if (!computed_values.min_height().is_auto()) {
-        height = max(height, calculate_inner_height(box, available_space.height, computed_values.min_height()));
+        height = max(height, calculate_inner_height(box, available_space, computed_values.min_height()));
     }
 
     box_state.set_content_height(height);
@@ -454,12 +454,12 @@ void BlockFormattingContext::resolve_used_height_if_treated_as_auto(Box const& b
 
     if (!should_treat_max_height_as_none(box, available_space.height)) {
         if (!computed_values.max_height().is_auto()) {
-            auto max_height = calculate_inner_height(box, available_space.height, computed_values.max_height());
+            auto max_height = calculate_inner_height(box, available_space, computed_values.max_height());
             height = min(height, max_height);
         }
     }
     if (!computed_values.min_height().is_auto()) {
-        height = max(height, calculate_inner_height(box, available_space.height, computed_values.min_height()));
+        height = max(height, calculate_inner_height(box, available_space, computed_values.min_height()));
     }
 
     if (box.document().in_quirks_mode()
