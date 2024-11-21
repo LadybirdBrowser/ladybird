@@ -24,28 +24,28 @@ Loader::Loader(NonnullOwnPtr<LoaderPlugin> plugin)
 
 struct LoaderPluginInitializer {
     bool (*sniff)(SeekableStream&);
-    ErrorOr<NonnullOwnPtr<LoaderPlugin>, LoaderError> (*create)(NonnullOwnPtr<SeekableStream>);
+    ErrorOr<NonnullOwnPtr<LoaderPlugin>> (*create)(NonnullOwnPtr<SeekableStream>);
 };
 
 static constexpr LoaderPluginInitializer s_initializers[] = {
     { FFmpegLoaderPlugin::sniff, FFmpegLoaderPlugin::create },
 };
 
-ErrorOr<NonnullRefPtr<Loader>, LoaderError> Loader::create(StringView path)
+ErrorOr<NonnullRefPtr<Loader>> Loader::create(StringView path)
 {
     auto stream = TRY(Core::MappedFile::map(path, Core::MappedFile::Mode::ReadOnly));
     auto plugin = TRY(Loader::create_plugin(move(stream)));
     return adopt_ref(*new (nothrow) Loader(move(plugin)));
 }
 
-ErrorOr<NonnullRefPtr<Loader>, LoaderError> Loader::create(ReadonlyBytes buffer)
+ErrorOr<NonnullRefPtr<Loader>> Loader::create(ReadonlyBytes buffer)
 {
     auto stream = TRY(try_make<FixedMemoryStream>(buffer));
     auto plugin = TRY(Loader::create_plugin(move(stream)));
     return adopt_ref(*new (nothrow) Loader(move(plugin)));
 }
 
-ErrorOr<NonnullOwnPtr<LoaderPlugin>, LoaderError> Loader::create_plugin(NonnullOwnPtr<SeekableStream> stream)
+ErrorOr<NonnullOwnPtr<LoaderPlugin>> Loader::create_plugin(NonnullOwnPtr<SeekableStream> stream)
 {
     for (auto const& loader : s_initializers) {
         if (loader.sniff(*stream)) {
@@ -55,17 +55,17 @@ ErrorOr<NonnullOwnPtr<LoaderPlugin>, LoaderError> Loader::create_plugin(NonnullO
         TRY(stream->seek(0, SeekMode::SetPosition));
     }
 
-    return LoaderError { "No loader plugin available" };
+    return Error::from_string_literal("No loader plugin available");
 }
 
-LoaderSamples Loader::get_more_samples(size_t samples_to_read_from_input)
+ErrorOr<Samples> Loader::get_more_samples(size_t samples_to_read_from_input)
 {
     if (m_plugin_at_end_of_stream && m_buffer.is_empty())
-        return FixedArray<Sample> {};
+        return Samples {};
 
     size_t remaining_samples = total_samples() - loaded_samples();
     size_t samples_to_read = min(remaining_samples, samples_to_read_from_input);
-    auto samples = TRY(FixedArray<Sample>::create(samples_to_read));
+    auto samples = TRY(Samples::create(samples_to_read));
 
     size_t sample_index = 0;
 

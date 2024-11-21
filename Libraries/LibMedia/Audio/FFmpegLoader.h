@@ -22,7 +22,7 @@ public:
     explicit FFmpegIOContext(AVIOContext*);
     ~FFmpegIOContext();
 
-    static ErrorOr<NonnullOwnPtr<FFmpegIOContext>, LoaderError> create(AK::SeekableStream& stream);
+    static ErrorOr<NonnullOwnPtr<FFmpegIOContext>> create(AK::SeekableStream& stream);
 
     AVIOContext* avio_context() const { return m_avio_context; }
 
@@ -36,12 +36,12 @@ public:
     virtual ~FFmpegLoaderPlugin();
 
     static bool sniff(SeekableStream& stream);
-    static ErrorOr<NonnullOwnPtr<LoaderPlugin>, LoaderError> create(NonnullOwnPtr<SeekableStream>);
+    static ErrorOr<NonnullOwnPtr<LoaderPlugin>> create(NonnullOwnPtr<SeekableStream>);
 
-    virtual ErrorOr<Vector<FixedArray<Sample>>, LoaderError> load_chunks(size_t samples_to_read_from_input) override;
+    virtual ErrorOr<Vector<FixedArray<Sample>>> load_chunks(size_t samples_to_read_from_input) override;
 
-    virtual MaybeLoaderError reset() override;
-    virtual MaybeLoaderError seek(int sample_index) override;
+    virtual ErrorOr<void> reset() override;
+    virtual ErrorOr<void> seek(int sample_index) override;
 
     virtual int loaded_samples() override { return m_loaded_samples; }
     virtual int total_samples() override { return m_total_samples; }
@@ -51,7 +51,7 @@ public:
     virtual ByteString format_name() override;
 
 private:
-    MaybeLoaderError initialize();
+    ErrorOr<void> initialize();
     double time_base() const;
 
     AVStream* m_audio_stream;

@@ -31,11 +31,11 @@ FFmpegIOContext::~FFmpegIOContext()
     avio_context_free(&m_avio_context);
 }
 
-ErrorOr<NonnullOwnPtr<FFmpegIOContext>, LoaderError> FFmpegIOContext::create(AK::SeekableStream& stream)
+ErrorOr<NonnullOwnPtr<FFmpegIOContext>> FFmpegIOContext::create(AK::SeekableStream& stream)
 {
     auto* avio_buffer = av_malloc(PAGE_SIZE);
     if (avio_buffer == nullptr)
-        return LoaderError { LoaderError::Category::IO, "Failed to allocate AVIO buffer" };
+        return Error::from_string_literal("Failed to allocate AVIO buffer");
 
     // This AVIOContext explains to avformat how to interact with our stream
     auto* avio_context = avio_alloc_context(
@@ -79,7 +79,7 @@ ErrorOr<NonnullOwnPtr<FFmpegIOContext>, LoaderError> FFmpegIOContext::create(AK:
         });
     if (avio_context == nullptr) {
         av_free(avio_buffer);
-        return LoaderError { LoaderError::Category::IO, "Failed to allocate AVIO context" };
+        return Error::from_string_literal("Failed to allocate AVIO context");
     }
 
     return make<FFmpegIOContext>(avio_context);
@@ -103,7 +103,7 @@ FFmpegLoaderPlugin::~FFmpegLoaderPlugin()
         avformat_close_input(&m_format_context);
 }
 
-ErrorOr<NonnullOwnPtr<LoaderPlugin>, LoaderError> FFmpegLoaderPlugin::create(NonnullOwnPtr<SeekableStream> stream)
+ErrorOr<NonnullOwnPtr<LoaderPlugin>> FFmpegLoaderPlugin::create(NonnullOwnPtr<SeekableStream> stream)
 {
     auto io_context = TRY(FFmpegIOContext::create(*stream));
     auto loader = make<FFmpegLoaderPlugin>(move(stream), move(io_context));
@@ -111,19 +111,19 @@ ErrorOr<NonnullOwnPtr<LoaderPlugin>, LoaderError> FFmpegLoaderPlugin::create(Non
     return loader;
 }
 
-MaybeLoaderError FFmpegLoaderPlugin::initialize()
+ErrorOr<void> FFmpegLoaderPlugin::initialize()
 {
     // Open the container
     m_format_context = avformat_alloc_context();
     if (m_format_context == nullptr)
-        return LoaderError { LoaderError::Category::IO, "Failed to allocate format context" };
+        return Error::from_string_literal("Failed to allocate format context");
     m_format_context->pb = m_io_context->avio_context();
     if (avformat_open_input(&m_format_context, nullptr, nullptr, nullptr) < 0)
-        return LoaderError { LoaderError::Category::IO, "Failed to open input for format parsing" };
+        return Error::from_string_literal("Failed to open input for format parsing");
 
     // Read stream info; doing this is required for headerless formats like MPEG
     if (avformat_find_stream_info(m_format_context, nullptr) < 0)
-        return LoaderError { LoaderError::Category::IO, "Failed to find stream info" };
+        return Error::from_string_literal("Failed to find stream info");
 
 #ifdef USE_CONSTIFIED_POINTERS
     AVCodec const* codec {};
@@ -133,42 +133,42 @@ MaybeLoaderError FFmpegLoaderPlugin::initialize()
     // Find the best stream to play within the container
     int best_stream_index = av_find_best_stream(m_format_context, AVMediaType::AVMEDIA_TYPE_AUDIO, -1, -1, &codec, 0);
     if (best_stream_index == AVERROR_STREAM_NOT_FOUND)
-        return LoaderError { LoaderError::Category::Format, "No audio stream found in container" };
+        return Error::from_string_literal("No audio stream found in container");
     if (best_stream_index == AVERROR_DECODER_NOT_FOUND)
-        return LoaderError { LoaderError::Category::Format, "No suitable decoder found for stream" };
+        return Error::from_string_literal("No suitable decoder found for stream");
     if (best_stream_index < 0)
-        return LoaderError { LoaderError::Category::Format, "Failed to find an audio stream" };
+        return Error::from_string_literal("Failed to find an audio stream");
     m_audio_stream = m_format_context->streams[best_stream_index];
 
     // Set up the context to decode the audio stream
     m_codec_context = avcodec_alloc_context3(codec);
     if (m_codec_context == nullptr)
-        return LoaderError { LoaderError::Category::IO, "Failed to allocate the codec context" };
+        return Error::from_string_literal("Failed to allocate the codec context");
 
     if (avcodec_parameters_to_context(m_codec_context, m_audio_stream->codecpar) < 0)
-        return LoaderError { LoaderError::Category::IO, "Failed to copy codec parameters" };
+        return Error::from_string_literal("Failed to copy codec parameters");
 
     m_codec_context->pkt_timebase = m_audio_stream->time_base;
     m_codec_context->thread_count = AK::min(static_cast<int>(Core::System::hardware_concurrency()), 4);
 
     if (avcodec_open2(m_codec_context, codec, nullptr) < 0)
-        return LoaderError { LoaderError::Category::IO, "Failed to open input for decoding" };
+        return Error::from_string_literal("Failed to open input for decoding");
 
     // This is an initial estimate of the total number of samples in the stream.
     // During decoding, we might need to increase the number as more frames come in.
     double duration_in_seconds = static_cast<double>(m_audio_stream->duration) * time_base();
     if (duration_in_seconds < 0)
-        return LoaderError { LoaderError::Category::Format, "Negative stream duration" };
+        return Error::from_string_literal("Negative stream duration");
     m_total_samples = AK::round_to<decltype(m_total_samples)>(sample_rate() * duration_in_seconds);
 
     // Allocate packet (logical chunk of data) and frame (video / audio frame) buffers
     m_packet = av_packet_alloc();
     if (m_packet == nullptr)
-        return LoaderError { LoaderError::Category::IO, "Failed to allocate packet" };
+        return Error::from_string_literal("Failed to allocate packet");
 
     m_frame = av_frame_alloc();
     if (m_frame == nullptr)
-        return LoaderError { LoaderError::Category::IO, "Failed to allocate frame" };
+        return Error::from_string_literal("Failed to allocate frame");
 
     return {};
 }
@@ -253,7 +253,7 @@ static ErrorOr<FixedArray<Sample>> extract_samples_from_frame(AVFrame& frame)
     return samples;
 }
 
-ErrorOr<Vector<FixedArray<Sample>>, LoaderError> FFmpegLoaderPlugin::load_chunks(size_t samples_to_read_from_input)
+ErrorOr<Vector<FixedArray<Sample>>> FFmpegLoaderPlugin::load_chunks(size_t samples_to_read_from_input)
 {
     Vector<FixedArray<Sample>> chunks {};
 
@@ -263,7 +263,7 @@ ErrorOr<Vector<FixedArray<Sample>>, LoaderError> FFmpegLoaderPlugin::load_chunks
         if (read_frame_error < 0) {
             if (read_frame_error == AVERROR_EOF)
                 break;
-            return LoaderError { LoaderError::Category::IO, "Failed to read frame" };
+            return Error::from_string_literal("Failed to read frame");
         }
         if (m_packet->stream_index != m_audio_stream->index) {
             av_packet_unref(m_packet);
@@ -272,7 +272,7 @@ ErrorOr<Vector<FixedArray<Sample>>, LoaderError> FFmpegLoaderPlugin::load_chunks
 
         // Send the packet to the decoder
         if (avcodec_send_packet(m_codec_context, m_packet) < 0)
-            return LoaderError { LoaderError::Category::IO, "Failed to send packet" };
+            return Error::from_string_literal("Failed to send packet");
         av_packet_unref(m_packet);
 
         // Ask the decoder for a new frame. We might not have sent enough data yet
@@ -282,7 +282,7 @@ ErrorOr<Vector<FixedArray<Sample>>, LoaderError> FFmpegLoaderPlugin::load_chunks
                 continue;
             if (receive_frame_error == AVERROR_EOF)
                 break;
-            return LoaderError { LoaderError::Category::IO, "Failed to receive frame" };
+            return Error::from_string_literal("Failed to receive frame");
         }
 
         chunks.append(TRY(extract_samples_from_frame(*m_frame)));
@@ -298,18 +298,18 @@ ErrorOr<Vector<FixedArray<Sample>>, LoaderError> FFmpegLoaderPlugin::load_chunks
     return chunks;
 }
 
-MaybeLoaderError FFmpegLoaderPlugin::reset()
+ErrorOr<void> FFmpegLoaderPlugin::reset()
 {
     return seek(0);
 }
 
-MaybeLoaderError FFmpegLoaderPlugin::seek(int sample_index)
+ErrorOr<void> FFmpegLoaderPlugin::seek(int sample_index)
 {
     auto sample_position_in_seconds = static_cast<double>(sample_index) / sample_rate();
     auto sample_timestamp = AK::round_to<int64_t>(sample_position_in_seconds / time_base());
 
     if (av_seek_frame(m_format_context, m_audio_stream->index, sample_timestamp, AVSEEK_FLAG_ANY) < 0)
-        return LoaderError { LoaderError::Category::IO, "Failed to seek" };
+        return Error::from_string_literal("Failed to seek");
     avcodec_flush_buffers(m_codec_context);
 
     m_loaded_samples = sample_index;

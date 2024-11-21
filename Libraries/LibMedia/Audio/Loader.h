@@ -6,9 +6,9 @@
 
 #pragma once
 
-#include "LoaderError.h"
 #include "Sample.h"
 #include "SampleFormats.h"
+#include <AK/ByteString.h>
 #include <AK/Error.h>
 #include <AK/FixedArray.h>
 #include <AK/NonnullOwnPtr.h>
@@ -33,8 +33,7 @@ constexpr u64 const maximum_seekpoint_distance_ms = 1000;
 // That means: The actual achieved seek position must not be more than this amount of time before the requested seek position.
 constexpr u64 const seek_tolerance_ms = 5000;
 
-using LoaderSamples = ErrorOr<FixedArray<Sample>, LoaderError>;
-using MaybeLoaderError = ErrorOr<void, LoaderError>;
+using Samples = FixedArray<Sample>;
 
 class LoaderPlugin {
 public:
@@ -47,11 +46,11 @@ public:
     // The chunks are returned in a vector, so the loader can simply add chunks until the requested sample amount is reached.
     // The sample count MAY be surpassed, but only as little as possible. It CAN be undershot when the end of the stream is reached.
     // If the loader has no chunking limitations (e.g. WAV), it may return a single exact-sized chunk.
-    virtual ErrorOr<Vector<FixedArray<Sample>>, LoaderError> load_chunks(size_t samples_to_read_from_input) = 0;
+    virtual ErrorOr<Vector<FixedArray<Sample>>> load_chunks(size_t samples_to_read_from_input) = 0;
 
-    virtual MaybeLoaderError reset() = 0;
+    virtual ErrorOr<void> reset() = 0;
 
-    virtual MaybeLoaderError seek(int const sample_index) = 0;
+    virtual ErrorOr<void> seek(int const sample_index) = 0;
 
     // total_samples() and loaded_samples() should be independent
     // of the number of channels.
@@ -75,18 +74,18 @@ protected:
 
 class Loader : public RefCounted<Loader> {
 public:
-    static ErrorOr<NonnullRefPtr<Loader>, LoaderError> create(StringView path);
-    static ErrorOr<NonnullRefPtr<Loader>, LoaderError> create(ReadonlyBytes buffer);
+    static ErrorOr<NonnullRefPtr<Loader>> create(StringView path);
+    static ErrorOr<NonnullRefPtr<Loader>> create(ReadonlyBytes buffer);
 
     // Will only read less samples if we're at the end of the stream.
-    LoaderSamples get_more_samples(size_t samples_to_read_from_input = 128 * KiB);
+    ErrorOr<Samples> get_more_samples(size_t samples_to_read_from_input = 128 * KiB);
 
-    MaybeLoaderError reset() const
+    ErrorOr<void> reset() const
     {
         m_plugin_at_end_of_stream = false;
         return m_plugin->reset();
     }
-    MaybeLoaderError seek(int const position) const
+    ErrorOr<void> seek(int const position) const
     {
         m_buffer.clear_with_capacity();
         m_plugin_at_end_of_stream = false;
@@ -102,7 +101,7 @@ public:
     PcmSampleFormat pcm_format() const { return m_plugin->pcm_format(); }
 
 private:
-    static ErrorOr<NonnullOwnPtr<LoaderPlugin>, LoaderError> create_plugin(NonnullOwnPtr<SeekableStream> stream);
+    static ErrorOr<NonnullOwnPtr<LoaderPlugin>> create_plugin(NonnullOwnPtr<SeekableStream> stream);
 
     explicit Loader(NonnullOwnPtr<LoaderPlugin>);
 

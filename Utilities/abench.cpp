@@ -29,7 +29,7 @@ ErrorOr<int> serenity_main(Main::Arguments args)
 
     auto maybe_loader = Audio::Loader::create(path);
     if (maybe_loader.is_error()) {
-        warnln("Failed to load audio file: {}", maybe_loader.error().description);
+        warnln("Failed to load audio file: {}", maybe_loader.error());
         return 1;
     }
     auto loader = maybe_loader.release_value();
@@ -50,7 +50,7 @@ ErrorOr<int> serenity_main(Main::Arguments args)
                 if (samples.value().size() == 0)
                     break;
             } else {
-                warnln("Error while loading audio: {}", samples.error().description);
+                warnln("Error while loading audio: {}", samples.error());
                 return 1;
             }
         } else
