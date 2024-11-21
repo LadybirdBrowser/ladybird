@@ -6,8 +6,8 @@ Rerun
 
 Found 1975 tests
 
-1903 Pass
-72 Fail
+1923 Pass
+52 Fail
 Details
 Result	Test Name	MessagePass	Selectors-API Test Suite: HTML	
 Pass	Document supports querySelector	
@@ -92,10 +92,10 @@ Pass	Document.querySelector: Invalid class: .bar.
 Pass	Document.querySelectorAll: Invalid class: .bar.	
 Pass	Document.querySelector: Invalid combinator: div % address, p	
 Pass	Document.querySelectorAll: Invalid combinator: div % address, p	
-Fail	Document.querySelector: Invalid combinator: div ++ address, p	
-Fail	Document.querySelectorAll: Invalid combinator: div ++ address, p	
-Fail	Document.querySelector: Invalid combinator: div ~~ address, p	
-Fail	Document.querySelectorAll: Invalid combinator: div ~~ address, p	
+Pass	Document.querySelector: Invalid combinator: div ++ address, p	
+Pass	Document.querySelectorAll: Invalid combinator: div ++ address, p	
+Pass	Document.querySelector: Invalid combinator: div ~~ address, p	
+Pass	Document.querySelectorAll: Invalid combinator: div ~~ address, p	
 Pass	Document.querySelector: Invalid [att=value] selector: [*=test]	
 Pass	Document.querySelectorAll: Invalid [att=value] selector: [*=test]	
 Pass	Document.querySelector: Invalid [att=value] selector: [*|*=test]	
@@ -160,10 +160,10 @@ Pass	Detached Element.querySelector: Invalid class: .bar.
 Pass	Detached Element.querySelectorAll: Invalid class: .bar.	
 Pass	Detached Element.querySelector: Invalid combinator: div % address, p	
 Pass	Detached Element.querySelectorAll: Invalid combinator: div % address, p	
-Fail	Detached Element.querySelector: Invalid combinator: div ++ address, p	
-Fail	Detached Element.querySelectorAll: Invalid combinator: div ++ address, p	
-Fail	Detached Element.querySelector: Invalid combinator: div ~~ address, p	
-Fail	Detached Element.querySelectorAll: Invalid combinator: div ~~ address, p	
+Pass	Detached Element.querySelector: Invalid combinator: div ++ address, p	
+Pass	Detached Element.querySelectorAll: Invalid combinator: div ++ address, p	
+Pass	Detached Element.querySelector: Invalid combinator: div ~~ address, p	
+Pass	Detached Element.querySelectorAll: Invalid combinator: div ~~ address, p	
 Pass	Detached Element.querySelector: Invalid [att=value] selector: [*=test]	
 Pass	Detached Element.querySelectorAll: Invalid [att=value] selector: [*=test]	
 Pass	Detached Element.querySelector: Invalid [att=value] selector: [*|*=test]	
@@ -228,10 +228,10 @@ Pass	Fragment.querySelector: Invalid class: .bar.
 Pass	Fragment.querySelectorAll: Invalid class: .bar.	
 Pass	Fragment.querySelector: Invalid combinator: div % address, p	
 Pass	Fragment.querySelectorAll: Invalid combinator: div % address, p	
-Fail	Fragment.querySelector: Invalid combinator: div ++ address, p	
-Fail	Fragment.querySelectorAll: Invalid combinator: div ++ address, p	
-Fail	Fragment.querySelector: Invalid combinator: div ~~ address, p	
-Fail	Fragment.querySelectorAll: Invalid combinator: div ~~ address, p	
+Pass	Fragment.querySelector: Invalid combinator: div ++ address, p	
+Pass	Fragment.querySelectorAll: Invalid combinator: div ++ address, p	
+Pass	Fragment.querySelector: Invalid combinator: div ~~ address, p	
+Pass	Fragment.querySelectorAll: Invalid combinator: div ~~ address, p	
 Pass	Fragment.querySelector: Invalid [att=value] selector: [*=test]	
 Pass	Fragment.querySelectorAll: Invalid [att=value] selector: [*=test]	
 Pass	Fragment.querySelector: Invalid [att=value] selector: [*|*=test]	
@@ -296,10 +296,10 @@ Pass	In-document Element.querySelector: Invalid class: .bar.
 Pass	In-document Element.querySelectorAll: Invalid class: .bar.	
 Pass	In-document Element.querySelector: Invalid combinator: div % address, p	
 Pass	In-document Element.querySelectorAll: Invalid combinator: div % address, p	
-Fail	In-document Element.querySelector: Invalid combinator: div ++ address, p	
-Fail	In-document Element.querySelectorAll: Invalid combinator: div ++ address, p	
-Fail	In-document Element.querySelector: Invalid combinator: div ~~ address, p	
-Fail	In-document Element.querySelectorAll: Invalid combinator: div ~~ address, p	
+Pass	In-document Element.querySelector: Invalid combinator: div ++ address, p	
+Pass	In-document Element.querySelectorAll: Invalid combinator: div ++ address, p	
+Pass	In-document Element.querySelector: Invalid combinator: div ~~ address, p	
+Pass	In-document Element.querySelectorAll: Invalid combinator: div ~~ address, p	
 Pass	In-document Element.querySelector: Invalid [att=value] selector: [*=test]	
 Pass	In-document Element.querySelectorAll: Invalid [att=value] selector: [*=test]	
 Pass	In-document Element.querySelector: Invalid [att=value] selector: [*|*=test]	
@@ -364,10 +364,10 @@ Pass	Empty Element.querySelector: Invalid class: .bar.
 Pass	Empty Element.querySelectorAll: Invalid class: .bar.	
 Pass	Empty Element.querySelector: Invalid combinator: div % address, p	
 Pass	Empty Element.querySelectorAll: Invalid combinator: div % address, p	
-Fail	Empty Element.querySelector: Invalid combinator: div ++ address, p	
-Fail	Empty Element.querySelectorAll: Invalid combinator: div ++ address, p	
-Fail	Empty Element.querySelector: Invalid combinator: div ~~ address, p	
-Fail	Empty Element.querySelectorAll: Invalid combinator: div ~~ address, p	
+Pass	Empty Element.querySelector: Invalid combinator: div ++ address, p	
+Pass	Empty Element.querySelectorAll: Invalid combinator: div ++ address, p	
+Pass	Empty Element.querySelector: Invalid combinator: div ~~ address, p	
+Pass	Empty Element.querySelectorAll: Invalid combinator: div ~~ address, p	
 Pass	Empty Element.querySelector: Invalid [att=value] selector: [*=test]	
 Pass	Empty Element.querySelectorAll: Invalid [att=value] selector: [*=test]	
 Pass	Empty Element.querySelector: Invalid [att=value] selector: [*|*=test]	
