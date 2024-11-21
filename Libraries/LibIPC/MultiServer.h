@@ -16,13 +16,6 @@ namespace IPC {
 template<typename ConnectionFromClientType>
 class MultiServer {
 public:
-    static ErrorOr<NonnullOwnPtr<MultiServer>> try_create(Optional<ByteString> socket_path = {})
-    {
-        auto server = TRY(Core::LocalServer::try_create());
-        TRY(server->take_over_from_system_server(socket_path.value_or({})));
-        return adopt_nonnull_own_or_enomem(new (nothrow) MultiServer(move(server)));
-    }
-
     static ErrorOr<NonnullOwnPtr<MultiServer>> try_create(NonnullRefPtr<Core::LocalServer> server)
     {
         return adopt_nonnull_own_or_enomem(new (nothrow) MultiServer(move(server)));

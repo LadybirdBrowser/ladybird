@@ -74,8 +74,6 @@ source_set("sources") {
     "Resource.h",
     "ResourceImplementation.cpp",
     "ResourceImplementationFile.cpp",
-    "SessionManagement.cpp",
-    "SessionManagement.h",
     "SharedCircularQueue.h",
     "Socket.cpp",
     "Socket.h",

@@ -18,7 +18,6 @@
 #include <stdlib.h>
 
 #if !defined(AK_OS_WINDOWS)
-#    include <LibCore/SessionManagement.h>
 #    include <pwd.h>
 #    include <unistd.h>
 #endif
@@ -202,10 +201,7 @@ ErrorOr<ByteString> StandardPaths::runtime_directory()
 
     StringBuilder builder;
 
-#if defined(AK_OS_SERENITY)
-    auto sid = TRY(Core::SessionManagement::root_session_id());
-    builder.appendff("/tmp/session/{}", sid);
-#elif defined(AK_OS_MACOS)
+#if defined(AK_OS_MACOS)
     builder.append(home_directory());
     builder.append("/Library/Application Support"sv);
 #elif defined(AK_OS_HAIKU)

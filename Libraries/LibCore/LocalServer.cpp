@@ -6,7 +6,6 @@
 
 #include <LibCore/LocalServer.h>
 #include <LibCore/Notifier.h>
-#include <LibCore/SessionManagement.h>
 #include <LibCore/Socket.h>
 #include <LibCore/System.h>
 #include <LibCore/SystemServerTakeover.h>
@@ -31,20 +30,6 @@ LocalServer::~LocalServer()
 {
     if (m_fd >= 0)
         ::close(m_fd);
-}
-
-ErrorOr<void> LocalServer::take_over_from_system_server(ByteString const& socket_path)
-{
-    if (m_listening)
-        return Error::from_string_literal("Core::LocalServer: Can't perform socket takeover when already listening");
-
-    auto const parsed_path = TRY(Core::SessionManagement::parse_path_with_sid(socket_path));
-    auto socket = TRY(take_over_socket_from_system_server(parsed_path));
-    m_fd = TRY(socket->release_fd());
-
-    m_listening = true;
-    setup_notifier();
-    return {};
 }
 
 ErrorOr<void> LocalServer::take_over_fd(int socket_fd)
