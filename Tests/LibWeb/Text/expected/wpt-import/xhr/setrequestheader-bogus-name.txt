@@ -1,0 +1,81 @@
+Summary
+
+Harness status: OK
+
+Rerun
+
+Found 71 tests
+
+71 Pass
+Details
+Result	Test Name	MessagePass	setRequestHeader should throw with header name "(".	
+Pass	setRequestHeader should throw with header name ")".	
+Pass	setRequestHeader should throw with header name "<".	
+Pass	setRequestHeader should throw with header name ">".	
+Pass	setRequestHeader should throw with header name "@".	
+Pass	setRequestHeader should throw with header name ",".	
+Pass	setRequestHeader should throw with header name ";".	
+Pass	setRequestHeader should throw with header name ":".	
+Pass	setRequestHeader should throw with header name "\\".	
+Pass	setRequestHeader should throw with header name "\"".	
+Pass	setRequestHeader should throw with header name "/".	
+Pass	setRequestHeader should throw with header name "[".	
+Pass	setRequestHeader should throw with header name "]".	
+Pass	setRequestHeader should throw with header name "?".	
+Pass	setRequestHeader should throw with header name "=".	
+Pass	setRequestHeader should throw with header name "{".	
+Pass	setRequestHeader should throw with header name "}".	
+Pass	setRequestHeader should throw with header name " ".	
+Pass	setRequestHeader should throw with header name "".	
+Pass	setRequestHeader should throw with header name "".	
+Pass	setRequestHeader should throw with header name "t\rt".	
+Pass	setRequestHeader should throw with header name "t\nt".	
+Pass	setRequestHeader should throw with header name "t: t".	
+Pass	setRequestHeader should throw with header name "t:t".	
+Pass	setRequestHeader should throw with header name "t<t".	
+Pass	setRequestHeader should throw with header name "t t".	
+Pass	setRequestHeader should throw with header name " tt".	
+Pass	setRequestHeader should throw with header name ":tt".	
+Pass	setRequestHeader should throw with header name "\ttt".	
+Pass	setRequestHeader should throw with header name "\vtt".	
+Pass	setRequestHeader should throw with header name "t\0t".	
+Pass	setRequestHeader should throw with header name "t\"t".	
+Pass	setRequestHeader should throw with header name "t,t".	
+Pass	setRequestHeader should throw with header name "t;t".	
+Pass	setRequestHeader should throw with header name "()[]{}".	
+Pass	setRequestHeader should throw with header name "a?B".	
+Pass	setRequestHeader should throw with header name "a=B".	
+Pass	setRequestHeader should throw with header name "\0".	
+Pass	setRequestHeader should throw with header name "\x01".	
+Pass	setRequestHeader should throw with header name "\x02".	
+Pass	setRequestHeader should throw with header name "\x03".	
+Pass	setRequestHeader should throw with header name "\x04".	
+Pass	setRequestHeader should throw with header name "\x05".	
+Pass	setRequestHeader should throw with header name "\x06".	
+Pass	setRequestHeader should throw with header name "\x07".	
+Pass	setRequestHeader should throw with header name "\b".	
+Pass	setRequestHeader should throw with header name "\t".	
+Pass	setRequestHeader should throw with header name "\n".	
+Pass	setRequestHeader should throw with header name "\v".	
+Pass	setRequestHeader should throw with header name "\f".	
+Pass	setRequestHeader should throw with header name "\r".	
+Pass	setRequestHeader should throw with header name "\x0e".	
+Pass	setRequestHeader should throw with header name "\x0f".	
+Pass	setRequestHeader should throw with header name "\x10".	
+Pass	setRequestHeader should throw with header name "\x11".	
+Pass	setRequestHeader should throw with header name "\x12".	
+Pass	setRequestHeader should throw with header name "\x13".	
+Pass	setRequestHeader should throw with header name "\x14".	
+Pass	setRequestHeader should throw with header name "\x15".	
+Pass	setRequestHeader should throw with header name "\x16".	
+Pass	setRequestHeader should throw with header name "\x17".	
+Pass	setRequestHeader should throw with header name "\x18".	
+Pass	setRequestHeader should throw with header name "\x19".	
+Pass	setRequestHeader should throw with header name "\x1a".	
+Pass	setRequestHeader should throw with header name "\x1b".	
+Pass	setRequestHeader should throw with header name "\x1c".	
+Pass	setRequestHeader should throw with header name "\x1d".	
+Pass	setRequestHeader should throw with header name "\x1e".	
+Pass	setRequestHeader should throw with header name "\x1f".	
+Pass	setRequestHeader should throw with header name "ﾃｽﾄ".	
+Pass	setRequestHeader should throw with header name "X-ﾃｽﾄ".	
