@@ -36,6 +36,7 @@ class PointerEvent : public MouseEvent {
 
 public:
     [[nodiscard]] static GC::Ref<PointerEvent> create(JS::Realm&, FlyString const& type, PointerEventInit const& = {}, double page_x = 0, double page_y = 0, double offset_x = 0, double offset_y = 0);
+    [[nodiscard]] static WebIDL::ExceptionOr<GC::Ref<PointerEvent>> create_from_platform_event(JS::Realm&, FlyString const& event_name, CSSPixelPoint screen, CSSPixelPoint page, CSSPixelPoint client, CSSPixelPoint offset, Optional<CSSPixelPoint> movement, unsigned button, unsigned buttons, unsigned modifiers);
     static WebIDL::ExceptionOr<GC::Ref<PointerEvent>> construct_impl(JS::Realm&, FlyString const& type, PointerEventInit const&);
 
     virtual ~PointerEvent() override;
