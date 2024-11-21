@@ -35,5 +35,6 @@ private:
 ThrowCompletionOr<GC::Ref<PlainYearMonth>> to_temporal_year_month(VM&, Value item, Value options = js_undefined());
 bool iso_year_month_within_limits(ISODate);
 ThrowCompletionOr<GC::Ref<PlainYearMonth>> create_temporal_year_month(VM&, ISODate, String calendar, GC::Ptr<FunctionObject> new_target = {});
+String temporal_year_month_to_string(PlainYearMonth const&, ShowCalendar);
 
 }

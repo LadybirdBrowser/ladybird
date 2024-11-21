@@ -5,6 +5,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibJS/Runtime/Temporal/AbstractOperations.h>
 #include <LibJS/Runtime/Temporal/Calendar.h>
 #include <LibJS/Runtime/Temporal/PlainYearMonthPrototype.h>
 
@@ -37,6 +38,11 @@ void PlainYearMonthPrototype::initialize(Realm& realm)
     define_native_accessor(realm, vm.names.daysInMonth, days_in_month_getter, {}, Attribute::Configurable);
     define_native_accessor(realm, vm.names.monthsInYear, months_in_year_getter, {}, Attribute::Configurable);
     define_native_accessor(realm, vm.names.inLeapYear, in_leap_year_getter, {}, Attribute::Configurable);
+
+    u8 attr = Attribute::Writable | Attribute::Configurable;
+    define_native_function(realm, vm.names.toString, to_string, 0, attr);
+    define_native_function(realm, vm.names.toLocaleString, to_locale_string, 0, attr);
+    define_native_function(realm, vm.names.toJSON, to_json, 0, attr);
 }
 
 // 9.3.3 get Temporal.PlainYearMonth.prototype.calendarId, https://tc39.es/proposal-temporal/#sec-get-temporal.plainyearmonth.prototype.calendarid
@@ -121,6 +127,46 @@ JS_DEFINE_NATIVE_FUNCTION(PlainYearMonthPrototype::month_code_getter)
     // 3. Return CalendarISOToDate(yearMonth.[[Calendar]], yearMonth.[[ISODate]]).[[MonthCode]].
     auto month_code = calendar_iso_to_date(year_month->calendar(), year_month->iso_date()).month_code;
     return PrimitiveString::create(vm, move(month_code));
+}
+
+// 9.3.19 Temporal.PlainYearMonth.prototype.toString ( [ options ] ), https://tc39.es/proposal-temporal/#sec-temporal.plainyearmonth.prototype.tostring
+JS_DEFINE_NATIVE_FUNCTION(PlainYearMonthPrototype::to_string)
+{
+    // 1. Let yearMonth be the this value.
+    // 2. Perform ? RequireInternalSlot(yearMonth, [[InitializedTemporalYearMonth]]).
+    auto year_month = TRY(typed_this_object(vm));
+
+    // 3. Let resolvedOptions be ? GetOptionsObject(options).
+    auto resolved_options = TRY(get_options_object(vm, vm.argument(0)));
+
+    // 4. Let showCalendar be ? GetTemporalShowCalendarNameOption(resolvedOptions).
+    auto show_calendar = TRY(get_temporal_show_calendar_name_option(vm, resolved_options));
+
+    // 5. Return TemporalYearMonthToString(yearMonth, showCalendar).
+    return PrimitiveString::create(vm, temporal_year_month_to_string(year_month, show_calendar));
+}
+
+// 9.3.20 Temporal.PlainYearMonth.prototype.toLocaleString ( [ locales [ , options ] ] ), https://tc39.es/proposal-temporal/#sec-temporal.plainyearmonth.prototype.tolocalestring
+// NOTE: This is the minimum toLocaleString implementation for engines without ECMA-402.
+JS_DEFINE_NATIVE_FUNCTION(PlainYearMonthPrototype::to_locale_string)
+{
+    // 1. Let yearMonth be the this value.
+    // 2. Perform ? RequireInternalSlot(yearMonth, [[InitializedTemporalYearMonth]]).
+    auto year_month = TRY(typed_this_object(vm));
+
+    // 3. Return TemporalYearMonthToString(yearMonth, AUTO).
+    return PrimitiveString::create(vm, temporal_year_month_to_string(year_month, ShowCalendar::Auto));
+}
+
+// 9.3.21 Temporal.PlainYearMonth.prototype.toJSON ( ), https://tc39.es/proposal-temporal/#sec-temporal.plainyearmonth.prototype.tojson
+JS_DEFINE_NATIVE_FUNCTION(PlainYearMonthPrototype::to_json)
+{
+    // 1. Let yearMonth be the this value.
+    // 2. Perform ? RequireInternalSlot(yearMonth, [[InitializedTemporalYearMonth]]).
+    auto year_month = TRY(typed_this_object(vm));
+
+    // 3. Return TemporalYearMonthToString(yearMonth, AUTO).
+    return PrimitiveString::create(vm, temporal_year_month_to_string(year_month, ShowCalendar::Auto));
 }
 
 }
