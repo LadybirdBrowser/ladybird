@@ -26,7 +26,7 @@ class ViewImplementation;
 class WebContentClient final
     : public IPC::ConnectionToServer<WebContentClientEndpoint, WebContentServerEndpoint>
     , public WebContentClientEndpoint {
-    IPC_CLIENT_CONNECTION(WebContentClient, "/tmp/session/%sid/portal/webcontent"sv);
+    C_OBJECT_ABSTRACT(WebContentClient);
 
 public:
     static Optional<ViewImplementation&> view_for_pid_and_page_id(pid_t pid, u64 page_id);

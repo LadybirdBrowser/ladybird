@@ -21,7 +21,7 @@ class Request;
 class RequestClient final
     : public IPC::ConnectionToServer<RequestClientEndpoint, RequestServerEndpoint>
     , public RequestClientEndpoint {
-    IPC_CLIENT_CONNECTION(RequestClient, "/tmp/session/%sid/portal/request"sv)
+    C_OBJECT_ABSTRACT(RequestClient)
 
 public:
     explicit RequestClient(IPC::Transport);

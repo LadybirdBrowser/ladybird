@@ -16,7 +16,7 @@ namespace Web::HTML {
 class WebWorkerClient final
     : public IPC::ConnectionToServer<WebWorkerClientEndpoint, WebWorkerServerEndpoint>
     , public WebWorkerClientEndpoint {
-    IPC_CLIENT_CONNECTION(WebWorkerClient, "/tmp/session/%sid/portal/webworker"sv);
+    C_OBJECT_ABSTRACT(WebWorkerClient);
 
 public:
     explicit WebWorkerClient(IPC::Transport);
