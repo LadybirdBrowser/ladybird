@@ -36,6 +36,7 @@ public:
 
     Optional<Gfx::Color> fill_color() const;
     Optional<Gfx::Color> stroke_color() const;
+    Vector<float> stroke_dasharray() const;
     Optional<float> stroke_dashoffset() const;
     Optional<float> stroke_width() const;
     Optional<float> fill_opacity() const;

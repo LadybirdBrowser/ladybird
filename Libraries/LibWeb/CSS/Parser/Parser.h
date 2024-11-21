@@ -339,6 +339,7 @@ private:
     RefPtr<CSSStyleValue> parse_text_decoration_value(TokenStream<ComponentValue>&);
     RefPtr<CSSStyleValue> parse_text_decoration_line_value(TokenStream<ComponentValue>&);
     RefPtr<CSSStyleValue> parse_rotate_value(TokenStream<ComponentValue>&);
+    RefPtr<CSSStyleValue> parse_stroke_dasharray_value(TokenStream<ComponentValue>&);
     RefPtr<CSSStyleValue> parse_easing_value(TokenStream<ComponentValue>&);
     RefPtr<CSSStyleValue> parse_transform_value(TokenStream<ComponentValue>&);
     RefPtr<CSSStyleValue> parse_transform_origin_value(TokenStream<ComponentValue>&);

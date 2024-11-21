@@ -150,6 +150,7 @@ void SVGGraphicsElement::apply_presentational_hints(CSS::StyleProperties& style)
         NamedPropertyID(CSS::PropertyID::Fill),
         // FIXME: The `stroke` attribute and CSS `stroke` property are not the same! But our support is limited enough that they are equivalent for now.
         NamedPropertyID(CSS::PropertyID::Stroke),
+        NamedPropertyID(CSS::PropertyID::StrokeDasharray),
         NamedPropertyID(CSS::PropertyID::StrokeDashoffset),
         NamedPropertyID(CSS::PropertyID::StrokeLinecap),
         NamedPropertyID(CSS::PropertyID::StrokeLinejoin),
@@ -283,6 +284,41 @@ float SVGGraphicsElement::resolve_relative_to_viewport_size(CSS::LengthPercentag
     }
     auto scaled_viewport_size = (viewport_width + viewport_height) * CSSPixels(0.5);
     return length_percentage.to_px(*layout_node(), scaled_viewport_size).to_double();
+}
+
+Vector<float> SVGGraphicsElement::stroke_dasharray() const
+{
+    if (!layout_node())
+        return {};
+
+    Vector<float> dasharray;
+    for (auto const& value : layout_node()->computed_values().stroke_dasharray()) {
+        value.visit(
+            [&](CSS::LengthPercentage const& length_percentage) {
+                dasharray.append(resolve_relative_to_viewport_size(length_percentage));
+            },
+            [&](CSS::NumberOrCalculated const& number_or_calculated) {
+                dasharray.append(number_or_calculated.resolved(*layout_node()));
+            });
+    }
+
+    // https://svgwg.org/svg2-draft/painting.html#StrokeDashing
+    // If the list has an odd number of values, then it is repeated to yield an even number of values.
+    if (dasharray.size() % 2 == 1)
+        dasharray.extend(dasharray);
+
+    // If any value in the list is negative, the <dasharray> value is invalid. If all of the values in the list are zero, then the stroke is rendered as a solid line without any dashing.
+    bool all_zero = true;
+    for (auto& value : dasharray) {
+        if (value < 0)
+            return {};
+        if (value != 0)
+            all_zero = false;
+    }
+    if (all_zero)
+        return {};
+
+    return dasharray;
 }
 
 Optional<float> SVGGraphicsElement::stroke_dashoffset() const

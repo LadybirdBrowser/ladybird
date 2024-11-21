@@ -5017,6 +5017,38 @@ RefPtr<CSSStyleValue> Parser::parse_rotate_value(TokenStream<ComponentValue>& to
     return nullptr;
 }
 
+RefPtr<CSSStyleValue> Parser::parse_stroke_dasharray_value(TokenStream<ComponentValue>& tokens)
+{
+    // https://svgwg.org/svg2-draft/painting.html#StrokeDashing
+    // Value: none | <dasharray>
+    if (auto none = parse_all_as_single_keyword_value(tokens, Keyword::None))
+        return none;
+
+    // https://svgwg.org/svg2-draft/painting.html#DataTypeDasharray
+    // <dasharray> = [ [ <length-percentage> | <number> ]+ ]#
+    Vector<ValueComparingNonnullRefPtr<CSSStyleValue const>> dashes;
+    while (tokens.has_next_token()) {
+        tokens.discard_whitespace();
+
+        // A <dasharray> is a list of comma and/or white space separated <number> or <length-percentage> values. A <number> value represents a value in user units.
+        auto value = parse_number_value(tokens);
+        if (value) {
+            dashes.append(value.release_nonnull());
+        } else {
+            auto value = parse_length_percentage_value(tokens);
+            if (!value)
+                return {};
+            dashes.append(value.release_nonnull());
+        }
+
+        tokens.discard_whitespace();
+        if (tokens.has_next_token() && tokens.next_token().is(Token::Type::Comma))
+            tokens.discard_a_token();
+    }
+
+    return StyleValueList::create(move(dashes), StyleValueList::Separator::Comma);
+}
+
 RefPtr<CSSStyleValue> Parser::parse_content_value(TokenStream<ComponentValue>& tokens)
 {
     // FIXME: `content` accepts several kinds of function() type, which we don't handle in property_accepts_value() yet.
@@ -7883,6 +7915,10 @@ Parser::ParseErrorOr<NonnullRefPtr<CSSStyleValue>> Parser::parse_css_value(Prope
         return ParseError::SyntaxError;
     case PropertyID::ScrollbarGutter:
         if (auto parsed_value = parse_scrollbar_gutter_value(tokens); parsed_value && !tokens.has_next_token())
+            return parsed_value.release_nonnull();
+        return ParseError::SyntaxError;
+    case PropertyID::StrokeDasharray:
+        if (auto parsed_value = parse_stroke_dasharray_value(tokens); parsed_value && !tokens.has_next_token())
             return parsed_value.release_nonnull();
         return ParseError::SyntaxError;
     case PropertyID::TextDecoration:

@@ -31,6 +31,7 @@ math-style: normal
 pointer-events: auto
 quotes: auto
 stroke: none
+stroke-dasharray: none
 stroke-dashoffset: 0
 stroke-linecap: butt
 stroke-linejoin: miter
@@ -125,7 +126,7 @@ grid-row-start: auto
 grid-template-areas: none
 grid-template-columns: auto
 grid-template-rows: auto
-height: 2159px
+height: 2176px
 inline-size: auto
 inset-block-end: auto
 inset-block-start: auto

@@ -2420,6 +2420,12 @@
       "paint"
     ]
   },
+  "stroke-dasharray": {
+    "animation-type": "custom",
+    "inherited": true,
+    "initial": "none",
+    "affects-layout": false
+  },
   "stroke-dashoffset": {
     "affects-layout": false,
     "animation-type": "by-computed-value",
