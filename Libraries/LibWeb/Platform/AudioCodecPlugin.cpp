@@ -32,7 +32,7 @@ ErrorOr<FixedArray<Audio::Sample>> AudioCodecPlugin::read_samples_from_loader(Au
 {
     auto buffer_or_error = loader.get_more_samples(samples_to_load);
     if (buffer_or_error.is_error()) {
-        dbgln("Error while loading samples: {}", buffer_or_error.error().description);
+        dbgln("Error while loading samples: {}", buffer_or_error.error());
         return Error::from_string_literal("Error while loading samples");
     }
 
