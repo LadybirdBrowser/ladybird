@@ -2032,7 +2032,7 @@ void GridFormattingContext::run(AvailableSpace const& available_space)
 
     CSSPixels min_height = 0;
     if (!grid_computed_values.min_height().is_auto())
-        min_height = calculate_inner_height(grid_container(), available_space.height, grid_computed_values.min_height());
+        min_height = calculate_inner_height(grid_container(), available_space, grid_computed_values.min_height());
 
     // If automatic grid container height is less than min-height, we need to re-run the track sizing algorithm
     if (m_automatic_content_height < min_height) {
@@ -2355,7 +2355,7 @@ CSSPixels GridFormattingContext::calculate_grid_container_maximum_size(GridDimen
     auto const& computed_values = grid_container().computed_values();
     if (dimension == GridDimension::Column)
         return calculate_inner_width(grid_container(), m_available_space->width, computed_values.max_width());
-    return calculate_inner_height(grid_container(), m_available_space->height, computed_values.max_height());
+    return calculate_inner_height(grid_container(), m_available_space.value(), computed_values.max_height());
 }
 
 CSS::Size const& GridFormattingContext::get_item_preferred_size(GridItem const& item, GridDimension const dimension) const
