@@ -13,7 +13,7 @@ func swt_abiv0_getEntryPoint() -> UnsafeRawPointer
 
 @main struct Runner {
     static func main() async throws {
-        let configurationJSON: UnsafeRawBufferPointer? = nil
+        nonisolated(unsafe) let configurationJSON: UnsafeRawBufferPointer? = nil
         let recordHandler: @Sendable (UnsafeRawBufferPointer) -> Void = { _ in }
 
         let entryPoint = unsafeBitCast(swt_abiv0_getEntryPoint(), to: EntryPoint.self)
