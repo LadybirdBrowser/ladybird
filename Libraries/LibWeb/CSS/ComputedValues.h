@@ -480,6 +480,7 @@ public:
     CSS::FillRule fill_rule() const { return m_inherited.fill_rule; }
     Optional<SVGPaint> const& stroke() const { return m_inherited.stroke; }
     float fill_opacity() const { return m_inherited.fill_opacity; }
+    Vector<Variant<LengthPercentage, NumberOrCalculated>> const& stroke_dasharray() const { return m_inherited.stroke_dasharray; }
     LengthPercentage const& stroke_dashoffset() const { return m_inherited.stroke_dashoffset; }
     CSS::StrokeLinecap stroke_linecap() const { return m_inherited.stroke_linecap; }
     CSS::StrokeLinejoin stroke_linejoin() const { return m_inherited.stroke_linejoin; }
@@ -581,6 +582,7 @@ protected:
         CSS::FillRule fill_rule { InitialValues::fill_rule() };
         Optional<SVGPaint> stroke;
         float fill_opacity { InitialValues::fill_opacity() };
+        Vector<Variant<LengthPercentage, NumberOrCalculated>> stroke_dasharray;
         LengthPercentage stroke_dashoffset { InitialValues::stroke_dashoffset() };
         CSS::StrokeLinecap stroke_linecap { InitialValues::stroke_linecap() };
         CSS::StrokeLinejoin stroke_linejoin { InitialValues::stroke_linejoin() };
@@ -830,6 +832,7 @@ public:
     void set_stroke(SVGPaint value) { m_inherited.stroke = value; }
     void set_fill_rule(CSS::FillRule value) { m_inherited.fill_rule = value; }
     void set_fill_opacity(float value) { m_inherited.fill_opacity = value; }
+    void set_stroke_dasharray(Vector<Variant<LengthPercentage, NumberOrCalculated>> value) { m_inherited.stroke_dasharray = move(value); }
     void set_stroke_dashoffset(LengthPercentage value) { m_inherited.stroke_dashoffset = value; }
     void set_stroke_linecap(CSS::StrokeLinecap value) { m_inherited.stroke_linecap = value; }
     void set_stroke_linejoin(CSS::StrokeLinejoin value) { m_inherited.stroke_linejoin = value; }
