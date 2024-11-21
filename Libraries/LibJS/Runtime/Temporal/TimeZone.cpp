@@ -115,8 +115,7 @@ TimeZone parse_time_zone_identifier(ParseResult const& parse_result)
 
         // b. Let offsetString be the source text matched by the UTCOffset[~SubMinutePrecision] Parse Node contained within parseResult.
         // c. Let offsetNanoseconds be ! ParseDateTimeUTCOffset(offsetString).
-        // FIXME: ParseTimeZoneOffsetString should be renamed to ParseDateTimeUTCOffset and updated for Temporal.
-        auto offset_nanoseconds = parse_time_zone_offset_string(parse_result.time_zone_offset->source_text);
+        auto offset_nanoseconds = parse_date_time_utc_offset(parse_result.time_zone_offset->source_text);
 
         // d. Let offsetMinutes be offsetNanoseconds / (60 × 10**9).
         auto offset_minutes = offset_nanoseconds / 60'000'000'000;

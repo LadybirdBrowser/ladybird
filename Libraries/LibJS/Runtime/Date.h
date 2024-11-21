@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2020-2022, Linus Groh <linusg@serenityos.org>
- * Copyright (c) 2022-2024, Tim Flynn <trflynn89@serenityos.org>
+ * Copyright (c) 2022-2024, Tim Flynn <trflynn89@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -58,14 +58,6 @@ constexpr inline double ms_per_day = 86'400'000;
 constexpr inline double ns_per_day = 86'400'000'000'000;
 extern Crypto::SignedBigInteger const ns_per_day_bigint;
 
-struct UTCOffset {
-    Optional<char> sign;
-    Optional<u8> hour;
-    Optional<u8> minute;
-    Optional<u8> second;
-    Optional<StringView> fraction;
-};
-
 double day(double);
 double time_within_day(double);
 u16 days_in_year(i32);
@@ -93,8 +85,9 @@ double make_time(double hour, double min, double sec, double ms);
 double make_day(double year, double month, double date);
 double make_date(double day, double time);
 double time_clip(double time);
-Optional<UTCOffset> parse_utc_offset(StringView);
-bool is_time_zone_offset_string(StringView offset_string);
-double parse_time_zone_offset_string(StringView offset_string);
+bool is_offset_time_zone_identifier(StringView offset_string);
+ThrowCompletionOr<double> parse_date_time_utc_offset(VM&, StringView offset_string);
+double parse_date_time_utc_offset(StringView offset_string);
+double parse_date_time_utc_offset(Temporal::TimeZoneOffset const&);
 
 }

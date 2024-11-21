@@ -1366,10 +1366,7 @@ ThrowCompletionOr<String> to_offset_string(VM& vm, Value argument)
         return vm.throw_completion<TypeError>(ErrorType::TemporalInvalidTimeZoneString, offset);
 
     // 3. Perform ? ParseDateTimeUTCOffset(offset).
-    // FIXME: ParseTimeZoneOffsetString should be renamed to ParseDateTimeUTCOffset and updated for Temporal. For now, we
-    //        can just check with the ISO8601 parser directly.
-    if (!parse_utc_offset(argument.as_string().utf8_string_view(), SubMinutePrecision::Yes).has_value())
-        return vm.throw_completion<RangeError>(ErrorType::TemporalInvalidTimeZoneString, offset);
+    TRY(parse_date_time_utc_offset(vm, offset.as_string().utf8_string_view()));
 
     // 4. Return offset.
     return offset.as_string().utf8_string();
