@@ -40,6 +40,8 @@ void PlainYearMonthPrototype::initialize(Realm& realm)
     define_native_accessor(realm, vm.names.inLeapYear, in_leap_year_getter, {}, Attribute::Configurable);
 
     u8 attr = Attribute::Writable | Attribute::Configurable;
+    define_native_function(realm, vm.names.with, with, 1, attr);
+    define_native_function(realm, vm.names.equals, equals, 1, attr);
     define_native_function(realm, vm.names.toString, to_string, 0, attr);
     define_native_function(realm, vm.names.toLocaleString, to_locale_string, 0, attr);
     define_native_function(realm, vm.names.toJSON, to_json, 0, attr);
@@ -127,6 +129,63 @@ JS_DEFINE_NATIVE_FUNCTION(PlainYearMonthPrototype::month_code_getter)
     // 3. Return CalendarISOToDate(yearMonth.[[Calendar]], yearMonth.[[ISODate]]).[[MonthCode]].
     auto month_code = calendar_iso_to_date(year_month->calendar(), year_month->iso_date()).month_code;
     return PrimitiveString::create(vm, move(month_code));
+}
+
+// 9.3.13 Temporal.PlainYearMonth.prototype.with ( temporalYearMonthLike [ , options ] ), https://tc39.es/proposal-temporal/#sec-temporal.plainyearmonth.prototype.with
+JS_DEFINE_NATIVE_FUNCTION(PlainYearMonthPrototype::with)
+{
+    auto temporal_year_month_like = vm.argument(0);
+    auto options = vm.argument(1);
+
+    // 1. Let yearMonth be the this value.
+    // 2. Perform ? RequireInternalSlot(yearMonth, [[InitializedTemporalYearMonth]]).
+    auto year_month = TRY(typed_this_object(vm));
+
+    // 3. If ? IsPartialTemporalObject(temporalYearMonthLike) is false, throw a TypeError exception.
+    if (!TRY(is_partial_temporal_object(vm, temporal_year_month_like)))
+        return vm.throw_completion<TypeError>(ErrorType::TemporalObjectMustBePartialTemporalObject);
+
+    // 4. Let calendar be yearMonth.[[Calendar]].
+    auto const& calendar = year_month->calendar();
+
+    // 5. Let fields be ISODateToFields(calendar, yearMonth.[[ISODate]], YEAR-MONTH).
+    auto fields = iso_date_to_fields(calendar, year_month->iso_date(), DateType::YearMonth);
+
+    // 6. Let partialYearMonth be ? PrepareCalendarFields(calendar, temporalYearMonthLike, « YEAR, MONTH, MONTH-CODE », « », PARTIAL).
+    auto partial_year_month = TRY(prepare_calendar_fields(vm, calendar, temporal_year_month_like.as_object(), { { CalendarField::Year, CalendarField::Month, CalendarField::MonthCode } }, {}, Partial {}));
+
+    // 7. Set fields to CalendarMergeFields(calendar, fields, partialYearMonth).
+    fields = calendar_merge_fields(calendar, fields, partial_year_month);
+
+    // 8. Let resolvedOptions be ? GetOptionsObject(options).
+    auto resolved_options = TRY(get_options_object(vm, options));
+
+    // 9. Let overflow be ? GetTemporalOverflowOption(resolvedOptions).
+    auto overflow = TRY(get_temporal_overflow_option(vm, resolved_options));
+
+    // 10. Let isoDate be ? CalendarYearMonthFromFields(calendar, fields, overflow).
+    auto iso_date = TRY(calendar_year_month_from_fields(vm, calendar, fields, overflow));
+
+    // 11. Return ! CreateTemporalYearMonth(isoDate, calendar).
+    return MUST(create_temporal_year_month(vm, iso_date, calendar));
+}
+
+// 9.3.18 Temporal.PlainYearMonth.prototype.equals ( other ), https://tc39.es/proposal-temporal/#sec-temporal.plainyearmonth.prototype.equals
+JS_DEFINE_NATIVE_FUNCTION(PlainYearMonthPrototype::equals)
+{
+    // 1. Let yearMonth be the this value.
+    // 2. Perform ? RequireInternalSlot(yearMonth, [[InitializedTemporalYearMonth]]).
+    auto year_month = TRY(typed_this_object(vm));
+
+    // 3. Set other to ? ToTemporalYearMonth(other).
+    auto other = TRY(to_temporal_year_month(vm, vm.argument(0)));
+
+    // 4. If CompareISODate(yearMonth.[[ISODate]], other.[[ISODate]]) ≠ 0, return false.
+    if (compare_iso_date(year_month->iso_date(), other->iso_date()) != 0)
+        return false;
+
+    // 5. Return CalendarEquals(yearMonth.[[Calendar]], other.[[Calendar]]).
+    return calendar_equals(year_month->calendar(), other->calendar());
 }
 
 // 9.3.19 Temporal.PlainYearMonth.prototype.toString ( [ options ] ), https://tc39.es/proposal-temporal/#sec-temporal.plainyearmonth.prototype.tostring
