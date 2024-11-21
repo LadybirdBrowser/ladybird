@@ -6,8 +6,8 @@ Rerun
 
 Found 1975 tests
 
-1923 Pass
-52 Fail
+1931 Pass
+44 Fail
 Details
 Result	Test Name	MessagePass	Selectors-API Test Suite: HTML	
 Pass	Document supports querySelector	
@@ -414,8 +414,8 @@ Pass	Document.querySelectorAll: Attribute presence selector, matching align attr
 Pass	Document.querySelector: Attribute presence selector, matching align attribute with value: .attr-presence-div1[align]	
 Pass	Document.querySelectorAll: Attribute presence selector, matching align attribute with empty value: .attr-presence-div2[align]	
 Pass	Document.querySelector: Attribute presence selector, matching align attribute with empty value: .attr-presence-div2[align]	
-Fail	Document.querySelectorAll: Attribute presence selector, matching title attribute, case insensitivity: #attr-presence [*|TiTlE]	
-Fail	Document.querySelector: Attribute presence selector, matching title attribute, case insensitivity: #attr-presence [*|TiTlE]	
+Pass	Document.querySelectorAll: Attribute presence selector, matching title attribute, case insensitivity: #attr-presence [*|TiTlE]	
+Pass	Document.querySelector: Attribute presence selector, matching title attribute, case insensitivity: #attr-presence [*|TiTlE]	
 Pass	Document.querySelectorAll: Attribute presence selector, matching custom data-* attribute: [data-attr-presence]	
 Pass	Document.querySelector: Attribute presence selector, matching custom data-* attribute: [data-attr-presence]	
 Pass	Document.querySelectorAll: Attribute presence selector, not matching attribute with similar name: .attr-presence-div3[align], .attr-presence-div4[align]	
@@ -810,8 +810,8 @@ Pass	Detached Element.querySelectorAll: Attribute presence selector, matching al
 Pass	Detached Element.querySelector: Attribute presence selector, matching align attribute with value: .attr-presence-div1[align]	
 Pass	Detached Element.querySelectorAll: Attribute presence selector, matching align attribute with empty value: .attr-presence-div2[align]	
 Pass	Detached Element.querySelector: Attribute presence selector, matching align attribute with empty value: .attr-presence-div2[align]	
-Fail	Detached Element.querySelectorAll: Attribute presence selector, matching title attribute, case insensitivity: #attr-presence [*|TiTlE]	
-Fail	Detached Element.querySelector: Attribute presence selector, matching title attribute, case insensitivity: #attr-presence [*|TiTlE]	
+Pass	Detached Element.querySelectorAll: Attribute presence selector, matching title attribute, case insensitivity: #attr-presence [*|TiTlE]	
+Pass	Detached Element.querySelector: Attribute presence selector, matching title attribute, case insensitivity: #attr-presence [*|TiTlE]	
 Pass	Detached Element.querySelectorAll: Attribute presence selector, matching custom data-* attribute: [data-attr-presence]	
 Pass	Detached Element.querySelector: Attribute presence selector, matching custom data-* attribute: [data-attr-presence]	
 Pass	Detached Element.querySelectorAll: Attribute presence selector, not matching attribute with similar name: .attr-presence-div3[align], .attr-presence-div4[align]	
@@ -1206,8 +1206,8 @@ Pass	Fragment.querySelectorAll: Attribute presence selector, matching align attr
 Pass	Fragment.querySelector: Attribute presence selector, matching align attribute with value: .attr-presence-div1[align]	
 Pass	Fragment.querySelectorAll: Attribute presence selector, matching align attribute with empty value: .attr-presence-div2[align]	
 Pass	Fragment.querySelector: Attribute presence selector, matching align attribute with empty value: .attr-presence-div2[align]	
-Fail	Fragment.querySelectorAll: Attribute presence selector, matching title attribute, case insensitivity: #attr-presence [*|TiTlE]	
-Fail	Fragment.querySelector: Attribute presence selector, matching title attribute, case insensitivity: #attr-presence [*|TiTlE]	
+Pass	Fragment.querySelectorAll: Attribute presence selector, matching title attribute, case insensitivity: #attr-presence [*|TiTlE]	
+Pass	Fragment.querySelector: Attribute presence selector, matching title attribute, case insensitivity: #attr-presence [*|TiTlE]	
 Pass	Fragment.querySelectorAll: Attribute presence selector, matching custom data-* attribute: [data-attr-presence]	
 Pass	Fragment.querySelector: Attribute presence selector, matching custom data-* attribute: [data-attr-presence]	
 Pass	Fragment.querySelectorAll: Attribute presence selector, not matching attribute with similar name: .attr-presence-div3[align], .attr-presence-div4[align]	
@@ -1602,8 +1602,8 @@ Pass	In-document Element.querySelectorAll: Attribute presence selector, matching
 Pass	In-document Element.querySelector: Attribute presence selector, matching align attribute with value: .attr-presence-div1[align]	
 Pass	In-document Element.querySelectorAll: Attribute presence selector, matching align attribute with empty value: .attr-presence-div2[align]	
 Pass	In-document Element.querySelector: Attribute presence selector, matching align attribute with empty value: .attr-presence-div2[align]	
-Fail	In-document Element.querySelectorAll: Attribute presence selector, matching title attribute, case insensitivity: #attr-presence [*|TiTlE]	
-Fail	In-document Element.querySelector: Attribute presence selector, matching title attribute, case insensitivity: #attr-presence [*|TiTlE]	
+Pass	In-document Element.querySelectorAll: Attribute presence selector, matching title attribute, case insensitivity: #attr-presence [*|TiTlE]	
+Pass	In-document Element.querySelector: Attribute presence selector, matching title attribute, case insensitivity: #attr-presence [*|TiTlE]	
 Pass	In-document Element.querySelectorAll: Attribute presence selector, matching custom data-* attribute: [data-attr-presence]	
 Pass	In-document Element.querySelector: Attribute presence selector, matching custom data-* attribute: [data-attr-presence]	
 Pass	In-document Element.querySelectorAll: Attribute presence selector, not matching attribute with similar name: .attr-presence-div3[align], .attr-presence-div4[align]	

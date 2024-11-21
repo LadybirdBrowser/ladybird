@@ -219,8 +219,7 @@ static inline bool matches_attribute(CSS::Selector::SimpleSelector::Attribute co
 
     auto const& attribute_name = attribute.qualified_name.name.name;
 
-    auto const* attr = element.namespace_uri() == Namespace::HTML ? element.attributes()->get_attribute_with_lowercase_qualified_name(attribute_name)
-                                                                  : element.attributes()->get_attribute(attribute_name);
+    auto const* attr = element.attributes()->get_attribute(attribute_name);
 
     if (attribute.match_type == CSS::Selector::SimpleSelector::Attribute::MatchType::HasAttribute) {
         // Early way out in case of an attribute existence selector.
