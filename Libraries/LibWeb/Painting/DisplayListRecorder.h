@@ -61,6 +61,11 @@ public:
     void fill_path(FillPathUsingPaintStyleParams params);
 
     struct StrokePathUsingColorParams {
+        Gfx::Path::CapStyle cap_style;
+        Gfx::Path::JoinStyle join_style;
+        float miter_limit;
+        Vector<float> dash_array;
+        float dash_offset;
         Gfx::Path path;
         Gfx::Color color;
         float thickness;
@@ -69,6 +74,11 @@ public:
     void stroke_path(StrokePathUsingColorParams params);
 
     struct StrokePathUsingPaintStyleParams {
+        Gfx::Path::CapStyle cap_style;
+        Gfx::Path::JoinStyle join_style;
+        float miter_limit;
+        Vector<float> dash_array;
+        float dash_offset;
         Gfx::Path path;
         PaintStyle paint_style;
         float thickness;
