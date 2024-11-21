@@ -51,10 +51,10 @@ describe("normal behavior", () => {
         expect(Object.getPrototypeOf(plainYearMonth)).toBe(Temporal.PlainYearMonth.prototype);
     });
 
-    // FIXME: Re-implement this test with Temporal.PlainYearMonth.prototype.toString({ calendarName: "always" }).
-    // test("default reference day is 1", () => {
-    //     const plainYearMonth = new Temporal.PlainYearMonth(2021, 7);
-    //     const fields = plainYearMonth.getISOFields();
-    //     expect(fields.isoDay).toBe(1);
-    // });
+    test("default reference day is 1", () => {
+        const plainYearMonth = new Temporal.PlainYearMonth(2021, 7);
+        const fields = plainYearMonth.toString({ calendarName: "always" });
+        const day = fields.split("-")[2].split("[")[0];
+        expect(day).toBe("01");
+    });
 });

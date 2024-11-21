@@ -149,4 +149,31 @@ ThrowCompletionOr<GC::Ref<PlainYearMonth>> create_temporal_year_month(VM& vm, IS
     return object;
 }
 
+// 9.5.6 TemporalYearMonthToString ( yearMonth, showCalendar ), https://tc39.es/proposal-temporal/#sec-temporal-temporalyearmonthtostring
+String temporal_year_month_to_string(PlainYearMonth const& year_month, ShowCalendar show_calendar)
+{
+    // 1. Let year be PadISOYear(yearMonth.[[ISODate]].[[Year]]).
+    auto year = pad_iso_year(year_month.iso_date().year);
+
+    // 2. Let month be ToZeroPaddedDecimalString(yearMonth.[[ISODate]].[[Month]], 2).
+    // 3. Let result be the string-concatenation of year, the code unit 0x002D (HYPHEN-MINUS), and month.
+    auto result = MUST(String::formatted("{}-{:02}", year, year_month.iso_date().month));
+
+    // 4. If showCalendar is one of always or critical, or if yearMonth.[[Calendar]] is not "iso8601", then
+    if (show_calendar == ShowCalendar::Always || show_calendar == ShowCalendar::Critical || year_month.calendar() != "iso8601"sv) {
+        // a. Let day be ToZeroPaddedDecimalString(yearMonth.[[ISODate]].[[Day]], 2).
+        // b. Set result to the string-concatenation of result, the code unit 0x002D (HYPHEN-MINUS), and day.
+        result = MUST(String::formatted("{}-{:02}", result, year_month.iso_date().day));
+    }
+
+    // 5. Let calendarString be FormatCalendarAnnotation(yearMonth.[[Calendar]], showCalendar).
+    auto calendar_string = format_calendar_annotation(year_month.calendar(), show_calendar);
+
+    // 6. Set result to the string-concatenation of result and calendarString.
+    result = MUST(String::formatted("{}{}", result, calendar_string));
+
+    // 7. Return result.
+    return result;
+}
+
 }
