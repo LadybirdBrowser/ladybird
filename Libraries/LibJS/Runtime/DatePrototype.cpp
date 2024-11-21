@@ -2,7 +2,7 @@
  * Copyright (c) 2020-2023, Linus Groh <linusg@serenityos.org>
  * Copyright (c) 2021, Petróczi Zoltán <petroczizoltan@tutanota.com>
  * Copyright (c) 2021, Idan Horowitz <idan.horowitz@serenityos.org>
- * Copyright (c) 2022, Tim Flynn <trflynn89@serenityos.org>
+ * Copyright (c) 2022-2024, Tim Flynn <trflynn89@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -21,6 +21,8 @@
 #include <LibJS/Runtime/GlobalObject.h>
 #include <LibJS/Runtime/Intl/DateTimeFormat.h>
 #include <LibJS/Runtime/Intl/DateTimeFormatConstructor.h>
+#include <LibJS/Runtime/Temporal/AbstractOperations.h>
+#include <LibJS/Runtime/Temporal/TimeZone.h>
 #include <LibJS/Runtime/Value.h>
 #include <LibJS/Runtime/ValueInlines.h>
 #include <LibUnicode/DisplayNames.h>
@@ -1066,19 +1068,14 @@ JS_DEFINE_NATIVE_FUNCTION(DatePrototype::to_string)
 }
 
 // 21.4.4.41.1 TimeString ( tv ), https://tc39.es/ecma262/#sec-timestring
+// 14.5.8 TimeString ( tv ), https://tc39.es/proposal-temporal/#sec-timestring
 ByteString time_string(double time)
 {
-    // 1. Let hour be ToZeroPaddedDecimalString(ℝ(HourFromTime(tv)), 2).
-    auto hour = hour_from_time(time);
+    // 1. Let timeString be FormatTimeString(ℝ(HourFromTime(tv)), ℝ(MinFromTime(tv)), ℝ(SecFromTime(tv)), 0, 0).
+    auto time_string = Temporal::format_time_string(hour_from_time(time), min_from_time(time), sec_from_time(time), 0, 0);
 
-    // 2. Let minute be ToZeroPaddedDecimalString(ℝ(MinFromTime(tv)), 2).
-    auto minute = min_from_time(time);
-
-    // 3. Let second be ToZeroPaddedDecimalString(ℝ(SecFromTime(tv)), 2).
-    auto second = sec_from_time(time);
-
-    // 4. Return the string-concatenation of hour, ":", minute, ":", second, the code unit 0x0020 (SPACE), and "GMT".
-    return ByteString::formatted("{:02}:{:02}:{:02} GMT", hour, minute, second);
+    // 4. Return the string-concatenation of timeString, the code unit 0x0020 (SPACE), and "GMT".
+    return ByteString::formatted("{} GMT", time_string);
 }
 
 // 21.4.4.41.2 DateString ( tv ), https://tc39.es/ecma262/#sec-datestring
@@ -1105,62 +1102,40 @@ ByteString date_string(double time)
 }
 
 // 21.4.4.41.3 TimeZoneString ( tv ), https://tc39.es/ecma262/#sec-timezoneestring
+// 14.5.9 TimeZoneString ( tv ), https://tc39.es/proposal-temporal/#sec-timezoneestring
 ByteString time_zone_string(double time)
 {
     // 1. Let systemTimeZoneIdentifier be SystemTimeZoneIdentifier().
     auto system_time_zone_identifier = JS::system_time_zone_identifier();
 
-    double offset_nanoseconds { 0 };
+    // 2. Let offsetMinutes be ! ParseTimeZoneIdentifier(systemTimeZoneIdentifier).[[OffsetMinutes]].
+    auto offset_minutes = Temporal::parse_time_zone_identifier(system_time_zone_identifier).offset_minutes;
     auto in_dst = Unicode::TimeZoneOffset::InDST::No;
 
-    // 2. If IsTimeZoneOffsetString(systemTimeZoneIdentifier) is true, then
-    if (is_time_zone_offset_string(system_time_zone_identifier)) {
-        // a. Let offsetNs be ParseTimeZoneOffsetString(systemTimeZoneIdentifier).
-        offset_nanoseconds = parse_time_zone_offset_string(system_time_zone_identifier);
-    }
-    // 3. Else,
-    else {
+    // 2. If offsetMinutes is EMPTY, then
+    if (!offset_minutes.has_value()) {
         // a. Let offsetNs be GetNamedTimeZoneOffsetNanoseconds(systemTimeZoneIdentifier, ℤ(ℝ(tv) × 10^6)).
         auto offset = get_named_time_zone_offset_milliseconds(system_time_zone_identifier, time);
-
-        offset_nanoseconds = static_cast<double>(offset.offset.to_nanoseconds());
         in_dst = offset.in_dst;
+
+        // b. Set offsetMinutes to truncate(offsetNs / (60 × 10**9)).
+        offset_minutes = trunc(static_cast<double>(offset.offset.to_nanoseconds()) / 60'000'000'000.0);
     }
 
-    // 4. Let offset be 𝔽(truncate(offsetNs / 106)).
-    auto offset = trunc(offset_nanoseconds / 1e6);
+    // 3. Let offsetString be FormatOffsetTimeZoneIdentifier(offsetMinutes, UNSEPARATED).
+    auto offset_string = Temporal::format_offset_time_zone_identifier(*offset_minutes, Temporal::TimeStyle::Unseparated);
 
-    StringView offset_sign;
-
-    // 5. If offset is +0𝔽 or offset > +0𝔽, then
-    if (offset >= 0) {
-        // a. Let offsetSign be "+".
-        offset_sign = "+"sv;
-        // b. Let absOffset be offset.
-    }
-    // 6. Else,
-    else {
-        // a. Let offsetSign be "-".
-        offset_sign = "-"sv;
-        // b. Let absOffset be -offset.
-        offset *= -1;
-    }
-
-    // 7. Let offsetMin be ToZeroPaddedDecimalString(ℝ(MinFromTime(absOffset)), 2).
-    auto offset_min = min_from_time(offset);
-
-    // 8. Let offsetHour be ToZeroPaddedDecimalString(ℝ(HourFromTime(absOffset)), 2).
-    auto offset_hour = hour_from_time(offset);
-
-    // 9. Let tzName be an implementation-defined string that is either the empty String or the string-concatenation of the code unit 0x0020 (SPACE), the code unit 0x0028 (LEFT PARENTHESIS), an implementation-defined timezone name, and the code unit 0x0029 (RIGHT PARENTHESIS).
+    // 5. Let tzName be an implementation-defined string that is either the empty String or the string-concatenation of
+    //    the code unit 0x0020 (SPACE), the code unit 0x0028 (LEFT PARENTHESIS), an implementation-defined timezone name,
+    //    and the code unit 0x0029 (RIGHT PARENTHESIS).
     auto tz_name = Unicode::current_time_zone();
 
     // Most implementations seem to prefer the long-form display name of the time zone. Not super important, but we may as well match that behavior.
     if (auto name = Unicode::time_zone_display_name(Unicode::default_locale(), tz_name, in_dst, time); name.has_value())
         tz_name = name.release_value();
 
-    // 10. Return the string-concatenation of offsetSign, offsetHour, offsetMin, and tzName.
-    return ByteString::formatted("{}{:02}{:02} ({})", offset_sign, offset_hour, offset_min, tz_name);
+    // 10. Return the string-concatenation of offsetString and tzName.
+    return ByteString::formatted("{} ({})", offset_string, tz_name);
 }
 
 // 21.4.4.41.4 ToDateString ( tv ), https://tc39.es/ecma262/#sec-todatestring

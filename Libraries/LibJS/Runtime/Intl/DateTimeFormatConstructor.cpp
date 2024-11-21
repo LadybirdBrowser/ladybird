@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2024, Tim Flynn <trflynn89@serenityos.org>
+ * Copyright (c) 2021-2024, Tim Flynn <trflynn89@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -11,6 +11,7 @@
 #include <LibJS/Runtime/Intl/AbstractOperations.h>
 #include <LibJS/Runtime/Intl/DateTimeFormat.h>
 #include <LibJS/Runtime/Intl/DateTimeFormatConstructor.h>
+#include <LibJS/Runtime/Temporal/ISO8601.h>
 #include <LibUnicode/DateTimeFormat.h>
 #include <LibUnicode/Locale.h>
 
@@ -81,6 +82,8 @@ JS_DEFINE_NATIVE_FUNCTION(DateTimeFormatConstructor::supported_locales_of)
 }
 
 // 11.1.2 CreateDateTimeFormat ( newTarget, locales, options, required, defaults ), https://tc39.es/ecma402/#sec-createdatetimeformat
+// 15.7.1 CreateDateTimeFormat ( newTarget, locales, options, required, defaults [ , toLocaleStringTimeZone ] ), https://tc39.es/proposal-temporal/#sec-createdatetimeformat
+// FIXME: Update the rest of this AO for Temporal once we have the required Temporal objects.
 ThrowCompletionOr<GC::Ref<DateTimeFormat>> create_date_time_format(VM& vm, FunctionObject& new_target, Value locales_value, Value options_value, OptionRequired required, OptionDefaults defaults)
 {
     // 1. Let dateTimeFormat be ? OrdinaryCreateFromConstructor(newTarget, "%Intl.DateTimeFormat.prototype%", « [[InitializedDateTimeFormat]], [[Locale]], [[Calendar]], [[NumberingSystem]], [[TimeZone]], [[HourCycle]], [[DateStyle]], [[TimeStyle]], [[DateTimeFormat]], [[BoundFormat]] »).
@@ -200,29 +203,25 @@ ThrowCompletionOr<GC::Ref<DateTimeFormat>> create_date_time_format(VM& vm, Funct
     }
 
     // 29. If IsTimeZoneOffsetString(timeZone) is true, then
-    bool is_time_zone_offset_string = JS::is_time_zone_offset_string(time_zone);
+    bool is_time_zone_offset_string = JS::is_offset_time_zone_identifier(time_zone);
 
     if (is_time_zone_offset_string) {
-        // a. Let parseResult be ParseText(StringToCodePoints(timeZone), UTCOffset).
-        auto parse_result = parse_utc_offset(time_zone);
+        // a. Let parseResult be ParseText(StringToCodePoints(timeZone), UTCOffset[~SubMinutePrecision]).
+        auto parse_result = Temporal::parse_utc_offset(time_zone, Temporal::SubMinutePrecision::No);
 
         // b. Assert: parseResult is a Parse Node.
         VERIFY(parse_result.has_value());
 
-        // c. If parseResult contains more than one MinuteSecond Parse Node, throw a RangeError exception.
-        if (parse_result->second.has_value())
-            return vm.throw_completion<RangeError>(ErrorType::OptionIsNotValidValue, time_zone, vm.names.timeZone);
+        // c. Let offsetNanoseconds be ? ParseDateTimeUTCOffset(timeZone).
+        auto offset_nanoseconds = TRY(parse_date_time_utc_offset(vm, time_zone));
 
-        // d. Let offsetNanoseconds be ParseTimeZoneOffsetString(timeZone).
-        auto offset_nanoseconds = parse_time_zone_offset_string(time_zone);
-
-        // e. Let offsetMinutes be offsetNanoseconds / (6 × 10**10).
+        // d. Let offsetMinutes be offsetNanoseconds / (6 × 10**10).
         auto offset_minutes = offset_nanoseconds / 60'000'000'000;
 
-        // f. Assert: offsetMinutes is an integer.
+        // e. Assert: offsetMinutes is an integer.
         VERIFY(trunc(offset_minutes) == offset_minutes);
 
-        // g. Set timeZone to FormatOffsetTimeZoneIdentifier(offsetMinutes).
+        // f. Set timeZone to FormatOffsetTimeZoneIdentifier(offsetMinutes).
         time_zone = format_offset_time_zone_identifier(offset_minutes);
     }
     // 30. Else,
