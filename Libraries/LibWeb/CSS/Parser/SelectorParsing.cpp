@@ -166,8 +166,12 @@ Parser::ParseErrorOr<Optional<Selector::CompoundSelector>> Parser::parse_compoun
         simple_selectors.append(component.release_value());
     }
 
-    if (simple_selectors.is_empty())
+    if (simple_selectors.is_empty()) {
+        if (tokens.has_next_token() || combinator != Selector::Combinator::Descendant)
+            return ParseError::SyntaxError;
+
         return Optional<Selector::CompoundSelector> {};
+    }
 
     return Selector::CompoundSelector { combinator, move(simple_selectors) };
 }
