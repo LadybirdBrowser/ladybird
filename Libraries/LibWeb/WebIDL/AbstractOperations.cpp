@@ -225,6 +225,33 @@ JS::Completion call_user_object_operation(WebIDL::CallbackType& callback, String
     return clean_up_on_return(stored_realm, relevant_realm, completion, callback.operation_returns_promise);
 }
 
+// https://webidl.spec.whatwg.org/#ref-for-idl-ByteString%E2%91%A7
+JS::ThrowCompletionOr<String> to_byte_string(JS::VM& vm, JS::Value value)
+{
+    // 1. Let x be ? ToString(V).
+    auto x = TRY(value.to_string(vm));
+
+    // 2. If the value of any element of x is greater than 255, then throw a TypeError.
+    for (auto character : x.code_points()) {
+        if (character > 0xFF)
+            return vm.throw_completion<JS::TypeError>(JS::ErrorType::InvalidCodePoint);
+    }
+
+    // 3. Return an IDL ByteString value whose length is the length of x, and where the value of each element is the value of the corresponding element of x.
+    // FIXME: This should return a ByteString.
+    return x;
+}
+
+JS::ThrowCompletionOr<String> to_string(JS::VM& vm, JS::Value value)
+{
+    return value.to_string(vm);
+}
+
+JS::ThrowCompletionOr<String> to_usv_string(JS::VM& vm, JS::Value value)
+{
+    return value.to_well_formed_string(vm);
+}
+
 // https://webidl.spec.whatwg.org/#invoke-a-callback-function
 // https://whatpr.org/webidl/1437.html#invoke-a-callback-function
 JS::Completion invoke_callback(WebIDL::CallbackType& callback, Optional<JS::Value> this_argument, GC::MarkedVector<JS::Value> args)

@@ -23,6 +23,10 @@ ErrorOr<ByteBuffer> get_buffer_source_copy(JS::Object const& buffer_source);
 
 JS::Completion call_user_object_operation(WebIDL::CallbackType& callback, String const& operation_name, Optional<JS::Value> this_argument, GC::MarkedVector<JS::Value> args);
 
+JS::ThrowCompletionOr<String> to_string(JS::VM&, JS::Value);
+JS::ThrowCompletionOr<String> to_usv_string(JS::VM&, JS::Value);
+JS::ThrowCompletionOr<String> to_byte_string(JS::VM&, JS::Value);
+
 // https://webidl.spec.whatwg.org/#call-a-user-objects-operation
 template<typename... Args>
 JS::Completion call_user_object_operation(WebIDL::CallbackType& callback, String const& operation_name, Optional<JS::Value> this_argument, Args&&... args)
