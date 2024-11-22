@@ -10,6 +10,7 @@
 #include <LibWeb/Bindings/CryptoKeyPrototype.h>
 #include <LibWeb/Bindings/ExceptionOrUtils.h>
 #include <LibWeb/Crypto/CryptoKey.h>
+#include <LibWeb/HTML/StructuredSerialize.h>
 
 namespace Web::Crypto {
 
