@@ -10,10 +10,10 @@
 
 #include <AK/Optional.h>
 #include <LibCrypto/BigFraction/BigFraction.h>
-#include <LibCrypto/BigInt/SignedBigInteger.h>
 #include <LibJS/Runtime/Completion.h>
 #include <LibJS/Runtime/Object.h>
 #include <LibJS/Runtime/Temporal/AbstractOperations.h>
+#include <LibJS/Runtime/Temporal/ISORecords.h>
 #include <LibJS/Runtime/Value.h>
 
 namespace JS::Temporal {
@@ -89,10 +89,6 @@ struct PartialDuration {
     Optional<double> nanoseconds;
 };
 
-// A time duration is an integer in the inclusive interval from -maxTimeDuration to maxTimeDuration, where
-// maxTimeDuration = 2**53 × 10**9 - 1 = 9,007,199,254,740,991,999,999,999. It represents the portion of a
-// Temporal.Duration object that deals with time units, but as a combined value of total nanoseconds.
-using TimeDuration = Crypto::SignedBigInteger;
 extern TimeDuration const MAX_TIME_DURATION;
 
 // 7.5.3 Internal Duration Records, https://tc39.es/proposal-temporal/#sec-temporal-internal-duration-records

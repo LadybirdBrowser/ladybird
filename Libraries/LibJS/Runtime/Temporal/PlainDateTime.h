@@ -8,16 +8,9 @@
 
 #pragma once
 
-#include <LibJS/Runtime/Temporal/PlainDate.h>
-#include <LibJS/Runtime/Temporal/PlainTime.h>
+#include <LibJS/Runtime/Temporal/ISORecords.h>
 
 namespace JS::Temporal {
-
-// 5.5.1 ISO Date-Time Records, https://tc39.es/proposal-temporal/#sec-temporal-iso-date-time-records
-struct ISODateTime {
-    ISODate iso_date;
-    Time time;
-};
 
 ISODateTime combine_iso_date_and_time_record(ISODate, Time);
 bool iso_date_time_within_limits(ISODateTime);

@@ -8,20 +8,9 @@
 
 #pragma once
 
-#include <AK/Types.h>
+#include <LibJS/Runtime/Temporal/ISORecords.h>
 
 namespace JS::Temporal {
-
-// 4.5.1 Time Records, https://tc39.es/proposal-temporal/#sec-temporal-time-records
-struct Time {
-    double days { 0 };
-    u8 hour { 0 };
-    u8 minute { 0 };
-    u8 second { 0 };
-    u16 millisecond { 0 };
-    u16 microsecond { 0 };
-    u16 nanosecond { 0 };
-};
 
 Time create_time_record(double hour, double minute, double second, double millisecond, double microsecond, double nanosecond, double delta_days = 0);
 Time midnight_time_record();
