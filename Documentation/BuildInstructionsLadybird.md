@@ -203,7 +203,7 @@ The simplest way to build and run ladybird is via the ladybird.sh script:
 
 On macOS, to build using clang from homebrew:
 ```bash
-CC=$(brew --prefix llvm)/bin/clang CXX=$(brew --prefix llvm)/bin/clang++ ./Meta/ladybird.sh run
+CC=$(brew --prefix llvm@18)/bin/clang CXX=$(brew --prefix llvm@18)/bin/clang++ ./Meta/ladybird.sh run
 ```
 
 You may also choose to start it in `gdb` using:

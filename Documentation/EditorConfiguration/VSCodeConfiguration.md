@@ -303,7 +303,7 @@ If you want to run the debugger, first place the content below in `.vscode/launc
 then run Ladybird with the debug preset and with the `--debug-process WebContent` flag:
 
 ```bash
-CC=$(brew --prefix llvm)/bin/clang CXX=$(brew --prefix llvm)/bin/clang++ BUILD_PRESET=Debug ./Meta/ladybird.sh run ladybird --debug-process WebContent
+CC=$(brew --prefix llvm@18)/bin/clang CXX=$(brew --prefix llvm@18)/bin/clang++ BUILD_PRESET=Debug ./Meta/ladybird.sh run ladybird --debug-process WebContent
 ```
 
 Running Ladybird in this way will pause execution until a debugger is attached. You can then run the debugger by going to the **Run and Debug** menu and selecting the **Attach to WebContent** configuration.
