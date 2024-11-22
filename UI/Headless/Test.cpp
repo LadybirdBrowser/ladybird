@@ -57,6 +57,12 @@ static ErrorOr<void> load_test_config(StringView test_root_path)
     return {};
 }
 
+static bool is_valid_test_name(StringView test_name)
+{
+    auto valid_test_file_suffixes = { ".htm"sv, ".html"sv, ".svg"sv, ".xhtml"sv, ".xht"sv };
+    return AK::any_of(valid_test_file_suffixes, [&](auto suffix) { return test_name.ends_with(suffix); });
+}
+
 static ErrorOr<void> collect_dump_tests(Application const& app, Vector<Test>& tests, StringView path, StringView trail, TestMode mode)
 {
     Core::DirIterator it(ByteString::formatted("{}/input/{}", path, trail), Core::DirIterator::Flags::SkipDots);
@@ -70,7 +76,7 @@ static ErrorOr<void> collect_dump_tests(Application const& app, Vector<Test>& te
             continue;
         }
 
-        if (!name.ends_with(".htm"sv) && !name.ends_with(".html"sv) && !name.ends_with(".svg"sv) && !name.ends_with(".xhtml"sv) && !name.ends_with(".xht"sv))
+        if (!is_valid_test_name(name))
             continue;
 
         auto expectation_path = ByteString::formatted("{}/expected/{}/{}.txt", path, trail, LexicalPath::title(name));
@@ -95,6 +101,27 @@ static ErrorOr<void> collect_ref_tests(Application const& app, Vector<Test>& tes
 
         auto relative_path = LexicalPath::relative_path(input_path, app.test_root_path).release_value();
         tests.append({ TestMode::Ref, input_path, {}, move(relative_path) });
+    }
+
+    return {};
+}
+
+static ErrorOr<void> collect_crash_tests(Vector<Test>& tests, StringView path, StringView trail)
+{
+    Core::DirIterator it(ByteString::formatted("{}/{}", path, trail), Core::DirIterator::Flags::SkipDots);
+    while (it.has_next()) {
+        auto name = it.next_path();
+        auto input_path = TRY(FileSystem::real_path(ByteString::formatted("{}/{}/{}", path, trail, name)));
+
+        if (FileSystem::is_directory(input_path)) {
+            TRY(collect_crash_tests(tests, path, ByteString::formatted("{}/{}", trail, name)));
+            continue;
+        }
+
+        if (!is_valid_test_name(name))
+            continue;
+
+        tests.append({ TestMode::Crash, input_path, {}, {} });
     }
 
     return {};
@@ -205,7 +232,7 @@ void run_dump_test(HeadlessWebView& view, Test& test, URL::URL const& url, int t
                 });
             });
         };
-    } else if (test.mode == TestMode::Text) {
+    } else if (test.mode == TestMode::Text || test.mode == TestMode::Crash) {
         view.on_load_finish = [&view, &test, on_test_complete, url](auto const& loaded_url) {
             // We don't want subframe loads to trigger the test finish.
             if (!url.equals(loaded_url, URL::ExcludeFragment::Yes))
@@ -404,6 +431,9 @@ static void run_test(HeadlessWebView& view, Test& test, Application& app)
         case TestMode::Ref:
             run_ref_test(view, test, url, app.per_test_timeout_in_seconds * 1000);
             return;
+        case TestMode::Crash:
+            run_dump_test(view, test, url, app.per_test_timeout_in_seconds * 1000);
+            return;
         }
 
         VERIFY_NOT_REACHED();
@@ -423,6 +453,7 @@ ErrorOr<void> run_tests(Core::AnonymousBuffer const& theme, Web::DevicePixelSize
     TRY(collect_dump_tests(app, tests, ByteString::formatted("{}/Layout", app.test_root_path), "."sv, TestMode::Layout));
     TRY(collect_dump_tests(app, tests, ByteString::formatted("{}/Text", app.test_root_path), "."sv, TestMode::Text));
     TRY(collect_ref_tests(app, tests, ByteString::formatted("{}/Ref", app.test_root_path), "."sv));
+    TRY(collect_crash_tests(tests, ByteString::formatted("{}/Crash", app.test_root_path), "."sv));
 #if !defined(AK_OS_MACOS)
     TRY(collect_ref_tests(app, tests, ByteString::formatted("{}/Screenshot", app.test_root_path), "."sv));
 #endif
