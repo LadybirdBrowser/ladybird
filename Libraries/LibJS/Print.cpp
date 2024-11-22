@@ -48,6 +48,7 @@
 #include <LibJS/Runtime/StringObject.h>
 #include <LibJS/Runtime/StringPrototype.h>
 #include <LibJS/Runtime/Temporal/Duration.h>
+#include <LibJS/Runtime/Temporal/PlainDate.h>
 #include <LibJS/Runtime/Temporal/PlainMonthDay.h>
 #include <LibJS/Runtime/Temporal/PlainYearMonth.h>
 #include <LibJS/Runtime/TypedArray.h>
@@ -837,6 +838,15 @@ ErrorOr<void> print_temporal_duration(JS::PrintContext& print_context, JS::Tempo
     return {};
 }
 
+ErrorOr<void> print_temporal_plain_date(JS::PrintContext& print_context, JS::Temporal::PlainDate const& plain_date, HashTable<JS::Object*>& seen_objects)
+{
+    TRY(print_type(print_context, "Temporal.PlainDate"sv));
+    TRY(js_out(print_context, " \033[34;1m{:04}-{:02}-{:02}\033[0m", plain_date.iso_date().year, plain_date.iso_date().month, plain_date.iso_date().day));
+    TRY(js_out(print_context, "\n  calendar: "));
+    TRY(print_value(print_context, JS::PrimitiveString::create(plain_date.vm(), plain_date.calendar()), seen_objects));
+    return {};
+}
+
 ErrorOr<void> print_temporal_plain_month_day(JS::PrintContext& print_context, JS::Temporal::PlainMonthDay const& plain_month_day, HashTable<JS::Object*>& seen_objects)
 {
     TRY(print_type(print_context, "Temporal.PlainMonthDay"sv));
@@ -972,6 +982,8 @@ ErrorOr<void> print_value(JS::PrintContext& print_context, JS::Value value, Hash
             return print_intl_duration_format(print_context, static_cast<JS::Intl::DurationFormat&>(object), seen_objects);
         if (is<JS::Temporal::Duration>(object))
             return print_temporal_duration(print_context, static_cast<JS::Temporal::Duration&>(object), seen_objects);
+        if (is<JS::Temporal::PlainDate>(object))
+            return print_temporal_plain_date(print_context, static_cast<JS::Temporal::PlainDate&>(object), seen_objects);
         if (is<JS::Temporal::PlainMonthDay>(object))
             return print_temporal_plain_month_day(print_context, static_cast<JS::Temporal::PlainMonthDay&>(object), seen_objects);
         if (is<JS::Temporal::PlainYearMonth>(object))

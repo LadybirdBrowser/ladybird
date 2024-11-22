@@ -213,6 +213,8 @@ set(SOURCES
     Runtime/Temporal/Instant.cpp
     Runtime/Temporal/ISO8601.cpp
     Runtime/Temporal/PlainDate.cpp
+    Runtime/Temporal/PlainDateConstructor.cpp
+    Runtime/Temporal/PlainDatePrototype.cpp
     Runtime/Temporal/PlainDateTime.cpp
     Runtime/Temporal/PlainMonthDay.cpp
     Runtime/Temporal/PlainMonthDayConstructor.cpp
