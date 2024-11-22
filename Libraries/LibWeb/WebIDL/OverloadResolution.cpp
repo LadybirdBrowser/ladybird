@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2022, Sam Atkins <atkinssj@serenityos.org>
+ * Copyright (c) 2024, Shannon Booth <shannon@serenityos.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -77,7 +78,7 @@ JS::ThrowCompletionOr<ResolvedOverload> resolve_overload(JS::VM& vm, IDL::Effect
     auto distinguishing_argument_index = -1;
 
     // 7. Initialize method to undefined.
-    Optional<JS::FunctionObject&> method;
+    GC::Ptr<JS::FunctionObject> method;
 
     // 8. If there is more than one entry in S, then set d to be the distinguishing argument index for the entries of S.
     if (overloads.size() > 1)
@@ -253,7 +254,7 @@ JS::ThrowCompletionOr<ResolvedOverload> resolve_overload(JS::VM& vm, IDL::Effect
             overloads.remove_all_other_entries();
         }
 
-        // FIXME: 9. Otherwise: if Type(V) is Object and there is an entry in S that has one of the following types at position i of its type list,
+        // 9. Otherwise: if Type(V) is Object and there is an entry in S that has one of the following types at position i of its type list,
         //    - a sequence type
         //    - a frozen array type
         //    - a nullable version of any of the above types
@@ -264,7 +265,28 @@ JS::ThrowCompletionOr<ResolvedOverload> resolve_overload(JS::VM& vm, IDL::Effect
         //        1. Let method be ? GetMethod(V, @@iterator).
         //    }
         //    method is not undefined, then remove from S all other entries.
+        else if (value.is_object()
+            && has_overload_with_argument_type_or_subtype_matching(overloads, i, [&vm, &method, &value](IDL::Type const& type) {
+                   // - a sequence type
+                   // FIXME: - a frozen array type
+                   // - a nullable version of any of the above types
+                   if (type.name() != "sequence")
+                       return false;
 
+                   // and after performing the following steps,
+                   // {
+                   //     1. Let method be ? GetMethod(V, @@iterator).
+                   // }
+                   // method is not undefined, then remove from S all other entries.
+                   auto maybe_method = value.get_method(vm, vm.well_known_symbol_iterator());
+                   if (maybe_method.is_error() || maybe_method.value() == nullptr)
+                       return false;
+
+                   method = *maybe_method.release_value();
+                   return true;
+               })) {
+            overloads.remove_all_other_entries();
+        }
         // 10. Otherwise: if Type(V) is Object and there is an entry in S that has one of the following types at position i of its type list,
         //     - a callback interface type
         //     - a dictionary type
@@ -375,7 +397,7 @@ JS::ThrowCompletionOr<ResolvedOverload> resolve_overload(JS::VM& vm, IDL::Effect
     auto const& callable = overloads.only_item();
 
     // 14. If i = d and method is not undefined, then
-    if (i == distinguishing_argument_index && method.has_value()) {
+    if (i == distinguishing_argument_index && method) {
         // 1. Let V be args[i].
         auto const& value = vm.argument(i);
 
