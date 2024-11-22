@@ -495,7 +495,7 @@ ThrowCompletionOr<String> get_temporal_calendar_identifier_with_iso_default(VM& 
 }
 
 // 12.2.10 CalendarDateFromFields ( calendar, fields, overflow ), https://tc39.es/proposal-temporal/#sec-temporal-calendardatefromfields
-ThrowCompletionOr<ISODate> calendar_date_from_fields(VM& vm, StringView calendar, CalendarFields fields, Overflow overflow)
+ThrowCompletionOr<ISODate> calendar_date_from_fields(VM& vm, StringView calendar, CalendarFields& fields, Overflow overflow)
 {
     // 1. Perform ? CalendarResolveFields(calendar, fields, DATE).
     TRY(calendar_resolve_fields(vm, calendar, fields, DateType::Date));
@@ -512,7 +512,7 @@ ThrowCompletionOr<ISODate> calendar_date_from_fields(VM& vm, StringView calendar
 }
 
 // 12.2.11 CalendarYearMonthFromFields ( calendar, fields, overflow ), https://tc39.es/proposal-temporal/#sec-temporal-calendaryearmonthfromfields
-ThrowCompletionOr<ISODate> calendar_year_month_from_fields(VM& vm, StringView calendar, CalendarFields fields, Overflow overflow)
+ThrowCompletionOr<ISODate> calendar_year_month_from_fields(VM& vm, StringView calendar, CalendarFields& fields, Overflow overflow)
 {
     // 1. Perform ? CalendarResolveFields(calendar, fields, YEAR-MONTH).
     TRY(calendar_resolve_fields(vm, calendar, fields, DateType::YearMonth));
@@ -536,7 +536,7 @@ ThrowCompletionOr<ISODate> calendar_year_month_from_fields(VM& vm, StringView ca
 }
 
 // 12.2.12 CalendarMonthDayFromFields ( calendar, fields, overflow ), https://tc39.es/proposal-temporal/#sec-temporal-calendarmonthdayfromfields
-ThrowCompletionOr<ISODate> calendar_month_day_from_fields(VM& vm, StringView calendar, CalendarFields fields, Overflow overflow)
+ThrowCompletionOr<ISODate> calendar_month_day_from_fields(VM& vm, StringView calendar, CalendarFields& fields, Overflow overflow)
 {
     // 1. Perform ? CalendarResolveFields(calendar, fields, MONTH-DAY).
     TRY(calendar_resolve_fields(vm, calendar, fields, DateType::MonthDay));

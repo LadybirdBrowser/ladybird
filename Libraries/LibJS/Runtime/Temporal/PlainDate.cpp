@@ -106,7 +106,7 @@ ThrowCompletionOr<GC::Ref<PlainDate>> to_temporal_date(VM& vm, Value item, Value
         auto overflow = TRY(get_temporal_overflow_option(vm, resolved_options));
 
         // h. Let isoDate be ? CalendarDateFromFields(calendar, fields, overflow).
-        auto iso_date = TRY(calendar_date_from_fields(vm, calendar, move(fields), overflow));
+        auto iso_date = TRY(calendar_date_from_fields(vm, calendar, fields, overflow));
 
         // i. Return ! CreateTemporalDate(isoDate, calendar).
         return MUST(create_temporal_date(vm, iso_date, move(calendar)));
