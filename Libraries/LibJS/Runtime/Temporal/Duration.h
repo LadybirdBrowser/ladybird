@@ -116,6 +116,7 @@ struct CalendarNudgeResult {
 DateDuration zero_date_duration(VM&);
 InternalDuration to_internal_duration_record(VM&, Duration const&);
 InternalDuration to_internal_duration_record_with_24_hour_days(VM&, Duration const&);
+ThrowCompletionOr<DateDuration> to_date_duration_record_without_time(VM&, Duration const&);
 ThrowCompletionOr<GC::Ref<Duration>> temporal_duration_from_internal(VM&, InternalDuration const&, Unit largest_unit);
 ThrowCompletionOr<DateDuration> create_date_duration_record(VM&, double years, double months, double weeks, double days);
 ThrowCompletionOr<DateDuration> adjust_date_duration_record(VM&, DateDuration const&, double days, Optional<double> weeks = {}, Optional<double> months = {});
