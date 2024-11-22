@@ -167,4 +167,27 @@ ThrowCompletionOr<InternalDuration> difference_plain_date_time_with_rounding(VM&
     return TRY(round_relative_duration(vm, diff, dest_epoch_ns, iso_date_time1, {}, calendar, largest_unit, rounding_increment, smallest_unit, rounding_mode));
 }
 
+// 5.5.14 DifferencePlainDateTimeWithTotal ( isoDateTime1, isoDateTime2, calendar, unit ), https://tc39.es/proposal-temporal/#sec-temporal-differenceplaindatetimewithtotal
+ThrowCompletionOr<Crypto::BigFraction> difference_plain_date_time_with_total(VM& vm, ISODateTime const& iso_date_time1, ISODateTime const& iso_date_time2, StringView calendar, Unit unit)
+{
+    // 1. If CompareISODateTime(isoDateTime1, isoDateTime2) = 0, then
+    if (compare_iso_date_time(iso_date_time1, iso_date_time2) == 0) {
+        // a. Return 0.
+        return Crypto::BigFraction {};
+    }
+
+    // 2. Let diff be ? DifferenceISODateTime(isoDateTime1, isoDateTime2, calendar, unit).
+    auto diff = TRY(difference_iso_date_time(vm, iso_date_time1, iso_date_time2, calendar, unit));
+
+    // 3. If unit is NANOSECOND, return diff.[[Time]].
+    if (unit == Unit::Nanosecond)
+        return move(diff.time);
+
+    // 4. Let destEpochNs be GetUTCEpochNanoseconds(isoDateTime2).
+    auto dest_epoch_ns = get_utc_epoch_nanoseconds(iso_date_time2);
+
+    // 5. Return ? TotalRelativeDuration(diff, destEpochNs, isoDateTime1, UNSET, calendar, unit).
+    return TRY(total_relative_duration(vm, diff, dest_epoch_ns, iso_date_time1, {}, calendar, unit));
+}
+
 }

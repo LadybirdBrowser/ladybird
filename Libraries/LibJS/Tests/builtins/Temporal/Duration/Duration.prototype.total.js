@@ -16,6 +16,15 @@ describe("correct behavior", () => {
             }
         }
     });
+
+    test("relative to plain date", () => {
+        const duration = new Temporal.Duration(0, 0, 0, 31);
+
+        ["2000-01-01", "2000-01-01T00:00", "2000-01-01T00:00[u-ca=iso8601]"].forEach(relativeTo => {
+            const result = duration.total({ unit: "months", relativeTo });
+            expect(result).toBe(1);
+        });
+    });
 });
 
 describe("errors", () => {
