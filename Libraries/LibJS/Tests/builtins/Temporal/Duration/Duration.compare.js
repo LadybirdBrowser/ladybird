@@ -27,6 +27,26 @@ describe("correct behavior", () => {
         const duration2 = "P2D";
         checkCommonResults(duration1, duration2);
     });
+
+    test("relative to plain date", () => {
+        const oneMonth = new Temporal.Duration(0, 1);
+        const thirtyDays = new Temporal.Duration(0, 0, 0, 30);
+
+        let result = Temporal.Duration.compare(oneMonth, thirtyDays, {
+            relativeTo: Temporal.PlainDate.from("2018-04-01"),
+        });
+        expect(result).toBe(0);
+
+        result = Temporal.Duration.compare(oneMonth, thirtyDays, {
+            relativeTo: Temporal.PlainDate.from("2018-03-01"),
+        });
+        expect(result).toBe(1);
+
+        result = Temporal.Duration.compare(oneMonth, thirtyDays, {
+            relativeTo: Temporal.PlainDate.from("2018-02-01"),
+        });
+        expect(result).toBe(-1);
+    });
 });
 
 describe("errors", () => {

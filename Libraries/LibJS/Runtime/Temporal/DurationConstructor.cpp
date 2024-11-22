@@ -133,7 +133,7 @@ JS_DEFINE_NATIVE_FUNCTION(DurationConstructor::compare)
 
     // 6. Let zonedRelativeTo be relativeToRecord.[[ZonedRelativeTo]].
     // 7. Let plainRelativeTo be relativeToRecord.[[PlainRelativeTo]].
-    auto [zoned_relative_to, plain_relative_to] = relative_to_record;
+    auto [plain_relative_to, zoned_relative_to] = relative_to_record;
 
     // 8. Let largestUnit1 be DefaultTemporalLargestUnit(one).
     auto largest_unit1 = default_temporal_largest_unit(one);
@@ -169,8 +169,12 @@ JS_DEFINE_NATIVE_FUNCTION(DurationConstructor::compare)
         if (!plain_relative_to)
             return vm.throw_completion<RangeError>(ErrorType::TemporalMissingStartingPoint, "calendar units");
 
-        // FIXME: b. Let days1 be ? DateDurationDays(duration1.[[Date]], plainRelativeTo).
-        // FIXME: c. Let days2 be ? DateDurationDays(duration2.[[Date]], plainRelativeTo).
+        // b. Let days1 be ? DateDurationDays(duration1.[[Date]], plainRelativeTo).
+        days1 = TRY(date_duration_days(vm, duration1.date, *plain_relative_to));
+
+        // c. Let days2 be ? DateDurationDays(duration2.[[Date]], plainRelativeTo).
+        days2 = TRY(date_duration_days(vm, duration2.date, *plain_relative_to));
+
     }
     // 14. Else,
     else {
