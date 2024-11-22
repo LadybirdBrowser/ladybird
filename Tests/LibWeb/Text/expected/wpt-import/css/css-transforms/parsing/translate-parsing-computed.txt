@@ -6,17 +6,18 @@ Rerun
 
 Found 19 tests
 
-19 Fail
+8 Pass
+11 Fail
 Details
-Result	Test Name	MessageFail	Property translate value 'none'	
-Fail	Property translate value '0px'	
-Fail	Property translate value '100%'	
-Fail	Property translate value '100px 0px'	
-Fail	Property translate value '100px 0.1px'	
+Result	Test Name	MessagePass	Property translate value 'none'	
+Pass	Property translate value '0px'	
+Pass	Property translate value '100%'	
+Pass	Property translate value '100px 0px'	
+Pass	Property translate value '100px 0.1px'	
 Fail	Property translate value '100px 0%'	
 Fail	Property translate value '100px calc(10px - 10%)'	
-Fail	Property translate value '100px 200%'	
-Fail	Property translate value '100% 200px'	
+Pass	Property translate value '100px 200%'	
+Pass	Property translate value '100% 200px'	
 Fail	Property translate value '100px 200px 0px'	
 Fail	Property translate value '100px 0px 300px'	
 Fail	Property translate value '100px 0px 0px'	
@@ -25,5 +26,5 @@ Fail	Property translate value '100% 200% 300px'
 Fail	Property translate value '100% 0% 200px'	
 Fail	Property translate value '0% 0% 100px'	
 Fail	Property translate value '0em 0em 100px'	
-Fail	Property translate value '0'	
+Pass	Property translate value '0'	
 Fail	Property translate value '1px 2px 0'	

@@ -132,6 +132,7 @@ public:
         Time,
         Transformation,
         Transition,
+        Translation,
         Unresolved,
         URL,
         ValueList,
@@ -321,6 +322,10 @@ public:
     bool is_transition() const { return type() == Type::Transition; }
     TransitionStyleValue const& as_transition() const;
     TransitionStyleValue& as_transition() { return const_cast<TransitionStyleValue&>(const_cast<CSSStyleValue const&>(*this).as_transition()); }
+
+    bool is_translation() const { return type() == Type::Translation; }
+    TranslationStyleValue const& as_translation() const;
+    TranslationStyleValue& as_translation() { return const_cast<TranslationStyleValue&>(const_cast<CSSStyleValue const&>(*this).as_translation()); }
 
     bool is_unresolved() const { return type() == Type::Unresolved; }
     UnresolvedStyleValue const& as_unresolved() const;

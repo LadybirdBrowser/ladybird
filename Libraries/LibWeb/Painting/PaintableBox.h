@@ -135,6 +135,8 @@ public:
             return true;
         if (computed_values().rotate().has_value())
             return true;
+        if (computed_values().translate().has_value())
+            return true;
         return false;
     }
 

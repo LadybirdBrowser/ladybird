@@ -508,6 +508,7 @@ public:
     CSS::TransformBox const& transform_box() const { return m_noninherited.transform_box; }
     CSS::TransformOrigin const& transform_origin() const { return m_noninherited.transform_origin; }
     Optional<CSS::Transformation> const& rotate() const { return m_noninherited.rotate; }
+    Optional<CSS::Transformation> const& translate() const { return m_noninherited.translate; }
 
     Gfx::FontCascadeList const& font_list() const { return *m_inherited.font_list; }
     CSSPixels font_size() const { return m_inherited.font_size; }
@@ -684,6 +685,7 @@ protected:
         CSS::ObjectPosition object_position { InitialValues::object_position() };
         CSS::UnicodeBidi unicode_bidi { InitialValues::unicode_bidi() };
         Optional<CSS::Transformation> rotate;
+        Optional<CSS::Transformation> translate;
 
         Optional<MaskReference> mask;
         CSS::MaskType mask_type { InitialValues::mask_type() };
@@ -800,6 +802,7 @@ public:
     void set_transformations(Vector<CSS::Transformation> value) { m_noninherited.transformations = move(value); }
     void set_transform_box(CSS::TransformBox value) { m_noninherited.transform_box = value; }
     void set_transform_origin(CSS::TransformOrigin value) { m_noninherited.transform_origin = value; }
+    void set_translate(CSS::Transformation value) { m_noninherited.translate = move(value); }
     void set_box_sizing(CSS::BoxSizing value) { m_noninherited.box_sizing = value; }
     void set_vertical_align(Variant<CSS::VerticalAlign, CSS::LengthPercentage> value) { m_noninherited.vertical_align = move(value); }
     void set_visibility(CSS::Visibility value) { m_inherited.visibility = value; }

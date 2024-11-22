@@ -1,6 +1,6 @@
 All supported properties and their default values exposed from CSSStyleDeclaration from getComputedStyle:
 'cssText': ''
-'length': '204'
+'length': '205'
 'parentRule': 'null'
 'cssFloat': 'none'
 'WebkitAlignContent': 'normal'
@@ -552,6 +552,7 @@ All supported properties and their default values exposed from CSSStyleDeclarati
 'transition-property': 'all'
 'transitionTimingFunction': 'ease'
 'transition-timing-function': 'ease'
+'translate': 'none'
 'unicodeBidi': 'normal'
 'unicode-bidi': 'normal'
 'userSelect': 'auto'

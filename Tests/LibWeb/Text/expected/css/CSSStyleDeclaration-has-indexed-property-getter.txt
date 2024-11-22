@@ -197,13 +197,14 @@ All properties associated with getComputedStyle(document.body):
     "194": "transition-duration",
     "195": "transition-property",
     "196": "transition-timing-function",
-    "197": "unicode-bidi",
-    "198": "user-select",
-    "199": "vertical-align",
-    "200": "width",
-    "201": "x",
-    "202": "y",
-    "203": "z-index"
+    "197": "translate",
+    "198": "unicode-bidi",
+    "199": "user-select",
+    "200": "vertical-align",
+    "201": "width",
+    "202": "x",
+    "203": "y",
+    "204": "z-index"
 }
 All properties associated with document.body.style by default:
 {}
