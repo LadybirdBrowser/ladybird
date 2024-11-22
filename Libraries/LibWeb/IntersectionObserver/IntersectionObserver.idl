@@ -11,9 +11,12 @@ callback IntersectionObserverCallback = undefined (sequence<IntersectionObserver
 interface IntersectionObserver {
     constructor(IntersectionObserverCallback callback, optional IntersectionObserverInit options = {});
     readonly attribute (Element or Document)? root;
-    [FIXME] readonly attribute DOMString rootMargin;
+    readonly attribute DOMString rootMargin;
+    readonly attribute DOMString scrollMargin;
     // FIXME: `sequence<double>` should be `FrozenArray<double>`
     readonly attribute sequence<double> thresholds;
+    readonly attribute long delay;
+    readonly attribute boolean trackVisibility;
     undefined observe(Element target);
     undefined unobserve(Element target);
     undefined disconnect();
@@ -24,6 +27,8 @@ interface IntersectionObserver {
 dictionary IntersectionObserverInit {
     (Element or Document)? root = null;
     DOMString rootMargin = "0px";
-    // FIXME: DOMString scrollMargin = "0px";
+    DOMString scrollMargin = "0px";
     (double or sequence<double>) threshold = 0;
+    long delay = 0;
+    boolean trackVisibility = false;
 };

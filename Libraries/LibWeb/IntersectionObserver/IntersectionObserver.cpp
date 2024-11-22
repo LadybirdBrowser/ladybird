@@ -7,6 +7,8 @@
 #include <AK/QuickSort.h>
 #include <LibWeb/Bindings/IntersectionObserverPrototype.h>
 #include <LibWeb/Bindings/Intrinsics.h>
+#include <LibWeb/CSS/Parser/Parser.h>
+#include <LibWeb/CSS/StyleValues/LengthStyleValue.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Element.h>
 #include <LibWeb/HTML/TraversableNavigable.h>
@@ -21,7 +23,24 @@ GC_DEFINE_ALLOCATOR(IntersectionObserver);
 // https://w3c.github.io/IntersectionObserver/#dom-intersectionobserver-intersectionobserver
 WebIDL::ExceptionOr<GC::Ref<IntersectionObserver>> IntersectionObserver::construct_impl(JS::Realm& realm, GC::Ptr<WebIDL::CallbackType> callback, IntersectionObserverInit const& options)
 {
-    // 4. Let thresholds be a list equal to options.threshold.
+    // https://w3c.github.io/IntersectionObserver/#initialize-a-new-intersectionobserver
+    // 1. Let this be a new IntersectionObserver object
+    // 2. Set this’s internal [[callback]] slot to callback.
+    // NOTE: Steps 1 and 2 are handled by creating the IntersectionObserver at the very end of this function.
+
+    // 3. Attempt to parse a margin from options.rootMargin. If a list is returned, set this’s internal [[rootMargin]] slot to that. Otherwise, throw a SyntaxError exception.
+    auto root_margin = parse_a_margin(realm, options.root_margin);
+    if (!root_margin.has_value()) {
+        return WebIDL::SyntaxError::create(realm, "IntersectionObserver: Cannot parse root margin as a margin."_string);
+    }
+
+    // 4. Attempt to parse a margin from options.scrollMargin. If a list is returned, set this’s internal [[scrollMargin]] slot to that. Otherwise, throw a SyntaxError exception.
+    auto scroll_margin = parse_a_margin(realm, options.scroll_margin);
+    if (!scroll_margin.has_value()) {
+        return WebIDL::SyntaxError::create(realm, "IntersectionObserver: Cannot parse scroll margin as a margin."_string);
+    }
+
+    // 5. Let thresholds be a list equal to options.threshold.
     Vector<double> thresholds;
     if (options.threshold.has<double>()) {
         thresholds.append(options.threshold.get<double>());
@@ -30,28 +49,47 @@ WebIDL::ExceptionOr<GC::Ref<IntersectionObserver>> IntersectionObserver::constru
         thresholds = options.threshold.get<Vector<double>>();
     }
 
-    // 5. If any value in thresholds is less than 0.0 or greater than 1.0, throw a RangeError exception.
+    // 6. If any value in thresholds is less than 0.0 or greater than 1.0, throw a RangeError exception.
     for (auto value : thresholds) {
         if (value < 0.0 || value > 1.0)
             return WebIDL::SimpleException { WebIDL::SimpleExceptionType::RangeError, "Threshold values must be between 0.0 and 1.0 inclusive"sv };
     }
 
-    // 6. Sort thresholds in ascending order.
+    // 7. Sort thresholds in ascending order.
     quick_sort(thresholds, [](double left, double right) {
         return left < right;
     });
 
-    // 1. Let this be a new IntersectionObserver object
-    // 2. Set this’s internal [[callback]] slot to callback.
-    // 8. The thresholds attribute getter will return this sorted thresholds list.
-    // 9. Return this.
-    return realm.create<IntersectionObserver>(realm, callback, options.root, move(thresholds));
+    // 8. If thresholds is empty, append 0 to thresholds.
+    if (thresholds.is_empty()) {
+        thresholds.append(0);
+    }
+
+    // 9. The thresholds attribute getter will return this sorted thresholds list.
+    // NOTE: Handled implicitly by passing it into the constructor at the end of this function
+
+    // 10. Let delay be the value of options.delay.
+    auto delay = options.delay;
+
+    // 11. If options.trackVisibility is true and delay is less than 100, set delay to 100.
+    if (options.track_visibility && delay < 100) {
+        delay = 100;
+    }
+
+    // 12. Set this’s internal [[delay]] slot to options.delay to delay.
+    // 13. Set this’s internal [[trackVisibility]] slot to options.trackVisibility.
+    // 14. Return this.
+    return realm.create<IntersectionObserver>(realm, callback, options.root, move(root_margin.value()), move(scroll_margin.value()), move(thresholds), move(delay), move(options.track_visibility));
 }
 
-IntersectionObserver::IntersectionObserver(JS::Realm& realm, GC::Ptr<WebIDL::CallbackType> callback, Optional<Variant<GC::Root<DOM::Element>, GC::Root<DOM::Document>>> const& root, Vector<double>&& thresholds)
+IntersectionObserver::IntersectionObserver(JS::Realm& realm, GC::Ptr<WebIDL::CallbackType> callback, Optional<Variant<GC::Root<DOM::Element>, GC::Root<DOM::Document>>> const& root, Vector<CSS::LengthPercentage> root_margin, Vector<CSS::LengthPercentage> scroll_margin, Vector<double>&& thresholds, double delay, bool track_visibility)
     : PlatformObject(realm)
     , m_callback(callback)
+    , m_root_margin(root_margin)
+    , m_scroll_margin(scroll_margin)
     , m_thresholds(move(thresholds))
+    , m_delay(delay)
+    , m_track_visibility(track_visibility)
 {
     m_root = root.has_value() ? root->visit([](auto& value) -> GC::Ptr<DOM::Node> { return *value; }) : nullptr;
     intersection_root().visit([this](auto& node) {
@@ -161,6 +199,44 @@ Variant<GC::Root<DOM::Element>, GC::Root<DOM::Document>, Empty> IntersectionObse
     VERIFY_NOT_REACHED();
 }
 
+// https://w3c.github.io/IntersectionObserver/#dom-intersectionobserver-rootmargin
+String IntersectionObserver::root_margin() const
+{
+    // On getting, return the result of serializing the elements of [[rootMargin]] space-separated, where pixel
+    // lengths serialize as the numeric value followed by "px", and percentages serialize as the numeric value
+    // followed by "%". Note that this is not guaranteed to be identical to the options.rootMargin passed to the
+    // IntersectionObserver constructor. If no rootMargin was passed to the IntersectionObserver
+    // constructor, the value of this attribute is "0px 0px 0px 0px".
+    StringBuilder builder;
+    builder.append(m_root_margin[0].to_string());
+    builder.append(' ');
+    builder.append(m_root_margin[1].to_string());
+    builder.append(' ');
+    builder.append(m_root_margin[2].to_string());
+    builder.append(' ');
+    builder.append(m_root_margin[3].to_string());
+    return builder.to_string().value();
+}
+
+// https://w3c.github.io/IntersectionObserver/#dom-intersectionobserver-scrollmargin
+String IntersectionObserver::scroll_margin() const
+{
+    // On getting, return the result of serializing the elements of [[scrollMargin]] space-separated, where pixel
+    // lengths serialize as the numeric value followed by "px", and percentages serialize as the numeric value
+    // followed by "%". Note that this is not guaranteed to be identical to the options.scrollMargin passed to the
+    // IntersectionObserver constructor. If no scrollMargin was passed to the IntersectionObserver
+    // constructor, the value of this attribute is "0px 0px 0px 0px".
+    StringBuilder builder;
+    builder.append(m_scroll_margin[0].to_string());
+    builder.append(' ');
+    builder.append(m_scroll_margin[1].to_string());
+    builder.append(' ');
+    builder.append(m_scroll_margin[2].to_string());
+    builder.append(' ');
+    builder.append(m_scroll_margin[3].to_string());
+    return builder.to_string().value();
+}
+
 // https://www.w3.org/TR/intersection-observer/#intersectionobserver-intersection-root
 Variant<GC::Root<DOM::Element>, GC::Root<DOM::Document>> IntersectionObserver::intersection_root() const
 {
@@ -211,11 +287,25 @@ CSSPixelRect IntersectionObserver::root_intersection_rectangle() const
         rect = CSSPixelRect(bounding_client_rect->x(), bounding_client_rect->y(), bounding_client_rect->width(), bounding_client_rect->height());
     }
 
-    // FIXME: When calculating the root intersection rectangle for a same-origin-domain target, the rectangle is then
-    //        expanded according to the offsets in the IntersectionObserver’s [[rootMargin]] slot in a manner similar
-    //        to CSS’s margin property, with the four values indicating the amount the top, right, bottom, and left
-    //        edges, respectively, are offset by, with positive lengths indicating an outward offset. Percentages
-    //        are resolved relative to the width of the undilated rectangle.
+    // When calculating the root intersection rectangle for a same-origin-domain target, the rectangle is then
+    // expanded according to the offsets in the IntersectionObserver’s [[rootMargin]] slot in a manner similar
+    // to CSS’s margin property, with the four values indicating the amount the top, right, bottom, and left
+    // edges, respectively, are offset by, with positive lengths indicating an outward offset. Percentages
+    // are resolved relative to the width of the undilated rectangle.
+    DOM::Document* document = { nullptr };
+    if (intersection_root.has<GC::Root<DOM::Document>>()) {
+        document = intersection_root.get<GC::Root<DOM::Document>>().cell();
+    } else {
+        document = &intersection_root.get<GC::Root<DOM::Element>>().cell()->document();
+    }
+    if (m_document.has_value() && document->origin().is_same_origin(m_document->origin())) {
+        auto layout_node = intersection_root.visit([&](auto& elem) { return static_cast<GC::Root<DOM::Node>>(*elem)->layout_node(); });
+        rect.inflate(
+            m_root_margin[0].to_px(*layout_node, rect.height()),
+            m_root_margin[1].to_px(*layout_node, rect.width()),
+            m_root_margin[2].to_px(*layout_node, rect.height()),
+            m_root_margin[3].to_px(*layout_node, rect.width()));
+    }
 
     return rect;
 }
@@ -223,6 +313,71 @@ CSSPixelRect IntersectionObserver::root_intersection_rectangle() const
 void IntersectionObserver::queue_entry(Badge<DOM::Document>, GC::Ref<IntersectionObserverEntry> entry)
 {
     m_queued_entries.append(entry);
+}
+
+// https://w3c.github.io/IntersectionObserver/#parse-a-margin
+Optional<Vector<CSS::LengthPercentage>> IntersectionObserver::parse_a_margin(JS::Realm& realm, String margin_string)
+{
+    // 1. Parse a list of component values marginString, storing the result as tokens.
+    auto tokens = CSS::Parser::Parser::create(CSS::Parser::ParsingContext { realm }, margin_string).parse_as_list_of_component_values();
+
+    // 2. Remove all whitespace tokens from tokens.
+    tokens.remove_all_matching([](auto componentValue) { return componentValue.is(CSS::Parser::Token::Type::Whitespace); });
+
+    // 3. If the length of tokens is greater than 4, return failure.
+    if (tokens.size() > 4) {
+        return {};
+    }
+
+    // 4. If there are zero elements in tokens, set tokens to ["0px"].
+    if (tokens.size() == 0) {
+        tokens.append(CSS::Parser::Token::create_dimension(0, "px"_fly_string));
+    }
+
+    // 5. Replace each token in tokens:
+    // NOTE: In the spec, tokens miraculously changes type from a list of component values
+    //       to a list of pixel lengths or percentages.
+    Vector<CSS::LengthPercentage> tokens_length_percentage;
+    for (auto const& token : tokens) {
+        // If token is an absolute length dimension token, replace it with a an equivalent pixel length.
+        if (token.is(CSS::Parser::Token::Type::Dimension)) {
+            auto length = CSS::Length(token.token().dimension_value(), CSS::Length::unit_from_name(token.token().dimension_unit()).value());
+            if (length.is_absolute()) {
+                length.absolute_length_to_px();
+                tokens_length_percentage.append(length);
+                continue;
+            }
+        }
+        // If token is a <percentage> token, replace it with an equivalent percentage.
+        if (token.is(CSS::Parser::Token::Type::Percentage)) {
+            tokens_length_percentage.append(CSS::Percentage(token.token().percentage()));
+            continue;
+        }
+        // Otherwise, return failure.
+        return {};
+    }
+
+    // 6.
+    switch (tokens_length_percentage.size()) {
+    // If there is one element in tokens, append three duplicates of that element to tokens.
+    case 1:
+        tokens_length_percentage.append(tokens_length_percentage.first());
+        tokens_length_percentage.append(tokens_length_percentage.first());
+        tokens_length_percentage.append(tokens_length_percentage.first());
+        break;
+    // Otherwise, if there are two elements are tokens, append a duplicate of each element to tokens.
+    case 2:
+        tokens_length_percentage.append(tokens_length_percentage.at(0));
+        tokens_length_percentage.append(tokens_length_percentage.at(1));
+        break;
+    // Otherwise, if there are three elements in tokens, append a duplicate of the second element to tokens.
+    case 3:
+        tokens_length_percentage.append(tokens_length_percentage.at(1));
+        break;
+    }
+
+    // 7. Return tokens.
+    return tokens_length_percentage;
 }
 
 }

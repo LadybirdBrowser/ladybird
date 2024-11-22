@@ -69,6 +69,8 @@ public:
 
     Vector<ParsedFontFace::Source> parse_as_font_face_src();
 
+    Vector<ComponentValue> parse_as_list_of_component_values();
+
     static NonnullRefPtr<CSSStyleValue> resolve_unresolved_style_value(ParsingContext const&, DOM::Element&, Optional<CSS::Selector::PseudoElement::Type>, PropertyID, UnresolvedStyleValue const&);
 
     [[nodiscard]] LengthOrCalculated parse_as_sizes_attribute(DOM::Element const& element, HTML::HTMLImageElement const* img = nullptr);

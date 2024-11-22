@@ -6039,6 +6039,11 @@ Vector<ParsedFontFace::Source> Parser::parse_font_face_src(TokenStream<T>& compo
 template Vector<ParsedFontFace::Source> Parser::parse_font_face_src(TokenStream<Token>& component_values);
 template Vector<ParsedFontFace::Source> Parser::parse_font_face_src(TokenStream<ComponentValue>& component_values);
 
+Vector<ComponentValue> Parser::parse_as_list_of_component_values()
+{
+    return parse_a_list_of_component_values(m_token_stream);
+}
+
 RefPtr<CSSStyleValue> Parser::parse_list_style_value(TokenStream<ComponentValue>& tokens)
 {
     RefPtr<CSSStyleValue> list_position;

@@ -1,0 +1,19 @@
+Summary
+
+Harness status: OK
+
+Rerun
+
+Found 9 tests
+
+9 Pass
+Details
+Result	Test Name	MessagePass	Observer attribute getters.	
+Pass	observer.root	
+Pass	observer.thresholds	
+Pass	observer.rootMargin	
+Pass	empty observer.thresholds	
+Pass	whitespace observer.rootMargin	
+Pass	set observer.root	
+Pass	set observer.thresholds	
+Pass	set observer.rootMargin	
