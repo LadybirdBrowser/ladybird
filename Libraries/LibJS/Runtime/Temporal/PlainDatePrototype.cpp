@@ -62,6 +62,7 @@ void PlainDatePrototype::initialize(Realm& realm)
     define_native_function(realm, vm.names.toString, to_string, 0, attr);
     define_native_function(realm, vm.names.toLocaleString, to_locale_string, 0, attr);
     define_native_function(realm, vm.names.toJSON, to_json, 0, attr);
+    define_native_function(realm, vm.names.valueOf, value_of, 0, attr);
 }
 
 // 3.3.3 get Temporal.PlainDate.prototype.calendarId, https://tc39.es/proposal-temporal/#sec-get-temporal.plaindate.prototype.calendarid
@@ -399,6 +400,13 @@ JS_DEFINE_NATIVE_FUNCTION(PlainDatePrototype::to_json)
 
     // 3. Return TemporalDateToString(temporalDate, AUTO).
     return PrimitiveString::create(vm, temporal_date_to_string(temporal_date, ShowCalendar::Auto));
+}
+
+// 3.3.33 Temporal.PlainDate.prototype.valueOf ( ), https://tc39.es/proposal-temporal/#sec-temporal.plaindate.prototype.valueof
+JS_DEFINE_NATIVE_FUNCTION(PlainDatePrototype::value_of)
+{
+    // 1. Throw a TypeError exception.
+    return vm.throw_completion<TypeError>(ErrorType::Convert, "Temporal.PlainDate", "a primitive value");
 }
 
 }
