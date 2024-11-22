@@ -104,7 +104,7 @@ void StackingContext::paint_svg(PaintContext& context, PaintableBox const& paint
     paintable.apply_clip_overflow_rect(context, PaintPhase::Foreground);
     paint_node(paintable, context, PaintPhase::Background);
     paint_node(paintable, context, PaintPhase::Border);
-    SVGSVGPaintable::paint_descendants(context, paintable, phase);
+    SVGSVGPaintable::paint_svg_box(context, paintable, phase);
     paintable.clear_clip_overflow_rect(context, PaintPhase::Foreground);
 }
 
