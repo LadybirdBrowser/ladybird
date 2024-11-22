@@ -396,33 +396,7 @@ void DisplayListPlayerSkia::push_stacking_context(PushStackingContext const& com
                              .translate(-command.transform.origin);
     auto matrix = to_skia_matrix(new_transform);
 
-    if (!command.filter.is_none()) {
-        sk_sp<SkImageFilter> image_filter;
-        auto append_filter = [&image_filter](auto new_filter) {
-            if (image_filter)
-                image_filter = SkImageFilters::Compose(new_filter, image_filter);
-            else
-                image_filter = new_filter;
-        };
-
-        // Apply filters in order
-        for (auto const& filter_function : command.filter.filters)
-            append_filter(to_skia_image_filter(filter_function));
-
-        // We apply opacity as a color filter here so we only need to save and restore a single layer.
-        if (command.opacity < 1) {
-            append_filter(to_skia_image_filter(CSS::ResolvedFilter::FilterFunction {
-                CSS::ResolvedFilter::Color {
-                    CSS::FilterOperation::Color::Type::Opacity,
-                    command.opacity,
-                },
-            }));
-        }
-
-        SkPaint paint;
-        paint.setImageFilter(image_filter);
-        canvas.saveLayer(nullptr, &paint);
-    } else if (command.opacity < 1) {
+    if (command.opacity < 1) {
         auto source_paintable_rect = to_skia_rect(command.source_paintable_rect);
         SkRect dest;
         matrix.mapRect(&dest, source_paintable_rect);
@@ -1103,6 +1077,41 @@ void DisplayListPlayerSkia::apply_opacity(ApplyOpacity const& command)
     SkPaint paint;
     paint.setAlphaf(command.opacity);
     canvas.saveLayer(nullptr, &paint);
+}
+
+void DisplayListPlayerSkia::apply_filters(ApplyFilters const& command)
+{
+    if (command.filter.is_none()) {
+        return;
+    }
+    sk_sp<SkImageFilter> image_filter;
+    auto append_filter = [&image_filter](auto new_filter) {
+        if (image_filter)
+            image_filter = SkImageFilters::Compose(new_filter, image_filter);
+        else
+            image_filter = new_filter;
+    };
+
+    // Apply filters in order
+    for (auto filter : command.filter.filters) {
+        append_filter(to_skia_image_filter(filter));
+    }
+
+    // We apply opacity as a color filter here so we only need to save and restore a single layer.
+    if (command.opacity < 1) {
+        append_filter(to_skia_image_filter(CSS::ResolvedFilter::FilterFunction {
+            CSS::ResolvedFilter::Color {
+                CSS::FilterOperation::Color::Type::Opacity,
+                command.opacity,
+            },
+        }));
+    }
+
+    SkPaint paint;
+    paint.setImageFilter(image_filter);
+    auto& canvas = surface().canvas();
+    canvas.saveLayer(nullptr, &paint);
+    return;
 }
 
 void DisplayListPlayerSkia::apply_transform(ApplyTransform const& command)

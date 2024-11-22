@@ -295,7 +295,6 @@ void DisplayListRecorder::push_stacking_context(PushStackingContextParams params
 {
     append(PushStackingContext {
         .opacity = params.opacity,
-        .filter = params.filter,
         .source_paintable_rect = params.source_paintable_rect,
         .transform = {
             .origin = params.transform.origin,
@@ -406,6 +405,11 @@ void DisplayListRecorder::paint_scrollbar(int scroll_frame_id, Gfx::IntRect rect
 void DisplayListRecorder::apply_opacity(float opacity)
 {
     append(ApplyOpacity { .opacity = opacity });
+}
+
+void DisplayListRecorder::apply_filters(float opacity, CSS::ResolvedFilter filter)
+{
+    append(ApplyFilters { .opacity = opacity, .filter = filter });
 }
 
 void DisplayListRecorder::apply_transform(Gfx::FloatPoint origin, Gfx::FloatMatrix4x4 matrix)
