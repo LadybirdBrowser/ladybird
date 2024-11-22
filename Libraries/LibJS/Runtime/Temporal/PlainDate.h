@@ -13,15 +13,9 @@
 #include <LibJS/Runtime/Completion.h>
 #include <LibJS/Runtime/Object.h>
 #include <LibJS/Runtime/Temporal/AbstractOperations.h>
+#include <LibJS/Runtime/Temporal/ISORecords.h>
 
 namespace JS::Temporal {
-
-// 3.5.1 ISO Date Records, https://tc39.es/proposal-temporal/#sec-temporal-iso-date-records
-struct ISODate {
-    i32 year { 0 };
-    u8 month { 0 };
-    u8 day { 0 };
-};
 
 class PlainDate final : public Object {
     JS_OBJECT(PlainDate, Object);

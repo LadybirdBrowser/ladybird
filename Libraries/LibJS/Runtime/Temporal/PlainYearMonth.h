@@ -11,6 +11,7 @@
 #include <LibJS/Runtime/Completion.h>
 #include <LibJS/Runtime/Object.h>
 #include <LibJS/Runtime/Temporal/AbstractOperations.h>
+#include <LibJS/Runtime/Temporal/ISORecords.h>
 #include <LibJS/Runtime/Temporal/PlainDate.h>
 
 namespace JS::Temporal {
@@ -30,12 +31,6 @@ private:
 
     ISODate m_iso_date; // [[ISODate]]
     String m_calendar;  // [[Calendar]]
-};
-
-// 9.5.1 ISO Year-Month Records, https://tc39.es/proposal-temporal/#sec-temporal-iso-year-month-records
-struct ISOYearMonth {
-    i32 year { 0 };
-    u8 month { 0 };
 };
 
 ThrowCompletionOr<GC::Ref<PlainYearMonth>> to_temporal_year_month(VM&, Value item, Value options = js_undefined());

@@ -15,7 +15,7 @@
 #include <LibJS/Forward.h>
 #include <LibJS/Runtime/Completion.h>
 #include <LibJS/Runtime/Temporal/ISO8601.h>
-#include <LibJS/Runtime/Temporal/PlainTime.h>
+#include <LibJS/Runtime/Temporal/ISORecords.h>
 #include <LibJS/Runtime/VM.h>
 #include <LibJS/Runtime/ValueInlines.h>
 #include <math.h>
@@ -132,25 +132,6 @@ struct RelativeTo {
     // FIXME: Make these objects represent their actual types when we re-implement them.
     GC::Ptr<JS::Object> plain_relative_to; // [[PlainRelativeTo]]
     GC::Ptr<JS::Object> zoned_relative_to; // [[ZonedRelativeTo]]
-};
-
-// 13.31 ISO String Time Zone Parse Records, https://tc39.es/proposal-temporal/#sec-temporal-iso-string-time-zone-parse-records
-struct ParsedISOTimeZone {
-    bool z_designator { false };
-    Optional<String> offset_string;
-    Optional<String> time_zone_annotation;
-};
-
-// 13.32 ISO Date-Time Parse Records, https://tc39.es/proposal-temporal/#sec-temporal-iso-date-time-parse-records
-struct ParsedISODateTime {
-    struct StartOfDay { };
-
-    Optional<i32> year { 0 };
-    u8 month { 0 };
-    u8 day { 0 };
-    Variant<StartOfDay, Time> time;
-    ParsedISOTimeZone time_zone;
-    Optional<String> calendar;
 };
 
 struct DifferenceSettings {
