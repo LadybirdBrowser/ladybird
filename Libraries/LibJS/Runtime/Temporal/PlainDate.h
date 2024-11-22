@@ -51,6 +51,7 @@ String pad_iso_year(i32 year);
 String temporal_date_to_string(PlainDate const&, ShowCalendar);
 bool iso_date_within_limits(ISODate);
 i8 compare_iso_date(ISODate, ISODate);
+ThrowCompletionOr<GC::Ref<Duration>> difference_temporal_plain_date(VM&, DurationOperation, PlainDate const&, Value other, Value options);
 ThrowCompletionOr<GC::Ref<PlainDate>> add_duration_to_date(VM&, ArithmeticOperation, PlainDate const&, Value temporal_duration_like, Value options);
 
 }

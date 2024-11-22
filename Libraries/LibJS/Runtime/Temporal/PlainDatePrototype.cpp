@@ -8,6 +8,7 @@
 
 #include <LibJS/Runtime/Temporal/AbstractOperations.h>
 #include <LibJS/Runtime/Temporal/Calendar.h>
+#include <LibJS/Runtime/Temporal/Duration.h>
 #include <LibJS/Runtime/Temporal/PlainDatePrototype.h>
 
 namespace JS::Temporal {
@@ -51,6 +52,8 @@ void PlainDatePrototype::initialize(Realm& realm)
     define_native_function(realm, vm.names.subtract, subtract, 1, attr);
     define_native_function(realm, vm.names.with, with, 1, attr);
     define_native_function(realm, vm.names.withCalendar, with_calendar, 1, attr);
+    define_native_function(realm, vm.names.until, until, 1, attr);
+    define_native_function(realm, vm.names.since, since, 1, attr);
     define_native_function(realm, vm.names.equals, equals, 1, attr);
     define_native_function(realm, vm.names.toString, to_string, 0, attr);
     define_native_function(realm, vm.names.toLocaleString, to_locale_string, 0, attr);
@@ -266,6 +269,34 @@ JS_DEFINE_NATIVE_FUNCTION(PlainDatePrototype::with_calendar)
 
     // 4. Return ! CreateTemporalDate(temporalDate.[[ISODate]], calendar).
     return MUST(create_temporal_date(vm, temporal_date->iso_date(), calendar));
+}
+
+// 3.3.25 Temporal.PlainDate.prototype.until ( other [ , options ] ), https://tc39.es/proposal-temporal/#sec-temporal.plaindate.prototype.until
+JS_DEFINE_NATIVE_FUNCTION(PlainDatePrototype::until)
+{
+    auto other = vm.argument(0);
+    auto options = vm.argument(1);
+
+    // 1. Let temporalDate be the this value.
+    // 2. Perform ? RequireInternalSlot(temporalDate, [[InitializedTemporalDate]]).
+    auto temporal_date = TRY(typed_this_object(vm));
+
+    // 3. Return ? DifferenceTemporalPlainDate(UNTIL, temporalDate, other, options).
+    return TRY(difference_temporal_plain_date(vm, DurationOperation::Until, temporal_date, other, options));
+}
+
+// 3.3.26 Temporal.PlainDate.prototype.since ( other [ , options ] ), https://tc39.es/proposal-temporal/#sec-temporal.plaindate.prototype.since
+JS_DEFINE_NATIVE_FUNCTION(PlainDatePrototype::since)
+{
+    auto other = vm.argument(0);
+    auto options = vm.argument(1);
+
+    // 1. Let temporalDate be the this value.
+    // 2. Perform ? RequireInternalSlot(temporalDate, [[InitializedTemporalDate]]).
+    auto temporal_date = TRY(typed_this_object(vm));
+
+    // 3. Return ? DifferenceTemporalPlainDate(SINCE, temporalDate, other, options).
+    return TRY(difference_temporal_plain_date(vm, DurationOperation::Since, temporal_date, other, options));
 }
 
 // 3.3.27 Temporal.PlainDate.prototype.equals ( other ), https://tc39.es/proposal-temporal/#sec-temporal.plaindate.prototype.equals
