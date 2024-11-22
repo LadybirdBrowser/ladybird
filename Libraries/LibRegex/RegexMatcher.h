@@ -13,6 +13,7 @@
 
 #include <AK/Forward.h>
 #include <AK/GenericLexer.h>
+#include <AK/NonnullRawPtr.h>
 #include <AK/Vector.h>
 #include <ctype.h>
 
@@ -49,7 +50,7 @@ template<class Parser>
 class Matcher final {
 
 public:
-    Matcher(Regex<Parser> const* pattern, Optional<typename ParserTraits<Parser>::OptionsType> regex_options = {})
+    Matcher(Regex<Parser> const& pattern, Optional<typename ParserTraits<Parser>::OptionsType> regex_options = {})
         : m_pattern(pattern)
         , m_regex_options(regex_options.value_or({}))
     {
@@ -64,7 +65,7 @@ public:
         return m_regex_options;
     }
 
-    void reset_pattern(Badge<Regex<Parser>>, Regex<Parser> const* pattern)
+    void reset_pattern(Badge<Regex<Parser>>, Regex<Parser> const& pattern)
     {
         m_pattern = pattern;
     }
@@ -72,7 +73,7 @@ public:
 private:
     bool execute(MatchInput const& input, MatchState& state, size_t& operations) const;
 
-    Regex<Parser> const* m_pattern;
+    NonnullRawPtr<Regex<Parser> const> m_pattern;
     typename ParserTraits<Parser>::OptionsType const m_regex_options;
 };
 

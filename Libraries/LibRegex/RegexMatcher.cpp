@@ -70,7 +70,7 @@ Regex<Parser>::Regex(String pattern, typename ParserTraits<Parser>::OptionsType 
     }
 
     if (parser_result.error == regex::Error::NoError)
-        matcher = make<Matcher<Parser>>(this, static_cast<decltype(regex_options.value())>(parser_result.options.value()));
+        matcher = make<Matcher<Parser>>(*this, static_cast<decltype(regex_options.value())>(parser_result.options.value()));
 }
 
 template<class Parser>
@@ -80,7 +80,7 @@ Regex<Parser>::Regex(regex::Parser::Result parse_result, String pattern, typenam
 {
     run_optimization_passes();
     if (parser_result.error == regex::Error::NoError)
-        matcher = make<Matcher<Parser>>(this, regex_options | static_cast<decltype(regex_options.value())>(parse_result.options.value()));
+        matcher = make<Matcher<Parser>>(*this, regex_options | static_cast<decltype(regex_options.value())>(parse_result.options.value()));
 }
 
 template<class Parser>
@@ -91,7 +91,7 @@ Regex<Parser>::Regex(Regex&& regex)
     , start_offset(regex.start_offset)
 {
     if (matcher)
-        matcher->reset_pattern({}, this);
+        matcher->reset_pattern({}, *this);
 }
 
 template<class Parser>
@@ -101,7 +101,7 @@ Regex<Parser>& Regex<Parser>::operator=(Regex&& regex)
     parser_result = move(regex.parser_result);
     matcher = move(regex.matcher);
     if (matcher)
-        matcher->reset_pattern({}, this);
+        matcher->reset_pattern({}, *this);
     start_offset = regex.start_offset;
     return *this;
 }
