@@ -118,6 +118,7 @@ WebIDL::ExceptionOr<ReadableStreamReader> ReadableStream::get_reader(ReadableStr
     return ReadableStreamReader { TRY(acquire_readable_stream_byob_reader(*this)) };
 }
 
+// https://streams.spec.whatwg.org/#rs-pipe-through
 WebIDL::ExceptionOr<GC::Ref<ReadableStream>> ReadableStream::pipe_through(ReadableWritablePair transform, StreamPipeOptions const& options)
 {
     // 1. If ! IsReadableStreamLocked(this) is true, throw a TypeError exception.
@@ -141,6 +142,7 @@ WebIDL::ExceptionOr<GC::Ref<ReadableStream>> ReadableStream::pipe_through(Readab
     return GC::Ref { *transform.readable };
 }
 
+// https://streams.spec.whatwg.org/#rs-pipe-to
 GC::Ref<WebIDL::Promise> ReadableStream::pipe_to(WritableStream& destination, StreamPipeOptions const& options)
 {
     auto& realm = this->realm();
