@@ -9,6 +9,7 @@
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Bindings/PlatformObject.h>
 #include <LibWeb/FileAPI/FileList.h>
+#include <LibWeb/HTML/StructuredSerialize.h>
 
 namespace Web::FileAPI {
 

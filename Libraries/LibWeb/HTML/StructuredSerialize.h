@@ -13,6 +13,8 @@
 #include <AK/Vector.h>
 #include <LibIPC/Forward.h>
 #include <LibJS/Forward.h>
+#include <LibWeb/Forward.h>
+#include <LibWeb/HTML/StructuredSerializeTypes.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
 
 // Structured serialize is an entirely different format from IPC because:
@@ -21,10 +23,6 @@
 // - It is restricted to JS values
 
 namespace Web::HTML {
-
-using SerializationRecord = Vector<u32>;
-using SerializationMemory = HashMap<GC::Root<JS::Value>, u32>;
-using DeserializationMemory = GC::MarkedVector<JS::Value>;
 
 struct TransferDataHolder {
     Vector<u8> data;
