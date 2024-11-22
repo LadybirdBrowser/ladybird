@@ -6,6 +6,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibJS/Runtime/Temporal/AbstractOperations.h>
 #include <LibJS/Runtime/Temporal/Calendar.h>
 #include <LibJS/Runtime/Temporal/PlainDatePrototype.h>
 
@@ -44,6 +45,11 @@ void PlainDatePrototype::initialize(Realm& realm)
     define_native_accessor(realm, vm.names.daysInYear, days_in_year_getter, {}, Attribute::Configurable);
     define_native_accessor(realm, vm.names.monthsInYear, months_in_year_getter, {}, Attribute::Configurable);
     define_native_accessor(realm, vm.names.inLeapYear, in_leap_year_getter, {}, Attribute::Configurable);
+
+    u8 attr = Attribute::Writable | Attribute::Configurable;
+    define_native_function(realm, vm.names.toString, to_string, 0, attr);
+    define_native_function(realm, vm.names.toLocaleString, to_locale_string, 0, attr);
+    define_native_function(realm, vm.names.toJSON, to_json, 0, attr);
 }
 
 // 3.3.3 get Temporal.PlainDate.prototype.calendarId, https://tc39.es/proposal-temporal/#sec-get-temporal.plaindate.prototype.calendarid
@@ -172,6 +178,46 @@ JS_DEFINE_NATIVE_FUNCTION(PlainDatePrototype::year_of_week_getter)
 
     // 5. Return 𝔽(result).
     return *result;
+}
+
+// 3.3.30 Temporal.PlainDate.prototype.toString ( [ options ] ), https://tc39.es/proposal-temporal/#sec-temporal.plaindate.prototype.tostring
+JS_DEFINE_NATIVE_FUNCTION(PlainDatePrototype::to_string)
+{
+    // 1. Let temporalDate be the this value.
+    // 2. Perform ? RequireInternalSlot(temporalDate, [[InitializedTemporalDate]]).
+    auto temporal_date = TRY(typed_this_object(vm));
+
+    // 3. Let resolvedOptions be ? GetOptionsObject(options).
+    auto resolved_options = TRY(get_options_object(vm, vm.argument(0)));
+
+    // 4. Let showCalendar be ? GetTemporalShowCalendarNameOption(resolvedOptions).
+    auto show_calendar = TRY(get_temporal_show_calendar_name_option(vm, resolved_options));
+
+    // 5. Return TemporalDateToString(temporalDate, showCalendar).
+    return PrimitiveString::create(vm, temporal_date_to_string(temporal_date, show_calendar));
+}
+
+// 3.3.31 Temporal.PlainDate.prototype.toLocaleString ( [ locales [ , options ] ] ), https://tc39.es/proposal-temporal/#sec-temporal.plaindate.prototype.tolocalestring
+// NOTE: This is the minimum toLocaleString implementation for engines without ECMA-402.
+JS_DEFINE_NATIVE_FUNCTION(PlainDatePrototype::to_locale_string)
+{
+    // 1. Let temporalDate be the this value.
+    // 2. Perform ? RequireInternalSlot(temporalDate, [[InitializedTemporalDate]]).
+    auto temporal_date = TRY(typed_this_object(vm));
+
+    // 3. Return TemporalDateToString(temporalDate, AUTO).
+    return PrimitiveString::create(vm, temporal_date_to_string(temporal_date, ShowCalendar::Auto));
+}
+
+// 3.3.32 Temporal.PlainDate.prototype.toJSON ( ), https://tc39.es/proposal-temporal/#sec-temporal.plaindate.prototype.tojson
+JS_DEFINE_NATIVE_FUNCTION(PlainDatePrototype::to_json)
+{
+    // 1. Let temporalDate be the this value.
+    // 2. Perform ? RequireInternalSlot(temporalDate, [[InitializedTemporalDate]]).
+    auto temporal_date = TRY(typed_this_object(vm));
+
+    // 3. Return TemporalDateToString(temporalDate, AUTO).
+    return PrimitiveString::create(vm, temporal_date_to_string(temporal_date, ShowCalendar::Auto));
 }
 
 }
