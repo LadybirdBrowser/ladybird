@@ -27,3 +27,5 @@ CryptoKey.type: "secret"
 CryptoKey.extractable: false
 CryptoKey.algorithm: {"name":"PBKDF2"}
 CryptoKey.usages: ["deriveKey","deriveBits"]
+instanceOf DOMException: true
+DOMException: Index out of bounds - IndexSizeError

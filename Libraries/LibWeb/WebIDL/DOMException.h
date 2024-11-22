@@ -9,6 +9,8 @@
 #include <AK/Diagnostics.h>
 #include <AK/String.h>
 #include <LibWeb/Bindings/PlatformObject.h>
+#include <LibWeb/Bindings/Serializable.h>
+#include <LibWeb/Forward.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
 
 namespace Web::WebIDL {
@@ -89,12 +91,15 @@ static u16 get_legacy_code_for_name(FlyString const& name)
 }
 
 // https://webidl.spec.whatwg.org/#idl-DOMException
-class DOMException final : public Bindings::PlatformObject {
+class DOMException final
+    : public Bindings::PlatformObject
+    , public Bindings::Serializable {
     WEB_PLATFORM_OBJECT(DOMException, Bindings::PlatformObject);
     GC_DECLARE_ALLOCATOR(DOMException);
 
 public:
     static GC::Ref<DOMException> create(JS::Realm& realm, FlyString name, String message);
+    static GC::Ref<DOMException> create(JS::Realm& realm);
 
     // JS constructor has message first, name second
     // FIXME: This is a completely pointless footgun, let's use the same order for both factories.
@@ -106,8 +111,14 @@ public:
     FlyString const& message() const { return m_message; }
     u16 code() const { return get_legacy_code_for_name(m_name); }
 
+    virtual StringView interface_name() const override { return "DOMException"sv; }
+
+    virtual ExceptionOr<void> serialization_steps(HTML::SerializationRecord& record, bool for_storage, HTML::SerializationMemory&) override;
+    virtual ExceptionOr<void> deserialization_steps(ReadonlySpan<u32> const& record, size_t& position, HTML::DeserializationMemory&) override;
+
 protected:
     DOMException(JS::Realm&, FlyString name, String message);
+    explicit DOMException(JS::Realm&);
 
     virtual void initialize(JS::Realm&) override;
 
