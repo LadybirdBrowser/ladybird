@@ -788,7 +788,7 @@ Crypto::SignedBigInteger round_number_to_increment(Crypto::SignedBigInteger cons
     Sign is_negative;
 
     // 2. If quotient < 0, then
-    if (division_result.quotient.is_negative()) {
+    if (division_result.quotient.is_negative() || division_result.remainder.is_negative()) {
         // a. Let isNegative be NEGATIVE.
         is_negative = Sign::Negative;
 
