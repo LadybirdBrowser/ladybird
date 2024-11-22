@@ -796,7 +796,7 @@ public:
     void set_justify_items(CSS::JustifyItems value) { m_noninherited.justify_items = value; }
     void set_justify_self(CSS::JustifySelf value) { m_noninherited.justify_self = value; }
     void set_box_shadow(Vector<ShadowData>&& value) { m_noninherited.box_shadow = move(value); }
-    void set_rotate(CSS::Transformation value) { m_noninherited.rotate = value; }
+    void set_rotate(CSS::Transformation value) { m_noninherited.rotate = move(value); }
     void set_transformations(Vector<CSS::Transformation> value) { m_noninherited.transformations = move(value); }
     void set_transform_box(CSS::TransformBox value) { m_noninherited.transform_box = value; }
     void set_transform_origin(CSS::TransformOrigin value) { m_noninherited.transform_origin = value; }

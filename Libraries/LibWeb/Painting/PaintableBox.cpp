@@ -1128,8 +1128,11 @@ void PaintableBox::resolve_paint_properties()
     set_box_shadow_data(move(resolved_box_shadow_data));
 
     auto const& transformations = computed_values.transformations();
-    if (!transformations.is_empty()) {
+    auto const& rotate = computed_values.rotate();
+    if (!transformations.is_empty() || rotate.has_value()) {
         auto matrix = Gfx::FloatMatrix4x4::identity();
+        if (rotate.has_value())
+            matrix = matrix * rotate->to_matrix(*this).release_value();
         for (auto const& transform : transformations)
             matrix = matrix * transform.to_matrix(*this).release_value();
         set_transform(matrix);

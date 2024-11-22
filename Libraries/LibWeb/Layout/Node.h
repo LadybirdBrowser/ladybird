@@ -178,7 +178,14 @@ public:
     // https://www.w3.org/TR/CSS22/visuren.html#positioning-scheme
     bool is_in_flow() const { return !is_out_of_flow(); }
 
-    bool has_css_transform() const { return computed_values().transformations().size() > 0; }
+    [[nodiscard]] bool has_css_transform() const
+    {
+        if (!computed_values().transformations().is_empty())
+            return true;
+        if (computed_values().rotate().has_value())
+            return true;
+        return false;
+    }
 
 protected:
     Node(DOM::Document&, DOM::Node*);
