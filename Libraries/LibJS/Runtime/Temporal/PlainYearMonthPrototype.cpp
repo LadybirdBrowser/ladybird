@@ -50,6 +50,7 @@ void PlainYearMonthPrototype::initialize(Realm& realm)
     define_native_function(realm, vm.names.toString, to_string, 0, attr);
     define_native_function(realm, vm.names.toLocaleString, to_locale_string, 0, attr);
     define_native_function(realm, vm.names.toJSON, to_json, 0, attr);
+    define_native_function(realm, vm.names.valueOf, value_of, 0, attr);
 }
 
 // 9.3.3 get Temporal.PlainYearMonth.prototype.calendarId, https://tc39.es/proposal-temporal/#sec-get-temporal.plainyearmonth.prototype.calendarid
@@ -287,6 +288,13 @@ JS_DEFINE_NATIVE_FUNCTION(PlainYearMonthPrototype::to_json)
 
     // 3. Return TemporalYearMonthToString(yearMonth, AUTO).
     return PrimitiveString::create(vm, temporal_year_month_to_string(year_month, ShowCalendar::Auto));
+}
+
+// 9.3.22 Temporal.PlainYearMonth.prototype.valueOf ( ), https://tc39.es/proposal-temporal/#sec-temporal.plainyearmonth.prototype.valueof
+JS_DEFINE_NATIVE_FUNCTION(PlainYearMonthPrototype::value_of)
+{
+    // 1. Throw a TypeError exception.
+    return vm.throw_completion<TypeError>(ErrorType::Convert, "Temporal.PlainYearMonth", "a primitive value");
 }
 
 }
