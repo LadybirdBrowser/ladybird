@@ -409,7 +409,128 @@ ThrowCompletionOr<RelativeTo> get_temporal_relative_to_option(VM& vm, Object con
     if (value.is_undefined())
         return RelativeTo { .plain_relative_to = {}, .zoned_relative_to = {} };
 
-    // FIXME: Implement the remaining steps of this AO when we have implemented PlainRelativeTo and ZonedRelativeTo.
+    // FIXME: 3. Let offsetBehaviour be OPTION.
+    // FIXME: 4. Let matchBehaviour be MATCH-EXACTLY.
+
+    String calendar;
+    Optional<String> time_zone;
+    Optional<String> offset_string;
+    ISODate iso_date;
+    Variant<ParsedISODateTime::StartOfDay, Time> time { Time {} };
+
+    // 5. If value is an Object, then
+    if (value.is_object()) {
+        auto& object = value.as_object();
+
+        // FIXME: a. If value has an [[InitializedTemporalZonedDateTime]] internal slot, then
+        // FIXME:     i. Return the Record { [[PlainRelativeTo]]: undefined, [[ZonedRelativeTo]]: value }.
+
+        // b. If value has an [[InitializedTemporalDate]] internal slot, then
+        if (is<PlainDate>(object)) {
+            // i. Return the Record { [[PlainRelativeTo]]: value, [[ZonedRelativeTo]]: undefined }.
+            return RelativeTo { .plain_relative_to = static_cast<PlainDate&>(object), .zoned_relative_to = {} };
+        }
+
+        // FIXME: c. If value has an [[InitializedTemporalDateTime]] internal slot, then
+        // FIXME:     i. Let plainDate be ! CreateTemporalDate(value.[[ISODateTime]].[[ISODate]], value.[[Calendar]]).
+        // FIXME:     ii. Return the Record { [[PlainRelativeTo]]: plainDate, [[ZonedRelativeTo]]: undefined }.
+
+        // FIXME: d. Let calendar be ? GetTemporalCalendarIdentifierWithISODefault(value).
+        calendar = TRY(get_temporal_calendar_identifier_with_iso_default(vm, object));
+
+        // e. Let fields be ? PrepareCalendarFields(calendar, value, « YEAR, MONTH, MONTH-CODE, DAY », « HOUR, MINUTE, SECOND, MILLISECOND, MICROSECOND, NANOSECOND, OFFSET, TIME-ZONE », «»).
+        static constexpr auto calendar_field_names = to_array({ CalendarField::Year, CalendarField::Month, CalendarField::MonthCode, CalendarField::Day });
+        static constexpr auto non_calendar_field_names = to_array({ CalendarField::Hour, CalendarField::Minute, CalendarField::Second, CalendarField::Millisecond, CalendarField::Microsecond, CalendarField::Nanosecond, CalendarField::Offset, CalendarField::TimeZone });
+        auto fields = TRY(prepare_calendar_fields(vm, calendar, object, calendar_field_names, non_calendar_field_names, CalendarFieldList {}));
+
+        // f. Let result be ? InterpretTemporalDateTimeFields(calendar, fields, CONSTRAIN).
+        auto result = TRY(interpret_temporal_date_time_fields(vm, calendar, fields, Overflow::Constrain));
+
+        // g. Let timeZone be fields.[[TimeZone]].
+        time_zone = move(fields.time_zone);
+
+        // h. Let offsetString be fields.[[Offset]].
+        offset_string = move(fields.offset);
+
+        // i. If offsetString is UNSET, then
+        if (!offset_string.has_value()) {
+            // FIXME: i. Set offsetBehaviour to WALL.
+        }
+
+        // j. Let isoDate be result.[[ISODate]].
+        iso_date = result.iso_date;
+
+        // k. Let time be result.[[Time]].
+        time = result.time;
+    }
+    // 6. Else,
+    else {
+        // a. If value is not a String, throw a TypeError exception.
+        if (!value.is_string())
+            return vm.throw_completion<TypeError>(ErrorType::NotAString, vm.names.relativeTo);
+
+        // b. Let result be ? ParseISODateTime(value, « TemporalDateTimeString[+Zoned], TemporalDateTimeString[~Zoned] »).
+        auto result = TRY(parse_iso_date_time(vm, value.as_string().utf8_string_view(), { { Production::TemporalZonedDateTimeString, Production::TemporalDateTimeString } }));
+
+        // c. Let offsetString be result.[[TimeZone]].[[OffsetString]].
+        offset_string = move(result.time_zone.offset_string);
+
+        // d. Let annotation be result.[[TimeZone]].[[TimeZoneAnnotation]].
+        auto annotation = move(result.time_zone.time_zone_annotation);
+
+        // e. If annotation is EMPTY, then
+        if (!annotation.has_value()) {
+            // i. Let timeZone be UNSET.
+            time_zone = {};
+        }
+        // f. Else,
+        else {
+            // i. Let timeZone be ? ToTemporalTimeZoneIdentifier(annotation).
+            time_zone = TRY(to_temporal_time_zone_identifier(vm, *annotation));
+
+            // ii. If result.[[TimeZone]].[[Z]] is true, then
+            if (result.time_zone.z_designator) {
+                // FIXME: 1. Set offsetBehaviour to EXACT.
+            }
+            // iii. Else if offsetString is EMPTY, then
+            else if (!offset_string.has_value()) {
+                // FIXME: 1. Set offsetBehaviour to WALL.
+            }
+
+            // FIXME: iv. Set matchBehaviour to MATCH-MINUTES.
+        }
+
+        // g. Let calendar be result.[[Calendar]].
+        // h. If calendar is EMPTY, set calendar to "iso8601".
+        calendar = result.calendar.value_or("iso8601"_string);
+
+        // i. Set calendar to ? CanonicalizeCalendar(calendar).
+        calendar = TRY(canonicalize_calendar(vm, calendar));
+
+        // j. Let isoDate be CreateISODateRecord(result.[[Year]], result.[[Month]], result.[[Day]]).
+        iso_date = create_iso_date_record(*result.year, result.month, result.day);
+
+        // k. Let time be result.[[Time]].
+        time = result.time;
+    }
+
+    // 7. If timeZone is UNSET, then
+    if (!time_zone.has_value()) {
+        // a. Let plainDate be ? CreateTemporalDate(isoDate, calendar).
+        auto plain_date = TRY(create_temporal_date(vm, iso_date, move(calendar)));
+
+        // b. Return the Record { [[PlainRelativeTo]]: plainDate, [[ZonedRelativeTo]]: undefined }.
+        return RelativeTo { .plain_relative_to = plain_date, .zoned_relative_to = {} };
+    }
+
+    // FIXME: 8. If offsetBehaviour is OPTION, then
+    // FIXME:     a. Let offsetNs be ! ParseDateTimeUTCOffset(offsetString).
+    // FIXME: 9. Else,
+    // FIXME:     a. Let offsetNs be 0.
+    // FIXME: 10. Let epochNanoseconds be ? InterpretISODateTimeOffset(isoDate, time, offsetBehaviour, offsetNs, timeZone, compatible, reject, matchBehaviour).
+    // FIXME: 11. Let zonedRelativeTo be ! CreateTemporalZonedDateTime(epochNanoseconds, timeZone, calendar).
+    // FIXME: 12. Return the Record { [[PlainRelativeTo]]: undefined, [[ZonedRelativeTo]]: zonedRelativeTo }.
+
     return RelativeTo { .plain_relative_to = {}, .zoned_relative_to = {} };
 }
 

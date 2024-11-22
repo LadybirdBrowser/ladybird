@@ -46,6 +46,46 @@ Time noon_time_record()
     return { .days = 0, .hour = 12, .minute = 0, .second = 0, .millisecond = 0, .microsecond = 0, .nanosecond = 0 };
 }
 
+// 4.5.8 RegulateTime ( hour, minute, second, millisecond, microsecond, nanosecond, overflow ), https://tc39.es/proposal-temporal/#sec-temporal-regulatetime
+ThrowCompletionOr<Time> regulate_time(VM& vm, double hour, double minute, double second, double millisecond, double microsecond, double nanosecond, Overflow overflow)
+{
+    switch (overflow) {
+    // 1. If overflow is CONSTRAIN, then
+    case Overflow::Constrain:
+        // a. Set hour to the result of clamping hour between 0 and 23.
+        hour = clamp(hour, 0, 23);
+
+        // b. Set minute to the result of clamping minute between 0 and 59.
+        minute = clamp(minute, 0, 59);
+
+        // c. Set second to the result of clamping second between 0 and 59.
+        second = clamp(second, 0, 59);
+
+        // d. Set millisecond to the result of clamping millisecond between 0 and 999.
+        millisecond = clamp(millisecond, 0, 999);
+
+        // e. Set microsecond to the result of clamping microsecond between 0 and 999.
+        microsecond = clamp(microsecond, 0, 999);
+
+        // f. Set nanosecond to the result of clamping nanosecond between 0 and 999.
+        nanosecond = clamp(nanosecond, 0, 999);
+
+        break;
+
+    // 2. Else,
+    case Overflow::Reject:
+        // a. Assert: overflow is REJECT.
+        // b. If IsValidTime(hour, minute, second, millisecond, microsecond, nanosecond) is false, throw a RangeError exception.
+        if (!is_valid_time(hour, minute, second, millisecond, microsecond, nanosecond))
+            return vm.throw_completion<RangeError>(ErrorType::TemporalInvalidPlainTime);
+
+        break;
+    }
+
+    // 3. Return CreateTimeRecord(hour, minute, second, millisecond, microsecond,nanosecond).
+    return create_time_record(hour, minute, second, millisecond, microsecond, nanosecond);
+}
+
 // 4.5.9 IsValidTime ( hour, minute, second, millisecond, microsecond, nanosecond ), https://tc39.es/proposal-temporal/#sec-temporal-isvalidtime
 bool is_valid_time(double hour, double minute, double second, double millisecond, double microsecond, double nanosecond)
 {
