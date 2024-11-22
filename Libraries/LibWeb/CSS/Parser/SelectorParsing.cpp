@@ -86,10 +86,9 @@ static NonnullRefPtr<Selector> create_invalid_selector(Selector::Combinator comb
 template<typename T>
 Parser::ParseErrorOr<SelectorList> Parser::parse_a_selector_list(TokenStream<T>& tokens, SelectorType mode, SelectorParsingMode parsing_mode)
 {
-    auto comma_separated_lists = parse_a_comma_separated_list_of_component_values(tokens);
-
     SelectorList selectors;
-    for (auto& selector_parts : comma_separated_lists) {
+    for (;;) {
+        auto selector_parts = consume_a_list_of_component_values(tokens, Token::Type::Comma);
         auto stream = TokenStream(selector_parts);
         auto selector = parse_complex_selector(stream, mode);
         if (selector.is_error()) {
@@ -97,11 +96,17 @@ Parser::ParseErrorOr<SelectorList> Parser::parse_a_selector_list(TokenStream<T>&
                 // Keep the invalid selector around for serialization and nesting
                 auto combinator = mode == SelectorType::Standalone ? Selector::Combinator::None : Selector::Combinator::Descendant;
                 selectors.append(create_invalid_selector(combinator, move(selector_parts)));
-                continue;
+            } else {
+                return selector.error();
             }
-            return selector.error();
+        } else {
+            selectors.append(selector.release_value());
         }
-        selectors.append(selector.release_value());
+
+        if (tokens.is_empty())
+            break;
+
+        tokens.discard_a_token();
     }
 
     if (selectors.is_empty() && parsing_mode != SelectorParsingMode::Forgiving)

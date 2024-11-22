@@ -768,6 +768,8 @@ Vector<ComponentValue> Parser::consume_a_list_of_component_values(TokenStream<T>
         }
     }
 }
+template Vector<ComponentValue> Parser::consume_a_list_of_component_values(TokenStream<ComponentValue>& input, Optional<Token::Type> stop_token, Nested nested);
+template Vector<ComponentValue> Parser::consume_a_list_of_component_values(TokenStream<Token>& input, Optional<Token::Type> stop_token, Nested nested);
 
 // https://drafts.csswg.org/css-syntax/#consume-simple-block
 template<typename T>
