@@ -6,7 +6,8 @@
 
 #include <AK/MemoryStream.h>
 #include <AK/String.h>
-#include <LibGfx/DeprecatedPainter.h>
+#include <LibGfx/PainterSkia.h>
+#include <LibGfx/Rect.h>
 #include <UI/Qt/StringUtils.h>
 #include <UI/Qt/TVGIconEngine.h>
 
@@ -34,15 +35,32 @@ QPixmap TVGIconEngine::pixmap(QSize const& size, QIcon::Mode mode, QIcon::State 
     if (QPixmapCache::find(key, &pixmap))
         return pixmap;
     auto bitmap = MUST(Gfx::Bitmap::create(Gfx::BitmapFormat::BGRA8888, { size.width(), size.height() }));
-    Gfx::DeprecatedPainter painter { *bitmap };
-    m_image_data->draw_into(painter, bitmap->rect());
+
+    auto painter = Gfx::PainterSkia::create(bitmap);
+    painter->clear_rect(bitmap->rect().to_type<float>(), Gfx::Color::Transparent);
+
+    m_image_data->draw_into(*painter, bitmap->rect());
+
     for (auto const& filter : m_filters) {
         if (filter->mode() == mode) {
-            painter.blit_filtered({}, *bitmap, bitmap->rect(), filter->function(), false);
+            for (int y = 0; y < bitmap->height(); ++y) {
+                for (int x = 0; x < bitmap->width(); ++x) {
+                    auto original_color = bitmap->get_pixel(x, y);
+                    auto filtered_color = filter->function()(original_color);
+                    bitmap->set_pixel(x, y, filtered_color);
+                }
+            }
             break;
         }
     }
-    QImage qimage { bitmap->scanline_u8(0), bitmap->width(), bitmap->height(), QImage::Format::Format_ARGB32 };
+
+    QImage qimage(
+        bitmap->scanline_u8(0),
+        bitmap->width(),
+        bitmap->height(),
+        static_cast<qsizetype>(bitmap->pitch()),
+        QImage::Format::Format_ARGB32);
+
     pixmap = QPixmap::fromImage(qimage);
     if (!pixmap.isNull())
         QPixmapCache::insert(key, pixmap);
