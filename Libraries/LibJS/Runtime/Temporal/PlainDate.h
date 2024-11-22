@@ -48,6 +48,7 @@ ThrowCompletionOr<ISODate> regulate_iso_date(VM& vm, double year, double month, 
 bool is_valid_iso_date(double year, double month, double day);
 ISODate balance_iso_date(double year, double month, double day);
 String pad_iso_year(i32 year);
+String temporal_date_to_string(PlainDate const&, ShowCalendar);
 bool iso_date_within_limits(ISODate);
 i8 compare_iso_date(ISODate, ISODate);
 

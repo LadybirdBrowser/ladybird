@@ -255,6 +255,25 @@ String pad_iso_year(i32 year)
     return MUST(String::formatted("{}{:06}", year_sign, abs(year)));
 }
 
+// 3.5.10 TemporalDateToString ( temporalDate, showCalendar ), https://tc39.es/proposal-temporal/#sec-temporal-temporaldatetostring
+String temporal_date_to_string(PlainDate const& temporal_date, ShowCalendar show_calendar)
+{
+    // 1. Let year be PadISOYear(temporalDate.[[ISODate]].[[Year]]).
+    auto year = pad_iso_year(temporal_date.iso_date().year);
+
+    // 2. Let month be ToZeroPaddedDecimalString(temporalDate.[[ISODate]].[[Month]], 2).
+    auto month = temporal_date.iso_date().month;
+
+    // 3. Let day be ToZeroPaddedDecimalString(temporalDate.[[ISODate]].[[Day]], 2).
+    auto day = temporal_date.iso_date().day;
+
+    // 4. Let calendar be FormatCalendarAnnotation(temporalDate.[[Calendar]], showCalendar).
+    auto calendar = format_calendar_annotation(temporal_date.calendar(), show_calendar);
+
+    // 5. Return the string-concatenation of year, the code unit 0x002D (HYPHEN-MINUS), month, the code unit 0x002D (HYPHEN-MINUS), day, and calendar.
+    return MUST(String::formatted("{}-{:02}-{:02}{}", year, month, day, calendar));
+}
+
 // 3.5.11 ISODateWithinLimits ( isoDate ), https://tc39.es/proposal-temporal/#sec-temporal-isodatewithinlimits
 bool iso_date_within_limits(ISODate iso_date)
 {
