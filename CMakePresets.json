@@ -239,8 +239,8 @@
       "inherits": "default",
       "configurePreset": "Sanitizer",
       "environment": {
-        "ASAN_OPTIONS": "strict_string_checks=1:check_initialization_order=1:strict_init_order=1:detect_stack_use_after_return=1:allocator_may_return_null=1",
-        "UBSAN_OPTIONS": "print_stacktrace=1:print_summary=1:halt_on_error=1"
+        "ASAN_OPTIONS": "strict_string_checks=1:check_initialization_order=1:strict_init_order=1:detect_stack_use_after_return=1:allocator_may_return_null=1:$penv{ASAN_OPTIONS}",
+        "UBSAN_OPTIONS": "print_stacktrace=1:print_summary=1:halt_on_error=1:$penv{UBSAN_OPTIONS}"
       }
     },
     {

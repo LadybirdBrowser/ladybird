@@ -185,6 +185,9 @@ jobs:
         run: ctest --preset Sanitizer --output-on-failure --test-dir Build --timeout 1800
         env:
           TESTS_ONLY: 1
+          # NOTE: These are appended to the preset's options.
+          ASAN_OPTIONS: 'log_path=${{ github.workspace }}/asan.log'
+          UBSAN_OPTIONS: 'log_path=${{ github.workspace }}/ubsan.log'
 
       - name: Upload LibWeb Test Artifacts
         if: ${{ always() && inputs.fuzzer == 'NO_FUZZ' }}
@@ -194,6 +197,19 @@ jobs:
           path: ${{ github.workspace }}/Build/UI/Headless/test-dumps
           retention-days: 0
           if-no-files-found: ignore
+
+      - name: Sanitizer Output
+        if: ${{ !cancelled() && inputs.fuzzer == 'NO_FUZZ' }}
+        working-directory: ${{ github.workspace }}
+        run: |
+          log_output=$(find . -maxdepth 1 \( -name 'asan.log.*' -o -name 'ubsan.log.*' \) -exec cat {} \; )
+          if [ -z "$log_output" ]; then
+            echo "No sanitizer issues found."
+          else
+            echo "$log_output"
+            echo "Sanitizer errors happened while running tests; see the Test step above."
+            exit 1
+          fi
 
       - name: Lints
         if: ${{ inputs.os_name == 'Linux' && inputs.fuzzer == 'NO_FUZZ' }}
