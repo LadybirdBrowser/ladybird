@@ -1,0 +1,14 @@
+Summary
+
+Harness status: OK
+
+Rerun
+
+Found 4 tests
+
+4 Pass
+Details
+Result	Test Name	MessagePass	aria-labelledby reference to element with slotted text content	
+Pass	aria-labelledby reference to element with default slotted text content	
+Pass	aria-labelledby reference to element with slotted text content and aria-label on slot	
+Pass	aria-labelledby reference to element with default slotted text content and aria-label on slot	
