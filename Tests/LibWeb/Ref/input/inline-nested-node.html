@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<link rel="match" href="../expected/inline-nested-node-ref.html">
+<style>
+  .bluebg {
+    background-color: #0000FF7F;
+  }
+</style>
+<body>
+    <div>
+        <span class="bluebg">1<span>2</span></span>
+    </div>
+    <div>
+        <span class="bluebg"><span>1</span>2</span>
+    </div>
+    <div>
+        <span class="bluebg">1<span>2</span>3<span>4</span></span><span>consecutive inline item</span>
+    </div>
+    <div>
+        <span class="bluebg"><span>2</span><span>4</span></span>
+    </div>
+</body>
