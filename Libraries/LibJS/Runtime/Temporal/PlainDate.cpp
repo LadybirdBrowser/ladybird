@@ -11,6 +11,7 @@
 #include <LibJS/Runtime/AbstractOperations.h>
 #include <LibJS/Runtime/Temporal/Calendar.h>
 #include <LibJS/Runtime/Temporal/DateEquations.h>
+#include <LibJS/Runtime/Temporal/Duration.h>
 #include <LibJS/Runtime/Temporal/PlainDate.h>
 #include <LibJS/Runtime/Temporal/PlainDateConstructor.h>
 #include <LibJS/Runtime/Temporal/PlainDateTime.h>
@@ -313,6 +314,35 @@ i8 compare_iso_date(ISODate iso_date1, ISODate iso_date2)
 
     // 7. Return 0.
     return 0;
+}
+
+// 3.5.14 AddDurationToDate ( operation, temporalDate, temporalDurationLike, options ), https://tc39.es/proposal-temporal/#sec-temporal-adddurationtodate
+ThrowCompletionOr<GC::Ref<PlainDate>> add_duration_to_date(VM& vm, ArithmeticOperation operation, PlainDate const& temporal_date, Value temporal_duration_like, Value options)
+{
+    // 1. Let calendar be temporalDate.[[Calendar]].
+    auto const& calendar = temporal_date.calendar();
+
+    // 2. Let duration be ? ToTemporalDuration(temporalDurationLike).
+    auto duration = TRY(to_temporal_duration(vm, temporal_duration_like));
+
+    // 3. If operation is SUBTRACT, set duration to CreateNegatedTemporalDuration(duration).
+    if (operation == ArithmeticOperation::Subtract)
+        duration = create_negated_temporal_duration(vm, duration);
+
+    // 4. Let dateDuration be ? ToDateDurationRecordWithoutTime(duration).
+    auto date_duration = TRY(to_date_duration_record_without_time(vm, duration));
+
+    // 5. Let resolvedOptions be ? GetOptionsObject(options).
+    auto resolved_options = TRY(get_options_object(vm, options));
+
+    // 6. Let overflow be ? GetTemporalOverflowOption(resolvedOptions).
+    auto overflow = TRY(get_temporal_overflow_option(vm, resolved_options));
+
+    // 7. Let result be ? CalendarDateAdd(calendar, temporalDate.[[ISODate]], dateDuration, overflow).
+    auto result = TRY(calendar_date_add(vm, calendar, temporal_date.iso_date(), date_duration, overflow));
+
+    // 8. Return ! CreateTemporalDate(result, calendar).
+    return MUST(create_temporal_date(vm, result, calendar));
 }
 
 }
