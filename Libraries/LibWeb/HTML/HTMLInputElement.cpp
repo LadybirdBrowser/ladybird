@@ -638,6 +638,7 @@ void HTMLInputElement::commit_pending_changes()
     case TypeAttributeState::Text:
     case TypeAttributeState::URL:
     case TypeAttributeState::Checkbox:
+    case TypeAttributeState::RadioButton:
         if (!m_has_uncommitted_changes)
             return;
         break;
